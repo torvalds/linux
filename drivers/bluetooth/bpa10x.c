@@ -2,7 +2,7 @@
  *
  *  Digianswer Bluetooth USB driver
  *
- *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
+ *  Copyright (C) 2004-2007  Marcel Holtmann <marcel@holtmann.org>
  *
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -21,13 +21,14 @@
  *
  */
 
-#include <linux/module.h>
-
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/sched.h>
 #include <linux/errno.h>
+#include <linux/skbuff.h>
 
 #include <linux/usb.h>
 
@@ -39,7 +40,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "0.8"
+#define VERSION "0.9"
 
 static int ignore = 0;
 
@@ -52,393 +53,285 @@ static struct usb_device_id bpa10x_table[] = {
 
 MODULE_DEVICE_TABLE(usb, bpa10x_table);
 
-#define BPA10X_CMD_EP		0x00
-#define BPA10X_EVT_EP		0x81
-#define BPA10X_TX_EP		0x02
-#define BPA10X_RX_EP		0x82
-
-#define BPA10X_CMD_BUF_SIZE	252
-#define BPA10X_EVT_BUF_SIZE	16
-#define BPA10X_TX_BUF_SIZE	384
-#define BPA10X_RX_BUF_SIZE	384
-
 struct bpa10x_data {
-	struct hci_dev		*hdev;
-	struct usb_device	*udev;
+	struct hci_dev    *hdev;
+	struct usb_device *udev;
 
-	rwlock_t		lock;
+	struct usb_anchor tx_anchor;
+	struct usb_anchor rx_anchor;
 
-	struct sk_buff_head	cmd_queue;
-	struct urb		*cmd_urb;
-	struct urb		*evt_urb;
-	struct sk_buff		*evt_skb;
-	unsigned int		evt_len;
-
-	struct sk_buff_head	tx_queue;
-	struct urb		*tx_urb;
-	struct urb		*rx_urb;
+	struct sk_buff *rx_skb[2];
 };
 
-#define HCI_VENDOR_HDR_SIZE	5
+#define HCI_VENDOR_HDR_SIZE 5
 
 struct hci_vendor_hdr {
-	__u8	type;
-	__le16	snum;
-	__le16	dlen;
+	__u8    type;
+	__le16  snum;
+	__le16  dlen;
 } __attribute__ ((packed));
 
-static void bpa10x_recv_bulk(struct bpa10x_data *data, unsigned char *buf, int count)
+static int bpa10x_recv(struct hci_dev *hdev, int queue, void *buf, int count)
 {
-	struct hci_acl_hdr *ah;
-	struct hci_sco_hdr *sh;
-	struct hci_vendor_hdr *vh;
-	struct sk_buff *skb;
-	int len;
+	struct bpa10x_data *data = hdev->driver_data;
+
+	BT_DBG("%s queue %d buffer %p count %d", hdev->name,
+							queue, buf, count);
+
+	if (queue < 0 || queue > 1)
+		return -EILSEQ;
+
+	hdev->stat.byte_rx += count;
 
 	while (count) {
-		switch (*buf++) {
-		case HCI_ACLDATA_PKT:
-			ah = (struct hci_acl_hdr *) buf;
-			len = HCI_ACL_HDR_SIZE + __le16_to_cpu(ah->dlen);
-			skb = bt_skb_alloc(len, GFP_ATOMIC);
-			if (skb) {
-				memcpy(skb_put(skb, len), buf, len);
-				skb->dev = (void *) data->hdev;
-				bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-				hci_recv_frame(skb);
-			}
-			break;
+		struct sk_buff *skb = data->rx_skb[queue];
+		struct { __u8 type; int expect; } *scb;
+		int type, len = 0;
 
-		case HCI_SCODATA_PKT:
-			sh = (struct hci_sco_hdr *) buf;
-			len = HCI_SCO_HDR_SIZE + sh->dlen;
-			skb = bt_skb_alloc(len, GFP_ATOMIC);
-			if (skb) {
-				memcpy(skb_put(skb, len), buf, len);
-				skb->dev = (void *) data->hdev;
-				bt_cb(skb)->pkt_type = HCI_SCODATA_PKT;
-				hci_recv_frame(skb);
-			}
-			break;
-
-		case HCI_VENDOR_PKT:
-			vh = (struct hci_vendor_hdr *) buf;
-			len = HCI_VENDOR_HDR_SIZE + __le16_to_cpu(vh->dlen);
-			skb = bt_skb_alloc(len, GFP_ATOMIC);
-			if (skb) {
-				memcpy(skb_put(skb, len), buf, len);
-				skb->dev = (void *) data->hdev;
-				bt_cb(skb)->pkt_type = HCI_VENDOR_PKT;
-				hci_recv_frame(skb);
-			}
-			break;
-
-		default:
-			len = count - 1;
-			break;
-		}
-
-		buf   += len;
-		count -= (len + 1);
-	}
-}
-
-static int bpa10x_recv_event(struct bpa10x_data *data, unsigned char *buf, int size)
-{
-	BT_DBG("data %p buf %p size %d", data, buf, size);
-
-	if (data->evt_skb) {
-		struct sk_buff *skb = data->evt_skb;
-
-		memcpy(skb_put(skb, size), buf, size);
-
-		if (skb->len == data->evt_len) {
-			data->evt_skb = NULL;
-			data->evt_len = 0;
-			hci_recv_frame(skb);
-		}
-	} else {
-		struct sk_buff *skb;
-		struct hci_event_hdr *hdr;
-		unsigned char pkt_type;
-		int pkt_len = 0;
-
-		if (size < HCI_EVENT_HDR_SIZE + 1) {
-			BT_ERR("%s event packet block with size %d is too short",
-							data->hdev->name, size);
-			return -EILSEQ;
-		}
-
-		pkt_type = *buf++;
-		size--;
-
-		if (pkt_type != HCI_EVENT_PKT) {
-			BT_ERR("%s unexpected event packet start byte 0x%02x",
-							data->hdev->name, pkt_type);
-			return -EPROTO;
-		}
-
-		hdr = (struct hci_event_hdr *) buf;
-		pkt_len = HCI_EVENT_HDR_SIZE + hdr->plen;
-
-		skb = bt_skb_alloc(pkt_len, GFP_ATOMIC);
 		if (!skb) {
-			BT_ERR("%s no memory for new event packet",
-							data->hdev->name);
-			return -ENOMEM;
-		}
+			/* Start of the frame */
 
-		skb->dev = (void *) data->hdev;
-		bt_cb(skb)->pkt_type = pkt_type;
+			type = *((__u8 *) buf);
+			count--; buf++;
 
-		memcpy(skb_put(skb, size), buf, size);
+			switch (type) {
+			case HCI_EVENT_PKT:
+				if (count >= HCI_EVENT_HDR_SIZE) {
+					struct hci_event_hdr *h = buf;
+					len = HCI_EVENT_HDR_SIZE + h->plen;
+				} else
+					return -EILSEQ;
+				break;
 
-		if (pkt_len == size) {
-			hci_recv_frame(skb);
+			case HCI_ACLDATA_PKT:
+				if (count >= HCI_ACL_HDR_SIZE) {
+					struct hci_acl_hdr *h = buf;
+					len = HCI_ACL_HDR_SIZE +
+							__le16_to_cpu(h->dlen);
+				} else
+					return -EILSEQ;
+				break;
+
+			case HCI_SCODATA_PKT:
+				if (count >= HCI_SCO_HDR_SIZE) {
+					struct hci_sco_hdr *h = buf;
+					len = HCI_SCO_HDR_SIZE + h->dlen;
+				} else
+					return -EILSEQ;
+				break;
+
+			case HCI_VENDOR_PKT:
+				if (count >= HCI_VENDOR_HDR_SIZE) {
+					struct hci_vendor_hdr *h = buf;
+					len = HCI_VENDOR_HDR_SIZE +
+							__le16_to_cpu(h->dlen);
+				} else
+					return -EILSEQ;
+				break;
+			}
+
+			skb = bt_skb_alloc(len, GFP_ATOMIC);
+			if (!skb) {
+				BT_ERR("%s no memory for packet", hdev->name);
+				return -ENOMEM;
+			}
+
+			skb->dev = (void *) hdev;
+
+			data->rx_skb[queue] = skb;
+
+			scb = (void *) skb->cb;
+			scb->type = type;
+			scb->expect = len;
 		} else {
-			data->evt_skb = skb;
-			data->evt_len = pkt_len;
+			/* Continuation */
+
+			scb = (void *) skb->cb;
+			len = scb->expect;
 		}
+
+		len = min(len, count);
+
+		memcpy(skb_put(skb, len), buf, len);
+
+		scb->expect -= len;
+
+		if (scb->expect == 0) {
+			/* Complete frame */
+
+			data->rx_skb[queue] = NULL;
+
+			bt_cb(skb)->pkt_type = scb->type;
+			hci_recv_frame(skb);
+		}
+
+		count -= len; buf += len;
 	}
 
 	return 0;
 }
 
-static void bpa10x_wakeup(struct bpa10x_data *data)
+static void bpa10x_tx_complete(struct urb *urb)
 {
-	struct urb *urb;
-	struct sk_buff *skb;
+	struct sk_buff *skb = urb->context;
+	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
+
+	BT_DBG("%s urb %p status %d count %d", hdev->name,
+					urb, urb->status, urb->actual_length);
+
+	if (!test_bit(HCI_RUNNING, &hdev->flags))
+		goto done;
+
+	if (!urb->status)
+		hdev->stat.byte_tx += urb->transfer_buffer_length;
+	else
+		hdev->stat.err_tx++;
+
+done:
+	kfree(urb->setup_packet);
+
+	kfree_skb(skb);
+}
+
+static void bpa10x_rx_complete(struct urb *urb)
+{
+	struct hci_dev *hdev = urb->context;
+	struct bpa10x_data *data = hdev->driver_data;
 	int err;
 
-	BT_DBG("data %p", data);
+	BT_DBG("%s urb %p status %d count %d", hdev->name,
+					urb, urb->status, urb->actual_length);
 
-	urb = data->cmd_urb;
-	if (urb->status == -EINPROGRESS)
-		skb = NULL;
-	else
-		skb = skb_dequeue(&data->cmd_queue);
-
-	if (skb) {
-		struct usb_ctrlrequest *cr;
-
-		if (skb->len > BPA10X_CMD_BUF_SIZE) {
-			BT_ERR("%s command packet with size %d is too big",
-							data->hdev->name, skb->len);
-			kfree_skb(skb);
-			return;
-		}
-
-		cr = (struct usb_ctrlrequest *) urb->setup_packet;
-		cr->wLength = __cpu_to_le16(skb->len);
-
-		skb_copy_from_linear_data(skb, urb->transfer_buffer, skb->len);
-		urb->transfer_buffer_length = skb->len;
-
-		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err < 0 && err != -ENODEV) {
-			BT_ERR("%s submit failed for command urb %p with error %d",
-							data->hdev->name, urb, err);
-			skb_queue_head(&data->cmd_queue, skb);
-		} else
-			kfree_skb(skb);
-	}
-
-	urb = data->tx_urb;
-	if (urb->status == -EINPROGRESS)
-		skb = NULL;
-	else
-		skb = skb_dequeue(&data->tx_queue);
-
-	if (skb) {
-		skb_copy_from_linear_data(skb, urb->transfer_buffer, skb->len);
-		urb->transfer_buffer_length = skb->len;
-
-		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err < 0 && err != -ENODEV) {
-			BT_ERR("%s submit failed for command urb %p with error %d",
-							data->hdev->name, urb, err);
-			skb_queue_head(&data->tx_queue, skb);
-		} else
-			kfree_skb(skb);
-	}
-}
-
-static void bpa10x_complete(struct urb *urb)
-{
-	struct bpa10x_data *data = urb->context;
-	unsigned char *buf = urb->transfer_buffer;
-	int err, count = urb->actual_length;
-
-	BT_DBG("data %p urb %p buf %p count %d", data, urb, buf, count);
-
-	read_lock(&data->lock);
-
-	if (!test_bit(HCI_RUNNING, &data->hdev->flags))
-		goto unlock;
-
-	if (urb->status < 0 || !count)
-		goto resubmit;
-
-	if (usb_pipein(urb->pipe)) {
-		data->hdev->stat.byte_rx += count;
-
-		if (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)
-			bpa10x_recv_event(data, buf, count);
-
-		if (usb_pipetype(urb->pipe) == PIPE_BULK)
-			bpa10x_recv_bulk(data, buf, count);
-	} else {
-		data->hdev->stat.byte_tx += count;
-
-		bpa10x_wakeup(data);
-	}
-
-resubmit:
-	if (usb_pipein(urb->pipe)) {
-		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err < 0 && err != -ENODEV) {
-			BT_ERR("%s urb %p type %d resubmit status %d",
-				data->hdev->name, urb, usb_pipetype(urb->pipe), err);
-		}
-	}
-
-unlock:
-	read_unlock(&data->lock);
-}
-
-static inline struct urb *bpa10x_alloc_urb(struct usb_device *udev, unsigned int pipe,
-					size_t size, gfp_t flags, void *data)
-{
-	struct urb *urb;
-	struct usb_ctrlrequest *cr;
-	unsigned char *buf;
-
-	BT_DBG("udev %p data %p", udev, data);
-
-	urb = usb_alloc_urb(0, flags);
-	if (!urb)
-		return NULL;
-
-	buf = kmalloc(size, flags);
-	if (!buf) {
-		usb_free_urb(urb);
-		return NULL;
-	}
-
-	switch (usb_pipetype(pipe)) {
-	case PIPE_CONTROL:
-		cr = kmalloc(sizeof(*cr), flags);
-		if (!cr) {
-			kfree(buf);
-			usb_free_urb(urb);
-			return NULL;
-		}
-
-		cr->bRequestType = USB_TYPE_VENDOR;
-		cr->bRequest     = 0;
-		cr->wIndex       = 0;
-		cr->wValue       = 0;
-		cr->wLength      = __cpu_to_le16(0);
-
-		usb_fill_control_urb(urb, udev, pipe, (void *) cr, buf, 0, bpa10x_complete, data);
-		break;
-
-	case PIPE_INTERRUPT:
-		usb_fill_int_urb(urb, udev, pipe, buf, size, bpa10x_complete, data, 1);
-		break;
-
-	case PIPE_BULK:
-		usb_fill_bulk_urb(urb, udev, pipe, buf, size, bpa10x_complete, data);
-		break;
-
-	default:
-		kfree(buf);
-		usb_free_urb(urb);
-		return NULL;
-	}
-
-	return urb;
-}
-
-static inline void bpa10x_free_urb(struct urb *urb)
-{
-	BT_DBG("urb %p", urb);
-
-	if (!urb)
+	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return;
 
-	kfree(urb->setup_packet);
-	kfree(urb->transfer_buffer);
+	if (urb->status == 0) {
+		if (bpa10x_recv(hdev, usb_pipebulk(urb->pipe),
+						urb->transfer_buffer,
+						urb->actual_length) < 0) {
+			BT_ERR("%s corrupted event packet", hdev->name);
+			hdev->stat.err_rx++;
+		}
+	}
+
+	usb_anchor_urb(urb, &data->rx_anchor);
+
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (err < 0) {
+		BT_ERR("%s urb %p failed to resubmit (%d)",
+						hdev->name, urb, -err);
+		usb_unanchor_urb(urb);
+	}
+}
+
+static inline int bpa10x_submit_intr_urb(struct hci_dev *hdev)
+{
+	struct bpa10x_data *data = hdev->driver_data;
+	struct urb *urb;
+	unsigned char *buf;
+	unsigned int pipe;
+	int err, size = 16;
+
+	BT_DBG("%s", hdev->name);
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf) {
+		usb_free_urb(urb);
+		return -ENOMEM;
+	}
+
+	pipe = usb_rcvintpipe(data->udev, 0x81);
+
+	usb_fill_int_urb(urb, data->udev, pipe, buf, size,
+						bpa10x_rx_complete, hdev, 1);
+
+	urb->transfer_flags |= URB_FREE_BUFFER;
+
+	usb_anchor_urb(urb, &data->rx_anchor);
+
+	err = usb_submit_urb(urb, GFP_KERNEL);
+	if (err < 0) {
+		BT_ERR("%s urb %p submission failed (%d)",
+						hdev->name, urb, -err);
+		usb_unanchor_urb(urb);
+		kfree(buf);
+	}
 
 	usb_free_urb(urb);
+
+	return err;
+}
+
+static inline int bpa10x_submit_bulk_urb(struct hci_dev *hdev)
+{
+	struct bpa10x_data *data = hdev->driver_data;
+	struct urb *urb;
+	unsigned char *buf;
+	unsigned int pipe;
+	int err, size = 64;
+
+	BT_DBG("%s", hdev->name);
+
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
+	buf = kmalloc(size, GFP_KERNEL);
+	if (!buf) {
+		usb_free_urb(urb);
+		return -ENOMEM;
+	}
+
+	pipe = usb_rcvbulkpipe(data->udev, 0x82);
+
+	usb_fill_bulk_urb(urb, data->udev, pipe,
+					buf, size, bpa10x_rx_complete, hdev);
+
+	urb->transfer_flags |= URB_FREE_BUFFER;
+
+	usb_anchor_urb(urb, &data->rx_anchor);
+
+	err = usb_submit_urb(urb, GFP_KERNEL);
+	if (err < 0) {
+		BT_ERR("%s urb %p submission failed (%d)",
+						hdev->name, urb, -err);
+		usb_unanchor_urb(urb);
+		kfree(buf);
+	}
+
+	usb_free_urb(urb);
+
+	return err;
 }
 
 static int bpa10x_open(struct hci_dev *hdev)
 {
 	struct bpa10x_data *data = hdev->driver_data;
-	struct usb_device *udev = data->udev;
-	unsigned long flags;
 	int err;
 
-	BT_DBG("hdev %p data %p", hdev, data);
+	BT_DBG("%s", hdev->name);
 
 	if (test_and_set_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
 
-	data->cmd_urb = bpa10x_alloc_urb(udev, usb_sndctrlpipe(udev, BPA10X_CMD_EP),
-					BPA10X_CMD_BUF_SIZE, GFP_KERNEL, data);
-	if (!data->cmd_urb) {
-		err = -ENOMEM;
-		goto done;
-	}
-
-	data->evt_urb = bpa10x_alloc_urb(udev, usb_rcvintpipe(udev, BPA10X_EVT_EP),
-					BPA10X_EVT_BUF_SIZE, GFP_KERNEL, data);
-	if (!data->evt_urb) {
-		bpa10x_free_urb(data->cmd_urb);
-		err = -ENOMEM;
-		goto done;
-	}
-
-	data->rx_urb = bpa10x_alloc_urb(udev, usb_rcvbulkpipe(udev, BPA10X_RX_EP),
-					BPA10X_RX_BUF_SIZE, GFP_KERNEL, data);
-	if (!data->rx_urb) {
-		bpa10x_free_urb(data->evt_urb);
-		bpa10x_free_urb(data->cmd_urb);
-		err = -ENOMEM;
-		goto done;
-	}
-
-	data->tx_urb = bpa10x_alloc_urb(udev, usb_sndbulkpipe(udev, BPA10X_TX_EP),
-					BPA10X_TX_BUF_SIZE, GFP_KERNEL, data);
-	if (!data->rx_urb) {
-		bpa10x_free_urb(data->rx_urb);
-		bpa10x_free_urb(data->evt_urb);
-		bpa10x_free_urb(data->cmd_urb);
-		err = -ENOMEM;
-		goto done;
-	}
-
-	write_lock_irqsave(&data->lock, flags);
-
-	err = usb_submit_urb(data->evt_urb, GFP_ATOMIC);
-	if (err < 0) {
-		BT_ERR("%s submit failed for event urb %p with error %d",
-					data->hdev->name, data->evt_urb, err);
-	} else {
-		err = usb_submit_urb(data->rx_urb, GFP_ATOMIC);
-		if (err < 0) {
-			BT_ERR("%s submit failed for rx urb %p with error %d",
-					data->hdev->name, data->evt_urb, err);
-			usb_kill_urb(data->evt_urb);
-		}
-	}
-
-	write_unlock_irqrestore(&data->lock, flags);
-
-done:
+	err = bpa10x_submit_intr_urb(hdev);
 	if (err < 0)
-		clear_bit(HCI_RUNNING, &hdev->flags);
+		goto error;
+
+	err = bpa10x_submit_bulk_urb(hdev);
+	if (err < 0)
+		goto error;
+
+	return 0;
+
+error:
+	usb_kill_anchored_urbs(&data->rx_anchor);
+
+	clear_bit(HCI_RUNNING, &hdev->flags);
 
 	return err;
 }
@@ -446,27 +339,13 @@ done:
 static int bpa10x_close(struct hci_dev *hdev)
 {
 	struct bpa10x_data *data = hdev->driver_data;
-	unsigned long flags;
 
-	BT_DBG("hdev %p data %p", hdev, data);
+	BT_DBG("%s", hdev->name);
 
 	if (!test_and_clear_bit(HCI_RUNNING, &hdev->flags))
 		return 0;
 
-	write_lock_irqsave(&data->lock, flags);
-
-	skb_queue_purge(&data->cmd_queue);
-	usb_kill_urb(data->cmd_urb);
-	usb_kill_urb(data->evt_urb);
-	usb_kill_urb(data->rx_urb);
-	usb_kill_urb(data->tx_urb);
-
-	write_unlock_irqrestore(&data->lock, flags);
-
-	bpa10x_free_urb(data->cmd_urb);
-	bpa10x_free_urb(data->evt_urb);
-	bpa10x_free_urb(data->rx_urb);
-	bpa10x_free_urb(data->tx_urb);
+	usb_kill_anchored_urbs(&data->rx_anchor);
 
 	return 0;
 }
@@ -475,9 +354,9 @@ static int bpa10x_flush(struct hci_dev *hdev)
 {
 	struct bpa10x_data *data = hdev->driver_data;
 
-	BT_DBG("hdev %p data %p", hdev, data);
+	BT_DBG("%s", hdev->name);
 
-	skb_queue_purge(&data->cmd_queue);
+	usb_kill_anchored_urbs(&data->tx_anchor);
 
 	return 0;
 }
@@ -485,45 +364,78 @@ static int bpa10x_flush(struct hci_dev *hdev)
 static int bpa10x_send_frame(struct sk_buff *skb)
 {
 	struct hci_dev *hdev = (struct hci_dev *) skb->dev;
-	struct bpa10x_data *data;
+	struct bpa10x_data *data = hdev->driver_data;
+	struct usb_ctrlrequest *dr;
+	struct urb *urb;
+	unsigned int pipe;
+	int err;
 
-	BT_DBG("hdev %p skb %p type %d len %d", hdev, skb, bt_cb(skb)->pkt_type, skb->len);
-
-	if (!hdev) {
-		BT_ERR("Frame for unknown HCI device");
-		return -ENODEV;
-	}
+	BT_DBG("%s", hdev->name);
 
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
 
-	data = hdev->driver_data;
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb)
+		return -ENOMEM;
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	*skb_push(skb, 1) = bt_cb(skb)->pkt_type;
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
+		dr = kmalloc(sizeof(*dr), GFP_ATOMIC);
+		if (!dr) {
+			usb_free_urb(urb);
+			return -ENOMEM;
+		}
+
+		dr->bRequestType = USB_TYPE_VENDOR;
+		dr->bRequest     = 0;
+		dr->wIndex       = 0;
+		dr->wValue       = 0;
+		dr->wLength      = __cpu_to_le16(skb->len);
+
+		pipe = usb_sndctrlpipe(data->udev, 0x00);
+
+		usb_fill_control_urb(urb, data->udev, pipe, (void *) dr,
+				skb->data, skb->len, bpa10x_tx_complete, skb);
+
 		hdev->stat.cmd_tx++;
-		skb_queue_tail(&data->cmd_queue, skb);
 		break;
 
 	case HCI_ACLDATA_PKT:
+		pipe = usb_sndbulkpipe(data->udev, 0x02);
+
+		usb_fill_bulk_urb(urb, data->udev, pipe,
+				skb->data, skb->len, bpa10x_tx_complete, skb);
+
 		hdev->stat.acl_tx++;
-		skb_queue_tail(&data->tx_queue, skb);
 		break;
 
 	case HCI_SCODATA_PKT:
+		pipe = usb_sndbulkpipe(data->udev, 0x02);
+
+		usb_fill_bulk_urb(urb, data->udev, pipe,
+				skb->data, skb->len, bpa10x_tx_complete, skb);
+
 		hdev->stat.sco_tx++;
-		skb_queue_tail(&data->tx_queue, skb);
 		break;
-	};
 
-	read_lock(&data->lock);
+	default:
+		return -EILSEQ;
+	}
 
-	bpa10x_wakeup(data);
+	usb_anchor_urb(urb, &data->tx_anchor);
 
-	read_unlock(&data->lock);
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (err < 0) {
+		BT_ERR("%s urb %p submission failed", hdev->name, urb);
+		kfree(urb->setup_packet);
+		usb_unanchor_urb(urb);
+	}
+
+	usb_free_urb(urb);
 
 	return 0;
 }
@@ -532,16 +444,17 @@ static void bpa10x_destruct(struct hci_dev *hdev)
 {
 	struct bpa10x_data *data = hdev->driver_data;
 
-	BT_DBG("hdev %p data %p", hdev, data);
+	BT_DBG("%s", hdev->name);
 
+	kfree(data->rx_skb[0]);
+	kfree(data->rx_skb[1]);
 	kfree(data);
 }
 
 static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
-	struct usb_device *udev = interface_to_usbdev(intf);
-	struct hci_dev *hdev;
 	struct bpa10x_data *data;
+	struct hci_dev *hdev;
 	int err;
 
 	BT_DBG("intf %p id %p", intf, id);
@@ -549,48 +462,43 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (ignore)
 		return -ENODEV;
 
-	if (intf->cur_altsetting->desc.bInterfaceNumber > 0)
+	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		BT_ERR("Can't allocate data structure");
+	if (!data)
 		return -ENOMEM;
-	}
 
-	data->udev = udev;
+	data->udev = interface_to_usbdev(intf);
 
-	rwlock_init(&data->lock);
-
-	skb_queue_head_init(&data->cmd_queue);
-	skb_queue_head_init(&data->tx_queue);
+	init_usb_anchor(&data->tx_anchor);
+	init_usb_anchor(&data->rx_anchor);
 
 	hdev = hci_alloc_dev();
 	if (!hdev) {
-		BT_ERR("Can't allocate HCI device");
 		kfree(data);
 		return -ENOMEM;
 	}
 
-	data->hdev = hdev;
-
 	hdev->type = HCI_USB;
 	hdev->driver_data = data;
+
+	data->hdev = hdev;
+
 	SET_HCIDEV_DEV(hdev, &intf->dev);
 
-	hdev->open	= bpa10x_open;
-	hdev->close	= bpa10x_close;
-	hdev->flush	= bpa10x_flush;
-	hdev->send	= bpa10x_send_frame;
-	hdev->destruct	= bpa10x_destruct;
+	hdev->open     = bpa10x_open;
+	hdev->close    = bpa10x_close;
+	hdev->flush    = bpa10x_flush;
+	hdev->send     = bpa10x_send_frame;
+	hdev->destruct = bpa10x_destruct;
 
 	hdev->owner = THIS_MODULE;
 
 	err = hci_register_dev(hdev);
 	if (err < 0) {
-		BT_ERR("Can't register HCI device");
-		kfree(data);
 		hci_free_dev(hdev);
+		kfree(data);
 		return err;
 	}
 
@@ -602,19 +510,17 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 static void bpa10x_disconnect(struct usb_interface *intf)
 {
 	struct bpa10x_data *data = usb_get_intfdata(intf);
-	struct hci_dev *hdev = data->hdev;
 
 	BT_DBG("intf %p", intf);
 
-	if (!hdev)
+	if (!data)
 		return;
 
 	usb_set_intfdata(intf, NULL);
 
-	if (hci_unregister_dev(hdev) < 0)
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
+	hci_unregister_dev(data->hdev);
 
-	hci_free_dev(hdev);
+	hci_free_dev(data->hdev);
 }
 
 static struct usb_driver bpa10x_driver = {
@@ -626,15 +532,9 @@ static struct usb_driver bpa10x_driver = {
 
 static int __init bpa10x_init(void)
 {
-	int err;
-
 	BT_INFO("Digianswer Bluetooth USB driver ver %s", VERSION);
 
-	err = usb_register(&bpa10x_driver);
-	if (err < 0)
-		BT_ERR("Failed to register USB driver");
-
-	return err;
+	return usb_register(&bpa10x_driver);
 }
 
 static void __exit bpa10x_exit(void)
