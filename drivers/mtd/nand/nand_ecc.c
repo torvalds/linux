@@ -189,7 +189,7 @@ int nand_correct_data(struct mtd_info *mtd, u_char *dat,
 	if(countbits(s0 | ((uint32_t)s1 << 8) | ((uint32_t)s2 <<16)) == 1)
 		return 1;
 
-	return -1;
+	return -EBADMSG;
 }
 EXPORT_SYMBOL(nand_correct_data);
 

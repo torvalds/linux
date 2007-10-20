@@ -220,7 +220,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 		}
 	}
 	/* If the parity is wrong, no rescue possible */
-	return parity ? -1 : nerr;
+	return parity ? -EBADMSG : nerr;
 }
 
 static void DoC_Delay(struct doc_priv *doc, unsigned short cycles)
@@ -1034,7 +1034,7 @@ static int doc200x_correct_data(struct mtd_info *mtd, u_char *dat,
 		WriteDOC(DOC_ECC_DIS, docptr, Mplus_ECCConf);
 	else
 		WriteDOC(DOC_ECC_DIS, docptr, ECCConf);
-	if (no_ecc_failures && (ret == -1)) {
+	if (no_ecc_failures && (ret == -EBADMSG)) {
 		printk(KERN_ERR "suppressing ECC failure\n");
 		ret = 0;
 	}

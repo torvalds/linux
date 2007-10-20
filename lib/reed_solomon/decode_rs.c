@@ -202,7 +202,7 @@
 		 * deg(lambda) unequal to number of roots => uncorrectable
 		 * error detected
 		 */
-		count = -1;
+		count = -EBADMSG;
 		goto finish;
 	}
 	/*
