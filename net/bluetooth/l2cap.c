@@ -1370,8 +1370,10 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 
 		if (pi->conf_mtu < pi->omtu)
 			result = L2CAP_CONF_UNACCEPT;
-		else
+		else {
 			pi->omtu = pi->conf_mtu;
+			pi->conf_state |= L2CAP_CONF_OUTPUT_DONE;
+		}
 
 		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->omtu);
 	}
@@ -1577,16 +1579,19 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CONF_RSP, len, rsp);
 
-	/* Output config done. */
-	l2cap_pi(sk)->conf_state |= L2CAP_CONF_OUTPUT_DONE;
-
 	/* Reset config buffer. */
 	l2cap_pi(sk)->conf_len = 0;
+
+	if (!(l2cap_pi(sk)->conf_state & L2CAP_CONF_OUTPUT_DONE))
+		goto unlock;
 
 	if (l2cap_pi(sk)->conf_state & L2CAP_CONF_INPUT_DONE) {
 		sk->sk_state = BT_CONNECTED;
 		l2cap_chan_ready(sk);
-	} else if (!(l2cap_pi(sk)->conf_state & L2CAP_CONF_REQ_SENT)) {
+		goto unlock;
+	}
+
+	if (!(l2cap_pi(sk)->conf_state & L2CAP_CONF_REQ_SENT)) {
 		u8 req[64];
 		l2cap_send_cmd(conn, l2cap_get_ident(conn), L2CAP_CONF_REQ,
 					l2cap_build_conf_req(sk, req), req);
@@ -1646,7 +1651,6 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 	if (flags & 0x01)
 		goto done;
 
-	/* Input config done */
 	l2cap_pi(sk)->conf_state |= L2CAP_CONF_INPUT_DONE;
 
 	if (l2cap_pi(sk)->conf_state & L2CAP_CONF_OUTPUT_DONE) {
