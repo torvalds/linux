@@ -58,9 +58,6 @@
 #include <asm/delay.h>
 #include <asm/dma-mapping.h>
 
-/* Checksum offload for Tx works for most packets, but
- * fails if previous packet sent did not use hw csum
- */
 #define MV643XX_CHECKSUM_OFFLOAD_TX
 #define MV643XX_NAPI
 #define MV643XX_TX_FAST_REFILL
