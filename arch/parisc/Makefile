@@ -78,20 +78,24 @@ PALO := $(shell if which palo; then : ; \
 	elif [ -x /sbin/palo ]; then echo /sbin/palo; \
 	fi)
 
+PALOCONF := $(shell if [ -f $(src)/palo.conf ]; then echo $(src)/palo.conf; \
+	else echo $(obj)/palo.conf; \
+	fi)
+
 palo: vmlinux
-	@if test ! -x $(PALO); then \
+	@if test ! -x "$(PALO)"; then \
 		echo 'ERROR: Please install palo first (apt-get install palo)';\
 		echo 'or build it from source and install it somewhere in your $$PATH';\
 		false; \
 	fi
-	@if test ! -f ./palo.conf; then \
-		cp arch/parisc/defpalo.conf palo.conf; \
-		echo 'A generic palo config file (./palo.conf) has been created for you.'; \
+	@if test ! -f "$(PALOCONF)"; then \
+		cp $(src)/arch/parisc/defpalo.conf $(obj)/palo.conf; \
+		echo 'A generic palo config file ($(obj)/palo.conf) has been created for you.'; \
 		echo 'You should check it and re-run "make palo".'; \
 		echo 'WARNING: the "lifimage" file is now placed in this directory by default!'; \
 		false; \
 	fi
-	$(PALO) -f ./palo.conf
+	$(PALO) -f $(PALOCONF)
 
 # Shorthands for known targets not supported by parisc, use vmlinux as default
 Image zImage bzImage: vmlinux
