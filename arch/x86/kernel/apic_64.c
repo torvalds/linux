@@ -287,6 +287,20 @@ void disable_local_APIC(void)
 	apic_write(APIC_SPIV, value);
 }
 
+void lapic_shutdown(void)
+{
+	unsigned long flags;
+
+	if (!cpu_has_apic)
+		return;
+
+	local_irq_save(flags);
+
+	disable_local_APIC();
+
+	local_irq_restore(flags);
+}
+
 /*
  * This is to verify that we're looking at a real local APIC.
  * Check these against your board if the CPUs aren't getting
