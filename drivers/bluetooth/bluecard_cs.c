@@ -503,10 +503,7 @@ static irqreturn_t bluecard_interrupt(int irq, void *dev_inst)
 	unsigned int iobase;
 	unsigned char reg;
 
-	if (!info || !info->hdev) {
-		BT_ERR("Call of irq %d for unknown device", irq);
-		return IRQ_NONE;
-	}
+	BUG_ON(!info->hdev);
 
 	if (!test_bit(CARD_READY, &(info->hw_state)))
 		return IRQ_HANDLED;
