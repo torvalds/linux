@@ -37,7 +37,7 @@ other program after you have done the following:
    or the following, if you want to be more selective:
      ':Applet:M::<!--applet::/usr/bin/appletviewer:'
 
-   Of cause you have to fix the path names. Given path/file names in this
+   Of course you have to fix the path names. The path/file names given in this
    document match the Debian 2.1 system. (i.e. jdk installed in /usr,
    custom wrappers from this document in /usr/local)
 
