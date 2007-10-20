@@ -222,9 +222,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Warning: Many of these options can produce a lot of
 			output and make your system unusable. Be very careful.
 
-
-	acpi_fake_ecdt	[HW,ACPI] Workaround failure due to BIOS lacking ECDT
-
 	acpi_pm_good	[X86-32,X86-64]
 			Override the pmtimer bug detection: force the kernel
 			to assume that this machine's pmtimer latches its value
@@ -297,9 +294,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	apm=		[APM] Advanced Power Management
 			See header of arch/i386/kernel/apm.c.
 
-	applicom=	[HW]
-			Format: <mem>,<irq>
-
 	arcrimi=	[HW,NET] ARCnet - "RIM I" (entirely mem-mapped) cards
 			Format: <io>,<irq>,<nodeID>
 
@@ -344,12 +338,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			BayCom Serial Port AX.25 Modem (Half Duplex Mode)
 			Format: <io>,<irq>,<mode>
 			See header of drivers/net/hamradio/baycom_ser_hdx.c.
-
-	blkmtd_device=	[HW,MTD]
-	blkmtd_erasesz=
-	blkmtd_ro=
-	blkmtd_bs=
-	blkmtd_count=
 
 	boot_delay=	Milliseconds to delay each printk during boot.
 			Values larger than 10 seconds (10000) are changed to
@@ -515,8 +503,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	cs89x0_media=	[HW,NET]
 			Format: { rj45 | aui | bnc }
 
-	cyclades=	[HW,SERIAL] Cyclades multi-serial port adapter.
-
 	dasd=		[HW,NET]
 			See header of drivers/s390/block/dasd_devmap.c.
 
@@ -574,10 +560,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			See drivers/char/README.epca and
 			Documentation/digiepca.txt.
 
-	dmascc=		[HW,AX25,SERIAL] AX.25 Z80SCC driver with DMA
-			support available.
-			Format: <io_dev0>[,<io_dev1>[,..<io_dev32>]]
-
 	dmasound=	[HW,OSS] Sound subsystem buffers
 
 	dscc4.setup=	[NET]
@@ -608,16 +590,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			0: polling mode
 			non-0: interrupt mode (default)
 
-	eda=		[HW,PS2]
-
-	edb=		[HW,PS2]
-
 	edd=		[EDD]
 			Format: {"of[f]" | "sk[ipmbr]"}
 			See comment in arch/i386/boot/edd.S
-
-	eicon=		[HW,ISDN]
-			Format: <id>,<membase>,<irq>
 
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
@@ -894,9 +869,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	lapic_timer_c2_ok	[X86-32,x86-64,APIC] trust the local apic timer in
 			C2 power state.
 
-	lasi=		[HW,SCSI] PARISC LASI driver for the 53c700 chip
-			Format: addr:<io>,irq:<irq>
-
 	libata.noacpi	[LIBATA] Disables use of ACPI in libata suspend/resume
 			when set.
 			Format: <int>
@@ -1143,9 +1115,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	noapic		[SMP,APIC] Tells the kernel to not make use of any
 			IOAPICs that may be present in the system.
-
-	noasync		[HW,M68K] Disables async and sync negotiation for
-			all devices.
 
 	nobats		[PPC] Do not use BATs for mapping kernel lowmem
 			on "Classic" PPC cores.
@@ -1458,6 +1427,7 @@ and is between 256 and 4096 characters. It is defined in the file
 			Param: <number> - step/bucket size as a power of 2 for
 				statistical time based profiling.
 			Param: "sleep" - profile D-state sleeping (millisecs)
+			Param: "kvm" - profile VM exits.
 
 	processor.max_cstate=	[HW,ACPI]
 			Limit processor to maximum C-state
@@ -1584,9 +1554,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	sa1100ir	[NET]
 			See drivers/net/irda/sa1100_ir.c.
 
-	sb=		[HW,OSS]
-			Format: <io>,<irq>,<dma>,<dma2>
-
 	sbni=		[NET] Granch SBNI12 leased line adapter
 
 	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
@@ -1629,8 +1596,6 @@ and is between 256 and 4096 characters. It is defined in the file
                         /selinux/compat_net.
 
 	serialnumber	[BUGS=X86-32]
-
-	sg_def_reserved_size=	[SCSI]
 
 	shapers=	[NET]
 			Maximal number of shapers.
@@ -2021,10 +1986,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	norandmaps	Don't use address space randomization
 			Equivalent to echo 0 > /proc/sys/kernel/randomize_va_space
-
- 	unwind_debug=N 	N > 0 will enable dwarf2 unwinder debugging
-			This is useful to get more information why
-			you got a "dwarf2 unwinder stuck"
 
 ______________________________________________________________________
 

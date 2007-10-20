@@ -36,7 +36,7 @@ static inline int uhc_clkctrl_ready(u32 val)
 }
 
 /*
- * UHC(usb host controler) enable function.
+ * UHC(usb host controller) enable function.
  * affect to both of OHCI and EHCI core module.
  */
 static void enable_scc_uhc(struct pci_dev *dev)

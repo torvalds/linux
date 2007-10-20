@@ -623,7 +623,7 @@ static int snd_es18xx_capture_prepare(struct snd_pcm_substream *substream)
                          (snd_pcm_format_width(runtime->format) == 16 ? 0x04 : 0x00) |
                          (snd_pcm_format_unsigned(runtime->format) ? 0x00 : 0x20));
 
-        /* Set DMA controler */
+        /* Set DMA controller */
         snd_dma_program(chip->dma1, runtime->dma_addr, size, DMA_MODE_READ | DMA_AUTOINIT);
 
 	return 0;
@@ -689,7 +689,7 @@ static int snd_es18xx_playback2_prepare(struct snd_es18xx *chip,
                          (snd_pcm_format_width(runtime->format) == 16 ? 0x04 : 0x00) |
                          (snd_pcm_format_unsigned(runtime->format) ? 0x00 : 0x20));
 
-        /* Set DMA controler */
+        /* Set DMA controller */
         snd_dma_program(chip->dma1, runtime->dma_addr, size, DMA_MODE_WRITE | DMA_AUTOINIT);
 
 	return 0;

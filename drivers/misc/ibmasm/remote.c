@@ -17,7 +17,7 @@
  *
  * Copyright (C) IBM Corporation, 2004
  *
- * Authors: Max Asböck <amax@us.ibm.com>
+ * Authors: Max AsbÃ¶ck <amax@us.ibm.com>
  *          Vernon Mauery <vernux@us.ibm.com>
  *
  */

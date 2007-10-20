@@ -246,7 +246,7 @@ static void pcimt_hwint1(void)
 		/*
 		 * Note: ASIC PCI's builtin interrupt achknowledge feature is
 		 * broken.  Using it may result in loss of some or all i8259
-		 * interupts, so don't use PCIMT_INT_ACKNOWLEDGE ...
+		 * interrupts, so don't use PCIMT_INT_ACKNOWLEDGE ...
 		 */
 		irq = i8259_irq();
 		if (unlikely(irq < 0))

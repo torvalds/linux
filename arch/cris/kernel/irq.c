@@ -7,7 +7,7 @@
  *      Authors: Bjorn Wesen (bjornw@axis.com)
  *
  * This file contains the code used by various IRQ handling routines:
- * asking for different IRQ's should be done through these routines
+ * asking for different IRQs should be done through these routines
  * instead of just grabbing them. Thus setups with different IRQ numbers
  * shouldn't result in any weird surprises, and installing new handlers
  * should be easier.
@@ -15,7 +15,7 @@
  */
 
 /*
- * IRQ's are in fact implemented a bit like signal handlers for the kernel.
+ * IRQs are in fact implemented a bit like signal handlers for the kernel.
  * Naturally it's not a 1:1 relation, but there are similarities.
  */
 
@@ -83,9 +83,9 @@ skip:
 
 
 /* called by the assembler IRQ entry functions defined in irq.h
- * to dispatch the interrupts to registred handlers
+ * to dispatch the interrupts to registered handlers
  * interrupts are disabled upon entry - depending on if the
- * interrupt was registred with IRQF_DISABLED or not, interrupts
+ * interrupt was registered with IRQF_DISABLED or not, interrupts
  * are re-enabled or not.
  */
 

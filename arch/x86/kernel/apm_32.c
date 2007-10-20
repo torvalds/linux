@@ -57,7 +57,7 @@
  *         screen-blanking and gpm (Stephen Rothwell); Linux 1.99.4
  *    1.2a:Simple change to stop mysterious bug reports with SMP also added
  *	   levels to the printk calls. APM is not defined for SMP machines.
- *         The new replacment for it is, but Linux doesn't yet support this.
+ *         The new replacement for it is, but Linux doesn't yet support this.
  *         Alan Cox Linux 2.1.55
  *    1.3: Set up a valid data descriptor 0x40 for buggy BIOS's
  *    1.4: Upgraded to support APM 1.2. Integrated ThinkPad suspend patch by

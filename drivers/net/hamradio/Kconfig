@@ -64,7 +64,7 @@ config DMASCC
 	  dmascc. If you don't pass any parameter to the driver, all
 	  possible I/O addresses are probed. This could irritate other devices
 	  that are currently not in use. You may specify the list of addresses
-	  to be probed by "dmascc=addr1,addr2,..." (when compiled into the
+	  to be probed by "dmascc.io=addr1,addr2,..." (when compiled into the
 	  kernel image) or "io=addr1,addr2,..." (when loaded as a module). The
 	  network interfaces will be called dmascc0 and dmascc1 for the board
 	  detected first, dmascc2 and dmascc3 for the second one, and so on.

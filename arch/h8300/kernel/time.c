@@ -53,7 +53,7 @@ void time_init(void)
 
 	/* FIX by dqg : Set to zero for platforms that don't have tod */
 	/* without this time is undefined and can overflow time_t, causing  */
-	/* very stange errors */
+	/* very strange errors */
 	year = 1980;
 	mon = day = 1;
 	hour = min = sec = 0;

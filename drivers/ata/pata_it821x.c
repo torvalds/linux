@@ -105,7 +105,7 @@ struct it821x_dev
 
 /*
  *	We allow users to force the card into non raid mode without
- *	flashing the alternative BIOS. This is also neccessary right now
+ *	flashing the alternative BIOS. This is also necessary right now
  *	for embedded platforms that cannot run a PC BIOS but are using this
  *	device.
  */
@@ -383,7 +383,7 @@ static void it821x_passthru_bmdma_stop(struct ata_queued_cmd *qc)
  *	@ap: ATA port
  *	@device: Device number (not pointer)
  *
- *	Device selection hook. If neccessary perform clock switching
+ *	Device selection hook. If necessary perform clock switching
  */
 
 static void it821x_passthru_dev_select(struct ata_port *ap,

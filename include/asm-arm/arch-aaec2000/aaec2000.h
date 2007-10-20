@@ -140,11 +140,11 @@
 #define TIMER3_CLEAR	__REG(0x80000e0c)	/* Timer 3 Clear Register */
 
 /* Timer Control register bits */
-#define TIMER_CTRL_ENABLE	(1 << 7) /* Enable (Start° Timer */
+#define TIMER_CTRL_ENABLE	(1 << 7) /* Enable (Start Timer) */
 #define TIMER_CTRL_PERIODIC	(1 << 6) /* Periodic Running Mode */
 #define TIMER_CTRL_FREE_RUNNING (0 << 6) /* Normal Running Mode */
 #define TIMER_CTRL_CLKSEL_508K	(1 << 3) /* 508KHz Clock select (Timer 1, 2) */
-#define TIMER_CTRL_CLKSEL_2K	(0 << 3) /* 2KHz Clock Select (Timer 1, 2)*/
+#define TIMER_CTRL_CLKSEL_2K	(0 << 3) /* 2KHz Clock Select (Timer 1, 2) */
 
 /* Power and State Control */
 #define POWER_BASE	__REG(0x80000400)

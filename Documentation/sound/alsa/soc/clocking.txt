@@ -2,20 +2,20 @@ Audio Clocking
 ==============
 
 This text describes the audio clocking terms in ASoC and digital audio in
-general. Note: Audio clocking can be complex !
+general. Note: Audio clocking can be complex!
 
 
 Master Clock
 ------------
 
-Every audio subsystem is driven by a master clock (sometimes refered to as MCLK
+Every audio subsystem is driven by a master clock (sometimes referred to as MCLK
 or SYSCLK). This audio master clock can be derived from a number of sources
 (e.g. crystal, PLL, CPU clock) and is responsible for producing the correct
 audio playback and capture sample rates.
 
-Some master clocks (e.g. PLL's and CPU based clocks) are configuarble in that
+Some master clocks (e.g. PLL's and CPU based clocks) are configurable in that
 their speed can be altered by software (depending on the system use and to save
-power). Other master clocks are fixed at at set frequency (i.e. crystals).
+power). Other master clocks are fixed at a set frequency (i.e. crystals).
 
 
 DAI Clocks
@@ -44,7 +44,7 @@ This relationship depends on the codec or SoC CPU in particular. In general
 it's best to configure BCLK to the lowest possible speed (depending on your
 rate, number of channels and wordsize) to save on power.
 
-It's also desireable to use the codec (if possible) to drive (or master) the
+It's also desirable to use the codec (if possible) to drive (or master) the
 audio clocks as it's usually gives more accurate sample rates than the CPU.
 
 

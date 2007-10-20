@@ -1808,12 +1808,12 @@ static irqreturn_t dc395x_interrupt(int irq, void *dev_id)
 	irqreturn_t handled = IRQ_NONE;
 
 	/*
-	 * Check for pending interupt
+	 * Check for pending interrupt
 	 */
 	scsi_status = DC395x_read16(acb, TRM_S1040_SCSI_STATUS);
 	dma_status = DC395x_read8(acb, TRM_S1040_DMA_STATUS);
 	if (scsi_status & SCSIINTERRUPT) {
-		/* interupt pending - let's process it! */
+		/* interrupt pending - let's process it! */
 		dc395x_handle_interrupt(acb, scsi_status);
 		handled = IRQ_HANDLED;
 	}
@@ -4579,7 +4579,7 @@ static void adapter_uninit_chip(struct AdapterCtlBlk *acb)
 	if (acb->config & HCC_SCSI_RESET)
 		reset_scsi_bus(acb);
 
-	/* clear any pending interupt state */
+	/* clear any pending interrupt state */
 	DC395x_read8(acb, TRM_S1040_SCSI_INTSTATUS);
 }
 

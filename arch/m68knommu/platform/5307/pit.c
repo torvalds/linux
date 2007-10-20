@@ -83,7 +83,7 @@ unsigned long coldfire_pit_offset(void)
 
 	/*
 	 * If we are still in the first half of the upcount and a
-	 * timer interupt is pending, then add on a ticks worth of time.
+	 * timer interrupt is pending, then add on a ticks worth of time.
 	 */
 	offset = ((pmr - pcntr) * (1000000 / HZ)) / pmr;
 	if ((offset < (1000000 / HZ / 2)) && (*ipr & MCFPIT_IMR_IBIT))

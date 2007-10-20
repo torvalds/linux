@@ -162,7 +162,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 	/* Put the switch stack right below the pt_regs. */
 	swstack = ((struct switch_stack *) childregs) - 1;
 
-	/* Paramater to ret_from_sys_call. 0 is don't restart the syscall. */
+	/* Parameter to ret_from_sys_call. 0 is don't restart the syscall. */
 	swstack->r9 = 0;
 
 	/*

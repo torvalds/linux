@@ -20,7 +20,7 @@ struct snd_soc_ops {
 	int (*trigger)(struct snd_pcm_substream *, int);
 };
 
-The platform driver exports it's DMA functionailty via struct snd_soc_platform:-
+The platform driver exports its DMA functionality via struct snd_soc_platform:-
 
 struct snd_soc_platform {
 	char *name;

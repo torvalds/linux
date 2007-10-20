@@ -54,7 +54,7 @@ OPTIONS
   aname=name	aname specifies the file tree to access when the server is
   		offering several exported file systems.
 
-  cache=mode	specifies a cacheing policy.  By default, no caches are used.
+  cache=mode	specifies a caching policy.  By default, no caches are used.
 			loose = no attempts are made at consistency,
                                 intended for exclusive, read-only mounts
 

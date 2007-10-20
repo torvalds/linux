@@ -1005,11 +1005,12 @@ copy_data_pages(struct memory_bitmap *copy_bm, struct memory_bitmap *orig_bm)
 	}
 	memory_bm_position_reset(orig_bm);
 	memory_bm_position_reset(copy_bm);
-	do {
+	for(;;) {
 		pfn = memory_bm_next_pfn(orig_bm);
-		if (likely(pfn != BM_END_OF_MAP))
-			copy_data_page(memory_bm_next_pfn(copy_bm), pfn);
-	} while (pfn != BM_END_OF_MAP);
+		if (unlikely(pfn == BM_END_OF_MAP))
+			break;
+		copy_data_page(memory_bm_next_pfn(copy_bm), pfn);
+	}
 }
 
 /* Total number of image pages */

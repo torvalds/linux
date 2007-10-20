@@ -676,7 +676,7 @@ static int sd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  *	success as well). Returns a negated errno value in case of error.
  *
  *	Note: most ioctls are forward onto the block subsystem or further
- *	down in the scsi subsytem.
+ *	down in the scsi subsystem.
  **/
 static int sd_ioctl(struct inode * inode, struct file * filp, 
 		    unsigned int cmd, unsigned long arg)

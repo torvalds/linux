@@ -113,7 +113,7 @@ setup_604_hid0:
  * around #3 and with the same fix we use. We may want to
  * check if the CPU is using 60x bus mode in which case
  * the workaround for errata #4 is useless. Also, we may
- * want to explicitely clear HID0_NOPDST as this is not
+ * want to explicitly clear HID0_NOPDST as this is not
  * needed once we have applied workaround #5 (though it's
  * not set by Apple's firmware at least).
  */

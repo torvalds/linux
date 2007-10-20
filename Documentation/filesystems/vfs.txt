@@ -706,7 +706,7 @@ struct address_space_operations {
         wants to make it a free page.  If ->releasepage succeeds, the
         page will be removed from the address_space and become free.
 
-	The second case if when a request has been made to invalidate
+	The second case is when a request has been made to invalidate
         some or all pages in an address_space.  This can happen
         through the fadvice(POSIX_FADV_DONTNEED) system call or by the
         filesystem explicitly requesting it as nfs and 9fs do (when

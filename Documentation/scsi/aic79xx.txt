@@ -120,7 +120,7 @@ The following information is available in this file:
           list size to avoid SCSI malloc pool fragmentation.
         - Cleanup channel display in our /proc output.
         - Workaround duplicate device entries in the mid-layer
-          devlice list during add-single-device.
+          device list during add-single-device.
 
    1.3.6 (March 28th, 2003)
         - Correct a double free in the Domain Validation code.

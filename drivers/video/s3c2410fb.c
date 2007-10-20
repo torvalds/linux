@@ -56,7 +56,7 @@
  *	- Add support for different devices
  *	- Backlight support
  *
- * 2004-09-05: Herbert Pötzl <herbert@13thfloor.at>
+ * 2004-09-05: Herbert PÃ¶tzl <herbert@13thfloor.at>
  *	- added clock (de-)allocation code
  *	- added fixem fbmem option
  *
@@ -64,7 +64,7 @@
  *	- code cleanup
  *	- added a forgotten return in h1940fb_init
  *
- * 2004-07-19: Herbert Pötzl <herbert@13thfloor.at>
+ * 2004-07-19: Herbert PÃ¶tzl <herbert@13thfloor.at>
  *	- code cleanup and extended debugging
  *
  * 2004-07-15: Arnaud Patard <arnaud.patard@rtp-net.org>

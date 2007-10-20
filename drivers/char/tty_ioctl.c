@@ -444,7 +444,7 @@ static void change_termios(struct tty_struct * tty, struct ktermios * new_termio
  *	@arg: user data
  *	@opt: option information
  *
- *	Helper function to prepare termios data and run neccessary other
+ *	Helper function to prepare termios data and run necessary other
  *	functions before using change_termios to do the actual changes.
  *
  *	Locking:

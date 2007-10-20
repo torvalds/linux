@@ -168,7 +168,7 @@ static void count_off_irt(struct powernow_k8_data *data)
 	return;
 }
 
-/* the voltage stabalization time */
+/* the voltage stabilization time */
 static void count_off_vst(struct powernow_k8_data *data)
 {
 	udelay(data->vstable * VST_UNITS_20US);

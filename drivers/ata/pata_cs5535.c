@@ -25,7 +25,7 @@
  * Documentation:
  *	Available from AMD web site.
  * TODO
- *	Review errata to see if serializing is neccessary
+ *	Review errata to see if serializing is necessary
  */
 
 #include <linux/kernel.h>

@@ -5,7 +5,7 @@
  * Cloned from Linux/m68k.
  *
  * No original Copyright holder listed,
- * Probabily original (C) Roman Zippel (assigned DJD, 1999)
+ * Probable original (C) Roman Zippel (assigned DJD, 1999)
  *
  * Copyright 1999-2000 D. Jeff Dionne, <jeff@rt-control.com>
  *

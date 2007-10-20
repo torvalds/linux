@@ -16,7 +16,7 @@
  *
  *	If you have strange problems with nVidia chipset systems please
  *	see the SI support documentation and update your system BIOS
- *	if neccessary
+ *	if necessary
  *
  * TODO
  *	If we know all our devices are LBA28 (or LBA28 sized)  we could use

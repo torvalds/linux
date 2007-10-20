@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2004 Nokia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
- * Major cleanups by Juha Yrjölä <juha.yrjola@nokia.com>
+ * Major cleanups by Juha YrjÃ¶lÃ¤ <juha.yrjola@nokia.com>
  *
  * Completely re-written to support various OMAP chips with bank specific
  * interrupt handlers.

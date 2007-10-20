@@ -12,7 +12,7 @@
  */
 
 /* Just to be certain the config file is included, we include it here
- * explicitely instead of depending on it being included in the file that
+ * explicitly instead of depending on it being included in the file that
  * uses this code.
  */
 

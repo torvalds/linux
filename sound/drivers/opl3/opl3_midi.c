@@ -808,7 +808,7 @@ static void snd_opl3_pitch_ctrl(struct snd_opl3 *opl3, struct snd_midi_channel *
 }
 
 /*
- * Deal with a controler type event.  This includes all types of
+ * Deal with a controller type event.  This includes all types of
  * control events, not just the midi controllers
  */
 void snd_opl3_control(void *p, int type, struct snd_midi_channel *chan)

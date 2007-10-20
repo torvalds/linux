@@ -189,7 +189,7 @@ config CMDLINE
 
 endmenu
 
-menu "Power managment options"
+menu "Power management options"
 
 menu "CPU Frequency scaling"
 

@@ -113,7 +113,7 @@ static void clone_init(struct dm_crypt_io *, struct bio *);
  * Different IV generation algorithms:
  *
  * plain: the initial vector is the 32-bit little-endian version of the sector
- *        number, padded with zeros if neccessary.
+ *        number, padded with zeros if necessary.
  *
  * essiv: "encrypted sector|salt initial vector", the sector number is
  *        encrypted with the bulk cipher using a salt as key. The salt

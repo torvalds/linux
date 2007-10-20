@@ -218,7 +218,7 @@ static inline int save_add_info(void) {return 0;}
 /*
  * Update nodes_add and decide if to include add are in the zone.
  * Both SPARSE and RESERVE need nodes_add infomation.
- * This code supports one contigious hot add area per node.
+ * This code supports one contiguous hot add area per node.
  */
 static int reserve_hotadd(int node, unsigned long start, unsigned long end)
 {

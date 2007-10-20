@@ -3,7 +3,7 @@
 		for hardware monitoring
 
     Copyright (c) 1998 - 2002  Frodo Looijaard <frodol@dds.nl>,
-			Kyösti Mälkki <kmalkki@cc.hut.fi>,
+			KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>,
 			Mark Studebaker <mdsxyz123@yahoo.com>,
 			and Bob Dougherty <bobd@stanford.edu>
     (Some conversion-factor data were contributed by Jonathan Teh Soon Yew
@@ -866,7 +866,7 @@ static void __exit sm_via686a_exit(void)
 	}
 }
 
-MODULE_AUTHOR("Kyösti Mälkki <kmalkki@cc.hut.fi>, "
+MODULE_AUTHOR("KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>, "
 	      "Mark Studebaker <mdsxyz123@yahoo.com> "
 	      "and Bob Dougherty <bobd@stanford.edu>");
 MODULE_DESCRIPTION("VIA 686A Sensor device");

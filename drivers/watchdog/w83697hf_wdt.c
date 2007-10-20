@@ -8,7 +8,7 @@
  *	which is based on wdt.c.
  *	Original copyright messages:
  *
- *	(c) Copyright 2003 Pádraig Brady <P@draigBrady.com>
+ *	(c) Copyright 2003 PÃ¡draig Brady <P@draigBrady.com>
  *
  *	(c) Copyright 2000-2001 Marek Michalkiewicz <marekm@linux.org.pl>
  *

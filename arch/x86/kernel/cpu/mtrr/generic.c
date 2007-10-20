@@ -182,7 +182,7 @@ static inline void k8_enable_fixed_iorrs(void)
 
 /**
  * Checks and updates an fixed-range MTRR if it differs from the value it
- * should have. If K8 extenstions are wanted, update the K8 SYSCFG MSR also.
+ * should have. If K8 extentions are wanted, update the K8 SYSCFG MSR also.
  * see AMD publication no. 24593, chapter 7.8.1, page 233 for more information
  * \param msr MSR address of the MTTR which should be checked and updated
  * \param changed pointer which indicates whether the MTRR needed to be changed

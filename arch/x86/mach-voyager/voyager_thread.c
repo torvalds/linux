@@ -64,7 +64,7 @@ check_from_kernel(void)
 {
 	if(voyager_status.switch_off) {
 		
-		/* FIXME: This should be configureable via proc */
+		/* FIXME: This should be configurable via proc */
 		execute("umask 600; echo 0 > /etc/initrunlvl; kill -HUP 1");
 	} else if(voyager_status.power_fail) {
 		VDEBUG(("Voyager daemon detected AC power failure\n"));

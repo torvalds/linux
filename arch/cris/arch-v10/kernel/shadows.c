@@ -20,7 +20,7 @@ unsigned long r_timer_ctrl_shadow;
  * These are only usable if there actually IS a latch connected
  * to the corresponding external chip-select pin.
  *
- * A common usage is that CSP0 controls LED's and CSP4 video chips.
+ * A common usage is that CSP0 controls LEDs and CSP4 video chips.
  */
 
 unsigned long port_cse1_shadow;

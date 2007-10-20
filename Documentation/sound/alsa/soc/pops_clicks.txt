@@ -2,7 +2,7 @@ Audio Pops and Clicks
 =====================
 
 Pops and clicks are unwanted audio artifacts caused by the powering up and down
-of components within the audio subsystem. This is noticable on PC's when an
+of components within the audio subsystem. This is noticeable on PCs when an
 audio module is either loaded or unloaded (at module load time the sound card is
 powered up and causes a popping noise on the speakers).
 
@@ -16,7 +16,7 @@ Minimising Playback Pops and Clicks
 ===================================
 
 Playback pops in portable audio subsystems cannot be completely eliminated atm,
-however future audio codec hardware will have better pop and click supression.
+however future audio codec hardware will have better pop and click suppression.
 Pops can be reduced within playback by powering the audio components in a
 specific order. This order is different for startup and shutdown and follows
 some basic rules:-
@@ -33,7 +33,7 @@ Minimising Capture Pops and Clicks
 ==================================
 
 Capture artifacts are somewhat easier to get rid as we can delay activating the
-ADC until all the pops have occured. This follows similar power rules to
+ADC until all the pops have occurred. This follows similar power rules to
 playback in that components are powered in a sequence depending upon stream
 startup or shutdown.
 

@@ -58,13 +58,13 @@ void __init me2_init_irqs (void)
 void me2_uart_pre_configure (unsigned chan, unsigned cflags, unsigned baud)
 {
 	if (chan == 0) {
-		/* Specify that the relevent pins on the chip should do
+		/* Specify that the relevant pins on the chip should do
 		   serial I/O, not direct I/O.  */
 		ME2_PORT1_PMC |= 0xC;
 		/* Specify that we're using the UART, not the CSI device. */
 		ME2_PORT1_PFC |= 0xC;
 	} else if (chan == 1) {
-		/* Specify that the relevent pins on the chip should do
+		/* Specify that the relevant pins on the chip should do
 		   serial I/O, not direct I/O.  */
 		ME2_PORT2_PMC |= 0x6;
 		/* Specify that we're using the UART, not the CSI device. */

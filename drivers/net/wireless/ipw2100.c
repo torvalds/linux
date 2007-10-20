@@ -6047,7 +6047,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	 * ends up causing problems.  So, we just handle
 	 * the WX extensions through the ipw2100_ioctl interface */
 
-	/* memset() puts everything to 0, so we only have explicitely set
+	/* memset() puts everything to 0, so we only have explicitly set
 	 * those values that need to be something else */
 
 	/* If power management is turned on, default to AUTO mode */
@@ -7509,7 +7509,7 @@ static int ipw2100_wx_set_power(struct net_device *dev,
 	switch (wrqu->power.flags & IW_POWER_MODE) {
 	case IW_POWER_ON:	/* If not specified */
 	case IW_POWER_MODE:	/* If set all mask */
-	case IW_POWER_ALL_R:	/* If explicitely state all */
+	case IW_POWER_ALL_R:	/* If explicitly state all */
 		break;
 	default:		/* Otherwise we don't support it */
 		IPW_DEBUG_WX("SET PM Mode: %X not supported.\n",

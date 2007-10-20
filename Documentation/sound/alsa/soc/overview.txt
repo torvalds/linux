@@ -2,18 +2,19 @@ ALSA SoC Layer
 ==============
 
 The overall project goal of the ALSA System on Chip (ASoC) layer is to provide
-better ALSA support for embedded system on chip procesors (e.g. pxa2xx, au1x00,
+better ALSA support for embedded system-on-chip processors (e.g. pxa2xx, au1x00,
 iMX, etc) and portable audio codecs. Currently there is some support in the
 kernel for SoC audio, however it has some limitations:-
 
   * Currently, codec drivers are often tightly coupled to the underlying SoC
-    cpu. This is not ideal and leads to code duplication i.e. Linux now has 4
+    CPU. This is not ideal and leads to code duplication i.e. Linux now has 4
     different wm8731 drivers for 4 different SoC platforms.
 
-  * There is no standard method to signal user initiated audio events.
-    e.g. Headphone/Mic insertion, Headphone/Mic detection after an insertion
-    event. These are quite common events on portable devices and ofter require
-    machine specific code to re route audio, enable amps etc after such an event.
+  * There is no standard method to signal user initiated audio events (e.g.
+    Headphone/Mic insertion, Headphone/Mic detection after an insertion
+    event). These are quite common events on portable devices and often require
+    machine specific code to re-route audio, enable amps, etc., after such an
+    event.
 
   * Current drivers tend to power up the entire codec when playing
     (or recording) audio. This is fine for a PC, but tends to waste a lot of
@@ -44,7 +45,7 @@ features :-
     signals the codec when to change power states.
 
   * Machine specific controls: Allow machines to add controls to the sound card
-    e.g. volume control for speaker amp.
+    (e.g. volume control for speaker amp).
 
 To achieve all this, ASoC basically splits an embedded audio system into 3
 components :-
@@ -57,7 +58,7 @@ components :-
     interface drivers (e.g. I2S, AC97, PCM) for that platform.
 
   * Machine driver: The machine driver handles any machine specific controls and
-    audio events. i.e. turing on an amp at start of playback.
+    audio events (e.g. turning on an amp at start of playback).
 
 
 Documentation

@@ -2,7 +2,7 @@
  * -- <linux/cdrom.h>
  * General header file for linux CD-ROM drivers 
  * Copyright (C) 1992         David Giller, rafetmad@oxy.edu
- *               1994, 1995   Eberhard Moenkeberg, emoenke@gwdg.de
+ *               1994, 1995   Eberhard Mönkeberg, emoenke@gwdg.de
  *               1996         David van Leeuwen, david@tm.tno.nl
  *               1997, 1998   Erik Andersen, andersee@debian.org
  *               1998-2002    Jens Axboe, axboe@suse.de
@@ -76,7 +76,7 @@
                                            (struct cdrom_multisession) */
 #define CDROM_GET_MCN		0x5311 /* Obtain the "Universal Product Code" 
                                            if available (struct cdrom_mcn) */
-#define CDROM_GET_UPC		CDROM_GET_MCN  /* This one is depricated, 
+#define CDROM_GET_UPC		CDROM_GET_MCN  /* This one is deprecated, 
                                           but here anyway for compatibility */
 #define CDROMRESET		0x5312 /* hard-reset the drive */
 #define CDROMVOLREAD		0x5313 /* Get the drive's volume setting 
@@ -506,7 +506,7 @@ struct cdrom_generic_command
 #define GPMODE_TO_PROTECT_PAGE		0x1d
 #define GPMODE_CAPABILITIES_PAGE	0x2a
 #define GPMODE_ALL_PAGES		0x3f
-/* Not in Mt. Fuji, but in ATAPI 2.6 -- depricated now in favor
+/* Not in Mt. Fuji, but in ATAPI 2.6 -- deprecated now in favor
  * of MODE_SENSE_POWER_PAGE */
 #define GPMODE_CDROM_PAGE		0x0d
 

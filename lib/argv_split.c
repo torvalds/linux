@@ -4,7 +4,8 @@
 
 #include <linux/kernel.h>
 #include <linux/ctype.h>
-#include <linux/bug.h>
+#include <linux/slab.h>
+#include <linux/module.h>
 
 static const char *skip_sep(const char *cp)
 {

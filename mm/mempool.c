@@ -299,7 +299,7 @@ EXPORT_SYMBOL(mempool_free_slab);
 
 /*
  * A commonly used alloc and free fn that kmalloc/kfrees the amount of memory
- * specfied by pool_data
+ * specified by pool_data
  */
 void *mempool_kmalloc(gfp_t gfp_mask, void *pool_data)
 {

@@ -75,7 +75,7 @@ static int ax25_ds_state1_machine(ax25_cb *ax25, struct sk_buff *skb, int framet
 		}
 		ax25_dama_on(ax25);
 
-		/* according to DK4EG´s spec we are required to
+		/* according to DK4EG's spec we are required to
 		 * send a RR RESPONSE FINAL NR=0.
 		 */
 

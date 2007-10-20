@@ -1521,7 +1521,7 @@ pmu_sr_intr(void)
 			req = current_req;
 			/* 
 			 * For PMU sleep and freq change requests, we lock the
-			 * PMU until it's explicitely unlocked. This avoids any
+			 * PMU until it's explicitly unlocked. This avoids any
 			 * spurrious event polling getting in
 			 */
 			current_req = req->next;

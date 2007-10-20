@@ -37,7 +37,7 @@ config DISCONTIGMEM_MANUAL
 	  in their physical address spaces, and this option provides
 	  more efficient handling of these holes.  However, the vast
 	  majority of hardware has quite flat address spaces, and
-	  can have degraded performance from extra overhead that
+	  can have degraded performance from the extra overhead that
 	  this option imposes.
 
 	  Many NUMA configurations will have this as the only option.

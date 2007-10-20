@@ -121,7 +121,7 @@ int __add_pages(struct zone *zone, unsigned long phys_start_pfn,
 		err = __add_section(zone, i << PFN_SECTION_SHIFT);
 
 		/*
-		 * EEXIST is finally dealed with by ioresource collision
+		 * EEXIST is finally dealt with by ioresource collision
 		 * check. see add_memory() => register_memory_resource()
 		 * Warning will be printed if there is collision.
 		 */

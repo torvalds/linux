@@ -4,7 +4,7 @@
 
     i2c Support for Via Technologies 82C586B South Bridge
 
-    Copyright (c) 1998, 1999 Kyösti Mälkki <kmalkki@cc.hut.fi>
+    Copyright (c) 1998, 1999 KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -176,7 +176,7 @@ static void __exit i2c_vt586b_exit(void)
 }
 
 
-MODULE_AUTHOR("Kyösti Mälkki <kmalkki@cc.hut.fi>");
+MODULE_AUTHOR("KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>");
 MODULE_DESCRIPTION("i2c for Via vt82c586b southbridge");
 MODULE_LICENSE("GPL");
 

@@ -93,7 +93,7 @@ static void __cpuinit check_cx686_slop(struct cpuinfo_x86 *c)
 
 		local_irq_save(flags);
 		ccr3 = getCx86(CX86_CCR3);
-		setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN  */
+		setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN */
 		ccr5 = getCx86(CX86_CCR5);
 		if (ccr5 & 2)
 			setCx86(CX86_CCR5, ccr5 & 0xfd);  /* reset SLOP */
@@ -115,9 +115,9 @@ static void __cpuinit set_cx86_reorder(void)
 
 	printk(KERN_INFO "Enable Memory access reorder on Cyrix/NSC processor.\n");
 	ccr3 = getCx86(CX86_CCR3);
-	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN  */
+	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN */
 
-	/* Load/Store Serialize to mem access disable (=reorder it)  */
+	/* Load/Store Serialize to mem access disable (=reorder it) */
 	setCx86(CX86_PCR0, getCx86(CX86_PCR0) & ~0x80);
 	/* set load/store serialize from 1GB to 4GB */
 	ccr3 |= 0xe0;
@@ -146,7 +146,7 @@ static void __cpuinit set_cx86_inc(void)
 	printk(KERN_INFO "Enable Incrementor on Cyrix/NSC processor.\n");
 
 	ccr3 = getCx86(CX86_CCR3);
-	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN  */
+	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN */
 	/* PCR1 -- Performance Control */
 	/* Incrementor on, whatever that is */
 	setCx86(CX86_PCR1, getCx86(CX86_PCR1) | 0x02);
@@ -256,7 +256,7 @@ static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 		u32 vendor, device;
 		/* It isn't really a PCI quirk directly, but the cure is the
 		   same. The MediaGX has deep magic SMM stuff that handles the
-		   SB emulation. It thows away the fifo on disable_dma() which
+		   SB emulation. It throws away the fifo on disable_dma() which
 		   is wrong and ruins the audio. 
 
 		   Bug2: VSA1 has a wrap bug so that using maximum sized DMA 

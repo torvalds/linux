@@ -33,7 +33,7 @@ void pcmcia_reset(void)
 
 
 /* copy a tuple, including tuple header. return nb bytes copied */
-/* be carefull as this may trigger a GAYLE_IRQ_WR interrupt ! */
+/* be careful as this may trigger a GAYLE_IRQ_WR interrupt ! */
 
 int pcmcia_copy_tuple(unsigned char tuple_id, void *tuple, int max_len)
 {

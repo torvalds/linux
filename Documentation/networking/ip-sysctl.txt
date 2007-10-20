@@ -293,7 +293,7 @@ tcp_no_metrics_save - BOOLEAN
 	when the connection closes, so that connections established in the
 	near future can use these to set initial conditions.  Usually, this
 	increases overall performance, but may sometimes cause performance
-	degredation.  If set, TCP will not cache metrics on closing
+	degradation.  If set, TCP will not cache metrics on closing
 	connections.
 
 tcp_orphan_retries - INTEGER

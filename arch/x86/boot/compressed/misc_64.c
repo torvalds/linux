@@ -25,7 +25,7 @@
 
 /*
  * Getting to provable safe in place decompression is hard.
- * Worst case behaviours need to be analized.
+ * Worst case behaviours need to be analyzed.
  * Background information:
  *
  * The file layout is:
@@ -94,7 +94,7 @@
  * Adding 32768 instead of 32767 just makes for round numbers.
  * Adding the decompressor_size is necessary as it musht live after all
  * of the data as well.  Last I measured the decompressor is about 14K.
- * 10K of actuall data and 4K of bss.
+ * 10K of actual data and 4K of bss.
  *
  */
 

@@ -224,7 +224,7 @@ against the page the filesystem should redirty the page with
 redirty_page_for_writepage(), then unlock the page and return zero.
 This may also be done to avoid internal deadlocks, but rarely.
 
-If the filesytem is called for sync then it must wait on any
+If the filesystem is called for sync then it must wait on any
 in-progress I/O and then start new I/O.
 
 The filesystem should unlock the page synchronously, before returning to the

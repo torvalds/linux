@@ -24,7 +24,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Should you need to contact me, the author, you can do so by
- * e-mail - mail your message to <deneux@ifrance.com>
+ * e-mail - mail your message to <johann.deneux@gmail.com>
  */
 
 #include <linux/types.h>

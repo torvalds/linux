@@ -182,7 +182,7 @@ config ETRAX_LED7G
 	  set this to same as CONFIG_ETRAX_LED1G (normally 2).
 
 config ETRAX_LED8Y
-	int "Eigth yellow LED bit"
+	int "Eighth yellow LED bit"
 	depends on ETRAX_CSP0_LEDS
 	default "2"
 	help

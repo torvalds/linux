@@ -56,7 +56,7 @@
 
 /* Receive queue sizes */
 /* Minimum of credit that the peer should hold.
- * If the peer has less credits than 9 frames, we will explicitely send
+ * If the peer has less credits than 9 frames, we will explicitly send
  * him some credits (through irttp_give_credit() and a specific frame).
  * Note that when we give credits it's likely that it won't be sent in
  * this LAP window, but in the next one. So, we make sure that the peer
@@ -66,7 +66,7 @@
 /* This is the default maximum number of credits held by the peer, so the
  * default maximum number of frames he can send us before needing flow
  * control answer from us (this may be negociated differently at TSAP setup).
- * We want to minimise the number of times we have to explicitely send some
+ * We want to minimise the number of times we have to explicitly send some
  * credit to the peer, hoping we can piggyback it on the return data. In
  * particular, it doesn't make sense for us to send credit more than once
  * per LAP window.

@@ -359,7 +359,7 @@
  *
  * Revision 1.36.3.8  1996/06/07 16:29:00  bentson
  * starting minor number at zero; added missing verify_area
- * as noted by Heiko Eissfeldt <heiko@colossus.escape.de>
+ * as noted by Heiko Eißfeldt <heiko@colossus.escape.de>
  *
  * Revision 1.36.3.7  1996/04/19 21:06:18  bentson
  * remove unneeded boot message & fix CLOCAL hardware flow
@@ -727,8 +727,6 @@ static struct tty_driver *cy_serial_driver;
    driver to probe addresses at a different address, add it to
    this table.  If the driver is probing some other board and
    causing problems, remove the offending address from this table.
-   The cy_setup function extracts additional addresses from the
-   boot options line.  The form is "cyclades=address,address..."
 */
 
 static unsigned int cy_isa_addresses[] = {

@@ -52,7 +52,7 @@ config ACPI_PROCFS
 	depends on PROC_FS
 	---help---
 	  For backwards compatibility, this option allows
-	  depricated /proc/acpi/ files to exist, even when
+	  deprecated /proc/acpi/ files to exist, even when
 	  they have been replaced by functions in /sys.
 	  The deprecated files (and their replacements) include:
 

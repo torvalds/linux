@@ -1,4 +1,4 @@
-﻿PXA2xx SPI on SSP driver HOWTO
+PXA2xx SPI on SSP driver HOWTO
 ===================================================
 This a mini howto on the pxa2xx_spi driver.  The driver turns a PXA2xx
 synchronous serial port into a SPI master controller

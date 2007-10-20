@@ -22,7 +22,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 /*
- * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
+ * Authors: Thomas HellstrÃ¶m <thomas-at-tungstengraphics-dot-com>
  */
 
 #include "drmP.h"

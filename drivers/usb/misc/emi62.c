@@ -1,7 +1,7 @@
 /* 
  * Emagic EMI 2|6 usb audio interface firmware loader.
  * Copyright (C) 2002
- * 	Tapio Laxström (tapio.laxstrom@iptime.fi)
+ * 	Tapio LaxstrÃ¶m (tapio.laxstrom@iptime.fi)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, as published by
@@ -292,7 +292,7 @@ static void __exit emi62_exit (void)
 module_init(emi62_init);
 module_exit(emi62_exit);
 
-MODULE_AUTHOR("tapio laxström");
+MODULE_AUTHOR("Tapio LaxstrÃ¶m");
 MODULE_DESCRIPTION("Emagic EMI 6|2m firmware loader.");
 MODULE_LICENSE("GPL");
 

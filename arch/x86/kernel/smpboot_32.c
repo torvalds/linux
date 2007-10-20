@@ -421,7 +421,7 @@ static void __cpuinit start_secondary(void *unused)
 	/*
 	 * We need to hold call_lock, so there is no inconsistency
 	 * between the time smp_call_function() determines number of
-	 * IPI receipients, and the time when the determination is made
+	 * IPI recipients, and the time when the determination is made
 	 * for which cpus receive the IPI. Holding this
 	 * lock helps us to not include this cpu in a currently in progress
 	 * smp_call_function().

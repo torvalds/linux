@@ -584,7 +584,7 @@ tryanotherirq:
 
 	imbalance = move_this_load;
 	
-	/* For physical_balance case, we accumlated both load
+	/* For physical_balance case, we accumulated both load
 	 * values in the one of the siblings cpu_irq[],
 	 * to use the same code for physical and logical processors
 	 * as much as possible. 
@@ -2475,7 +2475,7 @@ void destroy_irq(unsigned int irq)
 }
 
 /*
- * MSI mesage composition
+ * MSI message composition
  */
 #ifdef CONFIG_PCI_MSI
 static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq, struct msi_msg *msg)

@@ -169,7 +169,7 @@ init_IRQ(void)
         for (i = 0; i < 256; i++)
                etrax_irv->v[i] = weird_irq;
 
-	/* Initialize IRQ handler descriptiors. */
+	/* Initialize IRQ handler descriptors. */
 	for(i = 2; i < NR_IRQS; i++) {
 		irq_desc[i].chip = &crisv10_irq_type;
 		set_int_vector(i, interrupt[i]);

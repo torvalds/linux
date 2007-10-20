@@ -1,7 +1,7 @@
 /*
  * sysctl.c - Code for sysctl handling in NTFS Linux kernel driver. Part of
  *	      the Linux-NTFS project. Adapted from the old NTFS driver,
- *	      Copyright (C) 1997 Martin von Löwis, Régis Duchesne
+ *	      Copyright (C) 1997 Martin von LÃ¶wis, RÃ©gis Duchesne
  *
  * Copyright (c) 2002-2005 Anton Altaparmakov
  *

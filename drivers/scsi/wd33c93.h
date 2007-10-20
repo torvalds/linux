@@ -155,7 +155,7 @@
 #define WD33C93_FS_12_15 OWNID_FS_12
 #define WD33C93_FS_16_20 OWNID_FS_16
 
-   /* pass input-clock explicitely. accepted mhz values are 8-10,12-20 */
+   /* pass input-clock explicitly. accepted mhz values are 8-10,12-20 */
 #define WD33C93_FS_MHZ(mhz) (mhz)
 
    /* Control register */

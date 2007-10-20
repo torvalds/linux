@@ -4,7 +4,7 @@
  * From Phillips' datasheet:
  *
  * The PCF8563 is a CMOS real-time clock/calendar optimized for low power
- * consumption. A programmable clock output, interupt output and voltage
+ * consumption. A programmable clock output, interrupt output and voltage
  * low detector are also provided. All address and data are transferred
  * serially via two-line bidirectional I2C-bus. Maximum bus speed is
  * 400 kbits/s. The built-in word address register is incremented

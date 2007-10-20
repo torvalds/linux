@@ -1654,7 +1654,7 @@ tc35815_rx(struct net_device *dev)
 					panic_queues(dev);
 				}
 #endif
-				/* pass BD to controler */
+				/* pass BD to controller */
 #ifndef TC35815_USE_PACKEDBUFFER
 				if (!lp->rx_skbs[curid].skb) {
 					lp->rx_skbs[curid].skb =
@@ -1694,7 +1694,7 @@ tc35815_rx(struct net_device *dev)
 		}
 #endif
 		for (i = 0; i < (bd_count + 1) / 2 + 1; i++) {
-			/* pass FD to controler */
+			/* pass FD to controller */
 #ifdef DEBUG
 			lp->rfd_cur->fd.FDNext = cpu_to_le32(0xdeaddead);
 #else

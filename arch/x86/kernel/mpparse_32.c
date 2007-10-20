@@ -1001,7 +1001,7 @@ void __init mp_config_acpi_legacy_irqs (void)
 
 	/* 
 	 * Use the default configuration for the IRQs 0-15.  Unless
-	 * overriden by (MADT) interrupt source override entries.
+	 * overridden by (MADT) interrupt source override entries.
 	 */
 	for (i = 0; i < 16; i++) {
 		int idx;

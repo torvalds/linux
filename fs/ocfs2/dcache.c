@@ -376,7 +376,7 @@ out:
  * directory locks. The dentries have already been deleted on other
  * nodes via ocfs2_remote_dentry_delete().
  *
- * Normally, the VFS handles the d_move() for the file sytem, after
+ * Normally, the VFS handles the d_move() for the file system, after
  * the ->rename() callback. OCFS2 wants to handle this internally, so
  * the new lock can be created atomically with respect to the cluster.
  */

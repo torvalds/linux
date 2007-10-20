@@ -748,7 +748,7 @@ static int __init mtrr_init_finialize(void)
 	if (use_intel())
 		mtrr_state_warn();
 	else {
-		/* The CPUs haven't MTRR and seemes not support SMP. They have
+		/* The CPUs haven't MTRR and seem to not support SMP. They have
 		 * specific drivers, we use a tricky method to support
 		 * suspend/resume for them.
 		 * TBD: is there any system with such CPU which supports

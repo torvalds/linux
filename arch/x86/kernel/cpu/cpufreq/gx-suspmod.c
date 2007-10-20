@@ -12,12 +12,12 @@
  *      of any nature resulting due to the use of this software. This
  *      software is provided AS-IS with no warranties.
  *
- * Theoritical note:
+ * Theoretical note:
  *
  *	(see Geode(tm) CS5530 manual (rev.4.1) page.56)
  *
  *	CPU frequency control on NatSemi Geode GX1/GXLV processor and CS55x0
- *	are based on Suspend Moduration.
+ *	are based on Suspend Modulation.
  *
  *	Suspend Modulation works by asserting and de-asserting the SUSP# pin
  *	to CPU(GX1/GXLV) for configurable durations. When asserting SUSP#
@@ -101,11 +101,11 @@
 
 /* SUSCFG bits */
 #define SUSMOD		(1<<0)	/* enable/disable suspend modulation */
-/* the belows support only with cs5530 (after rev.1.2)/cs5530A */
+/* the below is supported only with cs5530 (after rev.1.2)/cs5530A */
 #define SMISPDUP	(1<<1)	/* select how SMI re-enable suspend modulation: */
 				/* IRQTC timer or read SMI speedup disable reg.(F1BAR[08-09h]) */
 #define SUSCFG		(1<<2)	/* enable powering down a GXLV processor. "Special 3Volt Suspend" mode */
-/* the belows support only with cs5530A */
+/* the below is supported only with cs5530A */
 #define PWRSVE_ISA	(1<<3)	/* stop ISA clock  */
 #define PWRSVE		(1<<4)	/* active idle */
 

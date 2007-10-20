@@ -191,7 +191,7 @@ snd_vortex_create(struct snd_card *card, struct pci_dev *pci, vortex_t ** rchip)
 
 	/* Init audio core.
 	 * This must be done before we do request_irq otherwise we can get spurious
-	 * interupts that we do not handle properly and make a mess of things */
+	 * interrupts that we do not handle properly and make a mess of things */
 	if ((err = vortex_core_init(chip)) != 0) {
 		printk(KERN_ERR "hw core init failed\n");
 		goto core_out;

@@ -1,7 +1,7 @@
 /*
  * isdnhdlc.c  --  General purpose ISDN HDLC decoder.
  *
- *Copyright (C) 2002	Wolfgang Mües      <wolfgang@iksw-muees.de>
+ *Copyright (C) 2002	Wolfgang MÃ¼es      <wolfgang@iksw-muees.de>
  *		2001 	Frode Isaksen      <fisaksen@bewan.com>
  *              2001 	Kai Germaschewski  <kai.germaschewski@gmx.de>
  *
@@ -27,7 +27,7 @@
 
 /*-------------------------------------------------------------------*/
 
-MODULE_AUTHOR("Wolfgang Mües <wolfgang@iksw-muees.de>, "
+MODULE_AUTHOR("Wolfgang MÃ¼es <wolfgang@iksw-muees.de>, "
 	      "Frode Isaksen <fisaksen@bewan.com>, "
 	      "Kai Germaschewski <kai.germaschewski@gmx.de>");
 MODULE_DESCRIPTION("General purpose ISDN HDLC decoder");

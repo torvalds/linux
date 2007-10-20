@@ -4,7 +4,7 @@
  * Linux framebuffer driver for Intel(R) 830M/845G/852GM/855GM/865G/915G/915GM/
  * 945G/945GM integrated graphics chips.
  *
- * Copyright © 2002, 2003 David Dawes <dawes@xfree86.org>
+ * Copyright Â© 2002, 2003 David Dawes <dawes@xfree86.org>
  *                   2004 Sylvain Meyer
  *                   2006 David Airlie
  *

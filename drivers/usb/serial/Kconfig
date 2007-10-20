@@ -527,7 +527,7 @@ config USB_SERIAL_CYBERJACK
 	depends on USB_SERIAL && EXPERIMENTAL
 	---help---
 	  Say Y here if you want to use a cyberJack pinpad/e-com USB chipcard
-	  reader. This is an interface to ISO 7816 compatible contactbased
+	  reader. This is an interface to ISO 7816 compatible contact-based
 	  chipcards, e.g. GSM SIMs.
 
 	  To compile this driver as a module, choose M here: the

@@ -142,7 +142,7 @@ smp_boot_one_cpu(int cpuid)
 	return -1;
 }
 
-/* Secondary CPUs starts uing C here. Here we need to setup CPU
+/* Secondary CPUs starts using C here. Here we need to setup CPU
  * specific stuff such as the local timer and the MMU. */
 void __init smp_callin(void)
 {

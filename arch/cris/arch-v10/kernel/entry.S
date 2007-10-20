@@ -97,7 +97,7 @@
  *
  *  Revision 1.36  2001/11/22 13:36:36  bjornw
  *  * In ret_from_intr, check regs->dccr for usermode reentrance instead of
- *    DCCR explicitely (because the latter might not reflect current reality)
+ *    DCCR explicitly (because the latter might not reflect current reality)
  *  * In mmu_bus_fault, set $r9 _after_ calling the C-code instead of before
  *    since $r9 is call-clobbered and is potentially needed afterwards
  *

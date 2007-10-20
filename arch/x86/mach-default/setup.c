@@ -108,7 +108,7 @@ void __init time_init_hook(void)
  * mca_nmi_hook - hook into MCA specific NMI chain
  *
  * Description:
- *	The MCA (Microchannel Arcitecture) has an NMI chain for NMI sources
+ *	The MCA (Microchannel Architecture) has an NMI chain for NMI sources
  *	along the MCA bus.  Use this to hook into that chain if you will need
  *	it.
  **/
@@ -131,7 +131,7 @@ static __init int no_ipi_broadcast(char *str)
 	return 1;
 }
 
-__setup("no_ipi_broadcast", no_ipi_broadcast);
+__setup("no_ipi_broadcast=", no_ipi_broadcast);
 
 static int __init print_ipi_mode(void)
 {

@@ -115,7 +115,7 @@ static void supermicro_old_pre_keepalive(unsigned long acpibase)
  *	  For P4DPx:
  *	  BIOS setup -> Advanced -> I/O Device Configuration -> Watch Dog
  *	 This setting enables or disables Watchdog function. When enabled, the
- *	 default watchdog timer is set to be 5 minutes (about 4’35”). It is
+ *	 default watchdog timer is set to be 5 minutes (about 4m35s). It is
  *	 enough to load and run the OS. The application (service or driver) has
  *	 to take over the control once OS is running up and before watchdog
  *	 expires.

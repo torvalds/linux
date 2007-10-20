@@ -317,7 +317,7 @@ snd_emux_update_port(struct snd_emux_port *port, int update)
 
 
 /*
- * Deal with a controler type event.  This includes all types of
+ * Deal with a controller type event.  This includes all types of
  * control events, not just the midi controllers
  */
 void

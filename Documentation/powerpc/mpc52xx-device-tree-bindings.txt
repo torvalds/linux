@@ -17,12 +17,12 @@ passed by the boot loader to the kernel at boot time.  The device tree
 describes what devices are present on the board and how they are
 connected.  The device tree can either be passed as a binary blob (as
 described in Documentation/powerpc/booting-without-of.txt), or passed
-by Open Firmare (IEEE 1275) compatible firmware using an OF compatible
+by Open Firmware (IEEE 1275) compatible firmware using an OF compatible
 client interface API.
 
 This document specifies the requirements on the device-tree for mpc5200
 based boards.  These requirements are above and beyond the details
-specified in either the OpenFirmware spec or booting-without-of.txt
+specified in either the Open Firmware spec or booting-without-of.txt
 
 All new mpc5200-based boards are expected to match this document.  In
 cases where this document is not sufficient to support a new board port,
@@ -73,8 +73,8 @@ match on the compatible list; the 'most compatible' driver should be
 selected.
 
 The split between the MPC5200 and the MPC5200B leaves a bit of a
-connundrum.  How should the compatible property be set up to provide
-maximum compatability information; but still acurately describe the
+conundrum.  How should the compatible property be set up to provide
+maximum compatibility information; but still accurately describe the
 chip?  For the MPC5200; the answer is easy.  Most of the SoC devices
 originally appeared on the MPC5200.  Since they didn't exist anywhere
 else; the 5200 compatible properties will contain only one item;
@@ -84,7 +84,7 @@ The 5200B is almost the same as the 5200, but not quite.  It fixes
 silicon bugs and it adds a small number of enhancements.  Most of the
 devices either provide exactly the same interface as on the 5200.  A few
 devices have extra functions but still have a backwards compatible mode.
-To express this infomation as completely as possible, 5200B device trees
+To express this information as completely as possible, 5200B device trees
 should have two items in the compatible list;
 "mpc5200b-<device>\0mpc5200-<device>".  It is *strongly* recommended
 that 5200B device trees follow this convention (instead of only listing
@@ -199,7 +199,7 @@ ethernet@<addr>	network		mpc5200-fec	  MPC5200 ethernet device
 ata@<addr>	ata		mpc5200-ata	  IDE ATA interface
 i2c@<addr>	i2c		mpc5200-i2c	  I2C controller
 usb@<addr>	usb-ohci-be	mpc5200-ohci,ohci-be	USB controller
-xlb@<addr>	xlb		mpc5200-xlb	  XLB arbritrator
+xlb@<addr>	xlb		mpc5200-xlb	  XLB arbitrator
 
 Important child node properties
 name		type		description

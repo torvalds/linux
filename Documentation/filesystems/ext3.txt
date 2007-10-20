@@ -130,12 +130,12 @@ Device layer.
 
 Journaling Block Device layer
 -----------------------------
-The Journaling Block Device layer (JBD) isn't ext3 specific.  It was design to
-add journaling capabilities on a block device.  The ext3 filesystem code will
-inform the JBD of modifications it is performing (called a transaction).  The
-journal supports the transactions start and stop, and in case of crash, the
-journal can replayed the transactions to put the partition back in a
-consistent state fast.
+The Journaling Block Device layer (JBD) isn't ext3 specific.  It was designed
+to add journaling capabilities to a block device.  The ext3 filesystem code
+will inform the JBD of modifications it is performing (called a transaction).
+The journal supports the transactions start and stop, and in case of a crash,
+the journal can replay the transactions to quickly put the partition back into
+a consistent state.
 
 Handles represent a single atomic update to a filesystem.  JBD can handle an
 external journal on a block device.
@@ -164,7 +164,7 @@ written to the journal first, and then to its final location.
 In the event of a crash, the journal can be replayed, bringing both data and
 metadata into a consistent state.  This mode is the slowest except when data
 needs to be read from and written to disk at the same time where it
-outperforms all others modes.
+outperforms all other modes.
 
 Compatibility
 -------------

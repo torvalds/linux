@@ -30,8 +30,8 @@ do {						\
  * The TLB can host up to 256 different mm contexts at the same time. The running
  * context is found in the PID register. Each TLB entry contains a page_id that
  * has to match the PID register to give a hit. page_id_map keeps track of which
- * mm's is assigned to which page_id's, making sure it's known when to
- * invalidate TLB entries.
+ * mm is assigned to which page_id, making sure it's known when to invalidate TLB
+ * entries.
  *
  * The last page_id is never running, it is used as an invalid page_id so that
  * it's possible to make TLB entries that will nerver match.
@@ -188,7 +188,7 @@ switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	spin_unlock(&mmu_context_lock);
 
 	/*
-	 * Remember the pgd for the fault handlers. Keep a seperate copy of it
+	 * Remember the pgd for the fault handlers. Keep a separate copy of it
 	 * because current and active_mm might be invalid at points where
 	 * there's still a need to derefer the pgd.
 	 */

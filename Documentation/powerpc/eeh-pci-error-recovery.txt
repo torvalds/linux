@@ -36,8 +36,8 @@ Causes of EEH Errors
 EEH was originally designed to guard against hardware failure, such
 as PCI cards dying from heat, humidity, dust, vibration and bad
 electrical connections. The vast majority of EEH errors seen in
-"real life" are due to eithr poorly seated PCI cards, or,
-unfortunately quite commonly, due device driver bugs, device firmware
+"real life" are due to either poorly seated PCI cards, or,
+unfortunately quite commonly, due to device driver bugs, device firmware
 bugs, and sometimes PCI card hardware bugs.
 
 The most common software bug, is one that causes the device to

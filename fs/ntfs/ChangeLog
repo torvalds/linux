@@ -382,7 +382,7 @@ ToDo/Notes:
 	  own locking so it does not matter if the vfs inode is locked.
 	- Fix bug in mft record writing where we forgot to set the device in
 	  the buffers when mapping them after the VM had discarded them.
-	  Thanks to Martin MOKREJŠ for the bug report.
+	  Thanks to Martin MOKREJÅ for the bug report.
 
 2.1.22 - Many bug and race fixes and error handling improvements.
 
@@ -1585,7 +1585,7 @@ tng-0.0.4 - Big changes, getting in line with Al Viro's comments.
 	  for reading $MFT (ntfs_mft_readpage). In the process create dedicated
 	  address space operations (ntfs_mft_aops) for $MFT inode mapping. Also
 	  removed the now superfluous exports from the kernel core patch.
-	- Fix a bug where kfree() was used insted of ntfs_free().
+	- Fix a bug where kfree() was used instead of ntfs_free().
 	- Change map_mft_record() to take ntfs_inode as argument instead of
 	  vfs inode. Dito for unmap_mft_record(). Adapt all callers.
 	- Add pointer to ntfs_volume to ntfs_inode.

@@ -78,7 +78,7 @@ alphabook1_init_arch(void)
  * example, sound boards seem to like using IRQ 9.
  *
  * This is NOT how we should do it. PIRQ0-X should have
- * their own IRQ's, the way intel uses the IO-APIC irq's.
+ * their own IRQs, the way intel uses the IO-APIC IRQs.
  */
 
 static void __init

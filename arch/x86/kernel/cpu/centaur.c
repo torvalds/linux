@@ -53,7 +53,7 @@ static u32 __cpuinit ramtop(void)		/* 16388 */
 			continue;
 		/*
 		 *	Don't MCR over reserved space. Ignore the ISA hole
-		 *	we frob around that catastrophy already
+		 *	we frob around that catastrophe already
 		 */
 		 			
 		if (e820.map[i].type == E820_RESERVED)
@@ -287,7 +287,7 @@ static void __cpuinit init_c3(struct cpuinfo_x86 *c)
 		c->x86_capability[5] = cpuid_edx(0xC0000001);
 	}
 
-	/* Cyrix III family needs CX8 & PGE explicity enabled. */
+	/* Cyrix III family needs CX8 & PGE explicitly enabled. */
 	if (c->x86_model >=6 && c->x86_model <= 9) {
 		rdmsr (MSR_VIA_FCR, lo, hi);
 		lo |= (1<<1 | 1<<7);

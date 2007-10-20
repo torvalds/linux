@@ -38,7 +38,7 @@ struct op_register_config {
 	unsigned long need_reset;
 };
 
-/* Per-architecture configury and hooks.  */
+/* Per-architecture configuration and hooks.  */
 struct op_axp_model {
 	void (*reg_setup) (struct op_register_config *,
 			   struct op_counter_config *,

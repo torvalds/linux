@@ -12,7 +12,7 @@
   For in-depth information, you can consult:
 
    o The UDP-Lite Homepage: http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/
-       Fom here you can also download some example application source code.
+       From here you can also download some example application source code.
 
    o The UDP-Lite HOWTO on
        http://www.erg.abdn.ac.uk/users/gerrit/udp-lite/files/UDP-Lite-HOWTO.txt
@@ -223,7 +223,7 @@
   While it is important that such cases are dealt with correctly, they
   are (annoyingly) rare: UDP-Lite is designed for optimising multimedia
   performance over wireless (or generally noisy) links and thus smaller
-  coverage lenghts are likely to be expected.
+  coverage lengths are likely to be expected.
 
 
   V) UDP-LITE RUNTIME STATISTICS AND THEIR MEANING
@@ -259,7 +259,7 @@
   VI) IPTABLES
 
   There is packet match support for UDP-Lite as well as support for the LOG target.
-  If you copy and paste the following line into /etc/protcols,
+  If you copy and paste the following line into /etc/protocols,
 
   udplite 136     UDP-Lite        # UDP-Lite [RFC 3828]
 

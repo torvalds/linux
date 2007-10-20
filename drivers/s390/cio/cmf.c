@@ -158,7 +158,7 @@ static inline u64 time_to_avg_nsec(u32 value, u32 count)
 	if (count == 0)
 		return 0;
 
-	/* value comes in units of 128 µsec */
+	/* value comes in units of 128 Âµsec */
 	ret = time_to_nsec(value);
 	do_div(ret, count);
 

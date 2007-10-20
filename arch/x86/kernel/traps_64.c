@@ -201,7 +201,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 #define MSG(txt) ops->warning(data, txt)
 
 /*
- * x86-64 can have upto three kernel stacks: 
+ * x86-64 can have up to three kernel stacks: 
  * process stack
  * interrupt stack
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack

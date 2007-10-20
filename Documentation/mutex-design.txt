@@ -133,4 +133,6 @@ the APIs of 'struct mutex' have been streamlined:
  int  mutex_trylock(struct mutex *lock);
  void mutex_unlock(struct mutex *lock);
  int  mutex_is_locked(struct mutex *lock);
-
+ void mutex_lock_nested(struct mutex *lock, unsigned int subclass);
+ int  mutex_lock_interruptible_nested(struct mutex *lock,
+                                      unsigned int subclass);

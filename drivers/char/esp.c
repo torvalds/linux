@@ -19,7 +19,7 @@
  *
  *  rs_set_termios fixed to look also for changes of the input
  *      flags INPCK, BRKINT, PARMRK, IGNPAR and IGNBRK.
- *                                            Bernd Anh�pl 05/17/96.
+ *                                            Bernd Anhäupl 05/17/96.
  *
  * --- End of notices from serial.c ---
  *

@@ -8,7 +8,7 @@
  *
  *  $Log: init.c,v $
  *  Revision 1.11  2004/05/28 09:28:56  starvik
- *  Calculation of loops_per_usec moved because initalization order has changed
+ *  Calculation of loops_per_usec moved because initialization order has changed
  *  in Linux 2.6.
  *
  *  Revision 1.10  2004/05/14 07:58:05  starvik

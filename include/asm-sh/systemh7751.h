@@ -36,7 +36,7 @@
 #define PA_LED		0xba000000	/* LED */
 #define	PA_BCR		0xbb000000	/* FPGA on the MS7751SE01 */
 
-#define PA_MRSHPC	0xb83fffe0	/* MR-SHPC-01 PCMCIA controler */
+#define PA_MRSHPC	0xb83fffe0	/* MR-SHPC-01 PCMCIA controller */
 #define PA_MRSHPC_MW1	0xb8400000	/* MR-SHPC-01 memory window base */
 #define PA_MRSHPC_MW2	0xb8500000	/* MR-SHPC-01 attribute window base */
 #define PA_MRSHPC_IO	0xb8600000	/* MR-SHPC-01 I/O window base */

@@ -99,7 +99,7 @@ static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
 
 /*
  * The default interrupt routing model is PIC (8259).  This gets
- * overriden if IOAPICs are enumerated (below).
+ * overridden if IOAPICs are enumerated (below).
  */
 enum acpi_irq_model_id acpi_irq_model = ACPI_IRQ_MODEL_PIC;
 
@@ -414,8 +414,8 @@ acpi_parse_nmi_src(struct acpi_subtable_header * header, const unsigned long end
  *
  * Port 0x4d0-4d1 are ECLR1 and ECLR2, the Edge/Level Control Registers
  * for the 8259 PIC.  bit[n] = 1 means irq[n] is Level, otherwise Edge.
- * ECLR1 is IRQ's 0-7 (IRQ 0, 1, 2 must be 0)
- * ECLR2 is IRQ's 8-15 (IRQ 8, 13 must be 0)
+ * ECLR1 is IRQs 0-7 (IRQ 0, 1, 2 must be 0)
+ * ECLR2 is IRQs 8-15 (IRQ 8, 13 must be 0)
  */
 
 void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
@@ -427,7 +427,7 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 	old = inb(0x4d0) | (inb(0x4d1) << 8);
 
 	/*
-	 * If we use ACPI to set PCI irq's, then we should clear ELCR
+	 * If we use ACPI to set PCI IRQs, then we should clear ELCR
 	 * since we will set it correctly as we enable the PCI irq
 	 * routing.
 	 */

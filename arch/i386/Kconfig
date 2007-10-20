@@ -392,7 +392,7 @@ config X86_MCE_NONFATAL
 	  will look at the machine check registers to see if anything happened.
 	  Non-fatal problems automatically get corrected (but still logged).
 	  Disable this if you don't want to see these messages.
-	  Seeing the messages this option prints out may be indicative of dying hardware,
+	  Seeing the messages this option prints out may be indicative of dying
 	  or out-of-spec (ie, overclocked) hardware.
 	  This option only does something on certain CPUs.
 	  (AMD Athlon/Duron and Intel Pentium 4)
@@ -631,7 +631,7 @@ config NUMA
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
 	help
-	  NUMA support for i386. This is currently high experimental
+	  NUMA support for i386. This is currently highly experimental
 	  and should be only used for kernel development. It might also
 	  cause boot failures.
 

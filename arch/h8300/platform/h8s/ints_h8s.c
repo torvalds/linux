@@ -63,7 +63,7 @@ static const struct irq_pins irq_assign_table1[16]={
 	{H8300_GPIO_P2,H8300_GPIO_B6},{H8300_GPIO_P2,H8300_GPIO_B7},
 };
 
-/* IRQ to GPIO pinno transrate */
+/* IRQ to GPIO pin translation */
 #define IRQ_GPIO_MAP(irqbit,irq,port,bit)			  \
 do {								  \
 	if (*(volatile unsigned short *)ITSR & irqbit) {	  \

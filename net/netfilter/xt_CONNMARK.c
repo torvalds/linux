@@ -23,7 +23,7 @@
 #include <linux/ip.h>
 #include <net/checksum.h>
 
-MODULE_AUTHOR("Henrik Nordstrom <hno@marasytems.com>");
+MODULE_AUTHOR("Henrik Nordstrom <hno@marasystems.com>");
 MODULE_DESCRIPTION("IP tables CONNMARK matching module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_CONNMARK");

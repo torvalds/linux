@@ -79,7 +79,7 @@ In the _init function, which is called either upon module load or when
 booting the kernel, it grabs the required resources (it should also check
 for the presence of the device).
 
-Then it allocates a new input device structure with input_aloocate_device()
+Then it allocates a new input device structure with input_allocate_device()
 and sets up input bitfields. This way the device driver tells the other
 parts of the input systems what it is - what events can be generated or
 accepted by this input device. Our example device can only generate EV_KEY

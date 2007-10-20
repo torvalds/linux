@@ -86,7 +86,7 @@ static int pit_next_event(unsigned long delta, struct clock_event_device *evt)
  * On UP the PIT can serve all of the possible timer functions. On SMP systems
  * it can be solely used for the global tick.
  *
- * The profiling and update capabilites are switched off once the local apic is
+ * The profiling and update capabilities are switched off once the local apic is
  * registered. This mechanism replaces the previous #ifdef LOCAL_APIC -
  * !using_apic_timer decisions in do_timer_interrupt_hook()
  */

@@ -353,7 +353,7 @@ static int hpet_clocksource_register(void)
 	 *
 	 * hpet period is in femto seconds per cycle
 	 * so we need to convert this to ns/cyc units
-	 * aproximated by mult/2^shift
+	 * approximated by mult/2^shift
 	 *
 	 *  fsec/cyc * 1nsec/1000000fsec = nsec/cyc = mult/2^shift
 	 *  fsec/cyc * 1ns/1000000fsec * 2^shift = mult

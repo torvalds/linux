@@ -306,7 +306,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x0930, 0x0705) }, /* TOSHIBA Pocket PC e310 */
 	{ USB_DEVICE(0x0930, 0x0706) }, /* TOSHIBA Pocket PC e740 */
 	{ USB_DEVICE(0x0930, 0x0707) }, /* TOSHIBA Pocket PC e330 Series */
-	{ USB_DEVICE(0x0930, 0x0708) }, /* TOSHIBA Pocket PC e350 Series */
+	{ USB_DEVICE(0x0930, 0x0708) }, /* TOSHIBA Pocket PC e350 Series */
 	{ USB_DEVICE(0x0930, 0x0709) }, /* TOSHIBA Pocket PC e750 Series */
 	{ USB_DEVICE(0x0930, 0x070A) }, /* TOSHIBA Pocket PC e400 Series */
 	{ USB_DEVICE(0x0930, 0x070B) }, /* TOSHIBA Pocket PC e800 Series */
@@ -488,7 +488,7 @@ static struct usb_device_id ipaq_id_table [] = {
 	{ USB_DEVICE(0x0BF8, 0x1001) }, /* Fujitsu Siemens Computers USB Sync */
 	{ USB_DEVICE(0x0C44, 0x03A2) }, /* Motorola iDEN Smartphone */
 	{ USB_DEVICE(0x0C8E, 0x6000) }, /* Cesscom Luxian Series */
-	{ USB_DEVICE(0x0CAD, 0x9001) }, /* Motorola PowerPad Pocket PC Device */
+	{ USB_DEVICE(0x0CAD, 0x9001) }, /* Motorola PowerPad Pocket PC Device */
 	{ USB_DEVICE(0x0F4E, 0x0200) }, /* Freedom Scientific USB Sync */
 	{ USB_DEVICE(0x0F98, 0x0201) }, /* Cyberbank USB Sync */
 	{ USB_DEVICE(0x0FB8, 0x3001) }, /* Wistron USB Sync */

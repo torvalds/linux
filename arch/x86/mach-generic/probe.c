@@ -56,7 +56,7 @@ void __init generic_bigsmp_probe(void)
 	/*
 	 * This routine is used to switch to bigsmp mode when
 	 * - There is no apic= option specified by the user
-	 * - generic_apic_probe() has choosen apic_default as the sub_arch
+	 * - generic_apic_probe() has chosen apic_default as the sub_arch
 	 * - we find more than 8 CPUs in acpi LAPIC listing with xAPIC support
 	 */
 

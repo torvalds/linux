@@ -101,7 +101,7 @@ void q40_ide_setup_ports ( hw_regs_t *hw,
 
 /* 
  * the static array is needed to have the name reported in /proc/ioports,
- * hwif->name unfortunately isn´t available yet
+ * hwif->name unfortunately isn't available yet
  */
 static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
 	"ide0", "ide1"
