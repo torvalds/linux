@@ -508,7 +508,6 @@ error_out:
 		nbd_end_request(req);
 		spin_lock(q->queue_lock);
 	}
-	return;
 }
 
 static int nbd_ioctl(struct inode *inode, struct file *file,
