@@ -134,7 +134,7 @@ int init_vfc_hw(struct vfc_dev *dev)
 int init_vfc_devstruct(struct vfc_dev *dev, int instance) 
 {
 	dev->instance=instance;
-	init_MUTEX(&dev->device_lock_sem);
+	mutex_init(&dev->device_lock_mtx);
 	dev->control_reg=0;
 	dev->busy=0;
 	return 0;
