@@ -79,12 +79,12 @@ PALO := $(shell if which palo; then : ; \
 	fi)
 
 palo: vmlinux
-	@if [ ! -x $(PALO) ]; then \
+	@if test ! -x $(PALO); then \
 		echo 'ERROR: Please install palo first (apt-get install palo)';\
 		echo 'or build it from source and install it somewhere in your $$PATH';\
 		false; \
 	fi
-	@if [ ! -f ./palo.conf ]; then \
+	@if test ! -f ./palo.conf; then \
 		cp arch/parisc/defpalo.conf palo.conf; \
 		echo 'A generic palo config file (./palo.conf) has been created for you.'; \
 		echo 'You should check it and re-run "make palo".'; \
