@@ -496,7 +496,7 @@ retry:
 			panic("Out of memory and no killable processes...\n");
 		}
 
-		if (oom_kill_process(p, points, gfp_mask, order,
+		if (oom_kill_process(p, gfp_mask, order, points,
 				     "Out of memory"))
 			goto retry;
 
