@@ -1048,7 +1048,7 @@ static int l2cap_sock_setsockopt(struct socket *sock, int level, int optname, ch
 		opts.imtu     = l2cap_pi(sk)->imtu;
 		opts.omtu     = l2cap_pi(sk)->omtu;
 		opts.flush_to = l2cap_pi(sk)->flush_to;
-		opts.mode     = 0x00;
+		opts.mode     = L2CAP_MODE_BASIC;
 
 		len = min_t(unsigned int, sizeof(opts), optlen);
 		if (copy_from_user((char *) &opts, optval, len)) {
@@ -1097,7 +1097,7 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 		opts.imtu     = l2cap_pi(sk)->imtu;
 		opts.omtu     = l2cap_pi(sk)->omtu;
 		opts.flush_to = l2cap_pi(sk)->flush_to;
-		opts.mode     = 0x00;
+		opts.mode     = L2CAP_MODE_BASIC;
 
 		len = min_t(unsigned int, len, sizeof(opts));
 		if (copy_to_user(optval, (char *) &opts, len))
@@ -1376,6 +1376,7 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 	int len = pi->conf_len;
 	int type, hint, olen;
 	unsigned long val;
+	struct l2cap_conf_rfc rfc = { .mode = L2CAP_MODE_BASIC };
 	u16 mtu = L2CAP_DEFAULT_MTU;
 	u16 result = L2CAP_CONF_SUCCESS;
 
@@ -1399,6 +1400,11 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 		case L2CAP_CONF_QOS:
 			break;
 
+		case L2CAP_CONF_RFC:
+			if (olen == sizeof(rfc))
+				memcpy(&rfc, (void *) val, olen);
+			break;
+
 		default:
 			if (hint)
 				break;
@@ -1413,14 +1419,24 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 		/* Configure output options and let the other side know
 		 * which ones we don't like. */
 
-		if (mtu < pi->omtu)
-			result = L2CAP_CONF_UNACCEPT;
-		else {
-			pi->omtu = mtu;
-			pi->conf_state |= L2CAP_CONF_OUTPUT_DONE;
-		}
+		if (rfc.mode == L2CAP_MODE_BASIC) {
+			if (mtu < pi->omtu)
+				result = L2CAP_CONF_UNACCEPT;
+			else {
+				pi->omtu = mtu;
+				pi->conf_state |= L2CAP_CONF_OUTPUT_DONE;
+			}
 
-		l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->omtu);
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_MTU, 2, pi->omtu);
+		} else {
+			result = L2CAP_CONF_UNACCEPT;
+
+			memset(&rfc, 0, sizeof(rfc));
+			rfc.mode = L2CAP_MODE_BASIC;
+
+			l2cap_add_conf_opt(&ptr, L2CAP_CONF_RFC,
+						sizeof(rfc), (unsigned long) &rfc);
+		}
 	}
 
 	rsp->scid   = cpu_to_le16(pi->dcid);

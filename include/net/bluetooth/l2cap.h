@@ -149,6 +149,19 @@ struct l2cap_conf_opt {
 
 #define L2CAP_CONF_MAX_SIZE	22
 
+struct l2cap_conf_rfc {
+	__u8       mode;
+	__u8       txwin_size;
+	__u8       max_transmit;
+	__le16     retrans_timeout;
+	__le16     monitor_timeout;
+	__le16     max_pdu_size;
+} __attribute__ ((packed));
+
+#define L2CAP_MODE_BASIC	0x00
+#define L2CAP_MODE_RETRANS	0x01
+#define L2CAP_MODE_FLOWCTL	0x02
+
 struct l2cap_disconn_req {
 	__le16     dcid;
 	__le16     scid;
