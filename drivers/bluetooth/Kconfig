@@ -22,6 +22,17 @@ config BT_HCIUSB_SCO
 
 	  Say Y here to compile support for SCO over HCI USB.
 
+config BT_HCIBTSDIO
+	tristate "HCI SDIO driver"
+	depends on MMC
+	help
+	  Bluetooth HCI SDIO driver.
+	  This driver is required if you want to use Bluetooth device with
+	  SDIO interface.
+
+	  Say Y here to compile support for Bluetooth SDIO devices into the
+	  kernel or say M to compile it as module (btsdio).
+
 config BT_HCIUART
 	tristate "HCI UART driver"
 	help
