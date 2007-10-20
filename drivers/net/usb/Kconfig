@@ -71,7 +71,7 @@ config USB_PEGASUS
 	select MII
 	---help---
 	  Say Y here if you know you have Pegasus or Pegasus-II based adapter.
-	  If in doubt then look at <file:drivers/usb/net/pegasus.h> for the
+	  If in doubt then look at <file:drivers/net/usb/pegasus.h> for the
 	  complete list of supported devices.
 
 	  If your particular adapter is not in the list and you are _sure_ it
