@@ -55,7 +55,9 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.8"
+#define VERSION "2.9"
+
+static u32 l2cap_feat_mask = 0x0000;
 
 static const struct proto_ops l2cap_sock_ops;
 
@@ -1775,16 +1777,27 @@ static inline int l2cap_disconnect_rsp(struct l2cap_conn *conn, struct l2cap_cmd
 static inline int l2cap_information_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr *cmd, u8 *data)
 {
 	struct l2cap_info_req *req = (struct l2cap_info_req *) data;
-	struct l2cap_info_rsp rsp;
 	u16 type;
 
 	type = __le16_to_cpu(req->type);
 
 	BT_DBG("type 0x%4.4x", type);
 
-	rsp.type   = cpu_to_le16(type);
-	rsp.result = cpu_to_le16(L2CAP_IR_NOTSUPP);
-	l2cap_send_cmd(conn, cmd->ident, L2CAP_INFO_RSP, sizeof(rsp), &rsp);
+	if (type == L2CAP_IT_FEAT_MASK) {
+		u8 buf[8];
+		struct l2cap_info_rsp *rsp = (struct l2cap_info_rsp *) buf;
+		rsp->type   = cpu_to_le16(L2CAP_IT_FEAT_MASK);
+		rsp->result = cpu_to_le16(L2CAP_IR_SUCCESS);
+		put_unaligned(cpu_to_le32(l2cap_feat_mask), (__le32 *) rsp->data);
+		l2cap_send_cmd(conn, cmd->ident,
+					L2CAP_INFO_RSP, sizeof(buf), buf);
+	} else {
+		struct l2cap_info_rsp rsp;
+		rsp.type   = cpu_to_le16(type);
+		rsp.result = cpu_to_le16(L2CAP_IR_NOTSUPP);
+		l2cap_send_cmd(conn, cmd->ident,
+					L2CAP_INFO_RSP, sizeof(rsp), &rsp);
+	}
 
 	return 0;
 }
