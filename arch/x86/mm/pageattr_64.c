@@ -61,10 +61,10 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	return base;
 } 
 
-static void cache_flush_page(void *adr)
+void clflush_cache_range(void *adr, int size)
 {
 	int i;
-	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
+	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
 		clflush(adr+i);
 }
 
@@ -80,7 +80,7 @@ static void flush_kernel_map(void *arg)
 		asm volatile("wbinvd" ::: "memory");
 	else list_for_each_entry(pg, l, lru) {
 		void *adr = page_address(pg);
-		cache_flush_page(adr);
+		clflush_cache_range(adr, PAGE_SIZE);
 	}
 	__flush_tlb_all();
 }
