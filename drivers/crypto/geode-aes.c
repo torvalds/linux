@@ -88,9 +88,10 @@ do_crypt(void *src, void *dst, int len, u32 flags)
 	/* Start the operation */
 	iowrite32(AES_CTRL_START | flags, _iobase + AES_CTRLA_REG);
 
-	do
+	do {
 		status = ioread32(_iobase + AES_INTR_REG);
-	while(!(status & AES_INTRA_PENDING) && --counter);
+		cpu_relax();
+	} while(!(status & AES_INTRA_PENDING) && --counter);
 
 	/* Clear the event */
 	iowrite32((status & 0xFF) | AES_INTRA_PENDING, _iobase + AES_INTR_REG);
@@ -102,6 +103,7 @@ geode_aes_crypt(struct geode_aes_op *op)
 {
 	u32 flags = 0;
 	unsigned long iflags;
+	int ret;
 
 	if (op->len == 0)
 		return 0;
@@ -130,7 +132,8 @@ geode_aes_crypt(struct geode_aes_op *op)
 		_writefield(AES_WRITEKEY0_REG, op->key);
 	}
 
-	do_crypt(op->src, op->dst, op->len, flags);
+	ret = do_crypt(op->src, op->dst, op->len, flags);
+	BUG_ON(ret);
 
 	if (op->mode == AES_MODE_CBC)
 		_readfield(AES_WRITEIV0_REG, op->iv);
