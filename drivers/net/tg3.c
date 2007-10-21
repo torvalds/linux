@@ -5029,10 +5029,7 @@ static int tg3_poll_fw(struct tg3 *tp)
 /* Save PCI command register before chip reset */
 static void tg3_save_pci_state(struct tg3 *tp)
 {
-	u32 val;
-
-	pci_read_config_dword(tp->pdev, TG3PCI_COMMAND, &val);
-	tp->pci_cmd = val;
+	pci_read_config_word(tp->pdev, PCI_COMMAND, &tp->pci_cmd);
 }
 
 /* Restore PCI state after chip reset */
@@ -5055,7 +5052,7 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 		       PCISTATE_ALLOW_APE_SHMEM_WR;
 	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
 
-	pci_write_config_dword(tp->pdev, TG3PCI_COMMAND, tp->pci_cmd);
+	pci_write_config_word(tp->pdev, PCI_COMMAND, tp->pci_cmd);
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)) {
 		pci_write_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE,

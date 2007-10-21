@@ -2421,7 +2421,7 @@ struct tg3 {
 #define PHY_REV_BCM5411_X0		0x1 /* Found on Netgear GA302T */
 
 	u32				led_ctrl;
-	u32				pci_cmd;
+	u16				pci_cmd;
 
 	char				board_part_number[24];
 #define TG3_VER_SIZE 32
