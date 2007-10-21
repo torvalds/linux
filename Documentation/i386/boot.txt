@@ -168,6 +168,8 @@ Offset	Proto	Name		Meaning
 0234/1	2.05+	relocatable_kernel Whether kernel is relocatable or not
 0235/3	N/A	pad2		Unused
 0238/4	2.06+	cmdline_size	Maximum size of the kernel command line
+023C/4	2.07+	hardware_subarch Hardware subarchitecture
+0240/8	2.07+	hardware_subarch_data Subarchitecture-specific data
 
 (1) For backwards compatibility, if the setup_sects field contains 0, the
     real value is 4.
@@ -204,7 +206,7 @@ boot loaders can ignore those fields.
 
 The byte order of all fields is littleendian (this is x86, after all.)
 
-Field name:	setup_secs
+Field name:	setup_sects
 Type:		read
 Offset/size:	0x1f1/1
 Protocol:	ALL
@@ -356,6 +358,13 @@ Protocol:	2.00+
 	- If 0, the protected-mode code is loaded at 0x10000.
 	- If 1, the protected-mode code is loaded at 0x100000.
 
+  Bit 6 (write): KEEP_SEGMENTS
+	Protocol: 2.07+
+	- if 0, reload the segment registers in the 32bit entry point.
+	- if 1, do not reload the segment registers in the 32bit entry point.
+		Assume that %cs %ds %ss %es are all set to flat segments with
+		a base of 0 (or the equivalent for their environment).
+
   Bit 7 (write): CAN_USE_HEAP
 	Set this bit to 1 to indicate that the value entered in the
 	heap_end_ptr is valid.  If this field is clear, some setup code
@@ -479,6 +488,29 @@ Protocol:	2.06+
   zero. This means that the command line can contain at most
   cmdline_size characters. With protocol version 2.05 and earlier, the
   maximum size was 255.
+
+Field name:	hardware_subarch
+Type:		write
+Offset/size:	0x23c/4
+Protocol:	2.07+
+
+  In a paravirtualized environment the hardware low level architectural
+  pieces such as interrupt handling, page table handling, and
+  accessing process control registers needs to be done differently.
+
+  This field allows the bootloader to inform the kernel we are in one
+  one of those environments.
+
+  0x00000000	The default x86/PC environment
+  0x00000001	lguest
+  0x00000002	Xen
+
+Field name:	hardware_subarch_data
+Type:		write
+Offset/size:	0x240/8
+Protocol:	2.07+
+
+  A pointer to data that is specific to hardware subarch
 
 
 **** THE KERNEL COMMAND LINE

@@ -28,8 +28,9 @@ struct setup_header {
 	u16	kernel_version;
 	u8	type_of_loader;
 	u8	loadflags;
-#define LOADED_HIGH	0x01
-#define CAN_USE_HEAP	0x80
+#define LOADED_HIGH	(1<<0)
+#define KEEP_SEGMENTS	(1<<6)
+#define CAN_USE_HEAP	(1<<7)
 	u16	setup_move_size;
 	u32	code32_start;
 	u32	ramdisk_image;
@@ -41,6 +42,10 @@ struct setup_header {
 	u32	initrd_addr_max;
 	u32	kernel_alignment;
 	u8	relocatable_kernel;
+	u8	_pad2[3];
+	u32	cmdline_size;
+	u32	hardware_subarch;
+	u64	hardware_subarch_data;
 } __attribute__((packed));
 
 struct sys_desc_table {
