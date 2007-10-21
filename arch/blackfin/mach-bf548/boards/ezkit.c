@@ -560,7 +560,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 	&bf54x_spi_master0,
-/*	&bf54x_spi_master1,*/
+	&bf54x_spi_master1,
 #endif
 
 #if defined(CONFIG_KEYBOARD_BFIN) || defined(CONFIG_KEYBOARD_BFIN_MODULE)
