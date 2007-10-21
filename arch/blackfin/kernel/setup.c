@@ -498,7 +498,7 @@ EXPORT_SYMBOL(get_sclk);
  */
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	char *cpu, *mmu, *fpu, *name, vendor[20], cache[30];
+	char *cpu, *mmu, *fpu, *vendor, *cache;
 	uint32_t revid;
 
 	u_long cclk = 0, sclk = 0;
@@ -508,17 +508,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	mmu = "none";
 	fpu = "none";
 	revid = bfin_revid();
-	name = bfin_board_name;
 
 	cclk = get_cclk();
 	sclk = get_sclk();
 
 	switch (bfin_read_CHIPID() & CHIPID_MANUFACTURE) {
-	case(0xca):
-		strcpy(vendor, "AnalogDevices");
+	case 0xca:
+		vendor = "Analog Devices";
 		break;
 	default:
-		strcpy(vendor, "unknown");
+		vendor = "unknown";
+		break;
 	}
 
 	seq_printf(m, "processor\t: %d\n"
@@ -544,22 +544,22 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	/* Check Cache configutation */
 	switch (bfin_read_DMEM_CONTROL() & (1 << DMC0_P | 1 << DMC1_P)) {
 	case ACACHE_BSRAM:
-		strcpy(cache, "dbank-A/B\t: cache/sram");
+		cache = "dbank-A/B\t: cache/sram";
 		dcache_size = 16;
 		dsup_banks = 1;
 		break;
 	case ACACHE_BCACHE:
-		strcpy(cache, "dbank-A/B\t: cache/cache");
+		cache = "dbank-A/B\t: cache/cache";
 		dcache_size = 32;
 		dsup_banks = 2;
 		break;
 	case ASRAM_BSRAM:
-		strcpy(cache, "dbank-A/B\t: sram/sram");
+		cache = "dbank-A/B\t: sram/sram";
 		dcache_size = 0;
 		dsup_banks = 0;
 		break;
 	default:
-		strcpy(cache, "unknown");
+		cache = "unknown";
 		dcache_size = 0;
 		dsup_banks = 0;
 		break;
@@ -639,7 +639,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 #endif
 
-	seq_printf(m, "board name\t: %s\n", name);
+	seq_printf(m, "board name\t: %s\n", bfin_board_name);
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
 	seq_printf(m, "kernel memory\t: %d kB (0x%p -> 0x%p)\n",

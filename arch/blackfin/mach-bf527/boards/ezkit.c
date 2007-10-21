@@ -49,7 +49,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-char *bfin_board_name = "ADDS-BF527-EZKIT";
+const char bfin_board_name[] = "ADDS-BF527-EZKIT";
 
 /*
  *  Driver needs to know address, irq and flag pin.
