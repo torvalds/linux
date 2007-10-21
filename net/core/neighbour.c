@@ -1438,6 +1438,9 @@ int neigh_table_clear(struct neigh_table *tbl)
 	free_percpu(tbl->stats);
 	tbl->stats = NULL;
 
+	kmem_cache_destroy(tbl->kmem_cachep);
+	tbl->kmem_cachep = NULL;
+
 	return 0;
 }
 
