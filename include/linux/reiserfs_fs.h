@@ -28,6 +28,8 @@
 #include <linux/reiserfs_fs_sb.h>
 #endif
 
+struct fid;
+
 /*
  *  include/linux/reiser_fs.h
  *
@@ -1877,12 +1879,10 @@ void reiserfs_delete_inode(struct inode *inode);
 int reiserfs_write_inode(struct inode *inode, int);
 int reiserfs_get_block(struct inode *inode, sector_t block,
 		       struct buffer_head *bh_result, int create);
-struct dentry *reiserfs_get_dentry(struct super_block *, void *);
-struct dentry *reiserfs_decode_fh(struct super_block *sb, __u32 * data,
-				  int len, int fhtype,
-				  int (*acceptable) (void *contect,
-						     struct dentry * de),
-				  void *context);
+struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
+				     int fh_len, int fh_type);
+struct dentry *reiserfs_fh_to_parent(struct super_block *sb, struct fid *fid,
+				     int fh_len, int fh_type);
 int reiserfs_encode_fh(struct dentry *dentry, __u32 * data, int *lenp,
 		       int connectable);
 

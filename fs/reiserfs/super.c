@@ -663,9 +663,9 @@ static struct quotactl_ops reiserfs_qctl_operations = {
 
 static struct export_operations reiserfs_export_ops = {
 	.encode_fh = reiserfs_encode_fh,
-	.decode_fh = reiserfs_decode_fh,
+	.fh_to_dentry = reiserfs_fh_to_dentry,
+	.fh_to_parent = reiserfs_fh_to_parent,
 	.get_parent = reiserfs_get_parent,
-	.get_dentry = reiserfs_get_dentry,
 };
 
 /* this struct is used in reiserfs_getopt () for containing the value for those
