@@ -85,9 +85,31 @@ static struct kmem_cache *iommu_domain_cache;
 static struct kmem_cache *iommu_devinfo_cache;
 static struct kmem_cache *iommu_iova_cache;
 
+static inline void *iommu_kmem_cache_alloc(struct kmem_cache *cachep)
+{
+	unsigned int flags;
+	void *vaddr;
+
+	/* trying to avoid low memory issues */
+	flags = current->flags & PF_MEMALLOC;
+	current->flags |= PF_MEMALLOC;
+	vaddr = kmem_cache_alloc(cachep, GFP_ATOMIC);
+	current->flags &= (~PF_MEMALLOC | flags);
+	return vaddr;
+}
+
+
 static inline void *alloc_pgtable_page(void)
 {
-	return (void *)get_zeroed_page(GFP_ATOMIC);
+	unsigned int flags;
+	void *vaddr;
+
+	/* trying to avoid low memory issues */
+	flags = current->flags & PF_MEMALLOC;
+	current->flags |= PF_MEMALLOC;
+	vaddr = (void *)get_zeroed_page(GFP_ATOMIC);
+	current->flags &= (~PF_MEMALLOC | flags);
+	return vaddr;
 }
 
 static inline void free_pgtable_page(void *vaddr)
@@ -97,7 +119,7 @@ static inline void free_pgtable_page(void *vaddr)
 
 static inline void *alloc_domain_mem(void)
 {
-	return kmem_cache_alloc(iommu_domain_cache, GFP_ATOMIC);
+	return iommu_kmem_cache_alloc(iommu_domain_cache);
 }
 
 static inline void free_domain_mem(void *vaddr)
@@ -107,7 +129,7 @@ static inline void free_domain_mem(void *vaddr)
 
 static inline void * alloc_devinfo_mem(void)
 {
-	return kmem_cache_alloc(iommu_devinfo_cache, GFP_ATOMIC);
+	return iommu_kmem_cache_alloc(iommu_devinfo_cache);
 }
 
 static inline void free_devinfo_mem(void *vaddr)
@@ -117,7 +139,7 @@ static inline void free_devinfo_mem(void *vaddr)
 
 struct iova *alloc_iova_mem(void)
 {
-	return kmem_cache_alloc(iommu_iova_cache, GFP_ATOMIC);
+	return iommu_kmem_cache_alloc(iommu_iova_cache);
 }
 
 void free_iova_mem(struct iova *iova)
