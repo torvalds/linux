@@ -247,6 +247,9 @@ static void putstr(const char *s)
 	int x,y,pos;
 	char c;
 
+	if (RM_SCREEN_INFO.orig_video_mode == 0 && lines == 0 && cols == 0)
+		return;
+
 	x = RM_SCREEN_INFO.orig_x;
 	y = RM_SCREEN_INFO.orig_y;
 
