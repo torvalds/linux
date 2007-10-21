@@ -459,7 +459,7 @@ static u_long get_vco(void)
 	return vco;
 }
 
-/*Get the Core clock*/
+/* Get the Core clock */
 u_long get_cclk(void)
 {
 	u_long csel, ssel;
@@ -492,6 +492,18 @@ u_long get_sclk(void)
 	return get_vco() / ssel;
 }
 EXPORT_SYMBOL(get_sclk);
+
+unsigned long sclk_to_usecs(unsigned long sclk)
+{
+	return (USEC_PER_SEC * (u64)sclk) / get_sclk();
+}
+EXPORT_SYMBOL(sclk_to_usecs);
+
+unsigned long usecs_to_sclk(unsigned long usecs)
+{
+	return get_sclk() / (USEC_PER_SEC * (u64)usecs);
+}
+EXPORT_SYMBOL(usecs_to_sclk);
 
 /*
  *	Get CPU information for use by the procfs.
