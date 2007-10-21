@@ -220,7 +220,7 @@ xfs_fs_get_parent(
 	return parent;
 }
 
-struct export_operations xfs_export_operations = {
+const struct export_operations xfs_export_operations = {
 	.encode_fh		= xfs_fs_encode_fh,
 	.fh_to_dentry		= xfs_fs_fh_to_dentry,
 	.fh_to_parent		= xfs_fs_fh_to_parent,

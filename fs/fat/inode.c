@@ -774,7 +774,7 @@ out:
 	return parent;
 }
 
-static struct export_operations fat_export_ops = {
+static const struct export_operations fat_export_ops = {
 	.encode_fh	= fat_encode_fh,
 	.fh_to_dentry	= fat_fh_to_dentry,
 	.get_parent	= fat_get_parent,

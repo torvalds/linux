@@ -16,7 +16,7 @@ static int get_name(struct dentry *dentry, char *name,
 static int exportfs_get_name(struct dentry *dir, char *name,
 		struct dentry *child)
 {
-	struct export_operations *nop = dir->d_sb->s_export_op;
+	const struct export_operations *nop = dir->d_sb->s_export_op;
 
 	if (nop->get_name)
 		return nop->get_name(dir, name, child);
@@ -333,7 +333,7 @@ static int export_encode_fh(struct dentry *dentry, struct fid *fid,
 int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		int connectable)
 {
- 	struct export_operations *nop = dentry->d_sb->s_export_op;
+	const struct export_operations *nop = dentry->d_sb->s_export_op;
 	int error;
 
 	if (nop->encode_fh)
@@ -349,7 +349,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		int fh_len, int fileid_type,
 		int (*acceptable)(void *, struct dentry *), void *context)
 {
-	struct export_operations *nop = mnt->mnt_sb->s_export_op;
+	const struct export_operations *nop = mnt->mnt_sb->s_export_op;
 	struct dentry *result, *alias;
 	int err;
 

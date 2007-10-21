@@ -103,7 +103,7 @@ extern int cifs_ioctl(struct inode *inode, struct file *filep,
 		       unsigned int command, unsigned long arg);
 
 #ifdef CONFIG_CIFS_EXPERIMENTAL
-extern struct export_operations cifs_export_ops;
+extern const struct export_operations cifs_export_ops;
 #endif /* EXPERIMENTAL */
 
 #define CIFS_VERSION   "1.51"

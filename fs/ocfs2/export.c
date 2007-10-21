@@ -222,7 +222,7 @@ static struct dentry *ocfs2_fh_to_parent(struct super_block *sb,
 	return ocfs2_get_dentry(sb, &parent);
 }
 
-struct export_operations ocfs2_export_ops = {
+const struct export_operations ocfs2_export_ops = {
 	.encode_fh	= ocfs2_encode_fh,
 	.fh_to_dentry	= ocfs2_fh_to_dentry,
 	.fh_to_parent	= ocfs2_fh_to_parent,

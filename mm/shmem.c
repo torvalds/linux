@@ -2071,7 +2071,7 @@ static int shmem_encode_fh(struct dentry *dentry, __u32 *fh, int *len,
 	return 1;
 }
 
-static struct export_operations shmem_export_ops = {
+static const struct export_operations shmem_export_ops = {
 	.get_parent     = shmem_get_parent,
 	.encode_fh      = shmem_encode_fh,
 	.fh_to_dentry	= shmem_fh_to_dentry,

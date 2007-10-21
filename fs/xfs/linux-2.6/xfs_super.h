@@ -118,7 +118,7 @@ extern int  xfs_blkdev_get(struct xfs_mount *, const char *,
 extern void xfs_blkdev_put(struct block_device *);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
-extern struct export_operations xfs_export_operations;
+extern const struct export_operations xfs_export_operations;
 
 #define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
 

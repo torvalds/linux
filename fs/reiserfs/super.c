@@ -661,7 +661,7 @@ static struct quotactl_ops reiserfs_qctl_operations = {
 };
 #endif
 
-static struct export_operations reiserfs_export_ops = {
+static const struct export_operations reiserfs_export_ops = {
 	.encode_fh = reiserfs_encode_fh,
 	.fh_to_dentry = reiserfs_fh_to_dentry,
 	.fh_to_parent = reiserfs_fh_to_parent,

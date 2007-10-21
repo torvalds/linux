@@ -499,7 +499,7 @@ static struct dentry *ntfs_fh_to_parent(struct super_block *sb, struct fid *fid,
  * allowing the inode number 0 which is used in NTFS for the system file $MFT
  * and due to using iget() whereas NTFS needs ntfs_iget().
  */
-struct export_operations ntfs_export_ops = {
+const struct export_operations ntfs_export_ops = {
 	.get_parent	= ntfs_get_parent,	/* Find the parent of a given
 						   directory. */
 	.fh_to_dentry	= ntfs_fh_to_dentry,

@@ -294,7 +294,7 @@ static struct dentry *gfs2_fh_to_parent(struct super_block *sb, struct fid *fid,
 	}
 }
 
-struct export_operations gfs2_export_ops = {
+const struct export_operations gfs2_export_ops = {
 	.encode_fh = gfs2_encode_fh,
 	.fh_to_dentry = gfs2_fh_to_dentry,
 	.fh_to_parent = gfs2_fh_to_parent,

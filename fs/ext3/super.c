@@ -741,7 +741,7 @@ static const struct super_operations ext3_sops = {
 #endif
 };
 
-static struct export_operations ext3_export_ops = {
+static const struct export_operations ext3_export_ops = {
 	.fh_to_dentry = ext3_fh_to_dentry,
 	.fh_to_parent = ext3_fh_to_parent,
 	.get_parent = ext3_get_parent,

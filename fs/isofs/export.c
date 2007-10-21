@@ -207,7 +207,7 @@ static struct dentry *isofs_fh_to_parent(struct super_block *sb,
 			fh_len > 4 ? ifid->parent_generation : 0);
 }
 
-struct export_operations isofs_export_ops = {
+const struct export_operations isofs_export_ops = {
 	.encode_fh	= isofs_export_encode_fh,
 	.fh_to_dentry	= isofs_fh_to_dentry,
 	.fh_to_parent	= isofs_fh_to_parent,
