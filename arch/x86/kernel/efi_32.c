@@ -603,7 +603,8 @@ void __init efi_enter_virtual_mode(void)
 
 void __init
 efi_initialize_iomem_resources(struct resource *code_resource,
-			       struct resource *data_resource)
+			       struct resource *data_resource,
+			       struct resource *bss_resource)
 {
 	struct resource *res;
 	efi_memory_desc_t *md;
@@ -675,6 +676,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 		if (md->type == EFI_CONVENTIONAL_MEMORY) {
 			request_resource(res, code_resource);
 			request_resource(res, data_resource);
+			request_resource(res, bss_resource);
 #ifdef CONFIG_KEXEC
 			request_resource(res, &crashk_res);
 #endif

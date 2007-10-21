@@ -58,6 +58,7 @@
 #include <asm/numa.h>
 #include <asm/sections.h>
 #include <asm/dmi.h>
+#include <asm/cacheflush.h>
 
 /*
  * Machine setup..
@@ -129,6 +130,12 @@ struct resource data_resource = {
 };
 struct resource code_resource = {
 	.name = "Kernel code",
+	.start = 0,
+	.end = 0,
+	.flags = IORESOURCE_RAM,
+};
+struct resource bss_resource = {
+	.name = "Kernel bss",
 	.start = 0,
 	.end = 0,
 	.flags = IORESOURCE_RAM,
@@ -276,6 +283,8 @@ void __init setup_arch(char **cmdline_p)
 	code_resource.end = virt_to_phys(&_etext)-1;
 	data_resource.start = virt_to_phys(&_etext);
 	data_resource.end = virt_to_phys(&_edata)-1;
+	bss_resource.start = virt_to_phys(&__bss_start);
+	bss_resource.end = virt_to_phys(&__bss_stop)-1;
 
 	early_identify_cpu(&boot_cpu_data);
 

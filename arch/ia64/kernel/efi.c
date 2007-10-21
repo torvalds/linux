@@ -1090,7 +1090,8 @@ efi_memmap_init(unsigned long *s, unsigned long *e)
 
 void
 efi_initialize_iomem_resources(struct resource *code_resource,
-			       struct resource *data_resource)
+			       struct resource *data_resource,
+			       struct resource *bss_resource)
 {
 	struct resource *res;
 	void *efi_map_start, *efi_map_end, *p;
@@ -1171,6 +1172,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 			 */
 			insert_resource(res, code_resource);
 			insert_resource(res, data_resource);
+			insert_resource(res, bss_resource);
 #ifdef CONFIG_KEXEC
                         insert_resource(res, &efi_memmap_res);
                         insert_resource(res, &boot_param_res);
