@@ -101,6 +101,8 @@ static void fe_release(struct tuner *t)
 
 	if (fe_tuner_ops->release)
 		fe_tuner_ops->release(&t->fe);
+
+	t->fe.ops.analog_demod_ops = NULL;
 }
 
 static void fe_standby(struct tuner *t)
@@ -352,6 +354,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		attach_simple_tuner(t);
 		break;
 	}
+
+	ops = t->fe.ops.analog_demod_ops;
 
 	if (((NULL == ops) ||
 	     ((NULL == ops->set_tv_freq) && (NULL == ops->set_radio_freq))) &&
