@@ -16,7 +16,7 @@
 /*
  * BF537: 8 timers:
  */
-#if defined(CONFIG_BF537)
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
 #  define MAX_BLACKFIN_GPTIMERS 8
 #  define TIMER0_GROUP_REG     TIMER_ENABLE
 #endif

@@ -18,6 +18,9 @@ KALLSYMS         += --symbol-prefix=_
 KBUILD_DEFCONFIG := BF537-STAMP_defconfig
 
 # setup the machine name and the machine dependent settings
+machine-$(CONFIG_BF522) := bf527
+machine-$(CONFIG_BF525) := bf527
+machine-$(CONFIG_BF527) := bf527
 machine-$(CONFIG_BF531) := bf533
 machine-$(CONFIG_BF532) := bf533
 machine-$(CONFIG_BF533) := bf533
@@ -32,6 +35,9 @@ machine-$(CONFIG_BF561) := bf561
 MACHINE := $(machine-y)
 export MACHINE
 
+cpu-$(CONFIG_BF522) := bf522
+cpu-$(CONFIG_BF525) := bf525
+cpu-$(CONFIG_BF527) := bf527
 cpu-$(CONFIG_BF531) := bf531
 cpu-$(CONFIG_BF532) := bf532
 cpu-$(CONFIG_BF533) := bf533

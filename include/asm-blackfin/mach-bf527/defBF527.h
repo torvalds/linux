@@ -32,12 +32,12 @@
 #define _DEF_BF527_H
 
 /* Include all Core registers and bit definitions */
-#include <def_LPBlackfin.h>
+#include <asm/mach-common/def_LPBlackfin.h>
 
 /* SYSTEM & MMR ADDRESS DEFINITIONS FOR ADSP-BF527 */
 
 /* Include defBF52x_base.h for the set of #defines that are common to all ADSP-BF52x processors */
-#include <defBF52x_base.h>
+#include "defBF52x_base.h"
 
 /* The following are the #defines needed by ADSP-BF527 that are not in the common header */
 /* 10/100 Ethernet Controller	(0xFFC03000 - 0xFFC031FF) */

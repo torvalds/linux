@@ -45,8 +45,8 @@
 #define bfin_write_PLL_STAT(val)		bfin_write16(PLL_STAT, val)
 #define bfin_read_PLL_LOCKCNT()			bfin_read16(PLL_LOCKCNT)
 #define bfin_write_PLL_LOCKCNT(val)		bfin_write16(PLL_LOCKCNT, val)
-#define bfin_read_CHIPID()			bfin_read16(CHIPID)
-#define bfin_write_CHIPID(val)			bfin_write16(CHIPID, val)
+#define bfin_read_CHIPID()			bfin_read32(CHIPID)
+#define bfin_write_CHIPID(val)			bfin_write32(CHIPID, val)
 
 
 /* System Interrupt Controller (0xFFC00100 - 0xFFC001FF)							*/
@@ -59,9 +59,8 @@
 #define bfin_write_SIC_RVECT(val)		bfin_write32(SIC_RVECT, val)
 #define bfin_read_SIC_IMASK0()			bfin_read32(SIC_IMASK0)
 #define bfin_write_SIC_IMASK0(val)		bfin_write32(SIC_IMASK0, val)
-/* legacy register name (below) provided for backwards code compatibility */
-#define bfin_read_SIC_IMASK()			bfin_read32(SIC_IMASK)
-#define bfin_write_SIC_IMASK(val)		bfin_write32(SIC_IMASK, val)
+#define bfin_read_SIC_IMASK(x)			bfin_read32(SIC_IMASK0 + (x << 6))
+#define bfin_write_SIC_IMASK(x, val)		bfin_write32((SIC_IMASK0 + (x << 6)), val)
 
 #define bfin_read_SIC_IAR0()			bfin_read32(SIC_IAR0)
 #define bfin_write_SIC_IAR0(val)		bfin_write32(SIC_IAR0, val)
@@ -74,15 +73,13 @@
 
 #define bfin_read_SIC_ISR0()			bfin_read32(SIC_ISR0)
 #define bfin_write_SIC_ISR0(val)		bfin_write32(SIC_ISR0, val)
-/* legacy register name (below) provided for backwards code compatibility */
-#define bfin_read_SIC_ISR()			bfin_read32(SIC_ISR)
-#define bfin_write_SIC_ISR(val)			bfin_write32(SIC_ISR, val)
+#define bfin_read_SIC_ISR(x)			bfin_read32(SIC_ISR0 + (x << 6))
+#define bfin_write_SIC_ISR(x, val)		bfin_write32((SIC_ISR0 + (x << 6)), val)
 
 #define bfin_read_SIC_IWR0()			bfin_read32(SIC_IWR0)
 #define bfin_write_SIC_IWR0(val)		bfin_write32(SIC_IWR0, val)
-/* legacy register name (below) provided for backwards code compatibility */
-#define bfin_read_SIC_IWR()			bfin_read32(SIC_IWR)
-#define bfin_write_SIC_IWR(val)			bfin_write32(SIC_IWR, val)
+#define bfin_read_SIC_IWR(x)			bfin_read32(SIC_IWR0 + (x << 6))
+#define bfin_write_SIC_IWR(x, val)		bfin_write32((SIC_IWR0 + (x << 6)), val)
 
 /* SIC Additions to ADSP-BF52x (0xFFC0014C - 0xFFC00162) */
 

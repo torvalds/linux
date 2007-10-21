@@ -124,7 +124,7 @@ static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 };
 #endif
 
-#ifdef BF537_FAMILY
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
 static struct gpio_port_t *gpio_bankb[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(struct gpio_port_t *) PORTFIO,
 	(struct gpio_port_t *) PORTGIO,
@@ -137,6 +137,21 @@ static unsigned short *port_fer[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
 	(unsigned short *) PORTH_FER,
 };
 
+#endif
+
+#ifdef BF527_FAMILY
+static unsigned short *port_mux[gpio_bank(MAX_BLACKFIN_GPIOS)] = {
+	(unsigned short *) PORTF_MUX,
+	(unsigned short *) PORTG_MUX,
+	(unsigned short *) PORTH_MUX,
+};
+
+static const
+u8 pmux_offset[][16] =
+	{{ 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 4, 6, 8, 8, 10, 10 }, /* PORTF */
+	 { 0, 0, 0, 0, 0, 2, 2, 4, 4, 6, 8, 10, 10, 10, 12, 12 }, /* PORTG */
+	 { 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 4, 4, 4, 4, 4, 4 }, /* PORTH */
+	};
 #endif
 
 #ifdef BF561_FAMILY
@@ -184,6 +199,10 @@ static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB
 
 #ifdef BF537_FAMILY
 static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PROG_INTB, IRQ_PORTG_INTB, IRQ_MAC_TX};
+#endif
+
+#ifdef BF527_FAMILY
+static unsigned int sic_iwr_irqs[gpio_bank(MAX_BLACKFIN_GPIOS)] = {IRQ_PORTF_INTB, IRQ_PORTG_INTB, IRQ_PORTH_INTB};
 #endif
 
 #ifdef BF561_FAMILY
@@ -238,7 +257,7 @@ static int cmp_label(unsigned short ident, const char *label)
 		return -EINVAL;
 }
 
-#ifdef BF537_FAMILY
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
 static void port_setup(unsigned short gpio, unsigned short usage)
 {
 	if (!check_gpio(gpio)) {
@@ -353,6 +372,18 @@ inline u16 get_portmux(unsigned short portno)
 	pmux = gpio_array[gpio_bank(portno)]->port_mux;
 
 	return (pmux >> (2 * gpio_sub_n(portno)) & 0x3);
+}
+#elif defined(BF527_FAMILY)
+inline void portmux_setup(unsigned short portno, unsigned short function)
+{
+	u16 pmux, ident = P_IDENT(portno);
+	u8 offset = pmux_offset[gpio_bank(ident)][gpio_sub_n(ident)];
+
+	pmux = *port_mux[gpio_bank(ident)];
+	pmux &= ~(3 << offset);
+	pmux |= (function & 3) << offset;
+	*port_mux[gpio_bank(ident)] = pmux;
+	SSYNC();
 }
 #else
 # define portmux_setup(...)  do { } while (0)
