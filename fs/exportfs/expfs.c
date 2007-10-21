@@ -434,29 +434,29 @@ out:
  * can be used to check that it is still valid.  It places them in the
  * filehandle fragment where export_decode_fh expects to find them.
  */
-static int export_encode_fh(struct dentry *dentry, __u32 *fh, int *max_len,
-		   int connectable)
+static int export_encode_fh(struct dentry *dentry, struct fid *fid,
+		int *max_len, int connectable)
 {
 	struct inode * inode = dentry->d_inode;
 	int len = *max_len;
-	int type = 1;
+	int type = FILEID_INO32_GEN;
 	
 	if (len < 2 || (connectable && len < 4))
 		return 255;
 
 	len = 2;
-	fh[0] = inode->i_ino;
-	fh[1] = inode->i_generation;
+	fid->i32.ino = inode->i_ino;
+	fid->i32.gen = inode->i_generation;
 	if (connectable && !S_ISDIR(inode->i_mode)) {
 		struct inode *parent;
 
 		spin_lock(&dentry->d_lock);
 		parent = dentry->d_parent->d_inode;
-		fh[2] = parent->i_ino;
-		fh[3] = parent->i_generation;
+		fid->i32.parent_ino = parent->i_ino;
+		fid->i32.parent_gen = parent->i_generation;
 		spin_unlock(&dentry->d_lock);
 		len = 4;
-		type = 2;
+		type = FILEID_INO32_GEN_PARENT;
 	}
 	*max_len = len;
 	return type;
@@ -494,34 +494,34 @@ static struct dentry *export_decode_fh(struct super_block *sb, __u32 *fh, int fh
 				   acceptable, context);
 }
 
-int exportfs_encode_fh(struct dentry *dentry, __u32 *fh, int *max_len,
+int exportfs_encode_fh(struct dentry *dentry, struct fid *fid, int *max_len,
 		int connectable)
 {
  	struct export_operations *nop = dentry->d_sb->s_export_op;
 	int error;
 
 	if (nop->encode_fh)
-		error = nop->encode_fh(dentry, fh, max_len, connectable);
+		error = nop->encode_fh(dentry, fid->raw, max_len, connectable);
 	else
-		error = export_encode_fh(dentry, fh, max_len, connectable);
+		error = export_encode_fh(dentry, fid, max_len, connectable);
 
 	return error;
 }
 EXPORT_SYMBOL_GPL(exportfs_encode_fh);
 
-struct dentry *exportfs_decode_fh(struct vfsmount *mnt, __u32 *fh, int fh_len,
-		int fileid_type, int (*acceptable)(void *, struct dentry *),
-		void *context)
+struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
+		int fh_len, int fileid_type,
+		int (*acceptable)(void *, struct dentry *), void *context)
 {
 	struct export_operations *nop = mnt->mnt_sb->s_export_op;
 	struct dentry *result;
 
 	if (nop->decode_fh) {
-		result = nop->decode_fh(mnt->mnt_sb, fh, fh_len, fileid_type,
-			acceptable, context);
+		result = nop->decode_fh(mnt->mnt_sb, fid->raw, fh_len,
+					fileid_type, acceptable, context);
 	} else {
-		result = export_decode_fh(mnt->mnt_sb, fh, fh_len, fileid_type,
-			acceptable, context);
+		result = export_decode_fh(mnt->mnt_sb, fid->raw, fh_len,
+					  fileid_type, acceptable, context);
 	}
 
 	return result;
