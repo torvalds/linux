@@ -667,6 +667,49 @@ out:
 EXPORT_SYMBOL_GPL(inotify_add_watch);
 
 /**
+ * inotify_clone_watch - put the watch next to existing one
+ * @old: already installed watch
+ * @new: new watch
+ *
+ * Caller must hold the inotify_mutex of inode we are dealing with;
+ * it is expected to remove the old watch before unlocking the inode.
+ */
+s32 inotify_clone_watch(struct inotify_watch *old, struct inotify_watch *new)
+{
+	struct inotify_handle *ih = old->ih;
+	int ret = 0;
+
+	new->mask = old->mask;
+	new->ih = ih;
+
+	mutex_lock(&ih->mutex);
+
+	/* Initialize a new watch */
+	ret = inotify_handle_get_wd(ih, new);
+	if (unlikely(ret))
+		goto out;
+	ret = new->wd;
+
+	get_inotify_handle(ih);
+
+	new->inode = igrab(old->inode);
+
+	list_add(&new->h_list, &ih->watches);
+	list_add(&new->i_list, &old->inode->inotify_watches);
+out:
+	mutex_unlock(&ih->mutex);
+	return ret;
+}
+
+void inotify_evict_watch(struct inotify_watch *watch)
+{
+	get_inotify_watch(watch);
+	mutex_lock(&watch->ih->mutex);
+	inotify_remove_watch_locked(watch->ih, watch);
+	mutex_unlock(&watch->ih->mutex);
+}
+
+/**
  * inotify_rm_wd - remove a watch from an inotify instance
  * @ih: inotify handle
  * @wd: watch descriptor to remove

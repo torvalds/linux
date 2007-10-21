@@ -65,6 +65,7 @@
 #include <linux/binfmts.h>
 #include <linux/highmem.h>
 #include <linux/syscalls.h>
+#include <linux/inotify.h>
 
 #include "audit.h"
 
@@ -179,6 +180,11 @@ struct audit_aux_data_pids {
 	int			pid_count;
 };
 
+struct audit_tree_refs {
+	struct audit_tree_refs *next;
+	struct audit_chunk *c[31];
+};
+
 /* The per-task audit context. */
 struct audit_context {
 	int		    dummy;	/* must be the first element */
@@ -210,6 +216,9 @@ struct audit_context {
 
 	pid_t		    target_pid;
 	u32		    target_sid;
+
+	struct audit_tree_refs *trees, *first_trees;
+	int tree_count;
 
 #if AUDIT_DEBUG
 	int		    put_count;
@@ -263,6 +272,117 @@ static int audit_match_perm(struct audit_context *ctx, int mask)
 	default:
 		return 0;
 	}
+}
+
+/*
+ * We keep a linked list of fixed-sized (31 pointer) arrays of audit_chunk *;
+ * ->first_trees points to its beginning, ->trees - to the current end of data.
+ * ->tree_count is the number of free entries in array pointed to by ->trees.
+ * Original condition is (NULL, NULL, 0); as soon as it grows we never revert to NULL,
+ * "empty" becomes (p, p, 31) afterwards.  We don't shrink the list (and seriously,
+ * it's going to remain 1-element for almost any setup) until we free context itself.
+ * References in it _are_ dropped - at the same time we free/drop aux stuff.
+ */
+
+#ifdef CONFIG_AUDIT_TREE
+static int put_tree_ref(struct audit_context *ctx, struct audit_chunk *chunk)
+{
+	struct audit_tree_refs *p = ctx->trees;
+	int left = ctx->tree_count;
+	if (likely(left)) {
+		p->c[--left] = chunk;
+		ctx->tree_count = left;
+		return 1;
+	}
+	if (!p)
+		return 0;
+	p = p->next;
+	if (p) {
+		p->c[30] = chunk;
+		ctx->trees = p;
+		ctx->tree_count = 30;
+		return 1;
+	}
+	return 0;
+}
+
+static int grow_tree_refs(struct audit_context *ctx)
+{
+	struct audit_tree_refs *p = ctx->trees;
+	ctx->trees = kzalloc(sizeof(struct audit_tree_refs), GFP_KERNEL);
+	if (!ctx->trees) {
+		ctx->trees = p;
+		return 0;
+	}
+	if (p)
+		p->next = ctx->trees;
+	else
+		ctx->first_trees = ctx->trees;
+	ctx->tree_count = 31;
+	return 1;
+}
+#endif
+
+static void unroll_tree_refs(struct audit_context *ctx,
+		      struct audit_tree_refs *p, int count)
+{
+#ifdef CONFIG_AUDIT_TREE
+	struct audit_tree_refs *q;
+	int n;
+	if (!p) {
+		/* we started with empty chain */
+		p = ctx->first_trees;
+		count = 31;
+		/* if the very first allocation has failed, nothing to do */
+		if (!p)
+			return;
+	}
+	n = count;
+	for (q = p; q != ctx->trees; q = q->next, n = 31) {
+		while (n--) {
+			audit_put_chunk(q->c[n]);
+			q->c[n] = NULL;
+		}
+	}
+	while (n-- > ctx->tree_count) {
+		audit_put_chunk(q->c[n]);
+		q->c[n] = NULL;
+	}
+	ctx->trees = p;
+	ctx->tree_count = count;
+#endif
+}
+
+static void free_tree_refs(struct audit_context *ctx)
+{
+	struct audit_tree_refs *p, *q;
+	for (p = ctx->first_trees; p; p = q) {
+		q = p->next;
+		kfree(p);
+	}
+}
+
+static int match_tree_refs(struct audit_context *ctx, struct audit_tree *tree)
+{
+#ifdef CONFIG_AUDIT_TREE
+	struct audit_tree_refs *p;
+	int n;
+	if (!tree)
+		return 0;
+	/* full ones */
+	for (p = ctx->first_trees; p != ctx->trees; p = p->next) {
+		for (n = 0; n < 31; n++)
+			if (audit_tree_match(p->c[n], tree))
+				return 1;
+	}
+	/* partial */
+	if (p) {
+		for (n = ctx->tree_count; n < 31; n++)
+			if (audit_tree_match(p->c[n], tree))
+				return 1;
+	}
+#endif
+	return 0;
 }
 
 /* Determine if any context name data matches a rule's watch data */
@@ -378,6 +498,10 @@ static int audit_filter_rules(struct task_struct *tsk,
 			if (name && rule->watch->ino != (unsigned long)-1)
 				result = (name->dev == rule->watch->dev &&
 					  name->ino == rule->watch->ino);
+			break;
+		case AUDIT_DIR:
+			if (ctx)
+				result = match_tree_refs(ctx, rule->tree);
 			break;
 		case AUDIT_LOGINUID:
 			result = 0;
@@ -727,6 +851,8 @@ static inline void audit_free_context(struct audit_context *context)
 			       context->name_count, count);
 		}
 		audit_free_names(context);
+		unroll_tree_refs(context, NULL, 0);
+		free_tree_refs(context);
 		audit_free_aux(context);
 		kfree(context->filterkey);
 		kfree(context);
@@ -1270,6 +1396,7 @@ void audit_syscall_exit(int valid, long return_code)
 		tsk->audit_context = new_context;
 	} else {
 		audit_free_names(context);
+		unroll_tree_refs(context, NULL, 0);
 		audit_free_aux(context);
 		context->aux = NULL;
 		context->aux_pids = NULL;
@@ -1279,6 +1406,95 @@ void audit_syscall_exit(int valid, long return_code)
 		context->filterkey = NULL;
 		tsk->audit_context = context;
 	}
+}
+
+static inline void handle_one(const struct inode *inode)
+{
+#ifdef CONFIG_AUDIT_TREE
+	struct audit_context *context;
+	struct audit_tree_refs *p;
+	struct audit_chunk *chunk;
+	int count;
+	if (likely(list_empty(&inode->inotify_watches)))
+		return;
+	context = current->audit_context;
+	p = context->trees;
+	count = context->tree_count;
+	rcu_read_lock();
+	chunk = audit_tree_lookup(inode);
+	rcu_read_unlock();
+	if (!chunk)
+		return;
+	if (likely(put_tree_ref(context, chunk)))
+		return;
+	if (unlikely(!grow_tree_refs(context))) {
+		printk(KERN_WARNING "out of memory, audit has lost a tree reference");
+		audit_set_auditable(context);
+		audit_put_chunk(chunk);
+		unroll_tree_refs(context, p, count);
+		return;
+	}
+	put_tree_ref(context, chunk);
+#endif
+}
+
+static void handle_path(const struct dentry *dentry)
+{
+#ifdef CONFIG_AUDIT_TREE
+	struct audit_context *context;
+	struct audit_tree_refs *p;
+	const struct dentry *d, *parent;
+	struct audit_chunk *drop;
+	unsigned long seq;
+	int count;
+
+	context = current->audit_context;
+	p = context->trees;
+	count = context->tree_count;
+retry:
+	drop = NULL;
+	d = dentry;
+	rcu_read_lock();
+	seq = read_seqbegin(&rename_lock);
+	for(;;) {
+		struct inode *inode = d->d_inode;
+		if (inode && unlikely(!list_empty(&inode->inotify_watches))) {
+			struct audit_chunk *chunk;
+			chunk = audit_tree_lookup(inode);
+			if (chunk) {
+				if (unlikely(!put_tree_ref(context, chunk))) {
+					drop = chunk;
+					break;
+				}
+			}
+		}
+		parent = d->d_parent;
+		if (parent == d)
+			break;
+		d = parent;
+	}
+	if (unlikely(read_seqretry(&rename_lock, seq) || drop)) {  /* in this order */
+		rcu_read_unlock();
+		if (!drop) {
+			/* just a race with rename */
+			unroll_tree_refs(context, p, count);
+			goto retry;
+		}
+		audit_put_chunk(drop);
+		if (grow_tree_refs(context)) {
+			/* OK, got more space */
+			unroll_tree_refs(context, p, count);
+			goto retry;
+		}
+		/* too bad */
+		printk(KERN_WARNING
+			"out of memory, audit has lost a tree reference");
+		unroll_tree_refs(context, p, count);
+		audit_set_auditable(context);
+		return;
+	}
+	rcu_read_unlock();
+#endif
 }
 
 /**
@@ -1403,10 +1619,11 @@ static void audit_copy_inode(struct audit_names *name, const struct inode *inode
  *
  * Called from fs/namei.c:path_lookup().
  */
-void __audit_inode(const char *name, const struct inode *inode)
+void __audit_inode(const char *name, const struct dentry *dentry)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
+	const struct inode *inode = dentry->d_inode;
 
 	if (!context->in_syscall)
 		return;
@@ -1426,6 +1643,7 @@ void __audit_inode(const char *name, const struct inode *inode)
 		idx = context->name_count - 1;
 		context->names[idx].name = NULL;
 	}
+	handle_path(dentry);
 	audit_copy_inode(&context->names[idx], inode);
 }
 
@@ -1443,17 +1661,20 @@ void __audit_inode(const char *name, const struct inode *inode)
  * must be hooked prior, in order to capture the target inode during
  * unsuccessful attempts.
  */
-void __audit_inode_child(const char *dname, const struct inode *inode,
+void __audit_inode_child(const char *dname, const struct dentry *dentry,
 			 const struct inode *parent)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
 	const char *found_parent = NULL, *found_child = NULL;
+	const struct inode *inode = dentry->d_inode;
 	int dirlen = 0;
 
 	if (!context->in_syscall)
 		return;
 
+	if (inode)
+		handle_one(inode);
 	/* determine matching parent */
 	if (!dname)
 		goto add_names;

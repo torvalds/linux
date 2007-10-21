@@ -1470,6 +1470,8 @@ extern long do_mount(char *, char *, char *, unsigned long, void *);
 extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
 extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
 				  struct vfsmount *);
+extern struct vfsmount *collect_mounts(struct vfsmount *, struct dentry *);
+extern void drop_collected_mounts(struct vfsmount *);
 
 extern int vfs_statfs(struct dentry *, struct kstatfs *);
 

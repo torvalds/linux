@@ -468,6 +468,21 @@ int audit_send_list(void *_dest)
 	return 0;
 }
 
+#ifdef CONFIG_AUDIT_TREE
+static int prune_tree_thread(void *unused)
+{
+	mutex_lock(&audit_cmd_mutex);
+	audit_prune_trees();
+	mutex_unlock(&audit_cmd_mutex);
+	return 0;
+}
+
+void audit_schedule_prune(void)
+{
+	kthread_run(prune_tree_thread, NULL, "audit_prune_tree");
+}
+#endif
+
 struct sk_buff *audit_make_reply(int pid, int seq, int type, int done,
 				 int multi, void *payload, int size)
 {
@@ -540,6 +555,8 @@ static int audit_netlink_ok(struct sk_buff *skb, u16 msg_type)
 	case AUDIT_SIGNAL_INFO:
 	case AUDIT_TTY_GET:
 	case AUDIT_TTY_SET:
+	case AUDIT_TRIM:
+	case AUDIT_MAKE_EQUIV:
 		if (security_netlink_recv(skb, CAP_AUDIT_CONTROL))
 			err = -EPERM;
 		break;
@@ -756,6 +773,76 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 					   uid, seq, data, nlmsg_len(nlh),
 					   loginuid, sid);
 		break;
+	case AUDIT_TRIM:
+		audit_trim_trees();
+		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
+		if (!ab)
+			break;
+		audit_log_format(ab, "auid=%u", loginuid);
+		if (sid) {
+			u32 len;
+			ctx = NULL;
+			if (selinux_sid_to_string(sid, &ctx, &len))
+				audit_log_format(ab, " ssid=%u", sid);
+			else
+				audit_log_format(ab, " subj=%s", ctx);
+			kfree(ctx);
+		}
+		audit_log_format(ab, " op=trim res=1");
+		audit_log_end(ab);
+		break;
+	case AUDIT_MAKE_EQUIV: {
+		void *bufp = data;
+		u32 sizes[2];
+		size_t len = nlmsg_len(nlh);
+		char *old, *new;
+
+		err = -EINVAL;
+		if (len < 2 * sizeof(u32))
+			break;
+		memcpy(sizes, bufp, 2 * sizeof(u32));
+		bufp += 2 * sizeof(u32);
+		len -= 2 * sizeof(u32);
+		old = audit_unpack_string(&bufp, &len, sizes[0]);
+		if (IS_ERR(old)) {
+			err = PTR_ERR(old);
+			break;
+		}
+		new = audit_unpack_string(&bufp, &len, sizes[1]);
+		if (IS_ERR(new)) {
+			err = PTR_ERR(new);
+			kfree(old);
+			break;
+		}
+		/* OK, here comes... */
+		err = audit_tag_tree(old, new);
+
+		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
+		if (!ab) {
+			kfree(old);
+			kfree(new);
+			break;
+		}
+		audit_log_format(ab, "auid=%u", loginuid);
+		if (sid) {
+			u32 len;
+			ctx = NULL;
+			if (selinux_sid_to_string(sid, &ctx, &len))
+				audit_log_format(ab, " ssid=%u", sid);
+			else
+				audit_log_format(ab, " subj=%s", ctx);
+			kfree(ctx);
+		}
+		audit_log_format(ab, " op=make_equiv old=");
+		audit_log_untrustedstring(ab, old);
+		audit_log_format(ab, " new=");
+		audit_log_untrustedstring(ab, new);
+		audit_log_format(ab, " res=%d", !err);
+		audit_log_end(ab);
+		kfree(old);
+		kfree(new);
+		break;
+	}
 	case AUDIT_SIGNAL_INFO:
 		err = selinux_sid_to_string(audit_sig_sid, &ctx, &len);
 		if (err)

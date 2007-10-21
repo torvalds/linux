@@ -234,6 +234,10 @@ config AUDITSYSCALL
 	  such as SELinux.  To use audit's filesystem watch feature, please
 	  ensure that INOTIFY is configured.
 
+config AUDIT_TREE
+	def_bool y
+	depends on AUDITSYSCALL && INOTIFY
+
 config IKCONFIG
 	tristate "Kernel .config support"
 	---help---
