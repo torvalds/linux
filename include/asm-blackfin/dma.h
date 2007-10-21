@@ -109,9 +109,7 @@ struct dma_register {
 
 	unsigned long curr_desc_ptr;	/* DMA Current Descriptor Pointer
 					   register */
-	unsigned short curr_addr_ptr_lo;	/* DMA Current Address Pointer
-						   register */
-	unsigned short curr_addr_ptr_hi;	/* DMA Current Address Pointer
+	unsigned long curr_addr_ptr;	/* DMA Current Address Pointer
 						   register */
 	unsigned short irq_status;	/* DMA irq status register */
 	unsigned short dummy6;
@@ -166,6 +164,9 @@ void set_dma_curr_addr(unsigned int channel, unsigned long addr);
 unsigned short get_dma_curr_irqstat(unsigned int channel);
 unsigned short get_dma_curr_xcount(unsigned int channel);
 unsigned short get_dma_curr_ycount(unsigned int channel);
+unsigned long get_dma_next_desc_ptr(unsigned int channel);
+unsigned long get_dma_curr_desc_ptr(unsigned int channel);
+unsigned long get_dma_curr_addr(unsigned int channel);
 
 /* set large DMA mode descriptor */
 void set_dma_sg(unsigned int channel, struct dmasg *sg, int nr_sg);

@@ -38,4 +38,12 @@
 
 /* Anomalies that don't exist on this proc */
 #define ANOMALY_05000323 (0)
+#define ANOMALY_05000244 (0)
+#define ANOMALY_05000198 (0)
+#define ANOMALY_05000125 (0)
+#define ANOMALY_05000158 (0)
+#define ANOMALY_05000273 (0)
+#define ANOMALY_05000263 (0)
+#define ANOMALY_05000311 (0)
+#define ANOMALY_05000230 (0)
 #endif

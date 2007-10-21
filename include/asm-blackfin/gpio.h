@@ -29,6 +29,7 @@
 
 /*
 *  Number     BF537/6/4    BF561    BF533/2/1
+*             BF527/5/2
 *
 *  GPIO_0       PF0         PF0        PF0
 *  GPIO_1       PF1         PF1        PF1
@@ -164,7 +165,7 @@
 
 #endif
 
-#ifdef BF537_FAMILY
+#if defined(BF527_FAMILY) || defined(BF537_FAMILY)
 #define MAX_BLACKFIN_GPIOS 48
 
 #define	GPIO_PF0	0

@@ -11,7 +11,7 @@
 #include <asm/reboot.h>
 #include <asm/system.h>
 
-#if defined(BF537_FAMILY) || defined(BF533_FAMILY)
+#if defined(BF537_FAMILY) || defined(BF533_FAMILY) || defined(BF527_FAMILY)
 #define SYSCR_VAL 	0x0
 #elif defined(BF561_FAMILY)
 #define SYSCR_VAL 	0x20

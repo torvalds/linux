@@ -1,6 +1,6 @@
 /*
- * File:         arch/blackfin/mach-bf537/boards/generic_board.c
- * Based on:     arch/blackfin/mach-bf533/boards/ezkit.c
+ * File:         arch/blackfin/mach-bf527/boards/ezkit.c
+ * Based on:     arch/blackfin/mach-bf537/boards/stamp.c
  * Author:       Aidan Williams <aidan@nicta.com.au>
  *
  * Created:
@@ -40,7 +40,7 @@
 #include <linux/pata_platform.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/usb/sl811.h>
+#include <linux/usb_sl811.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
@@ -49,7 +49,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "GENERIC Board";
+const char bfin_board_name[] = "ADDS-BF527-EZKIT";
 
 /*
  *  Driver needs to know address, irq and flag pin.
@@ -554,15 +554,20 @@ static struct platform_device bfin_fb_adv7393_device = {
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
+#ifdef CONFIG_SERIAL_BFIN_UART0
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
-	}, {
+	},
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
+#endif
 };
 
 static struct platform_device bfin_uart_device = {
@@ -577,7 +582,7 @@ static struct platform_device bfin_uart_device = {
 static struct resource bfin_twi0_resource[] = {
 	[0] = {
 		.start = TWI0_REGBASE,
-		.end   = TWI0_REGBASE + 0xFF,
+		.end   = TWI0_REGBASE,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {

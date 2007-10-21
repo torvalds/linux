@@ -118,12 +118,14 @@ static int printk_address(unsigned long address)
 					offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
 
 				write_unlock_irq(&tasklist_lock);
+				mmput(mm);
 				return printk("<0x%p> [ %s + 0x%lx ]",
 				              (void *)address, name, offset);
 			}
 
 			vml = vml->next;
 		}
+		mmput(mm);
 	}
 	write_unlock_irq(&tasklist_lock);
 

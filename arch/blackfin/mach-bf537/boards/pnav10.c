@@ -47,7 +47,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-char *bfin_board_name = "PNAV-1.0";
+const char bfin_board_name[] = "PNAV-1.0";
 
 /*
  *  Driver needs to know address, irq and flag pin.

@@ -9,6 +9,7 @@ obj-y := \
 	sys_bfin.o time.o traps.o irqchip.o dma-mapping.o flat.o \
 	fixed_code.o cplbinit.o cacheinit.o reboot.o bfin_gpio.o
 
+obj-$(CONFIG_BFIN_GPTIMERS)          += gptimers.o
 obj-$(CONFIG_MODULES)                += module.o
 obj-$(CONFIG_BFIN_DMA_5XX)           += bfin_dma_5xx.o
 obj-$(CONFIG_DUAL_CORE_TEST_MODULE)  += dualcore_test.o
