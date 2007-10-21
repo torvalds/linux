@@ -18,6 +18,8 @@
 #ifndef	_H_JFS_INODE
 #define _H_JFS_INODE
 
+struct fid;
+
 extern struct inode *ialloc(struct inode *, umode_t);
 extern int jfs_fsync(struct file *, struct dentry *, int);
 extern int jfs_ioctl(struct inode *, struct file *,
@@ -32,7 +34,10 @@ extern void jfs_truncate_nolock(struct inode *, loff_t);
 extern void jfs_free_zero_link(struct inode *);
 extern struct dentry *jfs_get_parent(struct dentry *dentry);
 extern void jfs_get_inode_flags(struct jfs_inode_info *);
-extern struct dentry *jfs_get_dentry(struct super_block *sb, void *vobjp);
+extern struct dentry *jfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
+	int fh_len, int fh_type);
+extern struct dentry *jfs_fh_to_parent(struct super_block *sb, struct fid *fid,
+	int fh_len, int fh_type);
 extern void jfs_set_inode_flags(struct inode *);
 extern int jfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
