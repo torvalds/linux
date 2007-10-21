@@ -2122,7 +2122,9 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		pr_debug("vcpu %d received sipi with vector # %x\n",
 		       vcpu->vcpu_id, vcpu->sipi_vector);
 		kvm_lapic_reset(vcpu);
-		kvm_x86_ops->vcpu_reset(vcpu);
+		r = kvm_x86_ops->vcpu_reset(vcpu);
+		if (r)
+			return r;
 		vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
 	}
 
@@ -2637,7 +2639,9 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 	BUG_ON((unsigned long)&vcpu->host_fx_image & 0xF);
 
 	vcpu_load(vcpu);
-	r = kvm_mmu_setup(vcpu);
+	r = kvm_x86_ops->vcpu_reset(vcpu);
+	if (r == 0)
+		r = kvm_mmu_setup(vcpu);
 	vcpu_put(vcpu);
 	if (r < 0)
 		goto free_vcpu;

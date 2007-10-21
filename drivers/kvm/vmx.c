@@ -1433,91 +1433,14 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	unsigned long a;
 	struct descriptor_table dt;
 	int i;
-	int ret = 0;
 	unsigned long kvm_vmx_return;
-	u64 msr;
 	u32 exec_control;
-
-	if (!init_rmode_tss(vmx->vcpu.kvm)) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	vmx->vcpu.rmode.active = 0;
-
-	vmx->vcpu.regs[VCPU_REGS_RDX] = get_rdx_init_val();
-	set_cr8(&vmx->vcpu, 0);
-	msr = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
-	if (vmx->vcpu.vcpu_id == 0)
-		msr |= MSR_IA32_APICBASE_BSP;
-	kvm_set_apic_base(&vmx->vcpu, msr);
-
-	fx_init(&vmx->vcpu);
-
-	/*
-	 * GUEST_CS_BASE should really be 0xffff0000, but VT vm86 mode
-	 * insists on having GUEST_CS_BASE == GUEST_CS_SELECTOR << 4.  Sigh.
-	 */
-	if (vmx->vcpu.vcpu_id == 0) {
-		vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
-		vmcs_writel(GUEST_CS_BASE, 0x000f0000);
-	} else {
-		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.sipi_vector << 8);
-		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.sipi_vector << 12);
-	}
-	vmcs_write32(GUEST_CS_LIMIT, 0xffff);
-	vmcs_write32(GUEST_CS_AR_BYTES, 0x9b);
-
-	seg_setup(VCPU_SREG_DS);
-	seg_setup(VCPU_SREG_ES);
-	seg_setup(VCPU_SREG_FS);
-	seg_setup(VCPU_SREG_GS);
-	seg_setup(VCPU_SREG_SS);
-
-	vmcs_write16(GUEST_TR_SELECTOR, 0);
-	vmcs_writel(GUEST_TR_BASE, 0);
-	vmcs_write32(GUEST_TR_LIMIT, 0xffff);
-	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
-
-	vmcs_write16(GUEST_LDTR_SELECTOR, 0);
-	vmcs_writel(GUEST_LDTR_BASE, 0);
-	vmcs_write32(GUEST_LDTR_LIMIT, 0xffff);
-	vmcs_write32(GUEST_LDTR_AR_BYTES, 0x00082);
-
-	vmcs_write32(GUEST_SYSENTER_CS, 0);
-	vmcs_writel(GUEST_SYSENTER_ESP, 0);
-	vmcs_writel(GUEST_SYSENTER_EIP, 0);
-
-	vmcs_writel(GUEST_RFLAGS, 0x02);
-	if (vmx->vcpu.vcpu_id == 0)
-		vmcs_writel(GUEST_RIP, 0xfff0);
-	else
-		vmcs_writel(GUEST_RIP, 0);
-	vmcs_writel(GUEST_RSP, 0);
-
-	/* todo: dr0 = dr1 = dr2 = dr3 = 0; dr6 = 0xffff0ff0 */
-	vmcs_writel(GUEST_DR7, 0x400);
-
-	vmcs_writel(GUEST_GDTR_BASE, 0);
-	vmcs_write32(GUEST_GDTR_LIMIT, 0xffff);
-
-	vmcs_writel(GUEST_IDTR_BASE, 0);
-	vmcs_write32(GUEST_IDTR_LIMIT, 0xffff);
-
-	vmcs_write32(GUEST_ACTIVITY_STATE, 0);
-	vmcs_write32(GUEST_INTERRUPTIBILITY_INFO, 0);
-	vmcs_write32(GUEST_PENDING_DBG_EXCEPTIONS, 0);
 
 	/* I/O */
 	vmcs_write64(IO_BITMAP_A, page_to_phys(vmx_io_bitmap_a));
 	vmcs_write64(IO_BITMAP_B, page_to_phys(vmx_io_bitmap_b));
 
-	guest_write_tsc(0);
-
 	vmcs_write64(VMCS_LINK_POINTER, -1ull); /* 22.3.1.5 */
-
-	/* Special registers */
-	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
 
 	/* Control */
 	vmcs_write32(PIN_BASED_VM_EXEC_CONTROL,
@@ -1593,12 +1516,99 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		++vmx->nmsrs;
 	}
 
-	setup_msrs(vmx);
-
 	vmcs_write32(VM_EXIT_CONTROLS, vmcs_config.vmexit_ctrl);
 
 	/* 22.2.1, 20.8.1 */
 	vmcs_write32(VM_ENTRY_CONTROLS, vmcs_config.vmentry_ctrl);
+
+	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
+	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
+
+	return 0;
+}
+
+static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u64 msr;
+	int ret;
+
+	if (!init_rmode_tss(vmx->vcpu.kvm)) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	vmx->vcpu.rmode.active = 0;
+
+	vmx->vcpu.regs[VCPU_REGS_RDX] = get_rdx_init_val();
+	set_cr8(&vmx->vcpu, 0);
+	msr = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
+	if (vmx->vcpu.vcpu_id == 0)
+		msr |= MSR_IA32_APICBASE_BSP;
+	kvm_set_apic_base(&vmx->vcpu, msr);
+
+	fx_init(&vmx->vcpu);
+
+	/*
+	 * GUEST_CS_BASE should really be 0xffff0000, but VT vm86 mode
+	 * insists on having GUEST_CS_BASE == GUEST_CS_SELECTOR << 4.  Sigh.
+	 */
+	if (vmx->vcpu.vcpu_id == 0) {
+		vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
+		vmcs_writel(GUEST_CS_BASE, 0x000f0000);
+	} else {
+		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.sipi_vector << 8);
+		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.sipi_vector << 12);
+	}
+	vmcs_write32(GUEST_CS_LIMIT, 0xffff);
+	vmcs_write32(GUEST_CS_AR_BYTES, 0x9b);
+
+	seg_setup(VCPU_SREG_DS);
+	seg_setup(VCPU_SREG_ES);
+	seg_setup(VCPU_SREG_FS);
+	seg_setup(VCPU_SREG_GS);
+	seg_setup(VCPU_SREG_SS);
+
+	vmcs_write16(GUEST_TR_SELECTOR, 0);
+	vmcs_writel(GUEST_TR_BASE, 0);
+	vmcs_write32(GUEST_TR_LIMIT, 0xffff);
+	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
+
+	vmcs_write16(GUEST_LDTR_SELECTOR, 0);
+	vmcs_writel(GUEST_LDTR_BASE, 0);
+	vmcs_write32(GUEST_LDTR_LIMIT, 0xffff);
+	vmcs_write32(GUEST_LDTR_AR_BYTES, 0x00082);
+
+	vmcs_write32(GUEST_SYSENTER_CS, 0);
+	vmcs_writel(GUEST_SYSENTER_ESP, 0);
+	vmcs_writel(GUEST_SYSENTER_EIP, 0);
+
+	vmcs_writel(GUEST_RFLAGS, 0x02);
+	if (vmx->vcpu.vcpu_id == 0)
+		vmcs_writel(GUEST_RIP, 0xfff0);
+	else
+		vmcs_writel(GUEST_RIP, 0);
+	vmcs_writel(GUEST_RSP, 0);
+
+	/* todo: dr0 = dr1 = dr2 = dr3 = 0; dr6 = 0xffff0ff0 */
+	vmcs_writel(GUEST_DR7, 0x400);
+
+	vmcs_writel(GUEST_GDTR_BASE, 0);
+	vmcs_write32(GUEST_GDTR_LIMIT, 0xffff);
+
+	vmcs_writel(GUEST_IDTR_BASE, 0);
+	vmcs_write32(GUEST_IDTR_LIMIT, 0xffff);
+
+	vmcs_write32(GUEST_ACTIVITY_STATE, 0);
+	vmcs_write32(GUEST_INTERRUPTIBILITY_INFO, 0);
+	vmcs_write32(GUEST_PENDING_DBG_EXCEPTIONS, 0);
+
+	guest_write_tsc(0);
+
+	/* Special registers */
+	vmcs_write64(GUEST_IA32_DEBUGCTL, 0);
+
+	setup_msrs(vmx);
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);  /* 22.2.1 */
 
@@ -1609,9 +1619,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 			     page_to_phys(vmx->vcpu.apic->regs_page));
 	vmcs_write32(TPR_THRESHOLD, 0);
 #endif
-
-	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
-	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
 
 	vmx->vcpu.cr0 = 0x60000010;
 	vmx_set_cr0(&vmx->vcpu, vmx->vcpu.cr0); /* enter rmode */
@@ -1626,13 +1633,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 out:
 	return ret;
-}
-
-static void vmx_vcpu_reset(struct kvm_vcpu *vcpu)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	vmx_vcpu_setup(vmx);
 }
 
 static void inject_rmode_irq(struct kvm_vcpu *vcpu, int irq)
