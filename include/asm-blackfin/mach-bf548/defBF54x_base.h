@@ -47,6 +47,10 @@
 /* Debug/MP/Emulation Registers (0xFFC00014 - 0xFFC00014) */
 
 #define                           CHIPID  0xffc00014
+/* CHIPID Masks */
+#define                   CHIPID_VERSION  0xF0000000
+#define                    CHIPID_FAMILY  0x0FFFF000
+#define               CHIPID_MANUFACTURE  0x00000FFE
 
 /* System Reset and Interrupt Controller (0xFFC00100 - 0xFFC00104) */
 
