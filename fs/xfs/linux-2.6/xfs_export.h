@@ -59,50 +59,14 @@
  * a subdirectory) or use the "fsid" export option.
  */
 
+struct xfs_fid64 {
+	u64 ino;
+	u32 gen;
+	u64 parent_ino;
+	u32 parent_gen;
+} __attribute__((packed));
+
 /* This flag goes on the wire.  Don't play with it. */
 #define XFS_FILEID_TYPE_64FLAG	0x80	/* NFS fileid has 64bit inodes */
-
-/* Calculate the length in u32 units of the fileid data */
-static inline int
-xfs_fileid_length(int hasparent, int is64)
-{
-	return hasparent ? (is64 ? 6 : 4) : (is64 ? 3 : 2);
-}
-
-/*
- * Decode encoded inode information (either for the inode itself
- * or the parent) into an xfs_fid_t structure.  Advances and
- * returns the new data pointer
- */
-static inline __u32 *
-xfs_fileid_decode_fid2(__u32 *p, xfs_fid_t *fid, int is64)
-{
-	fid->fid_len = sizeof(xfs_fid_t) - sizeof(fid->fid_len);
-	fid->fid_pad = 0;
-	fid->fid_ino = *p++;
-#if XFS_BIG_INUMS
-	if (is64)
-		fid->fid_ino |= (((__u64)(*p++)) << 32);
-#endif
-	fid->fid_gen = *p++;
-	return p;
-}
-
-/*
- * Encode inode information (either for the inode itself or the
- * parent) into a fileid buffer.  Advances and returns the new
- * data pointer.
- */
-static inline __u32 *
-xfs_fileid_encode_inode(__u32 *p, struct inode *inode, int is64)
-{
-	*p++ = (__u32)inode->i_ino;
-#if XFS_BIG_INUMS
-	if (is64)
-		*p++ = (__u32)(inode->i_ino >> 32);
-#endif
-	*p++ = inode->i_generation;
-	return p;
-}
 
 #endif	/* __XFS_EXPORT_H__ */
