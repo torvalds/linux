@@ -1021,7 +1021,7 @@ void ivtv_yuv_setup_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 	yi->new_frame_info[frame].update = 0;
 	yi->new_frame_info[frame].interlaced_y = 0;
 	yi->new_frame_info[frame].interlaced_uv = 0;
-	yi->new_frame_info[frame].lace_mode = yi->lace_mode;
+	yi->new_frame_info[frame].lace_mode = yi->lace_mode & IVTV_YUV_MODE_MASK;
 
 	if (memcmp(&yi->old_frame_info_args, &yi->new_frame_info[frame],
 					sizeof(yi->new_frame_info[frame]))) {
