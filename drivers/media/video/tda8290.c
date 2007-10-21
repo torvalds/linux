@@ -50,7 +50,7 @@ struct tda8290_priv {
 
 static void tda8290_i2c_bridge(struct tuner *t, int close)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 
 	unsigned char  enable[2] = { 0x21, 0xC0 };
 	unsigned char disable[2] = { 0x21, 0x00 };
@@ -68,7 +68,7 @@ static void tda8290_i2c_bridge(struct tuner *t, int close)
 
 static void tda8295_i2c_bridge(struct tuner *t, int close)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 
 	unsigned char  enable[2] = { 0x45, 0xc1 };
 	unsigned char disable[2] = { 0x46, 0x00 };
@@ -98,7 +98,7 @@ static void tda8295_i2c_bridge(struct tuner *t, int close)
 
 static void set_audio(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	char* mode;
 
 	priv->cfg.tda827x_lpsel = 0;
@@ -145,7 +145,7 @@ static void set_audio(struct tuner *t)
 
 static void tda8290_set_freq(struct tuner *t, unsigned int freq)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char soft_reset[]  = { 0x00, 0x00 };
 	unsigned char easy_mode[]   = { 0x01, priv->tda8290_easy_mode };
 	unsigned char expert_mode[] = { 0x01, 0x80 };
@@ -264,7 +264,7 @@ static void tda8290_set_freq(struct tuner *t, unsigned int freq)
 
 static void tda8295_power(struct tuner *t, int enable)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char buf[] = { 0x30, 0x00 }; /* clb_stdbt */
 
 	tuner_i2c_xfer_send(&priv->i2c_props, &buf[0], 1);
@@ -280,7 +280,7 @@ static void tda8295_power(struct tuner *t, int enable)
 
 static void tda8295_set_easy_mode(struct tuner *t, int enable)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char buf[] = { 0x01, 0x00 };
 
 	tuner_i2c_xfer_send(&priv->i2c_props, &buf[0], 1);
@@ -296,7 +296,7 @@ static void tda8295_set_easy_mode(struct tuner *t, int enable)
 
 static void tda8295_set_video_std(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char buf[] = { 0x00, priv->tda8290_easy_mode };
 
 	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2);
@@ -310,7 +310,7 @@ static void tda8295_set_video_std(struct tuner *t)
 
 static void tda8295_agc1_out(struct tuner *t, int enable)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char buf[] = { 0x02, 0x00 }; /* DIV_FUNC */
 
 	tuner_i2c_xfer_send(&priv->i2c_props, &buf[0], 1);
@@ -326,7 +326,7 @@ static void tda8295_agc1_out(struct tuner *t, int enable)
 
 static void tda8295_agc2_out(struct tuner *t, int enable)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char set_gpio_cf[]    = { 0x44, 0x00 };
 	unsigned char set_gpio_val[]   = { 0x46, 0x00 };
 
@@ -347,7 +347,7 @@ static void tda8295_agc2_out(struct tuner *t, int enable)
 
 static int tda8295_has_signal(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 
 	unsigned char hvpll_stat = 0x26;
 	unsigned char ret;
@@ -361,7 +361,7 @@ static int tda8295_has_signal(struct tuner *t)
 
 static void tda8295_set_freq(struct tuner *t, unsigned int freq)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	u16 ifc;
 
 	unsigned char blanking_mode[]     = { 0x1d, 0x00 };
@@ -411,7 +411,7 @@ static void tda8295_set_freq(struct tuner *t, unsigned int freq)
 
 static int tda8290_has_signal(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 
 	unsigned char i2c_get_afc[1] = { 0x1B };
 	unsigned char afc = 0;
@@ -425,7 +425,7 @@ static int tda8290_has_signal(struct tuner *t)
 
 static void tda8290_standby(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char cb1[] = { 0x30, 0xD0 };
 	unsigned char tda8290_standby[] = { 0x00, 0x02 };
 	unsigned char tda8290_agc_tri[] = { 0x02, 0x20 };
@@ -449,7 +449,7 @@ static void tda8295_standby(struct tuner *t)
 
 static void tda8290_init_if(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 
 	unsigned char set_VS[] = { 0x30, 0x6F };
 	unsigned char set_GP00_CF[] = { 0x20, 0x01 };
@@ -464,7 +464,7 @@ static void tda8290_init_if(struct tuner *t)
 
 static void tda8295_init_if(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 
 	static unsigned char set_adc_ctl[]       = { 0x33, 0x14 };
 	static unsigned char set_adc_ctl2[]      = { 0x34, 0x00 };
@@ -493,7 +493,7 @@ static void tda8295_init_if(struct tuner *t)
 
 static void tda8290_init_tuner(struct tuner *t)
 {
-	struct tda8290_priv *priv = t->priv;
+	struct tda8290_priv *priv = t->fe.analog_demod_priv;
 	unsigned char tda8275_init[]  = { 0x00, 0x00, 0x00, 0x40, 0xdC, 0x04, 0xAf,
 					  0x3F, 0x2A, 0x04, 0xFF, 0x00, 0x00, 0x40 };
 	unsigned char tda8275a_init[] = { 0x00, 0x00, 0x00, 0x00, 0xdC, 0x05, 0x8b,
@@ -515,8 +515,8 @@ static void tda829x_release(struct tuner *t)
 	if (t->fe.ops.tuner_ops.release)
 		t->fe.ops.tuner_ops.release(&t->fe);
 
-	kfree(t->priv);
-	t->priv = NULL;
+	kfree(t->fe.analog_demod_priv);
+	t->fe.analog_demod_priv = NULL;
 }
 
 static struct analog_tuner_ops tda8290_tuner_ops = {
@@ -546,7 +546,7 @@ int tda8290_attach(struct tuner *t)
 	priv = kzalloc(sizeof(struct tda8290_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
-	t->priv = priv;
+	t->fe.analog_demod_priv = priv;
 
 	priv->i2c_props.addr     = t->i2c.addr;
 	priv->i2c_props.adap     = t->i2c.adapter;
@@ -636,7 +636,7 @@ int tda8295_attach(struct tuner *t)
 	priv = kzalloc(sizeof(struct tda8290_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
-	t->priv = priv;
+	t->fe.analog_demod_priv = priv;
 
 	priv->i2c_props.addr     = t->i2c.addr;
 	priv->i2c_props.adap     = t->i2c.adapter;

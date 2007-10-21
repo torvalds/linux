@@ -512,7 +512,7 @@ static int tda9887_set_config(struct tuner *t, char *buf)
 
 static int tda9887_status(struct tuner *t)
 {
-	struct tda9887_priv *priv = t->priv;
+	struct tda9887_priv *priv = t->fe.analog_demod_priv;
 	unsigned char buf[1];
 	int rc;
 
@@ -525,7 +525,7 @@ static int tda9887_status(struct tuner *t)
 
 static void tda9887_configure(struct tuner *t)
 {
-	struct tda9887_priv *priv = t->priv;
+	struct tda9887_priv *priv = t->fe.analog_demod_priv;
 	int rc;
 
 	memset(priv->data,0,sizeof(priv->data));
@@ -572,13 +572,13 @@ static void tda9887_configure(struct tuner *t)
 
 static void tda9887_tuner_status(struct tuner *t)
 {
-	struct tda9887_priv *priv = t->priv;
+	struct tda9887_priv *priv = t->fe.analog_demod_priv;
 	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", priv->data[1], priv->data[2], priv->data[3]);
 }
 
 static int tda9887_get_afc(struct tuner *t)
 {
-	struct tda9887_priv *priv = t->priv;
+	struct tda9887_priv *priv = t->fe.analog_demod_priv;
 	static int AFC_BITS_2_kHz[] = {
 		-12500,  -37500,  -62500,  -97500,
 		-112500, -137500, -162500, -187500,
@@ -606,8 +606,8 @@ static void tda9887_set_freq(struct tuner *t, unsigned int freq)
 
 static void tda9887_release(struct tuner *t)
 {
-	kfree(t->priv);
-	t->priv = NULL;
+	kfree(t->fe.analog_demod_priv);
+	t->fe.analog_demod_priv = NULL;
 }
 
 static struct analog_tuner_ops tda9887_tuner_ops = {
@@ -626,7 +626,7 @@ int tda9887_tuner_init(struct tuner *t)
 	priv = kzalloc(sizeof(struct tda9887_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
-	t->priv = priv;
+	t->fe.analog_demod_priv = priv;
 
 	priv->i2c_props.addr = t->i2c.addr;
 	priv->i2c_props.adap = t->i2c.adapter;

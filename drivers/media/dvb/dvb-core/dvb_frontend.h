@@ -169,6 +169,7 @@ struct dvb_frontend {
 	void* tuner_priv;
 	void* frontend_priv;
 	void* sec_priv;
+	void* analog_demod_priv;
 };
 
 extern int dvb_register_frontend(struct dvb_adapter* dvb,

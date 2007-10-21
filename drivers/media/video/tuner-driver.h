@@ -57,7 +57,6 @@ struct tuner {
 	v4l2_std_id  std;
 
 	int          using_v4l2;
-	void *priv;
 
 	struct dvb_frontend fe;
 
