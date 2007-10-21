@@ -137,7 +137,7 @@ static ssize_t show_mem_state(struct sys_device *dev, char *buf)
 	return len;
 }
 
-static inline int memory_notify(unsigned long val, void *v)
+int memory_notify(unsigned long val, void *v)
 {
 	return blocking_notifier_call_chain(&memory_chain, val, v);
 }
@@ -183,7 +183,6 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 			break;
 		case MEM_OFFLINE:
 			mem->state = MEM_GOING_OFFLINE;
-			memory_notify(MEM_GOING_OFFLINE, NULL);
 			start_paddr = page_to_pfn(first_page) << PAGE_SHIFT;
 			ret = remove_memory(start_paddr,
 					    PAGES_PER_SECTION << PAGE_SHIFT);
@@ -191,7 +190,6 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 				mem->state = old_state;
 				break;
 			}
-			memory_notify(MEM_MAPPING_INVALID, NULL);
 			break;
 		default:
 			printk(KERN_WARNING "%s(%p, %ld) unknown action: %ld\n",
@@ -199,11 +197,6 @@ memory_block_action(struct memory_block *mem, unsigned long action)
 			WARN_ON(1);
 			ret = -EINVAL;
 	}
-	/*
-	 * For now, only notify on successful memory operations
-	 */
-	if (!ret)
-		memory_notify(action, NULL);
 
 	return ret;
 }

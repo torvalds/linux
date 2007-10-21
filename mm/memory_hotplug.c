@@ -187,7 +187,24 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	unsigned long onlined_pages = 0;
 	struct zone *zone;
 	int need_zonelists_rebuild = 0;
+	int nid;
+	int ret;
+	struct memory_notify arg;
 
+	arg.start_pfn = pfn;
+	arg.nr_pages = nr_pages;
+	arg.status_change_nid = -1;
+
+	nid = page_to_nid(pfn_to_page(pfn));
+	if (node_present_pages(nid) == 0)
+		arg.status_change_nid = nid;
+
+	ret = memory_notify(MEM_GOING_ONLINE, &arg);
+	ret = notifier_to_errno(ret);
+	if (ret) {
+		memory_notify(MEM_CANCEL_ONLINE, &arg);
+		return ret;
+	}
 	/*
 	 * This doesn't need a lock to do pfn_to_page().
 	 * The section can't be removed here because of the
@@ -222,6 +239,10 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 		build_all_zonelists();
 	vm_total_pages = nr_free_pagecache_pages();
 	writeback_set_ratelimit();
+
+	if (onlined_pages)
+		memory_notify(MEM_ONLINE, &arg);
+
 	return 0;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG_SPARSE */
@@ -467,8 +488,9 @@ int offline_pages(unsigned long start_pfn,
 {
 	unsigned long pfn, nr_pages, expire;
 	long offlined_pages;
-	int ret, drain, retry_max;
+	int ret, drain, retry_max, node;
 	struct zone *zone;
+	struct memory_notify arg;
 
 	BUG_ON(start_pfn >= end_pfn);
 	/* at least, alignment against pageblock is necessary */
@@ -480,11 +502,27 @@ int offline_pages(unsigned long start_pfn,
 	   we assume this for now. .*/
 	if (!test_pages_in_a_zone(start_pfn, end_pfn))
 		return -EINVAL;
+
+	zone = page_zone(pfn_to_page(start_pfn));
+	node = zone_to_nid(zone);
+	nr_pages = end_pfn - start_pfn;
+
 	/* set above range as isolated */
 	ret = start_isolate_page_range(start_pfn, end_pfn);
 	if (ret)
 		return ret;
-	nr_pages = end_pfn - start_pfn;
+
+	arg.start_pfn = start_pfn;
+	arg.nr_pages = nr_pages;
+	arg.status_change_nid = -1;
+	if (nr_pages >= node_present_pages(node))
+		arg.status_change_nid = node;
+
+	ret = memory_notify(MEM_GOING_OFFLINE, &arg);
+	ret = notifier_to_errno(ret);
+	if (ret)
+		goto failed_removal;
+
 	pfn = start_pfn;
 	expire = jiffies + timeout;
 	drain = 0;
@@ -539,20 +577,24 @@ repeat:
 	/* reset pagetype flags */
 	start_isolate_page_range(start_pfn, end_pfn);
 	/* removal success */
-	zone = page_zone(pfn_to_page(start_pfn));
 	zone->present_pages -= offlined_pages;
 	zone->zone_pgdat->node_present_pages -= offlined_pages;
 	totalram_pages -= offlined_pages;
 	num_physpages -= offlined_pages;
+
 	vm_total_pages = nr_free_pagecache_pages();
 	writeback_set_ratelimit();
+
+	memory_notify(MEM_OFFLINE, &arg);
 	return 0;
 
 failed_removal:
 	printk(KERN_INFO "memory offlining %lx to %lx failed\n",
 		start_pfn, end_pfn);
+	memory_notify(MEM_CANCEL_OFFLINE, &arg);
 	/* pushback to free area */
 	undo_isolate_page_range(start_pfn, end_pfn);
+
 	return ret;
 }
 #else

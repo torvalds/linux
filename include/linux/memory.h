@@ -41,18 +41,15 @@ struct memory_block {
 #define	MEM_ONLINE		(1<<0) /* exposed to userspace */
 #define	MEM_GOING_OFFLINE	(1<<1) /* exposed to userspace */
 #define	MEM_OFFLINE		(1<<2) /* exposed to userspace */
+#define	MEM_GOING_ONLINE	(1<<3)
+#define	MEM_CANCEL_ONLINE	(1<<4)
+#define	MEM_CANCEL_OFFLINE	(1<<5)
 
-/*
- * All of these states are currently kernel-internal for notifying
- * kernel components and architectures.
- *
- * For MEM_MAPPING_INVALID, all notifier chains with priority >0
- * are called before pfn_to_page() becomes invalid.  The priority=0
- * entry is reserved for the function that actually makes
- * pfn_to_page() stop working.  Any notifiers that want to be called
- * after that should have priority <0.
- */
-#define	MEM_MAPPING_INVALID	(1<<3)
+struct memory_notify {
+	unsigned long start_pfn;
+	unsigned long nr_pages;
+	int status_change_nid;
+};
 
 struct notifier_block;
 struct mem_section;
@@ -69,12 +66,18 @@ static inline int register_memory_notifier(struct notifier_block *nb)
 static inline void unregister_memory_notifier(struct notifier_block *nb)
 {
 }
+static inline int memory_notify(unsigned long val, void *v)
+{
+	return 0;
+}
 #else
+extern int register_memory_notifier(struct notifier_block *nb);
+extern void unregister_memory_notifier(struct notifier_block *nb);
 extern int register_new_memory(struct mem_section *);
 extern int unregister_memory_section(struct mem_section *);
 extern int memory_dev_init(void);
 extern int remove_memory_block(unsigned long, struct mem_section *, int);
-
+extern int memory_notify(unsigned long val, void *v);
 #define CONFIG_MEM_BLOCK_SIZE	(PAGES_PER_SECTION<<PAGE_SHIFT)
 
 
