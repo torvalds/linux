@@ -63,6 +63,15 @@ Interrupt ranges are not address translated, (0xfee00000 - 0xfeefffff).
 The same is true for peer to peer transactions. Hence we reserve the
 address from PCI MMIO ranges so they are not allocated for IOVA addresses.
 
+
+Fault reporting
+---------------
+When errors are reported, the DMA engine signals via an interrupt. The fault
+reason and device that caused it with fault reason is printed on console.
+
+See below for sample.
+
+
 Boot Message Sample
 -------------------
 
@@ -84,6 +93,14 @@ ACPI DMAR:RMRR base: 0x000000007f600000 end: 0x000000007fffffff
 When DMAR is enabled for use, you will notice..
 
 PCI-DMA: Using DMAR IOMMU
+
+Fault reporting
+---------------
+
+DMAR:[DMA Write] Request device [00:02.0] fault addr 6df084000
+DMAR:[fault reason 05] PTE Write access is not set
+DMAR:[DMA Write] Request device [00:02.0] fault addr 6df084000
+DMAR:[fault reason 05] PTE Write access is not set
 
 TBD
 ----

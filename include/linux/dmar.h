@@ -28,6 +28,18 @@
 #ifdef CONFIG_DMAR
 struct intel_iommu;
 
+extern char *dmar_get_fault_reason(u8 fault_reason);
+
+/* Can't use the common MSI interrupt functions
+ * since DMAR is not a pci device
+ */
+extern void dmar_msi_unmask(unsigned int irq);
+extern void dmar_msi_mask(unsigned int irq);
+extern void dmar_msi_read(int irq, struct msi_msg *msg);
+extern void dmar_msi_write(int irq, struct msi_msg *msg);
+extern int dmar_set_interrupt(struct intel_iommu *iommu);
+extern int arch_setup_dmar_msi(unsigned int irq);
+
 /* Intel IOMMU detection and initialization functions */
 extern void detect_intel_iommu(void);
 extern int intel_iommu_init(void);
