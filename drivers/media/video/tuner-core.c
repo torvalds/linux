@@ -26,6 +26,7 @@
 #include "tea5767.h"
 #include "tuner-xc2028.h"
 #include "tuner-simple.h"
+#include "tda9887.h"
 
 #define UNSET (-1U)
 
@@ -344,7 +345,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TDA9887:
-		tda9887_tuner_init(t);
+		tda9887_attach(t);
 		break;
 	default:
 		attach_simple_tuner(t);

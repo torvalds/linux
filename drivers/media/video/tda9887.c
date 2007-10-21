@@ -9,7 +9,7 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
-#include "tuner-driver.h"
+#include "tda9887.h"
 
 
 /* Chips:
@@ -20,13 +20,18 @@
    Used as part of several tuners
 */
 
+static int tda9887_debug;
+module_param_named(debug, tda9887_debug, int, 0644);
+
 #define tda9887_info(fmt, arg...) do {\
 	printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c.name, \
-			i2c_adapter_id(priv->t->i2c.adapter), priv->t->i2c.addr , ##arg); } while (0)
+			i2c_adapter_id(priv->t->i2c.adapter), \
+			priv->t->i2c.addr, ##arg); } while (0)
 #define tda9887_dbg(fmt, arg...) do {\
-	if (tuner_debug) \
+	if (tda9887_debug) \
 		printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c.name, \
-			i2c_adapter_id(priv->t->i2c.adapter), priv->t->i2c.addr , ##arg); } while (0)
+			i2c_adapter_id(priv->t->i2c.adapter), \
+			priv->t->i2c.addr, ##arg); } while (0)
 
 struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
@@ -573,13 +578,13 @@ static void tda9887_configure(struct dvb_frontend *fe)
 
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		priv->data[1],priv->data[2],priv->data[3]);
-	if (tuner_debug > 1)
+	if (tda9887_debug > 1)
 		dump_write_message(fe, priv->data);
 
 	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,priv->data,4)))
 		tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
 
-	if (tuner_debug > 2) {
+	if (tda9887_debug > 2) {
 		msleep_interruptible(1000);
 		tda9887_status(fe);
 	}
@@ -590,7 +595,8 @@ static void tda9887_configure(struct dvb_frontend *fe)
 static void tda9887_tuner_status(struct dvb_frontend *fe)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
-	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", priv->data[1], priv->data[2], priv->data[3]);
+	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n",
+		     priv->data[1], priv->data[2], priv->data[3]);
 }
 
 static int tda9887_get_afc(struct dvb_frontend *fe)
@@ -636,7 +642,7 @@ static struct analog_tuner_ops tda9887_tuner_ops = {
 	.release        = tda9887_release,
 };
 
-int tda9887_tuner_init(struct tuner *t)
+int tda9887_attach(struct tuner *t)
 {
 	struct tda9887_priv *priv = NULL;
 
@@ -658,6 +664,7 @@ int tda9887_tuner_init(struct tuner *t)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tda9887_attach);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

@@ -75,6 +75,7 @@ config VIDEO_TUNER
 	select TUNER_TEA5761 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_TEA5767 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_SIMPLE if !VIDEO_TUNER_CUSTOMIZE
+	select TUNER_TDA9887 if !VIDEO_TUNER_CUSTOMIZE
 
 menuconfig VIDEO_TUNER_CUSTOMIZE
 	bool "Customize analog tuner modules to build"
@@ -130,9 +131,18 @@ config TUNER_TEA5767
 config TUNER_SIMPLE
 	tristate "Simple tuner support"
 	depends on I2C
+	select TUNER_TDA9887
 	default m if VIDEO_TUNER_CUSTOMIZE
 	help
 	  Say Y here to include support for various simple tuners.
+
+config TUNER_TDA9887
+	tristate "TDA 9885/6/7 analog IF demodulator"
+	depends on I2C
+	default m if VIDEO_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for Philips TDA9885/6/7
+	  analog IF demodulator.
 
 endif # VIDEO_TUNER_CUSTOMIZE
 

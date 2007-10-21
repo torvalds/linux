@@ -69,10 +69,6 @@ struct tuner {
 
 /* ------------------------------------------------------------------------ */
 
-extern int tda9887_tuner_init(struct tuner *t);
-
-/* ------------------------------------------------------------------------ */
-
 #define tuner_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->driver.name, \
 			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
