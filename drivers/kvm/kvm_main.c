@@ -993,6 +993,8 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 	struct page *page[1];
 	int npages;
 
+	might_sleep();
+
 	gfn = unalias_gfn(kvm, gfn);
 	slot = __gfn_to_memslot(kvm, gfn);
 	if (!slot) {
