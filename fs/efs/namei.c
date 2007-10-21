@@ -10,6 +10,8 @@
 #include <linux/string.h>
 #include <linux/efs_fs.h>
 #include <linux/smp_lock.h>
+#include <linux/exportfs.h>
+
 
 static efs_ino_t efs_find_entry(struct inode *inode, const char *name, int len) {
 	struct buffer_head *bh;
@@ -75,13 +77,10 @@ struct dentry *efs_lookup(struct inode *dir, struct dentry *dentry, struct namei
 	return NULL;
 }
 
-struct dentry *efs_get_dentry(struct super_block *sb, void *vobjp)
+static struct inode *efs_nfs_get_inode(struct super_block *sb, u64 ino,
+		u32 generation)
 {
-	__u32 *objp = vobjp;
-	unsigned long ino = objp[0];
-	__u32 generation = objp[1];
 	struct inode *inode;
-	struct dentry *result;
 
 	if (ino == 0)
 		return ERR_PTR(-ESTALE);
@@ -91,20 +90,25 @@ struct dentry *efs_get_dentry(struct super_block *sb, void *vobjp)
 
 	if (is_bad_inode(inode) ||
 	    (generation && inode->i_generation != generation)) {
-	    	result = ERR_PTR(-ESTALE);
-		goto out_iput;
+		iput(inode);
+		return ERR_PTR(-ESTALE);
 	}
 
-	result = d_alloc_anon(inode);
-	if (!result) {
-		result = ERR_PTR(-ENOMEM);
-		goto out_iput;
-	}
-	return result;
+	return inode;
+}
 
- out_iput:
-	iput(inode);
-	return result;
+struct dentry *efs_fh_to_dentry(struct super_block *sb, struct fid *fid,
+		int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    efs_nfs_get_inode);
+}
+
+struct dentry *efs_fh_to_parent(struct super_block *sb, struct fid *fid,
+		int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    efs_nfs_get_inode);
 }
 
 struct dentry *efs_get_parent(struct dentry *child)
