@@ -315,4 +315,11 @@ struct intel_iommu {
 	struct sys_device sysdev;
 };
 
+#ifndef CONFIG_DMAR_GFX_WA
+static inline void iommu_prepare_gfx_mapping(void)
+{
+	return;
+}
+#endif /* !CONFIG_DMAR_GFX_WA */
+
 #endif

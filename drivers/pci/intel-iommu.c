@@ -1602,6 +1602,36 @@ static inline int iommu_prepare_rmrr_dev(struct dmar_rmrr_unit *rmrr,
 		rmrr->end_address + 1);
 }
 
+#ifdef CONFIG_DMAR_GFX_WA
+extern int arch_get_ram_range(int slot, u64 *addr, u64 *size);
+static void __init iommu_prepare_gfx_mapping(void)
+{
+	struct pci_dev *pdev = NULL;
+	u64 base, size;
+	int slot;
+	int ret;
+
+	for_each_pci_dev(pdev) {
+		if (pdev->sysdata == DUMMY_DEVICE_DOMAIN_INFO ||
+				!IS_GFX_DEVICE(pdev))
+			continue;
+		printk(KERN_INFO "IOMMU: gfx device %s 1-1 mapping\n",
+			pci_name(pdev));
+		slot = arch_get_ram_range(0, &base, &size);
+		while (slot >= 0) {
+			ret = iommu_prepare_identity_map(pdev,
+					base, base + size);
+			if (ret)
+				goto error;
+			slot = arch_get_ram_range(slot, &base, &size);
+		}
+		continue;
+error:
+		printk(KERN_ERR "IOMMU: mapping reserved region failed\n");
+	}
+}
+#endif
+
 int __init init_dmars(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -1664,6 +1694,8 @@ int __init init_dmars(void)
 				 "IOMMU: mapping reserved region failed\n");
 		}
 	}
+
+	iommu_prepare_gfx_mapping();
 
 	/*
 	 * for each drhd
@@ -2176,3 +2208,4 @@ int __init intel_iommu_init(void)
 	dma_ops = &intel_dma_ops;
 	return 0;
 }
+
