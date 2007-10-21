@@ -190,7 +190,8 @@ int cap_inode_killpriv(struct dentry *dentry)
 	return inode->i_op->removexattr(dentry, XATTR_NAME_CAPS);
 }
 
-static inline int cap_from_disk(__le32 *caps, struct linux_binprm *bprm,
+static inline int cap_from_disk(struct vfs_cap_data *caps,
+				struct linux_binprm *bprm,
 				int size)
 {
 	__u32 magic_etc;
@@ -198,7 +199,7 @@ static inline int cap_from_disk(__le32 *caps, struct linux_binprm *bprm,
 	if (size != XATTR_CAPS_SZ)
 		return -EINVAL;
 
-	magic_etc = le32_to_cpu(caps[0]);
+	magic_etc = le32_to_cpu(caps->magic_etc);
 
 	switch ((magic_etc & VFS_CAP_REVISION_MASK)) {
 	case VFS_CAP_REVISION:
@@ -206,8 +207,8 @@ static inline int cap_from_disk(__le32 *caps, struct linux_binprm *bprm,
 			bprm->cap_effective = true;
 		else
 			bprm->cap_effective = false;
-		bprm->cap_permitted = to_cap_t( le32_to_cpu(caps[1]) );
-		bprm->cap_inheritable = to_cap_t( le32_to_cpu(caps[2]) );
+		bprm->cap_permitted = to_cap_t(le32_to_cpu(caps->permitted));
+		bprm->cap_inheritable = to_cap_t(le32_to_cpu(caps->inheritable));
 		return 0;
 	default:
 		return -EINVAL;
@@ -219,7 +220,7 @@ static int get_file_caps(struct linux_binprm *bprm)
 {
 	struct dentry *dentry;
 	int rc = 0;
-	__le32 v1caps[XATTR_CAPS_SZ];
+	struct vfs_cap_data incaps;
 	struct inode *inode;
 
 	if (bprm->file->f_vfsmnt->mnt_flags & MNT_NOSUID) {
@@ -232,8 +233,14 @@ static int get_file_caps(struct linux_binprm *bprm)
 	if (!inode->i_op || !inode->i_op->getxattr)
 		goto out;
 
-	rc = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS, &v1caps,
-							XATTR_CAPS_SZ);
+	rc = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS, NULL, 0);
+	if (rc > 0) {
+		if (rc == XATTR_CAPS_SZ)
+			rc = inode->i_op->getxattr(dentry, XATTR_NAME_CAPS,
+						&incaps, XATTR_CAPS_SZ);
+		else
+			rc = -EINVAL;
+	}
 	if (rc == -ENODATA || rc == -EOPNOTSUPP) {
 		/* no data, that's ok */
 		rc = 0;
@@ -242,7 +249,7 @@ static int get_file_caps(struct linux_binprm *bprm)
 	if (rc < 0)
 		goto out;
 
-	rc = cap_from_disk(v1caps, bprm, rc);
+	rc = cap_from_disk(&incaps, bprm, rc);
 	if (rc)
 		printk(KERN_NOTICE "%s: cap_from_disk returned %d for %s\n",
 			__FUNCTION__, rc, bprm->filename);

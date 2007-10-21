@@ -56,10 +56,8 @@ typedef struct __user_cap_data_struct {
 
 struct vfs_cap_data {
 	__u32 magic_etc;  /* Little endian */
-	struct {
-		__u32 permitted;    /* Little endian */
-		__u32 inheritable;  /* Little endian */
-	} data[1];
+	__u32 permitted;    /* Little endian */
+	__u32 inheritable;  /* Little endian */
 };
 
 #ifdef __KERNEL__
