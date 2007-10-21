@@ -1,4 +1,13 @@
-
+/*
+ * Copyright (C) Neil Brown 2002
+ * Copyright (C) Christoph Hellwig 2007
+ *
+ * This file contains the code mapping from inodes to NFS file handles,
+ * and for mapping back from file handles to dentries.
+ *
+ * For details on why we do all the strange and hairy things in here
+ * take a look at Documentation/filesystems/Exporting.
+ */
 #include <linux/exportfs.h>
 #include <linux/fs.h>
 #include <linux/file.h>
@@ -9,19 +18,19 @@
 #define dprintk(fmt, args...) do{}while(0)
 
 
-static int get_name(struct dentry *dentry, char *name,
+static int get_name(struct vfsmount *mnt, struct dentry *dentry, char *name,
 		struct dentry *child);
 
 
-static int exportfs_get_name(struct dentry *dir, char *name,
-		struct dentry *child)
+static int exportfs_get_name(struct vfsmount *mnt, struct dentry *dir,
+		char *name, struct dentry *child)
 {
 	const struct export_operations *nop = dir->d_sb->s_export_op;
 
 	if (nop->get_name)
 		return nop->get_name(dir, name, child);
 	else
-		return get_name(dir, name, child);
+		return get_name(mnt, dir, name, child);
 }
 
 /*
@@ -85,7 +94,7 @@ find_disconnected_root(struct dentry *dentry)
  * It may already be, as the flag isn't always updated when connection happens.
  */
 static int
-reconnect_path(struct super_block *sb, struct dentry *target_dir)
+reconnect_path(struct vfsmount *mnt, struct dentry *target_dir)
 {
 	char nbuf[NAME_MAX+1];
 	int noprogress = 0;
@@ -108,7 +117,7 @@ reconnect_path(struct super_block *sb, struct dentry *target_dir)
 			pd->d_flags &= ~DCACHE_DISCONNECTED;
 			spin_unlock(&pd->d_lock);
 			noprogress = 0;
-		} else if (pd == sb->s_root) {
+		} else if (pd == mnt->mnt_sb->s_root) {
 			printk(KERN_ERR "export: Eeek filesystem root is not connected, impossible\n");
 			spin_lock(&pd->d_lock);
 			pd->d_flags &= ~DCACHE_DISCONNECTED;
@@ -134,8 +143,8 @@ reconnect_path(struct super_block *sb, struct dentry *target_dir)
 			struct dentry *npd;
 
 			mutex_lock(&pd->d_inode->i_mutex);
-			if (sb->s_export_op->get_parent)
-				ppd = sb->s_export_op->get_parent(pd);
+			if (mnt->mnt_sb->s_export_op->get_parent)
+				ppd = mnt->mnt_sb->s_export_op->get_parent(pd);
 			mutex_unlock(&pd->d_inode->i_mutex);
 
 			if (IS_ERR(ppd)) {
@@ -148,7 +157,7 @@ reconnect_path(struct super_block *sb, struct dentry *target_dir)
 
 			dprintk("%s: find name of %lu in %lu\n", __FUNCTION__,
 				pd->d_inode->i_ino, ppd->d_inode->i_ino);
-			err = exportfs_get_name(ppd, nbuf, pd);
+			err = exportfs_get_name(mnt, ppd, nbuf, pd);
 			if (err) {
 				dput(ppd);
 				dput(pd);
@@ -238,8 +247,8 @@ static int filldir_one(void * __buf, const char * name, int len,
  * calls readdir on the parent until it finds an entry with
  * the same inode number as the child, and returns that.
  */
-static int get_name(struct dentry *dentry, char *name,
-			struct dentry *child)
+static int get_name(struct vfsmount *mnt, struct dentry *dentry,
+		char *name, struct dentry *child)
 {
 	struct inode *dir = dentry->d_inode;
 	int error;
@@ -255,7 +264,7 @@ static int get_name(struct dentry *dentry, char *name,
 	/*
 	 * Open the directory ...
 	 */
-	file = dentry_open(dget(dentry), NULL, O_RDONLY);
+	file = dentry_open(dget(dentry), mntget(mnt), O_RDONLY);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;
@@ -372,7 +381,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * filesystem root.
 		 */
 		if (result->d_flags & DCACHE_DISCONNECTED) {
-			err = reconnect_path(mnt->mnt_sb, result);
+			err = reconnect_path(mnt, result);
 			if (err)
 				goto err_result;
 		}
@@ -424,7 +433,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * connected to the filesystem root.  The VFS really doesn't
 		 * like disconnected directories..
 		 */
-		err = reconnect_path(mnt->mnt_sb, target_dir);
+		err = reconnect_path(mnt, target_dir);
 		if (err) {
 			dput(target_dir);
 			goto err_result;
@@ -435,7 +444,7 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 		 * dentry for the inode we're after, make sure that our
 		 * inode is actually connected to the parent.
 		 */
-		err = exportfs_get_name(target_dir, nbuf, result);
+		err = exportfs_get_name(mnt, target_dir, nbuf, result);
 		if (!err) {
 			mutex_lock(&target_dir->d_inode->i_mutex);
 			nresult = lookup_one_len(nbuf, target_dir,

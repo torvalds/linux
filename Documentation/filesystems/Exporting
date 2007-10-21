@@ -2,9 +2,12 @@
 Making Filesystems Exportable
 =============================
 
-Most filesystem operations require a dentry (or two) as a starting
+Overview
+--------
+
+All filesystem operations require a dentry (or two) as a starting
 point.  Local applications have a reference-counted hold on suitable
-dentrys via open file descriptors or cwd/root.  However remote
+dentries via open file descriptors or cwd/root.  However remote
 applications that access a filesystem via a remote filesystem protocol
 such as NFS may not be able to hold such a reference, and so need a
 different way to refer to a particular dentry.  As the alternative
@@ -13,14 +16,14 @@ server-reboot (among other things, though these tend to be the most
 problematic), there is no simple answer like 'filename'.
 
 The mechanism discussed here allows each filesystem implementation to
-specify how to generate an opaque (out side of the filesystem) byte
+specify how to generate an opaque (outside of the filesystem) byte
 string for any dentry, and how to find an appropriate dentry for any
 given opaque byte string.
 This byte string will be called a "filehandle fragment" as it
 corresponds to part of an NFS filehandle.
 
 A filesystem which supports the mapping between filehandle fragments
-and dentrys will be termed "exportable".
+and dentries will be termed "exportable".
 
 
 
@@ -89,11 +92,9 @@ For a filesystem to be exportable it must:
    1/ provide the filehandle fragment routines described below.
    2/ make sure that d_splice_alias is used rather than d_add
       when ->lookup finds an inode for a given parent and name.
-      Typically the ->lookup routine will end:
-		if (inode)
-			return d_splice(inode, dentry);
-		d_add(dentry, inode);
-		return NULL;
+      Typically the ->lookup routine will end with a:
+
+		return d_splice_alias(inode, dentry);
 	}
 
 
@@ -101,67 +102,39 @@ For a filesystem to be exportable it must:
   A file system implementation declares that instances of the filesystem
 are exportable by setting the s_export_op field in the struct
 super_block.  This field must point to a "struct export_operations"
-struct which could potentially be full of NULLs, though normally at
-least get_parent will be set.
+struct which has the following members:
 
- The primary operations are decode_fh and encode_fh.  
-decode_fh takes a filehandle fragment and tries to find or create a
-dentry for the object referred to by the filehandle.
-encode_fh takes a dentry and creates a filehandle fragment which can
-later be used to find/create a dentry for the same object.
+ encode_fh  (optional)
+    Takes a dentry and creates a filehandle fragment which can later be used
+    to find or create a dentry for the same object.  The default
+    implementation creates a filehandle fragment that encodes a 32bit inode
+    and generation number for the inode encoded, and if necessary the
+    same information for the parent.
 
-decode_fh will probably make use of "find_exported_dentry".
-This function lives in the "exportfs" module which a filesystem does
-not need unless it is being exported.  So rather that calling
-find_exported_dentry directly, each filesystem should call it through
-the find_exported_dentry pointer in it's export_operations table.
-This field is set correctly by the exporting agent (e.g. nfsd) when a
-filesystem is exported, and before any export operations are called.
+  fh_to_dentry (mandatory)
+    Given a filehandle fragment, this should find the implied object and
+    create a dentry for it (possibly with d_alloc_anon).
 
-find_exported_dentry needs three support functions from the
-filesystem:
-  get_name.  When given a parent dentry and a child dentry, this
-    should find a name in the directory identified by the parent
-    dentry, which leads to the object identified by the child dentry.
-    If no get_name function is supplied, a default implementation is
-    provided which uses vfs_readdir to find potential names, and
-    matches inode numbers to find the correct match.
+  fh_to_parent (optional but strongly recommended)
+    Given a filehandle fragment, this should find the parent of the
+    implied object and create a dentry for it (possibly with d_alloc_anon).
+    May fail if the filehandle fragment is too small.
 
-  get_parent.  When given a dentry for a directory, this should return 
-    a dentry for the parent.  Quite possibly the parent dentry will
-    have been allocated by d_alloc_anon.  
-    The default get_parent function just returns an error so any
-    filehandle lookup that requires finding a parent will fail.
-    ->lookup("..") is *not* used as a default as it can leave ".."
-    entries in the dcache which are too messy to work with.
+  get_parent (optional but strongly recommended)
+    When given a dentry for a directory, this should return  a dentry for
+    the parent.  Quite possibly the parent dentry will have been allocated
+    by d_alloc_anon.  The default get_parent function just returns an error
+    so any filehandle lookup that requires finding a parent will fail.
+    ->lookup("..") is *not* used as a default as it can leave ".." entries
+    in the dcache which are too messy to work with.
 
-  get_dentry.  When given an opaque datum, this should find the
-    implied object and create a dentry for it (possibly with
-    d_alloc_anon). 
-    The opaque datum is whatever is passed down by the decode_fh
-    function, and is often simply a fragment of the filehandle
-    fragment.
-    decode_fh passes two datums through find_exported_dentry.  One that 
-    should be used to identify the target object, and one that can be
-    used to identify the object's parent, should that be necessary.
-    The default get_dentry function assumes that the datum contains an
-    inode number and a generation number, and it attempts to get the
-    inode using "iget" and check it's validity by matching the
-    generation number.  A filesystem should only depend on the default
-    if iget can safely be used this way.
-
-If decode_fh and/or encode_fh are left as NULL, then default
-implementations are used.  These defaults are suitable for ext2 and 
-extremely similar filesystems (like ext3).
-
-The default encode_fh creates a filehandle fragment from the inode
-number and generation number of the target together with the inode
-number and generation number of the parent (if the parent is
-required).
-
-The default decode_fh extract the target and parent datums from the
-filehandle assuming the format used by the default encode_fh and
-passed them to find_exported_dentry.
+  get_name (optional)
+    When given a parent dentry and a child dentry, this should find a name
+    in the directory identified by the parent dentry, which leads to the
+    object identified by the child dentry.  If no get_name function is
+    supplied, a default implementation is provided which uses vfs_readdir
+    to find potential names, and matches inode numbers to find the correct
+    match.
 
 
 A filehandle fragment consists of an array of 1 or more 4byte words,
@@ -172,5 +145,3 @@ generated by encode_fh, in which case it will have been padded with
 nuls.  Rather, the encode_fh routine should choose a "type" which
 indicates the decode_fh how much of the filehandle is valid, and how
 it should be interpreted.
-
- 
