@@ -54,6 +54,7 @@ static void domain_remove_dev_info(struct dmar_domain *domain);
 
 static int dmar_disabled;
 static int __initdata dmar_map_gfx = 1;
+static int dmar_forcedac;
 
 #define DUMMY_DEVICE_DOMAIN_INFO ((struct device_domain_info *)(-1))
 static DEFINE_SPINLOCK(device_domain_lock);
@@ -71,6 +72,10 @@ static int __init intel_iommu_setup(char *str)
 			dmar_map_gfx = 0;
 			printk(KERN_INFO
 				"Intel-IOMMU: disable GFX device mapping\n");
+		} else if (!strncmp(str, "forcedac", 8)) {
+			printk (KERN_INFO
+				"Intel-IOMMU: Forcing DAC for PCI devices\n");
+			dmar_forcedac = 1;
 		}
 
 		str += strcspn(str, ",");
@@ -1558,7 +1563,7 @@ static dma_addr_t __intel_map_single(struct device *dev, void *addr,
 
 	start_addr = IOVA_START_ADDR;
 
-	if (pdev->dma_mask <= DMA_32BIT_MASK) {
+	if ((pdev->dma_mask <= DMA_32BIT_MASK) || (dmar_forcedac)) {
 		iova = iommu_alloc_iova(domain, addr, size, start_addr,
 			pdev->dma_mask);
 	} else  {
