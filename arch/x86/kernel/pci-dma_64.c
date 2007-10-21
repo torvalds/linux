@@ -7,6 +7,7 @@
 #include <linux/string.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/dmar.h>
 #include <asm/io.h>
 #include <asm/iommu.h>
 #include <asm/calgary.h>
@@ -305,6 +306,8 @@ void __init pci_iommu_alloc(void)
 	detect_calgary();
 #endif
 
+	detect_intel_iommu();
+
 #ifdef CONFIG_SWIOTLB
 	pci_swiotlb_init();
 #endif
@@ -315,6 +318,8 @@ static int __init pci_iommu_init(void)
 #ifdef CONFIG_CALGARY_IOMMU
 	calgary_iommu_init();
 #endif
+
+	intel_iommu_init();
 
 #ifdef CONFIG_IOMMU
 	gart_iommu_init();

@@ -21,7 +21,7 @@ obj-$(CONFIG_PCI_MSI) += msi.o
 obj-$(CONFIG_HT_IRQ) += htirq.o
 
 # Build Intel IOMMU support
-obj-$(CONFIG_DMAR) += dmar.o
+obj-$(CONFIG_DMAR) += dmar.o iova.o intel-iommu.o
 
 #
 # Some architectures use the generic PCI setup functions

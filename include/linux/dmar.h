@@ -23,7 +23,14 @@
 
 #include <linux/acpi.h>
 #include <linux/types.h>
+#include <linux/msi.h>
 
+#ifdef CONFIG_DMAR
+struct intel_iommu;
+
+/* Intel IOMMU detection and initialization functions */
+extern void detect_intel_iommu(void);
+extern int intel_iommu_init(void);
 
 extern int dmar_table_init(void);
 extern int early_dmar_detect(void);
@@ -49,4 +56,19 @@ struct dmar_rmrr_unit {
 	int	devices_cnt;		/* target device count */
 };
 
+#define for_each_drhd_unit(drhd) \
+	list_for_each_entry(drhd, &dmar_drhd_units, list)
+#define for_each_rmrr_units(rmrr) \
+	list_for_each_entry(rmrr, &dmar_rmrr_units, list)
+#else
+static inline void detect_intel_iommu(void)
+{
+	return;
+}
+static inline int intel_iommu_init(void)
+{
+	return -ENODEV;
+}
+
+#endif /* !CONFIG_DMAR */
 #endif /* __DMAR_H__ */
