@@ -55,13 +55,13 @@
 	 * IODC requires 7K byte stack.  That leaves 1K byte for os_hpmc.
 	 */
 
-	.align 4096
+	.align	PAGE_SIZE
 hpmc_stack:
 	.block 16384
 
 #define HPMC_IODC_BUF_SIZE 0x8000
 
-	.align 4096
+	.align	PAGE_SIZE
 hpmc_iodc_buf:
 	.block HPMC_IODC_BUF_SIZE
 

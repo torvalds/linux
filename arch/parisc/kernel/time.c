@@ -189,16 +189,14 @@ static struct clocksource clocksource_cr16 = {
 #ifdef CONFIG_SMP
 int update_cr16_clocksource(void)
 {
-	int change = 0;
-
 	/* since the cr16 cycle counters are not synchronized across CPUs,
 	   we'll check if we should switch to a safe clocksource: */
 	if (clocksource_cr16.rating != 0 && num_online_cpus() > 1) {
 		clocksource_change_rating(&clocksource_cr16, 0);
-		change = 1;
+		return 1;
 	}
 
-	return change;
+	return 0;
 }
 #else
 int update_cr16_clocksource(void)

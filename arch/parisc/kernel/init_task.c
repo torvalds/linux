@@ -49,7 +49,6 @@ EXPORT_SYMBOL(init_mm);
  * way process stacks are handled. This is done by having a special
  * "init_task" linker map entry..
  */
-unsigned char interrupt_stack[ISTACK_SIZE] __attribute__ ((section("init_istack"), aligned(4096)));
 union thread_union init_thread_union
 	__attribute__((aligned(128))) __attribute__((__section__(".data.init_task"))) =
 		{ INIT_THREAD_INFO(init_task) };

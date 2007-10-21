@@ -557,44 +557,6 @@ lba_bios_init(void)
 #ifdef CONFIG_64BIT
 
 /*
-** Determine if a device is already configured.
-** If so, reserve it resources.
-**
-** Read PCI cfg command register and see if I/O or MMIO is enabled.
-** PAT has to enable the devices it's using.
-**
-** Note: resources are fixed up before we try to claim them.
-*/
-static void
-lba_claim_dev_resources(struct pci_dev *dev)
-{
-	u16 cmd;
-	int i, srch_flags;
-
-	(void) pci_read_config_word(dev, PCI_COMMAND, &cmd);
-
-	srch_flags  = (cmd & PCI_COMMAND_IO) ? IORESOURCE_IO : 0;
-	if (cmd & PCI_COMMAND_MEMORY)
-		srch_flags |= IORESOURCE_MEM;
-
-	if (!srch_flags)
-		return;
-
-	for (i = 0; i <= PCI_ROM_RESOURCE; i++) {
-		if (dev->resource[i].flags & srch_flags) {
-			pci_claim_resource(dev, i);
-			DBG("   claimed %s %d [%lx,%lx]/%lx\n",
-				pci_name(dev), i,
-				dev->resource[i].start,
-				dev->resource[i].end,
-				dev->resource[i].flags
-				);
-		}
-	}
-}
-
-
-/*
  * truncate_pat_collision:  Deal with overlaps or outright collisions
  *			between PAT PDC reported ranges.
  *
@@ -653,7 +615,6 @@ truncate_pat_collision(struct resource *root, struct resource *new)
 }
 
 #else
-#define lba_claim_dev_resources(dev) do { } while (0)
 #define truncate_pat_collision(r,n)  (0)
 #endif
 
@@ -684,8 +645,12 @@ lba_fixup_bus(struct pci_bus *bus)
 	** pci_alloc_primary_bus() mangles this.
 	*/
 	if (bus->self) {
+		int i;
 		/* PCI-PCI Bridge */
 		pci_read_bridge_bases(bus);
+		for (i = PCI_BRIDGE_RESOURCES; i < PCI_NUM_RESOURCES; i++) {
+			pci_claim_resource(bus->self, i);
+		}
 	} else {
 		/* Host-PCI Bridge */
 		int err, i;
@@ -803,6 +768,9 @@ lba_fixup_bus(struct pci_bus *bus)
 				DBG("lba_fixup_bus() WTF? 0x%lx [%lx/%lx] XXX",
 					res->flags, res->start, res->end);
 			}
+			if ((i != PCI_ROM_RESOURCE) ||
+			    (res->flags & IORESOURCE_ROM_ENABLE))
+				pci_claim_resource(dev, i);
 		}
 
 #ifdef FBB_SUPPORT
@@ -813,11 +781,6 @@ lba_fixup_bus(struct pci_bus *bus)
 		(void) pci_read_config_word(dev, PCI_STATUS, &status);
 		bus->bridge_ctl &= ~(status & PCI_STATUS_FAST_BACK);
 #endif
-
-		if (is_pdc_pat()) {
-			/* Claim resources for PDC's devices */
-			lba_claim_dev_resources(dev);
-		}
 
                 /*
 		** P2PB's have no IRQs. ignore them.

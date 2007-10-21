@@ -403,6 +403,7 @@
 	ENTRY_COMP(signalfd)
 	ENTRY_COMP(timerfd)
 	ENTRY_SAME(eventfd)
+	ENTRY_COMP(fallocate)		/* 305 */
 
 	/* Nothing yet */
 

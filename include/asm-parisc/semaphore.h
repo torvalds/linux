@@ -54,7 +54,7 @@ struct semaphore {
 
 #define DECLARE_MUTEX(name) __DECLARE_SEMAPHORE_GENERIC(name,1)
 
-extern inline void sema_init (struct semaphore *sem, int val)
+static inline void sema_init (struct semaphore *sem, int val)
 {
 	*sem = (struct semaphore)__SEMAPHORE_INITIALIZER((*sem),val);
 }
@@ -82,7 +82,7 @@ asmlinkage void __up(struct semaphore * sem);
  * interrupts while we're messing with the semaphore.  Sorry.
  */
 
-extern __inline__ void down(struct semaphore * sem)
+static inline void down(struct semaphore * sem)
 {
 	might_sleep();
 	spin_lock_irq(&sem->sentry);
@@ -94,7 +94,7 @@ extern __inline__ void down(struct semaphore * sem)
 	spin_unlock_irq(&sem->sentry);
 }
 
-extern __inline__ int down_interruptible(struct semaphore * sem)
+static inline int down_interruptible(struct semaphore * sem)
 {
 	int ret = 0;
 	might_sleep();
@@ -112,7 +112,7 @@ extern __inline__ int down_interruptible(struct semaphore * sem)
  * down_trylock returns 0 on success, 1 if we failed to get the lock.
  * May not sleep, but must preserve irq state
  */
-extern __inline__ int down_trylock(struct semaphore * sem)
+static inline int down_trylock(struct semaphore * sem)
 {
 	unsigned long flags;
 	int count;
@@ -129,7 +129,7 @@ extern __inline__ int down_trylock(struct semaphore * sem)
  * Note! This is subtle. We jump to wake people up only if
  * the semaphore was negative (== somebody was waiting on it).
  */
-extern __inline__ void up(struct semaphore * sem)
+static inline void up(struct semaphore * sem)
 {
 	unsigned long flags;
 

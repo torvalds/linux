@@ -797,8 +797,9 @@
 #define __NR_signalfd		(__NR_Linux + 302)
 #define __NR_timerfd		(__NR_Linux + 303)
 #define __NR_eventfd		(__NR_Linux + 304)
+#define __NR_fallocate		(__NR_Linux + 305)
 
-#define __NR_Linux_syscalls	(__NR_eventfd + 1)
+#define __NR_Linux_syscalls	(__NR_fallocate + 1)
 
 
 #define __IGNORE_select		/* newselect */

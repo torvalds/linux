@@ -209,8 +209,8 @@ static int unwind_init(void)
 
 static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int frame_size)
 {
-	void handle_interruption(int, struct pt_regs *);
-	static unsigned long *hi = (unsigned long)&handle_interruption;
+	extern void handle_interruption(int, struct pt_regs *);
+	static unsigned long *hi = (unsigned long *)&handle_interruption;
 
 	if (pc == get_func_addr(hi)) {
 		struct pt_regs *regs = (struct pt_regs *)(info->sp - frame_size - PT_SZ_ALGN);

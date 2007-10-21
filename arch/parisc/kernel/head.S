@@ -95,7 +95,7 @@ $bss_loop:
 
 1:
 	stw		%r3,0(%r4)
-	ldo		(ASM_PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
+	ldo		(PAGE_SIZE >> PxD_VALUE_SHIFT)(%r3),%r3
 	addib,>		-1,%r1,1b
 #if PT_NLEVELS == 3
 	ldo             ASM_PMD_ENTRY_SIZE(%r4),%r4
@@ -127,10 +127,6 @@ $pgt_fill_loop:
 
 	/* And the stack pointer too */
 	ldo             THREAD_SZ_ALGN(%r6),%sp
-
-	/* And the interrupt stack */
-	load32		interrupt_stack,%r6
-	mtctl           %r6,%cr31
 
 #ifdef CONFIG_SMP
 	/* Set the smp rendevous address into page zero.

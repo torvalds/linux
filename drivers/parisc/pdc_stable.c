@@ -282,6 +282,7 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 	unsigned short i;
 	char in[count+1], *temp;
 	struct device *dev;
+	int ret;
 
 	if (!entry || !buf || !count)
 		return -EINVAL;
@@ -333,7 +334,9 @@ pdcspath_hwpath_write(struct pdcspath_entry *entry, const char *buf, size_t coun
 	
 	/* Update the symlink to the real device */
 	sysfs_remove_link(&entry->kobj, "device");
-	sysfs_create_link(&entry->kobj, &entry->dev->kobj, "device");
+	ret = sysfs_create_link(&entry->kobj, &entry->dev->kobj, "device");
+	WARN_ON(ret);
+
 	write_unlock(&entry->rw_lock);
 	
 	printk(KERN_INFO PDCS_PREFIX ": changed \"%s\" path to \"%s\"\n",
@@ -1003,8 +1006,10 @@ pdcs_register_pathentries(void)
 		entry->ready = 2;
 		
 		/* Add a nice symlink to the real device */
-		if (entry->dev)
-			sysfs_create_link(&entry->kobj, &entry->dev->kobj, "device");
+		if (entry->dev) {
+			err = sysfs_create_link(&entry->kobj, &entry->dev->kobj, "device");
+			WARN_ON(err);
+		}
 
 		write_unlock(&entry->rw_lock);
 	}

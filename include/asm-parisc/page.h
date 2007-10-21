@@ -3,6 +3,8 @@
 
 #ifdef __KERNEL__
 
+#include <linux/const.h>
+
 #if defined(CONFIG_PARISC_PAGE_SIZE_4KB)
 # define PAGE_SHIFT	12
 #elif defined(CONFIG_PARISC_PAGE_SIZE_16KB)
@@ -12,7 +14,7 @@
 #else
 # error "unknown default kernel page size"
 #endif
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+#define PAGE_SIZE	(_AC(1,UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 
 

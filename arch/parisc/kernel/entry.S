@@ -98,7 +98,6 @@
 	 * The "get_stack" macros are responsible for determining the
 	 * kernel stack value.
 	 *
-	 * For Faults:
 	 *      If sr7 == 0
 	 *          Already using a kernel stack, so call the
 	 *          get_stack_use_r30 macro to push a pt_regs structure
@@ -109,26 +108,6 @@
 	 *          to the pt_regs structure contained within the
 	 *          task pointer pointed to by cr30. Set the stack
 	 *          pointer to point to the end of the task structure.
-	 *
-	 * For Interrupts:
-	 *      If sr7 == 0
-	 *          Already using a kernel stack, check to see if r30
-	 *          is already pointing to the per processor interrupt
-	 *          stack. If it is, call the get_stack_use_r30 macro
-	 *          to push a pt_regs structure on the stack, and store
-	 *          registers there. Otherwise, call get_stack_use_cr31
-	 *          to get a pointer to the base of the interrupt stack
-	 *          and push a pt_regs structure on that stack.
-	 *      else
-	 *          Need to set up a kernel stack, so call the
-	 *          get_stack_use_cr30 macro to set up a pointer
-	 *          to the pt_regs structure contained within the
-	 *          task pointer pointed to by cr30. Set the stack
-	 *          pointer to point to the end of the task structure.
-	 *          N.B: We don't use the interrupt stack for the
-	 *          first interrupt from userland, because signals/
-	 *          resched's are processed when returning to userland,
-	 *          and we can sleep in those cases.
 	 *
 	 * Note that we use shadowed registers for temps until
 	 * we can save %r26 and %r29. %r26 is used to preserve
@@ -652,7 +631,7 @@
 
 	.text
 
-	.align 4096
+	.align	PAGE_SIZE
 
 ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */
@@ -904,7 +883,7 @@ ENDPROC(_switch_to)
 	 *
 	 */
 
-	.align 4096
+	.align	PAGE_SIZE
 
 ENTRY(syscall_exit_rfi)
 	mfctl   %cr30,%r16
@@ -1086,23 +1065,13 @@ intr_do_preempt:
 
 intr_extint:
 	CMPIB=,n 0,%r16,1f
+
 	get_stack_use_cr30
-	b,n 3f
+	b,n 2f
 
 1:
-#if 0  /* Interrupt Stack support not working yet! */
-	mfctl	%cr31,%r1
-	copy	%r30,%r17
-	/* FIXME! depi below has hardcoded idea of interrupt stack size (32k)*/
-	DEPI	0,31,15,%r17
-	CMPB=,n	%r1,%r17,2f
-	get_stack_use_cr31
-	b,n 3f
-#endif
-2:
 	get_stack_use_r30
-
-3:
+2:
 	save_specials	%r29
 	virt_map
 	save_general	%r29

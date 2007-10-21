@@ -10,6 +10,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/errno.h>
+#include <asm/page.h>
 #include <asm/psw.h>
 #include <asm/thread_info.h>
 #include <asm/assembly.h>
@@ -38,7 +39,7 @@
 	 * pointers.
 	 */
 
-	.align ASM_PAGE_SIZE
+	.align PAGE_SIZE
 ENTRY(linux_gateway_page)
 
         /* ADDRESS 0x00 to 0xb0 = 176 bytes / 4 bytes per insn = 44 insns */
@@ -597,7 +598,7 @@ cas_action:
 
 
 	/* Make sure nothing else is placed on this page */
-	.align ASM_PAGE_SIZE
+	.align PAGE_SIZE
 END(linux_gateway_page)
 ENTRY(end_linux_gateway_page)
 
@@ -608,7 +609,7 @@ ENTRY(end_linux_gateway_page)
 
 	.section .rodata,"a"
 
-	.align ASM_PAGE_SIZE
+	.align PAGE_SIZE
 	/* Light-weight-syscall table */
 	/* Start of lws table. */
 ENTRY(lws_table)
@@ -617,13 +618,13 @@ ENTRY(lws_table)
 END(lws_table)
 	/* End of lws table */
 
-	.align ASM_PAGE_SIZE
+	.align PAGE_SIZE
 ENTRY(sys_call_table)
 #include "syscall_table.S"
 END(sys_call_table)
 
 #ifdef CONFIG_64BIT
-	.align ASM_PAGE_SIZE
+	.align PAGE_SIZE
 ENTRY(sys_call_table64)
 #define SYSCALL_TABLE_64BIT
 #include "syscall_table.S"
@@ -636,7 +637,7 @@ END(sys_call_table64)
 		will use this set of locks 
 	*/
 	.section .data
-	.align 4096
+	.align	PAGE_SIZE
 ENTRY(lws_lock_start)
 	/* lws locks */
 	.align 16
