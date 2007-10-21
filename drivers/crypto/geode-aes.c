@@ -20,38 +20,6 @@
 
 #include "geode-aes.h"
 
-/* Register definitions */
-
-#define AES_CTRLA_REG  0x0000
-
-#define AES_CTRL_START     0x01
-#define AES_CTRL_DECRYPT   0x00
-#define AES_CTRL_ENCRYPT   0x02
-#define AES_CTRL_WRKEY     0x04
-#define AES_CTRL_DCA       0x08
-#define AES_CTRL_SCA       0x10
-#define AES_CTRL_CBC       0x20
-
-#define AES_INTR_REG  0x0008
-
-#define AES_INTRA_PENDING (1 << 16)
-#define AES_INTRB_PENDING (1 << 17)
-
-#define AES_INTR_PENDING  (AES_INTRA_PENDING | AES_INTRB_PENDING)
-#define AES_INTR_MASK     0x07
-
-#define AES_SOURCEA_REG   0x0010
-#define AES_DSTA_REG      0x0014
-#define AES_LENA_REG      0x0018
-#define AES_WRITEKEY0_REG 0x0030
-#define AES_WRITEIV0_REG  0x0040
-
-/*  A very large counter that is used to gracefully bail out of an
- *  operation in case of trouble
- */
-
-#define AES_OP_TIMEOUT    0x50000
-
 /* Static structures */
 
 static void __iomem * _iobase;
