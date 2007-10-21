@@ -44,13 +44,15 @@ struct tda8290_priv {
 	unsigned char tda827x_ver;
 
 	struct tda827x_config cfg;
+
+	struct tuner *t;
 };
 
 /*---------------------------------------------------------------------*/
 
-static void tda8290_i2c_bridge(struct tuner *t, int close)
+static void tda8290_i2c_bridge(struct dvb_frontend *fe, int close)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 
 	unsigned char  enable[2] = { 0x21, 0xC0 };
 	unsigned char disable[2] = { 0x21, 0x00 };
@@ -66,9 +68,9 @@ static void tda8290_i2c_bridge(struct tuner *t, int close)
 	}
 }
 
-static void tda8295_i2c_bridge(struct tuner *t, int close)
+static void tda8295_i2c_bridge(struct dvb_frontend *fe, int close)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 
 	unsigned char  enable[2] = { 0x45, 0xc1 };
 	unsigned char disable[2] = { 0x46, 0x00 };
@@ -96,9 +98,10 @@ static void tda8295_i2c_bridge(struct tuner *t, int close)
 
 /*---------------------------------------------------------------------*/
 
-static void set_audio(struct tuner *t)
+static void set_audio(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
+	struct tuner *t = priv->t;
 	char* mode;
 
 	priv->cfg.tda827x_lpsel = 0;
@@ -143,9 +146,11 @@ static void set_audio(struct tuner *t)
 	tuner_dbg("setting tda8290 to system %s\n", mode);
 }
 
-static void tda8290_set_freq(struct tuner *t, unsigned int freq)
+static void tda8290_set_freq(struct dvb_frontend *fe, unsigned int freq)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
+	struct tuner *t = priv->t;
+
 	unsigned char soft_reset[]  = { 0x00, 0x00 };
 	unsigned char easy_mode[]   = { 0x01, priv->tda8290_easy_mode };
 	unsigned char expert_mode[] = { 0x01, 0x80 };
@@ -175,7 +180,7 @@ static void tda8290_set_freq(struct tuner *t, unsigned int freq)
 		.std       = t->std
 	};
 
-	set_audio(t);
+	set_audio(fe);
 
 	tuner_dbg("tda827xa config is 0x%02x\n", t->config);
 	tuner_i2c_xfer_send(&priv->i2c_props, easy_mode, 2);
@@ -193,10 +198,10 @@ static void tda8290_set_freq(struct tuner *t, unsigned int freq)
 		tuner_i2c_xfer_send(&priv->i2c_props, adc_head_6, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, pll_bw_nom, 2);
 
-	tda8290_i2c_bridge(t, 1);
+	tda8290_i2c_bridge(fe, 1);
 
-	if (t->fe.ops.tuner_ops.set_analog_params)
-		t->fe.ops.tuner_ops.set_analog_params(&t->fe, &params);
+	if (fe->ops.tuner_ops.set_analog_params)
+		fe->ops.tuner_ops.set_analog_params(fe, &params);
 
 	for (i = 0; i < 3; i++) {
 		tuner_i2c_xfer_send(&priv->i2c_props, &addr_pll_stat, 1);
@@ -227,7 +232,7 @@ static void tda8290_set_freq(struct tuner *t, unsigned int freq)
 			tuner_dbg("adjust gain, step 2. Agc: %d, lock: %d\n",
 				   agc_stat, pll_stat & 0x80);
 			if (priv->cfg.agcf)
-				priv->cfg.agcf(&t->fe);
+				priv->cfg.agcf(fe);
 			msleep(100);
 			tuner_i2c_xfer_send(&priv->i2c_props, &addr_agc_stat, 1);
 			tuner_i2c_xfer_recv(&priv->i2c_props, &agc_stat, 1);
@@ -256,15 +261,15 @@ static void tda8290_set_freq(struct tuner *t, unsigned int freq)
 		}
 	}
 
-	tda8290_i2c_bridge(t, 0);
+	tda8290_i2c_bridge(fe, 0);
 	tuner_i2c_xfer_send(&priv->i2c_props, if_agc_set, 2);
 }
 
 /*---------------------------------------------------------------------*/
 
-static void tda8295_power(struct tuner *t, int enable)
+static void tda8295_power(struct dvb_frontend *fe, int enable)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 	unsigned char buf[] = { 0x30, 0x00 }; /* clb_stdbt */
 
 	tuner_i2c_xfer_send(&priv->i2c_props, &buf[0], 1);
@@ -278,9 +283,9 @@ static void tda8295_power(struct tuner *t, int enable)
 	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2);
 }
 
-static void tda8295_set_easy_mode(struct tuner *t, int enable)
+static void tda8295_set_easy_mode(struct dvb_frontend *fe, int enable)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 	unsigned char buf[] = { 0x01, 0x00 };
 
 	tuner_i2c_xfer_send(&priv->i2c_props, &buf[0], 1);
@@ -294,23 +299,23 @@ static void tda8295_set_easy_mode(struct tuner *t, int enable)
 	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2);
 }
 
-static void tda8295_set_video_std(struct tuner *t)
+static void tda8295_set_video_std(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 	unsigned char buf[] = { 0x00, priv->tda8290_easy_mode };
 
 	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2);
 
-	tda8295_set_easy_mode(t, 1);
+	tda8295_set_easy_mode(fe, 1);
 	msleep(20);
-	tda8295_set_easy_mode(t, 0);
+	tda8295_set_easy_mode(fe, 0);
 }
 
 /*---------------------------------------------------------------------*/
 
-static void tda8295_agc1_out(struct tuner *t, int enable)
+static void tda8295_agc1_out(struct dvb_frontend *fe, int enable)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 	unsigned char buf[] = { 0x02, 0x00 }; /* DIV_FUNC */
 
 	tuner_i2c_xfer_send(&priv->i2c_props, &buf[0], 1);
@@ -324,9 +329,9 @@ static void tda8295_agc1_out(struct tuner *t, int enable)
 	tuner_i2c_xfer_send(&priv->i2c_props, buf, 2);
 }
 
-static void tda8295_agc2_out(struct tuner *t, int enable)
+static void tda8295_agc2_out(struct dvb_frontend *fe, int enable)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 	unsigned char set_gpio_cf[]    = { 0x44, 0x00 };
 	unsigned char set_gpio_val[]   = { 0x46, 0x00 };
 
@@ -345,9 +350,9 @@ static void tda8295_agc2_out(struct tuner *t, int enable)
 	tuner_i2c_xfer_send(&priv->i2c_props, set_gpio_val, 2);
 }
 
-static int tda8295_has_signal(struct tuner *t)
+static int tda8295_has_signal(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 
 	unsigned char hvpll_stat = 0x26;
 	unsigned char ret;
@@ -359,9 +364,10 @@ static int tda8295_has_signal(struct tuner *t)
 
 /*---------------------------------------------------------------------*/
 
-static void tda8295_set_freq(struct tuner *t, unsigned int freq)
+static void tda8295_set_freq(struct dvb_frontend *fe, unsigned int freq)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
+	struct tuner *t = priv->t;
 	u16 ifc;
 
 	unsigned char blanking_mode[]     = { 0x1d, 0x00 };
@@ -373,45 +379,45 @@ static void tda8295_set_freq(struct tuner *t, unsigned int freq)
 		.std       = t->std
 	};
 
-	set_audio(t);
+	set_audio(fe);
 
 	ifc = priv->cfg.sgIF; /* FIXME */
 
 	tuner_dbg("%s: ifc = %u, freq = %d\n", __FUNCTION__, ifc, freq);
 
-	tda8295_power(t, 1);
-	tda8295_agc1_out(t, 1);
+	tda8295_power(fe, 1);
+	tda8295_agc1_out(fe, 1);
 
 	tuner_i2c_xfer_send(&priv->i2c_props, &blanking_mode[0], 1);
 	tuner_i2c_xfer_recv(&priv->i2c_props, &blanking_mode[1], 1);
 
-	tda8295_set_video_std(t);
+	tda8295_set_video_std(fe);
 
 	blanking_mode[1] = 0x03;
 	tuner_i2c_xfer_send(&priv->i2c_props, blanking_mode, 2);
 	msleep(20);
 
-	tda8295_i2c_bridge(t, 1);
+	tda8295_i2c_bridge(fe, 1);
 
-	if (t->fe.ops.tuner_ops.set_analog_params)
-		t->fe.ops.tuner_ops.set_analog_params(&t->fe, &params);
+	if (fe->ops.tuner_ops.set_analog_params)
+		fe->ops.tuner_ops.set_analog_params(fe, &params);
 
 	if (priv->cfg.agcf)
-		priv->cfg.agcf(&t->fe);
+		priv->cfg.agcf(fe);
 
-	if (tda8295_has_signal(t))
+	if (tda8295_has_signal(fe))
 		tuner_dbg("tda8295 is locked\n");
 	else
 		tuner_dbg("tda8295 not locked, no signal?\n");
 
-	tda8295_i2c_bridge(t, 0);
+	tda8295_i2c_bridge(fe, 0);
 }
 
 /*---------------------------------------------------------------------*/
 
-static int tda8290_has_signal(struct tuner *t)
+static int tda8290_has_signal(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 
 	unsigned char i2c_get_afc[1] = { 0x1B };
 	unsigned char afc = 0;
@@ -423,33 +429,35 @@ static int tda8290_has_signal(struct tuner *t)
 
 /*---------------------------------------------------------------------*/
 
-static void tda8290_standby(struct tuner *t)
+static void tda8290_standby(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
+
 	unsigned char cb1[] = { 0x30, 0xD0 };
 	unsigned char tda8290_standby[] = { 0x00, 0x02 };
 	unsigned char tda8290_agc_tri[] = { 0x02, 0x20 };
 	struct i2c_msg msg = {.addr = priv->tda827x_addr, .flags=0, .buf=cb1, .len = 2};
 
-	tda8290_i2c_bridge(t, 1);
+	tda8290_i2c_bridge(fe, 1);
 	if (priv->tda827x_ver != 0)
 		cb1[1] = 0x90;
 	i2c_transfer(priv->i2c_props.adap, &msg, 1);
-	tda8290_i2c_bridge(t, 0);
+	tda8290_i2c_bridge(fe, 0);
 	tuner_i2c_xfer_send(&priv->i2c_props, tda8290_agc_tri, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, tda8290_standby, 2);
 }
 
-static void tda8295_standby(struct tuner *t)
+static void tda8295_standby(struct dvb_frontend *fe)
 {
-	tda8295_agc1_out(t, 0); /* Put AGC in tri-state */
+	tda8295_agc1_out(fe, 0); /* Put AGC in tri-state */
 
-	tda8295_power(t, 0);
+	tda8295_power(fe, 0);
 }
 
-static void tda8290_init_if(struct tuner *t)
+static void tda8290_init_if(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
+	struct tuner *t = priv->t;
 
 	unsigned char set_VS[] = { 0x30, 0x6F };
 	unsigned char set_GP00_CF[] = { 0x20, 0x01 };
@@ -462,9 +470,9 @@ static void tda8290_init_if(struct tuner *t)
 	tuner_i2c_xfer_send(&priv->i2c_props, set_VS, 2);
 }
 
-static void tda8295_init_if(struct tuner *t)
+static void tda8295_init_if(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 
 	static unsigned char set_adc_ctl[]       = { 0x33, 0x14 };
 	static unsigned char set_adc_ctl2[]      = { 0x34, 0x00 };
@@ -474,10 +482,10 @@ static void tda8295_init_if(struct tuner *t)
 	static unsigned char set_pll_reg10[]     = { 0x42, 0x61 };
 	static unsigned char set_gpio_reg0[]     = { 0x44, 0x0b };
 
-	tda8295_power(t, 1);
+	tda8295_power(fe, 1);
 
-	tda8295_set_easy_mode(t, 0);
-	tda8295_set_video_std(t);
+	tda8295_set_easy_mode(fe, 0);
+	tda8295_set_video_std(fe);
 
 	tuner_i2c_xfer_send(&priv->i2c_props, set_adc_ctl, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, set_adc_ctl2, 2);
@@ -487,13 +495,13 @@ static void tda8295_init_if(struct tuner *t)
 	tuner_i2c_xfer_send(&priv->i2c_props, set_pll_reg10, 2);
 	tuner_i2c_xfer_send(&priv->i2c_props, set_gpio_reg0, 2);
 
-	tda8295_agc1_out(t, 0);
-	tda8295_agc2_out(t, 0);
+	tda8295_agc1_out(fe, 0);
+	tda8295_agc2_out(fe, 0);
 }
 
-static void tda8290_init_tuner(struct tuner *t)
+static void tda8290_init_tuner(struct dvb_frontend *fe)
 {
-	struct tda8290_priv *priv = t->fe.analog_demod_priv;
+	struct tda8290_priv *priv = fe->analog_demod_priv;
 	unsigned char tda8275_init[]  = { 0x00, 0x00, 0x00, 0x40, 0xdC, 0x04, 0xAf,
 					  0x3F, 0x2A, 0x04, 0xFF, 0x00, 0x00, 0x40 };
 	unsigned char tda8275a_init[] = { 0x00, 0x00, 0x00, 0x00, 0xdC, 0x05, 0x8b,
@@ -503,20 +511,20 @@ static void tda8290_init_tuner(struct tuner *t)
 	if (priv->tda827x_ver != 0)
 		msg.buf = tda8275a_init;
 
-	tda8290_i2c_bridge(t, 1);
+	tda8290_i2c_bridge(fe, 1);
 	i2c_transfer(priv->i2c_props.adap, &msg, 1);
-	tda8290_i2c_bridge(t, 0);
+	tda8290_i2c_bridge(fe, 0);
 }
 
 /*---------------------------------------------------------------------*/
 
-static void tda829x_release(struct tuner *t)
+static void tda829x_release(struct dvb_frontend *fe)
 {
-	if (t->fe.ops.tuner_ops.release)
-		t->fe.ops.tuner_ops.release(&t->fe);
+	if (fe->ops.tuner_ops.release)
+		fe->ops.tuner_ops.release(fe);
 
-	kfree(t->fe.analog_demod_priv);
-	t->fe.analog_demod_priv = NULL;
+	kfree(fe->analog_demod_priv);
+	fe->analog_demod_priv = NULL;
 }
 
 static struct analog_tuner_ops tda8290_tuner_ops = {
@@ -552,8 +560,9 @@ int tda8290_attach(struct tuner *t)
 	priv->i2c_props.adap     = t->i2c.adapter;
 	priv->cfg.config         = &t->config;
 	priv->cfg.tuner_callback = t->tuner_callback;
+	priv->t = t;
 
-	tda8290_i2c_bridge(t, 1);
+	tda8290_i2c_bridge(&t->fe, 1);
 	/* probe for tuner chip */
 	tuners_found = 0;
 	tuner_addrs = 0;
@@ -569,7 +578,7 @@ int tda8290_attach(struct tuner *t)
 	   behind the bridge and we choose the highest address that doesn't
 	   give a response now
 	 */
-	tda8290_i2c_bridge(t, 0);
+	tda8290_i2c_bridge(&t->fe, 0);
 	if(tuners_found > 1)
 		for (i = 0; i < tuners_found; i++) {
 			msg.addr = tuner_addrs  & 0xff;
@@ -590,7 +599,7 @@ int tda8290_attach(struct tuner *t)
 	priv->tda827x_addr = tuner_addrs;
 	msg.addr = tuner_addrs;
 
-	tda8290_i2c_bridge(t, 1);
+	tda8290_i2c_bridge(&t->fe, 1);
 
 	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
 	if( ret != 1)
@@ -619,8 +628,8 @@ int tda8290_attach(struct tuner *t)
 	priv->cfg.tda827x_lpsel = 0;
 	t->mode = V4L2_TUNER_ANALOG_TV;
 
-	tda8290_init_tuner(t);
-	tda8290_init_if(t);
+	tda8290_init_tuner(&t->fe);
+	tda8290_init_if(&t->fe);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tda8290_attach);
@@ -640,8 +649,9 @@ int tda8295_attach(struct tuner *t)
 
 	priv->i2c_props.addr     = t->i2c.addr;
 	priv->i2c_props.adap     = t->i2c.adapter;
+	priv->t = t;
 
-	tda8295_i2c_bridge(t, 1);
+	tda8295_i2c_bridge(&t->fe, 1);
 	/* probe for tuner chip */
 	tuners_found = 0;
 	tuner_addrs = 0;
@@ -657,7 +667,7 @@ int tda8295_attach(struct tuner *t)
 	   behind the bridge and we choose the highest address that doesn't
 	   give a response now
 	 */
-	tda8295_i2c_bridge(t, 0);
+	tda8295_i2c_bridge(&t->fe, 0);
 	if (tuners_found > 1)
 		for (i = 0; i < tuners_found; i++) {
 			msg.addr = tuner_addrs  & 0xff;
@@ -678,9 +688,9 @@ int tda8295_attach(struct tuner *t)
 	priv->tda827x_addr = tuner_addrs;
 	msg.addr = tuner_addrs;
 
-	tda8295_i2c_bridge(t, 1);
+	tda8295_i2c_bridge(&t->fe, 1);
 	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
-	tda8295_i2c_bridge(t, 0);
+	tda8295_i2c_bridge(&t->fe, 0);
 	if (ret != 1)
 		tuner_warn("TDA827x access failed!\n");
 	if ((data & 0x3c) == 0) {
@@ -708,7 +718,7 @@ int tda8295_attach(struct tuner *t)
 	priv->cfg.tda827x_lpsel = 0;
 	t->mode = V4L2_TUNER_ANALOG_TV;
 
-	tda8295_init_if(t);
+	tda8295_init_if(&t->fe);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tda8295_attach);

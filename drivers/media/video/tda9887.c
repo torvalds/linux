@@ -21,17 +21,19 @@
 */
 
 #define tda9887_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
-			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
+	printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c.name, \
+			i2c_adapter_id(priv->t->i2c.adapter), priv->t->i2c.addr , ##arg); } while (0)
 #define tda9887_dbg(fmt, arg...) do {\
 	if (tuner_debug) \
-		printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.name, \
-			i2c_adapter_id(t->i2c.adapter), t->i2c.addr , ##arg); } while (0)
+		printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c.name, \
+			i2c_adapter_id(priv->t->i2c.adapter), priv->t->i2c.addr , ##arg); } while (0)
 
 struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
 
 	unsigned char 	   data[4];
+
+	struct tuner *t;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -262,8 +264,10 @@ static struct tvnorm radio_mono = {
 
 /* ---------------------------------------------------------------------- */
 
-static void dump_read_message(struct tuner *t, unsigned char *buf)
+static void dump_read_message(struct dvb_frontend *fe, unsigned char *buf)
 {
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+
 	static char *afc[16] = {
 		"- 12.5 kHz",
 		"- 37.5 kHz",
@@ -290,8 +294,10 @@ static void dump_read_message(struct tuner *t, unsigned char *buf)
 	tda9887_info("  vfi level      : %s\n", (buf[0] & 0x80) ? "high" : "low");
 }
 
-static void dump_write_message(struct tuner *t, unsigned char *buf)
+static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
 {
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+
 	static char *sound[4] = {
 		"AM/TV",
 		"FM/radio",
@@ -386,9 +392,12 @@ static void dump_write_message(struct tuner *t, unsigned char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static int tda9887_set_tvnorm(struct tuner *t, char *buf)
+static int tda9887_set_tvnorm(struct dvb_frontend *fe)
 {
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+	struct tuner *t = priv->t;
 	struct tvnorm *norm = NULL;
+	char *buf = priv->data;
 	int i;
 
 	if (t->mode == V4L2_TUNER_RADIO) {
@@ -426,8 +435,11 @@ module_param(port2, int, 0644);
 module_param(qss, int, 0644);
 module_param(adjust, int, 0644);
 
-static int tda9887_set_insmod(struct tuner *t, char *buf)
+static int tda9887_set_insmod(struct dvb_frontend *fe)
 {
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+	char *buf = priv->data;
+
 	if (UNSET != port1) {
 		if (port1)
 			buf[1] |= cOutputPort1Inactive;
@@ -455,8 +467,12 @@ static int tda9887_set_insmod(struct tuner *t, char *buf)
 	return 0;
 }
 
-static int tda9887_set_config(struct tuner *t, char *buf)
+static int tda9887_set_config(struct dvb_frontend *fe)
 {
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+	struct tuner *t = priv->t;
+	char *buf = priv->data;
+
 	if (t->tda9887_config & TDA9887_PORT1_ACTIVE)
 		buf[1] &= ~cOutputPort1Inactive;
 	if (t->tda9887_config & TDA9887_PORT1_INACTIVE)
@@ -510,26 +526,27 @@ static int tda9887_set_config(struct tuner *t, char *buf)
 
 /* ---------------------------------------------------------------------- */
 
-static int tda9887_status(struct tuner *t)
+static int tda9887_status(struct dvb_frontend *fe)
 {
-	struct tda9887_priv *priv = t->fe.analog_demod_priv;
+	struct tda9887_priv *priv = fe->analog_demod_priv;
 	unsigned char buf[1];
 	int rc;
 
 	memset(buf,0,sizeof(buf));
 	if (1 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props,buf,1)))
 		tda9887_info("i2c i/o error: rc == %d (should be 1)\n",rc);
-	dump_read_message(t, buf);
+	dump_read_message(fe, buf);
 	return 0;
 }
 
-static void tda9887_configure(struct tuner *t)
+static void tda9887_configure(struct dvb_frontend *fe)
 {
-	struct tda9887_priv *priv = t->fe.analog_demod_priv;
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+	struct tuner *t = priv->t;
 	int rc;
 
 	memset(priv->data,0,sizeof(priv->data));
-	tda9887_set_tvnorm(t,priv->data);
+	tda9887_set_tvnorm(fe);
 
 	/* A note on the port settings:
 	   These settings tend to depend on the specifics of the board.
@@ -547,8 +564,8 @@ static void tda9887_configure(struct tuner *t)
 	priv->data[1] |= cOutputPort1Inactive;
 	priv->data[1] |= cOutputPort2Inactive;
 
-	tda9887_set_config(t,priv->data);
-	tda9887_set_insmod(t,priv->data);
+	tda9887_set_config(fe);
+	tda9887_set_insmod(fe);
 
 	if (t->mode == T_STANDBY) {
 		priv->data[1] |= cForcedMuteAudioON;
@@ -557,28 +574,28 @@ static void tda9887_configure(struct tuner *t)
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		priv->data[1],priv->data[2],priv->data[3]);
 	if (tuner_debug > 1)
-		dump_write_message(t, priv->data);
+		dump_write_message(fe, priv->data);
 
 	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,priv->data,4)))
 		tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
 
 	if (tuner_debug > 2) {
 		msleep_interruptible(1000);
-		tda9887_status(t);
+		tda9887_status(fe);
 	}
 }
 
 /* ---------------------------------------------------------------------- */
 
-static void tda9887_tuner_status(struct tuner *t)
+static void tda9887_tuner_status(struct dvb_frontend *fe)
 {
-	struct tda9887_priv *priv = t->fe.analog_demod_priv;
+	struct tda9887_priv *priv = fe->analog_demod_priv;
 	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n", priv->data[1], priv->data[2], priv->data[3]);
 }
 
-static int tda9887_get_afc(struct tuner *t)
+static int tda9887_get_afc(struct dvb_frontend *fe)
 {
-	struct tda9887_priv *priv = t->fe.analog_demod_priv;
+	struct tda9887_priv *priv = fe->analog_demod_priv;
 	static int AFC_BITS_2_kHz[] = {
 		-12500,  -37500,  -62500,  -97500,
 		-112500, -137500, -162500, -187500,
@@ -594,20 +611,20 @@ static int tda9887_get_afc(struct tuner *t)
 	return afc;
 }
 
-static void tda9887_standby(struct tuner *t)
+static void tda9887_standby(struct dvb_frontend *fe)
 {
-	tda9887_configure(t);
+	tda9887_configure(fe);
 }
 
-static void tda9887_set_freq(struct tuner *t, unsigned int freq)
+static void tda9887_set_freq(struct dvb_frontend *fe, unsigned int freq)
 {
-	tda9887_configure(t);
+	tda9887_configure(fe);
 }
 
-static void tda9887_release(struct tuner *t)
+static void tda9887_release(struct dvb_frontend *fe)
 {
-	kfree(t->fe.analog_demod_priv);
-	t->fe.analog_demod_priv = NULL;
+	kfree(fe->analog_demod_priv);
+	fe->analog_demod_priv = NULL;
 }
 
 static struct analog_tuner_ops tda9887_tuner_ops = {
@@ -630,6 +647,7 @@ int tda9887_tuner_init(struct tuner *t)
 
 	priv->i2c_props.addr = t->i2c.addr;
 	priv->i2c_props.adap = t->i2c.adapter;
+	priv->t = t;
 
 	strlcpy(t->i2c.name, "tda9887", sizeof(t->i2c.name));
 

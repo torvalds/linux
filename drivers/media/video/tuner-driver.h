@@ -32,14 +32,14 @@ extern unsigned const int tuner_count;
 struct tuner;
 
 struct analog_tuner_ops {
-	void (*set_tv_freq)(struct tuner *t, unsigned int freq);
-	void (*set_radio_freq)(struct tuner *t, unsigned int freq);
-	int  (*has_signal)(struct tuner *t);
-	int  (*is_stereo)(struct tuner *t);
-	int  (*get_afc)(struct tuner *t);
-	void (*tuner_status)(struct tuner *t);
-	void (*standby)(struct tuner *t);
-	void (*release)(struct tuner *t);
+	void (*set_tv_freq)(struct dvb_frontend *fe, unsigned int freq);
+	void (*set_radio_freq)(struct dvb_frontend *fe, unsigned int freq);
+	int  (*has_signal)(struct dvb_frontend *fe);
+	int  (*is_stereo)(struct dvb_frontend *fe);
+	int  (*get_afc)(struct dvb_frontend *fe);
+	void (*tuner_status)(struct dvb_frontend *fe);
+	void (*standby)(struct dvb_frontend *fe);
+	void (*release)(struct dvb_frontend *fe);
 };
 
 struct tuner {
