@@ -4,6 +4,7 @@
 #include <linux/types.h>
 
 struct dentry;
+struct inode;
 struct super_block;
 struct vfsmount;
 
@@ -101,6 +102,21 @@ struct fid {
  *    the filehandle fragment.  encode_fh() should return the number of bytes
  *    stored or a negative error code such as %-ENOSPC
  *
+ * fh_to_dentry:
+ *    @fh_to_dentry is given a &struct super_block (@sb) and a file handle
+ *    fragment (@fh, @fh_len). It should return a &struct dentry which refers
+ *    to the same file that the file handle fragment refers to.  If it cannot,
+ *    it should return a %NULL pointer if the file was found but no acceptable
+ *    &dentries were available, or an %ERR_PTR error code indicating why it
+ *    couldn't be found (e.g. %ENOENT or %ENOMEM).  Any suitable dentry can be
+ *    returned including, if necessary, a new dentry created with d_alloc_root.
+ *    The caller can then find any other extant dentries by following the
+ *    d_alias links.
+ *
+ * fh_to_parent:
+ *    Same as @fh_to_dentry, except that it returns a pointer to the parent
+ *    dentry if it was encoded into the filehandle fragment by @encode_fh.
+ *
  * get_name:
  *    @get_name should find a name for the given @child in the given @parent
  *    directory.  The name should be stored in the @name (with the
@@ -139,6 +155,10 @@ struct export_operations {
 			void *context);
 	int (*encode_fh)(struct dentry *de, __u32 *fh, int *max_len,
 			int connectable);
+	struct dentry * (*fh_to_dentry)(struct super_block *sb, struct fid *fid,
+			int fh_len, int fh_type);
+	struct dentry * (*fh_to_parent)(struct super_block *sb, struct fid *fid,
+			int fh_len, int fh_type);
 	int (*get_name)(struct dentry *parent, char *name,
 			struct dentry *child);
 	struct dentry * (*get_parent)(struct dentry *child);
@@ -160,5 +180,15 @@ extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
 extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	int fh_len, int fileid_type, int (*acceptable)(void *, struct dentry *),
 	void *context);
+
+/*
+ * Generic helpers for filesystems.
+ */
+extern struct dentry *generic_fh_to_dentry(struct super_block *sb,
+	struct fid *fid, int fh_len, int fh_type,
+	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
+extern struct dentry *generic_fh_to_parent(struct super_block *sb,
+	struct fid *fid, int fh_len, int fh_type,
+	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
 
 #endif /* LINUX_EXPORTFS_H */
