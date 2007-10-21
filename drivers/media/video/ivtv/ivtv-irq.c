@@ -797,7 +797,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 		/* Check if we need to update the yuv registers */
 		if ((yi->yuv_forced_update || yi->new_frame_info[last_dma_frame].update) && last_dma_frame != -1) {
 			if (!yi->new_frame_info[last_dma_frame].update)
-				last_dma_frame = (last_dma_frame - 1) & 3;
+				last_dma_frame = (u8)(last_dma_frame - 1) % IVTV_YUV_BUFFERS;
 
 			if (yi->new_frame_info[last_dma_frame].src_w) {
 				yi->update_frame = last_dma_frame;
