@@ -606,7 +606,7 @@ static int
 at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->ohci;
-	dma_addr_t d_bus, payload_bus;
+	dma_addr_t d_bus, uninitialized_var(payload_bus);
 	struct driver_data *driver_data;
 	struct descriptor *d, *last;
 	__le32 *header;
