@@ -788,6 +788,16 @@ config LARGE_ALLOCS
 	  a lot of RAM, and you need to able to allocate very large
 	  contiguous chunks. If unsure, say N.
 
+config BFIN_GPTIMERS
+	tristate "Enable Blackfin General Purpose Timers API"
+	default n
+	help
+	  Enable support for the General Purpose Timers API.  If you
+	  are unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called gptimers.ko.
+
 config BFIN_DMA_5XX
 	bool "Enable DMA Support"
 	depends on (BF52x || BF53x || BF561 || BF54x)

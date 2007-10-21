@@ -105,12 +105,23 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 
-all: vmImage
 boot := arch/$(ARCH)/boot
 BOOT_TARGETS = vmImage
-.PHONY: $(BOOT_TARGETS)
+PHONY += $(BOOT_TARGETS) install
+KBUILD_IMAGE := $(boot)/vmImage
+
+all: vmImage
+
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+install:
+	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+
 define archhelp
   echo  '* vmImage         - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage)'
+  echo  '  install         - Install kernel using'
+  echo  '                     (your) ~/bin/$(CROSS_COMPILE)installkernel or'
+  echo  '                     (distribution) PATH: $(CROSS_COMPILE)installkernel or'
+  echo  '                     install to $$(INSTALL_PATH)'
 endef
