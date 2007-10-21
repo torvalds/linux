@@ -910,10 +910,10 @@ void do_irq(int vec, struct pt_regs *fp)
 		unsigned long sic_status[3];
 
 		SSYNC();
-		sic_status[0] = bfin_read_SIC_ISR(0) & bfin_read_SIC_IMASK(0);
-		sic_status[1] = bfin_read_SIC_ISR(1) & bfin_read_SIC_IMASK(1);
+		sic_status[0] = bfin_read_SIC_ISR0() & bfin_read_SIC_IMASK0();
+		sic_status[1] = bfin_read_SIC_ISR1() & bfin_read_SIC_IMASK1();
 #ifdef CONFIG_BF54x
-		sic_status[2] = bfin_read_SIC_ISR(2) & bfin_read_SIC_IMASK(2);
+		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
 #endif
 		for (;; ivg++) {
 			if (ivg >= ivg_stop) {
