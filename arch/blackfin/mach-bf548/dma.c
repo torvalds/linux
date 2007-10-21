@@ -64,6 +64,7 @@
 	(struct dma_register *) MDMA_D3_NEXT_DESC_PTR,
 	(struct dma_register *) MDMA_S3_NEXT_DESC_PTR,
 };
+EXPORT_SYMBOL(base_addr);
 
 int channel2irq(unsigned int channel)
 {

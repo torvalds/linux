@@ -70,5 +70,5 @@
 #define MAX_BLACKFIN_DMA_CHANNEL 32
 
 extern int channel2irq(unsigned int channel);
-extern struct dma_register *base_addr[];
+extern struct dma_register *base_addr[MAX_BLACKFIN_DMA_CHANNEL];
 #endif

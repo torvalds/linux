@@ -3303,7 +3303,7 @@
 
 #define                       MFD  0xf000     /* Multi channel Frame Delay */
 #define                      FSDR  0x80       /* Frame Sync to Data Relationship */
-#define                     MCMEM  0x10       /* Multi channel Frame Mode Enable */
+#define                  MCMEN  0x10       /* Multi channel Frame Mode Enable */
 #define                   MCDRXPE  0x8        /* Multi channel DMA Receive Packing */
 #define                   MCDTXPE  0x4        /* Multi channel DMA Transmit Packing */
 #define                     MCCRM  0x3        /* 2X Clock Recovery Mode */

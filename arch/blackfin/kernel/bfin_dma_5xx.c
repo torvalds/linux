@@ -420,6 +420,32 @@ unsigned short get_dma_curr_ycount(unsigned int channel)
 }
 EXPORT_SYMBOL(get_dma_curr_ycount);
 
+unsigned long get_dma_next_desc_ptr(unsigned int channel)
+{
+	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
+	      && channel < MAX_BLACKFIN_DMA_CHANNEL));
+
+	return dma_ch[channel].regs->next_desc_ptr;
+}
+EXPORT_SYMBOL(get_dma_next_desc_ptr);
+
+unsigned long get_dma_curr_desc_ptr(unsigned int channel)
+{
+	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
+	      && channel < MAX_BLACKFIN_DMA_CHANNEL));
+
+	return dma_ch[channel].regs->curr_desc_ptr;
+}
+
+unsigned long get_dma_curr_addr(unsigned int channel)
+{
+	BUG_ON(!(dma_ch[channel].chan_status != DMA_CHANNEL_FREE
+	      && channel < MAX_BLACKFIN_DMA_CHANNEL));
+
+	return dma_ch[channel].regs->curr_addr_ptr;
+}
+EXPORT_SYMBOL(get_dma_curr_addr);
+
 static void *__dma_memcpy(void *dest, const void *src, size_t size)
 {
 	int direction;	/* 1 - address decrease, 0 - address increase */
