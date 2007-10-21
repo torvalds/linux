@@ -772,6 +772,16 @@ config DMAR_GFX_WA
 	 all the OS-visible memory. Hence the driver can continue
 	 to use physical addresses for DMA.
 
+config DMAR_FLOPPY_WA
+	bool
+	depends on DMAR
+	default y
+	help
+	 Floppy disk drivers are know to bypass DMA API calls
+	 thereby failing to work when IOMMU is enabled. This
+	 workaround will setup a 1:1 mapping for the first
+	 16M to make floppy (an ISA device) work.
+
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"

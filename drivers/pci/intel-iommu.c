@@ -1632,6 +1632,31 @@ error:
 }
 #endif
 
+#ifdef CONFIG_DMAR_FLOPPY_WA
+static inline void iommu_prepare_isa(void)
+{
+	struct pci_dev *pdev;
+	int ret;
+
+	pdev = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
+	if (!pdev)
+		return;
+
+	printk(KERN_INFO "IOMMU: Prepare 0-16M unity mapping for LPC\n");
+	ret = iommu_prepare_identity_map(pdev, 0, 16*1024*1024);
+
+	if (ret)
+		printk("IOMMU: Failed to create 0-64M identity map, "
+			"floppy might not work\n");
+
+}
+#else
+static inline void iommu_prepare_isa(void)
+{
+	return;
+}
+#endif /* !CONFIG_DMAR_FLPY_WA */
+
 int __init init_dmars(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -1696,6 +1721,8 @@ int __init init_dmars(void)
 	}
 
 	iommu_prepare_gfx_mapping();
+
+	iommu_prepare_isa();
 
 	/*
 	 * for each drhd
