@@ -1661,7 +1661,7 @@ gso:
 		q = dev->qdisc;
 		if (q->enqueue) {
 			/* reset queue_mapping to zero */
-			skb->queue_mapping = 0;
+			skb_set_queue_mapping(skb, 0);
 			rc = q->enqueue(skb, q);
 			qdisc_run(dev);
 			spin_unlock(&dev->queue_lock);

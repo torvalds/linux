@@ -2603,8 +2603,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	skb->network_header = skb->tail;
 	skb->transport_header = skb->network_header + sizeof(struct iphdr);
 	skb_put(skb, sizeof(struct iphdr) + sizeof(struct udphdr));
-	skb->queue_mapping = pkt_dev->cur_queue_map;
-
+	skb_set_queue_mapping(skb, pkt_dev->cur_queue_map);
 	iph = ip_hdr(skb);
 	udph = udp_hdr(skb);
 
@@ -2941,8 +2940,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	skb->network_header = skb->tail;
 	skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
 	skb_put(skb, sizeof(struct ipv6hdr) + sizeof(struct udphdr));
-	skb->queue_mapping = pkt_dev->cur_queue_map;
-
+	skb_set_queue_mapping(skb, pkt_dev->cur_queue_map);
 	iph = ipv6_hdr(skb);
 	udph = udp_hdr(skb);
 
