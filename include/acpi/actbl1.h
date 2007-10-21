@@ -257,7 +257,8 @@ struct acpi_table_dbgp {
 struct acpi_table_dmar {
 	struct acpi_table_header header;	/* Common ACPI table header */
 	u8 width;		/* Host Address Width */
-	u8 reserved[11];
+	u8 flags;
+	u8 reserved[10];
 };
 
 /* DMAR subtable header */
@@ -265,8 +266,6 @@ struct acpi_table_dmar {
 struct acpi_dmar_header {
 	u16 type;
 	u16 length;
-	u8 flags;
-	u8 reserved[3];
 };
 
 /* Values for subtable type in struct acpi_dmar_header */
@@ -274,13 +273,15 @@ struct acpi_dmar_header {
 enum acpi_dmar_type {
 	ACPI_DMAR_TYPE_HARDWARE_UNIT = 0,
 	ACPI_DMAR_TYPE_RESERVED_MEMORY = 1,
-	ACPI_DMAR_TYPE_RESERVED = 2	/* 2 and greater are reserved */
+	ACPI_DMAR_TYPE_ATSR = 2,
+	ACPI_DMAR_TYPE_RESERVED = 3	/* 3 and greater are reserved */
 };
 
 struct acpi_dmar_device_scope {
 	u8 entry_type;
 	u8 length;
-	u8 segment;
+	u16 reserved;
+	u8 enumeration_id;
 	u8 bus;
 };
 
@@ -290,7 +291,14 @@ enum acpi_dmar_scope_type {
 	ACPI_DMAR_SCOPE_TYPE_NOT_USED = 0,
 	ACPI_DMAR_SCOPE_TYPE_ENDPOINT = 1,
 	ACPI_DMAR_SCOPE_TYPE_BRIDGE = 2,
-	ACPI_DMAR_SCOPE_TYPE_RESERVED = 3	/* 3 and greater are reserved */
+	ACPI_DMAR_SCOPE_TYPE_IOAPIC = 3,
+	ACPI_DMAR_SCOPE_TYPE_HPET = 4,
+	ACPI_DMAR_SCOPE_TYPE_RESERVED = 5	/* 5 and greater are reserved */
+};
+
+struct acpi_dmar_pci_path {
+	u8 dev;
+	u8 fn;
 };
 
 /*
@@ -301,6 +309,9 @@ enum acpi_dmar_scope_type {
 
 struct acpi_dmar_hardware_unit {
 	struct acpi_dmar_header header;
+	u8 flags;
+	u8 reserved;
+	u16 segment;
 	u64 address;		/* Register Base Address */
 };
 
@@ -312,7 +323,9 @@ struct acpi_dmar_hardware_unit {
 
 struct acpi_dmar_reserved_memory {
 	struct acpi_dmar_header header;
-	u64 address;		/* 4_k aligned base address */
+	u16 reserved;
+	u16 segment;
+	u64 base_address;		/* 4_k aligned base address */
 	u64 end_address;	/* 4_k aligned limit address */
 };
 

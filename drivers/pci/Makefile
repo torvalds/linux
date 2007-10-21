@@ -20,6 +20,9 @@ obj-$(CONFIG_PCI_MSI) += msi.o
 # Build the Hypertransport interrupt support
 obj-$(CONFIG_HT_IRQ) += htirq.o
 
+# Build Intel IOMMU support
+obj-$(CONFIG_DMAR) += dmar.o
+
 #
 # Some architectures use the generic PCI setup functions
 #

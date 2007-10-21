@@ -750,6 +750,17 @@ config PCI_DOMAINS
 	depends on PCI
 	default y
 
+config DMAR
+	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
+	depends on PCI_MSI && ACPI && EXPERIMENTAL
+	default y
+	help
+	  DMA remapping(DMAR) devices support enables independent address
+	  translations for Direct Memory Access(DMA) from Devices.
+	  These DMA remapping devices are reported via ACPI tables
+	  and includes pci device scope covered by these DMA
+	  remapping device.
+
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
