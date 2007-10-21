@@ -519,7 +519,7 @@ static void tda829x_release(struct tuner *t)
 	t->priv = NULL;
 }
 
-static struct tuner_operations tda8290_tuner_ops = {
+static struct analog_tuner_ops tda8290_tuner_ops = {
 	.set_tv_freq    = tda8290_set_freq,
 	.set_radio_freq = tda8290_set_freq,
 	.has_signal     = tda8290_has_signal,
@@ -527,7 +527,7 @@ static struct tuner_operations tda8290_tuner_ops = {
 	.release        = tda829x_release,
 };
 
-static struct tuner_operations tda8295_tuner_ops = {
+static struct analog_tuner_ops tda8295_tuner_ops = {
 	.set_tv_freq    = tda8295_set_freq,
 	.set_radio_freq = tda8295_set_freq,
 	.has_signal     = tda8295_has_signal,
@@ -612,7 +612,7 @@ int tda8290_attach(struct tuner *t)
 	if (t->fe.ops.tuner_ops.sleep)
 		t->fe.ops.tuner_ops.sleep(&t->fe);
 
-	memcpy(&t->ops, &tda8290_tuner_ops, sizeof(struct tuner_operations));
+	t->fe.ops.analog_demod_ops = &tda8290_tuner_ops;
 
 	tuner_info("type set to %s\n", t->i2c.name);
 
@@ -703,7 +703,7 @@ int tda8295_attach(struct tuner *t)
 	priv->tda827x_ver |= 1; /* signifies 8295 vs 8290 */
 	tuner_info("type set to %s\n", t->i2c.name);
 
-	memcpy(&t->ops, &tda8295_tuner_ops, sizeof(struct tuner_operations));
+	t->fe.ops.analog_demod_ops = &tda8295_tuner_ops;
 
 	priv->cfg.tda827x_lpsel = 0;
 	t->mode = V4L2_TUNER_ANALOG_TV;

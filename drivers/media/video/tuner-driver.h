@@ -31,7 +31,7 @@ extern unsigned const int tuner_count;
 
 struct tuner;
 
-struct tuner_operations {
+struct analog_tuner_ops {
 	void (*set_tv_freq)(struct tuner *t, unsigned int freq);
 	void (*set_radio_freq)(struct tuner *t, unsigned int freq);
 	int  (*has_signal)(struct tuner *t);
@@ -66,8 +66,6 @@ struct tuner {
 
 	unsigned int config;
 	int (*tuner_callback) (void *dev, int command,int arg);
-
-	struct tuner_operations ops;
 };
 
 /* ------------------------------------------------------------------------ */

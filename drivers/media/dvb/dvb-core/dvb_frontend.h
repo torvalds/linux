@@ -62,6 +62,8 @@ struct dvb_tuner_info {
 	u32 bandwidth_step;
 };
 
+struct analog_tuner_ops;
+
 struct analog_parameters {
 	unsigned int frequency;
 	unsigned int mode;
@@ -146,6 +148,7 @@ struct dvb_frontend_ops {
 	int (*ts_bus_ctrl)(struct dvb_frontend* fe, int acquire);
 
 	struct dvb_tuner_ops tuner_ops;
+	struct analog_tuner_ops *analog_demod_ops;
 };
 
 #define MAX_EVENT 8

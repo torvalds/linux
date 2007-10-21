@@ -122,16 +122,28 @@ static int fe_has_signal(struct tuner *t)
 	return strength;
 }
 
+static void tuner_status(struct tuner *t);
+
+static struct analog_tuner_ops tuner_core_ops = {
+	.set_tv_freq    = fe_set_freq,
+	.set_radio_freq = fe_set_freq,
+	.standby        = fe_standby,
+	.release        = fe_release,
+	.has_signal     = fe_has_signal,
+	.tuner_status   = tuner_status
+};
+
 /* Set tuner frequency,  freq in Units of 62.5kHz = 1/16MHz */
 static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 
 	if (t->type == UNSET) {
 		tuner_warn ("tuner type not set\n");
 		return;
 	}
-	if (NULL == t->ops.set_tv_freq) {
+	if ((NULL == ops) || (NULL == ops->set_tv_freq)) {
 		tuner_warn ("Tuner has no way to set tv freq\n");
 		return;
 	}
@@ -146,18 +158,19 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 		else
 			freq = tv_range[1] * 16;
 	}
-	t->ops.set_tv_freq(t, freq);
+	ops->set_tv_freq(t, freq);
 }
 
 static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 
 	if (t->type == UNSET) {
 		tuner_warn ("tuner type not set\n");
 		return;
 	}
-	if (NULL == t->ops.set_radio_freq) {
+	if ((NULL == ops) || (NULL == ops->set_radio_freq)) {
 		tuner_warn ("tuner has no way to set radio frequency\n");
 		return;
 	}
@@ -173,7 +186,7 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 			freq = radio_range[1] * 16000;
 	}
 
-	t->ops.set_radio_freq(t, freq);
+	ops->set_radio_freq(t, freq);
 }
 
 static void set_freq(struct i2c_client *c, unsigned long freq)
@@ -235,6 +248,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 {
 	struct tuner *t = i2c_get_clientdata(c);
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 	unsigned char buffer[4];
 
 	if (type == UNSET || type == TUNER_ABSENT) {
@@ -262,8 +276,8 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	/* discard private data, in case set_type() was previously called */
-	if (t->ops.release)
-		t->ops.release(t);
+	if ((ops) && (ops->release))
+		ops->release(t);
 	else {
 		kfree(t->priv);
 		t->priv = NULL;
@@ -339,15 +353,12 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 
-	if ((fe_tuner_ops->set_analog_params) &&
-	    ((NULL == t->ops.set_tv_freq) && (NULL == t->ops.set_radio_freq))) {
+	if (((NULL == ops) ||
+	     ((NULL == ops->set_tv_freq) && (NULL == ops->set_radio_freq))) &&
+	    (fe_tuner_ops->set_analog_params)) {
 		strlcpy(t->i2c.name, fe_tuner_ops->info.name, sizeof(t->i2c.name));
 
-		t->ops.set_tv_freq    = fe_set_freq;
-		t->ops.set_radio_freq = fe_set_freq;
-		t->ops.standby        = fe_standby;
-		t->ops.release        = fe_release;
-		t->ops.has_signal     = fe_has_signal;
+		t->fe.ops.analog_demod_ops = &tuner_core_ops;
 	}
 
 	tuner_info("type set to %s\n", t->i2c.name);
@@ -524,6 +535,7 @@ static void tuner_status(struct tuner *t)
 {
 	unsigned long freq, freq_fraction;
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 	const char *p;
 
 	switch (t->mode) {
@@ -553,11 +565,11 @@ static void tuner_status(struct tuner *t)
 		if (tuner_status & TUNER_STATUS_STEREO)
 			tuner_info("Stereo:          yes\n");
 	}
-	if (t->ops.has_signal) {
-		tuner_info("Signal strength: %d\n", t->ops.has_signal(t));
+	if ((ops) && (ops->has_signal)) {
+		tuner_info("Signal strength: %d\n", ops->has_signal(t));
 	}
-	if (t->ops.is_stereo) {
-		tuner_info("Stereo:          %s\n", t->ops.is_stereo(t) ? "yes" : "no");
+	if ((ops) && (ops->is_stereo)) {
+		tuner_info("Stereo:          %s\n", ops->is_stereo(t) ? "yes" : "no");
 	}
 }
 
@@ -584,7 +596,6 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->type = UNSET;
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
-	t->ops.tuner_status = tuner_status;
 
 	if (show_i2c) {
 		unsigned char buffer[16];
@@ -701,6 +712,7 @@ static int tuner_probe(struct i2c_adapter *adap)
 static int tuner_detach(struct i2c_client *client)
 {
 	struct tuner *t = i2c_get_clientdata(client);
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 	int err;
 
 	err = i2c_detach_client(&t->i2c);
@@ -710,8 +722,8 @@ static int tuner_detach(struct i2c_client *client)
 		return err;
 	}
 
-	if (t->ops.release)
-		t->ops.release(t);
+	if ((ops) && (ops->release))
+		ops->release(t);
 	else {
 		kfree(t->priv);
 	}
@@ -728,6 +740,8 @@ static int tuner_detach(struct i2c_client *client)
 
 static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode, char *cmd)
 {
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
+
 	if (mode == t->mode)
 		return 0;
 
@@ -735,8 +749,8 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 
 	if (check_mode(t, cmd) == EINVAL) {
 		t->mode = T_STANDBY;
-		if (t->ops.standby)
-			t->ops.standby(t);
+		if ((ops) && (ops->standby))
+			ops->standby(t);
 		return EINVAL;
 	}
 	return 0;
@@ -759,6 +773,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct tuner *t = i2c_get_clientdata(client);
 	struct dvb_tuner_ops *fe_tuner_ops = &t->fe.ops.tuner_ops;
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 
 	if (tuner_debug>1)
 		v4l_i2c_print_ioctl(&(t->i2c),cmd);
@@ -785,8 +800,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (check_mode(t, "TUNER_SET_STANDBY") == EINVAL)
 			return 0;
 		t->mode = T_STANDBY;
-		if (t->ops.standby)
-			t->ops.standby(t);
+		if ((ops) && (ops->standby))
+			ops->standby(t);
 		break;
 #ifdef CONFIG_VIDEO_V4L1
 	case VIDIOCSAUDIO:
@@ -854,8 +869,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 					else
 						vt->flags &= ~VIDEO_TUNER_STEREO_ON;
 				} else {
-					if (t->ops.is_stereo) {
-						if (t->ops.is_stereo(t))
+					if ((ops) && (ops->is_stereo)) {
+						if (ops->is_stereo(t))
 							vt->flags |=
 								VIDEO_TUNER_STEREO_ON;
 						else
@@ -863,8 +878,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 								~VIDEO_TUNER_STEREO_ON;
 					}
 				}
-				if (t->ops.has_signal)
-					vt->signal = t->ops.has_signal(t);
+				if ((ops) && (ops->has_signal))
+					vt->signal = ops->has_signal(t);
 
 				vt->flags |= VIDEO_TUNER_LOW;	/* Allow freqs at 62.5 Hz */
 
@@ -894,8 +909,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 					fe_tuner_ops->get_status(&t->fe, &tuner_status);
 					va->mode = (tuner_status & TUNER_STATUS_STEREO)
 					    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
-				} else if (t->ops.is_stereo)
-					va->mode = t->ops.is_stereo(t)
+				} else if ((ops) && (ops->is_stereo))
+					va->mode = ops->is_stereo(t)
 					    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
 			}
 			return 0;
@@ -985,8 +1000,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			switch_v4l2();
 
 			tuner->type = t->mode;
-			if (t->ops.get_afc)
-				tuner->afc=t->ops.get_afc(t);
+			if ((ops) && (ops->get_afc))
+				tuner->afc = ops->get_afc(t);
 			if (t->mode == V4L2_TUNER_ANALOG_TV)
 				tuner->capability |= V4L2_TUNER_CAP_NORM;
 			if (t->mode != V4L2_TUNER_RADIO) {
@@ -1005,13 +1020,13 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 				tuner->rxsubchans = (tuner_status & TUNER_STATUS_STEREO) ?
 					V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
 			} else {
-				if (t->ops.is_stereo) {
-					tuner->rxsubchans = t->ops.is_stereo(t) ?
+				if ((ops) && (ops->is_stereo)) {
+					tuner->rxsubchans = ops->is_stereo(t) ?
 						V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
 				}
 			}
-			if (t->ops.has_signal)
-				tuner->signal = t->ops.has_signal(t);
+			if ((ops) && (ops->has_signal))
+				tuner->signal = ops->has_signal(t);
 			tuner->capability |=
 			    V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
 			tuner->audmode = t->audmode;
@@ -1036,8 +1051,8 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	case VIDIOC_LOG_STATUS:
-		if (t->ops.tuner_status)
-			t->ops.tuner_status(t);
+		if ((ops) && (ops->tuner_status))
+			ops->tuner_status(t);
 		break;
 	}
 

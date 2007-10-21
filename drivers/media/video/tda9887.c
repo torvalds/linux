@@ -610,7 +610,7 @@ static void tda9887_release(struct tuner *t)
 	t->priv = NULL;
 }
 
-static struct tuner_operations tda9887_tuner_ops = {
+static struct analog_tuner_ops tda9887_tuner_ops = {
 	.set_tv_freq    = tda9887_set_freq,
 	.set_radio_freq = tda9887_set_freq,
 	.standby        = tda9887_standby,
@@ -636,7 +636,7 @@ int tda9887_tuner_init(struct tuner *t)
 	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c.addr,
 						t->i2c.driver->driver.name);
 
-	memcpy(&t->ops, &tda9887_tuner_ops, sizeof(struct tuner_operations));
+	t->fe.ops.analog_demod_ops = &tda9887_tuner_ops;
 
 	return 0;
 }
