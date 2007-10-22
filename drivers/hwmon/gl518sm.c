@@ -336,9 +336,6 @@ static DEVICE_ATTR(beep_mask, S_IWUSR|S_IRUGO,
 	show_beep_mask, set_beep_mask);
 
 static struct attribute *gl518_attributes[] = {
-	&dev_attr_in0_input.attr,
-	&dev_attr_in1_input.attr,
-	&dev_attr_in2_input.attr,
 	&dev_attr_in3_input.attr,
 	&dev_attr_in0_min.attr,
 	&dev_attr_in1_min.attr,
@@ -369,6 +366,17 @@ static struct attribute *gl518_attributes[] = {
 
 static const struct attribute_group gl518_group = {
 	.attrs = gl518_attributes,
+};
+
+static struct attribute *gl518_attributes_r80[] = {
+	&dev_attr_in0_input.attr,
+	&dev_attr_in1_input.attr,
+	&dev_attr_in2_input.attr,
+	NULL
+};
+
+static const struct attribute_group gl518_group_r80 = {
+	.attrs = gl518_attributes_r80,
 };
 
 /*
@@ -445,12 +453,15 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* Initialize the GL518SM chip */
 	data->alarm_mask = 0xff;
-	data->voltage_in[0]=data->voltage_in[1]=data->voltage_in[2]=0;
 	gl518_init_client(client);
 
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&client->dev.kobj, &gl518_group)))
 		goto exit_detach;
+	if (data->type == gl518sm_r80)
+		if ((err = sysfs_create_group(&client->dev.kobj,
+					      &gl518_group_r80)))
+			goto exit_remove_files;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -462,6 +473,8 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 
 exit_remove_files:
 	sysfs_remove_group(&client->dev.kobj, &gl518_group);
+	if (data->type == gl518sm_r80)
+		sysfs_remove_group(&client->dev.kobj, &gl518_group_r80);
 exit_detach:
 	i2c_detach_client(client);
 exit_free:
@@ -496,6 +509,8 @@ static int gl518_detach_client(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &gl518_group);
+	if (data->type == gl518sm_r80)
+		sysfs_remove_group(&client->dev.kobj, &gl518_group_r80);
 
 	if ((err = i2c_detach_client(client)))
 		return err;
