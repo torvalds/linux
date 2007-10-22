@@ -22,37 +22,28 @@
  * complex burden for the Host and suboptimal for the Guest, so we have our own
  * "lguest" bus and simple drivers.
  *
- * Devices are described by an array of LGUEST_MAX_DEVICES of these structs,
- * placed by the Launcher just above the top of physical memory:
+ * Devices are described by a simplified ID, a status byte, and some "config"
+ * bytes which describe this device's configuration.  This is placed by the
+ * Launcher just above the top of physical memory:
  */
 struct lguest_device_desc {
-	/* The device type: console, network, disk etc. */
-	__u16 type;
-#define LGUEST_DEVICE_T_CONSOLE	1
-#define LGUEST_DEVICE_T_NET	2
-#define LGUEST_DEVICE_T_BLOCK	3
+	/* The device type: console, network, disk etc.  Type 0 terminates. */
+	__u8 type;
+	/* The number of bytes of the config array. */
+	__u8 config_len;
+	/* A status byte, written by the Guest. */
+	__u8 status;
+	__u8 config[0];
+};
 
-	/* The specific features of this device: these depends on device type
-	 * except for LGUEST_DEVICE_F_RANDOMNESS. */
-	__u16 features;
-#define LGUEST_NET_F_NOCSUM		0x4000 /* Don't bother checksumming */
-#define LGUEST_DEVICE_F_RANDOMNESS	0x8000 /* IRQ is fairly random */
-
-	/* This is how the Guest reports status of the device: the Host can set
-	 * LGUEST_DEVICE_S_REMOVED to indicate removal, but the rest are only
-	 * ever manipulated by the Guest, and only ever set. */
-	__u16 status;
-/* 256 and above are device specific. */
-#define LGUEST_DEVICE_S_ACKNOWLEDGE	1 /* We have seen device. */
-#define LGUEST_DEVICE_S_DRIVER		2 /* We have found a driver */
-#define LGUEST_DEVICE_S_DRIVER_OK	4 /* Driver says OK! */
-#define LGUEST_DEVICE_S_REMOVED		8 /* Device has gone away. */
-#define LGUEST_DEVICE_S_REMOVED_ACK	16 /* Driver has been told. */
-#define LGUEST_DEVICE_S_FAILED		128 /* Something actually failed */
-
-	/* Each device exists somewhere in Guest physical memory, over some
-	 * number of pages. */
-	__u16 num_pages;
+/*D:135 This is how we expect the device configuration field for a virtqueue
+ * (type VIRTIO_CONFIG_F_VIRTQUEUE) to be laid out: */
+struct lguest_vqconfig {
+	/* The number of entries in the virtio_ring */
+	__u16 num;
+	/* The interrupt we get when something happens. */
+	__u16 irq;
+	/* The page number of the virtio ring for this device. */
 	__u32 pfn;
 };
 /*:*/

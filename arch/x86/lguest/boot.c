@@ -55,6 +55,7 @@
 #include <linux/clockchips.h>
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
+#include <linux/virtio_console.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
 #include <asm/page.h>
@@ -849,6 +850,23 @@ static __init char *lguest_memory_setup(void)
 	return "LGUEST";
 }
 
+/* Before virtqueues are set up, we use LHCALL_NOTIFY on normal memory to
+ * produce console output. */
+static __init int early_put_chars(u32 vtermno, const char *buf, int count)
+{
+	char scratch[17];
+	unsigned int len = count;
+
+	if (len > sizeof(scratch) - 1)
+		len = sizeof(scratch) - 1;
+	scratch[len] = '\0';
+	memcpy(scratch, buf, len);
+	hcall(LHCALL_NOTIFY, __pa(scratch), 0, 0);
+
+	/* This routine returns the number of bytes actually written. */
+	return len;
+}
+
 /*G:050
  * Patching (Powerfully Placating Performance Pedants)
  *
@@ -1047,6 +1065,9 @@ __init void lguest_init(void *boot)
 	 * virtual console" driver written by the PowerPC people, which we also
 	 * adapted for lguest's use. */
 	add_preferred_console("hvc", 0, NULL);
+
+	/* Register our very early console. */
+	virtio_cons_early_init(early_put_chars);
 
 	/* Last of all, we set the power management poweroff hook to point to
 	 * the Guest routine to power off. */
