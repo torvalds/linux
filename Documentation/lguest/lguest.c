@@ -251,23 +251,6 @@ static void *get_pages(unsigned int num)
 	return addr;
 }
 
-/* To find out where to start we look for the magic Guest string, which marks
- * the code we see in lguest_asm.S.  This is a hack which we are currently
- * plotting to replace with the normal Linux entry point. */
-static unsigned long entry_point(const void *start, const void *end)
-{
-	const void *p;
-
-	/* The scan gives us the physical starting address.  We boot with
-	 * pagetables set up with virtual and physical the same, so that's
-	 * OK. */
-	for (p = start; p < end; p++)
-		if (memcmp(p, "GenuineLguest", strlen("GenuineLguest")) == 0)
-			return to_guest_phys(p + strlen("GenuineLguest"));
-
-	errx(1, "Is this image a genuine lguest?");
-}
-
 /* This routine is used to load the kernel or initrd.  It tries mmap, but if
  * that fails (Plan 9's kernel file isn't nicely aligned on page boundaries),
  * it falls back to reading the memory in. */
@@ -303,7 +286,6 @@ static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
  * We return the starting address. */
 static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
 {
-	void *start = (void *)-1, *end = NULL;
 	Elf32_Phdr phdr[ehdr->e_phnum];
 	unsigned int i;
 
@@ -335,19 +317,13 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
 		verbose("Section %i: size %i addr %p\n",
 			i, phdr[i].p_memsz, (void *)phdr[i].p_paddr);
 
-		/* We track the first and last address we mapped, so we can
-		 * tell entry_point() where to scan. */
-		if (from_guest_phys(phdr[i].p_paddr) < start)
-			start = from_guest_phys(phdr[i].p_paddr);
-		if (from_guest_phys(phdr[i].p_paddr) + phdr[i].p_filesz > end)
-			end=from_guest_phys(phdr[i].p_paddr)+phdr[i].p_filesz;
-
 		/* We map this section of the file at its physical address. */
 		map_at(elf_fd, from_guest_phys(phdr[i].p_paddr),
 		       phdr[i].p_offset, phdr[i].p_filesz);
 	}
 
-	return entry_point(start, end);
+	/* The entry point is given in the ELF header. */
+	return ehdr->e_entry;
 }
 
 /*L:160 Unfortunately the entire ELF image isn't compressed: the segments
@@ -374,7 +350,8 @@ static unsigned long unpack_bzimage(int fd)
 
 	verbose("Unpacked size %i addr %p\n", len, img);
 
-	return entry_point(img, img + len);
+	/* The entry point for a bzImage is always the first byte */
+	return (unsigned long)img;
 }
 
 /*L:150 A bzImage, unlike an ELF file, is not meant to be loaded.  You're
@@ -1684,8 +1661,15 @@ int main(int argc, char *argv[])
 	*(u32 *)(boot + 0x228) = 4096;
 	concat(boot + 4096, argv+optind+2);
 
-	/* The guest type value of "1" tells the Guest it's under lguest. */
-	*(int *)(boot + 0x23c) = 1;
+	/* Boot protocol version: 2.07 supports the fields for lguest. */
+	*(u16 *)(boot + 0x206) = 0x207;
+
+	/* The hardware_subarch value of "1" tells the Guest it's an lguest. */
+	*(u32 *)(boot + 0x23c) = 1;
+
+	/* Set bit 6 of the loadflags (aka. KEEP_SEGMENTS) so the entry path
+	 * does not try to reload segment registers. */
+	*(u8 *)(boot + 0x211) |= (1 << 6);
 
 	/* We tell the kernel to initialize the Guest: this returns the open
 	 * /dev/lguest file descriptor. */

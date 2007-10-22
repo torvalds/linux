@@ -5,11 +5,8 @@
 #include <asm/thread_info.h>
 #include <asm/processor-flags.h>
 
-/*G:020 This is where we begin: we have a magic signature which the launcher
- * looks for.  The plan is that the Linux boot protocol will be extended with a
- * "platform type" field which will guide us here from the normal entry point,
- * but for the moment this suffices.  The normal boot code uses %esi for the
- * boot header, so we do too.
+/*G:020 This is where we begin: head.S notes that the boot header's platform
+ * type field is "1" (lguest), so calls us here.  The boot header is in %esi.
  *
  * WARNING: be very careful here!  We're running at addresses equal to physical
  * addesses (around 0), not above PAGE_OFFSET as most code expectes
@@ -19,19 +16,14 @@
  * The .section line puts this code in .init.text so it will be discarded after
  * boot. */
 .section .init.text, "ax", @progbits
-.ascii "GenuineLguest"
+ENTRY(lguest_entry)
 	/* Make initial hypercall now, so we can set up the pagetables. */
 	movl $LHCALL_LGUEST_INIT, %eax
 	movl $lguest_data - __PAGE_OFFSET, %edx
 	int $LGUEST_TRAP_ENTRY
 
-	/* Set up boot information pointer to hand to lguest_init(): it wants
-	 * a virtual address. */
-	movl %esi, %eax
-	addl $__PAGE_OFFSET, %eax
-
 	/* The Host put the toplevel pagetable in lguest_data.pgdir.  The movsl
-	 * instruction uses %esi, so we needed to save it above. */
+	 * instruction uses %esi implicitly. */
 	movl lguest_data - __PAGE_OFFSET + LGUEST_DATA_pgdir, %esi
 
 	/* Copy first 32 entries of page directory to __PAGE_OFFSET entries.
@@ -46,7 +38,6 @@
 
 	/* Set up the initial stack so we can run C code. */
 	movl $(init_thread_union+THREAD_SIZE),%esp
-
 
 	/* Jumps are relative, and we're running __PAGE_OFFSET too low at the
 	 * moment. */

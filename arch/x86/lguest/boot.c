@@ -928,18 +928,8 @@ static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
 /*G:030 Once we get to lguest_init(), we know we're a Guest.  The pv_ops
  * structures in the kernel provide points for (almost) every routine we have
  * to override to avoid privileged instructions. */
-__init void lguest_init(void *boot)
+__init void lguest_init(void)
 {
-	/* Copy boot parameters first: the Launcher put the physical location
-	 * in %esi, and head.S converted that to a virtual address and handed
-	 * it to us.  We use "__memcpy" because "memcpy" sometimes tries to do
-	 * tricky things to go faster, and we're not ready for that. */
-	__memcpy(&boot_params, boot, PARAM_SIZE);
-	/* The boot parameters also tell us where the command-line is: save
-	 * that, too. */
-	__memcpy(boot_command_line, __va(boot_params.hdr.cmd_line_ptr),
-	       COMMAND_LINE_SIZE);
-
 	/* We're under lguest, paravirt is enabled, and we're running at
 	 * privilege level 1, not 0 as normal. */
 	pv_info.name = "lguest";
@@ -1023,11 +1013,6 @@ __init void lguest_init(void *boot)
 	/* Load the %fs segment register (the per-cpu segment register) with
 	 * the normal data segment to get through booting. */
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
-
-	/* Clear the part of the kernel data which is expected to be zero.
-	 * Normally it will be anyway, but if we're loading from a bzImage with
-	 * CONFIG_RELOCATALE=y, the relocations will be sitting here. */
-	memset(__bss_start, 0, __bss_stop - __bss_start);
 
 	/* The Host uses the top of the Guest's virtual address space for the
 	 * Host<->Guest Switcher, and it tells us how much it needs in
