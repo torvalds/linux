@@ -278,6 +278,11 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		tda8290_attach(t);
 		break;
 	}
+	case TUNER_PHILIPS_TDA8295:
+	{
+		tda8295_attach(t);
+		break;
+	}
 	case TUNER_TEA5767:
 		if (tea5767_attach(&t->fe, t->i2c.adapter, t->i2c.addr) == NULL) {
 			t->type = TUNER_ABSENT;

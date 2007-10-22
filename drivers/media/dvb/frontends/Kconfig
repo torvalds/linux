@@ -316,6 +316,13 @@ config DVB_TDA827X
 	help
 	  A DVB-T silicon tuner module. Say Y when you want to support this tuner.
 
+config DVB_TDA18271
+	tristate "NXP TDA18271 silicon tuner"
+	depends on I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A silicon tuner module. Say Y when you want to support this tuner.
+
 config DVB_TUNER_QT1010
 	tristate "Quantek QT1010 silicon tuner"
 	depends on DVB_CORE && I2C

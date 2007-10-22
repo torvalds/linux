@@ -105,9 +105,10 @@ config TUNER_MT20XX
 	  Say Y here to include support for the MT2032 / MT2050 tuner.
 
 config TUNER_TDA8290
-	tristate "TDA 8290+8275(a) tuner combo"
+	tristate "TDA 8290/8295 + 8275(a)/18271 tuner combo"
 	depends on I2C
 	select DVB_TDA827X
+	select DVB_TDA18271
 	default m if VIDEO_TUNER_CUSTOMIZE
 	help
 	  Say Y here to include support for Philips TDA8290+8275(a) tuner.

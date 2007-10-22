@@ -1475,6 +1475,9 @@ struct tunertype tuners[] = {
 		.name   = "Philips TEA5761 FM Radio",
 		/* see tea5767.c for details */
 	},
+	[TUNER_PHILIPS_TDA8295] = { /* Philips PAL|NTSC */
+		.name   = "tda8295+18271",
+		/* see tda8290.c for details */ },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);

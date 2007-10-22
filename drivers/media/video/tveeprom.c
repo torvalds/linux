@@ -257,7 +257,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "LG TAPQ_H702F"},
 	{ TUNER_ABSENT,        "TCL M09WPP_4N_E"},
 	{ TUNER_ABSENT,        "MaxLinear MXL5005_v2"},
-	{ TUNER_ABSENT,        "Philips 18271_8295"},
+	{ TUNER_PHILIPS_TDA8295, "Philips 18271_8295"},
 };
 
 static struct HAUPPAUGE_AUDIOIC

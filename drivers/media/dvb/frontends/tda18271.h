@@ -1,4 +1,8 @@
 /*
+    tda18271.h - header for the Philips / NXP TDA18271 silicon tuner
+
+    Copyright (C) 2007 Michael Krufky (mkrufky@linuxtv.org)
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation; either version 2 of the License, or
@@ -14,37 +18,23 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#ifndef __TDA8290_H__
-#define __TDA8290_H__
+#ifndef __TDA18271_H__
+#define __TDA18271_H__
 
 #include <linux/i2c.h>
-#include "tuner-driver.h"
+#include "dvb_frontend.h"
 
-#if defined(CONFIG_TUNER_TDA8290) || (defined(CONFIG_TUNER_TDA8290_MODULE) && defined(MODULE))
-extern int tda8290_probe(struct tuner *t);
-
-extern int tda8290_attach(struct tuner *t);
-extern int tda8295_attach(struct tuner *t);
+#if defined(CONFIG_DVB_TDA18271) || (defined(CONFIG_DVB_TDA18271_MODULE) && defined(MODULE))
+extern struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
+					    struct i2c_adapter *i2c);
 #else
-static inline int tda8290_probe(struct tuner *t)
+static inline struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe,
+						   u8 addr,
+						   struct i2c_adapter *i2c)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
-	return -EINVAL;
-}
-
-static inline int tda8290_attach(struct tuner *t)
-{
-	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
-	       __FUNCTION__);
-	return -EINVAL;
-}
-
-static inline int tda8295_attach(struct tuner *t)
-{
-	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
-	       __FUNCTION__);
-	return -EINVAL;
+	return NULL;
 }
 #endif
 
-#endif /* __TDA8290_H__ */
+#endif /* __TDA18271_H__ */
