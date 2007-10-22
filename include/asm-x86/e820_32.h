@@ -12,29 +12,9 @@
 #ifndef __E820_HEADER
 #define __E820_HEADER
 
-#define E820MAP	0x2d0		/* our map */
-#define E820MAX	128		/* number of entries in E820MAP */
-#define E820NR	0x1e8		/* # entries in E820MAP */
-
-#define E820_RAM	1
-#define E820_RESERVED	2
-#define E820_ACPI	3
-#define E820_NVS	4
-
 #define HIGH_MEMORY	(1024*1024)
 
 #ifndef __ASSEMBLY__
-
-struct e820entry {
-	u64 addr;	/* start of memory segment */
-	u64 size;	/* size of memory segment */
-	u32 type;	/* type of memory segment */
-} __attribute__((packed));
-
-struct e820map {
-	u32 nr_map;
-	struct e820entry map[E820MAX];
-};
 
 extern struct e820map e820;
 
@@ -56,5 +36,4 @@ static inline void e820_mark_nosave_regions(void)
 #endif
 
 #endif/*!__ASSEMBLY__*/
-
 #endif/*__E820_HEADER*/
