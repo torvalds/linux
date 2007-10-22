@@ -2722,7 +2722,7 @@ static int patch_stac927x(struct hda_codec *codec)
 	case 0x10280209: /* STAC 9228 */
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
-		spec->dmux_nid = 0x1c;
+		spec->dmux_nid = 0x1b;
 		break;
 	default:
 		spec->num_dmics = 0;	
