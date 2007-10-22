@@ -257,8 +257,8 @@ struct irq_handler_data {
 	unsigned long	imap;
 
 	void		(*pre_handler)(unsigned int, void *, void *);
-	void		*pre_handler_arg1;
-	void		*pre_handler_arg2;
+	void		*arg1;
+	void		*arg2;
 };
 
 #ifdef CONFIG_SMP
@@ -346,7 +346,7 @@ static void sun4u_irq_disable(unsigned int virt_irq)
 	}
 }
 
-static void sun4u_irq_end(unsigned int virt_irq)
+static void sun4u_irq_eoi(unsigned int virt_irq)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
 	struct irq_desc *desc = irq_desc + virt_irq;
@@ -401,7 +401,7 @@ static void sun4v_irq_disable(unsigned int virt_irq)
 		       "err(%d)\n", ino, err);
 }
 
-static void sun4v_irq_end(unsigned int virt_irq)
+static void sun4v_irq_eoi(unsigned int virt_irq)
 {
 	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
 	struct irq_desc *desc = irq_desc + virt_irq;
@@ -478,7 +478,7 @@ static void sun4v_virq_disable(unsigned int virt_irq)
 		       dev_handle, dev_ino, err);
 }
 
-static void sun4v_virq_end(unsigned int virt_irq)
+static void sun4v_virq_eoi(unsigned int virt_irq)
 {
 	struct irq_desc *desc = irq_desc + virt_irq;
 	unsigned long dev_handle, dev_ino;
@@ -498,33 +498,11 @@ static void sun4v_virq_end(unsigned int virt_irq)
 		       dev_handle, dev_ino, err);
 }
 
-static void run_pre_handler(unsigned int virt_irq)
-{
-	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-	unsigned int ino;
-
-	ino = virt_irq_table[virt_irq].dev_ino;
-	if (likely(data->pre_handler)) {
-		data->pre_handler(ino,
-				  data->pre_handler_arg1,
-				  data->pre_handler_arg2);
-	}
-}
-
 static struct irq_chip sun4u_irq = {
 	.typename	= "sun4u",
 	.enable		= sun4u_irq_enable,
 	.disable	= sun4u_irq_disable,
-	.end		= sun4u_irq_end,
-	.set_affinity	= sun4u_set_affinity,
-};
-
-static struct irq_chip sun4u_irq_ack = {
-	.typename	= "sun4u+ack",
-	.enable		= sun4u_irq_enable,
-	.disable	= sun4u_irq_disable,
-	.ack		= run_pre_handler,
-	.end		= sun4u_irq_end,
+	.eoi		= sun4u_irq_eoi,
 	.set_affinity	= sun4u_set_affinity,
 };
 
@@ -532,7 +510,7 @@ static struct irq_chip sun4v_irq = {
 	.typename	= "sun4v",
 	.enable		= sun4v_irq_enable,
 	.disable	= sun4v_irq_disable,
-	.end		= sun4v_irq_end,
+	.eoi		= sun4v_irq_eoi,
 	.set_affinity	= sun4v_set_affinity,
 };
 
@@ -540,31 +518,33 @@ static struct irq_chip sun4v_virq = {
 	.typename	= "vsun4v",
 	.enable		= sun4v_virq_enable,
 	.disable	= sun4v_virq_disable,
-	.end		= sun4v_virq_end,
+	.eoi		= sun4v_virq_eoi,
 	.set_affinity	= sun4v_virt_set_affinity,
 };
+
+static void fastcall pre_flow_handler(unsigned int virt_irq,
+				      struct irq_desc *desc)
+{
+	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
+	unsigned int ino = virt_irq_table[virt_irq].dev_ino;
+
+	data->pre_handler(ino, data->arg1, data->arg2);
+
+	handle_fasteoi_irq(virt_irq, desc);
+}
 
 void irq_install_pre_handler(int virt_irq,
 			     void (*func)(unsigned int, void *, void *),
 			     void *arg1, void *arg2)
 {
 	struct irq_handler_data *data = get_irq_chip_data(virt_irq);
-	struct irq_chip *chip = get_irq_chip(virt_irq);
-
-	if (WARN_ON(chip == &sun4v_irq || chip == &sun4v_virq)) {
-		printk(KERN_ERR "IRQ: Trying to install pre-handler on "
-		       "sun4v irq %u\n", virt_irq);
-		return;
-	}
+	struct irq_desc *desc = irq_desc + virt_irq;
 
 	data->pre_handler = func;
-	data->pre_handler_arg1 = arg1;
-	data->pre_handler_arg2 = arg2;
+	data->arg1 = arg1;
+	data->arg2 = arg2;
 
-	if (chip == &sun4u_irq_ack)
-		return;
-
-	set_irq_chip(virt_irq, &sun4u_irq_ack);
+	desc->handle_irq = pre_flow_handler;
 }
 
 unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
@@ -582,7 +562,10 @@ unsigned int build_irq(int inofixup, unsigned long iclr, unsigned long imap)
 	if (!virt_irq) {
 		virt_irq = virt_irq_alloc(0, ino);
 		bucket_set_virt_irq(__pa(bucket), virt_irq);
-		set_irq_chip(virt_irq, &sun4u_irq);
+		set_irq_chip_and_handler_name(virt_irq,
+					      &sun4u_irq,
+					      handle_fasteoi_irq,
+					      "IVEC");
 	}
 
 	data = get_irq_chip_data(virt_irq);
@@ -617,7 +600,9 @@ static unsigned int sun4v_build_common(unsigned long sysino,
 	if (!virt_irq) {
 		virt_irq = virt_irq_alloc(0, sysino);
 		bucket_set_virt_irq(__pa(bucket), virt_irq);
-		set_irq_chip(virt_irq, chip);
+		set_irq_chip_and_handler_name(virt_irq, chip,
+					      handle_fasteoi_irq,
+					      "IVEC");
 	}
 
 	data = get_irq_chip_data(virt_irq);
@@ -665,7 +650,10 @@ unsigned int sun4v_build_virq(u32 devhandle, unsigned int devino)
 
 	virt_irq = virt_irq_alloc(devhandle, devino);
 	bucket_set_virt_irq(__pa(bucket), virt_irq);
-	set_irq_chip(virt_irq, &sun4v_virq);
+
+	set_irq_chip_and_handler_name(virt_irq, &sun4v_virq,
+				      handle_fasteoi_irq,
+				      "IVEC");
 
 	data = kzalloc(sizeof(struct irq_handler_data), GFP_ATOMIC);
 	if (unlikely(!data))
@@ -724,6 +712,7 @@ void handler_irq(int irq, struct pt_regs *regs)
 			     : "memory");
 
 	while (bucket_pa) {
+		struct irq_desc *desc;
 		unsigned long next_pa;
 		unsigned int virt_irq;
 
@@ -731,7 +720,9 @@ void handler_irq(int irq, struct pt_regs *regs)
 		virt_irq = bucket_get_virt_irq(bucket_pa);
 		bucket_clear_chain_pa(bucket_pa);
 
-		__do_IRQ(virt_irq);
+		desc = irq_desc + virt_irq;
+
+		desc->handle_irq(virt_irq, desc);
 
 		bucket_pa = next_pa;
 	}
