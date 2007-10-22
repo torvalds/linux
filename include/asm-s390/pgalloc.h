@@ -56,11 +56,17 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 	return _SEGMENT_ENTRY_EMPTY;
 }
 
+#define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
+#define pud_free(x)				do { } while (0)
+
 #define pmd_alloc_one(mm,address)		({ BUG(); ((pmd_t *)2); })
 #define pmd_free(x)				do { } while (0)
 
-#define pgd_populate(mm, pmd, pte)		BUG()
-#define pgd_populate_kernel(mm, pmd, pte)	BUG()
+#define pgd_populate(mm, pgd, pud)		BUG()
+#define pgd_populate_kernel(mm, pgd, pud)	BUG()
+
+#define pud_populate(mm, pud, pmd)		BUG()
+#define pud_populate_kernel(mm, pud, pmd)	BUG()
 
 #else /* __s390x__ */
 
@@ -68,6 +74,9 @@ static inline unsigned long pgd_entry_type(struct mm_struct *mm)
 {
 	return _REGION3_ENTRY_EMPTY;
 }
+
+#define pud_alloc_one(mm,address)		({ BUG(); ((pud_t *)2); })
+#define pud_free(x)				do { } while (0)
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 {
@@ -78,20 +87,23 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long vmaddr)
 }
 #define pmd_free(pmd) crst_table_free((unsigned long *) pmd)
 
-static inline void pgd_populate_kernel(struct mm_struct *mm,
-				       pgd_t *pgd, pmd_t *pmd)
+#define pgd_populate(mm, pgd, pud)		BUG()
+#define pgd_populate_kernel(mm, pgd, pud)	BUG()
+
+static inline void pud_populate_kernel(struct mm_struct *mm,
+				       pud_t *pud, pmd_t *pmd)
 {
-	pgd_val(*pgd) = _REGION3_ENTRY | __pa(pmd);
+	pud_val(*pud) = _REGION3_ENTRY | __pa(pmd);
 }
 
-static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmd)
+static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
-	pgd_t *shadow_pgd = get_shadow_table(pgd);
+	pud_t *shadow_pud = get_shadow_table(pud);
 	pmd_t *shadow_pmd = get_shadow_table(pmd);
 
-	if (shadow_pgd && shadow_pmd)
-		pgd_populate_kernel(mm, shadow_pgd, shadow_pmd);
-	pgd_populate_kernel(mm, pgd, pmd);
+	if (shadow_pud && shadow_pmd)
+		pud_populate_kernel(mm, shadow_pud, shadow_pmd);
+	pud_populate_kernel(mm, pud, pmd);
 }
 
 #endif /* __s390x__ */

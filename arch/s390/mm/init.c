@@ -81,6 +81,7 @@ void show_mem(void)
 static void __init setup_ro_region(void)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t new_pte;
@@ -91,7 +92,8 @@ static void __init setup_ro_region(void)
 
 	for (; address < end; address += PAGE_SIZE) {
 		pgd = pgd_offset_k(address);
-		pmd = pmd_offset(pgd, address);
+		pud = pud_offset(pgd, address);
+		pmd = pmd_offset(pud, address);
 		pte = pte_offset_kernel(pmd, address);
 		new_pte = mk_pte_phys(address, __pgprot(_PAGE_RO));
 		*pte = new_pte;

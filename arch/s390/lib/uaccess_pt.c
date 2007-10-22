@@ -18,13 +18,18 @@
 static inline pte_t *follow_table(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
 		return NULL;
 
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
+		return NULL;
+
+	pmd = pmd_offset(pud, addr);
 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
 		return NULL;
 

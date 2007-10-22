@@ -13,8 +13,6 @@
 #ifndef _ASM_S390_PGTABLE_H
 #define _ASM_S390_PGTABLE_H
 
-#include <asm-generic/4level-fixup.h>
-
 /*
  * The Linux memory management assumes a three-level page table setup. For
  * s390 31 bit we "fold" the mid level into the top-level page table, so
@@ -60,14 +58,18 @@ extern char empty_zero_page[PAGE_SIZE];
  */
 #ifndef __s390x__
 # define PMD_SHIFT	22
+# define PUD_SHIFT	22
 # define PGDIR_SHIFT	22
 #else /* __s390x__ */
 # define PMD_SHIFT	21
+# define PUD_SHIFT	31
 # define PGDIR_SHIFT	31
 #endif /* __s390x__ */
 
 #define PMD_SIZE        (1UL << PMD_SHIFT)
 #define PMD_MASK        (~(PMD_SIZE-1))
+#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE-1))
 #define PGDIR_SIZE      (1UL << PGDIR_SHIFT)
 #define PGDIR_MASK      (~(PGDIR_SIZE-1))
 
@@ -80,10 +82,12 @@ extern char empty_zero_page[PAGE_SIZE];
 #ifndef __s390x__
 # define PTRS_PER_PTE    1024
 # define PTRS_PER_PMD    1
+# define PTRS_PER_PUD	1
 # define PTRS_PER_PGD    512
 #else /* __s390x__ */
 # define PTRS_PER_PTE    512
 # define PTRS_PER_PMD    1024
+# define PTRS_PER_PUD	1
 # define PTRS_PER_PGD    2048
 #endif /* __s390x__ */
 
@@ -93,6 +97,8 @@ extern char empty_zero_page[PAGE_SIZE];
 	printk("%s:%d: bad pte %p.\n", __FILE__, __LINE__, (void *) pte_val(e))
 #define pmd_ERROR(e) \
 	printk("%s:%d: bad pmd %p.\n", __FILE__, __LINE__, (void *) pmd_val(e))
+#define pud_ERROR(e) \
+	printk("%s:%d: bad pud %p.\n", __FILE__, __LINE__, (void *) pud_val(e))
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %p.\n", __FILE__, __LINE__, (void *) pgd_val(e))
 
@@ -192,7 +198,7 @@ extern unsigned long vmalloc_end;
  * I Segment-Invalid Bit:    Segment is not available for address-translation
  * TT Type 01
  * TF
- * TL Table lenght
+ * TL Table length
  *
  * The 64 bit regiontable origin of S390 has following format:
  * |      region table origon                          |       DTTL
@@ -435,22 +441,30 @@ static inline int pgd_present(pgd_t pgd) { return 1; }
 static inline int pgd_none(pgd_t pgd)    { return 0; }
 static inline int pgd_bad(pgd_t pgd)     { return 0; }
 
+static inline int pud_present(pud_t pud) { return 1; }
+static inline int pud_none(pud_t pud)	 { return 0; }
+static inline int pud_bad(pud_t pud)	 { return 0; }
+
 #else /* __s390x__ */
 
-static inline int pgd_present(pgd_t pgd)
+static inline int pgd_present(pgd_t pgd) { return 1; }
+static inline int pgd_none(pgd_t pgd)	 { return 0; }
+static inline int pgd_bad(pgd_t pgd)	 { return 0; }
+
+static inline int pud_present(pud_t pud)
 {
-	return pgd_val(pgd) & _REGION_ENTRY_ORIGIN;
+	return pud_val(pud) & _REGION_ENTRY_ORIGIN;
 }
 
-static inline int pgd_none(pgd_t pgd)
+static inline int pud_none(pud_t pud)
 {
-	return pgd_val(pgd) & _REGION_ENTRY_INV;
+	return pud_val(pud) & _REGION_ENTRY_INV;
 }
 
-static inline int pgd_bad(pgd_t pgd)
+static inline int pud_bad(pud_t pud)
 {
 	unsigned long mask = ~_REGION_ENTRY_ORIGIN & ~_REGION_ENTRY_INV;
-	return (pgd_val(pgd) & mask) != _REGION3_ENTRY;
+	return (pud_val(pud) & mask) != _REGION3_ENTRY;
 }
 
 #endif /* __s390x__ */
@@ -526,7 +540,8 @@ static inline int pte_young(pte_t pte)
 
 #ifndef __s390x__
 
-static inline void pgd_clear(pgd_t * pgdp)      { }
+#define pgd_clear(pgd)		do { } while (0)
+#define pud_clear(pud)		do { } while (0)
 
 static inline void pmd_clear_kernel(pmd_t * pmdp)
 {
@@ -538,18 +553,20 @@ static inline void pmd_clear_kernel(pmd_t * pmdp)
 
 #else /* __s390x__ */
 
-static inline void pgd_clear_kernel(pgd_t * pgdp)
+#define pgd_clear(pgd)		do { } while (0)
+
+static inline void pud_clear_kernel(pud_t *pud)
 {
-	pgd_val(*pgdp) = _REGION3_ENTRY_EMPTY;
+	pud_val(*pud) = _REGION3_ENTRY_EMPTY;
 }
 
-static inline void pgd_clear(pgd_t * pgdp)
+static inline void pud_clear(pud_t * pud)
 {
-	pgd_t *shadow_pgd = get_shadow_table(pgdp);
+	pud_t *shadow = get_shadow_table(pud);
 
-	pgd_clear_kernel(pgdp);
-	if (shadow_pgd)
-		pgd_clear_kernel(shadow_pgd);
+	pud_clear_kernel(pud);
+	if (shadow)
+		pud_clear_kernel(shadow);
 }
 
 static inline void pmd_clear_kernel(pmd_t * pmdp)
@@ -810,63 +827,48 @@ static inline pte_t mk_pte(struct page *page, pgprot_t pgprot)
 	return mk_pte_phys(physpage, pgprot);
 }
 
-static inline pte_t pfn_pte(unsigned long pfn, pgprot_t pgprot)
-{
-	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
-
-	return mk_pte_phys(physpage, pgprot);
-}
-
-#ifdef __s390x__
-
-static inline pmd_t pfn_pmd(unsigned long pfn, pgprot_t pgprot)
-{
-	unsigned long physpage = __pa((pfn) << PAGE_SHIFT);
-
-	return __pmd(physpage + pgprot_val(pgprot));
-}
-
-#endif /* __s390x__ */
-
-#define pte_pfn(x) (pte_val(x) >> PAGE_SHIFT)
-#define pte_page(x) pfn_to_page(pte_pfn(x))
-
-#define pmd_page_vaddr(pmd) (pmd_val(pmd) & PAGE_MASK)
-
-#define pmd_page(pmd) pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
-
-#define pgd_page_vaddr(pgd) (pgd_val(pgd) & PAGE_MASK)
-
-#define pgd_page(pgd) pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT)
-
-/* to find an entry in a page-table-directory */
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-#define pgd_offset(mm, address) ((mm)->pgd+pgd_index(address))
+#define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+#define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
+#define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
 
-/* to find an entry in a kernel page-table-directory */
+#define pgd_offset(mm, address) ((mm)->pgd + pgd_index(address))
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
 #ifndef __s390x__
 
-/* Find an entry in the second-level page table.. */
-static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
-{
-        return (pmd_t *) dir;
-}
+#define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
+#define pud_deref(pmd) ({ BUG(); 0UL; })
+#define pgd_deref(pmd) ({ BUG(); 0UL; })
+
+#define pud_offset(pgd, address) ((pud_t *) pgd)
+#define pmd_offset(pud, address) ((pmd_t *) pud + pmd_index(address))
 
 #else /* __s390x__ */
 
-/* Find an entry in the second-level page table.. */
-#define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-#define pmd_offset(dir,addr) \
-	((pmd_t *) pgd_page_vaddr(*(dir)) + pmd_index(addr))
+#define pmd_deref(pmd) (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN)
+#define pud_deref(pud) (pud_val(pud) & _REGION_ENTRY_ORIGIN)
+#define pgd_deref(pgd) ({ BUG(); 0UL; })
+
+#define pud_offset(pgd, address) ((pud_t *) pgd)
+
+static inline pmd_t *pmd_offset(pud_t *pud, unsigned long address)
+{
+	pmd_t *pmd = (pmd_t *) pud_deref(*pud);
+	return pmd + pmd_index(address);
+}
 
 #endif /* __s390x__ */
 
-/* Find an entry in the third-level page table.. */
-#define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE-1))
-#define pte_offset_kernel(pmd, address) \
-	((pte_t *) pmd_page_vaddr(*(pmd)) + pte_index(address))
+#define pfn_pte(pfn,pgprot) mk_pte_phys(__pa((pfn) << PAGE_SHIFT),(pgprot))
+#define pte_pfn(x) (pte_val(x) >> PAGE_SHIFT)
+#define pte_page(x) pfn_to_page(pte_pfn(x))
+
+#define pmd_page(pmd) pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
+
+/* Find an entry in the lowest level page table.. */
+#define pte_offset(pmd, addr) ((pte_t *) pmd_deref(*(pmd)) + pte_index(addr))
+#define pte_offset_kernel(pmd, address) pte_offset(pmd,address)
 #define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_offset_map_nested(pmd, address) pte_offset_kernel(pmd, address)
 #define pte_unmap(pte) do { } while (0)
@@ -959,4 +961,3 @@ extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 #include <asm-generic/pgtable.h>
 
 #endif /* _S390_PAGE_H */
-

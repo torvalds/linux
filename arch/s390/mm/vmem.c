@@ -73,6 +73,8 @@ static void __init_refok *vmem_alloc_pages(unsigned int order)
 	return alloc_bootmem_pages((1 << order) * PAGE_SIZE);
 }
 
+#define vmem_pud_alloc()	({ BUG(); ((pud_t *) NULL); })
+
 static inline pmd_t *vmem_pmd_alloc(void)
 {
 	pmd_t *pmd = NULL;
@@ -103,6 +105,7 @@ static int vmem_add_range(unsigned long start, unsigned long size)
 {
 	unsigned long address;
 	pgd_t *pg_dir;
+	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
 	pte_t  pte;
@@ -111,13 +114,21 @@ static int vmem_add_range(unsigned long start, unsigned long size)
 	for (address = start; address < start + size; address += PAGE_SIZE) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
+			pu_dir = vmem_pud_alloc();
+			if (!pu_dir)
+				goto out;
+			pgd_populate_kernel(&init_mm, pg_dir, pu_dir);
+		}
+
+		pu_dir = pud_offset(pg_dir, address);
+		if (pud_none(*pu_dir)) {
 			pm_dir = vmem_pmd_alloc();
 			if (!pm_dir)
 				goto out;
-			pgd_populate_kernel(&init_mm, pg_dir, pm_dir);
+			pud_populate_kernel(&init_mm, pu_dir, pm_dir);
 		}
 
-		pm_dir = pmd_offset(pg_dir, address);
+		pm_dir = pmd_offset(pu_dir, address);
 		if (pmd_none(*pm_dir)) {
 			pt_dir = vmem_pte_alloc();
 			if (!pt_dir)
@@ -143,6 +154,7 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 {
 	unsigned long address;
 	pgd_t *pg_dir;
+	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
 	pte_t  pte;
@@ -150,9 +162,10 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
 	pte_val(pte) = _PAGE_TYPE_EMPTY;
 	for (address = start; address < start + size; address += PAGE_SIZE) {
 		pg_dir = pgd_offset_k(address);
-		if (pgd_none(*pg_dir))
+		pu_dir = pud_offset(pg_dir, address);
+		if (pud_none(*pu_dir))
 			continue;
-		pm_dir = pmd_offset(pg_dir, address);
+		pm_dir = pmd_offset(pu_dir, address);
 		if (pmd_none(*pm_dir))
 			continue;
 		pt_dir = pte_offset_kernel(pm_dir, address);
@@ -169,6 +182,7 @@ static int vmem_add_mem_map(unsigned long start, unsigned long size)
 	unsigned long address, start_addr, end_addr;
 	struct page *map_start, *map_end;
 	pgd_t *pg_dir;
+	pud_t *pu_dir;
 	pmd_t *pm_dir;
 	pte_t *pt_dir;
 	pte_t  pte;
@@ -183,13 +197,21 @@ static int vmem_add_mem_map(unsigned long start, unsigned long size)
 	for (address = start_addr; address < end_addr; address += PAGE_SIZE) {
 		pg_dir = pgd_offset_k(address);
 		if (pgd_none(*pg_dir)) {
+			pu_dir = vmem_pud_alloc();
+			if (!pu_dir)
+				goto out;
+			pgd_populate_kernel(&init_mm, pg_dir, pu_dir);
+		}
+
+		pu_dir = pud_offset(pg_dir, address);
+		if (pud_none(*pu_dir)) {
 			pm_dir = vmem_pmd_alloc();
 			if (!pm_dir)
 				goto out;
-			pgd_populate_kernel(&init_mm, pg_dir, pm_dir);
+			pud_populate_kernel(&init_mm, pu_dir, pm_dir);
 		}
 
-		pm_dir = pmd_offset(pg_dir, address);
+		pm_dir = pmd_offset(pu_dir, address);
 		if (pmd_none(*pm_dir)) {
 			pt_dir = vmem_pte_alloc();
 			if (!pt_dir)

@@ -121,6 +121,8 @@ static inline void pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 #endif
 }
 
+#define pud_free_tlb(tlb, pud)			do { } while (0)
+
 #define tlb_start_vma(tlb, vma)			do { } while (0)
 #define tlb_end_vma(tlb, vma)			do { } while (0)
 #define tlb_remove_tlb_entry(tlb, ptep, addr)	do { } while (0)
