@@ -65,6 +65,7 @@
 #include <asm/e820.h>
 #include <asm/mce.h>
 #include <asm/io.h>
+#include <asm/i387.h>
 
 /*G:010 Welcome to the Guest!
  *

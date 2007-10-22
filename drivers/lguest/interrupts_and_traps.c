@@ -165,7 +165,7 @@ void maybe_do_interrupt(struct lguest *lg)
 	/* Look at the IDT entry the Guest gave us for this interrupt.  The
 	 * first 32 (FIRST_EXTERNAL_VECTOR) entries are for traps, so we skip
 	 * over them. */
-	idt = &lg->idt[FIRST_EXTERNAL_VECTOR+irq];
+	idt = &lg->arch.idt[FIRST_EXTERNAL_VECTOR+irq];
 	/* If they don't have a handler (yet?), we just ignore it */
 	if (idt_present(idt->a, idt->b)) {
 		/* OK, mark it no longer pending and deliver it. */
@@ -197,14 +197,14 @@ int deliver_trap(struct lguest *lg, unsigned int num)
 {
 	/* Trap numbers are always 8 bit, but we set an impossible trap number
 	 * for traps inside the Switcher, so check that here. */
-	if (num >= ARRAY_SIZE(lg->idt))
+	if (num >= ARRAY_SIZE(lg->arch.idt))
 		return 0;
 
 	/* Early on the Guest hasn't set the IDT entries (or maybe it put a
 	 * bogus one in): if we fail here, the Guest will be killed. */
-	if (!idt_present(lg->idt[num].a, lg->idt[num].b))
+	if (!idt_present(lg->arch.idt[num].a, lg->arch.idt[num].b))
 		return 0;
-	set_guest_interrupt(lg, lg->idt[num].a, lg->idt[num].b, has_err(num));
+	set_guest_interrupt(lg, lg->arch.idt[num].a, lg->arch.idt[num].b, has_err(num));
 	return 1;
 }
 
@@ -341,10 +341,10 @@ void load_guest_idt_entry(struct lguest *lg, unsigned int num, u32 lo, u32 hi)
 	lg->changed |= CHANGED_IDT;
 
 	/* Check that the Guest doesn't try to step outside the bounds. */
-	if (num >= ARRAY_SIZE(lg->idt))
+	if (num >= ARRAY_SIZE(lg->arch.idt))
 		kill_guest(lg, "Setting idt entry %u", num);
 	else
-		set_trap(lg, &lg->idt[num], num, lo, hi);
+		set_trap(lg, &lg->arch.idt[num], num, lo, hi);
 }
 
 /* The default entry for each interrupt points into the Switcher routines which
@@ -387,7 +387,7 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 
 	/* We can simply copy the direct traps, otherwise we use the default
 	 * ones in the Switcher: they will return to the Host. */
-	for (i = 0; i < ARRAY_SIZE(lg->idt); i++) {
+	for (i = 0; i < ARRAY_SIZE(lg->arch.idt); i++) {
 		/* If no Guest can ever override this trap, leave it alone. */
 		if (!direct_trap(i))
 			continue;
@@ -396,8 +396,8 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 		 * Interrupt gates (type 14) disable interrupts as they are
 		 * entered, which we never let the Guest do.  Not present
 		 * entries (type 0x0) also can't go direct, of course. */
-		if (idt_type(lg->idt[i].a, lg->idt[i].b) == 0xF)
-			idt[i] = lg->idt[i];
+		if (idt_type(lg->arch.idt[i].a, lg->arch.idt[i].b) == 0xF)
+			idt[i] = lg->arch.idt[i];
 		else
 			/* Reset it to the default. */
 			default_idt_entry(&idt[i], i, def[i]);

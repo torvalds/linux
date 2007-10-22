@@ -6,7 +6,7 @@ obj-$(CONFIG_LGUEST)	+= lg.o
 lg-y = core.o hypercalls.o page_tables.o interrupts_and_traps.o \
 	segments.o io.o lguest_user.o
 
-lg-$(CONFIG_X86_32) += x86/switcher_32.o
+lg-$(CONFIG_X86_32) += x86/switcher_32.o x86/core.o
 
 Preparation Preparation!: PREFIX=P
 Guest: PREFIX=G

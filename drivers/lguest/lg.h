@@ -1,13 +1,6 @@
 #ifndef _LGUEST_H
 #define _LGUEST_H
 
-#include <asm/desc.h>
-
-#define GDT_ENTRY_LGUEST_CS	10
-#define GDT_ENTRY_LGUEST_DS	11
-#define LGUEST_CS		(GDT_ENTRY_LGUEST_CS * 8)
-#define LGUEST_DS		(GDT_ENTRY_LGUEST_DS * 8)
-
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
 #include <linux/init.h>
@@ -18,33 +11,11 @@
 #include <linux/wait.h>
 #include <linux/err.h>
 #include <asm/semaphore.h>
-#include "irq_vectors.h"
 
-#define GUEST_PL 1
-
-struct lguest_regs
-{
-	/* Manually saved part. */
-	unsigned long ebx, ecx, edx;
-	unsigned long esi, edi, ebp;
-	unsigned long gs;
-	unsigned long eax;
-	unsigned long fs, ds, es;
-	unsigned long trapnum, errcode;
-	/* Trap pushed part */
-	unsigned long eip;
-	unsigned long cs;
-	unsigned long eflags;
-	unsigned long esp;
-	unsigned long ss;
-};
+#include <asm/lguest.h>
 
 void free_pagetables(void);
 int init_pagetables(struct page **switcher_page, unsigned int pages);
-
-/* Full 4G segment descriptors, suitable for CS and DS. */
-#define FULL_EXEC_SEGMENT ((struct desc_struct){0x0000ffff, 0x00cf9b00})
-#define FULL_SEGMENT ((struct desc_struct){0x0000ffff, 0x00cf9300})
 
 struct lguest_dma_info
 {
@@ -96,23 +67,6 @@ struct pgdir
 {
 	unsigned long cr3;
 	spgd_t *pgdir;
-};
-
-/* This is a guest-specific page (mapped ro) into the guest. */
-struct lguest_ro_state
-{
-	/* Host information we need to restore when we switch back. */
-	u32 host_cr3;
-	struct Xgt_desc_struct host_idt_desc;
-	struct Xgt_desc_struct host_gdt_desc;
-	u32 host_sp;
-
-	/* Fields which are used when guest is running. */
-	struct Xgt_desc_struct guest_idt_desc;
-	struct Xgt_desc_struct guest_gdt_desc;
-	struct i386_hw_tss guest_tss;
-	struct desc_struct guest_idt[IDT_ENTRIES];
-	struct desc_struct guest_gdt[GDT_ENTRIES];
 };
 
 /* We have two pages shared with guests, per cpu.  */
@@ -180,11 +134,7 @@ struct lguest
 	/* Dead? */
 	const char *dead;
 
-	/* The GDT entries copied into lguest_ro_state when running. */
-	struct desc_struct gdt[GDT_ENTRIES];
-
-	/* The IDT entries: some copied into lguest_ro_state when running. */
-	struct desc_struct idt[IDT_ENTRIES];
+	struct lguest_arch arch;
 
 	/* Virtual clock device */
 	struct hrtimer hrt;
@@ -238,6 +188,15 @@ void guest_set_pte(struct lguest *lg, unsigned long cr3,
 void map_switcher_in_guest(struct lguest *lg, struct lguest_pages *pages);
 int demand_page(struct lguest *info, unsigned long cr2, int errcode);
 void pin_page(struct lguest *lg, unsigned long vaddr);
+
+/* <arch>/core.c: */
+void lguest_arch_host_init(void);
+void lguest_arch_host_fini(void);
+void lguest_arch_run_guest(struct lguest *lg);
+void lguest_arch_handle_trap(struct lguest *lg);
+
+/* <arch>/switcher.S: */
+extern char start_switcher_text[], end_switcher_text[], switch_to_guest[];
 
 /* lguest_user.c: */
 int lguest_device_init(void);
