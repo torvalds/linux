@@ -473,9 +473,9 @@ static unsigned long setup_pagetables(unsigned long mem,
 				      unsigned long initrd_size,
 				      unsigned long page_offset)
 {
-	u32 *pgdir, *linear;
+	unsigned long *pgdir, *linear;
 	unsigned int mapped_pages, i, linear_pages;
-	unsigned int ptes_per_page = getpagesize()/sizeof(u32);
+	unsigned int ptes_per_page = getpagesize()/sizeof(void *);
 
 	/* Ideally we map all physical memory starting at page_offset.
 	 * However, if page_offset is 0xC0000000 we can only map 1G of physical
@@ -505,7 +505,7 @@ static unsigned long setup_pagetables(unsigned long mem,
 	 * continue from there. */
 	for (i = 0; i < mapped_pages; i += ptes_per_page) {
 		pgdir[(i + page_offset/getpagesize())/ptes_per_page]
-			= ((to_guest_phys(linear) + i*sizeof(u32))
+			= ((to_guest_phys(linear) + i*sizeof(void *))
 			   | PAGE_PRESENT);
 	}
 
@@ -537,12 +537,13 @@ static void concat(char *dst, char *args[])
  * the base of guest "physical" memory, the top physical page to allow, the
  * top level pagetable, the entry point and the page_offset constant for the
  * Guest. */
-static int tell_kernel(u32 pgdir, u32 start, u32 page_offset)
+static int tell_kernel(unsigned long pgdir, unsigned long start,
+		       unsigned long page_offset)
 {
-	u32 args[] = { LHREQ_INITIALIZE,
-		       (unsigned long)guest_base,
-		       guest_limit / getpagesize(),
-		       pgdir, start, page_offset };
+	unsigned long args[] = { LHREQ_INITIALIZE,
+				 (unsigned long)guest_base,
+				 guest_limit / getpagesize(),
+				 pgdir, start, page_offset };
 	int fd;
 
 	verbose("Guest: %p - %p (%#lx)\n",
@@ -586,7 +587,7 @@ static void wake_parent(int pipefd, int lguest_fd, struct device_list *devices)
 
 	for (;;) {
 		fd_set rfds = devices->infds;
-		u32 args[] = { LHREQ_BREAK, 1 };
+		unsigned long args[] = { LHREQ_BREAK, 1 };
 
 		/* Wait until input is ready from one of the devices. */
 		select(devices->max_infd+1, &rfds, NULL, NULL, NULL);
@@ -684,7 +685,7 @@ static u32 *dma2iov(unsigned long dma, struct iovec iov[], unsigned *num)
 static u32 *get_dma_buffer(int fd, void *key,
 			   struct iovec iov[], unsigned int *num, u32 *irq)
 {
-	u32 buf[] = { LHREQ_GETDMA, to_guest_phys(key) };
+	unsigned long buf[] = { LHREQ_GETDMA, to_guest_phys(key) };
 	unsigned long udma;
 	u32 *res;
 
@@ -705,7 +706,7 @@ static u32 *get_dma_buffer(int fd, void *key,
 /* This is a convenient routine to send the Guest an interrupt. */
 static void trigger_irq(int fd, u32 irq)
 {
-	u32 buf[] = { LHREQ_IRQ, irq };
+	unsigned long buf[] = { LHREQ_IRQ, irq };
 	if (write(fd, buf, sizeof(buf)) != 0)
 		err(1, "Triggering irq %i", irq);
 }
@@ -787,7 +788,7 @@ static bool handle_console_input(int fd, struct device *dev)
 			struct timeval now;
 			gettimeofday(&now, NULL);
 			if (now.tv_sec <= abort->start.tv_sec+1) {
-				u32 args[] = { LHREQ_BREAK, 0 };
+				unsigned long args[] = { LHREQ_BREAK, 0 };
 				/* Close the fd so Waker will know it has to
 				 * exit. */
 				close(waker_fd);
@@ -1365,7 +1366,7 @@ static void __attribute__((noreturn))
 run_guest(int lguest_fd, struct device_list *device_list)
 {
 	for (;;) {
-		u32 args[] = { LHREQ_BREAK, 0 };
+		unsigned long args[] = { LHREQ_BREAK, 0 };
 		unsigned long arr[2];
 		int readval;
 

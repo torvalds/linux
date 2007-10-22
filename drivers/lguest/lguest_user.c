@@ -43,7 +43,7 @@ static void setup_regs(struct lguest_regs *regs, unsigned long start)
 /*L:310 To send DMA into the Guest, the Launcher needs to be able to ask for a
  * DMA buffer.  This is done by writing LHREQ_GETDMA and the key to
  * /dev/lguest. */
-static long user_get_dma(struct lguest *lg, const u32 __user *input)
+static long user_get_dma(struct lguest *lg, const unsigned long __user *input)
 {
 	unsigned long key, udma, irq;
 
@@ -67,7 +67,7 @@ static long user_get_dma(struct lguest *lg, const u32 __user *input)
 /*L:315 To force the Guest to stop running and return to the Launcher, the
  * Waker sets writes LHREQ_BREAK and the value "1" to /dev/lguest.  The
  * Launcher then writes LHREQ_BREAK and "0" to release the Waker. */
-static int break_guest_out(struct lguest *lg, const u32 __user *input)
+static int break_guest_out(struct lguest *lg, const unsigned long __user *input)
 {
 	unsigned long on;
 
@@ -90,9 +90,9 @@ static int break_guest_out(struct lguest *lg, const u32 __user *input)
 
 /*L:050 Sending an interrupt is done by writing LHREQ_IRQ and an interrupt
  * number to /dev/lguest. */
-static int user_send_irq(struct lguest *lg, const u32 __user *input)
+static int user_send_irq(struct lguest *lg, const unsigned long __user *input)
 {
-	u32 irq;
+	unsigned long irq;
 
 	if (get_user(irq, input) != 0)
 		return -EFAULT;
@@ -142,8 +142,8 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	return run_guest(lg, (unsigned long __user *)user);
 }
 
-/*L:020 The initialization write supplies 5 32-bit values (in addition to the
- * 32-bit LHREQ_INITIALIZE value).  These are:
+/*L:020 The initialization write supplies 5 pointer sized (32 or 64 bit)
+ * values (in addition to the LHREQ_INITIALIZE value).  These are:
  *
  * base: The start of the Guest-physical memory inside the Launcher memory.
  *
@@ -162,13 +162,13 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
  * quickly converted from physical to virtual by adding PAGE_OFFSET.  It's
  * 0xC0000000 (3G) by default, but it's configurable at kernel build time.
  */
-static int initialize(struct file *file, const u32 __user *input)
+static int initialize(struct file *file, const unsigned long __user *input)
 {
 	/* "struct lguest" contains everything we (the Host) know about a
 	 * Guest. */
 	struct lguest *lg;
 	int err;
-	u32 args[5];
+	unsigned long args[5];
 
 	/* We grab the Big Lguest lock, which protects against multiple
 	 * simultaneous initializations. */
@@ -259,17 +259,18 @@ unlock:
  * start with a 32 bit number: for the first write this must be
  * LHREQ_INITIALIZE to set up the Guest.  After that the Launcher can use
  * writes of other values to get DMA buffers and send interrupts. */
-static ssize_t write(struct file *file, const char __user *input,
+static ssize_t write(struct file *file, const char __user *in,
 		     size_t size, loff_t *off)
 {
 	/* Once the guest is initialized, we hold the "struct lguest" in the
 	 * file private data. */
 	struct lguest *lg = file->private_data;
-	u32 req;
+	const unsigned long __user *input = (const unsigned long __user *)in;
+	unsigned long req;
 
 	if (get_user(req, input) != 0)
 		return -EFAULT;
-	input += sizeof(req);
+	input++;
 
 	/* If you haven't initialized, you must do that first. */
 	if (req != LHREQ_INITIALIZE && !lg)
@@ -285,13 +286,13 @@ static ssize_t write(struct file *file, const char __user *input,
 
 	switch (req) {
 	case LHREQ_INITIALIZE:
-		return initialize(file, (const u32 __user *)input);
+		return initialize(file, input);
 	case LHREQ_GETDMA:
-		return user_get_dma(lg, (const u32 __user *)input);
+		return user_get_dma(lg, input);
 	case LHREQ_IRQ:
-		return user_send_irq(lg, (const u32 __user *)input);
+		return user_send_irq(lg, input);
 	case LHREQ_BREAK:
-		return break_guest_out(lg, (const u32 __user *)input);
+		return break_guest_out(lg, input);
 	default:
 		return -EINVAL;
 	}
