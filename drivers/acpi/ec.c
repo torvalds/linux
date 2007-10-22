@@ -75,6 +75,7 @@ enum {
 	EC_FLAGS_WAIT_GPE = 0,		/* Don't check status until GPE arrives */
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
 	EC_FLAGS_GPE_MODE,		/* Expect GPE to be sent for status change */
+	EC_FLAGS_ONLY_IBF_GPE,		/* Expect GPE only for IBF = 0 event */
 };
 
 static int acpi_ec_remove(struct acpi_device *device, int type);
@@ -172,7 +173,12 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 			return 0;
 		clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 		if (acpi_ec_check_status(ec, event)) {
-			clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
+			if (event == ACPI_EC_EVENT_OBF_1)
+				/* miss OBF = 1 GPE, don't expect it anymore */
+				set_bit(EC_FLAGS_ONLY_IBF_GPE, &ec->flags);
+			else
+				/* missing GPEs, switch back to poll mode */
+				clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 			return 0;
 		}
 	} else {
@@ -220,6 +226,8 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
 
 	for (; rdata_len > 0; --rdata_len) {
+		if (test_bit(EC_FLAGS_ONLY_IBF_GPE, &ec->flags))
+			force_poll = 1;
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF_1, force_poll);
 		if (result) {
 			printk(KERN_ERR PREFIX "read timeout, command = %d\n",
