@@ -69,12 +69,9 @@ struct tape_class_device *register_tape_dev(
 	if (rc)
 		goto fail_with_cdev;
 
-	tcd->class_device = class_device_create(
-				tape_class,
-				NULL,
-				tcd->char_device->dev,
-				device,
-				"%s", tcd->device_name
+	tcd->class_device = device_create(tape_class, device,
+					  tcd->char_device->dev,
+					  "%s", tcd->device_name
 			);
 	rc = IS_ERR(tcd->class_device) ? PTR_ERR(tcd->class_device) : 0;
 	if (rc)
@@ -90,7 +87,7 @@ struct tape_class_device *register_tape_dev(
 	return tcd;
 
 fail_with_class_device:
-	class_device_destroy(tape_class, tcd->char_device->dev);
+	device_destroy(tape_class, tcd->char_device->dev);
 
 fail_with_cdev:
 	cdev_del(tcd->char_device);
@@ -105,11 +102,9 @@ EXPORT_SYMBOL(register_tape_dev);
 void unregister_tape_dev(struct tape_class_device *tcd)
 {
 	if (tcd != NULL && !IS_ERR(tcd)) {
-		sysfs_remove_link(
-			&tcd->class_device->dev->kobj,
-			tcd->mode_name
-		);
-		class_device_destroy(tape_class, tcd->char_device->dev);
+		sysfs_remove_link(&tcd->class_device->kobj,
+				  tcd->mode_name);
+		device_destroy(tape_class, tcd->char_device->dev);
 		cdev_del(tcd->char_device);
 		kfree(tcd);
 	}
