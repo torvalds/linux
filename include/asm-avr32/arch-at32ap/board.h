@@ -70,4 +70,15 @@ struct platform_device *at32_add_device_mci(unsigned int id);
 struct platform_device *at32_add_device_ac97c(unsigned int id);
 struct platform_device *at32_add_device_abdac(unsigned int id);
 
+struct cf_platform_data {
+	int	detect_pin;
+	int	reset_pin;
+	int	vcc_pin;
+	int	ready_pin;
+	u8	cs;
+};
+struct platform_device *
+at32_add_device_cf(unsigned int id, unsigned int extint,
+		struct cf_platform_data *data);
+
 #endif /* __ASM_ARCH_BOARD_H */

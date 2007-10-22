@@ -1330,10 +1330,9 @@ out_free_pdev:
 }
 
 /* --------------------------------------------------------------------
- * IDE
+ * IDE / CompactFlash
  * -------------------------------------------------------------------- */
-static struct ide_platform_data at32_ide0_data;
-static struct resource at32_ide0_resource[] = {
+static struct resource at32_smc_cs4_resource[] __initdata = {
 	{
 		.start	= 0x04000000,
 		.end	= 0x07ffffff,
@@ -1341,45 +1340,63 @@ static struct resource at32_ide0_resource[] = {
 	},
 	IRQ(~0UL), /* Magic IRQ will be overridden */
 };
-DEFINE_DEV_DATA(at32_ide, 0);
+static struct resource at32_smc_cs5_resource[] __initdata = {
+	{
+		.start	= 0x20000000,
+		.end	= 0x23ffffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	IRQ(~0UL), /* Magic IRQ will be overridden */
+};
 
-struct platform_device *__init
-at32_add_device_ide(unsigned int id, unsigned int extint,
-		    struct ide_platform_data *data)
+static int __init at32_init_ide_or_cf(struct platform_device *pdev,
+		unsigned int cs, unsigned int extint)
 {
-	struct platform_device *pdev;
+	static unsigned int extint_pin_map[4] __initdata = {
+		GPIO_PIN_PB(25),
+		GPIO_PIN_PB(26),
+		GPIO_PIN_PB(27),
+		GPIO_PIN_PB(28),
+	};
+	static bool common_pins_initialized __initdata = false;
 	unsigned int extint_pin;
+	int ret;
 
-	switch (extint) {
-	case 0:
-		extint_pin = GPIO_PIN_PB(25);
+	if (extint >= ARRAY_SIZE(extint_pin_map))
+		return -EINVAL;
+	extint_pin = extint_pin_map[extint];
+
+	switch (cs) {
+	case 4:
+		ret = platform_device_add_resources(pdev,
+				at32_smc_cs4_resource,
+				ARRAY_SIZE(at32_smc_cs4_resource));
+		if (ret)
+			return ret;
+
+		select_peripheral(PE(21), PERIPH_A, 0); /* NCS4   -> OE_N  */
+		set_ebi_sfr_bits(HMATRIX_BIT(CS4A));
 		break;
-	case 1:
-		extint_pin = GPIO_PIN_PB(26);
-		break;
-	case 2:
-		extint_pin = GPIO_PIN_PB(27);
-		break;
-	case 3:
-		extint_pin = GPIO_PIN_PB(28);
+	case 5:
+		ret = platform_device_add_resources(pdev,
+				at32_smc_cs5_resource,
+				ARRAY_SIZE(at32_smc_cs5_resource));
+		if (ret)
+			return ret;
+
+		select_peripheral(PE(22), PERIPH_A, 0); /* NCS5   -> OE_N  */
+		set_ebi_sfr_bits(HMATRIX_BIT(CS5A));
 		break;
 	default:
-		return NULL;
+		return -EINVAL;
 	}
 
-	switch (id) {
-	case 0:
-		pdev = &at32_ide0_device;
+	if (!common_pins_initialized) {
 		select_peripheral(PE(19), PERIPH_A, 0);	/* CFCE1  -> CS0_N */
 		select_peripheral(PE(20), PERIPH_A, 0);	/* CFCE2  -> CS1_N */
-		select_peripheral(PE(21), PERIPH_A, 0); /* NCS4   -> OE_N  */
 		select_peripheral(PE(23), PERIPH_A, 0); /* CFRNW  -> DIR   */
 		select_peripheral(PE(24), PERIPH_A, 0); /* NWAIT  <- IORDY */
-		set_ebi_sfr_bits(HMATRIX_BIT(CS4A));
-		data->cs = 4;
-		break;
-	default:
-		return NULL;
+		common_pins_initialized = true;
 	}
 
 	at32_select_periph(extint_pin, GPIO_PERIPH_A, AT32_GPIOF_DEGLITCH);
@@ -1387,11 +1404,65 @@ at32_add_device_ide(unsigned int id, unsigned int extint,
 	pdev->resource[1].start = EIM_IRQ_BASE + extint;
 	pdev->resource[1].end = pdev->resource[1].start;
 
-	memcpy(pdev->dev.platform_data, data, sizeof(struct ide_platform_data));
+	return 0;
+}
 
-	platform_device_register(pdev);
+struct platform_device *__init
+at32_add_device_ide(unsigned int id, unsigned int extint,
+		    struct ide_platform_data *data)
+{
+	struct platform_device *pdev;
 
+	pdev = platform_device_alloc("at32_ide", id);
+	if (!pdev)
+		goto fail;
+
+	if (platform_device_add_data(pdev, data,
+				sizeof(struct ide_platform_data)))
+		goto fail;
+
+	if (at32_init_ide_or_cf(pdev, data->cs, extint))
+		goto fail;
+
+	platform_device_add(pdev);
 	return pdev;
+
+fail:
+	platform_device_put(pdev);
+	return NULL;
+}
+
+struct platform_device *__init
+at32_add_device_cf(unsigned int id, unsigned int extint,
+		    struct cf_platform_data *data)
+{
+	struct platform_device *pdev;
+
+	pdev = platform_device_alloc("at32_cf", id);
+	if (!pdev)
+		goto fail;
+
+	if (platform_device_add_data(pdev, data,
+				sizeof(struct cf_platform_data)))
+		goto fail;
+
+	if (at32_init_ide_or_cf(pdev, data->cs, extint))
+		goto fail;
+
+	if (data->detect_pin != GPIO_PIN_NONE)
+		at32_select_gpio(data->detect_pin, AT32_GPIOF_DEGLITCH);
+	if (data->reset_pin != GPIO_PIN_NONE)
+		at32_select_gpio(data->reset_pin, 0);
+	if (data->vcc_pin != GPIO_PIN_NONE)
+		at32_select_gpio(data->vcc_pin, 0);
+	/* READY is used as extint, so we can't select it as gpio */
+
+	platform_device_add(pdev);
+	return pdev;
+
+fail:
+	platform_device_put(pdev);
+	return NULL;
 }
 
 /* --------------------------------------------------------------------
