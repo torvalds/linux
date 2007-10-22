@@ -613,6 +613,10 @@ config HVC_XEN
 	help
 	  Xen virtual console device driver
 
+config VIRTIO_CONSOLE
+	bool
+	select HVC_DRIVER
+
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
 	depends on PPC_PSERIES
