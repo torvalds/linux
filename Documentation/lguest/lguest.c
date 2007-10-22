@@ -159,7 +159,7 @@ static unsigned long entry_point(void *start, void *end,
 		if (memcmp(p, "GenuineLguest", strlen("GenuineLguest")) == 0)
 			return (long)p + strlen("GenuineLguest") + page_offset;
 
-	err(1, "Is this image a genuine lguest?");
+	errx(1, "Is this image a genuine lguest?");
 }
 
 /* This routine takes an open vmlinux image, which is in ELF, and maps it into
@@ -858,7 +858,7 @@ static u32 handle_block_output(int fd, const struct iovec *iov,
 	/* We first check that the read or write is within the length of the
 	 * block file. */
 	if (off >= device_len)
-		err(1, "Bad offset %llu vs %llu", off, device_len);
+		errx(1, "Bad offset %llu vs %llu", off, device_len);
 	/* Move to the right location in the block file.  This shouldn't fail,
 	 * but best to check. */
 	if (lseek64(dev->fd, off, SEEK_SET) != off)
