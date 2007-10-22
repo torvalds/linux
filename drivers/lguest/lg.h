@@ -30,7 +30,7 @@ struct lguest_dma_info
 
 struct pgdir
 {
-	unsigned long cr3;
+	unsigned long gpgdir;
 	pgd_t *pgdir;
 };
 
@@ -154,10 +154,10 @@ void copy_gdt_tls(const struct lguest *lg, struct desc_struct *gdt);
 int init_guest_pagetable(struct lguest *lg, unsigned long pgtable);
 void free_guest_pagetable(struct lguest *lg);
 void guest_new_pagetable(struct lguest *lg, unsigned long pgtable);
-void guest_set_pmd(struct lguest *lg, unsigned long cr3, u32 i);
+void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 i);
 void guest_pagetable_clear_all(struct lguest *lg);
 void guest_pagetable_flush_user(struct lguest *lg);
-void guest_set_pte(struct lguest *lg, unsigned long cr3,
+void guest_set_pte(struct lguest *lg, unsigned long gpgdir,
 		   unsigned long vaddr, pte_t val);
 void map_switcher_in_guest(struct lguest *lg, struct lguest_pages *pages);
 int demand_page(struct lguest *info, unsigned long cr2, int errcode);

@@ -96,7 +96,7 @@ static pte_t *spte_addr(struct lguest *lg, pgd_t spgd, unsigned long vaddr)
 static unsigned long gpgd_addr(struct lguest *lg, unsigned long vaddr)
 {
 	unsigned int index = vaddr >> (PGDIR_SHIFT);
-	return lg->pgdirs[lg->pgdidx].cr3 + index * sizeof(pgd_t);
+	return lg->pgdirs[lg->pgdidx].gpgdir + index * sizeof(pgd_t);
 }
 
 static unsigned long gpte_addr(struct lguest *lg,
@@ -365,7 +365,7 @@ static unsigned int find_pgdir(struct lguest *lg, unsigned long pgtable)
 {
 	unsigned int i;
 	for (i = 0; i < ARRAY_SIZE(lg->pgdirs); i++)
-		if (lg->pgdirs[i].cr3 == pgtable)
+		if (lg->pgdirs[i].gpgdir == pgtable)
 			break;
 	return i;
 }
@@ -374,7 +374,7 @@ static unsigned int find_pgdir(struct lguest *lg, unsigned long pgtable)
  * allocate a new one (and so the kernel parts are not there), we set
  * blank_pgdir. */
 static unsigned int new_pgdir(struct lguest *lg,
-			      unsigned long cr3,
+			      unsigned long gpgdir,
 			      int *blank_pgdir)
 {
 	unsigned int next;
@@ -394,7 +394,7 @@ static unsigned int new_pgdir(struct lguest *lg,
 			*blank_pgdir = 1;
 	}
 	/* Record which Guest toplevel this shadows. */
-	lg->pgdirs[next].cr3 = cr3;
+	lg->pgdirs[next].gpgdir = gpgdir;
 	/* Release all the non-kernel mappings. */
 	flush_user_mappings(lg, next);
 
@@ -496,7 +496,7 @@ static void do_set_pte(struct lguest *lg, int idx,
  * The benefit is that when we have to track a new page table, we can copy keep
  * all the kernel mappings.  This speeds up context switch immensely. */
 void guest_set_pte(struct lguest *lg,
-		   unsigned long cr3, unsigned long vaddr, pte_t gpte)
+		   unsigned long gpgdir, unsigned long vaddr, pte_t gpte)
 {
 	/* Kernel mappings must be changed on all top levels.  Slow, but
 	 * doesn't happen often. */
@@ -507,7 +507,7 @@ void guest_set_pte(struct lguest *lg,
 				do_set_pte(lg, i, vaddr, gpte);
 	} else {
 		/* Is this page table one we have a shadow for? */
-		int pgdir = find_pgdir(lg, cr3);
+		int pgdir = find_pgdir(lg, gpgdir);
 		if (pgdir != ARRAY_SIZE(lg->pgdirs))
 			/* If so, do the update. */
 			do_set_pte(lg, pgdir, vaddr, gpte);
@@ -528,7 +528,7 @@ void guest_set_pte(struct lguest *lg,
  *
  * So with that in mind here's our code to to update a (top-level) PGD entry:
  */
-void guest_set_pmd(struct lguest *lg, unsigned long cr3, u32 idx)
+void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 idx)
 {
 	int pgdir;
 
@@ -538,7 +538,7 @@ void guest_set_pmd(struct lguest *lg, unsigned long cr3, u32 idx)
 		return;
 
 	/* If they're talking about a page table we have a shadow for... */
-	pgdir = find_pgdir(lg, cr3);
+	pgdir = find_pgdir(lg, gpgdir);
 	if (pgdir < ARRAY_SIZE(lg->pgdirs))
 		/* ... throw it away. */
 		release_pgd(lg, lg->pgdirs[pgdir].pgdir + idx);
@@ -558,7 +558,7 @@ int init_guest_pagetable(struct lguest *lg, unsigned long pgtable)
 	/* We start on the first shadow page table, and give it a blank PGD
 	 * page. */
 	lg->pgdidx = 0;
-	lg->pgdirs[lg->pgdidx].cr3 = pgtable;
+	lg->pgdirs[lg->pgdidx].gpgdir = pgtable;
 	lg->pgdirs[lg->pgdidx].pgdir = (pgd_t*)get_zeroed_page(GFP_KERNEL);
 	if (!lg->pgdirs[lg->pgdidx].pgdir)
 		return -ENOMEM;
