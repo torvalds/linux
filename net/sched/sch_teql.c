@@ -266,7 +266,7 @@ static int teql_master_xmit(struct sk_buff *skb, struct net_device *dev)
 	int busy;
 	int nores;
 	int len = skb->len;
-	int subq = skb->queue_mapping;
+	int subq = skb_get_queue_mapping(skb);
 	struct sk_buff *skb_res = NULL;
 
 	start = master->slaves;

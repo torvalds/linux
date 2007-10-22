@@ -1769,6 +1769,15 @@ static inline void skb_set_queue_mapping(struct sk_buff *skb, u16 queue_mapping)
 #endif
 }
 
+static inline u16 skb_get_queue_mapping(struct sk_buff *skb)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	return skb->queue_mapping;
+#else
+	return 0;
+#endif
+}
+
 static inline void skb_copy_queue_mapping(struct sk_buff *to, const struct sk_buff *from)
 {
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
