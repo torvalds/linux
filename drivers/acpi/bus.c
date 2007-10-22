@@ -201,7 +201,7 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 	 * Get device's current power state
 	 */
 	acpi_bus_get_power(device->handle, &device->power.state);
-	if ((state == device->power.state) && !device->flags.force_power_state) {
+	if (state == device->power.state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
 				  state));
 		return 0;
