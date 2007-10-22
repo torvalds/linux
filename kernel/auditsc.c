@@ -1615,7 +1615,7 @@ static void audit_copy_inode(struct audit_names *name, const struct inode *inode
 /**
  * audit_inode - store the inode and device from a lookup
  * @name: name being audited
- * @inode: inode being audited
+ * @dentry: dentry being audited
  *
  * Called from fs/namei.c:path_lookup().
  */
@@ -1650,7 +1650,7 @@ void __audit_inode(const char *name, const struct dentry *dentry)
 /**
  * audit_inode_child - collect inode info for created/removed objects
  * @dname: inode's dentry name
- * @inode: inode being audited
+ * @dentry: dentry being audited
  * @parent: inode of dentry parent
  *
  * For syscalls that create or remove filesystem objects, audit_inode
