@@ -501,7 +501,7 @@ EXPORT_SYMBOL(sclk_to_usecs);
 
 unsigned long usecs_to_sclk(unsigned long usecs)
 {
-	return get_sclk() / (USEC_PER_SEC * (u64)usecs);
+	return (get_sclk() * (u64)usecs) / USEC_PER_SEC;
 }
 EXPORT_SYMBOL(usecs_to_sclk);
 
@@ -589,7 +589,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #elif defined CONFIG_BFIN_WT
 		"wt"
 #endif
-		, 0);
+		"", 0);
 
 	seq_printf(m, "%s\n", cache);
 
