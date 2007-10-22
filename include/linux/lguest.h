@@ -4,6 +4,7 @@
 #define _LINUX_LGUEST_H
 
 #ifndef __ASSEMBLY__
+#include <linux/time.h>
 #include <asm/irq.h>
 #include <asm/lguest_hcall.h>
 
