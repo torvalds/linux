@@ -142,7 +142,7 @@ static int eic_set_irq_type(unsigned int irq, unsigned int flow_type)
 	return ret;
 }
 
-struct irq_chip eic_chip = {
+static struct irq_chip eic_chip = {
 	.name		= "eic",
 	.ack		= eic_ack_irq,
 	.mask		= eic_mask_irq,

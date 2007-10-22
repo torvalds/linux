@@ -113,8 +113,8 @@
 
 /* Register access macros */
 #define pm_readl(reg)							\
-	__raw_readl((void __iomem *)AT32_PM_BASE + PM_##reg)
+	__raw_readl((void __iomem __force *)AT32_PM_BASE + PM_##reg)
 #define pm_writel(reg,value)						\
-	__raw_writel((value), (void __iomem *)AT32_PM_BASE + PM_##reg)
+	__raw_writel((value), (void __iomem __force *)AT32_PM_BASE + PM_##reg)
 
 #endif /* __ARCH_AVR32_MACH_AT32AP_PM_H__ */
