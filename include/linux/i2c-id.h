@@ -100,7 +100,6 @@
    These were originally in sensors.h in the lm_sensors package */
 #define I2C_DRIVERID_LM78 1002
 #define I2C_DRIVERID_LM75 1003
-#define I2C_DRIVERID_GL518 1004
 #define I2C_DRIVERID_EEPROM 1005
 #define I2C_DRIVERID_W83781D 1006
 #define I2C_DRIVERID_LM80 1007

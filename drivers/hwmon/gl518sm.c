@@ -30,10 +30,6 @@
  * We did not keep that part of the original driver in the Linux 2.6
  * version, since it was making the driver significantly more complex
  * with no real benefit.
- *
- * History:
- * 2004-01-28  Original port. (Hong-Gunn Chew)
- * 2004-01-31  Code review and approval. (Jean Delvare)
  */
 
 #include <linux/module.h>
@@ -129,7 +125,6 @@ struct gl518_data {
 	u8 voltage_in[4];	/* Register values; [0] = VDD */
 	u8 voltage_min[4];	/* Register values; [0] = VDD */
 	u8 voltage_max[4];	/* Register values; [0] = VDD */
-	u8 iter_voltage_in[4];	/* Register values; [0] = VDD */
 	u8 fan_in[2];
 	u8 fan_min[2];
 	u8 fan_div[2];		/* Register encoding, shifted right */
@@ -138,7 +133,7 @@ struct gl518_data {
 	u8 temp_max;		/* Register values */
 	u8 temp_hyst;		/* Register values */
 	u8 alarms;		/* Register value */
-	u8 alarm_mask;		/* Register value */
+	u8 alarm_mask;
 	u8 beep_mask;		/* Register value */
 	u8 beep_enable;		/* Boolean */
 };
@@ -156,7 +151,6 @@ static struct i2c_driver gl518_driver = {
 	.driver = {
 		.name	= "gl518sm",
 	},
-	.id		= I2C_DRIVERID_GL518,
 	.attach_adapter	= gl518_attach_adapter,
 	.detach_client	= gl518_detach_client,
 };
@@ -391,7 +385,7 @@ static int gl518_attach_adapter(struct i2c_adapter *adapter)
 static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	int i;
-	struct i2c_client *new_client;
+	struct i2c_client *client;
 	struct gl518_data *data;
 	int err = 0;
 
@@ -408,25 +402,24 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit;
 	}
 
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
+	client = &data->client;
+	i2c_set_clientdata(client, data);
 
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &gl518_driver;
-	new_client->flags = 0;
+	client->addr = address;
+	client->adapter = adapter;
+	client->driver = &gl518_driver;
 
 	/* Now, we do the remaining detection. */
 
 	if (kind < 0) {
-		if ((gl518_read_value(new_client, GL518_REG_CHIP_ID) != 0x80)
-		 || (gl518_read_value(new_client, GL518_REG_CONF) & 0x80))
+		if ((gl518_read_value(client, GL518_REG_CHIP_ID) != 0x80)
+		 || (gl518_read_value(client, GL518_REG_CONF) & 0x80))
 			goto exit_free;
 	}
 
 	/* Determine the chip type. */
 	if (kind <= 0) {
-		i = gl518_read_value(new_client, GL518_REG_REVISION);
+		i = gl518_read_value(client, GL518_REG_REVISION);
 		if (i == 0x00) {
 			kind = gl518sm_r00;
 		} else if (i == 0x80) {
@@ -442,25 +435,24 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	/* Fill in the remaining client fields */
-	strlcpy(new_client->name, "gl518sm", I2C_NAME_SIZE);
+	strlcpy(client->name, "gl518sm", I2C_NAME_SIZE);
 	data->type = kind;
-	data->valid = 0;
 	mutex_init(&data->update_lock);
 
 	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(new_client)))
+	if ((err = i2c_attach_client(client)))
 		goto exit_free;
 
 	/* Initialize the GL518SM chip */
 	data->alarm_mask = 0xff;
 	data->voltage_in[0]=data->voltage_in[1]=data->voltage_in[2]=0;
-	gl518_init_client((struct i2c_client *) new_client);
+	gl518_init_client(client);
 
 	/* Register sysfs hooks */
-	if ((err = sysfs_create_group(&new_client->dev.kobj, &gl518_group)))
+	if ((err = sysfs_create_group(&client->dev.kobj, &gl518_group)))
 		goto exit_detach;
 
-	data->hwmon_dev = hwmon_device_register(&new_client->dev);
+	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
 		err = PTR_ERR(data->hwmon_dev);
 		goto exit_remove_files;
@@ -469,9 +461,9 @@ static int gl518_detect(struct i2c_adapter *adapter, int address, int kind)
 	return 0;
 
 exit_remove_files:
-	sysfs_remove_group(&new_client->dev.kobj, &gl518_group);
+	sysfs_remove_group(&client->dev.kobj, &gl518_group);
 exit_detach:
-	i2c_detach_client(new_client);
+	i2c_detach_client(client);
 exit_free:
 	kfree(data);
 exit:
@@ -512,9 +504,9 @@ static int gl518_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* Registers 0x07 to 0x0c are word-sized, others are byte-sized 
+/* Registers 0x07 to 0x0c are word-sized, others are byte-sized
    GL518 uses a high-byte first convention, which is exactly opposite to
-   the usual practice. */
+   the SMBus standard. */
 static int gl518_read_value(struct i2c_client *client, u8 reg)
 {
 	if ((reg >= 0x07) && (reg <= 0x0c))
@@ -523,9 +515,6 @@ static int gl518_read_value(struct i2c_client *client, u8 reg)
 		return i2c_smbus_read_byte_data(client, reg);
 }
 
-/* Registers 0x07 to 0x0c are word-sized, others are byte-sized 
-   GL518 uses a high-byte first convention, which is exactly opposite to
-   the usual practice. */
 static int gl518_write_value(struct i2c_client *client, u8 reg, u16 value)
 {
 	if ((reg >= 0x07) && (reg <= 0x0c))
