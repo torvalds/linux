@@ -1512,8 +1512,9 @@ quiet_cmd_depmod = DEPMOD  $(KERNELRELEASE)
 	fi
 
 # Create temporary dir for module support files
-cmd_crmodverdir = $(Q)mkdir -p $(MODVERDIR); rm -f $(MODVERDIR)/*
-
+# clean it up only when building all modules
+cmd_crmodverdir = $(Q)mkdir -p $(MODVERDIR) \
+                  $(if $(KBUILD_MODULES),; rm -f $(MODVERDIR)/*)
 
 a_flags = -Wp,-MD,$(depfile) $(KBUILD_AFLAGS) $(AFLAGS_KERNEL) \
 	  $(NOSTDINC_FLAGS) $(KBUILD_CPPFLAGS) \
