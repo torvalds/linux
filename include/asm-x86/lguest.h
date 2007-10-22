@@ -26,10 +26,9 @@ extern unsigned long default_idt_entries[];
 struct lguest_regs
 {
 	/* Manually saved part. */
-	unsigned long ebx, ecx, edx;
+	unsigned long eax, ebx, ecx, edx;
 	unsigned long esi, edi, ebp;
 	unsigned long gs;
-	unsigned long eax;
 	unsigned long fs, ds, es;
 	unsigned long trapnum, errcode;
 	/* Trap pushed part */

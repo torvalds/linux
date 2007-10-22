@@ -133,6 +133,7 @@ ENTRY(switch_to_guest)
 	// The Guest's register page has been mapped
 	// Writable onto our %esp (stack) --
 	// We can simply pop off all Guest regs.
+	popl	%eax
 	popl	%ebx
 	popl	%ecx
 	popl	%edx
@@ -140,7 +141,6 @@ ENTRY(switch_to_guest)
 	popl	%edi
 	popl	%ebp
 	popl	%gs
-	popl	%eax
 	popl	%fs
 	popl	%ds
 	popl	%es
@@ -168,7 +168,6 @@ ENTRY(switch_to_guest)
 	pushl	%es;							\
 	pushl	%ds;							\
 	pushl	%fs;							\
-	pushl	%eax;							\
 	pushl	%gs;							\
 	pushl	%ebp;							\
 	pushl	%edi;							\
@@ -176,6 +175,7 @@ ENTRY(switch_to_guest)
 	pushl	%edx;							\
 	pushl	%ecx;							\
 	pushl	%ebx;							\
+	pushl	%eax;							\
 	/* Our stack and our code are using segments			\
 	 * Set in the TSS and IDT					\
 	 * Yet if we were to touch data we'd use			\
