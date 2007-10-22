@@ -50,7 +50,7 @@ static struct mtd_partition cmbvr4133_mtd_parts[] = {
 	}
 };
 
-#define number_partitions (sizeof(cmbvr4133_mtd_parts)/sizeof(struct mtd_partition))
+#define number_partitions ARRAY_SIZE(cmbvr4133_mtd_parts)
 #endif
 
 extern void i8259_init(void);
