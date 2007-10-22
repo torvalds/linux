@@ -181,14 +181,14 @@ static void initialize(struct lguest *lg)
 	/* The Guest tells us where we're not to deliver interrupts by putting
 	 * the range of addresses into "struct lguest_data". */
 	if (get_user(lg->noirq_start, &lg->lguest_data->noirq_start)
-	    || get_user(lg->noirq_end, &lg->lguest_data->noirq_end)
-	    /* We tell the Guest that it can't use the top 4MB of virtual
-	     * addresses used by the Switcher. */
-	    || put_user(4U*1024*1024, &lg->lguest_data->reserve_mem))
+	    || get_user(lg->noirq_end, &lg->lguest_data->noirq_end))
 		kill_guest(lg, "bad guest page %p", lg->lguest_data);
 
 	/* We write the current time into the Guest's data page once now. */
 	write_timestamp(lg);
+
+	/* page_tables.c will also do some setup. */
+	page_table_guest_data_init(lg);
 
 	/* This is the one case where the above accesses might have been the
 	 * first write to a Guest page.  This may have caused a copy-on-write

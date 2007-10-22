@@ -62,8 +62,9 @@ static void push_guest_stack(struct lguest *lg, unsigned long *gstack, u32 val)
  * it). */
 static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 {
-	unsigned long gstack;
+	unsigned long gstack, origstack;
 	u32 eflags, ss, irq_enable;
+	unsigned long virtstack;
 
 	/* There are two cases for interrupts: one where the Guest is already
 	 * in the kernel, and a more complex one where the Guest is in
@@ -71,8 +72,10 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 	if ((lg->regs->ss&0x3) != GUEST_PL) {
 		/* The Guest told us their kernel stack with the SET_STACK
 		 * hypercall: both the virtual address and the segment */
-		gstack = guest_pa(lg, lg->esp1);
+		virtstack = lg->esp1;
 		ss = lg->ss1;
+
+		origstack = gstack = guest_pa(lg, virtstack);
 		/* We push the old stack segment and pointer onto the new
 		 * stack: when the Guest does an "iret" back from the interrupt
 		 * handler the CPU will notice they're dropping privilege
@@ -81,8 +84,10 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 		push_guest_stack(lg, &gstack, lg->regs->esp);
 	} else {
 		/* We're staying on the same Guest (kernel) stack. */
-		gstack = guest_pa(lg, lg->regs->esp);
+		virtstack = lg->regs->esp;
 		ss = lg->regs->ss;
+
+		origstack = gstack = guest_pa(lg, virtstack);
 	}
 
 	/* Remember that we never let the Guest actually disable interrupts, so
@@ -108,7 +113,7 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 	/* Now we've pushed all the old state, we change the stack, the code
 	 * segment and the address to execute. */
 	lg->regs->ss = ss;
-	lg->regs->esp = gstack + lg->page_offset;
+	lg->regs->esp = virtstack + (gstack - origstack);
 	lg->regs->cs = (__KERNEL_CS|GUEST_PL);
 	lg->regs->eip = idt_address(lo, hi);
 

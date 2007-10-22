@@ -216,9 +216,10 @@ static int emulate_insn(struct lguest *lg)
 	 * guest_pa just subtracts the Guest's page_offset. */
 	unsigned long physaddr = guest_pa(lg, lg->regs->eip);
 
-	/* The guest_pa() function only works for Guest kernel addresses, but
-	 * that's all we're trying to do anyway. */
-	if (lg->regs->eip < lg->page_offset)
+	/* This must be the Guest kernel trying to do something, not userspace!
+	 * The bottom two bits of the CS segment register are the privilege
+	 * level. */
+	if ((lg->regs->cs & 3) != GUEST_PL)
 		return 0;
 
 	/* Decoding x86 instructions is icky. */

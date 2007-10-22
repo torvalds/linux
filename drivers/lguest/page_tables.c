@@ -13,6 +13,7 @@
 #include <linux/random.h>
 #include <linux/percpu.h>
 #include <asm/tlbflush.h>
+#include <asm/uaccess.h>
 #include "lg.h"
 
 /*M:008 We hold reference to pages, which prevents them from being swapped.
@@ -345,7 +346,7 @@ static void flush_user_mappings(struct lguest *lg, int idx)
 {
 	unsigned int i;
 	/* Release every pgd entry up to the kernel's address. */
-	for (i = 0; i < pgd_index(lg->page_offset); i++)
+	for (i = 0; i < pgd_index(lg->kernel_address); i++)
 		release_pgd(lg, lg->pgdirs[idx].pgdir + i);
 }
 
@@ -357,6 +358,25 @@ void guest_pagetable_flush_user(struct lguest *lg)
 	flush_user_mappings(lg, lg->pgdidx);
 }
 /*:*/
+
+/* We walk down the guest page tables to get a guest-physical address */
+unsigned long guest_pa(struct lguest *lg, unsigned long vaddr)
+{
+	pgd_t gpgd;
+	pte_t gpte;
+
+	/* First step: get the top-level Guest page table entry. */
+	gpgd = __pgd(lgread_u32(lg, gpgd_addr(lg, vaddr)));
+	/* Toplevel not present?  We can't map it in. */
+	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
+		kill_guest(lg, "Bad address %#lx", vaddr);
+
+	gpte = __pte(lgread_u32(lg, gpte_addr(lg, gpgd, vaddr)));
+	if (!(pte_flags(gpte) & _PAGE_PRESENT))
+		kill_guest(lg, "Bad address %#lx", vaddr);
+
+	return pte_pfn(gpte) * PAGE_SIZE | (vaddr & ~PAGE_MASK);
+}
 
 /* We keep several page tables.  This is a simple routine to find the page
  * table (if any) corresponding to this top-level address the Guest has given
@@ -500,7 +520,7 @@ void guest_set_pte(struct lguest *lg,
 {
 	/* Kernel mappings must be changed on all top levels.  Slow, but
 	 * doesn't happen often. */
-	if (vaddr >= lg->page_offset) {
+	if (vaddr >= lg->kernel_address) {
 		unsigned int i;
 		for (i = 0; i < ARRAY_SIZE(lg->pgdirs); i++)
 			if (lg->pgdirs[i].pgdir)
@@ -550,11 +570,6 @@ void guest_set_pmd(struct lguest *lg, unsigned long gpgdir, u32 idx)
  * its first page table is.  We set some things up here: */
 int init_guest_pagetable(struct lguest *lg, unsigned long pgtable)
 {
-	/* In flush_user_mappings() we loop from 0 to
-	 * "pgd_index(lg->page_offset)".  This assumes it won't hit
-	 * the Switcher mappings, so check that now. */
-	if (pgd_index(lg->page_offset) >= SWITCHER_PGD_INDEX)
-		return -EINVAL;
 	/* We start on the first shadow page table, and give it a blank PGD
 	 * page. */
 	lg->pgdidx = 0;
@@ -563,6 +578,24 @@ int init_guest_pagetable(struct lguest *lg, unsigned long pgtable)
 	if (!lg->pgdirs[lg->pgdidx].pgdir)
 		return -ENOMEM;
 	return 0;
+}
+
+/* When the Guest calls LHCALL_LGUEST_INIT we do more setup. */
+void page_table_guest_data_init(struct lguest *lg)
+{
+	/* We get the kernel address: above this is all kernel memory. */
+	if (get_user(lg->kernel_address, &lg->lguest_data->kernel_address)
+	    /* We tell the Guest that it can't use the top 4MB of virtual
+	     * addresses used by the Switcher. */
+	    || put_user(4U*1024*1024, &lg->lguest_data->reserve_mem)
+	    || put_user(lg->pgdirs[lg->pgdidx].gpgdir,&lg->lguest_data->pgdir))
+		kill_guest(lg, "bad guest page %p", lg->lguest_data);
+
+	/* In flush_user_mappings() we loop from 0 to
+	 * "pgd_index(lg->kernel_address)".  This assumes it won't hit the
+	 * Switcher mappings, so check that now. */
+	if (pgd_index(lg->kernel_address) >= SWITCHER_PGD_INDEX)
+		kill_guest(lg, "bad kernel address %#lx", lg->kernel_address);
 }
 
 /* When a Guest dies, our cleanup is fairly simple. */

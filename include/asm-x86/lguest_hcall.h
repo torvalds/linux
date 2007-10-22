@@ -2,8 +2,6 @@
 #ifndef _X86_LGUEST_HCALL_H
 #define _X86_LGUEST_HCALL_H
 
-#include <asm/hw_irq.h>
-
 #define LHCALL_FLUSH_ASYNC	0
 #define LHCALL_LGUEST_INIT	1
 #define LHCALL_CRASH		2
@@ -36,6 +34,9 @@
  * definition of a gentleman: "someone who is only rude intentionally". */
 #define LGUEST_TRAP_ENTRY 0x1F
 
+#ifndef __ASSEMBLY__
+#include <asm/hw_irq.h>
+
 static inline unsigned long
 hcall(unsigned long call,
       unsigned long arg1, unsigned long arg2, unsigned long arg3)
@@ -66,4 +67,6 @@ struct hcall_args
 	/* These map directly onto eax, ebx, ecx, edx in struct lguest_regs */
 	unsigned long arg0, arg2, arg3, arg1;
 };
+
+#endif /* !__ASSEMBLY__ */
 #endif	/* _I386_LGUEST_HCALL_H */

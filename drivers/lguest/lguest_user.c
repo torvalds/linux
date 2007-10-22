@@ -111,7 +111,7 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	return run_guest(lg, (unsigned long __user *)user);
 }
 
-/*L:020 The initialization write supplies 5 pointer sized (32 or 64 bit)
+/*L:020 The initialization write supplies 4 pointer sized (32 or 64 bit)
  * values (in addition to the LHREQ_INITIALIZE value).  These are:
  *
  * base: The start of the Guest-physical memory inside the Launcher memory.
@@ -124,12 +124,6 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
  * pagetables (which are set up by the Launcher).
  *
  * start: The first instruction to execute ("eip" in x86-speak).
- *
- * page_offset: The PAGE_OFFSET constant in the Guest kernel.  We should
- * probably wean the code off this, but it's a very useful constant!  Any
- * address above this is within the Guest kernel, and any kernel address can
- * quickly converted from physical to virtual by adding PAGE_OFFSET.  It's
- * 0xC0000000 (3G) by default, but it's configurable at kernel build time.
  */
 static int initialize(struct file *file, const unsigned long __user *input)
 {
@@ -137,7 +131,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	 * Guest. */
 	struct lguest *lg;
 	int err;
-	unsigned long args[5];
+	unsigned long args[4];
 
 	/* We grab the Big Lguest lock, which protects against multiple
 	 * simultaneous initializations. */
@@ -162,7 +156,6 @@ static int initialize(struct file *file, const unsigned long __user *input)
 	/* Populate the easy fields of our "struct lguest" */
 	lg->mem_base = (void __user *)(long)args[0];
 	lg->pfn_limit = args[1];
-	lg->page_offset = args[4];
 
 	/* We need a complete page for the Guest registers: they are accessible
 	 * to the Guest and we can only grant it access to whole pages. */

@@ -63,7 +63,7 @@ struct lguest
 	/* This provides the offset to the base of guest-physical
 	 * memory in the Launcher. */
 	void __user *mem_base;
-	u32 page_offset;
+	unsigned long kernel_address;
 	u32 cr2;
 	int halted;
 	int ts;
@@ -165,6 +165,8 @@ void guest_set_pte(struct lguest *lg, unsigned long gpgdir,
 void map_switcher_in_guest(struct lguest *lg, struct lguest_pages *pages);
 int demand_page(struct lguest *info, unsigned long cr2, int errcode);
 void pin_page(struct lguest *lg, unsigned long vaddr);
+unsigned long guest_pa(struct lguest *lg, unsigned long vaddr);
+void page_table_guest_data_init(struct lguest *lg);
 
 /* <arch>/core.c: */
 void lguest_arch_host_init(void);
@@ -229,9 +231,5 @@ do {								\
 } while(0)
 /* (End of aside) :*/
 
-static inline unsigned long guest_pa(struct lguest *lg, unsigned long vaddr)
-{
-	return vaddr - lg->page_offset;
-}
 #endif	/* __ASSEMBLY__ */
 #endif	/* _LGUEST_H */

@@ -86,6 +86,7 @@ struct lguest_data lguest_data = {
 	.hcall_status = { [0 ... LHCALL_RING_SIZE-1] = 0xFF },
 	.noirq_start = (u32)lguest_noirq_start,
 	.noirq_end = (u32)lguest_noirq_end,
+	.kernel_address = PAGE_OFFSET,
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
 	.syscall_vec = SYSCALL_VECTOR,
 };
@@ -1033,11 +1034,7 @@ __init void lguest_init(void *boot)
 
 	/*G:070 Now we've seen all the paravirt_ops, we return to
 	 * lguest_init() where the rest of the fairly chaotic boot setup
-	 * occurs.
-	 *
-	 * The Host expects our first hypercall to tell it where our "struct
-	 * lguest_data" is, so we do that first. */
-	hcall(LHCALL_LGUEST_INIT, __pa(&lguest_data), 0, 0);
+	 * occurs. */
 
 	/* The native boot code sets up initial page tables immediately after
 	 * the kernel itself, and sets init_pg_tables_end so they're not

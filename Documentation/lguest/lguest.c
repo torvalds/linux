@@ -178,19 +178,16 @@ static void *get_pages(unsigned int num)
 /* To find out where to start we look for the magic Guest string, which marks
  * the code we see in lguest_asm.S.  This is a hack which we are currently
  * plotting to replace with the normal Linux entry point. */
-static unsigned long entry_point(const void *start, const void *end,
-				 unsigned long page_offset)
+static unsigned long entry_point(const void *start, const void *end)
 {
 	const void *p;
 
-	/* The scan gives us the physical starting address.  We want the
-	 * virtual address in this case, and fortunately, we already figured
-	 * out the physical-virtual difference and passed it here in
-	 * "page_offset". */
+	/* The scan gives us the physical starting address.  We boot with
+	 * pagetables set up with virtual and physical the same, so that's
+	 * OK. */
 	for (p = start; p < end; p++)
 		if (memcmp(p, "GenuineLguest", strlen("GenuineLguest")) == 0)
-			return to_guest_phys(p + strlen("GenuineLguest"))
-				+ page_offset;
+			return to_guest_phys(p + strlen("GenuineLguest"));
 
 	errx(1, "Is this image a genuine lguest?");
 }
@@ -224,14 +221,11 @@ static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
  * by all modern binaries on Linux including the kernel.
  *
  * The ELF headers give *two* addresses: a physical address, and a virtual
- * address.  The Guest kernel expects to be placed in memory at the physical
- * address, and the page tables set up so it will correspond to that virtual
- * address.  We return the difference between the virtual and physical
- * addresses in the "page_offset" pointer.
+ * address.  We use the physical address; the Guest will map itself to the
+ * virtual address.
  *
  * We return the starting address. */
-static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr,
-			     unsigned long *page_offset)
+static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
 {
 	void *start = (void *)-1, *end = NULL;
 	Elf32_Phdr phdr[ehdr->e_phnum];
@@ -255,9 +249,6 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr,
 	if (read(elf_fd, phdr, sizeof(phdr)) != sizeof(phdr))
 		err(1, "Reading program headers");
 
-	/* We don't know page_offset yet. */
-	*page_offset = 0;
-
 	/* Try all the headers: there are usually only three.  A read-only one,
 	 * a read-write one, and a "note" section which isn't loadable. */
 	for (i = 0; i < ehdr->e_phnum; i++) {
@@ -267,14 +258,6 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr,
 
 		verbose("Section %i: size %i addr %p\n",
 			i, phdr[i].p_memsz, (void *)phdr[i].p_paddr);
-
-		/* We expect a simple linear address space: every segment must
-		 * have the same difference between virtual (p_vaddr) and
-		 * physical (p_paddr) address. */
-		if (!*page_offset)
-			*page_offset = phdr[i].p_vaddr - phdr[i].p_paddr;
-		else if (*page_offset != phdr[i].p_vaddr - phdr[i].p_paddr)
-			errx(1, "Page offset of section %i different", i);
 
 		/* We track the first and last address we mapped, so we can
 		 * tell entry_point() where to scan. */
@@ -288,50 +271,13 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr,
 		       phdr[i].p_offset, phdr[i].p_filesz);
 	}
 
-	return entry_point(start, end, *page_offset);
-}
-
-/*L:170 Prepare to be SHOCKED and AMAZED.  And possibly a trifle nauseated.
- *
- * We know that CONFIG_PAGE_OFFSET sets what virtual address the kernel expects
- * to be.  We don't know what that option was, but we can figure it out
- * approximately by looking at the addresses in the code.  I chose the common
- * case of reading a memory location into the %eax register:
- *
- *  movl <some-address>, %eax
- *
- * This gets encoded as five bytes: "0xA1 <4-byte-address>".  For example,
- * "0xA1 0x18 0x60 0x47 0xC0" reads the address 0xC0476018 into %eax.
- *
- * In this example can guess that the kernel was compiled with
- * CONFIG_PAGE_OFFSET set to 0xC0000000 (it's always a round number).  If the
- * kernel were larger than 16MB, we might see 0xC1 addresses show up, but our
- * kernel isn't that bloated yet.
- *
- * Unfortunately, x86 has variable-length instructions, so finding this
- * particular instruction properly involves writing a disassembler.  Instead,
- * we rely on statistics.  We look for "0xA1" and tally the different bytes
- * which occur 4 bytes later (the "0xC0" in our example above).  When one of
- * those bytes appears three times, we can be reasonably confident that it
- * forms the start of CONFIG_PAGE_OFFSET.
- *
- * This is amazingly reliable. */
-static unsigned long intuit_page_offset(unsigned char *img, unsigned long len)
-{
-	unsigned int i, possibilities[256] = { 0 };
-
-	for (i = 0; i + 4 < len; i++) {
-		/* mov 0xXXXXXXXX,%eax */
-		if (img[i] == 0xA1 && ++possibilities[img[i+4]] > 3)
-			return (unsigned long)img[i+4] << 24;
-	}
-	errx(1, "could not determine page offset");
+	return entry_point(start, end);
 }
 
 /*L:160 Unfortunately the entire ELF image isn't compressed: the segments
  * which need loading are extracted and compressed raw.  This denies us the
  * information we need to make a fully-general loader. */
-static unsigned long unpack_bzimage(int fd, unsigned long *page_offset)
+static unsigned long unpack_bzimage(int fd)
 {
 	gzFile f;
 	int ret, len = 0;
@@ -352,12 +298,7 @@ static unsigned long unpack_bzimage(int fd, unsigned long *page_offset)
 
 	verbose("Unpacked size %i addr %p\n", len, img);
 
-	/* Without the ELF header, we can't tell virtual-physical gap.  This is
-	 * CONFIG_PAGE_OFFSET, and people do actually change it.  Fortunately,
-	 * I have a clever way of figuring it out from the code itself.  */
-	*page_offset = intuit_page_offset(img, len);
-
-	return entry_point(img, img + len, *page_offset);
+	return entry_point(img, img + len);
 }
 
 /*L:150 A bzImage, unlike an ELF file, is not meant to be loaded.  You're
@@ -368,7 +309,7 @@ static unsigned long unpack_bzimage(int fd, unsigned long *page_offset)
  * The bzImage is formed by putting the decompressing code in front of the
  * compressed kernel code.  So we can simple scan through it looking for the
  * first "gzip" header, and start decompressing from there. */
-static unsigned long load_bzimage(int fd, unsigned long *page_offset)
+static unsigned long load_bzimage(int fd)
 {
 	unsigned char c;
 	int state = 0;
@@ -396,7 +337,7 @@ static unsigned long load_bzimage(int fd, unsigned long *page_offset)
 			if (c != 0x03)
 				state = -1;
 			else
-				return unpack_bzimage(fd, page_offset);
+				return unpack_bzimage(fd);
 		}
 	}
 	errx(1, "Could not find kernel in bzImage");
@@ -405,7 +346,7 @@ static unsigned long load_bzimage(int fd, unsigned long *page_offset)
 /*L:140 Loading the kernel is easy when it's a "vmlinux", but most kernels
  * come wrapped up in the self-decompressing "bzImage" format.  With some funky
  * coding, we can load those, too. */
-static unsigned long load_kernel(int fd, unsigned long *page_offset)
+static unsigned long load_kernel(int fd)
 {
 	Elf32_Ehdr hdr;
 
@@ -415,10 +356,10 @@ static unsigned long load_kernel(int fd, unsigned long *page_offset)
 
 	/* If it's an ELF file, it starts with "\177ELF" */
 	if (memcmp(hdr.e_ident, ELFMAG, SELFMAG) == 0)
-		return map_elf(fd, &hdr, page_offset);
+		return map_elf(fd, &hdr);
 
 	/* Otherwise we assume it's a bzImage, and try to unpack it */
-	return load_bzimage(fd, page_offset);
+	return load_bzimage(fd);
 }
 
 /* This is a trivial little helper to align pages.  Andi Kleen hated it because
@@ -463,27 +404,20 @@ static unsigned long load_initrd(const char *name, unsigned long mem)
 	return len;
 }
 
-/* Once we know the address the Guest kernel expects, we can construct simple
- * linear page tables for all of memory which will get the Guest far enough
+/* Once we know how much memory we have, we can construct simple linear page
+ * tables which set virtual == physical which will get the Guest far enough
  * into the boot to create its own.
  *
  * We lay them out of the way, just below the initrd (which is why we need to
  * know its size). */
 static unsigned long setup_pagetables(unsigned long mem,
-				      unsigned long initrd_size,
-				      unsigned long page_offset)
+				      unsigned long initrd_size)
 {
 	unsigned long *pgdir, *linear;
 	unsigned int mapped_pages, i, linear_pages;
 	unsigned int ptes_per_page = getpagesize()/sizeof(void *);
 
-	/* Ideally we map all physical memory starting at page_offset.
-	 * However, if page_offset is 0xC0000000 we can only map 1G of physical
-	 * (0xC0000000 + 1G overflows). */
-	if (mem <= -page_offset)
-		mapped_pages = mem/getpagesize();
-	else
-		mapped_pages = -page_offset/getpagesize();
+	mapped_pages = mem/getpagesize();
 
 	/* Each PTE page can map ptes_per_page pages: how many do we need? */
 	linear_pages = (mapped_pages + ptes_per_page-1)/ptes_per_page;
@@ -500,11 +434,9 @@ static unsigned long setup_pagetables(unsigned long mem,
 	for (i = 0; i < mapped_pages; i++)
 		linear[i] = ((i * getpagesize()) | PAGE_PRESENT);
 
-	/* The top level points to the linear page table pages above.  The
-	 * entry representing page_offset points to the first one, and they
-	 * continue from there. */
+	/* The top level points to the linear page table pages above. */
 	for (i = 0; i < mapped_pages; i += ptes_per_page) {
-		pgdir[(i + page_offset/getpagesize())/ptes_per_page]
+		pgdir[i/ptes_per_page]
 			= ((to_guest_phys(linear) + i*sizeof(void *))
 			   | PAGE_PRESENT);
 	}
@@ -535,15 +467,12 @@ static void concat(char *dst, char *args[])
 /* This is where we actually tell the kernel to initialize the Guest.  We saw
  * the arguments it expects when we looked at initialize() in lguest_user.c:
  * the base of guest "physical" memory, the top physical page to allow, the
- * top level pagetable, the entry point and the page_offset constant for the
- * Guest. */
-static int tell_kernel(unsigned long pgdir, unsigned long start,
-		       unsigned long page_offset)
+ * top level pagetable and the entry point for the Guest. */
+static int tell_kernel(unsigned long pgdir, unsigned long start)
 {
 	unsigned long args[] = { LHREQ_INITIALIZE,
 				 (unsigned long)guest_base,
-				 guest_limit / getpagesize(),
-				 pgdir, start, page_offset };
+				 guest_limit / getpagesize(), pgdir, start };
 	int fd;
 
 	verbose("Guest: %p - %p (%#lx)\n",
@@ -1424,9 +1353,9 @@ static void usage(void)
 /*L:105 The main routine is where the real work begins: */
 int main(int argc, char *argv[])
 {
-	/* Memory, top-level pagetable, code startpoint, PAGE_OFFSET and size
-	 * of the (optional) initrd. */
-	unsigned long mem = 0, pgdir, start, page_offset, initrd_size = 0;
+	/* Memory, top-level pagetable, code startpoint and size of the
+	 * (optional) initrd. */
+	unsigned long mem = 0, pgdir, start, initrd_size = 0;
 	/* A temporary and the /dev/lguest file descriptor. */
 	int i, c, lguest_fd;
 	/* The list of Guest devices, based on command line arguments. */
@@ -1500,8 +1429,7 @@ int main(int argc, char *argv[])
 	setup_console(&device_list);
 
 	/* Now we load the kernel */
-	start = load_kernel(open_or_die(argv[optind+1], O_RDONLY),
-			    &page_offset);
+	start = load_kernel(open_or_die(argv[optind+1], O_RDONLY));
 
 	/* Boot information is stashed at physical address 0 */
 	boot = from_guest_phys(0);
@@ -1518,7 +1446,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Set up the initial linear pagetables, starting below the initrd. */
-	pgdir = setup_pagetables(mem, initrd_size, page_offset);
+	pgdir = setup_pagetables(mem, initrd_size);
 
 	/* The Linux boot header contains an "E820" memory map: ours is a
 	 * simple, single region. */
@@ -1535,7 +1463,7 @@ int main(int argc, char *argv[])
 
 	/* We tell the kernel to initialize the Guest: this returns the open
 	 * /dev/lguest file descriptor. */
-	lguest_fd = tell_kernel(pgdir, start, page_offset);
+	lguest_fd = tell_kernel(pgdir, start);
 
 	/* We fork off a child process, which wakes the Launcher whenever one
 	 * of the input file descriptors needs attention.  Otherwise we would
