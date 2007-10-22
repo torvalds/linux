@@ -425,7 +425,6 @@ static void flash_exit(struct onenand_flash *flash)
 {
 	vfree(ONENAND_CORE(flash));
 	kfree(flash->base);
-	kfree(flash);
 }
 
 static int __init onenand_sim_init(void)
