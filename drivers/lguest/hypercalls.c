@@ -83,7 +83,7 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 		guest_set_stack(lg, args->arg1, args->arg2, args->arg3);
 		break;
 	case LHCALL_SET_PTE:
-		guest_set_pte(lg, args->arg1, args->arg2, mkgpte(args->arg3));
+		guest_set_pte(lg, args->arg1, args->arg2, __pte(args->arg3));
 		break;
 	case LHCALL_SET_PMD:
 		guest_set_pmd(lg, args->arg1, args->arg2);
