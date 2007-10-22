@@ -567,12 +567,13 @@ static void tuner_status(struct dvb_frontend *fe)
 		if (tuner_status & TUNER_STATUS_STEREO)
 			tuner_info("Stereo:          yes\n");
 	}
-	if ((ops) && (ops->has_signal)) {
-		tuner_info("Signal strength: %d\n", ops->has_signal(fe));
-	}
-	if ((ops) && (ops->is_stereo)) {
-		tuner_info("Stereo:          %s\n", ops->is_stereo(fe) ?
-			   "yes" : "no");
+	if (ops) {
+		if (ops->has_signal)
+			tuner_info("Signal strength: %d\n",
+				   ops->has_signal(fe));
+		if (ops->is_stereo)
+			tuner_info("Stereo:          %s\n",
+				   ops->is_stereo(fe) ? "yes" : "no");
 	}
 }
 
