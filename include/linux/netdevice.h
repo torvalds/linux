@@ -834,7 +834,7 @@ static inline int dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 				  const void *daddr, const void *saddr,
 				  unsigned len)
 {
-	if (!dev->header_ops)
+	if (!dev->header_ops || !dev->header_ops->create)
 		return 0;
 
 	return dev->header_ops->create(skb, dev, type, daddr, saddr, len);
