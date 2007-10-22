@@ -225,9 +225,7 @@ static void initialize(struct lguest *lg)
 	    /* We tell the Guest that it can't use the top 4MB of virtual
 	     * addresses used by the Switcher. */
 	    || put_user(4U*1024*1024, &lg->lguest_data->reserve_mem)
-	    || put_user(tsc_speed, &lg->lguest_data->tsc_khz)
-	    /* We also give the Guest a unique id, as used in lguest_net.c. */
-	    || put_user(lg->guestid, &lg->lguest_data->guestid))
+	    || put_user(tsc_speed, &lg->lguest_data->tsc_khz))
 		kill_guest(lg, "bad guest page %p", lg->lguest_data);
 
 	/* We write the current time into the Guest's data page once now. */

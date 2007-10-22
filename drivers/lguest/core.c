@@ -47,10 +47,6 @@ static struct {
 DEFINE_MUTEX(lguest_lock);
 static DEFINE_PER_CPU(struct lguest *, last_guest);
 
-/* FIXME: Make dynamic. */
-#define MAX_LGUEST_GUESTS 16
-struct lguest lguests[MAX_LGUEST_GUESTS];
-
 /* Offset from where switcher.S was compiled to where we've copied it */
 static unsigned long switcher_offset(void)
 {
@@ -660,16 +656,6 @@ int run_guest(struct lguest *lg, unsigned long __user *user)
  * deliver_trap() and demand_page().  After all those, we'll be ready to
  * examine the Switcher, and our philosophical understanding of the Host/Guest
  * duality will be complete. :*/
-
-int find_free_guest(void)
-{
-	unsigned int i;
-	for (i = 0; i < MAX_LGUEST_GUESTS; i++)
-		if (!lguests[i].tsk)
-			return i;
-	return -1;
-}
-
 static void adjust_pge(void *on)
 {
 	if (on)

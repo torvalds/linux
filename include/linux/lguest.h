@@ -41,8 +41,6 @@ struct lguest_data
 /* Fields initialized by the Host at boot: */
 	/* Memory not to try to access */
 	unsigned long reserve_mem;
-	/* ID of this Guest (used by network driver to set ethernet address) */
-	u16 guestid;
 	/* KHz for the TSC clock. */
 	u32 tsc_khz;
 

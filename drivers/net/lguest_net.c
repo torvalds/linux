@@ -463,12 +463,7 @@ static int lguestnet_probe(struct lguest_device *lgdev)
 	/* Ethernet defaults with some changes */
 	ether_setup(dev);
 	dev->set_mac_address = NULL;
-
-	dev->dev_addr[0] = 0x02; /* set local assignment bit (IEEE802) */
-	dev->dev_addr[1] = 0x00;
-	memcpy(&dev->dev_addr[2], &lguest_data.guestid, 2);
-	dev->dev_addr[4] = 0x00;
-	dev->dev_addr[5] = 0x00;
+	random_ether_addr(dev->dev_addr);
 
 	dev->open = lguestnet_open;
 	dev->stop = lguestnet_close;

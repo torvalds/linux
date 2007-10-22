@@ -51,9 +51,9 @@ struct lguest_dma_info
 	struct list_head list;
 	union futex_key key;
 	unsigned long dmas;
+	struct lguest *owner;
 	u16 next_dma;
 	u16 num_dmas;
-	u16 guestid;
 	u8 interrupt; 	/* 0 when not registered */
 };
 
@@ -140,7 +140,6 @@ struct lguest
 	struct lguest_data __user *lguest_data;
 	struct task_struct *tsk;
 	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
-	u16 guestid;
 	u32 pfn_limit;
 	/* This provides the offset to the base of guest-physical
 	 * memory in the Launcher. */
@@ -195,7 +194,6 @@ struct lguest
 	DECLARE_BITMAP(irqs_pending, LGUEST_IRQS);
 };
 
-extern struct lguest lguests[];
 extern struct mutex lguest_lock;
 
 /* core.c: */
@@ -203,7 +201,6 @@ u32 lgread_u32(struct lguest *lg, unsigned long addr);
 void lgwrite_u32(struct lguest *lg, unsigned long addr, u32 val);
 void lgread(struct lguest *lg, void *buf, unsigned long addr, unsigned len);
 void lgwrite(struct lguest *lg, unsigned long, const void *buf, unsigned len);
-int find_free_guest(void);
 int lguest_address_ok(const struct lguest *lg,
 		      unsigned long addr, unsigned long len);
 int run_guest(struct lguest *lg, unsigned long __user *user);

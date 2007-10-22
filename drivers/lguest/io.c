@@ -212,7 +212,7 @@ int bind_dma(struct lguest *lg,
 			lg->dma[i].num_dmas = numdmas;
 			lg->dma[i].next_dma = 0;
 			lg->dma[i].key = key;
-			lg->dma[i].guestid = lg->guestid;
+			lg->dma[i].owner = lg;
 			lg->dma[i].interrupt = interrupt;
 
 			/* Now we add it to the hash table: the position
@@ -412,7 +412,7 @@ static int dma_transfer(struct lguest *srclg,
 
 	/* From the "struct lguest_dma_info" we found in the hash, grab the
 	 * Guest. */
-	dstlg = &lguests[dst->guestid];
+	dstlg = dst->owner;
 	/* Read in the source "struct lguest_dma" handed to SEND_DMA. */
 	lgread(srclg, &src_dma, udma, sizeof(src_dma));
 
@@ -506,8 +506,8 @@ again:
 		struct lguest_dma_info *i;
 		/* Look through the hash for other Guests. */
 		list_for_each_entry(i, &dma_hash[hash(&key)], list) {
-			/* Don't send to ourselves. */
-			if (i->guestid == lg->guestid)
+			/* Don't send to ourselves (would deadlock). */
+			if (i->owner->mm == lg->mm)
 				continue;
 			if (!key_eq(&key, &i->key))
 				continue;
@@ -594,7 +594,7 @@ unsigned long get_dma_buffer(struct lguest *lg,
 	 * send to its own Guest for the moment, so the entry must be for this
 	 * Guest) */
 	list_for_each_entry(i, &dma_hash[hash(&key)], list) {
-		if (key_eq(&key, &i->key) && i->guestid == lg->guestid) {
+		if (key_eq(&key, &i->key) && i->owner == lg) {
 			unsigned int j;
 			/* Look through the registered DMA array for an
 			 * available buffer. */

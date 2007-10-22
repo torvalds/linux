@@ -167,11 +167,11 @@ static int initialize(struct file *file, const u32 __user *input)
 	/* "struct lguest" contains everything we (the Host) know about a
 	 * Guest. */
 	struct lguest *lg;
-	int err, i;
+	int err;
 	u32 args[5];
 
-	/* We grab the Big Lguest lock, which protects the global array
-	 * "lguests" and multiple simultaneous initializations. */
+	/* We grab the Big Lguest lock, which protects against multiple
+	 * simultaneous initializations. */
 	mutex_lock(&lguest_lock);
 	/* You can't initialize twice!  Close the device and start again... */
 	if (file->private_data) {
@@ -184,18 +184,13 @@ static int initialize(struct file *file, const u32 __user *input)
 		goto unlock;
 	}
 
-	/* Find an unused guest. */
-	i = find_free_guest();
-	if (i < 0) {
-		err = -ENOSPC;
+	lg = kzalloc(sizeof(*lg), GFP_KERNEL);
+	if (!lg) {
+		err = -ENOMEM;
 		goto unlock;
 	}
-	/* OK, we have an index into the "lguest" array: "lg" is a convenient
-	 * pointer. */
-	lg = &lguests[i];
 
 	/* Populate the easy fields of our "struct lguest" */
-	lg->guestid = i;
 	lg->mem_base = (void __user *)(long)args[0];
 	lg->pfn_limit = args[1];
 	lg->page_offset = args[4];
