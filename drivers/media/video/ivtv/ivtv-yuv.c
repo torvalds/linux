@@ -39,19 +39,20 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 {
 	struct ivtv_dma_page_info y_dma;
 	struct ivtv_dma_page_info uv_dma;
-
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	u8 frame = yi->draw_frame;
+	struct yuv_frame_info *f = &yi->new_frame_info[frame];
 	int i;
 	int y_pages, uv_pages;
-	u8 frame = itv->yuv_info.draw_frame;
 	unsigned long y_buffer_offset, uv_buffer_offset;
 	int y_decode_height, uv_decode_height, y_size;
 
 	y_buffer_offset = IVTV_DECODER_OFFSET + yuv_offset[frame];
 	uv_buffer_offset = y_buffer_offset + IVTV_YUV_BUFFER_UV_OFFSET;
 
-	y_decode_height = uv_decode_height = args->src.height + args->src.top;
+	y_decode_height = uv_decode_height = f->src_h + f->src_x;
 
-	if (y_decode_height < 512-16)
+	if (f->offset_y)
 		y_buffer_offset += 720 * 16;
 
 	if (y_decode_height & 15)
@@ -106,13 +107,11 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 	ivtv_udma_fill_sg_array (dma, y_buffer_offset, uv_buffer_offset, y_size);
 
 	/* If we've offset the y plane, ensure top area is blanked */
-	if (args->src.height + args->src.top < 512-16) {
-		if (itv->yuv_info.blanking_dmaptr) {
-			dma->SGarray[dma->SG_length].size = cpu_to_le32(720*16);
-			dma->SGarray[dma->SG_length].src = cpu_to_le32(itv->yuv_info.blanking_dmaptr);
-			dma->SGarray[dma->SG_length].dst = cpu_to_le32(IVTV_DECODER_OFFSET + yuv_offset[frame]);
-			dma->SG_length++;
-		}
+	if (f->offset_y && itv->yuv_info.blanking_dmaptr) {
+		dma->SGarray[dma->SG_length].size = cpu_to_le32(720*16);
+		dma->SGarray[dma->SG_length].src = cpu_to_le32(itv->yuv_info.blanking_dmaptr);
+		dma->SGarray[dma->SG_length].dst = cpu_to_le32(IVTV_DECODER_OFFSET + yuv_offset[frame]);
+		dma->SG_length++;
 	}
 
 	/* Tag SG Array with Interrupt Bit */
@@ -387,7 +386,7 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *wi
 	}
 
 	/* What is the source video being treated as... */
-	if (itv->yuv_info.frame_interlaced) {
+	if (window->interlaced) {
 		IVTV_DEBUG_WARN("Source video: Interlaced\n");
 	}
 	else {
@@ -631,192 +630,142 @@ static void ivtv_yuv_handle_vertical(struct ivtv *itv, struct yuv_frame_info *wi
 }
 
 /* Modify the supplied coordinate information to fit the visible osd area */
-static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *window)
+static u32 ivtv_yuv_window_setup(struct ivtv *itv, struct yuv_frame_info *f)
 {
-	int osd_crop, lace_threshold;
+	struct yuv_frame_info *of = &itv->yuv_info.old_frame_info;
+	int osd_crop;
 	u32 osd_scale;
 	u32 yuv_update = 0;
 
-	lace_threshold = itv->yuv_info.lace_threshold;
-	if (lace_threshold < 0)
-		lace_threshold = itv->yuv_info.decode_height - 1;
-
-	/* Work out the lace settings */
-	switch (itv->yuv_info.lace_mode) {
-		case IVTV_YUV_MODE_PROGRESSIVE: /* Progressive mode */
-			itv->yuv_info.frame_interlaced = 0;
-			if (window->tru_h < 512 || (window->tru_h > 576 && window->tru_h < 1021))
-				window->interlaced_y = 0;
-			else
-				window->interlaced_y = 1;
-
-			if (window->tru_h < 1021 && (window->dst_h >= window->src_h /2))
-				window->interlaced_uv = 0;
-			else
-				window->interlaced_uv = 1;
-			break;
-
-		case IVTV_YUV_MODE_AUTO:
-			if (window->tru_h <= lace_threshold || window->tru_h > 576 || window->tru_w > 720){
-				itv->yuv_info.frame_interlaced = 0;
-				if ((window->tru_h < 512) ||
-				  (window->tru_h > 576 && window->tru_h < 1021) ||
-				  (window->tru_w > 720 && window->tru_h < 1021))
-					window->interlaced_y = 0;
-				else
-					window->interlaced_y = 1;
-
-				if (window->tru_h < 1021 && (window->dst_h >= window->src_h /2))
-					window->interlaced_uv = 0;
-				else
-					window->interlaced_uv = 1;
-			}
-			else {
-				itv->yuv_info.frame_interlaced = 1;
-				window->interlaced_y = 1;
-				window->interlaced_uv = 1;
-			}
-			break;
-
-			case IVTV_YUV_MODE_INTERLACED: /* Interlace mode */
-		default:
-			itv->yuv_info.frame_interlaced = 1;
-			window->interlaced_y = 1;
-			window->interlaced_uv = 1;
-			break;
-	}
-
 	/* Sorry, but no negative coords for src */
-	if (window->src_x < 0) window->src_x = 0;
-	if (window->src_y < 0) window->src_y = 0;
+	if (f->src_x < 0)
+		f->src_x = 0;
+	if (f->src_y < 0)
+		f->src_y = 0;
 
 	/* Can only reduce width down to 1/4 original size */
-	if ((osd_crop = window->src_w - ( 4 * window->dst_w )) > 0) {
-		window->src_x += osd_crop / 2;
-		window->src_w = (window->src_w - osd_crop) & ~3;
-		window->dst_w = window->src_w / 4;
-		window->dst_w += window->dst_w & 1;
+	if ((osd_crop = f->src_w - 4 * f->dst_w) > 0) {
+		f->src_x += osd_crop / 2;
+		f->src_w = (f->src_w - osd_crop) & ~3;
+		f->dst_w = f->src_w / 4;
+		f->dst_w += f->dst_w & 1;
 	}
 
 	/* Can only reduce height down to 1/4 original size */
-	if (window->src_h / window->dst_h >= 2) {
-		/* Overflow may be because we're running progressive, so force mode switch */
-		window->interlaced_y = 1;
+	if (f->src_h / f->dst_h >= 2) {
+		/* Overflow may be because we're running progressive,
+		   so force mode switch */
+		f->interlaced_y = 1;
 		/* Make sure we're still within limits for interlace */
-		if ((osd_crop = window->src_h - ( 4 * window->dst_h )) > 0) {
+		if ((osd_crop = f->src_h - 4 * f->dst_h) > 0) {
 			/* If we reach here we'll have to force the height. */
-			window->src_y += osd_crop / 2;
-			window->src_h = (window->src_h - osd_crop) & ~3;
-			window->dst_h = window->src_h / 4;
-			window->dst_h += window->dst_h & 1;
+			f->src_y += osd_crop / 2;
+			f->src_h = (f->src_h - osd_crop) & ~3;
+			f->dst_h = f->src_h / 4;
+			f->dst_h += f->dst_h & 1;
 		}
 	}
 
 	/* If there's nothing to safe to display, we may as well stop now */
-	if ((int)window->dst_w <= 2 || (int)window->dst_h <= 2 || (int)window->src_w <= 2 || (int)window->src_h <= 2) {
+	if ((int)f->dst_w <= 2 || (int)f->dst_h <= 2 ||
+		    (int)f->src_w <= 2 || (int)f->src_h <= 2) {
 		return IVTV_YUV_UPDATE_INVALID;
 	}
 
 	/* Ensure video remains inside OSD area */
-	osd_scale = (window->src_h << 16) / window->dst_h;
+	osd_scale = (f->src_h << 16) / f->dst_h;
 
-	if ((osd_crop = window->pan_y - window->dst_y) > 0) {
+	if ((osd_crop = f->pan_y - f->dst_y) > 0) {
 		/* Falls off the upper edge - crop */
-		window->src_y += (osd_scale * osd_crop) >> 16;
-		window->src_h -= (osd_scale * osd_crop) >> 16;
-		window->dst_h -= osd_crop;
-		window->dst_y = 0;
-	}
-	else {
-		window->dst_y -= window->pan_y;
+		f->src_y += (osd_scale * osd_crop) >> 16;
+		f->src_h -= (osd_scale * osd_crop) >> 16;
+		f->dst_h -= osd_crop;
+		f->dst_y = 0;
+	} else {
+		f->dst_y -= f->pan_y;
 	}
 
-	if ((osd_crop = window->dst_h + window->dst_y - window->vis_h) > 0) {
+	if ((osd_crop = f->dst_h + f->dst_y - f->vis_h) > 0) {
 		/* Falls off the lower edge - crop */
-		window->dst_h -= osd_crop;
-		window->src_h -= (osd_scale * osd_crop) >> 16;
+		f->dst_h -= osd_crop;
+		f->src_h -= (osd_scale * osd_crop) >> 16;
 	}
 
-	osd_scale = (window->src_w << 16) / window->dst_w;
+	osd_scale = (f->src_w << 16) / f->dst_w;
 
-	if ((osd_crop = window->pan_x - window->dst_x) > 0) {
+	if ((osd_crop = f->pan_x - f->dst_x) > 0) {
 		/* Fall off the left edge - crop */
-		window->src_x += (osd_scale * osd_crop) >> 16;
-		window->src_w -= (osd_scale * osd_crop) >> 16;
-		window->dst_w -= osd_crop;
-		window->dst_x = 0;
-	}
-	else {
-		window->dst_x -= window->pan_x;
+		f->src_x += (osd_scale * osd_crop) >> 16;
+		f->src_w -= (osd_scale * osd_crop) >> 16;
+		f->dst_w -= osd_crop;
+		f->dst_x = 0;
+	} else {
+		f->dst_x -= f->pan_x;
 	}
 
-	if ((osd_crop = window->dst_w + window->dst_x - window->vis_w) > 0) {
+	if ((osd_crop = f->dst_w + f->dst_x - f->vis_w) > 0) {
 		/* Falls off the right edge - crop */
-		window->dst_w -= osd_crop;
-		window->src_w -= (osd_scale * osd_crop) >> 16;
+		f->dst_w -= osd_crop;
+		f->src_w -= (osd_scale * osd_crop) >> 16;
 	}
 
 	/* The OSD can be moved. Track to it */
-	window->dst_x += itv->yuv_info.osd_x_offset;
-	window->dst_y += itv->yuv_info.osd_y_offset;
+	f->dst_x += itv->yuv_info.osd_x_offset;
+	f->dst_y += itv->yuv_info.osd_y_offset;
 
 	/* Width & height for both src & dst must be even.
 	   Same for coordinates. */
-	window->dst_w &= ~1;
-	window->dst_x &= ~1;
+	f->dst_w &= ~1;
+	f->dst_x &= ~1;
 
-	window->src_w += window->src_x & 1;
-	window->src_x &= ~1;
+	f->src_w += f->src_x & 1;
+	f->src_x &= ~1;
 
-	window->src_w &= ~1;
-	window->dst_w &= ~1;
+	f->src_w &= ~1;
+	f->dst_w &= ~1;
 
-	window->dst_h &= ~1;
-	window->dst_y &= ~1;
+	f->dst_h &= ~1;
+	f->dst_y &= ~1;
 
-	window->src_h += window->src_y & 1;
-	window->src_y &= ~1;
+	f->src_h += f->src_y & 1;
+	f->src_y &= ~1;
 
-	window->src_h &= ~1;
-	window->dst_h &= ~1;
+	f->src_h &= ~1;
+	f->dst_h &= ~1;
 
-	/* Due to rounding, we may have reduced the output size to <1/4 of the source
-	   Check again, but this time just resize. Don't change source coordinates */
-	if (window->dst_w < window->src_w / 4) {
-		window->src_w &= ~3;
-		window->dst_w = window->src_w / 4;
-		window->dst_w += window->dst_w & 1;
+	/* Due to rounding, we may have reduced the output size to <1/4 of
+	   the source. Check again, but this time just resize. Don't change
+	   source coordinates */
+	if (f->dst_w < f->src_w / 4) {
+		f->src_w &= ~3;
+		f->dst_w = f->src_w / 4;
+		f->dst_w += f->dst_w & 1;
 	}
-	if (window->dst_h < window->src_h / 4) {
-		window->src_h &= ~3;
-		window->dst_h = window->src_h / 4;
-		window->dst_h += window->dst_h & 1;
+	if (f->dst_h < f->src_h / 4) {
+		f->src_h &= ~3;
+		f->dst_h = f->src_h / 4;
+		f->dst_h += f->dst_h & 1;
 	}
 
 	/* Check again. If there's nothing to safe to display, stop now */
-	if ((int)window->dst_w <= 2 || (int)window->dst_h <= 2 || (int)window->src_w <= 2 || (int)window->src_h <= 2) {
+	if ((int)f->dst_w <= 2 || (int)f->dst_h <= 2 ||
+		    (int)f->src_w <= 2 || (int)f->src_h <= 2) {
 		return IVTV_YUV_UPDATE_INVALID;
 	}
 
 	/* Both x offset & width are linked, so they have to be done together */
-	if ((itv->yuv_info.old_frame_info.dst_w != window->dst_w) ||
-	    (itv->yuv_info.old_frame_info.src_w != window->src_w) ||
-	    (itv->yuv_info.old_frame_info.dst_x != window->dst_x) ||
-	    (itv->yuv_info.old_frame_info.src_x != window->src_x) ||
-	    (itv->yuv_info.old_frame_info.pan_x != window->pan_x) ||
-	    (itv->yuv_info.old_frame_info.vis_w != window->vis_w)) {
+	if ((of->dst_w != f->dst_w) || (of->src_w != f->src_w) ||
+		    (of->dst_x != f->dst_x) || (of->src_x != f->src_x) ||
+		    (of->pan_x != f->pan_x) || (of->vis_w != f->vis_w)) {
 		yuv_update |= IVTV_YUV_UPDATE_HORIZONTAL;
 	}
 
-	if ((itv->yuv_info.old_frame_info.src_h != window->src_h) ||
-	    (itv->yuv_info.old_frame_info.dst_h != window->dst_h) ||
-	    (itv->yuv_info.old_frame_info.dst_y != window->dst_y) ||
-	    (itv->yuv_info.old_frame_info.src_y != window->src_y) ||
-	    (itv->yuv_info.old_frame_info.pan_y != window->pan_y) ||
-	    (itv->yuv_info.old_frame_info.vis_h != window->vis_h) ||
-	    (itv->yuv_info.old_frame_info.lace_mode != window->lace_mode) ||
-	    (itv->yuv_info.old_frame_info.interlaced_y != window->interlaced_y) ||
-	    (itv->yuv_info.old_frame_info.interlaced_uv != window->interlaced_uv)) {
+	if ((of->src_h != f->src_h) || (of->dst_h != f->dst_h) ||
+		    (of->dst_y != f->dst_y) || (of->src_y != f->src_y) ||
+		    (of->pan_y != f->pan_y) || (of->vis_h != f->vis_h) ||
+		    (of->lace_mode != f->lace_mode) ||
+		    (of->interlaced_y != f->interlaced_y) ||
+		    (of->interlaced_uv != f->interlaced_uv)) {
 		yuv_update |= IVTV_YUV_UPDATE_VERTICAL;
 	}
 
@@ -826,22 +775,22 @@ static u32 ivtv_yuv_window_setup (struct ivtv *itv, struct yuv_frame_info *windo
 /* Update the scaling register to the requested value */
 void ivtv_yuv_work_handler (struct ivtv *itv)
 {
-	struct yuv_frame_info window;
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	struct yuv_frame_info f;
+	int frame = yi->update_frame;
 	u32 yuv_update;
 
-	int frame = itv->yuv_info.update_frame;
-
 /*	IVTV_DEBUG_YUV("Update yuv registers for frame %d\n",frame); */
-	memcpy(&window, &itv->yuv_info.new_frame_info[frame], sizeof (window));
+	f = yi->new_frame_info[frame];
 
 	/* Update the osd pan info */
-	window.pan_x = itv->yuv_info.osd_x_pan;
-	window.pan_y = itv->yuv_info.osd_y_pan;
-	window.vis_w = itv->yuv_info.osd_vis_w;
-	window.vis_h = itv->yuv_info.osd_vis_h;
+	f.pan_x = itv->yuv_info.osd_x_pan;
+	f.pan_y = itv->yuv_info.osd_y_pan;
+	f.vis_w = itv->yuv_info.osd_vis_w;
+	f.vis_h = itv->yuv_info.osd_vis_h;
 
 	/* Calculate the display window coordinates. Exit if nothing left */
-	if (!(yuv_update = ivtv_yuv_window_setup (itv, &window)))
+	if (!(yuv_update = ivtv_yuv_window_setup (itv, &f)))
 		return;
 
 	if (yuv_update & IVTV_YUV_UPDATE_INVALID) {
@@ -850,13 +799,12 @@ void ivtv_yuv_work_handler (struct ivtv *itv)
 		write_reg(0x00108080, 0x2898);
 
 		if (yuv_update & IVTV_YUV_UPDATE_HORIZONTAL)
-			ivtv_yuv_handle_horizontal(itv, &window);
+			ivtv_yuv_handle_horizontal(itv, &f);
 
 		if (yuv_update & IVTV_YUV_UPDATE_VERTICAL)
-			ivtv_yuv_handle_vertical(itv, &window);
+			ivtv_yuv_handle_vertical(itv, &f);
 	}
-
-	memcpy(&itv->yuv_info.old_frame_info, &window, sizeof (itv->yuv_info.old_frame_info));
+	yi->old_frame_info = f;
 }
 
 static void ivtv_yuv_init (struct ivtv *itv)
@@ -986,58 +934,98 @@ void ivtv_yuv_setup_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	u8 frame = yi->draw_frame;
+	u8 last_frame = (u8)(frame - 1) % IVTV_YUV_BUFFERS;
+	struct yuv_frame_info *nf = &yi->new_frame_info[frame];
+	struct yuv_frame_info *of = &yi->new_frame_info[last_frame];
+	int lace_threshold = yi->lace_threshold;
 
 	/* Preserve old update flag in case we're overwriting a queued frame */
-	int register_update = yi->new_frame_info[frame].update;
+	int update = nf->update;
 
 	/* Take a snapshot of the yuv coordinate information */
-	yi->new_frame_info[frame].src_x = args->src.left;
-	yi->new_frame_info[frame].src_y = args->src.top;
-	yi->new_frame_info[frame].src_w = args->src.width;
-	yi->new_frame_info[frame].src_h = args->src.height;
-	yi->new_frame_info[frame].dst_x = args->dst.left;
-	yi->new_frame_info[frame].dst_y = args->dst.top;
-	yi->new_frame_info[frame].dst_w = args->dst.width;
-	yi->new_frame_info[frame].dst_h = args->dst.height;
-	yi->new_frame_info[frame].tru_x = args->dst.left;
-	yi->new_frame_info[frame].tru_w = args->src_width;
-	yi->new_frame_info[frame].tru_h = args->src_height;
-
-	/* Snapshot field order */
-	yi->sync_field[frame] = yi->lace_sync_field;
+	nf->src_x = args->src.left;
+	nf->src_y = args->src.top;
+	nf->src_w = args->src.width;
+	nf->src_h = args->src.height;
+	nf->dst_x = args->dst.left;
+	nf->dst_y = args->dst.top;
+	nf->dst_w = args->dst.width;
+	nf->dst_h = args->dst.height;
+	nf->tru_x = args->dst.left;
+	nf->tru_w = args->src_width;
+	nf->tru_h = args->src_height;
 
 	/* Are we going to offset the Y plane */
-	if (args->src.height + args->src.top < 512-16)
-		yi->new_frame_info[frame].offset_y = 1;
-	else
-		yi->new_frame_info[frame].offset_y = 0;
+	nf->offset_y = (nf->tru_h + nf->src_x < 512 - 16) ? 1 : 0;
 
 	/* Snapshot the osd pan info */
-	yi->new_frame_info[frame].pan_x = yi->osd_x_pan;
-	yi->new_frame_info[frame].pan_y = yi->osd_y_pan;
-	yi->new_frame_info[frame].vis_w = yi->osd_vis_w;
-	yi->new_frame_info[frame].vis_h = yi->osd_vis_h;
+	nf->pan_x = yi->osd_x_pan;
+	nf->pan_y = yi->osd_y_pan;
+	nf->vis_w = yi->osd_vis_w;
+	nf->vis_h = yi->osd_vis_h;
 
-	yi->new_frame_info[frame].update = 0;
-	yi->new_frame_info[frame].interlaced_y = 0;
-	yi->new_frame_info[frame].interlaced_uv = 0;
-	yi->new_frame_info[frame].lace_mode = yi->lace_mode & IVTV_YUV_MODE_MASK;
+	nf->update = 0;
+	nf->interlaced_y = 0;
+	nf->interlaced_uv = 0;
+	nf->delay = 0;
+	nf->sync_field = 0;
+	nf->lace_mode = yi->lace_mode & IVTV_YUV_MODE_MASK;
 
-	if (memcmp(&yi->old_frame_info_args, &yi->new_frame_info[frame],
-					sizeof(yi->new_frame_info[frame]))) {
-		yi->old_frame_info_args = yi->new_frame_info[frame];
-		yi->new_frame_info[frame].update = 1;
+	if (lace_threshold < 0)
+		lace_threshold = yi->decode_height - 1;
+
+	/* Work out the lace settings */
+	switch (nf->lace_mode) {
+	case IVTV_YUV_MODE_PROGRESSIVE: /* Progressive mode */
+		nf->interlaced = 0;
+		if (nf->tru_h < 512 || (nf->tru_h > 576 && nf->tru_h < 1021))
+			nf->interlaced_y = 0;
+		else
+			nf->interlaced_y = 1;
+
+		if (nf->tru_h < 1021 && (nf->dst_h >= nf->src_h / 2))
+			nf->interlaced_uv = 0;
+		else
+			nf->interlaced_uv = 1;
+		break;
+
+	case IVTV_YUV_MODE_AUTO:
+		if (nf->tru_h <= lace_threshold || nf->tru_h > 576 || nf->tru_w > 720) {
+			nf->interlaced = 0;
+			if ((nf->tru_h < 512) ||
+				 (nf->tru_h > 576 && nf->tru_h < 1021) ||
+				 (nf->tru_w > 720 && nf->tru_h < 1021))
+				nf->interlaced_y = 0;
+			else
+				nf->interlaced_y = 1;
+			if (nf->tru_h < 1021 && (nf->dst_h >= nf->src_h / 2))
+				nf->interlaced_uv = 0;
+			else
+				nf->interlaced_uv = 1;
+		} else {
+			nf->interlaced = 1;
+			nf->interlaced_y = 1;
+			nf->interlaced_uv = 1;
+		}
+		break;
+
+	case IVTV_YUV_MODE_INTERLACED: /* Interlace mode */
+	default:
+		nf->interlaced = 1;
+		nf->interlaced_y = 1;
+		nf->interlaced_uv = 1;
+		break;
+	}
+
+	if (memcmp(&yi->old_frame_info_args, nf, sizeof(*nf))) {
+		yi->old_frame_info_args = *nf;
+		nf->update = 1;
 /* IVTV_DEBUG_YUV ("Requesting register update for frame %d\n",frame); */
 	}
 
-	yi->new_frame_info[frame].update |= register_update;
-
-	/* Should this frame be delayed ? */
-	if (yi->sync_field[frame] !=
-				yi->sync_field[(frame - 1) % IVTV_YUV_BUFFERS])
-		yi->field_delay[frame] = 1;
-	else
-		yi->field_delay[frame] = 0;
+	nf->update |= update;
+	nf->sync_field = yi->lace_sync_field;
+	nf->delay = nf->sync_field != of->sync_field;
 }
 
 /* Frame is complete & ready for display */
