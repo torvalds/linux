@@ -731,7 +731,7 @@ static struct trans_ctl_table trans_net_table[] = {
 	{ NET_UNIX,		"unix",		trans_net_unix_table },
 	{ NET_IPV4,		"ipv4",		trans_net_ipv4_table },
 	{ NET_IPX,		"ipx",		trans_net_ipx_table },
-	{ NET_ATALK,		"atalk",	trans_net_atalk_table },
+	{ NET_ATALK,		"appletalk",	trans_net_atalk_table },
 	{ NET_NETROM,		"netrom",	trans_net_netrom_table },
 	{ NET_AX25,		"ax25",		trans_net_ax25_table },
 	{ NET_BRIDGE,		"bridge",	trans_net_bridge_table },
