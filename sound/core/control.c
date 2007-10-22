@@ -93,15 +93,16 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 
 static void snd_ctl_empty_read_queue(struct snd_ctl_file * ctl)
 {
+	unsigned long flags;
 	struct snd_kctl_event *cread;
 	
-	spin_lock(&ctl->read_lock);
+	spin_lock_irqsave(&ctl->read_lock, flags);
 	while (!list_empty(&ctl->events)) {
 		cread = snd_kctl_event(ctl->events.next);
 		list_del(&cread->list);
 		kfree(cread);
 	}
-	spin_unlock(&ctl->read_lock);
+	spin_unlock_irqrestore(&ctl->read_lock, flags);
 }
 
 static int snd_ctl_release(struct inode *inode, struct file *file)
