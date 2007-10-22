@@ -65,4 +65,9 @@ at32_add_device_ide(unsigned int id, unsigned int extint,
 struct platform_device *
 at32_add_device_ssc(unsigned int id, unsigned int flags);
 
+struct platform_device *at32_add_device_twi(unsigned int id);
+struct platform_device *at32_add_device_mci(unsigned int id);
+struct platform_device *at32_add_device_ac97c(unsigned int id);
+struct platform_device *at32_add_device_abdac(unsigned int id);
+
 #endif /* __ASM_ARCH_BOARD_H */
