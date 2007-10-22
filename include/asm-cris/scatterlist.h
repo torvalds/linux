@@ -2,6 +2,9 @@
 #define __ASM_CRIS_SCATTERLIST_H
 
 struct scatterlist {
+#ifdef CONFIG_DEBUG_SG
+	unsigned long sg_magic;
+#endif
 	char *  address;    /* Location data is to be transferred to */
 	unsigned int length;
 

@@ -23,6 +23,8 @@
  *
  */
 
+#define SG_MAGIC	0x87654321
+
 /**
  * sg_set_page - Set sg entry to point at given page
  * @sg:		 SG entry
@@ -39,6 +41,9 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page)
 {
 	unsigned long page_link = sg->page_link & 0x3;
 
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+#endif
 	sg->page_link = page_link | (unsigned long) page;
 }
 
@@ -81,6 +86,9 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
  **/
 static inline struct scatterlist *sg_next(struct scatterlist *sg)
 {
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+#endif
 	if (sg_is_last(sg))
 		return NULL;
 
@@ -123,6 +131,10 @@ static inline struct scatterlist *sg_last(struct scatterlist *sgl,
 	for_each_sg(sgl, sg, nents, i)
 		ret = sg;
 
+#endif
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sgl[0].sg_magic != SG_MAGIC);
+	BUG_ON(!sg_is_last(ret));
 #endif
 	return ret;
 }
@@ -180,6 +192,9 @@ static inline void sg_init_one(struct scatterlist *sg, const void *buf,
 			       unsigned int buflen)
 {
 	memset(sg, 0, sizeof(*sg));
+#ifdef CONFIG_DEBUG_SG
+	sg->sg_magic = SG_MAGIC;
+#endif
 	sg_mark_end(sg, 1);
 	sg_set_buf(sg, buf, buflen);
 }
@@ -198,6 +213,13 @@ static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
 {
 	memset(sgl, 0, sizeof(*sgl) * nents);
 	sg_mark_end(sgl, nents);
+#ifdef CONFIG_DEBUG_SG
+	{
+		int i;
+		for (i = 0; i < nents; i++)
+			sgl[i].sg_magic = SG_MAGIC;
+	}
+#endif
 }
 
 /**

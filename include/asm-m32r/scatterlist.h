@@ -4,6 +4,9 @@
 #include <asm/types.h>
 
 struct scatterlist {
+#ifdef CONFIG_DEBUG_SG
+    unsigned long sg_magic;
+#endif
     char *  address;    /* Location data is to be transferred to, NULL for
                          * highmem page */
     unsigned long page_link;
