@@ -93,4 +93,6 @@ source "drivers/auxdisplay/Kconfig"
 source "drivers/kvm/Kconfig"
 
 source "drivers/uio/Kconfig"
+
+source "drivers/virtio/Kconfig"
 endmenu

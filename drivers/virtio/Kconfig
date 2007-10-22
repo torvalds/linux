@@ -1,0 +1,3 @@
+# Virtio always gets selected by whoever wants it.
+config VIRTIO
+	bool
