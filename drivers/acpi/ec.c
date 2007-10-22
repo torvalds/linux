@@ -173,12 +173,17 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 			return 0;
 		clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 		if (acpi_ec_check_status(ec, event)) {
-			if (event == ACPI_EC_EVENT_OBF_1)
+			if (event == ACPI_EC_EVENT_OBF_1) {
 				/* miss OBF = 1 GPE, don't expect it anymore */
+				printk(KERN_INFO PREFIX "missing OBF_1 confirmation,"
+					"switching to degraded mode.\n");
 				set_bit(EC_FLAGS_ONLY_IBF_GPE, &ec->flags);
-			else
+			} else {
 				/* missing GPEs, switch back to poll mode */
+				printk(KERN_INFO PREFIX "missing IBF_1 confirmations,"
+					"switch off interrupt mode.\n");
 				clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
+			}
 			return 0;
 		}
 	} else {
@@ -491,8 +496,12 @@ static u32 acpi_ec_gpe_handler(void *data)
 		if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
 			status = acpi_os_execute(OSL_EC_BURST_HANDLER,
 				acpi_ec_gpe_query, ec);
-	} else if (unlikely(!test_bit(EC_FLAGS_GPE_MODE, &ec->flags)))
+	} else if (unlikely(!test_bit(EC_FLAGS_GPE_MODE, &ec->flags))) {
+		/* this is non-query, must be confirmation */
+		printk(KERN_INFO PREFIX "non-query interrupt received,"
+			" switching to interrupt mode\n");
 		set_bit(EC_FLAGS_GPE_MODE, &ec->flags);
+	}
 
 	return ACPI_SUCCESS(status) ?
 	    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
@@ -740,6 +749,8 @@ static int acpi_ec_add(struct acpi_device *device)
 	acpi_ec_add_fs(device);
 	printk(KERN_INFO PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
 			  ec->gpe, ec->command_addr, ec->data_addr);
+	printk(KERN_INFO PREFIX "driver started in %s mode\n",
+		(test_bit(EC_FLAGS_GPE_MODE, &ec->flags))?"interrupt":"poll");
 	return 0;
 }
 
