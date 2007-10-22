@@ -1,5 +1,5 @@
-# Guest requires the paravirt_ops replacement and the bus driver.
-obj-$(CONFIG_LGUEST_GUEST) += lguest.o lguest_asm.o lguest_bus.o
+# Guest requires the bus driver.
+obj-$(CONFIG_LGUEST_GUEST) += lguest_bus.o
 
 # Host requires the other files, which can be a module.
 obj-$(CONFIG_LGUEST)	+= lg.o

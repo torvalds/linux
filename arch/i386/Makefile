@@ -99,6 +99,9 @@ core-$(CONFIG_X86_ES7000)	:= arch/x86/mach-es7000/
 # Xen paravirtualization support
 core-$(CONFIG_XEN)		+= arch/x86/xen/
 
+# lguest paravirtualization support
+core-$(CONFIG_LGUEST_GUEST)	+= arch/x86/lguest/
+
 # default subarch .h files
 mflags-y += -Iinclude/asm-x86/mach-default
 

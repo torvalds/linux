@@ -257,14 +257,8 @@ config VMI
 	  at the moment), by linking the kernel to a GPL-ed ROM module
 	  provided by the hypervisor.
 
-config LGUEST_GUEST
-	bool "Lguest guest support"
-	select PARAVIRT
-	depends on !X86_PAE
-	help
-	  Lguest is a tiny in-kernel hypervisor.  Selecting this will
-	  allow your kernel to boot under lguest.  This option will increase
-	  your kernel size by about 6k.  If in doubt, say N.
+source "arch/x86/lguest/Kconfig"
+
 endif
 
 config ACPI_SRAT

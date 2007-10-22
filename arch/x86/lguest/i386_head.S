@@ -16,7 +16,7 @@
 .section .init.text, "ax", @progbits
 .ascii "GenuineLguest"
 	/* Set up initial stack. */
- 	movl $(init_thread_union+THREAD_SIZE),%esp
+	movl $(init_thread_union+THREAD_SIZE),%esp
 	movl %esi, %eax
 	addl $__PAGE_OFFSET, %eax
 	jmp lguest_init
