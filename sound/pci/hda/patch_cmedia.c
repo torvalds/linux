@@ -50,7 +50,7 @@ struct cmi_spec {
 
 	/* playback */
 	struct hda_multi_out multiout;
-	hda_nid_t dac_nids[4];		/* NID for each DAC */
+	hda_nid_t dac_nids[AUTO_CFG_MAX_OUTS];	/* NID for each DAC */
 	int num_dacs;
 
 	/* capture */
@@ -73,7 +73,6 @@ struct cmi_spec {
 	unsigned int pin_def_confs;
 
 	/* multichannel pins */
-	hda_nid_t multich_pin[4];	/* max 8-channel */
 	struct hda_verb multi_init[9];	/* 2 verbs for each pin + terminator */
 };
 

@@ -72,7 +72,7 @@ struct ad198x_spec {
 	unsigned int num_kctl_alloc, num_kctl_used;
 	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
-	hda_nid_t private_dac_nids[4];
+	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 	unsigned int jack_present :1;
 

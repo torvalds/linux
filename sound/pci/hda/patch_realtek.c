@@ -238,7 +238,7 @@ struct alc_spec {
 	unsigned int num_kctl_alloc, num_kctl_used;
 	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
-	hda_nid_t private_dac_nids[5];
+	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 	/* hooks */
 	void (*init_hook)(struct hda_codec *codec);
