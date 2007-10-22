@@ -44,32 +44,6 @@ struct lguest_dma
 };
 /*:*/
 
-/*D:460 This is the layout of a block device memory page.  The Launcher sets up
- * the num_sectors initially to tell the Guest the size of the disk.  The Guest
- * puts the type, sector and length of the request in the first three fields,
- * then DMAs to the Host.  The Host processes the request, sets up the result,
- * then DMAs back to the Guest. */
-struct lguest_block_page
-{
-	/* 0 is a read, 1 is a write. */
-	int type;
-	__u32 sector; 	/* Offset in device = sector * 512. */
-	__u32 bytes;	/* Length expected to be read/written in bytes */
-	/* 0 = pending, 1 = done, 2 = done, error */
-	int result;
-	__u32 num_sectors; /* Disk length = num_sectors * 512 */
-};
-
-/*D:520 The network device is basically a memory page where all the Guests on
- * the network publish their MAC (ethernet) addresses: it's an array of "struct
- * lguest_net": */
-struct lguest_net
-{
-	/* Simply the mac address (with multicast bit meaning promisc). */
-	unsigned char mac[6];
-};
-/*:*/
-
 /* Where the Host expects the Guest to SEND_DMA console output to. */
 #define LGUEST_CONSOLE_DMA_KEY 0
 

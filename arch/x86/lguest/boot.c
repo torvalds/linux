@@ -55,7 +55,6 @@
 #include <linux/clockchips.h>
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
-#include <linux/lguest_bus.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
 #include <asm/page.h>
@@ -161,46 +160,6 @@ void async_hcall(unsigned long call,
 	local_irq_restore(flags);
 }
 /*:*/
-
-/* Wrappers for the SEND_DMA and BIND_DMA hypercalls.  This is mainly because
- * Jeff Garzik complained that __pa() should never appear in drivers, and this
- * helps remove most of them.   But also, it wraps some ugliness. */
-void lguest_send_dma(unsigned long key, struct lguest_dma *dma)
-{
-	/* The hcall might not write this if something goes wrong */
-	dma->used_len = 0;
-	hcall(LHCALL_SEND_DMA, key, __pa(dma), 0);
-}
-
-int lguest_bind_dma(unsigned long key, struct lguest_dma *dmas,
-		    unsigned int num, u8 irq)
-{
-	/* This is the only hypercall which actually wants 5 arguments, and we
-	 * only support 4.  Fortunately the interrupt number is always less
-	 * than 256, so we can pack it with the number of dmas in the final
-	 * argument.  */
-	if (!hcall(LHCALL_BIND_DMA, key, __pa(dmas), (num << 8) | irq))
-		return -ENOMEM;
-	return 0;
-}
-
-/* Unbinding is the same hypercall as binding, but with 0 num & irq. */
-void lguest_unbind_dma(unsigned long key, struct lguest_dma *dmas)
-{
-	hcall(LHCALL_BIND_DMA, key, __pa(dmas), 0);
-}
-
-/* For guests, device memory can be used as normal memory, so we cast away the
- * __iomem to quieten sparse. */
-void *lguest_map(unsigned long phys_addr, unsigned long pages)
-{
-	return (__force void *)ioremap(phys_addr, PAGE_SIZE*pages);
-}
-
-void lguest_unmap(void *addr)
-{
-	iounmap((__force void __iomem *)addr);
-}
 
 /*G:033
  * Here are our first native-instruction replacements: four functions for
