@@ -2977,11 +2977,7 @@ static int selinux_task_prctl(int option,
 
 static int selinux_task_wait(struct task_struct *p)
 {
-	u32 perm;
-
-	perm = signal_to_av(p->exit_signal);
-
-	return task_has_perm(p, current, perm);
+	return task_has_perm(p, current, PROCESS__SIGCHLD);
 }
 
 static void selinux_task_reparent_to_init(struct task_struct *p)
