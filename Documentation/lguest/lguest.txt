@@ -69,7 +69,7 @@ Running Lguest:
 
 - Run an lguest as root:
 
-      Documentation/lguest/lguest 64 vmlinux --tunnet=192.168.19.1 --block=rootfile root=/dev/lgba
+      Documentation/lguest/lguest 64 vmlinux --tunnet=192.168.19.1 --block=rootfile root=/dev/vda
 
    Explanation:
     64: the amount of memory to use, in MB.
@@ -80,10 +80,10 @@ Running Lguest:
     --tunnet=192.168.19.1: configures a "tap" device for networking with this
        IP address.
 
-    --block=rootfile: a file or block device which becomes /dev/lgba
+    --block=rootfile: a file or block device which becomes /dev/vda
        inside the guest.
 
-    root=/dev/lgba: this (and anything else on the command line) are
+    root=/dev/vda: this (and anything else on the command line) are
        kernel boot parameters.
 
 - Configuring networking.  I usually have the host masquerade, using
