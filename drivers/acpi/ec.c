@@ -228,7 +228,9 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 			       command);
 			goto end;
 		}
-		set_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
+		/* Don't expect GPE after last read */
+		if (rdata_len > 1)
+			set_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 		*(rdata++) = acpi_ec_read_data(ec);
 	}
       end:
