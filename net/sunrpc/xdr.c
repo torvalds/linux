@@ -1059,7 +1059,7 @@ xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len,
 		do {
 			if (thislen > page_len)
 				thislen = page_len;
-			sg->page = buf->pages[i];
+			sg_set_page(sg, buf->pages[i]);
 			sg->offset = page_offset;
 			sg->length = thislen;
 			ret = actor(sg, data);
