@@ -7,6 +7,8 @@
 #include <asm/io.h>
 #include <asm/paravirt.h>
 
+struct lguest_device_desc *lguest_devices;
+
 static ssize_t type_show(struct device *_dev,
                          struct device_attribute *attr, char *buf)
 {

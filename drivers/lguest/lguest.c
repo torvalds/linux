@@ -87,7 +87,6 @@ struct lguest_data lguest_data = {
 	.noirq_end = (u32)lguest_noirq_end,
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
 };
-struct lguest_device_desc *lguest_devices;
 static cycle_t clock_base;
 
 /*G:035 Notice the lazy_hcall() above, rather than hcall().  This is our first
