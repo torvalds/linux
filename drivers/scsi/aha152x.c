@@ -613,7 +613,7 @@ struct aha152x_scdata {
 #define SCNEXT(SCpnt)		SCDATA(SCpnt)->next
 #define SCSEM(SCpnt)		SCDATA(SCpnt)->done
 
-#define SG_ADDRESS(buffer)	((char *) (page_address((buffer)->page)+(buffer)->offset))
+#define SG_ADDRESS(buffer)	((char *) sg_virt((buffer)))
 
 /* state handling */
 static void seldi_run(struct Scsi_Host *shpnt);

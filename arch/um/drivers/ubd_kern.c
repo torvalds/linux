@@ -1115,7 +1115,7 @@ static void do_ubd_request(struct request_queue *q)
 			}
 			prepare_request(req, io_req,
 					(unsigned long long) req->sector << 9,
-					sg->offset, sg->length, sg->page);
+					sg->offset, sg->length, sg_page(sg));
 
 			last_sectors = sg->length >> 9;
 			n = os_write_file(thread_fd, &io_req,

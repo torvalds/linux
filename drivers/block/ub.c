@@ -25,6 +25,7 @@
 #include <linux/usb_usual.h>
 #include <linux/blkdev.h>
 #include <linux/timer.h>
+#include <linux/scatterlist.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
@@ -656,6 +657,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 	if ((cmd = ub_get_cmd(lun)) == NULL)
 		return -1;
 	memset(cmd, 0, sizeof(struct ub_scsi_cmd));
+	sg_init_table(cmd->sgv, UB_MAX_REQ_SG);
 
 	blkdev_dequeue_request(rq);
 
@@ -1309,9 +1311,8 @@ static void ub_data_start(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	else
 		pipe = sc->send_bulk_pipe;
 	sc->last_pipe = pipe;
-	usb_fill_bulk_urb(&sc->work_urb, sc->dev, pipe,
-	    page_address(sg->page) + sg->offset, sg->length,
-	    ub_urb_complete, sc);
+	usb_fill_bulk_urb(&sc->work_urb, sc->dev, pipe, sg_virt(sg),
+	    sg->length, ub_urb_complete, sc);
 	sc->work_urb.actual_length = 0;
 	sc->work_urb.error_count = 0;
 	sc->work_urb.status = 0;
@@ -1427,7 +1428,7 @@ static void ub_state_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	scmd->state = UB_CMDST_INIT;
 	scmd->nsg = 1;
 	sg = &scmd->sgv[0];
-	sg->page = virt_to_page(sc->top_sense);
+	sg_set_page(sg, virt_to_page(sc->top_sense));
 	sg->offset = (unsigned long)sc->top_sense & (PAGE_SIZE-1);
 	sg->length = UB_SENSE_SIZE;
 	scmd->len = UB_SENSE_SIZE;
@@ -1863,7 +1864,7 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->state = UB_CMDST_INIT;
 	cmd->nsg = 1;
 	sg = &cmd->sgv[0];
-	sg->page = virt_to_page(p);
+	sg_set_page(sg, virt_to_page(p));
 	sg->offset = (unsigned long)p & (PAGE_SIZE-1);
 	sg->length = 8;
 	cmd->len = 8;

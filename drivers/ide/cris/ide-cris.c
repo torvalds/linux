@@ -935,11 +935,11 @@ static int cris_ide_build_dmatable (ide_drive_t *drive)
 		 * than two possibly non-adjacent physical 4kB pages.
 		 */
 		/* group sequential buffers into one large buffer */
-		addr = page_to_phys(sg->page) + sg->offset;
+		addr = sg_phys(sg);
 		size = sg_dma_len(sg);
 		while (--i) {
 			sg = sg_next(sg);
-			if ((addr + size) != page_to_phys(sg->page) + sg->offset)
+			if ((addr + size) != sg_phys(sg))
 				break;
 			size += sg_dma_len(sg);
 		}

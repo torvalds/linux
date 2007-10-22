@@ -348,16 +348,17 @@ static int crypt_convert(struct crypt_config *cc,
 	      ctx->idx_out < ctx->bio_out->bi_vcnt) {
 		struct bio_vec *bv_in = bio_iovec_idx(ctx->bio_in, ctx->idx_in);
 		struct bio_vec *bv_out = bio_iovec_idx(ctx->bio_out, ctx->idx_out);
-		struct scatterlist sg_in = {
-			.page = bv_in->bv_page,
-			.offset = bv_in->bv_offset + ctx->offset_in,
-			.length = 1 << SECTOR_SHIFT
-		};
-		struct scatterlist sg_out = {
-			.page = bv_out->bv_page,
-			.offset = bv_out->bv_offset + ctx->offset_out,
-			.length = 1 << SECTOR_SHIFT
-		};
+		struct scatterlist sg_in, sg_out;
+
+		sg_init_table(&sg_in, 1);
+		sg_set_page(&sg_in, bv_in->bv_page);
+		sg_in.offset = bv_in->bv_offset + ctx->offset_in;
+		sg_in.length = 1 << SECTOR_SHIFT;
+
+		sg_init_table(&sg_out, 1);
+		sg_set_page(&sg_out, bv_out->bv_page);
+		sg_out.offset = bv_out->bv_offset + ctx->offset_out;
+		sg_out.length = 1 << SECTOR_SHIFT;
 
 		ctx->offset_in += sg_in.length;
 		if (ctx->offset_in >= bv_in->bv_len) {

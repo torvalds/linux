@@ -973,7 +973,7 @@ static irqreturn_t fd_mcs_intr(int irq, void *dev_id)
 				if (current_SC->SCp.buffers_residual) {
 					--current_SC->SCp.buffers_residual;
 					++current_SC->SCp.buffer;
-					current_SC->SCp.ptr = page_address(current_SC->SCp.buffer->page) + current_SC->SCp.buffer->offset;
+					current_SC->SCp.ptr = sg_virt(current_SC->SCp.buffer);
 					current_SC->SCp.this_residual = current_SC->SCp.buffer->length;
 				} else
 					break;
@@ -1006,7 +1006,7 @@ static irqreturn_t fd_mcs_intr(int irq, void *dev_id)
 			if (!current_SC->SCp.this_residual && current_SC->SCp.buffers_residual) {
 				--current_SC->SCp.buffers_residual;
 				++current_SC->SCp.buffer;
-				current_SC->SCp.ptr = page_address(current_SC->SCp.buffer->page) + current_SC->SCp.buffer->offset;
+				current_SC->SCp.ptr = sg_virt(current_SC->SCp.buffer);
 				current_SC->SCp.this_residual = current_SC->SCp.buffer->length;
 			}
 		}
@@ -1109,7 +1109,7 @@ static int fd_mcs_queue(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 
 	if (current_SC->use_sg) {
 		current_SC->SCp.buffer = (struct scatterlist *) current_SC->request_buffer;
-		current_SC->SCp.ptr = page_address(current_SC->SCp.buffer->page) + current_SC->SCp.buffer->offset;
+		current_SC->SCp.ptr = sg_virt(current_SC->SCp.buffer);
 		current_SC->SCp.this_residual = current_SC->SCp.buffer->length;
 		current_SC->SCp.buffers_residual = current_SC->use_sg - 1;
 	} else {

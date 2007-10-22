@@ -24,10 +24,10 @@
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
 #include <linux/clk.h>
+#include <linux/scatterlist.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/scatterlist.h>
 #include <asm/mach-types.h>
 
 #include <asm/arch/board.h>
@@ -383,7 +383,7 @@ mmc_omap_sg_to_buf(struct mmc_omap_host *host)
 
 	sg = host->data->sg + host->sg_idx;
 	host->buffer_bytes_left = sg->length;
-	host->buffer = page_address(sg->page) + sg->offset;
+	host->buffer = sg_virt(sg);
 	if (host->buffer_bytes_left > host->total_bytes_left)
 		host->buffer_bytes_left = host->total_bytes_left;
 }

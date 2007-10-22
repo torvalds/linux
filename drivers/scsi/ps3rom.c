@@ -111,14 +111,14 @@ static int fill_from_dev_buffer(struct scsi_cmnd *cmd, const void *buf)
 	req_len = act_len = 0;
 	scsi_for_each_sg(cmd, sgpnt, scsi_sg_count(cmd), k) {
 		if (active) {
-			kaddr = kmap_atomic(sgpnt->page, KM_IRQ0);
+			kaddr = kmap_atomic(sg_page(sgpnt), KM_IRQ0);
 			len = sgpnt->length;
 			if ((req_len + len) > buflen) {
 				active = 0;
 				len = buflen - req_len;
 			}
 			memcpy(kaddr + sgpnt->offset, buf + req_len, len);
-			flush_kernel_dcache_page(sgpnt->page);
+			flush_kernel_dcache_page(sg_page(sgpnt));
 			kunmap_atomic(kaddr, KM_IRQ0);
 			act_len += len;
 		}
@@ -147,7 +147,7 @@ static int fetch_to_dev_buffer(struct scsi_cmnd *cmd, void *buf)
 
 	req_len = fin = 0;
 	scsi_for_each_sg(cmd, sgpnt, scsi_sg_count(cmd), k) {
-		kaddr = kmap_atomic(sgpnt->page, KM_IRQ0);
+		kaddr = kmap_atomic(sg_page(sgpnt->page), KM_IRQ0);
 		len = sgpnt->length;
 		if ((req_len + len) > buflen) {
 			len = buflen - req_len;

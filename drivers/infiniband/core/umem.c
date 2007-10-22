@@ -55,9 +55,11 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
 		ib_dma_unmap_sg(dev, chunk->page_list,
 				chunk->nents, DMA_BIDIRECTIONAL);
 		for (i = 0; i < chunk->nents; ++i) {
+			struct page *page = sg_page(&chunk->page_list[i]);
+
 			if (umem->writable && dirty)
-				set_page_dirty_lock(chunk->page_list[i].page);
-			put_page(chunk->page_list[i].page);
+				set_page_dirty_lock(page);
+			put_page(page);
 		}
 
 		kfree(chunk);
@@ -164,11 +166,12 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 			}
 
 			chunk->nents = min_t(int, ret, IB_UMEM_MAX_PAGE_CHUNK);
+			sg_init_table(chunk->page_list, chunk->nents);
 			for (i = 0; i < chunk->nents; ++i) {
 				if (vma_list &&
 				    !is_vm_hugetlb_page(vma_list[i + off]))
 					umem->hugetlb = 0;
-				chunk->page_list[i].page   = page_list[i + off];
+				sg_set_page(&chunk->page_list[i], page_list[i + off]);
 				chunk->page_list[i].offset = 0;
 				chunk->page_list[i].length = PAGE_SIZE;
 			}
@@ -179,7 +182,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 						    DMA_BIDIRECTIONAL);
 			if (chunk->nmap <= 0) {
 				for (i = 0; i < chunk->nents; ++i)
-					put_page(chunk->page_list[i].page);
+					put_page(sg_page(&chunk->page_list[i]));
 				kfree(chunk);
 
 				ret = -ENOMEM;

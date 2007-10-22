@@ -317,7 +317,7 @@ static unsigned int ql_pcmd(struct scsi_cmnd *cmd)
 				return ((priv->qabort == 1 ?
 					 DID_ABORT : DID_RESET) << 16);
 			}
-			buf = page_address(sg->page) + sg->offset;
+			buf = sg_virt(sg);
 			if (ql_pdma(priv, phase, buf, sg->length))
 				break;
 		}

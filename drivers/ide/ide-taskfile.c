@@ -261,7 +261,7 @@ static void ide_pio_sector(ide_drive_t *drive, unsigned int write)
 		hwif->cursg = sg;
 	}
 
-	page = cursg->page;
+	page = sg_page(cursg);
 	offset = cursg->offset + hwif->cursg_ofs * SECTOR_SIZE;
 
 	/* get the current page and offset */

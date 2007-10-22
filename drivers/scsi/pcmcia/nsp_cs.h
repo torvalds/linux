@@ -393,7 +393,7 @@ enum _burst_mode {
 #define MSG_EXT_SDTR         0x01
 
 /* scatter-gather table */
-#  define BUFFER_ADDR ((char *)((unsigned int)(SCpnt->SCp.buffer->page) + SCpnt->SCp.buffer->offset))
+#  define BUFFER_ADDR ((char *)((sg_virt(SCpnt->SCp.buffer))))
 
 #endif  /*__nsp_cs__*/
 /* end */

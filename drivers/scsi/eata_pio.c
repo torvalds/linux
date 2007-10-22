@@ -172,7 +172,7 @@ static void IncStat(struct scsi_pointer *SCp, unsigned int Increment)
 			SCp->Status = 0;
 		else {
 			SCp->buffer++;
-			SCp->ptr = page_address(SCp->buffer->page) + SCp->buffer->offset;
+			SCp->ptr = sg_virt(SCp->buffer);
 			SCp->this_residual = SCp->buffer->length;
 		}
 	}
@@ -410,7 +410,7 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 	} else {
 		cmd->SCp.buffer = cmd->request_buffer;
 		cmd->SCp.buffers_residual = cmd->use_sg;
-		cmd->SCp.ptr = page_address(cmd->SCp.buffer->page) + cmd->SCp.buffer->offset;
+		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
 	}
 	cmd->SCp.Status = (cmd->SCp.this_residual != 0);	/* TRUE as long as bytes 

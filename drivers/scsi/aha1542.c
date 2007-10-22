@@ -49,7 +49,7 @@
 #include "aha1542.h"
 
 #define SCSI_BUF_PA(address)	isa_virt_to_bus(address)
-#define SCSI_SG_PA(sgent)	(isa_page_to_bus((sgent)->page) + (sgent)->offset)
+#define SCSI_SG_PA(sgent)	(isa_page_to_bus(sg_page((sgent))) + (sgent)->offset)
 
 static void BAD_DMA(void *address, unsigned int length)
 {
@@ -66,8 +66,7 @@ static void BAD_SG_DMA(Scsi_Cmnd * SCpnt,
 		       int badseg)
 {
 	printk(KERN_CRIT "sgpnt[%d:%d] page %p/0x%llx length %u\n",
-	       badseg, nseg,
-	       page_address(sgp->page) + sgp->offset,
+	       badseg, nseg, sg_virt(sgp),
 	       (unsigned long long)SCSI_SG_PA(sgp),
 	       sgp->length);
 
@@ -712,8 +711,7 @@ static int aha1542_queuecommand(Scsi_Cmnd * SCpnt, void (*done) (Scsi_Cmnd *))
 				printk(KERN_CRIT "Bad segment list supplied to aha1542.c (%d, %d)\n", SCpnt->use_sg, i);
 				scsi_for_each_sg(SCpnt, sg, SCpnt->use_sg, i) {
 					printk(KERN_CRIT "%d: %p %d\n", i,
-					       (page_address(sg->page) +
-						sg->offset), sg->length);
+					       sg_virt(sg), sg->length);
 				};
 				printk(KERN_CRIT "cptr %x: ", (unsigned int) cptr);
 				ptr = (unsigned char *) &cptr[i];

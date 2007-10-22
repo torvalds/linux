@@ -515,8 +515,7 @@ static inline void initialize_SCp(Scsi_Cmnd *cmd)
 	if (cmd->use_sg) {
 		cmd->SCp.buffer = (struct scatterlist *)cmd->request_buffer;
 		cmd->SCp.buffers_residual = cmd->use_sg - 1;
-		cmd->SCp.ptr = (char *)page_address(cmd->SCp.buffer->page) +
-			       cmd->SCp.buffer->offset;
+		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
 		/* ++roman: Try to merge some scatter-buffers if they are at
 		 * contiguous physical addresses.
@@ -2054,8 +2053,7 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 					++cmd->SCp.buffer;
 					--cmd->SCp.buffers_residual;
 					cmd->SCp.this_residual = cmd->SCp.buffer->length;
-					cmd->SCp.ptr = page_address(cmd->SCp.buffer->page) +
-						   cmd->SCp.buffer->offset;
+					cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 					/* ++roman: Try to merge some scatter-buffers if
 					 * they are at contiguous physical addresses.
 					 */

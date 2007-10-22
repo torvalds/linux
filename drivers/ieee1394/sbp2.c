@@ -1466,7 +1466,7 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 		cmd->dma_size = sgpnt[0].length;
 		cmd->dma_type = CMD_DMA_PAGE;
 		cmd->cmd_dma = dma_map_page(hi->host->device.parent,
-					    sgpnt[0].page, sgpnt[0].offset,
+					    sg_page(&sgpnt[0]), sgpnt[0].offset,
 					    cmd->dma_size, cmd->dma_dir);
 
 		orb->data_descriptor_lo = cmd->cmd_dma;

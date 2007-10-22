@@ -272,8 +272,7 @@ static struct scsi_host_template *the_template = NULL;
 #define	HOSTNO		instance->host_no
 #define	H_NO(cmd)	(cmd)->device->host->host_no
 
-#define SGADDR(buffer) (void *)(((unsigned long)page_address((buffer)->page)) + \
-			(buffer)->offset)
+#define SGADDR(buffer) (void *)(((unsigned long)sg_virt(((buffer)))))
 
 #ifdef SUPPORT_TAGS
 

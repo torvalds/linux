@@ -70,9 +70,7 @@ module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 static inline void
 iscsi_buf_init_iov(struct iscsi_buf *ibuf, char *vbuf, int size)
 {
-	ibuf->sg.page = virt_to_page(vbuf);
-	ibuf->sg.offset = offset_in_page(vbuf);
-	ibuf->sg.length = size;
+	sg_init_one(&ibuf->sg, vbuf, size);
 	ibuf->sent = 0;
 	ibuf->use_sendmsg = 1;
 }
@@ -80,13 +78,14 @@ iscsi_buf_init_iov(struct iscsi_buf *ibuf, char *vbuf, int size)
 static inline void
 iscsi_buf_init_sg(struct iscsi_buf *ibuf, struct scatterlist *sg)
 {
-	ibuf->sg.page = sg->page;
+	sg_init_table(&ibuf->sg, 1);
+	sg_set_page(&ibuf->sg, sg_page(sg));
 	ibuf->sg.offset = sg->offset;
 	ibuf->sg.length = sg->length;
 	/*
 	 * Fastpath: sg element fits into single page
 	 */
-	if (sg->length + sg->offset <= PAGE_SIZE && !PageSlab(sg->page))
+	if (sg->length + sg->offset <= PAGE_SIZE && !PageSlab(sg_page(sg)))
 		ibuf->use_sendmsg = 0;
 	else
 		ibuf->use_sendmsg = 1;
@@ -716,7 +715,7 @@ static int iscsi_scsi_data_in(struct iscsi_conn *conn)
 	for (i = tcp_ctask->sg_count; i < scsi_sg_count(sc); i++) {
 		char *dest;
 
-		dest = kmap_atomic(sg[i].page, KM_SOFTIRQ0);
+		dest = kmap_atomic(sg_page(&sg[i]), KM_SOFTIRQ0);
 		rc = iscsi_ctask_copy(tcp_conn, ctask, dest + sg[i].offset,
 				      sg[i].length, offset);
 		kunmap_atomic(dest, KM_SOFTIRQ0);
@@ -1103,9 +1102,9 @@ iscsi_send(struct iscsi_conn *conn, struct iscsi_buf *buf, int size, int flags)
 	 * slab case.
 	 */
 	if (buf->use_sendmsg)
-		res = sock_no_sendpage(sk, buf->sg.page, offset, size, flags);
+		res = sock_no_sendpage(sk, sg_page(&buf->sg), offset, size, flags);
 	else
-		res = tcp_conn->sendpage(sk, buf->sg.page, offset, size, flags);
+		res = tcp_conn->sendpage(sk, sg_page(&buf->sg), offset, size, flags);
 
 	if (res >= 0) {
 		conn->txdata_octets += res;

@@ -60,7 +60,7 @@ static void mlx4_free_icm_pages(struct mlx4_dev *dev, struct mlx4_icm_chunk *chu
 			     PCI_DMA_BIDIRECTIONAL);
 
 	for (i = 0; i < chunk->npages; ++i)
-		__free_pages(chunk->mem[i].page,
+		__free_pages(sg_page(&chunk->mem[i]),
 			     get_order(chunk->mem[i].length));
 }
 
@@ -70,7 +70,7 @@ static void mlx4_free_icm_coherent(struct mlx4_dev *dev, struct mlx4_icm_chunk *
 
 	for (i = 0; i < chunk->npages; ++i)
 		dma_free_coherent(&dev->pdev->dev, chunk->mem[i].length,
-				  lowmem_page_address(chunk->mem[i].page),
+				  lowmem_page_address(sg_page(&chunk->mem[i])),
 				  sg_dma_address(&chunk->mem[i]));
 }
 
@@ -95,10 +95,13 @@ void mlx4_free_icm(struct mlx4_dev *dev, struct mlx4_icm *icm, int coherent)
 
 static int mlx4_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_mask)
 {
-	mem->page = alloc_pages(gfp_mask, order);
-	if (!mem->page)
+	struct page *page;
+
+	page = alloc_pages(gfp_mask, order);
+	if (!page)
 		return -ENOMEM;
 
+	sg_set_page(mem, page);
 	mem->length = PAGE_SIZE << order;
 	mem->offset = 0;
 	return 0;
@@ -145,6 +148,7 @@ struct mlx4_icm *mlx4_alloc_icm(struct mlx4_dev *dev, int npages,
 			if (!chunk)
 				goto fail;
 
+			sg_init_table(chunk->mem, MLX4_ICM_CHUNK_LEN);
 			chunk->npages = 0;
 			chunk->nsg    = 0;
 			list_add_tail(&chunk->list, &icm->chunk_list);
@@ -334,7 +338,7 @@ void *mlx4_table_find(struct mlx4_icm_table *table, int obj, dma_addr_t *dma_han
 			 * been assigned to.
 			 */
 			if (chunk->mem[i].length > offset) {
-				page = chunk->mem[i].page;
+				page = sg_page(&chunk->mem[i]);
 				goto out;
 			}
 			offset -= chunk->mem[i].length;

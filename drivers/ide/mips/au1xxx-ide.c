@@ -276,8 +276,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 
 			if (iswrite) {
 				if(!put_source_flags(ahwif->tx_chan, 
-						     (void*)(page_address(sg->page) 
-							     + sg->offset), 
+						     (void*) sg_virt(sg),
 						     tc, flags)) { 
 					printk(KERN_ERR "%s failed %d\n", 
 					       __FUNCTION__, __LINE__);
@@ -285,8 +284,7 @@ static int auide_build_dmatable(ide_drive_t *drive)
 			} else 
 			{
 				if(!put_dest_flags(ahwif->rx_chan, 
-						   (void*)(page_address(sg->page) 
-							   + sg->offset), 
+						   (void*) sg_virt(sg),
 						   tc, flags)) { 
 					printk(KERN_ERR "%s failed %d\n", 
 					       __FUNCTION__, __LINE__);

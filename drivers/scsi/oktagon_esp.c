@@ -550,8 +550,7 @@ void dma_mmu_get_scsi_one(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 
 void dma_mmu_get_scsi_sgl(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 {
-        sp->SCp.ptr = page_address(sp->SCp.buffer->page)+
-		      sp->SCp.buffer->offset;
+        sp->SCp.ptr = sg_virt(sp->SCp.buffer);
 }
 
 void dma_mmu_release_scsi_one(struct NCR_ESP *esp, Scsi_Cmnd *sp)
@@ -564,8 +563,7 @@ void dma_mmu_release_scsi_sgl(struct NCR_ESP *esp, Scsi_Cmnd *sp)
 
 void dma_advance_sg(Scsi_Cmnd *sp)
 {
-	sp->SCp.ptr = page_address(sp->SCp.buffer->page)+
-		      sp->SCp.buffer->offset;
+	sp->SCp.ptr = sg_virt(sp->SCp.buffer);
 }
 
 

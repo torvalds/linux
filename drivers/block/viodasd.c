@@ -41,6 +41,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
 #include <linux/device.h>
+#include <linux/scatterlist.h>
 
 #include <asm/uaccess.h>
 #include <asm/vio.h>
@@ -270,6 +271,7 @@ static int send_request(struct request *req)
         d = req->rq_disk->private_data;
 
 	/* Now build the scatter-gather list */
+	sg_init_table(sg, VIOMAXBLOCKDMA);
 	nsg = blk_rq_map_sg(req->q, req, sg);
 	nsg = dma_map_sg(d->dev, sg, nsg, direction);
 
