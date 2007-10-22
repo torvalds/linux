@@ -176,6 +176,8 @@ static int mpc5200_wdt_probe(struct of_device *op, const struct of_device_id *ma
 
 	has_wdt = of_get_property(op->node, "has-wdt", NULL);
 	if (!has_wdt)
+		has_wdt = of_get_property(op->node, "fsl,has-wdt", NULL);
+	if (!has_wdt)
 		return -ENODEV;
 
 	wdt = kzalloc(sizeof(*wdt), GFP_KERNEL);
@@ -254,6 +256,7 @@ static int mpc5200_wdt_shutdown(struct of_device *op)
 
 static struct of_device_id mpc5200_wdt_match[] = {
 	{ .compatible = "mpc5200-gpt", },
+	{ .compatible = "fsl,mpc5200-gpt", },
 	{},
 };
 static struct of_platform_driver mpc5200_wdt_driver = {
