@@ -279,7 +279,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 	}
 
 	/* discard private data, in case set_type() was previously called */
-	if ((ops) && (ops->release))
+	if (ops && ops->release)
 		ops->release(&t->fe);
 
 	switch (t->type) {
@@ -727,7 +727,7 @@ static int tuner_detach(struct i2c_client *client)
 		return err;
 	}
 
-	if ((ops) && (ops->release))
+	if (ops && ops->release)
 		ops->release(&t->fe);
 
 	kfree(t);
@@ -752,7 +752,7 @@ static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode,
 
 	if (check_mode(t, cmd) == EINVAL) {
 		t->mode = T_STANDBY;
-		if ((ops) && (ops->standby))
+		if (ops && ops->standby)
 			ops->standby(&t->fe);
 		return EINVAL;
 	}
@@ -803,7 +803,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		if (check_mode(t, "TUNER_SET_STANDBY") == EINVAL)
 			return 0;
 		t->mode = T_STANDBY;
-		if ((ops) && (ops->standby))
+		if (ops && ops->standby)
 			ops->standby(&t->fe);
 		break;
 #ifdef CONFIG_VIDEO_V4L1
@@ -872,7 +872,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 					else
 						vt->flags &= ~VIDEO_TUNER_STEREO_ON;
 				} else {
-					if ((ops) && (ops->is_stereo)) {
+					if (ops && ops->is_stereo) {
 						if (ops->is_stereo(&t->fe))
 							vt->flags |=
 								VIDEO_TUNER_STEREO_ON;
@@ -881,7 +881,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 								~VIDEO_TUNER_STEREO_ON;
 					}
 				}
-				if ((ops) && (ops->has_signal))
+				if (ops && ops->has_signal)
 					vt->signal = ops->has_signal(&t->fe);
 
 				vt->flags |= VIDEO_TUNER_LOW;	/* Allow freqs at 62.5 Hz */
@@ -912,7 +912,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 					fe_tuner_ops->get_status(&t->fe, &tuner_status);
 					va->mode = (tuner_status & TUNER_STATUS_STEREO)
 					    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
-				} else if ((ops) && (ops->is_stereo))
+				} else if (ops && ops->is_stereo)
 					va->mode = ops->is_stereo(&t->fe)
 					    ? VIDEO_SOUND_STEREO : VIDEO_SOUND_MONO;
 			}
@@ -1003,7 +1003,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			switch_v4l2();
 
 			tuner->type = t->mode;
-			if ((ops) && (ops->get_afc))
+			if (ops && ops->get_afc)
 				tuner->afc = ops->get_afc(&t->fe);
 			if (t->mode == V4L2_TUNER_ANALOG_TV)
 				tuner->capability |= V4L2_TUNER_CAP_NORM;
@@ -1025,14 +1025,14 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 					V4L2_TUNER_SUB_STEREO :
 					V4L2_TUNER_SUB_MONO;
 			} else {
-				if ((ops) && (ops->is_stereo)) {
+				if (ops && ops->is_stereo) {
 					tuner->rxsubchans =
 						ops->is_stereo(&t->fe) ?
 						V4L2_TUNER_SUB_STEREO :
 						V4L2_TUNER_SUB_MONO;
 				}
 			}
-			if ((ops) && (ops->has_signal))
+			if (ops && ops->has_signal)
 				tuner->signal = ops->has_signal(&t->fe);
 			tuner->capability |=
 			    V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
@@ -1058,7 +1058,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	case VIDIOC_LOG_STATUS:
-		if ((ops) && (ops->tuner_status))
+		if (ops && ops->tuner_status)
 			ops->tuner_status(&t->fe);
 		break;
 	}
