@@ -316,13 +316,14 @@ void lguest_arch_handle_trap(struct lguest *lg)
 			return;
 		break;
 	case 32 ... 255:
-		/* These values mean a real interrupt occurred, in
-		 * which case the Host handler has already been run.
-		 * We just do a friendly check if another process
-		 * should now be run, then fall through to loop
-		 * around: */
+		/* These values mean a real interrupt occurred, in which case
+		 * the Host handler has already been run.  We just do a
+		 * friendly check if another process should now be run, then
+		 * return to run the Guest again */
 		cond_resched();
-	case LGUEST_TRAP_ENTRY: /* Handled before re-entering Guest */
+		return;
+	case LGUEST_TRAP_ENTRY:
+		lg->hcall = lg->regs;
 		return;
 	}
 

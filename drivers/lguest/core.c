@@ -198,10 +198,10 @@ int run_guest(struct lguest *lg, unsigned long __user *user)
 {
 	/* We stop running once the Guest is dead. */
 	while (!lg->dead) {
-		/* First we run any hypercalls the Guest wants done: either in
-		 * the hypercall ring in "struct lguest_data", or directly by
-		 * using int 31 (LGUEST_TRAP_ENTRY). */
-		do_hypercalls(lg);
+		/* First we run any hypercalls the Guest wants done. */
+		if (lg->hcall)
+			do_hypercalls(lg);
+
 		/* It's possible the Guest did a SEND_DMA hypercall to the
 		 * Launcher, in which case we return from the read() now. */
 		if (lg->dma_is_pending) {

@@ -106,6 +106,9 @@ struct lguest
 	u32 esp1;
 	u8 ss1;
 
+	/* If a hypercall was asked for, this points to the arguments. */
+	struct lguest_regs *hcall;
+
 	/* Do we need to stop what we're doing and return to userspace? */
 	int break_out;
 	wait_queue_head_t break_wq;

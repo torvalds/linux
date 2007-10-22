@@ -241,19 +241,6 @@ static void initialize(struct lguest *lg)
  * is one other way we can do things for the Guest, as we see in
  * emulate_insn(). */
 
-/*H:110 Tricky point: we mark the hypercall as "done" once we've done it.
- * Normally we don't need to do this: the Guest will run again and update the
- * trap number before we come back around the run_guest() loop to
- * do_hypercalls().
- *
- * However, if we are signalled or the Guest sends DMA to the Launcher, that
- * loop will exit without running the Guest.  When it comes back it would try
- * to re-run the hypercall. */
-static void clear_hcall(struct lguest *lg)
-{
-	lg->regs->trapnum = 255;
-}
-
 /*H:100
  * Hypercalls
  *
@@ -262,16 +249,12 @@ static void clear_hcall(struct lguest *lg)
  */
 void do_hypercalls(struct lguest *lg)
 {
-	/* Not initialized yet? */
+	/* Not initialized yet?  This hypercall must do it. */
 	if (unlikely(!lg->lguest_data)) {
-		/* Did the Guest make a hypercall?  We might have come back for
-		 * some other reason (an interrupt, a different trap). */
-		if (lg->regs->trapnum == LGUEST_TRAP_ENTRY) {
-			/* Set up the "struct lguest_data" */
-			initialize(lg);
-			/* The hypercall is done. */
-			clear_hcall(lg);
-		}
+		/* Set up the "struct lguest_data" */
+		initialize(lg);
+		/* Hcall is done. */
+		lg->hcall = NULL;
 		return;
 	}
 
@@ -281,12 +264,21 @@ void do_hypercalls(struct lguest *lg)
 	do_async_hcalls(lg);
 
 	/* If we stopped reading the hypercall ring because the Guest did a
-	 * SEND_DMA to the Launcher, we want to return now.  Otherwise if the
-	 * Guest asked us to do a hypercall, we do it. */
-	if (!lg->dma_is_pending && lg->regs->trapnum == LGUEST_TRAP_ENTRY) {
-		do_hcall(lg, lg->regs);
-		/* The hypercall is done. */
-		clear_hcall(lg);
+	 * SEND_DMA to the Launcher, we want to return now.  Otherwise we do
+	 * the hypercall. */
+	if (!lg->dma_is_pending) {
+		do_hcall(lg, lg->hcall);
+		/* Tricky point: we reset the hcall pointer to mark the
+		 * hypercall as "done".  We use the hcall pointer rather than
+		 * the trap number to indicate a hypercall is pending.
+		 * Normally it doesn't matter: the Guest will run again and
+		 * update the trap number before we come back here.
+		 *
+		 * However, if we are signalled or the Guest sends DMA to the
+		 * Launcher, the run_guest() loop will exit without running the
+		 * Guest.  When it comes back it would try to re-run the
+		 * hypercall. */
+		lg->hcall = NULL;
 	}
 }
 
