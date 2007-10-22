@@ -52,7 +52,7 @@ typedef uint8_t u8;
 #include "linux/virtio_blk.h"
 #include "linux/virtio_console.h"
 #include "linux/virtio_ring.h"
-#include "asm-x86/e820.h"
+#include "asm-x86/bootparam.h"
 /*:*/
 
 #define PAGE_PRESENT 0x7 	/* Present, RW, Execute */
@@ -335,7 +335,7 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr)
  * the funky header so we know where in the file to load, and away we go! */
 static unsigned long load_bzimage(int fd)
 {
-	u8 hdr[1024];
+	struct boot_params boot;
 	int r;
 	/* Modern bzImages get loaded at 1M. */
 	void *p = from_guest_phys(0x100000);
@@ -343,22 +343,21 @@ static unsigned long load_bzimage(int fd)
 	/* Go back to the start of the file and read the header.  It should be
 	 * a Linux boot header (see Documentation/i386/boot.txt) */
 	lseek(fd, 0, SEEK_SET);
-	read(fd, hdr, sizeof(hdr));
+	read(fd, &boot, sizeof(boot));
 
-	/* At offset 0x202, we expect the magic "HdrS" */
-	if (memcmp(hdr + 0x202, "HdrS", 4) != 0)
+	/* Inside the setup_hdr, we expect the magic "HdrS" */
+	if (memcmp(&boot.hdr.header, "HdrS", 4) != 0)
 		errx(1, "This doesn't look like a bzImage to me");
 
-	/* The byte at 0x1F1 tells us how many extra sectors of
-	 * header: skip over them all. */
-	lseek(fd, (unsigned long)(hdr[0x1F1]+1) * 512, SEEK_SET);
+	/* Skip over the extra sectors of the header. */
+	lseek(fd, (boot.hdr.setup_sects+1) * 512, SEEK_SET);
 
 	/* Now read everything into memory. in nice big chunks. */
 	while ((r = read(fd, p, 65536)) > 0)
 		p += r;
 
-	/* Finally, 0x214 tells us where to start the kernel. */
-	return *(unsigned long *)&hdr[0x214];
+	/* Finally, code32_start tells us where to enter the kernel. */
+	return boot.hdr.code32_start;
 }
 
 /*L:140 Loading the kernel is easy when it's a "vmlinux", but most kernels
@@ -1531,7 +1530,7 @@ int main(int argc, char *argv[])
 	/* A temporary and the /dev/lguest file descriptor. */
 	int i, c, lguest_fd;
 	/* The boot information for the Guest. */
-	void *boot;
+	struct boot_params *boot;
 	/* If they specify an initrd file to load. */
 	const char *initrd_name = NULL;
 
@@ -1607,10 +1606,10 @@ int main(int argc, char *argv[])
 		initrd_size = load_initrd(initrd_name, mem);
 		/* These are the location in the Linux boot header where the
 		 * start and size of the initrd are expected to be found. */
-		*(unsigned long *)(boot+0x218) = mem - initrd_size;
-		*(unsigned long *)(boot+0x21c) = initrd_size;
+		boot->hdr.ramdisk_image = mem - initrd_size;
+		boot->hdr.ramdisk_size = initrd_size;
 		/* The bootloader type 0xFF means "unknown"; that's OK. */
-		*(unsigned char *)(boot+0x210) = 0xFF;
+		boot->hdr.type_of_loader = 0xFF;
 	}
 
 	/* Set up the initial linear pagetables, starting below the initrd. */
@@ -1618,23 +1617,21 @@ int main(int argc, char *argv[])
 
 	/* The Linux boot header contains an "E820" memory map: ours is a
 	 * simple, single region. */
-	*(char*)(boot+E820NR) = 1;
-	*((struct e820entry *)(boot+E820MAP))
-		= ((struct e820entry) { 0, mem, E820_RAM });
+	boot->e820_entries = 1;
+	boot->e820_map[0] = ((struct e820entry) { 0, mem, E820_RAM });
 	/* The boot header contains a command line pointer: we put the command
-	 * line after the boot header (at address 4096) */
-	*(u32 *)(boot + 0x228) = 4096;
-	concat(boot + 4096, argv+optind+2);
+	 * line after the boot header. */
+	boot->hdr.cmd_line_ptr = to_guest_phys(boot + 1);
+	concat((char *)(boot + 1), argv+optind+2);
 
 	/* Boot protocol version: 2.07 supports the fields for lguest. */
-	*(u16 *)(boot + 0x206) = 0x207;
+	boot->hdr.version = 0x207;
 
 	/* The hardware_subarch value of "1" tells the Guest it's an lguest. */
-	*(u32 *)(boot + 0x23c) = 1;
+	boot->hdr.hardware_subarch = 1;
 
-	/* Set bit 6 of the loadflags (aka. KEEP_SEGMENTS) so the entry path
-	 * does not try to reload segment registers. */
-	*(u8 *)(boot + 0x211) |= (1 << 6);
+	/* Tell the entry path not to try to reload segment registers. */
+	boot->hdr.loadflags |= KEEP_SEGMENTS;
 
 	/* We tell the kernel to initialize the Guest: this returns the open
 	 * /dev/lguest file descriptor. */
