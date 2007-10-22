@@ -116,6 +116,27 @@ static inline unsigned int get_cpu_idle_time(unsigned int cpu)
 	return ret;
 }
 
+/* keep track of frequency transitions */
+static int
+dbs_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
+		     void *data)
+{
+	struct cpufreq_freqs *freq = data;
+	struct cpu_dbs_info_s *this_dbs_info = &per_cpu(cpu_dbs_info,
+							freq->cpu);
+
+	if (!this_dbs_info->enable)
+		return 0;
+
+	this_dbs_info->requested_freq = freq->new;
+
+	return 0;
+}
+
+static struct notifier_block dbs_cpufreq_notifier_block = {
+	.notifier_call = dbs_cpufreq_notifier
+};
+
 /************************** sysfs interface ************************/
 static ssize_t show_sampling_rate_max(struct cpufreq_policy *policy, char *buf)
 {
@@ -511,6 +532,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			dbs_tuners_ins.sampling_rate = def_sampling_rate;
 
 			dbs_timer_init();
+			cpufreq_register_notifier(
+					&dbs_cpufreq_notifier_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
 		}
 		
 		mutex_unlock(&dbs_mutex);
@@ -525,9 +549,13 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 		 * Stop the timerschedule work, when this governor
 		 * is used for first time
 		 */
-		if (dbs_enable == 0) 
+		if (dbs_enable == 0) {
 			dbs_timer_exit();
-		
+			cpufreq_unregister_notifier(
+					&dbs_cpufreq_notifier_block,
+					CPUFREQ_TRANSITION_NOTIFIER);
+		}
+
 		mutex_unlock(&dbs_mutex);
 
 		break;
