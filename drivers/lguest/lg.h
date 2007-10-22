@@ -5,7 +5,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/stringify.h>
-#include <linux/futex.h>
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
 #include <linux/wait.h>
@@ -16,17 +15,6 @@
 
 void free_pagetables(void);
 int init_pagetables(struct page **switcher_page, unsigned int pages);
-
-struct lguest_dma_info
-{
-	struct list_head list;
-	union futex_key key;
-	unsigned long dmas;
-	struct lguest *owner;
-	u16 next_dma;
-	u16 num_dmas;
-	u8 interrupt; 	/* 0 when not registered */
-};
 
 struct pgdir
 {
@@ -90,14 +78,10 @@ struct lguest
 	struct task_struct *wake;
 
 	unsigned long noirq_start, noirq_end;
-	int dma_is_pending;
-	unsigned long pending_dma; /* struct lguest_dma */
-	unsigned long pending_key; /* address they're sending to */
+	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
 
 	unsigned int stack_pages;
 	u32 tsc_khz;
-
-	struct lguest_dma_info dma[LGUEST_MAX_DMA];
 
 	/* Dead? */
 	const char *dead;
@@ -183,15 +167,6 @@ extern char start_switcher_text[], end_switcher_text[], switch_to_guest[];
 /* lguest_user.c: */
 int lguest_device_init(void);
 void lguest_device_remove(void);
-
-/* io.c: */
-void lguest_io_init(void);
-int bind_dma(struct lguest *lg,
-	     unsigned long key, unsigned long udma, u16 numdmas, u8 interrupt);
-void send_dma(struct lguest *info, unsigned long key, unsigned long udma);
-void release_all_dma(struct lguest *lg);
-unsigned long get_dma_buffer(struct lguest *lg, unsigned long key,
-			     unsigned long *interrupt);
 
 /* hypercalls.c: */
 void do_hypercalls(struct lguest *lg);

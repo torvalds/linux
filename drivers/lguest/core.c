@@ -202,13 +202,12 @@ int run_guest(struct lguest *lg, unsigned long __user *user)
 		if (lg->hcall)
 			do_hypercalls(lg);
 
-		/* It's possible the Guest did a SEND_DMA hypercall to the
+		/* It's possible the Guest did a NOTIFY hypercall to the
 		 * Launcher, in which case we return from the read() now. */
-		if (lg->dma_is_pending) {
-			if (put_user(lg->pending_dma, user) ||
-			    put_user(lg->pending_key, user+1))
+		if (lg->pending_notify) {
+			if (put_user(lg->pending_notify, user))
 				return -EFAULT;
-			return sizeof(unsigned long)*2;
+			return sizeof(lg->pending_notify);
 		}
 
 		/* Check for signals */
@@ -287,9 +286,6 @@ static int __init init(void)
 	err = init_pagetables(switcher_page, SHARED_SWITCHER_PAGES);
 	if (err)
 		goto unmap;
-
-	/* The I/O subsystem needs some things initialized. */
-	lguest_io_init();
 
 	/* We might need to reserve an interrupt vector. */
 	err = init_interrupts();

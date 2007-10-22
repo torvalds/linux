@@ -13,11 +13,10 @@
 #define LHCALL_TS		8
 #define LHCALL_SET_CLOCKEVENT	9
 #define LHCALL_HALT		10
-#define LHCALL_BIND_DMA		12
-#define LHCALL_SEND_DMA		13
 #define LHCALL_SET_PTE		14
 #define LHCALL_SET_PMD		15
 #define LHCALL_LOAD_TLS		16
+#define LHCALL_NOTIFY		17
 
 /*G:031 First, how does our Guest contact the Host to ask for privileged
  * operations?  There are two ways: the direct way is to make a "hypercall",

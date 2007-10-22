@@ -2,36 +2,11 @@
  * controls and communicates with the Guest.  For example, the first write will
  * tell us the Guest's memory layout, pagetable, entry point and kernel address
  * offset.  A read will run the Guest until something happens, such as a signal
- * or the Guest doing a DMA out to the Launcher.  Writes are also used to get a
- * DMA buffer registered by the Guest and to send the Guest an interrupt. :*/
+ * or the Guest doing a NOTIFY out to the Launcher. :*/
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
 #include "lg.h"
-
-/*L:310 To send DMA into the Guest, the Launcher needs to be able to ask for a
- * DMA buffer.  This is done by writing LHREQ_GETDMA and the key to
- * /dev/lguest. */
-static long user_get_dma(struct lguest *lg, const unsigned long __user *input)
-{
-	unsigned long key, udma, irq;
-
-	/* Fetch the key they wrote to us. */
-	if (get_user(key, input) != 0)
-		return -EFAULT;
-	/* Look for a free Guest DMA buffer bound to that key. */
-	udma = get_dma_buffer(lg, key, &irq);
-	if (!udma)
-		return -ENOENT;
-
-	/* We need to tell the Launcher what interrupt the Guest expects after
-	 * the buffer is filled.  We stash it in udma->used_len. */
-	lgwrite_u32(lg, udma + offsetof(struct lguest_dma, used_len), irq);
-
-	/* The (guest-physical) address of the DMA buffer is returned from
-	 * the write(). */
-	return udma;
-}
 
 /*L:315 To force the Guest to stop running and return to the Launcher, the
  * Waker sets writes LHREQ_BREAK and the value "1" to /dev/lguest.  The
@@ -102,10 +77,10 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 		return len;
 	}
 
-	/* If we returned from read() last time because the Guest sent DMA,
+	/* If we returned from read() last time because the Guest notified,
 	 * clear the flag. */
-	if (lg->dma_is_pending)
-		lg->dma_is_pending = 0;
+	if (lg->pending_notify)
+		lg->pending_notify = 0;
 
 	/* Run the Guest until something interesting happens. */
 	return run_guest(lg, (unsigned long __user *)user);
@@ -216,7 +191,7 @@ unlock:
 /*L:010 The first operation the Launcher does must be a write.  All writes
  * start with a 32 bit number: for the first write this must be
  * LHREQ_INITIALIZE to set up the Guest.  After that the Launcher can use
- * writes of other values to get DMA buffers and send interrupts. */
+ * writes of other values to send interrupts. */
 static ssize_t write(struct file *file, const char __user *in,
 		     size_t size, loff_t *off)
 {
@@ -245,8 +220,6 @@ static ssize_t write(struct file *file, const char __user *in,
 	switch (req) {
 	case LHREQ_INITIALIZE:
 		return initialize(file, input);
-	case LHREQ_GETDMA:
-		return user_get_dma(lg, input);
 	case LHREQ_IRQ:
 		return user_send_irq(lg, input);
 	case LHREQ_BREAK:
@@ -276,8 +249,6 @@ static int close(struct inode *inode, struct file *file)
 	mutex_lock(&lguest_lock);
 	/* Cancels the hrtimer set via LHCALL_SET_CLOCKEVENT. */
 	hrtimer_cancel(&lg->hrt);
-	/* Free any DMA buffers the Guest had bound. */
-	release_all_dma(lg);
 	/* Free up the shadow page tables for the Guest. */
 	free_guest_pagetable(lg);
 	/* Now all the memory cleanups are done, it's safe to release the

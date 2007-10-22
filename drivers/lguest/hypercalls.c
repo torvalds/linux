@@ -60,22 +60,9 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 		else
 			guest_pagetable_flush_user(lg);
 		break;
-	case LHCALL_BIND_DMA:
-		/* BIND_DMA really wants four arguments, but it's the only call
-		 * which does.  So the Guest packs the number of buffers and
-		 * the interrupt number into the final argument, and we decode
-		 * it here.  This can legitimately fail, since we currently
-		 * place a limit on the number of DMA pools a Guest can have.
-		 * So we return true or false from this call. */
-		args->arg0 = bind_dma(lg, args->arg1, args->arg2,
-				     args->arg3 >> 8, args->arg3 & 0xFF);
-		break;
 
 	/* All these calls simply pass the arguments through to the right
 	 * routines. */
-	case LHCALL_SEND_DMA:
-		send_dma(lg, args->arg1, args->arg2);
-		break;
 	case LHCALL_NEW_PGTABLE:
 		guest_new_pagetable(lg, args->arg1);
 		break;
@@ -98,6 +85,9 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 	case LHCALL_HALT:
 		/* Similarly, this sets the halted flag for run_guest(). */
 		lg->halted = 1;
+		break;
+	case LHCALL_NOTIFY:
+		lg->pending_notify = args->arg1;
 		break;
 	default:
 		if (lguest_arch_do_hcall(lg, args))
@@ -156,9 +146,9 @@ static void do_async_hcalls(struct lguest *lg)
 			break;
 		}
 
- 		/* Stop doing hypercalls if we've just done a DMA to the
-		 * Launcher: it needs to service this first. */
-		if (lg->dma_is_pending)
+		/* Stop doing hypercalls if they want to notify the Launcher:
+		 * it needs to service this first. */
+		if (lg->pending_notify)
 			break;
 	}
 }
@@ -220,9 +210,9 @@ void do_hypercalls(struct lguest *lg)
 	do_async_hcalls(lg);
 
 	/* If we stopped reading the hypercall ring because the Guest did a
-	 * SEND_DMA to the Launcher, we want to return now.  Otherwise we do
+	 * NOTIFY to the Launcher, we want to return now.  Otherwise we do
 	 * the hypercall. */
-	if (!lg->dma_is_pending) {
+	if (!lg->pending_notify) {
 		do_hcall(lg, lg->hcall);
 		/* Tricky point: we reset the hcall pointer to mark the
 		 * hypercall as "done".  We use the hcall pointer rather than

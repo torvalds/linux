@@ -10,40 +10,6 @@
 /* How many devices?  Assume each one wants up to two dma arrays per device. */
 #define LGUEST_MAX_DEVICES (LGUEST_MAX_DMA/2)
 
-/*D:200
- * Lguest I/O
- *
- * The lguest I/O mechanism is the only way Guests can talk to devices.  There
- * are two hypercalls involved: SEND_DMA for output and BIND_DMA for input.  In
- * each case, "struct lguest_dma" describes the buffer: this contains 16
- * addr/len pairs, and if there are fewer buffer elements the len array is
- * terminated with a 0.
- *
- * I/O is organized by keys: BIND_DMA attaches buffers to a particular key, and
- * SEND_DMA transfers to buffers bound to particular key.  By convention, keys
- * correspond to a physical address within the device's page.  This means that
- * devices will never accidentally end up with the same keys, and allows the
- * Host use The Futex Trick (as we'll see later in our journey).
- *
- * SEND_DMA simply indicates a key to send to, and the physical address of the
- * "struct lguest_dma" to send.  The Host will write the number of bytes
- * transferred into the "struct lguest_dma"'s used_len member.
- *
- * BIND_DMA indicates a key to bind to, a pointer to an array of "struct
- * lguest_dma"s ready for receiving, the size of that array, and an interrupt
- * to trigger when data is received.  The Host will only allow transfers into
- * buffers with a used_len of zero: it then sets used_len to the number of
- * bytes transferred and triggers the interrupt for the Guest to process the
- * new input. */
-struct lguest_dma
-{
-	/* 0 if free to be used, filled by the Host. */
-	__u32 used_len;
-	__u16 len[LGUEST_MAX_DMA_SECTIONS];
-	unsigned long addr[LGUEST_MAX_DMA_SECTIONS];
-};
-/*:*/
-
 /* Where the Host expects the Guest to SEND_DMA console output to. */
 #define LGUEST_CONSOLE_DMA_KEY 0
 
@@ -95,7 +61,7 @@ struct lguest_device_desc {
 enum lguest_req
 {
 	LHREQ_INITIALIZE, /* + pfnlimit, pgdir, start, pageoffset */
-	LHREQ_GETDMA, /* + addr (returns &lguest_dma, irq in ->used_len) */
+	LHREQ_GETDMA, /* No longer used */
 	LHREQ_IRQ, /* + irq */
 	LHREQ_BREAK, /* + on/off flag (on blocks until someone does off) */
 };
