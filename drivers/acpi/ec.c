@@ -258,9 +258,6 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 		}
 	}
 
-	/* Make sure GPE is enabled before doing transaction */
-	acpi_enable_gpe(NULL, ec->gpe, ACPI_NOT_ISR);
-
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, 0);
 	if (status) {
 		printk(KERN_ERR PREFIX
@@ -638,12 +635,10 @@ static struct acpi_ec *make_acpi_ec(void)
 	struct acpi_ec *ec = kzalloc(sizeof(struct acpi_ec), GFP_KERNEL);
 	if (!ec)
 		return NULL;
-
 	ec->flags = 1 << EC_FLAGS_QUERY_PENDING;
 	mutex_init(&ec->lock);
 	init_waitqueue_head(&ec->wait);
 	INIT_LIST_HEAD(&ec->list);
-
 	return ec;
 }
 
