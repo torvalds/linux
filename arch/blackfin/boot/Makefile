@@ -26,3 +26,6 @@ $(obj)/vmlinux.gz: $(obj)/vmlinux.bin FORCE
 $(obj)/vmImage: $(obj)/vmlinux.gz
 	$(call if_changed,uimage)
 	@echo 'Kernel: $@ is ready'
+
+install:
+	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(BOOTIMAGE) System.map "$(INSTALL_PATH)"

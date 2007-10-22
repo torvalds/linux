@@ -473,3 +473,10 @@ long sys32_lookup_dcookie(u32 cookie_high, u32 cookie_low, char __user *buf,
 	return sys_lookup_dcookie((u64)cookie_high << 32 | cookie_low,
 				  buf, len);
 }
+
+asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
+				u32 lenhi, u32 lenlo)
+{
+        return sys_fallocate(fd, mode, ((loff_t)offhi << 32) | offlo,
+                             ((loff_t)lenhi << 32) | lenlo);
+}

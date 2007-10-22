@@ -71,7 +71,7 @@ config GENERIC_CALIBRATE_DELAY
 
 config IRQCHIP_DEMUX_GPIO
 	bool
-	depends on (BF53x || BF561 || BF54x)
+	depends on (BF52x || BF53x || BF561 || BF54x)
 	default y
 
 source "init/Kconfig"
@@ -84,6 +84,21 @@ comment "Processor and Board Settings"
 choice
 	prompt "CPU"
 	default BF533
+
+config BF522
+	bool "BF522"
+	help
+	  BF522 Processor Support.
+
+config BF525
+	bool "BF525"
+	help
+	  BF525 Processor Support.
+
+config BF527
+	bool "BF527"
+	help
+	  BF527 Processor Support.
 
 config BF531
 	bool "BF531"
@@ -144,13 +159,18 @@ endchoice
 
 choice
 	prompt "Silicon Rev"
+	default BF_REV_0_1 if BF527
 	default BF_REV_0_2 if BF537
 	default BF_REV_0_3 if BF533
 	default BF_REV_0_0 if BF549
 
 config BF_REV_0_0
 	bool "0.0"
-	depends on (BF549)
+	depends on (BF549 || BF527)
+
+config BF_REV_0_1
+	bool "0.2"
+	depends on (BF549 || BF527)
 
 config BF_REV_0_2
 	bool "0.2"
@@ -175,6 +195,11 @@ config BF_REV_NONE
 	bool "none"
 
 endchoice
+
+config BF52x
+	bool
+	depends on (BF522 || BF525 || BF527)
+	default y
 
 config BF53x
 	bool
@@ -203,6 +228,12 @@ choice
 	  Do NOT change the board here.  Please use the top level
 	  configuration to ensure that all the other settings are
 	  correct.
+
+config BFIN527_EZKIT
+	bool "BF527-EZKIT"
+	depends on (BF522 || BF525 || BF527)
+	help
+	  BF533-EZKIT-LITE board Support.
 
 config BFIN533_EZKIT
 	bool "BF533-EZKIT"
@@ -299,11 +330,17 @@ config MEM_MT48LC8M32B2B5_7
 	depends on (BFIN561_BLUETECHNIX_CM)
 	default y
 
+config MEM_MT48LC32M16A2TG_75
+	bool
+	depends on (BFIN527_EZKIT)
+	default y
+
 config BFIN_SHARED_FLASH_ENET
 	bool
 	depends on (BFIN533_STAMP)
 	default y
 
+source "arch/blackfin/mach-bf527/Kconfig"
 source "arch/blackfin/mach-bf533/Kconfig"
 source "arch/blackfin/mach-bf561/Kconfig"
 source "arch/blackfin/mach-bf537/Kconfig"
@@ -329,7 +366,7 @@ config CLKIN_HZ
 	int "Crystal Frequency in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if BFIN537_STAMP
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	help
@@ -362,7 +399,7 @@ config VCO_MULT
 	range 1 64
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "20" if BFIN537_STAMP
+	default "20" if (BFIN537_STAMP || BFIN527_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if BFIN537_BLUETECHNIX_CM
 	default "20" if BFIN561_BLUETECHNIX_CM
@@ -398,7 +435,7 @@ config SCLK_DIV
 	range 1 15
 	default 5 if BFIN533_EZKIT
 	default 5 if BFIN533_STAMP
-	default 4 if BFIN537_STAMP
+	default 4 if (BFIN537_STAMP || BFIN527_EZKIT)
 	default 5 if BFIN533_BLUETECHNIX_CM
 	default 4 if BFIN537_BLUETECHNIX_CM
 	default 4 if BFIN561_BLUETECHNIX_CM
@@ -450,6 +487,7 @@ comment "Memory Setup"
 config MEM_SIZE
 	int "SDRAM Memory Size in MBytes"
 	default  32 if BFIN533_EZKIT
+	default  64 if BFIN527_EZKIT
 	default  64 if BFIN537_STAMP
 	default  64 if BFIN561_EZKIT
 	default 128 if BFIN533_STAMP
@@ -459,6 +497,7 @@ config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
 	default  9 if BFIN533_EZKIT
 	default  9 if BFIN561_EZKIT
+	default 10 if BFIN527_EZKIT
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP
 	default 10 if PNAV10
@@ -749,9 +788,19 @@ config LARGE_ALLOCS
 	  a lot of RAM, and you need to able to allocate very large
 	  contiguous chunks. If unsure, say N.
 
+config BFIN_GPTIMERS
+	tristate "Enable Blackfin General Purpose Timers API"
+	default n
+	help
+	  Enable support for the General Purpose Timers API.  If you
+	  are unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called gptimers.ko.
+
 config BFIN_DMA_5XX
 	bool "Enable DMA Support"
-	depends on (BF533 || BF532 || BF531 || BF537 || BF536 || BF534 || BF561 || BF54x)
+	depends on (BF52x || BF53x || BF561 || BF54x)
 	default y
 	help
 	  DMA driver for BF5xx.

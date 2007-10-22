@@ -12,12 +12,17 @@ LDFLAGS_vmlinux  := -X
 OBJCOPYFLAGS     := -O binary -R .note -R .comment -S
 GZFLAGS          := -9
 
+CFLAGS           += $(call cc-option,-mno-fdpic)
+AFLAGS           += $(call cc-option,-mno-fdpic)
 CFLAGS_MODULE    += -mlong-calls
 KALLSYMS         += --symbol-prefix=_
 
 KBUILD_DEFCONFIG := BF537-STAMP_defconfig
 
 # setup the machine name and the machine dependent settings
+machine-$(CONFIG_BF522) := bf527
+machine-$(CONFIG_BF525) := bf527
+machine-$(CONFIG_BF527) := bf527
 machine-$(CONFIG_BF531) := bf533
 machine-$(CONFIG_BF532) := bf533
 machine-$(CONFIG_BF533) := bf533
@@ -32,6 +37,9 @@ machine-$(CONFIG_BF561) := bf561
 MACHINE := $(machine-y)
 export MACHINE
 
+cpu-$(CONFIG_BF522) := bf522
+cpu-$(CONFIG_BF525) := bf525
+cpu-$(CONFIG_BF527) := bf527
 cpu-$(CONFIG_BF531) := bf531
 cpu-$(CONFIG_BF532) := bf532
 cpu-$(CONFIG_BF533) := bf533
@@ -97,12 +105,23 @@ archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
 
-all: vmImage
 boot := arch/$(ARCH)/boot
 BOOT_TARGETS = vmImage
-.PHONY: $(BOOT_TARGETS)
+PHONY += $(BOOT_TARGETS) install
+KBUILD_IMAGE := $(boot)/vmImage
+
+all: vmImage
+
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
+
+install:
+	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(KBUILD_IMAGE) install
+
 define archhelp
   echo  '* vmImage         - Kernel-only image for U-Boot (arch/$(ARCH)/boot/vmImage)'
+  echo  '  install         - Install kernel using'
+  echo  '                     (your) ~/bin/$(CROSS_COMPILE)installkernel or'
+  echo  '                     (distribution) PATH: $(CROSS_COMPILE)installkernel or'
+  echo  '                     install to $$(INSTALL_PATH)'
 endef

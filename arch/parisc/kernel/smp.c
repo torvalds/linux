@@ -432,21 +432,9 @@ smp_cpu_init(int cpunum)
 void __init smp_callin(void)
 {
 	int slave_id = cpu_now_booting;
-#if 0
-	void *istack;
-#endif
 
 	smp_cpu_init(slave_id);
 	preempt_disable();
-
-#if 0	/* NOT WORKING YET - see entry.S */
-	istack = (void *)__get_free_pages(GFP_KERNEL,ISTACK_ORDER);
-	if (istack == NULL) {
-	    printk(KERN_CRIT "Failed to allocate interrupt stack for cpu %d\n",slave_id);
-	    BUG();
-	}
-	mtctl(istack,31);
-#endif
 
 	flush_cache_all_local(); /* start with known state */
 	flush_tlb_all_local(NULL);

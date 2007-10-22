@@ -120,6 +120,8 @@ extern __s32 inotify_find_update_watch(struct inotify_handle *, struct inode *,
 				       u32);
 extern __s32 inotify_add_watch(struct inotify_handle *, struct inotify_watch *,
 			       struct inode *, __u32);
+extern __s32 inotify_clone_watch(struct inotify_watch *, struct inotify_watch *);
+extern void inotify_evict_watch(struct inotify_watch *);
 extern int inotify_rm_watch(struct inotify_handle *, struct inotify_watch *);
 extern int inotify_rm_wd(struct inotify_handle *, __u32);
 extern void inotify_remove_watch_locked(struct inotify_handle *,

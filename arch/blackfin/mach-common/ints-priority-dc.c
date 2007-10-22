@@ -52,7 +52,13 @@
  * -
  */
 
-unsigned long irq_flags = 0;
+/* Initialize this to an actual value to force it into the .data
+ * section so that we know it is properly initialized at entry into
+ * the kernel but before bss is initialized to zero (which is where
+ * it would live otherwise).  The 0x1f magic represents the IRQs we
+ * cannot actually mask out in hardware.
+ */
+unsigned long irq_flags = 0x1f;
 
 /* The number of spurious interrupts */
 atomic_t num_spurious;

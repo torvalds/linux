@@ -1,0 +1,251 @@
+if (BF52x)
+
+menu "BF527 Specific Configuration"
+
+comment "Alternative Multiplexing Scheme"
+
+choice
+	prompt "SPORT0"
+	default BF527_SPORT0_PORTG
+	help
+	  Select PORT used for SPORT0. See Hardware Reference Manual
+
+config BF527_SPORT0_PORTF
+	bool "PORT F"
+	help
+	  PORT F
+
+config BF527_SPORT0_PORTG
+	bool "PORT G"
+	help
+	  PORT G
+endchoice
+
+choice
+	prompt "SPORT0 TSCLK Location"
+	depends on BF527_SPORT0_PORTG
+	default BF527_SPORT0_TSCLK_PG10
+	help
+	  Select PIN used for SPORT0_TSCLK. See Hardware Reference Manual
+
+config BF527_SPORT0_TSCLK_PG10
+	bool "PORT PG10"
+	help
+	  PORT PG10
+
+config BF527_SPORT0_TSCLK_PG14
+	bool "PORT PG14"
+	help
+	  PORT PG14
+endchoice
+
+choice
+	prompt "UART1"
+	default BF527_UART1_PORTG
+	help
+	  Select PORT used for UART1. See Hardware Reference Manual
+
+config BF527_UART1_PORTF
+	bool "PORT F"
+	help
+	  PORT F
+
+config BF527_UART1_PORTG
+	bool "PORT G"
+	help
+	  PORT G
+endchoice
+
+choice
+	prompt "NAND (NFC) Data"
+	default BF527_NAND_D_PORTH
+	help
+	  Select PORT used for NAND Data Bus. See Hardware Reference Manual
+
+config BF527_NAND_D_PORTF
+	bool "PORT F"
+	help
+	  PORT F
+
+config BF527_NAND_D_PORTH
+	bool "PORT H"
+	help
+	  PORT H
+endchoice
+
+comment "Interrupt Priority Assignment"
+menu "Priority"
+
+config IRQ_PLL_WAKEUP
+	int "IRQ_PLL_WAKEUP"
+	default 7
+config IRQ_DMA0_ERROR
+	int "IRQ_DMA0_ERROR"
+	default 7
+config IRQ_DMAR0_BLK
+	int "IRQ_DMAR0_BLK"
+	default 7
+config IRQ_DMAR1_BLK
+	int "IRQ_DMAR1_BLK"
+	default 7
+config IRQ_DMAR0_OVR
+	int "IRQ_DMAR0_OVR"
+	default 7
+config IRQ_DMAR1_OVR
+	int "IRQ_DMAR1_OVR"
+	default 7
+config IRQ_PPI_ERROR
+	int "IRQ_PPI_ERROR"
+	default 7
+config IRQ_MAC_ERROR
+	int "IRQ_MAC_ERROR"
+	default 7
+config IRQ_SPORT0_ERROR
+	int "IRQ_SPORT0_ERROR"
+	default 7
+config IRQ_SPORT1_ERROR
+	int "IRQ_SPORT1_ERROR"
+	default 7
+config IRQ_UART0_ERROR
+	int "IRQ_UART0_ERROR"
+	default 7
+config IRQ_UART1_ERROR
+	int "IRQ_UART1_ERROR"
+	default 7
+config IRQ_RTC
+	int "IRQ_RTC"
+	default 8
+config IRQ_PPI
+	int "IRQ_PPI"
+	default 8
+config IRQ_SPORT0_RX
+	int "IRQ_SPORT0_RX"
+	default 9
+config IRQ_SPORT0_TX
+	int "IRQ_SPORT0_TX"
+	default 9
+config IRQ_SPORT1_RX
+	int "IRQ_SPORT1_RX"
+	default 9
+config IRQ_SPORT1_TX
+	int "IRQ_SPORT1_TX"
+	default 9
+config IRQ_TWI
+	int "IRQ_TWI"
+	default 10
+config IRQ_SPI
+	int "IRQ_SPI"
+	default 10
+config IRQ_UART0_RX
+	int "IRQ_UART0_RX"
+	default 10
+config IRQ_UART0_TX
+	int "IRQ_UART0_TX"
+	default 10
+config IRQ_UART1_RX
+	int "IRQ_UART1_RX"
+	default 10
+config IRQ_UART1_TX
+	int "IRQ_UART1_TX"
+	default 10
+config IRQ_OPTSEC
+	int "IRQ_OPTSEC"
+	default 11
+config IRQ_CNT
+	int "IRQ_CNT"
+	default 11
+config IRQ_MAC_RX
+	int "IRQ_MAC_RX"
+	default 11
+config IRQ_PORTH_INTA
+	int "IRQ_PORTH_INTA"
+	default 11
+config IRQ_MAC_TX
+	int "IRQ_MAC_TX/NFC"
+	default 11
+config IRQ_PORTH_INTB
+	int "IRQ_PORTH_INTB"
+	default 11
+config IRQ_TMR0
+	int "IRQ_TMR0"
+	default 12
+config IRQ_TMR1
+	int "IRQ_TMR1"
+	default 12
+config IRQ_TMR2
+	int "IRQ_TMR2"
+	default 12
+config IRQ_TMR3
+	int "IRQ_TMR3"
+	default 12
+config IRQ_TMR4
+	int "IRQ_TMR4"
+	default 12
+config IRQ_TMR5
+	int "IRQ_TMR5"
+	default 12
+config IRQ_TMR6
+	int "IRQ_TMR6"
+	default 12
+config IRQ_TMR7
+	int "IRQ_TMR7"
+	default 12
+config IRQ_PORTG_INTA
+	int "IRQ_PORTG_INTA"
+	default 12
+config IRQ_PORTG_INTB
+	int "IRQ_PORTG_INTB"
+	default 12
+config IRQ_MEM_DMA0
+	int "IRQ_MEM_DMA0"
+	default 13
+config IRQ_MEM_DMA1
+	int "IRQ_MEM_DMA1"
+	default 13
+config IRQ_WATCH
+	int "IRQ_WATCH"
+	default 13
+config IRQ_PORTF_INTA
+	int "IRQ_PORTF_INTA"
+	default 13
+config IRQ_PORTF_INTB
+	int "IRQ_PORTF_INTB"
+	default 13
+config IRQ_SPI_ERROR
+	int "IRQ_SPI_ERROR"
+	default 7
+config IRQ_NFC_ERROR
+	int "IRQ_NFC_ERROR"
+	default 7
+config IRQ_HDMA_ERROR
+	int "IRQ_HDMA_ERROR"
+	default 7
+config IRQ_HDMA
+	int "IRQ_HDMA"
+	default 7
+config IRQ_USB_EINT
+	int "IRQ_USB_EINT"
+	default 10
+config IRQ_USB_INT0
+	int "IRQ_USB_INT0"
+	default 10
+config IRQ_USB_INT1
+	int "IRQ_USB_INT1"
+	default 10
+config IRQ_USB_INT2
+	int "IRQ_USB_INT2"
+	default 10
+config IRQ_USB_DMA
+	int "IRQ_USB_DMA"
+	default 10
+
+	help
+	  Enter the priority numbers between 7-13 ONLY.  Others are Reserved.
+	  This applies to all the above.  It is not recommended to assign the
+	  highest priority number 7 to UART or any other device.
+
+endmenu
+
+endmenu
+
+endif

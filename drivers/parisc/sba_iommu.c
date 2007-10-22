@@ -1909,8 +1909,8 @@ sba_driver_callback(struct parisc_device *dev)
 			global_ioc_cnt *= 2;
 	}
 
-	printk(KERN_INFO "%s found %s at 0x%lx\n",
-		MODULE_NAME, version, dev->hpa.start);
+	printk(KERN_INFO "%s found %s at 0x%llx\n",
+		MODULE_NAME, version, (unsigned long long)dev->hpa.start);
 
 	sba_dev = kzalloc(sizeof(struct sba_device), GFP_KERNEL);
 	if (!sba_dev) {

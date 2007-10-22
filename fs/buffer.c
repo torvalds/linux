@@ -2563,7 +2563,7 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata)
 {
 	struct inode *inode = page->mapping->host;
-	struct buffer_head *head = NULL;
+	struct buffer_head *head = fsdata;
 	struct buffer_head *bh;
 
 	if (!PageMappedToDisk(page)) {
@@ -2584,7 +2584,6 @@ int nobh_write_end(struct file *file, struct address_space *mapping,
 	unlock_page(page);
 	page_cache_release(page);
 
-	head = fsdata;
 	while (head) {
 		bh = head;
 		head = head->b_this_page;

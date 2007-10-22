@@ -1,7 +1,6 @@
 #ifndef _PARISC_PDC_H
 #define _PARISC_PDC_H
 
-
 /*
  *	PDC return values ...
  *	All PDC calls return a subset of these errors. 
@@ -19,7 +18,6 @@
 #define PDC_INVALID_ARG		-10	/* Called with an invalid argument */
 #define PDC_BUS_POW_WARN	-12	/* Call could not complete in allowed power budget */
 #define PDC_NOT_NARROW		-17	/* Narrow mode not supported	*/
-
 
 /*
  *	PDC entry points...
@@ -50,6 +48,12 @@
 #define PDC_MODEL_DISPEC	5	/* disable specific option	*/
 #define PDC_MODEL_CPU_ID	6	/* returns cpu-id (only newer machines!) */
 #define PDC_MODEL_CAPABILITIES	7	/* returns OS32/OS64-flags	*/
+/* Values for PDC_MODEL_CAPABILITIES non-equivalent virtual aliasing support */
+#define  PDC_MODEL_IOPDIR_FDC		(1 << 2)
+#define  PDC_MODEL_NVA_MASK		(3 << 4)
+#define  PDC_MODEL_NVA_SUPPORTED	(0 << 4)
+#define  PDC_MODEL_NVA_SLOW		(1 << 4)
+#define  PDC_MODEL_NVA_UNSUPPORTED	(3 << 4)
 #define PDC_MODEL_GET_BOOT__OP	8	/* returns boot test options	*/
 #define PDC_MODEL_SET_BOOT__OP	9	/* set boot test options	*/
 
@@ -91,7 +95,7 @@
 #define PDC_TOD		9		/* time-of-day clock (TOD)	*/
 #define PDC_TOD_READ		0	/* read TOD			*/
 #define PDC_TOD_WRITE		1	/* write TOD			*/
-#define PDC_TOD_ITIMER		2	/* calibrate Interval Timer (CR16) */
+
 
 #define PDC_STABLE	10		/* stable storage (sprockets)	*/
 #define PDC_STABLE_READ		0
@@ -142,15 +146,6 @@
 #define PDC_MEM_RET_BUF_SIZE_SMALL	1
 #define PDC_MEM_RET_PDT_FULL		-11
 #define PDC_MEM_RET_INVALID_PHYSICAL_LOCATION ~0ULL
-
-#ifndef __ASSEMBLY__
-typedef struct {
-    unsigned long long	baseAddr;
-    unsigned int	pages;
-    unsigned int	reserved;
-} MemAddrTable_t;
-#endif
-
 
 #define PDC_PSW		21		/* Get/Set default System Mask  */
 #define PDC_PSW_MASK		0	/* Return mask                  */
@@ -274,6 +269,43 @@ typedef struct {
 #define PDC_LINK_PCI_ENTRY_POINTS	0  /* list (Arg1) = 0 */
 #define PDC_LINK_USB_ENTRY_POINTS	1  /* list (Arg1) = 1 */
 
+/* cl_class
+ * page 3-33 of IO-Firmware ARS
+ * IODC ENTRY_INIT(Search first) RET[1]
+ */
+#define	CL_NULL		0	/* invalid */
+#define	CL_RANDOM	1	/* random access (as disk) */
+#define	CL_SEQU		2	/* sequential access (as tape) */
+#define	CL_DUPLEX	7	/* full-duplex point-to-point (RS-232, Net) */
+#define	CL_KEYBD	8	/* half-duplex console (HIL Keyboard) */
+#define	CL_DISPL	9	/* half-duplex console (display) */
+#define	CL_FC		10	/* FiberChannel access media */
+
+/* IODC ENTRY_INIT() */
+#define ENTRY_INIT_SRCH_FRST	2
+#define ENTRY_INIT_SRCH_NEXT	3
+#define ENTRY_INIT_MOD_DEV	4
+#define ENTRY_INIT_DEV		5
+#define ENTRY_INIT_MOD		6
+#define ENTRY_INIT_MSG		9
+
+/* IODC ENTRY_IO() */
+#define ENTRY_IO_BOOTIN		0
+#define ENTRY_IO_BOOTOUT	1
+#define ENTRY_IO_CIN		2
+#define ENTRY_IO_COUT		3
+#define ENTRY_IO_CLOSE		4
+#define ENTRY_IO_GETMSG		9
+#define ENTRY_IO_BBLOCK_IN	16
+#define ENTRY_IO_BBLOCK_OUT	17
+
+/* IODC ENTRY_SPA() */
+
+/* IODC ENTRY_CONFIG() */
+
+/* IODC ENTRY_TEST() */
+
+/* IODC ENTRY_TLB() */
 
 /* constants for OS (NVM...) */
 #define OS_ID_NONE		0	/* Undefined OS ID	*/
@@ -295,7 +327,13 @@ typedef struct {
 #define OSTAT_RUN		6
 #define OSTAT_ON		7
 
-#ifndef __ASSEMBLY__
+/* Page Zero constant offsets used by the HPMC handler */
+#define BOOT_CONSOLE_HPA_OFFSET  0x3c0
+#define BOOT_CONSOLE_SPA_OFFSET  0x3c4
+#define BOOT_CONSOLE_PATH_OFFSET 0x3a8
+
+#if !defined(__ASSEMBLY__)
+#ifdef __KERNEL__
 
 #include <linux/types.h>
 
@@ -330,14 +368,6 @@ struct pdc_model {		/* for PDC_MODEL */
 	unsigned long pot_key;
 	unsigned long curr_key;
 };
-
-/* Values for PDC_MODEL_CAPABILITIES non-equivalent virtual aliasing support */
-
-#define PDC_MODEL_IOPDIR_FDC            (1 << 2)        /* see sba_iommu.c */
-#define PDC_MODEL_NVA_MASK		(3 << 4)
-#define PDC_MODEL_NVA_SUPPORTED		(0 << 4)
-#define PDC_MODEL_NVA_SLOW		(1 << 4)
-#define PDC_MODEL_NVA_UNSUPPORTED	(3 << 4)
 
 struct pdc_cache_cf {		/* for PDC_CACHE  (I/D-caches) */
     unsigned long
@@ -558,156 +588,6 @@ struct pdc_hpmc_pim_20 { /* PDC_PIM */
 	__u64 fr[32];
 };
 
-#endif /* __ASSEMBLY__ */
-
-/* flags of the device_path (see below) */
-#define	PF_AUTOBOOT	0x80
-#define	PF_AUTOSEARCH	0x40
-#define	PF_TIMER	0x0F
-
-#ifndef __ASSEMBLY__
-
-struct device_path {		/* page 1-69 */
-	unsigned char flags;	/* flags see above! */
-	unsigned char bc[6];	/* bus converter routing info */
-	unsigned char mod;
-	unsigned int  layers[6];/* device-specific layer-info */
-} __attribute__((aligned(8))) ;
-
-struct pz_device {
-	struct	device_path dp;	/* see above */
-	/* struct	iomod *hpa; */
-	unsigned int hpa;	/* HPA base address */
-	/* char	*spa; */
-	unsigned int spa;	/* SPA base address */
-	/* int	(*iodc_io)(struct iomod*, ...); */
-	unsigned int iodc_io;	/* device entry point */
-	short	pad;		/* reserved */
-	unsigned short cl_class;/* see below */
-} __attribute__((aligned(8))) ;
-
-#endif /* __ASSEMBLY__ */
-
-/* cl_class
- * page 3-33 of IO-Firmware ARS
- * IODC ENTRY_INIT(Search first) RET[1]
- */
-#define	CL_NULL		0	/* invalid */
-#define	CL_RANDOM	1	/* random access (as disk) */
-#define	CL_SEQU		2	/* sequential access (as tape) */
-#define	CL_DUPLEX	7	/* full-duplex point-to-point (RS-232, Net) */
-#define	CL_KEYBD	8	/* half-duplex console (HIL Keyboard) */
-#define	CL_DISPL	9	/* half-duplex console (display) */
-#define	CL_FC		10	/* FiberChannel access media */
-
-#if 0
-/* FIXME: DEVCLASS_* duplicates CL_* (above).  Delete DEVCLASS_*? */
-#define DEVCLASS_RANDOM		1
-#define DEVCLASS_SEQU		2
-#define DEVCLASS_DUPLEX		7
-#define DEVCLASS_KEYBD		8
-#define DEVCLASS_DISP		9
-#endif
-
-/* IODC ENTRY_INIT() */
-#define ENTRY_INIT_SRCH_FRST	2
-#define ENTRY_INIT_SRCH_NEXT	3
-#define ENTRY_INIT_MOD_DEV	4
-#define ENTRY_INIT_DEV		5
-#define ENTRY_INIT_MOD		6
-#define ENTRY_INIT_MSG		9
-
-/* IODC ENTRY_IO() */
-#define ENTRY_IO_BOOTIN		0
-#define ENTRY_IO_BOOTOUT	1
-#define ENTRY_IO_CIN		2
-#define ENTRY_IO_COUT		3
-#define ENTRY_IO_CLOSE		4
-#define ENTRY_IO_GETMSG		9
-#define ENTRY_IO_BBLOCK_IN	16
-#define ENTRY_IO_BBLOCK_OUT	17
-
-/* IODC ENTRY_SPA() */
-
-/* IODC ENTRY_CONFIG() */
-
-/* IODC ENTRY_TEST() */
-
-/* IODC ENTRY_TLB() */
-
-
-/* DEFINITION OF THE ZERO-PAGE (PAG0) */
-/* based on work by Jason Eckhardt (jason@equator.com) */
-
-#ifndef __ASSEMBLY__
-
-#define PAGE0   ((struct zeropage *)__PAGE_OFFSET)
-
-struct zeropage {
-	/* [0x000] initialize vectors (VEC) */
-	unsigned int	vec_special;		/* must be zero */
-	/* int	(*vec_pow_fail)(void);*/
-	unsigned int	vec_pow_fail; /* power failure handler */
-	/* int	(*vec_toc)(void); */
-	unsigned int	vec_toc;
-	unsigned int	vec_toclen;
-	/* int	(*vec_rendz)(void); */
-	unsigned int vec_rendz;
-	int	vec_pow_fail_flen;
-	int	vec_pad[10];		
-	
-	/* [0x040] reserved processor dependent */
-	int	pad0[112];
-
-	/* [0x200] reserved */
-	int	pad1[84];
-
-	/* [0x350] memory configuration (MC) */
-	int	memc_cont;		/* contiguous mem size (bytes) */
-	int	memc_phsize;		/* physical memory size */
-	int	memc_adsize;		/* additional mem size, bytes of SPA space used by PDC */
-	unsigned int mem_pdc_hi;	/* used for 64-bit */
-
-	/* [0x360] various parameters for the boot-CPU */
-	/* unsigned int *mem_booterr[8]; */
-	unsigned int mem_booterr[8];	/* ptr to boot errors */
-	unsigned int mem_free;		/* first location, where OS can be loaded */
-	/* struct iomod *mem_hpa; */
-	unsigned int mem_hpa;		/* HPA of the boot-CPU */
-	/* int (*mem_pdc)(int, ...); */
-	unsigned int mem_pdc;		/* PDC entry point */
-	unsigned int mem_10msec;	/* number of clock ticks in 10msec */
-
-	/* [0x390] initial memory module (IMM) */
-	/* struct iomod *imm_hpa; */
-	unsigned int imm_hpa;		/* HPA of the IMM */
-	int	imm_soft_boot;		/* 0 = was hard boot, 1 = was soft boot */
-	unsigned int	imm_spa_size;		/* SPA size of the IMM in bytes */
-	unsigned int	imm_max_mem;		/* bytes of mem in IMM */
-
-	/* [0x3A0] boot console, display device and keyboard */
-	struct pz_device mem_cons;	/* description of console device */
-	struct pz_device mem_boot;	/* description of boot device */
-	struct pz_device mem_kbd;	/* description of keyboard device */
-
-	/* [0x430] reserved */
-	int	pad430[116];
-
-	/* [0x600] processor dependent */
-	__u32	pad600[1];
-	__u32	proc_sti;		/* pointer to STI ROM */
-	__u32	pad608[126];
-};
-
-#endif /* __ASSEMBLY__ */
-
-/* Page Zero constant offsets used by the HPMC handler */
-
-#define BOOT_CONSOLE_HPA_OFFSET  0x3c0
-#define BOOT_CONSOLE_SPA_OFFSET  0x3c4
-#define BOOT_CONSOLE_PATH_OFFSET 0x3a8
-
-#ifndef __ASSEMBLY__
 void pdc_console_init(void);	/* in pdc_console.c */
 void pdc_console_restart(void);
 
@@ -724,7 +604,7 @@ int pdc_iodc_read(unsigned long *actcnt, unsigned long hpa, unsigned int index,
 		  void *iodc_data, unsigned int iodc_data_size);
 int pdc_system_map_find_mods(struct pdc_system_map_mod_info *pdc_mod_info,
 			     struct pdc_module_path *mod_path, long mod_index);
-int pdc_system_map_find_addrs(struct pdc_system_map_addr_info *pdc_addr_info, 
+int pdc_system_map_find_addrs(struct pdc_system_map_addr_info *pdc_addr_info,
 			      long mod_index, long addr_index);
 int pdc_model_info(struct pdc_model *model);
 int pdc_model_sysmodel(char *name);
@@ -786,6 +666,94 @@ static inline char * os_id_to_string(u16 os_id) {
 	default:	return "Unknown";
 	}
 }
-#endif /* __ASSEMBLY__ */
+
+#endif /* __KERNEL__ */
+
+#define PAGE0   ((struct zeropage *)__PAGE_OFFSET)
+
+/* DEFINITION OF THE ZERO-PAGE (PAG0) */
+/* based on work by Jason Eckhardt (jason@equator.com) */
+
+/* flags of the device_path */
+#define	PF_AUTOBOOT	0x80
+#define	PF_AUTOSEARCH	0x40
+#define	PF_TIMER	0x0F
+
+struct device_path {		/* page 1-69 */
+	unsigned char flags;	/* flags see above! */
+	unsigned char bc[6];	/* bus converter routing info */
+	unsigned char mod;
+	unsigned int  layers[6];/* device-specific layer-info */
+} __attribute__((aligned(8))) ;
+
+struct pz_device {
+	struct	device_path dp;	/* see above */
+	/* struct	iomod *hpa; */
+	unsigned int hpa;	/* HPA base address */
+	/* char	*spa; */
+	unsigned int spa;	/* SPA base address */
+	/* int	(*iodc_io)(struct iomod*, ...); */
+	unsigned int iodc_io;	/* device entry point */
+	short	pad;		/* reserved */
+	unsigned short cl_class;/* see below */
+} __attribute__((aligned(8))) ;
+
+struct zeropage {
+	/* [0x000] initialize vectors (VEC) */
+	unsigned int	vec_special;		/* must be zero */
+	/* int	(*vec_pow_fail)(void);*/
+	unsigned int	vec_pow_fail; /* power failure handler */
+	/* int	(*vec_toc)(void); */
+	unsigned int	vec_toc;
+	unsigned int	vec_toclen;
+	/* int	(*vec_rendz)(void); */
+	unsigned int vec_rendz;
+	int	vec_pow_fail_flen;
+	int	vec_pad[10];		
+	
+	/* [0x040] reserved processor dependent */
+	int	pad0[112];
+
+	/* [0x200] reserved */
+	int	pad1[84];
+
+	/* [0x350] memory configuration (MC) */
+	int	memc_cont;		/* contiguous mem size (bytes) */
+	int	memc_phsize;		/* physical memory size */
+	int	memc_adsize;		/* additional mem size, bytes of SPA space used by PDC */
+	unsigned int mem_pdc_hi;	/* used for 64-bit */
+
+	/* [0x360] various parameters for the boot-CPU */
+	/* unsigned int *mem_booterr[8]; */
+	unsigned int mem_booterr[8];	/* ptr to boot errors */
+	unsigned int mem_free;		/* first location, where OS can be loaded */
+	/* struct iomod *mem_hpa; */
+	unsigned int mem_hpa;		/* HPA of the boot-CPU */
+	/* int (*mem_pdc)(int, ...); */
+	unsigned int mem_pdc;		/* PDC entry point */
+	unsigned int mem_10msec;	/* number of clock ticks in 10msec */
+
+	/* [0x390] initial memory module (IMM) */
+	/* struct iomod *imm_hpa; */
+	unsigned int imm_hpa;		/* HPA of the IMM */
+	int	imm_soft_boot;		/* 0 = was hard boot, 1 = was soft boot */
+	unsigned int	imm_spa_size;		/* SPA size of the IMM in bytes */
+	unsigned int	imm_max_mem;		/* bytes of mem in IMM */
+
+	/* [0x3A0] boot console, display device and keyboard */
+	struct pz_device mem_cons;	/* description of console device */
+	struct pz_device mem_boot;	/* description of boot device */
+	struct pz_device mem_kbd;	/* description of keyboard device */
+
+	/* [0x430] reserved */
+	int	pad430[116];
+
+	/* [0x600] processor dependent */
+	__u32	pad600[1];
+	__u32	proc_sti;		/* pointer to STI ROM */
+	__u32	pad608[126];
+};
+
+#endif /* !defined(__ASSEMBLY__) */
 
 #endif /* _PARISC_PDC_H */

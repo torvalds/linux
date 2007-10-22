@@ -42,7 +42,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-char *bfin_board_name = "Bluetechnix CM BF561";
+const char bfin_board_name[] = "Bluetechnix CM BF561";
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* all SPI peripherals info goes here */

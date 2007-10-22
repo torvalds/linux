@@ -122,30 +122,8 @@ EXPORT_SYMBOL($$divI_12);
 EXPORT_SYMBOL($$divI_14);
 EXPORT_SYMBOL($$divI_15);
 
-extern void __ashrdi3(void);
-extern void __ashldi3(void);
-extern void __lshrdi3(void);
-extern void __muldi3(void);
-
-EXPORT_SYMBOL(__ashrdi3);
-EXPORT_SYMBOL(__ashldi3);
-EXPORT_SYMBOL(__lshrdi3);
-EXPORT_SYMBOL(__muldi3);
-
 asmlinkage void * __canonicalize_funcptr_for_compare(void *);
 EXPORT_SYMBOL(__canonicalize_funcptr_for_compare);
-
-#ifdef CONFIG_64BIT
-extern void __divdi3(void);
-extern void __udivdi3(void);
-extern void __umoddi3(void);
-extern void __moddi3(void);
-
-EXPORT_SYMBOL(__divdi3);
-EXPORT_SYMBOL(__udivdi3);
-EXPORT_SYMBOL(__umoddi3);
-EXPORT_SYMBOL(__moddi3);
-#endif
 
 #ifndef CONFIG_64BIT
 extern void $$dyncall(void);

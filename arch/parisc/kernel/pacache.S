@@ -289,7 +289,7 @@ ENTRY(copy_user_page_asm)
 	 */
 
 	ldd		0(%r25), %r19
-	ldi		ASM_PAGE_SIZE_DIV128, %r1
+	ldi		(PAGE_SIZE / 128), %r1
 
 	ldw		64(%r25), %r0		/* prefetch 1 cacheline ahead */
 	ldw		128(%r25), %r0		/* prefetch 2 */
@@ -355,7 +355,7 @@ ENTRY(copy_user_page_asm)
 	 * use ldd/std on a 32 bit kernel.
 	 */
 	ldw		0(%r25), %r19
-	ldi		ASM_PAGE_SIZE_DIV64, %r1
+	ldi		(PAGE_SIZE / 64), %r1
 
 1:
 	ldw		4(%r25), %r20
@@ -553,7 +553,7 @@ ENTRY(__clear_user_page_asm)
 	pdtlb		0(%r28)
 
 #ifdef CONFIG_64BIT
-	ldi		ASM_PAGE_SIZE_DIV128, %r1
+	ldi		(PAGE_SIZE / 128), %r1
 
 	/* PREFETCH (Write) has not (yet) been proven to help here */
 	/* #define	PREFETCHW_OP	ldd		256(%0), %r0 */
@@ -578,7 +578,7 @@ ENTRY(__clear_user_page_asm)
 	ldo		128(%r28), %r28
 
 #else	/* ! CONFIG_64BIT */
-	ldi		ASM_PAGE_SIZE_DIV64, %r1
+	ldi		(PAGE_SIZE / 64), %r1
 
 1:
 	stw		%r0, 0(%r28)

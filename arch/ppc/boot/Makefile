@@ -13,6 +13,8 @@
 # modified by Cort (cort@cs.nmt.edu)
 #
 
+# KBUILD_CFLAGS used when building rest of boot (takes effect recursively)
+KBUILD_CFLAGS 	+= -fno-builtin -D__BOOTER__ -Iarch/$(ARCH)/boot/include
 HOSTCFLAGS	+= -Iarch/$(ARCH)/boot/include
 
 BOOT_TARGETS	= zImage zImage.initrd znetboot znetboot.initrd

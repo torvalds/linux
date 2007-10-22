@@ -39,7 +39,7 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-char *bfin_board_name = "ADDS-BF561-EZKIT";
+const char bfin_board_name[] = "ADDS-BF561-EZKIT";
 
 #define ISP1761_BASE       0x2C0F0000
 #define ISP1761_IRQ        IRQ_PF10

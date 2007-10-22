@@ -16,7 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 
-char *bfin_board_name = "Tepla-BF561";
+const char bfin_board_name[] = "Tepla-BF561";
 
 /*
  *  Driver needs to know address, irq and flag pin.

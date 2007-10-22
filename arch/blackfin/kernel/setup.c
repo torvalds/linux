@@ -459,7 +459,7 @@ static u_long get_vco(void)
 	return vco;
 }
 
-/*Get the Core clock*/
+/* Get the Core clock */
 u_long get_cclk(void)
 {
 	u_long csel, ssel;
@@ -493,12 +493,24 @@ u_long get_sclk(void)
 }
 EXPORT_SYMBOL(get_sclk);
 
+unsigned long sclk_to_usecs(unsigned long sclk)
+{
+	return (USEC_PER_SEC * (u64)sclk) / get_sclk();
+}
+EXPORT_SYMBOL(sclk_to_usecs);
+
+unsigned long usecs_to_sclk(unsigned long usecs)
+{
+	return get_sclk() / (USEC_PER_SEC * (u64)usecs);
+}
+EXPORT_SYMBOL(usecs_to_sclk);
+
 /*
  *	Get CPU information for use by the procfs.
  */
 static int show_cpuinfo(struct seq_file *m, void *v)
 {
-	char *cpu, *mmu, *fpu, *name;
+	char *cpu, *mmu, *fpu, *vendor, *cache;
 	uint32_t revid;
 
 	u_long cclk = 0, sclk = 0;
@@ -508,70 +520,83 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	mmu = "none";
 	fpu = "none";
 	revid = bfin_revid();
-	name = bfin_board_name;
 
 	cclk = get_cclk();
 	sclk = get_sclk();
 
-	seq_printf(m, "CPU:\t\tADSP-%s Rev. 0.%d\n"
-		   "MMU:\t\t%s\n"
-		   "FPU:\t\t%s\n"
-		   "Core Clock:\t%9lu Hz\n"
-		   "System Clock:\t%9lu Hz\n"
-		   "BogoMips:\t%lu.%02lu\n"
-		   "Calibration:\t%lu loops\n",
-		   cpu, revid, mmu, fpu,
-		   cclk,
-		   sclk,
-		   (loops_per_jiffy * HZ) / 500000,
-		   ((loops_per_jiffy * HZ) / 5000) % 100,
-		   (loops_per_jiffy * HZ));
-	seq_printf(m, "Board Name:\t%s\n", name);
-	seq_printf(m, "Board Memory:\t%ld MB\n", physical_mem_end >> 20);
-	seq_printf(m, "Kernel Memory:\t%ld MB\n", (unsigned long)_ramend >> 20);
-	if (bfin_read_IMEM_CONTROL() & (ENICPLB | IMC))
-		seq_printf(m, "I-CACHE:\tON\n");
-	else
-		seq_printf(m, "I-CACHE:\tOFF\n");
-	if ((bfin_read_DMEM_CONTROL()) & (ENDCPLB | DMC_ENABLE))
-		seq_printf(m, "D-CACHE:\tON"
-#if defined CONFIG_BFIN_WB
-			   " (write-back)"
-#elif defined CONFIG_BFIN_WT
-			   " (write-through)"
-#endif
-			   "\n");
-	else
-		seq_printf(m, "D-CACHE:\tOFF\n");
+	switch (bfin_read_CHIPID() & CHIPID_MANUFACTURE) {
+	case 0xca:
+		vendor = "Analog Devices";
+		break;
+	default:
+		vendor = "unknown";
+		break;
+	}
 
+	seq_printf(m, "processor\t: %d\n"
+		"vendor_id\t: %s\n"
+		"cpu family\t: 0x%x\n"
+		"model name\t: ADSP-%s %lu(MHz CCLK) %lu(MHz SCLK)\n"
+		"stepping\t: %d\n",
+		0,
+		vendor,
+		(bfin_read_CHIPID() & CHIPID_FAMILY),
+		cpu, cclk/1000000, sclk/1000000,
+		revid);
 
+	seq_printf(m, "cpu MHz\t\t: %lu.%03lu/%lu.%03lu\n",
+		cclk/1000000, cclk%1000000,
+		sclk/1000000, sclk%1000000);
+	seq_printf(m, "bogomips\t: %lu.%02lu\n"
+		"Calibration\t: %lu loops\n",
+		(loops_per_jiffy * HZ) / 500000,
+		((loops_per_jiffy * HZ) / 5000) % 100,
+		(loops_per_jiffy * HZ));
+
+	/* Check Cache configutation */
 	switch (bfin_read_DMEM_CONTROL() & (1 << DMC0_P | 1 << DMC1_P)) {
 	case ACACHE_BSRAM:
-		seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tSRAM\n");
+		cache = "dbank-A/B\t: cache/sram";
 		dcache_size = 16;
 		dsup_banks = 1;
 		break;
 	case ACACHE_BCACHE:
-		seq_printf(m, "DBANK-A:\tCACHE\n" "DBANK-B:\tCACHE\n");
+		cache = "dbank-A/B\t: cache/cache";
 		dcache_size = 32;
 		dsup_banks = 2;
 		break;
 	case ASRAM_BSRAM:
-		seq_printf(m, "DBANK-A:\tSRAM\n" "DBANK-B:\tSRAM\n");
+		cache = "dbank-A/B\t: sram/sram";
 		dcache_size = 0;
 		dsup_banks = 0;
 		break;
 	default:
+		cache = "unknown";
+		dcache_size = 0;
+		dsup_banks = 0;
 		break;
 	}
 
+	/* Is it turned on? */
+	if (!((bfin_read_DMEM_CONTROL()) & (ENDCPLB | DMC_ENABLE)))
+		dcache_size = 0;
 
-	seq_printf(m, "I-CACHE Size:\t%dKB\n", BFIN_ICACHESIZE / 1024);
-	seq_printf(m, "D-CACHE Size:\t%dKB\n", dcache_size);
-	seq_printf(m, "I-CACHE Setup:\t%d Sub-banks/%d Ways, %d Lines/Way\n",
+	seq_printf(m, "cache size\t: %d KB(L1 icache) "
+		"%d KB(L1 dcache-%s) %d KB(L2 cache)\n",
+		BFIN_ICACHESIZE / 1024, dcache_size,
+#if defined CONFIG_BFIN_WB
+		"wb"
+#elif defined CONFIG_BFIN_WT
+		"wt"
+#endif
+		, 0);
+
+	seq_printf(m, "%s\n", cache);
+
+	seq_printf(m, "icache setup\t: %d Sub-banks/%d Ways, %d Lines/Way\n",
 		   BFIN_ISUBBANKS, BFIN_IWAYS, BFIN_ILINES);
 	seq_printf(m,
-		   "D-CACHE Setup:\t%d Super-banks/%d Sub-banks/%d Ways, %d Lines/Way\n",
+		   "dcache setup\t: %d Super-banks/%d Sub-banks/%d Ways, %d Lines/Way\n",
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef CONFIG_BFIN_ICACHE_LOCK
@@ -625,6 +650,15 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "No Ways are locked\n");
 	}
 #endif
+
+	seq_printf(m, "board name\t: %s\n", bfin_board_name);
+	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
+		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
+	seq_printf(m, "kernel memory\t: %d kB (0x%p -> 0x%p)\n",
+		((int)memory_end - (int)_stext) >> 10,
+		_stext,
+		(void *)memory_end);
+
 	return 0;
 }
 

@@ -82,7 +82,12 @@ static int __cpuinit processor_probe(struct parisc_device *dev)
 	unsigned long cpuid;
 	struct cpuinfo_parisc *p;
 
-#ifndef CONFIG_SMP
+#ifdef CONFIG_SMP
+	if (num_online_cpus() >= NR_CPUS) {
+		printk(KERN_INFO "num_online_cpus() >= NR_CPUS\n");
+		return 1;
+	}
+#else
 	if (boot_cpu_data.cpu_count > 0) {
 		printk(KERN_INFO "CONFIG_SMP=n  ignoring additional CPUs\n");
 		return 1;
