@@ -4,4 +4,4 @@
 
 obj-y    := math.o
 
-EXTRA_CFLAGS = -I. -Iinclude/math-emu -w
+EXTRA_CFLAGS = -Iinclude/math-emu -w

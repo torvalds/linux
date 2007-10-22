@@ -39,12 +39,3 @@ else
     obj-y += sys_sunos32.o sunos_ioctl32.o
   endif
 endif
-
-ifneq ($(NEW_GCC),y)
-  CMODEL_CFLAG := -mmedlow
-else
-  CMODEL_CFLAG := -m64 -mcmodel=medlow
-endif
-
-head.o: head.S ttable.S itlb_miss.S dtlb_miss.S ktlb.S tsb.S \
-	etrap.S rtrap.S winfixup.S entry.S
