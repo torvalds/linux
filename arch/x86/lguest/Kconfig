@@ -2,6 +2,7 @@ config LGUEST_GUEST
 	bool "Lguest guest support"
 	select PARAVIRT
 	depends on !X86_PAE
+	select VIRTIO_RING
 	help
 	  Lguest is a tiny in-kernel hypervisor.  Selecting this will
 	  allow your kernel to boot under lguest.  This option will increase
