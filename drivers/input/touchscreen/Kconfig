@@ -202,6 +202,7 @@ config TOUCHSCREEN_USB_COMPOSITE
 	  - DMC TSC-10/25
 	  - IRTOUCHSYSTEMS/UNITOP
 	  - IdealTEK URTC1000
+	  - GoTop Super_Q2/GogoPen/PenPower tablets
 
 	  Have a look at <http://linux.chapter7.ch/touchkit/> for
 	  a usage description and the required user-space stuff.
@@ -257,6 +258,11 @@ config TOUCHSCREEN_USB_IDEALTEK
 config TOUCHSCREEN_USB_GENERAL_TOUCH
 	default y
 	bool "GeneralTouch Touchscreen device support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_GOTOP
+	default y
+	bool "GoTop Super_Q2/GogoPen/PenPower tablet device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
 endif
