@@ -3113,6 +3113,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 					     vm->width,vm->height,field);
 		if (0 != retval)
 			goto fh_unlock_and_return;
+		btv->init.width = vm->width;
+		btv->init.height = vm->height;
 		spin_lock_irqsave(&btv->s_lock,flags);
 		buffer_queue(&fh->cap,&buf->vb);
 		spin_unlock_irqrestore(&btv->s_lock,flags);
