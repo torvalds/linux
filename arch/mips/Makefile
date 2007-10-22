@@ -18,15 +18,15 @@ cflags-y :=
 # Select the object file format to substitute into the linker script.
 #
 ifdef CONFIG_CPU_LITTLE_ENDIAN
-32bit-tool-prefix	= mipsel-linux-
-64bit-tool-prefix	= mips64el-linux-
+32bit-tool-archpref	= mipsel
+64bit-tool-archpref	= mips64el
 32bit-bfd		= elf32-tradlittlemips
 64bit-bfd		= elf64-tradlittlemips
 32bit-emul		= elf32ltsmip
 64bit-emul		= elf64ltsmip
 else
-32bit-tool-prefix	= mips-linux-
-64bit-tool-prefix	= mips64-linux-
+32bit-tool-archpref	= mips
+64bit-tool-archpref	= mips64
 32bit-bfd		= elf32-tradbigmips
 64bit-bfd		= elf64-tradbigmips
 32bit-emul		= elf32btsmip
@@ -34,16 +34,18 @@ else
 endif
 
 ifdef CONFIG_32BIT
-tool-prefix		= $(32bit-tool-prefix)
+tool-archpref		= $(32bit-tool-archpref)
 UTS_MACHINE		:= mips
 endif
 ifdef CONFIG_64BIT
-tool-prefix		= $(64bit-tool-prefix)
+tool-archpref		= $(64bit-tool-archpref)
 UTS_MACHINE		:= mips64
 endif
 
-ifdef CONFIG_CROSSCOMPILE
-CROSS_COMPILE		:= $(tool-prefix)
+ifneq ($(SUBARCH),$(ARCH))
+  ifeq ($(CROSS_COMPILE),)
+    CROSS_COMPILE := $(call cc-cross-prefix, $(tool-archpref)-linux-  $(tool-archpref)-gnu-linux-  $(tool-archpref)-unknown-gnu-linux-)
+  endif
 endif
 
 ifdef CONFIG_32BIT
