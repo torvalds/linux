@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/rcupdate.h>
 #include <linux/platform_device.h>
+#include <linux/i8042.h>
 
 #include <asm/io.h>
 
@@ -208,7 +209,7 @@ static int __i8042_command(unsigned char *param, int command)
 	return 0;
 }
 
-static int i8042_command(unsigned char *param, int command)
+int i8042_command(unsigned char *param, int command)
 {
 	unsigned long flags;
 	int retval;
@@ -219,6 +220,7 @@ static int i8042_command(unsigned char *param, int command)
 
 	return retval;
 }
+EXPORT_SYMBOL(i8042_command);
 
 /*
  * i8042_kbd_write() sends a byte out through the keyboard interface.
