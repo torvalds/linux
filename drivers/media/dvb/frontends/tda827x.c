@@ -38,9 +38,56 @@ struct tda827x_priv {
 	int i2c_addr;
 	struct i2c_adapter *i2c_adap;
 	struct tda827x_config *cfg;
+
+	unsigned int sgIF;
+	unsigned char lpsel;
+
 	u32 frequency;
 	u32 bandwidth;
 };
+
+static void tda827x_set_std(struct dvb_frontend *fe,
+			    struct analog_parameters *params)
+{
+	struct tda827x_priv *priv = fe->tuner_priv;
+	char *mode;
+
+	priv->lpsel = 0;
+	if (params->std & V4L2_STD_MN) {
+		priv->sgIF = 92;
+		priv->lpsel = 1;
+		mode = "MN";
+	} else if (params->std & V4L2_STD_B) {
+		priv->sgIF = 108;
+		mode = "B";
+	} else if (params->std & V4L2_STD_GH) {
+		priv->sgIF = 124;
+		mode = "GH";
+	} else if (params->std & V4L2_STD_PAL_I) {
+		priv->sgIF = 124;
+		mode = "I";
+	} else if (params->std & V4L2_STD_DK) {
+		priv->sgIF = 124;
+		mode = "DK";
+	} else if (params->std & V4L2_STD_SECAM_L) {
+		priv->sgIF = 124;
+		mode = "L";
+	} else if (params->std & V4L2_STD_SECAM_LC) {
+		priv->sgIF = 20;
+		mode = "LC";
+	} else {
+		priv->sgIF = 124;
+		mode = "xx";
+	}
+
+	if (params->mode == V4L2_TUNER_RADIO)
+		priv->sgIF = 88; /* if frequency is 5.5 MHz */
+
+	dprintk("setting tda827x to system %s\n", mode);
+}
+
+
+/* ------------------------------------------------------------------ */
 
 struct tda827x_data {
 	u32 lomax;
@@ -189,10 +236,12 @@ static int tda827xo_set_analog_params(struct dvb_frontend *fe,
 	struct i2c_msg msg = { .addr = priv->i2c_addr, .flags = 0 };
 	unsigned int freq = params->frequency;
 
+	tda827x_set_std(fe, params);
+
 	if (params->mode == V4L2_TUNER_RADIO)
 		freq = freq / 1000;
 
-	N = freq + priv->cfg->sgIF;
+	N = freq + priv->sgIF;
 
 	i = 0;
 	while (tda827x_table[i].lomax < N * 62500) {
@@ -207,7 +256,7 @@ static int tda827xo_set_analog_params(struct dvb_frontend *fe,
 	tuner_reg[1] = (unsigned char)(N>>8);
 	tuner_reg[2] = (unsigned char) N;
 	tuner_reg[3] = 0x40;
-	tuner_reg[4] = 0x52 + (priv->cfg->tda827x_lpsel << 5);
+	tuner_reg[4] = 0x52 + (priv->lpsel << 5);
 	tuner_reg[5] = (tda827x_table[i].spd    << 6) +
 		       (tda827x_table[i].div1p5 << 5) +
 		       (tda827x_table[i].bs     << 3) + tda827x_table[i].bp;
@@ -550,13 +599,15 @@ static int tda827xa_set_analog_params(struct dvb_frontend *fe,
 			       .buf = tuner_reg, .len = sizeof(tuner_reg) };
 	unsigned int freq = params->frequency;
 
+	tda827x_set_std(fe, params);
+
 	tda827xa_lna_gain(fe, 1, params);
 	msleep(10);
 
 	if (params->mode == V4L2_TUNER_RADIO)
 		freq = freq / 1000;
 
-	N = freq + priv->cfg->sgIF;
+	N = freq + priv->sgIF;
 
 	i = 0;
 	while (tda827xa_analog[i].lomax < N * 62500) {
@@ -587,7 +638,7 @@ static int tda827xa_set_analog_params(struct dvb_frontend *fe,
 	tuner_reg[1] = 0xff;
 	tuner_reg[2] = 0xe0;
 	tuner_reg[3] = 0;
-	tuner_reg[4] = 0x99 + (priv->cfg->tda827x_lpsel << 1);
+	tuner_reg[4] = 0x99 + (priv->lpsel << 1);
 	msg.len = 5;
 	i2c_transfer(priv->i2c_adap, &msg, 1);
 
@@ -627,7 +678,7 @@ static int tda827xa_set_analog_params(struct dvb_frontend *fe,
 	i2c_transfer(priv->i2c_adap, &msg, 1);
 
 	tuner_reg[0] = 0xc0;
-	tuner_reg[1] = 0x19 + (priv->cfg->tda827x_lpsel << 1);
+	tuner_reg[1] = 0x19 + (priv->lpsel << 1);
 	i2c_transfer(priv->i2c_adap, &msg, 1);
 
 	priv->frequency = freq * 62500;

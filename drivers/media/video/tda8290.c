@@ -104,44 +104,31 @@ static void set_audio(struct dvb_frontend *fe)
 	struct tuner *t = priv->t;
 	char* mode;
 
-	priv->cfg.tda827x_lpsel = 0;
 	if (t->std & V4L2_STD_MN) {
-		priv->cfg.sgIF = 92;
 		priv->tda8290_easy_mode = 0x01;
-		priv->cfg.tda827x_lpsel = 1;
 		mode = "MN";
 	} else if (t->std & V4L2_STD_B) {
-		priv->cfg.sgIF = 108;
 		priv->tda8290_easy_mode = 0x02;
 		mode = "B";
 	} else if (t->std & V4L2_STD_GH) {
-		priv->cfg.sgIF = 124;
 		priv->tda8290_easy_mode = 0x04;
 		mode = "GH";
 	} else if (t->std & V4L2_STD_PAL_I) {
-		priv->cfg.sgIF = 124;
 		priv->tda8290_easy_mode = 0x08;
 		mode = "I";
 	} else if (t->std & V4L2_STD_DK) {
-		priv->cfg.sgIF = 124;
 		priv->tda8290_easy_mode = 0x10;
 		mode = "DK";
 	} else if (t->std & V4L2_STD_SECAM_L) {
-		priv->cfg.sgIF = 124;
 		priv->tda8290_easy_mode = 0x20;
 		mode = "L";
 	} else if (t->std & V4L2_STD_SECAM_LC) {
-		priv->cfg.sgIF = 20;
 		priv->tda8290_easy_mode = 0x40;
 		mode = "LC";
 	} else {
-		priv->cfg.sgIF = 124;
 		priv->tda8290_easy_mode = 0x10;
 		mode = "xx";
 	}
-
-	if (t->mode == V4L2_TUNER_RADIO)
-		priv->cfg.sgIF = 88; /* if frequency is 5.5 MHz */
 
 	tuner_dbg("setting tda8290 to system %s\n", mode);
 }
@@ -368,7 +355,6 @@ static void tda8295_set_freq(struct dvb_frontend *fe, unsigned int freq)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 	struct tuner *t = priv->t;
-	u16 ifc;
 
 	unsigned char blanking_mode[]     = { 0x1d, 0x00 };
 
@@ -381,9 +367,7 @@ static void tda8295_set_freq(struct dvb_frontend *fe, unsigned int freq)
 
 	set_audio(fe);
 
-	ifc = priv->cfg.sgIF; /* FIXME */
-
-	tuner_dbg("%s: ifc = %u, freq = %d\n", __FUNCTION__, ifc, freq);
+	tuner_dbg("%s: freq = %d\n", __FUNCTION__, freq);
 
 	tda8295_power(fe, 1);
 	tda8295_agc1_out(fe, 1);
@@ -625,7 +609,6 @@ int tda8290_attach(struct tuner *t)
 
 	tuner_info("type set to %s\n", t->i2c.name);
 
-	priv->cfg.tda827x_lpsel = 0;
 	t->mode = V4L2_TUNER_ANALOG_TV;
 
 	tda8290_init_tuner(&t->fe);
@@ -715,7 +698,6 @@ int tda8295_attach(struct tuner *t)
 
 	t->fe.ops.analog_demod_ops = &tda8295_tuner_ops;
 
-	priv->cfg.tda827x_lpsel = 0;
 	t->mode = V4L2_TUNER_ANALOG_TV;
 
 	tda8295_init_if(&t->fe);

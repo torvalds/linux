@@ -35,9 +35,6 @@ struct tda827x_config
 	int (*sleep) (struct dvb_frontend *fe);
 
 	/* interface to tda829x driver */
-	unsigned char tda827x_lpsel;
-	unsigned int sgIF;
-
 	unsigned int *config;
 	int (*tuner_callback) (void *dev, int command, int arg);
 
