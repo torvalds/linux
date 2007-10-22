@@ -110,7 +110,7 @@ static void __init per_hub_init(cnodeid_t cnode)
 	}
 }
 
-void __init per_cpu_init(void)
+void __cpuinit per_cpu_init(void)
 {
 	int cpu = smp_processor_id();
 	int slice = LOCAL_HUB_L(PI_CPU_NUM);

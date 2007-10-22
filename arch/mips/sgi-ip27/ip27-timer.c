@@ -111,46 +111,6 @@ unsigned long read_persistent_clock(void)
         return mktime(year, month, date, hour, min, sec);
 }
 
-static int rt_set_next_event(unsigned long delta,
-		struct clock_event_device *evt)
-{
-	unsigned int cpu = smp_processor_id();
-	int slice = cputoslice(cpu) == 0;
-	unsigned long cnt;
-
-	cnt = LOCAL_HUB_L(PI_RT_COUNT);
-	cnt += delta;
-	LOCAL_HUB_S(slice ? PI_RT_COMPARE_A : PI_RT_COMPARE_B, cnt);
-
-	return LOCAL_HUB_L(PI_RT_COUNT) >= cnt ? -ETIME : 0;
-}
-
-static void rt_set_mode(enum clock_event_mode mode,
-		struct clock_event_device *evt)
-{
-	switch (mode) {
-	case CLOCK_EVT_MODE_PERIODIC:
-		/* The only mode supported */
-		break;
-
-	case CLOCK_EVT_MODE_UNUSED:
-	case CLOCK_EVT_MODE_SHUTDOWN:
-	case CLOCK_EVT_MODE_ONESHOT:
-	case CLOCK_EVT_MODE_RESUME:
-		/* Nothing to do  */
-		break;
-	}
-}
-
-struct clock_event_device rt_clock_event_device = {
-	.name		= "HUB-RT",
-	.features	= CLOCK_EVT_FEAT_ONESHOT,
-
-	.rating		= 300,
-	.set_next_event	= rt_set_next_event,
-	.set_mode	= rt_set_mode,
-};
-
 static void enable_rt_irq(unsigned int irq)
 {
 }
@@ -168,11 +128,41 @@ static struct irq_chip rt_irq_type = {
 	.eoi		= enable_rt_irq,
 };
 
+static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
+{
+	unsigned int cpu = smp_processor_id();
+	int slice = cputoslice(cpu) == 0;
+	unsigned long cnt;
+
+	cnt = LOCAL_HUB_L(PI_RT_COUNT);
+	cnt += delta;
+	LOCAL_HUB_S(slice ? PI_RT_COMPARE_A : PI_RT_COMPARE_B, cnt);
+
+	return LOCAL_HUB_L(PI_RT_COUNT) >= cnt ? -ETIME : 0;
+}
+
+static void rt_set_mode(enum clock_event_mode mode,
+		struct clock_event_device *evt)
+{
+	switch (mode) {
+	case CLOCK_EVT_MODE_ONESHOT:
+		/* The only mode supported */
+		break;
+
+	case CLOCK_EVT_MODE_PERIODIC:
+	case CLOCK_EVT_MODE_UNUSED:
+	case CLOCK_EVT_MODE_SHUTDOWN:
+	case CLOCK_EVT_MODE_RESUME:
+		/* Nothing to do  */
+		break;
+	}
+}
+
 unsigned int rt_timer_irq;
 
-static irqreturn_t ip27_rt_timer_interrupt(int irq, void *dev_id)
+static irqreturn_t hub_rt_counter_handler(int irq, void *dev_id)
 {
-	struct clock_event_device *cd = &rt_clock_event_device;
+	struct clock_event_device *cd = dev_id;
 	unsigned int cpu = smp_processor_id();
 	int slice = cputoslice(cpu) == 0;
 
@@ -182,11 +172,10 @@ static irqreturn_t ip27_rt_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction rt_irqaction = {
-	.handler	= (irq_handler_t) ip27_rt_timer_interrupt,
-	.flags		= IRQF_DISABLED,
-	.mask		= CPU_MASK_NONE,
-	.name		= "timer"
+struct irqaction hub_rt_irqaction = {
+	.handler	= hub_rt_counter_handler,
+	.flags		= IRQF_DISABLED | IRQF_PERCPU,
+	.name		= "hub-rt",
 };
 
 /*
@@ -200,32 +189,48 @@ static struct irqaction rt_irqaction = {
 #define NSEC_PER_CYCLE		800
 #define CYCLES_PER_SEC		(NSEC_PER_SEC / NSEC_PER_CYCLE)
 
-static void __init ip27_rt_clock_event_init(void)
+static DEFINE_PER_CPU(struct clock_event_device, hub_rt_clockevent);
+static DEFINE_PER_CPU(char [11], hub_rt_name);
+
+static void __cpuinit hub_rt_clock_event_init(void)
 {
-	struct clock_event_device *cd = &rt_clock_event_device;
 	unsigned int cpu = smp_processor_id();
-	int irq = allocate_irqno();
+	struct clock_event_device *cd = &per_cpu(hub_rt_clockevent, cpu);
+	unsigned char *name = per_cpu(hub_rt_name, cpu);
+	int irq = rt_timer_irq;
 
-	if (irq < 0)
-		panic("Can't allocate interrupt number for timer interrupt");
-
-	rt_timer_irq = irq;
-
+	sprintf(name, "hub-rt %d", cpu);
+	cd->name		= "HUB-RT",
+	cd->features		= CLOCK_EVT_FEAT_ONESHOT,
+	clockevent_set_clock(cd, CYCLES_PER_SEC);
+	cd->max_delta_ns        = clockevent_delta2ns(0xfffffffffffff, cd);
+	cd->min_delta_ns        = clockevent_delta2ns(0x300, cd);
+	cd->rating		= 200,
 	cd->irq			= irq,
 	cd->cpumask		= cpumask_of_cpu(cpu),
-
-	/*
-	 * Calculate the min / max delta
-	 */
-	cd->mult        	=
-		div_sc((unsigned long) CYCLES_PER_SEC, NSEC_PER_SEC, 32);
-	cd->shift               = 32;
-	cd->max_delta_ns        = clockevent_delta2ns(0x7fffffff, cd);
-	cd->min_delta_ns        = clockevent_delta2ns(0x300, cd);
+	cd->rating		= 300,
+	cd->set_next_event	= rt_next_event,
+	cd->set_mode		= rt_set_mode,
 	clockevents_register_device(cd);
+}
+
+static void __init hub_rt_clock_event_global_init(void)
+{
+	unsigned int irq;
+
+	do {
+		smp_wmb();
+		irq = rt_timer_irq;
+		if (irq)
+			break;
+
+		irq = allocate_irqno();
+		if (irq < 0)
+			panic("Allocation of irq number for timer failed");
+	} while (xchg(&rt_timer_irq, irq));
 
 	set_irq_chip_and_handler(irq, &rt_irq_type, handle_percpu_irq);
-	setup_irq(irq, &rt_irqaction);
+	setup_irq(irq, &hub_rt_irqaction);
 }
 
 static cycle_t hub_rt_read(void)
@@ -233,27 +238,29 @@ static cycle_t hub_rt_read(void)
 	return REMOTE_HUB_L(cputonasid(0), PI_RT_COUNT);
 }
 
-struct clocksource ht_rt_clocksource = {
+struct clocksource hub_rt_clocksource = {
 	.name	= "HUB-RT",
 	.rating	= 200,
 	.read	= hub_rt_read,
 	.mask	= CLOCKSOURCE_MASK(52),
-	.shift	= 32,
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init ip27_rt_clocksource_init(void)
+static void __init hub_rt_clocksource_init(void)
 {
-	clocksource_register(&ht_rt_clocksource);
+	struct clocksource *cs = &hub_rt_clocksource;
+
+	clocksource_set_clock(cs, CYCLES_PER_SEC);
+	clocksource_register(cs);
 }
 
 void __init plat_time_init(void)
 {
-	ip27_rt_clock_event_init();
-	ip27_rt_clocksource_init();
+	hub_rt_clocksource_init();
+	hub_rt_clock_event_global_init();
 }
 
-void __init cpu_time_init(void)
+void __cpuinit cpu_time_init(void)
 {
 	lboard_t *board;
 	klcpu_t *cpu;
@@ -271,6 +278,7 @@ void __init cpu_time_init(void)
 
 	printk("CPU %d clock is %dMHz.\n", smp_processor_id(), cpu->cpu_speed);
 
+	hub_rt_clock_event_init();
 	set_c0_status(SRB_TIMOCLK);
 }
 
