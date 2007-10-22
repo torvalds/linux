@@ -103,7 +103,15 @@ static void fe_release(struct dvb_frontend *fe)
 		fe->ops.tuner_ops.release(fe);
 
 	fe->ops.analog_demod_ops = NULL;
-	/* DO NOT kfree(t->fe.analog_demod_priv) */
+
+	/* DO NOT kfree(fe->analog_demod_priv)
+	 *
+	 * If we are in this function, analog_demod_priv contains a pointer
+	 * to struct tuner *t.  This will be kfree'd in tuner_detach().
+	 *
+	 * Otherwise, fe->ops.analog_demod_ops->release will
+	 * handle the cleanup for analog demodulator modules.
+	 */
 	fe->analog_demod_priv = NULL;
 }
 
