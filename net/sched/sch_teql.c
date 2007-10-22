@@ -284,7 +284,7 @@ restart:
 		if (slave->qdisc_sleeping != q)
 			continue;
 		if (netif_queue_stopped(slave) ||
-		    netif_subqueue_stopped(slave, subq) ||
+		    __netif_subqueue_stopped(slave, subq) ||
 		    !netif_running(slave)) {
 			busy = 1;
 			continue;
@@ -294,7 +294,7 @@ restart:
 		case 0:
 			if (netif_tx_trylock(slave)) {
 				if (!netif_queue_stopped(slave) &&
-				    !netif_subqueue_stopped(slave, subq) &&
+				    !__netif_subqueue_stopped(slave, subq) &&
 				    slave->hard_start_xmit(skb, slave) == 0) {
 					netif_tx_unlock(slave);
 					master->slaves = NEXT_SLAVE(q);

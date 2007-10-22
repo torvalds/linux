@@ -1553,7 +1553,7 @@ gso:
 			return rc;
 		}
 		if (unlikely((netif_queue_stopped(dev) ||
-			     netif_subqueue_stopped(dev, skb->queue_mapping)) &&
+			     netif_subqueue_stopped(dev, skb)) &&
 			     skb->next))
 			return NETDEV_TX_BUSY;
 	} while (skb->next);
@@ -1692,7 +1692,7 @@ gso:
 			HARD_TX_LOCK(dev, cpu);
 
 			if (!netif_queue_stopped(dev) &&
-			    !netif_subqueue_stopped(dev, skb->queue_mapping)) {
+			    !netif_subqueue_stopped(dev, skb)) {
 				rc = 0;
 				if (!dev_hard_start_xmit(skb, dev)) {
 					HARD_TX_UNLOCK(dev);
