@@ -45,13 +45,11 @@ extern unsigned int soc_type;
 extern unsigned int periph_rev;
 extern unsigned int zbbus_mhz;
 
-extern void sb1250_hpt_setup(void);
 extern void sb1250_time_init(void);
 extern void sb1250_mask_irq(int cpu, int irq);
 extern void sb1250_unmask_irq(int cpu, int irq);
 extern void sb1250_smp_finish(void);
 
-extern void bcm1480_hpt_setup(void);
 extern void bcm1480_time_init(void);
 extern void bcm1480_mask_irq(int cpu, int irq);
 extern void bcm1480_unmask_irq(int cpu, int irq);

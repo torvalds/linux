@@ -402,6 +402,22 @@ static void sb1250_kgdb_interrupt(void)
 
 extern void sb1250_mailbox_interrupt(void);
 
+static inline void dispatch_ip2(void)
+{
+	unsigned int cpu = smp_processor_id();
+	unsigned long long mask;
+
+	/*
+	 * Default...we've hit an IP[2] interrupt, which means we've got to
+	 * check the 1250 interrupt registers to figure out what to do.  Need
+	 * to detect which CPU we're on, now that smp_affinity is supported.
+	 */
+	mask = __raw_readq(IOADDR(A_IMR_REGISTER(cpu,
+				  R_IMR_INTERRUPT_STATUS_BASE)));
+	if (mask)
+		do_IRQ(fls64(mask) - 1);
+}
+
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int cpu = smp_processor_id();
@@ -434,21 +450,8 @@ asmlinkage void plat_irq_dispatch(void)
 		sb1250_kgdb_interrupt();
 #endif
 
-	else if (pending & CAUSEF_IP2) {
-		unsigned long long mask;
-
-		/*
-		 * Default...we've hit an IP[2] interrupt, which means we've
-		 * got to check the 1250 interrupt registers to figure out what
-		 * to do.  Need to detect which CPU we're on, now that
-		 * smp_affinity is supported.
-		 */
-		mask = __raw_readq(IOADDR(A_IMR_REGISTER(smp_processor_id(),
-		                              R_IMR_INTERRUPT_STATUS_BASE)));
-		if (mask)
-			do_IRQ(fls64(mask) - 1);
-		else
-			spurious_interrupt();
-	} else
+	else if (pending & CAUSEF_IP2)
+		dispatch_ip2();
+	else
 		spurious_interrupt();
 }

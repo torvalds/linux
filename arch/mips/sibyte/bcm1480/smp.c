@@ -58,7 +58,7 @@ static void *mailbox_0_regs[] = {
 /*
  * SMP init and finish on secondary CPUs
  */
-void bcm1480_smp_init(void)
+void __cpuinit bcm1480_smp_init(void)
 {
 	unsigned int imask = STATUSF_IP4 | STATUSF_IP3 | STATUSF_IP2 |
 		STATUSF_IP1 | STATUSF_IP0;
@@ -67,7 +67,7 @@ void bcm1480_smp_init(void)
 	change_c0_status(ST0_IM, imask);
 }
 
-void bcm1480_smp_finish(void)
+void __cpuinit bcm1480_smp_finish(void)
 {
 	extern void sb1480_clockevent_init(void);
 
