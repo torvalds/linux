@@ -211,6 +211,7 @@ struct kvm_vcpu_arch {
 	int mp_state;
 	int sipi_vector;
 	u64 ia32_misc_enable_msr;
+	bool tpr_access_reporting;
 
 	struct kvm_mmu mmu;
 

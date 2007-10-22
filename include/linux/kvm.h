@@ -72,6 +72,7 @@ struct kvm_irqchip {
 #define KVM_EXIT_FAIL_ENTRY       9
 #define KVM_EXIT_INTR             10
 #define KVM_EXIT_SET_TPR          11
+#define KVM_EXIT_TPR_ACCESS       12
 
 /* for KVM_RUN, returned by mmap(vcpu_fd, offset=0) */
 struct kvm_run {
@@ -130,6 +131,12 @@ struct kvm_run {
 			__u32 longmode;
 			__u32 pad;
 		} hypercall;
+		/* KVM_EXIT_TPR_ACCESS */
+		struct {
+			__u64 rip;
+			__u32 is_write;
+			__u32 pad;
+		} tpr_access;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -202,6 +209,13 @@ struct kvm_signal_mask {
 	__u8  sigset[0];
 };
 
+/* for KVM_TPR_ACCESS_REPORTING */
+struct kvm_tpr_access_ctl {
+	__u32 enabled;
+	__u32 flags;
+	__u32 reserved[8];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -229,6 +243,7 @@ struct kvm_signal_mask {
 #define KVM_CAP_USER_MEMORY 3
 #define KVM_CAP_SET_TSS_ADDR 4
 #define KVM_CAP_EXT_CPUID 5
+#define KVM_CAP_VAPIC 6
 
 /*
  * ioctls for VM fds
@@ -274,5 +289,7 @@ struct kvm_signal_mask {
 #define KVM_SET_LAPIC             _IOW(KVMIO,  0x8f, struct kvm_lapic_state)
 #define KVM_SET_CPUID2            _IOW(KVMIO,  0x90, struct kvm_cpuid2)
 #define KVM_GET_CPUID2            _IOWR(KVMIO, 0x91, struct kvm_cpuid2)
+/* Available with KVM_CAP_VAPIC */
+#define KVM_TPR_ACCESS_REPORTING  _IOWR(KVMIO,  0x92, struct kvm_tpr_access_ctl)
 
 #endif

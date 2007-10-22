@@ -551,6 +551,23 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 	return tmcct;
 }
 
+static void __report_tpr_access(struct kvm_lapic *apic, bool write)
+{
+	struct kvm_vcpu *vcpu = apic->vcpu;
+	struct kvm_run *run = vcpu->run;
+
+	set_bit(KVM_REQ_REPORT_TPR_ACCESS, &vcpu->requests);
+	kvm_x86_ops->cache_regs(vcpu);
+	run->tpr_access.rip = vcpu->arch.rip;
+	run->tpr_access.is_write = write;
+}
+
+static inline void report_tpr_access(struct kvm_lapic *apic, bool write)
+{
+	if (apic->vcpu->arch.tpr_access_reporting)
+		__report_tpr_access(apic, write);
+}
+
 static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 {
 	u32 val = 0;
@@ -568,6 +585,9 @@ static u32 __apic_read(struct kvm_lapic *apic, unsigned int offset)
 		val = apic_get_tmcct(apic);
 		break;
 
+	case APIC_TASKPRI:
+		report_tpr_access(apic, false);
+		/* fall thru */
 	default:
 		apic_update_ppr(apic);
 		val = apic_get_reg(apic, offset);
@@ -677,6 +697,7 @@ static void apic_mmio_write(struct kvm_io_device *this,
 		break;
 
 	case APIC_TASKPRI:
+		report_tpr_access(apic, true);
 		apic_set_tpr(apic, val & 0xff);
 		break;
 

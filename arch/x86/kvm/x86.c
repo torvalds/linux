@@ -684,6 +684,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_SET_TSS_ADDR:
 	case KVM_CAP_EXT_CPUID:
+	case KVM_CAP_VAPIC:
 		r = 1;
 		break;
 	default:
@@ -1055,6 +1056,15 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int vcpu_ioctl_tpr_access_reporting(struct kvm_vcpu *vcpu,
+					   struct kvm_tpr_access_ctl *tac)
+{
+	if (tac->flags)
+		return -EINVAL;
+	vcpu->arch.tpr_access_reporting = !!tac->enabled;
+	return 0;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -1148,6 +1158,21 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	case KVM_SET_MSRS:
 		r = msr_io(vcpu, argp, do_set_msr, 0);
 		break;
+	case KVM_TPR_ACCESS_REPORTING: {
+		struct kvm_tpr_access_ctl tac;
+
+		r = -EFAULT;
+		if (copy_from_user(&tac, argp, sizeof tac))
+			goto out;
+		r = vcpu_ioctl_tpr_access_reporting(vcpu, &tac);
+		if (r)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(argp, &tac, sizeof tac))
+			goto out;
+		r = 0;
+		break;
+	};
 	default:
 		r = -EINVAL;
 	}

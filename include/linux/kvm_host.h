@@ -35,7 +35,7 @@
  * vcpu->requests bit members
  */
 #define KVM_REQ_TLB_FLUSH          0
-
+#define KVM_REQ_REPORT_TPR_ACCESS  2
 
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
