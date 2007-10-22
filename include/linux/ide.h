@@ -667,7 +667,7 @@ typedef struct hwif_s {
 	u8 straight8;	/* Alan's straight 8 check */
 	u8 bus_state;	/* power state of the IDE bus */
 
-	u16 host_flags;
+	u32 host_flags;
 
 	u8 pio_mask;
 
