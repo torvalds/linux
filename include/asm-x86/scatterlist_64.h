@@ -4,7 +4,7 @@
 #include <asm/types.h>
 
 struct scatterlist {
-    struct page		*page;
+    unsigned long	page_link;
     unsigned int	offset;
     unsigned int	length;
     dma_addr_t		dma_address;

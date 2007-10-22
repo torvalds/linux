@@ -6,7 +6,7 @@ struct scatterlist {
 	unsigned int length;
 
 	/* The following is i386 highmem junk - not used by us */
-	struct page * page; /* Location for highmem page, if any */
+	unsigned long page_link;
 	unsigned int offset;/* for highmem, page offset */
 
 };

@@ -14,7 +14,7 @@
 #include <asm/types.h>
 
 struct scatterlist {
-    struct page * page; /* Location for highmem page, if any */
+    unsigned long page_link;
     unsigned int offset;/* for highmem, page offset */
     dma_addr_t dma_address;
     unsigned int length;

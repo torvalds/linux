@@ -2,7 +2,7 @@
 #define _ASMS390_SCATTERLIST_H
 
 struct scatterlist {
-    struct page *page;
+    unsigned long page_link;
     unsigned int offset;
     unsigned int length;
 };
