@@ -102,8 +102,7 @@ static int ibmebus_map_sg(struct device *dev,
 	int i;
 
 	for_each_sg(sgl, sg, nents, i) {
-		sg->dma_address = (dma_addr_t)page_address(sg->page)
-			+ sg->offset;
+		sg->dma_address = (dma_addr_t) sg_virt(sg);
 		sg->dma_length = sg->length;
 	}
 

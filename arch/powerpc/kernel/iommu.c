@@ -307,7 +307,7 @@ int iommu_map_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 			continue;
 		}
 		/* Allocate iommu entries for that segment */
-		vaddr = (unsigned long)page_address(s->page) + s->offset;
+		vaddr = (unsigned long) sg_virt(s);
 		npages = iommu_num_pages(vaddr, slen);
 		entry = iommu_range_alloc(tbl, npages, &handle, mask >> IOMMU_PAGE_SHIFT, 0);
 

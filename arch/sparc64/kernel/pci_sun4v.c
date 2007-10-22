@@ -365,8 +365,7 @@ static void dma_4v_unmap_single(struct device *dev, dma_addr_t bus_addr,
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-#define SG_ENT_PHYS_ADDRESS(SG)	\
-	(__pa(page_address((SG)->page)) + (SG)->offset)
+#define SG_ENT_PHYS_ADDRESS(SG)	(__pa(sg_virt((SG))))
 
 static long fill_sg(long entry, struct device *dev,
 		    struct scatterlist *sg,
@@ -477,9 +476,7 @@ static int dma_4v_map_sg(struct device *dev, struct scatterlist *sglist,
 	/* Fast path single entry scatterlists. */
 	if (nelems == 1) {
 		sglist->dma_address =
-			dma_4v_map_single(dev,
-					  (page_address(sglist->page) +
-					   sglist->offset),
+			dma_4v_map_single(dev, sg_virt(sglist),
 					  sglist->length, direction);
 		if (unlikely(sglist->dma_address == DMA_ERROR_CODE))
 			return 0;

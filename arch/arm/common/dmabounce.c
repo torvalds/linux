@@ -442,7 +442,7 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	BUG_ON(dir == DMA_NONE);
 
 	for (i = 0; i < nents; i++, sg++) {
-		struct page *page = sg->page;
+		struct page *page = sg_page(sg);
 		unsigned int offset = sg->offset;
 		unsigned int length = sg->length;
 		void *ptr = page_address(page) + offset;

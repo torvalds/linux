@@ -121,7 +121,7 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	int i;
 
 	for (i = 0; i < nents; sg++, i++) {
-		sg->dma_address = page_to_phys(sg->page) + sg->offset;
+		sg->dma_address = sg_phys(sg);
 		dma_sync_single_for_device(dev, sg->dma_address, sg->length, dir);
 	}
 	return nents;

@@ -131,7 +131,7 @@ simscsi_sg_readwrite (struct scsi_cmnd *sc, int mode, unsigned long offset)
 	stat.fd = desc[sc->device->id];
 
 	scsi_for_each_sg(sc, sl, scsi_sg_count(sc), i) {
-		req.addr = __pa(page_address(sl->page) + sl->offset);
+		req.addr = __pa(sg_virt(sl));
 		req.len  = sl->length;
 		if (DBG)
 			printk("simscsi_sg_%s @ %lx (off %lx) use_sg=%d len=%d\n",
@@ -212,7 +212,7 @@ static void simscsi_fillresult(struct scsi_cmnd *sc, char *buf, unsigned len)
 		if (!len)
 			break;
 		thislen = min(len, slp->length);
-		memcpy(page_address(slp->page) + slp->offset, buf, thislen);
+		memcpy(sg_virt(slp), buf, thislen);
 		len -= thislen;
 	}
 }

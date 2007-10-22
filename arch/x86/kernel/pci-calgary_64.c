@@ -411,8 +411,10 @@ static int calgary_nontranslate_map_sg(struct device* dev,
 	int i;
 
 	for_each_sg(sg, s, nelems, i) {
-		BUG_ON(!s->page);
-		s->dma_address = virt_to_bus(page_address(s->page) +s->offset);
+		struct page *p = sg_page(s);
+
+		BUG_ON(!p);
+		s->dma_address = virt_to_bus(sg_virt(s));
 		s->dma_length = s->length;
 	}
 	return nelems;
@@ -432,9 +434,9 @@ static int calgary_map_sg(struct device *dev, struct scatterlist *sg,
 		return calgary_nontranslate_map_sg(dev, sg, nelems, direction);
 
 	for_each_sg(sg, s, nelems, i) {
-		BUG_ON(!s->page);
+		BUG_ON(!sg_page(s));
 
-		vaddr = (unsigned long)page_address(s->page) + s->offset;
+		vaddr = (unsigned long) sg_virt(s);
 		npages = num_dma_pages(vaddr, s->length);
 
 		entry = iommu_range_alloc(tbl, npages);

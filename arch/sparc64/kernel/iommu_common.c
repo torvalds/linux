@@ -73,7 +73,7 @@ static int verify_one_map(struct scatterlist *dma_sg, struct scatterlist **__sg,
 
 	daddr = dma_sg->dma_address;
 	sglen = sg->length;
-	sgaddr = (unsigned long) (page_address(sg->page) + sg->offset);
+	sgaddr = (unsigned long) sg_virt(sg);
 	while (dlen > 0) {
 		unsigned long paddr;
 
@@ -123,7 +123,7 @@ static int verify_one_map(struct scatterlist *dma_sg, struct scatterlist **__sg,
 		sg = sg_next(sg);
 		if (--nents <= 0)
 			break;
-		sgaddr = (unsigned long) (page_address(sg->page) + sg->offset);
+		sgaddr = (unsigned long) sg_virt(sg);
 		sglen = sg->length;
 	}
 	if (dlen < 0) {
@@ -191,7 +191,7 @@ void verify_sglist(struct scatterlist *sglist, int nents, iopte_t *iopte, int np
 			printk("sg(%d): page_addr(%p) off(%x) length(%x) "
 			       "dma_address[%016x] dma_length[%016x]\n",
 			       i,
-			       page_address(sg->page), sg->offset,
+			       page_address(sg_page(sg)), sg->offset,
 			       sg->length,
 			       sg->dma_address, sg->dma_length);
 		}
@@ -207,15 +207,14 @@ unsigned long prepare_sg(struct scatterlist *sg, int nents)
 	unsigned long prev;
 	u32 dent_addr, dent_len;
 
-	prev  = (unsigned long) (page_address(sg->page) + sg->offset);
+	prev  = (unsigned long) sg_virt(sg);
 	prev += (unsigned long) (dent_len = sg->length);
-	dent_addr = (u32) ((unsigned long)(page_address(sg->page) + sg->offset)
-			   & (IO_PAGE_SIZE - 1UL));
+	dent_addr = (u32) ((unsigned long)(sg_virt(sg)) & (IO_PAGE_SIZE - 1UL));
 	while (--nents) {
 		unsigned long addr;
 
 		sg = sg_next(sg);
-		addr = (unsigned long) (page_address(sg->page) + sg->offset);
+		addr = (unsigned long) sg_virt(sg);
 		if (! VCONTIG(prev, addr)) {
 			dma_sg->dma_address = dent_addr;
 			dma_sg->dma_length = dent_len;

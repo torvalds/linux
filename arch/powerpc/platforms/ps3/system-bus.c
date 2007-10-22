@@ -628,9 +628,8 @@ static int ps3_sb_map_sg(struct device *_dev, struct scatterlist *sgl,
 	int i;
 
 	for_each_sg(sgl, sg, nents, i) {
-		int result = ps3_dma_map(dev->d_region,
-			page_to_phys(sg->page) + sg->offset, sg->length,
-					 &sg->dma_address, 0);
+		int result = ps3_dma_map(dev->d_region, sg_phys(sg),
+					sg->length, &sg->dma_address, 0);
 
 		if (result) {
 			pr_debug("%s:%d: ps3_dma_map failed (%d)\n",
