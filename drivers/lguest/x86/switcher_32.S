@@ -48,7 +48,7 @@
 #include <linux/linkage.h>
 #include <asm/asm-offsets.h>
 #include <asm/page.h>
-#include "lg.h"
+#include "../lg.h"
 
 // We mark the start of the code to copy
 // It's placed in .text tho it's never run here
