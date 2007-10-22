@@ -35,9 +35,6 @@
 #include <asm/bug.h>
 #include <asm/processor.h>
 
-struct vm_area_struct; /* forward declaration (include/linux/mm.h) */
-struct mm_struct;
-
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);
 extern void vmem_map_init(void);
@@ -221,6 +218,8 @@ extern unsigned long vmalloc_end;
 /* Hardware bits in the page table entry */
 #define _PAGE_RO	0x200		/* HW read-only bit  */
 #define _PAGE_INVALID	0x400		/* HW invalid bit    */
+
+/* Software bits in the page table entry */
 #define _PAGE_SWT	0x001		/* SW pte type bit t */
 #define _PAGE_SWX	0x002		/* SW pte type bit x */
 
@@ -264,59 +263,74 @@ extern unsigned long vmalloc_end;
 
 #ifndef __s390x__
 
+/* Bits in the segment table address-space-control-element */
+#define _ASCE_SPACE_SWITCH	0x80000000UL	/* space switch event	    */
+#define _ASCE_ORIGIN_MASK	0x7ffff000UL	/* segment table origin	    */
+#define _ASCE_PRIVATE_SPACE	0x100	/* private space control	    */
+#define _ASCE_ALT_EVENT		0x80	/* storage alteration event control */
+#define _ASCE_TABLE_LENGTH	0x7f	/* 128 x 64 entries = 8k	    */
+
 /* Bits in the segment table entry */
-#define _PAGE_TABLE_LEN 0xf            /* only full page-tables            */
-#define _PAGE_TABLE_COM 0x10           /* common page-table                */
-#define _PAGE_TABLE_INV 0x20           /* invalid page-table               */
-#define _SEG_PRESENT    0x001          /* Software (overlap with PTL)      */
+#define _SEGMENT_ENTRY_ORIGIN	0x7fffffc0UL	/* page table origin	    */
+#define _SEGMENT_ENTRY_INV	0x20	/* invalid segment table entry	    */
+#define _SEGMENT_ENTRY_COMMON	0x10	/* common segment bit		    */
+#define _SEGMENT_ENTRY_PTL	0x0f	/* page table length		    */
+
+#define _SEGMENT_ENTRY		(_SEGMENT_ENTRY_PTL)
+#define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INV)
+
+#else /* __s390x__ */
+
+/* Bits in the segment/region table address-space-control-element */
+#define _ASCE_ORIGIN		~0xfffUL/* segment table origin		    */
+#define _ASCE_PRIVATE_SPACE	0x100	/* private space control	    */
+#define _ASCE_ALT_EVENT		0x80	/* storage alteration event control */
+#define _ASCE_SPACE_SWITCH	0x40	/* space switch event		    */
+#define _ASCE_REAL_SPACE	0x20	/* real space control		    */
+#define _ASCE_TYPE_MASK		0x0c	/* asce table type mask		    */
+#define _ASCE_TYPE_REGION1	0x0c	/* region first table type	    */
+#define _ASCE_TYPE_REGION2	0x08	/* region second table type	    */
+#define _ASCE_TYPE_REGION3	0x04	/* region third table type	    */
+#define _ASCE_TYPE_SEGMENT	0x00	/* segment table type		    */
+#define _ASCE_TABLE_LENGTH	0x03	/* region table length		    */
+
+/* Bits in the region table entry */
+#define _REGION_ENTRY_ORIGIN	~0xfffUL/* region/segment table origin	    */
+#define _REGION_ENTRY_INV	0x20	/* invalid region table entry	    */
+#define _REGION_ENTRY_TYPE_MASK	0x0c	/* region/segment table type mask   */
+#define _REGION_ENTRY_TYPE_R1	0x0c	/* region first table type	    */
+#define _REGION_ENTRY_TYPE_R2	0x08	/* region second table type	    */
+#define _REGION_ENTRY_TYPE_R3	0x04	/* region third table type	    */
+#define _REGION_ENTRY_LENGTH	0x03	/* region third length		    */
+
+#define _REGION1_ENTRY		(_REGION_ENTRY_TYPE_R1 | _REGION_ENTRY_LENGTH)
+#define _REGION1_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R1 | _REGION_ENTRY_INV)
+#define _REGION2_ENTRY		(_REGION_ENTRY_TYPE_R2 | _REGION_ENTRY_LENGTH)
+#define _REGION2_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R2 | _REGION_ENTRY_INV)
+#define _REGION3_ENTRY		(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_LENGTH)
+#define _REGION3_ENTRY_EMPTY	(_REGION_ENTRY_TYPE_R3 | _REGION_ENTRY_INV)
+
+/* Bits in the segment table entry */
+#define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* segment table origin		    */
+#define _SEGMENT_ENTRY_RO	0x200	/* page protection bit		    */
+#define _SEGMENT_ENTRY_INV	0x20	/* invalid segment table entry	    */
+
+#define _SEGMENT_ENTRY		(0)
+#define _SEGMENT_ENTRY_EMPTY	(_SEGMENT_ENTRY_INV)
+
+#endif /* __s390x__ */
+
+/*
+ * A user page table pointer has the space-switch-event bit, the
+ * private-space-control bit and the storage-alteration-event-control
+ * bit set. A kernel page table pointer doesn't need them.
+ */
+#define _ASCE_USER_BITS		(_ASCE_SPACE_SWITCH | _ASCE_PRIVATE_SPACE | \
+				 _ASCE_ALT_EVENT)
 
 /* Bits int the storage key */
 #define _PAGE_CHANGED    0x02          /* HW changed bit                   */
 #define _PAGE_REFERENCED 0x04          /* HW referenced bit                */
-
-#define _USER_SEG_TABLE_LEN    0x7f    /* user-segment-table up to 2 GB    */
-#define _KERNEL_SEG_TABLE_LEN  0x7f    /* kernel-segment-table up to 2 GB  */
-
-/*
- * User and Kernel pagetables are identical
- */
-#define _PAGE_TABLE	_PAGE_TABLE_LEN
-#define _KERNPG_TABLE	_PAGE_TABLE_LEN
-
-/*
- * The Kernel segment-tables includes the User segment-table
- */
-
-#define _SEGMENT_TABLE	(_USER_SEG_TABLE_LEN|0x80000000|0x100)
-#define _KERNSEG_TABLE	_KERNEL_SEG_TABLE_LEN
-
-#define USER_STD_MASK	0x00000080UL
-
-#else /* __s390x__ */
-
-/* Bits in the segment table entry */
-#define _PMD_ENTRY_INV   0x20          /* invalid segment table entry      */
-#define _PMD_ENTRY       0x00        
-
-/* Bits in the region third table entry */
-#define _PGD_ENTRY_INV   0x20          /* invalid region table entry       */
-#define _PGD_ENTRY       0x07
-
-/*
- * User and kernel page directory
- */
-#define _REGION_THIRD       0x4
-#define _REGION_THIRD_LEN   0x3 
-#define _REGION_TABLE       (_REGION_THIRD|_REGION_THIRD_LEN|0x40|0x100)
-#define _KERN_REGION_TABLE  (_REGION_THIRD|_REGION_THIRD_LEN)
-
-#define USER_STD_MASK           0x0000000000000080UL
-
-/* Bits in the storage key */
-#define _PAGE_CHANGED    0x02          /* HW changed bit                   */
-#define _PAGE_REFERENCED 0x04          /* HW referenced bit                */
-
-#endif /* __s390x__ */
 
 /*
  * Page protection definitions.
@@ -358,65 +372,38 @@ extern unsigned long vmalloc_end;
 #define __S111	PAGE_EX_RW
 
 #ifndef __s390x__
-# define PMD_SHADOW_SHIFT	1
-# define PGD_SHADOW_SHIFT	1
+# define PxD_SHADOW_SHIFT	1
 #else /* __s390x__ */
-# define PMD_SHADOW_SHIFT	2
-# define PGD_SHADOW_SHIFT	2
+# define PxD_SHADOW_SHIFT	2
 #endif /* __s390x__ */
 
 static inline struct page *get_shadow_page(struct page *page)
 {
-	if (s390_noexec && !list_empty(&page->lru))
-		return virt_to_page(page->lru.next);
+	if (s390_noexec && page->index)
+		return virt_to_page((void *)(addr_t) page->index);
 	return NULL;
 }
 
-static inline pte_t *get_shadow_pte(pte_t *ptep)
+static inline void *get_shadow_pte(void *table)
 {
-	unsigned long pteptr = (unsigned long) (ptep);
+	unsigned long addr, offset;
+	struct page *page;
 
-	if (s390_noexec) {
-		unsigned long offset = pteptr & (PAGE_SIZE - 1);
-		void *addr = (void *) (pteptr ^ offset);
-		struct page *page = virt_to_page(addr);
-		if (!list_empty(&page->lru))
-			return (pte_t *) ((unsigned long) page->lru.next |
-								offset);
-	}
-	return NULL;
+	addr = (unsigned long) table;
+	offset = addr & (PAGE_SIZE - 1);
+	page = virt_to_page((void *)(addr ^ offset));
+	return (void *)(addr_t)(page->index ? (page->index | offset) : 0UL);
 }
 
-static inline pmd_t *get_shadow_pmd(pmd_t *pmdp)
+static inline void *get_shadow_table(void *table)
 {
-	unsigned long pmdptr = (unsigned long) (pmdp);
+	unsigned long addr, offset;
+	struct page *page;
 
-	if (s390_noexec) {
-		unsigned long offset = pmdptr &
-				((PAGE_SIZE << PMD_SHADOW_SHIFT) - 1);
-		void *addr = (void *) (pmdptr ^ offset);
-		struct page *page = virt_to_page(addr);
-		if (!list_empty(&page->lru))
-			return (pmd_t *) ((unsigned long) page->lru.next |
-								offset);
-	}
-	return NULL;
-}
-
-static inline pgd_t *get_shadow_pgd(pgd_t *pgdp)
-{
-	unsigned long pgdptr = (unsigned long) (pgdp);
-
-	if (s390_noexec) {
-		unsigned long offset = pgdptr &
-				((PAGE_SIZE << PGD_SHADOW_SHIFT) - 1);
-		void *addr = (void *) (pgdptr ^ offset);
-		struct page *page = virt_to_page(addr);
-		if (!list_empty(&page->lru))
-			return (pgd_t *) ((unsigned long) page->lru.next |
-								offset);
-	}
-	return NULL;
+	addr = (unsigned long) table;
+	offset = addr & ((PAGE_SIZE << PxD_SHADOW_SHIFT) - 1);
+	page = virt_to_page((void *)(addr ^ offset));
+	return (void *)(addr_t)(page->index ? (page->index | offset) : 0UL);
 }
 
 /*
@@ -448,46 +435,41 @@ static inline int pgd_present(pgd_t pgd) { return 1; }
 static inline int pgd_none(pgd_t pgd)    { return 0; }
 static inline int pgd_bad(pgd_t pgd)     { return 0; }
 
-static inline int pmd_present(pmd_t pmd) { return pmd_val(pmd) & _SEG_PRESENT; }
-static inline int pmd_none(pmd_t pmd)    { return pmd_val(pmd) & _PAGE_TABLE_INV; }
-static inline int pmd_bad(pmd_t pmd)
-{
-	return (pmd_val(pmd) & (~PAGE_MASK & ~_PAGE_TABLE_INV)) != _PAGE_TABLE;
-}
-
 #else /* __s390x__ */
 
 static inline int pgd_present(pgd_t pgd)
 {
-	return (pgd_val(pgd) & ~PAGE_MASK) == _PGD_ENTRY;
+	return pgd_val(pgd) & _REGION_ENTRY_ORIGIN;
 }
 
 static inline int pgd_none(pgd_t pgd)
 {
-	return pgd_val(pgd) & _PGD_ENTRY_INV;
+	return pgd_val(pgd) & _REGION_ENTRY_INV;
 }
 
 static inline int pgd_bad(pgd_t pgd)
 {
-	return (pgd_val(pgd) & (~PAGE_MASK & ~_PGD_ENTRY_INV)) != _PGD_ENTRY;
+	unsigned long mask = ~_REGION_ENTRY_ORIGIN & ~_REGION_ENTRY_INV;
+	return (pgd_val(pgd) & mask) != _REGION3_ENTRY;
 }
+
+#endif /* __s390x__ */
 
 static inline int pmd_present(pmd_t pmd)
 {
-	return (pmd_val(pmd) & ~PAGE_MASK) == _PMD_ENTRY;
+	return pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN;
 }
 
 static inline int pmd_none(pmd_t pmd)
 {
-	return pmd_val(pmd) & _PMD_ENTRY_INV;
+	return pmd_val(pmd) & _SEGMENT_ENTRY_INV;
 }
 
 static inline int pmd_bad(pmd_t pmd)
 {
-	return (pmd_val(pmd) & (~PAGE_MASK & ~_PMD_ENTRY_INV)) != _PMD_ENTRY;
+	unsigned long mask = ~_SEGMENT_ENTRY_ORIGIN & ~_SEGMENT_ENTRY_INV;
+	return (pmd_val(pmd) & mask) != _SEGMENT_ENTRY;
 }
-
-#endif /* __s390x__ */
 
 static inline int pte_none(pte_t pte)
 {
@@ -548,31 +530,22 @@ static inline void pgd_clear(pgd_t * pgdp)      { }
 
 static inline void pmd_clear_kernel(pmd_t * pmdp)
 {
-	pmd_val(pmdp[0]) = _PAGE_TABLE_INV;
-	pmd_val(pmdp[1]) = _PAGE_TABLE_INV;
-	pmd_val(pmdp[2]) = _PAGE_TABLE_INV;
-	pmd_val(pmdp[3]) = _PAGE_TABLE_INV;
-}
-
-static inline void pmd_clear(pmd_t * pmdp)
-{
-	pmd_t *shadow_pmd = get_shadow_pmd(pmdp);
-
-	pmd_clear_kernel(pmdp);
-	if (shadow_pmd)
-		pmd_clear_kernel(shadow_pmd);
+	pmd_val(pmdp[0]) = _SEGMENT_ENTRY_EMPTY;
+	pmd_val(pmdp[1]) = _SEGMENT_ENTRY_EMPTY;
+	pmd_val(pmdp[2]) = _SEGMENT_ENTRY_EMPTY;
+	pmd_val(pmdp[3]) = _SEGMENT_ENTRY_EMPTY;
 }
 
 #else /* __s390x__ */
 
 static inline void pgd_clear_kernel(pgd_t * pgdp)
 {
-	pgd_val(*pgdp) = _PGD_ENTRY_INV | _PGD_ENTRY;
+	pgd_val(*pgdp) = _REGION3_ENTRY_EMPTY;
 }
 
 static inline void pgd_clear(pgd_t * pgdp)
 {
-	pgd_t *shadow_pgd = get_shadow_pgd(pgdp);
+	pgd_t *shadow_pgd = get_shadow_table(pgdp);
 
 	pgd_clear_kernel(pgdp);
 	if (shadow_pgd)
@@ -581,20 +554,20 @@ static inline void pgd_clear(pgd_t * pgdp)
 
 static inline void pmd_clear_kernel(pmd_t * pmdp)
 {
-	pmd_val(*pmdp) = _PMD_ENTRY_INV | _PMD_ENTRY;
-	pmd_val1(*pmdp) = _PMD_ENTRY_INV | _PMD_ENTRY;
+	pmd_val(*pmdp) = _SEGMENT_ENTRY_EMPTY;
+	pmd_val1(*pmdp) = _SEGMENT_ENTRY_EMPTY;
 }
+
+#endif /* __s390x__ */
 
 static inline void pmd_clear(pmd_t * pmdp)
 {
-	pmd_t *shadow_pmd = get_shadow_pmd(pmdp);
+	pmd_t *shadow_pmd = get_shadow_table(pmdp);
 
 	pmd_clear_kernel(pmdp);
 	if (shadow_pmd)
 		pmd_clear_kernel(shadow_pmd);
 }
-
-#endif /* __s390x__ */
 
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {

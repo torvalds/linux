@@ -61,7 +61,7 @@ static inline void __tlb_flush_mm(struct mm_struct * mm)
 	 * only ran on the local cpu.
 	 */
 	if (MACHINE_HAS_IDTE) {
-		pgd_t *shadow_pgd = get_shadow_pgd(mm->pgd);
+		pgd_t *shadow_pgd = get_shadow_table(mm->pgd);
 
 		if (shadow_pgd)
 			__tlb_flush_idte(shadow_pgd);

@@ -127,12 +127,6 @@ struct stack_frame {
 
 #define ARCH_MIN_TASKALIGN	8
 
-#ifndef __s390x__
-# define __SWAPPER_PG_DIR __pa(&swapper_pg_dir[0]) + _SEGMENT_TABLE
-#else /* __s390x__ */
-# define __SWAPPER_PG_DIR __pa(&swapper_pg_dir[0]) + _REGION_TABLE
-#endif /* __s390x__ */
-
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
 }

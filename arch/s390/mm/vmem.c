@@ -75,29 +75,24 @@ static void __init_refok *vmem_alloc_pages(unsigned int order)
 
 static inline pmd_t *vmem_pmd_alloc(void)
 {
-	pmd_t *pmd;
-	int i;
+	pmd_t *pmd = NULL;
 
-	pmd = vmem_alloc_pages(PMD_ALLOC_ORDER);
+#ifdef CONFIG_64BIT
+	pmd = vmem_alloc_pages(2);
 	if (!pmd)
 		return NULL;
-	for (i = 0; i < PTRS_PER_PMD; i++)
-		pmd_clear_kernel(pmd + i);
+	clear_table((unsigned long *) pmd, _SEGMENT_ENTRY_EMPTY, PAGE_SIZE*4);
+#endif
 	return pmd;
 }
 
 static inline pte_t *vmem_pte_alloc(void)
 {
-	pte_t *pte;
-	pte_t empty_pte;
-	int i;
+	pte_t *pte = vmem_alloc_pages(0);
 
-	pte = vmem_alloc_pages(PTE_ALLOC_ORDER);
 	if (!pte)
 		return NULL;
-	pte_val(empty_pte) = _PAGE_TYPE_EMPTY;
-	for (i = 0; i < PTRS_PER_PTE; i++)
-		pte[i] = empty_pte;
+	clear_table((unsigned long *) pte, _PAGE_TYPE_EMPTY, PAGE_SIZE);
 	return pte;
 }
 
