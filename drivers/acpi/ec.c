@@ -71,14 +71,10 @@ enum ec_event {
 #define ACPI_EC_DELAY		500	/* Wait 500ms max. during EC ops */
 #define ACPI_EC_UDELAY_GLK	1000	/* Wait 1ms max. to get global lock */
 
-static enum ec_mode {
-	EC_INTR = 1,		/* Output buffer full */
-	EC_POLL,		/* Input buffer empty */
-} acpi_ec_mode = EC_INTR;
-
 enum {
 	EC_FLAGS_WAIT_GPE = 0,		/* Don't check status until GPE arrives */
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
+	EC_FLAGS_GPE_MODE,		/* Expect GPE to be sent for status change */
 };
 
 static int acpi_ec_remove(struct acpi_device *device, int type);
@@ -169,20 +165,22 @@ static inline int acpi_ec_check_status(struct acpi_ec *ec, enum ec_event event)
 
 static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 {
-	if (unlikely(force_poll) || acpi_ec_mode == EC_POLL) {
-		unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
-		clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
-		while (time_before(jiffies, delay)) {
-			if (acpi_ec_check_status(ec, event))
-				return 0;
-		}
-	} else {
+	if (likely(test_bit(EC_FLAGS_GPE_MODE, &ec->flags)) &&
+	    likely(!force_poll)) {
 		if (wait_event_timeout(ec->wait, acpi_ec_check_status(ec, event),
 				       msecs_to_jiffies(ACPI_EC_DELAY)))
 			return 0;
 		clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 		if (acpi_ec_check_status(ec, event)) {
+			clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 			return 0;
+		}
+	} else {
+		unsigned long delay = jiffies + msecs_to_jiffies(ACPI_EC_DELAY);
+		clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
+		while (time_before(jiffies, delay)) {
+			if (acpi_ec_check_status(ec, event))
+				return 0;
 		}
 	}
 	printk(KERN_ERR PREFIX "acpi_ec_wait timeout,"
@@ -481,18 +479,17 @@ static u32 acpi_ec_gpe_handler(void *data)
 	struct acpi_ec *ec = data;
 
 	clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
-
-	if (acpi_ec_mode == EC_INTR) {
+	if (test_bit(EC_FLAGS_GPE_MODE, &ec->flags))
 		wake_up(&ec->wait);
-	}
 
 	if (acpi_ec_read_status(ec) & ACPI_EC_FLAG_SCI) {
 		if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
 			status = acpi_os_execute(OSL_EC_BURST_HANDLER,
 				acpi_ec_gpe_query, ec);
-	}
+	} else if (unlikely(!test_bit(EC_FLAGS_GPE_MODE, &ec->flags)))
+		set_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 
-	return status == AE_OK ?
+	return ACPI_SUCCESS(status) ?
 	    ACPI_INTERRUPT_HANDLED : ACPI_INTERRUPT_NOT_HANDLED;
 }
 
@@ -923,20 +920,4 @@ static void __exit acpi_ec_exit(void)
 
 	return;
 }
-#endif				/* 0 */
-
-static int __init acpi_ec_set_intr_mode(char *str)
-{
-	int intr;
-
-	if (!get_option(&str, &intr))
-		return 0;
-
-	acpi_ec_mode = (intr) ? EC_INTR : EC_POLL;
-
-	printk(KERN_NOTICE PREFIX "%s mode.\n", intr ? "interrupt" : "polling");
-
-	return 1;
-}
-
-__setup("ec_intr=", acpi_ec_set_intr_mode);
+#endif	/* 0 */
