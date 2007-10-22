@@ -9,37 +9,6 @@
 #include <linux/fs.h>
 #include "lg.h"
 
-/*L:030 setup_regs() doesn't really belong in this file, but it gives us an
- * early glimpse deeper into the Host so it's worth having here.
- *
- * Most of the Guest's registers are left alone: we used get_zeroed_page() to
- * allocate the structure, so they will be 0. */
-static void setup_regs(struct lguest_regs *regs, unsigned long start)
-{
-	/* There are four "segment" registers which the Guest needs to boot:
-	 * The "code segment" register (cs) refers to the kernel code segment
-	 * __KERNEL_CS, and the "data", "extra" and "stack" segment registers
-	 * refer to the kernel data segment __KERNEL_DS.
-	 *
-	 * The privilege level is packed into the lower bits.  The Guest runs
-	 * at privilege level 1 (GUEST_PL).*/
-	regs->ds = regs->es = regs->ss = __KERNEL_DS|GUEST_PL;
-	regs->cs = __KERNEL_CS|GUEST_PL;
-
-	/* The "eflags" register contains miscellaneous flags.  Bit 1 (0x002)
-	 * is supposed to always be "1".  Bit 9 (0x200) controls whether
-	 * interrupts are enabled.  We always leave interrupts enabled while
-	 * running the Guest. */
-	regs->eflags = 0x202;
-
-	/* The "Extended Instruction Pointer" register says where the Guest is
-	 * running. */
-	regs->eip = start;
-
-	/* %esi points to our boot information, at physical address 0, so don't
-	 * touch it. */
-}
-
 /*L:310 To send DMA into the Guest, the Launcher needs to be able to ask for a
  * DMA buffer.  This is done by writing LHREQ_GETDMA and the key to
  * /dev/lguest. */
@@ -214,11 +183,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 
 	/* Now we initialize the Guest's registers, handing it the start
 	 * address. */
-	setup_regs(lg->regs, args[3]);
-
-	/* There are a couple of GDT entries the Guest expects when first
-	 * booting. */
-	setup_guest_gdt(lg);
+	lguest_arch_setup_regs(lg, args[3]);
 
 	/* The timer for lguest's clock needs initialization. */
 	init_clockdev(lg);

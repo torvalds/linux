@@ -535,3 +535,39 @@ int lguest_arch_init_hypercalls(struct lguest *lg)
 /* Now we've examined the hypercall code; our Guest can make requests.  There
  * is one other way we can do things for the Guest, as we see in
  * emulate_insn(). :*/
+
+/*L:030 lguest_arch_setup_regs()
+ *
+ * Most of the Guest's registers are left alone: we used get_zeroed_page() to
+ * allocate the structure, so they will be 0. */
+void lguest_arch_setup_regs(struct lguest *lg, unsigned long start)
+{
+	struct lguest_regs *regs = lg->regs;
+
+	/* There are four "segment" registers which the Guest needs to boot:
+	 * The "code segment" register (cs) refers to the kernel code segment
+	 * __KERNEL_CS, and the "data", "extra" and "stack" segment registers
+	 * refer to the kernel data segment __KERNEL_DS.
+	 *
+	 * The privilege level is packed into the lower bits.  The Guest runs
+	 * at privilege level 1 (GUEST_PL).*/
+	regs->ds = regs->es = regs->ss = __KERNEL_DS|GUEST_PL;
+	regs->cs = __KERNEL_CS|GUEST_PL;
+
+	/* The "eflags" register contains miscellaneous flags.  Bit 1 (0x002)
+	 * is supposed to always be "1".  Bit 9 (0x200) controls whether
+	 * interrupts are enabled.  We always leave interrupts enabled while
+	 * running the Guest. */
+	regs->eflags = 0x202;
+
+	/* The "Extended Instruction Pointer" register says where the Guest is
+	 * running. */
+	regs->eip = start;
+
+	/* %esi points to our boot information, at physical address 0, so don't
+	 * touch it. */
+	/* There are a couple of GDT entries the Guest expects when first
+	 * booting. */
+
+	setup_guest_gdt(lg);
+}

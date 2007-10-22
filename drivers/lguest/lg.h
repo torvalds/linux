@@ -199,6 +199,7 @@ void lguest_arch_run_guest(struct lguest *lg);
 void lguest_arch_handle_trap(struct lguest *lg);
 int lguest_arch_init_hypercalls(struct lguest *lg);
 int lguest_arch_do_hcall(struct lguest *lg, struct hcall_args *args);
+void lguest_arch_setup_regs(struct lguest *lg, unsigned long start);
 
 /* <arch>/switcher.S: */
 extern char start_switcher_text[], end_switcher_text[], switch_to_guest[];
