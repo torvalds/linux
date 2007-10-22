@@ -1,6 +1,7 @@
 #ifndef _ASM_LGUEST_USER
 #define _ASM_LGUEST_USER
 /* Everything the "lguest" userspace program needs to know. */
+#include <linux/types.h>
 /* They can register up to 32 arrays of lguest_dma. */
 #define LGUEST_MAX_DMA		32
 /* At most we can dma 16 lguest_dma in one op. */
@@ -37,9 +38,9 @@
 struct lguest_dma
 {
 	/* 0 if free to be used, filled by the Host. */
- 	u32 used_len;
+	__u32 used_len;
+	__u16 len[LGUEST_MAX_DMA_SECTIONS];
 	unsigned long addr[LGUEST_MAX_DMA_SECTIONS];
-	u16 len[LGUEST_MAX_DMA_SECTIONS];
 };
 /*:*/
 
@@ -52,11 +53,11 @@ struct lguest_block_page
 {
 	/* 0 is a read, 1 is a write. */
 	int type;
-	u32 sector; 	/* Offset in device = sector * 512. */
-	u32 bytes;	/* Length expected to be read/written in bytes */
+	__u32 sector; 	/* Offset in device = sector * 512. */
+	__u32 bytes;	/* Length expected to be read/written in bytes */
 	/* 0 = pending, 1 = done, 2 = done, error */
 	int result;
-	u32 num_sectors; /* Disk length = num_sectors * 512 */
+	__u32 num_sectors; /* Disk length = num_sectors * 512 */
 };
 
 /*D:520 The network device is basically a memory page where all the Guests on
@@ -86,21 +87,21 @@ struct lguest_net
  */
 struct lguest_device_desc {
 	/* The device type: console, network, disk etc. */
-	u16 type;
+	__u16 type;
 #define LGUEST_DEVICE_T_CONSOLE	1
 #define LGUEST_DEVICE_T_NET	2
 #define LGUEST_DEVICE_T_BLOCK	3
 
 	/* The specific features of this device: these depends on device type
 	 * except for LGUEST_DEVICE_F_RANDOMNESS. */
-	u16 features;
+	__u16 features;
 #define LGUEST_NET_F_NOCSUM		0x4000 /* Don't bother checksumming */
 #define LGUEST_DEVICE_F_RANDOMNESS	0x8000 /* IRQ is fairly random */
 
 	/* This is how the Guest reports status of the device: the Host can set
 	 * LGUEST_DEVICE_S_REMOVED to indicate removal, but the rest are only
 	 * ever manipulated by the Guest, and only ever set. */
-	u16 status;
+	__u16 status;
 /* 256 and above are device specific. */
 #define LGUEST_DEVICE_S_ACKNOWLEDGE	1 /* We have seen device. */
 #define LGUEST_DEVICE_S_DRIVER		2 /* We have found a driver */
@@ -111,8 +112,8 @@ struct lguest_device_desc {
 
 	/* Each device exists somewhere in Guest physical memory, over some
 	 * number of pages. */
-	u16 num_pages;
-	u32 pfn;
+	__u16 num_pages;
+	__u32 pfn;
 };
 /*:*/
 
