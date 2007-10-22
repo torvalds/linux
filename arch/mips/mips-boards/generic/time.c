@@ -147,21 +147,8 @@ void __init plat_time_init(void)
 #endif
 }
 
-//static irqreturn_t mips_perf_interrupt(int irq, void *dev_id)
-//{
-//	return perf_irq();
-//}
-
-//static struct irqaction perf_irqaction = {
-//	.handler = mips_perf_interrupt,
-//	.flags = IRQF_DISABLED | IRQF_PERCPU,
-//	.name = "performance",
-//};
-
 void __init plat_perf_setup(void)
 {
-//	struct irqaction *irq = &perf_irqaction;
-
 	cp0_perfcount_irq = -1;
 
 #ifdef MSC01E_INT_BASE
