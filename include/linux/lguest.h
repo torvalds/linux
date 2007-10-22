@@ -36,7 +36,7 @@ struct lguest_data
 	/* 0xFF == done (set by Host), 0 == pending (set by Guest). */
 	u8 hcall_status[LHCALL_RING_SIZE];
 	/* The actual registers for the hypercalls. */
-	struct hcall_ring hcalls[LHCALL_RING_SIZE];
+	struct hcall_args hcalls[LHCALL_RING_SIZE];
 
 /* Fields initialized by the Host at boot: */
 	/* Memory not to try to access */

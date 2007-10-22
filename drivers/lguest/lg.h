@@ -107,7 +107,7 @@ struct lguest
 	u8 ss1;
 
 	/* If a hypercall was asked for, this points to the arguments. */
-	struct lguest_regs *hcall;
+	struct hcall_args *hcall;
 
 	/* Do we need to stop what we're doing and return to userspace? */
 	int break_out;
@@ -197,6 +197,8 @@ void lguest_arch_host_init(void);
 void lguest_arch_host_fini(void);
 void lguest_arch_run_guest(struct lguest *lg);
 void lguest_arch_handle_trap(struct lguest *lg);
+int lguest_arch_init_hypercalls(struct lguest *lg);
+int lguest_arch_do_hcall(struct lguest *lg, struct hcall_args *args);
 
 /* <arch>/switcher.S: */
 extern char start_switcher_text[], end_switcher_text[], switch_to_guest[];

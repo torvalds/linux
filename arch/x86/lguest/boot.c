@@ -146,10 +146,10 @@ void async_hcall(unsigned long call,
 		/* Table full, so do normal hcall which will flush table. */
 		hcall(call, arg1, arg2, arg3);
 	} else {
-		lguest_data.hcalls[next_call].eax = call;
-		lguest_data.hcalls[next_call].edx = arg1;
-		lguest_data.hcalls[next_call].ebx = arg2;
-		lguest_data.hcalls[next_call].ecx = arg3;
+		lguest_data.hcalls[next_call].arg0 = call;
+		lguest_data.hcalls[next_call].arg1 = arg1;
+		lguest_data.hcalls[next_call].arg2 = arg2;
+		lguest_data.hcalls[next_call].arg3 = arg3;
 		/* Arguments must all be written before we mark it to go */
 		wmb();
 		lguest_data.hcall_status[next_call] = 0;

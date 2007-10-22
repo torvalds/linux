@@ -2,6 +2,8 @@
 #ifndef _X86_LGUEST_HCALL_H
 #define _X86_LGUEST_HCALL_H
 
+#include <asm/hw_irq.h>
+
 #define LHCALL_FLUSH_ASYNC	0
 #define LHCALL_LGUEST_INIT	1
 #define LHCALL_CRASH		2
@@ -59,9 +61,9 @@ void async_hcall(unsigned long call,
 #define LGUEST_IRQS (NR_IRQS < 32 ? NR_IRQS: 32)
 
 #define LHCALL_RING_SIZE 64
-struct hcall_ring
+struct hcall_args
 {
-	u32 eax, edx, ebx, ecx;
+	/* These map directly onto eax, ebx, ecx, edx in struct lguest_regs */
+	unsigned long arg0, arg2, arg3, arg1;
 };
-
 #endif	/* _I386_LGUEST_HCALL_H */
