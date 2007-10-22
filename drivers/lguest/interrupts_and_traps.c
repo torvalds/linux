@@ -218,10 +218,9 @@ int deliver_trap(struct lguest *lg, unsigned int num)
  * system calls down from 1750ns to 270ns.  Plus, if lguest didn't do it, all
  * the other hypervisors would tease it.
  *
- * This routine determines if a trap can be delivered directly. */
-static int direct_trap(const struct lguest *lg,
-		       const struct desc_struct *trap,
-		       unsigned int num)
+ * This routine indicates if a particular trap number could be delivered
+ * directly. */
+static int direct_trap(unsigned int num)
 {
 	/* Hardware interrupts don't go to the Guest at all (except system
 	 * call). */
@@ -232,14 +231,7 @@ static int direct_trap(const struct lguest *lg,
 	 * fault address), general protection faults (in/out emulation) and
 	 * device not available (TS handling), and of course, the hypercall
 	 * trap. */
-	if (num == 14 || num == 13 || num == 7 || num == LGUEST_TRAP_ENTRY)
-		return 0;
-
-	/* Only trap gates (type 15) can go direct to the Guest.  Interrupt
-	 * gates (type 14) disable interrupts as they are entered, which we
-	 * never let the Guest do.  Not present entries (type 0x0) also can't
-	 * go direct, of course 8) */
-	return idt_type(trap->a, trap->b) == 0xF;
+	return num != 14 && num != 13 && num != 7 && num != LGUEST_TRAP_ENTRY;
 }
 /*:*/
 
@@ -348,15 +340,11 @@ void load_guest_idt_entry(struct lguest *lg, unsigned int num, u32 lo, u32 hi)
 	 * to copy this again. */
 	lg->changed |= CHANGED_IDT;
 
-	/* The IDT which we keep in "struct lguest" only contains 32 entries
-	 * for the traps and LGUEST_IRQS (32) entries for interrupts.  We
-	 * ignore attempts to set handlers for higher interrupt numbers, except
-	 * for the system call "interrupt" at 128: we have a special IDT entry
-	 * for that. */
-	if (num < ARRAY_SIZE(lg->idt))
+	/* Check that the Guest doesn't try to step outside the bounds. */
+	if (num >= ARRAY_SIZE(lg->idt))
+		kill_guest(lg, "Setting idt entry %u", num);
+	else
 		set_trap(lg, &lg->idt[num], num, lo, hi);
-	else if (num == SYSCALL_VECTOR)
-		set_trap(lg, &lg->syscall_idt, num, lo, hi);
 }
 
 /* The default entry for each interrupt points into the Switcher routines which
@@ -399,20 +387,21 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 
 	/* We can simply copy the direct traps, otherwise we use the default
 	 * ones in the Switcher: they will return to the Host. */
-	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++) {
-		if (direct_trap(lg, &lg->idt[i], i))
+	for (i = 0; i < ARRAY_SIZE(lg->idt); i++) {
+		/* If no Guest can ever override this trap, leave it alone. */
+		if (!direct_trap(i))
+			continue;
+
+		/* Only trap gates (type 15) can go direct to the Guest.
+		 * Interrupt gates (type 14) disable interrupts as they are
+		 * entered, which we never let the Guest do.  Not present
+		 * entries (type 0x0) also can't go direct, of course. */
+		if (idt_type(lg->idt[i].a, lg->idt[i].b) == 0xF)
 			idt[i] = lg->idt[i];
 		else
+			/* Reset it to the default. */
 			default_idt_entry(&idt[i], i, def[i]);
 	}
-
-	/* Don't forget the system call trap!  The IDT entries for other
-	 * interupts never change, so no need to copy them. */
-	i = SYSCALL_VECTOR;
-	if (direct_trap(lg, &lg->syscall_idt, i))
-		idt[i] = lg->syscall_idt;
-	else
-		default_idt_entry(&idt[i], i, def[i]);
 }
 
 void guest_set_clockevent(struct lguest *lg, unsigned long delta)

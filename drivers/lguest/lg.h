@@ -184,8 +184,7 @@ struct lguest
 	struct desc_struct gdt[GDT_ENTRIES];
 
 	/* The IDT entries: some copied into lguest_ro_state when running. */
-	struct desc_struct idt[FIRST_EXTERNAL_VECTOR+LGUEST_IRQS];
-	struct desc_struct syscall_idt;
+	struct desc_struct idt[IDT_ENTRIES];
 
 	/* Virtual clock device */
 	struct hrtimer hrt;
