@@ -79,7 +79,7 @@ static int avr32_timer_calc_div_and_set_jiffies(struct clk *pclk)
 {
 	unsigned int cycles_max = (clocksource_avr32.mask + 1) / 2;
 	unsigned int divs[] = { 4, 8, 16, 32 };
-	int divs_size = sizeof(divs) / sizeof(*divs);
+	int divs_size = ARRAY_SIZE(divs);
 	int i = 0;
 	unsigned long count_hz;
 	unsigned long shift;
