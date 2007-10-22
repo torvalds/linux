@@ -483,6 +483,7 @@ static int ah6_init_state(struct xfrm_state *x)
 		break;
 	case XFRM_MODE_TUNNEL:
 		x->props.header_len += sizeof(struct ipv6hdr);
+		break;
 	default:
 		goto error;
 	}
