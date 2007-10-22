@@ -150,7 +150,7 @@ void load_guest_gdt(struct lguest *lg, unsigned long table, u32 num)
 		kill_guest(lg, "too many gdt entries %i", num);
 
 	/* We read the whole thing in, then fix it up. */
-	lgread(lg, lg->arch.gdt, table, num * sizeof(lg->arch.gdt[0]));
+	__lgread(lg, lg->arch.gdt, table, num * sizeof(lg->arch.gdt[0]));
 	fixup_gdt_table(lg, 0, ARRAY_SIZE(lg->arch.gdt));
 	/* Mark that the GDT changed so the core knows it has to copy it again,
 	 * even if the Guest is run on the same CPU. */
@@ -161,7 +161,7 @@ void guest_load_tls(struct lguest *lg, unsigned long gtls)
 {
 	struct desc_struct *tls = &lg->arch.gdt[GDT_ENTRY_TLS_MIN];
 
-	lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
+	__lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
 	fixup_gdt_table(lg, GDT_ENTRY_TLS_MIN, GDT_ENTRY_TLS_MAX+1);
 	lg->changed |= CHANGED_GDT_TLS;
 }

@@ -98,12 +98,27 @@ struct lguest
 extern struct mutex lguest_lock;
 
 /* core.c: */
-u32 lgread_u32(struct lguest *lg, unsigned long addr);
-void lgwrite_u32(struct lguest *lg, unsigned long addr, u32 val);
-void lgread(struct lguest *lg, void *buf, unsigned long addr, unsigned len);
-void lgwrite(struct lguest *lg, unsigned long, const void *buf, unsigned len);
 int lguest_address_ok(const struct lguest *lg,
 		      unsigned long addr, unsigned long len);
+void __lgread(struct lguest *, void *, unsigned long, unsigned);
+void __lgwrite(struct lguest *, unsigned long, const void *, unsigned);
+
+/*L:306 Using memory-copy operations like that is usually inconvient, so we
+ * have the following helper macros which read and write a specific type (often
+ * an unsigned long).
+ *
+ * This reads into a variable of the given type then returns that. */
+#define lgread(lg, addr, type)						\
+	({ type _v; __lgread((lg), &_v, (addr), sizeof(_v)); _v; })
+
+/* This checks that the variable is of the given type, then writes it out. */
+#define lgwrite(lg, addr, type, val)				\
+	do {							\
+		typecheck(type, val);				\
+		__lgwrite((lg), (addr), &(val), sizeof(val));	\
+	} while(0)
+/* (end of memory access helper routines) :*/
+
 int run_guest(struct lguest *lg, unsigned long __user *user);
 
 /* Helper macros to obtain the first 12 or the last 20 bits, this is only the

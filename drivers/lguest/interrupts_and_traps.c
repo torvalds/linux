@@ -45,7 +45,7 @@ static void push_guest_stack(struct lguest *lg, unsigned long *gstack, u32 val)
 {
 	/* Stack grows upwards: move stack then write value. */
 	*gstack -= 4;
-	lgwrite_u32(lg, *gstack, val);
+	lgwrite(lg, *gstack, u32, val);
 }
 
 /*H:210 The set_guest_interrupt() routine actually delivers the interrupt or

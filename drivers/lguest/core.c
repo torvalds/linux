@@ -145,33 +145,10 @@ int lguest_address_ok(const struct lguest *lg,
 	return (addr+len) / PAGE_SIZE < lg->pfn_limit && (addr+len >= addr);
 }
 
-/* This is a convenient routine to get a 32-bit value from the Guest (a very
- * common operation).  Here we can see how useful the kill_lguest() routine we
- * met in the Launcher can be: we return a random value (0) instead of needing
- * to return an error. */
-u32 lgread_u32(struct lguest *lg, unsigned long addr)
-{
-	u32 val = 0;
-
-	/* Don't let them access lguest binary. */
-	if (!lguest_address_ok(lg, addr, sizeof(val))
-	    || get_user(val, (u32 *)(lg->mem_base + addr)) != 0)
-		kill_guest(lg, "bad read address %#lx: pfn_limit=%u membase=%p", addr, lg->pfn_limit, lg->mem_base);
-	return val;
-}
-
-/* Same thing for writing a value. */
-void lgwrite_u32(struct lguest *lg, unsigned long addr, u32 val)
-{
-	if (!lguest_address_ok(lg, addr, sizeof(val))
-	    || put_user(val, (u32 *)(lg->mem_base + addr)) != 0)
-		kill_guest(lg, "bad write address %#lx", addr);
-}
-
-/* This routine is more generic, and copies a range of Guest bytes into a
- * buffer.  If the copy_from_user() fails, we fill the buffer with zeroes, so
- * the caller doesn't end up using uninitialized kernel memory. */
-void lgread(struct lguest *lg, void *b, unsigned long addr, unsigned bytes)
+/* This routine copies memory from the Guest.  Here we can see how useful the
+ * kill_lguest() routine we met in the Launcher can be: we return a random
+ * value (all zeroes) instead of needing to return an error. */
+void __lgread(struct lguest *lg, void *b, unsigned long addr, unsigned bytes)
 {
 	if (!lguest_address_ok(lg, addr, bytes)
 	    || copy_from_user(b, lg->mem_base + addr, bytes) != 0) {
@@ -181,15 +158,15 @@ void lgread(struct lguest *lg, void *b, unsigned long addr, unsigned bytes)
 	}
 }
 
-/* Similarly, our generic routine to copy into a range of Guest bytes. */
-void lgwrite(struct lguest *lg, unsigned long addr, const void *b,
-	     unsigned bytes)
+/* This is the write (copy into guest) version. */
+void __lgwrite(struct lguest *lg, unsigned long addr, const void *b,
+	       unsigned bytes)
 {
 	if (!lguest_address_ok(lg, addr, bytes)
 	    || copy_to_user(lg->mem_base + addr, b, bytes) != 0)
 		kill_guest(lg, "bad write address %#lx len %u", addr, bytes);
 }
-/* (end of memory access helper routines) :*/
+/*:*/
 
 /*H:030 Let's jump straight to the the main loop which runs the Guest.
  * Remember, this is called by the Launcher reading /dev/lguest, and we keep

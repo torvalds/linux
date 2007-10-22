@@ -209,7 +209,7 @@ int demand_page(struct lguest *lg, unsigned long vaddr, int errcode)
 	pte_t *spte;
 
 	/* First step: get the top-level Guest page table entry. */
-	gpgd = __pgd(lgread_u32(lg, gpgd_addr(lg, vaddr)));
+	gpgd = lgread(lg, gpgd_addr(lg, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
 		return 0;
@@ -235,7 +235,7 @@ int demand_page(struct lguest *lg, unsigned long vaddr, int errcode)
 	/* OK, now we look at the lower level in the Guest page table: keep its
 	 * address, because we might update it later. */
 	gpte_ptr = gpte_addr(lg, gpgd, vaddr);
-	gpte = __pte(lgread_u32(lg, gpte_ptr));
+	gpte = lgread(lg, gpte_ptr, pte_t);
 
 	/* If this page isn't in the Guest page tables, we can't page it in. */
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
@@ -278,7 +278,7 @@ int demand_page(struct lguest *lg, unsigned long vaddr, int errcode)
 
 	/* Finally, we write the Guest PTE entry back: we've set the
 	 * _PAGE_ACCESSED and maybe the _PAGE_DIRTY flags. */
-	lgwrite_u32(lg, gpte_ptr, pte_val(gpte));
+	lgwrite(lg, gpte_ptr, pte_t, gpte);
 
 	/* We succeeded in mapping the page! */
 	return 1;
@@ -366,12 +366,12 @@ unsigned long guest_pa(struct lguest *lg, unsigned long vaddr)
 	pte_t gpte;
 
 	/* First step: get the top-level Guest page table entry. */
-	gpgd = __pgd(lgread_u32(lg, gpgd_addr(lg, vaddr)));
+	gpgd = lgread(lg, gpgd_addr(lg, vaddr), pgd_t);
 	/* Toplevel not present?  We can't map it in. */
 	if (!(pgd_flags(gpgd) & _PAGE_PRESENT))
 		kill_guest(lg, "Bad address %#lx", vaddr);
 
-	gpte = __pte(lgread_u32(lg, gpte_addr(lg, gpgd, vaddr)));
+	gpte = lgread(lg, gpte_addr(lg, gpgd, vaddr), pte_t);
 	if (!(pte_flags(gpte) & _PAGE_PRESENT))
 		kill_guest(lg, "Bad address %#lx", vaddr);
 

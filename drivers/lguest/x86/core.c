@@ -222,7 +222,7 @@ static int emulate_insn(struct lguest *lg)
 		return 0;
 
 	/* Decoding x86 instructions is icky. */
-	lgread(lg, &insn, physaddr, 1);
+	insn = lgread(lg, physaddr, u8);
 
 	/* 0x66 is an "operand prefix".  It means it's using the upper 16 bits
 	   of the eax register. */
@@ -230,7 +230,7 @@ static int emulate_insn(struct lguest *lg)
 		shift = 16;
 		/* The instruction is 1 byte so far, read the next byte. */
 		insnlen = 1;
-		lgread(lg, &insn, physaddr + insnlen, 1);
+		insn = lgread(lg, physaddr + insnlen, u8);
 	}
 
 	/* We can ignore the lower bit for the moment and decode the 4 opcodes

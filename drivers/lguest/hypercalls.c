@@ -47,7 +47,7 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 		char msg[128];
 		/* If the lgread fails, it will call kill_guest() itself; the
 		 * kill_guest() with the message will be ignored. */
-		lgread(lg, msg, args->arg1, sizeof(msg));
+		__lgread(lg, msg, args->arg1, sizeof(msg));
 		msg[sizeof(msg)-1] = '\0';
 		kill_guest(lg, "CRASH: %s", msg);
 		break;
