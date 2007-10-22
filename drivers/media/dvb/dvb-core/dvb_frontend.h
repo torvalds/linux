@@ -165,19 +165,19 @@ struct dvb_fe_events {
 struct dvb_frontend {
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
-	void* demodulator_priv;
-	void* tuner_priv;
-	void* frontend_priv;
-	void* sec_priv;
-	void* analog_demod_priv;
+	void *demodulator_priv;
+	void *tuner_priv;
+	void *frontend_priv;
+	void *sec_priv;
+	void *analog_demod_priv;
 };
 
-extern int dvb_register_frontend(struct dvb_adapter* dvb,
-				 struct dvb_frontend* fe);
+extern int dvb_register_frontend(struct dvb_adapter *dvb,
+				 struct dvb_frontend *fe);
 
-extern int dvb_unregister_frontend(struct dvb_frontend* fe);
+extern int dvb_unregister_frontend(struct dvb_frontend *fe);
 
-extern void dvb_frontend_detach(struct dvb_frontend* fe);
+extern void dvb_frontend_detach(struct dvb_frontend *fe);
 
 extern void dvb_frontend_reinitialise(struct dvb_frontend *fe);
 
