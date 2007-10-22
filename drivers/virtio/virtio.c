@@ -20,10 +20,19 @@ static ssize_t status_show(struct device *_d,
 	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
 	return sprintf(buf, "0x%08x", dev->config->get_status(dev));
 }
+static ssize_t modalias_show(struct device *_d,
+			     struct device_attribute *attr, char *buf)
+{
+	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
+
+	return sprintf(buf, "virtio:d%08Xv%08X\n",
+		       dev->id.device, dev->id.vendor);
+}
 static struct device_attribute virtio_dev_attrs[] = {
 	__ATTR_RO(device),
 	__ATTR_RO(vendor),
 	__ATTR_RO(status),
+	__ATTR_RO(modalias),
 	__ATTR_NULL
 };
 
@@ -51,10 +60,19 @@ static int virtio_dev_match(struct device *_dv, struct device_driver *_dr)
 	return 0;
 }
 
+static int virtio_uevent(struct device *_dv, struct kobj_uevent_env *env)
+{
+	struct virtio_device *dev = container_of(_dv,struct virtio_device,dev);
+
+	return add_uevent_var(env, "MODALIAS=virtio:d%08Xv%08X",
+			      dev->id.device, dev->id.vendor);
+}
+
 static struct bus_type virtio_bus = {
 	.name  = "virtio",
 	.match = virtio_dev_match,
 	.dev_attrs = virtio_dev_attrs,
+	.uevent = virtio_uevent,
 };
 
 static void add_status(struct virtio_device *dev, unsigned status)
