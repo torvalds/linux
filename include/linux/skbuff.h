@@ -300,8 +300,9 @@ struct sk_buff {
 #endif
 
 	int			iif;
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	__u16			queue_mapping;
-
+#endif
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
