@@ -82,7 +82,6 @@ static inline void pgd_free(pgd_t *pgd)
  */
 #define pmd_alloc_one(mm,address)       ({ BUG(); ((pmd_t *)2); })
 #define pmd_free(x)                     do { } while (0)
-#define __pmd_free_tlb(tlb,x)		do { } while (0)
 #define pgd_populate(mm, pmd, pte)      BUG()
 #define pgd_populate_kernel(mm, pmd, pte)	BUG()
 #else /* __s390x__ */
@@ -117,12 +116,6 @@ static inline void pmd_free (pmd_t *pmd)
 		free_pages((unsigned long) shadow_pmd, PMD_ALLOC_ORDER);
 	free_pages((unsigned long) pmd, PMD_ALLOC_ORDER);
 }
-
-#define __pmd_free_tlb(tlb,pmd)			\
-	do {					\
-		tlb_flush_mmu(tlb, 0, 0);	\
-		pmd_free(pmd);			\
-	 } while (0)
 
 static inline void
 pgd_populate_kernel(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmd)
@@ -223,15 +216,5 @@ static inline void pte_free(struct page *pte)
 		__free_page(shadow_page);
 	__free_page(pte);
 }
-
-#define __pte_free_tlb(tlb, pte)					\
-({									\
-	struct mmu_gather *__tlb = (tlb);				\
-	struct page *__pte = (pte);					\
-	struct page *shadow_page = get_shadow_page(__pte);		\
-	if (shadow_page)						\
-		tlb_remove_page(__tlb, shadow_page);			\
-	tlb_remove_page(__tlb, __pte);					\
-})
 
 #endif /* _S390_PGALLOC_H */

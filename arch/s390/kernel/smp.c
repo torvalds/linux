@@ -326,7 +326,7 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
  */
 void smp_ptlb_callback(void *info)
 {
-	local_flush_tlb();
+	__tlb_flush_local();
 }
 
 void smp_ptlb_all(void)

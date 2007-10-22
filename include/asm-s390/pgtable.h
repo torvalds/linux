@@ -424,7 +424,8 @@ static inline pgd_t *get_shadow_pgd(pgd_t *pgdp)
  * within a page table are directly modified.  Thus, the following
  * hook is made available.
  */
-static inline void set_pte(pte_t *pteptr, pte_t pteval)
+static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+			      pte_t *pteptr, pte_t pteval)
 {
 	pte_t *shadow_pte = get_shadow_pte(pteptr);
 
@@ -437,7 +438,6 @@ static inline void set_pte(pte_t *pteptr, pte_t pteval)
 			pte_val(*shadow_pte) = _PAGE_TYPE_EMPTY;
 	}
 }
-#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
 /*
  * pgd/pmd/pte query functions
@@ -508,7 +508,8 @@ static inline int pte_file(pte_t pte)
 	return (pte_val(pte) & mask) == _PAGE_TYPE_FILE;
 }
 
-#define pte_same(a,b)	(pte_val(a) == pte_val(b))
+#define __HAVE_ARCH_PTE_SAME
+#define pte_same(a,b)  (pte_val(a) == pte_val(b))
 
 /*
  * query functions pte_write/pte_dirty/pte_young only work if
@@ -663,24 +664,19 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
-static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long addr, pte_t *ptep)
 {
 	return 0;
 }
 
-static inline int
-ptep_clear_flush_young(struct vm_area_struct *vma,
-			unsigned long address, pte_t *ptep)
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
+					 unsigned long address, pte_t *ptep)
 {
 	/* No need to flush TLB; bits are in storage key */
-	return ptep_test_and_clear_young(vma, address, ptep);
-}
-
-static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-{
-	pte_t pte = *ptep;
-	pte_clear(mm, addr, ptep);
-	return pte;
+	return 0;
 }
 
 static inline void __ptep_ipte(unsigned long address, pte_t *ptep)
@@ -709,6 +705,32 @@ static inline void ptep_invalidate(unsigned long address, pte_t *ptep)
 		__ptep_ipte(address, ptep);
 }
 
+/*
+ * This is hard to understand. ptep_get_and_clear and ptep_clear_flush
+ * both clear the TLB for the unmapped pte. The reason is that
+ * ptep_get_and_clear is used in common code (e.g. change_pte_range)
+ * to modify an active pte. The sequence is
+ *   1) ptep_get_and_clear
+ *   2) set_pte_at
+ *   3) flush_tlb_range
+ * On s390 the tlb needs to get flushed with the modification of the pte
+ * if the pte is active. The only way how this can be implemented is to
+ * have ptep_get_and_clear do the tlb flush. In exchange flush_tlb_range
+ * is a nop.
+ */
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+#define ptep_get_and_clear(__mm, __address, __ptep)			\
+({									\
+	pte_t __pte = *(__ptep);					\
+	if (atomic_read(&(__mm)->mm_users) > 1 ||			\
+	    (__mm) != current->active_mm)				\
+		ptep_invalidate(__address, __ptep);			\
+	else								\
+		pte_clear((__mm), (__address), (__ptep));		\
+	__pte;								\
+})
+
+#define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 				     unsigned long address, pte_t *ptep)
 {
@@ -717,12 +739,40 @@ static inline pte_t ptep_clear_flush(struct vm_area_struct *vma,
 	return pte;
 }
 
-static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+/*
+ * The batched pte unmap code uses ptep_get_and_clear_full to clear the
+ * ptes. Here an optimization is possible. tlb_gather_mmu flushes all
+ * tlbs of an mm if it can guarantee that the ptes of the mm_struct
+ * cannot be accessed while the batched unmap is running. In this case
+ * full==1 and a simple pte_clear is enough. See tlb.h.
+ */
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm,
+					    unsigned long addr,
+					    pte_t *ptep, int full)
 {
-	pte_t old_pte = *ptep;
-	set_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));
+	pte_t pte = *ptep;
+
+	if (full)
+		pte_clear(mm, addr, ptep);
+	else
+		ptep_invalidate(addr, ptep);
+	return pte;
 }
 
+#define __HAVE_ARCH_PTEP_SET_WRPROTECT
+#define ptep_set_wrprotect(__mm, __addr, __ptep)			\
+({									\
+	pte_t __pte = *(__ptep);					\
+	if (pte_write(__pte)) {						\
+		if (atomic_read(&(__mm)->mm_users) > 1 ||		\
+		    (__mm) != current->active_mm)			\
+			ptep_invalidate(__addr, __ptep);		\
+		set_pte_at(__mm, __addr, __ptep, pte_wrprotect(__pte));	\
+	}								\
+})
+
+#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 #define ptep_set_access_flags(__vma, __addr, __ptep, __entry, __dirty)	\
 ({									\
 	int __changed = !pte_same(*(__ptep), __entry);			\
@@ -740,11 +790,13 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
  * should therefore only be called if it is not mapped in any
  * address space.
  */
+#define __HAVE_ARCH_PAGE_TEST_DIRTY
 static inline int page_test_dirty(struct page *page)
 {
 	return (page_get_storage_key(page_to_phys(page)) & _PAGE_CHANGED) != 0;
 }
 
+#define __HAVE_ARCH_PAGE_CLEAR_DIRTY
 static inline void page_clear_dirty(struct page *page)
 {
 	page_set_storage_key(page_to_phys(page), PAGE_DEFAULT_KEY);
@@ -753,6 +805,7 @@ static inline void page_clear_dirty(struct page *page)
 /*
  * Test and clear referenced bit in storage key.
  */
+#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
 static inline int page_test_and_clear_young(struct page *page)
 {
 	unsigned long physpage = page_to_phys(page);
@@ -930,16 +983,6 @@ extern int remove_shared_memory(unsigned long start, unsigned long size);
 #define __HAVE_ARCH_MEMMAP_INIT
 extern void memmap_init(unsigned long, int, unsigned long, unsigned long);
 
-#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-#define __HAVE_ARCH_PTEP_CLEAR_FLUSH
-#define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define __HAVE_ARCH_PTE_SAME
-#define __HAVE_ARCH_PAGE_TEST_DIRTY
-#define __HAVE_ARCH_PAGE_CLEAR_DIRTY
-#define __HAVE_ARCH_PAGE_TEST_AND_CLEAR_YOUNG
 #include <asm-generic/pgtable.h>
 
 #endif /* _S390_PAGE_H */
