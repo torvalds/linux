@@ -295,6 +295,6 @@ void write_timestamp(struct lguest *lg)
 {
 	struct timespec now;
 	ktime_get_real_ts(&now);
-	if (put_user(now, &lg->lguest_data->time))
+	if (copy_to_user(&lg->lguest_data->time, &now, sizeof(struct timespec)))
 		kill_guest(lg, "Writing timestamp");
 }
