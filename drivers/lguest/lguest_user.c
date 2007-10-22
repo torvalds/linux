@@ -1,9 +1,9 @@
 /*P:200 This contains all the /dev/lguest code, whereby the userspace launcher
  * controls and communicates with the Guest.  For example, the first write will
- * tell us the memory size, pagetable, entry point and kernel address offset.
- * A read will run the Guest until a signal is pending (-EINTR), or the Guest
- * does a DMA out to the Launcher.  Writes are also used to get a DMA buffer
- * registered by the Guest and to send the Guest an interrupt. :*/
+ * tell us the Guest's memory layout, pagetable, entry point and kernel address
+ * offset.  A read will run the Guest until something happens, such as a signal
+ * or the Guest doing a DMA out to the Launcher.  Writes are also used to get a
+ * DMA buffer registered by the Guest and to send the Guest an interrupt. :*/
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 #include <linux/fs.h>
@@ -142,8 +142,10 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	return run_guest(lg, (unsigned long __user *)user);
 }
 
-/*L:020 The initialization write supplies 4 32-bit values (in addition to the
+/*L:020 The initialization write supplies 5 32-bit values (in addition to the
  * 32-bit LHREQ_INITIALIZE value).  These are:
+ *
+ * base: The start of the Guest-physical memory inside the Launcher memory.
  *
  * pfnlimit: The highest (Guest-physical) page number the Guest should be
  * allowed to access.  The Launcher has to live in Guest memory, so it sets
@@ -166,7 +168,7 @@ static int initialize(struct file *file, const u32 __user *input)
 	 * Guest. */
 	struct lguest *lg;
 	int err, i;
-	u32 args[4];
+	u32 args[5];
 
 	/* We grab the Big Lguest lock, which protects the global array
 	 * "lguests" and multiple simultaneous initializations. */
@@ -194,8 +196,9 @@ static int initialize(struct file *file, const u32 __user *input)
 
 	/* Populate the easy fields of our "struct lguest" */
 	lg->guestid = i;
-	lg->pfn_limit = args[0];
-	lg->page_offset = args[3];
+	lg->mem_base = (void __user *)(long)args[0];
+	lg->pfn_limit = args[1];
+	lg->page_offset = args[4];
 
 	/* We need a complete page for the Guest registers: they are accessible
 	 * to the Guest and we can only grant it access to whole pages. */
@@ -210,13 +213,13 @@ static int initialize(struct file *file, const u32 __user *input)
 	/* Initialize the Guest's shadow page tables, using the toplevel
 	 * address the Launcher gave us.  This allocates memory, so can
 	 * fail. */
-	err = init_guest_pagetable(lg, args[1]);
+	err = init_guest_pagetable(lg, args[2]);
 	if (err)
 		goto free_regs;
 
 	/* Now we initialize the Guest's registers, handing it the start
 	 * address. */
-	setup_regs(lg->regs, args[2]);
+	setup_regs(lg->regs, args[3]);
 
 	/* There are a couple of GDT entries the Guest expects when first
 	 * booting. */

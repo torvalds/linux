@@ -205,16 +205,19 @@ static void initialize(struct lguest *lg)
 		tsc_speed = 0;
 
 	/* The pointer to the Guest's "struct lguest_data" is the only
-	 * argument. */
-	lg->lguest_data = (struct lguest_data __user *)lg->regs->edx;
-	/* If we check the address they gave is OK now, we can simply
-	 * copy_to_user/from_user from now on rather than using lgread/lgwrite.
-	 * I put this in to show that I'm not immune to writing stupid
-	 * optimizations. */
+	 * argument.  We check that address now. */
 	if (!lguest_address_ok(lg, lg->regs->edx, sizeof(*lg->lguest_data))) {
 		kill_guest(lg, "bad guest page %p", lg->lguest_data);
 		return;
 	}
+
+	/* Having checked it, we simply set lg->lguest_data to point straight
+	 * into the Launcher's memory at the right place and then use
+	 * copy_to_user/from_user from now on, instead of lgread/write.  I put
+	 * this in to show that I'm not immune to writing stupid
+	 * optimizations. */
+	lg->lguest_data = lg->mem_base + lg->regs->edx;
+
 	/* The Guest tells us where we're not to deliver interrupts by putting
 	 * the range of addresses into "struct lguest_data". */
 	if (get_user(lg->noirq_start, &lg->lguest_data->noirq_start)

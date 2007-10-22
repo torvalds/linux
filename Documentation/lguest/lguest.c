@@ -1,10 +1,7 @@
 /*P:100 This is the Launcher code, a simple program which lays out the
  * "physical" memory for the new Guest by mapping the kernel image and the
  * virtual devices, then reads repeatedly from /dev/lguest to run the Guest.
- *
- * The only trick: the Makefile links it at a high address so it will be clear
- * of the guest memory region.  It means that each Guest cannot have more than
- * about 2.5G of memory on a normally configured Host. :*/
+:*/
 #define _LARGEFILE64_SOURCE
 #define _GNU_SOURCE
 #include <stdio.h>
@@ -56,6 +53,8 @@ typedef uint8_t u8;
 #ifndef SIOCBRADDIF
 #define SIOCBRADDIF	0x89a2		/* add interface to bridge      */
 #endif
+/* We can have up to 256 pages for devices. */
+#define DEVICE_PAGES 256
 
 /*L:120 verbose is both a global flag and a macro.  The C preprocessor allows
  * this, and although I wouldn't recommend it, it works quite nicely here. */
@@ -66,8 +65,10 @@ static bool verbose;
 
 /* The pipe to send commands to the waker process */
 static int waker_fd;
-/* The top of guest physical memory. */
-static u32 top;
+/* The pointer to the start of guest memory. */
+static void *guest_base;
+/* The maximum guest physical address allowed, and maximum possible. */
+static unsigned long guest_limit, guest_max;
 
 /* This is our list of devices. */
 struct device_list
@@ -111,6 +112,29 @@ struct device
 	void *priv;
 };
 
+/*L:100 The Launcher code itself takes us out into userspace, that scary place
+ * where pointers run wild and free!  Unfortunately, like most userspace
+ * programs, it's quite boring (which is why everyone likes to hack on the
+ * kernel!).  Perhaps if you make up an Lguest Drinking Game at this point, it
+ * will get you through this section.  Or, maybe not.
+ *
+ * The Launcher sets up a big chunk of memory to be the Guest's "physical"
+ * memory and stores it in "guest_base".  In other words, Guest physical ==
+ * Launcher virtual with an offset.
+ *
+ * This can be tough to get your head around, but usually it just means that we
+ * use these trivial conversion functions when the Guest gives us it's
+ * "physical" addresses: */
+static void *from_guest_phys(unsigned long addr)
+{
+	return guest_base + addr;
+}
+
+static unsigned long to_guest_phys(const void *addr)
+{
+	return (addr - guest_base);
+}
+
 /*L:130
  * Loading the Kernel.
  *
@@ -124,33 +148,40 @@ static int open_or_die(const char *name, int flags)
 	return fd;
 }
 
-/* map_zeroed_pages() takes a (page-aligned) address and a number of pages. */
-static void *map_zeroed_pages(unsigned long addr, unsigned int num)
+/* map_zeroed_pages() takes a number of pages. */
+static void *map_zeroed_pages(unsigned int num)
 {
-	/* We cache the /dev/zero file-descriptor so we only open it once. */
-	static int fd = -1;
-
-	if (fd == -1)
-		fd = open_or_die("/dev/zero", O_RDONLY);
+	int fd = open_or_die("/dev/zero", O_RDONLY);
+	void *addr;
 
 	/* We use a private mapping (ie. if we write to the page, it will be
-	 * copied), and obviously we insist that it be mapped where we ask. */
-	if (mmap((void *)addr, getpagesize() * num,
-		 PROT_READ|PROT_WRITE|PROT_EXEC, MAP_FIXED|MAP_PRIVATE, fd, 0)
-	    != (void *)addr)
-		err(1, "Mmaping %u pages of /dev/zero @%p", num, (void *)addr);
+	 * copied). */
+	addr = mmap(NULL, getpagesize() * num,
+		    PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE, fd, 0);
+	if (addr == MAP_FAILED)
+		err(1, "Mmaping %u pages of /dev/zero", num);
 
-	/* Returning the address is just a courtesy: can simplify callers. */
-	return (void *)addr;
+	return addr;
+}
+
+/* Get some more pages for a device. */
+static void *get_pages(unsigned int num)
+{
+	void *addr = from_guest_phys(guest_limit);
+
+	guest_limit += num * getpagesize();
+	if (guest_limit > guest_max)
+		errx(1, "Not enough memory for devices");
+	return addr;
 }
 
 /* To find out where to start we look for the magic Guest string, which marks
  * the code we see in lguest_asm.S.  This is a hack which we are currently
  * plotting to replace with the normal Linux entry point. */
-static unsigned long entry_point(void *start, void *end,
+static unsigned long entry_point(const void *start, const void *end,
 				 unsigned long page_offset)
 {
-	void *p;
+	const void *p;
 
 	/* The scan gives us the physical starting address.  We want the
 	 * virtual address in this case, and fortunately, we already figured
@@ -158,7 +189,8 @@ static unsigned long entry_point(void *start, void *end,
 	 * "page_offset". */
 	for (p = start; p < end; p++)
 		if (memcmp(p, "GenuineLguest", strlen("GenuineLguest")) == 0)
-			return (long)p + strlen("GenuineLguest") + page_offset;
+			return to_guest_phys(p + strlen("GenuineLguest"))
+				+ page_offset;
 
 	errx(1, "Is this image a genuine lguest?");
 }
@@ -201,9 +233,9 @@ static void map_at(int fd, void *addr, unsigned long offset, unsigned long len)
 static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr,
 			     unsigned long *page_offset)
 {
+	void *start = (void *)-1, *end = NULL;
 	Elf32_Phdr phdr[ehdr->e_phnum];
 	unsigned int i;
-	unsigned long start = -1UL, end = 0;
 
 	/* Sanity checks on the main ELF header: an x86 executable with a
 	 * reasonable number of correctly-sized program headers. */
@@ -246,17 +278,17 @@ static unsigned long map_elf(int elf_fd, const Elf32_Ehdr *ehdr,
 
 		/* We track the first and last address we mapped, so we can
 		 * tell entry_point() where to scan. */
-		if (phdr[i].p_paddr < start)
-			start = phdr[i].p_paddr;
-		if (phdr[i].p_paddr + phdr[i].p_filesz > end)
-			end = phdr[i].p_paddr + phdr[i].p_filesz;
+		if (from_guest_phys(phdr[i].p_paddr) < start)
+			start = from_guest_phys(phdr[i].p_paddr);
+		if (from_guest_phys(phdr[i].p_paddr) + phdr[i].p_filesz > end)
+			end=from_guest_phys(phdr[i].p_paddr)+phdr[i].p_filesz;
 
 		/* We map this section of the file at its physical address. */
-		map_at(elf_fd, (void *)phdr[i].p_paddr,
+		map_at(elf_fd, from_guest_phys(phdr[i].p_paddr),
 		       phdr[i].p_offset, phdr[i].p_filesz);
 	}
 
-	return entry_point((void *)start, (void *)end, *page_offset);
+	return entry_point(start, end, *page_offset);
 }
 
 /*L:170 Prepare to be SHOCKED and AMAZED.  And possibly a trifle nauseated.
@@ -307,7 +339,7 @@ static unsigned long unpack_bzimage(int fd, unsigned long *page_offset)
 	 * actually configurable as CONFIG_PHYSICAL_START, but as the comment
 	 * there says, "Don't change this unless you know what you are doing".
 	 * Indeed. */
-	void *img = (void *)0x100000;
+	void *img = from_guest_phys(0x100000);
 
 	/* gzdopen takes our file descriptor (carefully placed at the start of
 	 * the GZIP header we found) and returns a gzFile. */
@@ -421,7 +453,7 @@ static unsigned long load_initrd(const char *name, unsigned long mem)
 	/* We map the initrd at the top of memory, but mmap wants it to be
 	 * page-aligned, so we round the size up for that. */
 	len = page_align(st.st_size);
-	map_at(ifd, (void *)mem - len, 0, st.st_size);
+	map_at(ifd, from_guest_phys(mem - len), 0, st.st_size);
 	/* Once a file is mapped, you can close the file descriptor.  It's a
 	 * little odd, but quite useful. */
 	close(ifd);
@@ -431,9 +463,9 @@ static unsigned long load_initrd(const char *name, unsigned long mem)
 	return len;
 }
 
-/* Once we know how much memory we have, and the address the Guest kernel
- * expects, we can construct simple linear page tables which will get the Guest
- * far enough into the boot to create its own.
+/* Once we know the address the Guest kernel expects, we can construct simple
+ * linear page tables for all of memory which will get the Guest far enough
+ * into the boot to create its own.
  *
  * We lay them out of the way, just below the initrd (which is why we need to
  * know its size). */
@@ -457,7 +489,7 @@ static unsigned long setup_pagetables(unsigned long mem,
 	linear_pages = (mapped_pages + ptes_per_page-1)/ptes_per_page;
 
 	/* We put the toplevel page directory page at the top of memory. */
-	pgdir = (void *)mem - initrd_size - getpagesize();
+	pgdir = from_guest_phys(mem) - initrd_size - getpagesize();
 
 	/* Now we use the next linear_pages pages as pte pages */
 	linear = (void *)pgdir - linear_pages*getpagesize();
@@ -473,15 +505,16 @@ static unsigned long setup_pagetables(unsigned long mem,
 	 * continue from there. */
 	for (i = 0; i < mapped_pages; i += ptes_per_page) {
 		pgdir[(i + page_offset/getpagesize())/ptes_per_page]
-			= (((u32)linear + i*sizeof(u32)) | PAGE_PRESENT);
+			= ((to_guest_phys(linear) + i*sizeof(u32))
+			   | PAGE_PRESENT);
 	}
 
-	verbose("Linear mapping of %u pages in %u pte pages at %p\n",
-		mapped_pages, linear_pages, linear);
+	verbose("Linear mapping of %u pages in %u pte pages at %#lx\n",
+		mapped_pages, linear_pages, to_guest_phys(linear));
 
 	/* We return the top level (guest-physical) address: the kernel needs
 	 * to know where it is. */
-	return (unsigned long)pgdir;
+	return to_guest_phys(pgdir);
 }
 
 /* Simple routine to roll all the commandline arguments together with spaces
@@ -501,14 +534,19 @@ static void concat(char *dst, char *args[])
 
 /* This is where we actually tell the kernel to initialize the Guest.  We saw
  * the arguments it expects when we looked at initialize() in lguest_user.c:
- * the top physical page to allow, the top level pagetable, the entry point and
- * the page_offset constant for the Guest. */
+ * the base of guest "physical" memory, the top physical page to allow, the
+ * top level pagetable, the entry point and the page_offset constant for the
+ * Guest. */
 static int tell_kernel(u32 pgdir, u32 start, u32 page_offset)
 {
 	u32 args[] = { LHREQ_INITIALIZE,
-		       top/getpagesize(), pgdir, start, page_offset };
+		       (unsigned long)guest_base,
+		       guest_limit / getpagesize(),
+		       pgdir, start, page_offset };
 	int fd;
 
+	verbose("Guest: %p - %p (%#lx)\n",
+		guest_base, guest_base + guest_limit, guest_limit);
 	fd = open_or_die("/dev/lguest", O_RDWR);
 	if (write(fd, args, sizeof(args)) < 0)
 		err(1, "Writing to /dev/lguest");
@@ -605,11 +643,11 @@ static void *_check_pointer(unsigned long addr, unsigned int size,
 {
 	/* We have to separately check addr and addr+size, because size could
 	 * be huge and addr + size might wrap around. */
-	if (addr >= top || addr + size >= top)
+	if (addr >= guest_limit || addr + size >= guest_limit)
 		errx(1, "%s:%i: Invalid address %li", __FILE__, line, addr);
 	/* We return a pointer for the caller's convenience, now we know it's
 	 * safe to use. */
-	return (void *)addr;
+	return from_guest_phys(addr);
 }
 /* A macro which transparently hands the line number to the real function. */
 #define check_pointer(addr,size) _check_pointer(addr, size, __LINE__)
@@ -646,7 +684,7 @@ static u32 *dma2iov(unsigned long dma, struct iovec iov[], unsigned *num)
 static u32 *get_dma_buffer(int fd, void *key,
 			   struct iovec iov[], unsigned int *num, u32 *irq)
 {
-	u32 buf[] = { LHREQ_GETDMA, (u32)key };
+	u32 buf[] = { LHREQ_GETDMA, to_guest_phys(key) };
 	unsigned long udma;
 	u32 *res;
 
@@ -998,11 +1036,11 @@ new_dev_desc(struct lguest_device_desc *descs,
 			descs[i].features = features;
 			descs[i].num_pages = num_pages;
 			/* If they said the device needs memory, we allocate
-			 * that now, bumping up the top of Guest memory. */
+			 * that now. */
 			if (num_pages) {
-				map_zeroed_pages(top, num_pages);
-				descs[i].pfn = top/getpagesize();
-				top += num_pages*getpagesize();
+				unsigned long pa;
+				pa = to_guest_phys(get_pages(num_pages));
+				descs[i].pfn = pa / getpagesize();
 			}
 			return &descs[i];
 		}
@@ -1040,9 +1078,9 @@ static struct device *new_device(struct device_list *devices,
 	if (handle_input)
 		set_fd(dev->fd, devices);
 	dev->desc = new_dev_desc(devices->descs, type, features, num_pages);
-	dev->mem = (void *)(dev->desc->pfn * getpagesize());
+	dev->mem = from_guest_phys(dev->desc->pfn * getpagesize());
 	dev->handle_input = handle_input;
-	dev->watch_key = (unsigned long)dev->mem + watch_off;
+	dev->watch_key = to_guest_phys(dev->mem) + watch_off;
 	dev->handle_output = handle_output;
 	return dev;
 }
@@ -1382,21 +1420,7 @@ static void usage(void)
 	     "<mem-in-mb> vmlinux [args...]");
 }
 
-/*L:100 The Launcher code itself takes us out into userspace, that scary place
- * where pointers run wild and free!  Unfortunately, like most userspace
- * programs, it's quite boring (which is why everyone like to hack on the
- * kernel!).  Perhaps if you make up an Lguest Drinking Game at this point, it
- * will get you through this section.  Or, maybe not.
- *
- * The Launcher binary sits up high, usually starting at address 0xB8000000.
- * Everything below this is the "physical" memory for the Guest.  For example,
- * if the Guest were to write a "1" at physical address 0, we would see a "1"
- * in the Launcher at "(int *)0".  Guest physical == Launcher virtual.
- *
- * This can be tough to get your head around, but usually it just means that we
- * don't need to do any conversion when the Guest gives us it's "physical"
- * addresses.
- */
+/*L:105 The main routine is where the real work begins: */
 int main(int argc, char *argv[])
 {
 	/* Memory, top-level pagetable, code startpoint, PAGE_OFFSET and size
@@ -1406,8 +1430,8 @@ int main(int argc, char *argv[])
 	int i, c, lguest_fd;
 	/* The list of Guest devices, based on command line arguments. */
 	struct device_list device_list;
-	/* The boot information for the Guest: at guest-physical address 0. */
-	void *boot = (void *)0;
+	/* The boot information for the Guest. */
+	void *boot;
 	/* If they specify an initrd file to load. */
 	const char *initrd_name = NULL;
 
@@ -1427,9 +1451,16 @@ int main(int argc, char *argv[])
 	 * of memory now. */
 	for (i = 1; i < argc; i++) {
 		if (argv[i][0] != '-') {
-			mem = top = atoi(argv[i]) * 1024 * 1024;
-			device_list.descs = map_zeroed_pages(top, 1);
-			top += getpagesize();
+			mem = atoi(argv[i]) * 1024 * 1024;
+			/* We start by mapping anonymous pages over all of
+			 * guest-physical memory range.  This fills it with 0,
+			 * and ensures that the Guest won't be killed when it
+			 * tries to access it. */
+			guest_base = map_zeroed_pages(mem / getpagesize()
+						      + DEVICE_PAGES);
+			guest_limit = mem;
+			guest_max = mem + DEVICE_PAGES*getpagesize();
+			device_list.descs = get_pages(1);
 			break;
 		}
 	}
@@ -1462,17 +1493,17 @@ int main(int argc, char *argv[])
 	if (optind + 2 > argc)
 		usage();
 
+	verbose("Guest base is at %p\n", guest_base);
+
 	/* We always have a console device */
 	setup_console(&device_list);
-
-	/* We start by mapping anonymous pages over all of guest-physical
-	 * memory range.  This fills it with 0, and ensures that the Guest
-	 * won't be killed when it tries to access it. */
-	map_zeroed_pages(0, mem / getpagesize());
 
 	/* Now we load the kernel */
 	start = load_kernel(open_or_die(argv[optind+1], O_RDONLY),
 			    &page_offset);
+
+	/* Boot information is stashed at physical address 0 */
+	boot = from_guest_phys(0);
 
 	/* Map the initrd image if requested (at top of physical memory) */
 	if (initrd_name) {
@@ -1495,7 +1526,7 @@ int main(int argc, char *argv[])
 		= ((struct e820entry) { 0, mem, E820_RAM });
 	/* The boot header contains a command line pointer: we put the command
 	 * line after the boot header (at address 4096) */
-	*(void **)(boot + 0x228) = boot + 4096;
+	*(u32 *)(boot + 0x228) = 4096;
 	concat(boot + 4096, argv+optind+2);
 
 	/* The guest type value of "1" tells the Guest it's under lguest. */

@@ -142,6 +142,9 @@ struct lguest
 	struct mm_struct *mm; 	/* == tsk->mm, but that becomes NULL on exit */
 	u16 guestid;
 	u32 pfn_limit;
+	/* This provides the offset to the base of guest-physical
+	 * memory in the Launcher. */
+	void __user *mem_base;
 	u32 page_offset;
 	u32 cr2;
 	int halted;

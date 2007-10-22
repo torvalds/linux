@@ -152,7 +152,7 @@ static unsigned long get_pfn(unsigned long virtpfn, int write)
 static spte_t gpte_to_spte(struct lguest *lg, gpte_t gpte, int write)
 {
 	spte_t spte;
-	unsigned long pfn;
+	unsigned long pfn, base;
 
 	/* The Guest sets the global flag, because it thinks that it is using
 	 * PGE.  We only told it to use PGE so it would tell us whether it was
@@ -160,11 +160,14 @@ static spte_t gpte_to_spte(struct lguest *lg, gpte_t gpte, int write)
 	 * use the global bit, so throw it away. */
 	spte.flags = (gpte.flags & ~_PAGE_GLOBAL);
 
+	/* The Guest's pages are offset inside the Launcher. */
+	base = (unsigned long)lg->mem_base / PAGE_SIZE;
+
 	/* We need a temporary "unsigned long" variable to hold the answer from
 	 * get_pfn(), because it returns 0xFFFFFFFF on failure, which wouldn't
 	 * fit in spte.pfn.  get_pfn() finds the real physical number of the
 	 * page, given the virtual number. */
-	pfn = get_pfn(gpte.pfn, write);
+	pfn = get_pfn(base + gpte.pfn, write);
 	if (pfn == -1UL) {
 		kill_guest(lg, "failed to get page %u", gpte.pfn);
 		/* When we destroy the Guest, we'll go through the shadow page

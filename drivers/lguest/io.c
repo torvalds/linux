@@ -186,7 +186,7 @@ int bind_dma(struct lguest *lg,
 	 * we're doing this. */
 	mutex_lock(&lguest_lock);
 	down_read(fshared);
-	if (get_futex_key((u32 __user *)ukey, fshared, &key) != 0) {
+	if (get_futex_key(lg->mem_base + ukey, fshared, &key) != 0) {
 		kill_guest(lg, "bad dma key %#lx", ukey);
 		goto unlock;
 	}
@@ -247,7 +247,8 @@ static int lgread_other(struct lguest *lg,
 			void *buf, u32 addr, unsigned bytes)
 {
 	if (!lguest_address_ok(lg, addr, bytes)
-	    || access_process_vm(lg->tsk, addr, buf, bytes, 0) != bytes) {
+	    || access_process_vm(lg->tsk, (unsigned long)lg->mem_base + addr,
+				 buf, bytes, 0) != bytes) {
 		memset(buf, 0, bytes);
 		kill_guest(lg, "bad address in registered DMA struct");
 		return 0;
@@ -261,8 +262,8 @@ static int lgwrite_other(struct lguest *lg, u32 addr,
 			 const void *buf, unsigned bytes)
 {
 	if (!lguest_address_ok(lg, addr, bytes)
-	    || (access_process_vm(lg->tsk, addr, (void *)buf, bytes, 1)
-		!= bytes)) {
+	    || access_process_vm(lg->tsk, (unsigned long)lg->mem_base + addr,
+				 (void *)buf, bytes, 1) != bytes) {
 		kill_guest(lg, "bad address writing to registered DMA");
 		return 0;
 	}
@@ -318,7 +319,7 @@ static u32 copy_data(struct lguest *srclg,
 		 * copy_to_user_page(), and some arch's seem to need special
 		 * flushes.  x86 is fine. */
 		if (copy_from_user(maddr + (dst->addr[di] + dstoff)%PAGE_SIZE,
-				   (void __user *)src->addr[si], len) != 0) {
+				   srclg->mem_base+src->addr[si], len) != 0) {
 			/* If a copy failed, it's the source's fault. */
 			kill_guest(srclg, "bad address in sending DMA");
 			totlen = 0;
@@ -377,7 +378,8 @@ static u32 do_dma(struct lguest *srclg, const struct lguest_dma *src,
 		 * number of pages.  Note that we're holding the destination's
 		 * mmap_sem, as get_user_pages() requires. */
 		if (get_user_pages(dstlg->tsk, dstlg->mm,
-				   dst->addr[i], 1, 1, 1, pages+i, NULL)
+				   (unsigned long)dstlg->mem_base+dst->addr[i],
+				   1, 1, 1, pages+i, NULL)
 		    != 1) {
 			/* This means the destination gave us a bogus buffer */
 			kill_guest(dstlg, "Error mapping DMA pages");
@@ -493,7 +495,7 @@ again:
 	mutex_lock(&lguest_lock);
 	down_read(fshared);
 	/* Get the futex key for the key the Guest gave us */
-	if (get_futex_key((u32 __user *)ukey, fshared, &key) != 0) {
+	if (get_futex_key(lg->mem_base + ukey, fshared, &key) != 0) {
 		kill_guest(lg, "bad sending DMA key");
 		goto unlock;
 	}
@@ -584,7 +586,7 @@ unsigned long get_dma_buffer(struct lguest *lg,
 
 	/* This can fail if it's not a valid address, or if the address is not
 	 * divisible by 4 (the futex code needs that, we don't really). */
-	if (get_futex_key((u32 __user *)ukey, fshared, &key) != 0) {
+	if (get_futex_key(lg->mem_base + ukey, fshared, &key) != 0) {
 		kill_guest(lg, "bad registered DMA buffer");
 		goto unlock;
 	}

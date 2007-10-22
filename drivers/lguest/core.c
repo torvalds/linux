@@ -325,8 +325,8 @@ static int emulate_insn(struct lguest *lg)
  * Dealing With Guest Memory.
  *
  * When the Guest gives us (what it thinks is) a physical address, we can use
- * the normal copy_from_user() & copy_to_user() on that address: remember,
- * Guest physical == Launcher virtual.
+ * the normal copy_from_user() & copy_to_user() on the corresponding place in
+ * the memory region allocated by the Launcher.
  *
  * But we can't trust the Guest: it might be trying to access the Launcher
  * code.  We have to check that the range is below the pfn_limit the Launcher
@@ -348,8 +348,8 @@ u32 lgread_u32(struct lguest *lg, unsigned long addr)
 
 	/* Don't let them access lguest binary. */
 	if (!lguest_address_ok(lg, addr, sizeof(val))
-	    || get_user(val, (u32 __user *)addr) != 0)
-		kill_guest(lg, "bad read address %#lx", addr);
+	    || get_user(val, (u32 *)(lg->mem_base + addr)) != 0)
+		kill_guest(lg, "bad read address %#lx: pfn_limit=%u membase=%p", addr, lg->pfn_limit, lg->mem_base);
 	return val;
 }
 
@@ -357,7 +357,7 @@ u32 lgread_u32(struct lguest *lg, unsigned long addr)
 void lgwrite_u32(struct lguest *lg, unsigned long addr, u32 val)
 {
 	if (!lguest_address_ok(lg, addr, sizeof(val))
-	    || put_user(val, (u32 __user *)addr) != 0)
+	    || put_user(val, (u32 *)(lg->mem_base + addr)) != 0)
 		kill_guest(lg, "bad write address %#lx", addr);
 }
 
@@ -367,7 +367,7 @@ void lgwrite_u32(struct lguest *lg, unsigned long addr, u32 val)
 void lgread(struct lguest *lg, void *b, unsigned long addr, unsigned bytes)
 {
 	if (!lguest_address_ok(lg, addr, bytes)
-	    || copy_from_user(b, (void __user *)addr, bytes) != 0) {
+	    || copy_from_user(b, lg->mem_base + addr, bytes) != 0) {
 		/* copy_from_user should do this, but as we rely on it... */
 		memset(b, 0, bytes);
 		kill_guest(lg, "bad read address %#lx len %u", addr, bytes);
@@ -379,7 +379,7 @@ void lgwrite(struct lguest *lg, unsigned long addr, const void *b,
 	     unsigned bytes)
 {
 	if (!lguest_address_ok(lg, addr, bytes)
-	    || copy_to_user((void __user *)addr, b, bytes) != 0)
+	    || copy_to_user(lg->mem_base + addr, b, bytes) != 0)
 		kill_guest(lg, "bad write address %#lx len %u", addr, bytes);
 }
 /* (end of memory access helper routines) :*/
@@ -616,11 +616,9 @@ int run_guest(struct lguest *lg, unsigned long __user *user)
 			 *
 			 * Note that if the Guest were really messed up, this
 			 * could happen before it's done the INITIALIZE
-			 * hypercall, so lg->lguest_data will be NULL, so
-			 * &lg->lguest_data->cr2 will be address 8.  Writing
-			 * into that address won't hurt the Host at all,
-			 * though. */
-			if (put_user(cr2, &lg->lguest_data->cr2))
+			 * hypercall, so lg->lguest_data will be NULL */
+			if (lg->lguest_data
+			    && put_user(cr2, &lg->lguest_data->cr2))
 				kill_guest(lg, "Writing cr2");
 			break;
 		case 7: /* We've intercepted a Device Not Available fault. */
