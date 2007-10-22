@@ -48,6 +48,9 @@ struct lguest_data
 /* Fields initialized by the Guest at boot: */
 	/* Instruction range to suppress interrupts even if enabled */
 	unsigned long noirq_start, noirq_end;
+
+	/* The vector to try to use for system calls (0x40 or 0x80). */
+	unsigned int syscall_vec;
 };
 extern struct lguest_data lguest_data;
 #endif /* __ASSEMBLY__ */

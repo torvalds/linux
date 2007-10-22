@@ -87,6 +87,7 @@ struct lguest_data lguest_data = {
 	.noirq_start = (u32)lguest_noirq_start,
 	.noirq_end = (u32)lguest_noirq_end,
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
+	.syscall_vec = SYSCALL_VECTOR,
 };
 static cycle_t clock_base;
 

@@ -141,6 +141,9 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 		const unsigned long *def);
 void guest_set_clockevent(struct lguest *lg, unsigned long delta);
 void init_clockdev(struct lguest *lg);
+bool check_syscall_vector(struct lguest *lg);
+int init_interrupts(void);
+void free_interrupts(void);
 
 /* segments.c: */
 void setup_default_gdt_entries(struct lguest_ro_state *state);

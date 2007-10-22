@@ -281,37 +281,47 @@ static int __init init(void)
 	/* First we put the Switcher up in very high virtual memory. */
 	err = map_switcher();
 	if (err)
-		return err;
+		goto out;
 
 	/* Now we set up the pagetable implementation for the Guests. */
 	err = init_pagetables(switcher_page, SHARED_SWITCHER_PAGES);
-	if (err) {
-		unmap_switcher();
-		return err;
-	}
+	if (err)
+		goto unmap;
 
 	/* The I/O subsystem needs some things initialized. */
 	lguest_io_init();
 
+	/* We might need to reserve an interrupt vector. */
+	err = init_interrupts();
+	if (err)
+		goto free_pgtables;
+
 	/* /dev/lguest needs to be registered. */
 	err = lguest_device_init();
-	if (err) {
-		free_pagetables();
-		unmap_switcher();
-		return err;
-	}
+	if (err)
+		goto free_interrupts;
 
 	/* Finally we do some architecture-specific setup. */
 	lguest_arch_host_init();
 
 	/* All good! */
 	return 0;
+
+free_interrupts:
+	free_interrupts();
+free_pgtables:
+	free_pagetables();
+unmap:
+	unmap_switcher();
+out:
+	return err;
 }
 
 /* Cleaning up is just the same code, backwards.  With a little French. */
 static void __exit fini(void)
 {
 	lguest_device_remove();
+	free_interrupts();
 	free_pagetables();
 	unmap_switcher();
 

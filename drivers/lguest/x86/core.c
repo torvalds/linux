@@ -530,6 +530,10 @@ int lguest_arch_init_hypercalls(struct lguest *lg)
 	if (put_user(tsc_speed, &lg->lguest_data->tsc_khz))
 		return -EFAULT;
 
+	/* The interrupt code might not like the system call vector. */
+	if (!check_syscall_vector(lg))
+		kill_guest(lg, "bad syscall vector");
+
 	return 0;
 }
 /* Now we've examined the hypercall code; our Guest can make requests.  There
