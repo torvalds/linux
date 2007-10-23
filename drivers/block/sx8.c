@@ -27,6 +27,7 @@
 #include <linux/hdreg.h>
 #include <linux/dma-mapping.h>
 #include <linux/completion.h>
+#include <linux/scatterlist.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 

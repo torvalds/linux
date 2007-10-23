@@ -12,7 +12,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include "dma.h"
 

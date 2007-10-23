@@ -11,9 +11,9 @@
 #include <linux/timer.h>
 #include <linux/ctype.h>
 #include <linux/device.h>
+#include <linux/scatterlist.h>
 #include <linux/usb/quirks.h>
 #include <asm/byteorder.h>
-#include <asm/scatterlist.h>
 
 #include "hcd.h"	/* for usbcore internals */
 #include "usb.h"

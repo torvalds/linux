@@ -16,7 +16,7 @@
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/mm.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <net/mac80211.h>
 #include "ieee80211_i.h"

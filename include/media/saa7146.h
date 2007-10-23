@@ -12,6 +12,7 @@
 #include <asm/io.h>		/* for accessing devices */
 #include <linux/stringify.h>
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
 
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
