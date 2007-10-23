@@ -308,13 +308,15 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	if (send_els == NULL)
 		goto nomem;
 
-	send_els->req = kzalloc(sizeof(struct scatterlist), GFP_ATOMIC);
+	send_els->req = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
 	if (send_els->req == NULL)
 		goto nomem;
+	sg_init_table(send_els->req, 1);
 
-	send_els->resp = kzalloc(sizeof(struct scatterlist), GFP_ATOMIC);
+	send_els->resp = kmalloc(sizeof(struct scatterlist), GFP_ATOMIC);
 	if (send_els->resp == NULL)
 		goto nomem;
+	sg_init_table(send_els->resp, 1);
 
 	address = (void *) get_zeroed_page(GFP_ATOMIC);
 	if (address == NULL)
@@ -363,7 +365,7 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	retval = -ENOMEM;
  freemem:
 	if (address != NULL)
-		__free_pages(send_els->req->page, 0);
+		__free_pages(sg_page(send_els->req), 0);
 	if (send_els != NULL) {
 		kfree(send_els->req);
 		kfree(send_els->resp);
@@ -437,7 +439,7 @@ zfcp_erp_adisc_handler(unsigned long data)
 
  out:
 	zfcp_port_put(port);
-	__free_pages(send_els->req->page, 0);
+	__free_pages(sg_page(send_els->req), 0);
 	kfree(send_els->req);
 	kfree(send_els->resp);
 	kfree(send_els);
