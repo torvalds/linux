@@ -262,15 +262,10 @@ void __init plat_timer_setup(struct irqaction *irq)
 	 * we do this.
 	 */
 	if (no_au1xxx_32khz) {
-		unsigned int c0_status;
-
 		printk("WARNING: no 32KHz clock found.\n");
 
-		/* Ensure we get CPO_COUNTER interrupts.
-		*/
-		c0_status = read_c0_status();
-		c0_status |= IE_IRQ5;
-		write_c0_status(c0_status);
+		/* Ensure we get CPO_COUNTER interrupts.  */
+		set_c0_status(IE_IRQ5);
 	}
 	else {
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_C0S);
