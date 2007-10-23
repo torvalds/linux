@@ -93,7 +93,6 @@ struct thread_struct {
 	s390_fp_regs fp_regs;
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
-        unsigned long user_seg;         /* HSTD                             */
 	mm_segment_t mm_segment;
         unsigned long prot_addr;        /* address of protection-excep.     */
         unsigned int error_code;        /* error-code of last prog-excep.   */
@@ -128,22 +127,9 @@ struct stack_frame {
 
 #define ARCH_MIN_TASKALIGN	8
 
-#ifndef __s390x__
-# define __SWAPPER_PG_DIR __pa(&swapper_pg_dir[0]) + _SEGMENT_TABLE
-#else /* __s390x__ */
-# define __SWAPPER_PG_DIR __pa(&swapper_pg_dir[0]) + _REGION_TABLE
-#endif /* __s390x__ */
-
-#define INIT_THREAD {{0,{{0},{0},{0},{0},{0},{0},{0},{0},{0},{0},	       \
-			    {0},{0},{0},{0},{0},{0}}},			       \
-		     {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},	       \
-		     sizeof(init_stack) + (unsigned long) &init_stack,	       \
-		     __SWAPPER_PG_DIR,					       \
-		     {0},						       \
-		     0,0,0,						       \
-		     (per_struct) {{{{0,}}},0,0,0,0,{{0,}}},		       \
-		     0, 0						       \
-} 
+#define INIT_THREAD {							\
+	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
+}
 
 /*
  * Do necessary setup to start up a new thread.

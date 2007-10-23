@@ -24,8 +24,8 @@
 #define TAPECLASS_NAME_LEN	32
 
 struct tape_class_device {
-	struct cdev *		char_device;
-	struct class_device *	class_device;
+	struct cdev		*char_device;
+	struct device		*class_device;
 	char			device_name[TAPECLASS_NAME_LEN];
 	char			mode_name[TAPECLASS_NAME_LEN];
 };

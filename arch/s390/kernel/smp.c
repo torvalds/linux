@@ -42,6 +42,7 @@
 #include <asm/tlbflush.h>
 #include <asm/timer.h>
 #include <asm/lowcore.h>
+#include <asm/cpu.h>
 
 /*
  * An array with a pointer the lowcore of every CPU.
@@ -325,7 +326,7 @@ static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
  */
 void smp_ptlb_callback(void *info)
 {
-	local_flush_tlb();
+	__tlb_flush_local();
 }
 
 void smp_ptlb_all(void)
@@ -494,6 +495,8 @@ int __cpuinit start_secondary(void *cpuvoid)
 	return 0;
 }
 
+DEFINE_PER_CPU(struct s390_idle_data, s390_idle);
+
 static void __init smp_create_idle(unsigned int cpu)
 {
 	struct task_struct *p;
@@ -506,6 +509,7 @@ static void __init smp_create_idle(unsigned int cpu)
 	if (IS_ERR(p))
 		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
 	current_set[cpu] = p;
+	spin_lock_init(&(&per_cpu(s390_idle, cpu))->lock);
 }
 
 static int cpu_stopped(int cpu)
@@ -724,6 +728,7 @@ void __init smp_prepare_boot_cpu(void)
 	cpu_set(0, cpu_online_map);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	current_set[0] = current;
+	spin_lock_init(&(&__get_cpu_var(s390_idle))->lock);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -756,22 +761,71 @@ static ssize_t show_capability(struct sys_device *dev, char *buf)
 }
 static SYSDEV_ATTR(capability, 0444, show_capability, NULL);
 
+static ssize_t show_idle_count(struct sys_device *dev, char *buf)
+{
+	struct s390_idle_data *idle;
+	unsigned long long idle_count;
+
+	idle = &per_cpu(s390_idle, dev->id);
+	spin_lock_irq(&idle->lock);
+	idle_count = idle->idle_count;
+	spin_unlock_irq(&idle->lock);
+	return sprintf(buf, "%llu\n", idle_count);
+}
+static SYSDEV_ATTR(idle_count, 0444, show_idle_count, NULL);
+
+static ssize_t show_idle_time(struct sys_device *dev, char *buf)
+{
+	struct s390_idle_data *idle;
+	unsigned long long new_time;
+
+	idle = &per_cpu(s390_idle, dev->id);
+	spin_lock_irq(&idle->lock);
+	if (idle->in_idle) {
+		new_time = get_clock();
+		idle->idle_time += new_time - idle->idle_enter;
+		idle->idle_enter = new_time;
+	}
+	new_time = idle->idle_time;
+	spin_unlock_irq(&idle->lock);
+	return sprintf(buf, "%llu us\n", new_time >> 12);
+}
+static SYSDEV_ATTR(idle_time, 0444, show_idle_time, NULL);
+
+static struct attribute *cpu_attrs[] = {
+	&attr_capability.attr,
+	&attr_idle_count.attr,
+	&attr_idle_time.attr,
+	NULL,
+};
+
+static struct attribute_group cpu_attr_group = {
+	.attrs = cpu_attrs,
+};
+
 static int __cpuinit smp_cpu_notify(struct notifier_block *self,
 				    unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned int)(long)hcpu;
 	struct cpu *c = &per_cpu(cpu_devices, cpu);
 	struct sys_device *s = &c->sysdev;
+	struct s390_idle_data *idle;
 
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
-		if (sysdev_create_file(s, &attr_capability))
+		idle = &per_cpu(s390_idle, cpu);
+		spin_lock_irq(&idle->lock);
+		idle->idle_enter = 0;
+		idle->idle_time = 0;
+		idle->idle_count = 0;
+		spin_unlock_irq(&idle->lock);
+		if (sysfs_create_group(&s->kobj, &cpu_attr_group))
 			return NOTIFY_BAD;
 		break;
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		sysdev_remove_file(s, &attr_capability);
+		sysfs_remove_group(&s->kobj, &cpu_attr_group);
 		break;
 	}
 	return NOTIFY_OK;
@@ -784,6 +838,7 @@ static struct notifier_block __cpuinitdata smp_cpu_nb = {
 static int __init topology_init(void)
 {
 	int cpu;
+	int rc;
 
 	register_cpu_notifier(&smp_cpu_nb);
 
@@ -796,7 +851,9 @@ static int __init topology_init(void)
 		if (!cpu_online(cpu))
 			continue;
 		s = &c->sysdev;
-		sysdev_create_file(s, &attr_capability);
+		rc = sysfs_create_group(&s->kobj, &cpu_attr_group);
+		if (rc)
+			return rc;
 	}
 	return 0;
 }

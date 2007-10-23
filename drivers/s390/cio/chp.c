@@ -246,7 +246,7 @@ int chp_add_cmg_attr(struct channel_path *chp)
 static ssize_t chp_status_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct channel_path *chp = container_of(dev, struct channel_path, dev);
+	struct channel_path *chp = to_channelpath(dev);
 
 	if (!chp)
 		return 0;
@@ -258,7 +258,7 @@ static ssize_t chp_status_write(struct device *dev,
 				struct device_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct channel_path *cp = container_of(dev, struct channel_path, dev);
+	struct channel_path *cp = to_channelpath(dev);
 	char cmd[10];
 	int num_args;
 	int error;
@@ -286,7 +286,7 @@ static ssize_t chp_configure_show(struct device *dev,
 	struct channel_path *cp;
 	int status;
 
-	cp = container_of(dev, struct channel_path, dev);
+	cp = to_channelpath(dev);
 	status = chp_info_get_status(cp->chpid);
 	if (status < 0)
 		return status;
@@ -308,7 +308,7 @@ static ssize_t chp_configure_write(struct device *dev,
 		return -EINVAL;
 	if (val != 0 && val != 1)
 		return -EINVAL;
-	cp = container_of(dev, struct channel_path, dev);
+	cp = to_channelpath(dev);
 	chp_cfg_schedule(cp->chpid, val);
 	cfg_wait_idle();
 
@@ -320,7 +320,7 @@ static DEVICE_ATTR(configure, 0644, chp_configure_show, chp_configure_write);
 static ssize_t chp_type_show(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct channel_path *chp = container_of(dev, struct channel_path, dev);
+	struct channel_path *chp = to_channelpath(dev);
 
 	if (!chp)
 		return 0;
@@ -374,7 +374,7 @@ static void chp_release(struct device *dev)
 {
 	struct channel_path *cp;
 
-	cp = container_of(dev, struct channel_path, dev);
+	cp = to_channelpath(dev);
 	kfree(cp);
 }
 

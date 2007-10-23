@@ -44,6 +44,7 @@
 #include <asm/processor.h>
 #include <asm/irq.h>
 #include <asm/timer.h>
+#include <asm/cpu.h>
 
 asmlinkage void ret_from_fork(void) asm ("ret_from_fork");
 
@@ -91,6 +92,14 @@ EXPORT_SYMBOL(unregister_idle_notifier);
 
 void do_monitor_call(struct pt_regs *regs, long interruption_code)
 {
+	struct s390_idle_data *idle;
+
+	idle = &__get_cpu_var(s390_idle);
+	spin_lock(&idle->lock);
+	idle->idle_time += get_clock() - idle->idle_enter;
+	idle->in_idle = 0;
+	spin_unlock(&idle->lock);
+
 	/* disable monitor call class 0 */
 	__ctl_clear_bit(8, 15);
 
@@ -105,6 +114,7 @@ extern void s390_handle_mcck(void);
 static void default_idle(void)
 {
 	int cpu, rc;
+	struct s390_idle_data *idle;
 
 	/* CPU is going idle. */
 	cpu = smp_processor_id();
@@ -142,6 +152,12 @@ static void default_idle(void)
 		return;
 	}
 
+	idle = &__get_cpu_var(s390_idle);
+	spin_lock(&idle->lock);
+	idle->idle_count++;
+	idle->in_idle = 1;
+	idle->idle_enter = get_clock();
+	spin_unlock(&idle->lock);
 	trace_hardirqs_on();
 	/* Wait for external, I/O or machine check interrupt. */
 	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
@@ -254,14 +270,12 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long new_stackp,
 	save_fp_regs(&current->thread.fp_regs);
 	memcpy(&p->thread.fp_regs, &current->thread.fp_regs,
 	       sizeof(s390_fp_regs));
-        p->thread.user_seg = __pa((unsigned long) p->mm->pgd) | _SEGMENT_TABLE;
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS)
 		p->thread.acrs[0] = regs->gprs[6];
 #else /* CONFIG_64BIT */
 	/* Save the fpu registers to new thread structure. */
 	save_fp_regs(&p->thread.fp_regs);
-        p->thread.user_seg = __pa((unsigned long) p->mm->pgd) | _REGION_TABLE;
 	/* Set a new TLS ?  */
 	if (clone_flags & CLONE_SETTLS) {
 		if (test_thread_flag(TIF_31BIT)) {

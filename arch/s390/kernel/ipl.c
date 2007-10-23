@@ -648,6 +648,8 @@ static int dump_set_type(enum dump_type type)
 	case DUMP_TYPE_CCW:
 		if (MACHINE_IS_VM)
 			dump_method = DUMP_METHOD_CCW_VM;
+		else if (diag308_set_works)
+			dump_method = DUMP_METHOD_CCW_DIAG;
 		else
 			dump_method = DUMP_METHOD_CCW_CIO;
 		break;
