@@ -1962,7 +1962,7 @@ static void intel_free_coherent(struct device *hwdev, size_t size,
 	free_pages((unsigned long)vaddr, order);
 }
 
-#define SG_ENT_VIRT_ADDRESS(sg)	(page_address((sg)->page) + (sg)->offset)
+#define SG_ENT_VIRT_ADDRESS(sg)	(sg_virt((sg)))
 static void intel_unmap_sg(struct device *hwdev, struct scatterlist *sglist,
 	int nelems, int dir)
 {
@@ -2010,7 +2010,7 @@ static int intel_nontranslate_map_sg(struct device *hddev,
 	struct scatterlist *sg;
 
 	for_each_sg(sglist, sg, nelems, i) {
-		BUG_ON(!sg->page);
+		BUG_ON(!sg_page(sg));
 		sg->dma_address = virt_to_bus(SG_ENT_VIRT_ADDRESS(sg));
 		sg->dma_length = sg->length;
 	}
