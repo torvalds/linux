@@ -39,7 +39,7 @@
 
 static void blk_unplug_work(struct work_struct *work);
 static void blk_unplug_timeout(unsigned long data);
-static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
+static void drive_stat_acct(struct request *rq, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
 static int __make_request(struct request_queue *q, struct bio *bio);
 static struct io_context *current_io_context(gfp_t gfp_flags, int node);
@@ -2341,7 +2341,7 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 	if (blk_rq_tagged(rq))
 		blk_queue_end_tag(q, rq);
 
-	drive_stat_acct(rq, rq->nr_sectors, 1);
+	drive_stat_acct(rq, 1);
 	__elv_add_request(q, rq, where, 0);
 	blk_start_queueing(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
@@ -2736,7 +2736,7 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
+static void drive_stat_acct(struct request *rq, int new_io)
 {
 	int rw = rq_data_dir(rq);
 
@@ -2758,7 +2758,7 @@ static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
  */
 static inline void add_request(struct request_queue * q, struct request * req)
 {
-	drive_stat_acct(req, req->nr_sectors, 1);
+	drive_stat_acct(req, 1);
 
 	/*
 	 * elevator indicated where it wants this request to be
@@ -3015,7 +3015,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 			req->biotail = bio;
 			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
 			req->ioprio = ioprio_best(req->ioprio, prio);
-			drive_stat_acct(req, nr_sectors, 0);
+			drive_stat_acct(req, 0);
 			if (!attempt_back_merge(q, req))
 				elv_merged_request(q, req, el_ret);
 			goto out;
@@ -3042,7 +3042,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 			req->sector = req->hard_sector = bio->bi_sector;
 			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
 			req->ioprio = ioprio_best(req->ioprio, prio);
-			drive_stat_acct(req, nr_sectors, 0);
+			drive_stat_acct(req, 0);
 			if (!attempt_front_merge(q, req))
 				elv_merged_request(q, req, el_ret);
 			goto out;
