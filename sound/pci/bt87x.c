@@ -165,7 +165,7 @@ struct snd_bt87x_board {
 	unsigned no_digital:1;	/* No digital input */
 };
 
-static const __devinitdata struct snd_bt87x_board snd_bt87x_boards[] = {
+static __devinitdata struct snd_bt87x_board snd_bt87x_boards[] = {
 	[SND_BT87X_BOARD_UNKNOWN] = {
 		.dig_rate = 32000, /* just a guess */
 	},
@@ -848,7 +848,7 @@ static int __devinit snd_bt87x_detect_card(struct pci_dev *pci)
 	int i;
 	const struct pci_device_id *supported;
 
-	supported = pci_match_device(&driver, pci);
+	supported = pci_match_id(snd_bt87x_ids, pci);
 	if (supported && supported->driver_data > 0)
 		return supported->driver_data;
 

@@ -245,7 +245,14 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 /*
  * generic codec parser
  */
+#ifdef CONFIG_SND_HDA_GENERIC
 int snd_hda_parse_generic_codec(struct hda_codec *codec);
+#else
+static inline int snd_hda_parse_generic_codec(struct hda_codec *codec)
+{
+	return -ENODEV;
+}
+#endif
 
 /*
  * generic proc interface
@@ -303,16 +310,17 @@ enum {
 
 extern const char *auto_pin_cfg_labels[AUTO_PIN_LAST];
 
+#define AUTO_CFG_MAX_OUTS	5
+
 struct auto_pin_cfg {
 	int line_outs;
-	hda_nid_t line_out_pins[5]; /* sorted in the order of
-				     * Front/Surr/CLFE/Side
-				     */
+	/* sorted in the order of Front/Surr/CLFE/Side */
+	hda_nid_t line_out_pins[AUTO_CFG_MAX_OUTS];
 	int speaker_outs;
-	hda_nid_t speaker_pins[5];
+	hda_nid_t speaker_pins[AUTO_CFG_MAX_OUTS];
 	int hp_outs;
 	int line_out_type;	/* AUTO_PIN_XXX_OUT */
-	hda_nid_t hp_pins[5];
+	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
 	hda_nid_t input_pins[AUTO_PIN_LAST];
 	hda_nid_t dig_out_pin;
 	hda_nid_t dig_in_pin;

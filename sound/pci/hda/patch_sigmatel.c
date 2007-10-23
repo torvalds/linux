@@ -111,6 +111,7 @@ struct sigmatel_spec {
 	unsigned int alt_switch: 1;
 	unsigned int hp_detect: 1;
 	unsigned int gpio_mute: 1;
+	unsigned int no_vol_knob :1;
 
 	unsigned int gpio_mask, gpio_data;
 
@@ -1930,7 +1931,8 @@ static int stac92xx_auto_create_hp_ctls(struct hda_codec *codec,
 	}
 	if (spec->multiout.hp_nid) {
 		const char *pfx;
-		if (old_num_dacs == spec->multiout.num_dacs)
+		if (old_num_dacs == spec->multiout.num_dacs &&
+		    spec->no_vol_knob)
 			pfx = "Master";
 		else
 			pfx = "Headphone";
@@ -2487,6 +2489,7 @@ static int patch_stac9200(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->num_pins = ARRAY_SIZE(stac9200_pin_nids);
 	spec->pin_nids = stac9200_pin_nids;
+	spec->no_vol_knob = 1;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_9200_MODELS,
 							stac9200_models,
 							stac9200_cfg_tbl);
@@ -2541,6 +2544,7 @@ static int patch_stac925x(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->num_pins = ARRAY_SIZE(stac925x_pin_nids);
 	spec->pin_nids = stac925x_pin_nids;
+	spec->no_vol_knob = 1;
 	spec->board_config = snd_hda_check_board_config(codec, STAC_925x_MODELS,
 							stac925x_models,
 							stac925x_cfg_tbl);

@@ -72,7 +72,7 @@ struct ad198x_spec {
 	unsigned int num_kctl_alloc, num_kctl_used;
 	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
-	hda_nid_t private_dac_nids[4];
+	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 	unsigned int jack_present :1;
 
@@ -612,7 +612,8 @@ static void ad1986a_hp_automute(struct hda_codec *codec)
 	unsigned int present;
 
 	present = snd_hda_codec_read(codec, 0x1a, 0, AC_VERB_GET_PIN_SENSE, 0);
-	spec->jack_present = (present & 0x80000000) != 0;
+	/* Lenovo N100 seems to report the reversed bit for HP jack-sensing */
+	spec->jack_present = !(present & 0x80000000);
 	ad1986a_update_hp(codec);
 }
 

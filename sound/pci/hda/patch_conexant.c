@@ -85,7 +85,7 @@ struct conexant_spec {
 	unsigned int num_kctl_alloc, num_kctl_used;
 	struct snd_kcontrol_new *kctl_alloc;
 	struct hda_input_mux private_imux;
-	hda_nid_t private_dac_nids[4];
+	hda_nid_t private_dac_nids[AUTO_CFG_MAX_OUTS];
 
 };
 
@@ -554,10 +554,16 @@ static struct snd_kcontrol_new cxt5045_mixers[] = {
 		.get = conexant_mux_enum_get,
 		.put = conexant_mux_enum_put
 	},
-	HDA_CODEC_VOLUME("Int Mic Volume", 0x1a, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Int Mic Switch", 0x1a, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Ext Mic Volume", 0x1a, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Ext Mic Switch", 0x1a, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Int Mic Capture Volume", 0x1a, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Int Mic Capture Switch", 0x1a, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Ext Mic Capture Volume", 0x1a, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Ext Mic Capture Switch", 0x1a, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("PCM Playback Volume", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Int Mic Playback Volume", 0x17, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("Int Mic Playback Switch", 0x17, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Ext Mic Playback Volume", 0x17, 0x2, HDA_INPUT),
+	HDA_CODEC_MUTE("Ext Mic Playback Switch", 0x17, 0x2, HDA_INPUT),
 	HDA_BIND_VOL("Master Playback Volume", &cxt5045_hp_bind_master_vol),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -576,16 +582,15 @@ static struct hda_verb cxt5045_init_verbs[] = {
 	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN },
 	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN|AC_PINCTL_VREF_80 },
 	/* HP, Amp  */
-	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP },
-	{0x17, AC_VERB_SET_CONNECT_SEL,0x01},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE,
-	 AC_AMP_SET_OUTPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x01},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE,
-	 AC_AMP_SET_OUTPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x02},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE,
-	 AC_AMP_SET_OUTPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x03},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE,
-	 AC_AMP_SET_OUTPUT|AC_AMP_SET_RIGHT|AC_AMP_SET_LEFT|0x04},
+	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x10, AC_VERB_SET_CONNECT_SEL, 0x1},
+	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x11, AC_VERB_SET_CONNECT_SEL, 0x1},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* Record selector: Int mic */
 	{0x1a, AC_VERB_SET_CONNECT_SEL,0x1},
 	{0x1a, AC_VERB_SET_AMP_GAIN_MUTE,

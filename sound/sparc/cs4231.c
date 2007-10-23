@@ -400,65 +400,44 @@ static void snd_cs4231_mce_up(struct snd_cs4231 *chip)
 
 static void snd_cs4231_mce_down(struct snd_cs4231 *chip)
 {
-	unsigned long flags;
-	unsigned long end_time;
-	int timeout;
+	unsigned long flags, timeout;
+	int reg;
 
-	spin_lock_irqsave(&chip->lock, flags);
 	snd_cs4231_busy_wait(chip);
+	spin_lock_irqsave(&chip->lock, flags);
 #ifdef CONFIG_SND_DEBUG
 	if (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT)
 		snd_printdd("mce_down [%p] - auto calibration time out (0)\n",
 			    CS4231U(chip, REGSEL));
 #endif
 	chip->mce_bit &= ~CS4231_MCE;
-	timeout = __cs4231_readb(chip, CS4231U(chip, REGSEL));
-	__cs4231_writeb(chip, chip->mce_bit | (timeout & 0x1f),
+	reg = __cs4231_readb(chip, CS4231U(chip, REGSEL));
+	__cs4231_writeb(chip, chip->mce_bit | (reg & 0x1f),
 			CS4231U(chip, REGSEL));
-	if (timeout == 0x80)
-		snd_printdd("mce_down [%p]: serious init problem - "
-			    "codec still busy\n",
-			    chip->port);
-	if ((timeout & CS4231_MCE) == 0) {
+	if (reg == 0x80)
+		snd_printdd("mce_down [%p]: serious init problem "
+			    "- codec still busy\n", chip->port);
+	if ((reg & CS4231_MCE) == 0) {
 		spin_unlock_irqrestore(&chip->lock, flags);
 		return;
 	}
 
 	/*
-	 * Wait for (possible -- during init auto-calibration may not be set)
-	 * calibration process to start. Needs upto 5 sample periods on AD1848
-	 * which at the slowest possible rate of 5.5125 kHz means 907 us.
+	 * Wait for auto-calibration (AC) process to finish, i.e. ACI to go low.
 	 */
-	msleep(1);
-
-	/* check condition up to 250ms */
-	end_time = jiffies + msecs_to_jiffies(250);
-	while (snd_cs4231_in(chip, CS4231_TEST_INIT) &
-		CS4231_CALIB_IN_PROGRESS) {
-
+	timeout = jiffies + msecs_to_jiffies(250);
+	do {
 		spin_unlock_irqrestore(&chip->lock, flags);
-		if (time_after(jiffies, end_time)) {
-			snd_printk("mce_down - "
-				   "auto calibration time out (2)\n");
-			return;
-		}
 		msleep(1);
 		spin_lock_irqsave(&chip->lock, flags);
-	}
-
-	/* check condition up to 100ms */
-	end_time = jiffies + msecs_to_jiffies(100);
-	while (__cs4231_readb(chip, CS4231U(chip, REGSEL)) & CS4231_INIT) {
-		spin_unlock_irqrestore(&chip->lock, flags);
-		if (time_after(jiffies, end_time)) {
-			snd_printk("mce_down - "
-				   "auto calibration time out (3)\n");
-			return;
-		}
-		msleep(1);
-		spin_lock_irqsave(&chip->lock, flags);
-	}
+		reg = snd_cs4231_in(chip, CS4231_TEST_INIT);
+		reg &= CS4231_CALIB_IN_PROGRESS;
+	} while (reg && time_before(jiffies, timeout));
 	spin_unlock_irqrestore(&chip->lock, flags);
+
+	if (reg)
+		snd_printk(KERN_ERR
+			   "mce_down - auto calibration time out (2)\n");
 }
 
 static void snd_cs4231_advance_dma(struct cs4231_dma_control *dma_cont,
