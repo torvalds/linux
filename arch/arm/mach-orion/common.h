@@ -53,4 +53,12 @@ struct pci_bus *orion_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);
 int orion_pci_hw_rd_conf(u32 bus, u32 dev, u32 func, u32 where, u32 size, u32 *val);
 int orion_pci_hw_wr_conf(u32 bus, u32 dev, u32 func, u32 where, u32 size, u32 val);
 
+/*
+ * Valid GPIO pins according to MPP setup, used by machine-setup.
+ * (/mach-orion/gpio.c).
+ */
+
+void __init orion_gpio_set_valid_pins(u32 pins);
+void gpio_display(void);	/* debug */
+
 #endif /* __ARCH_ORION_COMMON_H__ */

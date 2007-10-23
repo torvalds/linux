@@ -337,6 +337,7 @@ config ARCH_ORION
 	bool "Marvell Orion"
 	depends on MMU
 	select PCI
+	select GENERIC_GPIO
 	help
 	  Support for Marvell Orion System on Chip family.
 
