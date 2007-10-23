@@ -1354,8 +1354,6 @@ new_segment:
 			else
 				sg = sg_next(sg);
 
-			sg_dma_len(sg) = 0;
-			sg_dma_address(sg) = 0;
 			sg_set_page(sg, bvec->bv_page);
 			sg->length = nbytes;
 			sg->offset = bvec->bv_offset;
