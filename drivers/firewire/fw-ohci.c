@@ -606,7 +606,7 @@ static int
 at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 {
 	struct fw_ohci *ohci = ctx->ohci;
-	dma_addr_t d_bus, payload_bus;
+	dma_addr_t d_bus, uninitialized_var(payload_bus);
 	struct driver_data *driver_data;
 	struct descriptor *d, *last;
 	__le32 *header;
@@ -1459,7 +1459,7 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	/* FIXME: We need a fallback for pre 1.1 OHCI. */
 	if (callback == handle_ir_dualbuffer_packet &&
 	    ohci->version < OHCI_VERSION_1_1)
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-ENOSYS);
 
 	spin_lock_irqsave(&ohci->lock, flags);
 	index = ffs(*mask) - 1;
@@ -1778,7 +1778,7 @@ ohci_queue_iso(struct fw_iso_context *base,
 							 buffer, payload);
 	else
 		/* FIXME: Implement fallback for OHCI 1.0 controllers. */
-		return -EINVAL;
+		return -ENOSYS;
 }
 
 static const struct fw_card_driver ohci_driver = {
@@ -1898,7 +1898,12 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ohci->version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
 		  dev->dev.bus_id, ohci->version >> 16, ohci->version & 0xff);
-
+	if (ohci->version < OHCI_VERSION_1_1) {
+		fw_notify("    Isochronous I/O is not yet implemented for "
+			  "OHCI 1.0 chips.\n");
+		fw_notify("    Cameras, audio devices etc. won't work on "
+			  "this controller with this driver version.\n");
+	}
 	return 0;
 
  fail_self_id:
