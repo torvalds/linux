@@ -170,10 +170,12 @@ static inline long strnlen_user(const char *src, long n)
  */
 
 static inline unsigned long
-clear_user(void *to, unsigned long n)
+__clear_user(void *to, unsigned long n)
 {
 	memset(to, 0, n);
 	return 0;
 }
+
+#define	clear_user(to,n)	__clear_user(to,n)
 
 #endif /* _M68KNOMMU_UACCESS_H */
