@@ -179,7 +179,7 @@ static int c0_compare_int_pending(void)
 
 static int c0_compare_int_usable(void)
 {
-	const unsigned int delta = 0x300000;
+	unsigned int delta;
 	unsigned int cnt;
 
 	/*
@@ -192,9 +192,15 @@ static int c0_compare_int_usable(void)
 			return 0;
 	}
 
-	cnt = read_c0_count();
-	cnt += delta;
-	write_c0_compare(cnt);
+	for (delta = 0x10; delta <= 0x400000; delta <<= 1) {
+		cnt = read_c0_count();
+		cnt += delta;
+		write_c0_compare(cnt);
+		irq_disable_hazard();
+		if ((int)(read_c0_count() - cnt) < 0)
+		    break;
+		/* increase delta if the timer was already expired */
+	}
 
 	while ((int)(read_c0_count() - cnt) <= 0)
 		;	/* Wait for expiry  */
