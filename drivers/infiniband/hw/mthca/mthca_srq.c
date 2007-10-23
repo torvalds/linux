@@ -491,7 +491,6 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 {
 	struct mthca_dev *dev = to_mdev(ibsrq->device);
 	struct mthca_srq *srq = to_msrq(ibsrq);
-	__be32 doorbell[2];
 	unsigned long flags;
 	int err = 0;
 	int first_ind;
@@ -563,16 +562,13 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 		if (unlikely(nreq == MTHCA_TAVOR_MAX_WQES_PER_RECV_DB)) {
 			nreq = 0;
 
-			doorbell[0] = cpu_to_be32(first_ind << srq->wqe_shift);
-			doorbell[1] = cpu_to_be32(srq->srqn << 8);
-
 			/*
 			 * Make sure that descriptors are written
 			 * before doorbell is rung.
 			 */
 			wmb();
 
-			mthca_write64(doorbell,
+			mthca_write64(first_ind << srq->wqe_shift, srq->srqn << 8,
 				      dev->kar + MTHCA_RECEIVE_DOORBELL,
 				      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 
@@ -581,16 +577,13 @@ int mthca_tavor_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	}
 
 	if (likely(nreq)) {
-		doorbell[0] = cpu_to_be32(first_ind << srq->wqe_shift);
-		doorbell[1] = cpu_to_be32((srq->srqn << 8) | nreq);
-
 		/*
 		 * Make sure that descriptors are written before
 		 * doorbell is rung.
 		 */
 		wmb();
 
-		mthca_write64(doorbell,
+		mthca_write64(first_ind << srq->wqe_shift, (srq->srqn << 8) | nreq,
 			      dev->kar + MTHCA_RECEIVE_DOORBELL,
 			      MTHCA_GET_DOORBELL_LOCK(&dev->doorbell_lock));
 	}

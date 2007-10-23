@@ -148,8 +148,6 @@ static int ipoib_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	clear_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags);
-
 	/*
 	 * Now flush workqueue to make sure a scheduled task doesn't
 	 * bring our internal state back up.
@@ -902,7 +900,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		goto out_rx_ring_cleanup;
 	}
 
-	/* priv->tx_head & tx_tail are already 0 */
+	/* priv->tx_head, tx_tail & tx_outstanding are already 0 */
 
 	if (ipoib_ib_dev_init(dev, ca, port))
 		goto out_tx_ring_cleanup;

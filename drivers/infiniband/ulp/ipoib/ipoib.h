@@ -84,9 +84,8 @@ enum {
 	IPOIB_MCAST_RUN 	  = 6,
 	IPOIB_STOP_REAPER         = 7,
 	IPOIB_MCAST_STARTED       = 8,
-	IPOIB_FLAG_NETIF_STOPPED  = 9,
-	IPOIB_FLAG_ADMIN_CM 	  = 10,
-	IPOIB_FLAG_UMCAST	  = 11,
+	IPOIB_FLAG_ADMIN_CM 	  = 9,
+	IPOIB_FLAG_UMCAST	  = 10,
 
 	IPOIB_MAX_BACKOFF_SECONDS = 16,
 
@@ -98,9 +97,9 @@ enum {
 
 #define	IPOIB_OP_RECV   (1ul << 31)
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
-#define	IPOIB_CM_OP_SRQ (1ul << 30)
+#define	IPOIB_OP_CM     (1ul << 30)
 #else
-#define	IPOIB_CM_OP_SRQ (0)
+#define	IPOIB_OP_CM     (0)
 #endif
 
 /* structs */
@@ -197,7 +196,6 @@ struct ipoib_cm_rx {
 
 struct ipoib_cm_tx {
 	struct ib_cm_id     *id;
-	struct ib_cq        *cq;
 	struct ib_qp        *qp;
 	struct list_head     list;
 	struct net_device   *dev;
@@ -294,6 +292,7 @@ struct ipoib_dev_priv {
 	unsigned             tx_tail;
 	struct ib_sge        tx_sge;
 	struct ib_send_wr    tx_wr;
+	unsigned             tx_outstanding;
 
 	struct ib_wc ibwc[IPOIB_NUM_WC];
 
@@ -504,6 +503,7 @@ void ipoib_cm_destroy_tx(struct ipoib_cm_tx *tx);
 void ipoib_cm_skb_too_long(struct net_device* dev, struct sk_buff *skb,
 			   unsigned int mtu);
 void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc);
+void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc);
 #else
 
 struct ipoib_cm_tx;
@@ -592,6 +592,9 @@ static inline void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *w
 {
 }
 
+static inline void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
+{
+}
 #endif
 
 #ifdef CONFIG_INFINIBAND_IPOIB_DEBUG

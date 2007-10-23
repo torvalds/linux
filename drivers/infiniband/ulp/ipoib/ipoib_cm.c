@@ -87,7 +87,7 @@ static int ipoib_cm_post_receive(struct net_device *dev, int id)
 	struct ib_recv_wr *bad_wr;
 	int i, ret;
 
-	priv->cm.rx_wr.wr_id = id | IPOIB_CM_OP_SRQ;
+	priv->cm.rx_wr.wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
 
 	for (i = 0; i < IPOIB_CM_RX_SG; ++i)
 		priv->cm.rx_sge[i].addr = priv->cm.srq_ring[id].mapping[i];
@@ -401,7 +401,7 @@ static void skb_put_frags(struct sk_buff *skb, unsigned int hdr_space,
 void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	unsigned int wr_id = wc->wr_id & ~IPOIB_CM_OP_SRQ;
+	unsigned int wr_id = wc->wr_id & ~(IPOIB_OP_CM | IPOIB_OP_RECV);
 	struct sk_buff *skb, *newskb;
 	struct ipoib_cm_rx *p;
 	unsigned long flags;
@@ -412,7 +412,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		       wr_id, wc->status);
 
 	if (unlikely(wr_id >= ipoib_recvq_size)) {
-		if (wr_id == (IPOIB_CM_RX_DRAIN_WRID & ~IPOIB_CM_OP_SRQ)) {
+		if (wr_id == (IPOIB_CM_RX_DRAIN_WRID & ~(IPOIB_OP_CM | IPOIB_OP_RECV))) {
 			spin_lock_irqsave(&priv->lock, flags);
 			list_splice_init(&priv->cm.rx_drain_list, &priv->cm.rx_reap_list);
 			ipoib_cm_start_rx_drain(priv);
@@ -434,7 +434,7 @@ void ipoib_cm_handle_rx_wc(struct net_device *dev, struct ib_wc *wc)
 		goto repost;
 	}
 
-	if (!likely(wr_id & IPOIB_CM_RX_UPDATE_MASK)) {
+	if (unlikely(!(wr_id & IPOIB_CM_RX_UPDATE_MASK))) {
 		p = wc->qp->qp_context;
 		if (p && time_after_eq(jiffies, p->jiffies + IPOIB_CM_RX_UPDATE_TIME)) {
 			spin_lock_irqsave(&priv->lock, flags);
@@ -498,7 +498,7 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 	priv->tx_sge.addr             = addr;
 	priv->tx_sge.length           = len;
 
-	priv->tx_wr.wr_id 	      = wr_id;
+	priv->tx_wr.wr_id 	      = wr_id | IPOIB_OP_CM;
 
 	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
 }
@@ -549,20 +549,19 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 		dev->trans_start = jiffies;
 		++tx->tx_head;
 
-		if (tx->tx_head - tx->tx_tail == ipoib_sendq_size) {
+		if (++priv->tx_outstanding == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring 0x%x full, stopping kernel net queue\n",
 				  tx->qp->qp_num);
 			netif_stop_queue(dev);
-			set_bit(IPOIB_FLAG_NETIF_STOPPED, &tx->flags);
 		}
 	}
 }
 
-static void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ipoib_cm_tx *tx,
-				  struct ib_wc *wc)
+void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	unsigned int wr_id = wc->wr_id;
+	struct ipoib_cm_tx *tx = wc->qp->qp_context;
+	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_CM;
 	struct ipoib_tx_buf *tx_req;
 	unsigned long flags;
 
@@ -587,11 +586,10 @@ static void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ipoib_cm_tx *tx
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	++tx->tx_tail;
-	if (unlikely(test_bit(IPOIB_FLAG_NETIF_STOPPED, &tx->flags)) &&
-	    tx->tx_head - tx->tx_tail <= ipoib_sendq_size >> 1) {
-		clear_bit(IPOIB_FLAG_NETIF_STOPPED, &tx->flags);
+	if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
+	    netif_queue_stopped(dev) &&
+	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
 		netif_wake_queue(dev);
-	}
 
 	if (wc->status != IB_WC_SUCCESS &&
 	    wc->status != IB_WC_WR_FLUSH_ERR) {
@@ -614,11 +612,6 @@ static void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ipoib_cm_tx *tx
 			tx->neigh = NULL;
 		}
 
-		/* queue would be re-started anyway when TX is destroyed,
-		 * but it makes sense to do it ASAP here. */
-		if (test_and_clear_bit(IPOIB_FLAG_NETIF_STOPPED, &tx->flags))
-			netif_wake_queue(dev);
-
 		if (test_and_clear_bit(IPOIB_FLAG_INITIALIZED, &tx->flags)) {
 			list_move(&tx->list, &priv->cm.reap_list);
 			queue_work(ipoib_workqueue, &priv->cm.reap_task);
@@ -630,19 +623,6 @@ static void ipoib_cm_handle_tx_wc(struct net_device *dev, struct ipoib_cm_tx *tx
 	}
 
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
-}
-
-static void ipoib_cm_tx_completion(struct ib_cq *cq, void *tx_ptr)
-{
-	struct ipoib_cm_tx *tx = tx_ptr;
-	int n, i;
-
-	ib_req_notify_cq(cq, IB_CQ_NEXT_COMP);
-	do {
-		n = ib_poll_cq(cq, IPOIB_NUM_WC, tx->ibwc);
-		for (i = 0; i < n; ++i)
-			ipoib_cm_handle_tx_wc(tx->dev, tx, tx->ibwc + i);
-	} while (n == IPOIB_NUM_WC);
 }
 
 int ipoib_cm_dev_open(struct net_device *dev)
@@ -807,17 +787,18 @@ static int ipoib_cm_rep_handler(struct ib_cm_id *cm_id, struct ib_cm_event *even
 	return 0;
 }
 
-static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ib_cq *cq)
+static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_cm_tx *tx)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_init_attr attr = {
-		.send_cq		= cq,
+		.send_cq		= priv->cq,
 		.recv_cq		= priv->cq,
 		.srq			= priv->cm.srq,
 		.cap.max_send_wr	= ipoib_sendq_size,
 		.cap.max_send_sge	= 1,
 		.sq_sig_type		= IB_SIGNAL_ALL_WR,
 		.qp_type		= IB_QPT_RC,
+		.qp_context		= tx
         };
 
 	return ib_create_qp(priv->pd, &attr);
@@ -899,21 +880,7 @@ static int ipoib_cm_tx_init(struct ipoib_cm_tx *p, u32 qpn,
 		goto err_tx;
 	}
 
-	p->cq = ib_create_cq(priv->ca, ipoib_cm_tx_completion, NULL, p,
-			     ipoib_sendq_size + 1, 0);
-	if (IS_ERR(p->cq)) {
-		ret = PTR_ERR(p->cq);
-		ipoib_warn(priv, "failed to allocate tx cq: %d\n", ret);
-		goto err_cq;
-	}
-
-	ret = ib_req_notify_cq(p->cq, IB_CQ_NEXT_COMP);
-	if (ret) {
-		ipoib_warn(priv, "failed to request completion notification: %d\n", ret);
-		goto err_req_notify;
-	}
-
-	p->qp = ipoib_cm_create_tx_qp(p->dev, p->cq);
+	p->qp = ipoib_cm_create_tx_qp(p->dev, p);
 	if (IS_ERR(p->qp)) {
 		ret = PTR_ERR(p->qp);
 		ipoib_warn(priv, "failed to allocate tx qp: %d\n", ret);
@@ -950,12 +917,8 @@ err_modify:
 err_id:
 	p->id = NULL;
 	ib_destroy_qp(p->qp);
-err_req_notify:
 err_qp:
 	p->qp = NULL;
-	ib_destroy_cq(p->cq);
-err_cq:
-	p->cq = NULL;
 err_tx:
 	return ret;
 }
@@ -964,6 +927,8 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(p->dev);
 	struct ipoib_tx_buf *tx_req;
+	unsigned long flags;
+	unsigned long begin;
 
 	ipoib_dbg(priv, "Destroy active connection 0x%x head 0x%x tail 0x%x\n",
 		  p->qp ? p->qp->qp_num : 0, p->tx_head, p->tx_tail);
@@ -971,27 +936,40 @@ static void ipoib_cm_tx_destroy(struct ipoib_cm_tx *p)
 	if (p->id)
 		ib_destroy_cm_id(p->id);
 
+	if (p->tx_ring) {
+		/* Wait for all sends to complete */
+		begin = jiffies;
+		while ((int) p->tx_tail - (int) p->tx_head < 0) {
+			if (time_after(jiffies, begin + 5 * HZ)) {
+				ipoib_warn(priv, "timing out; %d sends not completed\n",
+					   p->tx_head - p->tx_tail);
+				goto timeout;
+			}
+
+			msleep(1);
+		}
+	}
+
+timeout:
+
+	while ((int) p->tx_tail - (int) p->tx_head < 0) {
+		tx_req = &p->tx_ring[p->tx_tail & (ipoib_sendq_size - 1)];
+		ib_dma_unmap_single(priv->ca, tx_req->mapping, tx_req->skb->len,
+				    DMA_TO_DEVICE);
+		dev_kfree_skb_any(tx_req->skb);
+		++p->tx_tail;
+		spin_lock_irqsave(&priv->tx_lock, flags);
+		if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
+		    netif_queue_stopped(p->dev) &&
+		    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
+			netif_wake_queue(p->dev);
+		spin_unlock_irqrestore(&priv->tx_lock, flags);
+	}
+
 	if (p->qp)
 		ib_destroy_qp(p->qp);
 
-	if (p->cq)
-		ib_destroy_cq(p->cq);
-
-	if (test_bit(IPOIB_FLAG_NETIF_STOPPED, &p->flags))
-		netif_wake_queue(p->dev);
-
-	if (p->tx_ring) {
-		while ((int) p->tx_tail - (int) p->tx_head < 0) {
-			tx_req = &p->tx_ring[p->tx_tail & (ipoib_sendq_size - 1)];
-			ib_dma_unmap_single(priv->ca, tx_req->mapping, tx_req->skb->len,
-					 DMA_TO_DEVICE);
-			dev_kfree_skb_any(tx_req->skb);
-			++p->tx_tail;
-		}
-
-		kfree(p->tx_ring);
-	}
-
+	kfree(p->tx_ring);
 	kfree(p);
 }
 

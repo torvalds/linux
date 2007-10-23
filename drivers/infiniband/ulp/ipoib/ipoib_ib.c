@@ -267,11 +267,10 @@ static void ipoib_ib_handle_tx_wc(struct net_device *dev, struct ib_wc *wc)
 
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	++priv->tx_tail;
-	if (unlikely(test_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags)) &&
-	    priv->tx_head - priv->tx_tail <= ipoib_sendq_size >> 1) {
-		clear_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags);
+	if (unlikely(--priv->tx_outstanding == ipoib_sendq_size >> 1) &&
+	    netif_queue_stopped(dev) &&
+	    test_bit(IPOIB_FLAG_ADMIN_UP, &priv->flags))
 		netif_wake_queue(dev);
-	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 
 	if (wc->status != IB_WC_SUCCESS &&
@@ -301,14 +300,18 @@ poll_more:
 		for (i = 0; i < n; i++) {
 			struct ib_wc *wc = priv->ibwc + i;
 
-			if (wc->wr_id & IPOIB_CM_OP_SRQ) {
+			if (wc->wr_id & IPOIB_OP_RECV) {
 				++done;
-				ipoib_cm_handle_rx_wc(dev, wc);
-			} else if (wc->wr_id & IPOIB_OP_RECV) {
-				++done;
-				ipoib_ib_handle_rx_wc(dev, wc);
-			} else
-				ipoib_ib_handle_tx_wc(dev, wc);
+				if (wc->wr_id & IPOIB_OP_CM)
+					ipoib_cm_handle_rx_wc(dev, wc);
+				else
+					ipoib_ib_handle_rx_wc(dev, wc);
+			} else {
+				if (wc->wr_id & IPOIB_OP_CM)
+					ipoib_cm_handle_tx_wc(dev, wc);
+				else
+					ipoib_ib_handle_tx_wc(dev, wc);
+			}
 		}
 
 		if (n != t)
@@ -401,10 +404,9 @@ void ipoib_send(struct net_device *dev, struct sk_buff *skb,
 		address->last_send = priv->tx_head;
 		++priv->tx_head;
 
-		if (priv->tx_head - priv->tx_tail == ipoib_sendq_size) {
+		if (++priv->tx_outstanding == ipoib_sendq_size) {
 			ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");
 			netif_stop_queue(dev);
-			set_bit(IPOIB_FLAG_NETIF_STOPPED, &priv->flags);
 		}
 	}
 }
@@ -436,7 +438,8 @@ void ipoib_reap_ah(struct work_struct *work)
 	__ipoib_reap_ah(dev);
 
 	if (!test_bit(IPOIB_STOP_REAPER, &priv->flags))
-		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task, HZ);
+		queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+				   round_jiffies_relative(HZ));
 }
 
 int ipoib_ib_dev_open(struct net_device *dev)
@@ -472,7 +475,8 @@ int ipoib_ib_dev_open(struct net_device *dev)
 	}
 
 	clear_bit(IPOIB_STOP_REAPER, &priv->flags);
-	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task, HZ);
+	queue_delayed_work(ipoib_workqueue, &priv->ah_reap_task,
+			   round_jiffies_relative(HZ));
 
 	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
 
@@ -561,12 +565,17 @@ void ipoib_drain_cq(struct net_device *dev)
 			if (priv->ibwc[i].status == IB_WC_SUCCESS)
 				priv->ibwc[i].status = IB_WC_WR_FLUSH_ERR;
 
-			if (priv->ibwc[i].wr_id & IPOIB_CM_OP_SRQ)
-				ipoib_cm_handle_rx_wc(dev, priv->ibwc + i);
-			else if (priv->ibwc[i].wr_id & IPOIB_OP_RECV)
-				ipoib_ib_handle_rx_wc(dev, priv->ibwc + i);
-			else
-				ipoib_ib_handle_tx_wc(dev, priv->ibwc + i);
+			if (priv->ibwc[i].wr_id & IPOIB_OP_RECV) {
+				if (priv->ibwc[i].wr_id & IPOIB_OP_CM)
+					ipoib_cm_handle_rx_wc(dev, priv->ibwc + i);
+				else
+					ipoib_ib_handle_rx_wc(dev, priv->ibwc + i);
+			} else {
+				if (priv->ibwc[i].wr_id & IPOIB_OP_CM)
+					ipoib_cm_handle_tx_wc(dev, priv->ibwc + i);
+				else
+					ipoib_ib_handle_tx_wc(dev, priv->ibwc + i);
+			}
 		}
 	} while (n == IPOIB_NUM_WC);
 }
@@ -612,6 +621,7 @@ int ipoib_ib_dev_stop(struct net_device *dev, int flush)
 						    DMA_TO_DEVICE);
 				dev_kfree_skb_any(tx_req->skb);
 				++priv->tx_tail;
+				--priv->tx_outstanding;
 			}
 
 			for (i = 0; i < ipoib_recvq_size; ++i) {
