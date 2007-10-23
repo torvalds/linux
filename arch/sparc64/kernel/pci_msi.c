@@ -28,8 +28,15 @@ static irqreturn_t sparc64_msiq_interrupt(int irq, void *cookie)
 		unsigned long msi;
 
 		err = ops->dequeue_msi(pbm, msiqid, &head, &msi);
-		if (likely(err > 0))
-			__do_IRQ(pbm->msi_irq_table[msi - pbm->msi_first]);
+		if (likely(err > 0)) {
+			struct irq_desc *desc;
+			unsigned int virt_irq;
+
+			virt_irq = pbm->msi_irq_table[msi - pbm->msi_first];
+			desc = irq_desc + virt_irq;
+
+			desc->handle_irq(virt_irq, desc);
+		}
 
 		if (unlikely(err < 0))
 			goto err_dequeue;
@@ -128,7 +135,8 @@ int sparc64_setup_msi_irq(unsigned int *virt_irq_p,
 	if (!*virt_irq_p)
 		goto out_err;
 
-	set_irq_chip(*virt_irq_p, &msi_irq);
+	set_irq_chip_and_handler_name(*virt_irq_p, &msi_irq,
+				      handle_simple_irq, "MSI");
 
 	err = alloc_msi(pbm);
 	if (unlikely(err < 0))

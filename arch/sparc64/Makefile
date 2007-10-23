@@ -18,8 +18,6 @@ NEW_GCC := $(call cc-option-yn, -m64 -mcmodel=medlow)
 NEW_GAS := $(shell if $(LD) -V 2>&1 | grep 'elf64_sparc' > /dev/null; then echo y; else echo n; fi)
 UNDECLARED_REGS := $(shell if $(CC) -c -x assembler /dev/null -Wa,--help | grep undeclared-regs > /dev/null; then echo y; else echo n; fi; )
 
-export NEW_GCC
-
 ifneq ($(NEW_GAS),y)
 AS		= sparc64-linux-as
 LD		= sparc64-linux-ld
@@ -58,8 +56,6 @@ core-y				+= arch/sparc64/kernel/ arch/sparc64/mm/
 core-$(CONFIG_SOLARIS_EMUL)	+= arch/sparc64/solaris/
 core-y				+= arch/sparc64/math-emu/
 libs-y				+= arch/sparc64/prom/ arch/sparc64/lib/
-
-# FIXME: is drivers- right?
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc64/oprofile/
 
 boot := arch/sparc64/boot

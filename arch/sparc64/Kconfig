@@ -72,6 +72,10 @@ config ARCH_NO_VIRT_TO_BUS
 config OF
 	def_bool y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	bool
+	def_bool y
+
 choice
 	prompt "Kernel page size"
 	default SPARC64_PAGE_SIZE_8KB
