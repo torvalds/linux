@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/bootmem.h>
+#include <linux/scatterlist.h>
 #include <linux/log2.h>
 
 #include <asm/io.h>
