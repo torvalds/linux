@@ -256,7 +256,6 @@ static int __devinit bfin_kpad_probe(struct platform_device *pdev)
 		printk(KERN_ERR DRV_NAME
 			": unable to claim irq %d; error %d\n",
 			bf54x_kpad->irq, error);
-		error = -EBUSY;
 		goto out2;
 	}
 
