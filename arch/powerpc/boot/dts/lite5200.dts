@@ -70,18 +70,16 @@
 		};
 
 		gpt@600 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <0>;
 			reg = <600 10>;
 			interrupts = <1 9 0>;
 			interrupt-parent = <&mpc5200_pic>;
-			has-wdt;
+			fsl,has-wdt;
 		};
 
 		gpt@610 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <1>;
 			reg = <610 10>;
 			interrupts = <1 a 0>;
@@ -89,8 +87,7 @@
 		};
 
 		gpt@620 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <2>;
 			reg = <620 10>;
 			interrupts = <1 b 0>;
@@ -98,8 +95,7 @@
 		};
 
 		gpt@630 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <3>;
 			reg = <630 10>;
 			interrupts = <1 c 0>;
@@ -107,8 +103,7 @@
 		};
 
 		gpt@640 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <4>;
 			reg = <640 10>;
 			interrupts = <1 d 0>;
@@ -116,8 +111,7 @@
 		};
 
 		gpt@650 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <5>;
 			reg = <650 10>;
 			interrupts = <1 e 0>;
@@ -125,8 +119,7 @@
 		};
 
 		gpt@660 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <6>;
 			reg = <660 10>;
 			interrupts = <1 f 0>;
@@ -134,8 +127,7 @@
 		};
 
 		gpt@670 {	// General Purpose Timer
-			compatible = "mpc5200-gpt";
-			device_type = "gpt";
+			compatible = "fsl,mpc5200-gpt";
 			cell-index = <7>;
 			reg = <670 10>;
 			interrupts = <1 10 0>;

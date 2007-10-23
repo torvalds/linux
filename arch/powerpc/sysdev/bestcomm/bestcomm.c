@@ -269,6 +269,7 @@ bcom_engine_init(void)
 	int task;
 	phys_addr_t tdt_pa, ctx_pa, var_pa, fdt_pa;
 	unsigned int tdt_size, ctx_size, var_size, fdt_size;
+	u16 regval;
 
 	/* Allocate & clear SRAM zones for FDT, TDTs, contexts and vars/incs */
 	tdt_size = BCOM_MAX_TASKS * sizeof(struct bcom_tdt);
@@ -319,9 +320,11 @@ bcom_engine_init(void)
 	/* Init 'always' initiator */
 	out_8(&bcom_eng->regs->ipr[BCOM_INITIATOR_ALWAYS], BCOM_IPR_ALWAYS);
 
-	/* Disable COMM Bus Prefetch, apparently it's not reliable yet */
-	/* FIXME: This should be done on 5200 and not 5200B ... */
-	out_be16(&bcom_eng->regs->PtdCntrl, in_be16(&bcom_eng->regs->PtdCntrl) | 1);
+	/* Disable COMM Bus Prefetch on the original 5200; it's broken */
+	if ((mfspr(SPRN_SVR) & MPC5200_SVR_MASK) == MPC5200_SVR) {
+		regval = in_be16(&bcom_eng->regs->PtdCntrl);
+		out_be16(&bcom_eng->regs->PtdCntrl,  regval | 1);
+	}
 
 	/* Init lock */
 	spin_lock_init(&bcom_eng->lock);

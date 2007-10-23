@@ -185,7 +185,7 @@ bestcomm@<addr>	dma-controller		mpc5200-bestcomm 5200 pic also requires
 Recommended soc5200 child nodes; populate as needed for your board
 name		device_type	compatible	  Description
 ----		-----------	----------	  -----------
-gpt@<addr>	gpt		mpc5200-gpt	  General purpose timers
+gpt@<addr>	gpt		fsl,mpc5200-gpt	  General purpose timers
 rtc@<addr>	rtc		mpc5200-rtc	  Real time clock
 mscan@<addr>	mscan		mpc5200-mscan	  CAN bus controller
 pci@<addr>	pci		mpc5200-pci	  PCI bridge
@@ -213,7 +213,7 @@ cell-index	int		When multiple devices are present, is the
 5) General Purpose Timer nodes (child of soc5200 node)
 On the mpc5200 and 5200b, GPT0 has a watchdog timer function.  If the board
 design supports the internal wdt, then the device node for GPT0 should
-include the empty property 'has-wdt'.
+include the empty property 'fsl,has-wdt'.
 
 6) PSC nodes (child of soc5200 node)
 PSC nodes can define the optional 'port-number' property to force assignment
