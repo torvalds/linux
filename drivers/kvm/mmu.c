@@ -1049,6 +1049,7 @@ int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)
 	destroy_kvm_mmu(vcpu);
 	return init_kvm_mmu(vcpu);
 }
+EXPORT_SYMBOL_GPL(kvm_mmu_reset_context);
 
 int kvm_mmu_load(struct kvm_vcpu *vcpu)
 {
@@ -1088,7 +1089,7 @@ static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
 			mmu_page_remove_parent_pte(child, spte);
 		}
 	}
-	*spte = 0;
+	set_shadow_pte(spte, 0);
 	kvm_flush_remote_tlbs(vcpu->kvm);
 }
 

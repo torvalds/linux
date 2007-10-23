@@ -3375,7 +3375,6 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 
 	if (p->flags & PF_VCPU) {
 		account_guest_time(p, cputime);
-		p->flags &= ~PF_VCPU;
 		return;
 	}
 

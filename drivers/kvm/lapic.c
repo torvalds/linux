@@ -494,11 +494,18 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 
 static u32 apic_get_tmcct(struct kvm_lapic *apic)
 {
-	u32 counter_passed;
-	ktime_t passed, now = apic->timer.dev.base->get_time();
-	u32 tmcct = apic_get_reg(apic, APIC_TMICT);
+	u64 counter_passed;
+	ktime_t passed, now;
+	u32 tmcct;
 
 	ASSERT(apic != NULL);
+
+	now = apic->timer.dev.base->get_time();
+	tmcct = apic_get_reg(apic, APIC_TMICT);
+
+	/* if initial count is 0, current count should also be 0 */
+	if (tmcct == 0)
+		return 0;
 
 	if (unlikely(ktime_to_ns(now) <=
 		ktime_to_ns(apic->timer.last_update))) {
@@ -514,15 +521,24 @@ static u32 apic_get_tmcct(struct kvm_lapic *apic)
 
 	counter_passed = div64_64(ktime_to_ns(passed),
 				  (APIC_BUS_CYCLE_NS * apic->timer.divide_count));
-	tmcct -= counter_passed;
 
-	if (tmcct <= 0) {
-		if (unlikely(!apic_lvtt_period(apic)))
+	if (counter_passed > tmcct) {
+		if (unlikely(!apic_lvtt_period(apic))) {
+			/* one-shot timers stick at 0 until reset */
 			tmcct = 0;
-		else
-			do {
-				tmcct += apic_get_reg(apic, APIC_TMICT);
-			} while (tmcct <= 0);
+		} else {
+			/*
+			 * periodic timers reset to APIC_TMICT when they
+			 * hit 0. The while loop simulates this happening N
+			 * times. (counter_passed %= tmcct) would also work,
+			 * but might be slower or not work on 32-bit??
+			 */
+			while (counter_passed > tmcct)
+				counter_passed -= tmcct;
+			tmcct -= counter_passed;
+		}
+	} else {
+		tmcct -= counter_passed;
 	}
 
 	return tmcct;
@@ -853,7 +869,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 		apic_set_reg(apic, APIC_ISR + 0x10 * i, 0);
 		apic_set_reg(apic, APIC_TMR + 0x10 * i, 0);
 	}
-	apic->timer.divide_count = 0;
+	update_divide_count(apic);
 	atomic_set(&apic->timer.pending, 0);
 	if (vcpu->vcpu_id == 0)
 		vcpu->apic_base |= MSR_IA32_APICBASE_BSP;

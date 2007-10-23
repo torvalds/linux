@@ -523,6 +523,8 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	if (vcpu->rmode.active)
+		rflags |= IOPL_MASK | X86_EFLAGS_VM;
 	vmcs_writel(GUEST_RFLAGS, rflags);
 }
 
@@ -1128,6 +1130,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	fix_rmode_seg(VCPU_SREG_GS, &vcpu->rmode.gs);
 	fix_rmode_seg(VCPU_SREG_FS, &vcpu->rmode.fs);
 
+	kvm_mmu_reset_context(vcpu);
 	init_rmode_tss(vcpu->kvm);
 }
 
@@ -1760,10 +1763,8 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		set_bit(irq / BITS_PER_LONG, &vcpu->irq_summary);
 	}
 
-	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) { /* nmi */
-		asm ("int $2");
-		return 1;
-	}
+	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) /* nmi */
+		return 1;  /* already handled by vmx_vcpu_run() */
 
 	if (is_no_device(intr_info)) {
 		vmx_fpu_activate(vcpu);
@@ -2196,6 +2197,7 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 intr_info;
 
 	/*
 	 * Loading guest fpu may have cleared host cr0.ts
@@ -2322,6 +2324,12 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	asm ("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->launched = 1;
+
+	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+
+	/* We need to handle NMIs before interrupts are enabled */
+	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) /* nmi */
+		asm("int $2");
 }
 
 static void vmx_inject_page_fault(struct kvm_vcpu *vcpu,

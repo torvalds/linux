@@ -198,21 +198,15 @@ static void vcpu_put(struct kvm_vcpu *vcpu)
 
 static void ack_flush(void *_completed)
 {
-	atomic_t *completed = _completed;
-
-	atomic_inc(completed);
 }
 
 void kvm_flush_remote_tlbs(struct kvm *kvm)
 {
-	int i, cpu, needed;
+	int i, cpu;
 	cpumask_t cpus;
 	struct kvm_vcpu *vcpu;
-	atomic_t completed;
 
-	atomic_set(&completed, 0);
 	cpus_clear(cpus);
-	needed = 0;
 	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
 		vcpu = kvm->vcpus[i];
 		if (!vcpu)
@@ -221,23 +215,9 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 			continue;
 		cpu = vcpu->cpu;
 		if (cpu != -1 && cpu != raw_smp_processor_id())
-			if (!cpu_isset(cpu, cpus)) {
-				cpu_set(cpu, cpus);
-				++needed;
-			}
+			cpu_set(cpu, cpus);
 	}
-
-	/*
-	 * We really want smp_call_function_mask() here.  But that's not
-	 * available, so ipi all cpus in parallel and wait for them
-	 * to complete.
-	 */
-	for (cpu = first_cpu(cpus); cpu != NR_CPUS; cpu = next_cpu(cpu, cpus))
-		smp_call_function_single(cpu, ack_flush, &completed, 1, 0);
-	while (atomic_read(&completed) != needed) {
-		cpu_relax();
-		barrier();
-	}
+	smp_call_function_mask(cpus, ack_flush, NULL, 1);
 }
 
 int kvm_vcpu_init(struct kvm_vcpu *vcpu, struct kvm *kvm, unsigned id)
@@ -2054,11 +2034,20 @@ again:
 
 	kvm_x86_ops->run(vcpu, kvm_run);
 
-	kvm_guest_exit();
 	vcpu->guest_mode = 0;
 	local_irq_enable();
 
 	++vcpu->stat.exits;
+
+	/*
+	 * We must have an instruction between local_irq_enable() and
+	 * kvm_guest_exit(), so the timer interrupt isn't delayed by
+	 * the interrupt shadow.  The stat.exits increment will do nicely.
+	 * But we need to prevent reordering, hence this barrier():
+	 */
+	barrier();
+
+	kvm_guest_exit();
 
 	preempt_enable();
 
