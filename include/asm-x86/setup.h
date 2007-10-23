@@ -14,18 +14,18 @@
 #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
 #define MAX_NONPAE_PFN	(1 << 20)
 
-#define PARAM_SIZE 4096
-
-#define OLD_CL_MAGIC_ADDR	0x90020
-#define OLD_CL_MAGIC		0xA33F
-#define OLD_CL_BASE_ADDR	0x90000
-#define OLD_CL_OFFSET		0x90022
-#define NEW_CL_POINTER		0x228	/* Relative to real mode data */
-
 #endif /* __i386__ */
+
+#define PARAM_SIZE 4096		/* sizeof(struct boot_params) */
+
+#define OLD_CL_MAGIC		0xA33F
+#define OLD_CL_ADDRESS		0x020	/* Relative to real mode data */
+#define NEW_CL_POINTER		0x228	/* Relative to real mode data */
 
 #ifndef __ASSEMBLY__
 #include <asm/bootparam.h>
+
+#ifndef _SETUP
 
 /*
  * This is set up by the setup-routine at boot-time
@@ -56,6 +56,7 @@ extern unsigned long init_pg_tables_end;
 #endif
 
 #endif /* __i386__ */
+#endif /* _SETUP */
 #endif /* __ASSEMBLY__ */
 #endif  /*  __KERNEL__  */
 

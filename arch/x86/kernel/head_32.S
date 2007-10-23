@@ -124,12 +124,7 @@ ENTRY(startup_32)
 	movsl
 	movl boot_params - __PAGE_OFFSET + NEW_CL_POINTER,%esi
 	andl %esi,%esi
-	jnz 2f			# New command line protocol
-	cmpw $(OLD_CL_MAGIC),OLD_CL_MAGIC_ADDR
-	jne 1f
-	movzwl OLD_CL_OFFSET,%esi
-	addl $(OLD_CL_BASE_ADDR),%esi
-2:
+	jz 1f			# No comand line
 	movl $(boot_command_line - __PAGE_OFFSET),%edi
 	movl $(COMMAND_LINE_SIZE/4),%ecx
 	rep
