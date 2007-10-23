@@ -822,6 +822,11 @@ int ivtv_v4l2_close(struct inode *inode, struct file *filp)
 			crystal_freq.flags = 0;
 			ivtv_saa7115(itv, VIDIOC_INT_S_CRYSTAL_FREQ, &crystal_freq);
 		}
+		if (atomic_read(&itv->capturing) > 0) {
+			/* Undo video mute */
+			ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
+				itv->params.video_mute | (itv->params.video_mute_yuv << 8));
+		}
 		/* Done! Unmute and continue. */
 		ivtv_unmute(itv);
 		ivtv_release_stream(s);
@@ -892,6 +897,7 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 			if (atomic_read(&itv->capturing) > 0) {
 				/* switching to radio while capture is
 				   in progress is not polite */
+				ivtv_release_stream(s);
 				kfree(item);
 				return -EBUSY;
 			}
@@ -947,7 +953,7 @@ int ivtv_v4l2_open(struct inode *inode, struct file *filp)
 	if (itv == NULL) {
 		/* Couldn't find a device registered
 		   on that minor, shouldn't happen! */
-		IVTV_WARN("No ivtv device found on minor %d\n", minor);
+		printk(KERN_WARNING "No ivtv device found on minor %d\n", minor);
 		return -ENXIO;
 	}
 

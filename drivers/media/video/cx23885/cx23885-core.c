@@ -793,7 +793,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 		       dev->pci->subsystem_device);
 
 		cx23885_devcount--;
-		goto fail_free;
+		return -ENODEV;
 	}
 
 	/* PCIe stuff */
@@ -835,10 +835,6 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	}
 
 	return 0;
-
-fail_free:
-	kfree(dev);
-	return -ENODEV;
 }
 
 void cx23885_dev_unregister(struct cx23885_dev *dev)

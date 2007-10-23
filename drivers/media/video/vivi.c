@@ -1119,7 +1119,6 @@ static const struct file_operations vivi_fops = {
 static struct video_device vivi = {
 	.name		= "vivi",
 	.type		= VID_TYPE_CAPTURE,
-	.hardware	= 0,
 	.fops           = &vivi_fops,
 	.minor		= -1,
 //	.release	= video_device_release,

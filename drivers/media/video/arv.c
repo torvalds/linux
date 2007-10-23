@@ -755,7 +755,6 @@ static struct video_device ar_template = {
 	.owner		= THIS_MODULE,
 	.name		= "Colour AR VGA",
 	.type		= VID_TYPE_CAPTURE,
-	.hardware	= VID_HARDWARE_ARV,
 	.fops		= &ar_fops,
 	.release	= ar_release,
 	.minor		= -1,

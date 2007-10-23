@@ -699,7 +699,6 @@ static struct video_device qcam_template=
 	.owner		= THIS_MODULE,
 	.name		= "Colour QuickCam",
 	.type		= VID_TYPE_CAPTURE,
-	.hardware	= VID_HARDWARE_QCAM_C,
 	.fops           = &qcam_fops,
 };
 

@@ -79,7 +79,8 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 
-	dprintk(1, "cx8802_start_dma w: %d, h: %d, f: %d\n", dev->width, dev->height, buf->vb.field);
+	dprintk(1, "cx8802_start_dma w: %d, h: %d, f: %d\n",
+		buf->vb.width, buf->vb.height, buf->vb.field);
 
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
@@ -177,7 +178,6 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 				struct cx88_dmaqueue *q)
 {
 	struct cx88_buffer *buf;
-	struct list_head *item;
 
 	dprintk( 1, "cx8802_restart_queue\n" );
 	if (list_empty(&q->active))
@@ -223,10 +223,8 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 	dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 		buf, buf->vb.i);
 	cx8802_start_dma(dev, q, buf);
-	list_for_each(item,&q->active) {
-		buf = list_entry(item, struct cx88_buffer, vb.queue);
+	list_for_each_entry(buf, &q->active, vb.queue)
 		buf->count = q->count++;
-	}
 	mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 	return 0;
 }
@@ -572,42 +570,29 @@ int cx8802_resume_common(struct pci_dev *pci_dev)
 	return 0;
 }
 
+#if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
+    defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
 struct cx8802_dev * cx8802_get_device(struct inode *inode)
 {
 	int minor = iminor(inode);
-	struct cx8802_dev *h = NULL;
-	struct list_head *list;
+	struct cx8802_dev *dev;
 
-	list_for_each(list,&cx8802_devlist) {
-		h = list_entry(list, struct cx8802_dev, devlist);
-		if (h->mpeg_dev && h->mpeg_dev->minor == minor)
-			return h;
-	}
+	list_for_each_entry(dev, &cx8802_devlist, devlist)
+		if (dev->mpeg_dev && dev->mpeg_dev->minor == minor)
+			return dev;
 
 	return NULL;
 }
+EXPORT_SYMBOL(cx8802_get_device);
+#endif
 
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype)
 {
-	struct cx8802_dev *h = NULL;
-	struct cx8802_driver *d = NULL;
-	struct list_head *list;
-	struct list_head *list2;
+	struct cx8802_driver *d;
 
-	list_for_each(list,&cx8802_devlist) {
-		h = list_entry(list, struct cx8802_dev, devlist);
-		if (h != dev)
-			continue;
-
-		list_for_each(list2, &h->drvlist.devlist) {
-			d = list_entry(list2, struct cx8802_driver, devlist);
-
-			/* only unregister the correct driver type */
-			if (d->type_id == btype) {
-				return d;
-			}
-		}
-	}
+	list_for_each_entry(d, &dev->drvlist, drvlist)
+		if (d->type_id == btype)
+			return d;
 
 	return NULL;
 }
@@ -671,10 +656,9 @@ static int cx8802_check_driver(struct cx8802_driver *drv)
 
 int cx8802_register_driver(struct cx8802_driver *drv)
 {
-	struct cx8802_dev *h;
+	struct cx8802_dev *dev;
 	struct cx8802_driver *driver;
-	struct list_head *list;
-	int err = 0, i = 0;
+	int err, i = 0;
 
 	printk(KERN_INFO
 	       "cx88/2: registering cx8802 driver, type: %s access: %s\n",
@@ -686,14 +670,12 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 		return err;
 	}
 
-	list_for_each(list,&cx8802_devlist) {
-		h = list_entry(list, struct cx8802_dev, devlist);
-
+	list_for_each_entry(dev, &cx8802_devlist, devlist) {
 		printk(KERN_INFO
 		       "%s/2: subsystem: %04x:%04x, board: %s [card=%d]\n",
-		       h->core->name, h->pci->subsystem_vendor,
-		       h->pci->subsystem_device, h->core->board.name,
-		       h->core->boardnr);
+		       dev->core->name, dev->pci->subsystem_vendor,
+		       dev->pci->subsystem_device, dev->core->board.name,
+		       dev->core->boardnr);
 
 		/* Bring up a new struct for each driver instance */
 		driver = kzalloc(sizeof(*drv),GFP_KERNEL);
@@ -701,7 +683,7 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 			return -ENOMEM;
 
 		/* Snapshot of the driver registration data */
-		drv->core = h->core;
+		drv->core = dev->core;
 		drv->suspend = cx8802_suspend_common;
 		drv->resume = cx8802_resume_common;
 		drv->request_acquire = cx8802_request_acquire;
@@ -712,49 +694,38 @@ int cx8802_register_driver(struct cx8802_driver *drv)
 		if (err == 0) {
 			i++;
 			mutex_lock(&drv->core->lock);
-			list_add_tail(&driver->devlist,&h->drvlist.devlist);
+			list_add_tail(&driver->drvlist, &dev->drvlist);
 			mutex_unlock(&drv->core->lock);
 		} else {
 			printk(KERN_ERR
 			       "%s/2: cx8802 probe failed, err = %d\n",
-			       h->core->name, err);
+			       dev->core->name, err);
 		}
 
 	}
-	if (i == 0)
-		err = -ENODEV;
-	else
-		err = 0;
 
-	return err;
+	return i ? 0 : -ENODEV;
 }
 
 int cx8802_unregister_driver(struct cx8802_driver *drv)
 {
-	struct cx8802_dev *h;
-	struct cx8802_driver *d;
-	struct list_head *list;
-	struct list_head *list2, *q;
-	int err = 0, i = 0;
+	struct cx8802_dev *dev;
+	struct cx8802_driver *d, *dtmp;
+	int err = 0;
 
 	printk(KERN_INFO
 	       "cx88/2: unregistering cx8802 driver, type: %s access: %s\n",
 	       drv->type_id == CX88_MPEG_DVB ? "dvb" : "blackbird",
 	       drv->hw_access == CX8802_DRVCTL_SHARED ? "shared" : "exclusive");
 
-	list_for_each(list,&cx8802_devlist) {
-		i++;
-		h = list_entry(list, struct cx8802_dev, devlist);
-
+	list_for_each_entry(dev, &cx8802_devlist, devlist) {
 		printk(KERN_INFO
 		       "%s/2: subsystem: %04x:%04x, board: %s [card=%d]\n",
-		       h->core->name, h->pci->subsystem_vendor,
-		       h->pci->subsystem_device, h->core->board.name,
-		       h->core->boardnr);
+		       dev->core->name, dev->pci->subsystem_vendor,
+		       dev->pci->subsystem_device, dev->core->board.name,
+		       dev->core->boardnr);
 
-		list_for_each_safe(list2, q, &h->drvlist.devlist) {
-			d = list_entry(list2, struct cx8802_driver, devlist);
-
+		list_for_each_entry_safe(d, dtmp, &dev->drvlist, drvlist) {
 			/* only unregister the correct driver type */
 			if (d->type_id != drv->type_id)
 				continue;
@@ -762,12 +733,12 @@ int cx8802_unregister_driver(struct cx8802_driver *drv)
 			err = d->remove(d);
 			if (err == 0) {
 				mutex_lock(&drv->core->lock);
-				list_del(list2);
+				list_del(&d->drvlist);
 				mutex_unlock(&drv->core->lock);
+				kfree(d);
 			} else
 				printk(KERN_ERR "%s/2: cx8802 driver remove "
-				       "failed (%d)\n", h->core->name, err);
-
+				       "failed (%d)\n", dev->core->name, err);
 		}
 
 	}
@@ -805,7 +776,7 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 	if (err != 0)
 		goto fail_free;
 
-	INIT_LIST_HEAD(&dev->drvlist.devlist);
+	INIT_LIST_HEAD(&dev->drvlist);
 	list_add_tail(&dev->devlist,&cx8802_devlist);
 
 	/* Maintain a reference so cx88-video can query the 8802 device. */
@@ -825,23 +796,30 @@ static int __devinit cx8802_probe(struct pci_dev *pci_dev,
 static void __devexit cx8802_remove(struct pci_dev *pci_dev)
 {
 	struct cx8802_dev *dev;
-	struct cx8802_driver *h;
-	struct list_head *list;
 
 	dev = pci_get_drvdata(pci_dev);
 
 	dprintk( 1, "%s\n", __FUNCTION__);
 
-	list_for_each(list,&dev->drvlist.devlist) {
-		h = list_entry(list, struct cx8802_driver, devlist);
-		dprintk( 1, " ->driver\n");
-		if (h->remove == NULL) {
-			printk(KERN_ERR "%s .. skipping driver, no probe function\n", __FUNCTION__);
-			continue;
+	if (!list_empty(&dev->drvlist)) {
+		struct cx8802_driver *drv, *tmp;
+		int err;
+
+		printk(KERN_WARNING "%s/2: Trying to remove cx8802 driver "
+		       "while cx8802 sub-drivers still loaded?!\n",
+		       dev->core->name);
+
+		list_for_each_entry_safe(drv, tmp, &dev->drvlist, drvlist) {
+			err = drv->remove(drv);
+			if (err == 0) {
+				mutex_lock(&drv->core->lock);
+				list_del(&drv->drvlist);
+				mutex_unlock(&drv->core->lock);
+			} else
+				printk(KERN_ERR "%s/2: cx8802 driver remove "
+				       "failed (%d)\n", dev->core->name, err);
+			kfree(drv);
 		}
-		printk(KERN_INFO "%s .. Removing driver type %d\n", __FUNCTION__, h->type_id);
-		cx8802_unregister_driver(h);
-		list_del(&dev->drvlist.devlist);
 	}
 
 	/* Destroy any 8802 reference. */
@@ -901,7 +879,6 @@ EXPORT_SYMBOL(cx8802_fini_common);
 
 EXPORT_SYMBOL(cx8802_register_driver);
 EXPORT_SYMBOL(cx8802_unregister_driver);
-EXPORT_SYMBOL(cx8802_get_device);
 EXPORT_SYMBOL(cx8802_get_driver);
 /* ----------------------------------------------------------- */
 /*

@@ -2585,7 +2585,6 @@ et61x251_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	strcpy(cam->v4ldev->name, "ET61X[12]51 PC Camera");
 	cam->v4ldev->owner = THIS_MODULE;
 	cam->v4ldev->type = VID_TYPE_CAPTURE | VID_TYPE_SCALES;
-	cam->v4ldev->hardware = 0;
 	cam->v4ldev->fops = &et61x251_fops;
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;

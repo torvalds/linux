@@ -229,7 +229,6 @@ static struct video_device pcm20_radio = {
 	.owner		= THIS_MODULE,
 	.name		= "Miro PCM 20 radio",
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_RTRACK,
 	.fops           = &pcm20_fops,
 	.priv		= &pcm20_unit
 };

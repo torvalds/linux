@@ -1675,7 +1675,6 @@ static struct video_device cx8800_radio_template =
 {
 	.name                 = "cx8800-radio",
 	.type                 = VID_TYPE_TUNER,
-	.hardware             = 0,
 	.fops                 = &radio_fops,
 	.minor                = -1,
 	.vidioc_querycap      = radio_querycap,

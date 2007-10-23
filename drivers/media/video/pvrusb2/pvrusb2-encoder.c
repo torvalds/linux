@@ -209,6 +209,11 @@ static int pvr2_encoder_cmd(void *ctxt,
 
 	LOCK_TAKE(hdw->ctl_lock); do {
 
+		if (!hdw->flag_encoder_ok) {
+			ret = -EIO;
+			break;
+		}
+
 		retry_flag = 0;
 		try_count++;
 		ret = 0;
@@ -273,6 +278,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 			ret = -EBUSY;
 		}
 		if (ret) {
+			hdw->flag_encoder_ok = 0;
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
 				"Giving up on command."

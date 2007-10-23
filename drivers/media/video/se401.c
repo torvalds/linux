@@ -1231,7 +1231,6 @@ static struct video_device se401_template = {
 	.owner =	THIS_MODULE,
 	.name =         "se401 USB camera",
 	.type =         VID_TYPE_CAPTURE,
-	.hardware =     VID_HARDWARE_SE401,
 	.fops =         &se401_fops,
 };
 

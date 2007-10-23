@@ -333,6 +333,7 @@ struct saa7134_thread {
 	unsigned int               scan1;
 	unsigned int               scan2;
 	unsigned int               mode;
+	unsigned int		   stopped;
 };
 
 /* buffer for one video/vbi/ts frame */
@@ -524,7 +525,7 @@ struct saa7134_dev {
 	unsigned int               hw_mute;
 	int                        last_carrier;
 	int                        nosignal;
-	unsigned int               inresume;
+	unsigned int               insuspend;
 
 	/* SAA7134_MPEG_* */
 	struct saa7134_ts          ts;
@@ -632,7 +633,7 @@ extern struct video_device saa7134_radio_template;
 
 void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm);
 int saa7134_videoport_init(struct saa7134_dev *dev);
-void saa7134_set_decoder(struct saa7134_dev *dev);
+void saa7134_set_tvnorm_hw(struct saa7134_dev *dev);
 
 int saa7134_common_ioctl(struct saa7134_dev *dev,
 			 unsigned int cmd, void *arg);
@@ -706,6 +707,8 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
+void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir);
+void saa7134_ir_stop(struct saa7134_dev *dev);
 
 
 /*

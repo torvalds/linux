@@ -4668,7 +4668,6 @@ static struct video_device vdev_template = {
 	.owner =	THIS_MODULE,
 	.name =		"OV511 USB Camera",
 	.type =		VID_TYPE_CAPTURE,
-	.hardware =	VID_HARDWARE_OV511,
 	.fops =		&ov511_fops,
 	.release =	video_device_release,
 	.minor =	-1,

@@ -22,6 +22,7 @@
 #define IVTV_STREAMS_H
 
 int ivtv_streams_setup(struct ivtv *itv);
+int ivtv_streams_register(struct ivtv *itv);
 void ivtv_streams_cleanup(struct ivtv *itv);
 
 /* Capture related */

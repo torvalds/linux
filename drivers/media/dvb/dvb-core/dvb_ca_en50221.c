@@ -972,7 +972,7 @@ static int dvb_ca_en50221_thread(void *data)
 	/* main loop */
 	while (!kthread_should_stop()) {
 		/* sleep for a bit */
-		while (!ca->wakeup) {
+		if (!ca->wakeup) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule_timeout(ca->delay);
 			if (kthread_should_stop())

@@ -1400,7 +1400,6 @@ static const struct file_operations usbvision_fops = {
 static struct video_device usbvision_video_template = {
 	.owner             = THIS_MODULE,
 	.type		= VID_TYPE_TUNER | VID_TYPE_CAPTURE,
-	.hardware	= VID_HARDWARE_USBVISION,
 	.fops		= &usbvision_fops,
 	.name           = "usbvision-video",
 	.release	= video_device_release,
@@ -1455,7 +1454,6 @@ static struct video_device usbvision_radio_template=
 {
 	.owner             = THIS_MODULE,
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_USBVISION,
 	.fops		= &usbvision_radio_fops,
 	.name           = "usbvision-radio",
 	.release	= video_device_release,
@@ -1492,7 +1490,6 @@ static struct video_device usbvision_vbi_template=
 {
 	.owner             = THIS_MODULE,
 	.type		= VID_TYPE_TUNER,
-	.hardware	= VID_HARDWARE_USBVISION,
 	.fops		= &usbvision_vbi_fops,
 	.release	= video_device_release,
 	.name           = "usbvision-vbi",

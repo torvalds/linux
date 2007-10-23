@@ -3877,7 +3877,6 @@ static struct video_device bttv_video_template =
 	.name     = "UNSET",
 	.type     = VID_TYPE_CAPTURE|VID_TYPE_TUNER|
 		    VID_TYPE_CLIPPING|VID_TYPE_SCALES,
-	.hardware = VID_HARDWARE_BT848,
 	.fops     = &bttv_fops,
 	.minor    = -1,
 };
@@ -3886,7 +3885,6 @@ static struct video_device bttv_vbi_template =
 {
 	.name     = "bt848/878 vbi",
 	.type     = VID_TYPE_TUNER|VID_TYPE_TELETEXT,
-	.hardware = VID_HARDWARE_BT848,
 	.fops     = &bttv_fops,
 	.minor    = -1,
 };
@@ -4034,7 +4032,6 @@ static struct video_device radio_template =
 {
 	.name     = "bt848/878 radio",
 	.type     = VID_TYPE_TUNER,
-	.hardware = VID_HARDWARE_BT848,
 	.fops     = &radio_fops,
 	.minor    = -1,
 };

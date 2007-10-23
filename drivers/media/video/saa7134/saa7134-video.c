@@ -560,15 +560,8 @@ void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 
 	dev->crop_current = dev->crop_defrect;
 
-	saa7134_set_decoder(dev);
+	saa7134_set_tvnorm_hw(dev);
 
-	if (card_in(dev, dev->ctl_input).tv) {
-		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
-				&& ((card(dev).tuner_config == 1)
-				||  (card(dev).tuner_config == 2)))
-			saa7134_set_gpio(dev, 22, 5);
-		saa7134_i2c_call_clients(dev, VIDIOC_S_STD, &norm->id);
-	}
 }
 
 static void video_mux(struct saa7134_dev *dev, int input)
@@ -579,7 +572,8 @@ static void video_mux(struct saa7134_dev *dev, int input)
 	saa7134_tvaudio_setinput(dev, &card_in(dev, input));
 }
 
-void saa7134_set_decoder(struct saa7134_dev *dev)
+
+static void saa7134_set_decoder(struct saa7134_dev *dev)
 {
 	int luma_control, sync_control, mux;
 
@@ -628,6 +622,19 @@ void saa7134_set_decoder(struct saa7134_dev *dev)
 	saa_writeb(SAA7134_MISC_VGATE_MSB,        norm->vgate_misc);
 	saa_writeb(SAA7134_RAW_DATA_GAIN,         0x40);
 	saa_writeb(SAA7134_RAW_DATA_OFFSET,       0x80);
+}
+
+void saa7134_set_tvnorm_hw(struct saa7134_dev *dev)
+{
+	saa7134_set_decoder(dev);
+
+	if (card_in(dev, dev->ctl_input).tv) {
+		if ((card(dev).tuner_type == TUNER_PHILIPS_TDA8290)
+				&& ((card(dev).tuner_config == 1)
+				||  (card(dev).tuner_config == 2)))
+			saa7134_set_gpio(dev, 22, 5);
+		saa7134_i2c_call_clients(dev, VIDIOC_S_STD, &dev->tvnorm->id);
+	}
 }
 
 static void set_h_prescale(struct saa7134_dev *dev, int task, int prescale)
@@ -2352,7 +2359,6 @@ struct video_device saa7134_video_template =
 	.name          = "saa7134-video",
 	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|
 			 VID_TYPE_CLIPPING|VID_TYPE_SCALES,
-	.hardware      = 0,
 	.fops          = &video_fops,
 	.minor         = -1,
 };
@@ -2361,7 +2367,6 @@ struct video_device saa7134_vbi_template =
 {
 	.name          = "saa7134-vbi",
 	.type          = VID_TYPE_TUNER|VID_TYPE_TELETEXT,
-	.hardware      = 0,
 	.fops          = &video_fops,
 	.minor         = -1,
 };
@@ -2370,7 +2375,6 @@ struct video_device saa7134_radio_template =
 {
 	.name          = "saa7134-radio",
 	.type          = VID_TYPE_TUNER,
-	.hardware      = 0,
 	.fops          = &radio_fops,
 	.minor         = -1,
 };

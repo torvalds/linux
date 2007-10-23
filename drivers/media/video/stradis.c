@@ -1917,7 +1917,6 @@ static const struct file_operations saa_fops = {
 static struct video_device saa_template = {
 	.name = "SAA7146A",
 	.type = VID_TYPE_CAPTURE | VID_TYPE_OVERLAY,
-	.hardware = VID_HARDWARE_SAA7146,
 	.fops = &saa_fops,
 	.minor = -1,
 };

@@ -189,7 +189,6 @@ void snd_tea575x_init(struct snd_tea575x *tea)
 	tea->vd.owner = tea->card->module;
 	strcpy(tea->vd.name, tea->tea5759 ? "TEA5759 radio" : "TEA5757 radio");
 	tea->vd.type = VID_TYPE_TUNER;
-	tea->vd.hardware = VID_HARDWARE_RTRACK;	/* FIXME: assign new number */
 	tea->vd.release = snd_tea575x_release;
 	video_set_drvdata(&tea->vd, tea);
 	tea->vd.fops = &tea->fops;

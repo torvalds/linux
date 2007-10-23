@@ -899,7 +899,6 @@ static struct video_device qcam_template=
 	.owner		= THIS_MODULE,
 	.name		= "Connectix Quickcam",
 	.type		= VID_TYPE_CAPTURE,
-	.hardware	= VID_HARDWARE_QCAM_BW,
 	.fops           = &qcam_fops,
 };
 

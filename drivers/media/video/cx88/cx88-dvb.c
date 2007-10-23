@@ -475,8 +475,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_DNTV_LIVE_DVB_T_PRO:
 #if defined(CONFIG_VIDEO_CX88_VP3054) || (defined(CONFIG_VIDEO_CX88_VP3054_MODULE) && defined(MODULE))
+		/* MT352 is on a secondary I2C bus made from some GPIO lines */
 		dev->dvb.frontend = dvb_attach(mt352_attach, &dntv_live_dvbt_pro_config,
-			&((struct vp3054_i2c_state *)dev->card_priv)->adap);
+					       &dev->vp3054->adap);
 		if (dev->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, dev->dvb.frontend, 0x61,
 				   &dev->core->i2c_adap, DVB_PLL_FMD1216ME);

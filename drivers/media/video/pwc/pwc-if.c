@@ -166,7 +166,6 @@ static struct video_device pwc_template = {
 	.owner =	THIS_MODULE,
 	.name =		"Philips Webcam",	/* Filled in later */
 	.type =		VID_TYPE_CAPTURE,
-	.hardware =	VID_HARDWARE_PWC,
 	.release =	video_device_release,
 	.fops =         &pwc_fops,
 	.minor =        -1,

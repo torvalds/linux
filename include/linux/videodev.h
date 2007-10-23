@@ -294,48 +294,6 @@ struct video_code
 #define VID_PLAY_RESET			13
 #define VID_PLAY_END_MARK		14
 
-
-
-#define VID_HARDWARE_BT848	1
-#define VID_HARDWARE_QCAM_BW	2
-#define VID_HARDWARE_PMS	3
-#define VID_HARDWARE_QCAM_C	4
-#define VID_HARDWARE_PSEUDO	5
-#define VID_HARDWARE_SAA5249	6
-#define VID_HARDWARE_AZTECH	7
-#define VID_HARDWARE_SF16MI	8
-#define VID_HARDWARE_RTRACK	9
-#define VID_HARDWARE_ZOLTRIX	10
-#define VID_HARDWARE_SAA7146    11
-#define VID_HARDWARE_VIDEUM	12	/* Reserved for Winnov videum */
-#define VID_HARDWARE_RTRACK2	13
-#define VID_HARDWARE_PERMEDIA2	14	/* Reserved for Permedia2 */
-#define VID_HARDWARE_RIVA128	15	/* Reserved for RIVA 128 */
-#define VID_HARDWARE_PLANB	16	/* PowerMac motherboard video-in */
-#define VID_HARDWARE_BROADWAY	17	/* Broadway project */
-#define VID_HARDWARE_GEMTEK	18
-#define VID_HARDWARE_TYPHOON	19
-#define VID_HARDWARE_VINO	20	/* SGI Indy Vino */
-#define VID_HARDWARE_CADET	21	/* Cadet radio */
-#define VID_HARDWARE_TRUST	22	/* Trust FM Radio */
-#define VID_HARDWARE_TERRATEC	23	/* TerraTec ActiveRadio */
-#define VID_HARDWARE_CPIA	24
-#define VID_HARDWARE_ZR36120	25	/* Zoran ZR36120/ZR36125 */
-#define VID_HARDWARE_ZR36067	26	/* Zoran ZR36067/36060 */
-#define VID_HARDWARE_OV511	27
-#define VID_HARDWARE_ZR356700	28	/* Zoran 36700 series */
-#define VID_HARDWARE_W9966	29
-#define VID_HARDWARE_SE401	30	/* SE401 USB webcams */
-#define VID_HARDWARE_PWC	31	/* Philips webcams */
-#define VID_HARDWARE_MEYE	32	/* Sony Vaio MotionEye cameras */
-#define VID_HARDWARE_CPIA2	33
-#define VID_HARDWARE_VICAM      34
-#define VID_HARDWARE_SF16FMR2	35
-#define VID_HARDWARE_W9968CF	36
-#define VID_HARDWARE_SAA7114H   37
-#define VID_HARDWARE_SN9C102	38
-#define VID_HARDWARE_ARV	39
-
 #endif /* CONFIG_VIDEO_V4L1_COMPAT */
 
 #endif /* __LINUX_VIDEODEV_H */

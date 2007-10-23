@@ -166,10 +166,9 @@ static void ivtv_stream_init(struct ivtv *itv, int type)
 	ivtv_queue_init(&s->q_io);
 }
 
-static int ivtv_reg_dev(struct ivtv *itv, int type)
+static int ivtv_prep_dev(struct ivtv *itv, int type)
 {
 	struct ivtv_stream *s = &itv->streams[type];
-	int vfl_type = ivtv_stream_info[type].vfl_type;
 	int minor_offset = ivtv_stream_info[type].minor_offset;
 	int minor;
 
@@ -187,15 +186,12 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	if (type >= IVTV_DEC_STREAM_TYPE_MPG && !(itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT))
 		return 0;
 
-	if (minor_offset >= 0)
-		/* card number + user defined offset + device offset */
-		minor = itv->num + ivtv_first_minor + minor_offset;
-	else
-		minor = -1;
+	/* card number + user defined offset + device offset */
+	minor = itv->num + ivtv_first_minor + minor_offset;
 
 	/* User explicitly selected 0 buffers for these streams, so don't
 	   create them. */
-	if (minor >= 0 && ivtv_stream_info[type].dma != PCI_DMA_NONE &&
+	if (ivtv_stream_info[type].dma != PCI_DMA_NONE &&
 	    itv->options.kilobytes[type] == 0) {
 		IVTV_INFO("Disabled %s device\n", ivtv_stream_info[type].name);
 		return 0;
@@ -223,21 +219,53 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	s->v4l2dev->fops = ivtv_stream_info[type].fops;
 	s->v4l2dev->release = video_device_release;
 
-	if (minor >= 0) {
-		/* Register device. First try the desired minor, then any free one. */
-		if (video_register_device(s->v4l2dev, vfl_type, minor) &&
-		    video_register_device(s->v4l2dev, vfl_type, -1)) {
-			IVTV_ERR("Couldn't register v4l2 device for %s minor %d\n",
-					s->name, minor);
-			video_device_release(s->v4l2dev);
-			s->v4l2dev = NULL;
-			return -ENOMEM;
-		}
+	return 0;
+}
+
+/* Initialize v4l2 variables and prepare v4l2 devices */
+int ivtv_streams_setup(struct ivtv *itv)
+{
+	int type;
+
+	/* Setup V4L2 Devices */
+	for (type = 0; type < IVTV_MAX_STREAMS; type++) {
+		/* Prepare device */
+		if (ivtv_prep_dev(itv, type))
+			break;
+
+		if (itv->streams[type].v4l2dev == NULL)
+			continue;
+
+		/* Allocate Stream */
+		if (ivtv_stream_alloc(&itv->streams[type]))
+			break;
 	}
-	else {
-		/* Don't register a 'hidden' stream (OSD) */
-		IVTV_INFO("Created framebuffer stream for %s\n", s->name);
+	if (type == IVTV_MAX_STREAMS)
 		return 0;
+
+	/* One or more streams could not be initialized. Clean 'em all up. */
+	ivtv_streams_cleanup(itv);
+	return -ENOMEM;
+}
+
+static int ivtv_reg_dev(struct ivtv *itv, int type)
+{
+	struct ivtv_stream *s = &itv->streams[type];
+	int vfl_type = ivtv_stream_info[type].vfl_type;
+	int minor;
+
+	if (s->v4l2dev == NULL)
+		return 0;
+
+	minor = s->v4l2dev->minor;
+	/* Register device. First try the desired minor, then any free one. */
+	if (video_register_device(s->v4l2dev, vfl_type, minor) &&
+			video_register_device(s->v4l2dev, vfl_type, -1)) {
+		IVTV_ERR("Couldn't register v4l2 device for %s minor %d\n",
+				s->name, minor);
+		video_device_release(s->v4l2dev);
+		s->v4l2dev = NULL;
+		return -ENOMEM;
 	}
 
 	switch (vfl_type) {
@@ -262,27 +290,18 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 	return 0;
 }
 
-/* Initialize v4l2 variables and register v4l2 devices */
-int ivtv_streams_setup(struct ivtv *itv)
+/* Register v4l2 devices */
+int ivtv_streams_register(struct ivtv *itv)
 {
 	int type;
+	int err = 0;
 
-	/* Setup V4L2 Devices */
-	for (type = 0; type < IVTV_MAX_STREAMS; type++) {
-		/* Register Device */
-		if (ivtv_reg_dev(itv, type))
-			break;
+	/* Register V4L2 devices */
+	for (type = 0; type < IVTV_MAX_STREAMS; type++)
+		err |= ivtv_reg_dev(itv, type);
 
-		if (itv->streams[type].v4l2dev == NULL)
-			continue;
-
-		/* Allocate Stream */
-		if (ivtv_stream_alloc(&itv->streams[type]))
-			break;
-	}
-	if (type == IVTV_MAX_STREAMS) {
+	if (err == 0)
 		return 0;
-	}
 
 	/* One or more streams could not be initialized. Clean 'em all up. */
 	ivtv_streams_cleanup(itv);
@@ -303,11 +322,8 @@ void ivtv_streams_cleanup(struct ivtv *itv)
 			continue;
 
 		ivtv_stream_free(&itv->streams[type]);
-		/* Free Device */
-		if (vdev->minor == -1) /* 'Hidden' never registered stream (OSD) */
-			video_device_release(vdev);
-		else    /* All others, just unregister. */
-			video_unregister_device(vdev);
+		/* Unregister device */
+		video_unregister_device(vdev);
 	}
 }
 
@@ -425,6 +441,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv *itv = s->itv;
+	struct cx2341x_mpeg_params *p = &itv->params;
 	int captype = 0, subtype = 0;
 	int enable_passthrough = 0;
 
@@ -445,7 +462,7 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		}
 		itv->mpg_data_received = itv->vbi_data_inserted = 0;
 		itv->dualwatch_jiffies = jiffies;
-		itv->dualwatch_stereo_mode = itv->params.audio_properties & 0x0300;
+		itv->dualwatch_stereo_mode = p->audio_properties & 0x0300;
 		itv->search_pack_header = 0;
 		break;
 
@@ -476,9 +493,6 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 	}
 	s->subtype = subtype;
 	s->buffers_stolen = 0;
-
-	/* mute/unmute video */
-	ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1, test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags) ? 1 : 0);
 
 	/* Clear Streamoff flags in case left from last capture */
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
@@ -536,7 +550,12 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 				itv->pgm_info_offset, itv->pgm_info_num);
 
 		/* Setup API for Stream */
-		cx2341x_update(itv, ivtv_api_func, NULL, &itv->params);
+		cx2341x_update(itv, ivtv_api_func, NULL, p);
+
+		/* mute if capturing radio */
+		if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags))
+			ivtv_vapi(itv, CX2341X_ENC_MUTE_VIDEO, 1,
+				1 | (p->video_mute_yuv << 8));
 	}
 
 	/* Vsync Setup */
@@ -585,6 +604,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	struct ivtv *itv = s->itv;
+	struct cx2341x_mpeg_params *p = &itv->params;
 	int datatype;
 
 	if (s->v4l2dev == NULL)
@@ -623,7 +643,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 		break;
 	}
 	if (ivtv_vapi(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, datatype,
-			itv->params.width, itv->params.height, itv->params.audio_properties)) {
+			p->width, p->height, p->audio_properties)) {
 		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
 	}
 	return 0;

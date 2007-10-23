@@ -1248,6 +1248,8 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 	   time we configure the encoder, then we'll fully configure it. */
 	hdw->enc_cur_valid = 0;
 
+	hdw->flag_encoder_ok = 0;
+
 	/* First prepare firmware loading */
 	ret |= pvr2_write_register(hdw, 0x0048, 0xffffffff); /*interrupt mask*/
 	ret |= pvr2_hdw_gpio_chg_dir(hdw,0xffffffff,0x00000088); /*gpio dir*/
@@ -1346,6 +1348,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "firmware2 upload post-proc failure");
 	} else {
+		hdw->flag_encoder_ok = !0;
 		hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_FIRMWARE);
 	}
 	return ret;

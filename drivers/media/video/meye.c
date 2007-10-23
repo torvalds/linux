@@ -1762,7 +1762,6 @@ static struct video_device meye_template = {
 	.owner		= THIS_MODULE,
 	.name		= "meye",
 	.type		= VID_TYPE_CAPTURE,
-	.hardware	= VID_HARDWARE_MEYE,
 	.fops		= &meye_fops,
 	.release	= video_device_release,
 	.minor		= -1,

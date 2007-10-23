@@ -44,6 +44,14 @@ module_param(ir_rc5_remote_gap, int, 0644);
 static int ir_rc5_key_timeout = 115;
 module_param(ir_rc5_key_timeout, int, 0644);
 
+static int repeat_delay = 500;
+module_param(repeat_delay, int, 0644);
+MODULE_PARM_DESC(repeat_delay, "delay before key repeat started");
+static int repeat_period = 33;
+module_param(repeat_period, int, 0644);
+MODULE_PARM_DESC(repeat_period, "repeat period between"
+    "keypresses when key is down");
+
 #define dprintk(fmt, arg...)	if (ir_debug) \
 	printk(KERN_DEBUG "%s/ir: " fmt, dev->name , ## arg)
 #define i2cdprintk(fmt, arg...)    if (ir_debug) \
@@ -59,6 +67,13 @@ static int build_key(struct saa7134_dev *dev)
 	struct card_ir *ir = dev->remote;
 	u32 gpio, data;
 
+	/* here comes the additional handshake steps for some cards */
+	switch (dev->board) {
+	case SAA7134_BOARD_GOTVIEW_7135:
+		saa_setb(SAA7134_GPIO_GPSTATUS1, 0x80);
+		saa_clearb(SAA7134_GPIO_GPSTATUS1, 0x80);
+		break;
+	}
 	/* rising SAA7134_GPIO_GPRESCAN reads the status */
 	saa_clearb(SAA7134_GPIO_GPMODE3,SAA7134_GPIO_GPRESCAN);
 	saa_setb(SAA7134_GPIO_GPMODE3,SAA7134_GPIO_GPRESCAN);
@@ -159,7 +174,7 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
+void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 {
 	if (ir->polling) {
 		setup_timer(&ir->timer, saa7134_input_timer,
@@ -182,7 +197,7 @@ static void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 	}
 }
 
-static void saa7134_ir_stop(struct saa7134_dev *dev)
+void saa7134_ir_stop(struct saa7134_dev *dev)
 {
 	if (dev->remote->polling)
 		del_timer_sync(&dev->remote->timer);
@@ -285,10 +300,10 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_GOTVIEW_7135:
 		ir_codes     = ir_codes_gotview7135;
-		mask_keycode = 0x0003EC;
-		mask_keyup   = 0x008000;
+		mask_keycode = 0x0003CC;
 		mask_keydown = 0x000010;
-		polling	     = 50; // ms
+		polling	     = 5; /* ms */
+		saa_setb(SAA7134_GPIO_GPMODE1, 0x80);
 		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
 	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
@@ -385,6 +400,10 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	err = input_register_device(ir->dev);
 	if (err)
 		goto err_out_stop;
+
+	/* the remote isn't as bouncy as a keyboard */
+	ir->dev->rep[REP_DELAY] = repeat_delay;
+	ir->dev->rep[REP_PERIOD] = repeat_period;
 
 	return 0;
 
