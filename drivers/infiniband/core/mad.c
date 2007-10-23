@@ -701,7 +701,8 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 	}
 
 	/* Check to post send on QP or process locally */
-	if (smi_check_local_smp(smp, device) == IB_SMI_DISCARD)
+	if (smi_check_local_smp(smp, device) == IB_SMI_DISCARD &&
+	    smi_check_local_returning_smp(smp, device) == IB_SMI_DISCARD)
 		goto out;
 
 	local = kmalloc(sizeof *local, GFP_ATOMIC);
@@ -752,8 +753,7 @@ static int handle_outgoing_dr_smp(struct ib_mad_agent_private *mad_agent_priv,
 		port_priv = ib_get_mad_port(mad_agent_priv->agent.device,
 					    mad_agent_priv->agent.port_num);
 		if (port_priv) {
-			mad_priv->mad.mad.mad_hdr.tid =
-				((struct ib_mad *)smp)->mad_hdr.tid;
+			memcpy(&mad_priv->mad.mad, smp, sizeof(struct ib_mad));
 			recv_mad_agent = find_mad_agent(port_priv,
 						        &mad_priv->mad.mad);
 		}
