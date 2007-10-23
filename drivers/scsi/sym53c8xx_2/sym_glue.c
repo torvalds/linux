@@ -39,7 +39,6 @@
  */
 #include <linux/ctype.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
@@ -54,16 +53,12 @@
 #define NAME53C		"sym53c"
 #define NAME53C8XX	"sym53c8xx"
 
-#define IRQ_FMT "%d"
-#define IRQ_PRM(x) (x)
-
 struct sym_driver_setup sym_driver_setup = SYM_LINUX_DRIVER_SETUP;
 unsigned int sym_debug_flags = 0;
 
 static char *excl_string;
 static char *safe_string;
 module_param_named(cmd_per_lun, sym_driver_setup.max_tag, ushort, 0);
-module_param_string(tag_ctrl, sym_driver_setup.tag_ctrl, 100, 0);
 module_param_named(burst, sym_driver_setup.burst_order, byte, 0);
 module_param_named(led, sym_driver_setup.scsi_led, byte, 0);
 module_param_named(diff, sym_driver_setup.scsi_diff, byte, 0);
@@ -78,7 +73,6 @@ module_param_named(excl, excl_string, charp, 0);
 module_param_named(safe, safe_string, charp, 0);
 
 MODULE_PARM_DESC(cmd_per_lun, "The maximum number of tags to use by default");
-MODULE_PARM_DESC(tag_ctrl, "More detailed control over tags per LUN");
 MODULE_PARM_DESC(burst, "Maximum burst.  0 to disable, 255 to read from registers");
 MODULE_PARM_DESC(led, "Set to 1 to enable LED support");
 MODULE_PARM_DESC(diff, "0 for no differential mode, 1 for BIOS, 2 for always, 3 for not GPIO3");
@@ -134,56 +128,26 @@ static struct scsi_transport_template *sym2_transport_template = NULL;
  *  Driver private area in the SCSI command structure.
  */
 struct sym_ucmd {		/* Override the SCSI pointer structure */
-	dma_addr_t	data_mapping;
-	unsigned char	data_mapped;
-	unsigned char	to_do;			/* For error handling */
-	void (*old_done)(struct scsi_cmnd *);	/* For error handling */
-	struct completion *eh_done;		/* For error handling */
+	struct completion *eh_done;		/* SCSI error handling */
 };
 
 #define SYM_UCMD_PTR(cmd)  ((struct sym_ucmd *)(&(cmd)->SCp))
 #define SYM_SOFTC_PTR(cmd) sym_get_hcb(cmd->device->host)
 
-static void __unmap_scsi_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
-{
-	if (SYM_UCMD_PTR(cmd)->data_mapped)
-		scsi_dma_unmap(cmd);
-
-	SYM_UCMD_PTR(cmd)->data_mapped = 0;
-}
-
-static int __map_scsi_sg_data(struct pci_dev *pdev, struct scsi_cmnd *cmd)
-{
-	int use_sg;
-
-	use_sg = scsi_dma_map(cmd);
-	if (use_sg > 0) {
-		SYM_UCMD_PTR(cmd)->data_mapped  = 2;
-		SYM_UCMD_PTR(cmd)->data_mapping = use_sg;
-	}
-
-	return use_sg;
-}
-
-#define unmap_scsi_data(np, cmd)	\
-		__unmap_scsi_data(np->s.device, cmd)
-#define map_scsi_sg_data(np, cmd)	\
-		__map_scsi_sg_data(np->s.device, cmd)
 /*
  *  Complete a pending CAM CCB.
  */
 void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *cmd)
 {
-	unmap_scsi_data(np, cmd);
+	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
+	BUILD_BUG_ON(sizeof(struct scsi_pointer) < sizeof(struct sym_ucmd));
+
+	if (ucmd->eh_done)
+		complete(ucmd->eh_done);
+
+	scsi_dma_unmap(cmd);
 	cmd->scsi_done(cmd);
 }
-
-static void sym_xpt_done2(struct sym_hcb *np, struct scsi_cmnd *cmd, int cam_status)
-{
-	sym_set_cam_status(cmd, cam_status);
-	sym_xpt_done(np, cmd);
-}
-
 
 /*
  *  Tell the SCSI layer about a BUS RESET.
@@ -196,14 +160,6 @@ void sym_xpt_async_bus_reset(struct sym_hcb *np)
 	if (sym_verbose >= 2)
 		printf_info("%s: command processing suspended for %d seconds\n",
 			    sym_name(np), sym_driver_setup.settle_delay);
-}
-
-/*
- *  Tell the SCSI layer about a BUS DEVICE RESET message sent.
- */
-void sym_xpt_async_sent_bdr(struct sym_hcb *np, int target)
-{
-	printf_notice("%s: TARGET %d has been reset.\n", sym_name(np), target);
 }
 
 /*
@@ -307,14 +263,14 @@ static int sym_scatter(struct sym_hcb *np, struct sym_ccb *cp, struct scsi_cmnd 
 
 	cp->data_len = 0;
 
-	use_sg = map_scsi_sg_data(np, cmd);
+	use_sg = scsi_dma_map(cmd);
 	if (use_sg > 0) {
 		struct scatterlist *sg;
 		struct sym_tcb *tp = &np->target[cp->target];
 		struct sym_tblmove *data;
 
 		if (use_sg > SYM_CONF_MAX_SG) {
-			unmap_scsi_data(np, cmd);
+			scsi_dma_unmap(cmd);
 			return -1;
 		}
 
@@ -349,15 +305,6 @@ static int sym_queue_command(struct sym_hcb *np, struct scsi_cmnd *cmd)
 	struct sym_lcb *lp;
 	struct sym_ccb *cp;
 	int	order;
-
-	/*
-	 *  Minimal checkings, so that we will not 
-	 *  go outside our tables.
-	 */
-	if (sdev->id == np->myaddr) {
-		sym_xpt_done2(np, cmd, DID_NO_CONNECT);
-		return 0;
-	}
 
 	/*
 	 *  Retrieve the target descriptor.
@@ -433,7 +380,7 @@ int sym_setup_data_and_start(struct sym_hcb *np, struct scsi_cmnd *cmd, struct s
 	 */
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
-		printk("%s: got DMA_BIDIRECTIONAL command", sym_name(np));
+		scmd_printk(KERN_INFO, cmd, "got DMA_BIDIRECTIONAL command");
 		sym_set_cam_status(cmd, DID_ERROR);
 		goto out_abort;
 	case DMA_TO_DEVICE:
@@ -542,14 +489,16 @@ static void sym_timer(struct sym_hcb *np)
 /*
  *  PCI BUS error handler.
  */
-void sym_log_bus_error(struct sym_hcb *np)
+void sym_log_bus_error(struct Scsi_Host *shost)
 {
-	u_short pci_sts;
-	pci_read_config_word(np->s.device, PCI_STATUS, &pci_sts);
+	struct sym_data *sym_data = shost_priv(shost);
+	struct pci_dev *pdev = sym_data->pdev;
+	unsigned short pci_sts;
+	pci_read_config_word(pdev, PCI_STATUS, &pci_sts);
 	if (pci_sts & 0xf900) {
-		pci_write_config_word(np->s.device, PCI_STATUS, pci_sts);
-		printf("%s: PCI STATUS = 0x%04x\n",
-			sym_name(np), pci_sts & 0xf900);
+		pci_write_config_word(pdev, PCI_STATUS, pci_sts);
+		shost_printk(KERN_WARNING, shost,
+			"PCI bus error: status = 0x%04x\n", pci_sts & 0xf900);
 	}
 }
 
@@ -564,7 +513,7 @@ static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
 	struct sym_ucmd *ucp = SYM_UCMD_PTR(cmd);
 	int sts = 0;
 
-	cmd->scsi_done     = done;
+	cmd->scsi_done = done;
 	memset(ucp, 0, sizeof(*ucp));
 
 	/*
@@ -593,18 +542,23 @@ static int sym53c8xx_queue_command(struct scsi_cmnd *cmd,
  */
 static irqreturn_t sym53c8xx_intr(int irq, void *dev_id)
 {
-	unsigned long flags;
-	struct sym_hcb *np = (struct sym_hcb *)dev_id;
+	struct Scsi_Host *shost = dev_id;
+	struct sym_data *sym_data = shost_priv(shost);
+	irqreturn_t result;
+
+	/* Avoid spinloop trying to handle interrupts on frozen device */
+	if (pci_channel_offline(sym_data->pdev))
+		return IRQ_NONE;
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("[");
 
-	spin_lock_irqsave(np->s.host->host_lock, flags);
-	sym_interrupt(np);
-	spin_unlock_irqrestore(np->s.host->host_lock, flags);
+	spin_lock(shost->host_lock);
+	result = sym_interrupt(shost);
+	spin_unlock(shost->host_lock);
 
 	if (DEBUG_FLAGS & DEBUG_TINY) printf_debug ("]\n");
 
-	return IRQ_HANDLED;
+	return result;
 }
 
 /*
@@ -630,57 +584,59 @@ static void sym53c8xx_timer(unsigned long npref)
 #define SYM_EH_HOST_RESET	3
 
 /*
- *  What we will do regarding the involved SCSI command.
- */
-#define SYM_EH_DO_IGNORE	0
-#define SYM_EH_DO_WAIT		2
-
-/*
- *  scsi_done() alias when error recovery is in progress.
- */
-static void sym_eh_done(struct scsi_cmnd *cmd)
-{
-	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
-	BUILD_BUG_ON(sizeof(struct scsi_pointer) < sizeof(struct sym_ucmd));
-
-	cmd->scsi_done = ucmd->old_done;
-
-	if (ucmd->to_do == SYM_EH_DO_WAIT)
-		complete(ucmd->eh_done);
-}
-
-/*
  *  Generic method for our eh processing.
  *  The 'op' argument tells what we have to do.
  */
 static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 {
-	struct sym_hcb *np = SYM_SOFTC_PTR(cmd);
 	struct sym_ucmd *ucmd = SYM_UCMD_PTR(cmd);
-	struct Scsi_Host *host = cmd->device->host;
+	struct Scsi_Host *shost = cmd->device->host;
+	struct sym_data *sym_data = shost_priv(shost);
+	struct pci_dev *pdev = sym_data->pdev;
+	struct sym_hcb *np = sym_data->ncb;
 	SYM_QUEHEAD *qp;
-	int to_do = SYM_EH_DO_IGNORE;
+	int cmd_queued = 0;
 	int sts = -1;
 	struct completion eh_done;
 
-	dev_warn(&cmd->device->sdev_gendev, "%s operation started.\n", opname);
+	scmd_printk(KERN_WARNING, cmd, "%s operation started\n", opname);
 
-	spin_lock_irq(host->host_lock);
+	/* We may be in an error condition because the PCI bus
+	 * went down. In this case, we need to wait until the
+	 * PCI bus is reset, the card is reset, and only then
+	 * proceed with the scsi error recovery.  There's no
+	 * point in hurrying; take a leisurely wait.
+	 */
+#define WAIT_FOR_PCI_RECOVERY	35
+	if (pci_channel_offline(pdev)) {
+		struct completion *io_reset;
+		int finished_reset = 0;
+		init_completion(&eh_done);
+		spin_lock_irq(shost->host_lock);
+		/* Make sure we didn't race */
+		if (pci_channel_offline(pdev)) {
+			if (!sym_data->io_reset)
+				sym_data->io_reset = &eh_done;
+			io_reset = sym_data->io_reset;
+		} else {
+			finished_reset = 1;
+		}
+		spin_unlock_irq(shost->host_lock);
+		if (!finished_reset)
+			finished_reset = wait_for_completion_timeout(io_reset,
+						WAIT_FOR_PCI_RECOVERY*HZ);
+		if (!finished_reset)
+			return SCSI_FAILED;
+	}
+
+	spin_lock_irq(shost->host_lock);
 	/* This one is queued in some place -> to wait for completion */
 	FOR_EACH_QUEUED_ELEMENT(&np->busy_ccbq, qp) {
 		struct sym_ccb *cp = sym_que_entry(qp, struct sym_ccb, link_ccbq);
 		if (cp->cmd == cmd) {
-			to_do = SYM_EH_DO_WAIT;
+			cmd_queued = 1;
 			break;
 		}
-	}
-
-	if (to_do == SYM_EH_DO_WAIT) {
-		init_completion(&eh_done);
-		ucmd->old_done = cmd->scsi_done;
-		ucmd->eh_done = &eh_done;
-		wmb();
-		cmd->scsi_done = sym_eh_done;
 	}
 
 	/* Try to proceed the operation we have been asked for */
@@ -698,7 +654,7 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 		break;
 	case SYM_EH_HOST_RESET:
 		sym_reset_scsi_bus(np, 0);
-		sym_start_up (np, 1);
+		sym_start_up(shost, 1);
 		sts = 0;
 		break;
 	default:
@@ -706,21 +662,21 @@ static int sym_eh_handler(int op, char *opname, struct scsi_cmnd *cmd)
 	}
 
 	/* On error, restore everything and cross fingers :) */
-	if (sts) {
-		cmd->scsi_done = ucmd->old_done;
-		to_do = SYM_EH_DO_IGNORE;
-	}
+	if (sts)
+		cmd_queued = 0;
 
-	ucmd->to_do = to_do;
-	spin_unlock_irq(host->host_lock);
-
-	if (to_do == SYM_EH_DO_WAIT) {
+	if (cmd_queued) {
+		init_completion(&eh_done);
+		ucmd->eh_done = &eh_done;
+		spin_unlock_irq(shost->host_lock);
 		if (!wait_for_completion_timeout(&eh_done, 5*HZ)) {
-			ucmd->to_do = SYM_EH_DO_IGNORE;
-			wmb();
+			ucmd->eh_done = NULL;
 			sts = -2;
 		}
+	} else {
+		spin_unlock_irq(shost->host_lock);
 	}
+
 	dev_warn(&cmd->device->sdev_gendev, "%s operation %s.\n", opname,
 			sts==0 ? "complete" :sts==-2 ? "timed-out" : "failed");
 	return sts ? SCSI_FAILED : SCSI_SUCCESS;
@@ -773,59 +729,6 @@ static void sym_tune_dev_queuing(struct sym_tcb *tp, int lun, u_short reqtags)
 		         "tagged command queuing %s, command queue depth %d.\n",
 		          lp->s.reqtags ? "enabled" : "disabled", reqtags);
 	}
-}
-
-/*
- *  Linux select queue depths function
- */
-#define DEF_DEPTH	(sym_driver_setup.max_tag)
-#define ALL_TARGETS	-2
-#define NO_TARGET	-1
-#define ALL_LUNS	-2
-#define NO_LUN		-1
-
-static int device_queue_depth(struct sym_hcb *np, int target, int lun)
-{
-	int c, h, t, u, v;
-	char *p = sym_driver_setup.tag_ctrl;
-	char *ep;
-
-	h = -1;
-	t = NO_TARGET;
-	u = NO_LUN;
-	while ((c = *p++) != 0) {
-		v = simple_strtoul(p, &ep, 0);
-		switch(c) {
-		case '/':
-			++h;
-			t = ALL_TARGETS;
-			u = ALL_LUNS;
-			break;
-		case 't':
-			if (t != target)
-				t = (target == v) ? v : NO_TARGET;
-			u = ALL_LUNS;
-			break;
-		case 'u':
-			if (u != lun)
-				u = (lun == v) ? v : NO_LUN;
-			break;
-		case 'q':
-			if (h == np->s.unit &&
-				(t == ALL_TARGETS || t == target) &&
-				(u == ALL_LUNS    || u == lun))
-				return v;
-			break;
-		case '-':
-			t = ALL_TARGETS;
-			u = ALL_LUNS;
-			break;
-		default:
-			break;
-		}
-		p = ep;
-	}
-	return DEF_DEPTH;
 }
 
 static int sym53c8xx_slave_alloc(struct scsi_device *sdev)
@@ -892,21 +795,16 @@ static int sym53c8xx_slave_configure(struct scsi_device *sdev)
 	 *  Use at least 2.
 	 *  Donnot use more than our maximum.
 	 */
-	reqtags = device_queue_depth(np, sdev->id, sdev->lun);
+	reqtags = sym_driver_setup.max_tag;
 	if (reqtags > tp->usrtags)
 		reqtags = tp->usrtags;
 	if (!sdev->tagged_supported)
 		reqtags = 0;
-#if 1 /* Avoid to locally queue commands for no good reasons */
 	if (reqtags > SYM_CONF_MAX_TAG)
 		reqtags = SYM_CONF_MAX_TAG;
-	depth_to_use = (reqtags ? reqtags : 2);
-#else
-	depth_to_use = (reqtags ? SYM_CONF_MAX_TAG : 2);
-#endif
+	depth_to_use = reqtags ? reqtags : 2;
 	scsi_adjust_queue_depth(sdev,
-				(sdev->tagged_supported ?
-				 MSG_SIMPLE_TAG : 0),
+				sdev->tagged_supported ? MSG_SIMPLE_TAG : 0,
 				depth_to_use);
 	lp->s.scdev_depth = depth_to_use;
 	sym_tune_dev_queuing(tp, sdev->lun, reqtags);
@@ -1089,8 +987,9 @@ static int is_keyword(char *ptr, int len, char *verb)
  * Parse a control command
  */
 
-static int sym_user_command(struct sym_hcb *np, char *buffer, int length)
+static int sym_user_command(struct Scsi_Host *shost, char *buffer, int length)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	char *ptr	= buffer;
 	int len		= length;
 	struct sym_usrcmd cmd, *uc = &cmd;
@@ -1217,9 +1116,9 @@ printk("sym_user_command: data=%ld\n", uc->data);
 	else {
 		unsigned long flags;
 
-		spin_lock_irqsave(np->s.host->host_lock, flags);
-		sym_exec_user_command (np, uc);
-		spin_unlock_irqrestore(np->s.host->host_lock, flags);
+		spin_lock_irqsave(shost->host_lock, flags);
+		sym_exec_user_command(np, uc);
+		spin_unlock_irqrestore(shost->host_lock, flags);
 	}
 	return length;
 }
@@ -1275,8 +1174,11 @@ static int copy_info(struct info_str *info, char *fmt, ...)
 /*
  *  Copy formatted information into the input buffer.
  */
-static int sym_host_info(struct sym_hcb *np, char *ptr, off_t offset, int len)
+static int sym_host_info(struct Scsi_Host *shost, char *ptr, off_t offset, int len)
 {
+	struct sym_data *sym_data = shost_priv(shost);
+	struct pci_dev *pdev = sym_data->pdev;
+	struct sym_hcb *np = sym_data->ncb;
 	struct info_str info;
 
 	info.buffer	= ptr;
@@ -1285,10 +1187,10 @@ static int sym_host_info(struct sym_hcb *np, char *ptr, off_t offset, int len)
 	info.pos	= 0;
 
 	copy_info(&info, "Chip " NAME53C "%s, device id 0x%x, "
-			 "revision id 0x%x\n",
-			 np->s.chip_name, np->device_id, np->revision_id);
-	copy_info(&info, "At PCI address %s, IRQ " IRQ_FMT "\n",
-		pci_name(np->s.device), IRQ_PRM(np->s.irq));
+			 "revision id 0x%x\n", np->s.chip_name,
+			 pdev->device, pdev->revision);
+	copy_info(&info, "At PCI address %s, IRQ %u\n",
+			 pci_name(pdev), pdev->irq);
 	copy_info(&info, "Min. period factor %d, %s SCSI BUS%s\n",
 			 (int) (np->minsync_dt ? np->minsync_dt : np->minsync),
 			 np->maxwide ? "Wide" : "Narrow",
@@ -1307,15 +1209,14 @@ static int sym_host_info(struct sym_hcb *np, char *ptr, off_t offset, int len)
  *  - func = 0 means read  (returns adapter infos)
  *  - func = 1 means write (not yet merget from sym53c8xx)
  */
-static int sym53c8xx_proc_info(struct Scsi_Host *host, char *buffer,
+static int sym53c8xx_proc_info(struct Scsi_Host *shost, char *buffer,
 			char **start, off_t offset, int length, int func)
 {
-	struct sym_hcb *np = sym_get_hcb(host);
 	int retv;
 
 	if (func) {
 #ifdef	SYM_LINUX_USER_COMMAND_SUPPORT
-		retv = sym_user_command(np, buffer, length);
+		retv = sym_user_command(shost, buffer, length);
 #else
 		retv = -EINVAL;
 #endif
@@ -1323,7 +1224,7 @@ static int sym53c8xx_proc_info(struct Scsi_Host *host, char *buffer,
 		if (start)
 			*start = buffer;
 #ifdef SYM_LINUX_USER_INFO_SUPPORT
-		retv = sym_host_info(np, buffer, offset, length);
+		retv = sym_host_info(shost, buffer, offset, length);
 #else
 		retv = -EINVAL;
 #endif
@@ -1341,8 +1242,8 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
 	/*
 	 *  Free O/S specific resources.
 	 */
-	if (np->s.irq)
-		free_irq(np->s.irq, np);
+	if (pdev->irq)
+		free_irq(pdev->irq, np);
 	if (np->s.ioaddr)
 		pci_iounmap(pdev, np->s.ioaddr);
 	if (np->s.ramaddr)
@@ -1353,31 +1254,6 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
 	sym_hcb_free(np);
 
 	sym_mfree_dma(np, sizeof(*np), "HCB");
-}
-
-/*
- *  Ask/tell the system about DMA addressing.
- */
-static int sym_setup_bus_dma_mask(struct sym_hcb *np)
-{
-#if SYM_CONF_DMA_ADDRESSING_MODE > 0
-#if   SYM_CONF_DMA_ADDRESSING_MODE == 1
-#define	DMA_DAC_MASK	DMA_40BIT_MASK
-#elif SYM_CONF_DMA_ADDRESSING_MODE == 2
-#define	DMA_DAC_MASK	DMA_64BIT_MASK
-#endif
-	if ((np->features & FE_DAC) &&
-			!pci_set_dma_mask(np->s.device, DMA_DAC_MASK)) {
-		np->use_dac = 1;
-		return 0;
-	}
-#endif
-
-	if (!pci_set_dma_mask(np->s.device, DMA_32BIT_MASK))
-		return 0;
-
-	printf_warning("%s: No suitable DMA available\n", sym_name(np));
-	return -1;
 }
 
 /*
@@ -1392,32 +1268,28 @@ static int sym_setup_bus_dma_mask(struct sym_hcb *np)
 static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 		int unit, struct sym_device *dev)
 {
-	struct host_data *host_data;
+	struct sym_data *sym_data;
 	struct sym_hcb *np = NULL;
-	struct Scsi_Host *instance = NULL;
+	struct Scsi_Host *shost;
 	struct pci_dev *pdev = dev->pdev;
 	unsigned long flags;
 	struct sym_fw *fw;
 
-	printk(KERN_INFO
-		"sym%d: <%s> rev 0x%x at pci %s irq " IRQ_FMT "\n",
-		unit, dev->chip.name, dev->chip.revision_id,
-		pci_name(pdev), IRQ_PRM(pdev->irq));
+	printk(KERN_INFO "sym%d: <%s> rev 0x%x at pci %s irq %u\n",
+		unit, dev->chip.name, pdev->revision, pci_name(pdev),
+		pdev->irq);
 
 	/*
 	 *  Get the firmware for this chip.
 	 */
 	fw = sym_find_firmware(&dev->chip);
 	if (!fw)
-		goto attach_failed;
+		return NULL;
 
-	/*
-	 *	Allocate host_data structure
-	 */
-	instance = scsi_host_alloc(tpnt, sizeof(*host_data));
-	if (!instance)
-		goto attach_failed;
-	host_data = (struct host_data *) instance->hostdata;
+	shost = scsi_host_alloc(tpnt, sizeof(*sym_data));
+	if (!shost)
+		return NULL;
+	sym_data = shost_priv(shost);
 
 	/*
 	 *  Allocate immediately the host control block, 
@@ -1428,22 +1300,19 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	np = __sym_calloc_dma(&pdev->dev, sizeof(*np), "HCB");
 	if (!np)
 		goto attach_failed;
-	np->s.device = pdev;
 	np->bus_dmat = &pdev->dev; /* Result in 1 DMA pool per HBA */
-	host_data->ncb = np;
-	np->s.host = instance;
+	sym_data->ncb = np;
+	sym_data->pdev = pdev;
+	np->s.host = shost;
 
-	pci_set_drvdata(pdev, np);
+	pci_set_drvdata(pdev, shost);
 
 	/*
 	 *  Copy some useful infos to the HCB.
 	 */
 	np->hcb_ba	= vtobus(np);
 	np->verbose	= sym_driver_setup.verbose;
-	np->s.device	= pdev;
 	np->s.unit	= unit;
-	np->device_id	= dev->chip.device_id;
-	np->revision_id	= dev->chip.revision_id;
 	np->features	= dev->chip.features;
 	np->clock_divn	= dev->chip.nr_divisor;
 	np->maxoffs	= dev->chip.offset_max;
@@ -1456,8 +1325,13 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	strlcpy(np->s.chip_name, dev->chip.name, sizeof(np->s.chip_name));
 	sprintf(np->s.inst_name, "sym%d", np->s.unit);
 
-	if (sym_setup_bus_dma_mask(np))
+	if ((SYM_CONF_DMA_ADDRESSING_MODE > 0) && (np->features & FE_DAC) &&
+			!pci_set_dma_mask(pdev, DMA_DAC_MASK)) {
+		set_dac(np);
+	} else if (pci_set_dma_mask(pdev, DMA_32BIT_MASK)) {
+		printf_warning("%s: No suitable DMA available\n", sym_name(np));
 		goto attach_failed;
+	}
 
 	/*
 	 *  Try to map the controller chip to
@@ -1466,19 +1340,16 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	np->mmio_ba = (u32)dev->mmio_base;
 	np->s.ioaddr	= dev->s.ioaddr;
 	np->s.ramaddr	= dev->s.ramaddr;
-	np->s.io_ws = (np->features & FE_IO256) ? 256 : 128;
 
 	/*
 	 *  Map on-chip RAM if present and supported.
 	 */
 	if (!(np->features & FE_RAM))
 		dev->ram_base = 0;
-	if (dev->ram_base) {
+	if (dev->ram_base)
 		np->ram_ba = (u32)dev->ram_base;
-		np->ram_ws = (np->features & FE_RAM8K) ? 8192 : 4096;
-	}
 
-	if (sym_hcb_attach(instance, fw, dev->nvram))
+	if (sym_hcb_attach(shost, fw, dev->nvram))
 		goto attach_failed;
 
 	/*
@@ -1486,25 +1357,25 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 *  If we synchonize the C code with SCRIPTS on interrupt, 
 	 *  we do not want to share the INTR line at all.
 	 */
-	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX, np)) {
-		printf_err("%s: request irq %d failure\n",
+	if (request_irq(pdev->irq, sym53c8xx_intr, IRQF_SHARED, NAME53C8XX,
+			shost)) {
+		printf_err("%s: request irq %u failure\n",
 			sym_name(np), pdev->irq);
 		goto attach_failed;
 	}
-	np->s.irq = pdev->irq;
 
 	/*
 	 *  After SCSI devices have been opened, we cannot
 	 *  reset the bus safely, so we do it here.
 	 */
-	spin_lock_irqsave(instance->host_lock, flags);
+	spin_lock_irqsave(shost->host_lock, flags);
 	if (sym_reset_scsi_bus(np, 0))
 		goto reset_failed;
 
 	/*
 	 *  Start the SCRIPTS.
 	 */
-	sym_start_up (np, 1);
+	sym_start_up(shost, 1);
 
 	/*
 	 *  Start the timer daemon
@@ -1519,33 +1390,37 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 	 *  Fill Linux host instance structure
 	 *  and return success.
 	 */
-	instance->max_channel	= 0;
-	instance->this_id	= np->myaddr;
-	instance->max_id	= np->maxwide ? 16 : 8;
-	instance->max_lun	= SYM_CONF_MAX_LUN;
-	instance->unique_id	= pci_resource_start(pdev, 0);
-	instance->cmd_per_lun	= SYM_CONF_MAX_TAG;
-	instance->can_queue	= (SYM_CONF_MAX_START-2);
-	instance->sg_tablesize	= SYM_CONF_MAX_SG;
-	instance->max_cmd_len	= 16;
+	shost->max_channel	= 0;
+	shost->this_id		= np->myaddr;
+	shost->max_id		= np->maxwide ? 16 : 8;
+	shost->max_lun		= SYM_CONF_MAX_LUN;
+	shost->unique_id	= pci_resource_start(pdev, 0);
+	shost->cmd_per_lun	= SYM_CONF_MAX_TAG;
+	shost->can_queue	= (SYM_CONF_MAX_START-2);
+	shost->sg_tablesize	= SYM_CONF_MAX_SG;
+	shost->max_cmd_len	= 16;
 	BUG_ON(sym2_transport_template == NULL);
-	instance->transportt	= sym2_transport_template;
+	shost->transportt	= sym2_transport_template;
 
-	spin_unlock_irqrestore(instance->host_lock, flags);
+	/* 53c896 rev 1 errata: DMA may not cross 16MB boundary */
+	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 2)
+		shost->dma_boundary = 0xFFFFFF;
 
-	return instance;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	return shost;
 
  reset_failed:
 	printf_err("%s: FATAL ERROR: CHECK SCSI BUS - CABLES, "
 		   "TERMINATION, DEVICE POWER etc.!\n", sym_name(np));
-	spin_unlock_irqrestore(instance->host_lock, flags);
+	spin_unlock_irqrestore(shost->host_lock, flags);
  attach_failed:
-	if (!instance)
+	if (!shost)
 		return NULL;
 	printf_info("%s: giving up ...\n", sym_name(np));
 	if (np)
 		sym_free_resources(np, pdev);
-	scsi_host_put(instance);
+	scsi_host_put(shost);
 
 	return NULL;
  }
@@ -1558,7 +1433,6 @@ static struct Scsi_Host * __devinit sym_attach(struct scsi_host_template *tpnt,
 static void __devinit sym_get_nvram(struct sym_device *devp, struct sym_nvram *nvp)
 {
 	devp->nvram = nvp;
-	devp->device_id = devp->chip.device_id;
 	nvp->type = 0;
 
 	sym_read_nvram(devp, nvp);
@@ -1573,7 +1447,6 @@ static int __devinit sym_check_supported(struct sym_device *device)
 {
 	struct sym_chip *chip;
 	struct pci_dev *pdev = device->pdev;
-	u_char revision;
 	unsigned long io_port = pci_resource_start(pdev, 0);
 	int i;
 
@@ -1593,14 +1466,12 @@ static int __devinit sym_check_supported(struct sym_device *device)
 	 * to our device structure so we can make it match the actual device
 	 * and options.
 	 */
-	pci_read_config_byte(pdev, PCI_CLASS_REVISION, &revision);
-	chip = sym_lookup_chip_table(pdev->device, revision);
+	chip = sym_lookup_chip_table(pdev->device, pdev->revision);
 	if (!chip) {
 		dev_info(&pdev->dev, "device not supported\n");
 		return -ENODEV;
 	}
 	memcpy(&device->chip, chip, sizeof(device->chip));
-	device->chip.revision_id = revision;
 
 	return 0;
 }
@@ -1641,7 +1512,7 @@ static int __devinit sym_set_workarounds(struct sym_device *device)
 	 *  We must ensure the chip will use WRITE AND INVALIDATE.
 	 *  The revision number limit is for now arbitrary.
 	 */
-	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && chip->revision_id < 0x4) {
+	if (pdev->device == PCI_DEVICE_ID_NCR_53C896 && pdev->revision < 0x4) {
 		chip->features	|= (FE_WRIE | FE_CLSE);
 	}
 
@@ -1769,8 +1640,9 @@ static void sym_config_pqs(struct pci_dev *pdev, struct sym_device *sym_dev)
  *  Detach the host.
  *  We have to free resources and halt the NCR chip.
  */
-static int sym_detach(struct sym_hcb *np, struct pci_dev *pdev)
+static int sym_detach(struct Scsi_Host *shost, struct pci_dev *pdev)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	printk("%s: detaching ...\n", sym_name(np));
 
 	del_timer_sync(&np->s.timer);
@@ -1823,7 +1695,7 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 {
 	struct sym_device sym_dev;
 	struct sym_nvram nvram;
-	struct Scsi_Host *instance;
+	struct Scsi_Host *shost;
 
 	memset(&sym_dev, 0, sizeof(sym_dev));
 	memset(&nvram, 0, sizeof(nvram));
@@ -1850,13 +1722,13 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 
 	sym_get_nvram(&sym_dev, &nvram);
 
-	instance = sym_attach(&sym2_template, attach_count, &sym_dev);
-	if (!instance)
+	shost = sym_attach(&sym2_template, attach_count, &sym_dev);
+	if (!shost)
 		goto free;
 
-	if (scsi_add_host(instance, &pdev->dev))
+	if (scsi_add_host(shost, &pdev->dev))
 		goto detach;
-	scsi_scan_host(instance);
+	scsi_scan_host(shost);
 
 	attach_count++;
 
@@ -1874,18 +1746,141 @@ static int __devinit sym2_probe(struct pci_dev *pdev,
 
 static void __devexit sym2_remove(struct pci_dev *pdev)
 {
-	struct sym_hcb *np = pci_get_drvdata(pdev);
-	struct Scsi_Host *host = np->s.host;
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 
-	scsi_remove_host(host);
-	scsi_host_put(host);
-
-	sym_detach(np, pdev);
-
+	scsi_remove_host(shost);
+	scsi_host_put(shost);
+	sym_detach(shost, pdev);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 
 	attach_count--;
+}
+
+/**
+ * sym2_io_error_detected() - called when PCI error is detected
+ * @pdev: pointer to PCI device
+ * @state: current state of the PCI slot
+ */
+static pci_ers_result_t sym2_io_error_detected(struct pci_dev *pdev,
+                                         enum pci_channel_state state)
+{
+	/* If slot is permanently frozen, turn everything off */
+	if (state == pci_channel_io_perm_failure) {
+		sym2_remove(pdev);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	disable_irq(pdev->irq);
+	pci_disable_device(pdev);
+
+	/* Request that MMIO be enabled, so register dump can be taken. */
+	return PCI_ERS_RESULT_CAN_RECOVER;
+}
+
+/**
+ * sym2_io_slot_dump - Enable MMIO and dump debug registers
+ * @pdev: pointer to PCI device
+ */
+static pci_ers_result_t sym2_io_slot_dump(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+
+	sym_dump_registers(shost);
+
+	/* Request a slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * sym2_reset_workarounds - hardware-specific work-arounds
+ *
+ * This routine is similar to sym_set_workarounds(), except
+ * that, at this point, we already know that the device was
+ * succesfully intialized at least once before, and so most
+ * of the steps taken there are un-needed here.
+ */
+static void sym2_reset_workarounds(struct pci_dev *pdev)
+{
+	u_short status_reg;
+	struct sym_chip *chip;
+
+	chip = sym_lookup_chip_table(pdev->device, pdev->revision);
+
+	/* Work around for errant bit in 895A, in a fashion
+	 * similar to what is done in sym_set_workarounds().
+	 */
+	pci_read_config_word(pdev, PCI_STATUS, &status_reg);
+	if (!(chip->features & FE_66MHZ) && (status_reg & PCI_STATUS_66MHZ)) {
+		status_reg = PCI_STATUS_66MHZ;
+		pci_write_config_word(pdev, PCI_STATUS, status_reg);
+		pci_read_config_word(pdev, PCI_STATUS, &status_reg);
+	}
+}
+
+/**
+ * sym2_io_slot_reset() - called when the pci bus has been reset.
+ * @pdev: pointer to PCI device
+ *
+ * Restart the card from scratch.
+ */
+static pci_ers_result_t sym2_io_slot_reset(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct sym_hcb *np = sym_get_hcb(shost);
+
+	printk(KERN_INFO "%s: recovering from a PCI slot reset\n",
+	          sym_name(np));
+
+	if (pci_enable_device(pdev)) {
+		printk(KERN_ERR "%s: Unable to enable after PCI reset\n",
+		        sym_name(np));
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_set_master(pdev);
+	enable_irq(pdev->irq);
+
+	/* If the chip can do Memory Write Invalidate, enable it */
+	if (np->features & FE_WRIE) {
+		if (pci_set_mwi(pdev))
+			return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	/* Perform work-arounds, analogous to sym_set_workarounds() */
+	sym2_reset_workarounds(pdev);
+
+	/* Perform host reset only on one instance of the card */
+	if (PCI_FUNC(pdev->devfn) == 0) {
+		if (sym_reset_scsi_bus(np, 0)) {
+			printk(KERN_ERR "%s: Unable to reset scsi host\n",
+			        sym_name(np));
+			return PCI_ERS_RESULT_DISCONNECT;
+		}
+		sym_start_up(shost, 1);
+	}
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * sym2_io_resume() - resume normal ops after PCI reset
+ * @pdev: pointer to PCI device
+ *
+ * Called when the error recovery driver tells us that its
+ * OK to resume normal operation. Use completion to allow
+ * halted scsi ops to resume.
+ */
+static void sym2_io_resume(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct sym_data *sym_data = shost_priv(shost);
+
+	spin_lock_irq(shost->host_lock);
+	if (sym_data->io_reset)
+		complete_all(sym_data->io_reset);
+	sym_data->io_reset = NULL;
+	spin_unlock_irq(shost->host_lock);
 }
 
 static void sym2_get_signalling(struct Scsi_Host *shost)
@@ -2050,11 +2045,19 @@ static struct pci_device_id sym2_id_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, sym2_id_table);
 
+static struct pci_error_handlers sym2_err_handler = {
+	.error_detected	= sym2_io_error_detected,
+	.mmio_enabled	= sym2_io_slot_dump,
+	.slot_reset	= sym2_io_slot_reset,
+	.resume		= sym2_io_resume,
+};
+
 static struct pci_driver sym2_driver = {
 	.name		= NAME53C8XX,
 	.id_table	= sym2_id_table,
 	.probe		= sym2_probe,
 	.remove		= __devexit_p(sym2_remove),
+	.err_handler 	= &sym2_err_handler,
 };
 
 static int __init sym2_init(void)

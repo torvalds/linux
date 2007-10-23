@@ -525,7 +525,7 @@ qla2x00_req_pkt(scsi_qla_host_t *ha)
 
 		/* Check for pending interrupts. */
 		/* During init we issue marker directly */
-		if (!ha->marker_needed)
+		if (!ha->marker_needed && !ha->flags.init_done)
 			qla2x00_poll(ha);
 
 		spin_lock_irq(&ha->hardware_lock);

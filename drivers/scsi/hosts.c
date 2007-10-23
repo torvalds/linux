@@ -345,6 +345,12 @@ struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 	shost->active_mode = sht->supported_mode;
 	shost->use_sg_chaining = sht->use_sg_chaining;
 
+	if (sht->supported_mode == MODE_UNKNOWN)
+		/* means we didn't set it ... default to INITIATOR */
+		shost->active_mode = MODE_INITIATOR;
+	else
+		shost->active_mode = sht->supported_mode;
+
 	if (sht->max_host_blocked)
 		shost->max_host_blocked = sht->max_host_blocked;
 	else

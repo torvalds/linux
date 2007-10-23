@@ -40,7 +40,9 @@
 #ifndef SYM_GLUE_H
 #define SYM_GLUE_H
 
+#include <linux/completion.h>
 #include <linux/delay.h>
+#include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/string.h>
@@ -177,14 +179,11 @@ struct sym_shcb {
 	int		unit;
 	char		inst_name[16];
 	char		chip_name[8];
-	struct pci_dev	*device;
 
 	struct Scsi_Host *host;
 
 	void __iomem *	ioaddr;		/* MMIO kernel io address	*/
 	void __iomem *	ramaddr;	/* RAM  kernel io address	*/
-	u_short		io_ws;		/* IO window size		*/
-	int		irq;		/* IRQ number			*/
 
 	struct timer_list timer;	/* Timer handler link header	*/
 	u_long		lasttime;
@@ -212,20 +211,21 @@ struct sym_device {
 	} s;
 	struct sym_chip chip;
 	struct sym_nvram *nvram;
-	u_short device_id;
 	u_char host_id;
 };
 
 /*
  *  Driver host data structure.
  */
-struct host_data {
+struct sym_data {
 	struct sym_hcb *ncb;
+	struct completion *io_reset;		/* PCI error handling */
+	struct pci_dev *pdev;
 };
 
 static inline struct sym_hcb * sym_get_hcb(struct Scsi_Host *host)
 {
-	return ((struct host_data *)host->hostdata)->ncb;
+	return ((struct sym_data *)host->hostdata)->ncb;
 }
 
 #include "sym_fw.h"
@@ -263,8 +263,8 @@ void sym_set_cam_result_error(struct sym_hcb *np, struct sym_ccb *cp, int resid)
 void sym_xpt_done(struct sym_hcb *np, struct scsi_cmnd *ccb);
 #define sym_print_addr(cmd, arg...) dev_info(&cmd->device->sdev_gendev , ## arg)
 void sym_xpt_async_bus_reset(struct sym_hcb *np);
-void sym_xpt_async_sent_bdr(struct sym_hcb *np, int target);
 int  sym_setup_data_and_start (struct sym_hcb *np, struct scsi_cmnd *csio, struct sym_ccb *cp);
-void sym_log_bus_error(struct sym_hcb *np);
+void sym_log_bus_error(struct Scsi_Host *);
+void sym_dump_registers(struct Scsi_Host *);
 
 #endif /* SYM_GLUE_H */

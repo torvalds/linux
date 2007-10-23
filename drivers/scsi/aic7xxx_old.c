@@ -8417,7 +8417,7 @@ aic7xxx_alloc(struct scsi_host_template *sht, struct aic7xxx_host *temp)
     p->host = host;
 
     p->scb_data = kzalloc(sizeof(scb_data_type), GFP_ATOMIC);
-    if (!p->scb_data)
+    if (p->scb_data)
     {
       scbq_init (&p->scb_data->free_scbs);
     }

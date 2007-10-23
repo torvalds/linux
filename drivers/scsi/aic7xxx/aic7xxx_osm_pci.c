@@ -49,6 +49,8 @@ static int	ahc_linux_pci_reserve_io_region(struct ahc_softc *ahc,
 static int	ahc_linux_pci_reserve_mem_region(struct ahc_softc *ahc,
 						 u_long *bus_addr,
 						 uint8_t __iomem **maddr);
+static int	ahc_linux_pci_dev_suspend(struct pci_dev *pdev, pm_message_t mesg);
+static int	ahc_linux_pci_dev_resume(struct pci_dev *pdev);
 static void	ahc_linux_pci_dev_remove(struct pci_dev *pdev);
 
 /* Define the macro locally since it's different for different class of chips.
@@ -133,9 +135,53 @@ MODULE_DEVICE_TABLE(pci, ahc_linux_pci_id_table);
 static struct pci_driver aic7xxx_pci_driver = {
 	.name		= "aic7xxx",
 	.probe		= ahc_linux_pci_dev_probe,
+#ifdef CONFIG_PM
+	.suspend	= ahc_linux_pci_dev_suspend,
+	.resume		= ahc_linux_pci_dev_resume,
+#endif
 	.remove		= ahc_linux_pci_dev_remove,
 	.id_table	= ahc_linux_pci_id_table
 };
+
+static int
+ahc_linux_pci_dev_suspend(struct pci_dev *pdev, pm_message_t mesg)
+{
+	struct ahc_softc *ahc = pci_get_drvdata(pdev);
+	int rc;
+
+	if ((rc = ahc_suspend(ahc)))
+		return rc;
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+
+	if (mesg.event == PM_EVENT_SUSPEND)
+		pci_set_power_state(pdev, PCI_D3hot);
+
+	return rc;
+}
+
+static int
+ahc_linux_pci_dev_resume(struct pci_dev *pdev)
+{
+	struct ahc_softc *ahc = pci_get_drvdata(pdev);
+	int rc;
+
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	if ((rc = pci_enable_device(pdev))) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "failed to enable device after resume (%d)\n", rc);
+		return rc;
+	}
+
+	pci_set_master(pdev);
+
+	ahc_pci_resume(ahc);
+
+	return (ahc_resume(ahc));
+}
 
 static void
 ahc_linux_pci_dev_remove(struct pci_dev *pdev)

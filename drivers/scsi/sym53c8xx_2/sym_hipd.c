@@ -52,7 +52,7 @@
  *  Needed function prototypes.
  */
 static void sym_int_ma (struct sym_hcb *np);
-static void sym_int_sir (struct sym_hcb *np);
+static void sym_int_sir(struct sym_hcb *);
 static struct sym_ccb *sym_alloc_ccb(struct sym_hcb *np);
 static struct sym_ccb *sym_ccb_from_dsa(struct sym_hcb *np, u32 dsa);
 static void sym_alloc_lcb_tags (struct sym_hcb *np, u_char tn, u_char ln);
@@ -684,6 +684,8 @@ static void sym_set_bus_mode(struct sym_hcb *np, struct sym_nvram *nvram)
  */
 static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, struct sym_nvram *nvram)
 {
+	struct sym_data *sym_data = shost_priv(shost);
+	struct pci_dev *pdev = sym_data->pdev;
 	u_char	burst_max;
 	u32	period;
 	int i;
@@ -778,19 +780,12 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  64 bit addressing  (895A/896/1010) ?
 	 */
 	if (np->features & FE_DAC) {
-#if   SYM_CONF_DMA_ADDRESSING_MODE == 0
-		np->rv_ccntl1	|= (DDAC);
-#elif SYM_CONF_DMA_ADDRESSING_MODE == 1
-		if (!np->use_dac)
-			np->rv_ccntl1	|= (DDAC);
-		else
-			np->rv_ccntl1	|= (XTIMOD | EXTIBMV);
-#elif SYM_CONF_DMA_ADDRESSING_MODE == 2
-		if (!np->use_dac)
-			np->rv_ccntl1	|= (DDAC);
-		else
-			np->rv_ccntl1	|= (0 | EXTIBMV);
-#endif
+		if (!use_dac(np))
+			np->rv_ccntl1 |= (DDAC);
+		else if (SYM_CONF_DMA_ADDRESSING_MODE == 1)
+			np->rv_ccntl1 |= (XTIMOD | EXTIBMV);
+		else if (SYM_CONF_DMA_ADDRESSING_MODE == 2)
+			np->rv_ccntl1 |= (0 | EXTIBMV);
 	}
 
 	/*
@@ -804,8 +799,8 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  In dual channel mode, contention occurs if internal cycles
 	 *  are used. Disable internal cycles.
 	 */
-	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_33 &&
-	    np->revision_id < 0x1)
+	if (pdev->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
+	    pdev->revision < 0x1)
 		np->rv_ccntl0	|=  DILS;
 
 	/*
@@ -828,10 +823,10 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	 *  this driver. The generic ncr driver that does not use 
 	 *  LOAD/STORE instructions does not need this work-around.
 	 */
-	if ((np->device_id == PCI_DEVICE_ID_NCR_53C810 &&
-	     np->revision_id >= 0x10 && np->revision_id <= 0x11) ||
-	    (np->device_id == PCI_DEVICE_ID_NCR_53C860 &&
-	     np->revision_id <= 0x1))
+	if ((pdev->device == PCI_DEVICE_ID_NCR_53C810 &&
+	     pdev->revision >= 0x10 && pdev->revision <= 0x11) ||
+	    (pdev->device == PCI_DEVICE_ID_NCR_53C860 &&
+	     pdev->revision <= 0x1))
 		np->features &= ~(FE_WRIE|FE_ERL|FE_ERMP);
 
 	/*
@@ -897,7 +892,7 @@ static int sym_prepare_setting(struct Scsi_Host *shost, struct sym_hcb *np, stru
 	if ((SYM_SETUP_SCSI_LED || 
 	     (nvram->type == SYM_SYMBIOS_NVRAM ||
 	      (nvram->type == SYM_TEKRAM_NVRAM &&
-	       np->device_id == PCI_DEVICE_ID_NCR_53C895))) &&
+	       pdev->device == PCI_DEVICE_ID_NCR_53C895))) &&
 	    !(np->features & FE_LEDC) && !(np->sv_gpcntl & 0x01))
 		np->features |= FE_LED0;
 
@@ -1135,8 +1130,9 @@ restart_test:
  *  First 24 register of the chip:
  *  	r0..rf
  */
-static void sym_log_hard_error(struct sym_hcb *np, u_short sist, u_char dstat)
+static void sym_log_hard_error(struct Scsi_Host *shost, u_short sist, u_char dstat)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	u32	dsp;
 	int	script_ofs;
 	int	script_size;
@@ -1180,16 +1176,27 @@ static void sym_log_hard_error(struct sym_hcb *np, u_short sist, u_char dstat)
 			scr_to_cpu((int) *(u32 *)(script_base + script_ofs)));
 	}
 
-        printf ("%s: regdump:", sym_name(np));
-        for (i=0; i<24;i++)
-            printf (" %02x", (unsigned)INB_OFF(np, i));
-        printf (".\n");
+	printf("%s: regdump:", sym_name(np));
+	for (i = 0; i < 24; i++)
+		printf(" %02x", (unsigned)INB_OFF(np, i));
+	printf(".\n");
 
 	/*
 	 *  PCI BUS error.
 	 */
 	if (dstat & (MDPE|BF))
-		sym_log_bus_error(np);
+		sym_log_bus_error(shost);
+}
+
+void sym_dump_registers(struct Scsi_Host *shost)
+{
+	struct sym_hcb *np = sym_get_hcb(shost);
+	u_short sist;
+	u_char dstat;
+
+	sist = INW(np, nc_sist);
+	dstat = INB(np, nc_dstat);
+	sym_log_hard_error(shost, sist, dstat);
 }
 
 static struct sym_chip sym_dev_table[] = {
@@ -1312,7 +1319,7 @@ int sym_lookup_dmap(struct sym_hcb *np, u32 h, int s)
 {
 	int i;
 
-	if (!np->use_dac)
+	if (!use_dac(np))
 		goto weird;
 
 	/* Look up existing mappings */
@@ -1519,7 +1526,8 @@ void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp)
 	np->squeueput = qidx;
 
 	if (DEBUG_FLAGS & DEBUG_QUEUE)
-		printf ("%s: queuepos=%d.\n", sym_name (np), np->squeueput);
+		scmd_printk(KERN_DEBUG, cp->cmd, "queuepos=%d\n",
+							np->squeueput);
 
 	/*
 	 *  Script processor may be waiting for reselect.
@@ -1696,8 +1704,11 @@ static void sym_flush_busy_queue (struct sym_hcb *np, int cam_status)
  *     1: SCSI BUS RESET delivered or received.
  *     2: SCSI BUS MODE changed.
  */
-void sym_start_up (struct sym_hcb *np, int reason)
+void sym_start_up(struct Scsi_Host *shost, int reason)
 {
+	struct sym_data *sym_data = shost_priv(shost);
+	struct pci_dev *pdev = sym_data->pdev;
+	struct sym_hcb *np = sym_data->ncb;
  	int	i;
 	u32	phys;
 
@@ -1746,7 +1757,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  This also let point to first position the start 
 	 *  and done queue pointers used from SCRIPTS.
 	 */
-	np->fw_patch(np);
+	np->fw_patch(shost);
 
 	/*
 	 *  Wakeup all pending jobs.
@@ -1788,7 +1799,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	/*
 	 *  For now, disable AIP generation on C1010-66.
 	 */
-	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_66)
+	if (pdev->device == PCI_DEVICE_ID_LSI_53C1010_66)
 		OUTB(np, nc_aipcntl1, DISAIP);
 
 	/*
@@ -1798,8 +1809,8 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  that from SCRIPTS for each selection/reselection, but 
 	 *  I just don't want. :)
 	 */
-	if (np->device_id == PCI_DEVICE_ID_LSI_53C1010_33 &&
-	    np->revision_id < 1)
+	if (pdev->device == PCI_DEVICE_ID_LSI_53C1010_33 &&
+	    pdev->revision < 1)
 		OUTB(np, nc_stest1, INB(np, nc_stest1) | 0x30);
 
 	/*
@@ -1807,9 +1818,9 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  Disable overlapped arbitration for some dual function devices, 
 	 *  regardless revision id (kind of post-chip-design feature. ;-))
 	 */
-	if (np->device_id == PCI_DEVICE_ID_NCR_53C875)
+	if (pdev->device == PCI_DEVICE_ID_NCR_53C875)
 		OUTB(np, nc_ctest0, (1<<5));
-	else if (np->device_id == PCI_DEVICE_ID_NCR_53C896)
+	else if (pdev->device == PCI_DEVICE_ID_NCR_53C896)
 		np->rv_ccntl0 |= DPR;
 
 	/*
@@ -1827,7 +1838,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 	 *  Set up scratch C and DRS IO registers to map the 32 bit 
 	 *  DMA address range our data structures are located in.
 	 */
-	if (np->use_dac) {
+	if (use_dac(np)) {
 		np->dmap_bah[0] = 0;	/* ??? */
 		OUTL(np, nc_scrx[0], np->dmap_bah[0]);
 		OUTL(np, nc_drs, np->dmap_bah[0]);
@@ -1900,7 +1911,7 @@ void sym_start_up (struct sym_hcb *np, int reason)
 		if (sym_verbose >= 2)
 			printf("%s: Downloading SCSI SCRIPTS.\n", sym_name(np));
 		memcpy_toio(np->s.ramaddr, np->scripta0, np->scripta_sz);
-		if (np->ram_ws == 8192) {
+		if (np->features & FE_RAM8K) {
 			memcpy_toio(np->s.ramaddr + 4096, np->scriptb0, np->scriptb_sz);
 			phys = scr_to_cpu(np->scr_ram_seg);
 			OUTL(np, nc_mmws, phys);
@@ -2214,8 +2225,9 @@ static void sym_int_udc (struct sym_hcb *np)
  *  mode to eight bit asynchronous, etc...
  *  So, just reinitializing all except chip should be enough.
  */
-static void sym_int_sbmc (struct sym_hcb *np)
+static void sym_int_sbmc(struct Scsi_Host *shost)
 {
+	struct sym_hcb *np = sym_get_hcb(shost);
 	u_char scsi_mode = INB(np, nc_stest4) & SMODE;
 
 	/*
@@ -2228,7 +2240,7 @@ static void sym_int_sbmc (struct sym_hcb *np)
 	 *  Should suspend command processing for a few seconds and 
 	 *  reinitialize all except the chip.
 	 */
-	sym_start_up (np, 2);
+	sym_start_up(shost, 2);
 }
 
 /*
@@ -2756,8 +2768,11 @@ reset_all:
  *  Use at your own decision and risk.
  */
 
-void sym_interrupt (struct sym_hcb *np)
+irqreturn_t sym_interrupt(struct Scsi_Host *shost)
 {
+	struct sym_data *sym_data = shost_priv(shost);
+	struct sym_hcb *np = sym_data->ncb;
+	struct pci_dev *pdev = sym_data->pdev;
 	u_char	istat, istatc;
 	u_char	dstat;
 	u_short	sist;
@@ -2782,7 +2797,7 @@ void sym_interrupt (struct sym_hcb *np)
 	}
 
 	if (!(istat & (SIP|DIP)))
-		return;
+		return (istat & INTF) ? IRQ_HANDLED : IRQ_NONE;
 
 #if 0	/* We should never get this one */
 	if (istat & CABRT)
@@ -2809,6 +2824,13 @@ void sym_interrupt (struct sym_hcb *np)
 			dstat |= INB(np, nc_dstat);
 		istatc = INB(np, nc_istat);
 		istat |= istatc;
+
+		/* Prevent deadlock waiting on a condition that may
+		 * never clear. */
+		if (unlikely(sist == 0xffff && dstat == 0xff)) {
+			if (pci_channel_offline(pdev))
+				return IRQ_NONE;
+		}
 	} while (istatc & (SIP|DIP));
 
 	if (DEBUG_FLAGS & DEBUG_TINY)
@@ -2842,10 +2864,10 @@ void sym_interrupt (struct sym_hcb *np)
 	    !(dstat & (MDPE|BF|ABRT|IID))) {
 		if	(sist & PAR)	sym_int_par (np, sist);
 		else if (sist & MA)	sym_int_ma (np);
-		else if (dstat & SIR)	sym_int_sir (np);
+		else if (dstat & SIR)	sym_int_sir(np);
 		else if (dstat & SSI)	OUTONB_STD();
 		else			goto unknown_int;
-		return;
+		return IRQ_HANDLED;
 	}
 
 	/*
@@ -2861,8 +2883,8 @@ void sym_interrupt (struct sym_hcb *np)
 	 */
 	if (sist & RST) {
 		printf("%s: SCSI BUS reset detected.\n", sym_name(np));
-		sym_start_up (np, 1);
-		return;
+		sym_start_up(shost, 1);
+		return IRQ_HANDLED;
 	}
 
 	OUTB(np, nc_ctest3, np->rv_ctest3 | CLF);	/* clear dma fifo  */
@@ -2870,11 +2892,11 @@ void sym_interrupt (struct sym_hcb *np)
 
 	if (!(sist  & (GEN|HTH|SGE)) &&
 	    !(dstat & (MDPE|BF|ABRT|IID))) {
-		if	(sist & SBMC)	sym_int_sbmc (np);
+		if	(sist & SBMC)	sym_int_sbmc(shost);
 		else if (sist & STO)	sym_int_sto (np);
 		else if (sist & UDC)	sym_int_udc (np);
 		else			goto unknown_int;
-		return;
+		return IRQ_HANDLED;
 	}
 
 	/*
@@ -2884,12 +2906,12 @@ void sym_interrupt (struct sym_hcb *np)
 	 *  Reset everything.
 	 */
 
-	sym_log_hard_error(np, sist, dstat);
+	sym_log_hard_error(shost, sist, dstat);
 
 	if ((sist & (GEN|HTH|SGE)) ||
 		(dstat & (MDPE|BF|ABRT|IID))) {
 		sym_start_reset(np);
-		return;
+		return IRQ_HANDLED;
 	}
 
 unknown_int:
@@ -2900,6 +2922,7 @@ unknown_int:
 	printf(	"%s: unknown interrupt(s) ignored, "
 		"ISTAT=0x%x DSTAT=0x%x SIST=0x%x\n",
 		sym_name(np), istat, dstat, sist);
+	return IRQ_NONE;
 }
 
 /*
@@ -3520,7 +3543,8 @@ static void sym_sir_task_recovery(struct sym_hcb *np, int num)
 		 *  If we sent a BDR, make upper layer aware of that.
  		 */
 		if (np->abrt_msg[0] == M_RESET)
-			sym_xpt_async_sent_bdr(np, target);
+			starget_printk(KERN_NOTICE, starget,
+							"has been reset\n");
 		break;
 	}
 
@@ -4304,7 +4328,7 @@ static void sym_nego_rejected(struct sym_hcb *np, struct sym_tcb *tp, struct sym
 /*
  *  chip exception handler for programmed interrupts.
  */
-static void sym_int_sir (struct sym_hcb *np)
+static void sym_int_sir(struct sym_hcb *np)
 {
 	u_char	num	= INB(np, nc_dsps);
 	u32	dsa	= INL(np, nc_dsa);
@@ -4343,31 +4367,30 @@ static void sym_int_sir (struct sym_hcb *np)
 		return;
 	/*
 	 *  The device didn't go to MSG OUT phase after having 
-	 *  been selected with ATN. We donnot want to handle 
-	 *  that.
+	 *  been selected with ATN.  We do not want to handle that.
 	 */
 	case SIR_SEL_ATN_NO_MSG_OUT:
-		printf ("%s:%d: No MSG OUT phase after selection with ATN.\n",
-			sym_name (np), target);
+		scmd_printk(KERN_WARNING, cp->cmd,
+				"No MSG OUT phase after selection with ATN\n");
 		goto out_stuck;
 	/*
 	 *  The device didn't switch to MSG IN phase after 
-	 *  having reseleted the initiator.
+	 *  having reselected the initiator.
 	 */
 	case SIR_RESEL_NO_MSG_IN:
-		printf ("%s:%d: No MSG IN phase after reselection.\n",
-			sym_name (np), target);
+		scmd_printk(KERN_WARNING, cp->cmd,
+				"No MSG IN phase after reselection\n");
 		goto out_stuck;
 	/*
 	 *  After reselection, the device sent a message that wasn't 
 	 *  an IDENTIFY.
 	 */
 	case SIR_RESEL_NO_IDENTIFY:
-		printf ("%s:%d: No IDENTIFY after reselection.\n",
-			sym_name (np), target);
+		scmd_printk(KERN_WARNING, cp->cmd,
+				"No IDENTIFY after reselection\n");
 		goto out_stuck;
 	/*
-	 *  The device reselected a LUN we donnot know about.
+	 *  The device reselected a LUN we do not know about.
 	 */
 	case SIR_RESEL_BAD_LUN:
 		np->msgout[0] = M_RESET;
@@ -4380,8 +4403,7 @@ static void sym_int_sir (struct sym_hcb *np)
 		np->msgout[0] = M_ABORT;
 		goto out;
 	/*
-	 *  The device reselected for a tagged nexus that we donnot 
-	 *  have.
+	 * The device reselected for a tagged nexus that we do not have.
 	 */
 	case SIR_RESEL_BAD_I_T_L_Q:
 		np->msgout[0] = M_ABORT_TAG;
@@ -4393,8 +4415,8 @@ static void sym_int_sir (struct sym_hcb *np)
 	case SIR_RESEL_ABORTED:
 		np->lastmsg = np->msgout[0];
 		np->msgout[0] = M_NOOP;
-		printf ("%s:%d: message %x sent on bad reselection.\n",
-			sym_name (np), target, np->lastmsg);
+		scmd_printk(KERN_WARNING, cp->cmd,
+			"message %x sent on bad reselection\n", np->lastmsg);
 		goto out;
 	/*
 	 *  The SCRIPTS let us know that a message has been 
@@ -5578,16 +5600,13 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
 	np->scriptz_ba	= vtobus(np->scriptz0);
 
 	if (np->ram_ba) {
-		np->scripta_ba	= np->ram_ba;
+		np->scripta_ba = np->ram_ba;
 		if (np->features & FE_RAM8K) {
-			np->ram_ws = 8192;
 			np->scriptb_ba = np->scripta_ba + 4096;
 #if 0	/* May get useful for 64 BIT PCI addressing */
 			np->scr_ram_seg = cpu_to_scr(np->scripta_ba >> 32);
 #endif
 		}
-		else
-			np->ram_ws = 4096;
 	}
 
 	/*

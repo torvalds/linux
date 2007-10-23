@@ -1003,8 +1003,15 @@ struct ahd_suspend_channel_state {
 	uint8_t	seqctl;
 };
 
+struct ahd_suspend_pci_state {
+	uint32_t  devconfig;
+	uint8_t   command;
+	uint8_t   csize_lattime;
+};
+
 struct ahd_suspend_state {
 	struct	ahd_suspend_channel_state channel[2];
+	struct  ahd_suspend_pci_state pci_state;
 	uint8_t	optionmode;
 	uint8_t	dscommand0;
 	uint8_t	dspcistatus;
@@ -1333,6 +1340,8 @@ struct	ahd_pci_identity *ahd_find_pci_device(ahd_dev_softc_t);
 int			  ahd_pci_config(struct ahd_softc *,
 					 struct ahd_pci_identity *);
 int	ahd_pci_test_register_access(struct ahd_softc *);
+void	ahd_pci_suspend(struct ahd_softc *);
+void	ahd_pci_resume(struct ahd_softc *);
 
 /************************** SCB and SCB queue management **********************/
 void		ahd_qinfifo_requeue_tail(struct ahd_softc *ahd,
@@ -1343,6 +1352,8 @@ struct ahd_softc	*ahd_alloc(void *platform_arg, char *name);
 int			 ahd_softc_init(struct ahd_softc *);
 void			 ahd_controller_info(struct ahd_softc *ahd, char *buf);
 int			 ahd_init(struct ahd_softc *ahd);
+int			 ahd_suspend(struct ahd_softc *ahd);
+void			 ahd_resume(struct ahd_softc *ahd);
 int			 ahd_default_config(struct ahd_softc *ahd);
 int			 ahd_parse_vpddata(struct ahd_softc *ahd,
 					   struct vpd_config *vpd);

@@ -883,10 +883,7 @@ struct sym_hcb {
 	 *  Physical bus addresses of the chip.
 	 */
 	u32		mmio_ba;	/* MMIO 32 bit BUS address	*/
-	int		mmio_ws;	/* MMIO Window size		*/
-
 	u32		ram_ba;		/* RAM 32 bit BUS address	*/
-	int		ram_ws;		/* RAM window size		*/
 
 	/*
 	 *  SCRIPTS virtual and physical bus addresses.
@@ -912,14 +909,12 @@ struct sym_hcb {
 	struct sym_fwb_ba fwb_bas;	/* Useful SCRIPTB bus addresses	*/
 	struct sym_fwz_ba fwz_bas;	/* Useful SCRIPTZ bus addresses	*/
 	void		(*fw_setup)(struct sym_hcb *np, struct sym_fw *fw);
-	void		(*fw_patch)(struct sym_hcb *np);
+	void		(*fw_patch)(struct Scsi_Host *);
 	char		*fw_name;
 
 	/*
 	 *  General controller parameters and configuration.
 	 */
-	u_short	device_id;	/* PCI device id		*/
-	u_char	revision_id;	/* PCI device revision id	*/
 	u_int	features;	/* Chip features map		*/
 	u_char	myaddr;		/* SCSI id of the adapter	*/
 	u_char	maxburst;	/* log base 2 of dwords burst	*/
@@ -1031,6 +1026,14 @@ struct sym_hcb {
 #endif
 };
 
+#if SYM_CONF_DMA_ADDRESSING_MODE == 0
+#define use_dac(np)	0
+#define set_dac(np)	do { } while (0)
+#else
+#define use_dac(np)	(np)->use_dac
+#define set_dac(np)	(np)->use_dac = 1
+#endif
+
 #define HCB_BA(np, lbl)	(np->hcb_ba + offsetof(struct sym_hcb, lbl))
 
 
@@ -1052,8 +1055,8 @@ void sym_start_next_ccbs(struct sym_hcb *np, struct sym_lcb *lp, int maxn);
 #else
 void sym_put_start_queue(struct sym_hcb *np, struct sym_ccb *cp);
 #endif
-void sym_start_up(struct sym_hcb *np, int reason);
-void sym_interrupt(struct sym_hcb *np);
+void sym_start_up(struct Scsi_Host *, int reason);
+irqreturn_t sym_interrupt(struct Scsi_Host *);
 int sym_clear_tasks(struct sym_hcb *np, int cam_status, int target, int lun, int task);
 struct sym_ccb *sym_get_ccb(struct sym_hcb *np, struct scsi_cmnd *cmd, u_char tag_order);
 void sym_free_ccb(struct sym_hcb *np, struct sym_ccb *cp);
@@ -1073,18 +1076,21 @@ int sym_hcb_attach(struct Scsi_Host *shost, struct sym_fw *fw, struct sym_nvram 
  */
 
 #if   SYM_CONF_DMA_ADDRESSING_MODE == 0
+#define DMA_DAC_MASK	DMA_32BIT_MASK
 #define sym_build_sge(np, data, badd, len)	\
 do {						\
 	(data)->addr = cpu_to_scr(badd);	\
 	(data)->size = cpu_to_scr(len);		\
 } while (0)
 #elif SYM_CONF_DMA_ADDRESSING_MODE == 1
+#define DMA_DAC_MASK	DMA_40BIT_MASK
 #define sym_build_sge(np, data, badd, len)				\
 do {									\
 	(data)->addr = cpu_to_scr(badd);				\
 	(data)->size = cpu_to_scr((((badd) >> 8) & 0xff000000) + len);	\
 } while (0)
 #elif SYM_CONF_DMA_ADDRESSING_MODE == 2
+#define DMA_DAC_MASK	DMA_64BIT_MASK
 int sym_lookup_dmap(struct sym_hcb *np, u32 h, int s);
 static __inline void 
 sym_build_sge(struct sym_hcb *np, struct sym_tblmove *data, u64 badd, int len)

@@ -2271,6 +2271,7 @@ typedef struct scsi_qla_host {
 
 	spinlock_t		hardware_lock ____cacheline_aligned;
 
+	int		bars;
 	device_reg_t __iomem *iobase;		/* Base I/O address */
 	unsigned long	pio_address;
 	unsigned long	pio_length;

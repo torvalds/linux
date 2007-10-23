@@ -696,7 +696,7 @@ static int sym_read_Tekram_nvram (struct sym_device *np, Tekram_nvram *nvram)
 	u_short	csum;
 	int x;
 
-	switch (np->device_id) {
+	switch (np->pdev->device) {
 	case PCI_DEVICE_ID_NCR_53C885:
 	case PCI_DEVICE_ID_NCR_53C895:
 	case PCI_DEVICE_ID_NCR_53C896:

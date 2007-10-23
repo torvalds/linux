@@ -252,7 +252,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *pvha, mbx_cmd_t *mcp)
 	/* Clean up */
 	ha->mcp = NULL;
 
-	if (!abort_active) {
+	if (abort_active || !io_lock_on) {
 		DEBUG11(printk("%s(%ld): checking for additional resp "
 		    "interrupt.\n", __func__, ha->host_no));
 

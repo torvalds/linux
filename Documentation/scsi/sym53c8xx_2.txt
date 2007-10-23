@@ -449,25 +449,14 @@ options as above.
         cmd_per_lun=#tags (#tags > 1) tagged command queuing enabled
   #tags will be truncated to the max queued commands configuration parameter.
 
-10.2.2  Detailed control of tagged commands
-  This option allows you to specify a command queue depth for each device 
-  that supports tagged command queueing.
-  Example:
-      tag_ctrl=10/t2t3q16-t5q24/t1u2q32
-  will set devices queue depth as follow:
-      - controller #0 target #2 and target #3                  -> 16 commands,
-      - controller #0 target #5                                -> 24 commands,
-      - controller #1 target #1 logical unit #2                -> 32 commands,
-      - all other logical units (all targets, all controllers) -> 10 commands.
-
-10.2.3 Burst max
+10.2.2 Burst max
         burst=0    burst disabled
         burst=255  get burst length from initial IO register settings.
         burst=#x   burst enabled (1<<#x burst transfers max)
   #x is an integer value which is log base 2 of the burst transfers max.
   By default the driver uses the maximum value supported by the chip.
 
-10.2.4 LED support
+10.2.3 LED support
         led=1      enable  LED support
         led=0      disable LED support
   Do not enable LED support if your scsi board does not use SDMS BIOS.
@@ -560,9 +549,9 @@ Previously, the sym2 driver accepted arguments of the form
 	sym53c8xx=tags:4,sync:10,debug:0x200
 
 As a result of the new module parameters, this is no longer available.
-Most of the options have remained the same, but tags has split into
-cmd_per_lun and tag_ctrl for its two different purposes.  The sample above
-would be specified as:
+Most of the options have remained the same, but tags has become
+cmd_per_lun to reflect its different purposes.  The sample above would
+be specified as:
 	modprobe sym53c8xx cmd_per_lun=4 sync=10 debug=0x200
 
 or on the kernel boot line as:

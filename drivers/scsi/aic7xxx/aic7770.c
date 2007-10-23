@@ -60,8 +60,6 @@
 #define	ID_OLV_274xD	0x04907783 /* Olivetti OEM (Differential) */
 
 static int aic7770_chip_init(struct ahc_softc *ahc);
-static int aic7770_suspend(struct ahc_softc *ahc);
-static int aic7770_resume(struct ahc_softc *ahc);
 static int aha2840_load_seeprom(struct ahc_softc *ahc);
 static ahc_device_setup_t ahc_aic7770_VL_setup;
 static ahc_device_setup_t ahc_aic7770_EISA_setup;
@@ -155,8 +153,6 @@ aic7770_config(struct ahc_softc *ahc, struct aic7770_identity *entry, u_int io)
 		return (error);
 
 	ahc->bus_chip_init = aic7770_chip_init;
-	ahc->bus_suspend = aic7770_suspend;
-	ahc->bus_resume = aic7770_resume;
 
 	error = ahc_reset(ahc, /*reinit*/FALSE);
 	if (error != 0)
@@ -270,18 +266,6 @@ aic7770_chip_init(struct ahc_softc *ahc)
 	ahc_outb(ahc, SBLKCTL, ahc_inb(ahc, SBLKCTL) & ~AUTOFLUSHDIS);
 	ahc_outb(ahc, BCTL, ENABLE);
 	return (ahc_chip_init(ahc));
-}
-
-static int
-aic7770_suspend(struct ahc_softc *ahc)
-{
-	return (ahc_suspend(ahc));
-}
-
-static int
-aic7770_resume(struct ahc_softc *ahc)
-{
-	return (ahc_resume(ahc));
 }
 
 /*
