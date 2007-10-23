@@ -402,8 +402,7 @@ void jffs2_write_super (struct super_block *sb)
 
 /* jffs2_new_inode: allocate a new inode and inocache, add it to the hash,
    fill in the raw_inode while you're at it. */
-struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_inode *ri,
-			       struct posix_acl **acl)
+struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_inode *ri)
 {
 	struct inode *inode;
 	struct super_block *sb = dir_i->i_sb;
@@ -438,19 +437,11 @@ struct inode *jffs2_new_inode (struct inode *dir_i, int mode, struct jffs2_raw_i
 
 	/* POSIX ACLs have to be processed now, at least partly.
 	   The umask is only applied if there's no default ACL */
-	if (!S_ISLNK(mode)) {
-		*acl = jffs2_get_acl(dir_i, ACL_TYPE_DEFAULT);
-		if (IS_ERR(*acl)) {
-			make_bad_inode(inode);
-			iput(inode);
-			inode = (void *)*acl;
-			*acl = NULL;
-			return inode;
-		}
-		if (!(*acl))
-			mode &= ~current->fs->umask;
-	} else {
-		*acl = NULL;
+	ret = jffs2_init_acl_pre(dir_i, inode, &mode);
+	if (ret) {
+	    make_bad_inode(inode);
+	    iput(inode);
+	    return ERR_PTR(ret);
 	}
 	ret = jffs2_do_new_inode (c, f, mode, ri);
 	if (ret) {

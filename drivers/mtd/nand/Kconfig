@@ -300,7 +300,7 @@ config MTD_NAND_PLATFORM
 	  via platform_data.
 
 config MTD_ALAUDA
-	tristate "MTD driver for Olympus MAUSB-10 and Fijufilm DPC-R1"
+	tristate "MTD driver for Olympus MAUSB-10 and Fujifilm DPC-R1"
 	depends on MTD_NAND && USB
 	help
 	  These two (and possibly other) Alauda-based cardreaders for

@@ -255,7 +255,7 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 		   _whole_ page. This helps to reduce the number of
 		   nodes in files which have many short writes, like
 		   syslog files. */
-		start = aligned_start = 0;
+		aligned_start = 0;
 	}
 
 	ri = jffs2_alloc_raw_inode();
@@ -291,14 +291,11 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	}
 
 	/* Adjust writtenlen for the padding we did, so we don't confuse our caller */
-	if (writtenlen < (start&3))
-		writtenlen = 0;
-	else
-		writtenlen -= (start&3);
+	writtenlen -= min(writtenlen, (start - aligned_start));
 
 	if (writtenlen) {
-		if (inode->i_size < (pg->index << PAGE_CACHE_SHIFT) + start + writtenlen) {
-			inode->i_size = (pg->index << PAGE_CACHE_SHIFT) + start + writtenlen;
+		if (inode->i_size < pos + writtenlen) {
+			inode->i_size = pos + writtenlen;
 			inode->i_blocks = (inode->i_size + 511) >> 9;
 
 			inode->i_ctime = inode->i_mtime = ITIME(je32_to_cpu(ri->ctime));

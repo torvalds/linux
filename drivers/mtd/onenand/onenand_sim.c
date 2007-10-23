@@ -88,11 +88,11 @@ do {									\
 
 /**
  * onenand_lock_handle - Handle Lock scheme
- * @param this		OneNAND device structure
- * @param cmd		The command to be sent
+ * @this:		OneNAND device structure
+ * @cmd:		The command to be sent
  *
  * Send lock command to OneNAND device.
- * The lock scheme is depends on chip type.
+ * The lock scheme depends on chip type.
  */
 static void onenand_lock_handle(struct onenand_chip *this, int cmd)
 {
@@ -131,8 +131,8 @@ static void onenand_lock_handle(struct onenand_chip *this, int cmd)
 
 /**
  * onenand_bootram_handle - Handle BootRAM area
- * @param this		OneNAND device structure
- * @param cmd		The command to be sent
+ * @this:		OneNAND device structure
+ * @cmd:		The command to be sent
  *
  * Emulate BootRAM area. It is possible to do basic operation using BootRAM.
  */
@@ -153,10 +153,10 @@ static void onenand_bootram_handle(struct onenand_chip *this, int cmd)
 
 /**
  * onenand_update_interrupt - Set interrupt register
- * @param this         OneNAND device structure
- * @param cmd          The command to be sent
+ * @this:         OneNAND device structure
+ * @cmd:          The command to be sent
  *
- * Update interrupt register. The status is depends on command.
+ * Update interrupt register. The status depends on command.
  */
 static void onenand_update_interrupt(struct onenand_chip *this, int cmd)
 {
@@ -189,11 +189,12 @@ static void onenand_update_interrupt(struct onenand_chip *this, int cmd)
 }
 
 /**
- * onenand_check_overwrite - Check over-write if happend
- * @param dest		The destination pointer
- * @param src		The source pointer
- * @param count		The length to be check
- * @return		0 on same, otherwise 1
+ * onenand_check_overwrite - Check if over-write happened
+ * @dest:		The destination pointer
+ * @src:		The source pointer
+ * @count:		The length to be check
+ *
+ * Returns:		0 on same, otherwise 1
  *
  * Compare the source with destination
  */
@@ -213,10 +214,10 @@ static int onenand_check_overwrite(void *dest, void *src, size_t count)
 
 /**
  * onenand_data_handle - Handle OneNAND Core and DataRAM
- * @param this		OneNAND device structure
- * @param cmd		The command to be sent
- * @param dataram	Which dataram used
- * @param offset	The offset to OneNAND Core
+ * @this:		OneNAND device structure
+ * @cmd:		The command to be sent
+ * @dataram:		Which dataram used
+ * @offset:		The offset to OneNAND Core
  *
  * Copy data from OneNAND Core to DataRAM (read)
  * Copy data from DataRAM to OneNAND Core (write)
@@ -295,8 +296,8 @@ static void onenand_data_handle(struct onenand_chip *this, int cmd,
 
 /**
  * onenand_command_handle - Handle command
- * @param this		OneNAND device structure
- * @param cmd		The command to be sent
+ * @this:		OneNAND device structure
+ * @cmd:		The command to be sent
  *
  * Emulate OneNAND command.
  */
@@ -350,8 +351,8 @@ static void onenand_command_handle(struct onenand_chip *this, int cmd)
 
 /**
  * onenand_writew - [OneNAND Interface] Emulate write operation
- * @param value		value to write
- * @param addr		address to write
+ * @value:		value to write
+ * @addr:		address to write
  *
  * Write OneNAND register with value
  */
@@ -373,7 +374,7 @@ static void onenand_writew(unsigned short value, void __iomem * addr)
 
 /**
  * flash_init - Initialize OneNAND simulator
- * @param flash		OneNAND simulaotr data strucutres
+ * @flash:		OneNAND simulator data strucutres
  *
  * Initialize OneNAND simulator.
  */
@@ -416,7 +417,7 @@ static int __init flash_init(struct onenand_flash *flash)
 
 /**
  * flash_exit - Clean up OneNAND simulator
- * @param flash		OneNAND simulaotr data strucutres
+ * @flash:		OneNAND simulator data structures
  *
  * Clean up OneNAND simulator.
  */
@@ -424,7 +425,6 @@ static void flash_exit(struct onenand_flash *flash)
 {
 	vfree(ONENAND_CORE(flash));
 	kfree(flash->base);
-	kfree(flash);
 }
 
 static int __init onenand_sim_init(void)
@@ -449,7 +449,7 @@ static int __init onenand_sim_init(void)
 	info->onenand.write_word = onenand_writew;
 
 	if (flash_init(&info->flash)) {
-		printk(KERN_ERR "Unable to allocat flash.\n");
+		printk(KERN_ERR "Unable to allocate flash.\n");
 		kfree(ffchars);
 		kfree(info);
 		return -ENOMEM;

@@ -511,7 +511,7 @@ static int init_nandsim(struct mtd_info *mtd)
 	}
 
 	if (ns->options & OPT_SMALLPAGE) {
-		if (ns->geom.totsz < (64 << 20)) {
+		if (ns->geom.totsz < (32 << 20)) {
 			ns->geom.pgaddrbytes  = 3;
 			ns->geom.secaddrbytes = 2;
 		} else {
