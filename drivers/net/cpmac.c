@@ -460,18 +460,11 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct cpmac_desc *desc;
 	struct cpmac_priv *priv = netdev_priv(dev);
 
-	if (unlikely(skb_padto(skb, ETH_ZLEN))) {
-		if (netif_msg_tx_err(priv) && net_ratelimit())
-			printk(KERN_WARNING
-			       "%s: tx: padding failed, dropping\n", dev->name);
-		spin_lock(&priv->lock);
-		dev->stats.tx_dropped++;
-		spin_unlock(&priv->lock);
-		return -ENOMEM;
-	}
+	if (unlikely(skb_padto(skb, ETH_ZLEN)))
+		return NETDEV_TX_OK;
 
 	len = max(skb->len, ETH_ZLEN);
-	queue = skb_get_queue_mapping(skb);
+	queue = skb->queue_mapping;
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	netif_stop_subqueue(dev, queue);
 #else
@@ -481,13 +474,9 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc = &priv->desc_ring[queue];
 	if (unlikely(desc->dataflags & CPMAC_OWN)) {
 		if (netif_msg_tx_err(priv) && net_ratelimit())
-			printk(KERN_WARNING "%s: tx dma ring full, dropping\n",
+			printk(KERN_WARNING "%s: tx dma ring full\n",
 			       dev->name);
-		spin_lock(&priv->lock);
-		dev->stats.tx_dropped++;
-		spin_unlock(&priv->lock);
-		dev_kfree_skb_any(skb);
-		return -ENOMEM;
+		return NETDEV_TX_BUSY;
 	}
 
 	spin_lock(&priv->lock);
@@ -509,7 +498,7 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		cpmac_dump_skb(dev, skb);
 	cpmac_write(priv->regs, CPMAC_TX_PTR(queue), (u32)desc->mapping);
 
-	return 0;
+	return NETDEV_TX_OK;
 }
 
 static void cpmac_end_xmit(struct net_device *dev, int queue)
@@ -646,12 +635,14 @@ static void cpmac_clear_tx(struct net_device *dev)
 	int i;
 	if (unlikely(!priv->desc_ring))
 		return;
-	for (i = 0; i < CPMAC_QUEUES; i++)
+	for (i = 0; i < CPMAC_QUEUES; i++) {
+		priv->desc_ring[i].dataflags = 0;
 		if (priv->desc_ring[i].skb) {
 			dev_kfree_skb_any(priv->desc_ring[i].skb);
 			if (netif_subqueue_stopped(dev, i))
 			    netif_wake_subqueue(dev, i);
 		}
+	}
 }
 
 static void cpmac_hw_error(struct work_struct *work)
@@ -727,11 +718,13 @@ static void cpmac_tx_timeout(struct net_device *dev)
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	for (i = 0; i < CPMAC_QUEUES; i++)
 		if (priv->desc_ring[i].skb) {
+			priv->desc_ring[i].dataflags = 0;
 			dev_kfree_skb_any(priv->desc_ring[i].skb);
 			netif_wake_subqueue(dev, i);
 			break;
 		}
 #else
+	priv->desc_ring[0].dataflags = 0;
 	if (priv->desc_ring[0].skb)
 		dev_kfree_skb_any(priv->desc_ring[0].skb);
 	netif_wake_queue(dev);
@@ -794,7 +787,7 @@ static int cpmac_set_ringparam(struct net_device *dev, struct ethtool_ringparam*
 {
 	struct cpmac_priv *priv = netdev_priv(dev);
 
-	if (dev->flags && IFF_UP)
+	if (netif_running(dev))
 		return -EBUSY;
 	priv->ring_size = ring->rx_pending;
 	return 0;
