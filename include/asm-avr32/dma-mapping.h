@@ -217,8 +217,8 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	for (i = 0; i < nents; i++) {
 		char *virt;
 
-		sg[i].dma_address = page_to_bus(sg[i].page) + sg[i].offset;
-		virt = page_address(sg[i].page) + sg[i].offset;
+		sg[i].dma_address = page_to_bus(sg_page(&sg[i])) + sg[i].offset;
+		virt = sg_virt(&sg[i]);
 		dma_cache_sync(dev, virt, sg[i].length, direction);
 	}
 
@@ -327,8 +327,7 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
 	int i;
 
 	for (i = 0; i < nents; i++) {
-		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
-			       sg[i].length, direction);
+		dma_cache_sync(dev, sg_virt(&sg[i]), sg[i].length, direction);
 	}
 }
 
