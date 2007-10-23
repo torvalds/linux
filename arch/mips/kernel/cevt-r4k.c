@@ -28,7 +28,7 @@ static int mips_next_event(unsigned long delta,
 	cnt = read_c0_count();
 	cnt += delta;
 	write_c0_compare(cnt);
-	res = ((long)(read_c0_count() - cnt ) > 0) ? -ETIME : 0;
+	res = ((int)(read_c0_count() - cnt) > 0) ? -ETIME : 0;
 #ifdef CONFIG_MIPS_MT_SMTC
 	evpe(vpflags);
 	local_irq_restore(flags);
@@ -196,7 +196,7 @@ static int c0_compare_int_usable(void)
 	cnt += delta;
 	write_c0_compare(cnt);
 
-	while ((long)(read_c0_count() - cnt) <= 0)
+	while ((int)(read_c0_count() - cnt) <= 0)
 		;	/* Wait for expiry  */
 
 	if (!c0_compare_int_pending())
