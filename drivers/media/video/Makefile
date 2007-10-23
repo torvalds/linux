@@ -6,10 +6,6 @@ zr36067-objs	:=	zoran_procfs.o zoran_device.o \
 			zoran_driver.o zoran_card.o
 tuner-objs	:=	tuner-core.o tuner-types.o tda9887.o
 
-ifneq ($(CONFIG_TUNER_XC2028),)
-  tuner-objs	+=	tuner-xc2028.o
-endif
-
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
 
 obj-$(CONFIG_VIDEO_DEV) += videodev.o v4l2-common.o compat_ioctl32.o \
@@ -85,6 +81,7 @@ obj-$(CONFIG_TUNER_3036) += tuner-3036.o
 
 obj-$(CONFIG_VIDEO_TUNER) += tuner.o
 
+obj-$(CONFIG_TUNER_XC2028) += tuner-xc2028.o
 obj-$(CONFIG_TUNER_SIMPLE) += tuner-simple.o
 obj-$(CONFIG_TUNER_MT20XX) += mt20xx.o
 obj-$(CONFIG_TUNER_TDA8290) += tda8290.o

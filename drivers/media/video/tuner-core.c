@@ -24,6 +24,7 @@
 #include "tda8290.h"
 #include "tea5761.h"
 #include "tea5767.h"
+#include "tuner-xc2028.h"
 #include "tuner-simple.h"
 
 #define UNSET (-1U)
@@ -323,8 +324,17 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		attach_simple_tuner(t);
 		break;
 	case TUNER_XC2028:
-		xc2028_tuner_init(c);
+	{
+		int rc=xc2028_attach(&t->fe, t->i2c.adapter, t->i2c.addr,
+				     &c->dev, c->adapter->algo_data,
+				     t->tuner_callback);
+		if (rc<0) {
+			t->type = TUNER_ABSENT;
+			t->mode_mask = T_UNINITIALIZED;
+			return;
+		}
 		break;
+	}
 	case TUNER_TDA9887:
 		tda9887_tuner_init(t);
 		break;

@@ -70,8 +70,6 @@ struct tuner {
 	struct tuner_operations ops;
 };
 
-extern int xc2028_tuner_init(struct i2c_client *c);
-
 /* ------------------------------------------------------------------------ */
 
 extern int tda9887_tuner_init(struct tuner *t);

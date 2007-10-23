@@ -69,6 +69,7 @@ source "drivers/media/common/Kconfig"
 config VIDEO_TUNER
 	tristate
 	depends on I2C
+	select TUNER_XC2028 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_MT20XX if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_TDA8290 if !VIDEO_TUNER_CUSTOMIZE
 	select TUNER_TEA5761 if !VIDEO_TUNER_CUSTOMIZE
@@ -88,6 +89,13 @@ menuconfig VIDEO_TUNER_CUSTOMIZE
 	  If unsure say N.
 
 if VIDEO_TUNER_CUSTOMIZE
+
+config TUNER_XC2028
+	tristate "XCeive xc2028/xc3028 tuners"
+	depends on I2C
+	default m if VIDEO_TUNER_CUSTOMIZE
+	help
+	  Say Y here to include support for the xc2028/xc3028 tuners.
 
 config TUNER_MT20XX
 	tristate "Microtune 2032 / 2050 tuners"
