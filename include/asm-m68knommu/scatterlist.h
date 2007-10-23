@@ -14,7 +14,6 @@ struct scatterlist {
 	unsigned int	length;
 };
 
-#define sg_address(sg)		(page_address((sg)->page) + (sg)->offset)
 #define sg_dma_address(sg)      ((sg)->dma_address)
 #define sg_dma_len(sg)          ((sg)->length)
 

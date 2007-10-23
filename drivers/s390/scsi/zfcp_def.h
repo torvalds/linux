@@ -63,7 +63,7 @@
 static inline void *
 zfcp_sg_to_address(struct scatterlist *list)
 {
-	return (void *) (page_address(list->page) + list->offset);
+	return sg_virt(list);
 }
 
 /**
@@ -74,7 +74,7 @@ zfcp_sg_to_address(struct scatterlist *list)
 static inline void
 zfcp_address_to_sg(void *address, struct scatterlist *list)
 {
-	list->page = virt_to_page(address);
+	sg_set_page(list, virt_to_page(address));
 	list->offset = ((unsigned long) address) & (PAGE_SIZE - 1);
 }
 

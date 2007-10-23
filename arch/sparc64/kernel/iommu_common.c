@@ -233,6 +233,11 @@ unsigned long prepare_sg(struct scatterlist *sg, int nents)
 	dma_sg->dma_address = dent_addr;
 	dma_sg->dma_length = dent_len;
 
+	if (dma_sg != sg) {
+		dma_sg = next_sg(dma_sg);
+		dma_sg->dma_length = 0;
+	}
+
 	return ((unsigned long) dent_addr +
 		(unsigned long) dent_len +
 		(IO_PAGE_SIZE - 1UL)) >> IO_PAGE_SHIFT;

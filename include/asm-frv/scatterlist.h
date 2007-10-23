@@ -4,19 +4,19 @@
 #include <asm/types.h>
 
 /*
- * Drivers must set either ->address or (preferred) ->page and ->offset
+ * Drivers must set either ->address or (preferred) page and ->offset
  * to indicate where data must be transferred to/from.
  *
- * Using ->page is recommended since it handles highmem data as well as
+ * Using page is recommended since it handles highmem data as well as
  * low mem. ->address is restricted to data which has a virtual mapping, and
- * it will go away in the future. Updating to ->page can be automated very
+ * it will go away in the future. Updating to page can be automated very
  * easily -- something like
  *
  * sg->address = some_ptr;
  *
  * can be rewritten as
  *
- * sg->page = virt_to_page(some_ptr);
+ * sg_set_page(virt_to_page(some_ptr));
  * sg->offset = (unsigned long) some_ptr & ~PAGE_MASK;
  *
  * and that's it. There's no excuse for not highmem enabling YOUR driver. /jens

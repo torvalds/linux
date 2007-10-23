@@ -2,7 +2,7 @@
 #define __ASM_SH_DMA_MAPPING_H
 
 #include <linux/mm.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/io.h>
 
 struct pci_dev;
@@ -71,10 +71,9 @@ static inline int dma_map_sg(struct device *dev, struct scatterlist *sg,
 
 	for (i = 0; i < nents; i++) {
 #if !defined(CONFIG_PCI) || defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
-			       sg[i].length, dir);
+		dma_cache_sync(dev, sg_virt(&sg[i]), sg[i].length, dir);
 #endif
-		sg[i].dma_address = page_to_phys(sg[i].page) + sg[i].offset;
+		sg[i].dma_address = sg_phys(&sg[i]);
 	}
 
 	return nents;
@@ -124,10 +123,9 @@ static inline void dma_sync_sg(struct device *dev, struct scatterlist *sg,
 
 	for (i = 0; i < nelems; i++) {
 #if !defined(CONFIG_PCI) || defined(CONFIG_SH_PCIDMA_NONCOHERENT)
-		dma_cache_sync(dev, page_address(sg[i].page) + sg[i].offset,
-			       sg[i].length, dir);
+		dma_cache_sync(dev, sg_virt(&sg[i]), sg[i].length, dir);
 #endif
-		sg[i].dma_address = page_to_phys(sg[i].page) + sg[i].offset;
+		sg[i].dma_address = sg_phys(&sg[i]);
 	}
 }
 
