@@ -20,6 +20,12 @@
 # Fill in SRCARCH
 SRCARCH	:= x86
 
+# BITS is used as extension for files which are available in a 32 bit
+# and a 64 bit version to simplify shared Makefiles.
+# e.g.: obj-y += foo_$(BITS).o
+BITS := 32
+export BITS
+
 HAS_BIARCH      := $(call cc-option-yn, -m32)
 ifeq ($(HAS_BIARCH),y)
 AS              := $(AS) --32
