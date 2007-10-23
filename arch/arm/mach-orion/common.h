@@ -6,6 +6,7 @@
  */
 
 void __init orion_map_io(void);
+void __init orion_init_irq(void);
 void __init orion_init(void);
 
 /*
