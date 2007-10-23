@@ -241,6 +241,12 @@
 				reg = <ef600d00 c>;
 			};
 
+			RGMII0: emac-rgmii@ef601000 {
+				device_type = "rgmii-interface";
+				compatible = "ibm,rgmii-440epx", "ibm,rgmii";
+				reg = <ef601000 8>;
+			};
+
 			EMAC0: ethernet@ef600e00 {
 				linux,network-index = <0>;
 				device_type = "network";
@@ -261,10 +267,12 @@
 				max-frame-size = <5dc>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
-				phy-mode = "rmii";
+				phy-mode = "rgmii";
 				phy-map = <00000000>;
 				zmii-device = <&ZMII0>;
 				zmii-channel = <0>;
+				rgmii-device = <&RGMII0>;
+				rgmii-channel = <0>;
 			};
 
 			EMAC1: ethernet@ef600f00 {
@@ -287,10 +295,12 @@
 				max-frame-size = <5dc>;
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
-				phy-mode = "rmii";
+				phy-mode = "rgmii";
 				phy-map = <00000000>;
 				zmii-device = <&ZMII0>;
 				zmii-channel = <1>;
+				rgmii-device = <&RGMII0>;
+				rgmii-channel = <1>;
 			};
 		};
 	};

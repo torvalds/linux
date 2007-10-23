@@ -57,8 +57,8 @@ void ibm405gp_fixup_clocks(unsigned int sysclk, unsigned int ser_clk)
 	}
 
 	/* setup the timebase clock to tick at the cpu frequency */
-	cpc0_cr1 = cpc0_cr1 & ~ 0x00800000;
-	mtdcr(DCRN_CPC0_CR1, cpc0_cr1);
+	cpc0_cr1 = cpc0_cr1 & ~0x00800000;
+	mtdcr(DCRN_405_CPC0_CR1, cpc0_cr1);
 	tb = cpu;
 
 	dt_fixup_cpu_clocks(cpu, tb, 0);
@@ -109,6 +109,7 @@ static void walnut_flashsel_fixup(void)
 	setprop(sram, "reg", reg_sram, sizeof(reg_sram));
 }
 
+#define WALNUT_OPENBIOS_MAC_OFF 0xfffffe0b
 static void walnut_fixups(void)
 {
 	ibm4xx_fixup_memsize();
@@ -116,6 +117,7 @@ static void walnut_fixups(void)
 	ibm4xx_quiesce_eth((u32 *)0xef600800, NULL);
 	ibm4xx_fixup_ebc_ranges("/plb/ebc");
 	walnut_flashsel_fixup();
+	dt_fixup_mac_addresses((u8 *) WALNUT_OPENBIOS_MAC_OFF);
 }
 
 void platform_init(void)
