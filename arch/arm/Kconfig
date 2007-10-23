@@ -338,6 +338,8 @@ config ARCH_ORION
 	depends on MMU
 	select PCI
 	select GENERIC_GPIO
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Marvell Orion System on Chip family.
 

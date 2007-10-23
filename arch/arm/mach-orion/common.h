@@ -62,4 +62,9 @@ int orion_pci_hw_wr_conf(u32 bus, u32 dev, u32 func, u32 where, u32 size, u32 va
 void __init orion_gpio_set_valid_pins(u32 pins);
 void gpio_display(void);	/* debug */
 
+/*
+ * Orion system timer (clocksource + clockevnt, /mach-orion/time.c)
+ */
+extern struct sys_timer orion_timer;
+
 #endif /* __ARCH_ORION_COMMON_H__ */
