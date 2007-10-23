@@ -18,6 +18,15 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
+static char bug64hit[] __initdata =
+	"reliable operation impossible!\n%s";
+static char nowar[] __initdata =
+	"Please report to <linux-mips@linux-mips.org>.";
+static char r4kwar[] __initdata =
+	"Enable CPU_R4000_WORKAROUNDS to rectify.";
+static char daddiwar[] __initdata =
+	"Enable CPU_DADDI_WORKAROUNDS to rectify.";
+
 static inline void align_mod(const int align, const int mod)
 {
 	asm volatile(
@@ -155,13 +164,7 @@ static inline void check_mult_sh(void)
 	}
 
 	printk("no.\n");
-	panic("Reliable operation impossible!\n"
-#ifndef CONFIG_CPU_R4000
-	      "Configure for R4000 to enable the workaround."
-#else
-	      "Please report to <linux-mips@linux-mips.org>."
-#endif
-	      );
+	panic(bug64hit, !R4000_WAR ? r4kwar : nowar);
 }
 
 static volatile int daddi_ov __initdata = 0;
@@ -233,14 +236,10 @@ static inline void check_daddi(void)
 	}
 
 	printk("no.\n");
-	panic("Reliable operation impossible!\n"
-#if !defined(CONFIG_CPU_R4000) && !defined(CONFIG_CPU_R4400)
-	      "Configure for R4000 or R4400 to enable the workaround."
-#else
-	      "Please report to <linux-mips@linux-mips.org>."
-#endif
-	      );
+	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
 }
+
+int daddiu_bug __initdata = -1;
 
 static inline void check_daddiu(void)
 {
@@ -281,7 +280,9 @@ static inline void check_daddiu(void)
 		: "=&r" (v), "=&r" (w), "=&r" (tmp)
 		: "I" (0xffffffffffffdb9aUL), "I" (0x1234));
 
-	if (v == w) {
+	daddiu_bug = v != w;
+
+	if (!daddiu_bug) {
 		printk("no.\n");
 		return;
 	}
@@ -303,18 +304,16 @@ static inline void check_daddiu(void)
 	}
 
 	printk("no.\n");
-	panic("Reliable operation impossible!\n"
-#if !defined(CONFIG_CPU_R4000) && !defined(CONFIG_CPU_R4400)
-	      "Configure for R4000 or R4400 to enable the workaround."
-#else
-	      "Please report to <linux-mips@linux-mips.org>."
-#endif
-	      );
+	panic(bug64hit, !DADDI_WAR ? daddiwar : nowar);
+}
+
+void __init check_bugs64_early(void)
+{
+	check_mult_sh();
+	check_daddiu();
 }
 
 void __init check_bugs64(void)
 {
-	check_mult_sh();
 	check_daddi();
-	check_daddiu();
 }

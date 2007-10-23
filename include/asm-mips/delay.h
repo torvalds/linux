@@ -6,13 +6,16 @@
  * Copyright (C) 1994 by Waldorf Electronics
  * Copyright (C) 1995 - 2000, 01, 03 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2007  Maciej W. Rozycki
  */
 #ifndef _ASM_DELAY_H
 #define _ASM_DELAY_H
 
 #include <linux/param.h>
 #include <linux/smp.h>
+
 #include <asm/compiler.h>
+#include <asm/war.h>
 
 static inline void __delay(unsigned long loops)
 {
@@ -50,7 +53,7 @@ static inline void __delay(unsigned long loops)
 
 static inline void __udelay(unsigned long usecs, unsigned long lpj)
 {
-	unsigned long lo;
+	unsigned long hi, lo;
 
 	/*
 	 * The rates of 128 is rounded wrongly by the catchall case
@@ -70,9 +73,14 @@ static inline void __udelay(unsigned long usecs, unsigned long lpj)
 		: "=h" (usecs), "=l" (lo)
 		: "r" (usecs), "r" (lpj)
 		: GCC_REG_ACCUM);
-	else if (sizeof(long) == 8)
+	else if (sizeof(long) == 8 && !R4000_WAR)
 		__asm__("dmultu\t%2, %3"
 		: "=h" (usecs), "=l" (lo)
+		: "r" (usecs), "r" (lpj)
+		: GCC_REG_ACCUM);
+	else if (sizeof(long) == 8 && R4000_WAR)
+		__asm__("dmultu\t%3, %4\n\tmfhi\t%0"
+		: "=r" (usecs), "=h" (hi), "=l" (lo)
 		: "r" (usecs), "r" (lpj)
 		: GCC_REG_ACCUM);
 

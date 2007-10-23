@@ -91,6 +91,9 @@ config MACH_DECSTATION
 	select BOOT_ELF32
 	select CEVT_R4K
 	select CSRC_R4K
+	select CPU_DADDI_WORKAROUNDS if 64BIT
+	select CPU_R4000_WORKAROUNDS if 64BIT
+	select CPU_R4400_WORKAROUNDS if 64BIT
 	select DMA_NONCOHERENT
 	select NO_IOPORT
 	select IRQ_CPU
@@ -1603,6 +1606,19 @@ config CPU_HAS_SYNC
 	default y
 
 config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+
+#
+# CPU non-features
+#
+config CPU_DADDI_WORKAROUNDS
+	bool
+
+config CPU_R4000_WORKAROUNDS
+	bool
+	select CPU_R4400_WORKAROUNDS
+
+config CPU_R4400_WORKAROUNDS
 	bool
 
 #
