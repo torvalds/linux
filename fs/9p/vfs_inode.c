@@ -687,10 +687,10 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	retval = p9_client_wstat(oldfid, &wstat);
 
 clunk_newdir:
-	p9_client_clunk(olddirfid);
+	p9_client_clunk(newdirfid);
 
 clunk_olddir:
-	p9_client_clunk(newdirfid);
+	p9_client_clunk(olddirfid);
 
 done:
 	return retval;

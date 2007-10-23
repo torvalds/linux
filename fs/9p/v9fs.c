@@ -162,6 +162,7 @@ static void v9fs_parse_options(struct v9fs_session_info *v9ses)
 				if (*e != '\0')
 					v9ses->uid = ~0;
 			}
+			kfree(s);
 			break;
 
 		default:
