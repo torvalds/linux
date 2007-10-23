@@ -1,1 +1,1 @@
-obj-y  += common.o pci.o
+obj-y  += common.o addr-map.o pci.o

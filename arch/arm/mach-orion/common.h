@@ -4,7 +4,37 @@
 /*
  * Basic Orion init functions used early by machine-setup.
  */
+
 void __init orion_map_io(void);
+void __init orion_init(void);
+
+/*
+ * Enumerations and functions for Orion windows mapping. Used by Orion core
+ * functions to map its interfaces and by the machine-setup to map its on-
+ * board devices. Details in /mach-orion/addr-map.c
+ */
+
+enum orion_target {
+	ORION_DEV_BOOT = 0,
+	ORION_DEV0,
+	ORION_DEV1,
+	ORION_DEV2,
+	ORION_PCIE_MEM,
+	ORION_PCIE_IO,
+	ORION_PCI_MEM,
+	ORION_PCI_IO,
+	ORION_DDR,
+	ORION_REGS,
+	ORION_MAX_TARGETS
+};
+
+void orion_setup_cpu_win(enum orion_target target, u32 base, u32 size, int remap);
+void orion_setup_cpu_wins(void);
+void orion_setup_eth_wins(void);
+void orion_setup_usb_wins(void);
+void orion_setup_pci_wins(void);
+void orion_setup_pcie_wins(void);
+void orion_setup_sata_wins(void);
 
 /*
  * Shared code used internally by other Orion core functions.
