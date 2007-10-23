@@ -42,10 +42,12 @@ OPTIONS
 
   trans=name	select an alternative transport.  Valid options are
   		currently:
- 			unix - specifying a named pipe mount point
- 			tcp  - specifying a normal TCP/IP connection
- 			fd   - used passed file descriptors for connection
+			unix 	- specifying a named pipe mount point
+			tcp	- specifying a normal TCP/IP connection
+			fd   	- used passed file descriptors for connection
                                 (see rfdno and wfdno)
+			virtio	- connect to the next virtio channel available
+				(from lguest or KVM with trans_virtio module)
 
   uname=name	user name to attempt mount as on the remote server.  The
   		server may override or ignore this value.  Certain user
