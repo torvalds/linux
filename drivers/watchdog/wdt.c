@@ -253,7 +253,7 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 			printk(KERN_CRIT "Possible fan fault.\n");
 	}
 #endif /* CONFIG_WDT_501 */
-	if (!(status & WDC_SR_WCCR))
+	if (!(status & WDC_SR_WCCR)) {
 #ifdef SOFTWARE_REBOOT
 #ifdef ONLY_TESTING
 		printk(KERN_CRIT "Would Reboot.\n");
@@ -264,6 +264,7 @@ static irqreturn_t wdt_interrupt(int irq, void *dev_id)
 #else
 		printk(KERN_CRIT "Reset in 5ms.\n");
 #endif
+	}
 	return IRQ_HANDLED;
 }
 
