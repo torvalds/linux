@@ -74,7 +74,8 @@ ENTRY(system_call)
 	movel	%sp,%d2			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d2	/* at start of kernel stack */
 	movel	%d2,%a0
-	movel	%sp,%a0@(THREAD_ESP0)	/* save top of frame */
+	movel	%a0@,%a1		/* save top of frame */
+	movel	%sp,%a1@(TASK_THREAD+THREAD_ESP0)
 	btst	#(TIF_SYSCALL_TRACE%8),%a0@(TI_FLAGS+(31-TIF_SYSCALL_TRACE)/8)
 	bnes	1f
 
@@ -83,6 +84,8 @@ ENTRY(system_call)
 	movel	%d0,%sp@(PT_D0)		/* save the return value */
 	jra	ret_from_exception
 1:
+	movel	#-ENOSYS,%d2		/* strace needs -ENOSYS in PT_D0 */
+	movel	%d2,PT_D0(%sp)		/* on syscall entry */
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
