@@ -12,8 +12,8 @@ LDFLAGS_vmlinux  := -X
 OBJCOPYFLAGS     := -O binary -R .note -R .comment -S
 GZFLAGS          := -9
 
-CFLAGS           += $(call cc-option,-mno-fdpic)
-AFLAGS           += $(call cc-option,-mno-fdpic)
+KBUILD_CFLAGS           += $(call cc-option,-mno-fdpic)
+KBUILD_AFLAGS           += $(call cc-option,-mno-fdpic)
 CFLAGS_MODULE    += -mlong-calls
 KALLSYMS         += --symbol-prefix=_
 
