@@ -4,6 +4,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/msr.h>
+#include <asm/asm-offsets.h>
 
 # Copyright 2003 Pavel Machek <pavel@suse.cz>, distribute under GPLv2
 #
@@ -342,31 +343,32 @@ do_suspend_lowlevel:
 	xorl	%eax, %eax
 	call	save_processor_state
 
-	movq %rsp, saved_context_esp(%rip)
-	movq %rax, saved_context_eax(%rip)
-	movq %rbx, saved_context_ebx(%rip)
-	movq %rcx, saved_context_ecx(%rip)
-	movq %rdx, saved_context_edx(%rip)
-	movq %rbp, saved_context_ebp(%rip)
-	movq %rsi, saved_context_esi(%rip)
-	movq %rdi, saved_context_edi(%rip)
-	movq %r8,  saved_context_r08(%rip)
-	movq %r9,  saved_context_r09(%rip)
-	movq %r10, saved_context_r10(%rip)
-	movq %r11, saved_context_r11(%rip)
-	movq %r12, saved_context_r12(%rip)
-	movq %r13, saved_context_r13(%rip)
-	movq %r14, saved_context_r14(%rip)
-	movq %r15, saved_context_r15(%rip)
-	pushfq ; popq saved_context_eflags(%rip)
+	movq	$saved_context, %rax
+	movq	%rsp, pt_regs_rsp(%rax)
+	movq	%rbp, pt_regs_rbp(%rax)
+	movq	%rsi, pt_regs_rsi(%rax)
+	movq	%rdi, pt_regs_rdi(%rax)
+	movq	%rbx, pt_regs_rbx(%rax)
+	movq	%rcx, pt_regs_rcx(%rax)
+	movq	%rdx, pt_regs_rdx(%rax)
+	movq	%r8, pt_regs_r8(%rax)
+	movq	%r9, pt_regs_r9(%rax)
+	movq	%r10, pt_regs_r10(%rax)
+	movq	%r11, pt_regs_r11(%rax)
+	movq	%r12, pt_regs_r12(%rax)
+	movq	%r13, pt_regs_r13(%rax)
+	movq	%r14, pt_regs_r14(%rax)
+	movq	%r15, pt_regs_r15(%rax)
+	pushfq
+	popq	pt_regs_eflags(%rax)
 
 	movq	$.L97, saved_rip(%rip)
 
-	movq %rsp,saved_rsp
-	movq %rbp,saved_rbp
-	movq %rbx,saved_rbx
-	movq %rdi,saved_rdi
-	movq %rsi,saved_rsi
+	movq	%rsp, saved_rsp
+	movq	%rbp, saved_rbp
+	movq	%rbx, saved_rbx
+	movq	%rdi, saved_rdi
+	movq	%rsi, saved_rsi
 
 	addq	$8, %rsp
 	movl	$3, %edi
@@ -377,32 +379,35 @@ do_suspend_lowlevel:
 .L99:
 	.align 4
 	movl	$24, %eax
-	movw %ax, %ds
-	movq	saved_context+58(%rip), %rax
-	movq %rax, %cr4
-	movq	saved_context+50(%rip), %rax
-	movq %rax, %cr3
-	movq	saved_context+42(%rip), %rax
-	movq %rax, %cr2
-	movq	saved_context+34(%rip), %rax
-	movq %rax, %cr0
-	pushq saved_context_eflags(%rip) ; popfq
-	movq saved_context_esp(%rip), %rsp
-	movq saved_context_ebp(%rip), %rbp
-	movq saved_context_eax(%rip), %rax
-	movq saved_context_ebx(%rip), %rbx
-	movq saved_context_ecx(%rip), %rcx
-	movq saved_context_edx(%rip), %rdx
-	movq saved_context_esi(%rip), %rsi
-	movq saved_context_edi(%rip), %rdi
-	movq saved_context_r08(%rip), %r8
-	movq saved_context_r09(%rip), %r9
-	movq saved_context_r10(%rip), %r10
-	movq saved_context_r11(%rip), %r11
-	movq saved_context_r12(%rip), %r12
-	movq saved_context_r13(%rip), %r13
-	movq saved_context_r14(%rip), %r14
-	movq saved_context_r15(%rip), %r15
+	movw	%ax, %ds
+
+	/* We don't restore %rax, it must be 0 anyway */
+	movq	$saved_context, %rax
+	movq	saved_context_cr4(%rax), %rbx
+	movq	%rbx, %cr4
+	movq	saved_context_cr3(%rax), %rbx
+	movq	%rbx, %cr3
+	movq	saved_context_cr2(%rax), %rbx
+	movq	%rbx, %cr2
+	movq	saved_context_cr0(%rax), %rbx
+	movq	%rbx, %cr0
+	pushq	pt_regs_eflags(%rax)
+	popfq
+	movq	pt_regs_rsp(%rax), %rsp
+	movq	pt_regs_rbp(%rax), %rbp
+	movq	pt_regs_rsi(%rax), %rsi
+	movq	pt_regs_rdi(%rax), %rdi
+	movq	pt_regs_rbx(%rax), %rbx
+	movq	pt_regs_rcx(%rax), %rcx
+	movq	pt_regs_rdx(%rax), %rdx
+	movq	pt_regs_r8(%rax), %r8
+	movq	pt_regs_r9(%rax), %r9
+	movq	pt_regs_r10(%rax), %r10
+	movq	pt_regs_r11(%rax), %r11
+	movq	pt_regs_r12(%rax), %r12
+	movq	pt_regs_r13(%rax), %r13
+	movq	pt_regs_r14(%rax), %r14
+	movq	pt_regs_r15(%rax), %r15
 
 	xorl	%eax, %eax
 	addq	$8, %rsp

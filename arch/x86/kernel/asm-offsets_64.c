@@ -76,6 +76,34 @@ int main(void)
 	DEFINE(pbe_orig_address, offsetof(struct pbe, orig_address));
 	DEFINE(pbe_next, offsetof(struct pbe, next));
 	BLANK();
+#define ENTRY(entry) DEFINE(pt_regs_ ## entry, offsetof(struct pt_regs, entry))
+	ENTRY(rbx);
+	ENTRY(rbx);
+	ENTRY(rcx);
+	ENTRY(rdx);
+	ENTRY(rsp);
+	ENTRY(rbp);
+	ENTRY(rsi);
+	ENTRY(rdi);
+	ENTRY(r8);
+	ENTRY(r9);
+	ENTRY(r10);
+	ENTRY(r11);
+	ENTRY(r12);
+	ENTRY(r13);
+	ENTRY(r14);
+	ENTRY(r15);
+	ENTRY(eflags);
+	BLANK();
+#undef ENTRY
+#define ENTRY(entry) DEFINE(saved_context_ ## entry, offsetof(struct saved_context, entry))
+	ENTRY(cr0);
+	ENTRY(cr2);
+	ENTRY(cr3);
+	ENTRY(cr4);
+	ENTRY(cr8);
+	BLANK();
+#undef ENTRY
 	DEFINE(TSS_ist, offsetof(struct tss_struct, ist));
 	BLANK();
 	DEFINE(crypto_tfm_ctx_offset, offsetof(struct crypto_tfm, __crt_ctx));

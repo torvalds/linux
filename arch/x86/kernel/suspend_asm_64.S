@@ -17,24 +17,24 @@
 #include <asm/asm-offsets.h>
 
 ENTRY(swsusp_arch_suspend)
-
-	movq %rsp, saved_context_esp(%rip)
-	movq %rax, saved_context_eax(%rip)
-	movq %rbx, saved_context_ebx(%rip)
-	movq %rcx, saved_context_ecx(%rip)
-	movq %rdx, saved_context_edx(%rip)
-	movq %rbp, saved_context_ebp(%rip)
-	movq %rsi, saved_context_esi(%rip)
-	movq %rdi, saved_context_edi(%rip)
-	movq %r8,  saved_context_r08(%rip)
-	movq %r9,  saved_context_r09(%rip)
-	movq %r10, saved_context_r10(%rip)
-	movq %r11, saved_context_r11(%rip)
-	movq %r12, saved_context_r12(%rip)
-	movq %r13, saved_context_r13(%rip)
-	movq %r14, saved_context_r14(%rip)
-	movq %r15, saved_context_r15(%rip)
-	pushfq ; popq saved_context_eflags(%rip)
+	movq	$saved_context, %rax
+	movq	%rsp, pt_regs_rsp(%rax)
+	movq	%rbp, pt_regs_rbp(%rax)
+	movq	%rsi, pt_regs_rsi(%rax)
+	movq	%rdi, pt_regs_rdi(%rax)
+	movq	%rbx, pt_regs_rbx(%rax)
+	movq	%rcx, pt_regs_rcx(%rax)
+	movq	%rdx, pt_regs_rdx(%rax)
+	movq	%r8, pt_regs_r8(%rax)
+	movq	%r9, pt_regs_r9(%rax)
+	movq	%r10, pt_regs_r10(%rax)
+	movq	%r11, pt_regs_r11(%rax)
+	movq	%r12, pt_regs_r12(%rax)
+	movq	%r13, pt_regs_r13(%rax)
+	movq	%r14, pt_regs_r14(%rax)
+	movq	%r15, pt_regs_r15(%rax)
+	pushfq
+	popq	pt_regs_eflags(%rax)
 
 	/* save the address of restore_registers */
 	movq	$restore_registers, %rax
@@ -113,23 +113,25 @@ ENTRY(restore_registers)
 	movq	%rcx, %cr3
 	movq	%rax, %cr4;  # turn PGE back on
 
-	movq saved_context_esp(%rip), %rsp
-	movq saved_context_ebp(%rip), %rbp
-	/* restore GPRs (we don't restore %rax, it must be 0 anyway) */
-	movq saved_context_ebx(%rip), %rbx
-	movq saved_context_ecx(%rip), %rcx
-	movq saved_context_edx(%rip), %rdx
-	movq saved_context_esi(%rip), %rsi
-	movq saved_context_edi(%rip), %rdi
-	movq saved_context_r08(%rip), %r8
-	movq saved_context_r09(%rip), %r9
-	movq saved_context_r10(%rip), %r10
-	movq saved_context_r11(%rip), %r11
-	movq saved_context_r12(%rip), %r12
-	movq saved_context_r13(%rip), %r13
-	movq saved_context_r14(%rip), %r14
-	movq saved_context_r15(%rip), %r15
-	pushq saved_context_eflags(%rip) ; popfq
+	/* We don't restore %rax, it must be 0 anyway */
+	movq	$saved_context, %rax
+	movq	pt_regs_rsp(%rax), %rsp
+	movq	pt_regs_rbp(%rax), %rbp
+	movq	pt_regs_rsi(%rax), %rsi
+	movq	pt_regs_rdi(%rax), %rdi
+	movq	pt_regs_rbx(%rax), %rbx
+	movq	pt_regs_rcx(%rax), %rcx
+	movq	pt_regs_rdx(%rax), %rdx
+	movq	pt_regs_r8(%rax), %r8
+	movq	pt_regs_r9(%rax), %r9
+	movq	pt_regs_r10(%rax), %r10
+	movq	pt_regs_r11(%rax), %r11
+	movq	pt_regs_r12(%rax), %r12
+	movq	pt_regs_r13(%rax), %r13
+	movq	pt_regs_r14(%rax), %r14
+	movq	pt_regs_r15(%rax), %r15
+	pushq	pt_regs_eflags(%rax)
+	popfq
 
 	xorq	%rax, %rax
 
