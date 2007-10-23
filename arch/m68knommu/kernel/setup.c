@@ -273,12 +273,3 @@ struct seq_operations cpuinfo_op = {
 	.show	= show_cpuinfo,
 };
 
-void arch_gettod(int *year, int *mon, int *day, int *hour,
-		 int *min, int *sec)
-{
-	if (mach_gettod)
-		mach_gettod(year, mon, day, hour, min, sec);
-	else
-		*year = *mon = *day = *hour = *min = *sec = 0;
-}
-

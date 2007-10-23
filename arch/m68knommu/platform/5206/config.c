@@ -10,13 +10,10 @@
 /***************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/irq.h>
 #include <asm/dma.h>
-#include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcftimer.h>
@@ -25,9 +22,6 @@
 
 /***************************************************************************/
 
-void coldfire_tick(void);
-void coldfire_timer_init(irq_handler_t handler);
-unsigned long coldfire_timer_offset(void);
 void coldfire_reset(void);
 
 /***************************************************************************/
@@ -97,9 +91,6 @@ int mcf_timerirqpending(int timer)
 void config_BSP(char *commandp, int size)
 {
 	mcf_setimr(MCFSIM_IMR_MASKALL);
-	mach_sched_init = coldfire_timer_init;
-	mach_tick = coldfire_tick;
-	mach_gettimeoffset = coldfire_timer_offset;
 	mach_reset = coldfire_reset;
 }
 

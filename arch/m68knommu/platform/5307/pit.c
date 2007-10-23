@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <asm/machdep.h>
 #include <asm/io.h>
 #include <asm/coldfire.h>
 #include <asm/mcfpit.h>
@@ -31,28 +32,30 @@
 
 /***************************************************************************/
 
-void coldfire_pit_tick(void)
+static irqreturn_t hw_tick(int irq, void *dummy)
 {
 	unsigned short pcsr;
 
 	/* Reset the ColdFire timer */
 	pcsr = __raw_readw(TA(MCFPIT_PCSR));
 	__raw_writew(pcsr | MCFPIT_PCSR_PIF, TA(MCFPIT_PCSR));
+
+	return arch_timer_interrupt(irq, dummy);
 }
 
 /***************************************************************************/
 
 static struct irqaction coldfire_pit_irq = {
-	.name    = "timer",
-	.flags   = IRQF_DISABLED | IRQF_TIMER,
+	.name	 = "timer",
+	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.handler = hw_tick,
 };
 
-void coldfire_pit_init(irq_handler_t handler)
+void hw_timer_init(void)
 {
 	volatile unsigned char *icrp;
 	volatile unsigned long *imrp;
 
-	coldfire_pit_irq.handler = handler;
 	setup_irq(MCFINT_VECBASE + MCFINT_PIT1, &coldfire_pit_irq);
 
 	icrp = (volatile unsigned char *) (MCF_IPSBAR + MCFICM_INTC0 +
@@ -71,7 +74,7 @@ void coldfire_pit_init(irq_handler_t handler)
 
 /***************************************************************************/
 
-unsigned long coldfire_pit_offset(void)
+unsigned long hw_timer_offset(void)
 {
 	volatile unsigned long *ipr;
 	unsigned long pmr, pcntr, offset;

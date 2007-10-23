@@ -13,12 +13,10 @@
 /***************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/dma.h>
-#include <asm/traps.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
@@ -26,9 +24,6 @@
 
 /***************************************************************************/
 
-void coldfire_pit_tick(void);
-void coldfire_pit_init(irq_handler_t handler);
-unsigned long coldfire_pit_offset(void);
 void coldfire_reset(void);
 
 /***************************************************************************/
@@ -62,9 +57,6 @@ void mcf_autovector(unsigned int vec)
 void config_BSP(char *commandp, int size)
 {
 	mcf_disableall();
-	mach_sched_init = coldfire_pit_init;
-	mach_tick = coldfire_pit_tick;
-	mach_gettimeoffset = coldfire_pit_offset;
 	mach_reset = coldfire_reset;
 }
 

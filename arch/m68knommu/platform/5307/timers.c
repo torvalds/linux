@@ -9,10 +9,9 @@
 /***************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/param.h>
-#include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <asm/io.h>
 #include <asm/traps.h>
@@ -54,24 +53,28 @@ extern int mcf_timerirqpending(int timer);
 
 /***************************************************************************/
 
-void coldfire_tick(void)
+static irqreturn_t hw_tick(int irq, void *dummy)
 {
 	/* Reset the ColdFire timer */
 	__raw_writeb(MCFTIMER_TER_CAP | MCFTIMER_TER_REF, TA(MCFTIMER_TER));
+
+	return arch_timer_interrupt(irq, dummy);
 }
 
 /***************************************************************************/
 
 static struct irqaction coldfire_timer_irq = {
-        .name    = "timer",
-        .flags   = IRQF_DISABLED | IRQF_TIMER,
+	.name	 = "timer",
+	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.handler = hw_tick,
 };
+
+/***************************************************************************/
 
 static int ticks_per_intr;
 
-void coldfire_timer_init(irq_handler_t handler)
+void hw_timer_init(void)
 {
-	coldfire_timer_irq.handler = handler;
 	setup_irq(mcf_timervector, &coldfire_timer_irq);
 
 	__raw_writew(MCFTIMER_TMR_DISABLE, TA(MCFTIMER_TMR));
@@ -89,7 +92,7 @@ void coldfire_timer_init(irq_handler_t handler)
 
 /***************************************************************************/
 
-unsigned long coldfire_timer_offset(void)
+unsigned long hw_timer_offset(void)
 {
 	unsigned long tcn, offset;
 

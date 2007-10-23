@@ -27,7 +27,6 @@
 
 #define	TICK_SIZE (tick_nsec / 1000)
 
-
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
 	if (mach_set_clock_mmss)
@@ -39,14 +38,10 @@ static inline int set_rtc_mmss(unsigned long nowtime)
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
  */
-static irqreturn_t timer_interrupt(int irq, void *dummy)
+irqreturn_t arch_timer_interrupt(int irq, void *dummy)
 {
 	/* last time the cmos clock got updated */
 	static long last_rtc_update=0;
-
-	/* may need to kick the hardware timer */
-	if (mach_tick)
-	  mach_tick();
 
 	write_seqlock(&xtime_lock);
 
@@ -103,10 +98,10 @@ void time_init(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
 
-	extern void arch_gettod(int *year, int *mon, int *day, int *hour,
-				int *min, int *sec);
-
-	arch_gettod(&year, &mon, &day, &hour, &min, &sec);
+	if (mach_gettod)
+		mach_gettod(&year, &mon, &day, &hour, &min, &sec);
+	else
+		year = mon = day = hour = min = sec = 0;
 
 	if ((year += 1900) < 1970)
 		year += 100;
@@ -114,7 +109,7 @@ void time_init(void)
 	xtime.tv_nsec = 0;
 	wall_to_monotonic.tv_sec = -xtime.tv_sec;
 
-	mach_sched_init(timer_interrupt);
+	hw_timer_init();
 }
 
 /*
@@ -128,7 +123,7 @@ void do_gettimeofday(struct timeval *tv)
 
 	do {
 		seq = read_seqbegin_irqsave(&xtime_lock, flags);
-		usec = mach_gettimeoffset ? mach_gettimeoffset() : 0;
+		usec = hw_timer_offset();
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec / 1000);
 	} while (read_seqretry_irqrestore(&xtime_lock, seq, flags));
@@ -160,8 +155,7 @@ int do_settimeofday(struct timespec *tv)
 	 * Discover what correction gettimeofday
 	 * would have done, and then undo it!
 	 */
-	if (mach_gettimeoffset)
-		nsec -= (mach_gettimeoffset() * 1000);
+	nsec -= (hw_timer_offset() * 1000);
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - nsec);
