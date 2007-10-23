@@ -515,7 +515,7 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 	struct stb0899_config *config		= state->config;
 
 	u8 bclc, reg;
-	u8 cfr[1];
+	u8 cfr[2];
 	u8 eq_const[10];
 	s32 clnI = 3;
 	u32 bandwidth = 0;

@@ -611,7 +611,7 @@ static void stb0899_init_calc(struct stb0899_state *state)
 {
 	struct stb0899_internal *internal = &state->internal;
 	int master_clk;
-	u8 agc[1];
+	u8 agc[2];
 	u8 agc1cn;
 	u32 reg;
 

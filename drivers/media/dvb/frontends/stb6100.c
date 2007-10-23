@@ -487,7 +487,7 @@ static int stb6100_set_state(struct dvb_frontend *fe,
 	switch (param) {
 	case DVBFE_TUNER_FREQUENCY:
 		stb6100_set_frequency(fe, state->frequency);
-		state->frequency = tstate->frequency;
+		tstate->frequency = state->frequency;
 		break;
 	case DVBFE_TUNER_TUNERSTEP:
 		break;
@@ -495,7 +495,7 @@ static int stb6100_set_state(struct dvb_frontend *fe,
 		break;
 	case DVBFE_TUNER_BANDWIDTH:
 		stb6100_set_bandwidth(fe, state->bandwidth);
-		state->bandwidth = tstate->bandwidth;
+		tstate->bandwidth = state->bandwidth;
 		break;
 	case DVBFE_TUNER_REFCLOCK:
 		break;
