@@ -9,6 +9,7 @@
  * Copyright (C) 1999, 2000, 01, 2002 Silicon Graphics, Inc.
  * Copyright (C) 2002 Broadcom, Inc.
  *   memcpy/copy_user author: Mark Vandevoorde
+ * Copyright (C) 2007  Maciej W. Rozycki
  *
  * Mnemonic names for arguments to memcpy/__copy_user
  */
@@ -175,7 +176,11 @@
 
 	.text
 	.set	noreorder
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	.set	noat
+#else
+	.set	at=v1
+#endif
 
 /*
  * A combined memcpy/__copy_user
@@ -268,8 +273,10 @@ EXC(	LOAD	t3, UNIT(3)(src),	l_exc_copy)
 	STORE	t1, UNIT(1)(dst)
 	STORE	t2, UNIT(2)(dst)
 	STORE	t3, UNIT(3)(dst)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
 	beqz	len, done
-	 ADD	dst, dst, 4*NBYTES
+	.set	noreorder
 less_than_4units:
 	/*
 	 * rem = len % NBYTES
@@ -281,8 +288,10 @@ EXC(	LOAD	t0, 0(src),		l_exc)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
 	STORE	t0, 0(dst)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	rem, len, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
 	/*
 	 * src and dst are aligned, need to copy rem bytes (rem < NBYTES)
@@ -361,8 +370,10 @@ EXC(	LDREST	t3, REST(3)(src),	l_exc_copy)
 	STORE	t2, UNIT(2)(dst)
 	STORE	t3, UNIT(3)(dst)
 	PREF(	1, 9*32(dst) )     	# 1 is PREF_STORE (not streamed)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, 4*NBYTES
+	.set	noreorder
 
 cleanup_src_unaligned:
 	beqz	len, done
@@ -375,8 +386,10 @@ EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
 	STORE	t0, 0(dst)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
 copy_bytes_checklen:
 	beqz	len, done
@@ -424,8 +437,10 @@ l_exc_copy:
 EXC(	lb	t1, 0(src),	l_exc)
 	ADD	src, src, 1
 	sb	t1, 0(dst)	# can't fault -- we're copy_from_user
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 1
 	bne	src, t0, 1b
-	 ADD	dst, dst, 1
+	.set	noreorder
 l_exc:
 	LOAD	t0, TI_TASK($28)
 	 nop

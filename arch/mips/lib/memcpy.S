@@ -9,6 +9,7 @@
  * Copyright (C) 1999, 2000, 01, 2002 Silicon Graphics, Inc.
  * Copyright (C) 2002 Broadcom, Inc.
  *   memcpy/copy_user author: Mark Vandevoorde
+ * Copyright (C) 2007  Maciej W. Rozycki
  *
  * Mnemonic names for arguments to memcpy/__copy_user
  */
@@ -175,7 +176,11 @@
 
 	.text
 	.set	noreorder
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	.set	noat
+#else
+	.set	at=v1
+#endif
 
 /*
  * A combined memcpy/__copy_user
@@ -271,8 +276,10 @@ EXC(	STORE	t0, UNIT(0)(dst),	s_exc_p4u)
 EXC(	STORE	t1, UNIT(1)(dst),	s_exc_p3u)
 EXC(	STORE	t2, UNIT(2)(dst),	s_exc_p2u)
 EXC(	STORE	t3, UNIT(3)(dst),	s_exc_p1u)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
 	beqz	len, done
-	 ADD	dst, dst, 4*NBYTES
+	.set	noreorder
 less_than_4units:
 	/*
 	 * rem = len % NBYTES
@@ -284,8 +291,10 @@ EXC(	LOAD	t0, 0(src),		l_exc)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
 EXC(	STORE	t0, 0(dst),		s_exc_p1u)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	rem, len, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
 	/*
 	 * src and dst are aligned, need to copy rem bytes (rem < NBYTES)
@@ -364,8 +373,10 @@ EXC(	STORE	t1, UNIT(1)(dst),	s_exc_p3u)
 EXC(	STORE	t2, UNIT(2)(dst),	s_exc_p2u)
 EXC(	STORE	t3, UNIT(3)(dst),	s_exc_p1u)
 	PREF(	1, 9*32(dst) )     	# 1 is PREF_STORE (not streamed)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, 4*NBYTES
+	.set	noreorder
 
 cleanup_src_unaligned:
 	beqz	len, done
@@ -378,8 +389,10 @@ EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
 EXC(	STORE	t0, 0(dst),		s_exc_p1u)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
 copy_bytes_checklen:
 	beqz	len, done
@@ -427,8 +440,10 @@ l_exc_copy:
 EXC(	lb	t1, 0(src),	l_exc)
 	ADD	src, src, 1
 	sb	t1, 0(dst)	# can't fault -- we're copy_from_user
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 1
 	bne	src, t0, 1b
-	 ADD	dst, dst, 1
+	.set	noreorder
 l_exc:
 	LOAD	t0, TI_TASK($28)
 	 nop
@@ -446,20 +461,33 @@ l_exc:
 	 * Clear len bytes starting at dst.  Can't call __bzero because it
 	 * might modify len.  An inefficient loop for these rare times...
 	 */
+	.set	reorder				/* DADDI_WAR */
+	SUB	src, len, 1
 	beqz	len, done
-	 SUB	src, len, 1
+	.set	noreorder
 1:	sb	zero, 0(dst)
 	ADD	dst, dst, 1
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	bnez	src, 1b
 	 SUB	src, src, 1
+#else
+	.set	push
+	.set	noat
+	li	v1, 1
+	bnez	src, 1b
+	 SUB	src, src, v1
+	.set	pop
+#endif
 	jr	ra
 	 nop
 
 
-#define SEXC(n)				\
-s_exc_p ## n ## u:			\
-	jr	ra;			\
-	 ADD	len, len, n*NBYTES
+#define SEXC(n)							\
+	.set	reorder;			/* DADDI_WAR */	\
+s_exc_p ## n ## u:						\
+	ADD	len, len, n*NBYTES;				\
+	jr	ra;						\
+	.set	noreorder
 
 SEXC(8)
 SEXC(7)
@@ -471,8 +499,10 @@ SEXC(2)
 SEXC(1)
 
 s_exc_p1:
+	.set	reorder				/* DADDI_WAR */
+	ADD	len, len, 1
 	jr	ra
-	 ADD	len, len, 1
+	.set	noreorder
 s_exc:
 	jr	ra
 	 nop
@@ -502,8 +532,10 @@ r_end_bytes:
 	SUB	a2, a2, 0x1
 	sb	t0, -1(a0)
 	SUB	a1, a1, 0x1
+	.set	reorder				/* DADDI_WAR */
+	SUB	a0, a0, 0x1
 	bnez	a2, r_end_bytes
-	 SUB	a0, a0, 0x1
+	.set	noreorder
 
 r_out:
 	jr	ra
@@ -514,8 +546,10 @@ r_end_bytes_up:
 	SUB	a2, a2, 0x1
 	sb	t0, (a0)
 	ADD	a1, a1, 0x1
+	.set	reorder				/* DADDI_WAR */
+	ADD	a0, a0, 0x1
 	bnez	a2, r_end_bytes_up
-	 ADD	a0, a0, 0x1
+	.set	noreorder
 
 	jr	ra
 	 move	a2, zero

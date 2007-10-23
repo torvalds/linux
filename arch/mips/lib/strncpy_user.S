@@ -41,9 +41,9 @@ FEXPORT(__strncpy_from_user_nocheck_asm)
 	beqz		t0, 2f
 	 sb		t0, (a0)
 	PTR_ADDIU	v0, 1
-	bne		v0, a2, 1b
-	 PTR_ADDIU	a0, 1
 	.set		reorder
+	PTR_ADDIU	a0, 1
+	bne		v0, a2, 1b
 2:	PTR_ADDU	t0, a1, v0
 	xor		t0, a1
 	bltz		t0, fault

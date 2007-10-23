@@ -28,7 +28,7 @@ static inline void __delay(unsigned long loops)
 		"	.set	reorder					\n"
 		: "=r" (loops)
 		: "0" (loops));
-	else if (sizeof(long) == 8)
+	else if (sizeof(long) == 8 && !DADDI_WAR)
 		__asm__ __volatile__ (
 		"	.set	noreorder				\n"
 		"	.align	3					\n"
@@ -37,6 +37,15 @@ static inline void __delay(unsigned long loops)
 		"	.set	reorder					\n"
 		: "=r" (loops)
 		: "0" (loops));
+	else if (sizeof(long) == 8 && DADDI_WAR)
+		__asm__ __volatile__ (
+		"	.set	noreorder				\n"
+		"	.align	3					\n"
+		"1:	bnez	%0, 1b					\n"
+		"	dsubu	%0, %2					\n"
+		"	.set	reorder					\n"
+		: "=r" (loops)
+		: "0" (loops), "r" (1));
 }
 
 

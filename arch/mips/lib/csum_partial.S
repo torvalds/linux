@@ -7,6 +7,7 @@
  *
  * Copyright (C) 1998, 1999 Ralf Baechle
  * Copyright (C) 1999 Silicon Graphics, Inc.
+ * Copyright (C) 2007  Maciej W. Rozycki
  */
 #include <linux/errno.h>
 #include <asm/asm.h>
@@ -52,9 +53,12 @@
 #define UNIT(unit)  ((unit)*NBYTES)
 
 #define ADDC(sum,reg)						\
+	.set	push;						\
+	.set	noat;						\
 	ADD	sum, reg;					\
 	sltu	v1, sum, reg;					\
-	ADD	sum, v1
+	ADD	sum, v1;					\
+	.set	pop
 
 #define CSUM_BIGCHUNK1(src, offset, sum, _t0, _t1, _t2, _t3)	\
 	LOAD	_t0, (offset + UNIT(0))(src);			\
@@ -178,8 +182,10 @@ move_128bytes:
 	CSUM_BIGCHUNK(src, 0x40, sum, t0, t1, t3, t4)
 	CSUM_BIGCHUNK(src, 0x60, sum, t0, t1, t3, t4)
 	LONG_SUBU	t8, t8, 0x01
+	.set	reorder				/* DADDI_WAR */
+	PTR_ADDU	src, src, 0x80
 	bnez	t8, move_128bytes
-	 PTR_ADDU	src, src, 0x80
+	.set	noreorder
 
 1:
 	beqz	t2, 1f
@@ -208,8 +214,10 @@ end_words:
 	lw	t0, (src)
 	LONG_SUBU	t8, t8, 0x1
 	ADDC(sum, t0)
+	.set	reorder				/* DADDI_WAR */
+	PTR_ADDU	src, src, 0x4
 	bnez	t8, end_words
-	 PTR_ADDU	src, src, 0x4
+	.set	noreorder
 
 /* unknown src alignment and < 8 bytes to go  */
 small_csumcpy:
@@ -246,6 +254,8 @@ small_csumcpy:
 1:	ADDC(sum, t1)
 
 	/* fold checksum */
+	.set	push
+	.set	noat
 #ifdef USE_DOUBLE
 	dsll32	v1, sum, 0
 	daddu	sum, v1
@@ -266,6 +276,7 @@ small_csumcpy:
 	srl	sum, sum, 8
 	or	sum, v1
 	andi	sum, 0xffff
+	.set	pop
 1:
 	.set	reorder
 	/* Add the passed partial csum.  */
@@ -373,7 +384,11 @@ small_csumcpy:
 
 #define ADDRMASK (NBYTES-1)
 
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	.set	noat
+#else
+	.set	at=v1
+#endif
 
 LEAF(__csum_partial_copy_user)
 	PTR_ADDU	AT, src, len	/* See (1) above. */
@@ -441,8 +456,10 @@ EXC(	STORE	t6, UNIT(6)(dst),	s_exc)
 	ADDC(sum, t6)
 EXC(	STORE	t7, UNIT(7)(dst),	s_exc)
 	ADDC(sum, t7)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 8*NBYTES
 	bgez	len, 1b
-	 ADD	dst, dst, 8*NBYTES
+	.set	noreorder
 	ADD	len, 8*NBYTES		# revert len (see above)
 
 	/*
@@ -471,8 +488,10 @@ EXC(	STORE	t2, UNIT(2)(dst),	s_exc)
 	ADDC(sum, t2)
 EXC(	STORE	t3, UNIT(3)(dst),	s_exc)
 	ADDC(sum, t3)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
 	beqz	len, done
-	 ADD	dst, dst, 4*NBYTES
+	.set	noreorder
 less_than_4units:
 	/*
 	 * rem = len % NBYTES
@@ -485,8 +504,10 @@ EXC(	LOAD	t0, 0(src),		l_exc)
 	SUB	len, len, NBYTES
 EXC(	STORE	t0, 0(dst),		s_exc)
 	ADDC(sum, t0)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	rem, len, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
 	/*
 	 * src and dst are aligned, need to copy rem bytes (rem < NBYTES)
@@ -572,8 +593,10 @@ EXC(	STORE	t2, UNIT(2)(dst),	s_exc)
 	ADDC(sum, t2)
 EXC(	STORE	t3, UNIT(3)(dst),	s_exc)
 	ADDC(sum, t3)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 4*NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, 4*NBYTES
+	.set	noreorder
 
 cleanup_src_unaligned:
 	beqz	len, done
@@ -587,8 +610,10 @@ EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
 	SUB	len, len, NBYTES
 EXC(	STORE	t0, 0(dst),		s_exc)
 	ADDC(sum, t0)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, NBYTES
 	bne	len, rem, 1b
-	 ADD	dst, dst, NBYTES
+	.set	noreorder
 
 copy_bytes_checklen:
 	beqz	len, done
@@ -631,6 +656,8 @@ copy_bytes_done:
 	ADDC(sum, t2)
 done:
 	/* fold checksum */
+	.set	push
+	.set	noat
 #ifdef USE_DOUBLE
 	dsll32	v1, sum, 0
 	daddu	sum, v1
@@ -651,6 +678,7 @@ done:
 	srl	sum, sum, 8
 	or	sum, v1
 	andi	sum, 0xffff
+	.set	pop
 1:
 	.set reorder
 	ADDC(sum, psum)
@@ -678,8 +706,10 @@ EXC(	lbu	t1, 0(src),	l_exc)
 	SLLV	t1, t1, t2
 	addu	t2, SHIFT_INC
 	ADDC(sum, t1)
+	.set	reorder				/* DADDI_WAR */
+	ADD	dst, dst, 1
 	bne	src, t0, 1b
-	 ADD	dst, dst, 1
+	.set	noreorder
 l_exc:
 	LOAD	t0, TI_TASK($28)
 	 nop
@@ -697,12 +727,22 @@ l_exc:
 	 * Clear len bytes starting at dst.  Can't call __bzero because it
 	 * might modify len.  An inefficient loop for these rare times...
 	 */
+	.set	reorder				/* DADDI_WAR */
+	SUB	src, len, 1
 	beqz	len, done
-	 SUB	src, len, 1
+	.set	noreorder
 1:	sb	zero, 0(dst)
 	ADD	dst, dst, 1
+	.set	push
+	.set	noat
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	bnez	src, 1b
 	 SUB	src, src, 1
+#else
+	li	v1, 1
+	bnez	src, 1b
+	 SUB	src, src, v1
+#endif
 	li	v1, -EFAULT
 	b	done
 	 sw	v1, (errptr)
@@ -712,4 +752,5 @@ s_exc:
 	li	v1, -EFAULT
 	jr	ra
 	 sw	v1, (errptr)
+	.set	pop
 	END(__csum_partial_copy_user)

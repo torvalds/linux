@@ -6,7 +6,7 @@
  * Copyright (C) 1994 - 2000, 2001, 2003 Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2001 MIPS Technologies, Inc.
- * Copyright (C) 2002 Maciej W. Rozycki
+ * Copyright (C) 2002, 2007  Maciej W. Rozycki
  */
 #include <linux/init.h>
 
@@ -471,7 +471,13 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	jr	k0
 	 rfe
 #else
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	LONG_ADDIU	k0, 4		/* stall on $k0 */
+#else
+	.set	at=v1
+	LONG_ADDIU	k0, 4
+	.set	noat
+#endif
 	MTC0	k0, CP0_EPC
 	/* I hope three instructions between MTC0 and ERET are enough... */
 	ori	k1, _THREAD_MASK

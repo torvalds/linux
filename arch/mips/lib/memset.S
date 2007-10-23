@@ -5,6 +5,7 @@
  *
  * Copyright (C) 1998, 1999, 2000 by Ralf Baechle
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2007  Maciej W. Rozycki
  */
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
@@ -74,8 +75,16 @@ FEXPORT(__bzero)
 	bnez		t0, small_memset
 	 andi		t0, a0, LONGMASK	/* aligned? */
 
+#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
 	beqz		t0, 1f
 	 PTR_SUBU	t0, LONGSIZE		/* alignment in bytes */
+#else
+	.set		noat
+	li		AT, LONGSIZE
+	beqz		t0, 1f
+	 PTR_SUBU	t0, AT			/* alignment in bytes */
+	.set		at
+#endif
 
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), first_fixup)	/* make word/dword aligned */
@@ -106,7 +115,7 @@ memset_partial:
 	.set		noat
 	LONG_SRL		AT, t0, 1
 	PTR_SUBU	t1, AT
-	.set		noat
+	.set		at
 #endif
 	jr		t1
 	 PTR_ADDU	a0, t0			/* dest ptr */

@@ -6,7 +6,7 @@
  * Synthesize TLB refill handlers at runtime.
  *
  * Copyright (C) 2004,2005,2006 by Thiemo Seufer
- * Copyright (C) 2005  Maciej W. Rozycki
+ * Copyright (C) 2005, 2007  Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
  *
  * ... and the days got worse and worse and now you see
@@ -27,6 +27,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 
+#include <asm/bugs.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
@@ -293,7 +294,7 @@ static void __init build_insn(u32 **buf, enum opcode opc, ...)
 			break;
 		}
 
-	if (!ip)
+	if (!ip || (opc == insn_daddiu && r4k_daddiu_bug()))
 		panic("Unsupported TLB synthesizer instruction %d", opc);
 
 	op = ip->match;
@@ -525,23 +526,33 @@ L_LA(_r3000_write_probe_fail)
 #define i_ssnop(buf) i_sll(buf, 0, 0, 1)
 #define i_ehb(buf) i_sll(buf, 0, 0, 3)
 
-#ifdef CONFIG_64BIT
 static __init int __maybe_unused in_compat_space_p(long addr)
 {
 	/* Is this address in 32bit compat space? */
+#ifdef CONFIG_64BIT
 	return (((addr) & 0xffffffff00000000L) == 0xffffffff00000000L);
+#else
+	return 1;
+#endif
 }
 
 static __init int __maybe_unused rel_highest(long val)
 {
+#ifdef CONFIG_64BIT
 	return ((((val + 0x800080008000L) >> 48) & 0xffff) ^ 0x8000) - 0x8000;
+#else
+	return 0;
+#endif
 }
 
 static __init int __maybe_unused rel_higher(long val)
 {
+#ifdef CONFIG_64BIT
 	return ((((val + 0x80008000L) >> 32) & 0xffff) ^ 0x8000) - 0x8000;
-}
+#else
+	return 0;
 #endif
+}
 
 static __init int rel_hi(long val)
 {
@@ -555,7 +566,6 @@ static __init int rel_lo(long val)
 
 static __init void i_LA_mostly(u32 **buf, unsigned int rs, long addr)
 {
-#ifdef CONFIG_64BIT
 	if (!in_compat_space_p(addr)) {
 		i_lui(buf, rs, rel_highest(addr));
 		if (rel_higher(addr))
@@ -567,16 +577,18 @@ static __init void i_LA_mostly(u32 **buf, unsigned int rs, long addr)
 		} else
 			i_dsll32(buf, rs, rs, 0);
 	} else
-#endif
 		i_lui(buf, rs, rel_hi(addr));
 }
 
-static __init void __maybe_unused i_LA(u32 **buf, unsigned int rs,
-					     long addr)
+static __init void __maybe_unused i_LA(u32 **buf, unsigned int rs, long addr)
 {
 	i_LA_mostly(buf, rs, addr);
-	if (rel_lo(addr))
-		i_ADDIU(buf, rs, rs, rel_lo(addr));
+	if (rel_lo(addr)) {
+		if (!in_compat_space_p(addr))
+			i_daddiu(buf, rs, rs, rel_lo(addr));
+		else
+			i_addiu(buf, rs, rs, rel_lo(addr));
+	}
 }
 
 /*
@@ -1085,7 +1097,10 @@ build_get_pgd_vmalloc64(u32 **p, struct label **l, struct reloc **r,
 	} else {
 		i_LA_mostly(p, ptr, modd);
 		il_b(p, r, label_vmalloc_done);
-		i_daddiu(p, ptr, ptr, rel_lo(modd));
+		if (in_compat_space_p(modd))
+			i_addiu(p, ptr, ptr, rel_lo(modd));
+		else
+			i_daddiu(p, ptr, ptr, rel_lo(modd));
 	}
 
 	l_vmalloc(l, *p);
@@ -1106,7 +1121,10 @@ build_get_pgd_vmalloc64(u32 **p, struct label **l, struct reloc **r,
 	} else {
 		i_LA_mostly(p, ptr, swpd);
 		il_b(p, r, label_vmalloc_done);
-		i_daddiu(p, ptr, ptr, rel_lo(swpd));
+		if (in_compat_space_p(swpd))
+			i_addiu(p, ptr, ptr, rel_lo(swpd));
+		else
+			i_daddiu(p, ptr, ptr, rel_lo(swpd));
 	}
 }
 
