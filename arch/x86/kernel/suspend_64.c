@@ -19,12 +19,6 @@ extern const void __nosave_begin, __nosave_end;
 
 struct saved_context saved_context;
 
-unsigned long saved_context_eax, saved_context_ebx, saved_context_ecx, saved_context_edx;
-unsigned long saved_context_esp, saved_context_ebp, saved_context_esi, saved_context_edi;
-unsigned long saved_context_r08, saved_context_r09, saved_context_r10, saved_context_r11;
-unsigned long saved_context_r12, saved_context_r13, saved_context_r14, saved_context_r15;
-unsigned long saved_context_eflags;
-
 void __save_processor_state(struct saved_context *ctxt)
 {
 	kernel_fpu_begin();

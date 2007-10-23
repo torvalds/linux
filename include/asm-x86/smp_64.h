@@ -76,6 +76,8 @@ extern unsigned __cpuinitdata disabled_cpus;
 
 #endif /* CONFIG_SMP */
 
+#define safe_smp_processor_id()		smp_processor_id()
+
 static inline int hard_smp_processor_id(void)
 {
 	/* we don't want to mark this access volatile - bad code generation */

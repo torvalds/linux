@@ -23,7 +23,7 @@
 #include <linux/types.h>
 #include <linux/edd.h>
 #include <asm/boot.h>
-#include <asm/bootparam.h>
+#include <asm/setup.h>
 
 /* Useful macros */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))

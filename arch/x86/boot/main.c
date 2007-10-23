@@ -26,8 +26,6 @@ char *heap_end = _end;		/* Default end of heap = no heap */
  * screws up the old-style command line protocol, adjust by
  * filling in the new-style command line pointer instead.
  */
-#define OLD_CL_MAGIC	0xA33F
-#define OLD_CL_ADDRESS	0x20
 
 static void copy_boot_params(void)
 {

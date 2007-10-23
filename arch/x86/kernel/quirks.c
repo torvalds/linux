@@ -60,7 +60,8 @@ static enum {
 	NONE_FORCE_HPET_RESUME,
 	OLD_ICH_FORCE_HPET_RESUME,
 	ICH_FORCE_HPET_RESUME,
-	VT8237_FORCE_HPET_RESUME
+	VT8237_FORCE_HPET_RESUME,
+	NVIDIA_FORCE_HPET_RESUME,
 } force_hpet_resume_type;
 
 static void __iomem *rcba_base;
@@ -321,6 +322,55 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235,
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8237,
 			 vt8237_force_enable_hpet);
 
+/*
+ * Undocumented chipset feature taken from LinuxBIOS.
+ */
+static void nvidia_force_hpet_resume(void)
+{
+	pci_write_config_dword(cached_dev, 0x44, 0xfed00001);
+	printk(KERN_DEBUG "Force enabled HPET at resume\n");
+}
+
+static void nvidia_force_enable_hpet(struct pci_dev *dev)
+{
+	u32 uninitialized_var(val);
+
+	if (!hpet_force_user || hpet_address || force_hpet_address)
+		return;
+
+	pci_write_config_dword(dev, 0x44, 0xfed00001);
+	pci_read_config_dword(dev, 0x44, &val);
+	force_hpet_address = val & 0xfffffffe;
+	force_hpet_resume_type = NVIDIA_FORCE_HPET_RESUME;
+	printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
+		force_hpet_address);
+	cached_dev = dev;
+	return;
+}
+
+/* ISA Bridges */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0050,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0051,
+			nvidia_force_enable_hpet);
+
+/* LPC bridges */
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0360,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0361,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0362,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0363,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0364,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0365,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0366,
+			nvidia_force_enable_hpet);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NVIDIA, 0x0367,
+			nvidia_force_enable_hpet);
 
 void force_hpet_resume(void)
 {
@@ -333,6 +383,9 @@ void force_hpet_resume(void)
 
 	    case VT8237_FORCE_HPET_RESUME:
 		return vt8237_force_hpet_resume();
+
+	    case NVIDIA_FORCE_HPET_RESUME:
+		return nvidia_force_hpet_resume();
 
 	    default:
 		break;

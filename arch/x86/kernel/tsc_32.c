@@ -131,36 +131,41 @@ unsigned long native_calculate_cpu_khz(void)
 {
 	unsigned long long start, end;
 	unsigned long count;
-	u64 delta64;
+	u64 delta64 = (u64)ULLONG_MAX;
 	int i;
 	unsigned long flags;
 
 	local_irq_save(flags);
 
-	/* run 3 times to ensure the cache is warm */
+	/* run 3 times to ensure the cache is warm and to get an accurate reading */
 	for (i = 0; i < 3; i++) {
 		mach_prepare_counter();
 		rdtscll(start);
 		mach_countup(&count);
 		rdtscll(end);
+
+		/*
+		 * Error: ECTCNEVERSET
+		 * The CTC wasn't reliable: we got a hit on the very first read,
+		 * or the CPU was so fast/slow that the quotient wouldn't fit in
+		 * 32 bits..
+		 */
+		if (count <= 1)
+			continue;
+
+		/* cpu freq too slow: */
+		if ((end - start) <= CALIBRATE_TIME_MSEC)
+			continue;
+
+		/*
+		 * We want the minimum time of all runs in case one of them
+		 * is inaccurate due to SMI or other delay
+		 */
+		delta64 = min(delta64, (end - start));
 	}
-	/*
-	 * Error: ECTCNEVERSET
-	 * The CTC wasn't reliable: we got a hit on the very first read,
-	 * or the CPU was so fast/slow that the quotient wouldn't fit in
-	 * 32 bits..
-	 */
-	if (count <= 1)
-		goto err;
 
-	delta64 = end - start;
-
-	/* cpu freq too fast: */
+	/* cpu freq too fast (or every run was bad): */
 	if (delta64 > (1ULL<<32))
-		goto err;
-
-	/* cpu freq too slow: */
-	if (delta64 <= CALIBRATE_TIME_MSEC)
 		goto err;
 
 	delta64 += CALIBRATE_TIME_MSEC/2; /* round for do_div */
