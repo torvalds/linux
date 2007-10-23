@@ -336,6 +336,7 @@ config ARCH_MXC
 config ARCH_ORION
 	bool "Marvell Orion"
 	depends on MMU
+	select PCI
 	help
 	  Support for Marvell Orion System on Chip family.
 
