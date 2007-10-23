@@ -1132,7 +1132,7 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 	unsigned int vecitr, veclen, vecstride;
 	struct op *fop;
 
-	vecstride = (1 + ((fpscr & FPSCR_STRIDE_MASK) == FPSCR_STRIDE_MASK)) * 2;
+	vecstride = (1 + ((fpscr & FPSCR_STRIDE_MASK) == FPSCR_STRIDE_MASK));
 
 	fop = (op == FOP_EXT) ? &fops_ext[FEXT_TO_IDX(inst)] : &fops[FOP_TO_IDX(op)];
 
@@ -1184,10 +1184,10 @@ u32 vfp_double_cpdo(u32 inst, u32 fpscr)
 		 * CHECK: It appears to be undefined whether we stop when
 		 * we encounter an exception.  We continue.
 		 */
-		dest = FREG_BANK(dest) + ((FREG_IDX(dest) + vecstride) & 6);
-		dn = FREG_BANK(dn) + ((FREG_IDX(dn) + vecstride) & 6);
+		dest = FREG_BANK(dest) + ((FREG_IDX(dest) + vecstride) & 3);
+		dn = FREG_BANK(dn) + ((FREG_IDX(dn) + vecstride) & 3);
 		if (FREG_BANK(dm) != 0)
-			dm = FREG_BANK(dm) + ((FREG_IDX(dm) + vecstride) & 6);
+			dm = FREG_BANK(dm) + ((FREG_IDX(dm) + vecstride) & 3);
 	}
 	return exceptions;
 
