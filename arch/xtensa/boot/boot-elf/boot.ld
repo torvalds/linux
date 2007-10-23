@@ -1,4 +1,5 @@
 OUTPUT_ARCH(xtensa)
+ENTRY(_ResetVector)
 
 SECTIONS
 {
