@@ -361,4 +361,10 @@ struct ssb_device_id {
 #define SSB_ANY_ID		0xFFFF
 #define SSB_ANY_REV		0xFF
 
+struct virtio_device_id {
+	__u32 device;
+	__u32 vendor;
+};
+#define VIRTIO_DEV_ANY_ID	0xffffffff
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

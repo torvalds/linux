@@ -1,25 +1,47 @@
 #include <linux/linkage.h>
 #include <linux/lguest.h>
+#include <asm/lguest_hcall.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/processor-flags.h>
 
-/*G:020 This is where we begin: we have a magic signature which the launcher
- * looks for.  The plan is that the Linux boot protocol will be extended with a
- * "platform type" field which will guide us here from the normal entry point,
- * but for the moment this suffices.  The normal boot code uses %esi for the
- * boot header, so we do too.  We convert it to a virtual address by adding
- * PAGE_OFFSET, and hand it to lguest_init() as its argument (ie. %eax).
+/*G:020 This is where we begin: head.S notes that the boot header's platform
+ * type field is "1" (lguest), so calls us here.  The boot header is in %esi.
+ *
+ * WARNING: be very careful here!  We're running at addresses equal to physical
+ * addesses (around 0), not above PAGE_OFFSET as most code expectes
+ * (eg. 0xC0000000).  Jumps are relative, so they're OK, but we can't touch any
+ * data.
  *
  * The .section line puts this code in .init.text so it will be discarded after
  * boot. */
 .section .init.text, "ax", @progbits
-.ascii "GenuineLguest"
-	/* Set up initial stack. */
- 	movl $(init_thread_union+THREAD_SIZE),%esp
-	movl %esi, %eax
-	addl $__PAGE_OFFSET, %eax
-	jmp lguest_init
+ENTRY(lguest_entry)
+	/* Make initial hypercall now, so we can set up the pagetables. */
+	movl $LHCALL_LGUEST_INIT, %eax
+	movl $lguest_data - __PAGE_OFFSET, %edx
+	int $LGUEST_TRAP_ENTRY
+
+	/* The Host put the toplevel pagetable in lguest_data.pgdir.  The movsl
+	 * instruction uses %esi implicitly. */
+	movl lguest_data - __PAGE_OFFSET + LGUEST_DATA_pgdir, %esi
+
+	/* Copy first 32 entries of page directory to __PAGE_OFFSET entries.
+	 * This means the first 128M of kernel memory will be mapped at
+	 * PAGE_OFFSET where the kernel expects to run.  This will get it far
+	 * enough through boot to switch to its own pagetables. */
+	movl $32, %ecx
+	movl %esi, %edi
+	addl $((__PAGE_OFFSET >> 22) * 4), %edi
+	rep
+	movsl
+
+	/* Set up the initial stack so we can run C code. */
+	movl $(init_thread_union+THREAD_SIZE),%esp
+
+	/* Jumps are relative, and we're running __PAGE_OFFSET too low at the
+	 * moment. */
+	jmp lguest_init+__PAGE_OFFSET
 
 /*G:055 We create a macro which puts the assembler code between lgstart_ and
  * lgend_ markers.  These templates are put in the .text section: they can't be

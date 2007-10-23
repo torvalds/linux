@@ -73,14 +73,14 @@ static void fixup_gdt_table(struct lguest *lg, unsigned start, unsigned end)
 		/* Segment descriptors contain a privilege level: the Guest is
 		 * sometimes careless and leaves this as 0, even though it's
 		 * running at privilege level 1.  If so, we fix it here. */
-		if ((lg->gdt[i].b & 0x00006000) == 0)
-			lg->gdt[i].b |= (GUEST_PL << 13);
+		if ((lg->arch.gdt[i].b & 0x00006000) == 0)
+			lg->arch.gdt[i].b |= (GUEST_PL << 13);
 
 		/* Each descriptor has an "accessed" bit.  If we don't set it
 		 * now, the CPU will try to set it when the Guest first loads
 		 * that entry into a segment register.  But the GDT isn't
 		 * writable by the Guest, so bad things can happen. */
-		lg->gdt[i].b |= 0x00000100;
+		lg->arch.gdt[i].b |= 0x00000100;
 	}
 }
 
@@ -106,12 +106,12 @@ void setup_default_gdt_entries(struct lguest_ro_state *state)
 void setup_guest_gdt(struct lguest *lg)
 {
 	/* Start with full 0-4G segments... */
-	lg->gdt[GDT_ENTRY_KERNEL_CS] = FULL_EXEC_SEGMENT;
-	lg->gdt[GDT_ENTRY_KERNEL_DS] = FULL_SEGMENT;
+	lg->arch.gdt[GDT_ENTRY_KERNEL_CS] = FULL_EXEC_SEGMENT;
+	lg->arch.gdt[GDT_ENTRY_KERNEL_DS] = FULL_SEGMENT;
 	/* ...except the Guest is allowed to use them, so set the privilege
 	 * level appropriately in the flags. */
-	lg->gdt[GDT_ENTRY_KERNEL_CS].b |= (GUEST_PL << 13);
-	lg->gdt[GDT_ENTRY_KERNEL_DS].b |= (GUEST_PL << 13);
+	lg->arch.gdt[GDT_ENTRY_KERNEL_CS].b |= (GUEST_PL << 13);
+	lg->arch.gdt[GDT_ENTRY_KERNEL_DS].b |= (GUEST_PL << 13);
 }
 
 /* Like the IDT, we never simply use the GDT the Guest gives us.  We set up the
@@ -126,7 +126,7 @@ void copy_gdt_tls(const struct lguest *lg, struct desc_struct *gdt)
 	unsigned int i;
 
 	for (i = GDT_ENTRY_TLS_MIN; i <= GDT_ENTRY_TLS_MAX; i++)
-		gdt[i] = lg->gdt[i];
+		gdt[i] = lg->arch.gdt[i];
 }
 
 /* This is the full version */
@@ -138,7 +138,7 @@ void copy_gdt(const struct lguest *lg, struct desc_struct *gdt)
 	 * replaced.  See ignored_gdt() above. */
 	for (i = 0; i < GDT_ENTRIES; i++)
 		if (!ignored_gdt(i))
-			gdt[i] = lg->gdt[i];
+			gdt[i] = lg->arch.gdt[i];
 }
 
 /* This is where the Guest asks us to load a new GDT (LHCALL_LOAD_GDT). */
@@ -146,12 +146,12 @@ void load_guest_gdt(struct lguest *lg, unsigned long table, u32 num)
 {
 	/* We assume the Guest has the same number of GDT entries as the
 	 * Host, otherwise we'd have to dynamically allocate the Guest GDT. */
-	if (num > ARRAY_SIZE(lg->gdt))
+	if (num > ARRAY_SIZE(lg->arch.gdt))
 		kill_guest(lg, "too many gdt entries %i", num);
 
 	/* We read the whole thing in, then fix it up. */
-	lgread(lg, lg->gdt, table, num * sizeof(lg->gdt[0]));
-	fixup_gdt_table(lg, 0, ARRAY_SIZE(lg->gdt));
+	__lgread(lg, lg->arch.gdt, table, num * sizeof(lg->arch.gdt[0]));
+	fixup_gdt_table(lg, 0, ARRAY_SIZE(lg->arch.gdt));
 	/* Mark that the GDT changed so the core knows it has to copy it again,
 	 * even if the Guest is run on the same CPU. */
 	lg->changed |= CHANGED_GDT;
@@ -159,9 +159,9 @@ void load_guest_gdt(struct lguest *lg, unsigned long table, u32 num)
 
 void guest_load_tls(struct lguest *lg, unsigned long gtls)
 {
-	struct desc_struct *tls = &lg->gdt[GDT_ENTRY_TLS_MIN];
+	struct desc_struct *tls = &lg->arch.gdt[GDT_ENTRY_TLS_MIN];
 
-	lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
+	__lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
 	fixup_gdt_table(lg, GDT_ENTRY_TLS_MIN, GDT_ENTRY_TLS_MAX+1);
 	lg->changed |= CHANGED_GDT_TLS;
 }

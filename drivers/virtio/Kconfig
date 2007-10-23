@@ -1,0 +1,8 @@
+# Virtio always gets selected by whoever wants it.
+config VIRTIO
+	bool
+
+# Similarly the virtio ring implementation.
+config VIRTIO_RING
+	bool
+	depends on VIRTIO

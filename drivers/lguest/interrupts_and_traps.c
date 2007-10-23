@@ -12,7 +12,13 @@
  * them first, so we also have a way of "reflecting" them into the Guest as if
  * they had been delivered to it directly. :*/
 #include <linux/uaccess.h>
+#include <linux/interrupt.h>
+#include <linux/module.h>
 #include "lg.h"
+
+/* Allow Guests to use a non-128 (ie. non-Linux) syscall trap. */
+static unsigned int syscall_vector = SYSCALL_VECTOR;
+module_param(syscall_vector, uint, 0444);
 
 /* The address of the interrupt handler is split into two bits: */
 static unsigned long idt_address(u32 lo, u32 hi)
@@ -39,7 +45,7 @@ static void push_guest_stack(struct lguest *lg, unsigned long *gstack, u32 val)
 {
 	/* Stack grows upwards: move stack then write value. */
 	*gstack -= 4;
-	lgwrite_u32(lg, *gstack, val);
+	lgwrite(lg, *gstack, u32, val);
 }
 
 /*H:210 The set_guest_interrupt() routine actually delivers the interrupt or
@@ -56,8 +62,9 @@ static void push_guest_stack(struct lguest *lg, unsigned long *gstack, u32 val)
  * it). */
 static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 {
-	unsigned long gstack;
+	unsigned long gstack, origstack;
 	u32 eflags, ss, irq_enable;
+	unsigned long virtstack;
 
 	/* There are two cases for interrupts: one where the Guest is already
 	 * in the kernel, and a more complex one where the Guest is in
@@ -65,8 +72,10 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 	if ((lg->regs->ss&0x3) != GUEST_PL) {
 		/* The Guest told us their kernel stack with the SET_STACK
 		 * hypercall: both the virtual address and the segment */
-		gstack = guest_pa(lg, lg->esp1);
+		virtstack = lg->esp1;
 		ss = lg->ss1;
+
+		origstack = gstack = guest_pa(lg, virtstack);
 		/* We push the old stack segment and pointer onto the new
 		 * stack: when the Guest does an "iret" back from the interrupt
 		 * handler the CPU will notice they're dropping privilege
@@ -75,8 +84,10 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 		push_guest_stack(lg, &gstack, lg->regs->esp);
 	} else {
 		/* We're staying on the same Guest (kernel) stack. */
-		gstack = guest_pa(lg, lg->regs->esp);
+		virtstack = lg->regs->esp;
 		ss = lg->regs->ss;
+
+		origstack = gstack = guest_pa(lg, virtstack);
 	}
 
 	/* Remember that we never let the Guest actually disable interrupts, so
@@ -102,7 +113,7 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 	/* Now we've pushed all the old state, we change the stack, the code
 	 * segment and the address to execute. */
 	lg->regs->ss = ss;
-	lg->regs->esp = gstack + lg->page_offset;
+	lg->regs->esp = virtstack + (gstack - origstack);
 	lg->regs->cs = (__KERNEL_CS|GUEST_PL);
 	lg->regs->eip = idt_address(lo, hi);
 
@@ -165,7 +176,7 @@ void maybe_do_interrupt(struct lguest *lg)
 	/* Look at the IDT entry the Guest gave us for this interrupt.  The
 	 * first 32 (FIRST_EXTERNAL_VECTOR) entries are for traps, so we skip
 	 * over them. */
-	idt = &lg->idt[FIRST_EXTERNAL_VECTOR+irq];
+	idt = &lg->arch.idt[FIRST_EXTERNAL_VECTOR+irq];
 	/* If they don't have a handler (yet?), we just ignore it */
 	if (idt_present(idt->a, idt->b)) {
 		/* OK, mark it no longer pending and deliver it. */
@@ -183,6 +194,47 @@ void maybe_do_interrupt(struct lguest *lg)
 	 * timer interrupt. */
 	write_timestamp(lg);
 }
+/*:*/
+
+/* Linux uses trap 128 for system calls.  Plan9 uses 64, and Ron Minnich sent
+ * me a patch, so we support that too.  It'd be a big step for lguest if half
+ * the Plan 9 user base were to start using it.
+ *
+ * Actually now I think of it, it's possible that Ron *is* half the Plan 9
+ * userbase.  Oh well. */
+static bool could_be_syscall(unsigned int num)
+{
+	/* Normal Linux SYSCALL_VECTOR or reserved vector? */
+	return num == SYSCALL_VECTOR || num == syscall_vector;
+}
+
+/* The syscall vector it wants must be unused by Host. */
+bool check_syscall_vector(struct lguest *lg)
+{
+	u32 vector;
+
+	if (get_user(vector, &lg->lguest_data->syscall_vec))
+		return false;
+
+	return could_be_syscall(vector);
+}
+
+int init_interrupts(void)
+{
+	/* If they want some strange system call vector, reserve it now */
+	if (syscall_vector != SYSCALL_VECTOR
+	    && test_and_set_bit(syscall_vector, used_vectors)) {
+		printk("lg: couldn't reserve syscall %u\n", syscall_vector);
+		return -EBUSY;
+	}
+	return 0;
+}
+
+void free_interrupts(void)
+{
+	if (syscall_vector != SYSCALL_VECTOR)
+		clear_bit(syscall_vector, used_vectors);
+}
 
 /*H:220 Now we've got the routines to deliver interrupts, delivering traps
  * like page fault is easy.  The only trick is that Intel decided that some
@@ -197,14 +249,14 @@ int deliver_trap(struct lguest *lg, unsigned int num)
 {
 	/* Trap numbers are always 8 bit, but we set an impossible trap number
 	 * for traps inside the Switcher, so check that here. */
-	if (num >= ARRAY_SIZE(lg->idt))
+	if (num >= ARRAY_SIZE(lg->arch.idt))
 		return 0;
 
 	/* Early on the Guest hasn't set the IDT entries (or maybe it put a
 	 * bogus one in): if we fail here, the Guest will be killed. */
-	if (!idt_present(lg->idt[num].a, lg->idt[num].b))
+	if (!idt_present(lg->arch.idt[num].a, lg->arch.idt[num].b))
 		return 0;
-	set_guest_interrupt(lg, lg->idt[num].a, lg->idt[num].b, has_err(num));
+	set_guest_interrupt(lg, lg->arch.idt[num].a, lg->arch.idt[num].b, has_err(num));
 	return 1;
 }
 
@@ -218,28 +270,20 @@ int deliver_trap(struct lguest *lg, unsigned int num)
  * system calls down from 1750ns to 270ns.  Plus, if lguest didn't do it, all
  * the other hypervisors would tease it.
  *
- * This routine determines if a trap can be delivered directly. */
-static int direct_trap(const struct lguest *lg,
-		       const struct desc_struct *trap,
-		       unsigned int num)
+ * This routine indicates if a particular trap number could be delivered
+ * directly. */
+static int direct_trap(unsigned int num)
 {
 	/* Hardware interrupts don't go to the Guest at all (except system
 	 * call). */
-	if (num >= FIRST_EXTERNAL_VECTOR && num != SYSCALL_VECTOR)
+	if (num >= FIRST_EXTERNAL_VECTOR && !could_be_syscall(num))
 		return 0;
 
 	/* The Host needs to see page faults (for shadow paging and to save the
 	 * fault address), general protection faults (in/out emulation) and
 	 * device not available (TS handling), and of course, the hypercall
 	 * trap. */
-	if (num == 14 || num == 13 || num == 7 || num == LGUEST_TRAP_ENTRY)
-		return 0;
-
-	/* Only trap gates (type 15) can go direct to the Guest.  Interrupt
-	 * gates (type 14) disable interrupts as they are entered, which we
-	 * never let the Guest do.  Not present entries (type 0x0) also can't
-	 * go direct, of course 8) */
-	return idt_type(trap->a, trap->b) == 0xF;
+	return num != 14 && num != 13 && num != 7 && num != LGUEST_TRAP_ENTRY;
 }
 /*:*/
 
@@ -348,15 +392,11 @@ void load_guest_idt_entry(struct lguest *lg, unsigned int num, u32 lo, u32 hi)
 	 * to copy this again. */
 	lg->changed |= CHANGED_IDT;
 
-	/* The IDT which we keep in "struct lguest" only contains 32 entries
-	 * for the traps and LGUEST_IRQS (32) entries for interrupts.  We
-	 * ignore attempts to set handlers for higher interrupt numbers, except
-	 * for the system call "interrupt" at 128: we have a special IDT entry
-	 * for that. */
-	if (num < ARRAY_SIZE(lg->idt))
-		set_trap(lg, &lg->idt[num], num, lo, hi);
-	else if (num == SYSCALL_VECTOR)
-		set_trap(lg, &lg->syscall_idt, num, lo, hi);
+	/* Check that the Guest doesn't try to step outside the bounds. */
+	if (num >= ARRAY_SIZE(lg->arch.idt))
+		kill_guest(lg, "Setting idt entry %u", num);
+	else
+		set_trap(lg, &lg->arch.idt[num], num, lo, hi);
 }
 
 /* The default entry for each interrupt points into the Switcher routines which
@@ -399,20 +439,21 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 
 	/* We can simply copy the direct traps, otherwise we use the default
 	 * ones in the Switcher: they will return to the Host. */
-	for (i = 0; i < FIRST_EXTERNAL_VECTOR; i++) {
-		if (direct_trap(lg, &lg->idt[i], i))
-			idt[i] = lg->idt[i];
+	for (i = 0; i < ARRAY_SIZE(lg->arch.idt); i++) {
+		/* If no Guest can ever override this trap, leave it alone. */
+		if (!direct_trap(i))
+			continue;
+
+		/* Only trap gates (type 15) can go direct to the Guest.
+		 * Interrupt gates (type 14) disable interrupts as they are
+		 * entered, which we never let the Guest do.  Not present
+		 * entries (type 0x0) also can't go direct, of course. */
+		if (idt_type(lg->arch.idt[i].a, lg->arch.idt[i].b) == 0xF)
+			idt[i] = lg->arch.idt[i];
 		else
+			/* Reset it to the default. */
 			default_idt_entry(&idt[i], i, def[i]);
 	}
-
-	/* Don't forget the system call trap!  The IDT entries for other
-	 * interupts never change, so no need to copy them. */
-	i = SYSCALL_VECTOR;
-	if (direct_trap(lg, &lg->syscall_idt, i))
-		idt[i] = lg->syscall_idt;
-	else
-		default_idt_entry(&idt[i], i, def[i]);
 }
 
 void guest_set_clockevent(struct lguest *lg, unsigned long delta)

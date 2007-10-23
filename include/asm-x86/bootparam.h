@@ -10,85 +10,85 @@
 #include <video/edid.h>
 
 struct setup_header {
-	u8	setup_sects;
-	u16	root_flags;
-	u32	syssize;
-	u16	ram_size;
+	__u8	setup_sects;
+	__u16	root_flags;
+	__u32	syssize;
+	__u16	ram_size;
 #define RAMDISK_IMAGE_START_MASK	0x07FF
 #define RAMDISK_PROMPT_FLAG		0x8000
 #define RAMDISK_LOAD_FLAG		0x4000
-	u16	vid_mode;
-	u16	root_dev;
-	u16	boot_flag;
-	u16	jump;
-	u32	header;
-	u16	version;
-	u32	realmode_swtch;
-	u16	start_sys;
-	u16	kernel_version;
-	u8	type_of_loader;
-	u8	loadflags;
+	__u16	vid_mode;
+	__u16	root_dev;
+	__u16	boot_flag;
+	__u16	jump;
+	__u32	header;
+	__u16	version;
+	__u32	realmode_swtch;
+	__u16	start_sys;
+	__u16	kernel_version;
+	__u8	type_of_loader;
+	__u8	loadflags;
 #define LOADED_HIGH	(1<<0)
 #define KEEP_SEGMENTS	(1<<6)
 #define CAN_USE_HEAP	(1<<7)
-	u16	setup_move_size;
-	u32	code32_start;
-	u32	ramdisk_image;
-	u32	ramdisk_size;
-	u32	bootsect_kludge;
-	u16	heap_end_ptr;
-	u16	_pad1;
-	u32	cmd_line_ptr;
-	u32	initrd_addr_max;
-	u32	kernel_alignment;
-	u8	relocatable_kernel;
-	u8	_pad2[3];
-	u32	cmdline_size;
-	u32	hardware_subarch;
-	u64	hardware_subarch_data;
+	__u16	setup_move_size;
+	__u32	code32_start;
+	__u32	ramdisk_image;
+	__u32	ramdisk_size;
+	__u32	bootsect_kludge;
+	__u16	heap_end_ptr;
+	__u16	_pad1;
+	__u32	cmd_line_ptr;
+	__u32	initrd_addr_max;
+	__u32	kernel_alignment;
+	__u8	relocatable_kernel;
+	__u8	_pad2[3];
+	__u32	cmdline_size;
+	__u32	hardware_subarch;
+	__u64	hardware_subarch_data;
 } __attribute__((packed));
 
 struct sys_desc_table {
-	u16 length;
-	u8  table[14];
+	__u16 length;
+	__u8  table[14];
 };
 
 struct efi_info {
-	u32 _pad1;
-	u32 efi_systab;
-	u32 efi_memdesc_size;
-	u32 efi_memdesc_version;
-	u32 efi_memmap;
-	u32 efi_memmap_size;
-	u32 _pad2[2];
+	__u32 _pad1;
+	__u32 efi_systab;
+	__u32 efi_memdesc_size;
+	__u32 efi_memdesc_version;
+	__u32 efi_memmap;
+	__u32 efi_memmap_size;
+	__u32 _pad2[2];
 };
 
 /* The so-called "zeropage" */
 struct boot_params {
 	struct screen_info screen_info;			/* 0x000 */
 	struct apm_bios_info apm_bios_info;		/* 0x040 */
-	u8  _pad2[12];					/* 0x054 */
+	__u8  _pad2[12];				/* 0x054 */
 	struct ist_info ist_info;			/* 0x060 */
-	u8  _pad3[16];					/* 0x070 */
-	u8  hd0_info[16];	/* obsolete! */		/* 0x080 */
-	u8  hd1_info[16];	/* obsolete! */		/* 0x090 */
+	__u8  _pad3[16];				/* 0x070 */
+	__u8  hd0_info[16];	/* obsolete! */		/* 0x080 */
+	__u8  hd1_info[16];	/* obsolete! */		/* 0x090 */
 	struct sys_desc_table sys_desc_table;		/* 0x0a0 */
-	u8  _pad4[144];					/* 0x0b0 */
+	__u8  _pad4[144];				/* 0x0b0 */
 	struct edid_info edid_info;			/* 0x140 */
 	struct efi_info efi_info;			/* 0x1c0 */
-	u32 alt_mem_k;					/* 0x1e0 */
-	u32 scratch;		/* Scratch field! */	/* 0x1e4 */
-	u8  e820_entries;				/* 0x1e8 */
-	u8  eddbuf_entries;				/* 0x1e9 */
-	u8  edd_mbr_sig_buf_entries;			/* 0x1ea */
-	u8  _pad6[6];					/* 0x1eb */
+	__u32 alt_mem_k;				/* 0x1e0 */
+	__u32 scratch;		/* Scratch field! */	/* 0x1e4 */
+	__u8  e820_entries;				/* 0x1e8 */
+	__u8  eddbuf_entries;				/* 0x1e9 */
+	__u8  edd_mbr_sig_buf_entries;			/* 0x1ea */
+	__u8  _pad6[6];					/* 0x1eb */
 	struct setup_header hdr;    /* setup header */	/* 0x1f1 */
-	u8  _pad7[0x290-0x1f1-sizeof(struct setup_header)];
-	u32 edd_mbr_sig_buffer[EDD_MBR_SIG_MAX];	/* 0x290 */
+	__u8  _pad7[0x290-0x1f1-sizeof(struct setup_header)];
+	__u32 edd_mbr_sig_buffer[EDD_MBR_SIG_MAX];	/* 0x290 */
 	struct e820entry e820_map[E820MAX];		/* 0x2d0 */
-	u8  _pad8[48];					/* 0xcd0 */
+	__u8  _pad8[48];				/* 0xcd0 */
 	struct edd_info eddbuf[EDDMAXNR];		/* 0xd00 */
-	u8  _pad9[276];					/* 0xeec */
+	__u8  _pad9[276];				/* 0xeec */
 } __attribute__((packed));
 
 #endif /* _ASM_BOOTPARAM_H */

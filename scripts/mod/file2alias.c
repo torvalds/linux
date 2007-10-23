@@ -525,6 +525,20 @@ static int do_ssb_entry(const char *filename,
 	return 1;
 }
 
+/* Looks like: virtio:dNvN */
+static int do_virtio_entry(const char *filename, struct virtio_device_id *id,
+			   char *alias)
+{
+	id->device = TO_NATIVE(id->device);
+	id->vendor = TO_NATIVE(id->vendor);
+
+	strcpy(alias, "virtio:");
+	ADD(alias, "d", 1, id->device);
+	ADD(alias, "v", id->vendor != VIRTIO_DEV_ANY_ID, id->vendor);
+
+	return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -651,6 +665,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct ssb_device_id), "ssb",
 			 do_ssb_entry, mod);
+	else if (sym_is(symname, "__mod_virtio_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct virtio_device_id), "virtio",
+			 do_virtio_entry, mod);
 	free(zeros);
 }
 

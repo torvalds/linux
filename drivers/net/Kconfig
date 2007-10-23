@@ -3100,4 +3100,10 @@ config NETPOLL_TRAP
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL
 
+config VIRTIO_NET
+	tristate "Virtio network driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && VIRTIO
+	---help---
+	  This is the virtual network driver for lguest.  Say Y or M.
+
 endif # NETDEVICES

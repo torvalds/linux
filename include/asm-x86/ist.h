@@ -17,16 +17,16 @@
  */
 
 
-#ifdef __KERNEL__
-
 #include <linux/types.h>
 
 struct ist_info {
-	u32 signature;
-	u32 command;
-	u32 event;
-	u32 perf_level;
+	__u32 signature;
+	__u32 command;
+	__u32 event;
+	__u32 perf_level;
 };
+
+#ifdef __KERNEL__
 
 extern struct ist_info ist_info;
 

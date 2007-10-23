@@ -55,7 +55,7 @@
 #include <linux/clockchips.h>
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
-#include <linux/lguest_bus.h>
+#include <linux/virtio_console.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
 #include <asm/page.h>
@@ -65,6 +65,7 @@
 #include <asm/e820.h>
 #include <asm/mce.h>
 #include <asm/io.h>
+#include <asm/i387.h>
 
 /*G:010 Welcome to the Guest!
  *
@@ -85,9 +86,10 @@ struct lguest_data lguest_data = {
 	.hcall_status = { [0 ... LHCALL_RING_SIZE-1] = 0xFF },
 	.noirq_start = (u32)lguest_noirq_start,
 	.noirq_end = (u32)lguest_noirq_end,
+	.kernel_address = PAGE_OFFSET,
 	.blocked_interrupts = { 1 }, /* Block timer interrupts */
+	.syscall_vec = SYSCALL_VECTOR,
 };
-struct lguest_device_desc *lguest_devices;
 static cycle_t clock_base;
 
 /*G:035 Notice the lazy_hcall() above, rather than hcall().  This is our first
@@ -146,10 +148,10 @@ void async_hcall(unsigned long call,
 		/* Table full, so do normal hcall which will flush table. */
 		hcall(call, arg1, arg2, arg3);
 	} else {
-		lguest_data.hcalls[next_call].eax = call;
-		lguest_data.hcalls[next_call].edx = arg1;
-		lguest_data.hcalls[next_call].ebx = arg2;
-		lguest_data.hcalls[next_call].ecx = arg3;
+		lguest_data.hcalls[next_call].arg0 = call;
+		lguest_data.hcalls[next_call].arg1 = arg1;
+		lguest_data.hcalls[next_call].arg2 = arg2;
+		lguest_data.hcalls[next_call].arg3 = arg3;
 		/* Arguments must all be written before we mark it to go */
 		wmb();
 		lguest_data.hcall_status[next_call] = 0;
@@ -159,46 +161,6 @@ void async_hcall(unsigned long call,
 	local_irq_restore(flags);
 }
 /*:*/
-
-/* Wrappers for the SEND_DMA and BIND_DMA hypercalls.  This is mainly because
- * Jeff Garzik complained that __pa() should never appear in drivers, and this
- * helps remove most of them.   But also, it wraps some ugliness. */
-void lguest_send_dma(unsigned long key, struct lguest_dma *dma)
-{
-	/* The hcall might not write this if something goes wrong */
-	dma->used_len = 0;
-	hcall(LHCALL_SEND_DMA, key, __pa(dma), 0);
-}
-
-int lguest_bind_dma(unsigned long key, struct lguest_dma *dmas,
-		    unsigned int num, u8 irq)
-{
-	/* This is the only hypercall which actually wants 5 arguments, and we
-	 * only support 4.  Fortunately the interrupt number is always less
-	 * than 256, so we can pack it with the number of dmas in the final
-	 * argument.  */
-	if (!hcall(LHCALL_BIND_DMA, key, __pa(dmas), (num << 8) | irq))
-		return -ENOMEM;
-	return 0;
-}
-
-/* Unbinding is the same hypercall as binding, but with 0 num & irq. */
-void lguest_unbind_dma(unsigned long key, struct lguest_dma *dmas)
-{
-	hcall(LHCALL_BIND_DMA, key, __pa(dmas), 0);
-}
-
-/* For guests, device memory can be used as normal memory, so we cast away the
- * __iomem to quieten sparse. */
-void *lguest_map(unsigned long phys_addr, unsigned long pages)
-{
-	return (__force void *)ioremap(phys_addr, PAGE_SIZE*pages);
-}
-
-void lguest_unmap(void *addr)
-{
-	iounmap((__force void __iomem *)addr);
-}
 
 /*G:033
  * Here are our first native-instruction replacements: four functions for
@@ -680,6 +642,7 @@ static struct clocksource lguest_clock = {
 	.mask		= CLOCKSOURCE_MASK(64),
 	.mult		= 1 << 22,
 	.shift		= 22,
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 /* The "scheduler clock" is just our real clock, adjusted to start at zero */
@@ -761,11 +724,9 @@ static void lguest_time_init(void)
 	 * the TSC, otherwise it's a dumb nanosecond-resolution clock.  Either
 	 * way, the "rating" is initialized so high that it's always chosen
 	 * over any other clocksource. */
-	if (lguest_data.tsc_khz) {
+	if (lguest_data.tsc_khz)
 		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
 							 lguest_clock.shift);
-		lguest_clock.flags = CLOCK_SOURCE_IS_CONTINUOUS;
-	}
 	clock_base = lguest_clock_read();
 	clocksource_register(&lguest_clock);
 
@@ -889,6 +850,23 @@ static __init char *lguest_memory_setup(void)
 	return "LGUEST";
 }
 
+/* Before virtqueues are set up, we use LHCALL_NOTIFY on normal memory to
+ * produce console output. */
+static __init int early_put_chars(u32 vtermno, const char *buf, int count)
+{
+	char scratch[17];
+	unsigned int len = count;
+
+	if (len > sizeof(scratch) - 1)
+		len = sizeof(scratch) - 1;
+	scratch[len] = '\0';
+	memcpy(scratch, buf, len);
+	hcall(LHCALL_NOTIFY, __pa(scratch), 0, 0);
+
+	/* This routine returns the number of bytes actually written. */
+	return len;
+}
+
 /*G:050
  * Patching (Powerfully Placating Performance Pedants)
  *
@@ -950,18 +928,8 @@ static unsigned lguest_patch(u8 type, u16 clobber, void *ibuf,
 /*G:030 Once we get to lguest_init(), we know we're a Guest.  The pv_ops
  * structures in the kernel provide points for (almost) every routine we have
  * to override to avoid privileged instructions. */
-__init void lguest_init(void *boot)
+__init void lguest_init(void)
 {
-	/* Copy boot parameters first: the Launcher put the physical location
-	 * in %esi, and head.S converted that to a virtual address and handed
-	 * it to us.  We use "__memcpy" because "memcpy" sometimes tries to do
-	 * tricky things to go faster, and we're not ready for that. */
-	__memcpy(&boot_params, boot, PARAM_SIZE);
-	/* The boot parameters also tell us where the command-line is: save
-	 * that, too. */
-	__memcpy(boot_command_line, __va(boot_params.hdr.cmd_line_ptr),
-	       COMMAND_LINE_SIZE);
-
 	/* We're under lguest, paravirt is enabled, and we're running at
 	 * privilege level 1, not 0 as normal. */
 	pv_info.name = "lguest";
@@ -1033,11 +1001,7 @@ __init void lguest_init(void *boot)
 
 	/*G:070 Now we've seen all the paravirt_ops, we return to
 	 * lguest_init() where the rest of the fairly chaotic boot setup
-	 * occurs.
-	 *
-	 * The Host expects our first hypercall to tell it where our "struct
-	 * lguest_data" is, so we do that first. */
-	hcall(LHCALL_LGUEST_INIT, __pa(&lguest_data), 0, 0);
+	 * occurs. */
 
 	/* The native boot code sets up initial page tables immediately after
 	 * the kernel itself, and sets init_pg_tables_end so they're not
@@ -1049,11 +1013,6 @@ __init void lguest_init(void *boot)
 	/* Load the %fs segment register (the per-cpu segment register) with
 	 * the normal data segment to get through booting. */
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
-
-	/* Clear the part of the kernel data which is expected to be zero.
-	 * Normally it will be anyway, but if we're loading from a bzImage with
-	 * CONFIG_RELOCATALE=y, the relocations will be sitting here. */
-	memset(__bss_start, 0, __bss_stop - __bss_start);
 
 	/* The Host uses the top of the Guest's virtual address space for the
 	 * Host<->Guest Switcher, and it tells us how much it needs in
@@ -1091,6 +1050,9 @@ __init void lguest_init(void *boot)
 	 * virtual console" driver written by the PowerPC people, which we also
 	 * adapted for lguest's use. */
 	add_preferred_console("hvc", 0, NULL);
+
+	/* Register our very early console. */
+	virtio_cons_early_init(early_put_chars);
 
 	/* Last of all, we set the power management poweroff hook to point to
 	 * the Guest routine to power off. */
