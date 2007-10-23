@@ -343,11 +343,12 @@ config IBMASR
 	  module will be called ibmasr.
 
 config WAFER_WDT
-	tristate "ICP Wafer 5823 Single Board Computer Watchdog"
+	tristate "ICP Single Board Computer Watchdog Timer"
 	depends on X86
 	help
-	  This is a driver for the hardware watchdog on the ICP Wafer 5823
-	  Single Board Computer (and probably other similar models).
+	  This is a driver for the hardware watchdog on the ICP Single
+	  Board Computer. This driver is working on (at least) the following
+	  IPC SBC's: Wafer 5823, Rocky 4783, Rocky 3703 and Rocky 3782.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called wafer5823wdt.
@@ -608,6 +609,12 @@ config WDT_RM9K_GPI
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called rm9k_wdt.
+
+config AR7_WDT
+	tristate "TI AR7 Watchdog Timer"
+	depends on AR7
+	help
+	  Hardware driver for the TI AR7 Watchdog Timer.
 
 # PARISC Architecture
 
