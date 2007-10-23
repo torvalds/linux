@@ -1,6 +1,7 @@
 config VIDEO_TM6000
 	tristate "TV Master TM5600/6000 driver"
 	select VIDEO_V4L2
+	select VIDEO_TUNER
 	select TUNER_XC2028
 	select VIDEO_USB_ISOC
 	select VIDEOBUF_VMALLOC
