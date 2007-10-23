@@ -98,11 +98,13 @@
 			interrupt-parent = <&MAL0>;
 			interrupts = <0 1 2 3 4>;
 			#interrupt-cells = <1>;
+			#address-cells = <0>;
+			#size-cells = <0>;
 			interrupt-map = </*TXEOB*/ 0 &UIC0 a 4
 					/*RXEOB*/ 1 &UIC0 b 4
 					/*SERR*/  2 &UIC1 0 4
 					/*TXDE*/  3 &UIC1 1 4
-					/*RXDE*/  4 &UIC1 3 4>;
+					/*RXDE*/  4 &UIC1 2 4>;
 		};
 
 		POB0: opb {
@@ -196,6 +198,7 @@
 			};
 
 			EMAC0: ethernet@ef600e00 {
+				linux,network-index = <0>;
 				device_type = "network";
 				compatible = "ibm,emac-440ep", "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;
@@ -210,12 +213,13 @@
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rmii";
-				phy-map = <00000001>;
+				phy-map = <00000000>;
 				zmii-device = <&ZMII0>;
 				zmii-channel = <0>;
 			};
 
 			EMAC1: ethernet@ef600f00 {
+				linux,network-index = <1>;
 				device_type = "network";
 				compatible = "ibm,emac-440ep", "ibm,emac-440gp", "ibm,emac";
 				interrupt-parent = <&UIC1>;
@@ -230,7 +234,7 @@
 				rx-fifo-size = <1000>;
 				tx-fifo-size = <800>;
 				phy-mode = "rmii";
-				phy-map = <00000001>;
+				phy-map = <00000000>;
 				zmii-device = <&ZMII0>;
 				zmii-channel = <1>;
 			};

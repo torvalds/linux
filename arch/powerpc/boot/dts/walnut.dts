@@ -64,10 +64,15 @@
 		MAL: mcmal {
 			compatible = "ibm,mcmal-405gp", "ibm,mcmal";
 			dcr-reg = <180 62>;
-			num-tx-chans = <2>;
+			num-tx-chans = <1>;
 			num-rx-chans = <1>;
 			interrupt-parent = <&UIC0>;
-			interrupts = <a 4 b 4 c 4 d 4 e 4>;
+			interrupts = <
+				b 4 /* TXEOB */
+				c 4 /* RXEOB */
+				a 4 /* SERR */
+				d 4 /* TXDE */
+				e 4 /* RXDE */>;
 		};
 
 		POB0: opb {
@@ -118,9 +123,10 @@
 				compatible = "ibm,emac-405gp", "ibm,emac";
 				interrupt-parent = <&UIC0>;
 				interrupts = <9 4 f 4>;
+				local-mac-address = [000000000000]; /* Filled in by zImage */
 				reg = <ef600800 70>;
 				mal-device = <&MAL>;
-				mal-tx-channel = <0 1>;
+				mal-tx-channel = <0>;
 				mal-rx-channel = <0>;
 				cell-index = <0>;
 				max-frame-size = <5dc>;

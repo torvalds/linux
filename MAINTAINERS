@@ -2338,6 +2338,8 @@ L:	linuxppc-dev@ozlabs.org
 S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC8XX
+P:	Vitaly Bordug
+M:	vitb@kernel.crashing.org
 P:	Marcelo Tosatti
 M:	marcelo@kvack.org
 W:	http://www.penguinppc.org/
