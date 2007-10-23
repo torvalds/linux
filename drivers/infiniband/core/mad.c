@@ -1931,15 +1931,6 @@ local:
 	if (port_priv->device->process_mad) {
 		int ret;
 
-		if (!response) {
-			printk(KERN_ERR PFX "No memory for response MAD\n");
-			/*
-			 * Is it better to assume that
-			 * it wouldn't be processed ?
-			 */
-			goto out;
-		}
-
 		ret = port_priv->device->process_mad(port_priv->device, 0,
 						     port_priv->port_num,
 						     wc, &recv->grh,
