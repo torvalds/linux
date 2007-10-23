@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.84"
-#define DRV_MODULE_RELDATE	"October 12, 2007"
+#define DRV_MODULE_VERSION	"3.85"
+#define DRV_MODULE_RELDATE	"October 18, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -200,6 +200,7 @@ static struct pci_device_id tg3_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5906M)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5784)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5764)},
+	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5723)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5761)},
 	{PCI_DEVICE(PCI_VENDOR_ID_BROADCOM, PCI_DEVICE_ID_TIGON3_5761E)},
 	{PCI_DEVICE(PCI_VENDOR_ID_SYSKONNECT, PCI_DEVICE_ID_SYSKONNECT_9DXX)},
@@ -5028,10 +5029,7 @@ static int tg3_poll_fw(struct tg3 *tp)
 /* Save PCI command register before chip reset */
 static void tg3_save_pci_state(struct tg3 *tp)
 {
-	u32 val;
-
-	pci_read_config_dword(tp->pdev, TG3PCI_COMMAND, &val);
-	tp->pci_cmd = val;
+	pci_read_config_word(tp->pdev, PCI_COMMAND, &tp->pci_cmd);
 }
 
 /* Restore PCI state after chip reset */
@@ -5054,7 +5052,7 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 		       PCISTATE_ALLOW_APE_SHMEM_WR;
 	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
 
-	pci_write_config_dword(tp->pdev, TG3PCI_COMMAND, tp->pci_cmd);
+	pci_write_config_word(tp->pdev, PCI_COMMAND, tp->pci_cmd);
 
 	if (!(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)) {
 		pci_write_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE,
@@ -10820,9 +10818,24 @@ out_not_found:
 		strcpy(tp->board_part_number, "none");
 }
 
+static int __devinit tg3_fw_img_is_valid(struct tg3 *tp, u32 offset)
+{
+	u32 val;
+
+	if (tg3_nvram_read_swab(tp, offset, &val) ||
+	    (val & 0xfc000000) != 0x0c000000 ||
+	    tg3_nvram_read_swab(tp, offset + 4, &val) ||
+	    val != 0)
+		return 0;
+
+	return 1;
+}
+
 static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 {
 	u32 val, offset, start;
+	u32 ver_offset;
+	int i, bcnt;
 
 	if (tg3_nvram_read_swab(tp, 0, &val))
 		return;
@@ -10835,29 +10848,71 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 		return;
 
 	offset = tg3_nvram_logical_addr(tp, offset);
-	if (tg3_nvram_read_swab(tp, offset, &val))
+
+	if (!tg3_fw_img_is_valid(tp, offset) ||
+	    tg3_nvram_read_swab(tp, offset + 8, &ver_offset))
 		return;
 
-	if ((val & 0xfc000000) == 0x0c000000) {
-		u32 ver_offset, addr;
-		int i;
-
-		if (tg3_nvram_read_swab(tp, offset + 4, &val) ||
-		    tg3_nvram_read_swab(tp, offset + 8, &ver_offset))
+	offset = offset + ver_offset - start;
+	for (i = 0; i < 16; i += 4) {
+		if (tg3_nvram_read(tp, offset + i, &val))
 			return;
 
-		if (val != 0)
-			return;
-
-		addr = offset + ver_offset - start;
-		for (i = 0; i < 16; i += 4) {
-			if (tg3_nvram_read(tp, addr + i, &val))
-				return;
-
-			val = cpu_to_le32(val);
-			memcpy(tp->fw_ver + i, &val, 4);
-		}
+		val = le32_to_cpu(val);
+		memcpy(tp->fw_ver + i, &val, 4);
 	}
+
+	if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF) ||
+	     (tp->tg3_flags & TG3_FLG3_ENABLE_APE))
+		return;
+
+	for (offset = TG3_NVM_DIR_START;
+	     offset < TG3_NVM_DIR_END;
+	     offset += TG3_NVM_DIRENT_SIZE) {
+		if (tg3_nvram_read_swab(tp, offset, &val))
+			return;
+
+		if ((val >> TG3_NVM_DIRTYPE_SHIFT) == TG3_NVM_DIRTYPE_ASFINI)
+			break;
+	}
+
+	if (offset == TG3_NVM_DIR_END)
+		return;
+
+	if (!(tp->tg3_flags2 & TG3_FLG2_5705_PLUS))
+		start = 0x08000000;
+	else if (tg3_nvram_read_swab(tp, offset - 4, &start))
+		return;
+
+	if (tg3_nvram_read_swab(tp, offset + 4, &offset) ||
+	    !tg3_fw_img_is_valid(tp, offset) ||
+	    tg3_nvram_read_swab(tp, offset + 8, &val))
+		return;
+
+	offset += val - start;
+
+	bcnt = strlen(tp->fw_ver);
+
+	tp->fw_ver[bcnt++] = ',';
+	tp->fw_ver[bcnt++] = ' ';
+
+	for (i = 0; i < 4; i++) {
+		if (tg3_nvram_read(tp, offset, &val))
+			return;
+
+		val = le32_to_cpu(val);
+		offset += sizeof(val);
+
+		if (bcnt > TG3_VER_SIZE - sizeof(val)) {
+			memcpy(&tp->fw_ver[bcnt], &val, TG3_VER_SIZE - bcnt);
+			break;
+		}
+
+		memcpy(&tp->fw_ver[bcnt], &val, sizeof(val));
+		bcnt += sizeof(val);
+	}
+
+	tp->fw_ver[TG3_VER_SIZE - 1] = 0;
 }
 
 static struct pci_dev * __devinit tg3_find_peer(struct tg3 *);

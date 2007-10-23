@@ -71,7 +71,10 @@ struct hci_dev {
 	__u16		id;
 	__u8		type;
 	bdaddr_t	bdaddr;
+	__u8		dev_name[248];
+	__u8		dev_class[3];
 	__u8		features[8];
+	__u8		commands[64];
 	__u8		hci_ver;
 	__u16		hci_rev;
 	__u16		manufacturer;
@@ -310,10 +313,12 @@ static inline struct hci_conn *hci_conn_hash_lookup_state(struct hci_dev *hdev,
 void hci_acl_connect(struct hci_conn *conn);
 void hci_acl_disconn(struct hci_conn *conn, __u8 reason);
 void hci_add_sco(struct hci_conn *conn, __u16 handle);
+void hci_setup_sync(struct hci_conn *conn, __u16 handle);
 
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst);
-int    hci_conn_del(struct hci_conn *conn);
-void   hci_conn_hash_flush(struct hci_dev *hdev);
+int hci_conn_del(struct hci_conn *conn);
+void hci_conn_hash_flush(struct hci_dev *hdev);
+void hci_conn_check_pending(struct hci_dev *hdev);
 
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *src);
 int hci_conn_auth(struct hci_conn *conn);
@@ -617,11 +622,11 @@ int hci_unregister_cb(struct hci_cb *hcb);
 int hci_register_notifier(struct notifier_block *nb);
 int hci_unregister_notifier(struct notifier_block *nb);
 
-int hci_send_cmd(struct hci_dev *hdev, __u16 ogf, __u16 ocf, __u32 plen, void *param);
+int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen, void *param);
 int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags);
 int hci_send_sco(struct hci_conn *conn, struct sk_buff *skb);
 
-void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 ogf, __u16 ocf);
+void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode);
 
 void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data);
 

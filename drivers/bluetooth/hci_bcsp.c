@@ -237,7 +237,8 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 	if (hciextn && chan == 5) {
 		struct hci_command_hdr *hdr = (struct hci_command_hdr *) data;
 
-		if (hci_opcode_ogf(__le16_to_cpu(hdr->opcode)) == OGF_VENDOR_CMD) {
+		/* Vendor specific commands */
+		if (hci_opcode_ogf(__le16_to_cpu(hdr->opcode)) == 0x3f) {
 			u8 desc = *(data + HCI_COMMAND_HDR_SIZE);
 			if ((desc & 0xf0) == 0xc0) {
 				data += HCI_COMMAND_HDR_SIZE + 1;

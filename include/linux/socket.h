@@ -291,6 +291,7 @@ struct ucred {
 #define SOL_TIPC	271
 #define SOL_RXRPC	272
 #define SOL_PPPOL2TP	273
+#define SOL_BLUETOOTH	274
 
 /* IPX options */
 #define IPX_TYPE	1

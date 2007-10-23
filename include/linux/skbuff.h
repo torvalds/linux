@@ -41,8 +41,7 @@
 #define SKB_DATA_ALIGN(X)	(((X) + (SMP_CACHE_BYTES - 1)) & \
 				 ~(SMP_CACHE_BYTES - 1))
 #define SKB_WITH_OVERHEAD(X)	\
-	(((X) - sizeof(struct skb_shared_info)) & \
-	 ~(SMP_CACHE_BYTES - 1))
+	((X) - SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define SKB_MAX_ORDER(X, ORDER) \
 	SKB_WITH_OVERHEAD((PAGE_SIZE << (ORDER)) - (X))
 #define SKB_MAX_HEAD(X)		(SKB_MAX_ORDER((X), 0))
@@ -301,8 +300,9 @@ struct sk_buff {
 #endif
 
 	int			iif;
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	__u16			queue_mapping;
-
+#endif
 #ifdef CONFIG_NET_SCHED
 	__u16			tc_index;	/* traffic control index */
 #ifdef CONFIG_NET_CLS_ACT
@@ -1767,6 +1767,15 @@ static inline void skb_set_queue_mapping(struct sk_buff *skb, u16 queue_mapping)
 {
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
 	skb->queue_mapping = queue_mapping;
+#endif
+}
+
+static inline u16 skb_get_queue_mapping(struct sk_buff *skb)
+{
+#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	return skb->queue_mapping;
+#else
+	return 0;
 #endif
 }
 

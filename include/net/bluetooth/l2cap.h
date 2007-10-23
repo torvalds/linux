@@ -29,7 +29,8 @@
 #define L2CAP_DEFAULT_MTU	672
 #define L2CAP_DEFAULT_FLUSH_TO	0xFFFF
 
-#define L2CAP_CONN_TIMEOUT	(HZ * 40)
+#define L2CAP_CONN_TIMEOUT	(40000) /* 40 seconds */
+#define L2CAP_INFO_TIMEOUT	(4000)  /*  4 seconds */
 
 /* L2CAP socket address */
 struct sockaddr_l2 {
@@ -148,6 +149,19 @@ struct l2cap_conf_opt {
 
 #define L2CAP_CONF_MAX_SIZE	22
 
+struct l2cap_conf_rfc {
+	__u8       mode;
+	__u8       txwin_size;
+	__u8       max_transmit;
+	__le16     retrans_timeout;
+	__le16     monitor_timeout;
+	__le16     max_pdu_size;
+} __attribute__ ((packed));
+
+#define L2CAP_MODE_BASIC	0x00
+#define L2CAP_MODE_RETRANS	0x01
+#define L2CAP_MODE_FLOWCTL	0x02
+
 struct l2cap_disconn_req {
 	__le16     dcid;
 	__le16     scid;
@@ -160,7 +174,6 @@ struct l2cap_disconn_rsp {
 
 struct l2cap_info_req {
 	__le16      type;
-	__u8        data[0];
 } __attribute__ ((packed));
 
 struct l2cap_info_rsp {
@@ -192,6 +205,13 @@ struct l2cap_conn {
 
 	unsigned int	mtu;
 
+	__u32		feat_mask;
+
+	__u8		info_state;
+	__u8		info_ident;
+
+	struct timer_list info_timer;
+
 	spinlock_t	lock;
 
 	struct sk_buff *rx_skb;
@@ -201,6 +221,9 @@ struct l2cap_conn {
 
 	struct l2cap_chan_list chan_list;
 };
+
+#define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
+#define L2CAP_INFO_FEAT_MASK_REQ_SENT	0x02
 
 /* ----- L2CAP channel and socket info ----- */
 #define l2cap_pi(sk) ((struct l2cap_pinfo *) sk)
@@ -221,7 +244,6 @@ struct l2cap_pinfo {
 	__u8		conf_len;
 	__u8		conf_state;
 	__u8		conf_retry;
-	__u16		conf_mtu;
 
 	__u8		ident;
 
@@ -232,10 +254,11 @@ struct l2cap_pinfo {
 	struct sock		*prev_c;
 };
 
-#define L2CAP_CONF_REQ_SENT    0x01
-#define L2CAP_CONF_INPUT_DONE  0x02
-#define L2CAP_CONF_OUTPUT_DONE 0x04
-#define L2CAP_CONF_MAX_RETRIES 2
+#define L2CAP_CONF_REQ_SENT	0x01
+#define L2CAP_CONF_INPUT_DONE	0x02
+#define L2CAP_CONF_OUTPUT_DONE	0x04
+
+#define L2CAP_CONF_MAX_RETRIES	2
 
 void l2cap_load(void);
 

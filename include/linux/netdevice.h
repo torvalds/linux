@@ -996,7 +996,7 @@ static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
  *
  * Check individual transmit queue of a device with multiple transmit queues.
  */
-static inline int netif_subqueue_stopped(const struct net_device *dev,
+static inline int __netif_subqueue_stopped(const struct net_device *dev,
 					 u16 queue_index)
 {
 #ifdef CONFIG_NETDEVICES_MULTIQUEUE
@@ -1007,6 +1007,11 @@ static inline int netif_subqueue_stopped(const struct net_device *dev,
 #endif
 }
 
+static inline int netif_subqueue_stopped(const struct net_device *dev,
+					 struct sk_buff *skb)
+{
+	return __netif_subqueue_stopped(dev, skb_get_queue_mapping(skb));
+}
 
 /**
  *	netif_wake_subqueue - allow sending packets on subqueue

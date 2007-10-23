@@ -815,6 +815,12 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	    nlmsg_len(nlh) < hdrlen)
 		return -EINVAL;
 
+#ifdef CONFIG_KMOD
+	if (inet_diag_table[nlh->nlmsg_type] == NULL)
+		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
+			       NETLINK_INET_DIAG, nlh->nlmsg_type);
+#endif
+
 	if (inet_diag_table[nlh->nlmsg_type] == NULL)
 		return -ENOENT;
 
@@ -914,3 +920,4 @@ static void __exit inet_diag_exit(void)
 module_init(inet_diag_init);
 module_exit(inet_diag_exit);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_INET_DIAG);

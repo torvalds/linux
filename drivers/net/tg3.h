@@ -1540,6 +1540,12 @@
 #define TG3_EEPROM_MAGIC_HW		0xabcd
 #define TG3_EEPROM_MAGIC_HW_MSK		0xffff
 
+#define TG3_NVM_DIR_START		0x18
+#define TG3_NVM_DIR_END			0x78
+#define TG3_NVM_DIRENT_SIZE		0xc
+#define TG3_NVM_DIRTYPE_SHIFT		24
+#define TG3_NVM_DIRTYPE_ASFINI		1
+
 /* 32K Window into NIC internal memory */
 #define NIC_SRAM_WIN_BASE		0x00008000
 
@@ -2415,10 +2421,11 @@ struct tg3 {
 #define PHY_REV_BCM5411_X0		0x1 /* Found on Netgear GA302T */
 
 	u32				led_ctrl;
-	u32				pci_cmd;
+	u16				pci_cmd;
 
 	char				board_part_number[24];
-	char				fw_ver[16];
+#define TG3_VER_SIZE 32
+	char				fw_ver[TG3_VER_SIZE];
 	u32				nic_sram_data_cfg;
 	u32				pci_clock_ctrl;
 	struct pci_dev			*pdev_peer;

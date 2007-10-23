@@ -189,6 +189,23 @@ static struct device *rfcomm_get_device(struct rfcomm_dev *dev)
 	return conn ? &conn->dev : NULL;
 }
 
+static ssize_t show_address(struct device *tty_dev, struct device_attribute *attr, char *buf)
+{
+	struct rfcomm_dev *dev = dev_get_drvdata(tty_dev);
+	bdaddr_t bdaddr;
+	baswap(&bdaddr, &dev->dst);
+	return sprintf(buf, "%s\n", batostr(&bdaddr));
+}
+
+static ssize_t show_channel(struct device *tty_dev, struct device_attribute *attr, char *buf)
+{
+	struct rfcomm_dev *dev = dev_get_drvdata(tty_dev);
+	return sprintf(buf, "%d\n", dev->channel);
+}
+
+static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
+static DEVICE_ATTR(channel, S_IRUGO, show_channel, NULL);
+
 static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 {
 	struct rfcomm_dev *dev;
@@ -280,6 +297,14 @@ out:
 		kfree(dev);
 		return err;
 	}
+
+	dev_set_drvdata(dev->tty_dev, dev);
+
+	if (device_create_file(dev->tty_dev, &dev_attr_address) < 0)
+		BT_ERR("Failed to create address attribute");
+
+	if (device_create_file(dev->tty_dev, &dev_attr_channel) < 0)
+		BT_ERR("Failed to create channel attribute");
 
 	return dev->id;
 }

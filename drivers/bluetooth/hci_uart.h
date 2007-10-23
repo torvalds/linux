@@ -33,12 +33,13 @@
 #define HCIUARTGETDEVICE	_IOR('U', 202, int)
 
 /* UART protocols */
-#define HCI_UART_MAX_PROTO	4
+#define HCI_UART_MAX_PROTO	5
 
 #define HCI_UART_H4	0
 #define HCI_UART_BCSP	1
 #define HCI_UART_3WIRE	2
 #define HCI_UART_H4DS	3
+#define HCI_UART_LL	4
 
 struct hci_uart;
 
@@ -84,4 +85,9 @@ int h4_deinit(void);
 #ifdef CONFIG_BT_HCIUART_BCSP
 int bcsp_init(void);
 int bcsp_deinit(void);
+#endif
+
+#ifdef CONFIG_BT_HCIUART_LL
+int ll_init(void);
+int ll_deinit(void);
 #endif

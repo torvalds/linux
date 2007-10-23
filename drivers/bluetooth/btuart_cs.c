@@ -294,10 +294,7 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst)
 	int boguscount = 0;
 	int iir, lsr;
 
-	if (!info || !info->hdev) {
-		BT_ERR("Call of irq %d for unknown device", irq);
-		return IRQ_NONE;
-	}
+	BUG_ON(!info->hdev);
 
 	iobase = info->p_dev->io.BasePort1;
 

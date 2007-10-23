@@ -3103,31 +3103,12 @@ static int niu_alloc_tx_ring_info(struct niu *np,
 
 static void niu_size_rbr(struct niu *np, struct rx_ring_info *rp)
 {
-	u16 bs;
+	u16 bss;
 
-	switch (PAGE_SIZE) {
-	case 4 * 1024:
-	case 8 * 1024:
-	case 16 * 1024:
-	case 32 * 1024:
-		rp->rbr_block_size = PAGE_SIZE;
-		rp->rbr_blocks_per_page = 1;
-		break;
+	bss = min(PAGE_SHIFT, 15);
 
-	default:
-		if (PAGE_SIZE % (32 * 1024) == 0)
-			bs = 32 * 1024;
-		else if (PAGE_SIZE % (16 * 1024) == 0)
-			bs = 16 * 1024;
-		else if (PAGE_SIZE % (8 * 1024) == 0)
-			bs = 8 * 1024;
-		else if (PAGE_SIZE % (4 * 1024) == 0)
-			bs = 4 * 1024;
-		else
-			BUG();
-		rp->rbr_block_size = bs;
-		rp->rbr_blocks_per_page = PAGE_SIZE / bs;
-	}
+	rp->rbr_block_size = 1 << bss;
+	rp->rbr_blocks_per_page = 1 << (PAGE_SHIFT-bss);
 
 	rp->rbr_sizes[0] = 256;
 	rp->rbr_sizes[1] = 1024;
@@ -7902,12 +7883,7 @@ static int __init niu_init(void)
 {
 	int err = 0;
 
-	BUILD_BUG_ON((PAGE_SIZE < 4 * 1024) ||
-		     ((PAGE_SIZE > 32 * 1024) &&
-		      ((PAGE_SIZE % (32 * 1024)) != 0 &&
-		       (PAGE_SIZE % (16 * 1024)) != 0 &&
-		       (PAGE_SIZE % (8 * 1024)) != 0 &&
-		       (PAGE_SIZE % (4 * 1024)) != 0)));
+	BUILD_BUG_ON(PAGE_SIZE < 4 * 1024);
 
 	niu_debug = netif_msg_init(debug, NIU_MSG_DEFAULT);
 
