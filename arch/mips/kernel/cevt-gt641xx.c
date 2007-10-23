@@ -131,9 +131,9 @@ static int __init gt641xx_timer0_clockevent_init(void)
 
 	cd = &gt641xx_timer0_clockevent;
 	cd->rating = 200 + gt641xx_base_clock / 10000000;
+	clockevent_set_clock(cd, gt641xx_base_clock);
 	cd->max_delta_ns = clockevent_delta2ns(0x7fffffff, cd);
 	cd->min_delta_ns = clockevent_delta2ns(0x300, cd);
-	clockevent_set_clock(cd, gt641xx_base_clock);
 
 	clockevents_register_device(&gt641xx_timer0_clockevent);
 
