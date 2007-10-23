@@ -781,15 +781,7 @@ asmlinkage int do_signal(sigset_t *oldset, struct pt_regs *regs)
 	/* Did we come from a system call? */
 	if (regs->orig_d0 >= 0) {
 		/* Restart the system call - no handlers present */
-		if (regs->d0 == -ERESTARTNOHAND
-		    || regs->d0 == -ERESTARTSYS
-		    || regs->d0 == -ERESTARTNOINTR) {
-			regs->d0 = regs->orig_d0;
-			regs->pc -= 2;
-		} else if (regs->d0 == -ERESTART_RESTARTBLOCK) {
-			regs->d0 = __NR_restart_syscall;
-			regs->pc -= 2;
-		}
+		handle_restart(regs, NULL, 0);
 	}
 	return 0;
 }
