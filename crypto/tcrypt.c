@@ -317,7 +317,7 @@ static void test_cipher(char *algo, int enc,
 				goto out;
 			}
 
-			q = kmap(sg[0].page) + sg[0].offset;
+			q = kmap(sg_page(&sg[0])) + sg[0].offset;
 			hexdump(q, cipher_tv[i].rlen);
 
 			printk("%s\n",
@@ -390,7 +390,7 @@ static void test_cipher(char *algo, int enc,
 			temp = 0;
 			for (k = 0; k < cipher_tv[i].np; k++) {
 				printk("page %u\n", k);
-				q = kmap(sg[k].page) + sg[k].offset;
+				q = kmap(sg_page(&sg[k])) + sg[k].offset;
 				hexdump(q, cipher_tv[i].tap[k]);
 				printk("%s\n",
 					memcmp(q, cipher_tv[i].result + temp,

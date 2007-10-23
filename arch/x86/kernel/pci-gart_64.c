@@ -302,7 +302,7 @@ static int dma_map_sg_nonforce(struct device *dev, struct scatterlist *sg,
 #endif
 
 	for_each_sg(sg, s, nents, i) {
-		unsigned long addr = page_to_phys(s->page) + s->offset; 
+		unsigned long addr = sg_phys(s);
 		if (nonforced_iommu(dev, addr, s->length)) { 
 			addr = dma_map_area(dev, addr, s->length, dir);
 			if (addr == bad_dma_address) { 
@@ -397,7 +397,7 @@ static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	start_sg = sgmap = sg;
 	ps = NULL; /* shut up gcc */
 	for_each_sg(sg, s, nents, i) {
-		dma_addr_t addr = page_to_phys(s->page) + s->offset;
+		dma_addr_t addr = sg_phys(s);
 		s->dma_address = addr;
 		BUG_ON(s->length == 0); 
 

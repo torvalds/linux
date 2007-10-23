@@ -1040,6 +1040,9 @@ decrypt_passphrase_encrypted_session_key(struct ecryptfs_auth_tok *auth_tok,
 	};
 	int rc = 0;
 
+	sg_init_table(&dst_sg, 1);
+	sg_init_table(&src_sg, 1);
+
 	if (unlikely(ecryptfs_verbosity > 0)) {
 		ecryptfs_printk(
 			KERN_DEBUG, "Session key encryption key (size [%d]):\n",

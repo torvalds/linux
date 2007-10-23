@@ -108,7 +108,7 @@ static int ipath_map_sg(struct ib_device *dev, struct scatterlist *sgl,
 	BUG_ON(!valid_dma_direction(direction));
 
 	for_each_sg(sgl, sg, nents, i) {
-		addr = (u64) page_address(sg->page);
+		addr = (u64) page_address(sg_page(sg));
 		/* TODO: handle highmem pages */
 		if (!addr) {
 			ret = 0;
@@ -127,7 +127,7 @@ static void ipath_unmap_sg(struct ib_device *dev,
 
 static u64 ipath_sg_dma_address(struct ib_device *dev, struct scatterlist *sg)
 {
-	u64 addr = (u64) page_address(sg->page);
+	u64 addr = (u64) page_address(sg_page(sg));
 
 	if (addr)
 		addr += sg->offset;

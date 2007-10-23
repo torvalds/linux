@@ -231,7 +231,7 @@ static void sdhci_deactivate_led(struct sdhci_host *host)
 
 static inline char* sdhci_sg_to_buffer(struct sdhci_host* host)
 {
-	return page_address(host->cur_sg->page) + host->cur_sg->offset;
+	return sg_virt(host->cur_sg);
 }
 
 static inline int sdhci_next_sg(struct sdhci_host* host)

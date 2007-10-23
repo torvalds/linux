@@ -196,7 +196,7 @@ static unsigned int sym53c416_base_3[2] = {0,0};
 
 #define MAXHOSTS 4
 
-#define SG_ADDRESS(buffer)     ((char *) (page_address((buffer)->page)+(buffer)->offset))
+#define SG_ADDRESS(buffer)     ((char *) sg_virt((buffer)))
 
 enum phases
 {

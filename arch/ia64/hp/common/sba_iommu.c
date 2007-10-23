@@ -246,7 +246,7 @@ static int reserve_sba_gart = 1;
 static SBA_INLINE void sba_mark_invalid(struct ioc *, dma_addr_t, size_t);
 static SBA_INLINE void sba_free_range(struct ioc *, dma_addr_t, size_t);
 
-#define sba_sg_address(sg)	(page_address((sg)->page) + (sg)->offset)
+#define sba_sg_address(sg)	sg_virt((sg))
 
 #ifdef FULL_VALID_PDIR
 static u64 prefetch_spill_page;

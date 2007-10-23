@@ -63,10 +63,10 @@ int ivtv_udma_fill_sg_list (struct ivtv_user_dma *dma, struct ivtv_dma_page_info
 			memcpy(page_address(dma->bouncemap[map_offset]) + offset, src, len);
 			kunmap_atomic(src, KM_BOUNCE_READ);
 			local_irq_restore(flags);
-			dma->SGlist[map_offset].page = dma->bouncemap[map_offset];
+			sg_set_page(&dma->SGlist[map_offset], dma->bouncemap[map_offset]);
 		}
 		else {
-			dma->SGlist[map_offset].page = dma->map[map_offset];
+			sg_set_page(&dma->SGlist[map_offset], dma->map[map_offset]);
 		}
 		offset = 0;
 		map_offset++;

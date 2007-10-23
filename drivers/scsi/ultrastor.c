@@ -681,7 +681,7 @@ static inline void build_sg_list(struct mscp *mscp, struct scsi_cmnd *SCpnt)
 
 	max = scsi_sg_count(SCpnt);
 	scsi_for_each_sg(SCpnt, sg, max, i) {
-		mscp->sglist[i].address = isa_page_to_bus(sg->page) + sg->offset;
+		mscp->sglist[i].address = isa_page_to_bus(sg_page(sg)) + sg->offset;
 		mscp->sglist[i].num_bytes = sg->length;
 		transfer_length += sg->length;
 	}

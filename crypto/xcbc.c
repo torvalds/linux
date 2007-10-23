@@ -120,7 +120,7 @@ static int crypto_xcbc_digest_update2(struct hash_desc *pdesc,
 
 	do {
 
-		struct page *pg = sg[i].page;
+		struct page *pg = sg_page(&sg[i]);
 		unsigned int offset = sg[i].offset;
 		unsigned int slen = sg[i].length;
 

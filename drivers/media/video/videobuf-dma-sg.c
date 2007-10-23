@@ -60,12 +60,13 @@ videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
+	sg_init_table(sglist, nr_pages);
 	for (i = 0; i < nr_pages; i++, virt += PAGE_SIZE) {
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
 			goto err;
 		BUG_ON(PageHighMem(pg));
-		sglist[i].page   = pg;
+		sg_set_page(&sglist[i], pg);
 		sglist[i].length = PAGE_SIZE;
 	}
 	return sglist;
@@ -86,13 +87,14 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 	sglist = kcalloc(nr_pages, sizeof(*sglist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
+	sg_init_table(sglist, nr_pages);
 
 	if (NULL == pages[0])
 		goto nopage;
 	if (PageHighMem(pages[0]))
 		/* DMA to highmem pages might not work */
 		goto highmem;
-	sglist[0].page   = pages[0];
+	sg_set_page(&sglist[0], pages[0]);
 	sglist[0].offset = offset;
 	sglist[0].length = PAGE_SIZE - offset;
 	for (i = 1; i < nr_pages; i++) {
@@ -100,7 +102,7 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 			goto nopage;
 		if (PageHighMem(pages[i]))
 			goto highmem;
-		sglist[i].page   = pages[i];
+		sg_set_page(&sglist[i], pages[i]);
 		sglist[i].length = PAGE_SIZE;
 	}
 	return sglist;

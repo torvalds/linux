@@ -345,6 +345,7 @@ static bool DAC960_CreateAuxiliaryStructures(DAC960_Controller_T *Controller)
 	Command->V1.ScatterGatherList =
 		(DAC960_V1_ScatterGatherSegment_T *)ScatterGatherCPU;
 	Command->V1.ScatterGatherListDMA = ScatterGatherDMA;
+	sg_init_table(Command->cmd_sglist, DAC960_V1_ScatterGatherLimit);
       } else {
         Command->cmd_sglist = Command->V2.ScatterList;
 	Command->V2.ScatterGatherList =
@@ -353,6 +354,7 @@ static bool DAC960_CreateAuxiliaryStructures(DAC960_Controller_T *Controller)
 	Command->V2.RequestSense =
 				(DAC960_SCSI_RequestSense_T *)RequestSenseCPU;
 	Command->V2.RequestSenseDMA = RequestSenseDMA;
+	sg_init_table(Command->cmd_sglist, DAC960_V2_ScatterGatherLimit);
       }
     }
   return true;

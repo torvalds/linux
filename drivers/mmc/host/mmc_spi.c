@@ -813,7 +813,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 					&& dir == DMA_FROM_DEVICE)
 				dir = DMA_BIDIRECTIONAL;
 
-			dma_addr = dma_map_page(dma_dev, sg->page, 0,
+			dma_addr = dma_map_page(dma_dev, sg_page(sg), 0,
 						PAGE_SIZE, dir);
 			if (direction == DMA_TO_DEVICE)
 				t->tx_dma = dma_addr + sg->offset;
@@ -822,7 +822,7 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 		}
 
 		/* allow pio too; we don't allow highmem */
-		kmap_addr = kmap(sg->page);
+		kmap_addr = kmap(sg_page(sg));
 		if (direction == DMA_TO_DEVICE)
 			t->tx_buf = kmap_addr + sg->offset;
 		else
@@ -855,8 +855,8 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 
 		/* discard mappings */
 		if (direction == DMA_FROM_DEVICE)
-			flush_kernel_dcache_page(sg->page);
-		kunmap(sg->page);
+			flush_kernel_dcache_page(sg_page(sg));
+		kunmap(sg_page(sg));
 		if (dma_dev)
 			dma_unmap_page(dma_dev, dma_addr, PAGE_SIZE, dir);
 

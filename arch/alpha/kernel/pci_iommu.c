@@ -465,7 +465,7 @@ EXPORT_SYMBOL(pci_free_consistent);
    Write dma_length of each leader with the combined lengths of
    the mergable followers.  */
 
-#define SG_ENT_VIRT_ADDRESS(SG) (page_address((SG)->page) + (SG)->offset)
+#define SG_ENT_VIRT_ADDRESS(SG) (sg_virt((SG)))
 #define SG_ENT_PHYS_ADDRESS(SG) __pa(SG_ENT_VIRT_ADDRESS(SG))
 
 static void

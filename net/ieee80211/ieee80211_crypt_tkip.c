@@ -390,9 +390,7 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	icv[3] = crc >> 24;
 
 	crypto_blkcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
-	sg.page = virt_to_page(pos);
-	sg.offset = offset_in_page(pos);
-	sg.length = len + 4;
+	sg_init_one(&sg, pos, len + 4);
 	return crypto_blkcipher_encrypt(&desc, &sg, &sg, len + 4);
 }
 
@@ -485,9 +483,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	plen = skb->len - hdr_len - 12;
 
 	crypto_blkcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-	sg.page = virt_to_page(pos);
-	sg.offset = offset_in_page(pos);
-	sg.length = plen + 4;
+	sg_init_one(&sg, pos, plen + 4);
 	if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG ": TKIP: failed to decrypt "
@@ -539,11 +535,12 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
 		printk(KERN_WARNING "michael_mic: tfm_michael == NULL\n");
 		return -1;
 	}
-	sg[0].page = virt_to_page(hdr);
+	sg_init_table(sg, 2);
+	sg_set_page(&sg[0], virt_to_page(hdr));
 	sg[0].offset = offset_in_page(hdr);
 	sg[0].length = 16;
 
-	sg[1].page = virt_to_page(data);
+	sg_set_page(&sg[1], virt_to_page(data));
 	sg[1].offset = offset_in_page(data);
 	sg[1].length = data_len;
 

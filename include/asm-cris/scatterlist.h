@@ -2,11 +2,14 @@
 #define __ASM_CRIS_SCATTERLIST_H
 
 struct scatterlist {
+#ifdef CONFIG_DEBUG_SG
+	unsigned long sg_magic;
+#endif
 	char *  address;    /* Location data is to be transferred to */
 	unsigned int length;
 
 	/* The following is i386 highmem junk - not used by us */
-	struct page * page; /* Location for highmem page, if any */
+	unsigned long page_link;
 	unsigned int offset;/* for highmem, page offset */
 
 };

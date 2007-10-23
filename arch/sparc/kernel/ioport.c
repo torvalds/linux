@@ -727,9 +727,8 @@ int pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sgl, int nents,
 	BUG_ON(direction == PCI_DMA_NONE);
 	/* IIep is write-through, not flushing. */
 	for_each_sg(sgl, sg, nents, n) {
-		BUG_ON(page_address(sg->page) == NULL);
-		sg->dvma_address =
-			virt_to_phys(page_address(sg->page)) + sg->offset;
+		BUG_ON(page_address(sg_page(sg)) == NULL);
+		sg->dvma_address = virt_to_phys(sg_virt(sg));
 		sg->dvma_length = sg->length;
 	}
 	return nents;
@@ -748,9 +747,9 @@ void pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sgl, int nents,
 	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		for_each_sg(sgl, sg, nents, n) {
-			BUG_ON(page_address(sg->page) == NULL);
+			BUG_ON(page_address(sg_page(sg)) == NULL);
 			mmu_inval_dma_area(
-			    (unsigned long) page_address(sg->page),
+			    (unsigned long) page_address(sg_page(sg)),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
 		}
 	}
@@ -798,9 +797,9 @@ void pci_dma_sync_sg_for_cpu(struct pci_dev *hwdev, struct scatterlist *sgl, int
 	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		for_each_sg(sgl, sg, nents, n) {
-			BUG_ON(page_address(sg->page) == NULL);
+			BUG_ON(page_address(sg_page(sg)) == NULL);
 			mmu_inval_dma_area(
-			    (unsigned long) page_address(sg->page),
+			    (unsigned long) page_address(sg_page(sg)),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
 		}
 	}
@@ -814,9 +813,9 @@ void pci_dma_sync_sg_for_device(struct pci_dev *hwdev, struct scatterlist *sgl, 
 	BUG_ON(direction == PCI_DMA_NONE);
 	if (direction != PCI_DMA_TODEVICE) {
 		for_each_sg(sgl, sg, nents, n) {
-			BUG_ON(page_address(sg->page) == NULL);
+			BUG_ON(page_address(sg_page(sg)) == NULL);
 			mmu_inval_dma_area(
-			    (unsigned long) page_address(sg->page),
+			    (unsigned long) page_address(sg_page(sg)),
 			    (sg->length + PAGE_SIZE-1) & PAGE_MASK);
 		}
 	}

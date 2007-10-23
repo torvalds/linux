@@ -1354,14 +1354,18 @@ new_segment:
 			else
 				sg = sg_next(sg);
 
-			memset(sg, 0, sizeof(*sg));
-			sg->page = bvec->bv_page;
+			sg_dma_len(sg) = 0;
+			sg_dma_address(sg) = 0;
+			sg_set_page(sg, bvec->bv_page);
 			sg->length = nbytes;
 			sg->offset = bvec->bv_offset;
 			nsegs++;
 		}
 		bvprv = bvec;
 	} /* segments in rq */
+
+	if (sg)
+		__sg_mark_end(sg);
 
 	return nsegs;
 }

@@ -5,7 +5,10 @@
 #include <asm/types.h>
 
 struct scatterlist {
-	struct page	*page;		/* buffer page			 */
+#ifdef CONFIG_DEBUG_SG
+	unsigned long	sg_magic;
+#endif
+	unsigned long	page_link;
 	unsigned int	offset;		/* buffer offset		 */
 	dma_addr_t	dma_address;	/* dma address			 */
 	unsigned int	length;		/* length			 */

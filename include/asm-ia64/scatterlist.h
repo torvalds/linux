@@ -9,7 +9,10 @@
 #include <asm/types.h>
 
 struct scatterlist {
-	struct page *page;
+#ifdef CONFIG_DEBUG_SG
+	unsigned long sg_magic;
+#endif
+	unsigned long page_link;
 	unsigned int offset;
 	unsigned int length;	/* buffer length */
 

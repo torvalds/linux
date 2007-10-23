@@ -360,9 +360,9 @@ static void free_sglist (struct scatterlist *sg, int nents)
 	if (!sg)
 		return;
 	for (i = 0; i < nents; i++) {
-		if (!sg [i].page)
+		if (!sg_page(&sg[i]))
 			continue;
-		kfree (page_address (sg [i].page) + sg [i].offset);
+		kfree (sg_virt(&sg[i]));
 	}
 	kfree (sg);
 }

@@ -112,12 +112,13 @@ static struct scatterlist* vmalloc_to_sg(unsigned char *virt, int nr_pages)
 	sglist = kcalloc(nr_pages, sizeof(struct scatterlist), GFP_KERNEL);
 	if (NULL == sglist)
 		return NULL;
+	sg_init_table(sglist, nr_pages);
 	for (i = 0; i < nr_pages; i++, virt += PAGE_SIZE) {
 		pg = vmalloc_to_page(virt);
 		if (NULL == pg)
 			goto err;
 		BUG_ON(PageHighMem(pg));
-		sglist[i].page   = pg;
+		sg_set_page(&sglist[i], pg);
 		sglist[i].length = PAGE_SIZE;
 	}
 	return sglist;

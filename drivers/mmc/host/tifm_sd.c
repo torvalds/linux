@@ -192,7 +192,7 @@ static void tifm_sd_transfer_data(struct tifm_sd *host)
 		}
 		off = sg[host->sg_pos].offset + host->block_pos;
 
-		pg = nth_page(sg[host->sg_pos].page, off >> PAGE_SHIFT);
+		pg = nth_page(sg_page(&sg[host->sg_pos]), off >> PAGE_SHIFT);
 		p_off = offset_in_page(off);
 		p_cnt = PAGE_SIZE - p_off;
 		p_cnt = min(p_cnt, cnt);
@@ -241,18 +241,18 @@ static void tifm_sd_bounce_block(struct tifm_sd *host, struct mmc_data *r_data)
 		}
 		off = sg[host->sg_pos].offset + host->block_pos;
 
-		pg = nth_page(sg[host->sg_pos].page, off >> PAGE_SHIFT);
+		pg = nth_page(sg_page(&sg[host->sg_pos]), off >> PAGE_SHIFT);
 		p_off = offset_in_page(off);
 		p_cnt = PAGE_SIZE - p_off;
 		p_cnt = min(p_cnt, cnt);
 		p_cnt = min(p_cnt, t_size);
 
 		if (r_data->flags & MMC_DATA_WRITE)
-			tifm_sd_copy_page(host->bounce_buf.page,
+			tifm_sd_copy_page(sg_page(&host->bounce_buf),
 					  r_data->blksz - t_size,
 					  pg, p_off, p_cnt);
 		else if (r_data->flags & MMC_DATA_READ)
-			tifm_sd_copy_page(pg, p_off, host->bounce_buf.page,
+			tifm_sd_copy_page(pg, p_off, sg_page(&host->bounce_buf),
 					  r_data->blksz - t_size, p_cnt);
 
 		t_size -= p_cnt;

@@ -3797,7 +3797,7 @@ static void buf_to_sg(struct st_buffer *STbp, unsigned int length)
 	sg = &(STbp->sg[0]);
 	frp = STbp->frp;
 	for (i=count=0; count < length; i++) {
-		sg[i].page = frp[i].page;
+		sg_set_page(&sg[i], frp[i].page);
 		if (length - count > frp[i].length)
 			sg[i].length = frp[i].length;
 		else
@@ -4446,14 +4446,14 @@ static int sgl_map_user_pages(struct scatterlist *sgl, const unsigned int max_pa
         }
 
 	/* Populate the scatter/gather list */
-	sgl[0].page = pages[0]; 
+	sg_set_page(&sgl[0], pages[0]);
 	sgl[0].offset = uaddr & ~PAGE_MASK;
 	if (nr_pages > 1) {
 		sgl[0].length = PAGE_SIZE - sgl[0].offset;
 		count -= sgl[0].length;
 		for (i=1; i < nr_pages ; i++) {
+			sg_set_page(&sgl[i], pages[i]);;
 			sgl[i].offset = 0;
-			sgl[i].page = pages[i]; 
 			sgl[i].length = count < PAGE_SIZE ? count : PAGE_SIZE;
 			count -= PAGE_SIZE;
 		}
@@ -4483,7 +4483,7 @@ static int sgl_unmap_user_pages(struct scatterlist *sgl, const unsigned int nr_p
 	int i;
 
 	for (i=0; i < nr_pages; i++) {
-		struct page *page = sgl[i].page;
+		struct page *page = sg_page(&sgl[i]);
 
 		if (dirtied)
 			SetPageDirty(page);

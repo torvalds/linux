@@ -88,7 +88,7 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 {
 	struct xdr_netobj cksum;
 	struct hash_desc desc;
-	struct scatterlist sg[1];
+	struct scatterlist sg;
 	__be32 status = nfserr_resource;
 
 	dprintk("NFSD: nfs4_make_rec_clidname for %.*s\n",
@@ -102,11 +102,9 @@ nfs4_make_rec_clidname(char *dname, struct xdr_netobj *clname)
 	if (cksum.data == NULL)
  		goto out;
 
-	sg[0].page = virt_to_page(clname->data);
-	sg[0].offset = offset_in_page(clname->data);
-	sg[0].length = clname->len;
+	sg_init_one(&sg, clname->data, clname->len);
 
-	if (crypto_hash_digest(&desc, sg, sg->length, cksum.data))
+	if (crypto_hash_digest(&desc, &sg, sg.length, cksum.data))
 		goto out;
 
 	md5_to_hex(dname, cksum.data);

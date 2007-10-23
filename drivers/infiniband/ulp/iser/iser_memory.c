@@ -131,7 +131,7 @@ static int iser_start_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
 
 		p = mem;
 		for_each_sg(sgl, sg, data->size, i) {
-			from = kmap_atomic(sg->page, KM_USER0);
+			from = kmap_atomic(sg_page(sg), KM_USER0);
 			memcpy(p,
 			       from + sg->offset,
 			       sg->length);
@@ -191,7 +191,7 @@ void iser_finalize_rdma_unaligned_sg(struct iscsi_iser_cmd_task *iser_ctask,
 
 		p = mem;
 		for_each_sg(sgl, sg, sg_size, i) {
-			to = kmap_atomic(sg->page, KM_SOFTIRQ0);
+			to = kmap_atomic(sg_page(sg), KM_SOFTIRQ0);
 			memcpy(to + sg->offset,
 			       p,
 			       sg->length);
@@ -300,7 +300,7 @@ static unsigned int iser_data_buf_aligned_len(struct iser_data_buf *data,
 	for_each_sg(sgl, sg, data->dma_nents, i) {
 		/* iser_dbg("Checking sg iobuf [%d]: phys=0x%08lX "
 		   "offset: %ld sz: %ld\n", i,
-		   (unsigned long)page_to_phys(sg->page),
+		   (unsigned long)sg_phys(sg),
 		   (unsigned long)sg->offset,
 		   (unsigned long)sg->length); */
 		end_addr = ib_sg_dma_address(ibdev, sg) +
@@ -336,7 +336,7 @@ static void iser_data_buf_dump(struct iser_data_buf *data,
 		iser_err("sg[%d] dma_addr:0x%lX page:0x%p "
 			 "off:0x%x sz:0x%x dma_len:0x%x\n",
 			 i, (unsigned long)ib_sg_dma_address(ibdev, sg),
-			 sg->page, sg->offset,
+			 sg_page(sg), sg->offset,
 			 sg->length, ib_sg_dma_len(ibdev, sg));
 }
 

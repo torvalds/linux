@@ -149,7 +149,7 @@ static inline void at91_mci_sg_to_dma(struct at91mci_host *host, struct mmc_data
 
 		sg = &data->sg[i];
 
-		sgbuffer = kmap_atomic(sg->page, KM_BIO_SRC_IRQ) + sg->offset;
+		sgbuffer = kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
 		amount = min(size, sg->length);
 		size -= amount;
 
@@ -226,7 +226,7 @@ static void at91_mci_pre_dma_read(struct at91mci_host *host)
 		sg = &data->sg[host->transfer_index++];
 		pr_debug("sg = %p\n", sg);
 
-		sg->dma_address = dma_map_page(NULL, sg->page, sg->offset, sg->length, DMA_FROM_DEVICE);
+		sg->dma_address = dma_map_page(NULL, sg_page(sg), sg->offset, sg->length, DMA_FROM_DEVICE);
 
 		pr_debug("dma address = %08X, length = %d\n", sg->dma_address, sg->length);
 
@@ -283,7 +283,7 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 			int index;
 
 			/* Swap the contents of the buffer */
-			buffer = kmap_atomic(sg->page, KM_BIO_SRC_IRQ) + sg->offset;
+			buffer = kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
 			pr_debug("buffer = %p, length = %d\n", buffer, sg->length);
 
 			for (index = 0; index < (sg->length / 4); index++)
@@ -292,7 +292,7 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 			kunmap_atomic(buffer, KM_BIO_SRC_IRQ);
 		}
 
-		flush_dcache_page(sg->page);
+		flush_dcache_page(sg_page(sg));
 	}
 
 	/* Is there another transfer to trigger? */

@@ -262,7 +262,7 @@ static void imxmci_setup_data(struct imxmci_host *host, struct mmc_data *data)
 		}
 
 		/* Convert back to virtual address */
-		host->data_ptr = (u16*)(page_address(data->sg->page) + data->sg->offset);
+		host->data_ptr = (u16*)sg_virt(sg);
 		host->data_cnt = 0;
 
 		clear_bit(IMXMCI_PEND_DMA_DATA_b, &host->pending_events);

@@ -1828,7 +1828,7 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 		BUG_ON(scsi_sg_count(cmd) > 16);
 
 		scsi_for_each_sg(cmd, sg, scsi_sg_count(cmd), i) {
-			ld(shpnt)[ldn].sge[i].address = (void *) (isa_page_to_bus(sg->page) + sg->offset);
+			ld(shpnt)[ldn].sge[i].address = (void *) (isa_page_to_bus(sg_page(sg)) + sg->offset);
 			ld(shpnt)[ldn].sge[i].byte_length = sg->length;
 		}
 		scb->enable |= IM_POINTER_TO_LIST;

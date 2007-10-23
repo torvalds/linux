@@ -71,7 +71,7 @@ static void mthca_free_icm_pages(struct mthca_dev *dev, struct mthca_icm_chunk *
 			     PCI_DMA_BIDIRECTIONAL);
 
 	for (i = 0; i < chunk->npages; ++i)
-		__free_pages(chunk->mem[i].page,
+		__free_pages(sg_page(&chunk->mem[i]),
 			     get_order(chunk->mem[i].length));
 }
 
@@ -81,7 +81,7 @@ static void mthca_free_icm_coherent(struct mthca_dev *dev, struct mthca_icm_chun
 
 	for (i = 0; i < chunk->npages; ++i) {
 		dma_free_coherent(&dev->pdev->dev, chunk->mem[i].length,
-				  lowmem_page_address(chunk->mem[i].page),
+				  lowmem_page_address(sg_page(&chunk->mem[i])),
 				  sg_dma_address(&chunk->mem[i]));
 	}
 }
@@ -107,10 +107,13 @@ void mthca_free_icm(struct mthca_dev *dev, struct mthca_icm *icm, int coherent)
 
 static int mthca_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_mask)
 {
-	mem->page = alloc_pages(gfp_mask, order);
-	if (!mem->page)
+	struct page *page;
+
+	page = alloc_pages(gfp_mask, order);
+	if (!page)
 		return -ENOMEM;
 
+	sg_set_page(mem, page);
 	mem->length = PAGE_SIZE << order;
 	mem->offset = 0;
 	return 0;
@@ -157,6 +160,7 @@ struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
 			if (!chunk)
 				goto fail;
 
+			sg_init_table(chunk->mem, MTHCA_ICM_CHUNK_LEN);
 			chunk->npages = 0;
 			chunk->nsg    = 0;
 			list_add_tail(&chunk->list, &icm->chunk_list);
@@ -304,7 +308,7 @@ void *mthca_table_find(struct mthca_icm_table *table, int obj, dma_addr_t *dma_h
 			 * so if we found the page, dma_handle has already
 			 * been assigned to. */
 			if (chunk->mem[i].length > offset) {
-				page = chunk->mem[i].page;
+				page = sg_page(&chunk->mem[i]);
 				goto out;
 			}
 			offset -= chunk->mem[i].length;
@@ -445,6 +449,7 @@ static u64 mthca_uarc_virt(struct mthca_dev *dev, struct mthca_uar *uar, int pag
 int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 		      struct mthca_user_db_table *db_tab, int index, u64 uaddr)
 {
+	struct page *pages[1];
 	int ret = 0;
 	u8 status;
 	int i;
@@ -472,16 +477,17 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	}
 
 	ret = get_user_pages(current, current->mm, uaddr & PAGE_MASK, 1, 1, 0,
-			     &db_tab->page[i].mem.page, NULL);
+			     pages, NULL);
 	if (ret < 0)
 		goto out;
 
+	sg_set_page(&db_tab->page[i].mem, pages[0]);
 	db_tab->page[i].mem.length = MTHCA_ICM_PAGE_SIZE;
 	db_tab->page[i].mem.offset = uaddr & ~PAGE_MASK;
 
 	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
 	if (ret < 0) {
-		put_page(db_tab->page[i].mem.page);
+		put_page(pages[0]);
 		goto out;
 	}
 
@@ -491,7 +497,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 		ret = -EINVAL;
 	if (ret) {
 		pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
-		put_page(db_tab->page[i].mem.page);
+		put_page(sg_page(&db_tab->page[i].mem));
 		goto out;
 	}
 
@@ -557,7 +563,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 		if (db_tab->page[i].uvirt) {
 			mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, uar, i), 1, &status);
 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
-			put_page(db_tab->page[i].mem.page);
+			put_page(sg_page(&db_tab->page[i].mem));
 		}
 	}
 

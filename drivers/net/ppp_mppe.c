@@ -55,7 +55,7 @@
 #include <linux/mm.h>
 #include <linux/ppp_defs.h>
 #include <linux/ppp-comp.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include "ppp_mppe.h"
 
@@ -68,9 +68,7 @@ MODULE_VERSION("1.0.2");
 static unsigned int
 setup_sg(struct scatterlist *sg, const void *address, unsigned int length)
 {
-	sg[0].page = virt_to_page(address);
-	sg[0].offset = offset_in_page(address);
-	sg[0].length = length;
+	sg_init_one(sg, address, length);
 	return length;
 }
 

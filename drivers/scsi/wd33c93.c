@@ -410,8 +410,7 @@ wd33c93_queuecommand(struct scsi_cmnd *cmd,
 	if (cmd->use_sg) {
 		cmd->SCp.buffer = (struct scatterlist *) cmd->request_buffer;
 		cmd->SCp.buffers_residual = cmd->use_sg - 1;
-		cmd->SCp.ptr = page_address(cmd->SCp.buffer->page) +
-		    cmd->SCp.buffer->offset;
+		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
 	} else {
 		cmd->SCp.buffer = NULL;
@@ -745,8 +744,7 @@ transfer_bytes(const wd33c93_regs regs, struct scsi_cmnd *cmd,
 		++cmd->SCp.buffer;
 		--cmd->SCp.buffers_residual;
 		cmd->SCp.this_residual = cmd->SCp.buffer->length;
-		cmd->SCp.ptr = page_address(cmd->SCp.buffer->page) +
-		    cmd->SCp.buffer->offset;
+		cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
 	}
 	if (!cmd->SCp.this_residual) /* avoid bogus setups */
 		return;

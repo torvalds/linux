@@ -144,7 +144,7 @@ static void iounit_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus 
 	spin_lock_irqsave(&iounit->lock, flags);
 	while (sz != 0) {
 		--sz;
-		sg->dvma_address = iounit_get_area(iounit, (unsigned long)page_address(sg->page) + sg->offset, sg->length);
+		sg->dvma_address = iounit_get_area(iounit, sg_virt(sg), sg->length);
 		sg->dvma_length = sg->length;
 		sg = sg_next(sg);
 	}

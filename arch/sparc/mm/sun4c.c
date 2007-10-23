@@ -1228,7 +1228,7 @@ static void sun4c_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *
 {
 	while (sz != 0) {
 		--sz;
-		sg->dvma_address = (__u32)sun4c_lockarea(page_address(sg->page) + sg->offset, sg->length);
+		sg->dvma_address = (__u32)sun4c_lockarea(sg_virt(sg), sg->length);
 		sg->dvma_length = sg->length;
 		sg = sg_next(sg);
 	}

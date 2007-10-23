@@ -195,7 +195,7 @@ unsigned int usb_stor_access_xfer_buf(unsigned char *buffer,
 		 * the *offset and *index values for the next loop. */
 		cnt = 0;
 		while (cnt < buflen) {
-			struct page *page = sg->page +
+			struct page *page = sg_page(sg) +
 					((sg->offset + *offset) >> PAGE_SHIFT);
 			unsigned int poff =
 					(sg->offset + *offset) & (PAGE_SIZE-1);

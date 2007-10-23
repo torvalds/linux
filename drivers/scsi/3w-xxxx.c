@@ -1469,7 +1469,7 @@ static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
 	struct scatterlist *sg = scsi_sglist(cmd);
 
 	local_irq_save(flags);
-	buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+	buf = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
 	transfer_len = min(sg->length, len);
 
 	memcpy(buf, data, transfer_len);

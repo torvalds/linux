@@ -1123,7 +1123,7 @@ static int wd7000_queuecommand(struct scsi_cmnd *SCpnt,
 		any2scsi(scb->maxlen, nseg * sizeof(Sgb));
 
 		scsi_for_each_sg(SCpnt, sg, nseg, i) {
-			any2scsi(sgb[i].ptr, isa_page_to_bus(sg->page) + sg->offset);
+			any2scsi(sgb[i].ptr, isa_page_to_bus(sg_page(sg)) + sg->offset);
 			any2scsi(sgb[i].len, sg->length);
 		}
 	} else {

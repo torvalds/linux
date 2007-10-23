@@ -875,8 +875,7 @@ static void NCR53c406a_intr(void *dev_id)
 			outb(TRANSFER_INFO | DMA_OP, CMD_REG);
 #if USE_PIO
                         scsi_for_each_sg(current_SC, sg, scsi_sg_count(current_SC), i) {
-                                NCR53c406a_pio_write(page_address(sg->page) + sg->offset,
-                                                     sg->length);
+                                NCR53c406a_pio_write(sg_virt(sg), sg->length);
                         }
 			REG0;
 #endif				/* USE_PIO */
@@ -897,8 +896,7 @@ static void NCR53c406a_intr(void *dev_id)
 			outb(TRANSFER_INFO | DMA_OP, CMD_REG);
 #if USE_PIO
                         scsi_for_each_sg(current_SC, sg, scsi_sg_count(current_SC), i) {
-                                NCR53c406a_pio_read(page_address(sg->page) + sg->offset,
-                                                    sg->length);
+                                NCR53c406a_pio_read(sg_virt(sg), sg->length);
                         }
 			REG0;
 #endif				/* USE_PIO */

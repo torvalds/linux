@@ -13,6 +13,7 @@
 #include <linux/blkdev.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/scatterlist.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -153,19 +154,21 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 			blk_queue_max_hw_segments(mq->queue, bouncesz / 512);
 			blk_queue_max_segment_size(mq->queue, bouncesz);
 
-			mq->sg = kzalloc(sizeof(struct scatterlist),
+			mq->sg = kmalloc(sizeof(struct scatterlist),
 				GFP_KERNEL);
 			if (!mq->sg) {
 				ret = -ENOMEM;
 				goto cleanup_queue;
 			}
+			sg_init_table(mq->sg, 1);
 
-			mq->bounce_sg = kzalloc(sizeof(struct scatterlist) *
+			mq->bounce_sg = kmalloc(sizeof(struct scatterlist) *
 				bouncesz / 512, GFP_KERNEL);
 			if (!mq->bounce_sg) {
 				ret = -ENOMEM;
 				goto cleanup_queue;
 			}
+			sg_init_table(mq->bounce_sg, bouncesz / 512);
 		}
 	}
 #endif
@@ -302,12 +305,12 @@ static void copy_sg(struct scatterlist *dst, unsigned int dst_len,
 		BUG_ON(dst_len == 0);
 
 		if (dst_size == 0) {
-			dst_buf = page_address(dst->page) + dst->offset;
+			dst_buf = sg_virt(dst);
 			dst_size = dst->length;
 		}
 
 		if (src_size == 0) {
-			src_buf = page_address(src->page) + src->offset;
+			src_buf = sg_virt(dst);
 			src_size = src->length;
 		}
 
@@ -353,9 +356,7 @@ unsigned int mmc_queue_map_sg(struct mmc_queue *mq)
 		return 1;
 	}
 
-	mq->sg[0].page = virt_to_page(mq->bounce_buf);
-	mq->sg[0].offset = offset_in_page(mq->bounce_buf);
-	mq->sg[0].length = 0;
+	sg_init_one(mq->sg, mq->bounce_buf, 0);
 
 	while (sg_len) {
 		mq->sg[0].length += mq->bounce_sg[sg_len - 1].length;

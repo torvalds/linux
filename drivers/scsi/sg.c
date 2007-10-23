@@ -1169,7 +1169,7 @@ sg_vma_nopage(struct vm_area_struct *vma, unsigned long addr, int *type)
 		len = vma->vm_end - sa;
 		len = (len < sg->length) ? len : sg->length;
 		if (offset < len) {
-			page = virt_to_page(page_address(sg->page) + offset);
+			page = virt_to_page(page_address(sg_page(sg)) + offset);
 			get_page(page);	/* increment page count */
 			break;
 		}
@@ -1717,13 +1717,13 @@ st_map_user_pages(struct scatterlist *sgl, const unsigned int max_pages,
 		   goto out_unlock; */
         }
 
-	sgl[0].page = pages[0];
+	sg_set_page(sgl, pages[0]);
 	sgl[0].offset = uaddr & ~PAGE_MASK;
 	if (nr_pages > 1) {
 		sgl[0].length = PAGE_SIZE - sgl[0].offset;
 		count -= sgl[0].length;
 		for (i=1; i < nr_pages ; i++) {
-			sgl[i].page = pages[i]; 
+			sg_set_page(&sgl[i], pages[i]);
 			sgl[i].length = count < PAGE_SIZE ? count : PAGE_SIZE;
 			count -= PAGE_SIZE;
 		}
@@ -1754,7 +1754,7 @@ st_unmap_user_pages(struct scatterlist *sgl, const unsigned int nr_pages,
 	int i;
 
 	for (i=0; i < nr_pages; i++) {
-		struct page *page = sgl[i].page;
+		struct page *page = sg_page(&sgl[i]);
 
 		if (dirtied)
 			SetPageDirty(page);
@@ -1854,7 +1854,7 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 				scatter_elem_sz_prev = ret_sz;
 			}
 		}
-		sg->page = p;
+		sg_set_page(sg, p);
 		sg->length = (ret_sz > num) ? num : ret_sz;
 
 		SCSI_LOG_TIMEOUT(5, printk("sg_build_indirect: k=%d, num=%d, "
@@ -1907,14 +1907,14 @@ sg_write_xfer(Sg_request * srp)
 		onum = 1;
 
 	ksglen = sg->length;
-	p = page_address(sg->page);
+	p = page_address(sg_page(sg));
 	for (j = 0, k = 0; j < onum; ++j) {
 		res = sg_u_iovec(hp, iovec_count, j, 1, &usglen, &up);
 		if (res)
 			return res;
 
 		for (; p; sg = sg_next(sg), ksglen = sg->length,
-		     p = page_address(sg->page)) {
+		     p = page_address(sg_page(sg))) {
 			if (usglen <= 0)
 				break;
 			if (ksglen > usglen) {
@@ -1991,12 +1991,12 @@ sg_remove_scat(Sg_scatter_hold * schp)
 		} else {
 			int k;
 
-			for (k = 0; (k < schp->k_use_sg) && sg->page;
+			for (k = 0; (k < schp->k_use_sg) && sg_page(sg);
 			     ++k, sg = sg_next(sg)) {
 				SCSI_LOG_TIMEOUT(5, printk(
 				    "sg_remove_scat: k=%d, pg=0x%p, len=%d\n",
-				    k, sg->page, sg->length));
-				sg_page_free(sg->page, sg->length);
+				    k, sg_page(sg), sg->length));
+				sg_page_free(sg_page(sg), sg->length);
 			}
 		}
 		kfree(schp->buffer);
@@ -2038,7 +2038,7 @@ sg_read_xfer(Sg_request * srp)
 	} else
 		onum = 1;
 
-	p = page_address(sg->page);
+	p = page_address(sg_page(sg));
 	ksglen = sg->length;
 	for (j = 0, k = 0; j < onum; ++j) {
 		res = sg_u_iovec(hp, iovec_count, j, 0, &usglen, &up);
@@ -2046,7 +2046,7 @@ sg_read_xfer(Sg_request * srp)
 			return res;
 
 		for (; p; sg = sg_next(sg), ksglen = sg->length,
-		     p = page_address(sg->page)) {
+		     p = page_address(sg_page(sg))) {
 			if (usglen <= 0)
 				break;
 			if (ksglen > usglen) {
@@ -2092,15 +2092,15 @@ sg_read_oxfer(Sg_request * srp, char __user *outp, int num_read_xfer)
 	if ((!outp) || (num_read_xfer <= 0))
 		return 0;
 
-	for (k = 0; (k < schp->k_use_sg) && sg->page; ++k, sg = sg_next(sg)) {
+	for (k = 0; (k < schp->k_use_sg) && sg_page(sg); ++k, sg = sg_next(sg)) {
 		num = sg->length;
 		if (num > num_read_xfer) {
-			if (__copy_to_user(outp, page_address(sg->page),
+			if (__copy_to_user(outp, page_address(sg_page(sg)),
 					   num_read_xfer))
 				return -EFAULT;
 			break;
 		} else {
-			if (__copy_to_user(outp, page_address(sg->page),
+			if (__copy_to_user(outp, page_address(sg_page(sg)),
 					   num))
 				return -EFAULT;
 			num_read_xfer -= num;

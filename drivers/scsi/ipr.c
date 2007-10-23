@@ -2872,6 +2872,7 @@ static struct ipr_sglist *ipr_alloc_ucode_buffer(int buf_len)
 	}
 
 	scatterlist = sglist->scatterlist;
+	sg_init_table(scatterlist, num_elem);
 
 	sglist->order = order;
 	sglist->num_sg = num_elem;
@@ -2884,12 +2885,12 @@ static struct ipr_sglist *ipr_alloc_ucode_buffer(int buf_len)
 
 			/* Free up what we already allocated */
 			for (j = i - 1; j >= 0; j--)
-				__free_pages(scatterlist[j].page, order);
+				__free_pages(sg_page(&scatterlist[j]), order);
 			kfree(sglist);
 			return NULL;
 		}
 
-		scatterlist[i].page = page;
+		sg_set_page(&scatterlist[i], page);
 	}
 
 	return sglist;
@@ -2910,7 +2911,7 @@ static void ipr_free_ucode_buffer(struct ipr_sglist *sglist)
 	int i;
 
 	for (i = 0; i < sglist->num_sg; i++)
-		__free_pages(sglist->scatterlist[i].page, sglist->order);
+		__free_pages(sg_page(&sglist->scatterlist[i]), sglist->order);
 
 	kfree(sglist);
 }
@@ -2940,9 +2941,11 @@ static int ipr_copy_ucode_buffer(struct ipr_sglist *sglist,
 	scatterlist = sglist->scatterlist;
 
 	for (i = 0; i < (len / bsize_elem); i++, buffer += bsize_elem) {
-		kaddr = kmap(scatterlist[i].page);
+		struct page *page = sg_page(&scatterlist[i]);
+
+		kaddr = kmap(page);
 		memcpy(kaddr, buffer, bsize_elem);
-		kunmap(scatterlist[i].page);
+		kunmap(page);
 
 		scatterlist[i].length = bsize_elem;
 
@@ -2953,9 +2956,11 @@ static int ipr_copy_ucode_buffer(struct ipr_sglist *sglist,
 	}
 
 	if (len % bsize_elem) {
-		kaddr = kmap(scatterlist[i].page);
+		struct page *page = sg_page(&scatterlist[i]);
+
+		kaddr = kmap(page);
 		memcpy(kaddr, buffer, len % bsize_elem);
-		kunmap(scatterlist[i].page);
+		kunmap(page);
 
 		scatterlist[i].length = len % bsize_elem;
 	}
