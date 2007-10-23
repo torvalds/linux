@@ -12,7 +12,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/stringify.h>
-#include <linux/binfmts.h>
 #include <linux/futex.h>
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
