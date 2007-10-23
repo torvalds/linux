@@ -12,6 +12,8 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/serial_8250.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
@@ -52,6 +54,119 @@ void __init orion_map_io(void)
 {
 	iotable_init(orion_io_desc, ARRAY_SIZE(orion_io_desc));
 }
+
+/*****************************************************************************
+ * UART
+ ****************************************************************************/
+
+static struct resource orion_uart_resources[] = {
+	{
+		.start		= UART0_BASE,
+		.end		= UART0_BASE + 0xff,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= IRQ_ORION_UART0,
+		.end		= IRQ_ORION_UART0,
+		.flags		= IORESOURCE_IRQ,
+	},
+	{
+		.start		= UART1_BASE,
+		.end		= UART1_BASE + 0xff,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= IRQ_ORION_UART1,
+		.end		= IRQ_ORION_UART1,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct plat_serial8250_port orion_uart_data[] = {
+	{
+		.mapbase	= UART0_BASE,
+		.membase	= (char *)UART0_BASE,
+		.irq		= IRQ_ORION_UART0,
+		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+		.uartclk	= ORION_TCLK,
+	},
+	{
+		.mapbase	= UART1_BASE,
+		.membase	= (char *)UART1_BASE,
+		.irq		= IRQ_ORION_UART1,
+		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
+		.iotype		= UPIO_MEM,
+		.regshift	= 2,
+		.uartclk	= ORION_TCLK,
+	},
+	{ },
+};
+
+static struct platform_device orion_uart = {
+	.name			= "serial8250",
+	.id			= PLAT8250_DEV_PLATFORM,
+	.dev			= {
+		.platform_data	= orion_uart_data,
+	},
+	.resource		= orion_uart_resources,
+	.num_resources		= ARRAY_SIZE(orion_uart_resources),
+};
+
+/*******************************************************************************
+ * USB Controller - 2 interfaces
+ ******************************************************************************/
+
+static struct resource orion_ehci0_resources[] = {
+	{
+		.start	= ORION_USB0_REG_BASE,
+		.end	= ORION_USB0_REG_BASE + SZ_4K,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_ORION_USB0_CTRL,
+		.end	= IRQ_ORION_USB0_CTRL,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource orion_ehci1_resources[] = {
+	{
+		.start	= ORION_USB1_REG_BASE,
+		.end	= ORION_USB1_REG_BASE + SZ_4K,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_ORION_USB1_CTRL,
+		.end	= IRQ_ORION_USB1_CTRL,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static u64 ehci_dmamask = 0xffffffffUL;
+
+static struct platform_device orion_ehci0 = {
+	.name		= "orion-ehci",
+	.id		= 0,
+	.dev		= {
+		.dma_mask		= &ehci_dmamask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.resource	= orion_ehci0_resources,
+	.num_resources	= ARRAY_SIZE(orion_ehci0_resources),
+};
+
+static struct platform_device orion_ehci1 = {
+	.name		= "orion-ehci",
+	.id		= 1,
+	.dev		= {
+		.dma_mask		= &ehci_dmamask,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.resource	= orion_ehci1_resources,
+	.num_resources	= ARRAY_SIZE(orion_ehci1_resources),
+};
 
 /*****************************************************************************
  * General
@@ -101,4 +216,12 @@ void __init orion_init(void)
 	orion_setup_pcie_wins();
 	if (dev == MV88F5182_DEV_ID)
 		orion_setup_sata_wins();
+
+	/*
+	 * REgister devices
+	 */
+	platform_device_register(&orion_uart);
+	platform_device_register(&orion_ehci0);
+	if (dev == MV88F5182_DEV_ID)
+		platform_device_register(&orion_ehci1);
 }
