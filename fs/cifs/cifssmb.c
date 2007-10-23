@@ -2486,6 +2486,7 @@ querySymLinkRetry:
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 /* Initialize NT TRANSACT SMB into small smb request buffer.
    This assumes that all NT TRANSACTS that we init here have
    total parm and data under about 400 bytes (to fit in small cifs
@@ -2569,6 +2570,7 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 	}
 	return 0;
 }
+#endif /* CIFS_EXPERIMENTAL */
 
 int
 CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
