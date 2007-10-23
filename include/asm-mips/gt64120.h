@@ -21,6 +21,8 @@
 #ifndef _ASM_GT64120_H
 #define _ASM_GT64120_H
 
+#include <linux/clocksource.h>
+
 #include <asm/addrspace.h>
 #include <asm/byteorder.h>
 
@@ -571,5 +573,8 @@
 	do { *(volatile u32 *)(GT64120_BASE+(ofs)) = (data); } while (0)
 #define GT_READ(ofs)		le32_to_cpu(__GT_READ(ofs))
 #define GT_WRITE(ofs, data)	__GT_WRITE(ofs, cpu_to_le32(data))
+
+extern void gt641xx_set_base_clock(unsigned int clock);
+extern int gt641xx_timer0_state(void);
 
 #endif /* _ASM_GT64120_H */

@@ -2,8 +2,8 @@
  *  Machine specific IO port address definition for generic.
  *  Written by Osamu Tomita <tomita@cinet.co.jp>
  */
-#ifndef _MACH_IO_PORTS_H
-#define _MACH_IO_PORTS_H
+#ifndef __ASM_I8253_H
+#define __ASM_I8253_H
 
 /* i8253A PIT registers */
 #define PIT_MODE		0x43
@@ -27,4 +27,4 @@
 
 extern void setup_pit_timer(void);
 
-#endif /* !_MACH_IO_PORTS_H */
+#endif /* __ASM_I8253_H */

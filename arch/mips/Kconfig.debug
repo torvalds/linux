@@ -6,18 +6,6 @@ config TRACE_IRQFLAGS_SUPPORT
 
 source "lib/Kconfig.debug"
 
-config CROSSCOMPILE
-	bool "Are you using a crosscompiler"
-	help
-	  Say Y here if you are compiling the kernel on a different
-	  architecture than the one it is intended to run on.  This is just a
-	  convenience option which will select the appropriate value for
-	  the CROSS_COMPILE make variable which otherwise has to be passed on
-	  the command line from mips-linux-, mipsel-linux-, mips64-linux- and
-	  mips64el-linux- as appropriate for a particular kernel configuration.
-	  You will have to pass the value for CROSS_COMPILE manually if the
-	  name prefix for your tools is different.
-
 config CMDLINE
 	string "Default kernel command string"
 	default ""

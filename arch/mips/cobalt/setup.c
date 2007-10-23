@@ -9,19 +9,17 @@
  * Copyright (C) 2001, 2002, 2003 by Liam Davies (ldavies@agile.tv)
  *
  */
-#include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
 #include <linux/pm.h>
 
 #include <asm/bootinfo.h>
-#include <asm/time.h>
-#include <asm/i8253.h>
-#include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/gt64120.h>
 
 #include <cobalt.h>
-#include <irq.h>
 
 extern void cobalt_machine_restart(char *command);
 extern void cobalt_machine_halt(void);
@@ -39,17 +37,6 @@ const char *get_system_type(void)
 			return "Cobalt RaQ2";
 	}
 	return "MIPS Cobalt";
-}
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	/* Load timer value for HZ (TCLK is 50MHz) */
-	GT_WRITE(GT_TC0_OFS, 50*1000*1000 / HZ);
-
-	/* Enable timer0 */
-	GT_WRITE(GT_TC_CONTROL_OFS, GT_TC_CONTROL_ENTC0_MSK | GT_TC_CONTROL_SELTC0_MSK);
-
-	setup_irq(GT641XX_TIMER0_IRQ, irq);
 }
 
 /*
@@ -83,11 +70,6 @@ static struct resource cobalt_reserved_resources[] = {
 		.flags	= IORESOURCE_BUSY | IORESOURCE_IO,
 	},
 };
-
-void __init plat_time_init(void)
-{
-	setup_pit_timer();
-}
 
 void __init plat_mem_setup(void)
 {
