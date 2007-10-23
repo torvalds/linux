@@ -400,6 +400,12 @@ struct snd_ice1712 {
 		struct {
 			struct ak4114 *ak4114;
 		} prodigy192;
+		struct {
+			struct {
+				unsigned char ch1, ch2;
+			} vol[8];
+		} se;
+
 	} spec;
 
 };
