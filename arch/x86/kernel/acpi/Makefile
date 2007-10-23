@@ -1,5 +1,7 @@
-ifeq ($(CONFIG_X86_32),y)
-include ${srctree}/arch/x86/kernel/acpi/Makefile_32
-else
-include ${srctree}/arch/x86/kernel/acpi/Makefile_64
+obj-$(CONFIG_ACPI)		+= boot.o
+obj-$(CONFIG_ACPI_SLEEP)	+= sleep_$(BITS).o wakeup_$(BITS).o
+
+ifneq ($(CONFIG_ACPI_PROCESSOR),)
+obj-y				+= cstate.o processor.o
 endif
+
