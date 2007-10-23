@@ -1776,7 +1776,7 @@ static int ehca_set_pagebuf_user1(struct ehca_mr_pginfo *pginfo,
 	list_for_each_entry_continue(
 		chunk, (&(pginfo->u.usr.region->chunk_list)), list) {
 		for (i = pginfo->u.usr.next_nmap; i < chunk->nmap; ) {
-			pgaddr = page_to_pfn(chunk->page_list[i].page)
+			pgaddr = page_to_pfn(sg_page(&chunk->page_list[i]))
 				<< PAGE_SHIFT ;
 			*kpage = phys_to_abs(pgaddr +
 					     (pginfo->next_hwpage *
@@ -1832,7 +1832,7 @@ static int ehca_check_kpages_per_ate(struct scatterlist *page_list,
 {
 	int t;
 	for (t = start_idx; t <= end_idx; t++) {
-		u64 pgaddr = page_to_pfn(page_list[t].page) << PAGE_SHIFT;
+		u64 pgaddr = page_to_pfn(sg_page(&page_list[t])) << PAGE_SHIFT;
 		ehca_gen_dbg("chunk_page=%lx value=%016lx", pgaddr,
 			     *(u64 *)abs_to_virt(phys_to_abs(pgaddr)));
 		if (pgaddr - PAGE_SIZE != *prev_pgaddr) {
@@ -1867,7 +1867,7 @@ static int ehca_set_pagebuf_user2(struct ehca_mr_pginfo *pginfo,
 		chunk, (&(pginfo->u.usr.region->chunk_list)), list) {
 		for (i = pginfo->u.usr.next_nmap; i < chunk->nmap; ) {
 			if (nr_kpages == kpages_per_hwpage) {
-				pgaddr = ( page_to_pfn(chunk->page_list[i].page)
+				pgaddr = ( page_to_pfn(sg_page(&chunk->page_list[i]))
 					   << PAGE_SHIFT );
 				*kpage = phys_to_abs(pgaddr);
 				if ( !(*kpage) ) {
