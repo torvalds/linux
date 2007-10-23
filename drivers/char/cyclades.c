@@ -1602,8 +1602,8 @@ static void cyz_handle_tx(struct cyclades_port *info,
 			info->icount.tx++;
 		}
 #endif
-ztxdone:
 		tty_wakeup(tty);
+ztxdone:
 		/* Update tx_put */
 		cy_writel(&buf_ctrl->tx_put, tx_put);
 	}
