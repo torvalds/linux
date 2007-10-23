@@ -751,13 +751,11 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 		if (mii_head) {
 			mii_tail->mii_next = mip;
 			mii_tail = mip;
-		}
-		else {
+		} else {
 			mii_head = mii_tail = mip;
 			fep->hwp->fec_mii_data = regval;
 		}
-	}
-	else {
+	} else {
 		retval = 1;
 	}
 
@@ -792,7 +790,6 @@ static void mii_parse_sr(uint mii_reg, struct net_device *dev)
 		status |= PHY_STAT_FAULT;
 	if (mii_reg & 0x0020)
 		status |= PHY_STAT_ANC;
-
 	*s = status;
 }
 
@@ -1239,7 +1236,6 @@ mii_link_interrupt(int irq, void * dev_id);
 #endif
 
 #if defined(CONFIG_M5272)
-
 /*
  *	Code specific to Coldfire 5272 setup.
  */
@@ -2020,8 +2016,7 @@ static void mii_relink(struct work_struct *work)
 		    & (PHY_STAT_100FDX | PHY_STAT_10FDX))
 			duplex = 1;
 		fec_restart(dev, duplex);
-	}
-	else
+	} else
 		fec_stop(dev);
 
 #if 0
@@ -2119,8 +2114,7 @@ mii_discover_phy(uint mii_reg, struct net_device *dev)
 			fep->phy_id = phytype << 16;
 			mii_queue(dev, mk_mii_read(MII_REG_PHYIR2),
 							mii_discover_phy3);
-		}
-		else {
+		} else {
 			fep->phy_addr++;
 			mii_queue(dev, mk_mii_read(MII_REG_PHYIR1),
 							mii_discover_phy);
@@ -2574,8 +2568,7 @@ fec_restart(struct net_device *dev, int duplex)
 	if (duplex) {
 		fecp->fec_r_cntrl = OPT_FRAME_SIZE | 0x04;/* MII enable */
 		fecp->fec_x_cntrl = 0x04;		  /* FD enable */
-	}
-	else {
+	} else {
 		/* MII enable|No Rcv on Xmit */
 		fecp->fec_r_cntrl = OPT_FRAME_SIZE | 0x06;
 		fecp->fec_x_cntrl = 0x00;
