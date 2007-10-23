@@ -118,4 +118,4 @@ core-y	+= arch/m68knommu/kernel/ \
 libs-y	+= arch/m68knommu/lib/
 
 archclean:
-	$(Q)$(MAKE) $(clean)=arch/m68knommu/boot
+
