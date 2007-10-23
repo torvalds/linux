@@ -1443,8 +1443,11 @@ cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct task_struct *tsk,
 		cfqq = *async_cfqq;
 	}
 
-	if (!cfqq)
+	if (!cfqq) {
 		cfqq = cfq_find_alloc_queue(cfqd, is_sync, tsk, gfp_mask);
+		if (!cfqq)
+			return NULL;
+	}
 
 	/*
 	 * pin the queue now that it's allocated, scheduler exit will prune it
