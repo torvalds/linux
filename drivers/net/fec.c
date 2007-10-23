@@ -766,14 +766,11 @@ mii_queue(struct net_device *dev, int regval, void (*func)(uint, struct net_devi
 
 static void mii_do_cmd(struct net_device *dev, const phy_cmd_t *c)
 {
-	int k;
-
 	if(!c)
 		return;
 
-	for(k = 0; (c+k)->mii_data != mk_mii_end; k++) {
-		mii_queue(dev, (c+k)->mii_data, (c+k)->funct);
-	}
+	for (; c->mii_data != mk_mii_end; c++)
+		mii_queue(dev, c->mii_data, c->funct);
 }
 
 static void mii_parse_sr(uint mii_reg, struct net_device *dev)
