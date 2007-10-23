@@ -48,7 +48,7 @@ struct cifs_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[6];
-	__le32 sub_auth[5]; /* sub_auth[num_subauth] */ /* BB FIXME endianness BB */
+	__le32 sub_auth[5]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
 struct cifs_acl {
@@ -57,18 +57,12 @@ struct cifs_acl {
 	__le32 num_aces;
 } __attribute__((packed));
 
-struct cifs_ntace { /* first part of ACE which contains perms */
+struct cifs_ace {
 	__u8 type;
 	__u8 flags;
 	__le16 size;
 	__le32 access_req;
-} __attribute__((packed));
-
-struct cifs_ace { /* last part of ACE which includes user info */
-	__u8 revision; /* revision level */
-	__u8 num_subauth;
-	__u8 authority[6];
-	__le32 sub_auth[5];
+	struct cifs_sid sid; /* ie UUID of user or group who gets these perms */
 } __attribute__((packed));
 
 struct cifs_wksid {

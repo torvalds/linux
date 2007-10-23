@@ -38,8 +38,8 @@ static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 	{{1, 1, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(18), 0, 0, 0, 0} }, "sys"},
 	{{1, 2, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(32), cpu_to_le32(544), 0, 0, 0} }, "root"},
 	{{1, 2, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(32), cpu_to_le32(545), 0, 0, 0} }, "users"},
-	{{1, 2, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(32), cpu_to_le32(546), 0, 0, 0} }, "guest"}
-};
+	{{1, 2, {0, 0, 0, 0, 0, 5}, {cpu_to_le32(32), cpu_to_le32(546), 0, 0, 0} }, "guest"} }
+;
 
 
 /* security id for everyone */
@@ -131,6 +131,8 @@ int compare_sids(struct cifs_sid *ctsid, struct cifs_sid *cwsid)
 
 void get_mode_from_acl(struct inode * inode, const char * path)
 {
+
+	cFYI(1, ("get mode from ACL for %s", path));
 	
 	if (inode == NULL)
 		return;
@@ -159,49 +161,35 @@ static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 
 	/* validate that we do not go past end of acl */
 
-	/* XXX this if statement can be removed
-	if (end_of_acl < (char *)pace + sizeof(struct cifs_ace)) {
+	if (le16_to_cpu(pace->size) < 16) {
+		cERROR(1, ("ACE too small, %d", le16_to_cpu(pace->size)));
+		return;
+	}
+
+	if (end_of_acl < (char *)pace + le16_to_cpu(pace->size)) {
 		cERROR(1, ("ACL too small to parse ACE"));
 		return;
-	} */
+	}
 
-	num_subauth = pace->num_subauth;
+	num_subauth = pace->sid.num_subauth;
 	if (num_subauth) {
 #ifdef CONFIG_CIFS_DEBUG2
 		int i;
-		cFYI(1, ("ACE revision %d num_subauth %d",
-			pace->revision, pace->num_subauth));
+		cFYI(1, ("ACE revision %d num_auth %d type %d flags %d size %d",
+			pace->sid.revision, pace->sid.num_subauth, pace->type,
+			pace->flags, pace->size));
 		for (i = 0; i < num_subauth; ++i) {
 			cFYI(1, ("ACE sub_auth[%d]: 0x%x", i,
-				le32_to_cpu(pace->sub_auth[i])));
+				le32_to_cpu(pace->sid.sub_auth[i])));
 		}
 
 		/* BB add length check to make sure that we do not have huge
 			num auths and therefore go off the end */
-
-		cFYI(1, ("RID %d", le32_to_cpu(pace->sub_auth[num_subauth-1])));
 #endif
 	}
 
 	return;
 }
-
-static void parse_ntace(struct cifs_ntace *pntace, char *end_of_acl)
-{
-	/* validate that we do not go past end of acl */
-	if (end_of_acl < (char *)pntace + sizeof(struct cifs_ntace)) {
-		cERROR(1, ("ACL too small to parse NT ACE"));
-		return;
-	}
-
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("NTACE type %d flags 0x%x size %d, access Req 0x%x",
-		pntace->type, pntace->flags, pntace->size,
-		pntace->access_req));
-#endif
-	return;
-}
-
 
 
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
@@ -211,7 +199,6 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	int num_aces = 0;
 	int acl_size;
 	char *acl_base;
-	struct cifs_ntace **ppntace;
 	struct cifs_ace **ppace;
 
 	/* BB need to add parm so we can store the SID BB */
@@ -233,45 +220,27 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 	num_aces = le32_to_cpu(pdacl->num_aces);
 	if (num_aces  > 0) {
-		ppntace = kmalloc(num_aces * sizeof(struct cifs_ntace *),
-				GFP_KERNEL);
 		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
 				GFP_KERNEL);
 
 /*		cifscred->cecount = pdacl->num_aces;
-		cifscred->ntaces = kmalloc(num_aces *
-			sizeof(struct cifs_ntace *), GFP_KERNEL);
 		cifscred->aces = kmalloc(num_aces *
 			sizeof(struct cifs_ace *), GFP_KERNEL);*/
 
 		for (i = 0; i < num_aces; ++i) {
-			ppntace[i] = (struct cifs_ntace *)
-					(acl_base + acl_size);
-			ppace[i] = (struct cifs_ace *) ((char *)ppntace[i] +
-					sizeof(struct cifs_ntace));
+			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);
 
-			parse_ntace(ppntace[i], end_of_acl);
-			if (end_of_acl < ((char *)ppace[i] +
-					(le16_to_cpu(ppntace[i]->size) -
-					sizeof(struct cifs_ntace)))) {
-				cERROR(1, ("ACL too small to parse ACE"));
-				break;
-			} else
-				parse_ace(ppace[i], end_of_acl);
+			parse_ace(ppace[i], end_of_acl);
 
-/*			memcpy((void *)(&(cifscred->ntaces[i])),
-				(void *)ppntace[i],
-				sizeof(struct cifs_ntace));
-			memcpy((void *)(&(cifscred->aces[i])),
+/*			memcpy((void *)(&(cifscred->aces[i])),
 				(void *)ppace[i],
 				sizeof(struct cifs_ace)); */
 
-			acl_base = (char *)ppntace[i];
-			acl_size = le16_to_cpu(ppntace[i]->size);
+			acl_base = (char *)ppace[i];
+			acl_size = le16_to_cpu(ppace[i]->size);
 		}
 
 		kfree(ppace);
-		kfree(ppntace);
 	}
 
 	return;
@@ -292,8 +261,8 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 	if (psid->num_subauth) {
 #ifdef CONFIG_CIFS_DEBUG2
 		int i;
-		cFYI(1, ("SID revision %d num_auth %d First subauth 0x%x",
-			psid->revision, psid->num_subauth, psid->sub_auth[0]));
+		cFYI(1, ("SID revision %d num_auth %d",
+			psid->revision, psid->num_subauth));
 
 		for (i = 0; i < psid->num_subauth; i++) {
 			cFYI(1, ("SID sub_auth[%d]: 0x%x ", i,
