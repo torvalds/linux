@@ -333,6 +333,12 @@ config ARCH_MXC
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
+config ARCH_ORION
+	bool "Marvell Orion"
+	depends on MMU
+	help
+	  Support for Marvell Orion System on Chip family.
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	help
@@ -440,6 +446,8 @@ source "arch/arm/plat-omap/Kconfig"
 source "arch/arm/mach-omap1/Kconfig"
 
 source "arch/arm/mach-omap2/Kconfig"
+
+source "arch/arm/mach-orion/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c/Kconfig"
