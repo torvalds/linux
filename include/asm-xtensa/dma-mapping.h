@@ -58,11 +58,10 @@ dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	BUG_ON(direction == DMA_NONE);
 
 	for (i = 0; i < nents; i++, sg++ ) {
-		BUG_ON(!sg->page);
+		BUG_ON(!sg_page(sg));
 
-		sg->dma_address = page_to_phys(sg->page) + sg->offset;
-		consistent_sync(page_address(sg->page) + sg->offset,
-				sg->length, direction);
+		sg->dma_address = sg_phys(sg);
+		consistent_sync(sg_virt(sg), sg->length, direction);
 	}
 
 	return nents;
@@ -128,8 +127,7 @@ dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
 {
 	int i;
 	for (i = 0; i < nelems; i++, sg++)
-		consistent_sync(page_address(sg->page) + sg->offset,
-				sg->length, dir);
+		consistent_sync(sg_virt(sg), sg->length, dir);
 }
 
 static inline void
@@ -138,8 +136,7 @@ dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
 {
 	int i;
 	for (i = 0; i < nelems; i++, sg++)
-		consistent_sync(page_address(sg->page) + sg->offset,
-				sg->length, dir);
+		consistent_sync(sg_virt(sg), sg->length, dir);
 }
 static inline int
 dma_mapping_error(dma_addr_t dma_addr)
