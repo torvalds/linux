@@ -47,6 +47,7 @@
 #include <linux/spinlock.h>
 #include <linux/kmod.h>
 #include <linux/pci.h>
+#include <linux/scatterlist.h>
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
