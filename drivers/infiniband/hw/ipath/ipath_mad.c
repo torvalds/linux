@@ -1434,7 +1434,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 		 * before checking for other consumers.
 		 * Just tell the caller to process it normally.
 		 */
-		ret = IB_MAD_RESULT_FAILURE;
+		ret = IB_MAD_RESULT_SUCCESS;
 		goto bail;
 	default:
 		smp->status |= IB_SMP_UNSUP_METHOD;
@@ -1516,7 +1516,7 @@ static int process_perf(struct ib_device *ibdev, u8 port_num,
 		 * before checking for other consumers.
 		 * Just tell the caller to process it normally.
 		 */
-		ret = IB_MAD_RESULT_FAILURE;
+		ret = IB_MAD_RESULT_SUCCESS;
 		goto bail;
 	default:
 		pmp->status |= IB_SMP_UNSUP_METHOD;
