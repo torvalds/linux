@@ -207,8 +207,7 @@ static struct {
 	{ "SUNW,sun4v-pci", sun4v_pci_init },
 	{ "pciex108e,80f0", fire_pci_init },
 };
-#define PCI_NUM_CONTROLLER_TYPES (sizeof(pci_controller_table) / \
-				  sizeof(pci_controller_table[0]))
+#define PCI_NUM_CONTROLLER_TYPES	ARRAY_SIZE(pci_controller_table)
 
 static int __init pci_controller_init(const char *model_name, int namelen, struct device_node *dp)
 {
