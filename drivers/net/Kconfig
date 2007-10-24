@@ -2371,13 +2371,16 @@ config UGETH_TX_ON_DEMAND
 	depends on UCC_GETH
 
 config MV643XX_ETH
-	tristate "MV-643XX Ethernet support"
-	depends on MV64360 || MV64X60 || (PPC_MULTIPLATFORM && PPC32)
+	tristate "Marvell Discovery (643XX) and Orion ethernet support"
+	depends on MV64360 || MV64X60 || (PPC_MULTIPLATFORM && PPC32) || ARCH_ORION
 	select MII
 	help
-	  This driver supports the gigabit Ethernet on the Marvell MV643XX
-	  chipset which is used in the Momenco Ocelot C and Jaguar ATX and
-	  Pegasos II, amongst other PPC and MIPS boards.
+	  This driver supports the gigabit ethernet MACs in the
+	  Marvell Discovery PPC/MIPS chipset family (MV643XX) and
+	  in the Marvell Orion ARM SoC family.
+
+	  Some boards that use the Discovery chipset are the Momenco
+	  Ocelot C and Jaguar ATX and Pegasos II.
 
 config QLA3XXX
 	tristate "QLogic QLA3XXX Network Driver Support"
