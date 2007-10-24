@@ -26,6 +26,7 @@
 #include <asm/reboot.h>
 #include <asm/irq.h>
 #include <asm/time.h>
+#include <asm/txx9tmr.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/bootinfo.h>
@@ -773,15 +774,8 @@ void __init tx4938_board_setup(void)
 	}
 
 	/* TMR */
-	/* disable all timers */
-	for (i = 0; i < TX4938_NR_TMR; i++) {
-		tx4938_tmrptr(i)->tcr  = 0x00000020;
-		tx4938_tmrptr(i)->tisr = 0;
-		tx4938_tmrptr(i)->cpra = 0xffffffff;
-		tx4938_tmrptr(i)->itmr = 0;
-		tx4938_tmrptr(i)->ccdr = 0;
-		tx4938_tmrptr(i)->pgmr = 0;
-	}
+	for (i = 0; i < TX4938_NR_TMR; i++)
+		txx9_tmr_init(TX4938_TMR_REG(i) & 0xfffffffffULL);
 
 	/* enable DMA */
 	TX4938_WR64(0xff1fb150, TX4938_DMA_MCR_MSTEN);
@@ -852,12 +846,13 @@ void tx4938_report_pcic_status(void)
 
 #endif /* CONFIG_PCI */
 
-/* We use onchip r4k counter or TMR timer as our system wide timer
- * interrupt running at 100HZ. */
-
 void __init plat_time_init(void)
 {
 	mips_hpt_frequency = txx9_cpu_clock / 2;
+	if (tx4938_ccfgptr->ccfg & TX4938_CCFG_TINTDIS)
+		txx9_clockevent_init(TX4938_TMR_REG(0) & 0xfffffffffULL,
+				     TXX9_IRQ_BASE + TX4938_IR_TMR(0),
+				     txx9_gbus_clock / 2);
 }
 
 void __init toshiba_rbtx4938_setup(void)

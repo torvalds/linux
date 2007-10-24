@@ -9,6 +9,7 @@
 #define __ASM_TX4927_TX4927_PCI_H
 
 #define TX4927_CCFG_TOE 0x00004000
+#define TX4927_CCFG_TINTDIS	0x01000000
 
 #define TX4927_PCIMEM      0x08000000
 #define TX4927_PCIMEM_SIZE 0x08000000
@@ -20,6 +21,8 @@
 #define TX4927_PCIC_REG         0xff1fd000
 #define TX4927_CCFG_REG         0xff1fe000
 #define TX4927_IRC_REG          0xff1ff600
+#define TX4927_NR_TMR	3
+#define TX4927_TMR_REG(ch)	(0xff1ff000 + (ch) * 0x100)
 #define TX4927_CE3      0x17f00000      /* 1M */
 #define TX4927_PCIRESET_ADDR    0xbc00f006
 #define TX4927_PCI_CLK_ADDR     (KSEG1 + TX4927_CE3 + 0x00040020)

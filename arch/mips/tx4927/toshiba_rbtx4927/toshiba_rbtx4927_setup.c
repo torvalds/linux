@@ -63,6 +63,7 @@
 #include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
+#include <asm/txx9tmr.h>
 #include <linux/bootmem.h>
 #include <linux/blkdev.h>
 #ifdef CONFIG_TOSHIBA_FPCIB0
@@ -93,7 +94,6 @@
 
 #define TOSHIBA_RBTX4927_SETUP_EFWFU       ( 1 <<  3 )
 #define TOSHIBA_RBTX4927_SETUP_SETUP       ( 1 <<  4 )
-#define TOSHIBA_RBTX4927_SETUP_TIME_INIT   ( 1 <<  5 )
 #define TOSHIBA_RBTX4927_SETUP_PCIBIOS     ( 1 <<  7 )
 #define TOSHIBA_RBTX4927_SETUP_PCI1        ( 1 <<  8 )
 #define TOSHIBA_RBTX4927_SETUP_PCI2        ( 1 <<  9 )
@@ -130,7 +130,6 @@ extern void toshiba_rbtx4927_power_off(void);
 
 int tx4927_using_backplane = 0;
 
-extern void gt64120_time_init(void);
 extern void toshiba_rbtx4927_irq_setup(void);
 
 char *prom_getcmdline(void);
@@ -721,6 +720,7 @@ void toshiba_rbtx4927_power_off(void)
 
 void __init toshiba_rbtx4927_setup(void)
 {
+	int i;
 	u32 cp0_config;
 	char *argptr;
 
@@ -763,6 +763,9 @@ void __init toshiba_rbtx4927_setup(void)
 	_machine_restart = toshiba_rbtx4927_restart;
 	_machine_halt = toshiba_rbtx4927_halt;
 	pm_power_off = toshiba_rbtx4927_power_off;
+
+	for (i = 0; i < TX4927_NR_TMR; i++)
+		txx9_tmr_init(TX4927_TMR_REG(0) & 0xfffffffffULL);
 
 #ifdef CONFIG_PCI
 
@@ -892,7 +895,6 @@ void __init toshiba_rbtx4927_setup(void)
 #ifdef CONFIG_SERIAL_TXX9
 	{
 		extern int early_serial_txx9_setup(struct uart_port *port);
-		int i;
 		struct uart_port req;
 		for(i = 0; i < 2; i++) {
 			memset(&req, 0, sizeof(req));
@@ -937,12 +939,11 @@ void __init toshiba_rbtx4927_setup(void)
 void __init
 toshiba_rbtx4927_time_init(void)
 {
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT, "-\n");
-
 	mips_hpt_frequency = tx4927_cpu_clock / 2;
-
-	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_TIME_INIT, "+\n");
-
+	if (tx4927_ccfgptr->ccfg & TX4927_CCFG_TINTDIS)
+		txx9_clockevent_init(TX4927_TMR_REG(0) & 0xfffffffffULL,
+				     TXX9_IRQ_BASE + 17,
+				     50000000);
 }
 
 static int __init toshiba_rbtx4927_rtc_init(void)
