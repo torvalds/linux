@@ -43,11 +43,8 @@ EXPORT_SYMBOL(memory_end);
 char __initdata command_line[COMMAND_LINE_SIZE];
 
 /* machine dependent timer functions */
-void (*mach_sched_init)(irq_handler_t handler);
-void (*mach_tick)(void);
 void (*mach_gettod)(int*, int*, int*, int*, int*, int*);
 int (*mach_set_clock_mmss)(unsigned long);
-unsigned long (*mach_gettimeoffset)(void);
 
 /* machine dependent reboot functions */
 void (*mach_reset)(void);
