@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/phy_fixed.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <asm/gpio.h>
@@ -847,6 +848,15 @@ static void cpmac_adjust_link(struct net_device *dev)
 	spin_unlock(&priv->lock);
 }
 
+static int cpmac_link_update(struct net_device *dev,
+			     struct fixed_phy_status *status)
+{
+	status->link = 1;
+	status->speed = 100;
+	status->duplex = 1;
+	return 0;
+}
+
 static int cpmac_open(struct net_device *dev)
 {
 	int i, size, res;
@@ -854,15 +864,6 @@ static int cpmac_open(struct net_device *dev)
 	struct resource *mem;
 	struct cpmac_desc *desc;
 	struct sk_buff *skb;
-
-	priv->phy = phy_connect(dev, priv->phy_name, &cpmac_adjust_link,
-				0, PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(priv->phy)) {
-		if (netif_msg_drv(priv))
-			printk(KERN_ERR "%s: Could not attach to PHY\n",
-			       dev->name);
-		return PTR_ERR(priv->phy);
-	}
 
 	mem = platform_get_resource_byname(priv->pdev, IORESOURCE_MEM, "regs");
 	if (!request_mem_region(mem->start, mem->end - mem->start, dev->name)) {
@@ -950,8 +951,6 @@ fail_remap:
 	release_mem_region(mem->start, mem->end - mem->start);
 
 fail_reserve:
-	phy_disconnect(priv->phy);
-
 	return res;
 }
 
@@ -966,8 +965,6 @@ static int cpmac_stop(struct net_device *dev)
 	cancel_work_sync(&priv->reset_work);
 	napi_disable(&priv->napi);
 	phy_stop(priv->phy);
-	phy_disconnect(priv->phy);
-	priv->phy = NULL;
 
 	cpmac_hw_stop(dev);
 
@@ -1001,11 +998,12 @@ static int external_switch;
 
 static int __devinit cpmac_probe(struct platform_device *pdev)
 {
-	int rc, phy_id;
+	int rc, phy_id, i;
 	struct resource *mem;
 	struct cpmac_priv *priv;
 	struct net_device *dev;
 	struct plat_cpmac_data *pdata;
+	struct fixed_info *fixed_phy;
 	DECLARE_MAC_BUF(mac);
 
 	pdata = pdev->dev.platform_data;
@@ -1064,11 +1062,41 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	priv->ring_size = 64;
 	priv->msg_enable = netif_msg_init(debug_level, 0xff);
 	memcpy(dev->dev_addr, pdata->dev_addr, sizeof(dev->dev_addr));
+
 	if (phy_id == 31) {
-		snprintf(priv->phy_name, BUS_ID_SIZE, PHY_ID_FMT,
-			 cpmac_mii.id, phy_id);
-	} else
-		snprintf(priv->phy_name, BUS_ID_SIZE, "fixed@%d:%d", 100, 1);
+		snprintf(priv->phy_name, BUS_ID_SIZE, PHY_ID_FMT, cpmac_mii.id,
+			 phy_id);
+	} else {
+		/* Let's try to get a free fixed phy... */
+		for (i = 0; i < MAX_PHY_AMNT; i++) {
+			fixed_phy = fixed_mdio_get_phydev(i);
+			if (!fixed_phy)
+				continue;
+			if (!fixed_phy->phydev->attached_dev) {
+				strncpy(priv->phy_name,
+					fixed_phy->phydev->dev.bus_id,
+					BUS_ID_SIZE);
+				fixed_mdio_set_link_update(fixed_phy->phydev,
+							   &cpmac_link_update);
+				goto phy_found;
+			}
+		}
+		if (netif_msg_drv(priv))
+			printk(KERN_ERR "%s: Could not find fixed PHY\n",
+			       dev->name);
+		rc = -ENODEV;
+		goto fail;
+	}
+
+phy_found:
+	priv->phy = phy_connect(dev, priv->phy_name, &cpmac_adjust_link, 0,
+				PHY_INTERFACE_MODE_MII);
+	if (IS_ERR(priv->phy)) {
+		if (netif_msg_drv(priv))
+			printk(KERN_ERR "%s: Could not attach to PHY\n",
+			       dev->name);
+		return PTR_ERR(priv->phy);
+	}
 
 	if ((rc = register_netdev(dev))) {
 		printk(KERN_ERR "cpmac: error %i registering device %s\n", rc,
