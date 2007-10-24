@@ -2329,7 +2329,7 @@ static void port_napi_disable(struct ehea_port *port)
 {
 	int i;
 
-	for (i = 0; i < port->num_def_qps; i++)
+	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++)
 		napi_disable(&port->port_res[i].napi);
 }
 
@@ -2337,7 +2337,7 @@ static void port_napi_enable(struct ehea_port *port)
 {
 	int i;
 
-	for (i = 0; i < port->num_def_qps; i++)
+	for (i = 0; i < port->num_def_qps + port->num_add_tx_qps; i++)
 		napi_enable(&port->port_res[i].napi);
 }
 
@@ -2373,8 +2373,6 @@ static int ehea_down(struct net_device *dev)
 	ehea_drop_multicast_list(dev);
 	ehea_free_interrupts(dev);
 
-	port_napi_disable(port);
-
 	port->state = EHEA_PORT_DOWN;
 
 	ret = ehea_clean_all_portres(port);
@@ -2396,6 +2394,7 @@ static int ehea_stop(struct net_device *dev)
 	flush_scheduled_work();
 	down(&port->port_lock);
 	netif_stop_queue(dev);
+	port_napi_disable(port);
 	ret = ehea_down(dev);
 	up(&port->port_lock);
 	return ret;
