@@ -3,9 +3,13 @@
 
 #include <linux/interrupt.h>
 
-extern void (*mach_sched_init) (irq_handler_t handler);
-/* machine dependent timer functions */
-extern unsigned long (*mach_gettimeoffset)(void);
+/* Hardware clock functions */
+extern void hw_timer_init(void);
+extern unsigned long hw_timer_offset(void);
+
+extern irqreturn_t arch_timer_interrupt(int irq, void *dummy);
+
+/* Machine dependent time handling */
 extern void (*mach_gettod)(int *year, int *mon, int *day, int *hour,
 			   int *min, int *sec);
 extern int (*mach_set_clock_mmss)(unsigned long);
@@ -16,6 +20,5 @@ extern void (*mach_halt)( void );
 extern void (*mach_power_off)( void );
 
 extern void config_BSP(char *command, int len);
-extern void (*mach_tick)(void);
 
 #endif /* _M68KNOMMU_MACHDEP_H */
