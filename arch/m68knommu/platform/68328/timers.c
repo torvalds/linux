@@ -53,18 +53,28 @@
 
 /***************************************************************************/
 
+static irqreturn_t hw_tick(int irq, void *dummy)
+{
+	/* Reset Timer1 */
+	TSTAT &= 0;
+
+	return arch_timer_interrupt(irq, dummy);
+}
+
+/***************************************************************************/
+
 static struct irqaction m68328_timer_irq = {
-	.name    = "timer",
-	.flags   = IRQF_DISABLED | IRQF_TIMER,
+	.name	 = "timer",
+	.flags	 = IRQF_DISABLED | IRQF_TIMER,
+	.handler = hw_tick,
 };
 
-void m68328_timer_init(irq_handler_t timer_routine)
+void hw_timer_init(void)
 {
 	/* disable timer 1 */
 	TCTL = 0;
 
 	/* set ISR */
-	m68328_timer_irq.handler = timer_routine;
 	setup_irq(TMR_IRQ_NUM, &m68328_timer_irq);
 
 	/* Restart mode, Enable int, Set clock source */
@@ -78,14 +88,7 @@ void m68328_timer_init(irq_handler_t timer_routine)
 
 /***************************************************************************/
 
-void m68328_timer_tick(void)
-{
-	/* Reset Timer1 */
-	TSTAT &= 0;
-}
-/***************************************************************************/
-
-unsigned long m68328_timer_gettimeoffset(void)
+unsigned long hw_timer_offset(void)
 {
 	unsigned long ticks = TCN, offset = 0;
 
