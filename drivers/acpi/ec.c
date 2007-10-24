@@ -445,9 +445,9 @@ EXPORT_SYMBOL_GPL(acpi_ec_add_query_handler);
 
 void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit)
 {
-	struct acpi_ec_query_handler *handler;
+	struct acpi_ec_query_handler *handler, *tmp;
 	mutex_lock(&ec->lock);
-	list_for_each_entry(handler, &ec->list, node) {
+	list_for_each_entry_safe(handler, tmp, &ec->list, node) {
 		if (query_bit == handler->query_bit) {
 			list_del(&handler->node);
 			kfree(handler);
