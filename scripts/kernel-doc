@@ -54,13 +54,13 @@ use strict;
 #  Set output format using one of -docbook -html -text or -man.  Default is man.
 #
 #  -function funcname
-#	If set, then only generate documentation for the given function(s).  All
-#	other functions are ignored.
+#	If set, then only generate documentation for the given function(s) or
+#	DOC: section titles.  All other functions and DOC: sections are ignored.
 #
 #  -nofunction funcname
-#	If set, then only generate documentation for the other function(s).
-#	Cannot be used together with -function
-#	(yes, that's a bug -- perl hackers can fix it 8))
+#	If set, then only generate documentation for the other function(s)/DOC:
+#	sections. Cannot be used together with -function (yes, that's a bug --
+#	perl hackers can fix it 8))
 #
 #  c files - list of 'c' files to process
 #
@@ -374,6 +374,25 @@ sub dump_section {
 }
 
 ##
+# dump DOC: section after checking that it should go out
+#
+sub dump_doc_section {
+    my $name = shift;
+    my $contents = join "\n", @_;
+
+    if (($function_only == 0) ||
+	( $function_only == 1 && defined($function_table{$name})) ||
+	( $function_only == 2 && !defined($function_table{$name})))
+    {
+	dump_section $name, $contents;
+	output_blockhead({'sectionlist' => \@sectionlist,
+			  'sections' => \%sections,
+			  'module' => $modulename,
+			  'content-only' => ($function_only != 0), });
+    }
+}
+
+##
 # output function
 #
 # parameterdescs, a hash.
@@ -564,8 +583,8 @@ sub output_function_html(%) {
     print "<hr>\n";
 }
 
-# output intro in html
-sub output_intro_html(%) {
+# output DOC: block header in html
+sub output_blockhead_html(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
@@ -871,7 +890,7 @@ sub output_typedef_xml(%) {
 }
 
 # output in XML DocBook
-sub output_intro_xml(%) {
+sub output_blockhead_xml(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
@@ -882,15 +901,23 @@ sub output_intro_xml(%) {
     # print out each section
     $lineprefix="   ";
     foreach $section (@{$args{'sectionlist'}}) {
-	print "<refsect1>\n <title>$section</title>\n <para>\n";
+	if (!$args{'content-only'}) {
+		print "<refsect1>\n <title>$section</title>\n";
+	}
 	if ($section =~ m/EXAMPLE/i) {
 	    print "<example><para>\n";
+	} else {
+	    print "<para>\n";
 	}
 	output_highlight($args{'sections'}{$section});
 	if ($section =~ m/EXAMPLE/i) {
 	    print "</para></example>\n";
+	} else {
+	    print "</para>";
 	}
-	print " </para>\n</refsect1>\n";
+	if (!$args{'content-only'}) {
+		print "\n</refsect1>\n";
+	}
     }
 
     print "\n\n";
@@ -1137,7 +1164,7 @@ sub output_typedef_man(%) {
     }
 }
 
-sub output_intro_man(%) {
+sub output_blockhead_man(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
@@ -1294,7 +1321,7 @@ sub output_struct_text(%) {
     output_section_text(@_);
 }
 
-sub output_intro_text(%) {
+sub output_blockhead_text(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
 
@@ -1325,9 +1352,9 @@ sub output_declaration {
 
 ##
 # generic output function - calls the right one based on current output mode.
-sub output_intro {
+sub output_blockhead {
     no strict 'refs';
-    my $func = "output_intro_".$output_mode;
+    my $func = "output_blockhead_".$output_mode;
     &$func(@_);
     $section_counter++;
 }
@@ -1926,9 +1953,7 @@ sub process_file($) {
 	} elsif ($state == 4) {
 		# Documentation block
 		if (/$doc_block/) {
-			dump_section($section, xml_escape($contents));
-			output_intro({'sectionlist' => \@sectionlist,
-				      'sections' => \%sections });
+			dump_doc_section($section, xml_escape($contents));
 			$contents = "";
 			$function = "";
 			%constants = ();
@@ -1946,9 +1971,7 @@ sub process_file($) {
 		}
 		elsif (/$doc_end/)
 		{
-			dump_section($section, xml_escape($contents));
-			output_intro({'sectionlist' => \@sectionlist,
-				      'sections' => \%sections });
+			dump_doc_section($section, xml_escape($contents));
 			$contents = "";
 			$function = "";
 			%constants = ();
