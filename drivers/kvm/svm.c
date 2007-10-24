@@ -1439,6 +1439,11 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 		control->intercept &= ~(1ULL << INTERCEPT_VINTR);
 }
 
+static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
+{
+	return 0;
+}
+
 static void save_db_regs(unsigned long *db_regs)
 {
 	asm volatile ("mov %%dr0, %0" : "=r"(db_regs[0]));
@@ -1744,6 +1749,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_irq = svm_set_irq,
 	.inject_pending_irq = svm_intr_assist,
 	.inject_pending_vectors = do_interrupt_requests,
+
+	.set_tss_addr = svm_set_tss_addr,
 };
 
 static int __init svm_init(void)

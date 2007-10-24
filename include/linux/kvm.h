@@ -358,6 +358,7 @@ struct kvm_signal_mask {
 #define KVM_CAP_HLT	  1
 #define KVM_CAP_MMU_SHADOW_CACHE_CONTROL 2
 #define KVM_CAP_USER_MEMORY 3
+#define KVM_CAP_SET_TSS_ADDR 4
 
 /*
  * ioctls for VM fds
@@ -367,6 +368,7 @@ struct kvm_signal_mask {
 #define KVM_GET_NR_MMU_PAGES      _IO(KVMIO, 0x45)
 #define KVM_SET_USER_MEMORY_REGION _IOW(KVMIO, 0x46,\
 					struct kvm_userspace_memory_region)
+#define KVM_SET_TSS_ADDR          _IO(KVMIO, 0x47)
 /*
  * KVM_CREATE_VCPU receives as a parameter the vcpu slot, and returns
  * a vcpu fd.

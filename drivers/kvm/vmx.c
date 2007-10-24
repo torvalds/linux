@@ -1105,8 +1105,12 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 
 static gva_t rmode_tss_base(struct kvm *kvm)
 {
-	gfn_t base_gfn = kvm->memslots[0].base_gfn + kvm->memslots[0].npages - 3;
-	return base_gfn << PAGE_SHIFT;
+	if (!kvm->tss_addr) {
+		gfn_t base_gfn = kvm->memslots[0].base_gfn +
+				 kvm->memslots[0].npages - 3;
+		return base_gfn << PAGE_SHIFT;
+	}
+	return kvm->tss_addr;
 }
 
 static void fix_rmode_seg(int seg, struct kvm_save_segment *save)
@@ -1733,6 +1737,23 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 	else
 		cpu_based_vm_exec_control &= ~CPU_BASED_VIRTUAL_INTR_PENDING;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, cpu_based_vm_exec_control);
+}
+
+static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
+{
+	int ret;
+	struct kvm_userspace_memory_region tss_mem = {
+		.slot = 8,
+		.guest_phys_addr = addr,
+		.memory_size = PAGE_SIZE * 3,
+		.flags = 0,
+	};
+
+	ret = kvm_set_memory_region(kvm, &tss_mem, 0);
+	if (ret)
+		return ret;
+	kvm->tss_addr = addr;
+	return 0;
 }
 
 static void kvm_guest_debug_pre(struct kvm_vcpu *vcpu)
@@ -2543,6 +2564,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_irq = vmx_inject_irq,
 	.inject_pending_irq = vmx_intr_assist,
 	.inject_pending_vectors = do_interrupt_requests,
+
+	.set_tss_addr = vmx_set_tss_addr,
 };
 
 static int __init vmx_init(void)

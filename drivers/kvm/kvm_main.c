@@ -2661,6 +2661,16 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 	return fd;
 }
 
+static int kvm_vm_ioctl_set_tss_addr(struct kvm *kvm, unsigned long addr)
+{
+	int ret;
+
+	if (addr > (unsigned int)(-3 * PAGE_SIZE))
+		return -1;
+	ret = kvm_x86_ops->set_tss_addr(kvm, addr);
+	return ret;
+}
+
 /*
  * Creates some virtual cpus.  Good luck creating more than one.
  */
@@ -2957,6 +2967,11 @@ static long kvm_vm_ioctl(struct file *filp,
 	int r = -EINVAL;
 
 	switch (ioctl) {
+	case KVM_SET_TSS_ADDR:
+		r = kvm_vm_ioctl_set_tss_addr(kvm, arg);
+		if (r < 0)
+			goto out;
+		break;
 	case KVM_CREATE_VCPU:
 		r = kvm_vm_ioctl_create_vcpu(kvm, arg);
 		if (r < 0)
@@ -3183,6 +3198,7 @@ static long kvm_dev_ioctl(struct file *filp,
 		case KVM_CAP_HLT:
 		case KVM_CAP_MMU_SHADOW_CACHE_CONTROL:
 		case KVM_CAP_USER_MEMORY:
+		case KVM_CAP_SET_TSS_ADDR:
 			r = 1;
 			break;
 		default:

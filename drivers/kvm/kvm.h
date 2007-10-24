@@ -382,6 +382,7 @@ struct kvm {
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
 	int round_robin_prev_vcpu;
+	unsigned int tss_addr;
 };
 
 static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
@@ -467,6 +468,8 @@ struct kvm_x86_ops {
 	void (*inject_pending_irq)(struct kvm_vcpu *vcpu);
 	void (*inject_pending_vectors)(struct kvm_vcpu *vcpu,
 				       struct kvm_run *run);
+
+	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
