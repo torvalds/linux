@@ -936,12 +936,11 @@ static int cfs_rq_best_prio(struct cfs_rq *cfs_rq)
 
 static unsigned long
 load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		  unsigned long max_nr_move, unsigned long max_load_move,
+		  unsigned long max_load_move,
 		  struct sched_domain *sd, enum cpu_idle_type idle,
 		  int *all_pinned, int *this_best_prio)
 {
 	struct cfs_rq *busy_cfs_rq;
-	unsigned long load_moved, total_nr_moved = 0, nr_moved;
 	long rem_load_move = max_load_move;
 	struct rq_iterator cfs_rq_iterator;
 
@@ -969,23 +968,45 @@ load_balance_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 #else
 # define maxload rem_load_move
 #endif
-		/* pass busy_cfs_rq argument into
+		/*
+		 * pass busy_cfs_rq argument into
 		 * load_balance_[start|next]_fair iterators
 		 */
 		cfs_rq_iterator.arg = busy_cfs_rq;
-		nr_moved = balance_tasks(this_rq, this_cpu, busiest,
-				max_nr_move, maxload, sd, idle, all_pinned,
-				&load_moved, this_best_prio, &cfs_rq_iterator);
+		rem_load_move -= balance_tasks(this_rq, this_cpu, busiest,
+					       maxload, sd, idle, all_pinned,
+					       this_best_prio,
+					       &cfs_rq_iterator);
 
-		total_nr_moved += nr_moved;
-		max_nr_move -= nr_moved;
-		rem_load_move -= load_moved;
-
-		if (max_nr_move <= 0 || rem_load_move <= 0)
+		if (rem_load_move <= 0)
 			break;
 	}
 
 	return max_load_move - rem_load_move;
+}
+
+static int
+move_one_task_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		   struct sched_domain *sd, enum cpu_idle_type idle)
+{
+	struct cfs_rq *busy_cfs_rq;
+	struct rq_iterator cfs_rq_iterator;
+
+	cfs_rq_iterator.start = load_balance_start_fair;
+	cfs_rq_iterator.next = load_balance_next_fair;
+
+	for_each_leaf_cfs_rq(busiest, busy_cfs_rq) {
+		/*
+		 * pass busy_cfs_rq argument into
+		 * load_balance_[start|next]_fair iterators
+		 */
+		cfs_rq_iterator.arg = busy_cfs_rq;
+		if (iter_move_one_task(this_rq, this_cpu, busiest, sd, idle,
+				       &cfs_rq_iterator))
+		    return 1;
+	}
+
+	return 0;
 }
 
 /*
@@ -1064,6 +1085,7 @@ static const struct sched_class fair_sched_class = {
 	.put_prev_task		= put_prev_task_fair,
 
 	.load_balance		= load_balance_fair,
+	.move_one_task		= move_one_task_fair,
 
 	.set_curr_task          = set_curr_task_fair,
 	.task_tick		= task_tick_fair,
