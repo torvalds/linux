@@ -395,8 +395,8 @@ void saa7134_buffer_timeout(unsigned long data)
 
 /* resends a current buffer in queue after resume */
 
-int saa7134_buffer_requeue(struct saa7134_dev *dev,
-			 struct saa7134_dmaqueue *q)
+static int saa7134_buffer_requeue(struct saa7134_dev *dev,
+				  struct saa7134_dmaqueue *q)
 {
 	struct saa7134_buf *buf, *next;
 

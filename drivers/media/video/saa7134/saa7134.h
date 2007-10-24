@@ -596,9 +596,6 @@ void saa7134_buffer_next(struct saa7134_dev *dev, struct saa7134_dmaqueue *q);
 void saa7134_buffer_timeout(unsigned long data);
 void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf);
 
-int saa7134_buffer_requeue(struct saa7134_dev *dev,
-			 struct saa7134_dmaqueue *q);
-
 int saa7134_set_dmabits(struct saa7134_dev *dev);
 
 extern int (*saa7134_dmasound_init)(struct saa7134_dev *dev);
@@ -631,7 +628,6 @@ void saa7134_i2c_call_clients(struct saa7134_dev *dev,
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 
-void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm);
 int saa7134_videoport_init(struct saa7134_dev *dev);
 void saa7134_set_tvnorm_hw(struct saa7134_dev *dev);
 

@@ -540,7 +540,7 @@ void res_free(struct saa7134_dev *dev, struct saa7134_fh *fh, unsigned int bits)
 
 /* ------------------------------------------------------------------ */
 
-void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
+static void set_tvnorm(struct saa7134_dev *dev, struct saa7134_tvnorm *norm)
 {
 
 	dprintk("set tv norm = %s\n",norm->name);
