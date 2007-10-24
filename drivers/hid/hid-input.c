@@ -34,10 +34,10 @@
 #include <linux/hid.h>
 #include <linux/hid-debug.h>
 
-static int hid_pb_fnmode = 1;
-module_param_named(pb_fnmode, hid_pb_fnmode, int, 0644);
+static int hid_apple_fnmode = 1;
+module_param_named(pb_fnmode, hid_apple_fnmode, int, 0644);
 MODULE_PARM_DESC(pb_fnmode,
-		"Mode of fn key on PowerBooks (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
+		"Mode of fn key on Apple keyboards (0 = disabled, 1 = fkeyslast, 2 = fkeysfirst)");
 
 #define unk	KEY_UNKNOWN
 
@@ -99,20 +99,20 @@ struct hidinput_key_translation {
 	u8 flags;
 };
 
-#define POWERBOOK_FLAG_FKEY 0x01
+#define APPLE_FLAG_FKEY 0x01
 
 static struct hidinput_key_translation powerbook_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
-	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     POWERBOOK_FLAG_FKEY },
-	{ KEY_F2,       KEY_BRIGHTNESSUP,       POWERBOOK_FLAG_FKEY },
-	{ KEY_F3,       KEY_MUTE,               POWERBOOK_FLAG_FKEY },
-	{ KEY_F4,       KEY_VOLUMEDOWN,         POWERBOOK_FLAG_FKEY },
-	{ KEY_F5,       KEY_VOLUMEUP,           POWERBOOK_FLAG_FKEY },
-	{ KEY_F6,       KEY_NUMLOCK,            POWERBOOK_FLAG_FKEY },
-	{ KEY_F7,       KEY_SWITCHVIDEOMODE,    POWERBOOK_FLAG_FKEY },
-	{ KEY_F8,       KEY_KBDILLUMTOGGLE,     POWERBOOK_FLAG_FKEY },
-	{ KEY_F9,       KEY_KBDILLUMDOWN,       POWERBOOK_FLAG_FKEY },
-	{ KEY_F10,      KEY_KBDILLUMUP,         POWERBOOK_FLAG_FKEY },
+	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
+	{ KEY_F2,       KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
+	{ KEY_F3,       KEY_MUTE,               APPLE_FLAG_FKEY },
+	{ KEY_F4,       KEY_VOLUMEDOWN,         APPLE_FLAG_FKEY },
+	{ KEY_F5,       KEY_VOLUMEUP,           APPLE_FLAG_FKEY },
+	{ KEY_F6,       KEY_NUMLOCK,            APPLE_FLAG_FKEY },
+	{ KEY_F7,       KEY_SWITCHVIDEOMODE,    APPLE_FLAG_FKEY },
+	{ KEY_F8,       KEY_KBDILLUMTOGGLE,     APPLE_FLAG_FKEY },
+	{ KEY_F9,       KEY_KBDILLUMDOWN,       APPLE_FLAG_FKEY },
+	{ KEY_F10,      KEY_KBDILLUMUP,         APPLE_FLAG_FKEY },
 	{ KEY_UP,       KEY_PAGEUP },
 	{ KEY_DOWN,     KEY_PAGEDOWN },
 	{ KEY_LEFT,     KEY_HOME },
@@ -143,7 +143,7 @@ static struct hidinput_key_translation powerbook_numlock_keys[] = {
 	{ }
 };
 
-static struct hidinput_key_translation powerbook_iso_keyboard[] = {
+static struct hidinput_key_translation apple_iso_keyboard[] = {
 	{ KEY_GRAVE,    KEY_102ND },
 	{ KEY_102ND,    KEY_GRAVE },
 	{ }
@@ -161,39 +161,39 @@ static struct hidinput_key_translation *find_translation(struct hidinput_key_tra
 	return NULL;
 }
 
-static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
+static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
 	struct hidinput_key_translation *trans;
 
 	if (usage->code == KEY_FN) {
-		if (value) hid->quirks |=  HID_QUIRK_POWERBOOK_FN_ON;
-		else       hid->quirks &= ~HID_QUIRK_POWERBOOK_FN_ON;
+		if (value) hid->quirks |=  HID_QUIRK_APPLE_FN_ON;
+		else       hid->quirks &= ~HID_QUIRK_APPLE_FN_ON;
 
 		input_event(input, usage->type, usage->code, value);
 
 		return 1;
 	}
 
-	if (hid_pb_fnmode) {
+	if (hid_apple_fnmode) {
 		int do_translate;
 
 		trans = find_translation(powerbook_fn_keys, usage->code);
 		if (trans) {
-			if (test_bit(usage->code, hid->pb_pressed_fn))
+			if (test_bit(usage->code, hid->apple_pressed_fn))
 				do_translate = 1;
-			else if (trans->flags & POWERBOOK_FLAG_FKEY)
+			else if (trans->flags & APPLE_FLAG_FKEY)
 				do_translate =
-					(hid_pb_fnmode == 2 &&  (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON)) ||
-					(hid_pb_fnmode == 1 && !(hid->quirks & HID_QUIRK_POWERBOOK_FN_ON));
+					(hid_apple_fnmode == 2 &&  (hid->quirks & HID_QUIRK_APPLE_FN_ON)) ||
+					(hid_apple_fnmode == 1 && !(hid->quirks & HID_QUIRK_APPLE_FN_ON));
 			else
-				do_translate = (hid->quirks & HID_QUIRK_POWERBOOK_FN_ON);
+				do_translate = (hid->quirks & HID_QUIRK_APPLE_FN_ON);
 
 			if (do_translate) {
 				if (value)
-					set_bit(usage->code, hid->pb_pressed_fn);
+					set_bit(usage->code, hid->apple_pressed_fn);
 				else
-					clear_bit(usage->code, hid->pb_pressed_fn);
+					clear_bit(usage->code, hid->apple_pressed_fn);
 
 				input_event(input, usage->type, trans->to, value);
 
@@ -218,8 +218,8 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 		}
 	}
 
-	if (hid->quirks & HID_QUIRK_POWERBOOK_ISO_KEYBOARD) {
-		trans = find_translation(powerbook_iso_keyboard, usage->code);
+	if (hid->quirks & HID_QUIRK_APPLE_ISO_KEYBOARD) {
+		trans = find_translation(apple_iso_keyboard, usage->code);
 		if (trans) {
 			input_event(input, usage->type, trans->to, value);
 			return 1;
@@ -229,7 +229,7 @@ static int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
 	return 0;
 }
 
-static void hidinput_pb_setup(struct input_dev *input)
+static void hidinput_apple_setup(struct input_dev *input)
 {
 	struct hidinput_key_translation *trans;
 
@@ -242,18 +242,19 @@ static void hidinput_pb_setup(struct input_dev *input)
 	for (trans = powerbook_numlock_keys; trans->from; trans++)
 		set_bit(trans->to, input->keybit);
 
-	for (trans = powerbook_iso_keyboard; trans->from; trans++)
+	for (trans = apple_iso_keyboard; trans->from; trans++)
 		set_bit(trans->to, input->keybit);
 
 }
 #else
-static inline int hidinput_pb_event(struct hid_device *hid, struct input_dev *input,
-		struct hid_usage *usage, __s32 value)
+static inline int hidinput_apple_event(struct hid_device *hid,
+				       struct input_dev *input,
+				       struct hid_usage *usage, __s32 value)
 {
 	return 0;
 }
 
-static inline void hidinput_pb_setup(struct input_dev *input)
+static inline void hidinput_apple_setup(struct input_dev *input)
 {
 }
 #endif
@@ -797,14 +798,14 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				goto ignore;
 			break;
 
-		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
+		case HID_UP_CUSTOM: /* Reported on Logitech and Apple USB keyboards */
 
 			set_bit(EV_REP, input->evbit);
 			switch(usage->hid & HID_USAGE) {
 				case 0x003:
-					/* The fn key on Apple PowerBooks */
+					/* The fn key on Apple USB keyboards */
 					map_key_clear(KEY_FN);
-					hidinput_pb_setup(input);
+					hidinput_apple_setup(input);
 					break;
 
 				default:    goto ignore;
@@ -989,7 +990,7 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	if ((hid->quirks & HID_QUIRK_POWERBOOK_HAS_FN) && hidinput_pb_event(hid, input, usage, value))
+	if ((hid->quirks & HID_QUIRK_APPLE_HAS_FN) && hidinput_apple_event(hid, input, usage, value))
 		return;
 
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
