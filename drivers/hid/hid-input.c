@@ -89,6 +89,7 @@ static const struct {
 /* hardware needing special handling due to colliding MSVENDOR page usages */
 #define IS_CHICONY_TACTICAL_PAD(x) (x->vendor == 0x04f2 && device->product == 0x0418)
 #define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
+#define IS_MS_PRESENTER_8000(x) (x->vendor == 0x045e && x->product == 0x0713)
 
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
@@ -780,9 +781,20 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 						set_bit(KEY_F18, input->keybit);
 					default:	goto ignore;
 				}
-			} else {
+
+			/* Microsoft Wireless Notebook Presenter Mouse 8000 */
+			} else if (IS_MS_PRESENTER_8000(device)) {
+				set_bit(EV_REP, input->evbit);
+				switch(usage->hid & HID_USAGE) {
+					/* Useful mappings of bottom-side keys for presentations */
+					case 0xfd08: map_key_clear(KEY_RIGHT);		break;
+					case 0xfd09: map_key_clear(KEY_LEFT);		break;
+					case 0xfd0b: map_key_clear(KEY_PAUSE);		break;
+					case 0xfd0f: map_key_clear(KEY_F5);		break;
+					default:    goto ignore;
+				}
+			} else
 				goto ignore;
-			}
 			break;
 
 		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
