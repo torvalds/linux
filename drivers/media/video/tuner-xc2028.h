@@ -9,12 +9,21 @@
 
 #include "dvb_frontend.h"
 
+#define XC2028_DEFAULT_FIRMWARE "xc3028-v27.fw"
+
+enum xc2028_firm_type {
+	XC2028_FIRM_NORMAL,
+	XC2028_FIRM_MTS,
+};
+
+struct xc2028_ctrl {
+	enum xc2028_firm_type	type;
+	char			*fname;
+};
+
 /* xc2028 commands for callback */
 #define XC2028_TUNER_RESET	0
 #define XC2028_RESET_CLK	1
-
-struct dvb_frontend;
-struct i2c_client;
 
 #if defined(CONFIG_TUNER_XC2028) || (defined(CONFIG_TUNER_XC2028_MODULE) && defined(MODULE))
 int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter* i2c_adap,
