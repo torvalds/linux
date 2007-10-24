@@ -46,12 +46,15 @@ use strict;
 # Note: This only supports 'c'.
 
 # usage:
-# kernel-doc [ -docbook | -html | -text | -man ]
+# kernel-doc [ -docbook | -html | -text | -man ] [ -no-doc-sections ]
 #           [ -function funcname [ -function funcname ...] ] c file(s)s > outputfile
 # or
 #           [ -nofunction funcname [ -function funcname ...] ] c file(s)s > outputfile
 #
 #  Set output format using one of -docbook -html -text or -man.  Default is man.
+#
+#  -no-doc-sections
+#	Do not output DOC: sections
 #
 #  -function funcname
 #	If set, then only generate documentation for the given function(s) or
@@ -211,7 +214,7 @@ my $blankline_text = "";
 
 
 sub usage {
-    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man ]\n";
+    print "Usage: $0 [ -v ] [ -docbook | -html | -text | -man ] [ -no-doc-sections ]\n";
     print "         [ -function funcname [ -function funcname ...] ]\n";
     print "         [ -nofunction funcname [ -nofunction funcname ...] ]\n";
     print "         c source file(s) > outputfile\n";
@@ -225,6 +228,7 @@ if ($#ARGV==-1) {
 
 my $verbose = 0;
 my $output_mode = "man";
+my $no_doc_sections = 0;
 my %highlights = %highlights_man;
 my $blankline = $blankline_man;
 my $modulename = "Kernel API";
@@ -329,6 +333,8 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	usage();
     } elsif ($cmd eq '-filelist') {
 	    $filelist = shift @ARGV;
+    } elsif ($cmd eq '-no-doc-sections') {
+	    $no_doc_sections = 1;
     }
 }
 
@@ -379,6 +385,10 @@ sub dump_section {
 sub dump_doc_section {
     my $name = shift;
     my $contents = join "\n", @_;
+
+    if ($no_doc_sections) {
+        return;
+    }
 
     if (($function_only == 0) ||
 	( $function_only == 1 && defined($function_table{$name})) ||
