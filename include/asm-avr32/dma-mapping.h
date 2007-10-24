@@ -3,7 +3,7 @@
 
 #include <linux/mm.h>
 #include <linux/device.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <asm/processor.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
