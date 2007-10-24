@@ -9,24 +9,11 @@
 #include <linux/sysctl.h>
 #include <linux/module.h>
 #include <linux/socket.h>
+#include <linux/netdevice.h>
 #include <net/sock.h>
+#include <net/xfrm.h>
 
 #ifdef CONFIG_SYSCTL
-
-extern int netdev_max_backlog;
-extern int weight_p;
-
-extern __u32 sysctl_wmem_max;
-extern __u32 sysctl_rmem_max;
-
-extern int sysctl_core_destroy_delay;
-
-#ifdef CONFIG_XFRM
-extern u32 sysctl_xfrm_aevent_etime;
-extern u32 sysctl_xfrm_aevent_rseqth;
-extern int sysctl_xfrm_larval_drop;
-extern u32 sysctl_xfrm_acq_expires;
-#endif
 
 ctl_table core_table[] = {
 #ifdef CONFIG_NET
