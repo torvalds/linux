@@ -513,6 +513,9 @@ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 extern struct page *bad_page;
 
 int is_error_page(struct page *page);
+int kvm_set_memory_region(struct kvm *kvm,
+			  struct kvm_userspace_memory_region *mem,
+			  int user_alloc);
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
 void kvm_release_page(struct page *page);

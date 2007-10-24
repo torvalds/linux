@@ -643,10 +643,9 @@ EXPORT_SYMBOL_GPL(fx_init);
  *
  * Discontiguous memory is allowed, mostly for framebuffers.
  */
-static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
-					  struct
-					  kvm_userspace_memory_region *mem,
-					  int user_alloc)
+int kvm_set_memory_region(struct kvm *kvm,
+			  struct kvm_userspace_memory_region *mem,
+			  int user_alloc)
 {
 	int r;
 	gfn_t base_gfn;
@@ -789,6 +788,16 @@ out_unlock:
 	kvm_free_physmem_slot(&new, &old);
 out:
 	return r;
+
+}
+EXPORT_SYMBOL_GPL(kvm_set_memory_region);
+
+static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
+					  struct
+					  kvm_userspace_memory_region *mem,
+					  int user_alloc)
+{
+	return kvm_set_memory_region(kvm, mem, user_alloc);
 }
 
 static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
