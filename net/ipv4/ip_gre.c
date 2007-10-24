@@ -674,7 +674,7 @@ static int ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct rtable *rt;     			/* Route to the other host */
 	struct net_device *tdev;			/* Device to other host */
 	struct iphdr  *iph;			/* Our new IP header */
-	int    max_headroom;			/* The extra header space needed */
+	unsigned int max_headroom;		/* The extra header space needed */
 	int    gre_hlen;
 	__be32 dst;
 	int    mtu;

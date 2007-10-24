@@ -838,7 +838,7 @@ static int ip6_tnl_xmit2(struct sk_buff *skb,
 	struct dst_entry *dst;
 	struct net_device *tdev;
 	int mtu;
-	int max_headroom = sizeof(struct ipv6hdr);
+	unsigned int max_headroom = sizeof(struct ipv6hdr);
 	u8 proto;
 	int err = -1;
 	int pkt_len;

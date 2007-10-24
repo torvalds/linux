@@ -161,7 +161,7 @@ static inline int ip_finish_output2(struct sk_buff *skb)
 	struct dst_entry *dst = skb->dst;
 	struct rtable *rt = (struct rtable *)dst;
 	struct net_device *dev = dst->dev;
-	int hh_len = LL_RESERVED_SPACE(dev);
+	unsigned int hh_len = LL_RESERVED_SPACE(dev);
 
 	if (rt->rt_type == RTN_MULTICAST)
 		IP_INC_STATS(IPSTATS_MIB_OUTMCASTPKTS);
