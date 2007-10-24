@@ -55,6 +55,26 @@ MODULE_DESCRIPTION("IC Plus IP1000 Gigabit Ethernet Adapter Linux Driver "
 		   DrvVer);
 MODULE_LICENSE("GPL");
 
+//variable record -- index by leading revision/length
+//Revision/Length(=N*4), Address1, Data1, Address2, Data2,...,AddressN,DataN
+static unsigned short DefaultPhyParam[] = {
+	// 11/12/03 IP1000A v1-3 rev=0x40
+	/*--------------------------------------------------------------------------
+	(0x4000|(15*4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 22, 0x85bd, 24, 0xfff2,
+				 27, 0x0c10, 28, 0x0c10, 29, 0x2c10, 31, 0x0003, 23, 0x92f6,
+				 31, 0x0000, 23, 0x003d, 30, 0x00de, 20, 0x20e7,  9, 0x0700,
+	  --------------------------------------------------------------------------*/
+	// 12/17/03 IP1000A v1-4 rev=0x40
+	(0x4000 | (07 * 4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 27, 0xeb8e, 31,
+	    0x0000,
+	30, 0x005e, 9, 0x0700,
+	// 01/09/04 IP1000A v1-5 rev=0x41
+	(0x4100 | (07 * 4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 27, 0xeb8e, 31,
+	    0x0000,
+	30, 0x005e, 9, 0x0700,
+	0x0000
+};
+
 static const char *ipg_brand_name[] = {
 	"IC PLUS IP1000 1000/100/10 based NIC",
 	"Sundance Technology ST2021 based NIC",
@@ -990,7 +1010,7 @@ static void ipg_nic_txcleanup(struct net_device *dev)
 }
 
 /* Provides statistical information about the IPG NIC. */
-struct net_device_stats *ipg_nic_get_stats(struct net_device *dev)
+static struct net_device_stats *ipg_nic_get_stats(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
 	void __iomem *ioaddr = sp->ioaddr;
