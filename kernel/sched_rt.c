@@ -98,6 +98,7 @@ static void put_prev_task_rt(struct rq *rq, struct task_struct *p)
 	p->se.exec_start = 0;
 }
 
+#ifdef CONFIG_SMP
 /*
  * Load-balancing iterator. Note: while the runqueue stays locked
  * during the whole iteration, the current task might be
@@ -202,6 +203,7 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	return iter_move_one_task(this_rq, this_cpu, busiest, sd, idle,
 				  &rt_rq_iterator);
 }
+#endif
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)
 {
@@ -245,8 +247,10 @@ const struct sched_class rt_sched_class = {
 	.pick_next_task		= pick_next_task_rt,
 	.put_prev_task		= put_prev_task_rt,
 
+#ifdef CONFIG_SMP
 	.load_balance		= load_balance_rt,
 	.move_one_task		= move_one_task_rt,
+#endif
 
 	.set_curr_task          = set_curr_task_rt,
 	.task_tick		= task_tick_rt,

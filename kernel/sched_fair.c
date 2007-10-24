@@ -876,6 +876,7 @@ static void put_prev_task_fair(struct rq *rq, struct task_struct *prev)
 	}
 }
 
+#ifdef CONFIG_SMP
 /**************************************************
  * Fair scheduling class load-balancing methods:
  */
@@ -1008,6 +1009,7 @@ move_one_task_fair(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 	return 0;
 }
+#endif
 
 /*
  * scheduler tick hitting a task of our scheduling class:
@@ -1084,8 +1086,10 @@ static const struct sched_class fair_sched_class = {
 	.pick_next_task		= pick_next_task_fair,
 	.put_prev_task		= put_prev_task_fair,
 
+#ifdef CONFIG_SMP
 	.load_balance		= load_balance_fair,
 	.move_one_task		= move_one_task_fair,
+#endif
 
 	.set_curr_task          = set_curr_task_fair,
 	.task_tick		= task_tick_fair,

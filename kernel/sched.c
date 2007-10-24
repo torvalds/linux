@@ -849,23 +849,6 @@ static int
 iter_move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 		   struct sched_domain *sd, enum cpu_idle_type idle,
 		   struct rq_iterator *iterator);
-#else
-static inline unsigned long
-balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
-	      unsigned long max_load_move, struct sched_domain *sd,
-	      enum cpu_idle_type idle, int *all_pinned,
-	      int *this_best_prio, struct rq_iterator *iterator)
-{
-	return 0;
-}
-
-static inline int
-iter_move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		   struct sched_domain *sd, enum cpu_idle_type idle,
-		   struct rq_iterator *iterator)
-{
-	return 0;
-}
 #endif
 
 #include "sched_stats.h"
