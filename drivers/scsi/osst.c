@@ -5256,8 +5256,7 @@ static int enlarge_buffer(struct osst_buffer *STbuffer, int need_dma)
 
 		STbuffer->sg[0].offset = 0;
 		if (page != NULL) {
-		    sg_set_page(&STbuffer->sg[0], page);
-		    STbuffer->sg[0].length = b_size;
+		    sg_set_page(&STbuffer->sg[0], page, b_size, 0);
 		    STbuffer->b_data = page_address(page);
 		    break;
 		}
@@ -5285,8 +5284,7 @@ static int enlarge_buffer(struct osst_buffer *STbuffer, int need_dma)
 			normalize_buffer(STbuffer);
 			return 0;
 		}
-		sg_set_page(&STbuffer->sg[segs], page);
-		STbuffer->sg[segs].length = (OS_FRAME_SIZE - got <= PAGE_SIZE / 2) ? (OS_FRAME_SIZE - got) : b_size;
+		sg_set_page(&STbuffer->sg[segs], page, (OS_FRAME_SIZE - got <= PAGE_SIZE / 2) ? (OS_FRAME_SIZE - got) : b_size, 0);
 		got += STbuffer->sg[segs].length;
 		STbuffer->buffer_size = got;
 		STbuffer->sg_segs = ++segs;

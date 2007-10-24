@@ -101,9 +101,7 @@ static int mlx4_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_ma
 	if (!page)
 		return -ENOMEM;
 
-	sg_set_page(mem, page);
-	mem->length = PAGE_SIZE << order;
-	mem->offset = 0;
+	sg_set_page(mem, page, PAGE_SIZE << order, 0);
 	return 0;
 }
 

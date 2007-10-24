@@ -1366,9 +1366,7 @@ new_segment:
 				sg = sg_next(sg);
 			}
 
-			sg_set_page(sg, bvec->bv_page);
-			sg->length = nbytes;
-			sg->offset = bvec->bv_offset;
+			sg_set_page(sg, bvec->bv_page, nbytes, bvec->bv_offset);
 			nsegs++;
 		}
 		bvprv = bvec;

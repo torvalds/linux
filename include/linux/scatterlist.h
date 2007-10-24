@@ -26,18 +26,16 @@
 #define SG_MAGIC	0x87654321
 
 /**
- * sg_set_page - Set sg entry to point at given page
- * @sg:		 SG entry
- * @page:	 The page
+ * sg_assign_page - Assign a given page to an SG entry
+ * @sg:		    SG entry
+ * @page:	    The page
  *
  * Description:
- *   Use this function to set an sg entry pointing at a page, never assign
- *   the page directly. We encode sg table information in the lower bits
- *   of the page pointer. See sg_page() for looking up the page belonging
- *   to an sg entry.
+ *   Assign page to sg entry. Also see sg_set_page(), the most commonly used
+ *   variant.
  *
  **/
-static inline void sg_set_page(struct scatterlist *sg, struct page *page)
+static inline void sg_assign_page(struct scatterlist *sg, struct page *page)
 {
 	unsigned long page_link = sg->page_link & 0x3;
 
@@ -52,6 +50,28 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page)
 	sg->page_link = page_link | (unsigned long) page;
 }
 
+/**
+ * sg_set_page - Set sg entry to point at given page
+ * @sg:		 SG entry
+ * @page:	 The page
+ * @len:	 Length of data
+ * @offset:	 Offset into page
+ *
+ * Description:
+ *   Use this function to set an sg entry pointing at a page, never assign
+ *   the page directly. We encode sg table information in the lower bits
+ *   of the page pointer. See sg_page() for looking up the page belonging
+ *   to an sg entry.
+ *
+ **/
+static inline void sg_set_page(struct scatterlist *sg, struct page *page,
+			       unsigned int len, unsigned int offset)
+{
+	sg_assign_page(sg, page);
+	sg->offset = offset;
+	sg->length = len;
+}
+
 #define sg_page(sg)	((struct page *) ((sg)->page_link & ~0x3))
 
 /**
@@ -64,9 +84,7 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page)
 static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 			      unsigned int buflen)
 {
-	sg_set_page(sg, virt_to_page(buf));
-	sg->offset = offset_in_page(buf);
-	sg->length = buflen;
+	sg_set_page(sg, virt_to_page(buf), buflen, offset_in_page(buf));
 }
 
 /*

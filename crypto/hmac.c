@@ -160,8 +160,7 @@ static int hmac_digest(struct hash_desc *pdesc, struct scatterlist *sg,
 
 	sg_set_buf(sg1, ipad, bs);
 
-	sg_set_page(&sg[1], (void *) sg);
-	sg1[1].length = 0;
+	sg_set_page(&sg[1], (void *) sg, 0, 0);
 	sg_set_buf(sg2, opad, bs + ds);
 
 	err = crypto_hash_digest(&desc, sg1, nbytes + bs, digest);

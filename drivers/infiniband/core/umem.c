@@ -171,9 +171,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
 				if (vma_list &&
 				    !is_vm_hugetlb_page(vma_list[i + off]))
 					umem->hugetlb = 0;
-				sg_set_page(&chunk->page_list[i], page_list[i + off]);
-				chunk->page_list[i].offset = 0;
-				chunk->page_list[i].length = PAGE_SIZE;
+				sg_set_page(&chunk->page_list[i], page_list[i + off], PAGE_SIZE, 0);
 			}
 
 			chunk->nmap = ib_dma_map_sg(context->device,

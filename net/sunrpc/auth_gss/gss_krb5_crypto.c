@@ -199,7 +199,7 @@ encryptor(struct scatterlist *sg, void *data)
 	} else {
 		in_page = sg_page(sg);
 	}
-	sg_set_page(&desc->infrags[desc->fragno], in_page);
+	sg_assign_page(&desc->infrags[desc->fragno], in_page);
 	desc->fragno++;
 	desc->fraglen += sg->length;
 	desc->pos += sg->length;
@@ -215,11 +215,10 @@ encryptor(struct scatterlist *sg, void *data)
 	if (ret)
 		return ret;
 	if (fraglen) {
-		sg_set_page(&desc->outfrags[0], sg_page(sg));
-		desc->outfrags[0].offset = sg->offset + sg->length - fraglen;
-		desc->outfrags[0].length = fraglen;
+		sg_set_page(&desc->outfrags[0], sg_page(sg), fraglen,
+				sg->offset + sg->length - fraglen);
 		desc->infrags[0] = desc->outfrags[0];
-		sg_set_page(&desc->infrags[0], in_page);
+		sg_assign_page(&desc->infrags[0], in_page);
 		desc->fragno = 1;
 		desc->fraglen = fraglen;
 	} else {
@@ -287,9 +286,8 @@ decryptor(struct scatterlist *sg, void *data)
 	if (ret)
 		return ret;
 	if (fraglen) {
-		sg_set_page(&desc->frags[0], sg_page(sg));
-		desc->frags[0].offset = sg->offset + sg->length - fraglen;
-		desc->frags[0].length = fraglen;
+		sg_set_page(&desc->frags[0], sg_page(sg), fraglen,
+				sg->offset + sg->length - fraglen);
 		desc->fragno = 1;
 		desc->fraglen = fraglen;
 	} else {

@@ -2890,7 +2890,7 @@ static struct ipr_sglist *ipr_alloc_ucode_buffer(int buf_len)
 			return NULL;
 		}
 
-		sg_set_page(&scatterlist[i], page);
+		sg_set_page(&scatterlist[i], page, 0, 0);
 	}
 
 	return sglist;

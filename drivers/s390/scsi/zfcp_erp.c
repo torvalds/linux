@@ -322,9 +322,9 @@ zfcp_erp_adisc(struct zfcp_port *port)
 	if (address == NULL)
 		goto nomem;
 
-	zfcp_address_to_sg(address, send_els->req);
+	zfcp_address_to_sg(address, send_els->req, sizeof(struct zfcp_ls_adisc));
 	address += PAGE_SIZE >> 1;
-	zfcp_address_to_sg(address, send_els->resp);
+	zfcp_address_to_sg(address, send_els->resp, sizeof(struct zfcp_ls_adisc_acc));
 	send_els->req_count = send_els->resp_count = 1;
 
 	send_els->adapter = adapter;
@@ -335,9 +335,6 @@ zfcp_erp_adisc(struct zfcp_port *port)
 
 	adisc = zfcp_sg_to_address(send_els->req);
 	send_els->ls_code = adisc->code = ZFCP_LS_ADISC;
-
-	send_els->req->length = sizeof(struct zfcp_ls_adisc);
-	send_els->resp->length = sizeof(struct zfcp_ls_adisc_acc);
 
 	/* acc. to FC-FS, hard_nport_id in ADISC should not be set for ports
 	   without FC-AL-2 capability, so we don't set it */

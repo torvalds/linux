@@ -150,13 +150,8 @@ cryptoloop_transfer(struct loop_device *lo, int cmd,
 		u32 iv[4] = { 0, };
 		iv[0] = cpu_to_le32(IV & 0xffffffff);
 
-		sg_set_page(&sg_in, in_page);
-		sg_in.offset = in_offs;
-		sg_in.length = sz;
-
-		sg_set_page(&sg_out, out_page);
-		sg_out.offset = out_offs;
-		sg_out.length = sz;
+		sg_set_page(&sg_in, in_page, sz, in_offs);
+		sg_set_page(&sg_out, out_page, sz, out_offs);
 
 		desc.info = iv;
 		err = encdecfunc(&desc, &sg_out, &sg_in, sz);

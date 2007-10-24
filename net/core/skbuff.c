@@ -2045,9 +2045,7 @@ skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 	if (copy > 0) {
 		if (copy > len)
 			copy = len;
-		sg_set_page(&sg[elt], virt_to_page(skb->data + offset));
-		sg[elt].offset = (unsigned long)(skb->data + offset) % PAGE_SIZE;
-		sg[elt].length = copy;
+		sg_set_buf(sg, skb->data + offset, copy);
 		elt++;
 		if ((len -= copy) == 0)
 			return elt;
@@ -2065,9 +2063,8 @@ skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int len)
 
 			if (copy > len)
 				copy = len;
-			sg_set_page(&sg[elt], frag->page);
-			sg[elt].offset = frag->page_offset+offset-start;
-			sg[elt].length = copy;
+			sg_set_page(&sg[elt], frag->page, copy,
+					frag->page_offset+offset-start);
 			elt++;
 			if (!(len -= copy))
 				return elt;
