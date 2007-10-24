@@ -1518,6 +1518,8 @@ zfcp_gid_pn_buffers_alloc(struct zfcp_gid_pn_data **gid_pn, mempool_t *pool)
                 return -ENOMEM;
 
 	memset(data, 0, sizeof(*data));
+	sg_init_table(&data->req , 1);
+	sg_init_table(&data->resp , 1);
         data->ct.req = &data->req;
         data->ct.resp = &data->resp;
 	data->ct.req_count = data->ct.resp_count = 1;
