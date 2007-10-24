@@ -34,6 +34,7 @@
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
+#include <linux/mutex.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include <linux/videodev2.h>
@@ -396,7 +397,7 @@ struct usb_usbvision {
 	unsigned char iface;						/* Video interface number */
 	unsigned char ifaceAlt;			/* Alt settings */
 	unsigned char Vin_Reg2_Preset;
-	struct semaphore lock;
+	struct mutex               lock;
 	struct timer_list powerOffTimer;
 	struct work_struct powerOffWork;
 	int power;							/* is the device powered on? */

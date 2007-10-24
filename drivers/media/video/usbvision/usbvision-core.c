@@ -2242,14 +2242,18 @@ static void call_usbvision_power_off(struct work_struct *work)
 	struct usb_usbvision *usbvision = container_of(work, struct usb_usbvision, powerOffWork);
 
 	PDEBUG(DBG_FUNC, "");
-	down_interruptible(&usbvision->lock);
+	if(mutex_lock_interruptible(&usbvision->lock)) {
+		return;
+	}
+
+
 	if(usbvision->user == 0) {
 		usbvision_i2c_unregister(usbvision);
 
 		usbvision_power_off(usbvision);
 		usbvision->initialized = 0;
 	}
-	up(&usbvision->lock);
+	mutex_unlock(&usbvision->lock);
 }
 
 static void usbvision_powerOffTimer(unsigned long data)
