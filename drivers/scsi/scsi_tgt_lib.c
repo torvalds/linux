@@ -331,7 +331,7 @@ static void scsi_tgt_cmd_done(struct scsi_cmnd *cmd)
 
 	scsi_tgt_uspace_send_status(cmd, tcmd->itn_id, tcmd->tag);
 
-	if (cmd->request_buffer)
+	if (scsi_sglist(cmd))
 		scsi_free_sgtable(cmd);
 
 	queue_work(scsi_tgtd, &tcmd->work);
@@ -365,14 +365,15 @@ static int scsi_tgt_init_cmd(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 
 	cmd->request_bufflen = rq->data_len;
 
-	dprintk("cmd %p cnt %d %lu\n", cmd, cmd->use_sg, rq_data_dir(rq));
-	count = blk_rq_map_sg(rq->q, rq, cmd->request_buffer);
-	if (likely(count <= cmd->use_sg)) {
+	dprintk("cmd %p cnt %d %lu\n", cmd, scsi_sg_count(cmd),
+		rq_data_dir(rq));
+	count = blk_rq_map_sg(rq->q, rq, scsi_sglist(cmd));
+	if (likely(count <= scsi_sg_count(cmd))) {
 		cmd->use_sg = count;
 		return 0;
 	}
 
-	eprintk("cmd %p cnt %d\n", cmd, cmd->use_sg);
+	eprintk("cmd %p cnt %d\n", cmd, scsi_sg_count(cmd));
 	scsi_free_sgtable(cmd);
 	return -EINVAL;
 }
