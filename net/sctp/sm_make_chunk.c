@@ -2953,13 +2953,17 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		/* This is always done in BH context with a socket lock
 		 * held, so the list can not change.
 		 */
+		local_bh_disable();
 		list_for_each_entry(saddr, &bp->address_list, list) {
 			if (sctp_cmp_addr_exact(&saddr->a, &addr))
 				saddr->use_as_src = 1;
 		}
+		local_bh_enable();
 		break;
 	case SCTP_PARAM_DEL_IP:
-		retval = sctp_del_bind_addr(bp, &addr, call_rcu_bh);
+		local_bh_disable();
+		retval = sctp_del_bind_addr(bp, &addr);
+		local_bh_enable();
 		list_for_each(pos, &asoc->peer.transport_addr_list) {
 			transport = list_entry(pos, struct sctp_transport,
 						 transports);
