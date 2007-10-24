@@ -407,6 +407,7 @@ typedef enum {
 	SCTP_RTXR_T3_RTX,
 	SCTP_RTXR_FAST_RTX,
 	SCTP_RTXR_PMTUD,
+	SCTP_RTXR_T1_RTX,
 } sctp_retransmit_reason_t;
 
 /* Reasons to lower cwnd. */

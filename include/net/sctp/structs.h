@@ -873,10 +873,11 @@ struct sctp_transport {
 	 * address list derived from the INIT or INIT ACK chunk, a
 	 * number of data elements needs to be maintained including:
 	 */
-	__u32 rtt;		/* This is the most recent RTT.	 */
-
 	/* RTO	       : The current retransmission timeout value.  */
 	unsigned long rto;
+	unsigned long last_rto;
+
+	__u32 rtt;		/* This is the most recent RTT.	 */
 
 	/* RTTVAR      : The current RTT variation.  */
 	__u32 rttvar;
