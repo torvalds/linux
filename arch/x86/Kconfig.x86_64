@@ -480,7 +480,7 @@ config HPET_EMULATE_RTC
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.
 config IOMMU
-	bool "IOMMU support" if EMBEDDED
+	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
 	select AGP

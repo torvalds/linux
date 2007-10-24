@@ -18,7 +18,7 @@
 #include <asm/apic.h>
 
 #ifdef CONFIG_IOMMU
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #endif
 
 static void __init via_bugs(void)

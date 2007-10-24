@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/dmar.h>
 #include <asm/io.h>
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/calgary.h>
 
 int iommu_merge __read_mostly = 1;

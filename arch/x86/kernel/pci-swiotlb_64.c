@@ -5,7 +5,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/swiotlb.h>
 #include <asm/dma.h>
 
