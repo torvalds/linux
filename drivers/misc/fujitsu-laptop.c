@@ -198,7 +198,7 @@ static struct platform_driver fujitsupf_driver = {
 
 /* ACPI device */
 
-int acpi_fujitsu_add(struct acpi_device *device)
+static int acpi_fujitsu_add(struct acpi_device *device)
 {
 	int result = 0;
 	int state = 0;
@@ -229,7 +229,7 @@ int acpi_fujitsu_add(struct acpi_device *device)
 	return result;
 }
 
-int acpi_fujitsu_remove(struct acpi_device *device, int type)
+static int acpi_fujitsu_remove(struct acpi_device *device, int type)
 {
 	ACPI_FUNCTION_TRACE("acpi_fujitsu_remove");
 
