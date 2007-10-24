@@ -5461,10 +5461,11 @@ static void register_sched_domain_sysctl(void)
 	struct ctl_table *entry = sd_alloc_ctl_entry(cpu_num + 1);
 	char buf[32];
 
+	WARN_ON(sd_ctl_dir[0].child);
+	sd_ctl_dir[0].child = entry;
+
 	if (entry == NULL)
 		return;
-
-	sd_ctl_dir[0].child = entry;
 
 	for_each_online_cpu(i) {
 		snprintf(buf, 32, "cpu%d", i);
@@ -5473,14 +5474,19 @@ static void register_sched_domain_sysctl(void)
 		entry->child = sd_alloc_ctl_cpu_table(i);
 		entry++;
 	}
+
+	WARN_ON(sd_sysctl_header);
 	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
 }
 
+/* may be called multiple times per register */
 static void unregister_sched_domain_sysctl(void)
 {
-	unregister_sysctl_table(sd_sysctl_header);
+	if (sd_sysctl_header)
+		unregister_sysctl_table(sd_sysctl_header);
 	sd_sysctl_header = NULL;
-	sd_free_ctl_entry(&sd_ctl_dir[0].child);
+	if (sd_ctl_dir[0].child)
+		sd_free_ctl_entry(&sd_ctl_dir[0].child);
 }
 #else
 static void register_sched_domain_sysctl(void)
@@ -6424,13 +6430,17 @@ static cpumask_t fallback_doms;
  */
 static int arch_init_sched_domains(const cpumask_t *cpu_map)
 {
+	int err;
+
 	ndoms_cur = 1;
 	doms_cur = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
 	if (!doms_cur)
 		doms_cur = &fallback_doms;
 	cpus_andnot(*doms_cur, *cpu_map, cpu_isolated_map);
+	err = build_sched_domains(doms_cur);
 	register_sched_domain_sysctl();
-	return build_sched_domains(doms_cur);
+
+	return err;
 }
 
 static void arch_destroy_sched_domains(const cpumask_t *cpu_map)
@@ -6479,6 +6489,9 @@ void partition_sched_domains(int ndoms_new, cpumask_t *doms_new)
 {
 	int i, j;
 
+	/* always unregister in case we don't destroy any domains */
+	unregister_sched_domain_sysctl();
+
 	if (doms_new == NULL) {
 		ndoms_new = 1;
 		doms_new = &fallback_doms;
@@ -6514,6 +6527,8 @@ match2:
 		kfree(doms_cur);
 	doms_cur = doms_new;
 	ndoms_cur = ndoms_new;
+
+	register_sched_domain_sysctl();
 }
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
