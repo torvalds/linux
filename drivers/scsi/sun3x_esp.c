@@ -332,8 +332,8 @@ static void dma_mmu_get_scsi_sgl (struct NCR_ESP *esp, Scsi_Cmnd *sp)
     struct scatterlist *sg = sp->SCp.buffer;
 
     while (sz >= 0) {
-	    sg[sz].dma_address = dvma_map((unsigned long)page_address(sg[sz].page) +
-					   sg[sz].offset, sg[sz].length);
+	    sg[sz].dma_address = dvma_map((unsigned long)sg_virt(&sg[sz]),
+					  sg[sz].length);
 	    sz--;
     }
     sp->SCp.ptr=(char *)((unsigned long)sp->SCp.buffer->dma_address);

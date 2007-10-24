@@ -9,10 +9,10 @@
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
 
 #include <asm/pgalloc.h>
-#include <asm/scatterlist.h>
 
 void *dma_alloc_coherent(struct device *dev, size_t size,
 			 dma_addr_t *handle, gfp_t flag)

@@ -25,7 +25,7 @@
 #include <net/ieee80211.h>
 
 #include <linux/crypto.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
