@@ -1931,16 +1931,14 @@ void cpqhp_pushbutton_thread(unsigned long slot)
 			return ;
 		}
 
-		if (func != NULL && ctrl != NULL) {
-			if (cpqhp_process_SS(ctrl, func) != 0) {
-				amber_LED_on (ctrl, hp_slot);
-				green_LED_on (ctrl, hp_slot);
-				
-				set_SOGO(ctrl);
+		if (cpqhp_process_SS(ctrl, func) != 0) {
+			amber_LED_on(ctrl, hp_slot);
+			green_LED_on(ctrl, hp_slot);
 
-				/* Wait for SOBS to be unset */
-				wait_for_ctrl_irq (ctrl);
-			}
+			set_SOGO(ctrl);
+
+			/* Wait for SOBS to be unset */
+			wait_for_ctrl_irq(ctrl);
 		}
 
 		p_slot->state = STATIC_STATE;
