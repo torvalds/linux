@@ -4003,7 +4003,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ }
 };
 
-int strn_pattern_cmp(const char *patt, const char *name, int wildchar)
+static int strn_pattern_cmp(const char *patt, const char *name, int wildchar)
 {
 	const char *p;
 	int len;
@@ -6917,7 +6917,7 @@ int ata_host_activate(struct ata_host *host, int irq,
  *	LOCKING:
  *	Kernel thread context (may sleep).
  */
-void ata_port_detach(struct ata_port *ap)
+static void ata_port_detach(struct ata_port *ap)
 {
 	unsigned long flags;
 	struct ata_link *link;
