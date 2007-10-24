@@ -867,66 +867,6 @@ controller and should be autodetected by the driver. An example is the
 24 bit region which is specified by a mask of 0x00fffffe.
 
 
-5.5) 53c7xx=
-------------
-
-Syntax: 53c7xx=<sub-options...>
-
-These options affect the A4000T, A4091, WarpEngine, Blizzard 603e+,
-and GForce 040/060 SCSI controllers on the Amiga, as well as the
-builtin MVME 16x SCSI controller.
-
-The <sub-options> is a comma-separated list of the sub-options listed
-below.
-
-5.5.1) nosync
--------------
-
-Syntax: nosync:0
-
-  Disables sync negotiation for all devices.  Any value after the
-  colon is acceptable (and has the same effect).
-
-5.5.2) noasync
---------------
-
-[OBSOLETE, REMOVED]
-
-5.5.3) nodisconnect
--------------------
-
-Syntax: nodisconnect:0
-
-  Disables SCSI disconnects.  Any value after the colon is acceptable
-  (and has the same effect).
-
-5.5.4) validids
----------------
-
-Syntax: validids:0xNN
-
-  Specify which SCSI ids the driver should pay attention to.  This is
-  a bitmask (i.e. to only pay attention to ID#4, you'd use 0x10).
-  Default is 0x7f (devices 0-6).
-
-5.5.5) opthi
-5.5.6) optlo
-------------
-
-Syntax: opthi:M,optlo:N
-
-  Specify options for "hostdata->options".  The acceptable definitions
-  are listed in drivers/scsi/53c7xx.h; the 32 high bits should be in
-  opthi and the 32 low bits in optlo.  They must be specified in the
-  order opthi=M,optlo=N.
-
-5.5.7) next
------------
-
-  No argument. Used to separate blocks of keywords when there's more
-  than one 53c7xx host adapter in the system.
-
-
 /* Local Variables: */
 /* mode: text       */
 /* End:             */
