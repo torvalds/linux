@@ -375,9 +375,9 @@ int tm6000_init (struct tm6000_core *dev)
 
 	msleep(50);
 
-	return 0;
-
 #endif /* HACK */
+
+	return 0;
 }
 
 #define tm6000_wrt(dev,req,reg,val, data...)				\

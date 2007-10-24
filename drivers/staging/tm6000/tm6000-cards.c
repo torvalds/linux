@@ -29,6 +29,7 @@
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
+#include "tuner-xc2028.h"
 
 #define TM6000_BOARD_UNKNOWN			0
 #define TM5600_BOARD_GENERIC			1
@@ -156,6 +157,24 @@ struct usb_device_id tm6000_id_table [] = {
 	{ },
 };
 
+static void tm6000_config_tuner (struct tm6000_core *dev)
+{
+	struct v4l2_priv_tun_config  xc2028_cfg;
+	struct xc2028_ctrl           ctl;
+
+	memset (&ctl,0,sizeof(ctl));
+
+	ctl.fname = "tm6000-xc3028.fw";
+	ctl.type  = XC2028_FIRM_MTS;
+
+	xc2028_cfg.tuner = TUNER_XC2028;
+	xc2028_cfg.priv  = &ctl;
+
+printk("Setting firmware parameters for tm6000\n");
+
+	tm6000_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+}
+
 static int tm6000_init_dev(struct tm6000_core *dev)
 {
 	struct v4l2_frequency f;
@@ -191,6 +210,9 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	/* Request tuner */
 	request_module ("tuner");
+
+	tm6000_config_tuner (dev);
+
 //	norm=V4L2_STD_NTSC_M;
 	dev->norm=V4L2_STD_PAL_M;
 	tm6000_i2c_call_clients(dev, VIDIOC_S_STD, &dev->norm);
