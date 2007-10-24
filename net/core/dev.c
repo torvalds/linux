@@ -1007,17 +1007,20 @@ int dev_open(struct net_device *dev)
 	 *	Call device private open method
 	 */
 	set_bit(__LINK_STATE_START, &dev->state);
-	if (dev->open) {
+
+	if (dev->validate_addr)
+		ret = dev->validate_addr(dev);
+
+	if (!ret && dev->open)
 		ret = dev->open(dev);
-		if (ret)
-			clear_bit(__LINK_STATE_START, &dev->state);
-	}
 
 	/*
 	 *	If it went open OK then:
 	 */
 
-	if (!ret) {
+	if (ret)
+		clear_bit(__LINK_STATE_START, &dev->state);
+	else {
 		/*
 		 *	Set the flags.
 		 */
@@ -1038,6 +1041,7 @@ int dev_open(struct net_device *dev)
 		 */
 		call_netdevice_notifiers(NETDEV_UP, dev);
 	}
+
 	return ret;
 }
 

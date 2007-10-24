@@ -669,6 +669,8 @@ struct net_device
 #define HAVE_SET_MAC_ADDR  		 
 	int			(*set_mac_address)(struct net_device *dev,
 						   void *addr);
+#define HAVE_VALIDATE_ADDR
+	int			(*validate_addr)(struct net_device *dev);
 #define HAVE_PRIVATE_IOCTL
 	int			(*do_ioctl)(struct net_device *dev,
 					    struct ifreq *ifr, int cmd);

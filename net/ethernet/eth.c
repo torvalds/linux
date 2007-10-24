@@ -298,6 +298,14 @@ static int eth_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+static int eth_validate_addr(struct net_device *dev)
+{
+	if (!is_valid_ether_addr(dev->dev_addr))
+		return -EINVAL;
+
+	return 0;
+}
+
 const struct header_ops eth_header_ops ____cacheline_aligned = {
 	.create		= eth_header,
 	.parse		= eth_header_parse,
@@ -317,6 +325,7 @@ void ether_setup(struct net_device *dev)
 
 	dev->change_mtu		= eth_change_mtu;
 	dev->set_mac_address 	= eth_mac_addr;
+	dev->validate_addr	= eth_validate_addr;
 
 	dev->type		= ARPHRD_ETHER;
 	dev->hard_header_len 	= ETH_HLEN;
