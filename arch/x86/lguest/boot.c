@@ -56,6 +56,7 @@
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
 #include <linux/virtio_console.h>
+#include <linux/pm.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
 #include <asm/page.h>
