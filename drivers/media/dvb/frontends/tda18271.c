@@ -28,13 +28,9 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
-#define tuner_dbg(fmt, arg...) do {\
-	if (debug > 0) \
-		printk(KERN_DEBUG fmt, ##arg); } while (0)
-
-#define tuner_extra_dbg(fmt, arg...) do {\
-	if (debug > 1) \
-		printk(KERN_DEBUG fmt, ##arg); } while (0)
+#define dprintk(level, fmt, arg...) do {\
+	if (debug >= level) \
+		printk(KERN_DEBUG "%s: " fmt, __FUNCTION__, ##arg); } while (0)
 
 #define R_ID     0x00	/* ID byte                */
 #define R_TM     0x01	/* Thermo byte            */
@@ -335,23 +331,23 @@ static void tda18271_dump_regs(struct dvb_frontend *fe)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 
-	tuner_dbg("=== TDA18271 REG DUMP ===\n");
-	tuner_dbg("ID_BYTE            = 0x%x\n", 0xff & regs[R_ID]);
-	tuner_dbg("THERMO_BYTE        = 0x%x\n", 0xff & regs[R_TM]);
-	tuner_dbg("POWER_LEVEL_BYTE   = 0x%x\n", 0xff & regs[R_PL]);
-	tuner_dbg("EASY_PROG_BYTE_1   = 0x%x\n", 0xff & regs[R_EP1]);
-	tuner_dbg("EASY_PROG_BYTE_2   = 0x%x\n", 0xff & regs[R_EP2]);
-	tuner_dbg("EASY_PROG_BYTE_3   = 0x%x\n", 0xff & regs[R_EP3]);
-	tuner_dbg("EASY_PROG_BYTE_4   = 0x%x\n", 0xff & regs[R_EP4]);
-	tuner_dbg("EASY_PROG_BYTE_5   = 0x%x\n", 0xff & regs[R_EP5]);
-	tuner_dbg("CAL_POST_DIV_BYTE  = 0x%x\n", 0xff & regs[R_CPD]);
-	tuner_dbg("CAL_DIV_BYTE_1     = 0x%x\n", 0xff & regs[R_CD1]);
-	tuner_dbg("CAL_DIV_BYTE_2     = 0x%x\n", 0xff & regs[R_CD2]);
-	tuner_dbg("CAL_DIV_BYTE_3     = 0x%x\n", 0xff & regs[R_CD3]);
-	tuner_dbg("MAIN_POST_DIV_BYTE = 0x%x\n", 0xff & regs[R_MPD]);
-	tuner_dbg("MAIN_DIV_BYTE_1    = 0x%x\n", 0xff & regs[R_MD1]);
-	tuner_dbg("MAIN_DIV_BYTE_2    = 0x%x\n", 0xff & regs[R_MD2]);
-	tuner_dbg("MAIN_DIV_BYTE_3    = 0x%x\n", 0xff & regs[R_MD3]);
+	dprintk(1, "=== TDA18271 REG DUMP ===\n");
+	dprintk(1, "ID_BYTE            = 0x%x\n", 0xff & regs[R_ID]);
+	dprintk(1, "THERMO_BYTE        = 0x%x\n", 0xff & regs[R_TM]);
+	dprintk(1, "POWER_LEVEL_BYTE   = 0x%x\n", 0xff & regs[R_PL]);
+	dprintk(1, "EASY_PROG_BYTE_1   = 0x%x\n", 0xff & regs[R_EP1]);
+	dprintk(1, "EASY_PROG_BYTE_2   = 0x%x\n", 0xff & regs[R_EP2]);
+	dprintk(1, "EASY_PROG_BYTE_3   = 0x%x\n", 0xff & regs[R_EP3]);
+	dprintk(1, "EASY_PROG_BYTE_4   = 0x%x\n", 0xff & regs[R_EP4]);
+	dprintk(1, "EASY_PROG_BYTE_5   = 0x%x\n", 0xff & regs[R_EP5]);
+	dprintk(1, "CAL_POST_DIV_BYTE  = 0x%x\n", 0xff & regs[R_CPD]);
+	dprintk(1, "CAL_DIV_BYTE_1     = 0x%x\n", 0xff & regs[R_CD1]);
+	dprintk(1, "CAL_DIV_BYTE_2     = 0x%x\n", 0xff & regs[R_CD2]);
+	dprintk(1, "CAL_DIV_BYTE_3     = 0x%x\n", 0xff & regs[R_CD3]);
+	dprintk(1, "MAIN_POST_DIV_BYTE = 0x%x\n", 0xff & regs[R_MPD]);
+	dprintk(1, "MAIN_DIV_BYTE_1    = 0x%x\n", 0xff & regs[R_MD1]);
+	dprintk(1, "MAIN_DIV_BYTE_2    = 0x%x\n", 0xff & regs[R_MD2]);
+	dprintk(1, "MAIN_DIV_BYTE_3    = 0x%x\n", 0xff & regs[R_MD3]);
 }
 
 static void tda18271_read_regs(struct dvb_frontend *fe)
@@ -614,7 +610,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	int i;
 
 
-	tuner_dbg("%s: freq = %d, ifc = %d\n", __FUNCTION__, freq, ifc);
+	dprintk(1, "freq = %d, ifc = %d\n", freq, ifc);
 
 	tda18271_init_regs(fe);
 	/* RF tracking filter calibration */
@@ -626,8 +622,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("bp filter = 0x%x, i = %d\n",
-			tda18271_bp_filter[i].val, i);
+	dprintk(2, "bp filter = 0x%x, i = %d\n", tda18271_bp_filter[i].val, i);
 
 	regs[R_EP1]  &= ~0x07; /* clear bp filter bits */
 	regs[R_EP1]  |= tda18271_bp_filter[i].val;
@@ -666,8 +661,8 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("cal pll, pd = 0x%x, d = 0x%x, i = %d\n",
-			tda18271_cal_pll[i].pd, tda18271_cal_pll[i].d, i);
+	dprintk(2, "cal pll, pd = 0x%x, d = 0x%x, i = %d\n",
+		tda18271_cal_pll[i].pd, tda18271_cal_pll[i].d, i);
 
 	regs[R_CPD]   = tda18271_cal_pll[i].pd;
 
@@ -693,8 +688,8 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("main pll, pd = 0x%x, d = 0x%x, i = %d\n",
-			tda18271_main_pll[i].pd, tda18271_main_pll[i].d, i);
+	dprintk(2, "main pll, pd = 0x%x, d = 0x%x, i = %d\n",
+		tda18271_main_pll[i].pd, tda18271_main_pll[i].d, i);
 
 	regs[R_MPD]   = (0x7f & tda18271_main_pll[i].pd);
 
@@ -722,7 +717,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("km = 0x%x, i = %d\n", tda18271_km[i].val, i);
+	dprintk(2, "km = 0x%x, i = %d\n", tda18271_km[i].val, i);
 
 	regs[R_EB13] &= 0x83;
 	regs[R_EB13] |= tda18271_km[i].val;
@@ -735,8 +730,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("rf band = 0x%x, i = %d\n",
-			tda18271_rf_band[i].val, i);
+	dprintk(2, "rf band = 0x%x, i = %d\n", tda18271_rf_band[i].val, i);
 
 	regs[R_EP2]  &= ~0xe0; /* clear rf band bits */
 	regs[R_EP2]  |= (tda18271_rf_band[i].val << 5);
@@ -748,8 +742,8 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("gain taper = 0x%x, i = %d\n",
-			tda18271_gain_taper[i].val, i);
+	dprintk(2, "gain taper = 0x%x, i = %d\n",
+		tda18271_gain_taper[i].val, i);
 
 	regs[R_EP2]  &= ~0x1f; /* clear gain taper bits */
 	regs[R_EP2]  |= tda18271_gain_taper[i].val;
@@ -783,7 +777,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("rf cal = 0x%x, i = %d\n", tda18271_rf_cal[i].val, i);
+	dprintk(2, "rf cal = 0x%x, i = %d\n", tda18271_rf_cal[i].val, i);
 
 	/* VHF_Low band only */
 	if (tda18271_rf_cal[i].rfmax != 0) {
@@ -847,8 +841,8 @@ static int tda18271_tune(struct dvb_frontend *fe,
 			break;
 		i++;
 	}
-	tuner_extra_dbg("main pll, pd = 0x%x, d = 0x%x, i = %d\n",
-			tda18271_main_pll[i].pd, tda18271_main_pll[i].d, i);
+	dprintk(2, "main pll, pd = 0x%x, d = 0x%x, i = %d\n",
+		tda18271_main_pll[i].pd, tda18271_main_pll[i].d, i);
 
 	regs[R_MPD]   = (0x7f & tda18271_main_pll[i].pd);
 	switch (priv->mode) {
@@ -979,7 +973,7 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	if (params->mode == V4L2_TUNER_RADIO)
 		sgIF =  88; /* if frequency is 5.5 MHz */
 
-	tuner_dbg("setting tda18271 to system %s\n", mode);
+	dprintk(1, "setting tda18271 to system %s\n", mode);
 
 	return tda18271_tune(fe, sgIF * 62500, params->frequency * 62500,
 			     0, std);
@@ -1025,7 +1019,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 {
 	struct tda18271_priv *priv = NULL;
 
-	tuner_dbg("%s:\n", __FUNCTION__);
+	dprintk(1, "@ 0x%x\n", addr);
 	priv = kzalloc(sizeof(struct tda18271_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return NULL;
