@@ -922,11 +922,6 @@ static int ub_scsi_cmd_start(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	usb_fill_bulk_urb(&sc->work_urb, sc->dev, sc->send_bulk_pipe,
 	    bcb, US_BULK_CB_WRAP_LEN, ub_urb_complete, sc);
 
-	/* Fill what we shouldn't be filling, because usb-storage did so. */
-	sc->work_urb.actual_length = 0;
-	sc->work_urb.error_count = 0;
-	sc->work_urb.status = 0;
-
 	if ((rc = usb_submit_urb(&sc->work_urb, GFP_ATOMIC)) != 0) {
 		/* XXX Clear stalls */
 		ub_complete(&sc->work_done);
@@ -1313,9 +1308,6 @@ static void ub_data_start(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	sc->last_pipe = pipe;
 	usb_fill_bulk_urb(&sc->work_urb, sc->dev, pipe, sg_virt(sg),
 	    sg->length, ub_urb_complete, sc);
-	sc->work_urb.actual_length = 0;
-	sc->work_urb.error_count = 0;
-	sc->work_urb.status = 0;
 
 	if ((rc = usb_submit_urb(&sc->work_urb, GFP_ATOMIC)) != 0) {
 		/* XXX Clear stalls */
@@ -1356,9 +1348,6 @@ static int __ub_state_stat(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	sc->last_pipe = sc->recv_bulk_pipe;
 	usb_fill_bulk_urb(&sc->work_urb, sc->dev, sc->recv_bulk_pipe,
 	    &sc->work_bcs, US_BULK_CS_WRAP_LEN, ub_urb_complete, sc);
-	sc->work_urb.actual_length = 0;
-	sc->work_urb.error_count = 0;
-	sc->work_urb.status = 0;
 
 	if ((rc = usb_submit_urb(&sc->work_urb, GFP_ATOMIC)) != 0) {
 		/* XXX Clear stalls */
@@ -1473,9 +1462,6 @@ static int ub_submit_clear_stall(struct ub_dev *sc, struct ub_scsi_cmd *cmd,
 
 	usb_fill_control_urb(&sc->work_urb, sc->dev, sc->send_ctrl_pipe,
 	    (unsigned char*) cr, NULL, 0, ub_urb_complete, sc);
-	sc->work_urb.actual_length = 0;
-	sc->work_urb.error_count = 0;
-	sc->work_urb.status = 0;
 
 	if ((rc = usb_submit_urb(&sc->work_urb, GFP_ATOMIC)) != 0) {
 		ub_complete(&sc->work_done);
@@ -1953,9 +1939,6 @@ static int ub_sync_reset(struct ub_dev *sc)
 
 	usb_fill_control_urb(&sc->work_urb, sc->dev, sc->send_ctrl_pipe,
 	    (unsigned char*) cr, NULL, 0, ub_probe_urb_complete, &compl);
-	sc->work_urb.actual_length = 0;
-	sc->work_urb.error_count = 0;
-	sc->work_urb.status = 0;
 
 	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0) {
 		printk(KERN_WARNING
@@ -2007,9 +1990,6 @@ static int ub_sync_getmaxlun(struct ub_dev *sc)
 
 	usb_fill_control_urb(&sc->work_urb, sc->dev, sc->recv_ctrl_pipe,
 	    (unsigned char*) cr, p, 1, ub_probe_urb_complete, &compl);
-	sc->work_urb.actual_length = 0;
-	sc->work_urb.error_count = 0;
-	sc->work_urb.status = 0;
 
 	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0)
 		goto err_submit;
@@ -2077,9 +2057,6 @@ static int ub_probe_clear_stall(struct ub_dev *sc, int stalled_pipe)
 
 	usb_fill_control_urb(&sc->work_urb, sc->dev, sc->send_ctrl_pipe,
 	    (unsigned char*) cr, NULL, 0, ub_probe_urb_complete, &compl);
-	sc->work_urb.actual_length = 0;
-	sc->work_urb.error_count = 0;
-	sc->work_urb.status = 0;
 
 	if ((rc = usb_submit_urb(&sc->work_urb, GFP_KERNEL)) != 0) {
 		printk(KERN_WARNING
