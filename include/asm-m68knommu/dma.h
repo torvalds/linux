@@ -39,6 +39,8 @@
 #define MAX_M68K_DMA_CHANNELS 4
 #elif defined(CONFIG_M5272)
 #define MAX_M68K_DMA_CHANNELS 1
+#elif defined(CONFIG_M532x)
+#define MAX_M68K_DMA_CHANNELS 0
 #else
 #define MAX_M68K_DMA_CHANNELS 2
 #endif
