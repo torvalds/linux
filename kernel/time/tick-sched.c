@@ -320,8 +320,6 @@ ktime_t tick_nohz_get_sleep_length(void)
 	return ts->sleep_length;
 }
 
-EXPORT_SYMBOL_GPL(tick_nohz_get_sleep_length);
-
 /**
  * nohz_restart_sched_tick - restart the idle tick from the idle task
  *
