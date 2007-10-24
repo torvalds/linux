@@ -120,6 +120,8 @@
 #include <linux/ctype.h>
 #include <linux/if_arp.h>
 
+#include "net-sysfs.h"
+
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -248,10 +250,6 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
  */
 
 DEFINE_PER_CPU(struct softnet_data, softnet_data);
-
-extern int netdev_kobject_init(void);
-extern int netdev_register_kobject(struct net_device *);
-extern void netdev_unregister_kobject(struct net_device *);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /*
