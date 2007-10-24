@@ -50,14 +50,15 @@ struct tda8290_priv {
 
 /*---------------------------------------------------------------------*/
 
-static void tda8290_i2c_bridge(struct dvb_frontend *fe, int close)
+static int tda8290_i2c_bridge(struct dvb_frontend *fe, int close)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
 	unsigned char  enable[2] = { 0x21, 0xC0 };
 	unsigned char disable[2] = { 0x21, 0x00 };
 	unsigned char *msg;
-	if(close) {
+
+	if (close) {
 		msg = enable;
 		tuner_i2c_xfer_send(&priv->i2c_props, msg, 2);
 		/* let the bridge stabilize */
@@ -66,9 +67,11 @@ static void tda8290_i2c_bridge(struct dvb_frontend *fe, int close)
 		msg = disable;
 		tuner_i2c_xfer_send(&priv->i2c_props, msg, 2);
 	}
+
+	return 0;
 }
 
-static void tda8295_i2c_bridge(struct dvb_frontend *fe, int close)
+static int tda8295_i2c_bridge(struct dvb_frontend *fe, int close)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 
@@ -76,6 +79,7 @@ static void tda8295_i2c_bridge(struct dvb_frontend *fe, int close)
 	unsigned char disable[2] = { 0x46, 0x00 };
 	unsigned char buf[3] = { 0x45, 0x01, 0x00 };
 	unsigned char *msg;
+
 	if (close) {
 		msg = enable;
 		tuner_i2c_xfer_send(&priv->i2c_props, msg, 2);
@@ -94,6 +98,8 @@ static void tda8295_i2c_bridge(struct dvb_frontend *fe, int close)
 		msg[1] |= 0x04;
 		tuner_i2c_xfer_send(&priv->i2c_props, msg, 2);
 	}
+
+	return 0;
 }
 
 /*---------------------------------------------------------------------*/
@@ -517,6 +523,7 @@ static struct analog_tuner_ops tda8290_tuner_ops = {
 	.has_signal     = tda8290_has_signal,
 	.standby        = tda8290_standby,
 	.release        = tda829x_release,
+	.i2c_gate_ctrl  = tda8290_i2c_bridge,
 };
 
 static struct analog_tuner_ops tda8295_tuner_ops = {
@@ -525,6 +532,7 @@ static struct analog_tuner_ops tda8295_tuner_ops = {
 	.has_signal     = tda8295_has_signal,
 	.standby        = tda8295_standby,
 	.release        = tda829x_release,
+	.i2c_gate_ctrl  = tda8295_i2c_bridge,
 };
 
 int tda8290_attach(struct tuner *t)
