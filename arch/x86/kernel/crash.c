@@ -25,7 +25,7 @@
 #include <linux/kdebug.h>
 #include <asm/smp.h>
 
-#ifdef X86_32
+#ifdef CONFIG_X86_32
 #include <mach_ipi.h>
 #else
 #include <asm/mach_apic.h>
@@ -41,7 +41,7 @@ static int crash_nmi_callback(struct notifier_block *self,
 			unsigned long val, void *data)
 {
 	struct pt_regs *regs;
-#ifdef X86_32
+#ifdef CONFIG_X86_32
 	struct pt_regs fixed_regs;
 #endif
 	int cpu;
@@ -60,7 +60,7 @@ static int crash_nmi_callback(struct notifier_block *self,
 		return NOTIFY_STOP;
 	local_irq_disable();
 
-#ifdef X86_32
+#ifdef CONFIG_X86_32
 	if (!user_mode_vm(regs)) {
 		crash_fixup_ss_esp(&fixed_regs, regs);
 		regs = &fixed_regs;
