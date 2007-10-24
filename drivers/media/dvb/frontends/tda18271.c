@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/videodev2.h>
+#include "tuner-driver.h"
 
 #include "tda18271.h"
 
@@ -324,6 +325,26 @@ struct tda18271_priv {
 	u32 bandwidth;
 };
 
+static int tda18271_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	struct analog_tuner_ops *ops = fe->ops.analog_demod_ops;
+	int ret = 0;
+
+	switch (priv->mode) {
+	case TDA18271_ANALOG:
+		if (ops && ops->i2c_gate_ctrl)
+			ret = ops->i2c_gate_ctrl(fe, enable);
+		break;
+	case TDA18271_DIGITAL:
+		if (fe->ops.i2c_gate_ctrl)
+			ret = fe->ops.i2c_gate_ctrl(fe, enable);
+		break;
+	}
+
+	return ret;
+};
+
 /*---------------------------------------------------------------------*/
 
 static void tda18271_dump_regs(struct dvb_frontend *fe)
@@ -363,14 +384,12 @@ static void tda18271_read_regs(struct dvb_frontend *fe)
 		  .buf = regs, .len = 16 }
 	};
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
+	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* read all registers */
 	ret = i2c_transfer(priv->i2c_adap, msg, 2);
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
+	tda18271_i2c_gate_ctrl(fe, 0);
 
 	if (ret != 2)
 		printk("ERROR: %s: i2c_transfer returned: %d\n",
@@ -396,14 +415,12 @@ static void tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 		buf[i] = regs[idx-1+i];
 	}
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 1);
+	tda18271_i2c_gate_ctrl(fe, 1);
 
 	/* write registers */
 	ret = i2c_transfer(priv->i2c_adap, &msg, 1);
 
-	if (fe->ops.i2c_gate_ctrl)
-		fe->ops.i2c_gate_ctrl(fe, 0);
+	tda18271_i2c_gate_ctrl(fe, 0);
 
 	if (ret != 1)
 		printk(KERN_WARNING "ERROR: %s: i2c_transfer returned: %d\n",

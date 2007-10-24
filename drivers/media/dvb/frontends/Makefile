@@ -3,6 +3,7 @@
 #
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/
+EXTRA_CFLAGS += -Idrivers/media/video/
 
 obj-$(CONFIG_DVB_PLL) += dvb-pll.o
 obj-$(CONFIG_DVB_STV0299) += stv0299.o
