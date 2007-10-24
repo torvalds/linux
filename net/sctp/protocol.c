@@ -1179,6 +1179,7 @@ SCTP_STATIC __init int sctp_init(void)
 
 	/* Disable ADDIP by default. */
 	sctp_addip_enable = 0;
+	sctp_addip_noauth = 0;
 
 	/* Enable PR-SCTP by default. */
 	sctp_prsctp_enable = 1;

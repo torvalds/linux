@@ -2137,8 +2137,10 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 
 	/* If the peer claims support for ADD-IP without support
 	 * for AUTH, disable support for ADD-IP.
+	 * Do this only if backward compatible mode is turned off.
 	 */
-	if (asoc->peer.asconf_capable && !asoc->peer.auth_capable) {
+	if (!sctp_addip_noauth &&
+	     (asoc->peer.asconf_capable && !asoc->peer.auth_capable)) {
 		asoc->peer.addip_disabled_mask |= (SCTP_PARAM_ADD_IP |
 						  SCTP_PARAM_DEL_IP |
 						  SCTP_PARAM_SET_PRIMARY);
