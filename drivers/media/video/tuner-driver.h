@@ -40,6 +40,7 @@ struct analog_tuner_ops {
 	void (*tuner_status)(struct dvb_frontend *fe);
 	void (*standby)(struct dvb_frontend *fe);
 	void (*release)(struct dvb_frontend *fe);
+	int  (*i2c_gate_ctrl)(struct dvb_frontend *fe, int enable);
 };
 
 struct tuner {
