@@ -36,11 +36,11 @@
 #include <asm/dma.h>
 #include <asm/k8.h>
 
-unsigned long iommu_bus_base;	/* GART remapping area (physical) */
+static unsigned long iommu_bus_base;	/* GART remapping area (physical) */
 static unsigned long iommu_size; 	/* size of remapping area bytes */
 static unsigned long iommu_pages;	/* .. and in pages */
 
-u32 *iommu_gatt_base; 		/* Remapping table */
+static u32 *iommu_gatt_base; 		/* Remapping table */
 
 /* If this is disabled the IOMMU will use an optimized flushing strategy
    of only flushing when an mapping is reused. With it true the GART is flushed 
@@ -135,8 +135,8 @@ static void flush_gart(void)
 /* Debugging aid for drivers that don't free their IOMMU tables */
 static void **iommu_leak_tab; 
 static int leak_trace;
-int iommu_leak_pages = 20; 
-void dump_leak(void)
+static int iommu_leak_pages = 20;
+static void dump_leak(void)
 {
 	int i;
 	static int dump; 
