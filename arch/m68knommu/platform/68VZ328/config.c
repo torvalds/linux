@@ -16,17 +16,13 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/console.h>
 #include <linux/kd.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 
-#include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
-#include <asm/irq.h>
 #include <asm/machdep.h>
 #include <asm/MC68VZ328.h>
 #include <asm/bootstd.h>
@@ -37,9 +33,6 @@
 
 /***************************************************************************/
 
-void m68328_timer_init(irq_handler_t timer_routine);
-void m68328_timer_tick(void);
-unsigned long m68328_timer_gettimeoffset(void);
 void m68328_timer_gettod(int *year, int *mon, int *day, int *hour, int *min, int *sec);
 
 /***************************************************************************/
@@ -193,9 +186,6 @@ void config_BSP(char *command, int size)
 
 	init_hardware(command, size);
 
-	mach_sched_init = (void *) m68328_timer_init;
-	mach_tick = m68328_timer_tick;
-	mach_gettimeoffset = m68328_timer_gettimeoffset;
 	mach_gettod = m68328_timer_gettod;
 	mach_reset = m68vz328_reset;
 }
