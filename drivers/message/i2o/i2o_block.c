@@ -284,6 +284,7 @@ static inline struct i2o_block_request *i2o_block_request_alloc(void)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_LIST_HEAD(&ireq->queue);
+	sg_init_table(ireq->sg_table, I2O_MAX_PHYS_SEGMENTS);
 
 	return ireq;
 };
