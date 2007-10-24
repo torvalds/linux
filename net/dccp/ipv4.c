@@ -242,7 +242,7 @@ static void dccp_v4_err(struct sk_buff *skb, u32 info)
 
 	dp = dccp_sk(sk);
 	seq = dccp_hdr_seq(dh);
-	if (sk->sk_state != DCCP_LISTEN &&
+	if ((1 << sk->sk_state) & ~(DCCPF_REQUESTING | DCCPF_LISTEN) &&
 	    !between48(seq, dp->dccps_swl, dp->dccps_swh)) {
 		NET_INC_STATS_BH(LINUX_MIB_OUTOFWINDOWICMPS);
 		goto out;
