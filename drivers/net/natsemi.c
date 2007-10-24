@@ -864,6 +864,7 @@ static int __devinit natsemi_probe1 (struct pci_dev *pdev,
 
 	np = netdev_priv(dev);
 	netif_napi_add(dev, &np->napi, natsemi_poll, 64);
+	np->dev = dev;
 
 	np->pci_dev = pdev;
 	pci_set_drvdata(pdev, dev);
