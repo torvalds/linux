@@ -40,13 +40,13 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <scatterlist/scatterlist.h>
 
 #include <linux/mmc/host.h>
 #include <asm/io.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <asm/mach-au1x00/au1xxx_dbdma.h>
 #include <asm/mach-au1x00/au1100_mmc.h>
-#include <asm/scatterlist.h>
 
 #include <au1xxx.h>
 #include "au1xmmc.h"

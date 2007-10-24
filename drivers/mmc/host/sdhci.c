@@ -17,8 +17,6 @@
 
 #include <linux/mmc/host.h>
 
-#include <asm/scatterlist.h>
-
 #include "sdhci.h"
 
 #define DRIVER_NAME "sdhci"
