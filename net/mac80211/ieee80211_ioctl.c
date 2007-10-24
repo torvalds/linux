@@ -634,22 +634,35 @@ static int ieee80211_ioctl_siwtxpower(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	bool need_reconfig = 0;
+	u8 new_power_level;
 
 	if ((data->txpower.flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM)
 		return -EINVAL;
 	if (data->txpower.flags & IW_TXPOW_RANGE)
 		return -EINVAL;
-	if (!data->txpower.fixed)
-		return -EINVAL;
 
-	if (local->hw.conf.power_level != data->txpower.value) {
-		local->hw.conf.power_level = data->txpower.value;
+	if (data->txpower.fixed) {
+		new_power_level = data->txpower.value;
+	} else {
+		/* Automatic power level. Get the px power from the current
+		 * channel. */
+		struct ieee80211_channel* chan = local->oper_channel;
+		if (!chan)
+			return -EINVAL;
+
+		new_power_level = chan->power_level;
+	}
+
+	if (local->hw.conf.power_level != new_power_level) {
+		local->hw.conf.power_level = new_power_level;
 		need_reconfig = 1;
 	}
+
 	if (local->hw.conf.radio_enabled != !(data->txpower.disabled)) {
 		local->hw.conf.radio_enabled = !(data->txpower.disabled);
 		need_reconfig = 1;
 	}
+
 	if (need_reconfig) {
 		ieee80211_hw_config(local);
 		/* The return value of hw_config is not of big interest here,
