@@ -146,6 +146,9 @@
 /* Broadcom SB1250, etc. SOC */
 #define PORT_SB1250_DUART	77
 
+/* Freescale ColdFire */
+#define PORT_MCF	78
+
 
 #ifdef __KERNEL__
 
