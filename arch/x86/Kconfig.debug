@@ -91,7 +91,7 @@ config DOUBLEFAULT
 
 config IOMMU_DEBUG
 	bool "Enable IOMMU debugging"
-	depends on IOMMU && DEBUG_KERNEL
+	depends on GART_IOMMU && DEBUG_KERNEL
 	depends on X86_64
 	help
 	  Force the IOMMU to on even when you have less than 4GB of

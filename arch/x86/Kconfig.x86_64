@@ -479,7 +479,7 @@ config HPET_EMULATE_RTC
 
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.
-config IOMMU
+config GART_IOMMU
 	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
@@ -687,7 +687,7 @@ source kernel/Kconfig.hz
 
 config K8_NB
 	def_bool y
-	depends on AGP_AMD64 || IOMMU || (PCI && NUMA)
+	depends on AGP_AMD64 || GART_IOMMU || (PCI && NUMA)
 
 endmenu
 

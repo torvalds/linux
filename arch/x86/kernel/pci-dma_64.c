@@ -275,7 +275,7 @@ __init int iommu_setup(char *p)
 			swiotlb = 1;
 #endif
 
-#ifdef CONFIG_IOMMU
+#ifdef CONFIG_GART_IOMMU
 		gart_parse_options(p);
 #endif
 
@@ -298,7 +298,7 @@ void __init pci_iommu_alloc(void)
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
 	 */
-#ifdef CONFIG_IOMMU
+#ifdef CONFIG_GART_IOMMU
 	iommu_hole_init();
 #endif
 
@@ -321,7 +321,7 @@ static int __init pci_iommu_init(void)
 
 	intel_iommu_init();
 
-#ifdef CONFIG_IOMMU
+#ifdef CONFIG_GART_IOMMU
 	gart_iommu_init();
 #endif
 
