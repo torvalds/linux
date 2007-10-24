@@ -631,7 +631,6 @@ static inline int __must_check pci_register_driver(struct pci_driver *driver)
 void pci_unregister_driver(struct pci_driver *);
 void pci_remove_behind_bridge(struct pci_dev *);
 struct pci_driver *pci_dev_driver(const struct pci_dev *);
-const struct pci_device_id *pci_match_device(struct pci_driver *drv, struct pci_dev *dev);
 const struct pci_device_id *pci_match_id(const struct pci_device_id *ids, struct pci_dev *dev);
 int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass);
 
@@ -760,7 +759,6 @@ static inline void pci_unregister_driver(struct pci_driver *drv) { }
 static inline int pci_find_capability (struct pci_dev *dev, int cap) {return 0; }
 static inline int pci_find_next_capability (struct pci_dev *dev, u8 post, int cap) { return 0; }
 static inline int pci_find_ext_capability (struct pci_dev *dev, int cap) {return 0; }
-static inline const struct pci_device_id *pci_match_device(const struct pci_device_id *ids, const struct pci_dev *dev) { return NULL; }
 
 /* Power management related routines */
 static inline int pci_save_state(struct pci_dev *dev) { return 0; }
