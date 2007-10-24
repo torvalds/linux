@@ -157,12 +157,12 @@ struct piix_host_priv {
 	const int *map;
 };
 
-static int piix_init_one (struct pci_dev *pdev,
-				    const struct pci_device_id *ent);
+static int piix_init_one(struct pci_dev *pdev,
+			 const struct pci_device_id *ent);
 static void piix_pata_error_handler(struct ata_port *ap);
-static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev);
-static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev);
-static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev);
+static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev);
+static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev);
+static void ich_set_dmamode(struct ata_port *ap, struct ata_device *adev);
 static int ich_pata_cable_detect(struct ata_port *ap);
 #ifdef CONFIG_PM
 static int piix_pci_device_suspend(struct pci_dev *pdev, pm_message_t mesg);
@@ -650,9 +650,9 @@ static int ich_pata_cable_detect(struct ata_port *ap)
 	while (lap->device) {
 		if (lap->device == pdev->device &&
 		    lap->subvendor == pdev->subsystem_vendor &&
-		    lap->subdevice == pdev->subsystem_device) {
+		    lap->subdevice == pdev->subsystem_device)
 			return ATA_CBL_PATA40_SHORT;
-		}
+
 		lap++;
 	}
 
@@ -699,7 +699,7 @@ static void piix_pata_error_handler(struct ata_port *ap)
  *	None (inherited from caller).
  */
 
-static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
+static void piix_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
@@ -786,7 +786,7 @@ static void piix_set_piomode (struct ata_port *ap, struct ata_device *adev)
  *	None (inherited from caller).
  */
 
-static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, int isich)
+static void do_pata_set_dmamode(struct ata_port *ap, struct ata_device *adev, int isich)
 {
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	u8 master_port		= ap->port_no ? 0x42 : 0x40;
@@ -813,7 +813,7 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
 		int u_clock, u_speed;
 
 		/*
-	 	 * UDMA is handled by a combination of clock switching and
+		 * UDMA is handled by a combination of clock switching and
 		 * selection of dividers
 		 *
 		 * Handy rule: Odd modes are UDMATIMx 01, even are 02
@@ -905,7 +905,7 @@ static void do_pata_set_dmamode (struct ata_port *ap, struct ata_device *adev, i
  *	None (inherited from caller).
  */
 
-static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
+static void piix_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	do_pata_set_dmamode(ap, adev, 0);
 }
@@ -921,7 +921,7 @@ static void piix_set_dmamode (struct ata_port *ap, struct ata_device *adev)
  *	None (inherited from caller).
  */
 
-static void ich_set_dmamode (struct ata_port *ap, struct ata_device *adev)
+static void ich_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	do_pata_set_dmamode(ap, adev, 1);
 }
@@ -1106,8 +1106,7 @@ static int __devinit piix_check_450nx_errata(struct pci_dev *ata_dev)
 	u16 cfg;
 	int no_piix_dma = 0;
 
-	while((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL)
-	{
+	while ((pdev = pci_get_device(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82454NX, pdev)) != NULL) {
 		/* Look for 450NX PXB. Check for problem configurations
 		   A PCI quirk checks bit 6 already */
 		pci_read_config_word(pdev, 0x41, &cfg);
@@ -1241,7 +1240,7 @@ static void piix_iocfg_bit18_quirk(struct pci_dev *pdev)
  *	Zero on success, or -ERRNO value.
  */
 
-static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int piix_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	struct device *dev = &pdev->dev;

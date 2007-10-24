@@ -326,7 +326,7 @@ enum {
 	ATA_HORKAGE_SKIP_PM	= (1 << 5),	/* Skip PM operations */
 	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
 
-	 /* DMA mask for user DMA control: User visible values; DO NOT 
+	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
 	ATA_DMA_MASK_ATA	= (1 << 0),	/* DMA on ATA Disk */
 	ATA_DMA_MASK_ATAPI	= (1 << 1),	/* DMA on ATAPI */
@@ -717,7 +717,7 @@ struct ata_timing {
 	unsigned short udma;		/* t2CYCTYP/2 */
 };
 
-#define FIT(v,vmin,vmax)	max_t(short,min_t(short,v,vmax),vmin)
+#define FIT(v, vmin, vmax)	max_t(short, min_t(short, v, vmax), vmin)
 
 extern const unsigned long sata_deb_timing_normal[];
 extern const unsigned long sata_deb_timing_hotplug[];
@@ -816,14 +816,14 @@ extern void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
 extern void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf);
-extern void ata_noop_dev_select (struct ata_port *ap, unsigned int device);
-extern void ata_std_dev_select (struct ata_port *ap, unsigned int device);
+extern void ata_noop_dev_select(struct ata_port *ap, unsigned int device);
+extern void ata_std_dev_select(struct ata_port *ap, unsigned int device);
 extern u8 ata_check_status(struct ata_port *ap);
 extern u8 ata_altstatus(struct ata_port *ap);
 extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf);
-extern int ata_port_start (struct ata_port *ap);
-extern int ata_sff_port_start (struct ata_port *ap);
-extern irqreturn_t ata_interrupt (int irq, void *dev_instance);
+extern int ata_port_start(struct ata_port *ap);
+extern int ata_sff_port_start(struct ata_port *ap);
+extern irqreturn_t ata_interrupt(int irq, void *dev_instance);
 extern void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
 			  unsigned int buflen, int write_data);
 extern void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
@@ -844,8 +844,8 @@ extern void ata_id_string(const u16 *id, unsigned char *s,
 extern void ata_id_c_string(const u16 *id, unsigned char *s,
 			    unsigned int ofs, unsigned int len);
 extern void ata_id_to_dma_mode(struct ata_device *dev, u8 unknown);
-extern void ata_bmdma_setup (struct ata_queued_cmd *qc);
-extern void ata_bmdma_start (struct ata_queued_cmd *qc);
+extern void ata_bmdma_setup(struct ata_queued_cmd *qc);
+extern void ata_bmdma_start(struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
@@ -920,9 +920,9 @@ static inline int ata_acpi_cbl_80wire(struct ata_port *ap) { return 0; }
 #ifdef CONFIG_PCI
 struct pci_dev;
 
-extern int ata_pci_init_one (struct pci_dev *pdev,
+extern int ata_pci_init_one(struct pci_dev *pdev,
 			     const struct ata_port_info * const * ppi);
-extern void ata_pci_remove_one (struct pci_dev *pdev);
+extern void ata_pci_remove_one(struct pci_dev *pdev);
 #ifdef CONFIG_PM
 extern void ata_pci_device_do_suspend(struct pci_dev *pdev, pm_message_t mesg);
 extern int __must_check ata_pci_device_do_resume(struct pci_dev *pdev);

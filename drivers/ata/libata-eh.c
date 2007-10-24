@@ -1197,7 +1197,7 @@ void ata_eh_done(struct ata_link *link, struct ata_device *dev,
  *	RETURNS:
  *	Descriptive string for @err_mask
  */
-static const char * ata_err_string(unsigned int err_mask)
+static const char *ata_err_string(unsigned int err_mask)
 {
 	if (err_mask & AC_ERR_HOST_BUS)
 		return "host bus error";
@@ -1934,7 +1934,7 @@ static void ata_eh_link_report(struct ata_link *link)
 		  ehc->i.serror & SERR_LINK_SEQ_ERR ? "LinkSeq " : "",
 		  ehc->i.serror & SERR_TRANS_ST_ERROR ? "TrStaTrns " : "",
 		  ehc->i.serror & SERR_UNRECOG_FIS ? "UnrecFIS " : "",
-		  ehc->i.serror & SERR_DEV_XCHG ? "DevExch " : "" );
+		  ehc->i.serror & SERR_DEV_XCHG ? "DevExch " : "");
 
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
 		static const char *dma_str[] = {
@@ -1969,17 +1969,17 @@ static void ata_eh_link_report(struct ata_link *link)
 			qc->err_mask & AC_ERR_NCQ ? " <F>" : "");
 
 		if (res->command & (ATA_BUSY | ATA_DRDY | ATA_DF | ATA_DRQ |
-				    ATA_ERR) ) {
+				    ATA_ERR)) {
 			if (res->command & ATA_BUSY)
 				ata_dev_printk(qc->dev, KERN_ERR,
-				  "status: { Busy }\n" );
+				  "status: { Busy }\n");
 			else
 				ata_dev_printk(qc->dev, KERN_ERR,
 				  "status: { %s%s%s%s}\n",
 				  res->command & ATA_DRDY ? "DRDY " : "",
 				  res->command & ATA_DF ? "DF " : "",
 				  res->command & ATA_DRQ ? "DRQ " : "",
-				  res->command & ATA_ERR ? "ERR " : "" );
+				  res->command & ATA_ERR ? "ERR " : "");
 		}
 
 		if (cmd->command != ATA_CMD_PACKET &&
@@ -1990,7 +1990,7 @@ static void ata_eh_link_report(struct ata_link *link)
 			  res->feature & ATA_ICRC ? "ICRC " : "",
 			  res->feature & ATA_UNC ? "UNC " : "",
 			  res->feature & ATA_IDNF ? "IDNF " : "",
-			  res->feature & ATA_ABORTED ? "ABRT " : "" );
+			  res->feature & ATA_ABORTED ? "ABRT " : "");
 	}
 }
 
@@ -2611,7 +2611,7 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 		ehc->i.flags = 0;
 		continue;
 
-	dev_fail:
+dev_fail:
 		nr_failed_devs++;
 		if (ata_eh_handle_dev_fail(dev, rc))
 			nr_disabled_devs++;

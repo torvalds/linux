@@ -49,11 +49,11 @@
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
 #include <linux/scatterlist.h>
+#include <linux/io.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
-#include <asm/io.h>
 #include <asm/semaphore.h>
 #include <asm/byteorder.h>
 
@@ -93,7 +93,7 @@ int libata_fua = 0;
 module_param_named(fua, libata_fua, int, 0444);
 MODULE_PARM_DESC(fua, "FUA support (0=off, 1=on)");
 
-static int ata_ignore_hpa = 0;
+static int ata_ignore_hpa;
 module_param_named(ignore_hpa, ata_ignore_hpa, int, 0644);
 MODULE_PARM_DESC(ignore_hpa, "Ignore HPA limit (0=keep BIOS limits, 1=ignore limits, using full disk)");
 
@@ -713,7 +713,7 @@ unsigned int ata_dev_classify(const struct ata_taskfile *tf)
 	}
 
 	if ((tf->lbam == 0x3c) && (tf->lbah == 0xc3)) {
-		printk("ata: SEMB device ignored\n");
+		printk(KERN_INFO "ata: SEMB device ignored\n");
 		return ATA_DEV_SEMB_UNSUP; /* not yet */
 	}
 
@@ -939,7 +939,7 @@ static int ata_read_native_max_address(struct ata_device *dev, u64 *max_sectors)
 		*max_sectors = ata_tf_to_lba48(&tf);
 	else
 		*max_sectors = ata_tf_to_lba(&tf);
-        if (dev->horkage & ATA_HORKAGE_HPA_SIZE)
+	if (dev->horkage & ATA_HORKAGE_HPA_SIZE)
 		(*max_sectors)--;
 	return 0;
 }
@@ -1151,7 +1151,7 @@ void ata_id_to_dma_mode(struct ata_device *dev, u8 unknown)
  *	LOCKING:
  *	caller.
  */
-void ata_noop_dev_select (struct ata_port *ap, unsigned int device)
+void ata_noop_dev_select(struct ata_port *ap, unsigned int device)
 {
 }
 
@@ -1171,7 +1171,7 @@ void ata_noop_dev_select (struct ata_port *ap, unsigned int device)
  *	caller.
  */
 
-void ata_std_dev_select (struct ata_port *ap, unsigned int device)
+void ata_std_dev_select(struct ata_port *ap, unsigned int device)
 {
 	u8 tmp;
 
@@ -1292,7 +1292,7 @@ static unsigned int ata_id_xfermask(const u16 *id)
 		 */
 		u8 mode = (id[ATA_ID_OLD_PIO_MODES] >> 8) & 0xFF;
 		if (mode < 5)	/* Valid PIO range */
-                	pio_mask = (2 << mode) - 1;
+			pio_mask = (2 << mode) - 1;
 		else
 			pio_mask = 1;
 
@@ -1693,7 +1693,7 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
  *	for pre-ATA4 drives.
  *
  *	FIXME: ATA_CMD_ID_ATA is optional for early drives and right
- *	now we abort if we hit that case. 
+ *	now we abort if we hit that case.
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
@@ -1979,9 +1979,8 @@ int ata_dev_configure(struct ata_device *dev)
 					       "supports DRM functions and may "
 					       "not be fully accessable.\n");
 			snprintf(revbuf, 7, "CFA");
-		}
-		else
-			snprintf(revbuf, 7, "ATA-%d",  ata_id_major_version(id));
+		} else
+			snprintf(revbuf, 7, "ATA-%d", ata_id_major_version(id));
 
 		dev->n_sectors = ata_id_n_sectors(id);
 
@@ -2110,7 +2109,7 @@ int ata_dev_configure(struct ata_device *dev)
 		/* Let the user know. We don't want to disallow opens for
 		   rescue purposes, or in case the vendor is just a blithering
 		   idiot */
-                if (print_info) {
+		if (print_info) {
 			ata_dev_printk(dev, KERN_WARNING,
 "Drive reports diagnostics failure. This may indicate a drive\n");
 			ata_dev_printk(dev, KERN_WARNING,
@@ -2667,8 +2666,8 @@ static const struct ata_timing ata_timing[] = {
 	{ 0xFF }
 };
 
-#define ENOUGH(v,unit)		(((v)-1)/(unit)+1)
-#define EZ(v,unit)		((v)?ENOUGH(v,unit):0)
+#define ENOUGH(v, unit)		(((v)-1)/(unit)+1)
+#define EZ(v, unit)		((v)?ENOUGH(v, unit):0)
 
 static void ata_timing_quantize(const struct ata_timing *t, struct ata_timing *q, int T, int UT)
 {
@@ -2695,7 +2694,7 @@ void ata_timing_merge(const struct ata_timing *a, const struct ata_timing *b,
 	if (what & ATA_TIMING_UDMA   ) m->udma    = max(a->udma,    b->udma);
 }
 
-static const struct ata_timing* ata_timing_find_mode(unsigned short speed)
+static const struct ata_timing *ata_timing_find_mode(unsigned short speed)
 {
 	const struct ata_timing *t;
 
@@ -2727,10 +2726,10 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 
 	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE drive */
 		memset(&p, 0, sizeof(p));
-		if(speed >= XFER_PIO_0 && speed <= XFER_SW_DMA_0) {
+		if (speed >= XFER_PIO_0 && speed <= XFER_SW_DMA_0) {
 			if (speed <= XFER_PIO_2) p.cycle = p.cyc8b = adev->id[ATA_ID_EIDE_PIO];
 					    else p.cycle = p.cyc8b = adev->id[ATA_ID_EIDE_PIO_IORDY];
-		} else if(speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2) {
+		} else if (speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2) {
 			p.cycle = adev->id[ATA_ID_EIDE_DMA_MIN];
 		}
 		ata_timing_merge(&p, t, t, ATA_TIMING_CYCLE | ATA_TIMING_CYC8B);
@@ -2876,14 +2875,17 @@ static int ata_dev_set_mode(struct ata_device *dev)
 		dev->flags |= ATA_DFLAG_PIO;
 
 	err_mask = ata_dev_set_xfermode(dev);
+
 	/* Old CFA may refuse this command, which is just fine */
 	if (dev->xfer_shift == ATA_SHIFT_PIO && ata_id_is_cfa(dev->id))
-        	err_mask &= ~AC_ERR_DEV;
+		err_mask &= ~AC_ERR_DEV;
+
 	/* Some very old devices and some bad newer ones fail any kind of
 	   SET_XFERMODE request but support PIO0-2 timings and no IORDY */
 	if (dev->xfer_shift == ATA_SHIFT_PIO && !ata_id_has_iordy(dev->id) &&
 			dev->pio_mode <= XFER_PIO_2)
 		err_mask &= ~AC_ERR_DEV;
+
 	if (err_mask) {
 		ata_dev_printk(dev, KERN_ERR, "failed to set xfermode "
 			       "(err_mask=0x%x)\n", err_mask);
@@ -3265,7 +3267,7 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	 * the bus shows 0xFF because the odd clown forgets the D7
 	 * pulldown resistor.
 	 */
-	if (ata_check_status(ap) == 0xFF)
+	if (ata_chk_status(ap) == 0xFF)
 		return -ENODEV;
 
 	return ata_bus_post_reset(ap, devmask, deadline);
@@ -3943,7 +3945,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "SAMSUNG CD-ROM SC",	NULL,		ATA_HORKAGE_NODMA },
 	{ "ATAPI CD-ROM DRIVE 40X MAXIMUM",NULL,ATA_HORKAGE_NODMA },
 	{ "_NEC DV5800A", 	NULL,		ATA_HORKAGE_NODMA },
-	{ "SAMSUNG CD-ROM SN-124","N001",	ATA_HORKAGE_NODMA },
+	{ "SAMSUNG CD-ROM SN-124", "N001",	ATA_HORKAGE_NODMA },
 	{ "Seagate STT20000A", NULL,		ATA_HORKAGE_NODMA },
 	{ "IOMEGA  ZIP 250       ATAPI", NULL,	ATA_HORKAGE_NODMA }, /* temporary fix */
 	{ "IOMEGA  ZIP 250       ATAPI       Floppy",
@@ -3959,7 +3961,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 
 	/* Devices where NCQ should be avoided */
 	/* NCQ is slow */
-        { "WDC WD740ADFD-00",   NULL,		ATA_HORKAGE_NONCQ },
+	{ "WDC WD740ADFD-00",	NULL,		ATA_HORKAGE_NONCQ },
 	/* http://thread.gmane.org/gmane.linux.ide/14907 */
 	{ "FUJITSU MHT2060BH",	NULL,		ATA_HORKAGE_NONCQ },
 	/* NCQ is broken */
@@ -3979,6 +3981,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "HTS541612J9SA00",	"SBDIC7JP",	ATA_HORKAGE_NONCQ, },
 	{ "HDT722516DLA380",	"V43OA96A",	ATA_HORKAGE_NONCQ, },
 	{ "Hitachi HTS541616J9SA00", "SB4OC70P", ATA_HORKAGE_NONCQ, },
+	{ "Hitachi HTS542525K9SA00", "BBFOC31P", ATA_HORKAGE_NONCQ, },
 	{ "WDC WD740ADFD-00NLR1", NULL,		ATA_HORKAGE_NONCQ, },
 	{ "WDC WD3200AAJS-00RYA0", "12.01B01",	ATA_HORKAGE_NONCQ, },
 	{ "FUJITSU MHV2080BH",	"00840028",	ATA_HORKAGE_NONCQ, },
@@ -4106,7 +4109,7 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	}
 
 	if ((host->flags & ATA_HOST_SIMPLEX) &&
-            host->simplex_claimed && host->simplex_claimed != ap) {
+	    host->simplex_claimed && host->simplex_claimed != ap) {
 		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 		ata_dev_printk(dev, KERN_WARNING, "simplex DMA is claimed by "
 			       "other device, disabling DMA\n");
@@ -4128,11 +4131,11 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	 */
 	if (xfer_mask & (0xF8 << ATA_SHIFT_UDMA))
 		/* UDMA/44 or higher would be available */
-		if((ap->cbl == ATA_CBL_PATA40) ||
-   		    (ata_drive_40wire(dev->id) &&
-		     (ap->cbl == ATA_CBL_PATA_UNK ||
-                     ap->cbl == ATA_CBL_PATA80))) {
-		      	ata_dev_printk(dev, KERN_WARNING,
+		if ((ap->cbl == ATA_CBL_PATA40) ||
+		    (ata_drive_40wire(dev->id) &&
+		    (ap->cbl == ATA_CBL_PATA_UNK ||
+		     ap->cbl == ATA_CBL_PATA80))) {
+			ata_dev_printk(dev, KERN_WARNING,
 				 "limited to UDMA/33 due to 40-wire cable\n");
 			xfer_mask &= ~(0xF8 << ATA_SHIFT_UDMA);
 		}
@@ -4395,7 +4398,7 @@ static void ata_fill_sg_dumb(struct ata_queued_cmd *qc)
 		u32 addr, offset;
 		u32 sg_len, len, blen;
 
- 		/* determine if physical DMA addr spans 64K boundary.
+		/* determine if physical DMA addr spans 64K boundary.
 		 * Note h/w doesn't support 64-bit, so we unconditionally
 		 * truncate dma_addr_t to u32.
 		 */
@@ -4980,7 +4983,7 @@ next_sg:
 				       "%u bytes trailing data\n", bytes);
 
 		for (i = 0; i < words; i++)
-			ap->ops->data_xfer(qc->dev, (unsigned char*)pad_buf, 2, do_write);
+			ap->ops->data_xfer(qc->dev, (unsigned char *)pad_buf, 2, do_write);
 
 		ap->hsm_task_state = HSM_ST_LAST;
 		return;
@@ -5908,8 +5911,8 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
  *	One if interrupt was handled, zero if not (shared irq).
  */
 
-inline unsigned int ata_host_intr (struct ata_port *ap,
-				   struct ata_queued_cmd *qc)
+inline unsigned int ata_host_intr(struct ata_port *ap,
+				  struct ata_queued_cmd *qc)
 {
 	struct ata_eh_info *ehi = &ap->link.eh_info;
 	u8 status, host_stat = 0;
@@ -6009,7 +6012,7 @@ idle_irq:
  *	IRQ_NONE or IRQ_HANDLED.
  */
 
-irqreturn_t ata_interrupt (int irq, void *dev_instance)
+irqreturn_t ata_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int i;
@@ -6212,7 +6215,7 @@ int ata_flush_cache(struct ata_device *dev)
 
 	/* This is wrong. On a failed flush we get back the LBA of the lost
 	   sector and we should (assuming it wasn't aborted as unknown) issue
-	   a further flush command to continue the writeback until it 
+	   a further flush command to continue the writeback until it
 	   does not error */
 	err_mask = ata_do_simple_cmd(dev, cmd);
 	if (err_mask) {

@@ -248,7 +248,7 @@ void ata_bmdma_setup(struct ata_queued_cmd *qc)
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-void ata_bmdma_start (struct ata_queued_cmd *qc)
+void ata_bmdma_start(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	u8 dmactl;

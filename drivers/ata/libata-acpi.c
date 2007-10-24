@@ -26,7 +26,7 @@
 #include <acpi/actypes.h>
 
 #define NO_PORT_MULT		0xffff
-#define SATA_ADR(root,pmp)	(((root) << 16) | (pmp))
+#define SATA_ADR(root, pmp)	(((root) << 16) | (pmp))
 
 #define REGS_PER_GTF		7
 struct ata_acpi_gtf {
@@ -96,8 +96,8 @@ static void ata_acpi_associate_ide_port(struct ata_port *ap)
 	}
 }
 
-static void ata_acpi_handle_hotplug (struct ata_port *ap, struct kobject *kobj,
-				     u32 event)
+static void ata_acpi_handle_hotplug(struct ata_port *ap, struct kobject *kobj,
+				    u32 event)
 {
 	char event_string[12];
 	char *envp[] = { event_string, NULL };
@@ -114,7 +114,7 @@ static void ata_acpi_handle_hotplug (struct ata_port *ap, struct kobject *kobj,
 	}
 
 	if (kobj) {
-	        sprintf(event_string, "BAY_EVENT=%d", event);
+		sprintf(event_string, "BAY_EVENT=%d", event);
 		kobject_uevent_env(kobj, KOBJ_CHANGE, envp);
 	}
 }
@@ -127,14 +127,14 @@ static void ata_acpi_dev_notify(acpi_handle handle, u32 event, void *data)
 	if (dev->sdev)
 		kobj = &dev->sdev->sdev_gendev.kobj;
 
-	ata_acpi_handle_hotplug (dev->link->ap, kobj, event);
+	ata_acpi_handle_hotplug(dev->link->ap, kobj, event);
 }
 
 static void ata_acpi_ap_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct ata_port *ap = data;
 
-	ata_acpi_handle_hotplug (ap, &ap->dev->kobj, event);
+	ata_acpi_handle_hotplug(ap, &ap->dev->kobj, event);
 }
 
 /**
@@ -398,11 +398,11 @@ int ata_acpi_cbl_80wire(struct ata_port *ap)
 {
 	struct ata_acpi_gtm gtm;
 	int valid = 0;
-	
+
 	/* No _GTM data, no information */
 	if (ata_acpi_gtm(ap, &gtm) < 0)
 		return 0;
-		
+
 	/* Split timing, DMA enabled */
 	if ((gtm.flags & 0x11) == 0x11 && gtm.drive[0].dma < 55)
 		valid |= 1;

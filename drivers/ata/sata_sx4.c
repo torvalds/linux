@@ -62,13 +62,13 @@
 		submit ATA packet to hardware
 		hardware executes ATA WRITE command, w/ data in DIMM
 		hardware raises interrupt
-	
+
 	and each READ looks like this:
 
 		submit ATA packet to hardware
 		hardware executes ATA READ command, w/ data in DIMM
 		hardware raises interrupt
-	
+
 		submit HDMA packet to hardware
 		hardware copies data from DIMM to system memory
 		hardware raises interrupt
