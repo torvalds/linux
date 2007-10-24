@@ -2742,6 +2742,7 @@ static const struct ethtool_ops mv643xx_ethtool_ops = {
 	.get_drvinfo            = mv643xx_get_drvinfo,
 	.get_link               = mv643xx_eth_get_link,
 	.set_sg			= ethtool_op_set_sg,
+	.get_sset_count		= mv643xx_get_sset_count,
 	.get_ethtool_stats      = mv643xx_get_ethtool_stats,
 	.get_strings            = mv643xx_get_strings,
 	.nway_reset		= mv643xx_eth_nway_restart,
