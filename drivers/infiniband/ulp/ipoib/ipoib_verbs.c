@@ -197,12 +197,12 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 	priv->dev->dev_addr[2] = (priv->qp->qp_num >>  8) & 0xff;
 	priv->dev->dev_addr[3] = (priv->qp->qp_num      ) & 0xff;
 
-	priv->tx_sge.lkey 	= priv->mr->lkey;
+	priv->tx_sge.lkey	= priv->mr->lkey;
 
-	priv->tx_wr.opcode 	= IB_WR_SEND;
-	priv->tx_wr.sg_list 	= &priv->tx_sge;
-	priv->tx_wr.num_sge 	= 1;
-	priv->tx_wr.send_flags 	= IB_SEND_SIGNALED;
+	priv->tx_wr.opcode	= IB_WR_SEND;
+	priv->tx_wr.sg_list	= &priv->tx_sge;
+	priv->tx_wr.num_sge	= 1;
+	priv->tx_wr.send_flags	= IB_SEND_SIGNALED;
 
 	return 0;
 

@@ -155,7 +155,7 @@ partial_error:
 	return NULL;
 }
 
-static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv* priv)
+static void ipoib_cm_start_rx_drain(struct ipoib_dev_priv *priv)
 {
 	struct ib_send_wr *bad_wr;
 	struct ipoib_cm_rx *p;
@@ -495,10 +495,10 @@ static inline int post_send(struct ipoib_dev_priv *priv,
 {
 	struct ib_send_wr *bad_wr;
 
-	priv->tx_sge.addr             = addr;
-	priv->tx_sge.length           = len;
+	priv->tx_sge.addr	= addr;
+	priv->tx_sge.length	= len;
 
-	priv->tx_wr.wr_id 	      = wr_id | IPOIB_OP_CM;
+	priv->tx_wr.wr_id	= wr_id | IPOIB_OP_CM;
 
 	return ib_post_send(tx->qp, &priv->tx_wr, &bad_wr);
 }
@@ -540,7 +540,7 @@ void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_
 	tx_req->mapping = addr;
 
 	if (unlikely(post_send(priv, tx, tx->tx_head & (ipoib_sendq_size - 1),
-			        addr, skb->len))) {
+			       addr, skb->len))) {
 		ipoib_warn(priv, "post_send failed\n");
 		++dev->stats.tx_errors;
 		ib_dma_unmap_single(priv->ca, addr, skb->len, DMA_TO_DEVICE);
@@ -799,7 +799,7 @@ static struct ib_qp *ipoib_cm_create_tx_qp(struct net_device *dev, struct ipoib_
 		.sq_sig_type		= IB_SIGNAL_ALL_WR,
 		.qp_type		= IB_QPT_RC,
 		.qp_context		= tx
-        };
+	};
 
 	return ib_create_qp(priv->pd, &attr);
 }
@@ -816,28 +816,28 @@ static int ipoib_cm_send_req(struct net_device *dev,
 	data.qpn = cpu_to_be32(priv->qp->qp_num);
 	data.mtu = cpu_to_be32(IPOIB_CM_BUF_SIZE);
 
-	req.primary_path 	      = pathrec;
-	req.alternate_path 	      = NULL;
-	req.service_id                = cpu_to_be64(IPOIB_CM_IETF_ID | qpn);
-	req.qp_num 		      = qp->qp_num;
-	req.qp_type 		      = qp->qp_type;
-	req.private_data 	      = &data;
-	req.private_data_len 	      = sizeof data;
-	req.flow_control 	      = 0;
+	req.primary_path		= pathrec;
+	req.alternate_path		= NULL;
+	req.service_id			= cpu_to_be64(IPOIB_CM_IETF_ID | qpn);
+	req.qp_num			= qp->qp_num;
+	req.qp_type			= qp->qp_type;
+	req.private_data		= &data;
+	req.private_data_len		= sizeof data;
+	req.flow_control		= 0;
 
-	req.starting_psn              = 0; /* FIXME */
+	req.starting_psn		= 0; /* FIXME */
 
 	/*
 	 * Pick some arbitrary defaults here; we could make these
 	 * module parameters if anyone cared about setting them.
 	 */
-	req.responder_resources	      = 4;
-	req.remote_cm_response_timeout = 20;
-	req.local_cm_response_timeout  = 20;
-	req.retry_count 	      = 0; /* RFC draft warns against retries */
-	req.rnr_retry_count 	      = 0; /* RFC draft warns against retries */
-	req.max_cm_retries 	      = 15;
-	req.srq 	              = 1;
+	req.responder_resources		= 4;
+	req.remote_cm_response_timeout	= 20;
+	req.local_cm_response_timeout	= 20;
+	req.retry_count			= 0; /* RFC draft warns against retries */
+	req.rnr_retry_count		= 0; /* RFC draft warns against retries */
+	req.max_cm_retries		= 15;
+	req.srq				= 1;
 	return ib_send_cm_req(id, &req);
 }
 
@@ -1150,7 +1150,7 @@ static void ipoib_cm_skb_reap(struct work_struct *work)
 	spin_unlock_irq(&priv->tx_lock);
 }
 
-void ipoib_cm_skb_too_long(struct net_device* dev, struct sk_buff *skb,
+void ipoib_cm_skb_too_long(struct net_device *dev, struct sk_buff *skb,
 			   unsigned int mtu)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
@@ -1212,7 +1212,7 @@ static void ipoib_cm_stale_task(struct work_struct *work)
 }
 
 
-static ssize_t show_mode(struct device *d, struct device_attribute *attr, 
+static ssize_t show_mode(struct device *d, struct device_attribute *attr,
 			 char *buf)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(to_net_dev(d));

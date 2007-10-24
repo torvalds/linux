@@ -474,8 +474,8 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	INIT_LIST_HEAD(&path->neigh_list);
 
 	memcpy(path->pathrec.dgid.raw, gid, sizeof (union ib_gid));
-	path->pathrec.sgid          = priv->local_gid;
-	path->pathrec.pkey          = cpu_to_be16(priv->pkey);
+	path->pathrec.sgid	    = priv->local_gid;
+	path->pathrec.pkey	    = cpu_to_be16(priv->pkey);
 	path->pathrec.numb_path     = 1;
 	path->pathrec.traffic_class = priv->broadcast->mcmember.traffic_class;
 
@@ -950,34 +950,34 @@ static void ipoib_setup(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	dev->open 		 = ipoib_open;
-	dev->stop 		 = ipoib_stop;
-	dev->change_mtu 	 = ipoib_change_mtu;
-	dev->hard_start_xmit 	 = ipoib_start_xmit;
-	dev->tx_timeout 	 = ipoib_timeout;
-	dev->header_ops 	 = &ipoib_header_ops;
-	dev->set_multicast_list  = ipoib_set_mcast_list;
-	dev->neigh_setup         = ipoib_neigh_setup_dev;
+	dev->open		 = ipoib_open;
+	dev->stop		 = ipoib_stop;
+	dev->change_mtu		 = ipoib_change_mtu;
+	dev->hard_start_xmit	 = ipoib_start_xmit;
+	dev->tx_timeout		 = ipoib_timeout;
+	dev->header_ops		 = &ipoib_header_ops;
+	dev->set_multicast_list	 = ipoib_set_mcast_list;
+	dev->neigh_setup	 = ipoib_neigh_setup_dev;
 
 	netif_napi_add(dev, &priv->napi, ipoib_poll, 100);
 
-	dev->watchdog_timeo 	 = HZ;
+	dev->watchdog_timeo	 = HZ;
 
-	dev->flags              |= IFF_BROADCAST | IFF_MULTICAST;
+	dev->flags		|= IFF_BROADCAST | IFF_MULTICAST;
 
 	/*
 	 * We add in INFINIBAND_ALEN to allow for the destination
 	 * address "pseudoheader" for skbs without neighbour struct.
 	 */
-	dev->hard_header_len 	 = IPOIB_ENCAP_LEN + INFINIBAND_ALEN;
-	dev->addr_len 		 = INFINIBAND_ALEN;
-	dev->type 		 = ARPHRD_INFINIBAND;
-	dev->tx_queue_len 	 = ipoib_sendq_size * 2;
-	dev->features            = NETIF_F_VLAN_CHALLENGED | NETIF_F_LLTX;
+	dev->hard_header_len	 = IPOIB_ENCAP_LEN + INFINIBAND_ALEN;
+	dev->addr_len		 = INFINIBAND_ALEN;
+	dev->type		 = ARPHRD_INFINIBAND;
+	dev->tx_queue_len	 = ipoib_sendq_size * 2;
+	dev->features		 = NETIF_F_VLAN_CHALLENGED | NETIF_F_LLTX;
 
 	/* MTU will be reset when mcast join happens */
-	dev->mtu 		 = IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN;
-	priv->mcast_mtu 	 = priv->admin_mtu = dev->mtu;
+	dev->mtu		 = IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN;
+	priv->mcast_mtu		 = priv->admin_mtu = dev->mtu;
 
 	memcpy(dev->broadcast, ipv4_bcast_addr, INFINIBAND_ALEN);
 
