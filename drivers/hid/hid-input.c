@@ -101,6 +101,22 @@ struct hidinput_key_translation {
 
 #define APPLE_FLAG_FKEY 0x01
 
+static struct hidinput_key_translation apple_fn_keys[] = {
+	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
+	{ KEY_F2,       KEY_BRIGHTNESSUP,       APPLE_FLAG_FKEY },
+	{ KEY_F3,       KEY_CYCLEWINDOWS,       APPLE_FLAG_FKEY }, /* Exposé */
+	{ KEY_F4,       KEY_FN_F4,              APPLE_FLAG_FKEY }, /* Dashboard */
+	{ KEY_F5,       KEY_FN_F5 },
+	{ KEY_F6,       KEY_FN_F6 },
+	{ KEY_F7,       KEY_BACK,               APPLE_FLAG_FKEY },
+	{ KEY_F8,       KEY_PLAYPAUSE,          APPLE_FLAG_FKEY },
+	{ KEY_F9,       KEY_FORWARD,            APPLE_FLAG_FKEY },
+	{ KEY_F10,      KEY_MUTE,               APPLE_FLAG_FKEY },
+	{ KEY_F11,      KEY_VOLUMEDOWN,         APPLE_FLAG_FKEY },
+	{ KEY_F12,      KEY_VOLUMEUP,           APPLE_FLAG_FKEY },
+	{ }
+};
+
 static struct hidinput_key_translation powerbook_fn_keys[] = {
 	{ KEY_BACKSPACE, KEY_DELETE },
 	{ KEY_F1,       KEY_BRIGHTNESSDOWN,     APPLE_FLAG_FKEY },
@@ -178,7 +194,10 @@ static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 	if (hid_apple_fnmode) {
 		int do_translate;
 
-		trans = find_translation(powerbook_fn_keys, usage->code);
+		trans = find_translation((hid->product < 0x220 ||
+					  hid->product >= 0x300) ?
+					 powerbook_fn_keys : apple_fn_keys,
+					 usage->code);
 		if (trans) {
 			if (test_bit(usage->code, hid->apple_pressed_fn))
 				do_translate = 1;
@@ -236,6 +255,9 @@ static void hidinput_apple_setup(struct input_dev *input)
 	set_bit(KEY_NUMLOCK, input->keybit);
 
 	/* Enable all needed keys */
+	for (trans = apple_fn_keys; trans->from; trans++)
+		set_bit(trans->to, input->keybit);
+
 	for (trans = powerbook_fn_keys; trans->from; trans++)
 		set_bit(trans->to, input->keybit);
 
