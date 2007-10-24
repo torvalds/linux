@@ -41,6 +41,8 @@
 #define KVM_MAX_VCPUS 4
 #define KVM_ALIAS_SLOTS 4
 #define KVM_MEMORY_SLOTS 8
+/* memory slots that does not exposed to userspace */
+#define KVM_PRIVATE_MEM_SLOTS 4
 #define KVM_PERMILLE_MMU_PAGES 20
 #define KVM_MIN_ALLOC_MMU_PAGES 64
 #define KVM_NUM_MMU_PAGES 1024
@@ -361,7 +363,8 @@ struct kvm {
 	int naliases;
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
 	int nmemslots;
-	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS];
+	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
+					KVM_PRIVATE_MEM_SLOTS];
 	/*
 	 * Hash table of struct kvm_mmu_page.
 	 */
@@ -529,6 +532,7 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
 int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
 int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
+int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn);
 void mark_page_dirty(struct kvm *kvm, gfn_t gfn);
 
 enum emulation_result {

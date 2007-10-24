@@ -660,7 +660,7 @@ int kvm_set_memory_region(struct kvm *kvm,
 		goto out;
 	if (mem->guest_phys_addr & (PAGE_SIZE - 1))
 		goto out;
-	if (mem->slot >= KVM_MEMORY_SLOTS)
+	if (mem->slot >= KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
 		goto out;
 	if (mem->guest_phys_addr + mem->memory_size < mem->guest_phys_addr)
 		goto out;
@@ -797,6 +797,8 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 					  kvm_userspace_memory_region *mem,
 					  int user_alloc)
 {
+	if (mem->slot >= KVM_MEMORY_SLOTS)
+		return -EINVAL;
 	return kvm_set_memory_region(kvm, mem, user_alloc);
 }
 
@@ -1009,6 +1011,22 @@ struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn)
 	gfn = unalias_gfn(kvm, gfn);
 	return __gfn_to_memslot(kvm, gfn);
 }
+
+int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
+{
+	int i;
+
+	gfn = unalias_gfn(kvm, gfn);
+	for (i = 0; i < KVM_MEMORY_SLOTS; ++i) {
+		struct kvm_memory_slot *memslot = &kvm->memslots[i];
+
+		if (gfn >= memslot->base_gfn
+		    && gfn < memslot->base_gfn + memslot->npages)
+			return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_is_visible_gfn);
 
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
@@ -3087,6 +3105,8 @@ static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
 	struct page *page;
 
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+	if (!kvm_is_visible_gfn(kvm, pgoff))
+		return NOPAGE_SIGBUS;
 	page = gfn_to_page(kvm, pgoff);
 	if (is_error_page(page)) {
 		kvm_release_page(page);
