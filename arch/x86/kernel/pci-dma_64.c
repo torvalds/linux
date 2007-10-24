@@ -299,7 +299,7 @@ void __init pci_iommu_alloc(void)
 	 * fall-back/fail-over reasons
 	 */
 #ifdef CONFIG_GART_IOMMU
-	iommu_hole_init();
+	gart_iommu_hole_init();
 #endif
 
 #ifdef CONFIG_CALGARY_IOMMU

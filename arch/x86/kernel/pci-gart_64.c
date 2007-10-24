@@ -627,12 +627,12 @@ void __init gart_iommu_init(void)
 		return;
 
 	/* Did we detect a different HW IOMMU? */
-	if (iommu_detected && !iommu_aperture)
+	if (iommu_detected && !gart_iommu_aperture)
 		return;
 
 	if (no_iommu ||
 	    (!force_iommu && end_pfn <= MAX_DMA32_PFN) ||
-	    !iommu_aperture ||
+	    !gart_iommu_aperture ||
 	    (no_agp && init_k8_gatt(&info) < 0)) {
 		if (end_pfn > MAX_DMA32_PFN) {
 			printk(KERN_ERR "WARNING more than 4GB of memory "
@@ -733,9 +733,9 @@ void __init gart_parse_options(char *p)
 		fix_aperture = 0;
 	/* duplicated from pci-dma.c */
 	if (!strncmp(p,"force",5))
-		iommu_aperture_allowed = 1;
+		gart_iommu_aperture_allowed = 1;
 	if (!strncmp(p,"allowed",7))
-		iommu_aperture_allowed = 1;
+		gart_iommu_aperture_allowed = 1;
 	if (!strncmp(p, "memaper", 7)) {
 		fallback_aper_force = 1;
 		p += 7;
