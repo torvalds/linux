@@ -1452,9 +1452,9 @@ struct tunertype tuners[] = {
 		.params = tuner_samsung_tcpn_2121p30a_params,
 		.count  = ARRAY_SIZE(tuner_samsung_tcpn_2121p30a_params),
 	},
-	[TUNER_XCEIVE_XC3028] = { /* Xceive 3028 */
-		.name	= "Xceive xc3028",
-		/* see xc3028.c for details */
+	[TUNER_XC2028] = { /* Xceive 2028 */
+		.name   = "Xceive xc2028/xc3028 tuner",
+		/* see tuner-xc2028.c for details */
 	},
 	[TUNER_THOMSON_FE6600] = { /* Thomson PAL / DVB-T */
 		.name   = "Thomson FE6600",

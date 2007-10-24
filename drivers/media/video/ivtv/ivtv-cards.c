@@ -848,7 +848,7 @@ static const struct ivtv_card ivtv_card_pg600v2 = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
 	.tuners = {
-		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
 	.pci_list = ivtv_pci_pg600v2,
 };
@@ -879,7 +879,7 @@ static const struct ivtv_card ivtv_card_club3d = {
 		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL },
 	},
 	.tuners = {
-		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
 	.pci_list = ivtv_pci_club3d,
 };
@@ -910,7 +910,7 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 	},
 	.gpio_init = { .direction = 0xe000, .initial_value = 0x4000 }, /* enable line-in */
 	.tuners = {
-		{ .std = V4L2_STD_ALL, .tuner = TUNER_XCEIVE_XC3028 },
+		{ .std = V4L2_STD_ALL, .tuner = TUNER_XC2028 },
 	},
 	.pci_list = ivtv_pci_avertv_mce116,
 };

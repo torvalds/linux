@@ -117,7 +117,7 @@ extern int tuner_debug;
 #define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 #define TUNER_TNF_5335MF                69	/* Sabrent Bt848   */
 #define TUNER_SAMSUNG_TCPN_2121P30A     70 	/* Hauppauge PVR-500MCE NTSC */
-#define TUNER_XCEIVE_XC3028		71
+#define TUNER_XC2028			71
 
 #define TUNER_THOMSON_FE6600		72	/* DViCO FusionHDTV DVB-T Hybrid */
 #define TUNER_SAMSUNG_TCPG_6121P30A     73 	/* Hauppauge PVR-500 PAL */

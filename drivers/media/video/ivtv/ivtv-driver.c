@@ -829,7 +829,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	/* load modules */
 #ifndef CONFIG_VIDEO_TUNER
 	if (hw & IVTV_HW_TUNER) {
-		if (itv->options.tuner == TUNER_XCEIVE_XC3028) {
+		if (itv->options.tuner == TUNER_XC2028) {
 			IVTV_INFO("Xceive tuner not yet supported, only composite and S-Video inputs will be available\n");
 			itv->tunerid = 1;
 		}
