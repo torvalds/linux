@@ -53,12 +53,6 @@ MODULE_PARM_DESC(debug_level, "Number of NETIF_MSG bits to enable");
 MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
 
 #define CPMAC_VERSION "0.5.0"
-/* stolen from net/ieee80211.h */
-#ifndef MAC_FMT
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8*)(x))[0], ((u8*)(x))[1], ((u8*)(x))[2], \
-		   ((u8*)(x))[3], ((u8*)(x))[4], ((u8*)(x))[5]
-#endif
 /* frame size + 802.1q tag */
 #define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + 4)
 #define CPMAC_QUEUES	8
@@ -1006,6 +1000,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	struct cpmac_priv *priv;
 	struct net_device *dev;
 	struct plat_cpmac_data *pdata;
+	DECLARE_MAC_BUF(mac);
 
 	pdata = pdev->dev.platform_data;
 
@@ -1077,9 +1072,9 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 
 	if (netif_msg_probe(priv)) {
 		printk(KERN_INFO
-		       "cpmac: device %s (regs: %p, irq: %d, phy: %s, mac: "
-		       MAC_FMT ")\n", dev->name, (void *)mem->start, dev->irq,
-		       priv->phy_name, MAC_ARG(dev->dev_addr));
+		       "cpmac: device %s (regs: %p, irq: %d, phy: %s, "
+		       "mac: %s)\n", dev->name, (void *)mem->start, dev->irq,
+		       priv->phy_name, print_mac(mac, dev->dev_addr));
 	}
 	return 0;
 
