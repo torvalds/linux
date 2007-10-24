@@ -6,7 +6,7 @@
 # unless it's something special (ie not a .c file).
 #
 
-obj-y	+= prom.o setup.o irq.o
+obj-y	+= prom.o irq.o
 obj-$(CONFIG_KGDB) += dbgio.o
 
 EXTRA_CFLAGS += -Werror

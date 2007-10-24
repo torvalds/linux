@@ -24,16 +24,12 @@
 
 #include <asm/wbflush.h>
 #include <asm/reboot.h>
-#include <asm/irq.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
-#include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/bootinfo.h>
 #include <asm/tx4938/rbtx4938.h>
 #ifdef CONFIG_SERIAL_TXX9
-#include <linux/tty.h>
-#include <linux/serial.h>
 #include <linux/serial_core.h>
 #endif
 #include <linux/spi/spi.h>
@@ -855,7 +851,7 @@ void __init plat_time_init(void)
 				     txx9_gbus_clock / 2);
 }
 
-void __init toshiba_rbtx4938_setup(void)
+void __init plat_mem_setup(void)
 {
 	unsigned long long pcfg;
 	char *argptr;

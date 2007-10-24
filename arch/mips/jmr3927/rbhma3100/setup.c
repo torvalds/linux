@@ -29,21 +29,16 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/kdev_t.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/ide.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #ifdef CONFIG_SERIAL_TXX9
-#include <linux/tty.h>
-#include <linux/serial.h>
 #include <linux/serial_core.h>
 #endif
 
-#include <asm/addrspace.h>
 #include <asm/txx9tmr.h>
 #include <asm/reboot.h>
 #include <asm/jmr3927/jmr3927.h>

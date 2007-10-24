@@ -45,27 +45,18 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/mm.h>
-#include <linux/swap.h>
 #include <linux/ioport.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/timex.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 
 #include <asm/bootinfo.h>
-#include <asm/page.h>
 #include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/irq_regs.h>
 #include <asm/processor.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/txx9tmr.h>
-#include <linux/bootmem.h>
-#include <linux/blkdev.h>
 #ifdef CONFIG_TOSHIBA_FPCIB0
 #include <asm/tx4927/smsc_fdc37m81x.h>
 #endif
@@ -73,42 +64,26 @@
 #ifdef CONFIG_PCI
 #include <asm/tx4927/tx4927_pci.h>
 #endif
-#ifdef CONFIG_BLK_DEV_IDEPCI
-#include <linux/hdreg.h>
-#include <linux/ide.h>
-#endif
 #ifdef CONFIG_SERIAL_TXX9
-#include <linux/tty.h>
-#include <linux/serial.h>
 #include <linux/serial_core.h>
 #endif
 
 #undef TOSHIBA_RBTX4927_SETUP_DEBUG
 
 #ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-#define TOSHIBA_RBTX4927_SETUP_NONE        0x00000000
-
-#define TOSHIBA_RBTX4927_SETUP_INFO        ( 1 <<  0 )
-#define TOSHIBA_RBTX4927_SETUP_WARN        ( 1 <<  1 )
-#define TOSHIBA_RBTX4927_SETUP_EROR        ( 1 <<  2 )
-
-#define TOSHIBA_RBTX4927_SETUP_EFWFU       ( 1 <<  3 )
 #define TOSHIBA_RBTX4927_SETUP_SETUP       ( 1 <<  4 )
 #define TOSHIBA_RBTX4927_SETUP_PCIBIOS     ( 1 <<  7 )
 #define TOSHIBA_RBTX4927_SETUP_PCI1        ( 1 <<  8 )
 #define TOSHIBA_RBTX4927_SETUP_PCI2        ( 1 <<  9 )
-#define TOSHIBA_RBTX4927_SETUP_PCI66       ( 1 << 10 )
 
 #define TOSHIBA_RBTX4927_SETUP_ALL         0xffffffff
 #endif
 
 #ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
 static const u32 toshiba_rbtx4927_setup_debug_flag =
-    (TOSHIBA_RBTX4927_SETUP_NONE | TOSHIBA_RBTX4927_SETUP_INFO |
-     TOSHIBA_RBTX4927_SETUP_WARN | TOSHIBA_RBTX4927_SETUP_EROR |
-     TOSHIBA_RBTX4927_SETUP_EFWFU | TOSHIBA_RBTX4927_SETUP_SETUP |
+    (TOSHIBA_RBTX4927_SETUP_SETUP |
      | TOSHIBA_RBTX4927_SETUP_PCIBIOS | TOSHIBA_RBTX4927_SETUP_PCI1 |
-     TOSHIBA_RBTX4927_SETUP_PCI2 | TOSHIBA_RBTX4927_SETUP_PCI66);
+     TOSHIBA_RBTX4927_SETUP_PCI2);
 #endif
 
 #ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
@@ -718,7 +693,7 @@ void toshiba_rbtx4927_power_off(void)
 	/* no return */
 }
 
-void __init toshiba_rbtx4927_setup(void)
+void __init plat_mem_setup(void)
 {
 	int i;
 	u32 cp0_config;
@@ -740,13 +715,6 @@ void __init toshiba_rbtx4927_setup(void)
 	cp0_config = read_c0_config();
 	cp0_config = cp0_config & ~(TX49_CONF_IC | TX49_CONF_DC);
 	write_c0_config(cp0_config);
-
-#ifdef TOSHIBA_RBTX4927_SETUP_DEBUG
-	{
-		extern void dump_cp0(char *);
-		dump_cp0("toshiba_rbtx4927_early_fw_fixup");
-	}
-#endif
 
 	set_io_port_base(KSEG1 + TBTX4927_ISA_IO_OFFSET);
 	TOSHIBA_RBTX4927_SETUP_DPRINTK(TOSHIBA_RBTX4927_SETUP_SETUP,
@@ -936,8 +904,7 @@ void __init toshiba_rbtx4927_setup(void)
 			       "+\n");
 }
 
-void __init
-toshiba_rbtx4927_time_init(void)
+void __init plat_time_init(void)
 {
 	mips_hpt_frequency = tx4927_cpu_clock / 2;
 	if (tx4927_ccfgptr->ccfg & TX4927_CCFG_TINTDIS)
