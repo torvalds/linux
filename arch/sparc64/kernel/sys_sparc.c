@@ -318,7 +318,7 @@ unsigned long get_fb_unmapped_area(struct file *filp, unsigned long orig_addr, u
 
 	if (flags & MAP_FIXED) {
 		/* Ok, don't mess with it. */
-		return get_unmapped_area(NULL, addr, len, pgoff, flags);
+		return get_unmapped_area(NULL, orig_addr, len, pgoff, flags);
 	}
 	flags &= ~MAP_SHARED;
 
