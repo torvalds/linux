@@ -144,6 +144,8 @@ enum dccp_reset_codes {
 	DCCP_RESET_CODE_TOO_BUSY,
 	DCCP_RESET_CODE_BAD_INIT_COOKIE,
 	DCCP_RESET_CODE_AGGRESSION_PENALTY,
+
+	DCCP_MAX_RESET_CODES		/* Leave at the end!  */
 };
 
 /* DCCP options */
