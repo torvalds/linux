@@ -680,7 +680,7 @@ static ssize_t show_docked(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", dock_present(dock_station));
 
 }
-DEVICE_ATTR(docked, S_IRUGO, show_docked, NULL);
+static DEVICE_ATTR(docked, S_IRUGO, show_docked, NULL);
 
 /*
  * show_flags - read method for flags file in sysfs
@@ -691,7 +691,7 @@ static ssize_t show_flags(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", dock_station->flags);
 
 }
-DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
+static DEVICE_ATTR(flags, S_IRUGO, show_flags, NULL);
 
 /*
  * write_undock - write method for "undock" file in sysfs
@@ -707,7 +707,7 @@ static ssize_t write_undock(struct device *dev, struct device_attribute *attr,
 	ret = handle_eject_request(dock_station, ACPI_NOTIFY_EJECT_REQUEST);
 	return ret ? ret: count;
 }
-DEVICE_ATTR(undock, S_IWUSR, NULL, write_undock);
+static DEVICE_ATTR(undock, S_IWUSR, NULL, write_undock);
 
 /*
  * show_dock_uid - read method for "uid" file in sysfs
@@ -723,7 +723,7 @@ static ssize_t show_dock_uid(struct device *dev,
 
 	return snprintf(buf, PAGE_SIZE, "%lx\n", lbuf);
 }
-DEVICE_ATTR(uid, S_IRUGO, show_dock_uid, NULL);
+static DEVICE_ATTR(uid, S_IRUGO, show_dock_uid, NULL);
 
 /**
  * dock_add - add a new dock station

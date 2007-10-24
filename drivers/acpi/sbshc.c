@@ -111,8 +111,8 @@ static int wait_transaction_complete(struct acpi_smb_hc *hc, int timeout)
 		return -ETIME;
 }
 
-int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol, u8 address,
-		    u8 command, u8 *data, u8 length)
+static int acpi_smbus_transaction(struct acpi_smb_hc *hc, u8 protocol,
+				  u8 address, u8 command, u8 *data, u8 length)
 {
 	int ret = -EFAULT, i;
 	u8 temp, sz = 0;
