@@ -234,7 +234,7 @@ unsigned long prepare_sg(struct scatterlist *sg, int nents)
 	dma_sg->dma_length = dent_len;
 
 	if (dma_sg != sg) {
-		dma_sg = next_sg(dma_sg);
+		dma_sg = sg_next(dma_sg);
 		dma_sg->dma_length = 0;
 	}
 
