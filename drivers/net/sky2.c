@@ -4271,7 +4271,7 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	del_timer_sync(&hw->watchdog_timer);
 	cancel_work_sync(&hw->restart_work);
 
-	for (i = hw->ports; i >= 0; --i)
+	for (i = hw->ports-1; i >= 0; --i)
 		unregister_netdev(hw->dev[i]);
 
 	sky2_write32(hw, B0_IMSK, 0);
@@ -4289,7 +4289,7 @@ static void __devexit sky2_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 
-	for (i = hw->ports; i >= 0; --i)
+	for (i = hw->ports-1; i >= 0; --i)
 		free_netdev(hw->dev[i]);
 
 	iounmap(hw->regs);

@@ -550,7 +550,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 
 	n = mac->rx->next_to_clean;
 
-	prefetch(RX_RING(mac, n));
+	prefetch(&RX_RING(mac, n));
 
 	for (count = 0; count < limit; count++) {
 		macrx = RX_RING(mac, n);
