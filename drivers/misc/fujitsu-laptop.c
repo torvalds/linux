@@ -122,9 +122,6 @@ static int get_lcd_level(void)
 	else
 		fujitsu->brightness_changed = 0;
 
-	if (status < 0)
-		return status;
-
 	return fujitsu->brightness_level;
 }
 
