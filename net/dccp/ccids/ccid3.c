@@ -604,8 +604,6 @@ static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid_priv(ccid);
 
-	hctx->ccid3hctx_s     = 0;
-	hctx->ccid3hctx_rtt   = 0;
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
 	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
 
@@ -966,8 +964,6 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
 	hcrx->ccid3hcrx_tstamp_last_feedback =
 		hcrx->ccid3hcrx_tstamp_last_ack = ktime_get_real();
-	hcrx->ccid3hcrx_s   = 0;
-	hcrx->ccid3hcrx_rtt = 0;
 	return 0;
 }
 

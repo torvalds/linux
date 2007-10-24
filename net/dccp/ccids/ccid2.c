@@ -750,20 +750,16 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	 */
 	hctx->ccid2hctx_ssthresh  = ~0;
 	hctx->ccid2hctx_numdupack = 3;
-	hctx->ccid2hctx_seqbufc   = 0;
 
 	/* XXX init ~ to window size... */
 	if (ccid2_hc_tx_alloc_seq(hctx))
 		return -ENOMEM;
 
-	hctx->ccid2hctx_sent	 = 0;
 	hctx->ccid2hctx_rto	 = 3 * HZ;
 	ccid2_change_srtt(hctx, -1);
 	hctx->ccid2hctx_rttvar	 = -1;
-	hctx->ccid2hctx_lastrtt  = 0;
 	hctx->ccid2hctx_rpdupack = -1;
 	hctx->ccid2hctx_last_cong = jiffies;
-	hctx->ccid2hctx_high_ack = 0;
 
 	hctx->ccid2hctx_rtotimer.function = &ccid2_hc_tx_rto_expire;
 	hctx->ccid2hctx_rtotimer.data	  = (unsigned long)sk;
