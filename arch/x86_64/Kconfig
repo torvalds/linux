@@ -835,7 +835,7 @@ source fs/Kconfig
 
 source "kernel/Kconfig.instrumentation"
 
-source "arch/x86_64/Kconfig.debug"
+source "arch/x86/Kconfig.debug"
 
 source "security/Kconfig"
 
