@@ -80,8 +80,6 @@ multicast.txt
 	- Behaviour of cards under Multicast
 ncsa-telnet
 	- notes on how NCSA telnet (DOS) breaks with MTU discovery enabled.
-net-modules.txt
-	- info and "insmod" parameters for all network driver modules.
 netdevices.txt
 	- info on network device driver functions exported to the kernel.
 olympic.txt
