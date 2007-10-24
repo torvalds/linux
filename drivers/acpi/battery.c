@@ -554,10 +554,6 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
 
 	if (!battery || (count > sizeof(alarm_string) - 1))
 		return -EINVAL;
-	if (result) {
-		result = -ENODEV;
-		goto end;
-	}
 	if (!acpi_battery_present(battery)) {
 		result = -ENODEV;
 		goto end;
