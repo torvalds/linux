@@ -255,8 +255,7 @@ static ssize_t parport_read_device_id (struct parport *port, char *buffer,
 ssize_t parport_device_id (int devnum, char *buffer, size_t count)
 {
 	ssize_t retval = -ENXIO;
-	struct pardevice *dev = parport_open (devnum, "Device ID probe",
-					      NULL, NULL, NULL, 0, NULL);
+	struct pardevice *dev = parport_open (devnum, "Device ID probe");
 	if (!dev)
 		return -ENXIO;
 

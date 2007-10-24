@@ -79,7 +79,6 @@
 
 #define RS_EVENT_WRITE_WAKEUP	0
 
-static struct riscom_board * IRQ_to_board[16];
 static struct tty_driver *riscom_driver;
 
 static struct riscom_board rc_board[RC_NBOARD] =  {
@@ -537,15 +536,13 @@ static inline void rc_check_modem(struct riscom_board const * bp)
 }
 
 /* The main interrupt processing routine */
-static irqreturn_t rc_interrupt(int irq, void * dev_id)
+static irqreturn_t rc_interrupt(int dummy, void * dev_id)
 {
 	unsigned char status;
 	unsigned char ack;
-	struct riscom_board *bp;
+	struct riscom_board *bp = dev_id;
 	unsigned long loop = 0;
 	int handled = 0;
-
-	bp = IRQ_to_board[irq];
 
 	if (!(bp->flags & RC_BOARD_ACTIVE))
 		return IRQ_NONE;
@@ -603,7 +600,7 @@ static irqreturn_t rc_interrupt(int irq, void * dev_id)
  */
 
 /* Called with disabled interrupts */
-static inline int rc_setup_board(struct riscom_board * bp)
+static int rc_setup_board(struct riscom_board * bp)
 {
 	int error;
 
@@ -611,7 +608,7 @@ static inline int rc_setup_board(struct riscom_board * bp)
 		return 0;
 	
 	error = request_irq(bp->irq, rc_interrupt, IRQF_DISABLED,
-			    "RISCom/8", NULL);
+			    "RISCom/8", bp);
 	if (error) 
 		return error;
 	
@@ -619,14 +616,13 @@ static inline int rc_setup_board(struct riscom_board * bp)
 	bp->DTR = ~0;
 	rc_out(bp, RC_DTR, bp->DTR);	        /* Drop DTR on all ports */
 	
-	IRQ_to_board[bp->irq] = bp;
 	bp->flags |= RC_BOARD_ACTIVE;
 	
 	return 0;
 }
 
 /* Called with disabled interrupts */
-static inline void rc_shutdown_board(struct riscom_board *bp)
+static void rc_shutdown_board(struct riscom_board *bp)
 {
 	if (!(bp->flags & RC_BOARD_ACTIVE))
 		return;
@@ -634,7 +630,6 @@ static inline void rc_shutdown_board(struct riscom_board *bp)
 	bp->flags &= ~RC_BOARD_ACTIVE;
 	
 	free_irq(bp->irq, NULL);
-	IRQ_to_board[bp->irq] = NULL;
 	
 	bp->DTR = ~0;
 	rc_out(bp, RC_DTR, bp->DTR);	       /* Drop DTR on all ports */
@@ -1594,7 +1589,6 @@ static inline int rc_init_drivers(void)
 	if (!riscom_driver)	
 		return -ENOMEM;
 	
-	memset(IRQ_to_board, 0, sizeof(IRQ_to_board));
 	riscom_driver->owner = THIS_MODULE;
 	riscom_driver->name = "ttyL";
 	riscom_driver->major = RISCOM8_NORMAL_MAJOR;

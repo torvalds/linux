@@ -571,7 +571,7 @@ static int parport_ieee1284_ack_data_avail (struct parport *port)
 #endif /* IEEE1284 support */
 
 /* Handle an interrupt. */
-void parport_ieee1284_interrupt (int which, void *handle)
+void parport_ieee1284_interrupt (void *handle)
 {
 	struct parport *port = handle;
 	parport_ieee1284_wakeup (port);

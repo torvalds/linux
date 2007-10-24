@@ -1124,12 +1124,6 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 	struct i596_dma *dma;
 	unsigned short status, ack_cmd = 0;
 
-	if (dev == NULL) {
-		printk(KERN_WARNING "%s: irq %d for unknown device.\n",
-		       __FUNCTION__, irq);
-		return IRQ_NONE;
-	}
-
 	lp = netdev_priv(dev);
 	dma = lp->dma;
 
@@ -1140,7 +1134,7 @@ static irqreturn_t i596_interrupt(int irq, void *dev_id)
 
 	DEB(DEB_INTS, printk(KERN_DEBUG
 			     "%s: i596 interrupt, IRQ %d, status %4.4x.\n",
-			dev->name, irq, status));
+			dev->name, dev->irq, status));
 
 	ack_cmd = status & 0xf000;
 

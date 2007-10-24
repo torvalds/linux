@@ -524,7 +524,7 @@ void parport_remove_port(struct parport *port)
 struct pardevice *
 parport_register_device(struct parport *port, const char *name,
 			int (*pf)(void *), void (*kf)(void *),
-			void (*irq_func)(int, void *), 
+			void (*irq_func)(void *), 
 			int flags, void *handle)
 {
 	struct pardevice *tmp;
@@ -995,6 +995,15 @@ void parport_release(struct pardevice *dev)
 	}
 }
 
+irqreturn_t parport_irq_handler(int irq, void *dev_id)
+{
+	struct parport *port = dev_id;
+
+	parport_generic_irq(port);
+
+	return IRQ_HANDLED;
+}
+
 /* Exported symbols for modules. */
 
 EXPORT_SYMBOL(parport_claim);
@@ -1011,5 +1020,6 @@ EXPORT_SYMBOL(parport_get_port);
 EXPORT_SYMBOL(parport_put_port);
 EXPORT_SYMBOL(parport_find_number);
 EXPORT_SYMBOL(parport_find_base);
+EXPORT_SYMBOL(parport_irq_handler);
 
 MODULE_LICENSE("GPL");

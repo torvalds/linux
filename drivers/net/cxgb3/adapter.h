@@ -46,8 +46,6 @@
 #include <asm/semaphore.h>
 #include <asm/io.h>
 
-typedef irqreturn_t(*intr_handler_t) (int, void *);
-
 struct vlan_group;
 struct adapter;
 struct sge_qset;
@@ -270,7 +268,7 @@ void t3_sge_start(struct adapter *adap);
 void t3_sge_stop(struct adapter *adap);
 void t3_free_sge_resources(struct adapter *adap);
 void t3_sge_err_intr_handler(struct adapter *adapter);
-intr_handler_t t3_intr_handler(struct adapter *adap, int polling);
+irq_handler_t t3_intr_handler(struct adapter *adap, int polling);
 int t3_eth_xmit(struct sk_buff *skb, struct net_device *dev);
 int t3_mgmt_tx(struct adapter *adap, struct sk_buff *skb);
 void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);

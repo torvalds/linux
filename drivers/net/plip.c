@@ -143,7 +143,7 @@ static void plip_bh(struct work_struct *work);
 static void plip_timer_bh(struct work_struct *work);
 
 /* Interrupt handler */
-static void plip_interrupt(int irq, void *dev_id);
+static void plip_interrupt(void *dev_id);
 
 /* Functions for DEV methods */
 static int plip_tx_packet(struct sk_buff *skb, struct net_device *dev);
@@ -380,7 +380,7 @@ plip_timer_bh(struct work_struct *work)
 		container_of(work, struct net_local, timer.work);
 
 	if (!(atomic_read (&nl->kill_timer))) {
-		plip_interrupt (-1, nl->dev);
+		plip_interrupt (nl->dev);
 
 		schedule_delayed_work(&nl->timer, 1);
 	}
@@ -897,7 +897,7 @@ plip_error(struct net_device *dev, struct net_local *nl,
 
 /* Handle the parallel port interrupts. */
 static void
-plip_interrupt(int irq, void *dev_id)
+plip_interrupt(void *dev_id)
 {
 	struct net_device *dev = dev_id;
 	struct net_local *nl;

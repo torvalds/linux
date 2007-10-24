@@ -46,12 +46,6 @@
 #define dprintk(x)
 #endif
 
-static irqreturn_t parport_sunbpp_interrupt(int irq, void *dev_id)
-{
-	parport_generic_irq(irq, (struct parport *) dev_id);
-	return IRQ_HANDLED;
-}
-
 static void parport_sunbpp_disable_irq(struct parport *p)
 {
 	struct bpp_regs __iomem *regs = (struct bpp_regs __iomem *)p->base;
@@ -324,7 +318,7 @@ static int __devinit init_one_port(struct sbus_dev *sdev)
 	p->size = size;
 	p->dev = &sdev->ofdev.dev;
 
-	if ((err = request_irq(p->irq, parport_sunbpp_interrupt,
+	if ((err = request_irq(p->irq, parport_irq_handler,
 			       IRQF_SHARED, p->name, p)) != 0) {
 		goto out_put_port;
 	}
