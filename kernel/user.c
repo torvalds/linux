@@ -129,7 +129,7 @@ static inline void uids_mutex_unlock(void)
 }
 
 /* return cpu shares held by the user */
-ssize_t cpu_shares_show(struct kset *kset, char *buffer)
+static ssize_t cpu_shares_show(struct kset *kset, char *buffer)
 {
 	struct user_struct *up = container_of(kset, struct user_struct, kset);
 
@@ -137,7 +137,8 @@ ssize_t cpu_shares_show(struct kset *kset, char *buffer)
 }
 
 /* modify cpu shares held by the user */
-ssize_t cpu_shares_store(struct kset *kset, const char *buffer, size_t size)
+static ssize_t cpu_shares_store(struct kset *kset, const char *buffer,
+				size_t size)
 {
 	struct user_struct *up = container_of(kset, struct user_struct, kset);
 	unsigned long shares;
