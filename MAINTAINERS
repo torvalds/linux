@@ -136,17 +136,6 @@ M:	ajk@iehk.rwth-aachen.de
 L:	linux-hams@vger.kernel.org
 S:	Maintained
 
-8139CP 10/100 FAST ETHERNET DRIVER
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
-S:	Maintained
-
-8139TOO 10/100 FAST ETHERNET DRIVER
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
-W:	http://sourceforge.net/projects/gkernel/
-S:	Maintained
-
 8169 10/100/1000 GIGABIT ETHERNET DRIVER
 P:	Francois Romieu
 M:	romieu@fr.zoreil.com
@@ -1036,12 +1025,6 @@ P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
 L:	netdev@vger.kernel.org
 S:	Maintained
-
-CIRRUS LOGIC GENERIC FBDEV DRIVER
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
-L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
-S:	Odd Fixes
 
 CIRRUS LOGIC EP93XX OHCI USB HOST DRIVER
 P:	Lennert Buytenhek
@@ -1961,12 +1944,6 @@ INTEL 810/815 FRAMEBUFFER DRIVER
 P:	Antonino Daplas
 M:	adaplas@gmail.com
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
-S:	Maintained
-
-INTEL I8XX RANDOM NUMBER GENERATOR SUPPORT
-P:	Jeff Garzik
-M:	jgarzik@pobox.com
-W:	http://sourceforge.net/projects/gkernel/
 S:	Maintained
 
 INTEL IA32 MICROCODE UPDATE SUPPORT
@@ -4104,10 +4081,6 @@ P:	OGAWA Hirofumi
 M:	hirofumi@mail.parknet.co.jp
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
-
-VIA 82Cxxx AUDIO DRIVER (old OSS driver)
-P:	Jeff Garzik
-S:	Odd fixes
 
 VIA RHINE NETWORK DRIVER
 P:	Roger Luethi
