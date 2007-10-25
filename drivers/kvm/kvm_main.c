@@ -713,6 +713,7 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 
 		memset(new.rmap, 0, npages * sizeof(*new.rmap));
 
+		new.user_alloc = user_alloc;
 		if (user_alloc)
 			new.userspace_addr = mem->userspace_addr;
 		else {
@@ -726,6 +727,19 @@ static int kvm_vm_ioctl_set_memory_region(struct kvm *kvm,
 
 			if (IS_ERR((void *)new.userspace_addr))
 				goto out_unlock;
+		}
+	} else {
+		if (!old.user_alloc && old.rmap) {
+			int ret;
+
+			down_write(&current->mm->mmap_sem);
+			ret = do_munmap(current->mm, old.userspace_addr,
+					old.npages * PAGE_SIZE);
+			up_write(&current->mm->mmap_sem);
+			if (ret < 0)
+				printk(KERN_WARNING
+				       "kvm_vm_ioctl_set_memory_region: "
+				       "failed to munmap memory\n");
 		}
 	}
 

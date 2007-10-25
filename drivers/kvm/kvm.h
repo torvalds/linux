@@ -353,6 +353,7 @@ struct kvm_memory_slot {
 	unsigned long *rmap;
 	unsigned long *dirty_bitmap;
 	unsigned long userspace_addr;
+	int user_alloc;
 };
 
 struct kvm {
