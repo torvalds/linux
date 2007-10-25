@@ -1,17 +1,7 @@
-#ifndef _ASM_LGUEST_USER
-#define _ASM_LGUEST_USER
+#ifndef _LINUX_LGUEST_LAUNCHER
+#define _LINUX_LGUEST_LAUNCHER
 /* Everything the "lguest" userspace program needs to know. */
 #include <linux/types.h>
-/* They can register up to 32 arrays of lguest_dma. */
-#define LGUEST_MAX_DMA		32
-/* At most we can dma 16 lguest_dma in one op. */
-#define LGUEST_MAX_DMA_SECTIONS	16
-
-/* How many devices?  Assume each one wants up to two dma arrays per device. */
-#define LGUEST_MAX_DEVICES (LGUEST_MAX_DMA/2)
-
-/* Where the Host expects the Guest to SEND_DMA console output to. */
-#define LGUEST_CONSOLE_DMA_KEY 0
 
 /*D:010
  * Drivers
@@ -51,9 +41,9 @@ struct lguest_vqconfig {
 /* Write command first word is a request. */
 enum lguest_req
 {
-	LHREQ_INITIALIZE, /* + pfnlimit, pgdir, start, pageoffset */
+	LHREQ_INITIALIZE, /* + base, pfnlimit, pgdir, start */
 	LHREQ_GETDMA, /* No longer used */
 	LHREQ_IRQ, /* + irq */
 	LHREQ_BREAK, /* + on/off flag (on blocks until someone does off) */
 };
-#endif /* _ASM_LGUEST_USER */
+#endif /* _LINUX_LGUEST_LAUNCHER */
