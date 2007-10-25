@@ -1123,7 +1123,9 @@ int usb_serial_resume(struct usb_interface *intf)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
 
-	return serial->type->resume(serial);
+	if (serial->type->resume)
+		return serial->type->resume(serial);
+	return 0;
 }
 EXPORT_SYMBOL(usb_serial_resume);
 
