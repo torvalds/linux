@@ -161,7 +161,8 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
-	unsigned int cflag = port->tty->termios->c_cflag;
+	struct ktermios *termios = port->tty->termios;
+	unsigned int cflag = termios->c_cflag;
 	unsigned long flags;
 	int baud;
 	int ark3116_baud;
@@ -177,11 +178,14 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 		*(port->tty->termios) = tty_std_termios;
 		port->tty->termios->c_cflag = B9600 | CS8
 					      | CREAD | HUPCL | CLOCAL;
+		termios->c_ispeed = 9600;
+		termios->c_ospeed = 9600;
 		priv->termios_initialized = 1;
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	cflag = port->tty->termios->c_cflag;
+	cflag = termios->c_cflag;
+	termios->c_cflag &= ~(CMSPAR|CRTSCTS);
 
 	buf = kmalloc(1, GFP_KERNEL);
 	if (!buf) {
@@ -254,9 +258,13 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 		case 115200:
 		case 230400:
 		case 460800:
+			/* Report the resulting rate back to the caller */
+			tty_encode_baud_rate(port->tty, baud, baud);
 			break;
 		/* set 9600 as default (if given baudrate is invalid for example) */
 		default:
+			tty_encode_baud_rate(port->tty, 9600, 9600);
+		case 0:
 			baud = 9600;
 	}
 
@@ -302,6 +310,7 @@ static void ark3116_set_termios(struct usb_serial_port *port,
 	/* TEST ARK3116_SND(154, 0xFE, 0x40, 0xFFFF, 0x0006); */
 
 	kfree(buf);
+
 	return;
 }
 

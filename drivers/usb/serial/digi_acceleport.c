@@ -973,6 +973,8 @@ static void digi_set_termios(struct usb_serial_port *port,
 		}
 	}
 	/* set parity */
+	tty->termios->c_cflag &= ~CMSPAR;
+
 	if ((cflag&(PARENB|PARODD)) != (old_cflag&(PARENB|PARODD))) {
 		if (cflag&PARENB) {
 			if (cflag&PARODD)
@@ -1054,15 +1056,15 @@ static void digi_set_termios(struct usb_serial_port *port,
 	}
 
 	/* set output flow control */
-	if ((iflag&IXON) != (old_iflag&IXON)
-	    || (cflag&CRTSCTS) != (old_cflag&CRTSCTS)) {
+	if ((iflag & IXON) != (old_iflag & IXON)
+	    || (cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
 		arg = 0;
-		if (iflag&IXON)
+		if (iflag & IXON)
 			arg |= DIGI_OUTPUT_FLOW_CONTROL_XON_XOFF;
 		else
 			arg &= ~DIGI_OUTPUT_FLOW_CONTROL_XON_XOFF;
 
-		if (cflag&CRTSCTS) {
+		if (cflag & CRTSCTS) {
 			arg |= DIGI_OUTPUT_FLOW_CONTROL_CTS;
 		} else {
 			arg &= ~DIGI_OUTPUT_FLOW_CONTROL_CTS;
@@ -1076,8 +1078,8 @@ static void digi_set_termios(struct usb_serial_port *port,
 	}
 
 	/* set receive enable/disable */
-	if ((cflag&CREAD) != (old_cflag&CREAD)) {
-		if (cflag&CREAD)
+	if ((cflag & CREAD) != (old_cflag & CREAD)) {
+		if (cflag & CREAD)
 			arg = DIGI_ENABLE;
 		else
 			arg = DIGI_DISABLE;
@@ -1089,7 +1091,7 @@ static void digi_set_termios(struct usb_serial_port *port,
 	}
 	if ((ret = digi_write_oob_command(port, buf, i, 1)) != 0)
 		dbg("digi_set_termios: write oob failed, ret=%d", ret);
-
+	tty_encode_baud_rate(tty, baud, baud);
 }
 
 

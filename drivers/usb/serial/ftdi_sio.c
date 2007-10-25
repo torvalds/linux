@@ -294,7 +294,7 @@ struct ftdi_private {
 
 	__u16 interface;	/* FT2232C port interface (0 for FT232/245) */
 
-	int force_baud;		/* if non-zero, force the baud rate to this value */
+	speed_t force_baud;	/* if non-zero, force the baud rate to this value */
 	int force_rtscts;	/* if non-zero, force RTS-CTS to always be enabled */
 
 	spinlock_t tx_lock;	/* spinlock for transmit state */
@@ -878,6 +878,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 		if (div_value == 0) {
 			dbg("%s - Baudrate (%d) requested is not supported", __FUNCTION__,  baud);
 			div_value = ftdi_sio_b9600;
+			baud = 9600;
 			div_okay = 0;
 		}
 		break;
@@ -886,6 +887,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 			div_value = ftdi_232am_baud_to_divisor(baud);
 		} else {
 	                dbg("%s - Baud rate too high!", __FUNCTION__);
+			baud = 9600;
 			div_value = ftdi_232am_baud_to_divisor(9600);
 			div_okay = 0;
 		}
@@ -899,6 +901,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 	                dbg("%s - Baud rate too high!", __FUNCTION__);
 			div_value = ftdi_232bm_baud_to_divisor(9600);
 			div_okay = 0;
+			baud = 9600;
 		}
 		break;
 	} /* priv->chip_type */
@@ -909,6 +912,7 @@ static __u32 get_ftdi_divisor(struct usb_serial_port * port)
 			ftdi_chip_name[priv->chip_type]);
 	}
 
+	tty_encode_baud_rate(port->tty, baud, baud);
 	return(div_value);
 }
 
@@ -1263,7 +1267,7 @@ static void ftdi_USB_UIRT_setup (struct ftdi_private *priv)
 
 	priv->flags |= ASYNC_SPD_CUST;
 	priv->custom_divisor = 77;
-	priv->force_baud = B38400;
+	priv->force_baud = 38400;
 } /* ftdi_USB_UIRT_setup */
 
 /* Setup for the HE-TIRA1 device, which requires hardwired
@@ -1274,7 +1278,7 @@ static void ftdi_HE_TIRA1_setup (struct ftdi_private *priv)
 
 	priv->flags |= ASYNC_SPD_CUST;
 	priv->custom_divisor = 240;
-	priv->force_baud = B38400;
+	priv->force_baud = 38400;
 	priv->force_rtscts = 1;
 } /* ftdi_HE_TIRA1_setup */
 
@@ -1363,7 +1367,7 @@ static int  ftdi_open (struct usb_serial_port *port, struct file *filp)
 
 	/* ftdi_set_termios  will send usb control messages */
 	if (port->tty)
-		ftdi_set_termios(port, NULL);
+		ftdi_set_termios(port, port->tty->termios);
 
 	/* FIXME: Flow control might be enabled, so it should be checked -
 	   we have no control of defaults! */
@@ -1933,32 +1937,33 @@ static void ftdi_break_ctl( struct usb_serial_port *port, int break_state )
 static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 { /* ftdi_termios */
 	struct usb_device *dev = port->serial->dev;
-	unsigned int cflag = port->tty->termios->c_cflag;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
+	struct ktermios *termios = port->tty->termios;
+	unsigned int cflag = termios->c_cflag;
 	__u16 urb_value; /* will hold the new flags */
 	char buf[1]; /* Perhaps I should dynamically alloc this? */
 
 	// Added for xon/xoff support
-	unsigned int iflag = port->tty->termios->c_iflag;
+	unsigned int iflag = termios->c_iflag;
 	unsigned char vstop;
 	unsigned char vstart;
 
 	dbg("%s", __FUNCTION__);
 
 	/* Force baud rate if this device requires it, unless it is set to B0. */
-	if (priv->force_baud && ((port->tty->termios->c_cflag & CBAUD) != B0)) {
+	if (priv->force_baud && ((termios->c_cflag & CBAUD) != B0)) {
 		dbg("%s: forcing baud rate for this device", __FUNCTION__);
-		port->tty->termios->c_cflag &= ~CBAUD;
-		port->tty->termios->c_cflag |= priv->force_baud;
+		tty_encode_baud_rate(port->tty, priv->force_baud,
+					priv->force_baud);
 	}
 
 	/* Force RTS-CTS if this device requires it. */
 	if (priv->force_rtscts) {
 		dbg("%s: forcing rtscts for this device", __FUNCTION__);
-		port->tty->termios->c_cflag |= CRTSCTS;
+		termios->c_cflag |= CRTSCTS;
 	}
 
-	cflag = port->tty->termios->c_cflag;
+	cflag = termios->c_cflag;
 
 	/* FIXME -For this cut I don't care if the line is really changing or
 	   not  - so just do the change regardless  - should be able to
@@ -1968,6 +1973,8 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old
            means - don't see any problems yet */
 
 	/* Set number of data bits, parity, stop bits */
+
+	termios->c_cflag &= ~CMSPAR;
 
 	urb_value = 0;
 	urb_value |= (cflag & CSTOPB ? FTDI_SIO_SET_DATA_STOP_BITS_2 :
@@ -2048,8 +2055,8 @@ static void ftdi_set_termios (struct usb_serial_port *port, struct ktermios *old
 			// Set the vstart and vstop -- could have been done up above where
 			// a lot of other dereferencing is done but that would be very
 			// inefficient as vstart and vstop are not always needed
-			vstart=port->tty->termios->c_cc[VSTART];
-			vstop=port->tty->termios->c_cc[VSTOP];
+			vstart = termios->c_cc[VSTART];
+			vstop = termios->c_cc[VSTOP];
 			urb_value=(vstop << 8) | (vstart);
 
 			if (usb_control_msg(dev,

@@ -1977,11 +1977,6 @@ static void mos7840_change_port_settings(struct moschip_port *mos7840_port,
 
 	tty = mos7840_port->port->tty;
 
-	if ((!tty) || (!tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		return;
-	}
-
 	dbg("%s", "Entering .......... \n");
 
 	lData = LCR_BITS_8;
@@ -2151,11 +2146,6 @@ static void mos7840_set_termios(struct usb_serial_port *port,
 
 	tty = port->tty;
 
-	if (!port->tty || !port->tty->termios) {
-		dbg("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
-
 	if (!mos7840_port->open) {
 		dbg("%s - port not opened", __FUNCTION__);
 		return;
@@ -2165,19 +2155,10 @@ static void mos7840_set_termios(struct usb_serial_port *port,
 
 	cflag = tty->termios->c_cflag;
 
-	if (!cflag) {
-		dbg("%s %s\n", __FUNCTION__, "cflag is NULL");
-		return;
-	}
-
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__,
 	    tty->termios->c_cflag, RELEVANT_IFLAG(tty->termios->c_iflag));
-
-	if (old_termios) {
-		dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
-		    old_termios->c_cflag, RELEVANT_IFLAG(old_termios->c_iflag));
-	}
-
+	dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
+	    old_termios->c_cflag, RELEVANT_IFLAG(old_termios->c_iflag));
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
 	/* change the port settings to the new ones specified */

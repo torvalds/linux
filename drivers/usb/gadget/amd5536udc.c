@@ -3289,7 +3289,7 @@ static int udc_pci_probe(
 	dev->chiprev = pdev->revision;
 
 	pci_set_master(pdev);
-	pci_set_mwi(pdev);
+	pci_try_set_mwi(pdev);
 
 	/* init dma pools */
 	if (use_dma) {

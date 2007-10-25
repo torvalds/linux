@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <linux/usb.h>
 
@@ -33,6 +34,8 @@ static struct usb_device_id id_table [] = {
 	{ },
 };
 MODULE_DEVICE_TABLE (usb, id_table);
+
+static DEFINE_MUTEX(open_disc_mutex);
 
 
 struct usb_lcd {
@@ -79,12 +82,16 @@ static int lcd_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
+	mutex_lock(&open_disc_mutex);
 	dev = usb_get_intfdata(interface);
-	if (!dev)
+	if (!dev) {
+		mutex_unlock(&open_disc_mutex);
 		return -ENODEV;
+	}
 
 	/* increment our usage count for the device */
 	kref_get(&dev->kref);
+	mutex_unlock(&open_disc_mutex);
 
 	/* grab a power reference */
 	r = usb_autopm_get_interface(interface);
@@ -393,8 +400,10 @@ static void lcd_disconnect(struct usb_interface *interface)
 	struct usb_lcd *dev;
         int minor = interface->minor;
 
+	mutex_lock(&open_disc_mutex);
         dev = usb_get_intfdata(interface);
         usb_set_intfdata(interface, NULL);
+	mutex_unlock(&open_disc_mutex);
 
         /* give back our minor */
         usb_deregister_dev(interface, &lcd_class);

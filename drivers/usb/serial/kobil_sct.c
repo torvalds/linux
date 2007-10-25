@@ -616,8 +616,9 @@ static void kobil_set_termios(struct usb_serial_port *port, struct ktermios *old
 		case 1200:
 			urb_val = SUSBCR_SBR_1200;
 			break;
-		case 9600:
 		default:
+			speed = 9600;
+		case 9600:
 			urb_val = SUSBCR_SBR_9600;
 			break;
 	}
@@ -641,6 +642,8 @@ static void kobil_set_termios(struct usb_serial_port *port, struct ktermios *old
 		urb_val |= SUSBCR_SPASB_NoParity;
 		strcat(settings, "No Parity");
 	}
+	port->tty->termios->c_cflag &= ~CMSPAR;
+	tty_encode_baud_rate(port->tty, speed, speed);
 
 	result = usb_control_msg( port->serial->dev,
 				  usb_rcvctrlpipe(port->serial->dev, 0 ),

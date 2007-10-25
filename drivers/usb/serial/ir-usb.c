@@ -504,11 +504,6 @@ static void ir_set_termios (struct usb_serial_port *port, struct ktermios *old_t
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
-	if ((!port->tty) || (!port->tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		return;
-	}
-
 	baud = tty_get_baud_rate(port->tty);
 
 	/*
@@ -531,8 +526,6 @@ static void ir_set_termios (struct usb_serial_port *port, struct ktermios *old_t
 		default:
 			ir_baud = SPEED_9600;
 			baud = 9600;
-			/* And once the new tty stuff is all done we need to
-			   call back to correct the baud bits */
 	}
 
 	if (xbof == -1)
@@ -562,6 +555,10 @@ static void ir_set_termios (struct usb_serial_port *port, struct ktermios *old_t
 	result = usb_submit_urb (port->write_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev, "%s - failed submitting write urb, error %d\n", __FUNCTION__, result);
+
+	/* Only speed changes are supported */
+	tty_termios_copy_hw(port->tty->termios, old_termios);
+	tty_encode_baud_rate(port->tty, baud, baud);
 }
 
 

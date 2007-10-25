@@ -429,6 +429,8 @@ static void serial_set_termios (struct tty_struct *tty, struct ktermios * old)
 	/* pass on to the driver specific version of this function if it is available */
 	if (port->serial->type->set_termios)
 		port->serial->type->set_termios(port, old);
+	else
+		tty_termios_copy_hw(tty->termios, old);
 }
 
 static void serial_break (struct tty_struct *tty, int break_state)
@@ -1121,7 +1123,9 @@ int usb_serial_resume(struct usb_interface *intf)
 {
 	struct usb_serial *serial = usb_get_intfdata(intf);
 
-	return serial->type->resume(serial);
+	if (serial->type->resume)
+		return serial->type->resume(serial);
+	return 0;
 }
 EXPORT_SYMBOL(usb_serial_resume);
 

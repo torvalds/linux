@@ -885,16 +885,7 @@ static int whiteheat_ioctl (struct usb_serial_port *port, struct file * file, un
 static void whiteheat_set_termios(struct usb_serial_port *port, struct ktermios *old_termios)
 {
 	dbg("%s -port %d", __FUNCTION__, port->number);
-
-	if ((!port->tty) || (!port->tty->termios)) {
-		dbg("%s - no tty structures", __FUNCTION__);
-		goto exit;
-	}
-	
 	firm_setup_port(port);
-
-exit:
-	return;
 }
 
 
@@ -1244,6 +1235,8 @@ static int firm_setup_port(struct usb_serial_port *port) {
 	port_settings.baud = tty_get_baud_rate(port->tty);
 	dbg("%s - baud rate = %d", __FUNCTION__, port_settings.baud);
 
+	/* fixme: should set validated settings */
+	tty_encode_baud_rate(port->tty, port_settings.baud, port_settings.baud);
 	/* handle any settings that aren't specified in the tty structure */
 	port_settings.lloop = 0;
 	

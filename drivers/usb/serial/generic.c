@@ -208,14 +208,15 @@ int usb_serial_generic_write(struct usb_serial_port *port, const unsigned char *
 
 	/* only do something if we have a bulk out endpoint */
 	if (serial->num_bulk_out) {
-		spin_lock_bh(&port->lock);
+		unsigned long flags;
+		spin_lock_irqsave(&port->lock, flags);
 		if (port->write_urb_busy) {
-			spin_unlock_bh(&port->lock);
+			spin_unlock_irqrestore(&port->lock, flags);
 			dbg("%s - already writing", __FUNCTION__);
 			return 0;
 		}
 		port->write_urb_busy = 1;
-		spin_unlock_bh(&port->lock);
+		spin_unlock_irqrestore(&port->lock, flags);
 
 		count = (count > port->bulk_out_size) ? port->bulk_out_size : count;
 

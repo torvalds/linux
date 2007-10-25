@@ -1503,22 +1503,16 @@ static void edge_unthrottle (struct usb_serial_port *port)
  *****************************************************************************/
 static void edge_set_termios (struct usb_serial_port *port, struct ktermios *old_termios)
 {
+	/* FIXME: This function appears unused ?? */
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
 	struct tty_struct *tty = port->tty;
 	unsigned int cflag;
 
-	if (!port->tty || !port->tty->termios) {
-		dbg ("%s - no tty or termios", __FUNCTION__);
-		return;
-	}
-
 	cflag = tty->termios->c_cflag;
 	dbg("%s - clfag %08x iflag %08x", __FUNCTION__, 
 	    tty->termios->c_cflag, tty->termios->c_iflag);
-	if (old_termios) {
-		dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
-		    old_termios->c_cflag, old_termios->c_iflag);
-	}
+	dbg("%s - old clfag %08x old iflag %08x", __FUNCTION__,
+	    old_termios->c_cflag, old_termios->c_iflag);
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -2653,7 +2647,11 @@ static void change_port_settings (struct edgeport_port *edge_port, struct ktermi
 
 	dbg("%s - baud rate = %d", __FUNCTION__, baud);
 	status = send_cmd_write_baud_rate (edge_port, baud);
-
+	if (status == -1) {
+		/* Speed change was not possible - put back the old speed */
+		baud = tty_termios_baud_rate(old_termios);
+		tty_encode_baud_rate(tty, baud, baud);
+	}
 	return;
 }
 

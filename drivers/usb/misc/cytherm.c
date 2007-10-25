@@ -399,13 +399,15 @@ static void cytherm_disconnect(struct usb_interface *interface)
 	struct usb_cytherm *dev;
 
 	dev = usb_get_intfdata (interface);
-	usb_set_intfdata (interface, NULL);
 
 	device_remove_file(&interface->dev, &dev_attr_brightness);
 	device_remove_file(&interface->dev, &dev_attr_temp);
 	device_remove_file(&interface->dev, &dev_attr_button);
 	device_remove_file(&interface->dev, &dev_attr_port0);
 	device_remove_file(&interface->dev, &dev_attr_port1);
+
+	/* first remove the files, then NULL the pointer */
+	usb_set_intfdata (interface, NULL);
 
 	usb_put_dev(dev->udev);
 

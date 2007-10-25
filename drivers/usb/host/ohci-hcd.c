@@ -80,7 +80,10 @@ static const char	hcd_name [] = "ohci_hcd";
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static int ohci_init (struct ohci_hcd *ohci);
 static void ohci_stop (struct usb_hcd *hcd);
+
+#if defined(CONFIG_PM) || defined(CONFIG_PCI)
 static int ohci_restart (struct ohci_hcd *ohci);
+#endif
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
@@ -396,7 +399,7 @@ static int check_ed(struct ohci_hcd *ohci, struct ed *ed)
  */
 static void unlink_watchdog_func(unsigned long _ohci)
 {
-	long		flags;
+	unsigned long	flags;
 	unsigned	max;
 	unsigned	seen_count = 0;
 	unsigned	i;
@@ -893,6 +896,8 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 /*-------------------------------------------------------------------------*/
 
+#if defined(CONFIG_PM) || defined(CONFIG_PCI)
+
 /* must not be called from interrupt context */
 static int ohci_restart (struct ohci_hcd *ohci)
 {
@@ -953,6 +958,8 @@ static int ohci_restart (struct ohci_hcd *ohci)
 	ohci_dbg(ohci, "restart complete\n");
 	return 0;
 }
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 

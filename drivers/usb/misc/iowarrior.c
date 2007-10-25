@@ -66,6 +66,7 @@ module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "debug=1 enables debugging messages");
 
 static struct usb_driver iowarrior_driver;
+static DEFINE_MUTEX(iowarrior_open_disc_lock);
 
 /*--------------*/
 /*     data     */
@@ -351,7 +352,7 @@ static ssize_t iowarrior_write(struct file *file,
 
 	mutex_lock(&dev->mutex);
 	/* verify that the device wasn't unplugged */
-	if (dev == NULL || !dev->present) {
+	if (!dev->present) {
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -608,11 +609,15 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 		return -ENODEV;
 	}
 
+	mutex_lock(&iowarrior_open_disc_lock);
 	dev = usb_get_intfdata(interface);
-	if (!dev)
+	if (!dev) {
+		mutex_unlock(&iowarrior_open_disc_lock);
 		return -ENODEV;
+	}
 
 	mutex_lock(&dev->mutex);
+	mutex_unlock(&iowarrior_open_disc_lock);
 
 	/* Only one process can open each device, no sharing. */
 	if (dev->opened) {
@@ -866,6 +871,7 @@ static void iowarrior_disconnect(struct usb_interface *interface)
 	int minor;
 
 	dev = usb_get_intfdata(interface);
+	mutex_lock(&iowarrior_open_disc_lock);
 	usb_set_intfdata(interface, NULL);
 
 	minor = dev->minor;
@@ -879,6 +885,7 @@ static void iowarrior_disconnect(struct usb_interface *interface)
 	dev->present = 0;
 
 	mutex_unlock(&dev->mutex);
+	mutex_unlock(&iowarrior_open_disc_lock);
 
 	if (dev->opened) {
 		/* There is a process that holds a filedescriptor to the device ,
