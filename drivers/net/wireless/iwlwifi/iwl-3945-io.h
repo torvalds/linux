@@ -60,7 +60,7 @@
  */
 
 #define _iwl_write32(iwl, ofs, val) writel((val), (iwl)->hw_base + (ofs))
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *iwl,
 				 u32 ofs, u32 val)
 {
@@ -74,7 +74,7 @@ static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *iwl,
 #endif
 
 #define _iwl_read32(iwl, ofs) readl((iwl)->hw_base + (ofs))
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline u32 __iwl_read32(char *f, u32 l, struct iwl_priv *iwl, u32 ofs)
 {
 	IWL_DEBUG_IO("read_direct32(0x%08X) - %s %d\n", ofs, f, l);
@@ -99,7 +99,7 @@ static inline int _iwl_poll_bit(struct iwl_priv *priv, u32 addr,
 
 	return -ETIMEDOUT;
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline int __iwl_poll_bit(const char *f, u32 l,
 				 struct iwl_priv *priv, u32 addr,
 				 u32 bits, u32 mask, int timeout)
@@ -125,7 +125,7 @@ static inline void _iwl_set_bit(struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	_iwl_write32(priv, reg, _iwl_read32(priv, reg) | mask);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl_set_bit(const char *f, u32 l,
 				 struct iwl_priv *priv, u32 reg, u32 mask)
 {
@@ -142,7 +142,7 @@ static inline void _iwl_clear_bit(struct iwl_priv *priv, u32 reg, u32 mask)
 {
 	_iwl_write32(priv, reg, _iwl_read32(priv, reg) & ~mask);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl_clear_bit(const char *f, u32 l,
 				   struct iwl_priv *priv, u32 reg, u32 mask)
 {
@@ -160,7 +160,7 @@ static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 	int ret;
 	u32 gp_ctl;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (atomic_read(&priv->restrict_refcnt))
 		return 0;
 #endif
@@ -191,13 +191,13 @@ static inline int _iwl_grab_nic_access(struct iwl_priv *priv)
 		return -EIO;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	atomic_inc(&priv->restrict_refcnt);
 #endif
 	return 0;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline int __iwl_grab_nic_access(const char *f, u32 l,
 					       struct iwl_priv *priv)
 {
@@ -217,13 +217,13 @@ static inline int __iwl_grab_nic_access(const char *f, u32 l,
 
 static inline void _iwl_release_nic_access(struct iwl_priv *priv)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (atomic_dec_and_test(&priv->restrict_refcnt))
 #endif
 		_iwl_clear_bit(priv, CSR_GP_CNTRL,
 			       CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl_release_nic_access(const char *f, u32 l,
 					    struct iwl_priv *priv)
 {
@@ -244,7 +244,7 @@ static inline u32 _iwl_read_direct32(struct iwl_priv *priv, u32 reg)
 {
 	return _iwl_read32(priv, reg);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline u32 __iwl_read_direct32(const char *f, u32 l,
 					struct iwl_priv *priv, u32 reg)
 {
@@ -266,7 +266,7 @@ static inline void _iwl_write_direct32(struct iwl_priv *priv,
 {
 	_iwl_write32(priv, reg, value);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static void __iwl_write_direct32(u32 line,
 				   struct iwl_priv *priv, u32 reg, u32 value)
 {
@@ -306,7 +306,7 @@ static inline int _iwl_poll_direct_bit(struct iwl_priv *priv,
 	return -ETIMEDOUT;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline int __iwl_poll_direct_bit(const char *f, u32 l,
 					    struct iwl_priv *priv,
 					    u32 addr, u32 mask, int timeout)
@@ -332,7 +332,7 @@ static inline u32 _iwl_read_prph(struct iwl_priv *priv, u32 reg)
 	_iwl_write_direct32(priv, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
 	return _iwl_read_direct32(priv, HBUS_TARG_PRPH_RDAT);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline u32 __iwl_read_prph(u32 line, struct iwl_priv *priv, u32 reg)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
@@ -353,7 +353,7 @@ static inline void _iwl_write_prph(struct iwl_priv *priv,
 			      ((addr & 0x0000FFFF) | (3 << 24)));
 	_iwl_write_direct32(priv, HBUS_TARG_PRPH_WDAT, val);
 }
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl_write_prph(u32 line, struct iwl_priv *priv,
 					      u32 addr, u32 val)
 {
@@ -370,7 +370,7 @@ static inline void __iwl_write_prph(u32 line, struct iwl_priv *priv,
 
 #define _iwl_set_bits_prph(priv, reg, mask) \
 	_iwl_write_prph(priv, reg, (_iwl_read_prph(priv, reg) | mask))
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl_set_bits_prph(u32 line, struct iwl_priv *priv,
 					u32 reg, u32 mask)
 {
@@ -388,7 +388,7 @@ static inline void __iwl_set_bits_prph(u32 line, struct iwl_priv *priv,
 #define _iwl_set_bits_mask_prph(priv, reg, bits, mask) \
 	_iwl_write_prph(priv, reg, ((_iwl_read_prph(priv, reg) & mask) | bits))
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl_set_bits_mask_prph(u32 line,
 		struct iwl_priv *priv, u32 reg, u32 bits, u32 mask)
 {

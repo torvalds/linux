@@ -59,7 +59,7 @@
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 u32 iwl_debug_level;
 #endif
 
@@ -88,13 +88,13 @@ int iwl_param_queues_num = IWL_MAX_NUM_QUEUES;
 
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link 4965AGN driver for Linux"
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 #define VD "d"
 #else
 #define VD
 #endif
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 #define VS "s"
 #else
 #define VS
@@ -179,7 +179,7 @@ static const char *iwl_escape_essid(const char *essid, u8 essid_len)
 
 static void iwl_print_hex_dump(int level, void *p, u32 len)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	if (!(iwl_debug_level & level))
 		return;
 
@@ -507,12 +507,12 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
 	station->sta.sta.sta_id = index;
 	station->sta.station_flags = 0;
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	/* BCAST station and IBSS stations do not work in HT mode */
 	if (index != priv->hw_setting.bcast_sta_id &&
 	    priv->iw_mode != IEEE80211_IF_TYPE_IBSS)
 		iwl4965_set_ht_add_station(priv, index);
-#endif /*CONFIG_IWLWIFI_HT*/
+#endif /*CONFIG_IWL4965_HT*/
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
 	iwl_send_add_station(priv, &station->sta, flags);
@@ -1112,13 +1112,13 @@ static int iwl_commit_rxon(struct iwl_priv *priv)
 	/* station table will be cleared */
 	priv->assoc_station_added = 0;
 
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	priv->sensitivity_data.state = IWL_SENS_CALIB_NEED_REINIT;
 	if (!priv->error_recovering)
 		priv->start_calib = 0;
 
 	iwl4965_init_sensitivity(priv, CMD_ASYNC, 1);
-#endif /* CONFIG_IWLWIFI_SENSITIVITY */
+#endif /* CONFIG_IWL4965_SENSITIVITY */
 
 	/* If we are currently associated and the new config requires
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
@@ -1162,13 +1162,13 @@ static int iwl_commit_rxon(struct iwl_priv *priv)
 
 	iwl_clear_stations_table(priv);
 
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	if (!priv->error_recovering)
 		priv->start_calib = 0;
 
 	priv->sensitivity_data.state = IWL_SENS_CALIB_NEED_REINIT;
 	iwl4965_init_sensitivity(priv, CMD_ASYNC, 1);
-#endif /* CONFIG_IWLWIFI_SENSITIVITY */
+#endif /* CONFIG_IWL4965_SENSITIVITY */
 
 	memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 
@@ -1635,7 +1635,7 @@ done:
  * Misc. internal state and helper functions
  *
  ******************************************************************************/
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 
 /**
  * iwl_report_frame - dump frame to syslog during debug sessions
@@ -1818,7 +1818,7 @@ static u16 iwl_supported_rate_to_ie(u8 *ie, u16 supported_rate,
 	return ret_rates;
 }
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 void static iwl_set_ht_capab(struct ieee80211_hw *hw,
 			     struct ieee80211_ht_capability *ht_cap,
 			     u8 use_wide_chan);
@@ -1916,7 +1916,7 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 	if (*pos > 0)
 		len += 2 + *pos;
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	if (is_direct && priv->is_ht_enabled) {
 		u8 use_wide_chan = 1;
 
@@ -1929,7 +1929,7 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 				 use_wide_chan);
 		len += 2 + sizeof(struct ieee80211_ht_capability);
 	}
-#endif  /*CONFIG_IWLWIFI_HT */
+#endif  /*CONFIG_IWL4965_HT */
 
  fill_end:
 	return (u16)len;
@@ -1938,7 +1938,7 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 /*
  * QoS  support
 */
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 static int iwl_send_qos_params_command(struct iwl_priv *priv,
 				       struct iwl_qosparam_cmd *qos)
 {
@@ -2055,10 +2055,10 @@ static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 		priv->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	if (priv->is_ht_enabled && priv->current_assoc_ht.is_ht)
 		priv->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT */
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -2072,7 +2072,7 @@ static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 	}
 }
 
-#endif /* CONFIG_IWLWIFI_QOS */
+#endif /* CONFIG_IWL4965_QOS */
 /*
  * Power management (not Tx power!) functions
  */
@@ -2835,7 +2835,7 @@ static int iwl_tx_skb(struct iwl_priv *priv,
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	if (ieee80211_is_auth(fc))
 		IWL_DEBUG_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_request(fc))
@@ -2873,13 +2873,13 @@ static int iwl_tx_skb(struct iwl_priv *priv,
 			(hdr->seq_ctrl &
 				__constant_cpu_to_le16(IEEE80211_SCTL_FRAG));
 		seq_number += 0x10;
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 		/* aggregation is on for this <sta,tid> */
 		if (ctl->flags & IEEE80211_TXCTL_HT_MPDU_AGG)
 			txq_id = priv->stations[sta_id].tid[tid].agg.txq_id;
-#endif /* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 	}
 	txq = &priv->txq[txq_id];
 	q = &txq->q;
@@ -3289,7 +3289,7 @@ int is_duplicate_packet(struct iwl_priv *priv, struct ieee80211_hdr *header)
 	return 1;
 }
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 
 #include "iwl-spectrum.h"
 
@@ -3497,8 +3497,8 @@ static int iwl_is_tx_success(u32 status)
  * Generic RX handler implementations
  *
  ******************************************************************************/
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 
 static inline int iwl_get_ra_sta_id(struct iwl_priv *priv,
 				    struct ieee80211_hdr *hdr)
@@ -3654,8 +3654,8 @@ static void iwl_rx_reply_tx(struct iwl_priv *priv,
 	struct ieee80211_tx_status *tx_status;
 	struct iwl_tx_resp *tx_resp = (void *)&pkt->u.raw[0];
 	u32  status = le32_to_cpu(tx_resp->status);
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	int tid, sta_id;
 #endif
 #endif
@@ -3668,8 +3668,8 @@ static void iwl_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwl_get_scd_ssn(tx_resp);
 		struct ieee80211_hdr *hdr =
@@ -3706,8 +3706,8 @@ static void iwl_rx_reply_tx(struct iwl_priv *priv,
 			iwl_tx_queue_reclaim(priv, txq_id, index);
 		}
 	} else {
-#endif /* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 	tx_status = &(txq->txb[txq->q.read_ptr].status);
 
 	tx_status->retry_count = tx_resp->failure_frame;
@@ -3729,11 +3729,11 @@ static void iwl_rx_reply_tx(struct iwl_priv *priv,
 	IWL_DEBUG_TX_REPLY("Tx queue reclaim %d\n", index);
 	if (index != -1)
 		iwl_tx_queue_reclaim(priv, txq_id, index);
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	}
-#endif /* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
 		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
@@ -3815,7 +3815,7 @@ static void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 static void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
@@ -3833,7 +3833,7 @@ static void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 static void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 				  struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
@@ -3879,7 +3879,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_beacon_notif *beacon = &(pkt->u.beacon_status);
 	u8 rate = iwl_hw_get_rate(beacon->beacon_notify_hdr.rate_n_flags);
@@ -3902,7 +3902,7 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 static void iwl_rx_reply_scan(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_scanreq_notification *notif =
 	    (struct iwl_scanreq_notification *)pkt->u.raw;
@@ -4700,7 +4700,7 @@ static int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
 	return rc;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 static void iwl_print_rx_config_cmd(struct iwl_rxon_cmd *rxon)
 {
 	DECLARE_MAC_BUF(mac);
@@ -4924,7 +4924,7 @@ static void iwl_irq_handle_error(struct iwl_priv *priv)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	if (iwl_debug_level & IWL_DL_FW_ERRORS) {
 		iwl_dump_nic_error_log(priv);
 		iwl_dump_nic_event_log(priv);
@@ -4973,7 +4973,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	u32 inta_mask;
 #endif
 
@@ -4991,7 +4991,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	if (iwl_debug_level & IWL_DL_ISR) {
 		inta_mask = iwl_read32(priv, CSR_INT_MASK); /* just for debug */
 		IWL_DEBUG_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -5024,7 +5024,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		return;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	if (iwl_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_MAC_CLK_ACTV)
@@ -5114,7 +5114,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	/* Re-enable all interrupts */
 	iwl_enable_interrupts(priv);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	if (iwl_debug_level & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
@@ -7148,7 +7148,7 @@ static void iwl_bg_post_associate(struct work_struct *data)
 
 	priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	if (priv->is_ht_enabled && priv->current_assoc_ht.is_ht)
 		iwl4965_set_rxon_ht(priv, &priv->current_assoc_ht);
 	else {
@@ -7156,7 +7156,7 @@ static void iwl_bg_post_associate(struct work_struct *data)
 		priv->active_rate_ht[1] = 0;
 		priv->current_channel_width = IWL_CHANNEL_WIDTH_20MHZ;
 	}
-#endif /* CONFIG_IWLWIFI_HT*/
+#endif /* CONFIG_IWL4965_HT*/
 	iwl4965_set_rxon_chain(priv);
 	priv->staging_rxon.assoc_id = cpu_to_le16(priv->assoc_id);
 
@@ -7206,18 +7206,18 @@ static void iwl_bg_post_associate(struct work_struct *data)
 
 	iwl_sequence_reset(priv);
 
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	/* Enable Rx differential gain and sensitivity calibrations */
 	iwl4965_chain_noise_reset(priv);
 	priv->start_calib = 1;
-#endif /* CONFIG_IWLWIFI_SENSITIVITY */
+#endif /* CONFIG_IWL4965_SENSITIVITY */
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
 		priv->assoc_station_added = 1;
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 	iwl_activate_qos(priv, 0);
-#endif /* CONFIG_IWLWIFI_QOS */
+#endif /* CONFIG_IWL4965_QOS */
 	mutex_unlock(&priv->mutex);
 }
 
@@ -7399,7 +7399,7 @@ static int iwl_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 		return -EINVAL;
 	}
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	/* if we are switching fron ht to 2.4 clear flags
 	 * from any ht related info since 2.4 does not
 	 * support ht */
@@ -7409,7 +7409,7 @@ static int iwl_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 #endif
 	)
 		priv->staging_rxon.flags = 0;
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT */
 
 	iwl_set_rxon_channel(priv, conf->phymode, conf->channel);
 
@@ -7509,7 +7509,7 @@ static void iwl_config_ap(struct iwl_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwl_commit_rxon(priv);
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 		iwl_activate_qos(priv, 1);
 #endif
 		iwl_rxon_add_station(priv, BROADCAST_ADDR, 0);
@@ -7805,7 +7805,7 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_priv *priv = hw->priv;
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 	unsigned long flags;
 	int q;
 #endif /* CONFIG_IWL_QOS */
@@ -7822,7 +7822,7 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		return 0;
 	}
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 	if (!priv->qos_data.qos_enable) {
 		priv->qos_data.qos_active = 0;
 		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
@@ -7851,7 +7851,7 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 
 	mutex_unlock(&priv->mutex);
 
-#endif /*CONFIG_IWLWIFI_QOS */
+#endif /*CONFIG_IWL4965_QOS */
 
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
@@ -7918,11 +7918,11 @@ static void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211("enter\n");
 
 	priv->lq_mngr.lq_ready = 0;
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	spin_lock_irqsave(&priv->lock, flags);
 	memset(&priv->current_assoc_ht, 0, sizeof(struct sta_ht_info));
 	spin_unlock_irqrestore(&priv->lock, flags);
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 /*	if (priv->lq_mngr.agg_ctrl.granted_ba)
 		iwl4965_turn_off_agg(priv, TID_ALL_SPECIFIED);*/
 
@@ -7933,10 +7933,10 @@ static void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	if (priv->lq_mngr.agg_ctrl.auto_agg)
 		priv->lq_mngr.agg_ctrl.requested_ba = TID_ALL_ENABLED;
-#endif /*CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /*CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 	iwl_reset_qos(priv);
 #endif
 
@@ -8028,7 +8028,7 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	IWL_DEBUG_MAC80211("leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 	iwl_reset_qos(priv);
 #endif
 
@@ -8039,7 +8039,7 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	return 0;
 }
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 union ht_cap_info {
 	struct {
 		u16 advanced_coding_cap		:1;
@@ -8231,7 +8231,7 @@ static void iwl_mac_get_ht_capab(struct ieee80211_hw *hw,
 	iwl_set_ht_capab(hw, ht_cap, use_wide_channel);
 	IWL_DEBUG_MAC80211("leave: \n");
 }
-#endif /*CONFIG_IWLWIFI_HT*/
+#endif /*CONFIG_IWL4965_HT*/
 
 /*****************************************************************************
  *
@@ -8239,7 +8239,7 @@ static void iwl_mac_get_ht_capab(struct ieee80211_hw *hw,
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 
 /*
  * The following adds a new attribute to the sysfs representation
@@ -8272,7 +8272,7 @@ static ssize_t store_debug_level(struct device_driver *d,
 static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
 		   show_debug_level, store_debug_level);
 
-#endif /* CONFIG_IWLWIFI_DEBUG */
+#endif /* CONFIG_IWL4965_DEBUG */
 
 static ssize_t show_rf_kill(struct device *d,
 			    struct device_attribute *attr, char *buf)
@@ -8484,7 +8484,7 @@ static ssize_t store_tune(struct device *d,
 
 static DEVICE_ATTR(tune, S_IWUSR | S_IRUGO, show_tune, store_tune);
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 
 static ssize_t show_measurement(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -8555,7 +8555,7 @@ static ssize_t store_measurement(struct device *d,
 
 static DEVICE_ATTR(measurement, S_IRUSR | S_IWUSR,
 		   show_measurement, store_measurement);
-#endif /* CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT */
+#endif /* CONFIG_IWL4965_SPECTRUM_MEASUREMENT */
 
 static ssize_t store_retry_rate(struct device *d,
 				struct device_attribute *attr,
@@ -8908,7 +8908,7 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_dump_events.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 	&dev_attr_measurement.attr,
 #endif
 	&dev_attr_power_level.attr,
@@ -8946,16 +8946,16 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.reset_tsf = iwl_mac_reset_tsf,
 	.beacon_update = iwl_mac_beacon_update,
 	.erp_ie_changed = iwl_mac_erp_ie_changed,
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	.conf_ht = iwl_mac_conf_ht,
 	.get_ht_capab = iwl_mac_get_ht_capab,
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 	.ht_tx_agg_start = iwl_mac_ht_tx_agg_start,
 	.ht_tx_agg_stop = iwl_mac_ht_tx_agg_stop,
 	.ht_rx_agg_start = iwl_mac_ht_rx_agg_start,
 	.ht_rx_agg_stop = iwl_mac_ht_rx_agg_stop,
-#endif  /* CONFIG_IWLWIFI_HT_AGG */
-#endif  /* CONFIG_IWLWIFI_HT */
+#endif  /* CONFIG_IWL4965_HT_AGG */
+#endif  /* CONFIG_IWL4965_HT */
 	.hw_scan = iwl_mac_hw_scan
 };
 
@@ -8997,7 +8997,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	priv->pci_dev = pdev;
 	priv->antenna = (enum iwl_antenna)iwl_param_antenna;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	iwl_debug_level = iwl_param_debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
@@ -9018,11 +9018,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	hw->flags = IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE;
 
 	hw->queues = 4;
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	hw->queues = 16;
-#endif /* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 	spin_lock_init(&priv->lock);
 	spin_lock_init(&priv->power_data.lock);
@@ -9103,7 +9103,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_iounmap;
 	}
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 	if (iwl_param_qos_enable)
 		priv->qos_data.qos_enable = 1;
 
@@ -9111,7 +9111,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
-#endif /* CONFIG_IWLWIFI_QOS */
+#endif /* CONFIG_IWL4965_QOS */
 
 	iwl_set_rxon_channel(priv, MODE_IEEE80211G, 6);
 	iwl_setup_deferred_work(priv);
@@ -9371,7 +9371,7 @@ static int __init iwl_init(void)
 		IWL_ERROR("Unable to initialize PCI module\n");
 		return ret;
 	}
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	ret = driver_create_file(&iwl_driver.driver, &driver_attr_debug_level);
 	if (ret) {
 		IWL_ERROR("Unable to create driver sysfs file\n");
@@ -9385,7 +9385,7 @@ static int __init iwl_init(void)
 
 static void __exit iwl_exit(void)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	driver_remove_file(&iwl_driver.driver, &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&iwl_driver);

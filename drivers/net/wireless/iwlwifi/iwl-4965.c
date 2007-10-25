@@ -86,14 +86,14 @@ static int is_fat_channel(__le32 rxon_flags)
 
 static u8 is_single_stream(struct iwl_priv *priv)
 {
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	if (!priv->is_ht_enabled || !priv->current_assoc_ht.is_ht ||
 	    (priv->active_rate_ht[1] == 0) ||
 	    (priv->ps_mode == IWL_MIMO_PS_STATIC))
 		return 1;
 #else
 	return 1;
-#endif	/*CONFIG_IWLWIFI_HT */
+#endif	/*CONFIG_IWL4965_HT */
 	return 0;
 }
 
@@ -743,7 +743,7 @@ void iwl4965_rf_kill_ct_config(struct iwl_priv *priv)
 		IWL_DEBUG_INFO("REPLY_CT_KILL_CONFIG_CMD succeeded\n");
 }
 
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 
 /* "false alarms" are signals that our DSP tries to lock onto,
  *   but then determines that they are either noise, or transmissions
@@ -1546,7 +1546,7 @@ static void iwl4965_bg_sensitivity_work(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 	return;
 }
-#endif /*CONFIG_IWLWIFI_SENSITIVITY*/
+#endif /*CONFIG_IWL4965_SENSITIVITY*/
 
 static void iwl4965_bg_txpower_work(struct work_struct *work)
 {
@@ -1638,7 +1638,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	memset(&(priv->sensitivity_data), 0,
 	       sizeof(struct iwl_sensitivity_data));
 	memset(&(priv->chain_noise_data), 0,
@@ -1646,7 +1646,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	for (i = 0; i < NUM_RX_CHAINS; i++)
 		priv->chain_noise_data.delta_gain_code[i] =
 				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
-#endif /* CONFIG_IWLWIFI_SENSITIVITY*/
+#endif /* CONFIG_IWL4965_SENSITIVITY*/
 	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -2814,8 +2814,8 @@ void iwl4965_set_rxon_chain(struct iwl_priv *priv)
 	IWL_DEBUG_ASSOC("rx chain %X\n", priv->staging_rxon.rx_chain);
 }
 
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 /*
 	get the traffic load value for tid
 */
@@ -3149,8 +3149,8 @@ static void iwl4965_bg_agg_work(struct work_struct *work)
 	spin_unlock_irqrestore(&priv->lq_mngr.lock, flags);
 	return;
 }
-#endif /*CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /*CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 int iwl4965_tx_cmd(struct iwl_priv *priv, struct iwl_cmd *out_cmd,
 		   u8 sta_id, dma_addr_t txcmd_phys,
@@ -3165,11 +3165,11 @@ int iwl4965_tx_cmd(struct iwl_priv *priv, struct iwl_cmd *out_cmd,
 	u16 fc;
 	u16 rate_flags;
 	int rate_index = min(ctrl->tx_rate & 0xffff, IWL_RATE_COUNT - 1);
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	__le16 *qc;
-#endif /*CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /*CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 	unicast = !is_multicast_ether_addr(hdr->addr1);
 
@@ -3230,8 +3230,8 @@ int iwl4965_tx_cmd(struct iwl_priv *priv, struct iwl_cmd *out_cmd,
 	if (ieee80211_is_back_request(fc))
 		tx->tx_flags |= TX_CMD_FLG_ACK_MSK |
 			TX_CMD_FLG_IMM_BA_RSP_MASK;
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	qc = ieee80211_get_qos_ctrl(hdr);
 	if (qc &&
 	    (priv->iw_mode != IEEE80211_IF_TYPE_IBSS)) {
@@ -3443,7 +3443,7 @@ void iwl_hw_rx_statistics(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)) &&
 	    (pkt->hdr.cmd == STATISTICS_NOTIFICATION)) {
 		iwl4965_rx_calc_noise(priv);
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 		queue_work(priv->workqueue, &priv->sensitivity_work);
 #endif
 	}
@@ -3596,7 +3596,7 @@ static int iwl4965_calc_rssi(struct iwl4965_rx_phy_res *rx_resp)
 	return (max_rssi - agc - IWL_RSSI_OFFSET);
 }
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 
 /* Parsed Information Elements */
 struct ieee802_11_elems {
@@ -3668,7 +3668,7 @@ static int parse_elems(u8 *start, size_t len, struct ieee802_11_elems *elems)
 
 	return 0;
 }
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT */
 
 static void iwl4965_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 {
@@ -3728,9 +3728,9 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 		.antenna = 0,
 		.rate = iwl_hw_get_rate(rx_start->rate_n_flags),
 		.flag = 0,
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 		.ordered = 0
-#endif /* CONFIG_IWLWIFI_HT_AGG */
+#endif /* CONFIG_IWL4965_HT_AGG */
 	};
 	u8 network_packet;
 
@@ -3802,7 +3802,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 	if (!iwl_is_associated(priv))
 		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	/* TODO:  Parts of iwl_report_frame are broken for 4965 */
 	if (iwl_debug_level & (IWL_DL_RX))
 		/* Set "1" to report good data frames in groups of 100 */
@@ -3866,10 +3866,10 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 		case IEEE80211_STYPE_ASSOC_RESP:
 		case IEEE80211_STYPE_REASSOC_RESP:
 			if (network_packet) {
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 				u8 *pos = NULL;
 				struct ieee802_11_elems elems;
-#endif				/*CONFIG_IWLWIFI_HT */
+#endif				/*CONFIG_IWL4965_HT */
 				struct ieee80211_mgmt *mgnt =
 					(struct ieee80211_mgmt *)header;
 
@@ -3878,7 +3878,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 				priv->assoc_capability =
 					le16_to_cpu(
 						mgnt->u.assoc_resp.capab_info);
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 				pos = mgnt->u.assoc_resp.variable;
 				if (!parse_elems(pos,
 						 len - (pos - (u8 *) mgnt),
@@ -3887,7 +3887,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 					    elems.ht_cap_param)
 						break;
 				}
-#endif				/*CONFIG_IWLWIFI_HT */
+#endif				/*CONFIG_IWL4965_HT */
 				/* assoc_id is 0 no association */
 				if (!priv->assoc_id)
 					break;
@@ -3919,7 +3919,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 		break;
 
 	case IEEE80211_FTYPE_CTL:
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 		switch (fc & IEEE80211_FCTL_STYPE) {
 		case IEEE80211_STYPE_BACK_REQ:
 			IWL_DEBUG_HT("IEEE80211_STYPE_BACK_REQ arrived\n");
@@ -3979,7 +3979,7 @@ static void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
 					   struct iwl_rx_mem_buffer *rxb)
 
 {
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_missed_beacon_notif *missed_beacon;
 
@@ -3994,11 +3994,11 @@ static void iwl4965_rx_missed_beacon_notif(struct iwl_priv *priv,
 		if (unlikely(!test_bit(STATUS_SCANNING, &priv->status)))
 			queue_work(priv->workqueue, &priv->sensitivity_work);
 	}
-#endif /*CONFIG_IWLWIFI_SENSITIVITY*/
+#endif /*CONFIG_IWL4965_SENSITIVITY*/
 }
 
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 
 static void iwl4965_set_tx_status(struct iwl_priv *priv, int txq_id, int idx,
 				  u32 status, u32 retry_count, u32 rate)
@@ -4267,8 +4267,8 @@ static int iwl4965_tx_queue_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	return 0;
 }
 
-#endif/* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif/* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 /*
  * RATE SCALE CODE
  */
@@ -4331,7 +4331,7 @@ void iwl4965_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 			 &link_cmd);
 }
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 
 static u8 iwl_is_channel_extension(struct iwl_priv *priv, int phymode,
 				   u16 channel, u8 extension_chan_offset)
@@ -4468,7 +4468,7 @@ void iwl4965_set_ht_add_station(struct iwl_priv *priv, u8 index)
 	return;
 }
 
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 
 static void iwl4965_sta_modify_add_ba_tid(struct iwl_priv *priv,
 					  int sta_id, int tid, u16 ssn)
@@ -4642,8 +4642,8 @@ int iwl_mac_ht_rx_agg_stop(struct ieee80211_hw *hw, u8 *da,
 	return 0;
 }
 
-#endif /* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 /* Set up 4965-specific Rx frame reply handlers */
 void iwl_hw_rx_handler_setup(struct iwl_priv *priv)
@@ -4658,25 +4658,25 @@ void iwl_hw_rx_handler_setup(struct iwl_priv *priv)
 	priv->rx_handlers[MISSED_BEACONS_NOTIFICATION] =
 	    iwl4965_rx_missed_beacon_notif;
 
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwl4965_rx_reply_compressed_ba;
-#endif /* CONFIG_IWLWIFI_AGG */
-#endif /* CONFIG_IWLWIFI */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 }
 
 void iwl_hw_setup_deferred_work(struct iwl_priv *priv)
 {
 	INIT_WORK(&priv->txpower_work, iwl4965_bg_txpower_work);
 	INIT_WORK(&priv->statistics_work, iwl4965_bg_statistics_work);
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	INIT_WORK(&priv->sensitivity_work, iwl4965_bg_sensitivity_work);
 #endif
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	INIT_WORK(&priv->agg_work, iwl4965_bg_agg_work);
-#endif /* CONFIG_IWLWIFI_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_AGG */
+#endif /* CONFIG_IWL4965_HT */
 	init_timer(&priv->statistics_periodic);
 	priv->statistics_periodic.data = (unsigned long)priv;
 	priv->statistics_periodic.function = iwl4965_bg_statistics_periodic;

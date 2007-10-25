@@ -434,8 +434,8 @@ struct iwl_rx_queue {
 #define IWL_INVALID_RATE     0xFF
 #define IWL_INVALID_VALUE    -1
 
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 struct iwl_ht_agg {
 	u16 txq_id;
 	u16 frame_count;
@@ -445,16 +445,16 @@ struct iwl_ht_agg {
 	u32 bitmap1;
 	u32 rate_n_flags;
 };
-#endif /* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 struct iwl_tid_data {
 	u16 seq_number;
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	struct iwl_ht_agg agg;
-#endif	/* CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif	/* CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 };
 
 struct iwl_hw_key {
@@ -471,7 +471,7 @@ union iwl_ht_rate_supp {
 	};
 };
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 #define CFG_HT_RX_AMPDU_FACTOR_DEF  (0x3)
 #define HT_IE_MAX_AMSDU_SIZE_4K     (0)
 #define CFG_HT_MPDU_DENSITY_2USEC   (0x5)
@@ -494,9 +494,9 @@ struct sta_ht_info {
 	u8 tx_chan_width;
 	u8 chan_width_cap;
 };
-#endif				/*CONFIG_IWLWIFI_HT */
+#endif				/*CONFIG_IWL4965_HT */
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 
 union iwl_qos_capabity {
 	struct {
@@ -525,7 +525,7 @@ struct iwl_qos_info {
 	union iwl_qos_capabity qos_cap;
 	struct iwl_qosparam_cmd def_qos_parm;
 };
-#endif /*CONFIG_IWLWIFI_QOS */
+#endif /*CONFIG_IWL4965_QOS */
 
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
@@ -617,7 +617,7 @@ extern int iwl_is_network_packet(struct iwl_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl_power_init_handle(struct iwl_priv *priv);
 extern int iwl_eeprom_init(struct iwl_priv *priv);
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 extern void iwl_report_frame(struct iwl_priv *priv,
 			     struct iwl_rx_packet *pkt,
 			     struct ieee80211_hdr *header, int group100);
@@ -764,8 +764,8 @@ extern int iwl4965_set_fat_chan_info(struct iwl_priv *priv, int phymode,
 				u8 fat_extension_channel);
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
 
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 extern int iwl_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da,
 				   u16 tid, u16 *start_seq_num);
 extern int iwl_mac_ht_rx_agg_start(struct ieee80211_hw *hw, u8 *da,
@@ -775,8 +775,8 @@ extern int iwl_mac_ht_rx_agg_stop(struct ieee80211_hw *hw, u8 *da,
 extern int iwl_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da,
 				  u16 tid, int generator);
 extern void iwl4965_turn_off_agg(struct iwl_priv *priv, u8 tid);
-#endif /* CONFIG_IWLWIFI_HT_AGG */
-#endif /*CONFIG_IWLWIFI_HT */
+#endif /* CONFIG_IWL4965_HT_AGG */
+#endif /*CONFIG_IWL4965_HT */
 /* Structures, enum, and defines specific to the 4965 */
 
 #define IWL4965_KW_SIZE 0x1000	/*4k */
@@ -843,7 +843,7 @@ struct iwl_traffic_load {
 	u32 total;
 };
 
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 struct iwl_agg_control {
 	unsigned long next_retry;
 	u32 wait_for_agg_status;
@@ -855,10 +855,10 @@ struct iwl_agg_control {
 	u32 ba_timeout;
 	struct iwl_traffic_load traffic_load[TID_MAX_LOAD_COUNT];
 };
-#endif				/*CONFIG_IWLWIFI_HT_AGG */
+#endif				/*CONFIG_IWL4965_HT_AGG */
 
 struct iwl_lq_mngr {
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 	struct iwl_agg_control agg_ctrl;
 #endif
 	spinlock_t lock;
@@ -1040,7 +1040,7 @@ struct iwl_chain_noise_data {
 #define EEPROM_SEM_RETRY_LIMIT 1000
 
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 
 enum {
 	MEASUREMENT_READY = (1 << 0),
@@ -1068,7 +1068,7 @@ struct iwl_priv {
 
 	const struct ieee80211_hw_mode *modes;
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
 	struct iwl_spectrum_notification measure_report;
 	u8 measurement_status;
@@ -1157,14 +1157,14 @@ struct iwl_priv {
 	u8 channel_width;	/* 0=20MHZ, 1=40MHZ */
 	u8 current_channel_width;
 	u8 valid_antenna;	/* Bit mask of antennas actually connected */
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
 	u8 start_calib;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
-#endif /*CONFIG_IWLWIFI_SENSITIVITY*/
+#endif /*CONFIG_IWL4965_SENSITIVITY*/
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	struct sta_ht_info current_assoc_ht;
 #endif
 	u8 active_rate_ht[2];
@@ -1253,9 +1253,9 @@ struct iwl_priv {
 	u16 assoc_capability;
 	u8 ps_mode;
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL4965_QOS
 	struct iwl_qos_info qos_data;
-#endif /*CONFIG_IWLWIFI_QOS */
+#endif /*CONFIG_IWL4965_QOS */
 
 	struct workqueue_struct *workqueue;
 
@@ -1290,20 +1290,20 @@ struct iwl_priv {
 	u32 pm_state[16];
 #endif
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	/* debugging info */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
 #endif
 
 	struct work_struct txpower_work;
-#ifdef CONFIG_IWLWIFI_SENSITIVITY
+#ifdef CONFIG_IWL4965_SENSITIVITY
 	struct work_struct sensitivity_work;
 #endif
 	struct work_struct statistics_work;
 	struct timer_list statistics_periodic;
 
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 	struct work_struct agg_work;
 #endif
 };				/*iwl_priv */

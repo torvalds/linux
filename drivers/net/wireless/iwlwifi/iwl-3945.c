@@ -371,7 +371,7 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 
 	network_packet = iwl_is_network_packet(priv, header);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (iwl_debug_level & IWL_DL_STATS && net_ratelimit())
 		IWL_DEBUG_STATS
 		    ("[%c] %d RSSI: %d Signal: %u, Noise: %u, Rate: %u\n",

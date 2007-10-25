@@ -29,7 +29,7 @@
 #ifndef __iwl_debug_h__
 #define __iwl_debug_h__
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 extern u32 iwl_debug_level;
 #define IWL_DEBUG(level, fmt, args...) \
 do { if (iwl_debug_level & (level)) \
@@ -47,7 +47,7 @@ static inline void IWL_DEBUG(int level, const char *fmt, ...)
 static inline void IWL_DEBUG_LIMIT(int level, const char *fmt, ...)
 {
 }
-#endif				/* CONFIG_IWLWIFI_DEBUG */
+#endif				/* CONFIG_IWL4965_DEBUG */
 
 /*
  * To use the debug system;
@@ -71,7 +71,7 @@ static inline void IWL_DEBUG_LIMIT(int level, const char *fmt, ...)
  * you simply need to add your entry to the iwl_debug_levels array.
  *
  * If you do not see debug_level in /proc/net/iwl then you do not have
- * CONFIG_IWLWIFI_DEBUG defined in your kernel configuration
+ * CONFIG_IWL4965_DEBUG defined in your kernel configuration
  *
  */
 

@@ -59,7 +59,7 @@
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 u32 iwl_debug_level;
 #endif
 
@@ -89,13 +89,13 @@ int iwl_param_queues_num = IWL_MAX_NUM_QUEUES;
 #define DRV_DESCRIPTION	\
 "Intel(R) PRO/Wireless 3945ABG/BG Network Connection driver for Linux"
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 #define VD "d"
 #else
 #define VD
 #endif
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 #define VS "s"
 #else
 #define VS
@@ -180,7 +180,7 @@ static const char *iwl_escape_essid(const char *essid, u8 essid_len)
 
 static void iwl_print_hex_dump(int level, void *p, u32 len)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (!(iwl_debug_level & level))
 		return;
 
@@ -1584,7 +1584,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
  * Misc. internal state and helper functions
  *
  ******************************************************************************/
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 
 /**
  * iwl_report_frame - dump frame to syslog during debug sessions
@@ -1864,7 +1864,7 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 /*
  * QoS  support
 */
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 static int iwl_send_qos_params_command(struct iwl_priv *priv,
 				       struct iwl_qosparam_cmd *qos)
 {
@@ -1993,7 +1993,7 @@ static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 	}
 }
 
-#endif /* CONFIG_IWLWIFI_QOS */
+#endif /* CONFIG_IWL3945_QOS */
 /*
  * Power management (not Tx power!) functions
  */
@@ -2747,7 +2747,7 @@ static int iwl_tx_skb(struct iwl_priv *priv,
 
 	fc = le16_to_cpu(hdr->frame_control);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (ieee80211_is_auth(fc))
 		IWL_DEBUG_TX("Sending AUTH frame\n");
 	else if (ieee80211_is_assoc_request(fc))
@@ -3196,7 +3196,7 @@ int is_duplicate_packet(struct iwl_priv *priv, struct ieee80211_hdr *header)
 	return 1;
 }
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 
 #include "iwl-spectrum.h"
 
@@ -3522,7 +3522,7 @@ static void iwl_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 static void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
@@ -3540,7 +3540,7 @@ static void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 static void iwl_rx_pm_sleep_notif(struct iwl_priv *priv,
 				  struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_sleep_notification *sleep = &(pkt->u.sleep_notif);
 	IWL_DEBUG_RX("sleep mode: %d, src: %d\n",
@@ -3586,7 +3586,7 @@ static void iwl_bg_beacon_update(struct work_struct *work)
 static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 				struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_beacon_notif *beacon = &(pkt->u.beacon_status);
 	u8 rate = beacon->beacon_notify_hdr.rate;
@@ -3609,7 +3609,7 @@ static void iwl_rx_beacon_notif(struct iwl_priv *priv,
 static void iwl_rx_reply_scan(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl_scanreq_notification *notif =
 	    (struct iwl_scanreq_notification *)pkt->u.raw;
@@ -4370,7 +4370,7 @@ static int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
 	return rc;
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 static void iwl_print_rx_config_cmd(struct iwl_rxon_cmd *rxon)
 {
 	DECLARE_MAC_BUF(mac);
@@ -4602,7 +4602,7 @@ static void iwl_irq_handle_error(struct iwl_priv *priv)
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (iwl_debug_level & IWL_DL_FW_ERRORS) {
 		iwl_dump_nic_error_log(priv);
 		iwl_dump_nic_event_log(priv);
@@ -4651,7 +4651,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	u32 inta, handled = 0;
 	u32 inta_fh;
 	unsigned long flags;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	u32 inta_mask;
 #endif
 
@@ -4669,7 +4669,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	inta_fh = iwl_read32(priv, CSR_FH_INT_STATUS);
 	iwl_write32(priv, CSR_FH_INT_STATUS, inta_fh);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (iwl_debug_level & IWL_DL_ISR) {
 		inta_mask = iwl_read32(priv, CSR_INT_MASK); /* just for debug */
 		IWL_DEBUG_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -4702,7 +4702,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		return;
 	}
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (iwl_debug_level & (IWL_DL_ISR)) {
 		/* NIC fires this, but we don't use it, redundant with WAKEUP */
 		if (inta & CSR_INT_BIT_MAC_CLK_ACTV)
@@ -4800,7 +4800,7 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	/* Re-enable all interrupts */
 	iwl_enable_interrupts(priv);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	if (iwl_debug_level & (IWL_DL_ISR)) {
 		inta = iwl_read32(priv, CSR_INT);
 		inta_mask = iwl_read32(priv, CSR_INT_MASK);
@@ -6813,9 +6813,9 @@ static void iwl_bg_post_associate(struct work_struct *data)
 
 	iwl_sequence_reset(priv);
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 	iwl_activate_qos(priv, 0);
-#endif /* CONFIG_IWLWIFI_QOS */
+#endif /* CONFIG_IWL3945_QOS */
 	mutex_unlock(&priv->mutex);
 }
 
@@ -7367,7 +7367,7 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_priv *priv = hw->priv;
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 	unsigned long flags;
 	int q;
 #endif /* CONFIG_IWL_QOS */
@@ -7384,7 +7384,7 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		return 0;
 	}
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 	if (!priv->qos_data.qos_enable) {
 		priv->qos_data.qos_active = 0;
 		IWL_DEBUG_MAC80211("leave - qos not enabled\n");
@@ -7413,7 +7413,7 @@ static int iwl_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 
 	mutex_unlock(&priv->mutex);
 
-#endif /*CONFIG_IWLWIFI_QOS */
+#endif /*CONFIG_IWL3945_QOS */
 
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
@@ -7479,7 +7479,7 @@ static void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter\n");
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 	iwl_reset_qos(priv);
 #endif
 	cancel_delayed_work(&priv->post_associate);
@@ -7569,7 +7569,7 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
 	IWL_DEBUG_MAC80211("leave\n");
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 	iwl_reset_qos(priv);
 #endif
 
@@ -7586,7 +7586,7 @@ static int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb,
  *
  *****************************************************************************/
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 
 /*
  * The following adds a new attribute to the sysfs representation
@@ -7619,7 +7619,7 @@ static ssize_t store_debug_level(struct device_driver *d,
 static DRIVER_ATTR(debug_level, S_IWUSR | S_IRUGO,
 		   show_debug_level, store_debug_level);
 
-#endif /* CONFIG_IWLWIFI_DEBUG */
+#endif /* CONFIG_IWL3945_DEBUG */
 
 static ssize_t show_rf_kill(struct device *d,
 			    struct device_attribute *attr, char *buf)
@@ -7831,7 +7831,7 @@ static ssize_t store_tune(struct device *d,
 
 static DEVICE_ATTR(tune, S_IWUSR | S_IRUGO, show_tune, store_tune);
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 
 static ssize_t show_measurement(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -7902,7 +7902,7 @@ static ssize_t store_measurement(struct device *d,
 
 static DEVICE_ATTR(measurement, S_IRUSR | S_IWUSR,
 		   show_measurement, store_measurement);
-#endif /* CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT */
+#endif /* CONFIG_IWL3945_SPECTRUM_MEASUREMENT */
 
 static ssize_t show_rate(struct device *d,
 			 struct device_attribute *attr, char *buf)
@@ -8280,7 +8280,7 @@ static struct attribute *iwl_sysfs_entries[] = {
 	&dev_attr_dump_events.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	&dev_attr_measurement.attr,
 #endif
 	&dev_attr_power_level.attr,
@@ -8360,7 +8360,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	priv->pci_dev = pdev;
 	priv->antenna = (enum iwl_antenna)iwl_param_antenna;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	iwl_debug_level = iwl_param_debug;
 	atomic_set(&priv->restrict_refcnt, 0);
 #endif
@@ -8475,7 +8475,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_iounmap;
 	}
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 	if (iwl_param_qos_enable)
 		priv->qos_data.qos_enable = 1;
 
@@ -8483,7 +8483,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
-#endif /* CONFIG_IWLWIFI_QOS */
+#endif /* CONFIG_IWL3945_QOS */
 
 	iwl_set_rxon_channel(priv, MODE_IEEE80211G, 6);
 	iwl_setup_deferred_work(priv);
@@ -8743,7 +8743,7 @@ static int __init iwl_init(void)
 		IWL_ERROR("Unable to initialize PCI module\n");
 		return ret;
 	}
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	ret = driver_create_file(&iwl_driver.driver, &driver_attr_debug_level);
 	if (ret) {
 		IWL_ERROR("Unable to create driver sysfs file\n");
@@ -8757,7 +8757,7 @@ static int __init iwl_init(void)
 
 static void __exit iwl_exit(void)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	driver_remove_file(&iwl_driver.driver, &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&iwl_driver);

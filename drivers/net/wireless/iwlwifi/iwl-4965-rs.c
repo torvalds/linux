@@ -197,7 +197,7 @@ static inline u8 iwl_rate_get_rate(u32 rate_n_flags)
 static int rs_send_lq_cmd(struct iwl_priv *priv,
 			  struct iwl_link_quality_cmd *lq, u8 flags)
 {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	int i;
 #endif
 	struct iwl_host_cmd cmd = {
@@ -218,7 +218,7 @@ static int rs_send_lq_cmd(struct iwl_priv *priv,
 	IWL_DEBUG_RATE("lq dta 0x%X 0x%X\n",
 		       lq->general_params.single_stream_ant_msk,
 		       lq->general_params.dual_stream_ant_msk);
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL4965_DEBUG
 	for (i = 0; i < LINK_QUAL_MAX_RETRY_NUM; i++)
 		IWL_DEBUG_RATE("lq index %d 0x%X\n",
 				i, lq->rs_table[i].rate_n_flags);
@@ -442,13 +442,13 @@ static inline void rs_toggle_antenna(struct iwl_rate *new_rate,
 
 static inline u8 rs_use_green(struct iwl_priv *priv)
 {
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	if (!priv->is_ht_enabled || !priv->current_assoc_ht.is_ht)
 		return 0;
 
 	return ((priv->current_assoc_ht.is_green_field) &&
 	    !(priv->current_assoc_ht.operating_mode & 0x4));
-#endif	/*CONFIG_IWLWIFI_HT */
+#endif	/*CONFIG_IWL4965_HT */
 	return 0;
 }
 
@@ -826,7 +826,7 @@ static void rs_get_expected_tpt_table(struct iwl_rate_scale_priv *lq_data,
 		tbl->expected_tpt = expected_tpt_G;
 }
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 static s32 rs_get_best_rate(struct iwl_priv *priv,
 			    struct iwl_rate_scale_priv *lq_data,
 			    struct iwl_scale_tbl_info *tbl,
@@ -879,7 +879,7 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 
 	return new_rate;
 }
-#endif				/* CONFIG_IWLWIFI_HT */
+#endif				/* CONFIG_IWL4965_HT */
 
 static inline u8 rs_is_both_ant_supp(u8 valid_antenna)
 {
@@ -890,7 +890,7 @@ static int rs_switch_to_mimo(struct iwl_priv *priv,
 			     struct iwl_rate_scale_priv *lq_data,
 			     struct iwl_scale_tbl_info *tbl, int index)
 {
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	u16 rate_mask;
 	s32 rate;
 	s8 is_green = lq_data->is_green;
@@ -938,7 +938,7 @@ static int rs_switch_to_mimo(struct iwl_priv *priv,
 	IWL_DEBUG_HT("LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate.rate_n_flags, is_green);
 
-#endif				/*CONFIG_IWLWIFI_HT */
+#endif				/*CONFIG_IWL4965_HT */
 	return 0;
 }
 
@@ -946,7 +946,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 			     struct iwl_rate_scale_priv *lq_data,
 			     struct iwl_scale_tbl_info *tbl, int index)
 {
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	u16 rate_mask;
 	u8 is_green = lq_data->is_green;
 	s32 rate;
@@ -992,7 +992,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	IWL_DEBUG_HT("LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate.rate_n_flags, is_green);
 
-#endif				/*CONFIG_IWLWIFI_HT */
+#endif				/*CONFIG_IWL4965_HT */
 	return 0;
 }
 
@@ -1568,7 +1568,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		tbl1 = &(lq_data->lq_info[lq_data->active_tbl]);
 
 		if (is_legacy(tbl1->lq_type) &&
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 		    !priv->current_assoc_ht.is_ht &&
 #endif
 		    (lq_data->action_counter >= 1)) {
@@ -1579,14 +1579,14 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 		if (lq_data->enable_counter &&
 		    (lq_data->action_counter >= IWL_ACTION_LIMIT)) {
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT_AGG
 			if ((lq_data->last_tpt > TID_AGG_TPT_THREHOLD) &&
 			    (priv->lq_mngr.agg_ctrl.auto_agg)) {
 				priv->lq_mngr.agg_ctrl.tid_retry =
 				    TID_ALL_SPECIFIED;
 				schedule_work(&priv->agg_work);
 			}
-#endif /*CONFIG_IWLWIFI_HT_AGG */
+#endif /*CONFIG_IWL4965_HT_AGG */
 			lq_data->action_counter = 0;
 			rs_set_stay_in_table(0, lq_data);
 		}
@@ -1806,7 +1806,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	crl->active_rate &= ~(0x1000);
 	crl->active_rate_basic = priv->active_rate_basic;
 	crl->phymode = priv->phymode;
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL4965_HT
 	crl->active_siso_rate = (priv->current_assoc_ht.supp_rates[0] << 1);
 	crl->active_siso_rate |= (priv->current_assoc_ht.supp_rates[0] & 0x1);
 	crl->active_siso_rate &= ~((u16)0x2);
@@ -1818,7 +1818,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	crl->active_mimo_rate = crl->active_mimo_rate << IWL_FIRST_OFDM_RATE;
 	IWL_DEBUG_HT("MIMO RATE 0x%X SISO MASK 0x%X\n", crl->active_siso_rate,
 		     crl->active_mimo_rate);
-#endif /*CONFIG_IWLWIFI_HT*/
+#endif /*CONFIG_IWL4965_HT*/
 #ifdef CONFIG_MAC80211_DEBUGFS
 	crl->drv = priv;
 #endif
@@ -1937,12 +1937,12 @@ static void rs_clear(void *priv_rate)
 	IWL_DEBUG_RATE("enter\n");
 
 	priv->lq_mngr.lq_ready = 0;
-#ifdef CONFIG_IWLWIFI_HT
-#ifdef CONFIG_IWLWIFI_HT_AGG
+#ifdef CONFIG_IWL4965_HT
+#ifdef CONFIG_IWL4965_HT_AGG
 	if (priv->lq_mngr.agg_ctrl.granted_ba)
 		iwl4965_turn_off_agg(priv, TID_ALL_SPECIFIED);
-#endif /*CONFIG_IWLWIFI_HT_AGG */
-#endif /* CONFIG_IWLWIFI_HT */
+#endif /*CONFIG_IWL4965_HT_AGG */
+#endif /* CONFIG_IWL4965_HT */
 
 	IWL_DEBUG_RATE("leave\n");
 }

@@ -445,7 +445,7 @@ union iwl_ht_rate_supp {
 	};
 };
 
-#ifdef CONFIG_IWLWIFI_HT
+#ifdef CONFIG_IWL3945_HT
 #define CFG_HT_RX_AMPDU_FACTOR_DEF  (0x3)
 #define HT_IE_MAX_AMSDU_SIZE_4K     (0)
 #define CFG_HT_MPDU_DENSITY_2USEC   (0x5)
@@ -468,9 +468,9 @@ struct sta_ht_info {
 	u8 tx_chan_width;
 	u8 chan_width_cap;
 };
-#endif				/*CONFIG_IWLWIFI_HT */
+#endif				/*CONFIG_IWL3945_HT */
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 
 union iwl_qos_capabity {
 	struct {
@@ -499,7 +499,7 @@ struct iwl_qos_info {
 	union iwl_qos_capabity qos_cap;
 	struct iwl_qosparam_cmd def_qos_parm;
 };
-#endif /*CONFIG_IWLWIFI_QOS */
+#endif /*CONFIG_IWL3945_QOS */
 
 #define STA_PS_STATUS_WAKE             0
 #define STA_PS_STATUS_SLEEP            1
@@ -598,7 +598,7 @@ extern int iwl_is_network_packet(struct iwl_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl_power_init_handle(struct iwl_priv *priv);
 extern int iwl_eeprom_init(struct iwl_priv *priv);
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 extern void iwl_report_frame(struct iwl_priv *priv,
 			     struct iwl_rx_packet *pkt,
 			     struct ieee80211_hdr *header, int group100);
@@ -717,7 +717,7 @@ extern u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
 		 u16 tx_rate, u8 flags);
 
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 
 enum {
 	MEASUREMENT_READY = (1 << 0),
@@ -745,7 +745,7 @@ struct iwl_priv {
 
 	const struct ieee80211_hw_mode *modes;
 
-#ifdef CONFIG_IWLWIFI_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWL3945_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
 	struct iwl_spectrum_notification measure_report;
 	u8 measurement_status;
@@ -904,9 +904,9 @@ struct iwl_priv {
 	u16 assoc_capability;
 	u8 ps_mode;
 
-#ifdef CONFIG_IWLWIFI_QOS
+#ifdef CONFIG_IWL3945_QOS
 	struct iwl_qos_info qos_data;
-#endif /*CONFIG_IWLWIFI_QOS */
+#endif /*CONFIG_IWL3945_QOS */
 
 	struct workqueue_struct *workqueue;
 
@@ -941,7 +941,7 @@ struct iwl_priv {
 	u32 pm_state[16];
 #endif
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWL3945_DEBUG
 	/* debugging info */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
