@@ -34,25 +34,24 @@
 #include <zlib.h>
 #include <assert.h>
 #include <sched.h>
-/*L:110 We can ignore the 30 include files we need for this program, but I do
- * want to draw attention to the use of kernel-style types.
- *
- * As Linus said, "C is a Spartan language, and so should your naming be."  I
- * like these abbreviations and the header we need uses them, so we define them
- * here.
- */
-typedef unsigned long long u64;
-typedef uint32_t u32;
-typedef uint16_t u16;
-typedef uint8_t u8;
 #include "linux/lguest_launcher.h"
-#include "linux/pci_ids.h"
 #include "linux/virtio_config.h"
 #include "linux/virtio_net.h"
 #include "linux/virtio_blk.h"
 #include "linux/virtio_console.h"
 #include "linux/virtio_ring.h"
 #include "asm-x86/bootparam.h"
+/*L:110 We can ignore the 38 include files we need for this program, but I do
+ * want to draw attention to the use of kernel-style types.
+ *
+ * As Linus said, "C is a Spartan language, and so should your naming be."  I
+ * like these abbreviations, so we define them here.  Note that u64 is always
+ * unsigned long long, which works on all Linux systems: this means that we can
+ * use %llu in printf for any u64. */
+typedef unsigned long long u64;
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t u8;
 /*:*/
 
 #define PAGE_PRESENT 0x7 	/* Present, RW, Execute */
