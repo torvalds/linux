@@ -2259,6 +2259,13 @@ L:	legousb-devel@lists.sourceforge.net
 W:	http://legousb.sourceforge.net/
 S:	Maintained
 
+LGUEST
+P:	Rusty Russell
+M:	rusty@rustcorp.com.au
+L:	lguest@ozlabs.org
+W:	http://lguest.ozlabs.org/
+S:	Maintained
+
 LINUX FOR IBM pSERIES (RS/6000)
 P:	Paul Mackerras
 M:	paulus@au.ibm.com
