@@ -1512,6 +1512,7 @@ static u8 read_pwm(struct budget_av *budget_av)
 #define SUBID_DVBS2_KNC1_OEM		0x0019
 #define SUBID_DVBS_EASYWATCH_1  	0x001a
 #define SUBID_DVBS_EASYWATCH_2  	0x001b
+#define SUBID_DVBS2_EASYWATCH		0x001d
 #define SUBID_DVBS_EASYWATCH		0x001e
 
 #define SUBID_DVBC_EASYWATCH		0x002a
@@ -1548,6 +1549,7 @@ static void frontend_init(struct budget_av *budget_av)
 		case SUBID_DVBC_KNC1_PLUS_MK3:
 		case SUBID_DVBS2_KNC1:
 		case SUBID_DVBS2_KNC1_OEM:
+		case SUBID_DVBS2_EASYWATCH:
 			saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTHI);
 			break;
 	}
@@ -1602,6 +1604,7 @@ static void frontend_init(struct budget_av *budget_av)
 		break;
 	case SUBID_DVBS2_KNC1:
 	case SUBID_DVBS2_KNC1_OEM:
+	case SUBID_DVBS2_EASYWATCH:
 		budget_av->reinitialise_demod = 1;
 		if ((fe = dvb_attach(stb0899_attach, &knc1_dvbs2_config, &budget_av->budget.i2c_adap)))
 			dvb_attach(tda8261_attach, fe, &sd1878c_config, &budget_av->budget.i2c_adap);
@@ -1874,6 +1877,7 @@ static struct saa7146_extension budget_extension;
 
 MAKE_BUDGET_INFO(knc1s, "KNC1 DVB-S", BUDGET_KNC1S);
 MAKE_BUDGET_INFO(knc1s2,"KNC1 DVB-S2", BUDGET_KNC1S2);
+MAKE_BUDGET_INFO(sates2,"Satelco EasyWatch DVB-S2", BUDGET_KNC1S2);
 MAKE_BUDGET_INFO(knc1c, "KNC1 DVB-C", BUDGET_KNC1C);
 MAKE_BUDGET_INFO(knc1t, "KNC1 DVB-T", BUDGET_KNC1T);
 MAKE_BUDGET_INFO(kncxs, "KNC TV STAR DVB-S", BUDGET_TVSTAR);
@@ -1906,6 +1910,7 @@ static struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(kncxs, 0x1894, 0x0016),
 	MAKE_EXTENSION_PCI(knc1s2, 0x1894, 0x0018),
 	MAKE_EXTENSION_PCI(knc1s2, 0x1894, 0x0019),
+	MAKE_EXTENSION_PCI(sates2, 0x1894, 0x001d),
 	MAKE_EXTENSION_PCI(satewpls, 0x1894, 0x001e),
 	MAKE_EXTENSION_PCI(satewpls1, 0x1894, 0x001a),
 	MAKE_EXTENSION_PCI(satewps, 0x1894, 0x001b),
