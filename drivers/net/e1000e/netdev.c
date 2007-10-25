@@ -494,10 +494,6 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 			goto next_desc;
 		}
 
-		/* adjust length to remove Ethernet CRC */
-		length -= 4;
-
-		/* probably a little skewed due to removing CRC */
 		total_rx_bytes += length;
 		total_rx_packets++;
 
@@ -964,8 +960,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			kunmap_atomic(vaddr, KM_SKB_DATA_SOFTIRQ);
 			pci_dma_sync_single_for_device(pdev, ps_page->dma,
 				PAGE_SIZE, PCI_DMA_FROMDEVICE);
-			/* remove the CRC */
-			l1 -= 4;
+
 			skb_put(skb, l1);
 			goto copydone;
 		} /* if */
@@ -986,10 +981,6 @@ static bool e1000_clean_rx_irq_ps(struct e1000_adapter *adapter,
 			skb->data_len += length;
 			skb->truesize += length;
 		}
-
-		/* strip the ethernet crc, problem is we're using pages now so
-		 * this whole operation can get a little cpu intensive */
-		pskb_trim(skb, skb->len - 4);
 
 copydone:
 		total_rx_bytes += skb->len;
@@ -2034,9 +2025,11 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 
 		ew32(RFCTL, rfctl);
 
-		/* disable the stripping of CRC because it breaks
-		 * BMC firmware connected over SMBUS */
-		rctl |= E1000_RCTL_DTYP_PS /* | E1000_RCTL_SECRC */;
+		/* Enable Packet split descriptors */
+		rctl |= E1000_RCTL_DTYP_PS;
+		
+		/* Enable hardware CRC frame stripping */
+		rctl |= E1000_RCTL_SECRC;
 
 		psrctl |= adapter->rx_ps_bsize0 >>
 			E1000_PSRCTL_BSIZE0_SHIFT;
