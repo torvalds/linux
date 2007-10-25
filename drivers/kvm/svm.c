@@ -1501,8 +1501,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #ifdef CONFIG_X86_64
 		"push %%rbp; \n\t"
 #else
-		"push %%ebx; push %%ecx; push %%edx;"
-		"push %%esi; push %%edi; push %%ebp;"
+		"push %%ebp; \n\t"
 #endif
 
 #ifdef CONFIG_X86_64
@@ -1573,8 +1572,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"mov %%edi, %c[rdi](%[svm]) \n\t"
 		"mov %%ebp, %c[rbp](%[svm]) \n\t"
 
-		"pop  %%ebp; pop  %%edi; pop  %%esi;"
-		"pop  %%edx; pop  %%ecx; pop  %%ebx; \n\t"
+		"pop  %%ebp; \n\t"
 #endif
 		:
 		: [svm]"a"(svm),
@@ -1599,6 +1597,8 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #ifdef CONFIG_X86_64
 		, "rbx", "rcx", "rdx", "rsi", "rdi"
 		, "r8", "r9", "r10", "r11" , "r12", "r13", "r14", "r15"
+#else
+		, "ebx", "ecx", "edx" , "esi", "edi"
 #endif
 		);
 
