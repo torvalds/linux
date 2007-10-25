@@ -31,7 +31,7 @@
 
 #include <linux/io.h>
 
-#include "iwl-debug.h"
+#include "iwl-4965-debug.h"
 
 /*
  * IO, register, and NIC memory access functions

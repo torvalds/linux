@@ -56,9 +56,6 @@
 
 #include <asm/div64.h>
 
-#define IWL 3945
-
-#include "iwlwifi.h"
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
 

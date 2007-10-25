@@ -37,11 +37,9 @@
 
 #include <linux/workqueue.h>
 
-#define IWL 3945
-
 #include "../net/mac80211/ieee80211_rate.h"
 
-#include "iwlwifi.h"
+#include "iwl-3945.h"
 
 #define RS_NAME "iwl-3945-rs"
 

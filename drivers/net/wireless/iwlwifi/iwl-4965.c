@@ -37,9 +37,6 @@
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
 
-#define IWL 4965
-
-#include "iwlwifi.h"
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
 

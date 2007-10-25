@@ -39,11 +39,8 @@
 
 #include <linux/etherdevice.h>
 
-#define IWL 3945
-
-#include "iwlwifi.h"
-#include "iwl-helpers.h"
 #include "iwl-3945.h"
+#include "iwl-helpers.h"
 #include "iwl-3945-rs.h"
 
 #define IWL_DECLARE_RATE_INFO(r, ip, in, rp, rn, pp, np)    \

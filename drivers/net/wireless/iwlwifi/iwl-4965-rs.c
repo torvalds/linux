@@ -36,11 +36,9 @@
 
 #include <linux/workqueue.h>
 
-#define IWL 4965
-
 #include "../net/mac80211/ieee80211_rate.h"
 
-#include "iwlwifi.h"
+#include "iwl-4965.h"
 #include "iwl-helpers.h"
 
 #define RS_NAME "iwl-4965-rs"
