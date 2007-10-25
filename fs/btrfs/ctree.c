@@ -26,7 +26,7 @@ static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, int level);
 static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *ins_key,
-		      struct btrfs_path *path, int data_size);
+		      struct btrfs_path *path, int data_size, int extend);
 static int push_node_left(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, struct extent_buffer *dst,
 			  struct extent_buffer *src);
@@ -1049,7 +1049,7 @@ again:
 			if (ins_len > 0 && btrfs_leaf_free_space(root, b) <
 			    sizeof(struct btrfs_item) + ins_len) {
 				int sret = split_leaf(trans, root, key,
-						      p, ins_len);
+						      p, ins_len, ret == 0);
 				BUG_ON(sret > 0);
 				if (sret)
 					return sret;
@@ -1755,7 +1755,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
  */
 static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *ins_key,
-		      struct btrfs_path *path, int data_size)
+		      struct btrfs_path *path, int data_size, int extend)
 {
 	struct extent_buffer *l;
 	u32 nritems;
@@ -1768,8 +1768,12 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	int i;
 	int ret = 0;
 	int wret;
-	int double_split = 0;
+	int double_split;
+	int num_doubles = 0;
 	struct btrfs_disk_key disk_key;
+
+	if (extend)
+		space_needed = data_size;
 
 	/* first try to make some room by pushing left and right */
 	if (ins_key->type != BTRFS_DIR_ITEM_KEY) {
@@ -1785,12 +1789,8 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 		l = path->nodes[0];
 
 		/* did the pushes work? */
-		if (btrfs_leaf_free_space(root, l) >=
-		    sizeof(struct btrfs_item) + data_size) {
+		if (btrfs_leaf_free_space(root, l) >= space_needed)
 			return 0;
-		}
-	} else {
-		l = path->nodes[0];
 	}
 
 	if (!path->nodes[1]) {
@@ -1798,6 +1798,9 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 		if (ret)
 			return ret;
 	}
+again:
+	double_split = 0;
+	l = path->nodes[0];
 	slot = path->slots[0];
 	nritems = btrfs_header_nritems(l);
 	mid = (nritems + 1)/ 2;
@@ -1815,7 +1818,6 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	write_extent_buffer(right, root->fs_info->fsid,
 			    (unsigned long)btrfs_header_fsid(right),
 			    BTRFS_FSID_SIZE);
-
 	if (mid <= slot) {
 		if (nritems == 1 ||
 		    leaf_space_used(l, mid, nritems - mid) + space_needed >
@@ -1844,7 +1846,7 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 	} else {
 		if (leaf_space_used(l, 0, mid + 1) + space_needed >
 			BTRFS_LEAF_DATA_SIZE(root)) {
-			if (slot == 0) {
+			if (!extend && slot == 0) {
 				btrfs_cpu_key_to_disk(&disk_key, ins_key);
 				btrfs_set_header_nritems(right, 0);
 				wret = insert_ptr(trans, root, path,
@@ -1863,12 +1865,15 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 						ret = wret;
 				}
 				return ret;
-			}
-			mid = slot;
-			if (mid != nritems &&
-			    leaf_space_used(l, mid, nritems - mid) +
-			    space_needed > BTRFS_LEAF_DATA_SIZE(root)) {
-				double_split = 1;
+			} else if (extend && slot == 0) {
+				mid = 1;
+			} else {
+				mid = slot;
+				if (mid != nritems &&
+				    leaf_space_used(l, mid, nritems - mid) +
+				    space_needed > BTRFS_LEAF_DATA_SIZE(root)) {
+					double_split = 1;
+				}
 			}
 		}
 	}
@@ -1931,39 +1936,11 @@ static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	BUG_ON(path->slots[0] < 0);
 
-	if (!double_split) {
-		return ret;
+	if (double_split) {
+		BUG_ON(num_doubles != 0);
+		num_doubles++;
+		goto again;
 	}
-
-	right = btrfs_alloc_free_block(trans, root, root->leafsize,
-				       l->start, 0);
-	if (IS_ERR(right))
-		return PTR_ERR(right);
-
-	memset_extent_buffer(right, 0, 0, sizeof(struct btrfs_header));
-	btrfs_set_header_bytenr(right, right->start);
-	btrfs_set_header_generation(right, trans->transid);
-	btrfs_set_header_owner(right, root->root_key.objectid);
-	btrfs_set_header_level(right, 0);
-	write_extent_buffer(right, root->fs_info->fsid,
-			    (unsigned long)btrfs_header_fsid(right),
-			    BTRFS_FSID_SIZE);
-
-	btrfs_cpu_key_to_disk(&disk_key, ins_key);
-	btrfs_set_header_nritems(right, 0);
-	wret = insert_ptr(trans, root, path,
-			  &disk_key, right->start,
-			  path->slots[1], 1);
-	if (wret)
-		ret = wret;
-	if (path->slots[1] == 0) {
-		wret = fixup_low_keys(trans, root, path, &disk_key, 1);
-		if (wret)
-			ret = wret;
-	}
-	free_extent_buffer(path->nodes[0]);
-	path->nodes[0] = right;
-	path->slots[0] = 0;
 	return ret;
 }
 
@@ -1992,8 +1969,7 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 
 	slot = path->slots[0];
 	old_data_start = btrfs_item_offset_nr(leaf, slot);
-	old_size = btrfs_item_size_nr(leaf, slot);
-	BUG_ON(old_size <= new_size);
+	old_size = btrfs_item_size_nr(leaf, slot); BUG_ON(old_size <= new_size);
 	size_diff = old_size - new_size;
 
 	BUG_ON(slot < 0);
