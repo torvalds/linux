@@ -1428,6 +1428,7 @@ static void ub_state_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	scmd->state = UB_CMDST_INIT;
 	scmd->nsg = 1;
 	sg = &scmd->sgv[0];
+	sg_init_table(sg, UB_MAX_REQ_SG);
 	sg_set_page(sg, virt_to_page(sc->top_sense), UB_SENSE_SIZE,
 			(unsigned long)sc->top_sense & (PAGE_SIZE-1));
 	scmd->len = UB_SENSE_SIZE;
@@ -1863,6 +1864,7 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->state = UB_CMDST_INIT;
 	cmd->nsg = 1;
 	sg = &cmd->sgv[0];
+	sg_init_table(sg, UB_MAX_REQ_SG);
 	sg_set_page(sg, virt_to_page(p), 8, (unsigned long)p & (PAGE_SIZE-1));
 	cmd->len = 8;
 	cmd->lun = lun;
