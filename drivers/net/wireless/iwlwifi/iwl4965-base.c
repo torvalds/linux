@@ -9088,8 +9088,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->channel_width = IWL_CHANNEL_WIDTH_40MHZ;
 	priv->valid_antenna = 0x7;	/* assume all 3 connected */
 	priv->ps_mode = IWL_MIMO_PS_NONE;
-	priv->cck_power_index_compensation = iwl_read32(
-		priv, CSR_HW_REV_WA_REG);
 
 	iwl4965_set_rxon_chain(priv);
 

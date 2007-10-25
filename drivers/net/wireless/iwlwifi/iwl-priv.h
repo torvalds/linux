@@ -278,7 +278,6 @@ struct iwl_priv {
 #define IWL_DEFAULT_TX_POWER 0x0F
 	s8 user_txpower_limit;
 	s8 max_channel_txpower_limit;
-	u32 cck_power_index_compensation;
 
 #ifdef CONFIG_PM
 	u32 pm_state[16];
