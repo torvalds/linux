@@ -864,7 +864,7 @@ static void sctp_init_assoc(struct connection *con)
 static void tcp_connect_to_sock(struct connection *con)
 {
 	int result = -EHOSTUNREACH;
-	struct sockaddr_storage saddr;
+	struct sockaddr_storage saddr, src_addr;
 	int addr_len;
 	struct socket *sock;
 
@@ -897,6 +897,17 @@ static void tcp_connect_to_sock(struct connection *con)
 	con->rx_action = receive_from_sock;
 	con->connect_action = tcp_connect_to_sock;
 	add_sock(sock, con);
+
+	/* Bind to our cluster-known address connecting to avoid
+	   routing problems */
+	memcpy(&src_addr, dlm_local_addr[0], sizeof(src_addr));
+	make_sockaddr(&src_addr, 0, &addr_len);
+	result = sock->ops->bind(sock, (struct sockaddr *) &src_addr,
+				 addr_len);
+	if (result < 0) {
+		log_print("could not bind for connect: %d", result);
+		/* This *may* not indicate a critical error */
+	}
 
 	make_sockaddr(&saddr, dlm_config.ci_tcp_port, &addr_len);
 
