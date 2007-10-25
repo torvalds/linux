@@ -171,7 +171,8 @@ static ssize_t proc_sys_read(struct file *filp, char __user *buf,
 	struct dentry *dentry = filp->f_dentry;
 	struct ctl_table_header *head;
 	struct ctl_table *table;
-	ssize_t error, res;
+	ssize_t error;
+	size_t res;
 
 	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
 	/* Has the sysctl entry disappeared on us? */
@@ -209,7 +210,8 @@ static ssize_t proc_sys_write(struct file *filp, const char __user *buf,
 	struct dentry *dentry = filp->f_dentry;
 	struct ctl_table_header *head;
 	struct ctl_table *table;
-	ssize_t error, res;
+	ssize_t error;
+	size_t res;
 
 	table = do_proc_sys_lookup(dentry->d_parent, &dentry->d_name, &head);
 	/* Has the sysctl entry disappeared on us? */
