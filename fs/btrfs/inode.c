@@ -448,6 +448,9 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 	char *goodnames = "..";
 	unsigned long nr;
 
+	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE)
+		return -ENOTEMPTY;
+
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -501,9 +504,9 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 out:
 	btrfs_release_path(root, path);
 	btrfs_free_path(path);
-	mutex_unlock(&root->fs_info->fs_mutex);
 	nr = trans->blocks_used;
 	ret = btrfs_end_transaction(trans, root);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
 	if (ret && !err)
 		err = ret;
