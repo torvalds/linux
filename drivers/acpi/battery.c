@@ -130,6 +130,8 @@ static int acpi_battery_technology(struct acpi_battery *battery)
 	return POWER_SUPPLY_TECHNOLOGY_UNKNOWN;
 }
 
+static int acpi_battery_update(struct acpi_battery *battery);
+
 static int acpi_battery_get_property(struct power_supply *psy,
 				     enum power_supply_property psp,
 				     union power_supply_propval *val)
@@ -139,6 +141,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 	if ((!acpi_battery_present(battery)) &&
 	     psp != POWER_SUPPLY_PROP_PRESENT)
 		return -ENODEV;
+	acpi_battery_update(battery);
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->state & 0x01)
