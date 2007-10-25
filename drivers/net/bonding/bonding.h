@@ -302,7 +302,6 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_de
 int bond_create(char *name, struct bond_params *params, struct bonding **newbond);
 void bond_destroy(struct bonding *bond);
 int  bond_release_and_destroy(struct net_device *bond_dev, struct net_device *slave_dev);
-void bond_deinit(struct net_device *bond_dev);
 int bond_create_sysfs(void);
 void bond_destroy_sysfs(void);
 void bond_destroy_sysfs_entry(struct bonding *bond);

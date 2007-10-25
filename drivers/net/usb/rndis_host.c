@@ -512,11 +512,19 @@ static int rndis_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 	tmp = le32_to_cpu(u.init_c->max_transfer_size);
 	if (tmp < dev->hard_mtu) {
-		dev_err(&intf->dev,
-			"dev can't take %u byte packets (max %u)\n",
-			dev->hard_mtu, tmp);
-		retval = -EINVAL;
-		goto fail_and_release;
+		if (tmp <= net->hard_header_len) {
+			dev_err(&intf->dev,
+				"dev can't take %u byte packets (max %u)\n",
+				dev->hard_mtu, tmp);
+			retval = -EINVAL;
+			goto fail_and_release;
+		}
+		dev->hard_mtu = tmp;
+		net->mtu = dev->hard_mtu - net->hard_header_len;
+		dev_warn(&intf->dev,
+			 "dev can't take %u byte packets (max %u), "
+			 "adjusting MTU to %u\n",
+			 dev->hard_mtu, tmp, net->mtu);
 	}
 
 	/* REVISIT:  peripheral "alignment" request is ignored ... */
