@@ -108,7 +108,6 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	key.objectid = inode->i_ino;
 	key.offset = offset;
 	btrfs_set_key_type(&key, BTRFS_EXTENT_DATA_KEY);
-	datasize = btrfs_file_extent_calc_inline_size(offset + size);
 
 	ret = btrfs_search_slot(trans, root, &key, path, 0, 1);
 	if (ret < 0) {
@@ -130,7 +129,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	}
 	if (ret == 0) {
 		u32 found_size;
-		u64 found_start;
+		u64 found_end;
 
 		leaf = path->nodes[0];
 		ei = btrfs_item_ptr(leaf, path->slots[0],
@@ -144,19 +143,17 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 			       offset, inode->i_ino);
 			goto fail;
 		}
-		found_start = key.offset;
 		found_size = btrfs_file_extent_inline_len(leaf,
 					  btrfs_item_nr(leaf, path->slots[0]));
+		found_end = key.offset + found_size;
 
-		if (found_size < offset + size) {
+		if (found_end < offset + size) {
 			btrfs_release_path(root, path);
 			ret = btrfs_search_slot(trans, root, &key, path,
-						offset + size - found_size -
-						found_start, 1);
+						offset + size - found_end, 1);
 			BUG_ON(ret != 0);
 			ret = btrfs_extend_item(trans, root, path,
-						offset + size - found_size -
-						found_start);
+						offset + size - found_end);
 			if (ret) {
 				err = ret;
 				goto fail;
@@ -165,9 +162,15 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 			ei = btrfs_item_ptr(leaf, path->slots[0],
 					    struct btrfs_file_extent_item);
 		}
+		if (found_end < offset) {
+			ptr = btrfs_file_extent_inline_start(ei) + found_size;
+			memset_extent_buffer(leaf, 0, ptr, offset - found_end);
+		}
 	} else {
 insert:
 		btrfs_release_path(root, path);
+		datasize = offset + size - key.offset;
+		datasize = btrfs_file_extent_calc_inline_size(datasize);
 		ret = btrfs_insert_empty_item(trans, root, path, &key,
 					      datasize);
 		if (ret) {
@@ -181,7 +184,7 @@ insert:
 		btrfs_set_file_extent_generation(leaf, ei, trans->transid);
 		btrfs_set_file_extent_type(leaf, ei, BTRFS_FILE_EXTENT_INLINE);
 	}
-	ptr = btrfs_file_extent_inline_start(ei) + offset;
+	ptr = btrfs_file_extent_inline_start(ei) + offset - key.offset;
 
 	cur_size = size;
 	i = 0;
