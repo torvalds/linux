@@ -3522,8 +3522,8 @@ static void iwl4965_handle_data_packet(struct iwl_priv *priv, int is_data,
 		rx_start->byte_count = amsdu->byte_count;
 		rx_end = (__le32 *) (((u8 *) hdr) + len);
 	}
-	if (len > 2342 || len < 16) {
-		IWL_DEBUG_DROP("byte count out of range [16,2342]"
+	if (len > IWL_RX_BUF_SIZE || len < 16) {
+		IWL_WARNING("byte count out of range [16,4K]"
 			       " : %d\n", len);
 		return;
 	}
