@@ -272,6 +272,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 	unsigned long user_addr = (unsigned long)iov->iov_base;
 	size_t count = iov->iov_len;
 	size_t rsize = NFS_SERVER(inode)->rsize;
+	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_cred = ctx->cred,
 	};
@@ -333,11 +334,13 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		msg.rpc_argp = &data->args;
 		msg.rpc_resp = &data->res;
 
+		task_setup_data.task = &data->task;
 		task_setup_data.callback_data = data;
 		NFS_PROTO(inode)->read_setup(data, &msg);
-		rpc_init_task(&data->task, &task_setup_data);
 
-		rpc_execute(&data->task);
+		task = rpc_run_task(&task_setup_data);
+		if (!IS_ERR(task))
+			rpc_put_task(task);
 
 		dprintk("NFS: %5u initiated direct read call "
 			"(req %s/%Ld, %zu bytes @ offset %Lu)\n",
@@ -440,6 +443,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	struct inode *inode = dreq->inode;
 	struct list_head *p;
 	struct nfs_write_data *data;
+	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_cred = dreq->ctx->cred,
 	};
@@ -471,16 +475,18 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 		 * Reuse data->task; data->args should not have changed
 		 * since the original request was sent.
 		 */
+		task_setup_data.task = &data->task;
 		task_setup_data.callback_data = data;
 		msg.rpc_argp = &data->args;
 		msg.rpc_resp = &data->res;
 		NFS_PROTO(inode)->write_setup(data, &msg);
-		rpc_init_task(&data->task, &task_setup_data);
 
 		/*
 		 * We're called via an RPC callback, so BKL is already held.
 		 */
-		rpc_execute(&data->task);
+		task = rpc_run_task(&task_setup_data);
+		if (!IS_ERR(task))
+			rpc_put_task(task);
 
 		dprintk("NFS: %5u rescheduled direct write call (req %s/%Ld, %u bytes @ offset %Lu)\n",
 				data->task.tk_pid,
@@ -523,12 +529,14 @@ static const struct rpc_call_ops nfs_commit_direct_ops = {
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 {
 	struct nfs_write_data *data = dreq->commit_data;
+	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_argp = &data->args,
 		.rpc_resp = &data->res,
 		.rpc_cred = dreq->ctx->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
+		.task = &data->task,
 		.rpc_client = NFS_CLIENT(dreq->inode),
 		.rpc_message = &msg,
 		.callback_ops = &nfs_commit_direct_ops,
@@ -547,14 +555,15 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	data->res.verf = &data->verf;
 
 	NFS_PROTO(data->inode)->commit_setup(data, &msg);
-	rpc_init_task(&data->task, &task_setup_data);
 
 	/* Note: task.tk_ops->rpc_release will free dreq->commit_data */
 	dreq->commit_data = NULL;
 
 	dprintk("NFS: %5u initiated commit call\n", data->task.tk_pid);
 
-	rpc_execute(&data->task);
+	task = rpc_run_task(&task_setup_data);
+	if (!IS_ERR(task))
+		rpc_put_task(task);
 }
 
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
@@ -669,6 +678,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 	struct inode *inode = ctx->path.dentry->d_inode;
 	unsigned long user_addr = (unsigned long)iov->iov_base;
 	size_t count = iov->iov_len;
+	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_cred = ctx->cred,
 	};
@@ -732,13 +742,15 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		data->res.count = bytes;
 		data->res.verf = &data->verf;
 
+		task_setup_data.task = &data->task;
 		task_setup_data.callback_data = data;
 		msg.rpc_argp = &data->args;
 		msg.rpc_resp = &data->res;
 		NFS_PROTO(inode)->write_setup(data, &msg);
-		rpc_init_task(&data->task, &task_setup_data);
 
-		rpc_execute(&data->task);
+		task = rpc_run_task(&task_setup_data);
+		if (!IS_ERR(task))
+			rpc_put_task(task);
 
 		dprintk("NFS: %5u initiated direct write call "
 			"(req %s/%Ld, %zu bytes @ offset %Lu)\n",

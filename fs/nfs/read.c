@@ -153,16 +153,6 @@ static void nfs_readpage_release(struct nfs_page *req)
 	nfs_release_request(req);
 }
 
-static void nfs_execute_read(struct nfs_read_data *data)
-{
-	struct rpc_clnt *clnt = NFS_CLIENT(data->inode);
-	sigset_t oldset;
-
-	rpc_clnt_sigmask(clnt, &oldset);
-	rpc_execute(&data->task);
-	rpc_clnt_sigunmask(clnt, &oldset);
-}
-
 /*
  * Set up the NFS read request struct
  */
@@ -172,12 +162,14 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 {
 	struct inode *inode = req->wb_context->path.dentry->d_inode;
 	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
+	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_argp = &data->args,
 		.rpc_resp = &data->res,
 		.rpc_cred = req->wb_context->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
+		.task = &data->task,
 		.rpc_client = NFS_CLIENT(inode),
 		.rpc_message = &msg,
 		.callback_ops = call_ops,
@@ -203,7 +195,6 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 
 	/* Set up the initial task struct. */
 	NFS_PROTO(inode)->read_setup(data, &msg);
-	rpc_init_task(&data->task, &task_setup_data);
 
 	dprintk("NFS: %5u initiated read call (req %s/%Ld, %u bytes @ offset %Lu)\n",
 			data->task.tk_pid,
@@ -212,7 +203,9 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 			count,
 			(unsigned long long)data->args.offset);
 
-	nfs_execute_read(data);
+	task = rpc_run_task(&task_setup_data);
+	if (!IS_ERR(task))
+		rpc_put_task(task);
 }
 
 static void
