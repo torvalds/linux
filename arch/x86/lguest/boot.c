@@ -56,6 +56,7 @@
 #include <linux/lguest.h>
 #include <linux/lguest_launcher.h>
 #include <linux/virtio_console.h>
+#include <linux/pm.h>
 #include <asm/paravirt.h>
 #include <asm/param.h>
 #include <asm/page.h>
@@ -98,7 +99,7 @@ static cycle_t clock_base;
  * When lazy_mode is set, it means we're allowed to defer all hypercalls and do
  * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
  * are reasonably expensive, batching them up makes sense.  For example, a
- * large mmap might update dozens of page table entries: that code calls
+ * large munmap might update dozens of page table entries: that code calls
  * paravirt_enter_lazy_mmu(), does the dozen updates, then calls
  * lguest_leave_lazy_mode().
  *
@@ -163,8 +164,8 @@ void async_hcall(unsigned long call,
 /*:*/
 
 /*G:033
- * Here are our first native-instruction replacements: four functions for
- * interrupt control.
+ * After that diversion we return to our first native-instruction
+ * replacements: four functions for interrupt control.
  *
  * The simplest way of implementing these would be to have "turn interrupts
  * off" and "turn interrupts on" hypercalls.  Unfortunately, this is too slow:
@@ -183,7 +184,7 @@ static unsigned long save_fl(void)
 	return lguest_data.irq_enabled;
 }
 
-/* "restore_flags" just sets the flags back to the value given. */
+/* restore_flags() just sets the flags back to the value given. */
 static void restore_fl(unsigned long flags)
 {
 	lguest_data.irq_enabled = flags;
@@ -356,7 +357,7 @@ static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
  * it.  The Host needs to know when the Guest wants to change them, so we have
  * a whole series of functions like read_cr0() and write_cr0().
  *
- * We start with CR0.  CR0 allows you to turn on and off all kinds of basic
+ * We start with cr0.  cr0 allows you to turn on and off all kinds of basic
  * features, but Linux only really cares about one: the horrifically-named Task
  * Switched (TS) bit at bit 3 (ie. 8)
  *
@@ -371,8 +372,7 @@ static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
 static unsigned long current_cr0, current_cr3;
 static void lguest_write_cr0(unsigned long val)
 {
-	/* 8 == TS bit. */
-	lazy_hcall(LHCALL_TS, val & 8, 0, 0);
+	lazy_hcall(LHCALL_TS, val & X86_CR0_TS, 0, 0);
 	current_cr0 = val;
 }
 
@@ -387,10 +387,10 @@ static unsigned long lguest_read_cr0(void)
 static void lguest_clts(void)
 {
 	lazy_hcall(LHCALL_TS, 0, 0, 0);
-	current_cr0 &= ~8U;
+	current_cr0 &= ~X86_CR0_TS;
 }
 
-/* CR2 is the virtual address of the last page fault, which the Guest only ever
+/* cr2 is the virtual address of the last page fault, which the Guest only ever
  * reads.  The Host kindly writes this into our "struct lguest_data", so we
  * just read it out of there. */
 static unsigned long lguest_read_cr2(void)
@@ -398,7 +398,7 @@ static unsigned long lguest_read_cr2(void)
 	return lguest_data.cr2;
 }
 
-/* CR3 is the current toplevel pagetable page: the principle is the same as
+/* cr3 is the current toplevel pagetable page: the principle is the same as
  * cr0.  Keep a local copy, and tell the Host when it changes. */
 static void lguest_write_cr3(unsigned long cr3)
 {
@@ -411,7 +411,7 @@ static unsigned long lguest_read_cr3(void)
 	return current_cr3;
 }
 
-/* CR4 is used to enable and disable PGE, but we don't care. */
+/* cr4 is used to enable and disable PGE, but we don't care. */
 static unsigned long lguest_read_cr4(void)
 {
 	return 0;
@@ -432,7 +432,7 @@ static void lguest_write_cr4(unsigned long val)
  * maps virtual addresses to physical addresses using "page tables".  We could
  * use one huge index of 1 million entries: each address is 4 bytes, so that's
  * 1024 pages just to hold the page tables.   But since most virtual addresses
- * are unused, we use a two level index which saves space.  The CR3 register
+ * are unused, we use a two level index which saves space.  The cr3 register
  * contains the physical address of the top level "page directory" page, which
  * contains physical addresses of up to 1024 second-level pages.  Each of these
  * second level pages contains up to 1024 physical addresses of actual pages,
@@ -440,7 +440,7 @@ static void lguest_write_cr4(unsigned long val)
  *
  * Here's a diagram, where arrows indicate physical addresses:
  *
- * CR3 ---> +---------+
+ * cr3 ---> +---------+
  *	    |  	   --------->+---------+
  *	    |	      |	     | PADDR1  |
  *	  Top-level   |	     | PADDR2  |
@@ -498,8 +498,7 @@ static void lguest_set_pmd(pmd_t *pmdp, pmd_t pmdval)
  *
  * ... except in early boot when the kernel sets up the initial pagetables,
  * which makes booting astonishingly slow.  So we don't even tell the Host
- * anything changed until we've done the first page table switch.
- */
+ * anything changed until we've done the first page table switch. */
 static void lguest_set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
@@ -720,10 +719,10 @@ static void lguest_time_init(void)
 	/* Set up the timer interrupt (0) to go to our simple timer routine */
 	set_irq_handler(0, lguest_time_irq);
 
-	/* Our clock structure look like arch/i386/kernel/tsc.c if we can use
-	 * the TSC, otherwise it's a dumb nanosecond-resolution clock.  Either
-	 * way, the "rating" is initialized so high that it's always chosen
-	 * over any other clocksource. */
+	/* Our clock structure looks like arch/x86/kernel/tsc_32.c if we can
+	 * use the TSC, otherwise it's a dumb nanosecond-resolution clock.
+	 * Either way, the "rating" is set so high that it's always chosen over
+	 * any other clocksource. */
 	if (lguest_data.tsc_khz)
 		lguest_clock.mult = clocksource_khz2mult(lguest_data.tsc_khz,
 							 lguest_clock.shift);
@@ -749,7 +748,7 @@ static void lguest_time_init(void)
  * to work.  They're pretty simple.
  */
 
-/* The Guest needs to tell the host what stack it expects traps to use.  For
+/* The Guest needs to tell the Host what stack it expects traps to use.  For
  * native hardware, this is part of the Task State Segment mentioned above in
  * lguest_load_tr_desc(), but to help hypervisors there's this special call.
  *
@@ -850,13 +849,16 @@ static __init char *lguest_memory_setup(void)
 	return "LGUEST";
 }
 
-/* Before virtqueues are set up, we use LHCALL_NOTIFY on normal memory to
- * produce console output. */
+/* We will eventually use the virtio console device to produce console output,
+ * but before that is set up we use LHCALL_NOTIFY on normal memory to produce
+ * console output. */
 static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 {
 	char scratch[17];
 	unsigned int len = count;
 
+	/* We use a nul-terminated string, so we have to make a copy.  Icky,
+	 * huh? */
 	if (len > sizeof(scratch) - 1)
 		len = sizeof(scratch) - 1;
 	scratch[len] = '\0';
@@ -883,7 +885,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
  * Our current solution is to allow the paravirt back end to optionally patch
  * over the indirect calls to replace them with something more efficient.  We
  * patch the four most commonly called functions: disable interrupts, enable
- * interrupts, restore interrupts and save interrupts.  We usually have 10
+ * interrupts, restore interrupts and save interrupts.  We usually have 6 or 10
  * bytes to patch into: the Guest versions of these operations are small enough
  * that we can fit comfortably.
  *
@@ -1015,7 +1017,7 @@ __init void lguest_init(void)
 	asm volatile ("mov %0, %%fs" : : "r" (__KERNEL_DS) : "memory");
 
 	/* The Host uses the top of the Guest's virtual address space for the
-	 * Host<->Guest Switcher, and it tells us how much it needs in
+	 * Host<->Guest Switcher, and it tells us how big that is in
 	 * lguest_data.reserve_mem, set up on the LGUEST_INIT hypercall. */
 	reserve_top_address(lguest_data.reserve_mem);
 
@@ -1065,6 +1067,6 @@ __init void lguest_init(void)
 /*
  * This marks the end of stage II of our journey, The Guest.
  *
- * It is now time for us to explore the nooks and crannies of the three Guest
- * devices and complete our understanding of the Guest in "make Drivers".
+ * It is now time for us to explore the layer of virtual drivers and complete
+ * our understanding of the Guest in "make Drivers".
  */

@@ -12,8 +12,8 @@
 #define LG_CLOCK_MAX_DELTA	ULONG_MAX
 
 /*G:032 The second method of communicating with the Host is to via "struct
- * lguest_data".  The Guest's very first hypercall is to tell the Host where
- * this is, and then the Guest and Host both publish information in it. :*/
+ * lguest_data".  Once the Guest's initialization hypercall tells the Host where
+ * this is, the Guest and Host both publish information in it. :*/
 struct lguest_data
 {
 	/* 512 == enabled (same as eflags in normal hardware).  The Guest

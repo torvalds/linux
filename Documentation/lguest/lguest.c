@@ -34,25 +34,24 @@
 #include <zlib.h>
 #include <assert.h>
 #include <sched.h>
-/*L:110 We can ignore the 30 include files we need for this program, but I do
- * want to draw attention to the use of kernel-style types.
- *
- * As Linus said, "C is a Spartan language, and so should your naming be."  I
- * like these abbreviations and the header we need uses them, so we define them
- * here.
- */
-typedef unsigned long long u64;
-typedef uint32_t u32;
-typedef uint16_t u16;
-typedef uint8_t u8;
 #include "linux/lguest_launcher.h"
-#include "linux/pci_ids.h"
 #include "linux/virtio_config.h"
 #include "linux/virtio_net.h"
 #include "linux/virtio_blk.h"
 #include "linux/virtio_console.h"
 #include "linux/virtio_ring.h"
 #include "asm-x86/bootparam.h"
+/*L:110 We can ignore the 38 include files we need for this program, but I do
+ * want to draw attention to the use of kernel-style types.
+ *
+ * As Linus said, "C is a Spartan language, and so should your naming be."  I
+ * like these abbreviations, so we define them here.  Note that u64 is always
+ * unsigned long long, which works on all Linux systems: this means that we can
+ * use %llu in printf for any u64. */
+typedef unsigned long long u64;
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t u8;
 /*:*/
 
 #define PAGE_PRESENT 0x7 	/* Present, RW, Execute */
@@ -361,8 +360,8 @@ static unsigned long load_bzimage(int fd)
 }
 
 /*L:140 Loading the kernel is easy when it's a "vmlinux", but most kernels
- * come wrapped up in the self-decompressing "bzImage" format.  With some funky
- * coding, we can load those, too. */
+ * come wrapped up in the self-decompressing "bzImage" format.  With a little
+ * work, we can load those, too. */
 static unsigned long load_kernel(int fd)
 {
 	Elf32_Ehdr hdr;
@@ -465,6 +464,7 @@ static unsigned long setup_pagetables(unsigned long mem,
 	 * to know where it is. */
 	return to_guest_phys(pgdir);
 }
+/*:*/
 
 /* Simple routine to roll all the commandline arguments together with spaces
  * between them. */
@@ -481,9 +481,9 @@ static void concat(char *dst, char *args[])
 	dst[len] = '\0';
 }
 
-/* This is where we actually tell the kernel to initialize the Guest.  We saw
- * the arguments it expects when we looked at initialize() in lguest_user.c:
- * the base of guest "physical" memory, the top physical page to allow, the
+/*L:185 This is where we actually tell the kernel to initialize the Guest.  We
+ * saw the arguments it expects when we looked at initialize() in lguest_user.c:
+ * the base of Guest "physical" memory, the top physical page to allow, the
  * top level pagetable and the entry point for the Guest. */
 static int tell_kernel(unsigned long pgdir, unsigned long start)
 {
@@ -513,13 +513,14 @@ static void add_device_fd(int fd)
 /*L:200
  * The Waker.
  *
- * With a console and network devices, we can have lots of input which we need
- * to process.  We could try to tell the kernel what file descriptors to watch,
- * but handing a file descriptor mask through to the kernel is fairly icky.
+ * With console, block and network devices, we can have lots of input which we
+ * need to process.  We could try to tell the kernel what file descriptors to
+ * watch, but handing a file descriptor mask through to the kernel is fairly
+ * icky.
  *
  * Instead, we fork off a process which watches the file descriptors and writes
- * the LHREQ_BREAK command to the /dev/lguest filedescriptor to tell the Host
- * loop to stop running the Guest.  This causes it to return from the
+ * the LHREQ_BREAK command to the /dev/lguest file descriptor to tell the Host
+ * stop running the Guest.  This causes the Launcher to return from the
  * /dev/lguest read with -EAGAIN, where it will write to /dev/lguest to reset
  * the LHREQ_BREAK and wake us up again.
  *
@@ -545,7 +546,9 @@ static void wake_parent(int pipefd, int lguest_fd)
 			if (read(pipefd, &fd, sizeof(fd)) == 0)
 				exit(0);
 			/* Otherwise it's telling us to change what file
-			 * descriptors we're to listen to. */
+			 * descriptors we're to listen to.  Positive means
+			 * listen to a new one, negative means stop
+			 * listening. */
 			if (fd >= 0)
 				FD_SET(fd, &devices.infds);
 			else
@@ -560,7 +563,7 @@ static int setup_waker(int lguest_fd)
 {
 	int pipefd[2], child;
 
-	/* We create a pipe to talk to the waker, and also so it knows when the
+	/* We create a pipe to talk to the Waker, and also so it knows when the
 	 * Launcher dies (and closes pipe). */
 	pipe(pipefd);
 	child = fork();
@@ -568,7 +571,8 @@ static int setup_waker(int lguest_fd)
 		err(1, "forking");
 
 	if (child == 0) {
-		/* Close the "writing" end of our copy of the pipe */
+		/* We are the Waker: close the "writing" end of our copy of the
+		 * pipe and start waiting for input. */
 		close(pipefd[1]);
 		wake_parent(pipefd[0], lguest_fd);
 	}
@@ -579,12 +583,12 @@ static int setup_waker(int lguest_fd)
 	return pipefd[1];
 }
 
-/*L:210
+/*
  * Device Handling.
  *
- * When the Guest sends DMA to us, it sends us an array of addresses and sizes.
+ * When the Guest gives us a buffer, it sends an array of addresses and sizes.
  * We need to make sure it's not trying to reach into the Launcher itself, so
- * we have a convenient routine which check it and exits with an error message
+ * we have a convenient routine which checks it and exits with an error message
  * if something funny is going on:
  */
 static void *_check_pointer(unsigned long addr, unsigned int size,
@@ -601,7 +605,9 @@ static void *_check_pointer(unsigned long addr, unsigned int size,
 /* A macro which transparently hands the line number to the real function. */
 #define check_pointer(addr,size) _check_pointer(addr, size, __LINE__)
 
-/* This function returns the next descriptor in the chain, or vq->vring.num. */
+/* Each buffer in the virtqueues is actually a chain of descriptors.  This
+ * function returns the next descriptor in the chain, or vq->vring.num if we're
+ * at the end. */
 static unsigned next_desc(struct virtqueue *vq, unsigned int i)
 {
 	unsigned int next;
@@ -680,13 +686,14 @@ static unsigned get_vq_desc(struct virtqueue *vq,
 	return head;
 }
 
-/* Once we've used one of their buffers, we tell them about it.  We'll then
+/* After we've used one of their buffers, we tell them about it.  We'll then
  * want to send them an interrupt, using trigger_irq(). */
 static void add_used(struct virtqueue *vq, unsigned int head, int len)
 {
 	struct vring_used_elem *used;
 
-	/* Get a pointer to the next entry in the used ring. */
+	/* The virtqueue contains a ring of used buffers.  Get a pointer to the
+	 * next entry in that used ring. */
 	used = &vq->vring.used->ring[vq->vring.used->idx % vq->vring.num];
 	used->id = head;
 	used->len = len;
@@ -700,6 +707,7 @@ static void trigger_irq(int fd, struct virtqueue *vq)
 {
 	unsigned long buf[] = { LHREQ_IRQ, vq->config.irq };
 
+	/* If they don't want an interrupt, don't send one. */
 	if (vq->vring.avail->flags & VRING_AVAIL_F_NO_INTERRUPT)
 		return;
 
@@ -716,8 +724,11 @@ static void add_used_and_trigger(int fd, struct virtqueue *vq,
 	trigger_irq(fd, vq);
 }
 
-/* Here is the input terminal setting we save, and the routine to restore them
- * on exit so the user can see what they type next. */
+/*
+ * The Console
+ *
+ * Here is the input terminal setting we save, and the routine to restore them
+ * on exit so the user gets their terminal back. */
 static struct termios orig_term;
 static void restore_term(void)
 {
@@ -818,7 +829,10 @@ static void handle_console_output(int fd, struct virtqueue *vq)
 	}
 }
 
-/* Handling output for network is also simple: we get all the output buffers
+/*
+ * The Network
+ *
+ * Handling output for network is also simple: we get all the output buffers
  * and write them (ignoring the first element) to this device's file descriptor
  * (stdout). */
 static void handle_net_output(int fd, struct virtqueue *vq)
@@ -831,8 +845,9 @@ static void handle_net_output(int fd, struct virtqueue *vq)
 	while ((head = get_vq_desc(vq, iov, &out, &in)) != vq->vring.num) {
 		if (in)
 			errx(1, "Input buffers in output queue?");
-		/* Check header, but otherwise ignore it (we said we supported
-		 * no features). */
+		/* Check header, but otherwise ignore it (we told the Guest we
+		 * supported no features, so it shouldn't have anything
+		 * interesting). */
 		(void)convert(&iov[0], struct virtio_net_hdr);
 		len = writev(vq->dev->fd, iov+1, out-1);
 		add_used_and_trigger(fd, vq, head, len);
@@ -883,7 +898,8 @@ static bool handle_tun_input(int fd, struct device *dev)
 	return true;
 }
 
-/* This callback ensures we try again, in case we stopped console or net
+/*L:215 This is the callback attached to the network and console input
+ * virtqueues: it ensures we try again, in case we stopped console or net
  * delivery because Guest didn't have any buffers. */
 static void enable_fd(int fd, struct virtqueue *vq)
 {
@@ -919,7 +935,7 @@ static void handle_output(int fd, unsigned long addr)
 	      strnlen(from_guest_phys(addr), guest_limit - addr));
 }
 
-/* This is called when the waker wakes us up: check for incoming file
+/* This is called when the Waker wakes us up: check for incoming file
  * descriptors. */
 static void handle_input(int fd)
 {
@@ -986,8 +1002,7 @@ static struct lguest_device_desc *new_dev_desc(u16 type)
 }
 
 /* Each device descriptor is followed by some configuration information.
- * The first byte is a "status" byte for the Guest to report what's happening.
- * After that are fields: u8 type, u8 len, [... len bytes...].
+ * Each configuration field looks like: u8 type, u8 len, [... len bytes...].
  *
  * This routine adds a new field to an existing device's descriptor.  It only
  * works for the last device, but that's OK because that's how we use it. */
@@ -1044,14 +1059,17 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	/* Link virtqueue back to device. */
 	vq->dev = dev;
 
-	/* Set up handler. */
+	/* Set the routine to call when the Guest does something to this
+	 * virtqueue. */
 	vq->handle_output = handle_output;
+
+	/* Set the "Don't Notify Me" flag if we don't have a handler */
 	if (!handle_output)
 		vq->vring.used->flags = VRING_USED_F_NO_NOTIFY;
 }
 
 /* This routine does all the creation and setup of a new device, including
- * caling new_dev_desc() to allocate the descriptor and device memory. */
+ * calling new_dev_desc() to allocate the descriptor and device memory. */
 static struct device *new_device(const char *name, u16 type, int fd,
 				 bool (*handle_input)(int, struct device *))
 {
@@ -1060,7 +1078,7 @@ static struct device *new_device(const char *name, u16 type, int fd,
 	/* Append to device list.  Prepending to a single-linked list is
 	 * easier, but the user expects the devices to be arranged on the bus
 	 * in command-line order.  The first network device on the command line
-	 * is eth0, the first block device /dev/lgba, etc. */
+	 * is eth0, the first block device /dev/vda, etc. */
 	*devices.lastdev = dev;
 	dev->next = NULL;
 	devices.lastdev = &dev->next;
@@ -1104,7 +1122,7 @@ static void setup_console(void)
 	/* The console needs two virtqueues: the input then the output.  When
 	 * they put something the input queue, we make sure we're listening to
 	 * stdin.  When they put something in the output queue, we write it to
-	 * stdout.  */
+	 * stdout. */
 	add_virtqueue(dev, VIRTQUEUE_NUM, enable_fd);
 	add_virtqueue(dev, VIRTQUEUE_NUM, handle_console_output);
 
@@ -1252,21 +1270,17 @@ static void setup_tun_net(const char *arg)
 		verbose("attached to bridge: %s\n", br_name);
 }
 
-
-/*
- * Block device.
+/* Our block (disk) device should be really simple: the Guest asks for a block
+ * number and we read or write that position in the file.  Unfortunately, that
+ * was amazingly slow: the Guest waits until the read is finished before
+ * running anything else, even if it could have been doing useful work.
  *
- * Serving a block device is really easy: the Guest asks for a block number and
- * we read or write that position in the file.
- *
- * Unfortunately, this is amazingly slow: the Guest waits until the read is
- * finished before running anything else, even if it could be doing useful
- * work.  We could use async I/O, except it's reputed to suck so hard that
- * characters actually go missing from your code when you try to use it.
+ * We could use async I/O, except it's reputed to suck so hard that characters
+ * actually go missing from your code when you try to use it.
  *
  * So we farm the I/O out to thread, and communicate with it via a pipe. */
 
-/* This hangs off device->priv, with the data. */
+/* This hangs off device->priv. */
 struct vblk_info
 {
 	/* The size of the file. */
@@ -1282,8 +1296,14 @@ struct vblk_info
 	 * Launcher triggers interrupt to Guest. */
 	int done_fd;
 };
+/*:*/
 
-/* This is the core of the I/O thread.  It returns true if it did something. */
+/*L:210
+ * The Disk
+ *
+ * Remember that the block device is handled by a separate I/O thread.  We head
+ * straight into the core of that thread here:
+ */
 static bool service_io(struct device *dev)
 {
 	struct vblk_info *vblk = dev->priv;
@@ -1294,10 +1314,14 @@ static bool service_io(struct device *dev)
 	struct iovec iov[dev->vq->vring.num];
 	off64_t off;
 
+	/* See if there's a request waiting.  If not, nothing to do. */
 	head = get_vq_desc(dev->vq, iov, &out_num, &in_num);
 	if (head == dev->vq->vring.num)
 		return false;
 
+	/* Every block request should contain at least one output buffer
+	 * (detailing the location on disk and the type of request) and one
+	 * input buffer (to hold the result). */
 	if (out_num == 0 || in_num == 0)
 		errx(1, "Bad virtblk cmd %u out=%u in=%u",
 		     head, out_num, in_num);
@@ -1306,10 +1330,15 @@ static bool service_io(struct device *dev)
 	in = convert(&iov[out_num+in_num-1], struct virtio_blk_inhdr);
 	off = out->sector * 512;
 
-	/* This is how we implement barriers.  Pretty poor, no? */
+	/* The block device implements "barriers", where the Guest indicates
+	 * that it wants all previous writes to occur before this write.  We
+	 * don't have a way of asking our kernel to do a barrier, so we just
+	 * synchronize all the data in the file.  Pretty poor, no? */
 	if (out->type & VIRTIO_BLK_T_BARRIER)
 		fdatasync(vblk->fd);
 
+	/* In general the virtio block driver is allowed to try SCSI commands.
+	 * It'd be nice if we supported eject, for example, but we don't. */
 	if (out->type & VIRTIO_BLK_T_SCSI_CMD) {
 		fprintf(stderr, "Scsi commands unsupported\n");
 		in->status = VIRTIO_BLK_S_UNSUPP;
@@ -1375,7 +1404,7 @@ static int io_thread(void *_dev)
 
 	/* When this read fails, it means Launcher died, so we follow. */
 	while (read(vblk->workpipe[0], &c, 1) == 1) {
-		/* We acknowledge each request immediately, to reduce latency,
+		/* We acknowledge each request immediately to reduce latency,
 		 * rather than waiting until we've done them all.  I haven't
 		 * measured to see if it makes any difference. */
 		while (service_io(dev))
@@ -1384,12 +1413,14 @@ static int io_thread(void *_dev)
 	return 0;
 }
 
-/* When the thread says some I/O is done, we interrupt the Guest. */
+/* Now we've seen the I/O thread, we return to the Launcher to see what happens
+ * when the thread tells us it's completed some I/O. */
 static bool handle_io_finish(int fd, struct device *dev)
 {
 	char c;
 
-	/* If child died, presumably it printed message. */
+	/* If the I/O thread died, presumably it printed the error, so we
+	 * simply exit. */
 	if (read(dev->fd, &c, 1) != 1)
 		exit(1);
 
@@ -1398,7 +1429,7 @@ static bool handle_io_finish(int fd, struct device *dev)
 	return true;
 }
 
-/* When the Guest submits some I/O, we wake the I/O thread. */
+/* When the Guest submits some I/O, we just need to wake the I/O thread. */
 static void handle_virtblk_output(int fd, struct virtqueue *vq)
 {
 	struct vblk_info *vblk = vq->dev->priv;
@@ -1410,7 +1441,7 @@ static void handle_virtblk_output(int fd, struct virtqueue *vq)
 		exit(1);
 }
 
-/* This creates a virtual block device. */
+/*L:198 This actually sets up a virtual block device. */
 static void setup_block_file(const char *filename)
 {
 	int p[2];
@@ -1426,7 +1457,7 @@ static void setup_block_file(const char *filename)
 	/* The device responds to return from I/O thread. */
 	dev = new_device("block", VIRTIO_ID_BLOCK, p[0], handle_io_finish);
 
-	/* The device has a virtqueue. */
+	/* The device has one virtqueue, where the Guest places requests. */
 	add_virtqueue(dev, VIRTQUEUE_NUM, handle_virtblk_output);
 
 	/* Allocate the room for our own bookkeeping */
@@ -1448,7 +1479,8 @@ static void setup_block_file(const char *filename)
 	/* The I/O thread writes to this end of the pipe when done. */
 	vblk->done_fd = p[1];
 
-	/* This is how we tell the I/O thread about more work. */
+	/* This is the second pipe, which is how we tell the I/O thread about
+	 * more work. */
 	pipe(vblk->workpipe);
 
 	/* Create stack for thread and run it */
@@ -1487,24 +1519,25 @@ static void __attribute__((noreturn)) run_guest(int lguest_fd)
 			char reason[1024] = { 0 };
 			read(lguest_fd, reason, sizeof(reason)-1);
 			errx(1, "%s", reason);
-		/* EAGAIN means the waker wanted us to look at some input.
+		/* EAGAIN means the Waker wanted us to look at some input.
 		 * Anything else means a bug or incompatible change. */
 		} else if (errno != EAGAIN)
 			err(1, "Running guest failed");
 
-		/* Service input, then unset the BREAK which releases
-		 * the Waker. */
+		/* Service input, then unset the BREAK to release the Waker. */
 		handle_input(lguest_fd);
 		if (write(lguest_fd, args, sizeof(args)) < 0)
 			err(1, "Resetting break");
 	}
 }
 /*
- * This is the end of the Launcher.
+ * This is the end of the Launcher.  The good news: we are over halfway
+ * through!  The bad news: the most fiendish part of the code still lies ahead
+ * of us.
  *
- * But wait!  We've seen I/O from the Launcher, and we've seen I/O from the
- * Drivers.  If we were to see the Host kernel I/O code, our understanding
- * would be complete... :*/
+ * Are you ready?  Take a deep breath and join me in the core of the Host, in
+ * "make Host".
+ :*/
 
 static struct option opts[] = {
 	{ "verbose", 0, NULL, 'v' },
@@ -1527,7 +1560,7 @@ int main(int argc, char *argv[])
 	/* Memory, top-level pagetable, code startpoint and size of the
 	 * (optional) initrd. */
 	unsigned long mem = 0, pgdir, start, initrd_size = 0;
-	/* A temporary and the /dev/lguest file descriptor. */
+	/* Two temporaries and the /dev/lguest file descriptor. */
 	int i, c, lguest_fd;
 	/* The boot information for the Guest. */
 	struct boot_params *boot;
@@ -1622,6 +1655,7 @@ int main(int argc, char *argv[])
 	/* The boot header contains a command line pointer: we put the command
 	 * line after the boot header. */
 	boot->hdr.cmd_line_ptr = to_guest_phys(boot + 1);
+	/* We use a simple helper to copy the arguments separated by spaces. */
 	concat((char *)(boot + 1), argv+optind+2);
 
 	/* Boot protocol version: 2.07 supports the fields for lguest. */

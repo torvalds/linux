@@ -1,17 +1,7 @@
-#ifndef _ASM_LGUEST_USER
-#define _ASM_LGUEST_USER
+#ifndef _LINUX_LGUEST_LAUNCHER
+#define _LINUX_LGUEST_LAUNCHER
 /* Everything the "lguest" userspace program needs to know. */
 #include <linux/types.h>
-/* They can register up to 32 arrays of lguest_dma. */
-#define LGUEST_MAX_DMA		32
-/* At most we can dma 16 lguest_dma in one op. */
-#define LGUEST_MAX_DMA_SECTIONS	16
-
-/* How many devices?  Assume each one wants up to two dma arrays per device. */
-#define LGUEST_MAX_DEVICES (LGUEST_MAX_DMA/2)
-
-/* Where the Host expects the Guest to SEND_DMA console output to. */
-#define LGUEST_CONSOLE_DMA_KEY 0
 
 /*D:010
  * Drivers
@@ -20,7 +10,11 @@
  * real devices (think of the damage it could do!) we provide virtual devices.
  * We could emulate a PCI bus with various devices on it, but that is a fairly
  * complex burden for the Host and suboptimal for the Guest, so we have our own
- * "lguest" bus and simple drivers.
+ * simple lguest bus and we use "virtio" drivers.  These drivers need a set of
+ * routines from us which will actually do the virtual I/O, but they handle all
+ * the net/block/console stuff themselves.  This means that if we want to add
+ * a new device, we simply need to write a new virtio driver and create support
+ * for it in the Launcher: this code won't need to change.
  *
  * Devices are described by a simplified ID, a status byte, and some "config"
  * bytes which describe this device's configuration.  This is placed by the
@@ -51,9 +45,9 @@ struct lguest_vqconfig {
 /* Write command first word is a request. */
 enum lguest_req
 {
-	LHREQ_INITIALIZE, /* + pfnlimit, pgdir, start, pageoffset */
+	LHREQ_INITIALIZE, /* + base, pfnlimit, pgdir, start */
 	LHREQ_GETDMA, /* No longer used */
 	LHREQ_IRQ, /* + irq */
 	LHREQ_BREAK, /* + on/off flag (on blocks until someone does off) */
 };
-#endif /* _ASM_LGUEST_USER */
+#endif /* _LINUX_LGUEST_LAUNCHER */

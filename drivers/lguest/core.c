@@ -128,8 +128,11 @@ static void unmap_switcher(void)
 		__free_pages(switcher_page[i], 0);
 }
 
-/*L:305
+/*H:032
  * Dealing With Guest Memory.
+ *
+ * Before we go too much further into the Host, we need to grok the routines
+ * we use to deal with Guest memory.
  *
  * When the Guest gives us (what it thinks is) a physical address, we can use
  * the normal copy_from_user() & copy_to_user() on the corresponding place in

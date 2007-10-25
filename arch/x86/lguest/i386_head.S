@@ -6,7 +6,7 @@
 #include <asm/processor-flags.h>
 
 /*G:020 This is where we begin: head.S notes that the boot header's platform
- * type field is "1" (lguest), so calls us here.  The boot header is in %esi.
+ * type field is "1" (lguest), so calls us here.
  *
  * WARNING: be very careful here!  We're running at addresses equal to physical
  * addesses (around 0), not above PAGE_OFFSET as most code expectes
@@ -17,13 +17,15 @@
  * boot. */
 .section .init.text, "ax", @progbits
 ENTRY(lguest_entry)
-	/* Make initial hypercall now, so we can set up the pagetables. */
+	/* We make the "initialization" hypercall now to tell the Host about
+	 * us, and also find out where it put our page tables. */
 	movl $LHCALL_LGUEST_INIT, %eax
 	movl $lguest_data - __PAGE_OFFSET, %edx
 	int $LGUEST_TRAP_ENTRY
 
 	/* The Host put the toplevel pagetable in lguest_data.pgdir.  The movsl
-	 * instruction uses %esi implicitly. */
+	 * instruction uses %esi implicitly as the source for the copy we'
+	 * about to do. */
 	movl lguest_data - __PAGE_OFFSET + LGUEST_DATA_pgdir, %esi
 
 	/* Copy first 32 entries of page directory to __PAGE_OFFSET entries.

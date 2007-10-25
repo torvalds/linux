@@ -12,8 +12,6 @@
 #include "lg.h"
 
 /*H:600
- * We've almost completed the Host; there's just one file to go!
- *
  * Segments & The Global Descriptor Table
  *
  * (That title sounds like a bad Nerdcore group.  Not to suggest that there are
@@ -55,7 +53,7 @@ static int ignored_gdt(unsigned int num)
 		|| num == GDT_ENTRY_DOUBLEFAULT_TSS);
 }
 
-/*H:610 Once the GDT has been changed, we fix the new entries up a little.  We
+/*H:630 Once the Guest gave us new GDT entries, we fix them up a little.  We
  * don't care if they're invalid: the worst that can happen is a General
  * Protection Fault in the Switcher when it restores a Guest segment register
  * which tries to use that entry.  Then we kill the Guest for causing such a
@@ -84,25 +82,33 @@ static void fixup_gdt_table(struct lguest *lg, unsigned start, unsigned end)
 	}
 }
 
-/* This routine is called at boot or modprobe time for each CPU to set up the
- * "constant" GDT entries for Guests running on that CPU. */
+/*H:610 Like the IDT, we never simply use the GDT the Guest gives us.  We keep
+ * a GDT for each CPU, and copy across the Guest's entries each time we want to
+ * run the Guest on that CPU.
+ *
+ * This routine is called at boot or modprobe time for each CPU to set up the
+ * constant GDT entries: the ones which are the same no matter what Guest we're
+ * running. */
 void setup_default_gdt_entries(struct lguest_ro_state *state)
 {
 	struct desc_struct *gdt = state->guest_gdt;
 	unsigned long tss = (unsigned long)&state->guest_tss;
 
-	/* The hypervisor segments are full 0-4G segments, privilege level 0 */
+	/* The Switcher segments are full 0-4G segments, privilege level 0 */
 	gdt[GDT_ENTRY_LGUEST_CS] = FULL_EXEC_SEGMENT;
 	gdt[GDT_ENTRY_LGUEST_DS] = FULL_SEGMENT;
 
-	/* The TSS segment refers to the TSS entry for this CPU, so we cannot
-	 * copy it from the Guest.  Forgive the magic flags */
+	/* The TSS segment refers to the TSS entry for this particular CPU.
+	 * Forgive the magic flags: the 0x8900 means the entry is Present, it's
+	 * privilege level 0 Available 386 TSS system segment, and the 0x67
+	 * means Saturn is eclipsed by Mercury in the twelfth house. */
 	gdt[GDT_ENTRY_TSS].a = 0x00000067 | (tss << 16);
 	gdt[GDT_ENTRY_TSS].b = 0x00008900 | (tss & 0xFF000000)
 		| ((tss >> 16) & 0x000000FF);
 }
 
-/* This routine is called before the Guest is run for the first time. */
+/* This routine sets up the initial Guest GDT for booting.  All entries start
+ * as 0 (unusable). */
 void setup_guest_gdt(struct lguest *lg)
 {
 	/* Start with full 0-4G segments... */
@@ -114,13 +120,8 @@ void setup_guest_gdt(struct lguest *lg)
 	lg->arch.gdt[GDT_ENTRY_KERNEL_DS].b |= (GUEST_PL << 13);
 }
 
-/* Like the IDT, we never simply use the GDT the Guest gives us.  We set up the
- * GDTs for each CPU, then we copy across the entries each time we want to run
- * a different Guest on that CPU. */
-
-/* A partial GDT load, for the three "thead-local storage" entries.  Otherwise
- * it's just like load_guest_gdt().  So much, in fact, it would probably be
- * neater to have a single hypercall to cover both. */
+/*H:650 An optimization of copy_gdt(), for just the three "thead-local storage"
+ * entries. */
 void copy_gdt_tls(const struct lguest *lg, struct desc_struct *gdt)
 {
 	unsigned int i;
@@ -129,7 +130,9 @@ void copy_gdt_tls(const struct lguest *lg, struct desc_struct *gdt)
 		gdt[i] = lg->arch.gdt[i];
 }
 
-/* This is the full version */
+/*H:640 When the Guest is run on a different CPU, or the GDT entries have
+ * changed, copy_gdt() is called to copy the Guest's GDT entries across to this
+ * CPU's GDT. */
 void copy_gdt(const struct lguest *lg, struct desc_struct *gdt)
 {
 	unsigned int i;
@@ -141,7 +144,8 @@ void copy_gdt(const struct lguest *lg, struct desc_struct *gdt)
 			gdt[i] = lg->arch.gdt[i];
 }
 
-/* This is where the Guest asks us to load a new GDT (LHCALL_LOAD_GDT). */
+/*H:620 This is where the Guest asks us to load a new GDT (LHCALL_LOAD_GDT).
+ * We copy it from the Guest and tweak the entries. */
 void load_guest_gdt(struct lguest *lg, unsigned long table, u32 num)
 {
 	/* We assume the Guest has the same number of GDT entries as the
@@ -157,16 +161,22 @@ void load_guest_gdt(struct lguest *lg, unsigned long table, u32 num)
 	lg->changed |= CHANGED_GDT;
 }
 
+/* This is the fast-track version for just changing the three TLS entries.
+ * Remember that this happens on every context switch, so it's worth
+ * optimizing.  But wouldn't it be neater to have a single hypercall to cover
+ * both cases? */
 void guest_load_tls(struct lguest *lg, unsigned long gtls)
 {
 	struct desc_struct *tls = &lg->arch.gdt[GDT_ENTRY_TLS_MIN];
 
 	__lgread(lg, tls, gtls, sizeof(*tls)*GDT_ENTRY_TLS_ENTRIES);
 	fixup_gdt_table(lg, GDT_ENTRY_TLS_MIN, GDT_ENTRY_TLS_MAX+1);
+	/* Note that just the TLS entries have changed. */
 	lg->changed |= CHANGED_GDT_TLS;
 }
+/*:*/
 
-/*
+/*H:660
  * With this, we have finished the Host.
  *
  * Five of the seven parts of our task are complete.  You have made it through

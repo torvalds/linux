@@ -63,7 +63,7 @@ static struct lguest_pages *lguest_pages(unsigned int cpu)
 static DEFINE_PER_CPU(struct lguest *, last_guest);
 
 /*S:010
- * We are getting close to the Switcher.
+ * We approach the Switcher.
  *
  * Remember that each CPU has two pages which are visible to the Guest when it
  * runs on that CPU.  This has to contain the state for that Guest: we copy the
@@ -134,7 +134,7 @@ static void run_guest_once(struct lguest *lg, struct lguest_pages *pages)
 	 *
 	 * The lcall also pushes the old code segment (KERNEL_CS) onto the
 	 * stack, then the address of this call.  This stack layout happens to
-	 * exactly match the stack of an interrupt... */
+	 * exactly match the stack layout created by an interrupt... */
 	asm volatile("pushf; lcall *lguest_entry"
 		     /* This is how we tell GCC that %eax ("a") and %ebx ("b")
 		      * are changed by this routine.  The "=" means output. */
@@ -151,40 +151,46 @@ static void run_guest_once(struct lguest *lg, struct lguest_pages *pages)
 }
 /*:*/
 
+/*M:002 There are hooks in the scheduler which we can register to tell when we
+ * get kicked off the CPU (preempt_notifier_register()).  This would allow us
+ * to lazily disable SYSENTER which would regain some performance, and should
+ * also simplify copy_in_guest_info().  Note that we'd still need to restore
+ * things when we exit to Launcher userspace, but that's fairly easy.
+ *
+ * The hooks were designed for KVM, but we can also put them to good use. :*/
+
 /*H:040 This is the i386-specific code to setup and run the Guest.  Interrupts
  * are disabled: we own the CPU. */
 void lguest_arch_run_guest(struct lguest *lg)
 {
-	/* Remember the awfully-named TS bit?  If the Guest has asked
-	 * to set it we set it now, so we can trap and pass that trap
-	 * to the Guest if it uses the FPU. */
+	/* Remember the awfully-named TS bit?  If the Guest has asked to set it
+	 * we set it now, so we can trap and pass that trap to the Guest if it
+	 * uses the FPU. */
 	if (lg->ts)
 		lguest_set_ts();
 
-	/* SYSENTER is an optimized way of doing system calls.  We
-	 * can't allow it because it always jumps to privilege level 0.
-	 * A normal Guest won't try it because we don't advertise it in
-	 * CPUID, but a malicious Guest (or malicious Guest userspace
-	 * program) could, so we tell the CPU to disable it before
-	 * running the Guest. */
+	/* SYSENTER is an optimized way of doing system calls.  We can't allow
+	 * it because it always jumps to privilege level 0.  A normal Guest
+	 * won't try it because we don't advertise it in CPUID, but a malicious
+	 * Guest (or malicious Guest userspace program) could, so we tell the
+	 * CPU to disable it before running the Guest. */
 	if (boot_cpu_has(X86_FEATURE_SEP))
 		wrmsr(MSR_IA32_SYSENTER_CS, 0, 0);
 
-	/* Now we actually run the Guest.  It will pop back out when
-	 * something interesting happens, and we can examine its
-	 * registers to see what it was doing. */
+	/* Now we actually run the Guest.  It will return when something
+	 * interesting happens, and we can examine its registers to see what it
+	 * was doing. */
 	run_guest_once(lg, lguest_pages(raw_smp_processor_id()));
 
-	/* The "regs" pointer contains two extra entries which are not
-	 * really registers: a trap number which says what interrupt or
-	 * trap made the switcher code come back, and an error code
-	 * which some traps set.  */
+	/* Note that the "regs" pointer contains two extra entries which are
+	 * not really registers: a trap number which says what interrupt or
+	 * trap made the switcher code come back, and an error code which some
+	 * traps set.  */
 
-	/* If the Guest page faulted, then the cr2 register will tell
-	 * us the bad virtual address.  We have to grab this now,
-	 * because once we re-enable interrupts an interrupt could
-	 * fault and thus overwrite cr2, or we could even move off to a
-	 * different CPU. */
+	/* If the Guest page faulted, then the cr2 register will tell us the
+	 * bad virtual address.  We have to grab this now, because once we
+	 * re-enable interrupts an interrupt could fault and thus overwrite
+	 * cr2, or we could even move off to a different CPU. */
 	if (lg->regs->trapnum == 14)
 		lg->arch.last_pagefault = read_cr2();
 	/* Similarly, if we took a trap because the Guest used the FPU,
@@ -197,14 +203,15 @@ void lguest_arch_run_guest(struct lguest *lg)
 		wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
 }
 
-/*H:130 Our Guest is usually so well behaved; it never tries to do things it
- * isn't allowed to.  Unfortunately, Linux's paravirtual infrastructure isn't
- * quite complete, because it doesn't contain replacements for the Intel I/O
- * instructions.  As a result, the Guest sometimes fumbles across one during
- * the boot process as it probes for various things which are usually attached
- * to a PC.
+/*H:130 Now we've examined the hypercall code; our Guest can make requests.
+ * Our Guest is usually so well behaved; it never tries to do things it isn't
+ * allowed to, and uses hypercalls instead.  Unfortunately, Linux's paravirtual
+ * infrastructure isn't quite complete, because it doesn't contain replacements
+ * for the Intel I/O instructions.  As a result, the Guest sometimes fumbles
+ * across one during the boot process as it probes for various things which are
+ * usually attached to a PC.
  *
- * When the Guest uses one of these instructions, we get trap #13 (General
+ * When the Guest uses one of these instructions, we get a trap (General
  * Protection Fault) and come here.  We see if it's one of those troublesome
  * instructions and skip over it.  We return true if we did. */
 static int emulate_insn(struct lguest *lg)
@@ -275,43 +282,43 @@ static int emulate_insn(struct lguest *lg)
 void lguest_arch_handle_trap(struct lguest *lg)
 {
 	switch (lg->regs->trapnum) {
-	case 13: /* We've intercepted a GPF. */
-		 /* Check if this was one of those annoying IN or OUT
-		  * instructions which we need to emulate.  If so, we
-		  * just go back into the Guest after we've done it. */
+	case 13: /* We've intercepted a General Protection Fault. */
+		/* Check if this was one of those annoying IN or OUT
+		 * instructions which we need to emulate.  If so, we just go
+		 * back into the Guest after we've done it. */
 		if (lg->regs->errcode == 0) {
 			if (emulate_insn(lg))
 				return;
 		}
 		break;
-	case 14: /* We've intercepted a page fault. */
-		 /* The Guest accessed a virtual address that wasn't
-		  * mapped.  This happens a lot: we don't actually set
-		  * up most of the page tables for the Guest at all when
-		  * we start: as it runs it asks for more and more, and
-		  * we set them up as required. In this case, we don't
-		  * even tell the Guest that the fault happened.
-		  *
-		  * The errcode tells whether this was a read or a
-		  * write, and whether kernel or userspace code. */
+	case 14: /* We've intercepted a Page Fault. */
+		/* The Guest accessed a virtual address that wasn't mapped.
+		 * This happens a lot: we don't actually set up most of the
+		 * page tables for the Guest at all when we start: as it runs
+		 * it asks for more and more, and we set them up as
+		 * required. In this case, we don't even tell the Guest that
+		 * the fault happened.
+		 *
+		 * The errcode tells whether this was a read or a write, and
+		 * whether kernel or userspace code. */
 		if (demand_page(lg, lg->arch.last_pagefault, lg->regs->errcode))
 			return;
 
-		 /* OK, it's really not there (or not OK): the Guest
-		  * needs to know.  We write out the cr2 value so it
-		  * knows where the fault occurred.
-		  *
-		  * Note that if the Guest were really messed up, this
-		  * could happen before it's done the INITIALIZE
-		  * hypercall, so lg->lguest_data will be NULL */
+		/* OK, it's really not there (or not OK): the Guest needs to
+		 * know.  We write out the cr2 value so it knows where the
+		 * fault occurred.
+		 *
+		 * Note that if the Guest were really messed up, this could
+		 * happen before it's done the LHCALL_LGUEST_INIT hypercall, so
+		 * lg->lguest_data could be NULL */
 		if (lg->lguest_data &&
 		    put_user(lg->arch.last_pagefault, &lg->lguest_data->cr2))
 			kill_guest(lg, "Writing cr2");
 		break;
 	case 7: /* We've intercepted a Device Not Available fault. */
-		/* If the Guest doesn't want to know, we already
-		 * restored the Floating Point Unit, so we just
-		 * continue without telling it. */
+		/* If the Guest doesn't want to know, we already restored the
+		 * Floating Point Unit, so we just continue without telling
+		 * it. */
 		if (!lg->ts)
 			return;
 		break;
@@ -536,9 +543,6 @@ int lguest_arch_init_hypercalls(struct lguest *lg)
 
 	return 0;
 }
-/* Now we've examined the hypercall code; our Guest can make requests.  There
- * is one other way we can do things for the Guest, as we see in
- * emulate_insn(). :*/
 
 /*L:030 lguest_arch_setup_regs()
  *
@@ -562,7 +566,7 @@ void lguest_arch_setup_regs(struct lguest *lg, unsigned long start)
 	 * is supposed to always be "1".  Bit 9 (0x200) controls whether
 	 * interrupts are enabled.  We always leave interrupts enabled while
 	 * running the Guest. */
-	regs->eflags = 0x202;
+	regs->eflags = X86_EFLAGS_IF | 0x2;
 
 	/* The "Extended Instruction Pointer" register says where the Guest is
 	 * running. */
@@ -570,8 +574,8 @@ void lguest_arch_setup_regs(struct lguest *lg, unsigned long start)
 
 	/* %esi points to our boot information, at physical address 0, so don't
 	 * touch it. */
+
 	/* There are a couple of GDT entries the Guest expects when first
 	 * booting. */
-
 	setup_guest_gdt(lg);
 }
