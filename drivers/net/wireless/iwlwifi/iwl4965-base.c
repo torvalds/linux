@@ -1833,7 +1833,7 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 {
 	int len = 0;
 	u8 *pos = NULL;
-	u16 active_rates, ret_rates, cck_rates;
+	u16 active_rates, ret_rates, cck_rates, active_rate_basic;
 
 	/* Make sure there is enough space for the probe request,
 	 * two mandatory IEs and the data */
@@ -1883,17 +1883,19 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 	*pos++ = WLAN_EID_SUPP_RATES;
 	*pos = 0;
 
-	priv->active_rate = priv->rates_mask;
-	active_rates = priv->active_rate;
-	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;
+	/* exclude 60M rate */
+	active_rates = priv->rates_mask;
+	active_rates &= ~IWL_RATE_60M_MASK;
+
+	active_rate_basic = active_rates & IWL_BASIC_RATES_MASK;
 
 	cck_rates = IWL_CCK_RATES_MASK & active_rates;
 	ret_rates = iwl_supported_rate_to_ie(pos, cck_rates,
-			priv->active_rate_basic, &left);
+			active_rate_basic, &left);
 	active_rates &= ~ret_rates;
 
 	ret_rates = iwl_supported_rate_to_ie(pos, active_rates,
-				 priv->active_rate_basic, &left);
+				 active_rate_basic, &left);
 	active_rates &= ~ret_rates;
 
 	len += 2 + *pos;
@@ -1910,7 +1912,7 @@ static u16 iwl_fill_probe_req(struct iwl_priv *priv,
 	*pos++ = WLAN_EID_EXT_SUPP_RATES;
 	*pos = 0;
 	iwl_supported_rate_to_ie(pos, active_rates,
-				 priv->active_rate_basic, &left);
+				 active_rate_basic, &left);
 	if (*pos > 0)
 		len += 2 + *pos;
 
