@@ -37,14 +37,23 @@ static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
 {
 }
 
+#ifdef CONFIG_SMP
 static unsigned long
 load_balance_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
-			unsigned long max_nr_move, unsigned long max_load_move,
-			struct sched_domain *sd, enum cpu_idle_type idle,
-			int *all_pinned, int *this_best_prio)
+		  unsigned long max_load_move,
+		  struct sched_domain *sd, enum cpu_idle_type idle,
+		  int *all_pinned, int *this_best_prio)
 {
 	return 0;
 }
+
+static int
+move_one_task_idle(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		   struct sched_domain *sd, enum cpu_idle_type idle)
+{
+	return 0;
+}
+#endif
 
 static void task_tick_idle(struct rq *rq, struct task_struct *curr)
 {
@@ -69,7 +78,10 @@ const struct sched_class idle_sched_class = {
 	.pick_next_task		= pick_next_task_idle,
 	.put_prev_task		= put_prev_task_idle,
 
+#ifdef CONFIG_SMP
 	.load_balance		= load_balance_idle,
+	.move_one_task		= move_one_task_idle,
+#endif
 
 	.set_curr_task          = set_curr_task_idle,
 	.task_tick		= task_tick_idle,

@@ -42,15 +42,15 @@ static inline void init_completion(struct completion *x)
 	init_waitqueue_head(&x->wait);
 }
 
-extern void FASTCALL(wait_for_completion(struct completion *));
-extern int FASTCALL(wait_for_completion_interruptible(struct completion *x));
-extern unsigned long FASTCALL(wait_for_completion_timeout(struct completion *x,
-						   unsigned long timeout));
-extern unsigned long FASTCALL(wait_for_completion_interruptible_timeout(
-			struct completion *x, unsigned long timeout));
+extern void wait_for_completion(struct completion *);
+extern int wait_for_completion_interruptible(struct completion *x);
+extern unsigned long wait_for_completion_timeout(struct completion *x,
+						   unsigned long timeout);
+extern unsigned long wait_for_completion_interruptible_timeout(
+			struct completion *x, unsigned long timeout);
 
-extern void FASTCALL(complete(struct completion *));
-extern void FASTCALL(complete_all(struct completion *));
+extern void complete(struct completion *);
+extern void complete_all(struct completion *);
 
 #define INIT_COMPLETION(x)	((x).done = 0)
 

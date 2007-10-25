@@ -322,7 +322,6 @@ config CPUSETS
 config FAIR_GROUP_SCHED
 	bool "Fair group CPU scheduler"
 	default y
-	depends on EXPERIMENTAL
 	help
 	  This feature lets CPU scheduler recognize task groups and control CPU
 	  bandwidth allocation to such task groups.

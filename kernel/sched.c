@@ -66,6 +66,7 @@
 #include <linux/pagemap.h>
 
 #include <asm/tlb.h>
+#include <asm/irq_regs.h>
 
 /*
  * Scheduler clock - returns current time in nanosec units.
@@ -837,11 +838,18 @@ struct rq_iterator {
 	struct task_struct *(*next)(void *);
 };
 
-static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		      unsigned long max_nr_move, unsigned long max_load_move,
-		      struct sched_domain *sd, enum cpu_idle_type idle,
-		      int *all_pinned, unsigned long *load_moved,
-		      int *this_best_prio, struct rq_iterator *iterator);
+#ifdef CONFIG_SMP
+static unsigned long
+balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
+	      unsigned long max_load_move, struct sched_domain *sd,
+	      enum cpu_idle_type idle, int *all_pinned,
+	      int *this_best_prio, struct rq_iterator *iterator);
+
+static int
+iter_move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		   struct sched_domain *sd, enum cpu_idle_type idle,
+		   struct rq_iterator *iterator);
+#endif
 
 #include "sched_stats.h"
 #include "sched_idletask.c"
@@ -2223,17 +2231,17 @@ int can_migrate_task(struct task_struct *p, struct rq *rq, int this_cpu,
 	return 1;
 }
 
-static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		      unsigned long max_nr_move, unsigned long max_load_move,
-		      struct sched_domain *sd, enum cpu_idle_type idle,
-		      int *all_pinned, unsigned long *load_moved,
-		      int *this_best_prio, struct rq_iterator *iterator)
+static unsigned long
+balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
+	      unsigned long max_load_move, struct sched_domain *sd,
+	      enum cpu_idle_type idle, int *all_pinned,
+	      int *this_best_prio, struct rq_iterator *iterator)
 {
 	int pulled = 0, pinned = 0, skip_for_load;
 	struct task_struct *p;
 	long rem_load_move = max_load_move;
 
-	if (max_nr_move == 0 || max_load_move == 0)
+	if (max_load_move == 0)
 		goto out;
 
 	pinned = 1;
@@ -2266,7 +2274,7 @@ next:
 	 * We only want to steal up to the prescribed number of tasks
 	 * and the prescribed amount of weighted load.
 	 */
-	if (pulled < max_nr_move && rem_load_move > 0) {
+	if (rem_load_move > 0) {
 		if (p->prio < *this_best_prio)
 			*this_best_prio = p->prio;
 		p = iterator->next(iterator->arg);
@@ -2274,7 +2282,7 @@ next:
 	}
 out:
 	/*
-	 * Right now, this is the only place pull_task() is called,
+	 * Right now, this is one of only two places pull_task() is called,
 	 * so we can safely collect pull_task() stats here rather than
 	 * inside pull_task().
 	 */
@@ -2282,8 +2290,8 @@ out:
 
 	if (all_pinned)
 		*all_pinned = pinned;
-	*load_moved = max_load_move - rem_load_move;
-	return pulled;
+
+	return max_load_move - rem_load_move;
 }
 
 /*
@@ -2305,12 +2313,38 @@ static int move_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	do {
 		total_load_moved +=
 			class->load_balance(this_rq, this_cpu, busiest,
-				ULONG_MAX, max_load_move - total_load_moved,
+				max_load_move - total_load_moved,
 				sd, idle, all_pinned, &this_best_prio);
 		class = class->next;
 	} while (class && max_load_move > total_load_moved);
 
 	return total_load_moved > 0;
+}
+
+static int
+iter_move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
+		   struct sched_domain *sd, enum cpu_idle_type idle,
+		   struct rq_iterator *iterator)
+{
+	struct task_struct *p = iterator->start(iterator->arg);
+	int pinned = 0;
+
+	while (p) {
+		if (can_migrate_task(p, busiest, this_cpu, sd, idle, &pinned)) {
+			pull_task(busiest, p, this_rq, this_cpu);
+			/*
+			 * Right now, this is only the second place pull_task()
+			 * is called, so we can safely collect pull_task()
+			 * stats here rather than inside pull_task().
+			 */
+			schedstat_inc(sd, lb_gained[idle]);
+
+			return 1;
+		}
+		p = iterator->next(iterator->arg);
+	}
+
+	return 0;
 }
 
 /*
@@ -2324,12 +2358,9 @@ static int move_one_task(struct rq *this_rq, int this_cpu, struct rq *busiest,
 			 struct sched_domain *sd, enum cpu_idle_type idle)
 {
 	const struct sched_class *class;
-	int this_best_prio = MAX_PRIO;
 
 	for (class = sched_class_highest; class; class = class->next)
-		if (class->load_balance(this_rq, this_cpu, busiest,
-					1, ULONG_MAX, sd, idle, NULL,
-					&this_best_prio))
+		if (class->move_one_task(this_rq, this_cpu, busiest, sd, idle))
 			return 1;
 
 	return 0;
@@ -3266,18 +3297,6 @@ static inline void idle_balance(int cpu, struct rq *rq)
 {
 }
 
-/* Avoid "used but not defined" warning on UP */
-static int balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
-		      unsigned long max_nr_move, unsigned long max_load_move,
-		      struct sched_domain *sd, enum cpu_idle_type idle,
-		      int *all_pinned, unsigned long *load_moved,
-		      int *this_best_prio, struct rq_iterator *iterator)
-{
-	*load_moved = 0;
-
-	return 0;
-}
-
 #endif
 
 DEFINE_PER_CPU(struct kernel_stat, kstat);
@@ -3507,12 +3526,19 @@ EXPORT_SYMBOL(sub_preempt_count);
  */
 static noinline void __schedule_bug(struct task_struct *prev)
 {
-	printk(KERN_ERR "BUG: scheduling while atomic: %s/0x%08x/%d\n",
-		prev->comm, preempt_count(), task_pid_nr(prev));
+	struct pt_regs *regs = get_irq_regs();
+
+	printk(KERN_ERR "BUG: scheduling while atomic: %s/%d/0x%08x\n",
+		prev->comm, prev->pid, preempt_count());
+
 	debug_show_held_locks(prev);
 	if (irqs_disabled())
 		print_irqtrace_events(prev);
-	dump_stack();
+
+	if (regs)
+		show_regs(regs);
+	else
+		dump_stack();
 }
 
 /*
@@ -3820,7 +3846,7 @@ __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr_exclusive)
 }
 EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
 
-void fastcall complete(struct completion *x)
+void complete(struct completion *x)
 {
 	unsigned long flags;
 
@@ -3832,7 +3858,7 @@ void fastcall complete(struct completion *x)
 }
 EXPORT_SYMBOL(complete);
 
-void fastcall complete_all(struct completion *x)
+void complete_all(struct completion *x)
 {
 	unsigned long flags;
 
@@ -3884,13 +3910,13 @@ wait_for_common(struct completion *x, long timeout, int state)
 	return timeout;
 }
 
-void fastcall __sched wait_for_completion(struct completion *x)
+void __sched wait_for_completion(struct completion *x)
 {
 	wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_UNINTERRUPTIBLE);
 }
 EXPORT_SYMBOL(wait_for_completion);
 
-unsigned long fastcall __sched
+unsigned long __sched
 wait_for_completion_timeout(struct completion *x, unsigned long timeout)
 {
 	return wait_for_common(x, timeout, TASK_UNINTERRUPTIBLE);
@@ -3906,7 +3932,7 @@ int __sched wait_for_completion_interruptible(struct completion *x)
 }
 EXPORT_SYMBOL(wait_for_completion_interruptible);
 
-unsigned long fastcall __sched
+unsigned long __sched
 wait_for_completion_interruptible_timeout(struct completion *x,
 					  unsigned long timeout)
 {
@@ -5461,10 +5487,11 @@ static void register_sched_domain_sysctl(void)
 	struct ctl_table *entry = sd_alloc_ctl_entry(cpu_num + 1);
 	char buf[32];
 
+	WARN_ON(sd_ctl_dir[0].child);
+	sd_ctl_dir[0].child = entry;
+
 	if (entry == NULL)
 		return;
-
-	sd_ctl_dir[0].child = entry;
 
 	for_each_online_cpu(i) {
 		snprintf(buf, 32, "cpu%d", i);
@@ -5473,14 +5500,19 @@ static void register_sched_domain_sysctl(void)
 		entry->child = sd_alloc_ctl_cpu_table(i);
 		entry++;
 	}
+
+	WARN_ON(sd_sysctl_header);
 	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
 }
 
+/* may be called multiple times per register */
 static void unregister_sched_domain_sysctl(void)
 {
-	unregister_sysctl_table(sd_sysctl_header);
+	if (sd_sysctl_header)
+		unregister_sysctl_table(sd_sysctl_header);
 	sd_sysctl_header = NULL;
-	sd_free_ctl_entry(&sd_ctl_dir[0].child);
+	if (sd_ctl_dir[0].child)
+		sd_free_ctl_entry(&sd_ctl_dir[0].child);
 }
 #else
 static void register_sched_domain_sysctl(void)
@@ -5611,6 +5643,82 @@ int nr_cpu_ids __read_mostly = NR_CPUS;
 EXPORT_SYMBOL(nr_cpu_ids);
 
 #ifdef CONFIG_SCHED_DEBUG
+
+static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level)
+{
+	struct sched_group *group = sd->groups;
+	cpumask_t groupmask;
+	char str[NR_CPUS];
+
+	cpumask_scnprintf(str, NR_CPUS, sd->span);
+	cpus_clear(groupmask);
+
+	printk(KERN_DEBUG "%*s domain %d: ", level, "", level);
+
+	if (!(sd->flags & SD_LOAD_BALANCE)) {
+		printk("does not load-balance\n");
+		if (sd->parent)
+			printk(KERN_ERR "ERROR: !SD_LOAD_BALANCE domain"
+					" has parent");
+		return -1;
+	}
+
+	printk(KERN_CONT "span %s\n", str);
+
+	if (!cpu_isset(cpu, sd->span)) {
+		printk(KERN_ERR "ERROR: domain->span does not contain "
+				"CPU%d\n", cpu);
+	}
+	if (!cpu_isset(cpu, group->cpumask)) {
+		printk(KERN_ERR "ERROR: domain->groups does not contain"
+				" CPU%d\n", cpu);
+	}
+
+	printk(KERN_DEBUG "%*s groups:", level + 1, "");
+	do {
+		if (!group) {
+			printk("\n");
+			printk(KERN_ERR "ERROR: group is NULL\n");
+			break;
+		}
+
+		if (!group->__cpu_power) {
+			printk(KERN_CONT "\n");
+			printk(KERN_ERR "ERROR: domain->cpu_power not "
+					"set\n");
+			break;
+		}
+
+		if (!cpus_weight(group->cpumask)) {
+			printk(KERN_CONT "\n");
+			printk(KERN_ERR "ERROR: empty group\n");
+			break;
+		}
+
+		if (cpus_intersects(groupmask, group->cpumask)) {
+			printk(KERN_CONT "\n");
+			printk(KERN_ERR "ERROR: repeated CPUs\n");
+			break;
+		}
+
+		cpus_or(groupmask, groupmask, group->cpumask);
+
+		cpumask_scnprintf(str, NR_CPUS, group->cpumask);
+		printk(KERN_CONT " %s", str);
+
+		group = group->next;
+	} while (group != sd->groups);
+	printk(KERN_CONT "\n");
+
+	if (!cpus_equal(sd->span, groupmask))
+		printk(KERN_ERR "ERROR: groups don't span domain->span\n");
+
+	if (sd->parent && !cpus_subset(groupmask, sd->parent->span))
+		printk(KERN_ERR "ERROR: parent span is not a superset "
+			"of domain->span\n");
+	return 0;
+}
+
 static void sched_domain_debug(struct sched_domain *sd, int cpu)
 {
 	int level = 0;
@@ -5622,90 +5730,14 @@ static void sched_domain_debug(struct sched_domain *sd, int cpu)
 
 	printk(KERN_DEBUG "CPU%d attaching sched-domain:\n", cpu);
 
-	do {
-		int i;
-		char str[NR_CPUS];
-		struct sched_group *group = sd->groups;
-		cpumask_t groupmask;
-
-		cpumask_scnprintf(str, NR_CPUS, sd->span);
-		cpus_clear(groupmask);
-
-		printk(KERN_DEBUG);
-		for (i = 0; i < level + 1; i++)
-			printk(" ");
-		printk("domain %d: ", level);
-
-		if (!(sd->flags & SD_LOAD_BALANCE)) {
-			printk("does not load-balance\n");
-			if (sd->parent)
-				printk(KERN_ERR "ERROR: !SD_LOAD_BALANCE domain"
-						" has parent");
+	for (;;) {
+		if (sched_domain_debug_one(sd, cpu, level))
 			break;
-		}
-
-		printk("span %s\n", str);
-
-		if (!cpu_isset(cpu, sd->span))
-			printk(KERN_ERR "ERROR: domain->span does not contain "
-					"CPU%d\n", cpu);
-		if (!cpu_isset(cpu, group->cpumask))
-			printk(KERN_ERR "ERROR: domain->groups does not contain"
-					" CPU%d\n", cpu);
-
-		printk(KERN_DEBUG);
-		for (i = 0; i < level + 2; i++)
-			printk(" ");
-		printk("groups:");
-		do {
-			if (!group) {
-				printk("\n");
-				printk(KERN_ERR "ERROR: group is NULL\n");
-				break;
-			}
-
-			if (!group->__cpu_power) {
-				printk(KERN_CONT "\n");
-				printk(KERN_ERR "ERROR: domain->cpu_power not "
-						"set\n");
-				break;
-			}
-
-			if (!cpus_weight(group->cpumask)) {
-				printk(KERN_CONT "\n");
-				printk(KERN_ERR "ERROR: empty group\n");
-				break;
-			}
-
-			if (cpus_intersects(groupmask, group->cpumask)) {
-				printk(KERN_CONT "\n");
-				printk(KERN_ERR "ERROR: repeated CPUs\n");
-				break;
-			}
-
-			cpus_or(groupmask, groupmask, group->cpumask);
-
-			cpumask_scnprintf(str, NR_CPUS, group->cpumask);
-			printk(KERN_CONT " %s", str);
-
-			group = group->next;
-		} while (group != sd->groups);
-		printk(KERN_CONT "\n");
-
-		if (!cpus_equal(sd->span, groupmask))
-			printk(KERN_ERR "ERROR: groups don't span "
-					"domain->span\n");
-
 		level++;
 		sd = sd->parent;
 		if (!sd)
-			continue;
-
-		if (!cpus_subset(groupmask, sd->span))
-			printk(KERN_ERR "ERROR: parent span is not a superset "
-				"of domain->span\n");
-
-	} while (sd);
+			break;
+	}
 }
 #else
 # define sched_domain_debug(sd, cpu) do { } while (0)
@@ -6424,13 +6456,17 @@ static cpumask_t fallback_doms;
  */
 static int arch_init_sched_domains(const cpumask_t *cpu_map)
 {
+	int err;
+
 	ndoms_cur = 1;
 	doms_cur = kmalloc(sizeof(cpumask_t), GFP_KERNEL);
 	if (!doms_cur)
 		doms_cur = &fallback_doms;
 	cpus_andnot(*doms_cur, *cpu_map, cpu_isolated_map);
+	err = build_sched_domains(doms_cur);
 	register_sched_domain_sysctl();
-	return build_sched_domains(doms_cur);
+
+	return err;
 }
 
 static void arch_destroy_sched_domains(const cpumask_t *cpu_map)
@@ -6479,6 +6515,9 @@ void partition_sched_domains(int ndoms_new, cpumask_t *doms_new)
 {
 	int i, j;
 
+	/* always unregister in case we don't destroy any domains */
+	unregister_sched_domain_sysctl();
+
 	if (doms_new == NULL) {
 		ndoms_new = 1;
 		doms_new = &fallback_doms;
@@ -6514,6 +6553,8 @@ match2:
 		kfree(doms_cur);
 	doms_cur = doms_new;
 	ndoms_cur = ndoms_new;
+
+	register_sched_domain_sysctl();
 }
 
 #if defined(CONFIG_SCHED_MC) || defined(CONFIG_SCHED_SMT)
@@ -7101,25 +7142,25 @@ unsigned long sched_group_shares(struct task_group *tg)
 #ifdef CONFIG_FAIR_CGROUP_SCHED
 
 /* return corresponding task_group object of a cgroup */
-static inline struct task_group *cgroup_tg(struct cgroup *cont)
+static inline struct task_group *cgroup_tg(struct cgroup *cgrp)
 {
-	return container_of(cgroup_subsys_state(cont, cpu_cgroup_subsys_id),
-					 struct task_group, css);
+	return container_of(cgroup_subsys_state(cgrp, cpu_cgroup_subsys_id),
+			    struct task_group, css);
 }
 
 static struct cgroup_subsys_state *
-cpu_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+cpu_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
 	struct task_group *tg;
 
-	if (!cont->parent) {
+	if (!cgrp->parent) {
 		/* This is early initialization for the top cgroup */
-		init_task_group.css.cgroup = cont;
+		init_task_group.css.cgroup = cgrp;
 		return &init_task_group.css;
 	}
 
 	/* we support only 1-level deep hierarchical scheduler atm */
-	if (cont->parent->parent)
+	if (cgrp->parent->parent)
 		return ERR_PTR(-EINVAL);
 
 	tg = sched_create_group();
@@ -7127,21 +7168,21 @@ cpu_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 		return ERR_PTR(-ENOMEM);
 
 	/* Bind the cgroup to task_group object we just created */
-	tg->css.cgroup = cont;
+	tg->css.cgroup = cgrp;
 
 	return &tg->css;
 }
 
 static void cpu_cgroup_destroy(struct cgroup_subsys *ss,
-					struct cgroup *cont)
+			       struct cgroup *cgrp)
 {
-	struct task_group *tg = cgroup_tg(cont);
+	struct task_group *tg = cgroup_tg(cgrp);
 
 	sched_destroy_group(tg);
 }
 
 static int cpu_cgroup_can_attach(struct cgroup_subsys *ss,
-			     struct cgroup *cont, struct task_struct *tsk)
+			     struct cgroup *cgrp, struct task_struct *tsk)
 {
 	/* We don't support RT-tasks being in separate groups */
 	if (tsk->sched_class != &fair_sched_class)
@@ -7151,38 +7192,21 @@ static int cpu_cgroup_can_attach(struct cgroup_subsys *ss,
 }
 
 static void
-cpu_cgroup_attach(struct cgroup_subsys *ss, struct cgroup *cont,
+cpu_cgroup_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 			struct cgroup *old_cont, struct task_struct *tsk)
 {
 	sched_move_task(tsk);
 }
 
-static ssize_t cpu_shares_write(struct cgroup *cont, struct cftype *cftype,
-				struct file *file, const char __user *userbuf,
-				size_t nbytes, loff_t *ppos)
+static int cpu_shares_write_uint(struct cgroup *cgrp, struct cftype *cftype,
+				u64 shareval)
 {
-	unsigned long shareval;
-	struct task_group *tg = cgroup_tg(cont);
-	char buffer[2*sizeof(unsigned long) + 1];
-	int rc;
-
-	if (nbytes > 2*sizeof(unsigned long))	/* safety check */
-		return -E2BIG;
-
-	if (copy_from_user(buffer, userbuf, nbytes))
-		return -EFAULT;
-
-	buffer[nbytes] = 0;	/* nul-terminate */
-	shareval = simple_strtoul(buffer, NULL, 10);
-
-	rc = sched_group_set_shares(tg, shareval);
-
-	return (rc < 0 ? rc : nbytes);
+	return sched_group_set_shares(cgroup_tg(cgrp), shareval);
 }
 
-static u64 cpu_shares_read_uint(struct cgroup *cont, struct cftype *cft)
+static u64 cpu_shares_read_uint(struct cgroup *cgrp, struct cftype *cft)
 {
-	struct task_group *tg = cgroup_tg(cont);
+	struct task_group *tg = cgroup_tg(cgrp);
 
 	return (u64) tg->shares;
 }
@@ -7190,7 +7214,7 @@ static u64 cpu_shares_read_uint(struct cgroup *cont, struct cftype *cft)
 static struct cftype cpu_shares = {
 	.name = "shares",
 	.read_uint = cpu_shares_read_uint,
-	.write = cpu_shares_write,
+	.write_uint = cpu_shares_write_uint,
 };
 
 static int cpu_cgroup_populate(struct cgroup_subsys *ss, struct cgroup *cont)
