@@ -304,6 +304,11 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	unsigned long flags;
 	siginfo_t info;
 
+	/*
+	 * We can fault from pretty much anywhere, with unknown IRQ state.
+	 */
+	trace_hardirqs_fixup();
+
 	tsk = current;
 	mm = tsk->mm;
 	prefetchw(&mm->mmap_sem);
