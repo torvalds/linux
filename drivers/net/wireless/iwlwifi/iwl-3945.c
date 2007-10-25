@@ -805,18 +805,18 @@ static int iwl3945_tx_reset(struct iwl_priv *priv)
 	}
 
 	/* bypass mode */
-	iwl_write_prph(priv, SCD_MODE_REG, 0x2);
+	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0x2);
 
 	/* RA 0 is active */
-	iwl_write_prph(priv, SCD_ARASTAT_REG, 0x01);
+	iwl_write_prph(priv, ALM_SCD_ARASTAT_REG, 0x01);
 
 	/* all 6 fifo are active */
-	iwl_write_prph(priv, SCD_TXFACT_REG, 0x3f);
+	iwl_write_prph(priv, ALM_SCD_TXFACT_REG, 0x3f);
 
-	iwl_write_prph(priv, SCD_SBYP_MODE_1_REG, 0x010000);
-	iwl_write_prph(priv, SCD_SBYP_MODE_2_REG, 0x030002);
-	iwl_write_prph(priv, SCD_TXF4MF_REG, 0x000004);
-	iwl_write_prph(priv, SCD_TXF5MF_REG, 0x000005);
+	iwl_write_prph(priv, ALM_SCD_SBYP_MODE_1_REG, 0x010000);
+	iwl_write_prph(priv, ALM_SCD_SBYP_MODE_2_REG, 0x030002);
+	iwl_write_prph(priv, ALM_SCD_TXF4MF_REG, 0x000004);
+	iwl_write_prph(priv, ALM_SCD_TXF5MF_REG, 0x000005);
 
 	iwl_write_direct32(priv, FH_TSSR_CBB_BASE,
 			     priv->hw_setting.shared_phys);
@@ -1044,7 +1044,7 @@ void iwl_hw_txq_ctx_stop(struct iwl_priv *priv)
 	}
 
 	/* stop SCD */
-	iwl_write_prph(priv, SCD_MODE_REG, 0);
+	iwl_write_prph(priv, ALM_SCD_MODE_REG, 0);
 
 	/* reset TFD queues */
 	for (queue = TFD_QUEUE_MIN; queue < TFD_QUEUE_MAX; queue++) {

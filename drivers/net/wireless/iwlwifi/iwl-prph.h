@@ -225,6 +225,18 @@
 #define BSM_SRAM_LOWER_BOUND         (PRPH_BASE + 0x3800)
 #define BSM_SRAM_SIZE			(1024) /* bytes */
 
+/* ALM SCD */
+/* SCD (Scheduler) */
+#define ALM_SCD_BASE                        (PRPH_BASE + 0x2E00)
+#define ALM_SCD_MODE_REG                    (ALM_SCD_BASE + 0x000)
+#define ALM_SCD_ARASTAT_REG                 (ALM_SCD_BASE + 0x004)
+#define ALM_SCD_TXFACT_REG                  (ALM_SCD_BASE + 0x010)
+#define ALM_SCD_TXF4MF_REG                  (ALM_SCD_BASE + 0x014)
+#define ALM_SCD_TXF5MF_REG                  (ALM_SCD_BASE + 0x020)
+#define ALM_SCD_SBYP_MODE_1_REG             (ALM_SCD_BASE + 0x02C)
+#define ALM_SCD_SBYP_MODE_2_REG             (ALM_SCD_BASE + 0x030)
+
+
 /* 4965 SCD memory mapped registers */
 #define KDR_SCD_BASE		(PRPH_BASE + 0xa02c00)
 
