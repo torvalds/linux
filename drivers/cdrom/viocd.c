@@ -41,9 +41,9 @@
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/scatterlist.h>
 
 #include <asm/vio.h>
-#include <asm/scatterlist.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/vio.h>
@@ -258,6 +258,7 @@ static int send_request(struct request *req)
 		cmd = viomajorsubtype_cdio | viocdwrite;
 	}
 
+	sg_init_table(&sg, 1);
         if (blk_rq_map_sg(req->q, req, &sg) == 0) {
 		printk(VIOCD_KERN_WARNING
 				"error setting up scatter/gather list\n");

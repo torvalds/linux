@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/scatterlist.h>
 
 #include <asm/vio.h>
 #include <asm/ldc.h>

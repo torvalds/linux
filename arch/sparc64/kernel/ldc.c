@@ -2121,7 +2121,7 @@ int ldc_map_sg(struct ldc_channel *lp,
 	state.nc = 0;
 
 	for (i = 0; i < num_sg; i++)
-		fill_cookies(&state, page_to_pfn(sg[i].page) << PAGE_SHIFT,
+		fill_cookies(&state, page_to_pfn(sg_page(&sg[i])) << PAGE_SHIFT,
 			     sg[i].offset, sg[i].length);
 
 	return state.nc;

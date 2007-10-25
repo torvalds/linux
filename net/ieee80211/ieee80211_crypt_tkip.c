@@ -25,7 +25,7 @@
 #include <net/ieee80211.h>
 
 #include <linux/crypto.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/crc32.h>
 
 MODULE_AUTHOR("Jouni Malinen");
@@ -537,13 +537,8 @@ static int michael_mic(struct crypto_hash *tfm_michael, u8 * key, u8 * hdr,
 		return -1;
 	}
 	sg_init_table(sg, 2);
-	sg_set_page(&sg[0], virt_to_page(hdr));
-	sg[0].offset = offset_in_page(hdr);
-	sg[0].length = 16;
-
-	sg_set_page(&sg[1], virt_to_page(data));
-	sg[1].offset = offset_in_page(data);
-	sg[1].length = data_len;
+	sg_set_buf(&sg[0], hdr, 16);
+	sg_set_buf(&sg[1], data, data_len);
 
 	if (crypto_hash_setkey(tfm_michael, key, 8))
 		return -1;

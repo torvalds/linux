@@ -113,9 +113,7 @@ static int mthca_alloc_icm_pages(struct scatterlist *mem, int order, gfp_t gfp_m
 	if (!page)
 		return -ENOMEM;
 
-	sg_set_page(mem, page);
-	mem->length = PAGE_SIZE << order;
-	mem->offset = 0;
+	sg_set_page(mem, page, PAGE_SIZE << order, 0);
 	return 0;
 }
 
@@ -481,9 +479,8 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
 	if (ret < 0)
 		goto out;
 
-	sg_set_page(&db_tab->page[i].mem, pages[0]);
-	db_tab->page[i].mem.length = MTHCA_ICM_PAGE_SIZE;
-	db_tab->page[i].mem.offset = uaddr & ~PAGE_MASK;
+	sg_set_page(&db_tab->page[i].mem, pages[0], MTHCA_ICM_PAGE_SIZE,
+			uaddr & ~PAGE_MASK);
 
 	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
 	if (ret < 0) {

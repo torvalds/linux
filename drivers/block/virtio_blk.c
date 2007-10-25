@@ -4,7 +4,9 @@
 #include <linux/hdreg.h>
 #include <linux/virtio.h>
 #include <linux/virtio_blk.h>
-#include <linux/virtio_blk.h>
+#include <linux/scatterlist.h>
+
+#define VIRTIO_MAX_SG	(3+MAX_PHYS_SEGMENTS)
 
 static unsigned char virtblk_index = 'a';
 struct virtio_blk
@@ -23,7 +25,7 @@ struct virtio_blk
 	mempool_t *pool;
 
 	/* Scatterlist: can be too big for stack. */
-	struct scatterlist sg[3+MAX_PHYS_SEGMENTS];
+	struct scatterlist sg[VIRTIO_MAX_SG];
 };
 
 struct virtblk_req
@@ -94,8 +96,8 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 	if (blk_barrier_rq(vbr->req))
 		vbr->out_hdr.type |= VIRTIO_BLK_T_BARRIER;
 
-	/* We have to zero this, otherwise blk_rq_map_sg gets upset. */
-	memset(vblk->sg, 0, sizeof(vblk->sg));
+	/* This init could be done at vblk creation time */
+	sg_init_table(vblk->sg, VIRTIO_MAX_SG);
 	sg_set_buf(&vblk->sg[0], &vbr->out_hdr, sizeof(vbr->out_hdr));
 	num = blk_rq_map_sg(q, vbr->req, vblk->sg+1);
 	sg_set_buf(&vblk->sg[num+1], &vbr->in_hdr, sizeof(vbr->in_hdr));

@@ -35,6 +35,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/scatterlist.h>
 #include <asm/cacheflush.h>
 #include <asm/bfin-global.h>
 

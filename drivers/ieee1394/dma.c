@@ -111,8 +111,8 @@ int dma_region_alloc(struct dma_region *dma, unsigned long n_bytes,
 		unsigned long va =
 		    (unsigned long)dma->kvirt + (i << PAGE_SHIFT);
 
-		sg_set_page(&dma->sglist[i], vmalloc_to_page((void *)va));
-		dma->sglist[i].length = PAGE_SIZE;
+		sg_set_page(&dma->sglist[i], vmalloc_to_page((void *)va),
+				PAGE_SIZE, 0);
 	}
 
 	/* map sglist to the IOMMU */

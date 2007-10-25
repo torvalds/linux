@@ -79,9 +79,7 @@ static inline void
 iscsi_buf_init_sg(struct iscsi_buf *ibuf, struct scatterlist *sg)
 {
 	sg_init_table(&ibuf->sg, 1);
-	sg_set_page(&ibuf->sg, sg_page(sg));
-	ibuf->sg.offset = sg->offset;
-	ibuf->sg.length = sg->length;
+	sg_set_page(&ibuf->sg, sg_page(sg), sg->length, sg->offset);
 	/*
 	 * Fastpath: sg element fits into single page
 	 */

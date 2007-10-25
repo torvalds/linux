@@ -1717,16 +1717,12 @@ st_map_user_pages(struct scatterlist *sgl, const unsigned int max_pages,
 		   goto out_unlock; */
         }
 
-	sg_set_page(sgl, pages[0]);
-	sgl[0].offset = uaddr & ~PAGE_MASK;
+	sg_set_page(sgl, pages[0], 0, uaddr & ~PAGE_MASK);
 	if (nr_pages > 1) {
 		sgl[0].length = PAGE_SIZE - sgl[0].offset;
 		count -= sgl[0].length;
-		for (i=1; i < nr_pages ; i++) {
-			sg_set_page(&sgl[i], pages[i]);
-			sgl[i].length = count < PAGE_SIZE ? count : PAGE_SIZE;
-			count -= PAGE_SIZE;
-		}
+		for (i=1; i < nr_pages ; i++)
+			sg_set_page(&sgl[i], pages[i], count < PAGE_SIZE ? count : PAGE_SIZE, 0);
 	}
 	else {
 		sgl[0].length = count;
@@ -1854,8 +1850,7 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 				scatter_elem_sz_prev = ret_sz;
 			}
 		}
-		sg_set_page(sg, p);
-		sg->length = (ret_sz > num) ? num : ret_sz;
+		sg_set_page(sg, p, (ret_sz > num) ? num : ret_sz, 0);
 
 		SCSI_LOG_TIMEOUT(5, printk("sg_build_indirect: k=%d, num=%d, "
 				 "ret_sz=%d\n", k, num, ret_sz));

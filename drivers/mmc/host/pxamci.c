@@ -29,7 +29,6 @@
 
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <asm/sizes.h>
 
 #include <asm/arch/pxa-regs.h>

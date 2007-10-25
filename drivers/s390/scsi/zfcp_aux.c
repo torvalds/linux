@@ -562,8 +562,6 @@ zfcp_sg_list_alloc(struct zfcp_sg_list *sg_list, size_t size)
 	sg_init_table(sg_list->sg, sg_list->count);
 
 	for (i = 0, sg = sg_list->sg; i < sg_list->count; i++, sg++) {
-		sg->length = min(size, PAGE_SIZE);
-		sg->offset = 0;
 		address = (void *) get_zeroed_page(GFP_KERNEL);
 		if (address == NULL) {
 			sg_list->count = i;
@@ -571,7 +569,7 @@ zfcp_sg_list_alloc(struct zfcp_sg_list *sg_list, size_t size)
 			retval = -ENOMEM;
 			goto out;
 		}
-		zfcp_address_to_sg(address, sg);
+		zfcp_address_to_sg(address, sg, min(size, PAGE_SIZE));
 		size -= sg->length;
 	}
 
@@ -1518,13 +1516,13 @@ zfcp_gid_pn_buffers_alloc(struct zfcp_gid_pn_data **gid_pn, mempool_t *pool)
                 return -ENOMEM;
 
 	memset(data, 0, sizeof(*data));
+	sg_init_table(&data->req , 1);
+	sg_init_table(&data->resp , 1);
         data->ct.req = &data->req;
         data->ct.resp = &data->resp;
 	data->ct.req_count = data->ct.resp_count = 1;
-	zfcp_address_to_sg(&data->ct_iu_req, &data->req);
-        zfcp_address_to_sg(&data->ct_iu_resp, &data->resp);
-        data->req.length = sizeof(struct ct_iu_gid_pn_req);
-        data->resp.length = sizeof(struct ct_iu_gid_pn_resp);
+	zfcp_address_to_sg(&data->ct_iu_req, &data->req, sizeof(struct ct_iu_gid_pn_req));
+        zfcp_address_to_sg(&data->ct_iu_resp, &data->resp, sizeof(struct ct_iu_gid_pn_resp));
 
 	*gid_pn = data;
 	return 0;

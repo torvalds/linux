@@ -477,10 +477,9 @@ static void merge_contiguous_buffers(Scsi_Cmnd *cmd)
 
 	for (endaddr = virt_to_phys(cmd->SCp.ptr + cmd->SCp.this_residual - 1) + 1;
 	     cmd->SCp.buffers_residual &&
-	     virt_to_phys(page_address(cmd->SCp.buffer[1].page) +
-			  cmd->SCp.buffer[1].offset) == endaddr;) {
+	     virt_to_phys(sg_virt(&cmd->SCp.buffer[1])) == endaddr;) {
 		MER_PRINTK("VTOP(%p) == %08lx -> merging\n",
-			   page_address(cmd->SCp.buffer[1].page), endaddr);
+			   page_address(sg_page(&cmd->SCp.buffer[1])), endaddr);
 #if (NDEBUG & NDEBUG_MERGING)
 		++cnt;
 #endif

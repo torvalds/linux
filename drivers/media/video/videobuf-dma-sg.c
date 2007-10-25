@@ -67,8 +67,7 @@ videobuf_vmalloc_to_sg(unsigned char *virt, int nr_pages)
 		if (NULL == pg)
 			goto err;
 		BUG_ON(PageHighMem(pg));
-		sg_set_page(&sglist[i], pg);
-		sglist[i].length = PAGE_SIZE;
+		sg_set_page(&sglist[i], pg, PAGE_SIZE, 0);
 	}
 	return sglist;
 
@@ -95,16 +94,13 @@ videobuf_pages_to_sg(struct page **pages, int nr_pages, int offset)
 	if (PageHighMem(pages[0]))
 		/* DMA to highmem pages might not work */
 		goto highmem;
-	sg_set_page(&sglist[0], pages[0]);
-	sglist[0].offset = offset;
-	sglist[0].length = PAGE_SIZE - offset;
+	sg_set_page(&sglist[0], pages[0], PAGE_SIZE - offset, offset);
 	for (i = 1; i < nr_pages; i++) {
 		if (NULL == pages[i])
 			goto nopage;
 		if (PageHighMem(pages[i]))
 			goto highmem;
-		sg_set_page(&sglist[i], pages[i]);
-		sglist[i].length = PAGE_SIZE;
+		sg_set_page(&sglist[i], pages[i], PAGE_SIZE, 0);
 	}
 	return sglist;
 

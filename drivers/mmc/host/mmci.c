@@ -20,11 +20,11 @@
 #include <linux/mmc/host.h>
 #include <linux/amba/bus.h>
 #include <linux/clk.h>
+#include <linux/scatterlist.h>
 
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <asm/sizes.h>
 #include <asm/mach/mmc.h>
 
@@ -167,7 +167,7 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		 * partially written to a page is properly coherent.
 		 */
 		if (host->sg_len && data->flags & MMC_DATA_READ)
-			flush_dcache_page(host->sg_ptr->page);
+			flush_dcache_page(sg_page(host->sg_ptr));
 	}
 	if (status & MCI_DATAEND) {
 		mmci_stop_data(host);
@@ -319,7 +319,7 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 		 * page, ensure that the data cache is coherent.
 		 */
 		if (status & MCI_RXACTIVE)
-			flush_dcache_page(host->sg_ptr->page);
+			flush_dcache_page(sg_page(host->sg_ptr));
 
 		if (!mmci_next_sg(host))
 			break;

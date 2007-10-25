@@ -16,8 +16,7 @@
  *
  * can be rewritten as
  *
- * sg_set_page(virt_to_page(some_ptr));
- * sg->offset = (unsigned long) some_ptr & ~PAGE_MASK;
+ * sg_set_buf(sg, some_ptr, length);
  *
  * and that's it. There's no excuse for not highmem enabling YOUR driver. /jens
  */
