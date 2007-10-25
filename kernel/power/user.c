@@ -40,6 +40,16 @@
 #define PMOPS_ENTER	2
 #define PMOPS_FINISH	3
 
+/*
+ * NOTE: The following ioctl definitions are wrong and have been replaced with
+ * correct ones.  They are only preserved here for compatibility with existing
+ * userland utilities and will be removed in the future.
+ */
+#define SNAPSHOT_ATOMIC_SNAPSHOT	_IOW(SNAPSHOT_IOC_MAGIC, 3, void *)
+#define SNAPSHOT_SET_IMAGE_SIZE		_IOW(SNAPSHOT_IOC_MAGIC, 6, unsigned long)
+#define SNAPSHOT_AVAIL_SWAP		_IOR(SNAPSHOT_IOC_MAGIC, 7, void *)
+#define SNAPSHOT_GET_SWAP_PAGE		_IOR(SNAPSHOT_IOC_MAGIC, 8, void *)
+
 
 #define SNAPSHOT_MINOR	231
 
@@ -191,6 +201,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		data->frozen = 0;
 		break;
 
+	case SNAPSHOT_CREATE_IMAGE:
 	case SNAPSHOT_ATOMIC_SNAPSHOT:
 		if (data->mode != O_RDONLY || !data->frozen  || data->ready) {
 			error = -EPERM;
@@ -198,7 +209,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		}
 		error = hibernation_snapshot(data->platform_support);
 		if (!error)
-			error = put_user(in_suspend, (unsigned int __user *)arg);
+			error = put_user(in_suspend, (int __user *)arg);
 		if (!error)
 			data->ready = 1;
 		break;
@@ -219,6 +230,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		data->ready = 0;
 		break;
 
+	case SNAPSHOT_PREF_IMAGE_SIZE:
 	case SNAPSHOT_SET_IMAGE_SIZE:
 		image_size = arg;
 		break;
@@ -233,12 +245,14 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		error = put_user(size, (loff_t __user *)arg);
 		break;
 
+	case SNAPSHOT_AVAIL_SWAP_SIZE:
 	case SNAPSHOT_AVAIL_SWAP:
 		size = count_swap_pages(data->swap, 1);
 		size <<= PAGE_SHIFT;
 		error = put_user(size, (loff_t __user *)arg);
 		break;
 
+	case SNAPSHOT_ALLOC_SWAP_PAGE:
 	case SNAPSHOT_GET_SWAP_PAGE:
 		if (data->swap < 0 || data->swap >= MAX_SWAPFILES) {
 			error = -ENODEV;
@@ -247,7 +261,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		offset = alloc_swapdev_block(data->swap);
 		if (offset) {
 			offset <<= PAGE_SHIFT;
-			error = put_user(offset, (sector_t __user *)arg);
+			error = put_user(offset, (loff_t __user *)arg);
 		} else {
 			error = -ENOSPC;
 		}

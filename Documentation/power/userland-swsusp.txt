@@ -27,17 +27,17 @@ once at a time.
 The ioctl() commands recognized by the device are:
 
 SNAPSHOT_FREEZE - freeze user space processes (the current process is
-	not frozen); this is required for SNAPSHOT_ATOMIC_SNAPSHOT
+	not frozen); this is required for SNAPSHOT_CREATE_IMAGE
 	and SNAPSHOT_ATOMIC_RESTORE to succeed
 
 SNAPSHOT_UNFREEZE - thaw user space processes frozen by SNAPSHOT_FREEZE
 
-SNAPSHOT_ATOMIC_SNAPSHOT - create a snapshot of the system memory; the
+SNAPSHOT_CREATE_IMAGE - create a snapshot of the system memory; the
 	last argument of ioctl() should be a pointer to an int variable,
 	the value of which will indicate whether the call returned after
 	creating the snapshot (1) or after restoring the system memory state
 	from it (0) (after resume the system finds itself finishing the
-	SNAPSHOT_ATOMIC_SNAPSHOT ioctl() again); after the snapshot
+	SNAPSHOT_CREATE_IMAGE ioctl() again); after the snapshot
 	has been created the read() operation can be used to transfer
 	it out of the kernel
 
@@ -49,23 +49,23 @@ SNAPSHOT_ATOMIC_RESTORE - restore the system memory state from the
 
 SNAPSHOT_FREE - free memory allocated for the snapshot image
 
-SNAPSHOT_SET_IMAGE_SIZE - set the preferred maximum size of the image
+SNAPSHOT_PREF_IMAGE_SIZE - set the preferred maximum size of the image
 	(the kernel will do its best to ensure the image size will not exceed
 	this number, but if it turns out to be impossible, the kernel will
 	create the smallest image possible)
 
 SNAPSHOT_GET_IMAGE_SIZE - return the actual size of the hibernation image
 
-SNAPSHOT_AVAIL_SWAP - return the amount of available swap in bytes (the last
-	argument should be a pointer to an unsigned int variable that will
+SNAPSHOT_AVAIL_SWAP_SIZE - return the amount of available swap in bytes (the
+	last argument should be a pointer to an unsigned int variable that will
 	contain the result if the call is successful).
 
-SNAPSHOT_GET_SWAP_PAGE - allocate a swap page from the resume partition
+SNAPSHOT_ALLOC_SWAP_PAGE - allocate a swap page from the resume partition
 	(the last argument should be a pointer to a loff_t variable that
 	will contain the swap page offset if the call is successful)
 
-SNAPSHOT_FREE_SWAP_PAGES - free all swap pages allocated with
-	SNAPSHOT_GET_SWAP_PAGE
+SNAPSHOT_FREE_SWAP_PAGES - free all swap pages allocated by
+	SNAPSHOT_ALLOC_SWAP_PAGE
 
 SNAPSHOT_SET_SWAP_AREA - set the resume partition and the offset (in <PAGE_SIZE>
 	units) from the beginning of the partition at which the swap header is
@@ -102,7 +102,7 @@ The device's write() operation is used for uploading the system memory snapshot
 into the kernel.  It has the same limitations as the read() operation.
 
 The release() operation frees all memory allocated for the snapshot image
-and all swap pages allocated with SNAPSHOT_GET_SWAP_PAGE (if any).
+and all swap pages allocated with SNAPSHOT_ALLOC_SWAP_PAGE (if any).
 Thus it is not necessary to use either SNAPSHOT_FREE or
 SNAPSHOT_FREE_SWAP_PAGES before closing the device (in fact it will also
 unfreeze user space processes frozen by SNAPSHOT_UNFREEZE if they are
@@ -113,7 +113,7 @@ snapshot image from/to the kernel will use a swap parition, called the resume
 partition, or a swap file as storage space (if a swap file is used, the resume
 partition is the partition that holds this file).  However, this is not really
 required, as they can use, for example, a special (blank) suspend partition or
-a file on a partition that is unmounted before SNAPSHOT_ATOMIC_SNAPSHOT and
+a file on a partition that is unmounted before SNAPSHOT_CREATE_IMAGE and
 mounted afterwards.
 
 These utilities MUST NOT make any assumptions regarding the ordering of
@@ -135,7 +135,7 @@ means, such as checksums, to ensure the integrity of the snapshot image.
 The suspending and resuming utilities MUST lock themselves in memory,
 preferrably using mlockall(), before calling SNAPSHOT_FREEZE.
 
-The suspending utility MUST check the value stored by SNAPSHOT_ATOMIC_SNAPSHOT
+The suspending utility MUST check the value stored by SNAPSHOT_CREATE_IMAGE
 in the memory location pointed to by the last argument of ioctl() and proceed
 in accordance with it:
 1. 	If the value is 1 (ie. the system memory snapshot has just been
@@ -149,7 +149,7 @@ in accordance with it:
 		image has been saved.
 	(b)	The suspending utility SHOULD NOT attempt to perform any
 		file system operations (including reads) on the file systems
-		that were mounted before SNAPSHOT_ATOMIC_SNAPSHOT has been
+		that were mounted before SNAPSHOT_CREATE_IMAGE has been
 		called.  However, it MAY mount a file system that was not
 		mounted at that time and perform some operations on it (eg.
 		use it for saving the image).
