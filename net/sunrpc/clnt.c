@@ -501,12 +501,12 @@ static void rpc_save_sigmask(sigset_t *oldset, int intr)
 	sigprocmask(SIG_BLOCK, &sigmask, oldset);
 }
 
-static inline void rpc_task_sigmask(struct rpc_task *task, sigset_t *oldset)
+static void rpc_task_sigmask(struct rpc_task *task, sigset_t *oldset)
 {
 	rpc_save_sigmask(oldset, !RPC_TASK_UNINTERRUPTIBLE(task));
 }
 
-static inline void rpc_restore_sigmask(sigset_t *oldset)
+static void rpc_restore_sigmask(sigset_t *oldset)
 {
 	sigprocmask(SIG_SETMASK, oldset, NULL);
 }
@@ -536,11 +536,10 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 	if (task == NULL) {
 		rpc_release_calldata(task_setup_data->callback_ops,
 				task_setup_data->callback_data);
-		return ERR_PTR(-ENOMEM);
+		ret = ERR_PTR(-ENOMEM);
+		goto out;
 	}
 
-	/* Mask signals on synchronous RPC calls and RPCSEC_GSS upcalls */
-	rpc_task_sigmask(task, &oldset);
 	if (task_setup_data->rpc_message != NULL) {
 		rpc_call_setup(task, task_setup_data->rpc_message, 0);
 		if (task->tk_status != 0) {
@@ -550,10 +549,12 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 		}
 	}
 	atomic_inc(&task->tk_count);
+	/* Mask signals on synchronous RPC calls and RPCSEC_GSS upcalls */
+	rpc_task_sigmask(task, &oldset);
 	rpc_execute(task);
+	rpc_restore_sigmask(&oldset);
 	ret = task;
 out:
-	rpc_restore_sigmask(&oldset);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rpc_run_task);
