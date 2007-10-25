@@ -135,7 +135,7 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 
 	wpwd[len] = 0;	/* Ensure string is null terminated */
 	/* Calculate length in bytes */
-	len = _my_wcslen(wpwd) * sizeof (__u16);
+	len = _my_wcslen(wpwd) * sizeof(__u16);
 
 	mdfour(p16, (unsigned char *) wpwd, len);
 	memset(wpwd, 0, 129 * 2);
@@ -167,7 +167,7 @@ nt_lm_owf_gen(char *pwd, unsigned char nt_p16[16], unsigned char p16[16])
 	E_P16((unsigned char *) passwd, (unsigned char *) p16);
 
 	/* clear out local copy of user's password (just being paranoid). */
-	memset(passwd, '\0', sizeof (passwd));
+	memset(passwd, '\0', sizeof(passwd));
 }
 #endif
 

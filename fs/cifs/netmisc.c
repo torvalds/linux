@@ -793,8 +793,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 	if (smberrclass == ERRDOS) {  /* 1 byte field no need to byte reverse */
 		for (i = 0;
 		     i <
-		     sizeof (mapping_table_ERRDOS) /
-		     sizeof (struct smb_to_posix_error); i++) {
+		     sizeof(mapping_table_ERRDOS) /
+		     sizeof(struct smb_to_posix_error); i++) {
 			if (mapping_table_ERRDOS[i].smb_err == 0)
 				break;
 			else if (mapping_table_ERRDOS[i].smb_err ==
@@ -807,8 +807,8 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 	} else if (smberrclass == ERRSRV) {   /* server class of error codes */
 		for (i = 0;
 		     i <
-		     sizeof (mapping_table_ERRSRV) /
-		     sizeof (struct smb_to_posix_error); i++) {
+		     sizeof(mapping_table_ERRSRV) /
+		     sizeof(struct smb_to_posix_error); i++) {
 			if (mapping_table_ERRSRV[i].smb_err == 0)
 				break;
 			else if (mapping_table_ERRSRV[i].smb_err ==
@@ -837,14 +837,14 @@ map_smb_to_linux_error(struct smb_hdr *smb, int logErr)
 unsigned int
 smbCalcSize(struct smb_hdr *ptr)
 {
-	return (sizeof (struct smb_hdr) + (2 * ptr->WordCount) +
+	return (sizeof(struct smb_hdr) + (2 * ptr->WordCount) +
 		2 /* size of the bcc field */ + BCC(ptr));
 }
 
 unsigned int
 smbCalcSize_LE(struct smb_hdr *ptr)
 {
-	return (sizeof (struct smb_hdr) + (2 * ptr->WordCount) +
+	return (sizeof(struct smb_hdr) + (2 * ptr->WordCount) +
 		2 /* size of the bcc field */ + le16_to_cpu(BCC_LE(ptr)));
 }
 

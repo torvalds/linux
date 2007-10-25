@@ -530,7 +530,7 @@ int cifs_get_inode_info(struct inode **pinode,
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
 			cFYI(1, ("Getting mode bits from ACL"));
-			get_mode_from_acl(inode, search_path);
+			acl_to_uid_mode(inode, search_path);
 		}
 #endif
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
