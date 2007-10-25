@@ -1,6 +1,7 @@
 #ifndef _LINUX_SCATTERLIST_H
 #define _LINUX_SCATTERLIST_H
 
+#include <asm/types.h>
 #include <asm/scatterlist.h>
 #include <linux/mm.h>
 #include <linux/string.h>
@@ -255,7 +256,7 @@ static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
  *   on the sg page.
  *
  **/
-static inline unsigned long sg_phys(struct scatterlist *sg)
+static inline dma_addr_t sg_phys(struct scatterlist *sg)
 {
 	return page_to_phys(sg_page(sg)) + sg->offset;
 }
