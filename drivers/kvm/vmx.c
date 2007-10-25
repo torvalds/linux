@@ -2265,16 +2265,12 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	asm(
 		/* Store host registers */
 #ifdef CONFIG_X86_64
-		"push %%rax; push %%rbx; push %%rdx;"
-		"push %%rsi; push %%rdi; push %%rbp;"
-		"push %%r8;  push %%r9;  push %%r10; push %%r11;"
-		"push %%r12; push %%r13; push %%r14; push %%r15;"
+		"push %%rdx; push %%rbp;"
 		"push %%rcx \n\t"
-		ASM_VMX_VMWRITE_RSP_RDX "\n\t"
 #else
 		"pusha; push %%ecx \n\t"
-		ASM_VMX_VMWRITE_RSP_RDX "\n\t"
 #endif
+		ASM_VMX_VMWRITE_RSP_RDX "\n\t"
 		/* Check if vmlaunch of vmresume is needed */
 		"cmp $0, %1 \n\t"
 		/* Load guest registers.  Don't clobber flags. */
@@ -2333,12 +2329,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"mov %%r15, %c[r15](%3) \n\t"
 		"mov %%cr2, %%rax   \n\t"
 		"mov %%rax, %c[cr2](%3) \n\t"
-		"mov (%%rsp), %3 \n\t"
 
-		"pop  %%rcx; pop  %%r15; pop  %%r14; pop  %%r13; pop  %%r12;"
-		"pop  %%r11; pop  %%r10; pop  %%r9;  pop  %%r8;"
-		"pop  %%rbp; pop  %%rdi; pop  %%rsi;"
-		"pop  %%rdx; pop  %%rbx; pop  %%rax \n\t"
+		"pop  %%rcx; pop  %%rbp; pop  %%rdx \n\t"
 #else
 		"xchg %3, (%%esp) \n\t"
 		"mov %%eax, %c[rax](%3) \n\t"
@@ -2376,7 +2368,12 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		[r15]"i"(offsetof(struct kvm_vcpu, regs[VCPU_REGS_R15])),
 #endif
 		[cr2]"i"(offsetof(struct kvm_vcpu, cr2))
-	      : "cc", "memory");
+	      : "cc", "memory"
+#ifdef CONFIG_X86_64
+		, "rbx", "rdi", "rsi"
+		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
+#endif
+	      );
 
 	vcpu->interrupt_window_open =
 		(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0;
