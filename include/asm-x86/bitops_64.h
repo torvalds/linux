@@ -173,9 +173,12 @@ static __inline__ int test_and_set_bit(int nr, volatile void * addr)
  * @nr: Bit to set
  * @addr: Address to count from
  *
- * This is the same as test_and_set_bit on x86
+ * This is the same as test_and_set_bit on x86.
  */
-#define test_and_set_bit_lock test_and_set_bit
+static __inline__ int test_and_set_bit_lock(int nr, volatile void *addr)
+{
+	return test_and_set_bit(nr, addr);
+}
 
 /**
  * __test_and_set_bit - Set a bit and return its old value
