@@ -527,11 +527,10 @@ struct iwl_ibss_seq {
 struct iwl_driver_hw_info {
 	u16 max_txq_num;
 	u16 ac_queue_count;
-	u32 rx_buffer_size;
 	u16 tx_cmd_len;
 	u16 max_rxq_size;
+	u32 rx_buffer_size;
 	u16 max_rxq_log;
-	u32 cck_flag;
 	u8  max_stations;
 	u8  bcast_sta_id;
 	void *shared_virt;

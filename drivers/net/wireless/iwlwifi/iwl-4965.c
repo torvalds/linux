@@ -1721,8 +1721,6 @@ int iwl_hw_set_hw_setting(struct iwl_priv *priv)
 
 	priv->hw_setting.max_txq_num = iwl_param_queues_num;
 	priv->hw_setting.ac_queue_count = AC_NUM;
-
-	priv->hw_setting.cck_flag = RATE_MCS_CCK_MSK;
 	priv->hw_setting.tx_cmd_len = sizeof(struct iwl_tx_cmd);
 	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;

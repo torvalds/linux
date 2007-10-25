@@ -2240,7 +2240,6 @@ int iwl_hw_set_hw_setting(struct iwl_priv *priv)
 	priv->hw_setting.tx_cmd_len = sizeof(struct iwl_tx_cmd);
 	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;
-	priv->hw_setting.cck_flag = 0;
 	priv->hw_setting.max_stations = IWL3945_STATION_COUNT;
 	priv->hw_setting.bcast_sta_id = IWL3945_BROADCAST_ID;
 	return 0;

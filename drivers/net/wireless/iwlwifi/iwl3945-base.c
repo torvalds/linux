@@ -506,8 +506,10 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
 	station->sta.sta.sta_id = index;
 	station->sta.station_flags = 0;
 
-	rate = (priv->phymode == MODE_IEEE80211A) ? IWL_RATE_6M_PLCP :
-				IWL_RATE_1M_PLCP | priv->hw_setting.cck_flag;
+	if (priv->phymode == MODE_IEEE80211A)
+		rate = IWL_RATE_6M_PLCP;
+	else
+		rate =	IWL_RATE_1M_PLCP;
 
 	/* Turn on both antennas for the station... */
 	station->sta.rate_n_flags =
