@@ -4457,7 +4457,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		return;
 	}
 
-	count = iwl_read_restricted_mem(priv, base);
+	count = iwl_read_targ_mem(priv, base);
 
 	if (ERROR_START_OFFSET <= count * ERROR_ELEM_SIZE) {
 		IWL_ERROR("Start IWL Error Log Dump:\n");
@@ -4470,19 +4470,19 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	for (i = ERROR_START_OFFSET;
 	     i < (count * ERROR_ELEM_SIZE) + ERROR_START_OFFSET;
 	     i += ERROR_ELEM_SIZE) {
-		desc = iwl_read_restricted_mem(priv, base + i);
+		desc = iwl_read_targ_mem(priv, base + i);
 		time =
-		    iwl_read_restricted_mem(priv, base + i + 1 * sizeof(u32));
+		    iwl_read_targ_mem(priv, base + i + 1 * sizeof(u32));
 		blink1 =
-		    iwl_read_restricted_mem(priv, base + i + 2 * sizeof(u32));
+		    iwl_read_targ_mem(priv, base + i + 2 * sizeof(u32));
 		blink2 =
-		    iwl_read_restricted_mem(priv, base + i + 3 * sizeof(u32));
+		    iwl_read_targ_mem(priv, base + i + 3 * sizeof(u32));
 		ilink1 =
-		    iwl_read_restricted_mem(priv, base + i + 4 * sizeof(u32));
+		    iwl_read_targ_mem(priv, base + i + 4 * sizeof(u32));
 		ilink2 =
-		    iwl_read_restricted_mem(priv, base + i + 5 * sizeof(u32));
+		    iwl_read_targ_mem(priv, base + i + 5 * sizeof(u32));
 		data1 =
-		    iwl_read_restricted_mem(priv, base + i + 6 * sizeof(u32));
+		    iwl_read_targ_mem(priv, base + i + 6 * sizeof(u32));
 
 		IWL_ERROR
 		    ("%-13s (#%d) %010u 0x%05X 0x%05X 0x%05X 0x%05X %u\n\n",
@@ -4525,14 +4525,14 @@ static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	/* "time" is actually "data" for mode 0 (no timestamp).
 	 * place event id # at far right for easier visual parsing. */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read_restricted_mem(priv, ptr);
+		ev = iwl_read_targ_mem(priv, ptr);
 		ptr += sizeof(u32);
-		time = iwl_read_restricted_mem(priv, ptr);
+		time = iwl_read_targ_mem(priv, ptr);
 		ptr += sizeof(u32);
 		if (mode == 0)
 			IWL_ERROR("0x%08x\t%04u\n", time, ev); /* data, ev */
 		else {
-			data = iwl_read_restricted_mem(priv, ptr);
+			data = iwl_read_targ_mem(priv, ptr);
 			ptr += sizeof(u32);
 			IWL_ERROR("%010u\t0x%08x\t%04u\n", time, data, ev);
 		}
@@ -4562,10 +4562,10 @@ static void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	}
 
 	/* event log header */
-	capacity = iwl_read_restricted_mem(priv, base);
-	mode = iwl_read_restricted_mem(priv, base + (1 * sizeof(u32)));
-	num_wraps = iwl_read_restricted_mem(priv, base + (2 * sizeof(u32)));
-	next_entry = iwl_read_restricted_mem(priv, base + (3 * sizeof(u32)));
+	capacity = iwl_read_targ_mem(priv, base);
+	mode = iwl_read_targ_mem(priv, base + (1 * sizeof(u32)));
+	num_wraps = iwl_read_targ_mem(priv, base + (2 * sizeof(u32)));
+	next_entry = iwl_read_targ_mem(priv, base + (3 * sizeof(u32)));
 
 	size = num_wraps ? capacity : next_entry;
 

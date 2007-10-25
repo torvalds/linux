@@ -96,7 +96,7 @@ const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
  *   ... and set IWL_EVT_DISABLE to 1. */
 void iwl_disable_events(struct iwl_priv *priv)
 {
-	int rc;
+	int ret;
 	int i;
 	u32 base;		/* SRAM address of event log header */
 	u32 disable_ptr;	/* SRAM address of event-disable bitmap array */
@@ -157,25 +157,24 @@ void iwl_disable_events(struct iwl_priv *priv)
 		return;
 	}
 
-	rc = iwl_grab_restricted_access(priv);
-	if (rc) {
+	ret = iwl_grab_restricted_access(priv);
+	if (ret) {
 		IWL_WARNING("Can not read from adapter at this time.\n");
 		return;
 	}
 
-	disable_ptr = iwl_read_restricted_mem(priv, base + (4 * sizeof(u32)));
-	array_size = iwl_read_restricted_mem(priv, base + (5 * sizeof(u32)));
+	disable_ptr = iwl_read_targ_mem(priv, base + (4 * sizeof(u32)));
+	array_size = iwl_read_targ_mem(priv, base + (5 * sizeof(u32)));
 	iwl_release_restricted_access(priv);
 
 	if (IWL_EVT_DISABLE && (array_size == IWL_EVT_DISABLE_SIZE)) {
 		IWL_DEBUG_INFO("Disabling selected uCode log events at 0x%x\n",
 			       disable_ptr);
-		rc = iwl_grab_restricted_access(priv);
+		ret = iwl_grab_restricted_access(priv);
 		for (i = 0; i < IWL_EVT_DISABLE_SIZE; i++)
-			iwl_write_restricted_mem(priv,
-						 disable_ptr +
-						 (i * sizeof(u32)),
-						 evt_disable[i]);
+			iwl_write_targ_mem(priv,
+					   disable_ptr + (i * sizeof(u32)),
+					   evt_disable[i]);
 
 		iwl_release_restricted_access(priv);
 	} else {

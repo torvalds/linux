@@ -411,21 +411,20 @@ static inline void iwl_clear_bits_prph(struct iwl_priv
 	_iwl_write_prph(priv, reg, (val & ~mask));
 }
 
-static inline u32 iwl_read_restricted_mem(struct iwl_priv *priv, u32 addr)
+static inline u32 iwl_read_targ_mem(struct iwl_priv *priv, u32 addr)
 {
 	iwl_write_restricted(priv, HBUS_TARG_MEM_RADDR, addr);
 	return iwl_read_restricted(priv, HBUS_TARG_MEM_RDAT);
 }
 
-static inline void iwl_write_restricted_mem(struct iwl_priv *priv, u32 addr,
-					    u32 val)
+static inline void iwl_write_targ_mem(struct iwl_priv *priv, u32 addr, u32 val)
 {
 	iwl_write_restricted(priv, HBUS_TARG_MEM_WADDR, addr);
 	iwl_write_restricted(priv, HBUS_TARG_MEM_WDAT, val);
 }
 
-static inline void iwl_write_restricted_mems(struct iwl_priv *priv, u32 addr,
-					     u32 len, u32 *values)
+static inline void iwl_write_targ_mem_buf(struct iwl_priv *priv, u32 addr,
+					  u32 len, u32 *values)
 {
 	iwl_write_restricted(priv, HBUS_TARG_MEM_WADDR, addr);
 	for (; 0 < len; len -= sizeof(u32), values++)

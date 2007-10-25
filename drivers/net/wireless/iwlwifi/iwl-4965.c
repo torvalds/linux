@@ -1657,11 +1657,11 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	priv->scd_base_addr = iwl_read_prph(priv, SCD_SRAM_BASE_ADDR);
 	a = priv->scd_base_addr + SCD_CONTEXT_DATA_OFFSET;
 	for (; a < priv->scd_base_addr + SCD_TX_STTS_BITMAP_OFFSET; a += 4)
-		iwl_write_restricted_mem(priv, a, 0);
+		iwl_write_targ_mem(priv, a, 0);
 	for (; a < priv->scd_base_addr + SCD_TRANSLATE_TBL_OFFSET; a += 4)
-		iwl_write_restricted_mem(priv, a, 0);
+		iwl_write_targ_mem(priv, a, 0);
 	for (; a < sizeof(u16) * priv->hw_setting.max_txq_num; a += 4)
-		iwl_write_restricted_mem(priv, a, 0);
+		iwl_write_targ_mem(priv, a, 0);
 
 	iwl_write_prph(priv, SCD_DRAM_BASE_ADDR,
 		(priv->hw_setting.shared_phys +
@@ -1672,12 +1672,12 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	for (i = 0; i < priv->hw_setting.max_txq_num; i++) {
 		iwl_write_prph(priv, SCD_QUEUE_RDPTR(i), 0);
 		iwl_write_restricted(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
-		iwl_write_restricted_mem(priv, priv->scd_base_addr +
+		iwl_write_targ_mem(priv, priv->scd_base_addr +
 					SCD_CONTEXT_QUEUE_OFFSET(i),
 					(SCD_WIN_SIZE <<
 					SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
 					SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
-		iwl_write_restricted_mem(priv, priv->scd_base_addr +
+		iwl_write_targ_mem(priv, priv->scd_base_addr +
 					SCD_CONTEXT_QUEUE_OFFSET(i) +
 					sizeof(u32),
 					(SCD_FRAME_LIMIT <<
@@ -4156,14 +4156,14 @@ static int iwl4965_tx_queue_set_q2ratid(struct iwl_priv *priv, u16 ra_tid,
 	tbl_dw_addr = priv->scd_base_addr +
 			SCD_TRANSLATE_TBL_OFFSET_QUEUE(txq_id);
 
-	tbl_dw = iwl_read_restricted_mem(priv, tbl_dw_addr);
+	tbl_dw = iwl_read_targ_mem(priv, tbl_dw_addr);
 
 	if (txq_id & 0x1)
 		tbl_dw = (scd_q2ratid << 16) | (tbl_dw & 0x0000FFFF);
 	else
 		tbl_dw = scd_q2ratid | (tbl_dw & 0xFFFF0000);
 
-	iwl_write_restricted_mem(priv, tbl_dw_addr, tbl_dw);
+	iwl_write_targ_mem(priv, tbl_dw_addr, tbl_dw);
 
 	return 0;
 }
@@ -4207,12 +4207,12 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwl4965_set_wr_ptrs(priv, txq_id, ssn_idx);
 
-	iwl_write_restricted_mem(priv,
+	iwl_write_targ_mem(priv,
 			priv->scd_base_addr + SCD_CONTEXT_QUEUE_OFFSET(txq_id),
 			(SCD_WIN_SIZE << SCD_QUEUE_CTX_REG1_WIN_SIZE_POS) &
 			SCD_QUEUE_CTX_REG1_WIN_SIZE_MSK);
 
-	iwl_write_restricted_mem(priv, priv->scd_base_addr +
+	iwl_write_targ_mem(priv, priv->scd_base_addr +
 			SCD_CONTEXT_QUEUE_OFFSET(txq_id) + sizeof(u32),
 			(SCD_FRAME_LIMIT << SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS)
 			& SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
