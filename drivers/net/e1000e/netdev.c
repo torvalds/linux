@@ -2328,7 +2328,10 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 	struct e1000_hw *hw = &adapter->hw;
 	u32 tx_space, min_tx_space, min_rx_space;
+	u32 pba;
 	u16 hwm;
+
+	ew32(PBA, adapter->pba);
 
 	if (mac->max_frame_size > ETH_FRAME_LEN + ETH_FCS_LEN ) {
 		/* To maintain wire speed transmits, the Tx FIFO should be
@@ -2337,11 +2340,11 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		 * the Rx FIFO should be large enough to accommodate at least
 		 * one full receive packet and is similarly rounded up and
 		 * expressed in KB. */
-		adapter->pba = er32(PBA);
+		pba = er32(PBA);
 		/* upper 16 bits has Tx packet buffer allocation size in KB */
-		tx_space = adapter->pba >> 16;
+		tx_space = pba >> 16;
 		/* lower 16 bits has Rx packet buffer allocation size in KB */
-		adapter->pba &= 0xffff;
+		pba &= 0xffff;
 		/* the tx fifo also stores 16 bytes of information about the tx
 		 * but don't include ethernet FCS because hardware appends it */
 		min_tx_space = (mac->max_frame_size +
@@ -2357,20 +2360,21 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		/* If current Tx allocation is less than the min Tx FIFO size,
 		 * and the min Tx FIFO size is less than the current Rx FIFO
 		 * allocation, take space away from current Rx allocation */
-		if (tx_space < min_tx_space &&
-		    ((min_tx_space - tx_space) < adapter->pba)) {
-			adapter->pba -= - (min_tx_space - tx_space);
+		if ((tx_space < min_tx_space) &&
+		    ((min_tx_space - tx_space) < pba)) {
+			pba -= min_tx_space - tx_space;
 
 			/* if short on rx space, rx wins and must trump tx
 			 * adjustment or use Early Receive if available */
-			if ((adapter->pba < min_rx_space) &&
+			if ((pba < min_rx_space) &&
 			    (!(adapter->flags & FLAG_HAS_ERT)))
 				/* ERT enabled in e1000_configure_rx */
-				adapter->pba = min_rx_space;
+				pba = min_rx_space;
 		}
+
+		ew32(PBA, pba);
 	}
 
-	ew32(PBA, adapter->pba);
 
 	/* flow control settings */
 	/* The high water mark must be low enough to fit one full frame
