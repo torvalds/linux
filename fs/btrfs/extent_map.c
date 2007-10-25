@@ -2045,7 +2045,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 	struct extent_buffer *eb;
 	struct page *p;
 	struct address_space *mapping = tree->mapping;
-	int uptodate = 0;
+	int uptodate = 1;
 
 	eb = __alloc_extent_buffer(tree, start, len, mask);
 	if (!eb || IS_ERR(eb))
@@ -2197,7 +2197,7 @@ int clear_extent_buffer_dirty(struct extent_map_tree *tree,
 		 */
 		if ((i == 0 && (eb->start & (PAGE_CACHE_SIZE - 1))) ||
 		    ((i == num_pages - 1) &&
-		     ((eb->start + eb->len - 1) & (PAGE_CACHE_SIZE - 1)))) {
+		     ((eb->start + eb->len) & (PAGE_CACHE_SIZE - 1)))) {
 			start = page->index << PAGE_CACHE_SHIFT;
 			end  = start + PAGE_CACHE_SIZE - 1;
 			if (test_range_bit(tree, start, end,
@@ -2265,7 +2265,7 @@ int set_extent_buffer_uptodate(struct extent_map_tree *tree,
 		page = extent_buffer_page(eb, i);
 		if ((i == 0 && (eb->start & (PAGE_CACHE_SIZE - 1))) ||
 		    ((i == num_pages - 1) &&
-		     ((eb->start + eb->len - 1) & (PAGE_CACHE_SIZE - 1)))) {
+		     ((eb->start + eb->len) & (PAGE_CACHE_SIZE - 1)))) {
 			check_page_uptodate(tree, page);
 			continue;
 		}
@@ -2401,7 +2401,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	struct page *p;
 	size_t start_offset = eb->start & ((u64)PAGE_CACHE_SIZE - 1);
 	unsigned long i = (start_offset + start) >> PAGE_CACHE_SHIFT;
-	unsigned long end_i = (start_offset + start + min_len) >>
+	unsigned long end_i = (start_offset + start + min_len - 1) >>
 		PAGE_CACHE_SHIFT;
 
 	if (i != end_i)
@@ -2414,7 +2414,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		offset = 0;
 		*map_start = (i << PAGE_CACHE_SHIFT) - start_offset;
 	}
-	if (start + min_len >= eb->len) {
+	if (start + min_len > eb->len) {
 printk("bad mapping eb start %Lu len %lu, wanted %lu %lu\n", eb->start, eb->len, start, min_len);
 		WARN_ON(1);
 	}

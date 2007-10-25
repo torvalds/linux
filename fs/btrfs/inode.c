@@ -616,6 +616,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 				break;
 			}
 			btrfs_set_key_type(&key, found_type);
+			btrfs_release_path(root, path);
 			continue;
 		}
 		if (found_key.offset >= inode->i_size)
