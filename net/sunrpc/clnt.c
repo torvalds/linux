@@ -540,13 +540,10 @@ struct rpc_task *rpc_run_task(const struct rpc_task_setup *task_setup_data)
 		goto out;
 	}
 
-	if (task_setup_data->rpc_message != NULL) {
-		rpc_call_setup(task, task_setup_data->rpc_message, 0);
-		if (task->tk_status != 0) {
-			ret = ERR_PTR(task->tk_status);
-			rpc_put_task(task);
-			goto out;
-		}
+	if (task->tk_status != 0) {
+		ret = ERR_PTR(task->tk_status);
+		rpc_put_task(task);
+		goto out;
 	}
 	atomic_inc(&task->tk_count);
 	/* Mask signals on synchronous RPC calls and RPCSEC_GSS upcalls */

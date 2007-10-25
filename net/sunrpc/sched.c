@@ -848,6 +848,17 @@ void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setu
 	if (task->tk_ops->rpc_call_prepare != NULL)
 		task->tk_action = rpc_prepare_task;
 
+	if (task_setup_data->rpc_message != NULL) {
+		memcpy(&task->tk_msg, task_setup_data->rpc_message, sizeof(task->tk_msg));
+		/* Bind the user cred */
+		if (task->tk_msg.rpc_cred != NULL)
+			rpcauth_holdcred(task);
+		else
+			rpcauth_bindcred(task);
+		if (task->tk_action == NULL)
+			rpc_call_start(task);
+	}
+
 	/* starting timestamp */
 	task->tk_start = jiffies;
 
