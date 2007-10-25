@@ -1793,6 +1793,12 @@ static struct ac97_quirk ac97_quirks[] = {
 		.name = "m680x",
 		.type = AC97_TUNE_HP_ONLY, /* http://launchpad.net/bugs/38546 */
 	},
+	{
+		.subvendor = 0x1297,
+		.subdevice = 0xa232,
+		.name = "Shuttle AK32VN",
+		.type = AC97_TUNE_HP_ONLY
+	},
 	{ } /* terminator */
 };
 
@@ -2364,8 +2370,8 @@ static struct snd_pci_quirk dxs_whitelist[] __devinitdata = {
 	SND_PCI_QUIRK(0x10cf, 0x118e, "FSC Laptop", VIA_DXS_ENABLE),
 	SND_PCI_QUIRK(0x1106, 0, "ASRock", VIA_DXS_SRC),
 	SND_PCI_QUIRK(0x1297, 0xa231, "Shuttle AK31v2", VIA_DXS_SRC),
-	SND_PCI_QUIRK(0x1297, 0xa232, "Shuttle", VIA_DXS_ENABLE),
-	SND_PCI_QUIRK(0x1297, 0xc160, "Shuttle Sk41G", VIA_DXS_ENABLE),
+	SND_PCI_QUIRK(0x1297, 0xa232, "Shuttle", VIA_DXS_SRC),
+	SND_PCI_QUIRK(0x1297, 0xc160, "Shuttle Sk41G", VIA_DXS_SRC),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte GA-7VAXP", VIA_DXS_ENABLE),
 	SND_PCI_QUIRK(0x1462, 0x3800, "MSI KT266", VIA_DXS_ENABLE),
 	SND_PCI_QUIRK(0x1462, 0x7120, "MSI KT4V", VIA_DXS_ENABLE),
