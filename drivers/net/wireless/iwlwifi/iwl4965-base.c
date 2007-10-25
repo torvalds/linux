@@ -66,6 +66,9 @@
 u32 iwl_debug_level;
 #endif
 
+static int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
+				  struct iwl_tx_queue *txq);
+
 /******************************************************************************
  *
  * module boiler plate
@@ -73,12 +76,12 @@ u32 iwl_debug_level;
  ******************************************************************************/
 
 /* module parameters */
-int iwl_param_disable_hw_scan;
-int iwl_param_debug;
-int iwl_param_disable;      /* def: enable radio */
-int iwl_param_antenna;      /* def: 0 = both antennas (use diversity) */
+static int iwl_param_disable_hw_scan;
+static int iwl_param_debug;
+static int iwl_param_disable;      /* def: enable radio */
+static int iwl_param_antenna;      /* def: 0 = both antennas (use diversity) */
 int iwl_param_hwcrypto;     /* def: using software encryption */
-int iwl_param_qos_enable = 1;
+static int iwl_param_qos_enable = 1;
 int iwl_param_queues_num = IWL_MAX_NUM_QUEUES;
 
 /*
@@ -692,7 +695,7 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	return ret ? ret : idx;
 }
 
-int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
+static int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
@@ -716,7 +719,7 @@ int iwl_send_cmd_async(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	return 0;
 }
 
-int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
+static int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
 	int cmd_idx;
 	int ret;
@@ -2281,7 +2284,7 @@ int iwl_is_network_packet(struct iwl_priv *priv, struct ieee80211_hdr *header)
 
 #define TX_STATUS_ENTRY(x) case TX_STATUS_FAIL_ ## x: return #x
 
-const char *iwl_get_tx_fail_reason(u32 status)
+static const char *iwl_get_tx_fail_reason(u32 status)
 {
 	switch (status & TX_STATUS_MSK) {
 	case TX_STATUS_SUCCESS:
@@ -4321,7 +4324,7 @@ static inline __le32 iwl_dma_addr2rbd_ptr(struct iwl_priv *priv,
  * also updates the memory address in the firmware to reference the new
  * target buffer.
  */
-int iwl_rx_queue_restock(struct iwl_priv *priv)
+static int iwl_rx_queue_restock(struct iwl_priv *priv)
 {
 	struct iwl_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
@@ -4411,7 +4414,7 @@ void iwl_rx_replenish(void *data)
  * This free routine walks the list of POOL entries and if SKB is set to
  * non NULL it is unmapped and freed
  */
-void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
+static void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
 	int i;
 	for (i = 0; i < RX_QUEUE_SIZE + RX_FREE_BUFFERS; i++) {
@@ -4657,7 +4660,7 @@ static void iwl_rx_handle(struct iwl_priv *priv)
 	iwl_rx_queue_restock(priv);
 }
 
-int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
+static int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_tx_queue *txq)
 {
 	u32 reg = 0;

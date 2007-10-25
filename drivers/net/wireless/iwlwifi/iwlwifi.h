@@ -76,13 +76,7 @@ extern struct pci_device_id iwl_hw_card_ids[];
 #define IWL_NOISE_MEAS_NOT_AVAILABLE (-127)
 
 /* Module parameters accessible from iwl-*.c */
-extern int iwl_param_disable_hw_scan;
-extern int iwl_param_debug;
-extern int iwl_param_mode;
-extern int iwl_param_disable;
-extern int iwl_param_antenna;
 extern int iwl_param_hwcrypto;
-extern int iwl_param_qos_enable;
 extern int iwl_param_queues_num;
 
 enum iwl_antenna {
@@ -574,7 +568,6 @@ struct iwl_driver_hw_info {
 struct iwl_addsta_cmd;
 extern int iwl_send_add_station(struct iwl_priv *priv,
 				struct iwl_addsta_cmd *sta, u8 flags);
-extern const char *iwl_get_tx_fail_reason(u32 status);
 extern u8 iwl_add_station(struct iwl_priv *priv, const u8 *bssid,
 			  int is_ap, u8 flags);
 extern int iwl_is_network_packet(struct iwl_priv *priv,
@@ -591,8 +584,6 @@ static inline void iwl_report_frame(struct iwl_priv *priv,
 				    struct ieee80211_hdr *header,
 				    int group100) {}
 #endif
-extern int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
-					 struct iwl_tx_queue *txq);
 extern void iwl_handle_data_packet_monitor(struct iwl_priv *priv,
 					   struct iwl_rx_mem_buffer *rxb,
 					   void *data, short len,
@@ -600,7 +591,6 @@ extern void iwl_handle_data_packet_monitor(struct iwl_priv *priv,
 					   u16 phy_flags);
 extern int is_duplicate_packet(struct iwl_priv *priv, struct ieee80211_hdr
 			       *header);
-extern void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 extern int iwl_rx_queue_alloc(struct iwl_priv *priv);
 extern void iwl_rx_queue_reset(struct iwl_priv *priv,
 			       struct iwl_rx_queue *rxq);
@@ -608,15 +598,10 @@ extern int iwl_calc_db_from_ratio(int sig_ratio);
 extern int iwl_calc_sig_qual(int rssi_dbm, int noise_dbm);
 extern int iwl_tx_queue_init(struct iwl_priv *priv,
 			     struct iwl_tx_queue *txq, int count, u32 id);
-extern int iwl_rx_queue_restock(struct iwl_priv *priv);
 extern void iwl_rx_replenish(void *data);
 extern void iwl_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq);
 extern int iwl_send_cmd_pdu(struct iwl_priv *priv, u8 id, u16 len,
 			    const void *data);
-extern int __must_check iwl_send_cmd_async(struct iwl_priv *priv,
-		struct iwl_host_cmd *cmd);
-extern int __must_check iwl_send_cmd_sync(struct iwl_priv *priv,
-		struct iwl_host_cmd *cmd);
 extern int __must_check iwl_send_cmd(struct iwl_priv *priv,
 		struct iwl_host_cmd *cmd);
 extern unsigned int iwl_fill_beacon_frame(struct iwl_priv *priv,
@@ -628,7 +613,9 @@ extern int iwl_send_statistics_request(struct iwl_priv *priv);
 extern void iwl_set_decrypted_flag(struct iwl_priv *priv, struct sk_buff *skb,
 				   u32 decrypt_res,
 				   struct ieee80211_rx_status *stats);
+#if IWL == 4965
 extern __le16 *ieee80211_get_qos_ctrl(struct ieee80211_hdr *hdr);
+#endif
 
 extern const u8 BROADCAST_ADDR[ETH_ALEN];
 
@@ -666,7 +653,6 @@ extern void iwl_hw_cancel_deferred_work(struct iwl_priv *priv);
 extern int iwl_hw_rxq_stop(struct iwl_priv *priv);
 extern int iwl_hw_set_hw_setting(struct iwl_priv *priv);
 extern int iwl_hw_nic_init(struct iwl_priv *priv);
-extern void iwl_hw_card_show_info(struct iwl_priv *priv);
 extern int iwl_hw_nic_stop_master(struct iwl_priv *priv);
 extern void iwl_hw_txq_ctx_free(struct iwl_priv *priv);
 extern void iwl_hw_txq_ctx_stop(struct iwl_priv *priv);
@@ -703,5 +689,7 @@ extern int iwl4965_get_temperature(const struct iwl_priv *priv);
 extern u8 iwl_hw_find_station(struct iwl_priv *priv, const u8 *bssid);
 
 extern int iwl_hw_channel_switch(struct iwl_priv *priv, u16 channel);
+#if IWL == 4965
 extern int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
+#endif
 #endif

@@ -34,7 +34,6 @@ extern int iwl_eeprom_acquire_semaphore(struct iwl_priv *priv);
 extern __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv);
 extern int iwl3945_init_hw_rate_table(struct iwl_priv *priv);
 extern void iwl3945_reg_txpower_periodic(struct iwl_priv *priv);
-extern void iwl3945_bg_reg_txpower_periodic(struct work_struct *work);
 extern int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv);
 extern u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
 		 u16 tx_rate, u8 flags);

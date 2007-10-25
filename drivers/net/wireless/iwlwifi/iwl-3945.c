@@ -699,21 +699,6 @@ u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
 	return sta_id;
 }
 
-void iwl_hw_card_show_info(struct iwl_priv *priv)
-{
-	IWL_DEBUG_INFO("3945ABG HW Version %u.%u.%u\n",
-		       ((priv->eeprom.board_revision >> 8) & 0x0F),
-		       ((priv->eeprom.board_revision >> 8) >> 4),
-		       (priv->eeprom.board_revision & 0x00FF));
-
-	IWL_DEBUG_INFO("3945ABG PBA Number %.*s\n",
-		       (int)sizeof(priv->eeprom.board_pba_number),
-		       priv->eeprom.board_pba_number);
-
-	IWL_DEBUG_INFO("EEPROM_ANTENNA_SWITCH_TYPE is 0x%02X\n",
-		       priv->eeprom.antenna_switch_type);
-}
-
 static int iwl3945_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 {
 	int rc;
@@ -1780,7 +1765,7 @@ void iwl3945_reg_txpower_periodic(struct iwl_priv *priv)
 			   &priv->thermal_periodic, REG_RECALIB_PERIOD * HZ);
 }
 
-void iwl3945_bg_reg_txpower_periodic(struct work_struct *work)
+static void iwl3945_bg_reg_txpower_periodic(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv,
 					     thermal_periodic.work);

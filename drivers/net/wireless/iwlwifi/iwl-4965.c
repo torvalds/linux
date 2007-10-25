@@ -43,6 +43,8 @@
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
 
+static void iwl_hw_card_show_info(struct iwl_priv *priv);
+
 #define IWL_DECLARE_RATE_INFO(r, s, ip, in, rp, rn, pp, np)    \
 	[IWL_RATE_##r##M_INDEX] = { IWL_RATE_##r##M_PLCP,      \
 				    IWL_RATE_SISO_##s##M_PLCP, \
@@ -2744,7 +2746,7 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 	return 0;
 }
 
-void iwl_hw_card_show_info(struct iwl_priv *priv)
+static void iwl_hw_card_show_info(struct iwl_priv *priv)
 {
 	u16 hw_version = priv->eeprom.board_revision_4965;
 
