@@ -10,7 +10,11 @@
  * real devices (think of the damage it could do!) we provide virtual devices.
  * We could emulate a PCI bus with various devices on it, but that is a fairly
  * complex burden for the Host and suboptimal for the Guest, so we have our own
- * "lguest" bus and simple drivers.
+ * simple lguest bus and we use "virtio" drivers.  These drivers need a set of
+ * routines from us which will actually do the virtual I/O, but they handle all
+ * the net/block/console stuff themselves.  This means that if we want to add
+ * a new device, we simply need to write a new virtio driver and create support
+ * for it in the Launcher: this code won't need to change.
  *
  * Devices are described by a simplified ID, a status byte, and some "config"
  * bytes which describe this device's configuration.  This is placed by the

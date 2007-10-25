@@ -90,6 +90,7 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 		lg->pending_notify = args->arg1;
 		break;
 	default:
+		/* It should be an architecture-specific hypercall. */
 		if (lguest_arch_do_hcall(lg, args))
 			kill_guest(lg, "Bad hypercall %li\n", args->arg0);
 	}
@@ -157,7 +158,6 @@ static void do_async_hcalls(struct lguest *lg)
  * Guest makes a hypercall, we end up here to set things up: */
 static void initialize(struct lguest *lg)
 {
-
 	/* You can't do anything until you're initialized.  The Guest knows the
 	 * rules, so we're unforgiving here. */
 	if (lg->hcall->arg0 != LHCALL_LGUEST_INIT) {
@@ -174,7 +174,8 @@ static void initialize(struct lguest *lg)
 	    || get_user(lg->noirq_end, &lg->lguest_data->noirq_end))
 		kill_guest(lg, "bad guest page %p", lg->lguest_data);
 
-	/* We write the current time into the Guest's data page once now. */
+	/* We write the current time into the Guest's data page once so it can
+	 * set its clock. */
 	write_timestamp(lg);
 
 	/* page_tables.c will also do some setup. */
@@ -182,8 +183,8 @@ static void initialize(struct lguest *lg)
 
 	/* This is the one case where the above accesses might have been the
 	 * first write to a Guest page.  This may have caused a copy-on-write
-	 * fault, but the Guest might be referring to the old (read-only)
-	 * page. */
+	 * fault, but the old page might be (read-only) in the Guest
+	 * pagetable. */
 	guest_pagetable_clear_all(lg);
 }
 
@@ -220,7 +221,7 @@ void do_hypercalls(struct lguest *lg)
 		 * Normally it doesn't matter: the Guest will run again and
 		 * update the trap number before we come back here.
 		 *
-		 * However, if we are signalled or the Guest sends DMA to the
+		 * However, if we are signalled or the Guest sends I/O to the
 		 * Launcher, the run_guest() loop will exit without running the
 		 * Guest.  When it comes back it would try to re-run the
 		 * hypercall. */

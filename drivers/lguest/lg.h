@@ -100,7 +100,7 @@ int lguest_address_ok(const struct lguest *lg,
 void __lgread(struct lguest *, void *, unsigned long, unsigned);
 void __lgwrite(struct lguest *, unsigned long, const void *, unsigned);
 
-/*L:306 Using memory-copy operations like that is usually inconvient, so we
+/*H:035 Using memory-copy operations like that is usually inconvient, so we
  * have the following helper macros which read and write a specific type (often
  * an unsigned long).
  *
@@ -188,7 +188,7 @@ void write_timestamp(struct lguest *lg);
  * Let's step aside for the moment, to study one important routine that's used
  * widely in the Host code.
  *
- * There are many cases where the Guest does something invalid, like pass crap
+ * There are many cases where the Guest can do something invalid, like pass crap
  * to a hypercall.  Since only the Guest kernel can make hypercalls, it's quite
  * acceptable to simply terminate the Guest and give the Launcher a nicely
  * formatted reason.  It's also simpler for the Guest itself, which doesn't

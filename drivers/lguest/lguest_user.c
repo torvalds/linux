@@ -8,20 +8,22 @@
 #include <linux/fs.h>
 #include "lg.h"
 
-/*L:315 To force the Guest to stop running and return to the Launcher, the
- * Waker sets writes LHREQ_BREAK and the value "1" to /dev/lguest.  The
- * Launcher then writes LHREQ_BREAK and "0" to release the Waker. */
+/*L:055 When something happens, the Waker process needs a way to stop the
+ * kernel running the Guest and return to the Launcher.  So the Waker writes
+ * LHREQ_BREAK and the value "1" to /dev/lguest to do this.  Once the Launcher
+ * has done whatever needs attention, it writes LHREQ_BREAK and "0" to release
+ * the Waker. */
 static int break_guest_out(struct lguest *lg, const unsigned long __user *input)
 {
 	unsigned long on;
 
-	/* Fetch whether they're turning break on or off.. */
+	/* Fetch whether they're turning break on or off. */
 	if (get_user(on, input) != 0)
 		return -EFAULT;
 
 	if (on) {
 		lg->break_out = 1;
-		/* Pop it out (may be running on different CPU) */
+		/* Pop it out of the Guest (may be running on different CPU) */
 		wake_up_process(lg->tsk);
 		/* Wait for them to reset it */
 		return wait_event_interruptible(lg->break_wq, !lg->break_out);
@@ -58,7 +60,7 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
 	if (!lg)
 		return -EINVAL;
 
-	/* If you're not the task which owns the guest, go away. */
+	/* If you're not the task which owns the Guest, go away. */
 	if (current != lg->tsk)
 		return -EPERM;
 
@@ -92,8 +94,8 @@ static ssize_t read(struct file *file, char __user *user, size_t size,loff_t*o)
  * base: The start of the Guest-physical memory inside the Launcher memory.
  *
  * pfnlimit: The highest (Guest-physical) page number the Guest should be
- * allowed to access.  The Launcher has to live in Guest memory, so it sets
- * this to ensure the Guest can't reach it.
+ * allowed to access.  The Guest memory lives inside the Launcher, so it sets
+ * this to ensure the Guest can only reach its own memory.
  *
  * pgdir: The (Guest-physical) address of the top of the initial Guest
  * pagetables (which are set up by the Launcher).
@@ -189,7 +191,7 @@ unlock:
 }
 
 /*L:010 The first operation the Launcher does must be a write.  All writes
- * start with a 32 bit number: for the first write this must be
+ * start with an unsigned long number: for the first write this must be
  * LHREQ_INITIALIZE to set up the Guest.  After that the Launcher can use
  * writes of other values to send interrupts. */
 static ssize_t write(struct file *file, const char __user *in,
@@ -275,8 +277,7 @@ static int close(struct inode *inode, struct file *file)
  * The Launcher is the Host userspace program which sets up, runs and services
  * the Guest.  In fact, many comments in the Drivers which refer to "the Host"
  * doing things are inaccurate: the Launcher does all the device handling for
- * the Guest.  The Guest can't tell what's done by the the Launcher and what by
- * the Host.
+ * the Guest, but the Guest can't know that.
  *
  * Just to confuse you: to the Host kernel, the Launcher *is* the Guest and we
  * shall see more of that later.

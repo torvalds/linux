@@ -6,6 +6,37 @@
  * are feeling invigorated and refreshed then the next, more challenging stage
  * can be found in "make Guest". :*/
 
+/*M:012 Lguest is meant to be simple: my rule of thumb is that 1% more LOC must
+ * gain at least 1% more performance.  Since neither LOC nor performance can be
+ * measured beforehand, it generally means implementing a feature then deciding
+ * if it's worth it.  And once it's implemented, who can say no?
+ *
+ * This is why I haven't implemented this idea myself.  I want to, but I
+ * haven't.  You could, though.
+ *
+ * The main place where lguest performance sucks is Guest page faulting.  When
+ * a Guest userspace process hits an unmapped page we switch back to the Host,
+ * walk the page tables, find it's not mapped, switch back to the Guest page
+ * fault handler, which calls a hypercall to set the page table entry, then
+ * finally returns to userspace.  That's two round-trips.
+ *
+ * If we had a small walker in the Switcher, we could quickly check the Guest
+ * page table and if the page isn't mapped, immediately reflect the fault back
+ * into the Guest.  This means the Switcher would have to know the top of the
+ * Guest page table and the page fault handler address.
+ *
+ * For simplicity, the Guest should only handle the case where the privilege
+ * level of the fault is 3 and probably only not present or write faults.  It
+ * should also detect recursive faults, and hand the original fault to the
+ * Host (which is actually really easy).
+ *
+ * Two questions remain.  Would the performance gain outweigh the complexity?
+ * And who would write the verse documenting it? :*/
+
+/*M:011 Lguest64 handles NMI.  This gave me NMI envy (until I looked at their
+ * code).  It's worth doing though, since it would let us use oprofile in the
+ * Host when a Guest is running. :*/
+
 /*S:100
  * Welcome to the Switcher itself!
  *
@@ -88,7 +119,7 @@ ENTRY(switch_to_guest)
 
 	// All saved and there's now five steps before us:
 	// Stack, GDT, IDT, TSS
-	// And last of all the page tables are flipped.
+	// Then last of all the page tables are flipped.
 
 	// Yet beware that our stack pointer must be
 	// Always valid lest an NMI hits
@@ -103,25 +134,25 @@ ENTRY(switch_to_guest)
 	lgdt	LGUEST_PAGES_guest_gdt_desc(%eax)
 
 	// The Guest's IDT we did partially
-	// Move to the "struct lguest_pages" as well.
+	// Copy to "struct lguest_pages" as well.
 	lidt	LGUEST_PAGES_guest_idt_desc(%eax)
 
 	// The TSS entry which controls traps
 	// Must be loaded up with "ltr" now:
+	// The GDT entry that TSS uses 
+	// Changes type when we load it: damn Intel!
 	// For after we switch over our page tables
-	// It (as the rest) will be writable no more.
-	// (The GDT entry TSS needs
-	// Changes type when we load it: damn Intel!)
+	// That entry will be read-only: we'd crash.
 	movl	$(GDT_ENTRY_TSS*8), %edx
 	ltr	%dx
 
 	// Look back now, before we take this last step!
 	// The Host's TSS entry was also marked used;
-	// Let's clear it again, ere we return.
+	// Let's clear it again for our return.
 	// The GDT descriptor of the Host
 	// Points to the table after two "size" bytes
 	movl	(LGUEST_PAGES_host_gdt_desc+2)(%eax), %edx
-	// Clear the type field of "used" (byte 5, bit 2)
+	// Clear "used" from type field (byte 5, bit 2)
 	andb	$0xFD, (GDT_ENTRY_TSS*8 + 5)(%edx)
 
 	// Once our page table's switched, the Guest is live!
@@ -131,7 +162,7 @@ ENTRY(switch_to_guest)
 
 	// The page table change did one tricky thing:
 	// The Guest's register page has been mapped
-	// Writable onto our %esp (stack) --
+	// Writable under our %esp (stack) --
 	// We can simply pop off all Guest regs.
 	popl	%eax
 	popl	%ebx
@@ -152,16 +183,15 @@ ENTRY(switch_to_guest)
 	addl	$8, %esp
 
 	// The last five stack slots hold return address
-	// And everything needed to change privilege
-	// Into the Guest privilege level of 1,
+	// And everything needed to switch privilege
+	// From Switcher's level 0 to Guest's 1,
 	// And the stack where the Guest had last left it.
 	// Interrupts are turned back on: we are Guest.
 	iret
 
-// There are two paths where we switch to the Host
+// We treat two paths to switch back to the Host
+// Yet both must save Guest state and restore Host
 // So we put the routine in a macro.
-// We are on our way home, back to the Host
-// Interrupted out of the Guest, we come here.
 #define SWITCH_TO_HOST							\
 	/* We save the Guest state: all registers first			\
 	 * Laid out just as "struct lguest_regs" defines */		\
@@ -194,7 +224,7 @@ ENTRY(switch_to_guest)
 	movl	%esp, %eax;						\
 	andl	$(~(1 << PAGE_SHIFT - 1)), %eax;			\
 	/* Save our trap number: the switch will obscure it		\
-	 * (The Guest regs are not mapped here in the Host)		\
+	 * (In the Host the Guest regs are not mapped here)		\
 	 * %ebx holds it safe for deliver_to_host */			\
 	movl	LGUEST_PAGES_regs_trapnum(%eax), %ebx;			\
 	/* The Host GDT, IDT and stack!					\
@@ -210,9 +240,9 @@ ENTRY(switch_to_guest)
 	/* Switch to Host's GDT, IDT. */				\
 	lgdt	LGUEST_PAGES_host_gdt_desc(%eax);			\
 	lidt	LGUEST_PAGES_host_idt_desc(%eax);			\
-	/* Restore the Host's stack where it's saved regs lie */	\
+	/* Restore the Host's stack where its saved regs lie */		\
 	movl	LGUEST_PAGES_host_sp(%eax), %esp;			\
-	/* Last the TSS: our Host is complete */			\
+	/* Last the TSS: our Host is returned */			\
 	movl	$(GDT_ENTRY_TSS*8), %edx;				\
 	ltr	%dx;							\
 	/* Restore now the regs saved right at the first. */		\
@@ -222,14 +252,15 @@ ENTRY(switch_to_guest)
 	popl	%ds;							\
 	popl	%es
 
-// Here's where we come when the Guest has just trapped:
-// (Which trap we'll see has been pushed on the stack).
+// The first path is trod when the Guest has trapped:
+// (Which trap it was has been pushed on the stack).
 // We need only switch back, and the Host will decode
 // Why we came home, and what needs to be done.
 return_to_host:
 	SWITCH_TO_HOST
 	iret
 
+// We are lead to the second path like so:
 // An interrupt, with some cause external
 // Has ajerked us rudely from the Guest's code
 // Again we must return home to the Host
@@ -238,7 +269,7 @@ deliver_to_host:
 	// But now we must go home via that place
 	// Where that interrupt was supposed to go
 	// Had we not been ensconced, running the Guest.
-	// Here we see the cleverness of our stack:
+	// Here we see the trickness of run_guest_once():
 	// The Host stack is formed like an interrupt
 	// With EIP, CS and EFLAGS layered.
 	// Interrupt handlers end with "iret"
@@ -263,7 +294,7 @@ deliver_to_host:
 	xorw	%ax, %ax
 	orl	%eax, %edx
 	// Now the address of the handler's in %edx
-	// We call it now: its "iret" takes us home.
+	// We call it now: its "iret" drops us home.
 	jmp	*%edx
 
 // Every interrupt can come to us here

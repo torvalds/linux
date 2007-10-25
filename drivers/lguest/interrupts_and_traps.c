@@ -92,8 +92,8 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 
 	/* Remember that we never let the Guest actually disable interrupts, so
 	 * the "Interrupt Flag" bit is always set.  We copy that bit from the
-	 * Guest's "irq_enabled" field into the eflags word: the Guest copies
-	 * it back in "lguest_iret". */
+	 * Guest's "irq_enabled" field into the eflags word: we saw the Guest
+	 * copy it back in "lguest_iret". */
 	eflags = lg->regs->eflags;
 	if (get_user(irq_enable, &lg->lguest_data->irq_enabled) == 0
 	    && !(irq_enable & X86_EFLAGS_IF))
@@ -124,7 +124,7 @@ static void set_guest_interrupt(struct lguest *lg, u32 lo, u32 hi, int has_err)
 			kill_guest(lg, "Disabling interrupts");
 }
 
-/*H:200
+/*H:205
  * Virtual Interrupts.
  *
  * maybe_do_interrupt() gets called before every entry to the Guest, to see if
@@ -256,19 +256,21 @@ int deliver_trap(struct lguest *lg, unsigned int num)
 	 * bogus one in): if we fail here, the Guest will be killed. */
 	if (!idt_present(lg->arch.idt[num].a, lg->arch.idt[num].b))
 		return 0;
-	set_guest_interrupt(lg, lg->arch.idt[num].a, lg->arch.idt[num].b, has_err(num));
+	set_guest_interrupt(lg, lg->arch.idt[num].a, lg->arch.idt[num].b,
+			    has_err(num));
 	return 1;
 }
 
 /*H:250 Here's the hard part: returning to the Host every time a trap happens
  * and then calling deliver_trap() and re-entering the Guest is slow.
- * Particularly because Guest userspace system calls are traps (trap 128).
+ * Particularly because Guest userspace system calls are traps (usually trap
+ * 128).
  *
  * So we'd like to set up the IDT to tell the CPU to deliver traps directly
  * into the Guest.  This is possible, but the complexities cause the size of
  * this file to double!  However, 150 lines of code is worth writing for taking
  * system calls down from 1750ns to 270ns.  Plus, if lguest didn't do it, all
- * the other hypervisors would tease it.
+ * the other hypervisors would beat it up at lunchtime.
  *
  * This routine indicates if a particular trap number could be delivered
  * directly. */
@@ -331,7 +333,7 @@ void pin_stack_pages(struct lguest *lg)
  * change stacks on each context switch. */
 void guest_set_stack(struct lguest *lg, u32 seg, u32 esp, unsigned int pages)
 {
-	/* You are not allowd have a stack segment with privilege level 0: bad
+	/* You are not allowed have a stack segment with privilege level 0: bad
 	 * Guest! */
 	if ((seg & 0x3) != GUEST_PL)
 		kill_guest(lg, "bad stack segment %i", seg);
@@ -350,7 +352,7 @@ void guest_set_stack(struct lguest *lg, u32 seg, u32 esp, unsigned int pages)
  * part of the Host: page table handling. */
 
 /*H:235 This is the routine which actually checks the Guest's IDT entry and
- * transfers it into our entry in "struct lguest": */
+ * transfers it into the entry in "struct lguest": */
 static void set_trap(struct lguest *lg, struct desc_struct *trap,
 		     unsigned int num, u32 lo, u32 hi)
 {
@@ -456,6 +458,18 @@ void copy_traps(const struct lguest *lg, struct desc_struct *idt,
 	}
 }
 
+/*H:200
+ * The Guest Clock.
+ *
+ * There are two sources of virtual interrupts.  We saw one in lguest_user.c:
+ * the Launcher sending interrupts for virtual devices.  The other is the Guest
+ * timer interrupt.
+ *
+ * The Guest uses the LHCALL_SET_CLOCKEVENT hypercall to tell us how long to
+ * the next timer interrupt (in nanoseconds).  We use the high-resolution timer
+ * infrastructure to set a callback at that time.
+ *
+ * 0 means "turn off the clock". */
 void guest_set_clockevent(struct lguest *lg, unsigned long delta)
 {
 	ktime_t expires;
@@ -466,20 +480,27 @@ void guest_set_clockevent(struct lguest *lg, unsigned long delta)
 		return;
 	}
 
+	/* We use wallclock time here, so the Guest might not be running for
+	 * all the time between now and the timer interrupt it asked for.  This
+	 * is almost always the right thing to do. */
 	expires = ktime_add_ns(ktime_get_real(), delta);
 	hrtimer_start(&lg->hrt, expires, HRTIMER_MODE_ABS);
 }
 
+/* This is the function called when the Guest's timer expires. */
 static enum hrtimer_restart clockdev_fn(struct hrtimer *timer)
 {
 	struct lguest *lg = container_of(timer, struct lguest, hrt);
 
+	/* Remember the first interrupt is the timer interrupt. */
 	set_bit(0, lg->irqs_pending);
+	/* If the Guest is actually stopped, we need to wake it up. */
 	if (lg->halted)
 		wake_up_process(lg->tsk);
 	return HRTIMER_NORESTART;
 }
 
+/* This sets up the timer for this Guest. */
 void init_clockdev(struct lguest *lg)
 {
 	hrtimer_init(&lg->hrt, CLOCK_REALTIME, HRTIMER_MODE_ABS);

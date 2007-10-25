@@ -53,7 +53,8 @@ struct lguest_device {
  * Device configurations
  *
  * The configuration information for a device consists of a series of fields.
- * The device will look for these fields during setup.
+ * We don't really care what they are: the Launcher set them up, and the driver
+ * will look at them during setup.
  *
  * For us these fields come immediately after that device's descriptor in the
  * lguest_devices page.
@@ -122,8 +123,8 @@ static void lg_set_status(struct virtio_device *vdev, u8 status)
  * The other piece of infrastructure virtio needs is a "virtqueue": a way of
  * the Guest device registering buffers for the other side to read from or
  * write into (ie. send and receive buffers).  Each device can have multiple
- * virtqueues: for example the console has one queue for sending and one for
- * receiving.
+ * virtqueues: for example the console driver uses one queue for sending and
+ * another for receiving.
  *
  * Fortunately for us, a very fast shared-memory-plus-descriptors virtqueue
  * already exists in virtio_ring.c.  We just need to connect it up.
@@ -158,7 +159,7 @@ static void lg_notify(struct virtqueue *vq)
  *
  * This is kind of an ugly duckling.  It'd be nicer to have a standard
  * representation of a virtqueue in the configuration space, but it seems that
- * everyone wants to do it differently.  The KVM guys want the Guest to
+ * everyone wants to do it differently.  The KVM coders want the Guest to
  * allocate its own pages and tell the Host where they are, but for lguest it's
  * simpler for the Host to simply tell us where the pages are.
  *
@@ -284,6 +285,8 @@ static void add_lguest_device(struct lguest_device_desc *d)
 {
 	struct lguest_device *ldev;
 
+	/* Start with zeroed memory; Linux's device layer seems to count on
+	 * it. */
 	ldev = kzalloc(sizeof(*ldev), GFP_KERNEL);
 	if (!ldev) {
 		printk(KERN_EMERG "Cannot allocate lguest dev %u\n",
