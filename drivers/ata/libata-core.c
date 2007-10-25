@@ -68,7 +68,8 @@ const unsigned long sata_deb_timing_long[]		= { 100, 2000, 5000 };
 static unsigned int ata_dev_init_params(struct ata_device *dev,
 					u16 heads, u16 sectors);
 static unsigned int ata_dev_set_xfermode(struct ata_device *dev);
-static unsigned int ata_dev_set_AN(struct ata_device *dev, u8 enable);
+static unsigned int ata_dev_set_feature(struct ata_device *dev,
+					u8 enable, u8 feature);
 static void ata_dev_xfermask(struct ata_device *dev);
 static unsigned long ata_dev_blacklisted(const struct ata_device *dev);
 
@@ -1799,13 +1800,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 		 * SET_FEATURES spin-up subcommand before it will accept
 		 * anything other than the original IDENTIFY command.
 		 */
-		ata_tf_init(dev, &tf);
-		tf.command = ATA_CMD_SET_FEATURES;
-		tf.feature = SETFEATURES_SPINUP;
-		tf.protocol = ATA_PROT_NODATA;
-		tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
-		err_mask = ata_exec_internal(dev, &tf, NULL,
-					     DMA_NONE, NULL, 0, 0);
+		err_mask = ata_dev_set_feature(dev, SETFEATURES_SPINUP, 0);
 		if (err_mask && id[2] != 0x738c) {
 			rc = -EIO;
 			reason = "SPINUP failed";
@@ -2075,7 +2070,8 @@ int ata_dev_configure(struct ata_device *dev)
 			unsigned int err_mask;
 
 			/* issue SET feature command to turn this on */
-			err_mask = ata_dev_set_AN(dev, SETFEATURES_SATA_ENABLE);
+			err_mask = ata_dev_set_feature(dev,
+					SETFEATURES_SATA_ENABLE, SATA_AN);
 			if (err_mask)
 				ata_dev_printk(dev, KERN_ERR,
 					"failed to enable ATAPI AN "
@@ -4181,15 +4177,14 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
 	DPRINTK("EXIT, err_mask=%x\n", err_mask);
 	return err_mask;
 }
-
 /**
- *	ata_dev_set_AN - Issue SET FEATURES - SATA FEATURES
+ *	ata_dev_set_feature - Issue SET FEATURES - SATA FEATURES
  *	@dev: Device to which command will be sent
  *	@enable: Whether to enable or disable the feature
+ *	@feature: The sector count represents the feature to set
  *
  *	Issue SET FEATURES - SATA FEATURES command to device @dev
- *	on port @ap with sector count set to indicate Asynchronous
- *	Notification feature
+ *	on port @ap with sector count
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
@@ -4197,7 +4192,8 @@ static unsigned int ata_dev_set_xfermode(struct ata_device *dev)
  *	RETURNS:
  *	0 on success, AC_ERR_* mask otherwise.
  */
-static unsigned int ata_dev_set_AN(struct ata_device *dev, u8 enable)
+static unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable,
+					u8 feature)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
@@ -4210,7 +4206,7 @@ static unsigned int ata_dev_set_AN(struct ata_device *dev, u8 enable)
 	tf.feature = enable;
 	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf.protocol = ATA_PROT_NODATA;
-	tf.nsect = SATA_AN;
+	tf.nsect = feature;
 
 	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_NONE, NULL, 0, 0);
 
