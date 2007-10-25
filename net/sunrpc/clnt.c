@@ -614,24 +614,6 @@ rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg, int flags,
 EXPORT_SYMBOL_GPL(rpc_call_async);
 
 void
-rpc_call_setup(struct rpc_task *task, const struct rpc_message *msg, int flags)
-{
-	task->tk_msg   = *msg;
-	task->tk_flags |= flags;
-	/* Bind the user cred */
-	if (task->tk_msg.rpc_cred != NULL)
-		rpcauth_holdcred(task);
-	else
-		rpcauth_bindcred(task);
-
-	if (task->tk_status == 0)
-		task->tk_action = call_start;
-	else
-		task->tk_action = rpc_exit_task;
-}
-EXPORT_SYMBOL_GPL(rpc_call_setup);
-
-void
 rpc_call_start(struct rpc_task *task)
 {
 	task->tk_action = call_start;
