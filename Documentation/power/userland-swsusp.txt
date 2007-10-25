@@ -14,7 +14,7 @@ are going to develop your own suspend/resume utilities.
 
 The interface consists of a character device providing the open(),
 release(), read(), and write() operations as well as several ioctl()
-commands defined in kernel/power/power.h.  The major and minor
+commands defined in include/linux/suspend_ioctls.h .  The major and minor
 numbers of the device are, respectively, 10 and 231, and they can
 be read from /sys/class/misc/snapshot/dev.
 
@@ -70,10 +70,10 @@ SNAPSHOT_FREE_SWAP_PAGES - free all swap pages allocated by
 SNAPSHOT_SET_SWAP_AREA - set the resume partition and the offset (in <PAGE_SIZE>
 	units) from the beginning of the partition at which the swap header is
 	located (the last ioctl() argument should point to a struct
-	resume_swap_area, as defined in kernel/power/power.h, containing the
-	resume device specification and the offset); for swap partitions the
-	offset is always 0, but it is different from zero for swap files (see
-	Documentation/swsusp-and-swap-files.txt for details).
+	resume_swap_area, as defined in kernel/power/suspend_ioctls.h,
+	containing the resume device specification and the offset); for swap
+	partitions the offset is always 0, but it is different from zero for
+	swap files (see Documentation/swsusp-and-swap-files.txt for details).
 
 SNAPSHOT_PLATFORM_SUPPORT - enable/disable the hibernation platform support,
 	depending on the argument value (enable, if the argument is nonzero)
