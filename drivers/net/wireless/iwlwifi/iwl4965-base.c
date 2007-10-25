@@ -2057,16 +2057,21 @@ static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 	    !priv->qos_data.qos_cap.q_AP.txop_request)
 		priv->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_TXOP_TYPE_MSK;
-
 	if (priv->qos_data.qos_active)
 		priv->qos_data.def_qos_parm.qos_flags |=
 			QOS_PARAM_FLG_UPDATE_EDCA_MSK;
 
+#ifdef CONFIG_IWLWIFI_HT
+	if (priv->is_ht_enabled && priv->current_assoc_ht.is_ht)
+		priv->qos_data.def_qos_parm.qos_flags |= QOS_PARAM_FLG_TGN_MSK;
+#endif /* CONFIG_IWLWIFI_HT */
+
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (force || iwl_is_associated(priv)) {
-		IWL_DEBUG_QOS("send QoS cmd with Qos active %d \n",
-			      priv->qos_data.qos_active);
+		IWL_DEBUG_QOS("send QoS cmd with Qos active=%d FLAGS=0x%X\n",
+				priv->qos_data.qos_active,
+				priv->qos_data.def_qos_parm.qos_flags);
 
 		iwl_send_qos_params_command(priv,
 				&(priv->qos_data.def_qos_parm));
