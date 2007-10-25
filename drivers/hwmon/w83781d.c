@@ -1122,12 +1122,13 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 				&sensor_dev_attr_temp3_beep.dev_attr)))
 			return err;
 
-		if (kind != w83781d)
+		if (kind != w83781d) {
 			err = sysfs_chmod_file(&dev->kobj,
 				&sensor_dev_attr_temp3_alarm.dev_attr.attr,
 				S_IRUGO | S_IWUSR);
 			if (err)
 				return err;
+		}
 	}
 
 	if (kind != w83781d && kind != as99127f) {
