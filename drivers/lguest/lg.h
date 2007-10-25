@@ -74,9 +74,6 @@ struct lguest
 	u32 pgdidx;
 	struct pgdir pgdirs[4];
 
-	/* Cached wakeup: we hold a reference to this task. */
-	struct task_struct *wake;
-
 	unsigned long noirq_start, noirq_end;
 	unsigned long pending_notify; /* pfn from LHCALL_NOTIFY */
 
