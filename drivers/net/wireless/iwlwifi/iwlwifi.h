@@ -497,7 +497,7 @@ struct iwl_station_entry {
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_image_desc {
+struct fw_desc {
 	void *v_addr;		/* access by driver */
 	dma_addr_t p_addr;	/* access by card's busmaster DMA */
 	u32 len;		/* bytes */

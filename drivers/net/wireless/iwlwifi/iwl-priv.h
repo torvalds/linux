@@ -102,12 +102,12 @@ struct iwl_priv {
 	void __iomem *hw_base;
 
 	/* uCode images, save to reload in case of failure */
-	struct fw_image_desc ucode_code;	/* runtime inst */
-	struct fw_image_desc ucode_data;	/* runtime data original */
-	struct fw_image_desc ucode_data_backup;	/* runtime data save/restore */
-	struct fw_image_desc ucode_init;	/* initialization inst */
-	struct fw_image_desc ucode_init_data;	/* initialization data */
-	struct fw_image_desc ucode_boot;	/* bootstrap inst */
+	struct fw_desc ucode_code;	/* runtime inst */
+	struct fw_desc ucode_data;	/* runtime data original */
+	struct fw_desc ucode_data_backup;	/* runtime data save/restore */
+	struct fw_desc ucode_init;	/* initialization inst */
+	struct fw_desc ucode_init_data;	/* initialization data */
+	struct fw_desc ucode_boot;	/* bootstrap inst */
 
 
 	struct iwl_rxon_time_cmd rxon_timing;
