@@ -114,6 +114,10 @@ static int emi26_load_firmware (struct usb_device *dev)
 
 	/* De-assert reset (let the CPU run) */
 	err = emi26_set_reset(dev,0);
+	if (err < 0) {
+		err("%s - error loading firmware: error = %d", __FUNCTION__, err);
+		goto wraperr;
+	}
 	msleep(250);	/* let device settle */
 
 	/* 2. We upload the FPGA firmware into the EMI
