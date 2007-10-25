@@ -85,6 +85,12 @@ SNAPSHOT_SET_SWAP_AREA - set the resume partition and the offset (in <PAGE_SIZE>
 	recommended to always use this call, because the code to set the resume
 	partition may be removed from future kernels
 
+SNAPSHOT_PLATFORM_SUPPORT - enable/disable the hibernation platform support,
+	depending on the argument value (enable, if the argument is nonzero)
+
+SNAPSHOT_POWER_OFF - make the kernel transition the system to the hibernation
+	state (eg. ACPI S4) using the platform (eg. ACPI) driver
+
 SNAPSHOT_S2RAM - suspend to RAM; using this call causes the kernel to
 	immediately enter the suspend-to-RAM state, so this call must always
 	be preceded by the SNAPSHOT_FREEZE call and it is also necessary
@@ -94,24 +100,6 @@ SNAPSHOT_S2RAM - suspend to RAM; using this call causes the kernel to
 	to disk, and then the system is suspended to RAM (this makes it possible
 	to resume the system from RAM if there's enough battery power or restore
 	its state on the basis of the saved suspend image otherwise)
-
-SNAPSHOT_PMOPS - enable the usage of the hibernation_ops->prepare,
-	hibernate_ops->enter and hibernation_ops->finish methods (the in-kernel
-	swsusp knows these as the "platform method") which are needed on many
-	machines to (among others) speed up the resume by letting the BIOS skip
-	some steps or to let the system recognise the correct state of the
-	hardware after the resume (in particular on many machines this ensures
-	that unplugged AC adapters get correctly detected and that kacpid does
-	not run wild after the resume).  The last ioctl() argument can take one
-	of the three values, defined in kernel/power/power.h:
-	PMOPS_PREPARE - make the kernel carry out the
-		hibernation_ops->prepare() operation
-	PMOPS_ENTER - make the kernel power off the system by calling
-		hibernation_ops->enter()
-	PMOPS_FINISH - make the kernel carry out the
-		hibernation_ops->finish() operation
-	Note that the actual constants are misnamed because they surface
-	internal kernel implementation details that have changed.
 
 The device's read() operation can be used to transfer the snapshot image from
 the kernel.  It has the following limitations:

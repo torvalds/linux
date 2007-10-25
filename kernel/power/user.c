@@ -28,6 +28,18 @@
 
 #include "power.h"
 
+/*
+ * NOTE: The SNAPSHOT_PMOPS ioctl is obsolete and will be removed in the
+ * future.  It is only preserved here for compatibility with existing userland
+ * utilities.
+ */
+#define SNAPSHOT_PMOPS		_IOW(SNAPSHOT_IOC_MAGIC, 12, unsigned int)
+
+#define PMOPS_PREPARE	1
+#define PMOPS_ENTER	2
+#define PMOPS_FINISH	3
+
+
 #define SNAPSHOT_MINOR	231
 
 static struct snapshot_data {
@@ -36,7 +48,7 @@ static struct snapshot_data {
 	int mode;
 	char frozen;
 	char ready;
-	char platform_suspend;
+	char platform_support;
 } snapshot_state;
 
 atomic_t snapshot_device_available = ATOMIC_INIT(1);
@@ -70,7 +82,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	}
 	data->frozen = 0;
 	data->ready = 0;
-	data->platform_suspend = 0;
+	data->platform_support = 0;
 
 	return 0;
 }
@@ -183,7 +195,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		error = hibernation_snapshot(data->platform_suspend);
+		error = hibernation_snapshot(data->platform_support);
 		if (!error)
 			error = put_user(in_suspend, (unsigned int __user *)arg);
 		if (!error)
@@ -197,7 +209,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 			error = -EPERM;
 			break;
 		}
-		error = hibernation_restore(data->platform_suspend);
+		error = hibernation_restore(data->platform_support);
 		break;
 
 	case SNAPSHOT_FREE:
@@ -285,26 +297,33 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		mutex_unlock(&pm_mutex);
 		break;
 
-	case SNAPSHOT_PMOPS:
+	case SNAPSHOT_PLATFORM_SUPPORT:
+		data->platform_support = !!arg;
+		break;
+
+	case SNAPSHOT_POWER_OFF:
+		if (data->platform_support)
+			error = hibernation_platform_enter();
+		break;
+
+	case SNAPSHOT_PMOPS: /* This ioctl is deprecated */
 		error = -EINVAL;
 
 		switch (arg) {
 
 		case PMOPS_PREPARE:
-			data->platform_suspend = 1;
+			data->platform_support = 1;
 			error = 0;
 			break;
 
 		case PMOPS_ENTER:
-			if (data->platform_suspend)
+			if (data->platform_support)
 				error = hibernation_platform_enter();
-
 			break;
 
 		case PMOPS_FINISH:
-			if (data->platform_suspend)
+			if (data->platform_support)
 				error = 0;
-
 			break;
 
 		default:
