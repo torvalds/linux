@@ -57,7 +57,7 @@ static int vesa_probe(void)
 	while ((mode = rdfs16(mode_ptr)) != 0xffff) {
 		mode_ptr += 2;
 
-		if (heap_free() < sizeof(struct mode_info))
+		if (!heap_free(sizeof(struct mode_info)))
 			break;	/* Heap full, can't save mode info */
 
 		if (mode & ~0x1ff)

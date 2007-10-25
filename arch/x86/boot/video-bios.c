@@ -79,7 +79,7 @@ static int bios_probe(void)
 	video_bios.modes = GET_HEAP(struct mode_info, 0);
 
 	for (mode = 0x14; mode <= 0x7f; mode++) {
-		if (heap_free() < sizeof(struct mode_info))
+		if (!heap_free(sizeof(struct mode_info)))
 			break;
 
 		if (mode_defined(VIDEO_FIRST_BIOS+mode))

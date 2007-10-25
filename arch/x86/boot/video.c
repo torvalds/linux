@@ -371,7 +371,7 @@ static void save_screen(void)
 	saved.curx = boot_params.screen_info.orig_x;
 	saved.cury = boot_params.screen_info.orig_y;
 
-	if (heap_free() < saved.x*saved.y*sizeof(u16)+512)
+	if (!heap_free(saved.x*saved.y*sizeof(u16)+512))
 		return;		/* Not enough heap to save the screen */
 
 	saved.data = GET_HEAP(u16, saved.x*saved.y);
