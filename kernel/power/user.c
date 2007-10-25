@@ -29,10 +29,11 @@
 #include "power.h"
 
 /*
- * NOTE: The SNAPSHOT_PMOPS ioctl is obsolete and will be removed in the
- * future.  It is only preserved here for compatibility with existing userland
- * utilities.
+ * NOTE: The SNAPSHOT_SET_SWAP_FILE and SNAPSHOT_PMOPS ioctls are obsolete and
+ * will be removed in the future.  They are only preserved here for
+ * compatibility with existing userland utilities.
  */
+#define SNAPSHOT_SET_SWAP_FILE	_IOW(SNAPSHOT_IOC_MAGIC, 10, unsigned int)
 #define SNAPSHOT_PMOPS		_IOW(SNAPSHOT_IOC_MAGIC, 12, unsigned int)
 
 #define PMOPS_PREPARE	1
@@ -260,7 +261,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		free_all_swap_pages(data->swap);
 		break;
 
-	case SNAPSHOT_SET_SWAP_FILE:
+	case SNAPSHOT_SET_SWAP_FILE: /* This ioctl is deprecated */
 		if (!swsusp_swap_in_use()) {
 			/*
 			 * User space encodes device types as two-byte values,

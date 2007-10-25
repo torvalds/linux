@@ -67,23 +67,13 @@ SNAPSHOT_GET_SWAP_PAGE - allocate a swap page from the resume partition
 SNAPSHOT_FREE_SWAP_PAGES - free all swap pages allocated with
 	SNAPSHOT_GET_SWAP_PAGE
 
-SNAPSHOT_SET_SWAP_FILE - set the resume partition (the last ioctl() argument
-	should specify the device's major and minor numbers in the old
-	two-byte format, as returned by the stat() function in the .st_rdev
-	member of the stat structure)
-
 SNAPSHOT_SET_SWAP_AREA - set the resume partition and the offset (in <PAGE_SIZE>
 	units) from the beginning of the partition at which the swap header is
 	located (the last ioctl() argument should point to a struct
 	resume_swap_area, as defined in kernel/power/power.h, containing the
-	resume device specification, as for the SNAPSHOT_SET_SWAP_FILE ioctl(),
-	and the offset); for swap partitions the offset is always 0, but it is
-	different to zero for swap files (please see
+	resume device specification and the offset); for swap partitions the
+	offset is always 0, but it is different from zero for swap files (see
 	Documentation/swsusp-and-swap-files.txt for details).
-	The SNAPSHOT_SET_SWAP_AREA ioctl() is considered as a replacement for
-	SNAPSHOT_SET_SWAP_FILE which is regarded as obsolete.   It is
-	recommended to always use this call, because the code to set the resume
-	partition may be removed from future kernels
 
 SNAPSHOT_PLATFORM_SUPPORT - enable/disable the hibernation platform support,
 	depending on the argument value (enable, if the argument is nonzero)
