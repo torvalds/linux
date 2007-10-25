@@ -30,7 +30,7 @@
 /*
  * Forward declare iwl-3945.c functions for iwl-base.c
  */
-extern int iwl_eeprom_aqcuire_semaphore(struct iwl_priv *priv);
+extern int iwl_eeprom_acquire_semaphore(struct iwl_priv *priv);
 extern __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv);
 extern int iwl3945_init_hw_rate_table(struct iwl_priv *priv);
 extern void iwl3945_reg_txpower_periodic(struct iwl_priv *priv);

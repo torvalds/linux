@@ -32,7 +32,7 @@ struct sta_ht_info;
 /*
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
-extern int iwl_eeprom_aqcuire_semaphore(struct iwl_priv *priv);
+extern int iwl_eeprom_acquire_semaphore(struct iwl_priv *priv);
 extern void iwl_eeprom_release_semaphore(struct iwl_priv *priv);
 
 extern int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,

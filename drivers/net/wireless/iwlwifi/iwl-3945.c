@@ -2302,7 +2302,7 @@ struct pci_device_id iwl_hw_card_ids[] = {
 	{0}
 };
 
-inline int iwl_eeprom_aqcuire_semaphore(struct iwl_priv *priv)
+inline int iwl_eeprom_acquire_semaphore(struct iwl_priv *priv)
 {
 	_iwl_clear_bit(priv, CSR_EEPROM_GP, CSR_EEPROM_GP_IF_OWNER_MSK);
 	return 0;

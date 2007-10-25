@@ -1602,9 +1602,9 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 		return -ENOENT;
 	}
 
-	rc = iwl_eeprom_aqcuire_semaphore(priv);
+	rc = iwl_eeprom_acquire_semaphore(priv);
 	if (rc < 0) {
-		IWL_ERROR("Failed to aqcuire EEPROM semaphore.\n");
+		IWL_ERROR("Failed to acquire EEPROM semaphore.\n");
 		return -ENOENT;
 	}
 

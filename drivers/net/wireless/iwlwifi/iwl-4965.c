@@ -4700,7 +4700,7 @@ struct pci_device_id iwl_hw_card_ids[] = {
 	{0}
 };
 
-int iwl_eeprom_aqcuire_semaphore(struct iwl_priv *priv)
+int iwl_eeprom_acquire_semaphore(struct iwl_priv *priv)
 {
 	u16 count;
 	int rc;
@@ -4713,7 +4713,7 @@ int iwl_eeprom_aqcuire_semaphore(struct iwl_priv *priv)
 					CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 					EEPROM_SEM_TIMEOUT);
 		if (rc >= 0) {
-			IWL_DEBUG_IO("Aqcuired semaphore after %d tries.\n",
+			IWL_DEBUG_IO("Acquired semaphore after %d tries.\n",
 				count+1);
 			return rc;
 		}
