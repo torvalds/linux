@@ -192,37 +192,35 @@ u8 iwl_hw_find_station(struct iwl_priv *priv, const u8 *addr)
 
 static int iwl4965_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 {
-	int rc = 0;
+	int ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
-	if (rc) {
+	ret = iwl_grab_restricted_access(priv);
+	if (ret) {
 		spin_unlock_irqrestore(&priv->lock, flags);
-		return rc;
+		return ret;
 	}
 
 	if (!pwr_max) {
 		u32 val;
 
-		rc = pci_read_config_dword(priv->pci_dev, PCI_POWER_SOURCE,
+		ret = pci_read_config_dword(priv->pci_dev, PCI_POWER_SOURCE,
 					   &val);
 
 		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT)
-			iwl_set_bits_mask_restricted_reg(
-				priv, APMG_PS_CTRL_REG,
+			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
 				~APMG_PS_CTRL_MSK_PWR_SRC);
 	} else
-		iwl_set_bits_mask_restricted_reg(
-			priv, APMG_PS_CTRL_REG,
+		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 			APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
 			~APMG_PS_CTRL_MSK_PWR_SRC);
 
 	iwl_release_restricted_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return rc;
+	return ret;
 }
 
 static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
@@ -384,7 +382,7 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
 		goto error_reset;
 	}
 
-	iwl_write_restricted_reg(priv, SCD_TXFACT, 0);
+	iwl_write_prph(priv, SCD_TXFACT, 0);
 	iwl_release_restricted_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -449,16 +447,16 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 		return rc;
 	}
 
-	iwl_read_restricted_reg(priv, APMG_CLK_CTRL_REG);
+	iwl_read_prph(priv, APMG_CLK_CTRL_REG);
 
-	iwl_write_restricted_reg(priv, APMG_CLK_CTRL_REG,
+	iwl_write_prph(priv, APMG_CLK_CTRL_REG,
 				 APMG_CLK_VAL_DMA_CLK_RQT |
 				 APMG_CLK_VAL_BSM_CLK_RQT);
-	iwl_read_restricted_reg(priv, APMG_CLK_CTRL_REG);
+	iwl_read_prph(priv, APMG_CLK_CTRL_REG);
 
 	udelay(20);
 
-	iwl_set_bits_restricted_reg(priv, APMG_PCIDEV_STT_REG,
+	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 				    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
 	iwl_release_restricted_access(priv);
@@ -514,11 +512,11 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 		return rc;
 	}
 
-	iwl_read_restricted_reg(priv, APMG_PS_CTRL_REG);
-	iwl_set_bits_restricted_reg(priv, APMG_PS_CTRL_REG,
+	iwl_read_prph(priv, APMG_PS_CTRL_REG);
+	iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
 				    APMG_PS_CTRL_VAL_RESET_REQ);
 	udelay(5);
-	iwl_clear_bits_restricted_reg(priv, APMG_PS_CTRL_REG,
+	iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 				      APMG_PS_CTRL_VAL_RESET_REQ);
 
 	iwl_release_restricted_access(priv);
@@ -645,13 +643,13 @@ int iwl_hw_nic_reset(struct iwl_priv *priv)
 
 	rc = iwl_grab_restricted_access(priv);
 	if (!rc) {
-		iwl_write_restricted_reg(priv, APMG_CLK_EN_REG,
+		iwl_write_prph(priv, APMG_CLK_EN_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT |
 					 APMG_CLK_VAL_BSM_CLK_RQT);
 
 		udelay(10);
 
-		iwl_set_bits_restricted_reg(priv, APMG_PCIDEV_STT_REG,
+		iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 				APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
 		iwl_release_restricted_access(priv);
@@ -1585,7 +1583,7 @@ static void iwl4965_set_wr_ptrs(struct iwl_priv *priv, int txq_id, u32 index)
 {
 	iwl_write_restricted(priv, HBUS_TARG_WRPTR,
 			     (index & 0xff) | (txq_id << 8));
-	iwl_write_restricted_reg(priv, SCD_QUEUE_RDPTR(txq_id), index);
+	iwl_write_prph(priv, SCD_QUEUE_RDPTR(txq_id), index);
 }
 
 /*
@@ -1598,7 +1596,7 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 	int txq_id = txq->q.id;
 	int active = test_bit(txq_id, &priv->txq_ctx_active_msk)?1:0;
 
-	iwl_write_restricted_reg(priv, SCD_QUEUE_STATUS_BITS(txq_id),
+	iwl_write_prph(priv, SCD_QUEUE_STATUS_BITS(txq_id),
 				 (active << SCD_QUEUE_STTS_REG_POS_ACTIVE) |
 				 (tx_fifo_id << SCD_QUEUE_STTS_REG_POS_TXF) |
 				 (scd_retry << SCD_QUEUE_STTS_REG_POS_WSL) |
@@ -1656,7 +1654,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 		return rc;
 	}
 
-	priv->scd_base_addr = iwl_read_restricted_reg(priv, SCD_SRAM_BASE_ADDR);
+	priv->scd_base_addr = iwl_read_prph(priv, SCD_SRAM_BASE_ADDR);
 	a = priv->scd_base_addr + SCD_CONTEXT_DATA_OFFSET;
 	for (; a < priv->scd_base_addr + SCD_TX_STTS_BITMAP_OFFSET; a += 4)
 		iwl_write_restricted_mem(priv, a, 0);
@@ -1665,14 +1663,14 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	for (; a < sizeof(u16) * priv->hw_setting.max_txq_num; a += 4)
 		iwl_write_restricted_mem(priv, a, 0);
 
-	iwl_write_restricted_reg(priv, SCD_DRAM_BASE_ADDR,
+	iwl_write_prph(priv, SCD_DRAM_BASE_ADDR,
 		(priv->hw_setting.shared_phys +
 		 offsetof(struct iwl_shared, queues_byte_cnt_tbls)) >> 10);
-	iwl_write_restricted_reg(priv, SCD_QUEUECHAIN_SEL, 0);
+	iwl_write_prph(priv, SCD_QUEUECHAIN_SEL, 0);
 
 	/* initiate the queues */
 	for (i = 0; i < priv->hw_setting.max_txq_num; i++) {
-		iwl_write_restricted_reg(priv, SCD_QUEUE_RDPTR(i), 0);
+		iwl_write_prph(priv, SCD_QUEUE_RDPTR(i), 0);
 		iwl_write_restricted(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
 		iwl_write_restricted_mem(priv, priv->scd_base_addr +
 					SCD_CONTEXT_QUEUE_OFFSET(i),
@@ -1687,10 +1685,10 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 					SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
 	}
-	iwl_write_restricted_reg(priv, SCD_INTERRUPT_MASK,
+	iwl_write_prph(priv, SCD_INTERRUPT_MASK,
 				 (1 << priv->hw_setting.max_txq_num) - 1);
 
-	iwl_write_restricted_reg(priv, SCD_TXFACT,
+	iwl_write_prph(priv, SCD_TXFACT,
 				 SCD_TXFACT_REG_TXFIFO_MASK(0, 7));
 
 	iwl4965_set_wr_ptrs(priv, IWL_CMD_QUEUE_NUM, 0);
@@ -4140,7 +4138,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 static void iwl4965_tx_queue_stop_scheduler(struct iwl_priv *priv, u16 txq_id)
 {
-	iwl_write_restricted_reg(priv,
+	iwl_write_prph(priv,
 		SCD_QUEUE_STATUS_BITS(txq_id),
 		(0 << SCD_QUEUE_STTS_REG_POS_ACTIVE)|
 		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
@@ -4201,7 +4199,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 	iwl4965_tx_queue_set_q2ratid(priv, ra_tid, txq_id);
 
 
-	iwl_set_bits_restricted_reg(priv, SCD_QUEUECHAIN_SEL, (1<<txq_id));
+	iwl_set_bits_prph(priv, SCD_QUEUECHAIN_SEL, (1<<txq_id));
 
 	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
 	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
@@ -4219,7 +4217,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 			(SCD_FRAME_LIMIT << SCD_QUEUE_CTX_REG2_FRAME_LIMIT_POS)
 			& SCD_QUEUE_CTX_REG2_FRAME_LIMIT_MSK);
 
-	iwl_set_bits_restricted_reg(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_set_bits_prph(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
 
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
 
@@ -4253,14 +4251,14 @@ static int iwl4965_tx_queue_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	iwl4965_tx_queue_stop_scheduler(priv, txq_id);
 
-	iwl_clear_bits_restricted_reg(priv, SCD_QUEUECHAIN_SEL, (1 << txq_id));
+	iwl_clear_bits_prph(priv, SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
 	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
 	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwl4965_set_wr_ptrs(priv, txq_id, ssn_idx);
 
-	iwl_clear_bits_restricted_reg(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
+	iwl_clear_bits_prph(priv, SCD_INTERRUPT_MASK, (1 << txq_id));
 	iwl4965_txq_ctx_deactivate(priv, txq_id);
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
 

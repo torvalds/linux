@@ -330,27 +330,26 @@ static inline int __iwl_poll_restricted_bit(const char *f, u32 l,
 #define iwl_poll_restricted_bit _iwl_poll_restricted_bit
 #endif
 
-static inline u32 _iwl_read_restricted_reg(struct iwl_priv *priv, u32 reg)
+static inline u32 _iwl_read_prph(struct iwl_priv *priv, u32 reg)
 {
 	_iwl_write_restricted(priv, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
 	return _iwl_read_restricted(priv, HBUS_TARG_PRPH_RDAT);
 }
 #ifdef CONFIG_IWLWIFI_DEBUG
-static inline u32 __iwl_read_restricted_reg(u32 line,
-					    struct iwl_priv *priv, u32 reg)
+static inline u32 __iwl_read_prph(u32 line, struct iwl_priv *priv, u32 reg)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Unrestricted access from line %d\n", line);
-	return _iwl_read_restricted_reg(priv, reg);
+	return _iwl_read_prph(priv, reg);
 }
 
-#define iwl_read_restricted_reg(priv, reg) \
-	__iwl_read_restricted_reg(__LINE__, priv, reg)
+#define iwl_read_prph(priv, reg) \
+	__iwl_read_prph(__LINE__, priv, reg)
 #else
-#define iwl_read_restricted_reg _iwl_read_restricted_reg
+#define iwl_read_prph _iwl_read_prph
 #endif
 
-static inline void _iwl_write_restricted_reg(struct iwl_priv *priv,
+static inline void _iwl_write_prph(struct iwl_priv *priv,
 					     u32 addr, u32 val)
 {
 	_iwl_write_restricted(priv, HBUS_TARG_PRPH_WADDR,
@@ -358,61 +357,58 @@ static inline void _iwl_write_restricted_reg(struct iwl_priv *priv,
 	_iwl_write_restricted(priv, HBUS_TARG_PRPH_WDAT, val);
 }
 #ifdef CONFIG_IWLWIFI_DEBUG
-static inline void __iwl_write_restricted_reg(u32 line,
-					      struct iwl_priv *priv,
+static inline void __iwl_write_prph(u32 line, struct iwl_priv *priv,
 					      u32 addr, u32 val)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Unrestricted access from line %d\n", line);
-	_iwl_write_restricted_reg(priv, addr, val);
+	_iwl_write_prph(priv, addr, val);
 }
 
-#define iwl_write_restricted_reg(priv, addr, val) \
-	__iwl_write_restricted_reg(__LINE__, priv, addr, val);
+#define iwl_write_prph(priv, addr, val) \
+	__iwl_write_prph(__LINE__, priv, addr, val);
 #else
-#define iwl_write_restricted_reg _iwl_write_restricted_reg
+#define iwl_write_prph _iwl_write_prph
 #endif
 
-#define _iwl_set_bits_restricted_reg(priv, reg, mask) \
-	_iwl_write_restricted_reg(priv, reg, \
-				  (_iwl_read_restricted_reg(priv, reg) | mask))
+#define _iwl_set_bits_prph(priv, reg, mask) \
+	_iwl_write_prph(priv, reg, (_iwl_read_prph(priv, reg) | mask))
 #ifdef CONFIG_IWLWIFI_DEBUG
-static inline void __iwl_set_bits_restricted_reg(u32 line, struct iwl_priv
-						 *priv, u32 reg, u32 mask)
+static inline void __iwl_set_bits_prph(u32 line, struct iwl_priv *priv,
+					u32 reg, u32 mask)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Unrestricted access from line %d\n", line);
-	_iwl_set_bits_restricted_reg(priv, reg, mask);
+	_iwl_set_bits_prph(priv, reg, mask);
 }
-#define iwl_set_bits_restricted_reg(priv, reg, mask) \
-	__iwl_set_bits_restricted_reg(__LINE__, priv, reg, mask)
+#define iwl_set_bits_prph(priv, reg, mask) \
+	__iwl_set_bits_prph(__LINE__, priv, reg, mask)
 #else
-#define iwl_set_bits_restricted_reg _iwl_set_bits_restricted_reg
+#define iwl_set_bits_prph _iwl_set_bits_prph
 #endif
 
-#define _iwl_set_bits_mask_restricted_reg(priv, reg, bits, mask) \
-	_iwl_write_restricted_reg( \
-	    priv, reg, ((_iwl_read_restricted_reg(priv, reg) & mask) | bits))
+#define _iwl_set_bits_mask_prph(priv, reg, bits, mask) \
+	_iwl_write_prph(priv, reg, ((_iwl_read_prph(priv, reg) & mask) | bits))
+
 #ifdef CONFIG_IWLWIFI_DEBUG
-static inline void __iwl_set_bits_mask_restricted_reg(u32 line,
+static inline void __iwl_set_bits_mask_prph(u32 line,
 		struct iwl_priv *priv, u32 reg, u32 bits, u32 mask)
 {
 	if (!atomic_read(&priv->restrict_refcnt))
 		IWL_ERROR("Unrestricted access from line %d\n", line);
-	_iwl_set_bits_mask_restricted_reg(priv, reg, bits, mask);
+	_iwl_set_bits_mask_prph(priv, reg, bits, mask);
 }
-
-#define iwl_set_bits_mask_restricted_reg(priv, reg, bits, mask) \
-	__iwl_set_bits_mask_restricted_reg(__LINE__, priv, reg, bits, mask)
+#define iwl_set_bits_mask_prph(priv, reg, bits, mask) \
+	__iwl_set_bits_mask_prph(__LINE__, priv, reg, bits, mask)
 #else
-#define iwl_set_bits_mask_restricted_reg _iwl_set_bits_mask_restricted_reg
+#define iwl_set_bits_mask_prph _iwl_set_bits_mask_prph
 #endif
 
-static inline void iwl_clear_bits_restricted_reg(struct iwl_priv
+static inline void iwl_clear_bits_prph(struct iwl_priv
 						 *priv, u32 reg, u32 mask)
 {
-	u32 val = _iwl_read_restricted_reg(priv, reg);
-	_iwl_write_restricted_reg(priv, reg, (val & ~mask));
+	u32 val = _iwl_read_prph(priv, reg);
+	_iwl_write_prph(priv, reg, (val & ~mask));
 }
 
 static inline u32 iwl_read_restricted_mem(struct iwl_priv *priv, u32 addr)
@@ -435,36 +431,4 @@ static inline void iwl_write_restricted_mems(struct iwl_priv *priv, u32 addr,
 	for (; 0 < len; len -= sizeof(u32), values++)
 		iwl_write_restricted(priv, HBUS_TARG_MEM_WDAT, *values);
 }
-
-static inline void iwl_write_restricted_regs(struct iwl_priv *priv, u32 reg,
-					     u32 len, u8 *values)
-{
-	u32 reg_offset = reg;
-	u32 aligment = reg & 0x3;
-
-	/* write any non-dword-aligned stuff at the beginning */
-	if (len < sizeof(u32)) {
-		if ((aligment + len) <= sizeof(u32)) {
-			u8 size;
-			u32 value = 0;
-			size = len - 1;
-			memcpy(&value, values, len);
-			reg_offset = (reg_offset & 0x0000FFFF);
-
-			_iwl_write_restricted(priv,
-					      HBUS_TARG_PRPH_WADDR,
-					      (reg_offset | (size << 24)));
-			_iwl_write_restricted(priv, HBUS_TARG_PRPH_WDAT,
-					      value);
-		}
-
-		return;
-	}
-
-	/* now write all the dword-aligned stuff */
-	for (; reg_offset < (reg + len);
-	     reg_offset += sizeof(u32), values += sizeof(u32))
-		_iwl_write_restricted_reg(priv, reg_offset, *((u32 *) values));
-}
-
 #endif

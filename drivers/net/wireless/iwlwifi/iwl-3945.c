@@ -733,7 +733,7 @@ static int iwl3945_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 		rc = pci_read_config_dword(priv->pci_dev,
 				PCI_POWER_SOURCE, &val);
 		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT) {
-			iwl_set_bits_mask_restricted_reg(priv, APMG_PS_CTRL_REG,
+			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 					APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
 					~APMG_PS_CTRL_MSK_PWR_SRC);
 			iwl_release_restricted_access(priv);
@@ -744,7 +744,7 @@ static int iwl3945_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 		} else
 			iwl_release_restricted_access(priv);
 	} else {
-		iwl_set_bits_mask_restricted_reg(priv, APMG_PS_CTRL_REG,
+		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
 				~APMG_PS_CTRL_MSK_PWR_SRC);
 
@@ -806,18 +806,18 @@ static int iwl3945_tx_reset(struct iwl_priv *priv)
 	}
 
 	/* bypass mode */
-	iwl_write_restricted_reg(priv, SCD_MODE_REG, 0x2);
+	iwl_write_prph(priv, SCD_MODE_REG, 0x2);
 
 	/* RA 0 is active */
-	iwl_write_restricted_reg(priv, SCD_ARASTAT_REG, 0x01);
+	iwl_write_prph(priv, SCD_ARASTAT_REG, 0x01);
 
 	/* all 6 fifo are active */
-	iwl_write_restricted_reg(priv, SCD_TXFACT_REG, 0x3f);
+	iwl_write_prph(priv, SCD_TXFACT_REG, 0x3f);
 
-	iwl_write_restricted_reg(priv, SCD_SBYP_MODE_1_REG, 0x010000);
-	iwl_write_restricted_reg(priv, SCD_SBYP_MODE_2_REG, 0x030002);
-	iwl_write_restricted_reg(priv, SCD_TXF4MF_REG, 0x000004);
-	iwl_write_restricted_reg(priv, SCD_TXF5MF_REG, 0x000005);
+	iwl_write_prph(priv, SCD_SBYP_MODE_1_REG, 0x010000);
+	iwl_write_prph(priv, SCD_SBYP_MODE_2_REG, 0x030002);
+	iwl_write_prph(priv, SCD_TXF4MF_REG, 0x000004);
+	iwl_write_prph(priv, SCD_TXF5MF_REG, 0x000005);
 
 	iwl_write_restricted(priv, FH_TSSR_CBB_BASE,
 			     priv->hw_setting.shared_phys);
@@ -902,11 +902,11 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
 	}
-	iwl_write_restricted_reg(priv, APMG_CLK_EN_REG,
+	iwl_write_prph(priv, APMG_CLK_EN_REG,
 				 APMG_CLK_VAL_DMA_CLK_RQT |
 				 APMG_CLK_VAL_BSM_CLK_RQT);
 	udelay(20);
-	iwl_set_bits_restricted_reg(priv, APMG_PCIDEV_STT_REG,
+	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 				    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 	iwl_release_restricted_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -1045,7 +1045,7 @@ void iwl_hw_txq_ctx_stop(struct iwl_priv *priv)
 	}
 
 	/* stop SCD */
-	iwl_write_restricted_reg(priv, SCD_MODE_REG, 0);
+	iwl_write_prph(priv, SCD_MODE_REG, 0);
 
 	/* reset TFD queues */
 	for (queue = TFD_QUEUE_MIN; queue < TFD_QUEUE_MAX; queue++) {
@@ -1111,7 +1111,7 @@ int iwl_hw_nic_reset(struct iwl_priv *priv)
 
 	rc = iwl_grab_restricted_access(priv);
 	if (!rc) {
-		iwl_write_restricted_reg(priv, APMG_CLK_CTRL_REG,
+		iwl_write_prph(priv, APMG_CLK_CTRL_REG,
 					 APMG_CLK_VAL_BSM_CLK_RQT);
 
 		udelay(10);
@@ -1119,20 +1119,20 @@ int iwl_hw_nic_reset(struct iwl_priv *priv)
 		iwl_set_bit(priv, CSR_GP_CNTRL,
 			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
-		iwl_write_restricted_reg(priv, APMG_RTC_INT_MSK_REG, 0x0);
-		iwl_write_restricted_reg(priv, APMG_RTC_INT_STT_REG,
+		iwl_write_prph(priv, APMG_RTC_INT_MSK_REG, 0x0);
+		iwl_write_prph(priv, APMG_RTC_INT_STT_REG,
 					0xFFFFFFFF);
 
 		/* enable DMA */
-		iwl_write_restricted_reg(priv, APMG_CLK_EN_REG,
+		iwl_write_prph(priv, APMG_CLK_EN_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT |
 					 APMG_CLK_VAL_BSM_CLK_RQT);
 		udelay(10);
 
-		iwl_set_bits_restricted_reg(priv, APMG_PS_CTRL_REG,
+		iwl_set_bits_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_RESET_REQ);
 		udelay(5);
-		iwl_clear_bits_restricted_reg(priv, APMG_PS_CTRL_REG,
+		iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 				APMG_PS_CTRL_VAL_RESET_REQ);
 		iwl_release_restricted_access(priv);
 	}

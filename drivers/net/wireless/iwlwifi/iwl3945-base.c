@@ -5623,11 +5623,11 @@ static int iwl_verify_bsm(struct iwl_priv *priv)
 	IWL_DEBUG_INFO("Begin verify bsm\n");
 
 	/* verify BSM SRAM contents */
-	val = iwl_read_restricted_reg(priv, BSM_WR_DWCOUNT_REG);
+	val = iwl_read_prph(priv, BSM_WR_DWCOUNT_REG);
 	for (reg = BSM_SRAM_LOWER_BOUND;
 	     reg < BSM_SRAM_LOWER_BOUND + len;
 	     reg += sizeof(u32), image ++) {
-		val = iwl_read_restricted_reg(priv, reg);
+		val = iwl_read_prph(priv, reg);
 		if (val != le32_to_cpu(*image)) {
 			IWL_ERROR("BSM uCode verification failed at "
 				  "addr 0x%08X+%u (of %u), is 0x%x, s/b 0x%x\n",
@@ -5708,16 +5708,16 @@ static int iwl_load_bsm(struct iwl_priv *priv)
 	if (rc)
 		return rc;
 
-	iwl_write_restricted_reg(priv, BSM_DRAM_INST_PTR_REG, pinst);
-	iwl_write_restricted_reg(priv, BSM_DRAM_DATA_PTR_REG, pdata);
-	iwl_write_restricted_reg(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
-	iwl_write_restricted_reg(priv, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
+	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
+	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
+	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG, inst_len);
+	iwl_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG, data_len);
 
 	/* Fill BSM memory with bootstrap instructions */
 	for (reg_offset = BSM_SRAM_LOWER_BOUND;
 	     reg_offset < BSM_SRAM_LOWER_BOUND + len;
 	     reg_offset += sizeof(u32), image++)
-		_iwl_write_restricted_reg(priv, reg_offset,
+		_iwl_write_prph(priv, reg_offset,
 					  le32_to_cpu(*image));
 
 	rc = iwl_verify_bsm(priv);
@@ -5727,19 +5727,19 @@ static int iwl_load_bsm(struct iwl_priv *priv)
 	}
 
 	/* Tell BSM to copy from BSM SRAM into instruction SRAM, when asked */
-	iwl_write_restricted_reg(priv, BSM_WR_MEM_SRC_REG, 0x0);
-	iwl_write_restricted_reg(priv, BSM_WR_MEM_DST_REG,
+	iwl_write_prph(priv, BSM_WR_MEM_SRC_REG, 0x0);
+	iwl_write_prph(priv, BSM_WR_MEM_DST_REG,
 				 RTC_INST_LOWER_BOUND);
-	iwl_write_restricted_reg(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
+	iwl_write_prph(priv, BSM_WR_DWCOUNT_REG, len / sizeof(u32));
 
 	/* Load bootstrap code into instruction SRAM now,
 	 *   to prepare to load "initialize" uCode */
-	iwl_write_restricted_reg(priv, BSM_WR_CTRL_REG,
+	iwl_write_prph(priv, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START);
 
 	/* Wait for load of bootstrap uCode to finish */
 	for (i = 0; i < 100; i++) {
-		done = iwl_read_restricted_reg(priv, BSM_WR_CTRL_REG);
+		done = iwl_read_prph(priv, BSM_WR_CTRL_REG);
 		if (!(done & BSM_WR_CTRL_REG_BIT_START))
 			break;
 		udelay(10);
@@ -5753,7 +5753,7 @@ static int iwl_load_bsm(struct iwl_priv *priv)
 
 	/* Enable future boot loads whenever power management unit triggers it
 	 *   (e.g. when powering back up after power-save shutdown) */
-	iwl_write_restricted_reg(priv, BSM_WR_CTRL_REG,
+	iwl_write_prph(priv, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START_EN);
 
 	iwl_release_restricted_access(priv);
@@ -6004,14 +6004,14 @@ static int iwl_set_ucode_ptrs(struct iwl_priv *priv)
 	}
 
 	/* Tell bootstrap uCode where to find image to load */
-	iwl_write_restricted_reg(priv, BSM_DRAM_INST_PTR_REG, pinst);
-	iwl_write_restricted_reg(priv, BSM_DRAM_DATA_PTR_REG, pdata);
-	iwl_write_restricted_reg(priv, BSM_DRAM_DATA_BYTECOUNT_REG,
+	iwl_write_prph(priv, BSM_DRAM_INST_PTR_REG, pinst);
+	iwl_write_prph(priv, BSM_DRAM_DATA_PTR_REG, pdata);
+	iwl_write_prph(priv, BSM_DRAM_DATA_BYTECOUNT_REG,
 				 priv->ucode_data.len);
 
 	/* Inst bytecount must be last to set up, bit 31 signals uCode
 	 *   that all new ptr/size info is in place */
-	iwl_write_restricted_reg(priv, BSM_DRAM_INST_BYTECOUNT_REG,
+	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
 
 	iwl_release_restricted_access(priv);
@@ -6109,7 +6109,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 		return;
 	}
 
-	rfkill = iwl_read_restricted_reg(priv, APMG_RFKILL_REG);
+	rfkill = iwl_read_prph(priv, APMG_RFKILL_REG);
 	IWL_DEBUG_INFO("RFKILL status: 0x%x\n", rfkill);
 	iwl_release_restricted_access(priv);
 
@@ -6274,7 +6274,7 @@ static void __iwl_down(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (!iwl_grab_restricted_access(priv)) {
-		iwl_write_restricted_reg(priv, APMG_CLK_DIS_REG,
+		iwl_write_prph(priv, APMG_CLK_DIS_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT);
 		iwl_release_restricted_access(priv);
 	}
@@ -8674,7 +8674,7 @@ static void iwl_resume(struct iwl_priv *priv)
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	if (!iwl_grab_restricted_access(priv)) {
-		iwl_write_restricted_reg(priv, APMG_CLK_DIS_REG,
+		iwl_write_prph(priv, APMG_CLK_DIS_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT);
 		iwl_release_restricted_access(priv);
 	}
