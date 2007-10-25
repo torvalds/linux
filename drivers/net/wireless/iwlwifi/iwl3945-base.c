@@ -808,10 +808,6 @@ out:
 
 int iwl_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 {
-	/* A command can not be asynchronous AND expect an SKB to be set. */
-	BUG_ON((cmd->meta.flags & CMD_ASYNC) &&
-	       (cmd->meta.flags & CMD_WANT_SKB));
-
 	if (cmd->meta.flags & CMD_ASYNC)
 		return iwl_send_cmd_async(priv, cmd);
 
@@ -1967,9 +1963,6 @@ static void iwl_reset_qos(struct iwl_priv *priv)
 static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 {
 	unsigned long flags;
-
-	if (priv == NULL)
-		return;
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
