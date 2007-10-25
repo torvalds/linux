@@ -139,20 +139,20 @@ int iwl_hw_rxq_stop(struct iwl_priv *priv)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
 	}
 
 	/* stop HW */
-	iwl_write_restricted(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	rc = iwl_poll_restricted_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	rc = iwl_poll_direct_bit(priv, FH_MEM_RSSR_RX_STATUS_REG,
 				     (1 << 24), 1000);
 	if (rc < 0)
 		IWL_ERROR("Can't stop Rx DMA.\n");
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -196,7 +196,7 @@ static int iwl4965_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	ret = iwl_grab_restricted_access(priv);
+	ret = iwl_grab_nic_access(priv);
 	if (ret) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return ret;
@@ -217,7 +217,7 @@ static int iwl4965_nic_set_pwr_src(struct iwl_priv *priv, int pwr_max)
 			APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
 			~APMG_PS_CTRL_MSK_PWR_SRC);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ret;
@@ -229,24 +229,24 @@ static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
 	}
 
 	/* stop HW */
-	iwl_write_restricted(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 
-	iwl_write_restricted(priv, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
-	iwl_write_restricted(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
 			     rxq->dma_addr >> 8);
 
-	iwl_write_restricted(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
 			     (priv->hw_setting.shared_phys +
 			      offsetof(struct iwl_shared, val0)) >> 4);
 
-	iwl_write_restricted(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG,
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG,
 			     FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
 			     FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
 			     IWL_FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K |
@@ -258,7 +258,7 @@ static int iwl4965_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	 * iwl_write32(priv,CSR_INT_COAL_REG,0);
 	 */
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -270,13 +270,13 @@ static int iwl4965_kw_init(struct iwl_priv *priv)
 	int rc;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc)
 		goto out;
 
-	iwl_write_restricted(priv, IWL_FH_KW_MEM_ADDR_REG,
+	iwl_write_direct32(priv, IWL_FH_KW_MEM_ADDR_REG,
 			     priv->kw.dma_addr >> 4);
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 out:
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return rc;
@@ -375,7 +375,7 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (unlikely(rc)) {
 		IWL_ERROR("TX reset failed");
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -383,7 +383,7 @@ static int iwl4965_txq_ctx_reset(struct iwl_priv *priv)
 	}
 
 	iwl_write_prph(priv, SCD_TXFACT, 0);
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	rc = iwl4965_kw_init(priv);
@@ -441,7 +441,7 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 		return rc;
 	}
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
@@ -459,7 +459,7 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 	iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 				    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	iwl_write32(priv, CSR_INT_COALESCING, 512 / 32);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -505,7 +505,7 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc < 0) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		IWL_DEBUG_INFO("Failed to init the card\n");
@@ -519,7 +519,7 @@ int iwl_hw_nic_init(struct iwl_priv *priv)
 	iwl_clear_bits_prph(priv, APMG_PS_CTRL_REG,
 				      APMG_PS_CTRL_VAL_RESET_REQ);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	iwl_hw_card_show_info(priv);
@@ -603,18 +603,18 @@ void iwl_hw_txq_ctx_stop(struct iwl_priv *priv)
 	/* reset TFD queues */
 	for (txq_id = 0; txq_id < priv->hw_setting.max_txq_num; txq_id++) {
 		spin_lock_irqsave(&priv->lock, flags);
-		if (iwl_grab_restricted_access(priv)) {
+		if (iwl_grab_nic_access(priv)) {
 			spin_unlock_irqrestore(&priv->lock, flags);
 			continue;
 		}
 
-		iwl_write_restricted(priv,
+		iwl_write_direct32(priv,
 				     IWL_FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
 				     0x0);
-		iwl_poll_restricted_bit(priv, IWL_FH_TSSR_TX_STATUS_REG,
+		iwl_poll_direct_bit(priv, IWL_FH_TSSR_TX_STATUS_REG,
 					IWL_FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE
 					(txq_id), 200);
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -641,7 +641,7 @@ int iwl_hw_nic_reset(struct iwl_priv *priv)
 
 	udelay(10);
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (!rc) {
 		iwl_write_prph(priv, APMG_CLK_EN_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT |
@@ -652,7 +652,7 @@ int iwl_hw_nic_reset(struct iwl_priv *priv)
 		iwl_set_bits_prph(priv, APMG_PCIDEV_STT_REG,
 				APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 	}
 
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
@@ -1581,7 +1581,7 @@ static void iwl4965_bg_txpower_work(struct work_struct *work)
  */
 static void iwl4965_set_wr_ptrs(struct iwl_priv *priv, int txq_id, u32 index)
 {
-	iwl_write_restricted(priv, HBUS_TARG_WRPTR,
+	iwl_write_direct32(priv, HBUS_TARG_WRPTR,
 			     (index & 0xff) | (txq_id << 8));
 	iwl_write_prph(priv, SCD_QUEUE_RDPTR(txq_id), index);
 }
@@ -1648,7 +1648,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 		priv->chain_noise_data.delta_gain_code[i] =
 				CHAIN_NOISE_DELTA_GAIN_INIT_VAL;
 #endif /* CONFIG_IWLWIFI_SENSITIVITY*/
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
@@ -1671,7 +1671,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 	/* initiate the queues */
 	for (i = 0; i < priv->hw_setting.max_txq_num; i++) {
 		iwl_write_prph(priv, SCD_QUEUE_RDPTR(i), 0);
-		iwl_write_restricted(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
+		iwl_write_direct32(priv, HBUS_TARG_WRPTR, 0 | (i << 8));
 		iwl_write_targ_mem(priv, priv->scd_base_addr +
 					SCD_CONTEXT_QUEUE_OFFSET(i),
 					(SCD_WIN_SIZE <<
@@ -1699,7 +1699,7 @@ int iwl4965_alive_notify(struct iwl_priv *priv)
 		iwl4965_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -2688,19 +2688,19 @@ int iwl_hw_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	int txq_id = txq->q.id;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
 	}
 
-	iwl_write_restricted(priv, FH_MEM_CBBC_QUEUE(txq_id),
+	iwl_write_direct32(priv, FH_MEM_CBBC_QUEUE(txq_id),
 			     txq->q.dma_addr >> 8);
-	iwl_write_restricted(
+	iwl_write_direct32(
 		priv, IWL_FH_TCSR_CHNL_TX_CONFIG_REG(txq_id),
 		IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE |
 		IWL_FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_ENABLE_VAL);
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -4188,7 +4188,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 	iwl_sta_modify_enable_tid_tx(priv, sta_id, tid);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
@@ -4221,7 +4221,7 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 1);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
@@ -4243,7 +4243,7 @@ static int iwl4965_tx_queue_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
@@ -4262,7 +4262,7 @@ static int iwl4965_tx_queue_agg_disable(struct iwl_priv *priv, u16 txq_id,
 	iwl4965_txq_ctx_deactivate(priv, txq_id);
 	iwl4965_tx_queue_set_status(priv, &priv->txq[txq_id], tx_fifo, 0);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;

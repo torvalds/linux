@@ -1563,7 +1563,7 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 
 		for (i = 0; i < IWL_EEPROM_ACCESS_TIMEOUT;
 					i += IWL_EEPROM_ACCESS_DELAY) {
-			r = _iwl_read_restricted(priv, CSR_EEPROM_REG);
+			r = _iwl_read_direct32(priv, CSR_EEPROM_REG);
 			if (r & CSR_EEPROM_REG_READ_VALID_MSK)
 				break;
 			udelay(IWL_EEPROM_ACCESS_DELAY);
@@ -2996,8 +2996,8 @@ static void iwl_radio_kill_sw(struct iwl_priv *priv, int disable_radio)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_read32(priv, CSR_UCODE_DRV_GP1);
-	if (!iwl_grab_restricted_access(priv))
-		iwl_release_restricted_access(priv);
+	if (!iwl_grab_nic_access(priv))
+		iwl_release_nic_access(priv);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (test_bit(STATUS_RF_KILL_HW, &priv->status)) {
@@ -3954,13 +3954,13 @@ int iwl_rx_queue_update_write_ptr(struct iwl_priv *priv, struct iwl_rx_queue *q)
 			goto exit_unlock;
 		}
 
-		rc = iwl_grab_restricted_access(priv);
+		rc = iwl_grab_nic_access(priv);
 		if (rc)
 			goto exit_unlock;
 
-		iwl_write_restricted(priv, FH_RSCSR_CHNL0_WPTR,
+		iwl_write_direct32(priv, FH_RSCSR_CHNL0_WPTR,
 				     q->write & ~0x7);
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 	} else
 		iwl_write32(priv, FH_RSCSR_CHNL0_WPTR, q->write & ~0x7);
 
@@ -4352,12 +4352,12 @@ int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
 		}
 
 		/* restore this queue's parameters in nic hardware. */
-		rc = iwl_grab_restricted_access(priv);
+		rc = iwl_grab_nic_access(priv);
 		if (rc)
 			return rc;
-		iwl_write_restricted(priv, HBUS_TARG_WRPTR,
+		iwl_write_direct32(priv, HBUS_TARG_WRPTR,
 				     txq->q.write_ptr | (txq_id << 8));
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 
 	/* else not in power-save mode, uCode will never sleep when we're
 	 * trying to tx (during RFKILL, we're not trying to tx). */
@@ -4451,7 +4451,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		return;
 	}
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		IWL_WARNING("Can not read from adapter at this time.\n");
 		return;
@@ -4490,7 +4490,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 		     ilink1, ilink2, data1);
 	}
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 
 }
 
@@ -4499,7 +4499,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 /**
  * iwl_print_event_log - Dump error event log to syslog
  *
- * NOTE: Must be called with iwl_grab_restricted_access() already obtained!
+ * NOTE: Must be called with iwl_grab_nic_access() already obtained!
  */
 static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 				u32 num_events, u32 mode)
@@ -4555,7 +4555,7 @@ static void iwl_dump_nic_event_log(struct iwl_priv *priv)
 		return;
 	}
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		IWL_WARNING("Can not read from adapter at this time.\n");
 		return;
@@ -4572,7 +4572,7 @@ static void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	/* bail out if nothing in log */
 	if (size == 0) {
 		IWL_ERROR("Start IWL Event Log Dump: nothing in log\n");
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 		return;
 	}
 
@@ -4588,7 +4588,7 @@ static void iwl_dump_nic_event_log(struct iwl_priv *priv)
 	/* (then/else) start at top of log */
 	iwl_print_event_log(priv, 0, next_entry, mode);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 }
 
 /**
@@ -4779,11 +4779,11 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 		IWL_DEBUG_ISR("Tx interrupt\n");
 
 		iwl_write32(priv, CSR_FH_INT_STATUS, (1 << 6));
-		if (!iwl_grab_restricted_access(priv)) {
-			iwl_write_restricted(priv,
+		if (!iwl_grab_nic_access(priv)) {
+			iwl_write_direct32(priv,
 					     FH_TCSR_CREDIT
 					     (ALM_FH_SRVC_CHNL), 0x0);
-			iwl_release_restricted_access(priv);
+			iwl_release_nic_access(priv);
 		}
 		handled |= CSR_INT_BIT_FH_TX;
 	}
@@ -5487,18 +5487,18 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 * image, u32 len)
 
 	IWL_DEBUG_INFO("ucode inst image size is %u\n", len);
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc)
 		return rc;
 
-	iwl_write_restricted(priv, HBUS_TARG_MEM_RADDR, RTC_INST_LOWER_BOUND);
+	iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR, RTC_INST_LOWER_BOUND);
 
 	errcnt = 0;
 	for (; len > 0; len -= sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		val = _iwl_read_restricted(priv, HBUS_TARG_MEM_RDAT);
+		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			IWL_ERROR("uCode INST section is invalid at "
 				  "offset 0x%x, is 0x%x, s/b 0x%x\n",
@@ -5510,7 +5510,7 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 * image, u32 len)
 		}
 	}
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 
 	if (!errcnt)
 		IWL_DEBUG_INFO("ucode image in INSTRUCTION memory is good\n");
@@ -5533,7 +5533,7 @@ static int iwl_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 len)
 
 	IWL_DEBUG_INFO("ucode inst image size is %u\n", len);
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc)
 		return rc;
 
@@ -5541,9 +5541,9 @@ static int iwl_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 len)
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		iwl_write_restricted(priv, HBUS_TARG_MEM_RADDR,
+		iwl_write_direct32(priv, HBUS_TARG_MEM_RADDR,
 			i + RTC_INST_LOWER_BOUND);
-		val = _iwl_read_restricted(priv, HBUS_TARG_MEM_RDAT);
+		val = _iwl_read_direct32(priv, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 #if 0 /* Enable this if you want to see details */
 			IWL_ERROR("uCode INST section is invalid at "
@@ -5557,7 +5557,7 @@ static int iwl_verify_inst_sparse(struct iwl_priv *priv, __le32 *image, u32 len)
 		}
 	}
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 
 	return rc;
 }
@@ -5704,7 +5704,7 @@ static int iwl_load_bsm(struct iwl_priv *priv)
 	inst_len = priv->ucode_init.len;
 	data_len = priv->ucode_init_data.len;
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc)
 		return rc;
 
@@ -5722,7 +5722,7 @@ static int iwl_load_bsm(struct iwl_priv *priv)
 
 	rc = iwl_verify_bsm(priv);
 	if (rc) {
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 		return rc;
 	}
 
@@ -5756,7 +5756,7 @@ static int iwl_load_bsm(struct iwl_priv *priv)
 	iwl_write_prph(priv, BSM_WR_CTRL_REG,
 		BSM_WR_CTRL_REG_BIT_START_EN);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 
 	return 0;
 }
@@ -5997,7 +5997,7 @@ static int iwl_set_ucode_ptrs(struct iwl_priv *priv)
 	pdata = priv->ucode_data_backup.p_addr;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return rc;
@@ -6014,7 +6014,7 @@ static int iwl_set_ucode_ptrs(struct iwl_priv *priv)
 	iwl_write_prph(priv, BSM_DRAM_INST_BYTECOUNT_REG,
 				 priv->ucode_code.len | BSM_DRAM_INST_LOAD);
 
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -6103,7 +6103,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 
 	iwl_clear_stations_table(priv);
 
-	rc = iwl_grab_restricted_access(priv);
+	rc = iwl_grab_nic_access(priv);
 	if (rc) {
 		IWL_WARNING("Can not read rfkill status from adapter\n");
 		return;
@@ -6111,7 +6111,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 
 	rfkill = iwl_read_prph(priv, APMG_RFKILL_REG);
 	IWL_DEBUG_INFO("RFKILL status: 0x%x\n", rfkill);
-	iwl_release_restricted_access(priv);
+	iwl_release_nic_access(priv);
 
 	if (rfkill & 0x1) {
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
@@ -6273,10 +6273,10 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_hw_rxq_stop(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	if (!iwl_grab_restricted_access(priv)) {
+	if (!iwl_grab_nic_access(priv)) {
 		iwl_write_prph(priv, APMG_CLK_DIS_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT);
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -8673,10 +8673,10 @@ static void iwl_resume(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
-	if (!iwl_grab_restricted_access(priv)) {
+	if (!iwl_grab_nic_access(priv)) {
 		iwl_write_prph(priv, APMG_CLK_DIS_REG,
 					 APMG_CLK_VAL_DMA_CLK_RQT);
-		iwl_release_restricted_access(priv);
+		iwl_release_nic_access(priv);
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
