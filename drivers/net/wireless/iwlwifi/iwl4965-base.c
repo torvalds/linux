@@ -1384,7 +1384,6 @@ static int iwl_update_sta_key_info(struct iwl_priv *priv,
 		break;
 	case ALG_TKIP:
 	case ALG_WEP:
-		return -EINVAL;
 	default:
 		return -EINVAL;
 	}
@@ -2734,11 +2733,9 @@ static void iwl_build_tx_cmd_basic(struct iwl_priv *priv,
 	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
 		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_ASSOC_REQ ||
 		    (fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_REASSOC_REQ)
-			cmd->cmd.tx.timeout.pm_frame_timeout =
-				cpu_to_le16(3);
+			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(3);
 		else
-			cmd->cmd.tx.timeout.pm_frame_timeout =
-				cpu_to_le16(2);
+			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(2);
 	} else
 		cmd->cmd.tx.timeout.pm_frame_timeout = 0;
 
@@ -3249,24 +3246,21 @@ int is_duplicate_packet(struct iwl_priv *priv, struct ieee80211_hdr *header)
 		int index = mac[5] & (IWL_IBSS_MAC_HASH_SIZE - 1);
 
 		__list_for_each(p, &priv->ibss_mac_hash[index]) {
-			entry =
-				list_entry(p, struct iwl_ibss_seq, list);
+			entry = list_entry(p, struct iwl_ibss_seq, list);
 			if (!compare_ether_addr(entry->mac, mac))
 				break;
 		}
 		if (p == &priv->ibss_mac_hash[index]) {
 			entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 			if (!entry) {
-				IWL_ERROR
-					("Cannot malloc new mac entry\n");
+				IWL_ERROR("Cannot malloc new mac entry\n");
 				return 0;
 			}
 			memcpy(entry->mac, mac, ETH_ALEN);
 			entry->seq_num = seq;
 			entry->frag_num = frag;
 			entry->packet_time = jiffies;
-			list_add(&entry->list,
-				 &priv->ibss_mac_hash[index]);
+			list_add(&entry->list, &priv->ibss_mac_hash[index]);
 			return 0;
 		}
 		last_seq = &entry->seq_num;
@@ -7234,8 +7228,7 @@ static void iwl_bg_post_associate(struct work_struct *data)
 
 static void iwl_bg_abort_scan(struct work_struct *work)
 {
-	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-					     abort_scan);
+	struct iwl_priv *priv = container_of(work, struct iwl_priv, abort_scan);
 
 	if (!iwl_is_ready(priv))
 		return;

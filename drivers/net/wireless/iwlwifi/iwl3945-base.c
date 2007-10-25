@@ -1352,7 +1352,6 @@ static int iwl_update_sta_key_info(struct iwl_priv *priv,
 		break;
 	case ALG_TKIP:
 	case ALG_WEP:
-		return -EINVAL;
 	default:
 		return -EINVAL;
 	}
@@ -2647,11 +2646,9 @@ static void iwl_build_tx_cmd_basic(struct iwl_priv *priv,
 	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
 		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_ASSOC_REQ ||
 		    (fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_REASSOC_REQ)
-			cmd->cmd.tx.timeout.pm_frame_timeout =
-				cpu_to_le16(3);
+			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(3);
 		else
-			cmd->cmd.tx.timeout.pm_frame_timeout =
-				cpu_to_le16(2);
+			cmd->cmd.tx.timeout.pm_frame_timeout = cpu_to_le16(2);
 	} else
 		cmd->cmd.tx.timeout.pm_frame_timeout = 0;
 
@@ -3158,24 +3155,21 @@ int is_duplicate_packet(struct iwl_priv *priv, struct ieee80211_hdr *header)
 		int index = mac[5] & (IWL_IBSS_MAC_HASH_SIZE - 1);
 
 		__list_for_each(p, &priv->ibss_mac_hash[index]) {
-			entry =
-				list_entry(p, struct iwl_ibss_seq, list);
+			entry = list_entry(p, struct iwl_ibss_seq, list);
 			if (!compare_ether_addr(entry->mac, mac))
 				break;
 		}
 		if (p == &priv->ibss_mac_hash[index]) {
 			entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 			if (!entry) {
-				IWL_ERROR
-					("Cannot malloc new mac entry\n");
+				IWL_ERROR("Cannot malloc new mac entry\n");
 				return 0;
 			}
 			memcpy(entry->mac, mac, ETH_ALEN);
 			entry->seq_num = seq;
 			entry->frag_num = frag;
 			entry->packet_time = jiffies;
-			list_add(&entry->list,
-				 &priv->ibss_mac_hash[index]);
+			list_add(&entry->list, &priv->ibss_mac_hash[index]);
 			return 0;
 		}
 		last_seq = &entry->seq_num;
@@ -3322,9 +3316,8 @@ static int iwl_get_measurement(struct iwl_priv *priv,
 	switch (spectrum_resp_status) {
 	case 0:		/* Command will be handled */
 		if (res->u.spectrum.id != 0xff) {
-			IWL_DEBUG_INFO
-			    ("Replaced existing measurement: %d\n",
-			     res->u.spectrum.id);
+			IWL_DEBUG_INFO("Replaced existing measurement: %d\n",
+						res->u.spectrum.id);
 			priv->measurement_status &= ~MEASUREMENT_READY;
 		}
 		priv->measurement_status |= MEASUREMENT_ACTIVE;
@@ -5527,8 +5520,7 @@ static int iwl_verify_inst_full(struct iwl_priv *priv, __le32 * image, u32 len)
 	iwl_release_restricted_access(priv);
 
 	if (!errcnt)
-		IWL_DEBUG_INFO
-		    ("ucode image in INSTRUCTION memory is good\n");
+		IWL_DEBUG_INFO("ucode image in INSTRUCTION memory is good\n");
 
 	return rc;
 }
@@ -5827,16 +5819,11 @@ static int iwl_read_ucode(struct iwl_priv *priv)
 	boot_size = le32_to_cpu(ucode->boot_size);
 
 	IWL_DEBUG_INFO("f/w package hdr ucode version = 0x%x\n", ver);
-	IWL_DEBUG_INFO("f/w package hdr runtime inst size = %u\n",
-		       inst_size);
-	IWL_DEBUG_INFO("f/w package hdr runtime data size = %u\n",
-		       data_size);
-	IWL_DEBUG_INFO("f/w package hdr init inst size = %u\n",
-		       init_size);
-	IWL_DEBUG_INFO("f/w package hdr init data size = %u\n",
-		       init_data_size);
-	IWL_DEBUG_INFO("f/w package hdr boot inst size = %u\n",
-		       boot_size);
+	IWL_DEBUG_INFO("f/w package hdr runtime inst size = %u\n", inst_size);
+	IWL_DEBUG_INFO("f/w package hdr runtime data size = %u\n", data_size);
+	IWL_DEBUG_INFO("f/w package hdr init inst size = %u\n", init_size);
+	IWL_DEBUG_INFO("f/w package hdr init data size = %u\n", init_data_size);
+	IWL_DEBUG_INFO("f/w package hdr boot inst size = %u\n", boot_size);
 
 	/* Verify size of file vs. image size info in file's header */
 	if (ucode_raw->size < sizeof(*ucode) +
@@ -6827,7 +6814,7 @@ static void iwl_bg_post_associate(struct work_struct *data)
 
 	default:
 		 IWL_ERROR("%s Should not be called in %d mode\n",
-				__FUNCTION__, priv->iw_mode);
+			   __FUNCTION__, priv->iw_mode);
 		break;
 	}
 
@@ -6841,8 +6828,7 @@ static void iwl_bg_post_associate(struct work_struct *data)
 
 static void iwl_bg_abort_scan(struct work_struct *work)
 {
-	struct iwl_priv *priv = container_of(work, struct iwl_priv,
-					     abort_scan);
+	struct iwl_priv *priv = container_of(work, struct iwl_priv, abort_scan);
 
 	if (!iwl_is_ready(priv))
 		return;
