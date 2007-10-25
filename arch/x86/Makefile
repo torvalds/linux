@@ -1,6 +1,9 @@
 # Unified Makefile for i386 and x86_64
 
-# No need to remake these files
+# select defconfig based on actual architecture
+KBUILD_DEFCONFIG := $(ARCH)_defconfig
+
+# # No need to remake these files
 $(srctree)/arch/x86/Makefile%: ;
 
 ifeq ($(ARCH),i386)
