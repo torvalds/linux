@@ -109,6 +109,14 @@ enum pcie_reset_state {
 	pcie_hot_reset = (__force pcie_reset_state_t) 3
 };
 
+typedef unsigned short __bitwise pci_dev_flags_t;
+enum pci_dev_flags {
+	/* INTX_DISABLE in PCI_COMMAND register disables MSI
+	 * generation too.
+	 */
+	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) 1,
+};
+
 typedef unsigned short __bitwise pci_bus_flags_t;
 enum pci_bus_flags {
 	PCI_BUS_FLAGS_NO_MSI   = (__force pci_bus_flags_t) 1,
@@ -185,6 +193,7 @@ struct pci_dev {
 	unsigned int	msix_enabled:1;
 	unsigned int	is_managed:1;
 	unsigned int	is_pcie:1;
+	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
 	u32		saved_config_space[16]; /* config space saved at suspend time */
