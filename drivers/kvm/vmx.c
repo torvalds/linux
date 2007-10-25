@@ -2268,7 +2268,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"push %%rdx; push %%rbp;"
 		"push %%rcx \n\t"
 #else
-		"pusha; push %%ecx \n\t"
+		"push %%edx; push %%ebp;"
+		"push %%ecx \n\t"
 #endif
 		ASM_VMX_VMWRITE_RSP_RDX "\n\t"
 		/* Check if vmlaunch of vmresume is needed */
@@ -2342,9 +2343,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"mov %%ebp, %c[rbp](%3) \n\t"
 		"mov %%cr2, %%eax  \n\t"
 		"mov %%eax, %c[cr2](%3) \n\t"
-		"mov (%%esp), %3 \n\t"
 
-		"pop %%ecx; popa \n\t"
+		"pop %%ecx; pop %%ebp; pop %%edx \n\t"
 #endif
 		"setbe %0 \n\t"
 	      : "=q" (vmx->fail)
@@ -2372,6 +2372,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #ifdef CONFIG_X86_64
 		, "rbx", "rdi", "rsi"
 		, "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"
+#else
+		, "ebx", "edi", "rsi"
 #endif
 	      );
 
