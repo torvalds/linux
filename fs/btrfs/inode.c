@@ -847,15 +847,16 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	struct btrfs_dir_item *di;
 	struct btrfs_path *path;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
-	int ret;
+	int ret = 0;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 	di = btrfs_lookup_dir_item(NULL, root, path, dir->i_ino, name,
 				    namelen, 0);
+	if (IS_ERR(di))
+		ret = PTR_ERR(di);
 	if (!di || IS_ERR(di)) {
 		location->objectid = 0;
-		ret = 0;
 		goto out;
 	}
 	btrfs_dir_item_key_to_cpu(path->nodes[0], di, location);
