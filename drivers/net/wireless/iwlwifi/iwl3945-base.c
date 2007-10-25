@@ -287,7 +287,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 		txq->txb = kmalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
-			IWL_ERROR("kmalloc for auxilary BD "
+			IWL_ERROR("kmalloc for auxiliary BD "
 				  "structures failed\n");
 			goto error;
 		}
@@ -323,7 +323,7 @@ int iwl_tx_queue_init(struct iwl_priv *priv,
 	int len;
 	int rc = 0;
 
-	/* alocate command space + one big command for scan since scan
+	/* allocate command space + one big command for scan since scan
 	 * command is very huge the system will not have two scan at the
 	 * same time */
 	len = sizeof(struct iwl_cmd) * slots_num;
@@ -405,7 +405,7 @@ const u8 BROADCAST_ADDR[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
  */
 
 /**************************************************************/
-#if 0 /* temparary disable till we add real remove station */
+#if 0 /* temporary disable till we add real remove station */
 static u8 iwl_remove_station(struct iwl_priv *priv, const u8 *addr, int is_ap)
 {
 	int index = IWL_INVALID_STATION;
@@ -482,7 +482,7 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, int is_ap, u8 flags)
 				index = i;
 		}
 
-	/* These twh conditions has the same outcome but keep them separate
+	/* These two conditions has the same outcome but keep them separate
 	  since they have different meaning */
 	if (unlikely(index == IWL_INVALID_STATION)) {
 		spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
@@ -959,7 +959,7 @@ static int iwl_check_rxon_cmd(struct iwl_rxon_cmd *rxon)
 
 /**
  * iwl_full_rxon_required - determine if RXON_ASSOC can be used in RXON commit
- * @priv: staging_rxon is comapred to active_rxon
+ * @priv: staging_rxon is compared to active_rxon
  *
  * If the RXON structure is changing sufficient to require a new
  * tune or to clear and reset the RXON_FILTER_ASSOC_MSK then return 1
@@ -1047,7 +1047,7 @@ static int iwl_send_rxon_assoc(struct iwl_priv *priv)
 /**
  * iwl_commit_rxon - commit staging_rxon to hardware
  *
- * The RXON command in staging_rxon is commited to the hardware and
+ * The RXON command in staging_rxon is committed to the hardware and
  * the active_rxon structure is updated with the new data.  This
  * function correctly transitions out of the RXON_ASSOC_MSK state if
  * a HW tune is required based on the RXON structure changes.
@@ -2150,7 +2150,7 @@ static int iwl_send_power_mode(struct iwl_priv *priv, u32 mode)
 	struct iwl_powertable_cmd cmd;
 
 	/* If on battery, set to 3,
-	 * if plugged into AC power, set to CAM ("continuosly aware mode"),
+	 * if plugged into AC power, set to CAM ("continuously aware mode"),
 	 * else user level */
 	switch (mode) {
 	case IWL_POWER_BATTERY:
@@ -2440,7 +2440,7 @@ static void iwl_set_flags_for_phymode(struct iwl_priv *priv, u8 phymode)
 }
 
 /*
- * initilize rxon structure with default values fromm eeprom
+ * initialize rxon structure with default values from eeprom
  */
 static void iwl_connection_init_rx_config(struct iwl_priv *priv)
 {
@@ -2704,7 +2704,7 @@ static int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		return priv->hw_setting.bcast_sta_id;
 	}
 	default:
-		IWL_WARNING("Unkown mode of operation: %d", priv->iw_mode);
+		IWL_WARNING("Unknown mode of operation: %d", priv->iw_mode);
 		return priv->hw_setting.bcast_sta_id;
 	}
 }
@@ -3890,7 +3890,7 @@ static void iwl_tx_cmd_complete(struct iwl_priv *priv,
  * The management in the driver is as follows:
  * + A list of pre-allocated SKBs is stored in iwl->rxq->rx_free.  When
  *   iwl->rxq->free_count drops to or below RX_LOW_WATERMARK, work is scheduled
- *   to replensish the iwl->rxq->rx_free.
+ *   to replenish the iwl->rxq->rx_free.
  * + In iwl_rx_replenish (scheduled) if 'processed' != 'read' then the
  *   iwl->rxq is replenished and the READ INDEX is updated (updating the
  *   'processed' and 'read' driver indexes as well)
@@ -4047,12 +4047,12 @@ int iwl_rx_queue_restock(struct iwl_priv *priv)
 }
 
 /**
- * iwl_rx_replensih - Move all used packet from rx_used to rx_free
+ * iwl_rx_replenish - Move all used packet from rx_used to rx_free
  *
  * When moving to rx_free an SKB is allocated for the slot.
  *
  * Also restock the Rx queue via iwl_rx_queue_restock.
- * This is called as a scheduled work item (except for during intialization)
+ * This is called as a scheduled work item (except for during initialization)
  */
 void iwl_rx_replenish(void *data)
 {
@@ -6042,7 +6042,7 @@ static int iwl_set_ucode_ptrs(struct iwl_priv *priv)
 }
 
 /**
- * iwl_init_alive_start - Called after REPLY_ALIVE notification receieved
+ * iwl_init_alive_start - Called after REPLY_ALIVE notification received
  *
  * Called after REPLY_ALIVE notification received from "initialize" uCode.
  *
@@ -6693,7 +6693,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	return;
 
  done:
-	/* inform mac80211 sacn aborted */
+	/* inform mac80211 scan aborted */
 	queue_work(priv->workqueue, &priv->scan_completed);
 	mutex_unlock(&priv->mutex);
 }
@@ -6997,7 +6997,7 @@ static int iwl_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	}
 
 	/* TODO: Figure out how to get ieee80211_local->sta_scanning w/ only
-	 * what is exposed through include/ declrations */
+	 * what is exposed through include/ declarations */
 	if (unlikely(!iwl_param_disable_hw_scan &&
 		     test_bit(STATUS_SCANNING, &priv->status))) {
 		IWL_DEBUG_MAC80211("leave - scanning\n");
@@ -8541,7 +8541,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	mutex_unlock(&priv->mutex);
 
-	IWL_DEBUG_INFO("Queing UP work.\n");
+	IWL_DEBUG_INFO("Queueing UP work.\n");
 
 	queue_work(priv->workqueue, &priv->up);
 

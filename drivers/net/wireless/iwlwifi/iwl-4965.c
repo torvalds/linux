@@ -4051,7 +4051,7 @@ static int iwl4965_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	agg->wait_for_ba = 0;
 	IWL_DEBUG_TX_REPLY("BA %d %d\n", agg->start_idx, ba_resp->ba_seq_ctl);
 	sh = agg->start_idx - SEQ_TO_INDEX(ba_seq_ctl>>4);
-	if (sh < 0) /* tbw something is wrong with indeces */
+	if (sh < 0) /* tbw something is wrong with indices */
 		sh += 0x100;
 
 	/* don't use 64 bits for now */
@@ -4109,7 +4109,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 	agg = &priv->stations[ba_resp->sta_id].tid[ba_resp->tid].agg;
 	index = iwl_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
-	/* TODO: Need to get this copy more sefely - now good for debug */
+	/* TODO: Need to get this copy more safely - now good for debug */
 /*
 	{
 	DECLARE_MAC_BUF(mac);

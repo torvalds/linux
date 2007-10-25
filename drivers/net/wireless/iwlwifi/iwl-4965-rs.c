@@ -498,7 +498,7 @@ static u16 rs_get_adjacent_rate(u8 index, u16 rate_mask, int rate_type)
 	u8 high = IWL_RATE_INVALID;
 	u8 low = IWL_RATE_INVALID;
 
-	/* 802.11A or ht walks to the next literal adjascent rate in
+	/* 802.11A or ht walks to the next literal adjacent rate in
 	 * the rate table */
 	if (is_a_band(rate_type) || !is_legacy(rate_type)) {
 		int i;
@@ -1413,7 +1413,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		index = IWL_INVALID_VALUE;
 		update_lq = 1;
 
-		/* get the lowest availabe rate */
+		/* get the lowest available rate */
 		for (i = 0; i <= IWL_RATE_COUNT; i++) {
 			if ((1 << i) & rate_scale_index_msk)
 				index = i;
@@ -2245,7 +2245,7 @@ int iwl_fill_rs_info(struct ieee80211_hw *hw, char *buf, u8 sta_id)
 			 max_time, good * 100 / samples, good, samples);
 	else
 		count += sprintf(&buf[count], "\nAverage rate: 0Mbs\n");
-	count += sprintf(&buf[count], "\nrate scale type %d anntena %d "
+	count += sprintf(&buf[count], "\nrate scale type %d antenna %d "
 			 "active_search %d rate index %d\n", lq_type, antenna,
 			 rs_priv->search_better_tbl, sta->last_txrate);
 

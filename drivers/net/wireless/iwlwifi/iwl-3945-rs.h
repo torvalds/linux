@@ -174,7 +174,7 @@ static inline u8 iwl_get_prev_ieee_rate(u8 rate_index)
  * iwl_fill_rs_info - Fill an output text buffer with the rate representation
  *
  * NOTE:  This is provided as a quick mechanism for a user to visualize
- * the performance of the rate control alogirthm and is not meant to be
+ * the performance of the rate control algorithm and is not meant to be
  * parsed software.
  */
 extern int iwl_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
@@ -182,7 +182,7 @@ extern int iwl_fill_rs_info(struct ieee80211_hw *, char *buf, u8 sta_id);
 /**
  * iwl_rate_scale_init - Initialize the rate scale table based on assoc info
  *
- * The specific througput table used is based on the type of network
+ * The specific throughput table used is based on the type of network
  * the associated with, including A, B, G, and G w/ TGG protection
  */
 extern void iwl_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);

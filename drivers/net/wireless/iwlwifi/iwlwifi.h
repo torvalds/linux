@@ -54,9 +54,9 @@ extern struct pci_device_id iwl_hw_card_ids[];
  * Driver implementation data structures, constants, inline
  * functions
  *
- * NOTE:  DO NOT PUT HARDWARE/UCODE SPECIFIC DECLRATIONS HERE
+ * NOTE:  DO NOT PUT HARDWARE/UCODE SPECIFIC DECLARATIONS HERE
  *
- * Hardware specific declrations go into iwl-*hw.h
+ * Hardware specific declarations go into iwl-*hw.h
  *
  */
 
@@ -467,7 +467,7 @@ union iwl_qos_capabity {
 	u8 val;
 };
 
-/* QoS sturctures */
+/* QoS structures */
 struct iwl_qos_info {
 	int qos_enable;
 	int qos_active;

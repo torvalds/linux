@@ -362,7 +362,7 @@ static void *rs_alloc(struct ieee80211_local *local)
 	return local->hw.priv;
 }
 
-/* rate scale requires free function to be implmented */
+/* rate scale requires free function to be implemented */
 static void rs_free(void *priv)
 {
 	return;
@@ -568,7 +568,7 @@ static u16 iwl_get_adjacent_rate(struct iwl_rate_scale_priv *rs_priv,
 	u8 high = IWL_RATE_INVALID;
 	u8 low = IWL_RATE_INVALID;
 
-	/* 802.11A walks to the next literal adjascent rate in
+	/* 802.11A walks to the next literal adjacent rate in
 	 * the rate table */
 	if (unlikely(phymode == MODE_IEEE80211A)) {
 		int i;
