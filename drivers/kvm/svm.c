@@ -1499,10 +1499,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	asm volatile (
 #ifdef CONFIG_X86_64
-		"push %%rbx; push %%rcx; push %%rdx;"
-		"push %%rsi; push %%rdi; push %%rbp;"
-		"push %%r8;  push %%r9;  push %%r10; push %%r11;"
-		"push %%r12; push %%r13; push %%r14; push %%r15;"
+		"push %%rbp; \n\t"
 #else
 		"push %%ebx; push %%ecx; push %%edx;"
 		"push %%esi; push %%edi; push %%ebp;"
@@ -1567,10 +1564,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		"mov %%r14, %c[r14](%[svm]) \n\t"
 		"mov %%r15, %c[r15](%[svm]) \n\t"
 
-		"pop  %%r15; pop  %%r14; pop  %%r13; pop  %%r12;"
-		"pop  %%r11; pop  %%r10; pop  %%r9;  pop  %%r8;"
-		"pop  %%rbp; pop  %%rdi; pop  %%rsi;"
-		"pop  %%rdx; pop  %%rcx; pop  %%rbx; \n\t"
+		"pop  %%rbp; \n\t"
 #else
 		"mov %%ebx, %c[rbx](%[svm]) \n\t"
 		"mov %%ecx, %c[rcx](%[svm]) \n\t"
@@ -1601,7 +1595,12 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		  [r14]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R14])),
 		  [r15]"i"(offsetof(struct vcpu_svm, vcpu.regs[VCPU_REGS_R15]))
 #endif
-		: "cc", "memory");
+		: "cc", "memory"
+#ifdef CONFIG_X86_64
+		, "rbx", "rcx", "rdx", "rsi", "rdi"
+		, "r8", "r9", "r10", "r11" , "r12", "r13", "r14", "r15"
+#endif
+		);
 
 	if ((svm->vmcb->save.dr7 & 0xff))
 		load_db_regs(svm->host_db_regs);
