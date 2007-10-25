@@ -1173,6 +1173,19 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = 0;
 		break;
 	};
+	case KVM_SET_VAPIC_ADDR: {
+		struct kvm_vapic_addr va;
+
+		r = -EINVAL;
+		if (!irqchip_in_kernel(vcpu->kvm))
+			goto out;
+		r = -EFAULT;
+		if (copy_from_user(&va, argp, sizeof va))
+			goto out;
+		r = 0;
+		kvm_lapic_set_vapic_addr(vcpu, va.vapic_addr);
+		break;
+	}
 	default:
 		r = -EINVAL;
 	}
@@ -2214,6 +2227,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	}
 
 	switch (nr) {
+	case KVM_HC_VAPIC_POLL_IRQ:
+		ret = 0;
+		break;
 	default:
 		ret = -KVM_ENOSYS;
 		break;
@@ -2421,6 +2437,29 @@ static void post_kvm_run_save(struct kvm_vcpu *vcpu,
 					 vcpu->arch.irq_summary == 0);
 }
 
+static void vapic_enter(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	struct page *page;
+
+	if (!apic || !apic->vapic_addr)
+		return;
+
+	page = gfn_to_page(vcpu->kvm, apic->vapic_addr >> PAGE_SHIFT);
+	vcpu->arch.apic->vapic_page = page;
+}
+
+static void vapic_exit(struct kvm_vcpu *vcpu)
+{
+	struct kvm_lapic *apic = vcpu->arch.apic;
+
+	if (!apic || !apic->vapic_addr)
+		return;
+
+	kvm_release_page_dirty(apic->vapic_page);
+	mark_page_dirty(vcpu->kvm, apic->vapic_addr >> PAGE_SHIFT);
+}
+
 static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
@@ -2435,6 +2474,8 @@ static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->arch.mp_state = VCPU_MP_STATE_RUNNABLE;
 	}
 
+	vapic_enter(vcpu);
+
 preempted:
 	if (vcpu->guest_debug.enabled)
 		kvm_x86_ops->guest_debug_pre(vcpu);
@@ -2443,6 +2484,14 @@ again:
 	r = kvm_mmu_reload(vcpu);
 	if (unlikely(r))
 		goto out;
+
+	if (vcpu->requests)
+		if (test_and_clear_bit(KVM_REQ_REPORT_TPR_ACCESS,
+				       &vcpu->requests)) {
+			kvm_run->exit_reason = KVM_EXIT_TPR_ACCESS;
+			r = 0;
+			goto out;
+		}
 
 	kvm_inject_pending_timer_irqs(vcpu);
 
@@ -2468,6 +2517,8 @@ again:
 		kvm_x86_ops->inject_pending_irq(vcpu);
 	else
 		kvm_x86_ops->inject_pending_vectors(vcpu, kvm_run);
+
+	kvm_lapic_sync_to_vapic(vcpu);
 
 	vcpu->guest_mode = 1;
 	kvm_guest_enter();
@@ -2506,6 +2557,8 @@ again:
 	if (vcpu->arch.exception.pending && kvm_x86_ops->exception_injected(vcpu))
 		vcpu->arch.exception.pending = false;
 
+	kvm_lapic_sync_from_vapic(vcpu);
+
 	r = kvm_x86_ops->handle_exit(kvm_run, vcpu);
 
 	if (r > 0) {
@@ -2526,6 +2579,8 @@ out:
 	}
 
 	post_kvm_run_save(vcpu, kvm_run);
+
+	vapic_exit(vcpu);
 
 	return r;
 }

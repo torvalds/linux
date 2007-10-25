@@ -815,7 +815,8 @@ void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8)
 
 	if (!apic)
 		return;
-	apic_set_tpr(apic, ((cr8 & 0x0f) << 4));
+	apic_set_tpr(apic, ((cr8 & 0x0f) << 4)
+		     | (apic_get_reg(apic, APIC_TASKPRI) & 4));
 }
 
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu)
@@ -1104,3 +1105,51 @@ void kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
 		hrtimer_start(timer, timer->expires, HRTIMER_MODE_ABS);
 }
 EXPORT_SYMBOL_GPL(kvm_migrate_apic_timer);
+
+void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu)
+{
+	u32 data;
+	void *vapic;
+
+	if (!irqchip_in_kernel(vcpu->kvm) || !vcpu->arch.apic->vapic_addr)
+		return;
+
+	vapic = kmap_atomic(vcpu->arch.apic->vapic_page, KM_USER0);
+	data = *(u32 *)(vapic + offset_in_page(vcpu->arch.apic->vapic_addr));
+	kunmap_atomic(vapic, KM_USER0);
+
+	apic_set_tpr(vcpu->arch.apic, data & 0xff);
+}
+
+void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu)
+{
+	u32 data, tpr;
+	int max_irr, max_isr;
+	struct kvm_lapic *apic;
+	void *vapic;
+
+	if (!irqchip_in_kernel(vcpu->kvm) || !vcpu->arch.apic->vapic_addr)
+		return;
+
+	apic = vcpu->arch.apic;
+	tpr = apic_get_reg(apic, APIC_TASKPRI) & 0xff;
+	max_irr = apic_find_highest_irr(apic);
+	if (max_irr < 0)
+		max_irr = 0;
+	max_isr = apic_find_highest_isr(apic);
+	if (max_isr < 0)
+		max_isr = 0;
+	data = (tpr & 0xff) | ((max_isr & 0xf0) << 8) | (max_irr << 24);
+
+	vapic = kmap_atomic(vcpu->arch.apic->vapic_page, KM_USER0);
+	*(u32 *)(vapic + offset_in_page(vcpu->arch.apic->vapic_addr)) = data;
+	kunmap_atomic(vapic, KM_USER0);
+}
+
+void kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr)
+{
+	if (!irqchip_in_kernel(vcpu->kvm))
+		return;
+
+	vcpu->arch.apic->vapic_addr = vapic_addr;
+}

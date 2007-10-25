@@ -216,6 +216,11 @@ struct kvm_tpr_access_ctl {
 	__u32 reserved[8];
 };
 
+/* for KVM_SET_VAPIC_ADDR */
+struct kvm_vapic_addr {
+	__u64 vapic_addr;
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -291,5 +296,7 @@ struct kvm_tpr_access_ctl {
 #define KVM_GET_CPUID2            _IOWR(KVMIO, 0x91, struct kvm_cpuid2)
 /* Available with KVM_CAP_VAPIC */
 #define KVM_TPR_ACCESS_REPORTING  _IOWR(KVMIO,  0x92, struct kvm_tpr_access_ctl)
+/* Available with KVM_CAP_VAPIC */
+#define KVM_SET_VAPIC_ADDR        _IOW(KVMIO,  0x93, struct kvm_vapic_addr)
 
 #endif
