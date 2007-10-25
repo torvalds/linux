@@ -338,7 +338,6 @@ static int __dma_map_cont(struct scatterlist *start, int nelems,
 		
 		BUG_ON(s != start && s->offset);
 		if (s == start) {
-			*sout = *s; 
 			sout->dma_address = iommu_bus_base;
 			sout->dma_address += iommu_page*PAGE_SIZE + s->offset;
 			sout->dma_length = s->length;
@@ -365,7 +364,7 @@ static inline int dma_map_cont(struct scatterlist *start, int nelems,
 {
 	if (!need) {
 		BUG_ON(nelems != 1);
-		*sout = *start;
+		sout->dma_address = start->dma_address;
 		sout->dma_length = start->length;
 		return 0;
 	}
