@@ -2298,8 +2298,8 @@ void iwl_hw_cancel_deferred_work(struct iwl_priv *priv)
 }
 
 struct pci_device_id iwl_hw_card_ids[] = {
-	{0x8086, 0x4222, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{0x8086, 0x4227, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_DEVICE(0x8086, 0x4222)},
+	{PCI_DEVICE(0x8086, 0x4227)},
 	{0}
 };
 
