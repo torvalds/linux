@@ -225,5 +225,34 @@
 #define BSM_SRAM_LOWER_BOUND         (PRPH_BASE + 0x3800)
 #define BSM_SRAM_SIZE			(1024) /* bytes */
 
+/* 4965 SCD memory mapped registers */
+#define KDR_SCD_BASE		(PRPH_BASE + 0xa02c00)
+
+#define KDR_SCD_SRAM_BASE_ADDR         (KDR_SCD_BASE + 0x0)
+#define KDR_SCD_EMPTY_BITS             (KDR_SCD_BASE + 0x4)
+#define KDR_SCD_DRAM_BASE_ADDR         (KDR_SCD_BASE + 0x10)
+#define KDR_SCD_AIT                    (KDR_SCD_BASE + 0x18)
+#define KDR_SCD_TXFACT                 (KDR_SCD_BASE + 0x1c)
+#define KDR_SCD_QUEUE_WRPTR(x)         (KDR_SCD_BASE + 0x24 + (x) * 4)
+#define KDR_SCD_QUEUE_RDPTR(x)         (KDR_SCD_BASE + 0x64 + (x) * 4)
+#define KDR_SCD_SETQUEUENUM            (KDR_SCD_BASE + 0xa4)
+#define KDR_SCD_SET_TXSTAT_TXED        (KDR_SCD_BASE + 0xa8)
+#define KDR_SCD_SET_TXSTAT_DONE        (KDR_SCD_BASE + 0xac)
+#define KDR_SCD_SET_TXSTAT_NOT_SCHD    (KDR_SCD_BASE + 0xb0)
+#define KDR_SCD_DECREASE_CREDIT        (KDR_SCD_BASE + 0xb4)
+#define KDR_SCD_DECREASE_SCREDIT       (KDR_SCD_BASE + 0xb8)
+#define KDR_SCD_LOAD_CREDIT            (KDR_SCD_BASE + 0xbc)
+#define KDR_SCD_LOAD_SCREDIT           (KDR_SCD_BASE + 0xc0)
+#define KDR_SCD_BAR                    (KDR_SCD_BASE + 0xc4)
+#define KDR_SCD_BAR_DW0                (KDR_SCD_BASE + 0xc8)
+#define KDR_SCD_BAR_DW1                (KDR_SCD_BASE + 0xcc)
+#define KDR_SCD_QUEUECHAIN_SEL         (KDR_SCD_BASE + 0xd0)
+#define KDR_SCD_QUERY_REQ              (KDR_SCD_BASE + 0xd8)
+#define KDR_SCD_QUERY_RES              (KDR_SCD_BASE + 0xdc)
+#define KDR_SCD_PENDING_FRAMES         (KDR_SCD_BASE + 0xe0)
+#define KDR_SCD_INTERRUPT_MASK         (KDR_SCD_BASE + 0xe4)
+#define KDR_SCD_INTERRUPT_THRESHOLD    (KDR_SCD_BASE + 0xe8)
+#define KDR_SCD_QUERY_MIN_FRAME_SIZE   (KDR_SCD_BASE + 0x100)
+#define KDR_SCD_QUEUE_STATUS_BITS(x)   (KDR_SCD_BASE + 0x104 + (x) * 4)
 
 #endif				/* __iwl_prph_h__ */

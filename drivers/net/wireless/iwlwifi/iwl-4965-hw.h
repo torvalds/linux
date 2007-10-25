@@ -398,36 +398,6 @@ union iwl_tx_power_dual_stream {
 #define SCD_WIN_SIZE				64
 #define SCD_FRAME_LIMIT				64
 
-/* memory mapped registers */
-#define SCD_START_OFFSET		0xa02c00
-
-#define SCD_SRAM_BASE_ADDR           (SCD_START_OFFSET + 0x0)
-#define SCD_EMPTY_BITS               (SCD_START_OFFSET + 0x4)
-#define SCD_DRAM_BASE_ADDR           (SCD_START_OFFSET + 0x10)
-#define SCD_AIT                      (SCD_START_OFFSET + 0x18)
-#define SCD_TXFACT                   (SCD_START_OFFSET + 0x1c)
-#define SCD_QUEUE_WRPTR(x)           (SCD_START_OFFSET + 0x24 + (x) * 4)
-#define SCD_QUEUE_RDPTR(x)           (SCD_START_OFFSET + 0x64 + (x) * 4)
-#define SCD_SETQUEUENUM              (SCD_START_OFFSET + 0xa4)
-#define SCD_SET_TXSTAT_TXED          (SCD_START_OFFSET + 0xa8)
-#define SCD_SET_TXSTAT_DONE          (SCD_START_OFFSET + 0xac)
-#define SCD_SET_TXSTAT_NOT_SCHD      (SCD_START_OFFSET + 0xb0)
-#define SCD_DECREASE_CREDIT          (SCD_START_OFFSET + 0xb4)
-#define SCD_DECREASE_SCREDIT         (SCD_START_OFFSET + 0xb8)
-#define SCD_LOAD_CREDIT              (SCD_START_OFFSET + 0xbc)
-#define SCD_LOAD_SCREDIT             (SCD_START_OFFSET + 0xc0)
-#define SCD_BAR                      (SCD_START_OFFSET + 0xc4)
-#define SCD_BAR_DW0                  (SCD_START_OFFSET + 0xc8)
-#define SCD_BAR_DW1                  (SCD_START_OFFSET + 0xcc)
-#define SCD_QUEUECHAIN_SEL           (SCD_START_OFFSET + 0xd0)
-#define SCD_QUERY_REQ                (SCD_START_OFFSET + 0xd8)
-#define SCD_QUERY_RES                (SCD_START_OFFSET + 0xdc)
-#define SCD_PENDING_FRAMES           (SCD_START_OFFSET + 0xe0)
-#define SCD_INTERRUPT_MASK           (SCD_START_OFFSET + 0xe4)
-#define SCD_INTERRUPT_THRESHOLD      (SCD_START_OFFSET + 0xe8)
-#define SCD_QUERY_MIN_FRAME_SIZE     (SCD_START_OFFSET + 0x100)
-#define SCD_QUEUE_STATUS_BITS(x)     (SCD_START_OFFSET + 0x104 + (x) * 4)
-
 /* SRAM structures */
 #define SCD_CONTEXT_DATA_OFFSET			0x380
 #define SCD_TX_STTS_BITMAP_OFFSET		0x400
@@ -544,7 +514,7 @@ struct iwl4965_sched_queue_byte_cnt_tbl {
 		     sizeof(__le16)];
 } __attribute__ ((packed));
 
-/* Base physical address of iwl_shared is provided to SCD_DRAM_BASE_ADDR
+/* Base physical address of iwl_shared is provided to KDR_SCD_DRAM_BASE_ADDR
  * and &iwl_shared.val0 is provided to FH_RSCSR_CHNL0_STTS_WPTR_REG */
 struct iwl_shared {
 	struct iwl4965_sched_queue_byte_cnt_tbl
