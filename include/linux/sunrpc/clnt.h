@@ -127,7 +127,7 @@ int		rpcb_getport_sync(struct sockaddr_in *, __u32, __u32, int);
 void		rpcb_getport_async(struct rpc_task *);
 
 void		rpc_call_setup(struct rpc_task *, const struct rpc_message *, int);
-
+void		rpc_call_start(struct rpc_task *);
 int		rpc_call_async(struct rpc_clnt *clnt, struct rpc_message *msg,
 			       int flags, const struct rpc_call_ops *tk_ops,
 			       void *calldata);

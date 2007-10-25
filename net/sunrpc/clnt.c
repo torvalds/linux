@@ -634,6 +634,13 @@ rpc_call_setup(struct rpc_task *task, const struct rpc_message *msg, int flags)
 }
 EXPORT_SYMBOL_GPL(rpc_call_setup);
 
+void
+rpc_call_start(struct rpc_task *task)
+{
+	task->tk_action = call_start;
+}
+EXPORT_SYMBOL_GPL(rpc_call_start);
+
 /**
  * rpc_peeraddr - extract remote peer address from clnt's xprt
  * @clnt: RPC client structure
