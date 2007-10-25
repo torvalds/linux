@@ -287,7 +287,7 @@ config ES7000_CLUSTERED_APIC
 	default y
 	depends on SMP && X86_ES7000 && MPENTIUMIII
 
-source "arch/i386/Kconfig.cpu"
+source "arch/x86/Kconfig.cpu"
 
 config HPET_TIMER
 	bool "HPET Timer Support"
