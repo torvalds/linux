@@ -133,7 +133,7 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 {
 	int error = 0;
 	struct snapshot_data *data;
-	loff_t avail;
+	loff_t size;
 	sector_t offset;
 
 	if (_IOC_TYPE(cmd) != SNAPSHOT_IOC_MAGIC)
@@ -210,10 +210,20 @@ static int snapshot_ioctl(struct inode *inode, struct file *filp,
 		image_size = arg;
 		break;
 
+	case SNAPSHOT_GET_IMAGE_SIZE:
+		if (!data->ready) {
+			error = -ENODATA;
+			break;
+		}
+		size = snapshot_get_image_size();
+		size <<= PAGE_SHIFT;
+		error = put_user(size, (loff_t __user *)arg);
+		break;
+
 	case SNAPSHOT_AVAIL_SWAP:
-		avail = count_swap_pages(data->swap, 1);
-		avail <<= PAGE_SHIFT;
-		error = put_user(avail, (loff_t __user *)arg);
+		size = count_swap_pages(data->swap, 1);
+		size <<= PAGE_SHIFT;
+		error = put_user(size, (loff_t __user *)arg);
 		break;
 
 	case SNAPSHOT_GET_SWAP_PAGE:

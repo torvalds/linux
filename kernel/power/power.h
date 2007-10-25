@@ -128,6 +128,7 @@ struct snapshot_handle {
 #define data_of(handle)	((handle).buffer + (handle).buf_offset)
 
 extern unsigned int snapshot_additional_pages(struct zone *zone);
+extern unsigned long snapshot_get_image_size(void);
 extern int snapshot_read_next(struct snapshot_handle *handle, size_t count);
 extern int snapshot_write_next(struct snapshot_handle *handle, size_t count);
 extern void snapshot_write_finalize(struct snapshot_handle *handle);
@@ -158,7 +159,8 @@ struct resume_swap_area {
 #define SNAPSHOT_PMOPS			_IOW(SNAPSHOT_IOC_MAGIC, 12, unsigned int)
 #define SNAPSHOT_SET_SWAP_AREA		_IOW(SNAPSHOT_IOC_MAGIC, 13, \
 							struct resume_swap_area)
-#define SNAPSHOT_IOC_MAXNR	13
+#define SNAPSHOT_GET_IMAGE_SIZE		_IOR(SNAPSHOT_IOC_MAGIC, 14, loff_t)
+#define SNAPSHOT_IOC_MAXNR	14
 
 #define PMOPS_PREPARE	1
 #define PMOPS_ENTER	2

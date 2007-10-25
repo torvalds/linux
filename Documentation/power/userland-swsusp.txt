@@ -54,6 +54,8 @@ SNAPSHOT_SET_IMAGE_SIZE - set the preferred maximum size of the image
 	this number, but if it turns out to be impossible, the kernel will
 	create the smallest image possible)
 
+SNAPSHOT_GET_IMAGE_SIZE - return the actual size of the hibernation image
+
 SNAPSHOT_AVAIL_SWAP - return the amount of available swap in bytes (the last
 	argument should be a pointer to an unsigned int variable that will
 	contain the result if the call is successful).
@@ -136,13 +138,9 @@ required, as they can use, for example, a special (blank) suspend partition or
 a file on a partition that is unmounted before SNAPSHOT_ATOMIC_SNAPSHOT and
 mounted afterwards.
 
-These utilities SHOULD NOT make any assumptions regarding the ordering of
-data within the snapshot image, except for the image header that MAY be
-assumed to start with an swsusp_info structure, as specified in
-kernel/power/power.h.  This structure MAY be used by the userland utilities
-to obtain some information about the snapshot image, such as the size
-of the snapshot image, including the metadata and the header itself,
-contained in the .size member of swsusp_info.
+These utilities MUST NOT make any assumptions regarding the ordering of
+data within the snapshot image.  The contents of the image are entirely owned
+by the kernel and its structure may be changed in future kernel releases.
 
 The snapshot image MUST be written to the kernel unaltered (ie. all of the image
 data, metadata and header MUST be written in _exactly_ the same amount, form

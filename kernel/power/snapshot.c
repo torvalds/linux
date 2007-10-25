@@ -1264,12 +1264,17 @@ static char *check_image_kernel(struct swsusp_info *info)
 }
 #endif /* CONFIG_ARCH_HIBERNATION_HEADER */
 
+unsigned long snapshot_get_image_size(void)
+{
+	return nr_copy_pages + nr_meta_pages + 1;
+}
+
 static int init_header(struct swsusp_info *info)
 {
 	memset(info, 0, sizeof(struct swsusp_info));
 	info->num_physpages = num_physpages;
 	info->image_pages = nr_copy_pages;
-	info->pages = nr_copy_pages + nr_meta_pages + 1;
+	info->pages = snapshot_get_image_size();
 	info->size = info->pages;
 	info->size <<= PAGE_SHIFT;
 	return init_header_complete(info);
