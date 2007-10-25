@@ -17,6 +17,8 @@
 #ifndef BOOT_BOOT_H
 #define BOOT_BOOT_H
 
+#define STACK_SIZE	512	/* Minimum number of bytes for stack */
+
 #ifndef __ASSEMBLY__
 
 #include <stdarg.h>
@@ -198,8 +200,6 @@ static inline int isdigit(int ch)
 }
 
 /* Heap -- available for dynamic lists. */
-#define STACK_SIZE	512	/* Minimum number of bytes for stack */
-
 extern char _end[];
 extern char *HEAP;
 extern char *heap_end;
