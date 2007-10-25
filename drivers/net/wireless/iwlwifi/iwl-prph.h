@@ -236,7 +236,6 @@
 #define ALM_SCD_SBYP_MODE_1_REG             (ALM_SCD_BASE + 0x02C)
 #define ALM_SCD_SBYP_MODE_2_REG             (ALM_SCD_BASE + 0x030)
 
-
 /* 4965 SCD memory mapped registers */
 #define KDR_SCD_BASE		(PRPH_BASE + 0xa02c00)
 
@@ -266,5 +265,16 @@
 #define KDR_SCD_INTERRUPT_THRESHOLD    (KDR_SCD_BASE + 0xe8)
 #define KDR_SCD_QUERY_MIN_FRAME_SIZE   (KDR_SCD_BASE + 0x100)
 #define KDR_SCD_QUEUE_STATUS_BITS(x)   (KDR_SCD_BASE + 0x104 + (x) * 4)
+
+/* SP SCD */
+#define SHL_SCD_BASE			(PRPH_BASE + 0xa02c00)
+
+#define SHL_SCD_AIT                    (SHL_SCD_BASE + 0x0c)
+#define SHL_SCD_TXFACT                 (SHL_SCD_BASE + 0x10)
+#define SHL_SCD_QUEUE_WRPTR(x)         (SHL_SCD_BASE + 0x18 + (x) * 4)
+#define SHL_SCD_QUEUE_RDPTR(x)         (SHL_SCD_BASE + 0x68 + (x) * 4)
+#define SHL_SCD_QUEUECHAIN_SEL         (SHL_SCD_BASE + 0xe8)
+#define SHL_SCD_AGGR_SEL	       (SHL_SCD_BASE + 0x248)
+#define SHL_SCD_INTERRUPT_MASK         (SHL_SCD_BASE + 0x108)
 
 #endif				/* __iwl_prph_h__ */
