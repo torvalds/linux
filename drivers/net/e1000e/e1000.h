@@ -123,6 +123,8 @@ struct e1000_buffer {
 		};
 		/* RX */
 		struct page *page;
+		/* arrays of page information for packet split */
+		struct e1000_ps_page *ps_pages;
 	};
 
 };
@@ -142,8 +144,6 @@ struct e1000_ring {
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
 
-	/* arrays of page information for packet split */
-	struct e1000_ps_page *ps_pages;
 	struct sk_buff *rx_skb_top;
 
 	struct e1000_queue_stats stats;
