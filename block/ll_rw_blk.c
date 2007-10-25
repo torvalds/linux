@@ -791,7 +791,6 @@ static int __blk_free_tags(struct blk_queue_tag *bqt)
 	retval = atomic_dec_and_test(&bqt->refcnt);
 	if (retval) {
 		BUG_ON(bqt->busy);
-		BUG_ON(!list_empty(&bqt->busy_list));
 
 		kfree(bqt->tag_index);
 		bqt->tag_index = NULL;
@@ -903,7 +902,6 @@ static struct blk_queue_tag *__blk_queue_init_tags(struct request_queue *q,
 	if (init_tag_map(q, tags, depth))
 		goto fail;
 
-	INIT_LIST_HEAD(&tags->busy_list);
 	tags->busy = 0;
 	atomic_set(&tags->refcnt, 1);
 	return tags;
@@ -954,6 +952,7 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 	 */
 	q->queue_tags = tags;
 	q->queue_flags |= (1 << QUEUE_FLAG_QUEUED);
+	INIT_LIST_HEAD(&q->tag_busy_list);
 	return 0;
 fail:
 	kfree(tags);
@@ -1122,7 +1121,7 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 	rq->tag = tag;
 	bqt->tag_index[tag] = rq;
 	blkdev_dequeue_request(rq);
-	list_add(&rq->queuelist, &bqt->busy_list);
+	list_add(&rq->queuelist, &q->tag_busy_list);
 	bqt->busy++;
 	return 0;
 }
@@ -1143,11 +1142,10 @@ EXPORT_SYMBOL(blk_queue_start_tag);
  **/
 void blk_queue_invalidate_tags(struct request_queue *q)
 {
-	struct blk_queue_tag *bqt = q->queue_tags;
 	struct list_head *tmp, *n;
 	struct request *rq;
 
-	list_for_each_safe(tmp, n, &bqt->busy_list) {
+	list_for_each_safe(tmp, n, &q->tag_busy_list) {
 		rq = list_entry_rq(tmp);
 
 		if (rq->tag == -1) {
