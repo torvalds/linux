@@ -155,6 +155,33 @@ static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
 
 
 /*------------------------------------------------------------------------*/
+/* Hauppauge PVR-USB2 Model 75xxx */
+
+static const char *pvr2_client_75xxx[] = {
+	"cx25840",
+	"tuner",
+};
+
+static const char *pvr2_fw1_names_75xxx[] = {
+		"v4l-pvrusb2-73xxx-01.fw",
+};
+
+static const struct pvr2_device_desc pvr2_device_75xxx = {
+		.description = "WinTV PVR USB2 Model Category 75xxxx",
+		.shortname = "75xxx",
+		.client_modules.lst = pvr2_client_75xxx,
+		.client_modules.cnt = ARRAY_SIZE(pvr2_client_75xxx),
+		.fx2_firmware.lst = pvr2_fw1_names_75xxx,
+		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_75xxx),
+		.flag_has_cx25840 = !0,
+		.flag_has_hauppauge_rom = !0,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+		.default_std_mask = V4L2_STD_NTSC_M,
+};
+
+
+
+/*------------------------------------------------------------------------*/
 
 struct usb_device_id pvr2_device_table[] = {
 	{ USB_DEVICE(0x2040, 0x2900),
@@ -171,6 +198,8 @@ struct usb_device_id pvr2_device_table[] = {
 	{ USB_DEVICE(0x11ba, 0x1001),
 	  .driver_info = (kernel_ulong_t)&pvr2_device_onair_usb2},
 #endif
+	{ USB_DEVICE(0x2040, 0x7500),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_75xxx},
 	{ }
 };
 
