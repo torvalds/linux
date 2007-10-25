@@ -334,8 +334,6 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 	sprintf(devpath_string, "DEVPATH_OLD=%s", devpath);
 	envp[0] = devpath_string;
 	envp[1] = NULL;
-	/* Note : if we want to send the new name alone, not the full path,
-	 * we could probably use kobject_name(kobj); */
 
 	error = sysfs_rename_dir(kobj, new_name);
 
