@@ -118,7 +118,7 @@ int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
 	kaddr = kmap(page);
-	btrfs_csum_file_block(trans, root, inode->i_ino,
+	btrfs_csum_file_block(trans, root, inode, inode->i_ino,
 			      start, kaddr + offset, end - start + 1);
 	kunmap(page);
 	ret = btrfs_end_transaction(trans, root);

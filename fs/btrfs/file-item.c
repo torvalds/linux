@@ -133,17 +133,22 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 
 int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
+			  struct inode *inode,
 			  u64 objectid, u64 offset,
 			  char *data, size_t len)
 {
 	int ret;
 	struct btrfs_key file_key;
 	struct btrfs_key found_key;
+	u64 next_offset = (u64)-1;
+	int found_next = 0;
 	struct btrfs_path *path;
 	struct btrfs_csum_item *item;
 	struct extent_buffer *leaf = NULL;
 	u64 csum_offset;
 	u32 csum_result = ~(u32)0;
+	u32 nritems;
+	u32 ins_size;
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -168,7 +173,27 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 			goto insert;
 		}
 	} else {
+		int slot = path->slots[0] + 1;
 		/* we didn't find a csum item, insert one */
+		nritems = btrfs_header_nritems(path->nodes[0]);
+		if (path->slots[0] >= nritems - 1) {
+			ret = btrfs_next_leaf(root, path);
+			if (ret == 1) {
+				found_next = 1;
+			} else if (ret == 0) {
+				slot = 0;
+			} else {
+				goto insert;
+			}
+		}
+		btrfs_item_key_to_cpu(path->nodes[0], &found_key, slot);
+		if (found_key.objectid != objectid ||
+		    found_key.type != BTRFS_CSUM_ITEM_KEY) {
+			found_next = 1;
+			goto insert;
+		}
+		next_offset = found_key.offset;
+		found_next = 1;
 		goto insert;
 	}
 
@@ -211,8 +236,18 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 insert:
 	btrfs_release_path(root, path);
 	csum_offset = 0;
+	if (found_next) {
+		u64 tmp = min((u64)i_size_read(inode), next_offset);
+		tmp -= offset + root->sectorsize - 1;
+		tmp >>= root->fs_info->sb->s_blocksize_bits;
+		tmp = max((u64)1, tmp);
+		tmp = min(tmp, (u64)MAX_CSUM_ITEMS(root));
+		ins_size = BTRFS_CRC32_SIZE * tmp;
+	} else {
+		ins_size = BTRFS_CRC32_SIZE;
+	}
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
-				      BTRFS_CRC32_SIZE);
+				      ins_size);
 	if (ret < 0)
 		goto fail;
 	if (ret != 0) {
