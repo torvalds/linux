@@ -737,7 +737,6 @@ void rpc_execute(struct rpc_task *task)
 	rpc_set_running(task);
 	__rpc_execute(task);
 }
-EXPORT_SYMBOL_GPL(rpc_execute);
 
 static void rpc_async_schedule(struct work_struct *work)
 {
@@ -815,7 +814,7 @@ EXPORT_SYMBOL_GPL(rpc_free);
 /*
  * Creation and deletion of RPC task structures
  */
-void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setup_data)
+static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setup_data)
 {
 	memset(task, 0, sizeof(*task));
 	setup_timer(&task->tk_timer, (void (*)(unsigned long))rpc_run_timer,
@@ -865,7 +864,6 @@ void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *task_setu
 	dprintk("RPC:       new task initialized, procpid %u\n",
 				task_pid_nr(current));
 }
-EXPORT_SYMBOL_GPL(rpc_init_task);
 
 static struct rpc_task *
 rpc_alloc_task(void)
