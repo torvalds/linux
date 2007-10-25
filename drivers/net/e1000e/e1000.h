@@ -122,7 +122,6 @@ struct e1000_buffer {
 			u16 next_to_watch;
 		};
 		/* RX */
-		struct page *page;
 		/* arrays of page information for packet split */
 		struct e1000_ps_page *ps_pages;
 	};
