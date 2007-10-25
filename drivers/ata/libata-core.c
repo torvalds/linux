@@ -5630,6 +5630,10 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 			ehi->dev_action[dev->devno] |= ATA_EH_REVALIDATE;
 			ata_port_schedule_eh(ap);
 			break;
+
+		case ATA_CMD_SLEEP:
+			dev->flags |= ATA_DFLAG_SLEEPING;
+			break;
 		}
 
 		__ata_qc_complete(qc);
@@ -5767,6 +5771,14 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		}
 	} else {
 		qc->flags &= ~ATA_QCFLAG_DMAMAP;
+	}
+
+	/* if device is sleeping, schedule softreset and abort the link */
+	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
+		link->eh_info.action |= ATA_EH_SOFTRESET;
+		ata_ehi_push_desc(&link->eh_info, "waking up from sleep");
+		ata_link_abort(link);
+		return;
 	}
 
 	ap->ops->qc_prep(qc);
