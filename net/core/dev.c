@@ -120,6 +120,8 @@
 #include <linux/ctype.h>
 #include <linux/if_arp.h>
 
+#include "net-sysfs.h"
+
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -248,10 +250,6 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
  */
 
 DEFINE_PER_CPU(struct softnet_data, softnet_data);
-
-extern int netdev_kobject_init(void);
-extern int netdev_register_kobject(struct net_device *);
-extern void netdev_unregister_kobject(struct net_device *);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /*
@@ -1007,17 +1005,20 @@ int dev_open(struct net_device *dev)
 	 *	Call device private open method
 	 */
 	set_bit(__LINK_STATE_START, &dev->state);
-	if (dev->open) {
+
+	if (dev->validate_addr)
+		ret = dev->validate_addr(dev);
+
+	if (!ret && dev->open)
 		ret = dev->open(dev);
-		if (ret)
-			clear_bit(__LINK_STATE_START, &dev->state);
-	}
 
 	/*
 	 *	If it went open OK then:
 	 */
 
-	if (!ret) {
+	if (ret)
+		clear_bit(__LINK_STATE_START, &dev->state);
+	else {
 		/*
 		 *	Set the flags.
 		 */
@@ -1038,6 +1039,7 @@ int dev_open(struct net_device *dev)
 		 */
 		call_netdevice_notifiers(NETDEV_UP, dev);
 	}
+
 	return ret;
 }
 

@@ -3909,7 +3909,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 
 	while (before(start, end)) {
 		struct sk_buff *nskb;
-		int header = skb_headroom(skb);
+		unsigned int header = skb_headroom(skb);
 		int copy = SKB_MAX_ORDER(header, 0);
 
 		/* Too big header? This can happen with IPv6. */

@@ -142,8 +142,6 @@ typedef u64 flow_compare_t;
 typedef u32 flow_compare_t;
 #endif
 
-extern void flowi_is_missized(void);
-
 /* I hear what you're saying, use memcmp.  But memcmp cannot make
  * important assumptions that we can here, such as alignment and
  * constant size.
@@ -153,8 +151,7 @@ static int flow_key_compare(struct flowi *key1, struct flowi *key2)
 	flow_compare_t *k1, *k1_lim, *k2;
 	const int n_elem = sizeof(struct flowi) / sizeof(flow_compare_t);
 
-	if (sizeof(struct flowi) % sizeof(flow_compare_t))
-		flowi_is_missized();
+	BUILD_BUG_ON(sizeof(struct flowi) % sizeof(flow_compare_t));
 
 	k1 = (flow_compare_t *) key1;
 	k1_lim = k1 + n_elem;

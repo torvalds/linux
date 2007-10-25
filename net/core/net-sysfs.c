@@ -18,6 +18,8 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 
+#include "net-sysfs.h"
+
 #ifdef CONFIG_SYSFS
 static const char fmt_hex[] = "%#x\n";
 static const char fmt_long_hex[] = "%#lx\n";

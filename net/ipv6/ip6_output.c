@@ -171,7 +171,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	u32 mtu;
 
 	if (opt) {
-		int head_room;
+		unsigned int head_room;
 
 		/* First: exthdrs may take lots of space (~8K for now)
 		   MAX_HEADER is not enough.

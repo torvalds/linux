@@ -79,12 +79,10 @@ static char version[] __devinitdata = "rrunner.c: v0.50 11/11/2002  Jes Sorensen
  */
 
 /*
- * These are checked at init time to see if they are at least 256KB
- * and increased to 256KB if they are not. This is done to avoid ending
- * up with socket buffers smaller than the MTU size,
+ * sysctl_[wr]mem_max are checked at init time to see if they are at
+ * least 256KB and increased to 256KB if they are not. This is done to
+ * avoid ending up with socket buffers smaller than the MTU size,
  */
-extern __u32 sysctl_wmem_max;
-extern __u32 sysctl_rmem_max;
 
 static int __devinit rr_init_one(struct pci_dev *pdev,
 	const struct pci_device_id *ent)

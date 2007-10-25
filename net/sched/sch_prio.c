@@ -136,7 +136,7 @@ prio_dequeue(struct Qdisc* sch)
 		 * pulling an skb.  This way we avoid excessive requeues
 		 * for slower queues.
 		 */
-		if (!netif_subqueue_stopped(sch->dev, (q->mq ? prio : 0))) {
+		if (!__netif_subqueue_stopped(sch->dev, (q->mq ? prio : 0))) {
 			qdisc = q->queues[prio];
 			skb = qdisc->dequeue(qdisc);
 			if (skb) {
@@ -165,7 +165,7 @@ static struct sk_buff *rr_dequeue(struct Qdisc* sch)
 		 * for slower queues.  If the queue is stopped, try the
 		 * next queue.
 		 */
-		if (!netif_subqueue_stopped(sch->dev,
+		if (!__netif_subqueue_stopped(sch->dev,
 					    (q->mq ? q->curband : 0))) {
 			qdisc = q->queues[q->curband];
 			skb = qdisc->dequeue(qdisc);

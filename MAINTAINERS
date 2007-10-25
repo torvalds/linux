@@ -4148,6 +4148,12 @@ W:	http://linuxtv.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/mchehab/v4l-dvb.git
 S:	Maintained
 
+VLAN (802.1Q)
+P:	Patrick McHardy
+M:	kaber@trash.net
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 VT1211 HARDWARE MONITOR DRIVER
 P:	Juerg Haefliger
 M:	juergh@gmail.com
