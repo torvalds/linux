@@ -183,7 +183,6 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	if (level == 0) {
 		goto out;
 	}
-
 	if (root->defrag_progress.objectid == 0) {
 		extent_buffer_get(root->node);
 		ret = btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);

@@ -161,34 +161,6 @@ static int close_blocks(u64 blocknr, u64 other, u32 blocksize)
 	return 0;
 }
 
-static int should_defrag_leaf(struct extent_buffer *leaf)
-{
-	struct btrfs_key key;
-	u32 nritems;
-
-	if (btrfs_buffer_defrag(leaf))
-		return 1;
-
-	nritems = btrfs_header_nritems(leaf);
-	if (nritems == 0)
-		return 0;
-
-	btrfs_item_key_to_cpu(leaf, &key, 0);
-	if (key.type == BTRFS_DIR_ITEM_KEY)
-		return 1;
-
-
-	btrfs_item_key_to_cpu(leaf, &key, nritems - 1);
-	if (key.type == BTRFS_DIR_ITEM_KEY)
-		return 1;
-	if (nritems > 4) {
-		btrfs_item_key_to_cpu(leaf, &key, nritems / 2);
-		if (key.type == BTRFS_DIR_ITEM_KEY)
-			return 1;
-	}
-	return 0;
-}
-
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct extent_buffer *parent,
 		       int start_slot, int cache_only, u64 *last_ret,
@@ -208,6 +180,10 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	int uptodate;
 	u32 blocksize;
 
+	parent_level = btrfs_header_level(parent);
+	if (cache_only && parent_level != 1)
+		return 0;
+
 	if (trans->transaction != root->fs_info->running_transaction) {
 		printk(KERN_CRIT "trans %Lu running %Lu\n", trans->transid,
 		       root->fs_info->running_transaction->transid);
@@ -218,7 +194,6 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       root->fs_info->generation);
 		WARN_ON(1);
 	}
-	parent_level = btrfs_header_level(parent);
 
 	parent_nritems = btrfs_header_nritems(parent);
 	blocksize = btrfs_level_size(root, parent_level - 1);
@@ -227,27 +202,26 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	if (parent_nritems == 1)
 		return 0;
 
-	if (root != root->fs_info->extent_root) {
-		struct btrfs_key first_key;
-		struct btrfs_key last_key;
-
-		btrfs_node_key_to_cpu(parent, &first_key, 0);
-		btrfs_node_key_to_cpu(parent, &last_key, parent_nritems - 1);
-		if (first_key.objectid != last_key.objectid)
-			return 0;
-	}
-
 	for (i = start_slot; i < end_slot; i++) {
 		int close = 1;
 
+		if (!parent->map_token) {
+			map_extent_buffer(parent,
+					btrfs_node_key_ptr_offset(i),
+					sizeof(struct btrfs_key_ptr),
+					&parent->map_token, &parent->kaddr,
+					&parent->map_start, &parent->map_len,
+					KM_USER1);
+		}
 		blocknr = btrfs_node_blockptr(parent, i);
 		if (last_block == 0)
 			last_block = blocknr;
+
 		if (i > 0) {
 			other = btrfs_node_blockptr(parent, i - 1);
 			close = close_blocks(blocknr, other, blocksize);
 		}
-		if (close && i < end_slot - 1) {
+		if (close && i < end_slot - 2) {
 			other = btrfs_node_blockptr(parent, i + 1);
 			close = close_blocks(blocknr, other, blocksize);
 		}
@@ -255,15 +229,18 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			last_block = blocknr;
 			continue;
 		}
+		if (parent->map_token) {
+			unmap_extent_buffer(parent, parent->map_token,
+					    KM_USER1);
+			parent->map_token = NULL;
+		}
 
 		cur = btrfs_find_tree_block(root, blocknr, blocksize);
 		if (cur)
 			uptodate = btrfs_buffer_uptodate(cur);
 		else
 			uptodate = 0;
-		if (!cur || !uptodate ||
-		    (parent_level != 1 && !btrfs_buffer_defrag(cur)) ||
-		    (parent_level == 1 && !should_defrag_leaf(cur))) {
+		if (!cur || !uptodate) {
 			if (cache_only) {
 				free_extent_buffer(cur);
 				continue;
@@ -287,10 +264,16 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 			break;
 		}
 		search_start = tmp->start;
+		last_block = tmp->start;
 		*last_ret = search_start;
 		if (parent_level == 1)
 			btrfs_clear_buffer_defrag(tmp);
 		free_extent_buffer(tmp);
+	}
+	if (parent->map_token) {
+		unmap_extent_buffer(parent, parent->map_token,
+				    KM_USER1);
+		parent->map_token = NULL;
 	}
 	return err;
 }
