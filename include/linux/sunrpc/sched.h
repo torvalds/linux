@@ -118,6 +118,7 @@ struct rpc_call_ops {
 };
 
 struct rpc_task_setup {
+	struct rpc_task *task;
 	struct rpc_clnt *rpc_client;
 	const struct rpc_message *rpc_message;
 	const struct rpc_call_ops *callback_ops;

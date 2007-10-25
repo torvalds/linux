@@ -885,16 +885,20 @@ static void rpc_free_task(struct rcu_head *rcu)
  */
 struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 {
-	struct rpc_task	*task;
+	struct rpc_task	*task = setup_data->task;
+	unsigned short flags = 0;
 
-	task = rpc_alloc_task();
-	if (!task)
-		goto out;
+	if (task == NULL) {
+		task = rpc_alloc_task();
+		if (task == NULL)
+			goto out;
+		flags = RPC_TASK_DYNAMIC;
+	}
 
 	rpc_init_task(task, setup_data);
 
+	task->tk_flags |= flags;
 	dprintk("RPC:       allocated task %p\n", task);
-	task->tk_flags |= RPC_TASK_DYNAMIC;
 out:
 	return task;
 }
