@@ -3870,7 +3870,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 			 */
 		case IEEE80211_STYPE_ASSOC_RESP:
 		case IEEE80211_STYPE_REASSOC_RESP:
-			if (network_packet && iwl_is_associated(priv)) {
+			if (network_packet) {
 #ifdef CONFIG_IWLWIFI_HT
 				u8 *pos = NULL;
 				struct ieee802_11_elems elems;
