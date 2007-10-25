@@ -42,6 +42,7 @@
 #include <asm/firmware.h>
 #include <asm/system.h>
 #include <asm/rtas.h>
+#include <asm/cputhreads.h>
 
 #include "interrupt.h"
 #include <asm/udbg.h>
@@ -182,7 +183,7 @@ static int smp_cell_cpu_bootable(unsigned int nr)
 	 */
 	if (system_state < SYSTEM_RUNNING &&
 	    cpu_has_feature(CPU_FTR_SMT) &&
-	    !smt_enabled_at_boot && nr % 2 != 0)
+	    !smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
 		return 0;
 
 	return 1;

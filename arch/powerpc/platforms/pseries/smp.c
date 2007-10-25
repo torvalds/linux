@@ -46,6 +46,7 @@
 #include <asm/pSeries_reconfig.h>
 #include <asm/mpic.h>
 #include <asm/vdso_datapage.h>
+#include <asm/cputhreads.h>
 
 #include "plpar_wrappers.h"
 #include "pseries.h"
@@ -202,7 +203,7 @@ static int smp_pSeries_cpu_bootable(unsigned int nr)
 	 */
 	if (system_state < SYSTEM_RUNNING &&
 	    cpu_has_feature(CPU_FTR_SMT) &&
-	    !smt_enabled_at_boot && nr % 2 != 0)
+	    !smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
 		return 0;
 
 	return 1;
