@@ -1749,14 +1749,14 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
 }
 
 /**
- * iwl_hw_txq_free_tfd -  Free one TFD, those at index [txq->q.last_used]
+ * iwl_hw_txq_free_tfd -  Free one TFD, those at index [txq->q.read_ptr]
  *
  * Does NOT advance any indexes
  */
 int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl_tfd_frame *bd_tmp = (struct iwl_tfd_frame *)&txq->bd[0];
-	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.last_used];
+	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
 	struct pci_dev *dev = priv->pci_dev;
 	int i;
 	int counter = 0;
@@ -1796,11 +1796,11 @@ int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 					 IWL_GET_BITS(bd->pa[index], tb1_len),
 					 PCI_DMA_TODEVICE);
 
-		if (txq->txb[txq->q.last_used].skb[i]) {
-			struct sk_buff *skb = txq->txb[txq->q.last_used].skb[i];
+		if (txq->txb[txq->q.read_ptr].skb[i]) {
+			struct sk_buff *skb = txq->txb[txq->q.read_ptr].skb[i];
 
 			dev_kfree_skb(skb);
-			txq->txb[txq->q.last_used].skb[i] = NULL;
+			txq->txb[txq->q.read_ptr].skb[i] = NULL;
 		}
 	}
 	return 0;
@@ -2776,11 +2776,11 @@ int iwl4965_tx_queue_update_wr_ptr(struct iwl_priv *priv,
 	len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 
 	IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
-		       tfd_offset[txq->q.first_empty], byte_cnt, len);
+		       tfd_offset[txq->q.write_ptr], byte_cnt, len);
 
-	if (txq->q.first_empty < IWL4965_MAX_WIN_SIZE)
+	if (txq->q.write_ptr < IWL4965_MAX_WIN_SIZE)
 		IWL_SET_BITS16(shared_data->queues_byte_cnt_tbls[txq_id].
-			tfd_offset[IWL4965_QUEUE_SIZE + txq->q.first_empty],
+			tfd_offset[IWL4965_QUEUE_SIZE + txq->q.write_ptr],
 			byte_cnt, len);
 
 	return 0;
@@ -4134,7 +4134,7 @@ static void iwl4965_rx_reply_compressed_ba(struct iwl_priv *priv,
 */
 	iwl4965_tx_status_reply_compressed_ba(priv, agg, ba_resp);
 	/* releases all the TFDs until the SSN */
-	if (txq->q.last_used != (ba_resp_scd_ssn & 0xff))
+	if (txq->q.read_ptr != (ba_resp_scd_ssn & 0xff))
 		iwl_tx_queue_reclaim(priv, ba_resp_scd_flow, index);
 
 }
@@ -4205,8 +4205,8 @@ static int iwl4965_tx_queue_agg_enable(struct iwl_priv *priv, int txq_id,
 
 	iwl_set_bits_restricted_reg(priv, SCD_QUEUECHAIN_SEL, (1<<txq_id));
 
-	priv->txq[txq_id].q.last_used = (ssn_idx & 0xff);
-	priv->txq[txq_id].q.first_empty = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwl4965_set_wr_ptrs(priv, txq_id, ssn_idx);
@@ -4257,8 +4257,8 @@ static int iwl4965_tx_queue_agg_disable(struct iwl_priv *priv, u16 txq_id,
 
 	iwl_clear_bits_restricted_reg(priv, SCD_QUEUECHAIN_SEL, (1 << txq_id));
 
-	priv->txq[txq_id].q.last_used = (ssn_idx & 0xff);
-	priv->txq[txq_id].q.first_empty = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.read_ptr = (ssn_idx & 0xff);
+	priv->txq[txq_id].q.write_ptr = (ssn_idx & 0xff);
 	/* supposes that ssn_idx is valid (!= 0xFFF) */
 	iwl4965_set_wr_ptrs(priv, txq_id, ssn_idx);
 

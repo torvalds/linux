@@ -144,8 +144,8 @@ struct iwl_rt_tx_hdr {
  */
 struct iwl_queue {
 	int n_bd;              /* number of BDs in this queue */
-	int first_empty;       /* 1-st empty entry (index) host_w*/
-	int last_used;         /* last used entry (index) host_r*/
+	int write_ptr;       /* 1-st empty entry (index) host_w*/
+	int read_ptr;         /* last used entry (index) host_r*/
 	dma_addr_t dma_addr;   /* physical addr for BD's */
 	int n_window;	       /* safe queue window */
 	u32 id;

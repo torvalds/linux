@@ -209,9 +209,9 @@ static void iwl_print_hex_dump(int level, void *p, u32 len)
 
 static int iwl_queue_space(const struct iwl_queue *q)
 {
-	int s = q->last_used - q->first_empty;
+	int s = q->read_ptr - q->write_ptr;
 
-	if (q->last_used > q->first_empty)
+	if (q->read_ptr > q->write_ptr)
 		s -= q->n_bd;
 
 	if (s <= 0)
@@ -237,9 +237,9 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 
 static inline int x2_queue_used(const struct iwl_queue *q, int i)
 {
-	return q->first_empty > q->last_used ?
-		(i >= q->last_used && i < q->first_empty) :
-		!(i < q->last_used && i >= q->first_empty);
+	return q->write_ptr > q->read_ptr ?
+		(i >= q->read_ptr && i < q->write_ptr) :
+		!(i < q->read_ptr && i >= q->write_ptr);
 }
 
 static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
@@ -273,7 +273,7 @@ static int iwl_queue_init(struct iwl_priv *priv, struct iwl_queue *q,
 	if (q->high_mark < 2)
 		q->high_mark = 2;
 
-	q->first_empty = q->last_used = 0;
+	q->write_ptr = q->read_ptr = 0;
 
 	return 0;
 }
@@ -369,8 +369,8 @@ void iwl_tx_queue_free(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 		return;
 
 	/* first, empty all BD's */
-	for (; q->first_empty != q->last_used;
-	     q->last_used = iwl_queue_inc_wrap(q->last_used, q->n_bd))
+	for (; q->write_ptr != q->read_ptr;
+	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd))
 		iwl_hw_txq_free_tfd(priv, txq);
 
 	len = sizeof(struct iwl_cmd) * q->n_window;
@@ -649,12 +649,12 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	spin_lock_irqsave(&priv->hcmd_lock, flags);
 
-	tfd = &txq->bd[q->first_empty];
+	tfd = &txq->bd[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
 
 	control_flags = (u32 *) tfd;
 
-	idx = get_cmd_index(q, q->first_empty, cmd->meta.flags & CMD_SIZE_HUGE);
+	idx = get_cmd_index(q, q->write_ptr, cmd->meta.flags & CMD_SIZE_HUGE);
 	out_cmd = &txq->cmd[idx];
 
 	out_cmd->hdr.cmd = cmd->id;
@@ -666,7 +666,7 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	out_cmd->hdr.flags = 0;
 	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(IWL_CMD_QUEUE_NUM) |
-			INDEX_TO_SEQ(q->first_empty));
+			INDEX_TO_SEQ(q->write_ptr));
 	if (out_cmd->meta.flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= cpu_to_le16(SEQ_HUGE_FRAME);
 
@@ -682,10 +682,10 @@ static int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		     "%d bytes at %d[%d]:%d\n",
 		     get_cmd_string(out_cmd->hdr.cmd),
 		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
-		     fix_size, q->first_empty, idx, IWL_CMD_QUEUE_NUM);
+		     fix_size, q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
 
 	txq->need_update = 1;
-	q->first_empty = iwl_queue_inc_wrap(q->first_empty, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	ret = iwl_tx_queue_update_write_ptr(priv, txq);
 
 	spin_unlock_irqrestore(&priv->hcmd_lock, flags);
@@ -2799,21 +2799,21 @@ static int iwl_tx_skb(struct iwl_priv *priv,
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	tfd = &txq->bd[q->first_empty];
+	tfd = &txq->bd[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
 	control_flags = (u32 *) tfd;
-	idx = get_cmd_index(q, q->first_empty, 0);
+	idx = get_cmd_index(q, q->write_ptr, 0);
 
-	memset(&(txq->txb[q->first_empty]), 0, sizeof(struct iwl_tx_info));
-	txq->txb[q->first_empty].skb[0] = skb;
-	memcpy(&(txq->txb[q->first_empty].status.control),
+	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
+	txq->txb[q->write_ptr].skb[0] = skb;
+	memcpy(&(txq->txb[q->write_ptr].status.control),
 	       ctl, sizeof(struct ieee80211_tx_control));
 	out_cmd = &txq->cmd[idx];
 	memset(&out_cmd->hdr, 0, sizeof(out_cmd->hdr));
 	memset(&out_cmd->cmd.tx, 0, sizeof(out_cmd->cmd.tx));
 	out_cmd->hdr.cmd = REPLY_TX;
 	out_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
-				INDEX_TO_SEQ(q->first_empty)));
+				INDEX_TO_SEQ(q->write_ptr)));
 	/* copy frags header */
 	memcpy(out_cmd->cmd.tx.hdr, hdr, hdr_len);
 
@@ -2881,7 +2881,7 @@ static int iwl_tx_skb(struct iwl_priv *priv,
 	iwl_print_hex_dump(IWL_DL_TX, (u8 *)out_cmd->cmd.tx.hdr,
 			   ieee80211_get_hdrlen(fc));
 
-	q->first_empty = iwl_queue_inc_wrap(q->first_empty, q->n_bd);
+	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	rc = iwl_tx_queue_update_write_ptr(priv, txq);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -3375,20 +3375,20 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 	if ((index >= q->n_bd) || (x2_queue_used(q, index) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq id (%d), index %d, "
 			  "is out of range [0-%d] %d %d.\n", txq_id,
-			  index, q->n_bd, q->first_empty, q->last_used);
+			  index, q->n_bd, q->write_ptr, q->read_ptr);
 		return 0;
 	}
 
 	for (index = iwl_queue_inc_wrap(index, q->n_bd);
-		q->last_used != index;
-		q->last_used = iwl_queue_inc_wrap(q->last_used, q->n_bd)) {
+		q->read_ptr != index;
+		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 		if (txq_id != IWL_CMD_QUEUE_NUM) {
 			iwl_txstatus_to_ieee(priv,
-					&(txq->txb[txq->q.last_used]));
+					&(txq->txb[txq->q.read_ptr]));
 			iwl_hw_txq_free_tfd(priv, txq);
 		} else if (nfreed > 1) {
 			IWL_ERROR("HCMD skipped: index (%d) %d %d\n", index,
-					q->first_empty, q->last_used);
+					q->write_ptr, q->read_ptr);
 			queue_work(priv->workqueue, &priv->restart);
 		}
 		nfreed++;
@@ -3428,12 +3428,12 @@ static void iwl_rx_reply_tx(struct iwl_priv *priv,
 	if ((index >= txq->q.n_bd) || (x2_queue_used(&txq->q, index) == 0)) {
 		IWL_ERROR("Read index for DMA queue txq_id (%d) index %d "
 			  "is out of range [0-%d] %d %d\n", txq_id,
-			  index, txq->q.n_bd, txq->q.first_empty,
-			  txq->q.last_used);
+			  index, txq->q.n_bd, txq->q.write_ptr,
+			  txq->q.read_ptr);
 		return;
 	}
 
-	tx_status = &(txq->txb[txq->q.last_used].status);
+	tx_status = &(txq->txb[txq->q.read_ptr].status);
 
 	tx_status->retry_count = tx_resp->failure_frame;
 	tx_status->queue_number = status;
@@ -4368,14 +4368,14 @@ int iwl_tx_queue_update_write_ptr(struct iwl_priv *priv,
 		if (rc)
 			return rc;
 		iwl_write_restricted(priv, HBUS_TARG_WRPTR,
-				     txq->q.first_empty | (txq_id << 8));
+				     txq->q.write_ptr | (txq_id << 8));
 		iwl_release_restricted_access(priv);
 
 	/* else not in power-save mode, uCode will never sleep when we're
 	 * trying to tx (during RFKILL, we're not trying to tx). */
 	} else
 		iwl_write32(priv, HBUS_TARG_WRPTR,
-			    txq->q.first_empty | (txq_id << 8));
+			    txq->q.write_ptr | (txq_id << 8));
 
 	txq->need_update = 0;
 

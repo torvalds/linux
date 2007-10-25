@@ -526,14 +526,14 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 }
 
 /**
- * iwl_hw_txq_free_tfd - Free one TFD, those at index [txq->q.last_used]
+ * iwl_hw_txq_free_tfd - Free one TFD, those at index [txq->q.read_ptr]
  *
  * Does NOT advance any indexes
  */
 int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl_tfd_frame *bd_tmp = (struct iwl_tfd_frame *)&txq->bd[0];
-	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.last_used];
+	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
 	struct pci_dev *dev = priv->pci_dev;
 	int i;
 	int counter;
@@ -556,12 +556,12 @@ int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	for (i = 1; i < counter; i++) {
 		pci_unmap_single(dev, le32_to_cpu(bd->pa[i].addr),
 				 le32_to_cpu(bd->pa[i].len), PCI_DMA_TODEVICE);
-		if (txq->txb[txq->q.last_used].skb[0]) {
-			struct sk_buff *skb = txq->txb[txq->q.last_used].skb[0];
-			if (txq->txb[txq->q.last_used].skb[0]) {
+		if (txq->txb[txq->q.read_ptr].skb[0]) {
+			struct sk_buff *skb = txq->txb[txq->q.read_ptr].skb[0];
+			if (txq->txb[txq->q.read_ptr].skb[0]) {
 				/* Can be called from interrupt context */
 				dev_kfree_skb_any(skb);
-				txq->txb[txq->q.last_used].skb[0] = NULL;
+				txq->txb[txq->q.read_ptr].skb[0] = NULL;
 			}
 		}
 	}
