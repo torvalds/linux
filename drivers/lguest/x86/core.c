@@ -562,7 +562,7 @@ void lguest_arch_setup_regs(struct lguest *lg, unsigned long start)
 	 * is supposed to always be "1".  Bit 9 (0x200) controls whether
 	 * interrupts are enabled.  We always leave interrupts enabled while
 	 * running the Guest. */
-	regs->eflags = 0x202;
+	regs->eflags = X86_EFLAGS_IF | 0x2;
 
 	/* The "Extended Instruction Pointer" register says where the Guest is
 	 * running. */

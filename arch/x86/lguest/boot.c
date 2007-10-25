@@ -371,8 +371,7 @@ static void lguest_cpuid(unsigned int *eax, unsigned int *ebx,
 static unsigned long current_cr0, current_cr3;
 static void lguest_write_cr0(unsigned long val)
 {
-	/* 8 == TS bit. */
-	lazy_hcall(LHCALL_TS, val & 8, 0, 0);
+	lazy_hcall(LHCALL_TS, val & X86_CR0_TS, 0, 0);
 	current_cr0 = val;
 }
 
@@ -387,7 +386,7 @@ static unsigned long lguest_read_cr0(void)
 static void lguest_clts(void)
 {
 	lazy_hcall(LHCALL_TS, 0, 0, 0);
-	current_cr0 &= ~8U;
+	current_cr0 &= ~X86_CR0_TS;
 }
 
 /* CR2 is the virtual address of the last page fault, which the Guest only ever
