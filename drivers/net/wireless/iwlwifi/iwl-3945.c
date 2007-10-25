@@ -1147,8 +1147,9 @@ int iwl_hw_nic_reset(struct iwl_priv *priv)
 }
 
 /**
- * iwl_hw_reg_adjust_power_by_temp - return index delta into power gain settings table
- */
+ * iwl_hw_reg_adjust_power_by_temp
+ * return index delta into power gain settings table
+*/
 static int iwl_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
 {
 	return (new_reading - old_reading) * (-11) / 100;
@@ -1168,8 +1169,9 @@ int iwl_hw_get_temperature(struct iwl_priv *priv)
 }
 
 /**
- * iwl_hw_reg_txpower_get_temperature - get current temperature by reading from NIC
- */
+ * iwl_hw_reg_txpower_get_temperature
+ * get the current temperature by reading from NIC
+*/
 static int iwl_hw_reg_txpower_get_temperature(struct iwl_priv *priv)
 {
 	int temperature;
