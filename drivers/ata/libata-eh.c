@@ -2071,7 +2071,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	int try = 0;
 	struct ata_device *dev;
 	unsigned long deadline;
-	unsigned int action;
+	unsigned int tmp_action;
 	ata_reset_fn_t reset;
 	unsigned long flags;
 	int rc;
@@ -2086,14 +2086,14 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/* Determine which reset to use and record in ehc->i.action.
 	 * prereset() may examine and modify it.
 	 */
-	action = ehc->i.action;
-	ehc->i.action &= ~ATA_EH_RESET_MASK;
 	if (softreset && (!hardreset || (!(link->flags & ATA_LFLAG_NO_SRST) &&
 					 !sata_set_spd_needed(link) &&
-					 !(action & ATA_EH_HARDRESET))))
-		ehc->i.action |= ATA_EH_SOFTRESET;
+					 !(ehc->i.action & ATA_EH_HARDRESET))))
+		tmp_action = ATA_EH_SOFTRESET;
 	else
-		ehc->i.action |= ATA_EH_HARDRESET;
+		tmp_action = ATA_EH_HARDRESET;
+
+	ehc->i.action = (ehc->i.action & ~ATA_EH_RESET_MASK) | tmp_action;
 
 	if (prereset) {
 		rc = prereset(link, jiffies + ATA_EH_PRERESET_TIMEOUT);
