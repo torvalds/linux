@@ -228,7 +228,7 @@ unsigned long cal_r4koff(void)
 	return (cpu_speed / HZ);
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
+void __init plat_time_init(void)
 {
 	unsigned int est_freq;
 
