@@ -83,7 +83,7 @@ enum {
 	Opt_actimeo,
 	Opt_namelen,
 	Opt_mountport,
-	Opt_mountprog, Opt_mountvers,
+	Opt_mountvers,
 	Opt_nfsvers,
 
 	/* Mount options that take string arguments */
@@ -137,7 +137,6 @@ static match_table_t nfs_mount_option_tokens = {
 	{ Opt_userspace, "retry=%u" },
 	{ Opt_namelen, "namlen=%u" },
 	{ Opt_mountport, "mountport=%u" },
-	{ Opt_mountprog, "mountprog=%u" },
 	{ Opt_mountvers, "mountvers=%u" },
 	{ Opt_nfsvers, "nfsvers=%u" },
 	{ Opt_nfsvers, "vers=%u" },
@@ -786,13 +785,6 @@ static int nfs_parse_mount_options(char *raw,
 				return 0;
 			mnt->mount_server.port = option;
 			break;
-		case Opt_mountprog:
-			if (match_int(args, &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			mnt->mount_server.program = option;
-			break;
 		case Opt_mountvers:
 			if (match_int(args, &option))
 				return 0;
@@ -1082,7 +1074,6 @@ static int nfs_validate_mount_data(void *options,
 	args->acdirmin		= 30;
 	args->acdirmax		= 60;
 	args->mount_server.protocol = XPRT_TRANSPORT_UDP;
-	args->mount_server.program = NFS_MNT_PROGRAM;
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 
 	switch (data->version) {

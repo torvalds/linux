@@ -52,7 +52,6 @@ struct nfs_parsed_mount_data {
 		struct sockaddr_in	address;
 		char			*hostname;
 		char			*export_path;
-		unsigned int		program;
 		int			protocol;
 	} nfs_server;
 };
