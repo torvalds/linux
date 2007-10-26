@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cy82c693.c		Version 0.41	Aug 27, 2007
+ * linux/drivers/ide/pci/cy82c693.c		Version 0.42	Oct 23, 2007
  *
  *  Copyright (C) 1998-2000 Andreas S. Krebs (akrebs@altavista.net), Maintainer
  *  Copyright (C) 1998-2002 Andre Hedrick <andre@linux-ide.org>, Integrator
@@ -436,10 +436,10 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 	hwif->ide_dma_on = &cy82c693_ide_dma_on;
 }
 
-static __devinitdata ide_hwif_t *primary;
-
 static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 {
+	static ide_hwif_t *primary;
+
 	if (PCI_FUNC(hwif->pci_dev->devfn) == 1)
 		primary = hwif;
 	else {
