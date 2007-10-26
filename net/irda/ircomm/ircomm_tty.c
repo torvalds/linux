@@ -77,7 +77,7 @@ static int ircomm_tty_read_proc(char *buf, char **start, off_t offset, int len,
 #endif /* CONFIG_PROC_FS */
 static struct tty_driver *driver;
 
-hashbin_t *ircomm_tty = NULL;
+static hashbin_t *ircomm_tty = NULL;
 
 static const struct tty_operations ops = {
 	.open            = ircomm_tty_open,
