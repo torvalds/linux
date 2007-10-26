@@ -11,6 +11,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#include <linux/bug.h>
 #include <linux/clockchips.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -115,10 +116,6 @@ EXPORT_SYMBOL(perf_irq);
  *	    (only needed if you intended to use cpu counter as timer interrupt
  *	     source)
  * 2) calculate a couple of cached variables for later usage
- * 3) plat_timer_setup() -
- *	a) (optional) over-write any choices made above by time_init().
- *	b) machine specific code should setup the timer irqaction.
- *	c) enable the timer interrupt
  */
 
 unsigned int mips_hpt_frequency;
@@ -221,8 +218,18 @@ void __init __weak plat_time_init(void)
 {
 }
 
-void __init __weak plat_timer_setup(struct irqaction *irq)
+/*
+ * This function exists in order to cause an error due to a duplicate
+ * definition if platform code should have its own implementation.  The hook
+ * to use instead is plat_time_init.  plat_time_init does not receive the
+ * irqaction pointer argument anymore.  This is because any function which
+ * initializes an interrupt timer now takes care of its own request_irq rsp.
+ * setup_irq calls and each clock_event_device should use its own
+ * struct irqrequest.
+ */
+void __init plat_timer_setup(struct irqaction *irq)
 {
+	BUG();
 }
 
 void __init time_init(void)
