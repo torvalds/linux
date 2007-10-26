@@ -1244,18 +1244,18 @@ static ssize_t read_flush(struct file *file, char __user *buf,
 	struct cache_detail *cd = PDE(file->f_path.dentry->d_inode)->data;
 	char tbuf[20];
 	unsigned long p = *ppos;
-	int len;
+	size_t len;
 
 	sprintf(tbuf, "%lu\n", cd->flush_time);
 	len = strlen(tbuf);
 	if (p >= len)
 		return 0;
 	len -= p;
-	if (len > count) len = count;
+	if (len > count)
+		len = count;
 	if (copy_to_user(buf, (void*)(tbuf+p), len))
-		len = -EFAULT;
-	else
-		*ppos += len;
+		return -EFAULT;
+	*ppos += len;
 	return len;
 }
 
