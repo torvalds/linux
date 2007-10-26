@@ -65,12 +65,12 @@ static struct notifier_block userspace_cpufreq_notifier_block = {
 
 /**
  * cpufreq_set - set the CPU frequency
+ * @policy: pointer to policy struct where freq is being set
  * @freq: target frequency in kHz
- * @cpu: CPU for which the frequency is to be set
  *
  * Sets the CPU frequency to freq.
  */
-static int cpufreq_set(unsigned int freq, struct cpufreq_policy *policy)
+static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 {
 	int ret = -EINVAL;
 
@@ -102,33 +102,10 @@ static int cpufreq_set(unsigned int freq, struct cpufreq_policy *policy)
 }
 
 
-/************************** sysfs interface ************************/
-static ssize_t show_speed (struct cpufreq_policy *policy, char *buf)
+static ssize_t show_speed(struct cpufreq_policy *policy, char *buf)
 {
-	return sprintf (buf, "%u\n", cpu_cur_freq[policy->cpu]);
+	return sprintf(buf, "%u\n", cpu_cur_freq[policy->cpu]);
 }
-
-static ssize_t
-store_speed (struct cpufreq_policy *policy, const char *buf, size_t count)
-{
-	unsigned int freq = 0;
-	unsigned int ret;
-
-	ret = sscanf (buf, "%u", &freq);
-	if (ret != 1)
-		return -EINVAL;
-
-	cpufreq_set(freq, policy);
-
-	return count;
-}
-
-static struct freq_attr freq_attr_scaling_setspeed =
-{
-	.attr = { .name = "scaling_setspeed", .mode = 0644 },
-	.show = show_speed,
-	.store = store_speed,
-};
 
 static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 				   unsigned int event)
@@ -142,10 +119,6 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 			return -EINVAL;
 		BUG_ON(!policy->cur);
 		mutex_lock(&userspace_mutex);
-		rc = sysfs_create_file (&policy->kobj,
-					&freq_attr_scaling_setspeed.attr);
-		if (rc)
-			goto start_out;
 
 		if (cpus_using_userspace_governor == 0) {
 			cpufreq_register_notifier(
@@ -160,7 +133,7 @@ static int cpufreq_governor_userspace(struct cpufreq_policy *policy,
 		cpu_cur_freq[cpu] = policy->cur;
 		cpu_set_freq[cpu] = policy->cur;
 		dprintk("managing cpu %u started (%u - %u kHz, currently %u kHz)\n", cpu, cpu_min_freq[cpu], cpu_max_freq[cpu], cpu_cur_freq[cpu]);
-start_out:
+
 		mutex_unlock(&userspace_mutex);
 		break;
 	case CPUFREQ_GOV_STOP:
@@ -176,7 +149,6 @@ start_out:
 		cpu_min_freq[cpu] = 0;
 		cpu_max_freq[cpu] = 0;
 		cpu_set_freq[cpu] = 0;
-		sysfs_remove_file (&policy->kobj, &freq_attr_scaling_setspeed.attr);
 		dprintk("managing cpu %u stopped\n", cpu);
 		mutex_unlock(&userspace_mutex);
 		break;
@@ -211,6 +183,8 @@ start_out:
 struct cpufreq_governor cpufreq_gov_userspace = {
 	.name		= "userspace",
 	.governor	= cpufreq_governor_userspace,
+	.store_setspeed	= cpufreq_set,
+	.show_setspeed	= show_speed,
 	.owner		= THIS_MODULE,
 };
 EXPORT_SYMBOL(cpufreq_gov_userspace);
