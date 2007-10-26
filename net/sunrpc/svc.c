@@ -364,7 +364,7 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 	   void (*shutdown)(struct svc_serv *serv))
 {
 	struct svc_serv	*serv;
-	int vers;
+	unsigned int vers;
 	unsigned int xdrsize;
 	unsigned int i;
 
@@ -763,7 +763,8 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 {
 	struct svc_program	*progp;
 	unsigned long		flags;
-	int			i, error = 0, dummy;
+	unsigned int		i;
+	int			error = 0, dummy;
 
 	if (!port)
 		clear_thread_flag(TIF_SIGPENDING);
