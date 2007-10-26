@@ -26,7 +26,6 @@
 
 #include <net/inet_connection_sock.h>
 #include <net/inet_sock.h>
-#include <net/route.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 
@@ -264,11 +263,6 @@ static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
 out:
 	if (sk->sk_state == TCP_LISTEN)
 		wake_up(&hashinfo->lhash_wait);
-}
-
-static inline int inet_iif(const struct sk_buff *skb)
-{
-	return ((struct rtable *)skb->dst)->rt_iif;
 }
 
 extern struct sock *__inet_lookup_listener(struct inet_hashinfo *hashinfo,
