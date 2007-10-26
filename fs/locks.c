@@ -683,45 +683,55 @@ posix_test_lock(struct file *filp, struct file_lock *fl)
 
 EXPORT_SYMBOL(posix_test_lock);
 
-/* This function tests for deadlock condition before putting a process to
- * sleep. The detection scheme is no longer recursive. Recursive was neat,
- * but dangerous - we risked stack corruption if the lock data was bad, or
- * if the recursion was too deep for any other reason.
+/*
+ * Deadlock detection:
  *
- * We rely on the fact that a task can only be on one lock's wait queue
- * at a time. When we find blocked_task on a wait queue we can re-search
- * with blocked_task equal to that queue's owner, until either blocked_task
- * isn't found, or blocked_task is found on a queue owned by my_task.
+ * We attempt to detect deadlocks that are due purely to posix file
+ * locks.
  *
- * Note: the above assumption may not be true when handling lock requests
- * from a broken NFS client. But broken NFS clients have a lot more to
- * worry about than proper deadlock detection anyway... --okir
+ * We assume that a task can be waiting for at most one lock at a time.
+ * So for any acquired lock, the process holding that lock may be
+ * waiting on at most one other lock.  That lock in turns may be held by
+ * someone waiting for at most one other lock.  Given a requested lock
+ * caller_fl which is about to wait for a conflicting lock block_fl, we
+ * follow this chain of waiters to ensure we are not about to create a
+ * cycle.
  *
- * However, the failure of this assumption (also possible in the case of
- * multiple tasks sharing the same open file table) also means there's no
- * guarantee that the loop below will terminate.  As a hack, we give up
- * after a few iterations.
+ * Since we do this before we ever put a process to sleep on a lock, we
+ * are ensured that there is never a cycle; that is what guarantees that
+ * the while() loop in posix_locks_deadlock() eventually completes.
+ *
+ * Note: the above assumption may not be true when handling lock
+ * requests from a broken NFS client. It may also fail in the presence
+ * of tasks (such as posix threads) sharing the same open file table.
+ *
+ * To handle those cases, we just bail out after a few iterations.
  */
 
 #define MAX_DEADLK_ITERATIONS 10
 
+/* Find a lock that the owner of the given block_fl is blocking on. */
+static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
+{
+	struct file_lock *fl;
+
+	list_for_each_entry(fl, &blocked_list, fl_link) {
+		if (posix_same_owner(fl, block_fl))
+			return fl->fl_next;
+	}
+	return NULL;
+}
+
 static int posix_locks_deadlock(struct file_lock *caller_fl,
 				struct file_lock *block_fl)
 {
-	struct file_lock *fl;
 	int i = 0;
 
-next_task:
-	if (posix_same_owner(caller_fl, block_fl))
-		return 1;
-	list_for_each_entry(fl, &blocked_list, fl_link) {
-		if (posix_same_owner(fl, block_fl)) {
-			if (i++ > MAX_DEADLK_ITERATIONS)
-				return 0;
-			fl = fl->fl_next;
-			block_fl = fl;
-			goto next_task;
-		}
+	while ((block_fl = what_owner_is_waiting_for(block_fl))) {
+		if (i++ > MAX_DEADLK_ITERATIONS)
+			return 0;
+		if (posix_same_owner(caller_fl, block_fl))
+			return 1;
 	}
 	return 0;
 }
