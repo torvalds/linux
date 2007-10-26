@@ -241,7 +241,9 @@ struct tvcard
 	unsigned int radio_addr;
 
 	unsigned int has_radio;
+#ifdef CONFIG_VIDEO_V4L1
 	void (*audio_hook)(struct bttv *btv, struct video_audio *v, int set);
+#endif
 	void (*muxsel_hook)(struct bttv *btv, unsigned int input);
 };
 

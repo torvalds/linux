@@ -336,8 +336,9 @@ struct bttv {
 	/* old gpio interface */
 	wait_queue_head_t gpioq;
 	int shutdown;
+#ifdef CONFIG_VIDEO_V4L1
 	void (*audio_hook)(struct bttv *btv, struct video_audio *v, int set);
-
+#endif
 	/* new gpio interface */
 	spinlock_t gpio_lock;
 
