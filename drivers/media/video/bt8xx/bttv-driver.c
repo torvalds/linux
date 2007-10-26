@@ -1434,23 +1434,13 @@ static void bttv_reinit_bt848(struct bttv *btv)
 
 static int get_control(struct bttv *btv, struct v4l2_control *c)
 {
-	int i;
-
-	for (i = 0; i < BTTV_CTLS; i++)
-		if (bttv_ctls[i].id == c->id)
-			break;
-	if (i == BTTV_CTLS)
-		return -EINVAL;
 #ifdef CONFIG_VIDEO_V4L1
-	if (btv->audio_hook && i >= 4 && i <= 8) {
+	if (btv->audio_hook && (c->id == V4L2_CID_AUDIO_VOLUME)) {
 		struct video_audio va;
 
 		memset(&va,0,sizeof(va));
 		btv->audio_hook(btv,&va,0);
 		switch (c->id) {
-		case V4L2_CID_AUDIO_MUTE:
-			c->value = (VIDEO_AUDIO_MUTE & va.flags) ? 1 : 0;
-			break;
 		case V4L2_CID_AUDIO_VOLUME:
 			c->value = va.volume;
 			break;
@@ -1521,30 +1511,15 @@ static int get_control(struct bttv *btv, struct v4l2_control *c)
 
 static int set_control(struct bttv *btv, struct v4l2_control *c)
 {
-	int i,val;
+	int val;
 
-	for (i = 0; i < BTTV_CTLS; i++)
-		if (bttv_ctls[i].id == c->id)
-			break;
-	if (i == BTTV_CTLS)
-		return -EINVAL;
 #ifdef CONFIG_VIDEO_V4L1
-	if (btv->audio_hook && i >= 4 && i <= 8) {
+	if (btv->audio_hook && (c->id == V4L2_CID_AUDIO_VOLUME)) {
 		struct video_audio va;
 
 		memset(&va,0,sizeof(va));
 		btv->audio_hook(btv,&va,0);
 		switch (c->id) {
-		case V4L2_CID_AUDIO_MUTE:
-			if (c->value) {
-				va.flags |= VIDEO_AUDIO_MUTE;
-				audio_mute(btv, 1);
-			} else {
-				va.flags &= ~VIDEO_AUDIO_MUTE;
-				audio_mute(btv, 0);
-			}
-			break;
-
 		case V4L2_CID_AUDIO_VOLUME:
 			va.volume = c->value;
 			break;

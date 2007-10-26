@@ -5,13 +5,12 @@
  * This code is placed under the terms of the GNU General Public License
  */
 
+#include "bttv-audio-hook.h"
+
 /* ----------------------------------------------------------------------- */
 /* winview                                                                 */
 
-#include "bttvp.h"
-#include <linux/videodev.h>
-
-static void winview_audio(struct bttv *btv, struct video_audio *v, int set)
+ void winview_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	/* PT2254A programming Jon Tombs, jon@gte.esi.us.es */
 	int bits_out, loops, vol, data;
@@ -57,7 +56,7 @@ static void winview_audio(struct bttv *btv, struct video_audio *v, int set)
 /* mono/stereo control for various cards (which don't use i2c chips but    */
 /* connect something to the GPIO pins                                      */
 
-static void
+ void
 gvbctv3pci_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int con = 0;
@@ -79,7 +78,7 @@ gvbctv3pci_audio(struct bttv *btv, struct video_audio *v, int set)
 	}
 }
 
-static void
+ void
 gvbctv5pci_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int val, con;
@@ -142,7 +141,7 @@ gvbctv5pci_audio(struct bttv *btv, struct video_audio *v, int set)
  * handles this with a tda9840
  *
  */
-static void
+ void
 avermedia_tvphone_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	int val = 0;
@@ -164,7 +163,7 @@ avermedia_tvphone_audio(struct bttv *btv, struct video_audio *v, int set)
 	}
 }
 
-static void
+ void
 avermedia_tv_stereo_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	int val = 0;
@@ -185,7 +184,7 @@ avermedia_tv_stereo_audio(struct bttv *btv, struct video_audio *v, int set)
 }
 
 /* Lifetec 9415 handling */
-static void
+ void
 lt9415_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	int val = 0;
@@ -215,7 +214,7 @@ lt9415_audio(struct bttv *btv, struct video_audio *v, int set)
 }
 
 /* TDA9821 on TerraTV+ Bt848, Bt878 */
-static void
+ void
 terratv_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int con = 0;
@@ -235,7 +234,7 @@ terratv_audio(struct bttv *btv, struct video_audio *v, int set)
 	}
 }
 
-static void
+ void
 winfast2000_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned long val = 0;
@@ -269,7 +268,7 @@ winfast2000_audio(struct bttv *btv, struct video_audio *v, int set)
  * Note: There are card variants without tda9874a. Forcing the "stereo sound route"
  *       will mute this cards.
  */
-static void
+ void
 pvbt878p9b_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int val = 0;
@@ -301,7 +300,7 @@ pvbt878p9b_audio(struct bttv *btv, struct video_audio *v, int set)
  * sound control for FlyVideo 2000S (with tda9874 decoder)
  * based on pvbt878p9b_audio() - this is not tested, please fix!!!
  */
-static void
+ void
 fv2000s_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int val = 0xffff;
@@ -332,7 +331,7 @@ fv2000s_audio(struct bttv *btv, struct video_audio *v, int set)
  * sound control for Canopus WinDVR PCI
  * Masaki Suzuki <masaki@btree.org>
  */
-static void
+ void
 windvr_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned long val = 0;
@@ -361,7 +360,7 @@ windvr_audio(struct bttv *btv, struct video_audio *v, int set)
  * sound control for AD-TVK503
  * Hiroshi Takekawa <sian@big.or.jp>
  */
-static void
+ void
 adtvk503_audio(struct bttv *btv, struct video_audio *v, int set)
 {
 	unsigned int con = 0xffffff;
