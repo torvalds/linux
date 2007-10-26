@@ -757,6 +757,8 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	bp->len = htonl(tcplen);
 	bp->protocol = htonl(protocol);
 
+	sg_init_table(sg, 4);
+
 	sg_set_buf(&sg[block++], bp, sizeof(*bp));
 	nbytes += sizeof(*bp);
 
@@ -777,6 +779,8 @@ static int tcp_v6_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	/* 4. shared key */
 	sg_set_buf(&sg[block++], key->key, key->keylen);
 	nbytes += key->keylen;
+
+	sg_mark_end(sg, block);
 
 	/* Now store the hash into the packet */
 	err = crypto_hash_init(desc);
