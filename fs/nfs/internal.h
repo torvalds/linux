@@ -43,7 +43,6 @@ struct nfs_parsed_mount_data {
 	struct {
 		struct sockaddr_in	address;
 		char			*hostname;
-		unsigned int		program;
 		unsigned int		version;
 		unsigned short		port;
 		int			protocol;

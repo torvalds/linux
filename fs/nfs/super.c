@@ -84,7 +84,7 @@ enum {
 	Opt_namelen,
 	Opt_mountport,
 	Opt_mountprog, Opt_mountvers,
-	Opt_nfsprog, Opt_nfsvers,
+	Opt_nfsvers,
 
 	/* Mount options that take string arguments */
 	Opt_sec, Opt_proto, Opt_mountproto,
@@ -139,7 +139,6 @@ static match_table_t nfs_mount_option_tokens = {
 	{ Opt_mountport, "mountport=%u" },
 	{ Opt_mountprog, "mountprog=%u" },
 	{ Opt_mountvers, "mountvers=%u" },
-	{ Opt_nfsprog, "nfsprog=%u" },
 	{ Opt_nfsvers, "nfsvers=%u" },
 	{ Opt_nfsvers, "vers=%u" },
 
@@ -801,13 +800,6 @@ static int nfs_parse_mount_options(char *raw,
 				return 0;
 			mnt->mount_server.version = option;
 			break;
-		case Opt_nfsprog:
-			if (match_int(args, &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			mnt->nfs_server.program = option;
-			break;
 		case Opt_nfsvers:
 			if (match_int(args, &option))
 				return 0;
@@ -1067,9 +1059,6 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
  *
  * + breaking back: trying proto=udp after proto=tcp, v2 after v3,
  *   mountproto=tcp after mountproto=udp, and so on
- *
- * XXX: as far as I can tell, changing the NFS program number is not
- *      supported in the NFS client.
  */
 static int nfs_validate_mount_data(void *options,
 				   struct nfs_parsed_mount_data *args,
@@ -1095,7 +1084,6 @@ static int nfs_validate_mount_data(void *options,
 	args->mount_server.protocol = XPRT_TRANSPORT_UDP;
 	args->mount_server.program = NFS_MNT_PROGRAM;
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-	args->nfs_server.program = NFS_PROGRAM;
 
 	switch (data->version) {
 	case 1:
