@@ -9122,6 +9122,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->power_mode = IWL_POWER_AC;
 	priv->user_txpower_limit = IWL_DEFAULT_TX_POWER;
 
+	iwl_disable_interrupts(priv);
+
 	pci_enable_msi(pdev);
 
 	err = request_irq(pdev->irq, iwl_isr, IRQF_SHARED, DRV_NAME, priv);
