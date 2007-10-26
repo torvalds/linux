@@ -1255,16 +1255,6 @@ audio_input(struct bttv *btv, int input)
 }
 
 static void
-i2c_vidiocschan(struct bttv *btv)
-{
-	v4l2_std_id std = bttv_tvnorms[btv->tvnorm].v4l2_id;
-
-	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &std);
-	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM || btv->c.type == BTTV_BOARD_VOODOOTV_200)
-		bttv_tda9880_setnorm(btv,btv->tvnorm);
-}
-
-static void
 bttv_crop_calc_limits(struct bttv_crop *c)
 {
 	/* Scale factor min. 1:1, max. 16:1. Min. image size
@@ -1298,6 +1288,7 @@ static int
 set_tvnorm(struct bttv *btv, unsigned int norm)
 {
 	const struct bttv_tvnorm *tvnorm;
+	v4l2_std_id id;
 
 	if (norm < 0 || norm >= BTTV_TVNORMS)
 		return -EINVAL;
@@ -1334,6 +1325,9 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 		bttv_tda9880_setnorm(btv,norm);
 		break;
 	}
+	id = tvnorm->v4l2_id;
+	bttv_call_i2c_clients(btv, VIDIOC_S_STD, &id);
+
 	return 0;
 }
 
@@ -1359,7 +1353,6 @@ set_input(struct bttv *btv, unsigned int input, unsigned int norm)
 	audio_input(btv,(input == bttv_tvcards[btv->c.type].tuner ?
 		       TVAUDIO_INPUT_TUNER : TVAUDIO_INPUT_EXTERN));
 	set_tvnorm(btv, norm);
-	i2c_vidiocschan(btv);
 }
 
 static void init_irqreg(struct bttv *btv)
@@ -2095,7 +2088,6 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 
 		mutex_lock(&btv->lock);
 		set_tvnorm(btv,i);
-		i2c_vidiocschan(btv);
 		mutex_unlock(&btv->lock);
 		return 0;
 	}
@@ -3777,7 +3769,7 @@ static int bttv_open(struct inode *inode, struct file *file)
 			    V4L2_FIELD_SEQ_TB,
 			    sizeof(struct bttv_buffer),
 			    fh);
-	i2c_vidiocschan(btv);
+	set_tvnorm(btv,btv->tvnorm);
 
 	btv->users++;
 
