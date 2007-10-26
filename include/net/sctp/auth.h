@@ -88,7 +88,6 @@ static inline void sctp_auth_key_hold(struct sctp_auth_bytes *key)
 
 void sctp_auth_key_put(struct sctp_auth_bytes *key);
 struct sctp_shared_key *sctp_auth_shkey_create(__u16 key_id, gfp_t gfp);
-void sctp_auth_shkey_free(struct sctp_shared_key *sh_key);
 void sctp_auth_destroy_keys(struct list_head *keys);
 int sctp_auth_asoc_init_active_key(struct sctp_association *asoc, gfp_t gfp);
 struct sctp_shared_key *sctp_auth_get_shkey(
