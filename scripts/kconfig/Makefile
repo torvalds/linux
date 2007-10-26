@@ -4,23 +4,30 @@
 
 PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config
 
+# If a arch/$(SRCARCH)/Kconfig.$(ARCH) file exist use it
+ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/Kconfig.$(ARCH)),)
+        Kconfig := arch/$(SRCARCH)/Kconfig.$(ARCH)
+else
+        Kconfig := arch/$(SRCARCH)/Kconfig
+endif
+
 xconfig: $(obj)/qconf
-	$< arch/$(ARCH)/Kconfig
+	$< $(Kconfig)
 
 gconfig: $(obj)/gconf
-	$< arch/$(ARCH)/Kconfig
+	$< $(Kconfig)
 
 menuconfig: $(obj)/mconf
-	$< arch/$(ARCH)/Kconfig
+	$< $(Kconfig)
 
 config: $(obj)/conf
-	$< arch/$(ARCH)/Kconfig
+	$< $(Kconfig)
 
 oldconfig: $(obj)/conf
-	$< -o arch/$(ARCH)/Kconfig
+	$< -o $(Kconfig)
 
 silentoldconfig: $(obj)/conf
-	$< -s arch/$(ARCH)/Kconfig
+	$< -s $(Kconfig)
 
 # Create new linux.po file
 # Adjust charset to UTF-8 in .po file to accept UTF-8 in Kconfig files
@@ -45,27 +52,27 @@ update-po-config: $(obj)/kxgettext
 PHONY += randconfig allyesconfig allnoconfig allmodconfig defconfig
 
 randconfig: $(obj)/conf
-	$< -r arch/$(ARCH)/Kconfig
+	$< -r $(Kconfig)
 
 allyesconfig: $(obj)/conf
-	$< -y arch/$(ARCH)/Kconfig
+	$< -y $(Kconfig)
 
 allnoconfig: $(obj)/conf
-	$< -n arch/$(ARCH)/Kconfig
+	$< -n $(Kconfig)
 
 allmodconfig: $(obj)/conf
-	$< -m arch/$(ARCH)/Kconfig
+	$< -m $(Kconfig)
 
 defconfig: $(obj)/conf
 ifeq ($(KBUILD_DEFCONFIG),)
-	$< -d arch/$(ARCH)/Kconfig
+	$< -d $(Kconfig)
 else
-	@echo *** Default configuration is based on '$(KBUILD_DEFCONFIG)'
-	$(Q)$< -D arch/$(ARCH)/configs/$(KBUILD_DEFCONFIG) arch/$(ARCH)/Kconfig
+	@echo "*** Default configuration is based on '$(KBUILD_DEFCONFIG)'"
+	$(Q)$< -D arch/$(SRCARCH)/configs/$(KBUILD_DEFCONFIG) $(Kconfig)
 endif
 
 %_defconfig: $(obj)/conf
-	$(Q)$< -D arch/$(ARCH)/configs/$@ arch/$(ARCH)/Kconfig
+	$(Q)$< -D arch/$(SRCARCH)/configs/$@ $(Kconfig)
 
 # Help text used by make help
 help:

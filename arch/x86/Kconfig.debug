@@ -1,14 +1,14 @@
 menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default y
+	def_bool y
 
 source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
 	bool "Early printk" if EMBEDDED && DEBUG_KERNEL
 	default y
+	depends on X86_32
 	help
 	  Write kernel log output directly into the VGA buffer or to a serial
 	  port.
@@ -37,10 +37,12 @@ config DEBUG_STACK_USAGE
 
 comment "Page alloc debug is incompatible with Software Suspend on i386"
 	depends on DEBUG_KERNEL && HIBERNATION
+	depends on X86_32
 
 config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL && !HIBERNATION && !HUGETLBFS
+	depends on X86_32
 	help
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  This results in a large slowdown, but helps to find certain types
@@ -59,6 +61,7 @@ config DEBUG_RODATA
 config 4KSTACKS
 	bool "Use 4Kb for kernel stacks instead of 8Kb"
 	depends on DEBUG_KERNEL
+	depends on X86_32
 	help
 	  If you say Y here the kernel will use a 4Kb stacksize for the
 	  kernel stack attached to each process/thread. This facilitates
@@ -67,22 +70,50 @@ config 4KSTACKS
 	  will also use IRQ stacks to compensate for the reduced stackspace.
 
 config X86_FIND_SMP_CONFIG
-	bool
+	def_bool y
 	depends on X86_LOCAL_APIC || X86_VOYAGER
-	default y
+	depends on X86_32
 
 config X86_MPPARSE
-	bool
+	def_bool y
 	depends on X86_LOCAL_APIC && !X86_VISWS
-	default y
+	depends on X86_32
 
 config DOUBLEFAULT
 	default y
 	bool "Enable doublefault exception handler" if EMBEDDED
+	depends on X86_32
 	help
-          This option allows trapping of rare doublefault exceptions that
-          would otherwise cause a system to silently reboot. Disabling this
-          option saves about 4k and might cause you much additional grey
-          hair.
+	  This option allows trapping of rare doublefault exceptions that
+	  would otherwise cause a system to silently reboot. Disabling this
+	  option saves about 4k and might cause you much additional grey
+	  hair.
+
+config IOMMU_DEBUG
+	bool "Enable IOMMU debugging"
+	depends on IOMMU && DEBUG_KERNEL
+	depends on X86_64
+	help
+	  Force the IOMMU to on even when you have less than 4GB of
+	  memory and add debugging code. On overflow always panic. And
+	  allow to enable IOMMU leak tracing. Can be disabled at boot
+	  time with iommu=noforce. This will also enable scatter gather
+	  list merging.  Currently not recommended for production
+	  code. When you use it make sure you have a big enough
+	  IOMMU/AGP aperture.  Most of the options enabled by this can
+	  be set more finegrained using the iommu= command line
+	  options. See Documentation/x86_64/boot-options.txt for more
+	  details.
+
+config IOMMU_LEAK
+	bool "IOMMU leak tracing"
+	depends on DEBUG_KERNEL
+	depends on IOMMU_DEBUG
+	help
+	  Add a simple leak tracer to the IOMMU code. This is useful when you
+	  are debugging a buggy device driver that leaks IOMMU mappings.
+
+#config X86_REMOTE_DEBUG
+#	bool "kgdb debugging stub"
 
 endmenu

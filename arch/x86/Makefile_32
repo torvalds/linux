@@ -1,5 +1,5 @@
 #
-# i386/Makefile
+# i386 Makefile
 #
 # This file is included by the global makefile so that you can add your own
 # architecture-specific flags and dependencies. Remember to do have actions
@@ -16,9 +16,6 @@
 #
 # 20050320  Kianusch Sayah Karadji <kianusch@sk-tech.net>
 #           Added support for GEODE CPU
-
-# Fill in SRCARCH
-SRCARCH	:= x86
 
 # BITS is used as extension for files which are available in a 32 bit
 # and a 64 bit version to simplify shared Makefiles.
@@ -46,7 +43,7 @@ KBUILD_CFLAGS += -pipe -msoft-float -mregparm=3 -freg-struct-return
 KBUILD_CFLAGS += $(call cc-option,-mpreferred-stack-boundary=2)
 
 # CPU-specific tuning. Anything which can be shared with UML should go here.
-include $(srctree)/arch/i386/Makefile.cpu
+include $(srctree)/arch/x86/Makefile_32.cpu
 
 # temporary until string.h is fixed
 cflags-y += -ffreestanding

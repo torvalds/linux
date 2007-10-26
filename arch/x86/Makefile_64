@@ -1,5 +1,5 @@
 #
-# x86_64/Makefile
+# x86_64 Makefile
 #
 # This file is included by the global makefile so that you can add your own
 # architecture-specific flags and dependencies. Remember to do have actions
@@ -20,9 +20,6 @@
 #           ....and later removed it again....
 #
 # $Id: Makefile,v 1.31 2002/03/22 15:56:07 ak Exp $
-
-# Fill in SRCARCH
-SRCARCH	:= x86
 
 # BITS is used as extension for files which are available in a 32 bit
 # and a 64 bit version to simplify shared Makefiles.
