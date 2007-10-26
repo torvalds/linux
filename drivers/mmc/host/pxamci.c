@@ -39,6 +39,7 @@
 #define DRIVER_NAME	"pxa2xx-mci"
 
 #define NR_SG	1
+#define CLKRT_OFF	(~0)
 
 struct pxamci_host {
 	struct mmc_host		*mmc;
@@ -371,6 +372,9 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		unsigned long rate = host->clkrate;
 		unsigned int clk = rate / ios->clock;
 
+		if (host->clkrt == CLKRT_OFF)
+			clk_enable(host->clk);
+
 		/*
 		 * clk might result in a lower divisor than we
 		 * desire.  check for that condition and adjust
@@ -379,14 +383,16 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (rate / clk > ios->clock)
 			clk <<= 1;
 		host->clkrt = fls(clk) - 1;
-		clk_enable(host->clk);
 
 		/*
 		 * we write clkrt on the next command
 		 */
 	} else {
 		pxamci_stop_clock(host);
-		clk_disable(host->clk);
+		if (host->clkrt != CLKRT_OFF) {
+			host->clkrt = CLKRT_OFF;
+			clk_disable(host->clk);
+		}
 	}
 
 	if (host->power_mode != ios->power_mode) {
@@ -498,6 +504,7 @@ static int pxamci_probe(struct platform_device *pdev)
 	host->mmc = mmc;
 	host->dma = -1;
 	host->pdata = pdev->dev.platform_data;
+	host->clkrt = CLKRT_OFF;
 
 	host->clk = clk_get(&pdev->dev, "MMCCLK");
 	if (IS_ERR(host->clk)) {
