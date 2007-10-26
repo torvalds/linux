@@ -220,7 +220,7 @@ void __cpuinit mips_clockevent_init(void)
 	struct clock_event_device *cd;
 	unsigned int irq = MIPS_CPU_IRQ_BASE + 7;
 
-	if (!cpu_has_counter)
+	if (!cpu_has_counter || !mips_hpt_frequency)
 		return;
 
 #ifdef CONFIG_MIPS_MT_SMTC
