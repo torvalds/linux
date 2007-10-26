@@ -449,7 +449,7 @@ static int optiplus_with_udma(struct pci_dev *pdev)
 
 	/* Find function 1 */
 	dev1 = pci_get_device(0x1045, 0xC701, NULL);
-	if(dev1 == NULL)
+	if (dev1 == NULL)
 		return 0;
 
 	/* Rev must be >= 0x10 */
