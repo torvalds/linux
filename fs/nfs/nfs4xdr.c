@@ -2515,14 +2515,12 @@ static int decode_attr_files_total(struct xdr_stream *xdr, uint32_t *bitmap, uin
 
 static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 {
-	int n;
+	u32 n;
 	__be32 *p;
 	int status = 0;
 
 	READ_BUF(4);
 	READ32(n);
-	if (n < 0)
-		goto out_eio;
 	if (n == 0)
 		goto root_path;
 	dprintk("path ");
@@ -2579,13 +2577,11 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 		goto out_eio;
 	res->nlocations = 0;
 	while (res->nlocations < n) {
-		int m;
+		u32 m;
 		struct nfs4_fs_location *loc = &res->locations[res->nlocations];
 
 		READ_BUF(4);
 		READ32(m);
-		if (m <= 0)
-			goto out_eio;
 
 		loc->nservers = 0;
 		dprintk("%s: servers ", __FUNCTION__);
@@ -2598,8 +2594,12 @@ static int decode_attr_fs_locations(struct xdr_stream *xdr, uint32_t *bitmap, st
 			if (loc->nservers < NFS4_FS_LOCATION_MAXSERVERS)
 				loc->nservers++;
 			else {
-				int i;
-				dprintk("%s: using first %d of %d servers returned for location %d\n", __FUNCTION__, NFS4_FS_LOCATION_MAXSERVERS, m, res->nlocations);
+				unsigned int i;
+				dprintk("%s: using first %u of %u servers "
+					"returned for location %u\n",
+						__FUNCTION__,
+						NFS4_FS_LOCATION_MAXSERVERS,
+						m, res->nlocations);
 				for (i = loc->nservers; i < m; i++) {
 					unsigned int len;
 					char *data;
