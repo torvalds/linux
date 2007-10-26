@@ -33,24 +33,20 @@
 	.globl startup_32
 
 startup_32:
-	/* check to see if KEEP_SEGMENTS flag is meaningful */
-	cmpw $0x207, BP_version(%esi)
-	jb 1f
-
+	cld
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 	 * us to not reload segments */
 	testb $(1<<6), BP_loadflags(%esi)
-	jnz 2f
+	jnz 1f
 
-1:	cli
+	cli
 	movl $(__BOOT_DS),%eax
 	movl %eax,%ds
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
 	movl %eax,%ss
-
-2:	cld
+1:
 
 /* Calculate the delta between where we were compiled to run
  * at and where we were actually loaded at.  This can only be done
