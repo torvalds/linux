@@ -155,66 +155,8 @@ static void access_flags_to_mode(__u32 ace_flags, umode_t *pmode,
 		*pmode |= (S_IXUGO & bits_to_set);
 
 #ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("access flags 0x%x mode now 0x%x", ace_flags, *pmode);
+	cFYI(1, ("access flags 0x%x mode now 0x%x", ace_flags, *pmode));
 #endif
-	return;
-}
-
-/* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
-
-void acl_to_uid_mode(struct inode *inode, const char *path)
-{
-	struct cifsFileInfo *open_file;
-	int unlock_file = FALSE;
-	int xid;
-	int rc = -EIO;
-	__u16 fid;
-	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
-
-	cFYI(1, ("get mode from ACL for %s", path));
-	
-	if (inode == NULL)
-		return;
-
-	xid = GetXid();
-	open_file = find_readable_file(CIFS_I(inode));
-	if (open_file) {
-		unlock_file = TRUE;
-		fid = open_file->netfid;
-	} else {
-		int oplock = FALSE;
-		/* open file */
-		sb = inode->i_sb;
-		if (sb == NULL) {
-			FreeXid(xid);
-			return;
-		}
-		cifs_sb = CIFS_SB(sb);
-		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
-				GENERIC_READ, 0, &fid, &oplock, NULL,
-				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc != 0) {
-			cERROR(1, ("Unable to open file to get ACL"));
-			FreeXid(xid);
-			return;
-		}
-	}
-
-	/*   rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, pntsd, acllen,
-				    ACL_TYPE_ACCESS); */
-
-	if (unlock_file == TRUE)
-		atomic_dec(&open_file->wrtPending);
-	else
-		CIFSSMBClose(xid, cifs_sb->tcon, fid);
-
-/* parse ACEs e.g.
-	rc = parse_sec_desc(pntsd, acllen, inode);
-*/
-
-	FreeXid(xid);
 	return;
 }
 
@@ -314,12 +256,12 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 {
-
 	/* BB need to add parm so we can store the SID BB */
 
-	/* validate that we do not go past end of acl */
-	if (end_of_acl < (char *)psid + sizeof(struct cifs_sid)) {
-		cERROR(1, ("ACL too small to parse SID"));
+	/* validate that we do not go past end of ACL - sid must be at least 8
+	   bytes long (assuming no sub-auths - e.g. the null SID */
+	if (end_of_acl < (char *)psid + 8) {
+		cERROR(1, ("ACL too small to parse SID %p", psid));
 		return -EINVAL;
 	}
 
@@ -354,6 +296,9 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 	struct cifs_acl *dacl_ptr; /* no need for SACL ptr */
 	char *end_of_acl = ((char *)pntsd) + acl_len;
 
+	if ((inode == NULL) || (pntsd == NULL))
+		return -EIO;
+
 	owner_sid_ptr = (struct cifs_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->osidoffset));
 	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
@@ -368,6 +313,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 		 le32_to_cpu(pntsd->sacloffset),
 		 le32_to_cpu(pntsd->dacloffset)));
 #endif
+/*	cifs_dump_mem("owner_sid: ", owner_sid_ptr, 64); */
 	rc = parse_sid(owner_sid_ptr, end_of_acl);
 	if (rc)
 		return rc;
@@ -387,5 +333,66 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 
 
 	return (0);
+}
+
+
+/* Translate the CIFS ACL (simlar to NTFS ACL) for a file into mode bits */
+
+void acl_to_uid_mode(struct inode *inode, const char *path)
+{
+	struct cifsFileInfo *open_file;
+	int unlock_file = FALSE;
+	int xid;
+	int rc = -EIO;
+	__u16 fid;
+	struct super_block *sb;
+	struct cifs_sb_info *cifs_sb;
+	struct cifs_ntsd *pntsd = NULL;
+	__u32 acllen;
+
+	cFYI(1, ("get mode from ACL for %s", path));
+
+	if (inode == NULL)
+		return;
+
+	xid = GetXid();
+	open_file = find_readable_file(CIFS_I(inode));
+	sb = inode->i_sb;
+	if (sb == NULL) {
+		FreeXid(xid);
+		return;
+	}
+	cifs_sb = CIFS_SB(sb);
+
+	if (open_file) {
+		unlock_file = TRUE;
+		fid = open_file->netfid;
+	} else {
+		int oplock = FALSE;
+		/* open file */
+		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
+				GENERIC_READ, 0, &fid, &oplock, NULL,
+				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc != 0) {
+			cERROR(1, ("Unable to open file to get ACL"));
+			FreeXid(xid);
+			return;
+		}
+	}
+
+	rc = CIFSSMBGetCIFSACL(xid, cifs_sb->tcon, fid, &pntsd, &acllen);
+	cFYI(1, ("GetCIFSACL rc = %d ACL len %d", rc, acllen));
+	if (unlock_file == TRUE)
+		atomic_dec(&open_file->wrtPending);
+	else
+		CIFSSMBClose(xid, cifs_sb->tcon, fid);
+
+	/* parse ACEs */
+	if (!rc)
+		rc = parse_sec_desc(pntsd, acllen, inode);
+	kfree(pntsd);
+	FreeXid(xid);
+	return;
 }
 #endif /* CONFIG_CIFS_EXPERIMENTAL */

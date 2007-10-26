@@ -2495,7 +2495,7 @@ querySymLinkRetry:
 	MaxSetupCount (size of returned setup area) and
 	MaxParameterCount (returned parms size) must be set by caller */
 static int
-smb_init_ntransact(const __u16 sub_command, const int setup_count,
+smb_init_nttransact(const __u16 sub_command, const int setup_count,
 		   const int parm_len, struct cifsTconInfo *tcon,
 		   void **ret_buf)
 {
@@ -2526,7 +2526,7 @@ smb_init_ntransact(const __u16 sub_command, const int setup_count,
 
 static int
 validate_ntransact(char *buf, char **ppparm, char **ppdata,
-		   __u32 *pdatalen, __u32 *pparmlen)
+		   __u32 *pparmlen, __u32 *pdatalen)
 {
 	char *end_of_smb;
 	__u32 data_count, data_offset, parm_count, parm_offset;
@@ -3086,7 +3086,7 @@ CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
 	*pbuflen = 0;
 	*acl_inf = NULL;
 
-	rc = smb_init_ntransact(NT_TRANSACT_QUERY_SECURITY_DESC, 0,
+	rc = smb_init_nttransact(NT_TRANSACT_QUERY_SECURITY_DESC, 0,
 			8 /* parm len */, tcon, (void **) &pSMB);
 	if (rc)
 		return rc;
