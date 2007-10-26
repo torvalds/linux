@@ -156,7 +156,6 @@ int sctp_primitive_ASCONF(struct sctp_association *, void *arg);
 __u32 sctp_start_cksum(__u8 *ptr, __u16 count);
 __u32 sctp_update_cksum(__u8 *ptr, __u16 count, __u32 cksum);
 __u32 sctp_end_cksum(__u32 cksum);
-__u32 sctp_update_copy_cksum(__u8 *, __u8 *, __u16 count, __u32 cksum);
 
 /*
  * sctp/input.c
