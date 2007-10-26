@@ -523,8 +523,8 @@ rpc_get_inode(struct super_block *sb, int mode)
 /*
  * FIXME: This probably has races.
  */
-static void
-rpc_depopulate(struct dentry *parent, int start, int eof)
+static void rpc_depopulate(struct dentry *parent,
+			   unsigned long start, unsigned long eof)
 {
 	struct inode *dir = parent->d_inode;
 	struct list_head *pos, *next;
