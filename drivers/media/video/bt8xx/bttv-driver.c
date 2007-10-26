@@ -12,6 +12,9 @@
     V4L1 removal from:
     (c) 2005-2006 Nickolay V. Shmyrev <nshmyrev@yandex.ru>
 
+    Fixes to be fully V4L2 compliant by
+    (c) 2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+
     Cropping and overscan support
     Copyright (C) 2005, 2006 Michael H. Schimek <mschimek@gmx.at>
     Sponsored by OPQ Systems AB
@@ -160,7 +163,7 @@ MODULE_LICENSE("GPL");
 static ssize_t show_card(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
-	struct video_device *vfd = to_video_device(cd);
+	struct video_device *vfd = container_of(cd, struct video_device, class_dev);
 	struct bttv *btv = dev_get_drvdata(vfd->dev);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
@@ -476,28 +479,24 @@ static const unsigned int BTTV_TVNORMS = ARRAY_SIZE(bttv_tvnorms);
 static const struct bttv_format bttv_formats[] = {
 	{
 		.name     = "8 bpp, gray",
-		.palette  = VIDEO_PALETTE_GREY,
 		.fourcc   = V4L2_PIX_FMT_GREY,
 		.btformat = BT848_COLOR_FMT_Y8,
 		.depth    = 8,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "8 bpp, dithered color",
-		.palette  = VIDEO_PALETTE_HI240,
 		.fourcc   = V4L2_PIX_FMT_HI240,
 		.btformat = BT848_COLOR_FMT_RGB8,
 		.depth    = 8,
 		.flags    = FORMAT_FLAGS_PACKED | FORMAT_FLAGS_DITHER,
 	},{
 		.name     = "15 bpp RGB, le",
-		.palette  = VIDEO_PALETTE_RGB555,
 		.fourcc   = V4L2_PIX_FMT_RGB555,
 		.btformat = BT848_COLOR_FMT_RGB15,
 		.depth    = 16,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "15 bpp RGB, be",
-		.palette  = -1,
 		.fourcc   = V4L2_PIX_FMT_RGB555X,
 		.btformat = BT848_COLOR_FMT_RGB15,
 		.btswap   = 0x03, /* byteswap */
@@ -505,14 +504,12 @@ static const struct bttv_format bttv_formats[] = {
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "16 bpp RGB, le",
-		.palette  = VIDEO_PALETTE_RGB565,
 		.fourcc   = V4L2_PIX_FMT_RGB565,
 		.btformat = BT848_COLOR_FMT_RGB16,
 		.depth    = 16,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "16 bpp RGB, be",
-		.palette  = -1,
 		.fourcc   = V4L2_PIX_FMT_RGB565X,
 		.btformat = BT848_COLOR_FMT_RGB16,
 		.btswap   = 0x03, /* byteswap */
@@ -520,21 +517,18 @@ static const struct bttv_format bttv_formats[] = {
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "24 bpp RGB, le",
-		.palette  = VIDEO_PALETTE_RGB24,
 		.fourcc   = V4L2_PIX_FMT_BGR24,
 		.btformat = BT848_COLOR_FMT_RGB24,
 		.depth    = 24,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "32 bpp RGB, le",
-		.palette  = VIDEO_PALETTE_RGB32,
 		.fourcc   = V4L2_PIX_FMT_BGR32,
 		.btformat = BT848_COLOR_FMT_RGB32,
 		.depth    = 32,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "32 bpp RGB, be",
-		.palette  = -1,
 		.fourcc   = V4L2_PIX_FMT_RGB32,
 		.btformat = BT848_COLOR_FMT_RGB32,
 		.btswap   = 0x0f, /* byte+word swap */
@@ -542,21 +536,18 @@ static const struct bttv_format bttv_formats[] = {
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "4:2:2, packed, YUYV",
-		.palette  = VIDEO_PALETTE_YUV422,
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.btformat = BT848_COLOR_FMT_YUY2,
 		.depth    = 16,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "4:2:2, packed, YUYV",
-		.palette  = VIDEO_PALETTE_YUYV,
 		.fourcc   = V4L2_PIX_FMT_YUYV,
 		.btformat = BT848_COLOR_FMT_YUY2,
 		.depth    = 16,
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "4:2:2, packed, UYVY",
-		.palette  = VIDEO_PALETTE_UYVY,
 		.fourcc   = V4L2_PIX_FMT_UYVY,
 		.btformat = BT848_COLOR_FMT_YUY2,
 		.btswap   = 0x03, /* byteswap */
@@ -564,7 +555,6 @@ static const struct bttv_format bttv_formats[] = {
 		.flags    = FORMAT_FLAGS_PACKED,
 	},{
 		.name     = "4:2:2, planar, Y-Cb-Cr",
-		.palette  = VIDEO_PALETTE_YUV422P,
 		.fourcc   = V4L2_PIX_FMT_YUV422P,
 		.btformat = BT848_COLOR_FMT_YCrCb422,
 		.depth    = 16,
@@ -573,7 +563,6 @@ static const struct bttv_format bttv_formats[] = {
 		.vshift   = 0,
 	},{
 		.name     = "4:2:0, planar, Y-Cb-Cr",
-		.palette  = VIDEO_PALETTE_YUV420P,
 		.fourcc   = V4L2_PIX_FMT_YUV420,
 		.btformat = BT848_COLOR_FMT_YCrCb422,
 		.depth    = 12,
@@ -582,7 +571,6 @@ static const struct bttv_format bttv_formats[] = {
 		.vshift   = 1,
 	},{
 		.name     = "4:2:0, planar, Y-Cr-Cb",
-		.palette  = -1,
 		.fourcc   = V4L2_PIX_FMT_YVU420,
 		.btformat = BT848_COLOR_FMT_YCrCb422,
 		.depth    = 12,
@@ -591,7 +579,6 @@ static const struct bttv_format bttv_formats[] = {
 		.vshift   = 1,
 	},{
 		.name     = "4:1:1, planar, Y-Cb-Cr",
-		.palette  = VIDEO_PALETTE_YUV411P,
 		.fourcc   = V4L2_PIX_FMT_YUV411P,
 		.btformat = BT848_COLOR_FMT_YCrCb411,
 		.depth    = 12,
@@ -600,7 +587,6 @@ static const struct bttv_format bttv_formats[] = {
 		.vshift   = 0,
 	},{
 		.name     = "4:1:0, planar, Y-Cb-Cr",
-		.palette  = VIDEO_PALETTE_YUV410P,
 		.fourcc   = V4L2_PIX_FMT_YUV410,
 		.btformat = BT848_COLOR_FMT_YCrCb411,
 		.depth    = 9,
@@ -609,7 +595,6 @@ static const struct bttv_format bttv_formats[] = {
 		.vshift   = 2,
 	},{
 		.name     = "4:1:0, planar, Y-Cr-Cb",
-		.palette  = -1,
 		.fourcc   = V4L2_PIX_FMT_YVU410,
 		.btformat = BT848_COLOR_FMT_YCrCb411,
 		.depth    = 9,
@@ -618,7 +603,6 @@ static const struct bttv_format bttv_formats[] = {
 		.vshift   = 2,
 	},{
 		.name     = "raw scanlines",
-		.palette  = VIDEO_PALETTE_RAW,
 		.fourcc   = -1,
 		.btformat = BT848_COLOR_FMT_RAW,
 		.depth    = 8,
@@ -1450,7 +1434,6 @@ static void bttv_reinit_bt848(struct bttv *btv)
 
 static int get_control(struct bttv *btv, struct v4l2_control *c)
 {
-	struct video_audio va;
 	int i;
 
 	for (i = 0; i < BTTV_CTLS; i++)
@@ -1458,7 +1441,10 @@ static int get_control(struct bttv *btv, struct v4l2_control *c)
 			break;
 	if (i == BTTV_CTLS)
 		return -EINVAL;
+#ifdef CONFIG_VIDEO_V4L1
 	if (btv->audio_hook && i >= 4 && i <= 8) {
+		struct video_audio va;
+
 		memset(&va,0,sizeof(va));
 		btv->audio_hook(btv,&va,0);
 		switch (c->id) {
@@ -1480,6 +1466,7 @@ static int get_control(struct bttv *btv, struct v4l2_control *c)
 		}
 		return 0;
 	}
+#endif
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
 		c->value = btv->bright;
@@ -1543,7 +1530,6 @@ static int get_control(struct bttv *btv, struct v4l2_control *c)
 
 static int set_control(struct bttv *btv, struct v4l2_control *c)
 {
-	struct video_audio va;
 	int i,val;
 
 	for (i = 0; i < BTTV_CTLS; i++)
@@ -1551,7 +1537,10 @@ static int set_control(struct bttv *btv, struct v4l2_control *c)
 			break;
 	if (i == BTTV_CTLS)
 		return -EINVAL;
+#ifdef CONFIG_VIDEO_V4L1
 	if (btv->audio_hook && i >= 4 && i <= 8) {
+		struct video_audio va;
+
 		memset(&va,0,sizeof(va));
 		btv->audio_hook(btv,&va,0);
 		switch (c->id) {
@@ -1581,6 +1570,7 @@ static int set_control(struct bttv *btv, struct v4l2_control *c)
 		btv->audio_hook(btv,&va,1);
 		return 0;
 	}
+#endif
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
 		bt848_bright(btv,c->value);
@@ -1686,20 +1676,6 @@ static void bttv_field_count(struct bttv *btv)
 		btand(~BT848_INT_VSYNC,BT848_INT_MASK);
 		btv->field_count = 0;
 	}
-}
-
-static const struct bttv_format*
-format_by_palette(int palette)
-{
-	unsigned int i;
-
-	for (i = 0; i < BTTV_FORMATS; i++) {
-		if (-1 == bttv_formats[i].palette)
-			continue;
-		if (bttv_formats[i].palette == palette)
-			return bttv_formats+i;
-	}
-	return NULL;
 }
 
 static const struct bttv_format*
@@ -1915,6 +1891,7 @@ static struct videobuf_queue_ops bttv_video_qops = {
 static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 {
 	switch (cmd) {
+#ifdef CONFIG_VIDEO_V4L1
 	case VIDIOCGAUDIO:
 	{
 		struct video_audio *v = arg;
@@ -1953,7 +1930,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		mutex_unlock(&btv->lock);
 		return 0;
 	}
-
+#endif
 	/* ***  v4l2  *** ************************************************ */
 	case VIDIOC_ENUMSTD:
 	{
@@ -2060,6 +2037,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 			return -EINVAL;
 		mutex_lock(&btv->lock);
 		bttv_call_i2c_clients(btv, VIDIOC_S_TUNER, t);
+#ifdef CONFIG_VIDEO_V4L1
 		if (btv->audio_hook) {
 			struct video_audio va;
 			memset(&va, 0, sizeof(struct video_audio));
@@ -2074,6 +2052,7 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 				va.mode = VIDEO_SOUND_LANG2;
 			btv->audio_hook(btv,&va,1);
 		}
+#endif
 		mutex_unlock(&btv->lock);
 		return 0;
 	}
@@ -2698,28 +2677,6 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		return 0;
 	}
 #endif
-	case VIDIOCGVBIFMT:
-	case VIDIOCSVBIFMT:
-	case VIDIOCSYNC:
-	case VIDIOCMCAPTURE:
-	case VIDIOCCAPTURE:
-	case VIDIOCGFBUF:
-	case VIDIOCSFBUF:
-	case VIDIOCGWIN:
-	case VIDIOCSWIN:
-	case VIDIOCGCAP:
-	case VIDIOCGPICT:
-	case VIDIOCSPICT:
-	case VIDIOCGFREQ:
-	case VIDIOCSFREQ:
-	case VIDIOCGTUNER:
-	case VIDIOCSTUNER:
-	case VIDIOCGCHAN:
-	case VIDIOCSCHAN:
-	case VIDIOCGAUDIO:
-	case VIDIOCSAUDIO:
-		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
-						  bttv_do_ioctl);
 
 	/* ***  v4l2  *** ************************************************ */
 	case VIDIOC_QUERYCAP:
@@ -2973,6 +2930,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			return 0;
 		}
 		*c = bttv_ctls[i];
+#ifdef CONFIG_VIDEO_V4L1
 		if (btv->audio_hook && i >= 4 && i <= 8) {
 			struct video_audio va;
 			memset(&va,0,sizeof(va));
@@ -2996,6 +2954,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 				break;
 			}
 		}
+#endif
 		return 0;
 	}
 	case VIDIOC_G_PARM:
@@ -3027,7 +2986,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		t->type       = V4L2_TUNER_ANALOG_TV;
 		if (btread(BT848_DSTATUS)&BT848_DSTATUS_HLOC)
 			t->signal = 0xffff;
-
+#ifdef CONFIG_VIDEO_V4L1
 		if (btv->audio_hook) {
 			/* Hmmm ... */
 			struct video_audio va;
@@ -3045,6 +3004,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 					| V4L2_TUNER_SUB_LANG2;
 			}
 		}
+#endif
 		/* FIXME: fill capability+audmode */
 		mutex_unlock(&btv->lock);
 		return 0;
@@ -3196,7 +3156,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
 	default:
-		return -ENOIOCTLCMD;
+		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
+						  bttv_do_ioctl);
 	}
 	return 0;
 
@@ -3551,17 +3512,9 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_DBG_G_REGISTER:
 	case VIDIOC_DBG_S_REGISTER:
 		return bttv_common_ioctls(btv,cmd,arg);
-	case VIDIOCGCAP:
-	case VIDIOCGFREQ:
-	case VIDIOCSFREQ:
-	case VIDIOCGTUNER:
-	case VIDIOCSTUNER:
-	case VIDIOCGAUDIO:
-	case VIDIOCSAUDIO:
+	default:
 		return v4l_compat_translate_ioctl(inode,file,cmd,arg,
 						  radio_do_ioctl);
-	default:
-		return -ENOIOCTLCMD;
 	}
 	return 0;
 }
@@ -4357,7 +4310,7 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	btv->init.btv         = btv;
 	btv->init.ov.w.width  = 320;
 	btv->init.ov.w.height = 240;
-	btv->init.fmt         = format_by_palette(VIDEO_PALETTE_RGB24);
+	btv->init.fmt         = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	btv->init.width       = 320;
 	btv->init.height      = 240;
 	btv->input = 0;

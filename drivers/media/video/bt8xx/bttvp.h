@@ -112,7 +112,6 @@ extern const struct bttv_tvnorm bttv_tvnorms[];
 
 struct bttv_format {
 	char *name;
-	int  palette;         /* video4linux 1      */
 	int  fourcc;          /* video4linux 2      */
 	int  btformat;        /* BT848_COLOR_FMT_*  */
 	int  btswap;          /* BT848_COLOR_CTL_*  */
