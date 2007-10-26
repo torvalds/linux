@@ -213,7 +213,7 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 		"SPDIF In", "Digitial In", "Reserved", "Other"
 	};
 	static char *jack_locations[4] = { "Ext", "Int", "Sep", "Oth" };
-	unsigned int caps;
+	unsigned int caps, val;
 
 	caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
 	snd_iprintf(buffer, "  Pincap 0x08%x:", caps);
@@ -237,6 +237,11 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 	snd_iprintf(buffer, "    Conn = %s, Color = %s\n",
 		    get_jack_connection(caps),
 		    get_jack_color(caps));
+	if (caps & AC_PINCAP_EAPD) {
+		val = snd_hda_codec_read(codec, nid, 0,
+					 AC_VERB_GET_EAPD_BTLENABLE, 0);
+		snd_iprintf(buffer, "  EAPD: 0x%x\n", val);
+	}
 }
 
 
@@ -284,6 +289,7 @@ static void print_codec_info(struct snd_info_entry *entry,
 			(wid_caps & AC_WCAP_TYPE) >> AC_WCAP_TYPE_SHIFT;
 		int conn_len = 0; 
 		hda_nid_t conn[HDA_MAX_CONNECTIONS];
+		unsigned int pinctls;
 
 		snd_iprintf(buffer, "Node 0x%02x [%s] wcaps 0x%x:", nid,
 			    get_wid_type_name(wid_type), wid_caps);
@@ -318,8 +324,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 				       wid_caps & AC_WCAP_STEREO, 1);
 		}
 
-		if (wid_type == AC_WID_PIN) {
-			unsigned int pinctls;
+		switch (wid_type) {
+		case AC_WID_PIN:
 			print_pin_caps(buffer, codec, nid);
 			pinctls = snd_hda_codec_read(codec, nid, 0,
 					     AC_VERB_GET_PIN_WIDGET_CONTROL,
@@ -332,12 +338,19 @@ static void print_codec_info(struct snd_info_entry *entry,
 			if (pinctls & AC_PINCTL_HP_EN)
 				snd_iprintf(buffer, " HP");
 			snd_iprintf(buffer, "\n");
-		}
-
-		if ((wid_type == AC_WID_AUD_OUT || wid_type == AC_WID_AUD_IN) &&
-		    (wid_caps & AC_WCAP_FORMAT_OVRD)) {
-			snd_iprintf(buffer, "  PCM:\n");
-			print_pcm_caps(buffer, codec, nid);
+			break;
+		case AC_WID_VOL_KNB:
+			snd_iprintf(buffer, "  Volume-Knob: 0x%x\n",
+				    snd_hda_codec_read(codec, nid, 0,
+					AC_VERB_GET_VOLUME_KNOB_CONTROL, 0));
+			break;
+		case AC_WID_AUD_OUT:
+		case AC_WID_AUD_IN:
+			if (wid_caps & AC_WCAP_FORMAT_OVRD) {
+				snd_iprintf(buffer, "  PCM:\n");
+				print_pcm_caps(buffer, codec, nid);
+			}
+			break;
 		}
 
 		if (wid_caps & AC_WCAP_POWER)
