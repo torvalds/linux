@@ -1732,6 +1732,8 @@ process:
 	if (!sock_owned_by_user(sk)) {
 #ifdef CONFIG_NET_DMA
 		struct tcp_sock *tp = tcp_sk(sk);
+		if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
+			tp->ucopy.dma_chan = get_softnet_dma();
 		if (tp->ucopy.dma_chan)
 			ret = tcp_v6_do_rcv(sk, skb);
 		else
