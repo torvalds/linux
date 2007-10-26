@@ -58,7 +58,6 @@ extern void local_timer_interrupt(int irq, void *dev_id);
  */
 struct irqaction;
 extern void plat_time_init(void);
-extern void plat_timer_setup(struct irqaction *irq);
 
 /*
  * mips_hpt_frequency - must be set if you intend to use an R4k-compatible
