@@ -2767,8 +2767,8 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 */
 	qc->nbytes = scsi_bufflen(scmd);
 
-	/* request result TF */
-	qc->flags |= ATA_QCFLAG_RESULT_TF;
+	/* request result TF and be quiet about device error */
+	qc->flags |= ATA_QCFLAG_RESULT_TF | ATA_QCFLAG_QUIET;
 
 	return 0;
 
