@@ -458,10 +458,6 @@ struct bttv {
 extern unsigned int bttv_num;
 extern struct bttv bttvs[BTTV_MAX];
 
-/* private ioctls */
-#define BTTV_VERSION            _IOR('v' , BASE_VIDIOCPRIVATE+6, int)
-#define BTTV_VBISIZE            _IOR('v' , BASE_VIDIOCPRIVATE+8, int)
-
 #endif
 
 #define btwrite(dat,adr)    writel((dat), btv->bt848_mmio+(adr))
