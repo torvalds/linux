@@ -121,14 +121,6 @@ static const struct snmp_mib snmp4_ipextstats_list[] = {
 	SNMP_MIB_SENTINEL
 };
 
-static const struct snmp_mib snmp4_icmp_list[] = {
-	SNMP_MIB_ITEM("InMsgs", ICMP_MIB_INMSGS),
-	SNMP_MIB_ITEM("InErrors", ICMP_MIB_INERRORS),
-	SNMP_MIB_ITEM("OutMsgs", ICMP_MIB_OUTMSGS),
-	SNMP_MIB_ITEM("OutErrors", ICMP_MIB_OUTERRORS),
-	SNMP_MIB_SENTINEL
-};
-
 static struct {
 	char *name;
 	int index;
