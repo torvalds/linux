@@ -83,10 +83,12 @@ enum {
 	PDC_PCI_SYS_ERR		= (1 << 22), /* PCI system error */
 	PDC1_PCI_PARITY_ERR	= (1 << 23), /* PCI parity error (from SATA150 driver) */
 	PDC1_ERR_MASK		= PDC1_PCI_PARITY_ERR,
-	PDC2_ERR_MASK		= PDC2_HTO_ERR | PDC2_ATA_HBA_ERR | PDC2_ATA_DMA_CNT_ERR,
-	PDC_ERR_MASK		= (PDC_PH_ERR | PDC_SH_ERR | PDC_DH_ERR | PDC_OVERRUN_ERR
-				   | PDC_UNDERRUN_ERR | PDC_DRIVE_ERR | PDC_PCI_SYS_ERR
-				   | PDC1_ERR_MASK | PDC2_ERR_MASK),
+	PDC2_ERR_MASK		= PDC2_HTO_ERR | PDC2_ATA_HBA_ERR |
+				  PDC2_ATA_DMA_CNT_ERR,
+	PDC_ERR_MASK		= PDC_PH_ERR | PDC_SH_ERR | PDC_DH_ERR |
+				  PDC_OVERRUN_ERR | PDC_UNDERRUN_ERR |
+				  PDC_DRIVE_ERR | PDC_PCI_SYS_ERR |
+				  PDC1_ERR_MASK | PDC2_ERR_MASK,
 
 	board_2037x		= 0,	/* FastTrak S150 TX2plus */
 	board_2037x_pata	= 1,	/* FastTrak S150 TX2plus PATA port */
@@ -695,19 +697,20 @@ static void pdc_irq_clear(struct ata_port *ap)
 	readl(mmio + PDC_INT_SEQMASK);
 }
 
-static inline int pdc_is_sataii_tx4(unsigned long flags)
+static int pdc_is_sataii_tx4(unsigned long flags)
 {
 	const unsigned long mask = PDC_FLAG_GEN_II | PDC_FLAG_4_PORTS;
 	return (flags & mask) == mask;
 }
 
-static inline unsigned int pdc_port_no_to_ata_no(unsigned int port_no, int is_sataii_tx4)
+static unsigned int pdc_port_no_to_ata_no(unsigned int port_no,
+					  int is_sataii_tx4)
 {
 	static const unsigned char sataii_tx4_port_remap[4] = { 3, 1, 0, 2};
 	return is_sataii_tx4 ? sataii_tx4_port_remap[port_no] : port_no;
 }
 
-static irqreturn_t pdc_interrupt (int irq, void *dev_instance)
+static irqreturn_t pdc_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	struct ata_port *ap;
@@ -839,15 +842,16 @@ static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	WARN_ON (tf->protocol == ATA_PROT_DMA ||
-		 tf->protocol == ATA_PROT_ATAPI_DMA);
+	WARN_ON(tf->protocol == ATA_PROT_DMA ||
+		tf->protocol == ATA_PROT_ATAPI_DMA);
 	ata_tf_load(ap, tf);
 }
 
-static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
+static void pdc_exec_command_mmio(struct ata_port *ap,
+				  const struct ata_taskfile *tf)
 {
-	WARN_ON (tf->protocol == ATA_PROT_DMA ||
-		 tf->protocol == ATA_PROT_ATAPI_DMA);
+	WARN_ON(tf->protocol == ATA_PROT_DMA ||
+		tf->protocol == ATA_PROT_ATAPI_DMA);
 	ata_exec_command(ap, tf);
 }
 
@@ -870,8 +874,11 @@ static int pdc_check_atapi_dma(struct ata_queued_cmd *qc)
 	}
 	/* -45150 (FFFF4FA2) to -1 (FFFFFFFF) shall use PIO mode */
 	if (scsicmd[0] == WRITE_10) {
-		unsigned int lba;
-		lba = (scsicmd[2] << 24) | (scsicmd[3] << 16) | (scsicmd[4] << 8) | scsicmd[5];
+		unsigned int lba =
+			(scsicmd[2] << 24) |
+			(scsicmd[3] << 16) |
+			(scsicmd[4] << 8) |
+			scsicmd[5];
 		if (lba >= 0xFFFF4FA2)
 			pio = 1;
 	}
@@ -956,7 +963,8 @@ static void pdc_host_init(struct ata_host *host)
 	writel(tmp, mmio + PDC_SLEW_CTL);
 }
 
-static int pdc_ata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int pdc_ata_init_one(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	static int printed_version;
 	const struct ata_port_info *pi = &pdc_port_info[ent->driver_data];

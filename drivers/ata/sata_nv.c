@@ -291,7 +291,7 @@ struct nv_swncq_port_priv {
 };
 
 
-#define NV_ADMA_CHECK_INTR(GCTL, PORT) ((GCTL) & ( 1 << (19 + (12 * (PORT)))))
+#define NV_ADMA_CHECK_INTR(GCTL, PORT) ((GCTL) & (1 << (19 + (12 * (PORT)))))
 
 static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 #ifdef CONFIG_PM
@@ -884,8 +884,9 @@ static int nv_adma_check_cpb(struct ata_port *ap, int cpb_num, int force_err)
 			/* Notifier bits set without a command may indicate the drive
 			   is misbehaving. Raise host state machine violation on this
 			   condition. */
-			ata_port_printk(ap, KERN_ERR, "notifier for tag %d with no command?\n",
-				cpb_num);
+			ata_port_printk(ap, KERN_ERR,
+					"notifier for tag %d with no cmd?\n",
+					cpb_num);
 			ehi->err_mask |= AC_ERR_HSM;
 			ehi->action |= ATA_EH_SOFTRESET;
 			ata_port_freeze(ap);
@@ -1021,8 +1022,8 @@ static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
 				while ((pos = ffs(check_commands)) && !error) {
 					pos--;
 					error = nv_adma_check_cpb(ap, pos,
-						notifier_error & (1 << pos) );
-					check_commands &= ~(1 << pos );
+						notifier_error & (1 << pos));
+					check_commands &= ~(1 << pos);
 				}
 			}
 		}
@@ -1061,7 +1062,7 @@ static void nv_adma_freeze(struct ata_port *ap)
 	tmp = readw(mmio + NV_ADMA_CTL);
 	writew(tmp & ~(NV_ADMA_CTL_AIEN | NV_ADMA_CTL_HOTPLUG_IEN),
 		mmio + NV_ADMA_CTL);
-	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 }
 
 static void nv_adma_thaw(struct ata_port *ap)
@@ -1079,7 +1080,7 @@ static void nv_adma_thaw(struct ata_port *ap)
 	tmp = readw(mmio + NV_ADMA_CTL);
 	writew(tmp | (NV_ADMA_CTL_AIEN | NV_ADMA_CTL_HOTPLUG_IEN),
 		mmio + NV_ADMA_CTL);
-	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 }
 
 static void nv_adma_irq_clear(struct ata_port *ap)
@@ -1165,7 +1166,7 @@ static int nv_adma_port_start(struct ata_port *ap)
 	pp->cpb_dma = mem_dma;
 
 	writel(mem_dma & 0xFFFFFFFF, 	mmio + NV_ADMA_CPB_BASE_LOW);
-	writel((mem_dma >> 16 ) >> 16,	mmio + NV_ADMA_CPB_BASE_HIGH);
+	writel((mem_dma >> 16) >> 16,	mmio + NV_ADMA_CPB_BASE_HIGH);
 
 	mem     += NV_ADMA_MAX_CPBS * NV_ADMA_CPB_SZ;
 	mem_dma += NV_ADMA_MAX_CPBS * NV_ADMA_CPB_SZ;
@@ -1189,15 +1190,15 @@ static int nv_adma_port_start(struct ata_port *ap)
 
 	/* clear GO for register mode, enable interrupt */
 	tmp = readw(mmio + NV_ADMA_CTL);
-	writew( (tmp & ~NV_ADMA_CTL_GO) | NV_ADMA_CTL_AIEN |
-		 NV_ADMA_CTL_HOTPLUG_IEN, mmio + NV_ADMA_CTL);
+	writew((tmp & ~NV_ADMA_CTL_GO) | NV_ADMA_CTL_AIEN |
+		NV_ADMA_CTL_HOTPLUG_IEN, mmio + NV_ADMA_CTL);
 
 	tmp = readw(mmio + NV_ADMA_CTL);
 	writew(tmp | NV_ADMA_CTL_CHANNEL_RESET, mmio + NV_ADMA_CTL);
-	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 	udelay(1);
 	writew(tmp & ~NV_ADMA_CTL_CHANNEL_RESET, mmio + NV_ADMA_CTL);
-	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 
 	return 0;
 }
@@ -1237,7 +1238,7 @@ static int nv_adma_port_resume(struct ata_port *ap)
 
 	/* set CPB block location */
 	writel(pp->cpb_dma & 0xFFFFFFFF, 	mmio + NV_ADMA_CPB_BASE_LOW);
-	writel((pp->cpb_dma >> 16 ) >> 16,	mmio + NV_ADMA_CPB_BASE_HIGH);
+	writel((pp->cpb_dma >> 16) >> 16,	mmio + NV_ADMA_CPB_BASE_HIGH);
 
 	/* clear any outstanding interrupt conditions */
 	writew(0xffff, mmio + NV_ADMA_STAT);
@@ -1250,15 +1251,15 @@ static int nv_adma_port_resume(struct ata_port *ap)
 
 	/* clear GO for register mode, enable interrupt */
 	tmp = readw(mmio + NV_ADMA_CTL);
-	writew( (tmp & ~NV_ADMA_CTL_GO) | NV_ADMA_CTL_AIEN |
-		 NV_ADMA_CTL_HOTPLUG_IEN, mmio + NV_ADMA_CTL);
+	writew((tmp & ~NV_ADMA_CTL_GO) | NV_ADMA_CTL_AIEN |
+		NV_ADMA_CTL_HOTPLUG_IEN, mmio + NV_ADMA_CTL);
 
 	tmp = readw(mmio + NV_ADMA_CTL);
 	writew(tmp | NV_ADMA_CTL_CHANNEL_RESET, mmio + NV_ADMA_CTL);
-	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 	udelay(1);
 	writew(tmp & ~NV_ADMA_CTL_CHANNEL_RESET, mmio + NV_ADMA_CTL);
-	readw(mmio + NV_ADMA_CTL );	/* flush posted write */
+	readw(mmio + NV_ADMA_CTL);	/* flush posted write */
 
 	return 0;
 }
@@ -1342,7 +1343,8 @@ static void nv_adma_fill_sg(struct ata_queued_cmd *qc, struct nv_adma_cpb *cpb)
 	idx = 0;
 
 	ata_for_each_sg(sg, qc) {
-		aprd = (idx < 5) ? &cpb->aprd[idx] : &pp->aprd[NV_ADMA_SGTBL_LEN * qc->tag + (idx-5)];
+		aprd = (idx < 5) ? &cpb->aprd[idx] :
+			       &pp->aprd[NV_ADMA_SGTBL_LEN * qc->tag + (idx-5)];
 		nv_adma_fill_aprd(qc, sg, idx, aprd);
 		idx++;
 	}
@@ -1407,8 +1409,8 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 	} else
 		memset(&cpb->aprd[0], 0, sizeof(struct nv_adma_prd) * 5);
 
-	/* Be paranoid and don't let the device see NV_CPB_CTL_CPB_VALID until we are
-	   finished filling in all of the contents */
+	/* Be paranoid and don't let the device see NV_CPB_CTL_CPB_VALID
+	   until we are finished filling in all of the contents */
 	wmb();
 	cpb->ctl_flags = ctl_flags;
 	wmb();
@@ -1436,15 +1438,15 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 	wmb();
 
 	if (curr_ncq != pp->last_issue_ncq) {
-	   	/* Seems to need some delay before switching between NCQ and non-NCQ
-		   commands, else we get command timeouts and such. */
+		/* Seems to need some delay before switching between NCQ and
+		   non-NCQ commands, else we get command timeouts and such. */
 		udelay(20);
 		pp->last_issue_ncq = curr_ncq;
 	}
 
 	writew(qc->tag, mmio + NV_ADMA_APPEND);
 
-	DPRINTK("Issued tag %u\n",qc->tag);
+	DPRINTK("Issued tag %u\n", qc->tag);
 
 	return 0;
 }
@@ -1654,7 +1656,8 @@ static void nv_adma_error_handler(struct ata_port *ap)
 			u8 cpb_count = readb(mmio + NV_ADMA_CPB_COUNT);
 			u8 next_cpb_idx = readb(mmio + NV_ADMA_NEXT_CPB_IDX);
 
-			ata_port_printk(ap, KERN_ERR, "EH in ADMA mode, notifier 0x%X "
+			ata_port_printk(ap, KERN_ERR,
+				"EH in ADMA mode, notifier 0x%X "
 				"notifier_error 0x%X gen_ctl 0x%X status 0x%X "
 				"next cpb count 0x%X next cpb idx 0x%x\n",
 				notifier, notifier_error, gen_ctl, status,
@@ -1663,7 +1666,7 @@ static void nv_adma_error_handler(struct ata_port *ap)
 			for (i = 0; i < NV_ADMA_MAX_CPBS; i++) {
 				struct nv_adma_cpb *cpb = &pp->cpb[i];
 				if ((ata_tag_valid(ap->link.active_tag) && i == ap->link.active_tag) ||
-				    ap->link.sactive & (1 << i) )
+				    ap->link.sactive & (1 << i))
 					ata_port_printk(ap, KERN_ERR,
 						"CPB %d: ctl_flags 0x%x, resp_flags 0x%x\n",
 						i, cpb->ctl_flags, cpb->resp_flags);
@@ -1673,7 +1676,8 @@ static void nv_adma_error_handler(struct ata_port *ap)
 		/* Push us back into port register mode for error handling. */
 		nv_adma_register_mode(ap);
 
-		/* Mark all of the CPBs as invalid to prevent them from being executed */
+		/* Mark all of the CPBs as invalid to prevent them from
+		   being executed */
 		for (i = 0; i < NV_ADMA_MAX_CPBS; i++)
 			pp->cpb[i].ctl_flags &= ~NV_CPB_CTL_CPB_VALID;
 
@@ -2350,9 +2354,9 @@ static irqreturn_t nv_swncq_interrupt(int irq, void *dev_instance)
 	return IRQ_RETVAL(handled);
 }
 
-static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version = 0;
+	static int printed_version;
 	const struct ata_port_info *ppi[] = { NULL, NULL };
 	struct ata_host *host;
 	struct nv_host_priv *hpriv;
@@ -2364,7 +2368,7 @@ static int nv_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
         // Make sure this is a SATA controller by counting the number of bars
         // (NVIDIA SATA controllers will always have six bars).  Otherwise,
         // it's an IDE controller and we ignore it.
-	for (bar=0; bar<6; bar++)
+	for (bar = 0; bar < 6; bar++)
 		if (pci_resource_start(pdev, bar) == 0)
 			return -ENODEV;
 
@@ -2460,17 +2464,17 @@ static int nv_pci_device_resume(struct pci_dev *pdev)
 			pp = host->ports[0]->private_data;
 			if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE)
 				tmp32 &= ~(NV_MCP_SATA_CFG_20_PORT0_EN |
-				 	   NV_MCP_SATA_CFG_20_PORT0_PWB_EN);
+					   NV_MCP_SATA_CFG_20_PORT0_PWB_EN);
 			else
 				tmp32 |=  (NV_MCP_SATA_CFG_20_PORT0_EN |
-				 	   NV_MCP_SATA_CFG_20_PORT0_PWB_EN);
+					   NV_MCP_SATA_CFG_20_PORT0_PWB_EN);
 			pp = host->ports[1]->private_data;
 			if (pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE)
 				tmp32 &= ~(NV_MCP_SATA_CFG_20_PORT1_EN |
-				 	   NV_MCP_SATA_CFG_20_PORT1_PWB_EN);
+					   NV_MCP_SATA_CFG_20_PORT1_PWB_EN);
 			else
 				tmp32 |=  (NV_MCP_SATA_CFG_20_PORT1_EN |
-				 	   NV_MCP_SATA_CFG_20_PORT1_PWB_EN);
+					   NV_MCP_SATA_CFG_20_PORT1_PWB_EN);
 
 			pci_write_config_dword(pdev, NV_MCP_SATA_CFG_20, tmp32);
 		}

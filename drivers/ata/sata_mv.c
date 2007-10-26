@@ -1156,7 +1156,7 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 		last_sg->flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
 }
 
-static inline void mv_crqb_pack_cmd(__le16 *cmdw, u8 data, u8 addr, unsigned last)
+static void mv_crqb_pack_cmd(__le16 *cmdw, u8 data, u8 addr, unsigned last)
 {
 	u16 tmp = data | (addr << CRQB_CMD_ADDR_SHIFT) | CRQB_CMD_CS |
 		(last ? CRQB_CMD_LAST : 0);
@@ -2429,7 +2429,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 	struct mv_host_priv *hpriv = host->private_data;
 	u32 hp_flags = hpriv->hp_flags;
 
-	switch(board_idx) {
+	switch (board_idx) {
 	case chip_5080:
 		hpriv->ops = &mv5xxx_ops;
 		hp_flags |= MV_HP_GEN_I;
@@ -2510,7 +2510,8 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		break;
 
 	default:
-		printk(KERN_ERR DRV_NAME ": BUG: invalid board index %u\n", board_idx);
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "BUG: invalid board index %u\n", board_idx);
 		return 1;
 	}
 

@@ -143,7 +143,7 @@ static const int scr_map[] = {
 	[SCR_CONTROL]	= 2,
 };
 
-static void __iomem * inic_port_base(struct ata_port *ap)
+static void __iomem *inic_port_base(struct ata_port *ap)
 {
 	return ap->host->iomap[MMIO_BAR] + ap->port_no * PORT_SIZE;
 }
