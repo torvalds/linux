@@ -60,7 +60,7 @@ usb_simtec_powercontrol(int port, int to)
 static irqreturn_t
 usb_simtec_ocirq(int irq, void *pw)
 {
-	struct s3c2410_hcd_info *info = (struct s3c2410_hcd_info *)pw;
+	struct s3c2410_hcd_info *info = pw;
 
 	if (s3c2410_gpio_getpin(S3C2410_GPG10) == 0) {
 		pr_debug("usb_simtec: over-current irq (oc detected)\n");

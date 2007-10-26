@@ -67,7 +67,7 @@ static int use_count[PXA_SSP_PORTS] = {0, 0, 0};
 
 static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 {
-	struct ssp_dev *dev = (struct ssp_dev*) dev_id;
+	struct ssp_dev *dev = dev_id;
 	unsigned int status = SSSR_P(dev->port);
 
 	SSSR_P(dev->port) = status; /* clear status bits */
