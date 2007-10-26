@@ -17,6 +17,8 @@
 #ifndef BOOT_BOOT_H
 #define BOOT_BOOT_H
 
+#define STACK_SIZE	512	/* Minimum number of bytes for stack */
+
 #ifndef __ASSEMBLY__
 
 #include <stdarg.h>
@@ -198,8 +200,6 @@ static inline int isdigit(int ch)
 }
 
 /* Heap -- available for dynamic lists. */
-#define STACK_SIZE	512	/* Minimum number of bytes for stack */
-
 extern char _end[];
 extern char *HEAP;
 extern char *heap_end;
@@ -216,9 +216,9 @@ static inline char *__get_heap(size_t s, size_t a, size_t n)
 #define GET_HEAP(type, n) \
 	((type *)__get_heap(sizeof(type),__alignof__(type),(n)))
 
-static inline int heap_free(void)
+static inline bool heap_free(size_t n)
 {
-	return heap_end-HEAP;
+	return (int)(heap_end-HEAP) >= (int)n;
 }
 
 /* copy.S */

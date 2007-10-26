@@ -173,7 +173,8 @@ ramdisk_size:	.long	0		# its size in bytes
 bootsect_kludge:
 		.long	0		# obsolete
 
-heap_end_ptr:	.word	_end+1024	# (Header version 0x0201 or later)
+heap_end_ptr:	.word	_end+STACK_SIZE-512
+					# (Header version 0x0201 or later)
 					# space from here (exclusive) down to
 					# end of setup code can be used by setup
 					# for local heap purposes.
@@ -230,28 +231,53 @@ start_of_setup:
 	int	$0x13
 #endif
 
-# We will have entered with %cs = %ds+0x20, normalize %cs so
-# it is on par with the other segments.
-	pushw	%ds
-	pushw	$setup2
-	lretw
-
-setup2:
 # Force %es = %ds
 	movw	%ds, %ax
 	movw	%ax, %es
 	cld
 
-# Stack paranoia: align the stack and make sure it is good
-# for both 16- and 32-bit references.  In particular, if we
-# were meant to have been using the full 16-bit segment, the
-# caller might have set %sp to zero, which breaks %esp-based
-# references.
-	andw	$~3, %sp	# dword align (might as well...)
-	jnz	1f
-	movw	$0xfffc, %sp	# Make sure we're not zero
-1:	movzwl	%sp, %esp	# Clear upper half of %esp
-	sti
+# Apparently some ancient versions of LILO invoked the kernel
+# with %ss != %ds, which happened to work by accident for the
+# old code.  If the CAN_USE_HEAP flag is set in loadflags, or
+# %ss != %ds, then adjust the stack pointer.
+
+	# Smallest possible stack we can tolerate
+	movw	$(_end+STACK_SIZE), %cx
+
+	movw	heap_end_ptr, %dx
+	addw	$512, %dx
+	jnc	1f
+	xorw	%dx, %dx	# Wraparound - whole segment available
+1:	testb	$CAN_USE_HEAP, loadflags
+	jnz	2f
+
+	# No CAN_USE_HEAP
+	movw	%ss, %dx
+	cmpw	%ax, %dx	# %ds == %ss?
+	movw	%sp, %dx
+	# If so, assume %sp is reasonably set, otherwise use
+	# the smallest possible stack.
+	jne	4f		# -> Smallest possible stack...
+
+	# Make sure the stack is at least minimum size.  Take a value
+	# of zero to mean "full segment."
+2:
+	andw	$~3, %dx	# dword align (might as well...)
+	jnz	3f
+	movw	$0xfffc, %dx	# Make sure we're not zero
+3:	cmpw	%cx, %dx
+	jnb	5f
+4:	movw	%cx, %dx	# Minimum value we can possibly use
+5:	movw	%ax, %ss
+	movzwl	%dx, %esp	# Clear upper half of %esp
+	sti			# Now we should have a working stack
+
+# We will have entered with %cs = %ds+0x20, normalize %cs so
+# it is on par with the other segments.
+	pushw	%ds
+	pushw	$6f
+	lretw
+6:
 
 # Check signature at end of setup
 	cmpl	$0x5a5aaa55, setup_sig
