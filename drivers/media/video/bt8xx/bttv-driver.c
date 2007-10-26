@@ -1454,15 +1454,6 @@ static int get_control(struct bttv *btv, struct v4l2_control *c)
 		case V4L2_CID_AUDIO_VOLUME:
 			c->value = va.volume;
 			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			c->value = va.balance;
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			c->value = va.bass;
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			c->value = va.treble;
-			break;
 		}
 		return 0;
 	}
@@ -1556,15 +1547,6 @@ static int set_control(struct bttv *btv, struct v4l2_control *c)
 
 		case V4L2_CID_AUDIO_VOLUME:
 			va.volume = c->value;
-			break;
-		case V4L2_CID_AUDIO_BALANCE:
-			va.balance = c->value;
-			break;
-		case V4L2_CID_AUDIO_BASS:
-			va.bass = c->value;
-			break;
-		case V4L2_CID_AUDIO_TREBLE:
-			va.treble = c->value;
 			break;
 		}
 		btv->audio_hook(btv,&va,1);
@@ -2897,18 +2879,6 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			switch (bttv_ctls[i].id) {
 			case V4L2_CID_AUDIO_VOLUME:
 				if (!(va.flags & VIDEO_AUDIO_VOLUME))
-					*c = no_ctl;
-				break;
-			case V4L2_CID_AUDIO_BALANCE:
-				if (!(va.flags & VIDEO_AUDIO_BALANCE))
-					*c = no_ctl;
-				break;
-			case V4L2_CID_AUDIO_BASS:
-				if (!(va.flags & VIDEO_AUDIO_BASS))
-					*c = no_ctl;
-				break;
-			case V4L2_CID_AUDIO_TREBLE:
-				if (!(va.flags & VIDEO_AUDIO_TREBLE))
 					*c = no_ctl;
 				break;
 			}
