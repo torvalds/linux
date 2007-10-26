@@ -220,8 +220,7 @@ static struct nfs_client *__nfs_find_client(const struct sockaddr_in *addr, int 
 		if (clp->cl_nfsversion != nfsversion)
 			continue;
 
-		if (memcmp(&clp->cl_addr.sin_addr, &addr->sin_addr,
-			   sizeof(clp->cl_addr.sin_addr)) != 0)
+		if (clp->cl_addr.sin_addr.s_addr != addr->sin_addr.s_addr)
 			continue;
 
 		if (!match_port || clp->cl_addr.sin_port == addr->sin_port)
