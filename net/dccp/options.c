@@ -14,6 +14,7 @@
 #include <linux/dccp.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <asm/unaligned.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 
@@ -59,6 +60,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 	unsigned char opt, len;
 	unsigned char *value;
 	u32 elapsed_time;
+	__be32 opt_val;
 	int rc;
 	int mandatory = 0;
 
@@ -145,7 +147,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			if (len != 4)
 				goto out_invalid_option;
 
-			opt_recv->dccpor_timestamp = ntohl(*(__be32 *)value);
+			opt_val = get_unaligned((__be32 *)value);
+			opt_recv->dccpor_timestamp = ntohl(opt_val);
 
 			dp->dccps_timestamp_echo = opt_recv->dccpor_timestamp;
 			dp->dccps_timestamp_time = ktime_get_real();
@@ -159,7 +162,8 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			if (len != 4 && len != 6 && len != 8)
 				goto out_invalid_option;
 
-			opt_recv->dccpor_timestamp_echo = ntohl(*(__be32 *)value);
+			opt_val = get_unaligned((__be32 *)value);
+			opt_recv->dccpor_timestamp_echo = ntohl(opt_val);
 
 			dccp_pr_debug("%s rx opt: TIMESTAMP_ECHO=%u, len=%d, "
 				      "ackno=%llu", dccp_role(sk),
@@ -168,16 +172,20 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 
+			value += 4;
 
-			if (len == 4) {
+			if (len == 4) {		/* no elapsed time included */
 				dccp_pr_debug_cat("\n");
 				break;
 			}
 
-			if (len == 6)
-				elapsed_time = ntohs(*(__be16 *)(value + 4));
-			else
-				elapsed_time = ntohl(*(__be32 *)(value + 4));
+			if (len == 6) {		/* 2-byte elapsed time */
+				__be16 opt_val2 = get_unaligned((__be16 *)value);
+				elapsed_time = ntohs(opt_val2);
+			} else {		/* 4-byte elapsed time */
+				opt_val = get_unaligned((__be32 *)value);
+				elapsed_time = ntohl(opt_val);
+			}
 
 			dccp_pr_debug_cat(", ELAPSED_TIME=%u\n", elapsed_time);
 
@@ -192,10 +200,13 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			if (pkt_type == DCCP_PKT_DATA)
 				continue;
 
-			if (len == 2)
-				elapsed_time = ntohs(*(__be16 *)value);
-			else
-				elapsed_time = ntohl(*(__be32 *)value);
+			if (len == 2) {
+				__be16 opt_val2 = get_unaligned((__be16 *)value);
+				elapsed_time = ntohs(opt_val2);
+			} else {
+				opt_val = get_unaligned((__be32 *)value);
+				elapsed_time = ntohl(opt_val);
+			}
 
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
 				opt_recv->dccpor_elapsed_time = elapsed_time;

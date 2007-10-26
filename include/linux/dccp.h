@@ -144,6 +144,8 @@ enum dccp_reset_codes {
 	DCCP_RESET_CODE_TOO_BUSY,
 	DCCP_RESET_CODE_BAD_INIT_COOKIE,
 	DCCP_RESET_CODE_AGGRESSION_PENALTY,
+
+	DCCP_MAX_RESET_CODES		/* Leave at the end!  */
 };
 
 /* DCCP options */
@@ -270,10 +272,9 @@ static inline struct dccp_hdr *dccp_zeroed_hdr(struct sk_buff *skb, int headlen)
 	return memset(skb_transport_header(skb), 0, headlen);
 }
 
-static inline struct dccp_hdr_ext *dccp_hdrx(const struct sk_buff *skb)
+static inline struct dccp_hdr_ext *dccp_hdrx(const struct dccp_hdr *dh)
 {
-	return (struct dccp_hdr_ext *)(skb_transport_header(skb) +
-				       sizeof(struct dccp_hdr));
+	return (struct dccp_hdr_ext *)((unsigned char *)dh + sizeof(*dh));
 }
 
 static inline unsigned int __dccp_basic_hdr_len(const struct dccp_hdr *dh)
@@ -287,13 +288,12 @@ static inline unsigned int dccp_basic_hdr_len(const struct sk_buff *skb)
 	return __dccp_basic_hdr_len(dh);
 }
 
-static inline __u64 dccp_hdr_seq(const struct sk_buff *skb)
+static inline __u64 dccp_hdr_seq(const struct dccp_hdr *dh)
 {
-	const struct dccp_hdr *dh = dccp_hdr(skb);
 	__u64 seq_nr =  ntohs(dh->dccph_seq);
 
 	if (dh->dccph_x != 0)
-		seq_nr = (seq_nr << 32) + ntohl(dccp_hdrx(skb)->dccph_seq_low);
+		seq_nr = (seq_nr << 32) + ntohl(dccp_hdrx(dh)->dccph_seq_low);
 	else
 		seq_nr += (u32)dh->dccph_seq2 << 16;
 

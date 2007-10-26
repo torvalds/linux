@@ -58,6 +58,42 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 	dccp_send_close(sk, 0);
 }
 
+static u8 dccp_reset_code_convert(const u8 code)
+{
+	const u8 error_code[] = {
+	[DCCP_RESET_CODE_CLOSED]	     = 0,	/* normal termination */
+	[DCCP_RESET_CODE_UNSPECIFIED]	     = 0,	/* nothing known */
+	[DCCP_RESET_CODE_ABORTED]	     = ECONNRESET,
+
+	[DCCP_RESET_CODE_NO_CONNECTION]	     = ECONNREFUSED,
+	[DCCP_RESET_CODE_CONNECTION_REFUSED] = ECONNREFUSED,
+	[DCCP_RESET_CODE_TOO_BUSY]	     = EUSERS,
+	[DCCP_RESET_CODE_AGGRESSION_PENALTY] = EDQUOT,
+
+	[DCCP_RESET_CODE_PACKET_ERROR]	     = ENOMSG,
+	[DCCP_RESET_CODE_BAD_INIT_COOKIE]    = EBADR,
+	[DCCP_RESET_CODE_BAD_SERVICE_CODE]   = EBADRQC,
+	[DCCP_RESET_CODE_OPTION_ERROR]	     = EILSEQ,
+	[DCCP_RESET_CODE_MANDATORY_ERROR]    = EOPNOTSUPP,
+	};
+
+	return code >= DCCP_MAX_RESET_CODES ? 0 : error_code[code];
+}
+
+static void dccp_rcv_reset(struct sock *sk, struct sk_buff *skb)
+{
+	u8 err = dccp_reset_code_convert(dccp_hdr_reset(skb)->dccph_reset_code);
+
+	sk->sk_err = err;
+
+	/* Queue the equivalent of TCP fin so that dccp_recvmsg exits the loop */
+	dccp_fin(sk, skb);
+
+	if (err && !sock_flag(sk, SOCK_DEAD))
+		sk_wake_async(sk, 0, POLL_ERR);
+	dccp_time_wait(sk, DCCP_TIME_WAIT, 0);
+}
+
 static void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -191,9 +227,8 @@ static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		 *		S.state := TIMEWAIT
 		 *		Set TIMEWAIT timer
 		 *		Drop packet and return
-		*/
-		dccp_fin(sk, skb);
-		dccp_time_wait(sk, DCCP_TIME_WAIT, 0);
+		 */
+		dccp_rcv_reset(sk, skb);
 		return 0;
 	case DCCP_PKT_CLOSEREQ:
 		dccp_rcv_closereq(sk, skb);
@@ -521,12 +556,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	 *		Drop packet and return
 	*/
 	if (dh->dccph_type == DCCP_PKT_RESET) {
-		/*
-		 * Queue the equivalent of TCP fin so that dccp_recvmsg
-		 * exits the loop
-		 */
-		dccp_fin(sk, skb);
-		dccp_time_wait(sk, DCCP_TIME_WAIT, 0);
+		dccp_rcv_reset(sk, skb);
 		return 0;
 		/*
 		 *   Step 7: Check for unexpected packet types
