@@ -1204,8 +1204,8 @@ static int tcp_check_dsack(struct tcp_sock *tp, struct sk_buff *ack_skb,
  * which may fail and creates some hassle (caller must handle error case
  * returns).
  */
-int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
-			  u32 start_seq, u32 end_seq)
+static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
+				 u32 start_seq, u32 end_seq)
 {
 	int in_sack, err;
 	unsigned int pkt_len;
