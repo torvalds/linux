@@ -1,0 +1,29 @@
+
+The "enviromental" rules for authors of any new tc actions are:
+
+1) If you stealeth or borroweth any packet thou shalt be branching
+from the righteous path and thou shalt cloneth.
+
+For example if your action queues a packet to be processed later
+or intentionaly branches by redirecting a packet then you need to
+clone the packet.
+There are certain fields in the skb tc_verd that need to be reset so we
+avoid loops etc. A few are generic enough so much so that skb_act_clone()
+resets them for you. So invoke skb_act_clone() rather than skb_clone()
+
+2) If you munge any packet thou shalt call pskb_expand_head in the case
+someone else is referencing the skb. After that you "own" the skb.
+You must also tell us if it is ok to munge the packet (TC_OK2MUNGE),
+this way any action downstream can stomp on the packet.
+
+3) dropping packets you dont own is a nono. You simply return
+TC_ACT_SHOT to the caller and they will drop it.
+
+The "enviromental" rules for callers of actions (qdiscs etc) are:
+
+*) thou art responsible for freeing anything returned as being
+TC_ACT_SHOT/STOLEN/QUEUED. If none of TC_ACT_SHOT/STOLEN/QUEUED is
+returned then all is great and you dont need to do anything.
+
+Post on netdev if something is unclear.
+
