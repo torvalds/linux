@@ -980,17 +980,6 @@ done_prefixes:
 			goto cannot_emulate;
 		dst.val = (s32) src.val;
 		break;
-	case 0x6a: /* push imm8 */
-		src.val = 0L;
-		src.val = insn_fetch(s8, 1, _eip);
-push:
-		dst.type  = OP_MEM;
-		dst.bytes = op_bytes;
-		dst.val = src.val;
-		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
-		dst.ptr = (void *) register_address(ctxt->ss_base,
-							_regs[VCPU_REGS_RSP]);
-		break;
 	case 0x80 ... 0x83:	/* Grp1 */
 		switch (modrm_reg) {
 		case 0:
@@ -1242,6 +1231,17 @@ special_insn:
 
 		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
 		no_wb = 1; /* Disable writeback. */
+		break;
+	case 0x6a: /* push imm8 */
+		src.val = 0L;
+		src.val = insn_fetch(s8, 1, _eip);
+	push:
+		dst.type  = OP_MEM;
+		dst.bytes = op_bytes;
+		dst.val = src.val;
+		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
+		dst.ptr = (void *) register_address(ctxt->ss_base,
+							_regs[VCPU_REGS_RSP]);
 		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
