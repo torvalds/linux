@@ -19,12 +19,6 @@
 
 #define WRPPMC_CPU_CLK_FREQ 40000000 /* 40MHZ */
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	/* Install ISR for timer interrupt */
-	setup_irq(WRPPMC_MIPS_TIMER_IRQ, irq);
-}
-
 /*
  * Estimate CPU frequency.  Sets mips_hpt_frequency as a side-effect
  *
