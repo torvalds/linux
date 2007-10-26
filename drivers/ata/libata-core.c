@@ -4689,6 +4689,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		 * data in this function or read data in ata_sg_clean.
 		 */
 		offset = lsg->offset + lsg->length - qc->pad_len;
+		sg_init_table(psg, 1);
 		sg_set_page(psg, nth_page(sg_page(lsg), offset >> PAGE_SHIFT),
 				qc->pad_len, offset_in_page(offset));
 
