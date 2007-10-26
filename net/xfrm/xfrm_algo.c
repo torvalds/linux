@@ -553,7 +553,7 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 		if (copy > len)
 			copy = len;
 
-		sg_set_buf(&sg, skb->data + offset, copy);
+		sg_init_one(&sg, skb->data + offset, copy);
 
 		err = icv_update(desc, &sg, copy);
 		if (unlikely(err))
@@ -576,8 +576,9 @@ int skb_icv_walk(const struct sk_buff *skb, struct hash_desc *desc,
 			if (copy > len)
 				copy = len;
 
+			sg_init_table(&sg, 1);
 			sg_set_page(&sg, frag->page, copy,
-					frag->page_offset + offset-start);
+				    frag->page_offset + offset-start);
 
 			err = icv_update(desc, &sg, copy);
 			if (unlikely(err))
