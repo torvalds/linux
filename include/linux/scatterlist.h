@@ -150,7 +150,7 @@ static inline struct scatterlist *sg_last(struct scatterlist *sgl,
 	struct scatterlist *ret = &sgl[nents - 1];
 #else
 	struct scatterlist *sg, *ret = NULL;
-	int i;
+	unsigned int i;
 
 	for_each_sg(sgl, sg, nents, i)
 		ret = sg;
