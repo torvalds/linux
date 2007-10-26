@@ -3476,10 +3476,11 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	struct xdr_buf	*rcvbuf = &req->rq_rcv_buf;
 	struct page	*page = *rcvbuf->pages;
 	struct kvec	*iov = rcvbuf->head;
-	unsigned int	nr, pglen = rcvbuf->page_len;
+	size_t		hdrlen;
+	u32		recvd, pglen = rcvbuf->page_len;
 	__be32		*end, *entry, *p, *kaddr;
-	uint32_t	len, attrlen, xlen;
-	int 		hdrlen, recvd, status;
+	unsigned int	nr;
+	int		status;
 
 	status = decode_op_hdr(xdr, OP_READDIR);
 	if (status)
@@ -3503,6 +3504,7 @@ static int decode_readdir(struct xdr_stream *xdr, struct rpc_rqst *req, struct n
 	end = p + ((pglen + readdir->pgbase) >> 2);
 	entry = p;
 	for (nr = 0; *p++; nr++) {
+		u32 len, attrlen, xlen;
 		if (end - p < 3)
 			goto short_pkt;
 		dprintk("cookie = %Lu, ", *((unsigned long long *)p));
@@ -3551,7 +3553,8 @@ static int decode_readlink(struct xdr_stream *xdr, struct rpc_rqst *req)
 {
 	struct xdr_buf *rcvbuf = &req->rq_rcv_buf;
 	struct kvec *iov = rcvbuf->head;
-	int hdrlen, len, recvd;
+	size_t hdrlen;
+	u32 len, recvd;
 	__be32 *p;
 	char *kaddr;
 	int status;
@@ -3646,7 +3649,8 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 	if (unlikely(bitmap[0] & (FATTR4_WORD0_ACL - 1U)))
 		return -EIO;
 	if (likely(bitmap[0] & FATTR4_WORD0_ACL)) {
-		int hdrlen, recvd;
+		size_t hdrlen;
+		u32 recvd;
 
 		/* We ignore &savep and don't do consistency checks on
 		 * the attr length.  Let userspace figure it out.... */
