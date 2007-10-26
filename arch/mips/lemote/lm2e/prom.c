@@ -57,8 +57,6 @@ void __init prom_init(void)
 	arg = (int *)fw_arg1;
 	env = (int *)fw_arg2;
 
-	mips_machtype = MACH_LEMOTE_FULONG;
-
 	prom_init_cmdline();
 
 	if ((strstr(arcs_cmdline, "console=")) == NULL)
