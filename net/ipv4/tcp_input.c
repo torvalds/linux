@@ -1248,6 +1248,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int cached_fack_count;
 	int i;
 	int first_sack_index;
+	int force_one_sack;
 
 	if (!tp->sacked_out) {
 		if (WARN_ON(tp->fackets_out))
@@ -1272,18 +1273,18 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	 * if the only SACK change is the increase of the end_seq of
 	 * the first block then only apply that SACK block
 	 * and use retrans queue hinting otherwise slowpath */
-	flag = 1;
+	force_one_sack = 1;
 	for (i = 0; i < num_sacks; i++) {
 		__be32 start_seq = sp[i].start_seq;
 		__be32 end_seq = sp[i].end_seq;
 
 		if (i == 0) {
 			if (tp->recv_sack_cache[i].start_seq != start_seq)
-				flag = 0;
+				force_one_sack = 0;
 		} else {
 			if ((tp->recv_sack_cache[i].start_seq != start_seq) ||
 			    (tp->recv_sack_cache[i].end_seq != end_seq))
-				flag = 0;
+				force_one_sack = 0;
 		}
 		tp->recv_sack_cache[i].start_seq = start_seq;
 		tp->recv_sack_cache[i].end_seq = end_seq;
@@ -1295,7 +1296,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	}
 
 	first_sack_index = 0;
-	if (flag)
+	if (force_one_sack)
 		num_sacks = 1;
 	else {
 		int j;
@@ -1320,9 +1321,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			}
 		}
 	}
-
-	/* clear flag as used for different purpose in following code */
-	flag = 0;
 
 	/* Use SACK fastpath hint if valid */
 	cached_skb = tp->fastpath_skb_hint;
