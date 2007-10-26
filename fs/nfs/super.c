@@ -1648,21 +1648,16 @@ static int nfs4_validate_mount_data(void *options,
 		len = c - dev_name;
 		if (len > NFS4_MAXNAMLEN)
 			return -ENAMETOOLONG;
-		args->nfs_server.hostname = kzalloc(len, GFP_KERNEL);
-		if (args->nfs_server.hostname == NULL)
-			return -ENOMEM;
-		strncpy(args->nfs_server.hostname, dev_name, len - 1);
+		/* N.B. caller will free nfs_server.hostname in all cases */
+		args->nfs_server.hostname = kstrndup(dev_name, len, GFP_KERNEL);
 
 		c++;			/* step over the ':' */
 		len = strlen(c);
 		if (len > NFS4_MAXPATHLEN)
 			return -ENAMETOOLONG;
-		args->nfs_server.export_path = kzalloc(len + 1, GFP_KERNEL);
-		if (args->nfs_server.export_path == NULL)
-			return -ENOMEM;
-		strncpy(args->nfs_server.export_path, c, len);
+		args->nfs_server.export_path = kstrndup(c, len, GFP_KERNEL);
 
-		dprintk("MNTPATH: %s\n", args->nfs_server.export_path);
+		dprintk("NFS: MNTPATH: '%s'\n", args->nfs_server.export_path);
 
 		if (args->client_address == NULL)
 			goto out_no_client_address;
