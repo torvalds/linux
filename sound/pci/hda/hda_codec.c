@@ -2485,13 +2485,14 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 	/* front */
 	snd_hda_codec_setup_stream(codec, nids[HDA_FRONT], stream_tag,
 				   0, format);
-	if (mout->hp_nid && mout->hp_nid != nids[HDA_FRONT])
+	if (!mout->no_share_stream &&
+	    mout->hp_nid && mout->hp_nid != nids[HDA_FRONT])
 		/* headphone out will just decode front left/right (stereo) */
 		snd_hda_codec_setup_stream(codec, mout->hp_nid, stream_tag,
 					   0, format);
 	/* extra outputs copied from front */
 	for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++)
-		if (mout->extra_out_nid[i])
+		if (!mout->no_share_stream && mout->extra_out_nid[i])
 			snd_hda_codec_setup_stream(codec,
 						   mout->extra_out_nid[i],
 						   stream_tag, 0, format);
@@ -2501,7 +2502,7 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 		if (chs >= (i + 1) * 2) /* independent out */
 			snd_hda_codec_setup_stream(codec, nids[i], stream_tag,
 						   i * 2, format);
-		else /* copy front */
+		else if (!mout->no_share_stream) /* copy front */
 			snd_hda_codec_setup_stream(codec, nids[i], stream_tag,
 						   0, format);
 	}
