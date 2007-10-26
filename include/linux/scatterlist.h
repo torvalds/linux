@@ -243,7 +243,7 @@ static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
 	sg_mark_end(sgl, nents);
 #ifdef CONFIG_DEBUG_SG
 	{
-		int i;
+		unsigned int i;
 		for (i = 0; i < nents; i++)
 			sgl[i].sg_magic = SG_MAGIC;
 	}
