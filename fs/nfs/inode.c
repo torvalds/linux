@@ -814,8 +814,9 @@ static void nfs_wcc_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 			if (S_ISDIR(inode->i_mode))
 				nfsi->cache_validity |= NFS_INO_INVALID_DATA;
 		}
-		if (inode->i_size == fattr->pre_size && nfsi->npages == 0)
-			inode->i_size = fattr->size;
+		if (inode->i_size == nfs_size_to_loff_t(fattr->pre_size) &&
+		    nfsi->npages == 0)
+			inode->i_size = nfs_size_to_loff_t(fattr->size);
 	}
 }
 
