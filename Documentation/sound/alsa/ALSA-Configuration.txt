@@ -828,6 +828,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  hippo		Hippo (ATI) with jack detection, Sony UX-90s
 	  hippo_1	Hippo (Benq) with jack detection
 	  sony-assamd	Sony ASSAMD
+	  ultra		Samsung Q1 Ultra Vista model
 	  basic		fixed pin assignment w/o SPDIF
 	  auto		auto-config reading BIOS (default)
 
