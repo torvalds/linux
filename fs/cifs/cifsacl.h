@@ -73,7 +73,7 @@ struct cifs_wksid {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 
 extern int match_sid(struct cifs_sid *);
-extern int compare_sids(struct cifs_sid *, struct cifs_sid *);
+extern int compare_sids(const struct cifs_sid *, const struct cifs_sid *);
 
 #endif /*  CONFIG_CIFS_EXPERIMENTAL */
 

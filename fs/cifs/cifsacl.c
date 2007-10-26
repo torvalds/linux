@@ -134,14 +134,29 @@ int compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
    pmode is the existing mode (we only want to overwrite part of this
    bits to set can be: S_IRWXU, S_IRWXG or S_IRWXO ie 00700 or 00070 or 00007
 */
-static void access_flags_to_mode(__u32 access_flags, umode_t * pmode,
+static void access_flags_to_mode(__u32 ace_flags, umode_t *pmode,
 				 umode_t bits_to_set)
 {
 
-#ifdef CONFIG_CIFS_DEBUG2
-	cFYI(1, ("access flags 0x%x mode now 0x%x", access_flags, *pmode);
-#endif
+	*pmode &= ~bits_to_set;
 
+	if (ace_flags & GENERIC_ALL) {
+		*pmode |= (S_IRWXUGO & bits_to_set);
+#ifdef CONFIG_CIFS_DEBUG2
+		cFYI(1, ("all perms"));
+#endif
+		return;
+	}
+	if ((ace_flags & GENERIC_WRITE) || (ace_flags & FILE_WRITE_RIGHTS))
+		*pmode |= (S_IWUGO & bits_to_set);
+	if ((ace_flags & GENERIC_READ) || (ace_flags & FILE_READ_RIGHTS))
+		*pmode |= (S_IRUGO & bits_to_set);
+	if ((ace_flags & GENERIC_EXECUTE) || (ace_flags & FILE_EXEC_RIGHTS))
+		*pmode |= (S_IXUGO & bits_to_set);
+
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1, ("access flags 0x%x mode now 0x%x", ace_flags, *pmode);
+#endif
 	return;
 }
 
@@ -242,7 +257,7 @@ static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 
 
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
-		       struct cifs_sid *pownersid, struct cifs_sid *pgrpsid
+		       struct cifs_sid *pownersid, struct cifs_sid *pgrpsid,
 		       struct inode *inode)
 {
 	int i;
