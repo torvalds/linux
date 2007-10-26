@@ -57,7 +57,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		- Default: 1
 		- For auto-loading more than one card, specify this
 		  option together with snd-card-X aliases.
-
+    slots	- Reserve the slot index for the given driver.
+		  This option takes multiple strings.		
+		  See "Module Autoloading Support" section for details.
   
   Module snd-pcm-oss
   ------------------
@@ -2139,6 +2141,23 @@ alias sound-slot-1 snd-ens1371
 
 In this example, the interwave card is always loaded as the first card
 (index 0) and ens1371 as the second (index 1).
+
+Alternative (and new) way to fixate the slot assignment is to use
+"slots" option of snd module.  In the case above, specify like the
+following: 
+
+options snd slots=snd-interwave,snd-ens1371
+
+Then, the first slot (#0) is reserved for snd-interwave driver, and
+the second (#1) for snd-ens1371.  You can omit index option in each
+driver if slots option is used (although you can still have them at
+the same time as long as they don't conflict).
+
+The slots option is especially useful for avoiding the possible
+hot-plugging and the resultant slot conflict.  For example, in the
+case above again, the first two slots are already reserved.  If any
+other driver (e.g. snd-usb-audio) is loaded before snd-interwave or
+snd-ens1371, it will be assigned to the third or later slot.
 
 
 ALSA PCM devices to OSS devices mapping
