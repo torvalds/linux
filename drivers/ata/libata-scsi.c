@@ -1108,6 +1108,9 @@ static unsigned int ata_scsi_flush_xlat(struct ata_queued_cmd *qc)
 	else
 		tf->command = ATA_CMD_FLUSH;
 
+	/* flush is critical for IO integrity, consider it an IO command */
+	qc->flags |= ATA_QCFLAG_IO;
+
 	return 0;
 }
 
