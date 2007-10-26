@@ -21,6 +21,24 @@
 #include "assoc.h"
 
 
+static inline void libertas_postpone_association_work(wlan_private *priv)
+{
+	if (priv->adapter->surpriseremoved)
+		return;
+	cancel_delayed_work(&priv->assoc_work);
+	queue_delayed_work(priv->work_thread, &priv->assoc_work, HZ / 2);
+}
+
+static inline void libertas_cancel_association_work(wlan_private *priv)
+{
+	cancel_delayed_work(&priv->assoc_work);
+	if (priv->adapter->pending_assoc_req) {
+		kfree(priv->adapter->pending_assoc_req);
+		priv->adapter->pending_assoc_req = NULL;
+	}
+}
+
+
 /**
  *  @brief Find the channel frequency power info with specific channel
  *
@@ -949,9 +967,9 @@ static int wlan_set_freq(struct net_device *dev, struct iw_request_info *info,
 out:
 	if (ret == 0) {
 		set_bit(ASSOC_FLAG_CHANNEL, &assoc_req->flags);
-		wlan_postpone_association_work(priv);
+		libertas_postpone_association_work(priv);
 	} else {
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 	}
 	mutex_unlock(&adapter->lock);
 
@@ -1050,11 +1068,11 @@ static int wlan_set_mode(struct net_device *dev,
 	assoc_req = wlan_get_association_request(adapter);
 	if (!assoc_req) {
 		ret = -ENOMEM;
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 	} else {
 		assoc_req->mode = *uwrq;
 		set_bit(ASSOC_FLAG_MODE, &assoc_req->flags);
-		wlan_postpone_association_work(priv);
+		libertas_postpone_association_work(priv);
 		lbs_deb_wext("Switching to mode: 0x%x\n", *uwrq);
 	}
 	mutex_unlock(&adapter->lock);
@@ -1335,9 +1353,9 @@ static int wlan_set_encode(struct net_device *dev,
 out:
 	if (ret == 0) {
 		set_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags);
-		wlan_postpone_association_work(priv);
+		libertas_postpone_association_work(priv);
 	} else {
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 	}
 	mutex_unlock(&adapter->lock);
 
@@ -1576,9 +1594,9 @@ static int wlan_set_encodeext(struct net_device *dev,
 
 out:
 	if (ret == 0) {
-		wlan_postpone_association_work(priv);
+		libertas_postpone_association_work(priv);
 	} else {
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 	}
 	mutex_unlock(&adapter->lock);
 
@@ -1623,9 +1641,9 @@ static int wlan_set_genie(struct net_device *dev,
 out:
 	if (ret == 0) {
 		set_bit(ASSOC_FLAG_WPA_IE, &assoc_req->flags);
-		wlan_postpone_association_work(priv);
+		libertas_postpone_association_work(priv);
 	} else {
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 	}
 	mutex_unlock(&adapter->lock);
 
@@ -1752,9 +1770,9 @@ out:
 	if (ret == 0) {
 		if (updated)
 			set_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags);
-		wlan_postpone_association_work(priv);
+		libertas_postpone_association_work(priv);
 	} else if (ret != -EOPNOTSUPP) {
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 	}
 	mutex_unlock(&adapter->lock);
 
@@ -1929,13 +1947,13 @@ out:
 			memcpy(&assoc_req->ssid, &ssid, IW_ESSID_MAX_SIZE);
 			assoc_req->ssid_len = ssid_len;
 			set_bit(ASSOC_FLAG_SSID, &assoc_req->flags);
-			wlan_postpone_association_work(priv);
+			libertas_postpone_association_work(priv);
 		}
 	}
 
 	/* Cancel the association request if there was an error */
 	if (ret != 0) {
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 	}
 
 	mutex_unlock(&adapter->lock);
@@ -1974,13 +1992,13 @@ static int wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 	/* Get or create the current association request */
 	assoc_req = wlan_get_association_request(adapter);
 	if (!assoc_req) {
-		wlan_cancel_association_work(priv);
+		libertas_cancel_association_work(priv);
 		ret = -ENOMEM;
 	} else {
 		/* Copy the BSSID to the association request */
 		memcpy(&assoc_req->bssid, awrq->sa_data, ETH_ALEN);
 		set_bit(ASSOC_FLAG_BSSID, &assoc_req->flags);
-		wlan_postpone_association_work(priv);
+		libertas_postpone_association_work(priv);
 	}
 
 	mutex_unlock(&adapter->lock);
