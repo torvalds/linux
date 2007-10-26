@@ -1398,7 +1398,7 @@ static int wlan_get_encodeext(struct net_device *dev,
 		index = adapter->wep_tx_keyidx;
 	}
 
-	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY &&
+	if (!(ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) &&
 	    ext->alg != IW_ENCODE_ALG_WEP) {
 		if (index != 0 || adapter->mode != IW_MODE_INFRA)
 			goto out;
