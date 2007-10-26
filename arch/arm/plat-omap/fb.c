@@ -171,7 +171,7 @@ static int check_fbmem_region(int region_idx, struct omapfb_mem_region *rg,
  * Called from map_io. We need to call to this early enough so that we
  * can reserve the fixed SDRAM regions before VM could get hold of them.
  */
-void omapfb_reserve_sdram(void)
+void __init omapfb_reserve_sdram(void)
 {
 	struct bootmem_data	*bdata;
 	unsigned long		sdram_start, sdram_size;
