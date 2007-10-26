@@ -343,7 +343,7 @@ static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
 	int val = simple_strtoul(buf, NULL, 10);
 	u8 conf = 0;
 
-	if (!(val == 0 || val == 1) || data->kind == f75373)
+	if (!(val == 0 || val == 1))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -549,13 +549,13 @@ static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO|S_IWUSR,
 	show_pwm, set_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO|S_IWUSR,
 	show_pwm_enable, set_pwm_enable, 0);
-static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO|S_IWUSR,
+static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO,
 	show_pwm_mode, set_pwm_mode, 0);
 static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR,
 	show_pwm, set_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO|S_IWUSR,
 	show_pwm_enable, set_pwm_enable, 1);
-static SENSOR_DEVICE_ATTR(pwm2_mode, S_IRUGO|S_IWUSR,
+static SENSOR_DEVICE_ATTR(pwm2_mode, S_IRUGO,
 	show_pwm_mode, set_pwm_mode, 1);
 
 static struct attribute *f75375_attributes[] = {
@@ -655,6 +655,19 @@ static int f75375_probe(struct i2c_client *client)
 
 	if ((err = sysfs_create_group(&client->dev.kobj, &f75375_group)))
 		goto exit_free;
+
+	if (data->kind == f75375) {
+		err = sysfs_chmod_file(&client->dev.kobj,
+			&sensor_dev_attr_pwm1_mode.dev_attr.attr,
+			S_IRUGO | S_IWUSR);
+		if (err)
+			goto exit_remove;
+		err = sysfs_chmod_file(&client->dev.kobj,
+			&sensor_dev_attr_pwm2_mode.dev_attr.attr,
+			S_IRUGO | S_IWUSR);
+		if (err)
+			goto exit_remove;
+	}
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
