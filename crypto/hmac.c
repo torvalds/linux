@@ -61,7 +61,7 @@ static int hmac_setkey(struct crypto_hash *parent,
 		desc.tfm = tfm;
 		desc.flags = crypto_hash_get_flags(parent);
 		desc.flags &= CRYPTO_TFM_REQ_MAY_SLEEP;
-		sg_set_buf(&tmp, inkey, keylen);
+		sg_init_one(&tmp, inkey, keylen);
 
 		err = crypto_hash_digest(&desc, &tmp, keylen, digest);
 		if (err)
@@ -96,7 +96,7 @@ static int hmac_init(struct hash_desc *pdesc)
 
 	desc.tfm = ctx->child;
 	desc.flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-	sg_set_buf(&tmp, ipad, bs);
+	sg_init_one(&tmp, ipad, bs);
 
 	err = crypto_hash_init(&desc);
 	if (unlikely(err))
@@ -131,7 +131,7 @@ static int hmac_final(struct hash_desc *pdesc, u8 *out)
 
 	desc.tfm = ctx->child;
 	desc.flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
-	sg_set_buf(&tmp, opad, bs + ds);
+	sg_init_one(&tmp, opad, bs + ds);
 
 	err = crypto_hash_final(&desc, digest);
 	if (unlikely(err))
@@ -158,9 +158,11 @@ static int hmac_digest(struct hash_desc *pdesc, struct scatterlist *sg,
 	desc.tfm = ctx->child;
 	desc.flags = pdesc->flags & CRYPTO_TFM_REQ_MAY_SLEEP;
 
+	sg_init_table(sg1, 2);
 	sg_set_buf(sg1, ipad, bs);
+	sg_set_page(&sg1[1], (void *) sg, 0, 0);
 
-	sg_set_page(&sg[1], (void *) sg, 0, 0);
+	sg_init_table(sg2, 1);
 	sg_set_buf(sg2, opad, bs + ds);
 
 	err = crypto_hash_digest(&desc, sg1, nbytes + bs, digest);

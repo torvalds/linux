@@ -103,7 +103,7 @@ int sysctl_tcp_abc __read_mostly;
 #define FLAG_SLOWPATH		0x100 /* Do not skip RFC checks for window update.*/
 #define FLAG_ONLY_ORIG_SACKED	0x200 /* SACKs only non-rexmit sent before RTO */
 #define FLAG_SND_UNA_ADVANCED	0x400 /* Snd_una was changed (!= FLAG_DATA_ACKED) */
-#define FLAG_DSACKING_ACK	0x800 /* SACK blocks contained DSACK info */
+#define FLAG_DSACKING_ACK	0x800 /* SACK blocks contained D-SACK info */
 #define FLAG_NONHEAD_RETRANS_ACKED	0x1000 /* Non-head rexmitted data was ACKed */
 
 #define FLAG_ACKED		(FLAG_DATA_ACKED|FLAG_SYN_ACKED)
@@ -866,7 +866,7 @@ static void tcp_disable_fack(struct tcp_sock *tp)
 	tp->rx_opt.sack_ok &= ~2;
 }
 
-/* Take a notice that peer is sending DSACKs */
+/* Take a notice that peer is sending D-SACKs */
 static void tcp_dsack_seen(struct tcp_sock *tp)
 {
 	tp->rx_opt.sack_ok |= 4;
@@ -1058,7 +1058,7 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
  *
  * With D-SACK the lower bound is extended to cover sequence space below
  * SND.UNA down to undo_marker, which is the last point of interest. Yet
- * again, DSACK block must not to go across snd_una (for the same reason as
+ * again, D-SACK block must not to go across snd_una (for the same reason as
  * for the normal SACK blocks, explained above). But there all simplicity
  * ends, TCP might receive valid D-SACKs below that. As long as they reside
  * fully below undo_marker they do not affect behavior in anyway and can
@@ -1080,7 +1080,7 @@ static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
 	if (!before(start_seq, tp->snd_nxt))
 		return 0;
 
-	/* In outstanding window? ...This is valid exit for DSACKs too.
+	/* In outstanding window? ...This is valid exit for D-SACKs too.
 	 * start_seq == snd_una is non-sensical (see comments above)
 	 */
 	if (after(start_seq, tp->snd_una))
@@ -1204,8 +1204,8 @@ static int tcp_check_dsack(struct tcp_sock *tp, struct sk_buff *ack_skb,
  * which may fail and creates some hassle (caller must handle error case
  * returns).
  */
-int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
-			  u32 start_seq, u32 end_seq)
+static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
+				 u32 start_seq, u32 end_seq)
 {
 	int in_sack, err;
 	unsigned int pkt_len;
@@ -1248,6 +1248,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int cached_fack_count;
 	int i;
 	int first_sack_index;
+	int force_one_sack;
 
 	if (!tp->sacked_out) {
 		if (WARN_ON(tp->fackets_out))
@@ -1272,18 +1273,18 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	 * if the only SACK change is the increase of the end_seq of
 	 * the first block then only apply that SACK block
 	 * and use retrans queue hinting otherwise slowpath */
-	flag = 1;
+	force_one_sack = 1;
 	for (i = 0; i < num_sacks; i++) {
 		__be32 start_seq = sp[i].start_seq;
 		__be32 end_seq = sp[i].end_seq;
 
 		if (i == 0) {
 			if (tp->recv_sack_cache[i].start_seq != start_seq)
-				flag = 0;
+				force_one_sack = 0;
 		} else {
 			if ((tp->recv_sack_cache[i].start_seq != start_seq) ||
 			    (tp->recv_sack_cache[i].end_seq != end_seq))
-				flag = 0;
+				force_one_sack = 0;
 		}
 		tp->recv_sack_cache[i].start_seq = start_seq;
 		tp->recv_sack_cache[i].end_seq = end_seq;
@@ -1295,7 +1296,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	}
 
 	first_sack_index = 0;
-	if (flag)
+	if (force_one_sack)
 		num_sacks = 1;
 	else {
 		int j;
@@ -1320,9 +1321,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			}
 		}
 	}
-
-	/* clear flag as used for different purpose in following code */
-	flag = 0;
 
 	/* Use SACK fastpath hint if valid */
 	cached_skb = tp->fastpath_skb_hint;
@@ -1615,7 +1613,7 @@ void tcp_enter_frto(struct sock *sk)
 	     !icsk->icsk_retransmits)) {
 		tp->prior_ssthresh = tcp_current_ssthresh(sk);
 		/* Our state is too optimistic in ssthresh() call because cwnd
-		 * is not reduced until tcp_enter_frto_loss() when previous FRTO
+		 * is not reduced until tcp_enter_frto_loss() when previous F-RTO
 		 * recovery has not yet completed. Pattern would be this: RTO,
 		 * Cumulative ACK, RTO (2xRTO for the same segment does not end
 		 * up here twice).
@@ -1801,7 +1799,7 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tcp_set_ca_state(sk, TCP_CA_Loss);
 	tp->high_seq = tp->snd_nxt;
 	TCP_ECN_queue_cwr(tp);
-	/* Abort FRTO algorithm if one is in progress */
+	/* Abort F-RTO algorithm if one is in progress */
 	tp->frto_counter = 0;
 }
 
@@ -1946,7 +1944,7 @@ static int tcp_time_to_recover(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 packets_out;
 
-	/* Do not perform any recovery during FRTO algorithm */
+	/* Do not perform any recovery during F-RTO algorithm */
 	if (tp->frto_counter)
 		return 0;
 
@@ -2962,7 +2960,7 @@ static int tcp_process_frto(struct sock *sk, int flag)
 	}
 
 	if (tp->frto_counter == 1) {
-		/* Sending of the next skb must be allowed or no FRTO */
+		/* Sending of the next skb must be allowed or no F-RTO */
 		if (!tcp_send_head(sk) ||
 		    after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
 				     tp->snd_una + tp->snd_wnd)) {

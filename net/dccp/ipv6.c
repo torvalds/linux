@@ -173,7 +173,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 
 	icmpv6_err_convert(type, code, &err);
 
-	seq = DCCP_SKB_CB(skb)->dccpd_seq;
+	seq = dccp_hdr_seq(dh);
 	/* Might be for an request_sock */
 	switch (sk->sk_state) {
 		struct request_sock *req, **prev;
@@ -787,7 +787,7 @@ static int dccp_v6_rcv(struct sk_buff *skb)
 
 	dh = dccp_hdr(skb);
 
-	DCCP_SKB_CB(skb)->dccpd_seq  = dccp_hdr_seq(skb);
+	DCCP_SKB_CB(skb)->dccpd_seq  = dccp_hdr_seq(dh);
 	DCCP_SKB_CB(skb)->dccpd_type = dh->dccph_type;
 
 	if (dccp_packet_without_ack(skb))

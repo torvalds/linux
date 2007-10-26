@@ -1184,7 +1184,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 	printk(KERN_DEBUG "%s: RX %sssocResp from %s (capab=0x%x "
 	       "status=%d aid=%d)\n",
 	       dev->name, reassoc ? "Rea" : "A", print_mac(mac, mgmt->sa),
-	       capab_info, status_code, aid & ~(BIT(15) | BIT(14)));
+	       capab_info, status_code, (u16)(aid & ~(BIT(15) | BIT(14))));
 
 	if (status_code != WLAN_STATUS_SUCCESS) {
 		printk(KERN_DEBUG "%s: AP denied association (code=%d)\n",
@@ -2096,7 +2096,8 @@ static int ieee80211_sta_match_ssid(struct ieee80211_if_sta *ifsta,
 {
 	int tmp, hidden_ssid;
 
-	if (!memcmp(ifsta->ssid, ssid, ssid_len))
+	if (ssid_len == ifsta->ssid_len &&
+	    !memcmp(ifsta->ssid, ssid, ssid_len))
 		return 1;
 
 	if (ifsta->flags & IEEE80211_STA_AUTO_BSSID_SEL)

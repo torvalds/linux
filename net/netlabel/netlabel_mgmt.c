@@ -85,11 +85,9 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
  */
 void netlbl_mgmt_protocount_inc(void)
 {
-	rcu_read_lock();
 	spin_lock(&netlabel_mgmt_protocount_lock);
 	netlabel_mgmt_protocount++;
 	spin_unlock(&netlabel_mgmt_protocount_lock);
-	rcu_read_unlock();
 }
 
 /**
@@ -103,12 +101,10 @@ void netlbl_mgmt_protocount_inc(void)
  */
 void netlbl_mgmt_protocount_dec(void)
 {
-	rcu_read_lock();
 	spin_lock(&netlabel_mgmt_protocount_lock);
 	if (netlabel_mgmt_protocount > 0)
 		netlabel_mgmt_protocount--;
 	spin_unlock(&netlabel_mgmt_protocount_lock);
-	rcu_read_unlock();
 }
 
 /**

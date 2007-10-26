@@ -185,7 +185,7 @@ static __net_exit void proc_net_ns_exit(struct net *net)
 	kfree(net->proc_net_root);
 }
 
-struct pernet_operations __net_initdata proc_net_ns_ops = {
+static struct pernet_operations __net_initdata proc_net_ns_ops = {
 	.init = proc_net_ns_init,
 	.exit = proc_net_ns_exit,
 };

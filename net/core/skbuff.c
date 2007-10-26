@@ -415,13 +415,6 @@ static struct sk_buff *__skb_clone(struct sk_buff *n, struct sk_buff *skb)
 	n->hdr_len = skb->nohdr ? skb_headroom(skb) : skb->hdr_len;
 	n->nohdr = 0;
 	n->destructor = NULL;
-#ifdef CONFIG_NET_CLS_ACT
-	/* FIXME What is this and why don't we do it in copy_skb_header? */
-	n->tc_verd = SET_TC_VERD(n->tc_verd,0);
-	n->tc_verd = CLR_TC_OK2MUNGE(n->tc_verd);
-	n->tc_verd = CLR_TC_MUNGED(n->tc_verd);
-	C(iif);
-#endif
 	C(truesize);
 	atomic_set(&n->users, 1);
 	C(head);

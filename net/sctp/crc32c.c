@@ -170,6 +170,7 @@ __u32 sctp_update_cksum(__u8 *buffer, __u16 length, __u32 crc32)
 	return crc32;
 }
 
+#if 0
 __u32 sctp_update_copy_cksum(__u8 *to, __u8 *from, __u16 length, __u32 crc32)
 {
 	__u32 i;
@@ -186,6 +187,7 @@ __u32 sctp_update_copy_cksum(__u8 *to, __u8 *from, __u16 length, __u32 crc32)
 
 	return crc32;
 }
+#endif  /*  0  */
 
 __u32 sctp_end_cksum(__u32 crc32)
 {

@@ -1104,5 +1104,4 @@ void __init icmp_init(struct net_proto_family *ops)
 EXPORT_SYMBOL(icmp_err_convert);
 EXPORT_SYMBOL(icmp_send);
 EXPORT_SYMBOL(icmp_statistics);
-EXPORT_SYMBOL(icmpmsg_statistics);
 EXPORT_SYMBOL(xrlim_allow);

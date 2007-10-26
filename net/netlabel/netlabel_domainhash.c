@@ -178,11 +178,9 @@ int netlbl_domhsh_init(u32 size)
 	for (iter = 0; iter < hsh_tbl->size; iter++)
 		INIT_LIST_HEAD(&hsh_tbl->tbl[iter]);
 
-	rcu_read_lock();
 	spin_lock(&netlbl_domhsh_lock);
 	rcu_assign_pointer(netlbl_domhsh, hsh_tbl);
 	spin_unlock(&netlbl_domhsh_lock);
-	rcu_read_unlock();
 
 	return 0;
 }
@@ -222,7 +220,6 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 	entry->valid = 1;
 	INIT_RCU_HEAD(&entry->rcu);
 
-	ret_val = 0;
 	rcu_read_lock();
 	if (entry->domain != NULL) {
 		bkt = netlbl_domhsh_hash(entry->domain);
@@ -233,7 +230,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 		else
 			ret_val = -EEXIST;
 		spin_unlock(&netlbl_domhsh_lock);
-	} else if (entry->domain == NULL) {
+	} else {
 		INIT_LIST_HEAD(&entry->list);
 		spin_lock(&netlbl_domhsh_def_lock);
 		if (rcu_dereference(netlbl_domhsh_def) == NULL)
@@ -241,9 +238,7 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 		else
 			ret_val = -EEXIST;
 		spin_unlock(&netlbl_domhsh_def_lock);
-	} else
-		ret_val = -EINVAL;
-
+	}
 	audit_buf = netlbl_audit_start_common(AUDIT_MAC_MAP_ADD, audit_info);
 	if (audit_buf != NULL) {
 		audit_log_format(audit_buf,
@@ -262,7 +257,6 @@ int netlbl_domhsh_add(struct netlbl_dom_map *entry,
 		audit_log_format(audit_buf, " res=%u", ret_val == 0 ? 1 : 0);
 		audit_log_end(audit_buf);
 	}
-
 	rcu_read_unlock();
 
 	if (ret_val != 0) {
@@ -313,38 +307,30 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 	struct audit_buffer *audit_buf;
 
 	rcu_read_lock();
-	if (domain != NULL)
-		entry = netlbl_domhsh_search(domain, 0);
-	else
-		entry = netlbl_domhsh_search(domain, 1);
+	entry = netlbl_domhsh_search(domain, (domain != NULL ? 0 : 1));
 	if (entry == NULL)
 		goto remove_return;
 	switch (entry->type) {
-	case NETLBL_NLTYPE_UNLABELED:
-		break;
 	case NETLBL_NLTYPE_CIPSOV4:
-		ret_val = cipso_v4_doi_domhsh_remove(entry->type_def.cipsov4,
-						     entry->domain);
-		if (ret_val != 0)
-			goto remove_return;
+		cipso_v4_doi_domhsh_remove(entry->type_def.cipsov4,
+					   entry->domain);
 		break;
 	}
-	ret_val = 0;
 	if (entry != rcu_dereference(netlbl_domhsh_def)) {
 		spin_lock(&netlbl_domhsh_lock);
 		if (entry->valid) {
 			entry->valid = 0;
 			list_del_rcu(&entry->list);
-		} else
-			ret_val = -ENOENT;
+			ret_val = 0;
+		}
 		spin_unlock(&netlbl_domhsh_lock);
 	} else {
 		spin_lock(&netlbl_domhsh_def_lock);
 		if (entry->valid) {
 			entry->valid = 0;
 			rcu_assign_pointer(netlbl_domhsh_def, NULL);
-		} else
-			ret_val = -ENOENT;
+			ret_val = 0;
+		}
 		spin_unlock(&netlbl_domhsh_def_lock);
 	}
 
@@ -357,11 +343,10 @@ int netlbl_domhsh_remove(const char *domain, struct netlbl_audit *audit_info)
 		audit_log_end(audit_buf);
 	}
 
-	if (ret_val == 0)
-		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
-
 remove_return:
 	rcu_read_unlock();
+	if (ret_val == 0)
+		call_rcu(&entry->rcu, netlbl_domhsh_free_entry);
 	return ret_val;
 }
 

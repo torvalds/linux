@@ -166,7 +166,7 @@ bad_mirred:
 		return TC_ACT_SHOT;
 	}
 
-	skb2 = skb_clone(skb, GFP_ATOMIC);
+	skb2 = skb_act_clone(skb, GFP_ATOMIC);
 	if (skb2 == NULL)
 		goto bad_mirred;
 	if (m->tcfm_eaction != TCA_EGRESS_MIRROR &&

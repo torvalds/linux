@@ -139,7 +139,7 @@ static void test_hash(char *algo, struct hash_testvec *template,
 		printk("test %u:\n", i + 1);
 		memset(result, 0, 64);
 
-		sg_set_buf(&sg[0], hash_tv[i].plaintext, hash_tv[i].psize);
+		sg_init_one(&sg[0], hash_tv[i].plaintext, hash_tv[i].psize);
 
 		if (hash_tv[i].ksize) {
 			ret = crypto_hash_setkey(tfm, hash_tv[i].key,
@@ -176,6 +176,7 @@ static void test_hash(char *algo, struct hash_testvec *template,
 			memset(result, 0, 64);
 
 			temp = 0;
+			sg_init_table(sg, hash_tv[i].np);
 			for (k = 0; k < hash_tv[i].np; k++) {
 				memcpy(&xbuf[IDX[k]],
 				       hash_tv[i].plaintext + temp,
@@ -289,8 +290,8 @@ static void test_cipher(char *algo, int enc,
 					goto out;
 			}
 
-			sg_set_buf(&sg[0], cipher_tv[i].input,
-				   cipher_tv[i].ilen);
+			sg_init_one(&sg[0], cipher_tv[i].input,
+				    cipher_tv[i].ilen);
 
 			ablkcipher_request_set_crypt(req, sg, sg,
 						     cipher_tv[i].ilen,
@@ -353,6 +354,7 @@ static void test_cipher(char *algo, int enc,
 			}
 
 			temp = 0;
+			sg_init_table(sg, cipher_tv[i].np);
 			for (k = 0; k < cipher_tv[i].np; k++) {
 				memcpy(&xbuf[IDX[k]],
 				       cipher_tv[i].input + temp,
@@ -414,7 +416,7 @@ static int test_cipher_jiffies(struct blkcipher_desc *desc, int enc, char *p,
 	int bcount;
 	int ret;
 
-	sg_set_buf(sg, p, blen);
+	sg_init_one(sg, p, blen);
 
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
@@ -440,7 +442,7 @@ static int test_cipher_cycles(struct blkcipher_desc *desc, int enc, char *p,
 	int ret = 0;
 	int i;
 
-	sg_set_buf(sg, p, blen);
+	sg_init_one(sg, p, blen);
 
 	local_bh_disable();
 	local_irq_disable();
@@ -572,7 +574,7 @@ static int test_hash_jiffies_digest(struct hash_desc *desc, char *p, int blen,
 
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
-		sg_set_buf(sg, p, blen);
+		sg_init_one(sg, p, blen);
 		ret = crypto_hash_digest(desc, sg, blen, out);
 		if (ret)
 			return ret;
@@ -601,7 +603,7 @@ static int test_hash_jiffies(struct hash_desc *desc, char *p, int blen,
 		if (ret)
 			return ret;
 		for (pcount = 0; pcount < blen; pcount += plen) {
-			sg_set_buf(sg, p + pcount, plen);
+			sg_init_one(sg, p + pcount, plen);
 			ret = crypto_hash_update(desc, sg, plen);
 			if (ret)
 				return ret;
@@ -631,7 +633,7 @@ static int test_hash_cycles_digest(struct hash_desc *desc, char *p, int blen,
 
 	/* Warm-up run. */
 	for (i = 0; i < 4; i++) {
-		sg_set_buf(sg, p, blen);
+		sg_init_one(sg, p, blen);
 		ret = crypto_hash_digest(desc, sg, blen, out);
 		if (ret)
 			goto out;
@@ -643,7 +645,7 @@ static int test_hash_cycles_digest(struct hash_desc *desc, char *p, int blen,
 
 		start = get_cycles();
 
-		sg_set_buf(sg, p, blen);
+		sg_init_one(sg, p, blen);
 		ret = crypto_hash_digest(desc, sg, blen, out);
 		if (ret)
 			goto out;
@@ -686,7 +688,7 @@ static int test_hash_cycles(struct hash_desc *desc, char *p, int blen,
 		if (ret)
 			goto out;
 		for (pcount = 0; pcount < blen; pcount += plen) {
-			sg_set_buf(sg, p + pcount, plen);
+			sg_init_one(sg, p + pcount, plen);
 			ret = crypto_hash_update(desc, sg, plen);
 			if (ret)
 				goto out;
@@ -706,7 +708,7 @@ static int test_hash_cycles(struct hash_desc *desc, char *p, int blen,
 		if (ret)
 			goto out;
 		for (pcount = 0; pcount < blen; pcount += plen) {
-			sg_set_buf(sg, p + pcount, plen);
+			sg_init_one(sg, p + pcount, plen);
 			ret = crypto_hash_update(desc, sg, plen);
 			if (ret)
 				goto out;

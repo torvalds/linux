@@ -184,14 +184,14 @@ tcp_frto - INTEGER
 	F-RTO is an enhanced recovery algorithm for TCP retransmission
 	timeouts.  It is particularly beneficial in wireless environments
 	where packet loss is typically due to random radio interference
-	rather than intermediate router congestion.  FRTO is sender-side
+	rather than intermediate router congestion.  F-RTO is sender-side
 	only modification.  Therefore it does not require any support from
 	the peer, but in a typical case, however, where wireless link is
 	the local access link and most of the data flows downlink, the
-	faraway servers should have FRTO enabled to take advantage of it.
+	faraway servers should have F-RTO enabled to take advantage of it.
 	If set to 1, basic version is enabled.  2 enables SACK enhanced
 	F-RTO if flow uses SACK.  The basic version can be used also when
-	SACK is in use though scenario(s) with it exists where FRTO
+	SACK is in use though scenario(s) with it exists where F-RTO
 	interacts badly with the packet counting of the SACK enabled TCP
 	flow.
 
