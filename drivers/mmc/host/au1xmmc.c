@@ -40,7 +40,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
-#include <scatterlist/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <linux/mmc/host.h>
 #include <asm/io.h>
