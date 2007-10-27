@@ -1,4 +1,3 @@
-/* $Id: visasm.h,v 1.5 2001/04/24 01:09:12 davem Exp $ */
 #ifndef _SPARC64_VISASM_H
 #define _SPARC64_VISASM_H
 
@@ -44,7 +43,7 @@
 	wr		%o5, 0, %fprs;
 
 #ifndef __ASSEMBLY__	
-static __inline__ void save_and_clear_fpu(void) {
+static inline void save_and_clear_fpu(void) {
 	__asm__ __volatile__ (
 "		rd %%fprs, %%o5\n"
 "		andcc %%o5, %0, %%g0\n"

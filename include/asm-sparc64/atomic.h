@@ -1,5 +1,4 @@
-/* $Id: atomic.h,v 1.22 2001/07/11 23:56:07 davem Exp $
- * atomic.h: Thankfully the V9 is at least reasonable for this
+/* atomic.h: Thankfully the V9 is at least reasonable for this
  *           stuff.
  *
  * Copyright (C) 1996, 1997, 2000 David S. Miller (davem@redhat.com)
@@ -74,7 +73,7 @@ extern int atomic64_sub_ret(int, atomic64_t *);
 #define atomic_cmpxchg(v, o, n) (cmpxchg(&((v)->counter), (o), (n)))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
-static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
+static inline int atomic_add_unless(atomic_t *v, int a, int u)
 {
 	int c, old;
 	c = atomic_read(v);
@@ -95,7 +94,7 @@ static __inline__ int atomic_add_unless(atomic_t *v, int a, int u)
 	((__typeof__((v)->counter))cmpxchg(&((v)->counter), (o), (n)))
 #define atomic64_xchg(v, new) (xchg(&((v)->counter), new))
 
-static __inline__ int atomic64_add_unless(atomic64_t *v, long a, long u)
+static inline int atomic64_add_unless(atomic64_t *v, long a, long u)
 {
 	long c, old;
 	c = atomic64_read(v);

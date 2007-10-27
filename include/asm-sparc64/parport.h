@@ -1,5 +1,4 @@
-/* $Id: parport.h,v 1.11 2001/05/11 07:54:24 davem Exp $
- * parport.h: sparc64 specific parport initialization and dma.
+/* parport.h: sparc64 specific parport initialization and dma.
  *
  * Copyright (C) 1999  Eddie C. Dost  (ecd@skynet.be)
  */
@@ -42,7 +41,7 @@ static struct sparc_ebus_info {
 
 static DECLARE_BITMAP(dma_slot_map, PARPORT_PC_MAX_PORTS);
 
-static __inline__ int request_dma(unsigned int dmanr, const char *device_id)
+static inline int request_dma(unsigned int dmanr, const char *device_id)
 {
 	if (dmanr >= PARPORT_PC_MAX_PORTS)
 		return -EINVAL;
@@ -51,7 +50,7 @@ static __inline__ int request_dma(unsigned int dmanr, const char *device_id)
 	return 0;
 }
 
-static __inline__ void free_dma(unsigned int dmanr)
+static inline void free_dma(unsigned int dmanr)
 {
 	if (dmanr >= PARPORT_PC_MAX_PORTS) {
 		printk(KERN_WARNING "Trying to free DMA%d\n", dmanr);
@@ -63,7 +62,7 @@ static __inline__ void free_dma(unsigned int dmanr)
 	}	
 }
 
-static __inline__ void enable_dma(unsigned int dmanr)
+static inline void enable_dma(unsigned int dmanr)
 {
 	ebus_dma_enable(&sparc_ebus_dmas[dmanr].info, 1);
 
@@ -73,32 +72,32 @@ static __inline__ void enable_dma(unsigned int dmanr)
 		BUG();
 }
 
-static __inline__ void disable_dma(unsigned int dmanr)
+static inline void disable_dma(unsigned int dmanr)
 {
 	ebus_dma_enable(&sparc_ebus_dmas[dmanr].info, 0);
 }
 
-static __inline__ void clear_dma_ff(unsigned int dmanr)
+static inline void clear_dma_ff(unsigned int dmanr)
 {
 	/* nothing */
 }
 
-static __inline__ void set_dma_mode(unsigned int dmanr, char mode)
+static inline void set_dma_mode(unsigned int dmanr, char mode)
 {
 	ebus_dma_prepare(&sparc_ebus_dmas[dmanr].info, (mode != DMA_MODE_WRITE));
 }
 
-static __inline__ void set_dma_addr(unsigned int dmanr, unsigned int addr)
+static inline void set_dma_addr(unsigned int dmanr, unsigned int addr)
 {
 	sparc_ebus_dmas[dmanr].addr = addr;
 }
 
-static __inline__ void set_dma_count(unsigned int dmanr, unsigned int count)
+static inline void set_dma_count(unsigned int dmanr, unsigned int count)
 {
 	sparc_ebus_dmas[dmanr].count = count;
 }
 
-static __inline__ unsigned int get_dma_residue(unsigned int dmanr)
+static inline unsigned int get_dma_residue(unsigned int dmanr)
 {
 	return ebus_dma_residue(&sparc_ebus_dmas[dmanr].info);
 }

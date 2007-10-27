@@ -1,4 +1,3 @@
-/* $Id: system.h,v 1.69 2002/02/09 19:49:31 davem Exp $ */
 #ifndef __SPARC64_SYSTEM_H
 #define __SPARC64_SYSTEM_H
 
@@ -240,7 +239,7 @@ static inline unsigned long xchg64(__volatile__ unsigned long *m, unsigned long 
 
 extern void __xchg_called_with_bad_pointer(void);
 
-static __inline__ unsigned long __xchg(unsigned long x, __volatile__ void * ptr,
+static inline unsigned long __xchg(unsigned long x, __volatile__ void * ptr,
 				       int size)
 {
 	switch (size) {
@@ -263,7 +262,7 @@ extern void die_if_kernel(char *str, struct pt_regs *regs) __attribute__ ((noret
 
 #define __HAVE_ARCH_CMPXCHG 1
 
-static __inline__ unsigned long
+static inline unsigned long
 __cmpxchg_u32(volatile int *m, int old, int new)
 {
 	__asm__ __volatile__("membar #StoreLoad | #LoadLoad\n"
@@ -276,7 +275,7 @@ __cmpxchg_u32(volatile int *m, int old, int new)
 	return new;
 }
 
-static __inline__ unsigned long
+static inline unsigned long
 __cmpxchg_u64(volatile long *m, unsigned long old, unsigned long new)
 {
 	__asm__ __volatile__("membar #StoreLoad | #LoadLoad\n"
@@ -293,7 +292,7 @@ __cmpxchg_u64(volatile long *m, unsigned long old, unsigned long new)
    if something tries to do an invalid cmpxchg().  */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
-static __inline__ unsigned long
+static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
 {
 	switch (size) {

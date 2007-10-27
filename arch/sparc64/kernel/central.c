@@ -1,7 +1,6 @@
-/* $Id: central.c,v 1.15 2001/12/19 00:29:51 davem Exp $
- * central.c: Central FHC driver for Sunfire/Starfire/Wildfire.
+/* central.c: Central FHC driver for Sunfire/Starfire/Wildfire.
  *
- * Copyright (C) 1997, 1999 David S. Miller (davem@redhat.com)
+ * Copyright (C) 1997, 1999 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -385,7 +384,7 @@ void __init central_probe(void)
 	init_all_fhc_hw();
 }
 
-static __inline__ void fhc_ledblink(struct linux_fhc *fhc, int on)
+static inline void fhc_ledblink(struct linux_fhc *fhc, int on)
 {
 	u32 tmp;
 
@@ -402,7 +401,7 @@ static __inline__ void fhc_ledblink(struct linux_fhc *fhc, int on)
 	upa_readl(fhc->fhc_regs.pregs + FHC_PREGS_CTRL);
 }
 
-static __inline__ void central_ledblink(struct linux_central *central, int on)
+static inline void central_ledblink(struct linux_central *central, int on)
 {
 	u8 tmp;
 

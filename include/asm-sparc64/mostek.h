@@ -1,7 +1,6 @@
-/* $Id: mostek.h,v 1.4 2001/01/11 15:07:09 davem Exp $
- * mostek.h:  Describes the various Mostek time of day clock registers.
+/* mostek.h:  Describes the various Mostek time of day clock registers.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@eden.rutgers.edu)
  */
 
@@ -38,7 +37,7 @@
  *
  * We now deal with physical addresses for I/O to the chip. -DaveM
  */
-static __inline__ u8 mostek_read(void __iomem *addr)
+static inline u8 mostek_read(void __iomem *addr)
 {
 	u8 ret;
 
@@ -48,7 +47,7 @@ static __inline__ u8 mostek_read(void __iomem *addr)
 	return ret;
 }
 
-static __inline__ void mostek_write(void __iomem *addr, u8 val)
+static inline void mostek_write(void __iomem *addr, u8 val)
 {
 	__asm__ __volatile__("stba	%0, [%1] %2"
 			     : /* no outputs */

@@ -1,5 +1,4 @@
-/* $Id: semaphore.c,v 1.9 2001/11/18 00:12:56 davem Exp $
- * semaphore.c: Sparc64 semaphore implementation.
+/* semaphore.c: Sparc64 semaphore implementation.
  *
  * This is basically the PPC semaphore scheme ported to use
  * the sparc64 atomic instructions, so see the PPC code for
@@ -19,7 +18,7 @@
  *	sem->count = tmp;
  *	return old_count;
  */
-static __inline__ int __sem_update_count(struct semaphore *sem, int incr)
+static inline int __sem_update_count(struct semaphore *sem, int incr)
 {
 	int old_count, tmp;
 

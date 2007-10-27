@@ -1,8 +1,7 @@
-/* $Id: console.c,v 1.9 1997/10/29 07:41:43 ecd Exp $
- * console.c: Routines that deal with sending and receiving IO
+/* console.c: Routines that deal with sending and receiving IO
  *            to/from the current console device using the PROM.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996,1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
@@ -19,7 +18,7 @@ extern int prom_stdin, prom_stdout;
 /* Non blocking get character from console input device, returns -1
  * if no input was taken.  This can be used for polling.
  */
-__inline__ int
+inline int
 prom_nbgetchar(void)
 {
 	char inc;
@@ -35,7 +34,7 @@ prom_nbgetchar(void)
 /* Non blocking put character to console device, returns -1 if
  * unsuccessful.
  */
-__inline__ int
+inline int
 prom_nbputchar(char c)
 {
 	char outc;

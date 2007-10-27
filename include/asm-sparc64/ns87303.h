@@ -1,5 +1,4 @@
-/* $Id: ns87303.h,v 1.3 2000/01/09 15:16:34 ecd Exp $
- * ns87303.h: Configuration Register Description for the
+/* ns87303.h: Configuration Register Description for the
  *            National Semiconductor PC87303 (SuperIO).
  *
  * Copyright (C) 1997  Eddie C. Dost  (ecd@skynet.be)
@@ -85,7 +84,7 @@
 
 extern spinlock_t ns87303_lock;
 
-static __inline__ int ns87303_modify(unsigned long port, unsigned int index,
+static inline int ns87303_modify(unsigned long port, unsigned int index,
 				     unsigned char clr, unsigned char set)
 {
 	static unsigned char reserved[] = {

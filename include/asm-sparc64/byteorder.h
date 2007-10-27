@@ -1,4 +1,3 @@
-/* $Id: byteorder.h,v 1.8 1997/12/18 02:44:14 ecd Exp $ */
 #ifndef _SPARC64_BYTEORDER_H
 #define _SPARC64_BYTEORDER_H
 
@@ -7,7 +6,7 @@
 
 #ifdef __GNUC__
 
-static __inline__ __u16 ___arch__swab16p(const __u16 *addr)
+static inline __u16 ___arch__swab16p(const __u16 *addr)
 {
 	__u16 ret;
 
@@ -17,7 +16,7 @@ static __inline__ __u16 ___arch__swab16p(const __u16 *addr)
 	return ret;
 }
 
-static __inline__ __u32 ___arch__swab32p(const __u32 *addr)
+static inline __u32 ___arch__swab32p(const __u32 *addr)
 {
 	__u32 ret;
 
@@ -27,7 +26,7 @@ static __inline__ __u32 ___arch__swab32p(const __u32 *addr)
 	return ret;
 }
 
-static __inline__ __u64 ___arch__swab64p(const __u64 *addr)
+static inline __u64 ___arch__swab64p(const __u64 *addr)
 {
 	__u64 ret;
 

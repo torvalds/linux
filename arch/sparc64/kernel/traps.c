@@ -1,7 +1,6 @@
-/* $Id: traps.c,v 1.85 2002/02/09 19:49:31 davem Exp $
- * arch/sparc64/kernel/traps.c
+/* arch/sparc64/kernel/traps.c
  *
- * Copyright (C) 1995,1997 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995,1997 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1997,1999,2000 Jakub Jelinek (jakub@redhat.com)
  */
 
@@ -765,7 +764,7 @@ static unsigned long cheetah_afsr_errors;
  */
 struct cheetah_err_info *cheetah_error_log;
 
-static __inline__ struct cheetah_err_info *cheetah_get_error_log(unsigned long afsr)
+static inline struct cheetah_err_info *cheetah_get_error_log(unsigned long afsr)
 {
 	struct cheetah_err_info *p;
 	int cpu = smp_processor_id();
@@ -1085,7 +1084,7 @@ static unsigned char cheetah_mtag_syntab[] = {
 };
 
 /* Return the highest priority error conditon mentioned. */
-static __inline__ unsigned long cheetah_get_hipri(unsigned long afsr)
+static inline unsigned long cheetah_get_hipri(unsigned long afsr)
 {
 	unsigned long tmp = 0;
 	int i;
