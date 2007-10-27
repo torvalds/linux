@@ -94,6 +94,13 @@ int rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 		return retval;
 	}
 
+	/*
+	 * Force initial poll which will detect the initial device state,
+	 * and correctly sends the signal to the rfkill layer about this
+	 * state.
+	 */
+	rt2x00rfkill_poll(rt2x00dev->poll_dev);
+
 	return 0;
 }
 
@@ -121,7 +128,7 @@ int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00dev->rfkill->name = rt2x00dev->ops->name;
 	rt2x00dev->rfkill->data = rt2x00dev;
-	rt2x00dev->rfkill->state = rt2x00dev->ops->lib->rfkill_poll(rt2x00dev);
+	rt2x00dev->rfkill->state = -1;
 	rt2x00dev->rfkill->toggle_radio = rt2x00rfkill_toggle_radio;
 
 	rt2x00dev->poll_dev = input_allocate_polled_device();
