@@ -1077,13 +1077,19 @@ struct hw_pairwise_ta_entry {
  * R4: RX antenna control
  * FRAME_END: 1 - DPDT, 0 - SPDT (Only valid for 802.11G, RF2527 & RF2529)
  */
-#define BBP_R4_RX_ANTENNA		FIELD8(0x03)
+
+/*
+ * ANTENNA_CONTROL semantics (guessed):
+ * 0x1: Software controlled antenna switching (fixed or SW diversity)
+ * 0x2: Hardware diversity.
+ */
+#define BBP_R4_RX_ANTENNA_CONTROL	FIELD8(0x03)
 #define BBP_R4_RX_FRAME_END		FIELD8(0x20)
 
 /*
  * R77
  */
-#define BBP_R77_TX_ANTENNA		FIELD8(0x03)
+#define BBP_R77_RX_ANTENNA		FIELD8(0x03)
 
 /*
  * RF registers

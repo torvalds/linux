@@ -422,40 +422,24 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	rt61pci_bbp_read(rt2x00dev, 77, &r77);
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE,
-			  !rt2x00_rf(&rt2x00dev->chip, RF5225));
-
-	/*
-	 * Configure the TX antenna.
-	 */
-	switch (ant->tx) {
-	case ANTENNA_A:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 0);
-		break;
-	case ANTENNA_SW_DIVERSITY:
-	case ANTENNA_HW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
-	case ANTENNA_B:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 3);
-		break;
-	}
+			  rt2x00_rf(&rt2x00dev->chip, RF5325));
 
 	/*
 	 * Configure the RX antenna.
 	 */
 	switch (ant->rx) {
 	case ANTENNA_HW_DIVERSITY:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
 				  (rt2x00dev->curr_hwmode != HWMODE_A));
 		break;
 	case ANTENNA_A:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
+		if (rt2x00dev->curr_hwmode == HWMODE_A)
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
+		else
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		break;
 	case ANTENNA_SW_DIVERSITY:
 		/*
@@ -465,8 +449,12 @@ static void rt61pci_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 		 * Instead, just default to antenna B.
 		 */
 	case ANTENNA_B:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
+		if (rt2x00dev->curr_hwmode == HWMODE_A)
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
+		else
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
 		break;
 	}
 
@@ -487,39 +475,20 @@ static void rt61pci_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 	rt61pci_bbp_read(rt2x00dev, 77, &r77);
 
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE,
-			  !rt2x00_rf(&rt2x00dev->chip, RF2527));
+			  rt2x00_rf(&rt2x00dev->chip, RF2529));
 	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
 			  !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags));
-
-	/*
-	 * Configure the TX antenna.
-	 */
-	switch (ant->tx) {
-	case ANTENNA_A:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 0);
-		break;
-	case ANTENNA_SW_DIVERSITY:
-	case ANTENNA_HW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
-	case ANTENNA_B:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 3);
-		break;
-	}
 
 	/*
 	 * Configure the RX antenna.
 	 */
 	switch (ant->rx) {
 	case ANTENNA_HW_DIVERSITY:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
 		break;
 	case ANTENNA_A:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
+		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		break;
 	case ANTENNA_SW_DIVERSITY:
 		/*
@@ -529,7 +498,8 @@ static void rt61pci_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 		 * Instead, just default to antenna B.
 		 */
 	case ANTENNA_B:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
+		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
 		break;
 	}
 
@@ -545,16 +515,13 @@ static void rt61pci_config_antenna_2529_rx(struct rt2x00_dev *rt2x00dev,
 
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR13, &reg);
 
-	if (p1 != 0xff) {
-		rt2x00_set_field32(&reg, MAC_CSR13_BIT4, !!p1);
-		rt2x00_set_field32(&reg, MAC_CSR13_BIT12, 0);
-		rt2x00pci_register_write(rt2x00dev, MAC_CSR13, reg);
-	}
-	if (p2 != 0xff) {
-		rt2x00_set_field32(&reg, MAC_CSR13_BIT3, !p2);
-		rt2x00_set_field32(&reg, MAC_CSR13_BIT11, 0);
-		rt2x00pci_register_write(rt2x00dev, MAC_CSR13, reg);
-	}
+	rt2x00_set_field32(&reg, MAC_CSR13_BIT4, p1);
+	rt2x00_set_field32(&reg, MAC_CSR13_BIT12, 0);
+
+	rt2x00_set_field32(&reg, MAC_CSR13_BIT3, !p2);
+	rt2x00_set_field32(&reg, MAC_CSR13_BIT11, 0);
+
+	rt2x00pci_register_write(rt2x00dev, MAC_CSR13, reg);
 }
 
 static void rt61pci_config_antenna_2529(struct rt2x00_dev *rt2x00dev,
@@ -570,37 +537,18 @@ static void rt61pci_config_antenna_2529(struct rt2x00_dev *rt2x00dev,
 	rt61pci_bbp_read(rt2x00dev, 4, &r4);
 	rt61pci_bbp_read(rt2x00dev, 77, &r77);
 
-	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &eeprom);
-	rx_ant = !!(rt2x00_get_field16(eeprom, EEPROM_NIC_TX_RX_FIXED) & 2);
-
-	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, 0);
-
-	/*
-	 * Configure the TX antenna.
+	/* FIXME: Antenna selection for the rf 2529 is very confusing in the
+	 * legacy driver. The code below should be ok for non-diversity setups.
 	 */
-	switch (ant->tx) {
-	case ANTENNA_A:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 0);
-		break;
-	case ANTENNA_SW_DIVERSITY:
-	case ANTENNA_HW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
-	case ANTENNA_B:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 3);
-		break;
-	}
 
 	/*
 	 * Configure the RX antenna.
 	 */
 	switch (ant->rx) {
 	case ANTENNA_A:
-		rt61pci_config_antenna_2529_rx(rt2x00dev, 0, rx_ant);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
+		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
+		rt61pci_config_antenna_2529_rx(rt2x00dev, 0, 0);
 		break;
 	case ANTENNA_SW_DIVERSITY:
 	case ANTENNA_HW_DIVERSITY:
@@ -611,26 +559,11 @@ static void rt61pci_config_antenna_2529(struct rt2x00_dev *rt2x00dev,
 		 * Instead, just default to antenna B.
 		 */
 	case ANTENNA_B:
-		rt61pci_config_antenna_2529_rx(rt2x00dev, 1, rx_ant);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
+		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
+		rt61pci_config_antenna_2529_rx(rt2x00dev, 1, 1);
 		break;
 	}
-
-	/*
-	 * FIXME: We are using the default antenna setup to
-	 * determine the remaining settings. This because we
-	 * need to know what the EEPROM indicated.
-	 * It is however unclear if this is required, and overall
-	 * using the default antenna settings here is incorrect
-	 * since mac80211 might have told us to use fixed settings.
-	 */
-	if (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY)
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
-	else
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
-
-	rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-			  (rt2x00dev->default_ant.tx == ANTENNA_SW_DIVERSITY) &&
-			  (rt2x00dev->default_ant.rx == ANTENNA_SW_DIVERSITY));
 
 	rt61pci_bbp_write(rt2x00dev, 77, r77);
 	rt61pci_bbp_write(rt2x00dev, 3, r3);
@@ -676,8 +609,6 @@ static void rt61pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 	unsigned int i;
 	u32 reg;
 
-	rt2x00pci_register_read(rt2x00dev, PHY_CSR0, &reg);
-
 	if (rt2x00dev->curr_hwmode == HWMODE_A) {
 		sel = antenna_sel_a;
 		lna = test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
@@ -686,14 +617,16 @@ static void rt61pci_config_antenna(struct rt2x00_dev *rt2x00dev,
 		lna = test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
 	}
 
+	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
+		rt61pci_bbp_write(rt2x00dev, sel[i].word, sel[i].value[lna]);
+
+	rt2x00pci_register_read(rt2x00dev, PHY_CSR0, &reg);
+
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG,
 			   (rt2x00dev->curr_hwmode == HWMODE_B ||
 			    rt2x00dev->curr_hwmode == HWMODE_G));
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A,
 			   (rt2x00dev->curr_hwmode == HWMODE_A));
-
-	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
-		rt61pci_bbp_write(rt2x00dev, sel[i].word, sel[i].value[lna]);
 
 	rt2x00pci_register_write(rt2x00dev, PHY_CSR0, reg);
 
