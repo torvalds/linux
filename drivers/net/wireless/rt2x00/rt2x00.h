@@ -43,7 +43,7 @@
  * Module information.
  * DRV_NAME should be set within the individual module source files.
  */
-#define DRV_VERSION	"2.0.11"
+#define DRV_VERSION	"2.0.12"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
 /*
