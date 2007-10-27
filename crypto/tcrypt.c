@@ -572,9 +572,11 @@ static int test_hash_jiffies_digest(struct hash_desc *desc, char *p, int blen,
 	int bcount;
 	int ret;
 
+	sg_init_table(sg, 1);
+
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
-		sg_init_one(sg, p, blen);
+		sg_set_buf(sg, p, blen);
 		ret = crypto_hash_digest(desc, sg, blen, out);
 		if (ret)
 			return ret;
@@ -597,13 +599,15 @@ static int test_hash_jiffies(struct hash_desc *desc, char *p, int blen,
 	if (plen == blen)
 		return test_hash_jiffies_digest(desc, p, blen, out, sec);
 
+	sg_init_table(sg, 1);
+
 	for (start = jiffies, end = start + sec * HZ, bcount = 0;
 	     time_before(jiffies, end); bcount++) {
 		ret = crypto_hash_init(desc);
 		if (ret)
 			return ret;
 		for (pcount = 0; pcount < blen; pcount += plen) {
-			sg_init_one(sg, p + pcount, plen);
+			sg_set_buf(sg, p + pcount, plen);
 			ret = crypto_hash_update(desc, sg, plen);
 			if (ret)
 				return ret;
@@ -628,12 +632,14 @@ static int test_hash_cycles_digest(struct hash_desc *desc, char *p, int blen,
 	int i;
 	int ret;
 
+	sg_init_table(sg, 1);
+
 	local_bh_disable();
 	local_irq_disable();
 
 	/* Warm-up run. */
 	for (i = 0; i < 4; i++) {
-		sg_init_one(sg, p, blen);
+		sg_set_buf(sg, p, blen);
 		ret = crypto_hash_digest(desc, sg, blen, out);
 		if (ret)
 			goto out;
@@ -645,7 +651,7 @@ static int test_hash_cycles_digest(struct hash_desc *desc, char *p, int blen,
 
 		start = get_cycles();
 
-		sg_init_one(sg, p, blen);
+		sg_set_buf(sg, p, blen);
 		ret = crypto_hash_digest(desc, sg, blen, out);
 		if (ret)
 			goto out;
@@ -679,6 +685,8 @@ static int test_hash_cycles(struct hash_desc *desc, char *p, int blen,
 	if (plen == blen)
 		return test_hash_cycles_digest(desc, p, blen, out);
 
+	sg_init_table(sg, 1);
+
 	local_bh_disable();
 	local_irq_disable();
 
@@ -688,7 +696,7 @@ static int test_hash_cycles(struct hash_desc *desc, char *p, int blen,
 		if (ret)
 			goto out;
 		for (pcount = 0; pcount < blen; pcount += plen) {
-			sg_init_one(sg, p + pcount, plen);
+			sg_set_buf(sg, p + pcount, plen);
 			ret = crypto_hash_update(desc, sg, plen);
 			if (ret)
 				goto out;
@@ -708,7 +716,7 @@ static int test_hash_cycles(struct hash_desc *desc, char *p, int blen,
 		if (ret)
 			goto out;
 		for (pcount = 0; pcount < blen; pcount += plen) {
-			sg_init_one(sg, p + pcount, plen);
+			sg_set_buf(sg, p + pcount, plen);
 			ret = crypto_hash_update(desc, sg, plen);
 			if (ret)
 				goto out;
