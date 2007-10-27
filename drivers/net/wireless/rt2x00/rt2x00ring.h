@@ -52,6 +52,7 @@ struct txdata_entry_desc {
 #define ENTRY_TXD_MORE_FRAG	4
 #define ENTRY_TXD_REQ_TIMESTAMP	5
 #define ENTRY_TXD_BURST		6
+#define ENTRY_TXD_ACK		7
 
 /*
  * Queue ID. ID's 0-4 are data TX rings

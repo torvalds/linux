@@ -629,12 +629,21 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	tx_rate = control->tx_rate;
 
 	/*
+	 * Check whether this frame is to be acked
+	 */
+	if (!(control->flags & IEEE80211_TXCTL_NO_ACK))
+		__set_bit(ENTRY_TXD_ACK, &desc.flags);
+
+	/*
 	 * Check if this is a RTS/CTS frame
 	 */
 	if (is_rts_frame(frame_control) || is_cts_frame(frame_control)) {
 		__set_bit(ENTRY_TXD_BURST, &desc.flags);
-		if (is_rts_frame(frame_control))
+		if (is_rts_frame(frame_control)) {
 			__set_bit(ENTRY_TXD_RTS_FRAME, &desc.flags);
+			__set_bit(ENTRY_TXD_ACK, &desc.flags);
+		} else
+			__clear_bit(ENTRY_TXD_ACK, &desc.flags);
 		if (control->rts_cts_rate)
 			tx_rate = control->rts_cts_rate;
 	}
