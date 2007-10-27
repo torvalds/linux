@@ -15,6 +15,7 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/highmem.h>
+#include <linux/scatterlist.h>
 #include <asm/io.h>
 
 void *dma_alloc_coherent(struct device *hwdev, size_t size, dma_addr_t *dma_handle, gfp_t gfp)
@@ -86,7 +87,7 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	dampr2 = __get_DAMPR(2);
 
 	for (i = 0; i < nents; i++) {
-		vaddr = kmap_atomic(sg[i].page, __KM_CACHE);
+		vaddr = kmap_atomic(sg_page(&sg[i]), __KM_CACHE);
 
 		frv_dcache_writeback((unsigned long) vaddr,
 				     (unsigned long) vaddr + PAGE_SIZE);
