@@ -285,7 +285,7 @@ static void __net_exit dev_mc_net_exit(struct net *net)
 	proc_net_remove(net, "dev_mcast");
 }
 
-static struct pernet_operations __net_initdata dev_mc_net_ops = {
+static struct pernet_operations dev_mc_net_ops = {
 	.init = dev_mc_net_init,
 	.exit = dev_mc_net_exit,
 };
