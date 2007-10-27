@@ -666,6 +666,8 @@ int tda9887_attach(struct tuner *t)
 }
 EXPORT_SYMBOL_GPL(tda9887_attach);
 
+MODULE_LICENSE("GPL");
+
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
  * ---------------------------------------------------------------------------
