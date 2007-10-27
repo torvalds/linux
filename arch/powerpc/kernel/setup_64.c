@@ -291,23 +291,16 @@ static void __init initialize_cache_info(void)
 		if ( num_cpus == 1 ) {
 			const u32 *sizep, *lsizep;
 			u32 size, lsize;
-			const char *dc, *ic;
-
-			/* Then read cache informations */
-			if (machine_is(powermac)) {
-				dc = "d-cache-block-size";
-				ic = "i-cache-block-size";
-			} else {
-				dc = "d-cache-line-size";
-				ic = "i-cache-line-size";
-			}
 
 			size = 0;
 			lsize = cur_cpu_spec->dcache_bsize;
 			sizep = of_get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = of_get_property(np, dc, NULL);
+			lsizep = of_get_property(np, "d-cache-block-size", NULL);
+			/* fallback if block size missing */
+			if (lsizep == NULL)
+				lsizep = of_get_property(np, "d-cache-line-size", NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)
@@ -324,7 +317,9 @@ static void __init initialize_cache_info(void)
 			sizep = of_get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
 				size = *sizep;
-			lsizep = of_get_property(np, ic, NULL);
+			lsizep = of_get_property(np, "i-cache-block-size", NULL);
+			if (lsizep == NULL)
+				lsizep = of_get_property(np, "i-cache-line-size", NULL);
 			if (lsizep != NULL)
 				lsize = *lsizep;
 			if (sizep == 0 || lsizep == 0)

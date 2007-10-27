@@ -851,11 +851,17 @@ address which can extend beyond that limit.
         /cpus/PowerPC,970FX@0
         /cpus/PowerPC,970FX@1
       (unit addresses do not require leading zeroes)
-    - d-cache-line-size : one cell, L1 data cache line size in bytes
-    - i-cache-line-size : one cell, L1 instruction cache line size in
+    - d-cache-block-size : one cell, L1 data cache block size in bytes (*)
+    - i-cache-block-size : one cell, L1 instruction cache block size in
       bytes
     - d-cache-size : one cell, size of L1 data cache in bytes
     - i-cache-size : one cell, size of L1 instruction cache in bytes
+
+(*) The cache "block" size is the size on which the cache management
+instructions operate. Historically, this document used the cache
+"line" size here which is incorrect. The kernel will prefer the cache
+block size and will fallback to cache line size for backward
+compatibility.
 
   Recommended properties:
 
@@ -870,6 +876,10 @@ address which can extend beyond that limit.
       for the above, the common code doesn't use that property, but
       you are welcome to re-use the pSeries or Maple one. A future
       kernel version might provide a common function for this.
+    - d-cache-line-size : one cell, L1 data cache line size in bytes
+      if different from the block size
+    - i-cache-line-size : one cell, L1 instruction cache line size in
+      bytes if different from the block size
 
   You are welcome to add any property you find relevant to your board,
   like some information about the mechanism used to soft-reset the
