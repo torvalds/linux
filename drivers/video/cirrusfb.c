@@ -2509,8 +2509,7 @@ static int cirrusfb_zorro_register(struct zorro_dev *z,
 	cinfo = info->par;
 	cinfo->btype = btype;
 
-	assert(z > 0);
-	assert(z2 >= 0);
+	assert(z);
 	assert(btype != BT_NONE);
 
 	cinfo->zdev = z;
