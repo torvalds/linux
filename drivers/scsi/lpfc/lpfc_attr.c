@@ -1113,7 +1113,13 @@ MODULE_PARM_DESC(lpfc_sli_mode, "SLI mode selector:"
 		 " 2 - select SLI-2 even on SLI-3 capable HBAs,"
 		 " 3 - select SLI-3");
 
-LPFC_ATTR_R(enable_npiv, 0, 0, 1, "Enable NPIV functionality");
+int lpfc_enable_npiv = 0;
+module_param(lpfc_enable_npiv, int, 0);
+MODULE_PARM_DESC(lpfc_enable_npiv, "Enable NPIV functionality");
+lpfc_param_show(enable_npiv);
+lpfc_param_init(enable_npiv, 0, 0, 1);
+static CLASS_DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO,
+			 lpfc_enable_npiv_show, NULL);
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
@@ -1257,6 +1263,13 @@ static CLASS_DEVICE_ATTR(lpfc_devloss_tmo, S_IRUGO | S_IWUSR,
 */
 LPFC_VPORT_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffff,
 		       "Verbose logging bit-mask");
+
+/*
+# lpfc_enable_da_id: This turns on the DA_ID CT command that deregisters
+# objects that have been registered with the nameserver after login.
+*/
+LPFC_VPORT_ATTR_R(enable_da_id, 0, 0, 1,
+		  "Deregister nameserver objects before LOGO");
 
 /*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
@@ -1564,6 +1577,7 @@ struct class_device_attribute *lpfc_vport_attrs[] = {
 	&class_device_attr_lpfc_max_luns,
 	&class_device_attr_nport_evt_cnt,
 	&class_device_attr_npiv_info,
+	&class_device_attr_lpfc_enable_da_id,
 	NULL,
 };
 
@@ -2349,67 +2363,11 @@ struct fc_function_template lpfc_transport_functions = {
 	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
-	.vport_create = lpfc_vport_create,
-	.vport_delete = lpfc_vport_delete,
+	/* Vport fields are filled in at runtime based on enable_npiv */
+	.vport_create = NULL,
+	.vport_delete = NULL,
+	.vport_disable = NULL,
 	.dd_fcvport_size = sizeof(struct lpfc_vport *),
-};
-
-struct fc_function_template lpfc_vport_transport_functions = {
-	/* fixed attributes the driver supports */
-	.show_host_node_name = 1,
-	.show_host_port_name = 1,
-	.show_host_supported_classes = 1,
-	.show_host_supported_fc4s = 1,
-	.show_host_supported_speeds = 1,
-	.show_host_maxframe_size = 1,
-
-	/* dynamic attributes the driver supports */
-	.get_host_port_id = lpfc_get_host_port_id,
-	.show_host_port_id = 1,
-
-	.get_host_port_type = lpfc_get_host_port_type,
-	.show_host_port_type = 1,
-
-	.get_host_port_state = lpfc_get_host_port_state,
-	.show_host_port_state = 1,
-
-	/* active_fc4s is shown but doesn't change (thus no get function) */
-	.show_host_active_fc4s = 1,
-
-	.get_host_speed = lpfc_get_host_speed,
-	.show_host_speed = 1,
-
-	.get_host_fabric_name = lpfc_get_host_fabric_name,
-	.show_host_fabric_name = 1,
-
-	/*
-	 * The LPFC driver treats linkdown handling as target loss events
-	 * so there are no sysfs handlers for link_down_tmo.
-	 */
-
-	.get_fc_host_stats = lpfc_get_stats,
-	.reset_fc_host_stats = lpfc_reset_stats,
-
-	.dd_fcrport_size = sizeof(struct lpfc_rport_data),
-	.show_rport_maxframe_size = 1,
-	.show_rport_supported_classes = 1,
-
-	.set_rport_dev_loss_tmo = lpfc_set_rport_loss_tmo,
-	.show_rport_dev_loss_tmo = 1,
-
-	.get_starget_port_id  = lpfc_get_starget_port_id,
-	.show_starget_port_id = 1,
-
-	.get_starget_node_name = lpfc_get_starget_node_name,
-	.show_starget_node_name = 1,
-
-	.get_starget_port_name = lpfc_get_starget_port_name,
-	.show_starget_port_name = 1,
-
-	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
-	.terminate_rport_io = lpfc_terminate_rport_io,
-
-	.vport_disable = lpfc_vport_disable,
 };
 
 void
@@ -2460,5 +2418,6 @@ lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 	lpfc_discovery_threads_init(vport, lpfc_discovery_threads);
 	lpfc_max_luns_init(vport, lpfc_max_luns);
 	lpfc_scan_down_init(vport, lpfc_scan_down);
+	lpfc_enable_da_id_init(vport, lpfc_enable_da_id);
 	return;
 }

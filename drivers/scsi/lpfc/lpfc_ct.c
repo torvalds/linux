@@ -458,7 +458,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 			    ((lpfc_find_vport_by_did(phba, Did) == NULL) ||
 			     vport->cfg_peer_port_login)) {
 				if ((vport->port_type != LPFC_NPIV_PORT) ||
-				    (vport->fc_flag & FC_RFF_NOT_SUPPORTED) ||
+				    (!vport->ct_flags & FC_CT_RFF_ID) ||
 				    (!vport->cfg_restrict_login)) {
 					ndlp = lpfc_setup_disc_node(vport, Did);
 					if (ndlp) {
@@ -778,8 +778,8 @@ out:
 
 
 static void
-lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
-			struct lpfc_iocbq *rspiocb)
+lpfc_cmpl_ct(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+	     struct lpfc_iocbq *rspiocb)
 {
 	struct lpfc_vport *vport = cmdiocb->vport;
 	struct lpfc_dmabuf *inp;
@@ -809,7 +809,7 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* RFT request completes status <ulpStatus> CmdRsp <CmdRsp> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-			 "0209 RFT request completes, latt %d, "
+			 "0209 CT Request completes, latt %d, "
 			 "ulpStatus x%x CmdRsp x%x, Context x%x, Tag x%x\n",
 			 latt, irsp->ulpStatus,
 			 CTrsp->CommandResponse.bits.CmdRsp,
@@ -848,10 +848,28 @@ out:
 }
 
 static void
+lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			struct lpfc_iocbq *rspiocb)
+{
+	IOCB_t *irsp = &rspiocb->iocb;
+	struct lpfc_vport *vport = cmdiocb->vport;
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS)
+		vport->ct_flags |= FC_CT_RFT_ID;
+	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
+	return;
+}
+
+static void
 lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			struct lpfc_iocbq *rspiocb)
 {
-	lpfc_cmpl_ct_cmd_rft_id(phba, cmdiocb, rspiocb);
+	IOCB_t *irsp = &rspiocb->iocb;
+	struct lpfc_vport *vport = cmdiocb->vport;
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS)
+		vport->ct_flags |= FC_CT_RNN_ID;
+	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
 
@@ -859,7 +877,12 @@ static void
 lpfc_cmpl_ct_cmd_rspn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 struct lpfc_iocbq *rspiocb)
 {
-	lpfc_cmpl_ct_cmd_rft_id(phba, cmdiocb, rspiocb);
+	IOCB_t *irsp = &rspiocb->iocb;
+	struct lpfc_vport *vport = cmdiocb->vport;
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS)
+		vport->ct_flags |= FC_CT_RSPN_ID;
+	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
 
@@ -867,7 +890,24 @@ static void
 lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 struct lpfc_iocbq *rspiocb)
 {
-	lpfc_cmpl_ct_cmd_rft_id(phba, cmdiocb, rspiocb);
+	IOCB_t *irsp = &rspiocb->iocb;
+	struct lpfc_vport *vport = cmdiocb->vport;
+
+	if (irsp->ulpStatus == IOSTAT_SUCCESS)
+		vport->ct_flags |= FC_CT_RSNN_NN;
+	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
+	return;
+}
+
+static void
+lpfc_cmpl_ct_cmd_da_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+ struct lpfc_iocbq *rspiocb)
+{
+	struct lpfc_vport *vport = cmdiocb->vport;
+
+	/* even if it fails we will act as though it succeeded. */
+	vport->ct_flags = 0;
+	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
 
@@ -878,10 +918,9 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
-	if (irsp->ulpStatus != IOSTAT_SUCCESS)
-	    vport->fc_flag |= FC_RFF_NOT_SUPPORTED;
-
-	lpfc_cmpl_ct_cmd_rft_id(phba, cmdiocb, rspiocb);
+	if (irsp->ulpStatus == IOSTAT_SUCCESS)
+		vport->ct_flags |= FC_CT_RFF_ID;
+	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
 
@@ -1001,6 +1040,8 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		bpl->tus.f.bdeSize = RSPN_REQUEST_SZ;
 	else if (cmdcode == SLI_CTNS_RSNN_NN)
 		bpl->tus.f.bdeSize = RSNN_REQUEST_SZ;
+	else if (cmdcode == SLI_CTNS_DA_ID)
+		bpl->tus.f.bdeSize = DA_ID_REQUEST_SZ;
 	else if (cmdcode == SLI_CTNS_RFF_ID)
 		bpl->tus.f.bdeSize = RFF_REQUEST_SZ;
 	else
@@ -1034,6 +1075,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		break;
 
 	case SLI_CTNS_RFT_ID:
+		vport->ct_flags &= ~FC_CT_RFT_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RFT_ID);
 		CtReq->un.rft.PortId = be32_to_cpu(vport->fc_myDID);
@@ -1042,6 +1084,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		break;
 
 	case SLI_CTNS_RNN_ID:
+		vport->ct_flags &= ~FC_CT_RNN_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RNN_ID);
 		CtReq->un.rnn.PortId = be32_to_cpu(vport->fc_myDID);
@@ -1051,6 +1094,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		break;
 
 	case SLI_CTNS_RSPN_ID:
+		vport->ct_flags &= ~FC_CT_RSPN_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RSPN_ID);
 		CtReq->un.rspn.PortId = be32_to_cpu(vport->fc_myDID);
@@ -1061,6 +1105,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		cmpl = lpfc_cmpl_ct_cmd_rspn_id;
 		break;
 	case SLI_CTNS_RSNN_NN:
+		vport->ct_flags &= ~FC_CT_RSNN_NN;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RSNN_NN);
 		memcpy(CtReq->un.rsnn.wwnn, &vport->fc_nodename,
@@ -1071,8 +1116,15 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 			CtReq->un.rsnn.symbname, size);
 		cmpl = lpfc_cmpl_ct_cmd_rsnn_nn;
 		break;
+	case SLI_CTNS_DA_ID:
+		/* Implement DA_ID Nameserver request */
+		CtReq->CommandResponse.bits.CmdRsp =
+			be16_to_cpu(SLI_CTNS_DA_ID);
+		CtReq->un.da_id.port_id = be32_to_cpu(vport->fc_myDID);
+		cmpl = lpfc_cmpl_ct_cmd_da_id;
+		break;
 	case SLI_CTNS_RFF_ID:
-		vport->fc_flag &= ~FC_RFF_NOT_SUPPORTED;
+		vport->ct_flags &= ~FC_CT_RFF_ID;
 		CtReq->CommandResponse.bits.CmdRsp =
 		    be16_to_cpu(SLI_CTNS_RFF_ID);
 		CtReq->un.rff.PortId = be32_to_cpu(vport->fc_myDID);;

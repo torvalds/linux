@@ -2294,12 +2294,24 @@ lpfc_init(void)
 	printk(LPFC_MODULE_DESC "\n");
 	printk(LPFC_COPYRIGHT "\n");
 
+	if (lpfc_enable_npiv) {
+		lpfc_transport_functions.vport_create = lpfc_vport_create;
+		lpfc_transport_functions.vport_delete = lpfc_vport_delete;
+	}
 	lpfc_transport_template =
 				fc_attach_transport(&lpfc_transport_functions);
-	lpfc_vport_transport_template =
-			fc_attach_transport(&lpfc_vport_transport_functions);
-	if (!lpfc_transport_template || !lpfc_vport_transport_template)
+	if (lpfc_transport_template == NULL)
 		return -ENOMEM;
+	if (lpfc_enable_npiv) {
+		lpfc_transport_functions.vport_create = NULL;
+		lpfc_transport_functions.vport_delete = NULL;
+		lpfc_transport_functions.issue_fc_host_lip = NULL;
+		lpfc_transport_functions.vport_disable = lpfc_vport_disable;
+		lpfc_vport_transport_template =
+				fc_attach_transport(&lpfc_transport_functions);
+		if (lpfc_vport_transport_template == NULL)
+			return -ENOMEM;
+	}
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {
 		fc_release_transport(lpfc_transport_template);
@@ -2314,7 +2326,8 @@ lpfc_exit(void)
 {
 	pci_unregister_driver(&lpfc_driver);
 	fc_release_transport(lpfc_transport_template);
-	fc_release_transport(lpfc_vport_transport_template);
+	if (lpfc_enable_npiv)
+		fc_release_transport(lpfc_vport_transport_template);
 }
 
 module_init(lpfc_init);

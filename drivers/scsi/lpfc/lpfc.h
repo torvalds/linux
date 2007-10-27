@@ -272,9 +272,15 @@ struct lpfc_vport {
 #define FC_ABORT_DISCOVERY      0x8000	 /* we want to abort discovery */
 #define FC_NDISC_ACTIVE         0x10000	 /* NPort discovery active */
 #define FC_BYPASSED_MODE        0x20000	 /* NPort is in bypassed mode */
-#define FC_RFF_NOT_SUPPORTED    0x40000	 /* RFF_ID was rejected by switch */
 #define FC_VPORT_NEEDS_REG_VPI	0x80000  /* Needs to have its vpi registered */
 #define FC_RSCN_DEFERRED	0x100000 /* A deferred RSCN being processed */
+
+	uint32_t ct_flags;
+#define FC_CT_RFF_ID		0x1	 /* RFF_ID accepted by switch */
+#define FC_CT_RNN_ID		0x2	 /* RNN_ID accepted by switch */
+#define FC_CT_RSNN_NN		0x4	 /* RSNN_NN accepted by switch */
+#define FC_CT_RSPN_ID		0x8	 /* RSPN_ID accepted by switch */
+#define FC_CT_RFT_ID		0x10	 /* RFT_ID accepted by switch */
 
 	struct list_head fc_nodes;
 
@@ -344,6 +350,7 @@ struct lpfc_vport {
 	uint32_t cfg_discovery_threads;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_max_luns;
+	uint32_t cfg_enable_da_id;
 
 	uint32_t dev_loss_tmo_changed;
 

@@ -482,8 +482,18 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
 	if (ndlp && ndlp->nlp_state == NLP_STE_UNMAPPED_NODE &&
-		phba->link_state >= LPFC_LINK_UP) {
-
+	    phba->link_state >= LPFC_LINK_UP) {
+		if (vport->cfg_enable_da_id) {
+			timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
+			if (!lpfc_ns_cmd(vport, SLI_CTNS_DA_ID, 0, 0))
+				while (vport->ct_flags && timeout)
+					timeout = schedule_timeout(timeout);
+			else
+				lpfc_printf_log(vport->phba, KERN_WARNING,
+						LOG_VPORT,
+						"1829 CT command failed to "
+						"delete objects on fabric. \n");
+		}
 		/* First look for the Fabric ndlp */
 		ndlp = lpfc_findnode_did(vport, Fabric_DID);
 		if (!ndlp) {

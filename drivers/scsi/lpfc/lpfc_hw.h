@@ -139,6 +139,9 @@ struct lpfc_sli_ct_request {
 			uint8_t len;
 			uint8_t symbname[255];
 		} rsnn;
+		struct da_id { /* For DA_ID requests */
+			uint32_t port_id;
+		} da_id;
 		struct rspn {	/* For RSPN_ID requests */
 			uint32_t PortId;
 			uint8_t len;
@@ -177,6 +180,8 @@ struct lpfc_sli_ct_request {
 			   sizeof(struct rnn))
 #define  RSNN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
 			   sizeof(struct rsnn))
+#define DA_ID_REQUEST_SZ (offsetof(struct lpfc_sli_ct_request, un) + \
+			  sizeof(struct da_id))
 #define  RSPN_REQUEST_SZ  (offsetof(struct lpfc_sli_ct_request, un) + \
 			   sizeof(struct rspn))
 
