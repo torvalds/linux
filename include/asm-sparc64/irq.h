@@ -1,7 +1,6 @@
-/* $Id: irq.h,v 1.21 2002/01/23 11:27:36 davem Exp $
- * irq.h: IRQ registers on the 64-bit Sparc.
+/* irq.h: IRQ registers on the 64-bit Sparc.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998 Jakub Jelinek (jj@ultra.linux.cz)
  */
 
@@ -67,21 +66,21 @@ extern void virt_irq_free(unsigned int virt_irq);
 
 extern void fixup_irqs(void);
 
-static __inline__ void set_softint(unsigned long bits)
+static inline void set_softint(unsigned long bits)
 {
 	__asm__ __volatile__("wr	%0, 0x0, %%set_softint"
 			     : /* No outputs */
 			     : "r" (bits));
 }
 
-static __inline__ void clear_softint(unsigned long bits)
+static inline void clear_softint(unsigned long bits)
 {
 	__asm__ __volatile__("wr	%0, 0x0, %%clear_softint"
 			     : /* No outputs */
 			     : "r" (bits));
 }
 
-static __inline__ unsigned long get_softint(void)
+static inline unsigned long get_softint(void)
 {
 	unsigned long retval;
 

@@ -459,7 +459,7 @@ again:
 	}
 }
 
-static __inline__ void spitfire_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
+static inline void spitfire_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
 {
 	u64 pstate;
 	int i;
@@ -906,7 +906,7 @@ extern atomic_t dcpage_flushes;
 extern atomic_t dcpage_flushes_xcall;
 #endif
 
-static __inline__ void __local_flush_dcache_page(struct page *page)
+static inline void __local_flush_dcache_page(struct page *page)
 {
 #ifdef DCACHE_ALIASING_POSSIBLE
 	__flush_dcache_page(page_address(page),

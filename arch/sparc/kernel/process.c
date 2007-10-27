@@ -1,7 +1,6 @@
-/*  $Id: process.c,v 1.161 2002/01/23 11:27:32 davem Exp $
- *  linux/arch/sparc/kernel/process.c
+/*  linux/arch/sparc/kernel/process.c
  *
- *  Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ *  Copyright (C) 1995 David S. Miller (davem@davemloft.net)
  *  Copyright (C) 1996 Eddie C. Dost   (ecd@skynet.be)
  */
 
@@ -397,7 +396,7 @@ void flush_thread(void)
 	}
 }
 
-static __inline__ struct sparc_stackf __user *
+static inline struct sparc_stackf __user *
 clone_stackframe(struct sparc_stackf __user *dst,
 		 struct sparc_stackf __user *src)
 {

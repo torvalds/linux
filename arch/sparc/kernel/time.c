@@ -1,7 +1,6 @@
-/* $Id: time.c,v 1.60 2002/01/23 14:33:55 davem Exp $
- * linux/arch/sparc/kernel/time.c
+/* linux/arch/sparc/kernel/time.c
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 Thomas K. Dyas (tdyas@eden.rutgers.edu)
  *
  * Chris Davis (cdavis@cois.on.ca) 03/27/1998
@@ -210,7 +209,7 @@ static void __devinit kick_start_clock(void)
 }
 
 /* Return nonzero if the clock chip battery is low. */
-static __inline__ int has_low_battery(void)
+static inline int has_low_battery(void)
 {
 	struct mostek48t02 *regs = (struct mostek48t02 *)mstk48t02_regs;
 	unsigned char data1, data2;
@@ -252,7 +251,7 @@ static void __devinit mostek_set_system_time(void)
 }
 
 /* Probe for the real time clock chip on Sun4 */
-static __inline__ void sun4_clock_probe(void)
+static inline void sun4_clock_probe(void)
 {
 #ifdef CONFIG_SUN4
 	int temp;

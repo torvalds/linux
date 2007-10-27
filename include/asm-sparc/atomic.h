@@ -1,6 +1,6 @@
 /* atomic.h: These still suck, but the I-cache hit rate is higher.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 2000 Anton Blanchard (anton@linuxcare.com.au)
  * Copyright (C) 2007 Kyle McMartin (kyle@parisc-linux.org)
  *
@@ -33,7 +33,7 @@ extern void __cmpxchg_called_with_bad_pointer(void);
 extern unsigned long __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);
 
 /* don't worry...optimizer will get rid of most of this */
-static __inline__ unsigned long
+static inline unsigned long
 __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new_, int size)
 {
 	switch(size) {

@@ -201,7 +201,7 @@ inline void flush_dcache_page_impl(struct page *page)
 #define dcache_dirty_cpu(page) \
 	(((page)->flags >> PG_dcache_cpu_shift) & PG_dcache_cpu_mask)
 
-static __inline__ void set_dcache_dirty(struct page *page, int this_cpu)
+static inline void set_dcache_dirty(struct page *page, int this_cpu)
 {
 	unsigned long mask = this_cpu;
 	unsigned long non_cpu_bits;
@@ -223,7 +223,7 @@ static __inline__ void set_dcache_dirty(struct page *page, int this_cpu)
 			     : "g1", "g7");
 }
 
-static __inline__ void clear_dcache_dirty_cpu(struct page *page, unsigned long cpu)
+static inline void clear_dcache_dirty_cpu(struct page *page, unsigned long cpu)
 {
 	unsigned long mask = (1UL << PG_dcache_dirty);
 

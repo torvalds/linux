@@ -1,4 +1,3 @@
-/* $Id: upa.h,v 1.3 1999/09/21 14:39:47 davem Exp $ */
 #ifndef _SPARC64_UPA_H
 #define _SPARC64_UPA_H
 
@@ -25,7 +24,7 @@
 
 /* UPA I/O space accessors */
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
-static __inline__ unsigned char _upa_readb(unsigned long addr)
+static inline unsigned char _upa_readb(unsigned long addr)
 {
 	unsigned char ret;
 
@@ -36,7 +35,7 @@ static __inline__ unsigned char _upa_readb(unsigned long addr)
 	return ret;
 }
 
-static __inline__ unsigned short _upa_readw(unsigned long addr)
+static inline unsigned short _upa_readw(unsigned long addr)
 {
 	unsigned short ret;
 
@@ -47,7 +46,7 @@ static __inline__ unsigned short _upa_readw(unsigned long addr)
 	return ret;
 }
 
-static __inline__ unsigned int _upa_readl(unsigned long addr)
+static inline unsigned int _upa_readl(unsigned long addr)
 {
 	unsigned int ret;
 
@@ -58,7 +57,7 @@ static __inline__ unsigned int _upa_readl(unsigned long addr)
 	return ret;
 }
 
-static __inline__ unsigned long _upa_readq(unsigned long addr)
+static inline unsigned long _upa_readq(unsigned long addr)
 {
 	unsigned long ret;
 
@@ -69,28 +68,28 @@ static __inline__ unsigned long _upa_readq(unsigned long addr)
 	return ret;
 }
 
-static __inline__ void _upa_writeb(unsigned char b, unsigned long addr)
+static inline void _upa_writeb(unsigned char b, unsigned long addr)
 {
 	__asm__ __volatile__("stba\t%0, [%1] %2\t/* upa_writeb */"
 			     : /* no outputs */
 			     : "r" (b), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
-static __inline__ void _upa_writew(unsigned short w, unsigned long addr)
+static inline void _upa_writew(unsigned short w, unsigned long addr)
 {
 	__asm__ __volatile__("stha\t%0, [%1] %2\t/* upa_writew */"
 			     : /* no outputs */
 			     : "r" (w), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
-static __inline__ void _upa_writel(unsigned int l, unsigned long addr)
+static inline void _upa_writel(unsigned int l, unsigned long addr)
 {
 	__asm__ __volatile__("stwa\t%0, [%1] %2\t/* upa_writel */"
 			     : /* no outputs */
 			     : "r" (l), "r" (addr), "i" (ASI_PHYS_BYPASS_EC_E));
 }
 
-static __inline__ void _upa_writeq(unsigned long q, unsigned long addr)
+static inline void _upa_writeq(unsigned long q, unsigned long addr)
 {
 	__asm__ __volatile__("stxa\t%0, [%1] %2\t/* upa_writeq */"
 			     : /* no outputs */
