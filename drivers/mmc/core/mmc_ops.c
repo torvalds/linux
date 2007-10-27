@@ -267,15 +267,26 @@ mmc_send_cxd_data(struct mmc_card *card, struct mmc_host *host,
 
 int mmc_send_csd(struct mmc_card *card, u32 *csd)
 {
+	int ret, i;
+
 	if (!mmc_host_is_spi(card->host))
 		return mmc_send_cxd_native(card->host, card->rca << 16,
 				csd, MMC_SEND_CSD);
 
-	return mmc_send_cxd_data(card, card->host, MMC_SEND_CSD, csd, 16);
+	ret = mmc_send_cxd_data(card, card->host, MMC_SEND_CSD, csd, 16);
+	if (ret)
+		return ret;
+
+	for (i = 0;i < 4;i++)
+		csd[i] = be32_to_cpu(csd[i]);
+
+	return 0;
 }
 
 int mmc_send_cid(struct mmc_host *host, u32 *cid)
 {
+	int ret, i;
+
 	if (!mmc_host_is_spi(host)) {
 		if (!host->card)
 			return -EINVAL;
@@ -283,7 +294,14 @@ int mmc_send_cid(struct mmc_host *host, u32 *cid)
 				cid, MMC_SEND_CID);
 	}
 
-	return mmc_send_cxd_data(NULL, host, MMC_SEND_CID, cid, 16);
+	ret = mmc_send_cxd_data(NULL, host, MMC_SEND_CID, cid, 16);
+	if (ret)
+		return ret;
+
+	for (i = 0;i < 4;i++)
+		cid[i] = be32_to_cpu(cid[i]);
+
+	return 0;
 }
 
 int mmc_send_ext_csd(struct mmc_card *card, u8 *ext_csd)
