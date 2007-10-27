@@ -21,7 +21,9 @@
 #else
 
 #define BACKOFF_SETUP(reg)
-#define BACKOFF_SPIN(reg, tmp, label)
+#define BACKOFF_SPIN(reg, tmp, label) \
+	ba,pt	%xcc, label; \
+	 nop;
 
 #endif
 
