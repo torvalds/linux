@@ -316,13 +316,13 @@ static int icside_dma_end(ide_drive_t *drive)
 
 	drive->waiting_for_dma = 0;
 
-	disable_dma(state->dev->dma);
+	disable_dma(ECARD_DEV(state->dev)->dma);
 
 	/* Teardown mappings after DMA has completed. */
 	dma_unmap_sg(state->dev, hwif->sg_table, hwif->sg_nents,
 		     hwif->sg_dma_direction);
 
-	return get_dma_residue(state->dev->dma) != 0;
+	return get_dma_residue(ECARD_DEV(state->dev)->dma) != 0;
 }
 
 static void icside_dma_start(ide_drive_t *drive)
@@ -331,8 +331,8 @@ static void icside_dma_start(ide_drive_t *drive)
 	struct icside_state *state = hwif->hwif_data;
 
 	/* We can not enable DMA on both channels simultaneously. */
-	BUG_ON(dma_channel_active(state->dev->dma));
-	enable_dma(state->dev->dma);
+	BUG_ON(dma_channel_active(ECARD_DEV(state->dev)->dma));
+	enable_dma(ECARD_DEV(state->dev)->dma);
 }
 
 static int icside_dma_setup(ide_drive_t *drive)
@@ -350,7 +350,7 @@ static int icside_dma_setup(ide_drive_t *drive)
 	/*
 	 * We can not enable DMA on both channels.
 	 */
-	BUG_ON(dma_channel_active(state->dev->dma));
+	BUG_ON(dma_channel_active(ECARD_DEV(state->dev)->dma));
 
 	icside_build_sglist(drive, rq);
 
@@ -367,14 +367,14 @@ static int icside_dma_setup(ide_drive_t *drive)
 	/*
 	 * Select the correct timing for this drive.
 	 */
-	set_dma_speed(state->dev->dma, drive->drive_data);
+	set_dma_speed(ECARD_DEV(state->dev)->dma, drive->drive_data);
 
 	/*
 	 * Tell the DMA engine about the SG table and
 	 * data direction.
 	 */
-	set_dma_sg(state->dev->dma, hwif->sg_table, hwif->sg_nents);
-	set_dma_mode(state->dev->dma, dma_mode);
+	set_dma_sg(ECARD_DEV(state->dev)->dma, hwif->sg_table, hwif->sg_nents);
+	set_dma_mode(ECARD_DEV(state->dev)->dma, dma_mode);
 
 	drive->waiting_for_dma = 1;
 
