@@ -480,7 +480,3 @@ static int __init pci_proc_init(void)
 
 __initcall(pci_proc_init);
 
-#ifdef CONFIG_HOTPLUG
-EXPORT_SYMBOL(pci_proc_detach_bus);
-#endif
-

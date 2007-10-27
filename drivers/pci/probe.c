@@ -1140,7 +1140,6 @@ err_out:
 	kfree(b);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(pci_create_bus);
 
 struct pci_bus *pci_scan_bus_parented(struct device *parent,
 		int bus, struct pci_ops *ops, void *sysdata)
