@@ -212,6 +212,18 @@ out_free_mbox:
 	return 0;
 }
 
+/* Completion handler for config async event mailbox command. */
+static void
+lpfc_config_async_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
+{
+	if (pmboxq->mb.mbxStatus == MBX_SUCCESS)
+		phba->temp_sensor_support = 1;
+	else
+		phba->temp_sensor_support = 0;
+	mempool_free(pmboxq, phba->mbox_mem_pool);
+	return;
+}
+
 /************************************************************************/
 /*                                                                      */
 /*    lpfc_config_port_post                                             */
@@ -409,7 +421,21 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 		return -EIO;
 	}
 	/* MBOX buffer will be freed in mbox compl */
+	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	lpfc_config_async(phba, pmb, LPFC_ELS_RING);
+	pmb->mbox_cmpl = lpfc_config_async_cmpl;
+	pmb->vport = phba->pport;
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 
+	if ((rc != MBX_BUSY) && (rc != MBX_SUCCESS)) {
+		lpfc_printf_log(phba,
+				KERN_ERR,
+				LOG_INIT,
+				"0456 Adapter failed to issue "
+				"ASYNCEVT_ENABLE mbox status x%x \n.",
+				rc);
+		mempool_free(pmb, phba->mbox_mem_pool);
+	}
 	return (0);
 }
 
@@ -601,6 +627,8 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 	struct lpfc_sli_ring  *pring;
 	struct lpfc_vport **vports;
 	uint32_t event_data;
+	unsigned long temperature;
+	struct temp_event temp_event_data;
 	struct Scsi_Host  *shost;
 	int i;
 
@@ -655,6 +683,33 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 			return;
 		}
 		lpfc_unblock_mgmt_io(phba);
+	} else if (phba->work_hs & HS_CRIT_TEMP) {
+		temperature = readl(phba->MBslimaddr + TEMPERATURE_OFFSET);
+		temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
+		temp_event_data.event_code = LPFC_CRIT_TEMP;
+		temp_event_data.data = (uint32_t)temperature;
+
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0459 Adapter maximum temperature exceeded "
+				"(%ld), taking this port offline "
+				"Data: x%x x%x x%x\n",
+				temperature, phba->work_hs,
+				phba->work_status[0], phba->work_status[1]);
+
+		shost = lpfc_shost_from_vport(phba->pport);
+		fc_host_post_vendor_event(shost, fc_get_event_number(),
+					  sizeof(temp_event_data),
+					  (char *) &temp_event_data,
+					  SCSI_NL_VID_TYPE_PCI
+					  | PCI_VENDOR_ID_EMULEX);
+
+		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+		lpfc_offline_prep(phba);
+		lpfc_offline(phba);
+		lpfc_unblock_mgmt_io(phba);
+		phba->link_state = LPFC_HBA_ERROR;
+		lpfc_hba_down_post(phba);
+
 	} else {
 		/* The if clause above forces this code path when the status
 		 * failure is a value other than FFER6.  Do not call the offline

@@ -569,6 +569,7 @@ struct lpfc_hba {
 	atomic_t slow_ring_trc_cnt;
 #endif
 
+	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
 	unsigned long last_completion_time;
 	struct timer_list hb_tmofunc;
@@ -598,5 +599,15 @@ lpfc_is_link_up(struct lpfc_hba *phba)
 		phba->link_state == LPFC_HBA_READY;
 }
 
-#define FC_REG_DUMP_EVENT	0x10	/* Register for Dump events */
+#define FC_REG_DUMP_EVENT		0x10	/* Register for Dump events */
+#define FC_REG_TEMPERATURE_EVENT	0x20    /* Register for temperature
+						   event */
 
+struct temp_event {
+	uint32_t event_type;
+	uint32_t event_code;
+	uint32_t data;
+};
+#define LPFC_CRIT_TEMP		0x1
+#define LPFC_THRESHOLD_TEMP	0x2
+#define LPFC_NORMAL_TEMP	0x3

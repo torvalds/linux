@@ -199,6 +199,7 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 	case CMD_RCV_ELS_REQ_CX:
 	case CMD_RCV_SEQUENCE64_CX:
 	case CMD_RCV_ELS_REQ64_CX:
+	case CMD_ASYNC_STATUS:
 	case CMD_IOCB_RCV_SEQ64_CX:
 	case CMD_IOCB_RCV_ELS64_CX:
 	case CMD_IOCB_RCV_CONT64_CX:
@@ -754,6 +755,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_FLASH_WR_ULA:
 	case MBX_SET_DEBUG:
 	case MBX_LOAD_EXP_ROM:
+	case MBX_ASYNCEVT_ENABLE:
 	case MBX_REG_VPI:
 	case MBX_UNREG_VPI:
 	case MBX_HEARTBEAT:
@@ -953,6 +955,7 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
 	return &new_hbq_entry->dbuf;
 }
 
+
 static int
 lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			    struct lpfc_iocbq *saveq)
@@ -964,6 +967,22 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	match = 0;
 	irsp = &(saveq->iocb);
+
+	if (irsp->ulpCommand == CMD_ASYNC_STATUS) {
+		if (pring->lpfc_sli_rcv_async_status)
+			pring->lpfc_sli_rcv_async_status(phba, pring, saveq);
+		else
+			lpfc_printf_log(phba,
+					KERN_WARNING,
+					LOG_SLI,
+					"0316 Ring %d handler: unexpected "
+					"ASYNC_STATUS iocb received evt_code "
+					"0x%x\n",
+					pring->ringno,
+					irsp->un.asyncstat.evt_code);
+		return 1;
+	}
+
 	if ((irsp->ulpCommand == CMD_RCV_ELS_REQ64_CX)
 	    || (irsp->ulpCommand == CMD_RCV_ELS_REQ_CX)
 	    || (irsp->ulpCommand == CMD_IOCB_RCV_ELS64_CX)
@@ -2993,6 +3012,61 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 	return 0;
 }
 
+void
+lpfc_sli_async_event_handler(struct lpfc_hba * phba,
+	struct lpfc_sli_ring * pring, struct lpfc_iocbq * iocbq)
+{
+	IOCB_t *icmd;
+	uint16_t evt_code;
+	uint16_t temp;
+	struct temp_event temp_event_data;
+	struct Scsi_Host *shost;
+
+	icmd = &iocbq->iocb;
+	evt_code = icmd->un.asyncstat.evt_code;
+	temp = icmd->ulpContext;
+
+	if ((evt_code != ASYNC_TEMP_WARN) &&
+		(evt_code != ASYNC_TEMP_SAFE)) {
+		lpfc_printf_log(phba,
+			KERN_ERR,
+			LOG_SLI,
+			"0327 Ring %d handler: unexpected ASYNC_STATUS"
+			" evt_code 0x%x\n",
+			pring->ringno,
+			icmd->un.asyncstat.evt_code);
+		return;
+	}
+	temp_event_data.data = (uint32_t)temp;
+	temp_event_data.event_type = FC_REG_TEMPERATURE_EVENT;
+	if (evt_code == ASYNC_TEMP_WARN) {
+		temp_event_data.event_code = LPFC_THRESHOLD_TEMP;
+		lpfc_printf_log(phba,
+				KERN_WARNING,
+				LOG_TEMP,
+				"0339 Adapter is very hot, please take "
+				"corrective action. temperature : %d Celsius\n",
+				temp);
+	}
+	if (evt_code == ASYNC_TEMP_SAFE) {
+		temp_event_data.event_code = LPFC_NORMAL_TEMP;
+		lpfc_printf_log(phba,
+				KERN_INFO,
+				LOG_TEMP,
+				"0340 Adapter temperature is OK now. "
+				"temperature : %d Celsius\n",
+				temp);
+	}
+
+	/* Send temperature change event to applications */
+	shost = lpfc_shost_from_vport(phba->pport);
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+		sizeof(temp_event_data), (char *) &temp_event_data,
+		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+
+}
+
+
 int
 lpfc_sli_setup(struct lpfc_hba *phba)
 {
@@ -3059,6 +3133,8 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 			pring->fast_iotag = 0;
 			pring->iotag_ctr = 0;
 			pring->iotag_max = 4096;
+			pring->lpfc_sli_rcv_async_status =
+				lpfc_sli_async_event_handler;
 			pring->num_mask = 4;
 			pring->prt[0].profile = 0;	/* Mask 0 */
 			pring->prt[0].rctl = FC_ELS_REQ;

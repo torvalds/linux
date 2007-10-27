@@ -86,6 +86,15 @@ lpfc_serialnum_show(struct class_device *cdev, char *buf)
 }
 
 static ssize_t
+lpfc_temp_sensor_show(struct class_device *cdev, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	return snprintf(buf, PAGE_SIZE, "%d\n",phba->temp_sensor_support);
+}
+
+static ssize_t
 lpfc_modeldesc_show(struct class_device *cdev, char *buf)
 {
 	struct Scsi_Host  *shost = class_to_shost(cdev);
@@ -908,6 +917,8 @@ static CLASS_DEVICE_ATTR(used_rpi, S_IRUGO, lpfc_used_rpi_show, NULL);
 static CLASS_DEVICE_ATTR(max_xri, S_IRUGO, lpfc_max_xri_show, NULL);
 static CLASS_DEVICE_ATTR(used_xri, S_IRUGO, lpfc_used_xri_show, NULL);
 static CLASS_DEVICE_ATTR(npiv_info, S_IRUGO, lpfc_npiv_info_show, NULL);
+static CLASS_DEVICE_ATTR(lpfc_temp_sensor, S_IRUGO, lpfc_temp_sensor_show,
+			 NULL);
 
 
 static char *lpfc_soft_wwn_key = "C99G71SL8032A";
@@ -1494,6 +1505,7 @@ struct class_device_attribute *lpfc_hba_attrs[] = {
 	&class_device_attr_state,
 	&class_device_attr_num_discovered_ports,
 	&class_device_attr_lpfc_drvr_version,
+	&class_device_attr_lpfc_temp_sensor,
 	&class_device_attr_lpfc_log_verbose,
 	&class_device_attr_lpfc_lun_queue_depth,
 	&class_device_attr_lpfc_hba_queue_depth,

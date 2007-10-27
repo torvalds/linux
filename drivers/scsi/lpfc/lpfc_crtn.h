@@ -23,6 +23,8 @@ typedef int (*node_filter)(struct lpfc_nodelist *ndlp, void *param);
 struct fc_rport;
 void lpfc_dump_mem(struct lpfc_hba *, LPFC_MBOXQ_t *, uint16_t);
 void lpfc_read_nv(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_config_async(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t);
+
 void lpfc_heart_beat(struct lpfc_hba *, LPFC_MBOXQ_t *);
 int lpfc_read_la(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb,
 		 struct lpfc_dmabuf *mp);

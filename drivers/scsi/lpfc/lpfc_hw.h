@@ -1228,7 +1228,8 @@ typedef struct {		/* FireFly BIU registers */
 #define HS_FFER3       0x20000000	/* Bit 29 */
 #define HS_FFER2       0x40000000	/* Bit 30 */
 #define HS_FFER1       0x80000000	/* Bit 31 */
-#define HS_FFERM       0xFF000000	/* Mask for error bits 31:24 */
+#define HS_CRIT_TEMP   0x00000100	/* Bit 8  */
+#define HS_FFERM       0xFF000100	/* Mask for error bits 31:24 and 8 */
 
 /* Host Control Register */
 
@@ -1282,6 +1283,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
 #define MBX_BEACON          0x2A
+#define MBX_ASYNCEVT_ENABLE 0x33
 #define MBX_HEARTBEAT       0x31
 
 #define MBX_CONFIG_HBQ	    0x7C
@@ -1344,6 +1346,7 @@ typedef struct {		/* FireFly BIU registers */
 
 /*  SLI_2 IOCB Command Set */
 
+#define CMD_ASYNC_STATUS        0x7C
 #define CMD_RCV_SEQUENCE64_CX   0x81
 #define CMD_XMIT_SEQUENCE64_CR  0x82
 #define CMD_XMIT_SEQUENCE64_CX  0x83
@@ -1405,6 +1408,8 @@ typedef struct {		/* FireFly BIU registers */
 
 #define MBX_BUSY                   0xffffff /* Attempted cmd to busy Mailbox */
 #define MBX_TIMEOUT                0xfffffe /* time-out expired waiting for */
+
+#define TEMPERATURE_OFFSET 0xB0	/* Slim offset for critical temperature event */
 
 /*
  *    Begin Structure Definitions for Mailbox Commands
@@ -2606,6 +2611,18 @@ typedef struct {
 	uint32_t IPAddress;
 } CONFIG_FARP_VAR;
 
+/* Structure for MB Command MBX_ASYNCEVT_ENABLE (0x33) */
+
+typedef struct {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd:30;
+	uint32_t ring:2;	/* Ring for ASYNC_EVENT iocb Bits 0-1*/
+#else /*  __LITTLE_ENDIAN */
+	uint32_t ring:2;	/* Ring for ASYNC_EVENT iocb Bits 0-1*/
+	uint32_t rsvd:30;
+#endif
+} ASYNCEVT_ENABLE_VAR;
+
 /* Union of all Mailbox Command types */
 #define MAILBOX_CMD_WSIZE	32
 #define MAILBOX_CMD_SIZE	(MAILBOX_CMD_WSIZE * sizeof(uint32_t))
@@ -2645,6 +2662,7 @@ typedef union {
 	CONFIG_PORT_VAR varCfgPort;	/* cmd = 0x88 (CONFIG_PORT)  */
 	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
 	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
+	ASYNCEVT_ENABLE_VAR varCfgAsyncEvent; /*cmd = x33 (CONFIG_ASYNC) */
 } MAILVARIANTS;
 
 /*
@@ -2987,6 +3005,21 @@ typedef struct {
 	uint32_t fcpt_Length;	/* transfer ready for IWRITE */
 } FCPT_FIELDS64;
 
+/* IOCB Command template for Async Status iocb commands */
+typedef struct {
+	uint32_t rsvd[4];
+	uint32_t param;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint16_t evt_code;		/* High order bits word 5 */
+	uint16_t sub_ctxt_tag;		/* Low  order bits word 5 */
+#else   /*  __LITTLE_ENDIAN_BITFIELD */
+	uint16_t sub_ctxt_tag;		/* High order bits word 5 */
+	uint16_t evt_code;		/* Low  order bits word 5 */
+#endif
+} ASYNCSTAT_FIELDS;
+#define ASYNC_TEMP_WARN		0x100
+#define ASYNC_TEMP_SAFE		0x101
+
 /* IOCB Command template for CMD_IOCB_RCV_ELS64_CX (0xB7)
    or CMD_IOCB_RCV_SEQ64_CX (0xB5) */
 
@@ -3028,6 +3061,7 @@ typedef struct _IOCB {	/* IOCB structure */
 		XMT_SEQ_FIELDS64 xseq64;	/* XMIT / BCAST cmd */
 		FCPI_FIELDS64 fcpi64;	/* FCP 64 bit Initiator template */
 		FCPT_FIELDS64 fcpt64;	/* FCP 64 bit target template */
+		ASYNCSTAT_FIELDS asyncstat; /* async_status iocb */
 
 		uint32_t ulpWord[IOCB_WORD_SZ - 2];	/* generic 6 'words' */
 	} un;

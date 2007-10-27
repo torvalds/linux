@@ -166,6 +166,8 @@ struct lpfc_sli_ring {
 
 	struct lpfc_sli_ring_mask prt[LPFC_MAX_RING_MASK];
 	uint32_t num_mask;	/* number of mask entries in prt array */
+	void (*lpfc_sli_rcv_async_status) (struct lpfc_hba *,
+		struct lpfc_sli_ring *, struct lpfc_iocbq *);
 
 	struct lpfc_sli_ring_stat stats;	/* SLI statistical info */
 

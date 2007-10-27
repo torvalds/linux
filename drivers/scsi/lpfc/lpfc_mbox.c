@@ -82,6 +82,24 @@ lpfc_read_nv(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 }
 
 /**********************************************/
+/*  lpfc_config_async  Issue a                */
+/*  MBX_ASYNC_EVT_ENABLE mailbox command      */
+/**********************************************/
+void
+lpfc_config_async(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb,
+		uint32_t ring)
+{
+	MAILBOX_t *mb;
+
+	mb = &pmb->mb;
+	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
+	mb->mbxCommand = MBX_ASYNCEVT_ENABLE;
+	mb->un.varCfgAsyncEvent.ring = ring;
+	mb->mbxOwner = OWN_HOST;
+	return;
+}
+
+/**********************************************/
 /*  lpfc_heart_beat  Issue a HEART_BEAT       */
 /*                mailbox command             */
 /**********************************************/
