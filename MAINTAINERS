@@ -2129,8 +2129,8 @@ S:	Maintained
 JOURNALLING FLASH FILE SYSTEM V2 (JFFS2)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
-L:	jffs-dev@axis.com
-W:	http://sources.redhat.com/jffs2/
+L:	linux-mtd@lists.infradead.org
+W:	http://www.linux-mtd.infradead.org/doc/jffs2.html
 S:	Maintained
 
 JFS FILESYSTEM

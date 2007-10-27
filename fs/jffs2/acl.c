@@ -372,7 +372,7 @@ int jffs2_init_acl_post(struct inode *inode)
 			return rc;
 	}
 
-	return rc;
+	return 0;
 }
 
 void jffs2_clear_acl(struct jffs2_inode_info *f)
