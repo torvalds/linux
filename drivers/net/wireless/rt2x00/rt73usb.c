@@ -399,6 +399,7 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	u8 r3;
 	u8 r4;
 	u8 r77;
+	u8 temp;
 
 	rt73usb_bbp_read(rt2x00dev, 3, &r3);
 	rt73usb_bbp_read(rt2x00dev, 4, &r4);
@@ -407,37 +408,22 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&r3, BBP_R3_SMART_MODE, 0);
 
 	/*
-	 * Configure the TX antenna.
-	 */
-	switch (ant->tx) {
-	case ANTENNA_A:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 0);
-		break;
-	case ANTENNA_SW_DIVERSITY:
-	case ANTENNA_HW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
-	case ANTENNA_B:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 3);
-		break;
-	}
-
-	/*
 	 * Configure the RX antenna.
 	 */
 	switch (ant->rx) {
 	case ANTENNA_HW_DIVERSITY:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
-		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END,
-				  (rt2x00dev->curr_hwmode != HWMODE_A));
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
+		temp = !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags)
+		       && (rt2x00dev->curr_hwmode != HWMODE_A);
+		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, temp);
 		break;
 	case ANTENNA_A:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
+		if (rt2x00dev->curr_hwmode == HWMODE_A)
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
+		else
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
 		break;
 	case ANTENNA_SW_DIVERSITY:
 		/*
@@ -447,8 +433,12 @@ static void rt73usb_config_antenna_5x(struct rt2x00_dev *rt2x00dev,
 		 * Instead, just default to antenna B.
 		 */
 	case ANTENNA_B:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		rt2x00_set_field8(&r4, BBP_R4_RX_FRAME_END, 0);
+		if (rt2x00dev->curr_hwmode == HWMODE_A)
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
+		else
+			rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
 		break;
 	}
 
@@ -473,34 +463,15 @@ static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 			  !test_bit(CONFIG_FRAME_TYPE, &rt2x00dev->flags));
 
 	/*
-	 * Configure the TX antenna.
-	 */
-	switch (ant->tx) {
-	case ANTENNA_A:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 0);
-		break;
-	case ANTENNA_SW_DIVERSITY:
-	case ANTENNA_HW_DIVERSITY:
-		/*
-		 * NOTE: We should never come here because rt2x00lib is
-		 * supposed to catch this and send us the correct antenna
-		 * explicitely. However we are nog going to bug about this.
-		 * Instead, just default to antenna B.
-		 */
-	case ANTENNA_B:
-		rt2x00_set_field8(&r77, BBP_R77_TX_ANTENNA, 3);
-		break;
-	}
-
-	/*
 	 * Configure the RX antenna.
 	 */
 	switch (ant->rx) {
 	case ANTENNA_HW_DIVERSITY:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 2);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 2);
 		break;
 	case ANTENNA_A:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 3);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		break;
 	case ANTENNA_SW_DIVERSITY:
 		/*
@@ -510,7 +481,8 @@ static void rt73usb_config_antenna_2x(struct rt2x00_dev *rt2x00dev,
 		 * Instead, just default to antenna B.
 		 */
 	case ANTENNA_B:
-		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA, 1);
+		rt2x00_set_field8(&r77, BBP_R77_RX_ANTENNA, 0);
+		rt2x00_set_field8(&r4, BBP_R4_RX_ANTENNA_CONTROL, 1);
 		break;
 	}
 
@@ -558,8 +530,6 @@ static void rt73usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 	unsigned int i;
 	u32 reg;
 
-	rt73usb_register_read(rt2x00dev, PHY_CSR0, &reg);
-
 	if (rt2x00dev->curr_hwmode == HWMODE_A) {
 		sel = antenna_sel_a;
 		lna = test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags);
@@ -568,14 +538,16 @@ static void rt73usb_config_antenna(struct rt2x00_dev *rt2x00dev,
 		lna = test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags);
 	}
 
+	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
+		rt73usb_bbp_write(rt2x00dev, sel[i].word, sel[i].value[lna]);
+
+	rt73usb_register_read(rt2x00dev, PHY_CSR0, &reg);
+
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_BG,
 			   (rt2x00dev->curr_hwmode == HWMODE_B ||
 			    rt2x00dev->curr_hwmode == HWMODE_G));
 	rt2x00_set_field32(&reg, PHY_CSR0_PA_PE_A,
 			   (rt2x00dev->curr_hwmode == HWMODE_A));
-
-	for (i = 0; i < ARRAY_SIZE(antenna_sel_a); i++)
-		rt73usb_bbp_write(rt2x00dev, sel[i].word, sel[i].value[lna]);
 
 	rt73usb_register_write(rt2x00dev, PHY_CSR0, reg);
 
