@@ -1373,6 +1373,7 @@ typedef struct {		/* FireFly BIU registers */
 #define CMD_FCP_TRECEIVE64_CX   0xA1
 #define CMD_FCP_TRSP64_CX       0xA3
 
+#define CMD_QUE_XRI64_CX	0xB3
 #define CMD_IOCB_RCV_SEQ64_CX	0xB5
 #define CMD_IOCB_RCV_ELS64_CX	0xB7
 #define CMD_IOCB_RCV_CONT64_CX	0xBB
@@ -3039,7 +3040,26 @@ struct rcv_sli3 {
 	struct ulp_bde64 bde2;
 };
 
+/* Structure used for a single HBQ entry */
+struct lpfc_hbq_entry {
+	struct ulp_bde64 bde;
+	uint32_t buffer_tag;
+};
 
+/* IOCB Command template for QUE_XRI64_CX (0xB3) command */
+typedef struct {
+	struct lpfc_hbq_entry   buff;
+	uint32_t                rsvd;
+	uint32_t		rsvd1;
+} QUE_XRI64_CX_FIELDS;
+
+struct que_xri64cx_ext_fields {
+	uint32_t	iotag64_low;
+	uint32_t	iotag64_high;
+	uint32_t	ebde_count;
+	uint32_t	rsvd;
+	struct lpfc_hbq_entry	buff[5];
+};
 
 typedef struct _IOCB {	/* IOCB structure */
 	union {
@@ -3064,6 +3084,7 @@ typedef struct _IOCB {	/* IOCB structure */
 		FCPI_FIELDS64 fcpi64;	/* FCP 64 bit Initiator template */
 		FCPT_FIELDS64 fcpt64;	/* FCP 64 bit target template */
 		ASYNCSTAT_FIELDS asyncstat; /* async_status iocb */
+		QUE_XRI64_CX_FIELDS quexri64cx; /* que_xri64_cx fields */
 
 		uint32_t ulpWord[IOCB_WORD_SZ - 2];	/* generic 6 'words' */
 	} un;
@@ -3121,6 +3142,10 @@ typedef struct _IOCB {	/* IOCB structure */
 
 	union {
 		struct rcv_sli3 rcvsli3; /* words 8 - 15 */
+
+		/* words 8-31 used for que_xri_cx iocb */
+		struct que_xri64cx_ext_fields que_xri64cx_ext_words;
+
 		uint32_t sli3Words[24]; /* 96 extra bytes for SLI-3 */
 	} unsli3;
 
@@ -3159,12 +3184,6 @@ typedef struct _IOCB {	/* IOCB structure */
 #define IOSTAT_CNT             0x11
 
 } IOCB_t;
-
-/* Structure used for a single HBQ entry */
-struct lpfc_hbq_entry {
-	struct ulp_bde64 bde;
-	uint32_t buffer_tag;
-};
 
 
 #define SLI1_SLIM_SIZE   (4 * 1024)

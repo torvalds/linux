@@ -211,6 +211,11 @@ int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
 struct lpfc_dmabuf *lpfc_sli_ringpostbuf_get(struct lpfc_hba *,
 					     struct lpfc_sli_ring *,
 					     dma_addr_t);
+
+uint32_t lpfc_sli_get_buffer_tag(struct lpfc_hba *);
+struct lpfc_dmabuf * lpfc_sli_ring_taggedbuf_get(struct lpfc_hba *,
+			struct lpfc_sli_ring *, uint32_t );
+
 int lpfc_sli_hbq_count(void);
 int lpfc_sli_hbqbuf_init_hbqs(struct lpfc_hba *, uint32_t);
 int lpfc_sli_hbqbuf_add_hbqs(struct lpfc_hba *, uint32_t);

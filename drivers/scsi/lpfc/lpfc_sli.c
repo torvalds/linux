@@ -931,6 +931,16 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
 	return &new_hbq_entry->dbuf;
 }
 
+static struct lpfc_dmabuf *
+lpfc_sli_get_buff(struct lpfc_hba *phba,
+			struct lpfc_sli_ring *pring,
+			uint32_t tag)
+{
+	if (tag & QUE_BUFTAG_BIT)
+		return lpfc_sli_ring_taggedbuf_get(phba, pring, tag);
+	else
+		return lpfc_sli_replace_hbqbuff(phba, tag);
+}
 
 static int
 lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
@@ -940,6 +950,7 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	WORD5            * w5p;
 	uint32_t           Rctl, Type;
 	uint32_t           match, i;
+	struct lpfc_iocbq *iocbq;
 
 	match = 0;
 	irsp = &(saveq->iocb);
@@ -984,12 +995,69 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
-		if (irsp->ulpBdeCount != 0)
-			saveq->context2 = lpfc_sli_replace_hbqbuff(phba,
+		struct lpfc_hbq_entry *hbqe_1, *hbqe_2;
+		hbqe_1 = (struct lpfc_hbq_entry *) &saveq->iocb.un.ulpWord[0];
+		hbqe_2 = (struct lpfc_hbq_entry *) &saveq->iocb.
+				unsli3.sli3Words[4];
+
+		if (irsp->ulpBdeCount != 0) {
+			saveq->context2 = lpfc_sli_get_buff(phba, pring,
 						irsp->un.ulpWord[3]);
-		if (irsp->ulpBdeCount == 2)
-			saveq->context3 = lpfc_sli_replace_hbqbuff(phba,
+			if (!saveq->context2)
+				lpfc_printf_log(phba,
+					KERN_ERR,
+					LOG_SLI,
+					"0341 Ring %d Cannot find buffer for "
+					"an unsolicited iocb. tag 0x%x\n",
+					pring->ringno,
+					irsp->un.ulpWord[3]);
+
+		}
+		if (irsp->ulpBdeCount == 2) {
+			saveq->context3 = lpfc_sli_get_buff(phba, pring,
 						irsp->unsli3.sli3Words[7]);
+			if (!saveq->context3)
+				lpfc_printf_log(phba,
+					KERN_ERR,
+					LOG_SLI,
+					"0342 Ring %d Cannot find buffer for an"
+					" unsolicited iocb. tag 0x%x\n",
+					pring->ringno,
+					irsp->unsli3.sli3Words[7]);
+		}
+		list_for_each_entry(iocbq, &saveq->list, list) {
+			hbqe_1 = (struct lpfc_hbq_entry *) &iocbq->iocb.
+				un.ulpWord[0];
+			hbqe_2 = (struct lpfc_hbq_entry *) &iocbq->iocb.
+				unsli3.sli3Words[4];
+			irsp = &(iocbq->iocb);
+
+			if (irsp->ulpBdeCount != 0) {
+				iocbq->context2 = lpfc_sli_get_buff(phba, pring,
+							irsp->un.ulpWord[3]);
+				if (!saveq->context2)
+					lpfc_printf_log(phba,
+						KERN_ERR,
+						LOG_SLI,
+						"0343 Ring %d Cannot find "
+						"buffer for an unsolicited iocb"
+						". tag 0x%x\n", pring->ringno,
+						irsp->un.ulpWord[3]);
+			}
+			if (irsp->ulpBdeCount == 2) {
+				iocbq->context3 = lpfc_sli_get_buff(phba, pring,
+						irsp->unsli3.sli3Words[7]);
+				if (!saveq->context3)
+					lpfc_printf_log(phba,
+						KERN_ERR,
+						LOG_SLI,
+						"0344 Ring %d Cannot find "
+						"buffer for an unsolicited "
+						"iocb. tag 0x%x\n",
+						pring->ringno,
+						irsp->unsli3.sli3Words[7]);
+			}
+		}
 	}
 
 	/* unSolicited Responses */
@@ -2480,7 +2548,7 @@ lpfc_mbox_timeout_handler(struct lpfc_hba *phba)
 	lpfc_sli_abort_iocb_ring(phba, pring);
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
-			"0316 Resetting board due to mailbox timeout\n");
+			"0345 Resetting board due to mailbox timeout\n");
 	/*
 	 * lpfc_offline calls lpfc_sli_hba_down which will clean up
 	 * on oustanding mailbox commands.
@@ -2975,7 +3043,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 		lpfc_printf_log(phba,
 			KERN_ERR,
 			LOG_SLI,
-			"0327 Ring %d handler: unexpected ASYNC_STATUS"
+			"0346 Ring %d handler: unexpected ASYNC_STATUS"
 			" evt_code 0x%x\n",
 			pring->ringno,
 			icmd->un.asyncstat.evt_code);
@@ -2988,7 +3056,7 @@ lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 		lpfc_printf_log(phba,
 				KERN_WARNING,
 				LOG_TEMP,
-				"0339 Adapter is very hot, please take "
+				"0347 Adapter is very hot, please take "
 				"corrective action. temperature : %d Celsius\n",
 				temp);
 	}
@@ -3314,6 +3382,47 @@ lpfc_sli_ringpostbuf_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return 0;
 }
 
+uint32_t
+lpfc_sli_get_buffer_tag(struct lpfc_hba *phba)
+{
+	spin_lock_irq(&phba->hbalock);
+	phba->buffer_tag_count++;
+	/*
+	 * Always set the QUE_BUFTAG_BIT to distiguish between
+	 * a tag assigned by HBQ.
+	 */
+	phba->buffer_tag_count |= QUE_BUFTAG_BIT;
+	spin_unlock_irq(&phba->hbalock);
+	return phba->buffer_tag_count;
+}
+
+struct lpfc_dmabuf *
+lpfc_sli_ring_taggedbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
+			uint32_t tag)
+{
+	struct lpfc_dmabuf *mp, *next_mp;
+	struct list_head *slp = &pring->postbufq;
+
+	/* Search postbufq, from the begining, looking for a match on tag */
+	spin_lock_irq(&phba->hbalock);
+	list_for_each_entry_safe(mp, next_mp, &pring->postbufq, list) {
+		if (mp->buffer_tag == tag) {
+			list_del_init(&mp->list);
+			pring->postbufq_cnt--;
+			spin_unlock_irq(&phba->hbalock);
+			return mp;
+		}
+	}
+
+	spin_unlock_irq(&phba->hbalock);
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"0410 Cannot find virtual addr for buffer tag on "
+			"ring %d Data x%lx x%p x%p x%x\n",
+			pring->ringno, (unsigned long) tag,
+			slp->next, slp->prev, pring->postbufq_cnt);
+
+	return NULL;
+}
 
 struct lpfc_dmabuf *
 lpfc_sli_ringpostbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,

@@ -68,6 +68,7 @@ struct lpfc_dmabuf {
 	struct list_head list;
 	void *virt;		/* virtual address ptr */
 	dma_addr_t phys;	/* mapped address */
+	uint32_t   buffer_tag;	/* used for tagged queue ring */
 };
 
 struct lpfc_dma_pool {
@@ -582,6 +583,12 @@ struct lpfc_hba {
 	unsigned long last_completion_time;
 	struct timer_list hb_tmofunc;
 	uint8_t hb_outstanding;
+	/*
+	 * Following bit will be set for all buffer tags which are not
+	 * associated with any HBQ.
+	 */
+#define QUE_BUFTAG_BIT  (1<<31)
+	uint32_t buffer_tag_count;
 };
 
 static inline struct Scsi_Host *
