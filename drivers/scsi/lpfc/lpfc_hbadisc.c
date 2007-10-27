@@ -157,6 +157,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	struct lpfc_vport *vport;
 	struct lpfc_hba   *phba;
 	uint8_t *name;
+	int  put_node;
+	int  put_rport;
 	int warn_on = 0;
 
 	rport = ndlp->rport;
@@ -178,9 +180,6 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		return;
 
 	if (ndlp->nlp_type & NLP_FABRIC) {
-		int  put_node;
-		int  put_rport;
-
 		/* We will clean up these Nodes in linkup */
 		put_node = rdata->pnode != NULL;
 		put_rport = ndlp->rport != NULL;
@@ -222,23 +221,20 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 				 ndlp->nlp_state, ndlp->nlp_rpi);
 	}
 
+	put_node = rdata->pnode != NULL;
+	put_rport = ndlp->rport != NULL;
+	rdata->pnode = NULL;
+	ndlp->rport = NULL;
+	if (put_node)
+		lpfc_nlp_put(ndlp);
+	if (put_rport)
+		put_device(&rport->dev);
+
 	if (!(vport->load_flag & FC_UNLOADING) &&
 	    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
 	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
-	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE))
+	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE)) {
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
-	else {
-		int  put_node;
-		int  put_rport;
-
-		put_node = rdata->pnode != NULL;
-		put_rport = ndlp->rport != NULL;
-		rdata->pnode = NULL;
-		ndlp->rport = NULL;
-		if (put_node)
-			lpfc_nlp_put(ndlp);
-		if (put_rport)
-			put_device(&rport->dev);
 	}
 }
 
@@ -546,11 +542,9 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 	}
 }
 
-static void
+void
 lpfc_port_link_failure(struct lpfc_vport *vport)
 {
-	struct lpfc_nodelist *ndlp, *next_ndlp;
-
 	/* Cleanup any outstanding RSCN activity */
 	lpfc_els_flush_rscn(vport);
 
@@ -558,11 +552,6 @@ lpfc_port_link_failure(struct lpfc_vport *vport)
 	lpfc_els_flush_cmd(vport);
 
 	lpfc_cleanup_rpis(vport, 0);
-
-	/* free any ndlp's on unused list */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp)
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
-			lpfc_drop_node(vport, ndlp);
 
 	/* Turn off discovery timer if its running */
 	lpfc_can_disctmo(vport);
@@ -670,7 +659,6 @@ static void
 lpfc_linkup_port(struct lpfc_vport *vport)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp, *next_ndlp;
 	struct lpfc_hba  *phba = vport->phba;
 
 	if ((vport->load_flag & FC_UNLOADING) != 0)
@@ -697,11 +685,6 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 	if (vport->fc_flag & FC_LBIT)
 		lpfc_linkup_cleanup_nodes(vport);
 
-				/* free any ndlp's in unused state */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
-				 nlp_listp)
-		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
-			lpfc_drop_node(vport, ndlp);
 }
 
 static int
@@ -1345,7 +1328,9 @@ out:
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		mempool_free(pmb, phba->mbox_mem_pool);
-		lpfc_drop_node(vport, ndlp);
+
+		/* If no other thread is using the ndlp, free it */
+		lpfc_nlp_not_used(ndlp);
 
 		if (phba->fc_topology == TOPOLOGY_LOOP) {
 			/*
@@ -1605,16 +1590,6 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_type &= ~NLP_FC_NODE;
 	}
 
-	if ((old_state == NLP_STE_UNUSED_NODE) &&
-	    (state != NLP_STE_UNUSED_NODE) &&
-	    (ndlp->nlp_flag & NLP_DELAYED_RM)) {
-		/* We are using the ndlp after all, so reverse
-		 * the delayed removal of it.
-		 */
-		ndlp->nlp_flag &= ~NLP_DELAYED_RM;
-		lpfc_nlp_get(ndlp);
-	}
-
 	if (list_empty(&ndlp->nlp_listp)) {
 		spin_lock_irq(shost->host_lock);
 		list_add_tail(&ndlp->nlp_listp, &vport->fc_nodes);
@@ -1646,9 +1621,16 @@ lpfc_dequeue_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 void
 lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
+	/*
+	 * Use of lpfc_drop_node and UNUSED list. lpfc_drop_node should
+	 * be used if we wish to issue the "last" lpfc_nlp_put() to remove
+	 * the ndlp from the vport.  The ndlp resides on the UNUSED list
+	 * until ALL other outstanding threads have completed. Thus, if a
+	 * ndlp is on the UNUSED list already, we should never do another
+	 * lpfc_drop_node() on it.
+	 */
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
-	if (!(ndlp->nlp_flag & NLP_DELAYED_RM))
-		lpfc_nlp_put(ndlp);
+	lpfc_nlp_put(ndlp);
 	return;
 }
 
@@ -2116,6 +2098,12 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 	}
 	if (vport->fc_flag & FC_RSCN_MODE) {
 		if (lpfc_rscn_payload_check(vport, did)) {
+			/* If we've already recieved a PLOGI from this NPort
+			 * we don't need to try to discover it again.
+			 */
+			if (ndlp->nlp_flag & NLP_RCV_PLOGI)
+				return NULL;
+
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_NPR_2B_DISC;
 			spin_unlock_irq(shost->host_lock);
@@ -2128,8 +2116,13 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 		} else
 			ndlp = NULL;
 	} else {
+		/* If we've already recieved a PLOGI from this NPort,
+		 * or we are already in the process of discovery on it,
+		 * we don't need to try to discover it again.
+		 */
 		if (ndlp->nlp_state == NLP_STE_ADISC_ISSUE ||
-		    ndlp->nlp_state == NLP_STE_PLOGI_ISSUE)
+		    ndlp->nlp_state == NLP_STE_PLOGI_ISSUE ||
+		    ndlp->nlp_flag & NLP_RCV_PLOGI)
 			return NULL;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		spin_lock_irq(shost->host_lock);
@@ -2497,6 +2490,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 			if (ndlp->nlp_type & NLP_FABRIC) {
 				/* Clean up the ndlp on Fabric connections */
 				lpfc_drop_node(vport, ndlp);
+
 			} else if (!(ndlp->nlp_flag & NLP_NPR_ADISC)) {
 				/* Fail outstanding IO now since device
 				 * is marked for PLOGI.
@@ -2515,7 +2509,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		/* Initial FLOGI timeout */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				 "0222 Initial %s timeout\n",
-				 vport->vpi ? "FLOGI" : "FDISC");
+				 vport->vpi ? "FDISC" : "FLOGI");
 
 		/* Assume no Fabric and go on with discovery.
 		 * Check for outstanding ELS FLOGI to abort.
@@ -2537,10 +2531,10 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		/* Next look for NameServer ndlp */
 		ndlp = lpfc_findnode_did(vport, NameServer_DID);
 		if (ndlp)
-			lpfc_nlp_put(ndlp);
-		/* Start discovery */
-		lpfc_disc_start(vport);
-		break;
+			lpfc_els_abort(phba, ndlp);
+
+		/* ReStart discovery */
+		goto restart_disc;
 
 	case LPFC_NS_QRY:
 	/* Check for wait for NameServer Rsp timeout */
@@ -2559,6 +2553,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		}
 		vport->fc_ns_retry = 0;
 
+restart_disc:
 		/*
 		 * Discovery is over.
 		 * set port_state to PORT_READY if SLI2.
@@ -2731,8 +2726,7 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	struct lpfc_nodelist *ndlp;
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
-		if (ndlp->nlp_state != NLP_STE_UNUSED_NODE &&
-		    filter(ndlp, param))
+		if (filter(ndlp, param))
 			return ndlp;
 	}
 	return NULL;

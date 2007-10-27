@@ -445,7 +445,6 @@ int
 lpfc_vport_delete(struct fc_vport *fc_vport)
 {
 	struct lpfc_nodelist *ndlp = NULL;
-	struct lpfc_nodelist *next_ndlp;
 	struct Scsi_Host *shost = (struct Scsi_Host *) fc_vport->shost;
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
@@ -531,23 +530,20 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	}
 
 skip_logo:
+	lpfc_cleanup(vport);
 	lpfc_sli_host_down(vport);
-
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
-		lpfc_disc_state_machine(vport, ndlp, NULL,
-					     NLP_EVT_DEVICE_RECOVERY);
-		lpfc_disc_state_machine(vport, ndlp, NULL,
-					     NLP_EVT_DEVICE_RM);
-	}
 
 	lpfc_stop_vport_timers(vport);
 	lpfc_unreg_all_rpis(vport);
-	lpfc_unreg_default_rpis(vport);
-	/*
-	 * Completion of unreg_vpi (lpfc_mbx_cmpl_unreg_vpi) does the
-	 * scsi_host_put() to release the vport.
-	 */
-	lpfc_mbx_unreg_vpi(vport);
+
+	if (!(phba->pport->load_flag & FC_UNLOADING)) {
+		lpfc_unreg_default_rpis(vport);
+		/*
+		 * Completion of unreg_vpi (lpfc_mbx_cmpl_unreg_vpi)
+		 * does the scsi_host_put() to release the vport.
+		 */
+		lpfc_mbx_unreg_vpi(vport);
+	}
 
 	lpfc_free_vpi(phba, vport->vpi);
 	vport->work_port_events = 0;

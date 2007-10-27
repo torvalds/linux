@@ -103,7 +103,6 @@ struct lpfc_nodelist {
 #define NLP_RM_DFLT_RPI    0x4000000	/* need to remove leftover dflt RPI */
 #define NLP_NODEV_REMOVE   0x8000000	/* Defer removal till discovery ends */
 #define NLP_TARGET_REMOVE  0x10000000   /* Target remove in process */
-#define NLP_DELAYED_RM     0x20000000   /* Defer UNUSED List removal */
 
 /* There are 4 different double linked lists nodelist entries can reside on.
  * The Port Login (PLOGI) list and Address Discovery (ADISC) list are used

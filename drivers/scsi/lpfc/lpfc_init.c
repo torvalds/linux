@@ -1334,15 +1334,35 @@ lpfc_hba_init(struct lpfc_hba *phba, uint32_t *hbainit)
 	kfree(HashWorking);
 }
 
-static void
+void
 lpfc_cleanup(struct lpfc_vport *vport)
 {
+	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 
-	/* clean up phba - lpfc specific */
-	lpfc_can_disctmo(vport);
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp)
-		lpfc_nlp_put(ndlp);
+	if (phba->link_state > LPFC_LINK_DOWN)
+		lpfc_port_link_failure(vport);
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (ndlp->nlp_type & NLP_FABRIC)
+			lpfc_disc_state_machine(vport, ndlp, NULL,
+					NLP_EVT_DEVICE_RECOVERY);
+		lpfc_disc_state_machine(vport, ndlp, NULL,
+					     NLP_EVT_DEVICE_RM);
+	}
+
+	/* At this point, ALL ndlp's should be gone */
+	while (!list_empty(&vport->fc_nodes)) {
+
+		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
+			nlp_listp) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
+				"0233 Nodelist x%x not free: %d\n",
+				ndlp->nlp_DID,
+				atomic_read(&ndlp->kref.refcount));
+			lpfc_drop_node(vport, ndlp);
+		}
+	}
 	return;
 }
 
@@ -1463,6 +1483,8 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 {
 	struct lpfc_vport *vport = phba->pport;
 	struct lpfc_nodelist  *ndlp, *next_ndlp;
+	struct lpfc_vport **vports;
+	int i;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
 		return;
@@ -1471,10 +1493,32 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 
 	lpfc_linkdown(phba);
 
-	/* Issue an unreg_login to all nodes */
-	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp)
-		if (ndlp->nlp_state != NLP_STE_UNUSED_NODE)
-			lpfc_unreg_rpi(vport, ndlp);
+	/* Issue an unreg_login to all nodes on all vports */
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL) {
+		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
+			struct Scsi_Host *shost;
+
+			shost =	lpfc_shost_from_vport(vports[i]);
+			list_for_each_entry_safe(ndlp, next_ndlp,
+						 &vports[i]->fc_nodes,
+						 nlp_listp) {
+				if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+					continue;
+				if (ndlp->nlp_type & NLP_FABRIC) {
+					lpfc_disc_state_machine(vports[i], ndlp,
+						NULL, NLP_EVT_DEVICE_RECOVERY);
+					lpfc_disc_state_machine(vports[i], ndlp,
+						NULL, NLP_EVT_DEVICE_RM);
+				}
+				spin_lock_irq(shost->host_lock);
+				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
+				spin_unlock_irq(shost->host_lock);
+				lpfc_unreg_rpi(vports[i], ndlp);
+			}
+		}
+	}
+	lpfc_destroy_vport_work_array(vports);
 
 	lpfc_sli_flush_mbox_queue(phba);
 }
@@ -1508,7 +1552,6 @@ lpfc_offline(struct lpfc_hba *phba)
 	if (vports != NULL)
 		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
 			shost = lpfc_shost_from_vport(vports[i]);
-			lpfc_cleanup(vports[i]);
 			spin_lock_irq(shost->host_lock);
 			vports[i]->work_port_events = 0;
 			vports[i]->fc_flag |= FC_OFFLINE_MODE;
@@ -2061,6 +2104,8 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
+	lpfc_cleanup(vport);
+
 	/*
 	 * Bring down the SLI Layer. This step disable all interrupts,
 	 * clears the rings, discards all mailbox commands, and resets
@@ -2075,7 +2120,6 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	spin_unlock_irq(&phba->hbalock);
 
 	lpfc_debugfs_terminate(vport);
-	lpfc_cleanup(vport);
 
 	kthread_stop(phba->worker_thread);
 

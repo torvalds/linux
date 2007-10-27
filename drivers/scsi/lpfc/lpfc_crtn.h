@@ -45,6 +45,7 @@ void lpfc_init_link(struct lpfc_hba *, LPFC_MBOXQ_t *, uint32_t, uint32_t);
 struct lpfc_vport *lpfc_find_vport_by_did(struct lpfc_hba *, uint32_t);
 void lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove);
 int lpfc_linkdown(struct lpfc_hba *);
+void lpfc_port_link_failure(struct lpfc_vport *);
 void lpfc_mbx_cmpl_read_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
 
 void lpfc_mbx_cmpl_clear_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -74,6 +75,7 @@ void lpfc_disc_list_loopmap(struct lpfc_vport *);
 void lpfc_disc_start(struct lpfc_vport *);
 void lpfc_disc_flush_list(struct lpfc_vport *);
 void lpfc_cleanup_discovery_resources(struct lpfc_vport *);
+void lpfc_cleanup(struct lpfc_vport *);
 void lpfc_disc_timeout(unsigned long);
 
 struct lpfc_nodelist *__lpfc_findnode_rpi(struct lpfc_vport *, uint16_t);
@@ -91,6 +93,8 @@ void lpfc_do_scr_ns_plogi(struct lpfc_hba *, struct lpfc_vport *);
 int lpfc_check_sparm(struct lpfc_vport *, struct lpfc_nodelist *,
 		     struct serv_parm *, uint32_t);
 int lpfc_els_abort(struct lpfc_hba *, struct lpfc_nodelist *);
+void lpfc_more_plogi(struct lpfc_vport *);
+void lpfc_end_rscn(struct lpfc_vport *);
 int lpfc_els_chk_latt(struct lpfc_vport *);
 int lpfc_els_abort_flogi(struct lpfc_hba *);
 int lpfc_initial_flogi(struct lpfc_vport *);
