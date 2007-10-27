@@ -230,9 +230,14 @@ luan_setup_hoses(void)
 
 	/* Allocate hoses for PCIX1 and PCIX2 */
 	hose1 = pcibios_alloc_controller();
-	hose2 = pcibios_alloc_controller();
-	if (!hose1 || !hose2)
+	if (!hose1)
 		return;
+
+	hose2 = pcibios_alloc_controller();
+	if (!hose2) {
+		pcibios_free_controller(hose1);
+		return;
+	}
 
 	/* Setup PCIX1 */
 	hose1->first_busno = 0;
