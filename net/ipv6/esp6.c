@@ -29,7 +29,7 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/esp.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/crypto.h>
 #include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
