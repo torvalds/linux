@@ -8,6 +8,9 @@
 #define MV643XX_ETH_NAME		"mv643xx_eth"
 #define MV643XX_ETH_SHARED_REGS		0x2000
 #define MV643XX_ETH_SHARED_REGS_SIZE	0x2000
+#define MV643XX_ETH_BAR_4	0x220
+#define MV643XX_ETH_SIZE_REG_4	0x224
+#define MV643XX_ETH_BASE_ADDR_ENABLE_REG	0x0290
 
 struct mv643xx_eth_platform_data {
 	int		port_number;
