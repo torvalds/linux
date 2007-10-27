@@ -295,7 +295,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		microtune_attach(&t->fe, t->i2c.adapter, t->i2c.addr);
 		break;
 	case TUNER_PHILIPS_TDA8290:
-	case TUNER_PHILIPS_TDA8295:
 	{
 		tda829x_attach(t);
 		break;

@@ -124,8 +124,6 @@ extern int tuner_debug;
 #define TUNER_TDA9887                   74      /* This tuner should be used only internally */
 #define TUNER_TEA5761			75	/* Only FM Radio Tuner */
 
-#define TUNER_PHILIPS_TDA8295           76
-
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
 #define TDA9887_PORT1_INACTIVE 		(1<<1)

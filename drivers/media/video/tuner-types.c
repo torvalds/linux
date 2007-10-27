@@ -1366,7 +1366,7 @@ struct tunertype tuners[] = {
 		.count  = ARRAY_SIZE(tuner_philips_fq1286_params),
 	},
 	[TUNER_PHILIPS_TDA8290] = { /* Philips PAL|NTSC */
-		.name   = "tda8290+75",
+		.name   = "Philips/NXP TDA 8290/8295 + 8275/8275A/18271",
 		/* see tda8290.c for details */ },
 	[TUNER_TCL_2002MB] = { /* TCL PAL */
 		.name   = "TCL 2002MB",
@@ -1475,9 +1475,6 @@ struct tunertype tuners[] = {
 		.name   = "Philips TEA5761 FM Radio",
 		/* see tea5767.c for details */
 	},
-	[TUNER_PHILIPS_TDA8295] = { /* Philips PAL|NTSC */
-		.name   = "tda8295+18271",
-		/* see tda8290.c for details */ },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
