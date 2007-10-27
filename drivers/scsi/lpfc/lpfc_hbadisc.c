@@ -412,7 +412,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 	status >>= (4*LPFC_ELS_RING);
 	if ((status & HA_RXMASK)
 		|| (pring->flag & LPFC_DEFERRED_RING_EVENT)) {
-		if (pring->flag & LPFC_STOP_IOCB_MASK) {
+		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 		} else {
 			lpfc_sli_handle_slow_ring_event(phba, pring,
@@ -629,7 +629,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 		lpfc_unreg_did(phba, 0xffff, 0xffffffff, mb);
 		mb->vport = vport;
 		mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		if (lpfc_sli_issue_mbox(phba, mb, (MBX_NOWAIT | MBX_STOP_IOCB))
+		if (lpfc_sli_issue_mbox(phba, mb, MBX_NOWAIT)
 		    == MBX_NOT_FINISHED) {
 			mempool_free(mb, phba->mbox_mem_pool);
 		}
@@ -643,8 +643,7 @@ lpfc_linkdown(struct lpfc_hba *phba)
 			lpfc_config_link(phba, mb);
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			mb->vport = vport;
-			if (lpfc_sli_issue_mbox(phba, mb,
-						(MBX_NOWAIT | MBX_STOP_IOCB))
+			if (lpfc_sli_issue_mbox(phba, mb, MBX_NOWAIT)
 			    == MBX_NOT_FINISHED) {
 				mempool_free(mb, phba->mbox_mem_pool);
 			}
@@ -1022,8 +1021,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		lpfc_read_sparam(phba, sparam_mbox, 0);
 		sparam_mbox->vport = vport;
 		sparam_mbox->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
-		rc = lpfc_sli_issue_mbox(phba, sparam_mbox,
-				    (MBX_NOWAIT | MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, sparam_mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED) {
 			mp = (struct lpfc_dmabuf *) sparam_mbox->context1;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -1040,8 +1038,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 		lpfc_config_link(phba, cfglink_mbox);
 		cfglink_mbox->vport = vport;
 		cfglink_mbox->mbox_cmpl = lpfc_mbx_cmpl_local_config_link;
-		rc = lpfc_sli_issue_mbox(phba, cfglink_mbox,
-				    (MBX_NOWAIT | MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, cfglink_mbox, MBX_NOWAIT);
 		if (rc != MBX_NOT_FINISHED)
 			return;
 		mempool_free(cfglink_mbox, phba->mbox_mem_pool);
@@ -1219,7 +1216,7 @@ lpfc_mbx_unreg_vpi(struct lpfc_vport *vport)
 	lpfc_unreg_vpi(phba, vport->vpi, mbox);
 	mbox->vport = vport;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_unreg_vpi;
-	rc = lpfc_sli_issue_mbox(phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
 				 "1800 Could not issue unreg_vpi\n");
@@ -1868,8 +1865,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			lpfc_unreg_login(phba, vport->vpi, ndlp->nlp_rpi, mbox);
 			mbox->vport = vport;
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-			rc = lpfc_sli_issue_mbox(phba, mbox,
-						 (MBX_NOWAIT | MBX_STOP_IOCB));
+			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 			if (rc == MBX_NOT_FINISHED)
 				mempool_free(mbox, phba->mbox_mem_pool);
 		}
@@ -1892,8 +1888,7 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 		lpfc_unreg_login(phba, vport->vpi, 0xffff, mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		rc = lpfc_sli_issue_mbox(phba, mbox,
-					 (MBX_NOWAIT | MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 		}
@@ -1912,8 +1907,7 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 		lpfc_unreg_did(phba, vport->vpi, 0xffffffff, mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		rc = lpfc_sli_issue_mbox(phba, mbox,
-					 (MBX_NOWAIT | MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX | LOG_VPORT,
 					 "1815 Could not issue "
@@ -2220,8 +2214,7 @@ lpfc_issue_clear_la(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		lpfc_clear_la(phba, mbox);
 		mbox->mbox_cmpl = lpfc_mbx_cmpl_clear_la;
 		mbox->vport = vport;
-		rc = lpfc_sli_issue_mbox(phba, mbox, (MBX_NOWAIT |
-						      MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 			lpfc_disc_flush_list(vport);
@@ -2244,8 +2237,7 @@ lpfc_issue_reg_vpi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 		lpfc_reg_vpi(phba, vport->vpi, vport->fc_myDID, regvpimbox);
 		regvpimbox->mbox_cmpl = lpfc_mbx_cmpl_reg_vpi;
 		regvpimbox->vport = vport;
-		if (lpfc_sli_issue_mbox(phba, regvpimbox,
-					(MBX_NOWAIT | MBX_STOP_IOCB))
+		if (lpfc_sli_issue_mbox(phba, regvpimbox, MBX_NOWAIT)
 					== MBX_NOT_FINISHED) {
 			mempool_free(regvpimbox, phba->mbox_mem_pool);
 		}
@@ -2608,8 +2600,7 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 		initlinkmbox->mb.un.varInitLnk.lipsr_AL_PA = 0;
 		initlinkmbox->vport = vport;
 		initlinkmbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		rc = lpfc_sli_issue_mbox(phba, initlinkmbox,
-					 (MBX_NOWAIT | MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, initlinkmbox, MBX_NOWAIT);
 		lpfc_set_loopback_flag(phba);
 		if (rc == MBX_NOT_FINISHED)
 			mempool_free(initlinkmbox, phba->mbox_mem_pool);

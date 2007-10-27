@@ -92,8 +92,6 @@ typedef struct lpfcMboxq {
 #define MBX_POLL        1	/* poll mailbox till command done, then
 				   return */
 #define MBX_NOWAIT      2	/* issue command then return immediately */
-#define MBX_STOP_IOCB   4	/* Stop iocb processing till mbox cmds
-				   complete */
 
 #define LPFC_MAX_RING_MASK  4	/* max num of rctl/type masks allowed per
 				   ring */
@@ -129,9 +127,7 @@ struct lpfc_sli_ring {
 	uint16_t flag;		/* ring flags */
 #define LPFC_DEFERRED_RING_EVENT 0x001	/* Deferred processing a ring event */
 #define LPFC_CALL_RING_AVAILABLE 0x002	/* indicates cmd was full */
-#define LPFC_STOP_IOCB_MBX       0x010	/* Stop processing IOCB cmds mbox */
 #define LPFC_STOP_IOCB_EVENT     0x020	/* Stop processing IOCB cmds event */
-#define LPFC_STOP_IOCB_MASK      0x030	/* Stop processing IOCB cmds mask */
 	uint16_t abtsiotag;	/* tracks next iotag to use for ABTS */
 
 	uint32_t local_getidx;   /* last available cmd index (from cmdGetInx) */

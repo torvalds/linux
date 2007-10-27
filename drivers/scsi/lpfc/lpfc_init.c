@@ -355,7 +355,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	phba->link_state = LPFC_LINK_DOWN;
 
-	/* Only process IOCBs on ring 0 till hba_state is READY */
+	/* Only process IOCBs on ELS ring till hba_state is READY */
 	if (psli->ring[psli->extra_ring].cmdringaddr)
 		psli->ring[psli->extra_ring].flag |= LPFC_STOP_IOCB_EVENT;
 	if (psli->ring[psli->fcp_ring].cmdringaddr)
@@ -777,7 +777,7 @@ lpfc_handle_latt(struct lpfc_hba *phba)
 	lpfc_read_la(phba, pmb, mp);
 	pmb->mbox_cmpl = lpfc_mbx_cmpl_read_la;
 	pmb->vport = vport;
-	rc = lpfc_sli_issue_mbox (phba, pmb, (MBX_NOWAIT | MBX_STOP_IOCB));
+	rc = lpfc_sli_issue_mbox (phba, pmb, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		goto lpfc_handle_latt_free_mbuf;
 

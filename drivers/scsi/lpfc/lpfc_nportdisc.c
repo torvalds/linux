@@ -343,8 +343,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_config_link(phba, mbox);
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		mbox->vport = vport;
-		rc = lpfc_sli_issue_mbox
-			(phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 			goto out;
@@ -828,8 +827,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 		}
 		mbox->context2 = lpfc_nlp_get(ndlp);
 		mbox->vport = vport;
-		if (lpfc_sli_issue_mbox(phba, mbox,
-					(MBX_NOWAIT | MBX_STOP_IOCB))
+		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
 		    != MBX_NOT_FINISHED) {
 			lpfc_nlp_set_state(vport, ndlp,
 					   NLP_STE_REG_LOGIN_ISSUE);

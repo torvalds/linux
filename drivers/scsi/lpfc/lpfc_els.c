@@ -249,7 +249,7 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	mbox->vport = vport;
 
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT | MBX_STOP_IOCB);
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		goto fail_free_mbox;
 
@@ -265,7 +265,7 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 	mbox->vport = vport;
 	mbox->context2 = lpfc_nlp_get(ndlp);
 
-	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT | MBX_STOP_IOCB);
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		goto fail_issue_reg_login;
 
@@ -429,8 +429,7 @@ lpfc_cmpl_els_flogi_nport(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		mbox->vport = vport;
-		rc = lpfc_sli_issue_mbox(phba, mbox,
-					 MBX_NOWAIT | MBX_STOP_IOCB);
+		rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 			goto fail;
@@ -2150,8 +2149,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				lpfc_nlp_set_state(vport, ndlp,
 					   NLP_STE_REG_LOGIN_ISSUE);
 			}
-			if (lpfc_sli_issue_mbox(phba, mbox,
-						(MBX_NOWAIT | MBX_STOP_IOCB))
+			if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
 			    != MBX_NOT_FINISHED) {
 				goto out;
 			}
@@ -3022,8 +3020,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			mbox->mb.un.varInitLnk.lipsr_AL_PA = 0;
 			mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			mbox->vport = vport;
-			rc = lpfc_sli_issue_mbox
-				(phba, mbox, (MBX_NOWAIT | MBX_STOP_IOCB));
+			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 			lpfc_set_loopback_flag(phba);
 			if (rc == MBX_NOT_FINISHED) {
 				mempool_free(mbox, phba->mbox_mem_pool);
@@ -3223,8 +3220,8 @@ lpfc_els_rcv_rps(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			mbox->context2 = lpfc_nlp_get(ndlp);
 			mbox->vport = vport;
 			mbox->mbox_cmpl = lpfc_els_rsp_rps_acc;
-			if (lpfc_sli_issue_mbox (phba, mbox,
-			    (MBX_NOWAIT | MBX_STOP_IOCB)) != MBX_NOT_FINISHED)
+			if (lpfc_sli_issue_mbox (phba, mbox, MBX_NOWAIT)
+				!= MBX_NOT_FINISHED)
 				/* Mbox completion will send ELS Response */
 				return 0;
 
@@ -4162,8 +4159,7 @@ lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		mbox->vport = vport;
 		mbox->context2 = lpfc_nlp_get(ndlp);
 		mbox->mbox_cmpl = lpfc_cmpl_reg_new_vport;
-		if (lpfc_sli_issue_mbox(phba, mbox,
-					MBX_NOWAIT | MBX_STOP_IOCB)
+		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
 		    == MBX_NOT_FINISHED) {
 			mempool_free(mbox, phba->mbox_mem_pool);
 			vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;

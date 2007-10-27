@@ -474,8 +474,7 @@ lpfc_sli_resume_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	if (pring->txq_cnt &&
 	    lpfc_is_link_up(phba) &&
 	    (pring->ringno != phba->sli.fcp_ring ||
-	     phba->sli.sli_flag & LPFC_PROCESS_LA) &&
-	    !(pring->flag & LPFC_STOP_IOCB_MBX)) {
+	     phba->sli.sli_flag & LPFC_PROCESS_LA)) {
 
 		while ((iocb = lpfc_sli_next_iocb_slot(phba, pring)) &&
 		       (nextiocb = lpfc_sli_ringtx_get(phba, pring)))
@@ -488,31 +487,6 @@ lpfc_sli_resume_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	}
 
 	return;
-}
-
-/* lpfc_sli_turn_on_ring is only called by lpfc_sli_handle_mb_event below */
-static void
-lpfc_sli_turn_on_ring(struct lpfc_hba *phba, int ringno)
-{
-	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
-		&phba->slim2p->mbx.us.s3_pgp.port[ringno] :
-		&phba->slim2p->mbx.us.s2.port[ringno];
-	unsigned long iflags;
-
-	/* If the ring is active, flag it */
-	spin_lock_irqsave(&phba->hbalock, iflags);
-	if (phba->sli.ring[ringno].cmdringaddr) {
-		if (phba->sli.ring[ringno].flag & LPFC_STOP_IOCB_MBX) {
-			phba->sli.ring[ringno].flag &= ~LPFC_STOP_IOCB_MBX;
-			/*
-			 * Force update of the local copy of cmdGetInx
-			 */
-			phba->sli.ring[ringno].local_getidx
-				= le32_to_cpu(pgp->cmdGetInx);
-			lpfc_sli_resume_iocb(phba, &phba->sli.ring[ringno]);
-		}
-	}
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
 }
 
 struct lpfc_hbq_entry *
@@ -2590,21 +2564,6 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 			return MBX_NOT_FINISHED;
 		}
 
-		/* Handle STOP IOCB processing flag. This is only meaningful
-		 * if we are not polling for mbox completion.
-		 */
-		if (flag & MBX_STOP_IOCB) {
-			flag &= ~MBX_STOP_IOCB;
-			/* Now flag each ring */
-			for (i = 0; i < psli->num_rings; i++) {
-				/* If the ring is active, flag it */
-				if (psli->ring[i].cmdringaddr) {
-					psli->ring[i].flag |=
-					    LPFC_STOP_IOCB_MBX;
-				}
-			}
-		}
-
 		/* Another mailbox command is still being processed, queue this
 		 * command to be processed later.
 		 */
@@ -2637,23 +2596,6 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 		}
 
 		return MBX_BUSY;
-	}
-
-	/* Handle STOP IOCB processing flag. This is only meaningful
-	 * if we are not polling for mbox completion.
-	 */
-	if (flag & MBX_STOP_IOCB) {
-		flag &= ~MBX_STOP_IOCB;
-		if (flag == MBX_NOWAIT) {
-			/* Now flag each ring */
-			for (i = 0; i < psli->num_rings; i++) {
-				/* If the ring is active, flag it */
-				if (psli->ring[i].cmdringaddr) {
-					psli->ring[i].flag |=
-					    LPFC_STOP_IOCB_MBX;
-				}
-			}
-		}
 	}
 
 	psli->sli_flag |= LPFC_SLI_MBOX_ACTIVE;
@@ -2898,9 +2840,9 @@ __lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	/*
 	 * Check to see if we are blocking IOCB processing because of a
-	 * outstanding mbox command.
+	 * outstanding event.
 	 */
-	if (unlikely(pring->flag & LPFC_STOP_IOCB_MBX))
+	if (unlikely(pring->flag & LPFC_STOP_IOCB_EVENT))
 		goto iocb_busy;
 
 	if (unlikely(phba->link_state == LPFC_LINK_DOWN)) {
@@ -3847,7 +3789,6 @@ lpfc_intr_handler(int irq, void *dev_id)
 	uint32_t ha_copy;
 	uint32_t work_ha_copy;
 	unsigned long status;
-	int i;
 	uint32_t control;
 
 	MAILBOX_t *mbox, *pmbox;
@@ -4066,10 +4007,6 @@ send_current_mbox:
 					lpfc_mbox_cmpl_put(phba, pmb);
 					goto send_next_mbox;
 				}
-			} else {
-				/* Turn on IOCB processing */
-				for (i = 0; i < phba->sli.num_rings; i++)
-					lpfc_sli_turn_on_ring(phba, i);
 			}
 
 		}
