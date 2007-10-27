@@ -48,7 +48,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/hdreg.h>
-#include <linux/ide.h>
 #include <linux/scatterlist.h>
 
 #include <scsi/scsi.h>
@@ -109,6 +108,12 @@
 #define REG_DEVICE_HEAD		0x40
 #define REG_STATUS		0x80
 #define REG_COMMAND		0x80
+
+/* ATA registers offset definitions */
+#define ATA_REG_ERROR_OFFSET		1
+#define ATA_REG_LCYL_OFFSET		4
+#define ATA_REG_HCYL_OFFSET		5
+#define ATA_REG_STATUS_OFFSET		7
 
 /* ATA error definitions not in <linux/hdreg.h> */
 #define ATA_ERROR_MEDIA_CHANGE		0x20
@@ -360,7 +365,7 @@ static void isd200_build_sense(struct us_data *us, struct scsi_cmnd *srb)
 {
 	struct isd200_info *info = (struct isd200_info *)us->extra;
 	struct sense_data *buf = (struct sense_data *) &srb->sense_buffer[0];
-	unsigned char error = info->ATARegs[IDE_ERROR_OFFSET];
+	unsigned char error = info->ATARegs[ATA_REG_ERROR_OFFSET];
 
 	if(error & ATA_ERROR_MEDIA_CHANGE) {
 		buf->ErrorCode = 0x70 | SENSE_ERRCODE_VALID;
@@ -549,8 +554,8 @@ static int isd200_read_regs( struct us_data *us )
 		retStatus = ISD200_ERROR;
 	} else {
 		memcpy(info->ATARegs, info->RegsBuf, sizeof(info->ATARegs));
-		US_DEBUGP("   Got ATA Register[IDE_ERROR_OFFSET] = 0x%x\n", 
-			  info->ATARegs[IDE_ERROR_OFFSET]);
+		US_DEBUGP("   Got ATA Register[ATA_REG_ERROR_OFFSET] = 0x%x\n",
+			  info->ATARegs[ATA_REG_ERROR_OFFSET]);
 	}
 
 	return retStatus;
@@ -892,7 +897,7 @@ static int isd200_try_enum(struct us_data *us, unsigned char master_slave,
 			break;
 
 		if (!detect) {
-			if (regs[IDE_STATUS_OFFSET] & BUSY_STAT ) {
+			if (regs[ATA_REG_STATUS_OFFSET] & BUSY_STAT) {
 				US_DEBUGP("   %s status is still BSY, try again...\n",mstr);
 			} else {
 				US_DEBUGP("   %s status !BSY, continue with next operation\n",mstr);
@@ -902,12 +907,12 @@ static int isd200_try_enum(struct us_data *us, unsigned char master_slave,
 		/* check for BUSY_STAT and */
 		/* WRERR_STAT (workaround ATA Zip drive) and */ 
 		/* ERR_STAT (workaround for Archos CD-ROM) */
-		else if (regs[IDE_STATUS_OFFSET] & 
+		else if (regs[ATA_REG_STATUS_OFFSET] &
 			 (BUSY_STAT | WRERR_STAT | ERR_STAT )) {
 			US_DEBUGP("   Status indicates it is not ready, try again...\n");
 		}
 		/* check for DRDY, ATA devices set DRDY after SRST */
-		else if (regs[IDE_STATUS_OFFSET] & READY_STAT) {
+		else if (regs[ATA_REG_STATUS_OFFSET] & READY_STAT) {
 			US_DEBUGP("   Identified ATA device\n");
 			info->DeviceFlags |= DF_ATA_DEVICE;
 			info->DeviceHead = master_slave;
@@ -916,8 +921,8 @@ static int isd200_try_enum(struct us_data *us, unsigned char master_slave,
 		/* check Cylinder High/Low to
 		   determine if it is an ATAPI device
 		*/
-		else if ((regs[IDE_HCYL_OFFSET] == 0xEB) &&
-			 (regs[IDE_LCYL_OFFSET] == 0x14)) {
+		else if (regs[ATA_REG_HCYL_OFFSET] == 0xEB &&
+			 regs[ATA_REG_LCYL_OFFSET] == 0x14) {
 			/* It seems that the RICOH 
 			   MP6200A CD/RW drive will 
 			   report itself okay as a
@@ -1000,12 +1005,6 @@ static int isd200_manual_enum(struct us_data *us)
 	US_DEBUGP("Leaving isd200_manual_enum %08X\n", retStatus);
 	return(retStatus);
 }
-
-/*
- *	We are the last non IDE user of the legacy IDE ident structures
- *	and we thus want to keep a private copy of this function so the
- *	driver can be used without the obsolete drivers/ide layer
- */
 
 static void isd200_fix_driveid (struct hd_driveid *id)
 {
