@@ -580,9 +580,7 @@ int pci_select_bars(struct pci_dev *dev, unsigned long flags);
 
 /* ROM control related routines */
 void __iomem __must_check *pci_map_rom(struct pci_dev *pdev, size_t *size);
-void __iomem __must_check *pci_map_rom_copy(struct pci_dev *pdev, size_t *size);
 void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom);
-void pci_remove_rom(struct pci_dev *pdev);
 size_t pci_get_rom_size(void __iomem *rom, size_t size);
 
 /* Power management related routines */
