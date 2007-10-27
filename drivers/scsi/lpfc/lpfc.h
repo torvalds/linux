@@ -367,6 +367,7 @@ struct lpfc_vport {
 
 struct hbq_s {
 	uint16_t entry_count;	  /* Current number of HBQ slots */
+	uint16_t buffer_count;	  /* Current number of buffers posted */
 	uint32_t next_hbqPutIdx;  /* Index to next HBQ slot to use */
 	uint32_t hbqPutIdx;	  /* HBQ slot to use */
 	uint32_t local_hbqGetIdx; /* Local copy of Get index from Port */

@@ -540,6 +540,7 @@ lpfc_sli_hbqbuf_free_all(struct lpfc_hba *phba)
 			list_del(&hbq_buf->dbuf.list);
 			(phba->hbqs[i].hbq_free_buffer)(phba, hbq_buf);
 		}
+		phba->hbqs[i].buffer_count = 0;
 	}
 }
 
@@ -608,8 +609,8 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 		return 0;
 	}
 
-	start = lpfc_hbq_defs[hbqno]->buffer_count;
-	end = count + lpfc_hbq_defs[hbqno]->buffer_count;
+	start = phba->hbqs[hbqno].buffer_count;
+	end = count + start;
 	if (end > lpfc_hbq_defs[hbqno]->entry_count) {
 		end = lpfc_hbq_defs[hbqno]->entry_count;
 	}
@@ -621,7 +622,7 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 			return 1;
 		hbq_buffer->tag = (i | (hbqno << 16));
 		if (lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer))
-			lpfc_hbq_defs[hbqno]->buffer_count++;
+			phba->hbqs[hbqno].buffer_count++;
 		else
 			(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
 	}
@@ -661,7 +662,7 @@ lpfc_sli_hbqbuf_find(struct lpfc_hba *phba, uint32_t tag)
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI | LOG_VPORT,
 			"1803 Bad hbq tag. Data: x%x x%x\n",
-			tag, lpfc_hbq_defs[tag >> 16]->buffer_count);
+			tag, phba->hbqs[tag >> 16].buffer_count);
 	return NULL;
 }
 
@@ -687,6 +688,7 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_LOAD_SM:
 	case MBX_READ_NV:
 	case MBX_WRITE_NV:
+	case MBX_WRITE_VPARMS:
 	case MBX_RUN_BIU_DIAG:
 	case MBX_INIT_LINK:
 	case MBX_DOWN_LINK:

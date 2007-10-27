@@ -108,6 +108,8 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	struct lpfc_vport *vport;
 	struct lpfc_hba   *phba;
 	struct lpfc_work_evt *evtp;
+	int  put_node;
+	int  put_rport;
 
 	rdata = rport->dd_data;
 	ndlp = rdata->pnode;
@@ -127,6 +129,25 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
 		"rport devlosscb: sid:x%x did:x%x flg:x%x",
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
+
+	/* Don't defer this if we are in the process of deleting the vport
+	 * or unloading the driver. The unload will cleanup the node
+	 * appropriately we just need to cleanup the ndlp rport info here.
+	 */
+	if (vport->load_flag & FC_UNLOADING) {
+		put_node = rdata->pnode != NULL;
+		put_rport = ndlp->rport != NULL;
+		rdata->pnode = NULL;
+		ndlp->rport = NULL;
+		if (put_node)
+			lpfc_nlp_put(ndlp);
+		if (put_rport)
+			put_device(&rport->dev);
+		return;
+	}
+
+	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE)
+		return;
 
 	evtp = &ndlp->dev_loss_evt;
 
@@ -175,8 +196,23 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		"rport devlosstmo:did:x%x type:x%x id:x%x",
 		ndlp->nlp_DID, ndlp->nlp_type, rport->scsi_target_id);
 
-	if (!(vport->load_flag & FC_UNLOADING) &&
-	    ndlp->nlp_state == NLP_STE_MAPPED_NODE)
+	/* Don't defer this if we are in the process of deleting the vport
+	 * or unloading the driver. The unload will cleanup the node
+	 * appropriately we just need to cleanup the ndlp rport info here.
+	 */
+	if (vport->load_flag & FC_UNLOADING) {
+		put_node = rdata->pnode != NULL;
+		put_rport = ndlp->rport != NULL;
+		rdata->pnode = NULL;
+		ndlp->rport = NULL;
+		if (put_node)
+			lpfc_nlp_put(ndlp);
+		if (put_rport)
+			put_device(&rport->dev);
+		return;
+	}
+
+	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE)
 		return;
 
 	if (ndlp->nlp_type & NLP_FABRIC) {
@@ -1965,10 +2001,37 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 static void
 lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
+	struct lpfc_hba  *phba = vport->phba;
 	struct lpfc_rport_data *rdata;
+	LPFC_MBOXQ_t *mbox;
+	int rc;
 
 	if (ndlp->nlp_flag & NLP_DELAY_TMO) {
 		lpfc_cancel_retry_delay_tmo(vport, ndlp);
+	}
+
+	if (ndlp->nlp_flag & NLP_DEFER_RM && !ndlp->nlp_rpi) {
+		/* For this case we need to cleanup the default rpi
+		 * allocated by the firmware.
+		 */
+		if ((mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL))
+			!= NULL) {
+			rc = lpfc_reg_login(phba, vport->vpi, ndlp->nlp_DID,
+			    (uint8_t *) &vport->fc_sparam, mbox, 0);
+			if (rc) {
+				mempool_free(mbox, phba->mbox_mem_pool);
+			}
+			else {
+				mbox->mbox_flag |= LPFC_MBX_IMED_UNREG;
+				mbox->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
+				mbox->vport = vport;
+				mbox->context2 = 0;
+				rc =lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+				if (rc == MBX_NOT_FINISHED) {
+					mempool_free(mbox, phba->mbox_mem_pool);
+				}
+			}
+		}
 	}
 
 	lpfc_cleanup_node(vport, ndlp);

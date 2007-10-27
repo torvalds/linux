@@ -91,6 +91,7 @@ struct lpfc_nodelist {
 #define NLP_LOGO_SND       0x100	/* sent LOGO request for this entry */
 #define NLP_RNID_SND       0x400	/* sent RNID request for this entry */
 #define NLP_ELS_SND_MASK   0x7e0	/* sent ELS request for this entry */
+#define NLP_DEFER_RM       0x10000	/* Remove this ndlp if no longer used */
 #define NLP_DELAY_TMO      0x20000	/* delay timeout is running for node */
 #define NLP_NPR_2B_DISC    0x40000	/* node is included in num_disc_nodes */
 #define NLP_RCV_PLOGI      0x80000	/* Rcv'ed PLOGI from remote system */

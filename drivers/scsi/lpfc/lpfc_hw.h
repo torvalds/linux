@@ -153,11 +153,7 @@ struct lpfc_sli_ct_request {
 		struct gff_acc {
 			uint8_t fbits[128];
 		} gff_acc;
-#ifdef __BIG_ENDIAN_BITFIELD
 #define FCP_TYPE_FEATURE_OFFSET 7
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-#define FCP_TYPE_FEATURE_OFFSET 4
-#endif
 		struct rff {
 			uint32_t PortId;
 			uint8_t reserved[2];
@@ -1288,8 +1284,9 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
 #define MBX_BEACON          0x2A
-#define MBX_ASYNCEVT_ENABLE 0x33
 #define MBX_HEARTBEAT       0x31
+#define MBX_WRITE_VPARMS    0x32
+#define MBX_ASYNCEVT_ENABLE 0x33
 
 #define MBX_CONFIG_HBQ	    0x7C
 #define MBX_LOAD_AREA       0x81

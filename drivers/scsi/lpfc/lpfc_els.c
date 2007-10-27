@@ -2069,9 +2069,25 @@ int
 lpfc_els_free_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *elsiocb)
 {
 	struct lpfc_dmabuf *buf_ptr, *buf_ptr1;
+	struct lpfc_nodelist *ndlp;
 
-	if (elsiocb->context1) {
-		lpfc_nlp_put(elsiocb->context1);
+	ndlp = (struct lpfc_nodelist *)elsiocb->context1;
+	if (ndlp) {
+		if (ndlp->nlp_flag & NLP_DEFER_RM) {
+			lpfc_nlp_put(ndlp);
+
+			/* If the ndlp is not being used by another discovery
+			 * thread, free it.
+			 */
+			if (!lpfc_nlp_not_used(ndlp)) {
+				/* If ndlp is being used by another discovery
+				 * thread, just clear NLP_DEFER_RM
+				 */
+				ndlp->nlp_flag &= ~NLP_DEFER_RM;
+			}
+		}
+		else
+			lpfc_nlp_put(ndlp);
 		elsiocb->context1 = NULL;
 	}
 	/* context2  = cmd,  context2->next = rsp, context3 = bpl */
@@ -2130,13 +2146,15 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
-	lpfc_nlp_put(ndlp);
+	if (ndlp) {
+		lpfc_nlp_put(ndlp);
 
-	/* This is the end of the default RPI cleanup logic for this
-	 * ndlp. If no other discovery threads are using this ndlp.
-	 * we should free all resources associated with it.
-	 */
-	lpfc_nlp_not_used(ndlp);
+		/* This is the end of the default RPI cleanup logic for this
+		 * ndlp. If no other discovery threads are using this ndlp.
+		 * we should free all resources associated with it.
+		 */
+		lpfc_nlp_not_used(ndlp);
+	}
 	return;
 }
 

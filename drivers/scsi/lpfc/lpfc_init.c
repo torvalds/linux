@@ -1339,6 +1339,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 {
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp, *next_ndlp;
+	int i = 0;
 
 	if (phba->link_state > LPFC_LINK_DOWN)
 		lpfc_port_link_failure(vport);
@@ -1351,17 +1352,20 @@ lpfc_cleanup(struct lpfc_vport *vport)
 					     NLP_EVT_DEVICE_RM);
 	}
 
-	/* At this point, ALL ndlp's should be gone */
+	/* At this point, ALL ndlp's should be gone
+	 * because of the previous NLP_EVT_DEVICE_RM.
+	 * Lets wait for this to happen, if needed.
+	 */
 	while (!list_empty(&vport->fc_nodes)) {
 
-		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
-			nlp_listp) {
+		if (i++ > 3000) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-				"0233 Nodelist x%x not free: %d\n",
-				ndlp->nlp_DID,
-				atomic_read(&ndlp->kref.refcount));
-			lpfc_drop_node(vport, ndlp);
+				"0233 Nodelist not empty\n");
+			break;
 		}
+
+		/* Wait for any activity on ndlps to settle */
+		msleep(10);
 	}
 	return;
 }
@@ -1499,6 +1503,8 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 		for(i = 0; i < LPFC_MAX_VPORTS && vports[i] != NULL; i++) {
 			struct Scsi_Host *shost;
 
+			if (vports[i]->load_flag & FC_UNLOADING)
+				continue;
 			shost =	lpfc_shost_from_vport(vports[i]);
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
@@ -1771,6 +1777,8 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	fc_host_supported_speeds(shost) = 0;
 	if (phba->lmt & LMT_10Gb)
 		fc_host_supported_speeds(shost) |= FC_PORTSPEED_10GBIT;
+	if (phba->lmt & LMT_8Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_8GBIT;
 	if (phba->lmt & LMT_4Gb)
 		fc_host_supported_speeds(shost) |= FC_PORTSPEED_4GBIT;
 	if (phba->lmt & LMT_2Gb)

@@ -243,16 +243,17 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 	raw_index = phba->hbq_get[i];
 	getidx = le32_to_cpu(raw_index);
 	len +=  snprintf(buf+len, size-len,
-		"entrys:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
-		hbqs->entry_count, hbqs->hbqPutIdx, hbqs->next_hbqPutIdx,
-		hbqs->local_hbqGetIdx, getidx);
+		"entrys:%d bufcnt:%d Put:%d nPut:%d localGet:%d hbaGet:%d\n",
+		hbqs->entry_count, hbqs->buffer_count, hbqs->hbqPutIdx,
+		hbqs->next_hbqPutIdx, hbqs->local_hbqGetIdx, getidx);
 
 	hbqe = (struct lpfc_hbq_entry *) phba->hbqs[i].hbq_virt;
 	for (j=0; j<hbqs->entry_count; j++) {
 		len +=  snprintf(buf+len, size-len,
 			"%03d: %08x %04x %05x ", j,
-			hbqe->bde.addrLow, hbqe->bde.tus.w, hbqe->buffer_tag);
-
+			le32_to_cpu(hbqe->bde.addrLow),
+			le32_to_cpu(hbqe->bde.tus.w),
+			le32_to_cpu(hbqe->buffer_tag));
 		i = 0;
 		found = 0;
 
@@ -276,7 +277,7 @@ lpfc_debugfs_hbqinfo_data(struct lpfc_hba *phba, char *buf, int size)
 		list_for_each_entry(d_buf, &hbqs->hbq_buffer_list, list) {
 			hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
 			phys = ((uint64_t)hbq_buf->dbuf.phys & 0xffffffff);
-			if (phys == hbqe->bde.addrLow) {
+			if (phys == le32_to_cpu(hbqe->bde.addrLow)) {
 				len +=  snprintf(buf+len, size-len,
 					"Buf%d: %p %06x\n", i,
 					hbq_buf->dbuf.virt, hbq_buf->tag);

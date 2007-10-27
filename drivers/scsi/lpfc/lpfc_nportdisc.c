@@ -287,6 +287,24 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
+	if (wwn_to_u64(sp->portName.u.wwn) == 0) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0140 PLOGI Reject: invalid nname\n");
+		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_INVALID_PNAME;
+		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
+			NULL);
+		return 0;
+	}
+	if (wwn_to_u64(sp->nodeName.u.wwn) == 0) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0141 PLOGI Reject: invalid pname\n");
+		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
+		stat.un.b.lsRjtRsnCodeExp = LSEXP_INVALID_NNAME;
+		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
+			NULL);
+		return 0;
+	}
 	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3) == 0)) {
 		/* Reject this request because invalid parameters */
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
@@ -821,6 +839,12 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 
 	lp = (uint32_t *) prsp->virt;
 	sp = (struct serv_parm *) ((uint8_t *) lp + sizeof (uint32_t));
+	if (wwn_to_u64(sp->portName.u.wwn) == 0 ||
+	    wwn_to_u64(sp->nodeName.u.wwn) == 0) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "0142 PLOGI RSP: Invalid WWN.\n");
+		goto out;
+	}
 	if (!lpfc_check_sparm(vport, ndlp, sp, CLASS3))
 		goto out;
 	/* PLOGI chkparm OK */
@@ -906,9 +930,7 @@ out:
 				 "0261 Cannot Register NameServer login\n");
 	}
 
-	/* Free this node since the driver cannot login or has the wrong
-	   sparm */
-	lpfc_nlp_not_used(ndlp);
+	ndlp->nlp_flag |= NLP_DEFER_RM;
 	return NLP_STE_FREED_NODE;
 }
 
@@ -1795,7 +1817,7 @@ lpfc_cmpl_plogi_npr_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	irsp = &rspiocb->iocb;
 	if (irsp->ulpStatus) {
-		lpfc_nlp_not_used(ndlp);
+		ndlp->nlp_flag |= NLP_DEFER_RM;
 		return NLP_STE_FREED_NODE;
 	}
 	return ndlp->nlp_state;

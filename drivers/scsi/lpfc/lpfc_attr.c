@@ -187,12 +187,9 @@ lpfc_state_show(struct class_device *cdev, char *buf)
 	case LPFC_LINK_UP:
 	case LPFC_CLEAR_LA:
 	case LPFC_HBA_READY:
-		len += snprintf(buf + len, PAGE_SIZE-len, "Link Up - \n");
+		len += snprintf(buf + len, PAGE_SIZE-len, "Link Up - ");
 
 		switch (vport->port_state) {
-			len += snprintf(buf + len, PAGE_SIZE-len,
-					"initializing\n");
-			break;
 		case LPFC_LOCAL_CFG_LINK:
 			len += snprintf(buf + len, PAGE_SIZE-len,
 					"Configuring Link\n");
@@ -1759,7 +1756,6 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 		switch (phba->sysfs_mbox.mbox->mb.mbxCommand) {
 			/* Offline only */
-		case MBX_WRITE_NV:
 		case MBX_INIT_LINK:
 		case MBX_DOWN_LINK:
 		case MBX_CONFIG_LINK:
@@ -1782,6 +1778,8 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 				spin_unlock_irq(&phba->hbalock);
 				return -EPERM;
 			}
+		case MBX_WRITE_NV:
+		case MBX_WRITE_VPARMS:
 		case MBX_LOAD_SM:
 		case MBX_READ_NV:
 		case MBX_READ_CONFIG:
