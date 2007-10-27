@@ -54,7 +54,7 @@
  * the access attempt is considered to have failed,
  * and we will print an error.
  */
-static u32 rt2500pci_bbp_check(const struct rt2x00_dev *rt2x00dev)
+static u32 rt2500pci_bbp_check(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 	unsigned int i;
@@ -69,7 +69,7 @@ static u32 rt2500pci_bbp_check(const struct rt2x00_dev *rt2x00dev)
 	return reg;
 }
 
-static void rt2500pci_bbp_write(const struct rt2x00_dev *rt2x00dev,
+static void rt2500pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 				const unsigned int word, const u8 value)
 {
 	u32 reg;
@@ -95,7 +95,7 @@ static void rt2500pci_bbp_write(const struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, BBPCSR, reg);
 }
 
-static void rt2500pci_bbp_read(const struct rt2x00_dev *rt2x00dev,
+static void rt2500pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, u8 *value)
 {
 	u32 reg;
@@ -132,7 +132,7 @@ static void rt2500pci_bbp_read(const struct rt2x00_dev *rt2x00dev,
 	*value = rt2x00_get_field32(reg, BBPCSR_VALUE);
 }
 
-static void rt2500pci_rf_write(const struct rt2x00_dev *rt2x00dev,
+static void rt2500pci_rf_write(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, const u32 value)
 {
 	u32 reg;
@@ -195,13 +195,13 @@ static void rt2500pci_eepromregister_write(struct eeprom_93cx6 *eeprom)
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 #define CSR_OFFSET(__word)	( CSR_REG_BASE + ((__word) * sizeof(u32)) )
 
-static void rt2500pci_read_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt2500pci_read_csr(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, u32 *data)
 {
 	rt2x00pci_register_read(rt2x00dev, CSR_OFFSET(word), data);
 }
 
-static void rt2500pci_write_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt2500pci_write_csr(struct rt2x00_dev *rt2x00dev,
 				const unsigned int word, u32 data)
 {
 	rt2x00pci_register_write(rt2x00dev, CSR_OFFSET(word), data);

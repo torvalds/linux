@@ -53,7 +53,7 @@
  * the access attempt is considered to have failed,
  * and we will print an error.
  */
-static inline void rt2500usb_register_read(const struct rt2x00_dev *rt2x00dev,
+static inline void rt2500usb_register_read(struct rt2x00_dev *rt2x00dev,
 					   const unsigned int offset,
 					   u16 *value)
 {
@@ -64,8 +64,7 @@ static inline void rt2500usb_register_read(const struct rt2x00_dev *rt2x00dev,
 	*value = le16_to_cpu(reg);
 }
 
-static inline void rt2500usb_register_multiread(const struct rt2x00_dev
-						*rt2x00dev,
+static inline void rt2500usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 						const unsigned int offset,
 						void *value, const u16 length)
 {
@@ -75,7 +74,7 @@ static inline void rt2500usb_register_multiread(const struct rt2x00_dev
 				      value, length, timeout);
 }
 
-static inline void rt2500usb_register_write(const struct rt2x00_dev *rt2x00dev,
+static inline void rt2500usb_register_write(struct rt2x00_dev *rt2x00dev,
 					    const unsigned int offset,
 					    u16 value)
 {
@@ -85,8 +84,7 @@ static inline void rt2500usb_register_write(const struct rt2x00_dev *rt2x00dev,
 				      &reg, sizeof(u16), REGISTER_TIMEOUT);
 }
 
-static inline void rt2500usb_register_multiwrite(const struct rt2x00_dev
-						 *rt2x00dev,
+static inline void rt2500usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 						 const unsigned int offset,
 						 void *value, const u16 length)
 {
@@ -96,7 +94,7 @@ static inline void rt2500usb_register_multiwrite(const struct rt2x00_dev
 				      value, length, timeout);
 }
 
-static u16 rt2500usb_bbp_check(const struct rt2x00_dev *rt2x00dev)
+static u16 rt2500usb_bbp_check(struct rt2x00_dev *rt2x00dev)
 {
 	u16 reg;
 	unsigned int i;
@@ -111,7 +109,7 @@ static u16 rt2500usb_bbp_check(const struct rt2x00_dev *rt2x00dev)
 	return reg;
 }
 
-static void rt2500usb_bbp_write(const struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 				const unsigned int word, const u8 value)
 {
 	u16 reg;
@@ -136,7 +134,7 @@ static void rt2500usb_bbp_write(const struct rt2x00_dev *rt2x00dev,
 	rt2500usb_register_write(rt2x00dev, PHY_CSR7, reg);
 }
 
-static void rt2500usb_bbp_read(const struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, u8 *value)
 {
 	u16 reg;
@@ -173,7 +171,7 @@ static void rt2500usb_bbp_read(const struct rt2x00_dev *rt2x00dev,
 	*value = rt2x00_get_field16(reg, PHY_CSR7_DATA);
 }
 
-static void rt2500usb_rf_write(const struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_rf_write(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, const u32 value)
 {
 	u16 reg;
@@ -210,13 +208,13 @@ rf_write:
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 #define CSR_OFFSET(__word)	( CSR_REG_BASE + ((__word) * sizeof(u16)) )
 
-static void rt2500usb_read_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_read_csr(struct rt2x00_dev *rt2x00dev,
 			       const unsigned int word, u32 *data)
 {
 	rt2500usb_register_read(rt2x00dev, CSR_OFFSET(word), (u16 *) data);
 }
 
-static void rt2500usb_write_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt2500usb_write_csr(struct rt2x00_dev *rt2x00dev,
 				const unsigned int word, u32 data)
 {
 	rt2500usb_register_write(rt2x00dev, CSR_OFFSET(word), data);

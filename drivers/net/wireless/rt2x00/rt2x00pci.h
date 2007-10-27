@@ -57,7 +57,7 @@
 /*
  * Register access.
  */
-static inline void rt2x00pci_register_read(const struct rt2x00_dev *rt2x00dev,
+static inline void rt2x00pci_register_read(struct rt2x00_dev *rt2x00dev,
 					   const unsigned long offset,
 					   u32 *value)
 {
@@ -65,14 +65,14 @@ static inline void rt2x00pci_register_read(const struct rt2x00_dev *rt2x00dev,
 }
 
 static inline void
-rt2x00pci_register_multiread(const struct rt2x00_dev *rt2x00dev,
+rt2x00pci_register_multiread(struct rt2x00_dev *rt2x00dev,
 			     const unsigned long offset,
 			     void *value, const u16 length)
 {
 	memcpy_fromio(value, rt2x00dev->csr_addr + offset, length);
 }
 
-static inline void rt2x00pci_register_write(const struct rt2x00_dev *rt2x00dev,
+static inline void rt2x00pci_register_write(struct rt2x00_dev *rt2x00dev,
 					    const unsigned long offset,
 					    u32 value)
 {
@@ -80,7 +80,7 @@ static inline void rt2x00pci_register_write(const struct rt2x00_dev *rt2x00dev,
 }
 
 static inline void
-rt2x00pci_register_multiwrite(const struct rt2x00_dev *rt2x00dev,
+rt2x00pci_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 			      const unsigned long offset,
 			      void *value, const u16 length)
 {

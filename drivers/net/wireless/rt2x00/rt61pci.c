@@ -52,7 +52,7 @@
  * the access attempt is considered to have failed,
  * and we will print an error.
  */
-static u32 rt61pci_bbp_check(const struct rt2x00_dev *rt2x00dev)
+static u32 rt61pci_bbp_check(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 	unsigned int i;
@@ -67,7 +67,7 @@ static u32 rt61pci_bbp_check(const struct rt2x00_dev *rt2x00dev)
 	return reg;
 }
 
-static void rt61pci_bbp_write(const struct rt2x00_dev *rt2x00dev,
+static void rt61pci_bbp_write(struct rt2x00_dev *rt2x00dev,
 			      const unsigned int word, const u8 value)
 {
 	u32 reg;
@@ -93,7 +93,7 @@ static void rt61pci_bbp_write(const struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, PHY_CSR3, reg);
 }
 
-static void rt61pci_bbp_read(const struct rt2x00_dev *rt2x00dev,
+static void rt61pci_bbp_read(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, u8 *value)
 {
 	u32 reg;
@@ -130,7 +130,7 @@ static void rt61pci_bbp_read(const struct rt2x00_dev *rt2x00dev,
 	*value = rt2x00_get_field32(reg, PHY_CSR3_VALUE);
 }
 
-static void rt61pci_rf_write(const struct rt2x00_dev *rt2x00dev,
+static void rt61pci_rf_write(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, const u32 value)
 {
 	u32 reg;
@@ -160,7 +160,7 @@ rf_write:
 	rt2x00_rf_write(rt2x00dev, word, value);
 }
 
-static void rt61pci_mcu_request(const struct rt2x00_dev *rt2x00dev,
+static void rt61pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 				const u8 command, const u8 token,
 				const u8 arg0, const u8 arg1)
 {
@@ -220,13 +220,13 @@ static void rt61pci_eepromregister_write(struct eeprom_93cx6 *eeprom)
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 #define CSR_OFFSET(__word)	( CSR_REG_BASE + ((__word) * sizeof(u32)) )
 
-static void rt61pci_read_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt61pci_read_csr(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, u32 *data)
 {
 	rt2x00pci_register_read(rt2x00dev, CSR_OFFSET(word), data);
 }
 
-static void rt61pci_write_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt61pci_write_csr(struct rt2x00_dev *rt2x00dev,
 			      const unsigned int word, u32 data)
 {
 	rt2x00pci_register_write(rt2x00dev, CSR_OFFSET(word), data);

@@ -53,7 +53,7 @@
  * the access attempt is considered to have failed,
  * and we will print an error.
  */
-static inline void rt73usb_register_read(const struct rt2x00_dev *rt2x00dev,
+static inline void rt73usb_register_read(struct rt2x00_dev *rt2x00dev,
 					 const unsigned int offset, u32 *value)
 {
 	__le32 reg;
@@ -63,8 +63,7 @@ static inline void rt73usb_register_read(const struct rt2x00_dev *rt2x00dev,
 	*value = le32_to_cpu(reg);
 }
 
-static inline void rt73usb_register_multiread(const struct rt2x00_dev
-					      *rt2x00dev,
+static inline void rt73usb_register_multiread(struct rt2x00_dev *rt2x00dev,
 					      const unsigned int offset,
 					      void *value, const u32 length)
 {
@@ -74,7 +73,7 @@ static inline void rt73usb_register_multiread(const struct rt2x00_dev
 				      value, length, timeout);
 }
 
-static inline void rt73usb_register_write(const struct rt2x00_dev *rt2x00dev,
+static inline void rt73usb_register_write(struct rt2x00_dev *rt2x00dev,
 					  const unsigned int offset, u32 value)
 {
 	__le32 reg = cpu_to_le32(value);
@@ -83,8 +82,7 @@ static inline void rt73usb_register_write(const struct rt2x00_dev *rt2x00dev,
 				      &reg, sizeof(u32), REGISTER_TIMEOUT);
 }
 
-static inline void rt73usb_register_multiwrite(const struct rt2x00_dev
-					       *rt2x00dev,
+static inline void rt73usb_register_multiwrite(struct rt2x00_dev *rt2x00dev,
 					       const unsigned int offset,
 					       void *value, const u32 length)
 {
@@ -94,7 +92,7 @@ static inline void rt73usb_register_multiwrite(const struct rt2x00_dev
 				      value, length, timeout);
 }
 
-static u32 rt73usb_bbp_check(const struct rt2x00_dev *rt2x00dev)
+static u32 rt73usb_bbp_check(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 	unsigned int i;
@@ -109,7 +107,7 @@ static u32 rt73usb_bbp_check(const struct rt2x00_dev *rt2x00dev)
 	return reg;
 }
 
-static void rt73usb_bbp_write(const struct rt2x00_dev *rt2x00dev,
+static void rt73usb_bbp_write(struct rt2x00_dev *rt2x00dev,
 			      const unsigned int word, const u8 value)
 {
 	u32 reg;
@@ -135,7 +133,7 @@ static void rt73usb_bbp_write(const struct rt2x00_dev *rt2x00dev,
 	rt73usb_register_write(rt2x00dev, PHY_CSR3, reg);
 }
 
-static void rt73usb_bbp_read(const struct rt2x00_dev *rt2x00dev,
+static void rt73usb_bbp_read(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, u8 *value)
 {
 	u32 reg;
@@ -172,7 +170,7 @@ static void rt73usb_bbp_read(const struct rt2x00_dev *rt2x00dev,
 	*value = rt2x00_get_field32(reg, PHY_CSR3_VALUE);
 }
 
-static void rt73usb_rf_write(const struct rt2x00_dev *rt2x00dev,
+static void rt73usb_rf_write(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, const u32 value)
 {
 	u32 reg;
@@ -212,13 +210,13 @@ rf_write:
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 #define CSR_OFFSET(__word)	( CSR_REG_BASE + ((__word) * sizeof(u32)) )
 
-static void rt73usb_read_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt73usb_read_csr(struct rt2x00_dev *rt2x00dev,
 			     const unsigned int word, u32 *data)
 {
 	rt73usb_register_read(rt2x00dev, CSR_OFFSET(word), data);
 }
 
-static void rt73usb_write_csr(const struct rt2x00_dev *rt2x00dev,
+static void rt73usb_write_csr(struct rt2x00_dev *rt2x00dev,
 			      const unsigned int word, u32 data)
 {
 	rt73usb_register_write(rt2x00dev, CSR_OFFSET(word), data);

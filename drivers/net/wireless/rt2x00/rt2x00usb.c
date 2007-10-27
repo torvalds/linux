@@ -38,7 +38,7 @@
 /*
  * Interfacing with the HW.
  */
-int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
+int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 			     const u8 request, const u8 requesttype,
 			     const u16 offset, const u16 value,
 			     void *buffer, const u16 buffer_length,
@@ -76,7 +76,7 @@ int rt2x00usb_vendor_request(const struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request);
 
-int rt2x00usb_vendor_request_buff(const struct rt2x00_dev *rt2x00dev,
+int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u8 request, const u8 requesttype,
 				  const u16 offset, void *buffer,
 				  const u16 buffer_length, const int timeout)
