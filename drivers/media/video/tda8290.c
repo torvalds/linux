@@ -41,7 +41,13 @@ struct tda8290_priv {
 	unsigned char tda8290_easy_mode;
 
 	unsigned char tda827x_addr;
-	unsigned char tda827x_ver;
+
+	unsigned char ver;
+#define TDA8290   1
+#define TDA8295   2
+#define TDA8275   4
+#define TDA8275A  8
+#define TDA18271 16
 
 	struct tda827x_config cfg;
 
@@ -136,7 +142,7 @@ static void set_audio(struct dvb_frontend *fe)
 		mode = "xx";
 	}
 
-	tuner_dbg("setting tda8290 to system %s\n", mode);
+	tuner_dbg("setting tda829x to system %s\n", mode);
 }
 
 static void tda8290_set_freq(struct dvb_frontend *fe, unsigned int freq)
@@ -429,7 +435,7 @@ static void tda8290_standby(struct dvb_frontend *fe)
 	struct i2c_msg msg = {.addr = priv->tda827x_addr, .flags=0, .buf=cb1, .len = 2};
 
 	tda8290_i2c_bridge(fe, 1);
-	if (priv->tda827x_ver != 0)
+	if (priv->ver & TDA8275A)
 		cb1[1] = 0x90;
 	i2c_transfer(priv->i2c_props.adap, &msg, 1);
 	tda8290_i2c_bridge(fe, 0);
@@ -498,7 +504,7 @@ static void tda8290_init_tuner(struct dvb_frontend *fe)
 					  0x0c, 0x04, 0x20, 0xFF, 0x00, 0x00, 0x4b };
 	struct i2c_msg msg = {.addr = priv->tda827x_addr, .flags=0,
 			      .buf=tda8275_init, .len = 14};
-	if (priv->tda827x_ver != 0)
+	if (priv->ver & TDA8275A)
 		msg.buf = tda8275a_init;
 
 	tda8290_i2c_bridge(fe, 1);
@@ -515,6 +521,115 @@ static void tda829x_release(struct dvb_frontend *fe)
 
 	kfree(fe->analog_demod_priv);
 	fe->analog_demod_priv = NULL;
+}
+
+static int tda829x_find_tuner(struct dvb_frontend *fe)
+{
+	struct tda8290_priv *priv = fe->analog_demod_priv;
+	struct analog_tuner_ops *ops = fe->ops.analog_demod_ops;
+	struct tuner *t = priv->t;
+	int i, ret, tuners_found;
+	u32 tuner_addrs;
+	u8 data;
+	struct i2c_msg msg = { .flags = I2C_M_RD, .buf = &data, .len = 1 };
+
+	if (NULL == ops)
+		return -EINVAL;
+
+	ops->i2c_gate_ctrl(fe, 1);
+
+	/* probe for tuner chip */
+	tuners_found = 0;
+	tuner_addrs = 0;
+	for (i = 0x60; i <= 0x63; i++) {
+		msg.addr = i;
+		ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
+		if (ret == 1) {
+			tuners_found++;
+			tuner_addrs = (tuner_addrs << 8) + i;
+		}
+	}
+	/* if there is more than one tuner, we expect the right one is
+	   behind the bridge and we choose the highest address that doesn't
+	   give a response now
+	 */
+
+	ops->i2c_gate_ctrl(fe, 0);
+
+	if (tuners_found > 1)
+		for (i = 0; i < tuners_found; i++) {
+			msg.addr = tuner_addrs  & 0xff;
+			ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
+			if (ret == 1)
+				tuner_addrs = tuner_addrs >> 8;
+			else
+				break;
+		}
+
+	if (tuner_addrs == 0) {
+		tuner_addrs = 0x60;
+		tuner_info("could not clearly identify tuner address, "
+			   "defaulting to %x\n", tuner_addrs);
+	} else {
+		tuner_addrs = tuner_addrs & 0xff;
+		tuner_info("setting tuner address to %x\n", tuner_addrs);
+	}
+	priv->tda827x_addr = tuner_addrs;
+	msg.addr = tuner_addrs;
+
+	ops->i2c_gate_ctrl(fe, 1);
+	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
+
+	if (ret != 1) {
+		tuner_warn("tuner access failed!\n");
+		return -EREMOTEIO;
+	}
+
+	if (data == 0x83) {
+		priv->ver |= TDA18271;
+		tda18271_attach(&t->fe, priv->tda827x_addr,
+				priv->i2c_props.adap);
+	} else {
+		if ((data & 0x3c) == 0)
+			priv->ver |= TDA8275;
+		else
+			priv->ver |= TDA8275A;
+
+		tda827x_attach(&t->fe, priv->tda827x_addr,
+			       priv->i2c_props.adap, &priv->cfg);
+
+		/* FIXME: tda827x module doesn't probe the tuner until
+		 * tda827x_initial_sleep is called
+		 */
+		if (t->fe.ops.tuner_ops.sleep)
+			t->fe.ops.tuner_ops.sleep(&t->fe);
+	}
+	ops->i2c_gate_ctrl(fe, 0);
+
+	switch (priv->ver) {
+	case TDA8290 | TDA8275:
+		strlcpy(t->i2c.name, "tda8290+75", sizeof(t->i2c.name));
+		break;
+	case TDA8295 | TDA8275:
+		strlcpy(t->i2c.name, "tda8295+75", sizeof(t->i2c.name));
+		break;
+	case TDA8290 | TDA8275A:
+		strlcpy(t->i2c.name, "tda8290+75a", sizeof(t->i2c.name));
+		break;
+	case TDA8295 | TDA8275A:
+		strlcpy(t->i2c.name, "tda8295+75a", sizeof(t->i2c.name));
+		break;
+	case TDA8290 | TDA18271:
+		strlcpy(t->i2c.name, "tda8290+18271", sizeof(t->i2c.name));
+		break;
+	case TDA8295 | TDA18271:
+		strlcpy(t->i2c.name, "tda8295+18271", sizeof(t->i2c.name));
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static struct analog_tuner_ops tda8290_tuner_ops = {
@@ -535,18 +650,20 @@ static struct analog_tuner_ops tda8295_tuner_ops = {
 	.i2c_gate_ctrl  = tda8295_i2c_bridge,
 };
 
-int tda8290_attach(struct tuner *t)
+int tda829x_attach(struct tuner *t)
 {
+	struct dvb_frontend *fe = &t->fe;
 	struct tda8290_priv *priv = NULL;
-	u8 data;
-	int i, ret, tuners_found;
-	u32 tuner_addrs;
-	struct i2c_msg msg = {.flags=I2C_M_RD, .buf=&data, .len = 1};
+
+	unsigned char tda8290_id[] = { 0x1f, 0x00 };
+#define TDA8290_ID 0x89
+	unsigned char tda8295_id[] = { 0x2f, 0x00 };
+#define TDA8295_ID 0x8a
 
 	priv = kzalloc(sizeof(struct tda8290_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
-	t->fe.analog_demod_priv = priv;
+	fe->analog_demod_priv = priv;
 
 	priv->i2c_props.addr     = t->i2c.addr;
 	priv->i2c_props.adap     = t->i2c.adapter;
@@ -554,164 +671,38 @@ int tda8290_attach(struct tuner *t)
 	priv->cfg.tuner_callback = t->tuner_callback;
 	priv->t = t;
 
-	tda8290_i2c_bridge(&t->fe, 1);
-	/* probe for tuner chip */
-	tuners_found = 0;
-	tuner_addrs = 0;
-	for (i=0x60; i<= 0x63; i++) {
-		msg.addr = i;
-		ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
-		if (ret == 1) {
-			tuners_found++;
-			tuner_addrs = (tuner_addrs << 8) + i;
-		}
+	/* detect tda8290 */
+	tuner_i2c_xfer_send(&priv->i2c_props, &tda8290_id[0], 1);
+	tuner_i2c_xfer_recv(&priv->i2c_props, &tda8290_id[1], 1);
+	if (tda8290_id[1] == TDA8290_ID) {
+		priv->ver = TDA8290;
+		fe->ops.analog_demod_ops = &tda8290_tuner_ops;
 	}
-	/* if there is more than one tuner, we expect the right one is
-	   behind the bridge and we choose the highest address that doesn't
-	   give a response now
-	 */
-	tda8290_i2c_bridge(&t->fe, 0);
-	if(tuners_found > 1)
-		for (i = 0; i < tuners_found; i++) {
-			msg.addr = tuner_addrs  & 0xff;
-			ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
-			if(ret == 1)
-				tuner_addrs = tuner_addrs >> 8;
-			else
-				break;
-		}
-	if (tuner_addrs == 0) {
-		tuner_addrs = 0x61;
-		tuner_info("could not clearly identify tuner address, defaulting to %x\n",
-			     tuner_addrs);
-	} else {
-		tuner_addrs = tuner_addrs & 0xff;
-		tuner_info("setting tuner address to %x\n", tuner_addrs);
+
+	/* detect tda8295 */
+	tuner_i2c_xfer_send(&priv->i2c_props, &tda8295_id[0], 1);
+	tuner_i2c_xfer_recv(&priv->i2c_props, &tda8295_id[1], 1);
+	if (tda8295_id[1] == TDA8295_ID) {
+		priv->ver = TDA8295;
+		fe->ops.analog_demod_ops = &tda8295_tuner_ops;
 	}
-	priv->tda827x_addr = tuner_addrs;
-	msg.addr = tuner_addrs;
 
-	tda8290_i2c_bridge(&t->fe, 1);
+	if (tda829x_find_tuner(fe) < 0)
+		return -EINVAL;
 
-	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
-	if( ret != 1)
-		tuner_warn("TDA827x access failed!\n");
-
-	if ((data & 0x3c) == 0) {
-		strlcpy(t->i2c.name, "tda8290+75", sizeof(t->i2c.name));
-		priv->tda827x_ver = 0;
-	} else {
-		strlcpy(t->i2c.name, "tda8290+75a", sizeof(t->i2c.name));
-		priv->tda827x_ver = 2;
-	}
-	tda827x_attach(&t->fe, priv->tda827x_addr,
-		       priv->i2c_props.adap, &priv->cfg);
-
-	/* FIXME: tda827x module doesn't probe the tuner until
-	 * tda827x_initial_sleep is called
-	 */
-	if (t->fe.ops.tuner_ops.sleep)
-		t->fe.ops.tuner_ops.sleep(&t->fe);
-
-	t->fe.ops.analog_demod_ops = &tda8290_tuner_ops;
+	if (priv->ver & TDA8290) {
+		tda8290_init_tuner(fe);
+		tda8290_init_if(fe);
+	} else if (priv->ver & TDA8295)
+		tda8295_init_if(fe);
 
 	tuner_info("type set to %s\n", t->i2c.name);
 
 	t->mode = V4L2_TUNER_ANALOG_TV;
 
-	tda8290_init_tuner(&t->fe);
-	tda8290_init_if(&t->fe);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tda8290_attach);
-
-int tda8295_attach(struct tuner *t)
-{
-	struct tda8290_priv *priv = NULL;
-	u8 data;
-	int i, ret, tuners_found;
-	u32 tuner_addrs;
-	struct i2c_msg msg = { .flags = I2C_M_RD, .buf = &data, .len = 1 };
-
-	priv = kzalloc(sizeof(struct tda8290_priv), GFP_KERNEL);
-	if (priv == NULL)
-		return -ENOMEM;
-	t->fe.analog_demod_priv = priv;
-
-	priv->i2c_props.addr     = t->i2c.addr;
-	priv->i2c_props.adap     = t->i2c.adapter;
-	priv->t = t;
-
-	tda8295_i2c_bridge(&t->fe, 1);
-	/* probe for tuner chip */
-	tuners_found = 0;
-	tuner_addrs = 0;
-	for (i = 0x60; i <= 0x63; i++) {
-		msg.addr = i;
-		ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
-		if (ret == 1) {
-			tuners_found++;
-			tuner_addrs = (tuner_addrs << 8) + i;
-		}
-	}
-	/* if there is more than one tuner, we expect the right one is
-	   behind the bridge and we choose the highest address that doesn't
-	   give a response now
-	 */
-	tda8295_i2c_bridge(&t->fe, 0);
-	if (tuners_found > 1)
-		for (i = 0; i < tuners_found; i++) {
-			msg.addr = tuner_addrs  & 0xff;
-			ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
-			if (ret == 1)
-				tuner_addrs = tuner_addrs >> 8;
-			else
-				break;
-		}
-	if (tuner_addrs == 0) {
-		tuner_addrs = 0x60;
-		tuner_info("could not clearly identify tuner address, "
-			   "defaulting to %x\n", tuner_addrs);
-	} else {
-		tuner_addrs = tuner_addrs & 0xff;
-		tuner_info("setting tuner address to %x\n", tuner_addrs);
-	}
-	priv->tda827x_addr = tuner_addrs;
-	msg.addr = tuner_addrs;
-
-	tda8295_i2c_bridge(&t->fe, 1);
-	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
-	tda8295_i2c_bridge(&t->fe, 0);
-	if (ret != 1)
-		tuner_warn("TDA827x access failed!\n");
-	if ((data & 0x3c) == 0) {
-		strlcpy(t->i2c.name, "tda8295+18271", sizeof(t->i2c.name));
-		tda18271_attach(&t->fe, priv->tda827x_addr,
-				priv->i2c_props.adap);
-		priv->tda827x_ver = 4;
-	} else {
-		strlcpy(t->i2c.name, "tda8295+75a", sizeof(t->i2c.name));
-		tda827x_attach(&t->fe, priv->tda827x_addr,
-			       priv->i2c_props.adap, &priv->cfg);
-
-		/* FIXME: tda827x module doesn't probe the tuner until
-		 * tda827x_initial_sleep is called
-		 */
-		if (t->fe.ops.tuner_ops.sleep)
-			t->fe.ops.tuner_ops.sleep(&t->fe);
-		priv->tda827x_ver = 2;
-	}
-	priv->tda827x_ver |= 1; /* signifies 8295 vs 8290 */
-	tuner_info("type set to %s\n", t->i2c.name);
-
-	t->fe.ops.analog_demod_ops = &tda8295_tuner_ops;
-
-	t->mode = V4L2_TUNER_ANALOG_TV;
-
-	tda8295_init_if(&t->fe);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tda8295_attach);
+EXPORT_SYMBOL_GPL(tda829x_attach);
 
 int tda8290_probe(struct tuner *t)
 {
@@ -745,7 +736,7 @@ int tda8290_probe(struct tuner *t)
 }
 EXPORT_SYMBOL_GPL(tda8290_probe);
 
-MODULE_DESCRIPTION("Philips TDA8290 + TDA8275 / TDA8275a tuner driver");
+MODULE_DESCRIPTION("Philips/NXP TDA8290/TDA8295 analog IF demodulator driver");
 MODULE_AUTHOR("Gerd Knorr, Hartmut Hackmann, Michael Krufky");
 MODULE_LICENSE("GPL");
 
