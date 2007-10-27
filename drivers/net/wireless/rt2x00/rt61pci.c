@@ -527,11 +527,9 @@ static void rt61pci_config_antenna_2529_rx(struct rt2x00_dev *rt2x00dev,
 static void rt61pci_config_antenna_2529(struct rt2x00_dev *rt2x00dev,
 					struct antenna_setup *ant)
 {
-	u16 eeprom;
 	u8 r3;
 	u8 r4;
 	u8 r77;
-	u8 rx_ant;
 
 	rt61pci_bbp_read(rt2x00dev, 3, &r3);
 	rt61pci_bbp_read(rt2x00dev, 4, &r4);
