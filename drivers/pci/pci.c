@@ -353,7 +353,7 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
  * Restore the BAR values for a given device, so as to make it
  * accessible by its driver.
  */
-void
+static void
 pci_restore_bars(struct pci_dev *dev)
 {
 	int i, numres;
@@ -1618,7 +1618,6 @@ early_param("pci", pci_setup);
 
 device_initcall(pci_init);
 
-EXPORT_SYMBOL_GPL(pci_restore_bars);
 EXPORT_SYMBOL(pci_reenable_device);
 EXPORT_SYMBOL(pci_enable_device_bars);
 EXPORT_SYMBOL(pci_enable_device);
