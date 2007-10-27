@@ -1165,6 +1165,23 @@ mmc_spi_detect_irq(int irq, void *mmc)
 	return IRQ_HANDLED;
 }
 
+struct count_children {
+	unsigned	n;
+	struct bus_type	*bus;
+};
+
+static int maybe_count_child(struct device *dev, void *c)
+{
+	struct count_children *ccp = c;
+
+	if (dev->bus == ccp->bus) {
+		if (ccp->n)
+			return -EBUSY;
+		ccp->n++;
+	}
+	return 0;
+}
+
 static int mmc_spi_probe(struct spi_device *spi)
 {
 	void			*ones;
@@ -1188,33 +1205,30 @@ static int mmc_spi_probe(struct spi_device *spi)
 		return status;
 	}
 
-	/* We can use the bus safely iff nobody else will interfere with
-	 * us.  That is, either we have the experimental exclusive access
-	 * primitives ... or else there's nobody to share it with.
+	/* We can use the bus safely iff nobody else will interfere with us.
+	 * Most commands consist of one SPI message to issue a command, then
+	 * several more to collect its response, then possibly more for data
+	 * transfer.  Clocking access to other devices during that period will
+	 * corrupt the command execution.
+	 *
+	 * Until we have software primitives which guarantee non-interference,
+	 * we'll aim for a hardware-level guarantee.
+	 *
+	 * REVISIT we can't guarantee another device won't be added later...
 	 */
 	if (spi->master->num_chipselect > 1) {
-		struct device	*parent = spi->dev.parent;
+		struct count_children cc;
 
-		/* If there are multiple devices on this bus, we
-		 * can't proceed.
-		 */
-		spin_lock(&parent->klist_children.k_lock);
-		if (parent->klist_children.k_list.next
-				!= parent->klist_children.k_list.prev)
-			status = -EMLINK;
-		else
-			status = 0;
-		spin_unlock(&parent->klist_children.k_lock);
+		cc.n = 0;
+		cc.bus = spi->dev.bus;
+		status = device_for_each_child(spi->dev.parent, &cc,
+				maybe_count_child);
 		if (status < 0) {
 			dev_err(&spi->dev, "can't share SPI bus\n");
 			return status;
 		}
 
-		/* REVISIT we can't guarantee another device won't
-		 * be added later.  It's uncommon though ... for now,
-		 * work as if this is safe.
-		 */
-		dev_warn(&spi->dev, "ASSUMING unshared SPI bus!\n");
+		dev_warn(&spi->dev, "ASSUMING SPI bus stays unshared!\n");
 	}
 
 	/* We need a supply of ones to transmit.  This is the only time
