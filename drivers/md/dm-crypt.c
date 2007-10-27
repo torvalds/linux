@@ -168,7 +168,7 @@ static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return -ENOMEM;
 	}
 
-	sg_set_buf(&sg, cc->key, cc->key_size);
+	sg_init_one(&sg, cc->key, cc->key_size);
 	desc.tfm = hash_tfm;
 	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 	err = crypto_hash_digest(&desc, &sg, cc->key_size, salt);

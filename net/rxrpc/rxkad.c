@@ -135,9 +135,8 @@ static void rxkad_prime_packet_security(struct rxrpc_connection *conn)
 	tmpbuf.x[2] = 0;
 	tmpbuf.x[3] = htonl(conn->security_ix);
 
-	memset(sg, 0, sizeof(sg));
-	sg_set_buf(&sg[0], &tmpbuf, sizeof(tmpbuf));
-	sg_set_buf(&sg[1], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[0], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[1], &tmpbuf, sizeof(tmpbuf));
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(tmpbuf));
 
 	memcpy(&conn->csum_iv, &tmpbuf.x[2], sizeof(conn->csum_iv));
@@ -180,9 +179,8 @@ static int rxkad_secure_packet_auth(const struct rxrpc_call *call,
 	desc.info = iv.x;
 	desc.flags = 0;
 
-	memset(sg, 0, sizeof(sg));
-	sg_set_buf(&sg[0], &tmpbuf, sizeof(tmpbuf));
-	sg_set_buf(&sg[1], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[0], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[1], &tmpbuf, sizeof(tmpbuf));
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(tmpbuf));
 
 	memcpy(sechdr, &tmpbuf, sizeof(tmpbuf));
@@ -227,9 +225,8 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	desc.info = iv.x;
 	desc.flags = 0;
 
-	memset(sg, 0, sizeof(sg[0]) * 2);
-	sg_set_buf(&sg[0], sechdr, sizeof(rxkhdr));
-	sg_set_buf(&sg[1], &rxkhdr, sizeof(rxkhdr));
+	sg_init_one(&sg[0], sechdr, sizeof(rxkhdr));
+	sg_init_one(&sg[1], &rxkhdr, sizeof(rxkhdr));
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(rxkhdr));
 
 	/* we want to encrypt the skbuff in-place */
@@ -240,7 +237,7 @@ static int rxkad_secure_packet_encrypt(const struct rxrpc_call *call,
 	len = data_size + call->conn->size_align - 1;
 	len &= ~(call->conn->size_align - 1);
 
-	skb_to_sgvec(skb, sg, 0, len);
+	sg_init_table(sg, skb_to_sgvec(skb, sg, 0, len));
 	crypto_blkcipher_encrypt_iv(&desc, sg, sg, len);
 
 	_leave(" = 0");
@@ -290,9 +287,8 @@ static int rxkad_secure_packet(const struct rxrpc_call *call,
 	tmpbuf.x[0] = sp->hdr.callNumber;
 	tmpbuf.x[1] = x;
 
-	memset(&sg, 0, sizeof(sg));
-	sg_set_buf(&sg[0], &tmpbuf, sizeof(tmpbuf));
-	sg_set_buf(&sg[1], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[0], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[1], &tmpbuf, sizeof(tmpbuf));
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(tmpbuf));
 
 	x = ntohl(tmpbuf.x[1]);
@@ -332,20 +328,23 @@ static int rxkad_verify_packet_auth(const struct rxrpc_call *call,
 	struct rxrpc_skb_priv *sp;
 	struct blkcipher_desc desc;
 	struct rxrpc_crypt iv;
-	struct scatterlist sg[2];
+	struct scatterlist sg[16];
 	struct sk_buff *trailer;
 	u32 data_size, buf;
 	u16 check;
+	int nsg;
 
 	_enter("");
 
 	sp = rxrpc_skb(skb);
 
 	/* we want to decrypt the skbuff in-place */
-	if (skb_cow_data(skb, 0, &trailer) < 0)
+	nsg = skb_cow_data(skb, 0, &trailer);
+	if (nsg < 0 || nsg > 16)
 		goto nomem;
 
-	skb_to_sgvec(skb, sg, 0, 8);
+	sg_init_table(sg, nsg);
+	sg_mark_end(sg, skb_to_sgvec(skb, sg, 0, 8));
 
 	/* start the decryption afresh */
 	memset(&iv, 0, sizeof(iv));
@@ -426,7 +425,8 @@ static int rxkad_verify_packet_encrypt(const struct rxrpc_call *call,
 			goto nomem;
 	}
 
-	skb_to_sgvec(skb, sg, 0, skb->len);
+	sg_init_table(sg, nsg);
+	sg_mark_end(sg, skb_to_sgvec(skb, sg, 0, skb->len));
 
 	/* decrypt from the session key */
 	payload = call->conn->key->payload.data;
@@ -521,9 +521,8 @@ static int rxkad_verify_packet(const struct rxrpc_call *call,
 	tmpbuf.x[0] = call->call_id;
 	tmpbuf.x[1] = x;
 
-	memset(&sg, 0, sizeof(sg));
-	sg_set_buf(&sg[0], &tmpbuf, sizeof(tmpbuf));
-	sg_set_buf(&sg[1], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[0], &tmpbuf, sizeof(tmpbuf));
+	sg_init_one(&sg[1], &tmpbuf, sizeof(tmpbuf));
 	crypto_blkcipher_encrypt_iv(&desc, &sg[0], &sg[1], sizeof(tmpbuf));
 
 	x = ntohl(tmpbuf.x[1]);
@@ -690,15 +689,19 @@ static void rxkad_calc_response_checksum(struct rxkad_response *response)
 static void rxkad_sg_set_buf2(struct scatterlist sg[2],
 			      void *buf, size_t buflen)
 {
+	int nsg = 1;
 
-	memset(sg, 0, sizeof(sg));
+	sg_init_table(sg, 2);
 
 	sg_set_buf(&sg[0], buf, buflen);
 	if (sg[0].offset + buflen > PAGE_SIZE) {
 		/* the buffer was split over two pages */
 		sg[0].length = PAGE_SIZE - sg[0].offset;
 		sg_set_buf(&sg[1], buf + sg[0].length, buflen - sg[0].length);
+		nsg++;
 	}
+
+	sg_mark_end(sg, nsg);
 
 	ASSERTCMP(sg[0].length + sg[1].length, ==, buflen);
 }
@@ -712,7 +715,7 @@ static void rxkad_encrypt_response(struct rxrpc_connection *conn,
 {
 	struct blkcipher_desc desc;
 	struct rxrpc_crypt iv;
-	struct scatterlist ssg[2], dsg[2];
+	struct scatterlist sg[2];
 
 	/* continue encrypting from where we left off */
 	memcpy(&iv, s2->session_key, sizeof(iv));
@@ -720,9 +723,8 @@ static void rxkad_encrypt_response(struct rxrpc_connection *conn,
 	desc.info = iv.x;
 	desc.flags = 0;
 
-	rxkad_sg_set_buf2(ssg, &resp->encrypted, sizeof(resp->encrypted));
-	memcpy(dsg, ssg, sizeof(dsg));
-	crypto_blkcipher_encrypt_iv(&desc, dsg, ssg, sizeof(resp->encrypted));
+	rxkad_sg_set_buf2(sg, &resp->encrypted, sizeof(resp->encrypted));
+	crypto_blkcipher_encrypt_iv(&desc, sg, sg, sizeof(resp->encrypted));
 }
 
 /*
@@ -817,7 +819,7 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 {
 	struct blkcipher_desc desc;
 	struct rxrpc_crypt iv, key;
-	struct scatterlist ssg[1], dsg[1];
+	struct scatterlist sg[1];
 	struct in_addr addr;
 	unsigned life;
 	time_t issue, now;
@@ -850,9 +852,8 @@ static int rxkad_decrypt_ticket(struct rxrpc_connection *conn,
 	desc.info = iv.x;
 	desc.flags = 0;
 
-	sg_init_one(&ssg[0], ticket, ticket_len);
-	memcpy(dsg, ssg, sizeof(dsg));
-	crypto_blkcipher_decrypt_iv(&desc, dsg, ssg, ticket_len);
+	sg_init_one(&sg[0], ticket, ticket_len);
+	crypto_blkcipher_decrypt_iv(&desc, sg, sg, ticket_len);
 
 	p = ticket;
 	end = p + ticket_len;
@@ -961,7 +962,7 @@ static void rxkad_decrypt_response(struct rxrpc_connection *conn,
 				   const struct rxrpc_crypt *session_key)
 {
 	struct blkcipher_desc desc;
-	struct scatterlist ssg[2], dsg[2];
+	struct scatterlist sg[2];
 	struct rxrpc_crypt iv;
 
 	_enter(",,%08x%08x",
@@ -979,9 +980,8 @@ static void rxkad_decrypt_response(struct rxrpc_connection *conn,
 	desc.info = iv.x;
 	desc.flags = 0;
 
-	rxkad_sg_set_buf2(ssg, &resp->encrypted, sizeof(resp->encrypted));
-	memcpy(dsg, ssg, sizeof(dsg));
-	crypto_blkcipher_decrypt_iv(&desc, dsg, ssg, sizeof(resp->encrypted));
+	rxkad_sg_set_buf2(sg, &resp->encrypted, sizeof(resp->encrypted));
+	crypto_blkcipher_decrypt_iv(&desc, sg, sg, sizeof(resp->encrypted));
 	mutex_unlock(&rxkad_ci_mutex);
 
 	_leave("");

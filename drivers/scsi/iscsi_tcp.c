@@ -674,9 +674,8 @@ partial_sg_digest_update(struct hash_desc *desc, struct scatterlist *sg,
 {
 	struct scatterlist temp;
 
-	memcpy(&temp, sg, sizeof(struct scatterlist));
-	temp.offset = offset;
-	temp.length = length;
+	sg_init_table(&temp, 1);
+	sg_set_page(&temp, sg_page(sg), length, offset);
 	crypto_hash_update(desc, &temp, length);
 }
 
