@@ -9299,7 +9299,6 @@ static struct alc_config_preset alc268_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc268_modes),
 		.channel_mode = alc268_modes,
 		.input_mux = &alc268_capture_source,
-		.input_mux = &alc268_capture_source,
 		.unsol_event = alc268_toshiba_unsol_event,
 		.init_hook = alc268_toshiba_automute,
 	},
