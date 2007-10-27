@@ -246,6 +246,15 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	int i, j;
 	int rc;
 
+	spin_lock_irq(&phba->hbalock);
+	/*
+	 * If the Config port completed correctly the HBA is not
+	 * over heated any more.
+	 */
+	if (phba->over_temp_state == HBA_OVER_TEMP)
+		phba->over_temp_state = HBA_NORMAL_TEMP;
+	spin_unlock_irq(&phba->hbalock);
+
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmb) {
 		phba->link_state = LPFC_HBA_ERROR;
@@ -703,7 +712,10 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 					  SCSI_NL_VID_TYPE_PCI
 					  | PCI_VENDOR_ID_EMULEX);
 
+		spin_lock_irq(&phba->hbalock);
 		psli->sli_flag &= ~LPFC_SLI2_ACTIVE;
+		phba->over_temp_state = HBA_OVER_TEMP;
+		spin_unlock_irq(&phba->hbalock);
 		lpfc_offline_prep(phba);
 		lpfc_offline(phba);
 		lpfc_unblock_mgmt_io(phba);

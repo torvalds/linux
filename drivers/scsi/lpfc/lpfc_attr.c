@@ -979,6 +979,12 @@ lpfc_soft_wwpn_store(struct class_device *cdev, const char *buf, size_t count)
 	unsigned int i, j, cnt=count;
 	u8 wwpn[8];
 
+	spin_lock_irq(&phba->hbalock);
+	if (phba->over_temp_state == HBA_OVER_TEMP) {
+		spin_unlock_irq(&phba->hbalock);
+		return -EPERM;
+	}
+	spin_unlock_irq(&phba->hbalock);
 	/* count may include a LF at end of string */
 	if (buf[cnt-1] == '\n')
 		cnt--;
@@ -1749,6 +1755,12 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		return 0;
 
 	spin_lock_irq(&phba->hbalock);
+
+	if (phba->over_temp_state == HBA_OVER_TEMP) {
+		sysfs_mbox_idle(phba);
+		spin_unlock_irq(&phba->hbalock);
+		return  -EPERM;
+	}
 
 	if (off == 0 &&
 	    phba->sysfs_mbox.state  == SMBOX_WRITING &&

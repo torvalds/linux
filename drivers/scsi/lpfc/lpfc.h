@@ -386,6 +386,11 @@ struct hbq_s {
 #define LPFC_ELS_HBQ	0
 #define LPFC_EXTRA_HBQ	1
 
+enum hba_temp_state {
+	HBA_NORMAL_TEMP,
+	HBA_OVER_TEMP
+};
+
 struct lpfc_hba {
 	struct lpfc_sli sli;
 	uint32_t sli_rev;		/* SLI2 or SLI3 */
@@ -589,6 +594,7 @@ struct lpfc_hba {
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
 	uint32_t buffer_tag_count;
+	enum hba_temp_state over_temp_state;
 };
 
 static inline struct Scsi_Host *
