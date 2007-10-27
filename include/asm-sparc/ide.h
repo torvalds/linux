@@ -1,7 +1,6 @@
-/* $Id: ide.h,v 1.7 2002/01/16 20:58:40 davem Exp $
- * ide.h: SPARC PCI specific IDE glue.
+/* ide.h: SPARC PCI specific IDE glue.
  *
- * Copyright (C) 1997  David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1997  David S. Miller (davem@davemloft.net)
  * Copyright (C) 1998  Eddie C. Dost   (ecd@skynet.be)
  * Adaptation from sparc64 version to sparc by Pete Zaitcev.
  */
@@ -31,7 +30,7 @@
 #define __ide_mm_outsw	__ide_outsw
 #define __ide_mm_outsl	__ide_outsl
 
-static __inline__ void __ide_insw(unsigned long port,
+static inline void __ide_insw(unsigned long port,
 				  void *dst,
 				  unsigned long count)
 {
@@ -62,7 +61,7 @@ static __inline__ void __ide_insw(unsigned long port,
 	/* __flush_dcache_range((unsigned long)dst, end); */ /* P3 see hme */
 }
 
-static __inline__ void __ide_outsw(unsigned long port,
+static inline void __ide_outsw(unsigned long port,
 				   const void *src,
 				   unsigned long count)
 {

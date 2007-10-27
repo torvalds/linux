@@ -1,6 +1,6 @@
 /* asm-sparc/floppy.h: Sparc specific parts of the Floppy driver.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef __ASM_SPARC_FLOPPY_H
@@ -232,12 +232,12 @@ extern char *pdma_base;
 extern unsigned long pdma_areasize;
 
 /* Common routines to all controller types on the Sparc. */
-static __inline__ void virtual_dma_init(void)
+static inline void virtual_dma_init(void)
 {
 	/* nothing... */
 }
 
-static __inline__ void sun_fd_disable_dma(void)
+static inline void sun_fd_disable_dma(void)
 {
 	doing_pdma = 0;
 	if (pdma_base) {
@@ -246,7 +246,7 @@ static __inline__ void sun_fd_disable_dma(void)
 	}
 }
 
-static __inline__ void sun_fd_set_dma_mode(int mode)
+static inline void sun_fd_set_dma_mode(int mode)
 {
 	switch(mode) {
 	case DMA_MODE_READ:
@@ -261,17 +261,17 @@ static __inline__ void sun_fd_set_dma_mode(int mode)
 	}
 }
 
-static __inline__ void sun_fd_set_dma_addr(char *buffer)
+static inline void sun_fd_set_dma_addr(char *buffer)
 {
 	pdma_vaddr = buffer;
 }
 
-static __inline__ void sun_fd_set_dma_count(int length)
+static inline void sun_fd_set_dma_count(int length)
 {
 	pdma_size = length;
 }
 
-static __inline__ void sun_fd_enable_dma(void)
+static inline void sun_fd_enable_dma(void)
 {
 	pdma_vaddr = mmu_lockarea(pdma_vaddr, pdma_size);
 	pdma_base = pdma_vaddr;

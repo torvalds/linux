@@ -753,7 +753,7 @@ void __init pci_time_init(void)
 	local_irq_enable();
 }
 
-static __inline__ unsigned long do_gettimeoffset(void)
+static inline unsigned long do_gettimeoffset(void)
 {
 	/*
 	 * We divide all by 100

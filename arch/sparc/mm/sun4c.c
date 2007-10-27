@@ -1,7 +1,6 @@
-/* $Id: sun4c.c,v 1.212 2001/12/21 04:56:15 davem Exp $
- * sun4c.c: Doing in software what should be done in hardware.
+/* sun4c.c: Doing in software what should be done in hardware.
  *
- * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1996 David S. Miller (davem@davemloft.net)
  * Copyright (C) 1996 Eddie C. Dost (ecd@skynet.be)
  * Copyright (C) 1996 Andrew Tridgell (Andrew.Tridgell@anu.edu.au)
  * Copyright (C) 1997-2000 Anton Blanchard (anton@samba.org)
@@ -719,7 +718,7 @@ static void add_ring(struct sun4c_mmu_ring *ring,
 	ring->num_entries++;
 }
 
-static __inline__ void add_lru(struct sun4c_mmu_entry *entry)
+static inline void add_lru(struct sun4c_mmu_entry *entry)
 {
 	struct sun4c_mmu_ring *ring = &sun4c_ulru_ring;
 	struct sun4c_mmu_entry *head = &ring->ringhd;
@@ -746,7 +745,7 @@ static void add_ring_ordered(struct sun4c_mmu_ring *ring,
 	add_lru(entry);
 }
 
-static __inline__ void remove_ring(struct sun4c_mmu_ring *ring,
+static inline void remove_ring(struct sun4c_mmu_ring *ring,
 				   struct sun4c_mmu_entry *entry)
 {
 	struct sun4c_mmu_entry *next = entry->next;
@@ -1836,7 +1835,7 @@ static unsigned long sun4c_pte_to_pgoff(pte_t pte)
 }
 
 
-static __inline__ unsigned long sun4c_pmd_page_v(pmd_t pmd)
+static inline unsigned long sun4c_pmd_page_v(pmd_t pmd)
 {
 	return (pmd_val(pmd) & PAGE_MASK);
 }
@@ -1922,7 +1921,7 @@ static void sun4c_free_pgd_fast(pgd_t *pgd)
 }
 
 
-static __inline__ pte_t *
+static inline pte_t *
 sun4c_pte_alloc_one_fast(struct mm_struct *mm, unsigned long address)
 {
 	unsigned long *ret;
@@ -1956,7 +1955,7 @@ static struct page *sun4c_pte_alloc_one(struct mm_struct *mm, unsigned long addr
 	return virt_to_page(pte);
 }
 
-static __inline__ void sun4c_free_pte_fast(pte_t *pte)
+static inline void sun4c_free_pte_fast(pte_t *pte)
 {
 	*(unsigned long *)pte = (unsigned long) pte_quicklist;
 	pte_quicklist = (unsigned long *) pte;

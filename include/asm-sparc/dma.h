@@ -1,7 +1,6 @@
-/* $Id: dma.h,v 1.35 1999/12/27 06:37:09 anton Exp $
- * include/asm-sparc/dma.h
+/* include/asm-sparc/dma.h
  *
- * Copyright 1995 (C) David S. Miller (davem@caip.rutgers.edu)
+ * Copyright 1995 (C) David S. Miller (davem@davemloft.net)
  */
 
 #ifndef _ASM_SPARC_DMA_H
@@ -21,14 +20,14 @@
 struct page;
 extern spinlock_t  dma_spin_lock;
 
-static __inline__ unsigned long claim_dma_lock(void)
+static inline unsigned long claim_dma_lock(void)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&dma_spin_lock, flags);
 	return flags;
 }
 
-static __inline__ void release_dma_lock(unsigned long flags)
+static inline void release_dma_lock(unsigned long flags)
 {
 	spin_unlock_irqrestore(&dma_spin_lock, flags);
 }
