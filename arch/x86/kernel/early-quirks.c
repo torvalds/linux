@@ -35,12 +35,14 @@ static void __init via_bugs(void)
 }
 
 #ifdef CONFIG_ACPI
+#ifdef CONFIG_X86_IO_APIC
 
 static int __init nvidia_hpet_check(struct acpi_table_header *header)
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_X86_IO_APIC */
+#endif /* CONFIG_ACPI */
 
 static void __init nvidia_bugs(void)
 {
