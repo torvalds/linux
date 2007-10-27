@@ -75,7 +75,7 @@ krb5_encrypt(
 		memcpy(local_iv, iv, crypto_blkcipher_ivsize(tfm));
 
 	memcpy(out, in, length);
-	sg_set_buf(sg, out, length);
+	sg_init_one(sg, out, length);
 
 	ret = crypto_blkcipher_encrypt_iv(&desc, sg, sg, length);
 out:
@@ -110,7 +110,7 @@ krb5_decrypt(
 		memcpy(local_iv,iv, crypto_blkcipher_ivsize(tfm));
 
 	memcpy(out, in, length);
-	sg_set_buf(sg, out, length);
+	sg_init_one(sg, out, length);
 
 	ret = crypto_blkcipher_decrypt_iv(&desc, sg, sg, length);
 out:
@@ -146,7 +146,7 @@ make_checksum(char *cksumname, char *header, int hdrlen, struct xdr_buf *body,
 	err = crypto_hash_init(&desc);
 	if (err)
 		goto out;
-	sg_set_buf(sg, header, hdrlen);
+	sg_init_one(sg, header, hdrlen);
 	err = crypto_hash_update(&desc, sg, hdrlen);
 	if (err)
 		goto out;
@@ -188,8 +188,6 @@ encryptor(struct scatterlist *sg, void *data)
 	/* Worst case is 4 fragments: head, end of page 1, start
 	 * of page 2, tail.  Anything more is a bug. */
 	BUG_ON(desc->fragno > 3);
-	desc->infrags[desc->fragno] = *sg;
-	desc->outfrags[desc->fragno] = *sg;
 
 	page_pos = desc->pos - outbuf->head[0].iov_len;
 	if (page_pos >= 0 && page_pos < outbuf->page_len) {
@@ -199,7 +197,10 @@ encryptor(struct scatterlist *sg, void *data)
 	} else {
 		in_page = sg_page(sg);
 	}
-	sg_assign_page(&desc->infrags[desc->fragno], in_page);
+	sg_set_page(&desc->infrags[desc->fragno], in_page, sg->length,
+		    sg->offset);
+	sg_set_page(&desc->outfrags[desc->fragno], sg_page(sg), sg->length,
+		    sg->offset);
 	desc->fragno++;
 	desc->fraglen += sg->length;
 	desc->pos += sg->length;
@@ -210,10 +211,17 @@ encryptor(struct scatterlist *sg, void *data)
 	if (thislen == 0)
 		return 0;
 
+	sg_mark_end(desc->infrags, desc->fragno);
+	sg_mark_end(desc->outfrags, desc->fragno);
+
 	ret = crypto_blkcipher_encrypt_iv(&desc->desc, desc->outfrags,
 					  desc->infrags, thislen);
 	if (ret)
 		return ret;
+
+	sg_init_table(desc->infrags, 4);
+	sg_init_table(desc->outfrags, 4);
+
 	if (fraglen) {
 		sg_set_page(&desc->outfrags[0], sg_page(sg), fraglen,
 				sg->offset + sg->length - fraglen);
@@ -247,6 +255,9 @@ gss_encrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *buf,
 	desc.fragno = 0;
 	desc.fraglen = 0;
 
+	sg_init_table(desc.infrags, 4);
+	sg_init_table(desc.outfrags, 4);
+
 	ret = xdr_process_buf(buf, offset, buf->len - offset, encryptor, &desc);
 	return ret;
 }
@@ -271,7 +282,8 @@ decryptor(struct scatterlist *sg, void *data)
 	/* Worst case is 4 fragments: head, end of page 1, start
 	 * of page 2, tail.  Anything more is a bug. */
 	BUG_ON(desc->fragno > 3);
-	desc->frags[desc->fragno] = *sg;
+	sg_set_page(&desc->frags[desc->fragno], sg_page(sg), sg->length,
+		    sg->offset);
 	desc->fragno++;
 	desc->fraglen += sg->length;
 
@@ -281,10 +293,15 @@ decryptor(struct scatterlist *sg, void *data)
 	if (thislen == 0)
 		return 0;
 
+	sg_mark_end(desc->frags, desc->fragno);
+
 	ret = crypto_blkcipher_decrypt_iv(&desc->desc, desc->frags,
 					  desc->frags, thislen);
 	if (ret)
 		return ret;
+
+	sg_init_table(desc->frags, 4);
+
 	if (fraglen) {
 		sg_set_page(&desc->frags[0], sg_page(sg), fraglen,
 				sg->offset + sg->length - fraglen);
@@ -312,6 +329,9 @@ gss_decrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *buf,
 	desc.desc.flags = 0;
 	desc.fragno = 0;
 	desc.fraglen = 0;
+
+	sg_init_table(desc.frags, 4);
+
 	return xdr_process_buf(buf, offset, buf->len - offset, decryptor, &desc);
 }
 

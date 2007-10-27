@@ -55,7 +55,7 @@ static void padlock_sha_bypass(struct crypto_tfm *tfm)
 	if (ctx(tfm)->data && ctx(tfm)->used) {
 		struct scatterlist sg;
 
-		sg_set_buf(&sg, ctx(tfm)->data, ctx(tfm)->used);
+		sg_init_one(&sg, ctx(tfm)->data, ctx(tfm)->used);
 		crypto_hash_update(&ctx(tfm)->fallback, &sg, sg.length);
 	}
 
@@ -79,7 +79,7 @@ static void padlock_sha_update(struct crypto_tfm *tfm,
 
 	if (unlikely(ctx(tfm)->bypass)) {
 		struct scatterlist sg;
-		sg_set_buf(&sg, (uint8_t *)data, length);
+		sg_init_one(&sg, (uint8_t *)data, length);
 		crypto_hash_update(&ctx(tfm)->fallback, &sg, length);
 		return;
 	}

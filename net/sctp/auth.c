@@ -726,8 +726,7 @@ void sctp_auth_calculate_hmac(const struct sctp_association *asoc,
 
 	/* set up scatter list */
 	end = skb_tail_pointer(skb);
-	sg_init_table(&sg, 1);
-	sg_set_buf(&sg, auth, end - (unsigned char *)auth);
+	sg_init_one(&sg, auth, end - (unsigned char *)auth);
 
 	desc.tfm = asoc->ep->auth_hmacs[hmac_id];
 	desc.flags = 0;

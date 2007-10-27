@@ -279,6 +279,8 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 	int offset;
 	int remainder_of_page;
 
+	sg_init_table(sg, sg_size);
+
 	while (size > 0 && i < sg_size) {
 		pg = virt_to_page(addr);
 		offset = offset_in_page(addr);

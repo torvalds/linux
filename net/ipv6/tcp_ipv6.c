@@ -59,6 +59,7 @@
 #include <net/snmp.h>
 #include <net/dsfield.h>
 #include <net/timewait_sock.h>
+#include <net/netdma.h>
 
 #include <asm/uaccess.h>
 
