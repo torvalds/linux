@@ -113,6 +113,14 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u16 buffer_length, const int timeout);
 
 /*
+ * A version of rt2x00usb_vendor_request_buff which must be called
+ * if the usb_cache_mutex is already held. */
+int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
+				   const u8 request, const u8 requesttype,
+				   const u16 offset, void *buffer,
+				   const u16 buffer_length, const int timeout);
+
+/*
  * Simple wrapper around rt2x00usb_vendor_request to write a single
  * command to the device. Since we don't use the buffer argument we
  * don't have to worry about kmalloc here.

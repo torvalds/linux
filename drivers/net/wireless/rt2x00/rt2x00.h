@@ -31,6 +31,7 @@
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
+#include <linux/mutex.h>
 
 #include <net/mac80211.h>
 
@@ -657,6 +658,18 @@ struct rt2x00_dev {
 	 */
 	void __iomem *csr_addr;
 	void *csr_cache;
+
+	/*
+	 * Mutex to protect register accesses on USB devices.
+	 * There are 2 reasons this is needed, one is to ensure
+	 * use of the csr_cache (for USB devices) by one thread
+	 * isn't corrupted by another thread trying to access it.
+	 * The other is that access to BBP and RF registers
+	 * require multiple BUS transactions and if another thread
+	 * attempted to access one of those registers at the same
+	 * time one of the writes could silently fail.
+	 */
+	struct mutex usb_cache_mutex;
 
 	/*
 	 * Interface configuration.

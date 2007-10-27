@@ -31,6 +31,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/bug.h>
 
 #include "rt2x00.h"
 #include "rt2x00usb.h"
@@ -51,6 +52,7 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 	unsigned int pipe =
 	    (requesttype == USB_VENDOR_REQUEST_IN) ?
 	    usb_rcvctrlpipe(usb_dev, 0) : usb_sndctrlpipe(usb_dev, 0);
+
 
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
 		status = usb_control_msg(usb_dev, pipe, request, requesttype,
@@ -76,12 +78,14 @@ int rt2x00usb_vendor_request(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request);
 
-int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
-				  const u8 request, const u8 requesttype,
-				  const u16 offset, void *buffer,
-				  const u16 buffer_length, const int timeout)
+int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
+				   const u8 request, const u8 requesttype,
+				   const u16 offset, void *buffer,
+				   const u16 buffer_length, const int timeout)
 {
 	int status;
+
+	BUG_ON(!mutex_is_locked(&rt2x00dev->usb_cache_mutex));
 
 	/*
 	 * Check for Cache availability.
@@ -100,6 +104,25 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 
 	if (!status && requesttype == USB_VENDOR_REQUEST_IN)
 		memcpy(buffer, rt2x00dev->csr_cache, buffer_length);
+
+	return status;
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_vendor_req_buff_lock);
+
+int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
+				  const u8 request, const u8 requesttype,
+				  const u16 offset, void *buffer,
+				  const u16 buffer_length, const int timeout)
+{
+	int status;
+
+	mutex_lock(&rt2x00dev->usb_cache_mutex);
+
+	status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
+						requesttype, offset, buffer,
+						buffer_length, timeout);
+
+	mutex_unlock(&rt2x00dev->usb_cache_mutex);
 
 	return status;
 }
@@ -507,6 +530,7 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->dev = usb_intf;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
+	mutex_init(&rt2x00dev->usb_cache_mutex);
 
 	rt2x00dev->usb_maxpacket =
 	    usb_maxpacket(usb_dev, usb_sndbulkpipe(usb_dev, 1), 1);
