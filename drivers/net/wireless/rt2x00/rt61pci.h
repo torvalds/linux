@@ -1083,7 +1083,7 @@ struct hw_pairwise_ta_entry {
 /*
  * R77
  */
-#define BBP_R77_PAIR			FIELD8(0x03)
+#define BBP_R77_TX_ANTENNA		FIELD8(0x03)
 
 /*
  * RF registers
