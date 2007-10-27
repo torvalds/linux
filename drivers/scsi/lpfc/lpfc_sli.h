@@ -197,9 +197,6 @@ struct lpfc_hbq_init {
 	uint32_t add_count;	/* number to allocate when starved */
 } ;
 
-#define LPFC_MAX_HBQ 16
-
-
 /* Structure used to hold SLI statistical counters and info */
 struct lpfc_sli_stat {
 	uint64_t mbox_stat_err;  /* Mbox cmds completed status error */

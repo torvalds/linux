@@ -1143,9 +1143,8 @@ lpfc_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cnt,
 		/* Allocate buffer to post */
 		mp1 = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
 		if (mp1)
-		    mp1->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
-						&mp1->phys);
-		if (mp1 == 0 || mp1->virt == 0) {
+		    mp1->virt = lpfc_mbuf_alloc(phba, MEM_PRI, &mp1->phys);
+		if (!mp1 || !mp1->virt) {
 			kfree(mp1);
 			lpfc_sli_release_iocbq(phba, iocb);
 			pring->missbufcnt = cnt;
@@ -1159,7 +1158,7 @@ lpfc_post_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring, int cnt,
 			if (mp2)
 				mp2->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 							    &mp2->phys);
-			if (mp2 == 0 || mp2->virt == 0) {
+			if (!mp2 || !mp2->virt) {
 				kfree(mp2);
 				lpfc_mbuf_free(phba, mp1->virt, mp1->phys);
 				kfree(mp1);
@@ -1762,7 +1761,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	struct Scsi_Host  *shost = NULL;
 	void *ptr;
 	unsigned long bar0map_len, bar2map_len;
-	int error = -ENODEV;
+	int error = -ENODEV, retval;
 	int  i, hbq_count;
 	uint16_t iotag;
 
@@ -1878,9 +1877,11 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	lpfc_sli_setup(phba);
 	lpfc_sli_queue_setup(phba);
 
-	error = lpfc_mem_alloc(phba);
-	if (error)
+	retval = lpfc_mem_alloc(phba);
+	if (retval) {
+		error = retval;
 		goto out_free_hbqslimp;
+	}
 
 	/* Initialize and populate the iocb list per host.  */
 	INIT_LIST_HEAD(&phba->lpfc_iocb_list);
@@ -1946,8 +1947,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	pci_set_drvdata(pdev, shost);
 
 	if (phba->cfg_use_msi) {
-		error = pci_enable_msi(phba->pcidev);
-		if (!error)
+		retval = pci_enable_msi(phba->pcidev);
+		if (!retval)
 			phba->using_msi = 1;
 		else
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -1955,11 +1956,12 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 					"with IRQ\n");
 	}
 
-	error =	request_irq(phba->pcidev->irq, lpfc_intr_handler, IRQF_SHARED,
+	retval = request_irq(phba->pcidev->irq, lpfc_intr_handler, IRQF_SHARED,
 			    LPFC_DRIVER_NAME, phba);
-	if (error) {
+	if (retval) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"0451 Enable interrupt handler failed\n");
+		error = retval;
 		goto out_disable_msi;
 	}
 
@@ -1969,11 +1971,15 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	phba->HSregaddr = phba->ctrl_regs_memmap_p + HS_REG_OFFSET;
 	phba->HCregaddr = phba->ctrl_regs_memmap_p + HC_REG_OFFSET;
 
-	if (lpfc_alloc_sysfs_attr(vport))
+	if (lpfc_alloc_sysfs_attr(vport)) {
+		error = -ENOMEM;
 		goto out_free_irq;
+	}
 
-	if (lpfc_sli_hba_setup(phba))
+	if (lpfc_sli_hba_setup(phba)) {
+		error = -ENODEV;
 		goto out_remove_device;
+	}
 
 	/*
 	 * hba setup may have changed the hba_queue_depth so we need to adjust
@@ -2303,14 +2309,12 @@ lpfc_init(void)
 	if (lpfc_transport_template == NULL)
 		return -ENOMEM;
 	if (lpfc_enable_npiv) {
-		lpfc_transport_functions.vport_create = NULL;
-		lpfc_transport_functions.vport_delete = NULL;
-		lpfc_transport_functions.issue_fc_host_lip = NULL;
-		lpfc_transport_functions.vport_disable = lpfc_vport_disable;
 		lpfc_vport_transport_template =
-				fc_attach_transport(&lpfc_transport_functions);
-		if (lpfc_vport_transport_template == NULL)
+			fc_attach_transport(&lpfc_vport_transport_functions);
+		if (lpfc_vport_transport_template == NULL) {
+			fc_release_transport(lpfc_transport_template);
 			return -ENOMEM;
+		}
 	}
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {

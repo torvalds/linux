@@ -2363,11 +2363,65 @@ struct fc_function_template lpfc_transport_functions = {
 	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
 	.terminate_rport_io = lpfc_terminate_rport_io,
 
-	/* Vport fields are filled in at runtime based on enable_npiv */
-	.vport_create = NULL,
-	.vport_delete = NULL,
-	.vport_disable = NULL,
 	.dd_fcvport_size = sizeof(struct lpfc_vport *),
+};
+
+struct fc_function_template lpfc_vport_transport_functions = {
+	/* fixed attributes the driver supports */
+	.show_host_node_name = 1,
+	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+	.show_host_supported_fc4s = 1,
+	.show_host_supported_speeds = 1,
+	.show_host_maxframe_size = 1,
+
+	/* dynamic attributes the driver supports */
+	.get_host_port_id = lpfc_get_host_port_id,
+	.show_host_port_id = 1,
+
+	.get_host_port_type = lpfc_get_host_port_type,
+	.show_host_port_type = 1,
+
+	.get_host_port_state = lpfc_get_host_port_state,
+	.show_host_port_state = 1,
+
+	/* active_fc4s is shown but doesn't change (thus no get function) */
+	.show_host_active_fc4s = 1,
+
+	.get_host_speed = lpfc_get_host_speed,
+	.show_host_speed = 1,
+
+	.get_host_fabric_name = lpfc_get_host_fabric_name,
+	.show_host_fabric_name = 1,
+
+	/*
+	 * The LPFC driver treats linkdown handling as target loss events
+	 * so there are no sysfs handlers for link_down_tmo.
+	 */
+
+	.get_fc_host_stats = lpfc_get_stats,
+	.reset_fc_host_stats = lpfc_reset_stats,
+
+	.dd_fcrport_size = sizeof(struct lpfc_rport_data),
+	.show_rport_maxframe_size = 1,
+	.show_rport_supported_classes = 1,
+
+	.set_rport_dev_loss_tmo = lpfc_set_rport_loss_tmo,
+	.show_rport_dev_loss_tmo = 1,
+
+	.get_starget_port_id  = lpfc_get_starget_port_id,
+	.show_starget_port_id = 1,
+
+	.get_starget_node_name = lpfc_get_starget_node_name,
+	.show_starget_node_name = 1,
+
+	.get_starget_port_name = lpfc_get_starget_port_name,
+	.show_starget_port_name = 1,
+
+	.dev_loss_tmo_callbk = lpfc_dev_loss_tmo_callbk,
+	.terminate_rport_io = lpfc_terminate_rport_io,
+
+	.vport_disable = lpfc_vport_disable,
 };
 
 void

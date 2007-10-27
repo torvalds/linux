@@ -1914,8 +1914,8 @@ lpfc_sli_brdkill(struct lpfc_hba *phba)
 			"0329 Kill HBA Data: x%x x%x\n",
 			phba->pport->port_state, psli->sli_flag);
 
-	if ((pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
-						  GFP_KERNEL)) == 0)
+	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb)
 		return 1;
 
 	/* Disable the error attention */
@@ -2809,7 +2809,7 @@ lpfc_sli_next_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 /*
  * Lockless version of lpfc_sli_issue_iocb.
  */
-int
+static int
 __lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    struct lpfc_iocbq *piocb, uint32_t flag)
 {
@@ -2954,7 +2954,7 @@ lpfc_extra_ring_setup( struct lpfc_hba *phba)
 	return 0;
 }
 
-void
+static void
 lpfc_sli_async_event_handler(struct lpfc_hba * phba,
 	struct lpfc_sli_ring * pring, struct lpfc_iocbq * iocbq)
 {
@@ -3717,7 +3717,7 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 	unsigned long flag;
 
 	/* The caller must leave context1 empty. */
-	if (pmboxq->context1 != 0)
+	if (pmboxq->context1)
 		return MBX_NOT_FINISHED;
 
 	/* setup wake call as IOCB callback */

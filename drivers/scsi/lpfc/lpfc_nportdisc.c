@@ -1135,7 +1135,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
 			mp = (struct lpfc_dmabuf *) (mb->context1);
 			if (mp) {
-				lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
 				kfree(mp);
 			}
 			lpfc_nlp_put(ndlp);

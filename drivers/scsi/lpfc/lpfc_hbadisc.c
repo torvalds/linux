@@ -107,7 +107,6 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	struct lpfc_nodelist * ndlp;
 	struct lpfc_vport *vport;
 	struct lpfc_hba   *phba;
-	struct completion devloss_compl;
 	struct lpfc_work_evt *evtp;
 
 	rdata = rport->dd_data;
@@ -129,7 +128,6 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		"rport devlosscb: sid:x%x did:x%x flg:x%x",
 		ndlp->nlp_sid, ndlp->nlp_DID, ndlp->nlp_flag);
 
-	init_completion(&devloss_compl);
 	evtp = &ndlp->dev_loss_evt;
 
 	if (!list_empty(&evtp->evt_listp))
@@ -137,15 +135,12 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	spin_lock_irq(&phba->hbalock);
 	evtp->evt_arg1  = ndlp;
-	evtp->evt_arg2  = &devloss_compl;
 	evtp->evt       = LPFC_EVT_DEV_LOSS;
 	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	if (phba->work_wait)
 		wake_up(phba->work_wait);
 
 	spin_unlock_irq(&phba->hbalock);
-
-	wait_for_completion(&devloss_compl);
 
 	return;
 }
@@ -260,7 +255,6 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 {
 	struct lpfc_work_evt  *evtp = NULL;
 	struct lpfc_nodelist  *ndlp;
-	struct lpfc_vport     *vport;
 	int free_evt;
 
 	spin_lock_irq(&phba->hbalock);
@@ -270,24 +264,6 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 		spin_unlock_irq(&phba->hbalock);
 		free_evt = 1;
 		switch (evtp->evt) {
-		case LPFC_EVT_DEV_LOSS_DELAY:
-			free_evt = 0; /* evt is part of ndlp */
-			ndlp = (struct lpfc_nodelist *) (evtp->evt_arg1);
-			vport = ndlp->vport;
-			if (!vport)
-				break;
-
-			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_RPORT,
-				"rport devlossdly:did:x%x flg:x%x",
-				ndlp->nlp_DID, ndlp->nlp_flag, 0);
-
-			if (!(vport->load_flag & FC_UNLOADING) &&
-			    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
-			    !(ndlp->nlp_flag & NLP_NPR_2B_DISC)) {
-				lpfc_disc_state_machine(vport, ndlp, NULL,
-					NLP_EVT_DEVICE_RM);
-			}
-			break;
 		case LPFC_EVT_ELS_RETRY:
 			ndlp = (struct lpfc_nodelist *) (evtp->evt_arg1);
 			lpfc_els_retry_delay_handler(ndlp);
@@ -298,7 +274,6 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			lpfc_nlp_get(ndlp);
 			lpfc_dev_loss_tmo_handler(ndlp);
 			free_evt = 0;
-			complete((struct completion *)(evtp->evt_arg2));
 			lpfc_nlp_put(ndlp);
 			break;
 		case LPFC_EVT_ONLINE:
@@ -552,7 +527,9 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
 
-		if (phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN)
+		if ((phba->sli3_options & LPFC_SLI3_VPORT_TEARDOWN) ||
+			((vport->port_type == LPFC_NPIV_PORT) &&
+			(ndlp->nlp_DID == NameServer_DID)))
 			lpfc_unreg_rpi(vport, ndlp);
 
 		/* Leave Fabric nodes alone on link down */
@@ -570,16 +547,9 @@ lpfc_cleanup_rpis(struct lpfc_vport *vport, int remove)
 }
 
 static void
-lpfc_linkdown_port(struct lpfc_vport *vport)
+lpfc_port_link_failure(struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp, *next_ndlp;
-	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-
-	fc_host_post_event(shost, fc_get_event_number(), FCH_EVT_LINKDOWN, 0);
-
-	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
-		"Link Down:       state:x%x rtry:x%x flg:x%x",
-		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
 
 	/* Cleanup any outstanding RSCN activity */
 	lpfc_els_flush_rscn(vport);
@@ -596,6 +566,21 @@ lpfc_linkdown_port(struct lpfc_vport *vport)
 
 	/* Turn off discovery timer if its running */
 	lpfc_can_disctmo(vport);
+}
+
+static void
+lpfc_linkdown_port(struct lpfc_vport *vport)
+{
+	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
+
+	fc_host_post_event(shost, fc_get_event_number(), FCH_EVT_LINKDOWN, 0);
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+		"Link Down:       state:x%x rtry:x%x flg:x%x",
+		vport->port_state, vport->fc_ns_retry, vport->fc_flag);
+
+	lpfc_port_link_failure(vport);
+
 }
 
 int
@@ -851,8 +836,6 @@ lpfc_mbx_cmpl_local_config_link(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * LPFC_FLOGI while waiting for FLOGI cmpl
 	 */
 	if (vport->port_state != LPFC_FLOGI) {
-		vport->port_state = LPFC_FLOGI;
-		lpfc_set_disctmo(vport);
 		lpfc_initial_flogi(vport);
 	}
 	return;
@@ -1622,6 +1605,16 @@ lpfc_nlp_set_state(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		ndlp->nlp_type &= ~NLP_FC_NODE;
 	}
 
+	if ((old_state == NLP_STE_UNUSED_NODE) &&
+	    (state != NLP_STE_UNUSED_NODE) &&
+	    (ndlp->nlp_flag & NLP_DELAYED_RM)) {
+		/* We are using the ndlp after all, so reverse
+		 * the delayed removal of it.
+		 */
+		ndlp->nlp_flag &= ~NLP_DELAYED_RM;
+		lpfc_nlp_get(ndlp);
+	}
+
 	if (list_empty(&ndlp->nlp_listp)) {
 		spin_lock_irq(shost->host_lock);
 		list_add_tail(&ndlp->nlp_listp, &vport->fc_nodes);
@@ -1654,7 +1647,9 @@ void
 lpfc_drop_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 {
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNUSED_NODE);
-	lpfc_nlp_put(ndlp);
+	if (!(ndlp->nlp_flag & NLP_DELAYED_RM))
+		lpfc_nlp_put(ndlp);
+	return;
 }
 
 /*
@@ -1974,11 +1969,6 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		list_del_init(&ndlp->els_retry_evt.evt_listp);
 	if (!list_empty(&ndlp->dev_loss_evt.evt_listp))
 		list_del_init(&ndlp->dev_loss_evt.evt_listp);
-
-	if (!list_empty(&ndlp->dev_loss_evt.evt_listp)) {
-		list_del_init(&ndlp->dev_loss_evt.evt_listp);
-		complete((struct completion *)(ndlp->dev_loss_evt.evt_arg2));
-	}
 
 	lpfc_unreg_rpi(vport, ndlp);
 
@@ -2418,7 +2408,6 @@ lpfc_disc_flush_list(struct lpfc_vport *vport)
 			if (ndlp->nlp_state == NLP_STE_PLOGI_ISSUE ||
 			    ndlp->nlp_state == NLP_STE_ADISC_ISSUE) {
 				lpfc_free_tx(phba, ndlp);
-				lpfc_nlp_put(ndlp);
 			}
 		}
 	}
@@ -2516,8 +2505,6 @@ lpfc_disc_timeout_handler(struct lpfc_vport *vport)
 			}
 		}
 		if (vport->port_state != LPFC_FLOGI) {
-			vport->port_state = LPFC_FLOGI;
-			lpfc_set_disctmo(vport);
 			lpfc_initial_flogi(vport);
 		}
 		break;
@@ -2828,6 +2815,9 @@ lpfc_nlp_init(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	return;
 }
 
+/* This routine releases all resources associated with a specifc NPort's ndlp
+ * and mempool_free's the nodelist.
+ */
 static void
 lpfc_nlp_release(struct kref *kref)
 {
@@ -2842,16 +2832,57 @@ lpfc_nlp_release(struct kref *kref)
 	mempool_free(ndlp, ndlp->vport->phba->nlp_mem_pool);
 }
 
+/* This routine bumps the reference count for a ndlp structure to ensure
+ * that one discovery thread won't free a ndlp while another discovery thread
+ * is using it.
+ */
 struct lpfc_nodelist *
 lpfc_nlp_get(struct lpfc_nodelist *ndlp)
 {
-	if (ndlp)
+	if (ndlp) {
+		lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+			"node get:        did:x%x flg:x%x refcnt:x%x",
+			ndlp->nlp_DID, ndlp->nlp_flag,
+			atomic_read(&ndlp->kref.refcount));
 		kref_get(&ndlp->kref);
+	}
 	return ndlp;
 }
 
+
+/* This routine decrements the reference count for a ndlp structure. If the
+ * count goes to 0, this indicates the the associated nodelist should be freed.
+ */
 int
 lpfc_nlp_put(struct lpfc_nodelist *ndlp)
 {
+	if (ndlp) {
+		lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+		"node put:        did:x%x flg:x%x refcnt:x%x",
+			ndlp->nlp_DID, ndlp->nlp_flag,
+			atomic_read(&ndlp->kref.refcount));
+	}
 	return ndlp ? kref_put(&ndlp->kref, lpfc_nlp_release) : 0;
 }
+
+/* This routine free's the specified nodelist if it is not in use
+ * by any other discovery thread. This routine returns 1 if the ndlp
+ * is not being used by anyone and has been freed. A return value of
+ * 0 indicates it is being used by another discovery thread and the
+ * refcount is left unchanged.
+ */
+int
+lpfc_nlp_not_used(struct lpfc_nodelist *ndlp)
+{
+	lpfc_debugfs_disc_trc(ndlp->vport, LPFC_DISC_TRC_NODE,
+		"node not used:   did:x%x flg:x%x refcnt:x%x",
+		ndlp->nlp_DID, ndlp->nlp_flag,
+		atomic_read(&ndlp->kref.refcount));
+
+	if (atomic_read(&ndlp->kref.refcount) == 1) {
+		lpfc_nlp_put(ndlp);
+		return 1;
+	}
+	return 0;
+}
+

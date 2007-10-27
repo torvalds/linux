@@ -458,7 +458,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint32_t Size)
 			    ((lpfc_find_vport_by_did(phba, Did) == NULL) ||
 			     vport->cfg_peer_port_login)) {
 				if ((vport->port_type != LPFC_NPIV_PORT) ||
-				    (!vport->ct_flags & FC_CT_RFF_ID) ||
+				    (!(vport->ct_flags & FC_CT_RFF_ID)) ||
 				    (!vport->cfg_restrict_login)) {
 					ndlp = lpfc_setup_disc_node(vport, Did);
 					if (ndlp) {
@@ -854,8 +854,16 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS)
-		vport->ct_flags |= FC_CT_RFT_ID;
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		struct lpfc_dmabuf *outp;
+		struct lpfc_sli_ct_request *CTrsp;
+
+		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		if (CTrsp->CommandResponse.bits.CmdRsp ==
+		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+			vport->ct_flags |= FC_CT_RFT_ID;
+	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
@@ -867,8 +875,16 @@ lpfc_cmpl_ct_cmd_rnn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS)
-		vport->ct_flags |= FC_CT_RNN_ID;
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		struct lpfc_dmabuf *outp;
+		struct lpfc_sli_ct_request *CTrsp;
+
+		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		if (CTrsp->CommandResponse.bits.CmdRsp ==
+		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+			vport->ct_flags |= FC_CT_RNN_ID;
+	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
@@ -880,8 +896,16 @@ lpfc_cmpl_ct_cmd_rspn_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS)
-		vport->ct_flags |= FC_CT_RSPN_ID;
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		struct lpfc_dmabuf *outp;
+		struct lpfc_sli_ct_request *CTrsp;
+
+		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		if (CTrsp->CommandResponse.bits.CmdRsp ==
+		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+			vport->ct_flags |= FC_CT_RSPN_ID;
+	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
@@ -893,8 +917,16 @@ lpfc_cmpl_ct_cmd_rsnn_nn(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS)
-		vport->ct_flags |= FC_CT_RSNN_NN;
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		struct lpfc_dmabuf *outp;
+		struct lpfc_sli_ct_request *CTrsp;
+
+		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		if (CTrsp->CommandResponse.bits.CmdRsp ==
+		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+			vport->ct_flags |= FC_CT_RSNN_NN;
+	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }
@@ -918,8 +950,16 @@ lpfc_cmpl_ct_cmd_rff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp = &rspiocb->iocb;
 	struct lpfc_vport *vport = cmdiocb->vport;
 
-	if (irsp->ulpStatus == IOSTAT_SUCCESS)
-		vport->ct_flags |= FC_CT_RFF_ID;
+	if (irsp->ulpStatus == IOSTAT_SUCCESS) {
+		struct lpfc_dmabuf *outp;
+		struct lpfc_sli_ct_request *CTrsp;
+
+		outp = (struct lpfc_dmabuf *) cmdiocb->context2;
+		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
+		if (CTrsp->CommandResponse.bits.CmdRsp ==
+		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC))
+			vport->ct_flags |= FC_CT_RFF_ID;
+	}
 	lpfc_cmpl_ct(phba, cmdiocb, rspiocb);
 	return;
 }

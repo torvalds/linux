@@ -125,15 +125,26 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	pmb->vport = vport;
 	rc = lpfc_sli_issue_mbox_wait(phba, pmb, phba->fc_ratov * 2);
 	if (rc != MBX_SUCCESS) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT | LOG_VPORT,
-				 "1818 VPort failed init, mbxCmd x%x "
-				 "READ_SPARM mbxStatus x%x, rc = x%x\n",
-				 mb->mbxCommand, mb->mbxStatus, rc);
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-		if (rc != MBX_TIMEOUT)
-			mempool_free(pmb, phba->mbox_mem_pool);
-		return -EIO;
+		if (signal_pending(current)) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT | LOG_VPORT,
+					 "1830 Signal aborted mbxCmd x%x\n",
+					 mb->mbxCommand);
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+			if (rc != MBX_TIMEOUT)
+				mempool_free(pmb, phba->mbox_mem_pool);
+			return -EINTR;
+		} else {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT | LOG_VPORT,
+					 "1818 VPort failed init, mbxCmd x%x "
+					 "READ_SPARM mbxStatus x%x, rc = x%x\n",
+					 mb->mbxCommand, mb->mbxStatus, rc);
+			lpfc_mbuf_free(phba, mp->virt, mp->phys);
+			kfree(mp);
+			if (rc != MBX_TIMEOUT)
+				mempool_free(pmb, phba->mbox_mem_pool);
+			return -EIO;
+		}
 	}
 
 	memcpy(&vport->fc_sparam, mp->virt, sizeof (struct serv_parm));
@@ -204,6 +215,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	int instance;
 	int vpi;
 	int rc = VPORT_ERROR;
+	int status;
 
 	if ((phba->sli_rev < 3) ||
 		!(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)) {
@@ -248,13 +260,19 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	vport->vpi = vpi;
 	lpfc_debugfs_initialize(vport);
 
-	if (lpfc_vport_sparm(phba, vport)) {
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
-				 "1813 Create VPORT failed. "
-				 "Cannot get sparam\n");
+	if ((status = lpfc_vport_sparm(phba, vport))) {
+		if (status == -EINTR) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+					 "1831 Create VPORT Interrupted.\n");
+			rc = VPORT_ERROR;
+		} else {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
+					 "1813 Create VPORT failed. "
+					 "Cannot get sparam\n");
+			rc = VPORT_NORESOURCES;
+		}
 		lpfc_free_vpi(phba, vpi);
 		destroy_port(vport);
-		rc = VPORT_NORESOURCES;
 		goto error_out;
 	}
 

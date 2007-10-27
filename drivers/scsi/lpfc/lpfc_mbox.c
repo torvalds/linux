@@ -288,8 +288,10 @@ lpfc_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, int vpi)
 
 	/* Get a buffer to hold the HBAs Service Parameters */
 
-	if (((mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == 0) ||
-	    ((mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys))) == 0)) {
+	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
+	if (mp)
+		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp || !mp->virt) {
 		kfree(mp);
 		mb->mbxCommand = MBX_READ_SPARM64;
 		/* READ_SPARAM: no buffers */
@@ -387,8 +389,10 @@ lpfc_reg_login(struct lpfc_hba *phba, uint16_t vpi, uint32_t did,
 	mb->mbxOwner = OWN_HOST;
 
 	/* Get a buffer to hold NPorts Service Parameters */
-	if (((mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == NULL) ||
-	    ((mp->virt = lpfc_mbuf_alloc(phba, 0, &(mp->phys))) == 0)) {
+	mp = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL);
+	if (mp)
+		mp->virt = lpfc_mbuf_alloc(phba, 0, &mp->phys);
+	if (!mp || !mp->virt) {
 		kfree(mp);
 		mb->mbxCommand = MBX_REG_LOGIN64;
 		/* REG_LOGIN: no buffers */

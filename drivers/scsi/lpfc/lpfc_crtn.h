@@ -68,6 +68,7 @@ int lpfc_check_sli_ndlp(struct lpfc_hba *, struct lpfc_sli_ring *,
 void lpfc_nlp_init(struct lpfc_vport *, struct lpfc_nodelist *, uint32_t);
 struct lpfc_nodelist *lpfc_nlp_get(struct lpfc_nodelist *);
 int  lpfc_nlp_put(struct lpfc_nodelist *);
+int  lpfc_nlp_not_used(struct lpfc_nodelist *ndlp);
 struct lpfc_nodelist *lpfc_setup_disc_node(struct lpfc_vport *, uint32_t);
 void lpfc_disc_list_loopmap(struct lpfc_vport *);
 void lpfc_disc_start(struct lpfc_vport *);
@@ -260,6 +261,7 @@ extern struct class_device_attribute *lpfc_vport_attrs[];
 extern struct scsi_host_template lpfc_template;
 extern struct scsi_host_template lpfc_vport_template;
 extern struct fc_function_template lpfc_transport_functions;
+extern struct fc_function_template lpfc_vport_transport_functions;
 extern int lpfc_sli_mode;
 extern int lpfc_enable_npiv;
 
