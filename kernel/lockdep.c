@@ -2424,7 +2424,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 		return 0;
 
 	/*
-	 * Calculate the chain hash: it's the combined has of all the
+	 * Calculate the chain hash: it's the combined hash of all the
 	 * lock keys along the dependency chain. We save the hash value
 	 * at every step so that we can get the current hash easily
 	 * after unlock. The chain hash is then used to cache dependency
