@@ -708,10 +708,4 @@ struct smp_ops smp_ops = {
 	.smp_send_reschedule = native_smp_send_reschedule,
 	.smp_call_function_mask = native_smp_call_function_mask,
 };
-
-int smp_call_function_mask(cpumask_t mask, void (*func) (void *info),
-			   void *info, int wait)
-{
-	return smp_ops.smp_call_function_mask(mask, func, info, wait);
-}
-EXPORT_SYMBOL(smp_call_function_mask);
+EXPORT_SYMBOL_GPL(smp_ops);
