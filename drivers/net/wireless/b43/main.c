@@ -75,14 +75,6 @@ module_param_named(bad_frames_preempt, modparam_bad_frames_preempt, int, 0444);
 MODULE_PARM_DESC(bad_frames_preempt,
 		 "enable(1) / disable(0) Bad Frames Preemption");
 
-static int modparam_short_retry = B43_DEFAULT_SHORT_RETRY_LIMIT;
-module_param_named(short_retry, modparam_short_retry, int, 0444);
-MODULE_PARM_DESC(short_retry, "Short-Retry-Limit (0 - 15)");
-
-static int modparam_long_retry = B43_DEFAULT_LONG_RETRY_LIMIT;
-module_param_named(long_retry, modparam_long_retry, int, 0444);
-MODULE_PARM_DESC(long_retry, "Long-Retry-Limit (0 - 15)");
-
 static char modparam_fwpostfix[16];
 module_param_string(fwpostfix, modparam_fwpostfix, 16, 0444);
 MODULE_PARM_DESC(fwpostfix, "Postfix for the .fw files to load.");
@@ -3257,6 +3249,22 @@ static void b43_imcfglo_timeouts_workaround(struct b43_wldev *dev)
 #endif /* CONFIG_SSB_DRIVER_PCICORE */
 }
 
+/* Write the short and long frame retry limit values. */
+static void b43_set_retry_limits(struct b43_wldev *dev,
+				 unsigned int short_retry,
+				 unsigned int long_retry)
+{
+	/* The retry limit is a 4-bit counter. Enforce this to avoid overflowing
+	 * the chip-internal counter. */
+	short_retry = min(short_retry, (unsigned int)0xF);
+	long_retry = min(long_retry, (unsigned int)0xF);
+
+	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_SRLIMIT,
+			short_retry);
+	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_LRLIMIT,
+			long_retry);
+}
+
 /* Shutdown a wireless core */
 /* Locking: wl->mutex */
 static void b43_wireless_core_exit(struct b43_wldev *dev)
@@ -3342,15 +3350,8 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	}
 	b43_hf_write(dev, hf);
 
-	/* Short/Long Retry Limit.
-	 * The retry-limit is a 4-bit counter. Enforce this to avoid overflowing
-	 * the chip-internal counter.
-	 */
-	tmp = limit_value(modparam_short_retry, 0, 0xF);
-	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_SRLIMIT, tmp);
-	tmp = limit_value(modparam_long_retry, 0, 0xF);
-	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_LRLIMIT, tmp);
-
+	b43_set_retry_limits(dev, B43_DEFAULT_SHORT_RETRY_LIMIT,
+			     B43_DEFAULT_LONG_RETRY_LIMIT);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_SFFBLIM, 3);
 	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_LFFBLIM, 2);
 
@@ -3533,19 +3534,40 @@ static void b43_stop(struct ieee80211_hw *hw)
 	mutex_unlock(&wl->mutex);
 }
 
+static int b43_op_set_retry_limit(struct ieee80211_hw *hw,
+				  u32 short_retry_limit, u32 long_retry_limit)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev;
+	int err = 0;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (unlikely(!dev || (b43_status(dev) < B43_STAT_INITIALIZED))) {
+		err = -ENODEV;
+		goto out_unlock;
+	}
+	b43_set_retry_limits(dev, short_retry_limit, long_retry_limit);
+out_unlock:
+	mutex_unlock(&wl->mutex);
+
+	return err;
+}
+
 static const struct ieee80211_ops b43_hw_ops = {
-	.tx = b43_tx,
-	.conf_tx = b43_conf_tx,
-	.add_interface = b43_add_interface,
-	.remove_interface = b43_remove_interface,
-	.config = b43_dev_config,
-	.config_interface = b43_config_interface,
-	.configure_filter = b43_configure_filter,
-	.set_key = b43_dev_set_key,
-	.get_stats = b43_get_stats,
-	.get_tx_stats = b43_get_tx_stats,
-	.start = b43_start,
-	.stop = b43_stop,
+	.tx			= b43_tx,
+	.conf_tx		= b43_conf_tx,
+	.add_interface		= b43_add_interface,
+	.remove_interface	= b43_remove_interface,
+	.config			= b43_dev_config,
+	.config_interface	= b43_config_interface,
+	.configure_filter	= b43_configure_filter,
+	.set_key		= b43_dev_set_key,
+	.get_stats		= b43_get_stats,
+	.get_tx_stats		= b43_get_tx_stats,
+	.start			= b43_start,
+	.stop			= b43_stop,
+	.set_retry_limit	= b43_op_set_retry_limit,
 };
 
 /* Hard-reset the chip. Do not call this directly.

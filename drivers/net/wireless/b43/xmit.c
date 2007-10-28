@@ -294,6 +294,8 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 		mac_ctl |= B43_TX4_MAC_STMSDU;
 	if (phy->type == B43_PHYTYPE_A)
 		mac_ctl |= B43_TX4_MAC_5GHZ;
+	if (txctl->flags & IEEE80211_TXCTL_LONG_RETRY_LIMIT)
+		mac_ctl |= B43_TX4_MAC_LONGFRAME;
 
 	/* Generate the RTS or CTS-to-self frame */
 	if ((txctl->flags & IEEE80211_TXCTL_USE_RTS_CTS) ||
@@ -342,7 +344,6 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 			    b43_plcp_get_ratecode_cck(rts_rate);
 		if (rts_rate_fb_ofdm)
 			extra_ft |= B43_TX4_EFT_RTSFBOFDM;
-		mac_ctl |= B43_TX4_MAC_LONGFRAME;
 	}
 
 	/* Magic cookie */
