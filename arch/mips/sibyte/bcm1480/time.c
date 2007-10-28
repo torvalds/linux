@@ -37,8 +37,6 @@
 #define IMR_IP3_VAL	K_BCM1480_INT_MAP_I1
 #define IMR_IP4_VAL	K_BCM1480_INT_MAP_I2
 
-extern int bcm1480_steal_irq(int irq);
-
 /*
  * The general purpose timer ticks at 1MHz independent if
  * the rest of the system
@@ -142,7 +140,6 @@ void __cpuinit sb1480_clockevent_init(void)
 			R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) + (irq << 3)));
 
 	bcm1480_unmask_irq(cpu, irq);
-	bcm1480_steal_irq(irq);
 
 	action->handler	= sibyte_counter_handler;
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;

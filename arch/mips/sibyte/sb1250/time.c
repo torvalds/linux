@@ -50,8 +50,6 @@
 #define SB1250_HPT_VALUE	M_SCD_TIMER_CNT /* max value */
 
 
-extern int sb1250_steal_irq(int irq);
-
 /*
  * The general purpose timer ticks at 1 Mhz independent if
  * the rest of the system
@@ -159,7 +157,6 @@ void __cpuinit sb1250_clockevent_init(void)
 	cd->cpumask = cpumask_of_cpu(0);
 
 	sb1250_unmask_irq(cpu, irq);
-	sb1250_steal_irq(irq);
 
 	action->handler	= sibyte_counter_handler;
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;
