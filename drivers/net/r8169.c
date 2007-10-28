@@ -392,7 +392,9 @@ struct rtl8169_private {
 	void __iomem *mmio_addr;	/* memory map physical address */
 	struct pci_dev *pci_dev;	/* Index of PCI device */
 	struct net_device *dev;
+#ifdef CONFIG_R8169_NAPI
 	struct napi_struct napi;
+#endif
 	spinlock_t lock;		/* spin lock flag */
 	u32 msg_enable;
 	int chipset;
@@ -3010,7 +3012,9 @@ core_down:
 	synchronize_irq(dev->irq);
 
 	if (!poll_locked) {
+#ifdef CONFIG_R8169_NAPI
 		napi_disable(&tp->napi);
+#endif
 		poll_locked++;
 	}
 
