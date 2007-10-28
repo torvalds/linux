@@ -388,19 +388,20 @@ int rfkill_register(struct rfkill *rfkill)
 	if (!rfkill->toggle_radio)
 		return -EINVAL;
 
+	snprintf(dev->bus_id, sizeof(dev->bus_id),
+		 "rfkill%ld", (long)atomic_inc_return(&rfkill_no) - 1);
+
+	rfkill_led_trigger_register(rfkill);
+
 	error = rfkill_add_switch(rfkill);
 	if (error)
 		return error;
-
-	snprintf(dev->bus_id, sizeof(dev->bus_id),
-		 "rfkill%ld", (long)atomic_inc_return(&rfkill_no) - 1);
 
 	error = device_add(dev);
 	if (error) {
 		rfkill_remove_switch(rfkill);
 		return error;
 	}
-	rfkill_led_trigger_register(rfkill);
 
 	return 0;
 }
@@ -416,9 +417,9 @@ EXPORT_SYMBOL(rfkill_register);
  */
 void rfkill_unregister(struct rfkill *rfkill)
 {
-	rfkill_led_trigger_unregister(rfkill);
 	device_del(&rfkill->dev);
 	rfkill_remove_switch(rfkill);
+	rfkill_led_trigger_unregister(rfkill);
 	put_device(&rfkill->dev);
 }
 EXPORT_SYMBOL(rfkill_unregister);
