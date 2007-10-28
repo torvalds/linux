@@ -1,8 +1,9 @@
-obj-$(CONFIG_MAC80211) += mac80211.o rc80211_simple.o
+obj-$(CONFIG_MAC80211) += mac80211.o
 
 mac80211-objs-$(CONFIG_MAC80211_LEDS) += ieee80211_led.o
 mac80211-objs-$(CONFIG_MAC80211_DEBUGFS) += debugfs.o debugfs_sta.o debugfs_netdev.o debugfs_key.o
 mac80211-objs-$(CONFIG_NET_SCHED) += wme.o
+mac80211-objs-$(CONFIG_MAC80211_RCSIMPLE) += rc80211_simple.o
 
 mac80211-objs := \
 	ieee80211.o \
