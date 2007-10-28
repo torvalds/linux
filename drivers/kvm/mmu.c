@@ -1347,6 +1347,42 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 	}
 }
 
+int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
+{
+	int r;
+	enum emulation_result er;
+
+	mutex_lock(&vcpu->kvm->lock);
+	r = vcpu->mmu.page_fault(vcpu, cr2, error_code);
+	if (r < 0)
+		goto out;
+
+	if (!r) {
+		r = 1;
+		goto out;
+	}
+
+	er = emulate_instruction(vcpu, vcpu->run, cr2, error_code, 0);
+	mutex_unlock(&vcpu->kvm->lock);
+
+	switch (er) {
+	case EMULATE_DONE:
+		return 1;
+	case EMULATE_DO_MMIO:
+		++vcpu->stat.mmio_exits;
+		return 0;
+	case EMULATE_FAIL:
+		kvm_report_emulation_failure(vcpu, "pagetable");
+		return 1;
+	default:
+		BUG();
+	}
+out:
+	mutex_unlock(&vcpu->kvm->lock);
+	return r;
+}
+EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
+
 static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *page;

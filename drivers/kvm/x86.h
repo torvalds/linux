@@ -85,11 +85,7 @@ struct kvm_vcpu {
 	struct x86_emulate_ctxt emulate_ctxt;
 };
 
-static inline int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
-				     u32 error_code)
-{
-	return vcpu->mmu.page_fault(vcpu, gva, error_code);
-}
+int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code);
 
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {

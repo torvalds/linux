@@ -933,45 +933,14 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	struct kvm *kvm = svm->vcpu.kvm;
 	u64 fault_address;
 	u32 error_code;
-	enum emulation_result er;
-	int r;
 
 	if (!irqchip_in_kernel(kvm) &&
 		is_external_interrupt(exit_int_info))
 		push_irq(&svm->vcpu, exit_int_info & SVM_EVTINJ_VEC_MASK);
 
-	mutex_lock(&kvm->lock);
-
 	fault_address  = svm->vmcb->control.exit_info_2;
 	error_code = svm->vmcb->control.exit_info_1;
-	r = kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
-	if (r < 0) {
-		mutex_unlock(&kvm->lock);
-		return r;
-	}
-	if (!r) {
-		mutex_unlock(&kvm->lock);
-		return 1;
-	}
-	er = emulate_instruction(&svm->vcpu, kvm_run, fault_address,
-				 error_code, 0);
-	mutex_unlock(&kvm->lock);
-
-	switch (er) {
-	case EMULATE_DONE:
-		return 1;
-	case EMULATE_DO_MMIO:
-		++svm->vcpu.stat.mmio_exits;
-		return 0;
-	case EMULATE_FAIL:
-		kvm_report_emulation_failure(&svm->vcpu, "pagetable");
-		break;
-	default:
-		BUG();
-	}
-
-	kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
-	return 0;
+	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
 }
 
 static int ud_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)

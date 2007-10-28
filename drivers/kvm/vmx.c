@@ -1796,7 +1796,6 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	unsigned long cr2, rip;
 	u32 vect_info;
 	enum emulation_result er;
-	int r;
 
 	vect_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
 	intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
@@ -1834,33 +1833,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 	if (is_page_fault(intr_info)) {
 		cr2 = vmcs_readl(EXIT_QUALIFICATION);
-
-		mutex_lock(&vcpu->kvm->lock);
-		r = kvm_mmu_page_fault(vcpu, cr2, error_code);
-		if (r < 0) {
-			mutex_unlock(&vcpu->kvm->lock);
-			return r;
-		}
-		if (!r) {
-			mutex_unlock(&vcpu->kvm->lock);
-			return 1;
-		}
-
-		er = emulate_instruction(vcpu, kvm_run, cr2, error_code, 0);
-		mutex_unlock(&vcpu->kvm->lock);
-
-		switch (er) {
-		case EMULATE_DONE:
-			return 1;
-		case EMULATE_DO_MMIO:
-			++vcpu->stat.mmio_exits;
-			return 0;
-		case EMULATE_FAIL:
-			kvm_report_emulation_failure(vcpu, "pagetable");
-			break;
-		default:
-			BUG();
-		}
+		return kvm_mmu_page_fault(vcpu, cr2, error_code);
 	}
 
 	if (vcpu->rmode.active &&
