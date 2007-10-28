@@ -2810,18 +2810,25 @@ static int b43_dev_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			   struct ieee80211_key_conf *key)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
-	struct b43_wldev *dev = wl->current_dev;
+	struct b43_wldev *dev;
 	unsigned long flags;
 	u8 algorithm;
 	u8 index;
-	int err = -EINVAL;
+	int err;
 	DECLARE_MAC_BUF(mac);
 
 	if (modparam_nohwcrypt)
 		return -ENOSPC; /* User disabled HW-crypto */
 
-	if (!dev)
-		return -ENODEV;
+	mutex_lock(&wl->mutex);
+	spin_lock_irqsave(&wl->irq_lock, flags);
+
+	dev = wl->current_dev;
+	err = -ENODEV;
+	if (!dev || b43_status(dev) < B43_STAT_INITIALIZED)
+		goto out_unlock;
+
+	err = -EINVAL;
 	switch (key->alg) {
 	case ALG_WEP:
 		if (key->keylen == 5)
@@ -2837,20 +2844,11 @@ static int b43_dev_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	default:
 		B43_WARN_ON(1);
-		goto out;
-	}
-
-	index = (u8) (key->keyidx);
-	if (index > 3)
-		goto out;
-
-	mutex_lock(&wl->mutex);
-	spin_lock_irqsave(&wl->irq_lock, flags);
-
-	if (b43_status(dev) < B43_STAT_INITIALIZED) {
-		err = -ENODEV;
 		goto out_unlock;
 	}
+	index = (u8) (key->keyidx);
+	if (index > 3)
+		goto out_unlock;
 
 	switch (cmd) {
 	case SET_KEY:
