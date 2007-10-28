@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.20	Oct 1, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.21	Oct 23, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -433,7 +433,7 @@ static u32 *hpt37x_settings[NUM_ATA_CLOCKS] = {
 	sixty_six_base_hpt37x
 };
 
-static struct hpt_info hpt36x __devinitdata = {
+static const struct hpt_info hpt36x __devinitdata = {
 	.chip_name	= "HPT36x",
 	.chip_type	= HPT36x,
 	.udma_mask	= HPT366_ALLOW_ATA66_3 ? (HPT366_ALLOW_ATA66_4 ? ATA_UDMA4 : ATA_UDMA3) : ATA_UDMA2,
@@ -441,7 +441,7 @@ static struct hpt_info hpt36x __devinitdata = {
 	.settings	= hpt36x_settings
 };
 
-static struct hpt_info hpt370 __devinitdata = {
+static const struct hpt_info hpt370 __devinitdata = {
 	.chip_name	= "HPT370",
 	.chip_type	= HPT370,
 	.udma_mask	= HPT370_ALLOW_ATA100_5 ? ATA_UDMA5 : ATA_UDMA4,
@@ -449,7 +449,7 @@ static struct hpt_info hpt370 __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt370a __devinitdata = {
+static const struct hpt_info hpt370a __devinitdata = {
 	.chip_name	= "HPT370A",
 	.chip_type	= HPT370A,
 	.udma_mask	= HPT370_ALLOW_ATA100_5 ? ATA_UDMA5 : ATA_UDMA4,
@@ -457,7 +457,7 @@ static struct hpt_info hpt370a __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt374 __devinitdata = {
+static const struct hpt_info hpt374 __devinitdata = {
 	.chip_name	= "HPT374",
 	.chip_type	= HPT374,
 	.udma_mask	= ATA_UDMA5,
@@ -465,7 +465,7 @@ static struct hpt_info hpt374 __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt372 __devinitdata = {
+static const struct hpt_info hpt372 __devinitdata = {
 	.chip_name	= "HPT372",
 	.chip_type	= HPT372,
 	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -473,7 +473,7 @@ static struct hpt_info hpt372 __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt372a __devinitdata = {
+static const struct hpt_info hpt372a __devinitdata = {
 	.chip_name	= "HPT372A",
 	.chip_type	= HPT372A,
 	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -481,7 +481,7 @@ static struct hpt_info hpt372a __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt302 __devinitdata = {
+static const struct hpt_info hpt302 __devinitdata = {
 	.chip_name	= "HPT302",
 	.chip_type	= HPT302,
 	.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -489,7 +489,7 @@ static struct hpt_info hpt302 __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt371 __devinitdata = {
+static const struct hpt_info hpt371 __devinitdata = {
 	.chip_name	= "HPT371",
 	.chip_type	= HPT371,
 	.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -497,7 +497,7 @@ static struct hpt_info hpt371 __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt372n __devinitdata = {
+static const struct hpt_info hpt372n __devinitdata = {
 	.chip_name	= "HPT372N",
 	.chip_type	= HPT372N,
 	.udma_mask	= HPT372_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -505,7 +505,7 @@ static struct hpt_info hpt372n __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt302n __devinitdata = {
+static const struct hpt_info hpt302n __devinitdata = {
 	.chip_name	= "HPT302N",
 	.chip_type	= HPT302N,
 	.udma_mask	= HPT302_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -513,7 +513,7 @@ static struct hpt_info hpt302n __devinitdata = {
 	.settings	= hpt37x_settings
 };
 
-static struct hpt_info hpt371n __devinitdata = {
+static const struct hpt_info hpt371n __devinitdata = {
 	.chip_name	= "HPT371N",
 	.chip_type	= HPT371N,
 	.udma_mask	= HPT371_ALLOW_ATA133_6 ? ATA_UDMA6 : ATA_UDMA5,
@@ -1508,7 +1508,7 @@ static const struct ide_port_info hpt366_chipsets[] __devinitdata = {
  */
 static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	struct hpt_info *info = NULL;
+	const struct hpt_info *info = NULL;
 	struct pci_dev *dev2 = NULL;
 	struct ide_port_info d;
 	u8 idx = id->driver_data;
@@ -1522,7 +1522,7 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 		if (rev < 3)
 			info = &hpt36x;
 		else {
-			static struct hpt_info *hpt37x_info[] =
+			static const struct hpt_info *hpt37x_info[] =
 				{ &hpt370, &hpt370a, &hpt372, &hpt372n };
 
 			info = hpt37x_info[min_t(u8, rev, 6) - 3];
@@ -1552,7 +1552,7 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 	d.name = info->chip_name;
 	d.udma_mask = info->udma_mask;
 
-	pci_set_drvdata(dev, info);
+	pci_set_drvdata(dev, (void *)info);
 
 	if (info == &hpt36x || info == &hpt374)
 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
@@ -1560,7 +1560,7 @@ static int __devinit hpt366_init_one(struct pci_dev *dev, const struct pci_devic
 	if (dev2) {
 		int ret;
 
-		pci_set_drvdata(dev2, info);
+		pci_set_drvdata(dev2, (void *)info);
 
 		if (info == &hpt374)
 			hpt374_init(dev, dev2);

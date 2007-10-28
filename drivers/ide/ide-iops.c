@@ -582,9 +582,12 @@ EXPORT_SYMBOL_GPL(ide_in_drive_list);
 /*
  * Early UDMA66 devices don't set bit14 to 1, only bit13 is valid.
  * We list them here and depend on the device side cable detection for them.
+ *
+ * Some optical devices with the buggy firmwares have the same problem.
  */
 static const struct drive_list_entry ivb_list[] = {
 	{ "QUANTUM FIREBALLlct10 05"	, "A03.0900"	},
+	{ "TSSTcorp CDDVDW SH-S202J"	, "SB00"	},
 	{ NULL				, NULL		}
 };
 
