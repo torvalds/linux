@@ -2991,12 +2991,15 @@ static void rtl8169_down(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
-	unsigned int poll_locked = 0;
 	unsigned int intrmask;
 
 	rtl8169_delete_timer(dev);
 
 	netif_stop_queue(dev);
+
+#ifdef CONFIG_R8169_NAPI
+	napi_disable(&tp->napi);
+#endif
 
 core_down:
 	spin_lock_irq(&tp->lock);
@@ -3010,13 +3013,6 @@ core_down:
 	spin_unlock_irq(&tp->lock);
 
 	synchronize_irq(dev->irq);
-
-	if (!poll_locked) {
-#ifdef CONFIG_R8169_NAPI
-		napi_disable(&tp->napi);
-#endif
-		poll_locked++;
-	}
 
 	/* Give a racing hard_start_xmit a few cycles to complete. */
 	synchronize_sched();  /* FIXME: should this be synchronize_irq()? */
