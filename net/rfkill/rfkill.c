@@ -276,21 +276,17 @@ static struct class rfkill_class = {
 
 static int rfkill_add_switch(struct rfkill *rfkill)
 {
-	int retval;
+	int error;
 
-	retval = mutex_lock_interruptible(&rfkill_mutex);
-	if (retval)
-		return retval;
+	mutex_lock(&rfkill_mutex);
 
-	retval = rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type]);
-	if (retval)
-		goto out;
+	error = rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type]);
+	if (!error)
+		list_add_tail(&rfkill->node, &rfkill_list);
 
-	list_add_tail(&rfkill->node, &rfkill_list);
-
- out:
 	mutex_unlock(&rfkill_mutex);
-	return retval;
+
+	return error;
 }
 
 static void rfkill_remove_switch(struct rfkill *rfkill)
@@ -386,6 +382,8 @@ int rfkill_register(struct rfkill *rfkill)
 	int error;
 
 	if (!rfkill->toggle_radio)
+		return -EINVAL;
+	if (rfkill->type >= RFKILL_TYPE_MAX)
 		return -EINVAL;
 
 	snprintf(dev->bus_id, sizeof(dev->bus_id),
