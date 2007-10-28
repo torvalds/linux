@@ -63,8 +63,9 @@
 /* Destination is only written; never read. */
 #define Mov         (1<<7)
 #define BitOp       (1<<8)
+#define MemAbs      (1<<9)      /* Memory operand is absolute displacement */
 
-static u8 opcode_table[256] = {
+static u16 opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -134,8 +135,8 @@ static u8 opcode_table[256] = {
 	/* 0x90 - 0x9F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps, ImplicitOps, 0, 0,
 	/* 0xA0 - 0xA7 */
-	ByteOp | DstReg | SrcMem | Mov, DstReg | SrcMem | Mov,
-	ByteOp | DstMem | SrcReg | Mov, DstMem | SrcReg | Mov,
+	ByteOp | DstReg | SrcMem | Mov | MemAbs, DstReg | SrcMem | Mov | MemAbs,
+	ByteOp | DstMem | SrcReg | Mov | MemAbs, DstMem | SrcReg | Mov | MemAbs,
 	ByteOp | ImplicitOps | Mov, ImplicitOps | Mov,
 	ByteOp | ImplicitOps, ImplicitOps,
 	/* 0xA8 - 0xAF */
@@ -755,16 +756,6 @@ done_prefixes:
 				break;
 			}
 		}
-		if (!c->override_base)
-			c->override_base = &ctxt->ds_base;
-		if (mode == X86EMUL_MODE_PROT64 &&
-		    c->override_base != &ctxt->fs_base &&
-		    c->override_base != &ctxt->gs_base)
-			c->override_base = NULL;
-
-		if (c->override_base)
-			c->modrm_ea += *c->override_base;
-
 		if (rip_relative) {
 			c->modrm_ea += c->eip;
 			switch (c->d & SrcMask) {
@@ -781,12 +772,35 @@ done_prefixes:
 						c->modrm_ea += c->op_bytes;
 			}
 		}
-		if (c->ad_bytes != 8)
-			c->modrm_ea = (u32)c->modrm_ea;
 modrm_done:
 		;
+	} else if (c->d & MemAbs) {
+		switch (c->ad_bytes) {
+		case 2:
+			c->modrm_ea = insn_fetch(u16, 2, c->eip);
+			break;
+		case 4:
+			c->modrm_ea = insn_fetch(u32, 4, c->eip);
+			break;
+		case 8:
+			c->modrm_ea = insn_fetch(u64, 8, c->eip);
+			break;
+		}
+
 	}
 
+	if (!c->override_base)
+		c->override_base = &ctxt->ds_base;
+	if (mode == X86EMUL_MODE_PROT64 &&
+	    c->override_base != &ctxt->fs_base &&
+	    c->override_base != &ctxt->gs_base)
+		c->override_base = NULL;
+
+	if (c->override_base)
+		c->modrm_ea += *c->override_base;
+
+	if (c->ad_bytes != 8)
+		c->modrm_ea = (u32)c->modrm_ea;
 	/*
 	 * Decode and fetch the source operand: register, memory
 	 * or immediate.
@@ -1171,7 +1185,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	memcpy(c->regs, ctxt->vcpu->regs, sizeof c->regs);
 	saved_eip = c->eip;
 
-	if ((c->d & ModRM) && (c->modrm_mod != 3))
+	if (((c->d & ModRM) && (c->modrm_mod != 3)) || (c->d & MemAbs))
 		cr2 = c->modrm_ea;
 
 	if (c->src.type == OP_MEM) {
@@ -1326,13 +1340,9 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	case 0xa0 ... 0xa1:	/* mov */
 		c->dst.ptr = (unsigned long *)&c->regs[VCPU_REGS_RAX];
 		c->dst.val = c->src.val;
-		/* skip src displacement */
-		c->eip += c->ad_bytes;
 		break;
 	case 0xa2 ... 0xa3:	/* mov */
 		c->dst.val = (unsigned long)c->regs[VCPU_REGS_RAX];
-		/* skip c->dst displacement */
-		c->eip += c->ad_bytes;
 		break;
 	case 0xc0 ... 0xc1:
 		emulate_grp2(ctxt);
