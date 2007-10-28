@@ -61,15 +61,22 @@ static void b43_rfkill_poll(struct input_polled_dev *poll_dev)
 		mutex_unlock(&wl->mutex);
 }
 
-/* Called when the RFKILL toggled in software.
- * This is called without locking. */
+/* Called when the RFKILL toggled in software. */
 static int b43_rfkill_soft_toggle(void *data, enum rfkill_state state)
 {
 	struct b43_wldev *dev = data;
 	struct b43_wl *wl = dev->wl;
 	int err = 0;
 
-	mutex_lock(&wl->mutex);
+	/* When RFKILL is registered, it will call back into this callback.
+	 * wl->mutex will already be locked when this happens.
+	 * So first trylock. On contention check if we are in initialization.
+	 * Silently return if that happens to avoid a deadlock. */
+	if (mutex_trylock(&wl->mutex) == 0) {
+		if (b43_status(dev) < B43_STAT_INITIALIZED)
+			return 0;
+		mutex_lock(&wl->mutex);
+	}
 	if (b43_status(dev) < B43_STAT_INITIALIZED)
 		goto out_unlock;
 
@@ -89,7 +96,6 @@ static int b43_rfkill_soft_toggle(void *data, enum rfkill_state state)
 			b43_radio_turn_off(dev, 0);
 		break;
 	}
-
 out_unlock:
 	mutex_unlock(&wl->mutex);
 
