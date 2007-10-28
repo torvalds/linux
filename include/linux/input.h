@@ -527,6 +527,9 @@ struct input_absinfo {
 #define KEY_SPELLCHECK		0x1b0   /* AL Spell Check */
 #define KEY_LOGOFF		0x1b1   /* AL Logoff */
 
+#define KEY_DOLLAR		0x1b2
+#define KEY_EURO		0x1b3
+
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
 #define KEY_INS_LINE		0x1c2
