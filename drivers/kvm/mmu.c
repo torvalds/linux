@@ -1362,6 +1362,10 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
 		goto out;
 	}
 
+	r = mmu_topup_memory_caches(vcpu);
+	if (r)
+		goto out;
+
 	er = emulate_instruction(vcpu, vcpu->run, cr2, error_code, 0);
 	mutex_unlock(&vcpu->kvm->lock);
 
