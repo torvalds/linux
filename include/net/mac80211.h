@@ -706,11 +706,16 @@ enum ieee80211_hw_flags {
  *
  * @queues: number of available hardware transmit queues for
  *	data packets. WMM/QoS requires at least four.
+ *
+ * @rate_control_algorithm: rate control algorithm for this hardware.
+ *	If unset (NULL), the default algorithm will be used. Must be
+ *	set before calling ieee80211_register_hw().
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
 	struct wiphy *wiphy;
 	struct workqueue_struct *workqueue;
+	const char *rate_control_algorithm;
 	void *priv;
 	u32 flags;
 	unsigned int extra_tx_headroom;

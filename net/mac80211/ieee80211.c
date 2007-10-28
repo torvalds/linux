@@ -1072,7 +1072,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	ieee80211_debugfs_add_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
 	ieee80211_if_set_type(local->mdev, IEEE80211_IF_TYPE_AP);
 
-	result = ieee80211_init_rate_ctrl_alg(local, NULL);
+	result = ieee80211_init_rate_ctrl_alg(local,
+					      hw->rate_control_algorithm);
 	if (result < 0) {
 		printk(KERN_DEBUG "%s: Failed to initialize rate control "
 		       "algorithm\n", wiphy_name(local->hw.wiphy));
