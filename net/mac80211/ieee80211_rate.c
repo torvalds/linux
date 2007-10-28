@@ -28,13 +28,22 @@ int ieee80211_rate_control_register(struct rate_control_ops *ops)
 	if (!ops->name)
 		return -EINVAL;
 
+	mutex_lock(&rate_ctrl_mutex);
+	list_for_each_entry(alg, &rate_ctrl_algs, list) {
+		if (!strcmp(alg->ops->name, ops->name)) {
+			/* don't register an algorithm twice */
+			WARN_ON(1);
+			return -EALREADY;
+		}
+	}
+
 	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
 	if (alg == NULL) {
+		mutex_unlock(&rate_ctrl_mutex);
 		return -ENOMEM;
 	}
 	alg->ops = ops;
 
-	mutex_lock(&rate_ctrl_mutex);
 	list_add_tail(&alg->list, &rate_ctrl_algs);
 	mutex_unlock(&rate_ctrl_mutex);
 
