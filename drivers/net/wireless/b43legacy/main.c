@@ -2603,32 +2603,6 @@ out_unlock_mutex:
 	return err;
 }
 
-static int b43legacy_dev_set_key(struct ieee80211_hw *hw,
-				 enum set_key_cmd cmd,
-				 const u8 *local_addr, const u8 *addr,
-				 struct ieee80211_key_conf *key)
-{
-	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
-	struct b43legacy_wldev *dev = wl->current_dev;
-	unsigned long flags;
-	int err = -EOPNOTSUPP;
-	DECLARE_MAC_BUF(mac);
-
-	if (!dev)
-		return -ENODEV;
-	mutex_lock(&wl->mutex);
-	spin_lock_irqsave(&wl->irq_lock, flags);
-
-	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED) {
-		err = -ENODEV;
-	}
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
-	mutex_unlock(&wl->mutex);
-	b43legacydbg(wl, "Using software based encryption for "
-		     "mac: %s\n", print_mac(mac, addr));
-	return err;
-}
-
 static void b43legacy_configure_filter(struct ieee80211_hw *hw,
 				       unsigned int changed,
 				       unsigned int *fflags,
@@ -3287,7 +3261,6 @@ static const struct ieee80211_ops b43legacy_hw_ops = {
 	.remove_interface = b43legacy_remove_interface,
 	.config = b43legacy_dev_config,
 	.config_interface = b43legacy_config_interface,
-	.set_key = b43legacy_dev_set_key,
 	.configure_filter = b43legacy_configure_filter,
 	.get_stats = b43legacy_get_stats,
 	.get_tx_stats = b43legacy_get_tx_stats,
