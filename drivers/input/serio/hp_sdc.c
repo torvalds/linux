@@ -944,11 +944,7 @@ static int __init hp_sdc_init_hppa(struct parisc_device *d)
 
 #endif /* __hppa__ */
 
-#if !defined(__mc68000__) /* Link error on m68k! */
-static void __exit hp_sdc_exit(void)
-#else
 static void hp_sdc_exit(void)
-#endif
 {
 	write_lock_irq(&hp_sdc.lock);
 
