@@ -1068,7 +1068,7 @@ static void arcmsr_iop_message_wrote(struct AdapterControlBlock *acb)
 
 struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *acb)
 {
-	static struct QBUFFER __iomem *qbuffer;
+	struct QBUFFER __iomem *qbuffer = NULL;
 
 	switch (acb->adapter_type) {
 
@@ -1089,7 +1089,7 @@ struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *acb)
 
 static struct QBUFFER __iomem *arcmsr_get_iop_wqbuffer(struct AdapterControlBlock *acb)
 {
-	static struct QBUFFER __iomem *pqbuffer;
+	struct QBUFFER __iomem *pqbuffer = NULL;
 
 	switch (acb->adapter_type) {
 
