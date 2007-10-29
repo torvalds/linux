@@ -262,7 +262,7 @@ static int extract_package(struct acpi_battery *battery,
 			   union acpi_object *package,
 			   struct acpi_offsets *offsets, int num)
 {
-	int i, *x;
+	int i;
 	union acpi_object *element;
 	if (package->type != ACPI_TYPE_PACKAGE)
 		return -EFAULT;
@@ -271,16 +271,21 @@ static int extract_package(struct acpi_battery *battery,
 			return -EFAULT;
 		element = &package->package.elements[i];
 		if (offsets[i].mode) {
-			if (element->type != ACPI_TYPE_STRING &&
-			    element->type != ACPI_TYPE_BUFFER)
-				return -EFAULT;
-			strncpy((u8 *)battery + offsets[i].offset,
-				element->string.pointer, 32);
+			u8 *ptr = (u8 *)battery + offsets[i].offset;
+			if (element->type == ACPI_TYPE_STRING ||
+			    element->type == ACPI_TYPE_BUFFER)
+				strncpy(ptr, element->string.pointer, 32);
+			else if (element->type == ACPI_TYPE_INTEGER) {
+				strncpy(ptr, (u8 *)&element->integer.value,
+					sizeof(acpi_integer));
+				ptr[sizeof(acpi_integer)] = 0;
+			} else return -EFAULT;
 		} else {
-			if (element->type != ACPI_TYPE_INTEGER)
-				return -EFAULT;
-			x = (int *)((u8 *)battery + offsets[i].offset);
-			*x = element->integer.value;
+			if (element->type == ACPI_TYPE_INTEGER) {
+				int *x = (int *)((u8 *)battery +
+						offsets[i].offset);
+				*x = element->integer.value;
+			} else return -EFAULT;
 		}
 	}
 	return 0;
