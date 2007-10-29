@@ -1174,7 +1174,7 @@ mac_addr_valid(uint8_t *mac_addr)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-boolean_t
+static boolean_t
 ixgb_link_reset(struct ixgb_hw *hw)
 {
 	boolean_t link_status = FALSE;
@@ -1205,7 +1205,7 @@ ixgb_link_reset(struct ixgb_hw *hw)
  *
  * hw - Struct containing variables accessed by shared code
  *****************************************************************************/
-void
+static void
 ixgb_optics_reset(struct ixgb_hw *hw)
 {
 	if (hw->phy_type == ixgb_phy_type_txn17401) {
