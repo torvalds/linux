@@ -59,15 +59,30 @@ static int parse_redboot_partitions(struct mtd_info *master,
 	static char nullstring[] = "unallocated";
 #endif
 
+	if ( directory < 0 ) {
+		offset = master->size + directory * master->erasesize;
+		while (master->block_isbad && 
+		       master->block_isbad(master, offset)) {
+			if (!offset) {
+			nogood:
+				printk(KERN_NOTICE "Failed to find a non-bad block to check for RedBoot partition table\n");
+				return -EIO;
+			}
+			offset -= master->erasesize;
+		}
+	} else {
+		offset = directory * master->erasesize;
+		while (master->block_isbad && 
+		       master->block_isbad(master, offset)) {
+			offset += master->erasesize;
+			if (offset == master->size)
+				goto nogood;
+		}
+	}
 	buf = vmalloc(master->erasesize);
 
 	if (!buf)
 		return -ENOMEM;
-
-	if ( directory < 0 )
-		offset = master->size + directory*master->erasesize;
-	else
-		offset = directory*master->erasesize;
 
 	printk(KERN_NOTICE "Searching for RedBoot partition table in %s at offset 0x%lx\n",
 	       master->name, offset);
