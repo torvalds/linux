@@ -745,7 +745,7 @@ static char *fault_reason_strings[] =
 	"non-zero reserved fields in PTE",
 	"Unknown"
 };
-#define MAX_FAULT_REASON_IDX 	ARRAY_SIZE(fault_reason_strings)
+#define MAX_FAULT_REASON_IDX 	ARRAY_SIZE(fault_reason_strings) - 1
 
 char *dmar_get_fault_reason(u8 fault_reason)
 {
@@ -995,7 +995,6 @@ static struct intel_iommu *alloc_iommu(struct dmar_drhd_unit *drhd)
 	return iommu;
 error_unmap:
 	iounmap(iommu->reg);
-	iommu->reg = 0;
 error:
 	kfree(iommu);
 	return NULL;
@@ -1808,7 +1807,7 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 	if (!domain) {
 		printk(KERN_ERR
 			"Allocating domain for %s failed", pci_name(pdev));
-		return 0;
+		return NULL;
 	}
 
 	/* make sure context mapping is ok */
@@ -1818,7 +1817,7 @@ get_valid_domain_for_dev(struct pci_dev *pdev)
 			printk(KERN_ERR
 				"Domain context map for %s failed",
 				pci_name(pdev));
-			return 0;
+			return NULL;
 		}
 	}
 
