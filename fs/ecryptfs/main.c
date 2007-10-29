@@ -798,7 +798,7 @@ static int do_sysfs_registration(void)
 {
 	int rc;
 
-	ecryptfs_kset = kset_create_and_add("ecryptfs", NULL, &fs_subsys.kobj);
+	ecryptfs_kset = kset_create_and_add("ecryptfs", NULL, fs_kobj);
 	if (!ecryptfs_kset) {
 		printk(KERN_ERR "Unable to create ecryptfs kset\n");
 		rc = -ENOMEM;

@@ -549,7 +549,7 @@ int gfs2_sys_init(void)
 	gfs2_sys_margs = NULL;
 	spin_lock_init(&gfs2_sys_margs_lock);
 	kobject_set_name(&gfs2_kset.kobj, "gfs2");
-	gfs2_kset.kobj.kset = &fs_subsys;
+	gfs2_kset.kobj.parent = fs_kobj;
 	return kset_register(&gfs2_kset);
 }
 
