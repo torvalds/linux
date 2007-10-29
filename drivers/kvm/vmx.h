@@ -89,6 +89,8 @@ enum vmcs_field {
 	TSC_OFFSET_HIGH                 = 0x00002011,
 	VIRTUAL_APIC_PAGE_ADDR          = 0x00002012,
 	VIRTUAL_APIC_PAGE_ADDR_HIGH     = 0x00002013,
+	APIC_ACCESS_ADDR		= 0x00002014,
+	APIC_ACCESS_ADDR_HIGH		= 0x00002015,
 	VMCS_LINK_POINTER               = 0x00002800,
 	VMCS_LINK_POINTER_HIGH          = 0x00002801,
 	GUEST_IA32_DEBUGCTL             = 0x00002802,
@@ -214,6 +216,7 @@ enum vmcs_field {
 #define EXIT_REASON_MSR_WRITE           32
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
 #define EXIT_REASON_TPR_BELOW_THRESHOLD 43
+#define EXIT_REASON_APIC_ACCESS         44
 
 /*
  * Interruption-information format
@@ -306,5 +309,7 @@ enum vmcs_field {
 #define MSR_IA32_FEATURE_CONTROL                0x3a
 #define MSR_IA32_FEATURE_CONTROL_LOCKED         0x1
 #define MSR_IA32_FEATURE_CONTROL_VMXON_ENABLED  0x4
+
+#define APIC_ACCESS_PAGE_PRIVATE_MEMSLOT	9
 
 #endif

@@ -86,6 +86,7 @@ static struct vmcs_config {
 	u32 revision_id;
 	u32 pin_based_exec_ctrl;
 	u32 cpu_based_exec_ctrl;
+	u32 cpu_based_2nd_exec_ctrl;
 	u32 vmexit_ctrl;
 	u32 vmentry_ctrl;
 } vmcs_config;
@@ -177,6 +178,29 @@ static inline int cpu_has_vmx_tpr_shadow(void)
 static inline int vm_need_tpr_shadow(struct kvm *kvm)
 {
 	return ((cpu_has_vmx_tpr_shadow()) && (irqchip_in_kernel(kvm)));
+}
+
+static inline int cpu_has_secondary_exec_ctrls(void)
+{
+	return (vmcs_config.cpu_based_exec_ctrl &
+		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS);
+}
+
+static inline int vm_need_secondary_exec_ctrls(struct kvm *kvm)
+{
+	return ((cpu_has_secondary_exec_ctrls()) && (irqchip_in_kernel(kvm)));
+}
+
+static inline int cpu_has_vmx_virtualize_apic_accesses(void)
+{
+	return (vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+}
+
+static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
+{
+	return ((cpu_has_vmx_virtualize_apic_accesses()) &&
+		(irqchip_in_kernel(kvm)));
 }
 
 static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
@@ -918,6 +942,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	u32 min, opt;
 	u32 _pin_based_exec_control = 0;
 	u32 _cpu_based_exec_control = 0;
+	u32 _cpu_based_2nd_exec_control = 0;
 	u32 _vmexit_control = 0;
 	u32 _vmentry_control = 0;
 
@@ -935,11 +960,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	      CPU_BASED_USE_IO_BITMAPS |
 	      CPU_BASED_MOV_DR_EXITING |
 	      CPU_BASED_USE_TSC_OFFSETING;
-#ifdef CONFIG_X86_64
-	opt = CPU_BASED_TPR_SHADOW;
-#else
-	opt = 0;
-#endif
+	opt = CPU_BASED_TPR_SHADOW |
+	      CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS,
 				&_cpu_based_exec_control) < 0)
 		return -EIO;
@@ -947,6 +969,18 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 	if ((_cpu_based_exec_control & CPU_BASED_TPR_SHADOW))
 		_cpu_based_exec_control &= ~CPU_BASED_CR8_LOAD_EXITING &
 					   ~CPU_BASED_CR8_STORE_EXITING;
+#endif
+	if (_cpu_based_exec_control & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS) {
+		min = 0;
+		opt = SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+		if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS2,
+					&_cpu_based_2nd_exec_control) < 0)
+			return -EIO;
+	}
+#ifndef CONFIG_X86_64
+	if (!(_cpu_based_2nd_exec_control &
+				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES))
+		_cpu_based_exec_control &= ~CPU_BASED_TPR_SHADOW;
 #endif
 
 	min = 0;
@@ -985,6 +1019,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 
 	vmcs_conf->pin_based_exec_ctrl = _pin_based_exec_control;
 	vmcs_conf->cpu_based_exec_ctrl = _cpu_based_exec_control;
+	vmcs_conf->cpu_based_2nd_exec_ctrl = _cpu_based_2nd_exec_control;
 	vmcs_conf->vmexit_ctrl         = _vmexit_control;
 	vmcs_conf->vmentry_ctrl        = _vmentry_control;
 
@@ -1427,6 +1462,27 @@ static void seg_setup(int seg)
 	vmcs_write32(sf->ar_bytes, 0x93);
 }
 
+static int alloc_apic_access_page(struct kvm *kvm)
+{
+	struct kvm_userspace_memory_region kvm_userspace_mem;
+	int r = 0;
+
+	mutex_lock(&kvm->lock);
+	if (kvm->apic_access_page)
+		goto out;
+	kvm_userspace_mem.slot = APIC_ACCESS_PAGE_PRIVATE_MEMSLOT;
+	kvm_userspace_mem.flags = 0;
+	kvm_userspace_mem.guest_phys_addr = 0xfee00000ULL;
+	kvm_userspace_mem.memory_size = PAGE_SIZE;
+	r = __kvm_set_memory_region(kvm, &kvm_userspace_mem, 0);
+	if (r)
+		goto out;
+	kvm->apic_access_page = gfn_to_page(kvm, 0xfee00);
+out:
+	mutex_unlock(&kvm->lock);
+	return r;
+}
+
 /*
  * Sets up the vmcs for emulated real mode.
  */
@@ -1458,7 +1514,13 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 				CPU_BASED_CR8_LOAD_EXITING;
 #endif
 	}
+	if (!vm_need_secondary_exec_ctrls(vmx->vcpu.kvm))
+		exec_control &= ~CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, exec_control);
+
+	if (vm_need_secondary_exec_ctrls(vmx->vcpu.kvm))
+		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
+			     vmcs_config.cpu_based_2nd_exec_ctrl);
 
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, !!bypass_guest_pf);
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, !!bypass_guest_pf);
@@ -1527,6 +1589,10 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
 	vmcs_writel(CR4_GUEST_HOST_MASK, KVM_GUEST_CR4_MASK);
+
+	if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
+		if (alloc_apic_access_page(vmx->vcpu.kvm) != 0)
+			return -ENOMEM;
 
 	return 0;
 }
@@ -1616,13 +1682,17 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);  /* 22.2.1 */
 
-#ifdef CONFIG_X86_64
-	vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
-	if (vm_need_tpr_shadow(vmx->vcpu.kvm))
-		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
-			     page_to_phys(vmx->vcpu.apic->regs_page));
-	vmcs_write32(TPR_THRESHOLD, 0);
-#endif
+	if (cpu_has_vmx_tpr_shadow()) {
+		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
+		if (vm_need_tpr_shadow(vmx->vcpu.kvm))
+			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
+				     page_to_phys(vmx->vcpu.apic->regs_page));
+		vmcs_write32(TPR_THRESHOLD, 0);
+	}
+
+	if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
+		vmcs_write64(APIC_ACCESS_ADDR,
+			     page_to_phys(vmx->vcpu.kvm->apic_access_page));
 
 	vmx->vcpu.cr0 = 0x60000010;
 	vmx_set_cr0(&vmx->vcpu, vmx->vcpu.cr0); /* enter rmode */
@@ -2094,6 +2164,26 @@ static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	u64 exit_qualification;
+	enum emulation_result er;
+	unsigned long offset;
+
+	exit_qualification = vmcs_read64(EXIT_QUALIFICATION);
+	offset = exit_qualification & 0xffful;
+
+	er = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
+
+	if (er !=  EMULATE_DONE) {
+		printk(KERN_ERR
+		       "Fail to handle apic access vmexit! Offset is 0x%lx\n",
+		       offset);
+		return -ENOTSUPP;
+	}
+	return 1;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
@@ -2113,7 +2203,8 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_PENDING_INTERRUPT]       = handle_interrupt_window,
 	[EXIT_REASON_HLT]                     = handle_halt,
 	[EXIT_REASON_VMCALL]                  = handle_vmcall,
-	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold
+	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
+	[EXIT_REASON_APIC_ACCESS]             = handle_apic_access,
 };
 
 static const int kvm_vmx_max_exit_handlers =

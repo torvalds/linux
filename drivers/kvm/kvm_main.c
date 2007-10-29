@@ -362,10 +362,12 @@ EXPORT_SYMBOL_GPL(fx_init);
  * space.
  *
  * Discontiguous memory is allowed, mostly for framebuffers.
+ *
+ * Must be called holding kvm->lock.
  */
-int kvm_set_memory_region(struct kvm *kvm,
-			  struct kvm_userspace_memory_region *mem,
-			  int user_alloc)
+int __kvm_set_memory_region(struct kvm *kvm,
+			    struct kvm_userspace_memory_region *mem,
+			    int user_alloc)
 {
 	int r;
 	gfn_t base_gfn;
@@ -392,8 +394,6 @@ int kvm_set_memory_region(struct kvm *kvm,
 	if (!npages)
 		mem->flags &= ~KVM_MEM_LOG_DIRTY_PAGES;
 
-	mutex_lock(&kvm->lock);
-
 	new = old = *memslot;
 
 	new.base_gfn = base_gfn;
@@ -403,7 +403,7 @@ int kvm_set_memory_region(struct kvm *kvm,
 	/* Disallow changing a memory slot's size. */
 	r = -EINVAL;
 	if (npages && old.npages && npages != old.npages)
-		goto out_unlock;
+		goto out_free;
 
 	/* Check for overlaps */
 	r = -EEXIST;
@@ -414,7 +414,7 @@ int kvm_set_memory_region(struct kvm *kvm,
 			continue;
 		if (!((base_gfn + npages <= s->base_gfn) ||
 		      (base_gfn >= s->base_gfn + s->npages)))
-			goto out_unlock;
+			goto out_free;
 	}
 
 	/* Free page dirty bitmap if unneeded */
@@ -428,7 +428,7 @@ int kvm_set_memory_region(struct kvm *kvm,
 		new.rmap = vmalloc(npages * sizeof(struct page *));
 
 		if (!new.rmap)
-			goto out_unlock;
+			goto out_free;
 
 		memset(new.rmap, 0, npages * sizeof(*new.rmap));
 
@@ -445,7 +445,7 @@ int kvm_set_memory_region(struct kvm *kvm,
 			up_write(&current->mm->mmap_sem);
 
 			if (IS_ERR((void *)new.userspace_addr))
-				goto out_unlock;
+				goto out_free;
 		}
 	} else {
 		if (!old.user_alloc && old.rmap) {
@@ -468,7 +468,7 @@ int kvm_set_memory_region(struct kvm *kvm,
 
 		new.dirty_bitmap = vmalloc(dirty_bytes);
 		if (!new.dirty_bitmap)
-			goto out_unlock;
+			goto out_free;
 		memset(new.dirty_bitmap, 0, dirty_bytes);
 	}
 
@@ -498,17 +498,27 @@ int kvm_set_memory_region(struct kvm *kvm,
 	kvm_mmu_slot_remove_write_access(kvm, mem->slot);
 	kvm_flush_remote_tlbs(kvm);
 
-	mutex_unlock(&kvm->lock);
-
 	kvm_free_physmem_slot(&old, &new);
 	return 0;
 
-out_unlock:
-	mutex_unlock(&kvm->lock);
+out_free:
 	kvm_free_physmem_slot(&new, &old);
 out:
 	return r;
 
+}
+EXPORT_SYMBOL_GPL(__kvm_set_memory_region);
+
+int kvm_set_memory_region(struct kvm *kvm,
+			  struct kvm_userspace_memory_region *mem,
+			  int user_alloc)
+{
+	int r;
+
+	mutex_lock(&kvm->lock);
+	r = __kvm_set_memory_region(kvm, mem, user_alloc);
+	mutex_unlock(&kvm->lock);
+	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_set_memory_region);
 
@@ -888,14 +898,21 @@ static int emulator_read_emulated(unsigned long addr,
 		memcpy(val, vcpu->mmio_data, bytes);
 		vcpu->mmio_read_completed = 0;
 		return X86EMUL_CONTINUE;
-	} else if (emulator_read_std(addr, val, bytes, vcpu)
-		   == X86EMUL_CONTINUE)
-		return X86EMUL_CONTINUE;
+	}
 
 	gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
+
+	/* For APIC access vmexit */
+	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
+		goto mmio;
+
+	if (emulator_read_std(addr, val, bytes, vcpu)
+			== X86EMUL_CONTINUE)
+		return X86EMUL_CONTINUE;
 	if (gpa == UNMAPPED_GVA)
 		return X86EMUL_PROPAGATE_FAULT;
 
+mmio:
 	/*
 	 * Is this MMIO handled locally?
 	 */
@@ -938,9 +955,14 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 
+	/* For APIC access vmexit */
+	if ((gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
+		goto mmio;
+
 	if (emulator_write_phys(vcpu, gpa, val, bytes))
 		return X86EMUL_CONTINUE;
 
+mmio:
 	/*
 	 * Is this MMIO handled locally?
 	 */
