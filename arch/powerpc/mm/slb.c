@@ -25,6 +25,7 @@
 #include <asm/smp.h>
 #include <asm/firmware.h>
 #include <linux/compiler.h>
+#include <asm/udbg.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

@@ -44,6 +44,7 @@
 #include <asm/rtas.h>
 
 #include "interrupt.h"
+#include <asm/udbg.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
