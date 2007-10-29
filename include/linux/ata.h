@@ -425,6 +425,8 @@ static inline int ata_id_has_lba48(const u16 *id)
 {
 	if ((id[83] & 0xC000) != 0x4000)
 		return 0;
+	if (!ata_id_u64(id, 100))
+		return 0;
 	return id[83] & (1 << 10);
 }
 
