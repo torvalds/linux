@@ -240,14 +240,18 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 		if (!acb->pmuA) {
 			printk(KERN_NOTICE "arcmsr%d: memory mapping region fail \n",
 							acb->host->host_no);
+			return -ENOMEM;
 		}
 
 		dma_coherent = dma_alloc_coherent(&pdev->dev,
 			ARCMSR_MAX_FREECCB_NUM *
 			sizeof (struct CommandControlBlock) + 0x20,
 			&dma_coherent_handle, GFP_KERNEL);
-		if (!dma_coherent)
+
+		if (!dma_coherent) {
+			iounmap(acb->pmuA);
 			return -ENOMEM;
+		}
 
 		acb->dma_coherent = dma_coherent;
 		acb->dma_coherent_handle = dma_coherent_handle;
@@ -331,8 +335,16 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 		acb->pmuB = reg;
 		mem_base0 = ioremap(pci_resource_start(pdev, 0),
 					pci_resource_len(pdev, 0));
+		if (!mem_base0)
+			goto out;
+
 		mem_base1 = ioremap(pci_resource_start(pdev, 2),
 					pci_resource_len(pdev, 2));
+		if (!mem_base1) {
+			iounmap(mem_base0);
+			goto out;
+		}
+
 		reg->drv2iop_doorbell_reg = mem_base0 + ARCMSR_DRV2IOP_DOORBELL;
 		reg->drv2iop_doorbell_mask_reg = mem_base0 +
 						ARCMSR_DRV2IOP_DOORBELL_MASK;
@@ -357,6 +369,12 @@ static int arcmsr_alloc_ccb_pool(struct AdapterControlBlock *acb)
 		break;
 	}
 	return 0;
+
+out:
+	dma_free_coherent(&acb->pdev->dev,
+		ARCMSR_MAX_FREECCB_NUM * sizeof(struct CommandControlBlock) + 0x20,
+		acb->dma_coherent, acb->dma_coherent_handle);
+	return -ENOMEM;
 }
 
 static int arcmsr_probe(struct pci_dev *pdev,
@@ -449,7 +467,6 @@ static int arcmsr_probe(struct pci_dev *pdev,
 	free_irq(pdev->irq, acb);
  out_free_ccb_pool:
 	arcmsr_free_ccb_pool(acb);
-	iounmap(acb->pmu);
  out_release_regions:
 	pci_release_regions(pdev);
  out_host_put:
@@ -810,7 +827,6 @@ static void arcmsr_remove(struct pci_dev *pdev)
 	}
 
 	free_irq(pdev->irq, acb);
-	iounmap(acb->pmu);
 	arcmsr_free_ccb_pool(acb);
 	pci_release_regions(pdev);
 
@@ -1018,6 +1034,17 @@ static void arcmsr_stop_adapter_bgrb(struct AdapterControlBlock *acb)
 
 static void arcmsr_free_ccb_pool(struct AdapterControlBlock *acb)
 {
+	switch (acb->adapter_type) {
+	case ACB_ADAPTER_TYPE_A: {
+		iounmap(acb->pmuA);
+		break;
+	}
+	case ACB_ADAPTER_TYPE_B: {
+		struct MessageUnit_B *reg = acb->pmuB;
+		iounmap(reg->drv2iop_doorbell_reg - ARCMSR_DRV2IOP_DOORBELL);
+		iounmap(reg->ioctl_wbuffer_reg - ARCMSR_IOCTL_WBUFFER);
+	}
+	}
 	dma_free_coherent(&acb->pdev->dev,
 		ARCMSR_MAX_FREECCB_NUM * sizeof (struct CommandControlBlock) + 0x20,
 		acb->dma_coherent,

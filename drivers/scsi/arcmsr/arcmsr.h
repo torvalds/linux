@@ -348,14 +348,6 @@ struct MessageUnit_B
 	uint32_t	__iomem *ioctl_rbuffer_reg;
 };
 
-struct MessageUnit
-{
-	union
-	{
-		struct MessageUnit_A	pmu_A;
-		struct MessageUnit_B	pmu_B;
-	} u;
-};
 /*
 *******************************************************************************
 **                 Adapter Control Block
@@ -375,7 +367,6 @@ struct AdapterControlBlock
 	uint32_t			outbound_int_enable;
 
 	union {
-		struct MessageUnit *		pmu;
 		struct MessageUnit_A __iomem *	pmuA;
 		struct MessageUnit_B *		pmuB;
 	};
