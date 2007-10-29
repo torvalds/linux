@@ -1670,7 +1670,7 @@ int ndisc_ifinfo_sysctl_change(struct ctl_table *ctl, int write, struct file * f
 					    filp, buffer, lenp, ppos);
 
 	else if ((strcmp(ctl->procname, "retrans_time_ms") == 0) ||
-		 (strcmp(ctl->procname, "base_reacable_time_ms") == 0))
+		 (strcmp(ctl->procname, "base_reachable_time_ms") == 0))
 		ret = proc_dointvec_ms_jiffies(ctl, write,
 					       filp, buffer, lenp, ppos);
 	else
