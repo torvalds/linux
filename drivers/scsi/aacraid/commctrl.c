@@ -391,7 +391,7 @@ static int close_getadapter_fib(struct aac_dev * dev, void __user *arg)
 		/*
 		 *	Extract the fibctx from the input parameters
 		 */
-		if (fibctx->unique == (u32)(ptrdiff_t)arg) /* We found a winner */
+		if (fibctx->unique == (u32)(uintptr_t)arg) /* We found a winner */
 			break;
 		entry = entry->next;
 		fibctx = NULL;
@@ -590,7 +590,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				}
 				addr = (u64)upsg->sg[i].addr[0];
 				addr += ((u64)upsg->sg[i].addr[1]) << 32;
-				sg_user[i] = (void __user *)(ptrdiff_t)addr;
+				sg_user[i] = (void __user *)(uintptr_t)addr;
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
@@ -633,7 +633,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					rcode = -ENOMEM;
 					goto cleanup;
 				}
-				sg_user[i] = (void __user *)(ptrdiff_t)usg->sg[i].addr;
+				sg_user[i] = (void __user *)(uintptr_t)usg->sg[i].addr;
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
@@ -664,7 +664,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 		if (actual_fibsize64 == fibsize) {
 			struct user_sgmap64* usg = (struct user_sgmap64 *)upsg;
 			for (i = 0; i < upsg->count; i++) {
-				u64 addr;
+				uintptr_t addr;
 				void* p;
 				/* Does this really need to be GFP_DMA? */
 				p = kmalloc(usg->sg[i].count,GFP_KERNEL|__GFP_DMA);
@@ -676,7 +676,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				}
 				addr = (u64)usg->sg[i].addr[0];
 				addr += ((u64)usg->sg[i].addr[1]) << 32;
-				sg_user[i] = (void __user *)(ptrdiff_t)addr;
+				sg_user[i] = (void __user *)addr;
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
@@ -704,7 +704,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 					rcode = -ENOMEM;
 					goto cleanup;
 				}
-				sg_user[i] = (void __user *)(ptrdiff_t)upsg->sg[i].addr;
+				sg_user[i] = (void __user *)(uintptr_t)upsg->sg[i].addr;
 				sg_list[i] = p; // save so we can clean up later
 				sg_indx = i;
 
