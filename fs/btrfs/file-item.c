@@ -178,13 +178,11 @@ int btrfs_csum_file_block(struct btrfs_trans_handle *trans,
 		nritems = btrfs_header_nritems(path->nodes[0]);
 		if (path->slots[0] >= nritems - 1) {
 			ret = btrfs_next_leaf(root, path);
-			if (ret == 1) {
+			if (ret == 1)
 				found_next = 1;
-			} else if (ret == 0) {
-				slot = 0;
-			} else {
+			if (ret != 0)
 				goto insert;
-			}
+			slot = 0;
 		}
 		btrfs_item_key_to_cpu(path->nodes[0], &found_key, slot);
 		if (found_key.objectid != objectid ||
@@ -238,7 +236,7 @@ insert:
 	csum_offset = 0;
 	if (found_next) {
 		u64 tmp = min((u64)i_size_read(inode), next_offset);
-		tmp -= offset + root->sectorsize - 1;
+		tmp -= offset & ~((u64)root->sectorsize -1);
 		tmp >>= root->fs_info->sb->s_blocksize_bits;
 		tmp = max((u64)1, tmp);
 		tmp = min(tmp, (u64)MAX_CSUM_ITEMS(root));
