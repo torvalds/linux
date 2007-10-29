@@ -110,6 +110,10 @@ endchoice
 # CPU Daughterboards for ATSTK1000
 config BOARD_ATSTK1002
 	bool
+config BOARD_ATSTK1003
+	bool
+config BOARD_ATSTK1004
+	bool
 
 choice
 	prompt "AVR32 board type"
@@ -118,6 +122,8 @@ choice
 config BOARD_ATSTK1000
 	bool "ATSTK1000 evaluation board"
 	select BOARD_ATSTK1002 if CPU_AT32AP7000
+	select BOARD_ATSTK1003 if CPU_AT32AP7001
+	select BOARD_ATSTK1004 if CPU_AT32AP7002
 
 config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
