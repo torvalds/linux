@@ -97,10 +97,6 @@ config X86_CMPXCHG
 	bool
 	default y
 
-config EARLY_PRINTK
-	bool
-	default y
-
 config GENERIC_ISA_DMA
 	bool
 	default y
