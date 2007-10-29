@@ -556,7 +556,7 @@ struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc)
 	return &sctp_hmac_list[id];
 }
 
-static int __sctp_auth_find_hmacid(__u16 *hmacs, int n_elts, __u16 hmac_id)
+static int __sctp_auth_find_hmacid(__be16 *hmacs, int n_elts, __be16 hmac_id)
 {
 	int  found = 0;
 	int  i;
@@ -573,7 +573,7 @@ static int __sctp_auth_find_hmacid(__u16 *hmacs, int n_elts, __u16 hmac_id)
 
 /* See if the HMAC_ID is one that we claim as supported */
 int sctp_auth_asoc_verify_hmac_id(const struct sctp_association *asoc,
-				    __u16 hmac_id)
+				    __be16 hmac_id)
 {
 	struct sctp_hmac_algo_param *hmacs;
 	__u16 n_elt;
