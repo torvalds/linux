@@ -635,8 +635,9 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	loff_t pos;
-	size_t num_written = 0;
-	int err = 0;
+	loff_t start_pos;
+	ssize_t num_written = 0;
+	ssize_t err = 0;
 	int ret = 0;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -652,7 +653,10 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	pinned[1] = NULL;
 	if (file->f_flags & O_DIRECT)
 		return -EINVAL;
+
 	pos = *ppos;
+	start_pos = pos;
+
 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
@@ -743,6 +747,13 @@ out:
 	if (pinned[1])
 		page_cache_release(pinned[1]);
 	*ppos = pos;
+
+	if (num_written > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
+		err = sync_page_range(inode, inode->i_mapping,
+				      start_pos, num_written);
+		if (err < 0)
+			num_written = err;
+	}
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
 }
