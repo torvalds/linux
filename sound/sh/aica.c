@@ -237,6 +237,7 @@ static int aica_dma_transfer(int channels, int buffer_size,
 	struct snd_card_aica *dreamcastcard;
 	struct snd_pcm_runtime *runtime;
 	unsigned long flags;
+	err = 0;
 	dreamcastcard = substream->pcm->private_data;
 	period_offset = dreamcastcard->clicks;
 	period_offset %= (AICA_PERIOD_NUMBER / channels);
