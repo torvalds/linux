@@ -7041,7 +7041,7 @@ static void free_sched_group(struct rcu_head *rhp)
 /* Destroy runqueue etc associated with a task group */
 void sched_destroy_group(struct task_group *tg)
 {
-	struct cfs_rq *cfs_rq;
+	struct cfs_rq *cfs_rq = NULL;
 	int i;
 
 	for_each_possible_cpu(i) {
@@ -7049,7 +7049,7 @@ void sched_destroy_group(struct task_group *tg)
 		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
 	}
 
-	cfs_rq = tg->cfs_rq[0];
+	BUG_ON(!cfs_rq);
 
 	/* wait for possible concurrent references to cfs_rqs complete */
 	call_rcu(&cfs_rq->rcu, free_sched_group);
