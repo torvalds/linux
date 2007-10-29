@@ -102,7 +102,8 @@ struct usbdevfs_urb {
 	int start_frame;
 	int number_of_packets;
 	int error_count;
-	unsigned int signr;  /* signal to be sent on error, -1 if none should be sent */
+	unsigned int signr;	/* signal to be sent on completion,
+				  or 0 if none should be sent. */
 	void *usercontext;
 	struct usbdevfs_iso_packet_desc iso_frame_desc[0];
 };
