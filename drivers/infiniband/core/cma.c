@@ -1262,6 +1262,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	struct net_device *dev = NULL;
 	struct rdma_cm_event event;
 	int ret;
+	struct ib_device_attr attr;
 
 	listen_id = cm_id->context;
 	if (cma_disable_remove(listen_id, CMA_LISTEN))
@@ -1311,10 +1312,19 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	sin = (struct sockaddr_in *) &new_cm_id->route.addr.dst_addr;
 	*sin = iw_event->remote_addr;
 
+	ret = ib_query_device(conn_id->id.device, &attr);
+	if (ret) {
+		cma_enable_remove(conn_id);
+		rdma_destroy_id(new_cm_id);
+		goto out;
+	}
+
 	memset(&event, 0, sizeof event);
 	event.event = RDMA_CM_EVENT_CONNECT_REQUEST;
 	event.param.conn.private_data = iw_event->private_data;
 	event.param.conn.private_data_len = iw_event->private_data_len;
+	event.param.conn.initiator_depth = attr.max_qp_init_rd_atom;
+	event.param.conn.responder_resources = attr.max_qp_rd_atom;
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
 	if (ret) {
 		/* User wants to destroy the CM ID */
