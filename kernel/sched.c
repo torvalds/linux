@@ -172,6 +172,7 @@ struct task_group {
 	unsigned long shares;
 	/* spinlock to serialize modification to shares */
 	spinlock_t lock;
+	struct rcu_head rcu;
 };
 
 /* Default task group's sched entity on each cpu */
@@ -258,7 +259,6 @@ struct cfs_rq {
 	 */
 	struct list_head leaf_cfs_rq_list; /* Better name : task_cfs_rq_list? */
 	struct task_group *tg;    /* group that "owns" this runqueue */
-	struct rcu_head rcu;
 #endif
 };
 
@@ -7019,8 +7019,8 @@ err:
 /* rcu callback to free various structures associated with a task group */
 static void free_sched_group(struct rcu_head *rhp)
 {
-	struct cfs_rq *cfs_rq = container_of(rhp, struct cfs_rq, rcu);
-	struct task_group *tg = cfs_rq->tg;
+	struct task_group *tg = container_of(rhp, struct task_group, rcu);
+	struct cfs_rq *cfs_rq;
 	struct sched_entity *se;
 	int i;
 
@@ -7052,7 +7052,7 @@ void sched_destroy_group(struct task_group *tg)
 	BUG_ON(!cfs_rq);
 
 	/* wait for possible concurrent references to cfs_rqs complete */
-	call_rcu(&cfs_rq->rcu, free_sched_group);
+	call_rcu(&tg->rcu, free_sched_group);
 }
 
 /* change task's runqueue when it moves between groups.
