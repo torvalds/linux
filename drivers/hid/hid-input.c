@@ -902,9 +902,10 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			map_key(BTN_1);
 	}
 
-	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5)) &&
-		 (usage->type == EV_REL) && (usage->code == REL_WHEEL))
-			set_bit(REL_HWHEEL, bit);
+	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5 |
+			HID_QUIRK_2WHEEL_MOUSE_HACK_B8)) && (usage->type == EV_REL) &&
+			(usage->code == REL_WHEEL))
+		set_bit(REL_HWHEEL, bit);
 
 	if (((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
 		|| ((device->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007)))
@@ -999,6 +1000,19 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007))) {
 		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
 		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
+		return;
+	}
+
+	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
+			(usage->type == EV_REL) &&
+			(usage->code == REL_WHEEL)) {
+		hid->delayed_value = value;
+		return;
+	}
+
+	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
+			(usage->hid == 0x000100b8)) {
+		input_event(input, EV_REL, value ? REL_HWHEEL : REL_WHEEL, hid->delayed_value);
 		return;
 	}
 

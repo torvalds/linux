@@ -281,6 +281,7 @@ struct hid_item {
 #define HID_QUIRK_LOGITECH_IGNORE_DOUBLED_WHEEL	0x00400000
 #define HID_QUIRK_LOGITECH_EXPANDED_KEYMAP	0x00800000
 #define HID_QUIRK_IGNORE_HIDINPUT		0x01000000
+#define HID_QUIRK_2WHEEL_MOUSE_HACK_B8		0x02000000
 
 /*
  * Separate quirks for runtime report descriptor fixup
@@ -455,6 +456,8 @@ struct hid_device {							/* device report descriptor */
 	char uniq[64];							/* Device unique identifier (serial #) */
 
 	void *driver_data;
+
+	__s32 delayed_value;						/* For A4 Tech mice hwheel quirk */
 
 	/* device-specific function pointers */
 	int (*hidinput_input_event) (struct input_dev *, unsigned int, unsigned int, int);
