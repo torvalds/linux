@@ -279,8 +279,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		t->tuner_callback = tuner_callback;
 	}
 
-	/* This code detects calls by card attach_inform */
-	if (NULL == t->i2c.dev.driver) {
+	if (t->mode == T_UNINITIALIZED) {
 		tuner_dbg ("tuner 0x%02x: called during i2c_client register by adapter's attach_inform\n", c->addr);
 
 		return;
@@ -684,6 +683,16 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* Should be just before return */
 register_client:
 	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
+
+	/* Sets a default mode */
+	if (t->mode_mask & T_ANALOG_TV) {
+		t->mode = T_ANALOG_TV;
+	} else  if (t->mode_mask & T_RADIO) {
+		t->mode = T_RADIO;
+	} else {
+		t->mode = T_DIGITAL_TV;
+	}
+
 	i2c_attach_client (client);
 	set_type (client,t->type, t->mode_mask, t->config, t->tuner_callback);
 	return 0;
