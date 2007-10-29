@@ -734,7 +734,7 @@ static int ecryptfs_init_kmem_caches(void)
 	return 0;
 }
 
-static decl_subsys(ecryptfs, NULL);
+static struct kset *ecryptfs_kset;
 
 static ssize_t version_show(struct kset *kset, char *buff)
 {
@@ -798,18 +798,17 @@ static int do_sysfs_registration(void)
 {
 	int rc;
 
-	ecryptfs_subsys.kobj.kset = &fs_subsys;
-	rc = subsystem_register(&ecryptfs_subsys);
-	if (rc) {
-		printk(KERN_ERR
-		       "Unable to register ecryptfs sysfs subsystem\n");
+	ecryptfs_kset = kset_create_and_add("ecryptfs", NULL, &fs_subsys.kobj);
+	if (!ecryptfs_kset) {
+		printk(KERN_ERR "Unable to create ecryptfs kset\n");
+		rc = -ENOMEM;
 		goto out;
 	}
-	rc = sysfs_create_group(&ecryptfs_subsys.kobj, &attr_group);
+	rc = sysfs_create_group(&ecryptfs_kset->kobj, &attr_group);
 	if (rc) {
 		printk(KERN_ERR
 		       "Unable to create ecryptfs version attributes\n");
-		subsystem_unregister(&ecryptfs_subsys);
+		kset_unregister(ecryptfs_kset);
 	}
 out:
 	return rc;
@@ -817,8 +816,8 @@ out:
 
 static void do_sysfs_unregistration(void)
 {
-	sysfs_remove_group(&ecryptfs_subsys.kobj, &attr_group);
-	subsystem_unregister(&ecryptfs_subsys);
+	sysfs_remove_group(&ecryptfs_kset->kobj, &attr_group);
+	kset_unregister(ecryptfs_kset);
 }
 
 static int __init ecryptfs_init(void)
