@@ -165,7 +165,7 @@ static void __init kmap_init(void)
 	kmap_prot = PAGE_KERNEL;
 }
 
-static void init_highmem(void)
+static void __init init_highmem(void)
 {
 	pgd_t *pgd;
 	pud_t *pud;
