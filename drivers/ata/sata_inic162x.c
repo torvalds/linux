@@ -143,7 +143,7 @@ static const int scr_map[] = {
 	[SCR_CONTROL]	= 2,
 };
 
-static void __iomem * inic_port_base(struct ata_port *ap)
+static void __iomem *inic_port_base(struct ata_port *ap)
 {
 	return ap->host->iomap[MMIO_BAR] + ap->port_no * PORT_SIZE;
 }
@@ -448,7 +448,7 @@ static int inic_hardreset(struct ata_link *link, unsigned int *class,
 		struct ata_taskfile tf;
 
 		/* wait a while before checking status */
-		msleep(150);
+		ata_wait_after_reset(ap, deadline);
 
 		rc = ata_wait_ready(ap, deadline);
 		/* link occupied, -ENODEV too is an error */

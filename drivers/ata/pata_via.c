@@ -176,7 +176,7 @@ static int via_cable_detect(struct ata_port *ap) {
 	if ((config->flags & VIA_UDMA) < VIA_UDMA_66)
 		return ATA_CBL_PATA40;
 	/* UDMA 66 chips have only drive side logic */
-	else if((config->flags & VIA_UDMA) < VIA_UDMA_100)
+	else if ((config->flags & VIA_UDMA) < VIA_UDMA_100)
 		return ATA_CBL_PATA_UNK;
 	/* UDMA 100 or later */
 	pci_read_config_dword(pdev, 0x50, &ata66);

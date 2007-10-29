@@ -74,8 +74,7 @@ static int pcmcia_set_mode(struct ata_link *link, struct ata_device **r_failed_d
 		return ata_do_set_mode(link, r_failed_dev);
 
 	if (memcmp(master->id + ATA_ID_FW_REV,  slave->id + ATA_ID_FW_REV,
-			   ATA_ID_FW_REV_LEN + ATA_ID_PROD_LEN) == 0)
-	{
+			   ATA_ID_FW_REV_LEN + ATA_ID_PROD_LEN) == 0) {
 		/* Suspicious match, but could be two cards from
 		   the same vendor - check serial */
 		if (memcmp(master->id + ATA_ID_SERNO, slave->id + ATA_ID_SERNO,
@@ -248,7 +247,8 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 					goto next_entry;
 				io_base = pdev->io.BasePort1;
 				ctl_base = pdev->io.BasePort1 + 0x0e;
-			} else goto next_entry;
+			} else
+				goto next_entry;
 			/* If we've got this far, we're done */
 			break;
 		}
@@ -285,8 +285,8 @@ next_entry:
 		printk(KERN_WARNING DRV_NAME ": second channel not yet supported.\n");
 
 	/*
- 	 *	Having done the PCMCIA plumbing the ATA side is relatively
- 	 *	sane.
+	 *	Having done the PCMCIA plumbing the ATA side is relatively
+	 *	sane.
 	 */
 	ret = -ENOMEM;
 	host = ata_host_alloc(&pdev->dev, 1);
@@ -363,7 +363,7 @@ static struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0098, 0x0000),	/* Toshiba */
 	PCMCIA_DEVICE_MANF_CARD(0x00a4, 0x002d),
 	PCMCIA_DEVICE_MANF_CARD(0x00ce, 0x0000),	/* Samsung */
- 	PCMCIA_DEVICE_MANF_CARD(0x0319, 0x0000),	/* Hitachi */
+	PCMCIA_DEVICE_MANF_CARD(0x0319, 0x0000),	/* Hitachi */
 	PCMCIA_DEVICE_MANF_CARD(0x2080, 0x0001),
 	PCMCIA_DEVICE_MANF_CARD(0x4e01, 0x0100),	/* Viking CFA */
 	PCMCIA_DEVICE_MANF_CARD(0x4e01, 0x0200),	/* Lexar, Viking CFA */

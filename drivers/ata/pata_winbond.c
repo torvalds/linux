@@ -279,7 +279,7 @@ static __init int winbond_init(void)
 
 			if (request_region(port, 2, "pata_winbond")) {
 				ret = winbond_init_one(port);
-				if(ret <= 0)
+				if (ret <= 0)
 					release_region(port, 2);
 				else ct+= ret;
 			}

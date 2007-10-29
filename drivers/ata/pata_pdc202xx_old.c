@@ -351,9 +351,9 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 		struct pci_dev *bridge = dev->bus->self;
 		/* Don't grab anything behind a Promise I2O RAID */
 		if (bridge && bridge->vendor == PCI_VENDOR_ID_INTEL) {
-			if( bridge->device == PCI_DEVICE_ID_INTEL_I960)
+			if (bridge->device == PCI_DEVICE_ID_INTEL_I960)
 				return -ENODEV;
-			if( bridge->device == PCI_DEVICE_ID_INTEL_I960RM)
+			if (bridge->device == PCI_DEVICE_ID_INTEL_I960RM)
 				return -ENODEV;
 		}
 	}
