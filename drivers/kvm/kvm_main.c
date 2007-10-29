@@ -556,25 +556,6 @@ unsigned long get_cr8(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(get_cr8);
 
-u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
-{
-	if (irqchip_in_kernel(vcpu->kvm))
-		return vcpu->apic_base;
-	else
-		return vcpu->apic_base;
-}
-EXPORT_SYMBOL_GPL(kvm_get_apic_base);
-
-void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
-{
-	/* TODO: reserve bits check */
-	if (irqchip_in_kernel(vcpu->kvm))
-		kvm_lapic_set_base(vcpu, data);
-	else
-		vcpu->apic_base = data;
-}
-EXPORT_SYMBOL_GPL(kvm_set_apic_base);
-
 void fx_init(struct kvm_vcpu *vcpu)
 {
 	unsigned after_mxcsr_mask;

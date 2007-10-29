@@ -59,6 +59,25 @@ unsigned long segment_base(u16 selector)
 }
 EXPORT_SYMBOL_GPL(segment_base);
 
+u64 kvm_get_apic_base(struct kvm_vcpu *vcpu)
+{
+	if (irqchip_in_kernel(vcpu->kvm))
+		return vcpu->apic_base;
+	else
+		return vcpu->apic_base;
+}
+EXPORT_SYMBOL_GPL(kvm_get_apic_base);
+
+void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
+{
+	/* TODO: reserve bits check */
+	if (irqchip_in_kernel(vcpu->kvm))
+		kvm_lapic_set_base(vcpu, data);
+	else
+		vcpu->apic_base = data;
+}
+EXPORT_SYMBOL_GPL(kvm_set_apic_base);
+
 /*
  * List of msr numbers which we expose to userspace through KVM_GET_MSRS
  * and KVM_SET_MSRS, and KVM_GET_MSR_INDEX_LIST.
