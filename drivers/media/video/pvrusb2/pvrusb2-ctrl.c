@@ -410,7 +410,7 @@ static int parse_mtoken(const char *ptr,unsigned int len,
 	int msk;
 	*valptr = 0;
 	for (idx = 0, msk = 1; valid_bits; idx++, msk <<= 1) {
-		if (!msk & valid_bits) continue;
+		if (!(msk & valid_bits)) continue;
 		valid_bits &= ~msk;
 		if (!names[idx]) continue;
 		slen = strlen(names[idx]);
