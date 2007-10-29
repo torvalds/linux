@@ -8607,7 +8607,7 @@ e1000_read_ich8_data(struct e1000_hw *hw, uint32_t index,
 
     DEBUGFUNC("e1000_read_ich8_data");
 
-    if (size < 1  || size > 2 || data == 0x0 ||
+    if (size < 1  || size > 2 || data == NULL ||
         index > ICH_FLASH_LINEAR_ADDR_MASK)
         return error;
 
@@ -8841,7 +8841,7 @@ e1000_read_ich8_word(struct e1000_hw *hw, uint32_t index, uint16_t *data)
  * amount of NVM used in each bank is a *minimum* of 4 KBytes, but in fact the
  * bank size may be 4, 8 or 64 KBytes
  *****************************************************************************/
-int32_t
+static int32_t
 e1000_erase_ich8_4k_segment(struct e1000_hw *hw, uint32_t bank)
 {
     union ich8_hws_flash_status hsfsts;
