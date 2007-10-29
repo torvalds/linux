@@ -1596,8 +1596,7 @@ again:
 
 		size = btrfs_file_extent_inline_len(leaf, btrfs_item_nr(leaf,
 						    path->slots[0]));
-
-		extent_end = (extent_start + size) |
+		extent_end = (extent_start + size - 1) |
 			((u64)root->sectorsize - 1);
 		if (start < extent_start || start >= extent_end) {
 			em->start = start;
@@ -1610,29 +1609,32 @@ again:
 			}
 			goto not_found_em;
 		}
-
-		extent_offset = (page->index << PAGE_CACHE_SHIFT) -
-			extent_start;
-		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
-		map = kmap(page);
-		copy_size = min_t(u64, PAGE_CACHE_SIZE - page_offset,
-				size - extent_offset);
-
 		em->block_start = EXTENT_MAP_INLINE;
 		em->block_end = EXTENT_MAP_INLINE;
+
+		if (!page) {
+			em->start = extent_start;
+			em->end = extent_start + size - 1;
+			goto out;
+		}
+
+		extent_offset = (page->index << PAGE_CACHE_SHIFT) -
+			extent_start + page_offset;
+		copy_size = min_t(u64, PAGE_CACHE_SIZE - page_offset,
+				size - extent_offset);
 		em->start = extent_start + extent_offset;
 		em->end = (em->start + copy_size -1) |
 			((u64)root->sectorsize -1);
-
-		if (!page) {
-			goto insert;
+		map = kmap(page);
+		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
+		read_extent_buffer(leaf, map + page_offset, ptr, copy_size);
+		
+		if (em->start + copy_size <= em->end) {
+			size = min_t(u64, em->end + 1 - em->start,
+				PAGE_CACHE_SIZE - page_offset) - copy_size;
+			memset(map + page_offset + copy_size, 0, size);
 		}
 
-		read_extent_buffer(leaf, map + page_offset, ptr, copy_size);
-		/*
-		memset(map + page_offset + copy_size, 0,
-		       PAGE_CACHE_SIZE - copy_size - page_offset);
-		       */
 		flush_dcache_page(page);
 		kunmap(page);
 		set_extent_uptodate(em_tree, em->start, em->end, GFP_NOFS);
