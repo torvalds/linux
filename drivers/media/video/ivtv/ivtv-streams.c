@@ -43,7 +43,7 @@
 #include "ivtv-cards.h"
 #include "ivtv-streams.h"
 
-static struct file_operations ivtv_v4l2_enc_fops = {
+static const struct file_operations ivtv_v4l2_enc_fops = {
       .owner = THIS_MODULE,
       .read = ivtv_v4l2_read,
       .write = ivtv_v4l2_write,
@@ -53,7 +53,7 @@ static struct file_operations ivtv_v4l2_enc_fops = {
       .poll = ivtv_v4l2_enc_poll,
 };
 
-static struct file_operations ivtv_v4l2_dec_fops = {
+static const struct file_operations ivtv_v4l2_dec_fops = {
       .owner = THIS_MODULE,
       .read = ivtv_v4l2_read,
       .write = ivtv_v4l2_write,
