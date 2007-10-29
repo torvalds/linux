@@ -749,8 +749,8 @@ static char *fault_reason_strings[] =
 
 char *dmar_get_fault_reason(u8 fault_reason)
 {
-	if (fault_reason > MAX_FAULT_REASON_IDX)
-		return fault_reason_strings[MAX_FAULT_REASON_IDX];
+	if (fault_reason >= MAX_FAULT_REASON_IDX)
+		return fault_reason_strings[MAX_FAULT_REASON_IDX - 1];
 	else
 		return fault_reason_strings[fault_reason];
 }
