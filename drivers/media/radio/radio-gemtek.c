@@ -392,7 +392,7 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 	}
 };
 
-static struct file_operations gemtek_fops = {
+static const struct file_operations gemtek_fops = {
 	.owner		= THIS_MODULE,
 	.open		= video_exclusive_open,
 	.release	= video_exclusive_release,
