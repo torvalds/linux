@@ -80,6 +80,7 @@ extern int atomic_sub32(void);
 extern int atomic_ior32(void);
 extern int atomic_and32(void);
 extern int atomic_xor32(void);
+extern void safe_user_instruction(void);
 extern void sigreturn_stub(void);
 
 extern void *l1_data_A_sram_alloc(size_t);
