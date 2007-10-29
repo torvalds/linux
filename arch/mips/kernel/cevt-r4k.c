@@ -224,7 +224,7 @@ void __cpuinit mips_clockevent_init(void)
 	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;
-	unsigned int irq = MIPS_CPU_IRQ_BASE + 7;
+	unsigned int irq;
 
 	if (!cpu_has_counter || !mips_hpt_frequency)
 		return;
@@ -242,6 +242,15 @@ void __cpuinit mips_clockevent_init(void)
 
 	if (!c0_compare_int_usable())
 		return;
+
+	/*
+	 * With vectored interrupts things are getting platform specific.
+	 * get_c0_compare_int is a hook to allow a platform to return the
+	 * interrupt number of it's liking.
+	 */
+	irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
+	if (get_c0_compare_int)
+		irq = get_c0_compare_int();
 
 	cd = &per_cpu(mips_clockevent_device, cpu);
 
@@ -267,13 +276,15 @@ void __cpuinit mips_clockevent_init(void)
 
 	clockevents_register_device(cd);
 
-	if (!cp0_timer_irq_installed) {
+	if (!cp0_timer_irq_installed)
+		return;
+
+	cp0_timer_irq_installed = 1;
+
 #ifdef CONFIG_MIPS_MT_SMTC
 #define CPUCTR_IMASKBIT (0x100 << cp0_compare_irq)
-		setup_irq_smtc(irq, &c0_compare_irqaction, CPUCTR_IMASKBIT);
+	setup_irq_smtc(irq, &c0_compare_irqaction, CPUCTR_IMASKBIT);
 #else
-		setup_irq(irq, &c0_compare_irqaction);
-#endif /* CONFIG_MIPS_MT_SMTC */
-		cp0_timer_irq_installed = 1;
-	}
+	setup_irq(irq, &c0_compare_irqaction);
+#endif
 }

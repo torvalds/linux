@@ -127,26 +127,6 @@ unsigned long read_persistent_clock(void)
 	return mc146818_get_cmos_time();
 }
 
-void __init plat_time_init(void)
-{
-	unsigned int est_freq;
-
-        /* Set Data mode - binary. */
-        CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
-
-	est_freq = estimate_cpu_frequency();
-
-	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
-	       (est_freq%1000000)*100/1000000);
-
-        cpu_khz = est_freq / 1000;
-
-	mips_scroll_message();
-#ifdef CONFIG_I8253		/* Only Malta has a PIT */
-	setup_pit_timer();
-#endif
-}
-
 void __init plat_perf_setup(void)
 {
 	cp0_perfcount_irq = -1;
@@ -166,14 +146,13 @@ void __init plat_perf_setup(void)
 	}
 }
 
-void __init plat_timer_setup(struct irqaction *irq)
+unsigned int __init get_c0_compare_int(void)
 {
 #ifdef MSC01E_INT_BASE
 	if (cpu_has_veic) {
 		set_vi_handler(MSC01E_INT_CPUCTR, mips_timer_dispatch);
 		mips_cpu_timer_irq = MSC01E_INT_BASE + MSC01E_INT_CPUCTR;
-	}
-	else
+	} else
 #endif
 	{
 		if (cpu_has_vint)
@@ -181,13 +160,26 @@ void __init plat_timer_setup(struct irqaction *irq)
 		mips_cpu_timer_irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
 	}
 
-#ifdef CONFIG_MIPS_MT_SMTC
-	setup_irq_smtc(mips_cpu_timer_irq, irq, 0x100 << cp0_compare_irq);
-#else
-	setup_irq(mips_cpu_timer_irq, irq);
-#endif /* CONFIG_MIPS_MT_SMTC */
-#ifdef CONFIG_SMP
-	set_irq_handler(mips_cpu_timer_irq, handle_percpu_irq);
+	return mips_cpu_timer_irq;
+}
+
+void __init plat_time_init(void)
+{
+	unsigned int est_freq;
+
+        /* Set Data mode - binary. */
+        CMOS_WRITE(CMOS_READ(RTC_CONTROL) | RTC_DM_BINARY, RTC_CONTROL);
+
+	est_freq = estimate_cpu_frequency();
+
+	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
+	       (est_freq%1000000)*100/1000000);
+
+        cpu_khz = est_freq / 1000;
+
+	mips_scroll_message();
+#ifdef CONFIG_I8253		/* Only Malta has a PIT */
+	setup_pit_timer();
 #endif
 
 	plat_perf_setup();

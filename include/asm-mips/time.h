@@ -77,6 +77,7 @@ extern int (*perf_irq)(void);
  */
 #ifdef CONFIG_CEVT_R4K
 extern void mips_clockevent_init(void);
+extern unsigned int __weak get_c0_compare_int(void);
 #else
 static inline void mips_clockevent_init(void)
 {
