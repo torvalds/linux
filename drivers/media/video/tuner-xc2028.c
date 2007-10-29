@@ -639,6 +639,8 @@ static int xc2028_dvb_release(struct dvb_frontend *fe)
 	priv->count--;
 
 	if (!priv->count) {
+		list_del(&priv->xc2028_list);
+
 		if (priv->ctrl.fname)
 			kfree(priv->ctrl.fname);
 
@@ -728,7 +730,6 @@ int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter* i2c_adap,
 	list_for_each_entry(priv, &xc2028_list, xc2028_list) {
 		if (priv->dev == dev) {
 			dev = NULL;
-			priv->count++;
 		}
 	}
 
@@ -754,6 +755,7 @@ int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter* i2c_adap,
 
 		list_add_tail(&priv->xc2028_list,&xc2028_list);
 	}
+	priv->count++;
 
 	memcpy(&fe->ops.tuner_ops, &xc2028_dvb_tuner_ops,
 					       sizeof(xc2028_dvb_tuner_ops));
