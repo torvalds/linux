@@ -300,6 +300,264 @@ out:
 	return r;
 }
 
+static int kvm_vm_ioctl_set_tss_addr(struct kvm *kvm, unsigned long addr)
+{
+	int ret;
+
+	if (addr > (unsigned int)(-3 * PAGE_SIZE))
+		return -1;
+	ret = kvm_x86_ops->set_tss_addr(kvm, addr);
+	return ret;
+}
+
+static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
+					  u32 kvm_nr_mmu_pages)
+{
+	if (kvm_nr_mmu_pages < KVM_MIN_ALLOC_MMU_PAGES)
+		return -EINVAL;
+
+	mutex_lock(&kvm->lock);
+
+	kvm_mmu_change_mmu_pages(kvm, kvm_nr_mmu_pages);
+	kvm->n_requested_mmu_pages = kvm_nr_mmu_pages;
+
+	mutex_unlock(&kvm->lock);
+	return 0;
+}
+
+static int kvm_vm_ioctl_get_nr_mmu_pages(struct kvm *kvm)
+{
+	return kvm->n_alloc_mmu_pages;
+}
+
+/*
+ * Set a new alias region.  Aliases map a portion of physical memory into
+ * another portion.  This is useful for memory windows, for example the PC
+ * VGA region.
+ */
+static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
+					 struct kvm_memory_alias *alias)
+{
+	int r, n;
+	struct kvm_mem_alias *p;
+
+	r = -EINVAL;
+	/* General sanity checks */
+	if (alias->memory_size & (PAGE_SIZE - 1))
+		goto out;
+	if (alias->guest_phys_addr & (PAGE_SIZE - 1))
+		goto out;
+	if (alias->slot >= KVM_ALIAS_SLOTS)
+		goto out;
+	if (alias->guest_phys_addr + alias->memory_size
+	    < alias->guest_phys_addr)
+		goto out;
+	if (alias->target_phys_addr + alias->memory_size
+	    < alias->target_phys_addr)
+		goto out;
+
+	mutex_lock(&kvm->lock);
+
+	p = &kvm->aliases[alias->slot];
+	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
+	p->npages = alias->memory_size >> PAGE_SHIFT;
+	p->target_gfn = alias->target_phys_addr >> PAGE_SHIFT;
+
+	for (n = KVM_ALIAS_SLOTS; n > 0; --n)
+		if (kvm->aliases[n - 1].npages)
+			break;
+	kvm->naliases = n;
+
+	kvm_mmu_zap_all(kvm);
+
+	mutex_unlock(&kvm->lock);
+
+	return 0;
+
+out:
+	return r;
+}
+
+static int kvm_vm_ioctl_get_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
+{
+	int r;
+
+	r = 0;
+	switch (chip->chip_id) {
+	case KVM_IRQCHIP_PIC_MASTER:
+		memcpy(&chip->chip.pic,
+			&pic_irqchip(kvm)->pics[0],
+			sizeof(struct kvm_pic_state));
+		break;
+	case KVM_IRQCHIP_PIC_SLAVE:
+		memcpy(&chip->chip.pic,
+			&pic_irqchip(kvm)->pics[1],
+			sizeof(struct kvm_pic_state));
+		break;
+	case KVM_IRQCHIP_IOAPIC:
+		memcpy(&chip->chip.ioapic,
+			ioapic_irqchip(kvm),
+			sizeof(struct kvm_ioapic_state));
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+	return r;
+}
+
+static int kvm_vm_ioctl_set_irqchip(struct kvm *kvm, struct kvm_irqchip *chip)
+{
+	int r;
+
+	r = 0;
+	switch (chip->chip_id) {
+	case KVM_IRQCHIP_PIC_MASTER:
+		memcpy(&pic_irqchip(kvm)->pics[0],
+			&chip->chip.pic,
+			sizeof(struct kvm_pic_state));
+		break;
+	case KVM_IRQCHIP_PIC_SLAVE:
+		memcpy(&pic_irqchip(kvm)->pics[1],
+			&chip->chip.pic,
+			sizeof(struct kvm_pic_state));
+		break;
+	case KVM_IRQCHIP_IOAPIC:
+		memcpy(ioapic_irqchip(kvm),
+			&chip->chip.ioapic,
+			sizeof(struct kvm_ioapic_state));
+		break;
+	default:
+		r = -EINVAL;
+		break;
+	}
+	kvm_pic_update_irq(pic_irqchip(kvm));
+	return r;
+}
+
+long kvm_arch_vm_ioctl(struct file *filp,
+		       unsigned int ioctl, unsigned long arg)
+{
+	struct kvm *kvm = filp->private_data;
+	void __user *argp = (void __user *)arg;
+	int r = -EINVAL;
+
+	switch (ioctl) {
+	case KVM_SET_TSS_ADDR:
+		r = kvm_vm_ioctl_set_tss_addr(kvm, arg);
+		if (r < 0)
+			goto out;
+		break;
+	case KVM_SET_MEMORY_REGION: {
+		struct kvm_memory_region kvm_mem;
+		struct kvm_userspace_memory_region kvm_userspace_mem;
+
+		r = -EFAULT;
+		if (copy_from_user(&kvm_mem, argp, sizeof kvm_mem))
+			goto out;
+		kvm_userspace_mem.slot = kvm_mem.slot;
+		kvm_userspace_mem.flags = kvm_mem.flags;
+		kvm_userspace_mem.guest_phys_addr = kvm_mem.guest_phys_addr;
+		kvm_userspace_mem.memory_size = kvm_mem.memory_size;
+		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_userspace_mem, 0);
+		if (r)
+			goto out;
+		break;
+	}
+	case KVM_SET_NR_MMU_PAGES:
+		r = kvm_vm_ioctl_set_nr_mmu_pages(kvm, arg);
+		if (r)
+			goto out;
+		break;
+	case KVM_GET_NR_MMU_PAGES:
+		r = kvm_vm_ioctl_get_nr_mmu_pages(kvm);
+		break;
+	case KVM_SET_MEMORY_ALIAS: {
+		struct kvm_memory_alias alias;
+
+		r = -EFAULT;
+		if (copy_from_user(&alias, argp, sizeof alias))
+			goto out;
+		r = kvm_vm_ioctl_set_memory_alias(kvm, &alias);
+		if (r)
+			goto out;
+		break;
+	}
+	case KVM_CREATE_IRQCHIP:
+		r = -ENOMEM;
+		kvm->vpic = kvm_create_pic(kvm);
+		if (kvm->vpic) {
+			r = kvm_ioapic_init(kvm);
+			if (r) {
+				kfree(kvm->vpic);
+				kvm->vpic = NULL;
+				goto out;
+			}
+		} else
+			goto out;
+		break;
+	case KVM_IRQ_LINE: {
+		struct kvm_irq_level irq_event;
+
+		r = -EFAULT;
+		if (copy_from_user(&irq_event, argp, sizeof irq_event))
+			goto out;
+		if (irqchip_in_kernel(kvm)) {
+			mutex_lock(&kvm->lock);
+			if (irq_event.irq < 16)
+				kvm_pic_set_irq(pic_irqchip(kvm),
+					irq_event.irq,
+					irq_event.level);
+			kvm_ioapic_set_irq(kvm->vioapic,
+					irq_event.irq,
+					irq_event.level);
+			mutex_unlock(&kvm->lock);
+			r = 0;
+		}
+		break;
+	}
+	case KVM_GET_IRQCHIP: {
+		/* 0: PIC master, 1: PIC slave, 2: IOAPIC */
+		struct kvm_irqchip chip;
+
+		r = -EFAULT;
+		if (copy_from_user(&chip, argp, sizeof chip))
+			goto out;
+		r = -ENXIO;
+		if (!irqchip_in_kernel(kvm))
+			goto out;
+		r = kvm_vm_ioctl_get_irqchip(kvm, &chip);
+		if (r)
+			goto out;
+		r = -EFAULT;
+		if (copy_to_user(argp, &chip, sizeof chip))
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_SET_IRQCHIP: {
+		/* 0: PIC master, 1: PIC slave, 2: IOAPIC */
+		struct kvm_irqchip chip;
+
+		r = -EFAULT;
+		if (copy_from_user(&chip, argp, sizeof chip))
+			goto out;
+		r = -ENXIO;
+		if (!irqchip_in_kernel(kvm))
+			goto out;
+		r = kvm_vm_ioctl_set_irqchip(kvm, &chip);
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	default:
+		;
+	}
+out:
+	return r;
+}
+
 static __init void kvm_init_msr_list(void)
 {
 	u32 dummy[2];
