@@ -3232,9 +3232,7 @@ int iwl4965_tx_cmd(struct iwl_priv *priv, struct iwl_cmd *out_cmd,
 	tx->rate_n_flags = iwl_hw_set_rate_n_flags(iwl_rates[rate_index].plcp,
 						rate_flags);
 
-	if (ieee80211_is_probe_request(fc))
-		tx->tx_flags |= TX_CMD_FLG_TSF_MSK;
-	else if (ieee80211_is_back_request(fc))
+	if (ieee80211_is_back_request(fc))
 		tx->tx_flags |= TX_CMD_FLG_ACK_MSK |
 			TX_CMD_FLG_IMM_BA_RSP_MASK;
 #ifdef CONFIG_IWLWIFI_HT
@@ -3872,7 +3870,7 @@ static void iwl4965_rx_reply_rx(struct iwl_priv *priv,
 			 */
 		case IEEE80211_STYPE_ASSOC_RESP:
 		case IEEE80211_STYPE_REASSOC_RESP:
-			if (network_packet && iwl_is_associated(priv)) {
+			if (network_packet) {
 #ifdef CONFIG_IWLWIFI_HT
 				u8 *pos = NULL;
 				struct ieee802_11_elems elems;

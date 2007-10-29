@@ -433,6 +433,9 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 
 	rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0xFFFF);
 
+	rtl818x_iowrite32(priv, &priv->map->MAR[0], ~0);
+	rtl818x_iowrite32(priv, &priv->map->MAR[1], ~0);
+
 	rtl8187_init_urbs(dev);
 
 	reg = RTL818X_RX_CONF_ONLYERLPKT |
@@ -582,32 +585,31 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev, int if_id,
 static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 				     unsigned int changed_flags,
 				     unsigned int *total_flags,
-				     int mc_count, struct dev_addr_list *mc_list)
+				     int mc_count, struct dev_addr_list *mclist)
 {
 	struct rtl8187_priv *priv = dev->priv;
 
-	*total_flags = 0;
-
-	if (changed_flags & FIF_ALLMULTI)
-		priv->rx_conf ^= RTL818X_RX_CONF_MULTICAST;
 	if (changed_flags & FIF_FCSFAIL)
 		priv->rx_conf ^= RTL818X_RX_CONF_FCS;
 	if (changed_flags & FIF_CONTROL)
 		priv->rx_conf ^= RTL818X_RX_CONF_CTRL;
 	if (changed_flags & FIF_OTHER_BSS)
 		priv->rx_conf ^= RTL818X_RX_CONF_MONITOR;
-
-	if (mc_count > 0)
+	if (*total_flags & FIF_ALLMULTI || mc_count > 0)
 		priv->rx_conf |= RTL818X_RX_CONF_MULTICAST;
+	else
+		priv->rx_conf &= ~RTL818X_RX_CONF_MULTICAST;
 
-	if (priv->rx_conf & RTL818X_RX_CONF_MULTICAST)
-		*total_flags |= FIF_ALLMULTI;
+	*total_flags = 0;
+
 	if (priv->rx_conf & RTL818X_RX_CONF_FCS)
 		*total_flags |= FIF_FCSFAIL;
 	if (priv->rx_conf & RTL818X_RX_CONF_CTRL)
 		*total_flags |= FIF_CONTROL;
 	if (priv->rx_conf & RTL818X_RX_CONF_MONITOR)
 		*total_flags |= FIF_OTHER_BSS;
+	if (priv->rx_conf & RTL818X_RX_CONF_MULTICAST)
+		*total_flags |= FIF_ALLMULTI;
 
 	rtl818x_iowrite32_async(priv, &priv->map->RX_CONF, priv->rx_conf);
 }

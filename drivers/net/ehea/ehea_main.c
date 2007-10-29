@@ -33,6 +33,9 @@
 #include <linux/if.h>
 #include <linux/list.h>
 #include <linux/if_ether.h>
+#include <linux/notifier.h>
+#include <linux/reboot.h>
+
 #include <net/ip.h>
 
 #include "ehea.h"
@@ -3295,6 +3298,20 @@ static int __devexit ehea_remove(struct of_device *dev)
 	return 0;
 }
 
+static int ehea_reboot_notifier(struct notifier_block *nb,
+				unsigned long action, void *unused)
+{
+	if (action == SYS_RESTART) {
+		ehea_info("Reboot: freeing all eHEA resources");
+		ibmebus_unregister_driver(&ehea_driver);
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block ehea_reboot_nb = {
+        .notifier_call = ehea_reboot_notifier,
+};
+
 static int check_module_parm(void)
 {
 	int ret = 0;
@@ -3351,6 +3368,8 @@ int __init ehea_module_init(void)
 	if (ret)
 		goto out;
 
+	register_reboot_notifier(&ehea_reboot_nb);
+
 	ret = ibmebus_register_driver(&ehea_driver);
 	if (ret) {
 		ehea_error("failed registering eHEA device driver on ebus");
@@ -3362,6 +3381,7 @@ int __init ehea_module_init(void)
 	if (ret) {
 		ehea_error("failed to register capabilities attribute, ret=%d",
 			   ret);
+		unregister_reboot_notifier(&ehea_reboot_nb);
 		ibmebus_unregister_driver(&ehea_driver);
 		goto out;
 	}
@@ -3375,6 +3395,7 @@ static void __exit ehea_module_exit(void)
 	flush_scheduled_work();
 	driver_remove_file(&ehea_driver.driver, &driver_attr_capabilities);
 	ibmebus_unregister_driver(&ehea_driver);
+	unregister_reboot_notifier(&ehea_reboot_nb);
 	ehea_destroy_busmap();
 }
 

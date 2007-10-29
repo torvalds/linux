@@ -627,19 +627,16 @@ static int au1k_irda_rx(struct net_device *dev)
 }
 
 
-void au1k_irda_interrupt(int irq, void *dev_id)
+static irqreturn_t au1k_irda_interrupt(int dummy, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
-
-	if (dev == NULL) {
-		printk(KERN_ERR "%s: isr: null dev ptr\n", dev->name);
-		return;
-	}
+	struct net_device *dev = dev_id;
 
 	writel(0, IR_INT_CLEAR); /* ack irda interrupts */
 
 	au1k_irda_rx(dev);
 	au1k_tx_ack(dev);
+
+	return IRQ_HANDLED;
 }
 
 
