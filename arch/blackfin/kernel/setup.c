@@ -316,6 +316,15 @@ void __init setup_arch(char **cmdline_p)
 
 	init_leds();
 
+	_bfin_swrst = bfin_read_SWRST();
+
+	if (_bfin_swrst & RESET_DOUBLE)
+		printk(KERN_INFO "Recovering from Double Fault event\n");
+	else if (_bfin_swrst & RESET_WDOG)
+		printk(KERN_INFO "Recovering from Watchdog event\n");
+	else if (_bfin_swrst & RESET_SOFTWARE)
+		printk(KERN_NOTICE "Reset caused by Software reset\n");
+
 	printk(KERN_INFO "Blackfin support (C) 2004-2007 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev any\n", CPU);
@@ -401,8 +410,6 @@ void __init setup_arch(char **cmdline_p)
 	l1_length = _ebss_l1 - _sdata_l1;
 	if (l1_length > L1_DATA_A_LENGTH)
 		panic("L1 data memory overflow\n");
-
-	_bfin_swrst = bfin_read_SWRST();
 
 	/* Copy atomic sequences to their fixed location, and sanity check that
 	   these locations are the ones that we advertise to userspace.  */
