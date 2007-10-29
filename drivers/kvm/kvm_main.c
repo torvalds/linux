@@ -633,7 +633,10 @@ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_is_visible_gfn);
 
-struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
+/*
+ * Requires current->mm->mmap_sem to be held
+ */
+static struct page *__gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
 	struct kvm_memory_slot *slot;
 	struct page *page[1];
@@ -648,12 +651,10 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 		return bad_page;
 	}
 
-	down_read(&current->mm->mmap_sem);
 	npages = get_user_pages(current, current->mm,
 				slot->userspace_addr
 				+ (gfn - slot->base_gfn) * PAGE_SIZE, 1,
 				1, 1, page, NULL);
-	up_read(&current->mm->mmap_sem);
 	if (npages != 1) {
 		get_page(bad_page);
 		return bad_page;
@@ -661,6 +662,18 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 
 	return page[0];
 }
+
+struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
+{
+	struct page *page;
+
+	down_read(&current->mm->mmap_sem);
+	page = __gfn_to_page(kvm, gfn);
+	up_read(&current->mm->mmap_sem);
+
+	return page;
+}
+
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
 void kvm_release_page(struct page *page)
@@ -2621,7 +2634,8 @@ static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
 	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
 	if (!kvm_is_visible_gfn(kvm, pgoff))
 		return NOPAGE_SIGBUS;
-	page = gfn_to_page(kvm, pgoff);
+	/* current->mm->mmap_sem is already held so call lockless version */
+	page = __gfn_to_page(kvm, pgoff);
 	if (is_error_page(page)) {
 		kvm_release_page(page);
 		return NOPAGE_SIGBUS;
