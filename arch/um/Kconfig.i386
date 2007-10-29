@@ -1,6 +1,6 @@
 menu "Host processor type and features"
 
-source "arch/i386/Kconfig.cpu"
+source "arch/x86/Kconfig.cpu"
 
 endmenu
 
