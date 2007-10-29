@@ -58,7 +58,6 @@ extern void local_timer_interrupt(int irq, void *dev_id);
  */
 struct irqaction;
 extern void plat_time_init(void);
-extern void plat_timer_setup(struct irqaction *irq);
 
 /*
  * mips_hpt_frequency - must be set if you intend to use an R4k-compatible
@@ -78,6 +77,7 @@ extern int (*perf_irq)(void);
  */
 #ifdef CONFIG_CEVT_R4K
 extern void mips_clockevent_init(void);
+extern unsigned int __weak get_c0_compare_int(void);
 #else
 static inline void mips_clockevent_init(void)
 {

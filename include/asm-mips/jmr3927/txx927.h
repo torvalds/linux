@@ -10,22 +10,6 @@
 #ifndef __ASM_TXX927_H
 #define __ASM_TXX927_H
 
-struct txx927_tmr_reg {
-	volatile unsigned long tcr;
-	volatile unsigned long tisr;
-	volatile unsigned long cpra;
-	volatile unsigned long cprb;
-	volatile unsigned long itmr;
-	volatile unsigned long unused0[3];
-	volatile unsigned long ccdr;
-	volatile unsigned long unused1[3];
-	volatile unsigned long pgmr;
-	volatile unsigned long unused2[3];
-	volatile unsigned long wtmr;
-	volatile unsigned long unused3[43];
-	volatile unsigned long trr;
-};
-
 struct txx927_sio_reg {
 	volatile unsigned long lcr;
 	volatile unsigned long dicr;
@@ -49,27 +33,6 @@ struct txx927_pio_reg {
 	volatile unsigned long maskcpu;
 	volatile unsigned long maskext;
 };
-
-/*
- * TMR
- */
-/* TMTCR : Timer Control */
-#define TXx927_TMTCR_TCE	0x00000080
-#define TXx927_TMTCR_CCDE	0x00000040
-#define TXx927_TMTCR_CRE	0x00000020
-#define TXx927_TMTCR_ECES	0x00000008
-#define TXx927_TMTCR_CCS	0x00000004
-#define TXx927_TMTCR_TMODE_MASK	0x00000003
-#define TXx927_TMTCR_TMODE_ITVL	0x00000000
-
-/* TMTISR : Timer Int. Status */
-#define TXx927_TMTISR_TPIBS	0x00000004
-#define TXx927_TMTISR_TPIAS	0x00000002
-#define TXx927_TMTISR_TIIS	0x00000001
-
-/* TMTITMR : Interval Timer Mode */
-#define TXx927_TMTITMR_TIIE	0x00008000
-#define TXx927_TMTITMR_TZCE	0x00000001
 
 /*
  * SIO

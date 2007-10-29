@@ -68,22 +68,21 @@ DEFINE_SPINLOCK(titan_lock);
 int titan_irqflags;
 
 
+/*
+ * The eXcite platform uses the alternate timer interrupt
+ *
+ * Fixme: At the time of this writing cevt-r4k.c doesn't yet know about how
+ * to handle the alternate timer interrupt of the RM9000.
+ */
 void __init plat_time_init(void)
 {
 	const u32 modebit5 = ocd_readl(0x00e4);
-	unsigned int
-		mult = ((modebit5 >> 11) & 0x1f) + 2,
-		div = ((modebit5 >> 16) & 0x1f) + 2;
+	unsigned int mult = ((modebit5 >> 11) & 0x1f) + 2,
+	unsigned int div = ((modebit5 >> 16) & 0x1f) + 2;
 
-	if (div == 33) div = 1;
+	if (div == 33)
+		div = 1;
 	mips_hpt_frequency = EXCITE_CPU_EXT_CLOCK * mult / div / 2;
-}
-
-void __init plat_timer_setup(struct irqaction *irq)
-{
-	/* The eXcite platform uses the alternate timer interrupt */
-	set_c0_intcontrol(0x80);
-	setup_irq(TIMER_IRQ, irq);
 }
 
 static int __init excite_init_console(void)

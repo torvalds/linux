@@ -22,10 +22,12 @@ enum ip32_irq_no {
 	 * CPU interrupts are 0 ... 7
 	 */
 
+	CRIME_IRQ_BASE			= MIPS_CPU_IRQ_BASE,
+
 	/*
 	 * MACE
 	 */
-	MACE_VID_IN1_IRQ		= MIPS_CPU_IRQ_BASE + 8,
+	MACE_VID_IN1_IRQ		= CRIME_IRQ_BASE,
 	MACE_VID_IN2_IRQ,
 	MACE_VID_OUT_IRQ,
 	MACE_ETHERNET_IRQ,

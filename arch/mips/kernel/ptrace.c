@@ -65,13 +65,13 @@ int ptrace_getregs(struct task_struct *child, __s64 __user *data)
 	regs = task_pt_regs(child);
 
 	for (i = 0; i < 32; i++)
-		__put_user(regs->regs[i], data + i);
-	__put_user(regs->lo, data + EF_LO - EF_R0);
-	__put_user(regs->hi, data + EF_HI - EF_R0);
-	__put_user(regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
-	__put_user(regs->cp0_badvaddr, data + EF_CP0_BADVADDR - EF_R0);
-	__put_user(regs->cp0_status, data + EF_CP0_STATUS - EF_R0);
-	__put_user(regs->cp0_cause, data + EF_CP0_CAUSE - EF_R0);
+		__put_user((long)regs->regs[i], data + i);
+	__put_user((long)regs->lo, data + EF_LO - EF_R0);
+	__put_user((long)regs->hi, data + EF_HI - EF_R0);
+	__put_user((long)regs->cp0_epc, data + EF_CP0_EPC - EF_R0);
+	__put_user((long)regs->cp0_badvaddr, data + EF_CP0_BADVADDR - EF_R0);
+	__put_user((long)regs->cp0_status, data + EF_CP0_STATUS - EF_R0);
+	__put_user((long)regs->cp0_cause, data + EF_CP0_CAUSE - EF_R0);
 
 	return 0;
 }
@@ -390,11 +390,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 
 	case PTRACE_GETREGS:
-		ret = ptrace_getregs(child, (__u64 __user *) data);
+		ret = ptrace_getregs(child, (__s64 __user *) data);
 		break;
 
 	case PTRACE_SETREGS:
-		ret = ptrace_setregs(child, (__u64 __user *) data);
+		ret = ptrace_setregs(child, (__s64 __user *) data);
 		break;
 
 	case PTRACE_GETFPREGS:

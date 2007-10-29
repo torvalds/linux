@@ -12,8 +12,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/string.h>
 #include <linux/scatterlist.h>
+#include <linux/string.h>
 
 #include <asm/cache.h>
 #include <asm/io.h>

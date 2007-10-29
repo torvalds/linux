@@ -37,8 +37,6 @@
 #define IMR_IP3_VAL	K_BCM1480_INT_MAP_I1
 #define IMR_IP4_VAL	K_BCM1480_INT_MAP_I2
 
-extern int bcm1480_steal_irq(int irq);
-
 /*
  * The general purpose timer ticks at 1MHz independent if
  * the rest of the system
@@ -121,7 +119,7 @@ void __cpuinit sb1480_clockevent_init(void)
 	sprintf(name, "bcm1480-counter %d", cpu);
 	cd->name		= name;
 	cd->features		= CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_MODE_ONESHOT;
+				  CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, V_SCD_TIMER_FREQ);
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffff, cd);
 	cd->min_delta_ns	= clockevent_delta2ns(1, cd);
@@ -142,7 +140,6 @@ void __cpuinit sb1480_clockevent_init(void)
 			R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) + (irq << 3)));
 
 	bcm1480_unmask_irq(cpu, irq);
-	bcm1480_steal_irq(irq);
 
 	action->handler	= sibyte_counter_handler;
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;
