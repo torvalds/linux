@@ -220,12 +220,6 @@ static int __meminit sparse_init_one_section(struct mem_section *ms,
 	return 1;
 }
 
-__attribute__((weak)) __init
-void *alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
-{
-	return NULL;
-}
-
 static unsigned long usemap_size(void)
 {
 	unsigned long size_bytes;
@@ -264,11 +258,6 @@ struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
 	struct page *map;
 
 	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
-	if (map)
-		return map;
-
-  	map = alloc_bootmem_high_node(NODE_DATA(nid),
-                       sizeof(struct page) * PAGES_PER_SECTION);
 	if (map)
 		return map;
 
