@@ -2385,6 +2385,14 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		type = ADMA;
 	}
 
+	if (type == SWNCQ) {
+		if (swncq_enabled)
+			dev_printk(KERN_NOTICE, &pdev->dev,
+				   "Using SWNCQ mode\n");
+		else
+			type = GENERIC;
+	}
+
 	ppi[0] = &nv_port_info[type];
 	rc = ata_pci_prepare_sff_host(pdev, ppi, &host);
 	if (rc)
@@ -2426,10 +2434,8 @@ static int nv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		rc = nv_adma_host_init(host);
 		if (rc)
 			return rc;
-	} else if (type == SWNCQ && swncq_enabled) {
-		dev_printk(KERN_NOTICE, &pdev->dev, "Using SWNCQ mode\n");
+	} else if (type == SWNCQ)
 		nv_swncq_host_init(host);
-	}
 
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, ppi[0]->irq_handler,
