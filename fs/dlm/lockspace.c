@@ -223,7 +223,7 @@ int dlm_lockspace_init(void)
 	INIT_LIST_HEAD(&lslist);
 	spin_lock_init(&lslist_lock);
 
-	dlm_kset = kset_create_and_add("dlm", NULL, &kernel_subsys.kobj);
+	dlm_kset = kset_create_and_add("dlm", NULL, &kernel_kset->kobj);
 	if (!dlm_kset) {
 		printk(KERN_WARNING "%s: can not create kset\n", __FUNCTION__);
 		return -ENOMEM;

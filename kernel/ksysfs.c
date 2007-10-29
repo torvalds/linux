@@ -94,8 +94,8 @@ static struct bin_attribute notes_attr = {
 	.read = &notes_read,
 };
 
-decl_subsys(kernel, NULL);
-EXPORT_SYMBOL_GPL(kernel_subsys);
+struct kset *kernel_kset;
+EXPORT_SYMBOL_GPL(kernel_kset);
 
 static struct attribute * kernel_attrs[] = {
 #if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
@@ -116,24 +116,42 @@ static struct attribute_group kernel_attr_group = {
 
 static int __init ksysfs_init(void)
 {
-	int error = subsystem_register(&kernel_subsys);
-	if (!error)
-		error = sysfs_create_group(&kernel_subsys.kobj,
-					   &kernel_attr_group);
+	int error;
 
-	if (!error && notes_size > 0) {
+	kernel_kset = kset_create_and_add("kernel", NULL, NULL);
+	if (!kernel_kset) {
+		error = -ENOMEM;
+		goto exit;
+	}
+	error = sysfs_create_group(&kernel_kset->kobj, &kernel_attr_group);
+	if (error)
+		goto kset_exit;
+
+	if (notes_size > 0) {
 		notes_attr.size = notes_size;
-		error = sysfs_create_bin_file(&kernel_subsys.kobj,
-					      &notes_attr);
+		error = sysfs_create_bin_file(&kernel_kset->kobj, &notes_attr);
+		if (error)
+			goto group_exit;
 	}
 
 	/*
 	 * Create "/sys/kernel/uids" directory and corresponding root user's
 	 * directory under it.
 	 */
-	if (!error)
-		error = uids_kobject_init();
+	error = uids_kobject_init();
+	if (error)
+		goto notes_exit;
 
+	return 0;
+
+notes_exit:
+	if (notes_size > 0)
+		sysfs_remove_bin_file(&kernel_kset->kobj, &notes_attr);
+group_exit:
+	sysfs_remove_group(&kernel_kset->kobj, &kernel_attr_group);
+kset_exit:
+	kset_unregister(kernel_kset);
+exit:
 	return error;
 }
 

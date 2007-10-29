@@ -194,8 +194,8 @@ struct kset _name##_subsys = { \
 	.uevent_ops =_uevent_ops, \
 }
 
-/* The global /sys/kernel/ subsystem for people to chain off of */
-extern struct kset kernel_subsys;
+/* The global /sys/kernel/ kset for people to chain off of */
+extern struct kset *kernel_kset;
 /* The global /sys/hypervisor/ subsystem  */
 extern struct kset hypervisor_subsys;
 

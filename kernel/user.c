@@ -198,8 +198,8 @@ int __init uids_kobject_init(void)
 	int error;
 
 	/* create under /sys/kernel dir */
-	uids_kobject.parent = &kernel_subsys.kobj;
-	uids_kobject.kset = &kernel_subsys;
+	uids_kobject.parent = &kernel_kset->kobj;
+	uids_kobject.kset = kernel_kset;
 	kobject_set_name(&uids_kobject, "uids");
 	kobject_init(&uids_kobject);
 
