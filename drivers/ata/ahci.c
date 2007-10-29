@@ -898,8 +898,10 @@ static int ahci_reset_controller(struct ata_host *host)
 	 * AHCI-specific, such as HOST_RESET.
 	 */
 	tmp = readl(mmio + HOST_CTL);
-	if (!(tmp & HOST_AHCI_EN))
-		writel(tmp | HOST_AHCI_EN, mmio + HOST_CTL);
+	if (!(tmp & HOST_AHCI_EN)) {
+		tmp |= HOST_AHCI_EN;
+		writel(tmp, mmio + HOST_CTL);
+	}
 
 	/* global controller reset */
 	if ((tmp & HOST_RESET) == 0) {
