@@ -52,10 +52,11 @@ MODULE_PARM_DESC(copybreak,
  */
 
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
-#define E1000_PARAM(X, desc) \
-	static int __devinitdata X[E1000_MAX_NIC+1] = E1000_PARAM_INIT; \
-	static int num_##X; \
-	module_param_array_named(X, X, int, &num_##X, 0); \
+#define E1000_PARAM(X, desc)					\
+	static int __devinitdata X[E1000_MAX_NIC+1]		\
+		= E1000_PARAM_INIT;				\
+	static unsigned int num_##X;				\
+	module_param_array_named(X, X, int, &num_##X, 0);	\
 	MODULE_PARM_DESC(X, desc);
 
 
@@ -124,9 +125,9 @@ E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
 
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
-	char *name;
-	char *err;
-	int  def;
+	const char *name;
+	const char *err;
+	int def;
 	union {
 		struct { /* range_option info */
 			int min;
@@ -139,8 +140,8 @@ struct e1000_option {
 	} arg;
 };
 
-static int __devinit e1000_validate_option(int *value,
-					   struct e1000_option *opt,
+static int __devinit e1000_validate_option(unsigned int *value,
+					   const struct e1000_option *opt,
 					   struct e1000_adapter *adapter)
 {
 	if (*value == OPTION_UNSET) {
@@ -213,7 +214,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 	}
 
 	{ /* Transmit Interrupt Delay */
-		struct e1000_option opt = {
+		const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Transmit Interrupt Delay",
 			.err  = "using default of "
@@ -232,7 +233,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Transmit Absolute Interrupt Delay */
-		struct e1000_option opt = {
+		const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Transmit Absolute Interrupt Delay",
 			.err  = "using default of "
@@ -277,7 +278,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Receive Absolute Interrupt Delay */
-		struct e1000_option opt = {
+		const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Receive Absolute Interrupt Delay",
 			.err  = "using default of "
@@ -296,7 +297,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Interrupt Throttling Rate */
-		struct e1000_option opt = {
+		const struct e1000_option opt = {
 			.type = range_option,
 			.name = "Interrupt Throttling Rate (ints/sec)",
 			.err  = "using default of "
@@ -344,7 +345,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Smart Power Down */
-		struct e1000_option opt = {
+		const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "PHY Smart Power Down",
 			.err  = "defaulting to Disabled",
@@ -352,7 +353,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		};
 
 		if (num_SmartPowerDownEnable > bd) {
-			int spd = SmartPowerDownEnable[bd];
+			unsigned int spd = SmartPowerDownEnable[bd];
 			e1000_validate_option(&spd, &opt, adapter);
 			if ((adapter->flags & FLAG_HAS_SMART_POWER_DOWN)
 			    && spd)
@@ -360,7 +361,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		}
 	}
 	{ /* Kumeran Lock Loss Workaround */
-		struct e1000_option opt = {
+		const struct e1000_option opt = {
 			.type = enable_option,
 			.name = "Kumeran Lock Loss Workaround",
 			.err  = "defaulting to Enabled",
@@ -368,7 +369,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		};
 
 		if (num_KumeranLockLoss > bd) {
-			int kmrn_lock_loss = KumeranLockLoss[bd];
+			unsigned int kmrn_lock_loss = KumeranLockLoss[bd];
 			e1000_validate_option(&kmrn_lock_loss, &opt, adapter);
 			if (hw->mac.type == e1000_ich8lan)
 				e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw,
