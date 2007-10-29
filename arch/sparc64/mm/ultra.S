@@ -120,13 +120,6 @@ __spitfire_flush_tlb_mm_slow:
 /*
  * The following code flushes one page_size worth.
  */
-#if (PAGE_SHIFT == 13)
-#define ITAG_MASK 0xfe
-#elif (PAGE_SHIFT == 16)
-#define ITAG_MASK 0x7fe
-#else
-#error unsupported PAGE_SIZE
-#endif
 	.section .kprobes.text, "ax"
 	.align		32
 	.globl		__flush_icache_page
