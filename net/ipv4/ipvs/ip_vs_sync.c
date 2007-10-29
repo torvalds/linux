@@ -72,7 +72,6 @@ struct ip_vs_sync_thread_data {
 	int state;
 };
 
-#define IP_VS_SYNC_CONN_TIMEOUT (3*60*HZ)
 #define SIMPLE_CONN_SIZE  (sizeof(struct ip_vs_sync_conn))
 #define FULL_CONN_SIZE  \
 (sizeof(struct ip_vs_sync_conn) + sizeof(struct ip_vs_sync_conn_options))
@@ -284,6 +283,7 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 	struct ip_vs_sync_conn *s;
 	struct ip_vs_sync_conn_options *opt;
 	struct ip_vs_conn *cp;
+	struct ip_vs_protocol *pp;
 	char *p;
 	int i;
 
@@ -342,7 +342,8 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 			p += SIMPLE_CONN_SIZE;
 
 		atomic_set(&cp->in_pkts, sysctl_ip_vs_sync_threshold[0]);
-		cp->timeout = IP_VS_SYNC_CONN_TIMEOUT;
+		pp = ip_vs_proto_get(s->protocol);
+		cp->timeout = pp->timeout_table[cp->state];
 		ip_vs_conn_put(cp);
 
 		if (p > buffer+buflen) {
