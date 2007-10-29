@@ -113,6 +113,8 @@ pci_find_next_bus(const struct pci_bus *from)
 	return b;
 }
 
+#ifdef CONFIG_PCI_LEGACY
+
 /**
  * pci_find_slot - locate PCI device from a given PCI slot
  * @bus: number of PCI bus on which desired PCI device resides
@@ -136,6 +138,8 @@ pci_find_slot(unsigned int bus, unsigned int devfn)
 	}
 	return NULL;
 }
+
+#endif /* CONFIG_PCI_LEGACY */
 
 /**
  * pci_get_slot - locate PCI device for a given PCI slot
@@ -200,6 +204,7 @@ struct pci_dev * pci_get_bus_and_slot(unsigned int bus, unsigned int devfn)
 	return NULL;
 }
 
+#ifdef CONFIG_PCI_LEGACY
 /**
  * pci_find_subsys - begin or continue searching for a PCI device by vendor/subvendor/device/subdevice id
  * @vendor: PCI vendor id to match, or %PCI_ANY_ID to match all vendor ids
@@ -278,6 +283,7 @@ pci_find_device(unsigned int vendor, unsigned int device, const struct pci_dev *
 {
 	return pci_find_subsys(vendor, device, PCI_ANY_ID, PCI_ANY_ID, from);
 }
+#endif /* CONFIG_PCI_LEGACY */
 
 /**
  * pci_get_subsys - begin or continue searching for a PCI device by vendor/subvendor/device/subdevice id
@@ -468,8 +474,11 @@ int pci_dev_present(const struct pci_device_id *ids)
 EXPORT_SYMBOL(pci_dev_present);
 EXPORT_SYMBOL(pci_find_present);
 
+#ifdef CONFIG_PCI_LEGACY
 EXPORT_SYMBOL(pci_find_device);
 EXPORT_SYMBOL(pci_find_slot);
+#endif /* CONFIG_PCI_LEGACY */
+
 /* For boot time work */
 EXPORT_SYMBOL(pci_find_bus);
 EXPORT_SYMBOL(pci_find_next_bus);

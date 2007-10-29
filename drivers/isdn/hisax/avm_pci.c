@@ -830,7 +830,7 @@ static int __devinit avm_pnp_setup(struct IsdnCardState *cs)
 
 #endif /* __ISAPNP__ */
 
-#ifndef CONFIG_PCI
+#ifndef CONFIG_PCI_LEGACY
 
 static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 {
@@ -872,7 +872,7 @@ static int __devinit avm_pci_setup(struct IsdnCardState *cs)
 	return (1);
 }
 
-#endif /* CONFIG_PCI */
+#endif /* CONFIG_PCI_LEGACY */
 
 int __devinit
 setup_avm_pcipnp(struct IsdnCard *card)
