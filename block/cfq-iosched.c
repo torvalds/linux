@@ -1443,8 +1443,11 @@ cfq_get_queue(struct cfq_data *cfqd, int is_sync, struct task_struct *tsk,
 		cfqq = *async_cfqq;
 	}
 
-	if (!cfqq)
+	if (!cfqq) {
 		cfqq = cfq_find_alloc_queue(cfqd, is_sync, tsk, gfp_mask);
+		if (!cfqq)
+			return NULL;
+	}
 
 	/*
 	 * pin the queue now that it's allocated, scheduler exit will prune it
@@ -2053,7 +2056,7 @@ static void cfq_shutdown_timer_wq(struct cfq_data *cfqd)
 {
 	del_timer_sync(&cfqd->idle_slice_timer);
 	del_timer_sync(&cfqd->idle_class_timer);
-	blk_sync_queue(cfqd->queue);
+	kblockd_flush_work(&cfqd->unplug_work);
 }
 
 static void cfq_put_async_queues(struct cfq_data *cfqd)
