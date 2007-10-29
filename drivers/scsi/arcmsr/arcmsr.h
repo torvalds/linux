@@ -141,14 +141,14 @@ struct CMD_MESSAGE_FIELD
 #define IS_SG64_ADDR                0x01000000 /* bit24 */
 struct  SG32ENTRY
 {
-	uint32_t					length;
-	uint32_t					address;
+	__le32					length;
+	__le32					address;
 };
 struct  SG64ENTRY
 {
- 	uint32_t					length;
- 	uint32_t					address;
- 	uint32_t					addresshigh;
+	__le32					length;
+	__le32					address;
+	__le32					addresshigh;
 };
 struct SGENTRY_UNION
 {
@@ -339,13 +339,13 @@ struct MessageUnit_B
 	uint32_t	done_qbuffer[ARCMSR_MAX_HBB_POSTQUEUE];
 	uint32_t	postq_index;
 	uint32_t	doneq_index;
-	uint32_t	*drv2iop_doorbell_reg;
-	uint32_t	*drv2iop_doorbell_mask_reg;
-	uint32_t	*iop2drv_doorbell_reg;
-	uint32_t	*iop2drv_doorbell_mask_reg;
-	uint32_t	*msgcode_rwbuffer_reg;
-	uint32_t	*ioctl_wbuffer_reg;
-	uint32_t	*ioctl_rbuffer_reg;
+	uint32_t	__iomem *drv2iop_doorbell_reg;
+	uint32_t	__iomem *drv2iop_doorbell_mask_reg;
+	uint32_t	__iomem *iop2drv_doorbell_reg;
+	uint32_t	__iomem *iop2drv_doorbell_mask_reg;
+	uint32_t	__iomem *msgcode_rwbuffer_reg;
+	uint32_t	__iomem *ioctl_wbuffer_reg;
+	uint32_t	__iomem *ioctl_rbuffer_reg;
 };
 
 struct MessageUnit
@@ -374,7 +374,11 @@ struct AdapterControlBlock
 	/* Offset is used in making arc cdb physical to virtual calculations */
 	uint32_t			outbound_int_enable;
 
-	struct MessageUnit *			pmu;
+	union {
+		struct MessageUnit *		pmu;
+		struct MessageUnit_A __iomem *	pmuA;
+		struct MessageUnit_B *		pmuB;
+	};
 	/* message unit ATU inbound base address0 */
 
 	uint32_t			acb_flags;
@@ -558,7 +562,7 @@ struct SENSE_DATA
 
 extern void arcmsr_post_ioctldata2iop(struct AdapterControlBlock *);
 extern void arcmsr_iop_message_read(struct AdapterControlBlock *);
-extern struct QBUFFER *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
+extern struct QBUFFER __iomem *arcmsr_get_iop_rqbuffer(struct AdapterControlBlock *);
 extern struct class_device_attribute *arcmsr_host_attrs[];
 extern int arcmsr_alloc_sysfs_attr(struct AdapterControlBlock *);
 void arcmsr_free_sysfs_attr(struct AdapterControlBlock *acb);
