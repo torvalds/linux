@@ -94,8 +94,6 @@ int cpuidle_register_governor(struct cpuidle_governor *gov)
 	return ret;
 }
 
-EXPORT_SYMBOL_GPL(cpuidle_register_governor);
-
 /**
  * cpuidle_replace_governor - find a replacement governor
  * @exclude_rating: the rating that will be skipped while looking for
@@ -138,4 +136,3 @@ void cpuidle_unregister_governor(struct cpuidle_governor *gov)
 	mutex_unlock(&cpuidle_lock);
 }
 
-EXPORT_SYMBOL_GPL(cpuidle_unregister_governor);
