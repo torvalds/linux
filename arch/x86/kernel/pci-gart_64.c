@@ -435,7 +435,7 @@ static int gart_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 error:
 	flush_gart();
-	gart_unmap_sg(dev, sg, nents, dir);
+	gart_unmap_sg(dev, sg, out, dir);
 	/* When it was forced or merged try again in a dumb way */
 	if (force_iommu || iommu_merge) {
 		out = dma_map_sg_nonforce(dev, sg, nents, dir);

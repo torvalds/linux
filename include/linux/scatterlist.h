@@ -150,7 +150,7 @@ static inline struct scatterlist *sg_last(struct scatterlist *sgl,
 	struct scatterlist *ret = &sgl[nents - 1];
 #else
 	struct scatterlist *sg, *ret = NULL;
-	int i;
+	unsigned int i;
 
 	for_each_sg(sgl, sg, nents, i)
 		ret = sg;
@@ -179,7 +179,11 @@ static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 #ifndef ARCH_HAS_SG_CHAIN
 	BUG();
 #endif
-	prv[prv_nents - 1].page_link = (unsigned long) sgl | 0x01;
+	/*
+	 * Set lowest bit to indicate a link pointer, and make sure to clear
+	 * the termination bit if it happens to be set.
+	 */
+	prv[prv_nents - 1].page_link = ((unsigned long) sgl | 0x01) & ~0x02;
 }
 
 /**
@@ -239,7 +243,7 @@ static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
 	sg_mark_end(sgl, nents);
 #ifdef CONFIG_DEBUG_SG
 	{
-		int i;
+		unsigned int i;
 		for (i = 0; i < nents; i++)
 			sgl[i].sg_magic = SG_MAGIC;
 	}
