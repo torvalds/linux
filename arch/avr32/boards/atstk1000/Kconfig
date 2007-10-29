@@ -76,4 +76,9 @@ config BOARD_ATSTK1000_J2_RGB
 
 endchoice
 
+config BOARD_ATSTK1000_EXTDAC
+	bool
+	depends on !BOARD_ATSTK1002_SW1_CUSTOM && !BOARD_ATSTK1002_SW3_CUSTOM
+	default y
+
 endif	# stk 1002

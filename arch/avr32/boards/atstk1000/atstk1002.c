@@ -48,18 +48,16 @@ static struct eth_platform_data __initdata eth_data[2] = {
 	},
 };
 
-#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
-#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+#ifdef CONFIG_BOARD_ATSTK1000_EXTDAC
 static struct at73c213_board_info at73c213_data = {
 	.ssc_id		= 0,
 	.shortname	= "AVR32 STK1000 external DAC",
 };
 #endif
-#endif
 
 #ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
 static struct spi_board_info spi0_board_info[] __initdata = {
-#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
+#ifdef CONFIG_BOARD_ATSTK1000_EXTDAC
 	{
 		/* AT73C213 */
 		.modalias	= "at73c213",
@@ -140,9 +138,8 @@ static void __init set_hw_addr(struct platform_device *pdev)
 	clk_put(pclk);
 }
 
-#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
-#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
-static void __init at73c213_set_clk(struct at73c213_board_info *info)
+#ifdef CONFIG_BOARD_ATSTK1000_EXTDAC
+static void __init atstk1002_setup_extdac(void)
 {
 	struct clk *gclk;
 	struct clk *pll;
@@ -160,7 +157,7 @@ static void __init at73c213_set_clk(struct at73c213_board_info *info)
 	}
 
 	at32_select_periph(GPIO_PIN_PA(30), GPIO_PERIPH_A, 0);
-	info->dac_clk = gclk;
+	at73c213_data.dac_clk = gclk;
 
 err_set_clk:
 	clk_put(pll);
@@ -169,8 +166,12 @@ err_pll:
 err_gclk:
 	return;
 }
-#endif
-#endif
+#else
+static void __init atstk1002_setup_extdac(void)
+{
+
+}
+#endif /* CONFIG_BOARD_ATSTK1000_EXTDAC */
 
 void __init setup_board(void)
 {
@@ -239,12 +240,7 @@ static int __init atstk1002_init(void)
 #endif
 
 	atstk1000_setup_j2_leds();
-
-#ifndef CONFIG_BOARD_ATSTK1002_SW3_CUSTOM
-#ifndef CONFIG_BOARD_ATSTK1002_SW1_CUSTOM
-	at73c213_set_clk(&at73c213_data);
-#endif
-#endif
+	atstk1002_setup_extdac();
 
 	return 0;
 }
