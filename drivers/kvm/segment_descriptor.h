@@ -1,3 +1,6 @@
+#ifndef __SEGMENT_DESCRIPTOR_H
+#define __SEGMENT_DESCRIPTOR_H
+
 struct segment_descriptor {
 	u16 limit_low;
 	u16 base_low;
@@ -14,4 +17,13 @@ struct segment_descriptor {
 	u8  base_high;
 } __attribute__((packed));
 
+#ifdef CONFIG_X86_64
+/* LDT or TSS descriptor in the GDT. 16 bytes. */
+struct segment_descriptor_64 {
+	struct segment_descriptor s;
+	u32 base_higher;
+	u32 pad_zero;
+};
 
+#endif
+#endif
