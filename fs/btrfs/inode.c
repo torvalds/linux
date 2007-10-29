@@ -2176,8 +2176,12 @@ void btrfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+static void init_once(struct kmem_cache * cachep, void *foo)
+#else
 static void init_once(void * foo, struct kmem_cache * cachep,
 		      unsigned long flags)
+#endif
 {
 	struct btrfs_inode *ei = (struct btrfs_inode *) foo;
 
@@ -2200,8 +2204,13 @@ void btrfs_destroy_cachep(void)
 
 struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
 				       unsigned long extra_flags,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
+				       void (*ctor)(struct kmem_cache *, void *)
+#else
 				       void (*ctor)(void *, struct kmem_cache *,
-						    unsigned long))
+						    unsigned long)
+#endif
+				     )
 {
 	return kmem_cache_create(name, size, 0, (SLAB_RECLAIM_ACCOUNT |
 				 SLAB_MEM_SPREAD | extra_flags), ctor
