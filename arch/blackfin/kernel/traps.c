@@ -54,12 +54,13 @@ void __init trap_init(void)
 int kstack_depth_to_print = 48;
 
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
-static int printk_address(unsigned long address)
+static void printk_address(unsigned long address)
 {
 	struct vm_list_struct *vml;
 	struct task_struct *p;
 	struct mm_struct *mm;
-	unsigned long offset;
+	unsigned long flags, offset;
+	unsigned int in_exception = bfin_read_IPEND() & 0x10;
 
 #ifdef CONFIG_KALLSYMS
 	unsigned long symsize;
@@ -75,9 +76,10 @@ static int printk_address(unsigned long address)
 		/* yeah! kernel space! */
 		if (!modname)
 			modname = delim = "";
-		return printk("<0x%p> { %s%s%s%s + 0x%lx }",
+		printk("<0x%p> { %s%s%s%s + 0x%lx }",
 		              (void *)address, delim, modname, delim, symname,
 		              (unsigned long)offset);
+		return;
 
 	}
 #endif
@@ -86,9 +88,9 @@ static int printk_address(unsigned long address)
 	 * mappings of all our processes and see if we can't be a whee
 	 * bit more specific
 	 */
-	write_lock_irq(&tasklist_lock);
+	write_lock_irqsave(&tasklist_lock, flags);
 	for_each_process(p) {
-		mm = get_task_mm(p);
+		mm = (in_exception ? p->mm : get_task_mm(p));
 		if (!mm)
 			continue;
 
@@ -117,20 +119,24 @@ static int printk_address(unsigned long address)
 				else
 					offset = (address - vma->vm_start) + (vma->vm_pgoff << PAGE_SHIFT);
 
-				write_unlock_irq(&tasklist_lock);
-				mmput(mm);
-				return printk("<0x%p> [ %s + 0x%lx ]",
-				              (void *)address, name, offset);
+				printk("<0x%p> [ %s + 0x%lx ]",
+					(void *)address, name, offset);
+				if (!in_exception)
+					mmput(mm);
+				goto done;
 			}
 
 			vml = vml->next;
 		}
-		mmput(mm);
+		if (!in_exception)
+			mmput(mm);
 	}
-	write_unlock_irq(&tasklist_lock);
 
 	/* we were unable to find this address anywhere */
-	return printk("[<0x%p>]", (void *)address);
+	printk("[<0x%p>]", (void *)address);
+
+done:
+	write_unlock_irqrestore(&tasklist_lock, flags);
 }
 #endif
 
