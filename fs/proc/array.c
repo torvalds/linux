@@ -374,7 +374,8 @@ static cputime_t task_stime(struct task_struct *p)
 	stime = nsec_to_clock_t(p->se.sum_exec_runtime) -
 			cputime_to_clock_t(task_utime(p));
 
-	return clock_t_to_cputime(stime);
+	p->prev_stime = max(p->prev_stime, clock_t_to_cputime(stime));
+	return p->prev_stime;
 }
 #endif
 
