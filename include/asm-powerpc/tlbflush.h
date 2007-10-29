@@ -1,5 +1,6 @@
 #ifndef _ASM_POWERPC_TLBFLUSH_H
 #define _ASM_POWERPC_TLBFLUSH_H
+
 /*
  * TLB flushing:
  *
@@ -16,9 +17,6 @@
  */
 #ifdef __KERNEL__
 
-struct mm_struct;
-struct vm_area_struct;
-
 #if defined(CONFIG_4xx) || defined(CONFIG_8xx) || defined(CONFIG_FSL_BOOKE)
 /*
  * TLB flushing for software loaded TLB chips
@@ -28,7 +26,9 @@ struct vm_area_struct;
  * specific tlbie's
  */
 
-extern void _tlbie(unsigned long address);
+#include <linux/mm.h>
+
+extern void _tlbie(unsigned long address, unsigned int pid);
 
 #if defined(CONFIG_40x) || defined(CONFIG_8xx)
 #define _tlbia()	asm volatile ("tlbia; sync" : : : "memory")
@@ -44,13 +44,13 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long vmaddr)
 {
-	_tlbie(vmaddr);
+	_tlbie(vmaddr, vma->vm_mm->context.id);
 }
 
 static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
 					 unsigned long vmaddr)
 {
-	_tlbie(vmaddr);
+	_tlbie(vmaddr, vma->vm_mm->context.id);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
