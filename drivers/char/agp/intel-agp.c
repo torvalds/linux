@@ -71,9 +71,11 @@ extern int agp_memory_reserved;
 #define I915_GMCH_GMS_STOLEN_64M	(0x7 << 4)
 #define G33_GMCH_GMS_STOLEN_128M       (0x8 << 4)
 #define G33_GMCH_GMS_STOLEN_256M       (0x9 << 4)
+#define I915_IFPADDR    0x60
 
 /* Intel 965G registers */
 #define I965_MSAC 0x62
+#define I965_IFPADDR    0x70
 
 /* Intel 7505 registers */
 #define INTEL_I7505_APSIZE	0x74
@@ -115,6 +117,8 @@ static struct _intel_private {
 	 * popup and for the GTT.
 	 */
 	int gtt_entries;			/* i830+ */
+	void __iomem *flush_page;
+	struct resource ifp_resource;
 } intel_private;
 
 static int intel_i810_fetch_size(void)
@@ -768,6 +772,73 @@ static struct agp_memory *intel_i830_alloc_by_type(size_t pg_count,int type)
 	return NULL;
 }
 
+static int intel_alloc_chipset_flush_resource(void)
+{
+	int ret;
+	ret = pci_bus_alloc_resource(agp_bridge->dev->bus, &intel_private.ifp_resource, PAGE_SIZE,
+				     PAGE_SIZE, PCIBIOS_MIN_MEM, 0,
+				     pcibios_align_resource, agp_bridge->dev);
+	if (ret != 0)
+		return ret;
+
+	printk("intel priv bus start %08lx\n", intel_private.ifp_resource.start);
+	return 0;
+}
+
+static void intel_i915_setup_chipset_flush(void)
+{
+	int ret;
+	u32 temp;
+
+	pci_read_config_dword(agp_bridge->dev, I915_IFPADDR, &temp);
+	if (!(temp & 0x1)) {
+		intel_alloc_chipset_flush_resource();
+
+		pci_write_config_dword(agp_bridge->dev, I915_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
+	} else {
+		temp &= ~1;
+
+		intel_private.ifp_resource.start = temp;
+		intel_private.ifp_resource.end = temp + PAGE_SIZE;
+		ret = request_resource(&iomem_resource, &intel_private.ifp_resource);
+		if (ret) {
+			intel_private.ifp_resource.start = 0;
+			printk("Failed inserting resource into tree\n");
+		}
+	}
+}
+
+static void intel_i965_g33_setup_chipset_flush(void)
+{
+	u32 temp_hi, temp_lo;
+	int ret;
+
+	pci_read_config_dword(agp_bridge->dev, I965_IFPADDR + 4, &temp_hi);
+	pci_read_config_dword(agp_bridge->dev, I965_IFPADDR, &temp_lo);
+
+	if (!(temp_lo & 0x1)) {
+
+		intel_alloc_chipset_flush_resource();
+
+		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR + 4, (intel_private.ifp_resource.start >> 32));
+		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
+		intel_private.flush_page = ioremap_nocache(intel_private.ifp_resource.start, PAGE_SIZE);
+	} else {
+		u64 l64;
+		
+		temp_lo &= ~0x1;
+		l64 = ((u64)temp_hi << 32) | temp_lo;
+
+		intel_private.ifp_resource.start = l64;
+		intel_private.ifp_resource.end = l64 + PAGE_SIZE;
+		ret = request_resource(&iomem_resource, &intel_private.ifp_resource);
+		if (!ret) {
+			intel_private.ifp_resource.start = 0;
+			printk("Failed inserting resource into tree\n");
+		}
+	}
+}
+
 static int intel_i915_configure(void)
 {
 	struct aper_size_info_fixed *current_size;
@@ -796,13 +867,41 @@ static int intel_i915_configure(void)
 	}
 
 	global_cache_flush();
+
+	/* setup a resource for this object */
+	memset(&intel_private.ifp_resource, 0, sizeof(intel_private.ifp_resource));
+
+	intel_private.ifp_resource.name = "Intel Flush Page";
+	intel_private.ifp_resource.flags = IORESOURCE_MEM;
+
+	/* Setup chipset flush for 915 */
+	if (IS_I965 || IS_G33) {
+		intel_i965_g33_setup_chipset_flush();
+	} else {
+		intel_i915_setup_chipset_flush();
+	}
+
+	if (intel_private.ifp_resource.start) {
+		intel_private.flush_page = ioremap_nocache(intel_private.ifp_resource.start, PAGE_SIZE);
+		if (!intel_private.flush_page)
+			printk("unable to ioremap flush  page - no chipset flushing");
+	}
+	
 	return 0;
 }
 
 static void intel_i915_cleanup(void)
 {
+	if (intel_private.flush_page)
+		iounmap(intel_private.flush_page);
 	iounmap(intel_private.gtt);
 	iounmap(intel_private.registers);
+}
+
+static void intel_i915_chipset_flush(struct agp_bridge_data *bridge)
+{
+	if (intel_private.flush_page)
+		writel(1, intel_private.flush_page);
 }
 
 static int intel_i915_insert_entries(struct agp_memory *mem,off_t pg_start,
@@ -1721,6 +1820,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
+	.chipset_flush		= intel_i915_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_i965_driver = {
@@ -1746,6 +1846,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
        .agp_alloc_page         = agp_generic_alloc_page,
        .agp_destroy_page       = agp_generic_destroy_page,
        .agp_type_to_mask_type  = intel_i830_type_to_mask_type,
+	.chipset_flush		= intel_i915_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_7505_driver = {
@@ -1795,6 +1896,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_alloc_page         = agp_generic_alloc_page,
 	.agp_destroy_page       = agp_generic_destroy_page,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
+	.chipset_flush		= intel_i915_chipset_flush,
 };
 
 static int find_gmch(u16 device)
