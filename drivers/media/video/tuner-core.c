@@ -335,18 +335,6 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c,buffer,4);
 		attach_simple_tuner(t);
 		break;
-	case TUNER_XC2028:
-	{
-		int rc=xc2028_attach(&t->fe, t->i2c.adapter, t->i2c.addr,
-				     &c->dev, c->adapter->algo_data,
-				     t->tuner_callback);
-		if (rc<0) {
-			t->type = TUNER_ABSENT;
-			t->mode_mask = T_UNINITIALIZED;
-			return;
-		}
-		break;
-	}
 	case TUNER_TDA9887:
 		tda9887_attach(t);
 		break;
