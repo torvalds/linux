@@ -46,6 +46,22 @@ enum scsi_device_state {
 				 * to the scsi lld. */
 };
 
+enum scsi_device_event {
+	SDEV_EVT_MEDIA_CHANGE	= 1,	/* media has changed */
+
+	SDEV_EVT_LAST		= SDEV_EVT_MEDIA_CHANGE,
+	SDEV_EVT_MAXBITS	= SDEV_EVT_LAST + 1
+};
+
+struct scsi_event {
+	enum scsi_device_event	evt_type;
+	struct list_head	node;
+
+	/* put union of data structures, for non-simple event types,
+	 * here
+	 */
+};
+
 struct scsi_device {
 	struct Scsi_Host *host;
 	struct request_queue *request_queue;
@@ -126,6 +142,10 @@ struct scsi_device {
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
 	unsigned guess_capacity:1;	/* READ_CAPACITY might be too high by 1 */
 	unsigned retry_hwerror:1;	/* Retry HARDWARE_ERROR */
+
+	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
+	struct list_head event_list;	/* asserted events */
+	struct work_struct event_work;
 
 	unsigned int device_blocked;	/* Device returned QUEUE_FULL. */
 
@@ -275,6 +295,11 @@ extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries);
 extern int scsi_device_set_state(struct scsi_device *sdev,
 				 enum scsi_device_state state);
+extern struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,
+					  gfp_t gfpflags);
+extern void sdev_evt_send(struct scsi_device *sdev, struct scsi_event *evt);
+extern void sdev_evt_send_simple(struct scsi_device *sdev,
+			  enum scsi_device_event evt_type, gfp_t gfpflags);
 extern int scsi_device_quiesce(struct scsi_device *sdev);
 extern void scsi_device_resume(struct scsi_device *sdev);
 extern void scsi_target_quiesce(struct scsi_target *);
