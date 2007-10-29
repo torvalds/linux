@@ -12,6 +12,7 @@
  *  Copyright (c) 2002      Greg Ungerer <gerg@snapgear.com>
  */
 
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
