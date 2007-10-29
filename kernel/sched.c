@@ -5365,7 +5365,7 @@ static struct ctl_table sd_ctl_dir[] = {
 		.procname	= "sched_domain",
 		.mode		= 0555,
 	},
-	{0,},
+	{0, },
 };
 
 static struct ctl_table sd_ctl_root[] = {
@@ -5375,7 +5375,7 @@ static struct ctl_table sd_ctl_root[] = {
 		.mode		= 0555,
 		.child		= sd_ctl_dir,
 	},
-	{0,},
+	{0, },
 };
 
 static struct ctl_table *sd_alloc_ctl_entry(int n)
@@ -7251,13 +7251,13 @@ static int cpu_cgroup_populate(struct cgroup_subsys *ss, struct cgroup *cont)
 }
 
 struct cgroup_subsys cpu_cgroup_subsys = {
-	.name 	    	= "cpu",
-	.create	    	= cpu_cgroup_create,
-	.destroy    	= cpu_cgroup_destroy,
-	.can_attach 	= cpu_cgroup_can_attach,
-	.attach     	= cpu_cgroup_attach,
-	.populate   	= cpu_cgroup_populate,
-	.subsys_id  	= cpu_cgroup_subsys_id,
+	.name		= "cpu",
+	.create		= cpu_cgroup_create,
+	.destroy	= cpu_cgroup_destroy,
+	.can_attach	= cpu_cgroup_can_attach,
+	.attach		= cpu_cgroup_attach,
+	.populate	= cpu_cgroup_populate,
+	.subsys_id	= cpu_cgroup_subsys_id,
 	.early_init	= 1,
 };
 
