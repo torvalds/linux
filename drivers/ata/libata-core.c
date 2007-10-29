@@ -2219,6 +2219,25 @@ int ata_bus_probe(struct ata_port *ap)
 		tries[dev->devno] = ATA_PROBE_MAX_TRIES;
 
  retry:
+	ata_link_for_each_dev(dev, &ap->link) {
+		/* If we issue an SRST then an ATA drive (not ATAPI)
+		 * may change configuration and be in PIO0 timing. If
+		 * we do a hard reset (or are coming from power on)
+		 * this is true for ATA or ATAPI. Until we've set a
+		 * suitable controller mode we should not touch the
+		 * bus as we may be talking too fast.
+		 */
+		dev->pio_mode = XFER_PIO_0;
+
+		/* If the controller has a pio mode setup function
+		 * then use it to set the chipset to rights. Don't
+		 * touch the DMA setup as that will be dealt with when
+		 * configuring devices.
+		 */
+		if (ap->ops->set_piomode)
+			ap->ops->set_piomode(ap, dev);
+	}
+
 	/* reset and determine device classes */
 	ap->ops->phy_reset(ap);
 
@@ -2233,12 +2252,6 @@ int ata_bus_probe(struct ata_port *ap)
 	}
 
 	ata_port_probe(ap);
-
-	/* after the reset the device state is PIO 0 and the controller
-	   state is undefined. Record the mode */
-
-	ata_link_for_each_dev(dev, &ap->link)
-		dev->pio_mode = XFER_PIO_0;
 
 	/* read IDENTIFY page and configure devices. We have to do the identify
 	   specific sequence bass-ackwards so that PDIAG- is released by
@@ -3272,8 +3285,6 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 			     unsigned long deadline)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
-	struct ata_device *dev;
-	int i = 0;
 
 	DPRINTK("ata%u: bus reset via SRST\n", ap->print_id);
 
@@ -3283,25 +3294,6 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	iowrite8(ap->ctl | ATA_SRST, ioaddr->ctl_addr);
 	udelay(20);	/* FIXME: flush */
 	iowrite8(ap->ctl, ioaddr->ctl_addr);
-
-	/* If we issued an SRST then an ATA drive (not ATAPI)
-	 * may have changed configuration and be in PIO0 timing. If
-	 * we did a hard reset (or are coming from power on) this is
-	 * true for ATA or ATAPI. Until we've set a suitable controller
-	 * mode we should not touch the bus as we may be talking too fast.
-	 */
-
-	ata_link_for_each_dev(dev, &ap->link)
-		dev->pio_mode = XFER_PIO_0;
-
-	/* If the controller has a pio mode setup function then use
-	   it to set the chipset to rights. Don't touch the DMA setup
-	   as that will be dealt with when revalidating */
-	if (ap->ops->set_piomode) {
-		ata_link_for_each_dev(dev, &ap->link)
-			if (devmask & (1 << i++))
-				ap->ops->set_piomode(ap, dev);
-	}
 
 	/* wait a while before checking status */
 	ata_wait_after_reset(ap, deadline);
