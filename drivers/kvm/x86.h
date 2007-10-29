@@ -125,5 +125,5 @@ static inline int is_paging(struct kvm_vcpu *vcpu)
 	return vcpu->cr0 & X86_CR0_PG;
 }
 
-
+int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
 #endif
