@@ -221,7 +221,7 @@ static struct kobj_type gfs2_ktype = {
 	.sysfs_ops     = &gfs2_attr_ops,
 };
 
-static struct kset gfs2_kset;
+static struct kset *gfs2_kset;
 
 /*
  * display struct lm_lockstruct fields
@@ -493,7 +493,7 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 {
 	int error;
 
-	sdp->sd_kobj.kset = &gfs2_kset;
+	sdp->sd_kobj.kset = gfs2_kset;
 	sdp->sd_kobj.ktype = &gfs2_ktype;
 
 	error = kobject_set_name(&sdp->sd_kobj, "%s", sdp->sd_table_name);
@@ -548,14 +548,15 @@ int gfs2_sys_init(void)
 {
 	gfs2_sys_margs = NULL;
 	spin_lock_init(&gfs2_sys_margs_lock);
-	kobject_set_name(&gfs2_kset.kobj, "gfs2");
-	gfs2_kset.kobj.parent = fs_kobj;
-	return kset_register(&gfs2_kset);
+	gfs2_kset = kset_create_and_add("gfs2", NULL, fs_kobj);
+	if (!gfs2_kset)
+		return -ENOMEM;
+	return 0;
 }
 
 void gfs2_sys_uninit(void)
 {
 	kfree(gfs2_sys_margs);
-	kset_unregister(&gfs2_kset);
+	kset_unregister(gfs2_kset);
 }
 
