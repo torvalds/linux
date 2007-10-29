@@ -86,7 +86,6 @@ struct acpi_power_resource {
 	acpi_bus_id name;
 	u32 system_level;
 	u32 order;
-	int state;
 	struct mutex resource_lock;
 	struct list_head reference;
 };
@@ -128,33 +127,31 @@ acpi_power_get_context(acpi_handle handle,
 	return 0;
 }
 
-static int acpi_power_get_state(struct acpi_power_resource *resource)
+static int acpi_power_get_state(struct acpi_power_resource *resource, int *state)
 {
 	acpi_status status = AE_OK;
 	unsigned long sta = 0;
 
 
-	if (!resource)
+	if (!resource || !state)
 		return -EINVAL;
 
 	status = acpi_evaluate_integer(resource->device->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	if (sta & 0x01)
-		resource->state = ACPI_POWER_RESOURCE_STATE_ON;
-	else
-		resource->state = ACPI_POWER_RESOURCE_STATE_OFF;
+	*state = (sta & 0x01)?ACPI_POWER_RESOURCE_STATE_ON:
+			      ACPI_POWER_RESOURCE_STATE_OFF;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] is %s\n",
-			  resource->name, resource->state ? "on" : "off"));
+			  resource->name, state ? "on" : "off"));
 
 	return 0;
 }
 
 static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 {
-	int result = 0;
+	int result = 0, state1;
 	struct acpi_power_resource *resource = NULL;
 	u32 i = 0;
 
@@ -168,11 +165,11 @@ static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 		result = acpi_power_get_context(list->handles[i], &resource);
 		if (result)
 			return result;
-		result = acpi_power_get_state(resource);
+		result = acpi_power_get_state(resource, &state1);
 		if (result)
 			return result;
 
-		*state = resource->state;
+		*state = state1;
 
 		if (*state != ACPI_POWER_RESOURCE_STATE_ON)
 			break;
@@ -186,7 +183,7 @@ static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 
 static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 {
-	int result = 0;
+	int result = 0, state;
 	int found = 0;
 	acpi_status status = AE_OK;
 	struct acpi_power_resource *resource = NULL;
@@ -224,20 +221,14 @@ static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 	}
 	mutex_unlock(&resource->resource_lock);
 
-	if (resource->state == ACPI_POWER_RESOURCE_STATE_ON) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] already on\n",
-				  resource->name));
-		return 0;
-	}
-
 	status = acpi_evaluate_object(resource->device->handle, "_ON", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	result = acpi_power_get_state(resource);
+	result = acpi_power_get_state(resource, &state);
 	if (result)
 		return result;
-	if (resource->state != ACPI_POWER_RESOURCE_STATE_ON)
+	if (state != ACPI_POWER_RESOURCE_STATE_ON)
 		return -ENOEXEC;
 
 	/* Update the power resource's _device_ power state */
@@ -250,7 +241,7 @@ static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 
 static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 {
-	int result = 0;
+	int result = 0, state;
 	acpi_status status = AE_OK;
 	struct acpi_power_resource *resource = NULL;
 	struct list_head *node, *next;
@@ -281,20 +272,14 @@ static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 	}
 	mutex_unlock(&resource->resource_lock);
 
-	if (resource->state == ACPI_POWER_RESOURCE_STATE_OFF) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] already off\n",
-				  resource->name));
-		return 0;
-	}
-
 	status = acpi_evaluate_object(resource->device->handle, "_OFF", NULL, NULL);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	result = acpi_power_get_state(resource);
+	result = acpi_power_get_state(resource, &state);
 	if (result)
 		return result;
-	if (resource->state != ACPI_POWER_RESOURCE_STATE_OFF)
+	if (state != ACPI_POWER_RESOURCE_STATE_OFF)
 		return -ENOEXEC;
 
 	/* Update the power resource's _device_ power state */
@@ -494,7 +479,7 @@ static struct proc_dir_entry *acpi_power_dir;
 static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 {
 	int count = 0;
-	int result = 0;
+	int result = 0, state;
 	struct acpi_power_resource *resource = NULL;
 	struct list_head *node, *next;
 	struct acpi_power_reference *ref;
@@ -505,12 +490,12 @@ static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 	if (!resource)
 		goto end;
 
-	result = acpi_power_get_state(resource);
+	result = acpi_power_get_state(resource, &state);
 	if (result)
 		goto end;
 
 	seq_puts(seq, "state:                   ");
-	switch (resource->state) {
+	switch (state) {
 	case ACPI_POWER_RESOURCE_STATE_ON:
 		seq_puts(seq, "on\n");
 		break;
@@ -591,7 +576,7 @@ static int acpi_power_remove_fs(struct acpi_device *device)
 
 static int acpi_power_add(struct acpi_device *device)
 {
-	int result = 0;
+	int result = 0, state;
 	acpi_status status = AE_OK;
 	struct acpi_power_resource *resource = NULL;
 	union acpi_object acpi_object;
@@ -622,11 +607,11 @@ static int acpi_power_add(struct acpi_device *device)
 	resource->system_level = acpi_object.power_resource.system_level;
 	resource->order = acpi_object.power_resource.resource_order;
 
-	result = acpi_power_get_state(resource);
+	result = acpi_power_get_state(resource, &state);
 	if (result)
 		goto end;
 
-	switch (resource->state) {
+	switch (state) {
 	case ACPI_POWER_RESOURCE_STATE_ON:
 		device->power.state = ACPI_STATE_D0;
 		break;
@@ -643,7 +628,7 @@ static int acpi_power_add(struct acpi_device *device)
 		goto end;
 
 	printk(KERN_INFO PREFIX "%s [%s] (%s)\n", acpi_device_name(device),
-	       acpi_device_bid(device), resource->state ? "on" : "off");
+	       acpi_device_bid(device), state ? "on" : "off");
 
       end:
 	if (result)
@@ -680,7 +665,7 @@ static int acpi_power_remove(struct acpi_device *device, int type)
 
 static int acpi_power_resume(struct acpi_device *device)
 {
-	int result = 0;
+	int result = 0, state;
 	struct acpi_power_resource *resource = NULL;
 	struct acpi_power_reference *ref;
 
@@ -689,12 +674,12 @@ static int acpi_power_resume(struct acpi_device *device)
 
 	resource = (struct acpi_power_resource *)acpi_driver_data(device);
 
-	result = acpi_power_get_state(resource);
+	result = acpi_power_get_state(resource, &state);
 	if (result)
 		return result;
 
 	mutex_lock(&resource->resource_lock);
-	if ((resource->state == ACPI_POWER_RESOURCE_STATE_OFF) &&
+	if (state == ACPI_POWER_RESOURCE_STATE_OFF &&
 	    !list_empty(&resource->reference)) {
 		ref = container_of(resource->reference.next, struct acpi_power_reference, node);
 		mutex_unlock(&resource->resource_lock);

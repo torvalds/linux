@@ -78,6 +78,7 @@ MODULE_DEVICE_TABLE(acpi, button_device_ids);
 
 static int acpi_button_add(struct acpi_device *device);
 static int acpi_button_remove(struct acpi_device *device, int type);
+static int acpi_button_resume(struct acpi_device *device);
 static int acpi_button_info_open_fs(struct inode *inode, struct file *file);
 static int acpi_button_state_open_fs(struct inode *inode, struct file *file);
 
@@ -87,6 +88,7 @@ static struct acpi_driver acpi_button_driver = {
 	.ids = button_device_ids,
 	.ops = {
 		.add = acpi_button_add,
+		.resume = acpi_button_resume,
 		.remove = acpi_button_remove,
 	},
 };
@@ -253,6 +255,19 @@ static int acpi_button_remove_fs(struct acpi_device *device)
 /* --------------------------------------------------------------------------
                                 Driver Interface
    -------------------------------------------------------------------------- */
+static int acpi_lid_send_state(struct acpi_button *button)
+{
+	unsigned long state;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(button->device->handle, "_LID", NULL,
+					&state);
+	if (ACPI_FAILURE(status))
+		return -ENODEV;
+	/* input layer checks if event is redundant */
+	input_report_switch(button->input, SW_LID, !state);
+	return 0;
+}
 
 static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 {
@@ -265,15 +280,8 @@ static void acpi_button_notify(acpi_handle handle, u32 event, void *data)
 	switch (event) {
 	case ACPI_BUTTON_NOTIFY_STATUS:
 		input = button->input;
-
 		if (button->type == ACPI_BUTTON_TYPE_LID) {
-			struct acpi_handle *handle = button->device->handle;
-			unsigned long state;
-
-			if (!ACPI_FAILURE(acpi_evaluate_integer(handle, "_LID",
-								NULL, &state)))
-				input_report_switch(input, SW_LID, !state);
-
+			acpi_lid_send_state(button);
 		} else {
 			int keycode = test_bit(KEY_SLEEP, input->keybit) ?
 						KEY_SLEEP : KEY_POWER;
@@ -334,6 +342,17 @@ static int acpi_button_install_notify_handlers(struct acpi_button *button)
 	}
 
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
+}
+
+static int acpi_button_resume(struct acpi_device *device)
+{
+	struct acpi_button *button;
+	if (!device)
+		return -EINVAL;
+	button = acpi_driver_data(device);
+	if (button && button->type == ACPI_BUTTON_TYPE_LID)
+		return acpi_lid_send_state(button);
+	return 0;
 }
 
 static void acpi_button_remove_notify_handlers(struct acpi_button *button)
@@ -453,6 +472,8 @@ static int acpi_button_add(struct acpi_device *device)
 	error = input_register_device(input);
 	if (error)
 		goto err_remove_handlers;
+	if (button->type == ACPI_BUTTON_TYPE_LID)
+		acpi_lid_send_state(button);
 
 	if (device->wakeup.flags.valid) {
 		/* Button's GPE is run-wake GPE */

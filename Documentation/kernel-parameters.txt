@@ -586,11 +586,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	eata=		[HW,SCSI]
 
-	ec_intr=	[HW,ACPI] ACPI Embedded Controller interrupt mode
-			Format: <int>
-			0: polling mode
-			non-0: interrupt mode (default)
-
 	edd=		[EDD]
 			Format: {"of[f]" | "sk[ipmbr]"}
 			See comment in arch/i386/boot/edd.S
