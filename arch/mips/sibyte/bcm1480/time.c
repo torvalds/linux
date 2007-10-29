@@ -119,7 +119,7 @@ void __cpuinit sb1480_clockevent_init(void)
 	sprintf(name, "bcm1480-counter %d", cpu);
 	cd->name		= name;
 	cd->features		= CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_MODE_ONESHOT;
+				  CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, V_SCD_TIMER_FREQ);
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffff, cd);
 	cd->min_delta_ns	= clockevent_delta2ns(1, cd);
