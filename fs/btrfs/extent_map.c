@@ -1924,6 +1924,7 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 	struct inode *inode = mapping->host;
 	u64 start = iblock << inode->i_blkbits;
 	u64 end = start + (1 << inode->i_blkbits) - 1;
+	sector_t sector = 0;
 	struct extent_map *em;
 
 	em = get_extent(inode, NULL, 0, start, end, 0);
@@ -1932,9 +1933,12 @@ sector_t extent_bmap(struct address_space *mapping, sector_t iblock,
 
 	if (em->block_start == EXTENT_MAP_INLINE ||
 	    em->block_start == EXTENT_MAP_HOLE)
-		return 0;
+		goto out;
 
-	return (em->block_start + start - em->start) >> inode->i_blkbits;
+	sector = (em->block_start + start - em->start) >> inode->i_blkbits;
+out:
+	free_extent_map(em);
+	return sector;
 }
 
 static int add_lru(struct extent_map_tree *tree, struct extent_buffer *eb)
