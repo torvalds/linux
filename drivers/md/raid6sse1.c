@@ -21,7 +21,7 @@
  * worthwhile as a separate implementation.
  */
 
-#if defined(__i386__)
+#if defined(__i386__) && !defined(__arch_um__)
 
 #include "raid6.h"
 #include "raid6x86.h"
