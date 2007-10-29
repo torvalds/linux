@@ -1025,7 +1025,7 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr)
 	}
 }
 
-#define swap(a,b) do { typeof(a) tmp = (a); (a) = (b); (b) = tmp; } while (0)
+#define swap(a, b) do { typeof(a) tmp = (a); (a) = (b); (b) = tmp; } while (0)
 
 /*
  * Share the fairness runtime between parent and child, thus the
