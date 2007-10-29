@@ -1986,6 +1986,7 @@ static int pciserial_suspend_one(struct pci_dev *dev, pm_message_t state)
 
 static int pciserial_resume_one(struct pci_dev *dev)
 {
+	int err;
 	struct serial_private *priv = pci_get_drvdata(dev);
 
 	pci_set_power_state(dev, PCI_D0);
@@ -1995,7 +1996,9 @@ static int pciserial_resume_one(struct pci_dev *dev)
 		/*
 		 * The device may have been disabled.  Re-enable it.
 		 */
-		pci_enable_device(dev);
+		err = pci_enable_device(dev);
+		if (err)
+			return err;
 
 		pciserial_resume_ports(priv);
 	}
