@@ -94,14 +94,13 @@ static int __devinit parse_partitions(struct of_flash *info,
 	 * line, these take precedence over device tree information */
 	nr_parts = parse_mtd_partitions(info->mtd, part_probe_types,
 					&info->parts, 0);
-	if (nr_parts > 0) {
-		add_mtd_partitions(info->mtd, info->parts, nr_parts);
-		return 0;
-	}
+	if (nr_parts > 0)
+		return nr_parts;
 
 	/* First count the subnodes */
 	nr_parts = 0;
-	for (pp = dp->child; pp; pp = pp->sibling)
+	for (pp = of_get_next_child(dp, NULL); pp;
+	     pp = of_get_next_child(dp, pp))
 		nr_parts++;
 
 	if (nr_parts == 0)
@@ -112,12 +111,14 @@ static int __devinit parse_partitions(struct of_flash *info,
 	if (!info->parts)
 		return -ENOMEM;
 
-	for (pp = dp->child, i = 0; pp; pp = pp->sibling, i++) {
+	for (pp = of_get_next_child(dp, NULL), i = 0; pp;
+	     pp = of_get_next_child(dp, pp), i++) {
 		const u32 *reg;
 		int len;
 
 		reg = of_get_property(pp, "reg", &len);
 		if (!reg || (len != 2*sizeof(u32))) {
+			of_node_put(pp);
 			dev_err(&dev->dev, "Invalid 'reg' on %s\n",
 				dp->full_name);
 			kfree(info->parts);
