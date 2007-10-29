@@ -223,7 +223,7 @@ config DAVINCI_WATCHDOG
 
 config AT32AP700X_WDT
 	tristate "AT32AP700x watchdog"
-	depends on CPU_AT32AP7000
+	depends on CPU_AT32AP700X
 	help
 	  Watchdog timer embedded into AT32AP700x devices. This will reboot
 	  your system when the timeout is reached.

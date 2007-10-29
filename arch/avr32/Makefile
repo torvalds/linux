@@ -16,7 +16,7 @@ KBUILD_AFLAGS	+= -mrelax -mno-pic
 CFLAGS_MODULE	+= -mno-relax
 LDFLAGS_vmlinux	+= --relax
 
-cpuflags-$(CONFIG_CPU_AT32AP7000)	+= -mcpu=ap7000
+cpuflags-$(CONFIG_PLATFORM_AT32AP)	+= -march=ap
 
 KBUILD_CFLAGS	+= $(cpuflags-y)
 KBUILD_AFLAGS	+= $(cpuflags-y)

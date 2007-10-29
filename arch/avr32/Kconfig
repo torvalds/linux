@@ -84,13 +84,26 @@ config PLATFORM_AT32AP
 	select MMU
 	select PERFORMANCE_COUNTERS
 
+config CPU_AT32AP700X
+	bool
+	select PLATFORM_AT32AP
+
 choice
 	prompt "AVR32 CPU type"
 	default CPU_AT32AP7000
 
 config CPU_AT32AP7000
 	bool "AT32AP7000"
-	select PLATFORM_AT32AP
+	select CPU_AT32AP700X
+
+config CPU_AT32AP7001
+	bool "AT32AP7001"
+	select CPU_AT32AP700X
+
+config CPU_AT32AP7002
+	bool "AT32AP7002"
+	select CPU_AT32AP700X
+
 endchoice
 
 #
@@ -126,15 +139,15 @@ source "arch/avr32/mach-at32ap/Kconfig"
 
 config LOAD_ADDRESS
 	hex
-	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+	default 0x10000000 if LOADER_U_BOOT=y && CPU_AT32AP700X=y
 
 config ENTRY_ADDRESS
 	hex
-	default 0x90000000 if LOADER_U_BOOT=y && CPU_AT32AP7000=y
+	default 0x90000000 if LOADER_U_BOOT=y && CPU_AT32AP700X=y
 
 config PHYS_OFFSET
 	hex
-	default 0x10000000 if CPU_AT32AP7000=y
+	default 0x10000000 if CPU_AT32AP700X=y
 
 source "kernel/Kconfig.preempt"
 
