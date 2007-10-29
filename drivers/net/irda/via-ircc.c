@@ -1346,19 +1346,13 @@ static int RxTimerHandler(struct via_ircc_cb *self, int iobase)
  *    An interrupt from the chip has arrived. Time to do some work
  *
  */
-static irqreturn_t via_ircc_interrupt(int irq, void *dev_id)
+static irqreturn_t via_ircc_interrupt(int dummy, void *dev_id)
 {
-	struct net_device *dev = (struct net_device *) dev_id;
-	struct via_ircc_cb *self;
+	struct net_device *dev = dev_id;
+	struct via_ircc_cb *self = dev->priv;
 	int iobase;
 	u8 iHostIntType, iRxIntType, iTxIntType;
 
-	if (!dev) {
-		IRDA_WARNING("%s: irq %d for unknown device.\n", driver_name,
-			     irq);
-		return IRQ_NONE;
-	}
-	self = (struct via_ircc_cb *) dev->priv;
 	iobase = self->io.fir_base;
 	spin_lock(&self->lock);
 	iHostIntType = GetHostStatus(iobase);

@@ -243,7 +243,7 @@ static inline void if_cs_disable_ints(struct if_cs_card *card)
 
 static irqreturn_t if_cs_interrupt(int irq, void *data)
 {
-	struct if_cs_card *card = (struct if_cs_card *)data;
+	struct if_cs_card *card = data;
 	u16 int_cause;
 
 	lbs_deb_enter(LBS_DEB_CS);

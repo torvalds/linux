@@ -704,9 +704,9 @@ static void irqtxerr_handler(struct net_device *dev)
 
 /* general interrupt entry */
 
-static irqreturn_t irq_handler(int irq, void *device)
+static irqreturn_t irq_handler(int dummy, void *device)
 {
-	struct net_device *dev = (struct net_device *) device;
+	struct net_device *dev = device;
 	u16 ival;
 
 	/* in case we're not meant... */

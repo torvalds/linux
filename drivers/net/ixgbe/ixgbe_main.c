@@ -734,7 +734,7 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter, u32 *num_rx_queues)
 {
 	struct net_device *netdev = adapter->netdev;
 	int flags, err;
-	irqreturn_t(*handler) (int, void *) = &ixgbe_intr;
+	irq_handler_t handler = ixgbe_intr;
 
 	flags = IRQF_SHARED;
 

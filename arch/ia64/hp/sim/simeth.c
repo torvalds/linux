@@ -497,11 +497,6 @@ simeth_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
 
-	if ( dev == NULL ) {
-		printk(KERN_WARNING "simeth: irq %d for unknown device\n", irq);
-		return IRQ_NONE;
-	}
-
 	/*
 	 * very simple loop because we get interrupts only when receiving
 	 */

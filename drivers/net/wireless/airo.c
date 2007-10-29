@@ -3177,8 +3177,9 @@ static int airo_thread(void *data) {
 	return 0;
 }
 
-static irqreturn_t airo_interrupt ( int irq, void* dev_id) {
-	struct net_device *dev = (struct net_device *)dev_id;
+static irqreturn_t airo_interrupt(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
 	u16 status;
 	u16 fid;
 	struct airo_info *apriv = dev->priv;

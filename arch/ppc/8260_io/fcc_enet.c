@@ -524,7 +524,7 @@ fcc_enet_timeout(struct net_device *dev)
 
 /* The interrupt handler. */
 static irqreturn_t
-fcc_enet_interrupt(int irq, void * dev_id)
+fcc_enet_interrupt(int irq, void *dev_id)
 {
 	struct	net_device *dev = dev_id;
 	volatile struct	fcc_enet_private *cep;
@@ -532,7 +532,7 @@ fcc_enet_interrupt(int irq, void * dev_id)
 	ushort	int_events;
 	int	must_restart;
 
-	cep = (struct fcc_enet_private *)dev->priv;
+	cep = dev->priv;
 
 	/* Get the interrupt events that caused us to be here.
 	*/
