@@ -916,7 +916,7 @@ static void arcmsr_build_ccb(struct AdapterControlBlock *acb,
 
 				pdma_sg->addresshigh = address_hi;
 				pdma_sg->address = address_lo;
-				pdma_sg->length = length|IS_SG64_ADDR;
+				pdma_sg->length = length|cpu_to_le32(IS_SG64_ADDR);
 				psge += sizeof (struct SG64ENTRY);
 				arccdbsize += sizeof (struct SG64ENTRY);
 			}
