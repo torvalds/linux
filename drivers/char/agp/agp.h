@@ -117,7 +117,8 @@ struct agp_bridge_driver {
 	void (*free_by_type)(struct agp_memory *);
 	void *(*agp_alloc_page)(struct agp_bridge_data *);
 	void (*agp_destroy_page)(void *, int flags);
-        int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
+	int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
+	void (*chipset_flush)(struct agp_bridge_data *);
 };
 
 struct agp_bridge_data {

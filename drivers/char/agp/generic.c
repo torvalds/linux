@@ -80,6 +80,13 @@ static int agp_get_key(void)
 	return -1;
 }
 
+void agp_flush_chipset(struct agp_bridge_data *bridge)
+{
+	if (bridge->driver->chipset_flush)
+		bridge->driver->chipset_flush(bridge);
+}
+EXPORT_SYMBOL(agp_flush_chipset);
+
 /*
  * Use kmalloc if possible for the page list. Otherwise fall back to
  * vmalloc. This speeds things up and also saves memory for small AGP

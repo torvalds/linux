@@ -109,6 +109,7 @@ extern int agp_unbind_memory(struct agp_memory *);
 extern void agp_enable(struct agp_bridge_data *, u32);
 extern struct agp_bridge_data *agp_backend_acquire(struct pci_dev *);
 extern void agp_backend_release(struct agp_bridge_data *);
+extern void agp_flush_chipset(struct agp_bridge_data *);
 
 #endif				/* __KERNEL__ */
 #endif				/* _AGP_BACKEND_H */
