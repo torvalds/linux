@@ -83,8 +83,10 @@ static int snd_ac97_swap_ctl(struct snd_ac97 *ac97, const char *s1,
 			     const char *s2, const char *suffix);
 static void snd_ac97_rename_vol_ctl(struct snd_ac97 *ac97, const char *src,
 				    const char *dst);
+#ifdef CONFIG_PM
 static void snd_ac97_restore_status(struct snd_ac97 *ac97);
 static void snd_ac97_restore_iec958(struct snd_ac97 *ac97);
+#endif
 static int snd_ac97_info_enum_double(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo);
 static int snd_ac97_get_enum_double(struct snd_kcontrol *kcontrol,
