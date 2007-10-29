@@ -35,6 +35,7 @@
 #include <media/v4l2-common.h>
 
 #include "em28xx.h"
+#include "tuner-xc2028.h"
 
 struct em28xx_board em28xx_boards[] = {
 	[EM2800_BOARD_UNKNOWN] = {
@@ -362,6 +363,21 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	}
 }
 
+static void em28xx_config_tuner (struct em28xx *dev)
+{
+	struct v4l2_priv_tun_config  xc2028_cfg;
+	struct xc2028_ctrl           ctl;
+
+	memset (&ctl,0,sizeof(ctl));
+
+	ctl.fname = XC2028_DEFAULT_FIRMWARE;
+
+	xc2028_cfg.tuner = TUNER_XC2028;
+	xc2028_cfg.priv  = &ctl;
+
+	em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+}
+
 void em28xx_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
@@ -394,6 +410,7 @@ void em28xx_card_setup(struct em28xx *dev)
 			}
 
 	}
+	em28xx_config_tuner (dev);
 }
 
 MODULE_DEVICE_TABLE (usb, em28xx_id_table);
