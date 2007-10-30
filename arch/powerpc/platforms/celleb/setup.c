@@ -49,6 +49,7 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/irq.h>
+#include <asm/time.h>
 #include <asm/spu_priv1.h>
 #include <asm/firmware.h>
 #include <asm/of_platform.h>
