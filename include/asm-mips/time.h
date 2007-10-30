@@ -49,11 +49,6 @@ extern int (*mips_timer_state)(void);
 extern struct clocksource clocksource_mips;
 
 /*
- * profiling and process accouting is done separately in local_timer_interrupt
- */
-extern void local_timer_interrupt(int irq, void *dev_id);
-
-/*
  * board specific routines required by time_init().
  */
 struct irqaction;

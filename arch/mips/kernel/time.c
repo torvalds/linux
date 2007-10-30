@@ -80,22 +80,6 @@ static cycle_t c0_hpt_read(void)
 
 int (*mips_timer_state)(void);
 
-/*
- * local_timer_interrupt() does profiling and process accounting
- * on a per-CPU basis.
- *
- * In UP mode, it is invoked from the (global) timer_interrupt.
- *
- * In SMP mode, it might invoked by per-CPU timer interrupt, or
- * a broadcasted inter-processor interrupt which itself is triggered
- * by the global timer interrupt.
- */
-void local_timer_interrupt(int irq, void *dev_id)
-{
-	profile_tick(CPU_PROFILING);
-	update_process_times(user_mode(get_irq_regs()));
-}
-
 int null_perf_irq(void)
 {
 	return 0;
