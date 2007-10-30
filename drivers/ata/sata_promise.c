@@ -2,6 +2,7 @@
  *  sata_promise.c - Promise SATA
  *
  *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ *		    Mikael Pettersson <mikpe@it.uu.se>
  *  		    Please ALWAYS copy linux-ide@vger.kernel.org
  *		    on emails.
  *
@@ -45,7 +46,7 @@
 #include "sata_promise.h"
 
 #define DRV_NAME	"sata_promise"
-#define DRV_VERSION	"2.10"
+#define DRV_VERSION	"2.11"
 
 enum {
 	PDC_MAX_PORTS		= 4,
@@ -241,7 +242,7 @@ static const struct ata_port_operations pdc_pata_ops = {
 };
 
 static const struct ata_port_info pdc_port_info[] = {
-	/* board_2037x */
+	[board_2037x] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_SATA_PATA,
@@ -251,7 +252,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.port_ops	= &pdc_old_sata_ops,
 	},
 
-	/* board_2037x_pata */
+	[board_2037x_pata] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS,
 		.pio_mask	= 0x1f, /* pio0-4 */
@@ -260,7 +261,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.port_ops	= &pdc_pata_ops,
 	},
 
-	/* board_20319 */
+	[board_20319] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_4_PORTS,
@@ -270,7 +271,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.port_ops	= &pdc_old_sata_ops,
 	},
 
-	/* board_20619 */
+	[board_20619] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS |
 				  PDC_FLAG_4_PORTS,
@@ -280,7 +281,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.port_ops	= &pdc_pata_ops,
 	},
 
-	/* board_2057x */
+	[board_2057x] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_GEN_II | PDC_FLAG_SATA_PATA,
@@ -290,7 +291,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.port_ops	= &pdc_sata_ops,
 	},
 
-	/* board_2057x_pata */
+	[board_2057x_pata] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SLAVE_POSS |
 				  PDC_FLAG_GEN_II,
@@ -300,7 +301,7 @@ static const struct ata_port_info pdc_port_info[] = {
 		.port_ops	= &pdc_pata_ops,
 	},
 
-	/* board_40518 */
+	[board_40518] =
 	{
 		.flags		= PDC_COMMON_FLAGS | ATA_FLAG_SATA |
 				  PDC_FLAG_GEN_II | PDC_FLAG_4_PORTS,
