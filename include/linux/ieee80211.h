@@ -81,18 +81,18 @@
 
 
 /* miscellaneous IEEE 802.11 constants */
-#define IEEE80211_MAX_FRAG_THRESHOLD	2346
-#define IEEE80211_MAX_RTS_THRESHOLD	2347
+#define IEEE80211_MAX_FRAG_THRESHOLD	2352
+#define IEEE80211_MAX_RTS_THRESHOLD	2353
 #define IEEE80211_MAX_AID		2007
 #define IEEE80211_MAX_TIM_LEN		251
-#define IEEE80211_MAX_DATA_LEN		2304
 /* Maximum size for the MA-UNITDATA primitive, 802.11 standard section
    6.2.1.1.2.
 
-   The figure in section 7.1.2 suggests a body size of up to 2312
-   bytes is allowed, which is a bit confusing, I suspect this
-   represents the 2304 bytes of real data, plus a possible 8 bytes of
-   WEP IV and ICV. (this interpretation suggested by Ramiro Barreiro) */
+   802.11e clarifies the figure in section 7.1.2. The frame body is
+   up to 2304 octets long (maximum MSDU size) plus any crypt overhead. */
+#define IEEE80211_MAX_DATA_LEN		2304
+/* 30 byte 4 addr hdr, 2 byte QoS, 2304 byte MSDU, 12 byte crypt, 4 byte FCS */
+#define IEEE80211_MAX_FRAME_LEN		2352
 
 #define IEEE80211_MAX_SSID_LEN		32
 
