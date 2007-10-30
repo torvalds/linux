@@ -166,7 +166,7 @@ static struct kset_uevent_ops bus_uevent_ops = {
 	.filter = bus_uevent_filter,
 };
 
-static decl_subsys(bus, &bus_uevent_ops);
+static struct kset *bus_kset;
 
 
 #ifdef CONFIG_HOTPLUG
@@ -767,7 +767,7 @@ EXPORT_SYMBOL_GPL(device_reprobe);
 #if 0
 struct bus_type * find_bus(char * name)
 {
-	struct kobject * k = kset_find_obj(&bus_subsys.kset, name);
+	struct kobject * k = kset_find_obj(bus_kset, name);
 	return k ? to_bus(k) : NULL;
 }
 #endif  /*  0  */
@@ -851,7 +851,7 @@ int bus_register(struct bus_type * bus)
 	if (retval)
 		goto out;
 
-	bus->subsys.kobj.kset = &bus_subsys;
+	bus->subsys.kobj.kset = bus_kset;
 	bus->subsys.kobj.ktype = &bus_ktype;
 
 	retval = subsystem_register(&bus->subsys);
@@ -935,7 +935,10 @@ EXPORT_SYMBOL_GPL(bus_unregister_notifier);
 
 int __init buses_init(void)
 {
-	return subsystem_register(&bus_subsys);
+	bus_kset = kset_create_and_add("bus", &bus_uevent_ops, NULL);
+	if (!bus_kset)
+		return -ENOMEM;
+	return 0;
 }
 
 
