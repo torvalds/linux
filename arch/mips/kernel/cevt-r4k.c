@@ -276,7 +276,7 @@ void __cpuinit mips_clockevent_init(void)
 
 	clockevents_register_device(cd);
 
-	if (!cp0_timer_irq_installed)
+	if (cp0_timer_irq_installed)
 		return;
 
 	cp0_timer_irq_installed = 1;
