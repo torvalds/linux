@@ -1152,7 +1152,7 @@ int hidinput_connect(struct hid_device *hid)
 					kfree(hidinput);
 					input_free_device(input_dev);
 					err_hid("Out of memory during hid input probe");
-					return -1;
+					goto out_unwind;
 				}
 
 				input_set_drvdata(input_dev, hid);
@@ -1186,15 +1186,25 @@ int hidinput_connect(struct hid_device *hid)
 				 * UGCI) cram a lot of unrelated inputs into the
 				 * same interface. */
 				hidinput->report = report;
-				input_register_device(hidinput->input);
+				if (input_register_device(hidinput->input))
+					goto out_cleanup;
 				hidinput = NULL;
 			}
 		}
 
-	if (hidinput)
-		input_register_device(hidinput->input);
+	if (hidinput && input_register_device(hidinput->input))
+		goto out_cleanup;
 
 	return 0;
+
+out_cleanup:
+	input_free_device(hidinput->input);
+	kfree(hidinput);
+out_unwind:
+	/* unwind the ones we already registered */
+	hidinput_disconnect(hid);
+
+	return -1;
 }
 EXPORT_SYMBOL_GPL(hidinput_connect);
 
