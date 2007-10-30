@@ -43,6 +43,7 @@ enum {
 	ATA_MAX_SECTORS_128	= 128,
 	ATA_MAX_SECTORS		= 256,
 	ATA_MAX_SECTORS_LBA48	= 65535,/* TODO: 65536? */
+	ATA_MAX_SECTORS_TAPE	= 65535,
 
 	ATA_ID_WORDS		= 256,
 	ATA_ID_SERNO		= 10,
@@ -542,6 +543,11 @@ static inline int atapi_cdb_len(const u16 *dev_id)
 	case 1:		return 16;
 	default:	return -1;
 	}
+}
+
+static inline int atapi_command_packet_set(const u16 *dev_id)
+{
+	return (dev_id[0] >> 8) & 0x1f;
 }
 
 static inline int is_atapi_taskfile(const struct ata_taskfile *tf)
