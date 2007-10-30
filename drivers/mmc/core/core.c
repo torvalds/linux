@@ -19,7 +19,6 @@
 #include <linux/pagemap.h>
 #include <linux/err.h>
 #include <linux/leds.h>
-#include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
 
 #include <linux/mmc/card.h>

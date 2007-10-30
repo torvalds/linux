@@ -11,7 +11,6 @@
 #include <linux/device.h>
 #include <linux/mm.h>
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
 #include <linux/usb.h>

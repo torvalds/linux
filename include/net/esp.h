@@ -3,7 +3,7 @@
 
 #include <linux/crypto.h>
 #include <net/xfrm.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #define ESP_NUM_FAST_SG		4
 

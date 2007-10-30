@@ -33,7 +33,6 @@
 #include <asm/ip32/ip32_ints.h>
 
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 
 #include "meth.h"
 

@@ -4,7 +4,6 @@
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/random.h>
 #include <linux/pagemap.h>
-#include <asm/scatterlist.h>
 #include <linux/crypto.h>
 
 #ifdef RPC_DEBUG

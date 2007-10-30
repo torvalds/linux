@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
-#include <asm/scatterlist.h>
 
 #include <net/mac80211.h>
 #include "ieee80211_key.h"

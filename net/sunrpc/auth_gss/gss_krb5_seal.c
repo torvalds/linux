@@ -63,7 +63,6 @@
 #include <linux/jiffies.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/random.h>
-#include <asm/scatterlist.h>
 #include <linux/crypto.h>
 
 #ifdef RPC_DEBUG

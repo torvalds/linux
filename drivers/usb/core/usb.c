@@ -36,7 +36,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/io.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 

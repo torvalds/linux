@@ -30,7 +30,6 @@
 #include <linux/utsname.h>
 #include <linux/mm.h>
 #include <asm/io.h>
-#include <asm/scatterlist.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
