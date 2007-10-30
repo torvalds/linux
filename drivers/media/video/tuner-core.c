@@ -30,6 +30,8 @@
 
 #define UNSET (-1U)
 
+#define PREFIX "tuner "
+
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
 #if defined(CONFIG_TUNER_TEA5761) || (defined(CONFIG_TUNER_TEA5761_MODULE) && defined(MODULE))
