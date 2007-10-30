@@ -83,6 +83,9 @@ enum {
 	/* module upd64083: just ident 64083 */
 	V4L2_IDENT_UPD64083 = 64083,
 
+	/* module m52790: just ident 52790 */
+	V4L2_IDENT_M52790 = 52790,
+
 	/* module msp34xx: reserved range 34000-34999 */
 	V4L2_IDENT_MSP3400B = 34002,
 	V4L2_IDENT_MSP3410B = 34102,

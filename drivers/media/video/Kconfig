@@ -119,6 +119,15 @@ config VIDEO_CS53L32A
 	  To compile this driver as a module, choose M here: the
 	  module will be called cs53l32a.
 
+config VIDEO_M52790
+       tristate "Mitsubishi M52790 A/V switch"
+       depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+       ---help---
+	 Support for the Mitsubishi M52790 A/V switch.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called m52790.
+
 config VIDEO_TLV320AIC23B
 	tristate "Texas Instruments TLV320AIC23B audio codec"
 	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
