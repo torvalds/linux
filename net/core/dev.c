@@ -2172,7 +2172,15 @@ static void net_rx_action(struct softirq_action *h)
 
 		weight = n->weight;
 
-		work = n->poll(n, weight);
+		/* This NAPI_STATE_SCHED test is for avoiding a race
+		 * with netpoll's poll_napi().  Only the entity which
+		 * obtains the lock and sees NAPI_STATE_SCHED set will
+		 * actually make the ->poll() call.  Therefore we avoid
+		 * accidently calling ->poll() when NAPI is not scheduled.
+		 */
+		work = 0;
+		if (test_bit(NAPI_STATE_SCHED, &n->state))
+			work = n->poll(n, weight);
 
 		WARN_ON_ONCE(work > weight);
 

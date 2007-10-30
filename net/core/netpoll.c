@@ -116,6 +116,29 @@ static __sum16 checksum_udp(struct sk_buff *skb, struct udphdr *uh,
  * network adapter, forcing superfluous retries and possibly timeouts.
  * Thus, we set our budget to greater than 1.
  */
+static int poll_one_napi(struct netpoll_info *npinfo,
+			 struct napi_struct *napi, int budget)
+{
+	int work;
+
+	/* net_rx_action's ->poll() invocations and our's are
+	 * synchronized by this test which is only made while
+	 * holding the napi->poll_lock.
+	 */
+	if (!test_bit(NAPI_STATE_SCHED, &napi->state))
+		return budget;
+
+	npinfo->rx_flags |= NETPOLL_RX_DROP;
+	atomic_inc(&trapped);
+
+	work = napi->poll(napi, budget);
+
+	atomic_dec(&trapped);
+	npinfo->rx_flags &= ~NETPOLL_RX_DROP;
+
+	return budget - work;
+}
+
 static void poll_napi(struct netpoll *np)
 {
 	struct netpoll_info *npinfo = np->dev->npinfo;
@@ -123,17 +146,13 @@ static void poll_napi(struct netpoll *np)
 	int budget = 16;
 
 	list_for_each_entry(napi, &np->dev->napi_list, dev_list) {
-		if (test_bit(NAPI_STATE_SCHED, &napi->state) &&
-		    napi->poll_owner != smp_processor_id() &&
+		if (napi->poll_owner != smp_processor_id() &&
 		    spin_trylock(&napi->poll_lock)) {
-			npinfo->rx_flags |= NETPOLL_RX_DROP;
-			atomic_inc(&trapped);
-
-			napi->poll(napi, budget);
-
-			atomic_dec(&trapped);
-			npinfo->rx_flags &= ~NETPOLL_RX_DROP;
+			budget = poll_one_napi(npinfo, napi, budget);
 			spin_unlock(&napi->poll_lock);
+
+			if (!budget)
+				break;
 		}
 	}
 }
