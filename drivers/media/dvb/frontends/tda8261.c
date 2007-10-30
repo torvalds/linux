@@ -102,7 +102,7 @@ static int tda8261_get_state(struct dvb_frontend *fe,
 		tstate->frequency = state->frequency;
 		break;
 	case DVBFE_TUNER_BANDWIDTH:
-		tstate->bandwidth = 60000000; /* FIXME! need to calculate Bandwidth */
+		tstate->bandwidth = 40000000; /* FIXME! need to calculate Bandwidth */
 		break;
 	default:
 		printk("%s: Unknown parameter (param=%d)\n", __func__, param);
