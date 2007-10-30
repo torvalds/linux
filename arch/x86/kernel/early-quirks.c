@@ -17,19 +17,19 @@
 #include <asm/io_apic.h>
 #include <asm/apic.h>
 
-#ifdef CONFIG_IOMMU
-#include <asm/iommu.h>
+#ifdef CONFIG_GART_IOMMU
+#include <asm/gart.h>
 #endif
 
 static void __init via_bugs(void)
 {
-#ifdef CONFIG_IOMMU
+#ifdef CONFIG_GART_IOMMU
 	if ((end_pfn > MAX_DMA32_PFN ||  force_iommu) &&
-	    !iommu_aperture_allowed) {
+	    !gart_iommu_aperture_allowed) {
 		printk(KERN_INFO
 		       "Looks like a VIA chipset. Disabling IOMMU."
 		       " Override with iommu=allowed\n");
-		iommu_aperture_disabled = 1;
+		gart_iommu_aperture_disabled = 1;
 	}
 #endif
 }

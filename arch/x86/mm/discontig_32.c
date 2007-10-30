@@ -40,7 +40,7 @@
 
 struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
-bootmem_data_t node0_bdata;
+static bootmem_data_t node0_bdata;
 
 /*
  * numa interface - we expect the numa architecture specific code to have
@@ -404,7 +404,7 @@ void __init set_highmem_pages_init(int bad_ppro)
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-int paddr_to_nid(u64 addr)
+static int paddr_to_nid(u64 addr)
 {
 	int nid;
 	unsigned long pfn = PFN_DOWN(addr);

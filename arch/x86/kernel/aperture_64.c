@@ -20,14 +20,14 @@
 #include <linux/ioport.h>
 #include <asm/e820.h>
 #include <asm/io.h>
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/pci-direct.h>
 #include <asm/dma.h>
 #include <asm/k8.h>
 
-int iommu_aperture;
-int iommu_aperture_disabled __initdata = 0;
-int iommu_aperture_allowed __initdata = 0;
+int gart_iommu_aperture;
+int gart_iommu_aperture_disabled __initdata = 0;
+int gart_iommu_aperture_allowed __initdata = 0;
 
 int fallback_aper_order __initdata = 1; /* 64MB */
 int fallback_aper_force __initdata = 0; 
@@ -204,14 +204,15 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 	return 0;
 }
 
-void __init iommu_hole_init(void) 
+void __init gart_iommu_hole_init(void)
 { 
 	int fix, num; 
 	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
 	u64 aper_base, last_aper_base = 0;
 	int valid_agp = 0;
 
-	if (iommu_aperture_disabled || !fix_aperture || !early_pci_allowed())
+	if (gart_iommu_aperture_disabled || !fix_aperture ||
+	    !early_pci_allowed())
 		return;
 
 	printk(KERN_INFO  "Checking aperture...\n");
@@ -222,7 +223,7 @@ void __init iommu_hole_init(void)
 			continue;
 
 		iommu_detected = 1;
-		iommu_aperture = 1; 
+		gart_iommu_aperture = 1;
 
 		aper_order = (read_pci_config(0, num, 3, 0x90) >> 1) & 7; 
 		aper_size = (32 * 1024 * 1024) << aper_order; 

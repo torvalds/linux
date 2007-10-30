@@ -97,10 +97,6 @@ config X86_CMPXCHG
 	bool
 	default y
 
-config EARLY_PRINTK
-	bool
-	default y
-
 config GENERIC_ISA_DMA
 	bool
 	default y
@@ -479,8 +475,8 @@ config HPET_EMULATE_RTC
 
 # Mark as embedded because too many people got it wrong.
 # The code disables itself when not needed.
-config IOMMU
-	bool "IOMMU support" if EMBEDDED
+config GART_IOMMU
+	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
 	select AGP
@@ -687,7 +683,7 @@ source kernel/Kconfig.hz
 
 config K8_NB
 	def_bool y
-	depends on AGP_AMD64 || IOMMU || (PCI && NUMA)
+	depends on AGP_AMD64 || GART_IOMMU || (PCI && NUMA)
 
 endmenu
 
