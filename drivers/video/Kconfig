@@ -1509,7 +1509,7 @@ config FB_VOODOO1
 
 	  WARNING: Do not use any application that uses the 3D engine
 	  (namely glide) while using this driver.
-	  Please read the <file:Documentation/fb/README-sstfb.txt> for supported
+	  Please read the <file:Documentation/fb/sstfb.txt> for supported
 	  options and other important info  support.
 
 config FB_VT8623
@@ -1807,7 +1807,7 @@ config FB_SM501
 	  This driver is also available as a module ( = code which can be
 	  inserted and removed from the running kernel whenever you want). The
 	  module will be called sm501fb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.txt>.
 
 	  If unsure, say N.
 

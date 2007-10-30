@@ -15,8 +15,8 @@ menuconfig WATCHDOG
 	  implementation entirely in software (which can sometimes fail to
 	  reboot the machine) and a driver for hardware watchdog boards, which
 	  are more robust and can also keep track of the temperature inside
-	  your computer. For details, read <file:Documentation/watchdog/watchdog.txt>
-	  in the kernel source.
+	  your computer. For details, read
+	  <file:Documentation/watchdog/watchdog-api.txt> in the kernel source.
 
 	  The watchdog is usually used together with the watchdog daemon
 	  which is available from

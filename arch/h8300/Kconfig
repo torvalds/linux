@@ -1,6 +1,6 @@
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/config-language.txt.
+# see Documentation/kbuild/kconfig-language.txt.
 #
 
 mainmenu "uClinux/h8300 (w/o MMU) Kernel Configuration"
