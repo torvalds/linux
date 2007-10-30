@@ -1321,8 +1321,8 @@ ixgb_tx_map(struct ixgb_adapter *adapter, struct sk_buff *skb,
 
 			/* Workaround for premature desc write-backs
 			 * in TSO mode.  Append 4-byte sentinel desc */
-			if (unlikely(mss && !nr_frags && size == len
-			             && size > 8))
+			if (unlikely(mss && (f == (nr_frags - 1))
+				     && size == len && size > 8))
 				size -= 4;
 
 			buffer_info->length = size;
