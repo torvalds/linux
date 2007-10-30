@@ -366,7 +366,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		t->fe.analog_demod_priv = t;
 	}
 
-	tuner_info("type set to %s\n", t->i2c->name);
+	tuner_dbg("type set to %s\n", t->i2c->name);
 
 	if (t->mode_mask == T_UNINITIALIZED)
 		t->mode_mask = new_mode_mask;
