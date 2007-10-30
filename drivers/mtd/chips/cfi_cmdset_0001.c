@@ -50,6 +50,7 @@
 #define I82802AC	0x00ac
 #define MANUFACTURER_ST         0x0020
 #define M50LPW080       0x002F
+#define AT49BV640D	0x02de
 
 static int cfi_intelext_read (struct mtd_info *, loff_t, size_t, size_t *, u_char *);
 static int cfi_intelext_write_words(struct mtd_info *, loff_t, size_t, size_t *, const u_char *);
@@ -157,6 +158,47 @@ static void cfi_tell_features(struct cfi_pri_intelext *extp)
 }
 #endif
 
+/* Atmel chips don't use the same PRI format as Intel chips */
+static void fixup_convert_atmel_pri(struct mtd_info *mtd, void *param)
+{
+	struct map_info *map = mtd->priv;
+	struct cfi_private *cfi = map->fldrv_priv;
+	struct cfi_pri_intelext *extp = cfi->cmdset_priv;
+	struct cfi_pri_atmel atmel_pri;
+	uint32_t features = 0;
+
+	/* Reverse byteswapping */
+	extp->FeatureSupport = cpu_to_le32(extp->FeatureSupport);
+	extp->BlkStatusRegMask = cpu_to_le16(extp->BlkStatusRegMask);
+	extp->ProtRegAddr = cpu_to_le16(extp->ProtRegAddr);
+
+	memcpy(&atmel_pri, extp, sizeof(atmel_pri));
+	memset((char *)extp + 5, 0, sizeof(*extp) - 5);
+
+	printk(KERN_ERR "atmel Features: %02x\n", atmel_pri.Features);
+
+	if (atmel_pri.Features & 0x01) /* chip erase supported */
+		features |= (1<<0);
+	if (atmel_pri.Features & 0x02) /* erase suspend supported */
+		features |= (1<<1);
+	if (atmel_pri.Features & 0x04) /* program suspend supported */
+		features |= (1<<2);
+	if (atmel_pri.Features & 0x08) /* simultaneous operations supported */
+		features |= (1<<9);
+	if (atmel_pri.Features & 0x20) /* page mode read supported */
+		features |= (1<<7);
+	if (atmel_pri.Features & 0x40) /* queued erase supported */
+		features |= (1<<4);
+	if (atmel_pri.Features & 0x80) /* Protection bits supported */
+		features |= (1<<6);
+
+	extp->FeatureSupport = features;
+
+	/* burst write mode not supported */
+	cfi->cfiq->BufWriteTimeoutTyp = 0;
+	cfi->cfiq->BufWriteTimeoutMax = 0;
+}
+
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
 /* Some Intel Strata Flash prior to FPO revision C has bugs in this area */
 static void fixup_intel_strataflash(struct mtd_info *mtd, void* param)
@@ -234,6 +276,7 @@ static void fixup_use_powerup_lock(struct mtd_info *mtd, void *param)
 }
 
 static struct cfi_fixup cfi_fixup_table[] = {
+	{ CFI_MFR_ATMEL, CFI_ID_ANY, fixup_convert_atmel_pri, NULL },
 #ifdef CMDSET0001_DISABLE_ERASE_SUSPEND_ON_WRITE
 	{ CFI_MFR_ANY, CFI_ID_ANY, fixup_intel_strataflash, NULL },
 #endif
