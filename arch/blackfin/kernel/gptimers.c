@@ -20,8 +20,7 @@
 #else
 # define tassert(expr) \
 	if (!(expr)) \
-		printk(KERN_DEBUG "%s:%s:%i: Assertion failed: " #expr "\n", \
-			__FILE__, __func__, __LINE__);
+		printk(KERN_DEBUG "%s:%s:%i: Assertion failed: " #expr "\n", __FILE__, __func__, __LINE__);
 #endif
 
 #define BFIN_TIMER_NUM_GROUP  (BFIN_TIMER_OCTET(MAX_BLACKFIN_GPTIMERS - 1) + 1)
@@ -70,7 +69,7 @@ static volatile GPTIMER_group_regs *const group_regs[BFIN_TIMER_NUM_GROUP] =
 #endif
 };
 
-static uint32_t const dis_mask[MAX_BLACKFIN_GPTIMERS] =
+static uint32_t const trun_mask[MAX_BLACKFIN_GPTIMERS] =
 {
 	TIMER_STATUS_TRUN0,
 	TIMER_STATUS_TRUN1,
@@ -90,7 +89,27 @@ static uint32_t const dis_mask[MAX_BLACKFIN_GPTIMERS] =
 #endif
 };
 
-static uint32_t const irq_mask[MAX_BLACKFIN_GPTIMERS] =
+static uint32_t const tovf_mask[MAX_BLACKFIN_GPTIMERS] =
+{
+	TIMER_STATUS_TOVF0,
+	TIMER_STATUS_TOVF1,
+	TIMER_STATUS_TOVF2,
+#if (MAX_BLACKFIN_GPTIMERS > 3)
+	TIMER_STATUS_TOVF3,
+	TIMER_STATUS_TOVF4,
+	TIMER_STATUS_TOVF5,
+	TIMER_STATUS_TOVF6,
+	TIMER_STATUS_TOVF7,
+#endif
+#if (MAX_BLACKFIN_GPTIMERS > 8)
+	TIMER_STATUS_TOVF8,
+	TIMER_STATUS_TOVF9,
+	TIMER_STATUS_TOVF10,
+	TIMER_STATUS_TOVF11,
+#endif
+};
+
+static uint32_t const timil_mask[MAX_BLACKFIN_GPTIMERS] =
 {
 	TIMER_STATUS_TIMIL0,
 	TIMER_STATUS_TIMIL1,
@@ -165,16 +184,30 @@ EXPORT_SYMBOL(set_gptimer_status);
 uint16_t get_gptimer_intr(int timer_id)
 {
 	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
-	return (group_regs[BFIN_TIMER_OCTET(timer_id)]->status & irq_mask[timer_id]) ? 1 : 0;
+	return (group_regs[BFIN_TIMER_OCTET(timer_id)]->status & timil_mask[timer_id]) ? 1 : 0;
 }
 EXPORT_SYMBOL(get_gptimer_intr);
 
 void clear_gptimer_intr(int timer_id)
 {
 	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
-	group_regs[BFIN_TIMER_OCTET(timer_id)]->status = irq_mask[timer_id];
+	group_regs[BFIN_TIMER_OCTET(timer_id)]->status = timil_mask[timer_id];
 }
 EXPORT_SYMBOL(clear_gptimer_intr);
+
+uint16_t get_gptimer_over(int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	return (group_regs[BFIN_TIMER_OCTET(timer_id)]->status & tovf_mask[timer_id]) ? 1 : 0;
+}
+EXPORT_SYMBOL(get_gptimer_over);
+
+void clear_gptimer_over(int timer_id)
+{
+	tassert(timer_id < MAX_BLACKFIN_GPTIMERS);
+	group_regs[BFIN_TIMER_OCTET(timer_id)]->status = tovf_mask[timer_id];
+}
+EXPORT_SYMBOL(clear_gptimer_over);
 
 void set_gptimer_config(int timer_id, uint16_t config)
 {
@@ -214,7 +247,7 @@ void disable_gptimers(uint16_t mask)
 	}
 	for (i = 0; i < MAX_BLACKFIN_GPTIMERS; ++i)
 		if (mask & (1 << i))
-			group_regs[BFIN_TIMER_OCTET(i)]->status |= dis_mask[i];
+			group_regs[BFIN_TIMER_OCTET(i)]->status |= trun_mask[i];
 	SSYNC();
 }
 EXPORT_SYMBOL(disable_gptimers);

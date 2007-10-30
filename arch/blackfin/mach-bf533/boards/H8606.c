@@ -1,14 +1,15 @@
 /*
- * File:         arch/blackfin/mach-bf533/stamp.c
- * Based on:     arch/blackfin/mach-bf533/ezkit.c
- * Author:       Aidan Williams <aidan@nicta.com.au>
+ * File:         arch/blackfin/mach-bf533/H8606.c
+ * Based on:     arch/blackfin/mach-bf533/stamp.c
+ * Author:       Javier Herrero <jherrero@hvsistemas.es>
  *
- * Created:      2005
- * Description:  Board Info File for the BF533-STAMP
+ * Created:      2007
+ * Description:  Board Info File for the HV Sistemas H8606 board
  *
  * Modified:
  *               Copyright 2005 National ICT Australia (NICTA)
- *               Copyright 2004-2006 Analog Devices Inc.
+ *               Copyright 2004-2006 Analog Devices Inc
+ *		 Copyright 2007 HV Sistemas S.L.
  *
  * Bugs:         Enter bugs at http://blackfin.uclinux.org/
  *
@@ -46,9 +47,9 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADDS-BF533-STAMP";
+const char bfin_board_name[] = "HV Sistemas H8606";
 
-#if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
+#if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_BFIN_MODULE)
 static struct platform_device rtc_device = {
 	.name = "rtc-bfin",
 	.id   = -1,
@@ -56,8 +57,30 @@ static struct platform_device rtc_device = {
 #endif
 
 /*
- *  Driver needs to know address, irq and flag pin.
+*  Driver needs to know address, irq and flag pin.
  */
+ #if	defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+static struct resource dm9000_resources[] = {
+	[0] = {
+		.start	= 0x20300000,
+		.end	= 0x20300000 + 8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_PF10,
+		.end	= IRQ_PF10,
+		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE),
+	},
+};
+
+static struct platform_device dm9000_device = {
+    .id			= 0,
+    .name		= "dm9000",
+    .resource		= dm9000_resources,
+    .num_resources	= ARRAY_SIZE(dm9000_resources),
+};
+#endif
+
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
 static struct resource smc91x_resources[] = {
 	{
@@ -66,6 +89,14 @@ static struct resource smc91x_resources[] = {
 		.end = 0x20300300 + 16,
 		.flags = IORESOURCE_MEM,
 	}, {
+		.start = IRQ_PROG_INTB,
+		.end = IRQ_PROG_INTB,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	}, {
+		/*
+		 *  denotes the flag pin and is used directly if
+		 *  CONFIG_IRQCHIP_DEMUX_GPIO is defined.
+		 */
 		.start = IRQ_PF7,
 		.end = IRQ_PF7,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
@@ -77,12 +108,6 @@ static struct platform_device smc91x_device = {
 	.id = 0,
 	.num_resources = ARRAY_SIZE(smc91x_resources),
 	.resource = smc91x_resources,
-};
-#endif
-
-#if defined(CONFIG_FB_BFIN_7393) || defined(CONFIG_FB_BFIN_7393_MODULE)
-static struct platform_device bfin_fb_adv7393_device = {
-	.name = "bfin-adv7393",
 };
 #endif
 
@@ -114,17 +139,17 @@ static struct platform_device net2272_bfin_device = {
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
 		.name = "bootloader",
-		.size = 0x00020000,
+		.size = 0x00060000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
 		.name = "kernel",
-		.size = 0xe0000,
-		.offset = 0x20000
+		.size = 0x100000,
+		.offset = 0x60000
 	}, {
 		.name = "file system",
-		.size = 0x700000,
-		.offset = 0x00100000,
+		.size = 0x6a0000,
+		.offset = 0x00160000,
 	}
 };
 
@@ -145,6 +170,7 @@ static struct bfin5xx_spi_chip spi_flash_chip_info = {
 #if defined(CONFIG_SPI_ADC_BF533) || defined(CONFIG_SPI_ADC_BF533_MODULE)
 /* SPI ADC chip */
 static struct bfin5xx_spi_chip spi_adc_chip_info = {
+	.ctl_reg = 0x1000,
 	.enable_dma = 1,         /* use dma transfer with this chip*/
 	.bits_per_word = 16,
 };
@@ -152,6 +178,7 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 
 #if defined(CONFIG_SND_BLACKFIN_AD1836) || defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
+	.ctl_reg = 0x1000,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
@@ -159,33 +186,22 @@ static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 
 #if defined(CONFIG_PBX)
 static struct bfin5xx_spi_chip spi_si3xxx_chip_info = {
-	.ctl_reg	= 0x4, /* send zero */
+	.ctl_reg	= 0x1c04,
 	.enable_dma	= 0,
 	.bits_per_word	= 8,
 	.cs_change_per_word = 1,
 };
 #endif
 
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
-static struct bfin5xx_spi_chip ad5304_chip_info = {
-	.enable_dma = 0,
-	.bits_per_word = 16,
-};
-#endif
-
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-static struct bfin5xx_spi_chip spi_mmc_chip_info = {
-	.enable_dma = 1,
-	.bits_per_word = 8,
-};
-#endif
-
+/* Notice: for blackfin, the speed_hz is the value of register
+ * SPI_BAUD, not the real baudrate */
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 	{
 		/* the modalias must be the same as spi device driver name */
 		.modalias = "m25p80", /* Name of spi_driver for this device */
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+		/* this value is the baudrate divisor */
+		.max_speed_hz = 50000000, /* actual baudrate is SCLK/(2xspeed_hz) */
 		.bus_num = 0, /* Framework bus number */
 		.chip_select = 2, /* Framework chip select. On STAMP537 it is SPISSEL2*/
 		.platform_data = &bfin_spi_flash_data,
@@ -197,8 +213,8 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SPI_ADC_BF533) || defined(CONFIG_SPI_ADC_BF533_MODULE)
 	{
 		.modalias = "bfin_spi_adc", /* Name of spi_driver for this device */
-		.max_speed_hz = 6250000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0, /* Framework bus number */
+		.max_speed_hz = 4,     /* actual baudrate is SCLK/(2xspeed_hz) */
+		.bus_num = 1, /* Framework bus number */
 		.chip_select = 1, /* Framework chip select. */
 		.platform_data = NULL, /* No spi_driver specific config */
 		.controller_data = &spi_adc_chip_info,
@@ -208,62 +224,28 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SND_BLACKFIN_AD1836) || defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
 	{
 		.modalias = "ad1836-spi",
-		.max_speed_hz = 31250000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
+		.max_speed_hz = 16,
+		.bus_num = 1,
 		.chip_select = CONFIG_SND_BLACKFIN_SPI_PFBIT,
 		.controller_data = &ad1836_spi_chip_info,
 	},
 #endif
 
-#if defined(CONFIG_SPI_MMC) || defined(CONFIG_SPI_MMC_MODULE)
-	{
-		.modalias = "spi_mmc_dummy",
-		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 0,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-		.mode = SPI_MODE_3,
-	},
-	{
-		.modalias = "spi_mmc",
-		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = CONFIG_SPI_MMC_CS_CHAN,
-		.platform_data = NULL,
-		.controller_data = &spi_mmc_chip_info,
-		.mode = SPI_MODE_3,
-	},
-#endif
-
 #if defined(CONFIG_PBX)
 	{
-		.modalias = "fxs-spi",
-		.max_speed_hz = 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 8 - CONFIG_J11_JUMPER,
+		.modalias	 = "fxs-spi",
+		.max_speed_hz	 = 4,
+		.bus_num	 = 1,
+		.chip_select	 = 3,
 		.controller_data = &spi_si3xxx_chip_info,
-		.mode = SPI_MODE_3,
 	},
-	{
-		.modalias = "fxo-spi",
-		.max_speed_hz = 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 8 - CONFIG_J19_JUMPER,
-		.controller_data = &spi_si3xxx_chip_info,
-		.mode = SPI_MODE_3,
-	},
-#endif
 
-#if defined(CONFIG_AD5304) || defined(CONFIG_AD5304_MODULE)
 	{
-		.modalias = "ad5304_spi",
-		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num = 0,
-		.chip_select = 2,
-		.platform_data = NULL,
-		.controller_data = &ad5304_chip_info,
-		.mode = SPI_MODE_2,
+		.modalias	 = "fxo-spi",
+		.max_speed_hz	 = 4,
+		.bus_num	 = 1,
+		.chip_select	 = 2,
+		.controller_data = &spi_si3xxx_chip_info,
 	},
 #endif
 };
@@ -281,6 +263,7 @@ static struct resource bfin_spi0_resource[] = {
 		.flags = IORESOURCE_IRQ,
 	}
 };
+
 
 /* SPI controller data */
 static struct bfin5xx_spi_master bfin_spi0_info = {
@@ -322,66 +305,17 @@ static struct platform_device bfin_uart_device = {
 };
 #endif
 
-#if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
-static struct platform_device bfin_sport0_uart_device = {
-	.name = "bfin-sport-uart",
-	.id = 0,
-};
-
-static struct platform_device bfin_sport1_uart_device = {
-	.name = "bfin-sport-uart",
-	.id = 1,
-};
-#endif
-
-#if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-#define PATA_INT	55
-
-static struct pata_platform_info bfin_pata_platform_data = {
-	.ioport_shift = 1,
-	.irq_type = IRQF_TRIGGER_HIGH | IRQF_DISABLED,
-};
-
-static struct resource bfin_pata_resources[] = {
-	{
-		.start = 0x20314020,
-		.end = 0x2031403F,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = 0x2031401C,
-		.end = 0x2031401F,
-		.flags = IORESOURCE_MEM,
-	},
-	{
-		.start = PATA_INT,
-		.end = PATA_INT,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device bfin_pata_device = {
-	.name = "pata_platform",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(bfin_pata_resources),
-	.resource = bfin_pata_resources,
-	.dev = {
-		.platform_data = &bfin_pata_platform_data,
-	}
-};
-#endif
-
 static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 	&rtc_device,
 #endif
 
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
-	&smc91x_device,
+#if	defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+	&dm9000_device,
 #endif
 
-#if defined(CONFIG_FB_BFIN_7393) || defined(CONFIG_FB_BFIN_7393_MODULE)
-	&bfin_fb_adv7393_device,
+#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
+	&smc91x_device,
 #endif
 
 #if defined(CONFIG_USB_NET2272) || defined(CONFIG_USB_NET2272_MODULE)
@@ -395,53 +329,17 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 	&bfin_uart_device,
 #endif
-
-#if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
-	&bfin_sport0_uart_device,
-	&bfin_sport1_uart_device,
-#endif
-
-#if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-	&bfin_pata_device,
-#endif
 };
 
-static int __init stamp_init(void)
+static int __init H8606_init(void)
 {
-	int ret;
-
+	printk(KERN_INFO "HV Sistemas H8606 board support by http://www.hvsistemas.com\n");
 	printk(KERN_INFO "%s(): registering device resources\n", __FUNCTION__);
-	ret = platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
-	if (ret < 0)
-		return ret;
-
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)
-# if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-	/* setup BF533_STAMP CPLD to route AMS3 to Ethernet MAC */
-	bfin_write_FIO_DIR(bfin_read_FIO_DIR() | (1 << CONFIG_ENET_FLASH_PIN));
-	bfin_write_FIO_FLAG_S(1 << CONFIG_ENET_FLASH_PIN);
-	SSYNC();
-# endif
-#endif
-
+	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	spi_register_board_info(bfin_spi_board_info,
-				ARRAY_SIZE(bfin_spi_board_info));
-#endif
-#if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-	irq_desc[PATA_INT].status |= IRQ_NOAUTOEN;
+	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 #endif
 	return 0;
 }
 
-arch_initcall(stamp_init);
-
-void native_machine_restart(char *cmd)
-{
-#if defined(CONFIG_BFIN_SHARED_FLASH_ENET)
-# define BIT_TO_SET (1 << CONFIG_ENET_FLASH_PIN)
-	bfin_write_FIO_INEN(~BIT_TO_SET);
-	bfin_write_FIO_DIR(BIT_TO_SET);
-	bfin_write_FIO_FLAG_C(BIT_TO_SET);
-#endif
-}
+arch_initcall(H8606_init);

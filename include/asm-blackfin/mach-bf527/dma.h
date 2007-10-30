@@ -35,7 +35,6 @@
 #define MAX_BLACKFIN_DMA_CHANNEL 16
 
 #define CH_PPI 			0	/* PPI receive/transmit or NFC */
-#define CH_NFC			0	/* PPI receive/transmit or NFC */
 #define CH_EMAC_RX 		1	/* Ethernet MAC receive or HOSTDP */
 #define CH_EMAC_HOSTDP 		1	/* Ethernet MAC receive or HOSTDP */
 #define CH_EMAC_TX 		2	/* Ethernet MAC transmit or NFC */
@@ -53,6 +52,12 @@
 #define CH_MEM_STREAM0_SRC  	13	/* RX */
 #define CH_MEM_STREAM1_DEST	14	/* TX */
 #define CH_MEM_STREAM1_SRC 	15	/* RX */
+
+#if defined(CONFIG_BF527_NAND_D_PORTF)
+#define CH_NFC			CH_PPI	/* PPI receive/transmit or NFC */
+#elif defined(CONFIG_BF527_NAND_D_PORTH)
+#define CH_NFC			CH_EMAC_TX /* PPI receive/transmit or NFC */
+#endif
 
 extern int channel2irq(unsigned int channel);
 extern struct dma_register *base_addr[];

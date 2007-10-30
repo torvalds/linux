@@ -41,9 +41,11 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/usb_sl811.h>
+#include <asm/cplb.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
+#include <asm/nand.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -100,6 +102,53 @@ void __exit bfin_isp1761_exit(void)
 }
 
 arch_initcall(bfin_isp1761_init);
+#endif
+
+#if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
+static struct mtd_partition partition_info[] = {
+	{
+		.name = "Linux Kernel",
+		.offset = 0,
+		.size = 4 * SIZE_1M,
+	},
+	{
+		.name = "File System",
+		.offset = 4 * SIZE_1M,
+		.size = (256 - 4) * SIZE_1M,
+	},
+};
+
+static struct bf5xx_nand_platform bf5xx_nand_platform = {
+	.page_size = NFC_PG_SIZE_256,
+	.data_width = NFC_NWIDTH_8,
+	.partitions = partition_info,
+	.nr_partitions = ARRAY_SIZE(partition_info),
+	.rd_dly = 3,
+	.wr_dly = 3,
+};
+
+static struct resource bf5xx_nand_resources[] = {
+	{
+		.start = NFC_CTL,
+		.end = NFC_DATA_RD + 2,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = CH_NFC,
+		.end = CH_NFC,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bf5xx_nand_device = {
+	.name = "bf5xx-nand",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bf5xx_nand_resources),
+	.resource = bf5xx_nand_resources,
+	.dev = {
+		.platform_data = &bf5xx_nand_platform,
+	},
+};
 #endif
 
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
@@ -650,6 +699,10 @@ static struct platform_device bfin_pata_device = {
 #endif
 
 static struct platform_device *stamp_devices[] __initdata = {
+#if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
+	&bf5xx_nand_device,
+#endif
+
 #if defined(CONFIG_BFIN_CFPCMCIA) || defined(CONFIG_BFIN_CFPCMCIA_MODULE)
 	&bfin_pcmcia_cf_device,
 #endif

@@ -295,6 +295,12 @@ config PNAV10
 	help
 	  PNAV 1.0 board Support.
 
+config H8606_HVSISTEMAS
+        bool "HV Sistemas H8606"
+        depends on (BF532)
+        help
+          HV Sistemas H8606 board support.
+
 config GENERIC_BOARD
 	bool "Custom"
 	depends on (BF537 || BF536 \
@@ -317,7 +323,8 @@ config MEM_MT48LC64M4A2FB_7E
 config MEM_MT48LC16M16A2TG_75
 	bool
 	depends on (BFIN533_EZKIT || BFIN561_EZKIT \
-		|| BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM)
+		|| BFIN533_BLUETECHNIX_CM || BFIN537_BLUETECHNIX_CM \
+		|| H8606_HVSISTEMAS)
 	default y
 
 config MEM_MT48LC32M8A2_75
@@ -366,7 +373,7 @@ config CLKIN_HZ
 	int "Crystal Frequency in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	help
@@ -404,6 +411,7 @@ config VCO_MULT
 	default "20" if BFIN537_BLUETECHNIX_CM
 	default "20" if BFIN561_BLUETECHNIX_CM
 	default "20" if BFIN561_EZKIT
+	default "16" if H8606_HVSISTEMAS
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
@@ -440,6 +448,7 @@ config SCLK_DIV
 	default 4 if BFIN537_BLUETECHNIX_CM
 	default 4 if BFIN561_BLUETECHNIX_CM
 	default 5 if BFIN561_EZKIT
+	default 3 if H8606_HVSISTEMAS
 	help
 	  This sets the frequency of the system clock (including SDRAM or DDR).
 	  This can be between 1 and 15
@@ -492,11 +501,13 @@ config MEM_SIZE
 	default  64 if BFIN561_EZKIT
 	default 128 if BFIN533_STAMP
 	default  64 if PNAV10
+	default  32 if H8606_HVSISTEMAS
 
 config MEM_ADD_WIDTH
 	int "SDRAM Memory Address Width"
 	default  9 if BFIN533_EZKIT
 	default  9 if BFIN561_EZKIT
+	default  9 if H8606_HVSISTEMAS
 	default 10 if BFIN527_EZKIT
 	default 10 if BFIN537_STAMP
 	default 11 if BFIN533_STAMP

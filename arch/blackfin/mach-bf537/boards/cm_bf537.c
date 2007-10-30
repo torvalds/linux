@@ -281,8 +281,8 @@ static struct resource net2272_bfin_resources[] = {
 		.end = 0x20200000 + 0x100,
 		.flags = IORESOURCE_MEM,
 	}, {
-		.start = IRQ_PF7,
-		.end = IRQ_PF7,
+		.start = IRQ_PH14,
+		.end = IRQ_PH14,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	},
 };

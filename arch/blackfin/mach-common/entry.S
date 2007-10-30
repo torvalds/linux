@@ -917,7 +917,7 @@ ENTRY(_ex_table)
 	.long _ex_soft_bp       /* 0x01 - User Defined - Software breakpoint */
 	.long _ex_replaceable   /* 0x02 - User Defined */
 	.long _ex_trap_c        /* 0x03 - User Defined - userspace stack overflow */
-	.long _ex_replaceable   /* 0x04 - User Defined */
+	.long _ex_trap_c        /* 0x04 - User Defined - dump trace buffer */
 	.long _ex_replaceable   /* 0x05 - User Defined */
 	.long _ex_replaceable   /* 0x06 - User Defined */
 	.long _ex_replaceable   /* 0x07 - User Defined */

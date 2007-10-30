@@ -197,6 +197,8 @@ uint32_t get_gptimer_period    (int timer_id);
 uint32_t get_gptimer_count     (int timer_id);
 uint16_t get_gptimer_intr      (int timer_id);
 void     clear_gptimer_intr    (int timer_id);
+uint16_t get_gptimer_over      (int timer_id);
+void     clear_gptimer_over    (int timer_id);
 void     set_gptimer_config    (int timer_id, uint16_t config);
 uint16_t get_gptimer_config    (int timer_id);
 void     set_gptimer_pulse_hi  (int timer_id);
