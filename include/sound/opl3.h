@@ -320,7 +320,6 @@ struct snd_opl3 {
 
 	spinlock_t reg_lock;
 	struct snd_card *card;		/* The card that this belongs to */
-	int used;			/* usage flag - exclusive */
 	unsigned char fm_mode;		/* OPL mode, see SNDRV_DM_FM_MODE_XXX */
 	unsigned char rhythm;		/* percussion mode flag */
 	unsigned char max_voices;	/* max number of voices */
@@ -353,7 +352,6 @@ struct snd_opl3 {
 	int sys_timer_status;		/* system timer run status */
 	spinlock_t sys_timer_lock;	/* Lock for system timer access */
 #endif
-	struct mutex access_mutex;	/* locking */
 };
 
 /* opl3.c */

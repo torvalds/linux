@@ -361,7 +361,6 @@ int snd_opl3_new(struct snd_card *card,
 	opl3->hardware = hardware;
 	spin_lock_init(&opl3->reg_lock);
 	spin_lock_init(&opl3->timer_lock);
-	mutex_init(&opl3->access_mutex);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_CODEC, opl3, &ops)) < 0) {
 		snd_opl3_free(opl3);
@@ -497,6 +496,7 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 		return err;
 	}
 	hw->private_data = opl3;
+	hw->exclusive = 1;
 #ifdef CONFIG_SND_OSSEMUL
 	if (device == 0) {
 		hw->oss_type = SNDRV_OSS_DEVICE_TYPE_DMFM;
