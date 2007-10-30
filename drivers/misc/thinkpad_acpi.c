@@ -3174,6 +3174,39 @@ static int __init brightness_check_levels(void)
 	return (ACPI_SUCCESS(status) && found_node != NULL);
 }
 
+static acpi_status __init brightness_find_bcl(acpi_handle handle, u32 lvl,
+					void *context, void **rv)
+{
+	char name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer buffer = { sizeof(name), &name };
+
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
+	    !strncmp("_BCL", name, sizeof(name) - 1)) {
+		*rv = handle;
+		return AE_CTRL_TERMINATE;
+	} else {
+		return AE_OK;
+	}
+}
+
+static int __init brightness_check_std_acpi_support(void)
+{
+	int status;
+	void *found_node = NULL;
+
+	if (!vid_handle) {
+		IBM_ACPIHANDLE_INIT(vid);
+	}
+	if (!vid_handle)
+		return 0;
+
+	/* Search for a _BCL method, but don't execute it */
+	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
+	                             brightness_find_bcl, NULL, &found_node);
+
+	return (ACPI_SUCCESS(status) && found_node != NULL);
+}
+
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	int b;
@@ -3186,6 +3219,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 		dbg_printk(TPACPI_DBG_INIT,
 		           "brightness support disabled by module parameter\n");
 		return 1;
+	} else if (brightness_enable > 1) {
+		if (brightness_check_std_acpi_support()) {
+			printk(IBM_NOTICE
+			       "standard ACPI backlight interface available, not loading native one...\n");
+			return 1;
+		}
 	}
 
 	if (!brightness_mode) {

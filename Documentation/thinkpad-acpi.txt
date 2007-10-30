@@ -942,11 +942,15 @@ and CMOS.  The driver tries to autodetect which interface to use.
 
 When display backlight brightness controls are available through the
 standard ACPI interface, it is best to use it instead of this direct
-ThinkPad-specific interface.
+ThinkPad-specific interface.  The driver will disable its native
+backlight brightness control interface if it detects that the standard
+ACPI interface is available in the ThinkPad.
 
 The brightness_enable module parameter can be used to control whether
 the LCD brightness control feature will be enabled when available.
-brightness_enable=0 forces it to be disabled.
+brightness_enable=0 forces it to be disabled.  brightness_enable=1
+forces it to be enabled when available, even if the standard ACPI
+interface is also available.
 
 Procfs notes:
 
