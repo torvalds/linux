@@ -126,4 +126,5 @@ static inline int is_paging(struct kvm_vcpu *vcpu)
 }
 
 int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
+int complete_pio(struct kvm_vcpu *vcpu);
 #endif
