@@ -71,7 +71,7 @@ static struct kobj_type class_ktype = {
 };
 
 /* Hotplug events for classes go to the class_obj subsys */
-static decl_subsys(class, NULL);
+static struct kset *class_kset;
 
 
 int class_create_file(struct class * cls, const struct class_attribute * attr)
@@ -149,7 +149,7 @@ int class_register(struct class * cls)
 	if (error)
 		return error;
 
-	cls->subsys.kobj.kset = &class_subsys;
+	cls->subsys.kobj.kset = class_kset;
 	cls->subsys.kobj.ktype = &class_ktype;
 
 	error = subsystem_register(&cls->subsys);
@@ -855,11 +855,9 @@ void class_interface_unregister(struct class_interface *class_intf)
 
 int __init classes_init(void)
 {
-	int retval;
-
-	retval = subsystem_register(&class_subsys);
-	if (retval)
-		return retval;
+	class_kset = kset_create_and_add("class", NULL, NULL);
+	if (!class_kset)
+		return -ENOMEM;
 
 	/* ick, this is ugly, the things we go through to keep from showing up
 	 * in sysfs... */
