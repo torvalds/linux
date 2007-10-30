@@ -1,8 +1,10 @@
 /* tuner-xc2028
  *
  * Copyright (c) 2007 Mauro Carvalho Chehab (mchehab@infradead.org)
+ *
  * Copyright (c) 2007 Michel Ludwig (michel.ludwig@gmail.com)
  *       - frontend interface
+ *
  * This code is placed under the terms of the GNU General Public License v2
  */
 
@@ -768,5 +770,6 @@ int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter* i2c_adap,
 EXPORT_SYMBOL(xc2028_attach);
 
 MODULE_DESCRIPTION("Xceive xc2028/xc3028 tuner driver");
+MODULE_AUTHOR("Michel Ludwig <michel.ludwig@gmail.com>");
 MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
