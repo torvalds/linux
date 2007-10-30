@@ -3313,12 +3313,6 @@ static void snd_trident_proc_read(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "Memory Free    : %d\n", snd_util_mem_avail(trident->tlb.memhdr));
 		}
 	}
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
-	snd_iprintf(buffer,"\nWavetable Synth\n");
-	snd_iprintf(buffer, "Memory Maximum : %d\n", trident->synth.max_size);
-	snd_iprintf(buffer, "Memory Used    : %d\n", trident->synth.current_size);
-	snd_iprintf(buffer, "Memory Free    : %d\n", (trident->synth.max_size-trident->synth.current_size));
-#endif
 }
 
 static void __devinit snd_trident_proc_init(struct snd_trident * trident)
@@ -3813,28 +3807,6 @@ static irqreturn_t snd_trident_interrupt(int irq, void *dev_id)
 	}
 	// outl((ST_TARGET_REACHED | MIXER_OVERFLOW | MIXER_UNDERFLOW), TRID_REG(trident, T4D_MISCINT));
 	return IRQ_HANDLED;
-}
-
-/*---------------------------------------------------------------------------
-   snd_trident_attach_synthesizer
-  
-   Description: Attach synthesizer hooks
-                
-   Paramters:   trident  - device specific private data for 4DWave card
-
-   Returns:     None.
-  
-  ---------------------------------------------------------------------------*/
-int snd_trident_attach_synthesizer(struct snd_trident *trident)
-{	
-#if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
-	if (snd_seq_device_new(trident->card, 1, SNDRV_SEQ_DEV_ID_TRIDENT,
-			       sizeof(struct snd_trident *), &trident->seq_dev) >= 0) {
-		strcpy(trident->seq_dev->name, "4DWave");
-		*(struct snd_trident **)SNDRV_SEQ_DEVICE_ARGPTR(trident->seq_dev) = trident;
-	}
-#endif
-	return 0;
 }
 
 struct snd_trident_voice *snd_trident_alloc_voice(struct snd_trident * trident, int type, int client, int port)

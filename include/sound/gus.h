@@ -27,12 +27,7 @@
 #include "timer.h"
 #include "seq_midi_emul.h"
 #include "seq_device.h"
-#include "ainstr_iw.h"
-#include "ainstr_gf1.h"
-#include "ainstr_simple.h"
 #include <asm/io.h>
-
-#define SNDRV_SEQ_DEV_ID_GUS			"gus-synth"
 
 /* IO ports */
 
@@ -234,16 +229,6 @@ struct snd_gus_port {
 
 struct snd_gus_voice;
 
-struct snd_gus_sample_ops {
-	void (*sample_start)(struct snd_gus_card *gus, struct snd_gus_voice *voice, snd_seq_position_t position);
-	void (*sample_stop)(struct snd_gus_card *gus, struct snd_gus_voice *voice, int mode);
-	void (*sample_freq)(struct snd_gus_card *gus, struct snd_gus_voice *voice, snd_seq_frequency_t freq);
-	void (*sample_volume)(struct snd_gus_card *gus, struct snd_gus_voice *voice, struct snd_seq_ev_volume *volume);
-	void (*sample_loop)(struct snd_gus_card *card, struct snd_gus_voice *voice, struct snd_seq_ev_loop *loop);
-	void (*sample_pos)(struct snd_gus_card *card, struct snd_gus_voice *voice, snd_seq_position_t position);
-	void (*sample_private1)(struct snd_gus_card *card, struct snd_gus_voice *voice, unsigned char *data);
-};
-
 #define SNDRV_GF1_VOICE_TYPE_PCM	0
 #define SNDRV_GF1_VOICE_TYPE_SYNTH 	1
 #define SNDRV_GF1_VOICE_TYPE_MIDI	2
@@ -284,11 +269,7 @@ struct snd_gus_voice {
 
 	struct snd_gus_sample_ops *sample_ops;
 
-	struct snd_seq_instr instr;
-
 	/* running status / registers */
-
-	struct snd_seq_ev_volume sample_volume;
 
 	unsigned short fc_register;
 	unsigned short fc_lfo;
@@ -382,10 +363,6 @@ struct snd_gf1 {
 
 	int seq_client;
 	struct snd_gus_port seq_ports[4];
-	struct snd_seq_kinstr_list *ilist;
-	struct snd_iwffff_ops iwffff_ops;
-	struct snd_gf1_ops gf1_ops;
-	struct snd_simple_ops simple_ops;
 
 	/* timer */
 
@@ -457,8 +434,6 @@ struct snd_gus_card {
 	struct snd_rawmidi *midi_uart;
 	struct snd_rawmidi_substream *midi_substream_output;
 	struct snd_rawmidi_substream *midi_substream_input;
-
-	struct snd_seq_device *seq_dev;
 
 	spinlock_t reg_lock;
 	spinlock_t voice_alloc;
@@ -647,48 +622,10 @@ void snd_gus_irq_profile_init(struct snd_gus_card *gus);
 
 int snd_gf1_rawmidi_new(struct snd_gus_card * gus, int device, struct snd_rawmidi **rrawmidi);
 
-#if 0
-extern void snd_engine_instrument_register(unsigned short mode,
-		struct _SND_INSTRUMENT_VOICE_COMMANDS *voice_cmds,
-		struct _SND_INSTRUMENT_NOTE_COMMANDS *note_cmds,
-	      	struct _SND_INSTRUMENT_CHANNEL_COMMANDS *channel_cmds);
-extern int snd_engine_instrument_register_ask(unsigned short mode);
-#endif
-
 /* gus_dram.c */
 int snd_gus_dram_write(struct snd_gus_card *gus, char __user *ptr,
 		       unsigned int addr, unsigned int size);
 int snd_gus_dram_read(struct snd_gus_card *gus, char __user *ptr,
 		      unsigned int addr, unsigned int size, int rom);
-
-#if defined(CONFIG_SND_SEQUENCER) || defined(CONFIG_SND_SEQUENCER_MODULE)
-
-/* gus_sample.c */
-void snd_gus_sample_event(struct snd_seq_event *ev, struct snd_gus_port *p);
-
-/* gus_simple.c */
-void snd_gf1_simple_init(struct snd_gus_voice *voice);
-
-/* gus_instr.c */
-int snd_gus_iwffff_put_sample(void *private_data, struct iwffff_wave *wave,
-			      char __user *data, long len, int atomic);
-int snd_gus_iwffff_get_sample(void *private_data, struct iwffff_wave *wave,
-			      char __user *data, long len, int atomic);
-int snd_gus_iwffff_remove_sample(void *private_data, struct iwffff_wave *wave,
-				 int atomic);
-int snd_gus_gf1_put_sample(void *private_data, struct gf1_wave *wave,
-			   char __user *data, long len, int atomic);
-int snd_gus_gf1_get_sample(void *private_data, struct gf1_wave *wave,
-			   char __user *data, long len, int atomic);
-int snd_gus_gf1_remove_sample(void *private_data, struct gf1_wave *wave,
-			      int atomic);
-int snd_gus_simple_put_sample(void *private_data, struct simple_instrument *instr,
-			      char __user *data, long len, int atomic);
-int snd_gus_simple_get_sample(void *private_data, struct simple_instrument *instr,
-			      char __user *data, long len, int atomic);
-int snd_gus_simple_remove_sample(void *private_data, struct simple_instrument *instr,
-				 int atomic);
-
-#endif /* CONFIG_SND_SEQUENCER */
 
 #endif /* __SOUND_GUS_H */
