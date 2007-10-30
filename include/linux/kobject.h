@@ -193,11 +193,6 @@ struct kset _name##_subsys = { \
 	.kobj = { .k_name = __stringify(_name) }, \
 	.uevent_ops =_uevent_ops, \
 }
-#define decl_subsys_name(_varname,_name,_uevent_ops) \
-struct kset _varname##_subsys = { \
-	.kobj = { .k_name = __stringify(_name) }, \
-	.uevent_ops =_uevent_ops, \
-}
 
 /* The global /sys/kernel/ subsystem for people to chain off of */
 extern struct kset kernel_subsys;
