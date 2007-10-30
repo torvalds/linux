@@ -580,11 +580,35 @@ static void stb0899_set_mclk(struct stb0899_state *state, u32 Mclk)
 	dprintk(verbose, FE_DEBUG, 1, "MasterCLOCK=%d", internal->master_clk);
 }
 
+static int stb0899_postproc(struct stb0899_state *state, u8 ctl, int enable)
+{
+	struct stb0899_config *config		= state->config;
+	struct stb0899_postproc	*postproc	= config->postproc;
+
+	/* post process event */
+	if (postproc) {
+		if (enable) {
+			if (postproc[STB0899_POSTPROC_GPIO_POWER].level == STB0899_GPIOPULLUP)
+				stb0899_write_reg(state, postproc[ctl].gpio, 0x02);
+			else
+				stb0899_write_reg(state, postproc[ctl].gpio, 0x82);
+		} else {
+			if (postproc[STB0899_POSTPROC_GPIO_POWER].level == STB0899_GPIOPULLUP)
+				stb0899_write_reg(state, postproc[ctl].gpio, 0x82);
+			else
+				stb0899_write_reg(state, postproc[ctl].gpio, 0x02);
+		}
+	}
+	return 0;
+}
+
 static void stb0899_release(struct dvb_frontend *fe)
 {
 	struct stb0899_state *state = fe->demodulator_priv;
 
 	dprintk(verbose, FE_DEBUG, 1, "Release Frontend");
+	/* post process event */
+	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
 	kfree(state);
 }
 
@@ -839,6 +863,9 @@ static int stb0899_sleep(struct dvb_frontend *fe)
 	u8 reg;
 
 	dprintk(verbose, FE_DEBUG, 1, "Going to Sleep .. (Really tired .. :-))");
+	/* post process event */
+	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 0);
+
 	return 0;
 }
 
@@ -854,6 +881,9 @@ static int stb0899_wakeup(struct dvb_frontend *fe)
 		return rc;
 	if ((rc = stb0899_write_reg(state, STB0899_STOPCLK2, 0x00)))
 		return rc;
+
+	/* post process event */
+	stb0899_postproc(state, STB0899_POSTPROC_GPIO_POWER, 1);
 
 	return 0;
 }
@@ -1050,6 +1080,8 @@ static int stb0899_read_status(struct dvb_frontend *fe, enum fe_status *status)
 				if (STB0899_GETFIELD(VITCURPUN, reg)) {
 					dprintk(state->verbose, FE_DEBUG, 1, "--------> FE_HAS_VITERBI | FE_HAS_SYNC");
 					*status |= FE_HAS_VITERBI | FE_HAS_SYNC;
+					/* post process event */
+					stb0899_postproc(state, STB0899_POSTPROC_GPIO_LOCK, 1);
 				}
 			}
 		}
@@ -1079,6 +1111,8 @@ static int stb0899_read_status(struct dvb_frontend *fe, enum fe_status *status)
 					*status |= FE_HAS_SYNC;
 					dprintk(state->verbose, FE_DEBUG, 1,
 						"Packet Delineator found SYNC ! -----> DVB-S2 FE_HAS_SYNC");
+					/* post process event */
+					stb0899_postproc(state, STB0899_POSTPROC_GPIO_LOCK, 1);
 				}
 			}
 		}
