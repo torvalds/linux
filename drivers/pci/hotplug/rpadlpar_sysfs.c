@@ -130,7 +130,7 @@ struct kobj_type ktype_dlpar_io = {
 
 struct kset dlpar_io_kset = {
 	.kobj = {.ktype = &ktype_dlpar_io,
-		 .parent = &pci_hotplug_slots_subsys.kobj},
+		 .parent = &pci_hotplug_slots_kset->kobj},
 };
 
 int dlpar_sysfs_init(void)

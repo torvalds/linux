@@ -61,7 +61,7 @@ static int debug;
 
 static LIST_HEAD(pci_hotplug_slot_list);
 
-struct kset pci_hotplug_slots_subsys;
+struct kset *pci_hotplug_slots_kset;
 
 static ssize_t hotplug_slot_attr_show(struct kobject *kobj,
 		struct attribute *attr, char *buf)
@@ -95,8 +95,6 @@ static struct kobj_type hotplug_slot_ktype = {
 	.sysfs_ops = &hotplug_slot_sysfs_ops,
 	.release = &hotplug_slot_release,
 };
-
-decl_subsys_name(pci_hotplug_slots, slots, NULL);
 
 /* these strings match up with the values in pci_bus_speed */
 static char *pci_bus_speed_strings[] = {
@@ -633,7 +631,7 @@ int pci_hp_register (struct hotplug_slot *slot)
 	}
 
 	kobject_set_name(&slot->kobj, "%s", slot->name);
-	slot->kobj.kset = &pci_hotplug_slots_subsys;
+	slot->kobj.kset = pci_hotplug_slots_kset;
 	slot->kobj.ktype = &hotplug_slot_ktype;
 
 	/* this can fail if we have already registered a slot with the same name */
@@ -702,10 +700,11 @@ static int __init pci_hotplug_init (void)
 {
 	int result;
 
-	pci_hotplug_slots_subsys.kobj.kset = &pci_bus_type.subsys;
-	result = subsystem_register(&pci_hotplug_slots_subsys);
-	if (result) {
-		err("Register subsys with error %d\n", result);
+	pci_hotplug_slots_kset = kset_create_and_add("slots", NULL,
+						     &pci_bus_type.subsys.kobj);
+	if (!pci_hotplug_slots_kset) {
+		result = -ENOMEM;
+		err("Register subsys error\n");
 		goto exit;
 	}
 	result = cpci_hotplug_init(debug);
@@ -716,9 +715,9 @@ static int __init pci_hotplug_init (void)
 
 	info (DRIVER_DESC " version: " DRIVER_VERSION "\n");
 	goto exit;
-	
+
 err_subsys:
-	subsystem_unregister(&pci_hotplug_slots_subsys);
+	kset_unregister(pci_hotplug_slots_kset);
 exit:
 	return result;
 }
@@ -726,7 +725,7 @@ exit:
 static void __exit pci_hotplug_exit (void)
 {
 	cpci_hotplug_exit();
-	subsystem_unregister(&pci_hotplug_slots_subsys);
+	kset_unregister(pci_hotplug_slots_kset);
 }
 
 module_init(pci_hotplug_init);
@@ -738,7 +737,7 @@ MODULE_LICENSE("GPL");
 module_param(debug, bool, 0644);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
 
-EXPORT_SYMBOL_GPL(pci_hotplug_slots_subsys);
+EXPORT_SYMBOL_GPL(pci_hotplug_slots_kset);
 EXPORT_SYMBOL_GPL(pci_hp_register);
 EXPORT_SYMBOL_GPL(pci_hp_deregister);
 EXPORT_SYMBOL_GPL(pci_hp_change_slot_info);
