@@ -43,8 +43,8 @@ static struct cifs_wksid wksidarr[NUM_WK_SIDS] = {
 
 
 /* security id for everyone */
-static const struct cifs_sid sid_everyone =
-		{1, 1, {0, 0, 0, 0, 0, 0}, {} };
+static const struct cifs_sid sid_everyone = {
+	1, 1, {0, 0, 0, 0, 0, 1}, {0} };
 /* group users */
 static const struct cifs_sid sid_user =
 		{1, 2 , {0, 0, 0, 0, 0, 5}, {} };
@@ -138,8 +138,6 @@ static void access_flags_to_mode(__u32 ace_flags, umode_t *pmode,
 				 umode_t bits_to_set)
 {
 
-	*pmode &= ~bits_to_set;
-
 	if (ace_flags & GENERIC_ALL) {
 		*pmode |= (S_IRWXUGO & bits_to_set);
 #ifdef CONFIG_CIFS_DEBUG2
@@ -147,11 +145,14 @@ static void access_flags_to_mode(__u32 ace_flags, umode_t *pmode,
 #endif
 		return;
 	}
-	if ((ace_flags & GENERIC_WRITE) || (ace_flags & FILE_WRITE_RIGHTS))
+	if ((ace_flags & GENERIC_WRITE) ||
+			((ace_flags & FILE_WRITE_RIGHTS) == FILE_WRITE_RIGHTS))
 		*pmode |= (S_IWUGO & bits_to_set);
-	if ((ace_flags & GENERIC_READ) || (ace_flags & FILE_READ_RIGHTS))
+	if ((ace_flags & GENERIC_READ) ||
+			((ace_flags & FILE_READ_RIGHTS) == FILE_READ_RIGHTS))
 		*pmode |= (S_IRUGO & bits_to_set);
-	if ((ace_flags & GENERIC_EXECUTE) || (ace_flags & FILE_EXEC_RIGHTS))
+	if ((ace_flags & GENERIC_EXECUTE) ||
+			((ace_flags & FILE_EXEC_RIGHTS) == FILE_EXEC_RIGHTS))
 		*pmode |= (S_IXUGO & bits_to_set);
 
 #ifdef CONFIG_CIFS_DEBUG2
@@ -234,10 +235,23 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 		cifscred->aces = kmalloc(num_aces *
 			sizeof(struct cifs_ace *), GFP_KERNEL);*/
 
+		/* reset rwx permissions for user/group/other */
+		inode->i_mode &= ~(S_IRWXUGO);
+
 		for (i = 0; i < num_aces; ++i) {
 			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);
 
 			parse_ace(ppace[i], end_of_acl);
+
+			if (compare_sids(&(ppace[i]->sid), pownersid))
+				access_flags_to_mode(ppace[i]->access_req,
+						&(inode->i_mode), S_IRWXU);
+			if (compare_sids(&(ppace[i]->sid), pgrpsid))
+				access_flags_to_mode(ppace[i]->access_req,
+						&(inode->i_mode), S_IRWXG);
+			if (compare_sids(&(ppace[i]->sid), &sid_everyone))
+				access_flags_to_mode(ppace[i]->access_req,
+						&(inode->i_mode), S_IRWXO);
 
 /*			memcpy((void *)(&(cifscred->aces[i])),
 				(void *)ppace[i],

@@ -12,7 +12,9 @@ leak that causes cifsd not to stop and rmmod to fail to cleanup
 cifs_request_buffers pool. Fix problem with POSIX Open/Mkdir on
 bigendian architectures. Fix possible memory corruption when
 EAGAIN returned on kern_recvmsg. Return better error if server
-requires packet signing but client has disabled it.
+requires packet signing but client has disabled it. When mounted
+with cifsacl mount option - mode bits are approximated based
+on the contents of the files ACL.
 
 Version 1.50
 ------------
