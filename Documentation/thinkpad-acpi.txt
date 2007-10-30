@@ -944,6 +944,10 @@ When display backlight brightness controls are available through the
 standard ACPI interface, it is best to use it instead of this direct
 ThinkPad-specific interface.
 
+The brightness_enable module parameter can be used to control whether
+the LCD brightness control feature will be enabled when available.
+brightness_enable=0 forces it to be disabled.
+
 Procfs notes:
 
 	The available commands are:

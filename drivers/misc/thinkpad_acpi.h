@@ -339,6 +339,7 @@ static int bluetooth_write(char *buf);
 static struct backlight_device *ibm_backlight_device;
 static int brightness_offset = 0x31;
 static int brightness_mode;
+static unsigned int brightness_enable;	/* 0 = no, 1 = yes, 2 = auto */
 
 static int brightness_init(struct ibm_init_struct *iibm);
 static void brightness_exit(void);

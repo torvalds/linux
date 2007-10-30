@@ -3182,6 +3182,12 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 
 	mutex_init(&brightness_mutex);
 
+	if (!brightness_enable) {
+		dbg_printk(TPACPI_DBG_INIT,
+		           "brightness support disabled by module parameter\n");
+		return 1;
+	}
+
 	if (!brightness_mode) {
 		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO)
 			brightness_mode = 2;
@@ -4802,6 +4808,9 @@ module_param_named(fan_control, fan_control_allowed, bool, 0);
 
 static int brightness_mode;
 module_param_named(brightness_mode, brightness_mode, int, 0);
+
+static unsigned int brightness_enable = 2; /* 2 = auto, 0 = no, 1 = yes */
+module_param(brightness_enable, uint, 0);
 
 static unsigned int hotkey_report_mode;
 module_param(hotkey_report_mode, uint, 0);
