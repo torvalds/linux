@@ -30,8 +30,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 
-#include "ixgbe_type.h"
-#include "ixgbe_common.h"
+#include "ixgbe.h"
 #include "ixgbe_phy.h"
 
 #define IXGBE_82598_MAX_TX_QUEUES 32

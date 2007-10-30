@@ -45,12 +45,13 @@
 #include "ixgbe_common.h"
 
 char ixgbe_driver_name[] = "ixgbe";
-static char ixgbe_driver_string[] =
-			"Intel(R) 10 Gigabit PCI Express Network Driver";
+static const char ixgbe_driver_string[] =
+	"Intel(R) 10 Gigabit PCI Express Network Driver";
 
 #define DRV_VERSION "1.1.18"
-char ixgbe_driver_version[] = DRV_VERSION;
-static char ixgbe_copyright[] = "Copyright (c) 1999-2007 Intel Corporation.";
+const char ixgbe_driver_version[] = DRV_VERSION;
+static const char ixgbe_copyright[] =
+	 "Copyright (c) 1999-2007 Intel Corporation.";
 
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
 	[board_82598AF]			= &ixgbe_82598AF_info,
