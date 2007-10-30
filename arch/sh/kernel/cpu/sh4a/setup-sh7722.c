@@ -14,6 +14,32 @@
 #include <asm/mmzone.h>
 #include <asm/sci.h>
 
+static struct resource usbf_resources[] = {
+	[0] = {
+		.name	= "m66592_udc",
+		.start	= 0xA4480000,
+		.end	= 0xA44800FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "m66592_udc",
+		.start	= 65,
+		.end	= 65,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device usbf_device = {
+	.name		= "m66592_udc",
+	.id		= -1,
+	.dev = {
+		.dma_mask		= NULL,
+		.coherent_dma_mask	= 0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(usbf_resources),
+	.resource	= usbf_resources,
+};
+
 static struct plat_sci_port sci_platform_data[] = {
 	{
 		.mapbase	= 0xffe00000,
@@ -47,6 +73,7 @@ static struct platform_device sci_device = {
 };
 
 static struct platform_device *sh7722_devices[] __initdata = {
+	&usbf_device,
 	&sci_device,
 };
 
