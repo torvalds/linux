@@ -35,7 +35,6 @@ Features which OCFS2 does not support yet:
 	- Directory change notification (F_NOTIFY)
 	- Distributed Caching (F_SETLEASE/F_GETLEASE/break_lease)
 	- POSIX ACLs
-	- readpages / writepages (not user visible)
 
 Mount options
 =============
