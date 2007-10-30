@@ -306,12 +306,11 @@ dispatch_writes:
 dispatch_find_request:
 	/*
 	 * we are not running a batch, find best request for selected data_dir
+	 * and start a new batch
 	 */
 	if (deadline_check_fifo(dd, data_dir)) {
 		/* An expired request exists - satisfy it */
-		dd->batching = 0;
 		rq = rq_entry_fifo(dd->fifo_list[data_dir].next);
-		
 	} else if (dd->next_rq[data_dir]) {
 		/*
 		 * The last req was the same dir and we have a next request in
@@ -325,11 +324,12 @@ dispatch_find_request:
 		 * higher-sectored requests. Go back to the lowest sectored
 		 * request (1 way elevator) and start a new batch.
 		 */
-		dd->batching = 0;
 		node = rb_first(&dd->sort_list[data_dir]);
 		if (node)
 			rq = rb_entry_rq(node);
 	}
+
+	dd->batching = 0;
 
 dispatch_request:
 	/*
