@@ -15,11 +15,11 @@
 
 #include "base.h"
 
-static decl_subsys(firmware, NULL);
+static struct kset *firmware_kset;
 
 int firmware_register(struct kset *s)
 {
-	s->kobj.kset = &firmware_subsys;
+	s->kobj.kset = firmware_kset;
 	s->kobj.ktype = NULL;
 	return subsystem_register(s);
 }
@@ -31,7 +31,10 @@ void firmware_unregister(struct kset *s)
 
 int __init firmware_init(void)
 {
-	return subsystem_register(&firmware_subsys);
+	firmware_kset = kset_create_and_add("firmware", NULL, NULL);
+	if (!firmware_kset)
+		return -ENOMEM;
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(firmware_register);
