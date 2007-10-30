@@ -32,12 +32,6 @@
 #include <asm/clock.h>
 #include <asm/mmu_context.h>
 
-extern void * __rd_start, * __rd_end;
-
-/*
- * Machine setup..
- */
-
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
  * This value will be used at the very early stage of serial setup.
@@ -194,14 +188,7 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	sparse_memory_present_with_active_regions(0);
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
-	if (&__rd_start != &__rd_end) {
-		LOADER_TYPE = 1;
-		INITRD_START = PHYSADDR((unsigned long)&__rd_start) -
-					__MEMORY_START;
-		INITRD_SIZE = (unsigned long)&__rd_end -
-			      (unsigned long)&__rd_start;
-	}
+	ROOT_DEV = Root_RAM0;
 
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {

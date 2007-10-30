@@ -43,14 +43,6 @@ SECTIONS
 
   .data : {			/* Data */
 	DATA_DATA
-
- 	 /* Align the initial ramdisk image (INITRD) on page boundaries. */
- 	 . = ALIGN(PAGE_SIZE);
- 	 __rd_start = .;
- 	 *(.initrd)
- 	 . = ALIGN(PAGE_SIZE);
- 	 __rd_end = .;
-
 	CONSTRUCTORS
 	}
 
