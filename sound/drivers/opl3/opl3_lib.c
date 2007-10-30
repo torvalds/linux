@@ -525,6 +525,7 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 	hw->ops.write = snd_opl3_write;
 	hw->ops.release = snd_opl3_release;
 
+	opl3->hwdep = hw;
 	opl3->seq_dev_num = seq_device;
 #if defined(CONFIG_SND_SEQUENCER) || (defined(MODULE) && defined(CONFIG_SND_SEQUENCER_MODULE))
 	if (snd_seq_device_new(card, seq_device, SNDRV_SEQ_DEV_ID_OPL3,

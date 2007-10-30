@@ -318,6 +318,7 @@ struct snd_opl3 {
 	void *private_data;
 	void (*private_free)(struct snd_opl3 *);
 
+	struct snd_hwdep *hwdep;
 	spinlock_t reg_lock;
 	struct snd_card *card;		/* The card that this belongs to */
 	unsigned char fm_mode;		/* OPL mode, see SNDRV_DM_FM_MODE_XXX */
