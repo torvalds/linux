@@ -306,27 +306,20 @@ dispatch_writes:
 dispatch_find_request:
 	/*
 	 * we are not running a batch, find best request for selected data_dir
-	 * and start a new batch
 	 */
-	if (deadline_check_fifo(dd, data_dir)) {
-		/* An expired request exists - satisfy it */
+	if (deadline_check_fifo(dd, data_dir) || !dd->next_rq[data_dir]) {
+		/*
+		 * A deadline has expired, the last request was in the other
+		 * direction, or we have run out of higher-sectored requests.
+		 * Start again from the request with the earliest expiry time.
+		 */
 		rq = rq_entry_fifo(dd->fifo_list[data_dir].next);
-	} else if (dd->next_rq[data_dir]) {
+	} else {
 		/*
 		 * The last req was the same dir and we have a next request in
 		 * sort order. No expired requests so continue on from here.
 		 */
 		rq = dd->next_rq[data_dir];
-	} else {
-		struct rb_node *node;
-		/*
-		 * The last req was the other direction or we have run out of
-		 * higher-sectored requests. Go back to the lowest sectored
-		 * request (1 way elevator) and start a new batch.
-		 */
-		node = rb_first(&dd->sort_list[data_dir]);
-		if (node)
-			rq = rb_entry_rq(node);
 	}
 
 	dd->batching = 0;
