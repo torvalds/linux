@@ -3114,6 +3114,66 @@ static struct backlight_ops ibm_backlight_data = {
 
 static struct mutex brightness_mutex;
 
+static int __init tpacpi_query_bcll_levels(acpi_handle handle)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	int rc;
+
+	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
+		obj = (union acpi_object *)buffer.pointer;
+		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
+			printk(IBM_ERR "Unknown BCLL data, "
+			       "please report this to %s\n", IBM_MAIL);
+			rc = 0;
+		} else {
+			rc = obj->package.count;
+		}
+	} else {
+		return 0;
+	}
+
+	kfree(buffer.pointer);
+	return rc;
+}
+
+static acpi_status __init brightness_find_bcll(acpi_handle handle, u32 lvl,
+					void *context, void **rv)
+{
+	char name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer buffer = { sizeof(name), &name };
+
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
+	    !strncmp("BCLL", name, sizeof(name) - 1)) {
+		if (tpacpi_query_bcll_levels(handle) == 16) {
+			*rv = handle;
+			return AE_CTRL_TERMINATE;
+		} else {
+			return AE_OK;
+		}
+	} else {
+		return AE_OK;
+	}
+}
+
+static int __init brightness_check_levels(void)
+{
+	int status;
+	void *found_node = NULL;
+
+	if (!vid_handle) {
+		IBM_ACPIHANDLE_INIT(vid);
+	}
+	if (!vid_handle)
+		return 0;
+
+	/* Search for a BCLL package with 16 levels */
+	status = acpi_walk_namespace(ACPI_TYPE_PACKAGE, vid_handle, 3,
+					brightness_find_bcll, NULL, &found_node);
+
+	return (ACPI_SUCCESS(status) && found_node != NULL);
+}
+
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	int b;
@@ -3135,9 +3195,16 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (brightness_mode > 3)
 		return -EINVAL;
 
+	tp_features.bright_16levels =
+			thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO &&
+			brightness_check_levels();
+
 	b = brightness_get(NULL);
 	if (b < 0)
 		return 1;
+
+	if (tp_features.bright_16levels)
+		printk(IBM_INFO "detected a 16-level brightness capable ThinkPad\n");
 
 	ibm_backlight_device = backlight_device_register(
 					TPACPI_BACKLIGHT_DEV_NAME, NULL, NULL,
@@ -3148,7 +3215,8 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	}
 	vdbg_printk(TPACPI_DBG_INIT, "brightness is supported\n");
 
-	ibm_backlight_device->props.max_brightness = 7;
+	ibm_backlight_device->props.max_brightness =
+				(tp_features.bright_16levels)? 15 : 7;
 	ibm_backlight_device->props.brightness = b;
 	backlight_update_status(ibm_backlight_device);
 
@@ -3184,13 +3252,14 @@ static int brightness_get(struct backlight_device *bd)
 	if (brightness_mode & 1) {
 		if (!acpi_ec_read(brightness_offset, &lec))
 			return -EIO;
-		lec &= 7;
+		lec &= (tp_features.bright_16levels)? 0x0f : 0x07;
 		level = lec;
 	};
 	if (brightness_mode & 2) {
 		lcmos = (nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS)
 			 & TP_NVRAM_MASK_LEVEL_BRIGHTNESS)
 			>> TP_NVRAM_POS_LEVEL_BRIGHTNESS;
+		lcmos &= (tp_features.bright_16levels)? 0x0f : 0x07;
 		level = lcmos;
 	}
 
@@ -3211,7 +3280,7 @@ static int brightness_set(int value)
 	int cmos_cmd, inc, i, res;
 	int current_value;
 
-	if (value > 7)
+	if (value > ((tp_features.bright_16levels)? 15 : 7))
 		return -EINVAL;
 
 	res = mutex_lock_interruptible(&brightness_mutex);
@@ -3227,7 +3296,7 @@ static int brightness_set(int value)
 	cmos_cmd = value > current_value ?
 			TP_CMOS_BRIGHTNESS_UP :
 			TP_CMOS_BRIGHTNESS_DOWN;
-	inc = value > current_value ? 1 : -1;
+	inc = (value > current_value)? 1 : -1;
 
 	res = 0;
 	for (i = current_value; i != value; i += inc) {
@@ -3256,10 +3325,11 @@ static int brightness_read(char *p)
 	if ((level = brightness_get(NULL)) < 0) {
 		len += sprintf(p + len, "level:\t\tunreadable\n");
 	} else {
-		len += sprintf(p + len, "level:\t\t%d\n", level & 0x7);
+		len += sprintf(p + len, "level:\t\t%d\n", level);
 		len += sprintf(p + len, "commands:\tup, down\n");
 		len += sprintf(p + len, "commands:\tlevel <level>"
-			       " (<level> is 0-7)\n");
+			       " (<level> is 0-%d)\n",
+			       (tp_features.bright_16levels) ? 15 : 7);
 	}
 
 	return len;
@@ -3270,18 +3340,19 @@ static int brightness_write(char *buf)
 	int level;
 	int new_level;
 	char *cmd;
+	int max_level = (tp_features.bright_16levels) ? 15 : 7;
 
 	while ((cmd = next_cmd(&buf))) {
 		if ((level = brightness_get(NULL)) < 0)
 			return level;
-		level &= 7;
 
 		if (strlencmp(cmd, "up") == 0) {
-			new_level = level == 7 ? 7 : level + 1;
+			new_level = level == (max_level)?
+						max_level : level + 1;
 		} else if (strlencmp(cmd, "down") == 0) {
-			new_level = level == 0 ? 0 : level - 1;
+			new_level = level == 0? 0 : level - 1;
 		} else if (sscanf(cmd, "level %d", &new_level) == 1 &&
-			   new_level >= 0 && new_level <= 7) {
+			   new_level >= 0 && new_level <= max_level) {
 			/* new_level set */
 		} else
 			return -EINVAL;

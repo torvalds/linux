@@ -84,7 +84,7 @@
 
 /* ThinkPad CMOS NVRAM constants */
 #define TP_NVRAM_ADDR_BRIGHTNESS       0x5e
-#define TP_NVRAM_MASK_LEVEL_BRIGHTNESS 0x07
+#define TP_NVRAM_MASK_LEVEL_BRIGHTNESS 0x0f
 #define TP_NVRAM_POS_LEVEL_BRIGHTNESS 0
 
 #define onoff(status,bit) ((status) & (1 << (bit)) ? "on" : "off")
@@ -246,6 +246,7 @@ static struct {
 	u32 hotkey_wlsw:1;
 	u32 light:1;
 	u32 light_status:1;
+	u32 bright_16levels:1;
 	u32 wan:1;
 	u32 fan_ctrl_status_undef:1;
 	u32 input_device_registered:1;
