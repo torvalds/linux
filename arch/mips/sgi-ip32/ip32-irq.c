@@ -209,18 +209,18 @@ static unsigned long macepci_mask;
 
 static void enable_macepci_irq(unsigned int irq)
 {
-	macepci_mask |= MACEPCI_CONTROL_INT(irq - 9);
+	macepci_mask |= MACEPCI_CONTROL_INT(irq - MACEPCI_SCSI0_IRQ);
 	mace->pci.control = macepci_mask;
-	crime_mask |= 1 << (irq - 1);
+	crime_mask |= 1 << (irq - CRIME_IRQ_BASE);
 	crime->imask = crime_mask;
 }
 
 static void disable_macepci_irq(unsigned int irq)
 {
-	crime_mask &= ~(1 << (irq - 1));
+	crime_mask &= ~(1 << (irq - CRIME_IRQ_BASE));
 	crime->imask = crime_mask;
 	flush_crime_bus();
-	macepci_mask &= ~MACEPCI_CONTROL_INT(irq - 9);
+	macepci_mask &= ~MACEPCI_CONTROL_INT(irq - MACEPCI_SCSI0_IRQ);
 	mace->pci.control = macepci_mask;
 	flush_mace_bus();
 }
@@ -299,7 +299,7 @@ static void enable_maceisa_irq(unsigned int irq)
 	pr_debug("crime_int %08x enabled\n", crime_int);
 	crime_mask |= crime_int;
 	crime->imask = crime_mask;
-	maceisa_mask |= 1 << (irq - 33);
+	maceisa_mask |= 1 << (irq - MACEISA_AUDIO_SW_IRQ);
 	mace->perif.ctrl.imask = maceisa_mask;
 }
 
@@ -307,7 +307,7 @@ static void disable_maceisa_irq(unsigned int irq)
 {
 	unsigned int crime_int = 0;
 
-	maceisa_mask &= ~(1 << (irq - 33));
+	maceisa_mask &= ~(1 << (irq - MACEISA_AUDIO_SW_IRQ));
         if (!(maceisa_mask & MACEISA_AUDIO_INT))
 		crime_int |= MACE_AUDIO_INT;
         if (!(maceisa_mask & MACEISA_MISC_INT))
@@ -331,7 +331,7 @@ static void mask_and_ack_maceisa_irq(unsigned int irq)
 	case MACEISA_SERIAL2_TDMAPR_IRQ:
 		/* edge triggered */
 		mace_int = mace->perif.ctrl.istat;
-		mace_int &= ~(1 << (irq - 33));
+		mace_int &= ~(1 << (irq - MACEISA_AUDIO_SW_IRQ));
 		mace->perif.ctrl.istat = mace_int;
 		break;
 	}
@@ -359,13 +359,17 @@ static struct irq_chip ip32_maceisa_interrupt = {
 
 static void enable_mace_irq(unsigned int irq)
 {
-	crime_mask |= 1 << (irq - 1);
+	unsigned int bit = irq - CRIME_IRQ_BASE;
+
+	crime_mask |= (1 << bit);
 	crime->imask = crime_mask;
 }
 
 static void disable_mace_irq(unsigned int irq)
 {
-	crime_mask &= ~(1 << (irq - 1));
+	unsigned int bit = irq - CRIME_IRQ_BASE;
+
+	crime_mask &= ~(1 << bit);
 	crime->imask = crime_mask;
 	flush_crime_bus();
 }
@@ -489,7 +493,7 @@ void __init arch_init_irq(void)
 	mace->perif.ctrl.imask = 0;
 
 	mips_cpu_irq_init();
-	for (irq = MIPS_CPU_IRQ_BASE + 8; irq <= IP32_IRQ_MAX; irq++) {
+	for (irq = CRIME_IRQ_BASE; irq <= IP32_IRQ_MAX; irq++) {
 		switch (irq) {
 		case MACE_VID_IN1_IRQ ... MACE_PCI_BRIDGE_IRQ:
 			set_irq_chip(irq, &ip32_mace_interrupt);
