@@ -918,6 +918,44 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 
 /* ------------------------------------------------------------------------- */
 
+/* AVerMedia PVR-150 Plus (M113) card */
+
+static const struct ivtv_card_pci_info ivtv_pci_aver_pvr150[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc035 },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_aver_pvr150 = {
+	.type = IVTV_CARD_AVER_PVR150PLUS,
+	.name = "AVerMedia PVR-150 Plus",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_muxer = IVTV_HW_GPIO,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_TUNER,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1,
+		  CX25840_SVIDEO_LUMA3 | CX25840_SVIDEO_CHROMA4 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 1, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER,  CX25840_AUDIO5,       0 },
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 1 },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, 2 },
+	.gpio_init = { .direction = 0x0800, .initial_value = 0 },
+	.gpio_audio_input  = { .mask = 0x0800, .tuner = 0, .linein = 0, .radio = 0x0800 },
+	.tuners = {
+		/* This card has a Partsnic PTI-5NF05 tuner */
+		{ .std = V4L2_STD_525_60, .tuner = TUNER_TCL_2002N },
+	},
+	.pci_list = ivtv_pci_aver_pvr150,
+};
+
+/* ------------------------------------------------------------------------- */
+
 /* ASUS Falcon2 */
 
 static const struct ivtv_card_pci_info ivtv_pci_asus_falcon2[] = {
@@ -977,6 +1015,7 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_club3d,
 	&ivtv_card_avertv_mce116,
 	&ivtv_card_asus_falcon2,
+	&ivtv_card_aver_pvr150,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */

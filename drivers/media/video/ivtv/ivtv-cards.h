@@ -46,7 +46,8 @@
 #define IVTV_CARD_CLUB3D	     19 /* Club3D ZAP-TV1x01 */
 #define IVTV_CARD_AVERTV_MCE116	     20 /* AVerTV MCE 116 Plus */
 #define IVTV_CARD_ASUS_FALCON2	     21 /* ASUS Falcon2 */
-#define IVTV_CARD_LAST 		     21
+#define IVTV_CARD_AVER_PVR150PLUS    22 /* AVerMedia PVR-150 Plus */
+#define IVTV_CARD_LAST 		     22
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
