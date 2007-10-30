@@ -6,6 +6,19 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
+ *
+ *
+ * Errata: WDT Clear is blocked after WDT Reset
+ *
+ * A watchdog timer event will, after reset, block writes to the WDT_CLEAR
+ * register, preventing the program to clear the next Watchdog Timer Reset.
+ *
+ * If you still want to use the WDT after a WDT reset a small code can be
+ * insterted at the startup checking the AVR32_PM.rcause register for WDT reset
+ * and use a GPIO pin to reset the system. This method requires that one of the
+ * GPIO pins are available and connected externally to the RESET_N pin. After
+ * the GPIO pin has pulled down the reset line the GPIO will be reset and leave
+ * the pin tristated with pullup.
  */
 
 #include <linux/init.h>
@@ -44,6 +57,13 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 
 #define WDT_CLR			0x04
 
+#define WDT_RCAUSE		0x10
+#define WDT_RCAUSE_POR		   0
+#define WDT_RCAUSE_EXT		   2
+#define WDT_RCAUSE_WDT		   3
+#define WDT_RCAUSE_JTAG		   4
+#define WDT_RCAUSE_SERP		   5
+
 #define WDT_BIT(name)		(1 << WDT_##name)
 #define WDT_BF(name, value)	((value) << WDT_##name)
 
@@ -56,6 +76,7 @@ struct wdt_at32ap700x {
 	void __iomem		*regs;
 	spinlock_t		io_lock;
 	int			timeout;
+	int			boot_status;
 	unsigned long		users;
 	struct miscdevice	miscdev;
 };
@@ -126,7 +147,7 @@ static int at32_wdt_close(struct inode *inode, struct file *file)
 		at32_wdt_stop();
 	} else {
 		dev_dbg(wdt->miscdev.parent,
-			"Unexpected close, not stopping watchdog!\n");
+			"unexpected close, not stopping watchdog!\n");
 		at32_wdt_pat();
 	}
 	clear_bit(1, &wdt->users);
@@ -152,6 +173,33 @@ static int at32_wdt_settimeout(int time)
 	 */
 	wdt->timeout = time;
 	return 0;
+}
+
+/*
+ * Get the watchdog status.
+ */
+static int at32_wdt_get_status(void)
+{
+	int rcause;
+	int status = 0;
+
+	rcause = wdt_readl(wdt, RCAUSE);
+
+	switch (rcause) {
+	case WDT_BIT(RCAUSE_EXT):
+		status = WDIOF_EXTERN1;
+		break;
+	case WDT_BIT(RCAUSE_WDT):
+		status = WDIOF_CARDRESET;
+		break;
+	case WDT_BIT(RCAUSE_POR):  /* fall through */
+	case WDT_BIT(RCAUSE_JTAG): /* fall through */
+	case WDT_BIT(RCAUSE_SERP): /* fall through */
+	default:
+		break;
+	}
+
+	return status;
 }
 
 static struct watchdog_info at32_wdt_info = {
@@ -194,9 +242,11 @@ static int at32_wdt_ioctl(struct inode *inode, struct file *file,
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(wdt->timeout, p);
 		break;
-	case WDIOC_GETSTATUS: /* fall through */
-	case WDIOC_GETBOOTSTATUS:
+	case WDIOC_GETSTATUS:
 		ret = put_user(0, p);
+		break;
+	case WDIOC_GETBOOTSTATUS:
+		ret = put_user(wdt->boot_status, p);
 		break;
 	case WDIOC_SETOPTIONS:
 		ret = get_user(time, p);
@@ -282,8 +332,19 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");
 		goto err_free;
 	}
+
 	spin_lock_init(&wdt->io_lock);
-	wdt->users = 0;
+	wdt->boot_status = at32_wdt_get_status();
+
+	/* Work-around for watchdog silicon errata. */
+	if (wdt->boot_status & WDIOF_CARDRESET) {
+		dev_info(&pdev->dev, "CPU must be reset with external "
+				"reset or POR due to silicon errata.\n");
+		ret = -EIO;
+		goto err_iounmap;
+	} else {
+		wdt->users = 0;
+	}
 	wdt->miscdev.minor = WATCHDOG_MINOR;
 	wdt->miscdev.name = "watchdog";
 	wdt->miscdev.fops = &at32_wdt_fops;
