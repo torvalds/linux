@@ -266,26 +266,25 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			 */
 			diff = (old_wnd << V_PARAM_SHIFT) - target_cwnd;
 
-			if (tp->snd_cwnd <= tp->snd_ssthresh) {
+			if (diff > gamma && tp->snd_ssthresh > 2 ) {
+				/* Going too fast. Time to slow down
+				 * and switch to congestion avoidance.
+				 */
+				tp->snd_ssthresh = 2;
+
+				/* Set cwnd to match the actual rate
+				 * exactly:
+				 *   cwnd = (actual rate) * baseRTT
+				 * Then we add 1 because the integer
+				 * truncation robs us of full link
+				 * utilization.
+				 */
+				tp->snd_cwnd = min(tp->snd_cwnd,
+						   (target_cwnd >>
+						    V_PARAM_SHIFT)+1);
+
+			} else if (tp->snd_cwnd <= tp->snd_ssthresh) {
 				/* Slow start.  */
-				if (diff > gamma) {
-					/* Going too fast. Time to slow down
-					 * and switch to congestion avoidance.
-					 */
-					tp->snd_ssthresh = 2;
-
-					/* Set cwnd to match the actual rate
-					 * exactly:
-					 *   cwnd = (actual rate) * baseRTT
-					 * Then we add 1 because the integer
-					 * truncation robs us of full link
-					 * utilization.
-					 */
-					tp->snd_cwnd = min(tp->snd_cwnd,
-							   (target_cwnd >>
-							    V_PARAM_SHIFT)+1);
-
-				}
 				tcp_slow_start(tp);
 			} else {
 				/* Congestion avoidance. */
