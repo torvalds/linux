@@ -965,7 +965,7 @@ static const struct stb0899_s1_reg knc1_stb0899_s1_init_1[] = {
 	{ STB0899_GPIO37CFG		, 0x82 },
 	{ STB0899_GPIO38CFG		, 0x82 },
 	{ STB0899_GPIO39CFG		, 0x82 },
-	{ STB0899_NCOARSE		, 0x15 }, /* 0x15 = 27 Mhz Clock, F/3 = 198MHz, F/6 = 99MHz */
+	{ STB0899_NCOARSE		, 0x13 }, /* 0x13 = 27 Mhz Clock, F/3 = 180MHz, F/6 = 90MHz */
 	{ STB0899_SYNTCTRL		, 0x02 }, /* 0x00 = CLK from CLKI, 0x02 = CLK from XTALI */
 	{ STB0899_FILTCTRL		, 0x00 },
 	{ STB0899_SYSCTRL		, 0x00 },
