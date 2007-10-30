@@ -947,7 +947,7 @@ static const struct stb0899_s1_reg knc1_stb0899_s1_init_1[] = {
 	{ STB0899_GPIO20CFG		, 0x82 },
 	{ STB0899_SDATCFG		, 0xb8 },
 	{ STB0899_SCLTCFG		, 0xba },
-	{ STB0899_AGCRFCFG		, 0x1c }, /* 0x11 */
+	{ STB0899_AGCRFCFG		, 0x08 }, /* 0x1c */
 	{ STB0899_GPIO22		, 0x82 }, /* AGCBB2CFG */
 	{ STB0899_GPIO21		, 0x91 }, /* AGCBB1CFG */
 	{ STB0899_DIRCLKCFG		, 0x82 },
