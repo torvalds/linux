@@ -234,7 +234,7 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
         sc->lmc_xinfo.Magic1 = 0xDEADBEEF;
 
         if (copy_to_user(ifr->ifr_data, &sc->lmc_xinfo,
-					sizeof(struct lmc_xinfo))) {
+			 sizeof(struct lmc_xinfo)))
 		ret = -EFAULT;
 	else
 		ret = 0;
