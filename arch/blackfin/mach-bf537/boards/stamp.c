@@ -612,7 +612,7 @@ static struct platform_device bfin_sport1_uart_device = {
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 1,
-	.irq_type = IRQF_TRIGGER_HIGH | IRQF_DISABLED,
+	.irq_flags = IRQF_TRIGGER_HIGH | IRQF_DISABLED,
 };
 
 static struct resource bfin_pata_resources[] = {
