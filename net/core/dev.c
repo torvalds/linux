@@ -3496,6 +3496,60 @@ static void net_set_todo(struct net_device *dev)
 	spin_unlock(&net_todo_list_lock);
 }
 
+static void rollback_registered(struct net_device *dev)
+{
+	BUG_ON(dev_boot_phase);
+	ASSERT_RTNL();
+
+	/* Some devices call without registering for initialization unwind. */
+	if (dev->reg_state == NETREG_UNINITIALIZED) {
+		printk(KERN_DEBUG "unregister_netdevice: device %s/%p never "
+				  "was registered\n", dev->name, dev);
+
+		WARN_ON(1);
+		return;
+	}
+
+	BUG_ON(dev->reg_state != NETREG_REGISTERED);
+
+	/* If device is running, close it first. */
+	dev_close(dev);
+
+	/* And unlink it from device chain. */
+	unlist_netdevice(dev);
+
+	dev->reg_state = NETREG_UNREGISTERING;
+
+	synchronize_net();
+
+	/* Shutdown queueing discipline. */
+	dev_shutdown(dev);
+
+
+	/* Notify protocols, that we are about to destroy
+	   this device. They should clean all the things.
+	*/
+	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+
+	/*
+	 *	Flush the unicast and multicast chains
+	 */
+	dev_addr_discard(dev);
+
+	if (dev->uninit)
+		dev->uninit(dev);
+
+	/* Notifier chain MUST detach us from master device. */
+	BUG_TRAP(!dev->master);
+
+	/* Remove entries from kobject tree */
+	netdev_unregister_kobject(dev);
+
+	synchronize_net();
+
+	dev_put(dev);
+}
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -3633,8 +3687,10 @@ int register_netdevice(struct net_device *dev)
 	/* Notify protocols, that a new device appeared. */
 	ret = call_netdevice_notifiers(NETDEV_REGISTER, dev);
 	ret = notifier_to_errno(ret);
-	if (ret)
-		unregister_netdevice(dev);
+	if (ret) {
+		rollback_registered(dev);
+		dev->reg_state = NETREG_UNREGISTERED;
+	}
 
 out:
 	return ret;
@@ -3911,59 +3967,9 @@ void synchronize_net(void)
 
 void unregister_netdevice(struct net_device *dev)
 {
-	BUG_ON(dev_boot_phase);
-	ASSERT_RTNL();
-
-	/* Some devices call without registering for initialization unwind. */
-	if (dev->reg_state == NETREG_UNINITIALIZED) {
-		printk(KERN_DEBUG "unregister_netdevice: device %s/%p never "
-				  "was registered\n", dev->name, dev);
-
-		WARN_ON(1);
-		return;
-	}
-
-	BUG_ON(dev->reg_state != NETREG_REGISTERED);
-
-	/* If device is running, close it first. */
-	dev_close(dev);
-
-	/* And unlink it from device chain. */
-	unlist_netdevice(dev);
-
-	dev->reg_state = NETREG_UNREGISTERING;
-
-	synchronize_net();
-
-	/* Shutdown queueing discipline. */
-	dev_shutdown(dev);
-
-
-	/* Notify protocols, that we are about to destroy
-	   this device. They should clean all the things.
-	*/
-	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
-
-	/*
-	 *	Flush the unicast and multicast chains
-	 */
-	dev_addr_discard(dev);
-
-	if (dev->uninit)
-		dev->uninit(dev);
-
-	/* Notifier chain MUST detach us from master device. */
-	BUG_TRAP(!dev->master);
-
-	/* Remove entries from kobject tree */
-	netdev_unregister_kobject(dev);
-
+	rollback_registered(dev);
 	/* Finish processing unregister after unlock */
 	net_set_todo(dev);
-
-	synchronize_net();
-
-	dev_put(dev);
 }
 
 /**
