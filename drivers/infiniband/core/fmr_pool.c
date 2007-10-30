@@ -291,10 +291,10 @@ struct ib_fmr_pool *ib_create_fmr_pool(struct ib_pd             *pd,
 	atomic_set(&pool->flush_ser, 0);
 	init_waitqueue_head(&pool->force_wait);
 
-	pool->thread = kthread_create(ib_fmr_cleanup_thread,
-				      pool,
-				      "ib_fmr(%s)",
-				      device->name);
+	pool->thread = kthread_run(ib_fmr_cleanup_thread,
+				   pool,
+				   "ib_fmr(%s)",
+				   device->name);
 	if (IS_ERR(pool->thread)) {
 		printk(KERN_WARNING PFX "couldn't start cleanup thread\n");
 		ret = PTR_ERR(pool->thread);
