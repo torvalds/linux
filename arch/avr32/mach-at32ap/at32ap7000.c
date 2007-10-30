@@ -474,7 +474,7 @@ static struct resource at32ap700x_rtc0_resource[] = {
 static struct resource at32_wdt0_resource[] = {
 	{
 		.start	= 0xfff000b0,
-		.end	= 0xfff000bf,
+		.end	= 0xfff000cf,
 		.flags	= IORESOURCE_MEM,
 	},
 };
