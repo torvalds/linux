@@ -206,28 +206,6 @@ static inline void __sg_mark_end(struct scatterlist *sg)
 }
 
 /**
- * sg_init_one - Initialize a single entry sg list
- * @sg:		 SG entry
- * @buf:	 Virtual address for IO
- * @buflen:	 IO length
- *
- * Notes:
- *   This should not be used on a single entry that is part of a larger
- *   table. Use sg_init_table() for that.
- *
- **/
-static inline void sg_init_one(struct scatterlist *sg, const void *buf,
-			       unsigned int buflen)
-{
-	memset(sg, 0, sizeof(*sg));
-#ifdef CONFIG_DEBUG_SG
-	sg->sg_magic = SG_MAGIC;
-#endif
-	sg_mark_end(sg, 1);
-	sg_set_buf(sg, buf, buflen);
-}
-
-/**
  * sg_init_table - Initialize SG table
  * @sgl:	   The SG table
  * @nents:	   Number of entries in table
@@ -248,6 +226,24 @@ static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
 			sgl[i].sg_magic = SG_MAGIC;
 	}
 #endif
+}
+
+/**
+ * sg_init_one - Initialize a single entry sg list
+ * @sg:		 SG entry
+ * @buf:	 Virtual address for IO
+ * @buflen:	 IO length
+ *
+ * Notes:
+ *   This should not be used on a single entry that is part of a larger
+ *   table. Use sg_init_table() for that.
+ *
+ **/
+static inline void sg_init_one(struct scatterlist *sg, const void *buf,
+			       unsigned int buflen)
+{
+	sg_init_table(sg, 1);
+	sg_set_buf(sg, buf, buflen);
 }
 
 /**
