@@ -453,7 +453,7 @@ skip_ibchange:
 }
 
 static void handle_supp_msgs(struct ipath_devdata *dd,
-			     unsigned supp_msgs, char msg[512])
+			     unsigned supp_msgs, char *msg, int msgsz)
 {
 	/*
 	 * Print the message unless it's ibc status change only, which
@@ -461,9 +461,9 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 	 */
 	if (dd->ipath_lasterror & ~INFINIPATH_E_IBSTATUSCHANGED) {
 		int iserr;
-		iserr = ipath_decode_err(msg, sizeof msg,
-				dd->ipath_lasterror &
-				~INFINIPATH_E_IBSTATUSCHANGED);
+		iserr = ipath_decode_err(msg, msgsz,
+					 dd->ipath_lasterror &
+					 ~INFINIPATH_E_IBSTATUSCHANGED);
 		if (dd->ipath_lasterror &
 			~(INFINIPATH_E_RRCVEGRFULL |
 			INFINIPATH_E_RRCVHDRFULL | INFINIPATH_E_PKTERRS))
@@ -492,8 +492,8 @@ static void handle_supp_msgs(struct ipath_devdata *dd,
 }
 
 static unsigned handle_frequent_errors(struct ipath_devdata *dd,
-				       ipath_err_t errs, char msg[512],
-				       int *noprint)
+				       ipath_err_t errs, char *msg,
+				       int msgsz, int *noprint)
 {
 	unsigned long nc;
 	static unsigned long nextmsg_time;
@@ -512,7 +512,7 @@ static unsigned handle_frequent_errors(struct ipath_devdata *dd,
 				nextmsg_time = nc + HZ * 3;
 		}
 		else if (supp_msgs) {
-			handle_supp_msgs(dd, supp_msgs, msg);
+			handle_supp_msgs(dd, supp_msgs, msg, msgsz);
 			supp_msgs = 0;
 			nmsgs = 0;
 		}
@@ -525,14 +525,14 @@ static unsigned handle_frequent_errors(struct ipath_devdata *dd,
 
 static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 {
-	char msg[512];
+	char msg[128];
 	u64 ignore_this_time = 0;
 	int i, iserr = 0;
 	int chkerrpkts = 0, noprint = 0;
 	unsigned supp_msgs;
 	int log_idx;
 
-	supp_msgs = handle_frequent_errors(dd, errs, msg, &noprint);
+	supp_msgs = handle_frequent_errors(dd, errs, msg, sizeof msg, &noprint);
 
 	/* don't report errors that are masked */
 	errs &= ~dd->ipath_maskederrs;
