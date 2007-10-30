@@ -25,6 +25,7 @@
 #include "ivtv-routing.h"
 
 #include <media/msp3400.h>
+#include <media/m52790.h>
 #include <media/upd64031a.h>
 #include <media/upd64083.h>
 
@@ -32,28 +33,26 @@
    settings. */
 void ivtv_audio_set_io(struct ivtv *itv)
 {
+	const struct ivtv_card_audio_input *in;
 	struct v4l2_routing route;
-	u32 audio_input;
-	int mux_input;
 
 	/* Determine which input to use */
-	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags)) {
-		audio_input = itv->card->radio_input.audio_input;
-		mux_input = itv->card->radio_input.muxer_input;
-	} else {
-		audio_input = itv->card->audio_inputs[itv->audio_input].audio_input;
-		mux_input = itv->card->audio_inputs[itv->audio_input].muxer_input;
-	}
+	if (test_bit(IVTV_F_I_RADIO_USER, &itv->i_flags))
+		in = &itv->card->radio_input;
+	else
+		in = &itv->card->audio_inputs[itv->audio_input];
 
 	/* handle muxer chips */
-	route.input = mux_input;
+	route.input = in->muxer_input;
 	route.output = 0;
+	if (itv->card->hw_muxer & IVTV_HW_M52790)
+		route.output = M52790_OUT_STEREO;
 	ivtv_i2c_hw(itv, itv->card->hw_muxer, VIDIOC_INT_S_AUDIO_ROUTING, &route);
 
-	route.input = audio_input;
-	if (itv->card->hw_audio & IVTV_HW_MSP34XX) {
+	route.input = in->audio_input;
+	route.output = 0;
+	if (itv->card->hw_audio & IVTV_HW_MSP34XX)
 		route.output = MSP_OUTPUT(MSP_SC_IN_DSP_SCART1);
-	}
 	ivtv_i2c_hw(itv, itv->card->hw_audio, VIDIOC_INT_S_AUDIO_ROUTING, &route);
 }
 

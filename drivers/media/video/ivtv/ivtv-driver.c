@@ -185,6 +185,7 @@ MODULE_PARM_DESC(cardtype,
 		 "\t\t\t19 = Yuan PG600V2/GotView PCI DVD Lite\n"
 		 "\t\t\t20 = Club3D ZAP-TV1x01\n"
 		 "\t\t\t21 = AverTV MCE 116 Plus\n"
+		 "\t\t\t22 = ASUS Falcon2\n"
 		 "\t\t\t 0 = Autodetect (default)\n"
 		 "\t\t\t-1 = Ignore this card\n\t\t");
 MODULE_PARM_DESC(pal, "Set PAL standard: B, G, H, D, K, I, M, N, Nc, 60");
@@ -881,6 +882,10 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 #ifndef CONFIG_VIDEO_CS53L32A
 	if (hw & IVTV_HW_CS53L32A)
 		ivtv_request_module(itv, "cs53l32a");
+#endif
+#ifndef CONFIG_VIDEO_M52790
+	if (hw & IVTV_HW_M52790)
+		ivtv_request_module(itv, "m52790");
 #endif
 
 	/* check which i2c devices are actually found */

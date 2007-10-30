@@ -80,6 +80,7 @@
 #endif /* I2C_ADAP_CLASS_TV_ANALOG */
 
 #define IVTV_CS53L32A_I2C_ADDR		0x11
+#define IVTV_M52790_I2C_ADDR		0x48
 #define IVTV_CX25840_I2C_ADDR 		0x44
 #define IVTV_SAA7115_I2C_ADDR 		0x21
 #define IVTV_SAA7127_I2C_ADDR 		0x44
@@ -110,6 +111,7 @@ static const u8 hw_driverids[] = {
 	I2C_DRIVERID_SAA717X,
 	I2C_DRIVERID_WM8739,
 	I2C_DRIVERID_VP27SMPX,
+	I2C_DRIVERID_M52790,
 	0 		/* IVTV_HW_GPIO dummy driver ID */
 };
 
@@ -130,6 +132,7 @@ static const char * const hw_drivernames[] = {
 	"saa717x",
 	"wm8739",
 	"vp27smpx",
+	"m52790",
 	"gpio",
 };
 

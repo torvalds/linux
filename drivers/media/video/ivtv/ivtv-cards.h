@@ -45,7 +45,8 @@
 #define IVTV_CARD_PG600V2	     18 /* Yuan PG600V2/GotView PCI DVD Lite */
 #define IVTV_CARD_CLUB3D	     19 /* Club3D ZAP-TV1x01 */
 #define IVTV_CARD_AVERTV_MCE116	     20 /* AVerTV MCE 116 Plus */
-#define IVTV_CARD_LAST 		     20
+#define IVTV_CARD_ASUS_FALCON2	     21 /* ASUS Falcon2 */
+#define IVTV_CARD_LAST 		     21
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
@@ -69,6 +70,7 @@
 #define IVTV_PCI_ID_HAUPPAUGE_ALT1 	0x0270
 #define IVTV_PCI_ID_HAUPPAUGE_ALT2 	0x4070
 #define IVTV_PCI_ID_ADAPTEC 		0x9005
+#define IVTV_PCI_ID_ASUSTEK 		0x1043
 #define IVTV_PCI_ID_AVERMEDIA 		0x1461
 #define IVTV_PCI_ID_YUAN1		0x12ab
 #define IVTV_PCI_ID_YUAN2 		0xff01
@@ -96,7 +98,8 @@
 #define IVTV_HW_SAA717X   (1 << 12)
 #define IVTV_HW_WM8739    (1 << 13)
 #define IVTV_HW_VP27SMPX  (1 << 14)
-#define IVTV_HW_GPIO      (1 << 15)
+#define IVTV_HW_M52790    (1 << 15)
+#define IVTV_HW_GPIO      (1 << 16)
 
 #define IVTV_HW_SAA711X   (IVTV_HW_SAA7115 | IVTV_HW_SAA7114)
 

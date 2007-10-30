@@ -23,6 +23,7 @@
 #include "ivtv-i2c.h"
 
 #include <media/msp3400.h>
+#include <media/m52790.h>
 #include <media/wm8775.h>
 #include <media/cs53l32a.h>
 #include <media/cx25840.h>
@@ -915,6 +916,44 @@ static const struct ivtv_card ivtv_card_avertv_mce116 = {
 	.pci_list = ivtv_pci_avertv_mce116,
 };
 
+/* ------------------------------------------------------------------------- */
+
+/* ASUS Falcon2 */
+
+static const struct ivtv_card_pci_info ivtv_pci_asus_falcon2[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_ASUSTEK, 0x4b66 },
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_ASUSTEK, 0x462e },
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_ASUSTEK, 0x4b2e },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_asus_falcon2 = {
+	.type = IVTV_CARD_ASUS_FALCON2,
+	.name = "ASUS Falcon2",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_muxer = IVTV_HW_M52790,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_M52790 | IVTV_HW_TUNER,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_VID_TUNER,  0, CX25840_COMPOSITE2 },
+		{ IVTV_CARD_INPUT_SVIDEO1,    1, CX25840_SVIDEO3    },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 2, CX25840_COMPOSITE2 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO5, M52790_IN_TUNER },
+		{ IVTV_CARD_INPUT_LINE_IN1, CX25840_AUDIO_SERIAL,
+			M52790_IN_V2 | M52790_SW1_YCMIX | M52790_SW2_YCMIX },
+		{ IVTV_CARD_INPUT_LINE_IN1, CX25840_AUDIO_SERIAL, M52790_IN_V2 },
+	},
+	.radio_input = { IVTV_CARD_INPUT_AUD_TUNER, CX25840_AUDIO_SERIAL, M52790_IN_TUNER },
+	.tuners = {
+		{ .std = V4L2_STD_525_60, .tuner = TUNER_PHILIPS_FM1236_MK3 },
+	},
+	.pci_list = ivtv_pci_asus_falcon2,
+};
+
 static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_pvr250,
 	&ivtv_card_pvr350,
@@ -937,6 +976,7 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_pg600v2,
 	&ivtv_card_club3d,
 	&ivtv_card_avertv_mce116,
+	&ivtv_card_asus_falcon2,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */
