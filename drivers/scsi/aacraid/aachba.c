@@ -179,7 +179,7 @@ MODULE_PARM_DESC(check_interval, "Interval in seconds between adapter health che
 
 int aac_check_reset = 1;
 module_param_named(check_reset, aac_check_reset, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(aac_check_reset, "If adapter fails health check, reset the adapter.");
+MODULE_PARM_DESC(aac_check_reset, "If adapter fails health check, reset the adapter. a value of -1 forces the reset to adapters programmed to ignore it.");
 
 int expose_physicals = -1;
 module_param(expose_physicals, int, S_IRUGO|S_IWUSR);
@@ -1305,9 +1305,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
 			  dev->supplement_adapter_info.VpdInfo.Tsid);
 		}
-		if (!aac_check_reset ||
+		if (!aac_check_reset || ((aac_check_reset != 1) &&
 		  (dev->supplement_adapter_info.SupportedOptions2 &
-		  le32_to_cpu(AAC_OPTION_IGNORE_RESET))) {
+		  le32_to_cpu(AAC_OPTION_IGNORE_RESET)))) {
 			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",
 			  dev->name, dev->id);
 		}
@@ -1798,7 +1798,7 @@ static int aac_synchronize(struct scsi_cmnd *scsicmd)
 	if (active)
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 
-	aac = (struct aac_dev *)scsicmd->device->host->hostdata;
+	aac = (struct aac_dev *)sdev->host->hostdata;
 	if (aac->in_reset)
 		return SCSI_MLQUEUE_HOST_BUSY;
 

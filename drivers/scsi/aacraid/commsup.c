@@ -1217,12 +1217,13 @@ int aac_reset_adapter(struct aac_dev * aac, int forced)
 	}
 
 	/* Quiesce build, flush cache, write through mode */
-	aac_send_shutdown(aac);
+	if (forced < 2)
+		aac_send_shutdown(aac);
 	spin_lock_irqsave(host->host_lock, flagv);
-	retval = _aac_reset_adapter(aac, forced);
+	retval = _aac_reset_adapter(aac, forced ? forced : ((aac_check_reset != 0) && (aac_check_reset != 1)));
 	spin_unlock_irqrestore(host->host_lock, flagv);
 
-	if (retval == -ENODEV) {
+	if ((forced < 2) && (retval == -ENODEV)) {
 		/* Unwind aac_send_shutdown() IOP_RESET unsupported/disabled */
 		struct fib * fibctx = aac_fib_alloc(aac);
 		if (fibctx) {
@@ -1372,14 +1373,14 @@ int aac_check_health(struct aac_dev * aac)
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
 
-	if (!aac_check_reset ||
+	if (!aac_check_reset || ((aac_check_reset != 1) &&
 		(aac->supplement_adapter_info.SupportedOptions2 &
-			le32_to_cpu(AAC_OPTION_IGNORE_RESET)))
+			le32_to_cpu(AAC_OPTION_IGNORE_RESET))))
 		goto out;
 	host = aac->scsi_host_ptr;
 	if (aac->thread->pid != current->pid)
 		spin_lock_irqsave(host->host_lock, flagv);
-	BlinkLED = _aac_reset_adapter(aac, 0);
+	BlinkLED = _aac_reset_adapter(aac, aac_check_reset != 1);
 	if (aac->thread->pid != current->pid)
 		spin_unlock_irqrestore(host->host_lock, flagv);
 	return BlinkLED;
