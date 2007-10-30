@@ -917,7 +917,6 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 				   struct iw_request_info *info,
 				   struct iw_param *data, char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int ret = 0;
 
@@ -927,6 +926,7 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_WPA_ENABLED:
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
+	case IW_AUTH_PRIVACY_INVOKED:
 		break;
 	case IW_AUTH_KEY_MGMT:
 		if (sdata->type != IEEE80211_IF_TYPE_STA)
@@ -947,11 +947,6 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 			sdata->u.sta.auth_algs = data->value;
 		else
 			ret = -EOPNOTSUPP;
-		break;
-	case IW_AUTH_PRIVACY_INVOKED:
-		if (local->ops->set_privacy_invoked)
-			ret = local->ops->set_privacy_invoked(
-					local_to_hw(local), data->value);
 		break;
 	default:
 		ret = -EOPNOTSUPP;

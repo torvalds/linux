@@ -941,26 +941,10 @@ enum ieee80211_erp_change_flags {
  *	and remove_interface calls, i.e. while the interface with the
  *	given local_address is enabled.
  *
- * @set_ieee8021x: Enable/disable IEEE 802.1X. This item requests wlan card
- *	to pass unencrypted EAPOL-Key frames even when encryption is
- *	configured. If the wlan card does not require such a configuration,
- *	this function pointer can be set to NULL.
- *
- * @set_port_auth: Set port authorization state (IEEE 802.1X PAE) to be
- *	authorized (@authorized=1) or unauthorized (=0). This function can be
- *	used if the wlan hardware or low-level driver implements PAE.
- *	mac80211 will filter frames based on authorization state in any case,
- *	so this function pointer can be NULL if low-level driver does not
- *	require event notification about port state changes.
- *
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack.
  *
  * @get_stats: return low-level statistics
- *
- * @set_privacy_invoked: For devices that generate their own beacons and probe
- *	response or association responses this updates the state of privacy_invoked
- *	returns 0 for success or an error number.
  *
  * @get_sequence_counter: For devices that have internal sequence counters this
  *	callback allows mac80211 to access the current value of a counter.
@@ -1034,14 +1018,9 @@ struct ieee80211_ops {
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		       const u8 *local_address, const u8 *address,
 		       struct ieee80211_key_conf *key);
-	int (*set_ieee8021x)(struct ieee80211_hw *hw, int use_ieee8021x);
-	int (*set_port_auth)(struct ieee80211_hw *hw, u8 *addr,
-			     int authorized);
 	int (*hw_scan)(struct ieee80211_hw *hw, u8 *ssid, size_t len);
 	int (*get_stats)(struct ieee80211_hw *hw,
 			 struct ieee80211_low_level_stats *stats);
-	int (*set_privacy_invoked)(struct ieee80211_hw *hw,
-				   int privacy_invoked);
 	int (*get_sequence_counter)(struct ieee80211_hw *hw,
 				    u8* addr, u8 keyidx, u8 txrx,
 				    u32* iv32, u16* iv16);
