@@ -38,6 +38,7 @@
 			  | X86_CR4_OSXMMEXCPT | X86_CR4_VMXE))
 
 #define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
+#define EFER_RESERVED_BITS 0xfffffffffffff2fe
 
 unsigned long segment_base(u16 selector)
 {
@@ -324,6 +325,44 @@ static u32 emulated_msrs[] = {
 	MSR_IA32_MISC_ENABLE,
 };
 
+#ifdef CONFIG_X86_64
+
+static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
+{
+	if (efer & EFER_RESERVED_BITS) {
+		printk(KERN_DEBUG "set_efer: 0x%llx #GP, reserved bits\n",
+		       efer);
+		inject_gp(vcpu);
+		return;
+	}
+
+	if (is_paging(vcpu)
+	    && (vcpu->shadow_efer & EFER_LME) != (efer & EFER_LME)) {
+		printk(KERN_DEBUG "set_efer: #GP, change LME while paging\n");
+		inject_gp(vcpu);
+		return;
+	}
+
+	kvm_x86_ops->set_efer(vcpu, efer);
+
+	efer &= ~EFER_LMA;
+	efer |= vcpu->shadow_efer & EFER_LMA;
+
+	vcpu->shadow_efer = efer;
+}
+
+#endif
+
+/*
+ * Writes msr value into into the appropriate "register".
+ * Returns 0 on success, non-0 otherwise.
+ * Assumes vcpu_load() was already called.
+ */
+int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
+{
+	return kvm_x86_ops->set_msr(vcpu, msr_index, data);
+}
+
 /*
  * Adapt set_msr() to msr_io()'s calling convention
  */
@@ -331,6 +370,101 @@ static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
 	return kvm_set_msr(vcpu, index, *data);
 }
+
+
+int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
+{
+	switch (msr) {
+#ifdef CONFIG_X86_64
+	case MSR_EFER:
+		set_efer(vcpu, data);
+		break;
+#endif
+	case MSR_IA32_MC0_STATUS:
+		pr_unimpl(vcpu, "%s: MSR_IA32_MC0_STATUS 0x%llx, nop\n",
+		       __FUNCTION__, data);
+		break;
+	case MSR_IA32_MCG_STATUS:
+		pr_unimpl(vcpu, "%s: MSR_IA32_MCG_STATUS 0x%llx, nop\n",
+			__FUNCTION__, data);
+		break;
+	case MSR_IA32_UCODE_REV:
+	case MSR_IA32_UCODE_WRITE:
+	case 0x200 ... 0x2ff: /* MTRRs */
+		break;
+	case MSR_IA32_APICBASE:
+		kvm_set_apic_base(vcpu, data);
+		break;
+	case MSR_IA32_MISC_ENABLE:
+		vcpu->ia32_misc_enable_msr = data;
+		break;
+	default:
+		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x\n", msr);
+		return 1;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_set_msr_common);
+
+
+/*
+ * Reads an msr value (of 'msr_index') into 'pdata'.
+ * Returns 0 on success, non-0 otherwise.
+ * Assumes vcpu_load() was already called.
+ */
+int kvm_get_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
+{
+	return kvm_x86_ops->get_msr(vcpu, msr_index, pdata);
+}
+
+int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
+{
+	u64 data;
+
+	switch (msr) {
+	case 0xc0010010: /* SYSCFG */
+	case 0xc0010015: /* HWCR */
+	case MSR_IA32_PLATFORM_ID:
+	case MSR_IA32_P5_MC_ADDR:
+	case MSR_IA32_P5_MC_TYPE:
+	case MSR_IA32_MC0_CTL:
+	case MSR_IA32_MCG_STATUS:
+	case MSR_IA32_MCG_CAP:
+	case MSR_IA32_MC0_MISC:
+	case MSR_IA32_MC0_MISC+4:
+	case MSR_IA32_MC0_MISC+8:
+	case MSR_IA32_MC0_MISC+12:
+	case MSR_IA32_MC0_MISC+16:
+	case MSR_IA32_UCODE_REV:
+	case MSR_IA32_PERF_STATUS:
+	case MSR_IA32_EBL_CR_POWERON:
+		/* MTRR registers */
+	case 0xfe:
+	case 0x200 ... 0x2ff:
+		data = 0;
+		break;
+	case 0xcd: /* fsb frequency */
+		data = 3;
+		break;
+	case MSR_IA32_APICBASE:
+		data = kvm_get_apic_base(vcpu);
+		break;
+	case MSR_IA32_MISC_ENABLE:
+		data = vcpu->ia32_misc_enable_msr;
+		break;
+#ifdef CONFIG_X86_64
+	case MSR_EFER:
+		data = vcpu->shadow_efer;
+		break;
+#endif
+	default:
+		pr_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr);
+		return 1;
+	}
+	*pdata = data;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_get_msr_common);
 
 /*
  * Read or write a bunch of msrs. All parameters are kernel addresses.
