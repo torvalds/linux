@@ -675,7 +675,6 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 	/* Set the timing loop to tracking	*/
 	stb0899_write_reg(state, STB0899_RTC, 0x33);
 	stb0899_write_reg(state, STB0899_CFD, 0xf7);
-	reg = 0;
 	/* if locked and range ok, set Kdiv	*/
 	if (internal->status == RANGEOK) {
 		dprintk(state->verbose, FE_DEBUG, 1, "Locked & Range OK !");
@@ -686,45 +685,35 @@ enum stb0899_status stb0899_dvbs_algo(struct stb0899_state *state)
 		 * Carrier loop optimization versus
 		 * symbol Rate/Puncture Rate for Tracking
 		 */
+		reg = stb0899_read_reg(state, STB0899_BCLC);
 		switch (internal->fecrate) {
 		case STB0899_FEC_1_2:		/* 13	*/
-			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 0x1a);
-			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
-			reg = 0;
+			stb0899_write_reg(state, STB0899_DEMAPVIT, 0x1a);
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[0][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
 		case STB0899_FEC_2_3:		/* 18	*/
-			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 44);
-			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
-			reg = 0;
+			stb0899_write_reg(state, STB0899_DEMAPVIT, 44);
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[1][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
 		case STB0899_FEC_3_4:		/* 21	*/
-			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 60);
-			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
-			reg = 0;
+			stb0899_write_reg(state, STB0899_DEMAPVIT, 60);
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[2][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
 		case STB0899_FEC_5_6:		/* 24	*/
-			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 75);
-			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
-			reg = 0;
+			stb0899_write_reg(state, STB0899_DEMAPVIT, 75);
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[3][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
 		case STB0899_FEC_6_7:		/* 25	*/
-			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 88);
-			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
+			stb0899_write_reg(state, STB0899_DEMAPVIT, 88);
 			stb0899_write_reg(state, STB0899_ACLC, 0x88);
 			stb0899_write_reg(state, STB0899_BCLC, 0x9a);
 			break;
 		case STB0899_FEC_7_8:		/* 26	*/
-			STB0899_SETFIELD_VAL(DEMAPVIT_KDIVIDER, reg, 94);
-			stb0899_write_reg(state, STB0899_DEMAPVIT, reg);
-			reg = 0;
+			stb0899_write_reg(state, STB0899_DEMAPVIT, 94);
 			STB0899_SETFIELD_VAL(BETA, reg, betaTab[4][clnI]);
 			stb0899_write_reg(state, STB0899_BCLC, reg);
 			break;
