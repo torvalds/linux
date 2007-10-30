@@ -588,12 +588,12 @@ static int stb0899_postproc(struct stb0899_state *state, u8 ctl, int enable)
 	/* post process event */
 	if (postproc) {
 		if (enable) {
-			if (postproc[STB0899_POSTPROC_GPIO_POWER].level == STB0899_GPIOPULLUP)
+			if (postproc[ctl].level == STB0899_GPIOPULLUP)
 				stb0899_write_reg(state, postproc[ctl].gpio, 0x02);
 			else
 				stb0899_write_reg(state, postproc[ctl].gpio, 0x82);
 		} else {
-			if (postproc[STB0899_POSTPROC_GPIO_POWER].level == STB0899_GPIOPULLUP)
+			if (postproc[ctl].level == STB0899_GPIOPULLUP)
 				stb0899_write_reg(state, postproc[ctl].gpio, 0x82);
 			else
 				stb0899_write_reg(state, postproc[ctl].gpio, 0x02);
