@@ -167,8 +167,8 @@ static void acpi_pm_finish(void)
 {
 	u32 acpi_state = acpi_target_sleep_state;
 
-	acpi_leave_sleep_state(acpi_state);
 	acpi_disable_wakeup_device(acpi_state);
+	acpi_leave_sleep_state(acpi_state);
 
 	/* reset firmware waking vector */
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
@@ -272,8 +272,8 @@ static void acpi_hibernation_finish(void)
 	 * enable it here.
 	 */
 	acpi_enable();
-	acpi_leave_sleep_state(ACPI_STATE_S4);
 	acpi_disable_wakeup_device(ACPI_STATE_S4);
+	acpi_leave_sleep_state(ACPI_STATE_S4);
 
 	/* reset firmware waking vector */
 	acpi_set_firmware_waking_vector((acpi_physical_address) 0);
@@ -410,6 +410,7 @@ static void acpi_power_off(void)
 	/* acpi_sleep_prepare(ACPI_STATE_S5) should have already been called */
 	printk("%s called\n", __FUNCTION__);
 	local_irq_disable();
+	acpi_enable_wakeup_device(ACPI_STATE_S5);
 	acpi_enter_sleep_state(ACPI_STATE_S5);
 }
 
