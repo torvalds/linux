@@ -4288,8 +4288,4 @@ void __exit addrconf_cleanup(void)
 	del_timer(&addr_chk_timer);
 
 	rtnl_unlock();
-
-#ifdef CONFIG_PROC_FS
-	proc_net_remove(&init_net, "if_inet6");
-#endif
 }
