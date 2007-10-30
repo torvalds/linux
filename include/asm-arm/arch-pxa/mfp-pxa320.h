@@ -4,7 +4,7 @@
  * PXA320 specific MFP configuration definitions
  *
  * Copyright (C) 2007 Marvell International Ltd.
- * 2007-08-21: eric miao <eric.y.miao@gmail.com>
+ * 2007-08-21: eric miao <eric.miao@marvell.com>
  *             initial version
  *
  *  This program is free software; you can redistribute it and/or modify
