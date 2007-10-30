@@ -172,9 +172,14 @@ SECTIONS
 		__ebss_b_l1 = .;
 	}
 
-	___init_end = LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1);
+	/* Force trailing alignment of our init section so that when we
+	 * free our init memory, we don't leave behind a partial page.
+	 */
+	. = LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1);
+	. = ALIGN(PAGE_SIZE);
+	___init_end = .;
 
-	.bss LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1) :
+	.bss :
 	{
 		. = ALIGN(4);
 		___bss_start = .;
