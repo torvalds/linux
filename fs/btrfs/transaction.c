@@ -169,7 +169,7 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 		clear_extent_dirty(dirty_pages, start, end, GFP_NOFS);
 		while(start <= end) {
 			index = start >> PAGE_CACHE_SHIFT;
-			start = (index + 1) << PAGE_CACHE_SHIFT;
+			start = (u64)(index + 1) << PAGE_CACHE_SHIFT;
 			page = find_lock_page(btree_inode->i_mapping, index);
 			if (!page)
 				continue;

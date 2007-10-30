@@ -159,7 +159,7 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 {
 	struct extent_map_tree *tree;
-	u64 start = page->index << PAGE_CACHE_SHIFT;
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 found_start;
 	int found_level;
 	unsigned long len;

@@ -111,7 +111,7 @@ int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
 	struct btrfs_trans_handle *trans;
 	char *kaddr;
 	int ret;
-	u64 page_start = page->index << PAGE_CACHE_SHIFT;
+	u64 page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 	size_t offset = start - page_start;
 
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -160,7 +160,7 @@ out:
 
 int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 {
-	size_t offset = start - (page->index << PAGE_CACHE_SHIFT);
+	size_t offset = start - ((u64)page->index << PAGE_CACHE_SHIFT);
 	struct inode *inode = page->mapping->host;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	char *kaddr;
@@ -688,7 +688,7 @@ static int btrfs_cow_one_page(struct inode *inode, struct page *page,
 	char *kaddr;
 	int ret = 0;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
-	u64 page_start = page->index << PAGE_CACHE_SHIFT;
+	u64 page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
 
 	set_page_extent_mapped(page);
@@ -739,7 +739,7 @@ static int btrfs_truncate_page(struct address_space *mapping, loff_t from)
 			goto out;
 		}
 	}
-	page_start = page->index << PAGE_CACHE_SHIFT;
+	page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 
 	ret = btrfs_cow_one_page(inode, page, offset);
 
@@ -1618,7 +1618,7 @@ again:
 			goto out;
 		}
 
-		extent_offset = (page->index << PAGE_CACHE_SHIFT) -
+		extent_offset = ((u64)page->index << PAGE_CACHE_SHIFT) -
 			extent_start + page_offset;
 		copy_size = min_t(u64, PAGE_CACHE_SIZE - page_offset,
 				size - extent_offset);
@@ -1769,7 +1769,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 	lock_page(page);
 	wait_on_page_writeback(page);
 	size = i_size_read(inode);
-	page_start = page->index << PAGE_CACHE_SHIFT;
+	page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 
 	if ((page->mapping != inode->i_mapping) ||
 	    (page_start > size)) {
@@ -2065,7 +2065,7 @@ int btrfs_defrag_file(struct file *file) {
 				goto out_unlock;
 			}
 		}
-		page_start = page->index << PAGE_CACHE_SHIFT;
+		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 
 		lock_extent(em_tree, page_start, page_end, GFP_NOFS);

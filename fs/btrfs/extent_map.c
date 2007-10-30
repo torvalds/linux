@@ -1229,7 +1229,7 @@ EXPORT_SYMBOL(test_range_bit);
 static int check_page_uptodate(struct extent_map_tree *tree,
 			       struct page *page)
 {
-	u64 start = page->index << PAGE_CACHE_SHIFT;
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	if (test_range_bit(tree, start, end, EXTENT_UPTODATE, 1))
 		SetPageUptodate(page);
@@ -1243,7 +1243,7 @@ static int check_page_uptodate(struct extent_map_tree *tree,
 static int check_page_locked(struct extent_map_tree *tree,
 			     struct page *page)
 {
-	u64 start = page->index << PAGE_CACHE_SHIFT;
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	if (!test_range_bit(tree, start, end, EXTENT_LOCKED, 0))
 		unlock_page(page);
@@ -1257,7 +1257,7 @@ static int check_page_locked(struct extent_map_tree *tree,
 static int check_page_writeback(struct extent_map_tree *tree,
 			     struct page *page)
 {
-	u64 start = page->index << PAGE_CACHE_SHIFT;
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	if (!test_range_bit(tree, start, end, EXTENT_WRITEBACK, 0))
 		end_page_writeback(page);
@@ -1296,7 +1296,8 @@ static int end_bio_extent_writepage(struct bio *bio,
 
 	do {
 		struct page *page = bvec->bv_page;
-		start = (page->index << PAGE_CACHE_SHIFT) + bvec->bv_offset;
+		start = ((u64)page->index << PAGE_CACHE_SHIFT) +
+			 bvec->bv_offset;
 		end = start + bvec->bv_len - 1;
 
 		if (bvec->bv_offset == 0 && bvec->bv_len == PAGE_CACHE_SIZE)
@@ -1361,7 +1362,8 @@ static int end_bio_extent_readpage(struct bio *bio,
 
 	do {
 		struct page *page = bvec->bv_page;
-		start = (page->index << PAGE_CACHE_SHIFT) + bvec->bv_offset;
+		start = ((u64)page->index << PAGE_CACHE_SHIFT) +
+			bvec->bv_offset;
 		end = start + bvec->bv_len - 1;
 
 		if (bvec->bv_offset == 0 && bvec->bv_len == PAGE_CACHE_SIZE)
@@ -1427,7 +1429,8 @@ static int end_bio_extent_preparewrite(struct bio *bio,
 
 	do {
 		struct page *page = bvec->bv_page;
-		start = (page->index << PAGE_CACHE_SHIFT) + bvec->bv_offset;
+		start = ((u64)page->index << PAGE_CACHE_SHIFT) +
+			bvec->bv_offset;
 		end = start + bvec->bv_len - 1;
 
 		if (--bvec >= bio->bi_io_vec)
@@ -1503,7 +1506,7 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 			  get_extent_t *get_extent)
 {
 	struct inode *inode = page->mapping->host;
-	u64 start = page->index << PAGE_CACHE_SHIFT;
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = start + PAGE_CACHE_SIZE - 1;
 	u64 end;
 	u64 cur = start;
@@ -1608,7 +1611,7 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			  struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
-	u64 start = page->index << PAGE_CACHE_SHIFT;
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = start + PAGE_CACHE_SIZE - 1;
 	u64 end;
 	u64 cur = start;
@@ -1750,7 +1753,7 @@ EXPORT_SYMBOL(extent_write_full_page);
 int extent_invalidatepage(struct extent_map_tree *tree,
 			  struct page *page, unsigned long offset)
 {
-	u64 start = (page->index << PAGE_CACHE_SHIFT);
+	u64 start = ((u64)page->index << PAGE_CACHE_SHIFT);
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	size_t blocksize = page->mapping->host->i_sb->s_blocksize;
 
@@ -1792,7 +1795,7 @@ int extent_prepare_write(struct extent_map_tree *tree,
 			 struct inode *inode, struct page *page,
 			 unsigned from, unsigned to, get_extent_t *get_extent)
 {
-	u64 page_start = page->index << PAGE_CACHE_SHIFT;
+	u64 page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
 	u64 block_start;
 	u64 orig_block_start;
@@ -1890,7 +1893,7 @@ EXPORT_SYMBOL(extent_prepare_write);
 int try_release_extent_mapping(struct extent_map_tree *tree, struct page *page)
 {
 	struct extent_map *em;
-	u64 start = page->index << PAGE_CACHE_SHIFT;
+	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 end = start + PAGE_CACHE_SIZE - 1;
 	u64 orig_start = start;
 	int ret = 1;
@@ -2202,7 +2205,7 @@ int clear_extent_buffer_dirty(struct extent_map_tree *tree,
 		if ((i == 0 && (eb->start & (PAGE_CACHE_SIZE - 1))) ||
 		    ((i == num_pages - 1) &&
 		     ((eb->start + eb->len) & (PAGE_CACHE_SIZE - 1)))) {
-			start = page->index << PAGE_CACHE_SHIFT;
+			start = (u64)page->index << PAGE_CACHE_SHIFT;
 			end  = start + PAGE_CACHE_SIZE - 1;
 			if (test_range_bit(tree, start, end,
 					   EXTENT_DIRTY, 0)) {

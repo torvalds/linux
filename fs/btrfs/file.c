@@ -301,7 +301,8 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 			SetPageUptodate(p);
 			set_page_dirty(p);
 		}
-		last_end = pages[num_pages -1]->index << PAGE_CACHE_SHIFT;
+		last_end = (u64)(pages[num_pages -1]->index) <<
+				PAGE_CACHE_SHIFT;
 		last_end += PAGE_CACHE_SIZE - 1;
 		set_extent_delalloc(em_tree, start_pos, end_of_last_block,
 				 GFP_NOFS);
