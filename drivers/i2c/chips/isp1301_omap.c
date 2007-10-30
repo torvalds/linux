@@ -259,12 +259,6 @@ static inline const char *state_name(struct isp1301 *isp)
 	return state_string(isp->otg.state);
 }
 
-#ifdef	VERBOSE
-#define	dev_vdbg			dev_dbg
-#else
-#define	dev_vdbg(dev, fmt, arg...)	do{}while(0)
-#endif
-
 /*-------------------------------------------------------------------------*/
 
 /* NOTE:  some of this ISP1301 setup is specific to H2 boards;

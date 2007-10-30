@@ -106,12 +106,6 @@ enum debuglevel {
 					 activated */
 };
 
-/* missing from linux/device.h ... */
-#ifndef dev_notice
-#define dev_notice(dev, format, arg...)		\
-	dev_printk(KERN_NOTICE , dev , format , ## arg)
-#endif
-
 /* Kernel message macros for situations where dev_printk and friends cannot be
  * used for lack of reliable access to a device structure.
  * linux/usb.h already contains these but in an obsolete form which clutters
