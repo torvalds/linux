@@ -28,6 +28,7 @@
 #include <linux/video_decoder.h>
 
 #include "em28xx.h"
+#include "tuner-xc2028.h"
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
@@ -391,6 +392,26 @@ static u32 functionality(struct i2c_adapter *adap)
 }
 
 
+static int em28xx_tuner_callback(void *ptr, int command, int arg)
+{
+	int rc = 0;
+	struct em28xx *dev = ptr;
+
+	if (dev->tuner_type != TUNER_XC2028)
+		return 0;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		/* FIXME: This is device-dependent */
+		dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
+
+		msleep(140);
+		break;
+	}
+	return rc;
+}
+
 static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
 {
 	struct em28xx *dev = client->adapter->algo_data;
@@ -400,6 +421,8 @@ static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
 		tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = dev->tuner_addr;
+		tun_setup.tuner_callback = em28xx_tuner_callback;
+
 		em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
 
