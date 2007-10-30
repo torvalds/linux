@@ -1342,9 +1342,8 @@ static int hotkey_read(char *p)
 		return len;
 	}
 
-	res = mutex_lock_interruptible(&hotkey_mutex);
-	if (res < 0)
-		return res;
+	if (mutex_lock_interruptible(&hotkey_mutex))
+		return -ERESTARTSYS;
 	res = hotkey_get(&status, &mask);
 	mutex_unlock(&hotkey_mutex);
 	if (res)
@@ -1373,9 +1372,8 @@ static int hotkey_write(char *buf)
 	if (!tp_features.hotkey)
 		return -ENODEV;
 
-	res = mutex_lock_interruptible(&hotkey_mutex);
-	if (res < 0)
-		return res;
+	if (mutex_lock_interruptible(&hotkey_mutex))
+		return -ERESTARTSYS;
 
 	res = hotkey_get(&status, &mask);
 	if (res)
@@ -3768,9 +3766,8 @@ static ssize_t fan_pwm1_store(struct device *dev,
 	/* scale down from 0-255 to 0-7 */
 	newlevel = (s >> 5) & 0x07;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	rc = fan_get_status(&status);
 	if (!rc && (status &
@@ -4020,9 +4017,8 @@ static int fan_get_status_safe(u8 *status)
 	int rc;
 	u8 s;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 	rc = fan_get_status(&s);
 	if (!rc)
 		fan_update_desired_level(s);
@@ -4156,9 +4152,8 @@ static int fan_set_level_safe(int level)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	if (level == TPACPI_FAN_LAST_LEVEL)
 		level = fan_control_desired_level;
@@ -4179,9 +4174,8 @@ static int fan_set_enable(void)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_FANS:
@@ -4235,9 +4229,8 @@ static int fan_set_disable(void)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	rc = 0;
 	switch (fan_control_access_mode) {
@@ -4274,9 +4267,8 @@ static int fan_set_speed(int speed)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	rc = 0;
 	switch (fan_control_access_mode) {
