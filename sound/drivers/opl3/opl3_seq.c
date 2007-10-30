@@ -152,15 +152,7 @@ static int snd_opl3_synth_event_input(struct snd_seq_event * ev, int direct,
 {
 	struct snd_opl3 *opl3 = private_data;
 
-	if (ev->type >= SNDRV_SEQ_EVENT_INSTR_BEGIN &&
-	    ev->type <= SNDRV_SEQ_EVENT_INSTR_CHANGE) {
-		if (direct) {
-			snd_seq_instr_event(&opl3->fm_ops, opl3->ilist, ev,
-					    opl3->seq_client, atomic, hop);
-		}
-	} else {
-		snd_midi_process_event(&opl3_ops, ev, opl3->chset);
-	}
+	snd_midi_process_event(&opl3_ops, ev, opl3->chset);
 	return 0;
 }
 
@@ -249,16 +241,6 @@ static int snd_opl3_seq_new_device(struct snd_seq_device *dev)
 		return err;
 	}
 
-	/* initialize instrument list */
-	opl3->ilist = snd_seq_instr_list_new();
-	if (opl3->ilist == NULL) {
-		snd_seq_delete_kernel_client(client);
-		opl3->seq_client = -1;
-		return -ENOMEM;
-	}
-	opl3->ilist->flags = SNDRV_SEQ_INSTR_FLG_DIRECT;
-	snd_seq_fm_init(&opl3->fm_ops, NULL);
-
 	/* setup system timer */
 	init_timer(&opl3->tlist);
 	opl3->tlist.function = snd_opl3_timer_func;
@@ -287,8 +269,6 @@ static int snd_opl3_seq_delete_device(struct snd_seq_device *dev)
 		snd_seq_delete_kernel_client(opl3->seq_client);
 		opl3->seq_client = -1;
 	}
-	if (opl3->ilist)
-		snd_seq_instr_list_free(&opl3->ilist);
 	return 0;
 }
 

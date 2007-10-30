@@ -63,7 +63,7 @@
 #include "seq_oss_legacy.h"
 #endif
 #include "seq_device.h"
-#include "ainstr_fm.h"
+#include "asound_fm.h"
 
 /*
  *    Register numbers for the global registers
@@ -240,6 +240,47 @@
 struct snd_opl3;
 
 /*
+ * Instrument record, aka "Patch"
+ */
+
+/* FM operator */
+struct fm_operator {
+	unsigned char am_vib;
+	unsigned char ksl_level;
+	unsigned char attack_decay;
+	unsigned char sustain_release;
+	unsigned char wave_select;
+} __attribute__((packed));
+
+/* Instrument data */
+struct fm_instrument {
+	struct fm_operator op[4];
+	unsigned char feedback_connection[2];
+	unsigned char echo_delay;
+	unsigned char echo_atten;
+	unsigned char chorus_spread;
+	unsigned char trnsps;
+	unsigned char fix_dur;
+	unsigned char modes;
+	unsigned char fix_key;
+};
+
+/* type */
+#define FM_PATCH_OPL2	0x01		/* OPL2 2 operators FM instrument */
+#define FM_PATCH_OPL3	0x02		/* OPL3 4 operators FM instrument */
+
+/* Instrument record */
+struct fm_patch {
+	unsigned char prog;
+	unsigned char bank;
+	unsigned char type;
+	struct fm_instrument inst;
+	char name[24];
+	struct fm_patch *next;
+};
+
+
+/*
  * A structure to keep track of each hardware voice
  */
 struct snd_opl3_voice {
@@ -297,8 +338,8 @@ struct snd_opl3 {
 	struct snd_midi_channel_set * oss_chset;
 #endif
  
-	struct snd_seq_kinstr_ops fm_ops;
-	struct snd_seq_kinstr_list *ilist;
+#define OPL3_PATCH_HASH_SIZE	32
+	struct fm_patch *patch_table[OPL3_PATCH_HASH_SIZE];
 
 	struct snd_opl3_voice voices[MAX_OPL3_VOICES]; /* Voices (OPL3 'channel') */
 	int use_time;			/* allocation counter */
@@ -333,8 +374,19 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3, int device, int seq_device,
 int snd_opl3_open(struct snd_hwdep * hw, struct file *file);
 int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 		   unsigned int cmd, unsigned long arg);
+long snd_opl3_write(struct snd_hwdep *hw, const char __user *buf, long count,
+		    loff_t *offset);
 int snd_opl3_release(struct snd_hwdep * hw, struct file *file);
 
 void snd_opl3_reset(struct snd_opl3 * opl3);
+
+int snd_opl3_load_patch(struct snd_opl3 *opl3,
+			int prog, int bank, int type,
+			const char *name,
+			const unsigned char *ext,
+			const unsigned char *data);
+struct fm_patch *snd_opl3_find_patch(struct snd_opl3 *opl3, int prog, int bank,
+				     int create_patch);
+void snd_opl3_clear_patches(struct snd_opl3 *opl3);
 
 #endif /* __SOUND_OPL3_H */

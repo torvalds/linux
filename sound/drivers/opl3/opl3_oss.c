@@ -195,17 +195,6 @@ static int snd_opl3_close_seq_oss(struct snd_seq_oss_arg *arg)
 
 /* load patch */
 
-/* offsets for SBI params */
-#define AM_VIB		0
-#define KSL_LEVEL	2
-#define ATTACK_DECAY	4
-#define SUSTAIN_RELEASE	6
-#define WAVE_SELECT	8
-
-/* offset for SBI instrument */
-#define CONNECTION	10
-#define OFFSET_4OP	11
-
 /* from sound_config.h */
 #define SBFM_MAXINSTR	256
 
@@ -213,112 +202,42 @@ static int snd_opl3_load_patch_seq_oss(struct snd_seq_oss_arg *arg, int format,
 				       const char __user *buf, int offs, int count)
 {
 	struct snd_opl3 *opl3;
-	int err = -EINVAL;
+	struct sbi_instrument sbi;
+	char name[32];
+	int err, type;
 
 	snd_assert(arg != NULL, return -ENXIO);
 	opl3 = arg->private_data;
 
-	if ((format == FM_PATCH) || (format == OPL3_PATCH)) {
-		struct sbi_instrument sbi;
+	if (format == FM_PATCH)
+		type = FM_PATCH_OPL2;
+	else if (format == OPL3_PATCH)
+		type = FM_PATCH_OPL3;
+	else
+		return -EINVAL;
 
-		size_t size;
-		struct snd_seq_instr_header *put;
-		struct snd_seq_instr_data *data;
-		struct fm_xinstrument *xinstr;
-
-		struct snd_seq_event ev;
-		int i;
-
-		mm_segment_t fs;
-
-		if (count < (int)sizeof(sbi)) {
-			snd_printk("FM Error: Patch record too short\n");
-			return -EINVAL;
-		}
-		if (copy_from_user(&sbi, buf, sizeof(sbi)))
-			return -EFAULT;
-
-		if (sbi.channel < 0 || sbi.channel >= SBFM_MAXINSTR) {
-			snd_printk("FM Error: Invalid instrument number %d\n", sbi.channel);
-			return -EINVAL;
-		}
-
-		size = sizeof(*put) + sizeof(struct fm_xinstrument);
-		put = kzalloc(size, GFP_KERNEL);
-		if (put == NULL)
-			return -ENOMEM;
-		/* build header */
-		data = &put->data;
-		data->type = SNDRV_SEQ_INSTR_ATYPE_DATA;
-		strcpy(data->data.format, SNDRV_SEQ_INSTR_ID_OPL2_3);
-		/* build data section */
-		xinstr = (struct fm_xinstrument *)(data + 1);
-		xinstr->stype = FM_STRU_INSTR;
-        
-		for (i = 0; i < 2; i++) {
-			xinstr->op[i].am_vib = sbi.operators[AM_VIB + i];
-			xinstr->op[i].ksl_level = sbi.operators[KSL_LEVEL + i];
-			xinstr->op[i].attack_decay = sbi.operators[ATTACK_DECAY + i];
-			xinstr->op[i].sustain_release = sbi.operators[SUSTAIN_RELEASE + i];
-			xinstr->op[i].wave_select = sbi.operators[WAVE_SELECT + i];
-		}
-		xinstr->feedback_connection[0] = sbi.operators[CONNECTION];
-
-		if (format == OPL3_PATCH) {
-			xinstr->type = FM_PATCH_OPL3;
-			for (i = 0; i < 2; i++) {
-				xinstr->op[i+2].am_vib = sbi.operators[OFFSET_4OP + AM_VIB + i];
-				xinstr->op[i+2].ksl_level = sbi.operators[OFFSET_4OP + KSL_LEVEL + i];
-				xinstr->op[i+2].attack_decay = sbi.operators[OFFSET_4OP + ATTACK_DECAY + i];
-				xinstr->op[i+2].sustain_release = sbi.operators[OFFSET_4OP + SUSTAIN_RELEASE + i];
-				xinstr->op[i+2].wave_select = sbi.operators[OFFSET_4OP + WAVE_SELECT + i];
-			}
-			xinstr->feedback_connection[1] = sbi.operators[OFFSET_4OP + CONNECTION];
-		} else {
-			xinstr->type = FM_PATCH_OPL2;
-		}
-
-		put->id.instr.std = SNDRV_SEQ_INSTR_TYPE2_OPL2_3;
-		put->id.instr.bank = 127;
-		put->id.instr.prg = sbi.channel;
-		put->cmd = SNDRV_SEQ_INSTR_PUT_CMD_CREATE;
-
-		memset (&ev, 0, sizeof(ev));
-		ev.source.client = SNDRV_SEQ_CLIENT_OSS;
-		ev.dest = arg->addr; 
-
-		ev.flags = SNDRV_SEQ_EVENT_LENGTH_VARUSR;
-		ev.queue = SNDRV_SEQ_QUEUE_DIRECT;
-
-		fs = snd_enter_user();
-	__again:
-		ev.type = SNDRV_SEQ_EVENT_INSTR_PUT;
-		ev.data.ext.len = size;
-		ev.data.ext.ptr = put;
-
-		err = snd_seq_instr_event(&opl3->fm_ops, opl3->ilist, &ev,
-				    opl3->seq_client, 0, 0);
-		if (err == -EBUSY) {
-			struct snd_seq_instr_header remove;
-
-			memset (&remove, 0, sizeof(remove));
-			remove.cmd = SNDRV_SEQ_INSTR_FREE_CMD_SINGLE;
-			remove.id.instr = put->id.instr;
-
-			/* remove instrument */
-			ev.type = SNDRV_SEQ_EVENT_INSTR_FREE;
-			ev.data.ext.len = sizeof(remove);
-			ev.data.ext.ptr = &remove;
-
-			snd_seq_instr_event(&opl3->fm_ops, opl3->ilist, &ev,
-					    opl3->seq_client, 0, 0);
-			goto __again;
-		}
-		snd_leave_user(fs);
-
-		kfree(put);
+	if (count < (int)sizeof(sbi)) {
+		snd_printk("FM Error: Patch record too short\n");
+		return -EINVAL;
 	}
-	return err;
+	if (copy_from_user(&sbi, buf, sizeof(sbi)))
+		return -EFAULT;
+
+	if (sbi.channel < 0 || sbi.channel >= SBFM_MAXINSTR) {
+		snd_printk("FM Error: Invalid instrument number %d\n",
+			   sbi.channel);
+		return -EINVAL;
+	}
+
+	memset(name, 0, sizeof(name));
+	sprintf(name, "Chan%d", sbi.channel);
+
+	err = snd_opl3_load_patch(opl3, sbi.channel, 127, type, name, NULL,
+				  sbi.operators);
+	if (err < 0)
+		return err;
+
+	return sizeof(sbi);
 }
 
 /* ioctl */

@@ -327,6 +327,7 @@ static int snd_opl3_free(struct snd_opl3 *opl3)
 	snd_assert(opl3 != NULL, return -ENXIO);
 	if (opl3->private_free)
 		opl3->private_free(opl3);
+	snd_opl3_clear_patches(opl3);
 	release_and_free_resource(opl3->res_l_port);
 	release_and_free_resource(opl3->res_r_port);
 	kfree(opl3);
@@ -521,6 +522,7 @@ int snd_opl3_hwdep_new(struct snd_opl3 * opl3,
 	/* operators - only ioctl */
 	hw->ops.open = snd_opl3_open;
 	hw->ops.ioctl = snd_opl3_ioctl;
+	hw->ops.write = snd_opl3_write;
 	hw->ops.release = snd_opl3_release;
 
 	opl3->seq_dev_num = seq_device;
