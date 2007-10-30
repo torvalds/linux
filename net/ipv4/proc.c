@@ -304,7 +304,7 @@ static void icmp_put(struct seq_file *seq)
 	for (i=0; icmpmibmap[i].name != NULL; i++)
 		seq_printf(seq, " %lu",
 			snmp_fold_field((void **) icmpmsg_statistics,
-				icmpmibmap[i].index));
+				icmpmibmap[i].index | 0x100));
 }
 
 /*

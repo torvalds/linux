@@ -142,9 +142,10 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
          * To date internally, just copy this out to the user.
          */
     case LMCIOCGINFO: /*fold01*/
-        if (copy_to_user(ifr->ifr_data, &sc->ictl, sizeof (lmc_ctl_t)))
-            return -EFAULT;
-        ret = 0;
+	if (copy_to_user(ifr->ifr_data, &sc->ictl, sizeof(lmc_ctl_t)))
+		ret = -EFAULT;
+	else
+		ret = 0;
         break;
 
     case LMCIOCSINFO: /*fold01*/
@@ -159,8 +160,10 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
             break;
         }
 
-        if (copy_from_user(&ctl, ifr->ifr_data, sizeof (lmc_ctl_t)))
-            return -EFAULT;
+	if (copy_from_user(&ctl, ifr->ifr_data, sizeof(lmc_ctl_t))) {
+		ret = -EFAULT;
+		break;
+	}
 
         sc->lmc_media->set_status (sc, &ctl);
 
@@ -190,8 +193,10 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
 		break;
 	    }
 
-	    if (copy_from_user(&new_type, ifr->ifr_data, sizeof(u_int16_t)))
-                return -EFAULT;
+	    if (copy_from_user(&new_type, ifr->ifr_data, sizeof(u_int16_t))) {
+		ret = -EFAULT;
+		break;
+	    }
 
             
 	    if (new_type == old_type)
@@ -229,9 +234,10 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
         sc->lmc_xinfo.Magic1 = 0xDEADBEEF;
 
         if (copy_to_user(ifr->ifr_data, &sc->lmc_xinfo,
-                         sizeof (struct lmc_xinfo)))
-            return -EFAULT;
-        ret = 0;
+					sizeof(struct lmc_xinfo))) {
+		ret = -EFAULT;
+	else
+		ret = 0;
 
         break;
 
@@ -262,9 +268,9 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
 
         if (copy_to_user(ifr->ifr_data, &sc->stats,
                          sizeof (struct lmc_statistics)))
-            return -EFAULT;
-
-        ret = 0;
+		ret = -EFAULT;
+	else
+		ret = 0;
         break;
 
     case LMCIOCCLEARLMCSTATS: /*fold01*/
@@ -292,8 +298,10 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
             break;
         }
 
-        if (copy_from_user(&ctl, ifr->ifr_data, sizeof (lmc_ctl_t)))
-            return -EFAULT;
+	if (copy_from_user(&ctl, ifr->ifr_data, sizeof(lmc_ctl_t))) {
+		ret = -EFAULT;
+		break;
+	}
         sc->lmc_media->set_circuit_type(sc, ctl.circuit_type);
         sc->ictl.circuit_type = ctl.circuit_type;
         ret = 0;
@@ -318,12 +326,15 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
 
 #ifdef DEBUG
     case LMCIOCDUMPEVENTLOG:
-        if (copy_to_user(ifr->ifr_data, &lmcEventLogIndex, sizeof (u32)))
-            return -EFAULT;
+	if (copy_to_user(ifr->ifr_data, &lmcEventLogIndex, sizeof(u32))) {
+		ret = -EFAULT;
+		break;
+	}
         if (copy_to_user(ifr->ifr_data + sizeof (u32), lmcEventLogBuf, sizeof (lmcEventLogBuf)))
-            return -EFAULT;
+		ret = -EFAULT;
+	else
+		ret = 0;
 
-        ret = 0;
         break;
 #endif /* end ifdef _DBG_EVENTLOG */
     case LMCIOCT1CONTROL: /*fold01*/
@@ -346,8 +357,10 @@ int lmc_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd) /*fold00*/
              */
             netif_stop_queue(dev);
 
-            if (copy_from_user(&xc, ifr->ifr_data, sizeof (struct lmc_xilinx_control)))
-                return -EFAULT;
+	if (copy_from_user(&xc, ifr->ifr_data, sizeof(struct lmc_xilinx_control))) {
+		ret = -EFAULT;
+		break;
+	}
             switch(xc.command){
             case lmc_xilinx_reset: /*fold02*/
                 {

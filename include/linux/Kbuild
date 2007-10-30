@@ -149,6 +149,7 @@ header-y += ticable.h
 header-y += times.h
 header-y += tiocl.h
 header-y += tipc.h
+header-y += tipc_config.h
 header-y += toshiba.h
 header-y += ultrasound.h
 header-y += un.h

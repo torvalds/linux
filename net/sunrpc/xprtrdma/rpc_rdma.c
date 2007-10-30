@@ -221,8 +221,8 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 					seg->mr_base);
 			dprintk("RPC:       %s: read chunk "
 				"elem %d@0x%llx:0x%x pos %d (%s)\n", __func__,
-				seg->mr_len, seg->mr_base, seg->mr_rkey, pos,
-				n < nsegs ? "more" : "last");
+				seg->mr_len, (unsigned long long)seg->mr_base,
+				seg->mr_rkey, pos, n < nsegs ? "more" : "last");
 			cur_rchunk++;
 			r_xprt->rx_stats.read_chunk_count++;
 		} else {		/* write/reply */
@@ -234,8 +234,8 @@ rpcrdma_create_chunks(struct rpc_rqst *rqst, struct xdr_buf *target,
 			dprintk("RPC:       %s: %s chunk "
 				"elem %d@0x%llx:0x%x (%s)\n", __func__,
 				(type == rpcrdma_replych) ? "reply" : "write",
-				seg->mr_len, seg->mr_base, seg->mr_rkey,
-				n < nsegs ? "more" : "last");
+				seg->mr_len, (unsigned long long)seg->mr_base,
+				seg->mr_rkey, n < nsegs ? "more" : "last");
 			cur_wchunk++;
 			if (type == rpcrdma_replych)
 				r_xprt->rx_stats.reply_chunk_count++;
@@ -577,7 +577,7 @@ rpcrdma_count_chunks(struct rpcrdma_rep *rep, int max, int wrchunk, __be32 **ipt
 			dprintk("RPC:       %s: chunk %d@0x%llx:0x%x\n",
 				__func__,
 				ntohl(seg->rs_length),
-				off,
+				(unsigned long long)off,
 				ntohl(seg->rs_handle));
 		}
 		total_len += ntohl(seg->rs_length);
