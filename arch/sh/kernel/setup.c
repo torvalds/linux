@@ -88,8 +88,7 @@ static struct resource data_resource = { .name = "Kernel data", };
 
 unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
-
-unsigned long memory_end;
+unsigned long memory_end = 0;
 EXPORT_SYMBOL(memory_end);
 
 static int __init early_parse_mem(char *p)
@@ -265,7 +264,8 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.end = virt_to_phys(_edata)-1;
 
 	memory_start = (unsigned long)PAGE_OFFSET+__MEMORY_START;
-	memory_end = memory_start + __MEMORY_SIZE;
+	if (!memory_end)
+		memory_end = memory_start + __MEMORY_SIZE;
 
 #ifdef CONFIG_CMDLINE_BOOL
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));
