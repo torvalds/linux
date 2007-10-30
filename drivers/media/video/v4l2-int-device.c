@@ -57,12 +57,12 @@ static void v4l2_int_device_try_attach_all(void)
 			if (!try_module_get(m->module))
 				continue;
 
-			if (m->u.master->attach(m, s)) {
+			s->u.slave->master = m;
+			if (m->u.master->attach(s)) {
+				s->u.slave->master = NULL;
 				module_put(m->module);
 				continue;
 			}
-
-			s->u.slave->master = m;
 		}
 	}
 }
