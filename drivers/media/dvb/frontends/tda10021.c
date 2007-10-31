@@ -301,6 +301,8 @@ static int tda10021_read_ber(struct dvb_frontend* fe, u32* ber)
 	u32 _ber = tda10021_readreg(state, 0x14) |
 		(tda10021_readreg(state, 0x15) << 8) |
 		((tda10021_readreg(state, 0x16) & 0x0f) << 16);
+	_tda10021_writereg(state, 0x10, (tda10021_readreg(state, 0x10) & ~0xc0)
+					| (tda10021_inittab[0x10] & 0xc0));
 	*ber = 10 * _ber;
 
 	return 0;
