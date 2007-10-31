@@ -1105,9 +1105,16 @@ static int ocfs2_rename(struct inode *old_dir,
 		goto bail;
 	}
 
-	if (!new_de && new_inode)
-		mlog(ML_ERROR, "inode %lu does not exist in it's parent "
-		     "directory!", new_inode->i_ino);
+	if (!new_de && new_inode) {
+		/*
+		 * Target was unlinked by another node while we were
+		 * waiting to get to ocfs2_rename(). There isn't
+		 * anything we can do here to help the situation, so
+		 * bubble up the appropriate error.
+		 */
+		status = -ENOENT;
+		goto bail;
+	}
 
 	/* In case we need to overwrite an existing file, we blow it
 	 * away first */
