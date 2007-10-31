@@ -950,7 +950,8 @@ static struct scsi_host_template aac_driver_template = {
 
 static void __aac_shutdown(struct aac_dev * aac)
 {
-	kthread_stop(aac->thread);
+	if (aac->aif_thread)
+		kthread_stop(aac->thread);
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
 	free_irq(aac->pdev->irq, aac);
