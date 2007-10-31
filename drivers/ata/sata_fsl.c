@@ -561,7 +561,6 @@ static inline void sata_fsl_cache_taskfile_from_d2h_fis(struct ata_queued_cmd
 							struct ata_port *ap)
 {
 	struct sata_fsl_port_priv *pp = ap->private_data;
-	u8 fis[6 * 4];
 	struct sata_fsl_host_priv *host_priv = ap->host->private_data;
 	void __iomem *hcr_base = host_priv->hcr_base;
 	unsigned int tag = sata_fsl_tag(qc->tag, hcr_base);
@@ -569,8 +568,7 @@ static inline void sata_fsl_cache_taskfile_from_d2h_fis(struct ata_queued_cmd
 
 	cd = pp->cmdentry + tag;
 
-	memcpy(fis, &cd->sfis, 6 * 4);	/* should we use memcpy_from_io() */
-	ata_tf_from_fis(fis, &pp->tf);
+	ata_tf_from_fis(cd->sfis, &pp->tf);
 }
 
 static u8 sata_fsl_check_status(struct ata_port *ap)
