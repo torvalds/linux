@@ -2184,24 +2184,31 @@ int ata_eh_reset(struct ata_link *link, int classify,
 					"follow-up softreset required "
 					"but no softreset avaliable\n");
 			rc = -EINVAL;
-			goto out;
+			goto fail;
 		}
 
 		ata_eh_about_to_do(link, NULL, ATA_EH_RESET_MASK);
 		rc = ata_do_reset(link, reset, classes, deadline);
-
-		if (rc == 0 && classify && classes[0] == ATA_DEV_UNKNOWN &&
-		    !(lflags & ATA_LFLAG_ASSUME_CLASS)) {
-			ata_link_printk(link, KERN_ERR,
-					"classification failed\n");
-			rc = -EINVAL;
-			goto out;
-		}
 	}
 
 	/* -EAGAIN can happen if we skipped followup SRST */
 	if (rc && rc != -EAGAIN)
 		goto fail;
+
+	/* was classification successful? */
+	if (classify && classes[0] == ATA_DEV_UNKNOWN &&
+	    !(lflags & ATA_LFLAG_ASSUME_CLASS)) {
+		if (try < max_tries) {
+			ata_link_printk(link, KERN_WARNING,
+					"classification failed\n");
+			rc = -EINVAL;
+			goto fail;
+		}
+
+		ata_link_printk(link, KERN_WARNING,
+				"classfication failed, assuming ATA\n");
+		lflags |= ATA_LFLAG_ASSUME_ATA;
+	}
 
 	ata_link_for_each_dev(dev, link) {
 		/* After the reset, the device state is PIO 0 and the
