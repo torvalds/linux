@@ -816,6 +816,7 @@ struct e1000_bus_info {
 
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
+	bool alt_mac_addr_is_present;
 };
 
 struct e1000_shadow_ram {

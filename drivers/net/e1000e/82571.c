@@ -752,6 +752,10 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	ew32(IMC, 0xffffffff);
 	icr = er32(ICR);
 
+	if (hw->mac.type == e1000_82571 &&
+		hw->dev_spec.e82571.alt_mac_addr_is_present)
+			e1000e_set_laa_state_82571(hw, true);
+
 	return 0;
 }
 
