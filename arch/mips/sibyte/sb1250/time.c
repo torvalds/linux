@@ -154,7 +154,6 @@ void __cpuinit sb1250_clockevent_init(void)
 	__raw_writeq(IMR_IP4_VAL,
 		     IOADDR(A_IMR_REGISTER(cpu, R_IMR_INTERRUPT_MAP_BASE) +
 			    (irq << 3)));
-	cd->cpumask = cpumask_of_cpu(0);
 
 	sb1250_unmask_irq(cpu, irq);
 
