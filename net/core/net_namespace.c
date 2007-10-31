@@ -112,6 +112,8 @@ out_undo:
 		if (ops->exit)
 			ops->exit(net);
 	}
+
+	rcu_barrier();
 	goto out;
 }
 
