@@ -16,25 +16,31 @@
 #include "sysfs.h"
 
 
-static void remove_files(struct sysfs_dirent *dir_sd,
+static void remove_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 			 const struct attribute_group *grp)
 {
 	struct attribute *const* attr;
+	int i;
 
-	for (attr = grp->attrs; *attr; attr++)
-		sysfs_hash_and_remove(dir_sd, (*attr)->name);
+	for (i = 0, attr = grp->attrs; *attr; i++, attr++)
+		if (!grp->is_visible ||
+		    grp->is_visible(kobj, *attr, i))
+			sysfs_hash_and_remove(dir_sd, (*attr)->name);
 }
 
-static int create_files(struct sysfs_dirent *dir_sd,
+static int create_files(struct sysfs_dirent *dir_sd, struct kobject *kobj,
 			const struct attribute_group *grp)
 {
 	struct attribute *const* attr;
-	int error = 0;
+	int error = 0, i;
 
-	for (attr = grp->attrs; *attr && !error; attr++)
-		error = sysfs_add_file(dir_sd, *attr, SYSFS_KOBJ_ATTR);
+	for (i = 0, attr = grp->attrs; *attr && !error; i++, attr++)
+		if (!grp->is_visible ||
+		    grp->is_visible(kobj, *attr, i))
+			error |=
+				sysfs_add_file(dir_sd, *attr, SYSFS_KOBJ_ATTR);
 	if (error)
-		remove_files(dir_sd, grp);
+		remove_files(dir_sd, kobj, grp);
 	return error;
 }
 
@@ -54,7 +60,7 @@ int sysfs_create_group(struct kobject * kobj,
 	} else
 		sd = kobj->sd;
 	sysfs_get(sd);
-	error = create_files(sd, grp);
+	error = create_files(sd, kobj, grp);
 	if (error) {
 		if (grp->name)
 			sysfs_remove_subdir(sd);
@@ -75,7 +81,7 @@ void sysfs_remove_group(struct kobject * kobj,
 	} else
 		sd = sysfs_get(dir_sd);
 
-	remove_files(sd, grp);
+	remove_files(sd, kobj, grp);
 	if (grp->name)
 		sysfs_remove_subdir(sd);
 
