@@ -518,10 +518,10 @@ static int test_cc(unsigned int condition, unsigned int flags)
 
 static void decode_register_operand(struct operand *op,
 				    struct decode_cache *c,
-				    int highbyte_regs,
 				    int inhibit_bytereg)
 {
 	unsigned reg = c->modrm_reg;
+	int highbyte_regs = c->rex_prefix == 0;
 
 	if (!(c->d & ModRM))
 		reg = (c->b & 7) | ((c->rex_prefix & 1) << 3);
@@ -837,7 +837,7 @@ modrm_done:
 	case SrcNone:
 		break;
 	case SrcReg:
-		decode_register_operand(&c->src, c, c->rex_prefix == 0, 0);
+		decode_register_operand(&c->src, c, 0);
 		break;
 	case SrcMem16:
 		c->src.bytes = 2;
@@ -895,7 +895,7 @@ modrm_done:
 		/* Special instructions do their own operand decoding. */
 		return 0;
 	case DstReg:
-		decode_register_operand(&c->dst, c, c->rex_prefix == 0,
+		decode_register_operand(&c->dst, c,
 			 c->twobyte && (c->b == 0xb6 || c->b == 0xb7));
 		break;
 	case DstMem:
