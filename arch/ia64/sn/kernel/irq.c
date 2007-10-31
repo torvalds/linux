@@ -5,7 +5,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2006 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2007 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 #include <linux/irq.h>
@@ -85,12 +85,18 @@ static void sn_shutdown_irq(unsigned int irq)
 {
 }
 
+extern void ia64_mca_register_cpev(int);
+
 static void sn_disable_irq(unsigned int irq)
 {
+	if (irq == local_vector_to_irq(IA64_CPE_VECTOR))
+		ia64_mca_register_cpev(0);
 }
 
 static void sn_enable_irq(unsigned int irq)
 {
+	if (irq == local_vector_to_irq(IA64_CPE_VECTOR))
+		ia64_mca_register_cpev(irq);
 }
 
 static void sn_ack_irq(unsigned int irq)
