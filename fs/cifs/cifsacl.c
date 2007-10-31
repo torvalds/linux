@@ -162,7 +162,8 @@ static void access_flags_to_mode(__u32 ace_flags, umode_t *pmode,
 }
 
 
-static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
+#ifdef CONFIG_CIFS_DEBUG2
+static void dump_ace(struct cifs_ace *pace, char *end_of_acl)
 {
 	int num_subauth;
 
@@ -180,7 +181,6 @@ static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 
 	num_subauth = pace->sid.num_subauth;
 	if (num_subauth) {
-#ifdef CONFIG_CIFS_DEBUG2
 		int i;
 		cFYI(1, ("ACE revision %d num_auth %d type %d flags %d size %d",
 			pace->sid.revision, pace->sid.num_subauth, pace->type,
@@ -192,11 +192,11 @@ static void parse_ace(struct cifs_ace *pace, char *end_of_acl)
 
 		/* BB add length check to make sure that we do not have huge
 			num auths and therefore go off the end */
-#endif
 	}
 
 	return;
 }
+#endif
 
 
 static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
@@ -240,9 +240,9 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 		for (i = 0; i < num_aces; ++i) {
 			ppace[i] = (struct cifs_ace *) (acl_base + acl_size);
-
-			parse_ace(ppace[i], end_of_acl);
-
+#ifdef CONFIG_CIFS_DEBUG2
+			dump_ace(ppace[i], end_of_acl);
+#endif
 			if (compare_sids(&(ppace[i]->sid), pownersid))
 				access_flags_to_mode(ppace[i]->access_req,
 						&(inode->i_mode), S_IRWXU);
@@ -385,7 +385,7 @@ void acl_to_uid_mode(struct inode *inode, const char *path)
 		int oplock = FALSE;
 		/* open file */
 		rc = CIFSSMBOpen(xid, cifs_sb->tcon, path, FILE_OPEN,
-				GENERIC_READ, 0, &fid, &oplock, NULL,
+				READ_CONTROL, 0, &fid, &oplock, NULL,
 				cifs_sb->local_nls, cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc != 0) {
@@ -408,5 +408,23 @@ void acl_to_uid_mode(struct inode *inode, const char *path)
 	kfree(pntsd);
 	FreeXid(xid);
 	return;
+}
+
+int mode_to_acl(struct inode *inode, const char *path)
+{
+	int rc = 0;
+	__u32 acllen = 0;
+	struct cifs_ntsd *pntsd = NULL;
+
+	cFYI(1, ("set ACL from mode for %s", path));
+
+	/* Get the security descriptor */
+
+	/* Add/Modify the three ACEs for owner, group, everyone */
+
+	/* Set the security descriptor */
+	kfree(pntsd);
+
+	return rc;
 }
 #endif /* CONFIG_CIFS_EXPERIMENTAL */

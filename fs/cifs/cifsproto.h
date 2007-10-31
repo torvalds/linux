@@ -96,6 +96,8 @@ extern int cifs_get_inode_info_unix(struct inode **pinode,
 			const unsigned char *search_path,
 			struct super_block *sb, int xid);
 extern void acl_to_uid_mode(struct inode *inode, const char *search_path);
+extern int mode_to_acl(struct inode *inode, const char *path);
+
 extern int cifs_mount(struct super_block *, struct cifs_sb_info *, char *,
 			const char *);
 extern int cifs_umount(struct super_block *, struct cifs_sb_info *);
