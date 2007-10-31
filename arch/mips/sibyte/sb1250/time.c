@@ -113,12 +113,6 @@ static irqreturn_t sibyte_counter_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction sibyte_irqaction = {
-	.handler	= sibyte_counter_handler,
-	.flags		= IRQF_DISABLED | IRQF_PERCPU,
-	.name		= "timer",
-};
-
 static DEFINE_PER_CPU(struct clock_event_device, sibyte_hpt_clockevent);
 static DEFINE_PER_CPU(struct irqaction, sibyte_hpt_irqaction);
 static DEFINE_PER_CPU(char [18], sibyte_hpt_name);
@@ -161,7 +155,7 @@ void __cpuinit sb1250_clockevent_init(void)
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;
 	action->name	= name;
 	action->dev_id	= cd;
-	setup_irq(irq, &sibyte_irqaction);
+	setup_irq(irq, &action);
 }
 
 /*
