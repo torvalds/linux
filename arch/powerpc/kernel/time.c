@@ -586,7 +586,7 @@ void timer_interrupt(struct pt_regs * regs)
 		/* not time for this event yet */
 		now = per_cpu(decrementer_next_tb, cpu) - now;
 		if (now <= DECREMENTER_MAX)
-			set_dec((unsigned int)now - 1);
+			set_dec((int)now);
 		return;
 	}
 	old_regs = set_irq_regs(regs);
@@ -611,8 +611,6 @@ void timer_interrupt(struct pt_regs * regs)
 
 	if (evt->event_handler)
 		evt->event_handler(evt);
-	else
-		evt->set_next_event(DECREMENTER_MAX, evt);
 
 #ifdef CONFIG_PPC_ISERIES
 	if (firmware_has_feature(FW_FEATURE_ISERIES) && hvlpevent_is_pending())
@@ -836,9 +834,6 @@ static int decrementer_set_next_event(unsigned long evt,
 				      struct clock_event_device *dev)
 {
 	__get_cpu_var(decrementer_next_tb) = get_tb_or_rtc() + evt;
-	/* The decrementer interrupts on the 0 -> -1 transition */
-	if (evt)
-		--evt;
 	set_dec(evt);
 	return 0;
 }
@@ -871,7 +866,8 @@ void init_decrementer_clockevent(void)
 					     decrementer_clockevent.shift);
 	decrementer_clockevent.max_delta_ns =
 		clockevent_delta2ns(DECREMENTER_MAX, &decrementer_clockevent);
-	decrementer_clockevent.min_delta_ns = 1000;
+	decrementer_clockevent.min_delta_ns =
+		clockevent_delta2ns(2, &decrementer_clockevent);
 
 	register_decrementer_clockevent(cpu);
 }

@@ -176,25 +176,31 @@ static inline unsigned int get_dec(void)
 #endif
 }
 
+/*
+ * Note: Book E and 4xx processors differ from other PowerPC processors
+ * in when the decrementer generates its interrupt: on the 1 to 0
+ * transition for Book E/4xx, but on the 0 to -1 transition for others.
+ */
 static inline void set_dec(int val)
 {
 #if defined(CONFIG_40x)
 	mtspr(SPRN_PIT, val);
 #elif defined(CONFIG_8xx_CPU6)
-	set_dec_cpu6(val);
+	set_dec_cpu6(val - 1);
 #else
+#ifndef CONFIG_BOOKE
+	--val;
+#endif
 #ifdef CONFIG_PPC_ISERIES
-	int cur_dec;
-
 	if (firmware_has_feature(FW_FEATURE_ISERIES) &&
 			get_lppaca()->shared_proc) {
 		get_lppaca()->virtual_decr = val;
-		cur_dec = get_dec();
-		if (cur_dec > val)
+		if (get_dec() > val)
 			HvCall_setVirtualDecr();
-	} else
+		return;
+	}
 #endif
-		mtspr(SPRN_DEC, val);
+	mtspr(SPRN_DEC, val);
 #endif /* not 40x or 8xx_CPU6 */
 }
 
