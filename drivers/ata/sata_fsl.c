@@ -1223,10 +1223,6 @@ static struct scsi_host_template sata_fsl_sht = {
 	.slave_configure = ata_scsi_slave_config,
 	.slave_destroy = ata_scsi_slave_destroy,
 	.bios_param = ata_std_bios_param,
-#ifdef CONFIG_PM
-	.suspend = ata_scsi_device_suspend,
-	.resume = ata_scsi_device_resume,
-#endif
 };
 
 static const struct ata_port_operations sata_fsl_ops = {
