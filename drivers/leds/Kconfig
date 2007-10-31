@@ -122,9 +122,11 @@ config LEDS_CLEVO_MAIL
 	  programs through the leds subsystem. This LED have three
 	  known mode: off, blink at 0.5Hz and blink at 1Hz.
 
-	  As this LED cannot change it's brightness it blinks instead.
-	  The brightness value 0 means off, 1..127 means blink at 0.5Hz
-	  and 128..255 means blink at 1Hz.
+	  The driver supports two kinds of interface: using ledtrig-timer
+	  or through /sys/class/leds/clevo::mail/brightness. As this LED
+	  cannot change it's brightness it blinks instead. The brightness
+	  value 0 means off, 1..127 means blink at 0.5Hz and 128..255 means
+	  blink at 1Hz.
 
 	  This module can drive the mail LED for the following notebooks:
 

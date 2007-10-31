@@ -92,9 +92,46 @@ static void clevo_mail_led_set(struct led_classdev *led_cdev,
 
 }
 
+static int clevo_mail_led_blink(struct led_classdev *led_cdev,
+				unsigned long* delay_on,
+				unsigned long* delay_off)
+{
+	int status = -EINVAL;
+
+	if (*delay_on == 0 /* ms */ && *delay_off == 0 /* ms */) {
+		/* Special case: the leds subsystem requested us to
+		 * chose one user friendly blinking of the LED, and
+		 * start it. Let's blink the led slowly (0.5Hz).
+		 */
+		*delay_on = 1000; /* ms */
+		*delay_off = 1000; /* ms */
+		i8042_command(NULL, CLEVO_MAIL_LED_BLINK_0_5HZ);
+		status = 0;
+
+	} else if (*delay_on == 500 /* ms */ && *delay_off == 500 /* ms */) {
+		/* blink the led with 1Hz */
+		i8042_command(NULL, CLEVO_MAIL_LED_BLINK_1HZ);
+		status = 0;
+
+	} else if (*delay_on == 1000 /* ms */ && *delay_off == 1000 /* ms */) {
+		/* blink the led with 0.5Hz */
+		i8042_command(NULL, CLEVO_MAIL_LED_BLINK_0_5HZ);
+		status = 0;
+
+	} else {
+		printk(KERN_DEBUG KBUILD_MODNAME
+		       ": clevo_mail_led_blink(..., %lu, %lu),"
+		       " returning -EINVAL (unsupported)\n",
+		       *delay_on, *delay_off);
+	}
+
+	return status;
+}
+
 static struct led_classdev clevo_mail_led = {
 	.name			= "clevo::mail",
 	.brightness_set		= clevo_mail_led_set,
+	.blink_set		= clevo_mail_led_blink,
 };
 
 static int __init clevo_mail_led_probe(struct platform_device *pdev)
