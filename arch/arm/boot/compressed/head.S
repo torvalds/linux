@@ -641,7 +641,7 @@ proc_types:
 		.word	0x000f0000
 		b	__armv4_mmu_cache_on
 		b	__armv4_mmu_cache_off
-		b	__armv4_mmu_cache_flush
+		b	__armv5tej_mmu_cache_flush
 
 		.word	0x0007b000		@ ARMv6
 		.word	0x000ff000
@@ -819,6 +819,13 @@ finished:
 iflush:
 		mcr	p15, 0, r10, c7, c5, 0	@ invalidate I+BTB
 		mcr	p15, 0, r10, c7, c10, 4	@ drain WB
+		mov	pc, lr
+
+__armv5tej_mmu_cache_flush:
+1:		mrc	p15, 0, r15, c7, c14, 3	@ test,clean,invalidate D cache
+		bne	1b
+		mcr	p15, 0, r0, c7, c5, 0	@ flush I cache
+		mcr	p15, 0, r0, c7, c10, 4	@ drain WB
 		mov	pc, lr
 
 __armv4_mmu_cache_flush:
