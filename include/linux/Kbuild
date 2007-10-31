@@ -326,6 +326,7 @@ unifdef-y += sonypi.h
 unifdef-y += soundcard.h
 unifdef-y += stat.h
 unifdef-y += stddef.h
+unifdef-y += string.h
 unifdef-y += synclink.h
 unifdef-y += sysctl.h
 unifdef-y += tcp.h
