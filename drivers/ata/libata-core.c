@@ -735,6 +735,7 @@ enable_pm_out:
 	return /* rc */;	/* hopefully we can use 'rc' eventually */
 }
 
+#ifdef CONFIG_PM
 /**
  *	ata_dev_disable_pm - disable SATA interface power management
  *	@device - device to enable ipm for
@@ -755,6 +756,7 @@ static void ata_dev_disable_pm(struct ata_device *dev)
 	if (ap->ops->disable_pm)
 		ap->ops->disable_pm(ap);
 }
+#endif	/* CONFIG_PM */
 
 void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
 {
@@ -764,6 +766,7 @@ void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
 	ata_port_schedule_eh(ap);
 }
 
+#ifdef CONFIG_PM
 static void ata_lpm_enable(struct ata_host *host)
 {
 	struct ata_link *link;
@@ -789,6 +792,7 @@ static void ata_lpm_disable(struct ata_host *host)
 		ata_lpm_schedule(ap, ap->pm_policy);
 	}
 }
+#endif	/* CONFIG_PM */
 
 
 /**
