@@ -151,6 +151,9 @@ pxa_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 		OIER &= ~OIER_E0;
 		raw_local_irq_restore(irqflags);
 		break;
+
+	case CLOCK_EVT_MODE_RESUME:
+		break;
 	}
 }
 
