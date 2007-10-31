@@ -704,8 +704,8 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 
 /**
  *	ata_dev_enable_pm - enable SATA interface power management
- *	@device - device to enable ipm for
- *	@policy - the link power management policy
+ *	@dev:  device to enable power management
+ *	@policy: the link power management policy
  *
  *	Enable SATA Interface power management.  This will enable
  *	Device Interface Power Management (DIPM) for min_power
@@ -738,7 +738,7 @@ enable_pm_out:
 #ifdef CONFIG_PM
 /**
  *	ata_dev_disable_pm - disable SATA interface power management
- *	@device - device to enable ipm for
+ *	@dev: device to disable power management
  *
  *	Disable SATA Interface power management.  This will disable
  *	Device Interface Power Management (DIPM) without changing
