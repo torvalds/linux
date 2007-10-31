@@ -2204,7 +2204,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		unsigned long now = jiffies;
 
 		if (time_before(now, deadline)) {
-			unsigned long delta = deadline - jiffies;
+			unsigned long delta = deadline - now;
 
 			ata_link_printk(link, KERN_WARNING, "reset failed "
 				"(errno=%d), retrying in %u secs\n",
