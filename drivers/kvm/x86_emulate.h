@@ -126,6 +126,7 @@ struct decode_cache {
 	u8 rep_prefix;
 	u8 op_bytes;
 	u8 ad_bytes;
+	u8 rex_prefix;
 	struct operand src;
 	struct operand dst;
 	unsigned long *override_base;
