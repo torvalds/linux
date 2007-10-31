@@ -308,6 +308,19 @@ int kobject_rename(struct kobject * kobj, const char *new_name)
 	if (!kobj->parent)
 		return -EINVAL;
 
+	/* see if this name is already in use */
+	if (kobj->kset) {
+		struct kobject *temp_kobj;
+		temp_kobj = kset_find_obj(kobj->kset, new_name);
+		if (temp_kobj) {
+			printk(KERN_WARNING "kobject '%s' can not be renamed "
+			       "to '%s' as '%s' is already in existance.\n",
+			       kobject_name(kobj), new_name, new_name);
+			kobject_put(temp_kobj);
+			return -EINVAL;
+		}
+	}
+
 	devpath = kobject_get_path(kobj, GFP_KERNEL);
 	if (!devpath) {
 		error = -ENOMEM;
