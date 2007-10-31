@@ -2751,17 +2751,27 @@ int sata_down_spd_limit(struct ata_link *link)
 
 static int __sata_set_spd_needed(struct ata_link *link, u32 *scontrol)
 {
-	u32 spd, limit;
+	struct ata_link *host_link = &link->ap->link;
+	u32 limit, target, spd;
 
-	if (link->sata_spd_limit == UINT_MAX)
-		limit = 0;
+	limit = link->sata_spd_limit;
+
+	/* Don't configure downstream link faster than upstream link.
+	 * It doesn't speed up anything and some PMPs choke on such
+	 * configuration.
+	 */
+	if (!ata_is_host_link(link) && host_link->sata_spd)
+		limit &= (1 << host_link->sata_spd) - 1;
+
+	if (limit == UINT_MAX)
+		target = 0;
 	else
-		limit = fls(link->sata_spd_limit);
+		target = fls(limit);
 
 	spd = (*scontrol >> 4) & 0xf;
-	*scontrol = (*scontrol & ~0xf0) | ((limit & 0xf) << 4);
+	*scontrol = (*scontrol & ~0xf0) | ((target & 0xf) << 4);
 
-	return spd != limit;
+	return spd != target;
 }
 
 /**
