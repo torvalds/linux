@@ -152,7 +152,11 @@ config LEDS_TRIGGER_TIMER
 	depends on LEDS_TRIGGERS
 	help
 	  This allows LEDs to be controlled by a programmable timer
-	  via sysfs. If unsure, say Y.
+	  via sysfs. Some LED hardware can be programmed to start
+	  blinking the LED without any further software interaction.
+	  For more details read Documentation/leds-class.txt.
+
+	  If unsure, say Y.
 
 config LEDS_TRIGGER_IDE_DISK
 	bool "LED IDE Disk Trigger"
