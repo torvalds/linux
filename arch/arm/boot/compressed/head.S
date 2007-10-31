@@ -623,6 +623,12 @@ proc_types:
 		b	__armv4_mmu_cache_off
 		b	__armv4_mmu_cache_flush
 
+		.word	0x56055310		@ Feroceon
+		.word	0xfffffff0
+		b	__armv4_mmu_cache_on
+		b	__armv4_mmu_cache_off
+		b	__armv5tej_mmu_cache_flush
+
 		@ These match on the architecture ID
 
 		.word	0x00020000		@ ARMv4T
