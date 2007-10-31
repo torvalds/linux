@@ -50,8 +50,6 @@ static s32 ixgbe_setup_mac_link_speed_82598(struct ixgbe_hw *hw, u32 speed,
 					    bool autoneg,
 					    bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw);
-static s32 ixgbe_check_copper_link_82598(struct ixgbe_hw *hw, u32 *speed,
-					 bool *link_up);
 static s32 ixgbe_setup_copper_link_speed_82598(struct ixgbe_hw *hw, u32 speed,
 					       bool autoneg,
 					       bool autoneg_wait_to_complete);
@@ -63,6 +61,28 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 	hw->mac.num_rx_queues = IXGBE_82598_MAX_TX_QUEUES;
 	hw->mac.num_tx_queues = IXGBE_82598_MAX_RX_QUEUES;
 	hw->mac.num_rx_addrs = IXGBE_82598_RAR_ENTRIES;
+
+	/* PHY ops are filled in by default properly for Fiber only */
+	if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_copper) {
+		hw->mac.ops.setup_link = &ixgbe_setup_copper_link_82598;
+		hw->mac.ops.setup_link_speed = &ixgbe_setup_copper_link_speed_82598;
+		hw->mac.ops.get_link_settings =
+				&ixgbe_get_copper_link_settings_82598;
+
+		/* Call PHY identify routine to get the phy type */
+		ixgbe_identify_phy(hw);
+
+		switch (hw->phy.type) {
+		case ixgbe_phy_tn:
+			hw->phy.ops.setup_link = &ixgbe_setup_tnx_phy_link;
+			hw->phy.ops.check_link = &ixgbe_check_tnx_phy_link;
+			hw->phy.ops.setup_link_speed =
+					&ixgbe_setup_tnx_phy_link_speed;
+			break;
+		default:
+			break;
+		}
+	}
 
 	return 0;
 }
@@ -206,6 +226,7 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw)
 		autoc_reg |= hw->mac.link_mode_select;
 
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
+		IXGBE_WRITE_FLUSH(hw);
 		msleep(50);
 	}
 
@@ -314,7 +335,7 @@ static s32 ixgbe_setup_mac_link_speed_82598(struct ixgbe_hw *hw,
 		 * ixgbe_hw This will write the AUTOC register based on the new
 		 * stored values
 		 */
-		hw->phy.ops.setup(hw);
+		hw->mac.ops.setup_link(hw);
 	}
 
 	return status;
@@ -332,72 +353,18 @@ static s32 ixgbe_setup_mac_link_speed_82598(struct ixgbe_hw *hw,
  **/
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw)
 {
-	s32 status;
-	u32 speed = 0;
-	bool link_up = false;
-
-	/* Set up MAC */
-	hw->phy.ops.setup(hw);
+	s32 status = 0;
 
 	/* Restart autonegotiation on PHY */
-	status = hw->phy.ops.setup(hw);
+	if (hw->phy.ops.setup_link)
+		status = hw->phy.ops.setup_link(hw);
 
-	/* Synchronize MAC to PHY speed */
-	if (status == 0)
-		status = hw->phy.ops.check(hw, &speed, &link_up);
+	/* Set MAC to KX/KX4 autoneg, which defaultis to Parallel detection */
+	hw->mac.link_attach_type = (IXGBE_AUTOC_10G_KX4 | IXGBE_AUTOC_1G_KX);
+	hw->mac.link_mode_select = IXGBE_AUTOC_LMS_KX4_AN;
 
-	return status;
-}
-
-/**
- *  ixgbe_check_copper_link_82598 - Syncs MAC & PHY link settings
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @link_up: true if link is up, false otherwise
- *
- *  Reads the mac link, phy link, and synchronizes the MAC to PHY.
- **/
-static s32 ixgbe_check_copper_link_82598(struct ixgbe_hw *hw, u32 *speed,
-					 bool *link_up)
-{
-	s32 status;
-	u32 phy_speed = 0;
-	bool phy_link = false;
-
-	/* This is the speed and link the MAC is set at */
-	hw->phy.ops.check(hw, speed, link_up);
-
-	/*
-	 * Check current speed and link status of the PHY register.
-	 * This is a vendor specific register and may have to
-	 * be changed for other copper PHYs.
-	 */
-	status = hw->phy.ops.check(hw, &phy_speed, &phy_link);
-
-	if ((status == 0) && (phy_link)) {
-		/*
-		 * Check current link status of the MACs link's register
-		 * matches that of the speed in the PHY register
-		 */
-		if (*speed != phy_speed) {
-			/*
-			 * The copper PHY requires 82598 attach type to be XAUI
-			 * for 10G and BX for 1G
-			 */
-			hw->mac.link_attach_type =
-				(IXGBE_AUTOC_10G_XAUI | IXGBE_AUTOC_1G_BX);
-
-			/* Synchronize the MAC speed to the PHY speed */
-			status = hw->phy.ops.setup_speed(hw, phy_speed, false,
-							  false);
-			if (status == 0)
-				hw->phy.ops.check(hw, speed, link_up);
-			else
-				status = IXGBE_ERR_LINK_SETUP;
-		}
-	} else {
-		*link_up = phy_link;
-	}
+	/* Set up MAC */
+	hw->mac.ops.setup_link(hw);
 
 	return status;
 }
@@ -415,16 +382,19 @@ static s32 ixgbe_setup_copper_link_speed_82598(struct ixgbe_hw *hw, u32 speed,
 					       bool autoneg,
 					       bool autoneg_wait_to_complete)
 {
-	s32 status;
-	bool link_up = 0;
+	s32 status = 0;
 
 	/* Setup the PHY according to input speed */
-	status = hw->phy.ops.setup_speed(hw, speed, autoneg,
-					  autoneg_wait_to_complete);
+	if (hw->phy.ops.setup_link_speed)
+		status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
+						autoneg_wait_to_complete);
 
-	/* Synchronize MAC to PHY speed */
-	if (status == 0)
-		status = hw->phy.ops.check(hw, &speed, &link_up);
+	/* Set MAC to KX/KX4 autoneg, which defaults to Parallel detection */
+	hw->mac.link_attach_type = (IXGBE_AUTOC_10G_KX4 | IXGBE_AUTOC_1G_KX);
+	hw->mac.link_mode_select = IXGBE_AUTOC_LMS_KX4_AN;
+
+	/* Set up MAC */
+	hw->mac.ops.setup_link(hw);
 
 	return status;
 }
@@ -542,47 +512,15 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 static struct ixgbe_mac_operations mac_ops_82598 = {
 	.reset			= &ixgbe_reset_hw_82598,
 	.get_media_type		= &ixgbe_get_media_type_82598,
+	.setup_link		= &ixgbe_setup_mac_link_82598,
+	.check_link		= &ixgbe_check_mac_link_82598,
+	.setup_link_speed	= &ixgbe_setup_mac_link_speed_82598,
+	.get_link_settings	= &ixgbe_get_link_settings_82598,
 };
 
-static struct ixgbe_phy_operations phy_ops_82598EB = {
-	.setup			= &ixgbe_setup_copper_link_82598,
-	.check			= &ixgbe_check_copper_link_82598,
-	.setup_speed		= &ixgbe_setup_copper_link_speed_82598,
-	.get_settings		= &ixgbe_get_copper_link_settings_82598,
-};
-
-struct ixgbe_info ixgbe_82598EB_info = {
+struct ixgbe_info ixgbe_82598_info = {
 	.mac			= ixgbe_mac_82598EB,
 	.get_invariants		= &ixgbe_get_invariants_82598,
 	.mac_ops		= &mac_ops_82598,
-	.phy_ops		= &phy_ops_82598EB,
-};
-
-static struct ixgbe_phy_operations phy_ops_82598AT = {
-	.setup			= &ixgbe_setup_tnx_phy_link,
-	.check			= &ixgbe_check_tnx_phy_link,
-	.setup_speed		= &ixgbe_setup_tnx_phy_link_speed,
-	.get_settings		= &ixgbe_get_copper_link_settings_82598,
-};
-
-struct ixgbe_info ixgbe_82598AT_info = {
-	.mac			= ixgbe_mac_82598EB,
-	.get_invariants		= &ixgbe_get_invariants_82598,
-	.mac_ops		= &mac_ops_82598,
-	.phy_ops		= &phy_ops_82598AT,
-};
-
-static struct ixgbe_phy_operations phy_ops_82598AF = {
-	.setup			= &ixgbe_setup_mac_link_82598,
-	.check			= &ixgbe_check_mac_link_82598,
-	.setup_speed		= &ixgbe_setup_mac_link_speed_82598,
-	.get_settings		= &ixgbe_get_link_settings_82598,
-};
-
-struct ixgbe_info ixgbe_82598AF_info = {
-	.mac			= ixgbe_mac_82598EB,
-	.get_invariants		= &ixgbe_get_invariants_82598,
-	.mac_ops		= &mac_ops_82598,
-	.phy_ops		= &phy_ops_82598AF,
 };
 

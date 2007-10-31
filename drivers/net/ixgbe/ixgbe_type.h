@@ -1244,13 +1244,16 @@ struct ixgbe_hw;
 struct ixgbe_mac_operations {
 	s32 (*reset)(struct ixgbe_hw *);
 	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
+	s32 (*setup_link)(struct ixgbe_hw *);
+	s32 (*check_link)(struct ixgbe_hw *, u32 *, bool *);
+	s32 (*setup_link_speed)(struct ixgbe_hw *, u32, bool, bool);
+	s32 (*get_link_settings)(struct ixgbe_hw *, u32 *, bool *);
 };
 
 struct ixgbe_phy_operations {
-	s32 (*setup)(struct ixgbe_hw *);
-	s32 (*check)(struct ixgbe_hw *, u32 *, bool *);
-	s32 (*setup_speed)(struct ixgbe_hw *, u32, bool, bool);
-	s32 (*get_settings)(struct ixgbe_hw *, u32 *, bool *);
+	s32 (*setup_link)(struct ixgbe_hw *);
+	s32 (*check_link)(struct ixgbe_hw *, u32 *, bool *);
+	s32 (*setup_link_speed)(struct ixgbe_hw *, u32, bool, bool);
 };
 
 struct ixgbe_mac_info {
@@ -1266,7 +1269,6 @@ struct ixgbe_mac_info {
 	u32				link_mode_select;
 	bool				link_settings_loaded;
 };
-
 
 struct ixgbe_eeprom_info {
 	enum ixgbe_eeprom_type		type;
@@ -1290,7 +1292,6 @@ struct ixgbe_info {
 	enum ixgbe_mac_type		mac;
 	s32 				(*get_invariants)(struct ixgbe_hw *);
 	struct ixgbe_mac_operations	*mac_ops;
-	struct ixgbe_phy_operations	*phy_ops;
 };
 
 struct ixgbe_hw {

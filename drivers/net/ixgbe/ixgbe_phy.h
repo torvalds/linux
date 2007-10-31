@@ -31,7 +31,6 @@
 
 #include "ixgbe_type.h"
 
-s32 ixgbe_init_shared_code_phy(struct ixgbe_hw *hw);
 s32 ixgbe_setup_phy_link(struct ixgbe_hw *hw);
 s32 ixgbe_check_phy_link(struct ixgbe_hw *hw, u32 *speed, bool *link_up);
 s32 ixgbe_setup_phy_link_speed(struct ixgbe_hw *hw, u32 speed, bool autoneg,
