@@ -16,8 +16,6 @@
 #include "hfc_2bs0.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
-
 static const char *TeleInt_revision = "$Revision: 1.16.2.5 $";
 
 #define byteout(addr,val) outb(val,addr)
@@ -286,8 +284,7 @@ setup_TeleInt(struct IsdnCard *card)
 	init_timer(&cs->hw.hfc.timer);
 	if (!request_region(cs->hw.hfc.addr, 2, "TeleInt isdn")) {
 		printk(KERN_WARNING
-		       "HiSax: %s config port %x-%x already in use\n",
-		       CardType[card->typ],
+		       "HiSax: TeleInt config port %x-%x already in use\n",
 		       cs->hw.hfc.addr,
 		       cs->hw.hfc.addr + 2);
 		return (0);

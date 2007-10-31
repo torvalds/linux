@@ -20,8 +20,6 @@
 #include <linux/pci.h>
 #include "bkm_ax.h"
 
-extern const char *CardType[];
-
 static const char *bkm_a4t_revision = "$Revision: 1.22.2.4 $";
 
 
@@ -284,15 +282,16 @@ static int __devinit a4t_cs_init(struct IsdnCard *card,
 	I20_REGISTER_FILE *pI20_Regs;
 
 	if (!cs->irq) {		/* IRQ range check ?? */
-		printk(KERN_WARNING "HiSax: %s: No IRQ\n", CardType[card->typ]);
+		printk(KERN_WARNING "HiSax: Telekom A4T: No IRQ\n");
 		return (0);
 	}
 	cs->hw.ax.base = (long) ioremap(pci_memaddr, 4096);
 	/* Check suspecious address */
 	pI20_Regs = (I20_REGISTER_FILE *) (cs->hw.ax.base);
 	if ((pI20_Regs->i20IntStatus & 0x8EFFFFFF) != 0) {
-		printk(KERN_WARNING "HiSax: %s address %lx-%lx suspecious\n",
-		       CardType[card->typ], cs->hw.ax.base, cs->hw.ax.base + 4096);
+		printk(KERN_WARNING "HiSax: Telekom A4T address "
+		       "%lx-%lx suspicious\n",
+		       cs->hw.ax.base, cs->hw.ax.base + 4096);
 		iounmap((void *) cs->hw.ax.base);
 		cs->hw.ax.base = 0;
 		return (0);
@@ -302,8 +301,9 @@ static int __devinit a4t_cs_init(struct IsdnCard *card,
 	cs->hw.ax.isac_ale = GCS_1;
 	cs->hw.ax.jade_ale = GCS_3;
 
-	printk(KERN_INFO "HiSax: %s: Card configured at 0x%lX IRQ %d\n",
-	       CardType[card->typ], cs->hw.ax.base, cs->irq);
+	printk(KERN_INFO "HiSax: Telekom A4T: Card configured at "
+	       "0x%lX IRQ %d\n",
+	       cs->hw.ax.base, cs->irq);
 
 	setup_isac(cs);
 	cs->readisac = &ReadISAC;
@@ -349,11 +349,12 @@ setup_bkm_a4t(struct IsdnCard *card)
 			break;
 	}
 	if (!found) {
-		printk(KERN_WARNING "HiSax: %s: Card not found\n", CardType[card->typ]);
+		printk(KERN_WARNING "HiSax: Telekom A4T: Card not found\n");
 		return (0);
 	}
 	if (!pci_memaddr) {
-		printk(KERN_WARNING "HiSax: %s: No Memory base address\n", CardType[card->typ]);
+		printk(KERN_WARNING "HiSax: Telekom A4T: "
+		       "No Memory base address\n");
 		return (0);
 	}
 

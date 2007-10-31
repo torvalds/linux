@@ -20,8 +20,6 @@
 #include "hscx.h"
 #include "isdnl1.h"
 
-extern const char *CardType[];
-
 static const char *Asuscom_revision = "$Revision: 1.14.2.4 $";
 
 #define byteout(addr,val) outb(val,addr)
@@ -376,8 +374,7 @@ setup_asuscom(struct IsdnCard *card)
 	cs->irq = card->para[0];
 	if (!request_region(cs->hw.asus.cfg_reg, bytecnt, "asuscom isdn")) {
 		printk(KERN_WARNING
-		       "HiSax: %s config port %x-%x already in use\n",
-		       CardType[card->typ],
+		       "HiSax: ISDNLink config port %x-%x already in use\n",
 		       cs->hw.asus.cfg_reg,
 		       cs->hw.asus.cfg_reg + bytecnt);
 		return (0);

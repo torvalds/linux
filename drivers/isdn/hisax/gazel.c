@@ -19,7 +19,6 @@
 #include "ipac.h"
 #include <linux/pci.h>
 
-extern const char *CardType[];
 static const char *gazel_revision = "$Revision: 2.19.2.4 $";
 
 #define R647      1
@@ -479,8 +478,8 @@ reserve_regions(struct IsdnCard *card, struct IsdnCardState *cs)
 	return 0;
 
       error:
-	printk(KERN_WARNING "Gazel: %s io ports 0x%x-0x%x already in use\n",
-	       CardType[cs->typ], adr, adr + len);
+	printk(KERN_WARNING "Gazel: io ports 0x%x-0x%x already in use\n",
+	       adr, adr + len);
 	return 1;
 }
 

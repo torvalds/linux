@@ -18,8 +18,6 @@
 #include <linux/interrupt.h>
 #include <linux/isapnp.h>
 
-extern const char *CardType[];
-
 static const char *hfcsx_revision = "$Revision: 1.12.2.5 $";
 
 /***************************************/
