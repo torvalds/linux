@@ -218,7 +218,7 @@ static void cn_rx_skb(struct sk_buff *__skb)
 		    skb->len < nlh->nlmsg_len ||
 		    nlh->nlmsg_len > CONNECTOR_MAX_MSG_SIZE) {
 			kfree_skb(skb);
-			goto out;
+			return;
 		}
 
 		len = NLMSG_ALIGN(nlh->nlmsg_len);
@@ -229,9 +229,6 @@ static void cn_rx_skb(struct sk_buff *__skb)
 		if (err < 0)
 			kfree_skb(skb);
 	}
-
-out:
-	kfree_skb(__skb);
 }
 
 /*
