@@ -355,7 +355,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 					"s/g len unaligned : 0x%x\n", sg_len);
 
 		if ((num_prde == (SATA_FSL_MAX_PRD_DIRECT - 1)) &&
-		    !ata_sg_is_last(sg, qc)) {
+		    (qc->n_iter + 1 != qc->n_elem)) {
 			VPRINTK("setting indirect prde\n");
 			prd_ptr_to_indirect_ext = prd;
 			prd->dba = cpu_to_le32(indirect_ext_segment_paddr);
