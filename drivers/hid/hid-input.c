@@ -297,7 +297,7 @@ static struct hid_usage *hidinput_find_key(struct hid_device *hid,
 static int hidinput_getkeycode(struct input_dev *dev, int scancode,
 				int *keycode)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct hid_usage *usage;
 
 	usage = hidinput_find_key(hid, scancode, 0);
@@ -311,7 +311,7 @@ static int hidinput_getkeycode(struct input_dev *dev, int scancode,
 static int hidinput_setkeycode(struct input_dev *dev, int scancode,
 				int keycode)
 {
-	struct hid_device *hid = dev->private;
+	struct hid_device *hid = input_get_drvdata(dev);
 	struct hid_usage *usage;
 	int old_keycode;
 
