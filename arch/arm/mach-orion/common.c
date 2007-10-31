@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/mv643xx_eth.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
@@ -167,6 +168,49 @@ static struct platform_device orion_ehci1 = {
 	.resource	= orion_ehci1_resources,
 	.num_resources	= ARRAY_SIZE(orion_ehci1_resources),
 };
+
+/*****************************************************************************
+ * Gigabit Ethernet port
+ * (The Orion and Discovery (MV643xx) families use the same Ethernet driver)
+ ****************************************************************************/
+
+static struct resource orion_eth_shared_resources[] = {
+	{
+		.start	= ORION_ETH_REG_BASE,
+		.end	= ORION_ETH_REG_BASE + 0xffff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device orion_eth_shared = {
+	.name		= MV643XX_ETH_SHARED_NAME,
+	.id		= 0,
+	.num_resources	= 1,
+	.resource	= orion_eth_shared_resources,
+};
+
+static struct resource orion_eth_resources[] = {
+	{
+		.name	= "eth irq",
+		.start	= IRQ_ORION_ETH_SUM,
+		.end	= IRQ_ORION_ETH_SUM,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device orion_eth = {
+	.name		= MV643XX_ETH_NAME,
+	.id		= 0,
+	.num_resources	= 1,
+	.resource	= orion_eth_resources,
+};
+
+void __init orion_eth_init(struct mv643xx_eth_platform_data *eth_data)
+{
+	orion_eth.dev.platform_data = eth_data;
+	platform_device_register(&orion_eth_shared);
+	platform_device_register(&orion_eth);
+}
 
 /*****************************************************************************
  * General

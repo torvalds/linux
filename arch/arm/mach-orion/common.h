@@ -67,4 +67,12 @@ void gpio_display(void);	/* debug */
  */
 extern struct sys_timer orion_timer;
 
+/*
+ * Pull in Orion Ethernet platform_data, used by machine-setup
+ */
+
+struct mv643xx_eth_platform_data;
+
+void __init orion_eth_init(struct mv643xx_eth_platform_data *eth_data);
+
 #endif /* __ARCH_ORION_COMMON_H__ */
