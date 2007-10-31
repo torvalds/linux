@@ -236,20 +236,6 @@ void __init init_sb1250_irqs(void)
 }
 
 
-static irqreturn_t  sb1250_dummy_handler(int irq, void *dev_id)
-{
-	return IRQ_NONE;
-}
-
-static struct irqaction sb1250_dummy_action = {
-	.handler = sb1250_dummy_handler,
-	.flags   = 0,
-	.mask    = CPU_MASK_NONE,
-	.name    = "sb1250-private",
-	.next    = NULL,
-	.dev_id  = 0
-};
-
 /*
  *  arch_init_irq is called early in the boot sequence from init/main.c via
  *  init_IRQ.  It is responsible for setting up the interrupt mapper and

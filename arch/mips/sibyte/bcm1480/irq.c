@@ -265,21 +265,6 @@ void __init init_bcm1480_irqs(void)
 	}
 }
 
-
-static irqreturn_t bcm1480_dummy_handler(int irq, void *dev_id)
-{
-	return IRQ_NONE;
-}
-
-static struct irqaction bcm1480_dummy_action = {
-	.handler = bcm1480_dummy_handler,
-	.flags   = 0,
-	.mask    = CPU_MASK_NONE,
-	.name    = "bcm1480-private",
-	.next    = NULL,
-	.dev_id  = 0
-};
-
 /*
  *  init_IRQ is called early in the boot sequence from init/main.c.  It
  *  is responsible for setting up the interrupt mapper and installing the
