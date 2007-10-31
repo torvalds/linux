@@ -51,9 +51,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 {
 	spin_lock_init(&gt->gt_spin);
 
-	gt->gt_ilimit = 100;
-	gt->gt_ilimit_tries = 3;
-	gt->gt_ilimit_min = 1;
 	gt->gt_demote_secs = 300;
 	gt->gt_incore_log_blocks = 1024;
 	gt->gt_log_flush_secs = 60;
@@ -71,7 +68,6 @@ void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_new_files_jdata = 0;
 	gt->gt_new_files_directio = 0;
 	gt->gt_max_readahead = 1 << 18;
-	gt->gt_lockdump_size = 131072;
 	gt->gt_stall_secs = 600;
 	gt->gt_complain_secs = 10;
 	gt->gt_reclaim_limit = 5000;
