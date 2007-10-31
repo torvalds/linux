@@ -43,12 +43,12 @@ static void wrap_extra_led_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev wrap_error_led = {
-	.name		= "wrap:error",
+	.name		= "wrap::error",
 	.brightness_set	= wrap_error_led_set,
 };
 
 static struct led_classdev wrap_extra_led = {
-	.name           = "wrap:extra",
+	.name           = "wrap::extra",
 	.brightness_set = wrap_extra_led_set,
 };
 

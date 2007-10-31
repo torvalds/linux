@@ -93,7 +93,7 @@ static void clevo_mail_led_set(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev clevo_mail_led = {
-	.name			= "clevo",
+	.name			= "clevo::mail",
 	.brightness_set		= clevo_mail_led_set,
 };
 

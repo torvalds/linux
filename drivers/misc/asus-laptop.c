@@ -239,7 +239,7 @@ static struct workqueue_struct *led_workqueue;
 	static int object##_led_wk;					\
 	static DECLARE_WORK(object##_led_work, object##_led_update);	\
 	static struct led_classdev object##_led = {			\
-		.name           = "asus:" ledname,			\
+		.name           = "asus::" ledname,			\
 		.brightness_set = object##_led_set,			\
 	}
 

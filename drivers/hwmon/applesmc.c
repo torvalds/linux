@@ -905,7 +905,7 @@ static ssize_t applesmc_key_at_index_store(struct device *dev,
 }
 
 static struct led_classdev applesmc_backlight = {
-	.name			= "smc:kbd_backlight",
+	.name			= "smc::kbd_backlight",
 	.default_trigger	= "nand-disk",
 	.brightness_set		= applesmc_brightness_set,
 };

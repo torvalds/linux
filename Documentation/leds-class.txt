@@ -39,12 +39,13 @@ LED Device Naming
 
 Is currently of the form:
 
-"devicename:colour"
+"devicename:colour:function"
 
 There have been calls for LED properties such as colour to be exported as
 individual led class attributes. As a solution which doesn't incur as much
 overhead, I suggest these become part of the device name. The naming scheme
-above leaves scope for further attributes should they be needed.
+above leaves scope for further attributes should they be needed. If sections
+of the name don't apply, just leave that section blank.
 
 
 Known Issues

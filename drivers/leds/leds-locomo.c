@@ -43,13 +43,13 @@ static void locomoled_brightness_set1(struct led_classdev *led_cdev,
 }
 
 static struct led_classdev locomo_led0 = {
-	.name			= "locomo:amber",
+	.name			= "locomo:amber:charge",
 	.default_trigger	= "sharpsl-charge",
 	.brightness_set		= locomoled_brightness_set0,
 };
 
 static struct led_classdev locomo_led1 = {
-	.name			= "locomo:green",
+	.name			= "locomo:green:mail",
 	.default_trigger	= "nand-disk",
 	.brightness_set		= locomoled_brightness_set1,
 };

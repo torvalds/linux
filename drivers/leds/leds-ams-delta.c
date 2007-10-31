@@ -37,42 +37,42 @@ static void ams_delta_led_set(struct led_classdev *led_cdev,
 static struct ams_delta_led ams_delta_leds[] = {
 	{
 		.cdev		= {
-			.name		= "ams-delta:camera",
+			.name		= "ams-delta::camera",
 			.brightness_set = ams_delta_led_set,
 		},
 		.bitmask	= AMS_DELTA_LATCH1_LED_CAMERA,
 	},
 	{
 		.cdev		= {
-			.name		= "ams-delta:advert",
+			.name		= "ams-delta::advert",
 			.brightness_set = ams_delta_led_set,
 		},
 		.bitmask	= AMS_DELTA_LATCH1_LED_ADVERT,
 	},
 	{
 		.cdev		= {
-			.name		= "ams-delta:email",
+			.name		= "ams-delta::email",
 			.brightness_set = ams_delta_led_set,
 		},
 		.bitmask	= AMS_DELTA_LATCH1_LED_EMAIL,
 	},
 	{
 		.cdev		= {
-			.name		= "ams-delta:handsfree",
+			.name		= "ams-delta::handsfree",
 			.brightness_set = ams_delta_led_set,
 		},
 		.bitmask	= AMS_DELTA_LATCH1_LED_HANDSFREE,
 	},
 	{
 		.cdev		= {
-			.name		= "ams-delta:voicemail",
+			.name		= "ams-delta::voicemail",
 			.brightness_set = ams_delta_led_set,
 		},
 		.bitmask	= AMS_DELTA_LATCH1_LED_VOICEMAIL,
 	},
 	{
 		.cdev		= {
-			.name		= "ams-delta:voice",
+			.name		= "ams-delta::voice",
 			.brightness_set = ams_delta_led_set,
 		},
 		.bitmask	= AMS_DELTA_LATCH1_LED_VOICE,
