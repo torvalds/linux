@@ -652,6 +652,7 @@ static int sata_fsl_port_start(struct ata_port *ap)
 	VPRINTK("HControl = 0x%x\n", ioread32(hcr_base + HCONTROL));
 	VPRINTK("CHBA  = 0x%x\n", ioread32(hcr_base + CHBA));
 
+#ifdef CONFIG_MPC8315_DS
 	/*
 	 * Workaround for 8315DS board 3gbps link-up issue,
 	 * currently limit SATA port to GEN1 speed
@@ -664,6 +665,7 @@ static int sata_fsl_port_start(struct ata_port *ap)
 	sata_fsl_scr_read(ap, SCR_CONTROL, &temp);
 	dev_printk(KERN_WARNING, dev, "scr_control, speed limited to %x\n",
 			temp);
+#endif
 
 	return 0;
 }
