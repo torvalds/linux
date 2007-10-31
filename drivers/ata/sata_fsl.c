@@ -265,6 +265,7 @@ struct sata_fsl_host_priv {
 	void __iomem *hcr_base;
 	void __iomem *ssr_base;
 	void __iomem *csr_base;
+	int irq;
 };
 
 static inline unsigned int sata_fsl_tag(unsigned int tag,
@@ -1399,6 +1400,7 @@ static int sata_fsl_probe(struct of_device *ofdev,
 		dev_printk(KERN_ERR, &ofdev->dev, "invalid irq from platform\n");
 		goto error_exit_with_cleanup;
 	}
+	host_priv->irq = irq;
 
 	/* allocate host structure */
 	host = ata_host_alloc_pinfo(&ofdev->dev, ppi, SATA_FSL_MAX_PORTS);
@@ -1445,7 +1447,7 @@ static int sata_fsl_remove(struct of_device *ofdev)
 
 	dev_set_drvdata(&ofdev->dev, NULL);
 
-	irq_dispose_mapping(host->irq);
+	irq_dispose_mapping(host_priv->irq);
 	iounmap(host_priv->hcr_base);
 	kfree(host_priv);
 
