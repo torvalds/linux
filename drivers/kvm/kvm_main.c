@@ -63,31 +63,6 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
 
 static __read_mostly struct preempt_ops kvm_preempt_ops;
 
-#define STAT_OFFSET(x) offsetof(struct kvm_vcpu, stat.x)
-
-static struct kvm_stats_debugfs_item {
-	const char *name;
-	int offset;
-	struct dentry *dentry;
-} debugfs_entries[] = {
-	{ "pf_fixed", STAT_OFFSET(pf_fixed) },
-	{ "pf_guest", STAT_OFFSET(pf_guest) },
-	{ "tlb_flush", STAT_OFFSET(tlb_flush) },
-	{ "invlpg", STAT_OFFSET(invlpg) },
-	{ "exits", STAT_OFFSET(exits) },
-	{ "io_exits", STAT_OFFSET(io_exits) },
-	{ "mmio_exits", STAT_OFFSET(mmio_exits) },
-	{ "signal_exits", STAT_OFFSET(signal_exits) },
-	{ "irq_window", STAT_OFFSET(irq_window_exits) },
-	{ "halt_exits", STAT_OFFSET(halt_exits) },
-	{ "halt_wakeup", STAT_OFFSET(halt_wakeup) },
-	{ "request_irq", STAT_OFFSET(request_irq_exits) },
-	{ "irq_exits", STAT_OFFSET(irq_exits) },
-	{ "light_exits", STAT_OFFSET(light_exits) },
-	{ "efer_reload", STAT_OFFSET(efer_reload) },
-	{ NULL }
-};
-
 static struct dentry *debugfs_dir;
 
 static long kvm_vcpu_ioctl(struct file *file, unsigned int ioctl,

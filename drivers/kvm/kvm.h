@@ -761,4 +761,11 @@ static inline u32 get_rdx_init_val(void)
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE (TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
 
+struct kvm_stats_debugfs_item {
+	const char *name;
+	int offset;
+	struct dentry *dentry;
+};
+extern struct kvm_stats_debugfs_item debugfs_entries[];
+
 #endif
