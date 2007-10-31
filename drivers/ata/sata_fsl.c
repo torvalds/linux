@@ -483,7 +483,7 @@ static int sata_fsl_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 
 	VPRINTK("xx_scr_write, reg_in = %d\n", sc_reg);
 
-	iowrite32(val, (void __iomem *)ssr_base + (sc_reg * 4));
+	iowrite32(val, ssr_base + (sc_reg * 4));
 	return 0;
 }
 
@@ -507,7 +507,7 @@ static int sata_fsl_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 
 	VPRINTK("xx_scr_read, reg_in = %d\n", sc_reg);
 
-	*val = ioread32((void __iomem *)ssr_base + (sc_reg * 4));
+	*val = ioread32(ssr_base + (sc_reg * 4));
 	return 0;
 }
 
