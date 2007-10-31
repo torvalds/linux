@@ -291,6 +291,10 @@ extern void class_device_put(struct class_device *);
 
 extern void class_device_remove_file(struct class_device *, 
 				     const struct class_device_attribute *);
+extern int __must_check class_device_create_bin_file(struct class_device *,
+					struct bin_attribute *);
+extern void class_device_remove_bin_file(struct class_device *,
+					 struct bin_attribute *);
 
 struct class_interface {
 	struct list_head	node;
