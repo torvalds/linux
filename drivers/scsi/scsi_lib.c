@@ -785,7 +785,7 @@ struct scatterlist *scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 		 * end-of-list
 		 */
 		if (!left)
-			sg_mark_end(sgl, this);
+			sg_mark_end(&sgl[this - 1]);
 
 		/*
 		 * don't allow subsequent mempool allocs to sleep, it would

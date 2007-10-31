@@ -2095,7 +2095,7 @@ int skb_to_sgvec(struct sk_buff *skb, struct scatterlist *sg, int offset, int le
 {
 	int nsg = __skb_to_sgvec(skb, sg, offset, len);
 
-	__sg_mark_end(&sg[nsg - 1]);
+	sg_mark_end(&sg[nsg - 1]);
 
 	return nsg;
 }

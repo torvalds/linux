@@ -211,8 +211,8 @@ encryptor(struct scatterlist *sg, void *data)
 	if (thislen == 0)
 		return 0;
 
-	__sg_mark_end(&desc->infrags[desc->fragno - 1]);
-	__sg_mark_end(&desc->outfrags[desc->fragno - 1]);
+	sg_mark_end(&desc->infrags[desc->fragno - 1]);
+	sg_mark_end(&desc->outfrags[desc->fragno - 1]);
 
 	ret = crypto_blkcipher_encrypt_iv(&desc->desc, desc->outfrags,
 					  desc->infrags, thislen);
@@ -293,7 +293,7 @@ decryptor(struct scatterlist *sg, void *data)
 	if (thislen == 0)
 		return 0;
 
-	__sg_mark_end(&desc->frags[desc->fragno - 1]);
+	sg_mark_end(&desc->frags[desc->fragno - 1]);
 
 	ret = crypto_blkcipher_decrypt_iv(&desc->desc, desc->frags,
 					  desc->frags, thislen);
