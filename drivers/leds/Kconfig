@@ -114,6 +114,30 @@ config LEDS_CM_X270
 	help
 	  This option enables support for the CM-X270 LEDs.
 
+config LEDS_CLEVO_MAIL
+	tristate "Mail LED on Clevo notebook (EXPERIMENTAL)"
+	depends on LEDS_CLASS && X86 && SERIO_I8042 && DMI && EXPERIMENTAL
+	help
+	  This driver makes the mail LED accessible from userspace
+	  programs through the leds subsystem. This LED have three
+	  known mode: off, blink at 0.5Hz and blink at 1Hz.
+
+	  As this LED cannot change it's brightness it blinks instead.
+	  The brightness value 0 means off, 1..127 means blink at 0.5Hz
+	  and 128..255 means blink at 1Hz.
+
+	  This module can drive the mail LED for the following notebooks:
+
+	  	Clevo D410J
+	  	Clevo D410V
+	  	Clevo D400V/D470V (not tested, but might work)
+	  	Clevo M540N
+	  	Clevo M5x0N (not tested, but might work)
+	  	Positivo Mobile (Clevo M5x0V)
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-clevo-mail.
+
 comment "LED Triggers"
 
 config LEDS_TRIGGERS
