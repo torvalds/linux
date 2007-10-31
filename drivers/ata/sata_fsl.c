@@ -472,16 +472,10 @@ static int sata_fsl_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 
 	switch (sc_reg_in) {
 	case SCR_STATUS:
-		sc_reg = 0;
-		break;
 	case SCR_ERROR:
-		sc_reg = 1;
-		break;
 	case SCR_CONTROL:
-		sc_reg = 2;
-		break;
 	case SCR_ACTIVE:
-		sc_reg = 3;
+		sc_reg = sc_reg_in;
 		break;
 	default:
 		return -EINVAL;
@@ -502,16 +496,10 @@ static int sata_fsl_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 
 	switch (sc_reg_in) {
 	case SCR_STATUS:
-		sc_reg = 0;
-		break;
 	case SCR_ERROR:
-		sc_reg = 1;
-		break;
 	case SCR_CONTROL:
-		sc_reg = 2;
-		break;
 	case SCR_ACTIVE:
-		sc_reg = 3;
+		sc_reg = sc_reg_in;
 		break;
 	default:
 		return -EINVAL;
