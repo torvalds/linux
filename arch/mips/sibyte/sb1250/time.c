@@ -155,7 +155,7 @@ void __cpuinit sb1250_clockevent_init(void)
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;
 	action->name	= name;
 	action->dev_id	= cd;
-	setup_irq(irq, &action);
+	setup_irq(irq, action);
 }
 
 /*
