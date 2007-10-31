@@ -17,7 +17,8 @@
 	"3:\n"						\
 	"	.section .fixup,#alloc,#execinstr\n"	\
 	"	.align	4\n"				\
-	"4:	ba	3b\n"				\
+	"4:	sethi	%%hi(3b), %0\n"			\
+	"	jmpl	%0 + %%lo(3b), %%g0\n"		\
 	"	 mov	%5, %0\n"			\
 	"	.previous\n"				\
 	"	.section __ex_table,\"a\"\n"		\
@@ -91,7 +92,8 @@ futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval, int newval)
 	"2:\n"
 	"	.section .fixup,#alloc,#execinstr\n"
 	"	.align	4\n"
-	"3:	ba	2b\n"
+	"3:	sethi	%%hi(2b), %0\n"
+	"	jmpl	%0 + %%lo(2b), %%g0\n"
 	"	 mov	%4, %0\n"
 	"	.previous\n"
 	"	.section __ex_table,\"a\"\n"
