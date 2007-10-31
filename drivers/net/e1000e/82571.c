@@ -1343,7 +1343,6 @@ struct e1000_info e1000_82573_info = {
 				  | FLAG_HAS_STATS_ICR_ICT
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
-				  | FLAG_HAS_ASPM
 				  | FLAG_HAS_ERT
 				  | FLAG_HAS_SWSM_ON_LOAD,
 	.pba			= 20,

@@ -3509,6 +3509,33 @@ static int e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
+static void e1000e_disable_l1aspm(struct pci_dev *pdev)
+{
+	int pos;
+	u32 cap;
+	u16 val;
+
+	/*
+	 * 82573 workaround - disable L1 ASPM on mobile chipsets
+	 *
+	 * L1 ASPM on various mobile (ich7) chipsets do not behave properly
+	 * resulting in lost data or garbage information on the pci-e link
+	 * level. This could result in (false) bad EEPROM checksum errors,
+	 * long ping times (up to 2s) or even a system freeze/hang.
+	 *
+	 * Unfortunately this feature saves about 1W power consumption when
+	 * active.
+	 */
+	pos = pci_find_capability(pdev, PCI_CAP_ID_EXP);
+	pci_read_config_dword(pdev, pos + PCI_EXP_LNKCAP, &cap);
+	pci_read_config_word(pdev, pos + PCI_EXP_LNKCTL, &val);
+	if (val & 0x2) {
+		dev_warn(&pdev->dev, "Disabling L1 ASPM\n");
+		val &= ~0x2;
+		pci_write_config_word(pdev, pos + PCI_EXP_LNKCTL, val);
+	}
+}
+
 #ifdef CONFIG_PM
 static int e1000_resume(struct pci_dev *pdev)
 {
@@ -3519,6 +3546,7 @@ static int e1000_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+	e1000e_disable_l1aspm(pdev);
 	err = pci_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
@@ -3619,6 +3647,7 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 
+	e1000e_disable_l1aspm(pdev);
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset.\n");
@@ -3720,6 +3749,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
 
+	e1000e_disable_l1aspm(pdev);
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
