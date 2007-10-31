@@ -91,7 +91,7 @@ static u32 stb0899_set_srate(struct stb0899_state *state, u32 master_clk, u32 sr
 	u32 tmp, tmp_up, srate_up;
 	u8 sfr_up[3], sfr[3];
 
-	srate_up = srate;
+//	srate_up = srate;
 	dprintk(state->verbose, FE_DEBUG, 1, "-->");
 	/*
 	 * in order to have the maximum precision, the symbol rate entered into
@@ -99,20 +99,20 @@ static u32 stb0899_set_srate(struct stb0899_state *state, u32 master_clk, u32 sr
 	 * In this purpose, the symbol rate value is rounded (1 is added on the bit
 	 * below the LSB )
 	 */
-	srate_up += (srate_up * 3) / 100;
+//	srate_up += (srate_up * 3) / 100;
 
 	tmp = BinaryFloatDiv(srate, master_clk, 20);
-	tmp_up = BinaryFloatDiv(srate_up, master_clk, 20);
+//	tmp_up = BinaryFloatDiv(srate_up, master_clk, 20);
 
-	sfr_up[0] = (tmp_up >> 12) & 0xff;
-	sfr_up[1] = (tmp_up >>  4) & 0xff;
-	sfr_up[2] =  tmp_up & 0x0f;
+//	sfr_up[0] = (tmp_up >> 12) & 0xff;
+//	sfr_up[1] = (tmp_up >>  4) & 0xff;
+//	sfr_up[2] =  tmp_up & 0x0f;
 
 	sfr[0] = (tmp >> 12) & 0xff;
 	sfr[1] = (tmp >>  4) & 0xff;
 	sfr[2] =  tmp & 0x0f;
 
-	stb0899_write_regs(state, STB0899_SFRUPH, sfr_up, 3);
+//	stb0899_write_regs(state, STB0899_SFRUPH, sfr_up, 3);
 	stb0899_write_regs(state, STB0899_SFRH, sfr, 3);
 
 	return srate;
