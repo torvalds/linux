@@ -1225,17 +1225,15 @@ static void ri_change(MGSLPC_INFO *info)
  * irq     interrupt number that caused interrupt
  * dev_id  device ID supplied during interrupt registration
  */
-static irqreturn_t mgslpc_isr(int irq, void *dev_id)
+static irqreturn_t mgslpc_isr(int dummy, void *dev_id)
 {
-	MGSLPC_INFO * info = (MGSLPC_INFO *)dev_id;
+	MGSLPC_INFO *info = dev_id;
 	unsigned short isr;
 	unsigned char gis, pis;
 	int count=0;
 
 	if (debug_level >= DEBUG_LEVEL_ISR)
-		printk("mgslpc_isr(%d) entry.\n", irq);
-	if (!info)
-		return IRQ_NONE;
+		printk("mgslpc_isr(%d) entry.\n", info->irq_level);
 
 	if (!(info->p_dev->_locked))
 		return IRQ_HANDLED;
@@ -1327,7 +1325,7 @@ static irqreturn_t mgslpc_isr(int irq, void *dev_id)
 
 	if (debug_level >= DEBUG_LEVEL_ISR)
 		printk("%s(%d):mgslpc_isr(%d)exit.\n",
-		       __FILE__,__LINE__,irq);
+		       __FILE__, __LINE__, info->irq_level);
 
 	return IRQ_HANDLED;
 }
