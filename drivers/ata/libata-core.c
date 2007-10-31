@@ -2784,7 +2784,7 @@ int sata_set_spd_needed(struct ata_link *link)
 	u32 scontrol;
 
 	if (sata_scr_read(link, SCR_CONTROL, &scontrol))
-		return 0;
+		return 1;
 
 	return __sata_set_spd_needed(link, &scontrol);
 }
