@@ -3,7 +3,8 @@
 
 struct av7110;
 
-extern int av7110_set_vidmode(struct av7110 *av7110, int mode);
+extern int av7110_set_vidmode(struct av7110 *av7110,
+			      enum av7110_video_mode mode);
 
 extern int av7110_record_cb(struct dvb_filter_pes2ts *p2t, u8 *buf, size_t len);
 extern int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen);

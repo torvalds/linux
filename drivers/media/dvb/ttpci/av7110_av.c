@@ -329,7 +329,7 @@ int av7110_set_volume(struct av7110 *av7110, int volleft, int volright)
 	return 0;
 }
 
-int av7110_set_vidmode(struct av7110 *av7110, int mode)
+int av7110_set_vidmode(struct av7110 *av7110, enum av7110_video_mode mode)
 {
 	int ret;
 	dprintk(2, "av7110:%p, \n", av7110);
@@ -348,11 +348,15 @@ int av7110_set_vidmode(struct av7110 *av7110, int mode)
 }
 
 
-static int sw2mode[16] = {
-	VIDEO_MODE_PAL, VIDEO_MODE_NTSC, VIDEO_MODE_NTSC, VIDEO_MODE_PAL,
-	VIDEO_MODE_NTSC, VIDEO_MODE_NTSC, VIDEO_MODE_PAL, VIDEO_MODE_NTSC,
-	VIDEO_MODE_PAL, VIDEO_MODE_PAL, VIDEO_MODE_PAL, VIDEO_MODE_PAL,
-	VIDEO_MODE_PAL, VIDEO_MODE_PAL, VIDEO_MODE_PAL, VIDEO_MODE_PAL,
+static enum av7110_video_mode sw2mode[16] = {
+	AV7110_VIDEO_MODE_PAL, AV7110_VIDEO_MODE_NTSC,
+	AV7110_VIDEO_MODE_NTSC, AV7110_VIDEO_MODE_PAL,
+	AV7110_VIDEO_MODE_NTSC, AV7110_VIDEO_MODE_NTSC,
+	AV7110_VIDEO_MODE_PAL, AV7110_VIDEO_MODE_NTSC,
+	AV7110_VIDEO_MODE_PAL, AV7110_VIDEO_MODE_PAL,
+	AV7110_VIDEO_MODE_PAL, AV7110_VIDEO_MODE_PAL,
+	AV7110_VIDEO_MODE_PAL, AV7110_VIDEO_MODE_PAL,
+	AV7110_VIDEO_MODE_PAL, AV7110_VIDEO_MODE_PAL,
 };
 
 static int get_video_format(struct av7110 *av7110, u8 *buf, int count)
