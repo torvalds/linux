@@ -269,7 +269,7 @@ struct sata_fsl_host_priv {
 };
 
 static inline unsigned int sata_fsl_tag(unsigned int tag,
-					void __iomem * hcr_base)
+					void __iomem *hcr_base)
 {
 	/* We let libATA core do actual (queue) tag allocation */
 
@@ -308,7 +308,7 @@ static void sata_fsl_setup_cmd_hdr_entry(struct sata_fsl_port_priv *pp,
 	pp->cmdslot[tag].prde_fis_len =
 	    cpu_to_le32((num_prde << 16) | (fis_len << 2));
 	pp->cmdslot[tag].ttl = cpu_to_le32(data_xfer_len & ~0x03);
-	pp->cmdslot[tag].desc_info = cpu_to_le32((desc_info | (tag & 0x1F)));
+	pp->cmdslot[tag].desc_info = cpu_to_le32(desc_info | (tag & 0x1F));
 
 	VPRINTK("cda=0x%x, prde_fis_len=0x%x, ttl=0x%x, di=0x%x\n",
 		pp->cmdslot[tag].cda,
@@ -318,7 +318,7 @@ static void sata_fsl_setup_cmd_hdr_entry(struct sata_fsl_port_priv *pp,
 }
 
 static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
-				     u32 * ttl, dma_addr_t cmd_desc_paddr)
+				     u32 *ttl, dma_addr_t cmd_desc_paddr)
 {
 	struct scatterlist *sg;
 	unsigned int num_prde = 0;
@@ -406,7 +406,7 @@ static void sata_fsl_qc_prep(struct ata_queued_cmd *qc)
 	cd = (struct command_desc *)pp->cmdentry + tag;
 	cd_paddr = pp->cmdentry_paddr + tag * SATA_FSL_CMD_DESC_SIZE;
 
-	ata_tf_to_fis(&qc->tf, 0, 1, (u8 *) & cd->cfis);
+	ata_tf_to_fis(&qc->tf, 0, 1, (u8 *) &cd->cfis);
 
 	VPRINTK("Dumping cfis : 0x%x, 0x%x, 0x%x\n",
 		cd->cfis[0], cd->cfis[1], cd->cfis[2]);
@@ -837,7 +837,7 @@ try_offline_again:
 	DPRINTK("Sending SRST/device reset\n");
 
 	ata_tf_init(link->device, &tf);
-	cfis = (u8 *) & pp->cmdentry->cfis;
+	cfis = (u8 *) &pp->cmdentry->cfis;
 
 	/* device reset/SRST is a control register update FIS, uses tag0 */
 	sata_fsl_setup_cmd_hdr_entry(pp, 0,
@@ -963,7 +963,7 @@ skip_srst_do_ncq_error_handling:
 
 	iowrite32(0x01, CC + hcr_base);	/* We know it will be cmd#0 always */
 
-      check_device_signature:
+check_device_signature:
 
 	DPRINTK("SATA FSL : Now checking device signature\n");
 
