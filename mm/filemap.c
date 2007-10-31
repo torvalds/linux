@@ -1300,7 +1300,7 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (vmf->pgoff >= size)
-		goto outside_data_content;
+		return VM_FAULT_SIGBUS;
 
 	/* If we don't want any read-ahead, don't bother */
 	if (VM_RandomReadHint(vma))
@@ -1377,7 +1377,7 @@ retry_find:
 	if (unlikely(vmf->pgoff >= size)) {
 		unlock_page(page);
 		page_cache_release(page);
-		goto outside_data_content;
+		return VM_FAULT_SIGBUS;
 	}
 
 	/*
@@ -1388,15 +1388,6 @@ retry_find:
 	vmf->page = page;
 	return ret | VM_FAULT_LOCKED;
 
-outside_data_content:
-	/*
-	 * An external ptracer can access pages that normally aren't
-	 * accessible..
-	 */
-	if (vma->vm_mm == current->mm)
-		return VM_FAULT_SIGBUS;
-
-	/* Fall through to the non-read-ahead case */
 no_cached_page:
 	/*
 	 * We're only likely to ever get here if MADV_RANDOM is in
