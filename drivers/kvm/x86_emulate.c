@@ -520,6 +520,34 @@ static int test_cc(unsigned int condition, unsigned int flags)
 	return (!!rc ^ (condition & 1));
 }
 
+static void decode_register_operand(struct operand *op,
+				    struct decode_cache *c,
+				    int highbyte_regs,
+				    int inhibit_bytereg)
+{
+	op->type = OP_REG;
+	if ((c->d & ByteOp) && !inhibit_bytereg) {
+		op->ptr = decode_register(c->modrm_reg, c->regs, highbyte_regs);
+		op->val = *(u8 *)op->ptr;
+		op->bytes = 1;
+	} else {
+		op->ptr = decode_register(c->modrm_reg, c->regs, 0);
+		op->bytes = c->op_bytes;
+		switch (op->bytes) {
+		case 2:
+			op->val = *(u16 *)op->ptr;
+			break;
+		case 4:
+			op->val = *(u32 *)op->ptr;
+			break;
+		case 8:
+			op->val = *(u64 *) op->ptr;
+			break;
+		}
+	}
+	op->orig_val = op->val;
+}
+
 int
 x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
@@ -809,31 +837,7 @@ modrm_done:
 	case SrcNone:
 		break;
 	case SrcReg:
-		c->src.type = OP_REG;
-		if (c->d & ByteOp) {
-			c->src.ptr =
-				decode_register(c->modrm_reg, c->regs,
-						  (rex_prefix == 0));
-			c->src.val = c->src.orig_val = *(u8 *)c->src.ptr;
-			c->src.bytes = 1;
-		} else {
-			c->src.ptr =
-			    decode_register(c->modrm_reg, c->regs, 0);
-			switch ((c->src.bytes = c->op_bytes)) {
-			case 2:
-				c->src.val = c->src.orig_val =
-						       *(u16 *) c->src.ptr;
-				break;
-			case 4:
-				c->src.val = c->src.orig_val =
-						       *(u32 *) c->src.ptr;
-				break;
-			case 8:
-				c->src.val = c->src.orig_val =
-						       *(u64 *) c->src.ptr;
-				break;
-			}
-		}
+		decode_register_operand(&c->src, c, rex_prefix == 0, 0);
 		break;
 	case SrcMem16:
 		c->src.bytes = 2;
@@ -891,30 +895,8 @@ modrm_done:
 		/* Special instructions do their own operand decoding. */
 		return 0;
 	case DstReg:
-		c->dst.type = OP_REG;
-		if ((c->d & ByteOp)
-		    && !(c->twobyte &&
-			(c->b == 0xb6 || c->b == 0xb7))) {
-			c->dst.ptr =
-				decode_register(c->modrm_reg, c->regs,
-						  (rex_prefix == 0));
-			c->dst.val = *(u8 *) c->dst.ptr;
-			c->dst.bytes = 1;
-		} else {
-			c->dst.ptr =
-			    decode_register(c->modrm_reg, c->regs, 0);
-			switch ((c->dst.bytes = c->op_bytes)) {
-			case 2:
-				c->dst.val = *(u16 *)c->dst.ptr;
-				break;
-			case 4:
-				c->dst.val = *(u32 *)c->dst.ptr;
-				break;
-			case 8:
-				c->dst.val = *(u64 *)c->dst.ptr;
-				break;
-			}
-		}
+		decode_register_operand(&c->dst, c, rex_prefix == 0,
+			 c->twobyte && (c->b == 0xb6 || c->b == 0xb7));
 		break;
 	case DstMem:
 		if ((c->d & ModRM) && c->modrm_mod == 3) {
