@@ -2608,11 +2608,13 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 	short seq, assoc_line_out, assoc_speaker;
 	short sequences_line_out[ARRAY_SIZE(cfg->line_out_pins)];
 	short sequences_speaker[ARRAY_SIZE(cfg->speaker_pins)];
+	short sequences_hp[ARRAY_SIZE(cfg->hp_pins)];
 
 	memset(cfg, 0, sizeof(*cfg));
 
 	memset(sequences_line_out, 0, sizeof(sequences_line_out));
 	memset(sequences_speaker, 0, sizeof(sequences_speaker));
+	memset(sequences_hp, 0, sizeof(sequences_hp));
 	assoc_line_out = assoc_speaker = 0;
 
 	nodes = snd_hda_get_sub_nodes(codec, codec->afg, &nid_start);
@@ -2667,9 +2669,12 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			cfg->speaker_outs++;
 			break;
 		case AC_JACK_HP_OUT:
+			seq = get_defcfg_sequence(def_conf);
+			assoc = get_defcfg_association(def_conf);
 			if (cfg->hp_outs >= ARRAY_SIZE(cfg->hp_pins))
 				continue;
 			cfg->hp_pins[cfg->hp_outs] = nid;
+			sequences_hp[cfg->hp_outs] = (assoc << 4) | seq;
 			cfg->hp_outs++;
 			break;
 		case AC_JACK_MIC_IN: {
@@ -2713,7 +2718,24 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			      cfg->line_outs);
 	sort_pins_by_sequence(cfg->speaker_pins, sequences_speaker,
 			      cfg->speaker_outs);
+	sort_pins_by_sequence(cfg->hp_pins, sequences_hp,
+			      cfg->hp_outs);
 	
+	/* if we have only one mic, make it AUTO_PIN_MIC */
+	if (!cfg->input_pins[AUTO_PIN_MIC] &&
+	    cfg->input_pins[AUTO_PIN_FRONT_MIC]) {
+		cfg->input_pins[AUTO_PIN_MIC] =
+			cfg->input_pins[AUTO_PIN_FRONT_MIC];
+		cfg->input_pins[AUTO_PIN_FRONT_MIC] = 0;
+	}
+	/* ditto for line-in */
+	if (!cfg->input_pins[AUTO_PIN_LINE] &&
+	    cfg->input_pins[AUTO_PIN_FRONT_LINE]) {
+		cfg->input_pins[AUTO_PIN_LINE] =
+			cfg->input_pins[AUTO_PIN_FRONT_LINE];
+		cfg->input_pins[AUTO_PIN_FRONT_LINE] = 0;
+	}
+
 	/*
 	 * FIX-UP: if no line-outs are detected, try to use speaker or HP pin
 	 * as a primary output
