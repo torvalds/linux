@@ -312,7 +312,11 @@ static int tda10021_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 {
 	struct tda10021_state* state = fe->demodulator_priv;
 
+	u8 config = tda10021_readreg(state, 0x02);
 	u8 gain = tda10021_readreg(state, 0x17);
+	if (config & 0x02)
+		/* the agc value is inverted */
+		gain = ~gain;
 	*strength = (gain << 8) | gain;
 
 	return 0;
