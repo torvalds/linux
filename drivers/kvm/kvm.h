@@ -633,6 +633,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		       unsigned int ioctl, unsigned long arg);
 void kvm_arch_destroy_vm(struct kvm *kvm);
 
+int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu);
+int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu);
+
 __init void kvm_arch_init(void);
 
 static inline void kvm_guest_enter(void)

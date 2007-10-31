@@ -1785,3 +1785,106 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->skip_emulated_instruction(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_cpuid);
+
+/*
+ * fxsave fpu state.  Taken from x86_64/processor.h.  To be killed when
+ * we have asm/x86/processor.h
+ */
+struct fxsave {
+	u16	cwd;
+	u16	swd;
+	u16	twd;
+	u16	fop;
+	u64	rip;
+	u64	rdp;
+	u32	mxcsr;
+	u32	mxcsr_mask;
+	u32	st_space[32];	/* 8*16 bytes for each FP-reg = 128 bytes */
+#ifdef CONFIG_X86_64
+	u32	xmm_space[64];	/* 16*16 bytes for each XMM-reg = 256 bytes */
+#else
+	u32	xmm_space[32];	/* 8*16 bytes for each XMM-reg = 128 bytes */
+#endif
+};
+
+int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
+{
+	struct fxsave *fxsave = (struct fxsave *)&vcpu->guest_fx_image;
+
+	vcpu_load(vcpu);
+
+	memcpy(fpu->fpr, fxsave->st_space, 128);
+	fpu->fcw = fxsave->cwd;
+	fpu->fsw = fxsave->swd;
+	fpu->ftwx = fxsave->twd;
+	fpu->last_opcode = fxsave->fop;
+	fpu->last_ip = fxsave->rip;
+	fpu->last_dp = fxsave->rdp;
+	memcpy(fpu->xmm, fxsave->xmm_space, sizeof fxsave->xmm_space);
+
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
+int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
+{
+	struct fxsave *fxsave = (struct fxsave *)&vcpu->guest_fx_image;
+
+	vcpu_load(vcpu);
+
+	memcpy(fxsave->st_space, fpu->fpr, 128);
+	fxsave->cwd = fpu->fcw;
+	fxsave->swd = fpu->fsw;
+	fxsave->twd = fpu->ftwx;
+	fxsave->fop = fpu->last_opcode;
+	fxsave->rip = fpu->last_ip;
+	fxsave->rdp = fpu->last_dp;
+	memcpy(fxsave->xmm_space, fpu->xmm, sizeof fxsave->xmm_space);
+
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
+void fx_init(struct kvm_vcpu *vcpu)
+{
+	unsigned after_mxcsr_mask;
+
+	/* Initialize guest FPU by resetting ours and saving into guest's */
+	preempt_disable();
+	fx_save(&vcpu->host_fx_image);
+	fpu_init();
+	fx_save(&vcpu->guest_fx_image);
+	fx_restore(&vcpu->host_fx_image);
+	preempt_enable();
+
+	vcpu->cr0 |= X86_CR0_ET;
+	after_mxcsr_mask = offsetof(struct i387_fxsave_struct, st_space);
+	vcpu->guest_fx_image.mxcsr = 0x1f80;
+	memset((void *)&vcpu->guest_fx_image + after_mxcsr_mask,
+	       0, sizeof(struct i387_fxsave_struct) - after_mxcsr_mask);
+}
+EXPORT_SYMBOL_GPL(fx_init);
+
+void kvm_load_guest_fpu(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->fpu_active || vcpu->guest_fpu_loaded)
+		return;
+
+	vcpu->guest_fpu_loaded = 1;
+	fx_save(&vcpu->host_fx_image);
+	fx_restore(&vcpu->guest_fx_image);
+}
+EXPORT_SYMBOL_GPL(kvm_load_guest_fpu);
+
+void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
+{
+	if (!vcpu->guest_fpu_loaded)
+		return;
+
+	vcpu->guest_fpu_loaded = 0;
+	fx_save(&vcpu->guest_fx_image);
+	fx_restore(&vcpu->host_fx_image);
+}
+EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
