@@ -991,25 +991,13 @@ err:
 	return -EIO;
 }
 
-static int sata_fsl_hardreset(struct ata_port *ap, unsigned int *class,
-			      unsigned long deadline)
-{
-	int retval;
-
-	retval = sata_std_hardreset(ap, class, deadline);
-
-	DPRINTK("SATA FSL : in xx_hardreset, retval = 0x%d\n", retval);
-
-	return retval;
-}
-
 static void sata_fsl_error_handler(struct ata_port *ap)
 {
 
 	DPRINTK("in xx_error_handler\n");
 
 	/* perform recovery */
-	ata_do_eh(ap, ata_std_prereset, sata_fsl_softreset, sata_fsl_hardreset,
+	ata_do_eh(ap, ata_std_prereset, sata_fsl_softreset, sata_std_hardreset,
 		  ata_std_postreset);
 }
 
