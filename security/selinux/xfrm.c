@@ -211,26 +211,27 @@ static int selinux_xfrm_sec_ctx_alloc(struct xfrm_sec_ctx **ctxp,
 	if (uctx->ctx_doi != XFRM_SC_ALG_SELINUX)
 		return -EINVAL;
 
-	if (uctx->ctx_len >= PAGE_SIZE)
+	str_len = uctx->ctx_len;
+	if (str_len >= PAGE_SIZE)
 		return -ENOMEM;
 
 	*ctxp = ctx = kmalloc(sizeof(*ctx) +
-			      uctx->ctx_len + 1,
+			      str_len + 1,
 			      GFP_KERNEL);
 
 	if (!ctx)
 		return -ENOMEM;
 
 	ctx->ctx_doi = uctx->ctx_doi;
-	ctx->ctx_len = uctx->ctx_len;
+	ctx->ctx_len = str_len;
 	ctx->ctx_alg = uctx->ctx_alg;
 
 	memcpy(ctx->ctx_str,
 	       uctx+1,
-	       ctx->ctx_len);
-	ctx->ctx_str[ctx->ctx_len] = 0;
+	       str_len);
+	ctx->ctx_str[str_len] = 0;
 	rc = security_context_to_sid(ctx->ctx_str,
-				     ctx->ctx_len,
+				     str_len,
 				     &ctx->ctx_sid);
 
 	if (rc)
