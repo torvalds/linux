@@ -730,10 +730,6 @@ static int sata_fsl_softreset(struct ata_link *link, unsigned int *class,
 	u8 *cfis;
 	u32 Serror;
 	int i = 0;
-	struct ata_queued_cmd qc;
-	u8 *buf;
-	dma_addr_t dma_address;
-	struct scatterlist *sg;
 	unsigned long start_jiffies;
 
 	DPRINTK("in xx_softreset\n");
@@ -833,9 +829,6 @@ try_offline_again:
 	 * reached here, we can send a command to the target device
 	 */
 
-	if (link->sactive)
-		goto skip_srst_do_ncq_error_handling;
-
 	DPRINTK("Sending SRST/device reset\n");
 
 	ata_tf_init(link->device, &tf);
@@ -903,69 +896,6 @@ try_offline_again:
 	 * command bit of the CCreg
 	 */
 	iowrite32(0x01, CC + hcr_base);	/* We know it will be cmd#0 always */
-	goto check_device_signature;
-
-skip_srst_do_ncq_error_handling:
-
-	VPRINTK("Sending read log ext(10h) command\n");
-
-	memset(&qc, 0, sizeof(struct ata_queued_cmd));
-	ata_tf_init(link->device, &tf);
-
-	tf.command = ATA_CMD_READ_LOG_EXT;
-	tf.lbal = ATA_LOG_SATA_NCQ;
-	tf.nsect = 1;
-	tf.hob_nsect = 0;
-	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
-	tf.protocol = ATA_PROT_PIO;
-
-	qc.tag = ATA_TAG_INTERNAL;
-	qc.scsicmd = NULL;
-	qc.ap = ap;
-	qc.dev = link->device;
-
-	qc.tf = tf;
-	qc.flags |= ATA_QCFLAG_RESULT_TF;
-	qc.dma_dir = DMA_FROM_DEVICE;
-
-	buf = ap->sector_buf;
-	ata_sg_init_one(&qc, buf, 1 * ATA_SECT_SIZE);
-
-	/*
-	 * Need to DMA-map the memory buffer associated with the command
-	 */
-
-	sg = qc.__sg;
-	dma_address = dma_map_single(ap->dev, qc.buf_virt,
-				     sg->length, DMA_FROM_DEVICE);
-
-	sg_dma_address(sg) = dma_address;
-	sg_dma_len(sg) = sg->length;
-
-	VPRINTK("EH, addr = 0x%x, len = 0x%x\n", dma_address, sg->length);
-
-	sata_fsl_qc_prep(&qc);
-	sata_fsl_qc_issue(&qc);
-
-	temp = ata_wait_register(CQ + hcr_base, 0x1, 0x1, 1, 5000);
-	if (temp & 0x1) {
-		VPRINTK("READ_LOG_EXT_10H issue failed\n");
-
-		VPRINTK("READ_LOG@5000,CQ=0x%x,CA=0x%x,CC=0x%x\n",
-			ioread32(CQ + hcr_base),
-			ioread32(CA + hcr_base), ioread32(CC + hcr_base));
-
-		sata_fsl_scr_read(ap, SCR_ERROR, &Serror);
-
-		VPRINTK("HStatus = 0x%x\n", ioread32(hcr_base + HSTATUS));
-		VPRINTK("HControl = 0x%x\n", ioread32(hcr_base + HCONTROL));
-		VPRINTK("Serror = 0x%x\n", Serror);
-		goto err;
-	}
-
-	iowrite32(0x01, CC + hcr_base);	/* We know it will be cmd#0 always */
-
-check_device_signature:
 
 	DPRINTK("SATA FSL : Now checking device signature\n");
 
