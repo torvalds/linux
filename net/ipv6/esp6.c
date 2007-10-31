@@ -110,9 +110,10 @@ static int esp6_output(struct xfrm_state *x, struct sk_buff *skb)
 				goto unlock;
 		}
 		sg_init_table(sg, nfrags);
-		sg_mark_end(sg, skb_to_sgvec(skb, sg, esph->enc_data +
-						      esp->conf.ivlen -
-						      skb->data, clen));
+		skb_to_sgvec(skb, sg,
+			     esph->enc_data +
+			     esp->conf.ivlen -
+			     skb->data, clen);
 		err = crypto_blkcipher_encrypt(&desc, sg, sg, clen);
 		if (unlikely(sg != &esp->sgbuf[0]))
 			kfree(sg);
@@ -209,9 +210,9 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 			}
 		}
 		sg_init_table(sg, nfrags);
-		sg_mark_end(sg, skb_to_sgvec(skb, sg,
-					     sizeof(*esph) + esp->conf.ivlen,
-					     elen));
+		skb_to_sgvec(skb, sg,
+			     sizeof(*esph) + esp->conf.ivlen,
+			     elen);
 		ret = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 		if (unlikely(sg != &esp->sgbuf[0]))
 			kfree(sg);
