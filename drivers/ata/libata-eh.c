@@ -1747,6 +1747,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
+	struct ata_device *dev;
 	unsigned int all_err_mask = 0;
 	int tag, is_io = 0;
 	u32 serror;
@@ -1818,17 +1819,23 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		 (!is_io && (all_err_mask & ~AC_ERR_DEV)))
 		ehc->i.action |= ATA_EH_REVALIDATE;
 
-	/* if we have offending qcs and the associated failed device */
+	/* If we have offending qcs and the associated failed device,
+	 * perform per-dev EH action only on the offending device.
+	 */
 	if (ehc->i.dev) {
-		/* speed down */
-		ehc->i.action |= ata_eh_speed_down(ehc->i.dev, is_io,
-						   all_err_mask);
-
-		/* perform per-dev EH action only on the offending device */
 		ehc->i.dev_action[ehc->i.dev->devno] |=
 			ehc->i.action & ATA_EH_PERDEV_MASK;
 		ehc->i.action &= ~ATA_EH_PERDEV_MASK;
 	}
+
+	/* consider speeding down */
+	dev = ehc->i.dev;
+	if (!dev && ata_link_max_devices(link) == 1 &&
+	    ata_dev_enabled(link->device))
+		dev = link->device;
+
+	if (dev)
+		ehc->i.action |= ata_eh_speed_down(dev, is_io, all_err_mask);
 
 	DPRINTK("EXIT\n");
 }
