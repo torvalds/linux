@@ -97,11 +97,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	ri->gid = cpu_to_je16((ivalid & ATTR_GID)?iattr->ia_gid:inode->i_gid);
 
 	if (ivalid & ATTR_MODE)
-		if (iattr->ia_mode & S_ISGID &&
-		    !in_group_p(je16_to_cpu(ri->gid)) && !capable(CAP_FSETID))
-			ri->mode = cpu_to_jemode(iattr->ia_mode & ~S_ISGID);
-		else
-			ri->mode = cpu_to_jemode(iattr->ia_mode);
+		ri->mode = cpu_to_jemode(iattr->ia_mode);
 	else
 		ri->mode = cpu_to_jemode(inode->i_mode);
 
