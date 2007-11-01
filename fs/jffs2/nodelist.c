@@ -32,15 +32,18 @@ void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new
 		if ((*prev)->nhash == new->nhash && !strcmp((*prev)->name, new->name)) {
 			/* Duplicate. Free one */
 			if (new->version < (*prev)->version) {
-				dbg_dentlist("Eep! Marking new dirent node is obsolete, old is \"%s\", ino #%u\n",
+				dbg_dentlist("Eep! Marking new dirent node obsolete, old is \"%s\", ino #%u\n",
 					(*prev)->name, (*prev)->ino);
 				jffs2_mark_node_obsolete(c, new->raw);
 				jffs2_free_full_dirent(new);
 			} else {
-				dbg_dentlist("marking old dirent \"%s\", ino #%u bsolete\n",
+				dbg_dentlist("marking old dirent \"%s\", ino #%u obsolete\n",
 					(*prev)->name, (*prev)->ino);
 				new->next = (*prev)->next;
-				jffs2_mark_node_obsolete(c, ((*prev)->raw));
+				/* It may have been a 'placeholder' deletion dirent, 
+				   if jffs2_can_mark_obsolete() (see jffs2_do_unlink()) */
+				if ((*prev)->raw)
+					jffs2_mark_node_obsolete(c, ((*prev)->raw));
 				jffs2_free_full_dirent(*prev);
 				*prev = new;
 			}
