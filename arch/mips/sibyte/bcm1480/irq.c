@@ -293,7 +293,6 @@ void __init init_bcm1480_irqs(void)
 
 void __init arch_init_irq(void)
 {
-
 	unsigned int i, cpu;
 	u64 tmp;
 	unsigned int imask = STATUSF_IP4 | STATUSF_IP3 | STATUSF_IP2 |
