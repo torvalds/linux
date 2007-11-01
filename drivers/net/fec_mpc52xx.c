@@ -879,9 +879,9 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 				"Error while parsing device node resource\n" );
 		return rv;
 	}
-	if ((mem.end - mem.start + 1) != sizeof(struct mpc52xx_fec)) {
+	if ((mem.end - mem.start + 1) < sizeof(struct mpc52xx_fec)) {
 		printk(KERN_ERR DRIVER_NAME
-			" - invalid resource size (%lx != %x), check mpc52xx_devices.c\n",
+			" - invalid resource size (%lx < %x), check mpc52xx_devices.c\n",
 			(unsigned long)(mem.end - mem.start + 1), sizeof(struct mpc52xx_fec));
 		return -EINVAL;
 	}
