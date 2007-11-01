@@ -36,7 +36,7 @@ MODULE_DESCRIPTION("wm8739 driver");
 MODULE_AUTHOR("T. Adachi, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug = 0;
+static int debug;
 static unsigned short normal_i2c[] = { 0x34 >> 1, 0x36 >> 1, I2C_CLIENT_END };
 
 module_param(debug, int, 0644);
@@ -76,12 +76,10 @@ static int wm8739_write(struct i2c_client *client, int reg, u16 val)
 
 	v4l_dbg(1, debug, client, "write: %02x %02x\n", reg, val);
 
-	for (i = 0; i < 3; i++) {
-		if (i2c_smbus_write_byte_data(client, (reg << 1) |
-					(val >> 8), val & 0xff) == 0) {
+	for (i = 0; i < 3; i++)
+		if (i2c_smbus_write_byte_data(client,
+				(reg << 1) | (val >> 8), val & 0xff) == 0)
 			return 0;
-		}
-	}
 	v4l_err(client, "I2C: cannot write %03x to register R%d\n", val, reg);
 	return -1;
 }
@@ -168,7 +166,7 @@ static struct v4l2_queryctrl wm8739_qctrl[] = {
 		.default_value = 58880,
 		.flags         = 0,
 		.type          = V4L2_CTRL_TYPE_INTEGER,
-	},{
+	}, {
 		.id            = V4L2_CID_AUDIO_MUTE,
 		.name          = "Mute",
 		.minimum       = 0,
@@ -177,7 +175,7 @@ static struct v4l2_queryctrl wm8739_qctrl[] = {
 		.default_value = 1,
 		.flags         = 0,
 		.type          = V4L2_CTRL_TYPE_BOOLEAN,
-	},{
+	}, {
 		.id            = V4L2_CID_AUDIO_BALANCE,
 		.name          = "Balance",
 		.minimum       = 0,
@@ -191,7 +189,7 @@ static struct v4l2_queryctrl wm8739_qctrl[] = {
 
 /* ------------------------------------------------------------------------ */
 
-static int wm8739_command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int wm8739_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct wm8739_state *state = i2c_get_clientdata(client);
 
@@ -201,21 +199,26 @@ static int wm8739_command(struct i2c_client *client, unsigned int cmd, void *arg
 		u32 audiofreq = *(u32 *)arg;
 
 		state->clock_freq = audiofreq;
-		wm8739_write(client, R9, 0x000);	/* de-activate */
+		/* de-activate */
+		wm8739_write(client, R9, 0x000);
 		switch (audiofreq) {
 		case 44100:
-			wm8739_write(client, R8, 0x020); /* 256fps, fs=44.1k     */
+			/* 256fps, fs=44.1k */
+			wm8739_write(client, R8, 0x020);
 			break;
 		case 48000:
-			wm8739_write(client, R8, 0x000); /* 256fps, fs=48k       */
+			/* 256fps, fs=48k */
+			wm8739_write(client, R8, 0x000);
 			break;
 		case 32000:
-			wm8739_write(client, R8, 0x018); /* 256fps, fs=32k       */
+			/* 256fps, fs=32k */
+			wm8739_write(client, R8, 0x018);
 			break;
 		default:
 			break;
 		}
-		wm8739_write(client, R9, 0x001);	/* activate */
+		/* activate */
+		wm8739_write(client, R9, 0x001);
 		break;
 	}
 
@@ -239,7 +242,8 @@ static int wm8739_command(struct i2c_client *client, unsigned int cmd, void *arg
 	}
 
 	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_WM8739, 0);
+		return v4l2_chip_ident_i2c_client(client,
+				arg, V4L2_IDENT_WM8739, 0);
 
 	case VIDIOC_LOG_STATUS:
 		v4l_info(client, "Frequency: %u Hz\n", state->clock_freq);
@@ -268,7 +272,8 @@ static int wm8739_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct wm8739_state), GFP_KERNEL);
 	if (state == NULL) {
@@ -284,17 +289,23 @@ static int wm8739_probe(struct i2c_client *client)
 	state->clock_freq = 48000;
 	i2c_set_clientdata(client, state);
 
-	/* initialize wm8739 */
-	wm8739_write(client, R15, 0x00); /* reset */
-	wm8739_write(client, R5, 0x000); /* filter setting, high path, offet clear */
-	wm8739_write(client, R6, 0x000); /* ADC, OSC, Power Off mode Disable */
-	wm8739_write(client, R7, 0x049); /* Digital Audio interface format */
-					 /* Enable Master mode */
-					 /* 24 bit, MSB first/left justified */
-	wm8739_write(client, R8, 0x000); /* sampling control */
-					 /* normal, 256fs, 48KHz sampling rate */
-	wm8739_write(client, R9, 0x001); /* activate */
-	wm8739_set_audio(client); 	 /* set volume/mute */
+	/* Initialize wm8739 */
+
+	/* reset */
+	wm8739_write(client, R15, 0x00);
+	/* filter setting, high path, offet clear */
+	wm8739_write(client, R5, 0x000);
+	/* ADC, OSC, Power Off mode Disable */
+	wm8739_write(client, R6, 0x000);
+	/* Digital Audio interface format:
+	   Enable Master mode, 24 bit, MSB first/left justified */
+	wm8739_write(client, R7, 0x049);
+	/* sampling control: normal, 256fs, 48KHz sampling rate */
+	wm8739_write(client, R8, 0x000);
+	/* activate */
+	wm8739_write(client, R9, 0x001);
+	/* set volume/mute */
+	wm8739_set_audio(client);
 	return 0;
 }
 
