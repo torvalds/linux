@@ -187,29 +187,28 @@ static int register_pernet_operations(struct list_head *list,
 	struct net *net, *undo_net;
 	int error;
 
-	error = 0;
 	list_add_tail(&ops->list, list);
-	for_each_net(net) {
-		if (ops->init) {
+	if (ops->init) {
+		for_each_net(net) {
 			error = ops->init(net);
 			if (error)
 				goto out_undo;
 		}
 	}
-out:
-	return error;
+	return 0;
 
 out_undo:
 	/* If I have an error cleanup all namespaces I initialized */
 	list_del(&ops->list);
-	for_each_net(undo_net) {
-		if (undo_net == net)
-			goto undone;
-		if (ops->exit)
+	if (ops->exit) {
+		for_each_net(undo_net) {
+			if (undo_net == net)
+				goto undone;
 			ops->exit(undo_net);
+		}
 	}
 undone:
-	goto out;
+	return error;
 }
 
 static void unregister_pernet_operations(struct pernet_operations *ops)
@@ -217,8 +216,8 @@ static void unregister_pernet_operations(struct pernet_operations *ops)
 	struct net *net;
 
 	list_del(&ops->list);
-	for_each_net(net)
-		if (ops->exit)
+	if (ops->exit)
+		for_each_net(net)
 			ops->exit(net);
 }
 
