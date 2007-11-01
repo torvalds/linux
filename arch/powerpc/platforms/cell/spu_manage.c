@@ -345,7 +345,7 @@ static int __init of_create_spu(struct spu *spu, void *data)
 		}
 		ret = spu_map_interrupts_old(spu, spe);
 		if (ret) {
-			printk(KERN_ERR "%s: could not map interrupts",
+			printk(KERN_ERR "%s: could not map interrupts\n",
 				spu->name);
 			goto out_unmap;
 		}
@@ -525,7 +525,7 @@ static int __init init_affinity(void)
 		if (of_flat_dt_is_compatible(root, "IBM,CPBW-1.0"))
 			init_affinity_qs20_harcoded();
 		else
-			printk("No affinity configuration found");
+			printk("No affinity configuration found\n");
 	}
 
 	return 0;
