@@ -13,27 +13,12 @@
 #include <asm/mipsregs.h>
 
 /*
- * This is the frequency of the timer used for Linux's timer interrupt.
- * The value should be defined as accurate as possible or under certain
- * circumstances Linux timekeeping might become inaccurate or fail.
- *
- * For many system the exact clockrate of the timer isn't known but due to
- * the way this value is used we can get away with a wrong value as long
- * as this value is:
- *
- *  - a multiple of HZ
- *  - a divisor of the actual rate
- *
- * 500000 is a good such cheat value.
- *
- * The obscure number 1193182 is the same as used by the original i8254
- * time in legacy PC hardware; the chip unfortunately also found in a
- * bunch of MIPS systems.  The last remaining user of the i8254 for the
- * timer interrupt is the RM200; it's a very standard system so there is
- * no reason to make this a separate architecture.
+ * This is the clock rate of the i8253 PIT.  A MIPS system may not have
+ * a PIT by the symbol is used all over the kernel including some APIs.
+ * So keeping it defined to the number for the PIT is the only sane thing
+ * for now.
  */
-
-#include <timex.h>
+#define CLOCK_TICK_RATE 1193182
 
 /*
  * Standard way to access the cycle counter.
