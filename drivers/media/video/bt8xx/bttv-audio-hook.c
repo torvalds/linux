@@ -117,9 +117,9 @@ void gvbctv5pci_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 			break;
 		  default:
 			t->rxsubchans = V4L2_TUNER_SUB_MONO |
-				         V4L2_TUNER_SUB_STEREO |
-				         V4L2_TUNER_SUB_LANG1 |
-				         V4L2_TUNER_SUB_LANG2;
+					 V4L2_TUNER_SUB_STEREO |
+					 V4L2_TUNER_SUB_LANG1 |
+					 V4L2_TUNER_SUB_LANG2;
 		}
 		t->audmode = V4L2_TUNER_MODE_STEREO |
 			  V4L2_TUNER_MODE_LANG1  | V4L2_TUNER_MODE_LANG2;
