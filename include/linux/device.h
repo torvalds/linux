@@ -51,7 +51,6 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
 
 struct bus_type {
 	const char		* name;
-	struct module		* owner;
 
 	struct kset		subsys;
 	struct kset		*drivers_kset;
