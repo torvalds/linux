@@ -1044,6 +1044,8 @@ search_again:
 			if (state->state & EXTENT_LOCKED) {
 				DEFINE_WAIT(wait);
 				atomic_inc(&state->refs);
+				prepare_to_wait(&state->wq, &wait,
+						TASK_UNINTERRUPTIBLE);
 				write_unlock_irq(&tree->lock);
 				schedule();
 				write_lock_irq(&tree->lock);
@@ -1059,7 +1061,7 @@ search_again:
 		node = rb_next(node);
 		if (!node)
 			break;
-		total_bytes = state->end - state->start + 1;
+		total_bytes += state->end - state->start + 1;
 		if (total_bytes >= max_bytes)
 			break;
 	}
