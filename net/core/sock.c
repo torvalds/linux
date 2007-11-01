@@ -908,10 +908,12 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 {
 	struct sock *sk;
 
+	if (zero_it)
+		priority |= __GFP_ZERO;
+
 	sk = sk_prot_alloc(prot, priority);
 	if (sk) {
 		if (zero_it) {
-			memset(sk, 0, prot->obj_size);
 			sk->sk_family = family;
 			/*
 			 * See comment in struct sock definition to understand
