@@ -1611,6 +1611,34 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_NVIDIA,  PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 DECLARE_PCI_FIXUP_RESUME(PCI_VENDOR_ID_NVIDIA,  PCI_DEVICE_ID_NVIDIA_CK804_PCIE,
 			quirk_nvidia_ck804_pcie_aer_ext_cap);
 
+static void __devinit quirk_via_cx700_pci_parking_caching(struct pci_dev *dev)
+{
+	/*
+	 * Disable PCI Bus Parking and PCI Master read caching on CX700
+	 * which causes unspecified timing errors with a VT6212L on the PCI
+	 * bus leading to USB2.0 packet loss. The defaults are that these
+	 * features are turned off but some BIOSes turn them on.
+	 */
+
+	uint8_t b;
+	if (pci_read_config_byte(dev, 0x76, &b) == 0) {
+		if (b & 0x40) {
+			/* Turn off PCI Bus Parking */
+			pci_write_config_byte(dev, 0x76, b ^ 0x40);
+
+			/* Turn off PCI Master read caching */
+			pci_write_config_byte(dev, 0x72, 0x0);
+			pci_write_config_byte(dev, 0x75, 0x1);
+			pci_write_config_byte(dev, 0x77, 0x0);
+
+			printk(KERN_INFO
+				"PCI: VIA CX700 PCI parking/caching fixup on %s\n",
+				pci_name(dev));
+		}
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_VIA, 0x324e, quirk_via_cx700_pci_parking_caching);
+
 #ifdef CONFIG_PCI_MSI
 /* Some chipsets do not support MSI. We cannot easily rely on setting
  * PCI_BUS_FLAGS_NO_MSI in its bus flags because there are actually
