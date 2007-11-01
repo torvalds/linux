@@ -1228,6 +1228,29 @@ typedef struct smb_com_transaction_qsec_req {
 	__le32 AclFlags;
 } __attribute__((packed)) QUERY_SEC_DESC_REQ;
 
+
+typedef struct smb_com_transaction_ssec_req {
+	struct smb_hdr hdr;     /* wct = 19 */
+	__u8 MaxSetupCount;
+	__u16 Reserved;
+	__le32 TotalParameterCount;
+	__le32 TotalDataCount;
+	__le32 MaxParameterCount;
+	__le32 MaxDataCount;
+	__le32 ParameterCount;
+	__le32 ParameterOffset;
+	__le32 DataCount;
+	__le32 DataOffset;
+	__u8 SetupCount; /* no setup words follow subcommand */
+	/* SNIA spec incorrectly included spurious pad here */
+	__le16 SubCommand; /* 3 = SET_SECURITY_DESC */
+	__le16 ByteCount; /* bcc = 3 + 8 */
+	__u8 Pad[3];
+	__u16 Fid;
+	__u16 Reserved2;
+	__le32 AclFlags;
+} __attribute__((packed)) SET_SEC_DESC_REQ;
+
 typedef struct smb_com_transaction_change_notify_req {
 	struct smb_hdr hdr;     /* wct = 23 */
 	__u8 MaxSetupCount;
