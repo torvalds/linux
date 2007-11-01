@@ -1930,7 +1930,7 @@ again:
 int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct btrfs_path *path,
-			u32 new_size)
+			u32 new_size, int from_end)
 {
 	int ret = 0;
 	int slot;
@@ -1946,13 +1946,17 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 
 	slot_orig = path->slots[0];
 	leaf = path->nodes[0];
+	slot = path->slots[0];
+
+	old_size = btrfs_item_size_nr(leaf, slot);
+	if (old_size == new_size)
+		return 0;
 
 	nritems = btrfs_header_nritems(leaf);
 	data_end = leaf_data_end(root, leaf);
 
-	slot = path->slots[0];
 	old_data_start = btrfs_item_offset_nr(leaf, slot);
-	old_size = btrfs_item_size_nr(leaf, slot); BUG_ON(old_size <= new_size);
+
 	size_diff = old_size - new_size;
 
 	BUG_ON(slot < 0);
@@ -1984,9 +1988,45 @@ int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 	}
 
 	/* shift the data */
-	memmove_extent_buffer(leaf, btrfs_leaf_data(leaf) +
-		      data_end + size_diff, btrfs_leaf_data(leaf) +
-		      data_end, old_data_start + new_size - data_end);
+	if (from_end) {
+		memmove_extent_buffer(leaf, btrfs_leaf_data(leaf) +
+			      data_end + size_diff, btrfs_leaf_data(leaf) +
+			      data_end, old_data_start + new_size - data_end);
+	} else {
+		struct btrfs_disk_key disk_key;
+		u64 offset;
+
+		btrfs_item_key(leaf, &disk_key, slot);
+
+		if (btrfs_disk_key_type(&disk_key) == BTRFS_EXTENT_DATA_KEY) {
+			unsigned long ptr;
+			struct btrfs_file_extent_item *fi;
+
+			fi = btrfs_item_ptr(leaf, slot,
+					    struct btrfs_file_extent_item);
+			fi = (struct btrfs_file_extent_item *)(
+			     (unsigned long)fi - size_diff);
+
+			if (btrfs_file_extent_type(leaf, fi) ==
+			    BTRFS_FILE_EXTENT_INLINE) {
+				ptr = btrfs_item_ptr_offset(leaf, slot);
+				memmove_extent_buffer(leaf, ptr,
+				        (unsigned long)fi,
+				        offsetof(struct btrfs_file_extent_item,
+						 disk_bytenr));
+			}
+		}
+
+		memmove_extent_buffer(leaf, btrfs_leaf_data(leaf) +
+			      data_end + size_diff, btrfs_leaf_data(leaf) +
+			      data_end, old_data_start - data_end);
+
+		offset = btrfs_disk_key_offset(&disk_key);
+		btrfs_set_disk_key_offset(&disk_key, offset + size_diff);
+		btrfs_set_item_key(leaf, &disk_key, slot);
+		if (slot == 0)
+			fixup_low_keys(trans, root, path, &disk_key, 1);
+	}
 
 	item = btrfs_item_nr(leaf, slot);
 	btrfs_set_item_size(leaf, item, new_size);

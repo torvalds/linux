@@ -89,6 +89,9 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 	ret = btrfs_drop_extents(trans, root, inode,
 				 start, start + num_bytes, start, &alloc_hint);
 
+	if (alloc_hint == EXTENT_MAP_INLINE)
+		goto out;
+
 	ret = btrfs_alloc_extent(trans, root, inode->i_ino, num_bytes, 0,
 				 alloc_hint, (u64)-1, &ins, 1);
 	if (ret) {
@@ -558,6 +561,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	u64 item_end = 0;
 	int found_extent;
 	int del_item;
+	int extent_type = -1;
 
 	btrfs_drop_extent_cache(inode, inode->i_size, (u64)-1);
 	path = btrfs_alloc_path();
@@ -597,10 +601,15 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		if (found_type == BTRFS_EXTENT_DATA_KEY) {
 			fi = btrfs_item_ptr(leaf, path->slots[0],
 					    struct btrfs_file_extent_item);
-			if (btrfs_file_extent_type(leaf, fi) !=
-			    BTRFS_FILE_EXTENT_INLINE) {
+			extent_type = btrfs_file_extent_type(leaf, fi);
+			if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
 				item_end +=
 				    btrfs_file_extent_num_bytes(leaf, fi);
+			} else if (extent_type == BTRFS_FILE_EXTENT_INLINE) {
+				struct btrfs_item *item = btrfs_item_nr(leaf,
+							        path->slots[0]);
+				item_end += btrfs_file_extent_inline_len(leaf,
+									 item);
 			}
 		}
 		if (found_type == BTRFS_CSUM_ITEM_KEY) {
@@ -608,7 +617,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 						  inode->i_size);
 			BUG_ON(ret);
 		}
-		if (item_end < inode->i_size) {
+		if (item_end <= inode->i_size) {
 			if (found_type == BTRFS_DIR_ITEM_KEY) {
 				found_type = BTRFS_INODE_ITEM_KEY;
 			} else if (found_type == BTRFS_EXTENT_ITEM_KEY) {
@@ -629,9 +638,10 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 		found_extent = 0;
 
 		/* FIXME, shrink the extent if the ref count is only 1 */
-		if (found_type == BTRFS_EXTENT_DATA_KEY &&
-			   btrfs_file_extent_type(leaf, fi) !=
-			   BTRFS_FILE_EXTENT_INLINE) {
+		if (found_type != BTRFS_EXTENT_DATA_KEY)
+			goto delete;
+
+		if (extent_type != BTRFS_FILE_EXTENT_INLINE) {
 			u64 num_dec;
 			extent_start = btrfs_file_extent_disk_bytenr(leaf, fi);
 			if (!del_item) {
@@ -659,7 +669,15 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 					inode->i_blocks -= num_dec;
 				}
 			}
+		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE &&
+			   !del_item) {
+			u32 newsize = inode->i_size - found_key.offset;
+			newsize = btrfs_file_extent_calc_inline_size(newsize);
+			ret = btrfs_truncate_item(trans, root, path,
+						  newsize, 1);
+			BUG_ON(ret);
 		}
+delete:
 		if (del_item) {
 			ret = btrfs_del_item(trans, root, path);
 			if (ret)
@@ -769,7 +787,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		u64 pos = (inode->i_size + mask) & ~mask;
 		u64 block_end = attr->ia_size | mask;
 		u64 hole_size;
-		u64 alloc_hint;
+		u64 alloc_hint = 0;
 
 		if (attr->ia_size <= pos)
 			goto out;
@@ -786,8 +804,11 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 					 pos, pos + hole_size, pos,
 					 &alloc_hint);
 
-		err = btrfs_insert_file_extent(trans, root, inode->i_ino,
-					       pos, 0, 0, hole_size);
+		if (alloc_hint != EXTENT_MAP_INLINE) {
+			err = btrfs_insert_file_extent(trans, root,
+						       inode->i_ino,
+						       pos, 0, 0, hole_size);
+		}
 		btrfs_end_transaction(trans, root);
 		mutex_unlock(&root->fs_info->fs_mutex);
 		unlock_extent(em_tree, pos, block_end, GFP_NOFS);
@@ -1531,8 +1552,8 @@ again:
 		em->end = EXTENT_MAP_HOLE;
 	}
 	em->bdev = inode->i_sb->s_bdev;
-	ret = btrfs_lookup_file_extent(NULL, root, path,
-				       objectid, start, 0);
+	ret = btrfs_lookup_file_extent(trans, root, path,
+				       objectid, start, trans != NULL);
 	if (ret < 0) {
 		err = ret;
 		goto out;
@@ -1627,15 +1648,23 @@ again:
 			((u64)root->sectorsize -1);
 		map = kmap(page);
 		ptr = btrfs_file_extent_inline_start(item) + extent_offset;
-		read_extent_buffer(leaf, map + page_offset, ptr, copy_size);
-		
-		if (em->start + copy_size <= em->end) {
-			size = min_t(u64, em->end + 1 - em->start,
-				PAGE_CACHE_SIZE - page_offset) - copy_size;
-			memset(map + page_offset + copy_size, 0, size);
+		if (create == 0 && !PageUptodate(page)) {
+			read_extent_buffer(leaf, map + page_offset, ptr,
+					   copy_size);
+			flush_dcache_page(page);
+		} else if (create && PageUptodate(page)) {
+			if (!trans) {
+				kunmap(page);
+				free_extent_map(em);
+				em = NULL;
+				btrfs_release_path(root, path);
+				trans = btrfs_start_transaction(root, 1);
+				goto again;
+			}
+			write_extent_buffer(leaf, map + page_offset, ptr,
+					    copy_size);
+			btrfs_mark_buffer_dirty(leaf);
 		}
-
-		flush_dcache_page(page);
 		kunmap(page);
 		set_extent_uptodate(em_tree, em->start, em->end, GFP_NOFS);
 		goto insert;

@@ -24,7 +24,6 @@
  * page->private values.  Every page that is controlled by the extent
  * map has page->private set to one.
  */
-
 #define EXTENT_PAGE_PRIVATE 1
 #define EXTENT_PAGE_PRIVATE_FIRST_PAGE 3
 

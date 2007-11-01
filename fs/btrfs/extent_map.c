@@ -263,7 +263,12 @@ int add_extent_mapping(struct extent_map_tree *tree,
 		if (prev && prev->end + 1 == em->start &&
 		    ((em->block_start == EXTENT_MAP_HOLE &&
 		      prev->block_start == EXTENT_MAP_HOLE) ||
-			     (em->block_start == prev->block_end + 1))) {
+		     (em->block_start == EXTENT_MAP_INLINE &&
+		      prev->block_start == EXTENT_MAP_INLINE) ||
+		     (em->block_start == EXTENT_MAP_DELALLOC &&
+		      prev->block_start == EXTENT_MAP_DELALLOC) ||
+		     (em->block_start < EXTENT_MAP_DELALLOC - 1 &&
+		      em->block_start == prev->block_end + 1))) {
 			em->start = prev->start;
 			em->block_start = prev->block_start;
 			rb_erase(&prev->rb_node, &tree->map);
@@ -1618,13 +1623,13 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 	u64 extent_offset;
 	u64 last_byte = i_size_read(inode);
 	u64 block_start;
+	u64 iosize;
 	sector_t sector;
 	struct extent_map *em;
 	struct block_device *bdev;
 	int ret;
 	int nr = 0;
 	size_t page_offset = 0;
-	size_t iosize;
 	size_t blocksize;
 	loff_t i_size = i_size_read(inode);
 	unsigned long end_index = i_size >> PAGE_CACHE_SHIFT;
@@ -1684,7 +1689,7 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			clear_extent_dirty(tree, cur, page_end, GFP_NOFS);
 			break;
 		}
-		em = get_extent(inode, page, page_offset, cur, end, 0);
+		em = get_extent(inode, page, page_offset, cur, end, 1);
 		if (IS_ERR(em) || !em) {
 			SetPageError(page);
 			break;

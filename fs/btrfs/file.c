@@ -115,8 +115,20 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 	if (ret == 1) {
+		struct btrfs_key found_key;
+
+		if (path->slots[0] == 0)
+			goto insert;
+
 		path->slots[0]--;
 		leaf = path->nodes[0];
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+
+		if (found_key.objectid != inode->i_ino)
+			goto insert;
+
+		if (found_key.type != BTRFS_EXTENT_DATA_KEY)
+			goto insert;
 		ei = btrfs_item_ptr(leaf, path->slots[0],
 				    struct btrfs_file_extent_item);
 
@@ -152,6 +164,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 			ret = btrfs_search_slot(trans, root, &key, path,
 						offset + size - found_end, 1);
 			BUG_ON(ret != 0);
+
 			ret = btrfs_extend_item(trans, root, path,
 						offset + size - found_end);
 			if (ret) {
@@ -292,7 +305,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	 */
 	inline_size = end_pos;
 	if (isize >= BTRFS_MAX_INLINE_DATA_SIZE(root) ||
-	    inline_size > 8192 ||
+	    inline_size > 32768 ||
 	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		u64 last_end;
 
@@ -312,7 +325,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		aligned_end = (pos + write_bytes + root->sectorsize - 1) &
 			~((u64)root->sectorsize - 1);
 		err = btrfs_drop_extents(trans, root, inode, start_pos,
-					 aligned_end, end_pos, &hint_byte);
+					 aligned_end, aligned_end, &hint_byte);
 		if (err)
 			goto failed;
 		err = insert_inline_extent(trans, root, inode, start_pos,
@@ -456,13 +469,15 @@ next_slot:
 			goto next_slot;
 		}
 
-		/* FIXME, there's only one inline extent allowed right now */
 		if (found_inline) {
 			u64 mask = root->sectorsize - 1;
 			search_start = (extent_end + mask) & ~mask;
 		} else
 			search_start = extent_end;
 
+		if (end <= extent_end && start >= key.offset && found_inline) {
+			*hint_byte = EXTENT_MAP_INLINE;
+		}
 		if (end < extent_end && end >= key.offset) {
 			if (found_extent) {
 				u64 disk_bytenr =
@@ -479,8 +494,10 @@ next_slot:
 					BUG_ON(ret);
 				}
 			}
-			if (!found_inline)
-				bookend = 1;
+			bookend = 1;
+			if (found_inline && start <= key.offset &&
+			    inline_end < extent_end)
+				keep = 1;
 		}
 		/* truncate existing extent */
 		if (start > key.offset) {
@@ -510,7 +527,7 @@ next_slot:
 				new_size = btrfs_file_extent_calc_inline_size(
 						   inline_end - key.offset);
 				btrfs_truncate_item(trans, root, path,
-						    new_size);
+						    new_size, 1);
 			}
 		}
 		/* delete the entire extent */
@@ -550,6 +567,13 @@ next_slot:
 			}
 			if (!bookend)
 				continue;
+		}
+		if (bookend && found_inline && start <= key.offset &&
+		    inline_end < extent_end) {
+			u32 new_size;
+			new_size = btrfs_file_extent_calc_inline_size(
+						   extent_end - inline_end);
+			btrfs_truncate_item(trans, root, path, new_size, 0);
 		}
 		/* create bookend, splitting the extent in two */
 		if (bookend && found_extent) {

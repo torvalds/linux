@@ -907,7 +907,7 @@ int btrfs_extend_item(struct btrfs_trans_handle *trans, struct btrfs_root
 int btrfs_truncate_item(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root,
 			struct btrfs_path *path,
-			u32 new_size);
+			u32 new_size, int from_end);
 int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_key *key, struct btrfs_path *p, int
 		      ins_len, int cow);

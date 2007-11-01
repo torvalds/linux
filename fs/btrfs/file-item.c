@@ -291,7 +291,7 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 	new_item_size = blocks * BTRFS_CRC32_SIZE;
 	if (new_item_size >= btrfs_item_size_nr(leaf, slot))
 		return 0;
-	ret = btrfs_truncate_item(trans, root, path, new_item_size);
+	ret = btrfs_truncate_item(trans, root, path, new_item_size, 1);
 	BUG_ON(ret);
 	return ret;
 }
