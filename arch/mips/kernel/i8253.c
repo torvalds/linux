@@ -12,6 +12,7 @@
 #include <asm/delay.h>
 #include <asm/i8253.h>
 #include <asm/io.h>
+#include <asm/time.h>
 
 static DEFINE_SPINLOCK(i8253_lock);
 
@@ -87,11 +88,10 @@ struct clock_event_device pit_clockevent = {
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.set_mode	= init_pit_timer,
 	.set_next_event = pit_next_event,
-	.shift		= 32,
 	.irq		= 0,
 };
 
-irqreturn_t timer_interrupt(int irq, void *dev_id)
+static irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	pit_clockevent.event_handler(&pit_clockevent);
 
@@ -111,19 +111,20 @@ static struct irqaction irq0  = {
  */
 void __init setup_pit_timer(void)
 {
+	struct clock_event_device *cd = &pit_clockevent;
+	unsigned int cpu = smp_processor_id();
+
 	/*
 	 * Start pit with the boot cpu mask and make it global after the
 	 * IO_APIC has been initialized.
 	 */
-	pit_clockevent.cpumask = cpumask_of_cpu(0);
-	pit_clockevent.mult = div_sc(CLOCK_TICK_RATE, NSEC_PER_SEC, 32);
-	pit_clockevent.max_delta_ns =
-		clockevent_delta2ns(0x7FFF, &pit_clockevent);
-	pit_clockevent.min_delta_ns =
-		clockevent_delta2ns(0xF, &pit_clockevent);
-	clockevents_register_device(&pit_clockevent);
+	cd->cpumask = cpumask_of_cpu(cpu);
+	clockevent_set_clock(cd, CLOCK_TICK_RATE);
+	cd->max_delta_ns = clockevent_delta2ns(0x7FFF, cd);
+	cd->min_delta_ns = clockevent_delta2ns(0xF, cd);
+	clockevents_register_device(cd);
 
-	irq0.mask = cpumask_of_cpu(0);
+	irq0.mask = cpumask_of_cpu(cpu);
 	setup_irq(0, &irq0);
 }
 
