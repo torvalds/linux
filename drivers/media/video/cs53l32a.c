@@ -35,7 +35,7 @@ MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
 MODULE_LICENSE("GPL");
 
-static int debug = 0;
+static int debug;
 
 module_param(debug, bool, 0644);
 
@@ -58,7 +58,7 @@ static int cs53l32a_read(struct i2c_client *client, u8 reg)
 	return i2c_smbus_read_byte_data(client, reg);
 }
 
-static int cs53l32a_command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int cs53l32a_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct v4l2_routing *route = arg;
 	struct v4l2_control *ctrl = arg;
@@ -105,7 +105,8 @@ static int cs53l32a_command(struct i2c_client *client, unsigned int cmd, void *a
 		break;
 
 	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_CS53l32A, 0);
+		return v4l2_chip_ident_i2c_client(client,
+				arg, V4L2_IDENT_CS53l32A, 0);
 
 	case VIDIOC_LOG_STATUS:
 		{
@@ -144,7 +145,8 @@ static int cs53l32a_probe(struct i2c_client *client)
 
 	snprintf(client->name, sizeof(client->name) - 1, "cs53l32a");
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	for (i = 1; i <= 7; i++) {
 		u8 v = cs53l32a_read(client, i);
