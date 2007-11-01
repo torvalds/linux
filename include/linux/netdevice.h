@@ -739,6 +739,16 @@ static inline void *netdev_priv(const struct net_device *dev)
  */
 #define SET_NETDEV_DEV(net, pdev)	((net)->dev.parent = (pdev))
 
+/**
+ *	netif_napi_add - initialize a napi context
+ *	@dev:  network device
+ *	@napi: napi context
+ *	@poll: polling function
+ *	@weight: default weight
+ *
+ * netif_napi_add() must be used to initialize a napi context prior to calling
+ * *any* of the other napi related functions.
+ */
 static inline void netif_napi_add(struct net_device *dev,
 				  struct napi_struct *napi,
 				  int (*poll)(struct napi_struct *, int),

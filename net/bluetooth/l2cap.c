@@ -607,7 +607,7 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int p
 {
 	struct sock *sk;
 
-	sk = sk_alloc(net, PF_BLUETOOTH, prio, &l2cap_proto, 1);
+	sk = sk_alloc(net, PF_BLUETOOTH, prio, &l2cap_proto);
 	if (!sk)
 		return NULL;
 

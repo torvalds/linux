@@ -133,7 +133,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	sock->sk = NULL;
 	if (sock->type == SOCK_STREAM)
 		return -EINVAL;
-	sk = sk_alloc(net, family, GFP_KERNEL, &vcc_proto, 1);
+	sk = sk_alloc(net, family, GFP_KERNEL, &vcc_proto);
 	if (!sk)
 		return -ENOMEM;
 	sock_init_data(sock, sk);

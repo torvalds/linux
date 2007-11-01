@@ -51,13 +51,12 @@ static inline struct net *copy_net_ns(unsigned long flags, struct net *net_ns)
 }
 #endif
 
+#ifdef CONFIG_NET_NS
 extern void __put_net(struct net *net);
 
 static inline struct net *get_net(struct net *net)
 {
-#ifdef CONFIG_NET
 	atomic_inc(&net->count);
-#endif
 	return net;
 }
 
@@ -75,26 +74,44 @@ static inline struct net *maybe_get_net(struct net *net)
 
 static inline void put_net(struct net *net)
 {
-#ifdef CONFIG_NET
 	if (atomic_dec_and_test(&net->count))
 		__put_net(net);
-#endif
 }
 
 static inline struct net *hold_net(struct net *net)
 {
-#ifdef CONFIG_NET
 	atomic_inc(&net->use_count);
-#endif
 	return net;
 }
 
 static inline void release_net(struct net *net)
 {
-#ifdef CONFIG_NET
 	atomic_dec(&net->use_count);
-#endif
 }
+#else
+static inline struct net *get_net(struct net *net)
+{
+	return net;
+}
+
+static inline void put_net(struct net *net)
+{
+}
+
+static inline struct net *hold_net(struct net *net)
+{
+	return net;
+}
+
+static inline void release_net(struct net *net)
+{
+}
+
+static inline struct net *maybe_get_net(struct net *net)
+{
+	return net;
+}
+#endif
 
 #define for_each_net(VAR)				\
 	list_for_each_entry(VAR, &net_namespace_list, list)

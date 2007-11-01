@@ -779,7 +779,7 @@ extern void FASTCALL(release_sock(struct sock *sk));
 
 extern struct sock		*sk_alloc(struct net *net, int family,
 					  gfp_t priority,
-					  struct proto *prot, int zero_it);
+					  struct proto *prot);
 extern void			sk_free(struct sock *sk);
 extern struct sock		*sk_clone(const struct sock *sk,
 					  const gfp_t priority);
@@ -991,20 +991,6 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 	sk->sk_socket = parent;
 	security_sock_graft(sk, parent);
 	write_unlock_bh(&sk->sk_callback_lock);
-}
-
-static inline void sock_copy(struct sock *nsk, const struct sock *osk)
-{
-#ifdef CONFIG_SECURITY_NETWORK
-	void *sptr = nsk->sk_security;
-#endif
-
-	memcpy(nsk, osk, osk->sk_prot->obj_size);
-	get_net(nsk->sk_net);
-#ifdef CONFIG_SECURITY_NETWORK
-	nsk->sk_security = sptr;
-	security_sk_clone(osk, nsk);
-#endif
 }
 
 extern int sock_i_uid(struct sock *sk);

@@ -17,14 +17,87 @@ static DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
 
-static struct kmem_cache *net_cachep;
-
 struct net init_net;
 EXPORT_SYMBOL_GPL(init_net);
+
+/*
+ * setup_net runs the initializers for the network namespace object.
+ */
+static __net_init int setup_net(struct net *net)
+{
+	/* Must be called with net_mutex held */
+	struct pernet_operations *ops;
+	int error;
+
+	atomic_set(&net->count, 1);
+	atomic_set(&net->use_count, 0);
+
+	error = 0;
+	list_for_each_entry(ops, &pernet_list, list) {
+		if (ops->init) {
+			error = ops->init(net);
+			if (error < 0)
+				goto out_undo;
+		}
+	}
+out:
+	return error;
+
+out_undo:
+	/* Walk through the list backwards calling the exit functions
+	 * for the pernet modules whose init functions did not fail.
+	 */
+	list_for_each_entry_continue_reverse(ops, &pernet_list, list) {
+		if (ops->exit)
+			ops->exit(net);
+	}
+
+	rcu_barrier();
+	goto out;
+}
+
+#ifdef CONFIG_NET_NS
+static struct kmem_cache *net_cachep;
 
 static struct net *net_alloc(void)
 {
 	return kmem_cache_zalloc(net_cachep, GFP_KERNEL);
+}
+
+struct net *copy_net_ns(unsigned long flags, struct net *old_net)
+{
+	struct net *new_net = NULL;
+	int err;
+
+	get_net(old_net);
+
+	if (!(flags & CLONE_NEWNET))
+		return old_net;
+
+	err = -ENOMEM;
+	new_net = net_alloc();
+	if (!new_net)
+		goto out;
+
+	mutex_lock(&net_mutex);
+	err = setup_net(new_net);
+	if (err)
+		goto out_unlock;
+
+	rtnl_lock();
+	list_add_tail(&new_net->list, &net_namespace_list);
+	rtnl_unlock();
+
+
+out_unlock:
+	mutex_unlock(&net_mutex);
+out:
+	put_net(old_net);
+	if (err) {
+		net_free(new_net);
+		new_net = ERR_PTR(err);
+	}
+	return new_net;
 }
 
 static void net_free(struct net *net)
@@ -72,7 +145,6 @@ static void cleanup_net(struct work_struct *work)
 	net_free(net);
 }
 
-
 void __put_net(struct net *net)
 {
 	/* Cleanup the network namespace in process context */
@@ -81,90 +153,25 @@ void __put_net(struct net *net)
 }
 EXPORT_SYMBOL_GPL(__put_net);
 
-/*
- * setup_net runs the initializers for the network namespace object.
- */
-static int setup_net(struct net *net)
-{
-	/* Must be called with net_mutex held */
-	struct pernet_operations *ops;
-	int error;
-
-	atomic_set(&net->count, 1);
-	atomic_set(&net->use_count, 0);
-
-	error = 0;
-	list_for_each_entry(ops, &pernet_list, list) {
-		if (ops->init) {
-			error = ops->init(net);
-			if (error < 0)
-				goto out_undo;
-		}
-	}
-out:
-	return error;
-
-out_undo:
-	/* Walk through the list backwards calling the exit functions
-	 * for the pernet modules whose init functions did not fail.
-	 */
-	list_for_each_entry_continue_reverse(ops, &pernet_list, list) {
-		if (ops->exit)
-			ops->exit(net);
-	}
-
-	rcu_barrier();
-	goto out;
-}
-
+#else
 struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 {
-	struct net *new_net = NULL;
-	int err;
-
-	get_net(old_net);
-
-	if (!(flags & CLONE_NEWNET))
-		return old_net;
-
-#ifndef CONFIG_NET_NS
-	return ERR_PTR(-EINVAL);
-#endif
-
-	err = -ENOMEM;
-	new_net = net_alloc();
-	if (!new_net)
-		goto out;
-
-	mutex_lock(&net_mutex);
-	err = setup_net(new_net);
-	if (err)
-		goto out_unlock;
-
-	rtnl_lock();
-	list_add_tail(&new_net->list, &net_namespace_list);
-	rtnl_unlock();
-
-
-out_unlock:
-	mutex_unlock(&net_mutex);
-out:
-	put_net(old_net);
-	if (err) {
-		net_free(new_net);
-		new_net = ERR_PTR(err);
-	}
-	return new_net;
+	if (flags & CLONE_NEWNET)
+		return ERR_PTR(-EINVAL);
+	return old_net;
 }
+#endif
 
 static int __init net_ns_init(void)
 {
 	int err;
 
 	printk(KERN_INFO "net_namespace: %zd bytes\n", sizeof(struct net));
+#ifdef CONFIG_NET_NS
 	net_cachep = kmem_cache_create("net_namespace", sizeof(struct net),
 					SMP_CACHE_BYTES,
 					SLAB_PANIC, NULL);
+#endif
 	mutex_lock(&net_mutex);
 	err = setup_net(&init_net);
 
@@ -187,29 +194,28 @@ static int register_pernet_operations(struct list_head *list,
 	struct net *net, *undo_net;
 	int error;
 
-	error = 0;
 	list_add_tail(&ops->list, list);
-	for_each_net(net) {
-		if (ops->init) {
+	if (ops->init) {
+		for_each_net(net) {
 			error = ops->init(net);
 			if (error)
 				goto out_undo;
 		}
 	}
-out:
-	return error;
+	return 0;
 
 out_undo:
 	/* If I have an error cleanup all namespaces I initialized */
 	list_del(&ops->list);
-	for_each_net(undo_net) {
-		if (undo_net == net)
-			goto undone;
-		if (ops->exit)
+	if (ops->exit) {
+		for_each_net(undo_net) {
+			if (undo_net == net)
+				goto undone;
 			ops->exit(undo_net);
+		}
 	}
 undone:
-	goto out;
+	return error;
 }
 
 static void unregister_pernet_operations(struct pernet_operations *ops)
@@ -217,8 +223,8 @@ static void unregister_pernet_operations(struct pernet_operations *ops)
 	struct net *net;
 
 	list_del(&ops->list);
-	for_each_net(net)
-		if (ops->exit)
+	if (ops->exit)
+		for_each_net(net)
 			ops->exit(net);
 }
 
