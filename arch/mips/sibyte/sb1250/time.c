@@ -15,32 +15,18 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
-
-/*
- * These are routines to set up and handle interrupts from the
- * sb1250 general purpose timer 0.  We're using the timer as a
- * system clock, so we set it up to run at 100 Hz.  On every
- * interrupt, we update our idea of what the time of day is,
- * then call do_timer() in the architecture-independent kernel
- * code to do general bookkeeping (e.g. update jiffies, run
- * bottom halves, etc.)
- */
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
-#include <linux/spinlock.h>
-#include <linux/kernel_stat.h>
+#include <linux/percpu.h>
 
-#include <asm/irq.h>
 #include <asm/addrspace.h>
-#include <asm/time.h>
 #include <asm/io.h>
+#include <asm/time.h>
 
 #include <asm/sibyte/sb1250.h>
 #include <asm/sibyte/sb1250_regs.h>
 #include <asm/sibyte/sb1250_int.h>
 #include <asm/sibyte/sb1250_scd.h>
-
 
 #define IMR_IP2_VAL	K_INT_MAP_I0
 #define IMR_IP3_VAL	K_INT_MAP_I1
@@ -49,32 +35,31 @@
 #define SB1250_HPT_NUM		3
 #define SB1250_HPT_VALUE	M_SCD_TIMER_CNT /* max value */
 
-
 /*
- * The general purpose timer ticks at 1 Mhz independent if
+ * The general purpose timer ticks at 1MHz independent if
  * the rest of the system
  */
 static void sibyte_set_mode(enum clock_event_mode mode,
                            struct clock_event_device *evt)
 {
 	unsigned int cpu = smp_processor_id();
-	void __iomem *timer_cfg, *timer_init;
+	void __iomem *cfg, *init;
 
-	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
+	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
-	switch(mode) {
+	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		__raw_writeq(0, timer_cfg);
-		__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1, timer_init);
+		__raw_writeq(0, cfg);
+		__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1, init);
 		__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-			     timer_cfg);
+			     cfg);
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* Stop the timer until we actually program a shot */
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		__raw_writeq(0, timer_cfg);
+		__raw_writeq(0, cfg);
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:	/* shuddup gcc */
@@ -83,18 +68,16 @@ static void sibyte_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static int
-sibyte_next_event(unsigned long delta, struct clock_event_device *evt)
+static int sibyte_next_event(unsigned long delta, struct clock_event_device *cd)
 {
 	unsigned int cpu = smp_processor_id();
-	void __iomem *timer_cfg, *timer_init;
+	void __iomem *cfg, *init;
 
-	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
+	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
-	__raw_writeq(0, timer_cfg);
-	__raw_writeq(delta, timer_init);
-	__raw_writeq(M_SCD_TIMER_ENABLE, timer_cfg);
+	__raw_writeq(delta - 1, init);
+	__raw_writeq(M_SCD_TIMER_ENABLE, cfg);
 
 	return 0;
 }
@@ -103,10 +86,17 @@ static irqreturn_t sibyte_counter_handler(int irq, void *dev_id)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd = dev_id;
+	void __iomem *cfg;
+	unsigned long tmode;
+
+	if (cd->mode == CLOCK_EVT_MODE_PERIODIC)
+		tmode = M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS;
+	else
+		tmode = 0;
 
 	/* ACK interrupt */
-	____raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-		       IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
+	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	____raw_writeq(tmode, cfg);
 
 	cd->event_handler(cd);
 
@@ -144,7 +134,9 @@ void __cpuinit sb1250_clockevent_init(void)
 
 	sb1250_mask_irq(cpu, irq);
 
-	/* Map the timer interrupt to ip[4] of this cpu */
+	/*
+	 * Map the timer interrupt to IP[4] of this cpu
+	 */
 	__raw_writeq(IMR_IP4_VAL,
 		     IOADDR(A_IMR_REGISTER(cpu, R_IMR_INTERRUPT_MAP_BASE) +
 			    (irq << 3)));

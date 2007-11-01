@@ -17,13 +17,11 @@
  */
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
-#include <linux/irq.h>
 #include <linux/percpu.h>
-#include <linux/spinlock.h>
 
 #include <asm/addrspace.h>
-#include <asm/time.h>
 #include <asm/io.h>
+#include <asm/time.h>
 
 #include <asm/sibyte/bcm1480_regs.h>
 #include <asm/sibyte/sb1250_regs.h>
@@ -45,23 +43,23 @@ static void sibyte_set_mode(enum clock_event_mode mode,
                            struct clock_event_device *evt)
 {
 	unsigned int cpu = smp_processor_id();
-	void __iomem *timer_cfg, *timer_init;
+	void __iomem *cfg, *init;
 
-	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
+	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		__raw_writeq(0, timer_cfg);
-		__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1, timer_init);
+		__raw_writeq(0, cfg);
+		__raw_writeq((V_SCD_TIMER_FREQ / HZ) - 1, init);
 		__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-			     timer_cfg);
+			     cfg);
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
 		/* Stop the timer until we actually program a shot */
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		__raw_writeq(0, timer_cfg);
+		__raw_writeq(0, cfg);
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:	/* shuddup gcc */
@@ -73,30 +71,33 @@ static void sibyte_set_mode(enum clock_event_mode mode,
 static int sibyte_next_event(unsigned long delta, struct clock_event_device *cd)
 {
 	unsigned int cpu = smp_processor_id();
-	void __iomem *timer_init;
-	unsigned int cnt;
-	int res;
+	void __iomem *cfg, *init;
 
-	timer_init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
-	cnt = __raw_readq(timer_init);
-	cnt += delta;
-	__raw_writeq(cnt, timer_init);
-	res = ((long)(__raw_readq(timer_init) - cnt ) > 0) ? -ETIME : 0;
+	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
-	return res;
+	__raw_writeq(delta - 1, init);
+	__raw_writeq(M_SCD_TIMER_ENABLE, cfg);
+
+	return 0;
 }
 
 static irqreturn_t sibyte_counter_handler(int irq, void *dev_id)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd = dev_id;
-	void __iomem *timer_cfg;
+	void __iomem *cfg;
+	unsigned long tmode;
 
-	timer_cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	if (cd->mode == CLOCK_EVT_MODE_PERIODIC)
+		tmode = M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS;
+	else
+		tmode = 0;
 
-	/* Reset the timer */
-	__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-	             timer_cfg);
+	/* ACK interrupt */
+	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
+	____raw_writeq(tmode, cfg);
+
 	cd->event_handler(cd);
 
 	return IRQ_HANDLED;
@@ -133,7 +134,7 @@ void __cpuinit sb1480_clockevent_init(void)
 	bcm1480_mask_irq(cpu, irq);
 
 	/*
-	 * Map timer interrupt to IP[4] of this cpu
+	 * Map the timer interrupt to IP[4] of this cpu
 	 */
 	__raw_writeq(IMR_IP4_VAL,
 		     IOADDR(A_BCM1480_IMR_REGISTER(cpu,
