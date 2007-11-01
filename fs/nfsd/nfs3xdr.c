@@ -452,8 +452,7 @@ int
 nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 					struct nfsd3_symlinkargs *args)
 {
-	unsigned int len;
-	int avail;
+	unsigned int len, avail;
 	char *old, *new;
 	struct kvec *vec;
 
@@ -486,7 +485,8 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p,
 	/* now copy next page if there is one */
 	if (len && !avail && rqstp->rq_arg.page_len) {
 		avail = rqstp->rq_arg.page_len;
-		if (avail > PAGE_SIZE) avail = PAGE_SIZE;
+		if (avail > PAGE_SIZE)
+			avail = PAGE_SIZE;
 		old = page_address(rqstp->rq_arg.pages[0]);
 	}
 	while (len && avail && *old) {
