@@ -1,6 +1,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
+#include <linux/clockchips.h>
 
 #include <asm/i8253.h>
 #include <asm/sni.h>
@@ -80,7 +81,7 @@ static void __init sni_a20r_timer_setup(void)
 	unsigned int cpu = smp_processor_id();
 
 	cd->cpumask             = cpumask_of_cpu(cpu);
-
+	clockevents_register_device(cd);
 	action->dev_id = cd;
 	setup_irq(SNI_A20R_IRQ_TIMER, &a20r_irqaction);
 }
@@ -168,8 +169,6 @@ void __init plat_time_init(void)
 		(int) (r4k_tick % (500000 / HZ)));
 
 	mips_hpt_frequency = r4k_tick * HZ;
-
-	setup_pit_timer();
 
 	switch (sni_brd_type) {
 	case SNI_BRD_10:
