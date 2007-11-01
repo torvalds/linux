@@ -4091,7 +4091,8 @@ static int __init slab_sysfs_init(void)
 	struct kmem_cache *s;
 	int err;
 
-	slab_kset = kset_create_and_add("slab", &slab_uevent_ops, NULL);
+	slab_kset = kset_create_and_add("slab", &slab_uevent_ops,
+					&kernel_kset->kobj);
 	if (!slab_kset) {
 		printk(KERN_ERR "Cannot register slab subsystem.\n");
 		return -ENOSYS;
