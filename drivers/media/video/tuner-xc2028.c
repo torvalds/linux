@@ -685,6 +685,9 @@ static int xc2028_set_config (struct dvb_frontend *fe, void *priv_cfg)
 		strcpy(priv->ctrl.fname, p->fname);
 	}
 
+	if (p->max_len>0)
+		priv->max_len = p->max_len;
+
 	tuner_info("%s OK\n", __FUNCTION__);
 
 	return 0;

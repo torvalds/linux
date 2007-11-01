@@ -19,6 +19,7 @@ enum xc2028_firm_type {
 struct xc2028_ctrl {
 	enum xc2028_firm_type	type;
 	char			*fname;
+	int			max_len;
 };
 
 /* xc2028 commands for callback */

@@ -371,7 +371,8 @@ static void em28xx_config_tuner (struct em28xx *dev)
 
 	memset (&ctl,0,sizeof(ctl));
 
-	ctl.fname = XC2028_DEFAULT_FIRMWARE;
+	ctl.fname   = XC2028_DEFAULT_FIRMWARE;
+	ctl.max_len = 64;
 
 	xc2028_cfg.tuner = TUNER_XC2028;
 	xc2028_cfg.priv  = &ctl;
