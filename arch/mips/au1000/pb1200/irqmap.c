@@ -94,51 +94,41 @@ inline void pb1200_disable_irq(unsigned int irq_nr)
 	bcsr->intclr = 1<<(irq_nr - PB1200_INT_BEGIN);
 }
 
-static unsigned int pb1200_startup_irq( unsigned int irq_nr )
+static unsigned int pb1200_setup_cascade(void)
 {
-	if (++pb1200_cascade_en == 1)
-	{
-		request_irq(AU1000_GPIO_7, &pb1200_cascade_handler,
-			0, "Pb1200 Cascade", (void *)&pb1200_cascade_handler );
-#ifdef CONFIG_MIPS_PB1200
-    /* We have a problem with CPLD rev3. Enable a workaround */
-	if( ((bcsr->whoami & BCSR_WHOAMI_CPLD)>>4) <= 3)
-	{
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("Pb1200 must be at CPLD rev4. Please have Pb1200\n");
-		printk("updated to latest revision. This software will not\n");
-		printk("work on anything less than CPLD rev4\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		printk("\nWARNING!!!\n");
-		while(1);
-	}
-#endif
-	}
-	pb1200_enable_irq(irq_nr);
+	int err;
+
+	err = request_irq(AU1000_GPIO_7, &pb1200_cascade_handler,
+			  0, "Pb1200 Cascade", &pb1200_cascade_handler);
+	if (err)
+		return err;
+
 	return 0;
 }
 
-static void pb1200_shutdown_irq( unsigned int irq_nr )
+static unsigned int pb1200_startup_irq(unsigned int irq)
 {
-	pb1200_disable_irq(irq_nr);
-	if (--pb1200_cascade_en == 0)
-	{
-		free_irq(AU1000_GPIO_7, &pb1200_cascade_handler );
+	if (++pb1200_cascade_en == 1) {
+		int res;
+
+		res = pb1200_setup_cascade();
+		if (res)
+			return res;
 	}
-	return;
+
+	pb1200_enable_irq(irq);
+
+	return 0;
 }
 
-static struct irq_chip external_irq_type =
+static void pb1200_shutdown_irq(unsigned int irq)
 {
+	pb1200_disable_irq(irq);
+	if (--pb1200_cascade_en == 0)
+		free_irq(AU1000_GPIO_7, &pb1200_cascade_handler);
+}
+
+static struct irq_chip external_irq_type = {
 #ifdef CONFIG_MIPS_PB1200
 	.name = "Pb1200 Ext",
 #endif
@@ -155,16 +145,38 @@ static struct irq_chip external_irq_type =
 
 void _board_init_irq(void)
 {
-	int irq_nr;
+	unsigned int irq;
 
-	for (irq_nr = PB1200_INT_BEGIN; irq_nr <= PB1200_INT_END; irq_nr++)
-	{
-		set_irq_chip_and_handler(irq_nr, &external_irq_type,
+#ifdef CONFIG_MIPS_PB1200
+	/* We have a problem with CPLD rev3. Enable a workaround */
+	if (((bcsr->whoami & BCSR_WHOAMI_CPLD) >> 4) <= 3) {
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("Pb1200 must be at CPLD rev4. Please have Pb1200\n");
+		printk("updated to latest revision. This software will not\n");
+		printk("work on anything less than CPLD rev4\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		printk("\nWARNING!!!\n");
+		panic("Game over.  Your score is 0.");
+	}
+#endif
+
+	for (irq = PB1200_INT_BEGIN; irq <= PB1200_INT_END; irq++) {
+		set_irq_chip_and_handler(irq, &external_irq_type,
 					 handle_level_irq);
-		pb1200_disable_irq(irq_nr);
+		pb1200_disable_irq(irq);
 	}
 
-	/* GPIO_7 can not be hooked here, so it is hooked upon first
-	request of any source attached to the cascade */
+	/*
+	 * GPIO_7 can not be hooked here, so it is hooked upon first
+	 * request of any source attached to the cascade
+	 */
 }
-
