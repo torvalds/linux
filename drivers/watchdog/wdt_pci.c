@@ -74,7 +74,7 @@
 static int dev_count;
 
 static struct semaphore open_sem;
-static spinlock_t wdtpci_lock;
+static DEFINE_SPINLOCK(wdtpci_lock);
 static char expect_close;
 
 static int io;
@@ -607,7 +607,6 @@ static int __devinit wdtpci_init_one (struct pci_dev *dev,
 	}
 
 	sema_init(&open_sem, 1);
-	spin_lock_init(&wdtpci_lock);
 
 	irq = dev->irq;
 	io = pci_resource_start (dev, 2);

@@ -83,7 +83,7 @@ static unsigned long timer_enabled = 0;   /* is the timer enabled? */
 
 static char expect_close;       /* is the close expected? */
 
-static spinlock_t io_lock;	/* to guard the watchdog from io races */
+static DEFINE_SPINLOCK(io_lock);/* to guard the watchdog from io races */
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 
@@ -539,8 +539,6 @@ static struct miscdevice wb_smsc_wdt_miscdev =
 static int __init wb_smsc_wdt_init(void)
 {
 	int ret;
-
-	spin_lock_init(&io_lock);
 
 	printk("SMsC 37B787 watchdog component driver " VERSION " initialising...\n");
 

@@ -50,7 +50,7 @@ static	int timeoutW;			/* timeout in watchdog counter units */
 static	unsigned long timer_alive;
 static	int testmode;
 static	char expect_close;
-static	spinlock_t spinlock;
+static	DEFINE_SPINLOCK(spinlock);
 
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout,"Watchdog timeout in seconds (15..7635), default=" __MODULE_STRING(DEFAULT_TIMEOUT) ")");
@@ -475,8 +475,6 @@ static int __init w83977f_wdt_init(void)
 	int rc;
 
         printk(KERN_INFO PFX DRIVER_VERSION);
-
-	spin_lock_init(&spinlock);
 
 	/*
 	 * Check that the timeout value is within it's range ; 

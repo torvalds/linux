@@ -80,7 +80,7 @@
 static int nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = DEFAULT_HEARTBEAT;
 
-static spinlock_t io_lock;
+static DEFINE_SPINLOCK(io_lock);
 static unsigned long wdt_status;
 #define WDT_IN_USE        0
 #define WDT_OK_TO_CLOSE   1
@@ -253,8 +253,6 @@ static int pnx4008_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0, size;
 	struct resource *res;
-
-	spin_lock_init(&io_lock);
 
 	if (heartbeat < 1 || heartbeat > MAX_HEARTBEAT)
 		heartbeat = DEFAULT_HEARTBEAT;
