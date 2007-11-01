@@ -507,21 +507,12 @@ static int rq_mutex(struct gfs2_holder *gh)
 static int rq_promote(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	struct gfs2_sbd *sdp = gl->gl_sbd;
 
 	if (!relaxed_state_ok(gl->gl_state, gh->gh_state, gh->gh_flags)) {
 		if (list_empty(&gl->gl_holders)) {
 			gl->gl_req_gh = gh;
 			set_bit(GLF_LOCK, &gl->gl_flags);
 			spin_unlock(&gl->gl_spin);
-
-			if (atomic_read(&sdp->sd_reclaim_count) >
-			    gfs2_tune_get(sdp, gt_reclaim_limit) &&
-			    !(gh->gh_flags & LM_FLAG_PRIORITY)) {
-				gfs2_reclaim_glock(sdp);
-				gfs2_reclaim_glock(sdp);
-			}
-
 			gfs2_glock_xmote_th(gh->gh_gl, gh);
 			spin_lock(&gl->gl_spin);
 		}

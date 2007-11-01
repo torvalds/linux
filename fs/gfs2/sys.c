@@ -433,7 +433,6 @@ TUNE_ATTR(quota_quantum, 0);
 TUNE_ATTR(atime_quantum, 0);
 TUNE_ATTR(max_readahead, 0);
 TUNE_ATTR(complain_secs, 0);
-TUNE_ATTR(reclaim_limit, 0);
 TUNE_ATTR(statfs_slow, 0);
 TUNE_ATTR(new_files_jdata, 0);
 TUNE_ATTR(new_files_directio, 0);
@@ -456,7 +455,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_atime_quantum.attr,
 	&tune_attr_max_readahead.attr,
 	&tune_attr_complain_secs.attr,
-	&tune_attr_reclaim_limit.attr,
 	&tune_attr_statfs_slow.attr,
 	&tune_attr_quota_simul_sync.attr,
 	&tune_attr_quota_cache_secs.attr,

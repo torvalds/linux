@@ -433,7 +433,6 @@ struct gfs2_tune {
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
 	unsigned int gt_stall_secs; /* Detects trouble! */
 	unsigned int gt_complain_secs;
-	unsigned int gt_reclaim_limit; /* Max num of glocks in reclaim list */
 	unsigned int gt_statfs_quantum;
 	unsigned int gt_statfs_slow;
 };
