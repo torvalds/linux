@@ -17,8 +17,6 @@ static DEFINE_MUTEX(net_mutex);
 
 LIST_HEAD(net_namespace_list);
 
-static struct kmem_cache *net_cachep;
-
 struct net init_net;
 EXPORT_SYMBOL_GPL(init_net);
 
@@ -59,6 +57,8 @@ out_undo:
 }
 
 #ifdef CONFIG_NET_NS
+static struct kmem_cache *net_cachep;
+
 static struct net *net_alloc(void)
 {
 	return kmem_cache_zalloc(net_cachep, GFP_KERNEL);
@@ -167,9 +167,11 @@ static int __init net_ns_init(void)
 	int err;
 
 	printk(KERN_INFO "net_namespace: %zd bytes\n", sizeof(struct net));
+#ifdef CONFIG_NET_NS
 	net_cachep = kmem_cache_create("net_namespace", sizeof(struct net),
 					SMP_CACHE_BYTES,
 					SLAB_PANIC, NULL);
+#endif
 	mutex_lock(&net_mutex);
 	err = setup_net(&init_net);
 
