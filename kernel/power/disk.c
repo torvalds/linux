@@ -708,7 +708,7 @@ static struct attribute_group attr_group = {
 
 static int __init pm_disk_init(void)
 {
-	return sysfs_create_group(&power_subsys.kobj, &attr_group);
+	return sysfs_create_group(&power_kset->kobj, &attr_group);
 }
 
 core_initcall(pm_disk_init);

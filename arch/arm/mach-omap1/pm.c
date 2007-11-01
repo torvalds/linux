@@ -97,7 +97,6 @@ static struct subsys_attribute sleep_while_idle_attr = {
 	.store  = omap_pm_sleep_while_idle_store,
 };
 
-extern struct kset power_subsys;
 static void (*omap_sram_idle)(void) = NULL;
 static void (*omap_sram_suspend)(unsigned long r0, unsigned long r1) = NULL;
 
@@ -726,7 +725,7 @@ static int __init omap_pm_init(void)
 	omap_pm_init_proc();
 #endif
 
-	error = subsys_create_file(&power_subsys, &sleep_while_idle_attr);
+	error = subsys_create_file(power_kset, &sleep_while_idle_attr);
 	if (error)
 		printk(KERN_ERR "subsys_create_file failed: %d\n", error);
 

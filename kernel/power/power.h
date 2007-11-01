@@ -63,8 +63,6 @@ static struct subsys_attribute _name##_attr = {	\
 	.store	= _name##_store,		\
 }
 
-extern struct kset power_subsys;
-
 /* Preferred image size in bytes (default 500 MB) */
 extern unsigned long image_size;
 extern int in_suspend;

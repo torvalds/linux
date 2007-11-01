@@ -57,7 +57,7 @@ static struct subsys_attribute auto_poweron_attr = {
 };
 
 #ifndef CONFIG_PM
-decl_subsys(power, NULL);
+struct kset *power_kset;
 
 static struct attribute *g[] = {
         &auto_poweron_attr.attr,
@@ -70,18 +70,16 @@ static struct attribute_group attr_group = {
 
 static int __init pm_init(void)
 {
-        int error = subsystem_register(&power_subsys);
-        if (!error)
-                error = sysfs_create_group(&power_subsys.kobj, &attr_group);
-        return error;
+	power_kset = kset_create_and_add("power", NULL, NULL);
+	if (!power_kset)
+		return -ENOMEM;
+	return sysfs_create_group(&power_kset->kobj, &attr_group);
 }
 core_initcall(pm_init);
 #else
-extern struct kset power_subsys;
-
 static int __init apo_pm_init(void)
 {
-	return (subsys_create_file(&power_subsys, &auto_poweron_attr));
+	return (subsys_create_file(power_kset, &auto_poweron_attr));
 }
 __initcall(apo_pm_init);
 #endif

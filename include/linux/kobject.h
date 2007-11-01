@@ -198,6 +198,8 @@ struct kset _name##_subsys = { \
 extern struct kset *kernel_kset;
 /* The global /sys/hypervisor/ kobject for people to chain off of */
 extern struct kobject *hypervisor_kobj;
+/* The global /sys/power/ kset for people to chain off of */
+extern struct kset *power_kset;
 
 extern int __must_check subsystem_register(struct kset *);
 extern void subsystem_unregister(struct kset *);

@@ -276,8 +276,7 @@ EXPORT_SYMBOL(pm_suspend);
 
 #endif /* CONFIG_SUSPEND */
 
-decl_subsys(power, NULL);
-
+struct kset *power_kset;
 
 /**
  *	state - control system power state.
@@ -386,10 +385,10 @@ static struct attribute_group attr_group = {
 
 static int __init pm_init(void)
 {
-	int error = subsystem_register(&power_subsys);
-	if (!error)
-		error = sysfs_create_group(&power_subsys.kobj,&attr_group);
-	return error;
+	power_kset = kset_create_and_add("power", NULL, NULL);
+	if (!power_kset)
+		return -ENOMEM;
+	return sysfs_create_group(&power_kset->kobj, &attr_group);
 }
 
 core_initcall(pm_init);
