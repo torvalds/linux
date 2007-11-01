@@ -73,7 +73,7 @@ struct nfsd_symlinkargs {
 	char *			fname;
 	unsigned int		flen;
 	char *			tname;
-	int			tlen;
+	unsigned int		tlen;
 	struct iattr		attrs;
 };
 
