@@ -50,6 +50,7 @@ static int gfs2_aspace_writepage(struct page *page,
 static const struct address_space_operations aspace_aops = {
 	.writepage = gfs2_aspace_writepage,
 	.releasepage = gfs2_releasepage,
+	.sync_page = block_sync_page,
 };
 
 /**
