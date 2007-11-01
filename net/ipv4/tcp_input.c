@@ -2078,7 +2078,7 @@ static void tcp_update_scoreboard(struct sock *sk)
 			if (!tcp_skb_timedout(sk, skb))
 				break;
 
-			if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
+			if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 				tp->lost_out += tcp_skb_pcount(skb);
 				tcp_verify_retransmit_hint(tp, skb);
