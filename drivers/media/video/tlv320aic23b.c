@@ -57,37 +57,35 @@ static int tlv320aic23b_write(struct i2c_client *client, int reg, u16 val)
 		return -1;
 	}
 
-	for (i = 0; i < 3; i++) {
-		if (i2c_smbus_write_byte_data(client, (reg << 1) |
-					(val >> 8), val & 0xff) == 0) {
+	for (i = 0; i < 3; i++)
+		if (i2c_smbus_write_byte_data(client,
+				(reg << 1) | (val >> 8), val & 0xff) == 0)
 			return 0;
-		}
-	}
 	v4l_err(client, "I2C: cannot write %03x to register R%d\n", val, reg);
 	return -1;
 }
 
-static int tlv320aic23b_command(struct i2c_client *client, unsigned int cmd,
-			  void *arg)
+static int tlv320aic23b_command(struct i2c_client *client,
+				unsigned int cmd, void *arg)
 {
 	struct tlv320aic23b_state *state = i2c_get_clientdata(client);
 	struct v4l2_control *ctrl = arg;
-	u32* freq = arg;
+	u32 *freq = arg;
 
 	switch (cmd) {
 	case VIDIOC_INT_AUDIO_CLOCK_FREQ:
 		switch (*freq) {
-			case 32000: /* set sample rate to 32 kHz */
-				tlv320aic23b_write(client, 8, 0x018);
-				break;
-			case 44100: /* set sample rate to 44.1 kHz */
-				tlv320aic23b_write(client, 8, 0x022);
-				break;
-			case 48000: /* set sample rate to 48 kHz */
-				tlv320aic23b_write(client, 8, 0x000);
-				break;
-			default:
-				return -EINVAL;
+		case 32000: /* set sample rate to 32 kHz */
+			tlv320aic23b_write(client, 8, 0x018);
+			break;
+		case 44100: /* set sample rate to 44.1 kHz */
+			tlv320aic23b_write(client, 8, 0x022);
+			break;
+		case 48000: /* set sample rate to 48 kHz */
+			tlv320aic23b_write(client, 8, 0x000);
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 
@@ -135,22 +133,29 @@ static int tlv320aic23b_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct tlv320aic23b_state), GFP_KERNEL);
-	if (state == NULL) {
+	if (state == NULL)
 		return -ENOMEM;
-	}
 	state->muted = 0;
 	i2c_set_clientdata(client, state);
 
-	/* initialize tlv320aic23b */
-	tlv320aic23b_write(client, 15, 0x000);	/* RESET */
-	tlv320aic23b_write(client, 6, 0x00A);   /* turn off DAC & mic input */
-	tlv320aic23b_write(client, 7, 0x049);   /* left-justified, 24-bit, master mode */
-	tlv320aic23b_write(client, 0, 0x119);   /* set gain on both channels to +3.0 dB */
-	tlv320aic23b_write(client, 8, 0x000);   /* set sample rate to 48 kHz */
-	tlv320aic23b_write(client, 9, 0x001);   /* activate digital interface */
+	/* Initialize tlv320aic23b */
+
+	/* RESET */
+	tlv320aic23b_write(client, 15, 0x000);
+	/* turn off DAC & mic input */
+	tlv320aic23b_write(client, 6, 0x00A);
+	/* left-justified, 24-bit, master mode */
+	tlv320aic23b_write(client, 7, 0x049);
+	/* set gain on both channels to +3.0 dB */
+	tlv320aic23b_write(client, 0, 0x119);
+	/* set sample rate to 48 kHz */
+	tlv320aic23b_write(client, 8, 0x000);
+	/* activate digital interface */
+	tlv320aic23b_write(client, 9, 0x001);
 	return 0;
 }
 
