@@ -25,7 +25,7 @@ EXPORT_SYMBOL_GPL(init_net);
 /*
  * setup_net runs the initializers for the network namespace object.
  */
-static int setup_net(struct net *net)
+static __net_init int setup_net(struct net *net)
 {
 	/* Must be called with net_mutex held */
 	struct pernet_operations *ops;
