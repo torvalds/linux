@@ -68,9 +68,11 @@ void board_reset(void)
 void __init board_setup(void)
 {
 	char *argptr = NULL;
-	u32 pin_func;
 
 #if 0
+	{
+	u32 pin_func;
+
 	/* Enable PSC1 SYNC for AC97.  Normaly done in audio driver,
 	 * but it is board specific code, so put it here.
 	 */
@@ -81,11 +83,13 @@ void __init board_setup(void)
 
 	au_writel(0, (u32)bcsr|0x10); /* turn off pcmcia power */
 	au_sync();
+	}
 #endif
 
 #if defined(CONFIG_I2C_AU1550)
 	{
 	u32 freq0, clksrc;
+	u32 pin_func;
 
 	/* Select SMBUS in CPLD */
 	bcsr->resets &= ~(BCSR_RESETS_PCS0MUX);
