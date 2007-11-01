@@ -10,6 +10,7 @@
 #include <linux/blkdev.h>
 #include <linux/swap.h>
 #include <linux/version.h>
+#include <linux/writeback.h>
 #include "extent_map.h"
 
 /* temporary define until extent_map moves out of btrfs */
@@ -33,6 +34,12 @@ struct tree_entry {
 	u64 end;
 	int in_tree;
 	struct rb_node rb_node;
+};
+
+struct extent_page_data {
+	struct bio *bio;
+	struct extent_map_tree *tree;
+	get_extent_t *get_extent;
 };
 
 void __init extent_map_init(void)
@@ -1460,37 +1467,73 @@ static int end_bio_extent_preparewrite(struct bio *bio,
 #endif
 }
 
+static struct bio *
+extent_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
+		 gfp_t gfp_flags)
+{
+	struct bio *bio;
+
+	bio = bio_alloc(gfp_flags, nr_vecs);
+
+	if (bio == NULL && (current->flags & PF_MEMALLOC)) {
+		while (!bio && (nr_vecs /= 2))
+			bio = bio_alloc(gfp_flags, nr_vecs);
+	}
+
+	if (bio) {
+		bio->bi_bdev = bdev;
+		bio->bi_sector = first_sector;
+	}
+	return bio;
+}
+
+static int submit_one_bio(int rw, struct bio *bio)
+{
+	int ret = 0;
+	bio_get(bio);
+	submit_bio(rw, bio);
+	if (bio_flagged(bio, BIO_EOPNOTSUPP))
+		ret = -EOPNOTSUPP;
+	bio_put(bio);
+	return ret;
+}
+
 static int submit_extent_page(int rw, struct extent_map_tree *tree,
 			      struct page *page, sector_t sector,
 			      size_t size, unsigned long offset,
 			      struct block_device *bdev,
+			      struct bio **bio_ret,
+			      int max_pages,
 			      bio_end_io_t end_io_func)
 {
-	struct bio *bio;
 	int ret = 0;
+	struct bio *bio;
+	int nr;
 
-	bio = bio_alloc(GFP_NOIO, 1);
-
-	bio->bi_sector = sector;
-	bio->bi_bdev = bdev;
-	bio->bi_io_vec[0].bv_page = page;
-	bio->bi_io_vec[0].bv_len = size;
-	bio->bi_io_vec[0].bv_offset = offset;
-
-	bio->bi_vcnt = 1;
-	bio->bi_idx = 0;
-	bio->bi_size = size;
-
+	if (bio_ret && *bio_ret) {
+		bio = *bio_ret;
+		if (bio->bi_sector + (bio->bi_size >> 9) != sector ||
+		    bio_add_page(bio, page, size, offset) < size) {
+			ret = submit_one_bio(rw, bio);
+			bio = NULL;
+		} else {
+			return 0;
+		}
+	}
+	nr = min(max_pages, bio_get_nr_vecs(bdev));
+	bio = extent_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
+	if (!bio) {
+		printk("failed to allocate bio nr %d\n", nr);
+	}
+	bio_add_page(bio, page, size, offset);
 	bio->bi_end_io = end_io_func;
 	bio->bi_private = tree;
+	if (bio_ret) {
+		*bio_ret = bio;
+	} else {
+		ret = submit_one_bio(rw, bio);
+	}
 
-	bio_get(bio);
-	submit_bio(rw, bio);
-
-	if (bio_flagged(bio, BIO_EOPNOTSUPP))
-		ret = -EOPNOTSUPP;
-
-	bio_put(bio);
 	return ret;
 }
 
@@ -1590,7 +1633,8 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 		if (!ret) {
 			ret = submit_extent_page(READ, tree, page,
 						 sector, iosize, page_offset,
-						 bdev, end_bio_extent_readpage);
+						 bdev, NULL, 1,
+						 end_bio_extent_readpage);
 		}
 		if (ret)
 			SetPageError(page);
@@ -1613,11 +1657,12 @@ EXPORT_SYMBOL(extent_read_full_page);
  * are found, they are marked writeback.  Then the lock bits are removed
  * and the end_io handler clears the writeback ranges
  */
-int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
-			  get_extent_t *get_extent,
-			  struct writeback_control *wbc)
+static int __extent_writepage(struct page *page, struct writeback_control *wbc,
+			      void *data)
 {
 	struct inode *inode = page->mapping->host;
+	struct extent_page_data *epd = data;
+	struct extent_map_tree *tree = epd->tree;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = start + PAGE_CACHE_SIZE - 1;
 	u64 end;
@@ -1691,7 +1736,7 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			clear_extent_dirty(tree, cur, page_end, GFP_NOFS);
 			break;
 		}
-		em = get_extent(inode, page, page_offset, cur, end, 1);
+		em = epd->get_extent(inode, page, page_offset, cur, end, 1);
 		if (IS_ERR(em) || !em) {
 			SetPageError(page);
 			break;
@@ -1734,9 +1779,12 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 		if (ret)
 			SetPageError(page);
 		else {
+			unsigned long nr = end_index + 1;
 			set_range_writeback(tree, cur, cur + iosize - 1);
+
 			ret = submit_extent_page(WRITE, tree, page, sector,
 						 iosize, page_offset, bdev,
+						 &epd->bio, nr,
 						 end_bio_extent_writepage);
 			if (ret)
 				SetPageError(page);
@@ -1750,7 +1798,43 @@ done:
 	unlock_page(page);
 	return 0;
 }
+
+int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
+			  get_extent_t *get_extent,
+			  struct writeback_control *wbc)
+{
+	int ret;
+	struct extent_page_data epd = {
+		.bio = NULL,
+		.tree = tree,
+		.get_extent = get_extent,
+	};
+
+	ret = __extent_writepage(page, wbc, &epd);
+	if (epd.bio)
+		submit_one_bio(WRITE, epd.bio);
+	return ret;
+}
 EXPORT_SYMBOL(extent_write_full_page);
+
+int extent_writepages(struct extent_map_tree *tree,
+		      struct address_space *mapping,
+		      get_extent_t *get_extent,
+		      struct writeback_control *wbc)
+{
+	int ret;
+	struct extent_page_data epd = {
+		.bio = NULL,
+		.tree = tree,
+		.get_extent = get_extent,
+	};
+
+	ret = write_cache_pages(mapping, wbc, __extent_writepage, &epd);
+	if (epd.bio)
+		submit_one_bio(WRITE, epd.bio);
+	return ret;
+}
+EXPORT_SYMBOL(extent_writepages);
 
 /*
  * basic invalidatepage code, this waits on any locked or writeback
@@ -1869,6 +1953,7 @@ int extent_prepare_write(struct extent_map_tree *tree,
 				       EXTENT_LOCKED, 0, NULL, GFP_NOFS);
 			ret = submit_extent_page(READ, tree, page,
 					 sector, iosize, page_offset, em->bdev,
+					 NULL, 1,
 					 end_bio_extent_preparewrite);
 			iocount++;
 			block_start = block_start + iosize;

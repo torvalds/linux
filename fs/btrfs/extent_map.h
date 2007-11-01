@@ -136,6 +136,10 @@ int extent_invalidatepage(struct extent_map_tree *tree,
 int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			  get_extent_t *get_extent,
 			  struct writeback_control *wbc);
+int extent_writepages(struct extent_map_tree *tree,
+		      struct address_space *mapping,
+		      get_extent_t *get_extent,
+		      struct writeback_control *wbc);
 int extent_prepare_write(struct extent_map_tree *tree,
 			 struct inode *inode, struct page *page,
 			 unsigned from, unsigned to, get_extent_t *get_extent);
