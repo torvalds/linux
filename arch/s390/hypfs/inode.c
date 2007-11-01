@@ -506,7 +506,7 @@ static int __init hypfs_init(void)
 			goto fail_diag;
 		}
 	}
-	s390_subsys.kobj.kset = &hypervisor_subsys;
+	s390_subsys.kobj.parent = hypervisor_kobj;
 	rc = subsystem_register(&s390_subsys);
 	if (rc)
 		goto fail_sysfs;
