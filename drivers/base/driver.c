@@ -185,7 +185,7 @@ void driver_unregister(struct device_driver * drv)
  */
 struct device_driver *driver_find(const char *name, struct bus_type *bus)
 {
-	struct kobject *k = kset_find_obj(&bus->drivers, name);
+	struct kobject *k = kset_find_obj(bus->drivers_kset, name);
 	if (k)
 		return to_drv(k);
 	return NULL;

@@ -638,7 +638,7 @@ int bus_add_driver(struct device_driver *drv)
 	error = kobject_set_name(&drv->kobj, "%s", drv->name);
 	if (error)
 		goto out_put_bus;
-	drv->kobj.kset = &bus->drivers;
+	drv->kobj.kset = bus->drivers_kset;
 	drv->kobj.ktype = &driver_ktype;
 	error = kobject_register(&drv->kobj);
 	if (error)
@@ -869,11 +869,12 @@ int bus_register(struct bus_type * bus)
 		goto bus_devices_fail;
 	}
 
-	kobject_set_name(&bus->drivers.kobj, "drivers");
-	bus->drivers.kobj.parent = &bus->subsys.kobj;
-	retval = kset_register(&bus->drivers);
-	if (retval)
+	bus->drivers_kset = kset_create_and_add("drivers", NULL,
+						&bus->subsys.kobj);
+	if (!bus->drivers_kset) {
+		retval = -ENOMEM;
 		goto bus_drivers_fail;
+	}
 
 	klist_init(&bus->klist_devices, klist_devices_get, klist_devices_put);
 	klist_init(&bus->klist_drivers, NULL, NULL);
@@ -893,7 +894,7 @@ int bus_register(struct bus_type * bus)
 bus_attrs_fail:
 	remove_probe_files(bus);
 bus_probe_files_fail:
-	kset_unregister(&bus->drivers);
+	kset_unregister(bus->drivers_kset);
 bus_drivers_fail:
 	kset_unregister(bus->devices_kset);
 bus_devices_fail:
@@ -916,7 +917,7 @@ void bus_unregister(struct bus_type * bus)
 	pr_debug("bus %s: unregistering\n", bus->name);
 	bus_remove_attrs(bus);
 	remove_probe_files(bus);
-	kset_unregister(&bus->drivers);
+	kset_unregister(bus->drivers_kset);
 	kset_unregister(bus->devices_kset);
 	bus_remove_file(bus, &bus_attr_uevent);
 	subsystem_unregister(&bus->subsys);

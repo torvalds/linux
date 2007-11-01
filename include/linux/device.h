@@ -54,7 +54,7 @@ struct bus_type {
 	struct module		* owner;
 
 	struct kset		subsys;
-	struct kset		drivers;
+	struct kset		*drivers_kset;
 	struct kset		*devices_kset;
 	struct klist		klist_devices;
 	struct klist		klist_drivers;
