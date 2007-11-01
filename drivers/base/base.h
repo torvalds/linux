@@ -44,4 +44,4 @@ extern char *make_class_name(const char *name, struct kobject *kobj);
 
 extern int devres_release_all(struct device *dev);
 
-extern struct kset devices_subsys;
+extern struct kset *devices_kset;

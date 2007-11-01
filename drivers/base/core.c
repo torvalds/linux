@@ -401,11 +401,8 @@ static ssize_t show_dev(struct device *dev, struct device_attribute *attr,
 static struct device_attribute devt_attr =
 	__ATTR(dev, S_IRUGO, show_dev, NULL);
 
-/*
- *	devices_subsys - structure to be registered with kobject core.
- */
-
-decl_subsys(devices, &device_uevent_ops);
+/* kset to create /sys/devices/  */
+struct kset *devices_kset;
 
 
 /**
@@ -525,7 +522,7 @@ static void klist_children_put(struct klist_node *n)
 
 void device_initialize(struct device *dev)
 {
-	dev->kobj.kset = &devices_subsys;
+	dev->kobj.kset = devices_kset;
 	dev->kobj.ktype = &device_ktype;
 	kobject_init(&dev->kobj);
 	klist_init(&dev->klist_children, klist_children_get,
@@ -563,7 +560,7 @@ static struct kobject *virtual_device_parent(struct device *dev)
 
 	if (!virtual_dir)
 		virtual_dir = kobject_create_and_add("virtual",
-						     &devices_subsys.kobj);
+						     &devices_kset->kobj);
 
 	return virtual_dir;
 }
@@ -1097,7 +1094,10 @@ struct device * device_find_child(struct device *parent, void *data,
 
 int __init devices_init(void)
 {
-	return subsystem_register(&devices_subsys);
+	devices_kset = kset_create_and_add("devices", &device_uevent_ops, NULL);
+	if (!devices_kset)
+		return -ENOMEM;
+	return 0;
 }
 
 EXPORT_SYMBOL_GPL(device_for_each_child);

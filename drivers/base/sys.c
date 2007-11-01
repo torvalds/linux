@@ -25,8 +25,6 @@
 
 #include "base.h"
 
-extern struct kset devices_subsys;
-
 #define to_sysdev(k) container_of(k, struct sys_device, kobj)
 #define to_sysdev_attr(a) container_of(a, struct sysdev_attribute, attr)
 
@@ -459,7 +457,7 @@ int sysdev_resume(void)
 
 int __init system_bus_init(void)
 {
-	system_subsys.kobj.parent = &devices_subsys.kobj;
+	system_subsys.kobj.parent = &devices_kset->kobj;
 	return subsystem_register(&system_subsys);
 }
 

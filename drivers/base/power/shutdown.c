@@ -34,7 +34,7 @@ void device_shutdown(void)
 {
 	struct device * dev, *devn;
 
-	list_for_each_entry_safe_reverse(dev, devn, &devices_subsys.list,
+	list_for_each_entry_safe_reverse(dev, devn, &devices_kset->list,
 				kobj.entry) {
 		if (dev->bus && dev->bus->shutdown) {
 			dev_dbg(dev, "shutdown\n");
