@@ -132,6 +132,34 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 	{0, 0}
 };
 
+
+/* if the mount helper is missing we need to reverse the 1st slash
+   from '/' to backslash in order to format the UNC properly for
+   ip address parsing and for tree connect (unless the user
+   remembered to put the UNC name in properly). Fortunately we do
+   not have to call this twice (we check for IPv4 addresses
+   first, so it is already converted by the time we
+   try IPv6 addresses */
+static int canonicalize_unc(char *cp)
+{
+	int i;
+
+	for (i = 0; i <= 46 /* INET6_ADDRSTRLEN */ ; i++) {
+		if (cp[i] == 0)
+			break;
+		if (cp[i] == '\\')
+			break;
+		if (cp[i] == '/') {
+#ifdef CONFIG_CIFS_DEBUG2
+			cFYI(1, ("change slash to backslash in malformed UNC"));
+#endif
+			cp[i] = '\\';
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /* Convert string containing dotted ip address to binary form */
 /* returns 0 if invalid address */
 
@@ -141,11 +169,13 @@ cifs_inet_pton(int address_family, char *cp, void *dst)
 	int ret = 0;
 
 	/* calculate length by finding first slash or NULL */
-	/* BB Should we convert '/' slash to '\' here since it seems already
-	 * done before this */
-	if ( address_family == AF_INET ) {
-		ret = in4_pton(cp, -1 /* len */, dst , '\\', NULL);
-	} else if ( address_family == AF_INET6 ) {
+	if (address_family == AF_INET) {
+		ret = in4_pton(cp, -1 /* len */, dst, '\\', NULL);
+		if (ret == 0) {
+			if (canonicalize_unc(cp))
+				ret = in4_pton(cp, -1, dst, '\\', NULL);
+		}
+	} else if (address_family == AF_INET6) {
 		ret = in6_pton(cp, -1 /* len */, dst , '\\', NULL);
 	}
 #ifdef CONFIG_CIFS_DEBUG2

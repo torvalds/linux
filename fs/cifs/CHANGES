@@ -14,7 +14,10 @@ bigendian architectures. Fix possible memory corruption when
 EAGAIN returned on kern_recvmsg. Return better error if server
 requires packet signing but client has disabled it. When mounted
 with cifsacl mount option - mode bits are approximated based
-on the contents of the files ACL.
+on the contents of the ACL of the file or directory. When cifs
+mount helper is missing convert make sure that UNC name 
+has backslash (not forward slash) between ip address of server
+and the share name.
 
 Version 1.50
 ------------
