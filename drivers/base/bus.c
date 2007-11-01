@@ -449,7 +449,7 @@ int bus_add_device(struct device * dev)
 		error = device_add_attrs(bus, dev);
 		if (error)
 			goto out_put;
-		error = sysfs_create_link(&bus->devices.kobj,
+		error = sysfs_create_link(&bus->devices_kset->kobj,
 						&dev->kobj, dev->bus_id);
 		if (error)
 			goto out_id;
@@ -466,7 +466,7 @@ int bus_add_device(struct device * dev)
 out_deprecated:
 	sysfs_remove_link(&dev->kobj, "subsystem");
 out_subsys:
-	sysfs_remove_link(&bus->devices.kobj, dev->bus_id);
+	sysfs_remove_link(&bus->devices_kset->kobj, dev->bus_id);
 out_id:
 	device_remove_attrs(bus, dev);
 out_put:
@@ -512,7 +512,7 @@ void bus_remove_device(struct device * dev)
 	if (dev->bus) {
 		sysfs_remove_link(&dev->kobj, "subsystem");
 		remove_deprecated_bus_links(dev);
-		sysfs_remove_link(&dev->bus->devices.kobj, dev->bus_id);
+		sysfs_remove_link(&dev->bus->devices_kset->kobj, dev->bus_id);
 		device_remove_attrs(dev->bus, dev);
 		if (dev->is_registered) {
 			dev->is_registered = 0;
@@ -862,11 +862,12 @@ int bus_register(struct bus_type * bus)
 	if (retval)
 		goto bus_uevent_fail;
 
-	kobject_set_name(&bus->devices.kobj, "devices");
-	bus->devices.kobj.parent = &bus->subsys.kobj;
-	retval = kset_register(&bus->devices);
-	if (retval)
+	bus->devices_kset = kset_create_and_add("devices", NULL,
+						&bus->subsys.kobj);
+	if (!bus->devices_kset) {
+		retval = -ENOMEM;
 		goto bus_devices_fail;
+	}
 
 	kobject_set_name(&bus->drivers.kobj, "drivers");
 	bus->drivers.kobj.parent = &bus->subsys.kobj;
@@ -894,7 +895,7 @@ bus_attrs_fail:
 bus_probe_files_fail:
 	kset_unregister(&bus->drivers);
 bus_drivers_fail:
-	kset_unregister(&bus->devices);
+	kset_unregister(bus->devices_kset);
 bus_devices_fail:
 	bus_remove_file(bus, &bus_attr_uevent);
 bus_uevent_fail:
@@ -916,7 +917,7 @@ void bus_unregister(struct bus_type * bus)
 	bus_remove_attrs(bus);
 	remove_probe_files(bus);
 	kset_unregister(&bus->drivers);
-	kset_unregister(&bus->devices);
+	kset_unregister(bus->devices_kset);
 	bus_remove_file(bus, &bus_attr_uevent);
 	subsystem_unregister(&bus->subsys);
 }
