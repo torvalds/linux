@@ -8,9 +8,13 @@ obj-y		+= cpu-probe.o branch.o entry.o genex.o irq.o process.o \
 		   ptrace.o reset.o semaphore.o setup.o signal.o syscall.o \
 		   time.o topology.o traps.o unaligned.o
 
+obj-$(CONFIG_CEVT_BCM1480)	+= cevt-bcm1480.o
 obj-$(CONFIG_CEVT_R4K)		+= cevt-r4k.o
 obj-$(CONFIG_CEVT_GT641XX)	+= cevt-gt641xx.o
+obj-$(CONFIG_CEVT_SB1250)	+= cevt-sb1250.o
 obj-$(CONFIG_CEVT_TXX9)		+= cevt-txx9.o
+obj-$(CONFIG_CSRC_BCM1480)	+= csrc-bcm1480.o
+obj-$(CONFIG_CSRC_SB1250)	+= csrc-sb1250.o
 
 binfmt_irix-objs	:= irixelf.o irixinv.o irixioctl.o irixsig.o	\
 			   irix5sys.o sysirix.o
