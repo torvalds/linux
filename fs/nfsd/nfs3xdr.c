@@ -88,10 +88,10 @@ encode_fh(__be32 *p, struct svc_fh *fhp)
  * no slashes or null bytes.
  */
 static __be32 *
-decode_filename(__be32 *p, char **namp, int *lenp)
+decode_filename(__be32 *p, char **namp, unsigned int *lenp)
 {
 	char		*name;
-	int		i;
+	unsigned int	i;
 
 	if ((p = xdr_decode_string_inplace(p, namp, lenp, NFS3_MAXNAMLEN)) != NULL) {
 		for (i = 0, name = *namp; i < *lenp; i++, name++) {
