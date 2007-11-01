@@ -588,16 +588,15 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			    old_val < (cache->key.offset >> 1)) {
 				int bit_to_clear;
 				int bit_to_set;
-
 				cache->data = data;
 				if (data) {
-					bit_to_clear = BLOCK_GROUP_DATA;
-					bit_to_set = BLOCK_GROUP_METADATA;
+					bit_to_clear = BLOCK_GROUP_METADATA;
+					bit_to_set = BLOCK_GROUP_DATA;
 					cache->item.flags |=
 						BTRFS_BLOCK_GROUP_DATA;
 				} else {
-					bit_to_clear = BLOCK_GROUP_METADATA;
-					bit_to_set = BLOCK_GROUP_DATA;
+					bit_to_clear = BLOCK_GROUP_DATA;
+					bit_to_set = BLOCK_GROUP_METADATA;
 					cache->item.flags &=
 						~BTRFS_BLOCK_GROUP_DATA;
 				}
@@ -1459,13 +1458,16 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 {
 	u64 start;
 	u64 end;
+	u64 ptr;
 	int ret;
-
 	while(1) {
 		ret = find_first_extent_bit(&info->block_group_cache, 0,
 					    &start, &end, (unsigned int)-1);
 		if (ret)
 			break;
+		ret = get_state_private(&info->block_group_cache, start, &ptr);
+		if (!ret)
+			kfree((void *)(unsigned long)ptr);
 		clear_extent_bits(&info->block_group_cache, start,
 				  end, (unsigned int)-1, GFP_NOFS);
 	}
