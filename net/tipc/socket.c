@@ -201,7 +201,7 @@ static int tipc_create(struct net *net, struct socket *sock, int protocol)
 		return -EPROTOTYPE;
 	}
 
-	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto, 1);
+	sk = sk_alloc(net, AF_TIPC, GFP_KERNEL, &tipc_proto);
 	if (!sk) {
 		tipc_deleteport(ref);
 		return -ENOMEM;

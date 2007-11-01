@@ -779,7 +779,7 @@ extern void FASTCALL(release_sock(struct sock *sk));
 
 extern struct sock		*sk_alloc(struct net *net, int family,
 					  gfp_t priority,
-					  struct proto *prot, int zero_it);
+					  struct proto *prot);
 extern void			sk_free(struct sock *sk);
 extern struct sock		*sk_clone(const struct sock *sk,
 					  const gfp_t priority);

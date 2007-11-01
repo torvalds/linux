@@ -513,7 +513,8 @@ static int rose_create(struct net *net, struct socket *sock, int protocol)
 	if (sock->type != SOCK_SEQPACKET || protocol != 0)
 		return -ESOCKTNOSUPPORT;
 
-	if ((sk = sk_alloc(net, PF_ROSE, GFP_ATOMIC, &rose_proto, 1)) == NULL)
+	sk = sk_alloc(net, PF_ROSE, GFP_ATOMIC, &rose_proto);
+	if (sk == NULL)
 		return -ENOMEM;
 
 	rose = rose_sk(sk);
@@ -551,7 +552,8 @@ static struct sock *rose_make_new(struct sock *osk)
 	if (osk->sk_type != SOCK_SEQPACKET)
 		return NULL;
 
-	if ((sk = sk_alloc(osk->sk_net, PF_ROSE, GFP_ATOMIC, &rose_proto, 1)) == NULL)
+	sk = sk_alloc(osk->sk_net, PF_ROSE, GFP_ATOMIC, &rose_proto);
+	if (sk == NULL)
 		return NULL;
 
 	rose = rose_sk(sk);

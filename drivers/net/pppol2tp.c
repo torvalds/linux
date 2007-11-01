@@ -1416,7 +1416,7 @@ static int pppol2tp_create(struct net *net, struct socket *sock)
 	int error = -ENOMEM;
 	struct sock *sk;
 
-	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppol2tp_sk_proto, 1);
+	sk = sk_alloc(net, PF_PPPOX, GFP_KERNEL, &pppol2tp_sk_proto);
 	if (!sk)
 		goto out;
 

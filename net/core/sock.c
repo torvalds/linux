@@ -927,7 +927,7 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
  *	@zero_it: if we should zero the newly allocated sock
  */
 struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
-		      struct proto *prot, int zero_it)
+		      struct proto *prot)
 {
 	struct sock *sk;
 
