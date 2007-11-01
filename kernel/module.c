@@ -47,8 +47,6 @@
 #include <asm/cacheflush.h>
 #include <linux/license.h>
 
-extern int module_sysfs_initialized;
-
 #if 0
 #define DEBUGP printk
 #else
@@ -1223,7 +1221,8 @@ int mod_sysfs_init(struct module *mod)
 	err = kobject_set_name(&mod->mkobj.kobj, "%s", mod->name);
 	if (err)
 		goto out;
-	mod->mkobj.kobj.kset = &module_subsys;
+	mod->mkobj.kobj.kset = module_kset;
+	mod->mkobj.kobj.ktype = &module_ktype;
 	mod->mkobj.mod = mod;
 
 	kobject_init(&mod->mkobj.kobj);
@@ -2539,7 +2538,7 @@ void module_add_driver(struct module *mod, struct device_driver *drv)
 		struct kobject *mkobj;
 
 		/* Lookup built-in module entry in /sys/modules */
-		mkobj = kset_find_obj(&module_subsys, drv->mod_name);
+		mkobj = kset_find_obj(module_kset, drv->mod_name);
 		if (mkobj) {
 			mk = container_of(mkobj, struct module_kobject, kobj);
 			/* remember our module structure */

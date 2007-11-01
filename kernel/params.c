@@ -30,8 +30,6 @@
 #define DEBUGP(fmt, a...)
 #endif
 
-static struct kobj_type module_ktype;
-
 static inline char dash2underscore(char c)
 {
 	if (c == '-')
@@ -562,7 +560,7 @@ static void __init kernel_param_sysfs_setup(const char *name,
 	BUG_ON(!mk);
 
 	mk->mod = THIS_MODULE;
-	mk->kobj.kset = &module_subsys;
+	mk->kobj.kset = module_kset;
 	mk->kobj.ktype = &module_ktype;
 	kobject_set_name(&mk->kobj, name);
 	kobject_init(&mk->kobj);
@@ -695,7 +693,7 @@ static struct kset_uevent_ops module_uevent_ops = {
 	.filter = uevent_filter,
 };
 
-decl_subsys(module, &module_uevent_ops);
+struct kset *module_kset;
 int module_sysfs_initialized;
 
 static void module_release(struct kobject *kobj)
@@ -707,7 +705,7 @@ static void module_release(struct kobject *kobj)
 	 */
 }
 
-static struct kobj_type module_ktype = {
+struct kobj_type module_ktype = {
 	.sysfs_ops =	&module_sysfs_ops,
 	.release =	module_release,
 };
@@ -717,13 +715,11 @@ static struct kobj_type module_ktype = {
  */
 static int __init param_sysfs_init(void)
 {
-	int ret;
-
-	ret = subsystem_register(&module_subsys);
-	if (ret < 0) {
-		printk(KERN_WARNING "%s (%d): subsystem_register error: %d\n",
-			__FILE__, __LINE__, ret);
-		return ret;
+	module_kset = kset_create_and_add("module", &module_uevent_ops, NULL);
+	if (!module_kset) {
+		printk(KERN_WARNING "%s (%d): error creating kset\n",
+			__FILE__, __LINE__);
+		return -ENOMEM;
 	}
 	module_sysfs_initialized = 1;
 
@@ -733,14 +729,7 @@ static int __init param_sysfs_init(void)
 }
 subsys_initcall(param_sysfs_init);
 
-#else
-#if 0
-static struct sysfs_ops module_sysfs_ops = {
-	.show = NULL,
-	.store = NULL,
-};
-#endif
-#endif
+#endif /* CONFIG_SYSFS */
 
 EXPORT_SYMBOL(param_set_byte);
 EXPORT_SYMBOL(param_get_byte);
