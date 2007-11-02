@@ -555,11 +555,6 @@ extern void device_shutdown(void);
 /* drivers/base/sys.c */
 extern void sysdev_shutdown(void);
 
-
-/* drivers/base/firmware.c */
-extern int __must_check firmware_register(struct kset *);
-extern void firmware_unregister(struct kset *);
-
 /* debugging and troubleshooting/diagnostic helpers. */
 extern const char *dev_driver_string(struct device *dev);
 #define dev_printk(level, dev, format, arg...)	\
