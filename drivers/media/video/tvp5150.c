@@ -799,10 +799,10 @@ static inline void tvp5150_reset(struct i2c_client *c)
 	tvp5150_write_inittab(c, tvp5150_init_enable);
 
 	/* Initialize image preferences */
-	tvp5150_write(c, TVP5150_BRIGHT_CTL, decoder->bright >> 8);
-	tvp5150_write(c, TVP5150_CONTRAST_CTL, decoder->contrast >> 8);
-	tvp5150_write(c, TVP5150_SATURATION_CTL, decoder->contrast >> 8);
-	tvp5150_write(c, TVP5150_HUE_CTL, (decoder->hue - 32768) >> 8);
+	tvp5150_write(c, TVP5150_BRIGHT_CTL, decoder->bright);
+	tvp5150_write(c, TVP5150_CONTRAST_CTL, decoder->contrast);
+	tvp5150_write(c, TVP5150_SATURATION_CTL, decoder->contrast);
+	tvp5150_write(c, TVP5150_HUE_CTL, decoder->hue);
 
 	tvp5150_set_std(c, decoder->norm);
 };
@@ -1077,10 +1077,10 @@ static int tvp5150_detect_client(struct i2c_adapter *adapter,
 	core->norm = V4L2_STD_ALL;	/* Default is autodetect */
 	core->route.input = TVP5150_COMPOSITE1;
 	core->enable = 1;
-	core->bright = 32768;
-	core->contrast = 32768;
-	core->hue = 32768;
-	core->sat = 32768;
+	core->bright = 128;
+	core->contrast = 128;
+	core->hue = 0;
+	core->sat = 128;
 
 	if (rv) {
 		kfree(c);
