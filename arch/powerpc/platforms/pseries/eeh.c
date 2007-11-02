@@ -186,6 +186,11 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 	n += scnprintf(buf+n, len-n, "cmd/stat:%x\n", cfg);
 	printk(KERN_WARNING "EEH: PCI cmd/status register: %08x\n", cfg);
 
+	if (!dev) {
+		printk(KERN_WARNING "EEH: no PCI device for this of node\n");
+		return n;
+	}
+
 	/* Gather bridge-specific registers */
 	if (dev->class >> 16 == PCI_BASE_CLASS_BRIDGE) {
 		rtas_read_config(pdn, PCI_SEC_STATUS, 2, &cfg);
@@ -198,7 +203,7 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 	}
 
 	/* Dump out the PCI-X command and status regs */
-	cap = pci_find_capability(pdn->pcidev, PCI_CAP_ID_PCIX);
+	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (cap) {
 		rtas_read_config(pdn, cap, 4, &cfg);
 		n += scnprintf(buf+n, len-n, "pcix-cmd:%x\n", cfg);
@@ -210,7 +215,7 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 	}
 
 	/* If PCI-E capable, dump PCI-E cap 10, and the AER */
-	cap = pci_find_capability(pdn->pcidev, PCI_CAP_ID_EXP);
+	cap = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (cap) {
 		n += scnprintf(buf+n, len-n, "pci-e cap10:\n");
 		printk(KERN_WARNING
@@ -222,7 +227,7 @@ static size_t gather_pci_data(struct pci_dn *pdn, char * buf, size_t len)
 			printk(KERN_WARNING "EEH: PCI-E %02x: %08x\n", i, cfg);
 		}
 
-		cap = pci_find_ext_capability(pdn->pcidev, PCI_EXT_CAP_ID_ERR);
+		cap = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 		if (cap) {
 			n += scnprintf(buf+n, len-n, "pci-e AER:\n");
 			printk(KERN_WARNING
