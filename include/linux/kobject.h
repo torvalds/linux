@@ -126,6 +126,16 @@ struct kset_uevent_ops {
 		      struct kobj_uevent_env *env);
 };
 
+struct kobj_attribute {
+	struct attribute attr;
+	ssize_t (*show)(struct kobject *kobj, struct kobj_attribute *attr,
+			char *buf);
+	ssize_t (*store)(struct kobject *kobj, struct kobj_attribute *attr,
+			 const char *buf, size_t count);
+};
+
+extern struct sysfs_ops kobj_sysfs_ops;
+
 /**
  * struct kset - a set of kobjects of a specific type, belonging to a specific subsystem.
  *
