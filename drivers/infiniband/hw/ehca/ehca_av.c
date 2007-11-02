@@ -50,6 +50,38 @@
 
 static struct kmem_cache *av_cache;
 
+int ehca_calc_ipd(struct ehca_shca *shca, int port,
+		  enum ib_rate path_rate, u32 *ipd)
+{
+	int path = ib_rate_to_mult(path_rate);
+	int link, ret;
+	struct ib_port_attr pa;
+
+	if (path_rate == IB_RATE_PORT_CURRENT) {
+		*ipd = 0;
+		return 0;
+	}
+
+	if (unlikely(path < 0)) {
+		ehca_err(&shca->ib_device, "Invalid static rate! path_rate=%x",
+			 path_rate);
+		return -EINVAL;
+	}
+
+	ret = ehca_query_port(&shca->ib_device, port, &pa);
+	if (unlikely(ret < 0)) {
+		ehca_err(&shca->ib_device, "Failed to query port  ret=%i", ret);
+		return ret;
+	}
+
+	link = ib_width_enum_to_int(pa.active_width) * pa.active_speed;
+
+	/* IPD = round((link / path) - 1) */
+	*ipd = ((link + (path >> 1)) / path) - 1;
+
+	return 0;
+}
+
 struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 {
 	int ret;
@@ -69,15 +101,13 @@ struct ib_ah *ehca_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 	av->av.slid_path_bits = ah_attr->src_path_bits;
 
 	if (ehca_static_rate < 0) {
-		int ah_mult = ib_rate_to_mult(ah_attr->static_rate);
-		int ehca_mult =
-			ib_rate_to_mult(shca->sport[ah_attr->port_num].rate );
-
-		if (ah_mult >= ehca_mult)
-			av->av.ipd = 0;
-		else
-			av->av.ipd = (ah_mult > 0) ?
-				((ehca_mult - 1) / ah_mult) : 0;
+		u32 ipd;
+		if (ehca_calc_ipd(shca, ah_attr->port_num,
+				  ah_attr->static_rate, &ipd)) {
+			ret = -EINVAL;
+			goto create_ah_exit1;
+		}
+		av->av.ipd = ipd;
 	} else
 		av->av.ipd = ehca_static_rate;
 
