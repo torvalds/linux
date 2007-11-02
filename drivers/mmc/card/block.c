@@ -321,7 +321,13 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 					       req->rq_disk->disk_name, err);
 					goto cmd_err;
 				}
-			} while (!(cmd.resp[0] & R1_READY_FOR_DATA));
+				/*
+				 * Some cards mishandle the status bits,
+				 * so make sure to check both the busy
+				 * indication and the card state.
+				 */
+			} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
+				(R1_CURRENT_STATE(cmd.resp[0]) == 7));
 
 #if 0
 			if (cmd.resp[0] & ~0x00000900)
