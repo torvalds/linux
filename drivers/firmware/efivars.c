@@ -572,7 +572,7 @@ static struct attribute_group efi_subsys_attr_group = {
 };
 
 
-static decl_subsys(vars, NULL);
+static struct kset *vars_kset;
 static struct kset *efi_kset;
 
 /*
@@ -618,7 +618,7 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	efi_guid_unparse(vendor_guid, short_name + strlen(short_name));
 
 	kobject_set_name(&new_efivar->kobj, "%s", short_name);
-	new_efivar->kobj.kset = &vars_subsys;
+	new_efivar->kobj.kset = vars_kset;
 	new_efivar->kobj.ktype = &efivar_ktype;
 	i = kobject_register(&new_efivar->kobj);
 	if (i) {
@@ -675,12 +675,10 @@ efivars_init(void)
 		goto out_free;
 	}
 
-	vars_subsys.kobj.kset = efi_kset;
-
-	error = subsystem_register(&vars_subsys);
-
-	if (error) {
-		printk(KERN_ERR "efivars: Subsystem registration failed with error %d.\n", error);
+	vars_kset = kset_create_and_add("vars", NULL, &efi_kset->kobj);
+	if (!vars_kset) {
+		printk(KERN_ERR "efivars: Subsystem registration failed.\n");
+		error = -ENOMEM;
 		goto out_firmware_unregister;
 	}
 
@@ -715,12 +713,12 @@ efivars_init(void)
 	 * Now add attributes to allow creation of new vars
 	 * and deletion of existing ones...
 	 */
-	error = sysfs_create_bin_file(&vars_subsys.kobj,
+	error = sysfs_create_bin_file(&vars_kset->kobj,
 				      &var_subsys_attr_new_var);
 	if (error)
 		printk(KERN_ERR "efivars: unable to create new_var sysfs file"
 			" due to error %d\n", error);
-	error = sysfs_create_bin_file(&vars_subsys.kobj,
+	error = sysfs_create_bin_file(&vars_kset->kobj,
 				      &var_subsys_attr_del_var);
 	if (error)
 		printk(KERN_ERR "efivars: unable to create del_var sysfs file"
@@ -733,7 +731,7 @@ efivars_init(void)
 	else
 		goto out_free;
 
-	subsystem_unregister(&vars_subsys);
+	kset_unregister(vars_kset);
 
 out_firmware_unregister:
 	kset_unregister(efi_kset);
@@ -756,7 +754,7 @@ efivars_exit(void)
 		efivar_unregister(entry);
 	}
 
-	subsystem_unregister(&vars_subsys);
+	kset_unregister(vars_kset);
 	kset_unregister(efi_kset);
 }
 
