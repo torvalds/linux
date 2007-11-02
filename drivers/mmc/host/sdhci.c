@@ -1301,7 +1301,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	if ((chip->quirks & SDHCI_QUIRK_BROKEN_DMA) &&
 		(host->flags & SDHCI_USE_DMA)) {
-		DBG("Disabling DMA as it is marked broken");
+		DBG("Disabling DMA as it is marked broken\n");
 		host->flags &= ~SDHCI_USE_DMA;
 	}
 
