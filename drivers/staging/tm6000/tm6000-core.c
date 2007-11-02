@@ -30,10 +30,6 @@
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 
-#ifdef HACK /* HACK */
-#include "tm6000-hack.c"
-#endif
-
 #define USB_TIMEOUT	5*HZ /* ms */
 
 int tm6000_read_write_usb (struct tm6000_core *dev, u8 req_type, u8 req,
@@ -313,11 +309,6 @@ int tm6000_init (struct tm6000_core *dev)
 {
 	int board, rc=0, i;
 
-#ifdef HACK /* HACK */
-	init_tm6000(dev);
-	return 0;
-#else
-
 	/* Load board's initialization table */
 	for (i=0; i< ARRAY_SIZE(init_tab); i++) {
 		rc= tm6000_set_reg (dev, REQ_07_SET_GET_AVREG,
@@ -374,8 +365,6 @@ int tm6000_init (struct tm6000_core *dev)
 	}
 
 	msleep(50);
-
-#endif /* HACK */
 
 	return 0;
 }
