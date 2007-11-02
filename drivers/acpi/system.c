@@ -135,7 +135,7 @@ static int acpi_system_sysfs_init(void)
 	int table_index = 0;
 	int result;
 
-	tables_kobj.parent = &acpi_subsys.kobj;
+	tables_kobj.parent = acpi_kobj;
 	kobject_set_name(&tables_kobj, "tables");
 	result = kobject_register(&tables_kobj);
 	if (result)
