@@ -418,6 +418,7 @@ static int attach_inform(struct i2c_client *client)
 	switch (client->addr << 1) {
 		case 0x43:
 		case 0x4b:
+		case 0x86:
 		{
 			struct tuner_setup tun_setup;
 
