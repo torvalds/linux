@@ -52,7 +52,7 @@ static char * __init move_firmware_args(char* cp)
 				strcat(cp, used_arc[i][1]);
 				cp += strlen(used_arc[i][1]);
 				/* ... and now the argument */
-				s = strstr(prom_argv(actr), "=");
+				s = strchr(prom_argv(actr), '=');
 				if (s) {
 					s++;
 					strcpy(cp, s);
