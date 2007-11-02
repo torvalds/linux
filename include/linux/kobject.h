@@ -216,15 +216,6 @@ extern struct kset *firmware_kset;
 extern int __must_check subsystem_register(struct kset *);
 extern void subsystem_unregister(struct kset *);
 
-struct subsys_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct kset *, char *);
-	ssize_t (*store)(struct kset *, const char *, size_t);
-};
-
-extern int __must_check subsys_create_file(struct kset *,
-					struct subsys_attribute *);
-
 #if defined(CONFIG_HOTPLUG)
 int kobject_uevent(struct kobject *kobj, enum kobject_action action);
 int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,

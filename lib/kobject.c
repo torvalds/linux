@@ -810,26 +810,6 @@ void subsystem_unregister(struct kset *s)
 	kset_unregister(s);
 }
 
-/**
- *	subsystem_create_file - export sysfs attribute file.
- *	@s:	subsystem.
- *	@a:	subsystem attribute descriptor.
- */
-
-int subsys_create_file(struct kset *s, struct subsys_attribute *a)
-{
-	int error = 0;
-
-	if (!s || !a)
-		return -EINVAL;
-
-	if (kset_get(s)) {
-		error = sysfs_create_file(&s->kobj, &a->attr);
-		kset_put(s);
-	}
-	return error;
-}
-
 static void kset_release(struct kobject *kobj)
 {
 	struct kset *kset = container_of(kobj, struct kset, kobj);
@@ -927,4 +907,3 @@ EXPORT_SYMBOL(kset_unregister);
 
 EXPORT_SYMBOL(subsystem_register);
 EXPORT_SYMBOL(subsystem_unregister);
-EXPORT_SYMBOL(subsys_create_file);
