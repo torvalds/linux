@@ -32,7 +32,8 @@ spinlock_t gfs2_sys_margs_lock;
 
 static ssize_t id_show(struct gfs2_sbd *sdp, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", sdp->sd_vfs->s_id);
+	return snprintf(buf, PAGE_SIZE, "%u:%u\n",
+			MAJOR(sdp->sd_vfs->s_dev), MINOR(sdp->sd_vfs->s_dev));
 }
 
 static ssize_t fsname_show(struct gfs2_sbd *sdp, char *buf)
