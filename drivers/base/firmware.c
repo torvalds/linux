@@ -15,7 +15,8 @@
 
 #include "base.h"
 
-static struct kset *firmware_kset;
+struct kset *firmware_kset;
+EXPORT_SYMBOL_GPL(firmware_kset);
 
 int firmware_register(struct kset *s)
 {

@@ -210,6 +210,8 @@ extern struct kset *kernel_kset;
 extern struct kobject *hypervisor_kobj;
 /* The global /sys/power/ kset for people to chain off of */
 extern struct kset *power_kset;
+/* The global /sys/firmware/ kset for people to chain off of */
+extern struct kset *firmware_kset;
 
 extern int __must_check subsystem_register(struct kset *);
 extern void subsystem_unregister(struct kset *);
