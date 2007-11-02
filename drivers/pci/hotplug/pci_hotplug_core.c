@@ -699,9 +699,12 @@ int __must_check pci_hp_change_slot_info(struct hotplug_slot *slot,
 static int __init pci_hotplug_init (void)
 {
 	int result;
+	struct kset *pci_bus_kset;
+
+	pci_bus_kset = bus_get_kset(&pci_bus_type);
 
 	pci_hotplug_slots_kset = kset_create_and_add("slots", NULL,
-						     &pci_bus_type.subsys.kobj);
+						     &pci_bus_kset->kobj);
 	if (!pci_hotplug_slots_kset) {
 		result = -ENOMEM;
 		err("Register subsys error\n");

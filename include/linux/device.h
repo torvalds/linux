@@ -117,6 +117,8 @@ extern int bus_unregister_notifier(struct bus_type *bus,
 #define BUS_NOTIFY_UNBIND_DRIVER	0x00000004 /* driver about to be
 						      unbound */
 
+extern struct kset *bus_get_kset(struct bus_type *bus);
+
 struct device_driver {
 	const char		* name;
 	struct bus_type		* bus;
