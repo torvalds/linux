@@ -594,12 +594,7 @@ static void run_queue(struct gfs2_glock *gl)
 		if (!list_empty(&gl->gl_waiters1)) {
 			gh = list_entry(gl->gl_waiters1.next,
 					struct gfs2_holder, gh_list);
-
-			if (test_bit(HIF_MUTEX, &gh->gh_iflags))
-				blocked = rq_mutex(gh);
-			else
-				gfs2_assert_warn(gl->gl_sbd, 0);
-
+			blocked = rq_mutex(gh);
 		} else if (test_bit(GLF_DEMOTE, &gl->gl_flags)) {
 			blocked = rq_demote(gl);
 			if (gl->gl_waiters2 && !blocked) {
@@ -610,12 +605,7 @@ static void run_queue(struct gfs2_glock *gl)
 		} else if (!list_empty(&gl->gl_waiters3)) {
 			gh = list_entry(gl->gl_waiters3.next,
 					struct gfs2_holder, gh_list);
-
-			if (test_bit(HIF_PROMOTE, &gh->gh_iflags))
-				blocked = rq_promote(gh);
-			else
-				gfs2_assert_warn(gl->gl_sbd, 0);
-
+			blocked = rq_promote(gh);
 		} else
 			break;
 
@@ -636,7 +626,6 @@ static void gfs2_glmutex_lock(struct gfs2_glock *gl)
 	struct gfs2_holder gh;
 
 	gfs2_holder_init(gl, 0, 0, &gh);
-	set_bit(HIF_MUTEX, &gh.gh_iflags);
 	if (test_and_set_bit(HIF_WAIT, &gh.gh_iflags))
 		BUG();
 
@@ -1159,8 +1148,6 @@ restart:
 		set_bit(HIF_ABORTED, &gh->gh_iflags);
 		return -EIO;
 	}
-
-	set_bit(HIF_PROMOTE, &gh->gh_iflags);
 
 	spin_lock(&gl->gl_spin);
 	add_to_queue(gh);

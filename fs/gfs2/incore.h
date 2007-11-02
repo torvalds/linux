@@ -141,10 +141,6 @@ struct gfs2_glock_operations {
 };
 
 enum {
-	/* Actions */
-	HIF_MUTEX		= 0,
-	HIF_PROMOTE		= 1,
-
 	/* States */
 	HIF_HOLDER		= 6,
 	HIF_FIRST		= 7,
