@@ -402,7 +402,11 @@ struct hipz_query_port {
 	u64 max_msg_sz;
 	u32 max_mtu;
 	u32 vl_cap;
-	u8  reserved2[1900];
+	u32 phys_pstate;
+	u32 phys_state;
+	u32 phys_speed;
+	u32 phys_width;
+	u8  reserved2[1884];
 	u64 guid_entries[255];
 } __attribute__ ((packed));
 
