@@ -631,7 +631,7 @@ static struct kobj_type edd_ktype = {
 	.default_attrs	= def_attrs,
 };
 
-static decl_subsys(edd, NULL);
+static struct kset *edd_kset;
 
 
 /**
@@ -723,7 +723,7 @@ edd_device_register(struct edd_device *edev, int i)
 	edd_dev_set_info(edev, i);
 	kobject_set_name(&edev->kobj, "int13_dev%02x",
 			 0x80 + i);
-	edev->kobj.kset = &edd_subsys;
+	edev->kobj.kset = edd_kset;
 	edev->kobj.ktype = &edd_ktype;
 	error = kobject_register(&edev->kobj);
 	if (!error)
@@ -756,9 +756,9 @@ edd_init(void)
 		return 1;
 	}
 
-	rc = firmware_register(&edd_subsys);
-	if (rc)
-		return rc;
+	edd_kset = kset_create_and_add("edd", NULL, &firmware_kset->kobj);
+	if (!edd_kset)
+		return -ENOMEM;
 
 	for (i = 0; i < edd_num_devices() && !rc; i++) {
 		edev = kzalloc(sizeof (*edev), GFP_KERNEL);
@@ -774,7 +774,7 @@ edd_init(void)
 	}
 
 	if (rc)
-		firmware_unregister(&edd_subsys);
+		kset_unregister(edd_kset);
 	return rc;
 }
 
@@ -788,7 +788,7 @@ edd_exit(void)
 		if ((edev = edd_devices[i]))
 			edd_device_unregister(edev);
 	}
-	firmware_unregister(&edd_subsys);
+	kset_unregister(edd_kset);
 }
 
 late_initcall(edd_init);
