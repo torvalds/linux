@@ -289,7 +289,8 @@ struct kset *power_kset;
  *	proper enumerated value, and initiates a suspend transition.
  */
 
-static ssize_t state_show(struct kset *kset, char *buf)
+static ssize_t state_show(struct kobject *kobj, struct kobj_attribute *attr,
+			  char *buf)
 {
 	char *s = buf;
 #ifdef CONFIG_SUSPEND
@@ -310,7 +311,8 @@ static ssize_t state_show(struct kset *kset, char *buf)
 	return (s - buf);
 }
 
-static ssize_t state_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
+			   const char *buf, size_t n)
 {
 #ifdef CONFIG_SUSPEND
 	suspend_state_t state = PM_SUSPEND_STANDBY;
@@ -347,13 +349,15 @@ power_attr(state);
 #ifdef CONFIG_PM_TRACE
 int pm_trace_enabled;
 
-static ssize_t pm_trace_show(struct kset *kset, char *buf)
+static ssize_t pm_trace_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *buf)
 {
 	return sprintf(buf, "%d\n", pm_trace_enabled);
 }
 
 static ssize_t
-pm_trace_store(struct kset *kset, const char *buf, size_t n)
+pm_trace_store(struct kobject *kobj, struct kobj_attribute *attr,
+	       const char *buf, size_t n)
 {
 	int val;
 

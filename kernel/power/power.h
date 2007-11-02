@@ -54,7 +54,7 @@ extern int pfn_is_nosave(unsigned long);
 extern struct mutex pm_mutex;
 
 #define power_attr(_name) \
-static struct subsys_attribute _name##_attr = {	\
+static struct kobj_attribute _name##_attr = {	\
 	.attr	= {				\
 		.name = __stringify(_name),	\
 		.mode = 0644,			\

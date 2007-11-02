@@ -736,12 +736,13 @@ static int ecryptfs_init_kmem_caches(void)
 
 static struct kset *ecryptfs_kset;
 
-static ssize_t version_show(struct kset *kset, char *buff)
+static ssize_t version_show(struct kobject *kobj,
+			    struct kobj_attribute *attr, char *buff)
 {
 	return snprintf(buff, PAGE_SIZE, "%d\n", ECRYPTFS_VERSIONING_MASK);
 }
 
-static struct subsys_attribute version_attr = __ATTR_RO(version);
+static struct kobj_attribute version_attr = __ATTR_RO(version);
 
 static struct ecryptfs_version_str_map_elem {
 	u32 flag;
@@ -755,7 +756,8 @@ static struct ecryptfs_version_str_map_elem {
 	{ECRYPTFS_VERSIONING_MULTKEY, "multiple keys per file"}
 };
 
-static ssize_t version_str_show(struct kset *kset, char *buff)
+static ssize_t version_str_show(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buff)
 {
 	int i;
 	int remaining = PAGE_SIZE;
@@ -782,7 +784,7 @@ out:
 	return total_written;
 }
 
-static struct subsys_attribute version_attr_str = __ATTR_RO(version_str);
+static struct kobj_attribute version_attr_str = __ATTR_RO(version_str);
 
 static struct attribute *attributes[] = {
 	&version_attr.attr,

@@ -626,7 +626,8 @@ static void dynamic_kobj_release(struct kobject *kobj)
 }
 
 static struct kobj_type dynamic_kobj_ktype = {
-	.release = dynamic_kobj_release,
+	.release	= dynamic_kobj_release,
+	.sysfs_ops	= &kobj_sysfs_ops,
 };
 
 /**
@@ -836,7 +837,8 @@ static void kset_release(struct kobject *kobj)
 	kfree(kset);
 }
 
-static struct kobj_type kset_type = {
+static struct kobj_type kset_ktype = {
+	.sysfs_ops	= &kobj_sysfs_ops,
 	.release = kset_release,
 };
 
@@ -869,11 +871,11 @@ static struct kset *kset_create(const char *name,
 	kset->kobj.parent = parent_kobj;
 
 	/*
-	 * The kobject of this kset will have a type of kset_type and belong to
+	 * The kobject of this kset will have a type of kset_ktype and belong to
 	 * no kset itself.  That way we can properly free it when it is
 	 * finished being used.
 	 */
-	kset->kobj.ktype = &kset_type;
+	kset->kobj.ktype = &kset_ktype;
 	kset->kobj.kset = NULL;
 
 	return kset;
