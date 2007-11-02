@@ -38,7 +38,7 @@ static void driver_bound(struct device *dev)
 		 dev->bus_id, dev->driver->name);
 
 	if (dev->bus)
-		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_BOUND_DRIVER, dev);
 
 	klist_add_tail(&dev->knode_driver, &dev->driver->klist_devices);
@@ -296,7 +296,7 @@ static void __device_release_driver(struct device * dev)
 		klist_remove(&dev->knode_driver);
 
 		if (dev->bus)
-			blocking_notifier_call_chain(&dev->bus->bus_notifier,
+			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 						     BUS_NOTIFY_UNBIND_DRIVER,
 						     dev);
 

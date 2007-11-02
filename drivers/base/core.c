@@ -769,7 +769,7 @@ int device_add(struct device *dev)
 
 	/* notify clients of device entry (new way) */
 	if (dev->bus)
-		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_ADD_DEVICE, dev);
 
 	error = device_create_file(dev, &uevent_attr);
@@ -820,7 +820,7 @@ int device_add(struct device *dev)
 	dpm_sysfs_remove(dev);
  PMError:
 	if (dev->bus)
-		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
 	device_remove_attrs(dev);
  AttrsError:
@@ -999,7 +999,7 @@ void device_del(struct device * dev)
 	if (platform_notify_remove)
 		platform_notify_remove(dev);
 	if (dev->bus)
-		blocking_notifier_call_chain(&dev->bus->bus_notifier,
+		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
 	kobject_del(&dev->kobj);

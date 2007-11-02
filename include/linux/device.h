@@ -35,6 +35,7 @@ struct device_driver;
 struct class;
 struct class_device;
 struct bus_type;
+struct bus_type_private;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -51,15 +52,6 @@ extern void bus_remove_file(struct bus_type *, struct bus_attribute *);
 
 struct bus_type {
 	const char		* name;
-
-	struct kset		subsys;
-	struct kset		*drivers_kset;
-	struct kset		*devices_kset;
-	struct klist		klist_devices;
-	struct klist		klist_drivers;
-
-	struct blocking_notifier_head bus_notifier;
-
 	struct bus_attribute	* bus_attrs;
 	struct device_attribute	* dev_attrs;
 	struct driver_attribute	* drv_attrs;
@@ -75,7 +67,7 @@ struct bus_type {
 	int (*resume_early)(struct device * dev);
 	int (*resume)(struct device * dev);
 
-	unsigned int drivers_autoprobe:1;
+	struct bus_type_private *p;
 };
 
 extern int __must_check bus_register(struct bus_type * bus);

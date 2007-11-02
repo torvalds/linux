@@ -1,6 +1,34 @@
 
-/* initialisation functions */
+/**
+ * struct bus_type_private - structure to hold the private to the driver core portions of the bus_type structure.
+ *
+ * @subsys - the struct kset that defines this bus.  This is the main kobject
+ * @drivers_kset - the list of drivers associated with this bus
+ * @devices_kset - the list of devices associated with this bus
+ * @klist_devices - the klist to iterate over the @devices_kset
+ * @klist_drivers - the klist to iterate over the @drivers_kset
+ * @bus_notifier - the bus notifier list for anything that cares about things
+ * on this bus.
+ * @bus - pointer back to the struct bus_type that this structure is associated
+ * with.
+ *
+ * This structure is the one that is the actual kobject allowing struct
+ * bus_type to be statically allocated safely.  Nothing outside of the driver
+ * core should ever touch these fields.
+ */
+struct bus_type_private {
+	struct kset subsys;
+	struct kset *drivers_kset;
+	struct kset *devices_kset;
+	struct klist klist_devices;
+	struct klist klist_drivers;
+	struct blocking_notifier_head bus_notifier;
+	unsigned int drivers_autoprobe:1;
+	struct bus_type *bus;
+};
 
+
+/* initialisation functions */
 extern int devices_init(void);
 extern int buses_init(void);
 extern int classes_init(void);

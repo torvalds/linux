@@ -497,12 +497,12 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 	 * if the probe was successful, and make sure any forced probes of
 	 * new devices fail.
 	 */
-	spin_lock(&platform_bus_type.klist_drivers.k_lock);
+	spin_lock(&platform_bus_type.p->klist_drivers.k_lock);
 	drv->probe = NULL;
 	if (code == 0 && list_empty(&drv->driver.klist_devices.k_list))
 		retval = -ENODEV;
 	drv->driver.probe = platform_drv_probe_fail;
-	spin_unlock(&platform_bus_type.klist_drivers.k_lock);
+	spin_unlock(&platform_bus_type.p->klist_drivers.k_lock);
 
 	if (code != retval)
 		platform_driver_unregister(drv);
