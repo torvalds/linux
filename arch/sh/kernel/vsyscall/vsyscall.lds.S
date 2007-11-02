@@ -38,7 +38,10 @@ SECTIONS
 	.text		: { *(.text) } 			:text	=0x90909090
 	.note		: { *(.note.*) }		:text	:note
 	.eh_frame_hdr	: { *(.eh_frame_hdr ) }		:text	:eh_frame_hdr
-	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
+	.eh_frame	: {
+		KEEP (*(.eh_frame))
+		LONG (0)
+	}						:text
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 	.useless	: {
 	      *(.got.plt) *(.got)
