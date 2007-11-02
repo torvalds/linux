@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pata_platform.h>
+#include <linux/types.h>
 #include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <asm/r7780rp.h>
@@ -223,6 +224,34 @@ static void r7780rp_power_off(void)
 		ctrl_outw(0x0001, PA_POFF);
 }
 
+static inline unsigned char is_ide_ioaddr(unsigned long addr)
+{
+	return ((cf_ide_resources[0].start <= addr &&
+		 addr <= cf_ide_resources[0].end) ||
+		(cf_ide_resources[1].start <= addr &&
+		 addr <= cf_ide_resources[1].end));
+}
+
+void highlander_writeb(u8 b, void __iomem *addr)
+{
+	unsigned long tmp = (unsigned long __force)addr;
+
+	if (is_ide_ioaddr(tmp))
+		ctrl_outw((u16)b, tmp);
+	else
+		ctrl_outb(b, tmp);
+}
+
+u8 highlander_readb(void __iomem *addr)
+{
+	unsigned long tmp = (unsigned long __force)addr;
+
+	if (is_ide_ioaddr(tmp))
+		return ctrl_inw(tmp) & 0xff;
+	else
+		return ctrl_inb(tmp);
+}
+
 /*
  * Initialize the board
  */
@@ -307,4 +336,6 @@ static struct sh_machine_vector mv_highlander __initmv = {
 	.mv_setup		= highlander_setup,
 	.mv_init_irq		= highlander_init_irq,
 	.mv_irq_demux		= highlander_irq_demux,
+	.mv_readb		= highlander_readb,
+	.mv_writeb		= highlander_writeb,
 };
