@@ -28,13 +28,15 @@
 
 unsigned long rtas_poweron_auto; /* default and normal state is 0 */
 
-static ssize_t auto_poweron_show(struct kset *kset, char *buf)
+static ssize_t auto_poweron_show(struct kobject *kobj,
+				 struct kobj_attribute *attr, char *buf)
 {
         return sprintf(buf, "%lu\n", rtas_poweron_auto);
 }
 
-static ssize_t
-auto_poweron_store(struct kset *kset, const char *buf, size_t n)
+static ssize_t auto_poweron_store(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  const char *buf, size_t n)
 {
 	int ret;
 	unsigned long ups_restart;
@@ -47,14 +49,8 @@ auto_poweron_store(struct kset *kset, const char *buf, size_t n)
 	return -EINVAL;
 }
 
-static struct subsys_attribute auto_poweron_attr = {
-        .attr   = {
-                .name = __stringify(auto_poweron),
-                .mode = 0644,
-        },
-        .show   = auto_poweron_show,
-        .store  = auto_poweron_store,
-};
+static struct kobj_attribute auto_poweron_attr =
+	__ATTR(auto_poweron, 0644, auto_poweron_show, auto_poweron_store);
 
 #ifndef CONFIG_PM
 struct kset *power_kset;
@@ -79,7 +75,7 @@ core_initcall(pm_init);
 #else
 static int __init apo_pm_init(void)
 {
-	return (subsys_create_file(power_kset, &auto_poweron_attr));
+	return (sysfs_create_file(&power_kset->kobj, &auto_poweron_attr));
 }
 __initcall(apo_pm_init);
 #endif
