@@ -255,7 +255,11 @@ EX(	mov.l	@r5+,r8		)
 EX(	mov.l	@r5+,r9		)
 EX(	mov.l	@r5+,r10	)
 EX(	mov.l	@r5+,r11	)
+#ifdef CONFIG_CPU_SH4
 EX(	movca.l	r0,@r4		)
+#else
+EX(	mov.l	r0,@r4		)
+#endif
 	add	#-32, r6
 EX(	mov.l	r1,@(4,r4)	)
 	mov	#32, r0
