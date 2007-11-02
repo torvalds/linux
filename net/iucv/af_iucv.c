@@ -216,7 +216,7 @@ static struct sock *iucv_sock_alloc(struct socket *sock, int proto, gfp_t prio)
 {
 	struct sock *sk;
 
-	sk = sk_alloc(&init_net, PF_IUCV, prio, &iucv_proto, 1);
+	sk = sk_alloc(&init_net, PF_IUCV, prio, &iucv_proto);
 	if (!sk)
 		return NULL;
 

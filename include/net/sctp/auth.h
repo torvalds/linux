@@ -103,7 +103,7 @@ struct sctp_hmac *sctp_auth_asoc_get_hmac(const struct sctp_association *asoc);
 void sctp_auth_asoc_set_default_hmac(struct sctp_association *asoc,
 				     struct sctp_hmac_algo_param *hmacs);
 int sctp_auth_asoc_verify_hmac_id(const struct sctp_association *asoc,
-				    __u16 hmac_id);
+				    __be16 hmac_id);
 int sctp_auth_send_cid(sctp_cid_t chunk, const struct sctp_association *asoc);
 int sctp_auth_recv_cid(sctp_cid_t chunk, const struct sctp_association *asoc);
 void sctp_auth_calculate_hmac(const struct sctp_association *asoc,

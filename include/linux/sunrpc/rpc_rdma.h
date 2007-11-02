@@ -41,17 +41,17 @@
 #define _LINUX_SUNRPC_RPC_RDMA_H
 
 struct rpcrdma_segment {
-	uint32_t rs_handle;	/* Registered memory handle */
-	uint32_t rs_length;	/* Length of the chunk in bytes */
-	uint64_t rs_offset;	/* Chunk virtual address or offset */
+	__be32 rs_handle;	/* Registered memory handle */
+	__be32 rs_length;	/* Length of the chunk in bytes */
+	__be64 rs_offset;	/* Chunk virtual address or offset */
 };
 
 /*
  * read chunk(s), encoded as a linked list.
  */
 struct rpcrdma_read_chunk {
-	uint32_t rc_discrim;	/* 1 indicates presence */
-	uint32_t rc_position;	/* Position in XDR stream */
+	__be32 rc_discrim;	/* 1 indicates presence */
+	__be32 rc_position;	/* Position in XDR stream */
 	struct rpcrdma_segment rc_target;
 };
 
@@ -66,29 +66,29 @@ struct rpcrdma_write_chunk {
  * write chunk(s), encoded as a counted array.
  */
 struct rpcrdma_write_array {
-	uint32_t wc_discrim;	/* 1 indicates presence */
-	uint32_t wc_nchunks;	/* Array count */
+	__be32 wc_discrim;	/* 1 indicates presence */
+	__be32 wc_nchunks;	/* Array count */
 	struct rpcrdma_write_chunk wc_array[0];
 };
 
 struct rpcrdma_msg {
-	uint32_t rm_xid;	/* Mirrors the RPC header xid */
-	uint32_t rm_vers;	/* Version of this protocol */
-	uint32_t rm_credit;	/* Buffers requested/granted */
-	uint32_t rm_type;	/* Type of message (enum rpcrdma_proc) */
+	__be32 rm_xid;	/* Mirrors the RPC header xid */
+	__be32 rm_vers;	/* Version of this protocol */
+	__be32 rm_credit;	/* Buffers requested/granted */
+	__be32 rm_type;	/* Type of message (enum rpcrdma_proc) */
 	union {
 
 		struct {			/* no chunks */
-			uint32_t rm_empty[3];	/* 3 empty chunk lists */
+			__be32 rm_empty[3];	/* 3 empty chunk lists */
 		} rm_nochunks;
 
 		struct {			/* no chunks and padded */
-			uint32_t rm_align;	/* Padding alignment */
-			uint32_t rm_thresh;	/* Padding threshold */
-			uint32_t rm_pempty[3];	/* 3 empty chunk lists */
+			__be32 rm_align;	/* Padding alignment */
+			__be32 rm_thresh;	/* Padding threshold */
+			__be32 rm_pempty[3];	/* 3 empty chunk lists */
 		} rm_padded;
 
-		uint32_t rm_chunks[0];	/* read, write and reply chunks */
+		__be32 rm_chunks[0];	/* read, write and reply chunks */
 
 	} rm_body;
 };

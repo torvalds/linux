@@ -728,12 +728,6 @@ int in_gate_area_no_task(unsigned long addr)
 	return (addr >= VSYSCALL_START) && (addr < VSYSCALL_END);
 }
 
-void * __init alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
-{
-	return __alloc_bootmem_core(pgdat->bdata, size,
-			SMP_CACHE_BYTES, (4UL*1024*1024*1024), 0);
-}
-
 const char *arch_vma_name(struct vm_area_struct *vma)
 {
 	if (vma->vm_mm && vma->vm_start == (long)vma->vm_mm->context.vdso)

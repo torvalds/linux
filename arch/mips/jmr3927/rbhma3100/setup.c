@@ -27,17 +27,13 @@
  * Copyright (C) 2007 Ralf Baechle (ralf@linux-mips.org)
  */
 
-#include <linux/clockchips.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kdev_t.h>
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/ide.h>
-#include <linux/irq.h>
 #include <linux/ioport.h>
-#include <linux/param.h>	/* for HZ */
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/platform_device.h>
@@ -48,16 +44,12 @@
 #endif
 
 #include <asm/addrspace.h>
-#include <asm/time.h>
+#include <asm/txx9tmr.h>
 #include <asm/reboot.h>
 #include <asm/jmr3927/jmr3927.h>
 #include <asm/mipsregs.h>
 
 extern void puts(const char *cp);
-
-/* Tick Timer divider */
-#define JMR3927_TIMER_CCD	0	/* 1/2 */
-#define JMR3927_TIMER_CLK	(JMR3927_IMCLK / (2 << JMR3927_TIMER_CCD))
 
 /* don't enable - see errata */
 static int jmr3927_ccfg_toeon;
@@ -93,66 +85,12 @@ static void jmr3927_machine_power_off(void)
 	while (1);
 }
 
-static cycle_t jmr3927_hpt_read(void)
-{
-	/* We assume this function is called xtime_lock held. */
-	return jiffies * (JMR3927_TIMER_CLK / HZ) + jmr3927_tmrptr->trr;
-}
-
-static void jmr3927_set_mode(enum clock_event_mode mode,
-	struct clock_event_device *evt)
-{
-	/* Nothing to do here */
-}
-
-struct clock_event_device jmr3927_clock_event_device = {
-	.name		= "MIPS",
-	.features	= CLOCK_EVT_FEAT_PERIODIC,
-	.shift		= 32,
-	.rating		= 300,
-	.cpumask	= CPU_MASK_CPU0,
-	.irq		= JMR3927_IRQ_TICK,
-	.set_mode	= jmr3927_set_mode,
-};
-
-static irqreturn_t jmr3927_timer_interrupt(int irq, void *dev_id)
-{
-	struct clock_event_device *cd = &jmr3927_clock_event_device;
-
-	jmr3927_tmrptr->tisr = 0;       /* ack interrupt */
-
-	cd->event_handler(cd);
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction jmr3927_timer_irqaction = {
-	.handler	= jmr3927_timer_interrupt,
-	.flags		= IRQF_DISABLED | IRQF_PERCPU,
-	.name		= "jmr3927-timer",
-};
-
 void __init plat_time_init(void)
 {
-	struct clock_event_device *cd;
-
-	clocksource_mips.read = jmr3927_hpt_read;
-	mips_hpt_frequency = JMR3927_TIMER_CLK;
-
-	jmr3927_tmrptr->cpra = JMR3927_TIMER_CLK / HZ;
-	jmr3927_tmrptr->itmr = TXx927_TMTITMR_TIIE | TXx927_TMTITMR_TZCE;
-	jmr3927_tmrptr->ccdr = JMR3927_TIMER_CCD;
-	jmr3927_tmrptr->tcr =
-		TXx927_TMTCR_TCE | TXx927_TMTCR_CCDE | TXx927_TMTCR_TMODE_ITVL;
-
-	cd = &jmr3927_clock_event_device;
-	/* Calculate the min / max delta */
-	cd->mult = div_sc((unsigned long) JMR3927_IMCLK, NSEC_PER_SEC, 32);
-	cd->max_delta_ns	= clockevent_delta2ns(0x7fffffff, cd);
-	cd->min_delta_ns	= clockevent_delta2ns(0x300, cd);
-	clockevents_register_device(cd);
-
-	setup_irq(JMR3927_IRQ_TICK, &jmr3927_timer_irqaction);
+	txx9_clockevent_init(TX3927_TMR_REG(0),
+			     TXX9_IRQ_BASE + JMR3927_IRQ_IRC_TMR(0),
+			     JMR3927_IMCLK);
+	txx9_clocksource_init(TX3927_TMR_REG(1), JMR3927_IMCLK);
 }
 
 #define DO_WRITE_THROUGH
@@ -317,15 +255,8 @@ static void __init tx3927_setup(void)
 	       tx3927_ccfgptr->ccfg, tx3927_ccfgptr->pcfg);
 
 	/* TMR */
-	/* disable all timers */
-	for (i = 0; i < TX3927_NR_TMR; i++) {
-		tx3927_tmrptr(i)->tcr = TXx927_TMTCR_CRE;
-		tx3927_tmrptr(i)->tisr = 0;
-		tx3927_tmrptr(i)->cpra = 0xffffffff;
-		tx3927_tmrptr(i)->itmr = 0;
-		tx3927_tmrptr(i)->ccdr = 0;
-		tx3927_tmrptr(i)->pgmr = 0;
-	}
+	for (i = 0; i < TX3927_NR_TMR; i++)
+		txx9_tmr_init(TX3927_TMR_REG(i));
 
 	/* DMA */
 	tx3927_dmaptr->mcr = 0;

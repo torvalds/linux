@@ -1652,6 +1652,7 @@ sg_build_sgat(Sg_scatter_hold * schp, const Sg_fd * sfp, int tablesize)
 	schp->buffer = kzalloc(sg_bufflen, gfp_flags);
 	if (!schp->buffer)
 		return -ENOMEM;
+	sg_init_table(schp->buffer, tablesize);
 	schp->sglist_len = sg_bufflen;
 	return tablesize;	/* number of scat_gath elements allocated */
 }

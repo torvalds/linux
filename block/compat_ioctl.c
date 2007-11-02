@@ -581,7 +581,7 @@ static int compat_blkdev_driver_ioctl(struct inode *inode, struct file *file,
 {
 	int ret;
 
-	switch (arg) {
+	switch (cmd) {
 	case HDIO_GET_UNMASKINTR:
 	case HDIO_GET_MULTCOUNT:
 	case HDIO_GET_KEEPSETTINGS:

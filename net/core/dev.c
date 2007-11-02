@@ -1751,9 +1751,6 @@ DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
  *
  *	return values:
  *	NET_RX_SUCCESS	(no congestion)
- *	NET_RX_CN_LOW   (low congestion)
- *	NET_RX_CN_MOD   (moderate congestion)
- *	NET_RX_CN_HIGH  (high congestion)
  *	NET_RX_DROP     (packet was dropped)
  *
  */
@@ -2001,6 +1998,21 @@ out:
 }
 #endif
 
+/**
+ *	netif_receive_skb - process receive buffer from network
+ *	@skb: buffer to process
+ *
+ *	netif_receive_skb() is the main receive data processing function.
+ *	It always succeeds. The buffer may be dropped during processing
+ *	for congestion control or by the protocol layers.
+ *
+ *	This function may only be called from softirq context and interrupts
+ *	should be enabled.
+ *
+ *	Return values (usually ignored):
+ *	NET_RX_SUCCESS: no congestion
+ *	NET_RX_DROP: packet was dropped
+ */
 int netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
@@ -2172,7 +2184,15 @@ static void net_rx_action(struct softirq_action *h)
 
 		weight = n->weight;
 
-		work = n->poll(n, weight);
+		/* This NAPI_STATE_SCHED test is for avoiding a race
+		 * with netpoll's poll_napi().  Only the entity which
+		 * obtains the lock and sees NAPI_STATE_SCHED set will
+		 * actually make the ->poll() call.  Therefore we avoid
+		 * accidently calling ->poll() when NAPI is not scheduled.
+		 */
+		work = 0;
+		if (test_bit(NAPI_STATE_SCHED, &n->state))
+			work = n->poll(n, weight);
 
 		WARN_ON_ONCE(work > weight);
 
@@ -3488,6 +3508,60 @@ static void net_set_todo(struct net_device *dev)
 	spin_unlock(&net_todo_list_lock);
 }
 
+static void rollback_registered(struct net_device *dev)
+{
+	BUG_ON(dev_boot_phase);
+	ASSERT_RTNL();
+
+	/* Some devices call without registering for initialization unwind. */
+	if (dev->reg_state == NETREG_UNINITIALIZED) {
+		printk(KERN_DEBUG "unregister_netdevice: device %s/%p never "
+				  "was registered\n", dev->name, dev);
+
+		WARN_ON(1);
+		return;
+	}
+
+	BUG_ON(dev->reg_state != NETREG_REGISTERED);
+
+	/* If device is running, close it first. */
+	dev_close(dev);
+
+	/* And unlink it from device chain. */
+	unlist_netdevice(dev);
+
+	dev->reg_state = NETREG_UNREGISTERING;
+
+	synchronize_net();
+
+	/* Shutdown queueing discipline. */
+	dev_shutdown(dev);
+
+
+	/* Notify protocols, that we are about to destroy
+	   this device. They should clean all the things.
+	*/
+	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
+
+	/*
+	 *	Flush the unicast and multicast chains
+	 */
+	dev_addr_discard(dev);
+
+	if (dev->uninit)
+		dev->uninit(dev);
+
+	/* Notifier chain MUST detach us from master device. */
+	BUG_TRAP(!dev->master);
+
+	/* Remove entries from kobject tree */
+	netdev_unregister_kobject(dev);
+
+	synchronize_net();
+
+	dev_put(dev);
+}
+
 /**
  *	register_netdevice	- register a network device
  *	@dev: device to register
@@ -3625,8 +3699,10 @@ int register_netdevice(struct net_device *dev)
 	/* Notify protocols, that a new device appeared. */
 	ret = call_netdevice_notifiers(NETDEV_REGISTER, dev);
 	ret = notifier_to_errno(ret);
-	if (ret)
-		unregister_netdevice(dev);
+	if (ret) {
+		rollback_registered(dev);
+		dev->reg_state = NETREG_UNREGISTERED;
+	}
 
 out:
 	return ret;
@@ -3903,59 +3979,9 @@ void synchronize_net(void)
 
 void unregister_netdevice(struct net_device *dev)
 {
-	BUG_ON(dev_boot_phase);
-	ASSERT_RTNL();
-
-	/* Some devices call without registering for initialization unwind. */
-	if (dev->reg_state == NETREG_UNINITIALIZED) {
-		printk(KERN_DEBUG "unregister_netdevice: device %s/%p never "
-				  "was registered\n", dev->name, dev);
-
-		WARN_ON(1);
-		return;
-	}
-
-	BUG_ON(dev->reg_state != NETREG_REGISTERED);
-
-	/* If device is running, close it first. */
-	dev_close(dev);
-
-	/* And unlink it from device chain. */
-	unlist_netdevice(dev);
-
-	dev->reg_state = NETREG_UNREGISTERING;
-
-	synchronize_net();
-
-	/* Shutdown queueing discipline. */
-	dev_shutdown(dev);
-
-
-	/* Notify protocols, that we are about to destroy
-	   this device. They should clean all the things.
-	*/
-	call_netdevice_notifiers(NETDEV_UNREGISTER, dev);
-
-	/*
-	 *	Flush the unicast and multicast chains
-	 */
-	dev_addr_discard(dev);
-
-	if (dev->uninit)
-		dev->uninit(dev);
-
-	/* Notifier chain MUST detach us from master device. */
-	BUG_TRAP(!dev->master);
-
-	/* Remove entries from kobject tree */
-	netdev_unregister_kobject(dev);
-
+	rollback_registered(dev);
 	/* Finish processing unregister after unlock */
 	net_set_todo(dev);
-
-	synchronize_net();
-
-	dev_put(dev);
 }
 
 /**

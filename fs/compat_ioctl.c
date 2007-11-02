@@ -322,7 +322,7 @@ static int dev_ifname32(unsigned int fd, unsigned int cmd, unsigned long arg)
 	int err;
 
 	uifr = compat_alloc_user_space(sizeof(struct ifreq));
-	if (copy_in_user(uifr, compat_ptr(arg), sizeof(struct ifreq32)));
+	if (copy_in_user(uifr, compat_ptr(arg), sizeof(struct ifreq32)))
 		return -EFAULT;
 
 	err = sys_ioctl(fd, SIOCGIFNAME, (unsigned long)uifr);

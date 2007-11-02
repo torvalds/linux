@@ -142,7 +142,6 @@ DEFINE_PER_CPU_SHARED_ALIGNED(cpumask_t, cpu_sibling_map);
 EXPORT_PER_CPU_SYMBOL(cpu_sibling_map);
 
 int smp_num_siblings = 1;
-int smp_num_cpucores = 1;
 
 /* which logical CPU number maps to which CPU (physical APIC ID) */
 volatile int ia64_cpu_to_sapicid[NR_CPUS];
@@ -886,13 +885,17 @@ identify_siblings(struct cpuinfo_ia64 *c)
 	u16 pltid;
 	pal_logical_to_physical_t info;
 
-	if (smp_num_cpucores == 1 && smp_num_siblings == 1)
-		return;
-
 	if ((status = ia64_pal_logical_to_phys(-1, &info)) != PAL_STATUS_SUCCESS) {
-		printk(KERN_ERR "ia64_pal_logical_to_phys failed with %ld\n",
-		       status);
-		return;
+		if (status != PAL_STATUS_UNIMPLEMENTED) {
+			printk(KERN_ERR
+				"ia64_pal_logical_to_phys failed with %ld\n",
+				status);
+			return;
+		}
+
+		info.overview_ppid = 0;
+		info.overview_cpp  = 1;
+		info.overview_tpc  = 1;
 	}
 	if ((status = ia64_sal_physical_id_info(&pltid)) != PAL_STATUS_SUCCESS) {
 		printk(KERN_ERR "ia64_sal_pltid failed with %ld\n", status);
@@ -900,6 +903,10 @@ identify_siblings(struct cpuinfo_ia64 *c)
 	}
 
 	c->socket_id =  (pltid << 8) | info.overview_ppid;
+
+	if (info.overview_cpp == 1 && info.overview_tpc == 1)
+		return;
+
 	c->cores_per_socket = info.overview_cpp;
 	c->threads_per_core = info.overview_tpc;
 	c->num_log = info.overview_num_log;

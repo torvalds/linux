@@ -182,7 +182,9 @@ static void setup_tsb_params(struct mm_struct *mm, unsigned long tsb_idx, unsign
 		break;
 
 	default:
-		BUG();
+		printk(KERN_ERR "TSB[%s:%d]: Impossible TSB size %lu, killing process.\n",
+		       current->comm, current->pid, tsb_bytes);
+		do_exit(SIGSEGV);
 	};
 	tte |= pte_sz_bits(page_sz);
 

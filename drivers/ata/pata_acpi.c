@@ -181,7 +181,7 @@ static void pacpi_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	int unit = adev->devno;
 	struct pata_acpi *acpi = ap->private_data;
 
-	if(!(acpi->gtm.flags & 0x10))
+	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
 	/* Now stuff the nS values into the structure */
@@ -202,7 +202,7 @@ static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	int unit = adev->devno;
 	struct pata_acpi *acpi = ap->private_data;
 
-	if(!(acpi->gtm.flags & 0x10))
+	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
 	/* Now stuff the nS values into the structure */

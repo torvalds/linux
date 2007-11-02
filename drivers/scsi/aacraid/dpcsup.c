@@ -254,7 +254,7 @@ unsigned int aac_intr_normal(struct aac_dev * dev, u32 Index)
 			kfree (fib);
 			return 1;
 		}
-		memcpy(hw_fib, (struct hw_fib *)(((ptrdiff_t)(dev->regs.sa)) +
+		memcpy(hw_fib, (struct hw_fib *)(((uintptr_t)(dev->regs.sa)) +
 		  (index & ~0x00000002L)), sizeof(struct hw_fib));
 		INIT_LIST_HEAD(&fib->fiblink);
 		fib->type = FSAFS_NTC_FIB_CONTEXT;

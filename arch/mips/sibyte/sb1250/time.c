@@ -50,8 +50,6 @@
 #define SB1250_HPT_VALUE	M_SCD_TIMER_CNT /* max value */
 
 
-extern int sb1250_steal_irq(int irq);
-
 /*
  * The general purpose timer ticks at 1 Mhz independent if
  * the rest of the system
@@ -139,7 +137,7 @@ void __cpuinit sb1250_clockevent_init(void)
 	sprintf(name, "bcm1480-counter %d", cpu);
 	cd->name		= name;
 	cd->features		= CLOCK_EVT_FEAT_PERIODIC |
-				  CLOCK_EVT_MODE_ONESHOT;
+				  CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, V_SCD_TIMER_FREQ);
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffff, cd);
 	cd->min_delta_ns	= clockevent_delta2ns(1, cd);
@@ -159,7 +157,6 @@ void __cpuinit sb1250_clockevent_init(void)
 	cd->cpumask = cpumask_of_cpu(0);
 
 	sb1250_unmask_irq(cpu, irq);
-	sb1250_steal_irq(irq);
 
 	action->handler	= sibyte_counter_handler;
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;

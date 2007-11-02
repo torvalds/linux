@@ -513,7 +513,7 @@ config ZFCPDUMP
 	default n
 	help
 	  Select this option if you want to build an zfcpdump enabled kernel.
-	  Refer to "Documentation/s390/zfcpdump.txt" for more details on this.
+	  Refer to <file:Documentation/s390/zfcpdump.txt> for more details on this.
 
 endmenu
 

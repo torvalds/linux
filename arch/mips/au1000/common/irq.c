@@ -318,38 +318,6 @@ static struct irq_chip level_irq_type = {
 	.end		= end_irq,
 };
 
-#ifdef CONFIG_PM
-void startup_match20_interrupt(irq_handler_t handler)
-{
-	struct irq_desc *desc = &irq_desc[AU1000_TOY_MATCH2_INT];
-
-	static struct irqaction action;
-	memset(&action, 0, sizeof(struct irqaction));
-
-	/*
-	 * This is a big problem.... since we didn't use request_irq
-	 * when kernel/irq.c calls probe_irq_xxx this interrupt will
-	 * be probed for usage. This will end up disabling the device :(
-	 * Give it a bogus "action" pointer -- this will keep it from
-	 * getting auto-probed!
-	 *
-	 * By setting the status to match that of request_irq() we
-	 * can avoid it.  --cgray
-	*/
-	action.dev_id = handler;
-	action.flags = IRQF_DISABLED;
-	cpus_clear(action.mask);
-	action.name = "Au1xxx TOY";
-	action.handler = handler;
-	action.next = NULL;
-
-	desc->action = &action;
-	desc->status &= ~(IRQ_DISABLED | IRQ_AUTODETECT | IRQ_WAITING | IRQ_INPROGRESS);
-
-	local_enable_irq(AU1000_TOY_MATCH2_INT);
-}
-#endif
-
 static void __init setup_local_irq(unsigned int irq_nr, int type, int int_req)
 {
 	unsigned int bit = irq_nr - AU1000_INTC0_INT_BASE;

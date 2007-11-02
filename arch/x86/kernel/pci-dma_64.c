@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/dmar.h>
 #include <asm/io.h>
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/calgary.h>
 
 int iommu_merge __read_mostly = 1;
@@ -275,7 +275,7 @@ __init int iommu_setup(char *p)
 			swiotlb = 1;
 #endif
 
-#ifdef CONFIG_IOMMU
+#ifdef CONFIG_GART_IOMMU
 		gart_parse_options(p);
 #endif
 
@@ -298,8 +298,8 @@ void __init pci_iommu_alloc(void)
 	 * The order of these functions is important for
 	 * fall-back/fail-over reasons
 	 */
-#ifdef CONFIG_IOMMU
-	iommu_hole_init();
+#ifdef CONFIG_GART_IOMMU
+	gart_iommu_hole_init();
 #endif
 
 #ifdef CONFIG_CALGARY_IOMMU
@@ -321,7 +321,7 @@ static int __init pci_iommu_init(void)
 
 	intel_iommu_init();
 
-#ifdef CONFIG_IOMMU
+#ifdef CONFIG_GART_IOMMU
 	gart_iommu_init();
 #endif
 

@@ -995,7 +995,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol)
 	sock->state = SS_UNCONNECTED;
 
 	err = -ENOBUFS;
-	sk = sk_alloc(net, PF_PACKET, GFP_KERNEL, &packet_proto, 1);
+	sk = sk_alloc(net, PF_PACKET, GFP_KERNEL, &packet_proto);
 	if (sk == NULL)
 		goto out;
 

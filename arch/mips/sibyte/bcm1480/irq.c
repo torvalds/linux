@@ -280,27 +280,6 @@ static struct irqaction bcm1480_dummy_action = {
 	.dev_id  = 0
 };
 
-int bcm1480_steal_irq(int irq)
-{
-	struct irq_desc *desc = irq_desc + irq;
-	unsigned long flags;
-	int retval = 0;
-
-	if (irq >= BCM1480_NR_IRQS)
-		return -EINVAL;
-
-	spin_lock_irqsave(&desc->lock, flags);
-	/* Don't allow sharing at all for these */
-	if (desc->action != NULL)
-		retval = -EBUSY;
-	else {
-		desc->action = &bcm1480_dummy_action;
-		desc->depth = 0;
-	}
-	spin_unlock_irqrestore(&desc->lock, flags);
-	return 0;
-}
-
 /*
  *  init_IRQ is called early in the boot sequence from init/main.c.  It
  *  is responsible for setting up the interrupt mapper and installing the
@@ -386,8 +365,6 @@ void __init arch_init_irq(void)
 		__raw_writeq(tmp, IOADDR(A_BCM1480_IMR_REGISTER(cpu, R_BCM1480_IMR_INTERRUPT_MASK_L)));
 	}
 
-	bcm1480_steal_irq(K_BCM1480_INT_MBOX_0_0);
-
 	/*
 	 * Note that the timer interrupts are also mapped, but this is
 	 * done in bcm1480_time_init().  Also, the profiling driver
@@ -411,7 +388,6 @@ void __init arch_init_irq(void)
 		/* QQQ FIXME */
 		__raw_writeq(M_DUART_IMR_BRK, IO_SPACE_BASE + A_DUART_IMRREG(kgdb_port));
 
-		bcm1480_steal_irq(kgdb_irq);
 		__raw_writeq(IMR_IP6_VAL,
 			     IO_SPACE_BASE + A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
 			     (kgdb_irq<<3));

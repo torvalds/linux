@@ -17,7 +17,7 @@
  *
  */
 
-#if defined(__i386__) || defined(__x86_64__)
+#if (defined(__i386__) || defined(__x86_64__)) && !defined(__arch_um__)
 
 #include "raid6.h"
 #include "raid6x86.h"
@@ -161,7 +161,7 @@ const struct raid6_calls raid6_sse2x2 = {
 
 #endif
 
-#ifdef __x86_64__
+#if defined(__x86_64__) && !defined(__arch_um__)
 
 /*
  * Unrolled-by-4 SSE2 implementation

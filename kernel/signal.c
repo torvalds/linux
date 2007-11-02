@@ -124,7 +124,7 @@ void recalc_sigpending_and_wake(struct task_struct *t)
 
 void recalc_sigpending(void)
 {
-	if (!recalc_sigpending_tsk(current))
+	if (!recalc_sigpending_tsk(current) && !freezing(current))
 		clear_thread_flag(TIF_SIGPENDING);
 
 }
@@ -732,7 +732,7 @@ static void print_fatal_signal(struct pt_regs *regs, int signr)
 	printk("%s/%d: potentially unexpected fatal signal %d.\n",
 		current->comm, task_pid_nr(current), signr);
 
-#ifdef __i386__
+#if defined(__i386__) && !defined(__arch_um__)
 	printk("code at %08lx: ", regs->eip);
 	{
 		int i;

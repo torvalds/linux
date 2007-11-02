@@ -538,7 +538,15 @@ static u8 flash_csum(struct ipath_flash *ifp, int adjust)
 	u8 *ip = (u8 *) ifp;
 	u8 csum = 0, len;
 
-	for (len = 0; len < ifp->if_length; len++)
+	/*
+	 * Limit length checksummed to max length of actual data.
+	 * Checksum of erased eeprom will still be bad, but we avoid
+	 * reading past the end of the buffer we were passed.
+	 */
+	len = ifp->if_length;
+	if (len > sizeof(struct ipath_flash))
+		len = sizeof(struct ipath_flash);
+	while (len--)
 		csum += *ip++;
 	csum -= ifp->if_csum;
 	csum = ~csum;

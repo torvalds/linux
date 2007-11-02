@@ -287,7 +287,7 @@ static struct sock *rfcomm_sock_alloc(struct net *net, struct socket *sock, int 
 	struct rfcomm_dlc *d;
 	struct sock *sk;
 
-	sk = sk_alloc(net, PF_BLUETOOTH, prio, &rfcomm_proto, 1);
+	sk = sk_alloc(net, PF_BLUETOOTH, prio, &rfcomm_proto);
 	if (!sk)
 		return NULL;
 

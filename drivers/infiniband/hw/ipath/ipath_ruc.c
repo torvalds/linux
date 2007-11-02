@@ -630,11 +630,8 @@ bail:;
 void ipath_send_complete(struct ipath_qp *qp, struct ipath_swqe *wqe,
 			 enum ib_wc_status status)
 {
-	u32 last = qp->s_last;
-
-	if (++last == qp->s_size)
-		last = 0;
-	qp->s_last = last;
+	unsigned long flags;
+	u32 last;
 
 	/* See ch. 11.2.4.1 and 10.7.3.1 */
 	if (!(qp->s_flags & IPATH_S_SIGNAL_REQ_WR) ||
@@ -658,4 +655,11 @@ void ipath_send_complete(struct ipath_qp *qp, struct ipath_swqe *wqe,
 		wc.port_num = 0;
 		ipath_cq_enter(to_icq(qp->ibqp.send_cq), &wc, 0);
 	}
+
+	spin_lock_irqsave(&qp->s_lock, flags);
+	last = qp->s_last;
+	if (++last >= qp->s_size)
+		last = 0;
+	qp->s_last = last;
+	spin_unlock_irqrestore(&qp->s_lock, flags);
 }

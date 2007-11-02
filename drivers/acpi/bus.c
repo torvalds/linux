@@ -198,12 +198,10 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 		return -ENODEV;
 	}
 	/*
-	 * Get device's current power state if it's unknown
-	 * This means device power state isn't initialized or previous setting failed
+	 * Get device's current power state
 	 */
-	if ((device->power.state == ACPI_STATE_UNKNOWN) || device->flags.force_power_state)
-		acpi_bus_get_power(device->handle, &device->power.state);
-	if ((state == device->power.state) && !device->flags.force_power_state) {
+	acpi_bus_get_power(device->handle, &device->power.state);
+	if (state == device->power.state) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Device is already at D%d\n",
 				  state));
 		return 0;

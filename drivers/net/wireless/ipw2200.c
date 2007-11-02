@@ -1753,7 +1753,7 @@ static int ipw_radio_kill_sw(struct ipw_priv *priv, int disable_radio)
 			/* Make sure the RF_KILL check timer is running */
 			cancel_delayed_work(&priv->rf_kill);
 			queue_delayed_work(priv->workqueue, &priv->rf_kill,
-					   round_jiffies(2 * HZ));
+					   round_jiffies_relative(2 * HZ));
 		} else
 			queue_work(priv->workqueue, &priv->up);
 	}
@@ -4364,7 +4364,7 @@ static void handle_scan_event(struct ipw_priv *priv)
 	if (!priv->user_requested_scan) {
 		if (!delayed_work_pending(&priv->scan_event))
 			queue_delayed_work(priv->workqueue, &priv->scan_event,
-					 round_jiffies(msecs_to_jiffies(4000)));
+					 round_jiffies_relative(msecs_to_jiffies(4000)));
 	} else {
 		union iwreq_data wrqu;
 
@@ -4728,7 +4728,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 				 && priv->status & STATUS_ASSOCIATED)
 				queue_delayed_work(priv->workqueue,
 						   &priv->request_scan,
-						   round_jiffies(HZ));
+						   round_jiffies_relative(HZ));
 
 			/* Send an empty event to user space.
 			 * We don't send the received data on the event because

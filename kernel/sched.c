@@ -172,6 +172,7 @@ struct task_group {
 	unsigned long shares;
 	/* spinlock to serialize modification to shares */
 	spinlock_t lock;
+	struct rcu_head rcu;
 };
 
 /* Default task group's sched entity on each cpu */
@@ -258,7 +259,6 @@ struct cfs_rq {
 	 */
 	struct list_head leaf_cfs_rq_list; /* Better name : task_cfs_rq_list? */
 	struct task_group *tg;    /* group that "owns" this runqueue */
-	struct rcu_head rcu;
 #endif
 };
 
@@ -3355,7 +3355,7 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
  * @p: the process that the cpu time gets accounted to
  * @cputime: the cpu time spent in virtual machine since the last update
  */
-void account_guest_time(struct task_struct *p, cputime_t cputime)
+static void account_guest_time(struct task_struct *p, cputime_t cputime)
 {
 	cputime64_t tmp;
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
@@ -5365,7 +5365,7 @@ static struct ctl_table sd_ctl_dir[] = {
 		.procname	= "sched_domain",
 		.mode		= 0555,
 	},
-	{0,},
+	{0, },
 };
 
 static struct ctl_table sd_ctl_root[] = {
@@ -5375,7 +5375,7 @@ static struct ctl_table sd_ctl_root[] = {
 		.mode		= 0555,
 		.child		= sd_ctl_dir,
 	},
-	{0,},
+	{0, },
 };
 
 static struct ctl_table *sd_alloc_ctl_entry(int n)
@@ -7019,8 +7019,8 @@ err:
 /* rcu callback to free various structures associated with a task group */
 static void free_sched_group(struct rcu_head *rhp)
 {
-	struct cfs_rq *cfs_rq = container_of(rhp, struct cfs_rq, rcu);
-	struct task_group *tg = cfs_rq->tg;
+	struct task_group *tg = container_of(rhp, struct task_group, rcu);
+	struct cfs_rq *cfs_rq;
 	struct sched_entity *se;
 	int i;
 
@@ -7041,7 +7041,7 @@ static void free_sched_group(struct rcu_head *rhp)
 /* Destroy runqueue etc associated with a task group */
 void sched_destroy_group(struct task_group *tg)
 {
-	struct cfs_rq *cfs_rq;
+	struct cfs_rq *cfs_rq = NULL;
 	int i;
 
 	for_each_possible_cpu(i) {
@@ -7049,10 +7049,10 @@ void sched_destroy_group(struct task_group *tg)
 		list_del_rcu(&cfs_rq->leaf_cfs_rq_list);
 	}
 
-	cfs_rq = tg->cfs_rq[0];
+	BUG_ON(!cfs_rq);
 
 	/* wait for possible concurrent references to cfs_rqs complete */
-	call_rcu(&cfs_rq->rcu, free_sched_group);
+	call_rcu(&tg->rcu, free_sched_group);
 }
 
 /* change task's runqueue when it moves between groups.
@@ -7211,25 +7211,53 @@ static u64 cpu_shares_read_uint(struct cgroup *cgrp, struct cftype *cft)
 	return (u64) tg->shares;
 }
 
-static struct cftype cpu_shares = {
-	.name = "shares",
-	.read_uint = cpu_shares_read_uint,
-	.write_uint = cpu_shares_write_uint,
+static u64 cpu_usage_read(struct cgroup *cgrp, struct cftype *cft)
+{
+	struct task_group *tg = cgroup_tg(cgrp);
+	unsigned long flags;
+	u64 res = 0;
+	int i;
+
+	for_each_possible_cpu(i) {
+		/*
+		 * Lock to prevent races with updating 64-bit counters
+		 * on 32-bit arches.
+		 */
+		spin_lock_irqsave(&cpu_rq(i)->lock, flags);
+		res += tg->se[i]->sum_exec_runtime;
+		spin_unlock_irqrestore(&cpu_rq(i)->lock, flags);
+	}
+	/* Convert from ns to ms */
+	do_div(res, 1000000);
+
+	return res;
+}
+
+static struct cftype cpu_files[] = {
+	{
+		.name = "shares",
+		.read_uint = cpu_shares_read_uint,
+		.write_uint = cpu_shares_write_uint,
+	},
+	{
+		.name = "usage",
+		.read_uint = cpu_usage_read,
+	},
 };
 
 static int cpu_cgroup_populate(struct cgroup_subsys *ss, struct cgroup *cont)
 {
-	return cgroup_add_file(cont, ss, &cpu_shares);
+	return cgroup_add_files(cont, ss, cpu_files, ARRAY_SIZE(cpu_files));
 }
 
 struct cgroup_subsys cpu_cgroup_subsys = {
-	.name 	    	= "cpu",
-	.create	    	= cpu_cgroup_create,
-	.destroy    	= cpu_cgroup_destroy,
-	.can_attach 	= cpu_cgroup_can_attach,
-	.attach     	= cpu_cgroup_attach,
-	.populate   	= cpu_cgroup_populate,
-	.subsys_id  	= cpu_cgroup_subsys_id,
+	.name		= "cpu",
+	.create		= cpu_cgroup_create,
+	.destroy	= cpu_cgroup_destroy,
+	.can_attach	= cpu_cgroup_can_attach,
+	.attach		= cpu_cgroup_attach,
+	.populate	= cpu_cgroup_populate,
+	.subsys_id	= cpu_cgroup_subsys_id,
 	.early_init	= 1,
 };
 

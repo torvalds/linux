@@ -1800,10 +1800,8 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 			qc->err_mask &= ~AC_ERR_OTHER;
 
 		/* SENSE_VALID trumps dev/unknown error and revalidation */
-		if (qc->flags & ATA_QCFLAG_SENSE_VALID) {
+		if (qc->flags & ATA_QCFLAG_SENSE_VALID)
 			qc->err_mask &= ~(AC_ERR_DEV | AC_ERR_OTHER);
-			ehc->i.action &= ~ATA_EH_REVALIDATE;
-		}
 
 		/* accumulate error info */
 		ehc->i.dev = qc->dev;
@@ -1816,7 +1814,8 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 	if (ap->pflags & ATA_PFLAG_FROZEN ||
 	    all_err_mask & (AC_ERR_HSM | AC_ERR_TIMEOUT))
 		ehc->i.action |= ATA_EH_SOFTRESET;
-	else if (all_err_mask)
+	else if ((is_io && all_err_mask) ||
+		 (!is_io && (all_err_mask & ~AC_ERR_DEV)))
 		ehc->i.action |= ATA_EH_REVALIDATE;
 
 	/* if we have offending qcs and the associated failed device */
@@ -1879,7 +1878,9 @@ static void ata_eh_link_report(struct ata_link *link)
 	for (tag = 0; tag < ATA_MAX_QUEUE; tag++) {
 		struct ata_queued_cmd *qc = __ata_qc_from_tag(ap, tag);
 
-		if (!(qc->flags & ATA_QCFLAG_FAILED) || qc->dev->link != link)
+		if (!(qc->flags & ATA_QCFLAG_FAILED) || qc->dev->link != link ||
+		    ((qc->flags & ATA_QCFLAG_QUIET) &&
+		     qc->err_mask == AC_ERR_DEV))
 			continue;
 		if (qc->flags & ATA_QCFLAG_SENSE_VALID && !qc->err_mask)
 			continue;
@@ -2083,6 +2084,25 @@ int ata_eh_reset(struct ata_link *link, int classify,
 
 	ata_eh_about_to_do(link, NULL, ehc->i.action & ATA_EH_RESET_MASK);
 
+	ata_link_for_each_dev(dev, link) {
+		/* If we issue an SRST then an ATA drive (not ATAPI)
+		 * may change configuration and be in PIO0 timing. If
+		 * we do a hard reset (or are coming from power on)
+		 * this is true for ATA or ATAPI. Until we've set a
+		 * suitable controller mode we should not touch the
+		 * bus as we may be talking too fast.
+		 */
+		dev->pio_mode = XFER_PIO_0;
+
+		/* If the controller has a pio mode setup function
+		 * then use it to set the chipset to rights. Don't
+		 * touch the DMA setup as that will be dealt with when
+		 * configuring devices.
+		 */
+		if (ap->ops->set_piomode)
+			ap->ops->set_piomode(ap, dev);
+	}
+
 	/* Determine which reset to use and record in ehc->i.action.
 	 * prereset() may examine and modify it.
 	 */
@@ -2208,9 +2228,11 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		ata_link_for_each_dev(dev, link) {
 			/* After the reset, the device state is PIO 0
 			 * and the controller state is undefined.
-			 * Record the mode.
+			 * Reset also wakes up drives from sleeping
+			 * mode.
 			 */
 			dev->pio_mode = XFER_PIO_0;
+			dev->flags &= ~ATA_DFLAG_SLEEPING;
 
 			if (ata_link_offline(link))
 				continue;
@@ -2416,7 +2438,7 @@ static int ata_eh_handle_dev_fail(struct ata_device *dev, int err)
 		/* give it just one more chance */
 		ehc->tries[dev->devno] = min(ehc->tries[dev->devno], 1);
 	case -EIO:
-		if (ehc->tries[dev->devno] == 1) {
+		if (ehc->tries[dev->devno] == 1 && dev->pio_mode > XFER_PIO_0) {
 			/* This is the last chance, better to slow
 			 * down than lose it.
 			 */
@@ -2607,6 +2629,10 @@ int ata_eh_recover(struct ata_port *ap, ata_prereset_fn_t prereset,
 			ehc->i.flags &= ~ATA_EHI_SETMODE;
 		}
 
+		if (ehc->i.action & ATA_EHI_LPM)
+			ata_link_for_each_dev(dev, link)
+				ata_dev_enable_pm(dev, ap->pm_policy);
+
 		/* this link is okay now */
 		ehc->i.flags = 0;
 		continue;
@@ -2672,8 +2698,15 @@ void ata_eh_finish(struct ata_port *ap)
 			/* FIXME: Once EH migration is complete,
 			 * generate sense data in this function,
 			 * considering both err_mask and tf.
+			 *
+			 * There's no point in retrying invalid
+			 * (detected by libata) and non-IO device
+			 * errors (rejected by device).  Finish them
+			 * immediately.
 			 */
-			if (qc->err_mask & AC_ERR_INVALID)
+			if ((qc->err_mask & AC_ERR_INVALID) ||
+			    (!(qc->flags & ATA_QCFLAG_IO) &&
+			     qc->err_mask == AC_ERR_DEV))
 				ata_eh_qc_complete(qc);
 			else
 				ata_eh_qc_retry(qc);

@@ -166,13 +166,14 @@ config NET_SB1000
 	  If you don't have this card, of course say N.
 
 config IP1000
-       tristate "IP1000 Gigabit Ethernet support"
-       depends on PCI && EXPERIMENTAL
-       ---help---
-         This driver supports IP1000 gigabit Ethernet cards.
+	tristate "IP1000 Gigabit Ethernet support"
+	depends on PCI && EXPERIMENTAL
+	select MII
+	---help---
+	  This driver supports IP1000 gigabit Ethernet cards.
 
-         To compile this driver as a module, choose M here: the module
-         will be called ipg.  This is recommended.
+	  To compile this driver as a module, choose M here: the module
+	  will be called ipg.  This is recommended.
 
 source "drivers/net/arcnet/Kconfig"
 
@@ -1879,6 +1880,30 @@ config FEC2
 	help
 	  Say Y here if you want to use the second built-in 10/100 Fast
 	  ethernet controller on some Motorola ColdFire processors.
+
+config FEC_MPC52xx
+	tristate "MPC52xx FEC driver"
+	depends on PPC_MPC52xx
+	select PPC_BESTCOMM
+	select PPC_BESTCOMM_FEC
+	select CRC32
+	select PHYLIB
+	---help---
+	  This option enables support for the MPC5200's on-chip
+	  Fast Ethernet Controller
+	  If compiled as module, it will be called 'fec_mpc52xx.ko'.
+
+config FEC_MPC52xx_MDIO
+	bool "MPC52xx FEC MDIO bus driver"
+	depends on FEC_MPC52xx
+	default y
+	---help---
+	  The MPC5200's FEC can connect to the Ethernet either with
+	  an external MII PHY chip or 10 Mbps 7-wire interface
+	  (Motorola? industry standard).
+	  If your board uses an external PHY connected to FEC, enable this.
+	  If not sure, enable.
+	  If compiled as module, it will be called 'fec_mpc52xx_phy.ko'.
 
 config NE_H8300
 	tristate "NE2000 compatible support for H8/300"

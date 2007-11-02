@@ -60,7 +60,7 @@ static struct ib_qp_attr ipoib_cm_err_attr = {
 	.qp_state = IB_QPS_ERR
 };
 
-#define IPOIB_CM_RX_DRAIN_WRID 0x7fffffff
+#define IPOIB_CM_RX_DRAIN_WRID 0xffffffff
 
 static struct ib_send_wr ipoib_cm_rx_drain_wr = {
 	.wr_id = IPOIB_CM_RX_DRAIN_WRID,

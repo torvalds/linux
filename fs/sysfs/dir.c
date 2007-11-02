@@ -132,7 +132,7 @@ struct dentry *sysfs_get_dentry(struct sysfs_dirent *sd)
  *	RETURNS:
  *	Pointer to @sd on success, NULL on failure.
  */
-struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
+static struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 {
 	if (unlikely(!sd))
 		return NULL;
@@ -161,7 +161,7 @@ struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
  *	Put an active reference to @sd.  This function is noop if @sd
  *	is NULL.
  */
-void sysfs_put_active(struct sysfs_dirent *sd)
+static void sysfs_put_active(struct sysfs_dirent *sd)
 {
 	struct completion *cmpl;
 	int v;

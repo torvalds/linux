@@ -343,6 +343,7 @@ static struct platform_device *h2_devices[] __initdata = {
 	&h2_mcbsp1_device,
 };
 
+#ifdef CONFIG_I2C_BOARDINFO
 static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
@@ -356,6 +357,7 @@ static struct i2c_board_info __initdata h2_i2c_board_info[] = {
 	 *  - ... etc
 	 */
 };
+#endif
 
 static void __init h2_init_smc91x(void)
 {
@@ -467,8 +469,10 @@ static void __init h2_init(void)
 	if (gpio_request(58, "tps65010") == 0)
 		gpio_direction_input(58);
 
+#ifdef CONFIG_I2C_BOARDINFO
 	i2c_register_board_info(1, h2_i2c_board_info,
 			ARRAY_SIZE(h2_i2c_board_info));
+#endif
 }
 
 static void __init h2_map_io(void)

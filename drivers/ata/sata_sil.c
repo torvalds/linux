@@ -111,7 +111,7 @@ enum {
 	SIL_QUIRK_UDMA5MAX	= (1 << 1),
 };
 
-static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent);
+static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 #ifdef CONFIG_PM
 static int sil_pci_device_resume(struct pci_dev *pdev);
 #endif
@@ -138,7 +138,7 @@ static const struct pci_device_id sil_pci_tbl[] = {
 
 /* TODO firmware versions should be added - eric */
 static const struct sil_drivelist {
-	const char * product;
+	const char *product;
 	unsigned int quirk;
 } sil_blacklist [] = {
 	{ "ST320012AS",		SIL_QUIRK_MOD15WRITE },
@@ -279,7 +279,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sil_pci_tbl);
 MODULE_VERSION(DRV_VERSION);
 
-static int slow_down = 0;
+static int slow_down;
 module_param(slow_down, int, 0444);
 MODULE_PARM_DESC(slow_down, "Sledgehammer used to work around random problems, by limiting commands to 15 sectors (0=off, 1=on)");
 
@@ -332,7 +332,8 @@ static int sil_set_mode(struct ata_link *link, struct ata_device **r_failed)
 	return 0;
 }
 
-static inline void __iomem *sil_scr_addr(struct ata_port *ap, unsigned int sc_reg)
+static inline void __iomem *sil_scr_addr(struct ata_port *ap,
+					 unsigned int sc_reg)
 {
 	void __iomem *offset = ap->ioaddr.scr_addr;
 
@@ -643,7 +644,7 @@ static void sil_init_controller(struct ata_host *host)
 	}
 }
 
-static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int sil_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	int board_id = ent->driver_data;

@@ -17,4 +17,6 @@
 
 #define ATOMIC_SEQS_END		0x480
 
-#define FIXED_CODE_END		0x480
+#define SAFE_USER_INSTRUCTION   0x480
+
+#define FIXED_CODE_END		0x490

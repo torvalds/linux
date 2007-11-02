@@ -408,7 +408,7 @@ config SUNOS_EMUL
 
 config SOLARIS_EMUL
 	tristate "Solaris binary emulation (EXPERIMENTAL)"
-	depends on SPARC32_COMPAT && EXPERIMENTAL
+	depends on SPARC32_COMPAT && NET && EXPERIMENTAL
 	help
 	  This is experimental code which will enable you to run (many)
 	  Solaris binaries on your SPARC Linux machine.

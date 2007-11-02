@@ -28,7 +28,7 @@ static int mips_next_event(unsigned long delta,
 	cnt = read_c0_count();
 	cnt += delta;
 	write_c0_compare(cnt);
-	res = ((long)(read_c0_count() - cnt ) > 0) ? -ETIME : 0;
+	res = ((int)(read_c0_count() - cnt) > 0) ? -ETIME : 0;
 #ifdef CONFIG_MIPS_MT_SMTC
 	evpe(vpflags);
 	local_irq_restore(flags);
@@ -179,7 +179,7 @@ static int c0_compare_int_pending(void)
 
 static int c0_compare_int_usable(void)
 {
-	const unsigned int delta = 0x300000;
+	unsigned int delta;
 	unsigned int cnt;
 
 	/*
@@ -192,11 +192,17 @@ static int c0_compare_int_usable(void)
 			return 0;
 	}
 
-	cnt = read_c0_count();
-	cnt += delta;
-	write_c0_compare(cnt);
+	for (delta = 0x10; delta <= 0x400000; delta <<= 1) {
+		cnt = read_c0_count();
+		cnt += delta;
+		write_c0_compare(cnt);
+		irq_disable_hazard();
+		if ((int)(read_c0_count() - cnt) < 0)
+		    break;
+		/* increase delta if the timer was already expired */
+	}
 
-	while ((long)(read_c0_count() - cnt) <= 0)
+	while ((int)(read_c0_count() - cnt) <= 0)
 		;	/* Wait for expiry  */
 
 	if (!c0_compare_int_pending())
@@ -218,9 +224,9 @@ void __cpuinit mips_clockevent_init(void)
 	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *cd;
-	unsigned int irq = MIPS_CPU_IRQ_BASE + 7;
+	unsigned int irq;
 
-	if (!cpu_has_counter)
+	if (!cpu_has_counter || !mips_hpt_frequency)
 		return;
 
 #ifdef CONFIG_MIPS_MT_SMTC
@@ -236,6 +242,15 @@ void __cpuinit mips_clockevent_init(void)
 
 	if (!c0_compare_int_usable())
 		return;
+
+	/*
+	 * With vectored interrupts things are getting platform specific.
+	 * get_c0_compare_int is a hook to allow a platform to return the
+	 * interrupt number of it's liking.
+	 */
+	irq = MIPS_CPU_IRQ_BASE + cp0_compare_irq;
+	if (get_c0_compare_int)
+		irq = get_c0_compare_int();
 
 	cd = &per_cpu(mips_clockevent_device, cpu);
 
@@ -261,13 +276,15 @@ void __cpuinit mips_clockevent_init(void)
 
 	clockevents_register_device(cd);
 
-	if (!cp0_timer_irq_installed) {
+	if (!cp0_timer_irq_installed)
+		return;
+
+	cp0_timer_irq_installed = 1;
+
 #ifdef CONFIG_MIPS_MT_SMTC
 #define CPUCTR_IMASKBIT (0x100 << cp0_compare_irq)
-		setup_irq_smtc(irq, &c0_compare_irqaction, CPUCTR_IMASKBIT);
+	setup_irq_smtc(irq, &c0_compare_irqaction, CPUCTR_IMASKBIT);
 #else
-		setup_irq(irq, &c0_compare_irqaction);
-#endif /* CONFIG_MIPS_MT_SMTC */
-		cp0_timer_irq_installed = 1;
-	}
+	setup_irq(irq, &c0_compare_irqaction);
+#endif
 }

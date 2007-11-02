@@ -17,7 +17,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/apic.h>
-#include <asm/iommu.h>
+#include <asm/gart.h>
 
 /*
  * Power off function, if any

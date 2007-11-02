@@ -40,13 +40,6 @@ static void inline flush_mace_bus(void)
 	mace->perif.ctrl.misc;
 }
 
-#undef DEBUG_IRQ
-#ifdef DEBUG_IRQ
-#define DBG(x...) printk(x)
-#else
-#define DBG(x...)
-#endif
-
 /*
  * O2 irq map
  *
@@ -125,6 +118,7 @@ struct irqaction memerr_irq = {
 	.mask = CPU_MASK_NONE,
 	.name = "CRIME memory error",
 };
+
 struct irqaction cpuerr_irq = {
 	.handler = crime_cpuerr_intr,
 	.flags = IRQF_DISABLED,
@@ -139,46 +133,70 @@ struct irqaction cpuerr_irq = {
 
 static uint64_t crime_mask;
 
-static void enable_crime_irq(unsigned int irq)
+static inline void crime_enable_irq(unsigned int irq)
 {
-	crime_mask |= 1 << (irq - 1);
+	unsigned int bit = irq - CRIME_IRQ_BASE;
+
+	crime_mask |= 1 << bit;
 	crime->imask = crime_mask;
 }
 
-static void disable_crime_irq(unsigned int irq)
+static inline void crime_disable_irq(unsigned int irq)
 {
-	crime_mask &= ~(1 << (irq - 1));
+	unsigned int bit = irq - CRIME_IRQ_BASE;
+
+	crime_mask &= ~(1 << bit);
 	crime->imask = crime_mask;
 	flush_crime_bus();
 }
 
-static void mask_and_ack_crime_irq(unsigned int irq)
+static void crime_level_mask_and_ack_irq(unsigned int irq)
 {
-	/* Edge triggered interrupts must be cleared. */
-	if ((irq >= CRIME_GBE0_IRQ && irq <= CRIME_GBE3_IRQ)
-	    || (irq >= CRIME_RE_EMPTY_E_IRQ && irq <= CRIME_RE_IDLE_E_IRQ)
-	    || (irq >= CRIME_SOFT0_IRQ && irq <= CRIME_SOFT2_IRQ)) {
-	        uint64_t crime_int;
-		crime_int = crime->hard_int;
-		crime_int &= ~(1 << (irq - 1));
-		crime->hard_int = crime_int;
-	}
-	disable_crime_irq(irq);
+	crime_disable_irq(irq);
 }
 
-static void end_crime_irq(unsigned int irq)
+static void crime_level_end_irq(unsigned int irq)
 {
 	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
-		enable_crime_irq(irq);
+		crime_enable_irq(irq);
 }
 
-static struct irq_chip ip32_crime_interrupt = {
-	.name = "IP32 CRIME",
-	.ack = mask_and_ack_crime_irq,
-	.mask = disable_crime_irq,
-	.mask_ack = mask_and_ack_crime_irq,
-	.unmask = enable_crime_irq,
-	.end = end_crime_irq,
+static struct irq_chip crime_level_interrupt = {
+	.name		= "IP32 CRIME",
+	.ack		= crime_level_mask_and_ack_irq,
+	.mask		= crime_disable_irq,
+	.mask_ack	= crime_level_mask_and_ack_irq,
+	.unmask		= crime_enable_irq,
+	.end		= crime_level_end_irq,
+};
+
+static void crime_edge_mask_and_ack_irq(unsigned int irq)
+{
+	unsigned int bit = irq - CRIME_IRQ_BASE;
+	uint64_t crime_int;
+
+	/* Edge triggered interrupts must be cleared. */
+
+	crime_int = crime->hard_int;
+	crime_int &= ~(1 << bit);
+	crime->hard_int = crime_int;
+
+	crime_disable_irq(irq);
+}
+
+static void crime_edge_end_irq(unsigned int irq)
+{
+	if (!(irq_desc[irq].status & (IRQ_DISABLED | IRQ_INPROGRESS)))
+		crime_enable_irq(irq);
+}
+
+static struct irq_chip crime_edge_interrupt = {
+	.name		= "IP32 CRIME",
+	.ack		= crime_edge_mask_and_ack_irq,
+	.mask		= crime_disable_irq,
+	.mask_ack	= crime_edge_mask_and_ack_irq,
+	.unmask		= crime_enable_irq,
+	.end		= crime_edge_end_irq,
 };
 
 /*
@@ -265,7 +283,7 @@ static void enable_maceisa_irq(unsigned int irq)
 {
 	unsigned int crime_int = 0;
 
-	DBG("maceisa enable: %u\n", irq);
+	pr_debug("maceisa enable: %u\n", irq);
 
 	switch (irq) {
 	case MACEISA_AUDIO_SW_IRQ ... MACEISA_AUDIO3_MERR_IRQ:
@@ -278,7 +296,7 @@ static void enable_maceisa_irq(unsigned int irq)
 		crime_int = MACE_SUPERIO_INT;
 		break;
 	}
-	DBG("crime_int %08x enabled\n", crime_int);
+	pr_debug("crime_int %08x enabled\n", crime_int);
 	crime_mask |= crime_int;
 	crime->imask = crime_mask;
 	maceisa_mask |= 1 << (irq - 33);
@@ -290,11 +308,11 @@ static void disable_maceisa_irq(unsigned int irq)
 	unsigned int crime_int = 0;
 
 	maceisa_mask &= ~(1 << (irq - 33));
-        if(!(maceisa_mask & MACEISA_AUDIO_INT))
+        if (!(maceisa_mask & MACEISA_AUDIO_INT))
 		crime_int |= MACE_AUDIO_INT;
-        if(!(maceisa_mask & MACEISA_MISC_INT))
+        if (!(maceisa_mask & MACEISA_MISC_INT))
 		crime_int |= MACE_MISC_INT;
-        if(!(maceisa_mask & MACEISA_SUPERIO_INT))
+        if (!(maceisa_mask & MACEISA_SUPERIO_INT))
 		crime_int |= MACE_SUPERIO_INT;
 	crime_mask &= ~crime_int;
 	crime->imask = crime_mask;
@@ -327,12 +345,12 @@ static void end_maceisa_irq(unsigned irq)
 }
 
 static struct irq_chip ip32_maceisa_interrupt = {
-	.name = "IP32 MACE ISA",
-	.ack = mask_and_ack_maceisa_irq,
-	.mask = disable_maceisa_irq,
-	.mask_ack = mask_and_ack_maceisa_irq,
-	.unmask = enable_maceisa_irq,
-	.end = end_maceisa_irq,
+	.name		= "IP32 MACE ISA",
+	.ack		= mask_and_ack_maceisa_irq,
+	.mask		= disable_maceisa_irq,
+	.mask_ack	= mask_and_ack_maceisa_irq,
+	.unmask		= enable_maceisa_irq,
+	.end		= end_maceisa_irq,
 };
 
 /* This is used for regular non-ISA, non-PCI MACE interrupts.  That means
@@ -411,7 +429,7 @@ static void ip32_irq0(void)
 		irq = __ffs(mace_int & maceisa_mask) + MACEISA_AUDIO_SW_IRQ;
 	}
 
-	DBG("*irq %u*\n", irq);
+	pr_debug("*irq %u*\n", irq);
 	do_IRQ(irq);
 }
 
@@ -472,23 +490,31 @@ void __init arch_init_irq(void)
 
 	mips_cpu_irq_init();
 	for (irq = MIPS_CPU_IRQ_BASE + 8; irq <= IP32_IRQ_MAX; irq++) {
-		struct irq_chip *chip;
-
 		switch (irq) {
 		case MACE_VID_IN1_IRQ ... MACE_PCI_BRIDGE_IRQ:
-			chip = &ip32_mace_interrupt;
+			set_irq_chip(irq, &ip32_mace_interrupt);
 			break;
 		case MACEPCI_SCSI0_IRQ ...  MACEPCI_SHARED2_IRQ:
-			chip = &ip32_macepci_interrupt;
+			set_irq_chip(irq, &ip32_macepci_interrupt);
 			break;
-		case CRIME_GBE0_IRQ ... CRIME_VICE_IRQ:
-			chip = &ip32_crime_interrupt;
+		case CRIME_GBE0_IRQ ... CRIME_GBE3_IRQ:
+			set_irq_chip(irq, &crime_edge_interrupt);
+			break;
+		case CRIME_CPUERR_IRQ:
+		case CRIME_MEMERR_IRQ:
+			set_irq_chip(irq, &crime_level_interrupt);
+			break;
+		case CRIME_RE_EMPTY_E_IRQ ... CRIME_RE_IDLE_E_IRQ:
+		case CRIME_SOFT0_IRQ ... CRIME_SOFT2_IRQ:
+			set_irq_chip(irq, &crime_edge_interrupt);
+			break;
+		case CRIME_VICE_IRQ:
+			set_irq_chip(irq, &crime_edge_interrupt);
 			break;
 		default:
-			chip = &ip32_maceisa_interrupt;
+			set_irq_chip(irq, &ip32_maceisa_interrupt);
+			break;
 		}
-
-		set_irq_chip(irq, chip);
 	}
 	setup_irq(CRIME_MEMERR_IRQ, &memerr_irq);
 	setup_irq(CRIME_CPUERR_IRQ, &cpuerr_irq);

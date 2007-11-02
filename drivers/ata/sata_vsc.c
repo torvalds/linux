@@ -162,7 +162,8 @@ static void vsc_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 	/*
 	 * The only thing the ctl register is used for is SRST.
 	 * That is not enabled or disabled via tf_load.
-	 * However, if ATA_NIEN is changed, then we need to change the interrupt register.
+	 * However, if ATA_NIEN is changed, then we need to change
+	 * the interrupt register.
 	 */
 	if ((tf->ctl & ATA_NIEN) != (ap->last_ctl & ATA_NIEN)) {
 		ap->last_ctl = tf->ctl;
@@ -219,7 +220,7 @@ static void vsc_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 		tf->hob_lbal = lbal >> 8;
 		tf->hob_lbam = lbam >> 8;
 		tf->hob_lbah = lbah >> 8;
-        }
+	}
 }
 
 static inline void vsc_error_intr(u8 port_status, struct ata_port *ap)
@@ -256,9 +257,10 @@ static void vsc_port_intr(u8 port_status, struct ata_port *ap)
 /*
  * vsc_sata_interrupt
  *
- * Read the interrupt register and process for the devices that have them pending.
+ * Read the interrupt register and process for the devices that have
+ * them pending.
  */
-static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance)
+static irqreturn_t vsc_sata_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int i;
@@ -287,7 +289,7 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance)
 				handled++;
 			} else
 				dev_printk(KERN_ERR, host->dev,
-					": interrupt from disabled port %d\n", i);
+					"interrupt from disabled port %d\n", i);
 		}
 	}
 
@@ -363,7 +365,8 @@ static void __devinit vsc_sata_setup_port(struct ata_ioports *port,
 }
 
 
-static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
+static int __devinit vsc_sata_init_one(struct pci_dev *pdev,
+				       const struct pci_device_id *ent)
 {
 	static const struct ata_port_info pi = {
 		.flags		= ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |

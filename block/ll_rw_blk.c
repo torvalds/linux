@@ -39,7 +39,7 @@
 
 static void blk_unplug_work(struct work_struct *work);
 static void blk_unplug_timeout(unsigned long data);
-static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io);
+static void drive_stat_acct(struct request *rq, int new_io);
 static void init_request_from_bio(struct request *req, struct bio *bio);
 static int __make_request(struct request_queue *q, struct bio *bio);
 static struct io_context *current_io_context(gfp_t gfp_flags, int node);
@@ -791,7 +791,6 @@ static int __blk_free_tags(struct blk_queue_tag *bqt)
 	retval = atomic_dec_and_test(&bqt->refcnt);
 	if (retval) {
 		BUG_ON(bqt->busy);
-		BUG_ON(!list_empty(&bqt->busy_list));
 
 		kfree(bqt->tag_index);
 		bqt->tag_index = NULL;
@@ -903,7 +902,6 @@ static struct blk_queue_tag *__blk_queue_init_tags(struct request_queue *q,
 	if (init_tag_map(q, tags, depth))
 		goto fail;
 
-	INIT_LIST_HEAD(&tags->busy_list);
 	tags->busy = 0;
 	atomic_set(&tags->refcnt, 1);
 	return tags;
@@ -954,6 +952,7 @@ int blk_queue_init_tags(struct request_queue *q, int depth,
 	 */
 	q->queue_tags = tags;
 	q->queue_flags |= (1 << QUEUE_FLAG_QUEUED);
+	INIT_LIST_HEAD(&q->tag_busy_list);
 	return 0;
 fail:
 	kfree(tags);
@@ -1057,18 +1056,16 @@ void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 
 	bqt->tag_index[tag] = NULL;
 
-	/*
-	 * We use test_and_clear_bit's memory ordering properties here.
-	 * The tag_map bit acts as a lock for tag_index[bit], so we need
-	 * a barrer before clearing the bit (precisely: release semantics).
-	 * Could use clear_bit_unlock when it is merged.
-	 */
-	if (unlikely(!test_and_clear_bit(tag, bqt->tag_map))) {
+	if (unlikely(!test_bit(tag, bqt->tag_map))) {
 		printk(KERN_ERR "%s: attempt to clear non-busy tag (%d)\n",
 		       __FUNCTION__, tag);
 		return;
 	}
-
+	/*
+	 * The tag_map bit acts as a lock for tag_index[bit], so we need
+	 * unlock memory barrier semantics.
+	 */
+	clear_bit_unlock(tag, bqt->tag_map);
 	bqt->busy--;
 }
 
@@ -1114,17 +1111,17 @@ int blk_queue_start_tag(struct request_queue *q, struct request *rq)
 		if (tag >= bqt->max_depth)
 			return 1;
 
-	} while (test_and_set_bit(tag, bqt->tag_map));
+	} while (test_and_set_bit_lock(tag, bqt->tag_map));
 	/*
-	 * We rely on test_and_set_bit providing lock memory ordering semantics
-	 * (could use test_and_set_bit_lock when it is merged).
+	 * We need lock ordering semantics given by test_and_set_bit_lock.
+	 * See blk_queue_end_tag for details.
 	 */
 
 	rq->cmd_flags |= REQ_QUEUED;
 	rq->tag = tag;
 	bqt->tag_index[tag] = rq;
 	blkdev_dequeue_request(rq);
-	list_add(&rq->queuelist, &bqt->busy_list);
+	list_add(&rq->queuelist, &q->tag_busy_list);
 	bqt->busy++;
 	return 0;
 }
@@ -1145,11 +1142,10 @@ EXPORT_SYMBOL(blk_queue_start_tag);
  **/
 void blk_queue_invalidate_tags(struct request_queue *q)
 {
-	struct blk_queue_tag *bqt = q->queue_tags;
 	struct list_head *tmp, *n;
 	struct request *rq;
 
-	list_for_each_safe(tmp, n, &bqt->busy_list) {
+	list_for_each_safe(tmp, n, &q->tag_busy_list) {
 		rq = list_entry_rq(tmp);
 
 		if (rq->tag == -1) {
@@ -1738,6 +1734,7 @@ EXPORT_SYMBOL(blk_stop_queue);
 void blk_sync_queue(struct request_queue *q)
 {
 	del_timer_sync(&q->unplug_timer);
+	kblockd_flush_work(&q->unplug_work);
 }
 EXPORT_SYMBOL(blk_sync_queue);
 
@@ -2341,7 +2338,7 @@ void blk_insert_request(struct request_queue *q, struct request *rq,
 	if (blk_rq_tagged(rq))
 		blk_queue_end_tag(q, rq);
 
-	drive_stat_acct(rq, rq->nr_sectors, 1);
+	drive_stat_acct(rq, 1);
 	__elv_add_request(q, rq, where, 0);
 	blk_start_queueing(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
@@ -2736,7 +2733,7 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 
 EXPORT_SYMBOL(blkdev_issue_flush);
 
-static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
+static void drive_stat_acct(struct request *rq, int new_io)
 {
 	int rw = rq_data_dir(rq);
 
@@ -2758,7 +2755,7 @@ static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
  */
 static inline void add_request(struct request_queue * q, struct request * req)
 {
-	drive_stat_acct(req, req->nr_sectors, 1);
+	drive_stat_acct(req, 1);
 
 	/*
 	 * elevator indicated where it wants this request to be
@@ -3015,7 +3012,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 			req->biotail = bio;
 			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
 			req->ioprio = ioprio_best(req->ioprio, prio);
-			drive_stat_acct(req, nr_sectors, 0);
+			drive_stat_acct(req, 0);
 			if (!attempt_back_merge(q, req))
 				elv_merged_request(q, req, el_ret);
 			goto out;
@@ -3042,7 +3039,7 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 			req->sector = req->hard_sector = bio->bi_sector;
 			req->nr_sectors = req->hard_nr_sectors += nr_sectors;
 			req->ioprio = ioprio_best(req->ioprio, prio);
-			drive_stat_acct(req, nr_sectors, 0);
+			drive_stat_acct(req, 0);
 			if (!attempt_front_merge(q, req))
 				elv_merged_request(q, req, el_ret);
 			goto out;

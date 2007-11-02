@@ -6,9 +6,8 @@ config TRACE_IRQFLAGS_SUPPORT
 source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
-	bool "Early printk" if EMBEDDED && DEBUG_KERNEL
+	bool "Early printk" if EMBEDDED && DEBUG_KERNEL && X86_32
 	default y
-	depends on X86_32
 	help
 	  Write kernel log output directly into the VGA buffer or to a serial
 	  port.
@@ -91,7 +90,7 @@ config DOUBLEFAULT
 
 config IOMMU_DEBUG
 	bool "Enable IOMMU debugging"
-	depends on IOMMU && DEBUG_KERNEL
+	depends on GART_IOMMU && DEBUG_KERNEL
 	depends on X86_64
 	help
 	  Force the IOMMU to on even when you have less than 4GB of
@@ -112,8 +111,5 @@ config IOMMU_LEAK
 	help
 	  Add a simple leak tracer to the IOMMU code. This is useful when you
 	  are debugging a buggy device driver that leaks IOMMU mappings.
-
-#config X86_REMOTE_DEBUG
-#	bool "kgdb debugging stub"
 
 endmenu

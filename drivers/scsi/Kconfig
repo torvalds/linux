@@ -172,12 +172,12 @@ config CHR_DEV_SCH
 	  don't need this for those tiny 6-slot cdrom changers.  Media
 	  changers are listed as "Type: Medium Changer" in /proc/scsi/scsi.
 	  If you have such hardware and want to use it with linux, say Y
-	  here.  Check <file:Documentation/scsi-changer.txt> for details.
+	  here.  Check <file:Documentation/scsi/scsi-changer.txt> for details.
 	
 	  If you want to compile this as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
 	  say M here and read <file:Documentation/kbuild/modules.txt> and
-	  <file:Documentation/scsi.txt>. The module will be called ch.o.
+	  <file:Documentation/scsi/scsi.txt>. The module will be called ch.o.
 	  If unsure, say N.
 	
 

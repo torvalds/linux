@@ -267,4 +267,18 @@
 #define P_AMC_BG	(P_DEFINED | P_IDENT(GPIO_PJ12) | P_FUNCT(0))
 #define P_AMC_BGH	(P_DEFINED | P_IDENT(GPIO_PJ13) | P_FUNCT(0))
 
+
+#define P_NAND_D0	(P_DONTCARE)
+#define P_NAND_D1	(P_DONTCARE)
+#define P_NAND_D2	(P_DONTCARE)
+#define P_NAND_D3	(P_DONTCARE)
+#define P_NAND_D4	(P_DONTCARE)
+#define P_NAND_D5	(P_DONTCARE)
+#define P_NAND_D6	(P_DONTCARE)
+#define P_NAND_D7	(P_DONTCARE)
+#define P_NAND_WE	(P_DONTCARE)
+#define P_NAND_RE	(P_DONTCARE)
+#define P_NAND_CLE	(P_DONTCARE)
+#define P_NAND_ALE	(P_DONTCARE)
+
 #endif /* _MACH_PORTMUX_H_ */

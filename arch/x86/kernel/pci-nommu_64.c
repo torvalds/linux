@@ -7,7 +7,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 
-#include <asm/iommu.h>
+#include <asm/gart.h>
 #include <asm/processor.h>
 #include <asm/dma.h>
 

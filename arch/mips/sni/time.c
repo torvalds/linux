@@ -11,27 +11,78 @@
 #define SNI_COUNTER2_DIV        64
 #define SNI_COUNTER0_DIV        ((SNI_CLOCK_TICK_RATE / SNI_COUNTER2_DIV) / HZ)
 
-static void sni_a20r_timer_ack(void)
+static void a20r_set_mode(enum clock_event_mode mode,
+                          struct clock_event_device *evt)
 {
-        *(volatile u8 *)A20R_PT_TIM0_ACK = 0x0; wmb();
+	switch (mode) {
+	case CLOCK_EVT_MODE_PERIODIC:
+		*(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0x34;
+		wmb();
+		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  0) = SNI_COUNTER0_DIV;
+		wmb();
+		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  0) = SNI_COUNTER0_DIV >> 8;
+		wmb();
+
+		*(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0xb4;
+		wmb();
+		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  8) = SNI_COUNTER2_DIV;
+		wmb();
+		*(volatile u8 *)(A20R_PT_CLOCK_BASE +  8) = SNI_COUNTER2_DIV >> 8;
+		wmb();
+
+                break;
+        case CLOCK_EVT_MODE_ONESHOT:
+        case CLOCK_EVT_MODE_UNUSED:
+        case CLOCK_EVT_MODE_SHUTDOWN:
+                break;
+        case CLOCK_EVT_MODE_RESUME:
+                break;
+        }
 }
+
+static struct clock_event_device a20r_clockevent_device = {
+	.name		= "a20r-timer",
+	.features	= CLOCK_EVT_FEAT_PERIODIC,
+
+	/* .mult, .shift, .max_delta_ns and .min_delta_ns left uninitialized */
+
+	.rating		= 300,
+	.irq		= SNI_A20R_IRQ_TIMER,
+	.set_mode	= a20r_set_mode,
+};
+
+static irqreturn_t a20r_interrupt(int irq, void *dev_id)
+{
+	struct clock_event_device *cd = dev_id;
+
+	*(volatile u8 *)A20R_PT_TIM0_ACK = 0;
+	wmb();
+
+	cd->event_handler(cd);
+
+	return IRQ_HANDLED;
+}
+
+static struct irqaction a20r_irqaction = {
+	.handler	= a20r_interrupt,
+	.flags		= IRQF_DISABLED | IRQF_PERCPU,
+	.name		= "a20r-timer",
+};
 
 /*
  * a20r platform uses 2 counters to divide the input frequency.
  * Counter 2 output is connected to Counter 0 & 1 input.
  */
-static void __init sni_a20r_timer_setup(struct irqaction *irq)
+static void __init sni_a20r_timer_setup(void)
 {
-        *(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0x34; wmb();
-        *(volatile u8 *)(A20R_PT_CLOCK_BASE +  0) = (SNI_COUNTER0_DIV) & 0xff; wmb();
-        *(volatile u8 *)(A20R_PT_CLOCK_BASE +  0) = (SNI_COUNTER0_DIV >> 8) & 0xff; wmb();
+	struct clock_event_device *cd = &a20r_clockevent_device;
+	struct irqaction *action = &a20r_irqaction;
+	unsigned int cpu = smp_processor_id();
 
-        *(volatile u8 *)(A20R_PT_CLOCK_BASE + 12) = 0xb4; wmb();
-        *(volatile u8 *)(A20R_PT_CLOCK_BASE +  8) = (SNI_COUNTER2_DIV) & 0xff; wmb();
-        *(volatile u8 *)(A20R_PT_CLOCK_BASE +  8) = (SNI_COUNTER2_DIV >> 8) & 0xff; wmb();
+	cd->cpumask             = cpumask_of_cpu(cpu);
 
-        setup_irq(SNI_A20R_IRQ_TIMER, irq);
-        mips_timer_ack = sni_a20r_timer_ack;
+	action->dev_id = cd;
+	setup_irq(SNI_A20R_IRQ_TIMER, &a20r_irqaction);
 }
 
 #define SNI_8254_TICK_RATE        1193182UL
@@ -119,17 +170,14 @@ void __init plat_time_init(void)
 	mips_hpt_frequency = r4k_tick * HZ;
 
 	setup_pit_timer();
-}
 
-void __init plat_timer_setup(struct irqaction *irq)
-{
 	switch (sni_brd_type) {
 	case SNI_BRD_10:
 	case SNI_BRD_10NEW:
 	case SNI_BRD_TOWER_OASIC:
 	case SNI_BRD_MINITOWER:
-	        sni_a20r_timer_setup(irq);
-	        break;
+		sni_a20r_timer_setup();
+		break;
 	}
 }
 

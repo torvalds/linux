@@ -152,7 +152,7 @@ static int pfkey_create(struct net *net, struct socket *sock, int protocol)
 		return -EPROTONOSUPPORT;
 
 	err = -ENOMEM;
-	sk = sk_alloc(net, PF_KEY, GFP_KERNEL, &key_proto, 1);
+	sk = sk_alloc(net, PF_KEY, GFP_KERNEL, &key_proto);
 	if (sk == NULL)
 		goto out;
 
@@ -395,9 +395,9 @@ static inline int pfkey_sec_ctx_len(struct sadb_x_sec_ctx *sec_ctx)
 static inline int verify_sec_ctx_len(void *p)
 {
 	struct sadb_x_sec_ctx *sec_ctx = (struct sadb_x_sec_ctx *)p;
-	int len;
+	int len = sec_ctx->sadb_x_ctx_len;
 
-	if (sec_ctx->sadb_x_ctx_len > PAGE_SIZE)
+	if (len > PAGE_SIZE)
 		return -EINVAL;
 
 	len = pfkey_sec_ctx_len(sec_ctx);

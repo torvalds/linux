@@ -14,7 +14,7 @@ config ARCH_ENP2611
 	help
 	  Say 'Y' here if you want your kernel to support the Radisys
 	  ENP2611 PCI network processing card. For more information on
-	  this card, see <file:Documentation/arm/ENP2611>.
+	  this card, see <file:Documentation/arm/IXP2000>.
 
 config ARCH_IXDP2400
 	bool "Support Intel IXDP2400"

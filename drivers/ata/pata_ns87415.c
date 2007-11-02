@@ -215,6 +215,8 @@ static int ns87415_check_atapi_dma(struct ata_queued_cmd *qc)
 
 #include <asm/superio.h>
 
+#define SUPERIO_IDE_MAX_RETRIES 25
+
 /**
  *	ns87560_read_buggy	-	workaround buggy Super I/O chip
  *	@port: Port to read

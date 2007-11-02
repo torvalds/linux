@@ -178,7 +178,9 @@ do {	if (test_thread_flag(TIF_PERFCTR)) {				\
 	"ldx	[%%g6 + %9], %%g4\n\t"					\
 	"brz,pt %%o7, 1f\n\t"						\
 	" mov	%%g7, %0\n\t"						\
-	"b,a ret_from_syscall\n\t"					\
+	"sethi	%%hi(ret_from_syscall), %%g1\n\t"			\
+	"jmpl	%%g1 + %%lo(ret_from_syscall), %%g0\n\t"		\
+	" nop\n\t"							\
 	"1:\n\t"							\
 	: "=&r" (last), "=r" (current), "=r" (current_thread_info_reg),	\
 	  "=r" (__local_per_cpu_offset)					\

@@ -3,15 +3,13 @@
 
 /* We don't want strings.h stuff being user by user stuff by accident */
 
-#ifdef __KERNEL__
+#ifndef __KERNEL__
+#include <string.h>
+#else
 
 #include <linux/compiler.h>	/* for inline */
 #include <linux/types.h>	/* for size_t */
 #include <linux/stddef.h>	/* for NULL */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 extern char *strndup_user(const char __user *, long);
 
@@ -110,10 +108,6 @@ extern void *kmemdup(const void *src, size_t len, gfp_t gfp);
 
 extern char **argv_split(gfp_t gfp, const char *str, int *argcp);
 extern void argv_free(char **argv);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
 #endif /* _LINUX_STRING_H_ */

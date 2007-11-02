@@ -542,8 +542,6 @@ static int s3c_rtc_probe(struct platform_device *pdev)
 
 /* RTC Power management control */
 
-static struct timespec s3c_rtc_delta;
-
 static int ticnt_save;
 
 static int s3c_rtc_suspend(struct platform_device *pdev, pm_message_t state)

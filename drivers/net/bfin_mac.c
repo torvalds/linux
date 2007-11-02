@@ -371,7 +371,6 @@ static void bf537_adjust_link(struct net_device *dev)
 		if (phydev->speed != lp->old_speed) {
 #if defined(CONFIG_BFIN_MAC_RMII)
 			u32 opmode = bfin_read_EMAC_OPMODE();
-			bf537mac_disable();
 			switch (phydev->speed) {
 			case 10:
 				opmode |= RMII_10;
@@ -386,7 +385,6 @@ static void bf537_adjust_link(struct net_device *dev)
 				break;
 			}
 			bfin_write_EMAC_OPMODE(opmode);
-			bf537mac_enable();
 #endif
 
 			new_state = 1;

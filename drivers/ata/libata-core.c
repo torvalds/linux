@@ -620,6 +620,177 @@ void ata_dev_disable(struct ata_device *dev)
 	}
 }
 
+static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
+{
+	struct ata_link *link = dev->link;
+	struct ata_port *ap = link->ap;
+	u32 scontrol;
+	unsigned int err_mask;
+	int rc;
+
+	/*
+	 * disallow DIPM for drivers which haven't set
+	 * ATA_FLAG_IPM.  This is because when DIPM is enabled,
+	 * phy ready will be set in the interrupt status on
+	 * state changes, which will cause some drivers to
+	 * think there are errors - additionally drivers will
+	 * need to disable hot plug.
+	 */
+	if (!(ap->flags & ATA_FLAG_IPM) || !ata_dev_enabled(dev)) {
+		ap->pm_policy = NOT_AVAILABLE;
+		return -EINVAL;
+	}
+
+	/*
+	 * For DIPM, we will only enable it for the
+	 * min_power setting.
+	 *
+	 * Why?  Because Disks are too stupid to know that
+	 * If the host rejects a request to go to SLUMBER
+	 * they should retry at PARTIAL, and instead it
+	 * just would give up.  So, for medium_power to
+	 * work at all, we need to only allow HIPM.
+	 */
+	rc = sata_scr_read(link, SCR_CONTROL, &scontrol);
+	if (rc)
+		return rc;
+
+	switch (policy) {
+	case MIN_POWER:
+		/* no restrictions on IPM transitions */
+		scontrol &= ~(0x3 << 8);
+		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
+		if (rc)
+			return rc;
+
+		/* enable DIPM */
+		if (dev->flags & ATA_DFLAG_DIPM)
+			err_mask = ata_dev_set_feature(dev,
+					SETFEATURES_SATA_ENABLE, SATA_DIPM);
+		break;
+	case MEDIUM_POWER:
+		/* allow IPM to PARTIAL */
+		scontrol &= ~(0x1 << 8);
+		scontrol |= (0x2 << 8);
+		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
+		if (rc)
+			return rc;
+
+		/* disable DIPM */
+		if (ata_dev_enabled(dev) && (dev->flags & ATA_DFLAG_DIPM))
+			err_mask = ata_dev_set_feature(dev,
+					SETFEATURES_SATA_DISABLE, SATA_DIPM);
+		break;
+	case NOT_AVAILABLE:
+	case MAX_PERFORMANCE:
+		/* disable all IPM transitions */
+		scontrol |= (0x3 << 8);
+		rc = sata_scr_write(link, SCR_CONTROL, scontrol);
+		if (rc)
+			return rc;
+
+		/* disable DIPM */
+		if (ata_dev_enabled(dev) && (dev->flags & ATA_DFLAG_DIPM))
+			err_mask = ata_dev_set_feature(dev,
+					SETFEATURES_SATA_DISABLE, SATA_DIPM);
+		break;
+	}
+
+	/* FIXME: handle SET FEATURES failure */
+	(void) err_mask;
+
+	return 0;
+}
+
+/**
+ *	ata_dev_enable_pm - enable SATA interface power management
+ *	@device - device to enable ipm for
+ *	@policy - the link power management policy
+ *
+ *	Enable SATA Interface power management.  This will enable
+ *	Device Interface Power Management (DIPM) for min_power
+ * 	policy, and then call driver specific callbacks for
+ *	enabling Host Initiated Power management.
+ *
+ *	Locking: Caller.
+ *	Returns: -EINVAL if IPM is not supported, 0 otherwise.
+ */
+void ata_dev_enable_pm(struct ata_device *dev, enum link_pm policy)
+{
+	int rc = 0;
+	struct ata_port *ap = dev->link->ap;
+
+	/* set HIPM first, then DIPM */
+	if (ap->ops->enable_pm)
+		rc = ap->ops->enable_pm(ap, policy);
+	if (rc)
+		goto enable_pm_out;
+	rc = ata_dev_set_dipm(dev, policy);
+
+enable_pm_out:
+	if (rc)
+		ap->pm_policy = MAX_PERFORMANCE;
+	else
+		ap->pm_policy = policy;
+	return /* rc */;	/* hopefully we can use 'rc' eventually */
+}
+
+/**
+ *	ata_dev_disable_pm - disable SATA interface power management
+ *	@device - device to enable ipm for
+ *
+ *	Disable SATA Interface power management.  This will disable
+ *	Device Interface Power Management (DIPM) without changing
+ * 	policy,  call driver specific callbacks for disabling Host
+ * 	Initiated Power management.
+ *
+ *	Locking: Caller.
+ *	Returns: void
+ */
+static void ata_dev_disable_pm(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->link->ap;
+
+	ata_dev_set_dipm(dev, MAX_PERFORMANCE);
+	if (ap->ops->disable_pm)
+		ap->ops->disable_pm(ap);
+}
+
+void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
+{
+	ap->pm_policy = policy;
+	ap->link.eh_info.action |= ATA_EHI_LPM;
+	ap->link.eh_info.flags |= ATA_EHI_NO_AUTOPSY;
+	ata_port_schedule_eh(ap);
+}
+
+static void ata_lpm_enable(struct ata_host *host)
+{
+	struct ata_link *link;
+	struct ata_port *ap;
+	struct ata_device *dev;
+	int i;
+
+	for (i = 0; i < host->n_ports; i++) {
+		ap = host->ports[i];
+		ata_port_for_each_link(link, ap) {
+			ata_link_for_each_dev(dev, link)
+				ata_dev_disable_pm(dev);
+		}
+	}
+}
+
+static void ata_lpm_disable(struct ata_host *host)
+{
+	int i;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		ata_lpm_schedule(ap, ap->pm_policy);
+	}
+}
+
+
 /**
  *	ata_devchk - PATA device presence detection
  *	@ap: ATA channel to examine
@@ -2101,6 +2272,13 @@ int ata_dev_configure(struct ata_device *dev)
 	if (dev->flags & ATA_DFLAG_LBA48)
 		dev->max_sectors = ATA_MAX_SECTORS_LBA48;
 
+	if (!(dev->horkage & ATA_HORKAGE_IPM)) {
+		if (ata_id_has_hipm(dev->id))
+			dev->flags |= ATA_DFLAG_HIPM;
+		if (ata_id_has_dipm(dev->id))
+			dev->flags |= ATA_DFLAG_DIPM;
+	}
+
 	if (dev->horkage & ATA_HORKAGE_DIAGNOSTIC) {
 		/* Let the user know. We don't want to disallow opens for
 		   rescue purposes, or in case the vendor is just a blithering
@@ -2125,6 +2303,13 @@ int ata_dev_configure(struct ata_device *dev)
 	if (dev->horkage & ATA_HORKAGE_MAX_SEC_128)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
 					 dev->max_sectors);
+
+	if (ata_dev_blacklisted(dev) & ATA_HORKAGE_IPM) {
+		dev->horkage |= ATA_HORKAGE_IPM;
+
+		/* reset link pm_policy for this port to no pm */
+		ap->pm_policy = MAX_PERFORMANCE;
+	}
 
 	if (ap->ops->dev_config)
 		ap->ops->dev_config(dev);
@@ -2219,6 +2404,25 @@ int ata_bus_probe(struct ata_port *ap)
 		tries[dev->devno] = ATA_PROBE_MAX_TRIES;
 
  retry:
+	ata_link_for_each_dev(dev, &ap->link) {
+		/* If we issue an SRST then an ATA drive (not ATAPI)
+		 * may change configuration and be in PIO0 timing. If
+		 * we do a hard reset (or are coming from power on)
+		 * this is true for ATA or ATAPI. Until we've set a
+		 * suitable controller mode we should not touch the
+		 * bus as we may be talking too fast.
+		 */
+		dev->pio_mode = XFER_PIO_0;
+
+		/* If the controller has a pio mode setup function
+		 * then use it to set the chipset to rights. Don't
+		 * touch the DMA setup as that will be dealt with when
+		 * configuring devices.
+		 */
+		if (ap->ops->set_piomode)
+			ap->ops->set_piomode(ap, dev);
+	}
+
 	/* reset and determine device classes */
 	ap->ops->phy_reset(ap);
 
@@ -2233,12 +2437,6 @@ int ata_bus_probe(struct ata_port *ap)
 	}
 
 	ata_port_probe(ap);
-
-	/* after the reset the device state is PIO 0 and the controller
-	   state is undefined. Record the mode */
-
-	ata_link_for_each_dev(dev, &ap->link)
-		dev->pio_mode = XFER_PIO_0;
 
 	/* read IDENTIFY page and configure devices. We have to do the identify
 	   specific sequence bass-ackwards so that PDIAG- is released by
@@ -3118,6 +3316,55 @@ int ata_busy_sleep(struct ata_port *ap,
 }
 
 /**
+ *	ata_wait_after_reset - wait before checking status after reset
+ *	@ap: port containing status register to be polled
+ *	@deadline: deadline jiffies for the operation
+ *
+ *	After reset, we need to pause a while before reading status.
+ *	Also, certain combination of controller and device report 0xff
+ *	for some duration (e.g. until SATA PHY is up and running)
+ *	which is interpreted as empty port in ATA world.  This
+ *	function also waits for such devices to get out of 0xff
+ *	status.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep).
+ */
+void ata_wait_after_reset(struct ata_port *ap, unsigned long deadline)
+{
+	unsigned long until = jiffies + ATA_TMOUT_FF_WAIT;
+
+	if (time_before(until, deadline))
+		deadline = until;
+
+	/* Spec mandates ">= 2ms" before checking status.  We wait
+	 * 150ms, because that was the magic delay used for ATAPI
+	 * devices in Hale Landis's ATADRVR, for the period of time
+	 * between when the ATA command register is written, and then
+	 * status is checked.  Because waiting for "a while" before
+	 * checking status is fine, post SRST, we perform this magic
+	 * delay here as well.
+	 *
+	 * Old drivers/ide uses the 2mS rule and then waits for ready.
+	 */
+	msleep(150);
+
+	/* Wait for 0xff to clear.  Some SATA devices take a long time
+	 * to clear 0xff after reset.  For example, HHD424020F7SV00
+	 * iVDR needs >= 800ms while.  Quantum GoVault needs even more
+	 * than that.
+	 */
+	while (1) {
+		u8 status = ata_chk_status(ap);
+
+		if (status != 0xff || time_after(jiffies, deadline))
+			return;
+
+		msleep(50);
+	}
+}
+
+/**
  *	ata_wait_ready - sleep until BSY clears, or timeout
  *	@ap: port containing status register to be polled
  *	@deadline: deadline jiffies for the operation
@@ -3223,8 +3470,6 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 			     unsigned long deadline)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
-	struct ata_device *dev;
-	int i = 0;
 
 	DPRINTK("ata%u: bus reset via SRST\n", ap->print_id);
 
@@ -3235,36 +3480,8 @@ static int ata_bus_softreset(struct ata_port *ap, unsigned int devmask,
 	udelay(20);	/* FIXME: flush */
 	iowrite8(ap->ctl, ioaddr->ctl_addr);
 
-	/* If we issued an SRST then an ATA drive (not ATAPI)
-	 * may have changed configuration and be in PIO0 timing. If
-	 * we did a hard reset (or are coming from power on) this is
-	 * true for ATA or ATAPI. Until we've set a suitable controller
-	 * mode we should not touch the bus as we may be talking too fast.
-	 */
-
-	ata_link_for_each_dev(dev, &ap->link)
-		dev->pio_mode = XFER_PIO_0;
-
-	/* If the controller has a pio mode setup function then use
-	   it to set the chipset to rights. Don't touch the DMA setup
-	   as that will be dealt with when revalidating */
-	if (ap->ops->set_piomode) {
-		ata_link_for_each_dev(dev, &ap->link)
-			if (devmask & (1 << i++))
-				ap->ops->set_piomode(ap, dev);
-	}
-
-	/* spec mandates ">= 2ms" before checking status.
-	 * We wait 150ms, because that was the magic delay used for
-	 * ATAPI devices in Hale Landis's ATADRVR, for the period of time
-	 * between when the ATA command register is written, and then
-	 * status is checked.  Because waiting for "a while" before
-	 * checking status is fine, post SRST, we perform this magic
-	 * delay here as well.
-	 *
-	 * Old drivers/ide uses the 2mS rule and then waits for ready
-	 */
-	msleep(150);
+	/* wait a while before checking status */
+	ata_wait_after_reset(ap, deadline);
 
 	/* Before we perform post reset processing we want to see if
 	 * the bus shows 0xFF because the odd clown forgets the D7
@@ -3691,8 +3908,8 @@ int sata_std_hardreset(struct ata_link *link, unsigned int *class,
 		return 0;
 	}
 
-	/* wait a while before checking status, see SRST for more info */
-	msleep(150);
+	/* wait a while before checking status */
+	ata_wait_after_reset(ap, deadline);
 
 	/* If PMP is supported, we have to do follow-up SRST.  Note
 	 * that some PMPs don't send D2H Reg FIS after hardreset at
@@ -3992,6 +4209,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "ST3160812AS",	"3.ADJ",	ATA_HORKAGE_NONCQ, },
 	{ "ST980813AS",		"3.ADB",	ATA_HORKAGE_NONCQ, },
 	{ "SAMSUNG HD401LJ",	"ZZ100-15",	ATA_HORKAGE_NONCQ, },
+	{ "Maxtor 7V300F0",	"VA111900",	ATA_HORKAGE_NONCQ, },
 
 	/* devices which puke on READ_NATIVE_MAX */
 	{ "HDS724040KLSA80",	"KFAOA20N",	ATA_HORKAGE_BROKEN_HPA, },
@@ -4689,6 +4907,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		 * data in this function or read data in ata_sg_clean.
 		 */
 		offset = lsg->offset + lsg->length - qc->pad_len;
+		sg_init_table(psg, 1);
 		sg_set_page(psg, nth_page(sg_page(lsg), offset >> PAGE_SHIFT),
 				qc->pad_len, offset_in_page(offset));
 
@@ -5594,6 +5813,9 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 	 * taken care of.
 	 */
 	if (ap->ops->error_handler) {
+		struct ata_device *dev = qc->dev;
+		struct ata_eh_info *ehi = &dev->link->eh_info;
+
 		WARN_ON(ap->pflags & ATA_PFLAG_FROZEN);
 
 		if (unlikely(qc->err_mask))
@@ -5611,6 +5833,27 @@ void ata_qc_complete(struct ata_queued_cmd *qc)
 		/* read result TF if requested */
 		if (qc->flags & ATA_QCFLAG_RESULT_TF)
 			fill_result_tf(qc);
+
+		/* Some commands need post-processing after successful
+		 * completion.
+		 */
+		switch (qc->tf.command) {
+		case ATA_CMD_SET_FEATURES:
+			if (qc->tf.feature != SETFEATURES_WC_ON &&
+			    qc->tf.feature != SETFEATURES_WC_OFF)
+				break;
+			/* fall through */
+		case ATA_CMD_INIT_DEV_PARAMS: /* CHS translation changed */
+		case ATA_CMD_SET_MULTI: /* multi_count changed */
+			/* revalidate device */
+			ehi->dev_action[dev->devno] |= ATA_EH_REVALIDATE;
+			ata_port_schedule_eh(ap);
+			break;
+
+		case ATA_CMD_SLEEP:
+			dev->flags |= ATA_DFLAG_SLEEPING;
+			break;
+		}
 
 		__ata_qc_complete(qc);
 	} else {
@@ -5747,6 +5990,14 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 		}
 	} else {
 		qc->flags &= ~ATA_QCFLAG_DMAMAP;
+	}
+
+	/* if device is sleeping, schedule softreset and abort the link */
+	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
+		link->eh_info.action |= ATA_EH_SOFTRESET;
+		ata_ehi_push_desc(&link->eh_info, "waking up from sleep");
+		ata_link_abort(link);
+		return;
 	}
 
 	ap->ops->qc_prep(qc);
@@ -6296,6 +6547,12 @@ int ata_host_suspend(struct ata_host *host, pm_message_t mesg)
 {
 	int rc;
 
+	/*
+	 * disable link pm on all ports before requesting
+	 * any pm activity
+	 */
+	ata_lpm_enable(host);
+
 	rc = ata_host_request_pm(host, mesg, 0, ATA_EHI_QUIET, 1);
 	if (rc == 0)
 		host->dev->power.power_state = mesg;
@@ -6318,6 +6575,9 @@ void ata_host_resume(struct ata_host *host)
 	ata_host_request_pm(host, PMSG_ON, ATA_EH_SOFTRESET,
 			    ATA_EHI_NO_AUTOPSY | ATA_EHI_QUIET, 0);
 	host->dev->power.power_state = PMSG_ON;
+
+	/* reenable link pm */
+	ata_lpm_disable(host);
 }
 #endif
 
@@ -6860,6 +7120,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 		struct ata_port *ap = host->ports[i];
 
 		ata_scsi_scan_host(ap, 1);
+		ata_lpm_schedule(ap, ap->pm_policy);
 	}
 
 	return 0;
@@ -7256,7 +7517,6 @@ const struct ata_port_info ata_dummy_port_info = {
  * likely to change as new drivers are added and updated.
  * Do not depend on ABI/API stability.
  */
-
 EXPORT_SYMBOL_GPL(sata_deb_timing_normal);
 EXPORT_SYMBOL_GPL(sata_deb_timing_hotplug);
 EXPORT_SYMBOL_GPL(sata_deb_timing_long);
@@ -7326,6 +7586,7 @@ EXPORT_SYMBOL_GPL(ata_port_disable);
 EXPORT_SYMBOL_GPL(ata_ratelimit);
 EXPORT_SYMBOL_GPL(ata_wait_register);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
+EXPORT_SYMBOL_GPL(ata_wait_after_reset);
 EXPORT_SYMBOL_GPL(ata_wait_ready);
 EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);

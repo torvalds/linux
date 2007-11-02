@@ -105,9 +105,13 @@ ENTRY(cpu_arm926_do_idle)
 	mrc	p15, 0, r1, c1, c0, 0		@ Read control register
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain write buffer
 	bic	r2, r1, #1 << 12
+	mrs	r3, cpsr			@ Disable FIQs while Icache
+	orr	ip, r3, #PSR_F_BIT		@ is disabled
+	msr	cpsr_c, ip
 	mcr	p15, 0, r2, c1, c0, 0		@ Disable I cache
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	mcr	p15, 0, r1, c1, c0, 0		@ Restore ICache enable
+	msr	cpsr_c, r3			@ Restore FIQ state
 	mov	pc, lr
 
 /*

@@ -583,6 +583,7 @@ config SNI_RM
 
 config TOSHIBA_JMR3927
 	bool "Toshiba JMR-TX3927 board"
+	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select MIPS_TX3927
@@ -597,6 +598,7 @@ config TOSHIBA_JMR3927
 config TOSHIBA_RBTX4927
 	bool "Toshiba RBTX49[23]7 board"
 	select CEVT_R4K
+	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
@@ -618,6 +620,7 @@ config TOSHIBA_RBTX4927
 config TOSHIBA_RBTX4938
 	bool "Toshiba RBTX4938 board"
 	select CEVT_R4K
+	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
@@ -734,6 +737,9 @@ config CEVT_GT641XX
 	bool
 
 config CEVT_R4K
+	bool
+
+config CEVT_TXX9
 	bool
 
 config CFE

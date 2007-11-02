@@ -265,11 +265,11 @@ static struct sil24_cerr_info {
 	unsigned int err_mask, action;
 	const char *desc;
 } sil24_cerr_db[] = {
-	[0]			= { AC_ERR_DEV, ATA_EH_REVALIDATE,
+	[0]			= { AC_ERR_DEV, 0,
 				    "device error" },
-	[PORT_CERR_DEV]		= { AC_ERR_DEV, ATA_EH_REVALIDATE,
+	[PORT_CERR_DEV]		= { AC_ERR_DEV, 0,
 				    "device error via D2H FIS" },
-	[PORT_CERR_SDB]		= { AC_ERR_DEV, ATA_EH_REVALIDATE,
+	[PORT_CERR_SDB]		= { AC_ERR_DEV, 0,
 				    "device error via SDB FIS" },
 	[PORT_CERR_DATA]	= { AC_ERR_ATA_BUS, ATA_EH_SOFTRESET,
 				    "error in data FIS" },
@@ -674,7 +674,7 @@ static int sil24_do_softreset(struct ata_link *link, unsigned int *class,
 
 	/* put the port into known state */
 	if (sil24_init_port(ap)) {
-		reason ="port not ready";
+		reason = "port not ready";
 		goto err;
 	}
 
@@ -756,7 +756,8 @@ static int sil24_hardreset(struct ata_link *link, unsigned int *class,
 
 	writel(PORT_CS_DEV_RST, port + PORT_CTRL_STAT);
 	tmp = ata_wait_register(port + PORT_CTRL_STAT,
-				PORT_CS_DEV_RST, PORT_CS_DEV_RST, 10, tout_msec);
+				PORT_CS_DEV_RST, PORT_CS_DEV_RST, 10,
+				tout_msec);
 
 	/* SStatus oscillates between zero and valid status after
 	 * DEV_RST, debounce it.
@@ -1270,7 +1271,7 @@ static void sil24_init_controller(struct ata_host *host)
 						PORT_CS_PORT_RST, 10, 100);
 			if (tmp & PORT_CS_PORT_RST)
 				dev_printk(KERN_ERR, host->dev,
-				           "failed to clear port RST\n");
+					   "failed to clear port RST\n");
 		}
 
 		/* configure port */
@@ -1283,7 +1284,7 @@ static void sil24_init_controller(struct ata_host *host)
 
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	static int printed_version = 0;
+	static int printed_version;
 	struct ata_port_info pi = sil24_port_info[ent->driver_data];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
 	void __iomem * const *iomap;

@@ -857,6 +857,67 @@ static inline void sock_lock_init(struct sock *sk)
 			af_family_keys + sk->sk_family);
 }
 
+static void sock_copy(struct sock *nsk, const struct sock *osk)
+{
+#ifdef CONFIG_SECURITY_NETWORK
+	void *sptr = nsk->sk_security;
+#endif
+
+	memcpy(nsk, osk, osk->sk_prot->obj_size);
+#ifdef CONFIG_SECURITY_NETWORK
+	nsk->sk_security = sptr;
+	security_sk_clone(osk, nsk);
+#endif
+}
+
+static struct sock *sk_prot_alloc(struct proto *prot, gfp_t priority,
+		int family)
+{
+	struct sock *sk;
+	struct kmem_cache *slab;
+
+	slab = prot->slab;
+	if (slab != NULL)
+		sk = kmem_cache_alloc(slab, priority);
+	else
+		sk = kmalloc(prot->obj_size, priority);
+
+	if (sk != NULL) {
+		if (security_sk_alloc(sk, family, priority))
+			goto out_free;
+
+		if (!try_module_get(prot->owner))
+			goto out_free_sec;
+	}
+
+	return sk;
+
+out_free_sec:
+	security_sk_free(sk);
+out_free:
+	if (slab != NULL)
+		kmem_cache_free(slab, sk);
+	else
+		kfree(sk);
+	return NULL;
+}
+
+static void sk_prot_free(struct proto *prot, struct sock *sk)
+{
+	struct kmem_cache *slab;
+	struct module *owner;
+
+	owner = prot->owner;
+	slab = prot->slab;
+
+	security_sk_free(sk);
+	if (slab != NULL)
+		kmem_cache_free(slab, sk);
+	else
+		kfree(sk);
+	module_put(owner);
+}
+
 /**
  *	sk_alloc - All socket objects are allocated here
  *	@net: the applicable net namespace
@@ -866,49 +927,28 @@ static inline void sock_lock_init(struct sock *sk)
  *	@zero_it: if we should zero the newly allocated sock
  */
 struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
-		      struct proto *prot, int zero_it)
+		      struct proto *prot)
 {
-	struct sock *sk = NULL;
-	struct kmem_cache *slab = prot->slab;
+	struct sock *sk;
 
-	if (slab != NULL)
-		sk = kmem_cache_alloc(slab, priority);
-	else
-		sk = kmalloc(prot->obj_size, priority);
-
+	sk = sk_prot_alloc(prot, priority | __GFP_ZERO, family);
 	if (sk) {
-		if (zero_it) {
-			memset(sk, 0, prot->obj_size);
-			sk->sk_family = family;
-			/*
-			 * See comment in struct sock definition to understand
-			 * why we need sk_prot_creator -acme
-			 */
-			sk->sk_prot = sk->sk_prot_creator = prot;
-			sock_lock_init(sk);
-			sk->sk_net = get_net(net);
-		}
-
-		if (security_sk_alloc(sk, family, priority))
-			goto out_free;
-
-		if (!try_module_get(prot->owner))
-			goto out_free;
+		sk->sk_family = family;
+		/*
+		 * See comment in struct sock definition to understand
+		 * why we need sk_prot_creator -acme
+		 */
+		sk->sk_prot = sk->sk_prot_creator = prot;
+		sock_lock_init(sk);
+		sk->sk_net = get_net(net);
 	}
-	return sk;
 
-out_free:
-	if (slab != NULL)
-		kmem_cache_free(slab, sk);
-	else
-		kfree(sk);
-	return NULL;
+	return sk;
 }
 
 void sk_free(struct sock *sk)
 {
 	struct sk_filter *filter;
-	struct module *owner = sk->sk_prot_creator->owner;
 
 	if (sk->sk_destruct)
 		sk->sk_destruct(sk);
@@ -925,25 +965,22 @@ void sk_free(struct sock *sk)
 		printk(KERN_DEBUG "%s: optmem leakage (%d bytes) detected.\n",
 		       __FUNCTION__, atomic_read(&sk->sk_omem_alloc));
 
-	security_sk_free(sk);
 	put_net(sk->sk_net);
-	if (sk->sk_prot_creator->slab != NULL)
-		kmem_cache_free(sk->sk_prot_creator->slab, sk);
-	else
-		kfree(sk);
-	module_put(owner);
+	sk_prot_free(sk->sk_prot_creator, sk);
 }
 
 struct sock *sk_clone(const struct sock *sk, const gfp_t priority)
 {
-	struct sock *newsk = sk_alloc(sk->sk_net, sk->sk_family, priority, sk->sk_prot, 0);
+	struct sock *newsk;
 
+	newsk = sk_prot_alloc(sk->sk_prot, priority, sk->sk_family);
 	if (newsk != NULL) {
 		struct sk_filter *filter;
 
 		sock_copy(newsk, sk);
 
 		/* SANITY */
+		get_net(newsk->sk_net);
 		sk_node_init(&newsk->sk_node);
 		sock_lock_init(newsk);
 		bh_lock_sock(newsk);

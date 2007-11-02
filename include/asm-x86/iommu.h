@@ -1,5 +1,5 @@
-#ifndef _ASM_X8664_IOMMU_H
-#define _ASM_X8664_IOMMU_H 1
+#ifndef _ASM_X8664_GART_H
+#define _ASM_X8664_GART_H 1
 
 extern void pci_iommu_shutdown(void);
 extern void no_iommu_init(void);

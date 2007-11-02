@@ -731,15 +731,25 @@ dev_irnet_ioctl(struct inode *	inode,
       /* Get termios */
     case TCGETS:
       DEBUG(FS_INFO, "Get termios.\n");
+#ifndef TCGETS2
       if(kernel_termios_to_user_termios((struct termios __user *)argp, &ap->termios))
 	break;
+#else
+      if(kernel_termios_to_user_termios_1((struct termios __user *)argp, &ap->termios))
+	break;
+#endif
       err = 0;
       break;
       /* Set termios */
     case TCSETSF:
       DEBUG(FS_INFO, "Set termios.\n");
+#ifndef TCGETS2
       if(user_termios_to_kernel_termios(&ap->termios, (struct termios __user *)argp))
 	break;
+#else
+      if(user_termios_to_kernel_termios_1(&ap->termios, (struct termios __user *)argp))
+	break;
+#endif
       err = 0;
       break;
 

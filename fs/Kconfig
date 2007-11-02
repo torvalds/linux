@@ -504,7 +504,7 @@ config INOTIFY
 	  including multiple file events, one-shot support, and unmount
 	  notification.
 
-	  For more information, see Documentation/filesystems/inotify.txt
+	  For more information, see <file:Documentation/filesystems/inotify.txt>
 
 	  If unsure, say Y.
 
@@ -518,7 +518,7 @@ config INOTIFY_USER
 	  directories via a single open fd.  Events are read from the file
 	  descriptor, which is also select()- and poll()-able.
 
-	  For more information, see Documentation/filesystems/inotify.txt
+	  For more information, see <file:Documentation/filesystems/inotify.txt>
 
 	  If unsure, say Y.
 
@@ -1089,7 +1089,7 @@ config ECRYPT_FS
 	depends on EXPERIMENTAL && KEYS && CRYPTO && NET
 	help
 	  Encrypted filesystem that operates on the VFS layer.  See
-	  <file:Documentation/ecryptfs.txt> to learn more about
+	  <file:Documentation/filesystems/ecryptfs.txt> to learn more about
 	  eCryptfs.  Userspace components are required and can be
 	  obtained from <http://ecryptfs.sf.net>.
 

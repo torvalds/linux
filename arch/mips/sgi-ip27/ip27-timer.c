@@ -131,12 +131,12 @@ static struct irq_chip rt_irq_type = {
 static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 {
 	unsigned int cpu = smp_processor_id();
-	int slice = cputoslice(cpu) == 0;
+	int slice putoslice(cpu);
 	unsigned long cnt;
 
 	cnt = LOCAL_HUB_L(PI_RT_COUNT);
 	cnt += delta;
-	LOCAL_HUB_S(slice ? PI_RT_COMPARE_A : PI_RT_COMPARE_B, cnt);
+	LOCAL_HUB_S(PI_RT_COMPARE_A + PI_COUNT_OFFSET * slice, cnt);
 
 	return LOCAL_HUB_L(PI_RT_COUNT) >= cnt ? -ETIME : 0;
 }
@@ -164,9 +164,12 @@ static irqreturn_t hub_rt_counter_handler(int irq, void *dev_id)
 {
 	struct clock_event_device *cd = dev_id;
 	unsigned int cpu = smp_processor_id();
-	int slice = cputoslice(cpu) == 0;
+	int slice = cputoslice(cpu);
 
-	LOCAL_HUB_S(slice ? PI_RT_PEND_A : PI_RT_PEND_B, 0);	/* Ack  */
+	/*
+	 * Ack
+	 */
+	LOCAL_HUB_S(PI_RT_PEND_A + PI_COUNT_OFFSET * slice, cnt);
 	cd->event_handler(cd);
 
 	return IRQ_HANDLED;

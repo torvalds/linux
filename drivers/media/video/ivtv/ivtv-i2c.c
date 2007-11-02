@@ -741,7 +741,7 @@ int __devinit init_ivtv_i2c(struct ivtv *itv)
 		return i2c_bit_add_bus(&itv->i2c_adap);
 }
 
-void __devexit exit_ivtv_i2c(struct ivtv *itv)
+void exit_ivtv_i2c(struct ivtv *itv)
 {
 	IVTV_DEBUG_I2C("i2c exit\n");
 

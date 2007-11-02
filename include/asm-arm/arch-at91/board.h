@@ -130,4 +130,7 @@ extern u8 at91_leds_cpu;
 extern u8 at91_leds_timer;
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 
+/* FIXME: this needs a better location, but gets stuff building again */
+extern int at91_suspend_entering_slow_clock(void);
+
 #endif

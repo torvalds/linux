@@ -244,7 +244,7 @@ extern struct ixgbe_info ixgbe_82598EB_info;
 extern struct ixgbe_info ixgbe_82598AT_info;
 
 extern char ixgbe_driver_name[];
-extern char ixgbe_driver_version[];
+extern const char ixgbe_driver_version[];
 
 extern int ixgbe_up(struct ixgbe_adapter *adapter);
 extern void ixgbe_down(struct ixgbe_adapter *adapter);

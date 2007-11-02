@@ -316,6 +316,15 @@ void __init setup_arch(char **cmdline_p)
 
 	init_leds();
 
+	_bfin_swrst = bfin_read_SWRST();
+
+	if (_bfin_swrst & RESET_DOUBLE)
+		printk(KERN_INFO "Recovering from Double Fault event\n");
+	else if (_bfin_swrst & RESET_WDOG)
+		printk(KERN_INFO "Recovering from Watchdog event\n");
+	else if (_bfin_swrst & RESET_SOFTWARE)
+		printk(KERN_NOTICE "Reset caused by Software reset\n");
+
 	printk(KERN_INFO "Blackfin support (C) 2004-2007 Analog Devices, Inc.\n");
 	if (bfin_compiled_revid() == 0xffff)
 		printk(KERN_INFO "Compiled for ADSP-%s Rev any\n", CPU);
@@ -402,8 +411,6 @@ void __init setup_arch(char **cmdline_p)
 	if (l1_length > L1_DATA_A_LENGTH)
 		panic("L1 data memory overflow\n");
 
-	_bfin_swrst = bfin_read_SWRST();
-
 	/* Copy atomic sequences to their fixed location, and sanity check that
 	   these locations are the ones that we advertise to userspace.  */
 	memcpy((void *)FIXED_CODE_START, &fixed_code_start,
@@ -424,6 +431,8 @@ void __init setup_arch(char **cmdline_p)
 	       != ATOMIC_AND32 - FIXED_CODE_START);
 	BUG_ON((char *)&atomic_xor32 - (char *)&fixed_code_start
 	       != ATOMIC_XOR32 - FIXED_CODE_START);
+	BUG_ON((char *)&safe_user_instruction - (char *)&fixed_code_start
+		!= SAFE_USER_INSTRUCTION - FIXED_CODE_START);
 
 	init_exception_vectors();
 	bf53x_cache_init();
