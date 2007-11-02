@@ -947,8 +947,8 @@ static void gfs2_glock_drop_th(struct gfs2_glock *gl)
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	unsigned int ret;
 
-	if (glops->go_drop_th)
-		glops->go_drop_th(gl);
+	if (glops->go_xmote_th)
+		glops->go_xmote_th(gl);
 
 	gfs2_assert_warn(sdp, test_bit(GLF_LOCK, &gl->gl_flags));
 	gfs2_assert_warn(sdp, list_empty(&gl->gl_holders));
@@ -1252,12 +1252,11 @@ void gfs2_glock_dq(struct gfs2_holder *gh)
 	list_del_init(&gh->gh_list);
 
 	if (list_empty(&gl->gl_holders)) {
-		spin_unlock(&gl->gl_spin);
-
-		if (glops->go_unlock)
+		if (glops->go_unlock) {
+			spin_unlock(&gl->gl_spin);
 			glops->go_unlock(gh);
-
-		spin_lock(&gl->gl_spin);
+			spin_lock(&gl->gl_spin);
+		}
 		gl->gl_stamp = jiffies;
 	}
 
