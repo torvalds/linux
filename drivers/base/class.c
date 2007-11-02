@@ -453,8 +453,15 @@ static struct kset_uevent_ops class_uevent_ops = {
 	.uevent =	class_uevent,
 };
 
-static decl_subsys(class_obj, &class_uevent_ops);
-
+/*
+ * DO NOT copy how this is created, kset_create_and_add() should be
+ * called, but this is a hold-over from the old-way and will be deleted
+ * entirely soon.
+ */
+static struct kset class_obj_subsys = {
+	.kobj = { .k_name = "class_obj", },
+	.uevent_ops = &class_uevent_ops,
+};
 
 static int class_device_add_attrs(struct class_device * cd)
 {

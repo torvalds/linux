@@ -198,12 +198,6 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
 #define set_kset_name(str)	.kset = { .kobj = { .k_name = str } }
 
 
-#define decl_subsys(_name,_uevent_ops) \
-struct kset _name##_subsys = { \
-	.kobj = { .k_name = __stringify(_name) }, \
-	.uevent_ops =_uevent_ops, \
-}
-
 /* The global /sys/kernel/ kset for people to chain off of */
 extern struct kset *kernel_kset;
 /* The global /sys/hypervisor/ kobject for people to chain off of */
