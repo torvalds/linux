@@ -158,7 +158,7 @@ struct em28xx_board em28xx_boards[] = {
 		}},
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
-		.name         = "Hauppauge WinTV HVR 900",
+		.name         = "Hauppauge WinTV HVR 900/950",
 		.vchannels    = 3,
 		.norm         = VIDEO_MODE_PAL,
 		.tda9887_conf = TDA9887_PRESENT,
@@ -166,13 +166,13 @@ struct em28xx_board em28xx_boards[] = {
 		.has_tuner    = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = {{
-			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = TVP5150_COMPOSITE1,
-			.amux     = 1,
-		},{
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = 0,
+		},{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = 1,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
