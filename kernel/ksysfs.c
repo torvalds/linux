@@ -141,11 +141,8 @@ static int __init ksysfs_init(void)
 			goto group_exit;
 	}
 
-	/*
-	 * Create "/sys/kernel/uids" directory and corresponding root user's
-	 * directory under it.
-	 */
-	error = uids_kobject_init();
+	/* create the /sys/kernel/uids/ directory */
+	error = uids_sysfs_init();
 	if (error)
 		goto notes_exit;
 
