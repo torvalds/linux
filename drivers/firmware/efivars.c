@@ -129,13 +129,6 @@ struct efivar_attribute {
 };
 
 
-#define EFI_ATTR(_name, _mode, _show, _store) \
-struct subsys_attribute efi_attr_##_name = { \
-	.attr = {.name = __stringify(_name), .mode = _mode}, \
-	.show = _show, \
-	.store = _store, \
-};
-
 #define EFIVAR_ATTR(_name, _mode, _show, _store) \
 struct efivar_attribute efivar_attr_##_name = { \
 	.attr = {.name = __stringify(_name), .mode = _mode}, \
@@ -540,12 +533,12 @@ static struct bin_attribute var_subsys_attr_del_var = {
  * Let's not leave out systab information that snuck into
  * the efivars driver
  */
-static ssize_t
-systab_read(struct kset *kset, char *buf)
+static ssize_t systab_show(struct kobject *kobj,
+			   struct kobj_attribute *attr, char *buf)
 {
 	char *str = buf;
 
-	if (!kset || !buf)
+	if (!kobj || !buf)
 		return -EINVAL;
 
 	if (efi.mps != EFI_INVALID_TABLE_ADDR)
@@ -566,12 +559,18 @@ systab_read(struct kset *kset, char *buf)
 	return str - buf;
 }
 
-static EFI_ATTR(systab, 0400, systab_read, NULL);
+static struct kobj_attribute efi_attr_systab =
+			__ATTR(systab, 0400, systab_show, NULL);
 
-static struct subsys_attribute *efi_subsys_attrs[] = {
-	&efi_attr_systab,
+static struct attribute *efi_subsys_attrs[] = {
+	&efi_attr_systab.attr,
 	NULL,	/* maybe more in the future? */
 };
+
+static struct attribute_group efi_subsys_attr_group = {
+	.attrs = efi_subsys_attrs,
+};
+
 
 static decl_subsys(vars, NULL);
 static decl_subsys(efi, NULL);
@@ -651,9 +650,8 @@ efivars_init(void)
 	efi_status_t status = EFI_NOT_FOUND;
 	efi_guid_t vendor_guid;
 	efi_char16_t *variable_name;
-	struct subsys_attribute *attr;
 	unsigned long variable_name_size = 1024;
-	int i, error = 0;
+	int error = 0;
 
 	if (!efi_enabled)
 		return -ENODEV;
@@ -730,12 +728,7 @@ efivars_init(void)
 			" due to error %d\n", error);
 
 	/* Don't forget the systab entry */
-
-	for (i = 0; (attr = efi_subsys_attrs[i]) && !error; i++) {
-		if (attr->show)
-			error = subsys_create_file(&efi_subsys, attr);
-	}
-
+	error = sysfs_create_group(&efi_subsys.kobj, &efi_subsys_attr_group);
 	if (error)
 		printk(KERN_ERR "efivars: Sysfs attribute export failed with error %d.\n", error);
 	else
