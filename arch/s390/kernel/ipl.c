@@ -162,22 +162,25 @@ EXPORT_SYMBOL_GPL(diag308);
 /* SYSFS */
 
 #define DEFINE_IPL_ATTR_RO(_prefix, _name, _format, _value)		\
-static ssize_t sys_##_prefix##_##_name##_show(struct kset *kset,	\
+static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
+		struct kobj_attribute *attr,				\
 		char *page)						\
 {									\
 	return sprintf(page, _format, _value);				\
 }									\
-static struct subsys_attribute sys_##_prefix##_##_name##_attr =		\
+static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name, S_IRUGO, sys_##_prefix##_##_name##_show, NULL);
 
 #define DEFINE_IPL_ATTR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)	\
-static ssize_t sys_##_prefix##_##_name##_show(struct kset *kset,	\
+static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
+		struct kobj_attribute *attr,				\
 		char *page)						\
 {									\
 	return sprintf(page, _fmt_out,					\
 			(unsigned long long) _value);			\
 }									\
-static ssize_t sys_##_prefix##_##_name##_store(struct kset *kset,	\
+static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
+		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
 {									\
 	unsigned long long value;					\
@@ -186,25 +189,27 @@ static ssize_t sys_##_prefix##_##_name##_store(struct kset *kset,	\
 	_value = value;							\
 	return len;							\
 }									\
-static struct subsys_attribute sys_##_prefix##_##_name##_attr =		\
+static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name,(S_IRUGO | S_IWUSR),				\
 			sys_##_prefix##_##_name##_show,			\
 			sys_##_prefix##_##_name##_store);
 
 #define DEFINE_IPL_ATTR_STR_RW(_prefix, _name, _fmt_out, _fmt_in, _value)\
-static ssize_t sys_##_prefix##_##_name##_show(struct kset *kset,	\
+static ssize_t sys_##_prefix##_##_name##_show(struct kobject *kobj,	\
+		struct kobj_attribute *attr,				\
 		char *page)						\
 {									\
 	return sprintf(page, _fmt_out, _value);				\
 }									\
-static ssize_t sys_##_prefix##_##_name##_store(struct kset *kset,	\
+static ssize_t sys_##_prefix##_##_name##_store(struct kobject *kobj,	\
+		struct kobj_attribute *attr,				\
 		const char *buf, size_t len)				\
 {									\
 	if (sscanf(buf, _fmt_in, _value) != 1)				\
 		return -EINVAL;						\
 	return len;							\
 }									\
-static struct subsys_attribute sys_##_prefix##_##_name##_attr =		\
+static struct kobj_attribute sys_##_prefix##_##_name##_attr =		\
 	__ATTR(_name,(S_IRUGO | S_IWUSR),				\
 			sys_##_prefix##_##_name##_show,			\
 			sys_##_prefix##_##_name##_store);
@@ -270,14 +275,16 @@ void __init setup_ipl_info(void)
 struct ipl_info ipl_info;
 EXPORT_SYMBOL_GPL(ipl_info);
 
-static ssize_t ipl_type_show(struct kset *kset, char *page)
+static ssize_t ipl_type_show(struct kobject *kobj, struct kobj_attribute *attr,
+			     char *page)
 {
 	return sprintf(page, "%s\n", ipl_type_str(ipl_info.type));
 }
 
-static struct subsys_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
+static struct kobj_attribute sys_ipl_type_attr = __ATTR_RO(ipl_type);
 
-static ssize_t sys_ipl_device_show(struct kset *kset, char *page)
+static ssize_t sys_ipl_device_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *page)
 {
 	struct ipl_parameter_block *ipl = IPL_PARMBLOCK_START;
 
@@ -292,7 +299,7 @@ static ssize_t sys_ipl_device_show(struct kset *kset, char *page)
 	}
 }
 
-static struct subsys_attribute sys_ipl_device_attr =
+static struct kobj_attribute sys_ipl_device_attr =
 	__ATTR(device, S_IRUGO, sys_ipl_device_show, NULL);
 
 static ssize_t ipl_parameter_read(struct kobject *kobj, struct bin_attribute *attr,
@@ -367,7 +374,8 @@ static struct attribute_group ipl_fcp_attr_group = {
 
 /* CCW ipl device attributes */
 
-static ssize_t ipl_ccw_loadparm_show(struct kset *kset, char *page)
+static ssize_t ipl_ccw_loadparm_show(struct kobject *kobj,
+				     struct kobj_attribute *attr, char *page)
 {
 	char loadparm[LOADPARM_LEN + 1] = {};
 
@@ -379,7 +387,7 @@ static ssize_t ipl_ccw_loadparm_show(struct kset *kset, char *page)
 	return sprintf(page, "%s\n", loadparm);
 }
 
-static struct subsys_attribute sys_ipl_ccw_loadparm_attr =
+static struct kobj_attribute sys_ipl_ccw_loadparm_attr =
 	__ATTR(loadparm, 0444, ipl_ccw_loadparm_show, NULL);
 
 static struct attribute *ipl_ccw_attrs[] = {
@@ -465,7 +473,8 @@ static void reipl_get_ascii_loadparm(char *loadparm)
 	strstrip(loadparm);
 }
 
-static ssize_t reipl_ccw_loadparm_show(struct kset *kset, char *page)
+static ssize_t reipl_ccw_loadparm_show(struct kobject *kobj,
+				       struct kobj_attribute *attr, char *page)
 {
 	char buf[LOADPARM_LEN + 1];
 
@@ -473,7 +482,8 @@ static ssize_t reipl_ccw_loadparm_show(struct kset *kset, char *page)
 	return sprintf(page, "%s\n", buf);
 }
 
-static ssize_t reipl_ccw_loadparm_store(struct kset *kset,
+static ssize_t reipl_ccw_loadparm_store(struct kobject *kobj,
+					struct kobj_attribute *attr,
 					const char *buf, size_t len)
 {
 	int i, lp_len;
@@ -500,7 +510,7 @@ static ssize_t reipl_ccw_loadparm_store(struct kset *kset,
 	return len;
 }
 
-static struct subsys_attribute sys_reipl_ccw_loadparm_attr =
+static struct kobj_attribute sys_reipl_ccw_loadparm_attr =
 	__ATTR(loadparm, 0644, reipl_ccw_loadparm_show,
 	       reipl_ccw_loadparm_store);
 
@@ -568,13 +578,15 @@ static int reipl_set_type(enum ipl_type type)
 	return 0;
 }
 
-static ssize_t reipl_type_show(struct kset *kset, char *page)
+static ssize_t reipl_type_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *page)
 {
 	return sprintf(page, "%s\n", ipl_type_str(reipl_type));
 }
 
-static ssize_t reipl_type_store(struct kset *kset, const char *buf,
-				size_t len)
+static ssize_t reipl_type_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t len)
 {
 	int rc = -EINVAL;
 
@@ -587,7 +599,7 @@ static ssize_t reipl_type_store(struct kset *kset, const char *buf,
 	return (rc != 0) ? rc : len;
 }
 
-static struct subsys_attribute reipl_type_attr =
+static struct kobj_attribute reipl_type_attr =
 		__ATTR(reipl_type, 0644, reipl_type_show, reipl_type_store);
 
 static decl_subsys(reipl, NULL);
@@ -663,13 +675,15 @@ static int dump_set_type(enum dump_type type)
 	return 0;
 }
 
-static ssize_t dump_type_show(struct kset *kset, char *page)
+static ssize_t dump_type_show(struct kobject *kobj,
+			      struct kobj_attribute *attr, char *page)
 {
 	return sprintf(page, "%s\n", dump_type_str(dump_type));
 }
 
-static ssize_t dump_type_store(struct kset *kset, const char *buf,
-			       size_t len)
+static ssize_t dump_type_store(struct kobject *kobj,
+			       struct kobj_attribute *attr,
+			       const char *buf, size_t len)
 {
 	int rc = -EINVAL;
 
@@ -682,7 +696,7 @@ static ssize_t dump_type_store(struct kset *kset, const char *buf,
 	return (rc != 0) ? rc : len;
 }
 
-static struct subsys_attribute dump_type_attr =
+static struct kobj_attribute dump_type_attr =
 		__ATTR(dump_type, 0644, dump_type_show, dump_type_store);
 
 static decl_subsys(dump, NULL);
@@ -695,13 +709,15 @@ static decl_subsys(shutdown_actions, NULL);
 
 /* on panic */
 
-static ssize_t on_panic_show(struct kset *kset, char *page)
+static ssize_t on_panic_show(struct kobject *kobj,
+			     struct kobj_attribute *attr, char *page)
 {
 	return sprintf(page, "%s\n", shutdown_action_str(on_panic_action));
 }
 
-static ssize_t on_panic_store(struct kset *kset, const char *buf,
-			      size_t len)
+static ssize_t on_panic_store(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      const char *buf, size_t len)
 {
 	if (strncmp(buf, SHUTDOWN_REIPL_STR, strlen(SHUTDOWN_REIPL_STR)) == 0)
 		on_panic_action = SHUTDOWN_REIPL;
@@ -717,7 +733,7 @@ static ssize_t on_panic_store(struct kset *kset, const char *buf,
 	return len;
 }
 
-static struct subsys_attribute on_panic_attr =
+static struct kobj_attribute on_panic_attr =
 		__ATTR(on_panic, 0644, on_panic_show, on_panic_store);
 
 void do_reipl(void)
@@ -961,7 +977,7 @@ static int __init reipl_init(void)
 	rc = firmware_register(&reipl_subsys);
 	if (rc)
 		return rc;
-	rc = subsys_create_file(&reipl_subsys, &reipl_type_attr);
+	rc = sysfs_create_file(&reipl_subsys.kobj, &reipl_type_attr.attr);
 	if (rc) {
 		firmware_unregister(&reipl_subsys);
 		return rc;
@@ -1050,7 +1066,7 @@ static int __init dump_init(void)
 	rc = firmware_register(&dump_subsys);
 	if (rc)
 		return rc;
-	rc = subsys_create_file(&dump_subsys, &dump_type_attr);
+	rc = sysfs_create_file(&dump_subsys.kobj, &dump_type_attr.attr);
 	if (rc) {
 		firmware_unregister(&dump_subsys);
 		return rc;
@@ -1072,7 +1088,7 @@ static int __init shutdown_actions_init(void)
 	rc = firmware_register(&shutdown_actions_subsys);
 	if (rc)
 		return rc;
-	rc = subsys_create_file(&shutdown_actions_subsys, &on_panic_attr);
+	rc = sysfs_create_file(&shutdown_actions_subsys.kobj, &on_panic_attr.attr);
 	if (rc) {
 		firmware_unregister(&shutdown_actions_subsys);
 		return rc;
