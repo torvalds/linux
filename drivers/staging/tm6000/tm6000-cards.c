@@ -164,15 +164,19 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 
 	memset (&ctl,0,sizeof(ctl));
 
-	ctl.fname = "tm6000-xc3028.fw";
-	ctl.type  = XC2028_FIRM_MTS;
+	request_module ("tuner");
 
-	xc2028_cfg.tuner = TUNER_XC2028;
-	xc2028_cfg.priv  = &ctl;
+	if (dev->tuner_type == TUNER_XC2028) {
+		ctl.fname = "tm6000-xc3028.fw";
+		ctl.type  = XC2028_FIRM_MTS;
 
-printk("Setting firmware parameters for tm6000\n");
+		xc2028_cfg.tuner = TUNER_XC2028;
+		xc2028_cfg.priv  = &ctl;
 
-	tm6000_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+		printk(KERN_INFO "Setting firmware parameters for xc2028\n");
+
+		tm6000_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+	}
 }
 
 static int tm6000_init_dev(struct tm6000_core *dev)
@@ -208,22 +212,24 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	if (rc<0)
 		goto err;
 
-	/* Request tuner */
-	request_module ("tuner");
+	/* Default values for STD and resolutions */
+	dev->width = 720;
+	dev->height = 480;
+	dev->norm = V4L2_STD_PAL_M;
 
+	/* Configure tuner */
 	tm6000_config_tuner (dev);
 
-//	norm=V4L2_STD_NTSC_M;
-	dev->norm=V4L2_STD_PAL_M;
+	/* Set video standard */
 	tm6000_i2c_call_clients(dev, VIDIOC_S_STD, &dev->norm);
 
-	/* configure tuner */
+	/* Set tuner frequency - also loads firmware on xc2028/xc3028 */
 	f.tuner = 0;
 	f.type = V4L2_TUNER_ANALOG_TV;
 	f.frequency = 3092;	/* 193.25 MHz */
 	dev->freq = f.frequency;
-
 	tm6000_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
+
 	if(dev->caps.has_dvb) {
 		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
 		if(!dev->dvb) {
