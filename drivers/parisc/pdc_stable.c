@@ -120,7 +120,7 @@ struct pdcspath_entry pdcspath_entry_##_name = { \
 };
 
 #define PDCS_ATTR(_name, _mode, _show, _store) \
-struct subsys_attribute pdcs_attr_##_name = { \
+struct kobj_attribute pdcs_attr_##_name = { \
 	.attr = {.name = __stringify(_name), .mode = _mode}, \
 	.show = _show, \
 	.store = _store, \
@@ -523,15 +523,15 @@ static struct pdcspath_entry *pdcspath_entries[] = {
 
 /**
  * pdcs_size_read - Stable Storage size output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
-static ssize_t
-pdcs_size_read(struct kset *kset, char *buf)
+static ssize_t pdcs_size_read(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      char *buf)
 {
 	char *out = buf;
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	/* show the size of the stable storage */
@@ -542,17 +542,17 @@ pdcs_size_read(struct kset *kset, char *buf)
 
 /**
  * pdcs_auto_read - Stable Storage autoboot/search flag output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  * @knob: The PF_AUTOBOOT or PF_AUTOSEARCH flag
  */
-static ssize_t
-pdcs_auto_read(struct kset *kset, char *buf, int knob)
+static ssize_t pdcs_auto_read(struct kobject *kobj,
+			      struct kobj_attribute *attr,
+			      char *buf, int knob)
 {
 	char *out = buf;
 	struct pdcspath_entry *pathentry;
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	/* Current flags are stored in primary boot path entry */
@@ -568,40 +568,37 @@ pdcs_auto_read(struct kset *kset, char *buf, int knob)
 
 /**
  * pdcs_autoboot_read - Stable Storage autoboot flag output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
-static inline ssize_t
-pdcs_autoboot_read(struct kset *kset, char *buf)
+static ssize_t pdcs_autoboot_read(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buf)
 {
-	return pdcs_auto_read(kset, buf, PF_AUTOBOOT);
+	return pdcs_auto_read(kobj, attr, buf, PF_AUTOBOOT);
 }
 
 /**
  * pdcs_autosearch_read - Stable Storage autoboot flag output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
-static inline ssize_t
-pdcs_autosearch_read(struct kset *kset, char *buf)
+static ssize_t pdcs_autosearch_read(struct kobject *kobj,
+				    struct kobj_attribute *attr, char *buf)
 {
-	return pdcs_auto_read(kset, buf, PF_AUTOSEARCH);
+	return pdcs_auto_read(kobj, attr, buf, PF_AUTOSEARCH);
 }
 
 /**
  * pdcs_timer_read - Stable Storage timer count output (in seconds).
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * The value of the timer field correponds to a number of seconds in powers of 2.
  */
-static ssize_t
-pdcs_timer_read(struct kset *kset, char *buf)
+static ssize_t pdcs_timer_read(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
 {
 	char *out = buf;
 	struct pdcspath_entry *pathentry;
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	/* Current flags are stored in primary boot path entry */
@@ -618,15 +615,14 @@ pdcs_timer_read(struct kset *kset, char *buf)
 
 /**
  * pdcs_osid_read - Stable Storage OS ID register output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  */
-static ssize_t
-pdcs_osid_read(struct kset *kset, char *buf)
+static ssize_t pdcs_osid_read(struct kobject *kobj,
+			      struct kobj_attribute *attr, char *buf)
 {
 	char *out = buf;
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	out += sprintf(out, "%s dependent data (0x%.4x)\n",
@@ -637,18 +633,17 @@ pdcs_osid_read(struct kset *kset, char *buf)
 
 /**
  * pdcs_osdep1_read - Stable Storage OS-Dependent data area 1 output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * This can hold 16 bytes of OS-Dependent data.
  */
-static ssize_t
-pdcs_osdep1_read(struct kset *kset, char *buf)
+static ssize_t pdcs_osdep1_read(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
 {
 	char *out = buf;
 	u32 result[4];
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	if (pdc_stable_read(PDCS_ADDR_OSD1, &result, sizeof(result)) != PDC_OK)
@@ -664,18 +659,17 @@ pdcs_osdep1_read(struct kset *kset, char *buf)
 
 /**
  * pdcs_diagnostic_read - Stable Storage Diagnostic register output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * I have NFC how to interpret the content of that register ;-).
  */
-static ssize_t
-pdcs_diagnostic_read(struct kset *kset, char *buf)
+static ssize_t pdcs_diagnostic_read(struct kobject *kobj,
+				    struct kobj_attribute *attr, char *buf)
 {
 	char *out = buf;
 	u32 result;
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	/* get diagnostic */
@@ -689,18 +683,17 @@ pdcs_diagnostic_read(struct kset *kset, char *buf)
 
 /**
  * pdcs_fastsize_read - Stable Storage FastSize register output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * This register holds the amount of system RAM to be tested during boot sequence.
  */
-static ssize_t
-pdcs_fastsize_read(struct kset *kset, char *buf)
+static ssize_t pdcs_fastsize_read(struct kobject *kobj,
+				  struct kobj_attribute *attr, char *buf)
 {
 	char *out = buf;
 	u32 result;
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	/* get fast-size */
@@ -718,13 +711,12 @@ pdcs_fastsize_read(struct kset *kset, char *buf)
 
 /**
  * pdcs_osdep2_read - Stable Storage OS-Dependent data area 2 output.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The output buffer to write to.
  *
  * This can hold pdcs_size - 224 bytes of OS-Dependent data, when available.
  */
-static ssize_t
-pdcs_osdep2_read(struct kset *kset, char *buf)
+static ssize_t pdcs_osdep2_read(struct kobject *kobj,
+				struct kobj_attribute *attr, char *buf)
 {
 	char *out = buf;
 	unsigned long size;
@@ -736,7 +728,7 @@ pdcs_osdep2_read(struct kset *kset, char *buf)
 
 	size = pdcs_size - 224;
 
-	if (!kset || !buf)
+	if (!buf)
 		return -EINVAL;
 
 	for (i=0; i<size; i+=4) {
@@ -751,7 +743,6 @@ pdcs_osdep2_read(struct kset *kset, char *buf)
 
 /**
  * pdcs_auto_write - This function handles autoboot/search flag modifying.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  * @knob: The PF_AUTOBOOT or PF_AUTOSEARCH flag
@@ -760,8 +751,9 @@ pdcs_osdep2_read(struct kset *kset, char *buf)
  * We expect a precise syntax:
  *	\"n\" (n == 0 or 1) to toggle AutoBoot Off or On
  */
-static ssize_t
-pdcs_auto_write(struct kset *kset, const char *buf, size_t count, int knob)
+static ssize_t pdcs_auto_write(struct kobject *kobj,
+			       struct kobj_attribute *attr, const char *buf,
+			       size_t count, int knob)
 {
 	struct pdcspath_entry *pathentry;
 	unsigned char flags;
@@ -771,7 +763,7 @@ pdcs_auto_write(struct kset *kset, const char *buf, size_t count, int knob)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (!kset || !buf || !count)
+	if (!buf || !count)
 		return -EINVAL;
 
 	/* We'll use a local copy of buf */
@@ -826,7 +818,6 @@ parse_error:
 
 /**
  * pdcs_autoboot_write - This function handles autoboot flag modifying.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -834,15 +825,15 @@ parse_error:
  * We expect a precise syntax:
  *	\"n\" (n == 0 or 1) to toggle AutoSearch Off or On
  */
-static inline ssize_t
-pdcs_autoboot_write(struct kset *kset, const char *buf, size_t count)
+static ssize_t pdcs_autoboot_write(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t count)
 {
-	return pdcs_auto_write(kset, buf, count, PF_AUTOBOOT);
+	return pdcs_auto_write(kset, attr, buf, count, PF_AUTOBOOT);
 }
 
 /**
  * pdcs_autosearch_write - This function handles autosearch flag modifying.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -850,15 +841,15 @@ pdcs_autoboot_write(struct kset *kset, const char *buf, size_t count)
  * We expect a precise syntax:
  *	\"n\" (n == 0 or 1) to toggle AutoSearch Off or On
  */
-static inline ssize_t
-pdcs_autosearch_write(struct kset *kset, const char *buf, size_t count)
+static ssize_t pdcs_autosearch_write(struct kobject *kobj,
+				     struct kobj_attribute *attr,
+				     const char *buf, size_t count)
 {
-	return pdcs_auto_write(kset, buf, count, PF_AUTOSEARCH);
+	return pdcs_auto_write(kset, attr, buf, count, PF_AUTOSEARCH);
 }
 
 /**
  * pdcs_osdep1_write - Stable Storage OS-Dependent data area 1 input.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -866,15 +857,16 @@ pdcs_autosearch_write(struct kset *kset, const char *buf, size_t count)
  * write approach. It's up to userspace to deal with it when constructing
  * its input buffer.
  */
-static ssize_t
-pdcs_osdep1_write(struct kset *kset, const char *buf, size_t count)
+static ssize_t pdcs_osdep1_write(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t count)
 {
 	u8 in[16];
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (!kset || !buf || !count)
+	if (!buf || !count)
 		return -EINVAL;
 
 	if (unlikely(pdcs_osid != OS_ID_LINUX))
@@ -895,7 +887,6 @@ pdcs_osdep1_write(struct kset *kset, const char *buf, size_t count)
 
 /**
  * pdcs_osdep2_write - Stable Storage OS-Dependent data area 2 input.
- * @kset: An allocated and populated struct kset. We don't use it tho.
  * @buf: The input buffer to read from.
  * @count: The number of bytes to be read.
  *
@@ -903,8 +894,9 @@ pdcs_osdep1_write(struct kset *kset, const char *buf, size_t count)
  * byte-by-byte write approach. It's up to userspace to deal with it when
  * constructing its input buffer.
  */
-static ssize_t
-pdcs_osdep2_write(struct kset *kset, const char *buf, size_t count)
+static ssize_t pdcs_osdep2_write(struct kobject *kobj,
+				 struct kobj_attribute *attr,
+				 const char *buf, size_t count)
 {
 	unsigned long size;
 	unsigned short i;
@@ -913,7 +905,7 @@ pdcs_osdep2_write(struct kset *kset, const char *buf, size_t count)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;
 
-	if (!kset || !buf || !count)
+	if (!buf || !count)
 		return -EINVAL;
 
 	if (unlikely(pdcs_size <= 224))
@@ -951,17 +943,21 @@ static PDCS_ATTR(diagnostic, 0400, pdcs_diagnostic_read, NULL);
 static PDCS_ATTR(fastsize, 0400, pdcs_fastsize_read, NULL);
 static PDCS_ATTR(osdep2, 0600, pdcs_osdep2_read, pdcs_osdep2_write);
 
-static struct subsys_attribute *pdcs_subsys_attrs[] = {
-	&pdcs_attr_size,
-	&pdcs_attr_autoboot,
-	&pdcs_attr_autosearch,
-	&pdcs_attr_timer,
-	&pdcs_attr_osid,
-	&pdcs_attr_osdep1,
-	&pdcs_attr_diagnostic,
-	&pdcs_attr_fastsize,
-	&pdcs_attr_osdep2,
+static struct attribute *pdcs_subsys_attrs[] = {
+	&pdcs_attr_size.attr,
+	&pdcs_attr_autoboot.attr,
+	&pdcs_attr_autosearch.attr,
+	&pdcs_attr_timer.attr,
+	&pdcs_attr_osid.attr,
+	&pdcs_attr_osdep1.attr,
+	&pdcs_attr_diagnostic.attr,
+	&pdcs_attr_fastsize.attr,
+	&pdcs_attr_osdep2.attr,
 	NULL,
+};
+
+static struct attribute_group pdcs_attr_group = {
+	.attrs = pdcs_subsys_attrs,
 };
 
 static decl_subsys(paths, NULL);
@@ -1042,8 +1038,7 @@ pdcs_unregister_pathentries(void)
 static int __init
 pdc_stable_init(void)
 {
-	struct subsys_attribute *attr;
-	int i, rc = 0, error = 0;
+	int rc = 0, error = 0;
 	u32 result;
 
 	/* find the size of the stable storage */
@@ -1068,10 +1063,8 @@ pdc_stable_init(void)
 		goto fail_firmreg;
 
 	/* Don't forget the root entries */
-	for (i = 0; (attr = pdcs_subsys_attrs[i]) && !error; i++)
-		if (attr->show)
-			error = subsys_create_file(&stable_subsys, attr);
-	
+	error = sysfs_create_group(&stable_subsys.kobj, pdcs_attr_group);
+
 	/* register the paths subsys as a subsystem of stable subsys */
 	paths_subsys.kobj.kset = &stable_subsys;
 	if ((rc = subsystem_register(&paths_subsys)))
