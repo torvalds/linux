@@ -897,7 +897,7 @@ acpi_video_device_write_brightness(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct acpi_video_device *dev = m->private;
-	char str[4] = { 0 };
+	char str[5] = { 0 };
 	unsigned int level = 0;
 	int i;
 
