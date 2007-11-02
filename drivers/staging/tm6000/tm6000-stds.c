@@ -781,6 +781,13 @@ static int tm6000_load_std(struct tm6000_core *dev,
 		if (!set[i].req)
 			return 0;
 
+		/* FIXME: REQ 8 settings are for tm6010
+			not tested yet
+			This doesn't work with tm5600
+		*/
+		if (set[i].req == REQ_08_SET_GET_AVREG_BIT)
+			continue;
+
 		rc = tm6000_set_reg(dev, set[i].req, set[i].reg, set[i].value);
 		if (rc < 0) {
 			printk(KERN_ERR "Error %i while setting "
@@ -797,6 +804,22 @@ static int tm6000_set_tv(struct tm6000_core *dev, int pos)
 {
 	int rc;
 
+	/* FIXME: This code is for tm6010 - not tested yet - doesn't work with
+	   tm5600
+	 */
+
+	/* FIXME: This is tuner-dependent */
+	int nosif = 0;
+
+	if (nosif) {
+		rc = tm6000_load_std(dev, tv_stds[pos].nosif,
+				     sizeof(tv_stds[pos].nosif));
+	} else {
+		rc = tm6000_load_std(dev, tv_stds[pos].sif,
+				     sizeof(tv_stds[pos].sif));
+	}
+	if (rc < 0)
+		return rc;
 	rc = tm6000_load_std(dev, tv_stds[pos].common,
 			     sizeof(tv_stds[pos].common));
 
