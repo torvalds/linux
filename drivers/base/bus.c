@@ -941,6 +941,12 @@ struct kset *bus_get_kset(struct bus_type *bus)
 }
 EXPORT_SYMBOL_GPL(bus_get_kset);
 
+struct klist *bus_get_device_klist(struct bus_type *bus)
+{
+	return &bus->klist_devices;
+}
+EXPORT_SYMBOL_GPL(bus_get_device_klist);
+
 int __init buses_init(void)
 {
 	bus_kset = kset_create_and_add("bus", &bus_uevent_ops, NULL);
