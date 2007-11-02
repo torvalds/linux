@@ -676,10 +676,11 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 		if (rc)
 			return rc;
 
-		/* disable DIPM */
-		if (ata_dev_enabled(dev) && (dev->flags & ATA_DFLAG_DIPM))
-			err_mask = ata_dev_set_feature(dev,
-					SETFEATURES_SATA_DISABLE, SATA_DIPM);
+		/*
+		 * we don't have to disable DIPM since IPM flags
+		 * disallow transitions to SLUMBER, which effectively
+		 * disable DIPM if it does not support PARTIAL
+		 */
 		break;
 	case NOT_AVAILABLE:
 	case MAX_PERFORMANCE:
@@ -689,10 +690,11 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 		if (rc)
 			return rc;
 
-		/* disable DIPM */
-		if (ata_dev_enabled(dev) && (dev->flags & ATA_DFLAG_DIPM))
-			err_mask = ata_dev_set_feature(dev,
-					SETFEATURES_SATA_DISABLE, SATA_DIPM);
+		/*
+		 * we don't have to disable DIPM since IPM flags
+		 * disallow all transitions which effectively
+		 * disable DIPM anyway.
+		 */
 		break;
 	}
 
