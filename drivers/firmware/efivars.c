@@ -573,7 +573,7 @@ static struct attribute_group efi_subsys_attr_group = {
 
 
 static decl_subsys(vars, NULL);
-static decl_subsys(efi, NULL);
+static struct kset *efi_kset;
 
 /*
  * efivar_create_sysfs_entry()
@@ -668,15 +668,14 @@ efivars_init(void)
 	/*
 	 * For now we'll register the efi subsys within this driver
 	 */
-
-	error = firmware_register(&efi_subsys);
-
-	if (error) {
-		printk(KERN_ERR "efivars: Firmware registration failed with error %d.\n", error);
+	efi_kset = kset_create_and_add("efi", NULL, &firmware_kset->kobj);
+	if (!efi_kset) {
+		printk(KERN_ERR "efivars: Firmware registration failed.\n");
+		error = -ENOMEM;
 		goto out_free;
 	}
 
-	vars_subsys.kobj.kset = &efi_subsys;
+	vars_subsys.kobj.kset = efi_kset;
 
 	error = subsystem_register(&vars_subsys);
 
@@ -728,7 +727,7 @@ efivars_init(void)
 			" due to error %d\n", error);
 
 	/* Don't forget the systab entry */
-	error = sysfs_create_group(&efi_subsys.kobj, &efi_subsys_attr_group);
+	error = sysfs_create_group(&efi_kset->kobj, &efi_subsys_attr_group);
 	if (error)
 		printk(KERN_ERR "efivars: Sysfs attribute export failed with error %d.\n", error);
 	else
@@ -737,7 +736,7 @@ efivars_init(void)
 	subsystem_unregister(&vars_subsys);
 
 out_firmware_unregister:
-	firmware_unregister(&efi_subsys);
+	kset_unregister(efi_kset);
 
 out_free:
 	kfree(variable_name);
@@ -758,7 +757,7 @@ efivars_exit(void)
 	}
 
 	subsystem_unregister(&vars_subsys);
-	firmware_unregister(&efi_subsys);
+	kset_unregister(efi_kset);
 }
 
 module_init(efivars_init);
