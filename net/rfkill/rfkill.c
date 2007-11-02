@@ -27,6 +27,10 @@
 #include <linux/mutex.h>
 #include <linux/rfkill.h>
 
+/* Get declaration of rfkill_switch_all() to shut up sparse. */
+#include "rfkill-input.h"
+
+
 MODULE_AUTHOR("Ivo van Doorn <IvDoorn@gmail.com>");
 MODULE_VERSION("1.0");
 MODULE_DESCRIPTION("RF switch support");
