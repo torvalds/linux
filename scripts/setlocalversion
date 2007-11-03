@@ -12,7 +12,7 @@ cd "${1:-.}" || usage
 if head=`git rev-parse --verify HEAD 2>/dev/null`; then
 	# Do we have an untagged version?
 	if git name-rev --tags HEAD | grep -E '^HEAD[[:space:]]+(.*~[0-9]*|undefined)$' > /dev/null; then
-		printf '%s%s' -g `echo "$head" | cut -c1-8`
+	        git describe | awk -F- '{printf("-%05d-%s", $(NF-1),$(NF))}'
 	fi
 
 	# Are there uncommitted changes?
