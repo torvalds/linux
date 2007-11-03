@@ -15,14 +15,14 @@ struct b43_rfkill {
 	struct rfkill *rfkill;
 	/* The poll device for the RFKILL input button */
 	struct input_polled_dev *poll_dev;
+	/* Did initialization succeed? Used for freeing. */
+	bool registered;
 	/* The unique name of this rfkill switch */
-	char name[32];
+	char name[sizeof("b43-phy4294967295")];
 };
 
-/* All the init functions return void, because we are not interested
+/* The init function returns void, because we are not interested
  * in failing the b43 init process when rfkill init failed. */
-void b43_rfkill_alloc(struct b43_wldev *dev);
-void b43_rfkill_free(struct b43_wldev *dev);
 void b43_rfkill_init(struct b43_wldev *dev);
 void b43_rfkill_exit(struct b43_wldev *dev);
 
@@ -36,12 +36,6 @@ struct b43_rfkill {
 	/* empty */
 };
 
-static inline void b43_rfkill_alloc(struct b43_wldev *dev)
-{
-}
-static inline void b43_rfkill_free(struct b43_wldev *dev)
-{
-}
 static inline void b43_rfkill_init(struct b43_wldev *dev)
 {
 }
