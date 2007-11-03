@@ -551,12 +551,7 @@ int __kprobes post_kprobe_handler(struct pt_regs *regs)
 
 	resume_execution(cur, regs, kcb);
 	regs->eflags |= kcb->kprobe_saved_rflags;
-#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
-	if (raw_irqs_disabled_flags(regs->eflags))
-		trace_hardirqs_off();
-	else
-		trace_hardirqs_on();
-#endif
+	trace_hardirqs_fixup_flags(regs->eflags);
 
 	/* Restore the original saved kprobes variables and continue. */
 	if (kcb->kprobe_status == KPROBE_REENTER) {

@@ -129,6 +129,27 @@ static inline int raw_irqs_disabled(void)
 
 	return raw_irqs_disabled_flags(flags);
 }
+
+/*
+ * makes the traced hardirq state match with the machine state
+ *
+ * should be a rarely used function, only in places where its
+ * otherwise impossible to know the irq state, like in traps.
+ */
+static inline void trace_hardirqs_fixup_flags(unsigned long flags)
+{
+	if (raw_irqs_disabled_flags(flags))
+		trace_hardirqs_off();
+	else
+		trace_hardirqs_on();
+}
+
+static inline void trace_hardirqs_fixup(void)
+{
+	unsigned long flags = __raw_local_save_flags();
+
+	trace_hardirqs_fixup_flags(flags);
+}
 #endif /* __ASSEMBLY__ */
 
 /*

@@ -303,6 +303,11 @@ fastcall void __kprobes do_page_fault(struct pt_regs *regs,
 	int write, si_code;
 	int fault;
 
+	/*
+	 * We can fault from pretty much anywhere, with unknown IRQ state.
+	 */
+	trace_hardirqs_fixup();
+
 	/* get the address */
         address = read_cr2();
 
