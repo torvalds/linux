@@ -144,7 +144,8 @@ static int em28xx_config(struct em28xx *dev)
 {
 
 	/* Sets I2C speed to 100 KHz */
-	em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+	if (!dev->is_em2800)
+		em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
 
 	/* enable vbi capturing */
 
