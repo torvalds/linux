@@ -16,6 +16,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/pata_platform.h>
+#include <linux/types.h>
+#include <net/ax88796.h>
 #include <asm/machvec.h>
 #include <asm/r7780rp.h>
 #include <asm/clock.h>
@@ -136,11 +138,50 @@ static struct platform_device heartbeat_device = {
 	.resource	= heartbeat_resources,
 };
 
+static struct ax_plat_data ax88796_platdata = {
+	.flags          = AXFLG_HAS_93CX6,
+	.wordlength     = 2,
+	.dcr_val        = 0x1,
+	.rcr_val        = 0x40,
+};
+
+static struct resource ax88796_resources[] = {
+	{
+#ifdef CONFIG_SH_R7780RP
+		.start  = 0xa5800400,
+		.end    = 0xa5800400 + (0x20 * 0x2) - 1,
+#else
+		.start  = 0xa4100400,
+		.end    = 0xa4100400 + (0x20 * 0x2) - 1,
+#endif
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = IRQ_AX88796,
+		.end    = IRQ_AX88796,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device ax88796_device = {
+	.name           = "ax88796",
+	.id             = 0,
+
+	.dev    = {
+		.platform_data = &ax88796_platdata,
+	},
+
+	.num_resources  = ARRAY_SIZE(ax88796_resources),
+	.resource       = ax88796_resources,
+};
+
+
 static struct platform_device *r7780rp_devices[] __initdata = {
 	&r8a66597_usb_host_device,
 	&m66592_usb_peripheral_device,
 	&cf_ide_device,
 	&heartbeat_device,
+	&ax88796_device,
 };
 
 static int __init r7780rp_devices_setup(void)
@@ -181,6 +222,34 @@ static void r7780rp_power_off(void)
 {
 	if (mach_is_r7780mp() || mach_is_r7785rp())
 		ctrl_outw(0x0001, PA_POFF);
+}
+
+static inline unsigned char is_ide_ioaddr(unsigned long addr)
+{
+	return ((cf_ide_resources[0].start <= addr &&
+		 addr <= cf_ide_resources[0].end) ||
+		(cf_ide_resources[1].start <= addr &&
+		 addr <= cf_ide_resources[1].end));
+}
+
+void highlander_writeb(u8 b, void __iomem *addr)
+{
+	unsigned long tmp = (unsigned long __force)addr;
+
+	if (is_ide_ioaddr(tmp))
+		ctrl_outw((u16)b, tmp);
+	else
+		ctrl_outb(b, tmp);
+}
+
+u8 highlander_readb(void __iomem *addr)
+{
+	unsigned long tmp = (unsigned long __force)addr;
+
+	if (is_ide_ioaddr(tmp))
+		return ctrl_inw(tmp) & 0xff;
+	else
+		return ctrl_inb(tmp);
 }
 
 /*
@@ -267,4 +336,6 @@ static struct sh_machine_vector mv_highlander __initmv = {
 	.mv_setup		= highlander_setup,
 	.mv_init_irq		= highlander_init_irq,
 	.mv_irq_demux		= highlander_irq_demux,
+	.mv_readb		= highlander_readb,
+	.mv_writeb		= highlander_writeb,
 };

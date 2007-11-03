@@ -1,4 +1,4 @@
-/* $Id: vmlinux.lds.S,v 1.8 2003/05/16 17:18:14 lethal Exp $
+/*
  * ld script to make SuperH Linux kernel
  * Written by Niibe Yutaka
  */
@@ -15,121 +15,124 @@ OUTPUT_ARCH(sh)
 ENTRY(_start)
 SECTIONS
 {
-  . = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
-  _text = .;			/* Text and read-only data */
-  text = .;			/* Text and read-only data */
-  .empty_zero_page : {
-	*(.empty_zero_page)
+	. = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
+	_text = .;			/* Text and read-only data */
+
+	.empty_zero_page : {
+		*(.empty_zero_page)
 	} = 0
-  .text : {
-  	*(.text.head)
-	TEXT_TEXT
-	SCHED_TEXT
-	LOCK_TEXT
-	*(.fixup)
-	*(.gnu.warning)
+
+	.text : {
+		*(.text.head)
+		TEXT_TEXT
+		SCHED_TEXT
+		LOCK_TEXT
+		KPROBES_TEXT
+		*(.fixup)
+		*(.gnu.warning)
 	} = 0x0009
 
-  . = ALIGN(16);		/* Exception table */
-  __start___ex_table = .;
-  __ex_table : { *(__ex_table) }
-  __stop___ex_table = .;
+	. = ALIGN(16);		/* Exception table */
+	__start___ex_table = .;
+	__ex_table : { *(__ex_table) }
+	__stop___ex_table = .;
 
-  _etext = .;			/* End of text section */
+	_etext = .;			/* End of text section */
 
-  RODATA
+	BUG_TABLE
+	NOTES
+	RO_DATA(PAGE_SIZE)
 
-  BUG_TABLE
+	. = ALIGN(THREAD_SIZE);
+	.data : {			/* Data */
+		*(.data.init_task)
 
-  .data : {			/* Data */
-	DATA_DATA
+		. = ALIGN(L1_CACHE_BYTES);
+		*(.data.cacheline_aligned)
 
- 	 /* Align the initial ramdisk image (INITRD) on page boundaries. */
- 	 . = ALIGN(PAGE_SIZE);
- 	 __rd_start = .;
- 	 *(.initrd)
- 	 . = ALIGN(PAGE_SIZE);
- 	 __rd_end = .;
+		. = ALIGN(L1_CACHE_BYTES);
+		*(.data.read_mostly)
 
-	CONSTRUCTORS
+		. = ALIGN(PAGE_SIZE);
+		*(.data.page_aligned)
+
+		__nosave_begin = .;
+		*(.data.nosave)
+		. = ALIGN(PAGE_SIZE);
+		__nosave_end = .;
+
+		DATA_DATA
+		CONSTRUCTORS
 	}
 
-  . = ALIGN(PAGE_SIZE);
-  .data.page_aligned : { *(.data.page_aligned) }
-  __nosave_begin = .;
-  .data_nosave : { *(.data.nosave) }
-  . = ALIGN(PAGE_SIZE);
-  __nosave_end = .;
+	_edata = .;			/* End of data section */
 
-  PERCPU(PAGE_SIZE)
+	. = ALIGN(PAGE_SIZE);		/* Init code and data */
+	__init_begin = .;
+	_sinittext = .;
+	.init.text : { *(.init.text) }
+	_einittext = .;
+	.init.data : { *(.init.data) }
 
-  . = ALIGN(L1_CACHE_BYTES);
-  .data.cacheline_aligned : { *(.data.cacheline_aligned) }
+	. = ALIGN(16);
+	__setup_start = .;
+	.init.setup : { *(.init.setup) }
+	__setup_end = .;
 
-  _edata = .;			/* End of data section */
+	__initcall_start = .;
+	.initcall.init : {
+		INITCALLS
+	}
+	__initcall_end = .;
+	__con_initcall_start = .;
+	.con_initcall.init : { *(.con_initcall.init) }
+	__con_initcall_end = .;
 
-  . = ALIGN(THREAD_SIZE);		/* init_task */
-  .data.init_task : { *(.data.init_task) }
-
-  . = ALIGN(PAGE_SIZE);		/* Init code and data */
-  __init_begin = .;
-  _sinittext = .;
-  .init.text : { *(.init.text) }
-  _einittext = .;
-  .init.data : { *(.init.data) }
-  . = ALIGN(16);
-  __setup_start = .;
-  .init.setup : { *(.init.setup) }
-  __setup_end = .;
-  __initcall_start = .;
-  .initcall.init : {
-	INITCALLS
-  }
-  __initcall_end = .;
-  __con_initcall_start = .;
-  .con_initcall.init : { *(.con_initcall.init) }
-  __con_initcall_end = .;
-  SECURITY_INIT
-
-  /* .exit.text is discarded at runtime, not link time, to deal with
-     references from .rodata */
-  .exit.text : { *(.exit.text) }
-  .exit.data : { *(.exit.data) }
+	SECURITY_INIT
 
 #ifdef CONFIG_BLK_DEV_INITRD
-  . = ALIGN(PAGE_SIZE);
-
-  __initramfs_start = .;
-  .init.ramfs : { *(.init.ramfs) }
-  __initramfs_end = .;
+	. = ALIGN(PAGE_SIZE);
+	__initramfs_start = .;
+	.init.ramfs : { *(.init.ramfs) }
+	__initramfs_end = .;
 #endif
 
- . = ALIGN(4);
-  __machvec_start = .;
-  .machvec.init : { *(.machvec.init) }
-  __machvec_end = .;
-
-  . = ALIGN(PAGE_SIZE);
-  .bss : {
-	__init_end = .;
-	__bss_start = .;		/* BSS */
-  	*(.bss.page_aligned)
-  	*(.bss)
 	. = ALIGN(4);
-	_ebss = .;			/* uClinux MTD sucks */
-	_end = . ;
-  }
+	__machvec_start = .;
+	.machvec.init : { *(.machvec.init) }
+	__machvec_end = .;
 
-  /* When something in the kernel is NOT compiled as a module, the
-   * module cleanup code and data are put into these segments.  Both
-   * can then be thrown away, as cleanup code is never called unless
-   * it's a module.
-   */
-  /DISCARD/ : {
-	*(.exitcall.exit)
+	PERCPU(PAGE_SIZE)
+
+	/*
+	 * .exit.text is discarded at runtime, not link time, to deal with
+	 * references from __bug_table
+	 */
+	.exit.text : { *(.exit.text) }
+	.exit.data : { *(.exit.data) }
+
+	. = ALIGN(PAGE_SIZE);
+	.bss : {
+		__init_end = .;
+		__bss_start = .;		/* BSS */
+		*(.bss.page_aligned)
+		*(.bss)
+		*(COMMON)
+		. = ALIGN(4);
+		_ebss = .;			/* uClinux MTD sucks */
+		_end = . ;
 	}
 
-  STABS_DEBUG
+	/*
+	 * When something in the kernel is NOT compiled as a module, the
+	 * module cleanup code and data are put into these segments. Both
+	 * can then be thrown away, as cleanup code is never called unless
+	 * it's a module.
+	 */
+	/DISCARD/ : {
+		*(.exitcall.exit)
+	}
 
-  DWARF_DEBUG
+	STABS_DEBUG
+	DWARF_DEBUG
 }

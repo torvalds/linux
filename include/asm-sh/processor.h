@@ -71,7 +71,7 @@ struct sh_cpuinfo {
 	struct cache_info scache;	/* Secondary cache */
 
 	unsigned long flags;
-} __attribute__ ((aligned(SMP_CACHE_BYTES)));
+} __attribute__ ((aligned(L1_CACHE_BYTES)));
 
 extern struct sh_cpuinfo cpu_data[];
 #define boot_cpu_data cpu_data[0]

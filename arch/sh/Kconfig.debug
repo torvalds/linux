@@ -86,6 +86,14 @@ config 4KSTACKS
 	  on the VM subsystem for higher order allocations. This option
 	  will also use IRQ stacks to compensate for the reduced stackspace.
 
+config IRQSTACKS
+	bool "Use separate kernel stacks when processing interrupts"
+	depends on DEBUG_KERNEL
+	help
+	  If you say Y here the kernel will use separate kernel stacks
+	  for handling hard and soft interrupts.  This can help avoid
+	  overflowing the process kernel stacks.
+
 config SH_KGDB
 	bool "Include KGDB kernel debugger"
 	select FRAME_POINTER

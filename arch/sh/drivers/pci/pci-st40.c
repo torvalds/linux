@@ -114,7 +114,7 @@ static struct pci_err int_error[]={
   { INT_MWPDI,  "MWPDI: PERR from target at data write"},
   { INT_MRDPEI, "MRDPEI: Master read data parity error"}
 };
-#define NUM_PCI_INT_ERRS (sizeof(int_error)/sizeof(struct pci_err))
+#define NUM_PCI_INT_ERRS ARRAY_SIZE(int_error)
 
 static struct pci_err aint_error[]={
   { AINT_MBI,   "MBI: Master broken"},
@@ -126,7 +126,7 @@ static struct pci_err aint_error[]={
   { AINT_WDPE,  "WDPE: Write data parity"}
 };
 
-#define NUM_PCI_AINT_ERRS (sizeof(aint_error)/sizeof(struct pci_err))
+#define NUM_PCI_AINT_ERRS ARRAY_SIZE(aint_error)
 
 static void print_pci_errors(unsigned reg,struct pci_err *error,int num_errors)
 {

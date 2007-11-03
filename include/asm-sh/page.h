@@ -128,7 +128,6 @@ typedef struct { unsigned long pgd; } pgd_t;
 #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
-#define phys_to_page(phys)	(pfn_to_page(phys >> PAGE_SHIFT))
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 /* PFN start number, because of __MEMORY_START */

@@ -41,7 +41,7 @@ static inline int generic_irq_demux(int irq)
 #define irq_canonicalize(irq)	(irq)
 #define irq_demux(irq)		sh_mv.mv_irq_demux(irq)
 
-#ifdef CONFIG_4KSTACKS
+#ifdef CONFIG_IRQSTACKS
 extern void irq_ctx_init(int cpu);
 extern void irq_ctx_exit(int cpu);
 # define __ARCH_HAS_DO_SOFTIRQ

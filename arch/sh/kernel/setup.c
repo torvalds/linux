@@ -32,12 +32,6 @@
 #include <asm/clock.h>
 #include <asm/mmu_context.h>
 
-extern void * __rd_start, * __rd_end;
-
-/*
- * Machine setup..
- */
-
 /*
  * Initialize loops_per_jiffy as 10000000 (1000MIPS).
  * This value will be used at the very early stage of serial setup.
@@ -63,33 +57,25 @@ struct screen_info screen_info;
 
 extern int root_mountflags;
 
-/*
- * This is set up by the setup-routine at boot-time
- */
-#define PARAM	((unsigned char *)empty_zero_page)
-
-#define MOUNT_ROOT_RDONLY (*(unsigned long *) (PARAM+0x000))
-#define RAMDISK_FLAGS (*(unsigned long *) (PARAM+0x004))
-#define ORIG_ROOT_DEV (*(unsigned long *) (PARAM+0x008))
-#define LOADER_TYPE (*(unsigned long *) (PARAM+0x00c))
-#define INITRD_START (*(unsigned long *) (PARAM+0x010))
-#define INITRD_SIZE (*(unsigned long *) (PARAM+0x014))
-/* ... */
-#define COMMAND_LINE ((char *) (PARAM+0x100))
-
 #define RAMDISK_IMAGE_START_MASK	0x07FF
 #define RAMDISK_PROMPT_FLAG		0x8000
 #define RAMDISK_LOAD_FLAG		0x4000
 
 static char __initdata command_line[COMMAND_LINE_SIZE] = { 0, };
 
-static struct resource code_resource = { .name = "Kernel code", };
-static struct resource data_resource = { .name = "Kernel data", };
+static struct resource code_resource = {
+	.name = "Kernel code",
+	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
+};
+
+static struct resource data_resource = {
+	.name = "Kernel data",
+	.flags = IORESOURCE_BUSY | IORESOURCE_MEM,
+};
 
 unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
-
-unsigned long memory_end;
+unsigned long memory_end = 0;
 EXPORT_SYMBOL(memory_end);
 
 static int __init early_parse_mem(char *p)
@@ -195,14 +181,7 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	sparse_memory_present_with_active_regions(0);
 
 #ifdef CONFIG_BLK_DEV_INITRD
-	ROOT_DEV = MKDEV(RAMDISK_MAJOR, 0);
-	if (&__rd_start != &__rd_end) {
-		LOADER_TYPE = 1;
-		INITRD_START = PHYSADDR((unsigned long)&__rd_start) -
-					__MEMORY_START;
-		INITRD_SIZE = (unsigned long)&__rd_end -
-			      (unsigned long)&__rd_start;
-	}
+	ROOT_DEV = Root_RAM0;
 
 	if (LOADER_TYPE && INITRD_START) {
 		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
@@ -265,7 +244,8 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.end = virt_to_phys(_edata)-1;
 
 	memory_start = (unsigned long)PAGE_OFFSET+__MEMORY_START;
-	memory_end = memory_start + __MEMORY_SIZE;
+	if (!memory_end)
+		memory_end = memory_start + __MEMORY_SIZE;
 
 #ifdef CONFIG_CMDLINE_BOOL
 	strlcpy(command_line, CONFIG_CMDLINE, sizeof(command_line));

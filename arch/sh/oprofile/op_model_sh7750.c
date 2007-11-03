@@ -16,7 +16,6 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/fs.h>
-#include <linux/notifier.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -43,8 +42,6 @@
  * SH7750/SH7750S have 2 perf counters
  */
 #define NR_CNTRS	2
-
-extern const char *get_cpu_subtype(void);
 
 struct op_counter_config {
 	unsigned long enabled;
@@ -111,16 +108,11 @@ static struct op_counter_config ctr[NR_CNTRS];
  * behavior.
  */
 
-static int sh7750_timer_notify(struct notifier_block *self,
-			       unsigned long val, void *regs)
+static int sh7750_timer_notify(struct pt_regs *regs)
 {
-	oprofile_add_sample((struct pt_regs *)regs, 0);
+	oprofile_add_sample(regs, 0);
 	return 0;
 }
-
-static struct notifier_block sh7750_timer_notifier = {
-	.notifier_call		= sh7750_timer_notify,
-};
 
 static u64 sh7750_read_counter(int counter)
 {
@@ -240,7 +232,7 @@ static int sh7750_perf_counter_start(void)
 		ctrl_outw(pmcr | PMCR_ENABLE, PMCR2);
 	}
 
-	return register_profile_notifier(&sh7750_timer_notifier);
+	return register_timer_hook(sh7750_timer_notify);
 }
 
 static void sh7750_perf_counter_stop(void)
@@ -248,7 +240,7 @@ static void sh7750_perf_counter_stop(void)
 	ctrl_outw(ctrl_inw(PMCR1) & ~PMCR_PMEN, PMCR1);
 	ctrl_outw(ctrl_inw(PMCR2) & ~PMCR_PMEN, PMCR2);
 
-	unregister_profile_notifier(&sh7750_timer_notifier);
+	unregister_timer_hook(sh7750_timer_notify);
 }
 
 static struct oprofile_operations sh7750_perf_counter_ops = {
@@ -257,13 +249,13 @@ static struct oprofile_operations sh7750_perf_counter_ops = {
 	.stop		= sh7750_perf_counter_stop,
 };
 
-int __init oprofile_arch_init(struct oprofile_operations **ops)
+int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
 	if (!(current_cpu_data.flags & CPU_HAS_PERF_COUNTER))
 		return -ENODEV;
 
-	sh7750_perf_counter_ops.cpu_type = (char *)get_cpu_subtype();
-	*ops = &sh7750_perf_counter_ops;
+	ops = &sh7750_perf_counter_ops;
+	ops->cpu_type = (char *)get_cpu_subtype(&current_cpu_data);
 
 	printk(KERN_INFO "oprofile: using SH-4 (%s) performance monitoring.\n",
 	       sh7750_perf_counter_ops.cpu_type);

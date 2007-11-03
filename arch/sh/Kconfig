@@ -182,9 +182,7 @@ config CPU_HAS_IPR_IRQ
 	bool
 
 config CPU_HAS_SR_RB
-	bool "CPU has SR.RB"
-	depends on CPU_SH3 || CPU_SH4
-	default y
+	bool
 	help
 	  This will enable the use of SR.RB register bank usage. Processors
 	  that are lacking this bit must have another method in place for
@@ -291,9 +289,7 @@ config SH_DREAMCAST
 	depends on CPU_SUBTYPE_SH7091
 	help
 	  Select Dreamcast if configuring for a SEGA Dreamcast.
-	  More information at
-	  <http://www.m17n.org/linux-sh/dreamcast/>.  There is a
-	  Dreamcast project is at <http://linuxdc.sourceforge.net/>.
+	  More information at <http://www.linux-sh.org>
 
 config SH_MPC1211
 	bool "Interface MPC1211"

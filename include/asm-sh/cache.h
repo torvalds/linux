@@ -18,9 +18,8 @@
 #define SH_CACHE_ASSOC		8
 
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
-#define SMP_CACHE_BYTES		L1_CACHE_BYTES
 
-#define L1_CACHE_ALIGN(x)	(((x)+(L1_CACHE_BYTES-1))&~(L1_CACHE_BYTES-1))
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
 
 #ifndef __ASSEMBLY__
 struct cache_info {
