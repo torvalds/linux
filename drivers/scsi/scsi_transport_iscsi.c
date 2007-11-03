@@ -328,9 +328,10 @@ EXPORT_SYMBOL_GPL(iscsi_add_session);
  * iscsi_create_session - create iscsi class session
  * @shost: scsi host
  * @transport: iscsi transport
+ * @target_id: which target
  *
  * This can be called from a LLD or iscsi_transport.
- **/
+ */
 struct iscsi_cls_session *
 iscsi_create_session(struct Scsi_Host *shost,
 		     struct iscsi_transport *transport,
@@ -382,7 +383,7 @@ EXPORT_SYMBOL_GPL(iscsi_free_session);
  *
  * Can be called by a LLD or iscsi_transport. There must not be
  * any running connections.
- **/
+ */
 int iscsi_destroy_session(struct iscsi_cls_session *session)
 {
 	iscsi_remove_session(session);
@@ -418,7 +419,7 @@ static int iscsi_is_conn_dev(const struct device *dev)
  * for software iscsi we could be trying to preallocate a connection struct
  * in which case there could be two connection structs and cid would be
  * non-zero.
- **/
+ */
 struct iscsi_cls_conn *
 iscsi_create_conn(struct iscsi_cls_session *session, uint32_t cid)
 {
@@ -465,10 +466,10 @@ EXPORT_SYMBOL_GPL(iscsi_create_conn);
 
 /**
  * iscsi_destroy_conn - destroy iscsi class connection
- * @session: iscsi cls session
+ * @conn: iscsi cls session
  *
- * This can be called from a LLD or iscsi_transport.
- **/
+ * This can be called from an LLD or iscsi_transport.
+ */
 int iscsi_destroy_conn(struct iscsi_cls_conn *conn)
 {
 	transport_unregister_device(&conn->dev);
@@ -690,7 +691,7 @@ iscsi_if_get_stats(struct iscsi_transport *transport, struct nlmsghdr *nlh)
  *
  * This is called by HW iscsi LLDs to notify userpsace that its HW has
  * removed a session.
- **/
+ */
 int iscsi_if_destroy_session_done(struct iscsi_cls_conn *conn)
 {
 	struct iscsi_internal *priv;
@@ -751,7 +752,7 @@ EXPORT_SYMBOL_GPL(iscsi_if_destroy_session_done);
  *
  * This is called by HW iscsi LLDs to notify userpsace that its HW has
  * created a session or a existing session is back in the logged in state.
- **/
+ */
 int iscsi_if_create_session_done(struct iscsi_cls_conn *conn)
 {
 	struct iscsi_internal *priv;

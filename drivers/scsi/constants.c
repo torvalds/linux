@@ -362,7 +362,6 @@ void scsi_print_command(struct scsi_cmnd *cmd)
 EXPORT_SYMBOL(scsi_print_command);
 
 /**
- *
  *	scsi_print_status - print scsi status description
  *	@scsi_status: scsi status value
  *

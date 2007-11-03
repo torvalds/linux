@@ -779,7 +779,7 @@ static int scsi_request_sense(struct scsi_cmnd *scmd)
  * Notes:
  *    We don't want to use the normal command completion while we are are
  *    still handling errors - it may cause other commands to be queued,
- *    and that would disturb what we are doing.  thus we really want to
+ *    and that would disturb what we are doing.  Thus we really want to
  *    keep a list of pending commands for final completion, and once we
  *    are ready to leave error handling we handle completion for real.
  **/
@@ -794,7 +794,7 @@ EXPORT_SYMBOL(scsi_eh_finish_cmd);
 /**
  * scsi_eh_get_sense - Get device sense data.
  * @work_q:	Queue of commands to process.
- * @done_q:	Queue of proccessed commands..
+ * @done_q:	Queue of processed commands.
  *
  * Description:
  *    See if we need to request sense information.  if so, then get it
@@ -802,7 +802,7 @@ EXPORT_SYMBOL(scsi_eh_finish_cmd);
  *
  * Notes:
  *    This has the unfortunate side effect that if a shost adapter does
- *    not automatically request sense information, that we end up shutting
+ *    not automatically request sense information, we end up shutting
  *    it down before we request it.
  *
  *    All drivers should request sense information internally these days,
@@ -858,7 +858,7 @@ EXPORT_SYMBOL_GPL(scsi_eh_get_sense);
 
 /**
  * scsi_eh_tur - Send TUR to device.
- * @scmd:	Scsi cmd to send TUR
+ * @scmd:	&scsi_cmnd to send TUR
  *
  * Return value:
  *    0 - Device is ready. 1 - Device NOT ready.
@@ -887,14 +887,14 @@ retry_tur:
 }
 
 /**
- * scsi_eh_abort_cmds - abort canceled commands.
- * @shost:	scsi host being recovered.
- * @eh_done_q:	list_head for processed commands.
+ * scsi_eh_abort_cmds - abort pending commands.
+ * @work_q:	&list_head for pending commands.
+ * @done_q:	&list_head for processed commands.
  *
  * Decription:
  *    Try and see whether or not it makes sense to try and abort the
- *    running command.  this only works out to be the case if we have one
- *    command that has timed out.  if the command simply failed, it makes
+ *    running command.  This only works out to be the case if we have one
+ *    command that has timed out.  If the command simply failed, it makes
  *    no sense to try and abort the command, since as far as the shost
  *    adapter is concerned, it isn't running.
  **/
@@ -931,7 +931,7 @@ static int scsi_eh_abort_cmds(struct list_head *work_q,
 
 /**
  * scsi_eh_try_stu - Send START_UNIT to device.
- * @scmd:	Scsi cmd to send START_UNIT
+ * @scmd:	&scsi_cmnd to send START_UNIT
  *
  * Return value:
  *    0 - Device is ready. 1 - Device NOT ready.
@@ -956,8 +956,9 @@ static int scsi_eh_try_stu(struct scsi_cmnd *scmd)
 
  /**
  * scsi_eh_stu - send START_UNIT if needed
- * @shost:	scsi host being recovered.
- * @eh_done_q:	list_head for processed commands.
+ * @shost:	&scsi host being recovered.
+ * @work_q:     &list_head for pending commands.
+ * @done_q:	&list_head for processed commands.
  *
  * Notes:
  *    If commands are failing due to not ready, initializing command required,
@@ -1008,10 +1009,11 @@ static int scsi_eh_stu(struct Scsi_Host *shost,
 /**
  * scsi_eh_bus_device_reset - send bdr if needed
  * @shost:	scsi host being recovered.
- * @eh_done_q:	list_head for processed commands.
+ * @work_q:     &list_head for pending commands.
+ * @done_q:	&list_head for processed commands.
  *
  * Notes:
- *    Try a bus device reset.  still, look to see whether we have multiple
+ *    Try a bus device reset.  Still, look to see whether we have multiple
  *    devices that are jammed or not - if we have multiple devices, it
  *    makes no sense to try bus_device_reset - we really would need to try
  *    a bus_reset instead. 
@@ -1063,8 +1065,9 @@ static int scsi_eh_bus_device_reset(struct Scsi_Host *shost,
 
 /**
  * scsi_eh_bus_reset - send a bus reset 
- * @shost:	scsi host being recovered.
- * @eh_done_q:	list_head for processed commands.
+ * @shost:	&scsi host being recovered.
+ * @work_q:     &list_head for pending commands.
+ * @done_q:	&list_head for processed commands.
  **/
 static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 			     struct list_head *work_q,
@@ -1440,7 +1443,8 @@ static void scsi_restart_operations(struct Scsi_Host *shost)
 /**
  * scsi_eh_ready_devs - check device ready state and recover if not.
  * @shost: 	host to be recovered.
- * @eh_done_q:	list_head for processed commands.
+ * @work_q:     &list_head for pending commands.
+ * @done_q:	&list_head for processed commands.
  *
  **/
 void scsi_eh_ready_devs(struct Scsi_Host *shost,
@@ -1824,9 +1828,7 @@ int scsi_command_normalize_sense(struct scsi_cmnd *cmd,
 EXPORT_SYMBOL(scsi_command_normalize_sense);
 
 /**
- * scsi_sense_desc_find - search for a given descriptor type in
- *			descriptor sense data format.
- *
+ * scsi_sense_desc_find - search for a given descriptor type in	descriptor sense data format.
  * @sense_buffer:	byte array of descriptor format sense data
  * @sb_len:		number of valid bytes in sense_buffer
  * @desc_type:		value of descriptor type to find
@@ -1865,9 +1867,7 @@ const u8 * scsi_sense_desc_find(const u8 * sense_buffer, int sb_len,
 EXPORT_SYMBOL(scsi_sense_desc_find);
 
 /**
- * scsi_get_sense_info_fld - attempts to get information field from
- *			sense data (either fixed or descriptor format)
- *
+ * scsi_get_sense_info_fld - get information field from sense data (either fixed or descriptor format)
  * @sense_buffer:	byte array of sense data
  * @sb_len:		number of valid bytes in sense_buffer
  * @info_out:		pointer to 64 integer where 8 or 4 byte information

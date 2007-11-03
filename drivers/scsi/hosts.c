@@ -54,8 +54,7 @@ static struct class shost_class = {
 };
 
 /**
- *	scsi_host_set_state - Take the given host through the host
- *		state model.
+ *	scsi_host_set_state - Take the given host through the host state model.
  *	@shost:	scsi host to change the state of.
  *	@state:	state to change to.
  *
@@ -431,7 +430,6 @@ EXPORT_SYMBOL(scsi_unregister);
 
 /**
  * scsi_host_lookup - get a reference to a Scsi_Host by host no
- *
  * @hostnum:	host number to locate
  *
  * Return value:

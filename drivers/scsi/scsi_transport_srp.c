@@ -242,8 +242,8 @@ struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 EXPORT_SYMBOL_GPL(srp_rport_add);
 
 /**
- * srp_rport_del  --  remove a SRP remote port
- * @port:	SRP remote port to remove
+ * srp_rport_del  -  remove a SRP remote port
+ * @rport:	SRP remote port to remove
  *
  * Removes the specified SRP remote port.
  */
@@ -271,7 +271,7 @@ static int do_srp_rport_del(struct device *dev, void *data)
 }
 
 /**
- * srp_remove_host  --  tear down a Scsi_Host's SRP data structures
+ * srp_remove_host  -  tear down a Scsi_Host's SRP data structures
  * @shost:	Scsi Host that is torn down
  *
  * Removes all SRP remote ports for a given Scsi_Host.
@@ -297,7 +297,7 @@ static int srp_it_nexus_response(struct Scsi_Host *shost, u64 nexus, int result)
 }
 
 /**
- * srp_attach_transport  --  instantiate SRP transport template
+ * srp_attach_transport  -  instantiate SRP transport template
  * @ft:		SRP transport class function template
  */
 struct scsi_transport_template *
@@ -337,7 +337,7 @@ srp_attach_transport(struct srp_function_template *ft)
 EXPORT_SYMBOL_GPL(srp_attach_transport);
 
 /**
- * srp_release_transport  --  release SRP transport template instance
+ * srp_release_transport  -  release SRP transport template instance
  * @t:		transport template instance
  */
 void srp_release_transport(struct scsi_transport_template *t)
