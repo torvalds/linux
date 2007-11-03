@@ -647,8 +647,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 						 count - 16,
 						 &server->secType);
 			if (rc == 1) {
-			/* BB Need to fill struct for sessetup here */
-				rc = -EOPNOTSUPP;
+				rc = 0;
 			} else {
 				rc = -EINVAL;
 			}
