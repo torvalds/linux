@@ -704,8 +704,8 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 
 /**
  *	ata_dev_enable_pm - enable SATA interface power management
- *	@device - device to enable ipm for
- *	@policy - the link power management policy
+ *	@dev:  device to enable power management
+ *	@policy: the link power management policy
  *
  *	Enable SATA Interface power management.  This will enable
  *	Device Interface Power Management (DIPM) for min_power
@@ -735,9 +735,10 @@ enable_pm_out:
 	return /* rc */;	/* hopefully we can use 'rc' eventually */
 }
 
+#ifdef CONFIG_PM
 /**
  *	ata_dev_disable_pm - disable SATA interface power management
- *	@device - device to enable ipm for
+ *	@dev: device to disable power management
  *
  *	Disable SATA Interface power management.  This will disable
  *	Device Interface Power Management (DIPM) without changing
@@ -755,6 +756,7 @@ static void ata_dev_disable_pm(struct ata_device *dev)
 	if (ap->ops->disable_pm)
 		ap->ops->disable_pm(ap);
 }
+#endif	/* CONFIG_PM */
 
 void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
 {
@@ -764,6 +766,7 @@ void ata_lpm_schedule(struct ata_port *ap, enum link_pm policy)
 	ata_port_schedule_eh(ap);
 }
 
+#ifdef CONFIG_PM
 static void ata_lpm_enable(struct ata_host *host)
 {
 	struct ata_link *link;
@@ -789,6 +792,7 @@ static void ata_lpm_disable(struct ata_host *host)
 		ata_lpm_schedule(ap, ap->pm_policy);
 	}
 }
+#endif	/* CONFIG_PM */
 
 
 /**
@@ -2300,6 +2304,10 @@ int ata_dev_configure(struct ata_device *dev)
 		dev->max_sectors = ATA_MAX_SECTORS;
 	}
 
+	if ((dev->class == ATA_DEV_ATAPI) &&
+	    (atapi_command_packet_set(id) == TYPE_TAPE))
+		dev->max_sectors = ATA_MAX_SECTORS_TAPE;
+
 	if (dev->horkage & ATA_HORKAGE_MAX_SEC_128)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
 					 dev->max_sectors);
@@ -2743,17 +2751,27 @@ int sata_down_spd_limit(struct ata_link *link)
 
 static int __sata_set_spd_needed(struct ata_link *link, u32 *scontrol)
 {
-	u32 spd, limit;
+	struct ata_link *host_link = &link->ap->link;
+	u32 limit, target, spd;
 
-	if (link->sata_spd_limit == UINT_MAX)
-		limit = 0;
+	limit = link->sata_spd_limit;
+
+	/* Don't configure downstream link faster than upstream link.
+	 * It doesn't speed up anything and some PMPs choke on such
+	 * configuration.
+	 */
+	if (!ata_is_host_link(link) && host_link->sata_spd)
+		limit &= (1 << host_link->sata_spd) - 1;
+
+	if (limit == UINT_MAX)
+		target = 0;
 	else
-		limit = fls(link->sata_spd_limit);
+		target = fls(limit);
 
 	spd = (*scontrol >> 4) & 0xf;
-	*scontrol = (*scontrol & ~0xf0) | ((limit & 0xf) << 4);
+	*scontrol = (*scontrol & ~0xf0) | ((target & 0xf) << 4);
 
-	return spd != limit;
+	return spd != target;
 }
 
 /**
@@ -2776,7 +2794,7 @@ int sata_set_spd_needed(struct ata_link *link)
 	u32 scontrol;
 
 	if (sata_scr_read(link, SCR_CONTROL, &scontrol))
-		return 0;
+		return 1;
 
 	return __sata_set_spd_needed(link, &scontrol);
 }

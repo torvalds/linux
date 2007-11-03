@@ -120,7 +120,7 @@ static const struct {
 	{ MEDIUM_POWER, "medium_power" },
 };
 
-const char *ata_scsi_lpm_get(enum link_pm policy)
+static const char *ata_scsi_lpm_get(enum link_pm policy)
 {
 	int i;
 

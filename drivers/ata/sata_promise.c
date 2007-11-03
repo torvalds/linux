@@ -587,7 +587,7 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 			VPRINTK("Splitting last PRD.\n");
 
 			addr = le32_to_cpu(ap->prd[idx - 1].addr);
-			ap->prd[idx - 1].flags_len -= cpu_to_le32(SG_COUNT_ASIC_BUG);
+			ap->prd[idx - 1].flags_len = cpu_to_le32(len - SG_COUNT_ASIC_BUG);
 			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx - 1, addr, SG_COUNT_ASIC_BUG);
 
 			addr = addr + len - SG_COUNT_ASIC_BUG;

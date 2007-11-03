@@ -1747,6 +1747,7 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 {
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
+	struct ata_device *dev;
 	unsigned int all_err_mask = 0;
 	int tag, is_io = 0;
 	u32 serror;
@@ -1818,17 +1819,23 @@ static void ata_eh_link_autopsy(struct ata_link *link)
 		 (!is_io && (all_err_mask & ~AC_ERR_DEV)))
 		ehc->i.action |= ATA_EH_REVALIDATE;
 
-	/* if we have offending qcs and the associated failed device */
+	/* If we have offending qcs and the associated failed device,
+	 * perform per-dev EH action only on the offending device.
+	 */
 	if (ehc->i.dev) {
-		/* speed down */
-		ehc->i.action |= ata_eh_speed_down(ehc->i.dev, is_io,
-						   all_err_mask);
-
-		/* perform per-dev EH action only on the offending device */
 		ehc->i.dev_action[ehc->i.dev->devno] |=
 			ehc->i.action & ATA_EH_PERDEV_MASK;
 		ehc->i.action &= ~ATA_EH_PERDEV_MASK;
 	}
+
+	/* consider speeding down */
+	dev = ehc->i.dev;
+	if (!dev && ata_link_max_devices(link) == 1 &&
+	    ata_dev_enabled(link->device))
+		dev = link->device;
+
+	if (dev)
+		ehc->i.action |= ata_eh_speed_down(dev, is_io, all_err_mask);
 
 	DPRINTK("EXIT\n");
 }
@@ -2065,16 +2072,19 @@ int ata_eh_reset(struct ata_link *link, int classify,
 		 ata_prereset_fn_t prereset, ata_reset_fn_t softreset,
 		 ata_reset_fn_t hardreset, ata_postreset_fn_t postreset)
 {
+	const int max_tries = ARRAY_SIZE(ata_eh_reset_timeouts);
 	struct ata_port *ap = link->ap;
 	struct ata_eh_context *ehc = &link->eh_context;
 	unsigned int *classes = ehc->classes;
+	unsigned int lflags = link->flags;
 	int verbose = !(ehc->i.flags & ATA_EHI_QUIET);
 	int try = 0;
 	struct ata_device *dev;
-	unsigned long deadline;
+	unsigned long deadline, now;
 	unsigned int tmp_action;
 	ata_reset_fn_t reset;
 	unsigned long flags;
+	u32 sstatus;
 	int rc;
 
 	/* about to reset */
@@ -2106,7 +2116,7 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	/* Determine which reset to use and record in ehc->i.action.
 	 * prereset() may examine and modify it.
 	 */
-	if (softreset && (!hardreset || (!(link->flags & ATA_LFLAG_NO_SRST) &&
+	if (softreset && (!hardreset || (!(lflags & ATA_LFLAG_NO_SRST) &&
 					 !sata_set_spd_needed(link) &&
 					 !(ehc->i.action & ATA_EH_HARDRESET))))
 		tmp_action = ATA_EH_SOFTRESET;
@@ -2181,82 +2191,64 @@ int ata_eh_reset(struct ata_link *link, int classify,
 					"follow-up softreset required "
 					"but no softreset avaliable\n");
 			rc = -EINVAL;
-			goto out;
+			goto fail;
 		}
 
 		ata_eh_about_to_do(link, NULL, ATA_EH_RESET_MASK);
 		rc = ata_do_reset(link, reset, classes, deadline);
+	}
 
-		if (rc == 0 && classify && classes[0] == ATA_DEV_UNKNOWN &&
-		    !(link->flags & ATA_LFLAG_ASSUME_CLASS)) {
-			ata_link_printk(link, KERN_ERR,
+	/* -EAGAIN can happen if we skipped followup SRST */
+	if (rc && rc != -EAGAIN)
+		goto fail;
+
+	/* was classification successful? */
+	if (classify && classes[0] == ATA_DEV_UNKNOWN &&
+	    !(lflags & ATA_LFLAG_ASSUME_CLASS)) {
+		if (try < max_tries) {
+			ata_link_printk(link, KERN_WARNING,
 					"classification failed\n");
 			rc = -EINVAL;
-			goto out;
-		}
-	}
-
-	/* if we skipped follow-up srst, clear rc */
-	if (rc == -EAGAIN)
-		rc = 0;
-
-	if (rc && rc != -ERESTART && try < ARRAY_SIZE(ata_eh_reset_timeouts)) {
-		unsigned long now = jiffies;
-
-		if (time_before(now, deadline)) {
-			unsigned long delta = deadline - jiffies;
-
-			ata_link_printk(link, KERN_WARNING, "reset failed "
-				"(errno=%d), retrying in %u secs\n",
-				rc, (jiffies_to_msecs(delta) + 999) / 1000);
-
-			while (delta)
-				delta = schedule_timeout_uninterruptible(delta);
+			goto fail;
 		}
 
-		if (rc == -EPIPE ||
-		    try == ARRAY_SIZE(ata_eh_reset_timeouts) - 1)
-			sata_down_spd_limit(link);
-		if (hardreset)
-			reset = hardreset;
-		goto retry;
+		ata_link_printk(link, KERN_WARNING,
+				"classfication failed, assuming ATA\n");
+		lflags |= ATA_LFLAG_ASSUME_ATA;
 	}
 
-	if (rc == 0) {
-		u32 sstatus;
+	ata_link_for_each_dev(dev, link) {
+		/* After the reset, the device state is PIO 0 and the
+		 * controller state is undefined.  Reset also wakes up
+		 * drives from sleeping mode.
+		 */
+		dev->pio_mode = XFER_PIO_0;
+		dev->flags &= ~ATA_DFLAG_SLEEPING;
 
-		ata_link_for_each_dev(dev, link) {
-			/* After the reset, the device state is PIO 0
-			 * and the controller state is undefined.
-			 * Reset also wakes up drives from sleeping
-			 * mode.
-			 */
-			dev->pio_mode = XFER_PIO_0;
-			dev->flags &= ~ATA_DFLAG_SLEEPING;
+		if (ata_link_offline(link))
+			continue;
 
-			if (ata_link_offline(link))
-				continue;
-
-			/* apply class override and convert UNKNOWN to NONE */
-			if (link->flags & ATA_LFLAG_ASSUME_ATA)
-				classes[dev->devno] = ATA_DEV_ATA;
-			else if (link->flags & ATA_LFLAG_ASSUME_SEMB)
-				classes[dev->devno] = ATA_DEV_SEMB_UNSUP; /* not yet */
-			else if (classes[dev->devno] == ATA_DEV_UNKNOWN)
-				classes[dev->devno] = ATA_DEV_NONE;
-		}
-
-		/* record current link speed */
-		if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0)
-			link->sata_spd = (sstatus >> 4) & 0xf;
-
-		if (postreset)
-			postreset(link, classes);
-
-		/* reset successful, schedule revalidation */
-		ata_eh_done(link, NULL, ehc->i.action & ATA_EH_RESET_MASK);
-		ehc->i.action |= ATA_EH_REVALIDATE;
+		/* apply class override and convert UNKNOWN to NONE */
+		if (lflags & ATA_LFLAG_ASSUME_ATA)
+			classes[dev->devno] = ATA_DEV_ATA;
+		else if (lflags & ATA_LFLAG_ASSUME_SEMB)
+			classes[dev->devno] = ATA_DEV_SEMB_UNSUP; /* not yet */
+		else if (classes[dev->devno] == ATA_DEV_UNKNOWN)
+			classes[dev->devno] = ATA_DEV_NONE;
 	}
+
+	/* record current link speed */
+	if (sata_scr_read(link, SCR_STATUS, &sstatus) == 0)
+		link->sata_spd = (sstatus >> 4) & 0xf;
+
+	if (postreset)
+		postreset(link, classes);
+
+	/* reset successful, schedule revalidation */
+	ata_eh_done(link, NULL, ehc->i.action & ATA_EH_RESET_MASK);
+	ehc->i.action |= ATA_EH_REVALIDATE;
+
+	rc = 0;
  out:
 	/* clear hotplug flag */
 	ehc->i.flags &= ~ATA_EHI_HOTPLUGGED;
@@ -2266,6 +2258,28 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	spin_unlock_irqrestore(ap->lock, flags);
 
 	return rc;
+
+ fail:
+	if (rc == -ERESTART || try >= max_tries)
+		goto out;
+
+	now = jiffies;
+	if (time_before(now, deadline)) {
+		unsigned long delta = deadline - now;
+
+		ata_link_printk(link, KERN_WARNING, "reset failed "
+				"(errno=%d), retrying in %u secs\n",
+				rc, (jiffies_to_msecs(delta) + 999) / 1000);
+
+		while (delta)
+			delta = schedule_timeout_uninterruptible(delta);
+	}
+
+	if (rc == -EPIPE || try == max_tries - 1)
+		sata_down_spd_limit(link);
+	if (hardreset)
+		reset = hardreset;
+	goto retry;
 }
 
 static int ata_eh_revalidate_and_attach(struct ata_link *link,
