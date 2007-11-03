@@ -3221,6 +3221,7 @@ static inline void __generic_make_request(struct bio *bio)
 	sector_t old_sector;
 	int ret, nr_sectors = bio_sectors(bio);
 	dev_t old_dev;
+	int err = -EIO;
 
 	might_sleep();
 
@@ -3248,7 +3249,7 @@ static inline void __generic_make_request(struct bio *bio)
 				bdevname(bio->bi_bdev, b),
 				(long long) bio->bi_sector);
 end_io:
-			bio_endio(bio, -EIO);
+			bio_endio(bio, err);
 			break;
 		}
 
@@ -3283,6 +3284,10 @@ end_io:
 
 		if (bio_check_eod(bio, nr_sectors))
 			goto end_io;
+		if (bio_empty_barrier(bio) && !q->prepare_flush_fn) {
+			err = -EOPNOTSUPP;
+			goto end_io;
+		}
 
 		ret = q->make_request_fn(q, bio);
 	} while (ret);

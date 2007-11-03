@@ -55,6 +55,20 @@ static void deadline_move_request(struct deadline_data *, struct request *);
 
 #define RQ_RB_ROOT(dd, rq)	(&(dd)->sort_list[rq_data_dir((rq))])
 
+/*
+ * get the request after `rq' in sector-sorted order
+ */
+static inline struct request *
+deadline_latter_request(struct request *rq)
+{
+	struct rb_node *node = rb_next(&rq->rb_node);
+
+	if (node)
+		return rb_entry_rq(node);
+
+	return NULL;
+}
+
 static void
 deadline_add_rq_rb(struct deadline_data *dd, struct request *rq)
 {
@@ -74,13 +88,8 @@ deadline_del_rq_rb(struct deadline_data *dd, struct request *rq)
 {
 	const int data_dir = rq_data_dir(rq);
 
-	if (dd->next_rq[data_dir] == rq) {
-		struct rb_node *rbnext = rb_next(&rq->rb_node);
-
-		dd->next_rq[data_dir] = NULL;
-		if (rbnext)
-			dd->next_rq[data_dir] = rb_entry_rq(rbnext);
-	}
+	if (dd->next_rq[data_dir] == rq)
+		dd->next_rq[data_dir] = deadline_latter_request(rq);
 
 	elv_rb_del(RQ_RB_ROOT(dd, rq), rq);
 }
@@ -198,14 +207,11 @@ static void
 deadline_move_request(struct deadline_data *dd, struct request *rq)
 {
 	const int data_dir = rq_data_dir(rq);
-	struct rb_node *rbnext = rb_next(&rq->rb_node);
 
 	dd->next_rq[READ] = NULL;
 	dd->next_rq[WRITE] = NULL;
+	dd->next_rq[data_dir] = deadline_latter_request(rq);
 
-	if (rbnext)
-		dd->next_rq[data_dir] = rb_entry_rq(rbnext);
-	
 	dd->last_sector = rq->sector + rq->nr_sectors;
 
 	/*
@@ -301,29 +307,22 @@ dispatch_find_request:
 	/*
 	 * we are not running a batch, find best request for selected data_dir
 	 */
-	if (deadline_check_fifo(dd, data_dir)) {
-		/* An expired request exists - satisfy it */
-		dd->batching = 0;
+	if (deadline_check_fifo(dd, data_dir) || !dd->next_rq[data_dir]) {
+		/*
+		 * A deadline has expired, the last request was in the other
+		 * direction, or we have run out of higher-sectored requests.
+		 * Start again from the request with the earliest expiry time.
+		 */
 		rq = rq_entry_fifo(dd->fifo_list[data_dir].next);
-		
-	} else if (dd->next_rq[data_dir]) {
+	} else {
 		/*
 		 * The last req was the same dir and we have a next request in
 		 * sort order. No expired requests so continue on from here.
 		 */
 		rq = dd->next_rq[data_dir];
-	} else {
-		struct rb_node *node;
-		/*
-		 * The last req was the other direction or we have run out of
-		 * higher-sectored requests. Go back to the lowest sectored
-		 * request (1 way elevator) and start a new batch.
-		 */
-		dd->batching = 0;
-		node = rb_first(&dd->sort_list[data_dir]);
-		if (node)
-			rq = rb_entry_rq(node);
 	}
+
+	dd->batching = 0;
 
 dispatch_request:
 	/*
