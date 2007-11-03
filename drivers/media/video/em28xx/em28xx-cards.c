@@ -328,6 +328,29 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		}},
 	},
+	[EM2800_BOARD_VGEAR_POCKETTV] = {
+		.name         = "V-Gear PocketTV",
+		.is_em2800    = 1,
+		.vchannels    = 3,
+		.norm         = VIDEO_MODE_PAL,
+		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM28XX_SAA7113,
+		.input          = {{
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = SAA7115_COMPOSITE2,
+			.amux     = 0,
+		},{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = 1,
+		}},
+	},
 	[EM2820_BOARD_PROLINK_PLAYTV_USB2] = {
 		.name         = "Pixelview Prolink PlayTV USB 2.0",
 		.vchannels    = 3,

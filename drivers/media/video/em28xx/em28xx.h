@@ -47,6 +47,7 @@
 #define EM2820_BOARD_KWORLD_PVRTV2800RF		12
 #define EM2880_BOARD_TERRATEC_PRODIGY_XS	13
 #define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
+#define EM2800_BOARD_VGEAR_POCKETTV             15
 
 #define UNSET -1
 
@@ -335,6 +336,9 @@ extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
 
+/* em2800 registers */
+#define EM2800_AUDIOSRC_REG 0x08
+
 /* em28xx registers */
 #define CHIPID_REG	0x0a
 #define USBSUSP_REG	0x0c	/* */
@@ -390,6 +394,8 @@ extern const unsigned int em28xx_bcount;
 #define VIDEO_AC97	0x14
 
 /* register settings */
+#define EM2800_AUDIO_SRC_TUNER  0x0d
+#define EM2800_AUDIO_SRC_LINE   0x0c
 #define EM28XX_AUDIO_SRC_TUNER	0xc0
 #define EM28XX_AUDIO_SRC_LINE	0x80
 
@@ -411,6 +417,12 @@ extern const unsigned int em28xx_bcount;
 
 inline static int em28xx_audio_source(struct em28xx *dev, int input)
 {
+	if(dev->is_em2800){
+		u8 tmp = EM2800_AUDIO_SRC_TUNER;
+		if(input == EM28XX_AUDIO_SRC_LINE)
+			tmp = EM2800_AUDIO_SRC_LINE;
+		em28xx_write_regs(dev, EM2800_AUDIOSRC_REG, &tmp, 1);
+	}
 	return em28xx_write_reg_bits(dev, AUDIOSRC_REG, input, 0xc0);
 }
 
