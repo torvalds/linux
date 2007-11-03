@@ -7,6 +7,7 @@
  * Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002 Ralf Baechle (ralf@gnu.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
+#include <linux/hardirq.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>
@@ -507,7 +508,11 @@ static inline void local_r4k_flush_data_cache_page(void * addr)
 
 static void r4k_flush_data_cache_page(unsigned long addr)
 {
-	r4k_on_each_cpu(local_r4k_flush_data_cache_page, (void *) addr, 1, 1);
+	if (in_atomic())
+		local_r4k_flush_data_cache_page((void *)addr);
+	else
+		r4k_on_each_cpu(local_r4k_flush_data_cache_page, (void *) addr,
+			        1, 1);
 }
 
 struct flush_icache_range_args {
