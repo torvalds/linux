@@ -34,15 +34,6 @@ static struct resource mtx1_wdt_res[] = {
 	}
 };
 
-static struct resource mtx1_sys_btn[] = {
-	[0] = {
-		.start	= 7,
-		.end	= 7,
-		.name	= "mtx1-sys-btn-gpio",
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
 static struct platform_device mtx1_wdt = {
 	.name = "mtx1-wdt",
 	.id = 0,

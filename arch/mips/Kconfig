@@ -546,6 +546,7 @@ config SIBYTE_BIGSUR
 	select SWAP_IO_SPACE
 	select SYS_HAS_CPU_SB1
 	select SYS_SUPPORTS_BIG_ENDIAN
+	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config SNI_RM
@@ -733,13 +734,25 @@ config ARCH_MAY_HAVE_PC_FDC
 config BOOT_RAW
 	bool
 
+config CEVT_BCM1480
+	bool
+
 config CEVT_GT641XX
 	bool
 
 config CEVT_R4K
 	bool
 
+config CEVT_SB1250
+	bool
+
 config CEVT_TXX9
+	bool
+
+config CSRC_BCM1480
+	bool
+
+config CSRC_SB1250
 	bool
 
 config CFE

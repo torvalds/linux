@@ -77,7 +77,7 @@ int titan_irqflags;
 void __init plat_time_init(void)
 {
 	const u32 modebit5 = ocd_readl(0x00e4);
-	unsigned int mult = ((modebit5 >> 11) & 0x1f) + 2,
+	unsigned int mult = ((modebit5 >> 11) & 0x1f) + 2;
 	unsigned int div = ((modebit5 >> 16) & 0x1f) + 2;
 
 	if (div == 33)
