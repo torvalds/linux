@@ -77,7 +77,7 @@
 
 /* internal variables */
 static void __iomem *BASEADDR;
-static spinlock_t esb_lock; /* Guards the hardware */
+static DEFINE_SPINLOCK(esb_lock); /* Guards the hardware */
 static unsigned long timer_alive;
 static struct pci_dev *esb_pci;
 static unsigned short triggered; /* The status of the watchdog upon boot */
@@ -455,8 +455,6 @@ err_devput:
 static int __init watchdog_init (void)
 {
         int ret;
-
-        spin_lock_init(&esb_lock);
 
         /* Check whether or not the hardware watchdog is there */
         if (!esb_getdevice () || esb_pci == NULL)

@@ -48,7 +48,7 @@
 
 static unsigned long wdt_is_open;
 static char expect_close;
-static spinlock_t io_lock;
+static DEFINE_SPINLOCK(io_lock);
 
 /* You must set this - there is no sane way to probe for this board. */
 static int wdt_io = 0x2E;
@@ -327,8 +327,6 @@ static int __init
 wdt_init(void)
 {
 	int ret;
-
-	spin_lock_init(&io_lock);
 
 	printk(KERN_INFO "WDT driver for the Winbond(TM) W83627HF/THF/HG Super I/O chip initialising.\n");
 

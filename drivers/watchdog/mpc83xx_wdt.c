@@ -56,7 +56,7 @@ static int prescale = 1;
 static unsigned int timeout_sec;
 
 static unsigned long wdt_is_open;
-static spinlock_t wdt_spinlock;
+static DEFINE_SPINLOCK(wdt_spinlock);
 
 static void mpc83xx_wdt_keepalive(void)
 {
@@ -185,9 +185,6 @@ static int __devinit mpc83xx_wdt_probe(struct platform_device *dev)
 	printk(KERN_INFO "WDT driver for MPC83xx initialized. "
 		"mode:%s timeout=%d (%d seconds)\n",
 		reset ? "reset":"interrupt", timeout, timeout_sec);
-
-	spin_lock_init(&wdt_spinlock);
-
 	return 0;
 
 err_unmap:

@@ -35,10 +35,12 @@
  *	82801GDH (ICH7DH)    : document number 307013-002, 307014-009,
  *	82801GBM (ICH7-M)    : document number 307013-002, 307014-009,
  *	82801GHM (ICH7-M DH) : document number 307013-002, 307014-009,
- *	82801HB  (ICH8)      : document number 313056-002, 313057-004,
- *	82801HR  (ICH8R)     : document number 313056-002, 313057-004,
- *	82801HH  (ICH8DH)    : document number 313056-002, 313057-004,
- *	82801HO  (ICH8DO)    : document number 313056-002, 313057-004,
+ *	82801HB  (ICH8)      : document number 313056-003, 313057-009,
+ *	82801HR  (ICH8R)     : document number 313056-003, 313057-009,
+ *	82801HBM (ICH8M)     : document number 313056-003, 313057-009,
+ *	82801HH  (ICH8DH)    : document number 313056-003, 313057-009,
+ *	82801HO  (ICH8DO)    : document number 313056-003, 313057-009,
+ *	82801HEM (ICH8M-E)   : document number 313056-003, 313057-009,
  *	82801IB  (ICH9)      : document number 316972-001, 316973-001,
  *	82801IR  (ICH9R)     : document number 316972-001, 316973-001,
  *	82801IH  (ICH9DH)    : document number 316972-001, 316973-001,
@@ -95,8 +97,10 @@ enum iTCO_chipsets {
 	TCO_ICH7M,	/* ICH7-M */
 	TCO_ICH7MDH,	/* ICH7-M DH */
 	TCO_ICH8,	/* ICH8 & ICH8R */
+	TCO_ICH8ME,	/* ICH8M-E */
 	TCO_ICH8DH,	/* ICH8DH */
 	TCO_ICH8DO,	/* ICH8DO */
+	TCO_ICH8M,	/* ICH8M */
 	TCO_ICH9,	/* ICH9 */
 	TCO_ICH9R,	/* ICH9R */
 	TCO_ICH9DH,	/* ICH9DH */
@@ -125,14 +129,25 @@ static struct {
 	{"ICH7-M", 2},
 	{"ICH7-M DH", 2},
 	{"ICH8 or ICH8R", 2},
+	{"ICH8M-E", 2},
 	{"ICH8DH", 2},
 	{"ICH8DO", 2},
+	{"ICH8M", 2},
 	{"ICH9", 2},
 	{"ICH9R", 2},
 	{"ICH9DH", 2},
 	{"631xESB/632xESB", 2},
 	{NULL,0}
 };
+
+#define ITCO_PCI_DEVICE(dev, data) 	\
+	.vendor = PCI_VENDOR_ID_INTEL,	\
+	.device = dev,			\
+	.subvendor = PCI_ANY_ID,	\
+	.subdevice = PCI_ANY_ID,	\
+	.class = 0,			\
+	.class_mask = 0,		\
+	.driver_data = data
 
 /*
  * This data only exists for exporting the supported PCI ids
@@ -141,45 +156,47 @@ static struct {
  * functions that probably will be registered by other drivers.
  */
 static struct pci_device_id iTCO_wdt_pci_tbl[] = {
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AA_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH     },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801AB_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH0    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH2    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_10,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH2M   },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH3    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_12,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH3M   },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH4    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_12,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH4M   },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801E_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_CICH    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH5    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB_1,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_6300ESB },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH6    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_1,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH6M   },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH6W   },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_1,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7M   },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_31,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH7MDH },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DH  },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH8_3,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH8DO  },
-	{ PCI_VENDOR_ID_INTEL, 0x2918,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH9    },
-	{ PCI_VENDOR_ID_INTEL, 0x2916,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH9R    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH9_2,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_ICH9DH    },
-	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ESB2_0,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2671,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2672,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2673,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2674,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2675,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2676,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2677,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2678,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x2679,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x267a,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x267b,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x267c,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x267d,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x267e,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
-	{ PCI_VENDOR_ID_INTEL, 0x267f,	PCI_ANY_ID, PCI_ANY_ID, 0, 0, TCO_631XESB },
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801AA_0,	TCO_ICH    )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801AB_0,	TCO_ICH0   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801BA_0,	TCO_ICH2   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801BA_10,	TCO_ICH2M  )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801CA_0,	TCO_ICH3   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801CA_12,	TCO_ICH3M  )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801DB_0,	TCO_ICH4   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801DB_12,	TCO_ICH4M  )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801E_0,		TCO_CICH   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_82801EB_0,	TCO_ICH5   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ESB_1,		TCO_6300ESB)},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH6_0,		TCO_ICH6   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH6_1,		TCO_ICH6M  )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH6_2,		TCO_ICH6W  )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_0,		TCO_ICH7   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_1,		TCO_ICH7M  )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH7_31,		TCO_ICH7MDH)},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_0,		TCO_ICH8   )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_1,		TCO_ICH8ME )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_2,		TCO_ICH8DH )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_3,		TCO_ICH8DO )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH8_4,		TCO_ICH8M  )},
+	{ ITCO_PCI_DEVICE(0x2918,				TCO_ICH9   )},
+	{ ITCO_PCI_DEVICE(0x2916,				TCO_ICH9R  )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ICH9_2,		TCO_ICH9DH )},
+	{ ITCO_PCI_DEVICE(PCI_DEVICE_ID_INTEL_ESB2_0,		TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2671,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2672,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2673,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2674,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2675,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2676,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2677,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2678,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x2679,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x267a,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x267b,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x267c,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x267d,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x267e,				TCO_631XESB)},
+	{ ITCO_PCI_DEVICE(0x267f,				TCO_631XESB)},
 	{ 0, },			/* End of list */
 };
 MODULE_DEVICE_TABLE (pci, iTCO_wdt_pci_tbl);
@@ -300,6 +317,7 @@ static int iTCO_wdt_start(void)
 
 	/* disable chipset's NO_REBOOT bit */
 	if (iTCO_wdt_unset_NO_REBOOT_bit()) {
+		spin_unlock(&iTCO_wdt_private.io_lock);
 		printk(KERN_ERR PFX "failed to reset NO_REBOOT flag, reboot disabled by hardware\n");
 		return -EIO;
 	}
@@ -590,7 +608,7 @@ static struct miscdevice iTCO_wdt_miscdev = {
  *	Init & exit routines
  */
 
-static int iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, struct platform_device *dev)
+static int __devinit iTCO_wdt_init(struct pci_dev *pdev, const struct pci_device_id *ent, struct platform_device *dev)
 {
 	int ret;
 	u32 base_address;
@@ -694,7 +712,7 @@ out:
 	return ret;
 }
 
-static void iTCO_wdt_cleanup(void)
+static void __devexit iTCO_wdt_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -709,7 +727,7 @@ static void iTCO_wdt_cleanup(void)
 	iTCO_wdt_private.ACPIBASE = 0;
 }
 
-static int iTCO_wdt_probe(struct platform_device *dev)
+static int __devinit iTCO_wdt_probe(struct platform_device *dev)
 {
 	int found = 0;
 	struct pci_dev *pdev = NULL;
@@ -735,7 +753,7 @@ static int iTCO_wdt_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int iTCO_wdt_remove(struct platform_device *dev)
+static int __devexit iTCO_wdt_remove(struct platform_device *dev)
 {
 	if (iTCO_wdt_private.ACPIBASE)
 		iTCO_wdt_cleanup();
@@ -753,7 +771,7 @@ static void iTCO_wdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
-	.remove         = iTCO_wdt_remove,
+	.remove         = __devexit_p(iTCO_wdt_remove),
 	.shutdown       = iTCO_wdt_shutdown,
 	.suspend        = iTCO_wdt_suspend,
 	.resume         = iTCO_wdt_resume,

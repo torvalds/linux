@@ -31,7 +31,7 @@ static unsigned long ali_is_open;
 static char ali_expect_release;
 static struct pci_dev *ali_pci;
 static u32 ali_timeout_bits;	/* stores the computed timeout */
-static spinlock_t ali_lock;	/* Guards the hardware */
+static DEFINE_SPINLOCK(ali_lock);	/* Guards the hardware */
 
 /* module parameters */
 static int timeout = WATCHDOG_TIMEOUT;
@@ -397,8 +397,6 @@ static struct notifier_block ali_notifier = {
 static int __init watchdog_init(void)
 {
 	int ret;
-
-	spin_lock_init(&ali_lock);
 
 	/* Check whether or not the hardware watchdog is there */
 	if (ali_find_watchdog() != 0) {

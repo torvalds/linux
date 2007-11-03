@@ -94,7 +94,7 @@ static DEFINE_TIMER(timer, wdt_timer_ping, 0, 0);
 static unsigned long next_heartbeat;
 static unsigned long wdt_is_open;
 static char wdt_expect_close;
-static spinlock_t wdt_spinlock;
+static DEFINE_SPINLOCK(wdt_spinlock);
 
 /*
  *	Whack the dog
@@ -349,8 +349,6 @@ static void __exit w83877f_wdt_unload(void)
 static int __init w83877f_wdt_init(void)
 {
 	int rc = -EBUSY;
-
-	spin_lock_init(&wdt_spinlock);
 
 	if(timeout < 1 || timeout > 3600) /* arbitrary upper limit */
 	{

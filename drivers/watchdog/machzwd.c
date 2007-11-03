@@ -123,8 +123,8 @@ static void zf_ping(unsigned long data);
 static int zf_action = GEN_RESET;
 static unsigned long zf_is_open;
 static char zf_expect_close;
-static spinlock_t zf_lock;
-static spinlock_t zf_port_lock;
+static DEFINE_SPINLOCK(zf_lock);
+static DEFINE_SPINLOCK(zf_port_lock);
 static DEFINE_TIMER(zf_timer, zf_ping, 0, 0);
 static unsigned long next_heartbeat = 0;
 
@@ -437,9 +437,6 @@ static int __init zf_init(void)
 		action = 0;
 
 	zf_show_action(action);
-
-	spin_lock_init(&zf_lock);
-	spin_lock_init(&zf_port_lock);
 
 	if(!request_region(ZF_IOBASE, 3, "MachZ ZFL WDT")){
 		printk(KERN_ERR "cannot reserve I/O ports at %d\n",
