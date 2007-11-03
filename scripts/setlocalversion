@@ -17,7 +17,8 @@ if head=`git rev-parse --verify HEAD 2>/dev/null`; then
 
 	# Are there uncommitted changes?
 	git update-index --refresh --unmerged > /dev/null
-	if git diff-index HEAD | read dummy; then
+	if git diff-index --name-only HEAD | grep -v "^scripts/package" \
+	    | read dummy; then
 		printf '%s' -dirty
 	fi
 
