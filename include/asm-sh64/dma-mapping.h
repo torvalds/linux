@@ -42,8 +42,9 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 static inline void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 				  enum dma_data_direction dir)
 {
-	unsigned long s = (unsigned long) vaddr & L1_CACHE_ALIGN_MASK;
-	unsigned long e = (vaddr + size) & L1_CACHE_ALIGN_MASK;
+	unsigned long start = (unsigned long) vaddr;
+	unsigned long s = start & L1_CACHE_ALIGN_MASK;
+	unsigned long e = (start + size) & L1_CACHE_ALIGN_MASK;
 
 	for (; s <= e; s += L1_CACHE_BYTES)
 		asm volatile ("ocbp	%0, 0" : : "r" (s));
