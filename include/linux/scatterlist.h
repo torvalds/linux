@@ -188,21 +188,46 @@ static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 
 /**
  * sg_mark_end - Mark the end of the scatterlist
- * @sgl:	Scatterlist
- * @nents:	Number of entries in sgl
+ * @sg:		 SG entryScatterlist
  *
  * Description:
- *   Marks the last entry as the termination point for sg_next()
+ *   Marks the passed in sg entry as the termination point for the sg
+ *   table. A call to sg_next() on this entry will return NULL.
  *
  **/
-static inline void sg_mark_end(struct scatterlist *sgl, unsigned int nents)
+static inline void sg_mark_end(struct scatterlist *sg)
 {
-	sgl[nents - 1].page_link = 0x02;
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+#endif
+	/*
+	 * Set termination bit, clear potential chain bit
+	 */
+	sg->page_link |= 0x02;
+	sg->page_link &= ~0x01;
 }
 
-static inline void __sg_mark_end(struct scatterlist *sg)
+/**
+ * sg_init_table - Initialize SG table
+ * @sgl:	   The SG table
+ * @nents:	   Number of entries in table
+ *
+ * Notes:
+ *   If this is part of a chained sg table, sg_mark_end() should be
+ *   used only on the last table part.
+ *
+ **/
+static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
 {
-	sg->page_link |= 0x02;
+	memset(sgl, 0, sizeof(*sgl) * nents);
+#ifdef CONFIG_DEBUG_SG
+	{
+		unsigned int i;
+		for (i = 0; i < nents; i++)
+			sgl[i].sg_magic = SG_MAGIC;
+	}
+#endif
+	sg_mark_end(&sgl[nents - 1]);
 }
 
 /**
@@ -219,35 +244,8 @@ static inline void __sg_mark_end(struct scatterlist *sg)
 static inline void sg_init_one(struct scatterlist *sg, const void *buf,
 			       unsigned int buflen)
 {
-	memset(sg, 0, sizeof(*sg));
-#ifdef CONFIG_DEBUG_SG
-	sg->sg_magic = SG_MAGIC;
-#endif
-	sg_mark_end(sg, 1);
+	sg_init_table(sg, 1);
 	sg_set_buf(sg, buf, buflen);
-}
-
-/**
- * sg_init_table - Initialize SG table
- * @sgl:	   The SG table
- * @nents:	   Number of entries in table
- *
- * Notes:
- *   If this is part of a chained sg table, sg_mark_end() should be
- *   used only on the last table part.
- *
- **/
-static inline void sg_init_table(struct scatterlist *sgl, unsigned int nents)
-{
-	memset(sgl, 0, sizeof(*sgl) * nents);
-	sg_mark_end(sgl, nents);
-#ifdef CONFIG_DEBUG_SG
-	{
-		unsigned int i;
-		for (i = 0; i < nents; i++)
-			sgl[i].sg_magic = SG_MAGIC;
-	}
-#endif
 }
 
 /**

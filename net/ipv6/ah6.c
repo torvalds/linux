@@ -35,7 +35,6 @@
 #include <net/ipv6.h>
 #include <net/protocol.h>
 #include <net/xfrm.h>
-#include <asm/scatterlist.h>
 
 static int zero_out_mutable_opts(struct ipv6_opt_hdr *opthdr)
 {

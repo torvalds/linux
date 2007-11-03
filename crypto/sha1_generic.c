@@ -23,7 +23,6 @@
 #include <linux/cryptohash.h>
 #include <linux/types.h>
 #include <crypto/sha.h>
-#include <asm/scatterlist.h>
 #include <asm/byteorder.h>
 
 struct sha1_ctx {

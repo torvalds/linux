@@ -1083,7 +1083,7 @@ static int tcp_v4_do_calc_md5_hash(char *md5_hash, struct tcp_md5sig_key *key,
 	sg_set_buf(&sg[block++], key->key, key->keylen);
 	nbytes += key->keylen;
 
-	__sg_mark_end(&sg[block - 1]);
+	sg_mark_end(&sg[block - 1]);
 
 	/* Now store the Hash into the packet */
 	err = crypto_hash_init(desc);

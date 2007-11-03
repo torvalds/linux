@@ -48,9 +48,9 @@
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/rwsem.h>
+#include <linux/scatterlist.h>
 
 #include <asm/atomic.h>
-#include <asm/scatterlist.h>
 #include <asm/uaccess.h>
 
 union ib_gid {

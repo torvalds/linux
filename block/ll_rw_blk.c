@@ -1369,7 +1369,7 @@ new_segment:
 	} /* segments in rq */
 
 	if (sg)
-		__sg_mark_end(sg);
+		sg_mark_end(sg);
 
 	return nsegs;
 }

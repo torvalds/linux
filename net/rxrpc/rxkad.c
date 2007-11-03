@@ -702,7 +702,7 @@ static void rxkad_sg_set_buf2(struct scatterlist sg[2],
 		nsg++;
 	}
 
-	__sg_mark_end(&sg[nsg - 1]);
+	sg_mark_end(&sg[nsg - 1]);
 
 	ASSERTCMP(sg[0].length + sg[1].length, ==, buflen);
 }

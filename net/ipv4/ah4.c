@@ -8,7 +8,6 @@
 #include <linux/spinlock.h>
 #include <net/icmp.h>
 #include <net/protocol.h>
-#include <asm/scatterlist.h>
 
 
 /* Clear mutable options and find final destination to substitute

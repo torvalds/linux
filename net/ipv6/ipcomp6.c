@@ -34,7 +34,6 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/ipcomp.h>
-#include <asm/scatterlist.h>
 #include <asm/semaphore.h>
 #include <linux/crypto.h>
 #include <linux/pfkeyv2.h>

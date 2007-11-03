@@ -9,7 +9,6 @@
  * your option) any later version.
  */
 
-#include <asm/scatterlist.h>
 #include <linux/scatterlist.h>
 
 #include <linux/mmc/host.h>
