@@ -515,6 +515,7 @@ config SIBYTE_SWARM
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select ZONE_DMA32 if 64BIT
 
 config SIBYTE_LITTLESUR
 	bool "Sibyte BCM91250C2-LittleSur"
@@ -565,6 +566,7 @@ config SIBYTE_BIGSUR
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select ZONE_DMA32 if 64BIT
 
 config SNI_RM
 	bool "SNI RM200/300/400"
@@ -1664,6 +1666,9 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 config ARCH_SPARSEMEM_ENABLE
 	bool
 	select SPARSEMEM_STATIC
@@ -1967,6 +1972,9 @@ config I8253
 	bool
 
 config PCSPEAKER
+	bool
+
+config ZONE_DMA32
 	bool
 
 source "drivers/pcmcia/Kconfig"
