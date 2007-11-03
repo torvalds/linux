@@ -16,6 +16,7 @@ if head=`git rev-parse --verify HEAD 2>/dev/null`; then
 	fi
 
 	# Are there uncommitted changes?
+	git update-index --refresh --unmerged > /dev/null
 	if git diff-index HEAD | read dummy; then
 		printf '%s' -dirty
 	fi
