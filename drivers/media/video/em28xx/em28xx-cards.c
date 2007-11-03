@@ -57,22 +57,8 @@ struct em28xx_board em28xx_boards[] = {
 		}},
 	},
 	[EM2820_BOARD_UNKNOWN] = {
-		.name         = "Unknown EM2820/2840 video grabber",
+		.name         = "Unknown EM2750/28xx video grabber",
 		.is_em2800    = 0,
-		.vchannels    = 2,
-		.norm         = VIDEO_MODE_PAL,
-		.tda9887_conf = TDA9887_PRESENT,
-		.has_tuner    = 1,
-		.decoder      = EM28XX_SAA7113,
-		.input           = {{
-			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
-		},{
-			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
-		}},
 	},
 	[EM2820_BOARD_KWORLD_PVRTV2800RF] = {
 		.name         = "Kworld PVR TV 2800 RF",
@@ -337,8 +323,15 @@ const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id em28xx_id_table [] = {
+	{ USB_DEVICE(0xeb1a, 0x2750), .driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2800), .driver_info = EM2800_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_MSI_VOX_USB_2 },
+	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2821), .driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2860), .driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2861), .driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2870), .driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2881), .driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2883), .driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0x0ccd, 0x0036), .driver_info = EM2820_BOARD_TERRATEC_CINERGY_250 },
 	{ USB_DEVICE(0x2304, 0x0208), .driver_info = EM2820_BOARD_PINNACLE_USB_2 },
 	{ USB_DEVICE(0x2040, 0x4200), .driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },

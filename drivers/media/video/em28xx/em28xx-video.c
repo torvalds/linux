@@ -1782,15 +1782,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		model=card[nr];
 
 	if ((model==EM2800_BOARD_UNKNOWN)||(model==EM2820_BOARD_UNKNOWN)) {
-		em28xx_errdev( "Your board has no eeprom inside it and thus can't\n"
-			"%s: be autodetected.  Please pass card=<n> insmod option to\n"
-			"%s: workaround that.  Redirect complaints to the vendor of\n"
-			"%s: the TV card. Generic type will be used."
-			"%s: Best regards,\n"
-			"%s:         -- tux\n",
-			dev->name,dev->name,dev->name,dev->name,dev->name);
-		em28xx_errdev("%s: Here is a list of valid choices for the card=<n> insmod option:\n",
-			dev->name);
+		em28xx_errdev("Your board has no unique USB ID and thus can't be autodetected.\n");
+		em28xx_errdev("Please pass card=<n> insmod option to workaround that.\n");
+		em28xx_errdev("If there isn't any card number for you, please send an email to:\n");
+		em28xx_errdev("\tV4L Mailing List <video4linux-list@redhat.com>\n");
+		em28xx_errdev("Here is a list of valid choices for the card=<n> insmod option:\n");
 		for (i = 0; i < em28xx_bcount; i++) {
 			em28xx_errdev("    card=%d -> %s\n", i,
 							em28xx_boards[i].name);
