@@ -134,7 +134,7 @@ static int __init logibm_init(void)
 	udelay(100);
 
 	if (inb(LOGIBM_SIGNATURE_PORT) != LOGIBM_SIGNATURE_BYTE) {
-		printk(KERN_ERR "logibm.c: Didn't find Logitech busmouse at %#x\n", LOGIBM_BASE);
+		printk(KERN_INFO "logibm.c: Didn't find Logitech busmouse at %#x\n", LOGIBM_BASE);
 		err = -ENODEV;
 		goto err_release_region;
 	}

@@ -398,6 +398,12 @@ P:	Arnaldo Carvalho de Melo
 M:	acme@ghostprotocols.net
 S:	Maintained
 
+APPLETOUCH TOUCHPAD DRIVER
+P:	Johannes Berg
+M:	johannes@sipsolutions.net
+L:	linux-input@vger.kernel.org
+S:	Maintained
+
 ARC FRAMEBUFFER DRIVER
 P:	Jaya Kumar
 M:	jayalk@intworks.biz
@@ -1701,7 +1707,7 @@ S:	Maintained
 HID CORE LAYER
 P:	Jiri Kosina
 M:	jkosina@suse.cz
-L:	linux-input@atrey.karlin.mff.cuni.cz
+L:	linux-input@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained
 
@@ -1927,8 +1933,7 @@ INPUT (KEYBOARD, MOUSE, JOYSTICK, TOUCHSCREEN) DRIVERS
 P:	Dmitry Torokhov
 M:	dmitry.torokhov@gmail.com
 M:	dtor@mail.ru
-L:	linux-input@atrey.karlin.mff.cuni.cz
-L:	linux-joystick@atrey.karlin.mff.cuni.cz
+L:	linux-input@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/dtor/input.git
 S:	Maintained
 

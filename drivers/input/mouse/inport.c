@@ -144,7 +144,7 @@ static int __init inport_init(void)
 	b = inb(INPORT_SIGNATURE_PORT);
 	c = inb(INPORT_SIGNATURE_PORT);
 	if (a == b || a != c) {
-		printk(KERN_ERR "inport.c: Didn't find InPort mouse at %#x\n", INPORT_BASE);
+		printk(KERN_INFO "inport.c: Didn't find InPort mouse at %#x\n", INPORT_BASE);
 		err = -ENODEV;
 		goto err_release_region;
 	}
