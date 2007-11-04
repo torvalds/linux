@@ -265,7 +265,7 @@ static struct phy_driver marvell_drivers[] = {
 		.read_status = &genphy_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
-		.driver = {.owner = THIS_MODULE,},
+		.driver = { .owner = THIS_MODULE },
 	},
 	{
 		.phy_id = 0x01410c90,
@@ -278,7 +278,7 @@ static struct phy_driver marvell_drivers[] = {
 		.read_status = &genphy_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
-		.driver = {.owner = THIS_MODULE,},
+		.driver = { .owner = THIS_MODULE },
 	},
 	{
 		.phy_id = 0x01410cc0,
@@ -291,7 +291,7 @@ static struct phy_driver marvell_drivers[] = {
 		.read_status = &genphy_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
-		.driver = {.owner = THIS_MODULE,},
+		.driver = { .owner = THIS_MODULE },
 	},
 	{
 		.phy_id = 0x01410cd0,
@@ -304,8 +304,21 @@ static struct phy_driver marvell_drivers[] = {
 		.read_status = &genphy_read_status,
 		.ack_interrupt = &marvell_ack_interrupt,
 		.config_intr = &marvell_config_intr,
-		.driver = {.owner = THIS_MODULE,},
-	}
+		.driver = { .owner = THIS_MODULE },
+	},
+	{
+		.phy_id = 0x01410e30,
+		.phy_id_mask = 0xfffffff0,
+		.name = "Marvell 88E1240",
+		.features = PHY_GBIT_FEATURES,
+		.flags = PHY_HAS_INTERRUPT,
+		.config_init = &m88e1111_config_init,
+		.config_aneg = &marvell_config_aneg,
+		.read_status = &genphy_read_status,
+		.ack_interrupt = &marvell_ack_interrupt,
+		.config_intr = &marvell_config_intr,
+		.driver = { .owner = THIS_MODULE },
+	},
 };
 
 static int __init marvell_init(void)
