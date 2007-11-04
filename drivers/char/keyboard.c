@@ -194,7 +194,7 @@ int getkeycode(unsigned int scancode)
 	int error = -ENODEV;
 
 	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
-		error = handle->dev->getkeycode(handle->dev, scancode, &keycode);
+		error = input_get_keycode(handle->dev, scancode, &keycode);
 		if (!error)
 			return keycode;
 	}
@@ -208,7 +208,7 @@ int setkeycode(unsigned int scancode, unsigned int keycode)
 	int error = -ENODEV;
 
 	list_for_each_entry(handle, &kbd_handler.h_list, h_node) {
-		error = handle->dev->setkeycode(handle->dev, scancode, keycode);
+		error = input_set_keycode(handle->dev, scancode, keycode);
 		if (!error)
 			break;
 	}
