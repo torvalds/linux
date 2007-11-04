@@ -585,8 +585,38 @@ static void tuner_status(struct dvb_frontend *fe)
 
 /* ---------------------------------------------------------------------- */
 
-/* static vars: used only in tuner_attach and tuner_probe */
-static unsigned default_mode_mask;
+LIST_HEAD(tuner_list);
+
+/* Search for existing radio and/or TV tuners on the given I2C adapter.
+   Note that when this function is called from tuner_attach you can be
+   certain no other devices will be added/deleted at the same time, I2C
+   core protects against that. */
+static void tuner_lookup(struct i2c_adapter *adap,
+		struct tuner **radio, struct tuner **tv)
+{
+	struct tuner *pos;
+
+	*radio = NULL;
+	*tv = NULL;
+
+	list_for_each_entry(pos, &tuner_list, list) {
+		int mode_mask;
+
+		if (pos->i2c->adapter != adap ||
+		    pos->i2c->driver->id != I2C_DRIVERID_TUNER)
+			continue;
+
+		mode_mask = pos->mode_mask & ~T_STANDBY;
+		if (*radio == NULL && mode_mask == T_RADIO)
+			*radio = pos;
+		/* Note: currently TDA9887 is the only demod-only
+		   device. If other devices appear then we need to
+		   make this test more general. */
+		else if (*tv == NULL && pos->type != TUNER_TDA9887 &&
+			 (pos->mode_mask & (T_ANALOG_TV | T_DIGITAL_TV)))
+			*tv = pos;
+	}
+}
 
 /* During client attach, set_type is called by adapter's attach_inform callback.
    set_type must then be completed by tuner_attach.
@@ -595,6 +625,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct i2c_client *client;
 	struct tuner *t;
+	struct tuner *radio;
+	struct tuner *tv;
 
 	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (NULL == client)
@@ -638,7 +670,9 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
 				t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
-				default_mode_mask &= ~T_RADIO;
+				tuner_lookup(t->i2c->adapter, &radio, &tv);
+				if (tv)
+					tv->mode_mask &= ~T_RADIO;
 
 				goto register_client;
 			}
@@ -665,7 +699,9 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 				t->mode_mask = T_RADIO;
 				t->mode = T_STANDBY;
 				t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
-				default_mode_mask &= ~T_RADIO;
+				tuner_lookup(t->i2c->adapter, &radio, &tv);
+				if (tv)
+					tv->mode_mask &= ~T_RADIO;
 
 				goto register_client;
 			}
@@ -673,13 +709,21 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 		}
 	}
 
-	/* Initializes only the first adapter found */
-	if (default_mode_mask != T_UNINITIALIZED) {
-		tuner_dbg ("Setting mode_mask to 0x%02x\n", default_mode_mask);
-		t->mode_mask = default_mode_mask;
+	/* Initializes only the first TV tuner on this adapter. Why only the
+	   first? Because there are some devices (notably the ones with TI
+	   tuners) that have more than one i2c address for the *same* device.
+	   Experience shows that, except for just one case, the first
+	   address is the right one. The exception is a Russian tuner
+	   (ACORP_Y878F). So, the desired behavior is just to enable the
+	   first found TV tuner. */
+	tuner_lookup(t->i2c->adapter, &radio, &tv);
+	if (tv == NULL) {
+		t->mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
+		if (radio == NULL)
+			t->mode_mask |= T_RADIO;
+		tuner_dbg("Setting mode_mask to 0x%02x\n", t->mode_mask);
 		t->tv_freq = 400 * 16; /* Sets freq to VHF High */
 		t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
-		default_mode_mask = T_UNINITIALIZED;
 	}
 
 	/* Should be just before return */
@@ -729,8 +773,6 @@ static int tuner_probe(struct i2c_adapter *adap)
 			       "in i2c probe ignore list!\n");
 	}
 
-	default_mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
-
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, tuner_attach);
 	return 0;
@@ -752,6 +794,7 @@ static int tuner_detach(struct i2c_client *client)
 	if (ops && ops->release)
 		ops->release(&t->fe);
 
+	list_del(&t->list);
 	kfree(t);
 	kfree(client);
 	return 0;

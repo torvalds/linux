@@ -46,6 +46,7 @@ struct analog_tuner_ops {
 struct tuner {
 	/* device */
 	struct i2c_client *i2c;
+	struct list_head list;  /* list of tuners */
 
 	unsigned int type;	/* chip type */
 
