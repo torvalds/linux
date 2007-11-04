@@ -6,8 +6,6 @@
 
 extern void qemu_reboot_setup(void);
 
-#define QEMU_PORT_BASE 0xb4000000
-
 const char *get_system_type(void)
 {
 	return "Qemu";
@@ -20,6 +18,5 @@ void __init plat_time_init(void)
 
 void __init plat_mem_setup(void)
 {
-	set_io_port_base(QEMU_PORT_BASE);
 	qemu_reboot_setup();
 }
