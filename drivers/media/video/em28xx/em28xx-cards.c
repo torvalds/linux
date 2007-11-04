@@ -37,6 +37,16 @@
 #include "em28xx.h"
 #include "tuner-xc2028.h"
 
+static int tuner = -1;
+module_param(tuner, int, 0444);
+MODULE_PARM_DESC(tuner, "tuner type");
+
+struct em28xx_hash_table {
+	unsigned long hash;
+	unsigned int  model;
+	unsigned int  tuner;
+};
+
 struct em28xx_board em28xx_boards[] = {
 	[EM2800_BOARD_UNKNOWN] = {
 		.name         = "Unknown EM2800 video grabber",
@@ -342,70 +352,178 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0x0ccd, 0x0047), .driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ },
 };
+MODULE_DEVICE_TABLE (usb, em28xx_id_table);
 
+static struct em28xx_hash_table em28xx_hash [] = {
+	{ 0, 0, 0 },
+};
+
+/* Since em28xx_pre_card_setup() requires a proper dev->model,
+ * this won't work for boards with generic PCI IDs
+ */
 void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
 	switch(dev->model){
-		case EM2880_BOARD_TERRATEC_PRODIGY_XS:
-		case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
-		case EM2880_BOARD_TERRATEC_HYBRID_XS:
-			{
-				em28xx_write_regs_req(dev, 0x00, 0x08, "\x7d", 1); // reset through GPIO?
-				break;
-			}
+	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+		/* reset through GPIO? */
+		em28xx_write_regs_req(dev, 0x00, 0x08, "\x7d", 1);
+		break;
 	}
+}
+
+static int em28xx_tuner_callback(void *ptr, int command, int arg)
+{
+	int rc = 0;
+	struct em28xx *dev = ptr;
+
+	if (dev->tuner_type != TUNER_XC2028)
+		return 0;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		/* FIXME: This is device-dependent */
+		dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
+		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
+
+		msleep(140);
+		break;
+	}
+	return rc;
 }
 
 static void em28xx_config_tuner (struct em28xx *dev)
 {
 	struct v4l2_priv_tun_config  xc2028_cfg;
 	struct xc2028_ctrl           ctl;
+	struct tuner_setup           tun_setup;
+	struct v4l2_frequency        f;
 
-	memset (&ctl,0,sizeof(ctl));
+	if (!dev->has_tuner)
+		return;
 
-	ctl.fname   = XC2028_DEFAULT_FIRMWARE;
-	ctl.max_len = 64;
+	tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
+	tun_setup.type = dev->tuner_type;
+	tun_setup.addr = dev->tuner_addr;
+	tun_setup.tuner_callback = em28xx_tuner_callback;
 
-	xc2028_cfg.tuner = TUNER_XC2028;
-	xc2028_cfg.priv  = &ctl;
+	em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 
-	em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+	if (dev->tuner_type == TUNER_XC2028) {
+		memset (&ctl, 0, sizeof(ctl));
+
+		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
+		ctl.max_len = 64;
+
+		xc2028_cfg.tuner = TUNER_XC2028;
+		xc2028_cfg.priv  = &ctl;
+
+		em28xx_i2c_call_clients(dev, TUNER_SET_CONFIG, &xc2028_cfg);
+	}
+
+	/* configure tuner */
+	f.tuner = 0;
+	f.type = V4L2_TUNER_ANALOG_TV;
+	f.frequency = 9076;     /* just a magic number */
+	dev->ctl_freq = f.frequency;
+	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
+}
+
+static int em28xx_hint_board(struct em28xx *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(em28xx_hash); i++) {
+		if (dev->hash == em28xx_hash[i].hash) {
+			dev->model = em28xx_hash[i].model;
+			dev->tuner_type = em28xx_hash[i].tuner;
+
+			em28xx_errdev("Your board has no unique USB ID.\n");
+			em28xx_errdev("A hint were successfully done, "
+				      "based on eeprom hash.\n");
+			em28xx_errdev("This method is not 100%% failproof.\n");
+			em28xx_errdev("If the board were missdetected, "
+				      "please email this log to:\n");
+			em28xx_errdev("\tV4L Mailing List "
+				      " <video4linux-list@redhat.com>\n");
+			em28xx_errdev("Board detected as %s\n",
+				      em28xx_boards[dev->model].name);
+
+			return 0;
+		}
+	}
+	em28xx_errdev("Your board has no unique USB ID and thus need a "
+		      "hint to be detected.\n");
+	em28xx_errdev("You may try to use card=<n> insmod option to "
+		      "workaround that.\n");
+	em28xx_errdev("Please send an email with this log to:\n");
+	em28xx_errdev("\tV4L Mailing List <video4linux-list@redhat.com>\n");
+	em28xx_errdev("Board eeprom hash is 0x%08lx\n", dev->hash);
+
+	em28xx_errdev("Here is a list of valid choices for the card=<n>"
+		      " insmod option:\n");
+	for (i = 0; i < em28xx_bcount; i++) {
+		em28xx_errdev("    card=%d -> %s\n",
+				i, em28xx_boards[i].name);
+	}
+	return -1;
 }
 
 void em28xx_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
-	switch(dev->model){
-		case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
-			{
-				struct tveeprom tv;
+	switch (dev->model) {
+	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
+	{
+		struct tveeprom tv;
 #ifdef CONFIG_MODULES
-				request_module("tveeprom");
-				request_module("ir-kbd-i2c");
-				request_module("msp3400");
+		request_module("tveeprom");
+		request_module("ir-kbd-i2c");
 #endif
-				/* Call first TVeeprom */
+		/* Call first TVeeprom */
 
-				dev->i2c_client.addr = 0xa0 >> 1;
-				tveeprom_hauppauge_analog(&dev->i2c_client, &tv, dev->eedata);
+		dev->i2c_client.addr = 0xa0 >> 1;
+		tveeprom_hauppauge_analog(&dev->i2c_client, &tv, dev->eedata);
 
-				dev->tuner_type= tv.tuner_type;
-				if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
-					dev->i2s_speed=2048000;
-					dev->has_msp34xx=1;
-				} else
-					dev->has_msp34xx=0;
-				break;
-			}
-		case EM2820_BOARD_KWORLD_PVRTV2800RF:
-			{
-				em28xx_write_regs_req(dev,0x00,0x08, "\xf9", 1); // GPIO enables sound on KWORLD PVR TV 2800RF
-				break;
-			}
-
+		dev->tuner_type = tv.tuner_type;
+		if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
+			dev->i2s_speed = 2048000;
+			dev->has_msp34xx = 1;
+		}
+		break;
 	}
+	case EM2820_BOARD_KWORLD_PVRTV2800RF:
+		/* GPIO enables sound on KWORLD PVR TV 2800RF */
+		em28xx_write_regs_req(dev, 0x00, 0x08, "\xf9", 1);
+		break;
+	case EM2820_BOARD_UNKNOWN:
+	case EM2800_BOARD_UNKNOWN:
+		em28xx_hint_board(dev);
+	}
+
+	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
+	dev->has_tuner = em28xx_boards[dev->model].has_tuner;
+	dev->has_msp34xx = em28xx_boards[dev->model].has_msp34xx;
+	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
+	dev->decoder = em28xx_boards[dev->model].decoder;
+	dev->video_inputs = em28xx_boards[dev->model].vchannels;
+
+	if (tuner >= 0)
+		dev->tuner_type = tuner;
+
+#ifdef CONFIG_MODULES
+	/* request some modules */
+	if (dev->has_msp34xx)
+		request_module("msp3400");
+	if (dev->decoder == EM28XX_SAA7113 || dev->decoder == EM28XX_SAA7114)
+		request_module("saa7115");
+	if (dev->decoder == EM28XX_TVP5150)
+		request_module("tvp5150");
+	if (dev->has_tuner)
+		request_module("tuner");
+#endif
+
 	em28xx_config_tuner (dev);
 }
-
-MODULE_DEVICE_TABLE (usb, em28xx_id_table);

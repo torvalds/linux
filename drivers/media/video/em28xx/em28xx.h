@@ -257,6 +257,8 @@ struct em28xx {
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 	int type;
 
+	unsigned long hash;	/* eeprom hash - for boards with generic ID */
+
 	/* states */
 	enum em28xx_dev_state state;
 	enum em28xx_stream_state stream;

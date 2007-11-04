@@ -37,7 +37,6 @@
 #include <linux/mutex.h>
 
 #include "em28xx.h"
-#include <media/tuner.h>
 #include <media/v4l2-common.h>
 #include <media/msp3400.h>
 
@@ -70,10 +69,6 @@ module_param_array(vbi_nr, int, NULL, 0444);
 MODULE_PARM_DESC(card,"card type");
 MODULE_PARM_DESC(video_nr,"video device numbers");
 MODULE_PARM_DESC(vbi_nr,"vbi device numbers");
-
-static int tuner = -1;
-module_param(tuner, int, 0444);
-MODULE_PARM_DESC(tuner, "tuner type");
 
 static unsigned int video_debug = 0;
 module_param(video_debug,int,0644);
@@ -171,7 +166,6 @@ static int em28xx_config(struct em28xx *dev)
  */
 static void em28xx_config_i2c(struct em28xx *dev)
 {
-	struct v4l2_frequency f;
 	struct v4l2_routing route;
 
 	route.input = INPUT(dev->ctl_input)->vmux;
@@ -179,13 +173,6 @@ static void em28xx_config_i2c(struct em28xx *dev)
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_RESET, NULL);
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 	em28xx_i2c_call_clients(dev, VIDIOC_STREAMON, NULL);
-
-	/* configure tuner */
-	f.tuner = 0;
-	f.type = V4L2_TUNER_ANALOG_TV;
-	f.frequency = 9076;	/* FIXME:remove magic number */
-	dev->ctl_freq = f.frequency;
-	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
 }
 
 /*
@@ -1495,7 +1482,7 @@ static const struct file_operations em28xx_v4l_fops = {
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
 static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
-			   int minor, int model)
+			   int minor)
 {
 	struct em28xx *dev = *devhandle;
 	int retval = -ENOMEM;
@@ -1503,7 +1490,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	unsigned int maxh, maxw;
 
 	dev->udev = udev;
-	dev->model = model;
 	mutex_init(&dev->lock);
 	init_waitqueue_head(&dev->open);
 
@@ -1512,26 +1498,47 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_read_reg_req_len = em28xx_read_reg_req_len;
 	dev->em28xx_write_regs_req = em28xx_write_regs_req;
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
-	dev->is_em2800 = em28xx_boards[model].is_em2800;
-	dev->has_tuner = em28xx_boards[model].has_tuner;
-	dev->has_msp34xx = em28xx_boards[model].has_msp34xx;
-	dev->tda9887_conf = em28xx_boards[model].tda9887_conf;
-	dev->decoder = em28xx_boards[model].decoder;
 
-	if (tuner >= 0)
-		dev->tuner_type = tuner;
-	else
-		dev->tuner_type = em28xx_boards[model].tuner_type;
+	/* setup video picture settings for saa7113h */
+	memset(&dev->vpic, 0, sizeof(dev->vpic));
+	dev->vpic.colour = 128 << 8;
+	dev->vpic.hue = 128 << 8;
+	dev->vpic.brightness = 128 << 8;
+	dev->vpic.contrast = 192 << 8;
+	dev->vpic.whiteness = 128 << 8;	/* This one isn't used */
+	dev->vpic.depth = 16;
+	dev->vpic.palette = VIDEO_PALETTE_YUV422;
 
-	dev->video_inputs = em28xx_boards[model].vchannels;
+	em28xx_pre_card_setup(dev);
+
+	errCode = em28xx_config(dev);
+	if (errCode) {
+		em28xx_errdev("error configuring device\n");
+		em28xx_devused &= ~(1<<dev->devno);
+		kfree(dev);
+		return -ENOMEM;
+	}
+
+	mutex_lock(&dev->lock);
+
+	/* register i2c bus */
+	em28xx_i2c_register(dev);
+
+	/* Do board specific init and eeprom reading */
+	em28xx_card_setup(dev);
+
+	/* configure the device */
+	em28xx_config_i2c(dev);
+
+	mutex_unlock(&dev->lock);
 
 	for (i = 0; i < TVNORMS; i++)
-		if (em28xx_boards[model].norm == tvnorms[i].mode)
+		if (em28xx_boards[dev->model].norm == tvnorms[i].mode)
 			break;
 	if (i == TVNORMS)
 		i = 0;
 
-	dev->tvnorm = &tvnorms[i];	/* set default norm */
+	dev->tvnorm = &tvnorms[i];      /* set default norm */
 
 	em28xx_videodbg("tvnorm=%s\n", dev->tvnorm->name);
 
@@ -1550,52 +1557,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->vscale = 0;
 	dev->ctl_input = 2;
 
-	/* setup video picture settings for saa7113h */
-	memset(&dev->vpic, 0, sizeof(dev->vpic));
-	dev->vpic.colour = 128 << 8;
-	dev->vpic.hue = 128 << 8;
-	dev->vpic.brightness = 128 << 8;
-	dev->vpic.contrast = 192 << 8;
-	dev->vpic.whiteness = 128 << 8;	/* This one isn't used */
-	dev->vpic.depth = 16;
-	dev->vpic.palette = VIDEO_PALETTE_YUV422;
-
-	em28xx_pre_card_setup(dev);
-#ifdef CONFIG_MODULES
-	/* request some modules */
-	if (dev->decoder == EM28XX_SAA7113 || dev->decoder == EM28XX_SAA7114)
-		request_module("saa7115");
-	if (dev->decoder == EM28XX_TVP5150)
-		request_module("tvp5150");
-	if (dev->has_tuner)
-		request_module("tuner");
-#endif
-	errCode = em28xx_config(dev);
-	if (errCode) {
-		em28xx_errdev("error configuring device\n");
-		em28xx_devused&=~(1<<dev->devno);
-		kfree(dev);
-		return -ENOMEM;
-	}
-
-	mutex_lock(&dev->lock);
-	/* register i2c bus */
-	em28xx_i2c_register(dev);
-
-	/* Do board specific init and eeprom reading */
-	em28xx_card_setup(dev);
-
-	/* configure the device */
-	em28xx_config_i2c(dev);
-
-	mutex_unlock(&dev->lock);
-
 	errCode = em28xx_config(dev);
 
-#ifdef CONFIG_MODULES
-	if (dev->has_msp34xx)
-		request_module("msp3400");
-#endif
 	/* allocate and fill v4l2 device struct */
 	dev->vdev = video_device_alloc();
 	if (NULL == dev->vdev) {
@@ -1695,7 +1658,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	struct usb_interface *uif;
 	struct em28xx *dev = NULL;
 	int retval = -ENODEV;
-	int model,i,nr,ifnum;
+	int i, nr, ifnum;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
@@ -1735,8 +1698,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		return -ENODEV;
 	}
 
-	model=id->driver_info;
-
 	if (nr >= EM28XX_MAXBOARDS) {
 		printk (DRIVER_NAME ": Supports only %i em28xx boards.\n",EM28XX_MAXBOARDS);
 		em28xx_devused&=~(1<<nr);
@@ -1752,7 +1713,8 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	snprintf(dev->name, 29, "em28xx #%d", nr);
-	dev->devno=nr;
+	dev->devno = nr;
+	dev->model = id->driver_info;
 
 	/* compute alternate max packet sizes */
 	uif = udev->actconfig->interface[0];
@@ -1779,26 +1741,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	if ((card[nr]>=0)&&(card[nr]<em28xx_bcount))
-		model=card[nr];
-
-	if ((model==EM2800_BOARD_UNKNOWN)||(model==EM2820_BOARD_UNKNOWN)) {
-		em28xx_errdev("Your board has no unique USB ID and thus can't be autodetected.\n");
-		em28xx_errdev("Please pass card=<n> insmod option to workaround that.\n");
-		em28xx_errdev("If there isn't any card number for you, please send an email to:\n");
-		em28xx_errdev("\tV4L Mailing List <video4linux-list@redhat.com>\n");
-		em28xx_errdev("Here is a list of valid choices for the card=<n> insmod option:\n");
-		for (i = 0; i < em28xx_bcount; i++) {
-			em28xx_errdev("    card=%d -> %s\n", i,
-							em28xx_boards[i].name);
-		}
-	}
+		dev->model = card[nr];
 
 	/* allocate device struct */
-	retval = em28xx_init_dev(&dev, udev, nr, model);
+	retval = em28xx_init_dev(&dev, udev, nr);
 	if (retval)
 		return retval;
 
-	em28xx_info("Found %s\n", em28xx_boards[model].name);
+	em28xx_info("Found %s\n", em28xx_boards[dev->model].name);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);

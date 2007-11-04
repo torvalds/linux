@@ -292,6 +292,31 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 	return rc;
 }
 
+/* based on linux/sunrpc/svcauth.h and linux/hash.h
+ * The original hash function returns a different value, if arch is x86_64
+ *  or i386.
+ */
+static inline unsigned long em28xx_hash_mem(char *buf, int length, int bits)
+{
+	unsigned long hash = 0;
+	unsigned long l = 0;
+	int len = 0;
+	unsigned char c;
+	do {
+		if (len == length) {
+			c = (char)len;
+			len = -1;
+		} else
+			c = *buf++;
+		l = (l << 8) | c;
+		len++;
+		if ((len & (32 / 8 - 1)) == 0)
+			hash = ((hash^l) * 0x9e370001UL);
+	} while (len);
+
+	return (hash >> (32 - bits)) & 0xffffffffUL;
+}
+
 static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 {
 	unsigned char buf, *p = eedata;
@@ -335,7 +360,11 @@ static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 			printk("\n");
 	}
 
-	printk(KERN_INFO "EEPROM ID= 0x%08x\n", em_eeprom->id);
+	if (em_eeprom->id == 0x9567eb1a)
+		dev->hash = em28xx_hash_mem(eedata, len, 32);
+
+	printk(KERN_INFO "EEPROM ID= 0x%08x, hash = 0x%08lx\n",
+	       em_eeprom->id, dev->hash);
 	printk(KERN_INFO "Vendor/Product ID= %04x:%04x\n", em_eeprom->vendor_ID,
 	       em_eeprom->product_ID);
 
@@ -391,43 +420,6 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL;
 }
 
-
-static int em28xx_tuner_callback(void *ptr, int command, int arg)
-{
-	int rc = 0;
-	struct em28xx *dev = ptr;
-
-	if (dev->tuner_type != TUNER_XC2028)
-		return 0;
-
-	switch (command) {
-	case XC2028_TUNER_RESET:
-		/* FIXME: This is device-dependent */
-		dev->em28xx_write_regs_req(dev, 0x00, 0x48, "\x00", 1);
-		dev->em28xx_write_regs_req(dev, 0x00, 0x12, "\x67", 1);
-
-		msleep(140);
-		break;
-	}
-	return rc;
-}
-
-static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
-{
-	struct em28xx *dev = client->adapter->algo_data;
-	struct tuner_setup tun_setup;
-
-	if (dev->has_tuner) {
-		tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
-		tun_setup.type = dev->tuner_type;
-		tun_setup.addr = dev->tuner_addr;
-		tun_setup.tuner_callback = em28xx_tuner_callback;
-
-		em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
-	}
-
-	return (0);
-}
 
 /*
  * attach_inform()
@@ -487,9 +479,11 @@ static int attach_inform(struct i2c_client *client)
 			break;
 
 		default:
+			if (!dev->tuner_addr)
+				dev->tuner_addr = client->addr;
+
 			dprintk1(1,"attach inform: detected I2C address %x\n", client->addr << 1);
-			dev->tuner_addr = client->addr;
-			em28xx_set_tuner(-1, client);
+
 	}
 
 	return 0;
