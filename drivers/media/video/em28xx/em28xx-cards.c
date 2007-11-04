@@ -397,11 +397,13 @@ struct usb_device_id em28xx_id_table [] = {
 };
 MODULE_DEVICE_TABLE (usb, em28xx_id_table);
 
-static struct em28xx_hash_table em28xx_hash [] = {
+/* EEPROM hash table for devices with generic USB IDs */
+static struct em28xx_hash_table em28xx_eeprom_hash [] = {
 	/* P/N: SA 60002070465 Tuner: TVF7533-MF */
 	{ 0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF },
 };
 
+/* I2C devicelist hash table for devices with generic USB IDs */
 static struct em28xx_hash_table em28xx_i2c_hash[] = {
 	{ 0xb06a32c3, EM2800_BOARD_TERRATEC_CINERGY_200, TUNER_LG_PAL_NEW_TAPC },
 	{ 0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC },
@@ -484,10 +486,18 @@ static int em28xx_hint_board(struct em28xx *dev)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(em28xx_hash); i++) {
-		if (dev->hash == em28xx_hash[i].hash) {
-			dev->model = em28xx_hash[i].model;
-			dev->tuner_type = em28xx_hash[i].tuner;
+	/* HINT method: EEPROM
+	 *
+	 * This method works only for boards with eeprom.
+	 * Uses a hash of all eeprom bytes. The hash should be
+	 * unique for a vendor/tuner pair.
+	 * There are a high chance that tuners for different
+	 * video standards produce different hashes.
+	 */
+	for (i = 0; i < ARRAY_SIZE(em28xx_eeprom_hash); i++) {
+		if (dev->hash == em28xx_eeprom_hash[i].hash) {
+			dev->model = em28xx_eeprom_hash[i].model;
+			dev->tuner_type = em28xx_eeprom_hash[i].tuner;
 
 			em28xx_errdev("Your board has no unique USB ID.\n");
 			em28xx_errdev("A hint were successfully done, "
@@ -503,6 +513,15 @@ static int em28xx_hint_board(struct em28xx *dev)
 			return 0;
 		}
 	}
+
+	/* HINT method: I2C attached devices
+	 *
+	 * This method works for all boards.
+	 * Uses a hash of i2c scanned devices.
+	 * Devices with the same i2c attached chips will
+	 * be considered equal.
+	 * This method is less precise than the eeprom one.
+	 */
 
 	/* user did not request i2c scanning => do it now */
 	if (!dev->i2c_hash)
