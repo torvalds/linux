@@ -227,11 +227,14 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 
 int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value)
 {
+	unsigned long flags;
+
 	if (reg > 0x3f)
 		return 1;
 	reg += 0x40; /* 0x40 upwards are registers. */
 	if (value < 0 || value > 0x3f) /* 0 to 0x3f are values */
 		return 1;
+	spin_lock_irqsave(&emu->emu_lock, flags);
 	outl(reg, emu->port + A_IOCFG);
 	udelay(10);
 	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
@@ -239,20 +242,24 @@ int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value)
 	outl(value, emu->port + A_IOCFG);
 	udelay(10);
 	outl(value | 0x80 , emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
 
 	return 0;
 }
 
 int snd_emu1010_fpga_read(struct snd_emu10k1 * emu, u32 reg, u32 *value)
 {
+	unsigned long flags;
 	if (reg > 0x3f)
 		return 1;
 	reg += 0x40; /* 0x40 upwards are registers. */
+	spin_lock_irqsave(&emu->emu_lock, flags);
 	outl(reg, emu->port + A_IOCFG);
 	udelay(10);
 	outl(reg | 0x80, emu->port + A_IOCFG);  /* High bit clocks the value into the fpga. */
 	udelay(10);
 	*value = ((inl(emu->port + A_IOCFG) >> 8) & 0x7f);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
 
 	return 0;
 }

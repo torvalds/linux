@@ -1792,7 +1792,7 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			return err;
 	}
 
-	if ( emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		;  /* Disable the snd_audigy_spdif_shared_spdif */
 	} else if (emu->audigy) {
 		if ((kctl = snd_ctl_new1(&snd_audigy_shared_spdif, emu)) == NULL)
@@ -1817,7 +1817,7 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 			return err;
 	}
 
-	if ( emu->card_capabilities->emu1010) {
+	if (emu->card_capabilities->emu_model) {
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(snd_emu1010_output_enum_ctls); i++) {
