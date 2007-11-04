@@ -426,7 +426,7 @@ void __init mem_init(void)
 
 #ifdef CONFIG_HIGHMEM
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
-		struct page *page = mem_map + tmp;
+		struct page *page = pfn_to_page(tmp);
 
 		if (!page_is_ram(tmp)) {
 			SetPageReserved(page);
