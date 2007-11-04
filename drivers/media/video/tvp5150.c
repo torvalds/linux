@@ -290,6 +290,7 @@ static inline void tvp5150_selmux(struct i2c_client *c)
 	int opmode=0;
 	struct tvp5150 *decoder = i2c_get_clientdata(c);
 	int input = 0;
+	unsigned char val;
 
 	if ((decoder->route.output & TVP5150_BLACK_SCREEN) || !decoder->enable)
 		input = 8;
@@ -315,6 +316,16 @@ static inline void tvp5150_selmux(struct i2c_client *c)
 
 	tvp5150_write(c, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(c, TVP5150_VD_IN_SRC_SEL_1, input);
+
+	/* Svideo should enable YCrCb output and disable GPCL output
+	 * For Composite and TV, it should be the reverse
+	 */
+	val = tvp5150_read(c, TVP5150_MISC_CTL);
+	if (decoder->route.input == TVP5150_SVIDEO)
+		val = (val & ~0x40) | 0x10;
+	else
+		val = (val & ~0x10) | 0x40;
+	tvp5150_write(c, TVP5150_MISC_CTL, val);
 };
 
 struct i2c_reg_value {
