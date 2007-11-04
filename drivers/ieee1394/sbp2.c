@@ -1451,7 +1451,7 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 				     struct sbp2_fwhost_info *hi,
 				     struct sbp2_command_info *cmd,
 				     unsigned int scsi_use_sg,
-				     struct scatterlist *sgpnt,
+				     struct scatterlist *sg,
 				     u32 orb_direction,
 				     enum dma_data_direction dma_dir)
 {
@@ -1461,12 +1461,12 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 
 	/* special case if only one element (and less than 64KB in size) */
 	if ((scsi_use_sg == 1) &&
-	    (sgpnt[0].length <= SBP2_MAX_SG_ELEMENT_LENGTH)) {
+	    (sg_dma_len(sg) <= SBP2_MAX_SG_ELEMENT_LENGTH)) {
 
-		cmd->dma_size = sgpnt[0].length;
+		cmd->dma_size = sg_dma_len(sg);
 		cmd->dma_type = CMD_DMA_PAGE;
 		cmd->cmd_dma = dma_map_page(hi->host->device.parent,
-					    sg_page(&sgpnt[0]), sgpnt[0].offset,
+					    sg_page(sg), sg->offset,
 					    cmd->dma_size, cmd->dma_dir);
 
 		orb->data_descriptor_lo = cmd->cmd_dma;
@@ -1477,11 +1477,11 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 						&cmd->scatter_gather_element[0];
 		u32 sg_count, sg_len;
 		dma_addr_t sg_addr;
-		int i, count = dma_map_sg(hi->host->device.parent, sgpnt,
+		int i, count = dma_map_sg(hi->host->device.parent, sg,
 					  scsi_use_sg, dma_dir);
 
 		cmd->dma_size = scsi_use_sg;
-		cmd->sge_buffer = sgpnt;
+		cmd->sge_buffer = sg;
 
 		/* use page tables (s/g) */
 		orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
@@ -1489,9 +1489,9 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 
 		/* loop through and fill out our SBP-2 page tables
 		 * (and split up anything too large) */
-		for (i = 0, sg_count = 0; i < count; i++, sgpnt = sg_next(sgpnt)) {
-			sg_len = sg_dma_len(sgpnt);
-			sg_addr = sg_dma_address(sgpnt);
+		for (i = 0, sg_count = 0; i < count; i++, sg = sg_next(sg)) {
+			sg_len = sg_dma_len(sg);
+			sg_addr = sg_dma_address(sg);
 			while (sg_len) {
 				sg_element[sg_count].segment_base_lo = sg_addr;
 				if (sg_len > SBP2_MAX_SG_ELEMENT_LENGTH) {
@@ -1521,11 +1521,10 @@ static void sbp2_create_command_orb(struct sbp2_lu *lu,
 				    unchar *scsi_cmd,
 				    unsigned int scsi_use_sg,
 				    unsigned int scsi_request_bufflen,
-				    void *scsi_request_buffer,
+				    struct scatterlist *sg,
 				    enum dma_data_direction dma_dir)
 {
 	struct sbp2_fwhost_info *hi = lu->hi;
-	struct scatterlist *sgpnt = (struct scatterlist *)scsi_request_buffer;
 	struct sbp2_command_orb *orb = &cmd->command_orb;
 	u32 orb_direction;
 
@@ -1560,7 +1559,7 @@ static void sbp2_create_command_orb(struct sbp2_lu *lu,
 		orb->data_descriptor_lo = 0x0;
 		orb->misc |= ORB_SET_DIRECTION(1);
 	} else
-		sbp2_prep_command_orb_sg(orb, hi, cmd, scsi_use_sg, sgpnt,
+		sbp2_prep_command_orb_sg(orb, hi, cmd, scsi_use_sg, sg,
 					 orb_direction, dma_dir);
 
 	sbp2util_cpu_to_be32_buffer(orb, sizeof(*orb));
@@ -1650,7 +1649,6 @@ static int sbp2_send_command(struct sbp2_lu *lu, struct scsi_cmnd *SCpnt,
 			     void (*done)(struct scsi_cmnd *))
 {
 	unchar *scsi_cmd = (unchar *)SCpnt->cmnd;
-	unsigned int request_bufflen = scsi_bufflen(SCpnt);
 	struct sbp2_command_info *cmd;
 
 	cmd = sbp2util_allocate_command_orb(lu, SCpnt, done);
@@ -1658,7 +1656,7 @@ static int sbp2_send_command(struct sbp2_lu *lu, struct scsi_cmnd *SCpnt,
 		return -EIO;
 
 	sbp2_create_command_orb(lu, cmd, scsi_cmd, scsi_sg_count(SCpnt),
-				request_bufflen, scsi_sglist(SCpnt),
+				scsi_bufflen(SCpnt), scsi_sglist(SCpnt),
 				SCpnt->sc_data_direction);
 	sbp2_link_orb_command(lu, cmd);
 
