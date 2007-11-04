@@ -120,7 +120,8 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	t->time.tm_hour = CMOS_READ(RTC_HOURS_ALARM);
 
 	if (cmos->day_alrm) {
-		t->time.tm_mday = CMOS_READ(cmos->day_alrm);
+		/* ignore upper bits on readback per ACPI spec */
+		t->time.tm_mday = CMOS_READ(cmos->day_alrm) & 0x3f;
 		if (!t->time.tm_mday)
 			t->time.tm_mday = -1;
 
