@@ -1227,6 +1227,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 		saa7134_ir_start(dev, dev->remote);
 	saa7134_hw_enable1(dev);
 
+	msleep(100);
 
 	saa7134_board_init2(dev);
 
@@ -1237,6 +1238,8 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 	saa7134_tvaudio_do_scan(dev);
 	saa7134_enable_i2s(dev);
 	saa7134_hw_enable2(dev);
+
+	saa7134_irq_video_signalchange(dev);
 
 	/*resume unfinished buffer(s)*/
 	spin_lock_irqsave(&dev->slock, flags);
