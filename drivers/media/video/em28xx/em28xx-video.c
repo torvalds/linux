@@ -1510,6 +1510,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_read_reg_req_len = em28xx_read_reg_req_len;
 	dev->em28xx_write_regs_req = em28xx_write_regs_req;
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
+	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
 
 	/* setup video picture settings for saa7113h */
 	memset(&dev->vpic, 0, sizeof(dev->vpic));

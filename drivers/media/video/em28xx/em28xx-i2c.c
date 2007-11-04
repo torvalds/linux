@@ -533,19 +533,26 @@ static char *i2c_devs[128] = {
  * do_i2c_scan()
  * check i2c address range for devices
  */
-static void do_i2c_scan(char *name, struct i2c_client *c)
+void em28xx_do_i2c_scan(struct em28xx *dev)
 {
+	u8 i2c_devicelist[128];
 	unsigned char buf;
 	int i, rc;
 
+	memset(i2c_devicelist, 0, ARRAY_SIZE(i2c_devicelist));
+
 	for (i = 0; i < ARRAY_SIZE(i2c_devs); i++) {
-		c->addr = i;
-		rc = i2c_master_recv(c, &buf, 0);
+		dev->i2c_client.addr = i;
+		rc = i2c_master_recv(&dev->i2c_client, &buf, 0);
 		if (rc < 0)
 			continue;
-		printk(KERN_INFO "%s: found i2c device @ 0x%x [%s]\n", name,
-		       i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
+		i2c_devicelist[i] = i;
+		printk(KERN_INFO "%s: found i2c device @ 0x%x [%s]\n",
+		       dev->name, i << 1, i2c_devs[i] ? i2c_devs[i] : "???");
 	}
+
+	dev->i2c_hash = em28xx_hash_mem(i2c_devicelist,
+					ARRAY_SIZE(i2c_devicelist), 32);
 }
 
 /*
@@ -578,7 +585,7 @@ int em28xx_i2c_register(struct em28xx *dev)
 	em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
 
 	if (i2c_scan)
-		do_i2c_scan(dev->name, &dev->i2c_client);
+		em28xx_do_i2c_scan(dev);
 	return 0;
 }
 

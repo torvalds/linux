@@ -402,6 +402,11 @@ static struct em28xx_hash_table em28xx_hash [] = {
 	{ 0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF },
 };
 
+static struct em28xx_hash_table em28xx_i2c_hash[] = {
+	{ 0xb06a32c3, EM2800_BOARD_TERRATEC_CINERGY_200, TUNER_LG_PAL_NEW_TAPC },
+	{ 0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC },
+};
+
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
@@ -498,6 +503,30 @@ static int em28xx_hint_board(struct em28xx *dev)
 			return 0;
 		}
 	}
+
+	/* user did not request i2c scanning => do it now */
+	if (!dev->i2c_hash)
+		em28xx_do_i2c_scan(dev);
+
+	for (i = 0; i < ARRAY_SIZE(em28xx_i2c_hash); i++) {
+		if (dev->i2c_hash == em28xx_i2c_hash[i].hash) {
+			dev->model = em28xx_i2c_hash[i].model;
+			dev->tuner_type = em28xx_i2c_hash[i].tuner;
+			em28xx_errdev("Your board has no unique USB ID.\n");
+			em28xx_errdev("A hint were successfully done, "
+				      "based on i2c devicelist hash.\n");
+			em28xx_errdev("This method is not 100%% failproof.\n");
+			em28xx_errdev("If the board were missdetected, "
+				      "please email this log to:\n");
+			em28xx_errdev("\tV4L Mailing List "
+				      " <video4linux-list@redhat.com>\n");
+			em28xx_errdev("Board detected as %s\n",
+				      em28xx_boards[dev->model].name);
+
+			return 0;
+		}
+	}
+
 	em28xx_errdev("Your board has no unique USB ID and thus need a "
 		      "hint to be detected.\n");
 	em28xx_errdev("You may try to use card=<n> insmod option to "
@@ -505,6 +534,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 	em28xx_errdev("Please send an email with this log to:\n");
 	em28xx_errdev("\tV4L Mailing List <video4linux-list@redhat.com>\n");
 	em28xx_errdev("Board eeprom hash is 0x%08lx\n", dev->hash);
+	em28xx_errdev("Board i2c devicelist hash is 0x%08lx\n", dev->i2c_hash);
 
 	em28xx_errdev("Here is a list of valid choices for the card=<n>"
 		      " insmod option:\n");

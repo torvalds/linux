@@ -260,6 +260,7 @@ struct em28xx {
 	int type;
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
+	unsigned long i2c_hash;	/* i2c devicelist hash - for boards with generic ID */
 
 	/* states */
 	enum em28xx_dev_state state;
@@ -296,6 +297,7 @@ struct em28xx {
 /* Provided by em28xx-i2c.c */
 
 void em28xx_i2c_call_clients(struct em28xx *dev, unsigned int cmd, void *arg);
+void em28xx_do_i2c_scan(struct em28xx *dev);
 int em28xx_i2c_register(struct em28xx *dev);
 int em28xx_i2c_unregister(struct em28xx *dev);
 
