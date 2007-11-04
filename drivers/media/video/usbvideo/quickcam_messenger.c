@@ -105,8 +105,6 @@ static void qcm_register_input(struct qcm *cam, struct usb_device *dev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	input_dev->keybit[BIT_WORD(BTN_0)] = BIT_MASK(BTN_0);
 
-	input_dev->private = cam;
-
 	error = input_register_device(cam->input);
 	if (error) {
 		warn("Failed to register camera's input device, err: %d\n",
