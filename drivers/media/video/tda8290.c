@@ -649,7 +649,7 @@ static int tda8290_probe(struct tuner_i2c_props *i2c_props)
 		return 0;
 	}
 
-	return -1;
+	return -ENODEV;
 }
 
 static int tda8295_probe(struct tuner_i2c_props *i2c_props)
@@ -669,7 +669,7 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 		return 0;
 	}
 
-	return -1;
+	return -ENODEV;
 }
 
 static struct analog_tuner_ops tda8290_tuner_ops = {
@@ -766,7 +766,7 @@ int tda829x_probe(struct tuner *t)
 		}
 	}
 	tuner_i2c_xfer_send(&i2c_props, restore_9886, 3);
-	return -1;
+	return -ENODEV;
 }
 EXPORT_SYMBOL_GPL(tda829x_probe);
 
