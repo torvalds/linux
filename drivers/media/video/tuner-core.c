@@ -585,221 +585,6 @@ static void tuner_status(struct dvb_frontend *fe)
 
 /* ---------------------------------------------------------------------- */
 
-LIST_HEAD(tuner_list);
-
-/* Search for existing radio and/or TV tuners on the given I2C adapter.
-   Note that when this function is called from tuner_attach you can be
-   certain no other devices will be added/deleted at the same time, I2C
-   core protects against that. */
-static void tuner_lookup(struct i2c_adapter *adap,
-		struct tuner **radio, struct tuner **tv)
-{
-	struct tuner *pos;
-
-	*radio = NULL;
-	*tv = NULL;
-
-	list_for_each_entry(pos, &tuner_list, list) {
-		int mode_mask;
-
-		if (pos->i2c->adapter != adap ||
-		    pos->i2c->driver->id != I2C_DRIVERID_TUNER)
-			continue;
-
-		mode_mask = pos->mode_mask & ~T_STANDBY;
-		if (*radio == NULL && mode_mask == T_RADIO)
-			*radio = pos;
-		/* Note: currently TDA9887 is the only demod-only
-		   device. If other devices appear then we need to
-		   make this test more general. */
-		else if (*tv == NULL && pos->type != TUNER_TDA9887 &&
-			 (pos->mode_mask & (T_ANALOG_TV | T_DIGITAL_TV)))
-			*tv = pos;
-	}
-}
-
-/* During client attach, set_type is called by adapter's attach_inform callback.
-   set_type must then be completed by tuner_attach.
- */
-static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
-{
-	struct i2c_client *client;
-	struct tuner *t;
-	struct tuner *radio;
-	struct tuner *tv;
-
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (NULL == client)
-		return -ENOMEM;
-
-	t = kzalloc(sizeof(struct tuner), GFP_KERNEL);
-	if (NULL == t) {
-		kfree(client);
-		return -ENOMEM;
-	}
-	t->i2c = client;
-	client_template.adapter = adap;
-	client_template.addr = addr;
-	memcpy(client, &client_template, sizeof(struct i2c_client));
-	i2c_set_clientdata(client, t);
-	t->type = UNSET;
-	t->audmode = V4L2_TUNER_MODE_STEREO;
-	t->mode_mask = T_UNINITIALIZED;
-
-	if (show_i2c) {
-		unsigned char buffer[16];
-		int i,rc;
-
-		memset(buffer, 0, sizeof(buffer));
-		rc = i2c_master_recv(client, buffer, sizeof(buffer));
-		tuner_info("I2C RECV = ");
-		for (i=0;i<rc;i++)
-			printk("%02x ",buffer[i]);
-		printk("\n");
-	}
-	/* HACK: This test were added to avoid tuner to probe tda9840 and tea6415c on the MXB card */
-	if (adap->id == I2C_HW_SAA7146 && addr < 0x4a)
-		return -ENODEV;
-
-	/* autodetection code based on the i2c addr */
-	if (!no_autodetect) {
-		switch (addr) {
-		case 0x10:
-			if (tea5761_autodetection(t->i2c->adapter, t->i2c->addr) != EINVAL) {
-				t->type = TUNER_TEA5761;
-				t->mode_mask = T_RADIO;
-				t->mode = T_STANDBY;
-				t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
-				tuner_lookup(t->i2c->adapter, &radio, &tv);
-				if (tv)
-					tv->mode_mask &= ~T_RADIO;
-
-				goto register_client;
-			}
-			break;
-		case 0x42:
-		case 0x43:
-		case 0x4a:
-		case 0x4b:
-			/* If chip is not tda8290, don't register.
-			   since it can be tda9887*/
-			if (tda829x_probe(t) == 0) {
-				tuner_dbg("tda829x detected\n");
-			} else {
-				/* Default is being tda9887 */
-				t->type = TUNER_TDA9887;
-				t->mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
-				t->mode = T_STANDBY;
-				goto register_client;
-			}
-			break;
-		case 0x60:
-			if (tea5767_autodetection(t->i2c->adapter, t->i2c->addr) != EINVAL) {
-				t->type = TUNER_TEA5767;
-				t->mode_mask = T_RADIO;
-				t->mode = T_STANDBY;
-				t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
-				tuner_lookup(t->i2c->adapter, &radio, &tv);
-				if (tv)
-					tv->mode_mask &= ~T_RADIO;
-
-				goto register_client;
-			}
-			break;
-		}
-	}
-
-	/* Initializes only the first TV tuner on this adapter. Why only the
-	   first? Because there are some devices (notably the ones with TI
-	   tuners) that have more than one i2c address for the *same* device.
-	   Experience shows that, except for just one case, the first
-	   address is the right one. The exception is a Russian tuner
-	   (ACORP_Y878F). So, the desired behavior is just to enable the
-	   first found TV tuner. */
-	tuner_lookup(t->i2c->adapter, &radio, &tv);
-	if (tv == NULL) {
-		t->mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
-		if (radio == NULL)
-			t->mode_mask |= T_RADIO;
-		tuner_dbg("Setting mode_mask to 0x%02x\n", t->mode_mask);
-		t->tv_freq = 400 * 16; /* Sets freq to VHF High */
-		t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
-	}
-
-	/* Should be just before return */
-register_client:
-	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
-
-	/* Sets a default mode */
-	if (t->mode_mask & T_ANALOG_TV) {
-		t->mode = T_ANALOG_TV;
-	} else  if (t->mode_mask & T_RADIO) {
-		t->mode = T_RADIO;
-	} else {
-		t->mode = T_DIGITAL_TV;
-	}
-
-	i2c_attach_client (client);
-	set_type (client,t->type, t->mode_mask, t->config, t->tuner_callback);
-	return 0;
-}
-
-static int tuner_probe(struct i2c_adapter *adap)
-{
-	if (0 != addr) {
-		normal_i2c[0] = addr;
-		normal_i2c[1] = I2C_CLIENT_END;
-	}
-
-	/* HACK: Ignore 0x6b and 0x6f on cx88 boards.
-	 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
-	 * and an RTC at 0x6f which can get corrupted if probed.
-	 */
-	if ((adap->id == I2C_HW_B_CX2388x) ||
-	    (adap->id == I2C_HW_B_CX23885)) {
-		unsigned int i = 0;
-
-		while (i < I2C_CLIENT_MAX_OPTS && ignore[i] != I2C_CLIENT_END)
-			i += 2;
-		if (i + 4 < I2C_CLIENT_MAX_OPTS) {
-			ignore[i+0] = adap->nr;
-			ignore[i+1] = 0x6b;
-			ignore[i+2] = adap->nr;
-			ignore[i+3] = 0x6f;
-			ignore[i+4] = I2C_CLIENT_END;
-		} else
-			printk(KERN_WARNING "tuner: "
-			       "too many options specified "
-			       "in i2c probe ignore list!\n");
-	}
-
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, tuner_attach);
-	return 0;
-}
-
-static int tuner_detach(struct i2c_client *client)
-{
-	struct tuner *t = i2c_get_clientdata(client);
-	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
-	int err;
-
-	err = i2c_detach_client(t->i2c);
-	if (err) {
-		tuner_warn
-		    ("Client deregistration failed, client not detached.\n");
-		return err;
-	}
-
-	if (ops && ops->release)
-		ops->release(&t->fe);
-
-	list_del(&t->list);
-	kfree(t);
-	kfree(client);
-	return 0;
-}
-
 /*
  * Switch tuner to other mode. If tuner support both tv and radio,
  * set another frequency to some value (This is needed for some pal
@@ -1153,6 +938,229 @@ static int tuner_resume(struct i2c_client *c)
 		if (t->tv_freq)
 			set_freq(c, t->tv_freq);
 	}
+	return 0;
+}
+
+/* ---------------------------------------------------------------------- */
+
+LIST_HEAD(tuner_list);
+
+/* Search for existing radio and/or TV tuners on the given I2C adapter.
+   Note that when this function is called from tuner_attach you can be
+   certain no other devices will be added/deleted at the same time, I2C
+   core protects against that. */
+static void tuner_lookup(struct i2c_adapter *adap,
+		struct tuner **radio, struct tuner **tv)
+{
+	struct tuner *pos;
+
+	*radio = NULL;
+	*tv = NULL;
+
+	list_for_each_entry(pos, &tuner_list, list) {
+		int mode_mask;
+
+		if (pos->i2c->adapter != adap ||
+		    pos->i2c->driver->id != I2C_DRIVERID_TUNER)
+			continue;
+
+		mode_mask = pos->mode_mask & ~T_STANDBY;
+		if (*radio == NULL && mode_mask == T_RADIO)
+			*radio = pos;
+		/* Note: currently TDA9887 is the only demod-only
+		   device. If other devices appear then we need to
+		   make this test more general. */
+		else if (*tv == NULL && pos->type != TUNER_TDA9887 &&
+			 (pos->mode_mask & (T_ANALOG_TV | T_DIGITAL_TV)))
+			*tv = pos;
+	}
+}
+
+/* During client attach, set_type is called by adapter's attach_inform callback.
+   set_type must then be completed by tuner_attach.
+ */
+static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
+{
+	struct i2c_client *client;
+	struct tuner *t;
+	struct tuner *radio;
+	struct tuner *tv;
+
+	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	if (NULL == client)
+		return -ENOMEM;
+
+	t = kzalloc(sizeof(struct tuner), GFP_KERNEL);
+	if (NULL == t) {
+		kfree(client);
+		return -ENOMEM;
+	}
+	t->i2c = client;
+	client_template.adapter = adap;
+	client_template.addr = addr;
+	memcpy(client, &client_template, sizeof(struct i2c_client));
+	i2c_set_clientdata(client, t);
+	t->type = UNSET;
+	t->audmode = V4L2_TUNER_MODE_STEREO;
+	t->mode_mask = T_UNINITIALIZED;
+
+	if (show_i2c) {
+		unsigned char buffer[16];
+		int i, rc;
+
+		memset(buffer, 0, sizeof(buffer));
+		rc = i2c_master_recv(client, buffer, sizeof(buffer));
+		tuner_info("I2C RECV = ");
+		for (i = 0; i < rc; i++)
+			printk(KERN_CONT "%02x ", buffer[i]);
+		printk("\n");
+	}
+	/* HACK: This test were added to avoid tuner to probe tda9840 and
+	   tea6415c on the MXB card */
+	if (adap->id == I2C_HW_SAA7146 && addr < 0x4a)
+		return -ENODEV;
+
+	/* autodetection code based on the i2c addr */
+	if (!no_autodetect) {
+		switch (addr) {
+		case 0x10:
+			if (tea5761_autodetection(t->i2c->adapter, t->i2c->addr)
+					!= EINVAL) {
+				t->type = TUNER_TEA5761;
+				t->mode_mask = T_RADIO;
+				t->mode = T_STANDBY;
+				/* Sets freq to FM range */
+				t->radio_freq = 87.5 * 16000;
+				tuner_lookup(t->i2c->adapter, &radio, &tv);
+				if (tv)
+					tv->mode_mask &= ~T_RADIO;
+
+				goto register_client;
+			}
+			break;
+		case 0x42:
+		case 0x43:
+		case 0x4a:
+		case 0x4b:
+			/* If chip is not tda8290, don't register.
+			   since it can be tda9887*/
+			if (tda829x_probe(t) == 0) {
+				tuner_dbg("tda829x detected\n");
+			} else {
+				/* Default is being tda9887 */
+				t->type = TUNER_TDA9887;
+				t->mode_mask = T_RADIO | T_ANALOG_TV |
+					       T_DIGITAL_TV;
+				t->mode = T_STANDBY;
+				goto register_client;
+			}
+			break;
+		case 0x60:
+			if (tea5767_autodetection(t->i2c->adapter, t->i2c->addr)
+					!= EINVAL) {
+				t->type = TUNER_TEA5767;
+				t->mode_mask = T_RADIO;
+				t->mode = T_STANDBY;
+				/* Sets freq to FM range */
+				t->radio_freq = 87.5 * 16000;
+				tuner_lookup(t->i2c->adapter, &radio, &tv);
+				if (tv)
+					tv->mode_mask &= ~T_RADIO;
+
+				goto register_client;
+			}
+			break;
+		}
+	}
+
+	/* Initializes only the first TV tuner on this adapter. Why only the
+	   first? Because there are some devices (notably the ones with TI
+	   tuners) that have more than one i2c address for the *same* device.
+	   Experience shows that, except for just one case, the first
+	   address is the right one. The exception is a Russian tuner
+	   (ACORP_Y878F). So, the desired behavior is just to enable the
+	   first found TV tuner. */
+	tuner_lookup(t->i2c->adapter, &radio, &tv);
+	if (tv == NULL) {
+		t->mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
+		if (radio == NULL)
+			t->mode_mask |= T_RADIO;
+		tuner_dbg("Setting mode_mask to 0x%02x\n", t->mode_mask);
+		t->tv_freq = 400 * 16; /* Sets freq to VHF High */
+		t->radio_freq = 87.5 * 16000; /* Sets freq to FM range */
+	}
+
+	/* Should be just before return */
+register_client:
+	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
+
+	/* Sets a default mode */
+	if (t->mode_mask & T_ANALOG_TV) {
+		t->mode = T_ANALOG_TV;
+	} else  if (t->mode_mask & T_RADIO) {
+		t->mode = T_RADIO;
+	} else {
+		t->mode = T_DIGITAL_TV;
+	}
+
+	i2c_attach_client(client);
+	set_type(client, t->type, t->mode_mask, t->config, t->tuner_callback);
+	return 0;
+}
+
+static int tuner_probe(struct i2c_adapter *adap)
+{
+	if (0 != addr) {
+		normal_i2c[0] = addr;
+		normal_i2c[1] = I2C_CLIENT_END;
+	}
+
+	/* HACK: Ignore 0x6b and 0x6f on cx88 boards.
+	 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
+	 * and an RTC at 0x6f which can get corrupted if probed.
+	 */
+	if ((adap->id == I2C_HW_B_CX2388x) ||
+	    (adap->id == I2C_HW_B_CX23885)) {
+		unsigned int i = 0;
+
+		while (i < I2C_CLIENT_MAX_OPTS && ignore[i] != I2C_CLIENT_END)
+			i += 2;
+		if (i + 4 < I2C_CLIENT_MAX_OPTS) {
+			ignore[i+0] = adap->nr;
+			ignore[i+1] = 0x6b;
+			ignore[i+2] = adap->nr;
+			ignore[i+3] = 0x6f;
+			ignore[i+4] = I2C_CLIENT_END;
+		} else
+			printk(KERN_WARNING "tuner: "
+			       "too many options specified "
+			       "in i2c probe ignore list!\n");
+	}
+
+	if (adap->class & I2C_CLASS_TV_ANALOG)
+		return i2c_probe(adap, &addr_data, tuner_attach);
+	return 0;
+}
+
+static int tuner_detach(struct i2c_client *client)
+{
+	struct tuner *t = i2c_get_clientdata(client);
+	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
+	int err;
+
+	err = i2c_detach_client(t->i2c);
+	if (err) {
+		tuner_warn
+		    ("Client deregistration failed, client not detached.\n");
+		return err;
+	}
+
+	if (ops && ops->release)
+		ops->release(&t->fe);
+
+	list_del(&t->list);
+	kfree(t);
+	kfree(client);
 	return 0;
 }
 
