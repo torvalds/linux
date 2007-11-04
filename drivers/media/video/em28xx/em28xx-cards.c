@@ -328,6 +328,26 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 1,
 		}},
 	},
+	[EM2820_BOARD_PROLINK_PLAYTV_USB2] = {
+		.name         = "Pixelview Prolink PlayTV USB 2.0",
+		.vchannels    = 3,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM28XX_SAA7113,
+		.input          = {{
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = SAA7115_COMPOSITE2,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = SAA7115_COMPOSITE0,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = SAA7115_SVIDEO3,
+			.amux     = 1,
+		}},
+	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
@@ -355,7 +375,8 @@ struct usb_device_id em28xx_id_table [] = {
 MODULE_DEVICE_TABLE (usb, em28xx_id_table);
 
 static struct em28xx_hash_table em28xx_hash [] = {
-	{ 0, 0, 0 },
+	/* P/N: SA 60002070465 Tuner: TVF7533-MF */
+	{ 0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF },
 };
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
