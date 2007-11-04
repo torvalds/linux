@@ -37,11 +37,10 @@ SECTIONS
 		ALIGN_FUNCTION();
 		*(.text.head)
 		_text = .;
-		TEXT_TEXT
+		*(.text .fixup .text.init.refok .exit.text.refok)
 		SCHED_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
-		*(.fixup)
 
 #ifdef CONFIG_PPC32
 		*(.got1)
