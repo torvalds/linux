@@ -746,6 +746,22 @@ int tda829x_probe(struct tuner *t)
 	unsigned char restore_9886[] = { 0x00, 0xd6, 0x30 };
 	unsigned char addr_dto_lsb = 0x07;
 	unsigned char data;
+#define PROBE_BUFFER_SIZE 8
+	unsigned char buf[PROBE_BUFFER_SIZE];
+	int i;
+
+	/* rule out tda9887, which would return the same byte repeatedly */
+	tuner_i2c_xfer_send(&i2c_props, soft_reset, 1);
+	tuner_i2c_xfer_recv(&i2c_props, buf, PROBE_BUFFER_SIZE);
+	for (i = 1; i < PROBE_BUFFER_SIZE; i++) {
+		if (buf[i] == buf[0])
+			continue;
+		break;
+	}
+
+	/* all bytes are equal, not a tda829x - probably a tda9887 */
+	if (i == PROBE_BUFFER_SIZE)
+		return -ENODEV;
 
 	if ((tda8290_probe(&i2c_props) == 0) ||
 	    (tda8295_probe(&i2c_props) == 0))
