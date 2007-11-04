@@ -32,6 +32,4 @@ struct pt_regs {
 extern void show_regs(struct pt_regs *);
 #endif
 
-#define PTRACE_O_TRACESYSGOOD     0x00000001
-
 #endif /* __ASM_SH64_PTRACE_H */
