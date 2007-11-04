@@ -1194,10 +1194,10 @@ static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 	if (dev->remote)
 		saa7134_ir_stop(dev);
 
-	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
 	pci_save_state(pci_dev);
+	pci_set_power_state(pci_dev, pci_choose_state(pci_dev, state));
 
-    return 0;
+	return 0;
 }
 
 static int saa7134_resume(struct pci_dev *pci_dev)
@@ -1205,8 +1205,8 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
 	unsigned long flags;
 
-	pci_restore_state(pci_dev);
 	pci_set_power_state(pci_dev, PCI_D0);
+	pci_restore_state(pci_dev);
 
 	/* Do things that are done in saa7134_initdev ,
 		except of initializing memory structures.*/
