@@ -632,6 +632,46 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int tda8290_probe(struct tuner_i2c_props *i2c_props)
+{
+#define TDA8290_ID 0x89
+	unsigned char tda8290_id[] = { 0x1f, 0x00 };
+
+	/* detect tda8290 */
+	tuner_i2c_xfer_send(i2c_props, &tda8290_id[0], 1);
+	tuner_i2c_xfer_recv(i2c_props, &tda8290_id[1], 1);
+
+	if (tda8290_id[1] == TDA8290_ID) {
+		if (tuner_debug)
+			printk(KERN_DEBUG "%s: tda8290 detected @ %d-%04x\n",
+			       __FUNCTION__, i2c_adapter_id(i2c_props->adap),
+			       i2c_props->addr);
+		return 0;
+	}
+
+	return -1;
+}
+
+static int tda8295_probe(struct tuner_i2c_props *i2c_props)
+{
+#define TDA8295_ID 0x8a
+	unsigned char tda8295_id[] = { 0x2f, 0x00 };
+
+	/* detect tda8295 */
+	tuner_i2c_xfer_send(i2c_props, &tda8295_id[0], 1);
+	tuner_i2c_xfer_recv(i2c_props, &tda8295_id[1], 1);
+
+	if (tda8295_id[1] == TDA8295_ID) {
+		if (tuner_debug)
+			printk(KERN_DEBUG "%s: tda8295 detected @ %d-%04x\n",
+			       __FUNCTION__, i2c_adapter_id(i2c_props->adap),
+			       i2c_props->addr);
+		return 0;
+	}
+
+	return -1;
+}
+
 static struct analog_tuner_ops tda8290_tuner_ops = {
 	.set_tv_freq    = tda8290_set_freq,
 	.set_radio_freq = tda8290_set_freq,
@@ -655,11 +695,6 @@ int tda829x_attach(struct tuner *t)
 	struct dvb_frontend *fe = &t->fe;
 	struct tda8290_priv *priv = NULL;
 
-	unsigned char tda8290_id[] = { 0x1f, 0x00 };
-#define TDA8290_ID 0x89
-	unsigned char tda8295_id[] = { 0x2f, 0x00 };
-#define TDA8295_ID 0x8a
-
 	priv = kzalloc(sizeof(struct tda8290_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
@@ -671,18 +706,12 @@ int tda829x_attach(struct tuner *t)
 	priv->cfg.tuner_callback = t->tuner_callback;
 	priv->t = t;
 
-	/* detect tda8290 */
-	tuner_i2c_xfer_send(&priv->i2c_props, &tda8290_id[0], 1);
-	tuner_i2c_xfer_recv(&priv->i2c_props, &tda8290_id[1], 1);
-	if (tda8290_id[1] == TDA8290_ID) {
+	if (tda8290_probe(&priv->i2c_props) == 0) {
 		priv->ver = TDA8290;
 		fe->ops.analog_demod_ops = &tda8290_tuner_ops;
 	}
 
-	/* detect tda8295 */
-	tuner_i2c_xfer_send(&priv->i2c_props, &tda8295_id[0], 1);
-	tuner_i2c_xfer_recv(&priv->i2c_props, &tda8295_id[1], 1);
-	if (tda8295_id[1] == TDA8295_ID) {
+	if (tda8295_probe(&priv->i2c_props) == 0) {
 		priv->ver = TDA8295;
 		fe->ops.analog_demod_ops = &tda8295_tuner_ops;
 	}
@@ -704,7 +733,7 @@ int tda829x_attach(struct tuner *t)
 }
 EXPORT_SYMBOL_GPL(tda829x_attach);
 
-int tda8290_probe(struct tuner *t)
+int tda829x_probe(struct tuner *t)
 {
 	struct tuner_i2c_props i2c_props = {
 		.adap = t->i2c->adapter,
@@ -718,6 +747,11 @@ int tda8290_probe(struct tuner *t)
 	unsigned char addr_dto_lsb = 0x07;
 	unsigned char data;
 
+	if ((tda8290_probe(&i2c_props) == 0) ||
+	    (tda8295_probe(&i2c_props) == 0))
+		return 0;
+
+	/* fall back to old probing method */
 	tuner_i2c_xfer_send(&i2c_props, easy_mode_b, 2);
 	tuner_i2c_xfer_send(&i2c_props, soft_reset, 2);
 	tuner_i2c_xfer_send(&i2c_props, &addr_dto_lsb, 1);
@@ -734,7 +768,7 @@ int tda8290_probe(struct tuner *t)
 	tuner_i2c_xfer_send(&i2c_props, restore_9886, 3);
 	return -1;
 }
-EXPORT_SYMBOL_GPL(tda8290_probe);
+EXPORT_SYMBOL_GPL(tda829x_probe);
 
 MODULE_DESCRIPTION("Philips/NXP TDA8290/TDA8295 analog IF demodulator driver");
 MODULE_AUTHOR("Gerd Knorr, Hartmut Hackmann, Michael Krufky");

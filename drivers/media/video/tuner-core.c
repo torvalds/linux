@@ -649,8 +649,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 		case 0x4b:
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
-			if (tda8290_probe(t) == 0) {
-				tuner_dbg("chip at addr %x is a tda8290\n", addr);
+			if (tda829x_probe(t) == 0) {
+				tuner_dbg("tda829x detected\n");
 			} else {
 				/* Default is being tda9887 */
 				t->type = TUNER_TDA9887;
