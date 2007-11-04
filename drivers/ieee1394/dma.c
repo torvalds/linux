@@ -103,8 +103,7 @@ int dma_region_alloc(struct dma_region *dma, unsigned long n_bytes,
 		goto err;
 	}
 
-	/* just to be safe - this will become unnecessary once sglist->address goes away */
-	memset(dma->sglist, 0, dma->n_pages * sizeof(*dma->sglist));
+	sg_init_table(dma->sglist, dma->n_pages);
 
 	/* fill scatter/gather list with pages */
 	for (i = 0; i < dma->n_pages; i++) {
