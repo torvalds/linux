@@ -3,7 +3,6 @@ config VIDEO_TM6000
 	select VIDEO_V4L2
 	select VIDEO_TUNER
 	select TUNER_XC2028
-	select VIDEO_USB_ISOC
 	select VIDEOBUF_VMALLOC
 	help
 	  Support for TM5600/TM6000 USB Device
@@ -17,5 +16,6 @@ config VIDEO_TM6000
 config VIDEO_TM6000_DVB
 	bool "DVB Support for tm6000 based TV cards"
 	depends on VIDEO_TM6000 && DVB_CORE
+	select DVB_ZL10353
 	---help---
 	  This adds support for DVB cards based on the tm5600/tm6000 chip.
