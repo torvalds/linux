@@ -1181,8 +1181,13 @@ static int saa7134_suspend(struct pci_dev *pci_dev , pm_message_t state)
 	saa_writel(SAA7134_IRQ2, 0);
 	saa_writel(SAA7134_MAIN_CTRL, 0);
 
-	synchronize_irq(pci_dev->irq);
 	dev->insuspend = 1;
+	synchronize_irq(pci_dev->irq);
+
+	/* ACK interrupts once more, just in case,
+		since the IRQ handler won't ack them anymore*/
+
+	saa_writel(SAA7134_IRQ_REPORT, saa_readl(SAA7134_IRQ_REPORT));
 
 	/* Disable timeout timers - if we have active buffers, we will
 	   fill them on resume*/
@@ -1246,6 +1251,7 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 
 	/* start DMA now*/
 	dev->insuspend = 0;
+	smp_wmb();
 	saa7134_set_dmabits(dev);
 	spin_unlock_irqrestore(&dev->slock, flags);
 
