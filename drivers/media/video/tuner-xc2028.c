@@ -22,7 +22,7 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
-#define PREFIX "xc2028 "
+#define PREFIX "xc2028"
 
 static LIST_HEAD(xc2028_list);
 /* struct for storing firmware table */

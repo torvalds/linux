@@ -17,7 +17,7 @@ static int debug = 0;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tuner-simple "
+#define PREFIX "tuner-simple"
 
 static int offset = 0;
 module_param(offset, int, 0664);

@@ -72,15 +72,15 @@ struct tuner {
 /* ------------------------------------------------------------------------ */
 
 #define tuner_warn(fmt, arg...) do {\
-	printk(KERN_WARNING PREFIX "%d-%04x: " fmt, \
+	printk(KERN_WARNING "%s %d-%04x: " fmt, PREFIX, \
 			i2c_adapter_id(t->i2c->adapter), t->i2c->addr , ##arg); } while (0)
 #define tuner_info(fmt, arg...) do {\
-	printk(KERN_INFO PREFIX "%d-%04x: " fmt, \
+	printk(KERN_INFO "%s %d-%04x: " fmt, PREFIX, \
 			i2c_adapter_id(t->i2c->adapter), t->i2c->addr , ##arg); } while (0)
 #define tuner_dbg(fmt, arg...) do {\
 	extern int tuner_debug; \
 	if (tuner_debug) \
-		printk(KERN_DEBUG PREFIX "%d-%04x: " fmt, \
+		printk(KERN_DEBUG "%s %d-%04x: " fmt, PREFIX, \
 			i2c_adapter_id(t->i2c->adapter), t->i2c->addr , ##arg); } while (0)
 
 #endif /* __TUNER_DRIVER_H__ */

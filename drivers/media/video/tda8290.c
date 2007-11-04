@@ -31,7 +31,7 @@ static int tuner_debug;
 module_param_named(debug, tuner_debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define PREFIX "tda8290 "
+#define PREFIX "tda8290"
 
 /* ---------------------------------------------------------------------- */
 

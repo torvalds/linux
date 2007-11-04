@@ -19,6 +19,7 @@
 #include <media/tuner.h>
 #include <media/tuner-types.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include "tuner-driver.h"
 #include "mt20xx.h"
 #include "tda8290.h"
@@ -30,7 +31,7 @@
 
 #define UNSET (-1U)
 
-#define PREFIX "tuner "
+#define PREFIX t->i2c->driver->driver.name
 
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
@@ -74,9 +75,6 @@ module_param_array(radio_range, int, NULL, 0644);
 MODULE_DESCRIPTION("device driver for various TV and TV+FM radio tuners");
 MODULE_AUTHOR("Ralph Metzler, Gerd Knorr, Gunther Mayer");
 MODULE_LICENSE("GPL");
-
-static struct i2c_driver driver;
-static struct i2c_client client_template;
 
 /* ---------------------------------------------------------------------- */
 
@@ -919,18 +917,18 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 static int tuner_suspend(struct i2c_client *c, pm_message_t state)
 {
-	struct tuner *t = i2c_get_clientdata (c);
+	struct tuner *t = i2c_get_clientdata(c);
 
-	tuner_dbg ("suspend\n");
+	tuner_dbg("suspend\n");
 	/* FIXME: power down ??? */
 	return 0;
 }
 
 static int tuner_resume(struct i2c_client *c)
 {
-	struct tuner *t = i2c_get_clientdata (c);
+	struct tuner *t = i2c_get_clientdata(c);
 
-	tuner_dbg ("resume\n");
+	tuner_dbg("resume\n");
 	if (V4L2_TUNER_RADIO == t->mode) {
 		if (t->radio_freq)
 			set_freq(c, t->radio_freq);
@@ -946,7 +944,7 @@ static int tuner_resume(struct i2c_client *c)
 LIST_HEAD(tuner_list);
 
 /* Search for existing radio and/or TV tuners on the given I2C adapter.
-   Note that when this function is called from tuner_attach you can be
+   Note that when this function is called from tuner_probe you can be
    certain no other devices will be added/deleted at the same time, I2C
    core protects against that. */
 static void tuner_lookup(struct i2c_adapter *adap,
@@ -977,28 +975,19 @@ static void tuner_lookup(struct i2c_adapter *adap,
 }
 
 /* During client attach, set_type is called by adapter's attach_inform callback.
-   set_type must then be completed by tuner_attach.
+   set_type must then be completed by tuner_probe.
  */
-static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
+static int tuner_probe(struct i2c_client *client)
 {
-	struct i2c_client *client;
 	struct tuner *t;
 	struct tuner *radio;
 	struct tuner *tv;
 
-	client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
-	if (NULL == client)
-		return -ENOMEM;
-
 	t = kzalloc(sizeof(struct tuner), GFP_KERNEL);
-	if (NULL == t) {
-		kfree(client);
+	if (NULL == t)
 		return -ENOMEM;
-	}
 	t->i2c = client;
-	client_template.adapter = adap;
-	client_template.addr = addr;
-	memcpy(client, &client_template, sizeof(struct i2c_client));
+	strlcpy(client->name, "(tuner unset)", sizeof(client->name));
 	i2c_set_clientdata(client, t);
 	t->type = UNSET;
 	t->audmode = V4L2_TUNER_MODE_STEREO;
@@ -1015,14 +1004,16 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 			printk(KERN_CONT "%02x ", buffer[i]);
 		printk("\n");
 	}
-	/* HACK: This test were added to avoid tuner to probe tda9840 and
+	/* HACK: This test was added to avoid tuner to probe tda9840 and
 	   tea6415c on the MXB card */
-	if (adap->id == I2C_HW_SAA7146 && addr < 0x4a)
+	if (client->adapter->id == I2C_HW_SAA7146 && client->addr < 0x4a) {
+		kfree(t);
 		return -ENODEV;
+	}
 
 	/* autodetection code based on the i2c addr */
 	if (!no_autodetect) {
-		switch (addr) {
+		switch (client->addr) {
 		case 0x10:
 			if (tea5761_autodetection(t->i2c->adapter, t->i2c->addr)
 					!= EINVAL) {
@@ -1092,7 +1083,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 
 	/* Should be just before return */
 register_client:
-	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
+	tuner_info("chip found @ 0x%x (%s)\n", client->addr << 1,
+		       client->adapter->name);
 
 	/* Sets a default mode */
 	if (t->mode_mask & T_ANALOG_TV) {
@@ -1102,18 +1094,20 @@ register_client:
 	} else {
 		t->mode = T_DIGITAL_TV;
 	}
-
-	i2c_attach_client(client);
 	set_type(client, t->type, t->mode_mask, t->config, t->tuner_callback);
+	list_add_tail(&t->list, &tuner_list);
 	return 0;
 }
 
-static int tuner_probe(struct i2c_adapter *adap)
+static int tuner_legacy_probe(struct i2c_adapter *adap)
 {
 	if (0 != addr) {
 		normal_i2c[0] = addr;
 		normal_i2c[1] = I2C_CLIENT_END;
 	}
+
+	if ((adap->class & I2C_CLASS_TV_ANALOG) == 0)
+		return 0;
 
 	/* HACK: Ignore 0x6b and 0x6f on cx88 boards.
 	 * FusionHDTV5 RT Gold has an ir receiver at 0x6b
@@ -1136,64 +1130,35 @@ static int tuner_probe(struct i2c_adapter *adap)
 			       "too many options specified "
 			       "in i2c probe ignore list!\n");
 	}
-
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, tuner_attach);
-	return 0;
+	return 1;
 }
 
-static int tuner_detach(struct i2c_client *client)
+static int tuner_remove(struct i2c_client *client)
 {
 	struct tuner *t = i2c_get_clientdata(client);
 	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
-	int err;
-
-	err = i2c_detach_client(t->i2c);
-	if (err) {
-		tuner_warn
-		    ("Client deregistration failed, client not detached.\n");
-		return err;
-	}
 
 	if (ops && ops->release)
 		ops->release(&t->fe);
 
 	list_del(&t->list);
 	kfree(t);
-	kfree(client);
 	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver driver = {
-	.id = I2C_DRIVERID_TUNER,
-	.attach_adapter = tuner_probe,
-	.detach_client = tuner_detach,
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "tuner",
+	.driverid = I2C_DRIVERID_TUNER,
 	.command = tuner_command,
+	.probe = tuner_probe,
+	.remove = tuner_remove,
 	.suspend = tuner_suspend,
-	.resume  = tuner_resume,
-	.driver = {
-		.name    = "tuner",
-	},
-};
-static struct i2c_client client_template = {
-	.name = "(tuner unset)",
-	.driver = &driver,
+	.resume = tuner_resume,
+	.legacy_probe = tuner_legacy_probe,
 };
 
-static int __init tuner_init_module(void)
-{
-	return i2c_add_driver(&driver);
-}
-
-static void __exit tuner_cleanup_module(void)
-{
-	i2c_del_driver(&driver);
-}
-
-module_init(tuner_init_module);
-module_exit(tuner_cleanup_module);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
