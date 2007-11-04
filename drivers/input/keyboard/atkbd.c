@@ -823,7 +823,6 @@ static void atkbd_disconnect(struct serio *serio)
 	atkbd_disable(atkbd);
 
 	/* make sure we don't have a command in flight */
-	synchronize_sched();  /* Allow atkbd_interrupt()s to complete. */
 	flush_scheduled_work();
 
 	sysfs_remove_group(&serio->dev.kobj, &atkbd_attribute_group);
