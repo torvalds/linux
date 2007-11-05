@@ -847,6 +847,8 @@ extern int drm_release(struct inode *inode, struct file *filp);
 
 				/* Mapping support (drm_vm.h) */
 extern int drm_mmap(struct file *filp, struct vm_area_struct *vma);
+extern unsigned long drm_core_get_map_ofs(struct drm_map * map);
+extern unsigned long drm_core_get_reg_ofs(struct drm_device *dev);
 extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
@@ -1143,9 +1145,6 @@ extern void *drm_calloc(size_t nmemb, size_t size, int area);
 #endif
 
 /*@}*/
-
-extern unsigned long drm_core_get_map_ofs(struct drm_map * map);
-extern unsigned long drm_core_get_reg_ofs(struct drm_device *dev);
 
 #endif				/* __KERNEL__ */
 #endif
