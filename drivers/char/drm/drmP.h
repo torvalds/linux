@@ -559,8 +559,6 @@ struct drm_mm {
  * a family of cards. There will one drm_device for each card present
  * in this family
  */
-struct drm_device;
-
 struct drm_driver {
 	int (*load) (struct drm_device *, unsigned long flags);
 	int (*firstopen) (struct drm_device *);
