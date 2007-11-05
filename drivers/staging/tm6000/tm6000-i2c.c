@@ -163,8 +163,8 @@ err:
 }
 
 
-static int tm6000_i2c_eeprom( struct tm6000_core *dev,
-			      unsigned char *eedata, int len )
+static int tm6000_i2c_eeprom(struct tm6000_core *dev,
+			     unsigned char *eedata, int len)
 {
 	int i, rc;
 	unsigned char *p = eedata;
@@ -172,24 +172,16 @@ static int tm6000_i2c_eeprom( struct tm6000_core *dev,
 
 	dev->i2c_client.addr = 0xa0 >> 1;
 
-//006779:  OUT: 000006 ms 089867 ms c0 0e a0 00 00 00 01 00 <<<  00
-//006780:  OUT: 000005 ms 089873 ms c0 10 a0 00 00 00 01 00 <<<  00
-//006781:  OUT: 000108 ms 089878 ms 40 0e a0 00 00 00 01 00 >>>  99
-//006782:  OUT: 000015 ms 089986 ms c0 0e a0 00 01 00 01 00 <<<  99
-//006783:  OUT: 000004 ms 090001 ms c0 0e a0 00 10 00 01 00 <<<  99
-//006784:  OUT: 000005 ms 090005 ms 40 10 a0 00 00 00 01 00 >>>  00
-//006785:  OUT: 000308 ms 090010 ms 40 0e a0 00 00 00 01 00 >>>  00
-
-
-	for (i = 0; i < len; i++) {
-		bytes[0x14+i] = 0;
-
-		rc = i2c_master_recv(&dev->i2c_client, p, 1);
-		if (rc<1) {
-			if (p==eedata) {
-				printk (KERN_WARNING "%s doesn't have eeprom",
-					dev->name);
-			} else {
+	bytes[16] = '\0';
+	for (i = 0; i < len; ) {
+	*p = i;
+	rc = tm6000_read_write_usb (dev,
+		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		REQ_16_SET_GET_I2CSEQ, 0xa0 | i<<8, 0, p, 1);
+		if (rc < 1) {
+			if (p == eedata)
+				goto noeeprom;
+			else {
 				printk(KERN_WARNING
 				"%s: i2c eeprom read error (err=%d)\n",
 				dev->name, rc);
@@ -200,21 +192,32 @@ static int tm6000_i2c_eeprom( struct tm6000_core *dev,
 		if (0 == (i % 16))
 			printk(KERN_INFO "%s: i2c eeprom %02x:", dev->name, i);
 		printk(" %02x", eedata[i]);
-		if ((eedata[i]>=' ')&&(eedata[i]<='z')) {
-			bytes[i%16]=eedata[i];
+		if ((eedata[i] >= ' ') && (eedata[i] <= 'z')) {
+			bytes[i%16] = eedata[i];
 		} else {
 			bytes[i%16]='.';
 		}
-		if (15 == (i % 16)) {
-			bytes[i%16]='\0';
+
+		i++;
+
+		if (0 == (i % 16)) {
+			bytes[16] = '\0';
 			printk("  %s\n", bytes);
 		}
 	}
-	if ((i%16)!=15) {
-		bytes[i%16]='\0';
-		printk("  %s\n", bytes);
+	if (0 != (i%16)) {
+		bytes[i%16] = '\0';
+		for (i %= 16; i < 16; i++)
+			printk("   ");
 	}
+	printk("  %s\n", bytes);
+
 	return 0;
+
+noeeprom:
+	printk(KERN_INFO "%s: Huh, no eeprom present (err=%d)?\n",
+		       dev->name, rc);
+	return rc;
 }
 
 /* ----------------------------------------------------------- */
@@ -319,7 +322,6 @@ static int attach_inform(struct i2c_client *client)
 {
 	struct tm6000_core *dev = client->adapter->algo_data;
 	struct tuner_setup tun_setup;
-	unsigned char eedata[11];
 
 	i2c_dprintk(1, "%s i2c attach [addr=0x%x,client=%s]\n",
 		client->driver->driver.name, client->addr, client->name);
@@ -416,6 +418,8 @@ void tm6000_i2c_call_clients(struct tm6000_core *dev, unsigned int cmd, void *ar
  */
 int tm6000_i2c_register(struct tm6000_core *dev)
 {
+	unsigned char eedata[256];
+
 	dev->i2c_adap = tm6000_adap_template;
 	dev->i2c_adap.dev.parent = &dev->udev->dev;
 	strcpy(dev->i2c_adap.name, dev->name);
@@ -427,6 +431,8 @@ int tm6000_i2c_register(struct tm6000_core *dev)
 
 	if (i2c_scan)
 		do_i2c_scan(dev->name, &dev->i2c_client);
+
+	tm6000_i2c_eeprom(dev, eedata, sizeof(eedata));
 
 	return 0;
 }
