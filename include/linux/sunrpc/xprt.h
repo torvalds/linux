@@ -257,6 +257,7 @@ void			xprt_force_disconnect(struct rpc_xprt *xprt);
 #define XPRT_CLOSE_WAIT		(3)
 #define XPRT_BOUND		(4)
 #define XPRT_BINDING		(5)
+#define XPRT_CLOSING		(6)
 
 static inline void xprt_set_connected(struct rpc_xprt *xprt)
 {

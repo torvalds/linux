@@ -758,7 +758,9 @@ static void xs_close(struct rpc_xprt *xprt)
 	sock_release(sock);
 clear_close_wait:
 	smp_mb__before_clear_bit();
+	clear_bit(XPRT_CONNECTED, &xprt->state);
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
+	clear_bit(XPRT_CLOSING, &xprt->state);
 	smp_mb__after_clear_bit();
 }
 
@@ -1118,12 +1120,28 @@ static void xs_tcp_state_change(struct sock *sk)
 		}
 		spin_unlock_bh(&xprt->transport_lock);
 		break;
-	case TCP_SYN_SENT:
-	case TCP_SYN_RECV:
+	case TCP_FIN_WAIT1:
+		/* The client initiated a shutdown of the socket */
+		set_bit(XPRT_CLOSING, &xprt->state);
+		smp_mb__before_clear_bit();
+		clear_bit(XPRT_CONNECTED, &xprt->state);
+		smp_mb__after_clear_bit();
 		break;
 	case TCP_CLOSE_WAIT:
+		/* The server initiated a shutdown of the socket */
+		set_bit(XPRT_CLOSING, &xprt->state);
 		xprt_force_disconnect(xprt);
-	default:
+		break;
+	case TCP_LAST_ACK:
+		smp_mb__before_clear_bit();
+		clear_bit(XPRT_CONNECTED, &xprt->state);
+		smp_mb__after_clear_bit();
+		break;
+	case TCP_CLOSE:
+		smp_mb__before_clear_bit();
+		clear_bit(XPRT_CLOSING, &xprt->state);
+		smp_mb__after_clear_bit();
+		/* Mark transport as closed and wake up all pending tasks */
 		xprt_disconnect(xprt);
 	}
  out:
