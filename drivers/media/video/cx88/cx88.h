@@ -633,12 +633,6 @@ int cx8802_buf_prepare(struct videobuf_queue *q,struct cx8802_dev *dev,
 void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf);
 void cx8802_cancel_buffers(struct cx8802_dev *dev);
 
-int cx8802_init_common(struct cx8802_dev *dev);
-void cx8802_fini_common(struct cx8802_dev *dev);
-
-int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state);
-int cx8802_resume_common(struct pci_dev *pci_dev);
-
 /* ----------------------------------------------------------- */
 /* cx88-video.c*/
 extern const u32 cx88_user_ctrls[];

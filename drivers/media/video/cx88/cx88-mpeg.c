@@ -437,10 +437,7 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id)
 	return IRQ_RETVAL(handled);
 }
 
-/* ----------------------------------------------------------- */
-/* exported stuff                                              */
-
-int cx8802_init_common(struct cx8802_dev *dev)
+static int cx8802_init_common(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
 	int err;
@@ -488,7 +485,7 @@ int cx8802_init_common(struct cx8802_dev *dev)
 	return 0;
 }
 
-void cx8802_fini_common(struct cx8802_dev *dev)
+static void cx8802_fini_common(struct cx8802_dev *dev)
 {
 	dprintk( 2, "cx8802_fini_common\n" );
 	cx8802_stop_dma(dev);
@@ -504,7 +501,7 @@ void cx8802_fini_common(struct cx8802_dev *dev)
 
 /* ----------------------------------------------------------- */
 
-int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
+static int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 {
 	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
@@ -530,7 +527,7 @@ int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 	return 0;
 }
 
-int cx8802_resume_common(struct pci_dev *pci_dev)
+static int cx8802_resume_common(struct pci_dev *pci_dev)
 {
 	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
@@ -873,9 +870,6 @@ module_exit(cx8802_fini);
 EXPORT_SYMBOL(cx8802_buf_prepare);
 EXPORT_SYMBOL(cx8802_buf_queue);
 EXPORT_SYMBOL(cx8802_cancel_buffers);
-
-EXPORT_SYMBOL(cx8802_init_common);
-EXPORT_SYMBOL(cx8802_fini_common);
 
 EXPORT_SYMBOL(cx8802_register_driver);
 EXPORT_SYMBOL(cx8802_unregister_driver);
