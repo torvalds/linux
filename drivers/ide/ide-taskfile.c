@@ -471,6 +471,7 @@ static int ide_diag_taskfile(ide_drive_t *drive, ide_task_t *args, unsigned long
 	struct request rq;
 
 	memset(&rq, 0, sizeof(rq));
+	rq.ref_count = 1;
 	rq.cmd_type = REQ_TYPE_ATA_TASKFILE;
 	rq.buffer = buf;
 
