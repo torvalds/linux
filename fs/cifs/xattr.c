@@ -267,7 +267,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 			int oplock = FALSE;
 			struct cifs_ntsd *pacl = NULL;
 			__u32 buflen = 0;
-			if (experimEnabled) 
+			if (experimEnabled)
 				rc = CIFSSMBOpen(xid, pTcon, full_path,
 					FILE_OPEN, GENERIC_READ, 0, &fid,
 					&oplock, NULL, cifs_sb->local_nls,
@@ -275,7 +275,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 			/* else rc is EOPNOTSUPP from above */
 
-			if(rc == 0) {
+			if (rc == 0) {
 				rc = CIFSSMBGetCIFSACL(xid, pTcon, fid, &pacl,
 						      &buflen);
 				CIFSSMBClose(xid, pTcon, fid);

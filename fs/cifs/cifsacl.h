@@ -35,6 +35,9 @@
 #define UBITSHIFT	6
 #define GBITSHIFT	3
 
+#define ACCESS_ALLOWED	0
+#define ACCESS_DENIED	1
+
 struct cifs_ntsd {
 	__le16 revision; /* revision level */
 	__le16 type;

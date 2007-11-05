@@ -495,7 +495,7 @@ ffirst_retry:
 static int cifs_unicode_bytelen(char *str)
 {
 	int len;
-	__le16 * ustr = (__le16 *)str;
+	__le16 *ustr = (__le16 *)str;
 
 	for (len = 0; len <= PATH_MAX; len++) {
 		if (ustr[len] == 0)

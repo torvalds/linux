@@ -327,7 +327,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 	group_sid_ptr = (struct cifs_sid *)((char *)pntsd +
 				le32_to_cpu(pntsd->gsidoffset));
 	dacloffset = le32_to_cpu(pntsd->dacloffset);
-	dacl_ptr = (struct cifs_acl *)(char *)pntsd + dacloffset;
+	dacl_ptr = (struct cifs_acl *)((char *)pntsd + dacloffset);
 #ifdef CONFIG_CIFS_DEBUG2
 	cFYI(1, ("revision %d type 0x%x ooffset 0x%x goffset 0x%x "
 		 "sacloffset 0x%x dacloffset 0x%x",
@@ -346,7 +346,7 @@ static int parse_sec_desc(struct cifs_ntsd *pntsd, int acl_len,
 
 	if (dacloffset)
 		parse_dacl(dacl_ptr, end_of_acl, owner_sid_ptr,
-		group_sid_ptr, inode);
+			   group_sid_ptr, inode);
 	else
 		cFYI(1, ("no ACL")); /* BB grant all or default perms? */
 

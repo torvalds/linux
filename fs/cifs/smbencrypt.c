@@ -80,7 +80,7 @@ SMBencrypt(unsigned char *passwd, unsigned char *c8, unsigned char *p24)
 
 /* Routines for Windows NT MD4 Hash functions. */
 static int
-_my_wcslen(__u16 * str)
+_my_wcslen(__u16 *str)
 {
 	int len = 0;
 	while (*str++ != 0)
@@ -96,7 +96,7 @@ _my_wcslen(__u16 * str)
  */
 
 static int
-_my_mbstowcs(__u16 * dst, const unsigned char *src, int len)
+_my_mbstowcs(__u16 *dst, const unsigned char *src, int len)
 {	/* BB not a very good conversion routine - change/fix */
 	int i;
 	__u16 val;
@@ -125,9 +125,9 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16)
 	/* Password cannot be longer than 128 characters */
 	if (passwd) {
 		len = strlen((char *) passwd);
-		if (len > 128) {
+		if (len > 128)
 			len = 128;
-		}
+
 		/* Password must be converted to NT unicode */
 		_my_mbstowcs(wpwd, passwd, len);
 	} else
@@ -189,8 +189,10 @@ ntv2_owf_gen(const unsigned char owf[16], const char *user_n,
 		return;
 	dom_u = user_u + 1024;
 
-	/* push_ucs2(NULL, user_u, user_n, (user_l+1)*2, STR_UNICODE|STR_NOALIGN|STR_TERMINATE|STR_UPPER);
-	   push_ucs2(NULL, dom_u, domain_n, (domain_l+1)*2, STR_UNICODE|STR_NOALIGN|STR_TERMINATE|STR_UPPER); */
+	/* push_ucs2(NULL, user_u, user_n, (user_l+1)*2,
+			STR_UNICODE|STR_NOALIGN|STR_TERMINATE|STR_UPPER);
+	   push_ucs2(NULL, dom_u, domain_n, (domain_l+1)*2,
+			STR_UNICODE|STR_NOALIGN|STR_TERMINATE|STR_UPPER); */
 
 	/* BB user and domain may need to be uppercased */
 	user_l = cifs_strtoUCS(user_u, user_n, 511, nls_codepage);
