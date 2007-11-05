@@ -57,6 +57,7 @@ static uint8_t lpfcAlpaArray[] = {
 };
 
 static void lpfc_disc_timeout_handler(struct lpfc_vport *);
+static void lpfc_disc_flush_list(struct lpfc_vport *vport);
 
 void
 lpfc_terminate_rport_io(struct fc_rport *rport)
@@ -170,7 +171,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
  * This function is called from the worker thread when dev_loss_tmo
  * expire.
  */
-void
+static void
 lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 {
 	struct lpfc_rport_data *rdata;
@@ -752,7 +753,7 @@ lpfc_linkup(struct lpfc_hba *phba)
  * as the completion routine when the command is
  * handed off to the SLI layer.
  */
-void
+static void
 lpfc_mbx_cmpl_clear_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
@@ -2452,7 +2453,7 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	}
 }
 
-void
+static void
 lpfc_disc_flush_list(struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp, *next_ndlp;
@@ -2783,7 +2784,7 @@ lpfc_filter_by_wwpn(struct lpfc_nodelist *ndlp, void *param)
 		      sizeof(ndlp->nlp_portname)) == 0;
 }
 
-struct lpfc_nodelist *
+static struct lpfc_nodelist *
 __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 {
 	struct lpfc_nodelist *ndlp;
@@ -2795,6 +2796,7 @@ __lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	return NULL;
 }
 
+#if 0
 /*
  * Search node lists for a remote port matching filter criteria
  * Caller needs to hold host_lock before calling this routine.
@@ -2810,6 +2812,7 @@ lpfc_find_node(struct lpfc_vport *vport, node_filter filter, void *param)
 	spin_unlock_irq(shost->host_lock);
 	return ndlp;
 }
+#endif  /*  0  */
 
 /*
  * This routine looks up the ndlp lists for the given RPI. If rpi found it
@@ -2821,6 +2824,7 @@ __lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
 	return __lpfc_find_node(vport, lpfc_filter_by_rpi, &rpi);
 }
 
+#if 0
 struct lpfc_nodelist *
 lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
 {
@@ -2832,6 +2836,7 @@ lpfc_findnode_rpi(struct lpfc_vport *vport, uint16_t rpi)
 	spin_unlock_irq(shost->host_lock);
 	return ndlp;
 }
+#endif  /*  0  */
 
 /*
  * This routine looks up the ndlp lists for the given WWPN. If WWPN found it

@@ -508,7 +508,7 @@ lpfc_hba_down_post(struct lpfc_hba *phba)
 }
 
 /* HBA heart beat timeout handler */
-void
+static void
 lpfc_hb_timeout(unsigned long ptr)
 {
 	struct lpfc_hba *phba;
@@ -1429,6 +1429,16 @@ lpfc_stop_phba_timers(struct lpfc_hba *phba)
 	return;
 }
 
+static void
+lpfc_block_mgmt_io(struct lpfc_hba * phba)
+{
+	unsigned long iflag;
+
+	spin_lock_irqsave(&phba->hbalock, iflag);
+	phba->sli.sli_flag |= LPFC_BLOCK_MGMT_IO;
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
+}
+
 int
 lpfc_online(struct lpfc_hba *phba)
 {
@@ -1472,16 +1482,6 @@ lpfc_online(struct lpfc_hba *phba)
 
 	lpfc_unblock_mgmt_io(phba);
 	return 0;
-}
-
-void
-lpfc_block_mgmt_io(struct lpfc_hba * phba)
-{
-	unsigned long iflag;
-
-	spin_lock_irqsave(&phba->hbalock, iflag);
-	phba->sli.sli_flag |= LPFC_BLOCK_MGMT_IO;
-	spin_unlock_irqrestore(&phba->hbalock, iflag);
 }
 
 void

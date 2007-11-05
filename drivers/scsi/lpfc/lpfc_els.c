@@ -42,6 +42,14 @@ static int lpfc_els_retry(struct lpfc_hba *, struct lpfc_iocbq *,
 			  struct lpfc_iocbq *);
 static void lpfc_cmpl_fabric_iocb(struct lpfc_hba *, struct lpfc_iocbq *,
 			struct lpfc_iocbq *);
+static void lpfc_fabric_abort_vport(struct lpfc_vport *vport);
+static int lpfc_issue_els_fdisc(struct lpfc_vport *vport,
+				struct lpfc_nodelist *ndlp, uint8_t retry);
+static int lpfc_issue_fabric_iocb(struct lpfc_hba *phba,
+				  struct lpfc_iocbq *iocb);
+static void lpfc_register_new_vport(struct lpfc_hba *phba,
+				    struct lpfc_vport *vport,
+				    struct lpfc_nodelist *ndlp);
 
 static int lpfc_max_els_tries = 3;
 
@@ -4254,7 +4262,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	return;
 }
 
-void
+static void
 lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 			struct lpfc_nodelist *ndlp)
 {
@@ -4369,7 +4377,7 @@ out:
 	lpfc_els_free_iocb(phba, cmdiocb);
 }
 
-int
+static int
 lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		     uint8_t retry)
 {
@@ -4642,7 +4650,7 @@ lpfc_cmpl_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 }
 
-int
+static int
 lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 {
 	unsigned long iflags;
@@ -4686,7 +4694,7 @@ lpfc_issue_fabric_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *iocb)
 }
 
 
-void lpfc_fabric_abort_vport(struct lpfc_vport *vport)
+static void lpfc_fabric_abort_vport(struct lpfc_vport *vport)
 {
 	LIST_HEAD(completions);
 	struct lpfc_hba  *phba = vport->phba;
@@ -4766,6 +4774,7 @@ void lpfc_fabric_abort_hba(struct lpfc_hba *phba)
 }
 
 
+#if 0
 void lpfc_fabric_abort_flogi(struct lpfc_hba *phba)
 {
 	LIST_HEAD(completions);
@@ -4796,5 +4805,6 @@ void lpfc_fabric_abort_flogi(struct lpfc_hba *phba)
 		(piocb->iocb_cmpl) (phba, piocb, piocb);
 	}
 }
+#endif  /*  0  */
 
 

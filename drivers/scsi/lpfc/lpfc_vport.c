@@ -556,9 +556,6 @@ skip_logo:
 	return VPORT_OK;
 }
 
-EXPORT_SYMBOL(lpfc_vport_create);
-EXPORT_SYMBOL(lpfc_vport_delete);
-
 struct lpfc_vport **
 lpfc_create_vport_work_array(struct lpfc_hba *phba)
 {
