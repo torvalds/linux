@@ -227,7 +227,7 @@ int et61x251_write_reg(struct et61x251_device* cam, u8 value, u16 index)
 }
 
 
-int et61x251_read_reg(struct et61x251_device* cam, u16 index)
+static int et61x251_read_reg(struct et61x251_device* cam, u16 index)
 {
 	struct usb_device* udev = cam->usbdev;
 	u8* buff = cam->control_buffer;
@@ -268,9 +268,9 @@ et61x251_i2c_wait(struct et61x251_device* cam,
 }
 
 
-int
-et61x251_i2c_try_read(struct et61x251_device* cam,
-		      const struct et61x251_sensor* sensor, u8 address)
+static int et61x251_i2c_try_read(struct et61x251_device* cam,
+				 const struct et61x251_sensor* sensor,
+				 u8 address)
 {
 	struct usb_device* udev = cam->usbdev;
 	u8* data = cam->control_buffer;
@@ -301,10 +301,9 @@ et61x251_i2c_try_read(struct et61x251_device* cam,
 }
 
 
-int
-et61x251_i2c_try_write(struct et61x251_device* cam,
-		       const struct et61x251_sensor* sensor, u8 address,
-		       u8 value)
+static int et61x251_i2c_try_write(struct et61x251_device* cam,
+				  const struct et61x251_sensor* sensor,
+				  u8 address, u8 value)
 {
 	struct usb_device* udev = cam->usbdev;
 	u8* data = cam->control_buffer;
@@ -387,13 +386,14 @@ et61x251_i2c_raw_write(struct et61x251_device* cam, u8 n, u8 data1, u8 data2,
 }
 
 
-int et61x251_i2c_read(struct et61x251_device* cam, u8 address)
+static int et61x251_i2c_read(struct et61x251_device* cam, u8 address)
 {
 	return et61x251_i2c_try_read(cam, &cam->sensor, address);
 }
 
 
-int et61x251_i2c_write(struct et61x251_device* cam, u8 address, u8 value)
+static int et61x251_i2c_write(struct et61x251_device* cam,
+			      u8 address, u8 value)
 {
 	return et61x251_i2c_try_write(cam, &cam->sensor, address, value);
 }
