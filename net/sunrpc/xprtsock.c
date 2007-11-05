@@ -614,6 +614,22 @@ static int xs_udp_send_request(struct rpc_task *task)
 	return status;
 }
 
+/**
+ * xs_tcp_shutdown - gracefully shut down a TCP socket
+ * @xprt: transport
+ *
+ * Initiates a graceful shutdown of the TCP socket by calling the
+ * equivalent of shutdown(SHUT_WR);
+ */
+static void xs_tcp_shutdown(struct rpc_xprt *xprt)
+{
+	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
+	struct socket *sock = transport->sock;
+
+	if (sock != NULL)
+		kernel_sock_shutdown(sock, SHUT_WR);
+}
+
 static inline void xs_encode_tcp_record_marker(struct xdr_buf *buf)
 {
 	u32 reclen = buf->len - sizeof(rpc_fraghdr);
@@ -691,7 +707,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 	default:
 		dprintk("RPC:       sendmsg returned unrecognized error %d\n",
 			-status);
-		xprt_disconnect(xprt);
+		xs_tcp_shutdown(xprt);
 		break;
 	}
 
@@ -1637,8 +1653,7 @@ static void xs_tcp_connect_worker4(struct work_struct *work)
 				break;
 			default:
 				/* get rid of existing socket, and retry */
-				xs_close(xprt);
-				break;
+				xs_tcp_shutdown(xprt);
 		}
 	}
 out:
@@ -1697,8 +1712,7 @@ static void xs_tcp_connect_worker6(struct work_struct *work)
 				break;
 			default:
 				/* get rid of existing socket, and retry */
-				xs_close(xprt);
-				break;
+				xs_tcp_shutdown(xprt);
 		}
 	}
 out:
@@ -1743,6 +1757,19 @@ static void xs_connect(struct rpc_task *task)
 		queue_delayed_work(rpciod_workqueue,
 				   &transport->connect_worker, 0);
 	}
+}
+
+static void xs_tcp_connect(struct rpc_task *task)
+{
+	struct rpc_xprt *xprt = task->tk_xprt;
+
+	/* Initiate graceful shutdown of the socket if not already done */
+	if (test_bit(XPRT_CONNECTED, &xprt->state))
+		xs_tcp_shutdown(xprt);
+	/* Exit if we need to wait for socket shutdown to complete */
+	if (test_bit(XPRT_CLOSING, &xprt->state))
+		return;
+	xs_connect(task);
 }
 
 /**
@@ -1815,12 +1842,12 @@ static struct rpc_xprt_ops xs_tcp_ops = {
 	.release_xprt		= xs_tcp_release_xprt,
 	.rpcbind		= rpcb_getport_async,
 	.set_port		= xs_set_port,
-	.connect		= xs_connect,
+	.connect		= xs_tcp_connect,
 	.buf_alloc		= rpc_malloc,
 	.buf_free		= rpc_free,
 	.send_request		= xs_tcp_send_request,
 	.set_retrans_timeout	= xprt_set_retrans_timeout_def,
-	.close			= xs_close,
+	.close			= xs_tcp_shutdown,
 	.destroy		= xs_destroy,
 	.print_stats		= xs_tcp_print_stats,
 };
