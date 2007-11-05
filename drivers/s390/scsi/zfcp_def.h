@@ -118,7 +118,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 
 #define ZFCP_SBAL_TIMEOUT               (5*HZ)
 
-#define ZFCP_TYPE2_RECOVERY_TIME        (8*HZ)
+#define ZFCP_TYPE2_RECOVERY_TIME        8	/* seconds */
 
 /* queue polling (values in microseconds) */
 #define ZFCP_MAX_INPUT_THRESHOLD 	5000	/* FIXME: tune */
@@ -139,7 +139,7 @@ zfcp_address_to_sg(void *address, struct scatterlist *list, unsigned int size)
 #define ZFCP_STATUS_READS_RECOM		        FSF_STATUS_READS_RECOM
 
 /* Do 1st retry in 1 second, then double the timeout for each following retry */
-#define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	100
+#define ZFCP_EXCHANGE_CONFIG_DATA_FIRST_SLEEP	1
 #define ZFCP_EXCHANGE_CONFIG_DATA_RETRIES	7
 
 /* timeout value for "default timer" for fsf requests */

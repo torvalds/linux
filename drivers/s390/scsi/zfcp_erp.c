@@ -131,7 +131,7 @@ static void zfcp_close_qdio(struct zfcp_adapter *adapter)
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down2a");
 	while (qdio_shutdown(adapter->ccw_device,
 			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
-		msleep(1000);
+		ssleep(1);
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down2b");
 
 	/* cleanup used outbound sbals */
@@ -1900,7 +1900,7 @@ zfcp_erp_adapter_strategy(struct zfcp_erp_action *erp_action)
 		ZFCP_LOG_INFO("Waiting to allow the adapter %s "
 			      "to recover itself\n",
 			      zfcp_get_busid_by_adapter(adapter));
-		msleep(jiffies_to_msecs(ZFCP_TYPE2_RECOVERY_TIME));
+		ssleep(ZFCP_TYPE2_RECOVERY_TIME);
 	}
 
 	return retval;
@@ -2080,7 +2080,7 @@ zfcp_erp_adapter_strategy_open_qdio(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down1a");
 	while (qdio_shutdown(adapter->ccw_device,
 			     QDIO_FLAG_CLEANUP_USING_CLEAR) == -EINPROGRESS)
-		msleep(1000);
+		ssleep(1);
 	debug_text_event(adapter->erp_dbf, 3, "qdio_down1b");
 
  failed_qdio_establish:
@@ -2165,7 +2165,7 @@ zfcp_erp_adapter_strategy_open_fsf_xconfig(struct zfcp_erp_action *erp_action)
 		ZFCP_LOG_DEBUG("host connection still initialising... "
 			       "waiting and retrying...\n");
 		/* sleep a little bit before retry */
-		msleep(jiffies_to_msecs(sleep));
+		ssleep(sleep);
 		sleep *= 2;
 	}
 
