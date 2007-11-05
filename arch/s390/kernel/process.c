@@ -92,6 +92,7 @@ EXPORT_SYMBOL(unregister_idle_notifier);
 
 void do_monitor_call(struct pt_regs *regs, long interruption_code)
 {
+#ifdef CONFIG_SMP
 	struct s390_idle_data *idle;
 
 	idle = &__get_cpu_var(s390_idle);
@@ -99,7 +100,7 @@ void do_monitor_call(struct pt_regs *regs, long interruption_code)
 	idle->idle_time += get_clock() - idle->idle_enter;
 	idle->in_idle = 0;
 	spin_unlock(&idle->lock);
-
+#endif
 	/* disable monitor call class 0 */
 	__ctl_clear_bit(8, 15);
 
@@ -114,7 +115,9 @@ extern void s390_handle_mcck(void);
 static void default_idle(void)
 {
 	int cpu, rc;
+#ifdef CONFIG_SMP
 	struct s390_idle_data *idle;
+#endif
 
 	/* CPU is going idle. */
 	cpu = smp_processor_id();
@@ -151,13 +154,14 @@ static void default_idle(void)
 		s390_handle_mcck();
 		return;
 	}
-
+#ifdef CONFIG_SMP
 	idle = &__get_cpu_var(s390_idle);
 	spin_lock(&idle->lock);
 	idle->idle_count++;
 	idle->in_idle = 1;
 	idle->idle_enter = get_clock();
 	spin_unlock(&idle->lock);
+#endif
 	trace_hardirqs_on();
 	/* Wait for external, I/O or machine check interrupt. */
 	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
