@@ -619,17 +619,68 @@ void kobject_put(struct kobject * kobj)
 		kref_put(&kobj->kref, kobject_release);
 }
 
-
-static void dir_release(struct kobject *kobj)
+static void dynamic_kobj_release(struct kobject *kobj)
 {
+	pr_debug("%s: freeing %s\n", __FUNCTION__, kobject_name(kobj));
 	kfree(kobj);
 }
 
-static struct kobj_type dir_ktype = {
-	.release	= dir_release,
-	.sysfs_ops	= NULL,
-	.default_attrs	= NULL,
+static struct kobj_type dynamic_kobj_ktype = {
+	.release = dynamic_kobj_release,
 };
+
+/*
+ * kobject_create - create a struct kobject dynamically
+ *
+ * This function creates a kobject structure dynamically and sets it up
+ * to be a "dynamic" kobject with a default release function set up.
+ *
+ * If the kobject was not able to be created, NULL will be returned.
+ */
+static struct kobject *kobject_create(void)
+{
+	struct kobject *kobj;
+
+	kobj = kzalloc(sizeof(*kobj), GFP_KERNEL);
+	if (!kobj)
+		return NULL;
+
+	kobject_init_ng(kobj, &dynamic_kobj_ktype);
+	return kobj;
+}
+
+/**
+ * kobject_create_and_add - create a struct kobject dynamically and register it with sysfs
+ *
+ * @name: the name for the kset
+ * @parent: the parent kobject of this kobject, if any.
+ *
+ * This function creates a kset structure dynamically and registers it
+ * with sysfs.  When you are finished with this structure, call
+ * kobject_unregister() and the structure will be dynamically freed when
+ * it is no longer being used.
+ *
+ * If the kobject was not able to be created, NULL will be returned.
+ */
+struct kobject *kobject_create_and_add(const char *name, struct kobject *parent)
+{
+	struct kobject *kobj;
+	int retval;
+
+	kobj = kobject_create();
+	if (!kobj)
+		return NULL;
+
+	retval = kobject_add_ng(kobj, parent, "%s", name);
+	if (retval) {
+		printk(KERN_WARNING "%s: kobject_add error: %d\n",
+		       __FUNCTION__, retval);
+		kobject_put(kobj);
+		kobj = NULL;
+	}
+	return kobj;
+}
+EXPORT_SYMBOL_GPL(kobject_create_and_add);
 
 /**
  *	kobject_kset_add_dir - add sub directory of object.
@@ -645,23 +696,17 @@ struct kobject *kobject_kset_add_dir(struct kset *kset,
 	struct kobject *k;
 	int ret;
 
-	if (!parent)
-		return NULL;
-
-	k = kzalloc(sizeof(*k), GFP_KERNEL);
+	k = kobject_create();
 	if (!k)
 		return NULL;
 
 	k->kset = kset;
-	k->parent = parent;
-	k->ktype = &dir_ktype;
-	kobject_set_name(k, name);
-	ret = kobject_register(k);
+	ret = kobject_add_ng(k, parent, "%s", name);
 	if (ret < 0) {
-		printk(KERN_WARNING "%s: kobject_register error: %d\n",
+		printk(KERN_WARNING "%s: kobject_add error: %d\n",
 			__func__, ret);
-		kobject_del(k);
-		return NULL;
+		kobject_put(k);
+		k = NULL;
 	}
 
 	return k;
@@ -676,7 +721,7 @@ struct kobject *kobject_kset_add_dir(struct kset *kset,
  */
 struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
 {
-	return kobject_kset_add_dir(NULL, parent, name);
+	return kobject_create_and_add(name, parent);
 }
 
 /**

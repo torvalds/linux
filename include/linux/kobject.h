@@ -91,6 +91,9 @@ extern int __must_check kobject_init_and_add(struct kobject *kobj,
 
 extern void kobject_del(struct kobject *);
 
+extern struct kobject * __must_check kobject_create_and_add(const char *name,
+						struct kobject *parent);
+
 extern int __must_check kobject_rename(struct kobject *, const char *new_name);
 extern int __must_check kobject_move(struct kobject *, struct kobject *);
 
