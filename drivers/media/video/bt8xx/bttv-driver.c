@@ -2881,10 +2881,6 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 		if (NULL == fmt)
 			return -EINVAL;
 		mutex_lock(&fh->cap.lock);
-		if (fmt->depth != pic->depth) {
-			retval = -EINVAL;
-			goto fh_unlock_and_return;
-		}
 		if (fmt->flags & FORMAT_FLAGS_RAW) {
 			/* VIDIOCMCAPTURE uses gbufsize, not RAW_BPL *
 			   RAW_LINES * 2. F1 is stored at offset 0, F2
@@ -3117,6 +3113,8 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 					     vm->width,vm->height,field);
 		if (0 != retval)
 			goto fh_unlock_and_return;
+		btv->init.width = vm->width;
+		btv->init.height = vm->height;
 		spin_lock_irqsave(&btv->s_lock,flags);
 		buffer_queue(&fh->cap,&buf->vb);
 		spin_unlock_irqrestore(&btv->s_lock,flags);

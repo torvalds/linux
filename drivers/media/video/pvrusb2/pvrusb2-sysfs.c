@@ -905,13 +905,6 @@ struct pvr2_sysfs *pvr2_sysfs_create(struct pvr2_context *mp,
 }
 
 
-static int pvr2_sysfs_hotplug(struct device *d,
-			      struct kobj_uevent_env *env)
-{
-	/* Even though we don't do anything here, we still need this function
-	   because sysfs will still try to call it. */
-	return 0;
-}
 
 struct pvr2_sysfs_class *pvr2_sysfs_class_create(void)
 {
@@ -922,7 +915,6 @@ struct pvr2_sysfs_class *pvr2_sysfs_class_create(void)
 	clp->class.name = "pvrusb2";
 	clp->class.class_release = pvr2_sysfs_class_release;
 	clp->class.dev_release = pvr2_sysfs_release;
-	clp->class.dev_uevent = pvr2_sysfs_hotplug;
 	if (class_register(&clp->class)) {
 		pvr2_sysfs_trace(
 			"Registration failed for pvr2_sysfs_class id=%p",clp);

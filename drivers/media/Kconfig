@@ -151,6 +151,7 @@ config VIDEO_IR_I2C
 
 config VIDEO_IR
 	tristate
+	depends on INPUT
 	select VIDEO_IR_I2C if I2C
 
 config VIDEO_TVEEPROM

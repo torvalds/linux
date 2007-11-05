@@ -136,14 +136,13 @@ static int __init pvr_init(void)
 
 static void __exit pvr_exit(void)
 {
-
 	pvr2_trace(PVR2_TRACE_INIT,"pvr_exit");
+
+	usb_deregister(&pvr_driver);
 
 #ifdef CONFIG_VIDEO_PVRUSB2_SYSFS
 	pvr2_sysfs_class_destroy(class_ptr);
 #endif /* CONFIG_VIDEO_PVRUSB2_SYSFS */
-
-	usb_deregister(&pvr_driver);
 }
 
 module_init(pvr_init);

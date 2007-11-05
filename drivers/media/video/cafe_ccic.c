@@ -3,6 +3,9 @@
  * multifunction chip.  Currently works with the Omnivision OV7670
  * sensor.
  *
+ * The data sheet for this device can be found at:
+ *    http://www.marvell.com/products/pcconn/88ALP01.jsp
+ *
  * Copyright 2006 One Laptop Per Child Association, Inc.
  * Copyright 2006-7 Jonathan Corbet <corbet@lwn.net>
  *
@@ -2232,13 +2235,16 @@ static int cafe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct cafe_camera *cam = cafe_find_by_pdev(pdev);
 	int ret;
+	enum cafe_state cstate;
 
 	ret = pci_save_state(pdev);
 	if (ret)
 		return ret;
+	cstate = cam->state; /* HACK - stop_dma sets to idle */
 	cafe_ctlr_stop_dma(cam);
 	cafe_ctlr_power_down(cam);
 	pci_disable_device(pdev);
+	cam->state = cstate;
 	return 0;
 }
 

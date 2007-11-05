@@ -416,8 +416,10 @@ static int attach_inform(struct i2c_client *client)
 	struct em28xx *dev = client->adapter->algo_data;
 
 	switch (client->addr << 1) {
-		case 0x43:
-		case 0x4b:
+		case 0x86:
+		case 0x84:
+		case 0x96:
+		case 0x94:
 		{
 			struct tuner_setup tun_setup;
 

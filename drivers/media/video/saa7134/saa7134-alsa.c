@@ -543,8 +543,10 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	   V4L functions, and force ALSA to use that as the DMA area */
 
 	substream->runtime->dma_area = dev->dmasound.dma.vmalloc;
+	substream->runtime->dma_bytes = dev->dmasound.bufsize;
+	substream->runtime->dma_addr = 0;
 
-	return 1;
+	return 0;
 
 }
 
@@ -652,6 +654,17 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 }
 
 /*
+ * page callback (needed for mmap)
+ */
+
+static struct page *snd_card_saa7134_page(struct snd_pcm_substream *substream,
+					unsigned long offset)
+{
+	void *pageptr = substream->runtime->dma_area + offset;
+	return vmalloc_to_page(pageptr);
+}
+
+/*
  * ALSA capture callbacks definition
  */
 
@@ -664,6 +677,7 @@ static struct snd_pcm_ops snd_card_saa7134_capture_ops = {
 	.prepare =		snd_card_saa7134_capture_prepare,
 	.trigger =		snd_card_saa7134_capture_trigger,
 	.pointer =		snd_card_saa7134_capture_pointer,
+	.page =			snd_card_saa7134_page,
 };
 
 /*

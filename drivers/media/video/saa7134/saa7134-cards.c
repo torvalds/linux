@@ -2996,11 +2996,11 @@ struct saa7134_board saa7134_boards[] = {
 		},{
 			.name   = name_comp1,
 			.vmux   = 0,
-			.amux   = LINE2,
+			.amux   = LINE1,
 		},{
 			.name   = name_svideo,
 			.vmux   = 8,
-			.amux   = LINE2,
+			.amux   = LINE1,
 		}},
 	},
 	[SAA7134_BOARD_FLYDVBS_LR300] = {
