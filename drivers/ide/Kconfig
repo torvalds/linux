@@ -393,9 +393,10 @@ config IDEPCI_SHARE_IRQ
 config IDEPCI_PCIBUS_ORDER
 	def_bool BLK_DEV_IDE=y && BLK_DEV_IDEPCI
 
+# TODO: split it on per host driver config options (or module parameters)
 config BLK_DEV_OFFBOARD
 	bool "Boot off-board chipsets first support"
-	depends on BLK_DEV_IDEPCI
+	depends on BLK_DEV_IDEPCI && (BLK_DEV_AEC62XX || BLK_DEV_GENERIC || BLK_DEV_HPT34X || BLK_DEV_HPT366 || BLK_DEV_PDC202XX_NEW || BLK_DEV_PDC202XX_OLD || BLK_DEV_TC86C001)
 	help
 	  Normally, IDE controllers built into the motherboard (on-board
 	  controllers) are assigned to ide0 and ide1 while those on add-in PCI
