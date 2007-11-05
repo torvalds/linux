@@ -340,6 +340,8 @@ void ide_end_drive_cmd (ide_drive_t *drive, u8 stat, u8 err)
 		if (args) {
 			args[0] = stat;
 			args[1] = err;
+			/* be sure we're looking at the low order bits */
+			hwif->OUTB(drive->ctl & ~0x80, IDE_CONTROL_REG);
 			args[2] = hwif->INB(IDE_NSECTOR_REG);
 			args[3] = hwif->INB(IDE_SECTOR_REG);
 			args[4] = hwif->INB(IDE_LCYL_REG);
@@ -654,7 +656,8 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 	int retries = 10;
 
 	local_irq_enable_in_hardirq();
-	if ((stat & DRQ_STAT) && args && args[3]) {
+	if (rq->cmd_type == REQ_TYPE_ATA_CMD &&
+	    (stat & DRQ_STAT) && args && args[3]) {
 		u8 io_32bit = drive->io_32bit;
 		drive->io_32bit = 0;
 		hwif->ata_input_data(drive, &args[4], args[3] * SECTOR_WORDS);

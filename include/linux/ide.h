@@ -1031,14 +1031,7 @@ ide_startstop_t __ide_abort(ide_drive_t *, struct request *);
 extern ide_startstop_t ide_abort(ide_drive_t *, const char *);
 
 extern void ide_fix_driveid(struct hd_driveid *);
-/*
- * ide_fixstring() cleans up and (optionally) byte-swaps a text string,
- * removing leading/trailing blanks and compressing internal blanks.
- * It is primarily used to tidy up the model name/number fields as
- * returned by the WIN_[P]IDENTIFY commands.
- *
- * (s, bytecount, byteswap)
- */
+
 extern void ide_fixstring(u8 *, const int, const int);
 
 int ide_wait_stat(ide_startstop_t *, ide_drive_t *, u8, u8, unsigned long);

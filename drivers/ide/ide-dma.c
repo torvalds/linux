@@ -340,7 +340,7 @@ static int config_drive_for_dma (ide_drive_t *drive)
 
 	if (drive->media != ide_disk) {
 		if (hwif->host_flags & IDE_HFLAG_NO_ATAPI_DMA)
-			return -1;
+			return 0;
 	}
 
 	/*
@@ -752,7 +752,8 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 			mode = XFER_MW_DMA_1;
 	}
 
-	printk(KERN_DEBUG "%s: selected mode 0x%x\n", drive->name, mode);
+	printk(KERN_DEBUG "%s: %s mode selected\n", drive->name,
+			  mode ? ide_xfer_verbose(mode) : "no DMA");
 
 	return min(mode, req_mode);
 }
