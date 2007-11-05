@@ -403,7 +403,7 @@ snd_pcm_indirect2_playback_interrupt(struct snd_pcm_substream *substream,
 					  rec->min_multiple);
 		rec->mul_elapsed++;
 #endif
-		rec->min_periods = 0;
+		rec->min_periods = (rec->min_periods % rec->min_multiple);
 		snd_pcm_period_elapsed(substream);
 	}
 }
@@ -568,24 +568,8 @@ snd_pcm_indirect2_capture_interrupt(struct snd_pcm_substream *substream,
 		rec->mul_elapsed_real += (rec->min_periods /
 					  rec->min_multiple);
 		rec->mul_elapsed++;
-
-		if (!(rec->mul_elapsed % 4)) {
-			struct snd_pcm_runtime *runtime = substream->runtime;
-			unsigned int appl_ptr =
-			    frames_to_bytes(runtime,
-					    (unsigned int)runtime->control->
-					    appl_ptr) % rec->sw_buffer_size;
-			int diff = rec->sw_data - appl_ptr;
-			if (diff < 0)
-				diff += rec->sw_buffer_size;
-			snd_printk(KERN_DEBUG
-				   "STAT: mul_elapsed: %d, sw_data: %u, "
-				   "appl_ptr (bytes): %u, diff: %d\n",
-				   rec->mul_elapsed, rec->sw_data, appl_ptr,
-				   diff);
-		}
 #endif
-		rec->min_periods = 0;
+		rec->min_periods = (rec->min_periods % rec->min_multiple);
 		snd_pcm_period_elapsed(substream);
 	}
 }

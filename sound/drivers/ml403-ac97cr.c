@@ -28,11 +28,9 @@
  * accesses to a minimum, because after a variable amount of accesses, the AC97
  * controller doesn't raise the register access finished bit anymore ...
  *
- * - Capture support works - basically, but after ~30s (with rates > ~20kHz)
- * ALSA stops reading captured samples from the intermediate buffer and
- * therefore a overrun happens - ATM I don't know what's wrong.
- *
  * - Playback support seems to be pretty stable - no issues here.
+ * - Capture support "works" now, too. Overruns don't happen any longer so often.
+ *   But there might still be some ...
  */
 
 #include <sound/driver.h>
