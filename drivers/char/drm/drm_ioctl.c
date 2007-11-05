@@ -272,7 +272,7 @@ int drm_getstats(struct drm_device *dev, void *data,
 	struct drm_stats *stats = data;
 	int i;
 
-	memset(stats, 0, sizeof(stats));
+	memset(stats, 0, sizeof(*stats));
 
 	mutex_lock(&dev->struct_mutex);
 
