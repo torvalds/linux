@@ -403,9 +403,6 @@ void ide_fix_driveid (struct hd_driveid *id)
 #endif
 }
 
-/* FIXME: exported for use by the USB storage (isd200.c) code only */
-EXPORT_SYMBOL(ide_fix_driveid);
-
 void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 {
 	u8 *p = s, *end = &s[bytecount & ~1]; /* bytecount must be even */
