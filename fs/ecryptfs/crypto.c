@@ -504,7 +504,6 @@ int ecryptfs_encrypt_page(struct page *page)
 					"\n", rc);
 			goto out;
 		}
-		extent_offset++;
 	}
 out:
 	kfree(enc_extent_virt);
@@ -640,7 +639,6 @@ int ecryptfs_decrypt_page(struct page *page)
 			       "rc = [%d]\n", __FUNCTION__, rc);
 			goto out;
 		}
-		extent_offset++;
 	}
 out:
 	kfree(enc_extent_virt);
