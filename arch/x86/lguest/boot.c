@@ -93,38 +93,7 @@ struct lguest_data lguest_data = {
 };
 static cycle_t clock_base;
 
-/*G:035 Notice the lazy_hcall() above, rather than hcall().  This is our first
- * real optimization trick!
- *
- * When lazy_mode is set, it means we're allowed to defer all hypercalls and do
- * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
- * are reasonably expensive, batching them up makes sense.  For example, a
- * large munmap might update dozens of page table entries: that code calls
- * paravirt_enter_lazy_mmu(), does the dozen updates, then calls
- * lguest_leave_lazy_mode().
- *
- * So, when we're in lazy mode, we call async_hypercall() to store the call for
- * future processing.  When lazy mode is turned off we issue a hypercall to
- * flush the stored calls.
- */
-static void lguest_leave_lazy_mode(void)
-{
-	paravirt_leave_lazy(paravirt_get_lazy_mode());
-	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
-}
-
-static void lazy_hcall(unsigned long call,
-		       unsigned long arg1,
-		       unsigned long arg2,
-		       unsigned long arg3)
-{
-	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
-		hcall(call, arg1, arg2, arg3);
-	else
-		async_hcall(call, arg1, arg2, arg3);
-}
-
-/* async_hcall() is pretty simple: I'm quite proud of it really.  We have a
+/*G:037 async_hcall() is pretty simple: I'm quite proud of it really.  We have a
  * ring buffer of stored hypercalls which the Host will run though next time we
  * do a normal hypercall.  Each entry in the ring has 4 slots for the hypercall
  * arguments, and a "hcall_status" word which is 0 if the call is ready to go,
@@ -134,8 +103,8 @@ static void lazy_hcall(unsigned long call,
  * full and we just make the hypercall directly.  This has the nice side
  * effect of causing the Host to run all the stored calls in the ring buffer
  * which empties it for next time! */
-void async_hcall(unsigned long call,
-		 unsigned long arg1, unsigned long arg2, unsigned long arg3)
+static void async_hcall(unsigned long call, unsigned long arg1,
+			unsigned long arg2, unsigned long arg3)
 {
 	/* Note: This code assumes we're uniprocessor. */
 	static unsigned int next_call;
@@ -161,7 +130,37 @@ void async_hcall(unsigned long call,
 	}
 	local_irq_restore(flags);
 }
-/*:*/
+
+/*G:035 Notice the lazy_hcall() above, rather than hcall().  This is our first
+ * real optimization trick!
+ *
+ * When lazy_mode is set, it means we're allowed to defer all hypercalls and do
+ * them as a batch when lazy_mode is eventually turned off.  Because hypercalls
+ * are reasonably expensive, batching them up makes sense.  For example, a
+ * large munmap might update dozens of page table entries: that code calls
+ * paravirt_enter_lazy_mmu(), does the dozen updates, then calls
+ * lguest_leave_lazy_mode().
+ *
+ * So, when we're in lazy mode, we call async_hcall() to store the call for
+ * future processing. */
+static void lazy_hcall(unsigned long call,
+		       unsigned long arg1,
+		       unsigned long arg2,
+		       unsigned long arg3)
+{
+	if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE)
+		hcall(call, arg1, arg2, arg3);
+	else
+		async_hcall(call, arg1, arg2, arg3);
+}
+
+/* When lazy mode is turned off reset the per-cpu lazy mode variable and then
+ * issue a hypercall to flush any stored calls. */
+static void lguest_leave_lazy_mode(void)
+{
+	paravirt_leave_lazy(paravirt_get_lazy_mode());
+	hcall(LHCALL_FLUSH_ASYNC, 0, 0, 0);
+}
 
 /*G:033
  * After that diversion we return to our first native-instruction

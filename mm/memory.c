@@ -2748,4 +2748,3 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 
 	return buf - old_buf;
 }
-EXPORT_SYMBOL_GPL(access_process_vm);
