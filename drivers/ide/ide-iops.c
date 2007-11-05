@@ -403,6 +403,13 @@ void ide_fix_driveid (struct hd_driveid *id)
 #endif
 }
 
+/*
+ * ide_fixstring() cleans up and (optionally) byte-swaps a text string,
+ * removing leading/trailing blanks and compressing internal blanks.
+ * It is primarily used to tidy up the model name/number fields as
+ * returned by the WIN_[P]IDENTIFY commands.
+ */
+
 void ide_fixstring (u8 *s, const int bytecount, const int byteswap)
 {
 	u8 *p = s, *end = &s[bytecount & ~1]; /* bytecount must be even */
