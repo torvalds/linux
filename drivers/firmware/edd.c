@@ -756,7 +756,7 @@ edd_init(void)
 		return 1;
 	}
 
-	edd_kset = kset_create_and_add("edd", NULL, &firmware_kset->kobj);
+	edd_kset = kset_create_and_add("edd", NULL, firmware_kobj);
 	if (!edd_kset)
 		return -ENOMEM;
 

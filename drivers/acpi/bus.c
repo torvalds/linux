@@ -755,7 +755,7 @@ static int __init acpi_init(void)
 		return -ENODEV;
 	}
 
-	acpi_kobj = kobject_create_and_add("acpi", &firmware_kset->kobj);
+	acpi_kobj = kobject_create_and_add("acpi", firmware_kobj);
 	if (!acpi_kobj) {
 		printk(KERN_WARNING "%s: kset create error\n", __FUNCTION__);
 		acpi_kobj = NULL;

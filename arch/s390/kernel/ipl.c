@@ -855,7 +855,7 @@ static int __init ipl_init(void)
 {
 	int rc;
 
-	ipl_kset = kset_create_and_add("ipl", NULL, &firmware_kset->kobj);
+	ipl_kset = kset_create_and_add("ipl", NULL, firmware_kobj);
 	if (!ipl_kset)
 		return -ENOMEM;
 	switch (ipl_info.type) {
@@ -974,7 +974,7 @@ static int __init reipl_init(void)
 {
 	int rc;
 
-	reipl_kset = kset_create_and_add("reipl", NULL, &firmware_kset->kobj);
+	reipl_kset = kset_create_and_add("reipl", NULL, firmware_kobj);
 	if (!reipl_kset)
 		return -ENOMEM;
 	rc = sysfs_create_file(&reipl_kset->kobj, &reipl_type_attr.attr);
@@ -1063,7 +1063,7 @@ static int __init dump_init(void)
 {
 	int rc;
 
-	dump_kset = kset_create_and_add("dump", NULL, &firmware_kset->kobj);
+	dump_kset = kset_create_and_add("dump", NULL, firmware_kobj);
 	if (!dump_kset)
 		return -ENOMEM;
 	rc = sysfs_create_file(&dump_kset->kobj, &dump_type_attr);
@@ -1086,7 +1086,7 @@ static int __init shutdown_actions_init(void)
 	int rc;
 
 	shutdown_actions_kset = kset_create_and_add("shutdown_actions", NULL,
-						    &firmware_kset->kobj);
+						    firmware_kobj);
 	if (!shutdown_actions_kset)
 		return -ENOMEM;
 	rc = sysfs_create_file(&shutdown_actions_kset->kobj, &on_panic_attr);

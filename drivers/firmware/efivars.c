@@ -668,7 +668,7 @@ efivars_init(void)
 	/*
 	 * For now we'll register the efi subsys within this driver
 	 */
-	efi_kset = kset_create_and_add("efi", NULL, &firmware_kset->kobj);
+	efi_kset = kset_create_and_add("efi", NULL, firmware_kobj);
 	if (!efi_kset) {
 		printk(KERN_ERR "efivars: Firmware registration failed.\n");
 		error = -ENOMEM;

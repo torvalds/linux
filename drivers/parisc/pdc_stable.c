@@ -1059,7 +1059,7 @@ pdc_stable_init(void)
 	pdcs_osid = (u16)(result >> 16);
 
 	/* For now we'll register the stable kset within this driver */
-	stable_kset = kset_create_and_add("stable", NULL, &firmware_kset->kobj);
+	stable_kset = kset_create_and_add("stable", NULL, firmware_kobj);
 	if (!stable_kset) {
 		rc = -ENOMEM;
 		goto fail_firmreg;
