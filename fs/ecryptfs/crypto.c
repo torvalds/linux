@@ -115,11 +115,29 @@ static int ecryptfs_calculate_md5(char *dst,
 		}
 		crypt_stat->hash_tfm = desc.tfm;
 	}
-	crypto_hash_init(&desc);
-	crypto_hash_update(&desc, &sg, len);
-	crypto_hash_final(&desc, dst);
-	mutex_unlock(&crypt_stat->cs_hash_tfm_mutex);
+	rc = crypto_hash_init(&desc);
+	if (rc) {
+		printk(KERN_ERR
+		       "%s: Error initializing crypto hash; rc = [%d]\n",
+		       __FUNCTION__, rc);
+		goto out;
+	}
+	rc = crypto_hash_update(&desc, &sg, len);
+	if (rc) {
+		printk(KERN_ERR
+		       "%s: Error updating crypto hash; rc = [%d]\n",
+		       __FUNCTION__, rc);
+		goto out;
+	}
+	rc = crypto_hash_final(&desc, dst);
+	if (rc) {
+		printk(KERN_ERR
+		       "%s: Error finalizing crypto hash; rc = [%d]\n",
+		       __FUNCTION__, rc);
+		goto out;
+	}
 out:
+	mutex_unlock(&crypt_stat->cs_hash_tfm_mutex);
 	return rc;
 }
 
