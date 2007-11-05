@@ -113,21 +113,11 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 	   out of message data.
 	 */
 			/* SMBus Read Byte command */
-			if(msgs[i].len == 1) {
-				// we use the previously used register to read from
-				rc = tm6000_read_write_usb (dev,
-					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-					REQ_16_SET_GET_I2CSEQ,
-					addr | prev_reg<<8, 0,
-					msgs[i].buf, msgs[i].len);
-			}
-			else {
-				rc = tm6000_read_write_usb (dev,
-					USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-					REQ_16_SET_GET_I2CSEQ,
-					addr|(*msgs[i].buf)<<8, 0,
-					msgs[i].buf, msgs[i].len);
-			}
+			rc = tm6000_read_write_usb (dev,
+				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				REQ_16_SET_GET_I2CSEQ,
+				addr | (prev_reg << 8), 0,
+				msgs[i].buf, msgs[i].len);
 			if (i2c_debug>=2) {
 				for (byte = 0; byte < msgs[i].len; byte++) {
 					printk(" %02x", msgs[i].buf[byte]);
