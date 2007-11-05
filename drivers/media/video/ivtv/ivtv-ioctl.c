@@ -894,7 +894,7 @@ int ivtv_v4l2_ioctls(struct ivtv *itv, struct file *filp, unsigned int cmd, void
 	case VIDIOC_ENUM_FMT: {
 		static struct v4l2_fmtdesc formats[] = {
 			{ 0, 0, 0,
-			  "HM12 (YUV 4:2:2)", V4L2_PIX_FMT_HM12,
+			  "HM12 (YUV 4:2:0)", V4L2_PIX_FMT_HM12,
 			  { 0, 0, 0, 0 }
 			},
 			{ 1, 0, V4L2_FMT_FLAG_COMPRESSED,
