@@ -752,7 +752,8 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 			mode = XFER_MW_DMA_1;
 	}
 
-	printk(KERN_DEBUG "%s: selected mode 0x%x\n", drive->name, mode);
+	printk(KERN_DEBUG "%s: %s mode selected\n", drive->name,
+			  mode ? ide_xfer_verbose(mode) : "no DMA");
 
 	return min(mode, req_mode);
 }
