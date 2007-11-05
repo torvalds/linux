@@ -512,6 +512,7 @@ int ide_raw_taskfile (ide_drive_t *drive, ide_task_t *args, u8 *buf)
 
 EXPORT_SYMBOL(ide_raw_taskfile);
 
+#ifdef CONFIG_IDE_TASK_IOCTL
 int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 {
 	ide_task_request_t	*req_task;
@@ -661,6 +662,7 @@ abort:
 
 	return err;
 }
+#endif
 
 int ide_wait_cmd (ide_drive_t *drive, u8 cmd, u8 nsect, u8 feature, u8 sectors, u8 *buf)
 {
