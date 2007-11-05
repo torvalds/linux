@@ -2723,14 +2723,21 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 		spec->dmux_nid = 0x1b;
+
+		/* Enable DMIC0 */
+		stac92xx_set_config_reg(codec, 0x13, 0x90a60040);
+
+		/* GPIO2 High = Enable EAPD */
+		spec->gpio_mask = spec->gpio_data = 0x00000004;
 		break;
 	default:
-		spec->num_dmics = 0;	
+		spec->num_dmics = 0;
+
+		/* GPIO0 High = Enable EAPD */
+		spec->gpio_mask = spec->gpio_data = 0x00000001;
 	}
 
 	spec->multiout.dac_nids = spec->dac_nids;
-	/* GPIO0 High = Enable EAPD */
-	spec->gpio_mask = spec->gpio_data = 0x00000001;
 	stac92xx_enable_gpio_mask(codec); 
 	
 	err = stac92xx_parse_auto_config(codec, 0x1e, 0x20);
