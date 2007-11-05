@@ -71,6 +71,7 @@ MODULE_PARM_DESC(dst_algo, "tuning algo: default is 0=(SW), 1=(HW)");
 	}								\
 } while(0)
 
+static int dst_command(struct dst_state *state, u8 *data, u8 len);
 
 static void dst_packsize(struct dst_state *state, int psize)
 {
@@ -80,7 +81,8 @@ static void dst_packsize(struct dst_state *state, int psize)
 	bt878_device_control(state->bt, DST_IG_TS, &bits);
 }
 
-int dst_gpio_outb(struct dst_state *state, u32 mask, u32 enbb, u32 outhigh, int delay)
+static int dst_gpio_outb(struct dst_state *state, u32 mask, u32 enbb,
+			 u32 outhigh, int delay)
 {
 	union dst_gpio_packet enb;
 	union dst_gpio_packet bits;
@@ -109,9 +111,8 @@ int dst_gpio_outb(struct dst_state *state, u32 mask, u32 enbb, u32 outhigh, int 
 
 	return 0;
 }
-EXPORT_SYMBOL(dst_gpio_outb);
 
-int dst_gpio_inb(struct dst_state *state, u8 *result)
+static int dst_gpio_inb(struct dst_state *state, u8 *result)
 {
 	union dst_gpio_packet rd_packet;
 	int err;
@@ -125,7 +126,6 @@ int dst_gpio_inb(struct dst_state *state, u8 *result)
 
 	return 0;
 }
-EXPORT_SYMBOL(dst_gpio_inb);
 
 int rdc_reset_state(struct dst_state *state)
 {
@@ -145,7 +145,7 @@ int rdc_reset_state(struct dst_state *state)
 }
 EXPORT_SYMBOL(rdc_reset_state);
 
-int rdc_8820_reset(struct dst_state *state)
+static int rdc_8820_reset(struct dst_state *state)
 {
 	dprintk(verbose, DST_DEBUG, 1, "Resetting DST");
 	if (dst_gpio_outb(state, RDC_8820_RESET, RDC_8820_RESET, 0, NO_DELAY) < 0) {
@@ -160,9 +160,8 @@ int rdc_8820_reset(struct dst_state *state)
 
 	return 0;
 }
-EXPORT_SYMBOL(rdc_8820_reset);
 
-int dst_pio_enable(struct dst_state *state)
+static int dst_pio_enable(struct dst_state *state)
 {
 	if (dst_gpio_outb(state, ~0, RDC_8820_PIO_0_ENABLE, 0, NO_DELAY) < 0) {
 		dprintk(verbose, DST_ERROR, 1, "dst_gpio_outb ERROR !");
@@ -172,7 +171,6 @@ int dst_pio_enable(struct dst_state *state)
 
 	return 0;
 }
-EXPORT_SYMBOL(dst_pio_enable);
 
 int dst_pio_disable(struct dst_state *state)
 {
@@ -611,7 +609,7 @@ static int dst_type_print(struct dst_state *state, u8 type)
 	return 0;
 }
 
-struct tuner_types tuner_list[] = {
+static struct tuner_types tuner_list[] = {
 	{
 		.tuner_type = TUNER_TYPE_L64724,
 		.tuner_name = "L 64724",
@@ -1224,7 +1222,7 @@ static int dst_probe(struct dst_state *state)
 	return 0;
 }
 
-int dst_command(struct dst_state *state, u8 *data, u8 len)
+static int dst_command(struct dst_state *state, u8 *data, u8 len)
 {
 	u8 reply;
 
@@ -1287,7 +1285,6 @@ error:
 	return -EIO;
 
 }
-EXPORT_SYMBOL(dst_command);
 
 static int dst_get_signal(struct dst_state *state)
 {
