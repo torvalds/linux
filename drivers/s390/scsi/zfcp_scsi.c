@@ -51,7 +51,6 @@ struct zfcp_data zfcp_data = {
 		.queuecommand		= zfcp_scsi_queuecommand,
 		.eh_abort_handler	= zfcp_scsi_eh_abort_handler,
 		.eh_device_reset_handler = zfcp_scsi_eh_device_reset_handler,
-		.eh_bus_reset_handler	= zfcp_scsi_eh_host_reset_handler,
 		.eh_host_reset_handler	= zfcp_scsi_eh_host_reset_handler,
 		.can_queue		= 4096,
 		.this_id		= -1,
@@ -542,7 +541,7 @@ zfcp_task_management_function(struct zfcp_unit *unit, u8 tm_flags,
 }
 
 /**
- * zfcp_scsi_eh_host_reset_handler - handler for host and bus reset
+ * zfcp_scsi_eh_host_reset_handler - handler for host reset
  */
 static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 {
@@ -552,7 +551,7 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	unit = (struct zfcp_unit*) scpnt->device->hostdata;
 	adapter = unit->port->adapter;
 
-	ZFCP_LOG_NORMAL("host/bus reset because of problems with "
+	ZFCP_LOG_NORMAL("host reset because of problems with "
 			"unit 0x%016Lx\n", unit->fcp_lun);
 
 	zfcp_erp_adapter_reopen(adapter, 0);
