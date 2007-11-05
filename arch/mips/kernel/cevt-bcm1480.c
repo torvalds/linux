@@ -143,7 +143,10 @@ void __cpuinit sb1480_clockevent_init(void)
 
 	action->handler	= sibyte_counter_handler;
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;
+	action->mask	= cpumask_of_cpu(cpu);
 	action->name	= name;
 	action->dev_id	= cd;
+
+	irq_set_affinity(irq, cpumask_of_cpu(cpu));
 	setup_irq(irq, action);
 }
