@@ -8,6 +8,7 @@ config VIDEO_CX88
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
+	select VIDEO_WM8775 if VIDEO_HELPER_CHIPS_AUTO
 	---help---
 	  This is a video4linux driver for Conexant 2388x based
 	  TV cards.
