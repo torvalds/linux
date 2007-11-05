@@ -382,7 +382,7 @@ struct afs_vlocation *afs_vlocation_lookup(struct afs_cell *cell,
 	       cell->name, key_serial(key),
 	       (int) namesz, (int) namesz, name, namesz);
 
-	if (namesz > sizeof(vl->vldb.name)) {
+	if (namesz >= sizeof(vl->vldb.name)) {
 		_leave(" = -ENAMETOOLONG");
 		return ERR_PTR(-ENAMETOOLONG);
 	}
