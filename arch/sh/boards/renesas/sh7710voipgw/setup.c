@@ -11,7 +11,6 @@
 #include <asm/machvec.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 
 static struct ipr_data sh7710voipgw_ipr_map[] = {
 	{ TIMER2_IRQ, TIMER2_IPR_ADDR, TIMER2_IPR_POS, TIMER2_PRIORITY },
