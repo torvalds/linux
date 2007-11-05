@@ -1376,7 +1376,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	entry->owner = THIS_MODULE;
 
 	/* 'POST' [R/W] */
-	entry = create_proc_entry("POST", S_IFREG | S_IRUGO | S_IRUSR,
+	entry = create_proc_entry("POST", S_IFREG | S_IRUGO | S_IWUSR,
 				  device_dir);
 	if (!entry)
 		goto err_remove_post_info;
@@ -1387,7 +1387,7 @@ static int acpi_video_bus_add_fs(struct acpi_device *device)
 	entry->owner = THIS_MODULE;
 
 	/* 'DOS' [R/W] */
-	entry = create_proc_entry("DOS", S_IFREG | S_IRUGO | S_IRUSR,
+	entry = create_proc_entry("DOS", S_IFREG | S_IRUGO | S_IWUSR,
 			      device_dir);
 	if (!entry)
 		goto err_remove_post;
