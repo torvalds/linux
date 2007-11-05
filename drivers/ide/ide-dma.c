@@ -340,7 +340,7 @@ static int config_drive_for_dma (ide_drive_t *drive)
 
 	if (drive->media != ide_disk) {
 		if (hwif->host_flags & IDE_HFLAG_NO_ATAPI_DMA)
-			return -1;
+			return 0;
 	}
 
 	/*
