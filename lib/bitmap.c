@@ -469,6 +469,10 @@ int bitmap_scnlistprintf(char *buf, unsigned int buflen,
 	/* current bit is 'cur', most recently seen range is [rbot, rtop] */
 	int cur, rbot, rtop;
 
+	if (buflen == 0)
+		return 0;
+	buf[0] = 0;
+
 	rbot = cur = find_first_bit(maskp, nmaskbits);
 	while (cur < nmaskbits) {
 		rtop = cur;
