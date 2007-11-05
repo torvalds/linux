@@ -654,7 +654,8 @@ static ide_startstop_t drive_cmd_intr (ide_drive_t *drive)
 	int retries = 10;
 
 	local_irq_enable_in_hardirq();
-	if ((stat & DRQ_STAT) && args && args[3]) {
+	if (rq->cmd_type == REQ_TYPE_ATA_CMD &&
+	    (stat & DRQ_STAT) && args && args[3]) {
 		u8 io_32bit = drive->io_32bit;
 		drive->io_32bit = 0;
 		hwif->ata_input_data(drive, &args[4], args[3] * SECTOR_WORDS);
