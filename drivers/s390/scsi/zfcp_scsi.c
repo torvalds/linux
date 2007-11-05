@@ -458,7 +458,9 @@ zfcp_scsi_eh_device_reset_handler(struct scsi_cmnd *scpnt)
 		retval = SUCCESS;
 		goto out;
 	}
-	ZFCP_LOG_NORMAL("resetting unit 0x%016Lx\n", unit->fcp_lun);
+	ZFCP_LOG_NORMAL("resetting unit 0x%016Lx on port 0x%016Lx, adapter %s\n",
+			unit->fcp_lun, unit->port->wwpn,
+			zfcp_get_busid_by_adapter(unit->port->adapter));
 
 	/*
 	 * If we do not know whether the unit supports 'logical unit reset'
@@ -552,7 +554,9 @@ static int zfcp_scsi_eh_host_reset_handler(struct scsi_cmnd *scpnt)
 	adapter = unit->port->adapter;
 
 	ZFCP_LOG_NORMAL("host reset because of problems with "
-			"unit 0x%016Lx\n", unit->fcp_lun);
+		"unit 0x%016Lx on port 0x%016Lx, adapter %s\n",
+		unit->fcp_lun, unit->port->wwpn,
+		zfcp_get_busid_by_adapter(unit->port->adapter));
 
 	zfcp_erp_adapter_reopen(adapter, 0);
 	zfcp_erp_wait(adapter);
