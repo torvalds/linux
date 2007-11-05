@@ -62,14 +62,6 @@ static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
 
 #endif
 
-/** For data going into the kernel through the ioctl argument */
-#define DRM_COPY_FROM_USER_IOCTL(arg1, arg2, arg3)	\
-	if ( copy_from_user(&arg1, arg2, arg3) )	\
-		return -EFAULT
-/** For data going from the kernel through the ioctl argument */
-#define DRM_COPY_TO_USER_IOCTL(arg1, arg2, arg3)	\
-	if ( copy_to_user(arg1, &arg2, arg3) )		\
-		return -EFAULT
 /** Other copying of data to kernel space */
 #define DRM_COPY_FROM_USER(arg1, arg2, arg3)		\
 	copy_from_user(arg1, arg2, arg3)
