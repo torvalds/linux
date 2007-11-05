@@ -321,7 +321,7 @@ ktime_t tick_nohz_get_sleep_length(void)
 }
 
 /**
- * nohz_restart_sched_tick - restart the idle tick from the idle task
+ * tick_nohz_restart_sched_tick - restart the idle tick from the idle task
  *
  * Restart the idle tick when the CPU is woken up from idle
  */

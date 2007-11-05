@@ -508,7 +508,7 @@ static void tick_broadcast_clear_oneshot(int cpu)
 }
 
 /**
- * tick_broadcast_setup_highres - setup the broadcast device for highres
+ * tick_broadcast_setup_oneshot - setup the broadcast device
  */
 void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
