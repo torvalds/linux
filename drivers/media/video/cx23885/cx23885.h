@@ -254,10 +254,6 @@ struct sram_channel {
 #define cx_set(reg,bit)          cx_andor((reg),(bit),(bit))
 #define cx_clear(reg,bit)        cx_andor((reg),(bit),0)
 
-extern int cx23885_sram_channel_setup(struct cx23885_dev *dev,
-	struct sram_channel *ch,
-	unsigned int bpl, u32 risc);
-
 /* ----------------------------------------------------------- */
 /* cx23885-cards.c                                                */
 

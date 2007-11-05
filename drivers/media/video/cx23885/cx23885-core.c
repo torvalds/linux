@@ -73,7 +73,7 @@ static LIST_HEAD(cx23885_devlist);
  * 0x00010ea0 0x00010xxx Free
  */
 
-struct sram_channel cx23885_sram_channels[] = {
+static struct sram_channel cx23885_sram_channels[] = {
 	[SRAM_CH01] = {
 		.name		= "test ch1",
 		.cmds_start	= 0x10000,
@@ -205,7 +205,7 @@ struct sram_channel cx23885_sram_channels[] = {
  * 0x00010ea0 0x00010xxx Free
  */
 
-struct sram_channel cx23887_sram_channels[] = {
+static struct sram_channel cx23887_sram_channels[] = {
 	[SRAM_CH01] = {
 		.name		= "test ch1",
 		.cmds_start	= 0x0,
@@ -356,8 +356,8 @@ static int cx23885_risc_decode(u32 risc)
 	return incr[risc >> 28] ? incr[risc >> 28] : 1;
 }
 
-void cx23885_wakeup(struct cx23885_tsport *port,
-		    struct cx23885_dmaqueue *q, u32 count)
+static void cx23885_wakeup(struct cx23885_tsport *port,
+			   struct cx23885_dmaqueue *q, u32 count)
 {
 	struct cx23885_dev *dev = port->dev;
 	struct cx23885_buffer *buf;
@@ -391,12 +391,10 @@ void cx23885_wakeup(struct cx23885_tsport *port,
 		printk("%s: %d buffers handled (should be 1)\n",
 		       __FUNCTION__, bc);
 }
-void cx23885_sram_channel_dump(struct cx23885_dev *dev,
-			       struct sram_channel *ch);
 
-int cx23885_sram_channel_setup(struct cx23885_dev *dev,
-			       struct sram_channel *ch,
-			       unsigned int bpl, u32 risc)
+static int cx23885_sram_channel_setup(struct cx23885_dev *dev,
+				      struct sram_channel *ch,
+				      unsigned int bpl, u32 risc)
 {
 	unsigned int i, lines;
 	u32 cdt;
@@ -467,8 +465,8 @@ int cx23885_sram_channel_setup(struct cx23885_dev *dev,
 	return 0;
 }
 
-void cx23885_sram_channel_dump(struct cx23885_dev *dev,
-			       struct sram_channel *ch)
+static void cx23885_sram_channel_dump(struct cx23885_dev *dev,
+				      struct sram_channel *ch)
 {
 	static char *name[] = {
 		"init risc lo",
@@ -529,8 +527,8 @@ void cx23885_sram_channel_dump(struct cx23885_dev *dev,
 	       dev->name, cx_read(ch->cnt2_reg));
 }
 
-void cx23885_risc_disasm(struct cx23885_tsport *port,
-			 struct btcx_riscmem *risc)
+static void cx23885_risc_disasm(struct cx23885_tsport *port,
+				struct btcx_riscmem *risc)
 {
 	struct cx23885_dev *dev = port->dev;
 	unsigned int i, j, n;
@@ -548,7 +546,7 @@ void cx23885_risc_disasm(struct cx23885_tsport *port,
 	}
 }
 
-void cx23885_shutdown(struct cx23885_dev *dev)
+static void cx23885_shutdown(struct cx23885_dev *dev)
 {
 	/* disable RISC controller */
 	cx_write(DEV_CNTRL2, 0);
@@ -578,7 +576,7 @@ void cx23885_shutdown(struct cx23885_dev *dev)
 
 }
 
-void cx23885_reset(struct cx23885_dev *dev)
+static void cx23885_reset(struct cx23885_dev *dev)
 {
 	dprintk(1, "%s()\n", __FUNCTION__);
 
@@ -636,8 +634,8 @@ static int get_resources(struct cx23885_dev *dev)
 }
 
 static void cx23885_timeout(unsigned long data);
-int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
-			 u32 reg, u32 mask, u32 value);
+static int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
+				u32 reg, u32 mask, u32 value);
 
 static int cx23885_init_tsport(struct cx23885_dev *dev, struct cx23885_tsport *port, int portno)
 {
@@ -837,7 +835,7 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 	return 0;
 }
 
-void cx23885_dev_unregister(struct cx23885_dev *dev)
+static void cx23885_dev_unregister(struct cx23885_dev *dev)
 {
 	release_mem_region(pci_resource_start(dev->pci,0),
 			   pci_resource_len(dev->pci,0));
@@ -912,49 +910,12 @@ static u32* cx23885_risc_field(u32 *rp, struct scatterlist *sglist,
 	return rp;
 }
 
-int cx23885_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
-			struct scatterlist *sglist, unsigned int top_offset,
-			unsigned int bottom_offset, unsigned int bpl,
-			unsigned int padding, unsigned int lines)
-{
-	u32 instructions, fields;
-	u32 *rp;
-	int rc;
 
-	fields = 0;
-	if (UNSET != top_offset)
-		fields++;
-	if (UNSET != bottom_offset)
-		fields++;
-
-	/* estimate risc mem: worst case is one write per page border +
-	   one write per scan line + syncs + jump (all 2 dwords).  Padding
-	   can cause next bpl to start close to a page border.  First DMA
-	   region may be smaller than PAGE_SIZE */
-	/* write and jump need and extra dword */
-	instructions  = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
-	instructions += 2;
-	if ((rc = btcx_riscmem_alloc(pci,risc,instructions*12)) < 0)
-		return rc;
-
-	/* write risc instructions */
-	rp = risc->cpu;
-	if (UNSET != top_offset)
-		rp = cx23885_risc_field(rp, sglist, top_offset, 0,
-					bpl, padding, lines);
-	if (UNSET != bottom_offset)
-		rp = cx23885_risc_field(rp, sglist, bottom_offset, 0x200,
-					bpl, padding, lines);
-
-	/* save pointer to jmp instruction address */
-	risc->jmp = rp;
-	BUG_ON((risc->jmp - risc->cpu + 2) * sizeof (*risc->cpu) > risc->size);
-	return 0;
-}
-
-int cx23885_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
-			    struct scatterlist *sglist, unsigned int bpl,
-			    unsigned int lines)
+static int cx23885_risc_databuffer(struct pci_dev *pci,
+				   struct btcx_riscmem *risc,
+				   struct scatterlist *sglist,
+				   unsigned int bpl,
+				   unsigned int lines)
 {
 	u32 instructions;
 	u32 *rp;
@@ -981,8 +942,8 @@ int cx23885_risc_databuffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	return 0;
 }
 
-int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
-			 u32 reg, u32 mask, u32 value)
+static int cx23885_risc_stopper(struct pci_dev *pci, struct btcx_riscmem *risc,
+				u32 reg, u32 mask, u32 value)
 {
 	u32 *rp;
 	int rc;
@@ -1243,16 +1204,6 @@ static void do_cancel_buffers(struct cx23885_tsport *port, char *reason,
 	spin_unlock_irqrestore(&port->slock, flags);
 }
 
-void cx23885_cancel_buffers(struct cx23885_tsport *port)
-{
-	struct cx23885_dev *dev = port->dev;
-	struct cx23885_dmaqueue *q = &port->mpegq;
-
-	dprintk(1, "%s()\n", __FUNCTION__);
-	del_timer_sync(&q->timeout);
-	cx23885_stop_dma(port);
-	do_cancel_buffers(port, "cancel", 0);
-}
 
 static void cx23885_timeout(unsigned long data)
 {

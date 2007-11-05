@@ -270,8 +270,6 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 
 /* ------------------------------------------------------------------ */
 
-EXPORT_SYMBOL(cx23885_boards);
-
 /*
  * Local variables:
  * c-basic-offset: 8

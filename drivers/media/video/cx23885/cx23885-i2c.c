@@ -368,8 +368,6 @@ int cx23885_i2c_unregister(struct cx23885_i2c *bus)
 
 /* ----------------------------------------------------------------------- */
 
-EXPORT_SYMBOL(cx23885_call_i2c_clients);
-
 /*
  * Local variables:
  * c-basic-offset: 8
