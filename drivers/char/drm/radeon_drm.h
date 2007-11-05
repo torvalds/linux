@@ -223,10 +223,10 @@ typedef union {
 #define R300_CMD_CP_DELAY		5
 #define R300_CMD_DMA_DISCARD		6
 #define R300_CMD_WAIT			7
-#	define R300_WAIT_2D  		0x1
-#	define R300_WAIT_3D  		0x2
-#	define R300_WAIT_2D_CLEAN  	0x3
-#	define R300_WAIT_3D_CLEAN  	0x4
+#	define R300_WAIT_2D		0x1
+#	define R300_WAIT_3D		0x2
+#	define R300_WAIT_2D_CLEAN	0x3
+#	define R300_WAIT_3D_CLEAN	0x4
 #define R300_CMD_SCRATCH		8
 
 typedef union {
@@ -722,7 +722,7 @@ typedef struct drm_radeon_surface_free {
 	unsigned int address;
 } drm_radeon_surface_free_t;
 
-#define	DRM_RADEON_VBLANK_CRTC1 	1
-#define	DRM_RADEON_VBLANK_CRTC2 	2
+#define	DRM_RADEON_VBLANK_CRTC1		1
+#define	DRM_RADEON_VBLANK_CRTC2		2
 
 #endif

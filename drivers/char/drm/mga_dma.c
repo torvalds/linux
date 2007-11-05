@@ -493,7 +493,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
 			  dma_bs->agp_size);
 		return err;
 	}
-	
+
 	dev_priv->agp_size = agp_size;
 	dev_priv->agp_handle = agp_req.handle;
 
@@ -550,7 +550,7 @@ static int mga_do_agp_dma_bootstrap(struct drm_device * dev,
 	{
 		struct drm_map_list *_entry;
 		unsigned long agp_token = 0;
-		
+
 		list_for_each_entry(_entry, &dev->maplist, head) {
 			if (_entry->map == dev->agp_buffer_map)
 				agp_token = _entry->user_token;
@@ -964,7 +964,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 
 				free_req.handle = dev_priv->agp_handle;
 				drm_agp_free(dev, &free_req);
-	
+
 				dev_priv->agp_textures = NULL;
 				dev_priv->agp_size = 0;
 				dev_priv->agp_handle = 0;

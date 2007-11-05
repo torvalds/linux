@@ -113,7 +113,7 @@ void via_lastclose(struct drm_device *dev)
 	dev_priv->vram_initialized = 0;
 	dev_priv->agp_initialized = 0;
 	mutex_unlock(&dev->struct_mutex);
-}	
+}
 
 int via_mem_alloc(struct drm_device *dev, void *data,
 		  struct drm_file *file_priv)

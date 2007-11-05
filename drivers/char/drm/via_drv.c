@@ -71,7 +71,7 @@ static struct drm_driver driver = {
 		 .name = DRIVER_NAME,
 		 .id_table = pciidlist,
 	},
-	
+
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
 	.date = DRIVER_DATE,

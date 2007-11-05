@@ -42,7 +42,7 @@
 
 #define I830_BUF_FREE		2
 #define I830_BUF_CLIENT		1
-#define I830_BUF_HARDWARE      	0
+#define I830_BUF_HARDWARE	0
 
 #define I830_BUF_UNMAPPED 0
 #define I830_BUF_MAPPED   1

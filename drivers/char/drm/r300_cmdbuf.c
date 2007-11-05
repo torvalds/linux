@@ -486,7 +486,7 @@ static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 	if (cmd[0] & 0x8000) {
 		u32 offset;
 
-		if (cmd[1] & (RADEON_GMC_SRC_PITCH_OFFSET_CNTL 
+		if (cmd[1] & (RADEON_GMC_SRC_PITCH_OFFSET_CNTL
 			      | RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
 			offset = cmd[2] << 10;
 			ret = !radeon_check_offset(dev_priv, offset);
@@ -504,7 +504,7 @@ static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 				DRM_ERROR("Invalid bitblt second offset is %08X\n", offset);
 				return -EINVAL;
 			}
-			
+
 		}
 	}
 
@@ -723,54 +723,54 @@ static int r300_scratch(drm_radeon_private_t *dev_priv,
 	u32 *ref_age_base;
 	u32 i, buf_idx, h_pending;
 	RING_LOCALS;
-	
-	if (cmdbuf->bufsz < 
+
+	if (cmdbuf->bufsz <
 	    (sizeof(u64) + header.scratch.n_bufs * sizeof(buf_idx))) {
 		return -EINVAL;
 	}
-	
+
 	if (header.scratch.reg >= 5) {
 		return -EINVAL;
 	}
-	
+
 	dev_priv->scratch_ages[header.scratch.reg]++;
-	
+
 	ref_age_base =  (u32 *)(unsigned long)*((uint64_t *)cmdbuf->buf);
-	
+
 	cmdbuf->buf += sizeof(u64);
 	cmdbuf->bufsz -= sizeof(u64);
-	
+
 	for (i=0; i < header.scratch.n_bufs; i++) {
 		buf_idx = *(u32 *)cmdbuf->buf;
 		buf_idx *= 2; /* 8 bytes per buf */
-		
+
 		if (DRM_COPY_TO_USER(ref_age_base + buf_idx, &dev_priv->scratch_ages[header.scratch.reg], sizeof(u32))) {
 			return -EINVAL;
 		}
-					
+
 		if (DRM_COPY_FROM_USER(&h_pending, ref_age_base + buf_idx + 1, sizeof(u32))) {
 			return -EINVAL;
 		}
-					
+
 		if (h_pending == 0) {
 			return -EINVAL;
 		}
-					
+
 		h_pending--;
-						
+
 		if (DRM_COPY_TO_USER(ref_age_base + buf_idx + 1, &h_pending, sizeof(u32))) {
 			return -EINVAL;
 		}
-					
+
 		cmdbuf->buf += sizeof(buf_idx);
 		cmdbuf->bufsz -= sizeof(buf_idx);
 	}
-	
+
 	BEGIN_RING(2);
 	OUT_RING( CP_PACKET0( RADEON_SCRATCH_REG0 + header.scratch.reg * 4, 0 ) );
 	OUT_RING( dev_priv->scratch_ages[header.scratch.reg] );
 	ADVANCE_RING();
-	
+
 	return 0;
 }
 
@@ -919,7 +919,7 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 				goto cleanup;
 			}
 			break;
-			
+
 		default:
 			DRM_ERROR("bad cmd_type %i at %p\n",
 				  header.header.cmd_type,

@@ -429,7 +429,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #define RADEON_PCIE_INDEX               0x0030
 #define RADEON_PCIE_DATA                0x0034
 #define RADEON_PCIE_TX_GART_CNTL	0x10
-#	define RADEON_PCIE_TX_GART_EN   	(1 << 0)
+#	define RADEON_PCIE_TX_GART_EN		(1 << 0)
 #	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_PASS_THRU (0<<1)
 #	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_CLAMP_LO  (1<<1)
 #	define RADEON_PCIE_TX_GART_UNMAPPED_ACCESS_DISCARD   (3<<1)
@@ -439,7 +439,7 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 #	define RADEON_PCIE_TX_GART_INVALIDATE_TLB	(1<<8)
 #define RADEON_PCIE_TX_DISCARD_RD_ADDR_LO 0x11
 #define RADEON_PCIE_TX_DISCARD_RD_ADDR_HI 0x12
-#define RADEON_PCIE_TX_GART_BASE  	0x13
+#define RADEON_PCIE_TX_GART_BASE	0x13
 #define RADEON_PCIE_TX_GART_START_LO	0x14
 #define RADEON_PCIE_TX_GART_START_HI	0x15
 #define RADEON_PCIE_TX_GART_END_LO	0x16
@@ -512,12 +512,12 @@ extern int r300_do_cp_cmdbuf(struct drm_device * dev,
 
 #define RADEON_GEN_INT_STATUS		0x0044
 #	define RADEON_CRTC_VBLANK_STAT		(1 << 0)
-#	define RADEON_CRTC_VBLANK_STAT_ACK   	(1 << 0)
+#	define RADEON_CRTC_VBLANK_STAT_ACK	(1 << 0)
 #	define RADEON_CRTC2_VBLANK_STAT		(1 << 9)
-#	define RADEON_CRTC2_VBLANK_STAT_ACK   	(1 << 9)
+#	define RADEON_CRTC2_VBLANK_STAT_ACK	(1 << 9)
 #	define RADEON_GUI_IDLE_INT_TEST_ACK     (1 << 19)
 #	define RADEON_SW_INT_TEST		(1 << 25)
-#	define RADEON_SW_INT_TEST_ACK   	(1 << 25)
+#	define RADEON_SW_INT_TEST_ACK		(1 << 25)
 #	define RADEON_SW_INT_FIRE		(1 << 26)
 
 #define RADEON_HOST_PATH_CNTL		0x0130
@@ -1133,7 +1133,7 @@ do {									\
 			  write, dev_priv->ring.tail );			\
 	}								\
 	if (((dev_priv->ring.tail + _nr) & mask) != write) {		\
-		DRM_ERROR( 						\
+		DRM_ERROR(						\
 			"ADVANCE_RING(): mismatch: nr: %x write: %x line: %d\n",	\
 			((dev_priv->ring.tail + _nr) & mask),		\
 			write, __LINE__);						\

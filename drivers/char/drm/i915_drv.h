@@ -163,7 +163,7 @@ extern void i915_mem_release(struct drm_device * dev,
 
 #define I915_READ(reg)          DRM_READ32(dev_priv->mmio_map, (reg))
 #define I915_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, (reg), (val))
-#define I915_READ16(reg) 	DRM_READ16(dev_priv->mmio_map, (reg))
+#define I915_READ16(reg)	DRM_READ16(dev_priv->mmio_map, (reg))
 #define I915_WRITE16(reg,val)	DRM_WRITE16(dev_priv->mmio_map, (reg), (val))
 
 #define I915_VERBOSE 0
@@ -200,7 +200,7 @@ extern void i915_mem_release(struct drm_device * dev,
 
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
-#define GFX_OP_USER_INTERRUPT 		((0<<29)|(2<<23))
+#define GFX_OP_USER_INTERRUPT		((0<<29)|(2<<23))
 #define GFX_OP_BREAKPOINT_INTERRUPT	((0<<29)|(1<<23))
 #define CMD_REPORT_HEAD			(7<<23)
 #define CMD_STORE_DWORD_IDX		((0x21<<23) | 0x1)
@@ -217,7 +217,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define I915REG_HWSTAM		0x02098
 #define I915REG_INT_IDENTITY_R	0x020a4
-#define I915REG_INT_MASK_R 	0x020a8
+#define I915REG_INT_MASK_R	0x020a8
 #define I915REG_INT_ENABLE_R	0x020a0
 
 #define I915REG_PIPEASTAT	0x70024
@@ -229,7 +229,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define SRX_INDEX		0x3c4
 #define SRX_DATA		0x3c5
 #define SR01			1
-#define SR01_SCREEN_OFF 	(1<<5)
+#define SR01_SCREEN_OFF		(1<<5)
 
 #define PPCR			0x61204
 #define PPCR_ON			(1<<0)
@@ -249,25 +249,25 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define ADPA_DPMS_OFF		(3<<10)
 
 #define NOPID                   0x2094
-#define LP_RING     		0x2030
-#define HP_RING     		0x2040
-#define RING_TAIL      		0x00
+#define LP_RING			0x2030
+#define HP_RING			0x2040
+#define RING_TAIL		0x00
 #define TAIL_ADDR		0x001FFFF8
-#define RING_HEAD      		0x04
-#define HEAD_WRAP_COUNT     	0xFFE00000
-#define HEAD_WRAP_ONE       	0x00200000
-#define HEAD_ADDR           	0x001FFFFC
-#define RING_START     		0x08
-#define START_ADDR          	0x0xFFFFF000
-#define RING_LEN       		0x0C
-#define RING_NR_PAGES       	0x001FF000
-#define RING_REPORT_MASK    	0x00000006
-#define RING_REPORT_64K     	0x00000002
-#define RING_REPORT_128K    	0x00000004
-#define RING_NO_REPORT      	0x00000000
-#define RING_VALID_MASK     	0x00000001
-#define RING_VALID          	0x00000001
-#define RING_INVALID        	0x00000000
+#define RING_HEAD		0x04
+#define HEAD_WRAP_COUNT		0xFFE00000
+#define HEAD_WRAP_ONE		0x00200000
+#define HEAD_ADDR		0x001FFFFC
+#define RING_START		0x08
+#define START_ADDR		0x0xFFFFF000
+#define RING_LEN		0x0C
+#define RING_NR_PAGES		0x001FF000
+#define RING_REPORT_MASK	0x00000006
+#define RING_REPORT_64K		0x00000002
+#define RING_REPORT_128K	0x00000004
+#define RING_NO_REPORT		0x00000000
+#define RING_VALID_MASK		0x00000001
+#define RING_VALID		0x00000001
+#define RING_INVALID		0x00000000
 
 #define GFX_OP_SCISSOR         ((0x3<<29)|(0x1c<<24)|(0x10<<19))
 #define SC_UPDATE_SCISSOR       (0x1<<1)
@@ -294,9 +294,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define XY_SRC_COPY_BLT_WRITE_ALPHA	(1<<21)
 #define XY_SRC_COPY_BLT_WRITE_RGB	(1<<20)
 
-#define MI_BATCH_BUFFER 	((0x30<<23)|1)
-#define MI_BATCH_BUFFER_START 	(0x31<<23)
-#define MI_BATCH_BUFFER_END 	(0xA<<23)
+#define MI_BATCH_BUFFER		((0x30<<23)|1)
+#define MI_BATCH_BUFFER_START	(0x31<<23)
+#define MI_BATCH_BUFFER_END	(0xA<<23)
 #define MI_BATCH_NON_SECURE	(1)
 #define MI_BATCH_NON_SECURE_I965 (1<<8)
 

@@ -1,4 +1,4 @@
-/* r128_cce.c -- ATI Rage 128 driver -*- linux-c -*- 
+/* r128_cce.c -- ATI Rage 128 driver -*- linux-c -*-
  * Created: Wed Apr  5 19:24:19 2000 by kevin@precisioninsight.com
  */
 /*

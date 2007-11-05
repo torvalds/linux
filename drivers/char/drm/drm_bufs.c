@@ -184,7 +184,7 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 				return -ENOMEM;
 			}
 		}
-				
+
 		break;
 	case _DRM_SHM:
 		list = drm_find_matching_map(dev, map);
@@ -814,9 +814,9 @@ int drm_addbufs_pci(struct drm_device * dev, struct drm_buf_desc * request)
 	page_count = 0;
 
 	while (entry->buf_count < count) {
-		
+
 		dmah = drm_pci_alloc(dev, PAGE_SIZE << page_order, 0x1000, 0xfffffffful);
-		
+
 		if (!dmah) {
 			/* Set count correctly so we free the proper amount. */
 			entry->buf_count = count;
@@ -1592,5 +1592,3 @@ int drm_order(unsigned long size)
 	return order;
 }
 EXPORT_SYMBOL(drm_order);
-
-

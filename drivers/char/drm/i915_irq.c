@@ -291,7 +291,7 @@ static int i915_emit_irq(struct drm_device * dev)
 	OUT_RING(0);
 	OUT_RING(GFX_OP_USER_INTERRUPT);
 	ADVANCE_LP_RING();
-	
+
 	return dev_priv->counter;
 }
 
@@ -336,7 +336,7 @@ static int i915_driver_vblank_do_wait(struct drm_device *dev, unsigned int *sequ
 	DRM_WAIT_ON(ret, dev->vbl_queue, 3 * DRM_HZ,
 		    (((cur_vblank = atomic_read(counter))
 			- *sequence) <= (1<<23)));
-	
+
 	*sequence = cur_vblank;
 
 	return ret;
@@ -423,7 +423,7 @@ int i915_vblank_pipe_set(struct drm_device *dev, void *data,
 	}
 
 	if (pipe->pipe & ~(DRM_I915_VBLANK_PIPE_A|DRM_I915_VBLANK_PIPE_B)) {
-		DRM_ERROR("%s called with invalid pipe 0x%x\n", 
+		DRM_ERROR("%s called with invalid pipe 0x%x\n",
 			  __FUNCTION__, pipe->pipe);
 		return -EINVAL;
 	}

@@ -40,7 +40,7 @@
 
 #define I810_BUF_FREE		2
 #define I810_BUF_CLIENT		1
-#define I810_BUF_HARDWARE      	0
+#define I810_BUF_HARDWARE	0
 
 #define I810_BUF_UNMAPPED 0
 #define I810_BUF_MAPPED   1
@@ -848,7 +848,7 @@ static void i810_dma_quiescent(struct drm_device * dev)
 	drm_i810_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
-/*  	printk("%s\n", __FUNCTION__); */
+/*	printk("%s\n", __FUNCTION__); */
 
 	i810_kernel_lost_context(dev);
 
@@ -869,7 +869,7 @@ static int i810_flush_queue(struct drm_device * dev)
 	int i, ret = 0;
 	RING_LOCALS;
 
-/*  	printk("%s\n", __FUNCTION__); */
+/*	printk("%s\n", __FUNCTION__); */
 
 	i810_kernel_lost_context(dev);
 

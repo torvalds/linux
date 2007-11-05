@@ -234,7 +234,7 @@ int drm_getclient(struct drm_device *dev, void *data,
 
 	idx = client->idx;
 	mutex_lock(&dev->struct_mutex);
-	
+
 	if (list_empty(&dev->filelist)) {
 		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;

@@ -493,7 +493,7 @@ do {									\
 			write * sizeof(u32) );				\
 	}								\
 	if (((dev_priv->ring.tail + _nr) & tail_mask) != write) {	\
-		DRM_ERROR( 						\
+		DRM_ERROR(						\
 			"ADVANCE_RING(): mismatch: nr: %x write: %x line: %d\n",	\
 			((dev_priv->ring.tail + _nr) & tail_mask),	\
 			write, __LINE__);				\

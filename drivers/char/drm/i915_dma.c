@@ -351,7 +351,7 @@ static int validate_cmd(int cmd)
 {
 	int ret = do_validate_cmd(cmd);
 
-/* 	printk("validate_cmd( %x ): %d\n", cmd, ret); */
+/*	printk("validate_cmd( %x ): %d\n", cmd, ret); */
 
 	return ret;
 }

@@ -375,7 +375,7 @@ int i915_mem_destroy_heap( struct drm_device *dev, void *data,
 		DRM_ERROR("get_heap failed");
 		return -EFAULT;
 	}
-	
+
 	if (!*heap) {
 		DRM_ERROR("heap not initialized?");
 		return -EFAULT;
@@ -384,4 +384,3 @@ int i915_mem_destroy_heap( struct drm_device *dev, void *data,
 	i915_mem_takedown( heap );
 	return 0;
 }
-
