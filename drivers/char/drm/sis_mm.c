@@ -134,6 +134,7 @@ static int sis_drm_alloc(struct drm_device *dev, struct drm_file *file_priv,
 		      dev_priv->agp_initialized)) {
 		DRM_ERROR
 		    ("Attempt to allocate from uninitialized memory manager.\n");
+		mutex_unlock(&dev->struct_mutex);
 		return -EINVAL;
 	}
 
