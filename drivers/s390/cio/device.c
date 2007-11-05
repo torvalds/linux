@@ -738,7 +738,7 @@ static int io_subchannel_initialize_dev(struct subchannel *sch,
 	atomic_set(&cdev->private->onoff, 0);
 	cdev->dev.parent = &sch->dev;
 	cdev->dev.release = ccw_device_release;
-	INIT_LIST_HEAD(&cdev->private->kick_work.entry);
+	INIT_WORK(&cdev->private->kick_work, NULL);
 	cdev->dev.groups = ccwdev_attr_groups;
 	/* Do first half of device_register. */
 	device_initialize(&cdev->dev);
