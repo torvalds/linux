@@ -226,7 +226,7 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        "TCL M2523_3DI_E"},
 	{ TUNER_ABSENT,        "Samsung THPD5222FG30A"},
 	/* 120-129 */
-	{ TUNER_ABSENT,        "Xceive XC3028"},
+	{ TUNER_XC2028,        "Xceive XC3028"},
 	{ TUNER_ABSENT,        "Philips FQ1216LME MK5"},
 	{ TUNER_ABSENT,        "Philips FQD1216LME"},
 	{ TUNER_ABSENT,        "Conexant CX24118A"},

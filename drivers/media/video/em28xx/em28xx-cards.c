@@ -587,11 +587,11 @@ void em28xx_card_setup(struct em28xx *dev)
 	/* request some modules */
 	switch (dev->model) {
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	{
 		struct tveeprom tv;
 #ifdef CONFIG_MODULES
 		request_module("tveeprom");
-		request_module("ir-kbd-i2c");
 #endif
 		/* Call first TVeeprom */
 
@@ -603,6 +603,12 @@ void em28xx_card_setup(struct em28xx *dev)
 			dev->i2s_speed = 2048000;
 			dev->has_msp34xx = 1;
 		}
+#ifdef CONFIG_MODULES
+		if (tv.has_ir)
+			request_module("ir-kbd-i2c");
+#endif
+		/* FIXME: Should also retrieve decoder processor type */
+
 		break;
 	}
 	case EM2820_BOARD_KWORLD_PVRTV2800RF:
