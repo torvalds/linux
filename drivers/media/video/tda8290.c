@@ -754,9 +754,8 @@ int tda829x_probe(struct tuner *t)
 	tuner_i2c_xfer_send(&i2c_props, soft_reset, 1);
 	tuner_i2c_xfer_recv(&i2c_props, buf, PROBE_BUFFER_SIZE);
 	for (i = 1; i < PROBE_BUFFER_SIZE; i++) {
-		if (buf[i] == buf[0])
-			continue;
-		break;
+		if (buf[i] != buf[0])
+			break;
 	}
 
 	/* all bytes are equal, not a tda829x - probably a tda9887 */
