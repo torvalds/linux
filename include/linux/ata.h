@@ -379,7 +379,6 @@ struct ata_taskfile {
 #define ata_id_has_ncq(id)	((id)[76] & (1 << 8))
 #define ata_id_queue_depth(id)	(((id)[75] & 0x1f) + 1)
 #define ata_id_removeable(id)	((id)[0] & (1 << 7))
-#define ata_id_has_dword_io(id)	((id)[48] & (1 << 0))
 #define ata_id_has_atapi_AN(id)	\
 	( (((id)[76] != 0x0000) && ((id)[76] != 0xffff)) && \
 	  ((id)[78] & (1 << 5)) )
@@ -414,6 +413,7 @@ static inline bool ata_id_has_dipm(const u16 *id)
 
 	return val & (1 << 3);
 }
+
 
 static inline int ata_id_has_fua(const u16 *id)
 {
@@ -517,6 +517,26 @@ static inline unsigned int ata_id_major_version(const u16 *id)
 static inline int ata_id_is_sata(const u16 *id)
 {
 	return ata_id_major_version(id) >= 5 && id[93] == 0;
+}
+
+static inline int ata_id_has_tpm(const u16 *id)
+{
+	/* The TPM bits are only valid on ATA8 */
+	if (ata_id_major_version(id) < 8)
+		return 0;
+	if ((id[48] & 0xC000) != 0x4000)
+		return 0;
+	return id[48] & (1 << 0);
+}
+
+static inline int ata_id_has_dword_io(const u16 *id)
+{
+	/* ATA 8 reuses this flag for "trusted" computing */
+	if (ata_id_major_version(id) > 7)
+		return 0;
+	if (id[48] & (1 << 0))
+		return 1;
+	return 0;
 }
 
 static inline int ata_id_current_chs_valid(const u16 *id)
