@@ -212,7 +212,6 @@ void flexcop_reset_block_300(struct flexcop_device *fc)
 
 	fc->write_ibi_reg(fc,ctrl_208,v208_save);
 }
-EXPORT_SYMBOL(flexcop_reset_block_300);
 
 struct flexcop_device *flexcop_device_kmalloc(size_t bus_specific_len)
 {
