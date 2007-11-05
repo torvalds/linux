@@ -148,6 +148,10 @@ static int __init smsg_init(void)
 {
 	int rc;
 
+	if (!MACHINE_IS_VM) {
+		rc = -EPROTONOSUPPORT;
+		goto out;
+	}
 	rc = driver_register(&smsg_driver);
 	if (rc != 0)
 		goto out;

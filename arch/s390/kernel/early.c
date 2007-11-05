@@ -200,11 +200,13 @@ static noinline __init void find_memory_chunks(unsigned long memsize)
 		cc = __tprot(addr);
 		while (cc == old_cc) {
 			addr += CHUNK_INCR;
-			cc = __tprot(addr);
+			if (addr >= memsize)
+				break;
 #ifndef CONFIG_64BIT
 			if (addr == ADDR2G)
 				break;
 #endif
+			cc = __tprot(addr);
 		}
 
 		if (old_addr != addr &&
