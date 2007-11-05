@@ -224,6 +224,12 @@ static struct msi_desc* alloc_msi_entry(void)
 	return entry;
 }
 
+static void pci_intx_for_msi(struct pci_dev *dev, int enable)
+{
+	if (!(dev->dev_flags & PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG))
+		pci_intx(dev, enable);
+}
+
 #ifdef CONFIG_PM
 static void __pci_restore_msi_state(struct pci_dev *dev)
 {
@@ -237,7 +243,7 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 	entry = get_irq_msi(dev->irq);
 	pos = entry->msi_attrib.pos;
 
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msi_set_enable(dev, 0);
 	write_msi_msg(dev->irq, &entry->msg);
 	if (entry->msi_attrib.maskbit)
@@ -260,7 +266,7 @@ static void __pci_restore_msix_state(struct pci_dev *dev)
 		return;
 
 	/* route the table */
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msix_set_enable(dev, 0);
 
 	list_for_each_entry(entry, &dev->msi_list, list) {
@@ -343,7 +349,7 @@ static int msi_capability_init(struct pci_dev *dev)
 	}
 
 	/* Set MSI enabled bits	 */
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msi_set_enable(dev, 1);
 	dev->msi_enabled = 1;
 
@@ -433,7 +439,7 @@ static int msix_capability_init(struct pci_dev *dev,
 		i++;
 	}
 	/* Set MSI-X enabled bits */
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msix_set_enable(dev, 1);
 	dev->msix_enabled = 1;
 
@@ -528,7 +534,7 @@ void pci_disable_msi(struct pci_dev* dev)
 		return;
 
 	msi_set_enable(dev, 0);
-	pci_intx(dev, 1);		/* enable intx */
+	pci_intx_for_msi(dev, 1);
 	dev->msi_enabled = 0;
 
 	BUG_ON(list_empty(&dev->msi_list));
@@ -640,7 +646,7 @@ void pci_disable_msix(struct pci_dev* dev)
 		return;
 
 	msix_set_enable(dev, 0);
-	pci_intx(dev, 1);		/* enable intx */
+	pci_intx_for_msi(dev, 1);
 	dev->msix_enabled = 0;
 
 	msix_free_all_irqs(dev);

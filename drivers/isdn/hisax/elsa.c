@@ -1025,7 +1025,7 @@ setup_elsa_pcmcia(struct IsdnCard *card)
 	       cs->irq);
 }
 
-#ifdef CONFIG_PCI
+#ifdef CONFIG_PCI_LEGACY
 static 	struct pci_dev *dev_qs1000 __devinitdata = NULL;
 static 	struct pci_dev *dev_qs3000 __devinitdata = NULL;
 
@@ -1093,7 +1093,7 @@ setup_elsa_pci(struct IsdnCard *card)
 {
 	return (1);
 }
-#endif /* CONFIG_PCI */
+#endif /* CONFIG_PCI_LEGACY */
 
 static int __devinit
 setup_elsa_common(struct IsdnCard *card)

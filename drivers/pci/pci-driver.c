@@ -143,8 +143,8 @@ const struct pci_device_id *pci_match_id(const struct pci_device_id *ids,
  * system is in its list of supported devices.  Returns the matching
  * pci_device_id structure or %NULL if there is no match.
  */
-const struct pci_device_id *pci_match_device(struct pci_driver *drv,
-					     struct pci_dev *dev)
+static const struct pci_device_id *pci_match_device(struct pci_driver *drv,
+						    struct pci_dev *dev)
 {
 	struct pci_dynid *dynid;
 
@@ -559,7 +559,6 @@ static int __init pci_driver_init(void)
 postcore_initcall(pci_driver_init);
 
 EXPORT_SYMBOL(pci_match_id);
-EXPORT_SYMBOL(pci_match_device);
 EXPORT_SYMBOL(__pci_register_driver);
 EXPORT_SYMBOL(pci_unregister_driver);
 EXPORT_SYMBOL(pci_dev_driver);
