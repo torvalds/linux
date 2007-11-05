@@ -1897,14 +1897,10 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 static int instance;
 static int acpi_video_bus_add(struct acpi_device *device)
 {
-	int result = 0;
-	acpi_status status = 0;
-	struct acpi_video_bus *video = NULL;
+	acpi_status status;
+	struct acpi_video_bus *video;
 	struct input_dev *input;
-
-
-	if (!device)
-		return -EINVAL;
+	int error;
 
 	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
 	if (!video)
@@ -1923,13 +1919,13 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	acpi_driver_data(device) = video;
 
 	acpi_video_bus_find_cap(video);
-	result = acpi_video_bus_check(video);
-	if (result)
-		goto end;
+	error = acpi_video_bus_check(video);
+	if (error)
+		goto err_free_video;
 
-	result = acpi_video_bus_add_fs(device);
-	if (result)
-		goto end;
+	error = acpi_video_bus_add_fs(device);
+	if (error)
+		goto err_free_video;
 
 	init_MUTEX(&video->sem);
 	INIT_LIST_HEAD(&video->video_device_list);
@@ -1943,16 +1939,15 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Error installing notify handler\n"));
-		acpi_video_bus_stop_devices(video);
-		acpi_video_bus_put_devices(video);
-		kfree(video->attached_array);
-		acpi_video_bus_remove_fs(device);
-		result = -ENODEV;
-		goto end;
+		error = -ENODEV;
+		goto err_stop_video;
 	}
 
-
 	video->input = input = input_allocate_device();
+	if (!input) {
+		error = -ENOMEM;
+		goto err_uninstall_notify;
+	}
 
 	snprintf(video->phys, sizeof(video->phys),
 		"%s/video/input0", acpi_device_hid(video->device));
@@ -1972,18 +1967,10 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	set_bit(KEY_BRIGHTNESS_ZERO, input->keybit);
 	set_bit(KEY_DISPLAY_OFF, input->keybit);
 	set_bit(KEY_UNKNOWN, input->keybit);
-	result = input_register_device(input);
-	if (result) {
-		acpi_remove_notify_handler(video->device->handle,
-						ACPI_DEVICE_NOTIFY,
-						acpi_video_bus_notify);
-		acpi_video_bus_stop_devices(video);
-		acpi_video_bus_put_devices(video);
-		kfree(video->attached_array);
-		acpi_video_bus_remove_fs(device);
-		goto end;
-        }
 
+	error = input_register_device(input);
+	if (error)
+		goto err_free_input_dev;
 
 	printk(KERN_INFO PREFIX "%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
 	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
@@ -1991,11 +1978,23 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	       video->flags.rom ? "yes" : "no",
 	       video->flags.post ? "yes" : "no");
 
- end:
-	if (result)
-		kfree(video);
+	return 0;
 
-	return result;
+ err_free_input_dev:
+	input_free_device(input);
+ err_uninstall_notify:
+	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+				   acpi_video_bus_notify);
+ err_stop_video:
+	acpi_video_bus_stop_devices(video);
+	acpi_video_bus_put_devices(video);
+	kfree(video->attached_array);
+	acpi_video_bus_remove_fs(device);
+ err_free_video:
+	kfree(video);
+	acpi_driver_data(device) = NULL;
+
+	return error;
 }
 
 static int acpi_video_bus_remove(struct acpi_device *device, int type)
