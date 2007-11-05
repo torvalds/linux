@@ -96,14 +96,39 @@ static void __init mpc836x_mds_setup_arch(void)
 
 	if ((np = of_find_compatible_node(NULL, "network", "ucc_geth"))
 			!= NULL){
+		uint svid;
+
 		/* Reset the Ethernet PHY */
-		bcsr_regs[9] &= ~0x20;
+#define BCSR9_GETHRST 0x20
+		clrbits8(&bcsr_regs[9], BCSR9_GETHRST);
 		udelay(1000);
-		bcsr_regs[9] |= 0x20;
+		setbits8(&bcsr_regs[9], BCSR9_GETHRST);
+
+		/* handle mpc8360ea rev.2.1 erratum 2: RGMII Timing */
+		svid = mfspr(SPRN_SVR);
+		if (svid == 0x80480021) {
+			void __iomem *immap;
+
+			immap = ioremap(get_immrbase() + 0x14a8, 8);
+
+			/*
+			 * IMMR + 0x14A8[4:5] = 11 (clk delay for UCC 2)
+			 * IMMR + 0x14A8[18:19] = 11 (clk delay for UCC 1)
+			 */
+			setbits32(immap, 0x0c003000);
+
+			/*
+			 * IMMR + 0x14AC[20:27] = 10101010
+			 * (data delay for both UCC's)
+			 */
+			clrsetbits_be32(immap + 4, 0xff0, 0xaa0);
+
+			iounmap(immap);
+		}
+
 		iounmap(bcsr_regs);
 		of_node_put(np);
 	}
-
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
