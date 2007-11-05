@@ -147,7 +147,10 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	if (!cpu)
 		goto out;
 
-	dn = of_find_compatible_node(NULL, "sdc", "1682m-sdc");
+	dn = of_find_compatible_node(NULL, NULL, "1682m-sdc");
+	if (!dn)
+		dn = of_find_compatible_node(NULL, NULL,
+					     "pasemi,pwrficient-sdc");
 	if (!dn)
 		goto out;
 	err = of_address_to_resource(dn, 0, &res);
@@ -160,7 +163,10 @@ static int pas_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto out;
 	}
 
-	dn = of_find_compatible_node(NULL, "gizmo", "1682m-gizmo");
+	dn = of_find_compatible_node(NULL, NULL, "1682m-gizmo");
+	if (!dn)
+		dn = of_find_compatible_node(NULL, NULL,
+					     "pasemi,pwrficient-gizmo");
 	if (!dn) {
 		err = -ENODEV;
 		goto out_unmap_sdcasr;
@@ -292,7 +298,8 @@ static struct cpufreq_driver pas_cpufreq_driver = {
 
 static int __init pas_cpufreq_init(void)
 {
-	if (!machine_is_compatible("PA6T-1682M"))
+	if (!machine_is_compatible("PA6T-1682M") &&
+	    !machine_is_compatible("pasemi,pwrficient"))
 		return -ENODEV;
 
 	return cpufreq_register_driver(&pas_cpufreq_driver);

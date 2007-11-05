@@ -362,8 +362,12 @@ static inline void pasemi_pcmcia_init(void)
 
 
 static struct of_device_id pasemi_bus_ids[] = {
+	/* Unfortunately needed for legacy firmwares */
 	{ .type = "localbus", },
 	{ .type = "sdc", },
+	/* These are the proper entries, which newer firmware uses */
+	{ .compatible = "pasemi,localbus", },
+	{ .compatible = "pasemi,sdc", },
 	{},
 };
 
@@ -389,7 +393,8 @@ static int __init pas_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (!of_flat_dt_is_compatible(root, "PA6T-1682M"))
+	if (!of_flat_dt_is_compatible(root, "PA6T-1682M") &&
+	    !of_flat_dt_is_compatible(root, "pasemi,pwrficient"))
 		return 0;
 
 	hpte_init_native();
@@ -400,7 +405,7 @@ static int __init pas_probe(void)
 }
 
 define_machine(pasemi) {
-	.name			= "PA Semi PA6T-1682M",
+	.name			= "PA Semi PWRficient",
 	.probe			= pas_probe,
 	.setup_arch		= pas_setup_arch,
 	.init_early		= pas_init_early,

@@ -333,7 +333,10 @@ int gpio_mdio_init(void)
 {
 	struct device_node *np;
 
-	np = of_find_compatible_node(NULL, "gpio", "1682m-gpio");
+	np = of_find_compatible_node(NULL, NULL, "1682m-gpio");
+	if (!np)
+		np = of_find_compatible_node(NULL, NULL,
+					     "pasemi,pwrficient-gpio");
 	if (!np)
 		return -ENODEV;
 	gpio_regs = of_iomap(np, 0);
