@@ -91,16 +91,17 @@ struct xc2028_data {
 	msleep(10);							\
 } while (0)
 
-static int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
+static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
 {
 	int rc;
 	unsigned char buf[2];
 
 	tuner_info("%s called\n", __FUNCTION__);
 
-	buf[0] = reg;
+	buf[0] = reg>>8;
+	buf[1] = (unsigned char) reg;
 
-	i2c_send(rc, priv, buf, 1);
+	i2c_send(rc, priv, buf, 2);
 	if (rc < 0)
 		return rc;
 
@@ -372,7 +373,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			  v4l2_std_id std, fe_bandwidth_t bandwidth)
 {
 	struct xc2028_data      *priv = fe->tuner_priv;
-	int			rc, version;
+	int			rc, version, hwmodel;
 	v4l2_std_id		std0 = 0;
 	unsigned int		type0 = 0, type = 0;
 	int			change_digital_bandwidth;
@@ -484,9 +485,13 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	if (rc < 0)
 		return rc;
 
-	version = xc2028_get_reg(priv, 0x4);
-	tuner_info("Firmware version is %d.%d\n",
-		   (version >> 4) & 0x0f, (version) & 0x0f);
+	version = xc2028_get_reg(priv, 0x0004);
+	hwmodel = xc2028_get_reg(priv, 0x0008);
+
+	tuner_info("Device is Xceive %d version %d.%d, "
+		   "firmware version %d.%d\n",
+		   hwmodel, (version & 0xf000) >> 12, (version & 0xf00) >> 8,
+		   (version & 0xf0) >> 4, version & 0xf);
 
 	priv->firm_type = std;
 
@@ -504,13 +509,15 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 
 	*strength = 0;
 
-	frq_lock = xc2028_get_reg(priv, 0x2);
+	/* Sync Lock Indicator */
+	frq_lock = xc2028_get_reg(priv, 0x0002);
 	if (frq_lock <= 0)
 		goto ret;
 
 	/* Frequency is locked. Return signal quality */
 
-	signal = xc2028_get_reg(priv, 0x40);
+	/* Get SNR of the video signal */
+	signal = xc2028_get_reg(priv, 0x0040);
 
 	if (signal <= 0)
 		signal = frq_lock;
