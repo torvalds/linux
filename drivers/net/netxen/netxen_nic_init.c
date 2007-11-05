@@ -54,13 +54,17 @@ static unsigned int crb_addr_xform[NETXEN_MAX_CRB_XFORM];
 
 #define NETXEN_NIC_XDMA_RESET 0x8000ff
 
-static inline void
-netxen_nic_locked_write_reg(struct netxen_adapter *adapter,
-			    unsigned long off, int *data)
+static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
+					uint32_t ctx, uint32_t ringid);
+
+#if 0
+static void netxen_nic_locked_write_reg(struct netxen_adapter *adapter,
+					unsigned long off, int *data)
 {
 	void __iomem *addr = pci_base_offset(adapter, off);
 	writel(*data, addr);
 }
+#endif  /*  0  */
 
 static void crb_addr_transform_setup(void)
 {
@@ -255,7 +259,7 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
  * netxen_decode_crb_addr(0 - utility to translate from internal Phantom CRB
  * address to external PCI CRB address.
  */
-u32 netxen_decode_crb_addr(u32 addr)
+static u32 netxen_decode_crb_addr(u32 addr)
 {
 	int i;
 	u32 base_addr, offset, pci_base;
@@ -282,7 +286,7 @@ static long rom_max_timeout = 100;
 static long rom_lock_timeout = 10000;
 static long rom_write_timeout = 700;
 
-static inline int rom_lock(struct netxen_adapter *adapter)
+static int rom_lock(struct netxen_adapter *adapter)
 {
 	int iter;
 	u32 done = 0;
@@ -312,7 +316,7 @@ static inline int rom_lock(struct netxen_adapter *adapter)
 	return 0;
 }
 
-int netxen_wait_rom_done(struct netxen_adapter *adapter)
+static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 {
 	long timeout = 0;
 	long done = 0;
@@ -329,7 +333,7 @@ int netxen_wait_rom_done(struct netxen_adapter *adapter)
 	return 0;
 }
 
-static inline int netxen_rom_wren(struct netxen_adapter *adapter)
+static int netxen_rom_wren(struct netxen_adapter *adapter)
 {
 	/* Set write enable latch in ROM status register */
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ABYTE_CNT, 0);
@@ -341,15 +345,15 @@ static inline int netxen_rom_wren(struct netxen_adapter *adapter)
 	return 0;
 }
 
-static inline unsigned int netxen_rdcrbreg(struct netxen_adapter *adapter,
-					   unsigned int addr)
+static unsigned int netxen_rdcrbreg(struct netxen_adapter *adapter,
+				    unsigned int addr)
 {
 	unsigned int data = 0xdeaddead;
 	data = netxen_nic_reg_read(adapter, addr);
 	return data;
 }
 
-static inline int netxen_do_rom_rdsr(struct netxen_adapter *adapter)
+static int netxen_do_rom_rdsr(struct netxen_adapter *adapter)
 {
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_INSTR_OPCODE,
 			     M25P_INSTR_RDSR);
@@ -359,7 +363,7 @@ static inline int netxen_do_rom_rdsr(struct netxen_adapter *adapter)
 	return netxen_rdcrbreg(adapter, NETXEN_ROMUSB_ROM_RDATA);
 }
 
-static inline void netxen_rom_unlock(struct netxen_adapter *adapter)
+static void netxen_rom_unlock(struct netxen_adapter *adapter)
 {
 	u32 val;
 
@@ -368,7 +372,7 @@ static inline void netxen_rom_unlock(struct netxen_adapter *adapter)
 
 }
 
-int netxen_rom_wip_poll(struct netxen_adapter *adapter)
+static int netxen_rom_wip_poll(struct netxen_adapter *adapter)
 {
 	long timeout = 0;
 	long wip = 1;
@@ -385,8 +389,8 @@ int netxen_rom_wip_poll(struct netxen_adapter *adapter)
 	return 0;
 }
 
-static inline int do_rom_fast_write(struct netxen_adapter *adapter, int addr,
-				    int data)
+static int do_rom_fast_write(struct netxen_adapter *adapter, int addr,
+			     int data)
 {
 	if (netxen_rom_wren(adapter)) {
 		return -1;
@@ -404,8 +408,8 @@ static inline int do_rom_fast_write(struct netxen_adapter *adapter, int addr,
 	return netxen_rom_wip_poll(adapter);
 }
 
-static inline int
-do_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
+static int do_rom_fast_read(struct netxen_adapter *adapter,
+			    int addr, int *valp)
 {
 	cond_resched();
 
@@ -427,9 +431,8 @@ do_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 	return 0;
 }
 
-static inline int 
-do_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
-			u8 *bytes, size_t size)
+static int do_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
+				  u8 *bytes, size_t size)
 {
 	int addridx;
 	int ret = 0;
@@ -473,6 +476,7 @@ int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp)
 	return ret;
 }
 
+#if 0
 int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data)
 {
 	int ret = 0;
@@ -484,9 +488,10 @@ int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data)
 	netxen_rom_unlock(adapter);
 	return ret;
 }
+#endif  /*  0  */
 
-static inline int do_rom_fast_write_words(struct netxen_adapter *adapter, 
-						int addr, u8 *bytes, size_t size)
+static int do_rom_fast_write_words(struct netxen_adapter *adapter, 
+				   int addr, u8 *bytes, size_t size)
 {
 	int addridx = addr;
 	int ret = 0;
@@ -548,7 +553,7 @@ int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr,
 	return ret;
 }
 
-int netxen_rom_wrsr(struct netxen_adapter *adapter, int data)
+static int netxen_rom_wrsr(struct netxen_adapter *adapter, int data)
 {
 	int ret;
 
@@ -567,7 +572,7 @@ int netxen_rom_wrsr(struct netxen_adapter *adapter, int data)
 	return netxen_rom_wip_poll(adapter);
 }
 
-int netxen_rom_rdsr(struct netxen_adapter *adapter)
+static int netxen_rom_rdsr(struct netxen_adapter *adapter)
 {
 	int ret;
 
@@ -632,7 +637,7 @@ out_kfree:
 	return ret;
 }
 
-int netxen_do_rom_se(struct netxen_adapter *adapter, int addr)
+static int netxen_do_rom_se(struct netxen_adapter *adapter, int addr)
 {
 	netxen_rom_wren(adapter);
 	netxen_nic_reg_write(adapter, NETXEN_ROMUSB_ROM_ADDRESS, addr);
@@ -646,7 +651,7 @@ int netxen_do_rom_se(struct netxen_adapter *adapter, int addr)
 	return netxen_rom_wip_poll(adapter);
 }
 
-void check_erased_flash(struct netxen_adapter *adapter, int addr)
+static void check_erased_flash(struct netxen_adapter *adapter, int addr)
 {
 	int i;
 	int val;
@@ -682,8 +687,8 @@ int netxen_rom_se(struct netxen_adapter *adapter, int addr)
 	return ret;
 }
 
-int
-netxen_flash_erase_sections(struct netxen_adapter *adapter, int start, int end)
+static int netxen_flash_erase_sections(struct netxen_adapter *adapter,
+				       int start, int end)
 {
 	int ret = FLASH_SUCCESS;
 	int i;
@@ -990,7 +995,7 @@ int netxen_nic_rx_has_work(struct netxen_adapter *adapter)
 	return 0;
 }
 
-static inline int netxen_nic_check_temp(struct netxen_adapter *adapter)
+static int netxen_nic_check_temp(struct netxen_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	uint32_t temp, temp_state, temp_val;
@@ -1064,9 +1069,8 @@ void netxen_watchdog_task(struct work_struct *work)
  * and if the number of receives exceeds RX_BUFFERS_REFILL, then we
  * invoke the routine to send more rx buffers to the Phantom...
  */
-void
-netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
-		   struct status_desc *desc)
+static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
+			       struct status_desc *desc)
 {
 	struct pci_dev *pdev = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
@@ -1458,8 +1462,8 @@ void netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ctx, u32 ringid)
 	}
 }
 
-void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter, uint32_t ctx,
-				 uint32_t ringid)
+static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
+					uint32_t ctx, uint32_t ringid)
 {
 	struct pci_dev *pdev = adapter->ahw.pdev;
 	struct sk_buff *skb;

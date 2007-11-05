@@ -89,8 +89,8 @@ MODULE_DEVICE_TABLE(pci, netxen_pci_tbl);
 struct workqueue_struct *netxen_workq;
 static void netxen_watchdog(unsigned long);
 
-static inline void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
-							uint32_t crb_producer)
+static void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter,
+					   uint32_t crb_producer)
 {
 	switch (adapter->portnum) {
 		case 0:
@@ -118,8 +118,8 @@ static inline void netxen_nic_update_cmd_producer(struct netxen_adapter *adapter
 	}
 }
 
-static inline void netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
-							u32 crb_consumer)
+static void netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter,
+					   u32 crb_consumer)
 {
 	switch (adapter->portnum) {
 		case 0:
@@ -148,7 +148,6 @@ static inline void netxen_nic_update_cmd_consumer(struct netxen_adapter *adapter
 }
 
 #define	ADAPTER_LIST_SIZE 12
-int netxen_cards_found;
 
 static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 {

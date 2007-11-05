@@ -66,7 +66,8 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 	return stats;
 }
 
-void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link)
+static void netxen_indicate_link_status(struct netxen_adapter *adapter,
+					u32 link)
 {
 	struct net_device *netdev = adapter->netdev;
 
@@ -76,6 +77,7 @@ void netxen_indicate_link_status(struct netxen_adapter *adapter, u32 link)
 		netif_carrier_off(netdev);
 }
 
+#if 0
 void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 {
 	__u32 int_src;
@@ -134,8 +136,9 @@ void netxen_handle_port_int(struct netxen_adapter *adapter, u32 enable)
 	if (adapter->enable_phy_interrupts)
 		adapter->enable_phy_interrupts(adapter);
 }
+#endif  /*  0  */
 
-void netxen_nic_isr_other(struct netxen_adapter *adapter)
+static void netxen_nic_isr_other(struct netxen_adapter *adapter)
 {
 	int portno = adapter->portnum;
 	u32 val, linkup, qg_linksup;

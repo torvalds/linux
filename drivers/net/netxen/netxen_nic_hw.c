@@ -33,7 +33,6 @@
 
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
-#define DEFINE_GLOBAL_RECV_CRB
 #include "netxen_nic_phan_reg.h"
 
 
@@ -244,12 +243,15 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	},
 };
 
-u64 ctx_addr_sig_regs[][3] = {
+static u64 ctx_addr_sig_regs[][3] = {
 	{NETXEN_NIC_REG(0x188), NETXEN_NIC_REG(0x18c), NETXEN_NIC_REG(0x1c0)},
 	{NETXEN_NIC_REG(0x190), NETXEN_NIC_REG(0x194), NETXEN_NIC_REG(0x1c4)},
 	{NETXEN_NIC_REG(0x198), NETXEN_NIC_REG(0x19c), NETXEN_NIC_REG(0x1c8)},
 	{NETXEN_NIC_REG(0x1a0), NETXEN_NIC_REG(0x1a4), NETXEN_NIC_REG(0x1cc)}
 };
+#define CRB_CTX_ADDR_REG_LO(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][0])
+#define CRB_CTX_ADDR_REG_HI(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][2])
+#define CRB_CTX_SIGNATURE_REG(FUNC_ID)		(ctx_addr_sig_regs[FUNC_ID][1])
 
 
 /*  PCI Windowing for DDR regions.  */
@@ -279,8 +281,8 @@ u64 ctx_addr_sig_regs[][3] = {
 
 #define NETXEN_NIC_WINDOW_MARGIN 0x100000
 
-unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
-					unsigned long long addr);
+static unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
+					       unsigned long long addr);
 void netxen_free_hw_resources(struct netxen_adapter *adapter);
 
 int netxen_nic_set_mac(struct net_device *netdev, void *p)
@@ -886,11 +888,10 @@ void netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index, u32 * value)
 	netxen_nic_pci_change_crbwindow(adapter, 1);
 }
 
-int netxen_pci_set_window_warning_count = 0;
+static int netxen_pci_set_window_warning_count = 0;
 
-unsigned long
-netxen_nic_pci_set_window(struct netxen_adapter *adapter,
-			  unsigned long long addr)
+static  unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
+						unsigned long long addr)
 {
 	static int ddr_mn_window = -1;
 	static int qdr_sn_window = -1;
@@ -952,6 +953,7 @@ netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 	return addr;
 }
 
+#if 0
 int
 netxen_nic_erase_pxe(struct netxen_adapter *adapter)
 {
@@ -962,6 +964,7 @@ netxen_nic_erase_pxe(struct netxen_adapter *adapter)
 	}
 	return 0;
 }
+#endif  /*  0  */
 
 int netxen_nic_get_board_info(struct netxen_adapter *adapter)
 {
