@@ -292,7 +292,6 @@ struct drm_magic_entry {
 	struct list_head head;
 	struct drm_hash_item hash_item;
 	struct drm_file *priv;
-	struct drm_magic_entry *next;
 };
 
 struct drm_vma_entry {
@@ -388,8 +387,8 @@ struct drm_file {
 	struct drm_head *head;
 	int remove_auth_on_close;
 	unsigned long lock_count;
-	void *driver_priv;
 	struct file *filp;
+	void *driver_priv;
 };
 
 /** Wait queue */
@@ -401,11 +400,9 @@ struct drm_queue {
 	wait_queue_head_t read_queue;	/**< Processes waiting on block_read */
 	atomic_t block_write;		/**< Queue blocked for writes */
 	wait_queue_head_t write_queue;	/**< Processes waiting on block_write */
-#if 1
 	atomic_t total_queued;		/**< Total queued statistic */
 	atomic_t total_flushed;		/**< Total flushes statistic */
 	atomic_t total_locks;		/**< Total locks statistics */
-#endif
 	enum drm_ctx_flags flags;	/**< Context preserving and 2D-only */
 	struct drm_waitlist waitlist;	/**< Pending buffers */
 	wait_queue_head_t flush_queue;	/**< Processes waiting until flush */
@@ -416,7 +413,8 @@ struct drm_queue {
  */
 struct drm_lock_data {
 	struct drm_hw_lock *hw_lock;	/**< Hardware lock */
-	struct drm_file *file_priv;	/**< File descr of lock holder (0=kernel) */
+	/** Private of lock holder's file (NULL=kernel) */
+	struct drm_file *file_priv;
 	wait_queue_head_t lock_queue;	/**< Queue of blocked processes */
 	unsigned long lock_time;	/**< Time of last lock in jiffies */
 	spinlock_t spinlock;
@@ -491,6 +489,27 @@ struct drm_sigdata {
 	struct drm_hw_lock *lock;
 };
 
+
+/*
+ * Generic memory manager structs
+ */
+
+struct drm_mm_node {
+	struct list_head fl_entry;
+	struct list_head ml_entry;
+	int free;
+	unsigned long start;
+	unsigned long size;
+	struct drm_mm *mm;
+	void *private;
+};
+
+struct drm_mm {
+	struct list_head fl_entry;
+	struct list_head ml_entry;
+};
+
+
 /**
  * Mappings list
  */
@@ -498,7 +517,7 @@ struct drm_map_list {
 	struct list_head head;		/**< list head */
 	struct drm_hash_item hash;
 	struct drm_map *map;			/**< mapping */
-	unsigned int user_token;
+	uint64_t user_token;
 };
 
 typedef struct drm_map drm_local_map_t;
@@ -534,24 +553,6 @@ struct drm_ati_pcigart_info {
 	dma_addr_t bus_addr;
 	drm_local_map_t mapping;
 	int table_size;
-};
-
-/*
- * Generic memory manager structs
- */
-struct drm_mm_node {
-	struct list_head fl_entry;
-	struct list_head ml_entry;
-	int free;
-	unsigned long start;
-	unsigned long size;
-	struct drm_mm *mm;
-	void *private;
-};
-
-struct drm_mm {
-	struct list_head fl_entry;
-	struct list_head ml_entry;
 };
 
 /**
@@ -750,7 +751,6 @@ struct drm_device {
 	struct pci_controller *hose;
 #endif
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
-	unsigned long *ctx_bitmap;	/**< context bitmap */
 	void *dev_private;		/**< device private data */
 	struct drm_sigdata sigdata;	   /**< For block_all_signals */
 	sigset_t sigmask;
@@ -1073,7 +1073,7 @@ extern void drm_sysfs_device_remove(struct class_device *class_dev);
 extern struct drm_mm_node *drm_mm_get_block(struct drm_mm_node * parent,
 				       unsigned long size,
 				       unsigned alignment);
-void drm_mm_put_block(struct drm_mm_node * cur);
+extern void drm_mm_put_block(struct drm_mm_node * cur);
 extern struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm, unsigned long size,
 					 unsigned alignment, int best_match);
 extern int drm_mm_init(struct drm_mm *mm, unsigned long start, unsigned long size);
