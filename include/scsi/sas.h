@@ -102,13 +102,12 @@ enum sas_dev_type {
 	SATA_PM_PORT= 8,
 };
 
-/* Partly from IDENTIFY address frame. */
-enum sas_proto {
-	SATA_PROTO    = 1,
-	SAS_PROTO_SMP = 2,	  /* protocol */
-	SAS_PROTO_STP = 4,	  /* protocol */
-	SAS_PROTO_SSP = 8,	  /* protocol */
-	SAS_PROTO_ALL = 0xE,
+enum sas_protocol {
+	SAS_PROTOCOL_SATA		= 0x01,
+	SAS_PROTOCOL_SMP		= 0x02,
+	SAS_PROTOCOL_STP		= 0x04,
+	SAS_PROTOCOL_SSP		= 0x08,
+	SAS_PROTOCOL_ALL		= 0x0E,
 };
 
 /* From the spec; local phys only */

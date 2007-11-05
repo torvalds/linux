@@ -656,9 +656,9 @@ static struct domain_device *sas_ex_discover_end_dev(
 	sas_ex_get_linkrate(parent, child, phy);
 
 #ifdef CONFIG_SCSI_SAS_ATA
-	if ((phy->attached_tproto & SAS_PROTO_STP) || phy->attached_sata_dev) {
+	if ((phy->attached_tproto & SAS_PROTOCOL_STP) || phy->attached_sata_dev) {
 		child->dev_type = SATA_DEV;
-		if (phy->attached_tproto & SAS_PROTO_STP)
+		if (phy->attached_tproto & SAS_PROTOCOL_STP)
 			child->tproto = phy->attached_tproto;
 		if (phy->attached_sata_dev)
 			child->tproto |= SATA_DEV;
@@ -695,7 +695,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		}
 	} else
 #endif
-	  if (phy->attached_tproto & SAS_PROTO_SSP) {
+	  if (phy->attached_tproto & SAS_PROTOCOL_SSP) {
 		child->dev_type = SAS_END_DEV;
 		rphy = sas_end_device_alloc(phy->port);
 		/* FIXME: error handling */

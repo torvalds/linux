@@ -122,8 +122,8 @@ struct ex_phy {
 	u8   attached_sata_dev:1;
 	u8   attached_sata_ps:1;
 
-	enum sas_proto attached_tproto;
-	enum sas_proto attached_iproto;
+	enum sas_protocol attached_tproto;
+	enum sas_protocol attached_iproto;
 
 	u8   attached_sas_addr[SAS_ADDR_SIZE];
 	u8   attached_phy_id;
@@ -191,8 +191,8 @@ struct domain_device {
 
         struct list_head dev_list_node;
 
-        enum sas_proto    iproto;
-        enum sas_proto    tproto;
+        enum sas_protocol    iproto;
+        enum sas_protocol    tproto;
 
         struct sas_rphy *rphy;
 
@@ -245,8 +245,8 @@ struct asd_sas_port {
 	enum sas_class   class;
 	u8               sas_addr[SAS_ADDR_SIZE];
 	u8               attached_sas_addr[SAS_ADDR_SIZE];
-	enum sas_proto   iproto;
-	enum sas_proto   tproto;
+	enum sas_protocol   iproto;
+	enum sas_protocol   tproto;
 
 	enum sas_oob_mode oob_mode;
 
@@ -289,8 +289,8 @@ struct asd_sas_phy {
 
 	int            id;	  /* must be set */
 	enum sas_class class;
-	enum sas_proto iproto;
-	enum sas_proto tproto;
+	enum sas_protocol iproto;
+	enum sas_protocol tproto;
 
 	enum sas_phy_type  type;
 	enum sas_phy_role  role;
@@ -537,7 +537,7 @@ struct sas_task {
 	spinlock_t   task_state_lock;
 	unsigned     task_state_flags;
 
-	enum   sas_proto      task_proto;
+	enum   sas_protocol      task_proto;
 
 	/* Used by the discovery code. */
 	struct timer_list     timer;
