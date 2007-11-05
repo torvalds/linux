@@ -94,13 +94,13 @@ struct xc2028_data {
 static int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
 {
 	int rc;
-	unsigned char buf[1];
+	unsigned char buf[2];
 
 	tuner_info("%s called\n", __FUNCTION__);
 
 	buf[0] = reg;
 
-	i2c_send(rc, priv, buf, sizeof(buf));
+	i2c_send(rc, priv, buf, 1);
 	if (rc < 0)
 		return rc;
 
