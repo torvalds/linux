@@ -1961,6 +1961,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	input->phys = video->phys;
 	input->id.bustype = BUS_HOST;
 	input->id.product = 0x06;
+	input->dev.parent = &device->dev;
 	input->evbit[0] = BIT(EV_KEY);
 	set_bit(KEY_SWITCHVIDEOMODE, input->keybit);
 	set_bit(KEY_VIDEO_NEXT, input->keybit);
@@ -1990,7 +1991,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	       video->flags.rom ? "yes" : "no",
 	       video->flags.post ? "yes" : "no");
 
-      end:
+ end:
 	if (result)
 		kfree(video);
 
