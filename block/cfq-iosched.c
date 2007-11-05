@@ -2068,9 +2068,10 @@ static void cfq_put_async_queues(struct cfq_data *cfqd)
 			cfq_put_queue(cfqd->async_cfqq[0][i]);
 		if (cfqd->async_cfqq[1][i])
 			cfq_put_queue(cfqd->async_cfqq[1][i]);
-		if (cfqd->async_idle_cfqq)
-			cfq_put_queue(cfqd->async_idle_cfqq);
 	}
+
+	if (cfqd->async_idle_cfqq)
+		cfq_put_queue(cfqd->async_idle_cfqq);
 }
 
 static void cfq_exit_queue(elevator_t *e)
