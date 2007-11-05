@@ -307,7 +307,7 @@ static cycle_t read_tod_clock(void)
 
 static struct clocksource clocksource_tod = {
 	.name		= "tod",
-	.rating		= 100,
+	.rating		= 400,
 	.read		= read_tod_clock,
 	.mask		= -1ULL,
 	.mult		= 1000,
