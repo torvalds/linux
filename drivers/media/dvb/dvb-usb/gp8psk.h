@@ -92,6 +92,5 @@ extern struct dvb_frontend * gp8psk_fe_attach(struct dvb_usb_device *d);
 extern int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen);
 extern int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 			     u16 index, u8 *b, int blen);
-extern int gp8psk_bcm4500_reload(struct dvb_usb_device *d);
 
 #endif
