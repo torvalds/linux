@@ -983,10 +983,6 @@ struct zfcp_unit {
         struct scsi_device     *device;        /* scsi device struct pointer */
 	struct zfcp_erp_action erp_action;     /* pending error recovery */
         atomic_t               erp_counter;
-	wait_queue_head_t      scsi_scan_wq;   /* can be used to wait until
-						  all scsi_scan_target
-						  requests have been
-						  completed. */
 };
 
 /* FSF request */

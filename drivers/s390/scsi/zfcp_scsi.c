@@ -180,9 +180,6 @@ static void zfcp_scsi_slave_destroy(struct scsi_device *sdpnt)
 
 	if (unit) {
 		zfcp_erp_wait(unit->port->adapter);
-		wait_event(unit->scsi_scan_wq,
-			   atomic_test_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING,
-					    &unit->status) == 0);
 		atomic_clear_mask(ZFCP_STATUS_UNIT_REGISTERED, &unit->status);
 		sdpnt->hostdata = NULL;
 		unit->device = NULL;

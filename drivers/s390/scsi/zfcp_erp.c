@@ -1609,7 +1609,6 @@ static void zfcp_erp_scsi_scan(struct work_struct *work)
 	scsi_scan_target(&rport->dev, 0, rport->scsi_target_id,
 			 unit->scsi_lun, 0);
 	atomic_clear_mask(ZFCP_STATUS_UNIT_SCSI_WORK_PENDING, &unit->status);
-	wake_up(&unit->scsi_scan_wq);
 	zfcp_unit_put(unit);
 	kfree(p);
 }
