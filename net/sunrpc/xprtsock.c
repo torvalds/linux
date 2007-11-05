@@ -1276,34 +1276,53 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 	}
 }
 
+static unsigned short xs_get_srcport(struct sock_xprt *transport, struct socket *sock)
+{
+	unsigned short port = transport->port;
+
+	if (port == 0 && transport->xprt.resvport)
+		port = xs_get_random_port();
+	return port;
+}
+
+static unsigned short xs_next_srcport(struct sock_xprt *transport, struct socket *sock, unsigned short port)
+{
+	if (transport->port != 0)
+		transport->port = 0;
+	if (!transport->xprt.resvport)
+		return 0;
+	if (port <= xprt_min_resvport || port > xprt_max_resvport)
+		return xprt_max_resvport;
+	return --port;
+}
+
 static int xs_bind4(struct sock_xprt *transport, struct socket *sock)
 {
 	struct sockaddr_in myaddr = {
 		.sin_family = AF_INET,
 	};
 	struct sockaddr_in *sa;
-	int err;
-	unsigned short port = transport->port;
+	int err, nloop = 0;
+	unsigned short port = xs_get_srcport(transport, sock);
+	unsigned short last;
 
-	if (!transport->xprt.resvport)
-		port = 0;
 	sa = (struct sockaddr_in *)&transport->addr;
 	myaddr.sin_addr = sa->sin_addr;
 	do {
 		myaddr.sin_port = htons(port);
 		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
 						sizeof(myaddr));
-		if (!transport->xprt.resvport)
+		if (port == 0)
 			break;
 		if (err == 0) {
 			transport->port = port;
 			break;
 		}
-		if (port <= xprt_min_resvport)
-			port = xprt_max_resvport;
-		else
-			port--;
-	} while (err == -EADDRINUSE && port != transport->port);
+		last = port;
+		port = xs_next_srcport(transport, sock, port);
+		if (port > last)
+			nloop++;
+	} while (err == -EADDRINUSE && nloop != 2);
 	dprintk("RPC:       %s "NIPQUAD_FMT":%u: %s (%d)\n",
 			__FUNCTION__, NIPQUAD(myaddr.sin_addr),
 			port, err ? "failed" : "ok", err);
@@ -1316,28 +1335,27 @@ static int xs_bind6(struct sock_xprt *transport, struct socket *sock)
 		.sin6_family = AF_INET6,
 	};
 	struct sockaddr_in6 *sa;
-	int err;
-	unsigned short port = transport->port;
+	int err, nloop = 0;
+	unsigned short port = xs_get_srcport(transport, sock);
+	unsigned short last;
 
-	if (!transport->xprt.resvport)
-		port = 0;
 	sa = (struct sockaddr_in6 *)&transport->addr;
 	myaddr.sin6_addr = sa->sin6_addr;
 	do {
 		myaddr.sin6_port = htons(port);
 		err = kernel_bind(sock, (struct sockaddr *) &myaddr,
 						sizeof(myaddr));
-		if (!transport->xprt.resvport)
+		if (port == 0)
 			break;
 		if (err == 0) {
 			transport->port = port;
 			break;
 		}
-		if (port <= xprt_min_resvport)
-			port = xprt_max_resvport;
-		else
-			port--;
-	} while (err == -EADDRINUSE && port != transport->port);
+		last = port;
+		port = xs_next_srcport(transport, sock, port);
+		if (port > last)
+			nloop++;
+	} while (err == -EADDRINUSE && nloop != 2);
 	dprintk("RPC:       xs_bind6 "NIP6_FMT":%u: %s (%d)\n",
 		NIP6(myaddr.sin6_addr), port, err ? "failed" : "ok", err);
 	return err;
@@ -1819,7 +1837,6 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 	xprt->addrlen = args->addrlen;
 	if (args->srcaddr)
 		memcpy(&new->addr, args->srcaddr, args->addrlen);
-	new->port = xs_get_random_port();
 
 	return xprt;
 }
