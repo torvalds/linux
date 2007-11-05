@@ -788,14 +788,14 @@ static ssize_t show_idle_time(struct sys_device *dev, char *buf)
 	}
 	new_time = idle->idle_time;
 	spin_unlock_irq(&idle->lock);
-	return sprintf(buf, "%llu us\n", new_time >> 12);
+	return sprintf(buf, "%llu\n", new_time >> 12);
 }
-static SYSDEV_ATTR(idle_time, 0444, show_idle_time, NULL);
+static SYSDEV_ATTR(idle_time_us, 0444, show_idle_time, NULL);
 
 static struct attribute *cpu_attrs[] = {
 	&attr_capability.attr,
 	&attr_idle_count.attr,
-	&attr_idle_time.attr,
+	&attr_idle_time_us.attr,
 	NULL,
 };
 
