@@ -74,10 +74,7 @@ extern void copy_page_nommu(void *to, void *from);
 	(defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB))
 struct page;
 struct vm_area_struct;
-extern void clear_user_page(void *to, unsigned long address, struct page *pg);
-extern void copy_user_page(void *to, void *from, unsigned long address, struct page *pg);
-extern void __clear_user_page(void *to, void *orig_to);
-extern void __copy_user_page(void *to, void *from, void *orig_to);
+extern void clear_user_page(void *to, unsigned long address, struct page *page);
 #ifdef CONFIG_CPU_SH4
 extern void copy_user_highpage(struct page *to, struct page *from,
 			       unsigned long vaddr, struct vm_area_struct *vma);
