@@ -564,8 +564,26 @@ static int em28xx_hint_board(struct em28xx *dev)
 	return -1;
 }
 
+
+static void em28xx_set_model(struct em28xx *dev)
+{
+	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
+	dev->has_tuner = em28xx_boards[dev->model].has_tuner;
+	dev->has_msp34xx = em28xx_boards[dev->model].has_msp34xx;
+	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
+	dev->decoder = em28xx_boards[dev->model].decoder;
+	dev->video_inputs = em28xx_boards[dev->model].vchannels;
+
+	if (!em28xx_boards[dev->model].has_tuner)
+		dev->tuner_type = UNSET;
+}
+
 void em28xx_card_setup(struct em28xx *dev)
 {
+	em28xx_set_model(dev);
+
+	dev->tuner_type = em28xx_boards[dev->model].tuner_type;
+
 	/* request some modules */
 	switch (dev->model) {
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
@@ -593,16 +611,11 @@ void em28xx_card_setup(struct em28xx *dev)
 		break;
 	case EM2820_BOARD_UNKNOWN:
 	case EM2800_BOARD_UNKNOWN:
-		em28xx_hint_board(dev);
+		if (!em28xx_hint_board(dev))
+			em28xx_set_model(dev);
 	}
 
-	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
-	dev->has_tuner = em28xx_boards[dev->model].has_tuner;
-	dev->has_msp34xx = em28xx_boards[dev->model].has_msp34xx;
-	dev->tda9887_conf = em28xx_boards[dev->model].tda9887_conf;
-	dev->decoder = em28xx_boards[dev->model].decoder;
-	dev->video_inputs = em28xx_boards[dev->model].vchannels;
-
+	/* Allow override tuner type by a module parameter */
 	if (tuner >= 0)
 		dev->tuner_type = tuner;
 
