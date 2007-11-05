@@ -91,7 +91,7 @@ extern uint m8xx_cpm_hostalloc(uint size);
 extern int  m8xx_cpm_hostfree(uint start);
 extern void m8xx_cpm_hostdump(void);
 
-extern void cpm_load_patch(volatile immap_t *immr);
+extern void cpm_load_patch(cpm8xx_t *cp);
 
 /* Buffer descriptors used by many of the CPM protocols.
 */
