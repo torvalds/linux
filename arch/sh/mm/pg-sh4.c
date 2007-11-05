@@ -9,6 +9,8 @@
 #include <linux/mm.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>
+#include <linux/highmem.h>
+#include <linux/module.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 
@@ -78,6 +80,27 @@ void copy_user_page(void *to, void *from, unsigned long address,
 		kunmap_coherent(vfrom);
 	}
 }
+
+void copy_user_highpage(struct page *to, struct page *from,
+			unsigned long vaddr, struct vm_area_struct *vma)
+{
+	void *vfrom, *vto;
+
+	__set_bit(PG_mapped, &to->flags);
+
+	vto = kmap_atomic(to, KM_USER1);
+	vfrom = kmap_coherent(from, vaddr);
+	copy_page(vto, vfrom);
+	kunmap_coherent(vfrom);
+
+	if (((vaddr ^ (unsigned long)vto) & CACHE_ALIAS))
+		__flush_wback_region(vto, PAGE_SIZE);
+
+	kunmap_atomic(vto, KM_USER1);
+	/* Make sure this page is cleared on other CPU's too before using it */
+	smp_wmb();
+}
+EXPORT_SYMBOL(copy_user_highpage);
 
 /*
  * For SH-4, we have our own implementation for ptep_get_and_clear
