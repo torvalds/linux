@@ -1117,6 +1117,12 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		itv->is_50hz = 1;
 		itv->is_out_50hz = 1;
 	}
+
+	itv->yuv_info.osd_full_w = 720;
+	itv->yuv_info.osd_full_h = itv->is_out_50hz ? 576 : 480;
+	itv->yuv_info.v4l2_src_w = itv->yuv_info.osd_full_w;
+	itv->yuv_info.v4l2_src_h = itv->yuv_info.osd_full_h;
+
 	itv->params.video_gop_size = itv->is_60hz ? 15 : 12;
 
 	itv->stream_buf_size[IVTV_ENC_STREAM_TYPE_MPG] = 0x08000;

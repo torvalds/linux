@@ -661,27 +661,12 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	IVTV_DEBUG_INFO("Starting decode stream %s (gop_offset %d)\n", s->name, gop_offset);
 
-	/* Clear Streamoff */
-	if (s->type == IVTV_DEC_STREAM_TYPE_YUV) {
-		/* Initialize Decoder */
-		/* Reprogram Decoder YUV Buffers for YUV */
-		write_reg(yuv_offset[0] >> 4, 0x82c);
-		write_reg((yuv_offset[0] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x830);
-		write_reg(yuv_offset[0] >> 4, 0x834);
-		write_reg((yuv_offset[0] + IVTV_YUV_BUFFER_UV_OFFSET) >> 4, 0x838);
-
-		write_reg_sync(0x00000000 | (0x0c << 16) | (0x0b << 8), 0x2d24);
-
-		write_reg_sync(0x00108080, 0x2898);
-		/* Enable YUV decoder output */
-		write_reg_sync(0x01, IVTV_REG_VDM);
-	}
-
 	ivtv_setup_v4l2_decode_stream(s);
 
 	/* set dma size to 65536 bytes */
 	ivtv_vapi(itv, CX2341X_DEC_SET_DMA_BLOCK_SIZE, 1, 65536);
 
+	/* Clear Streamoff */
 	clear_bit(IVTV_F_S_STREAMOFF, &s->s_flags);
 
 	/* Zero out decoder counters */

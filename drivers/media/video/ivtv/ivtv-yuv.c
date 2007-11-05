@@ -1035,17 +1035,11 @@ void ivtv_yuv_frame_complete(struct ivtv *itv)
 			(itv->yuv_info.draw_frame + 1) % IVTV_YUV_BUFFERS);
 }
 
-int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
+int ivtv_yuv_udma_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 {
 	DEFINE_WAIT(wait);
 	int rc = 0;
 	int got_sig = 0;
-
-	IVTV_DEBUG_INFO("yuv_prep_frame\n");
-
-	ivtv_yuv_next_free(itv);
-	ivtv_yuv_setup_frame(itv, args);
-
 	/* DMA the frame */
 	mutex_lock(&itv->udma.lock);
 
@@ -1082,6 +1076,56 @@ int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 
 	mutex_unlock(&itv->udma.lock);
 	return rc;
+}
+
+/* Setup frame according to V4L2 parameters */
+void ivtv_yuv_setup_stream_frame(struct ivtv *itv)
+{
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	struct ivtv_dma_frame dma_args;
+
+	ivtv_yuv_next_free(itv);
+
+	/* Copy V4L2 parameters to an ivtv_dma_frame struct... */
+	dma_args.y_source = 0L;
+	dma_args.uv_source = 0L;
+	dma_args.src.left = 0;
+	dma_args.src.top = 0;
+	dma_args.src.width = yi->v4l2_src_w;
+	dma_args.src.height = yi->v4l2_src_h;
+	dma_args.dst = yi->main_rect;
+	dma_args.src_width = yi->v4l2_src_w;
+	dma_args.src_height = yi->v4l2_src_h;
+
+	/* ... and use the same setup routine as ivtv_yuv_prep_frame */
+	ivtv_yuv_setup_frame(itv, &dma_args);
+
+	if (!itv->dma_data_req_offset)
+		itv->dma_data_req_offset = yuv_offset[yi->draw_frame];
+}
+
+/* Attempt to dma a frame from a user buffer */
+int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void *src)
+{
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	struct ivtv_dma_frame dma_args;
+
+	ivtv_yuv_setup_stream_frame(itv);
+
+	/* We only need to supply source addresses for this */
+	dma_args.y_source = src;
+	dma_args.uv_source = src + 720 * ((yi->v4l2_src_h + 31) & ~31);
+	return ivtv_yuv_udma_frame(itv, &dma_args);
+}
+
+/* IVTV_IOC_DMA_FRAME ioctl handler */
+int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
+{
+	IVTV_DEBUG_INFO("yuv_prep_frame\n");
+
+	ivtv_yuv_next_free(itv);
+	ivtv_yuv_setup_frame(itv, args);
+	return ivtv_yuv_udma_frame(itv, args);
 }
 
 void ivtv_yuv_close(struct ivtv *itv)

@@ -302,8 +302,11 @@ static void dma_post(struct ivtv_stream *s)
 void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 {
 	struct ivtv *itv = s->itv;
+	struct yuv_playback_info *yi = &itv->yuv_info;
+	u8 frame = yi->draw_frame;
+	struct yuv_frame_info *f = &yi->new_frame_info[frame];
 	struct ivtv_buffer *buf;
-	u32 y_size = itv->params.height * itv->params.width;
+	u32 y_size = 720 * ((f->src_h + 31) & ~31);
 	u32 uv_offset = offset + IVTV_YUV_BUFFER_UV_OFFSET;
 	int y_done = 0;
 	int bytes_written = 0;
@@ -311,6 +314,18 @@ void ivtv_dma_stream_dec_prepare(struct ivtv_stream *s, u32 offset, int lock)
 	int idx = 0;
 
 	IVTV_DEBUG_HI_DMA("DEC PREPARE DMA %s: %08x %08x\n", s->name, s->q_predma.bytesused, offset);
+
+	/* Insert buffer block for YUV if needed */
+	if (s->type == IVTV_DEC_STREAM_TYPE_YUV && f->offset_y) {
+		if (yi->blanking_dmaptr) {
+			s->sg_pending[idx].src = yi->blanking_dmaptr;
+			s->sg_pending[idx].dst = offset;
+			s->sg_pending[idx].size = 720 * 16;
+		}
+		offset += 720 * 16;
+		idx++;
+	}
+
 	list_for_each_entry(buf, &s->q_predma.list, list) {
 		/* YUV UV Offset from Y Buffer */
 		if (s->type == IVTV_DEC_STREAM_TYPE_YUV && !y_done &&
@@ -713,8 +728,11 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 	ivtv_api_get_data(&itv->dec_mbox, IVTV_MBOX_DMA, data);
 
 	if (test_bit(IVTV_F_I_DEC_YUV, &itv->i_flags)) {
-		itv->dma_data_req_size = itv->params.width * itv->params.height * 3 / 2;
-		itv->dma_data_req_offset = data[1] ? data[1] : yuv_offset[0];
+		itv->dma_data_req_size =
+				 1080 * ((itv->yuv_info.v4l2_src_h + 31) & ~31);
+		itv->dma_data_req_offset = data[1];
+		if (atomic_read(&itv->yuv_info.next_dma_frame) >= 0)
+			ivtv_yuv_frame_complete(itv);
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_YUV];
 	}
 	else {
@@ -728,6 +746,8 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 		set_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags);
 	}
 	else {
+		if (test_bit(IVTV_F_I_DEC_YUV, &itv->i_flags))
+			ivtv_yuv_setup_stream_frame(itv);
 		clear_bit(IVTV_F_S_NEEDS_DATA, &s->s_flags);
 		ivtv_queue_move(s, &s->q_full, NULL, &s->q_predma, itv->dma_data_req_size);
 		ivtv_dma_stream_dec_prepare(s, itv->dma_data_req_offset + IVTV_DECODER_OFFSET, 0);

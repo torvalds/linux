@@ -504,6 +504,10 @@ static int ivtvfb_set_var(struct ivtv *itv, struct fb_var_screeninfo *var)
 
 	ivtvfb_set_display_window(itv, &ivtv_window);
 
+	/* Pass screen size back to yuv handler */
+	itv->yuv_info.osd_full_w = ivtv_osd.pixel_stride;
+	itv->yuv_info.osd_full_h = ivtv_osd.lines;
+
 	/* Force update of yuv registers */
 	itv->yuv_info.yuv_forced_update = 1;
 

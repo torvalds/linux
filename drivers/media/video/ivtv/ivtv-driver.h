@@ -466,6 +466,9 @@ struct yuv_playback_info
 	u32 osd_vis_w;
 	u32 osd_vis_h;
 
+	u32 osd_full_w;
+	u32 osd_full_h;
+
 	int decode_height;
 
 	int lace_mode;
@@ -491,6 +494,10 @@ struct yuv_playback_info
 
 	u8 draw_frame; /* PVR350 buffer to draw into */
 	u8 max_frames_buffered; /* Maximum number of frames to buffer */
+
+	struct v4l2_rect main_rect;
+	u32 v4l2_src_w;
+	u32 v4l2_src_h;
 };
 
 #define IVTV_VBI_FRAMES 32
