@@ -17,11 +17,6 @@
 #define DVB_USB_LOG_PREFIX "vp7045"
 #include "dvb-usb.h"
 
-extern int dvb_usb_vp7045_debug;
-#define deb_info(args...) dprintk(dvb_usb_vp7045_debug,0x01,args)
-#define deb_xfer(args...) dprintk(dvb_usb_vp7045_debug,0x02,args)
-#define deb_rc(args...)   dprintk(dvb_usb_vp7045_debug,0x04,args)
-
 /* vp7045 commands */
 
 /* Twinhan Vendor requests */

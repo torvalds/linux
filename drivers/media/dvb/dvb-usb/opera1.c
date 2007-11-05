@@ -10,7 +10,9 @@
 * see Documentation/dvb/README.dvb-usb for more information
 */
 
-#include "opera1.h"
+#define DVB_USB_LOG_PREFIX "opera"
+
+#include "dvb-usb.h"
 #include "stv0299.h"
 
 #define OPERA_READ_MSG 0
@@ -38,7 +40,7 @@ struct opera_rc_keys {
 	u32 event;
 };
 
-int dvb_usb_opera1_debug;
+static int dvb_usb_opera1_debug;
 module_param_named(debug, dvb_usb_opera1_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		 "set debugging level (1=info,xfer=2,pll=4,ts=8,err=16,rc=32,fw=64 (or-able))."
