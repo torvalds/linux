@@ -2549,7 +2549,7 @@ S:	Supported
 
 MISCELLANEOUS MCA-SUPPORT
 P:	James Bottomley
-M:	jejb@steeleye.com
+M:	James.Bottomley@HansenPartnership.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
@@ -3301,9 +3301,11 @@ S:	Maintained
 
 SCSI SUBSYSTEM
 P:	James E.J. Bottomley
-M:	James.Bottomley@SteelEye.com
+M:	James.Bottomley@HansenPartnership.com
 L:	linux-scsi@vger.kernel.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-misc-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-rc-fixes-2.6.git
+T:	git kernel.org:/pub/scm/linux/kernel/git/jejb/scsi-pending-2.6.git
 S:	Maintained
 
 SCSI TAPE DRIVER
