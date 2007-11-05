@@ -2247,20 +2247,26 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 	do {
 		struct sky2_port *sky2;
 		struct sky2_status_le *le  = hw->st_le + hw->st_idx;
-		unsigned port = le->css & CSS_LINK_BIT;
+		unsigned port;
 		struct net_device *dev;
 		struct sk_buff *skb;
 		u32 status;
 		u16 length;
+		u8 opcode = le->opcode;
+
+		if (!(opcode & HW_OWNER))
+			break;
 
 		hw->st_idx = RING_NEXT(hw->st_idx, STATUS_RING_SIZE);
 
+		port = le->css & CSS_LINK_BIT;
 		dev = hw->dev[port];
 		sky2 = netdev_priv(dev);
 		length = le16_to_cpu(le->length);
 		status = le32_to_cpu(le->status);
 
-		switch (le->opcode & ~HW_OWNER) {
+		le->opcode = 0;
+		switch (opcode & ~HW_OWNER) {
 		case OP_RXSTAT:
 			++rx[port];
 			skb = sky2_receive(dev, length, status);
@@ -2353,7 +2359,7 @@ static int sky2_status_intr(struct sky2_hw *hw, int to_do, u16 idx)
 		default:
 			if (net_ratelimit())
 				printk(KERN_WARNING PFX
-				       "unknown status opcode 0x%x\n", le->opcode);
+				       "unknown status opcode 0x%x\n", opcode);
 		}
 	} while (hw->st_idx != idx);
 
