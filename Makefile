@@ -528,9 +528,22 @@ KBUILD_CFLAGS += $(call cc-option,-Wdeclaration-after-statement,)
 KBUILD_CFLAGS += $(call cc-option,-Wno-pointer-sign,)
 
 # Add user supplied CPPFLAGS, AFLAGS and CFLAGS as the last assignments
-KBUILD_CPPFLAGS += $(CPPFLAGS)
-KBUILD_AFLAGS   += $(AFLAGS)
-KBUILD_CFLAGS   += $(CFLAGS)
+# But warn user when we do so
+warn-assign = \
+$(warning "WARNING: Appending $$K$(1) ($(K$(1))) from $(origin K$(1)) to kernel $$$(1)")
+
+ifneq ($(KCPPFLAGS),)
+        $(call warn-assign,CPPFLAGS)
+        KBUILD_CPPFLAGS += $(KCPPFLAGS)
+endif
+ifneq ($(KAFLAGS),)
+        $(call warn-assign,AFLAGS)
+        KBUILD_AFLAGS += $(KAFLAGS)
+endif
+ifneq ($(KCFLAGS),)
+        $(call warn-assign,CFLAGS)
+        KBUILD_CFLAGS += $(KCFLAGS)
+endif
 
 # Use --build-id when available.
 LDFLAGS_BUILD_ID = $(patsubst -Wl$(comma)%,%,\
