@@ -509,9 +509,11 @@ ieee80211_rx_h_decrypt(struct ieee80211_txrx_data *rx)
 		rx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
 	} else {
+#ifdef CONFIG_MAC80211_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: RX protected frame,"
 			       " but have no key\n", rx->dev->name);
+#endif /* CONFIG_MAC80211_DEBUG */
 		return TXRX_DROP;
 	}
 
