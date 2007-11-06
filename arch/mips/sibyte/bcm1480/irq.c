@@ -370,11 +370,11 @@ void __init arch_init_irq(void)
 #endif
 		/* Setup uart 1 settings, mapper */
 		/* QQQ FIXME */
-		__raw_writeq(M_DUART_IMR_BRK, IO_SPACE_BASE + A_DUART_IMRREG(kgdb_port));
+		__raw_writeq(M_DUART_IMR_BRK, IOADDR(A_DUART_IMRREG(kgdb_port)));
 
 		__raw_writeq(IMR_IP6_VAL,
-			     IO_SPACE_BASE + A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
-			     (kgdb_irq<<3));
+			     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
+			     (kgdb_irq << 3)));
 		bcm1480_unmask_irq(0, kgdb_irq);
 
 #ifdef CONFIG_GDB_CONSOLE
