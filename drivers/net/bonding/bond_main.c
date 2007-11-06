@@ -4405,6 +4405,7 @@ static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 	bond_dev->set_multicast_list = bond_set_multicast_list;
 	bond_dev->change_mtu = bond_change_mtu;
 	bond_dev->set_mac_address = bond_set_mac_address;
+	bond_dev->validate_addr = NULL;
 
 	bond_set_mode_ops(bond, bond->params.mode);
 
