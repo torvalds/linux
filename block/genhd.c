@@ -17,7 +17,8 @@
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
 
-struct kset block_subsys;
+struct kset *block_kset;
+static struct kset_uevent_ops block_uevent_ops;
 static DEFINE_MUTEX(block_subsys_lock);
 
 /*
@@ -221,7 +222,7 @@ void __init printk_all_partitions(void)
 
 	mutex_lock(&block_subsys_lock);
 	/* For each block device... */
-	list_for_each_entry(sgp, &block_subsys.list, kobj.entry) {
+	list_for_each_entry(sgp, &block_kset->list, kobj.entry) {
 		char buf[BDEVNAME_SIZE];
 		/*
 		 * Don't show empty devices or things that have been surpressed
@@ -270,7 +271,7 @@ static void *part_start(struct seq_file *part, loff_t *pos)
 	loff_t l = *pos;
 
 	mutex_lock(&block_subsys_lock);
-	list_for_each(p, &block_subsys.list)
+	list_for_each(p, &block_kset->list)
 		if (!l--)
 			return list_entry(p, struct gendisk, kobj.entry);
 	return NULL;
@@ -280,7 +281,7 @@ static void *part_next(struct seq_file *part, void *v, loff_t *pos)
 {
 	struct list_head *p = ((struct gendisk *)v)->kobj.entry.next;
 	++*pos;
-	return p==&block_subsys.list ? NULL :
+	return p==&block_kset->list ? NULL :
 		list_entry(p, struct gendisk, kobj.entry);
 }
 
@@ -295,7 +296,7 @@ static int show_partition(struct seq_file *part, void *v)
 	int n;
 	char buf[BDEVNAME_SIZE];
 
-	if (&sgp->kobj.entry == block_subsys.list.next)
+	if (&sgp->kobj.entry == block_kset->list.next)
 		seq_puts(part, "major minor  #blocks  name\n\n");
 
 	/* Don't show non-partitionable removeable devices or empty devices */
@@ -345,15 +346,14 @@ static struct kobject *base_probe(dev_t dev, int *part, void *data)
 
 static int __init genhd_device_init(void)
 {
-	int err;
-
 	bdev_map = kobj_map_init(base_probe, &block_subsys_lock);
 	blk_dev_init();
-	err = subsystem_register(&block_subsys);
-	if (err < 0)
-		printk(KERN_WARNING "%s: subsystem_register error: %d\n",
-			__FUNCTION__, err);
-	return err;
+	block_kset = kset_create_and_add("block", &block_uevent_ops, NULL);
+	if (!block_kset) {
+		printk(KERN_WARNING "%s: kset_create error\n", __FUNCTION__);
+		return -ENOMEM;
+	}
+	return 0;
 }
 
 subsys_initcall(genhd_device_init);
@@ -584,8 +584,6 @@ static struct kset_uevent_ops block_uevent_ops = {
 	.uevent		= block_uevent,
 };
 
-decl_subsys(block, &block_uevent_ops);
-
 /*
  * aggregate disk stat collector.  Uses the same stats that the sysfs
  * entries do, above, but makes them available through one seq_file.
@@ -603,7 +601,7 @@ static void *diskstats_start(struct seq_file *part, loff_t *pos)
 	struct list_head *p;
 
 	mutex_lock(&block_subsys_lock);
-	list_for_each(p, &block_subsys.list)
+	list_for_each(p, &block_kset->list)
 		if (!k--)
 			return list_entry(p, struct gendisk, kobj.entry);
 	return NULL;
@@ -613,7 +611,7 @@ static void *diskstats_next(struct seq_file *part, void *v, loff_t *pos)
 {
 	struct list_head *p = ((struct gendisk *)v)->kobj.entry.next;
 	++*pos;
-	return p==&block_subsys.list ? NULL :
+	return p==&block_kset->list ? NULL :
 		list_entry(p, struct gendisk, kobj.entry);
 }
 
@@ -629,7 +627,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 	int n = 0;
 
 	/*
-	if (&sgp->kobj.entry == block_subsys.kset.list.next)
+	if (&sgp->kobj.entry == block_kset->list.next)
 		seq_puts(s,	"major minor name"
 				"     rio rmerge rsect ruse wio wmerge "
 				"wsect wuse running use aveq"
@@ -721,7 +719,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 			}
 		}
 		disk->minors = minors;
-		disk->kobj.kset = &block_subsys;
+		disk->kobj.kset = block_kset;
 		disk->kobj.ktype = &ktype_block;
 		kobject_init(&disk->kobj);
 		rand_initialize_disk(disk);
