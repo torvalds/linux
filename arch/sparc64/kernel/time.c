@@ -28,7 +28,6 @@
 #include <linux/jiffies.h>
 #include <linux/cpufreq.h>
 #include <linux/percpu.h>
-#include <linux/profile.h>
 #include <linux/miscdevice.h>
 #include <linux/rtc.h>
 #include <linux/kernel_stat.h>
@@ -47,7 +46,6 @@
 #include <asm/sections.h>
 #include <asm/cpudata.h>
 #include <asm/uaccess.h>
-#include <asm/prom.h>
 #include <asm/irq_regs.h>
 
 DEFINE_SPINLOCK(mostek_lock);
