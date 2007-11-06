@@ -1122,10 +1122,7 @@ static void xs_tcp_state_change(struct sock *sk)
 	case TCP_SYN_RECV:
 		break;
 	case TCP_CLOSE_WAIT:
-		/* Try to schedule an autoclose RPC calls */
-		set_bit(XPRT_CLOSE_WAIT, &xprt->state);
-		if (test_and_set_bit(XPRT_LOCKED, &xprt->state) == 0)
-			queue_work(rpciod_workqueue, &xprt->task_cleanup);
+		xprt_force_disconnect(xprt);
 	default:
 		xprt_disconnect(xprt);
 	}
