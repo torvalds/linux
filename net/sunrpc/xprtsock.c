@@ -774,10 +774,10 @@ static void xs_close(struct rpc_xprt *xprt)
 	sock_release(sock);
 clear_close_wait:
 	smp_mb__before_clear_bit();
-	clear_bit(XPRT_CONNECTED, &xprt->state);
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	clear_bit(XPRT_CLOSING, &xprt->state);
 	smp_mb__after_clear_bit();
+	xprt_disconnect(xprt);
 }
 
 /**
@@ -793,7 +793,6 @@ static void xs_destroy(struct rpc_xprt *xprt)
 
 	cancel_rearming_delayed_work(&transport->connect_worker);
 
-	xprt_disconnect(xprt);
 	xs_close(xprt);
 	xs_free_peer_addresses(xprt);
 	kfree(xprt->slot);
