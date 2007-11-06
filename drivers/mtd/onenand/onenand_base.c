@@ -855,6 +855,8 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 			this->command(mtd, ONENAND_CMD_READ, from, writesize);
  			ret = this->wait(mtd, FL_READING);
  			onenand_update_bufferram(mtd, from, !ret);
+			if (ret == -EBADMSG)
+				ret = 0;
  		}
  	}
 
@@ -913,6 +915,8 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
  		/* Now wait for load */
  		ret = this->wait(mtd, FL_READING);
  		onenand_update_bufferram(mtd, from, !ret);
+		if (ret == -EBADMSG)
+			ret = 0;
  	}
 
 	/*
@@ -923,11 +927,11 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	ops->retlen = read;
 	ops->oobretlen = oobread;
 
-	if (mtd->ecc_stats.failed - stats.failed)
-		return -EBADMSG;
-
 	if (ret)
 		return ret;
+
+	if (mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
 
 	return mtd->ecc_stats.corrected - stats.corrected ? -EUCLEAN : 0;
 }
@@ -944,6 +948,7 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 			struct mtd_oob_ops *ops)
 {
 	struct onenand_chip *this = mtd->priv;
+	struct mtd_ecc_stats stats;
 	int read = 0, thislen, column, oobsize;
 	size_t len = ops->ooblen;
 	mtd_oob_mode_t mode = ops->mode;
@@ -977,6 +982,8 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 		return -EINVAL;
 	}
 
+	stats = mtd->ecc_stats;
+
 	while (read < len) {
 		cond_resched();
 
@@ -988,17 +995,15 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 		onenand_update_bufferram(mtd, from, 0);
 
 		ret = this->wait(mtd, FL_READING);
-		/* First copy data and check return value for ECC handling */
+		if (ret && ret != -EBADMSG) {
+			printk(KERN_ERR "onenand_read_oob_nolock: read failed = 0x%x\n", ret);
+			break;
+		}
 
 		if (mode == MTD_OOB_AUTO)
 			onenand_transfer_auto_oob(mtd, buf, column, thislen);
 		else
 			this->read_bufferram(mtd, ONENAND_SPARERAM, buf, column, thislen);
-
-		if (ret) {
-			printk(KERN_ERR "onenand_read_oob_nolock: read failed = 0x%x\n", ret);
-			break;
-		}
 
 		read += thislen;
 
@@ -1016,7 +1021,14 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 	}
 
 	ops->oobretlen = read;
-	return ret;
+
+	if (ret)
+		return ret;
+
+	if (mtd->ecc_stats.failed - stats.failed)
+		return -EBADMSG;
+
+	return 0;
 }
 
 /**
