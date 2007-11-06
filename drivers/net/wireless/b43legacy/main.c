@@ -3384,7 +3384,6 @@ static int b43legacy_setup_modes(struct b43legacy_wldev *dev,
 
 static void b43legacy_wireless_core_detach(struct b43legacy_wldev *dev)
 {
-	b43legacy_rfkill_free(dev);
 	/* We release firmware that late to not be required to re-request
 	 * is all the time when we reinit the core. */
 	b43legacy_release_firmware(dev);
@@ -3466,7 +3465,6 @@ static int b43legacy_wireless_core_attach(struct b43legacy_wldev *dev)
 	if (!wl->current_dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43legacy_chip_reset);
-	b43legacy_rfkill_alloc(dev);
 
 	b43legacy_radio_turn_off(dev, 1);
 	b43legacy_switch_analog(dev, 0);

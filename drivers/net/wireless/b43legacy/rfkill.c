@@ -48,18 +48,21 @@ static void b43legacy_rfkill_poll(struct input_polled_dev *poll_dev)
 	struct b43legacy_wldev *dev = poll_dev->private;
 	struct b43legacy_wl *wl = dev->wl;
 	bool enabled;
+	bool report_change = 0;
 
 	mutex_lock(&wl->mutex);
 	B43legacy_WARN_ON(b43legacy_status(dev) < B43legacy_STAT_INITIALIZED);
 	enabled = b43legacy_is_hw_radio_enabled(dev);
 	if (unlikely(enabled != dev->radio_hw_enable)) {
 		dev->radio_hw_enable = enabled;
+		report_change = 1;
 		b43legacyinfo(wl, "Radio hardware status changed to %s\n",
 			enabled ? "ENABLED" : "DISABLED");
-		mutex_unlock(&wl->mutex);
+	}
+	mutex_unlock(&wl->mutex);
+
+	if (unlikely(report_change))
 		input_report_key(poll_dev->input, KEY_WLAN, enabled);
-	} else
-		mutex_unlock(&wl->mutex);
 }
 
 /* Called when the RFKILL toggled in software.
@@ -70,10 +73,11 @@ static int b43legacy_rfkill_soft_toggle(void *data, enum rfkill_state state)
 	struct b43legacy_wl *wl = dev->wl;
 	int err = 0;
 
-	mutex_lock(&wl->mutex);
-	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED)
-		goto out_unlock;
+	if (!wl->rfkill.registered)
+		return 0;
 
+	mutex_lock(&wl->mutex);
+	B43legacy_WARN_ON(b43legacy_status(dev) < B43legacy_STAT_INITIALIZED);
 	switch (state) {
 	case RFKILL_STATE_ON:
 		if (!dev->radio_hw_enable) {
