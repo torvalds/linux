@@ -714,7 +714,7 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 				    root->fs_info->running_transaction->transid;
 				if (btrfs_header_generation(buf) == transid) {
 					free_extent_buffer(buf);
-					return 0;
+					return 1;
 				}
 			}
 			free_extent_buffer(buf);
@@ -774,7 +774,9 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 
 		if (pin) {
 			ret = pin_down_bytes(root, bytenr, num_bytes, 0);
-			BUG_ON(ret);
+			if (ret > 0)
+				mark_free = 1;
+			BUG_ON(ret < 0);
 		}
 
 		/* block accounting for super block */
