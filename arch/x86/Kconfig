@@ -353,11 +353,11 @@ config GEODE_MFGPT_TIMER
 	  MFGPTs have a better resolution and max interval than the
 	  generic PIT, and are suitable for use as high-res timers.
 
+endif # X86_32
+
 config K8_NB
 	def_bool y
-	depends on AGP_AMD64
-
-endif # X86_32
+	depends on AGP_AMD64 || (X86_64 && (GART_IOMMU || (PCI && NUMA)))
 
 source "drivers/pcmcia/Kconfig"
 
