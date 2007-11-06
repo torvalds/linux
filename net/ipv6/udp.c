@@ -970,6 +970,8 @@ void udp6_proc_exit(void) {
 
 /* ------------------------------------------------------------------------ */
 
+DEFINE_PROTO_INUSE(udpv6)
+
 struct proto udpv6_prot = {
 	.name		   = "UDPv6",
 	.owner		   = THIS_MODULE,
@@ -991,6 +993,7 @@ struct proto udpv6_prot = {
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
 #endif
+	REF_PROTO_INUSE(udpv6)
 };
 
 static struct inet_protosw udpv6_protosw = {
