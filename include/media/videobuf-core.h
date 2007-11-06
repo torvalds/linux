@@ -56,13 +56,13 @@ struct videobuf_mapping {
 };
 
 enum videobuf_state {
-	STATE_NEEDS_INIT = 0,
-	STATE_PREPARED   = 1,
-	STATE_QUEUED     = 2,
-	STATE_ACTIVE     = 3,
-	STATE_DONE       = 4,
-	STATE_ERROR      = 5,
-	STATE_IDLE       = 6,
+	VIDEOBUF_NEEDS_INIT = 0,
+	VIDEOBUF_PREPARED   = 1,
+	VIDEOBUF_QUEUED     = 2,
+	VIDEOBUF_ACTIVE     = 3,
+	VIDEOBUF_DONE       = 4,
+	VIDEOBUF_ERROR      = 5,
+	VIDEOBUF_IDLE       = 6,
 };
 
 struct videobuf_buffer {

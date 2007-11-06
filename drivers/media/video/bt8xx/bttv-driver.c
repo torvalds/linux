@@ -1638,7 +1638,7 @@ bttv_switch_overlay(struct bttv *btv, struct bttv_fh *fh,
 
 	dprintk("switch_overlay: enter [new=%p]\n",new);
 	if (new)
-		new->vb.state = STATE_DONE;
+		new->vb.state = VIDEOBUF_DONE;
 	spin_lock_irqsave(&btv->s_lock,flags);
 	old = btv->screen;
 	btv->screen = new;
@@ -1749,7 +1749,7 @@ static int bttv_prepare_buffer(struct videobuf_queue *q,struct bttv *btv,
 	}
 
 	/* alloc risc memory */
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		redo_dma_risc = 1;
 		if (0 != (rc = videobuf_iolock(q,&buf->vb,&btv->fbuf)))
 			goto fail;
@@ -1759,7 +1759,7 @@ static int bttv_prepare_buffer(struct videobuf_queue *q,struct bttv *btv,
 		if (0 != (rc = bttv_buffer_risc(btv,buf)))
 			goto fail;
 
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
  fail:
@@ -1798,7 +1798,7 @@ buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	struct bttv_fh *fh = q->priv_data;
 	struct bttv    *btv = fh->btv;
 
-	buf->vb.state = STATE_QUEUED;
+	buf->vb.state = VIDEOBUF_QUEUED;
 	list_add_tail(&buf->vb.queue,&btv->capture);
 	if (!btv->curr.frame_irq) {
 		btv->loop_irq |= 1;
@@ -3102,8 +3102,8 @@ static unsigned int bttv_poll(struct file *file, poll_table *wait)
 	}
 
 	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == STATE_DONE ||
-	    buf->vb.state == STATE_ERROR)
+	if (buf->vb.state == VIDEOBUF_DONE ||
+	    buf->vb.state == VIDEOBUF_ERROR)
 		return POLLIN|POLLRDNORM;
 	return 0;
 }
@@ -3699,20 +3699,20 @@ static void bttv_irq_timeout(unsigned long data)
 	bttv_set_dma(btv, 0);
 
 	/* wake up */
-	bttv_irq_wakeup_video(btv, &old, &new, STATE_ERROR);
-	bttv_irq_wakeup_vbi(btv, ovbi, STATE_ERROR);
+	bttv_irq_wakeup_video(btv, &old, &new, VIDEOBUF_ERROR);
+	bttv_irq_wakeup_vbi(btv, ovbi, VIDEOBUF_ERROR);
 
 	/* cancel all outstanding capture / vbi requests */
 	while (!list_empty(&btv->capture)) {
 		item = list_entry(btv->capture.next, struct bttv_buffer, vb.queue);
 		list_del(&item->vb.queue);
-		item->vb.state = STATE_ERROR;
+		item->vb.state = VIDEOBUF_ERROR;
 		wake_up(&item->vb.done);
 	}
 	while (!list_empty(&btv->vcapture)) {
 		item = list_entry(btv->vcapture.next, struct bttv_buffer, vb.queue);
 		list_del(&item->vb.queue);
-		item->vb.state = STATE_ERROR;
+		item->vb.state = VIDEOBUF_ERROR;
 		wake_up(&item->vb.done);
 	}
 
@@ -3735,7 +3735,7 @@ bttv_irq_wakeup_top(struct bttv *btv)
 
 	do_gettimeofday(&wakeup->vb.ts);
 	wakeup->vb.field_count = btv->field_count;
-	wakeup->vb.state = STATE_DONE;
+	wakeup->vb.state = VIDEOBUF_DONE;
 	wake_up(&wakeup->vb.done);
 	spin_unlock(&btv->s_lock);
 }
@@ -3784,7 +3784,7 @@ bttv_irq_switch_video(struct bttv *btv)
 	}
 
 	/* wake up finished buffers */
-	bttv_irq_wakeup_video(btv, &old, &new, STATE_DONE);
+	bttv_irq_wakeup_video(btv, &old, &new, VIDEOBUF_DONE);
 	spin_unlock(&btv->s_lock);
 }
 
@@ -3817,7 +3817,7 @@ bttv_irq_switch_vbi(struct bttv *btv)
 	bttv_buffer_activate_vbi(btv, new);
 	bttv_set_dma(btv, 0);
 
-	bttv_irq_wakeup_vbi(btv, old, STATE_DONE);
+	bttv_irq_wakeup_vbi(btv, old, VIDEOBUF_DONE);
 	spin_unlock(&btv->s_lock);
 }
 

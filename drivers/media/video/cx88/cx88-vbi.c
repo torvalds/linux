@@ -130,7 +130,7 @@ void cx8800_vbi_timeout(unsigned long data)
 	while (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 		list_del(&buf->vb.queue);
-		buf->vb.state = STATE_ERROR;
+		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
 		printk("%s/0: [%p/%d] timeout - dma=0x%08lx\n", dev->core->name,
 		       buf, buf->vb.i, (unsigned long)buf->risc.dma);
@@ -168,7 +168,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
 		return -EINVAL;
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 		buf->vb.width  = VBI_LINE_LENGTH;
 		buf->vb.height = VBI_LINE_COUNT;
@@ -183,7 +183,7 @@ vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 				 buf->vb.width, 0,
 				 buf->vb.height);
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
  fail:
@@ -207,7 +207,7 @@ vbi_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	if (list_empty(&q->active)) {
 		list_add_tail(&buf->vb.queue,&q->active);
 		cx8800_start_vbi_dma(dev, q, buf);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = q->count++;
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(2,"[%p/%d] vbi_queue - first active\n",
@@ -216,7 +216,7 @@ vbi_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	} else {
 		prev = list_entry(q->active.prev, struct cx88_buffer, vb.queue);
 		list_add_tail(&buf->vb.queue,&q->active);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk(2,"[%p/%d] buffer_queue - append to active\n",

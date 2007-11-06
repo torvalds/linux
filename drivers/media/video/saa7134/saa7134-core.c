@@ -294,7 +294,7 @@ void saa7134_dma_free(struct videobuf_queue *q,struct saa7134_buf *buf)
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_dma_unmap(q, dma);
 	videobuf_dma_free(dma);
-	buf->vb.state = STATE_NEEDS_INIT;
+	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
 /* ------------------------------------------------------------------ */
@@ -313,7 +313,7 @@ int saa7134_buffer_queue(struct saa7134_dev *dev,
 			buf->activate(dev,buf,NULL);
 		} else if (list_empty(&q->queue)) {
 			list_add_tail(&buf->vb.queue,&q->queue);
-			buf->vb.state = STATE_QUEUED;
+			buf->vb.state = VIDEOBUF_QUEUED;
 		} else {
 			next = list_entry(q->queue.next,struct saa7134_buf,
 					  vb.queue);
@@ -322,7 +322,7 @@ int saa7134_buffer_queue(struct saa7134_dev *dev,
 		}
 	} else {
 		list_add_tail(&buf->vb.queue,&q->queue);
-		buf->vb.state = STATE_QUEUED;
+		buf->vb.state = VIDEOBUF_QUEUED;
 	}
 	return 0;
 }
@@ -387,7 +387,7 @@ void saa7134_buffer_timeout(unsigned long data)
 	   try to start over with the next one. */
 	if (q->curr) {
 		dprintk("timeout on %p\n",q->curr);
-		saa7134_buffer_finish(dev,q,STATE_ERROR);
+		saa7134_buffer_finish(dev,q,VIDEOBUF_ERROR);
 	}
 	saa7134_buffer_next(dev,q);
 	spin_unlock_irqrestore(&dev->slock,flags);

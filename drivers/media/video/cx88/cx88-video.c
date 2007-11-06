@@ -486,7 +486,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 		if (NULL == prev) {
 			list_move_tail(&buf->vb.queue, &q->active);
 			start_video_dma(dev, q, buf);
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			buf->count    = q->count++;
 			mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 			dprintk(2,"[%p/%d] restart_queue - first active\n",
@@ -496,7 +496,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 			   prev->vb.height == buf->vb.height &&
 			   prev->fmt       == buf->fmt) {
 			list_move_tail(&buf->vb.queue, &q->active);
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			buf->count    = q->count++;
 			prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 			dprintk(2,"[%p/%d] restart_queue - move to active\n",
@@ -553,7 +553,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		init_buffer = 1;
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		init_buffer = 1;
 		if (0 != (rc = videobuf_iolock(q,&buf->vb,NULL)))
 			goto fail;
@@ -601,7 +601,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		fh->width, fh->height, fh->fmt->depth, fh->fmt->name,
 		(unsigned long)buf->risc.dma);
 
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
  fail:
@@ -625,14 +625,14 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 	if (!list_empty(&q->queued)) {
 		list_add_tail(&buf->vb.queue,&q->queued);
-		buf->vb.state = STATE_QUEUED;
+		buf->vb.state = VIDEOBUF_QUEUED;
 		dprintk(2,"[%p/%d] buffer_queue - append to queued\n",
 			buf, buf->vb.i);
 
 	} else if (list_empty(&q->active)) {
 		list_add_tail(&buf->vb.queue,&q->active);
 		start_video_dma(dev, q, buf);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = q->count++;
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(2,"[%p/%d] buffer_queue - first active\n",
@@ -644,7 +644,7 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		    prev->vb.height == buf->vb.height &&
 		    prev->fmt       == buf->fmt) {
 			list_add_tail(&buf->vb.queue,&q->active);
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			buf->count    = q->count++;
 			prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 			dprintk(2,"[%p/%d] buffer_queue - append to active\n",
@@ -652,7 +652,7 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 		} else {
 			list_add_tail(&buf->vb.queue,&q->queued);
-			buf->vb.state = STATE_QUEUED;
+			buf->vb.state = VIDEOBUF_QUEUED;
 			dprintk(2,"[%p/%d] buffer_queue - first queued\n",
 				buf, buf->vb.i);
 		}
@@ -822,8 +822,8 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 			return POLLERR;
 	}
 	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == STATE_DONE ||
-	    buf->vb.state == STATE_ERROR)
+	if (buf->vb.state == VIDEOBUF_DONE ||
+	    buf->vb.state == VIDEOBUF_ERROR)
 		return POLLIN|POLLRDNORM;
 	return 0;
 }
@@ -1496,7 +1496,7 @@ static void cx8800_vid_timeout(unsigned long data)
 	while (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 		list_del(&buf->vb.queue);
-		buf->vb.state = STATE_ERROR;
+		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
 		printk("%s/0: [%p/%d] timeout - dma=0x%08lx\n", core->name,
 		       buf, buf->vb.i, (unsigned long)buf->risc.dma);

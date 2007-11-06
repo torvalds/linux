@@ -68,14 +68,14 @@ int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr)
 
 	MAGIC_CHECK(vb->magic,MAGIC_BUFFER);
 	add_wait_queue(&vb->done, &wait);
-	while (vb->state == STATE_ACTIVE || vb->state == STATE_QUEUED) {
+	while (vb->state == VIDEOBUF_ACTIVE || vb->state == VIDEOBUF_QUEUED) {
 		if (non_blocking) {
 			retval = -EAGAIN;
 			break;
 		}
 		set_current_state(intr  ? TASK_INTERRUPTIBLE
 					: TASK_UNINTERRUPTIBLE);
-		if (vb->state == STATE_ACTIVE || vb->state == STATE_QUEUED)
+		if (vb->state == VIDEOBUF_ACTIVE || vb->state == VIDEOBUF_QUEUED)
 			schedule();
 		set_current_state(TASK_RUNNING);
 		if (intr && signal_pending(current)) {
@@ -167,11 +167,11 @@ int videobuf_queue_is_busy(struct videobuf_queue *q)
 			dprintk(1,"busy: buffer #%d mapped\n",i);
 			return 1;
 		}
-		if (q->bufs[i]->state == STATE_QUEUED) {
+		if (q->bufs[i]->state == VIDEOBUF_QUEUED) {
 			dprintk(1,"busy: buffer #%d queued\n",i);
 			return 1;
 		}
-		if (q->bufs[i]->state == STATE_ACTIVE) {
+		if (q->bufs[i]->state == VIDEOBUF_ACTIVE) {
 			dprintk(1,"busy: buffer #%d avtive\n",i);
 			return 1;
 		}
@@ -191,9 +191,9 @@ void videobuf_queue_cancel(struct videobuf_queue *q)
 	for (i = 0; i < VIDEO_MAX_FRAME; i++) {
 		if (NULL == q->bufs[i])
 			continue;
-		if (q->bufs[i]->state == STATE_QUEUED) {
+		if (q->bufs[i]->state == VIDEOBUF_QUEUED) {
 			list_del(&q->bufs[i]->queue);
-			q->bufs[i]->state = STATE_ERROR;
+			q->bufs[i]->state = VIDEOBUF_ERROR;
 		}
 	}
 	if (q->irqlock)
@@ -259,17 +259,17 @@ static void videobuf_status(struct videobuf_queue *q, struct v4l2_buffer *b,
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
 
 	switch (vb->state) {
-	case STATE_PREPARED:
-	case STATE_QUEUED:
-	case STATE_ACTIVE:
+	case VIDEOBUF_PREPARED:
+	case VIDEOBUF_QUEUED:
+	case VIDEOBUF_ACTIVE:
 		b->flags |= V4L2_BUF_FLAG_QUEUED;
 		break;
-	case STATE_DONE:
-	case STATE_ERROR:
+	case VIDEOBUF_DONE:
+	case VIDEOBUF_ERROR:
 		b->flags |= V4L2_BUF_FLAG_DONE;
 		break;
-	case STATE_NEEDS_INIT:
-	case STATE_IDLE:
+	case VIDEOBUF_NEEDS_INIT:
+	case VIDEOBUF_IDLE:
 		/* nothing */
 		break;
 	}
@@ -498,7 +498,7 @@ int videobuf_qbuf(struct videobuf_queue *q,
 		dprintk(1,"qbuf: memory type is wrong.\n");
 		goto done;
 	}
-	if (buf->state != STATE_NEEDS_INIT && buf->state != STATE_IDLE) {
+	if (buf->state != VIDEOBUF_NEEDS_INIT && buf->state != VIDEOBUF_IDLE) {
 		dprintk(1,"qbuf: buffer is already queued or active.\n");
 		goto done;
 	}
@@ -525,7 +525,7 @@ int videobuf_qbuf(struct videobuf_queue *q,
 			dprintk(1,"qbuf: buffer length is not enough\n");
 			goto done;
 		}
-		if (STATE_NEEDS_INIT != buf->state && buf->baddr != b->m.userptr)
+		if (VIDEOBUF_NEEDS_INIT != buf->state && buf->baddr != b->m.userptr)
 			q->ops->buf_release(q,buf);
 		buf->baddr = b->m.userptr;
 		break;
@@ -595,16 +595,16 @@ int videobuf_dqbuf(struct videobuf_queue *q,
 		goto done;
 	}
 	switch (buf->state) {
-	case STATE_ERROR:
+	case VIDEOBUF_ERROR:
 		dprintk(1,"dqbuf: state is error\n");
 		retval = -EIO;
 		CALL(q,sync,q, buf);
-		buf->state = STATE_IDLE;
+		buf->state = VIDEOBUF_IDLE;
 		break;
-	case STATE_DONE:
+	case VIDEOBUF_DONE:
 		dprintk(1,"dqbuf: state is done\n");
 		CALL(q,sync,q, buf);
-		buf->state = STATE_IDLE;
+		buf->state = VIDEOBUF_IDLE;
 		break;
 	default:
 		dprintk(1,"dqbuf: state invalid\n");
@@ -637,7 +637,7 @@ int videobuf_streamon(struct videobuf_queue *q)
 	if (q->irqlock)
 		spin_lock_irqsave(q->irqlock,flags);
 	list_for_each_entry(buf, &q->stream, stream)
-		if (buf->state == STATE_PREPARED)
+		if (buf->state == VIDEOBUF_PREPARED)
 			q->ops->buf_queue(q,buf);
 	if (q->irqlock)
 		spin_unlock_irqrestore(q->irqlock,flags);
@@ -704,7 +704,7 @@ static ssize_t videobuf_read_zerocopy(struct videobuf_queue *q,
 	retval = videobuf_waiton(q->read_buf,0,0);
 	if (0 == retval) {
 		CALL(q,sync,q,q->read_buf);
-		if (STATE_ERROR == q->read_buf->state)
+		if (VIDEOBUF_ERROR == q->read_buf->state)
 			retval = -EIO;
 		else
 			retval = q->read_buf->size;
@@ -778,7 +778,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 
 	CALL(q,sync,q,q->read_buf);
 
-	if (STATE_ERROR == q->read_buf->state) {
+	if (VIDEOBUF_ERROR == q->read_buf->state) {
 		/* catch I/O errors */
 		q->ops->buf_release(q,q->read_buf);
 		kfree(q->read_buf);
@@ -931,7 +931,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 			break;
 		}
 
-		if (q->read_buf->state == STATE_DONE) {
+		if (q->read_buf->state == VIDEOBUF_DONE) {
 			rc = CALL (q,copy_stream, q, data + retval, count,
 					retval, vbihack, nonblocking);
 			if (rc < 0) {
@@ -999,8 +999,8 @@ unsigned int videobuf_poll_stream(struct file *file,
 
 	if (0 == rc) {
 		poll_wait(file, &buf->done, wait);
-		if (buf->state == STATE_DONE ||
-		    buf->state == STATE_ERROR)
+		if (buf->state == VIDEOBUF_DONE ||
+		    buf->state == VIDEOBUF_ERROR)
 			rc = POLLIN|POLLRDNORM;
 	}
 	mutex_unlock(&q->lock);

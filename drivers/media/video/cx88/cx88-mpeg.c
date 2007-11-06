@@ -195,7 +195,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 				list_del(&buf->vb.queue);
 				list_add_tail(&buf->vb.queue,&q->active);
 				cx8802_start_dma(dev, q, buf);
-				buf->vb.state = STATE_ACTIVE;
+				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 				dprintk(1,"[%p/%d] restart_queue - first active\n",
@@ -206,7 +206,7 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 				   prev->fmt       == buf->fmt) {
 				list_del(&buf->vb.queue);
 				list_add_tail(&buf->vb.queue,&q->active);
-				buf->vb.state = STATE_ACTIVE;
+				buf->vb.state = VIDEOBUF_ACTIVE;
 				buf->count    = q->count++;
 				prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 				dprintk(1,"[%p/%d] restart_queue - move to active\n",
@@ -242,7 +242,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < size)
 		return -EINVAL;
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		buf->vb.width  = dev->ts_packet_size;
 		buf->vb.height = dev->ts_packet_count;
 		buf->vb.size   = size;
@@ -254,7 +254,7 @@ int cx8802_buf_prepare(struct videobuf_queue *q, struct cx8802_dev *dev,
 				     dma->sglist,
 				     buf->vb.width, buf->vb.height, 0);
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
  fail:
@@ -276,7 +276,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		dprintk( 1, "queue is empty - first active\n" );
 		list_add_tail(&buf->vb.queue,&cx88q->active);
 		cx8802_start_dma(dev, cx88q, buf);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = cx88q->count++;
 		mod_timer(&cx88q->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(1,"[%p/%d] %s - first active\n",
@@ -286,7 +286,7 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		dprintk( 1, "queue is not empty - append to active\n" );
 		prev = list_entry(cx88q->active.prev, struct cx88_buffer, vb.queue);
 		list_add_tail(&buf->vb.queue,&cx88q->active);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		buf->count    = cx88q->count++;
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk( 1, "[%p/%d] %s - append to active\n",
@@ -306,7 +306,7 @@ static void do_cancel_buffers(struct cx8802_dev *dev, char *reason, int restart)
 	while (!list_empty(&q->active)) {
 		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 		list_del(&buf->vb.queue);
-		buf->vb.state = STATE_ERROR;
+		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
 		dprintk(1,"[%p/%d] %s - dma=0x%08lx\n",
 			buf, buf->vb.i, reason, (unsigned long)buf->risc.dma);

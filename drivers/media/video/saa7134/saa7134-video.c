@@ -945,7 +945,7 @@ static int buffer_activate(struct saa7134_dev *dev,
 	unsigned long bpl_uv,lines_uv,base2,base3,tmp; /* planar */
 
 	dprintk("buffer_activate buf=%p\n",buf);
-	buf->vb.state = STATE_ACTIVE;
+	buf->vb.state = VIDEOBUF_ACTIVE;
 	buf->top_seen = 0;
 
 	set_size(dev,TASK_A,buf->vb.width,buf->vb.height,
@@ -1054,7 +1054,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		saa7134_dma_free(q,buf);
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 
 		buf->vb.width  = fh->width;
@@ -1074,7 +1074,7 @@ static int buffer_prepare(struct videobuf_queue *q,
 		if (err)
 			goto oops;
 	}
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	buf->activate = buffer_activate;
 	return 0;
 
@@ -1421,8 +1421,8 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 		return POLLERR;
 
 	poll_wait(file, &buf->done, wait);
-	if (buf->state == STATE_DONE ||
-	    buf->state == STATE_ERROR)
+	if (buf->state == VIDEOBUF_DONE ||
+	    buf->state == VIDEOBUF_ERROR)
 		return POLLIN|POLLRDNORM;
 	return 0;
 }
@@ -2519,7 +2519,7 @@ void saa7134_irq_video_done(struct saa7134_dev *dev, unsigned long status)
 				goto done;
 		}
 		dev->video_q.curr->vb.field_count = dev->video_fieldcount;
-		saa7134_buffer_finish(dev,&dev->video_q,STATE_DONE);
+		saa7134_buffer_finish(dev,&dev->video_q,VIDEOBUF_DONE);
 	}
 	saa7134_buffer_next(dev,&dev->video_q);
 

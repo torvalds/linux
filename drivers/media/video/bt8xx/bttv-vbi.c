@@ -142,7 +142,7 @@ static int vbi_buffer_prepare(struct videobuf_queue *q,
 		redo_dma_risc = 1;
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		redo_dma_risc = 1;
 		if (0 != (rc = videobuf_iolock(q, &buf->vb, NULL)))
 			goto fail;
@@ -189,7 +189,7 @@ static int vbi_buffer_prepare(struct videobuf_queue *q,
 	/* For bttv_buffer_activate_vbi(). */
 	buf->geo.vdelay = min_vdelay;
 
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	buf->vb.field = field;
 	dprintk("buf prepare %p: top=%p bottom=%p field=%s\n",
 		vb, &buf->top, &buf->bottom,
@@ -209,7 +209,7 @@ vbi_buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	struct bttv_buffer *buf = container_of(vb,struct bttv_buffer,vb);
 
 	dprintk("queue %p\n",vb);
-	buf->vb.state = STATE_QUEUED;
+	buf->vb.state = VIDEOBUF_QUEUED;
 	list_add_tail(&buf->vb.queue,&btv->vcapture);
 	if (NULL == btv->cvbi) {
 		fh->btv->loop_irq |= 4;

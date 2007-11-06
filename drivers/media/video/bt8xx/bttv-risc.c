@@ -582,7 +582,7 @@ bttv_dma_free(struct videobuf_queue *q,struct bttv *btv, struct bttv_buffer *buf
 	videobuf_dma_free(dma);
 	btcx_riscmem_free(btv->c.pci,&buf->bottom);
 	btcx_riscmem_free(btv->c.pci,&buf->top);
-	buf->vb.state = STATE_NEEDS_INIT;
+	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
 int
@@ -602,7 +602,7 @@ bttv_buffer_activate_vbi(struct bttv *btv,
 	if (vbi) {
 		unsigned int crop, vdelay;
 
-		vbi->vb.state = STATE_ACTIVE;
+		vbi->vb.state = VIDEOBUF_ACTIVE;
 		list_del(&vbi->vb.queue);
 
 		/* VDELAY is start of video, end of VBI capturing. */
@@ -644,12 +644,12 @@ bttv_buffer_activate_video(struct bttv *btv,
 	/* video capture */
 	if (NULL != set->top  &&  NULL != set->bottom) {
 		if (set->top == set->bottom) {
-			set->top->vb.state    = STATE_ACTIVE;
+			set->top->vb.state    = VIDEOBUF_ACTIVE;
 			if (set->top->vb.queue.next)
 				list_del(&set->top->vb.queue);
 		} else {
-			set->top->vb.state    = STATE_ACTIVE;
-			set->bottom->vb.state = STATE_ACTIVE;
+			set->top->vb.state    = VIDEOBUF_ACTIVE;
+			set->bottom->vb.state = VIDEOBUF_ACTIVE;
 			if (set->top->vb.queue.next)
 				list_del(&set->top->vb.queue);
 			if (set->bottom->vb.queue.next)
@@ -666,7 +666,7 @@ bttv_buffer_activate_video(struct bttv *btv,
 		btaor((set->top->btswap & 0x0a) | (set->bottom->btswap & 0x05),
 		      ~0x0f, BT848_COLOR_CTL);
 	} else if (NULL != set->top) {
-		set->top->vb.state  = STATE_ACTIVE;
+		set->top->vb.state  = VIDEOBUF_ACTIVE;
 		if (set->top->vb.queue.next)
 			list_del(&set->top->vb.queue);
 		bttv_apply_geo(btv, &set->top->geo,1);
@@ -677,7 +677,7 @@ bttv_buffer_activate_video(struct bttv *btv,
 		btaor(set->top->btformat & 0xff, ~0xff, BT848_COLOR_FMT);
 		btaor(set->top->btswap & 0x0f,   ~0x0f, BT848_COLOR_CTL);
 	} else if (NULL != set->bottom) {
-		set->bottom->vb.state = STATE_ACTIVE;
+		set->bottom->vb.state = VIDEOBUF_ACTIVE;
 		if (set->bottom->vb.queue.next)
 			list_del(&set->bottom->vb.queue);
 		bttv_apply_geo(btv, &set->bottom->geo,1);

@@ -370,7 +370,7 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 			(unsigned long)tmpbuf,pos);
 
 	/* Advice that buffer was filled */
-	buf->vb.state = STATE_DONE;
+	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
 	do_gettimeofday(&ts);
 	buf->vb.ts = ts;
@@ -522,7 +522,7 @@ static int restart_video_queue(struct vivi_dmaqueue *dma_q)
 		/* cancel all outstanding capture / vbi requests */
 		list_for_each_entry_safe(buf, prev, &dma_q->active, vb.queue) {
 			list_del(&buf->vb.queue);
-			buf->vb.state = STATE_ERROR;
+			buf->vb.state = VIDEOBUF_ERROR;
 			wake_up(&buf->vb.done);
 		}
 		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
@@ -543,7 +543,7 @@ static int restart_video_queue(struct vivi_dmaqueue *dma_q)
 			vivi_stop_thread(dma_q);
 			vivi_start_thread(dma_q);
 
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
 			dprintk(2,"[%p/%d] restart_queue - first active\n",
 				buf,buf->vb.i);
@@ -553,7 +553,7 @@ static int restart_video_queue(struct vivi_dmaqueue *dma_q)
 			   prev->fmt       == buf->fmt) {
 			list_del(&buf->vb.queue);
 			list_add_tail(&buf->vb.queue,&dma_q->active);
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			dprintk(2,"[%p/%d] restart_queue - move to active\n",
 				buf,buf->vb.i);
 		} else {
@@ -572,7 +572,7 @@ static void vivi_vid_timeout(unsigned long data)
 	while (!list_empty(&vidq->active)) {
 		buf = list_entry(vidq->active.next, struct vivi_buffer, vb.queue);
 		list_del(&buf->vb.queue);
-		buf->vb.state = STATE_ERROR;
+		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
 		printk("vivi/0: [%p/%d] timeout\n", buf, buf->vb.i);
 	}
@@ -610,7 +610,7 @@ static void free_buffer(struct videobuf_queue *vq, struct vivi_buffer *buf)
 
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_vmalloc_free(&buf->vb);
-	buf->vb.state = STATE_NEEDS_INIT;
+	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
 #define norm_maxw() 1024
@@ -644,12 +644,12 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		init_buffer = 1;
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		if (0 != (rc = videobuf_iolock(vq,&buf->vb,NULL)))
 			goto fail;
 	}
 
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 
 	return 0;
 
@@ -670,13 +670,13 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 	if (!list_empty(&vidq->queued)) {
 		dprintk(1,"adding vb queue=0x%08lx\n",(unsigned long)&buf->vb.queue);
 		list_add_tail(&buf->vb.queue,&vidq->queued);
-		buf->vb.state = STATE_QUEUED;
+		buf->vb.state = VIDEOBUF_QUEUED;
 		dprintk(2,"[%p/%d] buffer_queue - append to queued\n",
 			buf, buf->vb.i);
 	} else if (list_empty(&vidq->active)) {
 		list_add_tail(&buf->vb.queue,&vidq->active);
 
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		mod_timer(&vidq->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(2,"[%p/%d] buffer_queue - first active\n",
 			buf, buf->vb.i);
@@ -688,13 +688,13 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		    prev->vb.height == buf->vb.height &&
 		    prev->fmt       == buf->fmt) {
 			list_add_tail(&buf->vb.queue,&vidq->active);
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			dprintk(2,"[%p/%d] buffer_queue - append to active\n",
 				buf, buf->vb.i);
 
 		} else {
 			list_add_tail(&buf->vb.queue,&vidq->queued);
-			buf->vb.state = STATE_QUEUED;
+			buf->vb.state = VIDEOBUF_QUEUED;
 			dprintk(2,"[%p/%d] buffer_queue - first queued\n",
 				buf, buf->vb.i);
 		}
