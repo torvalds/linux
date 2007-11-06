@@ -634,13 +634,13 @@ void cache_clean_deferred(void *owner)
 /*
  * communicate with user-space
  *
- * We have a magic /proc file - /proc/sunrpc/cache
- * On read, you get a full request, or block
- * On write, an update request is processed
- * Poll works if anything to read, and always allows write
+ * We have a magic /proc file - /proc/sunrpc/<cachename>/channel.
+ * On read, you get a full request, or block.
+ * On write, an update request is processed.
+ * Poll works if anything to read, and always allows write.
  *
  * Implemented by linked list of requests.  Each open file has
- * a ->private that also exists in this list.  New request are added
+ * a ->private that also exists in this list.  New requests are added
  * to the end and may wakeup and preceding readers.
  * New readers are added to the head.  If, on read, an item is found with
  * CACHE_UPCALLING clear, we free it from the list.
