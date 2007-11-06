@@ -330,10 +330,12 @@ static const u32 camellia_sp4404[256] = {
  *  macros
  */
 
-# define GETU32(pt) (((u32)(pt)[0] << 24)	\
-		     ^ ((u32)(pt)[1] << 16)	\
-		     ^ ((u32)(pt)[2] <<  8)	\
-		     ^ ((u32)(pt)[3]))
+# define GETU32(v, pt) \
+    do { \
+	/* latest breed of gcc is clever enough to use move */ \
+	memcpy(&(v), (pt), 4); \
+	(v) = be32_to_cpu(v); \
+    } while(0)
 
 /* rotation right shift 1byte */
 #define ROR8(x) (((x) >> 8) + ((x) << 24))
@@ -433,10 +435,11 @@ static void camellia_setup128(const unsigned char *key, u32 *subkey)
 	/**
 	 *  k == kll || klr || krl || krr (|| is concatination)
 	 */
-	kll = GETU32(key     );
-	klr = GETU32(key +  4);
-	krl = GETU32(key +  8);
-	krr = GETU32(key + 12);
+	GETU32(kll, key     );
+	GETU32(klr, key +  4);
+	GETU32(krl, key +  8);
+	GETU32(krr, key + 12);
+
 	/**
 	 * generate KL dependent subkeys
 	 */
@@ -687,8 +690,8 @@ static void camellia_setup128(const unsigned char *key, u32 *subkey)
 
 static void camellia_setup256(const unsigned char *key, u32 *subkey)
 {
-	u32 kll,klr,krl,krr;           /* left half of key */
-	u32 krll,krlr,krrl,krrr;       /* right half of key */
+	u32 kll, klr, krl, krr;        /* left half of key */
+	u32 krll, krlr, krrl, krrr;    /* right half of key */
 	u32 il, ir, t0, t1, w0, w1;    /* temporary variables */
 	u32 kw4l, kw4r, dw, tl, tr;
 	u32 subL[34];
@@ -698,14 +701,14 @@ static void camellia_setup256(const unsigned char *key, u32 *subkey)
 	 *  key = (kll || klr || krl || krr || krll || krlr || krrl || krrr)
 	 *  (|| is concatination)
 	 */
-	kll  = GETU32(key     );
-	klr  = GETU32(key +  4);
-	krl  = GETU32(key +  8);
-	krr  = GETU32(key + 12);
-	krll = GETU32(key + 16);
-	krlr = GETU32(key + 20);
-	krrl = GETU32(key + 24);
-	krrr = GETU32(key + 28);
+	GETU32(kll,  key     );
+	GETU32(klr,  key +  4);
+	GETU32(krl,  key +  8);
+	GETU32(krr,  key + 12);
+	GETU32(krll, key + 16);
+	GETU32(krlr, key + 20);
+	GETU32(krrl, key + 24);
+	GETU32(krrr, key + 28);
 
 	/* generate KL dependent subkeys */
 	/* kw1 */
