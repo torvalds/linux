@@ -27,8 +27,11 @@ struct b43_phy;
 #define B43_PHY_PWRDOWN			B43_PHY_OFDM(0x03)	/* Powerdown */
 #define B43_PHY_CRSTHRES1		B43_PHY_OFDM(0x06)	/* CRS Threshold 1 */
 #define B43_PHY_LNAHPFCTL		B43_PHY_OFDM(0x1C)	/* LNA/HPF control */
+#define B43_PHY_LPFGAINCTL		B43_PHY_OFDM(0x20)	/* LPF Gain control */
 #define B43_PHY_ADIVRELATED		B43_PHY_OFDM(0x27)	/* FIXME rename */
 #define B43_PHY_CRS0			B43_PHY_OFDM(0x29)
+#define  B43_PHY_CRS0_EN		0x4000
+#define B43_PHY_PEAK_COUNT		B43_PHY_OFDM(0x30)
 #define B43_PHY_ANTDWELL		B43_PHY_OFDM(0x2B)	/* Antenna dwell */
 #define  B43_PHY_ANTDWELL_AUTODIV1	0x0100	/* Automatic RX diversity start antenna */
 #define B43_PHY_ENCORE			B43_PHY_OFDM(0x49)	/* "Encore" (RangeMax / BroadRange) */
@@ -37,6 +40,7 @@ struct b43_phy;
 #define B43_PHY_OFDM61			B43_PHY_OFDM(0x61)	/* FIXME rename */
 #define  B43_PHY_OFDM61_10		0x0010	/* FIXME rename */
 #define B43_PHY_IQBAL			B43_PHY_OFDM(0x69)	/* I/Q balance */
+#define B43_PHY_BBTXDC_BIAS		B43_PHY_OFDM(0x6B)	/* Baseband TX DC bias */
 #define B43_PHY_OTABLECTL		B43_PHY_OFDM(0x72)	/* OFDM table control (see below) */
 #define  B43_PHY_OTABLEOFF		0x03FF	/* OFDM table offset (see below) */
 #define  B43_PHY_OTABLENR		0xFC00	/* OFDM table number (see below) */
@@ -44,6 +48,9 @@ struct b43_phy;
 #define B43_PHY_OTABLEI			B43_PHY_OFDM(0x73)	/* OFDM table data I */
 #define B43_PHY_OTABLEQ			B43_PHY_OFDM(0x74)	/* OFDM table data Q */
 #define B43_PHY_HPWR_TSSICTL		B43_PHY_OFDM(0x78)	/* Hardware power TSSI control */
+#define B43_PHY_ADCCTL			B43_PHY_OFDM(0x7A)	/* ADC control */
+#define B43_PHY_IDLE_TSSI		B43_PHY_OFDM(0x7B)
+#define B43_PHY_A_TEMP_SENSE		B43_PHY_OFDM(0x7C)	/* A PHY temperature sense */
 #define B43_PHY_NRSSITHRES		B43_PHY_OFDM(0x8A)	/* NRSSI threshold */
 #define B43_PHY_ANTWRSETT		B43_PHY_OFDM(0x8C)	/* Antenna WR settle */
 #define  B43_PHY_ANTWRSETT_ARXDIV	0x2000	/* Automatic RX diversity enabled */
@@ -54,6 +61,8 @@ struct b43_phy;
 #define B43_PHY_N1N2GAIN		B43_PHY_OFDM(0xA2)
 #define B43_PHY_CLIPTHRES		B43_PHY_OFDM(0xA3)
 #define B43_PHY_CLIPN1P2THRES		B43_PHY_OFDM(0xA4)
+#define B43_PHY_CCKSHIFTBITS_WA		B43_PHY_OFDM(0xA5)	/* CCK shiftbits workaround, FIXME rename */
+#define B43_PHY_CCKSHIFTBITS		B43_PHY_OFDM(0xA7)	/* FIXME rename */
 #define B43_PHY_DIVSRCHIDX		B43_PHY_OFDM(0xA8)	/* Divider search gain/index */
 #define B43_PHY_CLIPP2THRES		B43_PHY_OFDM(0xA9)
 #define B43_PHY_CLIPP3THRES		B43_PHY_OFDM(0xAA)
@@ -125,13 +134,14 @@ struct b43_phy;
 #define B43_OFDMTAB_DC			B43_OFDMTAB(0x0E, 7)
 #define B43_OFDMTAB_PWRDYN2		B43_OFDMTAB(0x0E, 12)
 #define B43_OFDMTAB_LNAGAIN		B43_OFDMTAB(0x0E, 13)
-//TODO
+#define B43_OFDMTAB_UNKNOWN_0F		B43_OFDMTAB(0x0F, 0)	//TODO rename
+#define B43_OFDMTAB_UNKNOWN_APHY	B43_OFDMTAB(0x0F, 7)	//TODO rename
 #define B43_OFDMTAB_LPFGAIN		B43_OFDMTAB(0x0F, 12)
 #define B43_OFDMTAB_RSSI		B43_OFDMTAB(0x10, 0)
-//TODO
+#define B43_OFDMTAB_UNKNOWN_11		B43_OFDMTAB(0x11, 4)	//TODO rename
 #define B43_OFDMTAB_AGC1_R1		B43_OFDMTAB(0x13, 0)
-#define B43_OFDMTAB_GAINX_R1		B43_OFDMTAB(0x14, 0)	//TODO rename
-#define B43_OFDMTAB_MINSIGSQ		B43_OFDMTAB(0x14, 1)
+#define B43_OFDMTAB_GAINX_R1		B43_OFDMTAB(0x14, 0)	//TODO remove!
+#define B43_OFDMTAB_MINSIGSQ		B43_OFDMTAB(0x14, 0)
 #define B43_OFDMTAB_AGC3_R1		B43_OFDMTAB(0x15, 0)
 #define B43_OFDMTAB_WRSSI_R1		B43_OFDMTAB(0x15, 4)
 #define B43_OFDMTAB_TSSI		B43_OFDMTAB(0x15, 0)

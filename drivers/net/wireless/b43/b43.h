@@ -544,6 +544,10 @@ struct b43_phy {
 	u16 lofcal;
 
 	u16 initval;		//FIXME rename?
+
+	/* OFDM address read/write caching for hardware auto-increment. */
+	u16 ofdm_addr;
+	u8 ofdm_valid; /* 0: invalid, 1: read, 2: write */
 };
 
 /* Data structures for DMA transmission, per 80211 core. */

@@ -5,6 +5,7 @@ b43-y				+= phy.o
 b43-y				+= sysfs.o
 b43-y				+= xmit.o
 b43-y				+= lo.o
+b43-y				+= wa.o
 # b43 RFKILL button support
 b43-$(CONFIG_B43_RFKILL)	+= rfkill.o
 # b43 LED support

@@ -2254,6 +2254,9 @@ static int b43_chip_init(struct b43_wldev *dev)
 	b43_write16(dev, B43_MMIO_POWERUP_DELAY,
 		    dev->dev->bus->chipco.fast_pwrup_delay);
 
+	/* OFDM address caching. */
+	phy->ofdm_valid = 0;
+
 	err = 0;
 	b43dbg(dev->wl, "Chip initialized\n");
 out:
