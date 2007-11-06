@@ -247,7 +247,7 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	dbg("%s: bus/dev = %x/%x\n", __FUNCTION__, p_slot->bus,
 				p_slot->device);
 
-	for (j=0; j<8 ; j++) {
+	for (j = 0; j < 8; j++) {
 		struct pci_dev* temp = pci_get_slot(parent,
 				(p_slot->device << 3) | j);
 		if (!temp)
@@ -283,4 +283,3 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 
 	return rc;
 }
-
