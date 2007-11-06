@@ -4,7 +4,8 @@
  *   (c) 2000 Gerd Knorr <kraxel@bytesex.org>
  *   Nov 2002: Martin Bene <martin.bene@icomedias.com>:
  *		only ignore TIME_WAIT or gone connections
- *   Copyright © Jan Engelhardt <jengelh@gmx.de>, 2007
+ *   (C) CC Computer Consultants GmbH, 2007
+ *   Contact: <jengelh@computergmbh.de>
  *
  * based on ...
  *
@@ -306,7 +307,7 @@ static void __exit xt_connlimit_exit(void)
 
 module_init(xt_connlimit_init);
 module_exit(xt_connlimit_exit);
-MODULE_AUTHOR("Jan Engelhardt <jengelh@gmx.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
 MODULE_DESCRIPTION("netfilter xt_connlimit match module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_connlimit");
