@@ -91,6 +91,7 @@ extern int __must_check kobject_init_and_add(struct kobject *kobj,
 
 extern void kobject_del(struct kobject *);
 
+extern struct kobject * __must_check kobject_create(void);
 extern struct kobject * __must_check kobject_create_and_add(const char *name,
 						struct kobject *parent);
 
@@ -102,9 +103,6 @@ extern void kobject_unregister(struct kobject *);
 
 extern struct kobject * kobject_get(struct kobject *);
 extern void kobject_put(struct kobject *);
-
-extern struct kobject *kobject_kset_add_dir(struct kset *kset,
-					    struct kobject *, const char *);
 
 extern char * kobject_get_path(struct kobject *, gfp_t);
 

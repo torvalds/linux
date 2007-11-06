@@ -629,15 +629,18 @@ static struct kobj_type dynamic_kobj_ktype = {
 	.release = dynamic_kobj_release,
 };
 
-/*
+/**
  * kobject_create - create a struct kobject dynamically
  *
  * This function creates a kobject structure dynamically and sets it up
  * to be a "dynamic" kobject with a default release function set up.
  *
  * If the kobject was not able to be created, NULL will be returned.
+ * The kobject structure returned from here must be cleaned up with a
+ * call to kobject_put() and not kfree(), as kobject_init_ng() has
+ * already been called on this structure.
  */
-static struct kobject *kobject_create(void)
+struct kobject *kobject_create(void)
 {
 	struct kobject *kobj;
 
@@ -681,36 +684,6 @@ struct kobject *kobject_create_and_add(const char *name, struct kobject *parent)
 	return kobj;
 }
 EXPORT_SYMBOL_GPL(kobject_create_and_add);
-
-/**
- *	kobject_kset_add_dir - add sub directory of object.
- *	@kset:		kset the directory is belongs to.
- *	@parent:	object in which a directory is created.
- *	@name:	directory name.
- *
- *	Add a plain directory object as child of given object.
- */
-struct kobject *kobject_kset_add_dir(struct kset *kset,
-				     struct kobject *parent, const char *name)
-{
-	struct kobject *k;
-	int ret;
-
-	k = kobject_create();
-	if (!k)
-		return NULL;
-
-	k->kset = kset;
-	ret = kobject_add_ng(k, parent, "%s", name);
-	if (ret < 0) {
-		printk(KERN_WARNING "%s: kobject_add error: %d\n",
-			__func__, ret);
-		kobject_put(k);
-		k = NULL;
-	}
-
-	return k;
-}
 
 /**
  *	kset_init - initialize a kset for use

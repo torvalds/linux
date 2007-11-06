@@ -571,6 +571,8 @@ static struct kobject *virtual_device_parent(struct device *dev)
 static struct kobject * get_device_parent(struct device *dev,
 					  struct device *parent)
 {
+	int retval;
+
 	if (dev->class) {
 		struct kobject *kobj = NULL;
 		struct kobject *parent_kobj;
@@ -600,8 +602,18 @@ static struct kobject * get_device_parent(struct device *dev,
 			return kobj;
 
 		/* or create a new class-directory at the parent device */
-		return kobject_kset_add_dir(&dev->class->class_dirs,
-					    parent_kobj, dev->class->name);
+		k = kobject_create();
+		if (!k)
+			return NULL;
+		k->kset = &dev->class->class_dirs;
+		retval = kobject_add_ng(k, parent_kobj, "%s", dev->class->name);
+		if (retval < 0) {
+			kobject_put(k);
+			return NULL;
+		}
+		/* Do not emit a uevent, as it's not needed for this
+		 * "class glue" directory. */
+		return k;
 	}
 
 	if (parent)
