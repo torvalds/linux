@@ -227,7 +227,8 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 			break;
 		if (wret < 0)
 			ret = wret;
-		ret = -EAGAIN;
+		else
+			ret = -EAGAIN;
 		break;
 	}
 	for (i = 0; i <= orig_level; i++) {

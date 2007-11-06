@@ -161,6 +161,31 @@ static int close_blocks(u64 blocknr, u64 other, u32 blocksize)
 	return 0;
 }
 
+/*
+ * compare two keys in a memcmp fashion
+ */
+static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
+{
+	struct btrfs_key k1;
+
+	btrfs_disk_key_to_cpu(&k1, disk);
+
+	if (k1.objectid > k2->objectid)
+		return 1;
+	if (k1.objectid < k2->objectid)
+		return -1;
+	if (k1.type > k2->type)
+		return 1;
+	if (k1.type < k2->type)
+		return -1;
+	if (k1.offset > k2->offset)
+		return 1;
+	if (k1.offset < k2->offset)
+		return -1;
+	return 0;
+}
+
+
 int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct extent_buffer *parent,
 		       int start_slot, int cache_only, u64 *last_ret,
@@ -179,6 +204,8 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 	int parent_level;
 	int uptodate;
 	u32 blocksize;
+	int progress_passed = 0;
+	struct btrfs_disk_key disk_key;
 
 	parent_level = btrfs_header_level(parent);
 	if (cache_only && parent_level != 1)
@@ -213,6 +240,11 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 					&parent->map_start, &parent->map_len,
 					KM_USER1);
 		}
+		btrfs_node_key(parent, &disk_key, i);
+		if (!progress_passed && comp_keys(&disk_key, progress) < 0)
+			continue;
+
+		progress_passed = 1;
 		blocknr = btrfs_node_blockptr(parent, i);
 		if (last_block == 0)
 			last_block = blocknr;
@@ -290,30 +322,6 @@ static inline unsigned int leaf_data_end(struct btrfs_root *root,
 	if (nr == 0)
 		return BTRFS_LEAF_DATA_SIZE(root);
 	return btrfs_item_offset_nr(leaf, nr - 1);
-}
-
-/*
- * compare two keys in a memcmp fashion
- */
-static int comp_keys(struct btrfs_disk_key *disk, struct btrfs_key *k2)
-{
-	struct btrfs_key k1;
-
-	btrfs_disk_key_to_cpu(&k1, disk);
-
-	if (k1.objectid > k2->objectid)
-		return 1;
-	if (k1.objectid < k2->objectid)
-		return -1;
-	if (k1.type > k2->type)
-		return 1;
-	if (k1.type < k2->type)
-		return -1;
-	if (k1.offset > k2->offset)
-		return 1;
-	if (k1.offset < k2->offset)
-		return -1;
-	return 0;
 }
 
 static int check_node(struct btrfs_root *root, struct btrfs_path *path,
