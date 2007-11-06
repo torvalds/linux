@@ -46,7 +46,7 @@ ENTRY(exception_handling_table)
 	.long	exception_error	! illegal_slot_instruction (filled by trap_init) /*1A0*/
 ENTRY(nmi_slot)
 #if defined (CONFIG_KGDB_NMI)
-	.long	debug_enter	/* 1C0 */	! Allow trap to debugger
+	.long	kgdb_handle_exception	/* 1C0 */	! Allow trap to debugger
 #else
 	.long	exception_none	/* 1C0 */	! Not implemented yet
 #endif
