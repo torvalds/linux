@@ -239,9 +239,8 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	u64 start_pos;
 	u64 end_of_last_block;
 	u64 end_pos = pos + write_bytes;
-	u32 inline_size;
+	u64 inline_size;
 	loff_t isize = i_size_read(inode);
-
 	em = alloc_extent_map(GFP_NOFS);
 	if (!em)
 		return -ENOMEM;
@@ -328,9 +327,11 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 					 aligned_end, aligned_end, &hint_byte);
 		if (err)
 			goto failed;
+		if (isize > inline_size)
+			inline_size = min_t(u64, isize, aligned_end);
+		inline_size -= start_pos;
 		err = insert_inline_extent(trans, root, inode, start_pos,
-					   end_pos - start_pos, pages, 0,
-					   num_pages);
+					   inline_size, pages, 0, num_pages);
 		BUG_ON(err);
 	}
 	if (end_pos > isize) {
