@@ -606,7 +606,6 @@ int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f,
 				fd->ino = 0;
 				break;
 			}
-			prev = &((*prev)->next);
 		}
 		up(&dir_f->sem);
 	}
