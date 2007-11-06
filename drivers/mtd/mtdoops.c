@@ -286,7 +286,6 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct mtdoops_context *cxt = co->data;
 	struct mtd_info *mtd = cxt->mtd;
-	int i;
 
 	if (!oops_in_progress) {
 		mtdoops_console_sync();
@@ -305,10 +304,8 @@ mtdoops_console_write(struct console *co, const char *s, unsigned int count)
 	if ((count + cxt->writecount) > OOPS_PAGE_SIZE)
 		count = OOPS_PAGE_SIZE - cxt->writecount;
 
-	for (i = 0; i < count; i++, s++)
-		*((char *)(cxt->oops_buf) + cxt->writecount + i) = *s;
-
-	cxt->writecount = cxt->writecount + count;
+	memcpy(cxt->oops_buf + cxt->writecount, s, count);
+	cxt->writecount += count;
 }
 
 static int __init mtdoops_console_setup(struct console *co, char *options)
