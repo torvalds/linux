@@ -119,6 +119,7 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 
 	P9_DPRINTK(P9_DEBUG_VFS, " \n");
 
+	st = NULL;
 	v9ses = kzalloc(sizeof(struct v9fs_session_info), GFP_KERNEL);
 	if (!v9ses)
 		return -ENOMEM;
@@ -164,10 +165,12 @@ static int v9fs_get_sb(struct file_system_type *fs_type, int flags,
 	root->d_inode->i_ino = v9fs_qid2ino(&st->qid);
 	v9fs_stat2inode(st, root->d_inode, sb);
 	v9fs_fid_add(root, fid);
+	kfree(st);
 
 	return simple_set_mnt(mnt, sb);
 
 error:
+	kfree(st);
 	if (fid)
 		p9_client_clunk(fid);
 
