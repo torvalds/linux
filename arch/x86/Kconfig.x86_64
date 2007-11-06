@@ -78,22 +78,7 @@ config ISA
 config SBUS
 	bool
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-
 config GENERIC_HWEIGHT
-	bool
-	default y
-
-config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config X86_CMPXCHG
 	bool
 	default y
 
@@ -125,13 +110,6 @@ config GENERIC_BUG
 	default y
 	depends on BUG
 
-config ARCH_HAS_ILOG2_U32
-	bool
-	default n
-
-config ARCH_HAS_ILOG2_U64
-	bool
-	default n
 
 source "init/Kconfig"
 
@@ -159,66 +137,7 @@ config X86_VSMP
 
 endchoice
 
-choice
-	prompt "Processor family"
-	default GENERIC_CPU
-
-config MK8
-	bool "AMD-Opteron/Athlon64"
-	help
-	  Optimize for AMD Opteron/Athlon64/Hammer/K8 CPUs.
-
-config MPSC
-       bool "Intel P4 / older Netburst based Xeon"
-       help
-	  Optimize for Intel Pentium 4, Pentium D and older Nocona/Dempsey
-	  Xeon CPUs with Intel 64bit which is compatible with x86-64.
-	  Note that the latest Xeons (Xeon 51xx and 53xx) are not based on the
-          Netburst core and shouldn't use this option. You can distinguish them
-	  using the cpu family field
-	  in /proc/cpuinfo. Family 15 is an older Xeon, Family 6 a newer one.
-
-config MCORE2
-	bool "Intel Core2 / newer Xeon"
-	help
-	  Optimize for Intel Core2 and newer Xeons (51xx)
-	  You can distinguish the newer Xeons from the older ones using
-	  the cpu family field in /proc/cpuinfo. 15 is an older Xeon
-	  (use CONFIG_MPSC then), 6 is a newer one.
-
-config GENERIC_CPU
-	bool "Generic-x86-64"
-	help
-	  Generic x86-64 CPU.
-	  Run equally well on all x86-64 CPUs.
-
-endchoice
-
-#
-# Define implied options from the CPU selection here
-#
-config X86_L1_CACHE_BYTES
-	int
-	default "128" if GENERIC_CPU || MPSC
-	default "64" if MK8 || MCORE2
-
-config X86_L1_CACHE_SHIFT
-	int
-	default "7" if GENERIC_CPU || MPSC
-	default "6" if MK8 || MCORE2
-
-config X86_INTERNODE_CACHE_BYTES
-	int
-	default "4096" if X86_VSMP
-	default X86_L1_CACHE_BYTES if !X86_VSMP
-
-config X86_TSC
-	bool
-	default y
-
-config X86_GOOD_APIC
-	bool
-	default y
+source "arch/x86/Kconfig.cpu"
 
 config MICROCODE
 	tristate "/dev/cpu/microcode - Intel CPU microcode support"

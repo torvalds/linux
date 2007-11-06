@@ -1,3 +1,22 @@
+# x86 configuration
+
+### Arch settings
+config RWSEM_GENERIC_SPINLOCK
+	def_bool !X86_XADD
+
+config RWSEM_XCHGADD_ALGORITHM
+	def_bool X86_XADD
+
+config ARCH_HAS_ILOG2_U32
+	def_bool n
+
+config ARCH_HAS_ILOG2_U64
+	def_bool n
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+
 menu "Power management options"
 	depends on !X86_VOYAGER
 
