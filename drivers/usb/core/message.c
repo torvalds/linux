@@ -1346,33 +1346,9 @@ static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct usb_interface *intf;
 	struct usb_host_interface *alt;
 
-	if (!dev)
-		return -ENODEV;
-
-	/* driver is often null here; dev_dbg() would oops */
-	pr_debug ("usb %s: uevent\n", dev->bus_id);
-
 	intf = to_usb_interface(dev);
 	usb_dev = interface_to_usbdev(intf);
 	alt = intf->cur_altsetting;
-
-#ifdef CONFIG_USB_DEVICEFS
-	if (add_uevent_var(env, "DEVICE=/proc/bus/usb/%03d/%03d",
-			   usb_dev->bus->busnum, usb_dev->devnum))
-		return -ENOMEM;
-#endif
-
-	if (add_uevent_var(env, "PRODUCT=%x/%x/%x",
-			   le16_to_cpu(usb_dev->descriptor.idVendor),
-			   le16_to_cpu(usb_dev->descriptor.idProduct),
-			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
-		return -ENOMEM;
-
-	if (add_uevent_var(env, "TYPE=%d/%d/%d",
-			   usb_dev->descriptor.bDeviceClass,
-			   usb_dev->descriptor.bDeviceSubClass,
-			   usb_dev->descriptor.bDeviceProtocol))
-		return -ENOMEM;
 
 	if (add_uevent_var(env, "INTERFACE=%d/%d/%d",
 		   alt->desc.bInterfaceClass,
