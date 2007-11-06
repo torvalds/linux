@@ -854,7 +854,7 @@ int bus_register(struct bus_type * bus)
 	bus->subsys.kobj.kset = bus_kset;
 	bus->subsys.kobj.ktype = &bus_ktype;
 
-	retval = subsystem_register(&bus->subsys);
+	retval = kset_register(&bus->subsys);
 	if (retval)
 		goto out;
 
@@ -900,7 +900,7 @@ bus_drivers_fail:
 bus_devices_fail:
 	bus_remove_file(bus, &bus_attr_uevent);
 bus_uevent_fail:
-	subsystem_unregister(&bus->subsys);
+	kset_unregister(&bus->subsys);
 out:
 	return retval;
 }
@@ -920,7 +920,7 @@ void bus_unregister(struct bus_type * bus)
 	kset_unregister(bus->drivers_kset);
 	kset_unregister(bus->devices_kset);
 	bus_remove_file(bus, &bus_attr_uevent);
-	subsystem_unregister(&bus->subsys);
+	kset_unregister(&bus->subsys);
 }
 
 int bus_register_notifier(struct bus_type *bus, struct notifier_block *nb)

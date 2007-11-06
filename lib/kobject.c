@@ -800,16 +800,6 @@ struct kobject * kset_find_obj(struct kset * kset, const char * name)
 	return ret;
 }
 
-int subsystem_register(struct kset *s)
-{
-	return kset_register(s);
-}
-
-void subsystem_unregister(struct kset *s)
-{
-	kset_unregister(s);
-}
-
 static void kset_release(struct kobject *kobj)
 {
 	struct kset *kset = container_of(kobj, struct kset, kobj);
@@ -904,6 +894,3 @@ EXPORT_SYMBOL(kobject_del);
 
 EXPORT_SYMBOL(kset_register);
 EXPORT_SYMBOL(kset_unregister);
-
-EXPORT_SYMBOL(subsystem_register);
-EXPORT_SYMBOL(subsystem_unregister);

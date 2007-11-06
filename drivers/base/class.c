@@ -152,7 +152,7 @@ int class_register(struct class * cls)
 	cls->subsys.kobj.kset = class_kset;
 	cls->subsys.kobj.ktype = &class_ktype;
 
-	error = subsystem_register(&cls->subsys);
+	error = kset_register(&cls->subsys);
 	if (!error) {
 		error = add_class_attrs(class_get(cls));
 		class_put(cls);
@@ -164,7 +164,7 @@ void class_unregister(struct class * cls)
 {
 	pr_debug("device class '%s': unregistering\n", cls->name);
 	remove_class_attrs(cls);
-	subsystem_unregister(&cls->subsys);
+	kset_unregister(&cls->subsys);
 }
 
 static void class_create_release(struct class *cls)
