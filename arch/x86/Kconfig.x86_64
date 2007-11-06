@@ -17,100 +17,6 @@ config X86_64
 	  classical 32-bit x86 architecture. For details see
 	  <http://www.x86-64.org/>.
 
-config 64BIT
-	def_bool X86_64
-
-config X86
-	bool
-	default y
-
-config GENERIC_TIME
-	bool
-	default y
-
-config GENERIC_TIME_VSYSCALL
-	bool
-	default y
-
-config GENERIC_CMOS_UPDATE
-	bool
-	default y
-
-config CLOCKSOURCE_WATCHDOG
-	bool
-	default y
-
-config GENERIC_CLOCKEVENTS
-	bool
-	default y
-
-config GENERIC_CLOCKEVENTS_BROADCAST
-	bool
-	default y
-
-config ZONE_DMA32
-	bool
-	default y
-
-config LOCKDEP_SUPPORT
-	bool
-	default y
-
-config STACKTRACE_SUPPORT
-	bool
-	default y
-
-config SEMAPHORE_SLEEPERS
-	bool
-	default y
-
-config MMU
-	bool
-	default y
-
-config ZONE_DMA
-	bool
-	default y
-
-config ISA
-	bool
-
-config SBUS
-	bool
-
-config GENERIC_HWEIGHT
-	bool
-	default y
-
-config GENERIC_ISA_DMA
-	bool
-	default y
-
-config GENERIC_IOMAP
-	bool
-	default y
-
-config ARCH_MAY_HAVE_PC_FDC
-	bool
-	default y
-
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
-
-config DMI
-	bool
-	default y
-
-config AUDIT_ARCH
-	bool
-	default y
-
-config GENERIC_BUG
-	bool
-	default y
-	depends on BUG
-
-
 source "init/Kconfig"
 
 
@@ -178,11 +84,6 @@ config X86_CPUID
 	  be executed on a specific processor.  It is a character device
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
-
-config X86_HT
-	bool
-	depends on SMP && !MK8
-	default y
 
 config MATH_EMULATION
 	bool
@@ -605,21 +506,5 @@ config K8_NB
 	depends on AGP_AMD64 || GART_IOMMU || (PCI && NUMA)
 
 endmenu
-
-#
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
-config GENERIC_PENDING_IRQ
-	bool
-	depends on GENERIC_HARDIRQS && SMP
-	default y
 
 source "arch/x86/Kconfig"

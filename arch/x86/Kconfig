@@ -1,6 +1,86 @@
 # x86 configuration
 
 ### Arch settings
+config X86
+	bool
+	default y
+
+config 64BIT
+	def_bool X86_64
+
+config GENERIC_TIME
+	bool
+	default y
+
+config GENERIC_CMOS_UPDATE
+	bool
+	default y
+
+config CLOCKSOURCE_WATCHDOG
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS
+	bool
+	default y
+
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+	default y
+	depends on X86_64 || (X86_32 && X86_LOCAL_APIC)
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
+config MMU
+	bool
+	default y
+
+config ZONE_DMA
+	bool
+	default y
+
+config QUICKLIST
+	bool
+	default X86_32
+
+config SBUS
+	bool
+
+config GENERIC_ISA_DMA
+	bool
+	default y
+
+config GENERIC_IOMAP
+	bool
+	default y
+
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	default y
+
+config DMI
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	def_bool !X86_XADD
 
@@ -15,6 +95,62 @@ config ARCH_HAS_ILOG2_U64
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
+
+config GENERIC_TIME_VSYSCALL
+	bool
+	default X86_64
+
+
+
+
+
+config ZONE_DMA32
+	bool
+	default X86_64
+
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
+config AUDIT_ARCH
+	bool
+	default X86_64
+
+# Use the generic interrupt handling code in kernel/irq/:
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
+	default y
+
+config X86_SMP
+	bool
+	depends on X86_32 && SMP && !X86_VOYAGER
+	default y
+
+config X86_HT
+	bool
+	depends on SMP && !(X86_VISWS || X86_VOYAGER || MK8)
+	default y
+
+config X86_BIOS_REBOOT
+	bool
+	depends on X86_32 && !(X86_VISWS || X86_VOYAGER)
+	default y
+
+config X86_TRAMPOLINE
+	bool
+	depends on X86_SMP || (X86_VOYAGER && SMP)
+	default y
+
+config KTIME_SCALAR
+	def_bool X86_32
 
 
 menu "Power management options"
