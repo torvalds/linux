@@ -425,6 +425,8 @@ static inline int ata_id_has_lba48(const u16 *id)
 {
 	if ((id[83] & 0xC000) != 0x4000)
 		return 0;
+	if (!ata_id_u64(id, 100))
+		return 0;
 	return id[83] & (1 << 10);
 }
 
@@ -531,6 +533,15 @@ static inline int ata_drive_40wire(const u16 *dev_id)
 	if (ata_id_is_sata(dev_id))
 		return 0;	/* SATA */
 	if ((dev_id[93] & 0xE000) == 0x6000)
+		return 0;	/* 80 wire */
+	return 1;
+}
+
+static inline int ata_drive_40wire_relaxed(const u16 *dev_id)
+{
+	if (ata_id_is_sata(dev_id))
+		return 0;	/* SATA */
+	if ((dev_id[93] & 0x2000) == 0x2000)
 		return 0;	/* 80 wire */
 	return 1;
 }

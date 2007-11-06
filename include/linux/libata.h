@@ -339,6 +339,7 @@ enum {
 	ATA_HORKAGE_SKIP_PM	= (1 << 5),	/* Skip PM operations */
 	ATA_HORKAGE_HPA_SIZE	= (1 << 6),	/* native size off by one */
 	ATA_HORKAGE_IPM		= (1 << 7),	/* Link PM problems */
+	ATA_HORKAGE_IVB		= (1 << 8),	/* cbl det validity bit bugs */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */

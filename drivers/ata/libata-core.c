@@ -676,10 +676,11 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 		if (rc)
 			return rc;
 
-		/* disable DIPM */
-		if (ata_dev_enabled(dev) && (dev->flags & ATA_DFLAG_DIPM))
-			err_mask = ata_dev_set_feature(dev,
-					SETFEATURES_SATA_DISABLE, SATA_DIPM);
+		/*
+		 * we don't have to disable DIPM since IPM flags
+		 * disallow transitions to SLUMBER, which effectively
+		 * disable DIPM if it does not support PARTIAL
+		 */
 		break;
 	case NOT_AVAILABLE:
 	case MAX_PERFORMANCE:
@@ -689,10 +690,11 @@ static int ata_dev_set_dipm(struct ata_device *dev, enum link_pm policy)
 		if (rc)
 			return rc;
 
-		/* disable DIPM */
-		if (ata_dev_enabled(dev) && (dev->flags & ATA_DFLAG_DIPM))
-			err_mask = ata_dev_set_feature(dev,
-					SETFEATURES_SATA_DISABLE, SATA_DIPM);
+		/*
+		 * we don't have to disable DIPM since IPM flags
+		 * disallow all transitions which effectively
+		 * disable DIPM anyway.
+		 */
 		break;
 	}
 
@@ -4239,6 +4241,10 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "ST340823A",		NULL,		ATA_HORKAGE_HPA_SIZE, },
 	{ "ST320413A",		NULL,		ATA_HORKAGE_HPA_SIZE, },
 
+	/* Devices which get the IVB wrong */
+	{ "QUANTUM FIREBALLlct10 05", "A03.0900", ATA_HORKAGE_IVB, },
+	{ "TSSTcorp CDDVDW SH-S202J", "SB00",	  ATA_HORKAGE_IVB, },
+
 	/* End Marker */
 	{ }
 };
@@ -4297,6 +4303,21 @@ static int ata_dma_blacklisted(const struct ata_device *dev)
 	    (dev->flags & ATA_DFLAG_CDB_INTR))
 		return 1;
 	return (dev->horkage & ATA_HORKAGE_NODMA) ? 1 : 0;
+}
+
+/**
+ *	ata_is_40wire		-	check drive side detection
+ *	@dev: device
+ *
+ *	Perform drive side detection decoding, allowing for device vendors
+ *	who can't follow the documentation.
+ */
+
+static int ata_is_40wire(struct ata_device *dev)
+{
+	if (dev->horkage & ATA_HORKAGE_IVB)
+		return ata_drive_40wire_relaxed(dev->id);
+	return ata_drive_40wire(dev->id);
 }
 
 /**
@@ -4368,7 +4389,7 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	if (xfer_mask & (0xF8 << ATA_SHIFT_UDMA))
 		/* UDMA/44 or higher would be available */
 		if ((ap->cbl == ATA_CBL_PATA40) ||
-		    (ata_drive_40wire(dev->id) &&
+		    (ata_is_40wire(dev) &&
 		    (ap->cbl == ATA_CBL_PATA_UNK ||
 		     ap->cbl == ATA_CBL_PATA80))) {
 			ata_dev_printk(dev, KERN_WARNING,
