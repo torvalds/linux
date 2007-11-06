@@ -168,11 +168,13 @@ static u64 find_search_start(struct btrfs_root *root,
 	u64 last;
 	u64 start = 0;
 	u64 end = 0;
+	int wrapped = 0;
 
 again:
 	ret = cache_block_group(root, cache);
 	if (ret)
 		goto out;
+
 	last = max(search_start, cache->key.objectid);
 
 	while(1) {
@@ -195,8 +197,15 @@ out:
 
 new_group:
 	last = cache->key.objectid + cache->key.offset;
+wrapped:
 	cache = btrfs_lookup_block_group(root->fs_info, last);
 	if (!cache) {
+		if (!wrapped) {
+			wrapped = 1;
+			last = search_start;
+			data = BTRFS_BLOCK_GROUP_MIXED;
+			goto wrapped;
+		}
 		return search_start;
 	}
 	cache = btrfs_find_block_group(root, cache, last, data, 0);
@@ -236,9 +245,11 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	block_group_cache = &info->block_group_cache;
 
 	if (!owner)
-		factor = 5;
+		factor = 8;
 
-	if (data)
+	if (data == BTRFS_BLOCK_GROUP_MIXED)
+		bit = BLOCK_GROUP_DATA | BLOCK_GROUP_METADATA;
+	else if (data)
 		bit = BLOCK_GROUP_DATA;
 	else
 		bit = BLOCK_GROUP_METADATA;
@@ -246,14 +257,16 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	if (search_start) {
 		struct btrfs_block_group_cache *shint;
 		shint = btrfs_lookup_block_group(info, search_start);
-		if (shint && shint->data == data) {
+		if (shint && (shint->data == data ||
+			      shint->data == BTRFS_BLOCK_GROUP_MIXED)) {
 			used = btrfs_block_group_used(&shint->item);
 			if (used < div_factor(shint->key.offset, factor)) {
 				return shint;
 			}
 		}
 	}
-	if (hint && hint->data == data) {
+	if (hint && (hint->data == data ||
+		     hint->data == BTRFS_BLOCK_GROUP_MIXED)) {
 		used = btrfs_block_group_used(&hint->item);
 		if (used < div_factor(hint->key.offset, factor)) {
 			return hint;
@@ -592,11 +605,15 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 				if (data) {
 					bit_to_clear = BLOCK_GROUP_METADATA;
 					bit_to_set = BLOCK_GROUP_DATA;
+					cache->item.flags &=
+						~BTRFS_BLOCK_GROUP_MIXED;
 					cache->item.flags |=
 						BTRFS_BLOCK_GROUP_DATA;
 				} else {
 					bit_to_clear = BLOCK_GROUP_DATA;
 					bit_to_set = BLOCK_GROUP_METADATA;
+					cache->item.flags &=
+						~BTRFS_BLOCK_GROUP_MIXED;
 					cache->item.flags &=
 						~BTRFS_BLOCK_GROUP_DATA;
 				}
@@ -605,6 +622,14 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 						  GFP_NOFS);
 				set_extent_bits(&info->block_group_cache,
 						start, end, bit_to_set,
+						GFP_NOFS);
+			} else if (cache->data != data &&
+				   cache->data != BTRFS_BLOCK_GROUP_MIXED) {
+				cache->data = BTRFS_BLOCK_GROUP_MIXED;
+				set_extent_bits(&info->block_group_cache,
+						start, end,
+						BLOCK_GROUP_DATA |
+						BLOCK_GROUP_METADATA,
 						GFP_NOFS);
 			}
 			old_val += num_bytes;
@@ -886,6 +911,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	struct btrfs_block_group_cache *block_group;
 	int full_scan = 0;
 	int wrapped = 0;
+	u64 cached_start;
 
 	WARN_ON(num_bytes < root->sectorsize);
 	btrfs_set_key_type(ins, BTRFS_EXTENT_ITEM_KEY);
@@ -910,6 +936,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 check_failed:
 	search_start = find_search_start(root, &block_group,
 					 search_start, total_needed, data);
+	cached_start = search_start;
 	btrfs_init_path(path);
 	ins->objectid = search_start;
 	ins->offset = 0;
@@ -1532,9 +1559,12 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		key.objectid = found_key.objectid + found_key.offset;
 		btrfs_release_path(root, path);
 
-		if (cache->item.flags & BTRFS_BLOCK_GROUP_DATA) {
+		if (cache->item.flags & BTRFS_BLOCK_GROUP_MIXED) {
+			bit = BLOCK_GROUP_DATA | BLOCK_GROUP_METADATA;
+			cache->data = BTRFS_BLOCK_GROUP_MIXED;
+		} else if (cache->item.flags & BTRFS_BLOCK_GROUP_DATA) {
 			bit = BLOCK_GROUP_DATA;
-			cache->data = 1;
+			cache->data = BTRFS_BLOCK_GROUP_DATA;
 		} else {
 			bit = BLOCK_GROUP_METADATA;
 			cache->data = 0;

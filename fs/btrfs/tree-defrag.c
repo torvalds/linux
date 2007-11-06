@@ -58,6 +58,10 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 	if (root->fs_info->extent_root == root)
 		is_extent = 1;
 
+	if (*level == 1 && cache_only && path->nodes[1] &&
+	    !btrfs_buffer_defrag(path->nodes[1])) {
+		goto out;
+	}
 	while(*level > 0) {
 		WARN_ON(*level < 0);
 		WARN_ON(*level >= BTRFS_MAX_LEVEL);
@@ -116,7 +120,7 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
 
 	btrfs_clear_buffer_defrag(path->nodes[*level]);
-
+out:
 	free_extent_buffer(path->nodes[*level]);
 	path->nodes[*level] = NULL;
 	*level += 1;

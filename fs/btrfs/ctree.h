@@ -279,6 +279,8 @@ struct btrfs_csum_item {
 
 
 #define BTRFS_BLOCK_GROUP_DATA 1
+#define BTRFS_BLOCK_GROUP_MIXED 2
+
 struct btrfs_block_group_item {
 	__le64 used;
 	u8 flags;
