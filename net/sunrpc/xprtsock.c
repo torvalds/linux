@@ -903,7 +903,7 @@ static inline void xs_tcp_read_fraghdr(struct rpc_xprt *xprt, struct xdr_skb_rea
 	/* Sanity check of the record length */
 	if (unlikely(transport->tcp_reclen < 4)) {
 		dprintk("RPC:       invalid TCP record fragment length\n");
-		xprt_disconnect(xprt);
+		xprt_force_disconnect(xprt);
 		return;
 	}
 	dprintk("RPC:       reading TCP record fragment of length %d\n",
