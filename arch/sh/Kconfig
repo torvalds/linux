@@ -605,7 +605,7 @@ config BOOT_LINK_OFFSET
 
 config UBC_WAKEUP
 	bool "Wakeup UBC on startup"
-	depends on CPU_SH4
+	depends on CPU_SH4 && !CPU_SH4A
 	help
 	  Selecting this option will wakeup the User Break Controller (UBC) on
 	  startup. Although the UBC is left in an awake state when the processor
