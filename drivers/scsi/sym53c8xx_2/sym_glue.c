@@ -1243,7 +1243,7 @@ static void sym_free_resources(struct sym_hcb *np, struct pci_dev *pdev)
 	 *  Free O/S specific resources.
 	 */
 	if (pdev->irq)
-		free_irq(pdev->irq, np);
+		free_irq(pdev->irq, np->s.host);
 	if (np->s.ioaddr)
 		pci_iounmap(pdev, np->s.ioaddr);
 	if (np->s.ramaddr)
