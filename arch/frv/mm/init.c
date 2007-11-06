@@ -197,7 +197,7 @@ void __init mem_init(void)
 /*
  * free the memory that was only required for initialisation
  */
-void __init free_initmem(void)
+void free_initmem(void)
 {
 #if defined(CONFIG_RAMKERNEL) && !defined(CONFIG_PROTECT_KERNEL)
 	unsigned long start, end, addr;
