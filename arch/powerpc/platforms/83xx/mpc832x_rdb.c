@@ -19,8 +19,8 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/mmc_spi.h>
 #include <linux/mmc/host.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_platform.h>
 #include <asm/time.h>
 #include <asm/ipic.h>
 #include <asm/udbg.h>

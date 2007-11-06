@@ -29,9 +29,9 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/initrd.h>
+#include <linux/of_platform.h>
+#include <linux/of_device.h>
 
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/system.h>
 #include <asm/atomic.h>
 #include <asm/time.h>
