@@ -449,7 +449,7 @@ xprt_rdma_close(struct rpc_xprt *xprt)
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
 	dprintk("RPC:       %s: closing\n", __func__);
-	xprt_disconnect(xprt);
+	xprt_disconnect_done(xprt);
 	(void) rpcrdma_ep_disconnect(&r_xprt->rx_ep, &r_xprt->rx_ia);
 }
 
@@ -682,7 +682,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 	}
 
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req)) {
-		xprt_disconnect(xprt);
+		xprt_disconnect_done(xprt);
 		return -ENOTCONN;	/* implies disconnect */
 	}
 

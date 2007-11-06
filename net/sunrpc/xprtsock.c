@@ -777,7 +777,7 @@ clear_close_wait:
 	clear_bit(XPRT_CLOSE_WAIT, &xprt->state);
 	clear_bit(XPRT_CLOSING, &xprt->state);
 	smp_mb__after_clear_bit();
-	xprt_disconnect(xprt);
+	xprt_disconnect_done(xprt);
 }
 
 /**
@@ -1159,7 +1159,7 @@ static void xs_tcp_state_change(struct sock *sk)
 		clear_bit(XPRT_CLOSING, &xprt->state);
 		smp_mb__after_clear_bit();
 		/* Mark transport as closed and wake up all pending tasks */
-		xprt_disconnect(xprt);
+		xprt_disconnect_done(xprt);
 	}
  out:
 	read_unlock(&sk->sk_callback_lock);

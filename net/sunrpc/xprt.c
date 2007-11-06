@@ -574,11 +574,11 @@ static void xprt_autoclose(struct work_struct *work)
 }
 
 /**
- * xprt_disconnect - mark a transport as disconnected
+ * xprt_disconnect_done - mark a transport as disconnected
  * @xprt: transport to flag for disconnect
  *
  */
-void xprt_disconnect(struct rpc_xprt *xprt)
+void xprt_disconnect_done(struct rpc_xprt *xprt)
 {
 	dprintk("RPC:       disconnected transport %p\n", xprt);
 	spin_lock_bh(&xprt->transport_lock);
@@ -586,7 +586,7 @@ void xprt_disconnect(struct rpc_xprt *xprt)
 	xprt_wake_pending_tasks(xprt, -ENOTCONN);
 	spin_unlock_bh(&xprt->transport_lock);
 }
-EXPORT_SYMBOL_GPL(xprt_disconnect);
+EXPORT_SYMBOL_GPL(xprt_disconnect_done);
 
 /**
  * xprt_force_disconnect - force a transport to disconnect
