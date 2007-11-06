@@ -719,7 +719,7 @@ config ARCH_HIBERNATION_HEADER
 
 source "drivers/acpi/Kconfig"
 
-source "arch/x86/kernel/cpu/cpufreq/Kconfig_64"
+source "arch/x86/kernel/cpu/cpufreq/Kconfig"
 
 source "drivers/cpuidle/Kconfig"
 
