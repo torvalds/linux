@@ -557,14 +557,9 @@ static inline unsigned long btrfs_node_key_ptr_offset(int nr)
 		sizeof(struct btrfs_key_ptr) * nr;
 }
 
-static inline void btrfs_node_key(struct extent_buffer *eb,
-			   struct btrfs_disk_key *disk_key, int nr)
-{
-	unsigned long ptr;
-	ptr = btrfs_node_key_ptr_offset(nr);
-	read_eb_member(eb, (struct btrfs_key_ptr *)ptr,
-		       struct btrfs_key_ptr, key, disk_key);
-}
+void btrfs_node_key(struct extent_buffer *eb,
+		    struct btrfs_disk_key *disk_key, int nr);
+
 static inline void btrfs_set_node_key(struct extent_buffer *eb,
 				      struct btrfs_disk_key *disk_key, int nr)
 {
