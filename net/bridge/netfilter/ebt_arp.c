@@ -34,7 +34,7 @@ static int ebt_filter_arp(const struct sk_buff *skb, const struct net_device *in
 	   ah->ar_pro, EBT_ARP_PTYPE))
 		return EBT_NOMATCH;
 
-	if (info->bitmask & (EBT_ARP_SRC_IP | EBT_ARP_DST_IP)) {
+	if (info->bitmask & (EBT_ARP_SRC_IP | EBT_ARP_DST_IP | EBT_ARP_GRAT)) {
 		__be32 saddr, daddr, *sap, *dap;
 
 		if (ah->ar_pln != sizeof(__be32) || ah->ar_pro != htons(ETH_P_IP))
