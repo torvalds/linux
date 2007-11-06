@@ -290,6 +290,8 @@ static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
 		mac_ctl |= B43legacy_TX4_MAC_STMSDU;
 	if (rate_fb_ofdm)
 		mac_ctl |= B43legacy_TX4_MAC_FALLBACKOFDM;
+	if (txctl->flags & IEEE80211_TXCTL_LONG_RETRY_LIMIT)
+		mac_ctl |= B43legacy_TX4_MAC_LONGFRAME;
 
 	/* Generate the RTS or CTS-to-self frame */
 	if ((txctl->flags & IEEE80211_TXCTL_USE_RTS_CTS) ||
@@ -335,7 +337,6 @@ static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
 					    len, rts_rate_fb);
 		hdr = (struct ieee80211_hdr *)(&txhdr->rts_frame);
 		txhdr->rts_dur_fb = hdr->duration_id;
-		mac_ctl |= B43legacy_TX4_MAC_LONGFRAME;
 	}
 
 	/* Magic cookie */
