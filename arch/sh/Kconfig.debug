@@ -130,6 +130,7 @@ config SH_KGDB_CONSOLE
 
 config KGDB_SYSRQ
 	bool "Allow SysRq 'G' to enter KGDB"
+	depends on MAGIC_SYSRQ
 	default y
 
 comment "Serial port setup"
