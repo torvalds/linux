@@ -228,8 +228,6 @@ static long ptrace32_siginfo(unsigned request, u32 pid, u32 addr, u32 data)
 	return ret;
 }
 
-#define COMPAT_GDT_ENTRY_TLS_MIN 6
-
 asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 {
 	struct task_struct *child;
@@ -248,6 +246,8 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_SYSCALL:
 	case PTRACE_OLDSETOPTIONS:
 	case PTRACE_SETOPTIONS:
+	case PTRACE_SET_THREAD_AREA:
+	case PTRACE_GET_THREAD_AREA:
 		return sys_ptrace(request, pid, addr, data); 
 
 	default:
@@ -271,12 +271,6 @@ asmlinkage long sys32_ptrace(long request, u32 pid, u32 addr, u32 data)
 	case PTRACE_SETSIGINFO:
 	case PTRACE_GETSIGINFO:
 		return ptrace32_siginfo(request, pid, addr, data);
-
-	case PTRACE_SET_THREAD_AREA:
-	case PTRACE_GET_THREAD_AREA:
-		return sys_ptrace(request, pid,
-			addr + GDT_ENTRY_TLS_MIN - COMPAT_GDT_ENTRY_TLS_MIN,
-			data);
 	}
 
 	child = ptrace_get_task_struct(pid);
