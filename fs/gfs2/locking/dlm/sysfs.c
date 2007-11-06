@@ -219,7 +219,7 @@ void gdlm_kobject_release(struct gdlm_ls *ls)
 
 int gdlm_sysfs_init(void)
 {
-	gdlm_kset = kset_create_and_add("lock_dlm", NULL, &kernel_kset->kobj);
+	gdlm_kset = kset_create_and_add("lock_dlm", NULL, kernel_kobj);
 	if (!gdlm_kset) {
 		printk(KERN_WARNING "%s: can not create kset\n", __FUNCTION__);
 		return -ENOMEM;

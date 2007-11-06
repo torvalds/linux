@@ -321,7 +321,7 @@ static int __init securityfs_init(void)
 {
 	int retval;
 
-  	security_kobj = kobject_create_and_add("security", &kernel_kset->kobj);
+	security_kobj = kobject_create_and_add("security", kernel_kobj);
 	if (!security_kobj)
 		return -EINVAL;
 

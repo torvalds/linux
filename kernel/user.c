@@ -201,7 +201,7 @@ done:
  */
 int __init uids_sysfs_init(void)
 {
-	uids_kset = kset_create_and_add("uids", NULL, &kernel_kset->kobj);
+	uids_kset = kset_create_and_add("uids", NULL, kernel_kobj);
 	if (!uids_kset)
 		return -ENOMEM;
 

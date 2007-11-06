@@ -101,8 +101,8 @@ static struct bin_attribute notes_attr = {
 	.read = &notes_read,
 };
 
-struct kset *kernel_kset;
-EXPORT_SYMBOL_GPL(kernel_kset);
+struct kobject *kernel_kobj;
+EXPORT_SYMBOL_GPL(kernel_kobj);
 
 static struct attribute * kernel_attrs[] = {
 #if defined(CONFIG_HOTPLUG) && defined(CONFIG_NET)
@@ -125,18 +125,18 @@ static int __init ksysfs_init(void)
 {
 	int error;
 
-	kernel_kset = kset_create_and_add("kernel", NULL, NULL);
-	if (!kernel_kset) {
+	kernel_kobj = kobject_create_and_add("kernel", NULL);
+	if (!kernel_kobj) {
 		error = -ENOMEM;
 		goto exit;
 	}
-	error = sysfs_create_group(&kernel_kset->kobj, &kernel_attr_group);
+	error = sysfs_create_group(kernel_kobj, &kernel_attr_group);
 	if (error)
 		goto kset_exit;
 
 	if (notes_size > 0) {
 		notes_attr.size = notes_size;
-		error = sysfs_create_bin_file(&kernel_kset->kobj, &notes_attr);
+		error = sysfs_create_bin_file(kernel_kobj, &notes_attr);
 		if (error)
 			goto group_exit;
 	}
@@ -150,11 +150,11 @@ static int __init ksysfs_init(void)
 
 notes_exit:
 	if (notes_size > 0)
-		sysfs_remove_bin_file(&kernel_kset->kobj, &notes_attr);
+		sysfs_remove_bin_file(kernel_kobj, &notes_attr);
 group_exit:
-	sysfs_remove_group(&kernel_kset->kobj, &kernel_attr_group);
+	sysfs_remove_group(kernel_kobj, &kernel_attr_group);
 kset_exit:
-	kset_unregister(kernel_kset);
+	kobject_unregister(kernel_kobj);
 exit:
 	return error;
 }
