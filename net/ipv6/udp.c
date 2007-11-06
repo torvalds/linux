@@ -205,12 +205,11 @@ out:
 	return err;
 
 csum_copy_err:
+	UDP6_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
 	skb_kill_datagram(sk, skb, flags);
 
-	if (flags & MSG_DONTWAIT) {
-		UDP6_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
+	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
-	}
 	goto try_again;
 }
 
