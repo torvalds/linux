@@ -1172,7 +1172,6 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	struct usb_host_interface *alt;
 	int ret;
 	int manual = 0;
-	int changed;
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
@@ -1212,8 +1211,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 */
 
 	/* prevent submissions using previous endpoint settings */
-	changed = (iface->cur_altsetting != alt);
-	if (changed && device_is_registered(&iface->dev))
+	if (iface->cur_altsetting != alt && device_is_registered(&iface->dev))
 		usb_remove_sysfs_intf_files(iface);
 	usb_disable_interface(dev, iface);
 
@@ -1250,7 +1248,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * (Likewise, EP0 never "halts" on well designed devices.)
 	 */
 	usb_enable_interface(dev, iface);
-	if (changed && device_is_registered(&iface->dev))
+	if (device_is_registered(&iface->dev))
 		usb_create_sysfs_intf_files(iface);
 
 	return 0;
@@ -1641,12 +1639,6 @@ free_interfaces:
 				intf->dev.bus_id, ret);
 			continue;
 		}
-
-		/* The driver's probe method can call usb_set_interface(),
-		 * which would mean the interface's sysfs files are already
-		 * created.  Just in case, we'll remove them first.
-		 */
-		usb_remove_sysfs_intf_files(intf);
 		usb_create_sysfs_intf_files(intf);
 	}
 
