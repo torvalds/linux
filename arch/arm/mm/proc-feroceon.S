@@ -453,6 +453,33 @@ cpu_feroceon_name:
 
 	.section ".proc.info.init", #alloc, #execinstr
 
+#ifdef CONFIG_CPU_FEROCEON_OLD_ID
+	.type	__feroceon_old_id_proc_info,#object
+__feroceon_old_id_proc_info:
+	.long	0x41069260
+	.long	0xfffffff0
+	.long   PMD_TYPE_SECT | \
+		PMD_SECT_BUFFERABLE | \
+		PMD_SECT_CACHEABLE | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	.long   PMD_TYPE_SECT | \
+		PMD_BIT4 | \
+		PMD_SECT_AP_WRITE | \
+		PMD_SECT_AP_READ
+	b	__feroceon_setup
+	.long	cpu_arch_name
+	.long	cpu_elf_name
+	.long	HWCAP_SWP|HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_EDSP
+	.long	cpu_feroceon_name
+	.long	feroceon_processor_functions
+	.long	v4wbi_tlb_fns
+	.long	v4wb_user_fns
+	.long	feroceon_cache_fns
+	.size	__feroceon_old_id_proc_info, . - __feroceon_old_id_proc_info
+#endif
+
 	.type	__feroceon_proc_info,#object
 __feroceon_proc_info:
 	.long	0x56055310

@@ -354,6 +354,15 @@ config CPU_FEROCEON
 	select CPU_COPY_V4WB if MMU
 	select CPU_TLB_V4WBI if MMU
 
+config CPU_FEROCEON_OLD_ID
+	bool "Accept early Feroceon cores with an ARM926 ID"
+	depends on CPU_FEROCEON && !CPU_ARM926T
+	default y
+	help
+	  This enables the usage of some old Feroceon cores
+	  for which the CPU ID is equal to the ARM926 ID.
+	  Relevant for Feroceon-1850 and early Feroceon-2850.
+
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
