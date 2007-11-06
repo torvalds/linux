@@ -176,7 +176,7 @@ static void jffs2_iset_acl(struct inode *inode, struct posix_acl **i_acl, struct
 	spin_unlock(&inode->i_lock);
 }
 
-struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
+static struct posix_acl *jffs2_get_acl(struct inode *inode, int type)
 {
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 	struct posix_acl *acl;
