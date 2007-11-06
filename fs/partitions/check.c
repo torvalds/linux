@@ -335,7 +335,7 @@ static inline void partition_sysfs_add_subdir(struct hd_struct *p)
 	struct kobject *k;
 
 	k = kobject_get(&p->kobj);
-	p->holder_dir = kobject_add_dir(k, "holders");
+	p->holder_dir = kobject_create_and_add("holders", k);
 	kobject_put(k);
 }
 
@@ -344,8 +344,8 @@ static inline void disk_sysfs_add_subdirs(struct gendisk *disk)
 	struct kobject *k;
 
 	k = kobject_get(&disk->kobj);
-	disk->holder_dir = kobject_add_dir(k, "holders");
-	disk->slave_dir = kobject_add_dir(k, "slaves");
+	disk->holder_dir = kobject_create_and_add("holders", k);
+	disk->slave_dir = kobject_create_and_add("slaves", k);
 	kobject_put(k);
 }
 

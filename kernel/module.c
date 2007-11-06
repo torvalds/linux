@@ -1122,7 +1122,7 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 		++loaded;
 	}
 
-	notes_attrs->dir = kobject_add_dir(&mod->mkobj.kobj, "notes");
+	notes_attrs->dir = kobject_create_and_add("notes", &mod->mkobj.kobj);
 	if (!notes_attrs->dir)
 		goto out;
 
@@ -1243,7 +1243,7 @@ int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out;
 
-	mod->holders_dir = kobject_add_dir(&mod->mkobj.kobj, "holders");
+	mod->holders_dir = kobject_create_and_add("holders", &mod->mkobj.kobj);
 	if (!mod->holders_dir) {
 		err = -ENOMEM;
 		goto out_unreg;
@@ -2521,7 +2521,7 @@ static void module_create_drivers_dir(struct module_kobject *mk)
 	if (!mk || mk->drivers_dir)
 		return;
 
-	mk->drivers_dir = kobject_add_dir(&mk->kobj, "drivers");
+	mk->drivers_dir = kobject_create_and_add("drivers", &mk->kobj);
 }
 
 void module_add_driver(struct module *mod, struct device_driver *drv)

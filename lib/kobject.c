@@ -713,18 +713,6 @@ struct kobject *kobject_kset_add_dir(struct kset *kset,
 }
 
 /**
- *	kobject_add_dir - add sub directory of object.
- *	@parent:	object in which a directory is created.
- *	@name:	directory name.
- *
- *	Add a plain directory object as child of given object.
- */
-struct kobject *kobject_add_dir(struct kobject *parent, const char *name)
-{
-	return kobject_create_and_add(name, parent);
-}
-
-/**
  *	kset_init - initialize a kset for use
  *	@k:	kset 
  */
