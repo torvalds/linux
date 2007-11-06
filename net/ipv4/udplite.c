@@ -44,6 +44,8 @@ static	struct net_protocol udplite_protocol = {
 	.no_policy	= 1,
 };
 
+DEFINE_PROTO_INUSE(udplite)
+
 struct proto 	udplite_prot = {
 	.name		   = "UDP-Lite",
 	.owner		   = THIS_MODULE,
@@ -67,6 +69,7 @@ struct proto 	udplite_prot = {
 	.compat_setsockopt = compat_udp_setsockopt,
 	.compat_getsockopt = compat_udp_getsockopt,
 #endif
+	REF_PROTO_INUSE(udplite)
 };
 
 static struct inet_protosw udplite4_protosw = {
