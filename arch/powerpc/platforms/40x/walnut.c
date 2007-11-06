@@ -17,12 +17,13 @@
  */
 
 #include <linux/init.h>
+#include <linux/of_platform.h>
+
 #include <asm/machdep.h>
 #include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>
-#include <asm/of_platform.h>
 
 static struct of_device_id walnut_of_bus[] = {
 	{ .compatible = "ibm,plb3", },
