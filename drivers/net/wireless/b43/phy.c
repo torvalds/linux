@@ -3,7 +3,7 @@
   Broadcom B43 wireless driver
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005, 2006 Stefano Brivio <st3@riseup.net>
+  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
   Copyright (c) 2005, 2006 Michael Buesch <mb@bu3sch.de>
   Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>

@@ -4,7 +4,7 @@
   LED control
 
   Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005 Stefano Brivio <st3@riseup.net>
+  Copyright (c) 2005 Stefano Brivio <stefano.brivio@polimi.it>
   Copyright (c) 2005-2007 Michael Buesch <mb@bu3sch.de>
   Copyright (c) 2005 Danny van Dyk <kugelfang@gentoo.org>
   Copyright (c) 2005 Andreas Jaggi <andreas.jaggi@waterwave.ch>

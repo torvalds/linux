@@ -4,11 +4,8 @@
 
   PHY workarounds.
 
-  Copyright (c) 2005 Martin Langer <martin-langer@gmx.de>,
-  Copyright (c) 2005-2007 Stefano Brivio <st3@riseup.net>
+  Copyright (c) 2005-2007 Stefano Brivio <stefano.brivio@polimi.it>
   Copyright (c) 2005-2007 Michael Buesch <mbuesch@freenet.de>
-  Copyright (c) 2005, 2006 Danny van Dyk <kugelfang@gentoo.org>
-  Copyright (c) 2005, 2006 Andreas Jaggi <andreas.jaggi@waterwave.ch>
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
