@@ -515,8 +515,8 @@ static inline void tcp_push(struct sock *sk, int flags, int mss_now,
 	}
 }
 
-int tcp_splice_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
-			 unsigned int offset, size_t len)
+static int tcp_splice_data_recv(read_descriptor_t *rd_desc, struct sk_buff *skb,
+				unsigned int offset, size_t len)
 {
 	struct tcp_splice_state *tss = rd_desc->arg.data;
 
