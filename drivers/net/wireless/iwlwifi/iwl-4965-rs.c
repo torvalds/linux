@@ -782,7 +782,7 @@ static void rs_set_stay_in_table(u8 is_legacy,
 	if (is_legacy) {
 		lq_data->table_count_limit = IWL_LEGACY_TABLE_COUNT;
 		lq_data->max_failure_limit = IWL_LEGACY_FAILURE_LIMIT;
-		lq_data->max_success_limit = IWL_LEGACY_TABLE_COUNT;
+		lq_data->max_success_limit = IWL_LEGACY_SUCCESS_LIMIT;
 	} else {
 		lq_data->table_count_limit = IWL_NONE_LEGACY_TABLE_COUNT;
 		lq_data->max_failure_limit = IWL_NONE_LEGACY_FAILURE_LIMIT;
@@ -937,9 +937,10 @@ static int rs_switch_to_mimo(struct iwl_priv *priv,
 
 	IWL_DEBUG_HT("LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate.rate_n_flags, is_green);
-
-#endif				/*CONFIG_IWL4965_HT */
 	return 0;
+#else
+	return -1;
+#endif				/*CONFIG_IWL4965_HT */
 }
 
 static int rs_switch_to_siso(struct iwl_priv *priv,
@@ -991,9 +992,11 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	rs_mcs_from_tbl(&tbl->current_rate, tbl, rate, is_green);
 	IWL_DEBUG_HT("LQ: Switch to new mcs %X index is green %X\n",
 		     tbl->current_rate.rate_n_flags, is_green);
+	return 0;
+#else
+	return -1;
 
 #endif				/*CONFIG_IWL4965_HT */
-	return 0;
 }
 
 static int rs_move_legacy_other(struct iwl_priv *priv,
@@ -1282,7 +1285,7 @@ static void rs_stay_in_table(struct iwl_rate_scale_priv *lq_data)
 			lq_data->total_failed = 0;
 			lq_data->total_success = 0;
 			lq_data->flush_timer = 0;
-		} else if (lq_data->table_count > 0) {
+		} else {
 			lq_data->table_count++;
 			if (lq_data->table_count >=
 			    lq_data->table_count_limit) {
