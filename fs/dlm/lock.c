@@ -334,7 +334,7 @@ static struct dlm_rsb *create_rsb(struct dlm_ls *ls, char *name, int len)
 {
 	struct dlm_rsb *r;
 
-	r = allocate_rsb(ls, len);
+	r = dlm_allocate_rsb(ls, len);
 	if (!r)
 		return NULL;
 
@@ -477,7 +477,7 @@ static int find_rsb(struct dlm_ls *ls, char *name, int namelen,
 	error = _search_rsb(ls, name, namelen, bucket, 0, &tmp);
 	if (!error) {
 		write_unlock(&ls->ls_rsbtbl[bucket].lock);
-		free_rsb(r);
+		dlm_free_rsb(r);
 		r = tmp;
 		goto out;
 	}
@@ -518,7 +518,7 @@ static void toss_rsb(struct kref *kref)
 	list_move(&r->res_hashchain, &ls->ls_rsbtbl[r->res_bucket].toss);
 	r->res_toss_time = jiffies;
 	if (r->res_lvbptr) {
-		free_lvb(r->res_lvbptr);
+		dlm_free_lvb(r->res_lvbptr);
 		r->res_lvbptr = NULL;
 	}
 }
@@ -588,7 +588,7 @@ static int create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret)
 	uint32_t lkid = 0;
 	uint16_t bucket;
 
-	lkb = allocate_lkb(ls);
+	lkb = dlm_allocate_lkb(ls);
 	if (!lkb)
 		return -ENOMEM;
 
@@ -682,8 +682,8 @@ static int __put_lkb(struct dlm_ls *ls, struct dlm_lkb *lkb)
 
 		/* for local/process lkbs, lvbptr points to caller's lksb */
 		if (lkb->lkb_lvbptr && is_master_copy(lkb))
-			free_lvb(lkb->lkb_lvbptr);
-		free_lkb(lkb);
+			dlm_free_lvb(lkb->lkb_lvbptr);
+		dlm_free_lkb(lkb);
 		return 1;
 	} else {
 		write_unlock(&ls->ls_lkbtbl[bucket].lock);
@@ -987,7 +987,7 @@ static int shrink_bucket(struct dlm_ls *ls, int b)
 
 			if (is_master(r))
 				dir_remove(r);
-			free_rsb(r);
+			dlm_free_rsb(r);
 			count++;
 		} else {
 			write_unlock(&ls->ls_rsbtbl[b].lock);
@@ -1170,7 +1170,7 @@ static void set_lvb_lock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 			return;
 
 		if (!r->res_lvbptr)
-			r->res_lvbptr = allocate_lvb(r->res_ls);
+			r->res_lvbptr = dlm_allocate_lvb(r->res_ls);
 
 		if (!r->res_lvbptr)
 			return;
@@ -1202,7 +1202,7 @@ static void set_lvb_unlock(struct dlm_rsb *r, struct dlm_lkb *lkb)
 		return;
 
 	if (!r->res_lvbptr)
-		r->res_lvbptr = allocate_lvb(r->res_ls);
+		r->res_lvbptr = dlm_allocate_lvb(r->res_ls);
 
 	if (!r->res_lvbptr)
 		return;
@@ -2985,7 +2985,7 @@ static int receive_lvb(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 	if (lkb->lkb_exflags & DLM_LKF_VALBLK) {
 		if (!lkb->lkb_lvbptr)
-			lkb->lkb_lvbptr = allocate_lvb(ls);
+			lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
 		if (!lkb->lkb_lvbptr)
 			return -ENOMEM;
 		len = receive_extralen(ms);
@@ -3009,7 +3009,7 @@ static int receive_request_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 
 	if (lkb->lkb_exflags & DLM_LKF_VALBLK) {
 		/* lkb was just created so there won't be an lvb yet */
-		lkb->lkb_lvbptr = allocate_lvb(ls);
+		lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
 		if (!lkb->lkb_lvbptr)
 			return -ENOMEM;
 	}
@@ -4183,7 +4183,7 @@ static int receive_rcom_lock_args(struct dlm_ls *ls, struct dlm_lkb *lkb,
 	lkb->lkb_astaddr = (void *) (long) (rl->rl_asts & AST_COMP);
 
 	if (lkb->lkb_exflags & DLM_LKF_VALBLK) {
-		lkb->lkb_lvbptr = allocate_lvb(ls);
+		lkb->lkb_lvbptr = dlm_allocate_lvb(ls);
 		if (!lkb->lkb_lvbptr)
 			return -ENOMEM;
 		lvblen = rc->rc_header.h_length - sizeof(struct dlm_rcom) -
@@ -4341,7 +4341,7 @@ int dlm_user_request(struct dlm_ls *ls, struct dlm_user_args *ua,
 		}
 	}
 
-	/* After ua is attached to lkb it will be freed by free_lkb().
+	/* After ua is attached to lkb it will be freed by dlm_free_lkb().
 	   When DLM_IFL_USER is set, the dlm knows that this is a userspace
 	   lock and that lkb_astparam is the dlm_user_args structure. */
 

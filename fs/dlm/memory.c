@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2005 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -35,7 +35,7 @@ void dlm_memory_exit(void)
 		kmem_cache_destroy(lkb_cache);
 }
 
-char *allocate_lvb(struct dlm_ls *ls)
+char *dlm_allocate_lvb(struct dlm_ls *ls)
 {
 	char *p;
 
@@ -43,7 +43,7 @@ char *allocate_lvb(struct dlm_ls *ls)
 	return p;
 }
 
-void free_lvb(char *p)
+void dlm_free_lvb(char *p)
 {
 	kfree(p);
 }
@@ -51,7 +51,7 @@ void free_lvb(char *p)
 /* FIXME: have some minimal space built-in to rsb for the name and
    kmalloc a separate name if needed, like dentries are done */
 
-struct dlm_rsb *allocate_rsb(struct dlm_ls *ls, int namelen)
+struct dlm_rsb *dlm_allocate_rsb(struct dlm_ls *ls, int namelen)
 {
 	struct dlm_rsb *r;
 
@@ -61,14 +61,14 @@ struct dlm_rsb *allocate_rsb(struct dlm_ls *ls, int namelen)
 	return r;
 }
 
-void free_rsb(struct dlm_rsb *r)
+void dlm_free_rsb(struct dlm_rsb *r)
 {
 	if (r->res_lvbptr)
-		free_lvb(r->res_lvbptr);
+		dlm_free_lvb(r->res_lvbptr);
 	kfree(r);
 }
 
-struct dlm_lkb *allocate_lkb(struct dlm_ls *ls)
+struct dlm_lkb *dlm_allocate_lkb(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
 
@@ -76,7 +76,7 @@ struct dlm_lkb *allocate_lkb(struct dlm_ls *ls)
 	return lkb;
 }
 
-void free_lkb(struct dlm_lkb *lkb)
+void dlm_free_lkb(struct dlm_lkb *lkb)
 {
 	if (lkb->lkb_flags & DLM_IFL_USER) {
 		struct dlm_user_args *ua;
@@ -88,21 +88,5 @@ void free_lkb(struct dlm_lkb *lkb)
 		}
 	}
 	kmem_cache_free(lkb_cache, lkb);
-}
-
-struct dlm_direntry *allocate_direntry(struct dlm_ls *ls, int namelen)
-{
-	struct dlm_direntry *de;
-
-	DLM_ASSERT(namelen <= DLM_RESNAME_MAXLEN,
-		   printk("namelen = %d\n", namelen););
-
-	de = kzalloc(sizeof(*de) + namelen, GFP_KERNEL);
-	return de;
-}
-
-void free_direntry(struct dlm_direntry *de)
-{
-	kfree(de);
 }
 

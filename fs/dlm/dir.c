@@ -49,7 +49,7 @@ static struct dlm_direntry *get_free_de(struct dlm_ls *ls, int len)
 	spin_unlock(&ls->ls_recover_list_lock);
 
 	if (!found)
-		de = allocate_direntry(ls, len);
+		de = kzalloc(sizeof(struct dlm_direntry) + len, GFP_KERNEL);
 	return de;
 }
 
@@ -62,7 +62,7 @@ void dlm_clear_free_entries(struct dlm_ls *ls)
 		de = list_entry(ls->ls_recover_list.next, struct dlm_direntry,
 				list);
 		list_del(&de->list);
-		free_direntry(de);
+		kfree(de);
 	}
 	spin_unlock(&ls->ls_recover_list_lock);
 }
@@ -171,7 +171,7 @@ void dlm_dir_remove_entry(struct dlm_ls *ls, int nodeid, char *name, int namelen
 	}
 
 	list_del(&de->list);
-	free_direntry(de);
+	kfree(de);
  out:
 	write_unlock(&ls->ls_dirtbl[bucket].lock);
 }
@@ -302,7 +302,7 @@ static int get_entry(struct dlm_ls *ls, int nodeid, char *name,
 
 	write_unlock(&ls->ls_dirtbl[bucket].lock);
 
-	de = allocate_direntry(ls, namelen);
+	de = kzalloc(sizeof(struct dlm_direntry) + namelen, GFP_KERNEL);
 	if (!de)
 		return -ENOMEM;
 
@@ -313,7 +313,7 @@ static int get_entry(struct dlm_ls *ls, int nodeid, char *name,
 	write_lock(&ls->ls_dirtbl[bucket].lock);
 	tmp = search_bucket(ls, name, namelen, bucket);
 	if (tmp) {
-		free_direntry(de);
+		kfree(de);
 		de = tmp;
 	} else {
 		list_add_tail(&de->list, &ls->ls_dirtbl[bucket].list);

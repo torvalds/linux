@@ -629,7 +629,7 @@ static void recover_lvb(struct dlm_rsb *r)
 		goto out;
 
 	if (!r->res_lvbptr) {
-		r->res_lvbptr = allocate_lvb(r->res_ls);
+		r->res_lvbptr = dlm_allocate_lvb(r->res_ls);
 		if (!r->res_lvbptr)
 			goto out;
 	}
@@ -760,7 +760,7 @@ void dlm_clear_toss_list(struct dlm_ls *ls)
 		list_for_each_entry_safe(r, safe, &ls->ls_rsbtbl[i].toss,
 					 res_hashchain) {
 			list_del(&r->res_hashchain);
-			free_rsb(r);
+			dlm_free_rsb(r);
 		}
 		write_unlock(&ls->ls_rsbtbl[i].lock);
 	}
