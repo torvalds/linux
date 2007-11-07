@@ -92,8 +92,8 @@ static inline void vring_init(struct vring *vr, unsigned int num, void *p)
 {
 	vr->num = num;
 	vr->desc = p;
-	vr->avail = p + num*sizeof(struct vring);
-	vr->used = p + (num+1)*(sizeof(struct vring) + sizeof(__u16));
+	vr->avail = p + num*sizeof(struct vring_desc);
+	vr->used = p + (num+1)*(sizeof(struct vring_desc) + sizeof(__u16));
 }
 
 static inline unsigned vring_size(unsigned int num)
