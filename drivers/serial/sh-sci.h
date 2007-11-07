@@ -77,7 +77,6 @@
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 # define SCSPTR0 0xA4400000	  /* 16 bit SCIF */
-# define SCI_NPORTS 2
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define PACR 0xa4050100
 # define PBCR 0xa4050102
