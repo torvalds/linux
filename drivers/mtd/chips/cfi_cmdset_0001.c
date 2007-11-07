@@ -795,6 +795,7 @@ static int chip_ready (struct map_info *map, struct flchip *chip, unsigned long 
 static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr, int mode)
 {
 	int ret;
+	DECLARE_WAITQUEUE(wait, current);
 
  retry:
 	if (chip->priv && (mode == FL_WRITING || mode == FL_ERASING
@@ -849,6 +850,20 @@ static int get_chip(struct map_info *map, struct flchip *chip, unsigned long adr
 			}
 			spin_lock(&shared->lock);
 			spin_unlock(contender->mutex);
+		}
+
+		/* Check if we already have suspended erase
+		 * on this chip. Sleep. */
+		if (mode == FL_ERASING && shared->erasing
+		    && shared->erasing->oldstate == FL_ERASING) {
+			spin_unlock(&shared->lock);
+			set_current_state(TASK_UNINTERRUPTIBLE);
+			add_wait_queue(&chip->wq, &wait);
+			spin_unlock(chip->mutex);
+			schedule();
+			remove_wait_queue(&chip->wq, &wait);
+			spin_lock(chip->mutex);
+			goto retry;
 		}
 
 		/* We now own it */
