@@ -1804,6 +1804,81 @@ static void megasas_complete_cmd_dpc(unsigned long instance_addr)
 }
 
 /**
+ * megasas_issue_init_mfi -	Initializes the FW
+ * @instance:		Adapter soft state
+ *
+ * Issues the INIT MFI cmd
+ */
+static int
+megasas_issue_init_mfi(struct megasas_instance *instance)
+{
+	u32 context;
+
+	struct megasas_cmd *cmd;
+
+	struct megasas_init_frame *init_frame;
+	struct megasas_init_queue_info *initq_info;
+	dma_addr_t init_frame_h;
+	dma_addr_t initq_info_h;
+
+	/*
+	 * Prepare a init frame. Note the init frame points to queue info
+	 * structure. Each frame has SGL allocated after first 64 bytes. For
+	 * this frame - since we don't need any SGL - we use SGL's space as
+	 * queue info structure
+	 *
+	 * We will not get a NULL command below. We just created the pool.
+	 */
+	cmd = megasas_get_cmd(instance);
+
+	init_frame = (struct megasas_init_frame *)cmd->frame;
+	initq_info = (struct megasas_init_queue_info *)
+		((unsigned long)init_frame + 64);
+
+	init_frame_h = cmd->frame_phys_addr;
+	initq_info_h = init_frame_h + 64;
+
+	context = init_frame->context;
+	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
+	memset(initq_info, 0, sizeof(struct megasas_init_queue_info));
+	init_frame->context = context;
+
+	initq_info->reply_queue_entries = instance->max_fw_cmds + 1;
+	initq_info->reply_queue_start_phys_addr_lo = instance->reply_queue_h;
+
+	initq_info->producer_index_phys_addr_lo = instance->producer_h;
+	initq_info->consumer_index_phys_addr_lo = instance->consumer_h;
+
+	init_frame->cmd = MFI_CMD_INIT;
+	init_frame->cmd_status = 0xFF;
+	init_frame->queue_info_new_phys_addr_lo = initq_info_h;
+
+	init_frame->data_xfer_len = sizeof(struct megasas_init_queue_info);
+
+	/*
+	 * disable the intr before firing the init frame to FW
+	 */
+	instance->instancet->disable_intr(instance->reg_set);
+
+	/*
+	 * Issue the init frame in polled mode
+	 */
+
+	if (megasas_issue_polled(instance, cmd)) {
+		printk(KERN_ERR "megasas: Failed to init firmware\n");
+		megasas_return_cmd(instance, cmd);
+		goto fail_fw_init;
+	}
+
+	megasas_return_cmd(instance, cmd);
+
+	return 0;
+
+fail_fw_init:
+	return -EINVAL;
+}
+
+/**
  * megasas_init_mfi -	Initializes the FW
  * @instance:		Adapter soft state
  *
@@ -1816,15 +1891,7 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	u32 max_sectors_1;
 	u32 max_sectors_2;
 	struct megasas_register_set __iomem *reg_set;
-
-	struct megasas_cmd *cmd;
 	struct megasas_ctrl_info *ctrl_info;
-
-	struct megasas_init_frame *init_frame;
-	struct megasas_init_queue_info *initq_info;
-	dma_addr_t init_frame_h;
-	dma_addr_t initq_info_h;
-
 	/*
 	 * Map the message registers
 	 */
@@ -1901,52 +1968,8 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 		goto fail_reply_queue;
 	}
 
-	/*
-	 * Prepare a init frame. Note the init frame points to queue info
-	 * structure. Each frame has SGL allocated after first 64 bytes. For
-	 * this frame - since we don't need any SGL - we use SGL's space as
-	 * queue info structure
-	 *
-	 * We will not get a NULL command below. We just created the pool.
-	 */
-	cmd = megasas_get_cmd(instance);
-
-	init_frame = (struct megasas_init_frame *)cmd->frame;
-	initq_info = (struct megasas_init_queue_info *)
-	    ((unsigned long)init_frame + 64);
-
-	init_frame_h = cmd->frame_phys_addr;
-	initq_info_h = init_frame_h + 64;
-
-	memset(init_frame, 0, MEGAMFI_FRAME_SIZE);
-	memset(initq_info, 0, sizeof(struct megasas_init_queue_info));
-
-	initq_info->reply_queue_entries = instance->max_fw_cmds + 1;
-	initq_info->reply_queue_start_phys_addr_lo = instance->reply_queue_h;
-
-	initq_info->producer_index_phys_addr_lo = instance->producer_h;
-	initq_info->consumer_index_phys_addr_lo = instance->consumer_h;
-
-	init_frame->cmd = MFI_CMD_INIT;
-	init_frame->cmd_status = 0xFF;
-	init_frame->queue_info_new_phys_addr_lo = initq_info_h;
-
-	init_frame->data_xfer_len = sizeof(struct megasas_init_queue_info);
-
-	/*
-	 * disable the intr before firing the init frame to FW
-	 */
-	instance->instancet->disable_intr(instance->reg_set);
-
-	/*
-	 * Issue the init frame in polled mode
-	 */
-	if (megasas_issue_polled(instance, cmd)) {
-		printk(KERN_DEBUG "megasas: Failed to init firmware\n");
+	if (megasas_issue_init_mfi(instance))
 		goto fail_fw_init;
-	}
-
-	megasas_return_cmd(instance, cmd);
 
 	ctrl_info = kmalloc(sizeof(struct megasas_ctrl_info), GFP_KERNEL);
 
@@ -1982,7 +2005,6 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	return 0;
 
       fail_fw_init:
-	megasas_return_cmd(instance, cmd);
 
 	pci_free_consistent(instance->pdev, reply_q_sz,
 			    instance->reply_queue, instance->reply_queue_h);
@@ -2264,6 +2286,28 @@ static int megasas_io_attach(struct megasas_instance *instance)
 	return 0;
 }
 
+static int
+megasas_set_dma_mask(struct pci_dev *pdev)
+{
+	/*
+	 * All our contollers are capable of performing 64-bit DMA
+	 */
+	if (IS_DMA64) {
+		if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
+
+			if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0)
+				goto fail_set_dma_mask;
+		}
+	} else {
+		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0)
+			goto fail_set_dma_mask;
+	}
+	return 0;
+
+fail_set_dma_mask:
+	return 1;
+}
+
 /**
  * megasas_probe_one -	PCI hotplug entry point
  * @pdev:		PCI device structure
@@ -2297,19 +2341,8 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_master(pdev);
 
-	/*
-	 * All our contollers are capable of performing 64-bit DMA
-	 */
-	if (IS_DMA64) {
-		if (pci_set_dma_mask(pdev, DMA_64BIT_MASK) != 0) {
-
-			if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0)
-				goto fail_set_dma_mask;
-		}
-	} else {
-		if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) != 0)
-			goto fail_set_dma_mask;
-	}
+	if (megasas_set_dma_mask(pdev))
+		goto fail_set_dma_mask;
 
 	host = scsi_host_alloc(&megasas_template,
 			       sizeof(struct megasas_instance));
@@ -2491,8 +2524,10 @@ static void megasas_flush_cache(struct megasas_instance *instance)
 /**
  * megasas_shutdown_controller -	Instructs FW to shutdown the controller
  * @instance:				Adapter soft state
+ * @opcode:				Shutdown/Hibernate
  */
-static void megasas_shutdown_controller(struct megasas_instance *instance)
+static void megasas_shutdown_controller(struct megasas_instance *instance,
+					u32 opcode)
 {
 	struct megasas_cmd *cmd;
 	struct megasas_dcmd_frame *dcmd;
@@ -2515,13 +2550,138 @@ static void megasas_shutdown_controller(struct megasas_instance *instance)
 	dcmd->flags = MFI_FRAME_DIR_NONE;
 	dcmd->timeout = 0;
 	dcmd->data_xfer_len = 0;
-	dcmd->opcode = MR_DCMD_CTRL_SHUTDOWN;
+	dcmd->opcode = opcode;
 
 	megasas_issue_blocked_cmd(instance, cmd);
 
 	megasas_return_cmd(instance, cmd);
 
 	return;
+}
+
+/**
+ * megasas_suspend -    driver suspend entry point
+ * @pdev:               PCI device structure
+ * @state:		PCI power state to suspend routine
+ */
+static int __devinit
+megasas_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct Scsi_Host *host;
+	struct megasas_instance *instance;
+
+	instance = pci_get_drvdata(pdev);
+	host = instance->host;
+
+	megasas_flush_cache(instance);
+	megasas_shutdown_controller(instance, MR_DCMD_HIBERNATE_SHUTDOWN);
+	tasklet_kill(&instance->isr_tasklet);
+
+	pci_set_drvdata(instance->pdev, instance);
+	instance->instancet->disable_intr(instance->reg_set);
+	free_irq(instance->pdev->irq, instance);
+
+	pci_save_state(pdev);
+	pci_disable_device(pdev);
+
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+
+	return 0;
+}
+
+/**
+ * megasas_resume-      driver resume entry point
+ * @pdev:               PCI device structure
+ */
+static int __devinit
+megasas_resume(struct pci_dev *pdev)
+{
+	int rval;
+	struct Scsi_Host *host;
+	struct megasas_instance *instance;
+
+	instance = pci_get_drvdata(pdev);
+	host = instance->host;
+	pci_set_power_state(pdev, PCI_D0);
+	pci_enable_wake(pdev, PCI_D0, 0);
+	pci_restore_state(pdev);
+
+	/*
+	 * PCI prepping: enable device set bus mastering and dma mask
+	 */
+	rval = pci_enable_device(pdev);
+
+	if (rval) {
+		printk(KERN_ERR "megasas: Enable device failed\n");
+		return rval;
+	}
+
+	pci_set_master(pdev);
+
+	if (megasas_set_dma_mask(pdev))
+		goto fail_set_dma_mask;
+
+	/*
+	 * Initialize MFI Firmware
+	 */
+
+	*instance->producer = 0;
+	*instance->consumer = 0;
+
+	atomic_set(&instance->fw_outstanding, 0);
+
+	/*
+	 * We expect the FW state to be READY
+	 */
+	if (megasas_transition_to_ready(instance))
+		goto fail_ready_state;
+
+	if (megasas_issue_init_mfi(instance))
+		goto fail_init_mfi;
+
+	tasklet_init(&instance->isr_tasklet, megasas_complete_cmd_dpc,
+			(unsigned long)instance);
+
+	/*
+	 * Register IRQ
+	 */
+	if (request_irq(pdev->irq, megasas_isr, IRQF_SHARED,
+		"megasas", instance)) {
+		printk(KERN_ERR "megasas: Failed to register IRQ\n");
+		goto fail_irq;
+	}
+
+	instance->instancet->enable_intr(instance->reg_set);
+
+	/*
+	 * Initiate AEN (Asynchronous Event Notification)
+	 */
+	if (megasas_start_aen(instance))
+		printk(KERN_ERR "megasas: Start AEN failed\n");
+
+	return 0;
+
+fail_irq:
+fail_init_mfi:
+	if (instance->evt_detail)
+		pci_free_consistent(pdev, sizeof(struct megasas_evt_detail),
+				instance->evt_detail,
+				instance->evt_detail_h);
+
+	if (instance->producer)
+		pci_free_consistent(pdev, sizeof(u32), instance->producer,
+				instance->producer_h);
+	if (instance->consumer)
+		pci_free_consistent(pdev, sizeof(u32), instance->consumer,
+				instance->consumer_h);
+	scsi_host_put(host);
+
+fail_set_dma_mask:
+fail_ready_state:
+
+	pci_disable_device(pdev);
+
+	return -ENODEV;
 }
 
 /**
@@ -2539,7 +2699,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 
 	scsi_remove_host(instance->host);
 	megasas_flush_cache(instance);
-	megasas_shutdown_controller(instance);
+	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
 	tasklet_kill(&instance->isr_tasklet);
 
 	/*
@@ -2978,6 +3138,8 @@ static struct pci_driver megasas_pci_driver = {
 	.id_table = megasas_pci_table,
 	.probe = megasas_probe_one,
 	.remove = __devexit_p(megasas_detach_one),
+	.suspend = megasas_suspend,
+	.resume = megasas_resume,
 	.shutdown = megasas_shutdown,
 };
 
