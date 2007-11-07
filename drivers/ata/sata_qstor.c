@@ -103,7 +103,7 @@ enum {
 	QS_DMA_BOUNDARY		= ~0UL
 };
 
-typedef enum { qs_state_idle, qs_state_pkt, qs_state_mmio } qs_state_t;
+typedef enum { qs_state_mmio, qs_state_pkt } qs_state_t;
 
 struct qs_port_priv {
 	u8			*pkt;
@@ -219,7 +219,9 @@ static void qs_irq_clear(struct ata_port *ap)
 static inline void qs_enter_reg_mode(struct ata_port *ap)
 {
 	u8 __iomem *chan = qs_mmio_base(ap->host) + (ap->port_no * 0x4000);
+	struct qs_port_priv *pp = ap->private_data;
 
+	pp->state = qs_state_mmio;
 	writeb(QS_CTR0_REG, chan + QS_CCT_CTR0);
 	readb(chan + QS_CCT_CTR0);        /* flush */
 }
@@ -235,19 +237,12 @@ static inline void qs_reset_channel_logic(struct ata_port *ap)
 
 static void qs_phy_reset(struct ata_port *ap)
 {
-	struct qs_port_priv *pp = ap->private_data;
-
-	pp->state = qs_state_idle;
 	qs_reset_channel_logic(ap);
 	sata_phy_reset(ap);
 }
 
 static void qs_eng_timeout(struct ata_port *ap)
 {
-	struct qs_port_priv *pp = ap->private_data;
-
-	if (pp->state != qs_state_idle) /* healthy paranoia */
-		pp->state = qs_state_mmio;
 	qs_reset_channel_logic(ap);
 	ata_eng_timeout(ap);
 }
@@ -406,7 +401,6 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 					switch (sHST) {
 					case 0: /* successful CPB */
 					case 3: /* device error */
-						pp->state = qs_state_idle;
 						qs_enter_reg_mode(qc->ap);
 						qc->err_mask |= ac_err_mask(sDST);
 						ata_qc_complete(qc);
@@ -445,7 +439,6 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 					ap->print_id, qc->tf.protocol, status);
 
 				/* complete taskfile transaction */
-				pp->state = qs_state_idle;
 				qc->err_mask |= ac_err_mask(status);
 				ata_qc_complete(qc);
 				handled = 1;
@@ -501,7 +494,6 @@ static int qs_port_start(struct ata_port *ap)
 	rc = ata_port_start(ap);
 	if (rc)
 		return rc;
-	qs_enter_reg_mode(ap);
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
@@ -512,6 +504,7 @@ static int qs_port_start(struct ata_port *ap)
 	memset(pp->pkt, 0, QS_PKT_BYTES);
 	ap->private_data = pp;
 
+	qs_enter_reg_mode(ap);
 	addr = (u64)pp->pkt_dma;
 	writel((u32) addr,        chan + QS_CCF_CPBA);
 	writel((u32)(addr >> 32), chan + QS_CCF_CPBA + 4);
