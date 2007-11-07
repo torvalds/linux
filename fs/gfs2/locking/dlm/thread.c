@@ -273,18 +273,13 @@ static int gdlm_thread(void *data, int blist)
 	struct gdlm_ls *ls = (struct gdlm_ls *) data;
 	struct gdlm_lock *lp = NULL;
 	uint8_t complete, blocking, submit, drop;
-	DECLARE_WAITQUEUE(wait, current);
 
 	/* Only thread1 is allowed to do blocking callbacks since gfs
 	   may wait for a completion callback within a blocking cb. */
 
 	while (!kthread_should_stop()) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		add_wait_queue(&ls->thread_wait, &wait);
-		if (no_work(ls, blist))
-			schedule();
-		remove_wait_queue(&ls->thread_wait, &wait);
-		set_current_state(TASK_RUNNING);
+		wait_event_interruptible(ls->thread_wait,
+				!no_work(ls, blist) || kthread_should_stop());
 
 		complete = blocking = submit = drop = 0;
 
