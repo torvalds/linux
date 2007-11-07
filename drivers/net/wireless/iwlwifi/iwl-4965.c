@@ -4269,14 +4269,6 @@ static int iwl4965_tx_queue_agg_disable(struct iwl4965_priv *priv, u16 txq_id,
 
 #endif/* CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */
-/*
- * RATE SCALE CODE
- */
-int iwl4965_init_hw_rates(struct iwl4965_priv *priv, struct ieee80211_rate *rates)
-{
-	return 0;
-}
-
 
 /**
  * iwl4965_add_station - Initialize a station's hardware rate table

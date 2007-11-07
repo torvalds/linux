@@ -5633,8 +5633,6 @@ static void iwl4965_init_hw_rates(struct iwl4965_priv *priv,
 		if (IWL_BASIC_RATES_MASK & (1 << i))
 			rates[i].flags |= IEEE80211_RATE_BASIC;
 	}
-
-	iwl4965_init_hw_rates(priv, rates);
 }
 
 /**
