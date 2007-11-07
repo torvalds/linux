@@ -747,6 +747,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 		vlan_dev_set_ingress_priority(dev,
 					      args.u.skb_priority,
 					      args.vlan_qos);
+		err = 0;
 		break;
 
 	case SET_VLAN_EGRESS_PRIORITY_CMD:
