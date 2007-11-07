@@ -706,6 +706,7 @@ int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
 
 	kunmap_atomic(page_virt, KM_USER0);
 	kvm_release_page(page);
+	mark_page_dirty(kvm, gfn);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_clear_guest_page);
