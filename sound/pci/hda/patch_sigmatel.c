@@ -2889,8 +2889,10 @@ static int patch_stac927x(struct hda_codec *codec)
 	}
 
 	switch (codec->subsystem_id) {
-	case 0x1028020A: /* STAC 9228 */
-	case 0x10280209: /* STAC 9228 */
+	case 0x10280242: /* STAC 9228 */
+	case 0x102801f3:
+	case 0x1028020A:
+	case 0x10280209:
 		spec->dmic_nids = stac927x_dmic_nids;
 		spec->num_dmics = STAC927X_NUM_DMICS;
 		spec->dmux_nid = 0x1b;
