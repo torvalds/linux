@@ -579,6 +579,32 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, __be32 daddr, __be16 dport)
 	return NULL;
 }
 
+/*
+ * Find destination by {daddr,dport,vaddr,protocol}
+ * Cretaed to be used in ip_vs_process_message() in
+ * the backup synchronization daemon. It finds the
+ * destination to be bound to the received connection
+ * on the backup.
+ *
+ * ip_vs_lookup_real_service() looked promissing, but
+ * seems not working as expected.
+ */
+struct ip_vs_dest *ip_vs_find_dest(__be32 daddr, __be16 dport,
+				    __be32 vaddr, __be16 vport, __u16 protocol)
+{
+	struct ip_vs_dest *dest;
+	struct ip_vs_service *svc;
+
+	svc = ip_vs_service_get(0, protocol, vaddr, vport);
+	if (!svc)
+		return NULL;
+	dest = ip_vs_lookup_dest(svc, daddr, dport);
+	if (dest)
+		atomic_inc(&dest->refcnt);
+	ip_vs_service_put(svc);
+	return dest;
+}
+EXPORT_SYMBOL(ip_vs_find_dest);
 
 /*
  *  Lookup dest by {svc,addr,port} in the destination trash.
