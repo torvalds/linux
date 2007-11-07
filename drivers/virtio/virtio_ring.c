@@ -53,7 +53,7 @@ struct vring_virtqueue
 	unsigned int num_added;
 
 	/* Last used index we've seen. */
-	unsigned int last_used_idx;
+	u16 last_used_idx;
 
 	/* How to notify other side. FIXME: commonalize hcalls! */
 	void (*notify)(struct virtqueue *vq);
