@@ -4,8 +4,6 @@
 	- information on the 3Com EtherLink Plus (3c505) driver.
 6pack.txt
 	- info on the 6pack protocol, an alternative to KISS for AX.25
-Configurable
-	- info on some of the configurable network parameters
 DLINK.txt
 	- info on the D-Link DE-600/DE-620 parallel port pocket adapters
 PLIP.txt
