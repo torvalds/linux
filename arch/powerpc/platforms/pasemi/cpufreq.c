@@ -32,6 +32,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/time.h>
+#include <asm/smp.h>
 
 #define SDCASR_REG		0x0100
 #define SDCASR_REG_STRIDE	0x1000
@@ -122,6 +123,11 @@ static void set_astate(int cpu, unsigned int astate)
 	out_le32(sdcasr_mapbase + SDCASR_REG + SDCASR_REG_STRIDE*cpu, astate);
 
 	local_irq_restore(flags);
+}
+
+int check_astate(void)
+{
+	return get_cur_astate(hard_smp_processor_id());
 }
 
 void restore_astate(int cpu)
