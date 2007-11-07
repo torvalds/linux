@@ -143,13 +143,6 @@ struct efivar_attribute efivar_attr_##_name = { \
 	.store = _store, \
 };
 
-#define VAR_SUBSYS_ATTR(_name, _mode, _show, _store) \
-struct subsys_attribute var_subsys_attr_##_name = { \
-	.attr = {.name = __stringify(_name), .mode = _mode}, \
-	.show = _show, \
-	.store = _store, \
-};
-
 #define to_efivar_attr(_attr) container_of(_attr, struct efivar_attribute, attr)
 #define to_efivar_entry(obj)  container_of(obj, struct efivar_entry, kobj)
 
@@ -408,12 +401,6 @@ static struct kobj_type efivar_ktype = {
 	.default_attrs = def_attrs,
 };
 
-static ssize_t
-dummy(struct kset *kset, char *buf)
-{
-	return -ENODEV;
-}
-
 static inline void
 efivar_unregister(struct efivar_entry *var)
 {
@@ -421,8 +408,9 @@ efivar_unregister(struct efivar_entry *var)
 }
 
 
-static ssize_t
-efivar_create(struct kset *kset, const char *buf, size_t count)
+static ssize_t efivar_create(struct kobject *kobj,
+			     struct bin_attribute *bin_attr,
+			     char *buf, loff_t pos, size_t count)
 {
 	struct efi_variable *new_var = (struct efi_variable *)buf;
 	struct efivar_entry *search_efivar, *n;
@@ -479,8 +467,9 @@ efivar_create(struct kset *kset, const char *buf, size_t count)
 	return count;
 }
 
-static ssize_t
-efivar_delete(struct kset *kset, const char *buf, size_t count)
+static ssize_t efivar_delete(struct kobject *kobj,
+			     struct bin_attribute *bin_attr,
+			     char *buf, loff_t pos, size_t count)
 {
 	struct efi_variable *del_var = (struct efi_variable *)buf;
 	struct efivar_entry *search_efivar, *n;
@@ -537,13 +526,14 @@ efivar_delete(struct kset *kset, const char *buf, size_t count)
 	return count;
 }
 
-static VAR_SUBSYS_ATTR(new_var, 0200, dummy, efivar_create);
-static VAR_SUBSYS_ATTR(del_var, 0200, dummy, efivar_delete);
+static struct bin_attribute var_subsys_attr_new_var = {
+	.attr = {.name = "new_var", .mode = 0200},
+	.write = efivar_create,
+};
 
-static struct subsys_attribute *var_subsys_attrs[] = {
-	&var_subsys_attr_new_var,
-	&var_subsys_attr_del_var,
-	NULL,
+static struct bin_attribute var_subsys_attr_del_var = {
+	.attr = {.name = "del_var", .mode = 0200},
+	.write = efivar_delete,
 };
 
 /*
@@ -728,11 +718,16 @@ efivars_init(void)
 	 * Now add attributes to allow creation of new vars
 	 * and deletion of existing ones...
 	 */
-
-	for (i = 0; (attr = var_subsys_attrs[i]) && !error; i++) {
-		if (attr->show && attr->store)
-			error = subsys_create_file(&vars_subsys, attr);
-	}
+	error = sysfs_create_bin_file(&vars_subsys.kobj,
+				      &var_subsys_attr_new_var);
+	if (error)
+		printk(KERN_ERR "efivars: unable to create new_var sysfs file"
+			" due to error %d\n", error);
+	error = sysfs_create_bin_file(&vars_subsys.kobj,
+				      &var_subsys_attr_del_var);
+	if (error)
+		printk(KERN_ERR "efivars: unable to create del_var sysfs file"
+			" due to error %d\n", error);
 
 	/* Don't forget the systab entry */
 
