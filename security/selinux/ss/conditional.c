@@ -362,7 +362,8 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 	data.head = NULL;
 	data.tail = NULL;
 	for (i = 0; i < len; i++) {
-		rc = avtab_read_item(fp, p->policyvers, &p->te_cond_avtab, cond_insertf, &data);
+		rc = avtab_read_item(&p->te_cond_avtab, fp, p, cond_insertf,
+				     &data);
 		if (rc)
 			return rc;
 

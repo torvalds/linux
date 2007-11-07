@@ -251,6 +251,9 @@ struct policydb {
 extern void policydb_destroy(struct policydb *p);
 extern int policydb_load_isids(struct policydb *p, struct sidtab *s);
 extern int policydb_context_isvalid(struct policydb *p, struct context *c);
+extern int policydb_class_isvalid(struct policydb *p, unsigned int class);
+extern int policydb_type_isvalid(struct policydb *p, unsigned int type);
+extern int policydb_role_isvalid(struct policydb *p, unsigned int role);
 extern int policydb_read(struct policydb *p, void *fp);
 
 #define PERM_SYMTAB_SIZE 32

@@ -713,6 +713,27 @@ out:
 	return rc;
 }
 
+int policydb_class_isvalid(struct policydb *p, unsigned int class)
+{
+	if (!class || class > p->p_classes.nprim)
+		return 0;
+	return 1;
+}
+
+int policydb_role_isvalid(struct policydb *p, unsigned int role)
+{
+	if (!role || role > p->p_roles.nprim)
+		return 0;
+	return 1;
+}
+
+int policydb_type_isvalid(struct policydb *p, unsigned int type)
+{
+	if (!type || type > p->p_types.nprim)
+		return 0;
+	return 1;
+}
+
 /*
  * Return 1 if the fields in the security context
  * structure `c' are valid.  Return 0 otherwise.
@@ -1260,6 +1281,7 @@ static int mls_read_level(struct mls_level *lp, void *fp)
 		       "categories\n");
 		goto bad;
 	}
+
 	return 0;
 
 bad:
@@ -1563,7 +1585,7 @@ int policydb_read(struct policydb *p, void *fp)
 		p->symtab[i].nprim = nprim;
 	}
 
-	rc = avtab_read(&p->te_avtab, fp, p->policyvers);
+	rc = avtab_read(&p->te_avtab, fp, p);
 	if (rc)
 		goto bad;
 
@@ -1595,6 +1617,12 @@ int policydb_read(struct policydb *p, void *fp)
 		tr->role = le32_to_cpu(buf[0]);
 		tr->type = le32_to_cpu(buf[1]);
 		tr->new_role = le32_to_cpu(buf[2]);
+		if (!policydb_role_isvalid(p, tr->role) ||
+		    !policydb_type_isvalid(p, tr->type) ||
+		    !policydb_role_isvalid(p, tr->new_role)) {
+			rc = -EINVAL;
+			goto bad;
+		}
 		ltr = tr;
 	}
 
@@ -1619,6 +1647,11 @@ int policydb_read(struct policydb *p, void *fp)
 			goto bad;
 		ra->role = le32_to_cpu(buf[0]);
 		ra->new_role = le32_to_cpu(buf[1]);
+		if (!policydb_role_isvalid(p, ra->role) ||
+		    !policydb_role_isvalid(p, ra->new_role)) {
+			rc = -EINVAL;
+			goto bad;
+		}
 		lra = ra;
 	}
 
@@ -1872,9 +1905,19 @@ int policydb_read(struct policydb *p, void *fp)
 				rt->target_class = le32_to_cpu(buf[0]);
 			} else
 				rt->target_class = SECCLASS_PROCESS;
+			if (!policydb_type_isvalid(p, rt->source_type) ||
+			    !policydb_type_isvalid(p, rt->target_type) ||
+			    !policydb_class_isvalid(p, rt->target_class)) {
+				rc = -EINVAL;
+				goto bad;
+			}
 			rc = mls_read_range_helper(&rt->target_range, fp);
 			if (rc)
 				goto bad;
+			if (!mls_range_isvalid(p, &rt->target_range)) {
+				printk(KERN_WARNING "security:  rangetrans:  invalid range\n");
+				goto bad;
+			}
 			lrt = rt;
 		}
 	}
