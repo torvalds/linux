@@ -628,6 +628,21 @@ static void sbp2_release_target(struct kref *kref)
 
 static struct workqueue_struct *sbp2_wq;
 
+/*
+ * Always get the target's kref when scheduling work on one its units.
+ * Each workqueue job is responsible to call sbp2_target_put() upon return.
+ */
+static void sbp2_queue_work(struct sbp2_logical_unit *lu, unsigned long delay)
+{
+	if (queue_delayed_work(sbp2_wq, &lu->work, delay))
+		kref_get(&lu->tgt->kref);
+}
+
+static void sbp2_target_put(struct sbp2_target *tgt)
+{
+	kref_put(&tgt->kref, sbp2_release_target);
+}
+
 static void sbp2_reconnect(struct work_struct *work);
 
 static void sbp2_login(struct work_struct *work)
@@ -649,16 +664,12 @@ static void sbp2_login(struct work_struct *work)
 
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				SBP2_LOGIN_REQUEST, lu->lun, &response) < 0) {
-		if (lu->retries++ < 5) {
-			if (queue_delayed_work(sbp2_wq, &lu->work,
-					       DIV_ROUND_UP(HZ, 5)))
-				kref_get(&lu->tgt->kref);
-		} else {
+		if (lu->retries++ < 5)
+			sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
+		else
 			fw_error("failed to login to %s LUN %04x\n",
 				 unit->device.bus_id, lu->lun);
-		}
-		kref_put(&lu->tgt->kref, sbp2_release_target);
-		return;
+		goto out;
 	}
 
 	lu->generation        = generation;
@@ -700,7 +711,8 @@ static void sbp2_login(struct work_struct *work)
 		lu->sdev = sdev;
 		scsi_device_put(sdev);
 	}
-	kref_put(&lu->tgt->kref, sbp2_release_target);
+ out:
+	sbp2_target_put(lu->tgt);
 }
 
 static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
@@ -865,18 +877,13 @@ static int sbp2_probe(struct device *dev)
 
 	get_device(&unit->device);
 
-	/*
-	 * We schedule work to do the login so we can easily
-	 * reschedule retries. Always get the ref before scheduling
-	 * work.
-	 */
+	/* Do the login in a workqueue so we can easily reschedule retries. */
 	list_for_each_entry(lu, &tgt->lu_list, link)
-		if (queue_delayed_work(sbp2_wq, &lu->work, 0))
-			kref_get(&tgt->kref);
+		sbp2_queue_work(lu, 0);
 	return 0;
 
  fail_tgt_put:
-	kref_put(&tgt->kref, sbp2_release_target);
+	sbp2_target_put(tgt);
 	return -ENOMEM;
 
  fail_shost_put:
@@ -889,7 +896,7 @@ static int sbp2_remove(struct device *dev)
 	struct fw_unit *unit = fw_unit(dev);
 	struct sbp2_target *tgt = unit->device.driver_data;
 
-	kref_put(&tgt->kref, sbp2_release_target);
+	sbp2_target_put(tgt);
 	return 0;
 }
 
@@ -915,10 +922,8 @@ static void sbp2_reconnect(struct work_struct *work)
 			lu->retries = 0;
 			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
 		}
-		if (queue_delayed_work(sbp2_wq, &lu->work, DIV_ROUND_UP(HZ, 5)))
-			kref_get(&lu->tgt->kref);
-		kref_put(&lu->tgt->kref, sbp2_release_target);
-		return;
+		sbp2_queue_work(lu, DIV_ROUND_UP(HZ, 5));
+		goto out;
 	}
 
 	lu->generation        = generation;
@@ -930,8 +935,8 @@ static void sbp2_reconnect(struct work_struct *work)
 
 	sbp2_agent_reset(lu);
 	sbp2_cancel_orbs(lu);
-
-	kref_put(&lu->tgt->kref, sbp2_release_target);
+ out:
+	sbp2_target_put(lu->tgt);
 }
 
 static void sbp2_update(struct fw_unit *unit)
@@ -947,8 +952,7 @@ static void sbp2_update(struct fw_unit *unit)
 	 */
 	list_for_each_entry(lu, &tgt->lu_list, link) {
 		lu->retries = 0;
-		if (queue_delayed_work(sbp2_wq, &lu->work, 0))
-			kref_get(&tgt->kref);
+		sbp2_queue_work(lu, 0);
 	}
 }
 
