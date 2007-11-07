@@ -650,13 +650,14 @@ static void sbp2_login(struct work_struct *work)
 	if (sbp2_send_management_orb(lu, node_id, generation,
 				SBP2_LOGIN_REQUEST, lu->lun, &response) < 0) {
 		if (lu->retries++ < 5) {
-			queue_delayed_work(sbp2_wq, &lu->work,
-					   DIV_ROUND_UP(HZ, 5));
+			if (queue_delayed_work(sbp2_wq, &lu->work,
+					       DIV_ROUND_UP(HZ, 5)))
+				kref_get(&lu->tgt->kref);
 		} else {
 			fw_error("failed to login to %s LUN %04x\n",
 				 unit->device.bus_id, lu->lun);
-			kref_put(&lu->tgt->kref, sbp2_release_target);
 		}
+		kref_put(&lu->tgt->kref, sbp2_release_target);
 		return;
 	}
 
@@ -914,7 +915,9 @@ static void sbp2_reconnect(struct work_struct *work)
 			lu->retries = 0;
 			PREPARE_DELAYED_WORK(&lu->work, sbp2_login);
 		}
-		queue_delayed_work(sbp2_wq, &lu->work, DIV_ROUND_UP(HZ, 5));
+		if (queue_delayed_work(sbp2_wq, &lu->work, DIV_ROUND_UP(HZ, 5)))
+			kref_get(&lu->tgt->kref);
+		kref_put(&lu->tgt->kref, sbp2_release_target);
 		return;
 	}
 
