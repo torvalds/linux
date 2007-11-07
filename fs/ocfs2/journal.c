@@ -313,14 +313,18 @@ int ocfs2_journal_dirty_data(handle_t *handle,
 	return err;
 }
 
-#define OCFS2_DEFAULT_COMMIT_INTERVAL 	(HZ * 5)
+#define OCFS2_DEFAULT_COMMIT_INTERVAL 	(HZ * JBD_DEFAULT_MAX_COMMIT_AGE)
 
 void ocfs2_set_journal_params(struct ocfs2_super *osb)
 {
 	journal_t *journal = osb->journal->j_journal;
+	unsigned long commit_interval = OCFS2_DEFAULT_COMMIT_INTERVAL;
+
+	if (osb->osb_commit_interval)
+		commit_interval = osb->osb_commit_interval;
 
 	spin_lock(&journal->j_state_lock);
-	journal->j_commit_interval = OCFS2_DEFAULT_COMMIT_INTERVAL;
+	journal->j_commit_interval = commit_interval;
 	if (osb->s_mount_opt & OCFS2_MOUNT_BARRIER)
 		journal->j_flags |= JFS_BARRIER;
 	else

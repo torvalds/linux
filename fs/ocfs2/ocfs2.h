@@ -229,6 +229,7 @@ struct ocfs2_super
 	wait_queue_head_t checkpoint_event;
 	atomic_t needs_checkpoint;
 	struct ocfs2_journal *journal;
+	unsigned long osb_commit_interval;
 
 	enum ocfs2_local_alloc_state local_alloc_state;
 	struct buffer_head *local_alloc_bh;

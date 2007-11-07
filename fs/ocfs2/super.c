@@ -83,6 +83,7 @@ MODULE_LICENSE("GPL");
 
 struct mount_options
 {
+	unsigned long	commit_interval;
 	unsigned long	mount_opt;
 	unsigned int	atime_quantum;
 	signed short	slot;
@@ -149,6 +150,7 @@ enum {
 	Opt_data_writeback,
 	Opt_atime_quantum,
 	Opt_slot,
+	Opt_commit,
 	Opt_err,
 };
 
@@ -164,6 +166,7 @@ static match_table_t tokens = {
 	{Opt_data_writeback, "data=writeback"},
 	{Opt_atime_quantum, "atime_quantum=%u"},
 	{Opt_slot, "preferred_slot=%u"},
+	{Opt_commit, "commit=%u"},
 	{Opt_err, NULL}
 };
 
@@ -442,6 +445,8 @@ unlock_osb:
 		osb->s_mount_opt = parsed_options.mount_opt;
 		osb->s_atime_quantum = parsed_options.atime_quantum;
 		osb->preferred_slot = parsed_options.slot;
+		if (parsed_options.commit_interval)
+			osb->osb_commit_interval = parsed_options.commit_interval;
 
 		if (!ocfs2_is_hard_readonly(osb))
 			ocfs2_set_journal_params(osb);
@@ -596,6 +601,7 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	osb->s_mount_opt = parsed_options.mount_opt;
 	osb->s_atime_quantum = parsed_options.atime_quantum;
 	osb->preferred_slot = parsed_options.slot;
+	osb->osb_commit_interval = parsed_options.commit_interval;
 
 	sb->s_magic = OCFS2_SUPER_MAGIC;
 
@@ -746,6 +752,7 @@ static int ocfs2_parse_options(struct super_block *sb,
 	mlog_entry("remount: %d, options: \"%s\"\n", is_remount,
 		   options ? options : "(none)");
 
+	mopt->commit_interval = 0;
 	mopt->mount_opt = 0;
 	mopt->atime_quantum = OCFS2_DEFAULT_ATIME_QUANTUM;
 	mopt->slot = OCFS2_INVALID_SLOT;
@@ -815,6 +822,18 @@ static int ocfs2_parse_options(struct super_block *sb,
 			if (option)
 				mopt->slot = (s16)option;
 			break;
+		case Opt_commit:
+			option = 0;
+			if (match_int(&args[0], &option)) {
+				status = 0;
+				goto bail;
+			}
+			if (option < 0)
+				return 0;
+			if (option == 0)
+				option = JBD_DEFAULT_MAX_COMMIT_AGE;
+			mopt->commit_interval = HZ * option;
+			break;
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -862,6 +881,10 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 
 	if (osb->s_atime_quantum != OCFS2_DEFAULT_ATIME_QUANTUM)
 		seq_printf(s, ",atime_quantum=%u", osb->s_atime_quantum);
+
+	if (osb->osb_commit_interval)
+		seq_printf(s, ",commit=%u",
+			   (unsigned) (osb->osb_commit_interval / HZ));
 
 	return 0;
 }
