@@ -668,6 +668,7 @@ static inline int pci_enable_msix(struct pci_dev* dev,
 	struct msix_entry *entries, int nvec) {return -1;}
 static inline void pci_disable_msix(struct pci_dev *dev) {}
 static inline void msi_remove_pci_irq_vectors(struct pci_dev *dev) {}
+static inline void pci_restore_msi_state(struct pci_dev *dev) {}
 #else
 extern int pci_enable_msi(struct pci_dev *dev);
 extern void pci_disable_msi(struct pci_dev *dev);
@@ -675,6 +676,7 @@ extern int pci_enable_msix(struct pci_dev* dev,
 	struct msix_entry *entries, int nvec);
 extern void pci_disable_msix(struct pci_dev *dev);
 extern void msi_remove_pci_irq_vectors(struct pci_dev *dev);
+extern void pci_restore_msi_state(struct pci_dev *dev);
 #endif
 
 #ifdef CONFIG_HT_IRQ

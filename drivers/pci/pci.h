@@ -45,12 +45,6 @@ static inline void pci_no_msi(void) { }
 static inline void pci_msi_init_pci_dev(struct pci_dev *dev) { }
 #endif
 
-#if defined(CONFIG_PCI_MSI) && defined(CONFIG_PM)
-void pci_restore_msi_state(struct pci_dev *dev);
-#else
-static inline void pci_restore_msi_state(struct pci_dev *dev) {}
-#endif
-
 #ifdef CONFIG_PCIEAER
 void pci_no_aer(void);
 #else

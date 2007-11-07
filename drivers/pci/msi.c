@@ -230,7 +230,6 @@ static void pci_intx_for_msi(struct pci_dev *dev, int enable)
 		pci_intx(dev, enable);
 }
 
-#ifdef CONFIG_PM
 static void __pci_restore_msi_state(struct pci_dev *dev)
 {
 	int pos;
@@ -288,7 +287,7 @@ void pci_restore_msi_state(struct pci_dev *dev)
 	__pci_restore_msi_state(dev);
 	__pci_restore_msix_state(dev);
 }
-#endif	/* CONFIG_PM */
+EXPORT_SYMBOL_GPL(pci_restore_msi_state);
 
 /**
  * msi_capability_init - configure device's MSI capability structure
