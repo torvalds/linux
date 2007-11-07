@@ -131,6 +131,7 @@ static u8 scale_in_add[] = { 0, 0, 0, 0, 0, 0, 0, 150, 150, 0 };
 #define PWM_DUTY			0
 #define PWM_START			1
 #define PWM_NONSTOP			2
+#define PWM_STOP_TIME			3
 #define W83793_REG_PWM(index, nr)	(((nr) == 0 ? 0xb3 : \
 					 (nr) == 1 ? 0x220 : 0x218) + (index))
 
@@ -407,10 +408,6 @@ store_fan_min(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define PWM_DUTY			0
-#define PWM_START			1
-#define PWM_NONSTOP			2
-#define PWM_STOP_TIME			3
 static ssize_t
 show_pwm(struct device *dev, struct device_attribute *attr, char *buf)
 {
