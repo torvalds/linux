@@ -80,8 +80,6 @@ olympic.txt
 	- IBM PCI Pit/Pit-Phy/Olympic Token Ring driver info.
 policy-routing.txt
 	- IP policy-based routing
-pt.txt
-	- the Gracilis Packetwin AX.25 device driver
 ray_cs.txt
 	- Raylink Wireless LAN card driver info.
 shaper.txt
