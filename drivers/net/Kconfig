@@ -136,10 +136,11 @@ config TUN
 	  If you don't know what to use this for, you don't need it.
 
 config VETH
-	tristate "Virtual ethernet device"
+	tristate "Virtual ethernet pair device"
 	---help---
-	  The device is an ethernet tunnel. Devices are created in pairs. When
-	  one end receives the packet it appears on its pair and vice versa.
+	  This device is a local ethernet tunnel. Devices are created in pairs.
+	  When one end receives the packet it appears on its pair and vice
+	  versa.
 
 config NET_SB1000
 	tristate "General Instruments Surfboard 1000"
