@@ -43,6 +43,10 @@
 
 #include "pasemi.h"
 
+#if !defined(CONFIG_SMP)
+static void smp_send_stop(void) {}
+#endif
+
 /* SDC reset register, must be pre-mapped at reset time */
 static void __iomem *reset_reg;
 
@@ -60,6 +64,9 @@ static int num_mce_regs;
 
 static void pas_restart(char *cmd)
 {
+	/* Need to put others cpu in hold loop so they're not sleeping */
+	smp_send_stop();
+	udelay(10000);
 	printk("Restarting...\n");
 	while (1)
 		out_le32(reset_reg, 0x6000000);
