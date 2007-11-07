@@ -61,16 +61,18 @@ config B43_PCMCIA
 
 	  If unsure, say N.
 
-# LED support
+# This config option automatically enables b43 LEDS support,
+# if it's possible.
 config B43_LEDS
 	bool
-	depends on B43 && MAC80211_LEDS
+	depends on B43 && MAC80211_LEDS && (LEDS_CLASS = y || LEDS_CLASS = B43)
 	default y
 
-# RFKILL support
+# This config option automatically enables b43 RFKILL support,
+# if it's possible.
 config B43_RFKILL
 	bool
-	depends on B43 && RFKILL && RFKILL_INPUT && INPUT_POLLDEV
+	depends on B43 && (RFKILL = y || RFKILL = B43) && RFKILL_INPUT && (INPUT_POLLDEV = y || INPUT_POLLDEV = B43)
 	default y
 
 config B43_DEBUG
