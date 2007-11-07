@@ -3864,13 +3864,6 @@ L:	linux-usb-devel@lists.sourceforge.net
 T:	git kernel.org:/pub/scm/linux/kernel/git/jikos/hid.git
 S:	Maintained
 
-USB HUB DRIVER
-P:	Johannes Erdfelt
-M:	johannes@erdfelt.com
-L:	linux-usb-users@lists.sourceforge.net
-L:	linux-usb-devel@lists.sourceforge.net
-S:	Maintained
-
 USB ISP116X DRIVER
 P:	Olav Kongas
 M:	ok@artecdesign.ee
