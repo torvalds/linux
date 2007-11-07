@@ -94,6 +94,7 @@ static unsigned char heartbeat_bit_pos[] = { 8, 9, 10, 11, 12, 13, 14, 15 };
 static struct heartbeat_data heartbeat_data = {
 	.bit_pos	= heartbeat_bit_pos,
 	.nr_bits	= ARRAY_SIZE(heartbeat_bit_pos),
+	.regsize	= 16,
 };
 
 static struct resource heartbeat_resources[] = {
