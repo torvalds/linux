@@ -146,6 +146,7 @@ static void try_fill_recv(struct virtnet_info *vi)
 	struct scatterlist sg[1+MAX_SKB_FRAGS];
 	int num, err;
 
+	sg_init_table(sg, 1+MAX_SKB_FRAGS);
 	for (;;) {
 		skb = netdev_alloc_skb(vi->dev, MAX_PACKET_LEN);
 		if (unlikely(!skb))
@@ -230,6 +231,8 @@ static int start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct virtio_net_hdr *hdr;
 	const unsigned char *dest = ((struct ethhdr *)skb->data)->h_dest;
 	DECLARE_MAC_BUF(mac);
+
+	sg_init_table(sg, 1+MAX_SKB_FRAGS);
 
 	pr_debug("%s: xmit %p %s\n", dev->name, skb, print_mac(mac, dest));
 
