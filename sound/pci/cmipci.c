@@ -869,6 +869,13 @@ static int snd_cmipci_pcm_prepare(struct cmipci *cm, struct cmipci_pcm *rec,
 	snd_cmipci_write(cm, CM_REG_CHFORMAT, val);
 	//snd_printd("cmipci: chformat = %08x\n", val);
 
+	if (!rec->is_dac && cm->chip_version) {
+		if (runtime->rate > 44100)
+			snd_cmipci_set_bit(cm, CM_REG_EXT_MISC, CM_ADC48K44K);
+		else
+			snd_cmipci_clear_bit(cm, CM_REG_EXT_MISC, CM_ADC48K44K);
+	}
+
 	rec->running = 0;
 	spin_unlock_irq(&cm->reg_lock);
 
