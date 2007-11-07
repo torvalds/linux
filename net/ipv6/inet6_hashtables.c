@@ -37,9 +37,8 @@ void __inet6_hash(struct inet_hashinfo *hashinfo,
 	} else {
 		unsigned int hash;
 		sk->sk_hash = hash = inet6_sk_ehashfn(sk);
-		hash &= (hashinfo->ehash_size - 1);
-		list = &hashinfo->ehash[hash].chain;
-		lock = &hashinfo->ehash[hash].lock;
+		list = &inet_ehash_bucket(hashinfo, hash)->chain;
+		lock = inet_ehash_lockp(hashinfo, hash);
 		write_lock(lock);
 	}
 
@@ -70,9 +69,10 @@ struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 	 */
 	unsigned int hash = inet6_ehashfn(daddr, hnum, saddr, sport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
+	rwlock_t *lock = inet_ehash_lockp(hashinfo, hash);
 
 	prefetch(head->chain.first);
-	read_lock(&head->lock);
+	read_lock(lock);
 	sk_for_each(sk, node, &head->chain) {
 		/* For IPV6 do the cheaper port and family tests first. */
 		if (INET6_MATCH(sk, hash, saddr, daddr, ports, dif))
@@ -92,12 +92,12 @@ struct sock *__inet6_lookup_established(struct inet_hashinfo *hashinfo,
 				goto hit;
 		}
 	}
-	read_unlock(&head->lock);
+	read_unlock(lock);
 	return NULL;
 
 hit:
 	sock_hold(sk);
-	read_unlock(&head->lock);
+	read_unlock(lock);
 	return sk;
 }
 EXPORT_SYMBOL(__inet6_lookup_established);
@@ -175,12 +175,13 @@ static int __inet6_check_established(struct inet_timewait_death_row *death_row,
 	const unsigned int hash = inet6_ehashfn(daddr, lport, saddr,
 						inet->dport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hinfo, hash);
+	rwlock_t *lock = inet_ehash_lockp(hinfo, hash);
 	struct sock *sk2;
 	const struct hlist_node *node;
 	struct inet_timewait_sock *tw;
 
 	prefetch(head->chain.first);
-	write_lock(&head->lock);
+	write_lock(lock);
 
 	/* Check TIME-WAIT sockets first. */
 	sk_for_each(sk2, node, &head->twchain) {
@@ -216,7 +217,7 @@ unique:
 	__sk_add_node(sk, &head->chain);
 	sk->sk_hash = hash;
 	sock_prot_inc_use(sk->sk_prot);
-	write_unlock(&head->lock);
+	write_unlock(lock);
 
 	if (twp != NULL) {
 		*twp = tw;
@@ -231,7 +232,7 @@ unique:
 	return 0;
 
 not_unique:
-	write_unlock(&head->lock);
+	write_unlock(lock);
 	return -EADDRNOTAVAIL;
 }
 

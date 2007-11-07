@@ -747,13 +747,14 @@ skip_listen_ht:
 
 	for (i = s_i; i < hashinfo->ehash_size; i++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
+		rwlock_t *lock = inet_ehash_lockp(hashinfo, i);
 		struct sock *sk;
 		struct hlist_node *node;
 
 		if (i > s_i)
 			s_num = 0;
 
-		read_lock_bh(&head->lock);
+		read_lock_bh(lock);
 		num = 0;
 		sk_for_each(sk, node, &head->chain) {
 			struct inet_sock *inet = inet_sk(sk);
@@ -769,7 +770,7 @@ skip_listen_ht:
 			    r->id.idiag_dport)
 				goto next_normal;
 			if (inet_csk_diag_dump(sk, skb, cb) < 0) {
-				read_unlock_bh(&head->lock);
+				read_unlock_bh(lock);
 				goto done;
 			}
 next_normal:
@@ -791,14 +792,14 @@ next_normal:
 				    r->id.idiag_dport)
 					goto next_dying;
 				if (inet_twsk_diag_dump(tw, skb, cb) < 0) {
-					read_unlock_bh(&head->lock);
+					read_unlock_bh(lock);
 					goto done;
 				}
 next_dying:
 				++num;
 			}
 		}
-		read_unlock_bh(&head->lock);
+		read_unlock_bh(lock);
 	}
 
 done:
