@@ -561,6 +561,12 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 	init_vmcb(svm->vmcb);
+
+	if (vcpu->vcpu_id != 0) {
+		svm->vmcb->save.rip = 0;
+		svm->vmcb->save.cs.base = svm->vcpu.sipi_vector << 12;
+		svm->vmcb->save.cs.selector = svm->vcpu.sipi_vector << 8;
+	}
 }
 
 static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
