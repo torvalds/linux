@@ -425,24 +425,27 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 		if (ap &&
 		    !(ap->flags & ATA_FLAG_DISABLED)) {
 			struct ata_queued_cmd *qc;
-			struct qs_port_priv *pp = ap->private_data;
+			struct qs_port_priv *pp;
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
+			if (!qc || !(qc->flags & ATA_QCFLAG_ACTIVE)) {
+				/*
+				 * The qstor hardware generates spurious
+				 * interrupts from time to time when switching
+				 * in and out of packet mode.
+				 * There's no obvious way to know if we're
+				 * here now due to that, so just ack the irq
+				 * and pretend we knew it was ours.. (ugh).
+				 * This does not affect packet mode.
+				 */
+				ata_check_status(ap);
+				handled = 1;
+				continue;
+			}
+			pp = ap->private_data;
 			if (!pp || pp->state != qs_state_mmio)
 				continue;
-			qc = ata_qc_from_tag(ap, ap->link.active_tag);
-			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
-
-				/* check main status, clearing INTRQ */
-				u8 status = ata_check_status(ap);
-				if ((status & ATA_BUSY))
-					continue;
-				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
-					ap->print_id, qc->tf.protocol, status);
-
-				/* complete taskfile transaction */
-				qc->err_mask |= ac_err_mask(status);
-				ata_qc_complete(qc);
-				handled = 1;
-			}
+			if (!(qc->tf.flags & ATA_TFLAG_POLLING))
+				handled |= ata_host_intr(ap, qc);
 		}
 	}
 	return handled;
@@ -452,12 +455,13 @@ static irqreturn_t qs_intr(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	unsigned int handled = 0;
+	unsigned long flags;
 
 	VPRINTK("ENTER\n");
 
-	spin_lock(&host->lock);
+	spin_lock_irqsave(&host->lock, flags);
 	handled  = qs_intr_pkt(host) | qs_intr_mmio(host);
-	spin_unlock(&host->lock);
+	spin_unlock_irqrestore(&host->lock, flags);
 
 	VPRINTK("EXIT\n");
 
