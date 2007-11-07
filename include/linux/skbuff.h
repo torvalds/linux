@@ -95,6 +95,7 @@
 
 struct net_device;
 struct scatterlist;
+struct pipe_inode_info;
 
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 struct nf_conntrack {
@@ -1559,6 +1560,11 @@ extern int	       skb_store_bits(struct sk_buff *skb, int offset,
 extern __wsum	       skb_copy_and_csum_bits(const struct sk_buff *skb,
 					      int offset, u8 *to, int len,
 					      __wsum csum);
+extern int             skb_splice_bits(struct sk_buff *skb,
+						unsigned int offset,
+						struct pipe_inode_info *pipe,
+						unsigned int len,
+						unsigned int flags);
 extern void	       skb_copy_and_csum_dev(const struct sk_buff *skb, u8 *to);
 extern void	       skb_split(struct sk_buff *skb,
 				 struct sk_buff *skb1, const u32 len);

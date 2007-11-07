@@ -112,6 +112,9 @@ static long compat_sock_ioctl(struct file *file,
 static int sock_fasync(int fd, struct file *filp, int on);
 static ssize_t sock_sendpage(struct file *file, struct page *page,
 			     int offset, size_t size, loff_t *ppos, int more);
+static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
+			        struct pipe_inode_info *pipe, size_t len,
+				unsigned int flags);
 
 /*
  *	Socket files have a set of 'special' operations as well as the generic file ones. These don't appear
@@ -134,6 +137,7 @@ static const struct file_operations socket_file_ops = {
 	.fasync =	sock_fasync,
 	.sendpage =	sock_sendpage,
 	.splice_write = generic_splice_sendpage,
+	.splice_read =	sock_splice_read,
 };
 
 /*
@@ -689,6 +693,15 @@ static ssize_t sock_sendpage(struct file *file, struct page *page,
 		flags |= MSG_MORE;
 
 	return sock->ops->sendpage(sock, page, offset, size, flags);
+}
+
+static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
+			        struct pipe_inode_info *pipe, size_t len,
+				unsigned int flags)
+{
+	struct socket *sock = file->private_data;
+
+	return sock->ops->splice_read(sock, ppos, pipe, len, flags);
 }
 
 static struct sock_iocb *alloc_sock_iocb(struct kiocb *iocb,
