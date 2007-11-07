@@ -1126,7 +1126,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 	int i, nfrags;
 
-	dflags = XCT_MACTX_O | XCT_MACTX_ST | XCT_MACTX_SS | XCT_MACTX_CRC_PAD;
+	dflags = XCT_MACTX_O | XCT_MACTX_ST | XCT_MACTX_CRC_PAD;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const unsigned char *nh = skb_network_header(skb);
