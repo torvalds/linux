@@ -1407,6 +1407,11 @@ static int snd_cmipci_capture_spdif_prepare(struct snd_pcm_substream *substream)
 		else
 			snd_cmipci_clear_bit(cm, CM_REG_CHFORMAT, CM_DBLSPDS);
 	}
+	if (snd_pcm_format_width(substream->runtime->format) > 16)
+		snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_SPD32SEL);
+	else
+		snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_SPD32SEL);
+
 	spin_unlock_irq(&cm->reg_lock);
 
 	return snd_cmipci_pcm_prepare(cm, &cm->channel[CM_CH_CAPT], substream);
@@ -1418,6 +1423,7 @@ static int snd_cmipci_capture_spdif_hw_free(struct snd_pcm_substream *subs)
 
 	spin_lock_irq(&cm->reg_lock);
 	snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1, CM_CAPTURE_SPDF);
+	snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_SPD32SEL);
 	spin_unlock_irq(&cm->reg_lock);
 
 	return snd_cmipci_hw_free(subs);
@@ -1569,7 +1575,8 @@ static struct snd_pcm_hardware snd_cmipci_capture_spdif =
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER | SNDRV_PCM_INFO_PAUSE |
 				 SNDRV_PCM_INFO_RESUME | SNDRV_PCM_INFO_MMAP_VALID),
-	.formats =	        SNDRV_PCM_FMTBIT_S16_LE,
+	.formats =	        SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE,
 	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
 	.rate_min =		44100,
 	.rate_max =		48000,
