@@ -732,7 +732,6 @@ MODULE_PARM_DESC(amp_gpio, "GPIO pin number for external amp. (default = -1)");
 
 #define MINISRC_IN_BUFFER_SIZE   ( 0x50 * 2 )
 #define MINISRC_OUT_BUFFER_SIZE  ( 0x50 * 2 * 2)
-#define MINISRC_OUT_BUFFER_SIZE  ( 0x50 * 2 * 2)
 #define MINISRC_TMP_BUFFER_SIZE  ( 112 + ( MINISRC_BIQUAD_STAGE * 3 + 4 ) * 2 * 2 )
 #define MINISRC_BIQUAD_STAGE    2
 #define MINISRC_COEF_LOC          0x175
