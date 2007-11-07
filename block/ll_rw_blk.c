@@ -1621,15 +1621,7 @@ static void blk_backing_dev_unplug(struct backing_dev_info *bdi,
 {
 	struct request_queue *q = bdi->unplug_io_data;
 
-	/*
-	 * devices don't necessarily have an ->unplug_fn defined
-	 */
-	if (q->unplug_fn) {
-		blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
-					q->rq.count[READ] + q->rq.count[WRITE]);
-
-		q->unplug_fn(q);
-	}
+	blk_unplug(q);
 }
 
 static void blk_unplug_work(struct work_struct *work)
@@ -1652,6 +1644,20 @@ static void blk_unplug_timeout(unsigned long data)
 
 	kblockd_schedule_work(&q->unplug_work);
 }
+
+void blk_unplug(struct request_queue *q)
+{
+	/*
+	 * devices don't necessarily have an ->unplug_fn defined
+	 */
+	if (q->unplug_fn) {
+		blk_add_trace_pdu_int(q, BLK_TA_UNPLUG_IO, NULL,
+					q->rq.count[READ] + q->rq.count[WRITE]);
+
+		q->unplug_fn(q);
+	}
+}
+EXPORT_SYMBOL(blk_unplug);
 
 /**
  * blk_start_queue - restart a previously stopped queue

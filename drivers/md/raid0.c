@@ -35,8 +35,7 @@ static void raid0_unplug(struct request_queue *q)
 	for (i=0; i<mddev->raid_disks; i++) {
 		struct request_queue *r_queue = bdev_get_queue(devlist[i]->bdev);
 
-		if (r_queue->unplug_fn)
-			r_queue->unplug_fn(r_queue);
+		blk_unplug(r_queue);
 	}
 }
 
