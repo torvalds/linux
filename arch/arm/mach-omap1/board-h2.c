@@ -458,17 +458,14 @@ static void __init h2_init(void)
 	omap_board_config = h2_config;
 	omap_board_config_size = ARRAY_SIZE(h2_config);
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
+			      ARRAY_SIZE(h2_i2c_board_info));
 	h2_mmc_init();
 
 	/* irq for tps65010 chip */
 	omap_cfg_reg(W4_GPIO58);
 	if (gpio_request(58, "tps65010") == 0)
 		gpio_direction_input(58);
-
-#ifdef CONFIG_I2C_BOARDINFO
-	i2c_register_board_info(1, h2_i2c_board_info,
-			ARRAY_SIZE(h2_i2c_board_info));
-#endif
 }
 
 static void __init h2_map_io(void)

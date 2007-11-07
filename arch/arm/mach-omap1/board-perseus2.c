@@ -234,6 +234,7 @@ static void __init omap_perseus2_init(void)
 	omap_board_config = perseus2_config;
 	omap_board_config_size = ARRAY_SIZE(perseus2_config);
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 
 static void __init perseus2_init_smc91x(void)

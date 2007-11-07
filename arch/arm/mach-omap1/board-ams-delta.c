@@ -227,6 +227,7 @@ static void __init ams_delta_init(void)
 	omap_board_config = ams_delta_config;
 	omap_board_config_size = ARRAY_SIZE(ams_delta_config);
 	omap_serial_init();
+	omap_register_i2c_bus(1, 100, NULL, 0);
 
 	/* Clear latch2 (NAND, LCD, modem enable) */
 	ams_delta_latch2_write(~0, 0);

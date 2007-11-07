@@ -473,10 +473,9 @@ static void __init osk_init(void)
 	if (gpio_request(OMAP_MPUIO(1), "tps65010") == 0)
 		gpio_direction_input(OMAP_MPUIO(1));
 
-	i2c_register_board_info(1, osk_i2c_board_info,
-			ARRAY_SIZE(osk_i2c_board_info));
-
 	omap_serial_init();
+	omap_register_i2c_bus(1, 400, osk_i2c_board_info,
+			      ARRAY_SIZE(osk_i2c_board_info));
 	osk_mistral_init();
 }
 
