@@ -64,6 +64,20 @@ static struct net *net_alloc(void)
 	return kmem_cache_zalloc(net_cachep, GFP_KERNEL);
 }
 
+static void net_free(struct net *net)
+{
+	if (!net)
+		return;
+
+	if (unlikely(atomic_read(&net->use_count) != 0)) {
+		printk(KERN_EMERG "network namespace not free! Usage: %d\n",
+			atomic_read(&net->use_count));
+		return;
+	}
+
+	kmem_cache_free(net_cachep, net);
+}
+
 struct net *copy_net_ns(unsigned long flags, struct net *old_net)
 {
 	struct net *new_net = NULL;
@@ -98,20 +112,6 @@ out:
 		new_net = ERR_PTR(err);
 	}
 	return new_net;
-}
-
-static void net_free(struct net *net)
-{
-	if (!net)
-		return;
-
-	if (unlikely(atomic_read(&net->use_count) != 0)) {
-		printk(KERN_EMERG "network namespace not free! Usage: %d\n",
-			atomic_read(&net->use_count));
-		return;
-	}
-
-	kmem_cache_free(net_cachep, net);
 }
 
 static void cleanup_net(struct work_struct *work)
