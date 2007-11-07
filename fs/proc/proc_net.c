@@ -26,13 +26,6 @@
 #include "internal.h"
 
 
-struct proc_dir_entry *proc_net_create(struct net *net,
-	const char *name, mode_t mode, get_info_t *get_info)
-{
-	return create_proc_info_entry(name,mode, net->proc_net, get_info);
-}
-EXPORT_SYMBOL_GPL(proc_net_create);
-
 struct proc_dir_entry *proc_net_fops_create(struct net *net,
 	const char *name, mode_t mode, const struct file_operations *fops)
 {

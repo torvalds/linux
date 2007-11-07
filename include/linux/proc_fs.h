@@ -196,8 +196,6 @@ static inline struct proc_dir_entry *create_proc_info_entry(const char *name,
 	return res;
 }
 
-extern struct proc_dir_entry *proc_net_create(struct net *net,
-	const char *name, mode_t mode, get_info_t *get_info);
 extern struct proc_dir_entry *proc_net_fops_create(struct net *net,
 	const char *name, mode_t mode, const struct file_operations *fops);
 extern void proc_net_remove(struct net *net, const char *name);
@@ -208,7 +206,6 @@ extern void proc_net_remove(struct net *net, const char *name);
 #define proc_bus NULL
 
 #define proc_net_fops_create(net, name, mode, fops)  ({ (void)(mode), NULL; })
-#define proc_net_create(net, name, mode, info)	({ (void)(mode), NULL; })
 static inline void proc_net_remove(struct net *net, const char *name) {}
 
 static inline void proc_flush_task(struct task_struct *task)
