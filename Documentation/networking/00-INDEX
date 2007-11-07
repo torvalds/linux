@@ -24,8 +24,6 @@ baycom.txt
 	- info on the driver for Baycom style amateur radio modems
 bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
-comx.txt
-	- info on drivers for COMX line of synchronous serial adapters.
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
