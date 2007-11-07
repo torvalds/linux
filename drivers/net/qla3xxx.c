@@ -1456,16 +1456,11 @@ static void ql_phy_start_neg_ex(struct ql3_adapter *qdev)
 			   PHYAddr[qdev->mac_index]);
 	reg &= ~PHY_GIG_ALL_PARAMS;
 
-	if(portConfiguration &
-	   PORT_CONFIG_FULL_DUPLEX_ENABLED &
-	   PORT_CONFIG_1000MB_SPEED) {
-		reg |= PHY_GIG_ADV_1000F;
-	}
-
-	if(portConfiguration &
-	   PORT_CONFIG_HALF_DUPLEX_ENABLED &
-	   PORT_CONFIG_1000MB_SPEED) {
-		reg |= PHY_GIG_ADV_1000H;
+	if(portConfiguration & PORT_CONFIG_1000MB_SPEED) {
+		if(portConfiguration & PORT_CONFIG_FULL_DUPLEX_ENABLED) 
+			reg |= PHY_GIG_ADV_1000F;
+		else 
+			reg |= PHY_GIG_ADV_1000H;
 	}
 
 	ql_mii_write_reg_ex(qdev, PHY_GIG_CONTROL, reg,
