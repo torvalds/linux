@@ -14,9 +14,9 @@ config MAC80211
 	networking stack.
 
 config MAC80211_RCSIMPLE
-	bool "'simple' rate control algorithm"
+	bool "'simple' rate control algorithm" if EMBEDDED
 	default y
-	depends on MAC80211 && EMBEDDED
+	depends on MAC80211
 	help
 	  This option allows you to turn off the 'simple' rate
 	  control algorithm in mac80211. If you do turn it off,
