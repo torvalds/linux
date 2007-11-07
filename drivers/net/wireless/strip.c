@@ -2735,16 +2735,8 @@ static int strip_ioctl(struct tty_struct *tty, struct file *file,
 			return -EFAULT;
 		return set_mac_address(strip_info, &addr);
 	}
-	/*
-	 * Allow stty to read, but not set, the serial port
-	 */
-
-	case TCGETS:
-	case TCGETA:
-		return n_tty_ioctl(tty, file, cmd, arg);
-		break;
 	default:
-		return -ENOIOCTLCMD;
+		return tty_mode_ioctl(tty, file, cmd, arg);
 		break;
 	}
 	return 0;

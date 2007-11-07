@@ -1218,14 +1218,8 @@ static int slip_ioctl(struct tty_struct *tty, struct file *file, unsigned int cm
 		return 0;
 	/* VSV changes end */
 #endif
-
-	/* Allow stty to read, but not set, the serial port */
-	case TCGETS:
-	case TCGETA:
-		return n_tty_ioctl(tty, file, cmd, arg);
-
 	default:
-		return -ENOIOCTLCMD;
+		return tty_mode_ioctl(tty, file, cmd, arg);
 	}
 }
 
