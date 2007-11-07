@@ -84,8 +84,6 @@ pt.txt
 	- the Gracilis Packetwin AX.25 device driver
 ray_cs.txt
 	- Raylink Wireless LAN card driver info.
-routing.txt
-	- the new routing mechanism
 shaper.txt
 	- info on the module that can shape/limit transmitted traffic.
 sk98lin.txt
