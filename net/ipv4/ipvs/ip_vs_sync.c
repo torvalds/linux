@@ -343,7 +343,6 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 			if (!dest) {
 				/* it is an unbound entry created by
 				 * synchronization */
-				cp->state = ntohs(s->state);
 				cp->flags = flags | IP_VS_CONN_F_HASHED;
 			} else
 				atomic_dec(&dest->refcnt);
@@ -358,6 +357,7 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 			p += SIMPLE_CONN_SIZE;
 
 		atomic_set(&cp->in_pkts, sysctl_ip_vs_sync_threshold[0]);
+		cp->state = ntohs(s->state);
 		pp = ip_vs_proto_get(s->protocol);
 		cp->timeout = pp->timeout_table[cp->state];
 		ip_vs_conn_put(cp);
