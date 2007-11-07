@@ -969,9 +969,9 @@ static void do_test(void)
 			    AES_XTS_ENC_TEST_VECTORS);
 		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
 			    AES_XTS_DEC_TEST_VECTORS);
-		test_cipher("ctr(aes,4,8)", ENCRYPT, aes_ctr_enc_tv_template,
+		test_cipher("ctr(aes,4,8,4)", ENCRYPT, aes_ctr_enc_tv_template,
 			    AES_CTR_ENC_TEST_VECTORS);
-		test_cipher("ctr(aes,4,8)", DECRYPT, aes_ctr_dec_tv_template,
+		test_cipher("ctr(aes,4,8,4)", DECRYPT, aes_ctr_dec_tv_template,
 			    AES_CTR_DEC_TEST_VECTORS);
 
 		//CAST5
@@ -1160,9 +1160,9 @@ static void do_test(void)
 			    AES_XTS_ENC_TEST_VECTORS);
 		test_cipher("xts(aes)", DECRYPT, aes_xts_dec_tv_template,
 			    AES_XTS_DEC_TEST_VECTORS);
-		test_cipher("ctr(aes,4,8)", ENCRYPT, aes_ctr_enc_tv_template,
+		test_cipher("ctr(aes,4,8,4)", ENCRYPT, aes_ctr_enc_tv_template,
 			    AES_CTR_ENC_TEST_VECTORS);
-		test_cipher("ctr(aes,4,8)", DECRYPT, aes_ctr_dec_tv_template,
+		test_cipher("ctr(aes,4,8,4)", DECRYPT, aes_ctr_dec_tv_template,
 			    AES_CTR_DEC_TEST_VECTORS);
 		break;
 

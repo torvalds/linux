@@ -23,6 +23,7 @@ struct ctr_instance_ctx {
 	struct crypto_spawn alg;
 	unsigned int noncesize;
 	unsigned int ivsize;
+	unsigned int countersize;
 };
 
 struct crypto_ctr_ctx {
@@ -186,7 +187,6 @@ static int crypto_ctr_crypt(struct blkcipher_desc *desc,
 	unsigned long alignmask = crypto_cipher_alignmask(child);
 	u8 cblk[bsize + alignmask];
 	u8 *counterblk = (u8 *)ALIGN((unsigned long)cblk, alignmask + 1);
-	unsigned int countersize;
 	int err;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
@@ -198,18 +198,18 @@ static int crypto_ctr_crypt(struct blkcipher_desc *desc,
 	memcpy(counterblk + ictx->noncesize, walk.iv, ictx->ivsize);
 
 	/* initialize counter portion of counter block */
-	countersize = bsize - ictx->noncesize - ictx->ivsize;
-	ctr_inc_quad(counterblk + (bsize - countersize), countersize);
+	ctr_inc_quad(counterblk + (bsize - ictx->countersize),
+		     ictx->countersize);
 
 	while (walk.nbytes) {
 		if (walk.src.virt.addr == walk.dst.virt.addr)
 			nbytes = crypto_ctr_crypt_inplace(&walk, child,
 							  counterblk,
-							  countersize);
+							  ictx->countersize);
 		else
 			nbytes = crypto_ctr_crypt_segment(&walk, child,
 							  counterblk,
-							  countersize);
+							  ictx->countersize);
 
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
@@ -251,6 +251,7 @@ static struct crypto_instance *crypto_ctr_alloc(struct rtattr **tb)
 	struct ctr_instance_ctx *ictx;
 	unsigned int noncesize;
 	unsigned int ivsize;
+	unsigned int countersize;
 	int err;
 
 	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_BLKCIPHER);
@@ -270,9 +271,17 @@ static struct crypto_instance *crypto_ctr_alloc(struct rtattr **tb)
 	if (err)
 		goto out_put_alg;
 
-	/* verify size of nonce + iv + counter */
+	err = crypto_attr_u32(tb[4], &countersize);
+	if (err)
+		goto out_put_alg;
+
+	/* verify size of nonce + iv + counter
+	 * counter must be >= 4 bytes.
+	 */
 	err = -EINVAL;
-	if ((noncesize + ivsize) >= alg->cra_blocksize)
+	if (((noncesize + ivsize + countersize) < alg->cra_blocksize) ||
+	    ((noncesize + ivsize) > alg->cra_blocksize) ||
+	    (countersize > alg->cra_blocksize) || (countersize < 4))
 		goto out_put_alg;
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*ictx), GFP_KERNEL);
@@ -282,20 +291,21 @@ static struct crypto_instance *crypto_ctr_alloc(struct rtattr **tb)
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME,
-		     "ctr(%s,%u,%u)", alg->cra_name, noncesize,
-		     ivsize) >= CRYPTO_MAX_ALG_NAME) {
+		     "ctr(%s,%u,%u,%u)", alg->cra_name, noncesize,
+		     ivsize, countersize) >= CRYPTO_MAX_ALG_NAME) {
 		goto err_free_inst;
 	}
 
 	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
-		     "ctr(%s,%u,%u)", alg->cra_driver_name, noncesize,
-		     ivsize) >= CRYPTO_MAX_ALG_NAME) {
+		     "ctr(%s,%u,%u,%u)", alg->cra_driver_name, noncesize,
+		     ivsize, countersize) >= CRYPTO_MAX_ALG_NAME) {
 		goto err_free_inst;
 	}
 
 	ictx = crypto_instance_ctx(inst);
 	ictx->noncesize = noncesize;
 	ictx->ivsize = ivsize;
+	ictx->countersize = countersize;
 
 	err = crypto_init_spawn(&ictx->alg, alg, inst,
 		CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
