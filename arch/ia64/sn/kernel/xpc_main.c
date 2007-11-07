@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2007 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -257,7 +257,9 @@ xpc_hb_checker(void *ignore)
 
 	set_cpus_allowed(current, cpumask_of_cpu(XPC_HB_CHECK_CPU));
 
+	/* set our heartbeating to other partitions into motion */
 	xpc_hb_check_timeout = jiffies + (xpc_hb_check_interval * HZ);
+	xpc_hb_beater(0);
 
 	while (!(volatile int) xpc_exiting) {
 
@@ -1338,16 +1340,8 @@ xpc_init(void)
 		dev_warn(xpc_part, "can't register die notifier\n");
 	}
 
-
-	/*
-	 * Set the beating to other partitions into motion.  This is
-	 * the last requirement for other partitions' discovery to
-	 * initiate communications with us.
-	 */
 	init_timer(&xpc_hb_timer);
 	xpc_hb_timer.function = xpc_hb_beater;
-	xpc_hb_beater(0);
-
 
 	/*
 	 * The real work-horse behind xpc.  This processes incoming
