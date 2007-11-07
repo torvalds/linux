@@ -17,9 +17,9 @@ The User Interface
 ------------------
 	The Linux Plug and Play user interface provides a means to activate PnP devices
 for legacy and user level drivers that do not support Linux Plug and Play.  The 
-user interface is integrated into driverfs.
+user interface is integrated into sysfs.
 
-In addition to the standard driverfs file the following are created in each 
+In addition to the standard sysfs file the following are created in each
 device's directory:
 id - displays a list of support EISA IDs
 options - displays possible resource configurations
