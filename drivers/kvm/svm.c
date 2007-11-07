@@ -1585,10 +1585,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 #endif
 		: "cc", "memory" );
 
-	local_irq_disable();
-
-	stgi();
-
 	if ((svm->vmcb->save.dr7 & 0xff))
 		load_db_regs(svm->host_db_regs);
 
@@ -1604,6 +1600,10 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	load_host_msrs(vcpu);
 
 	reload_tss(vcpu);
+
+	local_irq_disable();
+
+	stgi();
 
 	svm->next_rip = 0;
 }
