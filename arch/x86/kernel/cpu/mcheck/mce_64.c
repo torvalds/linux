@@ -810,7 +810,7 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 	int err;
 	int i;
 
-	if (!mce_available(&cpu_data(cpu)))
+	if (!mce_available(&boot_cpu_data))
 		return -EIO;
 
 	memset(&per_cpu(device_mce, cpu).kobj, 0, sizeof(struct kobject));
