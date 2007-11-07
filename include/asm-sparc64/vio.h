@@ -8,6 +8,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/list.h>
+#include <linux/log2.h>
 
 #include <asm/ldc.h>
 #include <asm/mdesc.h>
@@ -257,8 +258,7 @@ static inline void *vio_dring_entry(struct vio_dring_state *dr,
 static inline u32 vio_dring_avail(struct vio_dring_state *dr,
 				  unsigned int ring_size)
 {
-	/* Ensure build-time power-of-2.  */
-	BUILD_BUG_ON(ring_size & (ring_size - 1));
+	BUILD_BUG_ON(!is_power_of_2(ring_size));
 
 	return (dr->pending -
 		((dr->prod - dr->cons) & (ring_size - 1)));
