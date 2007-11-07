@@ -611,13 +611,14 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 				item_end += btrfs_file_extent_inline_len(leaf,
 									 item);
 			}
+			item_end--;
 		}
 		if (found_type == BTRFS_CSUM_ITEM_KEY) {
 			ret = btrfs_csum_truncate(trans, root, path,
 						  inode->i_size);
 			BUG_ON(ret);
 		}
-		if (item_end <= inode->i_size) {
+		if (item_end < inode->i_size) {
 			if (found_type == BTRFS_DIR_ITEM_KEY) {
 				found_type = BTRFS_INODE_ITEM_KEY;
 			} else if (found_type == BTRFS_EXTENT_ITEM_KEY) {
