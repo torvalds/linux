@@ -2036,10 +2036,12 @@ W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
-P:	Yi Zhu
+P:	Zhu Yi
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
 W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
@@ -2047,10 +2049,12 @@ W:	http://ipw2100.sourceforge.net
 S:	Supported
 
 INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
-P:	Yi Zhu
+P:	Zhu Yi
 M:	yi.zhu@intel.com
 P:	James Ketrenos
 M:	jketreno@linux.intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
 W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
@@ -2060,6 +2064,8 @@ S:	Supported
 INTEL WIRELESS WIFI LINK (iwlwifi)
 P:	Zhu Yi
 M:	yi.zhu@intel.com
+P:	Reinette Chatre
+M:	reinette.chatre@intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw3945-devel@lists.sourceforge.net
 W:	http://intellinuxwireless.org
