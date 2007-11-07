@@ -960,7 +960,7 @@ static struct attribute_group pdcs_attr_group = {
 	.attrs = pdcs_subsys_attrs,
 };
 
-static struct kset *stable_kset;
+static struct kobject *stable_kobj;
 static struct kset *paths_kset;
 
 /**
@@ -1058,18 +1058,18 @@ pdc_stable_init(void)
 	/* the actual result is 16 bits away */
 	pdcs_osid = (u16)(result >> 16);
 
-	/* For now we'll register the stable kset within this driver */
-	stable_kset = kset_create_and_add("stable", NULL, firmware_kobj);
-	if (!stable_kset) {
+	/* For now we'll register the directory at /sys/firmware/stable */
+	stable_kobj = kobject_create_and_add("stable", firmware_kobj);
+	if (!stable_kobj) {
 		rc = -ENOMEM;
 		goto fail_firmreg;
 	}
 
 	/* Don't forget the root entries */
-	error = sysfs_create_group(&stable_kset->kobj, pdcs_attr_group);
+	error = sysfs_create_group(stable_kobj, pdcs_attr_group);
 
 	/* register the paths kset as a child of the stable kset */
-	paths_kset = kset_create_and_add("paths", NULL, &stable_kset->kobj);
+	paths_kset = kset_create_and_add("paths", NULL, stable_kobj);
 	if (!paths_kset) {
 		rc = -ENOMEM;
 		goto fail_ksetreg;
@@ -1086,7 +1086,7 @@ fail_pdcsreg:
 	kset_unregister(paths_kset);
 	
 fail_ksetreg:
-	kset_unregister(stable_kset);
+	kobject_unregister(stable_kobj);
 	
 fail_firmreg:
 	printk(KERN_INFO PDCS_PREFIX " bailing out\n");
@@ -1098,7 +1098,7 @@ pdc_stable_exit(void)
 {
 	pdcs_unregister_pathentries();
 	kset_unregister(paths_kset);
-	kset_unregister(stable_kset);
+	kobject_unregister(stable_kobj);
 }
 
 
