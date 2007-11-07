@@ -3335,7 +3335,7 @@ out_mutex_unlock:
 	return err;
 }
 
-void b43legacy_stop(struct ieee80211_hw *hw)
+static void b43legacy_stop(struct ieee80211_hw *hw)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
