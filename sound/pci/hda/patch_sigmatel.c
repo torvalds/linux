@@ -391,6 +391,11 @@ static struct hda_verb stac92hd71bxx_core_init[] = {
 	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
 	/* connect headphone jack to dac1 */
 	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
+	/* connect ports 0d and 0f to audio mixer */
+	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x2},
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x2},
+	/* unmute dac0 input in audio mixer */
+	{ 0x17, AC_VERB_SET_AMP_GAIN_MUTE, 0x701f},
 	/* unmute right and left channels for nodes 0x0a, 0xd, 0x0f */
 	{ 0x0a, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{ 0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
@@ -465,6 +470,17 @@ static struct hda_verb stac9205_core_init[] = {
 		.private_value = verb_read | (verb_write << 16), \
 	}
 
+#define STAC_VOLKNOB(knob_nid)	\
+	{ \
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+		.name  = "Master Playback Volume", \
+		.count = 1, \
+		.info  = stac92xx_volknob_info, \
+		.get   = stac92xx_volknob_get, \
+		.put   = stac92xx_volknob_put, \
+			.private_value = 127 | (knob_nid << 16), \
+	}
+
 static struct snd_kcontrol_new stac9200_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
@@ -481,12 +497,19 @@ static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
 	STAC_VOLKNOB(0x28),
 
 	/* hardware gain controls */
-	HDA_CODEC_VOLUME("Digital Mic 1 Volume", 0x18, 0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Digital Mic 2 Volume", 0x19, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x0, 0x18, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x1, 0x19, 0x0, HDA_OUTPUT),
 
-	HDA_CODEC_VOLUME("Capture Volume", 0x1c, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x1c, 0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Capture Mux Volume", 0x1a, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x0, 0x1c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 0x0, 0x1c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Mux Volume", 0x0, 0x1a, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 0x1, 0x1d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 0x1, 0x1d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Mux Volume", 0x1, 0x1b, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_MUTE("Analog Loopback 1", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("Analog Loopback 2", 0x17, 0x4, HDA_INPUT),
 	{ } /* end */
 };
 
