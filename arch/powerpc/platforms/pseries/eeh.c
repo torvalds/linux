@@ -323,7 +323,7 @@ eeh_wait_for_slot_status(struct pci_dn *pdn, int max_wait_msecs)
 
 		if (rets[2] == 0) return -1; /* permanently unavailable */
 
-		if (max_wait_msecs <= 0) return -1;
+		if (max_wait_msecs <= 0) break;
 
 		mwait = rets[2];
 		if (mwait <= 0) {
