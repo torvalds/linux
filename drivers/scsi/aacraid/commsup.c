@@ -1342,7 +1342,7 @@ int aac_check_health(struct aac_dev * aac)
 			aif->data[0] = AifEnExpEvent;
 			aif->data[1] = AifExeFirmwarePanic;
 			aif->data[2] = AifHighPriority;
-			aif->data[3] = cpu_to_le32(BlinkLED);
+			aif->data[3] = BlinkLED;
 
 			/*
 			 * Put the FIB onto the
