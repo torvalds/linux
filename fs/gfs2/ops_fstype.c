@@ -339,7 +339,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 
 	if (sdp->sd_args.ar_spectator) {
 		sdp->sd_jdesc = gfs2_jdesc_find(sdp, 0);
-		sdp->sd_log_blks_free = sdp->sd_jdesc->jd_blocks;
+		atomic_set(&sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks);
 	} else {
 		if (sdp->sd_lockstruct.ls_jid >= gfs2_jindex_size(sdp)) {
 			fs_err(sdp, "can't mount journal #%u\n",
@@ -376,7 +376,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			       sdp->sd_jdesc->jd_jid, error);
 			goto fail_jinode_gh;
 		}
-		sdp->sd_log_blks_free = sdp->sd_jdesc->jd_blocks;
+		atomic_set(&sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks);
 	}
 
 	if (sdp->sd_lockstruct.ls_first) {
