@@ -131,22 +131,6 @@ config SH64_PGTABLE_3_LEVEL
 
 endchoice
 
-choice
-	prompt "HugeTLB page size"
-	depends on HUGETLB_PAGE && MMU
-	default HUGETLB_PAGE_SIZE_64K
-
-config HUGETLB_PAGE_SIZE_64K
-	bool "64K"
-
-config HUGETLB_PAGE_SIZE_1MB
-	bool "1MB"
-
-config HUGETLB_PAGE_SIZE_512MB
-	bool "512MB"
-
-endchoice
-
 config SH64_USER_MISALIGNED_FIXUP
 	bool "Fixup misaligned loads/stores occurring in user mode"
 
@@ -226,7 +210,12 @@ config PREEMPT
 	bool "Preemptible Kernel (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
 
-source "mm/Kconfig"
+config SH_PCLK_FREQ
+	int "Peripheral clock frequency (in Hz)"
+	default "50000000"
+
+source "kernel/Kconfig.hz"
+source "arch/sh/mm/Kconfig"
 
 endmenu
 
@@ -286,7 +275,7 @@ source "fs/Kconfig"
 
 source "kernel/Kconfig.instrumentation"
 
-source "arch/sh64/Kconfig.debug"
+source "arch/sh/Kconfig.debug"
 
 source "security/Kconfig"
 

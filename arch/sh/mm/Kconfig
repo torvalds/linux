@@ -66,7 +66,7 @@ config X2TLB
 
 config VSYSCALL
 	bool "Support vsyscall page"
-	depends on MMU
+	depends on MMU && (CPU_SH3 || CPU_SH4)
 	default y
 	help
 	  This will enable support for the kernel mapping a vDSO page
@@ -175,6 +175,10 @@ config HUGETLB_PAGE_SIZE_64MB
 	bool "64MB"
 	depends on X2TLB
 
+config HUGETLB_PAGE_SIZE_512MB
+	bool "512MB"
+	depends on CPU_SH5
+
 endchoice
 
 source "mm/Kconfig"
@@ -202,12 +206,12 @@ config SH_DIRECT_MAPPED
 
 choice
 	prompt "Cache mode"
-	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4
+	default CACHE_WRITEBACK if CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
 	default CACHE_WRITETHROUGH if (CPU_SH2 && !CPU_SH2A)
 
 config CACHE_WRITEBACK
 	bool "Write-back"
-	depends on CPU_SH2A || CPU_SH3 || CPU_SH4
+	depends on CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
 
 config CACHE_WRITETHROUGH
 	bool "Write-through"
