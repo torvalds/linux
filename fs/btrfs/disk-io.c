@@ -43,6 +43,8 @@ static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
 }
 #endif
 
+static struct extent_map_ops btree_extent_map_ops;
+
 struct extent_buffer *btrfs_find_tree_block(struct btrfs_root *root,
 					    u64 bytenr, u32 blocksize)
 {
@@ -188,15 +190,29 @@ out:
 	return 0;
 }
 
+static int btree_writepage_io_hook(struct page *page, u64 start, u64 end)
+{
+	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
+
+	csum_dirty_buffer(root, page);
+	return 0;
+}
+
 static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_map_tree *tree;
-	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 	tree = &BTRFS_I(page->mapping->host)->extent_tree;
-
-	csum_dirty_buffer(root, page);
 	return extent_write_full_page(tree, page, btree_get_extent, wbc);
 }
+
+static int btree_writepages(struct address_space *mapping,
+			    struct writeback_control *wbc)
+{
+	struct extent_map_tree *tree;
+	tree = &BTRFS_I(mapping->host)->extent_tree;
+	return extent_writepages(tree, mapping, btree_get_extent, wbc);
+}
+
 int btree_readpage(struct file *file, struct page *page)
 {
 	struct extent_map_tree *tree;
@@ -251,6 +267,7 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
 static struct address_space_operations btree_aops = {
 	.readpage	= btree_readpage,
 	.writepage	= btree_writepage,
+	.writepages	= btree_writepages,
 	.releasepage	= btree_releasepage,
 	.invalidatepage = btree_invalidatepage,
 	.sync_page	= block_sync_page,
@@ -538,6 +555,8 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	extent_map_tree_init(&BTRFS_I(fs_info->btree_inode)->extent_tree,
 			     fs_info->btree_inode->i_mapping,
 			     GFP_NOFS);
+	BTRFS_I(fs_info->btree_inode)->extent_tree.ops = &btree_extent_map_ops;
+
 	extent_map_tree_init(&fs_info->free_space_cache,
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	extent_map_tree_init(&fs_info->block_group_cache,
@@ -832,3 +851,7 @@ int btrfs_read_buffer(struct extent_buffer *buf)
 	return read_extent_buffer_pages(&BTRFS_I(btree_inode)->extent_tree,
 					buf, 0, 1);
 }
+
+static struct extent_map_ops btree_extent_map_ops = {
+	.writepage_io_hook = btree_writepage_io_hook,
+};
