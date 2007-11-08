@@ -2106,25 +2106,17 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_map_tree *tree,
 
 	spin_lock(&tree->lru_lock);
 	eb = find_lru(tree, start, len);
-	if (eb) {
-		goto lru_add;
-	}
 	spin_unlock(&tree->lru_lock);
-
 	if (eb) {
-		memset(eb, 0, sizeof(*eb));
-	} else {
-		eb = kmem_cache_zalloc(extent_buffer_cache, mask);
+		return eb;
 	}
+
+	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
 	INIT_LIST_HEAD(&eb->lru);
 	eb->start = start;
 	eb->len = len;
 	atomic_set(&eb->refs, 1);
 
-	spin_lock(&tree->lru_lock);
-lru_add:
-	add_lru(tree, eb);
-	spin_unlock(&tree->lru_lock);
 	return eb;
 }
 
@@ -2151,7 +2143,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 		return NULL;
 
 	if (eb->flags & EXTENT_BUFFER_FILLED)
-		return eb;
+		goto lru_add;
 
 	if (page0) {
 		eb->first_page = page0;
@@ -2169,11 +2161,6 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 		p = find_or_create_page(mapping, index, mask | __GFP_HIGHMEM);
 		if (!p) {
 			WARN_ON(1);
-			/* make sure the free only frees the pages we've
-			 * grabbed a reference on
-			 */
-			eb->len = i << PAGE_CACHE_SHIFT;
-			eb->start &= ~((u64)PAGE_CACHE_SIZE - 1);
 			goto fail;
 		}
 		set_page_extent_mapped(p);
@@ -2192,9 +2179,20 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 	if (uptodate)
 		eb->flags |= EXTENT_UPTODATE;
 	eb->flags |= EXTENT_BUFFER_FILLED;
+
+lru_add:
+	spin_lock(&tree->lru_lock);
+	add_lru(tree, eb);
+	spin_unlock(&tree->lru_lock);
 	return eb;
+
 fail:
-	free_extent_buffer(eb);
+	if (!atomic_dec_and_test(&eb->refs))
+		return NULL;
+	for (index = 0; index < i; index++) {
+		page_cache_release(extent_buffer_page(eb, index));
+	}
+	__free_extent_buffer(eb);
 	return NULL;
 }
 EXPORT_SYMBOL(alloc_extent_buffer);
@@ -2204,7 +2202,8 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 					  gfp_t mask)
 {
 	unsigned long num_pages = num_extent_pages(start, len);
-	unsigned long i; unsigned long index = start >> PAGE_CACHE_SHIFT;
+	unsigned long i;
+	unsigned long index = start >> PAGE_CACHE_SHIFT;
 	struct extent_buffer *eb;
 	struct page *p;
 	struct address_space *mapping = tree->mapping;
@@ -2215,16 +2214,11 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 		return NULL;
 
 	if (eb->flags & EXTENT_BUFFER_FILLED)
-		return eb;
+		goto lru_add;
 
 	for (i = 0; i < num_pages; i++, index++) {
 		p = find_lock_page(mapping, index);
 		if (!p) {
-			/* make sure the free only frees the pages we've
-			 * grabbed a reference on
-			 */
-			eb->len = i << PAGE_CACHE_SHIFT;
-			eb->start &= ~((u64)PAGE_CACHE_SIZE - 1);
 			goto fail;
 		}
 		set_page_extent_mapped(p);
@@ -2245,9 +2239,19 @@ struct extent_buffer *find_extent_buffer(struct extent_map_tree *tree,
 	if (uptodate)
 		eb->flags |= EXTENT_UPTODATE;
 	eb->flags |= EXTENT_BUFFER_FILLED;
+
+lru_add:
+	spin_lock(&tree->lru_lock);
+	add_lru(tree, eb);
+	spin_unlock(&tree->lru_lock);
 	return eb;
 fail:
-	free_extent_buffer(eb);
+	if (!atomic_dec_and_test(&eb->refs))
+		return NULL;
+	for (index = 0; index < i; index++) {
+		page_cache_release(extent_buffer_page(eb, index));
+	}
+	__free_extent_buffer(eb);
 	return NULL;
 }
 EXPORT_SYMBOL(find_extent_buffer);
