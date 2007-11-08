@@ -15,6 +15,9 @@ config SUPERH
 	  gaming console.  The SuperH port has a home page at
 	  <http://www.linux-sh.org/>.
 
+config SUPERH32
+	def_bool y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
