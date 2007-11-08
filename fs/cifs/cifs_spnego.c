@@ -76,9 +76,10 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo, const char *hostname)
 	struct key *spnego_key;
 
 
-	/* version + ;ip{4|6}= + address + ;host=hostname + ;sec= + NULL */
-	desc_len = 2 + 5 + 32 + 1 + 5 + strlen(hostname) +
-		   strlen(";sec=krb5") + 1;
+	/* version + ;ip{4|6}= + address + ;host=hostname +
+		;sec= + ;uid= + NULL */
+	desc_len = 4 + 5 + 32 + 1 + 5 + strlen(hostname) +
+		   strlen(";sec=krb5") + 7 + sizeof(uid_t)*2 + 1;
 	spnego_key = ERR_PTR(-ENOMEM);
 	description = kzalloc(desc_len, GFP_KERNEL);
 	if (description == NULL)
@@ -87,7 +88,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo, const char *hostname)
 	dp = description;
 	/* start with version and hostname portion of UNC string */
 	spnego_key = ERR_PTR(-EINVAL);
-	sprintf(dp, "%2.2x;host=%s;", CIFS_SPNEGO_UPCALL_VERSION,
+	sprintf(dp, "0x%2.2x;host=%s;", CIFS_SPNEGO_UPCALL_VERSION,
 		hostname);
 	dp = description + strlen(description);
 
@@ -108,6 +109,9 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo, const char *hostname)
 		sprintf(dp, ";sec=krb5");
 	else
 		goto out;
+
+	dp = description + strlen(description);
+	sprintf(dp, ";uid=0x%x", sesInfo->linux_uid);
 
 	cFYI(1, ("key description = %s", description));
 	spnego_key = request_key(&cifs_spnego_key_type, description, "");
