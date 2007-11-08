@@ -1328,6 +1328,7 @@ static void rtl_hw_phy_config(struct net_device *dev)
 		break;
 	case RTL_GIGA_MAC_VER_11:
 	case RTL_GIGA_MAC_VER_12:
+		break;
 	case RTL_GIGA_MAC_VER_17:
 		rtl8168b_hw_phy_config(ioaddr);
 		break;
