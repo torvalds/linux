@@ -26,7 +26,7 @@
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.1.3"
+#define DRV_VERSION	"0.1.4"
 
 #ifdef CONFIG_CPU_SH3
 #define rtc_reg_size		sizeof(u16)
@@ -35,6 +35,10 @@
 #elif defined(CONFIG_CPU_SH4)
 #define rtc_reg_size		sizeof(u32)
 #define RTC_BIT_INVERTED	0x40	/* bug on SH7750, SH7750S */
+#define RTC_DEF_CAPABILITIES	RTC_CAP_4_DIGIT_YEAR
+#elif defined(CONFIG_CPU_SH5)
+#define rtc_reg_size		sizeof(u32)
+#define RTC_BIT_INVERTED	0	/* The SH-5 RTC is surprisingly sane! */
 #define RTC_DEF_CAPABILITIES	RTC_CAP_4_DIGIT_YEAR
 #endif
 
