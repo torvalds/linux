@@ -35,6 +35,7 @@
  */
 unsigned int tlb_44x_index; /* = 0 */
 unsigned int tlb_44x_hwater = PPC44x_TLB_SIZE - 1 - PPC44x_EARLY_TLBS;
+int icache_44x_need_flush;
 
 /*
  * "Pins" a 256MB TLB entry in AS0 for kernel lowmem

@@ -61,6 +61,7 @@ extern char etext[], _stext[];
  */
 unsigned int tlb_44x_index = 0;
 unsigned int tlb_44x_hwater = 62;
+int icache_44x_need_flush;
 
 /*
  * "Pins" a 256MB TLB entry in AS0 for kernel lowmem
