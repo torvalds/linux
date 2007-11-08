@@ -168,6 +168,7 @@ static u64 find_search_start(struct btrfs_root *root,
 	u64 last;
 	u64 start = 0;
 	u64 end = 0;
+	u64 cache_miss = 0;
 	int wrapped = 0;
 
 again:
@@ -181,14 +182,20 @@ again:
 		ret = find_first_extent_bit(&root->fs_info->free_space_cache,
 					    last, &start, &end, EXTENT_DIRTY);
 		if (ret) {
+			if (!cache_miss)
+				cache_miss = last;
 			goto new_group;
 		}
 
 		start = max(last, start);
 		last = end + 1;
-		if (end + 1 - start < num)
+		if (last - start < num) {
+			if (last == cache->key.objectid + cache->key.offset)
+				cache_miss = start;
 			continue;
-		if (start + num >= cache->key.objectid + cache->key.offset)
+		}
+		if (data != BTRFS_BLOCK_GROUP_MIXED &&
+		    start + num >= cache->key.objectid + cache->key.offset)
 			goto new_group;
 		return start;
 	}
@@ -208,13 +215,22 @@ wrapped:
 		}
 		return search_start;
 	}
+	if (cache_miss && !cache->cached) {
+		cache_block_group(root, cache);
+		last = cache_miss;
+
+		cache = btrfs_lookup_block_group(root->fs_info, last);
+	}
 	cache = btrfs_find_block_group(root, cache, last, data, 0);
 	*cache_ret = cache;
+	cache_miss = 0;
 	goto again;
 }
 
 static u64 div_factor(u64 num, int factor)
 {
+	if (factor == 10)
+		return num;
 	num *= factor;
 	do_div(num, 10);
 	return num;
@@ -247,9 +263,10 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	if (!owner)
 		factor = 8;
 
-	if (data == BTRFS_BLOCK_GROUP_MIXED)
+	if (data == BTRFS_BLOCK_GROUP_MIXED) {
 		bit = BLOCK_GROUP_DATA | BLOCK_GROUP_METADATA;
-	else if (data)
+		factor = 10;
+	} else if (data)
 		bit = BLOCK_GROUP_DATA;
 	else
 		bit = BLOCK_GROUP_METADATA;
@@ -918,6 +935,10 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	level = btrfs_header_level(root->node);
 
+	if (num_bytes >= 96 * 1024 * 1024 && hint_byte) {
+		data = BTRFS_BLOCK_GROUP_MIXED;
+	}
+
 	if (search_end == (u64)-1)
 		search_end = btrfs_super_total_bytes(&info->super_copy);
 	if (hint_byte) {
@@ -937,6 +958,7 @@ check_failed:
 	search_start = find_search_start(root, &block_group,
 					 search_start, total_needed, data);
 	cached_start = search_start;
+
 	btrfs_init_path(path);
 	ins->objectid = search_start;
 	ins->offset = 0;
@@ -1021,7 +1043,8 @@ check_failed:
 		start_found = 1;
 		last_byte = key.objectid + key.offset;
 
-		if (!full_scan && last_byte >= block_group->key.objectid +
+		if (!full_scan && data != BTRFS_BLOCK_GROUP_MIXED &&
+		    last_byte >= block_group->key.objectid +
 		    block_group->key.offset) {
 			btrfs_release_path(root, path);
 			search_start = block_group->key.objectid +
@@ -1042,7 +1065,8 @@ check_pending:
 	if (ins->objectid + num_bytes >= search_end)
 		goto enospc;
 
-	if (!full_scan && ins->objectid + num_bytes >= block_group->
+	if (!full_scan && data != BTRFS_BLOCK_GROUP_MIXED &&
+	    ins->objectid + num_bytes >= block_group->
 	    key.objectid + block_group->key.offset) {
 		search_start = block_group->key.objectid +
 			block_group->key.offset;

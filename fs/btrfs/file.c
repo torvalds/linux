@@ -439,6 +439,12 @@ next_slot:
 						struct btrfs_file_extent_item);
 			found_type = btrfs_file_extent_type(leaf, extent);
 			if (found_type == BTRFS_FILE_EXTENT_REG) {
+				extent_end =
+				     btrfs_file_extent_disk_bytenr(leaf,
+								   extent);
+				if (extent_end)
+					*hint_byte = extent_end;
+
 				extent_end = key.offset +
 				     btrfs_file_extent_num_bytes(leaf, extent);
 				found_extent = 1;
