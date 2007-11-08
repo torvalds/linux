@@ -35,7 +35,7 @@ typedef unsigned int cycles_t;
 
 static inline cycles_t get_cycles(void)
 {
-	return read_c0_count();
+	return 0;
 }
 
 #endif /* __KERNEL__ */
