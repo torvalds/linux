@@ -138,9 +138,9 @@ static void access_flags_to_mode(__u32 ace_flags, int type, umode_t *pmode,
 				 umode_t *pbits_to_set)
 {
 	/* the order of ACEs is important.  The canonical order is to begin with
-	   DENY entries then follow with ALLOW, otherwise an allow entry could be
+	   DENY entries followed by ALLOW, otherwise an allow entry could be
 	   encountered first, making the subsequent deny entry like "dead code"
-           which would be superflous since Windows stops when a match is made 
+	   which would be superflous since Windows stops when a match is made
 	   for the operation you are trying to perform for your user */
 
 	/* For deny ACEs we change the mask so that subsequent allow access
@@ -184,6 +184,37 @@ static void access_flags_to_mode(__u32 ace_flags, int type, umode_t *pmode,
 
 #ifdef CONFIG_CIFS_DEBUG2
 	cFYI(1, ("access flags 0x%x mode now 0x%x", ace_flags, *pmode));
+#endif
+	return;
+}
+
+/*
+   Generate access flags to reflect permissions mode is the existing mode.
+   This function is called for every ACE in the DACL whose SID matches
+   with either owner or group or everyone.
+*/
+
+static void mode_to_access_flags(umode_t mode, umode_t bits_to_use,
+				__u32 *pace_flags)
+{
+	/* reset access mask */
+	*pace_flags = 0x0;
+
+	/* bits to use are either S_IRWXU or S_IRWXG or S_IRWXO */
+	mode &= bits_to_use;
+
+	/* check for R/W/X UGO since we do not know whose flags
+	   is this but we have cleared all the bits sans RWX for
+	   either user or group or other as per bits_to_use */
+	if (mode & S_IRUGO)
+		*pace_flags |= SET_FILE_READ_RIGHTS;
+	if (mode & S_IWUGO)
+		*pace_flags |= SET_FILE_WRITE_RIGHTS;
+	if (mode & S_IXUGO)
+		*pace_flags |= SET_FILE_EXEC_RIGHTS;
+
+#ifdef CONFIG_CIFS_DEBUG2
+	cFYI(1, ("mode: 0x%x, access flags now 0x%x", mode, *pace_flags));
 #endif
 	return;
 }
