@@ -255,8 +255,10 @@ static inline void *set_exception_table_evt(unsigned int evt, void *handler)
  */
 #ifdef CONFIG_CPU_SH2A
 extern unsigned int instruction_size(unsigned int insn);
-#else
+#elif defined(CONFIG_SUPERH32)
 #define instruction_size(insn)	(2)
+#else
+#define instruction_size(insn)	(4)
 #endif
 
 /* XXX
