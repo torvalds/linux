@@ -692,20 +692,16 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
  *
  */
 
-void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
+void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 {
 	struct gfs2_ail *ai;
 
 	down_write(&sdp->sd_log_flush_lock);
 
-	if (gl) {
-		gfs2_log_lock(sdp);
-		if (list_empty(&gl->gl_le.le_list)) {
-			gfs2_log_unlock(sdp);
-			up_write(&sdp->sd_log_flush_lock);
-			return;
-		}
-		gfs2_log_unlock(sdp);
+	/* Log might have been flushed while we waited for the flush lock */
+	if (gl && !test_bit(GLF_LFLUSH, &gl->gl_flags)) {
+		up_write(&sdp->sd_log_flush_lock);
+		return;
 	}
 
 	ai = kzalloc(sizeof(struct gfs2_ail), GFP_NOFS | __GFP_NOFAIL);
@@ -823,7 +819,6 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	down_write(&sdp->sd_log_flush_lock);
 
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_blks_reserved);
-	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_gl);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_buf);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_rg);

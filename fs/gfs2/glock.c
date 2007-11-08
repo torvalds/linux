@@ -346,7 +346,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_object = NULL;
 	gl->gl_sbd = sdp;
 	gl->gl_aspace = NULL;
-	lops_init_le(&gl->gl_le, &gfs2_glock_lops);
 	INIT_DELAYED_WORK(&gl->gl_work, glock_work_func);
 
 	/* If this glock protects actual on-disk data or metadata blocks,
@@ -1900,8 +1899,6 @@ static int dump_glock(struct glock_iter *gi, struct gfs2_glock *gl)
 	print_dbg(gi, "  req_bh = %s\n", (gl->gl_req_bh) ? "yes" : "no");
 	print_dbg(gi, "  lvb_count = %d\n", atomic_read(&gl->gl_lvb_count));
 	print_dbg(gi, "  object = %s\n", (gl->gl_object) ? "yes" : "no");
-	print_dbg(gi, "  le = %s\n",
-		   (list_empty(&gl->gl_le.le_list)) ? "no" : "yes");
 	print_dbg(gi, "  reclaim = %s\n",
 		   (list_empty(&gl->gl_reclaim)) ? "no" : "yes");
 	if (gl->gl_aspace)

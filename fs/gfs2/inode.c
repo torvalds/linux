@@ -362,7 +362,8 @@ int gfs2_dinode_dealloc(struct gfs2_inode *ip)
 	if (error)
 		goto out_rg_gunlock;
 
-	gfs2_trans_add_gl(ip->i_gl);
+	set_bit(GLF_DIRTY, &ip->i_gl->gl_flags);
+	set_bit(GLF_LFLUSH, &ip->i_gl->gl_flags);
 
 	gfs2_free_di(rgd, ip);
 

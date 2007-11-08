@@ -168,6 +168,7 @@ enum {
 	GLF_PENDING_DEMOTE	= 4,
 	GLF_DIRTY		= 5,
 	GLF_DEMOTE_IN_PROGRESS	= 6,
+	GLF_LFLUSH		= 7,
 };
 
 struct gfs2_glock {
@@ -208,7 +209,6 @@ struct gfs2_glock {
 	struct gfs2_sbd *gl_sbd;
 
 	struct inode *gl_aspace;
-	struct gfs2_log_element gl_le;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
 	struct delayed_work gl_work;
@@ -584,13 +584,11 @@ struct gfs2_sbd {
 	unsigned int sd_log_commited_databuf;
 	unsigned int sd_log_commited_revoke;
 
-	unsigned int sd_log_num_gl;
 	unsigned int sd_log_num_buf;
 	unsigned int sd_log_num_revoke;
 	unsigned int sd_log_num_rg;
 	unsigned int sd_log_num_databuf;
 
-	struct list_head sd_log_le_gl;
 	struct list_head sd_log_le_buf;
 	struct list_head sd_log_le_revoke;
 	struct list_head sd_log_le_rg;

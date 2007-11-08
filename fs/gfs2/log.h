@@ -57,7 +57,14 @@ void gfs2_log_incr_head(struct gfs2_sbd *sdp);
 struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp);
 struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 				      struct buffer_head *real);
-void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
+void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
+
+static inline void gfs2_log_flush(struct gfs2_sbd *sbd, struct gfs2_glock *gl)
+{
+	if (!gl || test_bit(GLF_LFLUSH, &gl->gl_flags))
+		__gfs2_log_flush(sbd, gl);
+}
+
 void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
 void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 
