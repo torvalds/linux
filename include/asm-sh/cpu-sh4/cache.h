@@ -12,6 +12,11 @@
 
 #define L1_CACHE_SHIFT	5
 
+#define SH_CACHE_VALID		1
+#define SH_CACHE_UPDATED	2
+#define SH_CACHE_COMBINED	4
+#define SH_CACHE_ASSOC		8
+
 #define CCR		0xff00001c	/* Address of Cache Control Register */
 #define CCR_CACHE_OCE	0x0001	/* Operand Cache Enable */
 #define CCR_CACHE_WT	0x0002	/* Write-Through (for P0,U0,P3) (else writeback)*/

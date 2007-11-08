@@ -12,6 +12,11 @@
 
 #define L1_CACHE_SHIFT	4
 
+#define SH_CACHE_VALID		1
+#define SH_CACHE_UPDATED	2
+#define SH_CACHE_COMBINED	4
+#define SH_CACHE_ASSOC		8
+
 #if defined(CONFIG_CPU_SUBTYPE_SH7619)
 #define CCR1		0xffffffec
 #define CCR		CCR1

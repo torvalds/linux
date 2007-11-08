@@ -12,6 +12,11 @@
 
 #define L1_CACHE_SHIFT	4
 
+#define SH_CACHE_VALID		1
+#define SH_CACHE_UPDATED	2
+#define SH_CACHE_COMBINED	4
+#define SH_CACHE_ASSOC		8
+
 #define CCR		0xffffffec	/* Address of Cache Control Register */
 
 #define CCR_CACHE_CE	0x01	/* Cache Enable */

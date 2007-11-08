@@ -12,6 +12,11 @@
 
 #define L1_CACHE_SHIFT	4
 
+#define SH_CACHE_VALID		1
+#define SH_CACHE_UPDATED	2
+#define SH_CACHE_COMBINED	4
+#define SH_CACHE_ASSOC		8
+
 #define CCR1		0xfffc1000
 #define CCR2		0xfffc1004
 
