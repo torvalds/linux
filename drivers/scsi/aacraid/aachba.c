@@ -981,7 +981,7 @@ static int aac_read_block(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u32
 	aac_fib_init(fib);
 	readcmd = (struct aac_read *) fib_data(fib);
 	readcmd->command = cpu_to_le32(VM_CtBlockRead);
-	readcmd->cid = cpu_to_le16(scmd_id(cmd));
+	readcmd->cid = cpu_to_le32(scmd_id(cmd));
 	readcmd->block = cpu_to_le32((u32)(lba&0xffffffff));
 	readcmd->count = cpu_to_le32(count * 512);
 
@@ -1072,7 +1072,7 @@ static int aac_write_block(struct fib * fib, struct scsi_cmnd * cmd, u64 lba, u3
 	aac_fib_init(fib);
 	writecmd = (struct aac_write *) fib_data(fib);
 	writecmd->command = cpu_to_le32(VM_CtBlockWrite);
-	writecmd->cid = cpu_to_le16(scmd_id(cmd));
+	writecmd->cid = cpu_to_le32(scmd_id(cmd));
 	writecmd->block = cpu_to_le32((u32)(lba&0xffffffff));
 	writecmd->count = cpu_to_le32(count * 512);
 	writecmd->sg.count = cpu_to_le32(1);
@@ -1305,9 +1305,10 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			  (int)sizeof(dev->supplement_adapter_info.VpdInfo.Tsid),
 			  dev->supplement_adapter_info.VpdInfo.Tsid);
 		}
-		if (!aac_check_reset || ((aac_check_reset != 1) &&
-		  (dev->supplement_adapter_info.SupportedOptions2 &
-		  le32_to_cpu(AAC_OPTION_IGNORE_RESET)))) {
+		if (!aac_check_reset ||
+		    ((aac_check_reset != 1) &&
+		     (dev->supplement_adapter_info.SupportedOptions2 &
+		      cpu_to_le32(AAC_OPTION_IGNORE_RESET)))) {
 			printk(KERN_INFO "%s%d: Reset Adapter Ignored\n",
 			  dev->name, dev->id);
 		}

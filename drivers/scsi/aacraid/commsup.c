@@ -796,13 +796,13 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 	 */
 	switch (le32_to_cpu(aifcmd->command)) {
 	case AifCmdDriverNotify:
-		switch (le32_to_cpu(((u32 *)aifcmd->data)[0])) {
+		switch (le32_to_cpu(((__le32 *)aifcmd->data)[0])) {
 		/*
 		 *	Morph or Expand complete
 		 */
 		case AifDenMorphComplete:
 		case AifDenVolumeExtendComplete:
-			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			container = le32_to_cpu(((__le32 *)aifcmd->data)[1]);
 			if (container >= dev->maximum_num_containers)
 				break;
 
@@ -835,25 +835,25 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 			if (container >= dev->maximum_num_containers)
 				break;
 			if ((dev->fsa_dev[container].config_waiting_on ==
-			    le32_to_cpu(*(u32 *)aifcmd->data)) &&
+			    le32_to_cpu(*(__le32 *)aifcmd->data)) &&
 			 time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT))
 				dev->fsa_dev[container].config_waiting_on = 0;
 		} else for (container = 0;
 		    container < dev->maximum_num_containers; ++container) {
 			if ((dev->fsa_dev[container].config_waiting_on ==
-			    le32_to_cpu(*(u32 *)aifcmd->data)) &&
+			    le32_to_cpu(*(__le32 *)aifcmd->data)) &&
 			 time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT))
 				dev->fsa_dev[container].config_waiting_on = 0;
 		}
 		break;
 
 	case AifCmdEventNotify:
-		switch (le32_to_cpu(((u32 *)aifcmd->data)[0])) {
+		switch (le32_to_cpu(((__le32 *)aifcmd->data)[0])) {
 		/*
 		 *	Add an Array.
 		 */
 		case AifEnAddContainer:
-			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			container = le32_to_cpu(((__le32 *)aifcmd->data)[1]);
 			if (container >= dev->maximum_num_containers)
 				break;
 			dev->fsa_dev[container].config_needed = ADD;
@@ -866,7 +866,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 		 *	Delete an Array.
 		 */
 		case AifEnDeleteContainer:
-			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			container = le32_to_cpu(((__le32 *)aifcmd->data)[1]);
 			if (container >= dev->maximum_num_containers)
 				break;
 			dev->fsa_dev[container].config_needed = DELETE;
@@ -880,7 +880,7 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 		 * waiting on something else, setup to wait on a Config Change.
 		 */
 		case AifEnContainerChange:
-			container = le32_to_cpu(((u32 *)aifcmd->data)[1]);
+			container = le32_to_cpu(((__le32 *)aifcmd->data)[1]);
 			if (container >= dev->maximum_num_containers)
 				break;
 			if (dev->fsa_dev[container].config_waiting_on &&
@@ -905,13 +905,13 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 			if (container >= dev->maximum_num_containers)
 				break;
 			if ((dev->fsa_dev[container].config_waiting_on ==
-			    le32_to_cpu(*(u32 *)aifcmd->data)) &&
+			    le32_to_cpu(*(__le32 *)aifcmd->data)) &&
 			 time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT))
 				dev->fsa_dev[container].config_waiting_on = 0;
 		} else for (container = 0;
 		    container < dev->maximum_num_containers; ++container) {
 			if ((dev->fsa_dev[container].config_waiting_on ==
-			    le32_to_cpu(*(u32 *)aifcmd->data)) &&
+			    le32_to_cpu(*(__le32 *)aifcmd->data)) &&
 			 time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT))
 				dev->fsa_dev[container].config_waiting_on = 0;
 		}
@@ -926,9 +926,9 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 		 * wait for a container change.
 		 */
 
-		if ((((u32 *)aifcmd->data)[1] == cpu_to_le32(AifJobCtrZero))
-		 && ((((u32 *)aifcmd->data)[6] == ((u32 *)aifcmd->data)[5])
-		  || (((u32 *)aifcmd->data)[4] == cpu_to_le32(AifJobStsSuccess)))) {
+		if (((__le32 *)aifcmd->data)[1] == cpu_to_le32(AifJobCtrZero) &&
+		    (((__le32 *)aifcmd->data)[6] == ((__le32 *)aifcmd->data)[5] ||
+		     ((__le32 *)aifcmd->data)[4] == cpu_to_le32(AifJobStsSuccess))) {
 			for (container = 0;
 			    container < dev->maximum_num_containers;
 			    ++container) {
@@ -943,9 +943,9 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 					jiffies;
 			}
 		}
-		if ((((u32 *)aifcmd->data)[1] == cpu_to_le32(AifJobCtrZero))
-		 && (((u32 *)aifcmd->data)[6] == 0)
-		 && (((u32 *)aifcmd->data)[4] == cpu_to_le32(AifJobStsRunning))) {
+		if (((__le32 *)aifcmd->data)[1] == cpu_to_le32(AifJobCtrZero) &&
+		    ((__le32 *)aifcmd->data)[6] == 0 &&
+		    ((__le32 *)aifcmd->data)[4] == cpu_to_le32(AifJobStsRunning)) {
 			for (container = 0;
 			    container < dev->maximum_num_containers;
 			    ++container) {
@@ -1373,9 +1373,10 @@ int aac_check_health(struct aac_dev * aac)
 
 	printk(KERN_ERR "%s: Host adapter BLINK LED 0x%x\n", aac->name, BlinkLED);
 
-	if (!aac_check_reset || ((aac_check_reset != 1) &&
-		(aac->supplement_adapter_info.SupportedOptions2 &
-			le32_to_cpu(AAC_OPTION_IGNORE_RESET))))
+	if (!aac_check_reset ||
+	    ((aac_check_reset != 1) &&
+	     (aac->supplement_adapter_info.SupportedOptions2 &
+	      cpu_to_le32(AAC_OPTION_IGNORE_RESET))))
 		goto out;
 	host = aac->scsi_host_ptr;
 	if (aac->thread->pid != current->pid)
@@ -1656,11 +1657,11 @@ int aac_command_thread(void *data)
 				struct fib *fibptr;
 
 				if ((fibptr = aac_fib_alloc(dev))) {
-					u32 * info;
+					__le32 *info;
 
 					aac_fib_init(fibptr);
 
-					info = (u32 *) fib_data(fibptr);
+					info = (__le32 *) fib_data(fibptr);
 					if (now.tv_usec > 500000)
 						++now.tv_sec;
 
