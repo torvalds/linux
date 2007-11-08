@@ -1748,13 +1748,22 @@ static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 	return extent_write_full_page(tree, page, btrfs_get_extent, wbc);
 }
 
-
 static int btrfs_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
 	struct extent_map_tree *tree;
 	tree = &BTRFS_I(mapping->host)->extent_tree;
 	return extent_writepages(tree, mapping, btrfs_get_extent, wbc);
+}
+
+static int
+btrfs_readpages(struct file *file, struct address_space *mapping,
+		struct list_head *pages, unsigned nr_pages)
+{
+	struct extent_map_tree *tree;
+	tree = &BTRFS_I(mapping->host)->extent_tree;
+	return extent_readpages(tree, mapping, pages, nr_pages,
+				btrfs_get_extent);
 }
 
 static int btrfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
@@ -2537,6 +2546,7 @@ static struct address_space_operations btrfs_aops = {
 	.readpage	= btrfs_readpage,
 	.writepage	= btrfs_writepage,
 	.writepages	= btrfs_writepages,
+	.readpages	= btrfs_readpages,
 	.sync_page	= block_sync_page,
 	.prepare_write	= btrfs_prepare_write,
 	.commit_write	= btrfs_commit_write,

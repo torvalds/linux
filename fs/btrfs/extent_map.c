@@ -11,6 +11,7 @@
 #include <linux/swap.h>
 #include <linux/version.h>
 #include <linux/writeback.h>
+#include <linux/pagevec.h>
 #include "extent_map.h"
 
 /* temporary define until extent_map moves out of btrfs */
@@ -1503,7 +1504,7 @@ static int submit_extent_page(int rw, struct extent_map_tree *tree,
 			      size_t size, unsigned long offset,
 			      struct block_device *bdev,
 			      struct bio **bio_ret,
-			      int max_pages,
+			      unsigned long max_pages,
 			      bio_end_io_t end_io_func)
 {
 	int ret = 0;
@@ -1520,7 +1521,7 @@ static int submit_extent_page(int rw, struct extent_map_tree *tree,
 			return 0;
 		}
 	}
-	nr = min(max_pages, bio_get_nr_vecs(bdev));
+	nr = min_t(int, max_pages, bio_get_nr_vecs(bdev));
 	bio = extent_bio_alloc(bdev, sector, nr, GFP_NOFS | __GFP_HIGH);
 	if (!bio) {
 		printk("failed to allocate bio nr %d\n", nr);
@@ -1552,8 +1553,10 @@ void set_page_extent_mapped(struct page *page)
  * into the tree that are removed when the IO is done (by the end_io
  * handlers)
  */
-int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
-			  get_extent_t *get_extent)
+static int __extent_read_full_page(struct extent_map_tree *tree,
+				   struct page *page,
+				   get_extent_t *get_extent,
+				   struct bio **bio)
 {
 	struct inode *inode = page->mapping->host;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
@@ -1631,10 +1634,12 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 							  cur + iosize - 1);
 		}
 		if (!ret) {
+			unsigned long nr = (last_byte >> PAGE_CACHE_SHIFT) + 1;
+			nr -= page->index;
 			ret = submit_extent_page(READ, tree, page,
-						 sector, iosize, page_offset,
-						 bdev, NULL, 1,
-						 end_bio_extent_readpage);
+					 sector, iosize, page_offset,
+					 bdev, bio, nr,
+					 end_bio_extent_readpage);
 		}
 		if (ret)
 			SetPageError(page);
@@ -1648,6 +1653,18 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 		unlock_page(page);
 	}
 	return 0;
+}
+
+int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
+			    get_extent_t *get_extent)
+{
+	struct bio *bio = NULL;
+	int ret;
+
+	ret = __extent_read_full_page(tree, page, get_extent, &bio);
+	if (bio)
+		submit_one_bio(READ, bio);
+	return ret;
 }
 EXPORT_SYMBOL(extent_read_full_page);
 
@@ -1835,6 +1852,45 @@ int extent_writepages(struct extent_map_tree *tree,
 	return ret;
 }
 EXPORT_SYMBOL(extent_writepages);
+
+int extent_readpages(struct extent_map_tree *tree,
+		     struct address_space *mapping,
+		     struct list_head *pages, unsigned nr_pages,
+		     get_extent_t get_extent)
+{
+	struct bio *bio = NULL;
+	unsigned page_idx;
+	struct pagevec pvec;
+
+	pagevec_init(&pvec, 0);
+	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
+		struct page *page = list_entry(pages->prev, struct page, lru);
+
+		prefetchw(&page->flags);
+		list_del(&page->lru);
+		/*
+		 * what we want to do here is call add_to_page_cache_lru,
+		 * but that isn't exported, so we reproduce it here
+		 */
+		if (!add_to_page_cache(page, mapping,
+					page->index, GFP_KERNEL)) {
+
+			/* open coding of lru_cache_add, also not exported */
+			page_cache_get(page);
+			if (!pagevec_add(&pvec, page))
+				__pagevec_lru_add(&pvec);
+			__extent_read_full_page(tree, page, get_extent, &bio);
+		}
+		page_cache_release(page);
+	}
+	if (pagevec_count(&pvec))
+		__pagevec_lru_add(&pvec);
+	BUG_ON(!list_empty(pages));
+	if (bio)
+		submit_one_bio(READ, bio);
+	return 0;
+}
+EXPORT_SYMBOL(extent_readpages);
 
 /*
  * basic invalidatepage code, this waits on any locked or writeback
