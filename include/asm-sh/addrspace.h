@@ -9,24 +9,13 @@
  */
 #ifndef __ASM_SH_ADDRSPACE_H
 #define __ASM_SH_ADDRSPACE_H
+
 #ifdef __KERNEL__
 
 #include <asm/cpu/addrspace.h>
 
-/* Memory segments (32bit Privileged mode addresses)  */
-#ifndef CONFIG_CPU_SH2A
-#define P0SEG		0x00000000
-#define P1SEG		0x80000000
-#define P2SEG		0xa0000000
-#define P3SEG		0xc0000000
-#define P4SEG		0xe0000000
-#else
-#define P0SEG		0x00000000
-#define P1SEG		0x00000000
-#define P2SEG		0x20000000
-#define P3SEG		0x00000000
-#define P4SEG 		0x80000000
-#endif
+/* If this CPU supports segmentation, hook up the helpers */
+#ifdef P1SEG
 
 /* Returns the privileged segment base of a given address  */
 #define PXSEG(a)	(((unsigned long)(a)) & 0xe0000000)
@@ -37,10 +26,16 @@
 /*
  * Map an address to a certain privileged segment
  */
-#define P1SEGADDR(a)	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P1SEG))
-#define P2SEGADDR(a)	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P2SEG))
-#define P3SEGADDR(a)	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P3SEG))
-#define P4SEGADDR(a)	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P4SEG))
+#define P1SEGADDR(a)	\
+	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P1SEG))
+#define P2SEGADDR(a)	\
+	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P2SEG))
+#define P3SEGADDR(a)	\
+	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P3SEG))
+#define P4SEGADDR(a)	\
+	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P4SEG))
+
+#endif /* P1SEG */
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_ADDRSPACE_H */
