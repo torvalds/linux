@@ -95,7 +95,7 @@ enum {
 	SNDRV_HWDEP_IFACE_HDA,		/* HD-audio */
 
 	/* Don't forget to change the following: */
-	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_SB_RC
+	SNDRV_HWDEP_IFACE_LAST = SNDRV_HWDEP_IFACE_HDA
 };
 
 struct snd_hwdep_info {
