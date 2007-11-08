@@ -2047,7 +2047,7 @@ static int add_lru(struct extent_map_tree *tree, struct extent_buffer *eb)
 			rm = list_entry(tree->buffer_lru.prev,
 					struct extent_buffer, lru);
 			tree->lru_size--;
-			list_del(&rm->lru);
+			list_del_init(&rm->lru);
 			free_extent_buffer(rm);
 		}
 	} else
@@ -2187,6 +2187,9 @@ lru_add:
 	return eb;
 
 fail:
+	spin_lock(&tree->lru_lock);
+	list_del_init(&eb->lru);
+	spin_unlock(&tree->lru_lock);
 	if (!atomic_dec_and_test(&eb->refs))
 		return NULL;
 	for (index = 0; index < i; index++) {
@@ -2246,6 +2249,9 @@ lru_add:
 	spin_unlock(&tree->lru_lock);
 	return eb;
 fail:
+	spin_lock(&tree->lru_lock);
+	list_del_init(&eb->lru);
+	spin_unlock(&tree->lru_lock);
 	if (!atomic_dec_and_test(&eb->refs))
 		return NULL;
 	for (index = 0; index < i; index++) {
