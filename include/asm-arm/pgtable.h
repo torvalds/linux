@@ -249,7 +249,7 @@ extern struct page *empty_zero_page;
 #define set_pte_ext(ptep,pte,ext) cpu_set_pte_ext(ptep,pte,ext)
 
 #define set_pte_at(mm,addr,ptep,pteval) do { \
-	set_pte_ext(ptep, pteval, (addr) >= PAGE_OFFSET ? 0 : PTE_EXT_NG); \
+	set_pte_ext(ptep, pteval, (addr) >= TASK_SIZE ? 0 : PTE_EXT_NG); \
  } while (0)
 
 /*
