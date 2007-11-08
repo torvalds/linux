@@ -343,7 +343,7 @@ void cache_register(struct cache_detail *cd)
 	schedule_delayed_work(&cache_cleaner, 0);
 }
 
-int cache_unregister(struct cache_detail *cd)
+void cache_unregister(struct cache_detail *cd)
 {
 	cache_purge(cd);
 	spin_lock(&cache_list_lock);
@@ -351,7 +351,7 @@ int cache_unregister(struct cache_detail *cd)
 	if (cd->entries || atomic_read(&cd->inuse)) {
 		write_unlock(&cd->hash_lock);
 		spin_unlock(&cache_list_lock);
-		return -EBUSY;
+		goto out;
 	}
 	if (current_detail == cd)
 		current_detail = NULL;
@@ -373,7 +373,9 @@ int cache_unregister(struct cache_detail *cd)
 		/* module must be being unloaded so its safe to kill the worker */
 		cancel_delayed_work_sync(&cache_cleaner);
 	}
-	return 0;
+	return;
+out:
+	printk(KERN_ERR "nfsd: failed to unregister %s cache\n", cd->name);
 }
 
 /* clean cache tries to find something to clean

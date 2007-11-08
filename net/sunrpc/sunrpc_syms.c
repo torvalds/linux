@@ -98,10 +98,8 @@ cleanup_sunrpc(void)
 	cleanup_socket_xprt();
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
-	if (cache_unregister(&ip_map_cache))
-		printk(KERN_ERR "sunrpc: failed to unregister ip_map cache\n");
-	if (cache_unregister(&unix_gid_cache))
-	      printk(KERN_ERR "sunrpc: failed to unregister unix_gid cache\n");
+	cache_unregister(&ip_map_cache);
+	cache_unregister(&unix_gid_cache);
 #ifdef RPC_DEBUG
 	rpc_unregister_sysctl();
 #endif

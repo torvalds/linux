@@ -1670,10 +1670,8 @@ nfsd_export_shutdown(void)
 
 	exp_writelock();
 
-	if (cache_unregister(&svc_expkey_cache))
-		printk(KERN_ERR "nfsd: failed to unregister expkey cache\n");
-	if (cache_unregister(&svc_export_cache))
-		printk(KERN_ERR "nfsd: failed to unregister export cache\n");
+	cache_unregister(&svc_expkey_cache);
+	cache_unregister(&svc_export_cache);
 	svcauth_unix_purge();
 
 	exp_writeunlock();

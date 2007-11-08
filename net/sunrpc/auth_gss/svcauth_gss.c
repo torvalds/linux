@@ -1396,9 +1396,7 @@ gss_svc_init(void)
 void
 gss_svc_shutdown(void)
 {
-	if (cache_unregister(&rsc_cache))
-		printk(KERN_ERR "auth_rpcgss: failed to unregister rsc cache\n");
-	if (cache_unregister(&rsi_cache))
-		printk(KERN_ERR "auth_rpcgss: failed to unregister rsi cache\n");
+	cache_unregister(&rsc_cache);
+	cache_unregister(&rsi_cache);
 	svc_auth_unregister(RPC_AUTH_GSS);
 }

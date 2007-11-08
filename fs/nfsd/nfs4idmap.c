@@ -474,10 +474,8 @@ nfsd_idmap_init(void)
 void
 nfsd_idmap_shutdown(void)
 {
-	if (cache_unregister(&idtoname_cache))
-		printk(KERN_ERR "nfsd: failed to unregister idtoname cache\n");
-	if (cache_unregister(&nametoid_cache))
-		printk(KERN_ERR "nfsd: failed to unregister nametoid cache\n");
+	cache_unregister(&idtoname_cache);
+	cache_unregister(&nametoid_cache);
 }
 
 /*
