@@ -12,22 +12,16 @@
  * Copyright (C) 2003, 2004  Paul Mundt
  *
  */
-#include <asm/cacheflush.h>
 
 #define L1_CACHE_SHIFT		5
-/* bytes per L1 cache line */
-#define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
-#define L1_CACHE_ALIGN_MASK	(~(L1_CACHE_BYTES - 1))
-#define L1_CACHE_ALIGN(x)	(((x)+(L1_CACHE_BYTES - 1)) & L1_CACHE_ALIGN_MASK)
-#define L1_CACHE_SIZE_BYTES	(L1_CACHE_BYTES << 10)
 
-#ifdef MODULE
-#define __cacheline_aligned __attribute__((__aligned__(L1_CACHE_BYTES)))
-#else
-#define __cacheline_aligned					\
-  __attribute__((__aligned__(L1_CACHE_BYTES),			\
-		 __section__(".data.cacheline_aligned")))
-#endif
+/* Valid and Dirty bits */
+#define SH_CACHE_VALID		(1LL<<0)
+#define SH_CACHE_UPDATED	(1LL<<57)
+
+/* Cache flags */
+#define SH_CACHE_MODE_WT	(1LL<<0)
+#define SH_CACHE_MODE_WB	(1LL<<1)
 
 /*
  * Control Registers.
@@ -58,7 +52,6 @@
 
 #define OCCR1_NOLOCK	0x0		/* Set No Locking */
 
-
 /*
  * SH-5
  * A bit of description here, for neff=32.
@@ -77,43 +70,6 @@
  *
  */
 
-/* Valid and Dirty bits */
-#define SH_CACHE_VALID		(1LL<<0)
-#define SH_CACHE_UPDATED	(1LL<<57)
-
-/* Cache flags */
-#define SH_CACHE_MODE_WT	(1LL<<0)
-#define SH_CACHE_MODE_WB	(1LL<<1)
-
-#ifndef __ASSEMBLY__
-
-/*
- * Cache information structure.
- *
- * Defined for both I and D cache, per-processor.
- */
-struct cache_info {
-	unsigned int ways;
-	unsigned int sets;
-	unsigned int linesz;
-
-	unsigned int way_shift;
-	unsigned int entry_shift;
-	unsigned int set_shift;
-	unsigned int way_step_shift;
-	unsigned int asid_shift;
-
-	unsigned int way_ofs;
-
-	unsigned int asid_mask;
-	unsigned int idx_mask;
-	unsigned int epn_mask;
-
-	unsigned long flags;
-};
-
-#endif /* __ASSEMBLY__ */
-
 /* Instruction cache */
 #define CACHE_IC_ADDRESS_ARRAY 0x01000000
 
@@ -129,7 +85,6 @@ struct cache_info {
 #define CACHE_OC_SYN_SHIFT  12
 /* Mask to select synonym bit(s) */
 #define CACHE_OC_SYN_MASK   (((1UL<<CACHE_OC_N_SYNBITS)-1)<<CACHE_OC_SYN_SHIFT)
-
 
 /*
  * Instruction cache can't be invalidated based on physical addresses.
