@@ -3373,14 +3373,20 @@ void ata_wait_after_reset(struct ata_port *ap, unsigned long deadline)
 	 * to clear 0xff after reset.  For example, HHD424020F7SV00
 	 * iVDR needs >= 800ms while.  Quantum GoVault needs even more
 	 * than that.
+	 *
+	 * Note that some PATA controllers (pata_ali) explode if
+	 * status register is read more than once when there's no
+	 * device attached.
 	 */
-	while (1) {
-		u8 status = ata_chk_status(ap);
+	if (ap->flags & ATA_FLAG_SATA) {
+		while (1) {
+			u8 status = ata_chk_status(ap);
 
-		if (status != 0xff || time_after(jiffies, deadline))
-			return;
+			if (status != 0xff || time_after(jiffies, deadline))
+				return;
 
-		msleep(50);
+			msleep(50);
+		}
 	}
 }
 
