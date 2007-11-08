@@ -943,6 +943,11 @@ __init void cpu_probe(void)
 	}
 
 	__cpu_name[cpu] = cpu_to_name(c);
+
+	if (cpu_has_mips_r2)
+		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
+	else
+		c->srsets = 1;
 }
 
 __init void cpu_report(void)

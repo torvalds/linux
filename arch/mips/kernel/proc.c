@@ -60,6 +60,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		      cpu_has_dsp ? " dsp" : "",
 		      cpu_has_mipsmt ? " mt" : ""
 		);
+	seq_printf(m, "shadow register sets\t: %d\n",
+		       cpu_data[n].srsets);
 
 	sprintf(fmt, "VCE%%c exceptions\t\t: %s\n",
 	        cpu_has_vce ? "%u" : "not available");
