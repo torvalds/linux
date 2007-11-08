@@ -1003,6 +1003,7 @@ static void cleanup_tc(struct tc *tc)
 	write_tc_c0_tcstatus(tmp);
 
 	write_tc_c0_tchalt(TCHALT_H);
+	mips_ihb();
 
 	/* bind it to anything other than VPE1 */
 //	write_tc_c0_tcbind(read_tc_c0_tcbind() & ~TCBIND_CURVPE); // | TCBIND_CURVPE
@@ -1235,9 +1236,12 @@ int vpe_free(vpe_handle vpe)
 	settc(t->index);
 	write_vpe_c0_vpeconf0(read_vpe_c0_vpeconf0() & ~VPECONF0_VPA);
 
-	/* mark the TC unallocated and halt'ed */
-	write_tc_c0_tcstatus(read_tc_c0_tcstatus() & ~TCSTATUS_A);
+	/* halt the TC */
 	write_tc_c0_tchalt(TCHALT_H);
+	mips_ihb();
+
+	/* mark the TC unallocated */
+	write_tc_c0_tcstatus(read_tc_c0_tcstatus() & ~TCSTATUS_A);
 
 	v->state = VPE_STATE_UNUSED;
 
@@ -1533,14 +1537,16 @@ static int __init vpe_module_init(void)
 				t->pvpe = get_vpe(0);	/* set the parent vpe */
 			}
 
+			/* halt the TC */
+			write_tc_c0_tchalt(TCHALT_H);
+			mips_ihb();
+
 			tmp = read_tc_c0_tcstatus();
 
 			/* mark not activated and not dynamically allocatable */
 			tmp &= ~(TCSTATUS_A | TCSTATUS_DA);
 			tmp |= TCSTATUS_IXMT;	/* interrupt exempt */
 			write_tc_c0_tcstatus(tmp);
-
-			write_tc_c0_tchalt(TCHALT_H);
 		}
 	}
 
