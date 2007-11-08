@@ -199,7 +199,6 @@ config CRYPTO_CTR
 	tristate "CTR support"
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
-	default m
 	help
 	  CTR: Counter mode
 	  This block cipher algorithm is required for IPSec.
