@@ -43,21 +43,31 @@ extern void __flush_purge_region(void *start, int size);
 extern void __flush_invalidate_region(void *start, int size);
 #endif
 
-#define flush_cache_vmap(start, end)		flush_cache_all()
-#define flush_cache_vunmap(start, end)		flush_cache_all()
+#ifdef CONFIG_CPU_SH4
+extern void copy_to_user_page(struct vm_area_struct *vma,
+	struct page *page, unsigned long vaddr, void *dst, const void *src,
+	unsigned long len);
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
+extern void copy_from_user_page(struct vm_area_struct *vma,
+	struct page *page, unsigned long vaddr, void *dst, const void *src,
+	unsigned long len);
+#else
+#define copy_to_user_page(vma, page, vaddr, dst, src, len)	\
 	do {							\
 		flush_cache_page(vma, vaddr, page_to_pfn(page));\
 		memcpy(dst, src, len);				\
 		flush_icache_user_range(vma, page, vaddr, len);	\
 	} while (0)
 
-#define copy_from_user_page(vma, page, vaddr, dst, src, len) \
+#define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
 	do {							\
 		flush_cache_page(vma, vaddr, page_to_pfn(page));\
 		memcpy(dst, src, len);				\
 	} while (0)
+#endif
+
+#define flush_cache_vmap(start, end)		flush_cache_all()
+#define flush_cache_vunmap(start, end)		flush_cache_all()
 
 #define HAVE_ARCH_UNMAPPED_AREA
 
