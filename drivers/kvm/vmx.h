@@ -233,6 +233,7 @@ enum vmcs_field {
 
 #define INTR_TYPE_EXT_INTR              (0 << 8) /* external interrupt */
 #define INTR_TYPE_EXCEPTION             (3 << 8) /* processor exception */
+#define INTR_TYPE_SOFT_INTR             (4 << 8) /* software interrupt */
 
 /*
  * Exit Qualifications for MOV for Control Register Access
