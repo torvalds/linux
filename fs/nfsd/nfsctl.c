@@ -707,9 +707,13 @@ static int __init init_nfsd(void)
 	retval = nfsd_reply_cache_init();
 	if (retval)
 		goto out_free_stat;
-	nfsd_export_init();	/* Exports table */
+	retval = nfsd_export_init();
+	if (retval)
+		goto out_free_cache;
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
-	nfsd_idmap_init();      /* Name to ID mapping */
+	retval = nfsd_idmap_init();
+	if (retval)
+		goto out_free_lockd;
 	retval = create_proc_exports_entry();
 	if (retval)
 		goto out_free_idmap;
@@ -720,10 +724,12 @@ static int __init init_nfsd(void)
 out_free_all:
 	remove_proc_entry("fs/nfs/exports", NULL);
 	remove_proc_entry("fs/nfs", NULL);
-	nfsd_idmap_shutdown();
 out_free_idmap:
+	nfsd_idmap_shutdown();
+out_free_lockd:
 	nfsd_lockd_shutdown();
 	nfsd_export_shutdown();
+out_free_cache:
 	nfsd_reply_cache_shutdown();
 out_free_stat:
 	nfsd_stat_shutdown();

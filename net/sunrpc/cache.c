@@ -304,20 +304,21 @@ static void remove_cache_proc_entries(struct cache_detail *cd)
 	remove_proc_entry(cd->name, proc_net_rpc);
 }
 
-static void create_cache_proc_entries(struct cache_detail *cd)
+#ifdef CONFIG_PROC_FS
+static int create_cache_proc_entries(struct cache_detail *cd)
 {
 	struct proc_dir_entry *p;
 
 	cd->proc_ent = proc_mkdir(cd->name, proc_net_rpc);
 	if (cd->proc_ent == NULL)
-		return;
+		goto out_nomem;
 	cd->proc_ent->owner = cd->owner;
 	cd->channel_ent = cd->content_ent = NULL;
 
 	p = create_proc_entry("flush", S_IFREG|S_IRUSR|S_IWUSR, cd->proc_ent);
 	cd->flush_ent = p;
 	if (p == NULL)
-		return;
+		goto out_nomem;
 	p->proc_fops = &cache_flush_operations;
 	p->owner = cd->owner;
 	p->data = cd;
@@ -327,7 +328,7 @@ static void create_cache_proc_entries(struct cache_detail *cd)
 				      cd->proc_ent);
 		cd->channel_ent = p;
 		if (p == NULL)
-			return;
+			goto out_nomem;
 		p->proc_fops = &cache_file_operations;
 		p->owner = cd->owner;
 		p->data = cd;
@@ -337,16 +338,30 @@ static void create_cache_proc_entries(struct cache_detail *cd)
 				      cd->proc_ent);
 		cd->content_ent = p;
 		if (p == NULL)
-			return;
+			goto out_nomem;
 		p->proc_fops = &content_file_operations;
 		p->owner = cd->owner;
 		p->data = cd;
 	}
+	return 0;
+out_nomem:
+	remove_cache_proc_entries(cd);
+	return -ENOMEM;
 }
-
-void cache_register(struct cache_detail *cd)
+#else /* CONFIG_PROC_FS */
+static int create_cache_proc_entries(struct cache_detail *cd)
 {
-	create_cache_proc_entries(cd);
+	return 0;
+}
+#endif
+
+int cache_register(struct cache_detail *cd)
+{
+	int ret;
+
+	ret = create_cache_proc_entries(cd);
+	if (ret)
+		return ret;
 	rwlock_init(&cd->hash_lock);
 	INIT_LIST_HEAD(&cd->queue);
 	spin_lock(&cache_list_lock);
@@ -360,6 +375,7 @@ void cache_register(struct cache_detail *cd)
 
 	/* start the cleaning process */
 	schedule_delayed_work(&cache_cleaner, 0);
+	return 0;
 }
 
 void cache_unregister(struct cache_detail *cd)
