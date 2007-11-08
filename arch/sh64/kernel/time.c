@@ -6,7 +6,7 @@
  * arch/sh64/kernel/time.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003, 2004  Paul Mundt
+ * Copyright (C) 2003 - 2007  Paul Mundt
  * Copyright (C) 2003  Richard Curnow
  *
  *    Original TMU/RTC code taken from sh version.
@@ -14,7 +14,6 @@
  *      Some code taken from i386 version.
  *      Copyright (C) 1991, 1992, 1995  Linus Torvalds
  */
-
 #include <linux/errno.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
@@ -30,17 +29,15 @@
 #include <linux/smp.h>
 #include <linux/module.h>
 #include <linux/bcd.h>
-
+#include <linux/timex.h>
+#include <linux/irq.h>
+#include <linux/platform_device.h>
 #include <asm/registers.h>	 /* required by inline __asm__ stmt. */
-
 #include <asm/processor.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/delay.h>
-
-#include <linux/timex.h>
-#include <linux/irq.h>
 #include <asm/hardware.h>
 
 #define TMU_TOCR_INIT	0x00
@@ -48,19 +45,11 @@
 #define TMU_TSTR_INIT	1
 #define TMU_TSTR_OFF	0
 
-/* RCR1 Bits */
-#define RCR1_CF		0x80	/* Carry Flag             */
-#define RCR1_CIE	0x10	/* Carry Interrupt Enable */
-#define RCR1_AIE	0x08	/* Alarm Interrupt Enable */
-#define RCR1_AF		0x01	/* Alarm Flag             */
-
-/* RCR2 Bits */
-#define RCR2_PEF	0x80	/* PEriodic interrupt Flag */
-#define RCR2_PESMASK	0x70	/* Periodic interrupt Set  */
-#define RCR2_RTCEN	0x08	/* ENable RTC              */
-#define RCR2_ADJ	0x04	/* ADJustment (30-second)  */
-#define RCR2_RESET	0x02	/* Reset bit               */
-#define RCR2_START	0x01	/* Start bit               */
+/* Real Time Clock */
+#define	RTC_BLOCK_OFF	0x01040000
+#define RTC_BASE	PHYS_PERIPHERAL_BLOCK + RTC_BLOCK_OFF
+#define RTC_RCR1_CIE	0x10	/* Carry Interrupt Enable */
+#define RTC_RCR1	(rtc_base + 0x38)
 
 /* Clock, Power and Reset Controller */
 #define	CPRC_BLOCK_OFF	0x01010000
@@ -83,27 +72,6 @@
 #define TMU0_TCOR	TMU0_BASE+0x0	/* Long access */
 #define TMU0_TCNT	TMU0_BASE+0x4	/* Long access */
 #define TMU0_TCR	TMU0_BASE+0x8	/* Word access */
-
-/* Real Time Clock */
-#define	RTC_BLOCK_OFF	0x01040000
-#define RTC_BASE	PHYS_PERIPHERAL_BLOCK + RTC_BLOCK_OFF
-
-#define R64CNT  	rtc_base+0x00
-#define RSECCNT 	rtc_base+0x04
-#define RMINCNT 	rtc_base+0x08
-#define RHRCNT  	rtc_base+0x0c
-#define RWKCNT  	rtc_base+0x10
-#define RDAYCNT 	rtc_base+0x14
-#define RMONCNT 	rtc_base+0x18
-#define RYRCNT  	rtc_base+0x1c	/* 16bit */
-#define RSECAR  	rtc_base+0x20
-#define RMINAR  	rtc_base+0x24
-#define RHRAR   	rtc_base+0x28
-#define RWKAR   	rtc_base+0x2c
-#define RDAYAR  	rtc_base+0x30
-#define RMONAR  	rtc_base+0x34
-#define RCR1    	rtc_base+0x38
-#define RCR2    	rtc_base+0x3c
 
 #define TICK_SIZE (tick_nsec / 1000)
 
@@ -236,47 +204,23 @@ int do_settimeofday(struct timespec *tv)
 }
 EXPORT_SYMBOL(do_settimeofday);
 
-static int set_rtc_time(unsigned long nowtime)
+/* Dummy RTC ops */
+static void null_rtc_get_time(struct timespec *tv)
 {
-	int retval = 0;
-	int real_seconds, real_minutes, cmos_minutes;
-
-	ctrl_outb(RCR2_RESET, RCR2);  /* Reset pre-scaler & stop RTC */
-
-	cmos_minutes = ctrl_inb(RMINCNT);
-	BCD_TO_BIN(cmos_minutes);
-
-	/*
-	 * since we're only adjusting minutes and seconds,
-	 * don't interfere with hour overflow. This avoids
-	 * messing with unknown time zones but requires your
-	 * RTC not to be off by more than 15 minutes
-	 */
-	real_seconds = nowtime % 60;
-	real_minutes = nowtime / 60;
-	if (((abs(real_minutes - cmos_minutes) + 15)/30) & 1)
-		real_minutes += 30;	/* correct for half hour time zone */
-	real_minutes %= 60;
-
-	if (abs(real_minutes - cmos_minutes) < 30) {
-		BIN_TO_BCD(real_seconds);
-		BIN_TO_BCD(real_minutes);
-		ctrl_outb(real_seconds, RSECCNT);
-		ctrl_outb(real_minutes, RMINCNT);
-	} else {
-		printk(KERN_WARNING
-		       "set_rtc_time: can't update from %d to %d\n",
-		       cmos_minutes, real_minutes);
-		retval = -1;
-	}
-
-	ctrl_outb(RCR2_RTCEN|RCR2_START, RCR2);  /* Start RTC */
-
-	return retval;
+	tv->tv_sec = mktime(2000, 1, 1, 0, 0, 0);
+	tv->tv_nsec = 0;
 }
 
+static int null_rtc_set_time(const time_t secs)
+{
+	return 0;
+}
+
+void (*rtc_sh_get_time)(struct timespec *) = null_rtc_get_time;
+int (*rtc_sh_set_time)(const time_t) = null_rtc_set_time;
+
 /* last time the RTC clock got updated */
-static long last_rtc_update = 0;
+static long last_rtc_update;
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -312,10 +256,11 @@ static inline void do_timer_interrupt(void)
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		if (set_rtc_time(xtime.tv_sec) == 0)
+		if (rtc_sh_set_time(xtime.tv_sec) == 0)
 			last_rtc_update = xtime.tv_sec;
 		else
-			last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
+			/* do it again in 60 s */
+			last_rtc_update = xtime.tv_sec - 600;
 	}
 }
 
@@ -347,50 +292,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static unsigned long get_rtc_time(void)
-{
-	unsigned int sec, min, hr, wk, day, mon, yr, yr100;
-
- again:
-	do {
-		ctrl_outb(0, RCR1);  /* Clear CF-bit */
-		sec = ctrl_inb(RSECCNT);
-		min = ctrl_inb(RMINCNT);
-		hr  = ctrl_inb(RHRCNT);
-		wk  = ctrl_inb(RWKCNT);
-		day = ctrl_inb(RDAYCNT);
-		mon = ctrl_inb(RMONCNT);
-		yr  = ctrl_inw(RYRCNT);
-		yr100 = (yr >> 8);
-		yr &= 0xff;
-	} while ((ctrl_inb(RCR1) & RCR1_CF) != 0);
-
-	BCD_TO_BIN(yr100);
-	BCD_TO_BIN(yr);
-	BCD_TO_BIN(mon);
-	BCD_TO_BIN(day);
-	BCD_TO_BIN(hr);
-	BCD_TO_BIN(min);
-	BCD_TO_BIN(sec);
-
-	if (yr > 99 || mon < 1 || mon > 12 || day > 31 || day < 1 ||
-	    hr > 23 || min > 59 || sec > 59) {
-		printk(KERN_ERR
-		       "SH RTC: invalid value, resetting to 1 Jan 2000\n");
-		ctrl_outb(RCR2_RESET, RCR2);  /* Reset & Stop */
-		ctrl_outb(0, RSECCNT);
-		ctrl_outb(0, RMINCNT);
-		ctrl_outb(0, RHRCNT);
-		ctrl_outb(6, RWKCNT);
-		ctrl_outb(1, RDAYCNT);
-		ctrl_outb(1, RMONCNT);
-		ctrl_outw(0x2000, RYRCNT);
-		ctrl_outb(RCR2_RTCEN|RCR2_START, RCR2);  /* Start */
-		goto again;
-	}
-
-	return mktime(yr100 * 100 + yr, mon, day, hr, min, sec);
-}
 
 static __init unsigned int get_cpu_hz(void)
 {
@@ -406,8 +307,8 @@ static __init unsigned int get_cpu_hz(void)
 	register unsigned long long  __rtc_irq_flag __asm__ ("r3");
 
 	local_irq_enable();
-	do {} while (ctrl_inb(R64CNT) != 0);
-	ctrl_outb(RCR1_CIE, RCR1); /* Enable carry interrupt */
+	do {} while (ctrl_inb(rtc_base) != 0);
+	ctrl_outb(RTC_RCR1_CIE, RTC_RCR1); /* Enable carry interrupt */
 
 	/*
 	 * r3 is arbitrary. CDC does not support "=z".
@@ -470,7 +371,7 @@ static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id)
 {
 	struct pt_regs *regs = get_irq_regs();
 
-	ctrl_outb(0, RCR1);	/* Disable Carry Interrupts */
+	ctrl_outb(0, RTC_RCR1);	/* Disable Carry Interrupts */
 	regs->regs[3] = 1;	/* Using r3 */
 
 	return IRQ_HANDLED;
@@ -513,8 +414,7 @@ void __init time_init(void)
 		panic("Unable to remap CPRC\n");
 	}
 
-	xtime.tv_sec = get_rtc_time();
-	xtime.tv_nsec = 0;
+	rtc_sh_get_time(&xtime);
 
 	setup_irq(TIMER_IRQ, &irq0);
 	setup_irq(RTC_IRQ, &irq1);
@@ -525,7 +425,7 @@ void __init time_init(void)
 	/* Note careful order of operations to maintain reasonable precision and avoid overflow. */
 	scaled_recip_ctc_ticks_per_jiffy = ((1ULL << CTC_JIFFY_SCALE_SHIFT) / (unsigned long long)(cpu_clock / HZ));
 
-	disable_irq(RTC_IRQ);
+	free_irq(RTC_IRQ, NULL);
 
 	printk("CPU clock: %d.%02dMHz\n",
 	       (cpu_clock / 1000000), (cpu_clock % 1000000)/10000);
@@ -591,3 +491,41 @@ void enter_deep_standby(void)
 	asm __volatile__ ("nop");
 	panic("Unexpected wakeup!\n");
 }
+
+static struct resource rtc_resources[] = {
+	[0] = {
+		/* RTC base, filled in by rtc_init */
+		.flags	= IORESOURCE_IO,
+	},
+	[1] = {
+		/* Period IRQ */
+		.start	= IRQ_PRI,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* Carry IRQ */
+		.start	= IRQ_CUI,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		/* Alarm IRQ */
+		.start	= IRQ_ATI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device rtc_device = {
+	.name		= "sh-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rtc_resources),
+	.resource	= rtc_resources,
+};
+
+static int __init rtc_init(void)
+{
+	rtc_resources[0].start	= rtc_base;
+	rtc_resources[0].end	= rtc_resources[0].start + 0x58 - 1;
+
+	return platform_device_register(&rtc_device);
+}
+device_initcall(rtc_init);
