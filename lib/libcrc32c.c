@@ -33,7 +33,6 @@
 #include <linux/crc32c.h>
 #include <linux/compiler.h>
 #include <linux/module.h>
-#include <asm/byteorder.h>
 
 MODULE_AUTHOR("Clay Haapala <chaapala@cisco.com>");
 MODULE_DESCRIPTION("CRC32c (Castagnoli) calculations");
@@ -161,15 +160,13 @@ static const u32 crc32c_table[256] = {
  */
 
 u32 __pure
-crc32c_le(u32 seed, unsigned char const *data, size_t length)
+crc32c_le(u32 crc, unsigned char const *data, size_t length)
 {
-	u32 crc = __cpu_to_le32(seed);
-	
 	while (length--)
 		crc =
 		    crc32c_table[(crc ^ *data++) & 0xFFL] ^ (crc >> 8);
 
-	return __le32_to_cpu(crc);
+	return crc;
 }
 
 #endif	/* CRC_LE_BITS == 8 */
