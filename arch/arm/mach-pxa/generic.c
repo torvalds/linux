@@ -235,6 +235,18 @@ void __init pxa_map_io(void)
 }
 
 
+void __init pxa_register_device(struct platform_device *dev, void *data)
+{
+	int ret;
+
+	dev->dev.platform_data = data;
+
+	ret = platform_device_register(dev);
+	if (ret)
+		dev_err(&dev->dev, "unable to register device: %d\n", ret);
+}
+
+
 static struct resource pxamci_resources[] = {
 	[0] = {
 		.start	= 0x41100000,
@@ -263,7 +275,7 @@ struct platform_device pxa_device_mci = {
 
 void __init pxa_set_mci_info(struct pxamci_platform_data *info)
 {
-	pxa_device_mci.dev.platform_data = info;
+	pxa_register_device(&pxa_device_mci, info);
 }
 
 
@@ -328,7 +340,7 @@ struct platform_device pxa_device_fb = {
 
 void __init set_pxa_fb_info(struct pxafb_mach_info *info)
 {
-	pxa_device_fb.dev.platform_data = info;
+	pxa_register_device(&pxa_device_fb, info);
 }
 
 void __init set_pxa_fb_parent(struct device *parent_dev)
@@ -433,7 +445,7 @@ struct platform_device pxa_device_i2c = {
 
 void __init pxa_set_i2c_info(struct i2c_pxa_platform_data *info)
 {
-	pxa_device_i2c.dev.platform_data = info;
+	pxa_register_device(&pxa_device_i2c, info);
 }
 
 static struct resource pxai2s_resources[] = {
@@ -468,7 +480,7 @@ struct platform_device pxa_device_ficp = {
 
 void __init pxa_set_ficp_info(struct pxaficp_platform_data *info)
 {
-	pxa_device_ficp.dev.platform_data = info;
+	pxa_register_device(&pxa_device_ficp, info);
 }
 
 struct platform_device pxa_device_rtc = {

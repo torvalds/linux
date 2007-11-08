@@ -401,7 +401,7 @@ struct platform_device pxa27x_device_ohci = {
 
 void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
 {
-	pxa27x_device_ohci.dev.platform_data = info;
+	pxa_register_device(&pxa27x_device_ohci, info);
 }
 
 static struct resource i2c_power_resources[] = {
@@ -424,18 +424,13 @@ struct platform_device pxa27x_device_i2c_power = {
 };
 
 static struct platform_device *devices[] __initdata = {
-	&pxa_device_mci,
 	&pxa_device_udc,
-	&pxa_device_fb,
 	&pxa_device_ffuart,
 	&pxa_device_btuart,
 	&pxa_device_stuart,
-	&pxa_device_i2c,
 	&pxa_device_i2s,
-	&pxa_device_ficp,
 	&pxa_device_rtc,
 	&pxa27x_device_i2c_power,
-	&pxa27x_device_ohci,
 };
 
 static int __init pxa27x_init(void)

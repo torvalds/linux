@@ -12,3 +12,5 @@ extern struct platform_device pxa_device_rtc;
 
 extern struct platform_device pxa27x_device_i2c_power;
 extern struct platform_device pxa27x_device_ohci;
+
+void __init pxa_register_device(struct platform_device *dev, void *data);
