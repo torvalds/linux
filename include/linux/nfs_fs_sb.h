@@ -3,6 +3,9 @@
 
 #include <linux/list.h>
 #include <linux/backing-dev.h>
+#include <linux/wait.h>
+
+#include <asm/atomic.h>
 
 struct nfs_iostats;
 
@@ -110,6 +113,9 @@ struct nfs_server {
 						   filesystem */
 #endif
 	void (*destroy)(struct nfs_server *);
+
+	atomic_t active; /* Keep trace of any activity to this server */
+	wait_queue_head_t active_wq;  /* Wait for any activity to stop  */
 };
 
 /* Server capabilities */
