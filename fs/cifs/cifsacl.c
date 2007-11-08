@@ -134,12 +134,39 @@ int compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
    pmode is the existing mode (we only want to overwrite part of this
    bits to set can be: S_IRWXU, S_IRWXG or S_IRWXO ie 00700 or 00070 or 00007
 */
-static void access_flags_to_mode(__u32 ace_flags, umode_t *pmode,
-				 umode_t bits_to_set)
+static void access_flags_to_mode(__u32 ace_flags, int type, umode_t *pmode,
+				 umode_t *pbits_to_set)
 {
+	/* the order of ACEs is important.  The canonical order is to begin with
+	   DENY entries then follow with ALLOW, otherwise an allow entry could be
+	   encountered first, making the subsequent deny entry like "dead code"
+           which would be superflous since Windows stops when a match is made 
+	   for the operation you are trying to perform for your user */
+
+	/* For deny ACEs we change the mask so that subsequent allow access
+	   control entries do not turn on the bits we are denying */
+	if (type == ACCESS_DENIED) {
+		if (ace_flags & GENERIC_ALL) {
+			*pbits_to_set &= ~S_IRWXUGO;
+		}
+		if ((ace_flags & GENERIC_WRITE) ||
+			((ace_flags & FILE_WRITE_RIGHTS) == FILE_WRITE_RIGHTS))
+			*pbits_to_set &= ~S_IWUGO;
+		if ((ace_flags & GENERIC_READ) ||
+			((ace_flags & FILE_READ_RIGHTS) == FILE_READ_RIGHTS))
+			*pbits_to_set &= ~S_IRUGO;
+		if ((ace_flags & GENERIC_EXECUTE) ||
+			((ace_flags & FILE_EXEC_RIGHTS) == FILE_EXEC_RIGHTS))
+			*pbits_to_set &= ~S_IXUGO;
+		return;
+	} else if (type != ACCESS_ALLOWED) {
+		cERROR(1, ("unknown access control type %d", type));
+		return;
+	}
+	/* else ACCESS_ALLOWED type */
 
 	if (ace_flags & GENERIC_ALL) {
-		*pmode |= (S_IRWXUGO & bits_to_set);
+		*pmode |= (S_IRWXUGO & (*pbits_to_set));
 #ifdef CONFIG_CIFS_DEBUG2
 		cFYI(1, ("all perms"));
 #endif
@@ -147,13 +174,13 @@ static void access_flags_to_mode(__u32 ace_flags, umode_t *pmode,
 	}
 	if ((ace_flags & GENERIC_WRITE) ||
 			((ace_flags & FILE_WRITE_RIGHTS) == FILE_WRITE_RIGHTS))
-		*pmode |= (S_IWUGO & bits_to_set);
+		*pmode |= (S_IWUGO & (*pbits_to_set));
 	if ((ace_flags & GENERIC_READ) ||
 			((ace_flags & FILE_READ_RIGHTS) == FILE_READ_RIGHTS))
-		*pmode |= (S_IRUGO & bits_to_set);
+		*pmode |= (S_IRUGO & (*pbits_to_set));
 	if ((ace_flags & GENERIC_EXECUTE) ||
 			((ace_flags & FILE_EXEC_RIGHTS) == FILE_EXEC_RIGHTS))
-		*pmode |= (S_IXUGO & bits_to_set);
+		*pmode |= (S_IXUGO & (*pbits_to_set));
 
 #ifdef CONFIG_CIFS_DEBUG2
 	cFYI(1, ("access flags 0x%x mode now 0x%x", ace_flags, *pmode));
@@ -239,6 +266,10 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 	num_aces = le32_to_cpu(pdacl->num_aces);
 	if (num_aces  > 0) {
+		umode_t user_mask = S_IRWXU;
+		umode_t group_mask = S_IRWXG;
+		umode_t other_mask = S_IRWXO;
+
 		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
 				GFP_KERNEL);
 
@@ -253,13 +284,19 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 #endif
 			if (compare_sids(&(ppace[i]->sid), pownersid))
 				access_flags_to_mode(ppace[i]->access_req,
-						&(inode->i_mode), S_IRWXU);
+						     ppace[i]->type,
+						     &(inode->i_mode),
+						     &user_mask);
 			if (compare_sids(&(ppace[i]->sid), pgrpsid))
 				access_flags_to_mode(ppace[i]->access_req,
-						&(inode->i_mode), S_IRWXG);
+						     ppace[i]->type,
+						     &(inode->i_mode),
+						     &group_mask);
 			if (compare_sids(&(ppace[i]->sid), &sid_everyone))
 				access_flags_to_mode(ppace[i]->access_req,
-						&(inode->i_mode), S_IRWXO);
+						     ppace[i]->type,
+						     &(inode->i_mode),
+						     &other_mask);
 
 /*			memcpy((void *)(&(cifscred->aces[i])),
 				(void *)ppace[i],
