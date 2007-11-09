@@ -411,7 +411,6 @@ struct gfs2_tune {
 	unsigned int gt_demote_secs; /* Cache retention for unheld glock */
 	unsigned int gt_incore_log_blocks;
 	unsigned int gt_log_flush_secs;
-	unsigned int gt_jindex_refresh_secs; /* Check for new journal index */
 
 	unsigned int gt_recoverd_secs;
 	unsigned int gt_logd_secs;

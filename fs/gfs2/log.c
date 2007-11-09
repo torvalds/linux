@@ -28,7 +28,6 @@
 #include "meta_io.h"
 #include "util.h"
 #include "dir.h"
-#include "super.h"
 
 #define PULL 1
 
@@ -874,7 +873,6 @@ void gfs2_meta_syncfs(struct gfs2_sbd *sdp)
 int gfs2_logd(void *data)
 {
 	struct gfs2_sbd *sdp = data;
-	struct gfs2_holder ji_gh;
 	unsigned long t;
 	int need_flush;
 
@@ -891,17 +889,6 @@ int gfs2_logd(void *data)
 		if (need_flush || time_after_eq(jiffies, t)) {
 			gfs2_log_flush(sdp, NULL);
 			sdp->sd_log_flush_time = jiffies;
-		}
-
-		/* Check for latest journal index */
-
-		t = sdp->sd_jindex_refresh_time +
-		    gfs2_tune_get(sdp, gt_jindex_refresh_secs) * HZ;
-
-		if (time_after_eq(jiffies, t)) {
-			if (!gfs2_jindex_hold(sdp, &ji_gh))
-				gfs2_glock_dq_uninit(&ji_gh);
-			sdp->sd_jindex_refresh_time = jiffies;
 		}
 
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;

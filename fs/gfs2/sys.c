@@ -428,7 +428,6 @@ TUNE_ATTR_2(name, name##_store)
 TUNE_ATTR(demote_secs, 0);
 TUNE_ATTR(incore_log_blocks, 0);
 TUNE_ATTR(log_flush_secs, 0);
-TUNE_ATTR(jindex_refresh_secs, 0);
 TUNE_ATTR(quota_warn_period, 0);
 TUNE_ATTR(quota_quantum, 0);
 TUNE_ATTR(atime_quantum, 0);
@@ -450,7 +449,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_demote_secs.attr,
 	&tune_attr_incore_log_blocks.attr,
 	&tune_attr_log_flush_secs.attr,
-	&tune_attr_jindex_refresh_secs.attr,
 	&tune_attr_quota_warn_period.attr,
 	&tune_attr_quota_quantum.attr,
 	&tune_attr_atime_quantum.attr,
