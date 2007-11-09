@@ -1,0 +1,102 @@
+menu "Processor features"
+
+choice
+	prompt "Endianess selection" 
+	default CPU_LITTLE_ENDIAN
+	help
+	  Some SuperH machines can be configured for either little or big
+	  endian byte order. These modes require different kernels.
+
+config CPU_LITTLE_ENDIAN
+	bool "Little Endian"
+
+config CPU_BIG_ENDIAN
+	bool "Big Endian"
+
+endchoice
+
+config SH_FPU
+	bool "FPU support"
+	depends on CPU_HAS_FPU
+	default y
+	help
+	  Selecting this option will enable support for SH processors that
+	  have FPU units (ie, SH77xx).
+
+	  This option must be set in order to enable the FPU.
+
+config SH_FPU_EMU
+	bool "FPU emulation support"
+	depends on !SH_FPU && EXPERIMENTAL
+	default n
+	help
+	  Selecting this option will enable support for software FPU emulation.
+	  Most SH-3 users will want to say Y here, whereas most SH-4 users will
+	  want to say N.
+
+config SH_DSP
+	bool "DSP support"
+	depends on CPU_HAS_DSP
+	default y
+	help
+	  Selecting this option will enable support for SH processors that
+	  have DSP units (ie, SH2-DSP, SH3-DSP, and SH4AL-DSP).
+
+	  This option must be set in order to enable the DSP.
+
+config SH_ADC
+	bool "ADC support"
+	depends on CPU_SH3
+	default y
+	help
+	  Selecting this option will allow the Linux kernel to use SH3 on-chip
+	  ADC module.
+
+	  If unsure, say N.
+
+config SH_STORE_QUEUES
+	bool "Support for Store Queues"
+	depends on CPU_SH4
+	help
+	  Selecting this option will enable an in-kernel API for manipulating
+	  the store queues integrated in the SH-4 processors.
+
+config SPECULATIVE_EXECUTION
+	bool "Speculative subroutine return"
+	depends on CPU_SUBTYPE_SH7780 && EXPERIMENTAL
+	help
+	  This enables support for a speculative instruction fetch for
+	  subroutine return. There are various pitfalls associated with
+	  this, as outlined in the SH7780 hardware manual.
+
+	  If unsure, say N.
+
+config CPU_HAS_INTEVT
+	bool
+
+config CPU_HAS_MASKREG_IRQ
+	bool
+
+config CPU_HAS_IPR_IRQ
+	bool
+
+config CPU_HAS_SR_RB
+	bool
+	help
+	  This will enable the use of SR.RB register bank usage. Processors
+	  that are lacking this bit must have another method in place for
+	  accomplishing what is taken care of by the banked registers.
+
+	  See <file:Documentation/sh/register-banks.txt> for further
+	  information on SR.RB and register banking in the kernel in general.
+
+config CPU_HAS_PTEA
+	bool
+
+config CPU_HAS_DSP
+	bool
+
+config CPU_HAS_FPU
+	bool
+
+endmenu

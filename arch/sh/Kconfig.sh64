@@ -99,21 +99,7 @@ config CPU_SUBTYPE_SH5_103
 
 endchoice
 
-choice
-	prompt "Endianness"
-	default LITTLE_ENDIAN
-
-config LITTLE_ENDIAN
-	bool "Little-Endian"
-
-config BIG_ENDIAN
-	bool "Big-Endian"
-
-endchoice
-
-config SH_FPU
-	bool "FPU support"
-	default y
+source "arch/sh/Kconfig.cpu"
 
 config SH64_FPU_DENORM_FLUSH
 	depends on SH_FPU
