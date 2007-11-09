@@ -51,13 +51,13 @@ static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu);
 
 static int endflag __initdata = 0;
 
-#ifdef CONFIG_SMP
 /* The performance counters used by NMI_LOCAL_APIC don't trigger when
  * the CPU is idle. To make sure the NMI watchdog really ticks on all
  * CPUs during the test make them busy.
  */
 static __init void nmi_cpu_busy(void *data)
 {
+#ifdef CONFIG_SMP
 	local_irq_enable_in_hardirq();
 	/* Intentionally don't use cpu_relax here. This is
 	   to make sure that the performance counter really ticks,
@@ -67,8 +67,8 @@ static __init void nmi_cpu_busy(void *data)
 	   care if they get somewhat less cycles. */
 	while (endflag == 0)
 		mb();
-}
 #endif
+}
 
 static int __init check_nmi_watchdog(void)
 {
