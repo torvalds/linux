@@ -670,7 +670,7 @@ static inline void ocfs2_generic_handle_attach_action(struct ocfs2_lock_res *loc
 {
 	mlog_entry_void();
 
-	BUG_ON((!lockres->l_flags & OCFS2_LOCK_BUSY));
+	BUG_ON((!(lockres->l_flags & OCFS2_LOCK_BUSY)));
 	BUG_ON(lockres->l_flags & OCFS2_LOCK_ATTACHED);
 
 	if (lockres->l_requested > LKM_NLMODE &&
@@ -980,18 +980,6 @@ again:
 		goto unlock;
 	}
 
-	if (!(lockres->l_flags & OCFS2_LOCK_ATTACHED)) {
-		/* lock has not been created yet. */
-		spin_unlock_irqrestore(&lockres->l_lock, flags);
-
-		ret = ocfs2_lock_create(osb, lockres, LKM_NLMODE, 0);
-		if (ret < 0) {
-			mlog_errno(ret);
-			goto out;
-		}
-		goto again;
-	}
-
 	if (lockres->l_flags & OCFS2_LOCK_BLOCKED &&
 	    !ocfs2_may_continue_on_blocked_lock(lockres, level)) {
 		/* is the lock is currently blocked on behalf of
@@ -1006,7 +994,14 @@ again:
 			mlog(ML_ERROR, "lockres %s has action %u pending\n",
 			     lockres->l_name, lockres->l_action);
 
-		lockres->l_action = OCFS2_AST_CONVERT;
+		if (!(lockres->l_flags & OCFS2_LOCK_ATTACHED)) {
+			lockres->l_action = OCFS2_AST_ATTACH;
+			lkm_flags &= ~LKM_CONVERT;
+		} else {
+			lockres->l_action = OCFS2_AST_CONVERT;
+			lkm_flags |= LKM_CONVERT;
+		}
+
 		lockres->l_requested = level;
 		lockres_or_flags(lockres, OCFS2_LOCK_BUSY);
 		spin_unlock_irqrestore(&lockres->l_lock, flags);
@@ -1021,7 +1016,7 @@ again:
 		status = dlmlock(osb->dlm,
 				 level,
 				 &lockres->l_lksb,
-				 lkm_flags|LKM_CONVERT,
+				 lkm_flags,
 				 lockres->l_name,
 				 OCFS2_LOCK_ID_MAX_LEN - 1,
 				 ocfs2_locking_ast,

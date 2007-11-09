@@ -208,9 +208,9 @@ out:
 	return NULL;
 }
 
-struct buffer_head *ocfs2_find_entry_el(const char *name, int namelen,
-					struct inode *dir,
-					struct ocfs2_dir_entry **res_dir)
+static struct buffer_head *ocfs2_find_entry_el(const char *name, int namelen,
+					       struct inode *dir,
+					       struct ocfs2_dir_entry **res_dir)
 {
 	struct super_block *sb;
 	struct buffer_head *bh_use[NAMEI_RA_SIZE];
