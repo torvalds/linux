@@ -406,3 +406,17 @@ mpc52xx_add_bridge(struct device_node *node)
 
 	return 0;
 }
+
+void __init mpc52xx_setup_pci(void)
+{
+	struct device_node *pci;
+
+	pci = of_find_compatible_node(NULL, NULL, "fsl,mpc5200-pci");
+	if (!pci)
+		pci = of_find_compatible_node(NULL, NULL, "mpc5200-pci");
+	if (!pci)
+		return;
+
+	mpc52xx_add_bridge(pci);
+	of_node_put(pci);
+}

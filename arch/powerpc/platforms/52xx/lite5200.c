@@ -131,10 +131,6 @@ static void lite5200_resume_finish(void __iomem *mbar)
 
 static void __init lite5200_setup_arch(void)
 {
-#ifdef CONFIG_PCI
-	struct device_node *np;
-#endif
-
 	if (ppc_md.progress)
 		ppc_md.progress("lite5200_setup_arch()", 0);
 
@@ -154,13 +150,7 @@ static void __init lite5200_setup_arch(void)
 	lite5200_pm_init();
 #endif
 
-#ifdef CONFIG_PCI
-	np = of_find_node_by_type(NULL, "pci");
-	if (np) {
-		mpc52xx_add_bridge(np);
-		of_node_put(np);
-	}
-#endif
+	mpc52xx_setup_pci();
 }
 
 /*
