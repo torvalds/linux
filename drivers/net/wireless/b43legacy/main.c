@@ -1745,7 +1745,7 @@ static int b43legacy_gpio_init(struct b43legacy_wldev *dev)
 		mask |= 0x0060;
 		set |= 0x0060;
 	}
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43legacy_BFL_PACTRL) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43legacy_BFL_PACTRL) {
 		b43legacy_write16(dev, B43legacy_MMIO_GPIO_MASK,
 				  b43legacy_read16(dev,
 				  B43legacy_MMIO_GPIO_MASK)
@@ -2122,7 +2122,7 @@ static void b43legacy_periodic_every120sec(struct b43legacy_wldev *dev)
 static void b43legacy_periodic_every60sec(struct b43legacy_wldev *dev)
 {
 	b43legacy_phy_lo_mark_all_unused(dev);
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43legacy_BFL_RSSI) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43legacy_BFL_RSSI) {
 		b43legacy_mac_suspend(dev);
 		b43legacy_calc_nrssi_slope(dev);
 		b43legacy_mac_enable(dev);
@@ -3064,7 +3064,7 @@ static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev)
 		hf |= B43legacy_HF_SYMW;
 		if (phy->rev == 1)
 			hf |= B43legacy_HF_GDCW;
-		if (sprom->r1.boardflags_lo & B43legacy_BFL_PACTRL)
+		if (sprom->boardflags_lo & B43legacy_BFL_PACTRL)
 			hf |= B43legacy_HF_OFDMPABOOST;
 	} else if (phy->type == B43legacy_PHYTYPE_B) {
 		hf |= B43legacy_HF_SYMW;
@@ -3556,12 +3556,12 @@ static void b43legacy_sprom_fixup(struct ssb_bus *bus)
 	if (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
 	    bus->boardinfo.type == 0x4E &&
 	    bus->boardinfo.rev > 0x40)
-		bus->sprom.r1.boardflags_lo |= B43legacy_BFL_PACTRL;
+		bus->sprom.boardflags_lo |= B43legacy_BFL_PACTRL;
 
 	/* Convert Antennagain values to Q5.2 */
-	if (bus->sprom.r1.antenna_gain_bg == 0xFF)
-		bus->sprom.r1.antenna_gain_bg = 2; /* if unset, use 2 dBm */
-	bus->sprom.r1.antenna_gain_bg <<= 2;
+	if (bus->sprom.antenna_gain_bg == 0xFF)
+		bus->sprom.antenna_gain_bg = 2; /* if unset, use 2 dBm */
+	bus->sprom.antenna_gain_bg <<= 2;
 }
 
 static void b43legacy_wireless_exit(struct ssb_device *dev,
@@ -3596,10 +3596,10 @@ static int b43legacy_wireless_init(struct ssb_device *dev)
 	hw->max_noise = -110;
 	hw->queues = 1; /* FIXME: hardware has more queues */
 	SET_IEEE80211_DEV(hw, dev->dev);
-	if (is_valid_ether_addr(sprom->r1.et1mac))
-		SET_IEEE80211_PERM_ADDR(hw, sprom->r1.et1mac);
+	if (is_valid_ether_addr(sprom->et1mac))
+		SET_IEEE80211_PERM_ADDR(hw, sprom->et1mac);
 	else
-		SET_IEEE80211_PERM_ADDR(hw, sprom->r1.il0mac);
+		SET_IEEE80211_PERM_ADDR(hw, sprom->il0mac);
 
 	/* Get and initialize struct b43legacy_wl */
 	wl = hw_to_b43legacy_wl(hw);

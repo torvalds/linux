@@ -441,7 +441,7 @@ static void b43legacy_phy_inita(struct b43legacy_wldev *dev)
 	might_sleep();
 
 	b43legacy_phy_setupg(dev);
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43legacy_BFL_PACTRL)
+	if (dev->dev->bus->sprom.boardflags_lo & B43legacy_BFL_PACTRL)
 		b43legacy_phy_write(dev, 0x046E, 0x03CF);
 }
 
@@ -543,7 +543,7 @@ static void b43legacy_phy_initb4(struct b43legacy_wldev *dev)
 	if (phy->radio_ver == 0x2050)
 		b43legacy_phy_write(dev, 0x002A, 0x88C2);
 	b43legacy_radio_set_txpower_bg(dev, 0xFFFF, 0xFFFF, 0xFFFF);
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43legacy_BFL_RSSI) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43legacy_BFL_RSSI) {
 		b43legacy_calc_nrssi_slope(dev);
 		b43legacy_calc_nrssi_threshold(dev);
 	}
@@ -699,7 +699,7 @@ static void b43legacy_phy_initb6(struct b43legacy_wldev *dev)
 		b43legacy_radio_write16(dev, 0x005A, 0x0088);
 		b43legacy_radio_write16(dev, 0x005B, 0x006B);
 		b43legacy_radio_write16(dev, 0x005C, 0x000F);
-		if (dev->dev->bus->sprom.r1.boardflags_lo & 0x8000) {
+		if (dev->dev->bus->sprom.boardflags_lo & 0x8000) {
 			b43legacy_radio_write16(dev, 0x005D, 0x00FA);
 			b43legacy_radio_write16(dev, 0x005E, 0x00D8);
 		} else {
@@ -797,7 +797,7 @@ static void b43legacy_phy_initb6(struct b43legacy_wldev *dev)
 		b43legacy_phy_write(dev, 0x0062, 0x0007);
 		b43legacy_radio_init2050(dev);
 		b43legacy_phy_lo_g_measure(dev);
-		if (dev->dev->bus->sprom.r1.boardflags_lo &
+		if (dev->dev->bus->sprom.boardflags_lo &
 		    B43legacy_BFL_RSSI) {
 			b43legacy_calc_nrssi_slope(dev);
 			b43legacy_calc_nrssi_threshold(dev);
@@ -921,7 +921,7 @@ static void b43legacy_calc_loopback_gain(struct b43legacy_wldev *dev)
 			    b43legacy_phy_read(dev, 0x0811) | 0x0100);
 	b43legacy_phy_write(dev, 0x0812,
 			    b43legacy_phy_read(dev, 0x0812) & 0xCFFF);
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43legacy_BFL_EXTLNA) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43legacy_BFL_EXTLNA) {
 		if (phy->rev >= 7) {
 			b43legacy_phy_write(dev, 0x0811,
 					    b43legacy_phy_read(dev, 0x0811)
@@ -1072,7 +1072,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 			b43legacy_phy_write(dev, 0x0036,
 					    (b43legacy_phy_read(dev, 0x0036)
 					     & 0x0FFF) | (phy->txctl2 << 12));
-		if (dev->dev->bus->sprom.r1.boardflags_lo &
+		if (dev->dev->bus->sprom.boardflags_lo &
 		    B43legacy_BFL_PACTRL)
 			b43legacy_phy_write(dev, 0x002E, 0x8075);
 		else
@@ -1087,7 +1087,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		b43legacy_phy_write(dev, 0x080F, 0x8078);
 	}
 
-	if (!(dev->dev->bus->sprom.r1.boardflags_lo & B43legacy_BFL_RSSI)) {
+	if (!(dev->dev->bus->sprom.boardflags_lo & B43legacy_BFL_RSSI)) {
 		/* The specs state to update the NRSSI LT with
 		 * the value 0x7FFFFFFF here. I think that is some weird
 		 * compiler optimization in the original driver.
@@ -1838,9 +1838,9 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 
 	estimated_pwr = b43legacy_phy_estimate_power_out(dev, average);
 
-	max_pwr = dev->dev->bus->sprom.r1.maxpwr_bg;
+	max_pwr = dev->dev->bus->sprom.maxpwr_bg;
 
-	if ((dev->dev->bus->sprom.r1.boardflags_lo
+	if ((dev->dev->bus->sprom.boardflags_lo
 	     & B43legacy_BFL_PACTRL) &&
 	    (phy->type == B43legacy_PHYTYPE_G))
 		max_pwr -= 0x3;
@@ -1848,7 +1848,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 		b43legacywarn(dev->wl, "Invalid max-TX-power value in SPROM."
 			"\n");
 		max_pwr = 74; /* fake it */
-		dev->dev->bus->sprom.r1.maxpwr_bg = max_pwr;
+		dev->dev->bus->sprom.maxpwr_bg = max_pwr;
 	}
 
 	/* Use regulatory information to get the maximum power.
@@ -1858,7 +1858,8 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 	 * and 1.5 dBm (a safety factor??). The result is in Q5.2 format
 	 * which accounts for the factor of 4 */
 #define REG_MAX_PWR 20
-	max_pwr = min(REG_MAX_PWR * 4 - dev->dev->bus->sprom.r1.antenna_gain_bg
+	max_pwr = min(REG_MAX_PWR * 4
+		      - dev->dev->bus->sprom.antenna_gain_bg
 		      - 0x6, max_pwr);
 
 	/* find the desired power in Q5.2 - power_level is in dBm
@@ -1918,7 +1919,7 @@ void b43legacy_phy_xmitpower(struct b43legacy_wldev *dev)
 				txpower = 3;
 				radio_attenuation += 2;
 				baseband_attenuation += 2;
-			} else if (dev->dev->bus->sprom.r1.boardflags_lo
+			} else if (dev->dev->bus->sprom.boardflags_lo
 				   & B43legacy_BFL_PACTRL) {
 				baseband_attenuation += 4 *
 						     (radio_attenuation - 2);
@@ -2000,9 +2001,9 @@ int b43legacy_phy_init_tssi2dbm_table(struct b43legacy_wldev *dev)
 
 	B43legacy_WARN_ON(!(phy->type == B43legacy_PHYTYPE_B ||
 			  phy->type == B43legacy_PHYTYPE_G));
-	pab0 = (s16)(dev->dev->bus->sprom.r1.pa0b0);
-	pab1 = (s16)(dev->dev->bus->sprom.r1.pa0b1);
-	pab2 = (s16)(dev->dev->bus->sprom.r1.pa0b2);
+	pab0 = (s16)(dev->dev->bus->sprom.pa0b0);
+	pab1 = (s16)(dev->dev->bus->sprom.pa0b1);
+	pab2 = (s16)(dev->dev->bus->sprom.pa0b2);
 
 	if ((dev->dev->bus->chip_id == 0x4301) && (phy->radio_ver != 0x2050)) {
 		phy->idle_tssi = 0x34;
@@ -2013,9 +2014,10 @@ int b43legacy_phy_init_tssi2dbm_table(struct b43legacy_wldev *dev)
 	if (pab0 != 0 && pab1 != 0 && pab2 != 0 &&
 	    pab0 != -1 && pab1 != -1 && pab2 != -1) {
 		/* The pabX values are set in SPROM. Use them. */
-		if ((s8)dev->dev->bus->sprom.r1.itssi_bg != 0 &&
-		    (s8)dev->dev->bus->sprom.r1.itssi_bg != -1)
-			phy->idle_tssi = (s8)(dev->dev->bus->sprom.r1.itssi_bg);
+		if ((s8)dev->dev->bus->sprom.itssi_bg != 0 &&
+		    (s8)dev->dev->bus->sprom.itssi_bg != -1)
+			phy->idle_tssi = (s8)(dev->dev->bus->sprom.
+					  itssi_bg);
 		else
 			phy->idle_tssi = 62;
 		dyn_tssi2dbm = kmalloc(64, GFP_KERNEL);

@@ -827,7 +827,7 @@ void b43legacy_calc_nrssi_threshold(struct b43legacy_wldev *dev)
 	case B43legacy_PHYTYPE_B: {
 		if (phy->radio_ver != 0x2050)
 			return;
-		if (!(dev->dev->bus->sprom.r1.boardflags_lo &
+		if (!(dev->dev->bus->sprom.boardflags_lo &
 		    B43legacy_BFL_RSSI))
 			return;
 
@@ -857,7 +857,7 @@ void b43legacy_calc_nrssi_threshold(struct b43legacy_wldev *dev)
 	}
 	case B43legacy_PHYTYPE_G:
 		if (!phy->gmode ||
-		    !(dev->dev->bus->sprom.r1.boardflags_lo &
+		    !(dev->dev->bus->sprom.boardflags_lo &
 		    B43legacy_BFL_RSSI)) {
 			tmp16 = b43legacy_nrssi_hw_read(dev, 0x20);
 			if (tmp16 >= 0x20)
@@ -1406,7 +1406,7 @@ static u16 b43legacy_get_812_value(struct b43legacy_wldev *dev, u8 lpd)
 	if (!phy->gmode)
 		return 0;
 	if (!has_loopback_gain(phy)) {
-		if (phy->rev < 7 || !(dev->dev->bus->sprom.r1.boardflags_lo
+		if (phy->rev < 7 || !(dev->dev->bus->sprom.boardflags_lo
 		    & B43legacy_BFL_EXTLNA)) {
 			switch (lpd) {
 			case LPD(0, 1, 1):
@@ -1459,7 +1459,7 @@ static u16 b43legacy_get_812_value(struct b43legacy_wldev *dev, u8 lpd)
 		}
 
 		loop_or = (loop << 8) | extern_lna_control;
-		if (phy->rev >= 7 && dev->dev->bus->sprom.r1.boardflags_lo
+		if (phy->rev >= 7 && dev->dev->bus->sprom.boardflags_lo
 		    & B43legacy_BFL_EXTLNA) {
 			if (extern_lna_control)
 				loop_or |= 0x8000;
@@ -1550,7 +1550,7 @@ u16 b43legacy_radio_init2050(struct b43legacy_wldev *dev)
 					    b43legacy_get_812_value(dev,
 					    LPD(0, 1, 1)));
 			if (phy->rev < 7 ||
-			    !(dev->dev->bus->sprom.r1.boardflags_lo
+			    !(dev->dev->bus->sprom.boardflags_lo
 			    & B43legacy_BFL_EXTLNA))
 				b43legacy_phy_write(dev, 0x0811, 0x01B3);
 			else
@@ -1786,7 +1786,7 @@ int b43legacy_radio_selectchannel(struct b43legacy_wldev *dev,
 			  channel2freq_bg(channel));
 
 	if (channel == 14) {
-		if (dev->dev->bus->sprom.r1.country_code == 5)   /* JAPAN) */
+		if (dev->dev->bus->sprom.country_code == 5)   /* JAPAN) */
 			b43legacy_shm_write32(dev, B43legacy_SHM_SHARED,
 					      B43legacy_UCODEFLAGS_OFFSET,
 					      b43legacy_shm_read32(dev,
