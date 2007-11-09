@@ -1790,7 +1790,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	if (volume_info.nullauth) {
 		cFYI(1, ("null user"));
-		volume_info.username = NULL;
+		volume_info.username = "";
 	} else if (volume_info.username) {
 		/* BB fixme parse for domain name here */
 		cFYI(1, ("Username: %s", volume_info.username));

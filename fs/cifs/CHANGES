@@ -1,5 +1,6 @@
 Version 1.52
 ------------
+Fix oops on second mount to server when null auth is used.
 
 Version 1.51
 ------------
