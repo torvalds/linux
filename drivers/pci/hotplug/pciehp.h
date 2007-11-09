@@ -82,24 +82,18 @@ struct event_info {
 };
 
 struct controller {
-	struct controller *next;
 	struct mutex crit_sect;		/* critical section mutex */
 	struct mutex ctrl_lock;		/* controller lock */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
 	struct list_head slot_list;
-	struct slot *slot;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
-	u8 bus;
-	u8 device;
-	u8 function;
 	u8 slot_device_offset;
 	u32 first_slot;		/* First physical slot number */  /* PCIE only has 1 slot */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
 	u8 ctrlcap;
-	u16 vendor_id;
 	u8 cap_base;
 	struct timer_list poll_timer;
 	volatile int cmd_busy;

@@ -453,13 +453,9 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 
 	pci_set_drvdata(pdev, ctrl);
 
-	ctrl->bus = pdev->bus->number;  /* ctrl bus */
-	ctrl->slot_bus = pdev->subordinate->number;  /* bus controlled by this HPC */
-
-	ctrl->device = PCI_SLOT(pdev->devfn);
-	ctrl->function = PCI_FUNC(pdev->devfn);
-	dbg("%s: ctrl bus=0x%x, device=%x, function=%x, irq=%x\n", __FUNCTION__,
-		ctrl->bus, ctrl->device, ctrl->function, pdev->irq);
+	dbg("%s: ctrl bus=0x%x, device=%x, function=%x, irq=%x\n",
+	    __FUNCTION__, pdev->bus->number, PCI_SLOT(pdev->devfn),
+	    PCI_FUNC(pdev->devfn), pdev->irq);
 
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
