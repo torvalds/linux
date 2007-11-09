@@ -77,6 +77,10 @@ static DEFINE_MUTEX(megasas_async_queue_mutex);
 
 static u32 megasas_dbg_lvl;
 
+static void
+megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
+		     u8 alt_status);
+
 /**
  * megasas_get_cmd -	Get a command from the free pool
  * @instance:		Adapter soft state
@@ -887,6 +891,64 @@ static int megasas_slave_configure(struct scsi_device *sdev)
 }
 
 /**
+ * megasas_complete_cmd_dpc	 -	Returns FW's controller structure
+ * @instance_addr:			Address of adapter soft state
+ *
+ * Tasklet to complete cmds
+ */
+static void megasas_complete_cmd_dpc(unsigned long instance_addr)
+{
+	u32 producer;
+	u32 consumer;
+	u32 context;
+	struct megasas_cmd *cmd;
+	struct megasas_instance *instance =
+				(struct megasas_instance *)instance_addr;
+	unsigned long flags;
+
+	/* If we have already declared adapter dead, donot complete cmds */
+	if (instance->hw_crit_error)
+		return;
+
+	spin_lock_irqsave(&instance->completion_lock, flags);
+
+	producer = *instance->producer;
+	consumer = *instance->consumer;
+
+	while (consumer != producer) {
+		context = instance->reply_queue[consumer];
+
+		cmd = instance->cmd_list[context];
+
+		megasas_complete_cmd(instance, cmd, DID_OK);
+
+		consumer++;
+		if (consumer == (instance->max_fw_cmds + 1)) {
+			consumer = 0;
+		}
+	}
+
+	*instance->consumer = producer;
+
+	spin_unlock_irqrestore(&instance->completion_lock, flags);
+
+	/*
+	 * Check if we can restore can_queue
+	 */
+	if (instance->flag & MEGASAS_FW_BUSY
+		&& time_after(jiffies, instance->last_time + 5 * HZ)
+		&& atomic_read(&instance->fw_outstanding) < 17) {
+
+		spin_lock_irqsave(instance->host->host_lock, flags);
+		instance->flag &= ~MEGASAS_FW_BUSY;
+		instance->host->can_queue =
+				instance->max_fw_cmds - MEGASAS_INT_CMDS;
+
+		spin_unlock_irqrestore(instance->host->host_lock, flags);
+	}
+}
+
+/**
  * megasas_wait_for_outstanding -	Wait for all outstanding cmds
  * @instance:				Adapter soft state
  *
@@ -909,6 +971,11 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 		if (!(i % MEGASAS_RESET_NOTICE_INTERVAL)) {
 			printk(KERN_NOTICE "megasas: [%2d]waiting for %d "
 			       "commands to complete\n",i,outstanding);
+			/*
+			 * Call cmd completion routine. Cmd to be
+			 * be completed directly without depending on isr.
+			 */
+			megasas_complete_cmd_dpc((unsigned long)instance);
 		}
 
 		msleep(1000);
@@ -1750,60 +1817,6 @@ megasas_get_ctrl_info(struct megasas_instance *instance,
 }
 
 /**
- * megasas_complete_cmd_dpc	 -	Returns FW's controller structure
- * @instance_addr:			Address of adapter soft state
- *
- * Tasklet to complete cmds
- */
-static void megasas_complete_cmd_dpc(unsigned long instance_addr)
-{
-	u32 producer;
-	u32 consumer;
-	u32 context;
-	struct megasas_cmd *cmd;
-	struct megasas_instance *instance = (struct megasas_instance *)instance_addr;
-	unsigned long flags;
-
-	/* If we have already declared adapter dead, donot complete cmds */
-	if (instance->hw_crit_error)
-		return;
-
-	producer = *instance->producer;
-	consumer = *instance->consumer;
-
-	while (consumer != producer) {
-		context = instance->reply_queue[consumer];
-
-		cmd = instance->cmd_list[context];
-
-		megasas_complete_cmd(instance, cmd, DID_OK);
-
-		consumer++;
-		if (consumer == (instance->max_fw_cmds + 1)) {
-			consumer = 0;
-		}
-	}
-
-	*instance->consumer = producer;
-
-	/*
-	 * Check if we can restore can_queue
-	 */
-	if (instance->flag & MEGASAS_FW_BUSY
-		&& time_after(jiffies, instance->last_time + 5 * HZ)
-		&& atomic_read(&instance->fw_outstanding) < 17) {
-
-		spin_lock_irqsave(instance->host->host_lock, flags);
-		instance->flag &= ~MEGASAS_FW_BUSY;
-		instance->host->can_queue =
-				instance->max_fw_cmds - MEGASAS_INT_CMDS;
-
-		spin_unlock_irqrestore(instance->host->host_lock, flags);
-	}
-
-}
-
-/**
  * megasas_issue_init_mfi -	Initializes the FW
  * @instance:		Adapter soft state
  *
@@ -2395,6 +2408,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	init_waitqueue_head(&instance->abort_cmd_wait_q);
 
 	spin_lock_init(&instance->cmd_pool_lock);
+	spin_lock_init(&instance->completion_lock);
 
 	mutex_init(&instance->aen_mutex);
 	sema_init(&instance->ioctl_sem, MEGASAS_INT_CMDS);

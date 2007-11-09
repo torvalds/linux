@@ -1084,6 +1084,8 @@ struct megasas_instance {
 	struct megasas_cmd **cmd_list;
 	struct list_head cmd_pool;
 	spinlock_t cmd_pool_lock;
+	/* used to synch producer, consumer ptrs in dpc */
+	spinlock_t completion_lock;
 	struct dma_pool *frame_dma_pool;
 	struct dma_pool *sense_dma_pool;
 
