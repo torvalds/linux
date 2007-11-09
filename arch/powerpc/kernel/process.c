@@ -350,7 +350,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	local_irq_save(flags);
 
 	account_system_vtime(current);
-	account_process_vtime(current);
+	account_process_tick(current, 0);
 	calculate_steal_time();
 
 	last = _switch(old_thread, new_thread);

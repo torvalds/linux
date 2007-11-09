@@ -84,11 +84,12 @@ void smp_prepare_boot_cpu(void);
  *	These macros fold the SMP functionality into a single CPU system
  */
 #define raw_smp_processor_id()			0
-static inline int up_smp_call_function(void)
+static inline int up_smp_call_function(void (*func)(void *), void *info)
 {
 	return 0;
 }
-#define smp_call_function(func,info,retry,wait)	(up_smp_call_function())
+#define smp_call_function(func, info, retry, wait) \
+			(up_smp_call_function(func, info))
 #define on_each_cpu(func,info,retry,wait)	\
 	({					\
 		local_irq_disable();		\
@@ -107,6 +108,8 @@ static inline void smp_send_reschedule(int cpu) { }
 	local_irq_enable();	\
 	0;			\
 })
+#define smp_call_function_mask(mask, func, info, wait) \
+			(up_smp_call_function(func, info))
 
 #endif /* !SMP */
 

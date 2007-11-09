@@ -139,13 +139,12 @@ struct set_mtrr_data {
 	mtrr_type	smp_type;
 };
 
-#ifdef CONFIG_SMP
-
 static void ipi_handler(void *info)
 /*  [SUMMARY] Synchronisation handler. Executed by "other" CPUs.
     [RETURNS] Nothing.
 */
 {
+#ifdef CONFIG_SMP
 	struct set_mtrr_data *data = info;
 	unsigned long flags;
 
@@ -168,9 +167,8 @@ static void ipi_handler(void *info)
 
 	atomic_dec(&data->count);
 	local_irq_restore(flags);
-}
-
 #endif
+}
 
 static inline int types_compatible(mtrr_type type1, mtrr_type type2) {
 	return type1 == MTRR_TYPE_UNCACHABLE ||

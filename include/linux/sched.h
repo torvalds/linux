@@ -254,6 +254,7 @@ long io_schedule_timeout(long timeout);
 
 extern void cpu_init (void);
 extern void trap_init(void);
+extern void account_process_tick(struct task_struct *task, int user);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
 
@@ -862,7 +863,6 @@ struct sched_entity {
 	struct load_weight	load;		/* for load-balancing */
 	struct rb_node		run_node;
 	unsigned int		on_rq;
-	int			peer_preempt;
 
 	u64			exec_start;
 	u64			sum_exec_runtime;
@@ -1460,12 +1460,17 @@ extern void sched_idle_next(void);
 
 #ifdef CONFIG_SCHED_DEBUG
 extern unsigned int sysctl_sched_latency;
-extern unsigned int sysctl_sched_nr_latency;
+extern unsigned int sysctl_sched_min_granularity;
 extern unsigned int sysctl_sched_wakeup_granularity;
 extern unsigned int sysctl_sched_batch_wakeup_granularity;
 extern unsigned int sysctl_sched_child_runs_first;
 extern unsigned int sysctl_sched_features;
 extern unsigned int sysctl_sched_migration_cost;
+extern unsigned int sysctl_sched_nr_migrate;
+
+int sched_nr_latency_handler(struct ctl_table *table, int write,
+		struct file *file, void __user *buffer, size_t *length,
+		loff_t *ppos);
 #endif
 
 extern unsigned int sysctl_sched_compat_yield;
@@ -1979,6 +1984,14 @@ static inline void inc_syscr(struct task_struct *tsk)
 }
 
 static inline void inc_syscw(struct task_struct *tsk)
+{
+}
+#endif
+
+#ifdef CONFIG_SMP
+void migration_init(void);
+#else
+static inline void migration_init(void)
 {
 }
 #endif

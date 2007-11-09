@@ -22,7 +22,7 @@
 
 /*
  * Targeted preemption latency for CPU-bound tasks:
- * (default: 20ms, units: nanoseconds)
+ * (default: 20ms * ilog(ncpus), units: nanoseconds)
  *
  * NOTE: this latency value is not the same as the concept of
  * 'timeslice length' - timeslices in CFS are of variable length
@@ -32,19 +32,24 @@
  * (to see the precise effective timeslice length of your workload,
  *  run vmstat and monitor the context-switches (cs) field)
  */
-const_debug unsigned int sysctl_sched_latency = 20000000ULL;
+unsigned int sysctl_sched_latency = 20000000ULL;
+
+/*
+ * Minimal preemption granularity for CPU-bound tasks:
+ * (default: 1 msec * ilog(ncpus), units: nanoseconds)
+ */
+unsigned int sysctl_sched_min_granularity = 1000000ULL;
+
+/*
+ * is kept at sysctl_sched_latency / sysctl_sched_min_granularity
+ */
+unsigned int sched_nr_latency = 20;
 
 /*
  * After fork, child runs first. (default) If set to 0 then
  * parent will (try to) run first.
  */
 const_debug unsigned int sysctl_sched_child_runs_first = 1;
-
-/*
- * Minimal preemption granularity for CPU-bound tasks:
- * (default: 2 msec, units: nanoseconds)
- */
-const_debug unsigned int sysctl_sched_nr_latency = 20;
 
 /*
  * sys_sched_yield() compat mode
@@ -56,23 +61,23 @@ unsigned int __read_mostly sysctl_sched_compat_yield;
 
 /*
  * SCHED_BATCH wake-up granularity.
- * (default: 10 msec, units: nanoseconds)
+ * (default: 10 msec * ilog(ncpus), units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-const_debug unsigned int sysctl_sched_batch_wakeup_granularity = 10000000UL;
+unsigned int sysctl_sched_batch_wakeup_granularity = 10000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
- * (default: 10 msec, units: nanoseconds)
+ * (default: 10 msec * ilog(ncpus), units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
  * have immediate wakeup/sleep latencies.
  */
-const_debug unsigned int sysctl_sched_wakeup_granularity = 10000000UL;
+unsigned int sysctl_sched_wakeup_granularity = 10000000UL;
 
 const_debug unsigned int sysctl_sched_migration_cost = 500000UL;
 
@@ -212,6 +217,22 @@ static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
  * Scheduling class statistics methods:
  */
 
+#ifdef CONFIG_SCHED_DEBUG
+int sched_nr_latency_handler(struct ctl_table *table, int write,
+		struct file *filp, void __user *buffer, size_t *lenp,
+		loff_t *ppos)
+{
+	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+
+	if (ret || !write)
+		return ret;
+
+	sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
+					sysctl_sched_min_granularity);
+
+	return 0;
+}
+#endif
 
 /*
  * The idea is to set a period in which each task runs once.
@@ -224,7 +245,7 @@ static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 static u64 __sched_period(unsigned long nr_running)
 {
 	u64 period = sysctl_sched_latency;
-	unsigned long nr_latency = sysctl_sched_nr_latency;
+	unsigned long nr_latency = sched_nr_latency;
 
 	if (unlikely(nr_running > nr_latency)) {
 		period *= nr_running;
@@ -259,6 +280,7 @@ static u64 __sched_vslice(unsigned long rq_weight, unsigned long nr_running)
 {
 	u64 vslice = __sched_period(nr_running);
 
+	vslice *= NICE_0_LOAD;
 	do_div(vslice, rq_weight);
 
 	return vslice;
@@ -472,19 +494,26 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	} else if (sched_feat(APPROX_AVG) && cfs_rq->nr_running)
 		vruntime += sched_vslice(cfs_rq)/2;
 
+	/*
+	 * The 'current' period is already promised to the current tasks,
+	 * however the extra weight of the new task will slow them down a
+	 * little, place the new task so that it fits in the slot that
+	 * stays open at the end.
+	 */
 	if (initial && sched_feat(START_DEBIT))
 		vruntime += sched_vslice_add(cfs_rq, se);
 
 	if (!initial) {
+		/* sleeps upto a single latency don't count. */
 		if (sched_feat(NEW_FAIR_SLEEPERS) && entity_is_task(se) &&
 				task_of(se)->policy != SCHED_BATCH)
 			vruntime -= sysctl_sched_latency;
 
-		vruntime = max_t(s64, vruntime, se->vruntime);
+		/* ensure we never gain time by being placed backwards. */
+		vruntime = max_vruntime(se->vruntime, vruntime);
 	}
 
 	se->vruntime = vruntime;
-
 }
 
 static void
@@ -517,7 +546,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
-		se->peer_preempt = 0;
 #ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
@@ -545,10 +573,8 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
-	if (delta_exec > ideal_runtime ||
-			(sched_feat(PREEMPT_RESTRICT) && curr->peer_preempt))
+	if (delta_exec > ideal_runtime)
 		resched_task(rq_of(cfs_rq)->curr);
-	curr->peer_preempt = 0;
 }
 
 static void
@@ -811,7 +837,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 	struct task_struct *curr = rq->curr;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	struct sched_entity *se = &curr->se, *pse = &p->se;
-	s64 delta, gran;
+	unsigned long gran;
 
 	if (unlikely(rt_prio(p->prio))) {
 		update_rq_clock(rq);
@@ -826,24 +852,20 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 	if (unlikely(p->policy == SCHED_BATCH))
 		return;
 
-	if (sched_feat(WAKEUP_PREEMPT)) {
-		while (!is_same_group(se, pse)) {
-			se = parent_entity(se);
-			pse = parent_entity(pse);
-		}
+	if (!sched_feat(WAKEUP_PREEMPT))
+		return;
 
-		delta = se->vruntime - pse->vruntime;
-		gran = sysctl_sched_wakeup_granularity;
-		if (unlikely(se->load.weight != NICE_0_LOAD))
-			gran = calc_delta_fair(gran, &se->load);
-
-		if (delta > gran) {
-			int now = !sched_feat(PREEMPT_RESTRICT);
-
-			if (now || p->prio < curr->prio || !se->peer_preempt++)
-				resched_task(curr);
-		}
+	while (!is_same_group(se, pse)) {
+		se = parent_entity(se);
+		pse = parent_entity(pse);
 	}
+
+	gran = sysctl_sched_wakeup_granularity;
+	if (unlikely(se->load.weight != NICE_0_LOAD))
+		gran = calc_delta_fair(gran, &se->load);
+
+	if (pse->vruntime + gran < se->vruntime)
+		resched_task(curr);
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
@@ -1045,8 +1067,9 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	update_curr(cfs_rq);
 	place_entity(cfs_rq, se, 1);
 
+	/* 'curr' will be NULL if the child belongs to a different group */
 	if (sysctl_sched_child_runs_first && this_cpu == task_cpu(p) &&
-			curr->vruntime < se->vruntime) {
+			curr && curr->vruntime < se->vruntime) {
 		/*
 		 * Upon rescheduling, sched_class::put_prev_task() will place
 		 * 'current' within the tree based on its new key value.
@@ -1054,7 +1077,6 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 		swap(curr->vruntime, se->vruntime);
 	}
 
-	se->peer_preempt = 0;
 	enqueue_task_fair(rq, p, 0);
 	resched_task(rq->curr);
 }

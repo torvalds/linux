@@ -75,7 +75,7 @@
  */
 unsigned long long __attribute__((weak)) sched_clock(void)
 {
-	return (unsigned long long)jiffies * (1000000000 / HZ);
+	return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ);
 }
 
 /*
@@ -99,8 +99,8 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 /*
  * Some helpers for converting nanosecond timing to jiffy resolution
  */
-#define NS_TO_JIFFIES(TIME)	((unsigned long)(TIME) / (1000000000 / HZ))
-#define JIFFIES_TO_NS(TIME)	((TIME) * (1000000000 / HZ))
+#define NS_TO_JIFFIES(TIME)	((unsigned long)(TIME) / (NSEC_PER_SEC / HZ))
+#define JIFFIES_TO_NS(TIME)	((TIME) * (NSEC_PER_SEC / HZ))
 
 #define NICE_0_LOAD		SCHED_LOAD_SCALE
 #define NICE_0_SHIFT		SCHED_LOAD_SHIFT
@@ -460,7 +460,6 @@ enum {
 	SCHED_FEAT_TREE_AVG             = 4,
 	SCHED_FEAT_APPROX_AVG           = 8,
 	SCHED_FEAT_WAKEUP_PREEMPT	= 16,
-	SCHED_FEAT_PREEMPT_RESTRICT	= 32,
 };
 
 const_debug unsigned int sysctl_sched_features =
@@ -468,10 +467,15 @@ const_debug unsigned int sysctl_sched_features =
 		SCHED_FEAT_START_DEBIT		* 1 |
 		SCHED_FEAT_TREE_AVG		* 0 |
 		SCHED_FEAT_APPROX_AVG		* 0 |
-		SCHED_FEAT_WAKEUP_PREEMPT	* 1 |
-		SCHED_FEAT_PREEMPT_RESTRICT	* 1;
+		SCHED_FEAT_WAKEUP_PREEMPT	* 1;
 
 #define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
+
+/*
+ * Number of tasks to iterate in a single balance run.
+ * Limited because this is done with IRQs disabled.
+ */
+const_debug unsigned int sysctl_sched_nr_migrate = 32;
 
 /*
  * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
@@ -2237,7 +2241,7 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	      enum cpu_idle_type idle, int *all_pinned,
 	      int *this_best_prio, struct rq_iterator *iterator)
 {
-	int pulled = 0, pinned = 0, skip_for_load;
+	int loops = 0, pulled = 0, pinned = 0, skip_for_load;
 	struct task_struct *p;
 	long rem_load_move = max_load_move;
 
@@ -2251,10 +2255,10 @@ balance_tasks(struct rq *this_rq, int this_cpu, struct rq *busiest,
 	 */
 	p = iterator->start(iterator->arg);
 next:
-	if (!p)
+	if (!p || loops++ > sysctl_sched_nr_migrate)
 		goto out;
 	/*
-	 * To help distribute high priority tasks accross CPUs we don't
+	 * To help distribute high priority tasks across CPUs we don't
 	 * skip a task if it will be the highest priority task (i.e. smallest
 	 * prio value) on its new queue regardless of its load weight
 	 */
@@ -2271,8 +2275,7 @@ next:
 	rem_load_move -= p->se.load.weight;
 
 	/*
-	 * We only want to steal up to the prescribed number of tasks
-	 * and the prescribed amount of weighted load.
+	 * We only want to steal up to the prescribed amount of weighted load.
 	 */
 	if (rem_load_move > 0) {
 		if (p->prio < *this_best_prio)
@@ -4992,6 +4995,32 @@ void __cpuinit init_idle(struct task_struct *idle, int cpu)
  */
 cpumask_t nohz_cpu_mask = CPU_MASK_NONE;
 
+/*
+ * Increase the granularity value when there are more CPUs,
+ * because with more CPUs the 'effective latency' as visible
+ * to users decreases. But the relationship is not linear,
+ * so pick a second-best guess by going with the log2 of the
+ * number of CPUs.
+ *
+ * This idea comes from the SD scheduler of Con Kolivas:
+ */
+static inline void sched_init_granularity(void)
+{
+	unsigned int factor = 1 + ilog2(num_online_cpus());
+	const unsigned long limit = 200000000;
+
+	sysctl_sched_min_granularity *= factor;
+	if (sysctl_sched_min_granularity > limit)
+		sysctl_sched_min_granularity = limit;
+
+	sysctl_sched_latency *= factor;
+	if (sysctl_sched_latency > limit)
+		sysctl_sched_latency = limit;
+
+	sysctl_sched_wakeup_granularity *= factor;
+	sysctl_sched_batch_wakeup_granularity *= factor;
+}
+
 #ifdef CONFIG_SMP
 /*
  * This is how migration works:
@@ -5621,7 +5650,7 @@ static struct notifier_block __cpuinitdata migration_notifier = {
 	.priority = 10
 };
 
-int __init migration_init(void)
+void __init migration_init(void)
 {
 	void *cpu = (void *)(long)smp_processor_id();
 	int err;
@@ -5631,8 +5660,6 @@ int __init migration_init(void)
 	BUG_ON(err == NOTIFY_BAD);
 	migration_call(&migration_notifier, CPU_ONLINE, cpu);
 	register_cpu_notifier(&migration_notifier);
-
-	return 0;
 }
 #endif
 
@@ -6688,10 +6715,12 @@ void __init sched_init_smp(void)
 	/* Move init over to a non-isolated CPU */
 	if (set_cpus_allowed(current, non_isolated_cpus) < 0)
 		BUG();
+	sched_init_granularity();
 }
 #else
 void __init sched_init_smp(void)
 {
+	sched_init_granularity();
 }
 #endif /* CONFIG_SMP */
 
@@ -7228,7 +7257,7 @@ static u64 cpu_usage_read(struct cgroup *cgrp, struct cftype *cft)
 		spin_unlock_irqrestore(&cpu_rq(i)->lock, flags);
 	}
 	/* Convert from ns to ms */
-	do_div(res, 1000000);
+	do_div(res, NSEC_PER_MSEC);
 
 	return res;
 }
