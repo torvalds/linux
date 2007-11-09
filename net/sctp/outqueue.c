@@ -662,10 +662,9 @@ static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 int sctp_outq_uncork(struct sctp_outq *q)
 {
 	int error = 0;
-	if (q->cork) {
+	if (q->cork)
 		q->cork = 0;
-		error = sctp_outq_flush(q, 0);
-	}
+	error = sctp_outq_flush(q, 0);
 	return error;
 }
 
