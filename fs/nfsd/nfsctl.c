@@ -695,12 +695,14 @@ static int __init init_nfsd(void)
 	}
 	retval = register_filesystem(&nfsd_fs_type);
 	if (retval) {
+		nfsd_idmap_shutdown();
 		nfsd_export_shutdown();
 		nfsd_cache_shutdown();
 		remove_proc_entry("fs/nfs/exports", NULL);
 		remove_proc_entry("fs/nfs", NULL);
 		nfsd_stat_shutdown();
 		nfsd_lockd_shutdown();
+		nfsd4_free_slabs();
 	}
 	return retval;
 }
