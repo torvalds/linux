@@ -1143,22 +1143,9 @@ EXPORT_SYMBOL(blk_queue_start_tag);
 void blk_queue_invalidate_tags(struct request_queue *q)
 {
 	struct list_head *tmp, *n;
-	struct request *rq;
 
-	list_for_each_safe(tmp, n, &q->tag_busy_list) {
-		rq = list_entry_rq(tmp);
-
-		if (rq->tag == -1) {
-			printk(KERN_ERR
-			       "%s: bad tag found on list\n", __FUNCTION__);
-			list_del_init(&rq->queuelist);
-			rq->cmd_flags &= ~REQ_QUEUED;
-		} else
-			blk_queue_end_tag(q, rq);
-
-		rq->cmd_flags &= ~REQ_STARTED;
-		__elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 0);
-	}
+	list_for_each_safe(tmp, n, &q->tag_busy_list)
+		blk_requeue_request(q, list_entry_rq(tmp));
 }
 
 EXPORT_SYMBOL(blk_queue_invalidate_tags);
