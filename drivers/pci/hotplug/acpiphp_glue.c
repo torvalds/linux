@@ -1528,7 +1528,6 @@ check_sub_bridges(acpi_handle handle, u32 lvl, void *context, void **rv)
 		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 		dbg("%s: re-enumerating slots under %s\n",
 			__FUNCTION__, objname);
-		acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 		acpiphp_check_bridge(bridge);
 	}
 	return AE_OK ;
