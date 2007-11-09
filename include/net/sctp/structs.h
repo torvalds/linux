@@ -100,20 +100,19 @@ struct crypto_hash;
 struct sctp_bind_bucket {
 	unsigned short	port;
 	unsigned short	fastreuse;
-	struct sctp_bind_bucket *next;
-	struct sctp_bind_bucket **pprev;
+	struct hlist_node	node;
 	struct hlist_head	owner;
 };
 
 struct sctp_bind_hashbucket {
 	spinlock_t	lock;
-	struct sctp_bind_bucket	*chain;
+	struct hlist_head	chain;
 };
 
 /* Used for hashing all associations.  */
 struct sctp_hashbucket {
 	rwlock_t	lock;
-	struct sctp_ep_common  *chain;
+	struct hlist_head	chain;
 } __attribute__((__aligned__(8)));
 
 
@@ -1230,8 +1229,7 @@ typedef enum {
 
 struct sctp_ep_common {
 	/* Fields to help us manage our entries in the hash tables. */
-	struct sctp_ep_common *next;
-	struct sctp_ep_common **pprev;
+	struct hlist_node node;
 	int hashent;
 
 	/* Runtime type information.  What kind of endpoint is this? */

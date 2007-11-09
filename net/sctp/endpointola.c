@@ -332,6 +332,7 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	struct sctp_transport *t = NULL;
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
+	struct hlist_node *node;
 	int hash;
 	int rport;
 
@@ -341,7 +342,7 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	hash = sctp_assoc_hashfn(ep->base.bind_addr.port, rport);
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
-	for (epb = head->chain; epb; epb = epb->next) {
+	sctp_for_each_hentry(epb, node, &head->chain) {
 		asoc = sctp_assoc(epb);
 		if (asoc->ep != ep || rport != asoc->peer.port)
 			goto next;
