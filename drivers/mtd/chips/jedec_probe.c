@@ -1527,6 +1527,21 @@ static const struct amd_flash_info jedec_table[] = {
                        ERASEINFO(0x1000,256),
                        ERASEINFO(0x1000,256)
                }
+	}, {
+               .mfr_id         = MANUFACTURER_SST,     /* should be CFI */
+               .dev_id         = SST39VF1601,
+               .name           = "SST 39VF1601",
+               .uaddr          = {
+                       [0] = MTD_UADDR_0x5555_0x2AAA,  /* x8 */
+                       [1] = MTD_UADDR_0x5555_0x2AAA   /* x16 */
+               },
+               .DevSize        = SIZE_2MiB,
+               .CmdSet         = P_ID_AMD_STD,
+               .NumEraseRegions= 2,
+               .regions        = {
+                       ERASEINFO(0x1000,256),
+                       ERASEINFO(0x1000,256)
+               }
 
 	}, {
 		.mfr_id		= MANUFACTURER_ST,
