@@ -259,7 +259,7 @@ void account_system_vtime(struct task_struct *tsk)
  * user and system time records.
  * Must be called with interrupts disabled.
  */
-void account_process_vtime(struct task_struct *tsk)
+void account_process_tick(struct task_struct *tsk, int user_tick)
 {
 	cputime_t utime, utimescaled;
 
@@ -272,18 +272,6 @@ void account_process_vtime(struct task_struct *tsk)
 	utimescaled = utime * get_paca()->spurrdelta / get_paca()->purrdelta;
 	get_paca()->spurrdelta = get_paca()->purrdelta = 0;
 	account_user_time_scaled(tsk, utimescaled);
-}
-
-static void account_process_time(struct pt_regs *regs)
-{
-	int cpu = smp_processor_id();
-
-	account_process_vtime(current);
-	run_local_timers();
-	if (rcu_pending(cpu))
-		rcu_check_callbacks(cpu, user_mode(regs));
-	scheduler_tick();
- 	run_posix_cpu_timers(current);
 }
 
 /*
@@ -375,7 +363,6 @@ static void snapshot_purr(void)
 
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING */
 #define calc_cputime_factors()
-#define account_process_time(regs)	update_process_times(user_mode(regs))
 #define calculate_steal_time()		do { } while (0)
 #endif
 
@@ -598,16 +585,6 @@ void timer_interrupt(struct pt_regs * regs)
 	if (firmware_has_feature(FW_FEATURE_ISERIES))
 		get_lppaca()->int_dword.fields.decr_int = 0;
 #endif
-
-	/*
-	 * We cannot disable the decrementer, so in the period
-	 * between this cpu's being marked offline in cpu_online_map
-	 * and calling stop-self, it is taking timer interrupts.
-	 * Avoid calling into the scheduler rebalancing code if this
-	 * is the case.
-	 */
-	if (!cpu_is_offline(cpu))
-		account_process_time(regs);
 
 	if (evt->event_handler)
 		evt->event_handler(evt);
