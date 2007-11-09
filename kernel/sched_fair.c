@@ -863,10 +863,8 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 		if (unlikely(se->load.weight != NICE_0_LOAD))
 			gran = calc_delta_fair(gran, &se->load);
 
-		if (delta > gran) {
-			if (p->prio < curr->prio)
-				resched_task(curr);
-		}
+		if (delta > gran)
+			resched_task(curr);
 	}
 }
 
