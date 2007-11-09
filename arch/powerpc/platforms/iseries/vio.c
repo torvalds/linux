@@ -523,15 +523,16 @@ static void __init get_viotape_info(struct device_node *vio_root)
 static int __init iseries_vio_init(void)
 {
 	struct device_node *vio_root;
+	int ret = -ENODEV;
 
 	if (!firmware_has_feature(FW_FEATURE_ISERIES))
-		return -ENODEV;
+		goto out;
 
 	iommu_vio_init();
 
 	vio_root = of_find_node_by_path("/vdevice");
 	if (!vio_root)
-		return -ENODEV;
+		goto out;
 
 	if (viopath_hostLp == HvLpIndexInvalid) {
 		vio_set_hostlp();
@@ -544,10 +545,11 @@ static int __init iseries_vio_init(void)
 	get_viocd_info(vio_root);
 	get_viotape_info(vio_root);
 
-	return 0;
+	ret = 0;
 
  put_node:
 	of_node_put(vio_root);
-	return -ENODEV;
+ out:
+	return ret;
 }
 arch_initcall(iseries_vio_init);

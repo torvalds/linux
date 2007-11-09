@@ -25,6 +25,7 @@
 #include <asm/smp.h>
 #include <asm/firmware.h>
 #include <linux/compiler.h>
+#include <asm/udbg.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -148,6 +149,35 @@ void slb_vmalloc_update(void)
 	slb_flush_and_rebolt();
 }
 
+/* Helper function to compare esids.  There are four cases to handle.
+ * 1. The system is not 1T segment size capable.  Use the GET_ESID compare.
+ * 2. The system is 1T capable, both addresses are < 1T, use the GET_ESID compare.
+ * 3. The system is 1T capable, only one of the two addresses is > 1T.  This is not a match.
+ * 4. The system is 1T capable, both addresses are > 1T, use the GET_ESID_1T macro to compare.
+ */
+static inline int esids_match(unsigned long addr1, unsigned long addr2)
+{
+	int esid_1t_count;
+
+	/* System is not 1T segment size capable. */
+	if (!cpu_has_feature(CPU_FTR_1T_SEGMENT))
+		return (GET_ESID(addr1) == GET_ESID(addr2));
+
+	esid_1t_count = (((addr1 >> SID_SHIFT_1T) != 0) +
+				((addr2 >> SID_SHIFT_1T) != 0));
+
+	/* both addresses are < 1T */
+	if (esid_1t_count == 0)
+		return (GET_ESID(addr1) == GET_ESID(addr2));
+
+	/* One address < 1T, the other > 1T.  Not a match */
+	if (esid_1t_count == 1)
+		return 0;
+
+	/* Both addresses are > 1T. */
+	return (GET_ESID_1T(addr1) == GET_ESID_1T(addr2));
+}
+
 /* Flush all user entries from the segment table of the current processor. */
 void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 {
@@ -193,15 +223,14 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 		return;
 	slb_allocate(pc);
 
-	if (GET_ESID(pc) == GET_ESID(stack))
+	if (esids_match(pc,stack))
 		return;
 
 	if (is_kernel_addr(stack))
 		return;
 	slb_allocate(stack);
 
-	if ((GET_ESID(pc) == GET_ESID(unmapped_base))
-	    || (GET_ESID(stack) == GET_ESID(unmapped_base)))
+	if (esids_match(pc,unmapped_base) || esids_match(stack,unmapped_base))
 		return;
 
 	if (is_kernel_addr(unmapped_base))

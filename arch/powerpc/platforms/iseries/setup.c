@@ -617,10 +617,6 @@ static void iseries_dedicated_idle(void)
 	}
 }
 
-#ifndef CONFIG_PCI
-void __init iSeries_init_IRQ(void) { }
-#endif
-
 static void __iomem *iseries_ioremap(phys_addr_t address, unsigned long size,
 				     unsigned long flags)
 {

@@ -122,7 +122,9 @@
 				device_type = "network";
 				compatible = "ibm,emac-405gp", "ibm,emac";
 				interrupt-parent = <&UIC0>;
-				interrupts = <9 4 f 4>;
+				interrupts = <
+					f 4 /* Ethernet */
+					9 4 /* Ethernet Wake Up */>;
 				local-mac-address = [000000000000]; /* Filled in by zImage */
 				reg = <ef600800 70>;
 				mal-device = <&MAL>;

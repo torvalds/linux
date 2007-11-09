@@ -331,7 +331,7 @@ htab_pte_insert_failure:
  *****************************************************************************/
 
 /* _hash_page_4K(unsigned long ea, unsigned long access, unsigned long vsid,
- *		 pte_t *ptep, unsigned long trap, int local)
+ *		 pte_t *ptep, unsigned long trap, int local, int ssize)
  */
 
 /*
@@ -557,7 +557,8 @@ htab_inval_old_hpte:
 	mr	r4,r31			/* PTE.pte */
 	li	r5,0			/* PTE.hidx */
 	li	r6,MMU_PAGE_64K		/* psize */
-	ld	r7,STK_PARM(r8)(r1)	/* local */
+	ld	r7,STK_PARM(r9)(r1)	/* ssize */
+	ld	r8,STK_PARM(r8)(r1)	/* local */
 	bl	.flush_hash_page
 	b	htab_insert_pte
 	

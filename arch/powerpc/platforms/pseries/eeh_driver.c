@@ -105,17 +105,18 @@ static void eeh_report_error(struct pci_dev *dev, void *userdata)
 		return;
 
 	rc = driver->err_handler->error_detected (dev, pci_channel_io_frozen);
+
+	/* A driver that needs a reset trumps all others */
+	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
-	if (*res == PCI_ERS_RESULT_DISCONNECT &&
-	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
 
 /**
  * eeh_report_mmio_enabled - tell drivers that MMIO has been enabled
  *
- * Report an EEH error to each device driver, collect up and
- * merge the device driver responses. Cumulative response
- * passed back in "userdata".
+ * Tells each device driver that IO ports, MMIO and config space I/O
+ * are now enabled. Collects up and merges the device driver responses.
+ * Cumulative response passed back in "userdata".
  */
 
 static void eeh_report_mmio_enabled(struct pci_dev *dev, void *userdata)
@@ -123,17 +124,16 @@ static void eeh_report_mmio_enabled(struct pci_dev *dev, void *userdata)
 	enum pci_ers_result rc, *res = userdata;
 	struct pci_driver *driver = dev->driver;
 
-	// dev->error_state = pci_channel_mmio_enabled;
-
 	if (!driver ||
 	    !driver->err_handler ||
 	    !driver->err_handler->mmio_enabled)
 		return;
 
 	rc = driver->err_handler->mmio_enabled (dev);
+
+	/* A driver that needs a reset trumps all others */
+	if (rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 	if (*res == PCI_ERS_RESULT_NONE) *res = rc;
-	if (*res == PCI_ERS_RESULT_DISCONNECT &&
-	     rc == PCI_ERS_RESULT_NEED_RESET) *res = rc;
 }
 
 /**

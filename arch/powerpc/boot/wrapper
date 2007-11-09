@@ -21,6 +21,14 @@
 #		(default ./arch/powerpc/boot)
 # -W dir	specify working directory for temporary files (default .)
 
+# Stop execution if any command fails
+set -e
+
+# Allow for verbose output
+if [ "$V" = 1 ]; then
+    set -x
+fi
+
 # defaults
 kernel=
 ofile=zImage
@@ -111,7 +119,7 @@ if [ -n "$dts" ]; then
     if [ -z "$dtb" ]; then
 	dtb="$platform.dtb"
     fi
-    dtc -O dtb -o "$dtb" -b 0 -V 16 "$dts" || exit 1
+    dtc -O dtb -o "$dtb" -b 0 -V 16 "$dts"
 fi
 
 if [ -z "$kernel" ]; then
@@ -149,7 +157,6 @@ cuboot*)
 ps3)
     platformo="$object/ps3-head.o $object/ps3-hvcall.o $object/ps3.o"
     lds=$object/zImage.ps3.lds
-    binary=y
     gzip=
     ext=bin
     objflags="-O binary --set-section-flags=.bss=contents,alloc,load,data"
@@ -233,7 +240,7 @@ entry=`${CROSS}objdump -f "$ofile" | grep '^start address ' | cut -d' ' -f3`
 
 if [ -n "$binary" ]; then
     mv "$ofile" "$ofile".elf
-    ${CROSS}objcopy -O binary "$ofile".elf "$ofile".bin
+    ${CROSS}objcopy -O binary "$ofile".elf "$ofile"
 fi
 
 # post-processing needed for some platforms
@@ -246,9 +253,9 @@ coff)
     $object/hack-coff "$ofile"
     ;;
 cuboot*)
-    gzip -f -9 "$ofile".bin
+    gzip -f -9 "$ofile"
     mkimage -A ppc -O linux -T kernel -C gzip -a "$base" -e "$entry" \
-            $uboot_version -d "$ofile".bin.gz "$ofile"
+            $uboot_version -d "$ofile".gz "$ofile"
     ;;
 treeboot*)
     mv "$ofile" "$ofile.elf"
@@ -269,11 +276,11 @@ ps3)
     # then copied to offset 0x100.  At runtime the bootwrapper program
     # copies the 0x100 bytes at __system_reset_kernel to addr 0x100.
 
-    system_reset_overlay=0x`${CROSS}nm "$ofile".elf \
+    system_reset_overlay=0x`${CROSS}nm "$ofile" \
         | grep ' __system_reset_overlay$'       \
         | cut -d' ' -f1`
     system_reset_overlay=`printf "%d" $system_reset_overlay`
-    system_reset_kernel=0x`${CROSS}nm "$ofile".elf \
+    system_reset_kernel=0x`${CROSS}nm "$ofile" \
         | grep ' __system_reset_kernel$'       \
         | cut -d' ' -f1`
     system_reset_kernel=`printf "%d" $system_reset_kernel`
@@ -282,23 +289,15 @@ ps3)
 
     rm -f "$object/otheros.bld"
 
-    msg=$(dd if="$ofile.bin" of="$ofile.bin" conv=notrunc \
-        skip=$overlay_dest seek=$system_reset_kernel      \
-        count=$overlay_size bs=1 2>&1)
+    ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
-    if [ $? -ne "0" ]; then
-       echo $msg
-       exit 1
-    fi
+    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$overlay_dest seek=$system_reset_kernel  \
+        count=$overlay_size bs=1
 
-    msg=$(dd if="$ofile.bin" of="$ofile.bin" conv=notrunc \
-        skip=$system_reset_overlay seek=$overlay_dest     \
-        count=$overlay_size bs=1 2>&1)
-
-    if [ $? -ne "0" ]; then
-       echo $msg
-       exit 2
-    fi
+    dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
+        skip=$system_reset_overlay seek=$overlay_dest \
+        count=$overlay_size bs=1
 
     gzip --force -9 --stdout "$ofile.bin" > "$object/otheros.bld"
     ;;

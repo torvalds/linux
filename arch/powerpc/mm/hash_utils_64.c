@@ -51,6 +51,7 @@
 #include <asm/cputable.h>
 #include <asm/sections.h>
 #include <asm/spu.h>
+#include <asm/udbg.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -791,8 +792,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	}
 	if (user_region) {
 		if (psize != get_paca()->context.user_psize) {
-			get_paca()->context.user_psize =
-				mm->context.user_psize;
+			get_paca()->context = mm->context;
 			slb_flush_and_rebolt();
 		}
 	} else if (get_paca()->vmalloc_sllp !=
@@ -885,6 +885,9 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 	local_irq_restore(flags);
 }
 
+/* WARNING: This is called from hash_low_64.S, if you change this prototype,
+ *          do not forget to update the assembly call site !
+ */
 void flush_hash_page(unsigned long va, real_pte_t pte, int psize, int ssize,
 		     int local)
 {
