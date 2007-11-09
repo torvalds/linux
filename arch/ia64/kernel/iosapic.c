@@ -925,7 +925,7 @@ iosapic_register_platform_intr (u32 int_type, unsigned int gsi,
 	      case ACPI_INTERRUPT_CPEI:
 		irq = vector = IA64_CPE_VECTOR;
 		BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
-		delivery = IOSAPIC_LOWEST_PRIORITY;
+		delivery = IOSAPIC_FIXED;
 		mask = 1;
 		break;
 	      default:
