@@ -3,40 +3,55 @@
 
 /*
  * Copyright (C) 1999  Niibe Yutaka
+ * Copyright (C) 2000, 2001  Paolo Alberelli
  */
-
-#include <asm/types.h>
 #include <linux/compiler.h>
+#include <linux/types.h>
 
-static __inline__ __attribute_const__ __u32 ___arch__swab32(__u32 x)
+static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 {
-	__asm__("swap.b	%0, %0\n\t"
-		"swap.w %0, %0\n\t"
-		"swap.b %0, %0"
+	__asm__(
+#ifdef CONFIG_SUPERH32
+		"swap.b		%0, %0\n\t"
+		"swap.w		%0, %0\n\t"
+		"swap.b		%0, %0"
+#else
+		"byterev	%0, %0\n\t"
+		"shari		%0, 32, %0"
+#endif
 		: "=r" (x)
 		: "0" (x));
+
 	return x;
 }
 
-static __inline__ __attribute_const__ __u16 ___arch__swab16(__u16 x)
+static inline __attribute_const__ __u16 ___arch__swab16(__u16 x)
 {
-	__asm__("swap.b %0, %0"
+	__asm__(
+#ifdef CONFIG_SUPERH32
+		"swap.b		%0, %0"
+#else
+		"byterev	%0, %0\n\t"
+		"shari		%0, 32, %0"
+
+#endif
 		: "=r" (x)
 		:  "0" (x));
+
 	return x;
 }
 
-static inline __u64 ___arch__swab64(__u64 val) 
-{ 
-	union { 
+static inline __u64 ___arch__swab64(__u64 val)
+{
+	union {
 		struct { __u32 a,b; } s;
 		__u64 u;
 	} v, w;
 	v.u = val;
-	w.s.b = ___arch__swab32(v.s.a); 
-	w.s.a = ___arch__swab32(v.s.b); 
-	return w.u;	
-} 
+	w.s.b = ___arch__swab32(v.s.a);
+	w.s.a = ___arch__swab32(v.s.b);
+	return w.u;
+}
 
 #define __arch__swab64(x) ___arch__swab64(x)
 #define __arch__swab32(x) ___arch__swab32(x)
