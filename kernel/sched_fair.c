@@ -35,16 +35,21 @@
 const_debug unsigned int sysctl_sched_latency = 20000000ULL;
 
 /*
+ * Minimal preemption granularity for CPU-bound tasks:
+ * (default: 1 msec, units: nanoseconds)
+ */
+const_debug unsigned int sysctl_sched_min_granularity = 1000000ULL;
+
+/*
+ * is kept at sysctl_sched_latency / sysctl_sched_min_granularity
+ */
+const_debug unsigned int sched_nr_latency = 20;
+
+/*
  * After fork, child runs first. (default) If set to 0 then
  * parent will (try to) run first.
  */
 const_debug unsigned int sysctl_sched_child_runs_first = 1;
-
-/*
- * Minimal preemption granularity for CPU-bound tasks:
- * (default: 2 msec, units: nanoseconds)
- */
-const_debug unsigned int sysctl_sched_nr_latency = 20;
 
 /*
  * sys_sched_yield() compat mode
@@ -212,6 +217,22 @@ static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
  * Scheduling class statistics methods:
  */
 
+#ifdef CONFIG_SCHED_DEBUG
+int sched_nr_latency_handler(struct ctl_table *table, int write,
+		struct file *filp, void __user *buffer, size_t *lenp,
+		loff_t *ppos)
+{
+	int ret = proc_dointvec_minmax(table, write, filp, buffer, lenp, ppos);
+
+	if (ret || !write)
+		return ret;
+
+	sched_nr_latency = DIV_ROUND_UP(sysctl_sched_latency,
+					sysctl_sched_min_granularity);
+
+	return 0;
+}
+#endif
 
 /*
  * The idea is to set a period in which each task runs once.
@@ -224,7 +245,7 @@ static inline struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq)
 static u64 __sched_period(unsigned long nr_running)
 {
 	u64 period = sysctl_sched_latency;
-	unsigned long nr_latency = sysctl_sched_nr_latency;
+	unsigned long nr_latency = sched_nr_latency;
 
 	if (unlikely(nr_running > nr_latency)) {
 		period *= nr_running;
