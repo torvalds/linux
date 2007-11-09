@@ -1067,8 +1067,9 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 	update_curr(cfs_rq);
 	place_entity(cfs_rq, se, 1);
 
+	/* 'curr' will be NULL if the child belongs to a different group */
 	if (sysctl_sched_child_runs_first && this_cpu == task_cpu(p) &&
-			curr->vruntime < se->vruntime) {
+			curr && curr->vruntime < se->vruntime) {
 		/*
 		 * Upon rescheduling, sched_class::put_prev_task() will place
 		 * 'current' within the tree based on its new key value.
