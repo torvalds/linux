@@ -2,7 +2,8 @@
  *	xt_u32 - kernel module to match u32 packet content
  *
  *	Original author: Don Cohen <don@isis.cs3-inc.com>
- *	© Jan Engelhardt <jengelh@gmx.de>, 2007
+ *	(C) CC Computer Consultants GmbH, 2007
+ *	Contact: <jengelh@computergmbh.de>
  */
 
 #include <linux/module.h>
@@ -129,7 +130,7 @@ static void __exit xt_u32_exit(void)
 
 module_init(xt_u32_init);
 module_exit(xt_u32_exit);
-MODULE_AUTHOR("Jan Engelhardt <jengelh@gmx.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
 MODULE_DESCRIPTION("netfilter u32 match module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_u32");

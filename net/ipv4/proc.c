@@ -46,17 +46,6 @@
 #include <net/sock.h>
 #include <net/raw.h>
 
-static int fold_prot_inuse(struct proto *proto)
-{
-	int res = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		res += proto->stats[cpu].inuse;
-
-	return res;
-}
-
 /*
  *	Report socket allocation statistics [mea@utu.fi]
  */
@@ -64,12 +53,12 @@ static int sockstat_seq_show(struct seq_file *seq, void *v)
 {
 	socket_seq_show(seq);
 	seq_printf(seq, "TCP: inuse %d orphan %d tw %d alloc %d mem %d\n",
-		   fold_prot_inuse(&tcp_prot), atomic_read(&tcp_orphan_count),
+		   sock_prot_inuse(&tcp_prot), atomic_read(&tcp_orphan_count),
 		   tcp_death_row.tw_count, atomic_read(&tcp_sockets_allocated),
 		   atomic_read(&tcp_memory_allocated));
-	seq_printf(seq, "UDP: inuse %d\n", fold_prot_inuse(&udp_prot));
-	seq_printf(seq, "UDPLITE: inuse %d\n", fold_prot_inuse(&udplite_prot));
-	seq_printf(seq, "RAW: inuse %d\n", fold_prot_inuse(&raw_prot));
+	seq_printf(seq, "UDP: inuse %d\n", sock_prot_inuse(&udp_prot));
+	seq_printf(seq, "UDPLITE: inuse %d\n", sock_prot_inuse(&udplite_prot));
+	seq_printf(seq, "RAW: inuse %d\n", sock_prot_inuse(&raw_prot));
 	seq_printf(seq,  "FRAG: inuse %d memory %d\n",
 			ip_frag_nqueues(), ip_frag_mem());
 	return 0;

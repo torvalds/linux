@@ -4,8 +4,6 @@
 	- information on the 3Com EtherLink Plus (3c505) driver.
 6pack.txt
 	- info on the 6pack protocol, an alternative to KISS for AX.25
-Configurable
-	- info on some of the configurable network parameters
 DLINK.txt
 	- info on the D-Link DE-600/DE-620 parallel port pocket adapters
 PLIP.txt
@@ -26,8 +24,6 @@ baycom.txt
 	- info on the driver for Baycom style amateur radio modems
 bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
-comx.txt
-	- info on drivers for COMX line of synchronous serial adapters.
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
@@ -78,20 +74,14 @@ ltpc.txt
 	- the Apple or Farallon LocalTalk PC card driver
 multicast.txt
 	- Behaviour of cards under Multicast
-ncsa-telnet
-	- notes on how NCSA telnet (DOS) breaks with MTU discovery enabled.
 netdevices.txt
 	- info on network device driver functions exported to the kernel.
 olympic.txt
 	- IBM PCI Pit/Pit-Phy/Olympic Token Ring driver info.
 policy-routing.txt
 	- IP policy-based routing
-pt.txt
-	- the Gracilis Packetwin AX.25 device driver
 ray_cs.txt
 	- Raylink Wireless LAN card driver info.
-routing.txt
-	- the new routing mechanism
 shaper.txt
 	- info on the module that can shape/limit transmitted traffic.
 sk98lin.txt

@@ -719,12 +719,8 @@ static int x25_asy_ioctl(struct tty_struct *tty, struct file *file,
 		return 0;
 	case SIOCSIFHWADDR:
 		return -EINVAL;
-	/* Allow stty to read, but not set, the serial port */
-	case TCGETS:
-	case TCGETA:
-		return n_tty_ioctl(tty, file, cmd, arg);
 	default:
-		return -ENOIOCTLCMD;
+		return tty_mode_ioctl(tty, file, cmd, arg);
 	}
 }
 

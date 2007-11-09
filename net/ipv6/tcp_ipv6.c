@@ -2107,6 +2107,8 @@ void tcp6_proc_exit(void)
 }
 #endif
 
+DEFINE_PROTO_INUSE(tcpv6)
+
 struct proto tcpv6_prot = {
 	.name			= "TCPv6",
 	.owner			= THIS_MODULE,
@@ -2141,6 +2143,7 @@ struct proto tcpv6_prot = {
 	.compat_setsockopt	= compat_tcp_setsockopt,
 	.compat_getsockopt	= compat_tcp_getsockopt,
 #endif
+	REF_PROTO_INUSE(tcpv6)
 };
 
 static struct inet6_protocol tcpv6_protocol = {

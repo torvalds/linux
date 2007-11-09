@@ -1,6 +1,7 @@
 /*
  *	xt_time
- *	Copyright © Jan Engelhardt <jengelh@computergmbh.de>, 2007
+ *	Copyright © CC Computer Consultants GmbH, 2007
+ *	Contact: <jengelh@computergmbh.de>
  *
  *	based on ipt_time by Fabrice MARIE <fabrice@netfilter.org>
  *	This is a module which is used for time matching

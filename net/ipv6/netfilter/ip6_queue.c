@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/mutex.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -596,15 +597,11 @@ static ctl_table ipq_root_table[] = {
 	{ .ctl_name = 0 }
 };
 
-#ifdef CONFIG_PROC_FS
-static int
-ipq_get_info(char *buffer, char **start, off_t offset, int length)
+static int ip6_queue_show(struct seq_file *m, void *v)
 {
-	int len;
-
 	read_lock_bh(&queue_lock);
 
-	len = sprintf(buffer,
+	seq_printf(m,
 		      "Peer PID          : %d\n"
 		      "Copy mode         : %hu\n"
 		      "Copy range        : %u\n"
@@ -621,16 +618,21 @@ ipq_get_info(char *buffer, char **start, off_t offset, int length)
 		      queue_user_dropped);
 
 	read_unlock_bh(&queue_lock);
-
-	*start = buffer + offset;
-	len -= offset;
-	if (len > length)
-		len = length;
-	else if (len < 0)
-		len = 0;
-	return len;
+	return 0;
 }
-#endif /* CONFIG_PROC_FS */
+
+static int ip6_queue_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ip6_queue_show, NULL);
+}
+
+static const struct file_operations ip6_queue_proc_fops = {
+	.open		= ip6_queue_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.owner		= THIS_MODULE,
+};
 
 static struct nf_queue_handler nfqh = {
 	.name	= "ip6_queue",
@@ -650,10 +652,11 @@ static int __init ip6_queue_init(void)
 		goto cleanup_netlink_notifier;
 	}
 
-	proc = proc_net_create(&init_net, IPQ_PROC_FS_NAME, 0, ipq_get_info);
-	if (proc)
+	proc = create_proc_entry(IPQ_PROC_FS_NAME, 0, init_net.proc_net);
+	if (proc) {
 		proc->owner = THIS_MODULE;
-	else {
+		proc->proc_fops = &ip6_queue_proc_fops;
+	} else {
 		printk(KERN_ERR "ip6_queue: failed to create proc entry\n");
 		goto cleanup_ipqnl;
 	}

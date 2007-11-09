@@ -1801,11 +1801,65 @@ EXPORT_SYMBOL(sk_common_release);
 static DEFINE_RWLOCK(proto_list_lock);
 static LIST_HEAD(proto_list);
 
+#ifdef CONFIG_SMP
+/*
+ * Define default functions to keep track of inuse sockets per protocol
+ * Note that often used protocols use dedicated functions to get a speed increase.
+ * (see DEFINE_PROTO_INUSE/REF_PROTO_INUSE)
+ */
+static void inuse_add(struct proto *prot, int inc)
+{
+	per_cpu_ptr(prot->inuse_ptr, smp_processor_id())[0] += inc;
+}
+
+static int inuse_get(const struct proto *prot)
+{
+	int res = 0, cpu;
+	for_each_possible_cpu(cpu)
+		res += per_cpu_ptr(prot->inuse_ptr, cpu)[0];
+	return res;
+}
+
+static int inuse_init(struct proto *prot)
+{
+	if (!prot->inuse_getval || !prot->inuse_add) {
+		prot->inuse_ptr = alloc_percpu(int);
+		if (prot->inuse_ptr == NULL)
+			return -ENOBUFS;
+
+		prot->inuse_getval = inuse_get;
+		prot->inuse_add = inuse_add;
+	}
+	return 0;
+}
+
+static void inuse_fini(struct proto *prot)
+{
+	if (prot->inuse_ptr != NULL) {
+		free_percpu(prot->inuse_ptr);
+		prot->inuse_ptr = NULL;
+		prot->inuse_getval = NULL;
+		prot->inuse_add = NULL;
+	}
+}
+#else
+static inline int inuse_init(struct proto *prot)
+{
+	return 0;
+}
+
+static inline void inuse_fini(struct proto *prot)
+{
+}
+#endif
+
 int proto_register(struct proto *prot, int alloc_slab)
 {
 	char *request_sock_slab_name = NULL;
 	char *timewait_sock_slab_name;
-	int rc = -ENOBUFS;
+
+	if (inuse_init(prot))
+		goto out;
 
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
@@ -1814,7 +1868,7 @@ int proto_register(struct proto *prot, int alloc_slab)
 		if (prot->slab == NULL) {
 			printk(KERN_CRIT "%s: Can't create sock SLAB cache!\n",
 			       prot->name);
-			goto out;
+			goto out_free_inuse;
 		}
 
 		if (prot->rsk_prot != NULL) {
@@ -1858,9 +1912,8 @@ int proto_register(struct proto *prot, int alloc_slab)
 	write_lock(&proto_list_lock);
 	list_add(&prot->node, &proto_list);
 	write_unlock(&proto_list_lock);
-	rc = 0;
-out:
-	return rc;
+	return 0;
+
 out_free_timewait_sock_slab_name:
 	kfree(timewait_sock_slab_name);
 out_free_request_sock_slab:
@@ -1873,7 +1926,10 @@ out_free_request_sock_slab_name:
 out_free_sock_slab:
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
-	goto out;
+out_free_inuse:
+	inuse_fini(prot);
+out:
+	return -ENOBUFS;
 }
 
 EXPORT_SYMBOL(proto_register);
@@ -1884,6 +1940,7 @@ void proto_unregister(struct proto *prot)
 	list_del(&prot->node);
 	write_unlock(&proto_list_lock);
 
+	inuse_fini(prot);
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
 		prot->slab = NULL;

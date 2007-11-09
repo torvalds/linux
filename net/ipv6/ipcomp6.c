@@ -36,6 +36,7 @@
 #include <net/ipcomp.h>
 #include <asm/semaphore.h>
 #include <linux/crypto.h>
+#include <linux/err.h>
 #include <linux/pfkeyv2.h>
 #include <linux/random.h>
 #include <linux/percpu.h>
@@ -358,7 +359,7 @@ static struct crypto_comp **ipcomp6_alloc_tfms(const char *alg_name)
 	for_each_possible_cpu(cpu) {
 		struct crypto_comp *tfm = crypto_alloc_comp(alg_name, 0,
 							    CRYPTO_ALG_ASYNC);
-		if (!tfm)
+		if (IS_ERR(tfm))
 			goto error;
 		*per_cpu_ptr(tfms, cpu) = tfm;
 	}

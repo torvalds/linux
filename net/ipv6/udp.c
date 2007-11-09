@@ -205,12 +205,11 @@ out:
 	return err;
 
 csum_copy_err:
+	UDP6_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
 	skb_kill_datagram(sk, skb, flags);
 
-	if (flags & MSG_DONTWAIT) {
-		UDP6_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
+	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
-	}
 	goto try_again;
 }
 
@@ -971,6 +970,8 @@ void udp6_proc_exit(void) {
 
 /* ------------------------------------------------------------------------ */
 
+DEFINE_PROTO_INUSE(udpv6)
+
 struct proto udpv6_prot = {
 	.name		   = "UDPv6",
 	.owner		   = THIS_MODULE,
@@ -992,6 +993,7 @@ struct proto udpv6_prot = {
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
 #endif
+	REF_PROTO_INUSE(udpv6)
 };
 
 static struct inet_protosw udpv6_protosw = {

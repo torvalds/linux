@@ -426,6 +426,25 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 
 
 /*
+ * Check if there is a destination for the connection, if so
+ * bind the connection to the destination.
+ */
+struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
+{
+	struct ip_vs_dest *dest;
+
+	if ((cp) && (!cp->dest)) {
+		dest = ip_vs_find_dest(cp->daddr, cp->dport,
+				       cp->vaddr, cp->vport, cp->protocol);
+		ip_vs_bind_dest(cp, dest);
+		return dest;
+	} else
+		return NULL;
+}
+EXPORT_SYMBOL(ip_vs_try_bind_dest);
+
+
+/*
  *	Unbind a connection entry with its VS destination
  *	Called by the ip_vs_conn_expire function.
  */

@@ -18,7 +18,6 @@
 #include <linux/types.h>
 #include <net/net_namespace.h>
 
-#include <net/net_namespace.h>
 #include <net/dst.h>
 
 /*

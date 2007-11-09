@@ -293,8 +293,8 @@ static void __exit nf_nat_sip_fini(void)
 
 static int __init nf_nat_sip_init(void)
 {
-	BUG_ON(rcu_dereference(nf_nat_sip_hook));
-	BUG_ON(rcu_dereference(nf_nat_sdp_hook));
+	BUG_ON(nf_nat_sip_hook != NULL);
+	BUG_ON(nf_nat_sdp_hook != NULL);
 	rcu_assign_pointer(nf_nat_sip_hook, ip_nat_sip);
 	rcu_assign_pointer(nf_nat_sdp_hook, ip_nat_sdp);
 	return 0;

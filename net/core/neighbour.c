@@ -1435,6 +1435,8 @@ int neigh_table_clear(struct neigh_table *tbl)
 	kfree(tbl->phash_buckets);
 	tbl->phash_buckets = NULL;
 
+	remove_proc_entry(tbl->id, init_net.proc_net_stat);
+
 	free_percpu(tbl->stats);
 	tbl->stats = NULL;
 

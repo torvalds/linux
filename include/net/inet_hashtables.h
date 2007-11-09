@@ -37,7 +37,6 @@
  * I'll experiment with dynamic table growth later.
  */
 struct inet_ehash_bucket {
-	rwlock_t	  lock;
 	struct hlist_head chain;
 	struct hlist_head twchain;
 };
@@ -100,6 +99,9 @@ struct inet_hashinfo {
 	 * TIME_WAIT sockets use a separate chain (twchain).
 	 */
 	struct inet_ehash_bucket	*ehash;
+	rwlock_t			*ehash_locks;
+	unsigned int			ehash_size;
+	unsigned int			ehash_locks_mask;
 
 	/* Ok, let's try this, I give up, we do need a local binding
 	 * TCP hash as well as the others for fast bind/connect.
@@ -107,7 +109,7 @@ struct inet_hashinfo {
 	struct inet_bind_hashbucket	*bhash;
 
 	unsigned int			bhash_size;
-	unsigned int			ehash_size;
+	/* Note : 4 bytes padding on 64 bit arches */
 
 	/* All sockets in TCP_LISTEN state will be in here.  This is the only
 	 * table where wildcard'd TCP sockets can exist.  Hash function here
@@ -132,6 +134,62 @@ static inline struct inet_ehash_bucket *inet_ehash_bucket(
 	unsigned int hash)
 {
 	return &hashinfo->ehash[hash & (hashinfo->ehash_size - 1)];
+}
+
+static inline rwlock_t *inet_ehash_lockp(
+	struct inet_hashinfo *hashinfo,
+	unsigned int hash)
+{
+	return &hashinfo->ehash_locks[hash & hashinfo->ehash_locks_mask];
+}
+
+static inline int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
+{
+	unsigned int i, size = 256;
+#if defined(CONFIG_PROVE_LOCKING)
+	unsigned int nr_pcpus = 2;
+#else
+	unsigned int nr_pcpus = num_possible_cpus();
+#endif
+	if (nr_pcpus >= 4)
+		size = 512;
+	if (nr_pcpus >= 8)
+		size = 1024;
+	if (nr_pcpus >= 16)
+		size = 2048;
+	if (nr_pcpus >= 32)
+		size = 4096;
+	if (sizeof(rwlock_t) != 0) {
+#ifdef CONFIG_NUMA
+		if (size * sizeof(rwlock_t) > PAGE_SIZE)
+			hashinfo->ehash_locks = vmalloc(size * sizeof(rwlock_t));
+		else
+#endif
+		hashinfo->ehash_locks =	kmalloc(size * sizeof(rwlock_t),
+						GFP_KERNEL);
+		if (!hashinfo->ehash_locks)
+			return ENOMEM;
+		for (i = 0; i < size; i++)
+			rwlock_init(&hashinfo->ehash_locks[i]);
+	}
+	hashinfo->ehash_locks_mask = size - 1;
+	return 0;
+}
+
+static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
+{
+	if (hashinfo->ehash_locks) {
+#ifdef CONFIG_NUMA
+		unsigned int size = (hashinfo->ehash_locks_mask + 1) *
+							sizeof(rwlock_t);
+		if (size > PAGE_SIZE)
+			vfree(hashinfo->ehash_locks);
+		else
+#else
+		kfree(hashinfo->ehash_locks);
+#endif
+		hashinfo->ehash_locks = NULL;
+	}
 }
 
 extern struct inet_bind_bucket *
@@ -222,7 +280,7 @@ static inline void __inet_hash(struct inet_hashinfo *hashinfo,
 		sk->sk_hash = inet_sk_ehashfn(sk);
 		head = inet_ehash_bucket(hashinfo, sk->sk_hash);
 		list = &head->chain;
-		lock = &head->lock;
+		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 		write_lock(lock);
 	}
 	__sk_add_node(sk, list);
@@ -253,7 +311,7 @@ static inline void inet_unhash(struct inet_hashinfo *hashinfo, struct sock *sk)
 		inet_listen_wlock(hashinfo);
 		lock = &hashinfo->lhash_lock;
 	} else {
-		lock = &inet_ehash_bucket(hashinfo, sk->sk_hash)->lock;
+		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 		write_lock_bh(lock);
 	}
 
@@ -354,9 +412,10 @@ static inline struct sock *
 	 */
 	unsigned int hash = inet_ehashfn(daddr, hnum, saddr, sport);
 	struct inet_ehash_bucket *head = inet_ehash_bucket(hashinfo, hash);
+	rwlock_t *lock = inet_ehash_lockp(hashinfo, hash);
 
 	prefetch(head->chain.first);
-	read_lock(&head->lock);
+	read_lock(lock);
 	sk_for_each(sk, node, &head->chain) {
 		if (INET_MATCH(sk, hash, acookie, saddr, daddr, ports, dif))
 			goto hit; /* You sunk my battleship! */
@@ -369,7 +428,7 @@ static inline struct sock *
 	}
 	sk = NULL;
 out:
-	read_unlock(&head->lock);
+	read_unlock(lock);
 	return sk;
 hit:
 	sock_hold(sk);

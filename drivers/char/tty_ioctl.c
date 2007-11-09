@@ -730,13 +730,23 @@ static int send_prio_char(struct tty_struct *tty, char ch)
 	return 0;
 }
 
-int n_tty_ioctl(struct tty_struct * tty, struct file * file,
-		       unsigned int cmd, unsigned long arg)
+/**
+ *	tty_mode_ioctl		-	mode related ioctls
+ *	@tty: tty for the ioctl
+ *	@file: file pointer for the tty
+ *	@cmd: command
+ *	@arg: ioctl argument
+ *
+ *	Perform non line discipline specific mode control ioctls. This
+ *	is designed to be called by line disciplines to ensure they provide
+ *	consistent mode setting.
+ */
+
+int tty_mode_ioctl(struct tty_struct * tty, struct file *file,
+			unsigned int cmd, unsigned long arg)
 {
 	struct tty_struct * real_tty;
 	void __user *p = (void __user *)arg;
-	int retval;
-	struct tty_ldisc *ld;
 
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
 	    tty->driver->subtype == PTY_TYPE_MASTER)
@@ -799,6 +809,93 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 			return set_termios(real_tty, p, TERMIOS_WAIT | TERMIOS_TERMIO);
 		case TCSETA:
 			return set_termios(real_tty, p, TERMIOS_TERMIO);
+#ifndef TCGETS2
+		case TIOCGLCKTRMIOS:
+			if (kernel_termios_to_user_termios((struct termios __user *)arg, real_tty->termios_locked))
+				return -EFAULT;
+			return 0;
+
+		case TIOCSLCKTRMIOS:
+			if (!capable(CAP_SYS_ADMIN))
+				return -EPERM;
+			if (user_termios_to_kernel_termios(real_tty->termios_locked, (struct termios __user *) arg))
+				return -EFAULT;
+			return 0;
+#else
+		case TIOCGLCKTRMIOS:
+			if (kernel_termios_to_user_termios_1((struct termios __user *)arg, real_tty->termios_locked))
+				return -EFAULT;
+			return 0;
+
+		case TIOCSLCKTRMIOS:
+			if (!capable(CAP_SYS_ADMIN))
+				return -EPERM;
+			if (user_termios_to_kernel_termios_1(real_tty->termios_locked, (struct termios __user *) arg))
+				return -EFAULT;
+			return 0;
+#endif
+		case TIOCGSOFTCAR:
+			return put_user(C_CLOCAL(tty) ? 1 : 0, (int __user *)arg);
+		case TIOCSSOFTCAR:
+			if (get_user(arg, (unsigned int __user *) arg))
+				return -EFAULT;
+			mutex_lock(&tty->termios_mutex);
+			tty->termios->c_cflag =
+				((tty->termios->c_cflag & ~CLOCAL) |
+				 (arg ? CLOCAL : 0));
+			mutex_unlock(&tty->termios_mutex);
+			return 0;
+		default:
+			return -ENOIOCTLCMD;
+	}
+}
+
+EXPORT_SYMBOL_GPL(tty_mode_ioctl);
+
+int tty_perform_flush(struct tty_struct *tty, unsigned long arg)
+{
+	struct tty_ldisc *ld;
+	int retval = tty_check_change(tty);
+	if (retval)
+		return retval;
+
+	ld = tty_ldisc_ref(tty);
+	switch (arg) {
+	case TCIFLUSH:
+		if (ld && ld->flush_buffer)
+			ld->flush_buffer(tty);
+		break;
+	case TCIOFLUSH:
+		if (ld && ld->flush_buffer)
+			ld->flush_buffer(tty);
+		/* fall through */
+	case TCOFLUSH:
+		if (tty->driver->flush_buffer)
+			tty->driver->flush_buffer(tty);
+		break;
+	default:
+		tty_ldisc_deref(ld);
+		return -EINVAL;
+	}
+	tty_ldisc_deref(ld);
+	return 0;
+}
+
+EXPORT_SYMBOL_GPL(tty_perform_flush);
+
+int n_tty_ioctl(struct tty_struct * tty, struct file * file,
+		       unsigned int cmd, unsigned long arg)
+{
+	struct tty_struct * real_tty;
+	int retval;
+
+	if (tty->driver->type == TTY_DRIVER_TYPE_PTY &&
+	    tty->driver->subtype == PTY_TYPE_MASTER)
+		real_tty = tty->link;
+	else
+		real_tty = tty;
+
+	switch (cmd) {
 		case TCXONC:
 			retval = tty_check_change(tty);
 			if (retval)
@@ -829,30 +926,7 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 			}
 			return 0;
 		case TCFLSH:
-			retval = tty_check_change(tty);
-			if (retval)
-				return retval;
-				
-			ld = tty_ldisc_ref(tty);
-			switch (arg) {
-			case TCIFLUSH:
-				if (ld && ld->flush_buffer)
-					ld->flush_buffer(tty);
-				break;
-			case TCIOFLUSH:
-				if (ld && ld->flush_buffer)
-					ld->flush_buffer(tty);
-				/* fall through */
-			case TCOFLUSH:
-				if (tty->driver->flush_buffer)
-					tty->driver->flush_buffer(tty);
-				break;
-			default:
-				tty_ldisc_deref(ld);
-				return -EINVAL;
-			}
-			tty_ldisc_deref(ld);
-			return 0;
+			return tty_perform_flush(tty, arg);
 		case TIOCOUTQ:
 			return put_user(tty->driver->chars_in_buffer ?
 					tty->driver->chars_in_buffer(tty) : 0,
@@ -862,32 +936,6 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 			if (L_ICANON(tty))
 				retval = inq_canon(tty);
 			return put_user(retval, (unsigned int __user *) arg);
-#ifndef TCGETS2
-		case TIOCGLCKTRMIOS:
-			if (kernel_termios_to_user_termios((struct termios __user *)arg, real_tty->termios_locked))
-				return -EFAULT;
-			return 0;
-
-		case TIOCSLCKTRMIOS:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EPERM;
-			if (user_termios_to_kernel_termios(real_tty->termios_locked, (struct termios __user *) arg))
-				return -EFAULT;
-			return 0;
-#else
-		case TIOCGLCKTRMIOS:
-			if (kernel_termios_to_user_termios_1((struct termios __user *)arg, real_tty->termios_locked))
-				return -EFAULT;
-			return 0;
-
-		case TIOCSLCKTRMIOS:
-			if (!capable(CAP_SYS_ADMIN))
-				return -EPERM;
-			if (user_termios_to_kernel_termios_1(real_tty->termios_locked, (struct termios __user *) arg))
-				return -EFAULT;
-			return 0;
-#endif
-
 		case TIOCPKT:
 		{
 			int pktmode;
@@ -906,19 +954,9 @@ int n_tty_ioctl(struct tty_struct * tty, struct file * file,
 				tty->packet = 0;
 			return 0;
 		}
-		case TIOCGSOFTCAR:
-			return put_user(C_CLOCAL(tty) ? 1 : 0, (int __user *)arg);
-		case TIOCSSOFTCAR:
-			if (get_user(arg, (unsigned int __user *) arg))
-				return -EFAULT;
-			mutex_lock(&tty->termios_mutex);
-			tty->termios->c_cflag =
-				((tty->termios->c_cflag & ~CLOCAL) |
-				 (arg ? CLOCAL : 0));
-			mutex_unlock(&tty->termios_mutex);
-			return 0;
 		default:
-			return -ENOIOCTLCMD;
+			/* Try the mode commands */
+			return tty_mode_ioctl(tty, file, cmd, arg);
 		}
 }
 

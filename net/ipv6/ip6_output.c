@@ -1339,6 +1339,19 @@ error:
 	return err;
 }
 
+static void ip6_cork_release(struct inet_sock *inet, struct ipv6_pinfo *np)
+{
+	inet->cork.flags &= ~IPCORK_OPT;
+	kfree(np->cork.opt);
+	np->cork.opt = NULL;
+	if (np->cork.rt) {
+		dst_release(&np->cork.rt->u.dst);
+		np->cork.rt = NULL;
+		inet->cork.flags &= ~IPCORK_ALLFRAG;
+	}
+	memset(&inet->cork.fl, 0, sizeof(inet->cork.fl));
+}
+
 int ip6_push_pending_frames(struct sock *sk)
 {
 	struct sk_buff *skb, *tmp_skb;
@@ -1415,15 +1428,7 @@ int ip6_push_pending_frames(struct sock *sk)
 	}
 
 out:
-	inet->cork.flags &= ~IPCORK_OPT;
-	kfree(np->cork.opt);
-	np->cork.opt = NULL;
-	if (np->cork.rt) {
-		dst_release(&np->cork.rt->u.dst);
-		np->cork.rt = NULL;
-		inet->cork.flags &= ~IPCORK_ALLFRAG;
-	}
-	memset(&inet->cork.fl, 0, sizeof(inet->cork.fl));
+	ip6_cork_release(inet, np);
 	return err;
 error:
 	goto out;
@@ -1431,8 +1436,6 @@ error:
 
 void ip6_flush_pending_frames(struct sock *sk)
 {
-	struct inet_sock *inet = inet_sk(sk);
-	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff *skb;
 
 	while ((skb = __skb_dequeue_tail(&sk->sk_write_queue)) != NULL) {
@@ -1442,14 +1445,5 @@ void ip6_flush_pending_frames(struct sock *sk)
 		kfree_skb(skb);
 	}
 
-	inet->cork.flags &= ~IPCORK_OPT;
-
-	kfree(np->cork.opt);
-	np->cork.opt = NULL;
-	if (np->cork.rt) {
-		dst_release(&np->cork.rt->u.dst);
-		np->cork.rt = NULL;
-		inet->cork.flags &= ~IPCORK_ALLFRAG;
-	}
-	memset(&inet->cork.fl, 0, sizeof(inet->cork.fl));
+	ip6_cork_release(inet_sk(sk), inet6_sk(sk));
 }

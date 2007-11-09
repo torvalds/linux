@@ -185,6 +185,12 @@ static inline void fib_select_default(const struct flowi *flp, struct fib_result
 }
 
 #else /* CONFIG_IP_MULTIPLE_TABLES */
+extern void __init fib4_rules_init(void);
+
+#ifdef CONFIG_NET_CLS_ROUTE
+extern u32 fib_rules_tclass(struct fib_result *res);
+#endif
+
 #define ip_fib_local_table fib_get_table(RT_TABLE_LOCAL)
 #define ip_fib_main_table fib_get_table(RT_TABLE_MAIN)
 
@@ -213,15 +219,6 @@ extern __be32  __fib_res_prefsrc(struct fib_result *res);
 
 /* Exported by fib_hash.c */
 extern struct fib_table *fib_hash_init(u32 id);
-
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-extern void __init fib4_rules_init(void);
-
-#ifdef CONFIG_NET_CLS_ROUTE
-extern u32 fib_rules_tclass(struct fib_result *res);
-#endif
-
-#endif
 
 static inline void fib_combine_itag(u32 *itag, struct fib_result *res)
 {

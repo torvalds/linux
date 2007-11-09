@@ -544,15 +544,15 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 /****************************************************************************/
 static int __init init(void)
 {
-	BUG_ON(rcu_dereference(set_h245_addr_hook) != NULL);
-	BUG_ON(rcu_dereference(set_h225_addr_hook) != NULL);
-	BUG_ON(rcu_dereference(set_sig_addr_hook) != NULL);
-	BUG_ON(rcu_dereference(set_ras_addr_hook) != NULL);
-	BUG_ON(rcu_dereference(nat_rtp_rtcp_hook) != NULL);
-	BUG_ON(rcu_dereference(nat_t120_hook) != NULL);
-	BUG_ON(rcu_dereference(nat_h245_hook) != NULL);
-	BUG_ON(rcu_dereference(nat_callforwarding_hook) != NULL);
-	BUG_ON(rcu_dereference(nat_q931_hook) != NULL);
+	BUG_ON(set_h245_addr_hook != NULL);
+	BUG_ON(set_h225_addr_hook != NULL);
+	BUG_ON(set_sig_addr_hook != NULL);
+	BUG_ON(set_ras_addr_hook != NULL);
+	BUG_ON(nat_rtp_rtcp_hook != NULL);
+	BUG_ON(nat_t120_hook != NULL);
+	BUG_ON(nat_h245_hook != NULL);
+	BUG_ON(nat_callforwarding_hook != NULL);
+	BUG_ON(nat_q931_hook != NULL);
 
 	rcu_assign_pointer(set_h245_addr_hook, set_h245_addr);
 	rcu_assign_pointer(set_h225_addr_hook, set_h225_addr);

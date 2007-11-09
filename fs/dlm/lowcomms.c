@@ -1062,7 +1062,7 @@ static int sctp_listen_for_all(void)
 	subscribe.sctp_shutdown_event = 1;
 	subscribe.sctp_partial_delivery_event = 1;
 
-	result = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+	result = kernel_setsockopt(sock, SOL_SOCKET, SO_RCVBUFFORCE,
 				 (char *)&bufsize, sizeof(bufsize));
 	if (result)
 		log_print("Error increasing buffer space on socket %d", result);
@@ -1453,10 +1453,6 @@ int dlm_lowcomms_start(void)
 				      NULL);
 	if (!con_cache)
 		goto out;
-
-	/* Set some sysctl minima */
-	if (sysctl_rmem_max < NEEDED_RMEM)
-		sysctl_rmem_max = NEEDED_RMEM;
 
 	/* Start listening */
 	if (dlm_config.ci_protocol == 0)
