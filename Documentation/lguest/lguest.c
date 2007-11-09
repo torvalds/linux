@@ -1342,7 +1342,7 @@ static bool service_io(struct device *dev)
 	if (out->type & VIRTIO_BLK_T_SCSI_CMD) {
 		fprintf(stderr, "Scsi commands unsupported\n");
 		in->status = VIRTIO_BLK_S_UNSUPP;
-		wlen = sizeof(in);
+		wlen = sizeof(*in);
 	} else if (out->type & VIRTIO_BLK_T_OUT) {
 		/* Write */
 
@@ -1363,7 +1363,7 @@ static bool service_io(struct device *dev)
 			/* Die, bad Guest, die. */
 			errx(1, "Write past end %llu+%u", off, ret);
 		}
-		wlen = sizeof(in);
+		wlen = sizeof(*in);
 		in->status = (ret >= 0 ? VIRTIO_BLK_S_OK : VIRTIO_BLK_S_IOERR);
 	} else {
 		/* Read */
@@ -1376,10 +1376,10 @@ static bool service_io(struct device *dev)
 		ret = readv(vblk->fd, iov+1, in_num-1);
 		verbose("READ from sector %llu: %i\n", out->sector, ret);
 		if (ret >= 0) {
-			wlen = sizeof(in) + ret;
+			wlen = sizeof(*in) + ret;
 			in->status = VIRTIO_BLK_S_OK;
 		} else {
-			wlen = sizeof(in);
+			wlen = sizeof(*in);
 			in->status = VIRTIO_BLK_S_IOERR;
 		}
 	}
