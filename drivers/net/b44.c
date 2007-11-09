@@ -2060,11 +2060,11 @@ static int __devinit b44_get_invariants(struct b44 *bp)
 
 	if (sdev->bus->bustype == SSB_BUSTYPE_SSB &&
 	    instance > 1) {
-		addr = sdev->bus->sprom.r1.et1mac;
-		bp->phy_addr = sdev->bus->sprom.r1.et1phyaddr;
+		addr = sdev->bus->sprom.et1mac;
+		bp->phy_addr = sdev->bus->sprom.et1phyaddr;
 	} else {
-		addr = sdev->bus->sprom.r1.et0mac;
-		bp->phy_addr = sdev->bus->sprom.r1.et0phyaddr;
+		addr = sdev->bus->sprom.et0mac;
+		bp->phy_addr = sdev->bus->sprom.et0phyaddr;
 	}
 	memcpy(bp->dev->dev_addr, addr, 6);
 
