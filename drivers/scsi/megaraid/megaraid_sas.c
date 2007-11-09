@@ -1890,6 +1890,7 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	u32 reply_q_sz;
 	u32 max_sectors_1;
 	u32 max_sectors_2;
+	u32 tmp_sectors;
 	struct megasas_register_set __iomem *reg_set;
 	struct megasas_ctrl_info *ctrl_info;
 	/*
@@ -1982,17 +1983,20 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	 * Note that older firmwares ( < FW ver 30) didn't report information
 	 * to calculate max_sectors_1. So the number ended up as zero always.
 	 */
+	tmp_sectors = 0;
 	if (ctrl_info && !megasas_get_ctrl_info(instance, ctrl_info)) {
 
 		max_sectors_1 = (1 << ctrl_info->stripe_sz_ops.min) *
 		    ctrl_info->max_strips_per_io;
 		max_sectors_2 = ctrl_info->max_request_size;
 
-		instance->max_sectors_per_req = (max_sectors_1 < max_sectors_2)
-		    ? max_sectors_1 : max_sectors_2;
-	} else
-		instance->max_sectors_per_req = instance->max_num_sge *
-		    PAGE_SIZE / 512;
+		tmp_sectors = min_t(u32, max_sectors_1 , max_sectors_2);
+	}
+
+	instance->max_sectors_per_req = instance->max_num_sge *
+						PAGE_SIZE / 512;
+	if (tmp_sectors && (instance->max_sectors_per_req > tmp_sectors))
+		instance->max_sectors_per_req = tmp_sectors;
 
 	kfree(ctrl_info);
 
