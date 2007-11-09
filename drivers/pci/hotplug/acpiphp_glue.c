@@ -102,7 +102,7 @@ static int is_ejectable(acpi_handle handle)
 }
 
 
-/* callback routine to check the existence of ejectable slots */
+/* callback routine to check for the existence of ejectable slots */
 static acpi_status
 is_ejectable_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
@@ -117,7 +117,7 @@ is_ejectable_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	}
 }
 
-/* callback routine to check for the existance of a pci dock device */
+/* callback routine to check for the existence of a pci dock device */
 static acpi_status
 is_pci_dock_device(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
