@@ -213,15 +213,12 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
  */
 static int board_added(struct slot *p_slot)
 {
-	u8 hp_slot;
 	int retval = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
-	hp_slot = p_slot->device - ctrl->slot_device_offset;
-
 	dbg("%s: slot device, slot offset, hp slot = %d, %d ,%d\n",
 			__FUNCTION__, p_slot->device,
-			ctrl->slot_device_offset, hp_slot);
+			ctrl->slot_device_offset, p_slot->hp_slot);
 
 	if (POWER_CTRL(ctrl->ctrlcap)) {
 		/* Power on slot */
@@ -279,8 +276,6 @@ err_exit:
  */
 static int remove_board(struct slot *p_slot)
 {
-	u8 device;
-	u8 hp_slot;
 	int retval = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
@@ -288,11 +283,7 @@ static int remove_board(struct slot *p_slot)
 	if (retval)
 		return retval;
 
-	device = p_slot->device;
-	hp_slot = p_slot->device - ctrl->slot_device_offset;
-	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-
-	dbg("In %s, hp_slot = %d\n", __FUNCTION__, hp_slot);
+	dbg("In %s, hp_slot = %d\n", __FUNCTION__, p_slot->hp_slot);
 
 	if (POWER_CTRL(ctrl->ctrlcap)) {
 		/* power off slot */
