@@ -297,62 +297,6 @@ err_ctlreg:
 	return err;
 }
 
-static void sprom_extract_r1(struct ssb_sprom_r1 *out, const u16 *in)
-{
-	int i;
-	u16 v;
-
-	SPEX(pci_spid, SSB_SPROM1_SPID, 0xFFFF, 0);
-	SPEX(pci_svid, SSB_SPROM1_SVID, 0xFFFF, 0);
-	SPEX(pci_pid, SSB_SPROM1_PID, 0xFFFF, 0);
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM1_IL0MAC) + i];
-		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
-	}
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM1_ET0MAC) + i];
-		*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
-	}
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM1_ET1MAC) + i];
-		*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
-	}
-	SPEX(et0phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET0A, 0);
-	SPEX(et1phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET1A,
-	     SSB_SPROM1_ETHPHY_ET1A_SHIFT);
-	SPEX(et0mdcport, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET0M, 14);
-	SPEX(et1mdcport, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET1M, 15);
-	SPEX(board_rev, SSB_SPROM1_BINF, SSB_SPROM1_BINF_BREV, 0);
-	SPEX(country_code, SSB_SPROM1_BINF, SSB_SPROM1_BINF_CCODE,
-	     SSB_SPROM1_BINF_CCODE_SHIFT);
-	SPEX(antenna_a, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTA,
-	     SSB_SPROM1_BINF_ANTA_SHIFT);
-	SPEX(antenna_bg, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTBG,
-	     SSB_SPROM1_BINF_ANTBG_SHIFT);
-	SPEX(pa0b0, SSB_SPROM1_PA0B0, 0xFFFF, 0);
-	SPEX(pa0b1, SSB_SPROM1_PA0B1, 0xFFFF, 0);
-	SPEX(pa0b2, SSB_SPROM1_PA0B2, 0xFFFF, 0);
-	SPEX(pa1b0, SSB_SPROM1_PA1B0, 0xFFFF, 0);
-	SPEX(pa1b1, SSB_SPROM1_PA1B1, 0xFFFF, 0);
-	SPEX(pa1b2, SSB_SPROM1_PA1B2, 0xFFFF, 0);
-	SPEX(gpio0, SSB_SPROM1_GPIOA, SSB_SPROM1_GPIOA_P0, 0);
-	SPEX(gpio1, SSB_SPROM1_GPIOA, SSB_SPROM1_GPIOA_P1,
-	     SSB_SPROM1_GPIOA_P1_SHIFT);
-	SPEX(gpio2, SSB_SPROM1_GPIOB, SSB_SPROM1_GPIOB_P2, 0);
-	SPEX(gpio3, SSB_SPROM1_GPIOB, SSB_SPROM1_GPIOB_P3,
-	     SSB_SPROM1_GPIOB_P3_SHIFT);
-	SPEX(maxpwr_a, SSB_SPROM1_MAXPWR, SSB_SPROM1_MAXPWR_A,
-	     SSB_SPROM1_MAXPWR_A_SHIFT);
-	SPEX(maxpwr_bg, SSB_SPROM1_MAXPWR, SSB_SPROM1_MAXPWR_BG, 0);
-	SPEX(itssi_a, SSB_SPROM1_ITSSI, SSB_SPROM1_ITSSI_A,
-	     SSB_SPROM1_ITSSI_A_SHIFT);
-	SPEX(itssi_bg, SSB_SPROM1_ITSSI, SSB_SPROM1_ITSSI_BG, 0);
-	SPEX(boardflags_lo, SSB_SPROM1_BFLLO, 0xFFFF, 0);
-	SPEX(antenna_gain_a, SSB_SPROM1_AGAIN, SSB_SPROM1_AGAIN_A, 0);
-	SPEX(antenna_gain_bg, SSB_SPROM1_AGAIN, SSB_SPROM1_AGAIN_BG,
-	     SSB_SPROM1_AGAIN_BG_SHIFT);
-}
-
 static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
@@ -414,7 +358,7 @@ static void sprom_extract_r4(struct ssb_sprom *out, const u16 *in)
 	int i;
 	u16 v;
 
-	/* extract the r1 variables */
+	/* extract the equivalent of the r1 variables */
 	for (i = 0; i < 3; i++) {
 		v = in[SPOFF(SSB_SPROM4_IL0MAC) + i];
 		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
@@ -435,6 +379,18 @@ static void sprom_extract_r4(struct ssb_sprom *out, const u16 *in)
 	SPEX(antenna_gain_a, SSB_SPROM4_AGAIN, SSB_SPROM4_AGAIN_0, 0);
 	SPEX(antenna_gain_bg, SSB_SPROM4_AGAIN, SSB_SPROM4_AGAIN_1,
 	     SSB_SPROM4_AGAIN_1_SHIFT);
+	SPEX(maxpwr_bg, SSB_SPROM4_MAXP_BG, SSB_SPROM4_MAXP_BG_MASK, 0);
+	SPEX(itssi_bg, SSB_SPROM4_MAXP_BG, SSB_SPROM4_ITSSI_BG,
+	     SSB_SPROM4_ITSSI_BG_SHIFT);
+	SPEX(maxpwr_a, SSB_SPROM4_MAXP_A, SSB_SPROM4_MAXP_A_MASK, 0);
+	SPEX(itssi_a, SSB_SPROM4_MAXP_A, SSB_SPROM4_ITSSI_A,
+	     SSB_SPROM4_ITSSI_A_SHIFT);
+	SPEX(gpio0, SSB_SPROM4_GPIOA, SSB_SPROM4_GPIOA_P0, 0);
+	SPEX(gpio1, SSB_SPROM4_GPIOA, SSB_SPROM4_GPIOA_P1,
+	     SSB_SPROM4_GPIOA_P1_SHIFT);
+	SPEX(gpio2, SSB_SPROM4_GPIOB, SSB_SPROM4_GPIOB_P2, 0);
+	SPEX(gpio3, SSB_SPROM4_GPIOB, SSB_SPROM4_GPIOB_P3,
+	     SSB_SPROM4_GPIOB_P3_SHIFT);
 	/* TODO - get remaining rev 4 stuff needed */
 }
 
@@ -444,13 +400,13 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 	memset(out, 0, sizeof(*out));
 
 	out->revision = in[size - 1] & 0x00FF;
+	ssb_printk(KERN_INFO PFX "SPROM revision %d detected.\n", out->revision);
 	if ((bus->chip_id & 0xFF00) == 0x4400) {
 		/* Workaround: The BCM44XX chip has a stupid revision
 		 * number stored in the SPROM.
 		 * Always extract r1. */
 		out->revision = 1;
 		sprom_extract_r123(out, in);
-		sprom_extract_r1(&out->r1, in);
 	} else if (bus->chip_id == 0x4321) {
 		/* the BCM4328 has a chipid == 0x4321 and a rev 4 SPROM */
 		out->revision = 4;
@@ -460,7 +416,6 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 			goto unsupported;
 		if (out->revision >= 1 && out->revision <= 3) {
 			sprom_extract_r123(out, in);
-			sprom_extract_r1(&out->r1, in);
 		}
 		if (out->revision == 4)
 			sprom_extract_r4(out, in);
@@ -472,7 +427,7 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 unsupported:
 	ssb_printk(KERN_WARNING PFX "Unsupported SPROM revision %d "
 		   "detected. Will extract v1\n", out->revision);
-	sprom_extract_r1(&out->r1, in);
+	sprom_extract_r123(out, in);
 	return 0;
 }
 
