@@ -325,7 +325,7 @@ static uint16_t spec_order[] = {
 	AVTAB_MEMBER
 };
 
-int avtab_read_item(void *fp, u32 vers, struct avtab *a,
+int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 	            int (*insertf)(struct avtab *a, struct avtab_key *k,
 				   struct avtab_datum *d, void *p),
 		    void *p)
@@ -333,10 +333,11 @@ int avtab_read_item(void *fp, u32 vers, struct avtab *a,
 	__le16 buf16[4];
 	u16 enabled;
 	__le32 buf32[7];
-	u32 items, items2, val;
+	u32 items, items2, val, vers = pol->policyvers;
 	struct avtab_key key;
 	struct avtab_datum datum;
 	int i, rc;
+	unsigned set;
 
 	memset(&key, 0, sizeof(struct avtab_key));
 	memset(&datum, 0, sizeof(struct avtab_datum));
@@ -420,12 +421,35 @@ int avtab_read_item(void *fp, u32 vers, struct avtab *a,
 	key.target_class = le16_to_cpu(buf16[items++]);
 	key.specified = le16_to_cpu(buf16[items++]);
 
+	if (!policydb_type_isvalid(pol, key.source_type) ||
+	    !policydb_type_isvalid(pol, key.target_type) ||
+	    !policydb_class_isvalid(pol, key.target_class)) {
+		printk(KERN_WARNING "security: avtab: invalid type or class\n");
+		return -1;
+	}
+
+	set = 0;
+	for (i = 0; i < ARRAY_SIZE(spec_order); i++) {
+		if (key.specified & spec_order[i])
+			set++;
+	}
+	if (!set || set > 1) {
+		printk(KERN_WARNING
+			"security:  avtab:  more than one specifier\n");
+		return -1;
+	}
+
 	rc = next_entry(buf32, fp, sizeof(u32));
 	if (rc < 0) {
 		printk("security: avtab: truncated entry\n");
 		return -1;
 	}
 	datum.data = le32_to_cpu(*buf32);
+	if ((key.specified & AVTAB_TYPE) &&
+	    !policydb_type_isvalid(pol, datum.data)) {
+		printk(KERN_WARNING "security: avtab: invalid type\n");
+		return -1;
+	}
 	return insertf(a, &key, &datum, p);
 }
 
@@ -435,7 +459,7 @@ static int avtab_insertf(struct avtab *a, struct avtab_key *k,
 	return avtab_insert(a, k, d);
 }
 
-int avtab_read(struct avtab *a, void *fp, u32 vers)
+int avtab_read(struct avtab *a, void *fp, struct policydb *pol)
 {
 	int rc;
 	__le32 buf[1];
@@ -459,7 +483,7 @@ int avtab_read(struct avtab *a, void *fp, u32 vers)
 		goto bad;
 
 	for (i = 0; i < nel; i++) {
-		rc = avtab_read_item(fp,vers, a, avtab_insertf, NULL);
+		rc = avtab_read_item(a, fp, pol, avtab_insertf, NULL);
 		if (rc) {
 			if (rc == -ENOMEM)
 				printk(KERN_ERR "security: avtab: out of memory\n");

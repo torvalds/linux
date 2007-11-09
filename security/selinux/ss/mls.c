@@ -157,48 +157,54 @@ void mls_sid_to_context(struct context *context,
 	return;
 }
 
+int mls_level_isvalid(struct policydb *p, struct mls_level *l)
+{
+	struct level_datum *levdatum;
+	struct ebitmap_node *node;
+	int i;
+
+	if (!l->sens || l->sens > p->p_levels.nprim)
+		return 0;
+	levdatum = hashtab_search(p->p_levels.table,
+				  p->p_sens_val_to_name[l->sens - 1]);
+	if (!levdatum)
+		return 0;
+
+	ebitmap_for_each_positive_bit(&l->cat, node, i) {
+		if (i > p->p_cats.nprim)
+			return 0;
+		if (!ebitmap_get_bit(&levdatum->level->cat, i)) {
+			/*
+			 * Category may not be associated with
+			 * sensitivity.
+			 */
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+int mls_range_isvalid(struct policydb *p, struct mls_range *r)
+{
+	return (mls_level_isvalid(p, &r->level[0]) &&
+		mls_level_isvalid(p, &r->level[1]) &&
+		mls_level_dom(&r->level[1], &r->level[0]));
+}
+
 /*
  * Return 1 if the MLS fields in the security context
  * structure `c' are valid.  Return 0 otherwise.
  */
 int mls_context_isvalid(struct policydb *p, struct context *c)
 {
-	struct level_datum *levdatum;
 	struct user_datum *usrdatum;
-	struct ebitmap_node *node;
-	int i, l;
 
 	if (!selinux_mls_enabled)
 		return 1;
 
-	/*
-	 * MLS range validity checks: high must dominate low, low level must
-	 * be valid (category set <-> sensitivity check), and high level must
-	 * be valid (category set <-> sensitivity check)
-	 */
-	if (!mls_level_dom(&c->range.level[1], &c->range.level[0]))
-		/* High does not dominate low. */
+	if (!mls_range_isvalid(p, &c->range))
 		return 0;
-
-	for (l = 0; l < 2; l++) {
-		if (!c->range.level[l].sens || c->range.level[l].sens > p->p_levels.nprim)
-			return 0;
-		levdatum = hashtab_search(p->p_levels.table,
-			p->p_sens_val_to_name[c->range.level[l].sens - 1]);
-		if (!levdatum)
-			return 0;
-
-		ebitmap_for_each_positive_bit(&c->range.level[l].cat, node, i) {
-			if (i > p->p_cats.nprim)
-				return 0;
-			if (!ebitmap_get_bit(&levdatum->level->cat, i))
-				/*
-				 * Category may not be associated with
-				 * sensitivity in low level.
-				 */
-				return 0;
-		}
-	}
 
 	if (c->role == OBJECT_R_VAL)
 		return 1;
