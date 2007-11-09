@@ -473,19 +473,26 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	} else if (sched_feat(APPROX_AVG) && cfs_rq->nr_running)
 		vruntime += sched_vslice(cfs_rq)/2;
 
+	/*
+	 * The 'current' period is already promised to the current tasks,
+	 * however the extra weight of the new task will slow them down a
+	 * little, place the new task so that it fits in the slot that
+	 * stays open at the end.
+	 */
 	if (initial && sched_feat(START_DEBIT))
 		vruntime += sched_vslice_add(cfs_rq, se);
 
 	if (!initial) {
+		/* sleeps upto a single latency don't count. */
 		if (sched_feat(NEW_FAIR_SLEEPERS) && entity_is_task(se) &&
 				task_of(se)->policy != SCHED_BATCH)
 			vruntime -= sysctl_sched_latency;
 
-		vruntime = max_t(s64, vruntime, se->vruntime);
+		/* ensure we never gain time by being placed backwards. */
+		vruntime = max_vruntime(se->vruntime, vruntime);
 	}
 
 	se->vruntime = vruntime;
-
 }
 
 static void
