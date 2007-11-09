@@ -470,7 +470,7 @@ register_info(char *page)
 	return p - page;
 }
 
-static const char *proc_features[]={
+static char *proc_features_0[]={		/* Feature set 0 */
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL, NULL,NULL,
 	NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,
@@ -502,25 +502,92 @@ static const char *proc_features[]={
 	"Enable BERR promotion"
 };
 
+static char *proc_features_16[]={		/* Feature set 16 */
+	"Disable ETM",
+	"Enable ETM",
+	"Enable MCA on half-way timer",
+	"Enable snoop WC",
+	NULL,
+	"Enable Fast Deferral",
+	"Disable MCA on memory aliasing",
+	"Enable RSB",
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	"DP system processor",
+	"Low Voltage",
+	"HT supported",
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL
+};
+
+static char **proc_features[]={
+	proc_features_0,
+	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL,
+	proc_features_16,
+	NULL, NULL, NULL, NULL,
+};
+
+static char *
+feature_set_info(char *page, u64 avail, u64 status, u64 control, u64 set)
+{
+	char *p = page;
+	char **vf, **v;
+	int i;
+
+	vf = v = proc_features[set];
+	for(i=0; i < 64; i++, avail >>=1, status >>=1, control >>=1) {
+
+		if (!(control))		/* No remaining bits set */
+			break;
+		if (!(avail & 0x1))	/* Print only bits that are available */
+			continue;
+		if (vf)
+			v = vf + i;
+		if ( v && *v ) {
+			p += sprintf(p, "%-40s : %s %s\n", *v,
+				avail & 0x1 ? (status & 0x1 ?
+						"On " : "Off"): "",
+				avail & 0x1 ? (control & 0x1 ?
+						"Ctrl" : "NoCtrl"): "");
+		} else {
+			p += sprintf(p, "Feature set %2ld bit %2d\t\t\t"
+					" : %s %s\n",
+				set, i,
+				avail & 0x1 ? (status & 0x1 ?
+						"On " : "Off"): "",
+				avail & 0x1 ? (control & 0x1 ?
+						"Ctrl" : "NoCtrl"): "");
+		}
+	}
+	return p;
+}
 
 static int
 processor_info(char *page)
 {
 	char *p = page;
-	const char **v = proc_features;
-	u64 avail=1, status=1, control=1;
-	int i;
+	u64 avail=1, status=1, control=1, feature_set=0;
 	s64 ret;
 
-	if ((ret=ia64_pal_proc_get_features(&avail, &status, &control)) != 0) return 0;
+	do {
+		ret = ia64_pal_proc_get_features(&avail, &status, &control,
+						feature_set);
+		if (ret < 0) {
+			return p - page;
+		}
+		if (ret == 1) {
+			feature_set++;
+			continue;
+		}
 
-	for(i=0; i < 64; i++, v++,avail >>=1, status >>=1, control >>=1) {
-		if ( ! *v ) continue;
-		p += sprintf(p, "%-40s : %s%s %s\n", *v,
-				avail & 0x1 ? "" : "NotImpl",
-				avail & 0x1 ? (status & 0x1 ? "On" : "Off"): "",
-				avail & 0x1 ? (control & 0x1 ? "Ctrl" : "NoCtrl"): "");
-	}
+		p = feature_set_info(p, avail, status, control, feature_set);
+
+		feature_set++;
+	} while(1);
+
 	return p - page;
 }
 

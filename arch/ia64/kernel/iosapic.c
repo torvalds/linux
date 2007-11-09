@@ -748,6 +748,15 @@ skip_numa_setup:
 #endif
 }
 
+static inline unsigned char choose_dmode(void)
+{
+#ifdef CONFIG_SMP
+	if (smp_int_redirect & SMP_IRQ_REDIRECTION)
+		return IOSAPIC_LOWEST_PRIORITY;
+#endif
+	return IOSAPIC_FIXED;
+}
+
 /*
  * ACPI can describe IOSAPIC interrupts via static tables and namespace
  * methods.  This provides an interface to register those interrupts and
@@ -762,6 +771,7 @@ iosapic_register_intr (unsigned int gsi,
 	unsigned long flags;
 	struct iosapic_rte_info *rte;
 	u32 low32;
+	unsigned char dmode;
 
 	/*
 	 * If this GSI has already been registered (i.e., it's a
@@ -791,8 +801,8 @@ iosapic_register_intr (unsigned int gsi,
 
 	spin_lock(&irq_desc[irq].lock);
 	dest = get_target_cpu(gsi, irq);
-	err = register_intr(gsi, irq, IOSAPIC_LOWEST_PRIORITY,
-			    polarity, trigger);
+	dmode = choose_dmode();
+	err = register_intr(gsi, irq, dmode, polarity, trigger);
 	if (err < 0) {
 		spin_unlock(&irq_desc[irq].lock);
 		irq = err;
@@ -961,10 +971,12 @@ iosapic_override_isa_irq (unsigned int isa_irq, unsigned int gsi,
 {
 	int vector, irq;
 	unsigned int dest = cpu_physical_id(smp_processor_id());
+	unsigned char dmode;
 
 	irq = vector = isa_irq_to_vector(isa_irq);
 	BUG_ON(bind_irq_vector(irq, vector, CPU_MASK_ALL));
-	register_intr(gsi, irq, IOSAPIC_LOWEST_PRIORITY, polarity, trigger);
+	dmode = choose_dmode();
+	register_intr(gsi, irq, dmode, polarity, trigger);
 
 	DBG("ISA: IRQ %u -> GSI %u (%s,%s) -> CPU %d (0x%04x) vector %d\n",
 	    isa_irq, gsi, trigger == IOSAPIC_EDGE ? "edge" : "level",

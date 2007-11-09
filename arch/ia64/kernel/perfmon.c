@@ -558,7 +558,7 @@ static ctl_table pfm_sysctl_dir[] = {
 	{
 		.ctl_name	= CTL_UNNUMBERED,
 		.procname	= "perfmon",
-		.mode		= 0755,
+		.mode		= 0555,
 		.child		= pfm_ctl_table,
 	},
  	{}
@@ -567,7 +567,7 @@ static ctl_table pfm_sysctl_root[] = {
 	{
 		.ctl_name	= CTL_KERN,
 		.procname	= "kernel",
-		.mode		= 0755,
+		.mode		= 0555,
 		.child		= pfm_sysctl_dir,
 	},
  	{}
