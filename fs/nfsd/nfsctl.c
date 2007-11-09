@@ -694,16 +694,18 @@ static int __init init_nfsd(void)
 			entry->proc_fops =  &exports_operations;
 	}
 	retval = register_filesystem(&nfsd_fs_type);
-	if (retval) {
-		nfsd_idmap_shutdown();
-		nfsd_export_shutdown();
-		nfsd_cache_shutdown();
-		remove_proc_entry("fs/nfs/exports", NULL);
-		remove_proc_entry("fs/nfs", NULL);
-		nfsd_stat_shutdown();
-		nfsd_lockd_shutdown();
-		nfsd4_free_slabs();
-	}
+	if (retval)
+		goto out_free_all;
+	return 0;
+out_free_all:
+	nfsd_idmap_shutdown();
+	nfsd_export_shutdown();
+	nfsd_cache_shutdown();
+	remove_proc_entry("fs/nfs/exports", NULL);
+	remove_proc_entry("fs/nfs", NULL);
+	nfsd_stat_shutdown();
+	nfsd_lockd_shutdown();
+	nfsd4_free_slabs();
 	return retval;
 }
 
