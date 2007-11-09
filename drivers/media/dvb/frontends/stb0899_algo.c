@@ -110,7 +110,7 @@ static u32 stb0899_set_srate(struct stb0899_state *state, u32 master_clk, u32 sr
 
 	sfr[0] = (tmp >> 12) & 0xff;
 	sfr[1] = (tmp >>  4) & 0xff;
-	sfr[2] =  tmp & 0xf0;
+	sfr[2] = (tmp <<  4) & 0xf0;
 
 //	stb0899_write_regs(state, STB0899_SFRUPH, sfr_up, 3);
 	stb0899_write_regs(state, STB0899_SFRH, sfr, 3);
