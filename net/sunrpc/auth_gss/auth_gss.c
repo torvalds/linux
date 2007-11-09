@@ -540,7 +540,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	p = gss_fill_context(p, end, ctx, gss_msg->auth->mech);
 	if (IS_ERR(p)) {
 		err = PTR_ERR(p);
-		gss_msg->msg.errno = (err == -EACCES) ? -EACCES : -EAGAIN;
+		gss_msg->msg.errno = (err == -EAGAIN) ? -EAGAIN : -EACCES;
 		goto err_release_msg;
 	}
 	gss_msg->ctx = gss_get_ctx(ctx);
