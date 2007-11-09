@@ -105,12 +105,7 @@ static void program_hpp_type2(struct pci_dev *dev, struct hpp_type2 *hpp)
 	}
 
 	/* Find Advanced Error Reporting Enhanced Capability */
-	pos = 256;
-	do {
-		pci_read_config_dword(dev, pos, &reg32);
-		if (PCI_EXT_CAP_ID(reg32) == PCI_EXT_CAP_ID_ERR)
-			break;
-	} while ((pos = PCI_EXT_CAP_NEXT(reg32)));
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
 	if (!pos)
 		return;
 
