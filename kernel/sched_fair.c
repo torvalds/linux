@@ -546,7 +546,6 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 
 	update_stats_dequeue(cfs_rq, se);
 	if (sleep) {
-		se->peer_preempt = 0;
 #ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
@@ -574,10 +573,8 @@ check_preempt_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	ideal_runtime = sched_slice(cfs_rq, curr);
 	delta_exec = curr->sum_exec_runtime - curr->prev_sum_exec_runtime;
-	if (delta_exec > ideal_runtime ||
-			(sched_feat(PREEMPT_RESTRICT) && curr->peer_preempt))
+	if (delta_exec > ideal_runtime)
 		resched_task(rq_of(cfs_rq)->curr);
-	curr->peer_preempt = 0;
 }
 
 static void
@@ -867,9 +864,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 			gran = calc_delta_fair(gran, &se->load);
 
 		if (delta > gran) {
-			int now = !sched_feat(PREEMPT_RESTRICT);
-
-			if (now || p->prio < curr->prio || !se->peer_preempt++)
+			if (p->prio < curr->prio)
 				resched_task(curr);
 		}
 	}
@@ -1083,7 +1078,6 @@ static void task_new_fair(struct rq *rq, struct task_struct *p)
 		swap(curr->vruntime, se->vruntime);
 	}
 
-	se->peer_preempt = 0;
 	enqueue_task_fair(rq, p, 0);
 	resched_task(rq->curr);
 }
