@@ -852,20 +852,21 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 	if (unlikely(p->policy == SCHED_BATCH))
 		return;
 
-	if (sched_feat(WAKEUP_PREEMPT)) {
-		while (!is_same_group(se, pse)) {
-			se = parent_entity(se);
-			pse = parent_entity(pse);
-		}
+	if (!sched_feat(WAKEUP_PREEMPT))
+		return;
 
-		delta = se->vruntime - pse->vruntime;
-		gran = sysctl_sched_wakeup_granularity;
-		if (unlikely(se->load.weight != NICE_0_LOAD))
-			gran = calc_delta_fair(gran, &se->load);
-
-		if (delta > gran)
-			resched_task(curr);
+	while (!is_same_group(se, pse)) {
+		se = parent_entity(se);
+		pse = parent_entity(pse);
 	}
+
+	delta = se->vruntime - pse->vruntime;
+	gran = sysctl_sched_wakeup_granularity;
+	if (unlikely(se->load.weight != NICE_0_LOAD))
+		gran = calc_delta_fair(gran, &se->load);
+
+	if (delta > gran)
+		resched_task(curr);
 }
 
 static struct task_struct *pick_next_task_fair(struct rq *rq)
