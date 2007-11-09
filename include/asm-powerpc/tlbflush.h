@@ -44,13 +44,13 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 static inline void flush_tlb_page(struct vm_area_struct *vma,
 				  unsigned long vmaddr)
 {
-	_tlbie(vmaddr, vma->vm_mm->context.id);
+	_tlbie(vmaddr, vma ? vma->vm_mm->context.id : 0);
 }
 
 static inline void flush_tlb_page_nohash(struct vm_area_struct *vma,
 					 unsigned long vmaddr)
 {
-	_tlbie(vmaddr, vma->vm_mm->context.id);
+	_tlbie(vmaddr, vma ? vma->vm_mm->context.id : 0);
 }
 
 static inline void flush_tlb_range(struct vm_area_struct *vma,
