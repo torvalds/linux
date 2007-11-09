@@ -1,3 +1,162 @@
+1 Release Date    : Thur. Nov. 07 16:30:43 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.16
+3 Older Version   : 00.00.03.15
+
+1. Increased MFI_POLL_TIMEOUT_SECS to 60 seconds from 10. FW may take
+	a max of 60 seconds to respond to the INIT cmd.
+
+1 Release Date    : Fri. Sep. 07 16:30:43 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.15
+3 Older Version   : 00.00.03.14
+
+1. Added module parameter "poll_mode_io" to support for "polling"
+	(reduced interrupt operation).  In this mode, IO completion
+	interrupts are delayed. At the end of initiating IOs, the
+	driver schedules for cmd completion if there are pending cmds
+	to be completed.  A timer-based interrupt has also been added
+	to prevent IO completion processing from being delayed
+	indefinitely in the case that no new IOs are initiated.
+
+1 Release Date    : Fri. Sep. 07 16:30:43 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.14
+3 Older Version   : 00.00.03.13
+
+1. Setting the max_sectors_per_req based on max SGL supported by the
+	FW. Prior versions calculated this value from controller info
+	(max_sectors_1, max_sectors_2). For certain controllers/FW,
+	this was resulting in a value greater than max SGL supported
+	by the FW. Issue was first reported by users running LUKS+XFS
+	with megaraid_sas.  Thanks to RB for providing the logs and
+	duplication steps that helped to get to the root cause of the
+	issue.  2. Increased MFI_POLL_TIMEOUT_SECS to 60 seconds from
+	10. FW may take a max of 60 seconds to respond to the INIT
+	cmd.
+
+1 Release Date    : Fri. June. 15 16:30:43 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.13
+3 Older Version   : 00.00.03.12
+
+1. Added the megasas_reset_timer routine to intercept cmd timeout and throttle io.
+
+On Fri, 2007-03-16 at 16:44 -0600, James Bottomley wrote:
+It looks like megaraid_sas at least needs this to throttle its commands
+> as they begin to time out.  The code keeps the existing transport
+> template use of eh_timed_out (and allows the transport to override the
+> host if they both have this callback).
+>
+> James
+
+1 Release Date    : Sat May. 12 16:30:43 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.12
+3 Older Version   : 00.00.03.11
+
+1.  When MegaSAS driver receives reset call from OS, driver waits in reset
+routine for max 3 minutes for all pending command completion. Now driver will
+call completion routine every 5 seconds from the reset routine instead of
+waiting for depending on cmd completion from isr path.
+
+1 Release Date    : Mon Apr. 30 10:25:52 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.11
+3 Older Version   : 00.00.03.09
+
+	1. Memory Manager for IOCTL removed for 2.6 kernels.
+	   pci_alloc_consistent replaced by dma_alloc_coherent. With this
+	   change there is no need of memory manager in the driver code
+
+	On Wed, 2007-02-07 at 13:30 -0800, Andrew Morton wrote:
+	> I suspect all this horror is due to stupidity in the DMA API.
+	>
+	> pci_alloc_consistent() just goes and assumes GFP_ATOMIC, whereas
+	> the caller (megasas_mgmt_fw_ioctl) would have been perfectly happy
+	> to use GFP_KERNEL.
+	>
+	> I bet this fixes it
+
+	It does, but the DMA API was expanded to cope with this exact case, so
+	use dma_alloc_coherent() directly in the megaraid code instead.  The dev
+	is just &pci_dev->dev.
+
+	James <James.Bottomley@SteelEye.com>
+
+	3. SYNCHRONIZE_CACHE is not supported by FW and thus blocked by driver.
+	4. Hibernation support added
+	5. Performing diskdump while running IO in RHEL 4 was failing. Fixed.
+
+1 Release Date    : Fri Feb. 09 14:36:28 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+
+2 Current Version : 00.00.03.09
+3 Older Version   : 00.00.03.08
+
+i.	Under heavy IO mid-layer prints "DRIVER_TIMEOUT" errors
+
+	The driver now waits for 10 seconds to elapse instead of 5 (as in
+	previous release) to resume IO.
+
+1 Release Date    : Mon Feb. 05 11:35:24 PST 2007 -
+			(emaild-id:megaraidlinux@lsi.com)
+			Sumant Patro
+			Bo Yang
+2 Current Version : 00.00.03.08
+3 Older Version   : 00.00.03.07
+
+i.	Under heavy IO mid-layer prints "DRIVER_TIMEOUT" errors
+
+	Fix:	The driver is now throttling IO.
+	Checks added in megasas_queue_command to know if FW is able to
+	process commands within timeout period. If number of retries
+	is 2 or greater,the driver stops sending cmd to FW temporarily. IO is
+	resumed if pending cmd count reduces to 16 or 5 seconds has elapsed
+	from the time cmds were last sent to FW.
+
+ii.	FW enables WCE bit in Mode Sense cmd for drives that are configured
+	as WriteBack. The OS may send "SYNCHRONIZE_CACHE" cmd when Logical
+	Disks are exposed with WCE=1. User is advised to enable Write Back
+	mode only when the controller has battery backup. At this time
+	Synhronize cache is not supported by the FW. Driver will short-cycle
+	the cmd and return sucess without sending down to FW.
+
+1 Release Date    : Sun Jan. 14 11:21:32 PDT 2007 -
+		 Sumant Patro <Sumant.Patro@lsil.com>/Bo Yang
+2 Current Version : 00.00.03.07
+3 Older Version   : 00.00.03.06
+
+i.	bios_param entry added in scsi_host_template that returns disk geometry
+	information.
+
+1 Release Date    : Fri Oct 20 11:21:32 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>/Bo Yang
+2 Current Version : 00.00.03.06
+3 Older Version   : 00.00.03.05
+
+1. Added new memory management module to support the IOCTL memory allocation. For IOCTL we try to allocate from the memory pool created during driver initialization. If mem pool is empty then we allocate at run time.
+2. Added check in megasas_queue_command and dpc/isr routine to see if we have already declared adapter dead
+   (hw_crit_error=1). If hw_crit_error==1, now we donot accept any processing of pending cmds/accept any cmd from OS
 
 1 Release Date    : Mon Oct 02 11:21:32 PDT 2006 - Sumant Patro <Sumant.Patro@lsil.com>
 2 Current Version : 00.00.03.05

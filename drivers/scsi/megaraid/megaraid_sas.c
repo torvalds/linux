@@ -2,7 +2,7 @@
  *
  *		Linux MegaRAID driver for SAS based RAID controllers
  *
- * Copyright (c) 2003-2005  LSI Logic Corporation.
+ * Copyright (c) 2003-2005  LSI Corporation.
  *
  *	   This program is free software; you can redistribute it and/or
  *	   modify it under the terms of the GNU General Public License
@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.03.10-rc5
+ * Version	: v00.00.03.16-rc1
  *
  * Authors:
  *	(email-id : megaraidlinux@lsi.com)
@@ -58,7 +58,7 @@ MODULE_PARM_DESC(poll_mode_io,
 MODULE_LICENSE("GPL");
 MODULE_VERSION(MEGASAS_VERSION);
 MODULE_AUTHOR("megaraidlinux@lsi.com");
-MODULE_DESCRIPTION("LSI Logic MegaRAID SAS Driver");
+MODULE_DESCRIPTION("LSI MegaRAID SAS Driver");
 
 /*
  * PCI ID table for all supported controllers
@@ -1182,7 +1182,7 @@ megasas_service_aen(struct megasas_instance *instance, struct megasas_cmd *cmd)
 static struct scsi_host_template megasas_template = {
 
 	.module = THIS_MODULE,
-	.name = "LSI Logic SAS based MegaRAID driver",
+	.name = "LSI SAS based MegaRAID driver",
 	.proc_name = "megaraid_sas",
 	.slave_configure = megasas_slave_configure,
 	.queuecommand = megasas_queue_command,
@@ -1966,7 +1966,7 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	 */
 	instance->base_addr = pci_resource_start(instance->pdev, 0);
 
-	if (pci_request_regions(instance->pdev, "megasas: LSI Logic")) {
+	if (pci_request_regions(instance->pdev, "megasas: LSI")) {
 		printk(KERN_DEBUG "megasas: IO memory region busy!\n");
 		return -EBUSY;
 	}
