@@ -75,7 +75,7 @@
  */
 unsigned long long __attribute__((weak)) sched_clock(void)
 {
-	return (unsigned long long)jiffies * (1000000000 / HZ);
+	return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ);
 }
 
 /*
@@ -99,8 +99,8 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 /*
  * Some helpers for converting nanosecond timing to jiffy resolution
  */
-#define NS_TO_JIFFIES(TIME)	((unsigned long)(TIME) / (1000000000 / HZ))
-#define JIFFIES_TO_NS(TIME)	((TIME) * (1000000000 / HZ))
+#define NS_TO_JIFFIES(TIME)	((unsigned long)(TIME) / (NSEC_PER_SEC / HZ))
+#define JIFFIES_TO_NS(TIME)	((TIME) * (NSEC_PER_SEC / HZ))
 
 #define NICE_0_LOAD		SCHED_LOAD_SCALE
 #define NICE_0_SHIFT		SCHED_LOAD_SHIFT
@@ -7256,7 +7256,7 @@ static u64 cpu_usage_read(struct cgroup *cgrp, struct cftype *cft)
 		spin_unlock_irqrestore(&cpu_rq(i)->lock, flags);
 	}
 	/* Convert from ns to ms */
-	do_div(res, 1000000);
+	do_div(res, NSEC_PER_MSEC);
 
 	return res;
 }
