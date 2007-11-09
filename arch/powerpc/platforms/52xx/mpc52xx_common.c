@@ -124,11 +124,21 @@ mpc5200_setup_xlb_arbiter(void)
 	iounmap(xlb);
 }
 
+static struct of_device_id mpc52xx_bus_ids[] __initdata= {
+	{ .compatible = "fsl,mpc5200-immr", },
+	{ .compatible = "fsl,lpb", },
+
+	/* depreciated matches; shouldn't be used in new device trees */
+	{ .type = "builtin", .compatible = "mpc5200", }, /* efika */
+	{ .type = "soc", .compatible = "mpc5200", }, /* lite5200 */
+	{},
+};
+
 void __init
 mpc52xx_declare_of_platform_devices(void)
 {
 	/* Find every child of the SOC node and add it to of_platform */
-	if (of_platform_bus_probe(NULL, NULL, NULL))
+	if (of_platform_bus_probe(NULL, mpc52xx_bus_ids, NULL))
 		printk(KERN_ERR __FILE__ ": "
 			"Error while probing of_platform bus\n");
 }
