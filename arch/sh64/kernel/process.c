@@ -26,6 +26,7 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/proc_fs.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
@@ -656,9 +657,6 @@ unsigned long get_wchan(struct task_struct *p)
    */
 
 #if defined(CONFIG_SH64_PROC_ASIDS)
-#include <linux/init.h>
-#include <linux/proc_fs.h>
-
 static int
 asids_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void *data)
 {
@@ -686,10 +684,8 @@ asids_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void 
 
 static int __init register_proc_asids(void)
 {
-  create_proc_read_entry("asids", 0, NULL, asids_proc_info, NULL);
-  return 0;
+	create_proc_read_entry("asids", 0, NULL, asids_proc_info, NULL);
+	return 0;
 }
-
 __initcall(register_proc_asids);
 #endif
-
