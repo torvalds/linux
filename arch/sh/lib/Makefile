@@ -2,7 +2,7 @@
 # Makefile for SuperH-specific library files..
 #
 
-lib-y  = delay.o memset.o memmove.o memchr.o \
+lib-y  = delay.o io.o memset.o memmove.o memchr.o \
 	 checksum.o strlen.o div64.o div64-generic.o
 
 memcpy-y			:= memcpy.o
