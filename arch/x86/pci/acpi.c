@@ -13,7 +13,7 @@ static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
 	return 0;
 }
 
-static struct dmi_system_id acpi_pciprobe_dmi_table[] = {
+static struct dmi_system_id acpi_pciprobe_dmi_table[] __devinitdata = {
 /*
  * Systems where PCI IO resource ISA alignment can be skipped
  * when the ISA enable bit in the bridge control is not set
