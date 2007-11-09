@@ -194,8 +194,9 @@ static void stb0899_first_subrange(struct stb0899_state *state)
 static enum stb0899_status stb0899_check_tmg(struct stb0899_state *state)
 {
 	struct stb0899_internal *internal = &state->internal;
-	int lock, timing;
+	int lock;
 	u8 reg;
+	s8 timing;
 
 	msleep(internal->t_timing);
 
@@ -207,7 +208,7 @@ static enum stb0899_status stb0899_check_tmg(struct stb0899_state *state)
 	timing = stb0899_read_reg(state, STB0899_RTF);
 
 	if (lock >= 42) {
-		if ((lock > 48) && (timing >= 110)) {
+		if ((lock > 48) && (ABS(timing) >= 110)) {
 			internal->status = ANALOGCARRIER;
 			dprintk(state->verbose, FE_DEBUG, 1, "-->ANALOG Carrier !");
 		} else {
