@@ -1988,6 +1988,14 @@ static inline void inc_syscw(struct task_struct *tsk)
 }
 #endif
 
+#ifdef CONFIG_SMP
+void migration_init(void);
+#else
+static inline void migration_init(void)
+{
+}
+#endif
+
 #endif /* __KERNEL__ */
 
 #endif
