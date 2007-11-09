@@ -147,6 +147,10 @@
 #define  SSB_IDLOW_SSBREV	0xF0000000 /* Sonics Backplane Revision code */
 #define  SSB_IDLOW_SSBREV_22	0x00000000 /* <= 2.2 */
 #define  SSB_IDLOW_SSBREV_23	0x10000000 /* 2.3 */
+#define  SSB_IDLOW_SSBREV_24	0x40000000 /* ?? Found in BCM4328 */
+#define  SSB_IDLOW_SSBREV_25	0x50000000 /* ?? Not Found yet */
+#define  SSB_IDLOW_SSBREV_26	0x60000000 /* ?? Found in some BCM4311/2 */
+#define  SSB_IDLOW_SSBREV_27	0x70000000 /* ?? Found in some BCM4311/2 */
 #define SSB_IDHIGH		0x0FFC     /* SB Identification High */
 #define  SSB_IDHIGH_RCLO	0x0000000F /* Revision Code (low part) */
 #define  SSB_IDHIGH_CC		0x00008FF0 /* Core Code */
@@ -162,6 +166,10 @@
  */
 #define SSB_SPROMSIZE_WORDS		64
 #define SSB_SPROMSIZE_BYTES		(SSB_SPROMSIZE_WORDS * sizeof(u16))
+#define SSB_SPROMSIZE_WORDS_R123	64
+#define SSB_SPROMSIZE_WORDS_R4		220
+#define SSB_SPROMSIZE_BYTES_R123	(SSB_SPROMSIZE_WORDS_R123 * sizeof(u16))
+#define SSB_SPROMSIZE_BYTES_R4		(SSB_SPROMSIZE_WORDS_R4 * sizeof(u16))
 #define SSB_SPROM_BASE			0x1000
 #define SSB_SPROM_REVISION		0x107E
 #define  SSB_SPROM_REVISION_REV		0x00FF	/* SPROM Revision number */
@@ -232,7 +240,10 @@
 #define  SSB_SPROM2_OPO_VALUE		0x00FF
 #define  SSB_SPROM2_OPO_UNUSED		0xFF00
 #define SSB_SPROM2_CCODE		0x107C	/* Two char Country Code */
-/* SPROM Revision 3 (inherits from rev 2) */
+/* SPROM Revision 3 (inherits most data from rev 2) */
+#define SSB_SPROM3_IL0MAC		0x104A	/* 6 bytes MAC address for 802.11b/g */
+#define SSB_SPROM3_ET0MAC		0x1050	/* 6 bytes MAC address for Ethernet ?? */
+#define SSB_SPROM3_ET1MAC		0x1050	/* 6 bytes MAC address for 802.11a ?? */
 #define SSB_SPROM3_OFDMAPO		0x102C	/* A-PHY OFDM Mid Power Offset (4 bytes, BigEndian) */
 #define SSB_SPROM3_OFDMALPO		0x1030	/* A-PHY OFDM Low Power Offset (4 bytes, BigEndian) */
 #define SSB_SPROM3_OFDMAHPO		0x1034	/* A-PHY OFDM High Power Offset (4 bytes, BigEndian) */
@@ -250,8 +261,10 @@
 #define  SSB_SPROM3_CCKPO_11M		0xF000	/* 11M Rate PO */
 #define  SSB_SPROM3_CCKPO_11M_SHIFT	12
 #define  SSB_SPROM3_OFDMGPO		0x107A	/* G-PHY OFDM Power Offset (4 bytes, BigEndian) */
-/* SPROM Revision 4 */
+/* SPROM Revision 4 		entries with ?? in comment are unknown */
 #define SSB_SPROM4_IL0MAC		0x104C	/* 6 byte MAC address for b/g */
+#define SSB_SPROM4_ET0MAC		0x1018	/* 6 bytes MAC address for Ethernet ?? */
+#define SSB_SPROM4_ET1MAC		0x1018	/* 6 bytes MAC address for 802.11a ?? */
 #define SSB_SPROM4_ETHPHY		0x105A	/* Ethernet PHY settings */
 #define  SSB_SPROM4_ETHPHY_ET0A		0x001F	/* MII Address for enet0 */
 #define  SSB_SPROM4_ETHPHY_ET1A		0x03E0	/* MII Address for enet1 */
@@ -263,19 +276,22 @@
 #define SSB_SPROM4_ANT_BG		0x105C  /* B/G Antennas */
 #define SSB_SPROM4_BFLLO		0x1044	/* Boardflags (low 16 bits) */
 #define SSB_SPROM4_AGAIN		0x105E	/* Antenna Gain (in dBm Q5.2) */
+#define  SSB_SPROM4_AGAIN_0		0x00FF	/* Antenna 0 */
+#define  SSB_SPROM4_AGAIN_1		0xFF00	/* Antenna 1 */
+#define  SSB_SPROM4_AGAIN_1_SHIFT	8
 #define SSB_SPROM4_BFLHI		0x1046  /* Board Flags Hi */
-#define SSB_SPROM4_MAXP_A		0x1000  /* Max Power A */
+#define SSB_SPROM4_MAXP_A		0x1000  /* Max Power A ?? */
 #define SSB_SPROM4_MAXP_A_HI		0x00FF  /* Mask for Hi */
 #define SSB_SPROM4_MAXP_A_LO		0xFF00  /* Mask for Lo */
 #define SSB_SPROM4_MAXP_A_LO_SHIFT	16	/* Shift for Lo */
-#define SSB_SPROM4_PA1LOB0		0x1000
-#define SSB_SPROM4_PA1LOB1		0x1000
-#define SSB_SPROM4_PA1LOB2		0x1000
-#define SSB_SPROM4_PA1HIB0		0x1000
-#define SSB_SPROM4_PA1HIB1		0x1000
-#define SSB_SPROM4_PA1HIB2		0x1000
-#define SSB_SPROM4_OPO			0x1000
-#define SSB_SPROM4_OPO_VALUE		0x0000
+#define SSB_SPROM4_PA1LOB0		0x1000  /* ?? */
+#define SSB_SPROM4_PA1LOB1		0x1000  /* ?? */
+#define SSB_SPROM4_PA1LOB2		0x1000  /* ?? */
+#define SSB_SPROM4_PA1HIB0		0x1000	/* ?? */
+#define SSB_SPROM4_PA1HIB1		0x1000	/* ?? */
+#define SSB_SPROM4_PA1HIB2		0x1000	/* ?? */
+#define SSB_SPROM4_OPO			0x1000	/* ?? */
+#define SSB_SPROM4_OPO_VALUE		0x0000	/* ?? */
 #define SSB_SPROM4_GPIOLDC		0x105A	/* LED Powersave Duty Cycle */
 #define  SSB_SPROM4_GPIOLDC_OFF		0x0000FF00	/* Off Count */
 #define  SSB_SPROM4_GPIOLDC_OFF_SHIFT	8
