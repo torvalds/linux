@@ -78,13 +78,34 @@ struct ssb_sprom_r3 {
 	u32 ofdmgpo;		/* G-PHY OFDM Power Offset */
 };
 
-struct ssb_sprom_r4 {
-	/* TODO */
-};
-
 struct ssb_sprom {
 	u8 revision;
-	u8 crc;
+	u8 temp_fill[2 * sizeof(struct ssb_sprom_r1)];
+	u8 il0mac[6];		/* MAC address for 802.11b/g */
+	u8 et0mac[6];		/* MAC address for Ethernet */
+	u8 et1mac[6];		/* MAC address for 802.11a */
+	u8 et0phyaddr;		/* MII address for enet0 */
+	u8 et1phyaddr;		/* MII address for enet1 */
+	u8 country_code;	/* Country Code */
+	u16 pa0b0;
+	u16 pa0b1;
+	u16 pa0b2;
+	u16 pa1b0;
+	u16 pa1b1;
+	u16 pa1b2;
+	u8 gpio0;		/* GPIO pin 0 */
+	u8 gpio1;		/* GPIO pin 1 */
+	u8 gpio2;		/* GPIO pin 2 */
+	u8 gpio3;		/* GPIO pin 3 */
+	u16 maxpwr_a;		/* A-PHY Amplifier Max Power (in dBm Q5.2) */
+	u16 maxpwr_bg;		/* B/G-PHY Amplifier Max Power (in dBm Q5.2) */
+	u8 itssi_a;		/* Idle TSSI Target for A-PHY */
+	u8 itssi_bg;		/* Idle TSSI Target for B/G-PHY */
+	u16 boardflags_lo;	/* Boardflags (low 16 bits) */
+	u8 antenna_gain_a;	/* A-PHY Antenna gain (in dBm Q5.2) */
+	u8 antenna_gain_bg;	/* B/G-PHY Antenna gain (in dBm Q5.2) */
+
+	/* TODO - add any parameters needed from rev 2, 3, or 4 SPROMs */
 	/* The valid r# fields are selected by the "revision".
 	 * Revision 3 and lower inherit from lower revisions.
 	 */
@@ -94,7 +115,6 @@ struct ssb_sprom {
 			struct ssb_sprom_r2 r2;
 			struct ssb_sprom_r3 r3;
 		};
-		struct ssb_sprom_r4 r4;
 	};
 };
 

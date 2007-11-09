@@ -423,8 +423,6 @@ static int sprom_extract(struct ssb_bus *bus,
 	memset(out, 0, sizeof(*out));
 
 	SPEX(revision, SSB_SPROM_REVISION, SSB_SPROM_REVISION_REV, 0);
-	SPEX(crc, SSB_SPROM_REVISION, SSB_SPROM_REVISION_CRC,
-	     SSB_SPROM_REVISION_CRC_SHIFT);
 
 	if ((bus->chip_id & 0xFF00) == 0x4400) {
 		/* Workaround: The BCM44XX chip has a stupid revision
