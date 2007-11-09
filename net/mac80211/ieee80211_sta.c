@@ -2894,15 +2894,6 @@ ieee80211_sta_scan_result(struct net_device *dev,
 	if (!(local->enabled_modes & (1 << bss->hw_mode)))
 		return current_ev;
 
-	if (local->scan_flags & IEEE80211_SCAN_WPA_ONLY &&
-	    !bss->wpa_ie && !bss->rsn_ie)
-		return current_ev;
-
-	if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID &&
-	    (local->scan_ssid_len != bss->ssid_len ||
-	     memcmp(local->scan_ssid, bss->ssid, bss->ssid_len) != 0))
-		return current_ev;
-
 	memset(&iwe, 0, sizeof(iwe));
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
@@ -3008,9 +2999,6 @@ ieee80211_sta_scan_result(struct net_device *dev,
 
 	do {
 		char *buf;
-
-		if (!(local->scan_flags & IEEE80211_SCAN_EXTRA_INFO))
-			break;
 
 		buf = kmalloc(100, GFP_ATOMIC);
 		if (!buf)

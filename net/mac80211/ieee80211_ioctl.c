@@ -513,7 +513,6 @@ static int ieee80211_ioctl_siwscan(struct net_device *dev,
 				   struct iw_request_info *info,
 				   union iwreq_data *wrqu, char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct iw_scan_req *req = NULL;
 	u8 *ssid = NULL;
@@ -522,21 +521,9 @@ static int ieee80211_ioctl_siwscan(struct net_device *dev,
 	if (!netif_running(dev))
 		return -ENETDOWN;
 
-	switch (sdata->type) {
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
-		if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
-			ssid = sdata->u.sta.ssid;
-			ssid_len = sdata->u.sta.ssid_len;
-		}
-		break;
-	case IEEE80211_IF_TYPE_AP:
-		if (local->scan_flags & IEEE80211_SCAN_MATCH_SSID) {
-			ssid = sdata->u.ap.ssid;
-			ssid_len = sdata->u.ap.ssid_len;
-		}
-		break;
-	default:
+	if (sdata->type != IEEE80211_IF_TYPE_STA &&
+	    sdata->type != IEEE80211_IF_TYPE_IBSS &&
+	    sdata->type != IEEE80211_IF_TYPE_AP) {
 		return -EOPNOTSUPP;
 	}
 
