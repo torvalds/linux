@@ -1,28 +1,24 @@
-#ifndef __ASM_SH64_PROCESSOR_H
-#define __ASM_SH64_PROCESSOR_H
+#ifndef __ASM_SH_PROCESSOR_64_H
+#define __ASM_SH_PROCESSOR_64_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * include/asm-sh64/processor.h
+ * include/asm-sh/processor_64.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003  Paul Mundt
  * Copyright (C) 2004  Richard Curnow
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
-#include <asm/page.h>
-
 #ifndef __ASSEMBLY__
 
+#include <linux/compiler.h>
+#include <asm/page.h>
 #include <asm/types.h>
 #include <asm/cache.h>
-#include <asm/registers.h>
-#include <linux/threads.h>
-#include <linux/compiler.h>
+#include <asm/cpu/registers.h>
 
 /*
  * Default implementation of macro that returns current
@@ -38,15 +34,6 @@ __asm__("gettr	tr0, %1\n\t" \
 	:"=r" (pc), "=r" (__dummy) \
 	: "1" (__dummy)); \
 pc; })
-
-/*
- *  CPU type and hardware bug flags. Kept separately for each CPU.
- */
-enum cpu_type {
-	CPU_SH5_101,
-	CPU_SH5_103,
-	CPU_SH_NONE
-};
 
 /*
  * TLB information structure
@@ -178,6 +165,10 @@ struct thread_struct {
 	union sh_fpu_union fpu;
 };
 
+typedef struct {
+	unsigned long seg;
+} mm_segment_t;
+
 #define INIT_MMAP \
 { &init_mm, 0, 0, NULL, PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
 
@@ -200,12 +191,12 @@ extern  struct pt_regs fake_swapper_regs;
  */
 #define SR_USER (SR_MMU | SR_FD)
 
-#define start_thread(regs, new_pc, new_sp) 	 		\
-	set_fs(USER_DS);			 		\
-	regs->sr = SR_USER;	/* User mode. */ 		\
+#define start_thread(regs, new_pc, new_sp)			\
+	set_fs(USER_DS);					\
+	regs->sr = SR_USER;	/* User mode. */		\
 	regs->pc = new_pc - 4;	/* Compensate syscall exit */	\
 	regs->pc |= 1;		/* Set SHmedia ! */		\
-	regs->regs[18] = 0;   		 	 		\
+	regs->regs[18] = 0;					\
 	regs->regs[15] = new_sp
 
 /* Forward declaration, a strange C thing */
@@ -283,5 +274,4 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define cpu_relax()	barrier()
 
 #endif	/* __ASSEMBLY__ */
-#endif /* __ASM_SH64_PROCESSOR_H */
-
+#endif /* __ASM_SH_PROCESSOR_64_H */
