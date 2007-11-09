@@ -211,10 +211,12 @@ config SH_SOLUTION_ENGINE
 	bool "SolutionEngine"
 	select SOLUTION_ENGINE
 	select CPU_HAS_IPR_IRQ
-	depends on CPU_SUBTYPE_SH7709 || CPU_SUBTYPE_SH7750
+	depends on CPU_SUBTYPE_SH7705 || CPU_SUBTYPE_SH7709 || CPU_SUBTYPE_SH7710 || \
+	  CPU_SUBTYPE_SH7712 || CPU_SUBTYPE_SH7750 || CPU_SUBTYPE_SH7750S || \
+	  CPU_SUBTYPE_SH7750R 
 	help
-	  Select SolutionEngine if configuring for a Hitachi SH7709
-	  or SH7750 evaluation board.
+	  Select SolutionEngine if configuring for a Hitachi SH7705, SH7709,
+	  SH7710, SH7712, SH7750, SH7750S or SH7750R evaluation board.
 
 config SH_7206_SOLUTION_ENGINE
 	bool "SolutionEngine7206"
@@ -603,7 +605,7 @@ config BOOT_LINK_OFFSET
 
 config UBC_WAKEUP
 	bool "Wakeup UBC on startup"
-	depends on CPU_SH4
+	depends on CPU_SH4 && !CPU_SH4A
 	help
 	  Selecting this option will wakeup the User Break Controller (UBC) on
 	  startup. Although the UBC is left in an awake state when the processor

@@ -351,8 +351,10 @@ static int sh_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon + 1, tm->tm_year, tm->tm_wday);
 
-	if (rtc_valid_tm(tm) < 0)
+	if (rtc_valid_tm(tm) < 0) {
 		dev_err(dev, "invalid date\n");
+		rtc_time_to_tm(0, tm);
+	}
 
 	return 0;
 }
@@ -588,7 +590,7 @@ static int __devinit sh_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_dev = rtc_device_register("sh", &pdev->dev,
 					   &sh_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
+	if (IS_ERR(rtc->rtc_dev)) {
 		ret = PTR_ERR(rtc->rtc_dev);
 		goto err_badmap;
 	}

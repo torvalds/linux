@@ -77,7 +77,6 @@
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 # define SCSPTR0 0xA4400000	  /* 16 bit SCIF */
-# define SCI_NPORTS 2
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define PACR 0xa4050100
 # define PBCR 0xa4050102
@@ -102,12 +101,6 @@
 # define SCIF_ORER 0x0001   /* overrun error bit */
 # define SCSCR_INIT(port) 0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
-#elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
-# define SCSPTR1 0xffe00020 /* 16 bit SCIF */
-# define SCSPTR2 0xffe80020 /* 16 bit SCIF */
-# define SCIF_ORER 0x0001   /* overrun error bit */
-# define SCSCR_INIT(port)          0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
-# define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH5_101) || defined(CONFIG_CPU_SUBTYPE_SH5_103)
 # include <asm/hardware.h>
 # define SCIF_BASE_ADDR    0x01030000
@@ -116,8 +109,7 @@
 # define SCIF_LSR2_OFFS    0x0000024
 # define SCSPTR2           ((port->mapbase)+SCIF_PTR2_OFFS) /* 16 bit SCIF */
 # define SCLSR2            ((port->mapbase)+SCIF_LSR2_OFFS) /* 16 bit SCIF */
-# define SCSCR_INIT(port)  0x38                           /* TIE=0,RIE=0,
-							     TE=1,RE=1,REIE=1 */
+# define SCSCR_INIT(port)  0x38		/* TIE=0,RIE=0, TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_H83007) || defined(CONFIG_H83068)
 # define SCSCR_INIT(port)          0x30 /* TIE=0,RIE=0,TE=1,RE=1 */
@@ -576,15 +568,6 @@ static inline int sci_rxd_in(struct uart_port *port)
 	if (port->mapbase == 0xffe00000)
 		return ctrl_inb(SCPDR0) & 0x0001 ? 1 : 0; /* SCIF0 */
 	return 1;
-}
-#elif defined(CONFIG_CPU_SUBTYPE_ST40STB1)
-static inline int sci_rxd_in(struct uart_port *port)
-{
-	if (port->mapbase == 0xffe00000)
-		return ctrl_inw(SCSPTR1)&0x0001 ? 1 : 0; /* SCIF */
-	else
-		return ctrl_inw(SCSPTR2)&0x0001 ? 1 : 0; /* SCIF */
-
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH5_101) || defined(CONFIG_CPU_SUBTYPE_SH5_103)
 static inline int sci_rxd_in(struct uart_port *port)

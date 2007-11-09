@@ -39,7 +39,7 @@ KERNEL_LOAD	:= $(shell /bin/bash -c 'printf "0x%8x" \
 
 quiet_cmd_uimage = UIMAGE  $@
       cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A sh -O linux -T kernel \
-		   -C gzip -a $(KERNEL_LOAD) -e $(KERNEL_LOAD) \
+		   -C none -a $(KERNEL_LOAD) -e $(KERNEL_LOAD) \
 		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
 
 $(obj)/uImage: $(obj)/zImage FORCE

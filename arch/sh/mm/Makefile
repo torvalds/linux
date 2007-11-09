@@ -33,3 +33,5 @@ endif
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_32BIT)		+= pmb.o
 obj-$(CONFIG_NUMA)		+= numa.o
+
+EXTRA_CFLAGS += -Werror

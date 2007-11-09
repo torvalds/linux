@@ -106,7 +106,6 @@ DECLARE_EXPORT(__movmem);
 DECLARE_EXPORT(__movstr);
 #endif
 
-#ifdef CONFIG_CPU_SH4
 #if __GNUC__ == 4
 DECLARE_EXPORT(__movmem_i4_even);
 DECLARE_EXPORT(__movmem_i4_odd);
@@ -126,7 +125,6 @@ DECLARE_EXPORT(__movstr_i4_even);
 DECLARE_EXPORT(__movstr_i4_odd);
 DECLARE_EXPORT(__movstrSI12_i4);
 #endif /* __GNUC__ == 4 */
-#endif
 
 #if !defined(CONFIG_CACHE_OFF) && (defined(CONFIG_CPU_SH4) || \
 	defined(CONFIG_SH7705_CACHE_32KB))

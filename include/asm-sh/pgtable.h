@@ -322,7 +322,9 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define PAGE_KERNEL		__pgprot(0)
 #define PAGE_KERNEL_NOCACHE	__pgprot(0)
 #define PAGE_KERNEL_RO		__pgprot(0)
-#define PAGE_KERNEL_PCC		__pgprot(0)
+
+#define PAGE_KERNEL_PCC(slot, type) \
+				__pgprot(0)
 #endif
 
 #endif /* __ASSEMBLY__ */

@@ -42,9 +42,6 @@
 #define REG_FPSCR	55
 #define REG_FPUL	56
 
-/* options set using PTRACE_SETOPTIONS */
-#define PTRACE_O_TRACESYSGOOD     0x00000001
-
 /*
  * This struct defines the way the registers are stored on the
  * kernel stack during a system call or other kernel entry.

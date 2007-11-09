@@ -124,12 +124,13 @@ config KGDB_NMI
 
 config SH_KGDB_CONSOLE
 	bool "Console messages through GDB"
-	depends on !SERIAL_SH_SCI_CONSOLE
+	depends on !SERIAL_SH_SCI_CONSOLE && SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 	default n
 
 config KGDB_SYSRQ
 	bool "Allow SysRq 'G' to enter KGDB"
+	depends on MAGIC_SYSRQ
 	default y
 
 comment "Serial port setup"

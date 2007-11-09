@@ -9,3 +9,5 @@ memcpy-y			:= memcpy.o
 memcpy-$(CONFIG_CPU_SH4)	:= memcpy-sh4.o
 
 lib-y	+= $(memcpy-y)
+
+EXTRA_CFLAGS += -Werror

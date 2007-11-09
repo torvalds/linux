@@ -30,7 +30,6 @@
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
 #include <linux/module.h>
-
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -241,9 +240,6 @@ void do_reserved_inst(unsigned long error_code, struct pt_regs *regs)
 DO_ERROR(12, SIGILL,  "reserved instruction", reserved_inst, current)
 
 #endif /* CONFIG_SH64_ID2815_WORKAROUND */
-
-
-#include <asm/system.h>
 
 /* Called with interrupts disabled */
 asmlinkage void do_exception_error(unsigned long ex, struct pt_regs *regs)
@@ -984,4 +980,3 @@ asmlinkage void do_debug_interrupt(unsigned long code, struct pt_regs *regs)
 	/* Clear all DEBUGINT causes */
 	poke_real_address_q(DM_EXP_CAUSE_PHY, 0x0);
 }
-

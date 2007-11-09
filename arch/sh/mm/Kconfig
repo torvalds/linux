@@ -17,7 +17,7 @@ config CPU_SH4
 	bool
 	select CPU_HAS_INTEVT
 	select CPU_HAS_SR_RB
-	select CPU_HAS_PTEA if (!CPU_SUBTYPE_ST40 && !CPU_SH4A) || CPU_SHX2
+	select CPU_HAS_PTEA if !CPU_SH4A || CPU_SHX2
 	select CPU_HAS_FPU if !CPU_SH4AL_DSP
 
 config CPU_SH4A
@@ -28,10 +28,6 @@ config CPU_SH4AL_DSP
 	bool
 	select CPU_SH4A
 	select CPU_HAS_DSP
-
-config CPU_SUBTYPE_ST40
-	bool
-	select CPU_SH4
 
 config CPU_SHX2
 	bool
@@ -151,21 +147,6 @@ config CPU_SUBTYPE_SH7760
 config CPU_SUBTYPE_SH4_202
 	bool "Support SH4-202 processor"
 	select CPU_SH4
-
-# ST40 Processor Support
-
-config CPU_SUBTYPE_ST40STB1
-	bool "Support ST40STB1/ST40RA processors"
-	select CPU_SUBTYPE_ST40
-	help
-	  Select ST40STB1 if you have a ST40RA CPU.
-	  This was previously called the ST40STB1, hence the option name.
-
-config CPU_SUBTYPE_ST40GX1
-	bool "Support ST40GX1 processor"
-	select CPU_SUBTYPE_ST40
-	help
-	  Select ST40GX1 if you have a ST40GX1 CPU.
 
 # SH-4A Processor Support
 

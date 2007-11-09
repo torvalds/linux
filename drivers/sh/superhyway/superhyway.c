@@ -107,16 +107,17 @@ int superhyway_add_devices(struct superhyway_bus *bus,
 static int __init superhyway_init(void)
 {
 	struct superhyway_bus *bus;
-	int ret = 0;
+	int ret;
 
-	device_register(&superhyway_bus_device);
+	ret = device_register(&superhyway_bus_device);
+	if (unlikely(ret))
+		return ret;
 
 	for (bus = superhyway_channels; bus->ops; bus++)
 		ret |= superhyway_scan_bus(bus);
 
 	return ret;
 }
-
 postcore_initcall(superhyway_init);
 
 static const struct superhyway_device_id *
