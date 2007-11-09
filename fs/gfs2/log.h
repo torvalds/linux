@@ -48,8 +48,6 @@ static inline void gfs2_log_pointers_init(struct gfs2_sbd *sdp,
 unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 			    unsigned int ssize);
 
-int gfs2_ail1_empty(struct gfs2_sbd *sdp, int flags);
-
 int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
 void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
 void gfs2_log_incr_head(struct gfs2_sbd *sdp);
@@ -70,5 +68,6 @@ void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
 
 void gfs2_log_shutdown(struct gfs2_sbd *sdp);
 void gfs2_meta_syncfs(struct gfs2_sbd *sdp);
+int gfs2_logd(void *data);
 
 #endif /* __LOG_DOT_H__ */

@@ -12,7 +12,6 @@
 
 int gfs2_glockd(void *data);
 int gfs2_recoverd(void *data);
-int gfs2_logd(void *data);
 int gfs2_quotad(void *data);
 
 #endif /* __DAEMON_DOT_H__ */
