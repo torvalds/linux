@@ -190,15 +190,15 @@ struct xc *request_xc(int xcno, struct device *dev)
 		goto exit;
 
 	if (!request_mem_region
-	    (NETX_PA_XPEC(xcno), XPEC_MEM_SIZE, kobject_name(dev->kobj)))
+	    (NETX_PA_XPEC(xcno), XPEC_MEM_SIZE, kobject_name(&dev->kobj)))
 		goto exit_free;
 
 	if (!request_mem_region
-	    (NETX_PA_XMAC(xcno), XMAC_MEM_SIZE, kobject_name(dev->kobj)))
+	    (NETX_PA_XMAC(xcno), XMAC_MEM_SIZE, kobject_name(&dev->kobj)))
 		goto exit_release_1;
 
 	if (!request_mem_region
-	    (SRAM_INTERNAL_PHYS(xcno), SRAM_MEM_SIZE, kobject_name(dev->kobj)))
+	    (SRAM_INTERNAL_PHYS(xcno), SRAM_MEM_SIZE, kobject_name(&dev->kobj)))
 		goto exit_release_2;
 
 	x->xpec_base = (void * __iomem)io_p2v(NETX_PA_XPEC(xcno));
