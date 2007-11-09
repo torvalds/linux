@@ -862,7 +862,7 @@ static inline void sctp_ulpq_reap_ordered(struct sctp_ulpq *ulpq, __u16 sid)
 			continue;
 
 		/* see if this ssn has been marked by skipping */
-		if (!SSN_lt(cssn, sctp_ssn_peek(in, csid)))
+		if (!SSN_lte(cssn, sctp_ssn_peek(in, csid)))
 			break;
 
 		__skb_unlink(pos, &ulpq->lobby);
