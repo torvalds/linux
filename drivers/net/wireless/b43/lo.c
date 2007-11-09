@@ -264,8 +264,8 @@ static u16 lo_measure_feedthrough(struct b43_wldev *dev,
 		rfover |= pga;
 		rfover |= lna;
 		rfover |= trsw_rx;
-		if ((dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_EXTLNA) &&
-		    phy->rev > 6)
+		if ((dev->dev->bus->sprom.boardflags_lo & B43_BFL_EXTLNA)
+		    && phy->rev > 6)
 			rfover |= B43_PHY_RFOVERVAL_EXTLNA;
 
 		b43_phy_write(dev, B43_PHY_PGACTL, 0xE300);
@@ -634,7 +634,7 @@ static void lo_measure_setup(struct b43_wldev *dev,
 			      & 0xFFFC);
 		if (phy->type == B43_PHYTYPE_G) {
 			if ((phy->rev >= 7) &&
-			    (sprom->r1.boardflags_lo & B43_BFL_EXTLNA)) {
+			    (sprom->boardflags_lo & B43_BFL_EXTLNA)) {
 				b43_phy_write(dev, B43_PHY_RFOVER, 0x933);
 			} else {
 				b43_phy_write(dev, B43_PHY_RFOVER, 0x133);

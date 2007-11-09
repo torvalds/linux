@@ -903,7 +903,7 @@ static void b43_phy_inita(struct b43_wldev *dev)
 	}
 
 	if ((phy->type == B43_PHYTYPE_G) &&
-	    (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_PACTRL)) {
+	    (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)) {
 		b43_phy_write(dev, B43_PHY_OFDM(0x6E),
 				  (b43_phy_read(dev, B43_PHY_OFDM(0x6E))
 				   & 0xE000) | 0x3CF);
@@ -1006,7 +1006,7 @@ static void b43_phy_initb4(struct b43_wldev *dev)
 	if (phy->radio_ver == 0x2050)
 		b43_phy_write(dev, 0x002A, 0x88C2);
 	b43_set_txpower_g(dev, &phy->bbatt, &phy->rfatt, phy->tx_control);
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_RSSI) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {
 		b43_calc_nrssi_slope(dev);
 		b43_calc_nrssi_threshold(dev);
 	}
@@ -1153,7 +1153,7 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 		b43_radio_write16(dev, 0x5A, 0x88);
 		b43_radio_write16(dev, 0x5B, 0x6B);
 		b43_radio_write16(dev, 0x5C, 0x0F);
-		if (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_ALTIQ) {
+		if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_ALTIQ) {
 			b43_radio_write16(dev, 0x5D, 0xFA);
 			b43_radio_write16(dev, 0x5E, 0xD8);
 		} else {
@@ -1245,7 +1245,7 @@ static void b43_phy_initb6(struct b43_wldev *dev)
 		b43_phy_write(dev, 0x0062, 0x0007);
 		b43_radio_init2050(dev);
 		b43_lo_g_measure(dev);
-		if (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_RSSI) {
+		if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {
 			b43_calc_nrssi_slope(dev);
 			b43_calc_nrssi_threshold(dev);
 		}
@@ -1365,7 +1365,7 @@ static void b43_calc_loopback_gain(struct b43_wldev *dev)
 	b43_phy_write(dev, B43_PHY_RFOVERVAL,
 		      b43_phy_read(dev, B43_PHY_RFOVERVAL) & 0xCFFF);
 
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_EXTLNA) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_EXTLNA) {
 		if (phy->rev >= 7) {
 			b43_phy_write(dev, B43_PHY_RFOVER,
 				      b43_phy_read(dev, B43_PHY_RFOVER)
@@ -1532,7 +1532,7 @@ static void b43_phy_initg(struct b43_wldev *dev)
 				       & 0x0FFF) | (phy->lo_control->
 						    tx_bias << 12));
 		}
-		if (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_PACTRL)
+		if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)
 			b43_phy_write(dev, B43_PHY_BASE(0x2E), 0x8075);
 		else
 			b43_phy_write(dev, B43_PHY_BASE(0x2E), 0x807F);
@@ -1546,7 +1546,7 @@ static void b43_phy_initg(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_LO_MASK, 0x8078);
 	}
 
-	if (!(dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_RSSI)) {
+	if (!(dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI)) {
 		/* The specs state to update the NRSSI LT with
 		 * the value 0x7FFFFFFF here. I think that is some weird
 		 * compiler optimization in the original driver.
@@ -1756,16 +1756,15 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 			estimated_pwr =
 			    b43_phy_estimate_power_out(dev, average);
 
-			max_pwr = dev->dev->bus->sprom.r1.maxpwr_bg;
-			if ((dev->dev->bus->sprom.r1.
-			     boardflags_lo & B43_BFL_PACTRL)
-			    && (phy->type == B43_PHYTYPE_G))
+			max_pwr = dev->dev->bus->sprom.maxpwr_bg;
+			if ((dev->dev->bus->sprom.boardflags_lo
+			    & B43_BFL_PACTRL) && (phy->type == B43_PHYTYPE_G))
 				max_pwr -= 0x3;
 			if (unlikely(max_pwr <= 0)) {
 				b43warn(dev->wl,
 					"Invalid max-TX-power value in SPROM.\n");
 				max_pwr = 60;	/* fake it */
-				dev->dev->bus->sprom.r1.maxpwr_bg = max_pwr;
+				dev->dev->bus->sprom.maxpwr_bg = max_pwr;
 			}
 
 			/*TODO:
@@ -1823,7 +1822,7 @@ void b43_phy_xmitpower(struct b43_wldev *dev)
 						    B43_TXCTL_TXMIX;
 						rfatt += 2;
 						bbatt += 2;
-					} else if (dev->dev->bus->sprom.r1.
+					} else if (dev->dev->bus->sprom.
 						   boardflags_lo &
 						   B43_BFL_PACTRL) {
 						bbatt += 4 * (rfatt - 2);
@@ -1899,13 +1898,13 @@ int b43_phy_init_tssi2dbm_table(struct b43_wldev *dev)
 	s8 *dyn_tssi2dbm;
 
 	if (phy->type == B43_PHYTYPE_A) {
-		pab0 = (s16) (dev->dev->bus->sprom.r1.pa1b0);
-		pab1 = (s16) (dev->dev->bus->sprom.r1.pa1b1);
-		pab2 = (s16) (dev->dev->bus->sprom.r1.pa1b2);
+		pab0 = (s16) (dev->dev->bus->sprom.pa1b0);
+		pab1 = (s16) (dev->dev->bus->sprom.pa1b1);
+		pab2 = (s16) (dev->dev->bus->sprom.pa1b2);
 	} else {
-		pab0 = (s16) (dev->dev->bus->sprom.r1.pa0b0);
-		pab1 = (s16) (dev->dev->bus->sprom.r1.pa0b1);
-		pab2 = (s16) (dev->dev->bus->sprom.r1.pa0b2);
+		pab0 = (s16) (dev->dev->bus->sprom.pa0b0);
+		pab1 = (s16) (dev->dev->bus->sprom.pa0b1);
+		pab2 = (s16) (dev->dev->bus->sprom.pa0b2);
 	}
 
 	if ((dev->dev->bus->chip_id == 0x4301) && (phy->radio_ver != 0x2050)) {
@@ -1918,17 +1917,17 @@ int b43_phy_init_tssi2dbm_table(struct b43_wldev *dev)
 	    pab0 != -1 && pab1 != -1 && pab2 != -1) {
 		/* The pabX values are set in SPROM. Use them. */
 		if (phy->type == B43_PHYTYPE_A) {
-			if ((s8) dev->dev->bus->sprom.r1.itssi_a != 0 &&
-			    (s8) dev->dev->bus->sprom.r1.itssi_a != -1)
+			if ((s8) dev->dev->bus->sprom.itssi_a != 0 &&
+			    (s8) dev->dev->bus->sprom.itssi_a != -1)
 				phy->tgt_idle_tssi =
-				    (s8) (dev->dev->bus->sprom.r1.itssi_a);
+				    (s8) (dev->dev->bus->sprom.itssi_a);
 			else
 				phy->tgt_idle_tssi = 62;
 		} else {
-			if ((s8) dev->dev->bus->sprom.r1.itssi_bg != 0 &&
-			    (s8) dev->dev->bus->sprom.r1.itssi_bg != -1)
+			if ((s8) dev->dev->bus->sprom.itssi_bg != 0 &&
+			    (s8) dev->dev->bus->sprom.itssi_bg != -1)
 				phy->tgt_idle_tssi =
-				    (s8) (dev->dev->bus->sprom.r1.itssi_bg);
+				    (s8) (dev->dev->bus->sprom.itssi_bg);
 			else
 				phy->tgt_idle_tssi = 62;
 		}
@@ -2834,7 +2833,7 @@ void b43_calc_nrssi_threshold(struct b43_wldev *dev)
 			if (phy->radio_ver != 0x2050)
 				return;
 			if (!
-			    (dev->dev->bus->sprom.r1.
+			    (dev->dev->bus->sprom.
 			     boardflags_lo & B43_BFL_RSSI))
 				return;
 
@@ -2865,7 +2864,7 @@ void b43_calc_nrssi_threshold(struct b43_wldev *dev)
 		}
 	case B43_PHYTYPE_G:
 		if (!phy->gmode ||
-		    !(dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_RSSI)) {
+		    !(dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI)) {
 			tmp16 = b43_nrssi_hw_read(dev, 0x20);
 			if (tmp16 >= 0x20)
 				tmp16 -= 0x40;
@@ -3387,7 +3386,7 @@ static u16 radio2050_rfover_val(struct b43_wldev *dev,
 		}
 
 		if ((phy->rev < 7) ||
-		    !(sprom->r1.boardflags_lo & B43_BFL_EXTLNA)) {
+		    !(sprom->boardflags_lo & B43_BFL_EXTLNA)) {
 			if (phy_register == B43_PHY_RFOVER) {
 				return 0x1B3;
 			} else if (phy_register == B43_PHY_RFOVERVAL) {
@@ -3427,7 +3426,7 @@ static u16 radio2050_rfover_val(struct b43_wldev *dev,
 		}
 	} else {
 		if ((phy->rev < 7) ||
-		    !(sprom->r1.boardflags_lo & B43_BFL_EXTLNA)) {
+		    !(sprom->boardflags_lo & B43_BFL_EXTLNA)) {
 			if (phy_register == B43_PHY_RFOVER) {
 				return 0x1B3;
 			} else if (phy_register == B43_PHY_RFOVERVAL) {
@@ -3906,7 +3905,7 @@ int b43_radio_selectchannel(struct b43_wldev *dev,
 		b43_write16(dev, B43_MMIO_CHANNEL, channel2freq_bg(channel));
 
 		if (channel == 14) {
-			if (dev->dev->bus->sprom.r1.country_code ==
+			if (dev->dev->bus->sprom.country_code ==
 			    SSB_SPROM1CCODE_JAPAN)
 				b43_hf_write(dev,
 					     b43_hf_read(dev) & ~B43_HF_ACPR);

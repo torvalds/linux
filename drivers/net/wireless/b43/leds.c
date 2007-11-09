@@ -190,10 +190,10 @@ void b43_leds_init(struct b43_wldev *dev)
 	enum b43_led_behaviour behaviour;
 	bool activelow;
 
-	sprom[0] = bus->sprom.r1.gpio0;
-	sprom[1] = bus->sprom.r1.gpio1;
-	sprom[2] = bus->sprom.r1.gpio2;
-	sprom[3] = bus->sprom.r1.gpio3;
+	sprom[0] = bus->sprom.gpio0;
+	sprom[1] = bus->sprom.gpio1;
+	sprom[2] = bus->sprom.gpio2;
+	sprom[3] = bus->sprom.gpio3;
 
 	for (i = 0; i < 4; i++) {
 		if (sprom[i] == 0xFF) {

@@ -1924,7 +1924,7 @@ static int b43_gpio_init(struct b43_wldev *dev)
 		mask |= 0x0180;
 		set |= 0x0180;
 	}
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_PACTRL) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL) {
 		b43_write16(dev, B43_MMIO_GPIO_MASK,
 			    b43_read16(dev, B43_MMIO_GPIO_MASK)
 			    | 0x0200);
@@ -2289,7 +2289,7 @@ static void b43_periodic_every60sec(struct b43_wldev *dev)
 
 	if (!b43_has_hardware_pctl(phy))
 		b43_lo_g_ctl_mark_all_unused(dev);
-	if (dev->dev->bus->sprom.r1.boardflags_lo & B43_BFL_RSSI) {
+	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {
 		b43_mac_suspend(dev);
 		b43_calc_nrssi_slope(dev);
 		if ((phy->radio_ver == 0x2050) && (phy->radio_rev == 8)) {
@@ -3208,13 +3208,13 @@ static void b43_bluetooth_coext_enable(struct b43_wldev *dev)
 	struct ssb_sprom *sprom = &dev->dev->bus->sprom;
 	u32 hf;
 
-	if (!(sprom->r1.boardflags_lo & B43_BFL_BTCOEXIST))
+	if (!(sprom->boardflags_lo & B43_BFL_BTCOEXIST))
 		return;
 	if (dev->phy.type != B43_PHYTYPE_B && !dev->phy.gmode)
 		return;
 
 	hf = b43_hf_read(dev);
-	if (sprom->r1.boardflags_lo & B43_BFL_BTCMOD)
+	if (sprom->boardflags_lo & B43_BFL_BTCMOD)
 		hf |= B43_HF_BTCOEXALT;
 	else
 		hf |= B43_HF_BTCOEX;
@@ -3345,7 +3345,7 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 		hf |= B43_HF_SYMW;
 		if (phy->rev == 1)
 			hf |= B43_HF_GDCW;
-		if (sprom->r1.boardflags_lo & B43_BFL_PACTRL)
+		if (sprom->boardflags_lo & B43_BFL_PACTRL)
 			hf |= B43_HF_OFDMPABOOST;
 	} else if (phy->type == B43_PHYTYPE_B) {
 		hf |= B43_HF_SYMW;
@@ -3862,20 +3862,20 @@ static void b43_sprom_fixup(struct ssb_bus *bus)
 	/* boardflags workarounds */
 	if (bus->boardinfo.vendor == SSB_BOARDVENDOR_DELL &&
 	    bus->chip_id == 0x4301 && bus->boardinfo.rev == 0x74)
-		bus->sprom.r1.boardflags_lo |= B43_BFL_BTCOEXIST;
+		bus->sprom.boardflags_lo |= B43_BFL_BTCOEXIST;
 	if (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
 	    bus->boardinfo.type == 0x4E && bus->boardinfo.rev > 0x40)
-		bus->sprom.r1.boardflags_lo |= B43_BFL_PACTRL;
+		bus->sprom.boardflags_lo |= B43_BFL_PACTRL;
 
 	/* Handle case when gain is not set in sprom */
-	if (bus->sprom.r1.antenna_gain_a == 0xFF)
-		bus->sprom.r1.antenna_gain_a = 2;
-	if (bus->sprom.r1.antenna_gain_bg == 0xFF)
-		bus->sprom.r1.antenna_gain_bg = 2;
+	if (bus->sprom.antenna_gain_a == 0xFF)
+		bus->sprom.antenna_gain_a = 2;
+	if (bus->sprom.antenna_gain_bg == 0xFF)
+		bus->sprom.antenna_gain_bg = 2;
 
 	/* Convert Antennagain values to Q5.2 */
-	bus->sprom.r1.antenna_gain_a <<= 2;
-	bus->sprom.r1.antenna_gain_bg <<= 2;
+	bus->sprom.antenna_gain_a <<= 2;
+	bus->sprom.antenna_gain_bg <<= 2;
 }
 
 static void b43_wireless_exit(struct ssb_device *dev, struct b43_wl *wl)
@@ -3908,10 +3908,10 @@ static int b43_wireless_init(struct ssb_device *dev)
 	hw->max_noise = -110;
 	hw->queues = 1;		/* FIXME: hardware has more queues */
 	SET_IEEE80211_DEV(hw, dev->dev);
-	if (is_valid_ether_addr(sprom->r1.et1mac))
-		SET_IEEE80211_PERM_ADDR(hw, sprom->r1.et1mac);
+	if (is_valid_ether_addr(sprom->et1mac))
+		SET_IEEE80211_PERM_ADDR(hw, sprom->et1mac);
 	else
-		SET_IEEE80211_PERM_ADDR(hw, sprom->r1.il0mac);
+		SET_IEEE80211_PERM_ADDR(hw, sprom->il0mac);
 
 	/* Get and initialize struct b43_wl */
 	wl = hw_to_b43_wl(hw);

@@ -527,7 +527,7 @@ static void b43_wa_boards_g(struct b43_wldev *dev)
 		} else {
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 1, 0x0002);
 			b43_ofdmtab_write16(dev, B43_OFDMTAB_GAINX, 2, 0x0001);
-			if ((bus->sprom.r1.boardflags_lo & B43_BFL_EXTLNA) &&
+			if ((bus->sprom.boardflags_lo & B43_BFL_EXTLNA) &&
 			    (phy->rev >= 7)) {
 				b43_phy_write(dev, B43_PHY_EXTG(0x11),
 					b43_phy_read(dev, B43_PHY_EXTG(0x11)) & 0xF7FF);
@@ -540,7 +540,7 @@ static void b43_wa_boards_g(struct b43_wldev *dev)
 			}
 		}
 	}
-	if (bus->sprom.r1.boardflags_lo & B43_BFL_FEM) {
+	if (bus->sprom.boardflags_lo & B43_BFL_FEM) {
 		b43_phy_write(dev, B43_PHY_GTABCTL, 0x3120);
 		b43_phy_write(dev, B43_PHY_GTABDATA, 0xC480);
 	}
