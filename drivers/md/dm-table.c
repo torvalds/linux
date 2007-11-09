@@ -1000,8 +1000,7 @@ void dm_table_unplug_all(struct dm_table *t)
 		struct dm_dev *dd = list_entry(d, struct dm_dev, list);
 		struct request_queue *q = bdev_get_queue(dd->bdev);
 
-		if (q->unplug_fn)
-			q->unplug_fn(q);
+		blk_unplug(q);
 	}
 }
 

@@ -310,7 +310,7 @@ static void copy_sg(struct scatterlist *dst, unsigned int dst_len,
 		}
 
 		if (src_size == 0) {
-			src_buf = sg_virt(dst);
+			src_buf = sg_virt(src);
 			src_size = src->length;
 		}
 
