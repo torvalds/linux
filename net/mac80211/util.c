@@ -22,6 +22,7 @@
 #include <linux/bitmap.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
+#include <net/rtnetlink.h>
 
 #include "ieee80211_i.h"
 #include "ieee80211_rate.h"
@@ -484,3 +485,35 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw)
 		ieee80211_wake_queue(hw, i);
 }
 EXPORT_SYMBOL(ieee80211_wake_queues);
+
+void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
+					 void (*iterator)(void *data, u8 *mac,
+							  int if_id),
+					 void *data)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_sub_if_data *sdata;
+
+	ASSERT_RTNL();
+
+	/* we hold the RTNL here so can safely walk the list */
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		switch (sdata->type) {
+		case IEEE80211_IF_TYPE_INVALID:
+		case IEEE80211_IF_TYPE_MNTR:
+		case IEEE80211_IF_TYPE_VLAN:
+			continue;
+		case IEEE80211_IF_TYPE_AP:
+		case IEEE80211_IF_TYPE_STA:
+		case IEEE80211_IF_TYPE_IBSS:
+		case IEEE80211_IF_TYPE_WDS:
+			break;
+		}
+		if (sdata->dev == local->mdev)
+			continue;
+		if (netif_running(sdata->dev))
+			iterator(data, sdata->dev->dev_addr,
+				 sdata->dev->ifindex);
+	}
+}
+EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);

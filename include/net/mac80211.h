@@ -1406,4 +1406,20 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw);
  */
 void ieee80211_scan_completed(struct ieee80211_hw *hw);
 
+/**
+ * ieee80211_iterate_active_interfaces - iterate active interfaces
+ *
+ * This function iterates over the interfaces associated with a given
+ * hardware that are currently active and calls the callback for them.
+ * Must be called under RTNL.
+ *
+ * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iterator: the iterator function to call
+ * @data: first argument of the iterator function
+ */
+void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
+					 void (*iterator)(void *data, u8 *mac,
+							  int if_id),
+					 void *data);
+
 #endif /* MAC80211_H */
