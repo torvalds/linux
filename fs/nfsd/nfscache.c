@@ -44,17 +44,17 @@ static int	nfsd_cache_append(struct svc_rqst *rqstp, struct kvec *vec);
  */
 static DEFINE_SPINLOCK(cache_lock);
 
-void
-nfsd_cache_init(void)
+int nfsd_reply_cache_init(void)
 {
 	struct svc_cacherep	*rp;
 	int			i;
 
 	INIT_LIST_HEAD(&lru_head);
 	i = CACHESIZE;
-	while(i) {
+	while (i) {
 		rp = kmalloc(sizeof(*rp), GFP_KERNEL);
-		if (!rp) break;
+		if (!rp)
+			goto out_nomem;
 		list_add(&rp->c_lru, &lru_head);
 		rp->c_state = RC_UNUSED;
 		rp->c_type = RC_NOCACHE;
@@ -62,23 +62,19 @@ nfsd_cache_init(void)
 		i--;
 	}
 
-	if (i)
-		printk (KERN_ERR "nfsd: cannot allocate all %d cache entries, only got %d\n",
-			CACHESIZE, CACHESIZE-i);
-
 	hash_list = kcalloc (HASHSIZE, sizeof(struct hlist_head), GFP_KERNEL);
-	if (!hash_list) {
-		nfsd_cache_shutdown();
-		printk (KERN_ERR "nfsd: cannot allocate %Zd bytes for hash list\n",
-			HASHSIZE * sizeof(struct hlist_head));
-		return;
-	}
+	if (!hash_list)
+		goto out_nomem;
 
 	cache_disabled = 0;
+	return 0;
+out_nomem:
+	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
+	nfsd_reply_cache_shutdown();
+	return -ENOMEM;
 }
 
-void
-nfsd_cache_shutdown(void)
+void nfsd_reply_cache_shutdown(void)
 {
 	struct svc_cacherep	*rp;
 
