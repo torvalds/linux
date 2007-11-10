@@ -29,6 +29,23 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #endif /* !__ASSEMBLY__ */
 
 /*
+ * Effective and physical address definitions, to aid with sign
+ * extension.
+ */
+#define NEFF		32
+#define	NEFF_SIGN	(1LL << (NEFF - 1))
+#define	NEFF_MASK	(-1LL << NEFF)
+
+#ifdef CONFIG_29BIT
+#define NPHYS		29
+#else
+#define NPHYS		32
+#endif
+
+#define	NPHYS_SIGN	(1LL << (NPHYS - 1))
+#define	NPHYS_MASK	(-1LL << NPHYS)
+
+/*
  * traditional two-level paging structure
  */
 /* PTE bits */
