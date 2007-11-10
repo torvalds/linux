@@ -18,6 +18,7 @@
 #include <asm/page.h>
 #include <asm/types.h>
 #include <asm/cache.h>
+#include <asm/ptrace.h>
 #include <asm/cpu/registers.h>
 
 /*
@@ -218,7 +219,7 @@ extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
  * FPU lazy state save handling.
  */
 
-static inline void release_fpu(void)
+static inline void disable_fpu(void)
 {
 	unsigned long long __dummy;
 
@@ -230,7 +231,7 @@ static inline void release_fpu(void)
 			     : "r" (SR_FD));
 }
 
-static inline void grab_fpu(void)
+static inline void enable_fpu(void)
 {
 	unsigned long long __dummy;
 
@@ -240,6 +241,16 @@ static inline void grab_fpu(void)
 			     "putcon	%0, " __SR "\n\t"
 			     : "=&r" (__dummy)
 			     : "r" (~SR_FD));
+}
+
+static inline void release_fpu(struct pt_regs *regs)
+{
+	regs->sr |= SR_FD;
+}
+
+static inline void grab_fpu(struct pt_regs *regs)
+{
+	regs->sr &= ~SR_FD;
 }
 
 /* Round to nearest, no exceptions on inexact, overflow, underflow,

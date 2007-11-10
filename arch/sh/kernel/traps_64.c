@@ -617,9 +617,9 @@ static int misaligned_fpu_load(struct pt_regs *regs,
 		   context switch the registers into memory so they can be
 		   indexed by register number. */
 		if (last_task_used_math == current) {
-			grab_fpu();
+			enable_fpu();
 			fpsave(&current->thread.fpu.hard);
-			release_fpu();
+			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;
 		}
@@ -690,9 +690,9 @@ static int misaligned_fpu_store(struct pt_regs *regs,
 		   context switch the registers into memory so they can be
 		   indexed by register number. */
 		if (last_task_used_math == current) {
-			grab_fpu();
+			enable_fpu();
 			fpsave(&current->thread.fpu.hard);
-			release_fpu();
+			disable_fpu();
 			last_task_used_math = NULL;
 			regs->sr |= SR_FD;
 		}
