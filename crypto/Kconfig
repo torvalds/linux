@@ -328,6 +328,7 @@ config CRYPTO_AES_586
 	tristate "AES cipher algorithms (i586)"
 	depends on (X86 || UML_X86) && !64BIT
 	select CRYPTO_ALGAPI
+	select CRYPTO_AES
 	help
 	  AES cipher algorithms (FIPS-197). AES uses the Rijndael 
 	  algorithm.
