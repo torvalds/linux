@@ -49,4 +49,10 @@ enum cpu_type {
 /* arch/sh/kernel/setup.c */
 const char *get_cpu_subtype(struct sh_cpuinfo *c);
 
+#ifdef CONFIG_VSYSCALL
+int vsyscall_init(void);
+#else
+#define vsyscall_init() do { } while (0)
+#endif
+
 #endif /* __ASM_SH_PROCESSOR_H */
