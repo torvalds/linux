@@ -12,6 +12,7 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
+ * 2007-11-06 Added SHA-224 and SHA-224-HMAC tests
  * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
  * 2004-08-09 Added cipher speed tests (Reyk Floeter <reyk@vantronix.net>)
  * 2003-09-14 Rewritten by Kartikey Mahendra Bhatt
@@ -74,8 +75,9 @@ static char *xbuf;
 static char *tvmem;
 
 static char *check[] = {
-	"des", "md5", "des3_ede", "rot13", "sha1", "sha256", "blowfish",
-	"twofish", "serpent", "sha384", "sha512", "md4", "aes", "cast6",
+	"des", "md5", "des3_ede", "rot13", "sha1", "sha224", "sha256",
+	"blowfish", "twofish", "serpent", "sha384", "sha512", "md4", "aes",
+	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
 	"camellia", "seed", NULL
@@ -918,6 +920,8 @@ static void do_test(void)
 
 		test_hash("md4", md4_tv_template, MD4_TEST_VECTORS);
 
+		test_hash("sha224", sha224_tv_template, SHA224_TEST_VECTORS);
+
 		test_hash("sha256", sha256_tv_template, SHA256_TEST_VECTORS);
 
 		//BLOWFISH
@@ -1067,6 +1071,8 @@ static void do_test(void)
 			  HMAC_MD5_TEST_VECTORS);
 		test_hash("hmac(sha1)", hmac_sha1_tv_template,
 			  HMAC_SHA1_TEST_VECTORS);
+		test_hash("hmac(sha224)", hmac_sha224_tv_template,
+			  HMAC_SHA224_TEST_VECTORS);
 		test_hash("hmac(sha256)", hmac_sha256_tv_template,
 			  HMAC_SHA256_TEST_VECTORS);
 		test_hash("hmac(sha384)", hmac_sha384_tv_template,
@@ -1299,6 +1305,9 @@ static void do_test(void)
 			    camellia_cbc_dec_tv_template,
 			    CAMELLIA_CBC_DEC_TEST_VECTORS);
 		break;
+	case 33:
+		test_hash("sha224", sha224_tv_template, SHA224_TEST_VECTORS);
+		break;
 
 	case 100:
 		test_hash("hmac(md5)", hmac_md5_tv_template,
@@ -1324,7 +1333,10 @@ static void do_test(void)
 		test_hash("hmac(sha512)", hmac_sha512_tv_template,
 			  HMAC_SHA512_TEST_VECTORS);
 		break;
-
+	case 105:
+		test_hash("hmac(sha224)", hmac_sha224_tv_template,
+			  HMAC_SHA224_TEST_VECTORS);
+		break;
 
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
@@ -1457,6 +1469,10 @@ static void do_test(void)
 
 	case 312:
 		test_hash_speed("tgr192", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 313:
+		test_hash_speed("sha224", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
 	case 399:

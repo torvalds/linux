@@ -91,13 +91,16 @@ config CRYPTO_SHA1
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
 config CRYPTO_SHA256
-	tristate "SHA256 digest algorithm"
+	tristate "SHA224 and SHA256 digest algorithm"
 	select CRYPTO_ALGAPI
 	help
 	  SHA256 secure hash standard (DFIPS 180-2).
 	  
 	  This version of SHA implements a 256 bit hash with 128 bits of
 	  security against collision attacks.
+
+          This code also includes SHA-224, a 224 bit hash with 112 bits
+          of security against collision attacks.
 
 config CRYPTO_SHA512
 	tristate "SHA384 and SHA512 digest algorithms"
