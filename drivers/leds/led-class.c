@@ -111,7 +111,7 @@ int led_classdev_register(struct device *parent, struct led_classdev *led_cdev)
 	write_unlock(&leds_list_lock);
 
 #ifdef CONFIG_LEDS_TRIGGERS
-	rwlock_init(&led_cdev->trigger_lock);
+	init_rwsem(&led_cdev->trigger_lock);
 
 	rc = device_create_file(led_cdev->dev, &dev_attr_trigger);
 	if (rc)
@@ -147,10 +147,10 @@ void led_classdev_unregister(struct led_classdev *led_cdev)
 	device_remove_file(led_cdev->dev, &dev_attr_brightness);
 #ifdef CONFIG_LEDS_TRIGGERS
 	device_remove_file(led_cdev->dev, &dev_attr_trigger);
-	write_lock(&led_cdev->trigger_lock);
+	down_write(&led_cdev->trigger_lock);
 	if (led_cdev->trigger)
 		led_trigger_set(led_cdev, NULL);
-	write_unlock(&led_cdev->trigger_lock);
+	up_write(&led_cdev->trigger_lock);
 #endif
 
 	device_unregister(led_cdev->dev);
