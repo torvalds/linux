@@ -28,7 +28,7 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-
+#include <asm/cacheflush.h>
 
 #define REG_RET 9
 #define REG_ARG1 2
@@ -227,10 +227,14 @@ setup_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
 #else
 static inline int
 restore_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
-{}
+{
+	return 0;
+}
 static inline int
 setup_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
-{}
+{
+	return 0;
+}
 #endif
 
 static int
