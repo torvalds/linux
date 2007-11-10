@@ -259,7 +259,6 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 		 * GPIO7: Unknown
 		 */
 		outl(0x76, emu->port + A_IOCFG); /* Windows uses 0x3f76 */
-
 	}
 	if (emu->card_capabilities->i2c_adc) { /* Audigy 2 ZS Notebook with ADC Wolfson WM8775 */
 		int size, n;
@@ -275,7 +274,6 @@ static int snd_emu10k1_init(struct snd_emu10k1 *emu, int enable_ir, int resume)
 			emu->i2c_capture_volume[n][0]= 0xcf;
 			emu->i2c_capture_volume[n][1]= 0xcf;
 		}
-
 	}
 
 	
@@ -653,6 +651,8 @@ static int snd_emu10k1_cardbus_init(struct snd_emu10k1 * emu)
 	value = inl(special_port);
 
 	snd_emu10k1_ptr20_write(emu, TINA2_VOLUME, 0, 0xfefefefe); /* Defaults to 0x30303030 */
+	/* Delay to give time for ADC chip to switch on. It needs 113ms */
+	msleep(200);
 	return 0;
 }
 
@@ -1717,6 +1717,8 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	emu->card = card;
 	spin_lock_init(&emu->reg_lock);
 	spin_lock_init(&emu->emu_lock);
+	spin_lock_init(&emu->spi_lock);
+	spin_lock_init(&emu->i2c_lock);
 	spin_lock_init(&emu->voice_lock);
 	spin_lock_init(&emu->synth_lock);
 	spin_lock_init(&emu->memblk_lock);

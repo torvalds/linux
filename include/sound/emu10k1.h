@@ -1742,6 +1742,8 @@ struct snd_emu10k1 {
 	spinlock_t reg_lock;
 	spinlock_t emu_lock;
 	spinlock_t voice_lock;
+	spinlock_t spi_lock; /* serialises access to spi port */
+	spinlock_t i2c_lock; /* serialises access to i2c port */
 
 	struct snd_emu10k1_voice voices[NUM_G];
 	struct snd_emu10k1_voice p16v_voices[4];

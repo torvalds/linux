@@ -70,6 +70,11 @@ void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned i
 	unsigned long flags;
 	unsigned int mask;
 
+	if (!emu) {
+		snd_printk(KERN_ERR "ptr_write: emu is null!\n");
+		dump_stack();
+		return;
+	}
 	mask = emu->audigy ? A_PTR_ADDRESS_MASK : PTR_ADDRESS_MASK;
 	regptr = ((reg << 16) & mask) | (chn & PTR_CHANNELNUM_MASK);
 
@@ -134,15 +139,23 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 	unsigned int reset, set;
 	unsigned int reg, tmp;
 	int n, result;
+	int err = 0;
+
+	/* This function is not re-entrant, so protect against it. */
+	spin_lock(&emu->spi_lock);
 	if (emu->card_capabilities->ca0108_chip)
 		reg = 0x3c; /* PTR20, reg 0x3c */
 	else {
 		/* For other chip types the SPI register
 		 * is currently unknown. */
-		return 1;
+		err = 1;
+		goto spi_write_exit;
 	}
-	if (data > 0xffff) /* Only 16bit values allowed */
-		return 1;
+	if (data > 0xffff) {
+		/* Only 16bit values allowed */
+		err = 1;
+		goto spi_write_exit;
+	}
 
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0);
 	reset = (tmp & ~0x3ffff) | 0x20000; /* Set xxx20000 */
@@ -160,11 +173,17 @@ int snd_emu10k1_spi_write(struct snd_emu10k1 * emu,
 			break;
 		}
 	}
-	if (result) /* Timed out */
-		return 1;
+	if (result) {
+		/* Timed out */
+		err = 1;
+		goto spi_write_exit;
+	}
 	snd_emu10k1_ptr20_write(emu, reg, 0, reset | data);
 	tmp = snd_emu10k1_ptr20_read(emu, reg, 0); /* Write post */
-	return 0;
+	err = 0;
+spi_write_exit:
+	spin_unlock(&emu->spi_lock);
+	return err;
 }
 
 /* The ADC does not support i2c read, so only write is implemented */
@@ -176,15 +195,17 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 	int timeout = 0;
 	int status;
 	int retry;
+	int err = 0;
+
 	if ((reg > 0x7f) || (value > 0x1ff)) {
 		snd_printk(KERN_ERR "i2c_write: invalid values.\n");
 		return -EINVAL;
 	}
 
+	/* This function is not re-entrant, so protect against it. */
+	spin_lock(&emu->i2c_lock);
+
 	tmp = reg << 25 | value << 16;
-	// snd_printk("I2C-write:reg=0x%x, value=0x%x\n", reg, value);
-	/* Not sure what this I2C channel controls. */
-	/* snd_emu10k1_ptr_write(emu, P17V_I2C_0, 0, tmp); */
 
 	/* This controls the I2C connected to the WM8775 ADC Codec */
 	snd_emu10k1_ptr20_write(emu, P17V_I2C_1, 0, tmp);
@@ -192,17 +213,14 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 
 	for (retry = 0; retry < 10; retry++) {
 		/* Send the data to i2c */
-		//tmp = snd_emu10k1_ptr_read(emu, P17V_I2C_ADDR, 0);
-		//tmp = tmp & ~(I2C_A_ADC_READ|I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD_MASK);
 		tmp = 0;
 		tmp = tmp | (I2C_A_ADC_LAST|I2C_A_ADC_START|I2C_A_ADC_ADD);
 		snd_emu10k1_ptr20_write(emu, P17V_I2C_ADDR, 0, tmp);
 
 		/* Wait till the transaction ends */
 		while (1) {
-			udelay(10);
+			mdelay(1);
 			status = snd_emu10k1_ptr20_read(emu, P17V_I2C_ADDR, 0);
-                	// snd_printk("I2C:status=0x%x\n", status);
 			timeout++;
 			if ((status & I2C_A_ADC_START) == 0)
 				break;
@@ -219,10 +237,14 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu,
 
 	if (retry == 10) {
 		snd_printk(KERN_ERR "Writing to ADC failed!\n");
-		return -EINVAL;
+		snd_printk(KERN_ERR "status=0x%x, reg=%d, value=%d\n",
+			status, reg, value);
+		/* dump_stack(); */
+		err = -EINVAL;
 	}
     
-    	return 0;
+	spin_unlock(&emu->i2c_lock);
+	return err;
 }
 
 int snd_emu1010_fpga_write(struct snd_emu10k1 * emu, u32 reg, u32 value)
