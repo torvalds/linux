@@ -14,7 +14,6 @@
 #include <asm/types.h>
 #include <asm/cache.h>
 #include <asm/ptrace.h>
-#include <asm/cpu-features.h>
 
 /*
  * Default implementation of macro that returns current

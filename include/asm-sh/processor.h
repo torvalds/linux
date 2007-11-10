@@ -1,6 +1,8 @@
 #ifndef __ASM_SH_PROCESSOR_H
 #define __ASM_SH_PROCESSOR_H
 
+#include <asm/cpu-features.h>
+
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  *

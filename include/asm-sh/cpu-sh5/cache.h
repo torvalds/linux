@@ -19,6 +19,10 @@
 #define SH_CACHE_VALID		(1LL<<0)
 #define SH_CACHE_UPDATED	(1LL<<57)
 
+/* Unimplemented compat bits.. */
+#define SH_CACHE_COMBINED	0
+#define SH_CACHE_ASSOC		0
+
 /* Cache flags */
 #define SH_CACHE_MODE_WT	(1LL<<0)
 #define SH_CACHE_MODE_WB	(1LL<<1)

@@ -66,12 +66,14 @@ struct sh_cpuinfo {
 	/* TLB info */
 	struct tlb_info itlb;
 	struct tlb_info dtlb;
+
+	unsigned long flags;
 };
 
-extern struct sh_cpuinfo boot_cpu_data;
-
-#define cpu_data (&boot_cpu_data)
-#define current_cpu_data boot_cpu_data
+extern struct sh_cpuinfo cpu_data[];
+#define boot_cpu_data cpu_data[0]
+#define current_cpu_data cpu_data[smp_processor_id()]
+#define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
 
 #endif
 
