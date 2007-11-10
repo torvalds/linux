@@ -71,7 +71,11 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 
 #define PTE_PHYS_MASK		(0x20000000 - PAGE_SIZE)
 
+#ifdef CONFIG_SUPERH32
 #define VMALLOC_START	(P3SEG)
+#else
+#define VMALLOC_START	(0xf0000000)
+#endif
 #define VMALLOC_END	(FIXADDR_START-2*PAGE_SIZE)
 
 /*
