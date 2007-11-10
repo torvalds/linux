@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/interrupt.h>
 #include <linux/crypto.h>
 
 #include <crypto/algapi.h>
@@ -425,6 +426,8 @@ struct hifn_device
 	unsigned long		prev_success;
 
 	u8			snum;
+
+	struct tasklet_struct	tasklet;
 
 	struct crypto_queue 	queue;
 	struct list_head	alg_list;
@@ -1879,7 +1882,7 @@ static irqreturn_t hifn_interrupt(int irq, void *data)
 		hifn_write_1(dev, HIFN_1_DMA_IER, dev->dmareg);
 	}
 
-	hifn_check_for_completion(dev, 0);
+	tasklet_schedule(&dev->tasklet);
 	hifn_clear_rings(dev);
 
 	return IRQ_HANDLED;
@@ -2408,6 +2411,19 @@ err_out_exit:
 	return err;
 }
 
+static void hifn_tasklet_callback(unsigned long data)
+{
+	struct hifn_device *dev = (struct hifn_device *)data;
+
+	/*
+	 * This is ok to call this without lock being held,
+	 * althogh it modifies some parameters used in parallel,
+	 * (like dev->success), but they are used in process
+	 * context or update is atomic (like setting dev->sa[i] to NULL).
+	 */
+	hifn_check_for_completion(dev, 0);
+}
+
 static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int err, i;
@@ -2489,6 +2505,8 @@ static int hifn_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, dev);
 
+	tasklet_init(&dev->tasklet, hifn_tasklet_callback, (unsigned long)dev);
+
 	crypto_init_queue(&dev->queue, 1);
 
 	err = request_irq(dev->irq, hifn_interrupt, IRQF_SHARED, dev->name, dev);
@@ -2524,6 +2542,7 @@ err_out_stop_device:
 	hifn_stop_device(dev);
 err_out_free_irq:
 	free_irq(dev->irq, dev->name);
+	tasklet_kill(&dev->tasklet);
 err_out_free_desc:
 	pci_free_consistent(pdev, sizeof(struct hifn_dma),
 			dev->desc_virt, dev->desc_dma);
@@ -2563,6 +2582,7 @@ static void hifn_remove(struct pci_dev *pdev)
 		hifn_stop_device(dev);
 
 		free_irq(dev->irq, dev->name);
+		tasklet_kill(&dev->tasklet);
 
 		hifn_flush(dev);
 
