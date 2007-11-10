@@ -1,7 +1,7 @@
 /*
  * Generic platform device PATA driver
  *
- * Copyright (C) 2006  Paul Mundt
+ * Copyright (C) 2006 - 2007  Paul Mundt
  *
  * Based on pata_pcmcia:
  *
@@ -22,7 +22,7 @@
 #include <linux/pata_platform.h>
 
 #define DRV_NAME "pata_platform"
-#define DRV_VERSION "1.1"
+#define DRV_VERSION "1.2"
 
 static int pio_mask = 1;
 
@@ -120,15 +120,20 @@ static void pata_platform_setup_port(struct ata_ioports *ioaddr,
  *	Register a platform bus IDE interface. Such interfaces are PIO and we
  *	assume do not support IRQ sharing.
  *
- *	Platform devices are expected to contain 3 resources per port:
+ *	Platform devices are expected to contain at least 2 resources per port:
  *
  *		- I/O Base (IORESOURCE_IO or IORESOURCE_MEM)
  *		- CTL Base (IORESOURCE_IO or IORESOURCE_MEM)
+ *
+ *	and optionally:
+ *
  *		- IRQ	   (IORESOURCE_IRQ)
  *
  *	If the base resources are both mem types, the ioremap() is handled
  *	here. For IORESOURCE_IO, it's assumed that there's no remapping
  *	necessary.
+ *
+ *	If no IRQ resource is present, PIO polling mode is used instead.
  */
 static int __devinit pata_platform_probe(struct platform_device *pdev)
 {
@@ -137,11 +142,12 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	struct ata_port *ap;
 	struct pata_platform_info *pp_info;
 	unsigned int mmio;
+	int irq;
 
 	/*
 	 * Simple resource validation ..
 	 */
-	if (unlikely(pdev->num_resources != 3)) {
+	if ((pdev->num_resources != 3) && (pdev->num_resources != 2)) {
 		dev_err(&pdev->dev, "invalid number of resources\n");
 		return -EINVAL;
 	}
@@ -173,6 +179,13 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 		(ctl_res->flags == IORESOURCE_MEM));
 
 	/*
+	 * And the IRQ
+	 */
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		irq = 0;	/* no irq */
+
+	/*
 	 * Now that that's out of the way, wire up the port..
 	 */
 	host = ata_host_alloc(&pdev->dev, 1);
@@ -183,6 +196,14 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 	ap->ops = &pata_platform_port_ops;
 	ap->pio_mask = pio_mask;
 	ap->flags |= ATA_FLAG_SLAVE_POSS;
+
+	/*
+	 * Use polling mode if there's no IRQ
+	 */
+	if (!irq) {
+		ap->flags |= ATA_FLAG_PIO_POLLING;
+		ata_port_desc(ap, "no IRQ, using PIO polling");
+	}
 
 	/*
 	 * Handle the MMIO case
@@ -213,9 +234,9 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 		      (unsigned long long)ctl_res->start);
 
 	/* activate */
-	return ata_host_activate(host, platform_get_irq(pdev, 0),
-				 ata_interrupt, pp_info ? pp_info->irq_flags
-				 : 0, &pata_platform_sht);
+	return ata_host_activate(host, irq, irq ? ata_interrupt : NULL,
+				 pp_info ? pp_info->irq_flags : 0,
+				 &pata_platform_sht);
 }
 
 /**

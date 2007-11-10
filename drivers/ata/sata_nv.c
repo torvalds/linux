@@ -1629,7 +1629,7 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 
 	/* SATA hardreset fails to retrieve proper device signature on
 	 * some controllers.  Don't classify on hardreset.  For more
-	 * info, see http://bugme.osdl.org/show_bug.cgi?id=3352
+	 * info, see http://bugzilla.kernel.org/show_bug.cgi?id=3352
 	 */
 	return sata_std_hardreset(link, &dummy, deadline);
 }
