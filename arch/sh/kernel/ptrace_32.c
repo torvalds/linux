@@ -6,7 +6,7 @@
  *	edited by Linus Torvalds
  *
  * SuperH version:   Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
- *
+ * Audit support: Yuichi Nakamura <ynakam@hitachisoft.jp>
  */
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -19,6 +19,7 @@
 #include <linux/security.h>
 #include <linux/signal.h>
 #include <linux/io.h>
+#include <linux/audit.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
@@ -248,15 +249,20 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-asmlinkage void do_syscall_trace(void)
+asmlinkage void do_syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	struct task_struct *tsk = current;
 
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(AUDITSC_RESULT(regs->regs[0]),
+				   regs->regs[0]);
+
 	if (!test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    !test_thread_flag(TIF_SINGLESTEP))
-		return;
+		goto out;
 	if (!(tsk->ptrace & PT_PTRACED))
-		return;
+		goto out;
+
 	/* the 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) &&
@@ -271,4 +277,11 @@ asmlinkage void do_syscall_trace(void)
 		send_sig(tsk->exit_code, tsk, 1);
 		tsk->exit_code = 0;
 	}
+
+out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(AUDIT_ARCH_SH, regs->regs[3],
+				    regs->regs[4], regs->regs[5],
+				    regs->regs[6], regs->regs[7]);
+
 }
