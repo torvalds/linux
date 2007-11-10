@@ -12,60 +12,9 @@
 #include <asm/types.h>
 #include <asm/ptrace.h>
 
-struct task_struct *__switch_to(struct task_struct *prev,
-				struct task_struct *next);
-
 #define AT_VECTOR_SIZE_ARCH 1 /* entries in ARCH_DLINFO */
-/*
- *	switch_to() should switch tasks to task nr n, first
- */
 
-#define switch_to(prev, next, last) do {				\
- struct task_struct *__last;						\
- register unsigned long *__ts1 __asm__ ("r1") = &prev->thread.sp;	\
- register unsigned long *__ts2 __asm__ ("r2") = &prev->thread.pc;	\
- register unsigned long *__ts4 __asm__ ("r4") = (unsigned long *)prev;	\
- register unsigned long *__ts5 __asm__ ("r5") = (unsigned long *)next;	\
- register unsigned long *__ts6 __asm__ ("r6") = &next->thread.sp;	\
- register unsigned long __ts7 __asm__ ("r7") = next->thread.pc;		\
- __asm__ __volatile__ (".balign 4\n\t" 					\
-		       "stc.l	gbr, @-r15\n\t" 			\
-		       "sts.l	pr, @-r15\n\t" 				\
-		       "mov.l	r8, @-r15\n\t" 				\
-		       "mov.l	r9, @-r15\n\t" 				\
-		       "mov.l	r10, @-r15\n\t" 			\
-		       "mov.l	r11, @-r15\n\t" 			\
-		       "mov.l	r12, @-r15\n\t" 			\
-		       "mov.l	r13, @-r15\n\t" 			\
-		       "mov.l	r14, @-r15\n\t" 			\
-		       "mov.l	r15, @r1	! save SP\n\t"		\
-		       "mov.l	@r6, r15	! change to new stack\n\t" \
-		       "mova	1f, %0\n\t" 				\
-		       "mov.l	%0, @r2		! save PC\n\t" 		\
-		       "mov.l	2f, %0\n\t" 				\
-		       "jmp	@%0		! call __switch_to\n\t" \
-		       " lds	r7, pr		!  with return to new PC\n\t" \
-		       ".balign	4\n"					\
-		       "2:\n\t"						\
-		       ".long	__switch_to\n"				\
-		       "1:\n\t"						\
-		       "mov.l	@r15+, r14\n\t"				\
-		       "mov.l	@r15+, r13\n\t"				\
-		       "mov.l	@r15+, r12\n\t"				\
-		       "mov.l	@r15+, r11\n\t"				\
-		       "mov.l	@r15+, r10\n\t"				\
-		       "mov.l	@r15+, r9\n\t"				\
-		       "mov.l	@r15+, r8\n\t"				\
-		       "lds.l	@r15+, pr\n\t"				\
-		       "ldc.l	@r15+, gbr\n\t"				\
-		       : "=z" (__last)					\
-		       : "r" (__ts1), "r" (__ts2), "r" (__ts4), 	\
-			 "r" (__ts5), "r" (__ts6), "r" (__ts7) 		\
-		       : "r3", "t");					\
-	last = __last;							\
-} while (0)
-
-#ifdef CONFIG_CPU_SH4A
+#if defined(CONFIG_CPU_SH4A) || defined(CONFIG_CPU_SH5)
 #define __icbi()			\
 {					\
 	unsigned long __addr;		\
@@ -91,7 +40,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
  * Historically we have only done this type of barrier for the MMUCR, but
  * it's also necessary for the CCR, so we make it generic here instead.
  */
-#ifdef CONFIG_CPU_SH4A
+#if defined(CONFIG_CPU_SH4A) || defined(CONFIG_CPU_SH5)
 #define mb()		__asm__ __volatile__ ("synco": : :"memory")
 #define rmb()		mb()
 #define wmb()		__asm__ __volatile__ ("synco": : :"memory")
@@ -118,42 +67,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif
 
 #define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
-
-/*
- * Jump to P2 area.
- * When handling TLB or caches, we need to do it from P2 area.
- */
-#define jump_to_P2()			\
-do {					\
-	unsigned long __dummy;		\
-	__asm__ __volatile__(		\
-		"mov.l	1f, %0\n\t"	\
-		"or	%1, %0\n\t"	\
-		"jmp	@%0\n\t"	\
-		" nop\n\t" 		\
-		".balign 4\n"		\
-		"1:	.long 2f\n"	\
-		"2:"			\
-		: "=&r" (__dummy)	\
-		: "r" (0x20000000));	\
-} while (0)
-
-/*
- * Back to P1 area.
- */
-#define back_to_P1()					\
-do {							\
-	unsigned long __dummy;				\
-	ctrl_barrier();					\
-	__asm__ __volatile__(				\
-		"mov.l	1f, %0\n\t"			\
-		"jmp	@%0\n\t"			\
-		" nop\n\t"				\
-		".balign 4\n"				\
-		"1:	.long 2f\n"			\
-		"2:"					\
-		: "=&r" (__dummy));			\
-} while (0)
 
 static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
 {
@@ -280,5 +193,11 @@ asmlinkage void bug_trap_handler(unsigned long r4, unsigned long r5,
 				 struct pt_regs __regs);
 
 #define arch_align_stack(x) (x)
+
+#ifdef CONFIG_SUPERH32
+# include "system_32.h"
+#else
+# include "system_64.h"
+#endif
 
 #endif
