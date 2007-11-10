@@ -63,23 +63,10 @@ static void __init speculative_execution_init(void)
 /*
  * Generic first-level cache init
  */
+#ifdef CONFIG_SUPERH32
 static void __init cache_init(void)
 {
 	unsigned long ccr, flags;
-
-	/* First setup the rest of the I-cache info */
-	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -
-				      current_cpu_data.icache.linesz;
-
-	current_cpu_data.icache.way_size = current_cpu_data.icache.sets *
-				    current_cpu_data.icache.linesz;
-
-	/* And the D-cache too */
-	current_cpu_data.dcache.entry_mask = current_cpu_data.dcache.way_incr -
-				      current_cpu_data.dcache.linesz;
-
-	current_cpu_data.dcache.way_size = current_cpu_data.dcache.sets *
-				    current_cpu_data.dcache.linesz;
 
 	jump_to_P2();
 	ccr = ctrl_inl(CCR);
@@ -160,6 +147,9 @@ static void __init cache_init(void)
 	ctrl_outl(flags, CCR);
 	back_to_P1();
 }
+#else
+#define cache_init()	do { } while (0)
+#endif
 
 #ifdef CONFIG_SH_DSP
 static void __init release_dsp(void)
@@ -229,6 +219,20 @@ asmlinkage void __cpuinit sh_cpu_init(void)
 
 	if (current_cpu_data.type == CPU_SH_NONE)
 		panic("Unknown CPU");
+
+	/* First setup the rest of the I-cache info */
+	current_cpu_data.icache.entry_mask = current_cpu_data.icache.way_incr -
+				      current_cpu_data.icache.linesz;
+
+	current_cpu_data.icache.way_size = current_cpu_data.icache.sets *
+				    current_cpu_data.icache.linesz;
+
+	/* And the D-cache too */
+	current_cpu_data.dcache.entry_mask = current_cpu_data.dcache.way_incr -
+				      current_cpu_data.dcache.linesz;
+
+	current_cpu_data.dcache.way_size = current_cpu_data.dcache.sets *
+				    current_cpu_data.dcache.linesz;
 
 	/* Init the cache */
 	cache_init();
