@@ -1,20 +1,14 @@
 /*
- * include/asm-sh64/tlb.h
+ * include/asm-sh/tlb_64.h
  *
  * Copyright (C) 2003  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- *
  */
-#ifndef __ASM_SH64_TLB_H
-#define __ASM_SH64_TLB_H
-
-/*
- * Note! These are mostly unused, we just need the xTLB_LAST_VAR_UNRESTRICTED
- * for head.S! Once this limitation is gone, we can clean the rest of this up.
- */
+#ifndef __ASM_SH_TLB_64_H
+#define __ASM_SH_TLB_64_H
 
 /* ITLB defines */
 #define ITLB_FIXED	0x00000000	/* First fixed ITLB, see head.S */
@@ -63,30 +57,13 @@ static inline void __flush_tlb_slot(unsigned long long slot)
 }
 
 /* arch/sh64/mm/tlb.c */
-extern int sh64_tlb_init(void);
-extern unsigned long long sh64_next_free_dtlb_entry(void);
-extern unsigned long long sh64_get_wired_dtlb_entry(void);
-extern int sh64_put_wired_dtlb_entry(unsigned long long entry);
-
-extern void sh64_setup_tlb_slot(unsigned long long config_addr, unsigned long eaddr, unsigned long asid, unsigned long paddr);
-extern void sh64_teardown_tlb_slot(unsigned long long config_addr);
-
-#define tlb_start_vma(tlb, vma) \
-	flush_cache_range(vma, vma->vm_start, vma->vm_end)
-
-#define tlb_end_vma(tlb, vma)	\
-	flush_tlb_range(vma, vma->vm_start, vma->vm_end)
-
-#define __tlb_remove_tlb_entry(tlb, pte, address)	do { } while (0)
-
-/*
- * Flush whole TLBs for MM
- */
-#define tlb_flush(tlb)		flush_tlb_mm((tlb)->mm)
-
-#include <asm-generic/tlb.h>
+int sh64_tlb_init(void);
+unsigned long long sh64_next_free_dtlb_entry(void);
+unsigned long long sh64_get_wired_dtlb_entry(void);
+int sh64_put_wired_dtlb_entry(unsigned long long entry);
+void sh64_setup_tlb_slot(unsigned long long config_addr, unsigned long eaddr,
+			 unsigned long asid, unsigned long paddr);
+void sh64_teardown_tlb_slot(unsigned long long config_addr);
 
 #endif /* __ASSEMBLY__ */
-
-#endif /* __ASM_SH64_TLB_H */
-
+#endif /* __ASM_SH_TLB_64_H */

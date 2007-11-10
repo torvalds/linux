@@ -19,14 +19,11 @@
  * lethal@linux-sh.org:          8th May 2004
  *    Add early SCIF console DTLB mapping.
  */
-
-
 #include <asm/page.h>
-#include <asm/mmu_context.h>
 #include <asm/cache.h>
 #include <asm/tlb.h>
-#include <asm/processor.h>
-#include <asm/registers.h>
+#include <asm/cpu/registers.h>
+#include <asm/cpu/mmu_context.h>
 #include <asm/thread_info.h>
 
 /*
@@ -368,5 +365,3 @@ hopeless:
 	 * (r32) _start_kernel address
 	 */
 	blink	tr7, ZERO
-
-

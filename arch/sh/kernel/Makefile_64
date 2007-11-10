@@ -1,4 +1,4 @@
-extra-y	:= head.o init_task.o vmlinux.lds
+extra-y	:= head_64.o init_task.o vmlinux.lds
 
 obj-y	:= debugtraps.o io.o io_generic.o irq.o machvec.o process_64.o \
 	   ptrace_64.o semaphore.o setup.o signal_64.o sys_sh64.o syscalls.o \
