@@ -1,5 +1,7 @@
 #include <asm/voyager.h>
-#define VOYAGER_BIOS_INFO ((struct voyager_bios_info *)(PARAM+0x40))
+#include <asm/setup_32.h>
+#define VOYAGER_BIOS_INFO ((struct voyager_bios_info *) \
+			(&boot_params.apm_bios_info))
 
 /* Hook to call BIOS initialisation function */
 
