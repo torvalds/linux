@@ -550,7 +550,7 @@ int stb0899_write_reg(struct stb0899_state *state, unsigned int reg, u8 data)
  */
 static u32 stb0899_get_mclk(struct stb0899_state *state)
 {
-	u32 mclk = 90000000, div = 0;
+	u32 mclk = 0, div = 0;
 
 	div = stb0899_read_reg(state, STB0899_NCOARSE);
 	mclk = (div + 1) * state->config->xtal_freq / 6;
