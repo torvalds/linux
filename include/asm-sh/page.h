@@ -157,8 +157,22 @@ typedef struct { unsigned long pgd; } pgd_t;
  * Slub defaults to 8-byte alignment, we're only interested in 4.
  * Slab defaults to BYTES_PER_WORD, which ends up being the same anyways.
  */
+#ifdef CONFIG_SUPERH32
 #define ARCH_KMALLOC_MINALIGN	4
 #define ARCH_SLAB_MINALIGN	4
+#else
+/* If gcc inlines memset, it will use st.q instructions.  Therefore, we need
+   kmalloc allocations to be 8-byte aligned.  Without this, the alignment
+   becomes BYTE_PER_WORD i.e. only 4 (since sizeof(long)==sizeof(void*)==4 on
+   sh64 at the moment). */
+#define ARCH_KMALLOC_MINALIGN	8
+
+/*
+ * We want 8-byte alignment for the slab caches as well, otherwise we have
+ * the same BYTES_PER_WORD (sizeof(void *)) min align in kmem_cache_create().
+ */
+#define ARCH_SLAB_MINALIGN	8
+#endif
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_PAGE_H */

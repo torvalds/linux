@@ -297,18 +297,6 @@ struct exception_table_entry
 
 #define ARCH_HAS_SEARCH_EXTABLE
 
-/* If gcc inlines memset, it will use st.q instructions.  Therefore, we need
-   kmalloc allocations to be 8-byte aligned.  Without this, the alignment
-   becomes BYTE_PER_WORD i.e. only 4 (since sizeof(long)==sizeof(void*)==4 on
-   sh64 at the moment). */
-#define ARCH_KMALLOC_MINALIGN 8
-
-/*
- * We want 8-byte alignment for the slab caches as well, otherwise we have
- * the same BYTES_PER_WORD (sizeof(void *)) min align in kmem_cache_create().
- */
-#define ARCH_SLAB_MINALIGN 8
-
 /* Returns 0 if exception not found and fixup.unit otherwise.  */
 extern unsigned long search_exception_table(unsigned long addr);
 extern const struct exception_table_entry *search_exception_tables (unsigned long addr);
