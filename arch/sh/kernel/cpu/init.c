@@ -21,8 +21,10 @@
 #include <asm/cacheflush.h>
 #include <asm/cache.h>
 #include <asm/io.h>
-#include <asm/ubc.h>
 #include <asm/smp.h>
+#ifdef CONFIG_SUPERH32
+#include <asm/ubc.h>
+#endif
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
@@ -273,7 +275,10 @@ asmlinkage void __cpuinit sh_cpu_init(void)
 	 * like PTRACE_SINGLESTEP or doing hardware watchpoints in GDB.  So ..
 	 * we wake it up and hope that all is well.
 	 */
+#ifdef CONFIG_SUPERH32
 	if (raw_smp_processor_id() == 0)
 		ubc_wakeup();
+#endif
+
 	speculative_execution_init();
 }
