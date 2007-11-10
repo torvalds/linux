@@ -54,18 +54,14 @@ struct tlb_info {
 struct sh_cpuinfo {
 	enum cpu_type type;
 	unsigned long loops_per_jiffy;
+	unsigned long asid_cache;
 
-	char	hard_math;
-
-	unsigned long *pgd_quick;
-	unsigned long *pmd_quick;
-	unsigned long *pte_quick;
-	unsigned long pgtable_cache_sz;
 	unsigned int cpu_clock, master_clock, bus_clock, module_clock;
 
 	/* Cache info */
 	struct cache_info icache;
 	struct cache_info dcache;
+	struct cache_info scache;
 
 	/* TLB info */
 	struct tlb_info itlb;
