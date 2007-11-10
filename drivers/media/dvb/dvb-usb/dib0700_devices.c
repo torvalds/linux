@@ -850,6 +850,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_PINNACLE,  USB_PID_PINNACLE_PCTV_DUAL_DIVERSITY_DVB_T) },
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
 /* 20 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_EXPRESS) },
+/* 21 */{ USB_DEVICE(USB_VID_GIGABYTE, USB_PID_GIGABYTE_U7000) },
 		{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -891,7 +892,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 7,
+		.num_device_descs = 8,
 		.devices = {
 			{   "DiBcom STK7700P reference design",
 				{ &dib0700_usb_id_table[0], &dib0700_usb_id_table[1] },
@@ -919,6 +920,11 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "AVerMedia AVerTV DVB-T Express",
 				{ &dib0700_usb_id_table[20] },
+				{ NULL },
+			},
+			/* dom : pour Gigabyte U7000 */
+			{   "Gigabyte U7000",
+				{ &dib0700_usb_id_table[21], NULL },
 				{ NULL },
 			}
 		},
@@ -990,7 +996,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "DiBcom STK7700D reference design",
 				{ &dib0700_usb_id_table[14], NULL },
 				{ NULL },
-			},
+			}
 		},
 
 		.rc_interval      = DEFAULT_RC_INTERVAL,
@@ -1053,7 +1059,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			{   "Pinnacle PCTV Dual DVB-T Diversity Stick",
 				{ &dib0700_usb_id_table[18], NULL },
 				{ NULL },
-			},
+			}
 		}
 	},
 };
