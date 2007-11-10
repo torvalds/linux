@@ -571,7 +571,9 @@ static void em28xx_vm_close(struct vm_area_struct *vma)
 {
 	/* NOTE: buffers are not freed here */
 	struct em28xx_frame_t *f = vma->vm_private_data;
-	f->vma_use_count--;
+
+	if (f->vma_use_count)
+		f->vma_use_count--;
 }
 
 static struct vm_operations_struct em28xx_vm_ops = {
