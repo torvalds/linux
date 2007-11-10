@@ -196,6 +196,14 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct interface *intf = &rt2x00dev->interface;
 
+	/* FIXME: Beaconing is broken in rt2x00. */
+	if (conf->type == IEEE80211_IF_TYPE_IBSS ||
+	    conf->type == IEEE80211_IF_TYPE_AP) {
+		ERROR(rt2x00dev,
+		      "rt2x00 does not support Adhoc or Master mode");
+		return -EOPNOTSUPP;
+	}
+
 	/*
 	 * Don't allow interfaces to be added while
 	 * either the device has disappeared or when

@@ -182,11 +182,13 @@ static int if_sdio_handle_data(struct if_sdio_card *card,
 		goto out;
 	}
 
-	skb = dev_alloc_skb(MRVDRV_ETH_RX_PACKET_BUFFER_SIZE);
+	skb = dev_alloc_skb(MRVDRV_ETH_RX_PACKET_BUFFER_SIZE + NET_IP_ALIGN);
 	if (!skb) {
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	skb_reserve(skb, NET_IP_ALIGN);
 
 	data = skb_put(skb, size);
 

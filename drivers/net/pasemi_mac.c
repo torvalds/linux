@@ -580,6 +580,16 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 
 		len = (macrx & XCT_MACRX_LLEN_M) >> XCT_MACRX_LLEN_S;
 
+		pci_unmap_single(mac->dma_pdev, dma, len, PCI_DMA_FROMDEVICE);
+
+		if (macrx & XCT_MACRX_CRC) {
+			/* CRC error flagged */
+			mac->netdev->stats.rx_errors++;
+			mac->netdev->stats.rx_crc_errors++;
+			dev_kfree_skb_irq(skb);
+			goto next;
+		}
+
 		if (len < 256) {
 			struct sk_buff *new_skb;
 
@@ -595,11 +605,10 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		} else
 			info->skb = NULL;
 
-		pci_unmap_single(mac->dma_pdev, dma, len, PCI_DMA_FROMDEVICE);
-
 		info->dma = 0;
 
-		skb_put(skb, len);
+		/* Don't include CRC */
+		skb_put(skb, len-4);
 
 		if (likely((macrx & XCT_MACRX_HTY_M) == XCT_MACRX_HTY_IPV4_OK)) {
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -614,6 +623,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 		skb->protocol = eth_type_trans(skb, mac->netdev);
 		netif_receive_skb(skb);
 
+next:
 		RX_RING(mac, n) = 0;
 		RX_RING(mac, n+1) = 0;
 
@@ -1126,7 +1136,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	unsigned long flags;
 	int i, nfrags;
 
-	dflags = XCT_MACTX_O | XCT_MACTX_ST | XCT_MACTX_SS | XCT_MACTX_CRC_PAD;
+	dflags = XCT_MACTX_O | XCT_MACTX_ST | XCT_MACTX_CRC_PAD;
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		const unsigned char *nh = skb_network_header(skb);

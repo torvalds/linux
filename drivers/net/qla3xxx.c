@@ -1456,16 +1456,11 @@ static void ql_phy_start_neg_ex(struct ql3_adapter *qdev)
 			   PHYAddr[qdev->mac_index]);
 	reg &= ~PHY_GIG_ALL_PARAMS;
 
-	if(portConfiguration &
-	   PORT_CONFIG_FULL_DUPLEX_ENABLED &
-	   PORT_CONFIG_1000MB_SPEED) {
-		reg |= PHY_GIG_ADV_1000F;
-	}
-
-	if(portConfiguration &
-	   PORT_CONFIG_HALF_DUPLEX_ENABLED &
-	   PORT_CONFIG_1000MB_SPEED) {
-		reg |= PHY_GIG_ADV_1000H;
+	if(portConfiguration & PORT_CONFIG_1000MB_SPEED) {
+		if(portConfiguration & PORT_CONFIG_FULL_DUPLEX_ENABLED) 
+			reg |= PHY_GIG_ADV_1000F;
+		else 
+			reg |= PHY_GIG_ADV_1000H;
 	}
 
 	ql_mii_write_reg_ex(qdev, PHY_GIG_CONTROL, reg,
@@ -1645,8 +1640,11 @@ static int ql_finish_auto_neg(struct ql3_adapter *qdev)
 	return 0;
 }
 
-static void ql_link_state_machine(struct ql3_adapter *qdev)
+static void ql_link_state_machine_work(struct work_struct *work)
 {
+	struct ql3_adapter *qdev =
+		container_of(work, struct ql3_adapter, link_state_work.work);
+
 	u32 curr_link_state;
 	unsigned long hw_flags;
 
@@ -1661,6 +1659,10 @@ static void ql_link_state_machine(struct ql3_adapter *qdev)
 			       "state.\n", qdev->ndev->name);
 
 		spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
+
+		/* Restart timer on 2 second interval. */
+		mod_timer(&qdev->adapter_timer, jiffies + HZ * 1);\
+
 		return;
 	}
 
@@ -1705,6 +1707,9 @@ static void ql_link_state_machine(struct ql3_adapter *qdev)
 		break;
 	}
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
+
+	/* Restart timer on 2 second interval. */
+	mod_timer(&qdev->adapter_timer, jiffies + HZ * 1);
 }
 
 /*
@@ -3941,19 +3946,7 @@ static void ql_get_board_info(struct ql3_adapter *qdev)
 static void ql3xxx_timer(unsigned long ptr)
 {
 	struct ql3_adapter *qdev = (struct ql3_adapter *)ptr;
-
-	if (test_bit(QL_RESET_ACTIVE,&qdev->flags)) {
-		printk(KERN_DEBUG PFX
-		       "%s: Reset in progress.\n",
-		       qdev->ndev->name);
-		goto end;
-	}
-
-	ql_link_state_machine(qdev);
-
-	/* Restart timer on 2 second interval. */
-end:
-	mod_timer(&qdev->adapter_timer, jiffies + HZ * 1);
+	queue_delayed_work(qdev->workqueue, &qdev->link_state_work, 0);
 }
 
 static int __devinit ql3xxx_probe(struct pci_dev *pdev,
@@ -4103,6 +4096,7 @@ static int __devinit ql3xxx_probe(struct pci_dev *pdev,
 	qdev->workqueue = create_singlethread_workqueue(ndev->name);
 	INIT_DELAYED_WORK(&qdev->reset_work, ql_reset_work);
 	INIT_DELAYED_WORK(&qdev->tx_timeout_work, ql_tx_timeout_work);
+	INIT_DELAYED_WORK(&qdev->link_state_work, ql_link_state_machine_work);
 
 	init_timer(&qdev->adapter_timer);
 	qdev->adapter_timer.function = ql3xxx_timer;
