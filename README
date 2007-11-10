@@ -194,6 +194,8 @@ CONFIGURING the kernel:
    "make *config" checks for a file named "all{yes/mod/no/random}.config"
    for symbol values that are to be forced.  If this file is not found,
    it checks for a file named "all.config" to contain forced values.
+   Finally it checks the environment variable K64BIT and if found, sets
+   the config symbol "64BIT" to the value of the K64BIT variable.
    
 	NOTES on "make config":
 	- having unnecessary drivers will make the kernel bigger, and can
