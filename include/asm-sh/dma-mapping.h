@@ -10,7 +10,7 @@ extern struct bus_type pci_bus_type;
 
 /* arch/sh/mm/consistent.c */
 extern void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *handle);
-extern void consistent_free(void *vaddr, size_t size);
+extern void consistent_free(void *vaddr, size_t size, dma_addr_t handle);
 extern void consistent_sync(void *vaddr, size_t size, int direction);
 
 #define dma_supported(dev, mask)	(1)
@@ -50,7 +50,7 @@ static inline void dma_free_coherent(struct device *dev, size_t size,
 			return;
 	}
 
-	consistent_free(vaddr, size);
+	consistent_free(vaddr, size, dma_handle);
 }
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
