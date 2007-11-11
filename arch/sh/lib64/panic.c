@@ -8,7 +8,7 @@
 
 #include <linux/kernel.h>
 #include <asm/io.h>
-#include <asm/registers.h>
+#include <asm/cpu/registers.h>
 
 /* THIS IS A PHYSICAL ADDRESS */
 #define HDSP2534_ADDR (0x04002100)
