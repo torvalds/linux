@@ -8,7 +8,6 @@
  * Copyright (C) 2000, 2001  Paolo Alberelli
  *
  */
-
 #include <linux/rwsem.h>
 #include <linux/module.h>
 #include <linux/smp.h>
@@ -18,7 +17,6 @@
 #include <linux/in6.h>
 #include <linux/interrupt.h>
 #include <linux/screen_info.h>
-
 #include <asm/semaphore.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -47,12 +45,8 @@ EXPORT_SYMBOL(__put_user_asm_l);
 EXPORT_SYMBOL(__get_user_asm_l);
 EXPORT_SYMBOL(__copy_user);
 EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(udelay);
 EXPORT_SYMBOL(__udelay);
-EXPORT_SYMBOL(ndelay);
 EXPORT_SYMBOL(__ndelay);
-EXPORT_SYMBOL(flush_dcache_page);
-EXPORT_SYMBOL(sh64_page_clear);
 
 /* Ugh.  These come in from libgcc.a at link time. */
 #define DECLARE_EXPORT(name) extern void name(void);EXPORT_SYMBOL(name)
