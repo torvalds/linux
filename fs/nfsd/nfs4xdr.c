@@ -148,12 +148,12 @@ xdr_error:					\
 	}					\
 } while (0)
 
-static __be32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
+static __be32 *read_buf(struct nfsd4_compoundargs *argp, u32 nbytes)
 {
 	/* We want more bytes than seem to be available.
 	 * Maybe we need a new page, maybe we have just run out
 	 */
-	int avail = (char*)argp->end - (char*)argp->p;
+	unsigned int avail = (char *)argp->end - (char *)argp->p;
 	__be32 *p;
 	if (avail + argp->pagelen < nbytes)
 		return NULL;
@@ -169,6 +169,11 @@ static __be32 *read_buf(struct nfsd4_compoundargs *argp, int nbytes)
 			return NULL;
 		
 	}
+	/*
+	 * The following memcpy is safe because read_buf is always
+	 * called with nbytes > avail, and the two cases above both
+	 * guarantee p points to at least nbytes bytes.
+	 */
 	memcpy(p, argp->p, avail);
 	/* step to next page */
 	argp->p = page_address(argp->pagelist[0]);
