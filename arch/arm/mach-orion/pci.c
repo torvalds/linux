@@ -154,7 +154,7 @@ static int orion_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 			PCIE_CONF_REG(where) | PCIE_CONF_ADDR_EN);
 
 	orion_pcie_id(&dev, &rev);
-	if (dev == MV88F5182_DEV_ID) {
+	if (dev == MV88F5181_DEV_ID || dev == MV88F5182_DEV_ID) {
 		/* extended register space */
 		pcie_addr = ORION_PCIE_WA_BASE;
 		pcie_addr |= PCIE_CONF_BUS(bus->number) |

@@ -237,6 +237,12 @@ static void orion_id(u32 *dev, u32 *rev, char **dev_name)
 		} else {
 			*dev_name = "MV88F5182-Rev-Unsupported";
 		}
+	} else if (*dev == MV88F5181_DEV_ID) {
+		if (*rev == MV88F5181_REV_B1) {
+			*dev_name = "MV88F5181-Rev-B1";
+		} else {
+			*dev_name = "MV88F5181-Rev-Unsupported";
+		}
 	} else {
 		*dev_name = "Device-Unknown";
 	}

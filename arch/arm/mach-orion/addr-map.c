@@ -167,7 +167,9 @@ static int __init orion_cpu_win_can_remap(u32 win)
 	u32 dev, rev;
 
 	orion_pcie_id(&dev, &rev);
-	if ((dev == MV88F5281_DEV_ID && win < 4) || (dev == MV88F5182_DEV_ID && win < 2))
+	if ((dev == MV88F5281_DEV_ID && win < 4)
+	    || (dev == MV88F5182_DEV_ID && win < 2)
+	    || (dev == MV88F5181_DEV_ID && win < 2))
 		return 1;
 
 	return 0;
