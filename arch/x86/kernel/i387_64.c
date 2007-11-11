@@ -92,13 +92,14 @@ int save_i387(struct _fpstate __user *buf)
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {
 		err = save_i387_checking((struct i387_fxsave_struct __user *)buf);
 		if (err) return err;
+		task_thread_info(tsk)->status &= ~TS_USEDFPU;
 		stts();
-		} else {
-		if (__copy_to_user(buf, &tsk->thread.i387.fxsave, 
+	} else {
+		if (__copy_to_user(buf, &tsk->thread.i387.fxsave,
 				   sizeof(struct i387_fxsave_struct)))
 			return -1;
-	} 
-		return 1;
+	}
+	return 1;
 }
 
 /*

@@ -203,6 +203,11 @@ static inline void save_init_fpu(struct task_struct *tsk)
  */
 static inline int restore_i387(struct _fpstate __user *buf)
 {
+	set_used_math();
+	if (!(task_thread_info(current)->status & TS_USEDFPU)) {
+		clts();
+		task_thread_info(current)->status |= TS_USEDFPU;
+	}
 	return restore_fpu_checking((__force struct i387_fxsave_struct *)buf);
 }
 
