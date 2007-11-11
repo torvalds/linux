@@ -95,7 +95,9 @@ endif
 KBUILD_CFLAGS		+= -pipe $(cflags-y)
 KBUILD_AFLAGS		+= $(cflags-y)
 
-head-y := arch/sh/kernel/head.o arch/sh/kernel/init_task.o
+head-y			:= arch/sh/kernel/init_task.o
+head-$(CONFIG_SUPERH32)	+= arch/sh/kernel/head_32.o
+head-$(CONFIG_SUPERH64)	+= arch/sh/kernel/head_64.o
 
 LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
