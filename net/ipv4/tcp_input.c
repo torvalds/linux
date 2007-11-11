@@ -1400,7 +1400,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			/* DSACK info lost if out-of-mem, try SACK still */
 			if (in_sack <= 0)
 				in_sack = tcp_match_skb_to_sack(sk, skb, start_seq, end_seq);
-			if (in_sack < 0)
+			if (unlikely(in_sack < 0))
 				break;
 
 			sacked = TCP_SKB_CB(skb)->sacked;
