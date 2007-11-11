@@ -1675,16 +1675,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->em28xx_read_reg_req = em28xx_read_reg_req;
 	dev->is_em2800 = em28xx_boards[dev->model].is_em2800;
 
-	/* setup video picture settings for saa7113h */
-	memset(&dev->vpic, 0, sizeof(dev->vpic));
-	dev->vpic.colour = 128 << 8;
-	dev->vpic.hue = 128 << 8;
-	dev->vpic.brightness = 128 << 8;
-	dev->vpic.contrast = 192 << 8;
-	dev->vpic.whiteness = 128 << 8;	/* This one isn't used */
-	dev->vpic.depth = 16;
-	dev->vpic.palette = VIDEO_PALETTE_YUV422;
-
 	em28xx_pre_card_setup(dev);
 
 	errCode = em28xx_config(dev);

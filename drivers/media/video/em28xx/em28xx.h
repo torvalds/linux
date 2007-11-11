@@ -25,7 +25,7 @@
 #ifndef _EM28XX_H
 #define _EM28XX_H
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
@@ -239,7 +239,6 @@ struct em28xx {
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	struct video_device *vdev;	/* video for linux device struct */
-	struct video_picture vpic;	/* picture settings only used to init saa7113h */
 	struct em28xx_tvnorm *tvnorm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
