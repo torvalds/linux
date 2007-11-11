@@ -47,7 +47,7 @@
 
 #define DRIVER_NAME         "em28xx"
 #define DRIVER_DESC         "Empia em28xx based USB video device driver"
-#define EM28XX_VERSION_CODE  KERNEL_VERSION(0, 0, 1)
+#define EM28XX_VERSION_CODE  KERNEL_VERSION(0, 1, 0)
 
 #define em28xx_videodbg(fmt, arg...) do {\
 	if (video_debug) \
@@ -202,8 +202,6 @@ static void video_mux(struct em28xx *dev, int index)
 
 	em28xx_i2c_call_clients(dev, VIDIOC_INT_S_VIDEO_ROUTING, &route);
 
-	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,route.input,dev->ctl_ainput);
-
 	if (dev->has_msp34xx) {
 		if (dev->i2s_speed)
 			em28xx_i2c_call_clients(dev, VIDIOC_INT_I2S_CLOCK_FREQ, &dev->i2s_speed);
@@ -261,6 +259,944 @@ static void res_free(struct em28xx_fh *fh)
 	fh->stream_on = 0;
 	dev->stream_on = 0;
 	mutex_unlock(&dev->lock);
+}
+
+/*
+ * em28xx_vm_open()
+ */
+static void em28xx_vm_open(struct vm_area_struct *vma)
+{
+	struct em28xx_frame_t *f = vma->vm_private_data;
+	f->vma_use_count++;
+}
+
+/*
+ * em28xx_vm_close()
+ */
+static void em28xx_vm_close(struct vm_area_struct *vma)
+{
+	/* NOTE: buffers are not freed here */
+	struct em28xx_frame_t *f = vma->vm_private_data;
+
+	if (f->vma_use_count)
+		f->vma_use_count--;
+}
+
+static struct vm_operations_struct em28xx_vm_ops = {
+	.open = em28xx_vm_open,
+	.close = em28xx_vm_close,
+};
+
+
+/*
+ * em28xx_get_ctrl()
+ * return the current saturation, brightness or contrast, mute state
+ */
+static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		ctrl->value = dev->mute;
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		ctrl->value = dev->volume;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+/*
+ * em28xx_set_ctrl()
+ * mute or set new saturation, brightness or contrast
+ */
+static int em28xx_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
+{
+	switch (ctrl->id) {
+	case V4L2_CID_AUDIO_MUTE:
+		if (ctrl->value != dev->mute) {
+			dev->mute = ctrl->value;
+			em28xx_audio_usb_mute(dev, ctrl->value);
+			return em28xx_audio_analog_set(dev);
+		}
+		return 0;
+	case V4L2_CID_AUDIO_VOLUME:
+		dev->volume = ctrl->value;
+		return em28xx_audio_analog_set(dev);
+	default:
+		return -EINVAL;
+	}
+}
+
+/*
+ * em28xx_stream_interrupt()
+ * stops streaming
+ */
+static int em28xx_stream_interrupt(struct em28xx *dev)
+{
+	int rc = 0;
+
+	/* stop reading from the device */
+
+	dev->stream = STREAM_INTERRUPT;
+	rc = wait_event_timeout(dev->wait_stream,
+				(dev->stream == STREAM_OFF) ||
+				(dev->state & DEV_DISCONNECTED),
+				EM28XX_URB_TIMEOUT);
+
+	if (rc) {
+		dev->state |= DEV_MISCONFIGURED;
+		em28xx_videodbg("device is misconfigured; close and "
+			"open /dev/video%d again\n",
+				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN);
+		return rc;
+	}
+
+	return 0;
+}
+
+
+static int check_dev(struct em28xx *dev)
+{
+	if (dev->state & DEV_DISCONNECTED) {
+		em28xx_errdev("v4l2 ioctl: device not present\n");
+		return -ENODEV;
+	}
+
+	if (dev->state & DEV_MISCONFIGURED) {
+		em28xx_errdev("v4l2 ioctl: device is misconfigured; "
+			      "close and open it again\n");
+		return -EIO;
+	}
+	return 0;
+}
+
+static void get_scale(struct em28xx *dev,
+			unsigned int width, unsigned int height,
+			unsigned int *hscale, unsigned int *vscale)
+{
+	unsigned int          maxw   = norm_maxw(dev);
+	unsigned int          maxh   = norm_maxh(dev);
+
+	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
+	if (*hscale >= 0x4000)
+		*hscale = 0x3fff;
+
+	*vscale = (((unsigned long)maxh) << 12) / height - 4096L;
+	if (*vscale >= 0x4000)
+		*vscale = 0x3fff;
+}
+
+/* ------------------------------------------------------------------
+	IOCTL vidioc handling
+   ------------------------------------------------------------------*/
+
+static int vidioc_g_fmt_cap(struct file *file, void *priv,
+					struct v4l2_format *f)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	mutex_lock(&dev->lock);
+
+	f->fmt.pix.width = dev->width;
+	f->fmt.pix.height = dev->height;
+	f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	f->fmt.pix.bytesperline = dev->bytesperline;
+	f->fmt.pix.sizeimage = dev->frame_size;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
+	f->fmt.pix.field = dev->interlaced ?
+			   V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_try_fmt_cap(struct file *file, void *priv,
+			struct v4l2_format *f)
+{
+	struct em28xx_fh      *fh    = priv;
+	struct em28xx         *dev   = fh->dev;
+	int                   width  = f->fmt.pix.width;
+	int                   height = f->fmt.pix.height;
+	unsigned int          maxw   = norm_maxw(dev);
+	unsigned int          maxh   = norm_maxh(dev);
+	unsigned int          hscale, vscale;
+
+	/* width must even because of the YUYV format
+	   height must be even because of interlacing */
+	height &= 0xfffe;
+	width &= 0xfffe;
+
+	if (height < 32)
+		height = 32;
+	if (height > maxh)
+		height = maxh;
+	if (width < 48)
+		width = 48;
+	if (width > maxw)
+		width = maxw;
+
+	mutex_lock(&dev->lock);
+
+	if (dev->is_em2800) {
+		/* the em2800 can only scale down to 50% */
+		if (height % (maxh / 2))
+			height = maxh;
+		if (width % (maxw / 2))
+			width = maxw;
+		/* according to empiatech support */
+		/* the MaxPacketSize is to small to support */
+		/* framesizes larger than 640x480 @ 30 fps */
+		/* or 640x576 @ 25 fps. As this would cut */
+		/* of a part of the image we prefer */
+		/* 360x576 or 360x480 for now */
+		if (width == maxw && height == maxh)
+			width /= 2;
+	}
+
+	get_scale(dev, width, height, &hscale, &vscale);
+
+	width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
+	height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
+
+	f->fmt.pix.width = width;
+	f->fmt.pix.height = height;
+	f->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
+	f->fmt.pix.bytesperline = width * 2;
+	f->fmt.pix.sizeimage = width * 2 * height;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+	f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_s_fmt_cap(struct file *file, void *priv,
+			struct v4l2_format *f)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc, i;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	vidioc_try_fmt_cap(file, priv, f);
+
+	mutex_lock(&dev->lock);
+
+	for (i = 0; i < dev->num_frames; i++)
+		if (dev->frame[i].vma_use_count) {
+			em28xx_videodbg("VIDIOC_S_FMT failed. "
+					"Unmap the buffers first.\n");
+			rc = -EINVAL;
+			goto err;
+		}
+
+	/* stop io in case it is already in progress */
+	if (dev->stream == STREAM_ON) {
+		em28xx_videodbg("VIDIOC_SET_FMT: interrupting stream\n");
+		rc = em28xx_stream_interrupt(dev);
+		if (rc < 0)
+			goto err;
+	}
+
+	em28xx_release_buffers(dev);
+	dev->io = IO_NONE;
+
+	/* set new image size */
+	dev->width = f->fmt.pix.width;
+	dev->height = f->fmt.pix.height;
+	dev->frame_size = dev->width * dev->height * 2;
+	dev->field_size = dev->frame_size >> 1;
+	dev->bytesperline = dev->width * 2;
+	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+
+	/* FIXME: This is really weird! Why capture is starting with
+	   this ioctl ???
+	 */
+	em28xx_uninit_isoc(dev);
+	em28xx_set_alternate(dev);
+	em28xx_capture_start(dev, 1);
+	em28xx_resolution_set(dev);
+	em28xx_init_isoc(dev);
+	rc = 0;
+
+err:
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	struct v4l2_format f;
+	unsigned int       i;
+	int                rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	for (i = 0; i < TVNORMS; i++)
+		if (*norm == tvnorms[i].id)
+			break;
+	if (i == TVNORMS)
+		for (i = 0; i < TVNORMS; i++)
+			if (*norm & tvnorms[i].id)
+				break;
+	if (i == TVNORMS)
+		return -EINVAL;
+
+	*norm = tvnorms[i].id;
+
+	mutex_lock(&dev->lock);
+	dev->tvnorm = &tvnorms[i];
+	mutex_unlock(&dev->lock);
+
+	/* Adjusts width/height, if needed */
+	f.fmt.pix.width = dev->width;
+	f.fmt.pix.height = dev->height;
+	vidioc_try_fmt_cap(file, priv, &f);
+
+	mutex_lock(&dev->lock);
+
+	/* set new image size */
+	dev->width = f.fmt.pix.width;
+	dev->height = f.fmt.pix.height;
+	dev->frame_size = dev->width * dev->height * 2;
+	dev->field_size = dev->frame_size >> 1;
+	dev->bytesperline = dev->width * 2;
+	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+
+	em28xx_resolution_set(dev);
+	em28xx_i2c_call_clients(dev, VIDIOC_S_STD, &dev->tvnorm->id);
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static const char *iname[] = {
+	[EM28XX_VMUX_COMPOSITE1] = "Composite1",
+	[EM28XX_VMUX_COMPOSITE2] = "Composite2",
+	[EM28XX_VMUX_COMPOSITE3] = "Composite3",
+	[EM28XX_VMUX_COMPOSITE4] = "Composite4",
+	[EM28XX_VMUX_SVIDEO]     = "S-Video",
+	[EM28XX_VMUX_TELEVISION] = "Television",
+	[EM28XX_VMUX_CABLE]      = "Cable TV",
+	[EM28XX_VMUX_DVB]        = "DVB",
+	[EM28XX_VMUX_DEBUG]      = "for debug only",
+};
+
+static int vidioc_enum_input(struct file *file, void *priv,
+				struct v4l2_input *i)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	unsigned int       n;
+
+	n = i->index;
+	if (n >= MAX_EM28XX_INPUT)
+		return -EINVAL;
+	if (0 == INPUT(n)->type)
+		return -EINVAL;
+
+	i->index = n;
+	i->type = V4L2_INPUT_TYPE_CAMERA;
+
+	strcpy(i->name, iname[INPUT(n)->type]);
+
+	if ((EM28XX_VMUX_TELEVISION == INPUT(n)->type) ||
+		(EM28XX_VMUX_CABLE == INPUT(n)->type))
+		i->type = V4L2_INPUT_TYPE_TUNER;
+
+	for (n = 0; n < ARRAY_SIZE(tvnorms); n++)
+		i->std |= tvnorms[n].id;
+
+	return 0;
+}
+
+static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+
+	*i = dev->ctl_input;
+
+	return 0;
+}
+
+static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+	int                rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (i >= MAX_EM28XX_INPUT)
+		return -EINVAL;
+	if (0 == INPUT(i)->type)
+		return -EINVAL;
+
+	mutex_lock(&dev->lock);
+
+	video_mux(dev, i);
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
+{
+	struct em28xx_fh   *fh    = priv;
+	struct em28xx      *dev   = fh->dev;
+	unsigned int        index = a->index;
+
+	if (a->index > 1)
+		return -EINVAL;
+
+	index = dev->ctl_ainput;
+
+	if (index == 0) {
+		strcpy(a->name, "Television");
+	} else {
+		strcpy(a->name, "Line In");
+	}
+	a->capability = V4L2_AUDCAP_STEREO;
+	a->index = index;
+
+	return 0;
+}
+
+static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
+{
+	struct em28xx_fh   *fh  = priv;
+	struct em28xx      *dev = fh->dev;
+
+	if (a->index != dev->ctl_ainput)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int vidioc_queryctrl(struct file *file, void *priv,
+				struct v4l2_queryctrl *qc)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   id  = qc->id;
+	int                   i;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	memset(qc, 0, sizeof(*qc));
+
+	qc->id = id;
+
+	if (!dev->has_msp34xx) {
+		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
+			if (qc->id && qc->id == em28xx_qctrl[i].id) {
+				memcpy(qc, &(em28xx_qctrl[i]), sizeof(*qc));
+				return 0;
+			}
+		}
+	}
+	mutex_lock(&dev->lock);
+	em28xx_i2c_call_clients(dev, VIDIOC_QUERYCTRL, qc);
+	mutex_unlock(&dev->lock);
+
+	if (qc->type)
+		return 0;
+	else
+		return -EINVAL;
+}
+
+static int vidioc_g_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+	mutex_lock(&dev->lock);
+
+	if (!dev->has_msp34xx)
+		rc = em28xx_get_ctrl(dev, ctrl);
+	else
+		rc = -EINVAL;
+
+	if (rc == -EINVAL) {
+		em28xx_i2c_call_clients(dev, VIDIOC_G_CTRL, ctrl);
+		rc = 0;
+	}
+
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
+static int vidioc_s_ctrl(struct file *file, void *priv,
+				struct v4l2_control *ctrl)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	u8                    i;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	mutex_lock(&dev->lock);
+
+	if (dev->has_msp34xx)
+		em28xx_i2c_call_clients(dev, VIDIOC_S_CTRL, ctrl);
+	else {
+		rc = 1;
+		for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
+			if (ctrl->id == em28xx_qctrl[i].id) {
+				if (ctrl->value < em28xx_qctrl[i].minimum ||
+				    ctrl->value > em28xx_qctrl[i].maximum) {
+					rc = -ERANGE;
+					break;
+				}
+
+				rc = em28xx_set_ctrl(dev, ctrl);
+				break;
+			}
+		}
+	}
+
+	/* Control not found - try to send it to the attached devices */
+	if (rc == 1) {
+		em28xx_i2c_call_clients(dev, VIDIOC_S_CTRL, ctrl);
+		rc = 0;
+	}
+
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
+static int vidioc_g_tuner(struct file *file, void *priv,
+				struct v4l2_tuner *t)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (0 != t->index)
+		return -EINVAL;
+
+	strcpy(t->name, "Tuner");
+
+	mutex_lock(&dev->lock);
+
+	em28xx_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_s_tuner(struct file *file, void *priv,
+				struct v4l2_tuner *t)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (0 != t->index)
+		return -EINVAL;
+
+	mutex_lock(&dev->lock);
+
+	em28xx_i2c_call_clients(dev, VIDIOC_S_TUNER, t);
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_g_frequency(struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	f->type = V4L2_TUNER_ANALOG_TV;
+	f->frequency = dev->ctl_freq;
+
+	return 0;
+}
+
+static int vidioc_s_frequency(struct file *file, void *priv,
+				struct v4l2_frequency *f)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (0 != f->tuner)
+		return -EINVAL;
+
+	if (V4L2_TUNER_ANALOG_TV != f->type)
+		return -EINVAL;
+
+	mutex_lock(&dev->lock);
+
+	dev->ctl_freq = f->frequency;
+	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, f);
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_cropcap(struct file *file, void *priv,
+					struct v4l2_cropcap *cc)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	cc->bounds.left = 0;
+	cc->bounds.top = 0;
+	cc->bounds.width = dev->width;
+	cc->bounds.height = dev->height;
+	cc->defrect = cc->bounds;
+	cc->pixelaspect.numerator = 54;	/* 4:3 FIXME: remove magic numbers */
+	cc->pixelaspect.denominator = 59;
+
+	return 0;
+}
+
+static int vidioc_streamon(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE || dev->io != IO_MMAP)
+		return -EINVAL;
+
+	if (list_empty(&dev->inqueue))
+		return -EINVAL;
+
+	mutex_lock(&dev->lock);
+
+	if (unlikely(res_get(fh) < 0)) {
+		mutex_unlock(&dev->lock);
+		return -EBUSY;
+	}
+
+	dev->stream = STREAM_ON;	/* FIXME: Start video capture here? */
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_streamoff(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE || dev->io != IO_MMAP)
+		return -EINVAL;
+
+	mutex_lock(&dev->lock);
+
+	if (dev->stream == STREAM_ON) {
+		em28xx_videodbg("VIDIOC_STREAMOFF: interrupting stream\n");
+		rc = em28xx_stream_interrupt(dev);
+		if (rc < 0) {
+			mutex_unlock(&dev->lock);
+			return rc;
+		}
+	}
+
+	em28xx_empty_framequeues(dev);
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_querycap(struct file *file, void  *priv,
+					struct v4l2_capability *cap)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	strlcpy(cap->driver, "em28xx", sizeof(cap->driver));
+	strlcpy(cap->card, em28xx_boards[dev->model].name, sizeof(cap->card));
+	strlcpy(cap->bus_info, dev->udev->dev.bus_id, sizeof(cap->bus_info));
+
+	cap->version = EM28XX_VERSION_CODE;
+
+	cap->capabilities =
+			V4L2_CAP_SLICED_VBI_CAPTURE |
+			V4L2_CAP_VIDEO_CAPTURE |
+			V4L2_CAP_AUDIO |
+			V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+
+	if (dev->has_tuner)
+		cap->capabilities |= V4L2_CAP_TUNER;
+
+	return 0;
+}
+
+static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+					struct v4l2_fmtdesc *fmtd)
+{
+	if (fmtd->index != 0)
+		return -EINVAL;
+
+	fmtd->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	strcpy(fmtd->description, "Packed YUY2");
+	fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
+	memset(fmtd->reserved, 0, sizeof(fmtd->reserved));
+
+	return 0;
+}
+
+/* Sliced VBI ioctls */
+static int vidioc_g_fmt_vbi_capture(struct file *file, void *priv,
+					struct v4l2_format *f)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	mutex_lock(&dev->lock);
+
+	f->fmt.sliced.service_set = 0;
+
+	em28xx_i2c_call_clients(dev, VIDIOC_G_FMT, f);
+
+	if (f->fmt.sliced.service_set == 0)
+		rc = -EINVAL;
+
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
+static int vidioc_try_set_vbi_capture(struct file *file, void *priv,
+			struct v4l2_format *f)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	mutex_lock(&dev->lock);
+	em28xx_i2c_call_clients(dev, VIDIOC_G_FMT, f);
+	mutex_unlock(&dev->lock);
+
+	if (f->fmt.sliced.service_set == 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+
+static int vidioc_reqbufs(struct file *file, void *priv,
+			  struct v4l2_requestbuffers *rb)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	u32                   i;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		rb->memory != V4L2_MEMORY_MMAP)
+		return -EINVAL;
+
+	if (dev->io == IO_READ) {
+		em28xx_videodbg("method is set to read;"
+				" close and open the device again to"
+				" choose the mmap I/O method\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < dev->num_frames; i++)
+		if (dev->frame[i].vma_use_count) {
+			em28xx_videodbg("VIDIOC_REQBUFS failed; "
+					"previous buffers are still mapped\n");
+			return -EINVAL;
+		}
+
+	mutex_lock(&dev->lock);
+
+	if (dev->stream == STREAM_ON) {
+		em28xx_videodbg("VIDIOC_REQBUFS: interrupting stream\n");
+		rc = em28xx_stream_interrupt(dev);
+		if (rc < 0) {
+			mutex_unlock(&dev->lock);
+			return rc;
+		}
+	}
+
+	em28xx_empty_framequeues(dev);
+
+	em28xx_release_buffers(dev);
+	if (rb->count)
+		rb->count = em28xx_request_buffers(dev, rb->count);
+
+	dev->frame_current = NULL;
+	dev->io = rb->count ? IO_MMAP : IO_NONE;
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_querybuf(struct file *file, void *priv,
+			   struct v4l2_buffer *b)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
+		b->index >= dev->num_frames || dev->io != IO_MMAP)
+		return -EINVAL;
+
+	mutex_lock(&dev->lock);
+
+	memcpy(b, &dev->frame[b->index].buf, sizeof(*b));
+
+	if (dev->frame[b->index].vma_use_count)
+		b->flags |= V4L2_BUF_FLAG_MAPPED;
+
+	if (dev->frame[b->index].state == F_DONE)
+		b->flags |= V4L2_BUF_FLAG_DONE;
+	else if (dev->frame[b->index].state != F_UNUSED)
+		b->flags |= V4L2_BUF_FLAG_QUEUED;
+
+	mutex_unlock(&dev->lock);
+	return 0;
+}
+
+static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	unsigned long         lock_flags;
+	int                   rc;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE  || dev->io != IO_MMAP ||
+						b->index >= dev->num_frames)
+		return -EINVAL;
+
+	if (dev->frame[b->index].state != F_UNUSED)
+		return -EAGAIN;
+
+	dev->frame[b->index].state = F_QUEUED;
+
+	/* add frame to fifo */
+	spin_lock_irqsave(&dev->queue_lock, lock_flags);
+	list_add_tail(&dev->frame[b->index].frame, &dev->inqueue);
+	spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
+
+	return 0;
+}
+
+static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+	int                   rc;
+	struct em28xx_frame_t *f;
+	unsigned long         lock_flags;
+
+	rc = check_dev(dev);
+	if (rc < 0)
+		return rc;
+
+	if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE || dev->io != IO_MMAP)
+		return -EINVAL;
+
+	if (list_empty(&dev->outqueue)) {
+		if (dev->stream == STREAM_OFF)
+			return -EINVAL;
+
+		if (file->f_flags & O_NONBLOCK)
+			return -EAGAIN;
+
+		rc = wait_event_interruptible(dev->wait_frame,
+					(!list_empty(&dev->outqueue)) ||
+					(dev->state & DEV_DISCONNECTED));
+		if (rc)
+			return rc;
+
+		if (dev->state & DEV_DISCONNECTED)
+			return -ENODEV;
+	}
+
+	spin_lock_irqsave(&dev->queue_lock, lock_flags);
+	f = list_entry(dev->outqueue.next, struct em28xx_frame_t, frame);
+	list_del(dev->outqueue.next);
+	spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
+
+	f->state = F_UNUSED;
+	memcpy(b, &f->buf, sizeof(*b));
+
+	if (f->vma_use_count)
+		b->flags |= V4L2_BUF_FLAG_MAPPED;
+
+	return 0;
 }
 
 /*
@@ -587,32 +1523,6 @@ static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 }
 
 /*
- * em28xx_vm_open()
- */
-static void em28xx_vm_open(struct vm_area_struct *vma)
-{
-	struct em28xx_frame_t *f = vma->vm_private_data;
-	f->vma_use_count++;
-}
-
-/*
- * em28xx_vm_close()
- */
-static void em28xx_vm_close(struct vm_area_struct *vma)
-{
-	/* NOTE: buffers are not freed here */
-	struct em28xx_frame_t *f = vma->vm_private_data;
-
-	if (f->vma_use_count)
-		f->vma_use_count--;
-}
-
-static struct vm_operations_struct em28xx_vm_ops = {
-	.open = em28xx_vm_open,
-	.close = em28xx_vm_close,
-};
-
-/*
  * em28xx_v4l2_mmap()
  */
 static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -642,11 +1552,13 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -EIO;
 	}
 
-	if (dev->io != IO_MMAP || !(vma->vm_flags & VM_WRITE) ||
-	    size != PAGE_ALIGN(dev->frame[0].buf.length)) {
+	if (dev->io != IO_MMAP || !(vma->vm_flags & VM_WRITE)) {
 		mutex_unlock(&dev->lock);
 		return -EINVAL;
 	}
+
+	if (size > PAGE_ALIGN(dev->frame[0].buf.length))
+		size = PAGE_ALIGN(dev->frame[0].buf.length);
 
 	for (i = 0; i < dev->num_frames; i++) {
 		if ((dev->frame[i].buf.m.offset >> PAGE_SHIFT) == vma->vm_pgoff)
@@ -682,878 +1594,58 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-/*
- * em28xx_get_ctrl()
- * return the current saturation, brightness or contrast, mute state
- */
-static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		ctrl->value = dev->mute;
-		return 0;
-	case V4L2_CID_AUDIO_VOLUME:
-		ctrl->value = dev->volume;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
-/*
- * em28xx_set_ctrl()
- * mute or set new saturation, brightness or contrast
- */
-static int em28xx_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_AUDIO_MUTE:
-		if (ctrl->value != dev->mute) {
-			dev->mute = ctrl->value;
-			em28xx_audio_usb_mute(dev, ctrl->value);
-			return em28xx_audio_analog_set(dev);
-		}
-		return 0;
-	case V4L2_CID_AUDIO_VOLUME:
-		dev->volume = ctrl->value;
-		return em28xx_audio_analog_set(dev);
-	default:
-		return -EINVAL;
-	}
-}
-
-/*
- * em28xx_stream_interrupt()
- * stops streaming
- */
-static int em28xx_stream_interrupt(struct em28xx *dev)
-{
-	int ret = 0;
-
-	/* stop reading from the device */
-
-	dev->stream = STREAM_INTERRUPT;
-	ret = wait_event_timeout(dev->wait_stream,
-				 (dev->stream == STREAM_OFF) ||
-				 (dev->state & DEV_DISCONNECTED),
-				 EM28XX_URB_TIMEOUT);
-	if (dev->state & DEV_DISCONNECTED)
-		return -ENODEV;
-	else if (ret) {
-		dev->state |= DEV_MISCONFIGURED;
-		em28xx_videodbg("device is misconfigured; close and "
-			"open /dev/video%d again\n",
-				dev->vdev->minor-MINOR_VFL_TYPE_GRABBER_MIN);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int em28xx_set_norm(struct em28xx *dev, int width, int height)
-{
-	unsigned int hscale, vscale;
-	unsigned int maxh, maxw;
-
-	maxw = norm_maxw(dev);
-	maxh = norm_maxh(dev);
-
-	/* width must even because of the YUYV format */
-	/* height must be even because of interlacing */
-	height &= 0xfffe;
-	width &= 0xfffe;
-
-	if (height < 32)
-		height = 32;
-	if (height > maxh)
-		height = maxh;
-	if (width < 48)
-		width = 48;
-	if (width > maxw)
-		width = maxw;
-
-	if ((hscale = (((unsigned long)maxw) << 12) / width - 4096L) >= 0x4000)
-		hscale = 0x3fff;
-	width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
-
-	if ((vscale = (((unsigned long)maxh) << 12) / height - 4096L) >= 0x4000)
-		vscale = 0x3fff;
-	height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
-
-	/* set new image size */
-	dev->width = width;
-	dev->height = height;
-	dev->frame_size = dev->width * dev->height * 2;
-	dev->field_size = dev->frame_size >> 1;	/*both_fileds ? dev->frame_size>>1 : dev->frame_size; */
-	dev->bytesperline = dev->width * 2;
-	dev->hscale = hscale;
-	dev->vscale = vscale;
-
-	em28xx_resolution_set(dev);
-
-	return 0;
-}
-
-static int em28xx_get_fmt(struct em28xx *dev, struct v4l2_format *format)
-{
-	em28xx_videodbg("VIDIOC_G_FMT: type=%s\n",
-		(format->type ==V4L2_BUF_TYPE_VIDEO_CAPTURE) ?
-		"V4L2_BUF_TYPE_VIDEO_CAPTURE" :
-		(format->type ==V4L2_BUF_TYPE_VBI_CAPTURE) ?
-		"V4L2_BUF_TYPE_VBI_CAPTURE" :
-		(format->type ==V4L2_CAP_SLICED_VBI_CAPTURE) ?
-		"V4L2_BUF_TYPE_SLICED_VBI_CAPTURE " :
-		"not supported");
-
-	switch (format->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-	{
-		format->fmt.pix.width = dev->width;
-		format->fmt.pix.height = dev->height;
-		format->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-		format->fmt.pix.bytesperline = dev->bytesperline;
-		format->fmt.pix.sizeimage = dev->frame_size;
-		format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-		format->fmt.pix.field = dev->interlaced ? V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
-
-		em28xx_videodbg("VIDIOC_G_FMT: %dx%d\n", dev->width,
-			dev->height);
-		break;
-	}
-
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-	{
-		format->fmt.sliced.service_set=0;
-
-		em28xx_i2c_call_clients(dev,VIDIOC_G_FMT,format);
-
-		if (format->fmt.sliced.service_set==0)
-			return -EINVAL;
-
-		break;
-	}
-
-	default:
-		return -EINVAL;
-	}
-	return (0);
-}
-
-static int em28xx_set_fmt(struct em28xx *dev, unsigned int cmd, struct v4l2_format *format)
-{
-	u32 i;
-	int ret = 0;
-	int width = format->fmt.pix.width;
-	int height = format->fmt.pix.height;
-	unsigned int hscale, vscale;
-	unsigned int maxh, maxw;
-
-	maxw = norm_maxw(dev);
-	maxh = norm_maxh(dev);
-
-	em28xx_videodbg("%s: type=%s\n",
-			cmd == VIDIOC_TRY_FMT ?
-			"VIDIOC_TRY_FMT" : "VIDIOC_S_FMT",
-			format->type == V4L2_BUF_TYPE_VIDEO_CAPTURE ?
-			"V4L2_BUF_TYPE_VIDEO_CAPTURE" :
-			format->type == V4L2_BUF_TYPE_VBI_CAPTURE ?
-			"V4L2_BUF_TYPE_VBI_CAPTURE " :
-			"not supported");
-
-	if (format->type == V4L2_BUF_TYPE_SLICED_VBI_CAPTURE) {
-		em28xx_i2c_call_clients(dev,VIDIOC_G_FMT,format);
-
-		if (format->fmt.sliced.service_set==0)
-			return -EINVAL;
-
-		return 0;
-	}
-
-
-	if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	em28xx_videodbg("%s: requested %dx%d\n",
-		cmd == VIDIOC_TRY_FMT ?
-		"VIDIOC_TRY_FMT" : "VIDIOC_S_FMT",
-		format->fmt.pix.width, format->fmt.pix.height);
-
-	/* FIXME: Move some code away from here */
-	/* width must even because of the YUYV format */
-	/* height must be even because of interlacing */
-	height &= 0xfffe;
-	width &= 0xfffe;
-
-	if (height < 32)
-		height = 32;
-	if (height > maxh)
-		height = maxh;
-	if (width < 48)
-		width = 48;
-	if (width > maxw)
-		width = maxw;
-
-	if(dev->is_em2800){
-		/* the em2800 can only scale down to 50% */
-		if(height % (maxh / 2))
-			height=maxh;
-		if(width % (maxw / 2))
-			width=maxw;
-		/* according to empiatech support */
-		/* the MaxPacketSize is to small to support */
-		/* framesizes larger than 640x480 @ 30 fps */
-		/* or 640x576 @ 25 fps. As this would cut */
-		/* of a part of the image we prefer */
-		/* 360x576 or 360x480 for now */
-		if(width == maxw && height == maxh)
-			width /= 2;
-	}
-
-	if ((hscale = (((unsigned long)maxw) << 12) / width - 4096L) >= 0x4000)
-		hscale = 0x3fff;
-
-	width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
-
-	if ((vscale = (((unsigned long)maxh) << 12) / height - 4096L) >= 0x4000)
-		vscale = 0x3fff;
-
-	height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
-
-	format->fmt.pix.width = width;
-	format->fmt.pix.height = height;
-	format->fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
-	format->fmt.pix.bytesperline = width * 2;
-	format->fmt.pix.sizeimage = width * 2 * height;
-	format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
-	format->fmt.pix.field = V4L2_FIELD_INTERLACED;
-
-	em28xx_videodbg("%s: returned %dx%d (%d, %d)\n",
-		cmd == VIDIOC_TRY_FMT ?
-		"VIDIOC_TRY_FMT" :"VIDIOC_S_FMT",
-		format->fmt.pix.width, format->fmt.pix.height, hscale, vscale);
-
-	if (cmd == VIDIOC_TRY_FMT)
-		return 0;
-
-	for (i = 0; i < dev->num_frames; i++)
-		if (dev->frame[i].vma_use_count) {
-			em28xx_videodbg("VIDIOC_S_FMT failed. "
-				"Unmap the buffers first.\n");
-			return -EINVAL;
-		}
-
-	/* stop io in case it is already in progress */
-	if (dev->stream == STREAM_ON) {
-		em28xx_videodbg("VIDIOC_SET_FMT: interrupting stream\n");
-		if ((ret = em28xx_stream_interrupt(dev)))
-			return ret;
-	}
-
-	em28xx_release_buffers(dev);
-	dev->io = IO_NONE;
-
-	/* set new image size */
-	dev->width = width;
-	dev->height = height;
-	dev->frame_size = dev->width * dev->height * 2;
-	dev->field_size = dev->frame_size >> 1;
-	dev->bytesperline = dev->width * 2;
-	dev->hscale = hscale;
-	dev->vscale = vscale;
-	em28xx_uninit_isoc(dev);
-	em28xx_set_alternate(dev);
-	em28xx_capture_start(dev, 1);
-	em28xx_resolution_set(dev);
-	em28xx_init_isoc(dev);
-
-	return 0;
-}
-
-/*
- * em28xx_v4l2_do_ioctl()
- * This function is _not_ called directly, but from
- * em28xx_v4l2_ioctl. Userspace
- * copying is done already, arg is a kernel pointer.
- */
-static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
-			   struct em28xx *dev, unsigned int cmd, void *arg,
-			   v4l2_kioctl driver_ioctl)
-{
-	struct em28xx_fh *fh = filp->private_data;
-	int ret;
-
-	switch (cmd) {
-		/* ---------- tv norms ---------- */
-	case VIDIOC_ENUMSTD:
-	{
-		struct v4l2_standard *e = arg;
-		unsigned int i;
-
-		i = e->index;
-		if (i >= TVNORMS)
-			return -EINVAL;
-		ret = v4l2_video_std_construct(e, tvnorms[e->index].id,
-						tvnorms[e->index].name);
-		e->index = i;
-		if (ret < 0)
-			return ret;
-		return 0;
-	}
-	case VIDIOC_G_STD:
-	{
-		v4l2_std_id *id = arg;
-
-		*id = dev->tvnorm->id;
-		return 0;
-	}
-	case VIDIOC_S_STD:
-	{
-		v4l2_std_id *id = arg;
-		unsigned int i;
-
-		for (i = 0; i < TVNORMS; i++)
-			if (*id == tvnorms[i].id)
-				break;
-		if (i == TVNORMS)
-			for (i = 0; i < TVNORMS; i++)
-				if (*id & tvnorms[i].id)
-					break;
-		if (i == TVNORMS)
-			return -EINVAL;
-
-		mutex_lock(&dev->lock);
-		dev->tvnorm = &tvnorms[i];
-
-		em28xx_set_norm(dev, dev->width, dev->height);
-
-		em28xx_i2c_call_clients(dev, VIDIOC_S_STD,
-					&dev->tvnorm->id);
-
-		mutex_unlock(&dev->lock);
-
-		return 0;
-	}
-
-	/* ------ input switching ---------- */
-	case VIDIOC_ENUMINPUT:
-	{
-		struct v4l2_input *i = arg;
-		unsigned int n;
-		static const char *iname[] = {
-			[EM28XX_VMUX_COMPOSITE1] = "Composite1",
-			[EM28XX_VMUX_COMPOSITE2] = "Composite2",
-			[EM28XX_VMUX_COMPOSITE3] = "Composite3",
-			[EM28XX_VMUX_COMPOSITE4] = "Composite4",
-			[EM28XX_VMUX_SVIDEO] = "S-Video",
-			[EM28XX_VMUX_TELEVISION] = "Television",
-			[EM28XX_VMUX_CABLE] = "Cable TV",
-			[EM28XX_VMUX_DVB] = "DVB",
-			[EM28XX_VMUX_DEBUG] = "for debug only",
-		};
-
-		n = i->index;
-		if (n >= MAX_EM28XX_INPUT)
-			return -EINVAL;
-		if (0 == INPUT(n)->type)
-			return -EINVAL;
-		memset(i, 0, sizeof(*i));
-		i->index = n;
-		i->type = V4L2_INPUT_TYPE_CAMERA;
-		strcpy(i->name, iname[INPUT(n)->type]);
-		if ((EM28XX_VMUX_TELEVISION == INPUT(n)->type) ||
-			(EM28XX_VMUX_CABLE == INPUT(n)->type))
-			i->type = V4L2_INPUT_TYPE_TUNER;
-		for (n = 0; n < ARRAY_SIZE(tvnorms); n++)
-			i->std |= tvnorms[n].id;
-		return 0;
-	}
-	case VIDIOC_G_INPUT:
-	{
-		int *i = arg;
-		*i = dev->ctl_input;
-
-		return 0;
-	}
-	case VIDIOC_S_INPUT:
-	{
-		int *index = arg;
-
-		if (*index >= MAX_EM28XX_INPUT)
-			return -EINVAL;
-		if (0 == INPUT(*index)->type)
-			return -EINVAL;
-
-		mutex_lock(&dev->lock);
-		video_mux(dev, *index);
-		mutex_unlock(&dev->lock);
-
-		return 0;
-	}
-	case VIDIOC_G_AUDIO:
-	{
-		struct v4l2_audio *a = arg;
-		unsigned int index = a->index;
-
-		if (a->index > 1)
-			return -EINVAL;
-		memset(a, 0, sizeof(*a));
-		index = dev->ctl_ainput;
-
-		if (index == 0) {
-			strcpy(a->name, "Television");
-		} else {
-			strcpy(a->name, "Line In");
-		}
-		a->capability = V4L2_AUDCAP_STEREO;
-		a->index = index;
-		return 0;
-	}
-	case VIDIOC_S_AUDIO:
-	{
-		struct v4l2_audio *a = arg;
-
-		if (a->index != dev->ctl_ainput)
-			return -EINVAL;
-
-		return 0;
-	}
-
-	/* --- controls ---------------------------------------------- */
-	case VIDIOC_QUERYCTRL:
-	{
-		struct v4l2_queryctrl *qc = arg;
-		int i, id=qc->id;
-
-		memset(qc,0,sizeof(*qc));
-		qc->id=id;
-
-		if (!dev->has_msp34xx) {
-			for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-				if (qc->id && qc->id == em28xx_qctrl[i].id) {
-					memcpy(qc, &(em28xx_qctrl[i]),
-					sizeof(*qc));
-					return 0;
-				}
-			}
-		}
-		mutex_lock(&dev->lock);
-		em28xx_i2c_call_clients(dev,cmd,qc);
-		mutex_unlock(&dev->lock);
-		if (qc->type)
-			return 0;
-		else
-			return -EINVAL;
-	}
-	case VIDIOC_G_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		int retval=-EINVAL;
-
-		if (!dev->has_msp34xx)
-			retval=em28xx_get_ctrl(dev, ctrl);
-		if (retval==-EINVAL) {
-			mutex_lock(&dev->lock);
-			em28xx_i2c_call_clients(dev,cmd,arg);
-			mutex_unlock(&dev->lock);
-			return 0;
-		} else return retval;
-	}
-	case VIDIOC_S_CTRL:
-	{
-		struct v4l2_control *ctrl = arg;
-		u8 i;
-		mutex_lock(&dev->lock);
-
-		if (!dev->has_msp34xx){
-			for (i = 0; i < ARRAY_SIZE(em28xx_qctrl); i++) {
-				if (ctrl->id == em28xx_qctrl[i].id) {
-					int retval=-EINVAL;
-					if (ctrl->value <
-					em28xx_qctrl[i].minimum
-					|| ctrl->value >
-					em28xx_qctrl[i].maximum)
-						return -ERANGE;
-					retval = em28xx_set_ctrl(dev, ctrl);
-					mutex_unlock(&dev->lock);
-					return retval;
-				}
-			}
-		}
-
-		em28xx_i2c_call_clients(dev,cmd,arg);
-		mutex_unlock(&dev->lock);
-		return 0;
-	}
-	/* --- tuner ioctls ------------------------------------------ */
-	case VIDIOC_G_TUNER:
-	{
-		struct v4l2_tuner *t = arg;
-
-		if (0 != t->index)
-			return -EINVAL;
-
-		memset(t, 0, sizeof(*t));
-		strcpy(t->name, "Tuner");
-		mutex_lock(&dev->lock);
-		/* let clients fill in the remainder of this struct */
-		em28xx_i2c_call_clients(dev, cmd, t);
-		mutex_unlock(&dev->lock);
-		em28xx_videodbg("VIDIO_G_TUNER: signal=%x, afc=%x\n", t->signal,
-				t->afc);
-		return 0;
-	}
-	case VIDIOC_S_TUNER:
-	{
-		struct v4l2_tuner *t = arg;
-
-		if (0 != t->index)
-			return -EINVAL;
-		mutex_lock(&dev->lock);
-		/* let clients handle this */
-		em28xx_i2c_call_clients(dev, cmd, t);
-		mutex_unlock(&dev->lock);
-		return 0;
-	}
-	case VIDIOC_G_FREQUENCY:
-	{
-		struct v4l2_frequency *f = arg;
-
-		memset(f, 0, sizeof(*f));
-		f->type = V4L2_TUNER_ANALOG_TV;
-		f->frequency = dev->ctl_freq;
-
-		return 0;
-	}
-	case VIDIOC_S_FREQUENCY:
-	{
-		struct v4l2_frequency *f = arg;
-
-		if (0 != f->tuner)
-			return -EINVAL;
-
-		if (V4L2_TUNER_ANALOG_TV != f->type)
-			return -EINVAL;
-
-		mutex_lock(&dev->lock);
-		dev->ctl_freq = f->frequency;
-		em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, f);
-		mutex_unlock(&dev->lock);
-		return 0;
-	}
-	case VIDIOC_CROPCAP:
-	{
-		struct v4l2_cropcap *cc = arg;
-
-		if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-			return -EINVAL;
-		cc->bounds.left = 0;
-		cc->bounds.top = 0;
-		cc->bounds.width = dev->width;
-		cc->bounds.height = dev->height;
-		cc->defrect = cc->bounds;
-		cc->pixelaspect.numerator = 54;	/* 4:3 FIXME: remove magic numbers */
-		cc->pixelaspect.denominator = 59;
-		return 0;
-	}
-	case VIDIOC_STREAMON:
-	{
-		int *type = arg;
-
-		if (*type != V4L2_BUF_TYPE_VIDEO_CAPTURE
-			|| dev->io != IO_MMAP)
-			return -EINVAL;
-
-		if (list_empty(&dev->inqueue))
-			return -EINVAL;
-
-		if (unlikely(res_get(fh) < 0))
-			return -EBUSY;
-
-		dev->stream = STREAM_ON;	/* FIXME: Start video capture here? */
-
-		em28xx_videodbg("VIDIOC_STREAMON: starting stream\n");
-
-		return 0;
-	}
-	case VIDIOC_STREAMOFF:
-	{
-		int *type = arg;
-		int ret;
-
-		if (*type != V4L2_BUF_TYPE_VIDEO_CAPTURE
-			|| dev->io != IO_MMAP)
-			return -EINVAL;
-
-		mutex_lock(&dev->lock);
-		if (dev->stream == STREAM_ON) {
-			em28xx_videodbg ("VIDIOC_STREAMOFF: interrupting stream\n");
-			if ((ret = em28xx_stream_interrupt(dev))){
-				mutex_unlock(&dev->lock);
-				return ret;
-			}
-		}
-
-		em28xx_empty_framequeues(dev);
-		mutex_unlock(&dev->lock);
-
-		return 0;
-	}
-	default:
-		return v4l_compat_translate_ioctl(inode, filp, cmd, arg,
-						  driver_ioctl);
-	}
-	return 0;
-}
-
-/*
- * em28xx_v4l2_do_ioctl()
- * This function is _not_ called directly, but from
- * em28xx_v4l2_ioctl. Userspace
- * copying is done already, arg is a kernel pointer.
- */
-static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
-				 unsigned int cmd, void *arg)
-{
-	struct em28xx_fh *fh = filp->private_data;
-	struct em28xx *dev   = fh->dev;
-
-	if (!dev)
-		return -ENODEV;
-
-	if (video_debug > 1)
-		v4l_print_ioctl(dev->name,cmd);
-
-	switch (cmd) {
-
-		/* --- capabilities ------------------------------------------ */
-	case VIDIOC_QUERYCAP:
-		{
-		struct v4l2_capability *cap = arg;
-
-		memset(cap, 0, sizeof(*cap));
-		strlcpy(cap->driver, "em28xx", sizeof(cap->driver));
-		strlcpy(cap->card, em28xx_boards[dev->model].name,
-			sizeof(cap->card));
-		strlcpy(cap->bus_info, dev->udev->dev.bus_id,
-			sizeof(cap->bus_info));
-		cap->version = EM28XX_VERSION_CODE;
-		cap->capabilities =
-				V4L2_CAP_SLICED_VBI_CAPTURE |
-				V4L2_CAP_VIDEO_CAPTURE |
-				V4L2_CAP_AUDIO |
-				V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-		if (dev->has_tuner)
-			cap->capabilities |= V4L2_CAP_TUNER;
-		return 0;
-	}
-	/* --- capture ioctls ---------------------------------------- */
-	case VIDIOC_ENUM_FMT:
-	{
-		struct v4l2_fmtdesc *fmtd = arg;
-
-		if (fmtd->index != 0)
-			return -EINVAL;
-		memset(fmtd, 0, sizeof(*fmtd));
-		fmtd->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		strcpy(fmtd->description, "Packed YUY2");
-		fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
-		memset(fmtd->reserved, 0, sizeof(fmtd->reserved));
-		return 0;
-	}
-	case VIDIOC_G_FMT:
-	{
-		int retval;
-		mutex_lock(&dev->lock);
-		retval = em28xx_get_fmt(dev, (struct v4l2_format *) arg);
-		mutex_unlock(&dev->lock);
-		return retval;
-
-	}
-	case VIDIOC_TRY_FMT:
-	case VIDIOC_S_FMT:
-	{
-		int retval;
-		mutex_lock(&dev->lock);
-		retval = em28xx_set_fmt(dev, cmd, (struct v4l2_format *)arg);
-		mutex_unlock(&dev->lock);
-		return retval;
-	}
-
-	case VIDIOC_REQBUFS:
-	{
-		struct v4l2_requestbuffers *rb = arg;
-		u32 i;
-		int ret;
-
-		if (rb->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-			rb->memory != V4L2_MEMORY_MMAP)
-			return -EINVAL;
-
-		if (dev->io == IO_READ) {
-			em28xx_videodbg ("method is set to read;"
-				" close and open the device again to"
-				" choose the mmap I/O method\n");
-			return -EINVAL;
-		}
-
-		for (i = 0; i < dev->num_frames; i++)
-			if (dev->frame[i].vma_use_count) {
-				em28xx_videodbg ("VIDIOC_REQBUFS failed; previous buffers are still mapped\n");
-				return -EINVAL;
-			}
-
-		mutex_lock(&dev->lock);
-		if (dev->stream == STREAM_ON) {
-			em28xx_videodbg("VIDIOC_REQBUFS: interrupting stream\n");
-			if ((ret = em28xx_stream_interrupt(dev))){
-				mutex_unlock(&dev->lock);
-				return ret;
-			}
-		}
-
-		em28xx_empty_framequeues(dev);
-
-		em28xx_release_buffers(dev);
-		if (rb->count)
-			rb->count =
-				em28xx_request_buffers(dev, rb->count);
-
-		dev->frame_current = NULL;
-
-		em28xx_videodbg ("VIDIOC_REQBUFS: setting io method to mmap: num bufs %i\n",
-						rb->count);
-		dev->io = rb->count ? IO_MMAP : IO_NONE;
-		mutex_unlock(&dev->lock);
-		return 0;
-	}
-	case VIDIOC_QUERYBUF:
-	{
-		struct v4l2_buffer *b = arg;
-
-		if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-			b->index >= dev->num_frames || dev->io != IO_MMAP)
-			return -EINVAL;
-
-		memcpy(b, &dev->frame[b->index].buf, sizeof(*b));
-
-		if (dev->frame[b->index].vma_use_count) {
-			b->flags |= V4L2_BUF_FLAG_MAPPED;
-		}
-		if (dev->frame[b->index].state == F_DONE)
-			b->flags |= V4L2_BUF_FLAG_DONE;
-		else if (dev->frame[b->index].state != F_UNUSED)
-			b->flags |= V4L2_BUF_FLAG_QUEUED;
-		return 0;
-	}
-	case VIDIOC_QBUF:
-	{
-		struct v4l2_buffer *b = arg;
-		unsigned long lock_flags;
-
-		if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-			b->index >= dev->num_frames || dev->io != IO_MMAP) {
-			return -EINVAL;
-		}
-
-		if (dev->frame[b->index].state != F_UNUSED) {
-			return -EAGAIN;
-		}
-		dev->frame[b->index].state = F_QUEUED;
-
-		/* add frame to fifo */
-		spin_lock_irqsave(&dev->queue_lock, lock_flags);
-		list_add_tail(&dev->frame[b->index].frame,
-				&dev->inqueue);
-		spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
-
-		return 0;
-	}
-	case VIDIOC_DQBUF:
-	{
-		struct v4l2_buffer *b = arg;
-		struct em28xx_frame_t *f;
-		unsigned long lock_flags;
-		int ret = 0;
-
-		if (b->type != V4L2_BUF_TYPE_VIDEO_CAPTURE
-			|| dev->io != IO_MMAP)
-			return -EINVAL;
-
-		if (list_empty(&dev->outqueue)) {
-			if (dev->stream == STREAM_OFF)
-				return -EINVAL;
-			if (filp->f_flags & O_NONBLOCK)
-				return -EAGAIN;
-			ret = wait_event_interruptible
-				(dev->wait_frame,
-				(!list_empty(&dev->outqueue)) ||
-				(dev->state & DEV_DISCONNECTED));
-			if (ret)
-				return ret;
-			if (dev->state & DEV_DISCONNECTED)
-				return -ENODEV;
-		}
-
-		spin_lock_irqsave(&dev->queue_lock, lock_flags);
-		f = list_entry(dev->outqueue.next,
-				struct em28xx_frame_t, frame);
-		list_del(dev->outqueue.next);
-		spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
-
-		f->state = F_UNUSED;
-		memcpy(b, &f->buf, sizeof(*b));
-
-		if (f->vma_use_count)
-			b->flags |= V4L2_BUF_FLAG_MAPPED;
-
-		return 0;
-	}
-	default:
-		return em28xx_do_ioctl(inode, filp, dev, cmd, arg,
-				       em28xx_video_do_ioctl);
-	}
-	return 0;
-}
-
-/*
- * em28xx_v4l2_ioctl()
- * handle v4l2 ioctl the main action happens in em28xx_v4l2_do_ioctl()
- */
-static int em28xx_v4l2_ioctl(struct inode *inode, struct file *filp,
-			     unsigned int cmd, unsigned long arg)
-{
-	int ret = 0;
-	struct em28xx_fh *fh = filp->private_data;
-	struct em28xx *dev   = fh->dev;
-
-	if (dev->state & DEV_DISCONNECTED) {
-		em28xx_errdev("v4l2 ioctl: device not present\n");
-		return -ENODEV;
-	}
-
-	if (dev->state & DEV_MISCONFIGURED) {
-		em28xx_errdev
-		    ("v4l2 ioctl: device is misconfigured; close and open it again\n");
-		return -EIO;
-	}
-
-	ret = video_usercopy(inode, filp, cmd, arg, em28xx_video_do_ioctl);
-
-	return ret;
-}
-
 static const struct file_operations em28xx_v4l_fops = {
-	.owner = THIS_MODULE,
-	.open = em28xx_v4l2_open,
-	.release = em28xx_v4l2_close,
-	.ioctl = em28xx_v4l2_ioctl,
-	.read = em28xx_v4l2_read,
-	.poll = em28xx_v4l2_poll,
-	.mmap = em28xx_v4l2_mmap,
-	.llseek = no_llseek,
-	.compat_ioctl   = v4l_compat_ioctl32,
-
+	.owner         = THIS_MODULE,
+	.open          = em28xx_v4l2_open,
+	.release       = em28xx_v4l2_close,
+	.read          = em28xx_v4l2_read,
+	.poll          = em28xx_v4l2_poll,
+	.mmap          = em28xx_v4l2_mmap,
+	.ioctl	       = video_ioctl2,
+	.llseek        = no_llseek,
+	.compat_ioctl  = v4l_compat_ioctl32,
 };
+
+static const struct video_device em28xx_video_template = {
+	.fops                       = &em28xx_v4l_fops,
+	.release                    = video_device_release,
+
+	.minor                      = -1,
+	.vidioc_querycap            = vidioc_querycap,
+	.vidioc_enum_fmt_cap        = vidioc_enum_fmt_cap,
+	.vidioc_g_fmt_cap           = vidioc_g_fmt_cap,
+	.vidioc_try_fmt_cap         = vidioc_try_fmt_cap,
+	.vidioc_s_fmt_cap           = vidioc_s_fmt_cap,
+	.vidioc_g_audio             = vidioc_g_audio,
+	.vidioc_s_audio             = vidioc_s_audio,
+	.vidioc_cropcap             = vidioc_cropcap,
+
+	.vidioc_g_fmt_vbi_capture   = vidioc_g_fmt_vbi_capture,
+	.vidioc_try_fmt_vbi_capture = vidioc_try_set_vbi_capture,
+	.vidioc_s_fmt_vbi_capture   = vidioc_try_set_vbi_capture,
+
+	.vidioc_reqbufs             = vidioc_reqbufs,
+	.vidioc_querybuf            = vidioc_querybuf,
+	.vidioc_qbuf                = vidioc_qbuf,
+	.vidioc_dqbuf               = vidioc_dqbuf,
+	.vidioc_s_std               = vidioc_s_std,
+	.vidioc_enum_input          = vidioc_enum_input,
+	.vidioc_g_input             = vidioc_g_input,
+	.vidioc_s_input             = vidioc_s_input,
+	.vidioc_queryctrl           = vidioc_queryctrl,
+	.vidioc_g_ctrl              = vidioc_g_ctrl,
+	.vidioc_s_ctrl              = vidioc_s_ctrl,
+	.vidioc_streamon            = vidioc_streamon,
+	.vidioc_streamoff           = vidioc_streamoff,
+	.vidioc_g_tuner             = vidioc_g_tuner,
+	.vidioc_s_tuner             = vidioc_s_tuner,
+	.vidioc_g_frequency         = vidioc_g_frequency,
+	.vidioc_s_frequency         = vidioc_s_frequency,
+
+	.tvnorms                    = V4L2_STD_ALL,
+	.current_norm               = V4L2_STD_NTSC_M,
+};
+
 
 /******************************** usb interface *****************************************/
 
@@ -1639,7 +1731,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	errCode = em28xx_config(dev);
 
-	/* allocate and fill v4l2 device struct */
+	/* allocate and fill video video_device struct */
 	dev->vdev = video_device_alloc();
 	if (NULL == dev->vdev) {
 		em28xx_errdev("cannot allocate video_device.\n");
@@ -1647,7 +1739,17 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		kfree(dev);
 		return -ENOMEM;
 	}
+	memcpy(dev->vdev, &em28xx_video_template,
+					sizeof(em28xx_video_template));
+	dev->vdev->type = VID_TYPE_CAPTURE;
+	if (dev->has_tuner)
+		dev->vdev->type |= VID_TYPE_TUNER;
+	dev->vdev->dev = &dev->udev->dev;
+	snprintf(dev->vdev->name, sizeof(dev->vbi_dev->name),
+		 "%s#%d %s", "em28xx", dev->devno, "video");
+	dev->vdev->current_norm = dev->tvnorm->id;
 
+	/* Allocate and fill vbi video_device struct */
 	dev->vbi_dev = video_device_alloc();
 	if (NULL == dev->vbi_dev) {
 		em28xx_errdev("cannot allocate video_device.\n");
@@ -1656,29 +1758,15 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		kfree(dev);
 		return -ENOMEM;
 	}
-
-	/* Fills VBI device info */
+	memcpy(dev->vbi_dev, &em28xx_video_template,
+					sizeof(em28xx_video_template));
 	dev->vbi_dev->type = VFL_TYPE_VBI;
-	dev->vbi_dev->fops = &em28xx_v4l_fops;
-	dev->vbi_dev->minor = -1;
 	dev->vbi_dev->dev = &dev->udev->dev;
-	dev->vbi_dev->release = video_device_release;
-	snprintf(dev->vbi_dev->name, sizeof(dev->vbi_dev->name), "%s#%d %s",
-							 "em28xx",dev->devno,"vbi");
-
-	/* Fills CAPTURE device info */
-	dev->vdev->type = VID_TYPE_CAPTURE;
-	if (dev->has_tuner)
-		dev->vdev->type |= VID_TYPE_TUNER;
-	dev->vdev->fops = &em28xx_v4l_fops;
-	dev->vdev->minor = -1;
-	dev->vdev->dev = &dev->udev->dev;
-	dev->vdev->release = video_device_release;
-	snprintf(dev->vdev->name, sizeof(dev->vbi_dev->name), "%s#%d %s",
-							 "em28xx",dev->devno,"video");
+	snprintf(dev->vbi_dev->name, sizeof(dev->vbi_dev->name),
+				"%s#%d %s", "em28xx", dev->devno, "vbi");
+	dev->vbi_dev->current_norm = dev->tvnorm->id;
 
 	list_add_tail(&dev->devlist,&em28xx_devlist);
-
 
 	if (dev->has_msp34xx) {
 		/* Send a reset to other chips via gpio */
@@ -1686,11 +1774,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		msleep(3);
 		em28xx_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
 		msleep(3);
-
 	}
+
 	video_mux(dev, 0);
 
-	/* register v4l2 device */
+	/* register v4l2 video video_device */
 	if ((retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
 					 video_nr[dev->devno]))) {
 		em28xx_errdev("unable to register video device (error=%i).\n",
@@ -1703,6 +1791,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		return -ENODEV;
 	}
 
+	/* register v4l2 vbi video_device */
 	if (video_register_device(dev->vbi_dev, VFL_TYPE_VBI,
 					vbi_nr[dev->devno]) < 0) {
 		printk("unable to register vbi device\n");
@@ -1713,8 +1802,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 		em28xx_devused&=~(1<<dev->devno);
 		kfree(dev);
 		return -ENODEV;
-	} else {
-		printk("registered VBI\n");
 	}
 
 	em28xx_info("V4L2 device registered as /dev/video%d and /dev/vbi%d\n",
