@@ -24,7 +24,6 @@
 
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm/processor.h>
 #include <asm/thread_info.h>
 
 #define LOAD_OFFSET	CONFIG_CACHED_MEMORY_OFFSET
