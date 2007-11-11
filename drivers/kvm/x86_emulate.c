@@ -448,8 +448,7 @@ struct operand {
 
 #define JMP_REL(rel) 							\
 	do {								\
-		_eip += (int)(rel);					\
-		_eip = ((op_bytes == 2) ? (uint16_t)_eip : (uint32_t)_eip); \
+		register_address_increment(_eip, rel);			\
 	} while (0)
 
 /*
