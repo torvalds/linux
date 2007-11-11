@@ -1558,9 +1558,6 @@ special_insn:
 		case 4:
 			rel = insn_fetch(s32, 4, c->eip);
 			break;
-		case 8:
-			rel = insn_fetch(s64, 8, c->eip);
-			break;
 		default:
 			DPRINTF("Call: Invalid op_bytes\n");
 			goto cannot_emulate;
