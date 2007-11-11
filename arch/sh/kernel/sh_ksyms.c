@@ -141,7 +141,9 @@ EXPORT_SYMBOL(clear_user_page);
 #endif
 
 EXPORT_SYMBOL(csum_partial);
+#ifdef CONFIG_SUPERH32
 EXPORT_SYMBOL(csum_partial_copy_generic);
+#endif
 #ifdef CONFIG_IPV6
 EXPORT_SYMBOL(csum_ipv6_magic);
 #endif
