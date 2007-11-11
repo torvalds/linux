@@ -260,6 +260,7 @@ struct em28xx {
 	int vscale;		/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 	int type;
+	unsigned int video_bytesread;	/* Number of bytes read */
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
 	unsigned long i2c_hash;	/* i2c devicelist hash - for boards with generic ID */
@@ -268,6 +269,7 @@ struct em28xx {
 	enum em28xx_dev_state state;
 	enum em28xx_stream_state stream;
 	enum em28xx_io_method io;
+
 	/* locks */
 	struct mutex lock;
 	spinlock_t queue_lock;

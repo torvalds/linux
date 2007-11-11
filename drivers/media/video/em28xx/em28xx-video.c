@@ -416,6 +416,9 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 	struct em28xx_fh *fh = filp->private_data;
 	struct em28xx *dev = fh->dev;
 
+	/* FIXME: read() is not prepared to allow changing the video
+	   resolution while streaming. Seems a bug at em28xx_set_fmt
+	 */
 
 	if (unlikely(res_get(fh) < 0))
 		return -EBUSY;
@@ -498,25 +501,36 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 			mutex_unlock(&dev->lock);
 			return -ENODEV;
 		}
+		dev->video_bytesread = 0;
 	}
 
 	f = list_entry(dev->outqueue.prev, struct em28xx_frame_t, frame);
-
-	spin_lock_irqsave(&dev->queue_lock, lock_flags);
-	list_for_each_entry(i, &dev->outqueue, frame)
-	    i->state = F_UNUSED;
-	INIT_LIST_HEAD(&dev->outqueue);
-	spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
 
 	em28xx_queue_unusedframes(dev);
 
 	if (count > f->buf.length)
 		count = f->buf.length;
 
-	if (copy_to_user(buf, f->bufmem, count)) {
-		mutex_unlock(&dev->lock);
+	if ((dev->video_bytesread + count) > dev->frame_size)
+		count = dev->frame_size - dev->video_bytesread;
+
+	if (copy_to_user(buf, f->bufmem+dev->video_bytesread, count)) {
+		em28xx_err("Error while copying to user\n");
 		return -EFAULT;
 	}
+	dev->video_bytesread += count;
+
+	if (dev->video_bytesread == dev->frame_size) {
+		spin_lock_irqsave(&dev->queue_lock, lock_flags);
+		list_for_each_entry(i, &dev->outqueue, frame)
+				    i->state = F_UNUSED;
+		INIT_LIST_HEAD(&dev->outqueue);
+		spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
+
+		em28xx_queue_unusedframes(dev);
+		dev->video_bytesread = 0;
+	}
+
 	*f_pos += count;
 
 	mutex_unlock(&dev->lock);
