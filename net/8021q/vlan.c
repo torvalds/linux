@@ -636,6 +636,10 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 			if (!vlandev)
 				continue;
 
+			flgs = vlandev->flags;
+			if (!(flgs & IFF_UP))
+				continue;
+
 			vlan_sync_address(dev, vlandev);
 		}
 		break;
