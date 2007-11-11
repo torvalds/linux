@@ -481,7 +481,7 @@ static void setup_frame(int sig, struct k_sigaction *ka,
 			goto give_sigsegv;
 
 		/* Cohere the trampoline with the I-cache. */
-		flush_cache_sigtramp(DEREF_REG_PR-1, DEREF_REG_PR-1+16);
+		flush_cache_sigtramp(DEREF_REG_PR-1);
 	}
 
 	/*
