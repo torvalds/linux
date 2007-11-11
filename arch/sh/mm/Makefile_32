@@ -13,7 +13,7 @@ endif
 
 mmu-y			:= tlb-nommu.o pg-nommu.o
 mmu-$(CONFIG_MMU)	:= fault.o clear_page.o copy_page.o tlb-flush.o	\
-			   ioremap.o
+			   ioremap_32.o
 
 obj-y			+= $(mmu-y)
 

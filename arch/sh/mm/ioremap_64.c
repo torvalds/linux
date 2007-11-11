@@ -13,18 +13,17 @@
  *
  *   (C) Copyright 1995 1996 Linus Torvalds
  */
-#include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/io.h>
 #include <linux/ioport.h>
-#include <linux/bootmem.h>
-#include <linux/proc_fs.h>
 #include <linux/module.h>
+#include <linux/mm.h>
+#include <linux/io.h>
+#include <asm/page.h>
 #include <asm/pgalloc.h>
+#include <asm/addrspace.h>
+#include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/mmu.h>
 
 static void shmedia_mapioaddr(unsigned long, unsigned long);
 static unsigned long shmedia_ioremap(struct resource *, u32, int);

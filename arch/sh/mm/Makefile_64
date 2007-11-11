@@ -4,6 +4,11 @@
 
 obj-y			:= init.o extable_64.o consistent.o
 
+mmu-y			:= tlb-nommu.o pg-nommu.o
+mmu-$(CONFIG_MMU)	:= ioremap_64.o
+
+obj-y			+= $(mmu-y)
+
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
 obj-$(CONFIG_PMB)		+= pmb.o
 obj-$(CONFIG_NUMA)		+= numa.o
