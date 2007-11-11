@@ -1,7 +1,7 @@
 /*
 * cypress_cy7c63.c
 *
-* Copyright (c) 2006 Oliver Bock (o.bock@fh-wolfenbuettel.de)
+* Copyright (c) 2006-2007 Oliver Bock (bock@tfh-berlin.de)
 *
 *	This driver is based on the Cypress USB Driver by Marcus Maul
 *	(cyport) and the 2.0 version of Greg Kroah-Hartman's
@@ -21,6 +21,9 @@
 *	Supported functions:	Read/Write Ports
 *
 *
+*	For up-to-date information please visit:
+*	http://www.obock.de/kernel/cypress
+*
 *	This program is free software; you can redistribute it and/or
 *	modify it under the terms of the GNU General Public License as
 *	published by the Free Software Foundation, version 2.
@@ -31,7 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 
-#define DRIVER_AUTHOR		"Oliver Bock (o.bock@fh-wolfenbuettel.de)"
+#define DRIVER_AUTHOR		"Oliver Bock (bock@tfh-berlin.de)"
 #define DRIVER_DESC		"Cypress CY7C63xxx USB driver"
 
 #define CYPRESS_VENDOR_ID	0xa2c
