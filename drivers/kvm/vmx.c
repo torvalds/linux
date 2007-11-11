@@ -980,7 +980,8 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 #endif
 	if (_cpu_based_exec_control & CPU_BASED_ACTIVATE_SECONDARY_CONTROLS) {
 		min = 0;
-		opt = SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+		opt = SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+			SECONDARY_EXEC_WBINVD_EXITING;
 		if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_PROCBASED_CTLS2,
 					&_cpu_based_2nd_exec_control) < 0)
 			return -EIO;
@@ -2133,6 +2134,13 @@ static int handle_vmcall(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static int handle_wbinvd(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	skip_emulated_instruction(vcpu);
+	/* TODO: Add support for VT-d/pass-through device */
+	return 1;
+}
+
 static int handle_apic_access(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	u64 exit_qualification;
@@ -2174,6 +2182,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu,
 	[EXIT_REASON_VMCALL]                  = handle_vmcall,
 	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
 	[EXIT_REASON_APIC_ACCESS]             = handle_apic_access,
+	[EXIT_REASON_WBINVD]                  = handle_wbinvd,
 };
 
 static const int kvm_vmx_max_exit_handlers =

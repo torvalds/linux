@@ -49,6 +49,7 @@
  * Definitions of Secondary Processor-Based VM-Execution Controls.
  */
 #define SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES 0x00000001
+#define SECONDARY_EXEC_WBINVD_EXITING		0x00000040
 
 
 #define PIN_BASED_EXT_INTR_MASK                 0x00000001
@@ -223,6 +224,7 @@ enum vmcs_field {
 #define EXIT_REASON_MWAIT_INSTRUCTION   36
 #define EXIT_REASON_TPR_BELOW_THRESHOLD 43
 #define EXIT_REASON_APIC_ACCESS         44
+#define EXIT_REASON_WBINVD		54
 
 /*
  * Interruption-information format
