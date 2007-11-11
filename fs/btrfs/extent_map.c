@@ -96,7 +96,7 @@ void extent_map_tree_empty_lru(struct extent_map_tree *tree)
 	while(!list_empty(&tree->buffer_lru)) {
 		eb = list_entry(tree->buffer_lru.next, struct extent_buffer,
 				lru);
-		list_del(&eb->lru);
+		list_del_init(&eb->lru);
 		free_extent_buffer(eb);
 	}
 }
@@ -1212,13 +1212,15 @@ int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,
 	node = tree_search(&tree->state, start);
 	while (node && start <= end) {
 		state = rb_entry(node, struct extent_state, rb_node);
-		if (state->start > end)
-			break;
 
 		if (filled && state->start > start) {
 			bitset = 0;
 			break;
 		}
+
+		if (state->start > end)
+			break;
+
 		if (state->state & bits) {
 			bitset = 1;
 			if (!filled)
@@ -2208,6 +2210,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_map_tree *tree,
 		page_cache_get(page0);
 		mark_page_accessed(page0);
 		set_page_extent_mapped(page0);
+		WARN_ON(!PageUptodate(page0));
 		set_page_private(page0, EXTENT_PAGE_PRIVATE_FIRST_PAGE |
 				 len << 2);
 	} else {
@@ -2248,9 +2251,11 @@ fail:
 	spin_unlock(&tree->lru_lock);
 	if (!atomic_dec_and_test(&eb->refs))
 		return NULL;
-	for (index = 0; index < i; index++) {
+	for (index = 1; index < i; index++) {
 		page_cache_release(extent_buffer_page(eb, index));
 	}
+	if (i > 0)
+		page_cache_release(extent_buffer_page(eb, 0));
 	__free_extent_buffer(eb);
 	return NULL;
 }
@@ -2310,9 +2315,11 @@ fail:
 	spin_unlock(&tree->lru_lock);
 	if (!atomic_dec_and_test(&eb->refs))
 		return NULL;
-	for (index = 0; index < i; index++) {
+	for (index = 1; index < i; index++) {
 		page_cache_release(extent_buffer_page(eb, index));
 	}
+	if (i > 0)
+		page_cache_release(extent_buffer_page(eb, 0));
 	__free_extent_buffer(eb);
 	return NULL;
 }
@@ -2329,11 +2336,13 @@ void free_extent_buffer(struct extent_buffer *eb)
 	if (!atomic_dec_and_test(&eb->refs))
 		return;
 
+	WARN_ON(!list_empty(&eb->lru));
 	num_pages = num_extent_pages(eb->start, eb->len);
 
-	for (i = 0; i < num_pages; i++) {
+	for (i = 1; i < num_pages; i++) {
 		page_cache_release(extent_buffer_page(eb, i));
 	}
+	page_cache_release(extent_buffer_page(eb, 0));
 	__free_extent_buffer(eb);
 }
 EXPORT_SYMBOL(free_extent_buffer);
@@ -2469,6 +2478,7 @@ int read_extent_buffer_pages(struct extent_map_tree *tree,
 			   EXTENT_UPTODATE, 1)) {
 		return 0;
 	}
+
 	if (start) {
 		WARN_ON(start < eb->start);
 		start_i = (start >> PAGE_CACHE_SHIFT) -
@@ -2577,7 +2587,7 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 		*map_start = 0;
 	} else {
 		offset = 0;
-		*map_start = (i << PAGE_CACHE_SHIFT) - start_offset;
+		*map_start = ((u64)i << PAGE_CACHE_SHIFT) - start_offset;
 	}
 	if (start + min_len > eb->len) {
 printk("bad mapping eb start %Lu len %lu, wanted %lu %lu\n", eb->start, eb->len, start, min_len);
