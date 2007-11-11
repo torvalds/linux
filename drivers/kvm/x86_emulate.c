@@ -1358,6 +1358,7 @@ special_insn:
 		}
 		src.val = (unsigned long) _eip;
 		JMP_REL(rel);
+		op_bytes = ad_bytes;
 		goto push;
 	}
 	case 0xe9: /* jmp rel */
