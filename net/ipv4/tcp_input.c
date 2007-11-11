@@ -1444,12 +1444,17 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						tp->retransmit_skb_hint = NULL;
 					}
 				} else {
-					/* New sack for not retransmitted frame,
-					 * which was in hole. It is reordering.
-					 */
-					if (!(sacked & TCPCB_RETRANS) &&
-					    fack_count < prior_fackets)
-						reord = min(fack_count, reord);
+					if (!(sacked & TCPCB_RETRANS)) {
+						/* New sack for not retransmitted frame,
+						 * which was in hole. It is reordering.
+						 */
+						if (fack_count < prior_fackets)
+							reord = min(fack_count, reord);
+
+						/* SACK enhanced F-RTO (RFC4138; Appendix B) */
+						if (!after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark))
+							flag |= FLAG_ONLY_ORIG_SACKED;
+					}
 
 					if (sacked & TCPCB_LOST) {
 						TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
@@ -1457,18 +1462,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 						/* clear lost hint */
 						tp->retransmit_skb_hint = NULL;
-					}
-					/* SACK enhanced F-RTO detection.
-					 * Set flag if and only if non-rexmitted
-					 * segments below frto_highmark are
-					 * SACKed (RFC4138; Appendix B).
-					 * Clearing correct due to in-order walk
-					 */
-					if (after(end_seq, tp->frto_highmark)) {
-						flag &= ~FLAG_ONLY_ORIG_SACKED;
-					} else {
-						if (!(sacked & TCPCB_RETRANS))
-							flag |= FLAG_ONLY_ORIG_SACKED;
 					}
 				}
 
@@ -1503,6 +1496,12 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				tp->retransmit_skb_hint = NULL;
 			}
 		}
+
+		/* SACK enhanced FRTO (RFC4138, Appendix B): Clearing correct
+		 * due to in-order walk
+		 */
+		if (after(end_seq, tp->frto_highmark))
+			flag &= ~FLAG_ONLY_ORIG_SACKED;
 	}
 
 	if (tp->retrans_out &&
