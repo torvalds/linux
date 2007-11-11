@@ -156,7 +156,7 @@ config PAGE_SIZE_8KB
 
 config PAGE_SIZE_64KB
 	bool "64kB"
-	depends on CPU_SH4
+	depends on CPU_SH4 || CPU_SH5
 	help
 	  This enables support for 64kB pages, possible on all SH-4
 	  CPUs and later.
@@ -165,7 +165,7 @@ endchoice
 
 choice
 	prompt "HugeTLB page size"
-	depends on HUGETLB_PAGE && CPU_SH4 && MMU
+	depends on HUGETLB_PAGE && (CPU_SH4 || CPU_SH5) && MMU
 	default HUGETLB_PAGE_SIZE_64K
 
 config HUGETLB_PAGE_SIZE_64K
