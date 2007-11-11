@@ -630,20 +630,15 @@ static int next_segment(unsigned long len, int offset)
 int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 			int len)
 {
-	void *page_virt;
-	struct page *page;
+	int r;
+	unsigned long addr;
 
-	page = gfn_to_page(kvm, gfn);
-	if (is_error_page(page)) {
-		kvm_release_page(page);
+	addr = gfn_to_hva(kvm, gfn);
+	if (kvm_is_error_hva(addr))
 		return -EFAULT;
-	}
-	page_virt = kmap_atomic(page, KM_USER0);
-
-	memcpy(data, page_virt + offset, len);
-
-	kunmap_atomic(page_virt, KM_USER0);
-	kvm_release_page(page);
+	r = copy_from_user(data, (void __user *)addr + offset, len);
+	if (r)
+		return -EFAULT;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_read_guest_page);
@@ -671,21 +666,16 @@ EXPORT_SYMBOL_GPL(kvm_read_guest);
 int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
 			 int offset, int len)
 {
-	void *page_virt;
-	struct page *page;
+	int r;
+	unsigned long addr;
 
-	page = gfn_to_page(kvm, gfn);
-	if (is_error_page(page)) {
-		kvm_release_page(page);
+	addr = gfn_to_hva(kvm, gfn);
+	if (kvm_is_error_hva(addr))
 		return -EFAULT;
-	}
-	page_virt = kmap_atomic(page, KM_USER0);
-
-	memcpy(page_virt + offset, data, len);
-
-	kunmap_atomic(page_virt, KM_USER0);
+	r = copy_to_user((void __user *)addr + offset, data, len);
+	if (r)
+		return -EFAULT;
 	mark_page_dirty(kvm, gfn);
-	kvm_release_page(page);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(kvm_write_guest_page);
