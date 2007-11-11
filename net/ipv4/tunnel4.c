@@ -118,6 +118,17 @@ static void tunnel4_err(struct sk_buff *skb, u32 info)
 			break;
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static void tunnel64_err(struct sk_buff *skb, u32 info)
+{
+	struct xfrm_tunnel *handler;
+
+	for (handler = tunnel64_handlers; handler; handler = handler->next)
+		if (!handler->err_handler(skb, info))
+			break;
+}
+#endif
+
 static struct net_protocol tunnel4_protocol = {
 	.handler	=	tunnel4_rcv,
 	.err_handler	=	tunnel4_err,
@@ -127,7 +138,7 @@ static struct net_protocol tunnel4_protocol = {
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static struct net_protocol tunnel64_protocol = {
 	.handler	=	tunnel64_rcv,
-	.err_handler	=	tunnel4_err,
+	.err_handler	=	tunnel64_err,
 	.no_policy	=	1,
 };
 #endif
