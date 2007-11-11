@@ -225,6 +225,44 @@ static void video_mux(struct em28xx *dev, int index)
 	}
 }
 
+/* Usage lock check functions */
+static int res_get(struct em28xx_fh *fh)
+{
+	struct em28xx    *dev = fh->dev;
+	int		 rc   = 0;
+
+	/* This instance already has stream_on */
+	if (fh->stream_on)
+		return rc;
+
+	mutex_lock(&dev->lock);
+
+	if (dev->stream_on)
+		rc = -EINVAL;
+	else {
+		dev->stream_on = 1;
+		fh->stream_on  = 1;
+	}
+
+	mutex_unlock(&dev->lock);
+	return rc;
+}
+
+static int res_check(struct em28xx_fh *fh)
+{
+	return (fh->stream_on);
+}
+
+static void res_free(struct em28xx_fh *fh)
+{
+	struct em28xx    *dev = fh->dev;
+
+	mutex_lock(&dev->lock);
+	fh->stream_on = 0;
+	dev->stream_on = 0;
+	mutex_unlock(&dev->lock);
+}
+
 /*
  * em28xx_v4l2_open()
  * inits the device and starts isoc transfer
@@ -328,15 +366,16 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 
 	em28xx_videodbg("users=%d\n", dev->users);
 
+
+	if (res_check(fh))
+		res_free(fh);
+
 	mutex_lock(&dev->lock);
-	if (fh->reader == 1)
-	       fh->reader = 0;
 
 	if (dev->users == 1) {
-		dev->reader = 0;
-
 		em28xx_uninit_isoc(dev);
 		em28xx_release_buffers(dev);
+		dev->io = IO_NONE;
 
 		/* the device is already disconnect,
 		   free the remaining resources */
@@ -377,15 +416,14 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 	struct em28xx_fh *fh = filp->private_data;
 	struct em28xx *dev = fh->dev;
 
+
+	if (unlikely(res_get(fh) < 0))
+		return -EBUSY;
+
 	mutex_lock(&dev->lock);
 
 	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		em28xx_videodbg("V4l2_Buf_type_videocapture is set\n");
-
-	if (dev->reader > 0 && fh->reader == 0) {
-		mutex_unlock(&dev->lock);
-		return -EBUSY;
-	}
 
 	if (dev->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		em28xx_videodbg("V4L2_BUF_TYPE_VBI_CAPTURE is set\n");
@@ -425,9 +463,6 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 				" the device again to choose the read method\n");
 		mutex_unlock(&dev->lock);
 		return -EINVAL;
-	} else {
-		dev->reader = 1;
-		fh->reader = 1;
 	}
 
 	if (dev->io == IO_NONE) {
@@ -498,6 +533,9 @@ static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 	unsigned int mask = 0;
 	struct em28xx_fh *fh = filp->private_data;
 	struct em28xx *dev = fh->dev;
+
+	if (unlikely(res_get(fh) < 0))
+		return POLLERR;
 
 	mutex_lock(&dev->lock);
 
@@ -572,15 +610,10 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 	void 		 *pos;
 	u32		 i;
 
-	mutex_lock(&dev->lock);
-
-	if (dev->reader > 0 && fh->reader == 0) {
-		mutex_unlock(&dev->lock);
+	if (unlikely(res_get(fh) < 0))
 		return -EBUSY;
-	} else {
-		dev->reader = 1;
-		fh->reader = 1;
-	}
+
+	mutex_lock(&dev->lock);
 
 	if (dev->state & DEV_DISCONNECTED) {
 		em28xx_videodbg("mmap: device not present\n");
@@ -1219,6 +1252,9 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 		if (list_empty(&dev->inqueue))
 			return -EINVAL;
 
+		if (unlikely(res_get(fh) < 0))
+			return -EBUSY;
+
 		dev->stream = STREAM_ON;	/* FIXME: Start video capture here? */
 
 		em28xx_videodbg("VIDIOC_STREAMON: starting stream\n");
@@ -1243,7 +1279,6 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 			}
 		}
 
-		fh->reader = 0;
 		em28xx_empty_framequeues(dev);
 		mutex_unlock(&dev->lock);
 
