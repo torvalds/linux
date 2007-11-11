@@ -139,9 +139,6 @@ dev->hard_header == NULL (ll header is added by device, we cannot control it)
 static HLIST_HEAD(packet_sklist);
 static DEFINE_RWLOCK(packet_sklist_lock);
 
-static atomic_t packet_socks_nr;
-
-
 /* Private packet socket structures. */
 
 struct packet_mclist
@@ -236,10 +233,7 @@ static void packet_sock_destruct(struct sock *sk)
 		return;
 	}
 
-	atomic_dec(&packet_socks_nr);
-#ifdef PACKET_REFCNT_DEBUG
-	printk(KERN_DEBUG "PACKET socket %p is free, %d are alive\n", sk, atomic_read(&packet_socks_nr));
-#endif
+	sk_refcnt_debug_dec(sk);
 }
 
 
@@ -849,6 +843,7 @@ static int packet_release(struct socket *sock)
 	/* Purge queues */
 
 	skb_queue_purge(&sk->sk_receive_queue);
+	sk_refcnt_debug_release(sk);
 
 	sock_put(sk);
 	return 0;
@@ -1010,7 +1005,7 @@ static int packet_create(struct net *net, struct socket *sock, int protocol)
 	po->num = proto;
 
 	sk->sk_destruct = packet_sock_destruct;
-	atomic_inc(&packet_socks_nr);
+	sk_refcnt_debug_inc(sk);
 
 	/*
 	 *	Attach a protocol block
