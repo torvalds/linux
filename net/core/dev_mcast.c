@@ -168,13 +168,13 @@ void dev_mc_unsync(struct net_device *to, struct net_device *from)
 	da = from->mc_list;
 	while (da != NULL) {
 		next = da->next;
-		if (!da->da_synced)
-			continue;
-		__dev_addr_delete(&to->mc_list, &to->mc_count,
-				  da->da_addr, da->da_addrlen, 0);
-		da->da_synced = 0;
-		__dev_addr_delete(&from->mc_list, &from->mc_count,
-				  da->da_addr, da->da_addrlen, 0);
+		if (da->da_synced) {
+			__dev_addr_delete(&to->mc_list, &to->mc_count,
+					  da->da_addr, da->da_addrlen, 0);
+			da->da_synced = 0;
+			__dev_addr_delete(&from->mc_list, &from->mc_count,
+					  da->da_addr, da->da_addrlen, 0);
+		}
 		da = next;
 	}
 	__dev_set_rx_mode(to);
