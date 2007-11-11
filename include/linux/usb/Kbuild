@@ -3,4 +3,5 @@ unifdef-y += cdc.h
 unifdef-y += ch9.h
 unifdef-y += gadgetfs.h
 unifdef-y += midi.h
+unifdef-y += g_printer.h
 

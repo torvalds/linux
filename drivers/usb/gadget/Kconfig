@@ -548,6 +548,20 @@ config USB_MIDI_GADGET
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_midi".
 
+config USB_G_PRINTER
+	tristate "Printer Gadget"
+	help
+	  The Printer Gadget channels data between the USB host and a
+	  userspace program driving the print engine. The user space
+	  program reads and writes the device file /dev/g_printer to
+	  receive or send printer data. It can use ioctl calls to
+	  the device file to get or set printer status.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_printer".
+
+	  For more information, see Documentation/usb/gadget_printer.txt
+	  which includes sample code for accessing the device file.
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.

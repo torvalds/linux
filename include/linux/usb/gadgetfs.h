@@ -59,6 +59,11 @@ struct usb_gadgetfs_event {
 };
 
 
+/* The 'g' code is also used by printer gadget ioctl requests.
+ * Don't add any colliding codes to either driver, and keep
+ * them in unique ranges (size 0x20 for now).
+ */
+
 /* endpoint ioctls */
 
 /* IN transfers may be reported to the gadget driver as complete
