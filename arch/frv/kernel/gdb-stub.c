@@ -87,7 +87,7 @@
  *  Example:
  *    $ cd ~/linux
  *    $ make menuconfig <go to "Kernel Hacking" and turn on remote debugging>
- *    $ make dep; make vmlinux
+ *    $ make vmlinux
  *
  *  Step 3:
  *  Download the kernel to the remote target and start
