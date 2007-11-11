@@ -92,7 +92,7 @@ static LIST_HEAD(gc_inflight_list);
 static LIST_HEAD(gc_candidates);
 static DEFINE_SPINLOCK(unix_gc_lock);
 
-atomic_t unix_tot_inflight = ATOMIC_INIT(0);
+unsigned int unix_tot_inflight;
 
 
 static struct sock *unix_get_socket(struct file *filp)
@@ -133,7 +133,7 @@ void unix_inflight(struct file *fp)
 		} else {
 			BUG_ON(list_empty(&u->link));
 		}
-		atomic_inc(&unix_tot_inflight);
+		unix_tot_inflight++;
 		spin_unlock(&unix_gc_lock);
 	}
 }
@@ -147,7 +147,7 @@ void unix_notinflight(struct file *fp)
 		BUG_ON(list_empty(&u->link));
 		if (atomic_dec_and_test(&u->inflight))
 			list_del_init(&u->link);
-		atomic_dec(&unix_tot_inflight);
+		unix_tot_inflight--;
 		spin_unlock(&unix_gc_lock);
 	}
 }

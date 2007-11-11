@@ -457,7 +457,7 @@ static int unix_release_sock (struct sock *sk, int embrion)
 	 *	  What the above comment does talk about? --ANK(980817)
 	 */
 
-	if (atomic_read(&unix_tot_inflight))
+	if (unix_tot_inflight)
 		unix_gc();		/* Garbage collect fds */
 
 	return 0;
