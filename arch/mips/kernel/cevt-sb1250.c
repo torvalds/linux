@@ -73,6 +73,7 @@ static int sibyte_next_event(unsigned long delta, struct clock_event_device *cd)
 	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
 	init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
+	__raw_writeq(0, cfg);
 	__raw_writeq(delta - 1, init);
 	__raw_writeq(M_SCD_TIMER_ENABLE, cfg);
 
