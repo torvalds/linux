@@ -4064,11 +4064,6 @@ static sctp_disposition_t sctp_sf_abort_violation(
 	struct sctp_chunk *chunk =  arg;
 	struct sctp_chunk *abort = NULL;
 
-	/* Make the abort chunk. */
-	abort = sctp_make_abort_violation(asoc, chunk, payload, paylen);
-	if (!abort)
-		goto nomem;
-
 	/* SCTP-AUTH, Section 6.3:
 	 *    It should be noted that if the receiver wants to tear
 	 *    down an association in an authenticated way only, the
@@ -4082,6 +4077,11 @@ static sctp_disposition_t sctp_sf_abort_violation(
 	 */
 	if (sctp_auth_recv_cid(SCTP_CID_ABORT, asoc))
 		goto discard;
+
+	/* Make the abort chunk. */
+	abort = sctp_make_abort_violation(asoc, chunk, payload, paylen);
+	if (!abort)
+		goto nomem;
 
 	if (asoc) {
 		sctp_add_cmd_sf(commands, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
