@@ -520,6 +520,7 @@ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 extern struct page *bad_page;
 
 int is_error_page(struct page *page);
+int kvm_is_error_hva(unsigned long addr);
 int kvm_set_memory_region(struct kvm *kvm,
 			  struct kvm_userspace_memory_region *mem,
 			  int user_alloc);

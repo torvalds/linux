@@ -498,6 +498,17 @@ int is_error_page(struct page *page)
 }
 EXPORT_SYMBOL_GPL(is_error_page);
 
+static inline unsigned long bad_hva(void)
+{
+	return PAGE_OFFSET;
+}
+
+int kvm_is_error_hva(unsigned long addr)
+{
+	return addr == bad_hva();
+}
+EXPORT_SYMBOL_GPL(kvm_is_error_hva);
+
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 {
 	int i;
