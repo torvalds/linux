@@ -33,7 +33,6 @@
 #include <linux/i2c.h>
 #include <linux/version.h>
 #include <linux/mm.h>
-#include <linux/video_decoder.h>
 #include <linux/mutex.h>
 
 #include "em28xx.h"
@@ -76,29 +75,6 @@ MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
 
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS */
 static unsigned long em28xx_devused;
-
-/* supported tv norms */
-static struct em28xx_tvnorm tvnorms[] = {
-	{
-		.name = "PAL",
-		.id = V4L2_STD_PAL,
-		.mode = VIDEO_MODE_PAL,
-	 }, {
-		.name = "NTSC",
-		.id = V4L2_STD_NTSC,
-		.mode = VIDEO_MODE_NTSC,
-	}, {
-		 .name = "SECAM",
-		 .id = V4L2_STD_SECAM,
-		 .mode = VIDEO_MODE_SECAM,
-	}, {
-		.name = "PAL-M",
-		.id = V4L2_STD_PAL_M,
-		.mode = VIDEO_MODE_PAL,
-	}
-};
-
-#define TVNORMS ARRAY_SIZE(tvnorms)
 
 /* supported controls */
 /* Common to all boards */
@@ -536,27 +512,14 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 	struct v4l2_format f;
-	unsigned int       i;
 	int                rc;
 
 	rc = check_dev(dev);
 	if (rc < 0)
 		return rc;
 
-	for (i = 0; i < TVNORMS; i++)
-		if (*norm == tvnorms[i].id)
-			break;
-	if (i == TVNORMS)
-		for (i = 0; i < TVNORMS; i++)
-			if (*norm & tvnorms[i].id)
-				break;
-	if (i == TVNORMS)
-		return -EINVAL;
-
-	*norm = tvnorms[i].id;
-
 	mutex_lock(&dev->lock);
-	dev->tvnorm = &tvnorms[i];
+	dev->norm = *norm;
 	mutex_unlock(&dev->lock);
 
 	/* Adjusts width/height, if needed */
@@ -575,7 +538,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
-	em28xx_i2c_call_clients(dev, VIDIOC_S_STD, &dev->tvnorm->id);
+	em28xx_i2c_call_clients(dev, VIDIOC_S_STD, &dev->norm);
 
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -615,8 +578,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		(EM28XX_VMUX_CABLE == INPUT(n)->type))
 		i->type = V4L2_INPUT_TYPE_TUNER;
 
-	for (n = 0; n < ARRAY_SIZE(tvnorms); n++)
-		i->std |= tvnorms[n].id;
+	i->std = dev->vdev->tvnorms;
 
 	return 0;
 }
@@ -1643,7 +1605,7 @@ static const struct video_device em28xx_video_template = {
 	.vidioc_s_frequency         = vidioc_s_frequency,
 
 	.tvnorms                    = V4L2_STD_ALL,
-	.current_norm               = V4L2_STD_NTSC_M,
+	.current_norm               = V4L2_STD_PAL,
 };
 
 
@@ -1658,7 +1620,7 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 {
 	struct em28xx *dev = *devhandle;
 	int retval = -ENOMEM;
-	int errCode, i;
+	int errCode;
 	unsigned int maxh, maxw;
 
 	dev->udev = udev;
@@ -1694,15 +1656,8 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	/* configure the device */
 	em28xx_config_i2c(dev);
 
-	for (i = 0; i < TVNORMS; i++)
-		if (em28xx_boards[dev->model].norm == tvnorms[i].mode)
-			break;
-	if (i == TVNORMS)
-		i = 0;
-
-	dev->tvnorm = &tvnorms[i];      /* set default norm */
-
-	em28xx_videodbg("tvnorm=%s\n", dev->tvnorm->name);
+	/* set default norm */
+	dev->norm = em28xx_video_template.current_norm;
 
 	maxw = norm_maxw(dev);
 	maxh = norm_maxh(dev);
@@ -1737,7 +1692,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->vdev->dev = &dev->udev->dev;
 	snprintf(dev->vdev->name, sizeof(dev->vbi_dev->name),
 		 "%s#%d %s", "em28xx", dev->devno, "video");
-	dev->vdev->current_norm = dev->tvnorm->id;
 
 	/* Allocate and fill vbi video_device struct */
 	dev->vbi_dev = video_device_alloc();
@@ -1754,7 +1708,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->vbi_dev->dev = &dev->udev->dev;
 	snprintf(dev->vbi_dev->name, sizeof(dev->vbi_dev->name),
 				"%s#%d %s", "em28xx", dev->devno, "vbi");
-	dev->vbi_dev->current_norm = dev->tvnorm->id;
 
 	list_add_tail(&dev->devlist,&em28xx_devlist);
 

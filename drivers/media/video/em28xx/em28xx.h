@@ -167,7 +167,6 @@ enum em28xx_decoder {
 struct em28xx_board {
 	char *name;
 	int vchannels;
-	int norm;
 	int tuner_type;
 
 	/* i2c flags */
@@ -203,14 +202,6 @@ enum em28xx_dev_state {
 	DEV_MISCONFIGURED = 0x04,
 };
 
-/* tvnorms */
-struct em28xx_tvnorm {
-	char *name;
-	v4l2_std_id id;
-	/* mode for saa7113h */
-	int mode;
-};
-
 /* main device struct */
 struct em28xx {
 	/* generic device properties */
@@ -239,7 +230,7 @@ struct em28xx {
 	/* video for linux */
 	int users;		/* user count for exclusive use */
 	struct video_device *vdev;	/* video for linux device struct */
-	struct em28xx_tvnorm *tvnorm;	/* selected tv norm */
+	v4l2_std_id norm;	/* selected tv norm */
 	int ctl_freq;		/* selected frequency */
 	unsigned int ctl_input;	/* selected input */
 	unsigned int ctl_ainput;	/* slected audio input */
@@ -522,18 +513,21 @@ inline static int em28xx_gamma_set(struct em28xx *dev, s32 val)
 /*FIXME: maxw should be dependent of alt mode */
 inline static unsigned int norm_maxw(struct em28xx *dev)
 {
-	switch(dev->model){
-		case (EM2820_BOARD_MSI_VOX_USB_2): return(640);
-		default: return(720);
+	switch (dev->model) {
+	case EM2820_BOARD_MSI_VOX_USB_2:
+		return 640;
+	default:
+		return 720;
 	}
 }
 
 inline static unsigned int norm_maxh(struct em28xx *dev)
 {
-	switch(dev->model){
-		case (EM2820_BOARD_MSI_VOX_USB_2): return(480);
-		default: return (dev->tvnorm->id & V4L2_STD_625_50) ? 576 : 480;
+	switch (dev->model) {
+	case EM2820_BOARD_MSI_VOX_USB_2:
+		return 480;
+	default:
+		return (dev->norm & V4L2_STD_625_50) ? 576 : 480;
 	}
 }
-
 #endif
