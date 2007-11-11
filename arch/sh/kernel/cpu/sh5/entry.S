@@ -10,12 +10,10 @@
  * Copyright (C) 2003, 2004 Richard Curnow
  *
  */
-
 #include <linux/errno.h>
 #include <linux/sys.h>
-
+#include <asm/cpu/registers.h>
 #include <asm/processor.h>
-#include <asm/registers.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>

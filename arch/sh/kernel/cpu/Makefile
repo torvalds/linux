@@ -6,7 +6,13 @@ obj-$(CONFIG_CPU_SH2)		= sh2/
 obj-$(CONFIG_CPU_SH2A)		= sh2a/
 obj-$(CONFIG_CPU_SH3)		= sh3/
 obj-$(CONFIG_CPU_SH4)		= sh4/
+obj-$(CONFIG_CPU_SH5)		= sh5/
+
+# Special cases for family ancestry.
+
 obj-$(CONFIG_CPU_SH4A)		+= sh4a/
+
+# Common interfaces.
 
 obj-$(CONFIG_UBC_WAKEUP)	+= ubc.o
 obj-$(CONFIG_SH_ADC)		+= adc.o
