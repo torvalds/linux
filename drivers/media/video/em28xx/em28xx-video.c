@@ -234,6 +234,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	int minor = iminor(inode);
 	int errCode = 0;
 	struct em28xx *h,*dev = NULL;
+	struct em28xx_fh *fh;
 
 	list_for_each_entry(h, &em28xx_devlist, devlist) {
 		if (h->vdev->minor == minor) {
@@ -251,19 +252,17 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	em28xx_videodbg("open minor=%d type=%s users=%d\n",
 				minor,v4l2_type_names[dev->type],dev->users);
 
-	mutex_lock(&dev->lock);
+	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
 
-	if (dev->users) {
-		em28xx_warn("this driver can be opened only once\n");
-		mutex_unlock(&dev->lock);
-		return -EBUSY;
+	if (!fh) {
+		em28xx_errdev("em28xx-video.c: Out of memory?!\n");
+		return -ENOMEM;
 	}
+	mutex_lock(&dev->lock);
+	fh->dev = dev;
+	filp->private_data = fh;
 
-	spin_lock_init(&dev->queue_lock);
-	init_waitqueue_head(&dev->wait_frame);
-	init_waitqueue_head(&dev->wait_stream);
-
-	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
 		em28xx_set_alternate(dev);
 
 		dev->width = norm_maxw(dev);
@@ -277,26 +276,16 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 		em28xx_capture_start(dev, 1);
 		em28xx_resolution_set(dev);
 
-		/* device needs to be initialized before isoc transfer */
-		video_mux(dev, 0);
 
 		/* start the transfer */
 		errCode = em28xx_init_isoc(dev);
 		if (errCode)
 			goto err;
 
+		em28xx_empty_framequeues(dev);
 	}
 
 	dev->users++;
-	filp->private_data = dev;
-	dev->io = IO_NONE;
-	dev->stream = STREAM_OFF;
-	dev->num_frames = 0;
-
-	/* prepare queues */
-	em28xx_empty_framequeues(dev);
-
-	dev->state |= DEV_INITIALIZED;
 
 err:
 	mutex_unlock(&dev->lock);
@@ -333,34 +322,41 @@ static void em28xx_release_resources(struct em28xx *dev)
  */
 static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 {
-	int errCode;
-	struct em28xx *dev=filp->private_data;
+	struct em28xx_fh *fh  = filp->private_data;
+	struct em28xx    *dev = fh->dev;
+	int              errCode;
 
 	em28xx_videodbg("users=%d\n", dev->users);
 
 	mutex_lock(&dev->lock);
+	if (fh->reader == 1)
+	       fh->reader = 0;
 
-	em28xx_uninit_isoc(dev);
+	if (dev->users == 1) {
+		dev->reader = 0;
 
-	em28xx_release_buffers(dev);
+		em28xx_uninit_isoc(dev);
+		em28xx_release_buffers(dev);
 
-	/* the device is already disconnect, free the remaining resources */
-	if (dev->state & DEV_DISCONNECTED) {
-		em28xx_release_resources(dev);
-		mutex_unlock(&dev->lock);
-		kfree(dev);
-		return 0;
+		/* the device is already disconnect,
+		   free the remaining resources */
+		if (dev->state & DEV_DISCONNECTED) {
+			em28xx_release_resources(dev);
+			mutex_unlock(&dev->lock);
+			kfree(dev);
+			return 0;
+		}
+
+		/* set alternate 0 */
+		dev->alt = 0;
+		em28xx_videodbg("setting alternate 0\n");
+		errCode = usb_set_interface(dev->udev, 0, 0);
+		if (errCode < 0) {
+			em28xx_errdev("cannot change alternate number to "
+					"0 (error=%i)\n", errCode);
+		}
 	}
-
-	/* set alternate 0 */
-	dev->alt = 0;
-	em28xx_videodbg("setting alternate 0\n");
-	errCode = usb_set_interface(dev->udev, 0, 0);
-	if (errCode < 0) {
-		em28xx_errdev ("cannot change alternate number to 0 (error=%i)\n",
-		     errCode);
-	}
-
+	kfree(fh);
 	dev->users--;
 	wake_up_interruptible_nr(&dev->open, 1);
 	mutex_unlock(&dev->lock);
@@ -378,13 +374,19 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 	struct em28xx_frame_t *f, *i;
 	unsigned long lock_flags;
 	int ret = 0;
-	struct em28xx *dev = filp->private_data;
+	struct em28xx_fh *fh = filp->private_data;
+	struct em28xx *dev = fh->dev;
 
 	mutex_lock(&dev->lock);
 
-	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+	if (dev->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		em28xx_videodbg("V4l2_Buf_type_videocapture is set\n");
+
+	if (dev->reader > 0 && fh->reader == 0) {
+		mutex_unlock(&dev->lock);
+		return -EBUSY;
 	}
+
 	if (dev->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
 		em28xx_videodbg("V4L2_BUF_TYPE_VBI_CAPTURE is set\n");
 		em28xx_videodbg("not supported yet! ...\n");
@@ -423,6 +425,9 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 				" the device again to choose the read method\n");
 		mutex_unlock(&dev->lock);
 		return -EINVAL;
+	} else {
+		dev->reader = 1;
+		fh->reader = 1;
 	}
 
 	if (dev->io == IO_NONE) {
@@ -491,7 +496,8 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 {
 	unsigned int mask = 0;
-	struct em28xx *dev = filp->private_data;
+	struct em28xx_fh *fh = filp->private_data;
+	struct em28xx *dev = fh->dev;
 
 	mutex_lock(&dev->lock);
 
@@ -559,14 +565,22 @@ static struct vm_operations_struct em28xx_vm_ops = {
  */
 static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	unsigned long size = vma->vm_end - vma->vm_start,
-	    start = vma->vm_start;
-	void *pos;
-	u32 i;
-
-	struct em28xx *dev = filp->private_data;
+	struct em28xx_fh *fh    = filp->private_data;
+	struct em28xx	 *dev   = fh->dev;
+	unsigned long	 size   = vma->vm_end - vma->vm_start;
+	unsigned long	 start  = vma->vm_start;
+	void 		 *pos;
+	u32		 i;
 
 	mutex_lock(&dev->lock);
+
+	if (dev->reader > 0 && fh->reader == 0) {
+		mutex_unlock(&dev->lock);
+		return -EBUSY;
+	} else {
+		dev->reader = 1;
+		fh->reader = 1;
+	}
 
 	if (dev->state & DEV_DISCONNECTED) {
 		em28xx_videodbg("mmap: device not present\n");
@@ -918,6 +932,7 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 			   struct em28xx *dev, unsigned int cmd, void *arg,
 			   v4l2_kioctl driver_ioctl)
 {
+	struct em28xx_fh *fh = filp->private_data;
 	int ret;
 
 	switch (cmd) {
@@ -1227,6 +1242,8 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 				return ret;
 			}
 		}
+
+		fh->reader = 0;
 		em28xx_empty_framequeues(dev);
 		mutex_unlock(&dev->lock);
 
@@ -1248,7 +1265,8 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 				 unsigned int cmd, void *arg)
 {
-	struct em28xx *dev = filp->private_data;
+	struct em28xx_fh *fh = filp->private_data;
+	struct em28xx *dev   = fh->dev;
 
 	if (!dev)
 		return -ENODEV;
@@ -1456,7 +1474,8 @@ static int em28xx_v4l2_ioctl(struct inode *inode, struct file *filp,
 			     unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	struct em28xx *dev = filp->private_data;
+	struct em28xx_fh *fh = filp->private_data;
+	struct em28xx *dev   = fh->dev;
 
 	if (dev->state & DEV_DISCONNECTED) {
 		em28xx_errdev("v4l2 ioctl: device not present\n");
@@ -1503,7 +1522,10 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	dev->udev = udev;
 	mutex_init(&dev->lock);
+	spin_lock_init(&dev->queue_lock);
 	init_waitqueue_head(&dev->open);
+	init_waitqueue_head(&dev->wait_frame);
+	init_waitqueue_head(&dev->wait_stream);
 
 	dev->em28xx_write_regs = em28xx_write_regs;
 	dev->em28xx_read_reg = em28xx_read_reg;

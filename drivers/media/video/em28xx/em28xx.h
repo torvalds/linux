@@ -258,6 +258,7 @@ struct em28xx {
 	int vscale;		/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 	int type;
+	unsigned int reader:1;
 
 	unsigned long hash;	/* eeprom hash - for boards with generic ID */
 	unsigned long i2c_hash;	/* i2c devicelist hash - for boards with generic ID */
@@ -292,6 +293,11 @@ struct em28xx {
 	int (*em28xx_write_regs_req) (struct em28xx * dev, u8 req, u16 reg,
 				      char *buf, int len);
 	int (*em28xx_read_reg_req) (struct em28xx * dev, u8 req, u16 reg);
+};
+
+struct em28xx_fh {
+	struct em28xx *dev;
+	unsigned int  reader:1;
 };
 
 /* Provided by em28xx-i2c.c */
