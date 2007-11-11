@@ -17,6 +17,11 @@ static struct xfrm_tunnel *tunnel4_handlers;
 static struct xfrm_tunnel *tunnel64_handlers;
 static DEFINE_MUTEX(tunnel4_mutex);
 
+static inline struct xfrm_tunnel **fam_handlers(unsigned short family)
+{
+	return (family == AF_INET) ? &tunnel4_handlers : &tunnel64_handlers;
+}
+
 int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family)
 {
 	struct xfrm_tunnel **pprev;
@@ -25,8 +30,7 @@ int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family)
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = (family == AF_INET) ? &tunnel4_handlers : &tunnel64_handlers;
-	     *pprev; pprev = &(*pprev)->next) {
+	for (pprev = fam_handlers(family); *pprev; pprev = &(*pprev)->next) {
 		if ((*pprev)->priority > priority)
 			break;
 		if ((*pprev)->priority == priority)
@@ -53,8 +57,7 @@ int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family)
 
 	mutex_lock(&tunnel4_mutex);
 
-	for (pprev = (family == AF_INET) ? &tunnel4_handlers : &tunnel64_handlers;
-	     *pprev; pprev = &(*pprev)->next) {
+	for (pprev = fam_handlers(family); *pprev; pprev = &(*pprev)->next) {
 		if (*pprev == handler) {
 			*pprev = handler->next;
 			ret = 0;
