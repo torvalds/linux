@@ -1403,8 +1403,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			if (in_sack < 0)
 				break;
 
-			fack_count += tcp_skb_pcount(skb);
-
 			sacked = TCP_SKB_CB(skb)->sacked;
 
 			/* Account D-SACK for retransmitted packet. */
@@ -1427,11 +1425,14 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				}
 
 				/* Nothing to do; acked frame is about to be dropped. */
+				fack_count += tcp_skb_pcount(skb);
 				continue;
 			}
 
-			if (!in_sack)
+			if (!in_sack) {
+				fack_count += tcp_skb_pcount(skb);
 				continue;
+			}
 
 			if (!(sacked&TCPCB_SACKED_ACKED)) {
 				if (sacked & TCPCB_SACKED_RETRANS) {
@@ -1480,6 +1481,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				flag |= FLAG_DATA_SACKED;
 				tp->sacked_out += tcp_skb_pcount(skb);
 
+				fack_count += tcp_skb_pcount(skb);
 				if (fack_count > tp->fackets_out)
 					tp->fackets_out = fack_count;
 
@@ -1490,6 +1492,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			} else {
 				if (dup_sack && (sacked&TCPCB_RETRANS))
 					reord = min(fack_count, reord);
+
+				fack_count += tcp_skb_pcount(skb);
 			}
 
 			/* D-SACK. We can detect redundant retransmission
@@ -1515,7 +1519,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 	if ((reord < tp->fackets_out) && icsk->icsk_ca_state != TCP_CA_Loss &&
 	    (!tp->frto_highmark || after(tp->snd_una, tp->frto_highmark)))
-		tcp_update_reordering(sk, ((tp->fackets_out + 1) - reord), 0);
+		tcp_update_reordering(sk, tp->fackets_out - reord, 0);
 
 #if FASTRETRANS_DEBUG > 0
 	BUG_TRAP((int)tp->sacked_out >= 0);
