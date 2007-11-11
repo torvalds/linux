@@ -559,28 +559,37 @@ int kvm_is_visible_gfn(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_is_visible_gfn);
 
+static unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
+{
+	struct kvm_memory_slot *slot;
+
+	gfn = unalias_gfn(kvm, gfn);
+	slot = __gfn_to_memslot(kvm, gfn);
+	if (!slot)
+		return bad_hva();
+	return (slot->userspace_addr + (gfn - slot->base_gfn) * PAGE_SIZE);
+}
+
 /*
  * Requires current->mm->mmap_sem to be held
  */
 static struct page *__gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
-	struct kvm_memory_slot *slot;
 	struct page *page[1];
+	unsigned long addr;
 	int npages;
 
 	might_sleep();
 
-	gfn = unalias_gfn(kvm, gfn);
-	slot = __gfn_to_memslot(kvm, gfn);
-	if (!slot) {
+	addr = gfn_to_hva(kvm, gfn);
+	if (kvm_is_error_hva(addr)) {
 		get_page(bad_page);
 		return bad_page;
 	}
 
-	npages = get_user_pages(current, current->mm,
-				slot->userspace_addr
-				+ (gfn - slot->base_gfn) * PAGE_SIZE, 1,
-				1, 1, page, NULL);
+	npages = get_user_pages(current, current->mm, addr, 1, 1, 1, page,
+				NULL);
+
 	if (npages != 1) {
 		get_page(bad_page);
 		return bad_page;
