@@ -192,8 +192,9 @@ static int usb_console_setup(struct console *co, char *options)
 		kfree (termios);
 		kfree (tty);
 	}
+	port->console = 1;
 
-	return retval;
+	return 0;
 }
 
 static void usb_console_write(struct console *co, const char *buf, unsigned count)

@@ -264,19 +264,21 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 	}
 
 	--port->open_count;
-	if (port->open_count == 0) {
+	if (port->open_count == 0)
 		/* only call the device specific close if this 
 		 * port is being closed by the last owner */
 		port->serial->type->close(port, filp);
 
+	if (port->open_count == (port->console? 1 : 0)) {
 		if (port->tty) {
 			if (port->tty->driver_data)
 				port->tty->driver_data = NULL;
 			port->tty = NULL;
 		}
-
-		module_put(port->serial->type->driver.owner);
 	}
+
+	if (port->open_count == 0)
+		module_put(port->serial->type->driver.owner);
 
 	mutex_unlock(&port->mutex);
 	usb_serial_put(port->serial);

@@ -92,6 +92,7 @@ struct usb_serial_port {
 	int			open_count;
 	char			throttled;
 	char			throttle_req;
+	char			console;
 	struct device		dev;
 };
 #define to_usb_serial_port(d) container_of(d, struct usb_serial_port, dev)
