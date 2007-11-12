@@ -38,10 +38,6 @@
 #define CONFIG_SND_MAJOR	116
 #endif
 
-#ifndef CONFIG_SND_DEBUG
-#undef CONFIG_SND_DEBUG_MEMORY
-#endif
-
 #ifdef ALSA_BUILD
 #include "adriver.h"
 #endif
