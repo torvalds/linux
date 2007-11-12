@@ -40,6 +40,7 @@
 #include <linux/irq.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
+#include <asm/portmux.h>
 #include <linux/usb/sl811.h>
 
 #include <linux/spi/ad7877.h>
@@ -413,6 +414,7 @@ static struct resource bfin_spi0_resource[] = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bfin_spi0_device = {

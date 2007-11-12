@@ -42,6 +42,7 @@
 #include <asm/dma.h>
 #include <asm/gpio.h>
 #include <asm/nand.h>
+#include <asm/portmux.h>
 #include <asm/mach/bf54x_keys.h>
 #include <linux/input.h>
 #include <linux/spi/ad7877.h>
@@ -453,9 +454,10 @@ static struct resource bfin_spi1_resource[] = {
 };
 
 /* SPI controller data */
-static struct bfin5xx_spi_master bf54x_spi_master_info = {
+static struct bfin5xx_spi_master bf54x_spi_master_info0 = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bf54x_spi_master0 = {
@@ -464,8 +466,14 @@ static struct platform_device bf54x_spi_master0 = {
 	.num_resources = ARRAY_SIZE(bfin_spi0_resource),
 	.resource = bfin_spi0_resource,
 	.dev = {
-		.platform_data = &bf54x_spi_master_info, /* Passed to driver */
+		.platform_data = &bf54x_spi_master_info0, /* Passed to driver */
 		},
+};
+
+static struct bfin5xx_spi_master bf54x_spi_master_info1 = {
+	.num_chipselect = 8,
+	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
 
 static struct platform_device bf54x_spi_master1 = {
@@ -474,7 +482,7 @@ static struct platform_device bf54x_spi_master1 = {
 	.num_resources = ARRAY_SIZE(bfin_spi1_resource),
 	.resource = bfin_spi1_resource,
 	.dev = {
-		.platform_data = &bf54x_spi_master_info, /* Passed to driver */
+		.platform_data = &bf54x_spi_master_info1, /* Passed to driver */
 		},
 };
 #endif  /* spi master and devices */

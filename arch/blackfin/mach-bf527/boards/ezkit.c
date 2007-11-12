@@ -46,6 +46,7 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
 #include <asm/nand.h>
+#include <asm/portmux.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -562,6 +563,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 /* SPI (0) */
