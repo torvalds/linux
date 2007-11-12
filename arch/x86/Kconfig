@@ -1,12 +1,24 @@
 # x86 configuration
+mainmenu "Linux Kernel Configuration for x86"
+
+# Select 32 or 64 bit
+config 64BIT
+	bool "64-bit kernel"
+	default n
+	help
+	  Say yes to build a 64-bit kernel - formerly known as x86_64
+	  Say no to build a 32-bit kernel - formerly known as i386
+
+config X86_32
+	def_bool !64BIT
+
+config X86_64
+	def_bool 64BIT
 
 ### Arch settings
 config X86
 	bool
 	default y
-
-config 64BIT
-	def_bool X86_64
 
 config GENERIC_TIME
 	bool

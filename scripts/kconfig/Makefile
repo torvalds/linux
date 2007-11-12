@@ -4,12 +4,7 @@
 
 PHONY += oldconfig xconfig gconfig menuconfig config silentoldconfig update-po-config
 
-# If a arch/$(SRCARCH)/Kconfig.$(ARCH) file exist use it
-ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/Kconfig.$(ARCH)),)
-        Kconfig := arch/$(SRCARCH)/Kconfig.$(ARCH)
-else
-        Kconfig := arch/$(SRCARCH)/Kconfig
-endif
+Kconfig := arch/$(SRCARCH)/Kconfig
 
 xconfig: $(obj)/qconf
 	$< $(Kconfig)
