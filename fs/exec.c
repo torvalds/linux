@@ -1692,7 +1692,10 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;
 	down_write(&mm->mmap_sem);
-	if (!get_dumpable(mm)) {
+	/*
+	 * If another thread got here first, or we are not dumpable, bail out.
+	 */
+	if (mm->core_waiters || !get_dumpable(mm)) {
 		up_write(&mm->mmap_sem);
 		goto fail;
 	}
@@ -1706,7 +1709,6 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		flag = O_EXCL;		/* Stop rewrite attacks */
 		current->fsuid = 0;	/* Dump root private */
 	}
-	set_dumpable(mm, 0);
 
 	retval = coredump_wait(exit_code);
 	if (retval < 0)
