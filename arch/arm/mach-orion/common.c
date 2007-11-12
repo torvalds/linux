@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/mv643xx_i2c.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
@@ -213,6 +214,42 @@ void __init orion_eth_init(struct mv643xx_eth_platform_data *eth_data)
 }
 
 /*****************************************************************************
+ * I2C controller
+ * (The Orion and Discovery (MV643xx) families share the same I2C controller)
+ ****************************************************************************/
+
+static struct mv64xxx_i2c_pdata orion_i2c_pdata = {
+	.freq_m		= 8, /* assumes 166 MHz TCLK */
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource orion_i2c_resources[] = {
+	{
+		.name   = "i2c base",
+		.start  = I2C_BASE,
+		.end    = I2C_BASE + 0x20 -1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "i2c irq",
+		.start  = IRQ_ORION_I2C,
+		.end    = IRQ_ORION_I2C,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device orion_i2c = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(orion_i2c_resources),
+	.resource	= orion_i2c_resources,
+	.dev		= {
+		.platform_data = &orion_i2c_pdata,
+	},
+};
+
+/*****************************************************************************
  * General
  ****************************************************************************/
 
@@ -274,4 +311,5 @@ void __init orion_init(void)
 	platform_device_register(&orion_ehci0);
 	if (dev == MV88F5182_DEV_ID)
 		platform_device_register(&orion_ehci1);
+	platform_device_register(&orion_i2c);
 }
