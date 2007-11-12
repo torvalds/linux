@@ -311,11 +311,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		printk(KERN_NOTICE EXC_0x22);
 		CHK_DEBUGGER_TRAP();
 		break;
-	/* 0x23 - Data CPLB Protection Violation,
-		 normal case is handled in _cplb_hdr */
+	/* 0x23 - Data CPLB protection violation, handled here */
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
-		sig = SIGILL;
+		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x23);
 		CHK_DEBUGGER_TRAP();
 		break;
@@ -382,11 +381,10 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		printk(KERN_NOTICE EXC_0x2A);
 		CHK_DEBUGGER_TRAP();
 		break;
-	/* 0x2B - Instruction CPLB protection Violation,
-		handled in _cplb_hdr */
+	/* 0x2B - Instruction CPLB protection violation, handled here */
 	case VEC_CPLB_I_VL:
 		info.si_code = ILL_CPLB_VI;
-		sig = SIGILL;
+		sig = SIGBUS;
 		printk(KERN_NOTICE EXC_0x2B);
 		CHK_DEBUGGER_TRAP();
 		break;
