@@ -1167,26 +1167,8 @@ static void rt2400pci_txdone(struct rt2x00_dev *rt2x00dev, const int queue)
 		tx_status = rt2x00_get_field32(word, TXD_W0_RESULT);
 		retry = rt2x00_get_field32(word, TXD_W0_RETRY_COUNT);
 
-		rt2x00lib_txdone(entry, tx_status, retry);
-
-		/*
-		 * Make this entry available for reuse.
-		 */
-		entry->flags = 0;
-		rt2x00_set_field32(&word, TXD_W0_VALID, 0);
-		rt2x00_desc_write(txd, 0, word);
-		rt2x00_ring_index_done_inc(ring);
+		rt2x00pci_txdone(rt2x00dev, entry, tx_status, retry);
 	}
-
-	/*
-	 * If the data ring was full before the txdone handler
-	 * we must make sure the packet queue in the mac80211 stack
-	 * is reenabled when the txdone handler has finished.
-	 */
-	entry = ring->entry;
-	if (!rt2x00_ring_full(ring))
-		ieee80211_wake_queue(rt2x00dev->hw,
-				     entry->tx_status.control.queue);
 }
 
 static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)

@@ -116,7 +116,7 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 EXPORT_SYMBOL_GPL(rt2x00pci_write_tx_data);
 
 /*
- * RX data handlers.
+ * TX/RX data handlers.
  */
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
@@ -176,6 +176,37 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 	}
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_rxdone);
+
+void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct data_entry *entry,
+		      const int tx_status, const int retry)
+{
+	u32 word;
+
+	rt2x00lib_txdone(entry, tx_status, retry);
+
+	/*
+	 * Make this entry available for reuse.
+	 */
+	entry->flags = 0;
+
+	rt2x00_desc_read(entry->priv, 0, &word);
+	rt2x00_set_field32(&word, TXD_ENTRY_OWNER_NIC, 0);
+	rt2x00_set_field32(&word, TXD_ENTRY_VALID, 0);
+	rt2x00_desc_write(entry->priv, 0, word);
+
+	rt2x00_ring_index_done_inc(entry->ring);
+
+	/*
+	 * If the data ring was full before the txdone handler
+	 * we must make sure the packet queue in the mac80211 stack
+	 * is reenabled when the txdone handler has finished.
+	 */
+	if (!rt2x00_ring_full(entry->ring))
+		ieee80211_wake_queue(rt2x00dev->hw,
+				     entry->tx_status.control.queue);
+
+}
+EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
 
 /*
  * Device initialization handlers.

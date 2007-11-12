@@ -101,9 +101,11 @@ int rt2x00pci_write_tx_data(struct rt2x00_dev *rt2x00dev,
 			    struct ieee80211_tx_control *control);
 
 /*
- * RX data handlers.
+ * RX/TX data handlers.
  */
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev);
+void rt2x00pci_txdone(struct rt2x00_dev *rt2x00dev, struct data_entry *entry,
+		      const int tx_status, const int retry);
 
 /*
  * Device initialization handlers.
