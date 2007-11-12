@@ -8955,6 +8955,8 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 
+	hw->rate_control_algorithm = "iwl-4965-rs";
+
 	IWL_DEBUG_INFO("*** LOAD DRIVER ***\n");
 	priv = hw->priv;
 	priv->hw = hw;

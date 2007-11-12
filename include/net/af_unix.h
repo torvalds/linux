@@ -12,7 +12,7 @@ extern void unix_gc(void);
 
 #define UNIX_HASH_SIZE	256
 
-extern atomic_t unix_tot_inflight;
+extern unsigned int unix_tot_inflight;
 
 struct unix_address {
 	atomic_t	refcnt;

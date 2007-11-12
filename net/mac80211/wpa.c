@@ -323,9 +323,12 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_txrx_data *rx)
 					  &rx->u.rx.tkip_iv32,
 					  &rx->u.rx.tkip_iv16);
 	if (res != TKIP_DECRYPT_OK || wpa_test) {
-		printk(KERN_DEBUG "%s: TKIP decrypt failed for RX frame from "
-		       "%s (res=%d)\n",
-		       rx->dev->name, print_mac(mac, rx->sta->addr), res);
+#ifdef CONFIG_MAC80211_DEBUG
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: TKIP decrypt failed for RX "
+			       "frame from %s (res=%d)\n", rx->dev->name,
+			       print_mac(mac, rx->sta->addr), res);
+#endif /* CONFIG_MAC80211_DEBUG */
 		return TXRX_DROP;
 	}
 
@@ -594,9 +597,12 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_txrx_data *rx)
 			    skb->data + hdrlen + CCMP_HDR_LEN, data_len,
 			    skb->data + skb->len - CCMP_MIC_LEN,
 			    skb->data + hdrlen + CCMP_HDR_LEN)) {
-			printk(KERN_DEBUG "%s: CCMP decrypt failed for RX "
-			       "frame from %s\n", rx->dev->name,
-			       print_mac(mac, rx->sta->addr));
+#ifdef CONFIG_MAC80211_DEBUG
+			if (net_ratelimit())
+				printk(KERN_DEBUG "%s: CCMP decrypt failed "
+				       "for RX frame from %s\n", rx->dev->name,
+				       print_mac(mac, rx->sta->addr));
+#endif /* CONFIG_MAC80211_DEBUG */
 			return TXRX_DROP;
 		}
 	}

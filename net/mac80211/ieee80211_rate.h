@@ -65,6 +65,9 @@ struct rate_control_ref {
 	struct kref kref;
 };
 
+/* default 'simple' algorithm */
+extern struct rate_control_ops mac80211_rcsimple;
+
 int ieee80211_rate_control_register(struct rate_control_ops *ops);
 void ieee80211_rate_control_unregister(struct rate_control_ops *ops);
 

@@ -1072,7 +1072,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	ieee80211_debugfs_add_netdev(IEEE80211_DEV_TO_SUB_IF(local->mdev));
 	ieee80211_if_set_type(local->mdev, IEEE80211_IF_TYPE_AP);
 
-	result = ieee80211_init_rate_ctrl_alg(local, NULL);
+	result = ieee80211_init_rate_ctrl_alg(local,
+					      hw->rate_control_algorithm);
 	if (result < 0) {
 		printk(KERN_DEBUG "%s: Failed to initialize rate control "
 		       "algorithm\n", wiphy_name(local->hw.wiphy));
@@ -1233,8 +1234,17 @@ static int __init ieee80211_init(void)
 
 	BUILD_BUG_ON(sizeof(struct ieee80211_tx_packet_data) > sizeof(skb->cb));
 
+#ifdef CONFIG_MAC80211_RCSIMPLE
+	ret = ieee80211_rate_control_register(&mac80211_rcsimple);
+	if (ret)
+		return ret;
+#endif
+
 	ret = ieee80211_wme_register();
 	if (ret) {
+#ifdef CONFIG_MAC80211_RCSIMPLE
+		ieee80211_rate_control_unregister(&mac80211_rcsimple);
+#endif
 		printk(KERN_DEBUG "ieee80211_init: failed to "
 		       "initialize WME (err=%d)\n", ret);
 		return ret;
@@ -1248,6 +1258,10 @@ static int __init ieee80211_init(void)
 
 static void __exit ieee80211_exit(void)
 {
+#ifdef CONFIG_MAC80211_RCSIMPLE
+	ieee80211_rate_control_unregister(&mac80211_rcsimple);
+#endif
+
 	ieee80211_wme_unregister();
 	ieee80211_debugfs_netdev_exit();
 }

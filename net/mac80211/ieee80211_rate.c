@@ -25,13 +25,25 @@ int ieee80211_rate_control_register(struct rate_control_ops *ops)
 {
 	struct rate_control_alg *alg;
 
+	if (!ops->name)
+		return -EINVAL;
+
+	mutex_lock(&rate_ctrl_mutex);
+	list_for_each_entry(alg, &rate_ctrl_algs, list) {
+		if (!strcmp(alg->ops->name, ops->name)) {
+			/* don't register an algorithm twice */
+			WARN_ON(1);
+			return -EALREADY;
+		}
+	}
+
 	alg = kzalloc(sizeof(*alg), GFP_KERNEL);
 	if (alg == NULL) {
+		mutex_unlock(&rate_ctrl_mutex);
 		return -ENOMEM;
 	}
 	alg->ops = ops;
 
-	mutex_lock(&rate_ctrl_mutex);
 	list_add_tail(&alg->list, &rate_ctrl_algs);
 	mutex_unlock(&rate_ctrl_mutex);
 
@@ -61,9 +73,12 @@ ieee80211_try_rate_control_ops_get(const char *name)
 	struct rate_control_alg *alg;
 	struct rate_control_ops *ops = NULL;
 
+	if (!name)
+		return NULL;
+
 	mutex_lock(&rate_ctrl_mutex);
 	list_for_each_entry(alg, &rate_ctrl_algs, list) {
-		if (!name || !strcmp(alg->ops->name, name))
+		if (!strcmp(alg->ops->name, name))
 			if (try_module_get(alg->ops->module)) {
 				ops = alg->ops;
 				break;
@@ -80,9 +95,12 @@ ieee80211_rate_control_ops_get(const char *name)
 {
 	struct rate_control_ops *ops;
 
+	if (!name)
+		name = "simple";
+
 	ops = ieee80211_try_rate_control_ops_get(name);
 	if (!ops) {
-		request_module("rc80211_%s", name ? name : "default");
+		request_module("rc80211_%s", name);
 		ops = ieee80211_try_rate_control_ops_get(name);
 	}
 	return ops;

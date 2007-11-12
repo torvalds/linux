@@ -704,10 +704,11 @@ static int ieee80211_privacy_mismatch(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sta_bss *bss;
-	int res = 0;
+	int bss_privacy;
+	int wep_privacy;
+	int privacy_invoked;
 
-	if (!ifsta || (ifsta->flags & IEEE80211_STA_MIXED_CELL) ||
-	    ifsta->key_management_enabled)
+	if (!ifsta || (ifsta->flags & IEEE80211_STA_MIXED_CELL))
 		return 0;
 
 	bss = ieee80211_rx_bss_get(dev, ifsta->bssid, local->hw.conf.channel,
@@ -715,13 +716,16 @@ static int ieee80211_privacy_mismatch(struct net_device *dev,
 	if (!bss)
 		return 0;
 
-	if (ieee80211_sta_wep_configured(dev) !=
-	    !!(bss->capability & WLAN_CAPABILITY_PRIVACY))
-		res = 1;
+	bss_privacy = !!(bss->capability & WLAN_CAPABILITY_PRIVACY);
+	wep_privacy = !!ieee80211_sta_wep_configured(dev);
+	privacy_invoked = !!(ifsta->flags & IEEE80211_STA_PRIVACY_INVOKED);
 
 	ieee80211_rx_bss_put(dev, bss);
 
-	return res;
+	if ((bss_privacy == wep_privacy) || (bss_privacy == privacy_invoked))
+		return 0;
+
+	return 1;
 }
 
 

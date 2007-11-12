@@ -613,17 +613,7 @@ static int u32_change(struct tcf_proto *tp, unsigned long base, u32 handle,
 	memcpy(&n->sel, s, sizeof(*s) + s->nkeys*sizeof(struct tc_u32_key));
 	n->ht_up = ht;
 	n->handle = handle;
-{
-	u8 i = 0;
-	u32 mask = ntohl(s->hmask);
-	if (mask) {
-		while (!(mask & 1)) {
-			i++;
-			mask>>=1;
-		}
-	}
-	n->fshift = i;
-}
+	n->fshift = s->hmask ? ffs(ntohl(s->hmask)) - 1 : 0;
 
 #ifdef CONFIG_CLS_U32_MARK
 	if (tb[TCA_U32_MARK-1]) {

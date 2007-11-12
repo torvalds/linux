@@ -3454,15 +3454,10 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 SOFTMAC LAYER (IEEE 802.11)
-P:	Johannes Berg
-M:	johannes@sipsolutions.net
-P:	Joe Jezak
-M:	josejx@gentoo.org
 P:	Daniel Drake
 M:	dsd@gentoo.org
-W:	http://softmac.sipsolutions.net/
 L:	linux-wireless@vger.kernel.org
-S:	Maintained
+S:	Obsolete
 
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar

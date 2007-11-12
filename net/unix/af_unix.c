@@ -457,7 +457,7 @@ static int unix_release_sock (struct sock *sk, int embrion)
 	 *	  What the above comment does talk about? --ANK(980817)
 	 */
 
-	if (atomic_read(&unix_tot_inflight))
+	if (unix_tot_inflight)
 		unix_gc();		/* Garbage collect fds */
 
 	return 0;
@@ -599,14 +599,13 @@ static struct sock * unix_create1(struct net *net, struct socket *sock)
 	struct sock *sk = NULL;
 	struct unix_sock *u;
 
-	if (atomic_read(&unix_nr_socks) >= 2*get_max_files())
+	atomic_inc(&unix_nr_socks);
+	if (atomic_read(&unix_nr_socks) > 2 * get_max_files())
 		goto out;
 
 	sk = sk_alloc(net, PF_UNIX, GFP_KERNEL, &unix_proto);
 	if (!sk)
 		goto out;
-
-	atomic_inc(&unix_nr_socks);
 
 	sock_init_data(sock,sk);
 	lockdep_set_class(&sk->sk_receive_queue.lock,
@@ -625,6 +624,8 @@ static struct sock * unix_create1(struct net *net, struct socket *sock)
 	init_waitqueue_head(&u->peer_wait);
 	unix_insert_socket(unix_sockets_unbound, sk);
 out:
+	if (sk == NULL)
+		atomic_dec(&unix_nr_socks);
 	return sk;
 }
 

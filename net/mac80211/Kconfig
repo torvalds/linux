@@ -13,6 +13,18 @@ config MAC80211
 	This option enables the hardware independent IEEE 802.11
 	networking stack.
 
+config MAC80211_RCSIMPLE
+	bool "'simple' rate control algorithm" if EMBEDDED
+	default y
+	depends on MAC80211
+	help
+	  This option allows you to turn off the 'simple' rate
+	  control algorithm in mac80211. If you do turn it off,
+	  you absolutely need another rate control algorithm.
+
+	  Say Y unless you know you will have another algorithm
+	  available.
+
 config MAC80211_LEDS
 	bool "Enable LED triggers"
 	depends on MAC80211 && LEDS_TRIGGERS

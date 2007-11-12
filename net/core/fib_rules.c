@@ -18,6 +18,28 @@
 static LIST_HEAD(rules_ops);
 static DEFINE_SPINLOCK(rules_mod_lock);
 
+int fib_default_rule_add(struct fib_rules_ops *ops,
+			 u32 pref, u32 table, u32 flags)
+{
+	struct fib_rule *r;
+
+	r = kzalloc(ops->rule_size, GFP_KERNEL);
+	if (r == NULL)
+		return -ENOMEM;
+
+	atomic_set(&r->refcnt, 1);
+	r->action = FR_ACT_TO_TBL;
+	r->pref = pref;
+	r->table = table;
+	r->flags = flags;
+
+	/* The lock is not required here, the list in unreacheable
+	 * at the moment this function is called */
+	list_add_tail(&r->list, &ops->rules_list);
+	return 0;
+}
+EXPORT_SYMBOL(fib_default_rule_add);
+
 static void notify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid);

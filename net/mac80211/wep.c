@@ -314,9 +314,11 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_txrx_data *rx)
 
 	if (!(rx->u.rx.status->flag & RX_FLAG_DECRYPTED)) {
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key)) {
+#ifdef CONFIG_MAC80211_DEBUG
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: RX WEP frame, decrypt "
 				       "failed\n", rx->dev->name);
+#endif /* CONFIG_MAC80211_DEBUG */
 			return TXRX_DROP;
 		}
 	} else if (!(rx->u.rx.status->flag & RX_FLAG_IV_STRIPPED)) {

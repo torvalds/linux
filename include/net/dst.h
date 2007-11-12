@@ -143,6 +143,13 @@ static inline void dst_hold(struct dst_entry * dst)
 	atomic_inc(&dst->__refcnt);
 }
 
+static inline void dst_use(struct dst_entry *dst, unsigned long time)
+{
+	dst_hold(dst);
+	dst->__use++;
+	dst->lastuse = time;
+}
+
 static inline
 struct dst_entry * dst_clone(struct dst_entry * dst)
 {

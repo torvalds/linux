@@ -1400,10 +1400,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			/* DSACK info lost if out-of-mem, try SACK still */
 			if (in_sack <= 0)
 				in_sack = tcp_match_skb_to_sack(sk, skb, start_seq, end_seq);
-			if (in_sack < 0)
+			if (unlikely(in_sack < 0))
 				break;
-
-			fack_count += tcp_skb_pcount(skb);
 
 			sacked = TCP_SKB_CB(skb)->sacked;
 
@@ -1419,19 +1417,17 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 					if ((dup_sack && in_sack) &&
 					    (sacked&TCPCB_SACKED_ACKED))
 						reord = min(fack_count, reord);
-				} else {
-					/* If it was in a hole, we detected reordering. */
-					if (fack_count < prior_fackets &&
-					    !(sacked&TCPCB_SACKED_ACKED))
-						reord = min(fack_count, reord);
 				}
 
 				/* Nothing to do; acked frame is about to be dropped. */
+				fack_count += tcp_skb_pcount(skb);
 				continue;
 			}
 
-			if (!in_sack)
+			if (!in_sack) {
+				fack_count += tcp_skb_pcount(skb);
 				continue;
+			}
 
 			if (!(sacked&TCPCB_SACKED_ACKED)) {
 				if (sacked & TCPCB_SACKED_RETRANS) {
@@ -1448,12 +1444,17 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						tp->retransmit_skb_hint = NULL;
 					}
 				} else {
-					/* New sack for not retransmitted frame,
-					 * which was in hole. It is reordering.
-					 */
-					if (!(sacked & TCPCB_RETRANS) &&
-					    fack_count < prior_fackets)
-						reord = min(fack_count, reord);
+					if (!(sacked & TCPCB_RETRANS)) {
+						/* New sack for not retransmitted frame,
+						 * which was in hole. It is reordering.
+						 */
+						if (fack_count < prior_fackets)
+							reord = min(fack_count, reord);
+
+						/* SACK enhanced F-RTO (RFC4138; Appendix B) */
+						if (!after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark))
+							flag |= FLAG_ONLY_ORIG_SACKED;
+					}
 
 					if (sacked & TCPCB_LOST) {
 						TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
@@ -1462,24 +1463,13 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						/* clear lost hint */
 						tp->retransmit_skb_hint = NULL;
 					}
-					/* SACK enhanced F-RTO detection.
-					 * Set flag if and only if non-rexmitted
-					 * segments below frto_highmark are
-					 * SACKed (RFC4138; Appendix B).
-					 * Clearing correct due to in-order walk
-					 */
-					if (after(end_seq, tp->frto_highmark)) {
-						flag &= ~FLAG_ONLY_ORIG_SACKED;
-					} else {
-						if (!(sacked & TCPCB_RETRANS))
-							flag |= FLAG_ONLY_ORIG_SACKED;
-					}
 				}
 
 				TCP_SKB_CB(skb)->sacked |= TCPCB_SACKED_ACKED;
 				flag |= FLAG_DATA_SACKED;
 				tp->sacked_out += tcp_skb_pcount(skb);
 
+				fack_count += tcp_skb_pcount(skb);
 				if (fack_count > tp->fackets_out)
 					tp->fackets_out = fack_count;
 
@@ -1490,6 +1480,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			} else {
 				if (dup_sack && (sacked&TCPCB_RETRANS))
 					reord = min(fack_count, reord);
+
+				fack_count += tcp_skb_pcount(skb);
 			}
 
 			/* D-SACK. We can detect redundant retransmission
@@ -1504,6 +1496,12 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				tp->retransmit_skb_hint = NULL;
 			}
 		}
+
+		/* SACK enhanced FRTO (RFC4138, Appendix B): Clearing correct
+		 * due to in-order walk
+		 */
+		if (after(end_seq, tp->frto_highmark))
+			flag &= ~FLAG_ONLY_ORIG_SACKED;
 	}
 
 	if (tp->retrans_out &&
@@ -1515,7 +1513,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 	if ((reord < tp->fackets_out) && icsk->icsk_ca_state != TCP_CA_Loss &&
 	    (!tp->frto_highmark || after(tp->snd_una, tp->frto_highmark)))
-		tcp_update_reordering(sk, ((tp->fackets_out + 1) - reord), 0);
+		tcp_update_reordering(sk, tp->fackets_out - reord, 0);
 
 #if FASTRETRANS_DEBUG > 0
 	BUG_TRAP((int)tp->sacked_out >= 0);
@@ -2630,7 +2628,8 @@ static u32 tcp_tso_acked(struct sock *sk, struct sk_buff *skb)
  * is before the ack sequence we can discard it as it's confirmed to have
  * arrived at the other end.
  */
-static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
+static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
+			       int prior_fackets)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -2639,6 +2638,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 	int fully_acked = 1;
 	int flag = 0;
 	int prior_packets = tp->packets_out;
+	u32 cnt = 0;
+	u32 reord = tp->packets_out;
 	s32 seq_rtt = -1;
 	ktime_t last_ackt = net_invalid_timestamp();
 
@@ -2679,10 +2680,14 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 				if ((flag & FLAG_DATA_ACKED) ||
 				    (packets_acked > 1))
 					flag |= FLAG_NONHEAD_RETRANS_ACKED;
-			} else if (seq_rtt < 0) {
-				seq_rtt = now - scb->when;
-				if (fully_acked)
-					last_ackt = skb->tstamp;
+			} else {
+				if (seq_rtt < 0) {
+					seq_rtt = now - scb->when;
+					if (fully_acked)
+						last_ackt = skb->tstamp;
+				}
+				if (!(sacked & TCPCB_SACKED_ACKED))
+					reord = min(cnt, reord);
 			}
 
 			if (sacked & TCPCB_SACKED_ACKED)
@@ -2693,12 +2698,16 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 			if ((sacked & TCPCB_URG) && tp->urg_mode &&
 			    !before(end_seq, tp->snd_up))
 				tp->urg_mode = 0;
-		} else if (seq_rtt < 0) {
-			seq_rtt = now - scb->when;
-			if (fully_acked)
-				last_ackt = skb->tstamp;
+		} else {
+			if (seq_rtt < 0) {
+				seq_rtt = now - scb->when;
+				if (fully_acked)
+					last_ackt = skb->tstamp;
+			}
+			reord = min(cnt, reord);
 		}
 		tp->packets_out -= packets_acked;
+		cnt += packets_acked;
 
 		/* Initial outgoing SYN's get put onto the write_queue
 		 * just like anything else we transmit.  It is not
@@ -2730,13 +2739,18 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p)
 		tcp_ack_update_rtt(sk, flag, seq_rtt);
 		tcp_rearm_rto(sk);
 
+		if (tcp_is_reno(tp)) {
+			tcp_remove_reno_sacks(sk, pkts_acked);
+		} else {
+			/* Non-retransmitted hole got filled? That's reordering */
+			if (reord < prior_fackets)
+				tcp_update_reordering(sk, tp->fackets_out - reord, 0);
+		}
+
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
 		/* hint's skb might be NULL but we don't need to care */
 		tp->fastpath_cnt_hint -= min_t(u32, pkts_acked,
 					       tp->fastpath_cnt_hint);
-		if (tcp_is_reno(tp))
-			tcp_remove_reno_sacks(sk, pkts_acked);
-
 		if (ca_ops->pkts_acked) {
 			s32 rtt_us = -1;
 
@@ -3019,6 +3033,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	u32 ack_seq = TCP_SKB_CB(skb)->seq;
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 	u32 prior_in_flight;
+	u32 prior_fackets;
 	s32 seq_rtt;
 	int prior_packets;
 	int frto_cwnd = 0;
@@ -3042,6 +3057,8 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 			/* we assume just one segment left network */
 			tp->bytes_acked += min(ack - prior_snd_una, tp->mss_cache);
 	}
+
+	prior_fackets = tp->fackets_out;
 
 	if (!(flag&FLAG_SLOWPATH) && after(ack, prior_snd_una)) {
 		/* Window is constant, pure forward advance.
@@ -3084,7 +3101,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* See if we can take anything off of the retransmit queue. */
-	flag |= tcp_clean_rtx_queue(sk, &seq_rtt);
+	flag |= tcp_clean_rtx_queue(sk, &seq_rtt, prior_fackets);
 
 	/* Guarantee sacktag reordering detection against wrap-arounds */
 	if (before(tp->frto_highmark, tp->snd_una))

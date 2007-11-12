@@ -31,25 +31,6 @@ struct fib6_rule
 
 static struct fib_rules_ops fib6_rules_ops;
 
-static struct fib6_rule main_rule = {
-	.common = {
-		.refcnt =	ATOMIC_INIT(2),
-		.pref =		0x7FFE,
-		.action =	FR_ACT_TO_TBL,
-		.table =	RT6_TABLE_MAIN,
-	},
-};
-
-static struct fib6_rule local_rule = {
-	.common = {
-		.refcnt =	ATOMIC_INIT(2),
-		.pref =		0,
-		.action =	FR_ACT_TO_TBL,
-		.table =	RT6_TABLE_LOCAL,
-		.flags =	FIB_RULE_PERMANENT,
-	},
-};
-
 struct dst_entry *fib6_rule_lookup(struct flowi *fl, int flags,
 				   pol_lookup_t lookup)
 {
@@ -270,11 +251,23 @@ static struct fib_rules_ops fib6_rules_ops = {
 	.owner			= THIS_MODULE,
 };
 
+static int __init fib6_default_rules_init(void)
+{
+	int err;
+
+	err = fib_default_rule_add(&fib6_rules_ops, 0,
+				   RT6_TABLE_LOCAL, FIB_RULE_PERMANENT);
+	if (err < 0)
+		return err;
+	err = fib_default_rule_add(&fib6_rules_ops, 0x7FFE, RT6_TABLE_MAIN, 0);
+	if (err < 0)
+		return err;
+	return 0;
+}
+
 void __init fib6_rules_init(void)
 {
-	list_add_tail(&local_rule.common.list, &fib6_rules_ops.rules_list);
-	list_add_tail(&main_rule.common.list, &fib6_rules_ops.rules_list);
-
+	BUG_ON(fib6_default_rules_init());
 	fib_rules_register(&fib6_rules_ops);
 }
 

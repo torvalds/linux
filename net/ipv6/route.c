@@ -544,12 +544,8 @@ restart:
 	rt = rt6_device_match(rt, fl->oif, flags);
 	BACKTRACK(&fl->fl6_src);
 out:
-	dst_hold(&rt->u.dst);
+	dst_use(&rt->u.dst, jiffies);
 	read_unlock_bh(&table->tb6_lock);
-
-	rt->u.dst.lastuse = jiffies;
-	rt->u.dst.__use++;
-
 	return rt;
 
 }

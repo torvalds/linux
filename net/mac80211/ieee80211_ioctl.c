@@ -917,7 +917,6 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 				   struct iw_request_info *info,
 				   struct iw_param *data, char *extra)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int ret = 0;
 
@@ -927,18 +926,21 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 	case IW_AUTH_CIPHER_GROUP:
 	case IW_AUTH_WPA_ENABLED:
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
-		break;
 	case IW_AUTH_KEY_MGMT:
+		break;
+	case IW_AUTH_PRIVACY_INVOKED:
 		if (sdata->type != IEEE80211_IF_TYPE_STA)
 			ret = -EINVAL;
 		else {
+			sdata->u.sta.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
 			/*
-			 * Key management was set by wpa_supplicant,
-			 * we only need this to associate to a network
-			 * that has privacy enabled regardless of not
-			 * having a key.
+			 * Privacy invoked by wpa_supplicant, store the
+			 * value and allow associating to a protected
+			 * network without having a key up front.
 			 */
-			sdata->u.sta.key_management_enabled = !!data->value;
+			if (data->value)
+				sdata->u.sta.flags |=
+					IEEE80211_STA_PRIVACY_INVOKED;
 		}
 		break;
 	case IW_AUTH_80211_AUTH_ALG:
@@ -947,11 +949,6 @@ static int ieee80211_ioctl_siwauth(struct net_device *dev,
 			sdata->u.sta.auth_algs = data->value;
 		else
 			ret = -EOPNOTSUPP;
-		break;
-	case IW_AUTH_PRIVACY_INVOKED:
-		if (local->ops->set_privacy_invoked)
-			ret = local->ops->set_privacy_invoked(
-					local_to_hw(local), data->value);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
