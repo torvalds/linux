@@ -62,8 +62,8 @@ typedef uint8_t u8;
 #endif
 /* We can have up to 256 pages for devices. */
 #define DEVICE_PAGES 256
-/* This fits nicely in a single 4096-byte page. */
-#define VIRTQUEUE_NUM 127
+/* This will occupy 2 pages: it must be a power of 2. */
+#define VIRTQUEUE_NUM 128
 
 /*L:120 verbose is both a global flag and a macro.  The C preprocessor allows
  * this, and although I wouldn't recommend it, it works quite nicely here. */
@@ -1036,7 +1036,8 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	void *p;
 
 	/* First we need some pages for this virtqueue. */
-	pages = (vring_size(num_descs) + getpagesize() - 1) / getpagesize();
+	pages = (vring_size(num_descs, getpagesize()) + getpagesize() - 1)
+		/ getpagesize();
 	p = get_pages(pages);
 
 	/* Initialize the configuration. */
@@ -1045,7 +1046,7 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	vq->config.pfn = to_guest_phys(p) / getpagesize();
 
 	/* Initialize the vring. */
-	vring_init(&vq->vring, num_descs, p);
+	vring_init(&vq->vring, num_descs, p, getpagesize());
 
 	/* Add the configuration information to this device's descriptor. */
 	add_desc_field(dev, VIRTIO_CONFIG_F_VIRTQUEUE,
@@ -1342,7 +1343,7 @@ static bool service_io(struct device *dev)
 	if (out->type & VIRTIO_BLK_T_SCSI_CMD) {
 		fprintf(stderr, "Scsi commands unsupported\n");
 		in->status = VIRTIO_BLK_S_UNSUPP;
-		wlen = sizeof(in);
+		wlen = sizeof(*in);
 	} else if (out->type & VIRTIO_BLK_T_OUT) {
 		/* Write */
 
@@ -1363,7 +1364,7 @@ static bool service_io(struct device *dev)
 			/* Die, bad Guest, die. */
 			errx(1, "Write past end %llu+%u", off, ret);
 		}
-		wlen = sizeof(in);
+		wlen = sizeof(*in);
 		in->status = (ret >= 0 ? VIRTIO_BLK_S_OK : VIRTIO_BLK_S_IOERR);
 	} else {
 		/* Read */
@@ -1376,10 +1377,10 @@ static bool service_io(struct device *dev)
 		ret = readv(vblk->fd, iov+1, in_num-1);
 		verbose("READ from sector %llu: %i\n", out->sector, ret);
 		if (ret >= 0) {
-			wlen = sizeof(in) + ret;
+			wlen = sizeof(*in) + ret;
 			in->status = VIRTIO_BLK_S_OK;
 		} else {
-			wlen = sizeof(in);
+			wlen = sizeof(*in);
 			in->status = VIRTIO_BLK_S_IOERR;
 		}
 	}

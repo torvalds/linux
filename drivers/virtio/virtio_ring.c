@@ -53,7 +53,7 @@ struct vring_virtqueue
 	unsigned int num_added;
 
 	/* Last used index we've seen. */
-	unsigned int last_used_idx;
+	u16 last_used_idx;
 
 	/* How to notify other side. FIXME: commonalize hcalls! */
 	void (*notify)(struct virtqueue *vq);
@@ -277,11 +277,17 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 	struct vring_virtqueue *vq;
 	unsigned int i;
 
+	/* We assume num is a power of 2. */
+	if (num & (num - 1)) {
+		dev_warn(&vdev->dev, "Bad virtqueue length %u\n", num);
+		return NULL;
+	}
+
 	vq = kmalloc(sizeof(*vq) + sizeof(void *)*num, GFP_KERNEL);
 	if (!vq)
 		return NULL;
 
-	vring_init(&vq->vring, num, pages);
+	vring_init(&vq->vring, num, pages, PAGE_SIZE);
 	vq->vq.callback = callback;
 	vq->vq.vdev = vdev;
 	vq->vq.vq_ops = &vring_vq_ops;
