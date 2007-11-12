@@ -932,8 +932,8 @@ static unsigned int dell_922x_m81_pin_configs[10] = {
     102801D7 (Dell XPS M1210)
 */
 static unsigned int dell_922x_m82_pin_configs[10] = {
-	0x0221121f, 0x408103ff, 0x02111212, 0x90100310, 
-	0x408003f1, 0x02111211, 0x03451340, 0x40c003f2, 
+	0x02211211, 0x408103ff, 0x02a1123e, 0x90100310, 
+	0x408003f1, 0x0221121f, 0x03451340, 0x40c003f2, 
 	0x508003f3, 0x405003f4, 
 };
 
