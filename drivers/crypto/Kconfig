@@ -88,6 +88,7 @@ config CRYPTO_DEV_HIFN_795X
 	select CRYPTO_DES
 	select CRYPTO_ALGAPI
 	select CRYPTO_ABLKCIPHER
+	depends on PCI
 	help
 	  This option allows you to have support for HIFN 795x crypto adapters.
 
