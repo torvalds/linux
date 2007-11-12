@@ -133,11 +133,14 @@ static int usb_console_setup(struct console *co, char *options)
 	}
 	co->cflag = cflag;
 
-	/* grab the first serial port that happens to be connected */
-	serial = usb_serial_get_by_index(0);
+	/*
+	 * no need to check the index here: if the index is wrong, console
+	 * code won't call us
+	 */
+	serial = usb_serial_get_by_index(co->index);
 	if (serial == NULL) {
 		/* no device is connected yet, sorry :( */
-		err ("No USB device connected to ttyUSB0");
+		err ("No USB device connected to ttyUSB%i", co->index);
 		return -ENODEV;
 	}
 
