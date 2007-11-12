@@ -171,7 +171,13 @@ static void fill_in_inode(struct inode *tmp_inode, int new_buf_type,
 	/* Linux can not store file creation time unfortunately so ignore it */
 
 	cifsInfo->cifsAttrs = attr;
-	cifsInfo->time = jiffies;
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
+		/* get more accurate mode via ACL - so force inode refresh */
+		cifsInfo->time = 0;
+	} else
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+		cifsInfo->time = jiffies;
 
 	/* treat dos attribute of read-only as read-only mode bit e.g. 555? */
 	/* 2767 perms - indicate mandatory locking */
@@ -495,7 +501,7 @@ ffirst_retry:
 static int cifs_unicode_bytelen(char *str)
 {
 	int len;
-	__le16 * ustr = (__le16 *)str;
+	__le16 *ustr = (__le16 *)str;
 
 	for (len = 0; len <= PATH_MAX; len++) {
 		if (ustr[len] == 0)

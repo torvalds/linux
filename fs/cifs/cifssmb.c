@@ -647,8 +647,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 						 count - 16,
 						 &server->secType);
 			if (rc == 1) {
-			/* BB Need to fill struct for sessetup here */
-				rc = -EOPNOTSUPP;
+				rc = 0;
 			} else {
 				rc = -EINVAL;
 			}
@@ -2486,6 +2485,7 @@ querySymLinkRetry:
 	return rc;
 }
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 /* Initialize NT TRANSACT SMB into small smb request buffer.
    This assumes that all NT TRANSACTS that we init here have
    total parm and data under about 400 bytes (to fit in small cifs
@@ -2494,7 +2494,7 @@ querySymLinkRetry:
 	MaxSetupCount (size of returned setup area) and
 	MaxParameterCount (returned parms size) must be set by caller */
 static int
-smb_init_ntransact(const __u16 sub_command, const int setup_count,
+smb_init_nttransact(const __u16 sub_command, const int setup_count,
 		   const int parm_len, struct cifsTconInfo *tcon,
 		   void **ret_buf)
 {
@@ -2525,11 +2525,14 @@ smb_init_ntransact(const __u16 sub_command, const int setup_count,
 
 static int
 validate_ntransact(char *buf, char **ppparm, char **ppdata,
-		   int *pdatalen, int *pparmlen)
+		   __u32 *pparmlen, __u32 *pdatalen)
 {
 	char *end_of_smb;
 	__u32 data_count, data_offset, parm_count, parm_offset;
 	struct smb_com_ntransact_rsp *pSMBr;
+
+	*pdatalen = 0;
+	*pparmlen = 0;
 
 	if (buf == NULL)
 		return -EINVAL;
@@ -2567,8 +2570,11 @@ validate_ntransact(char *buf, char **ppparm, char **ppdata,
 		cFYI(1, ("parm count and data count larger than SMB"));
 		return -EINVAL;
 	}
+	*pdatalen = data_count;
+	*pparmlen = parm_count;
 	return 0;
 }
+#endif /* CIFS_EXPERIMENTAL */
 
 int
 CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
@@ -3067,8 +3073,7 @@ GetExtAttrOut:
 /* Get Security Descriptor (by handle) from remote server for a file or dir */
 int
 CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
-		/* BB fix up return info */ char *acl_inf, const int buflen,
-		  const int acl_type)
+		  struct cifs_ntsd **acl_inf, __u32 *pbuflen)
 {
 	int rc = 0;
 	int buf_type = 0;
@@ -3077,7 +3082,10 @@ CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
 
 	cFYI(1, ("GetCifsACL"));
 
-	rc = smb_init_ntransact(NT_TRANSACT_QUERY_SECURITY_DESC, 0,
+	*pbuflen = 0;
+	*acl_inf = NULL;
+
+	rc = smb_init_nttransact(NT_TRANSACT_QUERY_SECURITY_DESC, 0,
 			8 /* parm len */, tcon, (void **) &pSMB);
 	if (rc)
 		return rc;
@@ -3099,34 +3107,52 @@ CIFSSMBGetCIFSACL(const int xid, struct cifsTconInfo *tcon, __u16 fid,
 	if (rc) {
 		cFYI(1, ("Send error in QuerySecDesc = %d", rc));
 	} else {                /* decode response */
-		struct cifs_ntsd *psec_desc;
 		__le32 * parm;
-		int parm_len;
-		int data_len;
-		int acl_len;
+		__u32 parm_len;
+		__u32 acl_len;
 		struct smb_com_ntransact_rsp *pSMBr;
+		char *pdata;
 
 /* validate_nttransact */
 		rc = validate_ntransact(iov[0].iov_base, (char **)&parm,
-					(char **)&psec_desc,
-					&parm_len, &data_len);
+					&pdata, &parm_len, pbuflen);
 		if (rc)
 			goto qsec_out;
 		pSMBr = (struct smb_com_ntransact_rsp *)iov[0].iov_base;
 
-		cFYI(1, ("smb %p parm %p data %p", pSMBr, parm, psec_desc));
+		cFYI(1, ("smb %p parm %p data %p", pSMBr, parm, *acl_inf));
 
 		if (le32_to_cpu(pSMBr->ParameterCount) != 4) {
 			rc = -EIO;      /* bad smb */
+			*pbuflen = 0;
 			goto qsec_out;
 		}
 
 /* BB check that data area is minimum length and as big as acl_len */
 
 		acl_len = le32_to_cpu(*parm);
-		/* BB check if (acl_len > bufsize) */
+		if (acl_len != *pbuflen) {
+			cERROR(1, ("acl length %d does not match %d",
+				   acl_len, *pbuflen));
+			if (*pbuflen > acl_len)
+				*pbuflen = acl_len;
+		}
 
-		parse_sec_desc(psec_desc, acl_len);
+		/* check if buffer is big enough for the acl
+		   header followed by the smallest SID */
+		if ((*pbuflen < sizeof(struct cifs_ntsd) + 8) ||
+		    (*pbuflen >= 64 * 1024)) {
+			cERROR(1, ("bad acl length %d", *pbuflen));
+			rc = -EINVAL;
+			*pbuflen = 0;
+		} else {
+			*acl_inf = kmalloc(*pbuflen, GFP_KERNEL);
+			if (*acl_inf == NULL) {
+				*pbuflen = 0;
+				rc = -ENOMEM;
+			}
+			memcpy(*acl_inf, pdata, *pbuflen);
+		}
 	}
 qsec_out:
 	if (buf_type == CIFS_SMALL_BUFFER)
@@ -3381,7 +3407,7 @@ UnixQPathInfoRetry:
 			memcpy((char *) pFindData,
 			       (char *) &pSMBr->hdr.Protocol +
 			       data_offset,
-			       sizeof (FILE_UNIX_BASIC_INFO));
+			       sizeof(FILE_UNIX_BASIC_INFO));
 		}
 	}
 	cifs_buf_release(pSMB);
@@ -3649,7 +3675,7 @@ int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
 	pSMB->SubCommand = cpu_to_le16(TRANS2_FIND_NEXT);
 	pSMB->SearchHandle = searchHandle;      /* always kept as le */
 	pSMB->SearchCount =
-		cpu_to_le16(CIFSMaxBufSize / sizeof (FILE_UNIX_INFO));
+		cpu_to_le16(CIFSMaxBufSize / sizeof(FILE_UNIX_INFO));
 	pSMB->InformationLevel = cpu_to_le16(psrch_inf->info_level);
 	pSMB->ResumeKey = psrch_inf->resume_key;
 	pSMB->SearchFlags =
@@ -4331,7 +4357,7 @@ QFSDeviceRetry:
 	} else {		/* decode response */
 		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
 
-		if (rc || (pSMBr->ByteCount < sizeof (FILE_SYSTEM_DEVICE_INFO)))
+		if (rc || (pSMBr->ByteCount < sizeof(FILE_SYSTEM_DEVICE_INFO)))
 			rc = -EIO;	/* bad smb */
 		else {
 			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);

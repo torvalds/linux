@@ -793,7 +793,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 	vol->linux_gid = current->gid;
 	vol->dir_mode = S_IRWXUGO;
 	/* 2767 perms indicate mandatory locking support */
-	vol->file_mode = S_IALLUGO & ~(S_ISUID | S_IXGRP);
+	vol->file_mode = (S_IRWXUGO | S_ISGID) & (~S_IXGRP);
 
 	/* vol->retry default is 0 (i.e. "soft" limited retry not hard retry) */
 	vol->rw = TRUE;
@@ -1790,7 +1790,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	if (volume_info.nullauth) {
 		cFYI(1, ("null user"));
-		volume_info.username = NULL;
+		volume_info.username = "";
 	} else if (volume_info.username) {
 		/* BB fixme parse for domain name here */
 		cFYI(1, ("Username: %s", volume_info.username));

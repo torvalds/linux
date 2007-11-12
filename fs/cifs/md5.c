@@ -276,8 +276,8 @@ hmac_md5_init_rfc2104(unsigned char *key, int key_len,
 	}
 
 	/* start out by storing key in pads */
-	memset(ctx->k_ipad, 0, sizeof (ctx->k_ipad));
-	memset(ctx->k_opad, 0, sizeof (ctx->k_opad));
+	memset(ctx->k_ipad, 0, sizeof(ctx->k_ipad));
+	memset(ctx->k_opad, 0, sizeof(ctx->k_opad));
 	memcpy(ctx->k_ipad, key, key_len);
 	memcpy(ctx->k_opad, key, key_len);
 
@@ -307,8 +307,8 @@ hmac_md5_init_limK_to_64(const unsigned char *key, int key_len,
 	}
 
 	/* start out by storing key in pads */
-	memset(ctx->k_ipad, 0, sizeof (ctx->k_ipad));
-	memset(ctx->k_opad, 0, sizeof (ctx->k_opad));
+	memset(ctx->k_ipad, 0, sizeof(ctx->k_ipad));
+	memset(ctx->k_opad, 0, sizeof(ctx->k_opad));
 	memcpy(ctx->k_ipad, key, key_len);
 	memcpy(ctx->k_opad, key, key_len);
 

@@ -1026,6 +1026,37 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	return total_written;
 }
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+struct cifsFileInfo *find_readable_file(struct cifsInodeInfo *cifs_inode)
+{
+	struct cifsFileInfo *open_file = NULL;
+
+	read_lock(&GlobalSMBSeslock);
+	/* we could simply get the first_list_entry since write-only entries
+	   are always at the end of the list but since the first entry might
+	   have a close pending, we go through the whole list */
+	list_for_each_entry(open_file, &cifs_inode->openFileList, flist) {
+		if (open_file->closePend)
+			continue;
+		if (open_file->pfile && ((open_file->pfile->f_flags & O_RDWR) ||
+		    (open_file->pfile->f_flags & O_RDONLY))) {
+			if (!open_file->invalidHandle) {
+				/* found a good file */
+				/* lock it so it will not be closed on us */
+				atomic_inc(&open_file->wrtPending);
+				read_unlock(&GlobalSMBSeslock);
+				return open_file;
+			} /* else might as well continue, and look for
+			     another, or simply have the caller reopen it
+			     again rather than trying to fix this handle */
+		} else /* write only file */
+			break; /* write only files are last so must be done */
+	}
+	read_unlock(&GlobalSMBSeslock);
+	return NULL;
+}
+#endif
+
 struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *cifs_inode)
 {
 	struct cifsFileInfo *open_file;

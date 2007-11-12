@@ -289,7 +289,7 @@ static int decode_sfu_inode(struct inode *inode, __u64 size,
 
 #define SFBITS_MASK (S_ISVTX | S_ISGID | S_ISUID)  /* SETFILEBITS valid bits */
 
-static int get_sfu_uid_mode(struct inode *inode,
+static int get_sfu_mode(struct inode *inode,
 			const unsigned char *path,
 			struct cifs_sb_info *cifs_sb, int xid)
 {
@@ -527,11 +527,16 @@ int cifs_get_inode_info(struct inode **pinode,
 
 		/* BB fill in uid and gid here? with help from winbind?
 		   or retrieve from NTFS stream extended attribute */
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+		/* fill in 0777 bits from ACL */
+		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) {
+			cFYI(1, ("Getting mode bits from ACL"));
+			acl_to_uid_mode(inode, search_path);
+		}
+#endif
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
-			/* fill in uid, gid, mode from server ACL */
-			/* BB FIXME this should also take into account the
-			 * default uid specified on mount if present */
-			get_sfu_uid_mode(inode, search_path, cifs_sb, xid);
+			/* fill in remaining high mode bits e.g. SUID, VTX */
+			get_sfu_mode(inode, search_path, cifs_sb, xid);
 		} else if (atomic_read(&cifsInfo->inUse) == 0) {
 			inode->i_uid = cifs_sb->mnt_uid;
 			inode->i_gid = cifs_sb->mnt_gid;

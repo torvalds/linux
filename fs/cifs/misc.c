@@ -73,7 +73,7 @@ sesInfoAlloc(void)
 {
 	struct cifsSesInfo *ret_buf;
 
-	ret_buf = kzalloc(sizeof (struct cifsSesInfo), GFP_KERNEL);
+	ret_buf = kzalloc(sizeof(struct cifsSesInfo), GFP_KERNEL);
 	if (ret_buf) {
 		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&sesInfoAllocCount);
@@ -109,7 +109,7 @@ struct cifsTconInfo *
 tconInfoAlloc(void)
 {
 	struct cifsTconInfo *ret_buf;
-	ret_buf = kzalloc(sizeof (struct cifsTconInfo), GFP_KERNEL);
+	ret_buf = kzalloc(sizeof(struct cifsTconInfo), GFP_KERNEL);
 	if (ret_buf) {
 		write_lock(&GlobalSMBSeslock);
 		atomic_inc(&tconInfoAllocCount);
@@ -298,7 +298,7 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	memset(temp, 0, 256); /* bigger than MAX_CIFS_HDR_SIZE */
 
 	buffer->smb_buf_length =
-	    (2 * word_count) + sizeof (struct smb_hdr) -
+	    (2 * word_count) + sizeof(struct smb_hdr) -
 	    4 /*  RFC 1001 length field does not count */  +
 	    2 /* for bcc field itself */ ;
 	/* Note that this is the only network field that has to be converted
@@ -422,8 +422,8 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length)
 	__u32 clc_len;  /* calculated length */
 	cFYI(0, ("checkSMB Length: 0x%x, smb_buf_length: 0x%x", length, len));
 
-	if (length < 2 + sizeof (struct smb_hdr)) {
-		if ((length >= sizeof (struct smb_hdr) - 1)
+	if (length < 2 + sizeof(struct smb_hdr)) {
+		if ((length >= sizeof(struct smb_hdr) - 1)
 			    && (smb->Status.CifsError != 0)) {
 			smb->WordCount = 0;
 			/* some error cases do not return wct and bcc */
