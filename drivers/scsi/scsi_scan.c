@@ -865,7 +865,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		sdev->no_start_on_add = 1;
 
 	if (*bflags & BLIST_SINGLELUN)
-		sdev->single_lun = 1;
+		scsi_target(sdev)->single_lun = 1;
 
 	sdev->use_10_for_rw = 1;
 

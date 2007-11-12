@@ -526,7 +526,7 @@ static void scsi_run_queue(struct request_queue *q)
 	struct Scsi_Host *shost = sdev->host;
 	unsigned long flags;
 
-	if (sdev->single_lun)
+	if (scsi_target(sdev)->single_lun)
 		scsi_single_lun_run(sdev);
 
 	spin_lock_irqsave(shost->host_lock, flags);
@@ -1559,7 +1559,7 @@ static void scsi_request_fn(struct request_queue *q)
 
 		if (!scsi_host_queue_ready(q, shost, sdev))
 			goto not_ready;
-		if (sdev->single_lun) {
+		if (scsi_target(sdev)->single_lun) {
 			if (scsi_target(sdev)->starget_sdev_user &&
 			    scsi_target(sdev)->starget_sdev_user != sdev)
 				goto not_ready;
