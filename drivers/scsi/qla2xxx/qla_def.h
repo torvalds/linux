@@ -2116,14 +2116,6 @@ struct qla_msix_entry {
 
 #define	WATCH_INTERVAL		1       /* number of seconds */
 
-/* NPIV */
-#define MAX_MULTI_ID_LOOP                     126
-#define MAX_MULTI_ID_FABRIC                    64
-#define MAX_NUM_VPORT_LOOP                      (MAX_MULTI_ID_LOOP - 1)
-#define MAX_NUM_VPORT_FABRIC                    (MAX_MULTI_ID_FABRIC - 1)
-#define MAX_NUM_VHBA_LOOP                       (MAX_MULTI_ID_LOOP - 1)
-#define MAX_NUM_VHBA_FABRIC                     (MAX_MULTI_ID_FABRIC - 1)
-
 /*
  * Linux Host Adapter structure
  */
@@ -2507,7 +2499,7 @@ typedef struct scsi_qla_host {
 
 	struct list_head	vp_list;	/* list of VP */
 	struct fc_vport	*fc_vport;	/* holds fc_vport * for each vport */
-	uint8_t		vp_idx_map[16];
+	unsigned long	vp_idx_map[(MAX_MULTI_ID_FABRIC / 8) / sizeof(unsigned long)];
 	uint16_t        num_vhosts;	/* number of vports created */
 	uint16_t        num_vsans;	/* number of vsan created */
 	uint16_t        vp_idx;		/* vport ID */

@@ -1124,7 +1124,7 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 
 	down(&ha->vport_sem);
 	ha->cur_vport_count--;
-	clear_bit(vha->vp_idx, (unsigned long *)ha->vp_idx_map);
+	clear_bit(vha->vp_idx, ha->vp_idx_map);
 	up(&ha->vport_sem);
 
 	kfree(vha->node_name);

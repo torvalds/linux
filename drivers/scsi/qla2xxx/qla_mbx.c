@@ -905,7 +905,7 @@ qla2x00_get_adapter_id(scsi_qla_host_t *ha, uint16_t *id, uint8_t *al_pa,
 
 	mcp->mb[0] = MBC_GET_ADAPTER_LOOP_ID;
 	mcp->mb[9] = ha->vp_idx;
-	mcp->out_mb = MBX_0;
+	mcp->out_mb = MBX_9|MBX_0;
 	mcp->in_mb = MBX_9|MBX_7|MBX_6|MBX_3|MBX_2|MBX_1|MBX_0;
 	mcp->tov = 30;
 	mcp->flags = 0;
@@ -2873,7 +2873,7 @@ qla24xx_control_vp(scsi_qla_host_t *vha, int cmd)
 	DEBUG11(printk("%s(%ld): entered. Enabling index %d\n", __func__,
 	    ha->host_no, vp_index));
 
-	if (vp_index == 0 || vp_index >= MAX_MULTI_ID_LOOP)
+	if (vp_index == 0 || vp_index >= ha->max_npiv_vports)
 		return QLA_PARAMETER_ERROR;
 
 	vce = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &vce_dma);
