@@ -620,7 +620,7 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * up to version C the link tuning should halt after 20
 	 * seconds.
 	 */
-	if (rt2x00_get_rev(&rt2x00dev->chip) < RT2560_VERSION_D &&
+	if (rt2x00_rev(&rt2x00dev->chip) < RT2560_VERSION_D &&
 	    rt2x00dev->link.count > 20)
 		return;
 
@@ -630,7 +630,7 @@ static void rt2500pci_link_tuner(struct rt2x00_dev *rt2x00dev)
 	 * Chipset versions C and lower should directly continue
 	 * to the dynamic CCA tuning.
 	 */
-	if (rt2x00_get_rev(&rt2x00dev->chip) < RT2560_VERSION_D)
+	if (rt2x00_rev(&rt2x00dev->chip) < RT2560_VERSION_D)
 		goto dynamic_cca_tune;
 
 	/*
