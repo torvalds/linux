@@ -36,10 +36,17 @@ struct iwl_rate_info {
 	u8 next_rs;		/* next rate used in rs algo */
 	u8 prev_rs_tgg;		/* previous rate used in TGG rs algo */
 	u8 next_rs_tgg;		/* next rate used in TGG rs algo */
+        u8 table_rs_index;	/* index in rate scale table cmd */
+        u8 prev_table_rs;	/* prev in rate table cmd */
+
 };
 
 enum {
-	IWL_RATE_6M_INDEX = 0,
+	IWL_RATE_1M_INDEX = 0,
+	IWL_RATE_2M_INDEX,
+	IWL_RATE_5M_INDEX,
+	IWL_RATE_11M_INDEX,
+	IWL_RATE_6M_INDEX,
 	IWL_RATE_9M_INDEX,
 	IWL_RATE_12M_INDEX,
 	IWL_RATE_18M_INDEX,
@@ -47,13 +54,25 @@ enum {
 	IWL_RATE_36M_INDEX,
 	IWL_RATE_48M_INDEX,
 	IWL_RATE_54M_INDEX,
-	IWL_RATE_1M_INDEX,
-	IWL_RATE_2M_INDEX,
-	IWL_RATE_5M_INDEX,
-	IWL_RATE_11M_INDEX,
 	IWL_RATE_COUNT,
 	IWL_RATE_INVM_INDEX,
 	IWL_RATE_INVALID = IWL_RATE_INVM_INDEX
+};
+
+enum {
+	IWL_RATE_6M_INDEX_TABLE = 0,
+	IWL_RATE_9M_INDEX_TABLE,
+	IWL_RATE_12M_INDEX_TABLE,
+	IWL_RATE_18M_INDEX_TABLE,
+	IWL_RATE_24M_INDEX_TABLE,
+	IWL_RATE_36M_INDEX_TABLE,
+	IWL_RATE_48M_INDEX_TABLE,
+	IWL_RATE_54M_INDEX_TABLE,
+	IWL_RATE_1M_INDEX_TABLE,
+	IWL_RATE_2M_INDEX_TABLE,
+	IWL_RATE_5M_INDEX_TABLE,
+	IWL_RATE_11M_INDEX_TABLE,
+	IWL_RATE_INVM_INDEX_TABLE = IWL_RATE_INVM_INDEX,
 };
 
 enum {
