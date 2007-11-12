@@ -38,7 +38,11 @@ struct mt2266_priv {
 
 	u32 frequency;
 	u32 bandwidth;
+	u8 band;
 };
+
+#define MT2266_VHF 1
+#define MT2266_UHF 0
 
 /* Here, frequencies are expressed in kiloHertz to avoid 32 bits overflows */
 
@@ -90,26 +94,30 @@ static int mt2266_writeregs(struct mt2266_priv *priv,u8 *buf, u8 len)
 }
 
 // Initialisation sequences
-static u8 mt2266_init1[] = {
-	REG_TUNE,
-	0x00, 0x00, 0x28, 0x00, 0x52, 0x99, 0x3f };
+static u8 mt2266_init1[] = { REG_TUNE, 0x00, 0x00, 0x28,
+				 0x00, 0x52, 0x99, 0x3f };
 
 static u8 mt2266_init2[] = {
-	0x17,                                     0x6d, 0x71, 0x61, 0xc0, 0xbf, 0xff, 0xdc, 0x00, 0x0a,
-	0xd4, 0x03, 0x64, 0x64, 0x64, 0x64, 0x22, 0xaa, 0xf2, 0x1e, 0x80, 0x14, 0x01, 0x01, 0x01, 0x01,
-	0x01, 0x01, 0x7f, 0x5e, 0x3f, 0xff, 0xff, 0xff, 0x00, 0x77, 0x0f, 0x2d };
+    0x17, 0x6d, 0x71, 0x61, 0xc0, 0xbf, 0xff, 0xdc, 0x00, 0x0a, 0xd4,
+    0x03, 0x64, 0x64, 0x64, 0x64, 0x22, 0xaa, 0xf2, 0x1e, 0x80, 0x14,
+    0x01, 0x01, 0x01, 0x01, 0x01, 0x01, 0x7f, 0x5e, 0x3f, 0xff, 0xff,
+    0xff, 0x00, 0x77, 0x0f, 0x2d
+};
 
-static u8 mt2266_init_8mhz[] = {
-	REG_BANDWIDTH,
-	0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22, 0x22 };
+static u8 mt2266_init_8mhz[] = { REG_BANDWIDTH, 0x22, 0x22, 0x22, 0x22,
+						0x22, 0x22, 0x22, 0x22 };
 
-static u8 mt2266_init_7mhz[] = {
-	REG_BANDWIDTH,
-	0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32, 0x32 };
+static u8 mt2266_init_7mhz[] = { REG_BANDWIDTH, 0x32, 0x32, 0x32, 0x32,
+						0x32, 0x32, 0x32, 0x32 };
 
-static u8 mt2266_init_6mhz[] = {
-	REG_BANDWIDTH,
-	0xa7, 0xa7, 0xa7, 0xa7, 0xa7, 0xa7, 0xa7, 0xa7 };
+static u8 mt2266_init_6mhz[] = { REG_BANDWIDTH, 0xa7, 0xa7, 0xa7, 0xa7,
+						0xa7, 0xa7, 0xa7, 0xa7 };
+
+static u8 mt2266_uhf[] = { 0x1d, 0xdc, 0x00, 0x0a, 0xd4, 0x03, 0x64, 0x64,
+			   0x64, 0x64, 0x22, 0xaa, 0xf2, 0x1e, 0x80, 0x14 };
+
+static u8 mt2266_vhf[] = { 0x1d, 0xfe, 0x00, 0x00, 0xb4, 0x03, 0xa5, 0xa5,
+			   0xa5, 0xa5, 0x82, 0xaa, 0xf1, 0x17, 0x80, 0x1f };
 
 #define FREF 30000       // Quartz oscillator 30 MHz
 
@@ -122,35 +130,78 @@ static int mt2266_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	u8  lnaband;
 	u8  b[10];
 	int i;
+	u8 band;
 
 	priv = fe->tuner_priv;
 
-	mt2266_writereg(priv,0x17,0x6d);
-	mt2266_writereg(priv,0x1c,0xff);
-
 	freq = params->frequency / 1000; // Hz -> kHz
+	if (freq < 470000 && freq > 230000)
+		return -EINVAL; /* Gap between VHF and UHF bands */
 	priv->bandwidth = (fe->ops.info.type == FE_OFDM) ? params->u.ofdm.bandwidth : 0;
 	priv->frequency = freq * 1000;
-	tune=2 * freq * (8192/16) / (FREF/16);
 
-	if (freq <= 495000) lnaband = 0xEE; else
-	if (freq <= 525000) lnaband = 0xDD; else
-	if (freq <= 550000) lnaband = 0xCC; else
-	if (freq <= 580000) lnaband = 0xBB; else
-	if (freq <= 605000) lnaband = 0xAA; else
-	if (freq <= 630000) lnaband = 0x99; else
-	if (freq <= 655000) lnaband = 0x88; else
-	if (freq <= 685000) lnaband = 0x77; else
-	if (freq <= 710000) lnaband = 0x66; else
-	if (freq <= 735000) lnaband = 0x55; else
-	if (freq <= 765000) lnaband = 0x44; else
-	if (freq <= 802000) lnaband = 0x33; else
-	if (freq <= 840000) lnaband = 0x22; else lnaband = 0x11;
+	tune = 2 * freq * (8192/16) / (FREF/16);
+	band = (freq < 300000) ? MT2266_VHF : MT2266_UHF;
+	if (band == MT2266_VHF)
+		tune *= 2;
 
-	msleep(100);
-	mt2266_writeregs(priv,(params->u.ofdm.bandwidth==BANDWIDTH_6_MHZ)?mt2266_init_6mhz:
-				(params->u.ofdm.bandwidth==BANDWIDTH_7_MHZ)?mt2266_init_7mhz:
-				mt2266_init_8mhz,sizeof(mt2266_init_8mhz));
+	switch (params->u.ofdm.bandwidth) {
+	case BANDWIDTH_6_MHZ:
+		mt2266_writeregs(priv, mt2266_init_6mhz,
+				 sizeof(mt2266_init_6mhz));
+		break;
+	case BANDWIDTH_7_MHZ:
+		mt2266_writeregs(priv, mt2266_init_7mhz,
+				 sizeof(mt2266_init_7mhz));
+		break;
+	case BANDWIDTH_8_MHZ:
+	default:
+		mt2266_writeregs(priv, mt2266_init_8mhz,
+				 sizeof(mt2266_init_8mhz));
+		break;
+	}
+
+	if (band == MT2266_VHF && priv->band == MT2266_UHF) {
+		dprintk("Switch from UHF to VHF");
+		mt2266_writereg(priv, 0x05, 0x04);
+		mt2266_writereg(priv, 0x19, 0x61);
+		mt2266_writeregs(priv, mt2266_vhf, sizeof(mt2266_vhf));
+	} else if (band == MT2266_UHF && priv->band == MT2266_VHF) {
+		dprintk("Switch from VHF to UHF");
+		mt2266_writereg(priv, 0x05, 0x52);
+		mt2266_writereg(priv, 0x19, 0x61);
+		mt2266_writeregs(priv, mt2266_uhf, sizeof(mt2266_uhf));
+	}
+	msleep(10);
+
+	if (freq <= 495000)
+		lnaband = 0xEE;
+	else if (freq <= 525000)
+		lnaband = 0xDD;
+	else if (freq <= 550000)
+		lnaband = 0xCC;
+	else if (freq <= 580000)
+		lnaband = 0xBB;
+	else if (freq <= 605000)
+		lnaband = 0xAA;
+	else if (freq <= 630000)
+		lnaband = 0x99;
+	else if (freq <= 655000)
+		lnaband = 0x88;
+	else if (freq <= 685000)
+		lnaband = 0x77;
+	else if (freq <= 710000)
+		lnaband = 0x66;
+	else if (freq <= 735000)
+		lnaband = 0x55;
+	else if (freq <= 765000)
+		lnaband = 0x44;
+	else if (freq <= 802000)
+		lnaband = 0x33;
+	else if (freq <= 840000)
+		lnaband = 0x22;
+	else
+		lnaband = 0x11;
 
 	b[0] = REG_TUNE;
 	b[1] = (tune >> 8) & 0x1F;
@@ -158,47 +209,54 @@ static int mt2266_set_params(struct dvb_frontend *fe, struct dvb_frontend_parame
 	b[3] = tune >> 13;
 	mt2266_writeregs(priv,b,4);
 
-	dprintk("set_parms: tune=%d band=%d",(int)tune,(int)lnaband);
-	dprintk("set_parms: [1..3]: %2x %2x %2x",(int)b[1],(int)b[2],(int)b[3]);
+	dprintk("set_parms: tune=%d band=%d %s",
+		(int) tune, (int) lnaband,
+		(band == MT2266_UHF) ? "UHF" : "VHF");
+	dprintk("set_parms: [1..3]: %2x %2x %2x",
+		(int) b[1], (int) b[2], (int)b[3]);
 
-	b[0] = 0x05;
-	b[1] = 0x62;
-	b[2] = lnaband;
-	mt2266_writeregs(priv,b,3);
+	if (band == MT2266_UHF) {
+		b[0] = 0x05;
+		b[1] = (priv->band == MT2266_VHF) ? 0x52 : 0x62;
+		b[2] = lnaband;
+		mt2266_writeregs(priv, b, 3);
+	}
 
-	//Waits for pll lock or timeout
+	/* Wait for pll lock or timeout */
 	i = 0;
 	do {
 		mt2266_readreg(priv,REG_LOCK,b);
-		if ((b[0] & 0x40)==0x40)
+		if (b[0] & 0x40)
 			break;
 		msleep(10);
 		i++;
 	} while (i<10);
 	dprintk("Lock when i=%i",(int)i);
+
+	if (band == MT2266_UHF && priv->band == MT2266_VHF)
+		mt2266_writereg(priv, 0x05, 0x62);
+
+	priv->band = band;
+
 	return ret;
 }
 
 static void mt2266_calibrate(struct mt2266_priv *priv)
 {
-	mt2266_writereg(priv,0x11,0x03);
-	mt2266_writereg(priv,0x11,0x01);
-
-	mt2266_writeregs(priv,mt2266_init1,sizeof(mt2266_init1));
-	mt2266_writeregs(priv,mt2266_init2,sizeof(mt2266_init2));
-
-	mt2266_writereg(priv,0x33,0x5e);
-	mt2266_writereg(priv,0x10,0x10);
-	mt2266_writereg(priv,0x10,0x00);
-
-	mt2266_writeregs(priv,mt2266_init_8mhz,sizeof(mt2266_init_8mhz));
-
+	mt2266_writereg(priv, 0x11, 0x03);
+	mt2266_writereg(priv, 0x11, 0x01);
+	mt2266_writeregs(priv, mt2266_init1, sizeof(mt2266_init1));
+	mt2266_writeregs(priv, mt2266_init2, sizeof(mt2266_init2));
+	mt2266_writereg(priv, 0x33, 0x5e);
+	mt2266_writereg(priv, 0x10, 0x10);
+	mt2266_writereg(priv, 0x10, 0x00);
+	mt2266_writeregs(priv, mt2266_init_8mhz, sizeof(mt2266_init_8mhz));
 	msleep(25);
-	mt2266_writereg(priv,0x17,0x6d);
-	mt2266_writereg(priv,0x1c,0x00);
+	mt2266_writereg(priv, 0x17, 0x6d);
+	mt2266_writereg(priv, 0x1c, 0x00);
 	msleep(75);
-	mt2266_writereg(priv,0x17,0x6d);
-	mt2266_writereg(priv,0x1c,0xff);
+	mt2266_writereg(priv, 0x17, 0x6d);
+	mt2266_writereg(priv, 0x1c, 0xff);
 }
 
 static int mt2266_get_frequency(struct dvb_frontend *fe, u32 *frequency)
@@ -217,17 +275,22 @@ static int mt2266_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 
 static int mt2266_init(struct dvb_frontend *fe)
 {
+	int ret;
 	struct mt2266_priv *priv = fe->tuner_priv;
-	mt2266_writereg(priv,0x17,0x6d);
-	mt2266_writereg(priv,0x1c,0xff);
+	ret = mt2266_writereg(priv, 0x17, 0x6d);
+	if (ret < 0)
+		return ret;
+	ret = mt2266_writereg(priv, 0x1c, 0xff);
+	if (ret < 0)
+		return ret;
 	return 0;
 }
 
 static int mt2266_sleep(struct dvb_frontend *fe)
 {
 	struct mt2266_priv *priv = fe->tuner_priv;
-	mt2266_writereg(priv,0x17,0x6d);
-	mt2266_writereg(priv,0x1c,0x00);
+	mt2266_writereg(priv, 0x17, 0x6d);
+	mt2266_writereg(priv, 0x1c, 0x00);
 	return 0;
 }
 
@@ -241,8 +304,8 @@ static int mt2266_release(struct dvb_frontend *fe)
 static const struct dvb_tuner_ops mt2266_tuner_ops = {
 	.info = {
 		.name           = "Microtune MT2266",
-		.frequency_min  = 470000000,
-		.frequency_max  = 860000000,
+		.frequency_min  = 174000000,
+		.frequency_max  = 862000000,
 		.frequency_step =     50000,
 	},
 	.release       = mt2266_release,
@@ -264,8 +327,9 @@ struct dvb_frontend * mt2266_attach(struct dvb_frontend *fe, struct i2c_adapter 
 
 	priv->cfg      = cfg;
 	priv->i2c      = i2c;
+	priv->band     = MT2266_UHF;
 
-	if (mt2266_readreg(priv,0,&id) != 0) {
+	if (mt2266_readreg(priv, 0, &id)) {
 		kfree(priv);
 		return NULL;
 	}
