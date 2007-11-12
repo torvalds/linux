@@ -189,7 +189,7 @@ SOC_ENUM("Bass Boost", wm8750_enum[0]),
 SOC_ENUM("Bass Filter", wm8750_enum[1]),
 SOC_SINGLE("Bass Volume", WM8750_BASS, 0, 15, 1),
 
-SOC_SINGLE("Treble Volume", WM8750_TREBLE, 0, 15, 0),
+SOC_SINGLE("Treble Volume", WM8750_TREBLE, 0, 15, 1),
 SOC_ENUM("Treble Cut-off", wm8750_enum[2]),
 
 SOC_SINGLE("3D Switch", WM8750_3D, 0, 1, 0),
