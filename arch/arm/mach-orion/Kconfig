@@ -23,6 +23,13 @@ config MACH_KUROBOX_PRO
 	  Say 'Y' here if you want your kernel to support the
 	  KuroBox Pro platform.
 
+config MACH_DNS323
+	bool "D-Link DNS-323"
+	select I2C_BOARDINFO
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  D-Link DNS-323 platform.
+
 endmenu
 
 endif
