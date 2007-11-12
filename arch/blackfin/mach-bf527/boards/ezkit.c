@@ -451,6 +451,13 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 };
 #endif
 
+#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE) \
+	 && defined(CONFIG_SND_SOC_WM8731_SPI)
+static struct bfin5xx_spi_chip spi_wm8731_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
@@ -552,9 +559,20 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.platform_data		= &bfin_ad7877_ts_info,
 		.irq			= IRQ_PF6,
 		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
+		.bus_num	= 0,
 		.chip_select  = 1,
 		.controller_data = &spi_ad7877_chip_info,
+	},
+#endif
+#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE) \
+	 && defined(CONFIG_SND_SOC_WM8731_SPI)
+	{
+		.modalias	= "wm8731",
+		.max_speed_hz	= 3125000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num	= 0,
+		.chip_select    = 5,
+		.controller_data = &spi_wm8731_chip_info,
+		.mode = SPI_MODE_0,
 	},
 #endif
 };
