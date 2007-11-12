@@ -1120,6 +1120,99 @@
 /************************************************************************************************/
 /* EMU1010m HANA Destinations									*/
 /************************************************************************************************/
+/* Hana, original 1010,1212,1820 using Alice2
+ * Destiniations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2
+ * 0x01, 0x10-0x1f: 32 Elink channels to Audio Dock
+ * 0x01, 0x00: Dock DAC 1 Left
+ * 0x01, 0x04: Dock DAC 1 Right
+ * 0x01, 0x08: Dock DAC 2 Left
+ * 0x01, 0x0c: Dock DAC 2 Right
+ * 0x01, 0x10: Dock DAC 3 Left
+ * 0x01, 0x12: PHONES Left
+ * 0x01, 0x14: Dock DAC 3 Right
+ * 0x01, 0x16: PHONES Right
+ * 0x01, 0x18: Dock DAC 4 Left
+ * 0x01, 0x1a: S/PDIF Left
+ * 0x01, 0x1c: Dock DAC 4 Right
+ * 0x01, 0x1e: S/PDIF Right
+ * 0x02, 0x00: Hana S/PDIF Left
+ * 0x02, 0x01: Hana S/PDIF Right
+ * 0x03, 0x00: Hanoa DAC Left
+ * 0x03, 0x01: Hanoa DAC Right
+ * 0x04, 0x00-0x07: Hana ADAT
+ * 0x05, 0x00: I2S0 Left to Alice2
+ * 0x05, 0x01: I2S0 Right to Alice2
+ * 0x06, 0x00: I2S0 Left to Alice2
+ * 0x06, 0x01: I2S0 Right to Alice2
+ * 0x07, 0x00: I2S0 Left to Alice2
+ * 0x07, 0x01: I2S0 Right to Alice2
+ *
+ * Hana2 never released, but used Tina
+ * Not needed.
+ *
+ * Hana3, rev2 1010,1212,1616 using Tina
+ * Destinations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00, 0x00-0x0f: 16 EMU32A channels to Tina
+ * 0x01, 0x10-0x1f: 32 EDI channels to Micro Dock
+ * 0x01, 0x00: Dock DAC 1 Left
+ * 0x01, 0x04: Dock DAC 1 Right
+ * 0x01, 0x08: Dock DAC 2 Left
+ * 0x01, 0x0c: Dock DAC 2 Right
+ * 0x01, 0x10: Dock DAC 3 Left
+ * 0x01, 0x12: Dock S/PDIF Left
+ * 0x01, 0x14: Dock DAC 3 Right
+ * 0x01, 0x16: Dock S/PDIF Right
+ * 0x01, 0x18-0x1f: Dock ADAT 0-7
+ * 0x02, 0x00: Hana3 S/PDIF Left
+ * 0x02, 0x01: Hana3 S/PDIF Right
+ * 0x03, 0x00: Hanoa DAC Left
+ * 0x03, 0x01: Hanoa DAC Right
+ * 0x04, 0x00-0x07: Hana3 ADAT 0-7
+ * 0x05, 0x00-0x0f: 16 EMU32B channels to Tina
+ * 0x06-0x07: Not used
+ *
+ * HanaLite, rev1 0404 using Alice2
+ * Destiniations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2
+ * 0x01: Not used
+ * 0x02, 0x00: S/PDIF Left
+ * 0x02, 0x01: S/PDIF Right
+ * 0x03, 0x00: DAC Left
+ * 0x03, 0x01: DAC Right
+ * 0x04-0x07: Not used
+ *
+ * HanaLiteLite, rev2 0404 using Alice2
+ * Destiniations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00, 0x00-0x0f: 16 EMU32 channels to Alice2
+ * 0x01: Not used
+ * 0x02, 0x00: S/PDIF Left
+ * 0x02, 0x01: S/PDIF Right
+ * 0x03, 0x00: DAC Left
+ * 0x03, 0x01: DAC Right
+ * 0x04-0x07: Not used
+ *
+ * Mana, Cardbus 1616 using Tina2
+ * Destinations for SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00, 0x00-0x0f: 16 EMU32A channels to Tina2
+ * 0x01, 0x10-0x1f: 32 EDI channels to Micro Dock
+ * 0x01, 0x00: Dock DAC 1 Left
+ * 0x01, 0x04: Dock DAC 1 Right
+ * 0x01, 0x08: Dock DAC 2 Left
+ * 0x01, 0x0c: Dock DAC 2 Right
+ * 0x01, 0x10: Dock DAC 3 Left
+ * 0x01, 0x12: Dock S/PDIF Left
+ * 0x01, 0x14: Dock DAC 3 Right
+ * 0x01, 0x16: Dock S/PDIF Right
+ * 0x01, 0x18-0x1f: Dock ADAT 0-7
+ * 0x02: Not used
+ * 0x03, 0x00: Mana DAC Left
+ * 0x03, 0x01: Mana DAC Right
+ * 0x04, 0x00-0x0f: 16 EMU32B channels to Tina2
+ * 0x05-0x07: Not used
+ *
+ *
+ */
 /* 32-bit destinations of signal in the Hana FPGA. Destinations are either
  * physical outputs of Hana, or outputs going to Alice2 (audigy) for capture
  * - 16 x EMU_DST_ALICE2_EMU32_X.
@@ -1209,6 +1302,102 @@
 /************************************************************************************************/
 /* EMU1010m HANA Sources									*/
 /************************************************************************************************/
+/* Hana, original 1010,1212,1820 using Alice2
+ * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00,0x00-0x1f: Silence
+ * 0x01, 0x10-0x1f: 32 Elink channels from Audio Dock
+ * 0x01, 0x00: Dock Mic A
+ * 0x01, 0x04: Dock Mic B
+ * 0x01, 0x08: Dock ADC 1 Left
+ * 0x01, 0x0c: Dock ADC 1 Right
+ * 0x01, 0x10: Dock ADC 2 Left
+ * 0x01, 0x14: Dock ADC 2 Right
+ * 0x01, 0x18: Dock ADC 3 Left
+ * 0x01, 0x1c: Dock ADC 3 Right
+ * 0x02, 0x00: Hana ADC Left
+ * 0x02, 0x01: Hana ADC Right
+ * 0x03, 0x00-0x0f: 16 inputs from Alice2 Emu32A output
+ * 0x03, 0x10-0x1f: 16 inputs from Alice2 Emu32B output
+ * 0x04, 0x00-0x07: Hana ADAT
+ * 0x05, 0x00: Hana S/PDIF Left
+ * 0x05, 0x01: Hana S/PDIF Right
+ * 0x06-0x07: Not used
+ *
+ * Hana2 never released, but used Tina
+ * Not needed.
+ *
+ * Hana3, rev2 1010,1212,1616 using Tina
+ * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00,0x00-0x1f: Silence
+ * 0x01, 0x10-0x1f: 32 Elink channels from Audio Dock
+ * 0x01, 0x00: Dock Mic A
+ * 0x01, 0x04: Dock Mic B
+ * 0x01, 0x08: Dock ADC 1 Left
+ * 0x01, 0x0c: Dock ADC 1 Right
+ * 0x01, 0x10: Dock ADC 2 Left
+ * 0x01, 0x12: Dock S/PDIF Left
+ * 0x01, 0x14: Dock ADC 2 Right
+ * 0x01, 0x16: Dock S/PDIF Right
+ * 0x01, 0x18-0x1f: Dock ADAT 0-7
+ * 0x01, 0x18: Dock ADC 3 Left
+ * 0x01, 0x1c: Dock ADC 3 Right
+ * 0x02, 0x00: Hanoa ADC Left
+ * 0x02, 0x01: Hanoa ADC Right
+ * 0x03, 0x00-0x0f: 16 inputs from Tina Emu32A output
+ * 0x03, 0x10-0x1f: 16 inputs from Tina Emu32B output
+ * 0x04, 0x00-0x07: Hana3 ADAT
+ * 0x05, 0x00: Hana3 S/PDIF Left
+ * 0x05, 0x01: Hana3 S/PDIF Right
+ * 0x06-0x07: Not used
+ *
+ * HanaLite, rev1 0404 using Alice2
+ * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00,0x00-0x1f: Silence
+ * 0x01: Not used
+ * 0x02, 0x00: ADC Left
+ * 0x02, 0x01: ADC Right
+ * 0x03, 0x00-0x0f: 16 inputs from Alice2 Emu32A output
+ * 0x03, 0x10-0x1f: 16 inputs from Alice2 Emu32B output
+ * 0x04: Not used
+ * 0x05, 0x00: S/PDIF Left
+ * 0x05, 0x01: S/PDIF Right
+ * 0x06-0x07: Not used
+ *
+ * HanaLiteLite, rev2 0404 using Alice2
+ * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00,0x00-0x1f: Silence
+ * 0x01: Not used
+ * 0x02, 0x00: ADC Left
+ * 0x02, 0x01: ADC Right
+ * 0x03, 0x00-0x0f: 16 inputs from Alice2 Emu32A output
+ * 0x03, 0x10-0x1f: 16 inputs from Alice2 Emu32B output
+ * 0x04: Not used
+ * 0x05, 0x00: S/PDIF Left
+ * 0x05, 0x01: S/PDIF Right
+ * 0x06-0x07: Not used
+ *
+ * Mana, Cardbus 1616 using Tina2
+ * Sources SRATEX = 1X rates: 44.1 kHz or 48 kHz
+ * 0x00,0x00-0x1f: Silence
+ * 0x01, 0x10-0x1f: 32 Elink channels from Audio Dock
+ * 0x01, 0x00: Dock Mic A
+ * 0x01, 0x04: Dock Mic B
+ * 0x01, 0x08: Dock ADC 1 Left
+ * 0x01, 0x0c: Dock ADC 1 Right
+ * 0x01, 0x10: Dock ADC 2 Left
+ * 0x01, 0x12: Dock S/PDIF Left
+ * 0x01, 0x14: Dock ADC 2 Right
+ * 0x01, 0x16: Dock S/PDIF Right
+ * 0x01, 0x18-0x1f: Dock ADAT 0-7
+ * 0x01, 0x18: Dock ADC 3 Left
+ * 0x01, 0x1c: Dock ADC 3 Right
+ * 0x02: Not used
+ * 0x03, 0x00-0x0f: 16 inputs from Tina Emu32A output
+ * 0x03, 0x10-0x1f: 16 inputs from Tina Emu32B output
+ * 0x04-0x07: Not used
+ *
+ */
+
 /* 32-bit sources of signal in the Hana FPGA. The sources are routed to
  * destinations using mixer control for each destination - see emumixer.c
  * Sources are either physical inputs of FPGA,
