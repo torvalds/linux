@@ -158,7 +158,7 @@ static void decode_address(char *buf, unsigned long address)
 	}
 
 	/* we were unable to find this address anywhere */
-	sprintf(buf, "[<0x%p>]", (void *)address);
+	sprintf(buf, "<0x%p> /* unknown address */", (void *)address);
 
 done:
 	write_unlock_irqrestore(&tasklist_lock, flags);
@@ -467,7 +467,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		/* Ensure that bad return addresses don't end up in an infinite
 		 * loop, due to speculative loads/reads
 		 */
-		fp->pc = SAFE_USER_INSTRUCTION;
+		if (trapnr == VEC_CPLB_I_M)
+			fp->pc = SAFE_USER_INSTRUCTION;
 	}
 	info.si_signo = sig;
 	info.si_errno = 0;
