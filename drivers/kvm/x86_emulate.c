@@ -167,7 +167,7 @@ static u8 opcode_table[256] = {
 static u16 twobyte_table[256] = {
 	/* 0x00 - 0x0F */
 	0, SrcMem | ModRM | DstReg, 0, 0, 0, 0, ImplicitOps, 0,
-	0, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
+	ImplicitOps, ImplicitOps, 0, 0, 0, ImplicitOps | ModRM, 0, 0,
 	/* 0x10 - 0x1F */
 	0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps | ModRM, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x20 - 0x2F */
@@ -980,17 +980,6 @@ done_prefixes:
 			goto cannot_emulate;
 		dst.val = (s32) src.val;
 		break;
-	case 0x6a: /* push imm8 */
-		src.val = 0L;
-		src.val = insn_fetch(s8, 1, _eip);
-push:
-		dst.type  = OP_MEM;
-		dst.bytes = op_bytes;
-		dst.val = src.val;
-		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
-		dst.ptr = (void *) register_address(ctxt->ss_base,
-							_regs[VCPU_REGS_RSP]);
-		break;
 	case 0x80 ... 0x83:	/* Grp1 */
 		switch (modrm_reg) {
 		case 0:
@@ -1242,6 +1231,17 @@ special_insn:
 
 		register_address_increment(_regs[VCPU_REGS_RSP], op_bytes);
 		no_wb = 1; /* Disable writeback. */
+		break;
+	case 0x6a: /* push imm8 */
+		src.val = 0L;
+		src.val = insn_fetch(s8, 1, _eip);
+	push:
+		dst.type  = OP_MEM;
+		dst.bytes = op_bytes;
+		dst.val = src.val;
+		register_address_increment(_regs[VCPU_REGS_RSP], -op_bytes);
+		dst.ptr = (void *) register_address(ctxt->ss_base,
+							_regs[VCPU_REGS_RSP]);
 		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
@@ -1531,6 +1531,8 @@ twobyte_special_insn:
 	switch (b) {
 	case 0x06:
 		emulate_clts(ctxt->vcpu);
+		break;
+	case 0x08:		/* invd */
 		break;
 	case 0x09:		/* wbinvd */
 		break;
