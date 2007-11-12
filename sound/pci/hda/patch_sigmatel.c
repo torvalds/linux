@@ -1600,6 +1600,13 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 			pinctl |= stac92xx_get_vref(codec, nid);
 		stac92xx_auto_set_pinctl(codec, nid, pinctl);
 	}
+
+	/* check the auto-mute again: we need to mute/unmute the speaker
+	 * appropriately according to the pin direction
+	 */
+	if (spec->hp_detect)
+		codec->patch_ops.unsol_event(codec, STAC_HP_EVENT << 26);
+
         return 1;
 }
 
@@ -2483,13 +2490,20 @@ static void stac92xx_reset_pinctl(struct hda_codec *codec, hda_nid_t nid,
 			pin_ctl & ~flag);
 }
 
-static int get_pin_presence(struct hda_codec *codec, hda_nid_t nid)
+static int get_hp_pin_presence(struct hda_codec *codec, hda_nid_t nid)
 {
 	if (!nid)
 		return 0;
 	if (snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_PIN_SENSE, 0x00)
-	    & (1 << 31))
-		return 1;
+	    & (1 << 31)) {
+		unsigned int pinctl;
+		pinctl = snd_hda_codec_read(codec, nid, 0,
+					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+		if (pinctl & AC_PINCTL_IN_EN)
+			return 0; /* mic- or line-input */
+		else
+			return 1; /* HP-output */
+	}
 	return 0;
 }
 
@@ -2501,7 +2515,7 @@ static void stac92xx_hp_detect(struct hda_codec *codec, unsigned int res)
 
 	presence = 0;
 	for (i = 0; i < cfg->hp_outs; i++) {
-		presence = get_pin_presence(codec, cfg->hp_pins[i]);
+		presence = get_hp_pin_presence(codec, cfg->hp_pins[i]);
 		if (presence)
 			break;
 	}
@@ -3179,7 +3193,7 @@ static int stac9872_vaio_init(struct hda_codec *codec)
 
 static void stac9872_vaio_hp_detect(struct hda_codec *codec, unsigned int res)
 {
-	if (get_pin_presence(codec, 0x0a)) {
+	if (get_hp_pin_presence(codec, 0x0a)) {
 		stac92xx_reset_pinctl(codec, 0x0f, AC_PINCTL_OUT_EN);
 		stac92xx_set_pinctl(codec, 0x0a, AC_PINCTL_OUT_EN);
 	} else {
