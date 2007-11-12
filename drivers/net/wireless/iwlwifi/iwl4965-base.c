@@ -7674,7 +7674,7 @@ static void iwl4965_mac_erp_ie_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changes & IEEE80211_ERP_CHANGE_PROTECTION) {
-		if (cts_protection)
+		if (cts_protection && (priv->phymode != MODE_IEEE80211A))
 			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
