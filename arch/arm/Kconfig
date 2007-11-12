@@ -366,6 +366,7 @@ config ARCH_SA1100
 	select ARCH_DISCONTIGMEM_ENABLE
 	select ARCH_MTD_XIP
 	select GENERIC_GPIO
+	select GENERIC_TIME
 	help
 	  Support for StrongARM 11x0 based boards.
 
