@@ -290,44 +290,63 @@ static const struct file_operations cache_flush_operations;
 static void do_cache_clean(struct work_struct *work);
 static DECLARE_DELAYED_WORK(cache_cleaner, do_cache_clean);
 
+static void remove_cache_proc_entries(struct cache_detail *cd)
+{
+	if (cd->proc_ent == NULL)
+		return;
+	if (cd->flush_ent)
+		remove_proc_entry("flush", cd->proc_ent);
+	if (cd->channel_ent)
+		remove_proc_entry("channel", cd->proc_ent);
+	if (cd->content_ent)
+		remove_proc_entry("content", cd->proc_ent);
+	cd->proc_ent = NULL;
+	remove_proc_entry(cd->name, proc_net_rpc);
+}
+
+static void create_cache_proc_entries(struct cache_detail *cd)
+{
+	struct proc_dir_entry *p;
+
+	cd->proc_ent = proc_mkdir(cd->name, proc_net_rpc);
+	if (cd->proc_ent == NULL)
+		return;
+	cd->proc_ent->owner = cd->owner;
+	cd->channel_ent = cd->content_ent = NULL;
+
+	p = create_proc_entry("flush", S_IFREG|S_IRUSR|S_IWUSR, cd->proc_ent);
+	cd->flush_ent = p;
+	if (p == NULL)
+		return;
+	p->proc_fops = &cache_flush_operations;
+	p->owner = cd->owner;
+	p->data = cd;
+
+	if (cd->cache_request || cd->cache_parse) {
+		p = create_proc_entry("channel", S_IFREG|S_IRUSR|S_IWUSR,
+				      cd->proc_ent);
+		cd->channel_ent = p;
+		if (p == NULL)
+			return;
+		p->proc_fops = &cache_file_operations;
+		p->owner = cd->owner;
+		p->data = cd;
+	}
+	if (cd->cache_show) {
+		p = create_proc_entry("content", S_IFREG|S_IRUSR|S_IWUSR,
+				      cd->proc_ent);
+		cd->content_ent = p;
+		if (p == NULL)
+			return;
+		p->proc_fops = &content_file_operations;
+		p->owner = cd->owner;
+		p->data = cd;
+	}
+}
+
 void cache_register(struct cache_detail *cd)
 {
-	cd->proc_ent = proc_mkdir(cd->name, proc_net_rpc);
-	if (cd->proc_ent) {
-		struct proc_dir_entry *p;
-		cd->proc_ent->owner = cd->owner;
-		cd->channel_ent = cd->content_ent = NULL;
-
-		p = create_proc_entry("flush", S_IFREG|S_IRUSR|S_IWUSR,
-				      cd->proc_ent);
-		cd->flush_ent =  p;
-		if (p) {
-			p->proc_fops = &cache_flush_operations;
-			p->owner = cd->owner;
-			p->data = cd;
-		}
-
-		if (cd->cache_request || cd->cache_parse) {
-			p = create_proc_entry("channel", S_IFREG|S_IRUSR|S_IWUSR,
-					      cd->proc_ent);
-			cd->channel_ent = p;
-			if (p) {
-				p->proc_fops = &cache_file_operations;
-				p->owner = cd->owner;
-				p->data = cd;
-			}
-		}
-		if (cd->cache_show) {
-			p = create_proc_entry("content", S_IFREG|S_IRUSR|S_IWUSR,
-					      cd->proc_ent);
-			cd->content_ent = p;
-			if (p) {
-				p->proc_fops = &content_file_operations;
-				p->owner = cd->owner;
-				p->data = cd;
-			}
-		}
-	}
+	create_cache_proc_entries(cd);
 	rwlock_init(&cd->hash_lock);
 	INIT_LIST_HEAD(&cd->queue);
 	spin_lock(&cache_list_lock);
@@ -358,17 +377,7 @@ void cache_unregister(struct cache_detail *cd)
 	list_del_init(&cd->others);
 	write_unlock(&cd->hash_lock);
 	spin_unlock(&cache_list_lock);
-	if (cd->proc_ent) {
-		if (cd->flush_ent)
-			remove_proc_entry("flush", cd->proc_ent);
-		if (cd->channel_ent)
-			remove_proc_entry("channel", cd->proc_ent);
-		if (cd->content_ent)
-			remove_proc_entry("content", cd->proc_ent);
-
-		cd->proc_ent = NULL;
-		remove_proc_entry(cd->name, proc_net_rpc);
-	}
+	remove_cache_proc_entries(cd);
 	if (list_empty(&cache_list)) {
 		/* module must be being unloaded so its safe to kill the worker */
 		cancel_delayed_work_sync(&cache_cleaner);
