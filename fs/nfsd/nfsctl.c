@@ -674,6 +674,27 @@ static struct file_system_type nfsd_fs_type = {
 	.kill_sb	= kill_litter_super,
 };
 
+#ifdef CONFIG_PROC_FS
+static int create_proc_exports_entry(void)
+{
+	struct proc_dir_entry *entry;
+
+	entry = proc_mkdir("fs/nfs", NULL);
+	if (!entry)
+		return -ENOMEM;
+	entry = create_proc_entry("fs/nfs/exports", 0, NULL);
+	if (!entry)
+		return -ENOMEM;
+	entry->proc_fops =  &exports_operations;
+	return 0;
+}
+#else /* CONFIG_PROC_FS */
+static int create_proc_exports_entry(void)
+{
+	return 0;
+}
+#endif
+
 static int __init init_nfsd(void)
 {
 	int retval;
@@ -689,23 +710,21 @@ static int __init init_nfsd(void)
 	nfsd_export_init();	/* Exports table */
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
 	nfsd_idmap_init();      /* Name to ID mapping */
-	if (proc_mkdir("fs/nfs", NULL)) {
-		struct proc_dir_entry *entry;
-		entry = create_proc_entry("fs/nfs/exports", 0, NULL);
-		if (entry)
-			entry->proc_fops =  &exports_operations;
-	}
+	retval = create_proc_exports_entry();
+	if (retval)
+		goto out_free_idmap;
 	retval = register_filesystem(&nfsd_fs_type);
 	if (retval)
 		goto out_free_all;
 	return 0;
 out_free_all:
-	nfsd_idmap_shutdown();
-	nfsd_export_shutdown();
-	nfsd_reply_cache_shutdown();
 	remove_proc_entry("fs/nfs/exports", NULL);
 	remove_proc_entry("fs/nfs", NULL);
+	nfsd_idmap_shutdown();
+out_free_idmap:
 	nfsd_lockd_shutdown();
+	nfsd_export_shutdown();
+	nfsd_reply_cache_shutdown();
 out_free_stat:
 	nfsd_stat_shutdown();
 	nfsd4_free_slabs();
