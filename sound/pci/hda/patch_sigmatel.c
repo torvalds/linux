@@ -2135,6 +2135,7 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 {
 	struct sigmatel_spec *spec = codec->spec;
 	int err;
+	int hp_speaker_swap = 0;
 
 	if ((err = snd_hda_parse_pin_def_config(codec,
 						&spec->autocfg,
@@ -2142,6 +2143,24 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 		return err;
 	if (! spec->autocfg.line_outs)
 		return 0; /* can't find valid pin config */
+
+	/* If we have no real line-out pin and multiple hp-outs, HPs should
+	 * be set up as multi-channel outputs.
+	 */
+	if (spec->autocfg.line_out_type == AUTO_PIN_SPEAKER_OUT &&
+	    spec->autocfg.hp_outs > 1) {
+		/* Copy hp_outs to line_outs, backup line_outs in
+		 * speaker_outs so that the following routines can handle
+		 * HP pins as primary outputs.
+		 */
+		memcpy(spec->autocfg.speaker_pins, spec->autocfg.line_out_pins,
+		       sizeof(spec->autocfg.line_out_pins));
+		spec->autocfg.speaker_outs = spec->autocfg.line_outs;
+		memcpy(spec->autocfg.line_out_pins, spec->autocfg.hp_pins,
+		       sizeof(spec->autocfg.hp_pins));
+		spec->autocfg.line_outs = spec->autocfg.hp_outs;
+		hp_speaker_swap = 1;
+	}
 
 	if ((err = stac92xx_add_dyn_out_pins(codec, &spec->autocfg)) < 0)
 		return err;
@@ -2153,6 +2172,19 @@ static int stac92xx_parse_auto_config(struct hda_codec *codec, hda_nid_t dig_out
 
 	if (err < 0)
 		return err;
+
+	if (hp_speaker_swap == 1) {
+		/* Restore the hp_outs and line_outs */
+		memcpy(spec->autocfg.hp_pins, spec->autocfg.line_out_pins,
+		       sizeof(spec->autocfg.line_out_pins));
+		spec->autocfg.hp_outs = spec->autocfg.line_outs;
+		memcpy(spec->autocfg.line_out_pins, spec->autocfg.speaker_pins,
+		       sizeof(spec->autocfg.speaker_pins));
+		spec->autocfg.line_outs = spec->autocfg.speaker_outs;
+		memset(spec->autocfg.speaker_pins, 0,
+		       sizeof(spec->autocfg.speaker_pins));
+		spec->autocfg.speaker_outs = 0;
+	}
 
 	err = stac92xx_auto_create_hp_ctls(codec, &spec->autocfg);
 
