@@ -575,12 +575,15 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		/* Check if the Vport has issued a SCR */
 		if (ha->parent && test_bit(VP_SCR_NEEDED, &ha->vp_flags))
 			break;
+		/* Only handle SCNs for our Vport index. */
+		if (ha->flags.npiv_supported && ha->vp_idx != mb[3])
+			break;
 
 		DEBUG2(printk("scsi(%ld): Asynchronous RSCR UPDATE.\n",
 		    ha->host_no));
 		DEBUG(printk(KERN_INFO
-		    "scsi(%ld): RSCN database changed -- %04x %04x.\n",
-		    ha->host_no, mb[1], mb[2]));
+		    "scsi(%ld): RSCN database changed -- %04x %04x %04x.\n",
+		    ha->host_no, mb[1], mb[2], mb[3]));
 
 		rscn_entry = (mb[1] << 16) | mb[2];
 		host_pid = (ha->d_id.b.domain << 16) | (ha->d_id.b.area << 8) |
