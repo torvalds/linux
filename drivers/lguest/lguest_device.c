@@ -200,7 +200,8 @@ static struct virtqueue *lg_find_vq(struct virtio_device *vdev,
 
 	/* Figure out how many pages the ring will take, and map that memory */
 	lvq->pages = lguest_map((unsigned long)lvq->config.pfn << PAGE_SHIFT,
-				DIV_ROUND_UP(vring_size(lvq->config.num),
+				DIV_ROUND_UP(vring_size(lvq->config.num,
+							PAGE_SIZE),
 					     PAGE_SIZE));
 	if (!lvq->pages) {
 		err = -ENOMEM;
