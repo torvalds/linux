@@ -352,7 +352,7 @@ static ssize_t b43_debugfs_read(struct file *file, char __user *userbuf,
 	struct b43_wldev *dev;
 	struct b43_debugfs_fops *dfops;
 	struct b43_dfs_file *dfile;
-	ssize_t ret;
+	ssize_t uninitialized_var(ret);
 	char *buf;
 	const size_t bufsize = 1024 * 128;
 	const size_t buforder = get_order(bufsize);
