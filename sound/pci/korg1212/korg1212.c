@@ -163,9 +163,6 @@ enum MonitorModeSelector {
 					//    this is the upper word of the PCI control reg.
 #define DEV_VEND_ID_OFFSET   0x70	// location of the device and vendor ID register
 
-#define COMMAND_ACK_DELAY    13        // number of RTC ticks to wait for an acknowledgement
-                                        //    from the card after sending a command.
-#define INTERCOMMAND_DELAY   40
 #define MAX_COMMAND_RETRIES  5         // maximum number of times the driver will attempt
                                        //    to send a command before giving up.
 #define COMMAND_ACK_MASK     0x8000    // the MSB is set in the command acknowledgment from

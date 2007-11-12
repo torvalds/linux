@@ -104,8 +104,6 @@ MODULE_FIRMWARE("digiface_firmware_rev11.bin");
 #define HDSP_statusRegister    0
 #define HDSP_timecode        128
 #define HDSP_status2Register 192
-#define HDSP_midiDataOut0    352
-#define HDSP_midiDataOut1    356
 #define HDSP_midiDataIn0     360
 #define HDSP_midiDataIn1     364
 #define HDSP_midiStatusOut0  384
