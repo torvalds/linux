@@ -347,10 +347,6 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		break;
 
 	case MBA_SYSTEM_ERR:		/* System Error */
-		mb[1] = RD_MAILBOX_REG(ha, reg, 1);
-		mb[2] = RD_MAILBOX_REG(ha, reg, 2);
-		mb[3] = RD_MAILBOX_REG(ha, reg, 3);
-
 		qla_printk(KERN_INFO, ha,
 		    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh.\n",
 		    mb[1], mb[2], mb[3]);
