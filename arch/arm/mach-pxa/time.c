@@ -181,7 +181,7 @@ static void __init pxa_timer_init(void)
 }
 
 #ifdef CONFIG_PM
-static unsigned long osmr[4], oier;
+static unsigned long osmr[4], oier, oscr;
 
 static void pxa_timer_suspend(void)
 {
@@ -190,23 +190,26 @@ static void pxa_timer_suspend(void)
 	osmr[2] = OSMR2;
 	osmr[3] = OSMR3;
 	oier = OIER;
+	oscr = OSCR;
 }
 
 static void pxa_timer_resume(void)
 {
+	/*
+	 * Ensure that we have at least MIN_OSCR_DELTA between match
+	 * register 0 and the OSCR, to guarantee that we will receive
+	 * the one-shot timer interrupt.  We adjust OSMR0 in preference
+	 * to OSCR to guarantee that OSCR is monotonically incrementing.
+	 */
+	if (osmr[0] - oscr < MIN_OSCR_DELTA)
+		osmr[0] += MIN_OSCR_DELTA;
+
 	OSMR0 = osmr[0];
 	OSMR1 = osmr[1];
 	OSMR2 = osmr[2];
 	OSMR3 = osmr[3];
 	OIER = oier;
-
-	/*
-	 * OSCR0 is the system timer, which has to increase
-	 * monotonically until it rolls over in hardware.  The value
-	 * (OSMR0 - LATCH) is OSCR0 at the most recent system tick,
-	 * which is a handy value to restore to OSCR0.
-	 */
-	OSCR = OSMR0 - LATCH;
+	OSCR = oscr;
 }
 #else
 #define pxa_timer_suspend NULL
