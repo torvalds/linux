@@ -272,8 +272,6 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 	int result;
 	ssize_t started = 0;
 
-	get_dreq(dreq);
-
 	do {
 		struct nfs_read_data *data;
 		size_t bytes;
@@ -347,11 +345,8 @@ static ssize_t nfs_direct_read_schedule(struct nfs_direct_req *dreq, unsigned lo
 		count -= bytes;
 	} while (count != 0);
 
-	if (put_dreq(dreq))
-		nfs_direct_complete(dreq);
-
 	if (started)
-		return 0;
+		return started;
 	return result < 0 ? (ssize_t) result : -EFAULT;
 }
 
@@ -390,7 +385,8 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
 	return -EIO;
 }
 
-static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t pos)
+static ssize_t nfs_direct_read(struct kiocb *iocb, const struct iovec *iov,
+			       unsigned long nr_segs, loff_t pos)
 {
 	ssize_t result = 0;
 	sigset_t oldset;
@@ -407,9 +403,8 @@ static ssize_t nfs_direct_read(struct kiocb *iocb, unsigned long user_addr, size
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
-	nfs_add_stats(inode, NFSIOS_DIRECTREADBYTES, count);
 	rpc_clnt_sigmask(clnt, &oldset);
-	result = nfs_direct_read_schedule(dreq, user_addr, count, pos);
+	result = nfs_direct_read_schedule_iovec(dreq, iov, nr_segs, pos);
 	if (!result)
 		result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
@@ -645,8 +640,6 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 	int result;
 	ssize_t started = 0;
 
-	get_dreq(dreq);
-
 	do {
 		struct nfs_write_data *data;
 		size_t bytes;
@@ -724,11 +717,8 @@ static ssize_t nfs_direct_write_schedule(struct nfs_direct_req *dreq, unsigned l
 		count -= bytes;
 	} while (count != 0);
 
-	if (put_dreq(dreq))
-		nfs_direct_write_complete(dreq, inode);
-
 	if (started)
-		return 0;
+		return started;
 	return result < 0 ? (ssize_t) result : -EFAULT;
 }
 
@@ -768,7 +758,9 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
 	return -EIO;
 }
 
-static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, size_t count, loff_t pos)
+static ssize_t nfs_direct_write(struct kiocb *iocb, const struct iovec *iov,
+				unsigned long nr_segs, loff_t pos,
+				size_t count)
 {
 	ssize_t result = 0;
 	sigset_t oldset;
@@ -791,10 +783,8 @@ static ssize_t nfs_direct_write(struct kiocb *iocb, unsigned long user_addr, siz
 	if (!is_sync_kiocb(iocb))
 		dreq->iocb = iocb;
 
-	nfs_add_stats(inode, NFSIOS_DIRECTWRITTENBYTES, count);
-
 	rpc_clnt_sigmask(clnt, &oldset);
-	result = nfs_direct_write_schedule(dreq, user_addr, count, pos, sync);
+	result = nfs_direct_write_schedule_iovec(dreq, iov, nr_segs, pos, sync);
 	if (!result)
 		result = nfs_direct_wait(dreq);
 	rpc_clnt_sigunmask(clnt, &oldset);
@@ -830,21 +820,16 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t retval = -EINVAL;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	/* XXX: temporary */
-	const char __user *buf = iov[0].iov_base;
-	size_t count = iov[0].iov_len;
+	size_t count;
 
-	dprintk("nfs: direct read(%s/%s, %lu@%Ld)\n",
+	count = iov_length(iov, nr_segs);
+	nfs_add_stats(mapping->host, NFSIOS_DIRECTREADBYTES, count);
+
+	dprintk("nfs: direct read(%s/%s, %zd@%Ld)\n",
 		file->f_path.dentry->d_parent->d_name.name,
 		file->f_path.dentry->d_name.name,
-		(unsigned long) count, (long long) pos);
+		count, (long long) pos);
 
-	if (nr_segs != 1)
-		goto out;
-
-	retval = -EFAULT;
-	if (!access_ok(VERIFY_WRITE, buf, count))
-		goto out;
 	retval = 0;
 	if (!count)
 		goto out;
@@ -853,7 +838,7 @@ ssize_t nfs_file_direct_read(struct kiocb *iocb, const struct iovec *iov,
 	if (retval)
 		goto out;
 
-	retval = nfs_direct_read(iocb, (unsigned long) buf, count, pos);
+	retval = nfs_direct_read(iocb, iov, nr_segs, pos);
 	if (retval > 0)
 		iocb->ki_pos = pos + retval;
 
@@ -892,17 +877,15 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	ssize_t retval = -EINVAL;
 	struct file *file = iocb->ki_filp;
 	struct address_space *mapping = file->f_mapping;
-	/* XXX: temporary */
-	const char __user *buf = iov[0].iov_base;
-	size_t count = iov[0].iov_len;
+	size_t count;
 
-	dprintk("nfs: direct write(%s/%s, %lu@%Ld)\n",
+	count = iov_length(iov, nr_segs);
+	nfs_add_stats(mapping->host, NFSIOS_DIRECTWRITTENBYTES, count);
+
+	dfprintk(VFS, "nfs: direct write(%s/%s, %zd@%Ld)\n",
 		file->f_path.dentry->d_parent->d_name.name,
 		file->f_path.dentry->d_name.name,
-		(unsigned long) count, (long long) pos);
-
-	if (nr_segs != 1)
-		goto out;
+		count, (long long) pos);
 
 	retval = generic_write_checks(file, &pos, &count, 0);
 	if (retval)
@@ -915,15 +898,11 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	if (!count)
 		goto out;
 
-	retval = -EFAULT;
-	if (!access_ok(VERIFY_READ, buf, count))
-		goto out;
-
 	retval = nfs_sync_mapping(mapping);
 	if (retval)
 		goto out;
 
-	retval = nfs_direct_write(iocb, (unsigned long) buf, count, pos);
+	retval = nfs_direct_write(iocb, iov, nr_segs, pos, count);
 
 	if (retval > 0)
 		iocb->ki_pos = pos + retval;
