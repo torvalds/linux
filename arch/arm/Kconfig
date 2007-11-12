@@ -657,6 +657,7 @@ config HZ
 	default 128 if ARCH_L7200
 	default 200 if ARCH_EBSA110 || ARCH_S3C2410
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
+	default AT91_TIMER_HZ if ARCH_AT91
 	default 100
 
 config AEABI
