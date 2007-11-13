@@ -8329,7 +8329,7 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				  SUPPORTED_100baseT_Full |
 				  SUPPORTED_10baseT_Half |
 				  SUPPORTED_10baseT_Full |
-				  SUPPORTED_MII);
+				  SUPPORTED_TP);
 		cmd->port = PORT_TP;
 	} else {
 		cmd->supported |= SUPPORTED_FIBRE;
