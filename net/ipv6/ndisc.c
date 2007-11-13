@@ -1037,6 +1037,7 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 
 	ndmsg = nlmsg_data(nlh);
 	ndmsg->nduseropt_family = AF_INET6;
+	ndmsg->nduseropt_ifindex = ra->dev->ifindex;
 	ndmsg->nduseropt_icmp_type = icmp6h->icmp6_type;
 	ndmsg->nduseropt_icmp_code = icmp6h->icmp6_code;
 	ndmsg->nduseropt_opts_len = opt->nd_opt_len << 3;
