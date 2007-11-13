@@ -514,7 +514,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 	iov[1].iov_base = str_area;
 	iov[1].iov_len = count;
 	rc = SendReceive2(xid, ses, iov, 2 /* num_iovecs */, &resp_buf_type,
-			  0 /* not long op */, 1 /* log NT STATUS if any */ );
+			  CIFS_STD_OP /* not long */ | CIFS_LOG_ERROR);
 	/* SMB request buf freed in SendReceive2 */
 
 	cFYI(1, ("ssetup rc from sendrecv2 is %d", rc));

@@ -835,9 +835,9 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 	xid = GetXid();
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
-		long_op = 2; /* writes past end of file can take a long time */
+		long_op = CIFS_VLONG_OP; /* writes past EOF take long time */
 	else
-		long_op = 1;
+		long_op = CIFS_LONG_OP;
 
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
@@ -884,7 +884,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 			}
 		} else
 			*poffset += bytes_written;
-		long_op = FALSE; /* subsequent writes fast -
+		long_op = CIFS_STD_OP; /* subsequent writes fast -
 				    15 seconds is plenty */
 	}
 
@@ -934,9 +934,9 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 	xid = GetXid();
 
 	if (*poffset > file->f_path.dentry->d_inode->i_size)
-		long_op = 2; /* writes past end of file can take a long time */
+		long_op = CIFS_VLONG_OP; /* writes past EOF can be slow */
 	else
-		long_op = 1;
+		long_op = CIFS_LONG_OP;
 
 	for (total_written = 0; write_size > total_written;
 	     total_written += bytes_written) {
@@ -1002,7 +1002,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 			}
 		} else
 			*poffset += bytes_written;
-		long_op = FALSE; /* subsequent writes fast -
+		long_op = CIFS_STD_OP; /* subsequent writes fast -
 				    15 seconds is plenty */
 	}
 
@@ -1360,7 +1360,7 @@ retry:
 						   open_file->netfid,
 						   bytes_to_write, offset,
 						   &bytes_written, iov, n_iov,
-						   1);
+						   CIFS_LONG_OP);
 				atomic_dec(&open_file->wrtPending);
 				if (rc || bytes_written < bytes_to_write) {
 					cERROR(1, ("Write2 ret %d, wrote %d",

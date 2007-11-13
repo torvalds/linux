@@ -48,10 +48,11 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
 			int * /* bytes returned */ , const int long_op);
+extern int SendReceiveNoRsp(const unsigned int xid, struct cifsSesInfo *ses,
+			struct smb_hdr *in_buf, int flags);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct kvec *, int /* nvec to send */,
-			int * /* type of buf returned */ , const int long_op,
-			const int logError /* whether to log status code*/ );
+			int * /* type of buf returned */ , const int flags);
 extern int SendReceiveBlockingLock(const unsigned int /* xid */ ,
 					struct cifsTconInfo *,
 				struct smb_hdr * /* input */ ,
