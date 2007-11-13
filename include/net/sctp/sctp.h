@@ -65,7 +65,6 @@
 
 
 #ifdef TEST_FRAME
-#undef CONFIG_PROC_FS
 #undef CONFIG_SCTP_DBG_OBJCNT
 #undef CONFIG_SYSCTL
 #endif /* TEST_FRAME */
@@ -267,6 +266,7 @@ enum
 	SCTP_MIB_T5_SHUTDOWN_GUARD_EXPIREDS,
 	SCTP_MIB_DELAY_SACK_EXPIREDS,
 	SCTP_MIB_AUTOCLOSE_EXPIREDS,
+	SCTP_MIB_T1_RETRANSMITS,
 	SCTP_MIB_T3_RETRANSMITS,
 	SCTP_MIB_PMTUD_RETRANSMITS,
 	SCTP_MIB_FAST_RETRANSMITS,
@@ -663,6 +663,9 @@ static inline int sctp_vtag_hashfn(__u16 lport, __u16 rport, __u32 vtag)
 	h ^= vtag;
 	return (h & (sctp_assoc_hashsize-1));
 }
+
+#define sctp_for_each_hentry(epb, node, head) \
+	hlist_for_each_entry(epb, node, head, node)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))

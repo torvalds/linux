@@ -656,7 +656,6 @@ discard:
 /* Insert endpoint into the hash table.  */
 static void __sctp_hash_endpoint(struct sctp_endpoint *ep)
 {
-	struct sctp_ep_common **epp;
 	struct sctp_ep_common *epb;
 	struct sctp_hashbucket *head;
 
@@ -666,12 +665,7 @@ static void __sctp_hash_endpoint(struct sctp_endpoint *ep)
 	head = &sctp_ep_hashtable[epb->hashent];
 
 	sctp_write_lock(&head->lock);
-	epp = &head->chain;
-	epb->next = *epp;
-	if (epb->next)
-		(*epp)->pprev = &epb->next;
-	*epp = epb;
-	epb->pprev = epp;
+	hlist_add_head(&epb->node, &head->chain);
 	sctp_write_unlock(&head->lock);
 }
 
@@ -691,19 +685,15 @@ static void __sctp_unhash_endpoint(struct sctp_endpoint *ep)
 
 	epb = &ep->base;
 
+	if (hlist_unhashed(&epb->node))
+		return;
+
 	epb->hashent = sctp_ep_hashfn(epb->bind_addr.port);
 
 	head = &sctp_ep_hashtable[epb->hashent];
 
 	sctp_write_lock(&head->lock);
-
-	if (epb->pprev) {
-		if (epb->next)
-			epb->next->pprev = epb->pprev;
-		*epb->pprev = epb->next;
-		epb->pprev = NULL;
-	}
-
+	__hlist_del(&epb->node);
 	sctp_write_unlock(&head->lock);
 }
 
@@ -721,12 +711,13 @@ static struct sctp_endpoint *__sctp_rcv_lookup_endpoint(const union sctp_addr *l
 	struct sctp_hashbucket *head;
 	struct sctp_ep_common *epb;
 	struct sctp_endpoint *ep;
+	struct hlist_node *node;
 	int hash;
 
 	hash = sctp_ep_hashfn(ntohs(laddr->v4.sin_port));
 	head = &sctp_ep_hashtable[hash];
 	read_lock(&head->lock);
-	for (epb = head->chain; epb; epb = epb->next) {
+	sctp_for_each_hentry(epb, node, &head->chain) {
 		ep = sctp_ep(epb);
 		if (sctp_endpoint_is_match(ep, laddr))
 			goto hit;
@@ -744,7 +735,6 @@ hit:
 /* Insert association into the hash table.  */
 static void __sctp_hash_established(struct sctp_association *asoc)
 {
-	struct sctp_ep_common **epp;
 	struct sctp_ep_common *epb;
 	struct sctp_hashbucket *head;
 
@@ -756,12 +746,7 @@ static void __sctp_hash_established(struct sctp_association *asoc)
 	head = &sctp_assoc_hashtable[epb->hashent];
 
 	sctp_write_lock(&head->lock);
-	epp = &head->chain;
-	epb->next = *epp;
-	if (epb->next)
-		(*epp)->pprev = &epb->next;
-	*epp = epb;
-	epb->pprev = epp;
+	hlist_add_head(&epb->node, &head->chain);
 	sctp_write_unlock(&head->lock);
 }
 
@@ -790,14 +775,7 @@ static void __sctp_unhash_established(struct sctp_association *asoc)
 	head = &sctp_assoc_hashtable[epb->hashent];
 
 	sctp_write_lock(&head->lock);
-
-	if (epb->pprev) {
-		if (epb->next)
-			epb->next->pprev = epb->pprev;
-		*epb->pprev = epb->next;
-		epb->pprev = NULL;
-	}
-
+	__hlist_del(&epb->node);
 	sctp_write_unlock(&head->lock);
 }
 
@@ -822,6 +800,7 @@ static struct sctp_association *__sctp_lookup_association(
 	struct sctp_ep_common *epb;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
+	struct hlist_node *node;
 	int hash;
 
 	/* Optimize here for direct hit, only listening connections can
@@ -830,7 +809,7 @@ static struct sctp_association *__sctp_lookup_association(
 	hash = sctp_assoc_hashfn(ntohs(local->v4.sin_port), ntohs(peer->v4.sin_port));
 	head = &sctp_assoc_hashtable[hash];
 	read_lock(&head->lock);
-	for (epb = head->chain; epb; epb = epb->next) {
+	sctp_for_each_hentry(epb, node, &head->chain) {
 		asoc = sctp_assoc(epb);
 		transport = sctp_assoc_is_match(asoc, local, peer);
 		if (transport)
