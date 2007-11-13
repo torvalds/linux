@@ -25,6 +25,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/dma-mapping.h>
+#include <linux/scatterlist.h>
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/crypto.h>
