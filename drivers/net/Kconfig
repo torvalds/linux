@@ -1584,6 +1584,18 @@ config 8139_OLD_RX_RESET
 	  experience problems, you can enable this option to restore the
 	  old RX-reset behavior.  If unsure, say N.
 
+config R6040
+	tristate "RDC R6040 Fast Ethernet Adapter support (EXPERIMENTAL)"
+	depends on NET_PCI && PCI
+	select CRC32
+	select MII
+	help
+	  This is a driver for the R6040 Fast Ethernet MACs found in the
+	  the RDC R-321x System-on-chips.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called r6040. This is recommended.
+
 config SIS900
 	tristate "SiS 900/7016 PCI Fast Ethernet Adapter support"
 	depends on NET_PCI && PCI
