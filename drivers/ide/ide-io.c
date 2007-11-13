@@ -885,7 +885,6 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
 		return do_rw_taskfile(drive, args);
 	} else if (rq->cmd_type == REQ_TYPE_ATA_TASK) {
 		u8 *args = rq->buffer;
-		u8 sel;
  
 		if (!args)
 			goto done;
@@ -903,10 +902,7 @@ static ide_startstop_t execute_drive_cmd (ide_drive_t *drive,
  		hwif->OUTB(args[3], IDE_SECTOR_REG);
  		hwif->OUTB(args[4], IDE_LCYL_REG);
  		hwif->OUTB(args[5], IDE_HCYL_REG);
- 		sel = (args[6] & ~0x10);
- 		if (drive->select.b.unit)
- 			sel |= 0x10;
- 		hwif->OUTB(sel, IDE_SELECT_REG);
+ 		hwif->OUTB((args[6] & 0xEF)|drive->select.all, IDE_SELECT_REG);
  		ide_cmd(drive, args[0], args[2], &drive_cmd_intr);
  		return ide_started;
  	} else if (rq->cmd_type == REQ_TYPE_ATA_CMD) {
