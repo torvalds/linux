@@ -30,7 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
-#include <asm/of_platform.h>
+#include <linux/of_platform.h>
 
 #define DELAY 1
 

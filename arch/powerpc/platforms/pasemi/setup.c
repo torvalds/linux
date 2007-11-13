@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/pci.h>
+#include <linux/of_platform.h>
 
 #include <asm/prom.h>
 #include <asm/system.h>
@@ -35,7 +36,6 @@
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
-#include <asm/of_platform.h>
 
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>

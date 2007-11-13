@@ -51,6 +51,8 @@
 #include <linux/root_dev.h>
 #include <linux/bitops.h>
 #include <linux/suspend.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -68,8 +70,6 @@
 #include <asm/btext.h>
 #include <asm/pmac_feature.h>
 #include <asm/time.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/smu.h>
