@@ -5098,12 +5098,15 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 
 	pci_write_config_word(tp->pdev, PCI_COMMAND, tp->pci_cmd);
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)) {
+	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)
+		pcie_set_readrq(tp->pdev, 4096);
+	else {
 		pci_write_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE,
 				      tp->pci_cacheline_sz);
 		pci_write_config_byte(tp->pdev, PCI_LATENCY_TIMER,
 				      tp->pci_lat_timer);
 	}
+
 	/* Make sure PCI-X relaxed ordering bit is clear. */
 	if (tp->pcix_cap) {
 		u16 pcix_cmd;
@@ -11215,6 +11218,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	pcie_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_EXP);
 	if (pcie_cap != 0) {
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
+
+		pcie_set_readrq(tp->pdev, 4096);
+
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 			u16 lnkctl;
 
