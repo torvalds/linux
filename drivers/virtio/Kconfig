@@ -6,3 +6,20 @@ config VIRTIO
 config VIRTIO_RING
 	tristate
 	depends on VIRTIO
+
+config VIRTIO_PCI
+	tristate "PCI driver for virtio devices (EXPERIMENTAL)"
+	depends on PCI && EXPERIMENTAL
+	select VIRTIO
+	select VIRTIO_RING
+	---help---
+	  This drivers provides support for virtio based paravirtual device
+	  drivers over PCI.  This requires that your VMM has appropriate PCI
+	  virtio backends.  Most QEMU based VMMs should support these devices
+	  (like KVM or Xen).
+
+	  Currently, the ABI is not considered stable so there is no guarantee
+	  that this version of the driver will work with your VMM.
+
+	  If unsure, say M.
+
