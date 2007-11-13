@@ -881,20 +881,14 @@ static int packet_do_bind(struct sock *sk, struct net_device *dev, __be16 protoc
 	if (protocol == 0)
 		goto out_unlock;
 
-	if (dev) {
-		if (dev->flags&IFF_UP) {
-			dev_add_pack(&po->prot_hook);
-			sock_hold(sk);
-			po->running = 1;
-		} else {
-			sk->sk_err = ENETDOWN;
-			if (!sock_flag(sk, SOCK_DEAD))
-				sk->sk_error_report(sk);
-		}
-	} else {
+	if (!dev || (dev->flags & IFF_UP)) {
 		dev_add_pack(&po->prot_hook);
 		sock_hold(sk);
 		po->running = 1;
+	} else {
+		sk->sk_err = ENETDOWN;
+		if (!sock_flag(sk, SOCK_DEAD))
+			sk->sk_error_report(sk);
 	}
 
 out_unlock:

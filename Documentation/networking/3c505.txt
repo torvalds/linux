@@ -14,8 +14,7 @@ If no base address is given at boot time, the driver will autoprobe
 ports 0x300, 0x280 and 0x310 (in that order).  If no IRQ is given, the driver
 will try to probe for it.
 
-The driver can be used as a loadable module.  See net-modules.txt for details
-of the parameters it can take.  
+The driver can be used as a loadable module.
 
 Theoretically, one instance of the driver can now run multiple cards,
 in the standard way (when loading a module, say "modprobe 3c505

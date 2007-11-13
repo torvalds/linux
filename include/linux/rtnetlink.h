@@ -491,9 +491,11 @@ struct nduseroptmsg
 	unsigned char	nduseropt_family;
 	unsigned char	nduseropt_pad1;
 	unsigned short	nduseropt_opts_len;	/* Total length of options */
+	int		nduseropt_ifindex;
 	__u8		nduseropt_icmp_type;
 	__u8		nduseropt_icmp_code;
 	unsigned short	nduseropt_pad2;
+	unsigned int	nduseropt_pad3;
 	/* Followed by one or more ND options */
 };
 

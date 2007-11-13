@@ -263,6 +263,15 @@ static ctl_table sctp_table[] = {
 		.proc_handler	= &proc_dointvec,
 		.strategy	= &sysctl_intvec
 	},
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "addip_noauth_enable",
+		.data		= &sctp_addip_noauth,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec,
+		.strategy	= &sysctl_intvec
+	},
 	{ .ctl_name = 0 }
 };
 

@@ -660,7 +660,7 @@ static int sctp_bindx_rem(struct sock *sk, struct sockaddr *addrs, int addrcnt)
 		 * socket routing and failover schemes. Refer to comments in
 		 * sctp_do_bind(). -daisy
 		 */
-		retval = sctp_del_bind_addr(bp, sa_addr, call_rcu);
+		retval = sctp_del_bind_addr(bp, sa_addr);
 
 		addr_buf += af->sockaddr_len;
 err_bindx_rem:
@@ -5307,6 +5307,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 {
 	struct sctp_bind_hashbucket *head; /* hash list */
 	struct sctp_bind_bucket *pp; /* hash list port iterator */
+	struct hlist_node *node;
 	unsigned short snum;
 	int ret;
 
@@ -5331,7 +5332,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 			index = sctp_phashfn(rover);
 			head = &sctp_port_hashtable[index];
 			sctp_spin_lock(&head->lock);
-			for (pp = head->chain; pp; pp = pp->next)
+			sctp_for_each_hentry(pp, node, &head->chain)
 				if (pp->port == rover)
 					goto next;
 			break;
@@ -5358,7 +5359,7 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 		 */
 		head = &sctp_port_hashtable[sctp_phashfn(snum)];
 		sctp_spin_lock(&head->lock);
-		for (pp = head->chain; pp; pp = pp->next) {
+		sctp_for_each_hentry(pp, node, &head->chain) {
 			if (pp->port == snum)
 				goto pp_found;
 		}
@@ -5702,10 +5703,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 		pp->port = snum;
 		pp->fastreuse = 0;
 		INIT_HLIST_HEAD(&pp->owner);
-		if ((pp->next = head->chain) != NULL)
-			pp->next->pprev = &pp->next;
-		head->chain = pp;
-		pp->pprev = &head->chain;
+		hlist_add_head(&pp->node, &head->chain);
 	}
 	return pp;
 }
@@ -5714,9 +5712,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 static void sctp_bucket_destroy(struct sctp_bind_bucket *pp)
 {
 	if (pp && hlist_empty(&pp->owner)) {
-		if (pp->next)
-			pp->next->pprev = pp->pprev;
-		*(pp->pprev) = pp->next;
+		__hlist_del(&pp->node);
 		kmem_cache_free(sctp_bucket_cachep, pp);
 		SCTP_DBG_OBJCNT_DEC(bind_bucket);
 	}

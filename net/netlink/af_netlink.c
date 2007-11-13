@@ -1888,7 +1888,7 @@ static void __net_exit netlink_net_exit(struct net *net)
 #endif
 }
 
-static struct pernet_operations netlink_net_ops = {
+static struct pernet_operations __net_initdata netlink_net_ops = {
 	.init = netlink_net_init,
 	.exit = netlink_net_exit,
 };

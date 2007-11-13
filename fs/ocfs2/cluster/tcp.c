@@ -58,6 +58,7 @@
 #include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/kref.h>
+#include <linux/net.h>
 #include <net/tcp.h>
 
 #include <asm/uaccess.h>
@@ -616,8 +617,7 @@ static void o2net_shutdown_sc(struct work_struct *work)
 		del_timer_sync(&sc->sc_idle_timeout);
 		o2net_sc_cancel_delayed_work(sc, &sc->sc_keepalive_work);
 		sc_put(sc);
-		sc->sc_sock->ops->shutdown(sc->sc_sock,
-					   RCV_SHUTDOWN|SEND_SHUTDOWN);
+		kernel_sock_shutdown(sc->sc_sock, SHUT_RDWR);
 	}
 
 	/* not fatal so failed connects before the other guy has our

@@ -74,8 +74,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 	 * given destination transport address, set RTO to the protocol
 	 * parameter 'RTO.Initial'.
 	 */
+	peer->last_rto = peer->rto = msecs_to_jiffies(sctp_rto_initial);
 	peer->rtt = 0;
-	peer->rto = msecs_to_jiffies(sctp_rto_initial);
 	peer->rttvar = 0;
 	peer->srtt = 0;
 	peer->rto_pending = 0;
@@ -385,6 +385,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		tp->rto = tp->asoc->rto_max;
 
 	tp->rtt = rtt;
+	tp->last_rto = tp->rto;
 
 	/* Reset rto_pending so that a new RTT measurement is started when a
 	 * new data chunk is sent.
@@ -578,7 +579,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	 */
 	t->cwnd = min(4*asoc->pathmtu, max_t(__u32, 2*asoc->pathmtu, 4380));
 	t->ssthresh = asoc->peer.i.a_rwnd;
-	t->rto = asoc->rto_initial;
+	t->last_rto = t->rto = asoc->rto_initial;
 	t->rtt = 0;
 	t->srtt = 0;
 	t->rttvar = 0;

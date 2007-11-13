@@ -186,6 +186,8 @@ typedef enum {
 	SCTP_IERROR_AUTH_BAD_HMAC,
 	SCTP_IERROR_AUTH_BAD_KEYID,
 	SCTP_IERROR_PROTO_VIOLATION,
+	SCTP_IERROR_ERROR,
+	SCTP_IERROR_ABORT,
 } sctp_ierror_t;
 
 
@@ -407,6 +409,7 @@ typedef enum {
 	SCTP_RTXR_T3_RTX,
 	SCTP_RTXR_FAST_RTX,
 	SCTP_RTXR_PMTUD,
+	SCTP_RTXR_T1_RTX,
 } sctp_retransmit_reason_t;
 
 /* Reasons to lower cwnd. */

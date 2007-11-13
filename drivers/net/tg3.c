@@ -64,8 +64,8 @@
 
 #define DRV_MODULE_NAME		"tg3"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"3.85"
-#define DRV_MODULE_RELDATE	"October 18, 2007"
+#define DRV_MODULE_VERSION	"3.86"
+#define DRV_MODULE_RELDATE	"November 9, 2007"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
@@ -1106,6 +1106,24 @@ static int tg3_phy_reset(struct tg3 *tp)
 	if (err)
 		return err;
 
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
+		u32 val;
+
+		val = tr32(TG3_CPMU_LSPD_1000MB_CLK);
+		if ((val & CPMU_LSPD_1000MB_MACCLK_MASK) ==
+		    CPMU_LSPD_1000MB_MACCLK_12_5) {
+			val &= ~CPMU_LSPD_1000MB_MACCLK_MASK;
+			udelay(40);
+			tw32_f(TG3_CPMU_LSPD_1000MB_CLK, val);
+		}
+
+		/* Disable GPHY autopowerdown. */
+		tg3_writephy(tp, MII_TG3_MISC_SHDW,
+			     MII_TG3_MISC_SHDW_WREN |
+			     MII_TG3_MISC_SHDW_APD_SEL |
+			     MII_TG3_MISC_SHDW_APD_WKTM_84MS);
+	}
+
 out:
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_ADC_BUG) {
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0c00);
@@ -1297,6 +1315,8 @@ static void tg3_nvram_unlock(struct tg3 *);
 
 static void tg3_power_down_phy(struct tg3 *tp)
 {
+	u32 val;
+
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			u32 sg_dig_ctrl = tr32(SG_DIG_CTRL);
@@ -1311,8 +1331,6 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		u32 val;
-
 		tg3_bmcr_reset(tp);
 		val = tr32(GRC_MISC_CFG);
 		tw32_f(GRC_MISC_CFG, val | GRC_MISC_CFG_EPHY_IDDQ);
@@ -1332,6 +1350,14 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 &&
 	     (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
 		return;
+
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
+		val = tr32(TG3_CPMU_LSPD_1000MB_CLK);
+		val &= ~CPMU_LSPD_1000MB_MACCLK_MASK;
+		val |= CPMU_LSPD_1000MB_MACCLK_12_5;
+		tw32_f(TG3_CPMU_LSPD_1000MB_CLK, val);
+	}
+
 	tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
 }
 
@@ -3124,6 +3150,23 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 		err = tg3_setup_fiber_mii_phy(tp, force_reset);
 	} else {
 		err = tg3_setup_copper_phy(tp, force_reset);
+	}
+
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1) {
+		u32 val, scale;
+
+		val = tr32(TG3_CPMU_CLCK_STAT) & CPMU_CLCK_STAT_MAC_CLCK_MASK;
+		if (val == CPMU_CLCK_STAT_MAC_CLCK_62_5)
+			scale = 65;
+		else if (val == CPMU_CLCK_STAT_MAC_CLCK_6_25)
+			scale = 6;
+		else
+			scale = 12;
+
+		val = tr32(GRC_MISC_CFG) & ~GRC_MISC_CFG_PRESCALAR_MASK;
+		val |= (scale << GRC_MISC_CFG_PRESCALAR_SHIFT);
+		tw32(GRC_MISC_CFG, val);
 	}
 
 	if (tp->link_config.active_speed == SPEED_1000 &&
@@ -5054,12 +5097,15 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 
 	pci_write_config_word(tp->pdev, PCI_COMMAND, tp->pci_cmd);
 
-	if (!(tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)) {
+	if (tp->tg3_flags2 & TG3_FLG2_PCI_EXPRESS)
+		pcie_set_readrq(tp->pdev, 4096);
+	else {
 		pci_write_config_byte(tp->pdev, PCI_CACHE_LINE_SIZE,
 				      tp->pci_cacheline_sz);
 		pci_write_config_byte(tp->pdev, PCI_LATENCY_TIMER,
 				      tp->pci_lat_timer);
 	}
+
 	/* Make sure PCI-X relaxed ordering bit is clear. */
 	if (tp->pcix_cap) {
 		u16 pcix_cmd;
@@ -6343,10 +6389,26 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 
 	tg3_write_sig_legacy(tp, RESET_KIND_INIT);
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0) {
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1) {
 		val = tr32(TG3_CPMU_CTRL);
 		val &= ~(CPMU_CTRL_LINK_AWARE_MODE | CPMU_CTRL_LINK_IDLE_MODE);
 		tw32(TG3_CPMU_CTRL, val);
+
+		val = tr32(TG3_CPMU_LSPD_10MB_CLK);
+		val &= ~CPMU_LSPD_10MB_MACCLK_MASK;
+		val |= CPMU_LSPD_10MB_MACCLK_6_25;
+		tw32(TG3_CPMU_LSPD_10MB_CLK, val);
+
+		val = tr32(TG3_CPMU_LNK_AWARE_PWRMD);
+		val &= ~CPMU_LNK_AWARE_MACCLK_MASK;
+		val |= CPMU_LNK_AWARE_MACCLK_6_25;
+		tw32(TG3_CPMU_LNK_AWARE_PWRMD, val);
+
+		val = tr32(TG3_CPMU_HST_ACC);
+		val &= ~CPMU_HST_ACC_MACCLK_MASK;
+		val |= CPMU_HST_ACC_MACCLK_6_25;
+		tw32(TG3_CPMU_HST_ACC, val);
 	}
 
 	/* This works around an issue with Athlon chipsets on
@@ -8267,7 +8329,7 @@ static int tg3_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 				  SUPPORTED_100baseT_Full |
 				  SUPPORTED_10baseT_Half |
 				  SUPPORTED_10baseT_Full |
-				  SUPPORTED_MII);
+				  SUPPORTED_TP);
 		cmd->port = PORT_TP;
 	} else {
 		cmd->supported |= SUPPORTED_FIBRE;
@@ -8664,7 +8726,9 @@ static void tg3_get_ethtool_stats (struct net_device *dev,
 }
 
 #define NVRAM_TEST_SIZE 0x100
-#define NVRAM_SELFBOOT_FORMAT1_SIZE 0x14
+#define NVRAM_SELFBOOT_FORMAT1_0_SIZE	0x14
+#define NVRAM_SELFBOOT_FORMAT1_2_SIZE	0x18
+#define NVRAM_SELFBOOT_FORMAT1_3_SIZE	0x1c
 #define NVRAM_SELFBOOT_HW_SIZE 0x20
 #define NVRAM_SELFBOOT_DATA_SIZE 0x1c
 
@@ -8679,9 +8743,22 @@ static int tg3_test_nvram(struct tg3 *tp)
 	if (magic == TG3_EEPROM_MAGIC)
 		size = NVRAM_TEST_SIZE;
 	else if ((magic & TG3_EEPROM_MAGIC_FW_MSK) == TG3_EEPROM_MAGIC_FW) {
-		if ((magic & 0xe00000) == 0x200000)
-			size = NVRAM_SELFBOOT_FORMAT1_SIZE;
-		else
+		if ((magic & TG3_EEPROM_SB_FORMAT_MASK) ==
+		    TG3_EEPROM_SB_FORMAT_1) {
+			switch (magic & TG3_EEPROM_SB_REVISION_MASK) {
+			case TG3_EEPROM_SB_REVISION_0:
+				size = NVRAM_SELFBOOT_FORMAT1_0_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_2:
+				size = NVRAM_SELFBOOT_FORMAT1_2_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_3:
+				size = NVRAM_SELFBOOT_FORMAT1_3_SIZE;
+				break;
+			default:
+				return 0;
+			}
+		} else
 			return 0;
 	} else if ((magic & TG3_EEPROM_MAGIC_HW_MSK) == TG3_EEPROM_MAGIC_HW)
 		size = NVRAM_SELFBOOT_HW_SIZE;
@@ -8708,8 +8785,17 @@ static int tg3_test_nvram(struct tg3 *tp)
 	    TG3_EEPROM_MAGIC_FW) {
 		u8 *buf8 = (u8 *) buf, csum8 = 0;
 
-		for (i = 0; i < size; i++)
-			csum8 += buf8[i];
+		if ((cpu_to_be32(buf[0]) & TG3_EEPROM_SB_REVISION_MASK) ==
+		    TG3_EEPROM_SB_REVISION_2) {
+			/* For rev 2, the csum doesn't include the MBA. */
+			for (i = 0; i < TG3_EEPROM_SB_F1R2_MBA_OFF; i++)
+				csum8 += buf8[i];
+			for (i = TG3_EEPROM_SB_F1R2_MBA_OFF + 4; i < size; i++)
+				csum8 += buf8[i];
+		} else {
+			for (i = 0; i < size; i++)
+				csum8 += buf8[i];
+		}
 
 		if (csum8 == 0) {
 			err = 0;
@@ -9293,7 +9379,7 @@ static int tg3_test_loopback(struct tg3 *tp)
 	if (err)
 		return TG3_LOOPBACK_FAILED;
 
-	if (tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) {
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
 		int i;
 		u32 status;
 
@@ -9310,17 +9396,17 @@ static int tg3_test_loopback(struct tg3 *tp)
 		if (status != CPMU_MUTEX_GNT_DRIVER)
 			return TG3_LOOPBACK_FAILED;
 
-		cpmuctrl = tr32(TG3_CPMU_CTRL);
-
 		/* Turn off power management based on link speed. */
+		cpmuctrl = tr32(TG3_CPMU_CTRL);
 		tw32(TG3_CPMU_CTRL,
-		     cpmuctrl & ~CPMU_CTRL_LINK_SPEED_MODE);
+		     cpmuctrl & ~(CPMU_CTRL_LINK_SPEED_MODE |
+				  CPMU_CTRL_LINK_AWARE_MODE));
 	}
 
 	if (tg3_run_loopback(tp, TG3_MAC_LOOPBACK))
 		err |= TG3_MAC_LOOPBACK_FAILED;
 
-	if (tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) {
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
 		tw32(TG3_CPMU_CTRL, cpmuctrl);
 
 		/* Release the mutex */
@@ -10541,6 +10627,10 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		    tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL)
 			tp->led_ctrl = LED_CTRL_MODE_PHY_2;
 
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1)
+			tp->led_ctrl = LED_CTRL_MODE_MAC;
+
 		if (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP) {
 			tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 			if ((tp->pdev->subsystem_vendor ==
@@ -10859,7 +10949,7 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	}
 
 	if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF) ||
-	     (tp->tg3_flags & TG3_FLG3_ENABLE_APE))
+	     (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE))
 		return;
 
 	for (offset = TG3_NVM_DIR_START;
@@ -11127,6 +11217,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	pcie_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_EXP);
 	if (pcie_cap != 0) {
 		tp->tg3_flags2 |= TG3_FLG2_PCI_EXPRESS;
+
+		pcie_set_readrq(tp->pdev, 4096);
+
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
 			u16 lnkctl;
 
@@ -11307,8 +11400,15 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761) {
 		tp->tg3_flags |= TG3_FLAG_CPMU_PRESENT;
+
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5761_A1)
+			tp->tg3_flags3 |= TG3_FLG3_5761_5784_AX_FIXES;
+	}
 
 	/* Set up tp->grc_local_ctrl before calling tg3_set_power_state().
 	 * GPIO1 driven high will bring 5700's external PHY out of reset.
@@ -12464,43 +12564,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	/*
-	 * Reset chip in case UNDI or EFI driver did not shutdown
-	 * DMA self test will enable WDMAC and we'll see (spurious)
-	 * pending DMA on the PCI bus at that point.
-	 */
-	if ((tr32(HOSTCC_MODE) & HOSTCC_MODE_ENABLE) ||
-	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
-		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
-		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-	}
-
-	err = tg3_test_dma(tp);
-	if (err) {
-		printk(KERN_ERR PFX "DMA engine test failed, aborting.\n");
-		goto err_out_iounmap;
-	}
-
-	/* Tigon3 can do ipv4 only... and some chips have buggy
-	 * checksumming.
-	 */
-	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
-			dev->features |= NETIF_F_IPV6_CSUM;
-
-		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
-	} else
-		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
-
-	/* flow control autonegotiation is default behavior */
-	tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
-
-	tg3_init_coal(tp);
-
 	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE) {
 		if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
 			printk(KERN_ERR PFX "Cannot find proper PCI device "
@@ -12522,6 +12585,43 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 		tg3_ape_lock_init(tp);
 	}
+
+	/*
+	 * Reset chip in case UNDI or EFI driver did not shutdown
+	 * DMA self test will enable WDMAC and we'll see (spurious)
+	 * pending DMA on the PCI bus at that point.
+	 */
+	if ((tr32(HOSTCC_MODE) & HOSTCC_MODE_ENABLE) ||
+	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
+		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+	}
+
+	err = tg3_test_dma(tp);
+	if (err) {
+		printk(KERN_ERR PFX "DMA engine test failed, aborting.\n");
+		goto err_out_apeunmap;
+	}
+
+	/* Tigon3 can do ipv4 only... and some chips have buggy
+	 * checksumming.
+	 */
+	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
+		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+			dev->features |= NETIF_F_IPV6_CSUM;
+
+		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
+	} else
+		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
+
+	/* flow control autonegotiation is default behavior */
+	tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
+
+	tg3_init_coal(tp);
 
 	pci_set_drvdata(pdev, dev);
 

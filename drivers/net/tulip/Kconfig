@@ -24,8 +24,7 @@ config DE2104X
 	  will say Y here.) Do read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called de2104x.
 
 config TULIP
@@ -42,8 +41,7 @@ config TULIP
 	  will say Y here.) Do read the Ethernet-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called tulip.
 
 config TULIP_MWI
@@ -104,8 +102,7 @@ config DE4X5
 	  information is contained in
 	  <file:Documentation/networking/de4x5.txt>.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called de4x5.
 
 config WINBOND_840
@@ -129,8 +126,7 @@ config DM9102
 	  (Ethernet) card, say Y.  Some information is contained in the file
 	  <file:Documentation/networking/dmfe.txt>.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called dmfe.
 
 config ULI526X
@@ -141,8 +137,7 @@ config ULI526X
 	  This driver is for ULi M5261/M5263 10/100M Ethernet Controller
 	  (<http://www.uli.com.tw/>).
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called uli526x.
 	  
 config PCMCIA_XIRCOM
@@ -154,8 +149,7 @@ config PCMCIA_XIRCOM
 	  as with work-alike chips from Lite-On (PNIC) and Macronix (MXIC) and
 	  ASIX.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called xircom_cb.  If unsure, say N.
 
 config PCMCIA_XIRTULIP
@@ -168,8 +162,7 @@ config PCMCIA_XIRTULIP
 	  as with work-alike chips from Lite-On (PNIC) and Macronix (MXIC) and
 	  ASIX.
 
-	  To compile this driver as a module, choose M here and read
-	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  To compile this driver as a module, choose M here. The module will
 	  be called xircom_tulip_cb.  If unsure, say N.
 
 endif # NET_TULIP

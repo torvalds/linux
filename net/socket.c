@@ -2319,6 +2319,11 @@ int kernel_sock_ioctl(struct socket *sock, int cmd, unsigned long arg)
 	return err;
 }
 
+int kernel_sock_shutdown(struct socket *sock, enum sock_shutdown_cmd how)
+{
+	return sock->ops->shutdown(sock, how);
+}
+
 /* ABI emulation layers need these two */
 EXPORT_SYMBOL(move_addr_to_kernel);
 EXPORT_SYMBOL(move_addr_to_user);
@@ -2345,3 +2350,4 @@ EXPORT_SYMBOL(kernel_getsockopt);
 EXPORT_SYMBOL(kernel_setsockopt);
 EXPORT_SYMBOL(kernel_sendpage);
 EXPORT_SYMBOL(kernel_sock_ioctl);
+EXPORT_SYMBOL(kernel_sock_shutdown);

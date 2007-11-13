@@ -2097,7 +2097,3 @@ EXPORT_SYMBOL(sock_wmalloc);
 EXPORT_SYMBOL(sock_i_uid);
 EXPORT_SYMBOL(sock_i_ino);
 EXPORT_SYMBOL(sysctl_optmem_max);
-#ifdef CONFIG_SYSCTL
-EXPORT_SYMBOL(sysctl_rmem_max);
-EXPORT_SYMBOL(sysctl_wmem_max);
-#endif

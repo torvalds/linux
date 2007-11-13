@@ -100,20 +100,19 @@ struct crypto_hash;
 struct sctp_bind_bucket {
 	unsigned short	port;
 	unsigned short	fastreuse;
-	struct sctp_bind_bucket *next;
-	struct sctp_bind_bucket **pprev;
+	struct hlist_node	node;
 	struct hlist_head	owner;
 };
 
 struct sctp_bind_hashbucket {
 	spinlock_t	lock;
-	struct sctp_bind_bucket	*chain;
+	struct hlist_head	chain;
 };
 
 /* Used for hashing all associations.  */
 struct sctp_hashbucket {
 	rwlock_t	lock;
-	struct sctp_ep_common  *chain;
+	struct hlist_head	chain;
 } __attribute__((__aligned__(8)));
 
 
@@ -212,6 +211,7 @@ extern struct sctp_globals {
 	
 	/* Flag to indicate if addip is enabled. */
 	int addip_enable;
+	int addip_noauth_enable;
 
 	/* Flag to indicate if PR-SCTP is enabled. */
 	int prsctp_enable;
@@ -249,6 +249,7 @@ extern struct sctp_globals {
 #define sctp_local_addr_list		(sctp_globals.local_addr_list)
 #define sctp_local_addr_lock		(sctp_globals.addr_list_lock)
 #define sctp_addip_enable		(sctp_globals.addip_enable)
+#define sctp_addip_noauth		(sctp_globals.addip_noauth_enable)
 #define sctp_prsctp_enable		(sctp_globals.prsctp_enable)
 #define sctp_auth_enable		(sctp_globals.auth_enable)
 
@@ -873,10 +874,11 @@ struct sctp_transport {
 	 * address list derived from the INIT or INIT ACK chunk, a
 	 * number of data elements needs to be maintained including:
 	 */
-	__u32 rtt;		/* This is the most recent RTT.	 */
-
 	/* RTO	       : The current retransmission timeout value.  */
 	unsigned long rto;
+	unsigned long last_rto;
+
+	__u32 rtt;		/* This is the most recent RTT.	 */
 
 	/* RTTVAR      : The current RTT variation.  */
 	__u32 rttvar;
@@ -1184,9 +1186,7 @@ int sctp_bind_addr_copy(struct sctp_bind_addr *dest,
 			int flags);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
 		       __u8 use_as_src, gfp_t gfp);
-int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
-			void fastcall (*rcu_call)(struct rcu_head *,
-					  void (*func)(struct rcu_head *)));
+int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);
 union sctp_addr *sctp_find_unmatch_addr(struct sctp_bind_addr	*bp,
@@ -1229,8 +1229,7 @@ typedef enum {
 
 struct sctp_ep_common {
 	/* Fields to help us manage our entries in the hash tables. */
-	struct sctp_ep_common *next;
-	struct sctp_ep_common **pprev;
+	struct hlist_node node;
 	int hashent;
 
 	/* Runtime type information.  What kind of endpoint is this? */
@@ -1541,7 +1540,6 @@ struct sctp_association {
 		__u8    asconf_capable;  /* Does peer support ADDIP? */
 		__u8    prsctp_capable;  /* Can peer do PR-SCTP? */
 		__u8	auth_capable;	 /* Is peer doing SCTP-AUTH? */
-		__u8	addip_capable;	 /* Can peer do ADD-IP */
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
 
