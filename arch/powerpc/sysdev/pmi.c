@@ -28,9 +28,9 @@
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/io.h>
 #include <asm/pmi.h>
 #include <asm/prom.h>

@@ -42,8 +42,9 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
+
 #include <asm/page.h>
 #include <asm/prom.h>
 
