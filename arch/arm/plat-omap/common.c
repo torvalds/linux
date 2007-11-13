@@ -193,6 +193,23 @@ static struct clocksource clocksource_32k = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+/*
+ * Rounds down to nearest nsec.
+ */
+unsigned long long omap_32k_ticks_to_nsecs(unsigned long ticks_32k)
+{
+	return cyc2ns(&clocksource_32k, ticks_32k);
+}
+
+/*
+ * Returns current time from boot in nsecs. It's OK for this to wrap
+ * around for now, as it's just a relative time stamp.
+ */
+unsigned long long sched_clock(void)
+{
+	return omap_32k_ticks_to_nsecs(omap_32k_read());
+}
+
 static int __init omap_init_clocksource_32k(void)
 {
 	static char err[] __initdata = KERN_ERR
