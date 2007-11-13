@@ -3154,6 +3154,22 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 		err = tg3_setup_copper_phy(tp, force_reset);
 	}
 
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0) {
+		u32 val, scale;
+
+		val = tr32(TG3_CPMU_CLCK_STAT) & CPMU_CLCK_STAT_MAC_CLCK_MASK;
+		if (val == CPMU_CLCK_STAT_MAC_CLCK_62_5)
+			scale = 65;
+		else if (val == CPMU_CLCK_STAT_MAC_CLCK_6_25)
+			scale = 6;
+		else
+			scale = 12;
+
+		val = tr32(GRC_MISC_CFG) & ~GRC_MISC_CFG_PRESCALAR_MASK;
+		val |= (scale << GRC_MISC_CFG_PRESCALAR_SHIFT);
+		tw32(GRC_MISC_CFG, val);
+	}
+
 	if (tp->link_config.active_speed == SPEED_1000 &&
 	    tp->link_config.active_duplex == DUPLEX_HALF)
 		tw32(MAC_TX_LENGTHS,
