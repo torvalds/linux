@@ -459,6 +459,15 @@ config OCFS2_DEBUG_MASKLOG
 	  This option will enlarge your kernel, but it allows debugging of
 	  ocfs2 filesystem issues.
 
+config OCFS2_DEBUG_FS
+	bool "OCFS2 expensive checks"
+	depends on OCFS2_FS
+	default n
+	help
+	  This option will enable expensive consistency checks. Enable
+	  this option for debugging only as it is likely to decrease
+	  performance of the filesystem.
+
 config MINIX_FS
 	tristate "Minix fs support"
 	help
