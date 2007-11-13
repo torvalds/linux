@@ -9,7 +9,9 @@ obj-m :=
 obj-n :=
 obj-  :=
 
+ifeq ($(CONFIG_ARCH_OMAP1),y)
 obj-$(CONFIG_OMAP_32K_TIMER)	+= timer32k.o
+endif
 
 # OCPI interconnect support for 1710, 1610 and 5912
 obj-$(CONFIG_ARCH_OMAP16XX) += ocpi.o
