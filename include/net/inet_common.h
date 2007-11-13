@@ -13,9 +13,6 @@ struct sock;
 struct sockaddr;
 struct socket;
 
-extern void			inet_remove_sock(struct sock *sk1);
-extern void			inet_put_sock(unsigned short num, 
-					      struct sock *sk);
 extern int			inet_release(struct socket *sock);
 extern int			inet_stream_connect(struct socket *sock,
 						    struct sockaddr * uaddr,
@@ -30,7 +27,6 @@ extern int			inet_sendmsg(struct kiocb *iocb,
 					     struct msghdr *msg, 
 					     size_t size);
 extern int			inet_shutdown(struct socket *sock, int how);
-extern unsigned int		inet_poll(struct file * file, struct socket *sock, struct poll_table_struct *wait);
 extern int			inet_listen(struct socket *sock, int backlog);
 
 extern void			inet_sock_destruct(struct sock *sk);
