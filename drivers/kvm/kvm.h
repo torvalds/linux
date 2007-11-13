@@ -398,7 +398,7 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 
 static inline int irqchip_in_kernel(struct kvm *kvm)
 {
-	return pic_irqchip(kvm) != 0;
+	return pic_irqchip(kvm) != NULL;
 }
 
 struct descriptor_table {

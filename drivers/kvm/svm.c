@@ -1271,7 +1271,7 @@ static int handle_exit(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 		       exit_code);
 
 	if (exit_code >= ARRAY_SIZE(svm_exit_handlers)
-	    || svm_exit_handlers[exit_code] == 0) {
+	    || !svm_exit_handlers[exit_code]) {
 		kvm_run->exit_reason = KVM_EXIT_UNKNOWN;
 		kvm_run->hw.hardware_exit_reason = exit_code;
 		return 0;
