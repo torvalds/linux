@@ -1106,6 +1106,19 @@ static int tg3_phy_reset(struct tg3 *tp)
 	if (err)
 		return err;
 
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
+		u32 val;
+
+		val = tr32(TG3_CPMU_LSPD_1000MB_CLK);
+		if ((val & CPMU_LSPD_1000MB_MACCLK_MASK) ==
+		    CPMU_LSPD_1000MB_MACCLK_12_5) {
+			val &= ~CPMU_LSPD_1000MB_MACCLK_MASK;
+			udelay(40);
+			tw32_f(TG3_CPMU_LSPD_1000MB_CLK, val);
+		}
+	}
+
 out:
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_ADC_BUG) {
 		tg3_writephy(tp, MII_TG3_AUX_CTRL, 0x0c00);
@@ -1297,6 +1310,8 @@ static void tg3_nvram_unlock(struct tg3 *);
 
 static void tg3_power_down_phy(struct tg3 *tp)
 {
+	u32 val;
+
 	if (tp->tg3_flags2 & TG3_FLG2_PHY_SERDES) {
 		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704) {
 			u32 sg_dig_ctrl = tr32(SG_DIG_CTRL);
@@ -1311,8 +1326,6 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906) {
-		u32 val;
-
 		tg3_bmcr_reset(tp);
 		val = tr32(GRC_MISC_CFG);
 		tw32_f(GRC_MISC_CFG, val | GRC_MISC_CFG_EPHY_IDDQ);
@@ -1332,6 +1345,15 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 &&
 	     (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
 		return;
+
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
+		val = tr32(TG3_CPMU_LSPD_1000MB_CLK);
+		val &= ~CPMU_LSPD_1000MB_MACCLK_MASK;
+		val |= CPMU_LSPD_1000MB_MACCLK_12_5;
+		tw32_f(TG3_CPMU_LSPD_1000MB_CLK, val);
+	}
+
 	tg3_writephy(tp, MII_BMCR, BMCR_PDOWN);
 }
 
