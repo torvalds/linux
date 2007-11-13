@@ -1106,8 +1106,7 @@ static int tg3_phy_reset(struct tg3 *tp)
 	if (err)
 		return err;
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
-	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
 		u32 val;
 
 		val = tr32(TG3_CPMU_LSPD_1000MB_CLK);
@@ -1352,8 +1351,7 @@ static void tg3_power_down_phy(struct tg3 *tp)
 	     (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
 		return;
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
-	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
 		val = tr32(TG3_CPMU_LSPD_1000MB_CLK);
 		val &= ~CPMU_LSPD_1000MB_MACCLK_MASK;
 		val |= CPMU_LSPD_1000MB_MACCLK_12_5;
@@ -3154,7 +3152,8 @@ static int tg3_setup_phy(struct tg3 *tp, int force_reset)
 		err = tg3_setup_copper_phy(tp, force_reset);
 	}
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0) {
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1) {
 		u32 val, scale;
 
 		val = tr32(TG3_CPMU_CLCK_STAT) & CPMU_CLCK_STAT_MAC_CLCK_MASK;
@@ -6390,7 +6389,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 
 	tg3_write_sig_legacy(tp, RESET_KIND_INIT);
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0) {
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1) {
 		val = tr32(TG3_CPMU_CTRL);
 		val &= ~(CPMU_CTRL_LINK_AWARE_MODE | CPMU_CTRL_LINK_IDLE_MODE);
 		tw32(TG3_CPMU_CTRL, val);
@@ -9379,8 +9379,7 @@ static int tg3_test_loopback(struct tg3 *tp)
 	if (err)
 		return TG3_LOOPBACK_FAILED;
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
-	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
 		int i;
 		u32 status;
 
@@ -9407,8 +9406,7 @@ static int tg3_test_loopback(struct tg3 *tp)
 	if (tg3_run_loopback(tp, TG3_MAC_LOOPBACK))
 		err |= TG3_MAC_LOOPBACK_FAILED;
 
-	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
-	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
+	if (tp->tg3_flags3 & TG3_FLG3_5761_5784_AX_FIXES) {
 		tw32(TG3_CPMU_CTRL, cpmuctrl);
 
 		/* Release the mutex */
@@ -10629,7 +10627,8 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		    tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL)
 			tp->led_ctrl = LED_CTRL_MODE_PHY_2;
 
-		if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0)
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1)
 			tp->led_ctrl = LED_CTRL_MODE_MAC;
 
 		if (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP) {
@@ -11401,8 +11400,15 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	}
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
-	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761) {
 		tp->tg3_flags |= TG3_FLAG_CPMU_PRESENT;
+
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5784_A1 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0 ||
+		    tp->pci_chip_rev_id == CHIPREV_ID_5761_A1)
+			tp->tg3_flags3 |= TG3_FLG3_5761_5784_AX_FIXES;
+	}
 
 	/* Set up tp->grc_local_ctrl before calling tg3_set_power_state().
 	 * GPIO1 driven high will bring 5700's external PHY out of reset.

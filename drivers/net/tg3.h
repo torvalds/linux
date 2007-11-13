@@ -109,7 +109,9 @@
 #define  CHIPREV_ID_5714_A2		 0x9002
 #define  CHIPREV_ID_5906_A1		 0xc001
 #define  CHIPREV_ID_5784_A0		 0x5784000
+#define  CHIPREV_ID_5784_A1		 0x5784001
 #define  CHIPREV_ID_5761_A0		 0x5761000
+#define  CHIPREV_ID_5761_A1		 0x5761001
 #define  GET_ASIC_REV(CHIP_REV_ID)	((CHIP_REV_ID) >> 12)
 #define   ASIC_REV_5700			 0x07
 #define   ASIC_REV_5701			 0x00
@@ -2391,6 +2393,7 @@ struct tg3 {
 	u32				tg3_flags3;
 #define TG3_FLG3_NO_NVRAM_ADDR_TRANS	0x00000001
 #define TG3_FLG3_ENABLE_APE		0x00000002
+#define TG3_FLG3_5761_5784_AX_FIXES	0x00000004
 
 	struct timer_list		timer;
 	u16				timer_counter;
