@@ -10881,7 +10881,7 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	}
 
 	if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF) ||
-	     (tp->tg3_flags & TG3_FLG3_ENABLE_APE))
+	     (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE))
 		return;
 
 	for (offset = TG3_NVM_DIR_START;
