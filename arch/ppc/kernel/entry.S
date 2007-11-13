@@ -251,6 +251,9 @@ syscall_exit_cont:
 	bne-	2f
 1:
 #endif /* CONFIG_44x */
+BEGIN_FTR_SECTION
+	lwarx	r7,0,r1
+END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	stwcx.	r0,0,r1			/* to clear the reservation */
 	lwz	r4,_LINK(r1)
 	lwz	r5,_CCR(r1)
@@ -713,6 +716,9 @@ restore:
 	mtctr	r11
 
 	PPC405_ERR77(0,r1)
+BEGIN_FTR_SECTION
+	lwarx	r11,0,r1
+END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
 	stwcx.	r0,0,r1			/* to clear the reservation */
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE))
