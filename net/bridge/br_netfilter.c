@@ -766,6 +766,9 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 	if (!nf_bridge)
 		return NF_ACCEPT;
 
+	if (!(nf_bridge->mask & (BRNF_BRIDGED | BRNF_BRIDGED_DNAT)))
+		return NF_ACCEPT;
+
 	if (!realoutdev)
 		return NF_DROP;
 
