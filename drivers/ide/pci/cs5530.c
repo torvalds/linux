@@ -117,8 +117,7 @@ static void cs5530_set_dma_mode(ide_drive_t *drive, const u8 mode)
 		case XFER_MW_DMA_1:	timings = 0x00012121; break;
 		case XFER_MW_DMA_2:	timings = 0x00002020; break;
 		default:
-			BUG();
-			break;
+			return;
 	}
 	basereg = CS5530_BASEREG(drive->hwif);
 	reg = inl(basereg + 4);			/* get drive0 config register */

@@ -186,8 +186,7 @@ static void sc1200_set_dma_mode(ide_drive_t *drive, const u8 mode)
 			}
 			break;
 		default:
-			BUG();
-			break;
+			return;
 	}
 
 	if (unit == 0) {			/* are we configuring drive0? */

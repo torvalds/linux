@@ -748,8 +748,7 @@ static void cris_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			hold = ATA_DMA2_HOLD;
 			break;
 		default:
-			BUG();
-			break;
+			return;
 	}
 
 	if (speed >= XFER_UDMA_0)
