@@ -33,7 +33,6 @@
 #include <linux/adb.h>
 #include <linux/pmu.h>
 #include <linux/cuda.h>
-#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/pm.h>
@@ -2547,7 +2546,6 @@ pmu_release(struct inode *inode, struct file *file)
 	struct pmu_private *pp = file->private_data;
 	unsigned long flags;
 
-	lock_kernel();
 	if (pp != 0) {
 		file->private_data = NULL;
 		spin_lock_irqsave(&all_pvt_lock, flags);
@@ -2561,7 +2559,6 @@ pmu_release(struct inode *inode, struct file *file)
 
 		kfree(pp);
 	}
-	unlock_kernel();
 	return 0;
 }
 
