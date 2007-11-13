@@ -10610,6 +10610,9 @@ static void __devinit tg3_get_eeprom_hw_cfg(struct tg3 *tp)
 		    tp->pdev->subsystem_vendor == PCI_VENDOR_ID_DELL)
 			tp->led_ctrl = LED_CTRL_MODE_PHY_2;
 
+		if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0)
+			tp->led_ctrl = LED_CTRL_MODE_MAC;
+
 		if (nic_cfg & NIC_SRAM_DATA_CFG_EEPROM_WP) {
 			tp->tg3_flags |= TG3_FLAG_EEPROM_WRITE_PROT;
 			if ((tp->pdev->subsystem_vendor ==
