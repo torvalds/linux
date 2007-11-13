@@ -227,22 +227,6 @@ static void __init omap_init_clocksource(unsigned long rate)
 		printk(err, clocksource_mpu.name);
 }
 
-
-/*
- * Scheduler clock - returns current time in nanosec units.
- */
-unsigned long long sched_clock(void)
-{
-	unsigned long ticks = 0 - omap_mpu_timer_read(1);
-	unsigned long long ticks64;
-
-	ticks64 = omap_mpu_timer2_overflows;
-	ticks64 <<= 32;
-	ticks64 |= ticks;
-
-	return cycles_2_ns(ticks64);
-}
-
 /*
  * ---------------------------------------------------------------------------
  * Timer initialization
