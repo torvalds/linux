@@ -19,8 +19,6 @@
  *
  */
 
-#undef DEBUG
-
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -65,12 +63,6 @@
 #include <asm/vdso.h>
 
 #include "mmu_decl.h"
-
-#ifdef DEBUG
-#define DBG(fmt...) printk(fmt)
-#else
-#define DBG(fmt...)
-#endif
 
 #if PGTABLE_RANGE > USER_VSID_RANGE
 #warning Limited user VSID range means pagetable space is wasted
@@ -175,8 +167,8 @@ void pgtable_cache_init(void)
 		int size = pgtable_cache_size[i];
 		const char *name = pgtable_cache_name[i];
 
-		DBG("Allocating page table cache %s (#%d) "
-		    "for size: %08x...\n", name, i, size);
+		pr_debug("Allocating page table cache %s (#%d) "
+			"for size: %08x...\n", name, i, size);
 		pgtable_cache[i] = kmem_cache_create(name,
 						     size, size,
 						     SLAB_PANIC,
@@ -239,8 +231,8 @@ int __meminit vmemmap_populate(struct page *start_page,
 		if (!p)
 			return -ENOMEM;
 
-		printk(KERN_WARNING "vmemmap %08lx allocated at %p, "
-		                    "physical %08lx.\n", start, p, __pa(p));
+		pr_debug("vmemmap %08lx allocated at %p, physical %08lx.\n",
+			start, p, __pa(p));
 
 		mapped = htab_bolt_mapping(start, start + page_size,
 					__pa(p), mode_rw, mmu_linear_psize,
