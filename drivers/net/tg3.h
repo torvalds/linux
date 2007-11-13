@@ -1555,6 +1555,12 @@
 #define TG3_EEPROM_MAGIC		0x669955aa
 #define TG3_EEPROM_MAGIC_FW		0xa5000000
 #define TG3_EEPROM_MAGIC_FW_MSK		0xff000000
+#define TG3_EEPROM_SB_FORMAT_MASK	0x00e00000
+#define TG3_EEPROM_SB_FORMAT_1		0x00200000
+#define TG3_EEPROM_SB_REVISION_MASK	0x001f0000
+#define TG3_EEPROM_SB_REVISION_0	0x00000000
+#define TG3_EEPROM_SB_REVISION_2	0x00020000
+#define TG3_EEPROM_SB_REVISION_3	0x00030000
 #define TG3_EEPROM_MAGIC_HW		0xabcd
 #define TG3_EEPROM_MAGIC_HW_MSK		0xffff
 
@@ -1764,6 +1770,8 @@
 
 /* APE convenience enumerations. */
 #define TG3_APE_LOCK_MEM                4
+
+#define TG3_EEPROM_SB_F1R2_MBA_OFF	0x10
 
 
 /* There are two ways to manage the TX descriptors on the tigon3.

@@ -8701,7 +8701,9 @@ static void tg3_get_ethtool_stats (struct net_device *dev,
 }
 
 #define NVRAM_TEST_SIZE 0x100
-#define NVRAM_SELFBOOT_FORMAT1_SIZE 0x14
+#define NVRAM_SELFBOOT_FORMAT1_0_SIZE	0x14
+#define NVRAM_SELFBOOT_FORMAT1_2_SIZE	0x18
+#define NVRAM_SELFBOOT_FORMAT1_3_SIZE	0x1c
 #define NVRAM_SELFBOOT_HW_SIZE 0x20
 #define NVRAM_SELFBOOT_DATA_SIZE 0x1c
 
@@ -8716,9 +8718,22 @@ static int tg3_test_nvram(struct tg3 *tp)
 	if (magic == TG3_EEPROM_MAGIC)
 		size = NVRAM_TEST_SIZE;
 	else if ((magic & TG3_EEPROM_MAGIC_FW_MSK) == TG3_EEPROM_MAGIC_FW) {
-		if ((magic & 0xe00000) == 0x200000)
-			size = NVRAM_SELFBOOT_FORMAT1_SIZE;
-		else
+		if ((magic & TG3_EEPROM_SB_FORMAT_MASK) ==
+		    TG3_EEPROM_SB_FORMAT_1) {
+			switch (magic & TG3_EEPROM_SB_REVISION_MASK) {
+			case TG3_EEPROM_SB_REVISION_0:
+				size = NVRAM_SELFBOOT_FORMAT1_0_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_2:
+				size = NVRAM_SELFBOOT_FORMAT1_2_SIZE;
+				break;
+			case TG3_EEPROM_SB_REVISION_3:
+				size = NVRAM_SELFBOOT_FORMAT1_3_SIZE;
+				break;
+			default:
+				return 0;
+			}
+		} else
 			return 0;
 	} else if ((magic & TG3_EEPROM_MAGIC_HW_MSK) == TG3_EEPROM_MAGIC_HW)
 		size = NVRAM_SELFBOOT_HW_SIZE;
@@ -8745,8 +8760,17 @@ static int tg3_test_nvram(struct tg3 *tp)
 	    TG3_EEPROM_MAGIC_FW) {
 		u8 *buf8 = (u8 *) buf, csum8 = 0;
 
-		for (i = 0; i < size; i++)
-			csum8 += buf8[i];
+		if ((cpu_to_be32(buf[0]) & TG3_EEPROM_SB_REVISION_MASK) ==
+		    TG3_EEPROM_SB_REVISION_2) {
+			/* For rev 2, the csum doesn't include the MBA. */
+			for (i = 0; i < TG3_EEPROM_SB_F1R2_MBA_OFF; i++)
+				csum8 += buf8[i];
+			for (i = TG3_EEPROM_SB_F1R2_MBA_OFF + 4; i < size; i++)
+				csum8 += buf8[i];
+		} else {
+			for (i = 0; i < size; i++)
+				csum8 += buf8[i];
+		}
 
 		if (csum8 == 0) {
 			err = 0;
