@@ -170,7 +170,7 @@ static bool xt_time_match(const struct sk_buff *skb,
 	if (skb->tstamp.tv64 == 0)
 		__net_timestamp((struct sk_buff *)skb);
 
-	stamp = skb->tstamp.tv64;
+	stamp = ktime_to_ns(skb->tstamp);
 	do_div(stamp, NSEC_PER_SEC);
 
 	if (info->flags & XT_TIME_LOCAL_TZ)
