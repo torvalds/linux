@@ -107,6 +107,9 @@ endif
 # No AltiVec instruction when building kernel
 KBUILD_CFLAGS += $(call cc-option,-mno-altivec)
 
+# No SPE instruction when building kernel
+KBUILD_CFLAGS += $(call cc-option,-mno-spe)
+
 # Enable unit-at-a-time mode when possible. It shrinks the
 # kernel considerably.
 KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)
