@@ -7,11 +7,6 @@
  *  May be copied or modified under the terms of the GNU General Public License
  */
 
-/*
- *  This module provides support for automatic detection and
- *  configuration of all PCI IDE interfaces present in a system.  
- */
-
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
