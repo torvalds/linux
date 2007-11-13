@@ -119,9 +119,11 @@ static inline struct net *maybe_get_net(struct net *net)
 #ifdef CONFIG_NET_NS
 #define __net_init
 #define __net_exit
+#define __net_initdata
 #else
 #define __net_init	__init
 #define __net_exit	__exit_refok
+#define __net_initdata	__initdata
 #endif
 
 struct pernet_operations {
