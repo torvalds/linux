@@ -12464,43 +12464,6 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 		goto err_out_iounmap;
 	}
 
-	/*
-	 * Reset chip in case UNDI or EFI driver did not shutdown
-	 * DMA self test will enable WDMAC and we'll see (spurious)
-	 * pending DMA on the PCI bus at that point.
-	 */
-	if ((tr32(HOSTCC_MODE) & HOSTCC_MODE_ENABLE) ||
-	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
-		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
-		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
-	}
-
-	err = tg3_test_dma(tp);
-	if (err) {
-		printk(KERN_ERR PFX "DMA engine test failed, aborting.\n");
-		goto err_out_iounmap;
-	}
-
-	/* Tigon3 can do ipv4 only... and some chips have buggy
-	 * checksumming.
-	 */
-	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
-		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
-		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
-			dev->features |= NETIF_F_IPV6_CSUM;
-
-		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
-	} else
-		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
-
-	/* flow control autonegotiation is default behavior */
-	tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
-
-	tg3_init_coal(tp);
-
 	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE) {
 		if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
 			printk(KERN_ERR PFX "Cannot find proper PCI device "
@@ -12522,6 +12485,43 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 
 		tg3_ape_lock_init(tp);
 	}
+
+	/*
+	 * Reset chip in case UNDI or EFI driver did not shutdown
+	 * DMA self test will enable WDMAC and we'll see (spurious)
+	 * pending DMA on the PCI bus at that point.
+	 */
+	if ((tr32(HOSTCC_MODE) & HOSTCC_MODE_ENABLE) ||
+	    (tr32(WDMAC_MODE) & WDMAC_MODE_ENABLE)) {
+		tw32(MEMARB_MODE, MEMARB_MODE_ENABLE);
+		tg3_halt(tp, RESET_KIND_SHUTDOWN, 1);
+	}
+
+	err = tg3_test_dma(tp);
+	if (err) {
+		printk(KERN_ERR PFX "DMA engine test failed, aborting.\n");
+		goto err_out_apeunmap;
+	}
+
+	/* Tigon3 can do ipv4 only... and some chips have buggy
+	 * checksumming.
+	 */
+	if ((tp->tg3_flags & TG3_FLAG_BROKEN_CHECKSUMS) == 0) {
+		dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+		if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5755 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5787 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 ||
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+			dev->features |= NETIF_F_IPV6_CSUM;
+
+		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
+	} else
+		tp->tg3_flags &= ~TG3_FLAG_RX_CHECKSUMS;
+
+	/* flow control autonegotiation is default behavior */
+	tp->tg3_flags |= TG3_FLAG_PAUSE_AUTONEG;
+
+	tg3_init_coal(tp);
 
 	pci_set_drvdata(pdev, dev);
 
