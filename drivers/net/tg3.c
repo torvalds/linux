@@ -9354,7 +9354,8 @@ static int tg3_test_loopback(struct tg3 *tp)
 	if (err)
 		return TG3_LOOPBACK_FAILED;
 
-	if (tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) {
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
 		int i;
 		u32 status;
 
@@ -9371,17 +9372,18 @@ static int tg3_test_loopback(struct tg3 *tp)
 		if (status != CPMU_MUTEX_GNT_DRIVER)
 			return TG3_LOOPBACK_FAILED;
 
-		cpmuctrl = tr32(TG3_CPMU_CTRL);
-
 		/* Turn off power management based on link speed. */
+		cpmuctrl = tr32(TG3_CPMU_CTRL);
 		tw32(TG3_CPMU_CTRL,
-		     cpmuctrl & ~CPMU_CTRL_LINK_SPEED_MODE);
+		     cpmuctrl & ~(CPMU_CTRL_LINK_SPEED_MODE |
+				  CPMU_CTRL_LINK_AWARE_MODE));
 	}
 
 	if (tg3_run_loopback(tp, TG3_MAC_LOOPBACK))
 		err |= TG3_MAC_LOOPBACK_FAILED;
 
-	if (tp->tg3_flags & TG3_FLAG_CPMU_PRESENT) {
+	if (tp->pci_chip_rev_id == CHIPREV_ID_5784_A0 ||
+	    tp->pci_chip_rev_id == CHIPREV_ID_5761_A0) {
 		tw32(TG3_CPMU_CTRL, cpmuctrl);
 
 		/* Release the mutex */
