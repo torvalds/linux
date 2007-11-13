@@ -160,7 +160,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	if (server->ssocket) {
 		cFYI(1, ("State: 0x%x Flags: 0x%lx", server->ssocket->state,
 			server->ssocket->flags));
-		server->ssocket->ops->shutdown(server->ssocket, SEND_SHUTDOWN);
+		kernel_sock_shutdown(server->ssocket, SHUT_WR);
 		cFYI(1, ("Post shutdown state: 0x%x Flags: 0x%lx",
 			server->ssocket->state,
 			server->ssocket->flags));

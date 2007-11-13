@@ -28,6 +28,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <net/sock.h>
+#include <linux/net.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -126,7 +127,7 @@ static void sock_shutdown(struct nbd_device *lo, int lock)
 	if (lo->sock) {
 		printk(KERN_WARNING "%s: shutting down socket\n",
 			lo->disk->disk_name);
-		lo->sock->ops->shutdown(lo->sock, SEND_SHUTDOWN|RCV_SHUTDOWN);
+		kernel_sock_shutdown(lo->sock, SHUT_RDWR);
 		lo->sock = NULL;
 	}
 	if (lock)
