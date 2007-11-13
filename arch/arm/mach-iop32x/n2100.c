@@ -16,6 +16,7 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/f75375s.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
@@ -200,10 +201,20 @@ static struct platform_device n2100_serial_device = {
 	.resource	= &n2100_uart_resource,
 };
 
+static struct f75375s_platform_data n2100_f75375s = {
+	.pwm		= { 255, 255 },
+	.pwm_enable = { 0, 0 },
+};
+
 static struct i2c_board_info __initdata n2100_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("rtc-rs5c372", 0x32),
 		.type = "rs5c372b",
+	},
+	{
+		I2C_BOARD_INFO("f75375", 0x2e),
+		.type = "f75375",
+		.platform_data = &n2100_f75375s,
 	},
 };
 

@@ -34,6 +34,7 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/f75375s.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2d, 0x2e, I2C_CLIENT_END };
@@ -86,7 +87,7 @@ I2C_CLIENT_INSMOD_2(f75373, f75375);
 
 struct f75375_data {
 	unsigned short addr;
-	struct i2c_client client;
+	struct i2c_client *client;
 	struct device *hwmon_dev;
 
 	const char *name;
@@ -116,13 +117,23 @@ struct f75375_data {
 static int f75375_attach_adapter(struct i2c_adapter *adapter);
 static int f75375_detect(struct i2c_adapter *adapter, int address, int kind);
 static int f75375_detach_client(struct i2c_client *client);
+static int f75375_probe(struct i2c_client *client);
+static int f75375_remove(struct i2c_client *client);
+
+static struct i2c_driver f75375_legacy_driver = {
+	.driver = {
+		.name = "f75375_legacy",
+	},
+	.attach_adapter = f75375_attach_adapter,
+	.detach_client = f75375_detach_client,
+};
 
 static struct i2c_driver f75375_driver = {
 	.driver = {
 		.name = "f75375",
 	},
-	.attach_adapter = f75375_attach_adapter,
-	.detach_client = f75375_detach_client,
+	.probe = f75375_probe,
+	.remove = f75375_remove,
 };
 
 static inline int f75375_read8(struct i2c_client *client, u8 reg)
@@ -276,19 +287,14 @@ static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
 	return sprintf(buf, "%d\n", data->pwm_enable[nr]);
 }
 
-static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
-		const char *buf, size_t count)
+static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 {
-	int nr = to_sensor_dev_attr(attr)->index;
-	struct i2c_client *client = to_i2c_client(dev);
 	struct f75375_data *data = i2c_get_clientdata(client);
-	int val = simple_strtoul(buf, NULL, 10);
 	u8 fanmode;
 
 	if (val < 0 || val > 4)
 		return -EINVAL;
 
-	mutex_lock(&data->update_lock);
 	fanmode = f75375_read8(client, F75375_REG_FAN_TIMER);
 	fanmode = ~(3 << FAN_CTRL_MODE(nr));
 
@@ -310,8 +316,22 @@ static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
 	}
 	f75375_write8(client, F75375_REG_FAN_TIMER, fanmode);
 	data->pwm_enable[nr] = val;
+	return 0;
+}
+
+static ssize_t set_pwm_enable(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t count)
+{
+	int nr = to_sensor_dev_attr(attr)->index;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct f75375_data *data = i2c_get_clientdata(client);
+	int val = simple_strtoul(buf, NULL, 10);
+	int err = 0;
+
+	mutex_lock(&data->update_lock);
+	err = set_pwm_enable_direct(client, nr, val);
 	mutex_unlock(&data->update_lock);
-	return count;
+	return err ? err : count;
 }
 
 static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
@@ -323,7 +343,7 @@ static ssize_t set_pwm_mode(struct device *dev, struct device_attribute *attr,
 	int val = simple_strtoul(buf, NULL, 10);
 	u8 conf = 0;
 
-	if (val != 0 || val != 1 || data->kind == f75373)
+	if (!(val == 0 || val == 1))
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -529,13 +549,13 @@ static SENSOR_DEVICE_ATTR(pwm1, S_IRUGO|S_IWUSR,
 	show_pwm, set_pwm, 0);
 static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO|S_IWUSR,
 	show_pwm_enable, set_pwm_enable, 0);
-static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO|S_IWUSR,
+static SENSOR_DEVICE_ATTR(pwm1_mode, S_IRUGO,
 	show_pwm_mode, set_pwm_mode, 0);
 static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO | S_IWUSR,
 	show_pwm, set_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO|S_IWUSR,
 	show_pwm_enable, set_pwm_enable, 1);
-static SENSOR_DEVICE_ATTR(pwm2_mode, S_IRUGO|S_IWUSR,
+static SENSOR_DEVICE_ATTR(pwm2_mode, S_IRUGO,
 	show_pwm_mode, set_pwm_mode, 1);
 
 static struct attribute *f75375_attributes[] = {
@@ -580,12 +600,9 @@ static const struct attribute_group f75375_group = {
 
 static int f75375_detach_client(struct i2c_client *client)
 {
-	struct f75375_data *data = i2c_get_clientdata(client);
 	int err;
 
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&client->dev.kobj, &f75375_group);
-
+	f75375_remove(client);
 	err = i2c_detach_client(client);
 	if (err) {
 		dev_err(&client->dev,
@@ -593,7 +610,91 @@ static int f75375_detach_client(struct i2c_client *client)
 			"client not detached.\n");
 		return err;
 	}
+	kfree(client);
+	return 0;
+}
+
+static void f75375_init(struct i2c_client *client, struct f75375_data *data,
+		struct f75375s_platform_data *f75375s_pdata)
+{
+	int nr;
+	set_pwm_enable_direct(client, 0, f75375s_pdata->pwm_enable[0]);
+	set_pwm_enable_direct(client, 1, f75375s_pdata->pwm_enable[1]);
+	for (nr = 0; nr < 2; nr++) {
+		data->pwm[nr] = SENSORS_LIMIT(f75375s_pdata->pwm[nr], 0, 255);
+		f75375_write8(client, F75375_REG_FAN_PWM_DUTY(nr),
+			data->pwm[nr]);
+	}
+
+}
+
+static int f75375_probe(struct i2c_client *client)
+{
+	struct f75375_data *data = i2c_get_clientdata(client);
+	struct f75375s_platform_data *f75375s_pdata = client->dev.platform_data;
+	int err;
+
+	if (!i2c_check_functionality(client->adapter,
+				I2C_FUNC_SMBUS_BYTE_DATA))
+		return -EIO;
+	if (!(data = kzalloc(sizeof(struct f75375_data), GFP_KERNEL)))
+		return -ENOMEM;
+
+	i2c_set_clientdata(client, data);
+	data->client = client;
+	mutex_init(&data->update_lock);
+
+	if (strcmp(client->name, "f75375") == 0)
+		data->kind = f75375;
+	else if (strcmp(client->name, "f75373") == 0)
+		data->kind = f75373;
+	else {
+		dev_err(&client->dev, "Unsupported device: %s\n", client->name);
+		return -ENODEV;
+	}
+
+	if ((err = sysfs_create_group(&client->dev.kobj, &f75375_group)))
+		goto exit_free;
+
+	if (data->kind == f75375) {
+		err = sysfs_chmod_file(&client->dev.kobj,
+			&sensor_dev_attr_pwm1_mode.dev_attr.attr,
+			S_IRUGO | S_IWUSR);
+		if (err)
+			goto exit_remove;
+		err = sysfs_chmod_file(&client->dev.kobj,
+			&sensor_dev_attr_pwm2_mode.dev_attr.attr,
+			S_IRUGO | S_IWUSR);
+		if (err)
+			goto exit_remove;
+	}
+
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
+		goto exit_remove;
+	}
+
+	if (f75375s_pdata != NULL)
+		f75375_init(client, data, f75375s_pdata);
+
+	return 0;
+
+exit_remove:
+	sysfs_remove_group(&client->dev.kobj, &f75375_group);
+exit_free:
 	kfree(data);
+	i2c_set_clientdata(client, NULL);
+	return err;
+}
+
+static int f75375_remove(struct i2c_client *client)
+{
+	struct f75375_data *data = i2c_get_clientdata(client);
+	hwmon_device_unregister(data->hwmon_dev);
+	sysfs_remove_group(&client->dev.kobj, &f75375_group);
+	kfree(data);
+	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 
@@ -608,20 +709,17 @@ static int f75375_attach_adapter(struct i2c_adapter *adapter)
 static int f75375_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *client;
-	struct f75375_data *data;
 	u8 version = 0;
 	int err = 0;
 	const char *name = "";
 
-	if (!(data = kzalloc(sizeof(struct f75375_data), GFP_KERNEL))) {
+	if (!(client = kzalloc(sizeof(*client), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	client = &data->client;
-	i2c_set_clientdata(client, data);
 	client->addr = address;
 	client->adapter = adapter;
-	client->driver = &f75375_driver;
+	client->driver = &f75375_legacy_driver;
 
 	if (kind < 0) {
 		u16 vendid = f75375_read16(client, F75375_REG_VENDOR);
@@ -644,42 +742,42 @@ static int f75375_detect(struct i2c_adapter *adapter, int address, int kind)
 	} else if (kind == f75373) {
 		name = "f75373";
 	}
-
 	dev_info(&adapter->dev, "found %s version: %02X\n", name, version);
 	strlcpy(client->name, name, I2C_NAME_SIZE);
-	data->kind = kind;
-	mutex_init(&data->update_lock);
+
 	if ((err = i2c_attach_client(client)))
 		goto exit_free;
 
-	if ((err = sysfs_create_group(&client->dev.kobj, &f75375_group)))
+	if ((err = f75375_probe(client)) < 0)
 		goto exit_detach;
-
-	data->hwmon_dev = hwmon_device_register(&client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove;
-	}
 
 	return 0;
 
-exit_remove:
-	sysfs_remove_group(&client->dev.kobj, &f75375_group);
 exit_detach:
 	i2c_detach_client(client);
 exit_free:
-	kfree(data);
+	kfree(client);
 exit:
 	return err;
 }
 
 static int __init sensors_f75375_init(void)
 {
-	return i2c_add_driver(&f75375_driver);
+	int status;
+	status = i2c_add_driver(&f75375_driver);
+	if (status)
+		return status;
+
+	status = i2c_add_driver(&f75375_legacy_driver);
+	if (status)
+		i2c_del_driver(&f75375_driver);
+
+	return status;
 }
 
 static void __exit sensors_f75375_exit(void)
 {
+	i2c_del_driver(&f75375_legacy_driver);
 	i2c_del_driver(&f75375_driver);
 }
 
