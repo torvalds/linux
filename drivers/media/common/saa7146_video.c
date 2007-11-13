@@ -1440,10 +1440,7 @@ static void video_close(struct saa7146_dev *dev, struct file *file)
 		err = saa7146_stop_preview(fh);
 	}
 
-	// release all capture buffers
-	mutex_lock(&q->lock);
-	videobuf_read_stop(q);
-	mutex_unlock(&q->lock);
+	videobuf_stop(q);
 
 	/* hmm, why is this function declared void? */
 	/* return err */

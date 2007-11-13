@@ -208,6 +208,8 @@ int videobuf_cgmbuf(struct videobuf_queue *q,
 int videobuf_streamon(struct videobuf_queue *q);
 int videobuf_streamoff(struct videobuf_queue *q);
 
+void videobuf_stop(struct videobuf_queue *q);
+
 int videobuf_read_start(struct videobuf_queue *q);
 void videobuf_read_stop(struct videobuf_queue *q);
 ssize_t videobuf_read_stream(struct videobuf_queue *q,
