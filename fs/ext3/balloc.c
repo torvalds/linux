@@ -80,14 +80,6 @@ struct ext3_group_desc * ext3_get_group_desc(struct super_block * sb,
 	return desc + offset;
 }
 
-static inline int
-block_in_use(ext3_fsblk_t block, struct super_block *sb, unsigned char *map)
-{
-	return ext3_test_bit ((block -
-		le32_to_cpu(EXT3_SB(sb)->s_es->s_first_data_block)) %
-			 EXT3_BLOCKS_PER_GROUP(sb), map);
-}
-
 /**
  * read_block_bitmap()
  * @sb:			super block
@@ -101,51 +93,20 @@ block_in_use(ext3_fsblk_t block, struct super_block *sb, unsigned char *map)
 static struct buffer_head *
 read_block_bitmap(struct super_block *sb, unsigned int block_group)
 {
-	int i;
 	struct ext3_group_desc * desc;
 	struct buffer_head * bh = NULL;
-	ext3_fsblk_t bitmap_blk;
 
 	desc = ext3_get_group_desc (sb, block_group, NULL);
 	if (!desc)
-		return NULL;
-	bitmap_blk = le32_to_cpu(desc->bg_block_bitmap);
-	bh = sb_bread(sb, bitmap_blk);
+		goto error_out;
+	bh = sb_bread(sb, le32_to_cpu(desc->bg_block_bitmap));
 	if (!bh)
-		ext3_error (sb, __FUNCTION__,
+		ext3_error (sb, "read_block_bitmap",
 			    "Cannot read block bitmap - "
 			    "block_group = %d, block_bitmap = %u",
 			    block_group, le32_to_cpu(desc->bg_block_bitmap));
-
-	/* check whether block bitmap block number is set */
-	if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
-		/* bad block bitmap */
-		goto error_out;
-	}
-	/* check whether the inode bitmap block number is set */
-	bitmap_blk = le32_to_cpu(desc->bg_inode_bitmap);
-	if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
-		/* bad block bitmap */
-		goto error_out;
-	}
-	/* check whether the inode table block number is set */
-	bitmap_blk = le32_to_cpu(desc->bg_inode_table);
-	for (i = 0; i < EXT3_SB(sb)->s_itb_per_group; i++, bitmap_blk++) {
-		if (!block_in_use(bitmap_blk, sb, bh->b_data)) {
-			/* bad block bitmap */
-			goto error_out;
-		}
-	}
-
-	return bh;
-
 error_out:
-	brelse(bh);
-	ext3_error(sb, __FUNCTION__,
-			"Invalid block bitmap - "
-			"block_group = %d, block = %lu",
-			block_group, bitmap_blk);
-	return NULL;
+	return bh;
 }
 /*
  * The reservation window structure operations
@@ -1771,7 +1732,6 @@ ext3_fsblk_t ext3_count_free_blocks(struct super_block *sb)
 	return desc_count;
 #endif
 }
-
 
 static inline int test_root(int a, int b)
 {
