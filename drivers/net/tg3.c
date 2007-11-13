@@ -6369,6 +6369,21 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		val = tr32(TG3_CPMU_CTRL);
 		val &= ~(CPMU_CTRL_LINK_AWARE_MODE | CPMU_CTRL_LINK_IDLE_MODE);
 		tw32(TG3_CPMU_CTRL, val);
+
+		val = tr32(TG3_CPMU_LSPD_10MB_CLK);
+		val &= ~CPMU_LSPD_10MB_MACCLK_MASK;
+		val |= CPMU_LSPD_10MB_MACCLK_6_25;
+		tw32(TG3_CPMU_LSPD_10MB_CLK, val);
+
+		val = tr32(TG3_CPMU_LNK_AWARE_PWRMD);
+		val &= ~CPMU_LNK_AWARE_MACCLK_MASK;
+		val |= CPMU_LNK_AWARE_MACCLK_6_25;
+		tw32(TG3_CPMU_LNK_AWARE_PWRMD, val);
+
+		val = tr32(TG3_CPMU_HST_ACC);
+		val &= ~CPMU_HST_ACC_MACCLK_MASK;
+		val |= CPMU_HST_ACC_MACCLK_6_25;
+		tw32(TG3_CPMU_HST_ACC, val);
 	}
 
 	/* This works around an issue with Athlon chipsets on
