@@ -1715,6 +1715,12 @@
 #define MII_TG3_ISTAT			0x1a /* IRQ status register */
 #define MII_TG3_IMASK			0x1b /* IRQ mask register */
 
+#define MII_TG3_MISC_SHDW		0x1c
+#define MII_TG3_MISC_SHDW_WREN		0x8000
+#define MII_TG3_MISC_SHDW_APD_SEL	0x2800
+
+#define MII_TG3_MISC_SHDW_APD_WKTM_84MS	0x0001
+
 /* ISTAT/IMASK event bits */
 #define MII_TG3_INT_LINKCHG		0x0002
 #define MII_TG3_INT_SPEEDCHG		0x0004

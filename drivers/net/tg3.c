@@ -1117,6 +1117,12 @@ static int tg3_phy_reset(struct tg3 *tp)
 			udelay(40);
 			tw32_f(TG3_CPMU_LSPD_1000MB_CLK, val);
 		}
+
+		/* Disable GPHY autopowerdown. */
+		tg3_writephy(tp, MII_TG3_MISC_SHDW,
+			     MII_TG3_MISC_SHDW_WREN |
+			     MII_TG3_MISC_SHDW_APD_SEL |
+			     MII_TG3_MISC_SHDW_APD_WKTM_84MS);
 	}
 
 out:
