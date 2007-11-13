@@ -9,13 +9,13 @@
 #include <linux/percpu.h>
 #include <linux/types.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 #include <asm/cell-regs.h>
 
 /*
