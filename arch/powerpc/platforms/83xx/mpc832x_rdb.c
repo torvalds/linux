@@ -15,7 +15,10 @@
  */
 
 #include <linux/pci.h>
+#include <linux/interrupt.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/mmc_spi.h>
+#include <linux/mmc/host.h>
 
 #include <asm/of_platform.h>
 #include <asm/time.h>
@@ -46,15 +49,16 @@ static void mpc83xx_spi_deactivate_cs(u8 cs, u8 polarity)
 	par_io_data_set(3, 13, !polarity);
 }
 
+static struct mmc_spi_platform_data mpc832x_mmc_pdata = {
+	.ocr_mask = MMC_VDD_33_34,
+};
+
 static struct spi_board_info mpc832x_spi_boardinfo = {
 	.bus_num = 0x4c0,
 	.chip_select = 0,
 	.max_speed_hz = 50000000,
-	/*
-	 * XXX: This is spidev (spi in userspace) stub, should
-	 * be replaced by "mmc_spi" when mmc_spi will hit mainline.
-	 */
-	.modalias = "spidev",
+	.modalias = "mmc_spi",
+	.platform_data = &mpc832x_mmc_pdata,
 };
 
 static int __init mpc832x_spi_init(void)
