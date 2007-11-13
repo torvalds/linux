@@ -24,6 +24,7 @@
 #include <asm/module.h>
 #include <asm/uaccess.h>
 #include <asm/firmware.h>
+#include <linux/sort.h>
 
 #include "setup.h"
 
@@ -81,25 +82,23 @@ static struct ppc64_stub_entry ppc64_stub =
    different addend) */
 static unsigned int count_relocs(const Elf64_Rela *rela, unsigned int num)
 {
-	unsigned int i, j, ret = 0;
+	unsigned int i, r_info, r_addend, _count_relocs;
 
 	/* FIXME: Only count external ones --RR */
-	/* Sure, this is order(n^2), but it's usually short, and not
-           time critical */
-	for (i = 0; i < num; i++) {
+	_count_relocs = 0;
+	r_info = 0;
+	r_addend = 0;
+	for (i = 0; i < num; i++)
 		/* Only count 24-bit relocs, others don't need stubs */
-		if (ELF64_R_TYPE(rela[i].r_info) != R_PPC_REL24)
-			continue;
-		for (j = 0; j < i; j++) {
-			/* If this addend appeared before, it's
-                           already been counted */
-			if (rela[i].r_info == rela[j].r_info
-			    && rela[i].r_addend == rela[j].r_addend)
-				break;
+		if (ELF64_R_TYPE(rela[i].r_info) == R_PPC_REL24 &&
+		    (r_info != ELF64_R_SYM(rela[i].r_info) ||
+		     r_addend != rela[i].r_addend)) {
+			_count_relocs++;
+			r_info = ELF64_R_SYM(rela[i].r_info);
+			r_addend = rela[i].r_addend;
 		}
-		if (j == i) ret++;
-	}
-	return ret;
+
+	return _count_relocs;
 }
 
 void *module_alloc(unsigned long size)
@@ -118,6 +117,44 @@ void module_free(struct module *mod, void *module_region)
            table entries. */
 }
 
+static int relacmp(const void *_x, const void *_y)
+{
+	const Elf64_Rela *x, *y;
+
+	y = (Elf64_Rela *)_x;
+	x = (Elf64_Rela *)_y;
+
+	/* Compare the entire r_info (as opposed to ELF64_R_SYM(r_info) only) to
+	 * make the comparison cheaper/faster. It won't affect the sorting or
+	 * the counting algorithms' performance
+	 */
+	if (x->r_info < y->r_info)
+		return -1;
+	else if (x->r_info > y->r_info)
+		return 1;
+	else if (x->r_addend < y->r_addend)
+		return -1;
+	else if (x->r_addend > y->r_addend)
+		return 1;
+	else
+		return 0;
+}
+
+static void relaswap(void *_x, void *_y, int size)
+{
+	uint64_t *x, *y, tmp;
+	int i;
+
+	y = (uint64_t *)_x;
+	x = (uint64_t *)_y;
+
+	for (i = 0; i < sizeof(Elf64_Rela) / sizeof(uint64_t); i++) {
+		tmp = x[i];
+		x[i] = y[i];
+		y[i] = tmp;
+	}
+}
+
 /* Get size of potential trampolines required. */
 static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 				    const Elf64_Shdr *sechdrs)
@@ -133,6 +170,16 @@ static unsigned long get_stubs_size(const Elf64_Ehdr *hdr,
 			DEBUGP("Ptr: %p.  Number: %lu\n",
 			       (void *)sechdrs[i].sh_addr,
 			       sechdrs[i].sh_size / sizeof(Elf64_Rela));
+
+			/* Sort the relocation information based on a symbol and
+			 * addend key. This is a stable O(n*log n) complexity
+			 * alogrithm but it will reduce the complexity of
+			 * count_relocs() to linear complexity O(n)
+			 */
+			sort((void *)sechdrs[i].sh_addr,
+			     sechdrs[i].sh_size / sizeof(Elf64_Rela),
+			     sizeof(Elf64_Rela), relacmp, relaswap);
+
 			relocs += count_relocs((void *)sechdrs[i].sh_addr,
 					       sechdrs[i].sh_size
 					       / sizeof(Elf64_Rela));
@@ -343,7 +390,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			/* Simply set it */
 			*(u32 *)location = value;
 			break;
-			
+
 		case R_PPC64_ADDR64:
 			/* Simply set it */
 			*(unsigned long *)location = value;
@@ -399,7 +446,7 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			}
 
 			/* Only replace bits 2 through 26 */
-			*(uint32_t *)location 
+			*(uint32_t *)location
 				= (*(uint32_t *)location & ~0x03fffffc)
 				| (value & 0x03fffffc);
 			break;

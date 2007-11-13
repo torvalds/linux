@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/cache.h>
 #include <linux/bug.h>
+#include <linux/sort.h>
 
 #include "setup.h"
 
@@ -54,22 +55,60 @@ void module_free(struct module *mod, void *module_region)
    addend) */
 static unsigned int count_relocs(const Elf32_Rela *rela, unsigned int num)
 {
-	unsigned int i, j, ret = 0;
+	unsigned int i, r_info, r_addend, _count_relocs;
 
-	/* Sure, this is order(n^2), but it's usually short, and not
-           time critical */
-	for (i = 0; i < num; i++) {
-		for (j = 0; j < i; j++) {
-			/* If this addend appeared before, it's
-                           already been counted */
-			if (ELF32_R_SYM(rela[i].r_info)
-			    == ELF32_R_SYM(rela[j].r_info)
-			    && rela[i].r_addend == rela[j].r_addend)
-				break;
+	_count_relocs = 0;
+	r_info = 0;
+	r_addend = 0;
+	for (i = 0; i < num; i++)
+		/* Only count 24-bit relocs, others don't need stubs */
+		if (ELF32_R_TYPE(rela[i].r_info) == R_PPC_REL24 &&
+		    (r_info != ELF32_R_SYM(rela[i].r_info) ||
+		     r_addend != rela[i].r_addend)) {
+			_count_relocs++;
+			r_info = ELF32_R_SYM(rela[i].r_info);
+			r_addend = rela[i].r_addend;
 		}
-		if (j == i) ret++;
+
+	return _count_relocs;
+}
+
+static int relacmp(const void *_x, const void *_y)
+{
+	const Elf32_Rela *x, *y;
+
+	y = (Elf32_Rela *)_x;
+	x = (Elf32_Rela *)_y;
+
+	/* Compare the entire r_info (as opposed to ELF32_R_SYM(r_info) only) to
+	 * make the comparison cheaper/faster. It won't affect the sorting or
+	 * the counting algorithms' performance
+	 */
+	if (x->r_info < y->r_info)
+		return -1;
+	else if (x->r_info > y->r_info)
+		return 1;
+	else if (x->r_addend < y->r_addend)
+		return -1;
+	else if (x->r_addend > y->r_addend)
+		return 1;
+	else
+		return 0;
+}
+
+static void relaswap(void *_x, void *_y, int size)
+{
+	uint32_t *x, *y, tmp;
+	int i;
+
+	y = (uint32_t *)_x;
+	x = (uint32_t *)_y;
+
+	for (i = 0; i < sizeof(Elf32_Rela) / sizeof(uint32_t); i++) {
+		tmp = x[i];
+		x[i] = y[i];
+		y[i] = tmp;
 	}
-	return ret;
 }
 
 /* Get the potential trampolines size required of the init and
@@ -100,6 +139,16 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 			DEBUGP("Ptr: %p.  Number: %u\n",
 			       (void *)hdr + sechdrs[i].sh_offset,
 			       sechdrs[i].sh_size / sizeof(Elf32_Rela));
+
+			/* Sort the relocation information based on a symbol and
+			 * addend key. This is a stable O(n*log n) complexity
+			 * alogrithm but it will reduce the complexity of
+			 * count_relocs() to linear complexity O(n)
+			 */
+			sort((void *)hdr + sechdrs[i].sh_offset,
+			     sechdrs[i].sh_size / sizeof(Elf32_Rela),
+			     sizeof(Elf32_Rela), relacmp, relaswap);
+
 			ret += count_relocs((void *)hdr
 					     + sechdrs[i].sh_offset,
 					     sechdrs[i].sh_size
