@@ -441,7 +441,6 @@ struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	} else
 		return NULL;
 }
-EXPORT_SYMBOL(ip_vs_try_bind_dest);
 
 
 /*

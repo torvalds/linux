@@ -604,7 +604,6 @@ struct ip_vs_dest *ip_vs_find_dest(__be32 daddr, __be16 dport,
 	ip_vs_service_put(svc);
 	return dest;
 }
-EXPORT_SYMBOL(ip_vs_find_dest);
 
 /*
  *  Lookup dest by {svc,addr,port} in the destination trash.
