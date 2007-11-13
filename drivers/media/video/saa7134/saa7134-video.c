@@ -1445,10 +1445,7 @@ static int video_release(struct inode *inode, struct file *file)
 
 	/* stop vbi capture */
 	if (res_check(fh, RESOURCE_VBI)) {
-		if (fh->vbi.streaming)
-			videobuf_streamoff(&fh->vbi);
-		if (fh->vbi.reading)
-			videobuf_read_stop(&fh->vbi);
+		videobuf_stop(&fh->vbi);
 		res_free(dev,fh,RESOURCE_VBI);
 	}
 

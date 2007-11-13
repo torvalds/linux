@@ -110,11 +110,8 @@ static int ts_release(struct inode *inode, struct file *file)
 {
 	struct saa7134_dev *dev = file->private_data;
 
-	if (dev->empress_tsq.streaming)
-		videobuf_streamoff(&dev->empress_tsq);
 	mutex_lock(&dev->empress_tsq.lock);
-	if (dev->empress_tsq.reading)
-		videobuf_read_stop(&dev->empress_tsq);
+	videobuf_stop(&dev->empress_tsq);
 	videobuf_mmap_free(&dev->empress_tsq);
 	dev->empress_users--;
 

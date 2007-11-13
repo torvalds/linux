@@ -3827,10 +3827,7 @@ static int bttv_release(struct inode *inode, struct file *file)
 
 	/* stop vbi capture */
 	if (check_btres(fh, RESOURCE_VBI)) {
-		if (fh->vbi.streaming)
-			videobuf_streamoff(&fh->vbi);
-		if (fh->vbi.reading)
-			videobuf_read_stop(&fh->vbi);
+		videobuf_stop(&fh->vbi);
 		free_btres(btv,fh,RESOURCE_VBI);
 	}
 
