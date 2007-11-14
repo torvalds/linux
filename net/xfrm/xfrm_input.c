@@ -81,6 +81,19 @@ int xfrm_parse_spi(struct sk_buff *skb, u8 nexthdr, __be32 *spi, __be32 *seq)
 }
 EXPORT_SYMBOL(xfrm_parse_spi);
 
+int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
+{
+	int err;
+
+	err = x->outer_mode->afinfo->extract_input(x, skb);
+	if (err)
+		return err;
+
+	skb->protocol = x->inner_mode->afinfo->eth_proto;
+	return x->inner_mode->input2(x, skb);
+}
+EXPORT_SYMBOL(xfrm_prepare_input);
+
 void __init xfrm_input_init(void)
 {
 	secpath_cachep = kmem_cache_create("secpath_cache",

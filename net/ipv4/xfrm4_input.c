@@ -16,6 +16,11 @@
 #include <net/ip.h>
 #include <net/xfrm.h>
 
+int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb)
+{
+	return xfrm4_extract_header(skb);
+}
+
 #ifdef CONFIG_NETFILTER
 static inline int xfrm4_rcv_encap_finish(struct sk_buff *skb)
 {
@@ -91,7 +96,7 @@ int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
 
 		xfrm_vec[xfrm_nr++] = x;
 
-		if (x->outer_mode->input(x, skb))
+		if (x->inner_mode->input(x, skb))
 			goto drop;
 
 		if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {

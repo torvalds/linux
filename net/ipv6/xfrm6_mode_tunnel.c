@@ -25,12 +25,6 @@ static inline void ipip6_ecn_decapsulate(struct sk_buff *skb)
 		IP6_ECN_set_ce(inner_iph);
 }
 
-static inline void ip6ip_ecn_decapsulate(struct sk_buff *skb)
-{
-	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6_hdr(skb))))
-			IP_ECN_set_ce(ipip_hdr(skb));
-}
-
 /* Add encapsulation header.
  *
  * The top IP header will be constructed per RFC 2401.
@@ -68,10 +62,8 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	int err = -EINVAL;
 	const unsigned char *old_mac;
-	const unsigned char *nh = skb_network_header(skb);
 
-	if (nh[IP6CB(skb)->nhoff] != IPPROTO_IPV6 &&
-	    nh[IP6CB(skb)->nhoff] != IPPROTO_IPIP)
+	if (XFRM_MODE_SKB_CB(skb)->protocol != IPPROTO_IPV6)
 		goto out;
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto out;
@@ -80,18 +72,12 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 		goto out;
 
-	nh = skb_network_header(skb);
-	if (nh[IP6CB(skb)->nhoff] == IPPROTO_IPV6) {
-		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-			ipv6_copy_dscp(ipv6_get_dsfield(ipv6_hdr(skb)),
-				       ipipv6_hdr(skb));
-		if (!(x->props.flags & XFRM_STATE_NOECN))
-			ipip6_ecn_decapsulate(skb);
-	} else {
-		if (!(x->props.flags & XFRM_STATE_NOECN))
-			ip6ip_ecn_decapsulate(skb);
-		skb->protocol = htons(ETH_P_IP);
-	}
+	if (x->props.flags & XFRM_STATE_DECAP_DSCP)
+		ipv6_copy_dscp(ipv6_get_dsfield(ipv6_hdr(skb)),
+			       ipipv6_hdr(skb));
+	if (!(x->props.flags & XFRM_STATE_NOECN))
+		ipip6_ecn_decapsulate(skb);
+
 	old_mac = skb_mac_header(skb);
 	skb_set_mac_header(skb, -skb->mac_len);
 	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
@@ -103,7 +89,8 @@ out:
 }
 
 static struct xfrm_mode xfrm6_tunnel_mode = {
-	.input = xfrm6_tunnel_input,
+	.input2 = xfrm6_tunnel_input,
+	.input = xfrm_prepare_input,
 	.output2 = xfrm6_tunnel_output,
 	.output = xfrm6_prepare_output,
 	.owner = THIS_MODULE,

@@ -53,6 +53,7 @@ int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		return err;
 
+	IP6CB(skb)->nhoff = offsetof(struct ipv6hdr, nexthdr);
 	return xfrm6_extract_header(skb);
 }
 

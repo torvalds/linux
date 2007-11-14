@@ -16,17 +16,10 @@
 
 static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
 {
-	struct iphdr *outer_iph = ip_hdr(skb);
 	struct iphdr *inner_iph = ipip_hdr(skb);
 
-	if (INET_ECN_is_ce(outer_iph->tos))
+	if (INET_ECN_is_ce(XFRM_MODE_SKB_CB(skb)->tos))
 		IP_ECN_set_ce(inner_iph);
-}
-
-static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
-{
-	if (INET_ECN_is_ce(iph->tos))
-		IP6_ECN_set_ce(ipv6_hdr(skb));
 }
 
 /* Add encapsulation header.
@@ -72,20 +65,11 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 
 static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct iphdr *iph = ip_hdr(skb);
 	const unsigned char *old_mac;
 	int err = -EINVAL;
 
-	switch (iph->protocol){
-		case IPPROTO_IPIP:
-			break;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-		case IPPROTO_IPV6:
-			break;
-#endif
-		default:
-			goto out;
-	}
+	if (XFRM_MODE_SKB_CB(skb)->protocol != IPPROTO_IPIP)
+		goto out;
 
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto out;
@@ -94,20 +78,11 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	    (err = pskb_expand_head(skb, 0, 0, GFP_ATOMIC)))
 		goto out;
 
-	iph = ip_hdr(skb);
-	if (iph->protocol == IPPROTO_IPIP) {
-		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-			ipv4_copy_dscp(ipv4_get_dsfield(iph), ipip_hdr(skb));
-		if (!(x->props.flags & XFRM_STATE_NOECN))
-			ipip_ecn_decapsulate(skb);
-	}
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-	else {
-		if (!(x->props.flags & XFRM_STATE_NOECN))
-			ipip6_ecn_decapsulate(iph, skb);
-		skb->protocol = htons(ETH_P_IPV6);
-	}
-#endif
+	if (x->props.flags & XFRM_STATE_DECAP_DSCP)
+		ipv4_copy_dscp(XFRM_MODE_SKB_CB(skb)->tos, ipip_hdr(skb));
+	if (!(x->props.flags & XFRM_STATE_NOECN))
+		ipip_ecn_decapsulate(skb);
+
 	old_mac = skb_mac_header(skb);
 	skb_set_mac_header(skb, -skb->mac_len);
 	memmove(skb_mac_header(skb), old_mac, skb->mac_len);
@@ -119,7 +94,8 @@ out:
 }
 
 static struct xfrm_mode xfrm4_tunnel_mode = {
-	.input = xfrm4_tunnel_input,
+	.input2 = xfrm4_tunnel_input,
+	.input = xfrm_prepare_input,
 	.output2 = xfrm4_tunnel_output,
 	.output = xfrm4_prepare_output,
 	.owner = THIS_MODULE,

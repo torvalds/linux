@@ -16,6 +16,11 @@
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
+int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb)
+{
+	return xfrm6_extract_header(skb);
+}
+
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 {
 	int err;
@@ -68,7 +73,7 @@ int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 
 		xfrm_vec[xfrm_nr++] = x;
 
-		if (x->outer_mode->input(x, skb))
+		if (x->inner_mode->input(x, skb))
 			goto drop;
 
 		if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {

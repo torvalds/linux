@@ -258,6 +258,7 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 struct xfrm_state_afinfo {
 	unsigned int		family;
 	unsigned int		proto;
+	unsigned int		eth_proto;
 	struct module		*owner;
 	struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
@@ -268,6 +269,8 @@ struct xfrm_state_afinfo {
 	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
 	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
 	int			(*output)(struct sk_buff *skb);
+	int			(*extract_input)(struct xfrm_state *x,
+						 struct sk_buff *skb);
 	int			(*extract_output)(struct xfrm_state *x,
 						  struct sk_buff *skb);
 };
@@ -302,6 +305,27 @@ extern int xfrm_register_type(struct xfrm_type *type, unsigned short family);
 extern int xfrm_unregister_type(struct xfrm_type *type, unsigned short family);
 
 struct xfrm_mode {
+	/*
+	 * Remove encapsulation header.
+	 *
+	 * The IP header will be moved over the top of the encapsulation
+	 * header.
+	 *
+	 * On entry, the transport header shall point to where the IP header
+	 * should be and the network header shall be set to where the IP
+	 * header currently is.  skb->data shall point to the start of the
+	 * payload.
+	 */
+	int (*input2)(struct xfrm_state *x, struct sk_buff *skb);
+
+	/*
+	 * This is the actual input entry point.
+	 *
+	 * For transport mode and equivalent this would be identical to
+	 * input2 (which does not need to be set).  While tunnel mode
+	 * and equivalent would set this to the tunnel encapsulation function
+	 * xfrm4_prepare_input that would in turn call input2.
+	 */
 	int (*input)(struct xfrm_state *x, struct sk_buff *skb);
 
 	/*
@@ -1093,8 +1117,10 @@ extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
+extern int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm_output(struct sk_buff *skb);
 extern int xfrm4_extract_header(struct sk_buff *skb);
+extern int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
 			   int encap_type);
 extern int xfrm4_rcv(struct sk_buff *skb);
@@ -1110,6 +1136,7 @@ extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm6_extract_header(struct sk_buff *skb);
+extern int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
 extern int xfrm6_rcv(struct sk_buff *skb);
 extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,

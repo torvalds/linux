@@ -65,10 +65,12 @@ int xfrm4_extract_header(struct sk_buff *skb)
 static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
 	.proto			= IPPROTO_IPIP,
+	.eth_proto		= htons(ETH_P_IP),
 	.owner			= THIS_MODULE,
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.output			= xfrm4_output,
+	.extract_input		= xfrm4_extract_input,
 	.extract_output		= xfrm4_extract_output,
 };
 

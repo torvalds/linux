@@ -177,7 +177,8 @@ int xfrm6_extract_header(struct sk_buff *skb)
 	XFRM_MODE_SKB_CB(skb)->frag_off = htons(IP_DF);
 	XFRM_MODE_SKB_CB(skb)->tos = ipv6_get_dsfield(iph);
 	XFRM_MODE_SKB_CB(skb)->ttl = iph->hop_limit;
-	XFRM_MODE_SKB_CB(skb)->protocol = iph->nexthdr;
+	XFRM_MODE_SKB_CB(skb)->protocol =
+		skb_network_header(skb)[IP6CB(skb)->nhoff];
 	memcpy(XFRM_MODE_SKB_CB(skb)->flow_lbl, iph->flow_lbl,
 	       sizeof(XFRM_MODE_SKB_CB(skb)->flow_lbl));
 
@@ -187,11 +188,13 @@ int xfrm6_extract_header(struct sk_buff *skb)
 static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.family			= AF_INET6,
 	.proto			= IPPROTO_IPV6,
+	.eth_proto		= htons(ETH_P_IPV6),
 	.owner			= THIS_MODULE,
 	.init_tempsel		= __xfrm6_init_tempsel,
 	.tmpl_sort		= __xfrm6_tmpl_sort,
 	.state_sort		= __xfrm6_state_sort,
 	.output			= xfrm6_output,
+	.extract_input		= xfrm6_extract_input,
 	.extract_output		= xfrm6_extract_output,
 };
 
