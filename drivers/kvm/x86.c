@@ -1645,10 +1645,35 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_pio_string);
 
-__init void kvm_arch_init(void)
+int kvm_arch_init(void *opaque)
 {
+	struct kvm_x86_ops *ops = (struct kvm_x86_ops *)opaque;
+
 	kvm_init_msr_list();
+
+	if (kvm_x86_ops) {
+		printk(KERN_ERR "kvm: already loaded the other module\n");
+		return -EEXIST;
+	}
+
+	if (!ops->cpu_has_kvm_support()) {
+		printk(KERN_ERR "kvm: no hardware support\n");
+		return -EOPNOTSUPP;
+	}
+	if (ops->disabled_by_bios()) {
+		printk(KERN_ERR "kvm: disabled by bios\n");
+		return -EOPNOTSUPP;
+	}
+
+	kvm_x86_ops = ops;
+
+	return 0;
 }
+
+void kvm_arch_exit(void)
+{
+	kvm_x86_ops = NULL;
+ }
 
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {

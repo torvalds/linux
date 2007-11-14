@@ -495,7 +495,7 @@ void vcpu_put(struct kvm_vcpu *vcpu);
 void decache_vcpus_on_cpu(int cpu);
 
 
-int kvm_init(struct kvm_x86_ops *ops, unsigned int vcpu_size,
+int kvm_init(void *opaque, unsigned int vcpu_size,
 		  struct module *module);
 void kvm_exit(void);
 
@@ -649,7 +649,8 @@ int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
 				    struct kvm_debug_guest *dbg);
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 
-__init void kvm_arch_init(void);
+int kvm_arch_init(void *opaque);
+void kvm_arch_exit(void);
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu);

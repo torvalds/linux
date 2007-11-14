@@ -1434,7 +1434,7 @@ static void kvm_sched_out(struct preempt_notifier *pn,
 	kvm_arch_vcpu_put(vcpu);
 }
 
-int kvm_init(struct kvm_x86_ops *ops, unsigned int vcpu_size,
+int kvm_init(void *opaque, unsigned int vcpu_size,
 		  struct module *module)
 {
 	int r;
@@ -1446,7 +1446,9 @@ int kvm_init(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 
 	kvm_init_debug();
 
-	kvm_arch_init();
+	r = kvm_arch_init(opaque);
+	if (r)
+		goto out4;
 
 	bad_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
 
@@ -1454,22 +1456,6 @@ int kvm_init(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 		r = -ENOMEM;
 		goto out;
 	}
-
-	if (kvm_x86_ops) {
-		printk(KERN_ERR "kvm: already loaded the other module\n");
-		return -EEXIST;
-	}
-
-	if (!ops->cpu_has_kvm_support()) {
-		printk(KERN_ERR "kvm: no hardware support\n");
-		return -EOPNOTSUPP;
-	}
-	if (ops->disabled_by_bios()) {
-		printk(KERN_ERR "kvm: disabled by bios\n");
-		return -EOPNOTSUPP;
-	}
-
-	kvm_x86_ops = ops;
 
 	r = kvm_arch_hardware_setup();
 	if (r < 0)
@@ -1534,7 +1520,7 @@ out_free_1:
 out_free_0:
 	kvm_arch_hardware_unsetup();
 out:
-	kvm_x86_ops = NULL;
+	kvm_arch_exit();
 	kvm_exit_debug();
 	kvm_mmu_module_exit();
 out4:
@@ -1552,7 +1538,7 @@ void kvm_exit(void)
 	unregister_cpu_notifier(&kvm_cpu_notifier);
 	on_each_cpu(hardware_disable, NULL, 0, 1);
 	kvm_arch_hardware_unsetup();
-	kvm_x86_ops = NULL;
+	kvm_arch_exit();
 	kvm_exit_debug();
 	__free_page(bad_page);
 	kvm_mmu_module_exit();
