@@ -577,7 +577,7 @@ static void gred_destroy(struct Qdisc *sch)
 	}
 }
 
-static struct Qdisc_ops gred_qdisc_ops = {
+static struct Qdisc_ops gred_qdisc_ops __read_mostly = {
 	.id		=	"gred",
 	.priv_size	=	sizeof(struct gred_sched),
 	.enqueue	=	gred_enqueue,

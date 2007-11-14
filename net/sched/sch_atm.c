@@ -668,7 +668,7 @@ static int atm_tc_dump(struct Qdisc *sch, struct sk_buff *skb)
 	return 0;
 }
 
-static struct Qdisc_class_ops atm_class_ops = {
+static const struct Qdisc_class_ops atm_class_ops = {
 	.graft		= atm_tc_graft,
 	.leaf		= atm_tc_leaf,
 	.get		= atm_tc_get,
@@ -683,7 +683,7 @@ static struct Qdisc_class_ops atm_class_ops = {
 	.dump_stats	= atm_tc_dump_class_stats,
 };
 
-static struct Qdisc_ops atm_qdisc_ops = {
+static struct Qdisc_ops atm_qdisc_ops __read_mostly = {
 	.cl_ops		= &atm_class_ops,
 	.id		= "atm",
 	.priv_size	= sizeof(struct atm_qdisc_data),

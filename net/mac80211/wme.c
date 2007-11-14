@@ -527,7 +527,7 @@ static struct tcf_proto ** wme_classop_find_tcf(struct Qdisc *qd,
 
 /* this qdisc is classful (i.e. has classes, some of which may have leaf qdiscs attached)
  * - these are the operations on the classes */
-static struct Qdisc_class_ops class_ops =
+static const struct Qdisc_class_ops class_ops =
 {
 	.graft = wme_classop_graft,
 	.leaf = wme_classop_leaf,
@@ -547,7 +547,7 @@ static struct Qdisc_class_ops class_ops =
 
 
 /* queueing discipline operations */
-static struct Qdisc_ops wme_qdisc_ops =
+static struct Qdisc_ops wme_qdisc_ops __read_mostly =
 {
 	.next = NULL,
 	.cl_ops = &class_ops,

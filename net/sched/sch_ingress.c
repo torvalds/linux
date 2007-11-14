@@ -338,7 +338,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct Qdisc_class_ops ingress_class_ops = {
+static const struct Qdisc_class_ops ingress_class_ops = {
 	.graft		=	ingress_graft,
 	.leaf		=	ingress_leaf,
 	.get		=	ingress_get,
@@ -352,7 +352,7 @@ static struct Qdisc_class_ops ingress_class_ops = {
 	.dump		=	NULL,
 };
 
-static struct Qdisc_ops ingress_qdisc_ops = {
+static struct Qdisc_ops ingress_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&ingress_class_ops,
 	.id		=	"ingress",

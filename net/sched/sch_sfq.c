@@ -480,7 +480,7 @@ rtattr_failure:
 	return -1;
 }
 
-static struct Qdisc_ops sfq_qdisc_ops = {
+static struct Qdisc_ops sfq_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	NULL,
 	.id		=	"sfq",

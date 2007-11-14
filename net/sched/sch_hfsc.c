@@ -1698,7 +1698,7 @@ hfsc_drop(struct Qdisc *sch)
 	return 0;
 }
 
-static struct Qdisc_class_ops hfsc_class_ops = {
+static const struct Qdisc_class_ops hfsc_class_ops = {
 	.change		= hfsc_change_class,
 	.delete		= hfsc_delete_class,
 	.graft		= hfsc_graft_class,
@@ -1714,7 +1714,7 @@ static struct Qdisc_class_ops hfsc_class_ops = {
 	.walk		= hfsc_walk
 };
 
-static struct Qdisc_ops hfsc_qdisc_ops = {
+static struct Qdisc_ops hfsc_qdisc_ops __read_mostly = {
 	.id		= "hfsc",
 	.init		= hfsc_init_qdisc,
 	.change		= hfsc_change_qdisc,

@@ -78,7 +78,7 @@ rtattr_failure:
 	return -1;
 }
 
-struct Qdisc_ops pfifo_qdisc_ops = {
+struct Qdisc_ops pfifo_qdisc_ops __read_mostly = {
 	.id		=	"pfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	pfifo_enqueue,
@@ -92,7 +92,7 @@ struct Qdisc_ops pfifo_qdisc_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-struct Qdisc_ops bfifo_qdisc_ops = {
+struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.id		=	"bfifo",
 	.priv_size	=	sizeof(struct fifo_sched_data),
 	.enqueue	=	bfifo_enqueue,

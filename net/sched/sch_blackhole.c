@@ -28,7 +28,7 @@ static struct sk_buff *blackhole_dequeue(struct Qdisc *sch)
 	return NULL;
 }
 
-static struct Qdisc_ops blackhole_qdisc_ops = {
+static struct Qdisc_ops blackhole_qdisc_ops __read_mostly = {
 	.id		= "blackhole",
 	.priv_size	= 0,
 	.enqueue	= blackhole_enqueue,

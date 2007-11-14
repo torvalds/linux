@@ -468,7 +468,7 @@ static struct tcf_proto ** prio_find_tcf(struct Qdisc *sch, unsigned long cl)
 	return &q->filter_list;
 }
 
-static struct Qdisc_class_ops prio_class_ops = {
+static const struct Qdisc_class_ops prio_class_ops = {
 	.graft		=	prio_graft,
 	.leaf		=	prio_leaf,
 	.get		=	prio_get,
@@ -483,7 +483,7 @@ static struct Qdisc_class_ops prio_class_ops = {
 	.dump_stats	=	prio_dump_class_stats,
 };
 
-static struct Qdisc_ops prio_qdisc_ops = {
+static struct Qdisc_ops prio_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&prio_class_ops,
 	.id		=	"prio",
@@ -500,7 +500,7 @@ static struct Qdisc_ops prio_qdisc_ops = {
 	.owner		=	THIS_MODULE,
 };
 
-static struct Qdisc_ops rr_qdisc_ops = {
+static struct Qdisc_ops rr_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&prio_class_ops,
 	.id		=	"rr",

@@ -469,7 +469,7 @@ static struct tcf_proto **tbf_find_tcf(struct Qdisc *sch, unsigned long cl)
 	return NULL;
 }
 
-static struct Qdisc_class_ops tbf_class_ops =
+static const struct Qdisc_class_ops tbf_class_ops =
 {
 	.graft		=	tbf_graft,
 	.leaf		=	tbf_leaf,
@@ -482,7 +482,7 @@ static struct Qdisc_class_ops tbf_class_ops =
 	.dump		=	tbf_dump_class,
 };
 
-static struct Qdisc_ops tbf_qdisc_ops = {
+static struct Qdisc_ops tbf_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&tbf_class_ops,
 	.id		=	"tbf",

@@ -130,7 +130,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct tcf_proto **back, **chain;
 	struct tcf_proto *tp;
 	struct tcf_proto_ops *tp_ops;
-	struct Qdisc_class_ops *cops;
+	const struct Qdisc_class_ops *cops;
 	unsigned long cl;
 	unsigned long fh;
 	int err;
@@ -382,7 +382,7 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	struct tcf_proto *tp, **chain;
 	struct tcmsg *tcm = (struct tcmsg*)NLMSG_DATA(cb->nlh);
 	unsigned long cl = 0;
-	struct Qdisc_class_ops *cops;
+	const struct Qdisc_class_ops *cops;
 	struct tcf_dump_args arg;
 
 	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))

@@ -2045,7 +2045,7 @@ static void cbq_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	}
 }
 
-static struct Qdisc_class_ops cbq_class_ops = {
+static const struct Qdisc_class_ops cbq_class_ops = {
 	.graft		=	cbq_graft,
 	.leaf		=	cbq_leaf,
 	.qlen_notify	=	cbq_qlen_notify,
@@ -2061,7 +2061,7 @@ static struct Qdisc_class_ops cbq_class_ops = {
 	.dump_stats	=	cbq_dump_class_stats,
 };
 
-static struct Qdisc_ops cbq_qdisc_ops = {
+static struct Qdisc_ops cbq_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&cbq_class_ops,
 	.id		=	"cbq",

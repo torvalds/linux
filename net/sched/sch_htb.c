@@ -1529,7 +1529,7 @@ static void htb_walk(struct Qdisc *sch, struct qdisc_walker *arg)
 	}
 }
 
-static struct Qdisc_class_ops htb_class_ops = {
+static const struct Qdisc_class_ops htb_class_ops = {
 	.graft		=	htb_graft,
 	.leaf		=	htb_leaf,
 	.qlen_notify	=	htb_qlen_notify,
@@ -1545,7 +1545,7 @@ static struct Qdisc_class_ops htb_class_ops = {
 	.dump_stats	=	htb_dump_class_stats,
 };
 
-static struct Qdisc_ops htb_qdisc_ops = {
+static struct Qdisc_ops htb_qdisc_ops __read_mostly = {
 	.next		=	NULL,
 	.cl_ops		=	&htb_class_ops,
 	.id		=	"htb",

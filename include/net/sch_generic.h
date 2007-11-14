@@ -86,7 +86,7 @@ struct Qdisc_class_ops
 struct Qdisc_ops
 {
 	struct Qdisc_ops	*next;
-	struct Qdisc_class_ops	*cl_ops;
+	const struct Qdisc_class_ops	*cl_ops;
 	char			id[IFNAMSIZ];
 	int			priv_size;
 
