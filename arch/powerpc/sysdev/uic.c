@@ -60,14 +60,19 @@ struct uic {
 
 static void uic_unmask_irq(unsigned int virq)
 {
+	struct irq_desc *desc = get_irq_desc(virq);
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
 	unsigned long flags;
-	u32 er;
+	u32 er, sr;
 
+	sr = 1 << (31-src);
 	spin_lock_irqsave(&uic->lock, flags);
+	/* ack level-triggered interrupts here */
+	if (desc->status & IRQ_LEVEL)
+		mtdcr(uic->dcrbase + UIC_SR, sr);
 	er = mfdcr(uic->dcrbase + UIC_ER);
-	er |= 1 << (31 - src);
+	er |= sr;
 	mtdcr(uic->dcrbase + UIC_ER, er);
 	spin_unlock_irqrestore(&uic->lock, flags);
 }
@@ -99,6 +104,7 @@ static void uic_ack_irq(unsigned int virq)
 
 static void uic_mask_ack_irq(unsigned int virq)
 {
+	struct irq_desc *desc = get_irq_desc(virq);
 	struct uic *uic = get_irq_chip_data(virq);
 	unsigned int src = uic_irq_to_hw(virq);
 	unsigned long flags;
@@ -109,7 +115,16 @@ static void uic_mask_ack_irq(unsigned int virq)
 	er = mfdcr(uic->dcrbase + UIC_ER);
 	er &= ~sr;
 	mtdcr(uic->dcrbase + UIC_ER, er);
-	mtdcr(uic->dcrbase + UIC_SR, sr);
+ 	/* On the UIC, acking (i.e. clearing the SR bit)
+	 * a level irq will have no effect if the interrupt
+	 * is still asserted by the device, even if
+	 * the interrupt is already masked. Therefore
+	 * we only ack the egde interrupts here, while
+	 * level interrupts are ack'ed after the actual
+	 * isr call in the uic_unmask_irq()
+	 */
+	if (!(desc->status & IRQ_LEVEL))
+		mtdcr(uic->dcrbase + UIC_SR, sr);
 	spin_unlock_irqrestore(&uic->lock, flags);
 }
 
@@ -173,64 +188,6 @@ static struct irq_chip uic_irq_chip = {
 	.set_type	= uic_set_irq_type,
 };
 
-/**
- *	handle_uic_irq - irq flow handler for UIC
- *	@irq:	the interrupt number
- *	@desc:	the interrupt description structure for this irq
- *
- * This is modified version of the generic handle_level_irq() suitable
- * for the UIC.  On the UIC, acking (i.e. clearing the SR bit) a level
- * irq will have no effect if the interrupt is still asserted by the
- * device, even if the interrupt is already masked.  Therefore, unlike
- * the standard handle_level_irq(), we must ack the interrupt *after*
- * invoking the ISR (which should have de-asserted the interrupt in
- * the external source).  For edge interrupts we ack at the beginning
- * instead of the end, to keep the window in which we can miss an
- * interrupt as small as possible.
- */
-void fastcall handle_uic_irq(unsigned int irq, struct irq_desc *desc)
-{
-	unsigned int cpu = smp_processor_id();
-	struct irqaction *action;
-	irqreturn_t action_ret;
-
-	spin_lock(&desc->lock);
-	if (desc->status & IRQ_LEVEL)
-		desc->chip->mask(irq);
-	else
-		desc->chip->mask_ack(irq);
-
-	if (unlikely(desc->status & IRQ_INPROGRESS))
-		goto out_unlock;
-	desc->status &= ~(IRQ_REPLAY | IRQ_WAITING);
-	kstat_cpu(cpu).irqs[irq]++;
-
-	/*
-	 * If its disabled or no action available
-	 * keep it masked and get out of here
-	 */
-	action = desc->action;
-	if (unlikely(!action || (desc->status & IRQ_DISABLED))) {
-		desc->status |= IRQ_PENDING;
-		goto out_unlock;
-	}
-
-	desc->status |= IRQ_INPROGRESS;
-	desc->status &= ~IRQ_PENDING;
-	spin_unlock(&desc->lock);
-
-	action_ret = handle_IRQ_event(irq, action);
-
-	spin_lock(&desc->lock);
-	desc->status &= ~IRQ_INPROGRESS;
-	if (desc->status & IRQ_LEVEL)
-		desc->chip->ack(irq);
-	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
-		desc->chip->unmask(irq);
-out_unlock:
-	spin_unlock(&desc->lock);
-}
-
 static int uic_host_map(struct irq_host *h, unsigned int virq,
 			irq_hw_number_t hw)
 {
@@ -239,7 +196,7 @@ static int uic_host_map(struct irq_host *h, unsigned int virq,
 	set_irq_chip_data(virq, uic);
 	/* Despite the name, handle_level_irq() works for both level
 	 * and edge irqs on UIC.  FIXME: check this is correct */
-	set_irq_chip_and_handler(virq, &uic_irq_chip, handle_uic_irq);
+	set_irq_chip_and_handler(virq, &uic_irq_chip, handle_level_irq);
 
 	/* Set default irq type */
 	set_irq_type(virq, IRQ_TYPE_NONE);
