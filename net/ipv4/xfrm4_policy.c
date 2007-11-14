@@ -8,7 +8,8 @@
  *
  */
 
-#include <linux/compiler.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/inetdevice.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
@@ -17,28 +18,44 @@
 static struct dst_ops xfrm4_dst_ops;
 static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
 
-static int xfrm4_dst_lookup(struct xfrm_dst **dst, struct flowi *fl)
+static struct dst_entry *xfrm4_dst_lookup(int tos, xfrm_address_t *saddr,
+					  xfrm_address_t *daddr)
 {
-	return __ip_route_output_key((struct rtable**)dst, fl);
-}
-
-static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
-{
-	struct rtable *rt;
-	struct flowi fl_tunnel = {
+	struct flowi fl = {
 		.nl_u = {
 			.ip4_u = {
+				.tos = tos,
 				.daddr = daddr->a4,
 			},
 		},
 	};
+	struct dst_entry *dst;
+	struct rtable *rt;
+	int err;
 
-	if (!xfrm4_dst_lookup((struct xfrm_dst **)&rt, &fl_tunnel)) {
-		saddr->a4 = rt->rt_src;
-		dst_release(&rt->u.dst);
-		return 0;
-	}
-	return -EHOSTUNREACH;
+	if (saddr)
+		fl.fl4_src = saddr->a4;
+
+	err = __ip_route_output_key(&rt, &fl);
+	dst = &rt->u.dst;
+	if (err)
+		dst = ERR_PTR(err);
+	return dst;
+}
+
+static int xfrm4_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
+{
+	struct dst_entry *dst;
+	struct rtable *rt;
+
+	dst = xfrm4_dst_lookup(0, NULL, daddr);
+	if (IS_ERR(dst))
+		return -EHOSTUNREACH;
+
+	rt = (struct rtable *)dst;
+	saddr->a4 = rt->rt_src;
+	dst_release(dst);
+	return 0;
 }
 
 static struct dst_entry *
@@ -73,15 +90,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	struct dst_entry *dst, *dst_prev;
 	struct rtable *rt0 = (struct rtable*)(*dst_p);
 	struct rtable *rt = rt0;
-	struct flowi fl_tunnel = {
-		.nl_u = {
-			.ip4_u = {
-				.saddr = fl->fl4_src,
-				.daddr = fl->fl4_dst,
-				.tos = fl->fl4_tos
-			}
-		}
-	};
+	int tos = fl->fl4_tos;
 	int i;
 	int err;
 	int header_len = 0;
@@ -119,25 +128,12 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		trailer_len += xfrm[i]->props.trailer_len;
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			unsigned short encap_family = xfrm[i]->props.family;
-			switch (encap_family) {
-			case AF_INET:
-				fl_tunnel.fl4_dst = xfrm[i]->id.daddr.a4;
-				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;
-				break;
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-			case AF_INET6:
-				ipv6_addr_copy(&fl_tunnel.fl6_dst, (struct in6_addr*)&xfrm[i]->id.daddr.a6);
-				ipv6_addr_copy(&fl_tunnel.fl6_src, (struct in6_addr*)&xfrm[i]->props.saddr.a6);
-				break;
-#endif
-			default:
-				BUG_ON(1);
-			}
-			err = xfrm_dst_lookup((struct xfrm_dst **)&rt,
-					      &fl_tunnel, encap_family);
-			if (err)
+			dst1 = xfrm_dst_lookup(xfrm[i], tos);
+			err = PTR_ERR(dst1);
+			if (IS_ERR(dst1))
 				goto error;
+
+			rt = (struct rtable *)dst1;
 		} else
 			dst_hold(&rt->u.dst);
 	}

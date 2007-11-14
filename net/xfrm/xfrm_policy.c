@@ -13,6 +13,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
@@ -84,21 +85,25 @@ int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	return 0;
 }
 
-int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl,
-		    unsigned short family)
+struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos)
 {
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	int err = 0;
+	xfrm_address_t *saddr = &x->props.saddr;
+	xfrm_address_t *daddr = &x->id.daddr;
+	struct xfrm_policy_afinfo *afinfo;
+	struct dst_entry *dst;
 
+	if (x->type->flags & XFRM_TYPE_LOCAL_COADDR)
+		saddr = x->coaddr;
+	if (x->type->flags & XFRM_TYPE_REMOTE_COADDR)
+		daddr = x->coaddr;
+
+	afinfo = xfrm_policy_get_afinfo(x->props.family);
 	if (unlikely(afinfo == NULL))
-		return -EAFNOSUPPORT;
+		return ERR_PTR(-EAFNOSUPPORT);
 
-	if (likely(afinfo->dst_lookup != NULL))
-		err = afinfo->dst_lookup(dst, fl);
-	else
-		err = -EINVAL;
+	dst = afinfo->dst_lookup(tos, saddr, daddr);
 	xfrm_policy_put_afinfo(afinfo);
-	return err;
+	return dst;
 }
 EXPORT_SYMBOL(xfrm_dst_lookup);
 

@@ -11,7 +11,8 @@
  *
  */
 
-#include <linux/compiler.h>
+#include <linux/err.h>
+#include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <net/addrconf.h>
 #include <net/dst.h>
@@ -26,35 +27,40 @@
 static struct dst_ops xfrm6_dst_ops;
 static struct xfrm_policy_afinfo xfrm6_policy_afinfo;
 
-static int xfrm6_dst_lookup(struct xfrm_dst **xdst, struct flowi *fl)
+static struct dst_entry *xfrm6_dst_lookup(int tos, xfrm_address_t *saddr,
+					  xfrm_address_t *daddr)
 {
-	struct dst_entry *dst = ip6_route_output(NULL, fl);
-	int err = dst->error;
-	if (!err)
-		*xdst = (struct xfrm_dst *) dst;
-	else
+	struct flowi fl = {};
+	struct dst_entry *dst;
+	int err;
+
+	memcpy(&fl.fl6_dst, daddr, sizeof(fl.fl6_dst));
+	if (saddr)
+		memcpy(&fl.fl6_src, saddr, sizeof(fl.fl6_src));
+
+	dst = ip6_route_output(NULL, &fl);
+
+	err = dst->error;
+	if (dst->error) {
 		dst_release(dst);
-	return err;
+		dst = ERR_PTR(err);
+	}
+
+	return dst;
 }
 
 static int xfrm6_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
 {
-	struct rt6_info *rt;
-	struct flowi fl_tunnel = {
-		.nl_u = {
-			.ip6_u = {
-				.daddr = *(struct in6_addr *)&daddr->a6,
-			},
-		},
-	};
+	struct dst_entry *dst;
 
-	if (!xfrm6_dst_lookup((struct xfrm_dst **)&rt, &fl_tunnel)) {
-		ipv6_get_saddr(&rt->u.dst, (struct in6_addr *)&daddr->a6,
-			       (struct in6_addr *)&saddr->a6);
-		dst_release(&rt->u.dst);
-		return 0;
-	}
-	return -EHOSTUNREACH;
+	dst = xfrm6_dst_lookup(0, NULL, daddr);
+	if (IS_ERR(dst))
+		return -EHOSTUNREACH;
+
+	ipv6_get_saddr(dst, (struct in6_addr *)&daddr->a6,
+		       (struct in6_addr *)&saddr->a6);
+	dst_release(dst);
+	return 0;
 }
 
 static struct dst_entry *
@@ -87,18 +93,6 @@ __xfrm6_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 	return dst;
 }
 
-static inline xfrm_address_t *__xfrm6_bundle_addr_remote(struct xfrm_state *x)
-{
-	return (x->type->flags & XFRM_TYPE_REMOTE_COADDR) ? x->coaddr :
-							    &x->id.daddr;
-}
-
-static inline xfrm_address_t *__xfrm6_bundle_addr_local(struct xfrm_state *x)
-{
-	return (x->type->flags & XFRM_TYPE_LOCAL_COADDR) ? x->coaddr :
-							   &x->props.saddr;
-}
-
 /* Allocate chain of dst_entry's, attach known xfrm's, calculate
  * all the metrics... Shortly, bundle a bundle.
  */
@@ -110,14 +104,6 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	struct dst_entry *dst, *dst_prev;
 	struct rt6_info *rt0 = (struct rt6_info*)(*dst_p);
 	struct rt6_info *rt  = rt0;
-	struct flowi fl_tunnel = {
-		.nl_u = {
-			.ip6_u = {
-				.saddr = fl->fl6_src,
-				.daddr = fl->fl6_dst,
-			}
-		}
-	};
 	int i;
 	int err;
 	int header_len = 0;
@@ -160,25 +146,12 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		trailer_len += xfrm[i]->props.trailer_len;
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			unsigned short encap_family = xfrm[i]->props.family;
-			switch(encap_family) {
-			case AF_INET:
-				fl_tunnel.fl4_dst = xfrm[i]->id.daddr.a4;
-				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;
-				break;
-			case AF_INET6:
-				ipv6_addr_copy(&fl_tunnel.fl6_dst, (struct in6_addr *)__xfrm6_bundle_addr_remote(xfrm[i]));
-
-				ipv6_addr_copy(&fl_tunnel.fl6_src, (struct in6_addr *)__xfrm6_bundle_addr_local(xfrm[i]));
-				break;
-			default:
-				BUG_ON(1);
-			}
-
-			err = xfrm_dst_lookup((struct xfrm_dst **) &rt,
-					      &fl_tunnel, encap_family);
-			if (err)
+			dst1 = xfrm_dst_lookup(xfrm[i], 0);
+			err = PTR_ERR(dst1);
+			if (IS_ERR(dst1))
 				goto error;
+
+			rt = (struct rt6_info *)dst1;
 		} else
 			dst_hold(&rt->u.dst);
 	}

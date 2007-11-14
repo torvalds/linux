@@ -233,7 +233,8 @@ struct xfrm_policy_afinfo {
 	unsigned short		family;
 	struct dst_ops		*dst_ops;
 	void			(*garbage_collect)(void);
-	int			(*dst_lookup)(struct xfrm_dst **dst, struct flowi *fl);
+	struct dst_entry	*(*dst_lookup)(int tos, xfrm_address_t *saddr,
+					       xfrm_address_t *daddr);
 	int			(*get_saddr)(xfrm_address_t *saddr, xfrm_address_t *daddr);
 	struct dst_entry	*(*find_bundle)(struct flowi *fl, struct xfrm_policy *policy);
 	int			(*bundle_create)(struct xfrm_policy *policy, 
@@ -1079,7 +1080,6 @@ extern int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 #ifdef CONFIG_XFRM
 extern int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb);
 extern int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen);
-extern int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsigned short family);
 #else
 static inline int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen)
 {
@@ -1092,13 +1092,9 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
  	kfree_skb(skb);
 	return 0;
 }
-
-static inline int xfrm_dst_lookup(struct xfrm_dst **dst, struct flowi *fl, unsigned short family)
-{
-	return -EINVAL;
-} 
 #endif
 
+extern struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos);
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
 extern int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
