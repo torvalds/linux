@@ -874,36 +874,6 @@ static inline int ipv6_saddr_preferred(int type)
 	return 0;
 }
 
-/* static matching label */
-static inline int ipv6_addr_label(const struct in6_addr *addr, int type,
-				  int ifindex)
-{
- /*
-  * 	prefix (longest match)	label
-  * 	-----------------------------
-  * 	::1/128			0
-  * 	::/0			1
-  * 	2002::/16		2
-  * 	::/96			3
-  * 	::ffff:0:0/96		4
-  *	fc00::/7		5
-  * 	2001::/32		6
-  */
-	if (type & IPV6_ADDR_LOOPBACK)
-		return 0;
-	else if (type & IPV6_ADDR_COMPATv4)
-		return 3;
-	else if (type & IPV6_ADDR_MAPPED)
-		return 4;
-	else if (addr->s6_addr32[0] == htonl(0x20010000))
-		return 6;
-	else if (addr->s6_addr16[0] == htons(0x2002))
-		return 2;
-	else if ((addr->s6_addr[0] & 0xfe) == 0xfc)
-		return 5;
-	return 1;
-}
-
 int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 		       struct in6_addr *daddr, struct in6_addr *saddr)
 {
@@ -4189,7 +4159,13 @@ EXPORT_SYMBOL(unregister_inet6addr_notifier);
 
 int __init addrconf_init(void)
 {
-	int err = 0;
+	int err;
+
+	if ((err = ipv6_addr_label_init()) < 0) {
+		printk(KERN_CRIT "IPv6 Addrconf: cannot initialize default policy table: %d.\n",
+			err);
+		return err;
+	}
 
 	/* The addrconf netdev notifier requires that loopback_dev
 	 * has it's ipv6 private information allocated and setup
@@ -4239,6 +4215,8 @@ int __init addrconf_init(void)
 	__rtnl_register(PF_INET6, RTM_GETADDR, inet6_rtm_getaddr, inet6_dump_ifaddr);
 	__rtnl_register(PF_INET6, RTM_GETMULTICAST, NULL, inet6_dump_ifmcaddr);
 	__rtnl_register(PF_INET6, RTM_GETANYCAST, NULL, inet6_dump_ifacaddr);
+
+	ipv6_addr_label_rtnl_register();
 
 #ifdef CONFIG_SYSCTL
 	addrconf_sysctl.sysctl_header =

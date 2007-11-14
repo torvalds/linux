@@ -84,6 +84,14 @@ extern void			addrconf_leave_solict(struct inet6_dev *idev,
 					struct in6_addr *addr);
 
 /*
+ *	IPv6 Address Label subsystem (addrlabel.c)
+ */
+extern int			ipv6_addr_label_init(void);
+extern void			ipv6_addr_label_rtnl_register(void);
+extern u32			ipv6_addr_label(const struct in6_addr *addr,
+						int type, int ifindex);
+
+/*
  *	multicast prototypes (mcast.c)
  */
 extern int ipv6_sock_mc_join(struct sock *sk, int ifindex, 
