@@ -44,6 +44,8 @@
 
 #define STAT_OFFSET(x) offsetof(struct kvm_vcpu, stat.x)
 
+struct kvm_x86_ops *kvm_x86_ops;
+
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pf_fixed", STAT_OFFSET(pf_fixed) },
 	{ "pf_guest", STAT_OFFSET(pf_guest) },

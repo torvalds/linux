@@ -55,7 +55,6 @@ static LIST_HEAD(vm_list);
 
 static cpumask_t cpus_hardware_enabled;
 
-struct kvm_x86_ops *kvm_x86_ops;
 struct kmem_cache *kvm_vcpu_cache;
 EXPORT_SYMBOL_GPL(kvm_vcpu_cache);
 
