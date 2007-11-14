@@ -241,7 +241,7 @@ static int raw_rcv_skb(struct sock * sk, struct sk_buff * skb)
 	/* Charge it to the socket. */
 
 	if (sock_queue_rcv_skb(sk, skb) < 0) {
-		/* FIXME: increment a raw drops counter here */
+		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -252,6 +252,7 @@ static int raw_rcv_skb(struct sock * sk, struct sk_buff * skb)
 int raw_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb)) {
+		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -871,28 +872,30 @@ static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
 	      srcp  = inet->num;
 
 	sprintf(tmpbuf, "%4d: %08X:%04X %08X:%04X"
-		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p",
+		" %02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d",
 		i, src, srcp, dest, destp, sp->sk_state,
 		atomic_read(&sp->sk_wmem_alloc),
 		atomic_read(&sp->sk_rmem_alloc),
 		0, 0L, 0, sock_i_uid(sp), 0, sock_i_ino(sp),
-		atomic_read(&sp->sk_refcnt), sp);
+		atomic_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
 	return tmpbuf;
 }
 
+#define TMPSZ 128
+
 static int raw_seq_show(struct seq_file *seq, void *v)
 {
-	char tmpbuf[129];
+	char tmpbuf[TMPSZ+1];
 
 	if (v == SEQ_START_TOKEN)
-		seq_printf(seq, "%-127s\n",
+		seq_printf(seq, "%-*s\n", TMPSZ-1,
 			       "  sl  local_address rem_address   st tx_queue "
 			       "rx_queue tr tm->when retrnsmt   uid  timeout "
-			       "inode");
+			       "inode  drops");
 	else {
 		struct raw_iter_state *state = raw_seq_private(seq);
 
-		seq_printf(seq, "%-127s\n",
+		seq_printf(seq, "%-*s\n", TMPSZ-1,
 			   get_raw_sock(v, tmpbuf, state->bucket));
 	}
 	return 0;

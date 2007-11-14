@@ -1611,6 +1611,7 @@ void sock_init_data(struct socket *sock, struct sock *sk)
 	sk->sk_stamp = ktime_set(-1L, -1L);
 
 	atomic_set(&sk->sk_refcnt, 1);
+	atomic_set(&sk->sk_drops, 0);
 }
 
 void fastcall lock_sock_nested(struct sock *sk, int subclass)
