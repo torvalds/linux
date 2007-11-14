@@ -18,6 +18,8 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 
+static int xfrm_output2(struct sk_buff *skb);
+
 static int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
@@ -41,17 +43,13 @@ err:
 	return err;
 }
 
-static int xfrm_output_one(struct sk_buff *skb)
+static int xfrm_output_one(struct sk_buff *skb, int err)
 {
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
-	int err;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		err = skb_checksum_help(skb);
-		if (err)
-			goto error_nolock;
-	}
+	if (err <= 0)
+		goto resume;
 
 	do {
 		err = x->outer_mode->output(x, skb);
@@ -75,6 +73,8 @@ static int xfrm_output_one(struct sk_buff *skb)
 		spin_unlock_bh(&x->lock);
 
 		err = x->type->output(x, skb);
+
+resume:
 		if (err)
 			goto error_nolock;
 
@@ -97,18 +97,16 @@ error_nolock:
 	goto out_exit;
 }
 
-static int xfrm_output2(struct sk_buff *skb)
+int xfrm_output_resume(struct sk_buff *skb, int err)
 {
-	int err;
-
-	while (likely((err = xfrm_output_one(skb)) == 0)) {
+	while (likely((err = xfrm_output_one(skb, err)) == 0)) {
 		struct xfrm_state *x;
 
 		nf_reset(skb);
 
 		err = skb->dst->ops->local_out(skb);
 		if (unlikely(err != 1))
-			break;
+			goto out;
 
 		x = skb->dst->xfrm;
 		if (!x)
@@ -118,18 +116,25 @@ static int xfrm_output2(struct sk_buff *skb)
 			      x->inner_mode->afinfo->nf_post_routing, skb,
 			      NULL, skb->dst->dev, xfrm_output2);
 		if (unlikely(err != 1))
-			break;
+			goto out;
 	}
 
+	if (err == -EINPROGRESS)
+		err = 0;
+
+out:
 	return err;
 }
+EXPORT_SYMBOL_GPL(xfrm_output_resume);
 
-int xfrm_output(struct sk_buff *skb)
+static int xfrm_output2(struct sk_buff *skb)
+{
+	return xfrm_output_resume(skb, 1);
+}
+
+static int xfrm_output_gso(struct sk_buff *skb)
 {
 	struct sk_buff *segs;
-
-	if (!skb_is_gso(skb))
-		return xfrm_output2(skb);
 
 	segs = skb_gso_segment(skb, 0);
 	kfree_skb(skb);
@@ -156,5 +161,23 @@ int xfrm_output(struct sk_buff *skb)
 	} while (segs);
 
 	return 0;
+}
+
+int xfrm_output(struct sk_buff *skb)
+{
+	int err;
+
+	if (skb_is_gso(skb))
+		return xfrm_output_gso(skb);
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		err = skb_checksum_help(skb);
+		if (err) {
+			kfree_skb(skb);
+			return err;
+		}
+	}
+
+	return xfrm_output2(skb);
 }
 EXPORT_SYMBOL_GPL(xfrm_output);
