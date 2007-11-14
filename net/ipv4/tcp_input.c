@@ -1704,6 +1704,8 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tcp_for_write_queue(skb, sk) {
 		if (skb == tcp_send_head(sk))
 			break;
+
+		TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
 		/*
 		 * Count the retransmission made on RTO correctly (only when
 		 * waiting for the first ACK and did not get it)...
@@ -1717,7 +1719,7 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 		} else {
 			if (TCP_SKB_CB(skb)->sacked & TCPCB_RETRANS)
 				tp->undo_marker = 0;
-			TCP_SKB_CB(skb)->sacked &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
+			TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 		}
 
 		/* Don't lost mark skbs that were fwd transmitted after RTO */
