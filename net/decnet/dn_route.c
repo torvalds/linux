@@ -765,17 +765,6 @@ drop:
 }
 
 /*
- * Drop packet. This is used for endnodes and for
- * when we should not be forwarding packets from
- * this dest.
- */
-static int dn_blackhole(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-	return NET_RX_DROP;
-}
-
-/*
  * Used to catch bugs. This should never normally get
  * called.
  */
@@ -1396,7 +1385,7 @@ make_route:
 		default:
 		case RTN_UNREACHABLE:
 		case RTN_BLACKHOLE:
-			rt->u.dst.input = dn_blackhole;
+			rt->u.dst.input = dst_discard;
 	}
 	rt->rt_flags = flags;
 	if (rt->u.dst.dev)

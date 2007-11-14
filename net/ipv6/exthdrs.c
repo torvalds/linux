@@ -32,6 +32,7 @@
 #include <linux/in6.h>
 #include <linux/icmpv6.h>
 
+#include <net/dst.h>
 #include <net/sock.h>
 #include <net/snmp.h>
 
@@ -318,18 +319,8 @@ void __init ipv6_destopt_init(void)
 		printk(KERN_ERR "ipv6_destopt_init: Could not register protocol\n");
 }
 
-/********************************
-  NONE header. No data in packet.
- ********************************/
-
-static int ipv6_nodata_rcv(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-	return 0;
-}
-
 static struct inet6_protocol nodata_protocol = {
-	.handler	=	ipv6_nodata_rcv,
+	.handler	=	dst_discard,
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 

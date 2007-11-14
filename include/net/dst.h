@@ -179,6 +179,7 @@ static inline struct dst_entry *dst_pop(struct dst_entry *dst)
 	return child;
 }
 
+extern int dst_discard(struct sk_buff *skb);
 extern void * dst_alloc(struct dst_ops * ops);
 extern void __dst_free(struct dst_entry * dst);
 extern struct dst_entry *dst_destroy(struct dst_entry * dst);

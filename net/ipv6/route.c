@@ -152,7 +152,6 @@ struct rt6_info ip6_null_entry = {
 
 static int ip6_pkt_prohibit(struct sk_buff *skb);
 static int ip6_pkt_prohibit_out(struct sk_buff *skb);
-static int ip6_pkt_blk_hole(struct sk_buff *skb);
 
 struct rt6_info ip6_prohibit_entry = {
 	.u = {
@@ -181,8 +180,8 @@ struct rt6_info ip6_blk_hole_entry = {
 			.obsolete	= -1,
 			.error		= -EINVAL,
 			.metrics	= { [RTAX_HOPLIMIT - 1] = 255, },
-			.input		= ip6_pkt_blk_hole,
-			.output		= ip6_pkt_blk_hole,
+			.input		= dst_discard,
+			.output		= dst_discard,
 			.ops		= &ip6_dst_ops,
 			.path		= (struct dst_entry*)&ip6_blk_hole_entry,
 		}
@@ -782,12 +781,6 @@ struct dst_entry * ip6_route_output(struct sock *sk, struct flowi *fl)
 
 EXPORT_SYMBOL(ip6_route_output);
 
-static int ip6_blackhole_output(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-	return 0;
-}
-
 int ip6_dst_blackhole(struct sock *sk, struct dst_entry **dstp, struct flowi *fl)
 {
 	struct rt6_info *ort = (struct rt6_info *) *dstp;
@@ -800,8 +793,8 @@ int ip6_dst_blackhole(struct sock *sk, struct dst_entry **dstp, struct flowi *fl
 
 		atomic_set(&new->__refcnt, 1);
 		new->__use = 1;
-		new->input = ip6_blackhole_output;
-		new->output = ip6_blackhole_output;
+		new->input = dst_discard;
+		new->output = dst_discard;
 
 		memcpy(new->metrics, ort->u.dst.metrics, RTAX_MAX*sizeof(u32));
 		new->dev = ort->u.dst.dev;
@@ -1809,12 +1802,6 @@ static int ip6_pkt_prohibit_out(struct sk_buff *skb)
 {
 	skb->dev = skb->dst->dev;
 	return ip6_pkt_drop(skb, ICMPV6_ADM_PROHIBITED, IPSTATS_MIB_OUTNOROUTES);
-}
-
-static int ip6_pkt_blk_hole(struct sk_buff *skb)
-{
-	kfree_skb(skb);
-	return 0;
 }
 
 #endif

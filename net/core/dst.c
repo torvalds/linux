@@ -153,11 +153,12 @@ loop:
 #endif
 }
 
-static int dst_discard(struct sk_buff *skb)
+int dst_discard(struct sk_buff *skb)
 {
 	kfree_skb(skb);
 	return 0;
 }
+EXPORT_SYMBOL(dst_discard);
 
 void * dst_alloc(struct dst_ops * ops)
 {
