@@ -9,6 +9,8 @@
 
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/netdevice.h>
+#include <net/dst.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
 
@@ -93,6 +95,117 @@ int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 	return x->inner_mode->input2(x, skb);
 }
 EXPORT_SYMBOL(xfrm_prepare_input);
+
+int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
+{
+	int err;
+	__be32 seq;
+	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
+	struct xfrm_state *x;
+	int xfrm_nr = 0;
+	int decaps = 0;
+	unsigned int nhoff = XFRM_SPI_SKB_CB(skb)->nhoff;
+	unsigned int daddroff = XFRM_SPI_SKB_CB(skb)->daddroff;
+
+	seq = 0;
+	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
+		goto drop;
+
+	do {
+		if (xfrm_nr == XFRM_MAX_DEPTH)
+			goto drop;
+
+		x = xfrm_state_lookup((xfrm_address_t *)
+				      (skb_network_header(skb) + daddroff),
+				      spi, nexthdr, AF_INET);
+		if (x == NULL)
+			goto drop;
+
+		spin_lock(&x->lock);
+		if (unlikely(x->km.state != XFRM_STATE_VALID))
+			goto drop_unlock;
+
+		if ((x->encap ? x->encap->encap_type : 0) != encap_type)
+			goto drop_unlock;
+
+		if (x->props.replay_window && xfrm_replay_check(x, seq))
+			goto drop_unlock;
+
+		if (xfrm_state_check_expire(x))
+			goto drop_unlock;
+
+		nexthdr = x->type->input(x, skb);
+		if (nexthdr <= 0)
+			goto drop_unlock;
+
+		skb_network_header(skb)[nhoff] = nexthdr;
+
+		/* only the first xfrm gets the encap type */
+		encap_type = 0;
+
+		if (x->props.replay_window)
+			xfrm_replay_advance(x, seq);
+
+		x->curlft.bytes += skb->len;
+		x->curlft.packets++;
+
+		spin_unlock(&x->lock);
+
+		xfrm_vec[xfrm_nr++] = x;
+
+		if (x->inner_mode->input(x, skb))
+			goto drop;
+
+		if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
+			decaps = 1;
+			break;
+		}
+
+		err = xfrm_parse_spi(skb, nexthdr, &spi, &seq);
+		if (err < 0)
+			goto drop;
+	} while (!err);
+
+	/* Allocate new secpath or COW existing one. */
+
+	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
+		struct sec_path *sp;
+		sp = secpath_dup(skb->sp);
+		if (!sp)
+			goto drop;
+		if (skb->sp)
+			secpath_put(skb->sp);
+		skb->sp = sp;
+	}
+	if (xfrm_nr + skb->sp->len > XFRM_MAX_DEPTH)
+		goto drop;
+
+	memcpy(skb->sp->xvec + skb->sp->len, xfrm_vec,
+	       xfrm_nr * sizeof(xfrm_vec[0]));
+	skb->sp->len += xfrm_nr;
+
+	nf_reset(skb);
+
+	if (decaps) {
+		dst_release(skb->dst);
+		skb->dst = NULL;
+		netif_rx(skb);
+		return 0;
+	} else {
+		return x->inner_mode->afinfo->transport_finish(skb, 0);
+	}
+
+drop_unlock:
+	spin_unlock(&x->lock);
+	xfrm_state_put(x);
+drop:
+	while (--xfrm_nr >= 0)
+		xfrm_state_put(xfrm_vec[xfrm_nr]);
+
+	kfree_skb(skb);
+	return 0;
+}
+EXPORT_SYMBOL(xfrm_input);
 
 void __init xfrm_input_init(void)
 {

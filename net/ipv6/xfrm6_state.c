@@ -198,6 +198,7 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.output			= xfrm6_output,
 	.extract_input		= xfrm6_extract_input,
 	.extract_output		= xfrm6_extract_output,
+	.transport_finish	= xfrm6_transport_finish,
 };
 
 void __init xfrm6_state_init(void)
