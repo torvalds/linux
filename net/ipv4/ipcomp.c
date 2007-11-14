@@ -182,7 +182,6 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 {
 	struct xfrm_state *t;
-	u8 mode = XFRM_MODE_TUNNEL;
 
 	t = xfrm_state_alloc();
 	if (t == NULL)
@@ -193,9 +192,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->id.daddr.a4 = x->id.daddr.a4;
 	memcpy(&t->sel, &x->sel, sizeof(t->sel));
 	t->props.family = AF_INET;
-	if (x->props.mode == XFRM_MODE_BEET)
-		mode = x->props.mode;
-	t->props.mode = mode;
+	t->props.mode = x->props.mode;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
 
@@ -389,14 +386,21 @@ static int ipcomp_init_state(struct xfrm_state *x)
 	if (x->encap)
 		goto out;
 
+	x->props.header_len = 0;
+	switch (x->props.mode) {
+	case XFRM_MODE_TRANSPORT:
+		break;
+	case XFRM_MODE_TUNNEL:
+		x->props.header_len += sizeof(struct iphdr);
+		break;
+	default:
+		goto out;
+	}
+
 	err = -ENOMEM;
 	ipcd = kzalloc(sizeof(*ipcd), GFP_KERNEL);
 	if (!ipcd)
 		goto out;
-
-	x->props.header_len = 0;
-	if (x->props.mode == XFRM_MODE_TUNNEL)
-		x->props.header_len += sizeof(struct iphdr);
 
 	mutex_lock(&ipcomp_resource_mutex);
 	if (!ipcomp_alloc_scratches())
