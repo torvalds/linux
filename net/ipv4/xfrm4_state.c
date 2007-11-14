@@ -47,12 +47,29 @@ __xfrm4_init_tempsel(struct xfrm_state *x, struct flowi *fl,
 	x->props.family = AF_INET;
 }
 
+int xfrm4_extract_header(struct sk_buff *skb)
+{
+	struct iphdr *iph = ip_hdr(skb);
+
+	XFRM_MODE_SKB_CB(skb)->id = iph->id;
+	XFRM_MODE_SKB_CB(skb)->frag_off = iph->frag_off;
+	XFRM_MODE_SKB_CB(skb)->tos = iph->tos;
+	XFRM_MODE_SKB_CB(skb)->ttl = iph->ttl;
+	XFRM_MODE_SKB_CB(skb)->protocol = iph->protocol;
+	memset(XFRM_MODE_SKB_CB(skb)->flow_lbl, 0,
+	       sizeof(XFRM_MODE_SKB_CB(skb)->flow_lbl));
+
+	return 0;
+}
+
 static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
+	.proto			= IPPROTO_IPIP,
 	.owner			= THIS_MODULE,
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,
 	.output			= xfrm4_output,
+	.extract_output		= xfrm4_extract_output,
 };
 
 void __init xfrm4_state_init(void)

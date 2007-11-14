@@ -257,6 +257,7 @@ extern int __xfrm_state_delete(struct xfrm_state *x);
 
 struct xfrm_state_afinfo {
 	unsigned int		family;
+	unsigned int		proto;
 	struct module		*owner;
 	struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];
@@ -267,6 +268,8 @@ struct xfrm_state_afinfo {
 	int			(*tmpl_sort)(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n);
 	int			(*state_sort)(struct xfrm_state **dst, struct xfrm_state **src, int n);
 	int			(*output)(struct sk_buff *skb);
+	int			(*extract_output)(struct xfrm_state *x,
+						  struct sk_buff *skb);
 };
 
 extern int xfrm_state_register_afinfo(struct xfrm_state_afinfo *afinfo);
@@ -312,7 +315,18 @@ struct xfrm_mode {
 	 * header.  The value of the network header will always point
 	 * to the top IP header while skb->data will point to the payload.
 	 */
-	int (*output)(struct xfrm_state *x,struct sk_buff *skb);
+	int (*output2)(struct xfrm_state *x,struct sk_buff *skb);
+
+	/*
+	 * This is the actual output entry point.
+	 *
+	 * For transport mode and equivalent this would be identical to
+	 * output2 (which does not need to be set).  While tunnel mode
+	 * and equivalent would set this to a tunnel encapsulation function
+	 * (xfrm4_prepare_output or xfrm6_prepare_output) that would in turn
+	 * call output2.
+	 */
+	int (*output)(struct xfrm_state *x, struct sk_buff *skb);
 
 	struct xfrm_state_afinfo *afinfo;
 	struct module *owner;
@@ -453,6 +467,35 @@ struct xfrm_skb_cb {
 };
 
 #define XFRM_SKB_CB(__skb) ((struct xfrm_skb_cb *)&((__skb)->cb[0]))
+
+/*
+ * This structure is used by the afinfo prepare_input/prepare_output functions
+ * to transmit header information to the mode input/output functions.
+ */
+struct xfrm_mode_skb_cb {
+	union {
+		struct inet_skb_parm h4;
+		struct inet6_skb_parm h6;
+	} header;
+
+	/* Copied from header for IPv4, always set to zero and DF for IPv6. */
+	__be16 id;
+	__be16 frag_off;
+
+	/* TOS for IPv4, class for IPv6. */
+	u8 tos;
+
+	/* TTL for IPv4, hop limitfor IPv6. */
+	u8 ttl;
+
+	/* Protocol for IPv4, NH for IPv6. */
+	u8 protocol;
+
+	/* Used by IPv6 only, zero for IPv4. */
+	u8 flow_lbl[3];
+};
+
+#define XFRM_MODE_SKB_CB(__skb) ((struct xfrm_mode_skb_cb *)&((__skb)->cb[0]))
 
 /* Audit Information */
 struct xfrm_audit
@@ -1051,6 +1094,7 @@ extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);
 extern int xfrm_init_state(struct xfrm_state *x);
 extern int xfrm_output(struct sk_buff *skb);
+extern int xfrm4_extract_header(struct sk_buff *skb);
 extern int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
 			   int encap_type);
 extern int xfrm4_rcv(struct sk_buff *skb);
@@ -1060,9 +1104,12 @@ static inline int xfrm4_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 	return xfrm4_rcv_encap(skb, nexthdr, spi, 0);
 }
 
+extern int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb);
+extern int xfrm4_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm4_output(struct sk_buff *skb);
 extern int xfrm4_tunnel_register(struct xfrm_tunnel *handler, unsigned short family);
 extern int xfrm4_tunnel_deregister(struct xfrm_tunnel *handler, unsigned short family);
+extern int xfrm6_extract_header(struct sk_buff *skb);
 extern int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi);
 extern int xfrm6_rcv(struct sk_buff *skb);
 extern int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
@@ -1072,6 +1119,8 @@ extern int xfrm6_tunnel_deregister(struct xfrm6_tunnel *handler, unsigned short 
 extern __be32 xfrm6_tunnel_alloc_spi(xfrm_address_t *saddr);
 extern void xfrm6_tunnel_free_spi(xfrm_address_t *saddr);
 extern __be32 xfrm6_tunnel_spi_lookup(xfrm_address_t *saddr);
+extern int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb);
+extern int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb);
 extern int xfrm6_output(struct sk_buff *skb);
 extern int xfrm6_find_1stfragopt(struct xfrm_state *x, struct sk_buff *skb,
 				 u8 **prevhdr);

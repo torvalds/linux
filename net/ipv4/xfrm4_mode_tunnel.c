@@ -36,53 +36,37 @@ static inline void ipip6_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
 static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
-	struct xfrm_dst *xdst = (struct xfrm_dst*)dst;
-	struct iphdr *iph, *top_iph;
+	struct iphdr *top_iph;
 	int flags;
-
-	iph = ip_hdr(skb);
 
 	skb_set_network_header(skb, -x->props.header_len);
 	skb->mac_header = skb->network_header +
 			  offsetof(struct iphdr, protocol);
-	skb->transport_header = skb->network_header + sizeof(*iph);
+	skb->transport_header = skb->network_header + sizeof(*top_iph);
 	top_iph = ip_hdr(skb);
 
 	top_iph->ihl = 5;
 	top_iph->version = 4;
 
-	flags = x->props.flags;
+	top_iph->protocol = x->inner_mode->afinfo->proto;
 
 	/* DS disclosed */
-	if (xdst->route->ops->family == AF_INET) {
-		top_iph->protocol = IPPROTO_IPIP;
-		top_iph->tos = INET_ECN_encapsulate(iph->tos, iph->tos);
-		top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
-			0 : (iph->frag_off & htons(IP_DF));
-	}
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
-	else {
-		struct ipv6hdr *ipv6h = (struct ipv6hdr*)iph;
-		top_iph->protocol = IPPROTO_IPV6;
-		top_iph->tos = INET_ECN_encapsulate(iph->tos, ipv6_get_dsfield(ipv6h));
-		top_iph->frag_off = 0;
-	}
-#endif
+	top_iph->tos = INET_ECN_encapsulate(XFRM_MODE_SKB_CB(skb)->tos,
+					    XFRM_MODE_SKB_CB(skb)->tos);
 
+	flags = x->props.flags;
 	if (flags & XFRM_STATE_NOECN)
 		IP_ECN_clear(top_iph);
 
-	if (!top_iph->frag_off)
-		__ip_select_ident(top_iph, dst->child, 0);
+	top_iph->frag_off = (flags & XFRM_STATE_NOPMTUDISC) ?
+			    0 : XFRM_MODE_SKB_CB(skb)->frag_off;
+	ip_select_ident(top_iph, dst->child, NULL);
 
 	top_iph->ttl = dst_metric(dst->child, RTAX_HOPLIMIT);
 
 	top_iph->saddr = x->props.saddr.a4;
 	top_iph->daddr = x->id.daddr.a4;
 
-	skb->protocol = htons(ETH_P_IP);
-
-	memset(&(IPCB(skb)->opt), 0, sizeof(struct ip_options));
 	return 0;
 }
 
@@ -136,7 +120,8 @@ out:
 
 static struct xfrm_mode xfrm4_tunnel_mode = {
 	.input = xfrm4_tunnel_input,
-	.output = xfrm4_tunnel_output,
+	.output2 = xfrm4_tunnel_output,
+	.output = xfrm4_prepare_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

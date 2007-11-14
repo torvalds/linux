@@ -10,10 +10,12 @@
  */
 
 #include <linux/if_ether.h>
-#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/icmpv6.h>
 #include <linux/netfilter_ipv6.h>
+#include <net/dst.h>
 #include <net/ipv6.h>
 #include <net/xfrm.h>
 
@@ -43,18 +45,37 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 	return ret;
 }
 
-static inline int xfrm6_output_one(struct sk_buff *skb)
+int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct dst_entry *dst = skb->dst;
-	struct xfrm_state *x = dst->xfrm;
-	struct ipv6hdr *iph;
 	int err;
 
-	if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
-		err = xfrm6_tunnel_check_size(skb);
-		if (err)
-			goto error_nolock;
-	}
+	err = xfrm6_tunnel_check_size(skb);
+	if (err)
+		return err;
+
+	return xfrm6_extract_header(skb);
+}
+
+int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+	int err;
+
+	err = x->inner_mode->afinfo->extract_output(x, skb);
+	if (err)
+		return err;
+
+	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
+
+	skb->protocol = htons(ETH_P_IPV6);
+
+	return x->outer_mode->output2(x, skb);
+}
+EXPORT_SYMBOL(xfrm6_prepare_output);
+
+static inline int xfrm6_output_one(struct sk_buff *skb)
+{
+	struct ipv6hdr *iph;
+	int err;
 
 	err = xfrm_output(skb);
 	if (err)

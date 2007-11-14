@@ -25,25 +25,24 @@
  */
 static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	struct ipv6hdr *iph, *top_iph;
-	u8 *prevhdr;
-	int hdr_len;
+	struct ipv6hdr *top_iph;
 
-	iph = ipv6_hdr(skb);
-
-	hdr_len = ip6_find_1stfragopt(skb, &prevhdr);
-
-	skb_set_mac_header(skb, (prevhdr - x->props.header_len) - skb->data);
 	skb_set_network_header(skb, -x->props.header_len);
-	skb->transport_header = skb->network_header + hdr_len;
-	__skb_pull(skb, hdr_len);
-
+	skb->mac_header = skb->network_header +
+			  offsetof(struct ipv6hdr, nexthdr);
+	skb->transport_header = skb->network_header + sizeof(*top_iph);
 	top_iph = ipv6_hdr(skb);
-	memmove(top_iph, iph, hdr_len);
 
+	top_iph->version = 6;
+
+	memcpy(top_iph->flow_lbl, XFRM_MODE_SKB_CB(skb)->flow_lbl,
+	       sizeof(top_iph->flow_lbl));
+	top_iph->nexthdr = XFRM_MODE_SKB_CB(skb)->protocol;
+
+	ipv6_change_dsfield(top_iph, 0, XFRM_MODE_SKB_CB(skb)->tos);
+	top_iph->hop_limit = XFRM_MODE_SKB_CB(skb)->ttl;
 	ipv6_addr_copy(&top_iph->saddr, (struct in6_addr *)&x->props.saddr);
 	ipv6_addr_copy(&top_iph->daddr, (struct in6_addr *)&x->id.daddr);
-
 	return 0;
 }
 
@@ -76,7 +75,8 @@ out:
 
 static struct xfrm_mode xfrm6_beet_mode = {
 	.input = xfrm6_beet_input,
-	.output = xfrm6_beet_output,
+	.output2 = xfrm6_beet_output,
+	.output = xfrm6_prepare_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

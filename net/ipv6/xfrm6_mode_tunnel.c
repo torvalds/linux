@@ -38,33 +38,22 @@ static inline void ip6ip_ecn_decapsulate(struct sk_buff *skb)
 static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
-	struct xfrm_dst *xdst = (struct xfrm_dst*)dst;
-	struct ipv6hdr *iph, *top_iph;
+	struct ipv6hdr *top_iph;
 	int dsfield;
-
-	iph = ipv6_hdr(skb);
 
 	skb_set_network_header(skb, -x->props.header_len);
 	skb->mac_header = skb->network_header +
 			  offsetof(struct ipv6hdr, nexthdr);
-	skb->transport_header = skb->network_header + sizeof(*iph);
+	skb->transport_header = skb->network_header + sizeof(*top_iph);
 	top_iph = ipv6_hdr(skb);
 
 	top_iph->version = 6;
-	if (xdst->route->ops->family == AF_INET6) {
-		top_iph->priority = iph->priority;
-		top_iph->flow_lbl[0] = iph->flow_lbl[0];
-		top_iph->flow_lbl[1] = iph->flow_lbl[1];
-		top_iph->flow_lbl[2] = iph->flow_lbl[2];
-		top_iph->nexthdr = IPPROTO_IPV6;
-	} else {
-		top_iph->priority = 0;
-		top_iph->flow_lbl[0] = 0;
-		top_iph->flow_lbl[1] = 0;
-		top_iph->flow_lbl[2] = 0;
-		top_iph->nexthdr = IPPROTO_IPIP;
-	}
-	dsfield = ipv6_get_dsfield(top_iph);
+
+	memcpy(top_iph->flow_lbl, XFRM_MODE_SKB_CB(skb)->flow_lbl,
+	       sizeof(top_iph->flow_lbl));
+	top_iph->nexthdr = x->inner_mode->afinfo->proto;
+
+	dsfield = XFRM_MODE_SKB_CB(skb)->tos;
 	dsfield = INET_ECN_encapsulate(dsfield, dsfield);
 	if (x->props.flags & XFRM_STATE_NOECN)
 		dsfield &= ~INET_ECN_MASK;
@@ -72,7 +61,6 @@ static int xfrm6_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	top_iph->hop_limit = dst_metric(dst->child, RTAX_HOPLIMIT);
 	ipv6_addr_copy(&top_iph->saddr, (struct in6_addr *)&x->props.saddr);
 	ipv6_addr_copy(&top_iph->daddr, (struct in6_addr *)&x->id.daddr);
-	skb->protocol = htons(ETH_P_IPV6);
 	return 0;
 }
 
@@ -116,7 +104,8 @@ out:
 
 static struct xfrm_mode xfrm6_tunnel_mode = {
 	.input = xfrm6_tunnel_input,
-	.output = xfrm6_tunnel_output,
+	.output2 = xfrm6_tunnel_output,
+	.output = xfrm6_prepare_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,

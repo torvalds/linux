@@ -43,7 +43,17 @@ static int xfrm4_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 	ph = (struct ip_beet_phdr *)__skb_pull(skb, sizeof(*iph) - hdrlen);
 
 	top_iph = ip_hdr(skb);
-	memmove(top_iph, iph, sizeof(*iph));
+
+	top_iph->ihl = 5;
+	top_iph->version = 4;
+
+	top_iph->protocol = XFRM_MODE_SKB_CB(skb)->protocol;
+	top_iph->tos = XFRM_MODE_SKB_CB(skb)->tos;
+
+	top_iph->id = XFRM_MODE_SKB_CB(skb)->id;
+	top_iph->frag_off = XFRM_MODE_SKB_CB(skb)->frag_off;
+	top_iph->ttl = XFRM_MODE_SKB_CB(skb)->ttl;
+
 	if (unlikely(optlen)) {
 		BUG_ON(optlen < 0);
 
@@ -111,7 +121,8 @@ out:
 
 static struct xfrm_mode xfrm4_beet_mode = {
 	.input = xfrm4_beet_input,
-	.output = xfrm4_beet_output,
+	.output2 = xfrm4_beet_output,
+	.output = xfrm4_prepare_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_BEET,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
