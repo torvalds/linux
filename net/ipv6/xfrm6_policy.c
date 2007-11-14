@@ -102,24 +102,6 @@ __xfrm6_bundle_addr_local(struct xfrm_state *x, struct in6_addr *addr)
 		(struct in6_addr*)&x->props.saddr;
 }
 
-static inline void
-__xfrm6_bundle_len_inc(int *len, int *nflen, struct xfrm_state *x)
-{
-	if (x->type->flags & XFRM_TYPE_NON_FRAGMENT)
-		*nflen += x->props.header_len;
-	else
-		*len += x->props.header_len;
-}
-
-static inline void
-__xfrm6_bundle_len_dec(int *len, int *nflen, struct xfrm_state *x)
-{
-	if (x->type->flags & XFRM_TYPE_NON_FRAGMENT)
-		*nflen -= x->props.header_len;
-	else
-		*len -= x->props.header_len;
-}
-
 /* Allocate chain of dst_entry's, attach known xfrm's, calculate
  * all the metrics... Shortly, bundle a bundle.
  */
@@ -142,7 +124,6 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 	int i;
 	int err = 0;
 	int header_len = 0;
-	int nfheader_len = 0;
 	int trailer_len = 0;
 
 	dst = dst_prev = NULL;
@@ -175,7 +156,9 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst1->next = dst_prev;
 		dst_prev = dst1;
 
-		__xfrm6_bundle_len_inc(&header_len, &nfheader_len, xfrm[i]);
+		if (xfrm[i]->type->flags & XFRM_TYPE_NON_FRAGMENT)
+			dst->nfheader_len += xfrm[i]->props.header_len;
+		header_len += xfrm[i]->props.header_len;
 		trailer_len += xfrm[i]->props.trailer_len;
 
 		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
@@ -223,7 +206,6 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst_prev->flags	       |= DST_HOST;
 		dst_prev->lastuse	= jiffies;
 		dst_prev->header_len	= header_len;
-		dst_prev->nfheader_len	= nfheader_len;
 		dst_prev->trailer_len	= trailer_len;
 		memcpy(&dst_prev->metrics, &x->route->metrics, sizeof(dst_prev->metrics));
 
@@ -242,7 +224,7 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		x->u.rt6.rt6i_src      = rt0->rt6i_src;
 		x->u.rt6.rt6i_idev     = rt0->rt6i_idev;
 		in6_dev_hold(rt0->rt6i_idev);
-		__xfrm6_bundle_len_dec(&header_len, &nfheader_len, x->u.dst.xfrm);
+		header_len -= x->u.dst.xfrm->props.header_len;
 		trailer_len -= x->u.dst.xfrm->props.trailer_len;
 	}
 

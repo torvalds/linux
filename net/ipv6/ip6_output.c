@@ -1098,7 +1098,8 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 		inet->cork.length = 0;
 		sk->sk_sndmsg_page = NULL;
 		sk->sk_sndmsg_off = 0;
-		exthdrlen = rt->u.dst.header_len + (opt ? opt->opt_flen : 0);
+		exthdrlen = rt->u.dst.header_len + (opt ? opt->opt_flen : 0) -
+			    rt->u.dst.nfheader_len;
 		length += exthdrlen;
 		transhdrlen += exthdrlen;
 	} else {
