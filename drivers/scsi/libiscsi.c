@@ -291,9 +291,6 @@ invalid_datalen:
 			   min_t(uint16_t, senselen, SCSI_SENSE_BUFFERSIZE));
 	}
 
-	if (sc->sc_data_direction == DMA_TO_DEVICE)
-		goto out;
-
 	if (rhdr->flags & ISCSI_FLAG_CMD_UNDERFLOW) {
 		int res_count = be32_to_cpu(rhdr->residual_count);
 
