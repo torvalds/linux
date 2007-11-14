@@ -825,6 +825,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  fujitsu	Fujitsu Laptop
 	  hp-bpc	HP xw4400/6400/8400/9400 laptops
 	  hp-bpc-d7000	HP BPC D7000
+	  hp-tc-t5735	HP Thin Client T5735
 	  benq		Benq ED8
 	  benq-t31	Benq T31
 	  hippo		Hippo (ATI) with jack detection, Sony UX-90s
