@@ -875,7 +875,8 @@ static inline int ipv6_saddr_preferred(int type)
 }
 
 /* static matching label */
-static inline int ipv6_addr_label(const struct in6_addr *addr, int type)
+static inline int ipv6_addr_label(const struct in6_addr *addr, int type,
+				  int ifindex)
 {
  /*
   * 	prefix (longest match)	label
@@ -910,7 +911,8 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 	struct inet6_ifaddr *ifa_result = NULL;
 	int daddr_type = __ipv6_addr_type(daddr);
 	int daddr_scope = __ipv6_addr_src_scope(daddr_type);
-	u32 daddr_label = ipv6_addr_label(daddr, daddr_type);
+	int daddr_ifindex = daddr_dev ? daddr_dev->ifindex : 0;
+	u32 daddr_label = ipv6_addr_label(daddr, daddr_type, daddr_ifindex);
 	struct net_device *dev;
 
 	memset(&hiscore, 0, sizeof(hiscore));
@@ -1084,12 +1086,14 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 			/* Rule 6: Prefer matching label */
 			if (hiscore.rule < 6) {
 				if (ipv6_addr_label(&ifa_result->addr,
-						    hiscore.addr_type) == daddr_label)
+						    hiscore.addr_type,
+						    ifa_result->idev->dev->ifindex) == daddr_label)
 					hiscore.attrs |= IPV6_SADDR_SCORE_LABEL;
 				hiscore.rule++;
 			}
 			if (ipv6_addr_label(&ifa->addr,
-					    score.addr_type) == daddr_label) {
+					    score.addr_type,
+					    ifa->idev->dev->ifindex) == daddr_label) {
 				score.attrs |= IPV6_SADDR_SCORE_LABEL;
 				if (!(hiscore.attrs & IPV6_SADDR_SCORE_LABEL)) {
 					score.rule = 6;
