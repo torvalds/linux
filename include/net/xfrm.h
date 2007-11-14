@@ -282,6 +282,8 @@ struct xfrm_type
 	__u8			flags;
 #define XFRM_TYPE_NON_FRAGMENT	1
 #define XFRM_TYPE_REPLAY_PROT	2
+#define XFRM_TYPE_LOCAL_COADDR	4
+#define XFRM_TYPE_REMOTE_COADDR	8
 
 	int			(*init_state)(struct xfrm_state *x);
 	void			(*destructor)(struct xfrm_state *);
@@ -289,8 +291,6 @@ struct xfrm_type
 	int			(*output)(struct xfrm_state *, struct sk_buff *pskb);
 	int			(*reject)(struct xfrm_state *, struct sk_buff *, struct flowi *);
 	int			(*hdr_offset)(struct xfrm_state *, struct sk_buff *, u8 **);
-	xfrm_address_t		*(*local_addr)(struct xfrm_state *, xfrm_address_t *);
-	xfrm_address_t		*(*remote_addr)(struct xfrm_state *, xfrm_address_t *);
 	/* Estimate maximal size of result of transformation of a dgram */
 	u32			(*get_mtu)(struct xfrm_state *, int size);
 };

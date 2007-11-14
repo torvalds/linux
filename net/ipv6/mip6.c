@@ -34,11 +34,6 @@
 #include <net/xfrm.h>
 #include <net/mip6.h>
 
-static xfrm_address_t *mip6_xfrm_addr(struct xfrm_state *x, xfrm_address_t *addr)
-{
-	return x->coaddr;
-}
-
 static inline unsigned int calc_padlen(unsigned int len, unsigned int n)
 {
 	return (n - len + 16) & 0x7;
@@ -337,14 +332,13 @@ static struct xfrm_type mip6_destopt_type =
 	.description	= "MIP6DESTOPT",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_DSTOPTS,
-	.flags		= XFRM_TYPE_NON_FRAGMENT,
+	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_LOCAL_COADDR,
 	.init_state	= mip6_destopt_init_state,
 	.destructor	= mip6_destopt_destroy,
 	.input		= mip6_destopt_input,
 	.output		= mip6_destopt_output,
 	.reject		= mip6_destopt_reject,
 	.hdr_offset	= mip6_destopt_offset,
-	.local_addr	= mip6_xfrm_addr,
 };
 
 static int mip6_rthdr_input(struct xfrm_state *x, struct sk_buff *skb)
@@ -467,13 +461,12 @@ static struct xfrm_type mip6_rthdr_type =
 	.description	= "MIP6RT",
 	.owner		= THIS_MODULE,
 	.proto	     	= IPPROTO_ROUTING,
-	.flags		= XFRM_TYPE_NON_FRAGMENT,
+	.flags		= XFRM_TYPE_NON_FRAGMENT | XFRM_TYPE_REMOTE_COADDR,
 	.init_state	= mip6_rthdr_init_state,
 	.destructor	= mip6_rthdr_destroy,
 	.input		= mip6_rthdr_input,
 	.output		= mip6_rthdr_output,
 	.hdr_offset	= mip6_rthdr_offset,
-	.remote_addr	= mip6_xfrm_addr,
 };
 
 static int __init mip6_init(void)

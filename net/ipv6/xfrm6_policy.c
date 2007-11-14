@@ -87,20 +87,16 @@ __xfrm6_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 	return dst;
 }
 
-static inline struct in6_addr*
-__xfrm6_bundle_addr_remote(struct xfrm_state *x, struct in6_addr *addr)
+static inline xfrm_address_t *__xfrm6_bundle_addr_remote(struct xfrm_state *x)
 {
-	return (x->type->remote_addr) ?
-		(struct in6_addr*)x->type->remote_addr(x, (xfrm_address_t *)addr) :
-		(struct in6_addr*)&x->id.daddr;
+	return (x->type->flags & XFRM_TYPE_REMOTE_COADDR) ? x->coaddr :
+							    &x->id.daddr;
 }
 
-static inline struct in6_addr*
-__xfrm6_bundle_addr_local(struct xfrm_state *x, struct in6_addr *addr)
+static inline xfrm_address_t *__xfrm6_bundle_addr_local(struct xfrm_state *x)
 {
-	return (x->type->local_addr) ?
-		(struct in6_addr*)x->type->local_addr(x, (xfrm_address_t *)addr) :
-		(struct in6_addr*)&x->props.saddr;
+	return (x->type->flags & XFRM_TYPE_LOCAL_COADDR) ? x->coaddr :
+							   &x->props.saddr;
 }
 
 /* Allocate chain of dst_entry's, attach known xfrm's, calculate
@@ -171,9 +167,9 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 				fl_tunnel.fl4_src = xfrm[i]->props.saddr.a4;
 				break;
 			case AF_INET6:
-				ipv6_addr_copy(&fl_tunnel.fl6_dst, __xfrm6_bundle_addr_remote(xfrm[i], &fl->fl6_dst));
+				ipv6_addr_copy(&fl_tunnel.fl6_dst, (struct in6_addr *)__xfrm6_bundle_addr_remote(xfrm[i]));
 
-				ipv6_addr_copy(&fl_tunnel.fl6_src, __xfrm6_bundle_addr_local(xfrm[i], &fl->fl6_src));
+				ipv6_addr_copy(&fl_tunnel.fl6_src, (struct in6_addr *)__xfrm6_bundle_addr_local(xfrm[i]));
 				break;
 			default:
 				BUG_ON(1);
