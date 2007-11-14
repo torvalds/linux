@@ -100,19 +100,29 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 {
 	int err;
 	__be32 seq;
-	struct xfrm_state *xfrm_vec[XFRM_MAX_DEPTH];
 	struct xfrm_state *x;
-	int xfrm_nr = 0;
 	int decaps = 0;
 	unsigned int nhoff = XFRM_SPI_SKB_CB(skb)->nhoff;
 	unsigned int daddroff = XFRM_SPI_SKB_CB(skb)->daddroff;
+
+	/* Allocate new secpath or COW existing one. */
+	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
+		struct sec_path *sp;
+
+		sp = secpath_dup(skb->sp);
+		if (!sp)
+			goto drop;
+		if (skb->sp)
+			secpath_put(skb->sp);
+		skb->sp = sp;
+	}
 
 	seq = 0;
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
 		goto drop;
 
 	do {
-		if (xfrm_nr == XFRM_MAX_DEPTH)
+		if (skb->sp->len == XFRM_MAX_DEPTH)
 			goto drop;
 
 		x = xfrm_state_lookup((xfrm_address_t *)
@@ -120,6 +130,8 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 				      spi, nexthdr, AF_INET);
 		if (x == NULL)
 			goto drop;
+
+		skb->sp->xvec[skb->sp->len++] = x;
 
 		spin_lock(&x->lock);
 		if (unlikely(x->km.state != XFRM_STATE_VALID))
@@ -151,8 +163,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		spin_unlock(&x->lock);
 
-		xfrm_vec[xfrm_nr++] = x;
-
 		if (x->inner_mode->input(x, skb))
 			goto drop;
 
@@ -165,24 +175,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		if (err < 0)
 			goto drop;
 	} while (!err);
-
-	/* Allocate new secpath or COW existing one. */
-
-	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
-		struct sec_path *sp;
-		sp = secpath_dup(skb->sp);
-		if (!sp)
-			goto drop;
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
-	}
-	if (xfrm_nr + skb->sp->len > XFRM_MAX_DEPTH)
-		goto drop;
-
-	memcpy(skb->sp->xvec + skb->sp->len, xfrm_vec,
-	       xfrm_nr * sizeof(xfrm_vec[0]));
-	skb->sp->len += xfrm_nr;
 
 	nf_reset(skb);
 
@@ -197,11 +189,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 drop_unlock:
 	spin_unlock(&x->lock);
-	xfrm_state_put(x);
 drop:
-	while (--xfrm_nr >= 0)
-		xfrm_state_put(xfrm_vec[xfrm_nr]);
-
 	kfree_skb(skb);
 	return 0;
 }
