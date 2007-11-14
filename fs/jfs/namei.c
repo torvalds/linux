@@ -1104,7 +1104,7 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	 */
 	rc = dtSearch(new_dir, &new_dname, &ino, &btstack, JFS_LOOKUP);
 	if (!rc) {
-		if ((new_ip == 0) || (ino != new_ip->i_ino)) {
+		if ((!new_ip) || (ino != new_ip->i_ino)) {
 			rc = -ESTALE;
 			goto out3;
 		}
