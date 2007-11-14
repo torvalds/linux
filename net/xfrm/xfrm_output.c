@@ -113,7 +113,7 @@ int xfrm_output_resume(struct sk_buff *skb, int err)
 			return dst_output(skb);
 
 		err = nf_hook(x->inner_mode->afinfo->family,
-			      x->inner_mode->afinfo->nf_post_routing, skb,
+			      NF_INET_POST_ROUTING, skb,
 			      NULL, skb->dst->dev, xfrm_output2);
 		if (unlikely(err != 1))
 			goto out;
