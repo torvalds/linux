@@ -370,6 +370,7 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 	ip6h->flow_lbl[2] = 0;
 	ip6h->hop_limit   = 0;
 
+	spin_lock(&x->lock);
 	{
 		u8 auth_data[MAX_AH_AUTH_LEN];
 
@@ -378,13 +379,17 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		skb_push(skb, hdr_len);
 		err = ah_mac_digest(ahp, skb, ah->auth_data);
 		if (err)
-			goto free_out;
+			goto unlock;
 		if (memcmp(ahp->work_icv, auth_data, ahp->icv_trunc_len)) {
 			LIMIT_NETDEBUG(KERN_WARNING "ipsec ah authentication error\n");
 			err = -EBADMSG;
-			goto free_out;
 		}
 	}
+unlock:
+	spin_unlock(&x->lock);
+
+	if (err)
+		goto free_out;
 
 	skb->network_header += ah_hlen;
 	memcpy(skb_network_header(skb), tmp_hdr, hdr_len);

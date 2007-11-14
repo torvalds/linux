@@ -128,12 +128,15 @@ static int mip6_destopt_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipv6hdr *iph = ipv6_hdr(skb);
 	struct ipv6_destopt_hdr *destopt = (struct ipv6_destopt_hdr *)skb->data;
+	int err = destopt->nexthdr;
 
+	spin_lock(&x->lock);
 	if (!ipv6_addr_equal(&iph->saddr, (struct in6_addr *)x->coaddr) &&
 	    !ipv6_addr_any((struct in6_addr *)x->coaddr))
-		return -ENOENT;
+		err = -ENOENT;
+	spin_unlock(&x->lock);
 
-	return destopt->nexthdr;
+	return err;
 }
 
 /* Destination Option Header is inserted.
@@ -344,12 +347,15 @@ static struct xfrm_type mip6_destopt_type =
 static int mip6_rthdr_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct rt2_hdr *rt2 = (struct rt2_hdr *)skb->data;
+	int err = rt2->rt_hdr.nexthdr;
 
+	spin_lock(&x->lock);
 	if (!ipv6_addr_equal(&rt2->addr, (struct in6_addr *)x->coaddr) &&
 	    !ipv6_addr_any((struct in6_addr *)x->coaddr))
-		return -ENOENT;
+		err = -ENOENT;
+	spin_unlock(&x->lock);
 
-	return rt2->rt_hdr.nexthdr;
+	return err;
 }
 
 /* Routing Header type 2 is inserted.

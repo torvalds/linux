@@ -146,7 +146,11 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		if (xfrm_state_check_expire(x))
 			goto drop_unlock;
 
+		spin_unlock(&x->lock);
+
 		nexthdr = x->type->input(x, skb);
+
+		spin_lock(&x->lock);
 		if (nexthdr <= 0) {
 			if (nexthdr == -EBADMSG)
 				x->stats.integrity_failed++;

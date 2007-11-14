@@ -171,28 +171,30 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (elen <= 0 || (elen & (blksize-1)))
 		goto out;
 
+	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
+		goto out;
+	nfrags = err;
+
+	skb->ip_summed = CHECKSUM_NONE;
+
+	spin_lock(&x->lock);
+
 	/* If integrity check is required, do this. */
 	if (esp->auth.icv_full_len) {
 		u8 sum[alen];
 
 		err = esp_mac_digest(esp, skb, 0, skb->len - alen);
 		if (err)
-			goto out;
+			goto unlock;
 
 		if (skb_copy_bits(skb, skb->len - alen, sum, alen))
 			BUG();
 
 		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
 			err = -EBADMSG;
-			goto out;
+			goto unlock;
 		}
 	}
-
-	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
-		goto out;
-	nfrags = err;
-
-	skb->ip_summed = CHECKSUM_NONE;
 
 	esph = (struct ip_esp_hdr *)skb->data;
 
@@ -206,7 +208,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 		err = -ENOMEM;
 		sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
 		if (!sg)
-			goto out;
+			goto unlock;
 	}
 	sg_init_table(sg, nfrags);
 	skb_to_sgvec(skb, sg,
@@ -215,6 +217,10 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	err = crypto_blkcipher_decrypt(&desc, sg, sg, elen);
 	if (unlikely(sg != &esp->sgbuf[0]))
 		kfree(sg);
+
+unlock:
+	spin_unlock(&x->lock);
+
 	if (unlikely(err))
 		goto out;
 
