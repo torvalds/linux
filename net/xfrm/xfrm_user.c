@@ -1986,8 +1986,8 @@ static inline size_t xfrm_sa_len(struct xfrm_state *x)
 	if (x->coaddr)
 		l += nla_total_size(sizeof(*x->coaddr));
 
-	/* Must count this as this may become non-zero behind our back. */
-	l += nla_total_size(sizeof(x->lastused));
+	/* Must count x->lastused as it may become non-zero behind our back. */
+	l += nla_total_size(sizeof(u64));
 
 	return l;
 }

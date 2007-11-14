@@ -183,7 +183,7 @@ struct xfrm_state
 	struct timer_list	timer;
 
 	/* Last used time */
-	u64			lastused;
+	unsigned long		lastused;
 
 	/* Reference to data common to all the instances of this
 	 * transformer. */
