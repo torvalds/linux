@@ -1171,6 +1171,8 @@ rollback:
 			nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
 		}
 	}
+
+	raw_notifier_chain_unregister(&netdev_chain, nb);
 	goto unlock;
 }
 
