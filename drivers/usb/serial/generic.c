@@ -175,6 +175,14 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 	struct usb_serial_port *port;
 	int i, c = 0, r;
 
+#ifdef CONFIG_PM
+	/*
+	 * If this is an autoresume, don't submit URBs.
+	 * They will be submitted in the open function instead.
+	 */
+	if (serial->dev->auto_pm)
+		return 0;
+#endif
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 		if (port->open_count && port->read_urb) {

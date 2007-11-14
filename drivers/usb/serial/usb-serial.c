@@ -225,16 +225,21 @@ static int serial_open (struct tty_struct *tty, struct file * filp)
 			goto bailout_mutex_unlock;
 		}
 
+		retval = usb_autopm_get_interface(serial->interface);
+		if (retval)
+			goto bailout_module_put;
 		/* only call the device specific open if this 
 		 * is the first time the port is opened */
 		retval = serial->type->open(port, filp);
 		if (retval)
-			goto bailout_module_put;
+			goto bailout_interface_put;
 	}
 
 	mutex_unlock(&port->mutex);
 	return 0;
 
+bailout_interface_put:
+	usb_autopm_put_interface(serial->interface);
 bailout_module_put:
 	module_put(serial->type->driver.owner);
 bailout_mutex_unlock:
@@ -277,8 +282,10 @@ static void serial_close(struct tty_struct *tty, struct file * filp)
 		}
 	}
 
-	if (port->open_count == 0)
+	if (port->open_count == 0) {
+		usb_autopm_put_interface(port->serial->interface);
 		module_put(port->serial->type->driver.owner);
+	}
 
 	mutex_unlock(&port->mutex);
 	usb_serial_put(port->serial);
@@ -1255,6 +1262,7 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, read_bulk_callback);
 	set_to_generic_if_null(device, write_bulk_callback);
 	set_to_generic_if_null(device, shutdown);
+	set_to_generic_if_null(device, resume);
 }
 
 int usb_serial_register(struct usb_serial_driver *driver) /* must be called with BKL held */
