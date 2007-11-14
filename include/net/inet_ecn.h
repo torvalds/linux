@@ -83,9 +83,9 @@ static inline void IP_ECN_clear(struct iphdr *iph)
 	iph->tos &= ~INET_ECN_MASK;
 }
 
-static inline void ipv4_copy_dscp(struct iphdr *outer, struct iphdr *inner)
+static inline void ipv4_copy_dscp(unsigned int dscp, struct iphdr *inner)
 {
-	u32 dscp = ipv4_get_dsfield(outer) & ~INET_ECN_MASK;
+	dscp &= ~INET_ECN_MASK;
 	ipv4_change_dsfield(inner, INET_ECN_MASK, dscp);
 }
 
@@ -104,9 +104,9 @@ static inline void IP6_ECN_clear(struct ipv6hdr *iph)
 	*(__be32*)iph &= ~htonl(INET_ECN_MASK << 20);
 }
 
-static inline void ipv6_copy_dscp(struct ipv6hdr *outer, struct ipv6hdr *inner)
+static inline void ipv6_copy_dscp(unsigned int dscp, struct ipv6hdr *inner)
 {
-	u32 dscp = ipv6_get_dsfield(outer) & ~INET_ECN_MASK;
+	dscp &= ~INET_ECN_MASK;
 	ipv6_change_dsfield(inner, INET_ECN_MASK, dscp);
 }
 

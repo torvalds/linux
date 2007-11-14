@@ -113,7 +113,7 @@ static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	iph = ip_hdr(skb);
 	if (iph->protocol == IPPROTO_IPIP) {
 		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-			ipv4_copy_dscp(iph, ipip_hdr(skb));
+			ipv4_copy_dscp(ipv4_get_dsfield(iph), ipip_hdr(skb));
 		if (!(x->props.flags & XFRM_STATE_NOECN))
 			ipip_ecn_decapsulate(skb);
 	}

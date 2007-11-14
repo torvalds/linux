@@ -95,7 +95,8 @@ static int xfrm6_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 	nh = skb_network_header(skb);
 	if (nh[IP6CB(skb)->nhoff] == IPPROTO_IPV6) {
 		if (x->props.flags & XFRM_STATE_DECAP_DSCP)
-			ipv6_copy_dscp(ipv6_hdr(skb), ipipv6_hdr(skb));
+			ipv6_copy_dscp(ipv6_get_dsfield(ipv6_hdr(skb)),
+				       ipipv6_hdr(skb));
 		if (!(x->props.flags & XFRM_STATE_NOECN))
 			ipip6_ecn_decapsulate(skb);
 	} else {
