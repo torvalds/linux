@@ -354,14 +354,14 @@ static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
 {
 	if ((raw6_sk(sk)->checksum || sk->sk_filter) &&
 	    skb_checksum_complete(skb)) {
-		/* FIXME: increment a raw6 drops counter here */
+		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
 		return 0;
 	}
 
 	/* Charge it to the socket. */
 	if (sock_queue_rcv_skb(sk,skb)<0) {
-		/* FIXME: increment a raw6 drops counter here */
+		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
 		return 0;
 	}
@@ -382,6 +382,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 	struct raw6_sock *rp = raw6_sk(sk);
 
 	if (!xfrm6_policy_check(sk, XFRM_POLICY_IN, skb)) {
+		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
@@ -405,7 +406,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 
 	if (inet->hdrincl) {
 		if (skb_checksum_complete(skb)) {
-			/* FIXME: increment a raw6 drops counter here */
+			atomic_inc(&sk->sk_drops);
 			kfree_skb(skb);
 			return 0;
 		}
@@ -496,7 +497,7 @@ csum_copy_err:
 	   as some normal condition.
 	 */
 	err = (flags&MSG_DONTWAIT) ? -EAGAIN : -EHOSTUNREACH;
-	/* FIXME: increment a raw6 drops counter here */
+	atomic_inc(&sk->sk_drops);
 	goto out;
 }
 
@@ -1254,7 +1255,7 @@ static void raw6_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 	srcp  = inet_sk(sp)->num;
 	seq_printf(seq,
 		   "%4d: %08X%08X%08X%08X:%04X %08X%08X%08X%08X:%04X "
-		   "%02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p\n",
+		   "%02X %08X:%08X %02X:%08lX %08X %5d %8d %lu %d %p %d\n",
 		   i,
 		   src->s6_addr32[0], src->s6_addr32[1],
 		   src->s6_addr32[2], src->s6_addr32[3], srcp,
@@ -1266,7 +1267,7 @@ static void raw6_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 		   0, 0L, 0,
 		   sock_i_uid(sp), 0,
 		   sock_i_ino(sp),
-		   atomic_read(&sp->sk_refcnt), sp);
+		   atomic_read(&sp->sk_refcnt), sp, atomic_read(&sp->sk_drops));
 }
 
 static int raw6_seq_show(struct seq_file *seq, void *v)
@@ -1277,7 +1278,7 @@ static int raw6_seq_show(struct seq_file *seq, void *v)
 			   "local_address                         "
 			   "remote_address                        "
 			   "st tx_queue rx_queue tr tm->when retrnsmt"
-			   "   uid  timeout inode\n");
+			   "   uid  timeout inode  drops\n");
 	else
 		raw6_sock_seq_show(seq, v, raw6_seq_private(seq)->bucket);
 	return 0;
