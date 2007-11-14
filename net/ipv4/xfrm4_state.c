@@ -11,6 +11,7 @@
 #include <net/xfrm.h>
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
+#include <linux/netfilter_ipv4.h>
 
 static struct xfrm_state_afinfo xfrm4_state_afinfo;
 
@@ -66,6 +67,7 @@ static struct xfrm_state_afinfo xfrm4_state_afinfo = {
 	.family			= AF_INET,
 	.proto			= IPPROTO_IPIP,
 	.eth_proto		= htons(ETH_P_IP),
+	.nf_post_routing	= NF_IP_POST_ROUTING,
 	.owner			= THIS_MODULE,
 	.init_flags		= xfrm4_init_flags,
 	.init_tempsel		= __xfrm4_init_tempsel,

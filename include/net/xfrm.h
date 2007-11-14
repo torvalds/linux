@@ -259,6 +259,7 @@ struct xfrm_state_afinfo {
 	unsigned int		family;
 	unsigned int		proto;
 	unsigned int		eth_proto;
+	unsigned int		nf_post_routing;
 	struct module		*owner;
 	struct xfrm_type	*type_map[IPPROTO_MAX];
 	struct xfrm_mode	*mode_map[XFRM_MODE_MAX];

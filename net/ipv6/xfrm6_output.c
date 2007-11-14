@@ -66,6 +66,9 @@ int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 		return err;
 
 	memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
+#ifdef CONFIG_NETFILTER
+	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
+#endif
 
 	skb->protocol = htons(ETH_P_IPV6);
 
@@ -73,80 +76,14 @@ int xfrm6_prepare_output(struct xfrm_state *x, struct sk_buff *skb)
 }
 EXPORT_SYMBOL(xfrm6_prepare_output);
 
-static inline int xfrm6_output_one(struct sk_buff *skb)
-{
-	int err;
-
-	err = xfrm_output(skb);
-	if (err)
-		goto error_nolock;
-
-	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
-	err = 0;
-
-out_exit:
-	return err;
-error_nolock:
-	kfree_skb(skb);
-	goto out_exit;
-}
-
-static int xfrm6_output_finish2(struct sk_buff *skb)
-{
-	int err;
-
-	while (likely((err = xfrm6_output_one(skb)) == 0)) {
-		nf_reset(skb);
-
-		err = __ip6_local_out(skb);
-		if (unlikely(err != 1))
-			break;
-
-		if (!skb->dst->xfrm)
-			return dst_output(skb);
-
-		err = nf_hook(PF_INET6, NF_IP6_POST_ROUTING, skb, NULL,
-			      skb->dst->dev, xfrm6_output_finish2);
-		if (unlikely(err != 1))
-			break;
-	}
-
-	return err;
-}
-
 static int xfrm6_output_finish(struct sk_buff *skb)
 {
-	struct sk_buff *segs;
-
-	if (!skb_is_gso(skb))
-		return xfrm6_output_finish2(skb);
+#ifdef CONFIG_NETFILTER
+	IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
+#endif
 
 	skb->protocol = htons(ETH_P_IPV6);
-	segs = skb_gso_segment(skb, 0);
-	kfree_skb(skb);
-	if (unlikely(IS_ERR(segs)))
-		return PTR_ERR(segs);
-
-	do {
-		struct sk_buff *nskb = segs->next;
-		int err;
-
-		segs->next = NULL;
-		err = xfrm6_output_finish2(segs);
-
-		if (unlikely(err)) {
-			while ((segs = nskb)) {
-				nskb = segs->next;
-				segs->next = NULL;
-				kfree_skb(segs);
-			}
-			return err;
-		}
-
-		segs = nskb;
-	} while (segs);
-
-	return 0;
+	return xfrm_output(skb);
 }
 
 int xfrm6_output(struct sk_buff *skb)

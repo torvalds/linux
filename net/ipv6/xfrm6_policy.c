@@ -252,6 +252,7 @@ static struct dst_ops xfrm6_dst_ops = {
 	.update_pmtu =		xfrm6_update_pmtu,
 	.destroy =		xfrm6_dst_destroy,
 	.ifdown =		xfrm6_dst_ifdown,
+	.local_out =		__ip6_local_out,
 	.gc_thresh =		1024,
 	.entry_size =		sizeof(struct xfrm_dst),
 };

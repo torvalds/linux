@@ -12,6 +12,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/netfilter.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <net/dst.h>
@@ -40,7 +41,7 @@ err:
 	return err;
 }
 
-int xfrm_output(struct sk_buff *skb)
+static int xfrm_output_one(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
 	struct xfrm_state *x = dst->xfrm;
@@ -87,10 +88,73 @@ int xfrm_output(struct sk_buff *skb)
 
 	err = 0;
 
-error_nolock:
+out_exit:
 	return err;
 error:
 	spin_unlock_bh(&x->lock);
-	goto error_nolock;
+error_nolock:
+	kfree_skb(skb);
+	goto out_exit;
+}
+
+static int xfrm_output2(struct sk_buff *skb)
+{
+	int err;
+
+	while (likely((err = xfrm_output_one(skb)) == 0)) {
+		struct xfrm_state *x;
+
+		nf_reset(skb);
+
+		err = skb->dst->ops->local_out(skb);
+		if (unlikely(err != 1))
+			break;
+
+		x = skb->dst->xfrm;
+		if (!x)
+			return dst_output(skb);
+
+		err = nf_hook(x->inner_mode->afinfo->family,
+			      x->inner_mode->afinfo->nf_post_routing, skb,
+			      NULL, skb->dst->dev, xfrm_output2);
+		if (unlikely(err != 1))
+			break;
+	}
+
+	return err;
+}
+
+int xfrm_output(struct sk_buff *skb)
+{
+	struct sk_buff *segs;
+
+	if (!skb_is_gso(skb))
+		return xfrm_output2(skb);
+
+	segs = skb_gso_segment(skb, 0);
+	kfree_skb(skb);
+	if (unlikely(IS_ERR(segs)))
+		return PTR_ERR(segs);
+
+	do {
+		struct sk_buff *nskb = segs->next;
+		int err;
+
+		segs->next = NULL;
+		err = xfrm_output2(segs);
+
+		if (unlikely(err)) {
+			while ((segs = nskb)) {
+				nskb = segs->next;
+				segs->next = NULL;
+				kfree_skb(segs);
+			}
+			return err;
+		}
+
+		segs = nskb;
+	} while (segs);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(xfrm_output);

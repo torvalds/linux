@@ -113,6 +113,7 @@ static struct dst_ops ip6_dst_ops = {
 	.negative_advice	=	ip6_negative_advice,
 	.link_failure		=	ip6_link_failure,
 	.update_pmtu		=	ip6_rt_update_pmtu,
+	.local_out		=	ip6_local_out,
 	.entry_size		=	sizeof(struct rt6_info),
 };
 

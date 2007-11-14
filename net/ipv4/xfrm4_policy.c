@@ -237,6 +237,7 @@ static struct dst_ops xfrm4_dst_ops = {
 	.update_pmtu =		xfrm4_update_pmtu,
 	.destroy =		xfrm4_dst_destroy,
 	.ifdown =		xfrm4_dst_ifdown,
+	.local_out =		__ip_local_out,
 	.gc_thresh =		1024,
 	.entry_size =		sizeof(struct xfrm_dst),
 };

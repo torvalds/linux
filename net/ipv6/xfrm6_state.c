@@ -14,6 +14,7 @@
 #include <net/xfrm.h>
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
+#include <linux/netfilter_ipv6.h>
 #include <net/dsfield.h>
 #include <net/ipv6.h>
 #include <net/addrconf.h>
@@ -189,6 +190,7 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.family			= AF_INET6,
 	.proto			= IPPROTO_IPV6,
 	.eth_proto		= htons(ETH_P_IPV6),
+	.nf_post_routing	= NF_IP6_POST_ROUTING,
 	.owner			= THIS_MODULE,
 	.init_tempsel		= __xfrm6_init_tempsel,
 	.tmpl_sort		= __xfrm6_tmpl_sort,
