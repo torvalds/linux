@@ -205,7 +205,7 @@ static void sync_cmos_clock(unsigned long dummy)
 		return;
 
 	getnstimeofday(&now);
-	if (abs(xtime.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec / 2)
+	if (abs(now.tv_nsec - (NSEC_PER_SEC / 2)) <= tick_nsec / 2)
 		fail = update_persistent_clock(now);
 
 	next.tv_nsec = (NSEC_PER_SEC / 2) - now.tv_nsec;
