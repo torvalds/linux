@@ -31,8 +31,8 @@
    DTV6 - 6MHz - ATSC/DVB-C/DVB-T/ISDB-T/DOCSIS
    DTV8 - 8MHz - DVB-C/DVB-T
  */
-#define DTV6_ATSC	(1<<5)
-#define DTV6_QAM	(1<<6)
+#define DTV6           (1 << 5)
+#define QAM            (1 << 6)
 #define DTV7		(1<<7)
 #define DTV78		(1<<8)
 #define DTV8		(1<<9)
@@ -60,9 +60,25 @@
 /* Old firmwares were broken into init0 and init1 */
 #define INIT1		(1<<14)
 
+#define MONO           (1 << 15)
+#define ATSC           (1 << 16)
+#define IF             (1 << 17)
+#define LG60           (1 << 18)
+#define ATI638         (1 << 19)
+#define OREN538        (1 << 20)
+#define OREN36         (1 << 21)
+#define TOYOTA388      (1 << 22)
+#define TOYOTA794      (1 << 23)
+#define DIBCOM52       (1 << 24)
+#define ZARLINK456     (1 << 25)
+#define CHINA          (1 << 26)
+#define F6MHZ          (1 << 27)
+#define INPUT2         (1 << 28)
+#define SCODE          (1 << 29)
+
 /* Newer types to be moved to videodev2.h */
 
-#define V4L2_STD_SECAM_K3	(0x02000000)
+#define V4L2_STD_SECAM_K3	(0x04000000)
 
 /* Audio types */
 

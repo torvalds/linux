@@ -112,6 +112,68 @@ static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
 	return (buf[1]) | (buf[0] << 8);
 }
 
+void dump_firm_type(unsigned int type)
+{
+	 if (type & BASE)
+		printk("BASE ");
+	 if (type & F8MHZ)
+		printk("F8MHZ ");
+	 if (type & MTS)
+		printk("MTS ");
+	 if (type & D2620)
+		printk("D2620 ");
+	 if (type & D2633)
+		printk("D2633 ");
+	 if (type & DTV6)
+		printk("DTV6 ");
+	 if (type & QAM)
+		printk("QAM ");
+	 if (type & DTV7)
+		printk("DTV7 ");
+	 if (type & DTV78)
+		printk("DTV78 ");
+	 if (type & DTV8)
+		printk("DTV8 ");
+	 if (type & FM)
+		printk("FM ");
+	 if (type & INPUT1)
+		printk("INPUT1 ");
+	 if (type & LCD)
+		printk("LCD ");
+	 if (type & NOGD)
+		printk("NOGD ");
+	 if (type & MONO)
+		printk("MONO ");
+	 if (type & ATSC)
+		printk("ATSC ");
+	 if (type & IF)
+		printk("IF ");
+	 if (type & LG60)
+		printk("LG60 ");
+	 if (type & ATI638)
+		printk("ATI638 ");
+	 if (type & OREN538)
+		printk("OREN538 ");
+	 if (type & OREN36)
+		printk("OREN36 ");
+	 if (type & TOYOTA388)
+		printk("TOYOTA388 ");
+	 if (type & TOYOTA794)
+		printk("TOYOTA794 ");
+	 if (type & DIBCOM52)
+		printk("DIBCOM52 ");
+	 if (type & ZARLINK456)
+		printk("ZARLINK456 ");
+	 if (type & CHINA)
+		printk("CHINA ");
+	 if (type & F6MHZ)
+		printk("F6MHZ ");
+	 if (type & INPUT2)
+		printk("INPUT2 ");
+	 if (type & SCODE)
+		printk("SCODE ");
+}
+
 static void free_firmware(struct xc2028_data *priv)
 {
 	int i;
@@ -214,8 +276,10 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		p += sizeof(size);
 
 		if ((!size) || (size + p > endp)) {
-			tuner_info("Firmware type %x, id %lx corrupt\n",
-				   type, (unsigned long)id);
+			tuner_info("Firmware type ");
+			dump_firm_type(type);
+			printk("(%x), id %lx corrupt (size=%ld, expected %d)\n",
+				   type, (unsigned long)id, endp - p, size);
 			goto corrupt;
 		}
 
@@ -225,7 +289,9 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 			rc = -ENOMEM;
 			goto err;
 		}
-		tuner_info("Loading firmware type %x, id %lx, size=%d.\n",
+		tuner_info("Loading firmware type ");
+		dump_firm_type(type);
+		printk("(%x), id %lx, size=%d.\n",
 			   type, (unsigned long)id, size);
 
 		memcpy(priv->firm[n].ptr, p, size);
@@ -366,7 +432,7 @@ found:
 			size -= len;
 		}
 	}
-	return -EINVAL;
+	return 0;
 }
 
 static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
@@ -451,7 +517,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			break;
 		case BANDWIDTH_6_MHZ:
 			/* FIXME: Should allow select also ATSC */
-			type |= DTV6_QAM;
+			type |= DTV6 | QAM;
 			break;
 
 		default:
@@ -484,6 +550,12 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	rc = load_firmware(fe, type, &std);
 	if (rc < 0)
 		return rc;
+
+	/* Load SCODE firmware, if needed */
+	tuner_info("Trying to load scode firmware\n");
+	type0 = SCODE | priv->ctrl.type;
+	if (priv->ctrl.type == XC2028_FIRM_MTS)
+		type0 |= MTS;
 
 	version = xc2028_get_reg(priv, 0x0004);
 	hwmodel = xc2028_get_reg(priv, 0x0008);
