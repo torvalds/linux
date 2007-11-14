@@ -37,3 +37,6 @@ config SND_SOC_CS4270_VD33_ERRATA
 	bool
 	depends on SND_SOC_CS4270
 
+config SND_SOC_TLV320AIC3X
+	tristate
+	depends on SND_SOC && I2C
