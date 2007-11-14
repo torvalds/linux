@@ -1780,9 +1780,6 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 	struct input_dev *input;
 	int keycode;
 
-
-	printk("video bus notify\n");
-
 	if (!video)
 		return;
 
