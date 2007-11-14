@@ -2677,7 +2677,7 @@ static int __init vmx_init(void)
 	memset(iova, 0xff, PAGE_SIZE);
 	kunmap(vmx_io_bitmap_b);
 
-	r = kvm_init_x86(&vmx_x86_ops, sizeof(struct vcpu_vmx), THIS_MODULE);
+	r = kvm_init(&vmx_x86_ops, sizeof(struct vcpu_vmx), THIS_MODULE);
 	if (r)
 		goto out1;
 
@@ -2698,7 +2698,7 @@ static void __exit vmx_exit(void)
 	__free_page(vmx_io_bitmap_b);
 	__free_page(vmx_io_bitmap_a);
 
-	kvm_exit_x86();
+	kvm_exit();
 }
 
 module_init(vmx_init)

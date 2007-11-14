@@ -1723,13 +1723,13 @@ static struct kvm_x86_ops svm_x86_ops = {
 
 static int __init svm_init(void)
 {
-	return kvm_init_x86(&svm_x86_ops, sizeof(struct vcpu_svm),
+	return kvm_init(&svm_x86_ops, sizeof(struct vcpu_svm),
 			      THIS_MODULE);
 }
 
 static void __exit svm_exit(void)
 {
-	kvm_exit_x86();
+	kvm_exit();
 }
 
 module_init(svm_init)

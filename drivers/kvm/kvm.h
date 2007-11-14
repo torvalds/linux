@@ -495,9 +495,9 @@ void vcpu_put(struct kvm_vcpu *vcpu);
 void decache_vcpus_on_cpu(int cpu);
 
 
-int kvm_init_x86(struct kvm_x86_ops *ops, unsigned int vcpu_size,
+int kvm_init(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 		  struct module *module);
-void kvm_exit_x86(void);
+void kvm_exit(void);
 
 int kvm_mmu_module_init(void);
 void kvm_mmu_module_exit(void);

@@ -1434,11 +1434,26 @@ static void kvm_sched_out(struct preempt_notifier *pn,
 	kvm_arch_vcpu_put(vcpu);
 }
 
-int kvm_init_x86(struct kvm_x86_ops *ops, unsigned int vcpu_size,
+int kvm_init(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 		  struct module *module)
 {
 	int r;
 	int cpu;
+
+	r = kvm_mmu_module_init();
+	if (r)
+		goto out4;
+
+	kvm_init_debug();
+
+	kvm_arch_init();
+
+	bad_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+
+	if (bad_page == NULL) {
+		r = -ENOMEM;
+		goto out;
+	}
 
 	if (kvm_x86_ops) {
 		printk(KERN_ERR "kvm: already loaded the other module\n");
@@ -1520,11 +1535,14 @@ out_free_0:
 	kvm_arch_hardware_unsetup();
 out:
 	kvm_x86_ops = NULL;
+	kvm_exit_debug();
+	kvm_mmu_module_exit();
+out4:
 	return r;
 }
-EXPORT_SYMBOL_GPL(kvm_init_x86);
+EXPORT_SYMBOL_GPL(kvm_init);
 
-void kvm_exit_x86(void)
+void kvm_exit(void)
 {
 	misc_deregister(&kvm_dev);
 	kmem_cache_destroy(kvm_vcpu_cache);
@@ -1535,43 +1553,8 @@ void kvm_exit_x86(void)
 	on_each_cpu(hardware_disable, NULL, 0, 1);
 	kvm_arch_hardware_unsetup();
 	kvm_x86_ops = NULL;
-}
-EXPORT_SYMBOL_GPL(kvm_exit_x86);
-
-static __init int kvm_init(void)
-{
-	int r;
-
-	r = kvm_mmu_module_init();
-	if (r)
-		goto out4;
-
-	kvm_init_debug();
-
-	kvm_arch_init();
-
-	bad_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-
-	if (bad_page == NULL) {
-		r = -ENOMEM;
-		goto out;
-	}
-
-	return 0;
-
-out:
-	kvm_exit_debug();
-	kvm_mmu_module_exit();
-out4:
-	return r;
-}
-
-static __exit void kvm_exit(void)
-{
 	kvm_exit_debug();
 	__free_page(bad_page);
 	kvm_mmu_module_exit();
 }
-
-module_init(kvm_init)
-module_exit(kvm_exit)
+EXPORT_SYMBOL_GPL(kvm_exit);
