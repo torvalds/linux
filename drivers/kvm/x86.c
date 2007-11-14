@@ -564,6 +564,41 @@ out:
 	return r;
 }
 
+/*
+ * Make sure that a cpu that is being hot-unplugged does not have any vcpus
+ * cached on it.
+ */
+void decache_vcpus_on_cpu(int cpu)
+{
+	struct kvm *vm;
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(vm, &vm_list, vm_list)
+		for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+			vcpu = vm->vcpus[i];
+			if (!vcpu)
+				continue;
+			/*
+			 * If the vcpu is locked, then it is running on some
+			 * other cpu and therefore it is not cached on the
+			 * cpu in question.
+			 *
+			 * If it's not locked, check the last cpu it executed
+			 * on.
+			 */
+			if (mutex_trylock(&vcpu->mutex)) {
+				if (vcpu->cpu == cpu) {
+					kvm_x86_ops->vcpu_decache(vcpu);
+					vcpu->cpu = -1;
+				}
+				mutex_unlock(&vcpu->mutex);
+			}
+		}
+	spin_unlock(&kvm_lock);
+}
+
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg)
 {
@@ -2319,3 +2354,125 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	fx_restore(&vcpu->host_fx_image);
 }
 EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
+
+void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
+{
+	kvm_x86_ops->vcpu_free(vcpu);
+}
+
+struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
+						unsigned int id)
+{
+	int r;
+	struct kvm_vcpu *vcpu = kvm_x86_ops->vcpu_create(kvm, id);
+
+	if (IS_ERR(vcpu)) {
+		r = -ENOMEM;
+		goto fail;
+	}
+
+	/* We do fxsave: this must be aligned. */
+	BUG_ON((unsigned long)&vcpu->host_fx_image & 0xF);
+
+	vcpu_load(vcpu);
+	r = kvm_arch_vcpu_reset(vcpu);
+	if (r == 0)
+		r = kvm_mmu_setup(vcpu);
+	vcpu_put(vcpu);
+	if (r < 0)
+		goto free_vcpu;
+
+	return vcpu;
+free_vcpu:
+	kvm_x86_ops->vcpu_free(vcpu);
+fail:
+	return ERR_PTR(r);
+}
+
+void kvm_arch_vcpu_destory(struct kvm_vcpu *vcpu)
+{
+	vcpu_load(vcpu);
+	kvm_mmu_unload(vcpu);
+	vcpu_put(vcpu);
+
+	kvm_x86_ops->vcpu_free(vcpu);
+}
+
+int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
+{
+	return kvm_x86_ops->vcpu_reset(vcpu);
+}
+
+void kvm_arch_hardware_enable(void *garbage)
+{
+	kvm_x86_ops->hardware_enable(garbage);
+}
+
+void kvm_arch_hardware_disable(void *garbage)
+{
+	kvm_x86_ops->hardware_disable(garbage);
+}
+
+int kvm_arch_hardware_setup(void)
+{
+	return kvm_x86_ops->hardware_setup();
+}
+
+void kvm_arch_hardware_unsetup(void)
+{
+	kvm_x86_ops->hardware_unsetup();
+}
+
+void kvm_arch_check_processor_compat(void *rtn)
+{
+	kvm_x86_ops->check_processor_compatibility(rtn);
+}
+
+int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
+{
+	struct page *page;
+	struct kvm *kvm;
+	int r;
+
+	BUG_ON(vcpu->kvm == NULL);
+	kvm = vcpu->kvm;
+
+	vcpu->mmu.root_hpa = INVALID_PAGE;
+	if (!irqchip_in_kernel(kvm) || vcpu->vcpu_id == 0)
+		vcpu->mp_state = VCPU_MP_STATE_RUNNABLE;
+	else
+		vcpu->mp_state = VCPU_MP_STATE_UNINITIALIZED;
+
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page) {
+		r = -ENOMEM;
+		goto fail;
+	}
+	vcpu->pio_data = page_address(page);
+
+	r = kvm_mmu_create(vcpu);
+	if (r < 0)
+		goto fail_free_pio_data;
+
+	if (irqchip_in_kernel(kvm)) {
+		r = kvm_create_lapic(vcpu);
+		if (r < 0)
+			goto fail_mmu_destroy;
+	}
+
+	return 0;
+
+fail_mmu_destroy:
+	kvm_mmu_destroy(vcpu);
+fail_free_pio_data:
+	free_page((unsigned long)vcpu->pio_data);
+fail:
+	return r;
+}
+
+void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	kvm_free_lapic(vcpu);
+	kvm_mmu_destroy(vcpu);
+	free_page((unsigned long)vcpu->pio_data);
+}

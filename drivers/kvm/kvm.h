@@ -492,6 +492,8 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 void vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
+void decache_vcpus_on_cpu(int cpu);
+
 
 int kvm_init_x86(struct kvm_x86_ops *ops, unsigned int vcpu_size,
 		  struct module *module);
@@ -648,6 +650,23 @@ int kvm_arch_vcpu_ioctl_debug_guest(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
 
 __init void kvm_arch_init(void);
+
+int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu);
+
+void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
+void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu);
+struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id);
+void kvm_arch_vcpu_destory(struct kvm_vcpu *vcpu);
+
+int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu);
+void kvm_arch_hardware_enable(void *garbage);
+void kvm_arch_hardware_disable(void *garbage);
+int kvm_arch_hardware_setup(void);
+void kvm_arch_hardware_unsetup(void);
+void kvm_arch_check_processor_compat(void *rtn);
+
 
 static inline void kvm_guest_enter(void)
 {

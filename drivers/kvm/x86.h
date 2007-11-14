@@ -19,6 +19,9 @@
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
+extern spinlock_t kvm_lock;
+extern struct list_head vm_list;
+
 struct kvm_vcpu {
 	KVM_VCPU_COMM;
 	u64 host_tsc;
