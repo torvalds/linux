@@ -4850,7 +4850,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
 		/* Hardware disappeared */
 		IWL_WARNING("HARDWARE GONE?? INTA == 0x%080x\n", inta);
-		goto none;
+		goto unplugged;
 	}
 
 	IWL_DEBUG_ISR("ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -4858,6 +4858,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	tasklet_schedule(&priv->irq_tasklet);
+unplugged:
 	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
