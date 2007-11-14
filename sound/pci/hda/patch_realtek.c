@@ -92,6 +92,7 @@ enum {
 	ALC262_HP_BPC,
 	ALC262_HP_BPC_D7000_WL,
 	ALC262_HP_BPC_D7000_WF,
+	ALC262_HP_TC_T5735,
 	ALC262_BENQ_ED8,
 	ALC262_SONY_ASSAMD,
 	ALC262_BENQ_T31,
@@ -7710,6 +7711,81 @@ static struct snd_kcontrol_new alc262_HP_BPC_WildWest_option_mixer[] = {
 	{ } /* end */
 };
 
+static struct hda_bind_ctls alc262_hp_t5735_bind_front_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x0c, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x0d, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
+
+static struct hda_bind_ctls alc262_hp_t5735_bind_front_sw = {
+	.ops = &snd_hda_bind_sw,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
+
+/* mute/unmute internal speaker according to the hp jack and mute state */
+static void alc262_hp_t5735_automute(struct hda_codec *codec, int force)
+{
+	struct alc_spec *spec = codec->spec;
+	unsigned int mute;
+
+	if (force || !spec->sense_updated) {
+		unsigned int present;
+		present = snd_hda_codec_read(codec, 0x15, 0,
+					     AC_VERB_GET_PIN_SENSE, 0);
+		spec->jack_present = (present & 0x80000000) != 0;
+		spec->sense_updated = 1;
+	}
+	if (spec->jack_present)
+		mute = (0x7080 | ((0)<<8));  /* mute internal speaker */
+	else	/* unmute internal speaker if necessary */
+		mute = (0x7000 | ((0)<<8));
+       	snd_hda_codec_write(codec, 0x0c, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, mute );
+}
+
+static void alc262_hp_t5735_unsol_event(struct hda_codec *codec,
+					unsigned int res)
+{
+	if ((res >> 26) != ALC880_HP_EVENT)
+		return;
+	alc262_hp_t5735_automute(codec, 1);
+}
+
+static void alc262_hp_t5735_init_hook(struct hda_codec *codec)
+{
+	alc262_hp_t5735_automute(codec, 1);
+}
+
+static struct snd_kcontrol_new alc262_hp_t5735_mixer[] = {
+	HDA_BIND_VOL("PCM Playback Volume", &alc262_hp_t5735_bind_front_vol),
+	HDA_BIND_SW("PCM Playback Switch",&alc262_hp_t5735_bind_front_sw),
+	HDA_CODEC_VOLUME("LineOut Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("LineOut Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("iSpeaker Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("iSpeaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	{ } /* end */
+};
+
+static struct hda_verb alc262_hp_t5735_verbs[] = {
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{ }
+};
+
 /* bind hp and internal speaker mute (with plug check) */
 static int alc262_sony_master_sw_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol)
@@ -8579,6 +8655,8 @@ static struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2803, "HP D7000", ALC262_HP_BPC_D7000_WF),
 	SND_PCI_QUIRK(0x103c, 0x2805, "HP D7000", ALC262_HP_BPC_D7000_WF),
 	SND_PCI_QUIRK(0x103c, 0x2807, "HP D7000", ALC262_HP_BPC_D7000_WF),
+	SND_PCI_QUIRK(0x103c, 0x302f, "HP Thin Client T5735",
+		      ALC262_HP_TC_T5735),
 	SND_PCI_QUIRK(0x104d, 0x8203, "Sony UX-90", ALC262_HIPPO),
 	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FUJITSU),
 	SND_PCI_QUIRK(0x17ff, 0x058f, "Benq Hippo", ALC262_HIPPO_1),
@@ -8673,6 +8751,18 @@ static struct alc_config_preset alc262_presets[] = {
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_HP_D7000_capture_source,
 	},
+	[ALC262_HP_TC_T5735] = {
+		.mixers = { alc262_hp_t5735_mixer },
+		.init_verbs = { alc262_init_verbs, alc262_hp_t5735_verbs },
+		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
+		.dac_nids = alc262_dac_nids,
+		.hp_nid = 0x03,
+		.num_channel_mode = ARRAY_SIZE(alc262_modes),
+		.channel_mode = alc262_modes,
+		.input_mux = &alc262_capture_source,
+		.unsol_event = alc262_hp_t5735_unsol_event,
+		.init_hook = alc262_hp_t5735_init_hook,
+        },
 	[ALC262_BENQ_ED8] = {
 		.mixers = { alc262_base_mixer },
 		.init_verbs = { alc262_init_verbs, alc262_EAPD_verbs },
