@@ -188,6 +188,10 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 	dst_prev->child = &rt->u.dst;
 	dst->path = &rt->u.dst;
+
+	/* Copy neighbour for reachability confirmation */
+	dst->neighbour = neigh_clone(rt->u.dst.neighbour);
+
 	if (rt->rt6i_node)
 		((struct xfrm_dst *)dst)->path_cookie = rt->rt6i_node->fn_sernum;
 
@@ -210,8 +214,6 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst_prev->trailer_len	= trailer_len;
 		memcpy(&dst_prev->metrics, &x->route->metrics, sizeof(dst_prev->metrics));
 
-		/* Copy neighbour for reachability confirmation */
-		dst_prev->neighbour	= neigh_clone(rt->u.dst.neighbour);
 		dst_prev->input		= rt->u.dst.input;
 		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
 		/* Sheit... I remember I did this right. Apparently,
