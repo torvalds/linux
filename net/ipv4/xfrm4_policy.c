@@ -10,6 +10,7 @@
 
 #include <linux/compiler.h>
 #include <linux/inetdevice.h>
+#include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
 
@@ -167,7 +168,7 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst_prev->trailer_len	= trailer_len;
 		memcpy(&dst_prev->metrics, &x->route->metrics, sizeof(dst_prev->metrics));
 
-		dst_prev->input		= rt->u.dst.input;
+		dst_prev->input = dst_discard;
 		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
 		if (rt0->peer)
 			atomic_inc(&rt0->peer->refcnt);
