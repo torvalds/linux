@@ -123,7 +123,7 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		}
 	};
 	int i;
-	int err = 0;
+	int err;
 	int header_len = 0;
 	int trailer_len = 0;
 
@@ -201,13 +201,20 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 	dst_prev = *dst_p;
 	i = 0;
+	err = -ENODEV;
 	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
 
 		dst_prev->xfrm = xfrm[i++];
 		dst_prev->dev = rt->u.dst.dev;
-		if (rt->u.dst.dev)
-			dev_hold(rt->u.dst.dev);
+		if (!rt->u.dst.dev)
+			goto error;
+		dev_hold(rt->u.dst.dev);
+
+		x->u.rt6.rt6i_idev = in6_dev_get(rt->u.dst.dev);
+		if (!x->u.rt6.rt6i_idev)
+			goto error;
+
 		dst_prev->obsolete	= -1;
 		dst_prev->flags	       |= DST_HOST;
 		dst_prev->lastuse	= jiffies;
@@ -226,8 +233,6 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway));
 		x->u.rt6.rt6i_dst      = rt0->rt6i_dst;
 		x->u.rt6.rt6i_src      = rt0->rt6i_src;
-		x->u.rt6.rt6i_idev     = rt0->rt6i_idev;
-		in6_dev_hold(rt0->rt6i_idev);
 		header_len -= x->u.dst.xfrm->props.header_len;
 		trailer_len -= x->u.dst.xfrm->props.trailer_len;
 	}

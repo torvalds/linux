@@ -153,14 +153,21 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 
 	dst_prev = *dst_p;
 	i = 0;
+	err = -ENODEV;
 	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
 		x->u.rt.fl = *fl;
 
 		dst_prev->xfrm = xfrm[i++];
 		dst_prev->dev = rt->u.dst.dev;
-		if (rt->u.dst.dev)
-			dev_hold(rt->u.dst.dev);
+		if (!rt->u.dst.dev)
+			goto error;
+		dev_hold(rt->u.dst.dev);
+
+		x->u.rt.idev = in_dev_get(rt->u.dst.dev);
+		if (!x->u.rt.idev)
+			goto error;
+
 		dst_prev->obsolete	= -1;
 		dst_prev->flags	       |= DST_HOST;
 		dst_prev->lastuse	= jiffies;
@@ -181,8 +188,6 @@ __xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		x->u.rt.rt_dst = rt0->rt_dst;
 		x->u.rt.rt_gateway = rt0->rt_gateway;
 		x->u.rt.rt_spec_dst = rt0->rt_spec_dst;
-		x->u.rt.idev = rt0->idev;
-		in_dev_hold(rt0->idev);
 		header_len -= x->u.dst.xfrm->props.header_len;
 		trailer_len -= x->u.dst.xfrm->props.trailer_len;
 	}
