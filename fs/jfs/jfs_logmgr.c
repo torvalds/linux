@@ -2345,7 +2345,7 @@ int jfsIOWait(void *arg)
 
 	do {
 		spin_lock_irq(&log_redrive_lock);
-		while ((bp = log_redrive_list) != 0) {
+		while ((bp = log_redrive_list)) {
 			log_redrive_list = bp->l_redrive_next;
 			bp->l_redrive_next = NULL;
 			spin_unlock_irq(&log_redrive_lock);
