@@ -301,6 +301,9 @@
 #define USB_VENDOR_ID_MICROSOFT		0x045e
 #define USB_DEVICE_ID_SIDEWINDER_GV	0x003b
 
+#define USB_VENDOR_ID_MONTEREY		0x0566
+#define USB_DEVICE_ID_GENIUS_KB29E	0x3004
+
 #define USB_VENDOR_ID_NCR		0x0404
 #define USB_DEVICE_ID_NCR_FIRST		0x0300
 #define USB_DEVICE_ID_NCR_LAST		0x03ff
@@ -646,6 +649,8 @@ static const struct hid_rdesc_blacklist {
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER, HID_QUIRK_RDESC_LOGITECH },
 	{ USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_S510_RECEIVER_2, HID_QUIRK_RDESC_LOGITECH },
 
+	{ USB_VENDOR_ID_MONTEREY, USB_DEVICE_ID_GENIUS_KB29E, HID_QUIRK_RDESC_BUTTON_CONSUMER },
+
 	{ USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_JIS, HID_QUIRK_RDESC_MACBOOK_JIS },
 
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
@@ -973,6 +978,14 @@ static void usbhid_fixup_macbook_descriptor(unsigned char *rdesc, int rsize)
 	}
 }
 
+static void usbhid_fixup_button_consumer_descriptor(unsigned char *rdesc, int rsize)
+{
+	if (rsize >= 30 && rdesc[29] == 0x05
+			&& rdesc[30] == 0x09) {
+		printk(KERN_INFO "Fixing up button/consumer in HID report descriptor\n");
+		rdesc[30] = 0x0c;
+	}
+}
 
 static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned rsize)
 {
@@ -990,6 +1003,9 @@ static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned
 
 	if (quirks & HID_QUIRK_RDESC_MACBOOK_JIS)
 		usbhid_fixup_macbook_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_BUTTON_CONSUMER)
+		usbhid_fixup_button_consumer_descriptor(rdesc, rsize);
 }
 
 /**

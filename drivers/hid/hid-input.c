@@ -630,6 +630,12 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x0f6: map_key_clear(KEY_NEXT);		break;
 				case 0x0fa: map_key_clear(KEY_BACK);		break;
 
+				/* reserved in HUT 1.12. Reported on Genius KB29E */
+				case 0x156: map_key_clear(KEY_WORDPROCESSOR);	break;
+				case 0x157: map_key_clear(KEY_SPREADSHEET);	break;
+				case 0x158: map_key_clear(KEY_PRESENTATION);	break;
+				case 0x15c: map_key_clear(KEY_STOP);		break;
+
 				case 0x182: map_key_clear(KEY_BOOKMARKS);	break;
 				case 0x183: map_key_clear(KEY_CONFIG);		break;
 				case 0x184: map_key_clear(KEY_WORDPROCESSOR);	break;
