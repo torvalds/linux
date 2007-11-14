@@ -53,6 +53,10 @@ int xfrm_output(struct sk_buff *skb)
 	}
 
 	do {
+		err = x->outer_mode->output(x, skb);
+		if (err)
+			goto error;
+
 		spin_lock_bh(&x->lock);
 		err = xfrm_state_check(x, skb);
 		if (err)
@@ -63,10 +67,6 @@ int xfrm_output(struct sk_buff *skb)
 			if (xfrm_aevent_is_on())
 				xfrm_replay_notify(x, XFRM_REPLAY_UPDATE);
 		}
-
-		err = x->outer_mode->output(x, skb);
-		if (err)
-			goto error;
 
 		x->curlft.bytes += skb->len;
 		x->curlft.packets++;

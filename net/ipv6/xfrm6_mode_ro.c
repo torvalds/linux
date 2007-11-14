@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/spinlock.h>
 #include <linux/stringify.h>
 #include <linux/time.h>
 #include <net/ipv6.h>
@@ -53,7 +54,9 @@ static int xfrm6_ro_output(struct xfrm_state *x, struct sk_buff *skb)
 	__skb_pull(skb, hdr_len);
 	memmove(ipv6_hdr(skb), iph, hdr_len);
 
+	spin_lock_bh(&x->lock);
 	x->lastused = get_seconds();
+	spin_unlock_bh(&x->lock);
 
 	return 0;
 }
