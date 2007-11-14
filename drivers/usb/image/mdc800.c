@@ -478,8 +478,6 @@ static int mdc800_usb_probe (struct usb_interface *intf,
 				{
 					irq_interval=intf_desc->endpoint [j].desc.bInterval;
 				}
-
-				continue;
 			}
 		}
 		if (mdc800->endpoint[i] == -1)

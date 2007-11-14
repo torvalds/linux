@@ -918,7 +918,6 @@ static int isp116x_hub_status_data(struct usb_hcd *hcd, char *buf)
 			      | RH_PS_OCIC | RH_PS_PRSC)) {
 			changed = 1;
 			buf[0] |= 1 << (i + 1);
-			continue;
 		}
 	}
 	spin_unlock_irqrestore(&isp116x->lock, flags);
