@@ -1669,6 +1669,9 @@ void tcp_enter_frto(struct sock *sk)
 	}
 	tcp_verify_left_out(tp);
 
+	/* Too bad if TCP was application limited */
+	tp->snd_cwnd = min(tp->snd_cwnd, tcp_packets_in_flight(tp) + 1);
+
 	/* Earlier loss recovery underway (see RFC4138; Appendix B).
 	 * The last condition is necessary at least in tp->frto_counter case.
 	 */
