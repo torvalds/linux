@@ -1344,7 +1344,7 @@ ENTRY(_spill_registers)
 
 	/* We are done if there are no more than the current register frame. */
 
-	extui	a3, a3, 1, WSBITS-2	# a3 = 0yyxxxwww
+	extui	a3, a3, 1, WSBITS-1	# a3 = 0yyxxxwww
 	movi	a2, (1 << (WSBITS-1))
 	_beqz	a3, .Lnospill		# only one active frame? jump
 
@@ -1394,6 +1394,10 @@ ENTRY(_spill_registers)
 	l32e	a4, a1, -16
 	j	.Lc12c
 
+.Lnospill:
+	rsr	a2, DEPC	# restore a2 and 'return'
+	jx	a0
+
 .Lloop: _bbsi.l	a3, 1, .Lc4
 	_bbci.l	a3, 2, .Lc12
 
@@ -1419,8 +1423,6 @@ ENTRY(_spill_registers)
 	movi	a3, 1
 	sll	a3, a3
 	wsr	a3, WINDOWSTART
-
-.Lnospill:
 	jx	a0
 
 .Lc4:	s32e	a4, a9, -16
