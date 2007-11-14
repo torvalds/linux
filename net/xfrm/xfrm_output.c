@@ -19,7 +19,8 @@
 
 static int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
 {
-	int nhead = x->props.header_len + LL_RESERVED_SPACE(skb->dst->dev)
+	struct dst_entry *dst = skb->dst;
+	int nhead = dst->header_len + LL_RESERVED_SPACE(dst->dev)
 		- skb_headroom(skb);
 
 	if (nhead > 0)
