@@ -99,16 +99,21 @@ struct rt6_info
 	u32				rt6i_flags;
 	u32				rt6i_metric;
 	atomic_t			rt6i_ref;
+
+	/* more non-fragment space at head required */
+	unsigned short			nfheader_len;
+
+	u8				rt6i_protocol;
+
 	struct fib6_table		*rt6i_table;
 
 	struct rt6key			rt6i_dst;
-	struct rt6key			rt6i_src;
-
-	u8				rt6i_protocol;
 
 #ifdef CONFIG_XFRM
 	u32				rt6i_flow_cache_genid;
 #endif
+
+	struct rt6key			rt6i_src;
 };
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)

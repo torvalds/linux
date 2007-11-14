@@ -157,7 +157,8 @@ __xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int 
 		dst_prev = dst1;
 
 		if (xfrm[i]->type->flags & XFRM_TYPE_NON_FRAGMENT)
-			dst->nfheader_len += xfrm[i]->props.header_len;
+			((struct rt6_info *)dst)->nfheader_len +=
+				xfrm[i]->props.header_len;
 		header_len += xfrm[i]->props.header_len;
 		trailer_len += xfrm[i]->props.trailer_len;
 
