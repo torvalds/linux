@@ -17,7 +17,6 @@
 
 #include "kvm.h"
 #include "x86.h"
-#include "x86_emulate.h"
 #include "irq.h"
 
 #include <linux/kvm.h>
@@ -44,7 +43,6 @@
 #include <linux/mman.h>
 
 #include <asm/processor.h>
-#include <asm/msr.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>

@@ -16,6 +16,7 @@
 
 #include "kvm.h"
 #include "x86.h"
+#include "x86_emulate.h"
 #include "segment_descriptor.h"
 #include "irq.h"
 
@@ -25,6 +26,7 @@
 #include <linux/module.h>
 
 #include <asm/uaccess.h>
+#include <asm/msr.h>
 
 #define MAX_IO_MSRS 256
 #define CR0_RESERVED_BITS						\
