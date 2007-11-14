@@ -2146,7 +2146,6 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 				snd_printk(KERN_ERR "Unable to initialize codec #%d\n", i);
 			if (i == 0)
 				goto __err;
-			continue;
 		}
 	}
 	/* tune up the primary codec */
