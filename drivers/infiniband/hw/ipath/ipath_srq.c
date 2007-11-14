@@ -59,7 +59,7 @@ int ipath_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		if ((unsigned) wr->num_sge > srq->rq.max_sge) {
 			*bad_wr = wr;
-			ret = -ENOMEM;
+			ret = -EINVAL;
 			goto bail;
 		}
 
