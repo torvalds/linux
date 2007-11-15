@@ -2218,7 +2218,7 @@ static int iwl4965_update_power_cmd(struct iwl4965_priv *priv,
 
 static int iwl4965_send_power_mode(struct iwl4965_priv *priv, u32 mode)
 {
-	u32 final_mode = mode;
+	u32 uninitialized_var(final_mode);
 	int rc;
 	struct iwl4965_powertable_cmd cmd;
 

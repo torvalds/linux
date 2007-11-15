@@ -2139,7 +2139,7 @@ static int iwl3945_update_power_cmd(struct iwl3945_priv *priv,
 
 static int iwl3945_send_power_mode(struct iwl3945_priv *priv, u32 mode)
 {
-	u32 final_mode = mode;
+	u32 uninitialized_var(final_mode);
 	int rc;
 	struct iwl3945_powertable_cmd cmd;
 
