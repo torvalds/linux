@@ -33,7 +33,7 @@ void lx_set_palette_reg(struct fb_info *, unsigned int, unsigned int,
 
 #define MSR_LX_GLD_CONFIG    0x48002001
 #define MSR_LX_GLCP_DOTPLL   0x4c000015
-#define MSR_LX_DF_PADSEL     0x48000011
+#define MSR_LX_DF_PADSEL     0x48002011
 #define MSR_LX_DC_SPARE      0x80000011
 #define MSR_LX_DF_GLCONFIG   0x48002001
 
