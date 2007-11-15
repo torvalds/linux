@@ -478,6 +478,40 @@ static int acpi_processor_get_throttling(struct acpi_processor *pr)
 	return pr->throttling.acpi_processor_get_throttling(pr);
 }
 
+static int acpi_processor_get_fadt_info(struct acpi_processor *pr)
+{
+	int i, step;
+
+	if (!pr->throttling.address) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling register\n"));
+		return -EINVAL;
+	} else if (!pr->throttling.duty_width) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling states\n"));
+		return -EINVAL;
+	}
+	/* TBD: Support duty_cycle values that span bit 4. */
+	else if ((pr->throttling.duty_offset + pr->throttling.duty_width) > 4) {
+		printk(KERN_WARNING PREFIX "duty_cycle spans bit 4\n");
+		return -EINVAL;
+	}
+
+	pr->throttling.state_count = 1 << acpi_gbl_FADT.duty_width;
+
+	/*
+	 * Compute state values. Note that throttling displays a linear power
+	 * performance relationship (at 50% performance the CPU will consume
+	 * 50% power).  Values are in 1/10th of a percent to preserve accuracy.
+	 */
+
+	step = (1000 / pr->throttling.state_count);
+
+	for (i = 0; i < pr->throttling.state_count; i++) {
+		pr->throttling.states[i].performance = 1000 - step * i;
+		pr->throttling.states[i].power = 1000 - step * i;
+	}
+	return 0;
+}
+
 static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 					      int state)
 {
@@ -591,8 +625,6 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 {
 	int result = 0;
-	int step = 0;
-	int i = 0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "pblk_address[0x%08x] duty_offset[%d] duty_width[%d]\n",
@@ -611,6 +643,8 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		acpi_processor_get_throttling_states(pr) ||
 		acpi_processor_get_platform_limit(pr))
 	{
+		if (acpi_processor_get_fadt_info(pr))
+			return 0;
 		pr->throttling.acpi_processor_get_throttling =
 		    &acpi_processor_get_throttling_fadt;
 		pr->throttling.acpi_processor_set_throttling =
@@ -624,19 +658,6 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	acpi_processor_get_tsd(pr);
 
-	if (!pr->throttling.address) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling register\n"));
-		return 0;
-	} else if (!pr->throttling.duty_width) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling states\n"));
-		return 0;
-	}
-	/* TBD: Support duty_cycle values that span bit 4. */
-	else if ((pr->throttling.duty_offset + pr->throttling.duty_width) > 4) {
-		printk(KERN_WARNING PREFIX "duty_cycle spans bit 4\n");
-		return 0;
-	}
-
 	/*
 	 * PIIX4 Errata: We don't support throttling on the original PIIX4.
 	 * This shouldn't be an issue as few (if any) mobile systems ever
@@ -646,21 +667,6 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Throttling not supported on PIIX4 A- or B-step\n"));
 		return 0;
-	}
-
-	pr->throttling.state_count = 1 << acpi_gbl_FADT.duty_width;
-
-	/*
-	 * Compute state values. Note that throttling displays a linear power/
-	 * performance relationship (at 50% performance the CPU will consume
-	 * 50% power).  Values are in 1/10th of a percent to preserve accuracy.
-	 */
-
-	step = (1000 / pr->throttling.state_count);
-
-	for (i = 0; i < pr->throttling.state_count; i++) {
-		pr->throttling.states[i].performance = step * i;
-		pr->throttling.states[i].power = step * i;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d throttling states\n",
