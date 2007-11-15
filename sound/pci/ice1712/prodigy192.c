@@ -241,7 +241,7 @@ static int stac9460_adc_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 
 	for (i = 0; i < 2; ++i) {
 		reg = STAC946X_MIC_L_VOLUME + i;
-		nvol = ucontrol->value.integer.value[i];
+		nvol = ucontrol->value.integer.value[i] & 0x0f;
 		ovol = 0x0f - stac9460_get(ice, reg);
 		change = ((ovol & 0x0f)  != nvol);
 		if (change)

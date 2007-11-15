@@ -326,10 +326,13 @@ static int wm_master_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 
 	snd_ice1712_save_gpio_status(ice);
 	for (ch = 0; ch < 2; ch++) {
-		if (ucontrol->value.integer.value[ch] != ice->spec.phase28.master[ch]) {
+		unsigned int vol = ucontrol->value.integer.value[ch];
+		if (vol > WM_VOL_MAX)
+			continue;
+		vol |= ice->spec.phase28.master[ch] & WM_VOL_MUTE;
+		if (vol != ice->spec.phase28.master[ch]) {
 			int dac;
-			ice->spec.phase28.master[ch] &= WM_VOL_MUTE;
-			ice->spec.phase28.master[ch] |= ucontrol->value.integer.value[ch];
+			ice->spec.phase28.master[ch] = vol;
 			for (dac = 0; dac < ice->num_total_dacs; dac += 2)
 				wm_set_vol(ice, WM_DAC_ATTEN + dac + ch,
 					   ice->spec.phase28.vol[dac + ch],
@@ -462,10 +465,14 @@ static int wm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *
 	ofs = kcontrol->private_value & 0xff;
 	snd_ice1712_save_gpio_status(ice);
 	for (i = 0; i < voices; i++) {
-		idx  = WM_DAC_ATTEN + ofs + i;
-		if (ucontrol->value.integer.value[i] != ice->spec.phase28.vol[ofs+i]) {
-			ice->spec.phase28.vol[ofs+i] &= WM_VOL_MUTE;
-			ice->spec.phase28.vol[ofs+i] |= ucontrol->value.integer.value[i];
+		unsigned int vol;
+		vol = ucontrol->value.integer.value[i];
+		if (vol > 0x7f)
+			continue;
+		vol |= ice->spec.phase28.vol[ofs+i] & WM_VOL_MUTE;
+		if (vol != ice->spec.phase28.vol[ofs+i]) {
+			ice->spec.phase28.vol[ofs+i] = vol;
+			idx  = WM_DAC_ATTEN + ofs + i;
 			wm_set_vol(ice, idx, ice->spec.phase28.vol[ofs+i],
 				   ice->spec.phase28.master[i]);
 			change = 1;
@@ -595,8 +602,10 @@ static int wm_pcm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 	unsigned short ovol, nvol;
 	int change = 0;
 
-	snd_ice1712_save_gpio_status(ice);
 	nvol = ucontrol->value.integer.value[0];
+	if (nvol > PCM_RES)
+		return -EINVAL;
+	snd_ice1712_save_gpio_status(ice);
 	nvol = (nvol ? (nvol + PCM_MIN) : 0) & 0xff;
 	ovol = wm_get(ice, WM_DAC_DIG_MASTER_ATTEN) & 0xff;
 	if (ovol != nvol) {
