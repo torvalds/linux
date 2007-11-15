@@ -1458,9 +1458,6 @@ static void unmap_buffers(struct page *page, loff_t pos)
 				}
 				bh = next;
 			} while (bh != head);
-			if (PAGE_SIZE == bh->b_size) {
-				cancel_dirty_page(page, PAGE_CACHE_SIZE);
-			}
 		}
 	}
 }
