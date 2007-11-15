@@ -376,16 +376,23 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 	return 0;
 }
 
-static int acpi_read_throttling_status(struct acpi_processor_throttling
-				       *throttling)
+static int acpi_read_throttling_status(struct acpi_processor *pr,
+					acpi_integer *value)
 {
-	int value = -1;
+	u64 ptc_value;
+	struct acpi_processor_throttling *throttling;
+	int ret = -1;
+
+	throttling = &pr->throttling;
 	switch (throttling->status_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
+		ptc_value = 0;
 		acpi_os_read_port((acpi_io_address) throttling->status_register.
-				  address, &value,
+				  address, (u32 *) &ptc_value,
 				  (u32) throttling->status_register.bit_width *
 				  8);
+		*value = (acpi_integer) ptc_value;
+		ret = 0;
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
 		printk(KERN_ERR PREFIX
@@ -395,18 +402,22 @@ static int acpi_read_throttling_status(struct acpi_processor_throttling
 		printk(KERN_ERR PREFIX "Unknown addr space %d\n",
 		       (u32) (throttling->status_register.space_id));
 	}
-	return value;
+	return ret;
 }
 
-static int acpi_write_throttling_state(struct acpi_processor_throttling
-				       *throttling, int value)
+static int acpi_write_throttling_state(struct acpi_processor *pr,
+				acpi_integer value)
 {
+	u64 ptc_value;
+	struct acpi_processor_throttling *throttling;
 	int ret = -1;
 
+	throttling = &pr->throttling;
 	switch (throttling->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
+		ptc_value = value;
 		acpi_os_write_port((acpi_io_address) throttling->
-				   control_register.address, value,
+				   control_register.address, (u32) ptc_value,
 				   (u32) throttling->control_register.
 				   bit_width * 8);
 		ret = 0;
@@ -422,7 +433,8 @@ static int acpi_write_throttling_state(struct acpi_processor_throttling
 	return ret;
 }
 
-static int acpi_get_throttling_state(struct acpi_processor *pr, int value)
+static int acpi_get_throttling_state(struct acpi_processor *pr,
+				acpi_integer value)
 {
 	int i;
 
@@ -438,22 +450,26 @@ static int acpi_get_throttling_state(struct acpi_processor *pr, int value)
 	return i;
 }
 
-static int acpi_get_throttling_value(struct acpi_processor *pr, int state)
+static int acpi_get_throttling_value(struct acpi_processor *pr,
+			int state, acpi_integer *value)
 {
-	int value = -1;
+	int ret = -1;
+
 	if (state >= 0 && state <= pr->throttling.state_count) {
 		struct acpi_processor_tx_tss *tx =
 		    (struct acpi_processor_tx_tss *)&(pr->throttling.
 						      states_tss[state]);
-		value = tx->control;
+		*value = tx->control;
+		ret = 0;
 	}
-	return value;
+	return ret;
 }
 
 static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 {
 	int state = 0;
-	u32 value = 0;
+	int ret;
+	acpi_integer value;
 
 	if (!pr)
 		return -EINVAL;
@@ -463,8 +479,9 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 
 	pr->throttling.state = 0;
 	local_irq_disable();
-	value = acpi_read_throttling_status(&pr->throttling);
-	if (value >= 0) {
+	value = 0;
+	ret = acpi_read_throttling_status(pr, &value);
+	if (ret >= 0) {
 		state = acpi_get_throttling_state(pr, value);
 		pr->throttling.state = state;
 	}
@@ -588,7 +605,8 @@ static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 					     int state)
 {
-	u32 value = 0;
+	int ret;
+	acpi_integer value;
 
 	if (!pr)
 		return -EINVAL;
@@ -606,10 +624,10 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 		return -EPERM;
 
 	local_irq_disable();
-
-	value = acpi_get_throttling_value(pr, state);
-	if (value >= 0) {
-		acpi_write_throttling_state(&pr->throttling, value);
+	value = 0;
+	ret = acpi_get_throttling_value(pr, state, &value);
+	if (ret >= 0) {
+		acpi_write_throttling_state(pr, value);
 		pr->throttling.state = state;
 	}
 	local_irq_enable();
