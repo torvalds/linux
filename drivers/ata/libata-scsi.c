@@ -2869,7 +2869,8 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 		xlat_func = NULL;
 		if (likely((scsi_op != ATA_16) || !atapi_passthru16)) {
 			/* relay SCSI command to ATAPI device */
-			if (unlikely(scmd->cmd_len > dev->cdb_len))
+			int len = COMMAND_SIZE(scsi_op);
+			if (unlikely(len > scmd->cmd_len || len > dev->cdb_len))
 				goto bad_cdb_len;
 
 			xlat_func = atapi_xlat;
