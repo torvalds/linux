@@ -2307,8 +2307,10 @@ int ata_dev_configure(struct ata_device *dev)
 	}
 
 	if ((dev->class == ATA_DEV_ATAPI) &&
-	    (atapi_command_packet_set(id) == TYPE_TAPE))
+	    (atapi_command_packet_set(id) == TYPE_TAPE)) {
 		dev->max_sectors = ATA_MAX_SECTORS_TAPE;
+		dev->horkage |= ATA_HORKAGE_STUCK_ERR;
+	}
 
 	if (dev->horkage & ATA_HORKAGE_MAX_SEC_128)
 		dev->max_sectors = min_t(unsigned int, ATA_MAX_SECTORS_128,
