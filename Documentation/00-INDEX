@@ -14,6 +14,7 @@ Following translations are available on the WWW:
 	- this file.
 ABI/
 	- info on kernel <-> userspace ABI and relative interface stability.
+
 BUG-HUNTING
 	- brute force method of doing binary search of patches to find bug.
 Changes
@@ -66,6 +67,8 @@ VGA-softcursor.txt
 	- how to change your VGA cursor from a blinking underscore.
 accounting/
 	- documentation on accounting and taskstats.
+acpi/
+	- info on ACPI-specific hooks in the kernel.
 aoe/
 	- description of AoE (ATA over Ethernet) along with config examples.
 applying-patches.txt
