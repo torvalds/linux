@@ -353,11 +353,12 @@ static ssize_t m48t59_nvram_write(struct kobject *kobj,
 static struct bin_attribute m48t59_nvram_attr = {
 	.attr = {
 		.name = "nvram",
-		.mode = S_IRUGO | S_IWUGO,
+		.mode = S_IRUGO | S_IWUSR,
 		.owner = THIS_MODULE,
 	},
 	.read = m48t59_nvram_read,
 	.write = m48t59_nvram_write,
+	.size = M48T59_NVRAM_SIZE,
 };
 
 static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
