@@ -2,8 +2,8 @@
  * This file contains the function prototypes, data structure
  * and defines for all the host/station commands
  */
-#ifndef __HOSTCMD__H
-#define __HOSTCMD__H
+#ifndef _LBS_HOSTCMD_H
+#define _LBS_HOSTCMD_H
 
 #include <linux/wireless.h>
 #include "11d.h"
@@ -86,13 +86,13 @@ struct cmd_ctrl_node {
 /* Generic structure to hold all key types. */
 struct enc_key {
 	u16 len;
-	u16 flags;  /* KEY_INFO_* from wlan_defs.h */
-	u16 type; /* KEY_TYPE_* from wlan_defs.h */
+	u16 flags;  /* KEY_INFO_* from defs.h */
+	u16 type; /* KEY_TYPE_* from defs.h */
 	u8 key[32];
 };
 
-/* wlan_offset_value */
-struct wlan_offset_value {
+/* lbs_offset_value */
+struct lbs_offset_value {
 	u32 offset;
 	u32 value;
 };

@@ -43,7 +43,7 @@ static struct chan_freq_power channel_freq_power_UN_BG[] = {
 	{14, 2484, TX_PWR_DEFAULT}
 };
 
-static u8 wlan_region_2_code(u8 * region)
+static u8 lbs_region_2_code(u8 *region)
 {
 	u8 i;
 
@@ -60,7 +60,7 @@ static u8 wlan_region_2_code(u8 * region)
 	return (region_code_mapping[0].code);
 }
 
-static u8 *wlan_code_2_region(u8 code)
+static u8 *lbs_code_2_region(u8 code)
 {
 	u8 i;
 
@@ -79,7 +79,7 @@ static u8 *wlan_code_2_region(u8 code)
  *  @param nrchan   number of channels
  *  @return 	      the nrchan-th chan number
 */
-static u8 wlan_get_chan_11d(u8 band, u8 firstchan, u8 nrchan, u8 * chan)
+static u8 lbs_get_chan_11d(u8 band, u8 firstchan, u8 nrchan, u8 *chan)
 /*find the nrchan-th chan after the firstchan*/
 {
 	u8 i;
@@ -113,7 +113,7 @@ static u8 wlan_get_chan_11d(u8 band, u8 firstchan, u8 nrchan, u8 * chan)
  *  @param parsed_region_chan   pointer to parsed_region_chan_11d
  *  @return 	                TRUE; FALSE
 */
-static u8 wlan_channel_known_11d(u8 chan,
+static u8 lbs_channel_known_11d(u8 chan,
 			  struct parsed_region_chan_11d * parsed_region_chan)
 {
 	struct chan_power_11d *chanpwr = parsed_region_chan->chanpwr;
@@ -134,7 +134,7 @@ static u8 wlan_channel_known_11d(u8 chan,
 	return 0;
 }
 
-u32 libertas_chan_2_freq(u8 chan, u8 band)
+u32 lbs_chan_2_freq(u8 chan, u8 band)
 {
 	struct chan_freq_power *cf;
 	u16 i;
@@ -152,7 +152,7 @@ u32 libertas_chan_2_freq(u8 chan, u8 band)
 
 static int generate_domain_info_11d(struct parsed_region_chan_11d
 				  *parsed_region_chan,
-				  struct wlan_802_11d_domain_reg * domaininfo)
+				  struct lbs_802_11d_domain_reg *domaininfo)
 {
 	u8 nr_subband = 0;
 
@@ -217,7 +217,7 @@ static int generate_domain_info_11d(struct parsed_region_chan_11d
  *  @param *parsed_region_chan  pointer to parsed_region_chan_11d
  *  @return 	                N/A
 */
-static void wlan_generate_parsed_region_chan_11d(struct region_channel * region_chan,
+static void lbs_generate_parsed_region_chan_11d(struct region_channel *region_chan,
 					  struct parsed_region_chan_11d *
 					  parsed_region_chan)
 {
@@ -238,7 +238,7 @@ static void wlan_generate_parsed_region_chan_11d(struct region_channel * region_
 	parsed_region_chan->band = region_chan->band;
 	parsed_region_chan->region = region_chan->region;
 	memcpy(parsed_region_chan->countrycode,
-	       wlan_code_2_region(region_chan->region), COUNTRY_CODE_LEN);
+	       lbs_code_2_region(region_chan->region), COUNTRY_CODE_LEN);
 
 	lbs_deb_11d("region 0x%x, band %d\n", parsed_region_chan->region,
 	       parsed_region_chan->band);
@@ -264,7 +264,7 @@ static void wlan_generate_parsed_region_chan_11d(struct region_channel * region_
  *  @param chan                 chan
  *  @return 	                TRUE;FALSE
 */
-static u8 wlan_region_chan_supported_11d(u8 region, u8 band, u8 chan)
+static u8 lbs_region_chan_supported_11d(u8 region, u8 band, u8 chan)
 {
 	struct chan_freq_power *cfp;
 	int cfp_no;
@@ -273,7 +273,7 @@ static u8 wlan_region_chan_supported_11d(u8 region, u8 band, u8 chan)
 
 	lbs_deb_enter(LBS_DEB_11D);
 
-	cfp = libertas_get_region_cfp_table(region, band, &cfp_no);
+	cfp = lbs_get_region_cfp_table(region, band, &cfp_no);
 	if (cfp == NULL)
 		return 0;
 
@@ -338,7 +338,7 @@ static int parse_domain_info_11d(struct ieeetypes_countryinfofullset*
 
 	/*Step1: check region_code */
 	parsed_region_chan->region = region =
-	    wlan_region_2_code(countryinfo->countrycode);
+	    lbs_region_2_code(countryinfo->countrycode);
 
 	lbs_deb_11d("regioncode=%x\n", (u8) parsed_region_chan->region);
 	lbs_deb_hex(LBS_DEB_11D, "countrycode", (char *)countryinfo->countrycode,
@@ -367,7 +367,7 @@ static int parse_domain_info_11d(struct ieeetypes_countryinfofullset*
 		for (i = 0; idx < MAX_NO_OF_CHAN && i < nrchan; i++) {
 			/*step4: channel is supported? */
 
-			if (!wlan_get_chan_11d(band, firstchan, i, &curchan)) {
+			if (!lbs_get_chan_11d(band, firstchan, i, &curchan)) {
 				/* Chan is not found in UN table */
 				lbs_deb_11d("chan is not supported: %d \n", i);
 				break;
@@ -375,7 +375,7 @@ static int parse_domain_info_11d(struct ieeetypes_countryinfofullset*
 
 			lastchan = curchan;
 
-			if (wlan_region_chan_supported_11d
+			if (lbs_region_chan_supported_11d
 			    (region, band, curchan)) {
 				/*step5: Check if curchan is supported by mrvl in region */
 				parsed_region_chan->chanpwr[idx].chan = curchan;
@@ -411,14 +411,14 @@ done:
  *  @param parsed_region_chan   pointer to parsed_region_chan_11d
  *  @return 	                PASSIVE if chan is unknown; ACTIVE if chan is known
 */
-u8 libertas_get_scan_type_11d(u8 chan,
+u8 lbs_get_scan_type_11d(u8 chan,
 			  struct parsed_region_chan_11d * parsed_region_chan)
 {
 	u8 scan_type = CMD_SCAN_TYPE_PASSIVE;
 
 	lbs_deb_enter(LBS_DEB_11D);
 
-	if (wlan_channel_known_11d(chan, parsed_region_chan)) {
+	if (lbs_channel_known_11d(chan, parsed_region_chan)) {
 		lbs_deb_11d("found, do active scan\n");
 		scan_type = CMD_SCAN_TYPE_ACTIVE;
 	} else {
@@ -430,7 +430,7 @@ u8 libertas_get_scan_type_11d(u8 chan,
 
 }
 
-void libertas_init_11d(wlan_private * priv)
+void lbs_init_11d(lbs_private * priv)
 {
 	priv->adapter->enable11d = 0;
 	memset(&(priv->adapter->parsed_region_chan), 0,
@@ -440,10 +440,10 @@ void libertas_init_11d(wlan_private * priv)
 
 /**
  *  @brief This function sets DOMAIN INFO to FW
- *  @param priv       pointer to wlan_private
+ *  @param priv       pointer to lbs_private
  *  @return 	      0; -1
 */
-static int set_domain_info_11d(wlan_private * priv)
+static int set_domain_info_11d(lbs_private * priv)
 {
 	int ret;
 
@@ -452,7 +452,7 @@ static int set_domain_info_11d(wlan_private * priv)
 		return 0;
 	}
 
-	ret = libertas_prepare_and_send_command(priv, CMD_802_11D_DOMAIN_INFO,
+	ret = lbs_prepare_and_send_command(priv, CMD_802_11D_DOMAIN_INFO,
 				    CMD_ACT_SET,
 				    CMD_OPTION_WAITFORRSP, 0, NULL);
 	if (ret)
@@ -463,13 +463,13 @@ static int set_domain_info_11d(wlan_private * priv)
 
 /**
  *  @brief This function setups scan channels
- *  @param priv       pointer to wlan_private
+ *  @param priv       pointer to lbs_private
  *  @param band       band
  *  @return 	      0
 */
-int libertas_set_universaltable(wlan_private * priv, u8 band)
+int lbs_set_universaltable(lbs_private * priv, u8 band)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	u16 size = sizeof(struct chan_freq_power);
 	u16 i = 0;
 
@@ -492,20 +492,20 @@ int libertas_set_universaltable(wlan_private * priv, u8 band)
 
 /**
  *  @brief This function implements command CMD_802_11D_DOMAIN_INFO
- *  @param priv       pointer to wlan_private
+ *  @param priv       pointer to lbs_private
  *  @param cmd        pointer to cmd buffer
  *  @param cmdno      cmd ID
  *  @param cmdOption  cmd action
  *  @return 	      0
 */
-int libertas_cmd_802_11d_domain_info(wlan_private * priv,
+int lbs_cmd_802_11d_domain_info(lbs_private * priv,
 				 struct cmd_ds_command *cmd, u16 cmdno,
 				 u16 cmdoption)
 {
 	struct cmd_ds_802_11d_domain_info *pdomaininfo =
 	    &cmd->params.domaininfo;
 	struct mrvlietypes_domainparamset *domain = &pdomaininfo->domain;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	u8 nr_subband = adapter->domainreg.nr_subband;
 
 	lbs_deb_enter(LBS_DEB_11D);
@@ -552,11 +552,11 @@ done:
 
 /**
  *  @brief This function parses countryinfo from AP and download country info to FW
- *  @param priv    pointer to wlan_private
+ *  @param priv    pointer to lbs_private
  *  @param resp    pointer to command response buffer
  *  @return 	   0; -1
  */
-int libertas_ret_802_11d_domain_info(wlan_private * priv,
+int lbs_ret_802_11d_domain_info(lbs_private * priv,
 				 struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11d_domain_info *domaininfo = &resp->params.domaininforesp;
@@ -598,14 +598,14 @@ int libertas_ret_802_11d_domain_info(wlan_private * priv,
 
 /**
  *  @brief This function parses countryinfo from AP and download country info to FW
- *  @param priv    pointer to wlan_private
+ *  @param priv    pointer to lbs_private
  *  @return 	   0; -1
  */
-int libertas_parse_dnld_countryinfo_11d(wlan_private * priv,
+int lbs_parse_dnld_countryinfo_11d(lbs_private * priv,
                                         struct bss_descriptor * bss)
 {
 	int ret;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_11D);
 	if (priv->adapter->enable11d) {
@@ -620,7 +620,7 @@ int libertas_parse_dnld_countryinfo_11d(wlan_private * priv,
 		}
 
 		memset(&adapter->domainreg, 0,
-		       sizeof(struct wlan_802_11d_domain_reg));
+		       sizeof(struct lbs_802_11d_domain_reg));
 		generate_domain_info_11d(&adapter->parsed_region_chan,
 				      &adapter->domainreg);
 
@@ -640,13 +640,13 @@ done:
 
 /**
  *  @brief This function generates 11D info from user specified regioncode and download to FW
- *  @param priv    pointer to wlan_private
+ *  @param priv    pointer to lbs_private
  *  @return 	   0; -1
  */
-int libertas_create_dnld_countryinfo_11d(wlan_private * priv)
+int lbs_create_dnld_countryinfo_11d(lbs_private * priv)
 {
 	int ret;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	struct region_channel *region_chan;
 	u8 j;
 
@@ -679,12 +679,12 @@ int libertas_create_dnld_countryinfo_11d(wlan_private * priv)
 
 		memset(&adapter->parsed_region_chan, 0,
 		       sizeof(struct parsed_region_chan_11d));
-		wlan_generate_parsed_region_chan_11d(region_chan,
+		lbs_generate_parsed_region_chan_11d(region_chan,
 						     &adapter->
 						     parsed_region_chan);
 
 		memset(&adapter->domainreg, 0,
-		       sizeof(struct wlan_802_11d_domain_reg));
+		       sizeof(struct lbs_802_11d_domain_reg));
 		generate_domain_info_11d(&adapter->parsed_region_chan,
 					 &adapter->domainreg);
 

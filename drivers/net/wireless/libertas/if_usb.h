@@ -1,5 +1,5 @@
-#ifndef _LIBERTAS_IF_USB_H
-#define _LIBERTAS_IF_USB_H
+#ifndef _LBS_IF_USB_H
+#define _LBS_IF_USB_H
 
 #include <linux/list.h>
 

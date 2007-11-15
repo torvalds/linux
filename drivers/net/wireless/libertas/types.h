@@ -1,8 +1,8 @@
 /**
   * This header file contains definition for global types
   */
-#ifndef _WLAN_TYPES_
-#define _WLAN_TYPES_
+#ifndef _LBS_TYPES_H_
+#define _LBS_TYPES_H_
 
 #include <linux/if_ether.h>
 #include <asm/byteorder.h>
@@ -250,4 +250,4 @@ struct mrvlietypes_ledgpio {
 	struct led_pin ledpin[1];
 } __attribute__ ((packed));
 
-#endif				/* _WLAN_TYPES_ */
+#endif

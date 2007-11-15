@@ -1,11 +1,11 @@
 /**
   * This file contains definition for IOCTL call.
   */
-#ifndef	_WLAN_WEXT_H_
-#define	_WLAN_WEXT_H_
+#ifndef	_LBS_WEXT_H_
+#define	_LBS_WEXT_H_
 
-/** wlan_ioctl_regrdwr */
-struct wlan_ioctl_regrdwr {
+/** lbs_ioctl_regrdwr */
+struct lbs_ioctl_regrdwr {
 	/** Which register to access */
 	u16 whichreg;
 	/** Read or Write */
@@ -15,9 +15,9 @@ struct wlan_ioctl_regrdwr {
 	u32 value;
 };
 
-#define WLAN_MONITOR_OFF			0
+#define LBS_MONITOR_OFF			0
 
-extern struct iw_handler_def libertas_handler_def;
+extern struct iw_handler_def lbs_handler_def;
 extern struct iw_handler_def mesh_handler_def;
 
-#endif				/* _WLAN_WEXT_H_ */
+#endif

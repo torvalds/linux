@@ -52,11 +52,11 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
  *  @brief This function processes a single packet and sends
  *  to IF layer
  *
- *  @param priv    A pointer to wlan_private structure
+ *  @param priv    A pointer to lbs_private structure
  *  @param skb     A pointer to skb which includes TX packet
  *  @return 	   0 or -1
  */
-static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
+static int SendSinglePacket(lbs_private *priv, struct sk_buff *skb)
 {
 	int ret = 0;
 	struct txpd localtxpd;
@@ -86,7 +86,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 	plocaltxpd->tx_packet_location = cpu_to_le32(sizeof(struct txpd));
 
 	p802x_hdr = skb->data;
-	if (priv->adapter->monitormode != WLAN_MONITOR_OFF) {
+	if (priv->adapter->monitormode != LBS_MONITOR_OFF) {
 
 		/* locate radiotap header */
 		pradiotap_hdr = (struct tx_radiotap_hdr *)skb->data;
@@ -106,7 +106,7 @@ static int SendSinglePacket(wlan_private * priv, struct sk_buff *skb)
 
 	}
 	/* copy destination address from 802.3 or 802.11 header */
-	if (priv->adapter->monitormode != WLAN_MONITOR_OFF)
+	if (priv->adapter->monitormode != LBS_MONITOR_OFF)
 		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr + 4, ETH_ALEN);
 	else
 		memcpy(plocaltxpd->tx_dest_addr_high, p802x_hdr, ETH_ALEN);
@@ -144,7 +144,7 @@ done:
 		priv->stats.tx_errors++;
 	}
 
-	if (!ret && priv->adapter->monitormode != WLAN_MONITOR_OFF) {
+	if (!ret && priv->adapter->monitormode != LBS_MONITOR_OFF) {
 		/* Keep the skb to echo it back once Tx feedback is
 		   received from FW */
 		skb_orphan(skb);
@@ -164,9 +164,9 @@ done:
 }
 
 
-void libertas_tx_runqueue(wlan_private *priv)
+void lbs_tx_runqueue(lbs_private *priv)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int i;
 
 	spin_lock(&adapter->txqueue_lock);
@@ -180,9 +180,9 @@ void libertas_tx_runqueue(wlan_private *priv)
 	spin_unlock(&adapter->txqueue_lock);
 }
 
-static void wlan_tx_queue(wlan_private *priv, struct sk_buff *skb)
+static void lbs_tx_queue(lbs_private *priv, struct sk_buff *skb)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 
 	spin_lock(&adapter->txqueue_lock);
 
@@ -205,10 +205,10 @@ static void wlan_tx_queue(wlan_private *priv, struct sk_buff *skb)
  *  @brief This function checks the conditions and sends packet to IF
  *  layer if everything is ok.
  *
- *  @param priv    A pointer to wlan_private structure
+ *  @param priv    A pointer to lbs_private structure
  *  @return 	   n/a
  */
-int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
+int lbs_process_tx(lbs_private *priv, struct sk_buff *skb)
 {
 	int ret = -1;
 
@@ -223,7 +223,7 @@ int libertas_process_tx(wlan_private * priv, struct sk_buff *skb)
 
 	if ((priv->adapter->psstate == PS_STATE_SLEEP) ||
 	    (priv->adapter->psstate == PS_STATE_PRE_SLEEP)) {
-		wlan_tx_queue(priv, skb);
+		lbs_tx_queue(priv, skb);
 		return ret;
 	}
 
@@ -239,20 +239,20 @@ done:
  *  @brief This function sends to the host the last transmitted packet,
  *  filling the radiotap headers with transmission information.
  *
- *  @param priv     A pointer to wlan_private structure
+ *  @param priv     A pointer to lbs_private structure
  *  @param status   A 32 bit value containing transmission status.
  *
  *  @returns void
  */
-void libertas_send_tx_feedback(wlan_private * priv)
+void lbs_send_tx_feedback(lbs_private *priv)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	struct tx_radiotap_hdr *radiotap_hdr;
 	u32 status = adapter->eventcause;
 	int txfail;
 	int try_count;
 
-	if (adapter->monitormode == WLAN_MONITOR_OFF ||
+	if (adapter->monitormode == LBS_MONITOR_OFF ||
 	    adapter->currenttxskb == NULL)
 		return;
 
@@ -270,13 +270,13 @@ void libertas_send_tx_feedback(wlan_private * priv)
 	try_count = (status >> 16) & 0xff;
 	radiotap_hdr->data_retries = (try_count) ?
 	    (1 + adapter->txretrycount - try_count) : 0;
-	libertas_upload_rx_packet(priv, adapter->currenttxskb);
+	lbs_upload_rx_packet(priv, adapter->currenttxskb);
 	adapter->currenttxskb = NULL;
 	priv->adapter->TxLockFlag = 0;
-	if (priv->adapter->connect_status == LIBERTAS_CONNECTED) {
+	if (priv->adapter->connect_status == LBS_CONNECTED) {
 		netif_wake_queue(priv->dev);
 		if (priv->mesh_dev)
 			netif_wake_queue(priv->mesh_dev);
 	}
 }
-EXPORT_SYMBOL_GPL(libertas_send_tx_feedback);
+EXPORT_SYMBOL_GPL(lbs_send_tx_feedback);

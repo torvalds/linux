@@ -11,14 +11,14 @@
 #include "host.h"
 #include "debugfs.h"
 
-static struct dentry *libertas_dir = NULL;
+static struct dentry *lbs_dir;
 static char *szStates[] = {
 	"Connected",
 	"Disconnected"
 };
 
 #ifdef PROC_DEBUG
-static void libertas_debug_init(wlan_private * priv, struct net_device *dev);
+static void lbs_debug_init(lbs_private * priv, struct net_device *dev);
 #endif
 
 static int open_file_generic(struct inode *inode, struct file *file)
@@ -35,10 +35,10 @@ static ssize_t write_file_dummy(struct file *file, const char __user *buf,
 
 static const size_t len = PAGE_SIZE;
 
-static ssize_t libertas_dev_info(struct file *file, char __user *userbuf,
+static ssize_t lbs_dev_info(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	size_t pos = 0;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -56,10 +56,10 @@ static ssize_t libertas_dev_info(struct file *file, char __user *userbuf,
 }
 
 
-static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
+static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	size_t pos = 0;
 	int numscansdone = 0, res;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -98,11 +98,11 @@ static ssize_t libertas_getscantable(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static ssize_t libertas_sleepparams_write(struct file *file,
+static ssize_t lbs_sleepparams_write(struct file *file,
 				const char __user *user_buf, size_t count,
 				loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t buf_size, res;
 	int p1, p2, p3, p4, p5, p6;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -125,7 +125,7 @@ static ssize_t libertas_sleepparams_write(struct file *file,
 	priv->adapter->sp.sp_extsleepclk = p5;
 	priv->adapter->sp.sp_reserved = p6;
 
-        res = libertas_prepare_and_send_command(priv,
+	res = lbs_prepare_and_send_command(priv,
 				CMD_802_11_SLEEP_PARAMS,
 				CMD_ACT_SET,
 				CMD_OPTION_WAITFORRSP, 0, NULL);
@@ -140,17 +140,17 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_sleepparams_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_sleepparams_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	ssize_t res;
 	size_t pos = 0;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-        res = libertas_prepare_and_send_command(priv,
+	res = lbs_prepare_and_send_command(priv,
 				CMD_802_11_SLEEP_PARAMS,
 				CMD_ACT_GET,
 				CMD_OPTION_WAITFORRSP, 0, NULL);
@@ -171,10 +171,10 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
+static ssize_t lbs_extscan(struct file *file, const char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	union iwreq_data wrqu;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -186,7 +186,7 @@ static ssize_t libertas_extscan(struct file *file, const char __user *userbuf,
 		goto out_unlock;
 	}
 
-	libertas_send_specific_ssid_scan(priv, buf, strlen(buf)-1, 0);
+	lbs_send_specific_ssid_scan(priv, buf, strlen(buf)-1, 0);
 
 	memset(&wrqu, 0, sizeof(union iwreq_data));
 	wireless_send_event(priv->dev, SIOCGIWSCAN, &wrqu, NULL);
@@ -196,8 +196,8 @@ out_unlock:
 	return count;
 }
 
-static int libertas_parse_chan(char *buf, size_t count,
-			struct wlan_ioctl_user_scan_cfg *scan_cfg, int dur)
+static int lbs_parse_chan(char *buf, size_t count,
+			struct lbs_ioctl_user_scan_cfg *scan_cfg, int dur)
 {
 	char *start, *end, *hold, *str;
 	int i = 0;
@@ -233,8 +233,8 @@ static int libertas_parse_chan(char *buf, size_t count,
 	return i;
 }
 
-static void libertas_parse_bssid(char *buf, size_t count,
-                        struct wlan_ioctl_user_scan_cfg *scan_cfg)
+static void lbs_parse_bssid(char *buf, size_t count,
+	struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
 	char *hold;
 	unsigned int mac[ETH_ALEN];
@@ -248,8 +248,8 @@ static void libertas_parse_bssid(char *buf, size_t count,
 	memcpy(scan_cfg->bssid, mac, ETH_ALEN);
 }
 
-static void libertas_parse_ssid(char *buf, size_t count,
-                        struct wlan_ioctl_user_scan_cfg *scan_cfg)
+static void lbs_parse_ssid(char *buf, size_t count,
+	struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
 	char *hold, *end;
 	ssize_t size;
@@ -268,7 +268,7 @@ static void libertas_parse_ssid(char *buf, size_t count,
 	return;
 }
 
-static int libertas_parse_clear(char *buf, size_t count, const char *tag)
+static int lbs_parse_clear(char *buf, size_t count, const char *tag)
 {
 	char *hold;
 	int val;
@@ -285,8 +285,8 @@ static int libertas_parse_clear(char *buf, size_t count, const char *tag)
 	return val;
 }
 
-static int libertas_parse_dur(char *buf, size_t count,
-                        struct wlan_ioctl_user_scan_cfg *scan_cfg)
+static int lbs_parse_dur(char *buf, size_t count,
+	struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
 	char *hold;
 	int val;
@@ -300,8 +300,8 @@ static int libertas_parse_dur(char *buf, size_t count,
 	return val;
 }
 
-static void libertas_parse_probes(char *buf, size_t count,
-                        struct wlan_ioctl_user_scan_cfg *scan_cfg)
+static void lbs_parse_probes(char *buf, size_t count,
+	struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
 	char *hold;
 	int val;
@@ -317,8 +317,8 @@ static void libertas_parse_probes(char *buf, size_t count,
 	return;
 }
 
-static void libertas_parse_type(char *buf, size_t count,
-                        struct wlan_ioctl_user_scan_cfg *scan_cfg)
+static void lbs_parse_type(char *buf, size_t count,
+	struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
 	char *hold;
 	int val;
@@ -338,19 +338,19 @@ static void libertas_parse_type(char *buf, size_t count,
 	return;
 }
 
-static ssize_t libertas_setuserscan(struct file *file,
+static ssize_t lbs_setuserscan(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
-	struct wlan_ioctl_user_scan_cfg *scan_cfg;
+	struct lbs_ioctl_user_scan_cfg *scan_cfg;
 	union iwreq_data wrqu;
 	int dur;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	scan_cfg = kzalloc(sizeof(struct wlan_ioctl_user_scan_cfg), GFP_KERNEL);
+	scan_cfg = kzalloc(sizeof(struct lbs_ioctl_user_scan_cfg), GFP_KERNEL);
 	if (!scan_cfg)
 		return -ENOMEM;
 
@@ -360,18 +360,18 @@ static ssize_t libertas_setuserscan(struct file *file,
 		goto out_unlock;
 	}
 
-	scan_cfg->bsstype = WLAN_SCAN_BSS_TYPE_ANY;
+	scan_cfg->bsstype = LBS_SCAN_BSS_TYPE_ANY;
 
-	dur = libertas_parse_dur(buf, count, scan_cfg);
-	libertas_parse_chan(buf, count, scan_cfg, dur);
-	libertas_parse_bssid(buf, count, scan_cfg);
-	scan_cfg->clear_bssid = libertas_parse_clear(buf, count, "clear_bssid=");
-	libertas_parse_ssid(buf, count, scan_cfg);
-	scan_cfg->clear_ssid = libertas_parse_clear(buf, count, "clear_ssid=");
-	libertas_parse_probes(buf, count, scan_cfg);
-	libertas_parse_type(buf, count, scan_cfg);
+	dur = lbs_parse_dur(buf, count, scan_cfg);
+	lbs_parse_chan(buf, count, scan_cfg, dur);
+	lbs_parse_bssid(buf, count, scan_cfg);
+	scan_cfg->clear_bssid = lbs_parse_clear(buf, count, "clear_bssid=");
+	lbs_parse_ssid(buf, count, scan_cfg);
+	scan_cfg->clear_ssid = lbs_parse_clear(buf, count, "clear_ssid=");
+	lbs_parse_probes(buf, count, scan_cfg);
+	lbs_parse_type(buf, count, scan_cfg);
 
-	wlan_scan_networks(priv, scan_cfg, 1);
+	lbs_scan_networks(priv, scan_cfg, 1);
 	wait_event_interruptible(priv->adapter->cmd_pending,
 				 !priv->adapter->nr_cmd_pending);
 
@@ -384,21 +384,21 @@ out_unlock:
 	return count;
 }
 
-static int libertas_event_initcmd(wlan_private *priv, void **response_buf,
+static int lbs_event_initcmd(lbs_private *priv, void **response_buf,
 			struct cmd_ctrl_node **cmdnode,
 			struct cmd_ds_command **cmd)
 {
 	u16 wait_option = CMD_OPTION_WAITFORRSP;
 
-	if (!(*cmdnode = libertas_get_free_cmd_ctrl_node(priv))) {
-		lbs_deb_debugfs("failed libertas_get_free_cmd_ctrl_node\n");
+	if (!(*cmdnode = lbs_get_free_cmd_ctrl_node(priv))) {
+		lbs_deb_debugfs("failed lbs_get_free_cmd_ctrl_node\n");
 		return -ENOMEM;
 	}
 	if (!(*response_buf = kmalloc(3000, GFP_KERNEL))) {
 		lbs_deb_debugfs("failed to allocate response buffer!\n");
 		return -ENOMEM;
 	}
-	libertas_set_cmd_ctrl_node(priv, *cmdnode, 0, wait_option, NULL);
+	lbs_set_cmd_ctrl_node(priv, *cmdnode, 0, wait_option, NULL);
 	init_waitqueue_head(&(*cmdnode)->cmdwait_q);
 	(*cmdnode)->pdata_buf = *response_buf;
 	(*cmdnode)->cmdflags |= CMD_F_HOSTCMD;
@@ -410,11 +410,11 @@ static int libertas_event_initcmd(wlan_private *priv, void **response_buf,
 	return 0;
 }
 
-static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_lowrssi_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -424,7 +424,7 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0) {
 		free_page(addr);
 		return res;
@@ -433,7 +433,7 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 	event = &pcmdptr->params.subscribe_event;
 	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -480,9 +480,9 @@ static ssize_t libertas_lowrssi_read(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static u16 libertas_get_events_bitmap(wlan_private *priv)
+static u16 lbs_get_events_bitmap(lbs_private *priv)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -490,14 +490,14 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 	int res;
 	u16 event_bitmap;
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0)
 		return res;
 
 	event = &pcmdptr->params.subscribe_event;
 	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -525,12 +525,12 @@ static u16 libertas_get_events_bitmap(wlan_private *priv)
 	return event_bitmap;
 }
 
-static ssize_t libertas_lowrssi_write(struct file *file,
+static ssize_t lbs_lowrssi_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -554,9 +554,9 @@ static ssize_t libertas_lowrssi_write(struct file *file,
 		goto out_unlock;
 	}
 
-	event_bitmap = libertas_get_events_bitmap(priv);
+	event_bitmap = lbs_get_events_bitmap(priv);
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0)
 		goto out_unlock;
 
@@ -576,7 +576,7 @@ static ssize_t libertas_lowrssi_write(struct file *file,
 	event_bitmap |= subscribed ? 0x0001 : 0x0;
 	event->events = cpu_to_le16(event_bitmap);
 
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -606,11 +606,11 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_lowsnr_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -620,7 +620,7 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0) {
 		free_page(addr);
 		return res;
@@ -629,7 +629,7 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 	event = &pcmdptr->params.subscribe_event;
 	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -678,12 +678,12 @@ static ssize_t libertas_lowsnr_read(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static ssize_t libertas_lowsnr_write(struct file *file,
+static ssize_t lbs_lowsnr_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -707,9 +707,9 @@ static ssize_t libertas_lowsnr_write(struct file *file,
 		goto out_unlock;
 	}
 
-	event_bitmap = libertas_get_events_bitmap(priv);
+	event_bitmap = lbs_get_events_bitmap(priv);
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0)
 		goto out_unlock;
 
@@ -728,7 +728,7 @@ static ssize_t libertas_lowsnr_write(struct file *file,
 	event_bitmap |= subscribed ? 0x0002 : 0x0;
 	event->events = cpu_to_le16(event_bitmap);
 
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -759,11 +759,11 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_failcount_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -773,7 +773,7 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0) {
 		free_page(addr);
 		return res;
@@ -782,7 +782,7 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 	event = &pcmdptr->params.subscribe_event;
 	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size =	cpu_to_le16(sizeof(*event) + S_DS_GEN);
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -830,12 +830,12 @@ static ssize_t libertas_failcount_read(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static ssize_t libertas_failcount_write(struct file *file,
+static ssize_t lbs_failcount_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -859,9 +859,9 @@ static ssize_t libertas_failcount_write(struct file *file,
 		goto out_unlock;
 	}
 
-	event_bitmap = libertas_get_events_bitmap(priv);
+	event_bitmap = lbs_get_events_bitmap(priv);
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0)
 		goto out_unlock;
 
@@ -880,7 +880,7 @@ static ssize_t libertas_failcount_write(struct file *file,
 	event_bitmap |= subscribed ? 0x0004 : 0x0;
 	event->events = cpu_to_le16(event_bitmap);
 
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -910,11 +910,11 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_bcnmiss_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -924,7 +924,7 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0) {
 		free_page(addr);
 		return res;
@@ -933,7 +933,7 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 	event = &pcmdptr->params.subscribe_event;
 	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -981,12 +981,12 @@ static ssize_t libertas_bcnmiss_read(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static ssize_t libertas_bcnmiss_write(struct file *file,
+static ssize_t lbs_bcnmiss_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -1010,9 +1010,9 @@ static ssize_t libertas_bcnmiss_write(struct file *file,
 		goto out_unlock;
 	}
 
-	event_bitmap = libertas_get_events_bitmap(priv);
+	event_bitmap = lbs_get_events_bitmap(priv);
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0)
 		goto out_unlock;
 
@@ -1030,7 +1030,7 @@ static ssize_t libertas_bcnmiss_write(struct file *file,
 	event_bitmap |= subscribed ? 0x0008 : 0x0;
 	event->events = cpu_to_le16(event_bitmap);
 
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -1060,11 +1060,11 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_highrssi_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -1074,7 +1074,7 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0) {
 		free_page(addr);
 		return res;
@@ -1083,7 +1083,7 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 	event = &pcmdptr->params.subscribe_event;
 	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -1132,12 +1132,12 @@ static ssize_t libertas_highrssi_read(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static ssize_t libertas_highrssi_write(struct file *file,
+static ssize_t lbs_highrssi_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -1161,9 +1161,9 @@ static ssize_t libertas_highrssi_write(struct file *file,
 		goto out_unlock;
 	}
 
-	event_bitmap = libertas_get_events_bitmap(priv);
+	event_bitmap = lbs_get_events_bitmap(priv);
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0)
 		goto out_unlock;
 
@@ -1182,7 +1182,7 @@ static ssize_t libertas_highrssi_write(struct file *file,
 	event_bitmap |= subscribed ? 0x0010 : 0x0;
 	event->events = cpu_to_le16(event_bitmap);
 
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -1210,11 +1210,11 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_highsnr_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -1224,7 +1224,7 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0) {
 		free_page(addr);
 		return res;
@@ -1233,7 +1233,7 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 	event = &pcmdptr->params.subscribe_event;
 	event->action = cpu_to_le16(CMD_ACT_GET);
 	pcmdptr->size = cpu_to_le16(sizeof(*event) + S_DS_GEN);
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -1282,12 +1282,12 @@ static ssize_t libertas_highsnr_read(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static ssize_t libertas_highsnr_write(struct file *file,
+static ssize_t lbs_highsnr_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -1311,9 +1311,9 @@ static ssize_t libertas_highsnr_write(struct file *file,
 		goto out_unlock;
 	}
 
-	event_bitmap = libertas_get_events_bitmap(priv);
+	event_bitmap = lbs_get_events_bitmap(priv);
 
-	res = libertas_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
+	res = lbs_event_initcmd(priv, &response_buf, &pcmdnode, &pcmdptr);
 	if (res < 0)
 		goto out_unlock;
 
@@ -1332,7 +1332,7 @@ static ssize_t libertas_highsnr_write(struct file *file,
 	event_bitmap |= subscribed ? 0x0020 : 0x0;
 	event->events = cpu_to_le16(event_bitmap);
 
-	libertas_queue_cmd(adapter, pcmdnode, 1);
+	lbs_queue_cmd(adapter, pcmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	/* Sleep until response is generated by FW */
@@ -1362,12 +1362,12 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_rdmac_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_rdmac_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
-	struct wlan_offset_value offval;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
+	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -1376,7 +1376,7 @@ static ssize_t libertas_rdmac_read(struct file *file, char __user *userbuf,
 	offval.offset = priv->mac_offset;
 	offval.value = 0;
 
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 				CMD_MAC_REG_ACCESS, 0,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
@@ -1388,11 +1388,11 @@ static ssize_t libertas_rdmac_read(struct file *file, char __user *userbuf,
 	return ret;
 }
 
-static ssize_t libertas_rdmac_write(struct file *file,
+static ssize_t lbs_rdmac_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -1409,15 +1409,15 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_wrmac_write(struct file *file,
+static ssize_t lbs_wrmac_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
 
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
-	struct wlan_offset_value offval;
+	struct lbs_offset_value offval;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
@@ -1434,7 +1434,7 @@ static ssize_t libertas_wrmac_write(struct file *file,
 
 	offval.offset = offset;
 	offval.value = value;
-	res = libertas_prepare_and_send_command(priv,
+	res = lbs_prepare_and_send_command(priv,
 				CMD_MAC_REG_ACCESS, 1,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
@@ -1445,12 +1445,12 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_rdbbp_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_rdbbp_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
-	struct wlan_offset_value offval;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
+	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -1459,7 +1459,7 @@ static ssize_t libertas_rdbbp_read(struct file *file, char __user *userbuf,
 	offval.offset = priv->bbp_offset;
 	offval.value = 0;
 
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 				CMD_BBP_REG_ACCESS, 0,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
@@ -1472,11 +1472,11 @@ static ssize_t libertas_rdbbp_read(struct file *file, char __user *userbuf,
 	return ret;
 }
 
-static ssize_t libertas_rdbbp_write(struct file *file,
+static ssize_t lbs_rdbbp_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -1493,15 +1493,15 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_wrbbp_write(struct file *file,
+static ssize_t lbs_wrbbp_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
 
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
-	struct wlan_offset_value offval;
+	struct lbs_offset_value offval;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
@@ -1518,7 +1518,7 @@ static ssize_t libertas_wrbbp_write(struct file *file,
 
 	offval.offset = offset;
 	offval.value = value;
-	res = libertas_prepare_and_send_command(priv,
+	res = lbs_prepare_and_send_command(priv,
 				CMD_BBP_REG_ACCESS, 1,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
@@ -1529,12 +1529,12 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_rdrf_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_rdrf_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
-	wlan_adapter *adapter = priv->adapter;
-	struct wlan_offset_value offval;
+	lbs_private *priv = file->private_data;
+	lbs_adapter *adapter = priv->adapter;
+	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -1543,7 +1543,7 @@ static ssize_t libertas_rdrf_read(struct file *file, char __user *userbuf,
 	offval.offset = priv->rf_offset;
 	offval.value = 0;
 
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 				CMD_RF_REG_ACCESS, 0,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
@@ -1556,11 +1556,11 @@ static ssize_t libertas_rdrf_read(struct file *file, char __user *userbuf,
 	return ret;
 }
 
-static ssize_t libertas_rdrf_write(struct file *file,
+static ssize_t lbs_rdrf_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -1577,15 +1577,15 @@ out_unlock:
 	return res;
 }
 
-static ssize_t libertas_wrrf_write(struct file *file,
+static ssize_t lbs_wrrf_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
 
-	wlan_private *priv = file->private_data;
+	lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
-	struct wlan_offset_value offval;
+	struct lbs_offset_value offval;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
@@ -1602,7 +1602,7 @@ static ssize_t libertas_wrrf_write(struct file *file,
 
 	offval.offset = offset;
 	offval.value = value;
-	res = libertas_prepare_and_send_command(priv,
+	res = lbs_prepare_and_send_command(priv,
 				CMD_RF_REG_ACCESS, 1,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
@@ -1620,69 +1620,69 @@ out_unlock:
 	.write = (fwrite), \
 }
 
-struct libertas_debugfs_files {
+struct lbs_debugfs_files {
 	char *name;
 	int perm;
 	struct file_operations fops;
 };
 
-static struct libertas_debugfs_files debugfs_files[] = {
-	{ "info", 0444, FOPS(libertas_dev_info, write_file_dummy), },
-	{ "getscantable", 0444, FOPS(libertas_getscantable,
+static struct lbs_debugfs_files debugfs_files[] = {
+	{ "info", 0444, FOPS(lbs_dev_info, write_file_dummy), },
+	{ "getscantable", 0444, FOPS(lbs_getscantable,
 					write_file_dummy), },
-	{ "sleepparams", 0644, FOPS(libertas_sleepparams_read,
-				libertas_sleepparams_write), },
-	{ "extscan", 0600, FOPS(NULL, libertas_extscan), },
-	{ "setuserscan", 0600, FOPS(NULL, libertas_setuserscan), },
+	{ "sleepparams", 0644, FOPS(lbs_sleepparams_read,
+				lbs_sleepparams_write), },
+	{ "extscan", 0600, FOPS(NULL, lbs_extscan), },
+	{ "setuserscan", 0600, FOPS(NULL, lbs_setuserscan), },
 };
 
-static struct libertas_debugfs_files debugfs_events_files[] = {
-	{"low_rssi", 0644, FOPS(libertas_lowrssi_read,
-				libertas_lowrssi_write), },
-	{"low_snr", 0644, FOPS(libertas_lowsnr_read,
-				libertas_lowsnr_write), },
-	{"failure_count", 0644, FOPS(libertas_failcount_read,
-				libertas_failcount_write), },
-	{"beacon_missed", 0644, FOPS(libertas_bcnmiss_read,
-				libertas_bcnmiss_write), },
-	{"high_rssi", 0644, FOPS(libertas_highrssi_read,
-				libertas_highrssi_write), },
-	{"high_snr", 0644, FOPS(libertas_highsnr_read,
-				libertas_highsnr_write), },
+static struct lbs_debugfs_files debugfs_events_files[] = {
+	{"low_rssi", 0644, FOPS(lbs_lowrssi_read,
+				lbs_lowrssi_write), },
+	{"low_snr", 0644, FOPS(lbs_lowsnr_read,
+				lbs_lowsnr_write), },
+	{"failure_count", 0644, FOPS(lbs_failcount_read,
+				lbs_failcount_write), },
+	{"beacon_missed", 0644, FOPS(lbs_bcnmiss_read,
+				lbs_bcnmiss_write), },
+	{"high_rssi", 0644, FOPS(lbs_highrssi_read,
+				lbs_highrssi_write), },
+	{"high_snr", 0644, FOPS(lbs_highsnr_read,
+				lbs_highsnr_write), },
 };
 
-static struct libertas_debugfs_files debugfs_regs_files[] = {
-	{"rdmac", 0644, FOPS(libertas_rdmac_read, libertas_rdmac_write), },
-	{"wrmac", 0600, FOPS(NULL, libertas_wrmac_write), },
-	{"rdbbp", 0644, FOPS(libertas_rdbbp_read, libertas_rdbbp_write), },
-	{"wrbbp", 0600, FOPS(NULL, libertas_wrbbp_write), },
-	{"rdrf", 0644, FOPS(libertas_rdrf_read, libertas_rdrf_write), },
-	{"wrrf", 0600, FOPS(NULL, libertas_wrrf_write), },
+static struct lbs_debugfs_files debugfs_regs_files[] = {
+	{"rdmac", 0644, FOPS(lbs_rdmac_read, lbs_rdmac_write), },
+	{"wrmac", 0600, FOPS(NULL, lbs_wrmac_write), },
+	{"rdbbp", 0644, FOPS(lbs_rdbbp_read, lbs_rdbbp_write), },
+	{"wrbbp", 0600, FOPS(NULL, lbs_wrbbp_write), },
+	{"rdrf", 0644, FOPS(lbs_rdrf_read, lbs_rdrf_write), },
+	{"wrrf", 0600, FOPS(NULL, lbs_wrrf_write), },
 };
 
-void libertas_debugfs_init(void)
+void lbs_debugfs_init(void)
 {
-	if (!libertas_dir)
-		libertas_dir = debugfs_create_dir("libertas_wireless", NULL);
+	if (!lbs_dir)
+		lbs_dir = debugfs_create_dir("lbs_wireless", NULL);
 
 	return;
 }
 
-void libertas_debugfs_remove(void)
+void lbs_debugfs_remove(void)
 {
-	if (libertas_dir)
-		 debugfs_remove(libertas_dir);
+	if (lbs_dir)
+		 debugfs_remove(lbs_dir);
 	return;
 }
 
-void libertas_debugfs_init_one(wlan_private *priv, struct net_device *dev)
+void lbs_debugfs_init_one(lbs_private *priv, struct net_device *dev)
 {
 	int i;
-	struct libertas_debugfs_files *files;
-	if (!libertas_dir)
+	struct lbs_debugfs_files *files;
+	if (!lbs_dir)
 		goto exit;
 
-	priv->debugfs_dir = debugfs_create_dir(dev->name, libertas_dir);
+	priv->debugfs_dir = debugfs_create_dir(dev->name, lbs_dir);
 	if (!priv->debugfs_dir)
 		goto exit;
 
@@ -1722,13 +1722,13 @@ void libertas_debugfs_init_one(wlan_private *priv, struct net_device *dev)
 	}
 
 #ifdef PROC_DEBUG
-	libertas_debug_init(priv, dev);
+	lbs_debug_init(priv, dev);
 #endif
 exit:
 	return;
 }
 
-void libertas_debugfs_remove_one(wlan_private *priv)
+void lbs_debugfs_remove_one(lbs_private *priv)
 {
 	int i;
 
@@ -1755,8 +1755,8 @@ void libertas_debugfs_remove_one(wlan_private *priv)
 
 #ifdef PROC_DEBUG
 
-#define item_size(n)	(FIELD_SIZEOF(wlan_adapter, n))
-#define item_addr(n)	(offsetof(wlan_adapter, n))
+#define item_size(n)	(FIELD_SIZEOF(lbs_adapter, n))
+#define item_addr(n)	(offsetof(lbs_adapter, n))
 
 
 struct debug_data {
@@ -1765,7 +1765,7 @@ struct debug_data {
 	size_t addr;
 };
 
-/* To debug any member of wlan_adapter, simply add one line here.
+/* To debug any member of lbs_adapter, simply add one line here.
  */
 static struct debug_data items[] = {
 	{"intcounter", item_size(intcounter), item_addr(intcounter)},
@@ -1786,7 +1786,7 @@ static int num_of_items = ARRAY_SIZE(items);
  *  @param data    data to output
  *  @return 	   number of output data
  */
-static ssize_t wlan_debugfs_read(struct file *file, char __user *userbuf,
+static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
 			size_t count, loff_t *ppos)
 {
 	int val = 0;
@@ -1830,7 +1830,7 @@ static ssize_t wlan_debugfs_read(struct file *file, char __user *userbuf,
  *  @param data    data to write
  *  @return 	   number of data
  */
-static ssize_t wlan_debugfs_write(struct file *f, const char __user *buf,
+static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
 			    size_t cnt, loff_t *ppos)
 {
 	int r, i;
@@ -1882,21 +1882,21 @@ static ssize_t wlan_debugfs_write(struct file *f, const char __user *buf,
 	return (ssize_t)cnt;
 }
 
-static struct file_operations libertas_debug_fops = {
+static struct file_operations lbs_debug_fops = {
 	.owner = THIS_MODULE,
 	.open = open_file_generic,
-	.write = wlan_debugfs_write,
-	.read = wlan_debugfs_read,
+	.write = lbs_debugfs_write,
+	.read = lbs_debugfs_read,
 };
 
 /**
  *  @brief create debug proc file
  *
- *  @param priv	   pointer wlan_private
+ *  @param priv	   pointer lbs_private
  *  @param dev     pointer net_device
  *  @return 	   N/A
  */
-static void libertas_debug_init(wlan_private * priv, struct net_device *dev)
+static void lbs_debug_init(lbs_private * priv, struct net_device *dev)
 {
 	int i;
 
@@ -1908,7 +1908,7 @@ static void libertas_debug_init(wlan_private * priv, struct net_device *dev)
 
 	priv->debugfs_debug = debugfs_create_file("debug", 0644,
 						  priv->debugfs_dir, &items[0],
-						  &libertas_debug_fops);
+						  &lbs_debug_fops);
 }
 #endif
 

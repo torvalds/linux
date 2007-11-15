@@ -38,10 +38,10 @@ static void print_assoc_req(const char * extra, struct assoc_request * assoc_req
 }
 
 
-static int assoc_helper_essid(wlan_private *priv,
+static int assoc_helper_essid(lbs_private *priv,
                               struct assoc_request * assoc_req)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct bss_descriptor * bss;
 	int channel = -1;
@@ -58,15 +58,15 @@ static int assoc_helper_essid(wlan_private *priv,
 	lbs_deb_assoc("New SSID requested: '%s'\n",
 	              escape_essid(assoc_req->ssid, assoc_req->ssid_len));
 	if (assoc_req->mode == IW_MODE_INFRA) {
-		libertas_send_specific_ssid_scan(priv, assoc_req->ssid,
+		lbs_send_specific_ssid_scan(priv, assoc_req->ssid,
 			assoc_req->ssid_len, 0);
 
-		bss = libertas_find_ssid_in_list(adapter, assoc_req->ssid,
+		bss = lbs_find_ssid_in_list(adapter, assoc_req->ssid,
 				assoc_req->ssid_len, NULL, IW_MODE_INFRA, channel);
 		if (bss != NULL) {
 			lbs_deb_assoc("SSID found in scan list, associating\n");
 			memcpy(&assoc_req->bss, bss, sizeof(struct bss_descriptor));
-			ret = wlan_associate(priv, assoc_req);
+			ret = lbs_associate(priv, assoc_req);
 		} else {
 			lbs_deb_assoc("SSID not found; cannot associate\n");
 		}
@@ -74,23 +74,23 @@ static int assoc_helper_essid(wlan_private *priv,
 		/* Scan for the network, do not save previous results.  Stale
 		 *   scan data will cause us to join a non-existant adhoc network
 		 */
-		libertas_send_specific_ssid_scan(priv, assoc_req->ssid,
+		lbs_send_specific_ssid_scan(priv, assoc_req->ssid,
 			assoc_req->ssid_len, 1);
 
 		/* Search for the requested SSID in the scan table */
-		bss = libertas_find_ssid_in_list(adapter, assoc_req->ssid,
+		bss = lbs_find_ssid_in_list(adapter, assoc_req->ssid,
 				assoc_req->ssid_len, NULL, IW_MODE_ADHOC, channel);
 		if (bss != NULL) {
 			lbs_deb_assoc("SSID found, will join\n");
 			memcpy(&assoc_req->bss, bss, sizeof(struct bss_descriptor));
-			libertas_join_adhoc_network(priv, assoc_req);
+			lbs_join_adhoc_network(priv, assoc_req);
 		} else {
 			/* else send START command */
 			lbs_deb_assoc("SSID not found, creating adhoc network\n");
 			memcpy(&assoc_req->bss.ssid, &assoc_req->ssid,
 				IW_ESSID_MAX_SIZE);
 			assoc_req->bss.ssid_len = assoc_req->ssid_len;
-			libertas_start_adhoc_network(priv, assoc_req);
+			lbs_start_adhoc_network(priv, assoc_req);
 		}
 	}
 
@@ -99,10 +99,10 @@ static int assoc_helper_essid(wlan_private *priv,
 }
 
 
-static int assoc_helper_bssid(wlan_private *priv,
+static int assoc_helper_bssid(lbs_private *priv,
                               struct assoc_request * assoc_req)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct bss_descriptor * bss;
 	DECLARE_MAC_BUF(mac);
@@ -111,7 +111,7 @@ static int assoc_helper_bssid(wlan_private *priv,
 		print_mac(mac, assoc_req->bssid));
 
 	/* Search for index position in list for requested MAC */
-	bss = libertas_find_bssid_in_list(adapter, assoc_req->bssid,
+	bss = lbs_find_bssid_in_list(adapter, assoc_req->bssid,
 			    assoc_req->mode);
 	if (bss == NULL) {
 		lbs_deb_assoc("ASSOC: WAP: BSSID %s not found, "
@@ -121,10 +121,10 @@ static int assoc_helper_bssid(wlan_private *priv,
 
 	memcpy(&assoc_req->bss, bss, sizeof(struct bss_descriptor));
 	if (assoc_req->mode == IW_MODE_INFRA) {
-		ret = wlan_associate(priv, assoc_req);
-		lbs_deb_assoc("ASSOC: wlan_associate(bssid) returned %d\n", ret);
+		ret = lbs_associate(priv, assoc_req);
+		lbs_deb_assoc("ASSOC: lbs_associate(bssid) returned %d\n", ret);
 	} else if (assoc_req->mode == IW_MODE_ADHOC) {
-		libertas_join_adhoc_network(priv, assoc_req);
+		lbs_join_adhoc_network(priv, assoc_req);
 	}
 
 out:
@@ -133,7 +133,7 @@ out:
 }
 
 
-static int assoc_helper_associate(wlan_private *priv,
+static int assoc_helper_associate(lbs_private *priv,
                                   struct assoc_request * assoc_req)
 {
 	int ret = 0, done = 0;
@@ -162,10 +162,10 @@ static int assoc_helper_associate(wlan_private *priv,
 }
 
 
-static int assoc_helper_mode(wlan_private *priv,
+static int assoc_helper_mode(lbs_private *priv,
                              struct assoc_request * assoc_req)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -175,12 +175,12 @@ static int assoc_helper_mode(wlan_private *priv,
 
 	if (assoc_req->mode == IW_MODE_INFRA) {
 		if (adapter->psstate != PS_STATE_FULL_POWER)
-			libertas_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
-		adapter->psmode = WLAN802_11POWERMODECAM;
+			lbs_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
+		adapter->psmode = LBS802_11POWERMODECAM;
 	}
 
 	adapter->mode = assoc_req->mode;
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 				    CMD_802_11_SNMP_MIB,
 				    0, CMD_OPTION_WAITFORRSP,
 				    OID_802_11_INFRASTRUCTURE_MODE,
@@ -192,26 +192,26 @@ done:
 }
 
 
-static int update_channel(wlan_private * priv)
+static int update_channel(lbs_private * priv)
 {
 	/* the channel in f/w could be out of sync, get the current channel */
-	return libertas_prepare_and_send_command(priv, CMD_802_11_RF_CHANNEL,
+	return lbs_prepare_and_send_command(priv, CMD_802_11_RF_CHANNEL,
 				    CMD_OPT_802_11_RF_CHANNEL_GET,
 				    CMD_OPTION_WAITFORRSP, 0, NULL);
 }
 
-void libertas_sync_channel(struct work_struct *work)
+void lbs_sync_channel(struct work_struct *work)
 {
-	wlan_private *priv = container_of(work, wlan_private, sync_channel);
+	lbs_private *priv = container_of(work, lbs_private, sync_channel);
 
 	if (update_channel(priv) != 0)
 		lbs_pr_info("Channel synchronization failed.");
 }
 
-static int assoc_helper_channel(wlan_private *priv,
+static int assoc_helper_channel(lbs_private *priv,
                                 struct assoc_request * assoc_req)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -227,7 +227,7 @@ static int assoc_helper_channel(wlan_private *priv,
 	lbs_deb_assoc("ASSOC: channel: %d -> %d\n",
 	       adapter->curbssparams.channel, assoc_req->channel);
 
-	ret = libertas_prepare_and_send_command(priv, CMD_802_11_RF_CHANNEL,
+	ret = lbs_prepare_and_send_command(priv, CMD_802_11_RF_CHANNEL,
 				CMD_OPT_802_11_RF_CHANNEL_SET,
 				CMD_OPTION_WAITFORRSP, 0, &assoc_req->channel);
 	if (ret < 0) {
@@ -263,10 +263,10 @@ done:
 }
 
 
-static int assoc_helper_wep_keys(wlan_private *priv,
+static int assoc_helper_wep_keys(lbs_private *priv,
                                  struct assoc_request * assoc_req)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int i;
 	int ret = 0;
 
@@ -277,13 +277,13 @@ static int assoc_helper_wep_keys(wlan_private *priv,
 	    || assoc_req->wep_keys[1].len
 	    || assoc_req->wep_keys[2].len
 	    || assoc_req->wep_keys[3].len) {
-		ret = libertas_prepare_and_send_command(priv,
+		ret = lbs_prepare_and_send_command(priv,
 					    CMD_802_11_SET_WEP,
 					    CMD_ACT_ADD,
 					    CMD_OPTION_WAITFORRSP,
 					    0, assoc_req);
 	} else {
-		ret = libertas_prepare_and_send_command(priv,
+		ret = lbs_prepare_and_send_command(priv,
 					    CMD_802_11_SET_WEP,
 					    CMD_ACT_REMOVE,
 					    CMD_OPTION_WAITFORRSP,
@@ -298,7 +298,7 @@ static int assoc_helper_wep_keys(wlan_private *priv,
 		adapter->currentpacketfilter |= CMD_ACT_MAC_WEP_ENABLE;
 	else
 		adapter->currentpacketfilter &= ~CMD_ACT_MAC_WEP_ENABLE;
-	ret = libertas_set_mac_packet_filter(priv);
+	ret = lbs_set_mac_packet_filter(priv);
 	if (ret)
 		goto out;
 
@@ -318,10 +318,10 @@ out:
 	return ret;
 }
 
-static int assoc_helper_secinfo(wlan_private *priv,
+static int assoc_helper_secinfo(lbs_private *priv,
                                 struct assoc_request * assoc_req)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	u32 do_wpa;
 	u32 rsn = 0;
@@ -329,9 +329,9 @@ static int assoc_helper_secinfo(wlan_private *priv,
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	memcpy(&adapter->secinfo, &assoc_req->secinfo,
-		sizeof(struct wlan_802_11_security));
+		sizeof(struct lbs_802_11_security));
 
-	ret = libertas_set_mac_packet_filter(priv);
+	ret = lbs_set_mac_packet_filter(priv);
 	if (ret)
 		goto out;
 
@@ -341,7 +341,7 @@ static int assoc_helper_secinfo(wlan_private *priv,
 	 */
 
 	/* Get RSN enabled/disabled */
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 				    CMD_802_11_ENABLE_RSN,
 				    CMD_ACT_GET,
 				    CMD_OPTION_WAITFORRSP,
@@ -358,7 +358,7 @@ static int assoc_helper_secinfo(wlan_private *priv,
 
 	/* Set RSN enabled/disabled */
 	rsn = do_wpa;
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 				    CMD_802_11_ENABLE_RSN,
 				    CMD_ACT_SET,
 				    CMD_OPTION_WAITFORRSP,
@@ -370,7 +370,7 @@ out:
 }
 
 
-static int assoc_helper_wpa_keys(wlan_private *priv,
+static int assoc_helper_wpa_keys(lbs_private *priv,
                                  struct assoc_request * assoc_req)
 {
 	int ret = 0;
@@ -385,7 +385,7 @@ static int assoc_helper_wpa_keys(wlan_private *priv,
 
 	if (test_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags)) {
 		clear_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags);
-		ret = libertas_prepare_and_send_command(priv,
+		ret = lbs_prepare_and_send_command(priv,
 					CMD_802_11_KEY_MATERIAL,
 					CMD_ACT_SET,
 					CMD_OPTION_WAITFORRSP,
@@ -399,7 +399,7 @@ static int assoc_helper_wpa_keys(wlan_private *priv,
 	if (test_bit(ASSOC_FLAG_WPA_MCAST_KEY, &assoc_req->flags)) {
 		clear_bit(ASSOC_FLAG_WPA_UCAST_KEY, &assoc_req->flags);
 
-		ret = libertas_prepare_and_send_command(priv,
+		ret = lbs_prepare_and_send_command(priv,
 					CMD_802_11_KEY_MATERIAL,
 					CMD_ACT_SET,
 					CMD_OPTION_WAITFORRSP,
@@ -413,10 +413,10 @@ out:
 }
 
 
-static int assoc_helper_wpa_ie(wlan_private *priv,
+static int assoc_helper_wpa_ie(lbs_private *priv,
                                struct assoc_request * assoc_req)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -434,10 +434,10 @@ static int assoc_helper_wpa_ie(wlan_private *priv,
 }
 
 
-static int should_deauth_infrastructure(wlan_adapter *adapter,
+static int should_deauth_infrastructure(lbs_adapter *adapter,
                                         struct assoc_request * assoc_req)
 {
-	if (adapter->connect_status != LIBERTAS_CONNECTED)
+	if (adapter->connect_status != LBS_CONNECTED)
 		return 0;
 
 	if (test_bit(ASSOC_FLAG_SSID, &assoc_req->flags)) {
@@ -475,13 +475,13 @@ static int should_deauth_infrastructure(wlan_adapter *adapter,
 }
 
 
-static int should_stop_adhoc(wlan_adapter *adapter,
+static int should_stop_adhoc(lbs_adapter *adapter,
                              struct assoc_request * assoc_req)
 {
-	if (adapter->connect_status != LIBERTAS_CONNECTED)
+	if (adapter->connect_status != LBS_CONNECTED)
 		return 0;
 
-	if (libertas_ssid_cmp(adapter->curbssparams.ssid,
+	if (lbs_ssid_cmp(adapter->curbssparams.ssid,
 	                      adapter->curbssparams.ssid_len,
 	                      assoc_req->ssid, assoc_req->ssid_len) != 0)
 		return 1;
@@ -501,10 +501,10 @@ static int should_stop_adhoc(wlan_adapter *adapter,
 }
 
 
-void libertas_association_worker(struct work_struct *work)
+void lbs_association_worker(struct work_struct *work)
 {
-	wlan_private *priv = container_of(work, wlan_private, assoc_work.work);
-	wlan_adapter *adapter = priv->adapter;
+	lbs_private *priv = container_of(work, lbs_private, assoc_work.work);
+	lbs_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req = NULL;
 	int ret = 0;
 	int find_any_ssid = 0;
@@ -538,7 +538,7 @@ void libertas_association_worker(struct work_struct *work)
 	if (find_any_ssid) {
 		u8 new_mode;
 
-		ret = libertas_find_best_network_ssid(priv, assoc_req->ssid,
+		ret = lbs_find_best_network_ssid(priv, assoc_req->ssid,
 				&assoc_req->ssid_len, assoc_req->mode, &new_mode);
 		if (ret) {
 			lbs_deb_assoc("Could not find best network\n");
@@ -559,7 +559,7 @@ void libertas_association_worker(struct work_struct *work)
 	 */
 	if (adapter->mode == IW_MODE_INFRA) {
 		if (should_deauth_infrastructure(adapter, assoc_req)) {
-			ret = libertas_send_deauthentication(priv);
+			ret = lbs_send_deauthentication(priv);
 			if (ret) {
 				lbs_deb_assoc("Deauthentication due to new "
 					"configuration request failed: %d\n",
@@ -568,7 +568,7 @@ void libertas_association_worker(struct work_struct *work)
 		}
 	} else if (adapter->mode == IW_MODE_ADHOC) {
 		if (should_stop_adhoc(adapter, assoc_req)) {
-			ret = libertas_stop_adhoc_network(priv);
+			ret = lbs_stop_adhoc_network(priv);
 			if (ret) {
 				lbs_deb_assoc("Teardown of AdHoc network due to "
 					"new configuration request failed: %d\n",
@@ -649,7 +649,7 @@ void libertas_association_worker(struct work_struct *work)
 			success = 0;
 		}
 
-		if (adapter->connect_status != LIBERTAS_CONNECTED) {
+		if (adapter->connect_status != LBS_CONNECTED) {
 			lbs_deb_assoc("ASSOC: association attempt unsuccessful, "
 				"not connected.\n");
 			success = 0;
@@ -661,11 +661,11 @@ void libertas_association_worker(struct work_struct *work)
 				escape_essid(adapter->curbssparams.ssid,
 				             adapter->curbssparams.ssid_len),
 				print_mac(mac, adapter->curbssparams.bssid));
-			libertas_prepare_and_send_command(priv,
+			lbs_prepare_and_send_command(priv,
 				CMD_802_11_RSSI,
 				0, CMD_OPTION_WAITFORRSP, 0, NULL);
 
-			libertas_prepare_and_send_command(priv,
+			lbs_prepare_and_send_command(priv,
 				CMD_802_11_GET_LOG,
 				0, CMD_OPTION_WAITFORRSP, 0, NULL);
 		} else {
@@ -692,7 +692,7 @@ done:
 /*
  * Caller MUST hold any necessary locks
  */
-struct assoc_request * wlan_get_association_request(wlan_adapter *adapter)
+struct assoc_request *lbs_get_association_request(lbs_adapter *adapter)
 {
 	struct assoc_request * assoc_req;
 
@@ -753,7 +753,7 @@ struct assoc_request * wlan_get_association_request(wlan_adapter *adapter)
 
 	if (!test_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags)) {
 		memcpy(&assoc_req->secinfo, &adapter->secinfo,
-			sizeof(struct wlan_802_11_security));
+			sizeof(struct lbs_802_11_security));
 	}
 
 	if (!test_bit(ASSOC_FLAG_WPA_IE, &assoc_req->flags)) {

@@ -2,8 +2,8 @@
   * This file contains definitions of WLAN commands.
   */
 
-#ifndef _HOST_H_
-#define _HOST_H_
+#ifndef _LBS_HOST_H_
+#define _LBS_HOST_H_
 
 /** PUBLIC DEFINITIONS */
 #define DEFAULT_AD_HOC_CHANNEL       6
@@ -287,4 +287,4 @@ enum cmd_mesh_access_opts {
 #define MACREG_INT_CODE_SNR_HIGH		0x0000001d
 #define MACREG_INT_CODE_MESH_AUTO_STARTED	0x00000023
 
-#endif				/* _HOST_H_ */
+#endif

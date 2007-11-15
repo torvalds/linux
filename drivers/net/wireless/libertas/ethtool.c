@@ -19,35 +19,35 @@ static const char * mesh_stat_strings[]= {
 			"tx_failed_cnt"
 };
 
-static void libertas_ethtool_get_drvinfo(struct net_device *dev,
+static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 					 struct ethtool_drvinfo *info)
 {
-	wlan_private *priv = (wlan_private *) dev->priv;
+	lbs_private *priv = (lbs_private *) dev->priv;
 	char fwver[32];
 
-	libertas_get_fwversion(priv->adapter, fwver, sizeof(fwver) - 1);
+	lbs_get_fwversion(priv->adapter, fwver, sizeof(fwver) - 1);
 
 	strcpy(info->driver, "libertas");
-	strcpy(info->version, libertas_driver_version);
+	strcpy(info->version, lbs_driver_version);
 	strcpy(info->fw_version, fwver);
 }
 
 /* All 8388 parts have 16KiB EEPROM size at the time of writing.
  * In case that changes this needs fixing.
  */
-#define LIBERTAS_EEPROM_LEN 16384
+#define LBS_EEPROM_LEN 16384
 
-static int libertas_ethtool_get_eeprom_len(struct net_device *dev)
+static int lbs_ethtool_get_eeprom_len(struct net_device *dev)
 {
-	return LIBERTAS_EEPROM_LEN;
+	return LBS_EEPROM_LEN;
 }
 
-static int libertas_ethtool_get_eeprom(struct net_device *dev,
+static int lbs_ethtool_get_eeprom(struct net_device *dev,
                                   struct ethtool_eeprom *eeprom, u8 * bytes)
 {
-	wlan_private *priv = (wlan_private *) dev->priv;
-	wlan_adapter *adapter = priv->adapter;
-	struct wlan_ioctl_regrdwr regctrl;
+	lbs_private *priv = (lbs_private *) dev->priv;
+	lbs_adapter *adapter = priv->adapter;
+	struct lbs_ioctl_regrdwr regctrl;
 	char *ptr;
 	int ret;
 
@@ -55,7 +55,7 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 	regctrl.offset = eeprom->offset;
 	regctrl.NOB = eeprom->len;
 
-	if (eeprom->offset + eeprom->len > LIBERTAS_EEPROM_LEN)
+	if (eeprom->offset + eeprom->len > LBS_EEPROM_LEN)
 		return -EINVAL;
 
 //      mutex_lock(&priv->mutex);
@@ -70,7 +70,7 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 	lbs_deb_ethtool("action:%d offset: %x NOB: %02x\n",
 	       regctrl.action, regctrl.offset, regctrl.NOB);
 
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 				    CMD_802_11_EEPROM_ACCESS,
 				    regctrl.action,
 				    CMD_OPTION_WAITFORRSP, 0,
@@ -87,7 +87,7 @@ static int libertas_ethtool_get_eeprom(struct net_device *dev,
 	ptr = (char *)adapter->prdeeprom;
 
 	/* skip the command header, but include the "value" u32 variable */
-	ptr = ptr + sizeof(struct wlan_ioctl_regrdwr) - 4;
+	ptr = ptr + sizeof(struct lbs_ioctl_regrdwr) - 4;
 
 	/*
 	 * Return the result back to the user
@@ -105,17 +105,17 @@ done:
         return ret;
 }
 
-static void libertas_ethtool_get_stats(struct net_device * dev,
+static void lbs_ethtool_get_stats(struct net_device * dev,
 				struct ethtool_stats * stats, u64 * data)
 {
-	wlan_private *priv = dev->priv;
+	lbs_private *priv = dev->priv;
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
 
 	/* Get Mesh Statistics */
-	ret = libertas_prepare_and_send_command(priv,
+	ret = lbs_prepare_and_send_command(priv,
 			CMD_MESH_ACCESS, CMD_ACT_MESH_GET_STATS,
 			CMD_OPTION_WAITFORRSP, 0, &mesh_access);
 
@@ -143,7 +143,7 @@ static void libertas_ethtool_get_stats(struct net_device * dev,
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
 }
 
-static int libertas_ethtool_get_sset_count(struct net_device * dev, int sset)
+static int lbs_ethtool_get_sset_count(struct net_device * dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
@@ -153,7 +153,7 @@ static int libertas_ethtool_get_sset_count(struct net_device * dev, int sset)
 	}
 }
 
-static void libertas_ethtool_get_strings (struct net_device * dev,
+static void lbs_ethtool_get_strings(struct net_device *dev,
 					  u32 stringset,
 					  u8 * s)
 {
@@ -173,12 +173,12 @@ static void libertas_ethtool_get_strings (struct net_device * dev,
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
 }
 
-struct ethtool_ops libertas_ethtool_ops = {
-	.get_drvinfo = libertas_ethtool_get_drvinfo,
-	.get_eeprom =  libertas_ethtool_get_eeprom,
-	.get_eeprom_len = libertas_ethtool_get_eeprom_len,
-	.get_sset_count = libertas_ethtool_get_sset_count,
-	.get_ethtool_stats = libertas_ethtool_get_stats,
-	.get_strings = libertas_ethtool_get_strings,
+struct ethtool_ops lbs_ethtool_ops = {
+	.get_drvinfo = lbs_ethtool_get_drvinfo,
+	.get_eeprom =  lbs_ethtool_get_eeprom,
+	.get_eeprom_len = lbs_ethtool_get_eeprom_len,
+	.get_sset_count = lbs_ethtool_get_sset_count,
+	.get_ethtool_stats = lbs_ethtool_get_stats,
+	.get_strings = lbs_ethtool_get_strings,
 };
 

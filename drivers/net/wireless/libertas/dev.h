@@ -1,10 +1,10 @@
 /**
   * This file contains definitions and data structures specific
   * to Marvell 802.11 NIC. It contains the Device Information
-  * structure wlan_adapter.
+  * structure lbs_adapter.
   */
-#ifndef _WLAN_DEV_H_
-#define _WLAN_DEV_H_
+#ifndef _LBS_DEV_H_
+#define _LBS_DEV_H_
 
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
@@ -15,7 +15,7 @@
 #include "defs.h"
 #include "scan.h"
 
-extern struct ethtool_ops libertas_ethtool_ops;
+extern struct ethtool_ops lbs_ethtool_ops;
 
 #define	MAX_BSSID_PER_CHANNEL		16
 
@@ -53,7 +53,7 @@ struct region_channel {
 	struct chan_freq_power *CFP;
 };
 
-struct wlan_802_11_security {
+struct lbs_802_11_security {
 	u8 WPAenabled;
 	u8 WPA2enabled;
 	u8 wep_enabled;
@@ -87,7 +87,7 @@ struct sleep_params {
 };
 
 /* Mesh statistics */
-struct wlan_mesh_stats {
+struct lbs_mesh_stats {
 	u32	fwd_bcast_cnt;		/* Fwd: Broadcast counter */
 	u32	fwd_unicast_cnt;	/* Fwd: Unicast counter */
 	u32	fwd_drop_ttl;		/* Fwd: TTL zero */
@@ -99,7 +99,7 @@ struct wlan_mesh_stats {
 };
 
 /** Private structure for the MV device */
-struct _wlan_private {
+struct _lbs_private {
 	int open;
 	int mesh_open;
 	int infra_open;
@@ -109,7 +109,7 @@ struct _wlan_private {
 	char name[DEV_NAME_LEN];
 
 	void *card;
-	wlan_adapter *adapter;
+	lbs_adapter *adapter;
 	struct net_device *dev;
 
 	struct net_device_stats stats;
@@ -118,7 +118,7 @@ struct _wlan_private {
 	struct ieee80211_device *ieee;
 
 	struct iw_statistics wstats;
-	struct wlan_mesh_stats mstats;
+	struct lbs_mesh_stats mstats;
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_debug;
 	struct dentry *debugfs_files[6];
@@ -136,7 +136,7 @@ struct _wlan_private {
 	/** Upload length */
 	u32 upld_len;
 	/* Upload buffer */
-	u8 upld_buf[WLAN_UPLD_SIZE];
+	u8 upld_buf[LBS_UPLD_SIZE];
 	/* Download sent:
 	   bit0 1/0=data_sent/data_tx_done,
 	   bit1 1/0=cmd_sent/cmd_tx_done,
@@ -155,9 +155,9 @@ struct _wlan_private {
 	struct work_struct sync_channel;
 
 	/** Hardware access */
-	int (*hw_host_to_card) (wlan_private * priv, u8 type, u8 * payload, u16 nb);
-	int (*hw_get_int_status) (wlan_private * priv, u8 *);
-	int (*hw_read_event_cause) (wlan_private *);
+	int (*hw_host_to_card) (lbs_private *priv, u8 type, u8 *payload, u16 nb);
+	int (*hw_get_int_status) (lbs_private *priv, u8 *);
+	int (*hw_read_event_cause) (lbs_private *);
 };
 
 /** Association request
@@ -194,7 +194,7 @@ struct assoc_request {
 	struct enc_key wpa_mcast_key;
 	struct enc_key wpa_unicast_key;
 
-	struct wlan_802_11_security secinfo;
+	struct lbs_802_11_security secinfo;
 
 	/** WPA Information Elements*/
 	u8 wpa_ie[MAX_WPA_IE_LEN];
@@ -205,7 +205,7 @@ struct assoc_request {
 };
 
 /** Wlan adapter data structure*/
-struct _wlan_adapter {
+struct _lbs_adapter {
 	/** STATUS variables */
 	u8 fwreleasenumber[4];
 	u32 fwcapinfo;
@@ -213,7 +213,7 @@ struct _wlan_adapter {
 
 	struct mutex lock;
 
-	u8 tmptxbuf[WLAN_UPLD_SIZE];
+	u8 tmptxbuf[LBS_UPLD_SIZE];
 	/* protected by hard_start_xmit serialization */
 
 	/** command-related variables */
@@ -302,13 +302,13 @@ struct _wlan_adapter {
 	u32 psstate;
 	u8 needtowakeup;
 
-	struct PS_CMD_ConfirmSleep libertas_ps_confirm_sleep;
+	struct PS_CMD_ConfirmSleep lbs_ps_confirm_sleep;
 
 	struct assoc_request * pending_assoc_req;
 	struct assoc_request * in_progress_assoc_req;
 
 	/** Encryption parameter */
-	struct wlan_802_11_security secinfo;
+	struct lbs_802_11_security secinfo;
 
 	/** WEP keys */
 	struct enc_key wep_keys[4];
@@ -350,7 +350,7 @@ struct _wlan_adapter {
 	struct region_channel universal_channel[MAX_REGION_CHANNEL_NUM];
 
 	/** 11D and Domain Regulatory Data */
-	struct wlan_802_11d_domain_reg domainreg;
+	struct lbs_802_11d_domain_reg domainreg;
 	struct parsed_region_chan_11d parsed_region_chan;
 
 	/** FSM variable for 11d support */
@@ -358,7 +358,7 @@ struct _wlan_adapter {
 
 	/**	MISCELLANEOUS */
 	u8 *prdeeprom;
-	struct wlan_offset_value offsetvalue;
+	struct lbs_offset_value offsetvalue;
 
 	struct cmd_ds_802_11_get_log logmsg;
 
@@ -368,4 +368,4 @@ struct _wlan_adapter {
 	u8 last_scanned_channel;
 };
 
-#endif				/* _WLAN_DEV_H_ */
+#endif

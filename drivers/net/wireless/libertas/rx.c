@@ -35,19 +35,19 @@ struct rx80211packethdr {
 	void *eth80211_hdr;
 } __attribute__ ((packed));
 
-static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb);
+static int process_rxed_802_11_packet(lbs_private *priv, struct sk_buff *skb);
 
 /**
  *  @brief This function computes the avgSNR .
  *
- *  @param priv    A pointer to wlan_private structure
+ *  @param priv    A pointer to lbs_private structure
  *  @return 	   avgSNR
  */
-static u8 wlan_getavgsnr(wlan_private * priv)
+static u8 lbs_getavgsnr(lbs_private *priv)
 {
 	u8 i;
 	u16 temp = 0;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	if (adapter->numSNRNF == 0)
 		return 0;
 	for (i = 0; i < adapter->numSNRNF; i++)
@@ -59,14 +59,14 @@ static u8 wlan_getavgsnr(wlan_private * priv)
 /**
  *  @brief This function computes the AvgNF
  *
- *  @param priv    A pointer to wlan_private structure
+ *  @param priv    A pointer to lbs_private structure
  *  @return 	   AvgNF
  */
-static u8 wlan_getavgnf(wlan_private * priv)
+static u8 lbs_getavgnf(lbs_private *priv)
 {
 	u8 i;
 	u16 temp = 0;
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	if (adapter->numSNRNF == 0)
 		return 0;
 	for (i = 0; i < adapter->numSNRNF; i++)
@@ -78,13 +78,13 @@ static u8 wlan_getavgnf(wlan_private * priv)
 /**
  *  @brief This function save the raw SNR/NF to our internel buffer
  *
- *  @param priv    A pointer to wlan_private structure
+ *  @param priv    A pointer to lbs_private structure
  *  @param prxpd   A pointer to rxpd structure of received packet
  *  @return 	   n/a
  */
-static void wlan_save_rawSNRNF(wlan_private * priv, struct rxpd *p_rx_pd)
+static void lbs_save_rawSNRNF(lbs_private *priv, struct rxpd *p_rx_pd)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	if (adapter->numSNRNF < DEFAULT_DATA_AVG_FACTOR)
 		adapter->numSNRNF++;
 	adapter->rawSNR[adapter->nextSNRNF] = p_rx_pd->snr;
@@ -98,13 +98,13 @@ static void wlan_save_rawSNRNF(wlan_private * priv, struct rxpd *p_rx_pd)
 /**
  *  @brief This function computes the RSSI in received packet.
  *
- *  @param priv    A pointer to wlan_private structure
+ *  @param priv    A pointer to lbs_private structure
  *  @param prxpd   A pointer to rxpd structure of received packet
  *  @return 	   n/a
  */
-static void wlan_compute_rssi(wlan_private * priv, struct rxpd *p_rx_pd)
+static void lbs_compute_rssi(lbs_private *priv, struct rxpd *p_rx_pd)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_RX);
 
@@ -115,10 +115,10 @@ static void wlan_compute_rssi(wlan_private * priv, struct rxpd *p_rx_pd)
 
 	adapter->SNR[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->snr;
 	adapter->NF[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->nf;
-	wlan_save_rawSNRNF(priv, p_rx_pd);
+	lbs_save_rawSNRNF(priv, p_rx_pd);
 
-	adapter->SNR[TYPE_RXPD][TYPE_AVG] = wlan_getavgsnr(priv) * AVG_SCALE;
-	adapter->NF[TYPE_RXPD][TYPE_AVG] = wlan_getavgnf(priv) * AVG_SCALE;
+	adapter->SNR[TYPE_RXPD][TYPE_AVG] = lbs_getavgsnr(priv) * AVG_SCALE;
+	adapter->NF[TYPE_RXPD][TYPE_AVG] = lbs_getavgnf(priv) * AVG_SCALE;
 	lbs_deb_rx("after computing SNR: SNR-avg = %d, NF-avg = %d\n",
 	       adapter->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
 	       adapter->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
@@ -134,11 +134,11 @@ static void wlan_compute_rssi(wlan_private * priv, struct rxpd *p_rx_pd)
 	lbs_deb_leave(LBS_DEB_RX);
 }
 
-void libertas_upload_rx_packet(wlan_private * priv, struct sk_buff *skb)
+void lbs_upload_rx_packet(lbs_private *priv, struct sk_buff *skb)
 {
 	lbs_deb_rx("skb->data %p\n", skb->data);
 
-	if (priv->adapter->monitormode != WLAN_MONITOR_OFF) {
+	if (priv->adapter->monitormode != LBS_MONITOR_OFF) {
 		skb->protocol = eth_type_trans(skb, priv->rtap_net_dev);
 	} else {
 		if (priv->mesh_dev && IS_MESH_FRAME(skb))
@@ -154,13 +154,13 @@ void libertas_upload_rx_packet(wlan_private * priv, struct sk_buff *skb)
  *  @brief This function processes received packet and forwards it
  *  to kernel/upper layer
  *
- *  @param priv    A pointer to wlan_private
+ *  @param priv    A pointer to lbs_private
  *  @param skb     A pointer to skb which includes the received packet
  *  @return 	   0 or -1
  */
-int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
+int lbs_process_rxed_packet(lbs_private *priv, struct sk_buff *skb)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	struct rxpackethdr *p_rx_pkt;
@@ -173,7 +173,7 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 
 	lbs_deb_enter(LBS_DEB_RX);
 
-	if (priv->adapter->monitormode != WLAN_MONITOR_OFF)
+	if (priv->adapter->monitormode != LBS_MONITOR_OFF)
 		return process_rxed_802_11_packet(priv, skb);
 
 	p_rx_pkt = (struct rxpackethdr *) skb->data;
@@ -258,22 +258,22 @@ int libertas_process_rxed_packet(wlan_private * priv, struct sk_buff *skb)
 	 * only if the rate is auto
 	 */
 	if (adapter->auto_rate)
-		adapter->cur_rate = libertas_fw_index_to_data_rate(p_rx_pd->rx_rate);
+		adapter->cur_rate = lbs_fw_index_to_data_rate(p_rx_pd->rx_rate);
 
-	wlan_compute_rssi(priv, p_rx_pd);
+	lbs_compute_rssi(priv, p_rx_pd);
 
 	lbs_deb_rx("rx data: size of actual packet %d\n", skb->len);
 	priv->stats.rx_bytes += skb->len;
 	priv->stats.rx_packets++;
 
-	libertas_upload_rx_packet(priv, skb);
+	lbs_upload_rx_packet(priv, skb);
 
 	ret = 0;
 done:
 	lbs_deb_leave_args(LBS_DEB_RX, "ret %d", ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(libertas_process_rxed_packet);
+EXPORT_SYMBOL_GPL(lbs_process_rxed_packet);
 
 /**
  *  @brief This function converts Tx/Rx rates from the Marvell WLAN format
@@ -319,13 +319,13 @@ static u8 convert_mv_rate_to_radiotap(u8 rate)
  *  @brief This function processes a received 802.11 packet and forwards it
  *  to kernel/upper layer
  *
- *  @param priv    A pointer to wlan_private
+ *  @param priv    A pointer to lbs_private
  *  @param skb     A pointer to skb which includes the received packet
  *  @return 	   0 or -1
  */
-static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
+static int process_rxed_802_11_packet(lbs_private *priv, struct sk_buff *skb)
 {
-	wlan_adapter *adapter = priv->adapter;
+	lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	struct rx80211packethdr *p_rx_pkt;
@@ -359,7 +359,7 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
 
 	/* create the exported radio header */
-	if(priv->adapter->monitormode == WLAN_MONITOR_OFF) {
+	if (priv->adapter->monitormode == LBS_MONITOR_OFF) {
 		/* no radio header */
 		/* chop the rxpd */
 		skb_pull(skb, sizeof(struct rxpd));
@@ -409,15 +409,15 @@ static int process_rxed_802_11_packet(wlan_private * priv, struct sk_buff *skb)
 	 * only if the rate is auto
 	 */
 	if (adapter->auto_rate)
-		adapter->cur_rate = libertas_fw_index_to_data_rate(prxpd->rx_rate);
+		adapter->cur_rate = lbs_fw_index_to_data_rate(prxpd->rx_rate);
 
-	wlan_compute_rssi(priv, prxpd);
+	lbs_compute_rssi(priv, prxpd);
 
 	lbs_deb_rx("rx data: size of actual packet %d\n", skb->len);
 	priv->stats.rx_bytes += skb->len;
 	priv->stats.rx_packets++;
 
-	libertas_upload_rx_packet(priv, skb);
+	lbs_upload_rx_packet(priv, skb);
 
 	ret = 0;
 

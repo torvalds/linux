@@ -21,8 +21,8 @@
 static const char usbdriver_name[] = "usb8xxx";
 static u8 *default_fw_name = "usb8388.bin";
 
-static char *libertas_fw_name = NULL;
-module_param_named(fw_name, libertas_fw_name, charp, 0644);
+static char *lbs_fw_name;
+module_param_named(fw_name, lbs_fw_name, charp, 0644);
 
 /*
  * We need to send a RESET command to all USB devices before
@@ -45,9 +45,9 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
 static int if_usb_prog_firmware(struct usb_card_rec *cardp);
-static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb);
-static int if_usb_get_int_status(wlan_private * priv, u8 *);
-static int if_usb_read_event_cause(wlan_private *);
+static int if_usb_host_to_card(lbs_private *priv, u8 type, u8 *payload, u16 nb);
+static int if_usb_get_int_status(lbs_private *priv, u8 *);
+static int if_usb_read_event_cause(lbs_private *);
 static int usb_tx_block(struct usb_card_rec *cardp, u8 *payload, u16 nb);
 static void if_usb_free(struct usb_card_rec *cardp);
 static int if_usb_submit_rx_urb(struct usb_card_rec *cardp);
@@ -65,7 +65,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 	/* handle the transmission complete validations */
 
 	if (urb->status == 0) {
-		wlan_private *priv = cardp->priv;
+		lbs_private *priv = cardp->priv;
 
 		/*
 		lbs_deb_usbd(&urb->dev->dev, "URB status is successfull\n");
@@ -77,7 +77,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		 * valid at firmware load time.
 		 */
 		if (priv) {
-			wlan_adapter *adapter = priv->adapter;
+			lbs_adapter *adapter = priv->adapter;
 			struct net_device *dev = priv->dev;
 
 			priv->dnld_sent = DNLD_RES_RECEIVED;
@@ -86,7 +86,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 			if (!adapter->cur_cmd)
 				wake_up_interruptible(&priv->waitq);
 
-			if ((adapter->connect_status == LIBERTAS_CONNECTED)) {
+			if ((adapter->connect_status == LBS_CONNECTED)) {
 				netif_wake_queue(dev);
 				netif_wake_queue(priv->mesh_dev);
 			}
@@ -136,7 +136,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	wlan_private *priv;
+	lbs_private *priv;
 	struct usb_card_rec *cardp;
 	int i;
 
@@ -222,12 +222,12 @@ static int if_usb_probe(struct usb_interface *intf,
 		goto err_prog_firmware;
 	}
 
-	if (!(priv = libertas_add_card(cardp, &udev->dev)))
+	if (!(priv = lbs_add_card(cardp, &udev->dev)))
 		goto err_prog_firmware;
 
 	cardp->priv = priv;
 
-	if (libertas_add_mesh(priv, &udev->dev))
+	if (lbs_add_mesh(priv, &udev->dev))
 		goto err_add_mesh;
 
 	cardp->eth_dev = priv->dev;
@@ -242,7 +242,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	msleep_interruptible(200);
 	priv->adapter->fw_ready = 1;
 
-	if (libertas_start_card(priv))
+	if (lbs_start_card(priv))
 		goto err_start_card;
 
 	list_add_tail(&cardp->list, &usb_devices);
@@ -253,9 +253,9 @@ static int if_usb_probe(struct usb_interface *intf,
 	return 0;
 
 err_start_card:
-	libertas_remove_mesh(priv);
+	lbs_remove_mesh(priv);
 err_add_mesh:
-	libertas_remove_card(priv);
+	lbs_remove_card(priv);
 err_prog_firmware:
 	if_usb_reset_device(cardp);
 dealloc:
@@ -273,7 +273,7 @@ error:
 static void if_usb_disconnect(struct usb_interface *intf)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
-	wlan_private *priv = (wlan_private *) cardp->priv;
+	lbs_private *priv = (lbs_private *) cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
@@ -283,12 +283,12 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	list_del(&cardp->list);
 
 	if (priv) {
-		wlan_adapter *adapter = priv->adapter;
+		lbs_adapter *adapter = priv->adapter;
 
 		adapter->surpriseremoved = 1;
-		libertas_stop_card(priv);
-		libertas_remove_mesh(priv);
-		libertas_remove_card(priv);
+		lbs_stop_card(priv);
+		lbs_remove_mesh(priv);
+		lbs_remove_card(priv);
 	}
 
 	/* Unlink and free urb */
@@ -302,7 +302,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 
 /**
  *  @brief  This function download FW
- *  @param priv		pointer to wlan_private
+ *  @param priv		pointer to lbs_private
  *  @return 	   	0
  */
 static int if_prog_firmware(struct usb_card_rec *cardp)
@@ -385,7 +385,7 @@ static int if_prog_firmware(struct usb_card_rec *cardp)
 static int if_usb_reset_device(struct usb_card_rec *cardp)
 {
 	int ret;
-	wlan_private * priv = cardp->priv;
+	lbs_private * priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
@@ -395,7 +395,7 @@ static int if_usb_reset_device(struct usb_card_rec *cardp)
 	ret = usb_reset_device(cardp->udev);
 	if (!ret && priv) {
 		msleep(10);
-		ret = libertas_reset_device(priv);
+		ret = lbs_reset_device(priv);
 		msleep(10);
 	}
 
@@ -406,7 +406,7 @@ static int if_usb_reset_device(struct usb_card_rec *cardp)
 
 /**
  *  @brief This function transfer the data to the device.
- *  @param priv 	pointer to wlan_private
+ *  @param priv 	pointer to lbs_private
  *  @param payload	pointer to payload data
  *  @param nb		data length
  *  @return 	   	0 or -1
@@ -583,7 +583,7 @@ exit:
 
 static inline void process_cmdtypedata(int recvlength, struct sk_buff *skb,
 				       struct usb_card_rec *cardp,
-				       wlan_private *priv)
+				       lbs_private *priv)
 {
 	if (recvlength > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE +
 	    MESSAGE_HEADER_LEN || recvlength < MRVDRV_MIN_PKT_LEN) {
@@ -596,14 +596,14 @@ static inline void process_cmdtypedata(int recvlength, struct sk_buff *skb,
 	skb_reserve(skb, IPFIELD_ALIGN_OFFSET);
 	skb_put(skb, recvlength);
 	skb_pull(skb, MESSAGE_HEADER_LEN);
-	libertas_process_rxed_packet(priv, skb);
+	lbs_process_rxed_packet(priv, skb);
 	priv->upld_len = (recvlength - MESSAGE_HEADER_LEN);
 }
 
 static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 				      struct sk_buff *skb,
 				      struct usb_card_rec *cardp,
-				      wlan_private *priv)
+				      lbs_private *priv)
 {
 	u8 *cmdbuf;
 	if (recvlength > MRVDRV_SIZE_OF_CMD_BUFFER) {
@@ -631,7 +631,7 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 	       priv->upld_len);
 
 	kfree_skb(skb);
-	libertas_interrupt(priv->dev);
+	lbs_interrupt(priv->dev);
 	spin_unlock(&priv->adapter->driver_lock);
 
 	lbs_deb_usbd(&cardp->udev->dev,
@@ -652,7 +652,7 @@ static void if_usb_receive(struct urb *urb)
 	struct read_cb_info *rinfo = (struct read_cb_info *)urb->context;
 	struct sk_buff *skb = rinfo->skb;
 	struct usb_card_rec *cardp = (struct usb_card_rec *) rinfo->cardp;
-	wlan_private * priv = cardp->priv;
+	lbs_private * priv = cardp->priv;
 
 	int recvlength = urb->actual_length;
 	u8 *recvbuff = NULL;
@@ -695,14 +695,14 @@ static void if_usb_receive(struct urb *urb)
 		lbs_deb_usbd(&cardp->udev->dev,"**EVENT** 0x%X\n",
 			    cardp->usb_event_cause);
 		if (cardp->usb_event_cause & 0xffff0000) {
-			libertas_send_tx_feedback(priv);
+			lbs_send_tx_feedback(priv);
 			spin_unlock(&priv->adapter->driver_lock);
 			break;
 		}
 		cardp->usb_event_cause <<= 3;
 		cardp->usb_int_cause |= MRVDRV_CARDEVENT;
 		kfree_skb(skb);
-		libertas_interrupt(priv->dev);
+		lbs_interrupt(priv->dev);
 		spin_unlock(&priv->adapter->driver_lock);
 		goto rx_exit;
 	default:
@@ -720,13 +720,13 @@ rx_exit:
 
 /**
  *  @brief This function downloads data to FW
- *  @param priv		pointer to wlan_private structure
+ *  @param priv		pointer to lbs_private structure
  *  @param type		type of data
  *  @param buf		pointer to data buffer
  *  @param len		number of bytes
  *  @return 	   	0 or -1
  */
-static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 nb)
+static int if_usb_host_to_card(lbs_private *priv, u8 type, u8 *payload, u16 nb)
 {
 	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->card;
 
@@ -753,7 +753,7 @@ static int if_usb_host_to_card(wlan_private * priv, u8 type, u8 * payload, u16 n
 }
 
 /* called with adapter->driver_lock held */
-static int if_usb_get_int_status(wlan_private * priv, u8 * ireg)
+static int if_usb_get_int_status(lbs_private *priv, u8 *ireg)
 {
 	struct usb_card_rec *cardp = priv->card;
 
@@ -765,7 +765,7 @@ static int if_usb_get_int_status(wlan_private * priv, u8 * ireg)
 	return 0;
 }
 
-static int if_usb_read_event_cause(wlan_private * priv)
+static int if_usb_read_event_cause(lbs_private * priv)
 {
 	struct usb_card_rec *cardp = priv->card;
 
@@ -856,10 +856,10 @@ static int if_usb_prog_firmware(struct usb_card_rec *cardp)
 
 	lbs_deb_enter(LBS_DEB_USB);
 
-	if ((ret = request_firmware(&cardp->fw, libertas_fw_name,
+	if ((ret = request_firmware(&cardp->fw, lbs_fw_name,
 				    &cardp->udev->dev)) < 0) {
 		lbs_pr_err("request_firmware() failed with %#x\n", ret);
-		lbs_pr_err("firmware %s not found\n", libertas_fw_name);
+		lbs_pr_err("firmware %s not found\n", lbs_fw_name);
 		goto done;
 	}
 
@@ -940,7 +940,7 @@ done:
 static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
-	wlan_private *priv = cardp->priv;
+	lbs_private *priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
@@ -954,7 +954,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 		struct cmd_ds_mesh_access mesh_access;
 		memset(&mesh_access, 0, sizeof(mesh_access));
 		mesh_access.data[0] = cpu_to_le32(1);
-		libertas_prepare_and_send_command(priv,
+		lbs_prepare_and_send_command(priv,
 				CMD_MESH_ACCESS,
 				CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
 				CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
@@ -976,7 +976,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 static int if_usb_resume(struct usb_interface *intf)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
-	wlan_private *priv = cardp->priv;
+	lbs_private *priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
@@ -994,7 +994,7 @@ static int if_usb_resume(struct usb_interface *intf)
 		struct cmd_ds_mesh_access mesh_access;
 		memset(&mesh_access, 0, sizeof(mesh_access));
 		mesh_access.data[0] = cpu_to_le32(0);
-		libertas_prepare_and_send_command(priv,
+		lbs_prepare_and_send_command(priv,
 				CMD_MESH_ACCESS,
 				CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
 				CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
@@ -1027,8 +1027,8 @@ static int if_usb_init_module(void)
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	if (libertas_fw_name == NULL) {
-		libertas_fw_name = default_fw_name;
+	if (lbs_fw_name == NULL) {
+		lbs_fw_name = default_fw_name;
 	}
 
 	ret = usb_register(&if_usb_driver);
@@ -1044,7 +1044,7 @@ static void if_usb_exit_module(void)
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	list_for_each_entry_safe(cardp, cardp_temp, &usb_devices, list) {
-		libertas_prepare_and_send_command(cardp->priv, CMD_802_11_RESET,
+		lbs_prepare_and_send_command(cardp->priv, CMD_802_11_RESET,
 		                                  CMD_ACT_HALT, 0, 0, NULL);
 	}
 
