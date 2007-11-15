@@ -38,6 +38,15 @@
 
 static struct i2c_driver i2cdev_driver;
 
+/*
+ * An i2c_dev represents an i2c_adapter ... an I2C or SMBus master, not a
+ * slave (i2c_client) with which messages will be exchanged.  It's coupled
+ * with a character special file which is accessed by user mode drivers.
+ *
+ * The list of i2c_dev structures is parallel to the i2c_adapter lists
+ * maintained by the driver model, and is updated using notifications
+ * delivered to the i2cdev_driver.
+ */
 struct i2c_dev {
 	struct list_head list;
 	struct i2c_adapter *adap;
@@ -102,6 +111,25 @@ static ssize_t show_adapter_name(struct device *dev,
 	return sprintf(buf, "%s\n", i2c_dev->adap->name);
 }
 static DEVICE_ATTR(name, S_IRUGO, show_adapter_name, NULL);
+
+/* ------------------------------------------------------------------------- */
+
+/*
+ * After opening an instance of this character special file, a file
+ * descriptor starts out associated only with an i2c_adapter (and bus).
+ *
+ * Using the I2C_RDWR ioctl(), you can then *immediately* issue i2c_msg
+ * traffic to any devices on the bus used by that adapter.  That's because
+ * the i2c_msg vectors embed all the addressing information they need, and
+ * are submitted directly to an i2c_adapter.  However, SMBus-only adapters
+ * don't support that interface.
+ *
+ * To use read()/write() system calls on that file descriptor, or to use
+ * SMBus interfaces (and work with SMBus-only hosts!), you must first issue
+ * an I2C_SLAVE (or I2C_SLAVE_FORCE) ioctl.  That configures an anonymous
+ * (never registered) i2c_client so it holds the addressing information
+ * needed by those system calls and by this SMBus interface.
+ */
 
 static ssize_t i2cdev_read (struct file *file, char __user *buf, size_t count,
                             loff_t *offset)
@@ -172,6 +200,16 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 	switch ( cmd ) {
 	case I2C_SLAVE:
 	case I2C_SLAVE_FORCE:
+		/* NOTE:  devices set up to work with "new style" drivers
+		 * can't use I2C_SLAVE, even when the device node is not
+		 * bound to a driver.  Only I2C_SLAVE_FORCE will work.
+		 *
+		 * Setting the PEC flag here won't affect kernel drivers,
+		 * which will be using the i2c_client node registered with
+		 * the driver model core.  Likewise, when that client has
+		 * the PEC flag already set, the i2c-dev driver won't see
+		 * (or use) this setting.
+		 */
 		if ((arg > 0x3ff) ||
 		    (((client->flags & I2C_M_TEN) == 0) && arg > 0x7f))
 			return -EINVAL;
@@ -386,6 +424,13 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	if (!adap)
 		return -ENODEV;
 
+	/* This creates an anonymous i2c_client, which may later be
+	 * pointed to some address using I2C_SLAVE or I2C_SLAVE_FORCE.
+	 *
+	 * This client is ** NEVER REGISTERED ** with the driver model
+	 * or I2C core code!!  It just holds private copies of addressing
+	 * information and maybe a PEC flag.
+	 */
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client) {
 		i2c_put_adapter(adap);
@@ -394,7 +439,6 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	snprintf(client->name, I2C_NAME_SIZE, "i2c-dev %d", adap->nr);
 	client->driver = &i2cdev_driver;
 
-	/* registered with adapter, passed as client to user */
 	client->adapter = adap;
 	file->private_data = client;
 
@@ -421,6 +465,14 @@ static const struct file_operations i2cdev_fops = {
 	.open		= i2cdev_open,
 	.release	= i2cdev_release,
 };
+
+/* ------------------------------------------------------------------------- */
+
+/*
+ * The legacy "i2cdev_driver" is used primarily to get notifications when
+ * I2C adapters are added or removed, so that each one gets an i2c_dev
+ * and is thus made available to userspace driver code.
+ */
 
 static struct class *i2c_dev_class;
 
@@ -485,6 +537,12 @@ static struct i2c_driver i2cdev_driver = {
 	.detach_adapter	= i2cdev_detach_adapter,
 	.detach_client	= i2cdev_detach_client,
 };
+
+/* ------------------------------------------------------------------------- */
+
+/*
+ * module load/unload record keeping
+ */
 
 static int __init i2c_dev_init(void)
 {
