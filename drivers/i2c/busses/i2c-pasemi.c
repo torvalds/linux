@@ -364,7 +364,7 @@ static int __devinit pasemi_smb_probe(struct pci_dev *dev,
 	smbus->adapter.algo = &smbus_algorithm;
 	smbus->adapter.algo_data = smbus;
 
-	/* set up the driverfs linkage to our parent device */
+	/* set up the sysfs linkage to our parent device */
 	smbus->adapter.dev.parent = &dev->dev;
 
 	reg_write(smbus, REG_CTL, (CTL_MTR | CTL_MRR |
