@@ -802,6 +802,8 @@ static struct sysdev_attribute *mce_attributes[] = {
 	NULL
 };
 
+static cpumask_t mce_device_initialized = CPU_MASK_NONE;
+
 /* Per cpu sysdev init.  All of the cpus still share the same ctl bank */
 static __cpuinit int mce_create_device(unsigned int cpu)
 {
@@ -825,6 +827,7 @@ static __cpuinit int mce_create_device(unsigned int cpu)
 		if (err)
 			goto error;
 	}
+	cpu_set(cpu, mce_device_initialized);
 
 	return 0;
 error:
@@ -841,10 +844,14 @@ static void mce_remove_device(unsigned int cpu)
 {
 	int i;
 
+	if (!cpu_isset(cpu, mce_device_initialized))
+		return;
+
 	for (i = 0; mce_attributes[i]; i++)
 		sysdev_remove_file(&per_cpu(device_mce,cpu),
 			mce_attributes[i]);
 	sysdev_unregister(&per_cpu(device_mce,cpu));
+	cpu_clear(cpu, mce_device_initialized);
 }
 
 /* Get notified when a cpu comes on/off. Be hotplug friendly. */
@@ -852,21 +859,18 @@ static int
 mce_cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	int err = 0;
 
 	switch (action) {
-	case CPU_UP_PREPARE:
-	case CPU_UP_PREPARE_FROZEN:
-		err = mce_create_device(cpu);
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		mce_create_device(cpu);
 		break;
-	case CPU_UP_CANCELED:
-	case CPU_UP_CANCELED_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
 		mce_remove_device(cpu);
 		break;
 	}
-	return err ? NOTIFY_BAD : NOTIFY_OK;
+	return NOTIFY_OK;
 }
 
 static struct notifier_block mce_cpu_notifier = {
