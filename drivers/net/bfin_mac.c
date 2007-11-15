@@ -924,7 +924,7 @@ static int __init bf537mac_probe(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* Grab the MAC from the board somehow - this is done in the
 		   arch/blackfin/mach-bf537/boards/eth_mac.c */
-		get_bf537_ether_addr(dev->dev_addr);
+		bfin_get_ether_addr(dev->dev_addr);
 	}
 
 	/* If still not valid, get a random one */

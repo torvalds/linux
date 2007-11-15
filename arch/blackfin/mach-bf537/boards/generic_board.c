@@ -733,9 +733,9 @@ void native_machine_restart(char *cmd)
 		bfin_gpio_reset_spi0_ssel1();
 }
 
-void get_bf537_ether_addr(char *addr)
+void bfin_get_ether_addr(char *addr)
 {
 	random_ether_addr(addr);
 	printk(KERN_WARNING "%s:%s: Setting Ethernet MAC to a random one\n", __FILE__, __func__);
 }
-EXPORT_SYMBOL(get_bf537_ether_addr);
+EXPORT_SYMBOL(bfin_get_ether_addr);

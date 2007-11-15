@@ -813,9 +813,9 @@ void native_machine_restart(char *cmd)
  * Currently the MAC address is saved in Flash by U-Boot
  */
 #define FLASH_MAC	0x203f0000
-void get_bf537_ether_addr(char *addr)
+void bfin_get_ether_addr(char *addr)
 {
 	*(u32 *)(&(addr[0])) = bfin_read32(FLASH_MAC);
 	*(u16 *)(&(addr[4])) = bfin_read16(FLASH_MAC + 4);
 }
-EXPORT_SYMBOL(get_bf537_ether_addr);
+EXPORT_SYMBOL(bfin_get_ether_addr);
