@@ -480,6 +480,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 		no_dn++;
 		return 0;
 	}
+	dn = find_device_pe(dn);
 	pdn = PCI_DN(dn);
 
 	/* Access to IO BARs might get this far and still not want checking. */
