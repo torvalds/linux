@@ -3390,10 +3390,8 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 	struct rq *rq = this_rq();
 	cputime64_t tmp;
 
-	if (p->flags & PF_VCPU) {
-		account_guest_time(p, cputime);
-		return;
-	}
+	if ((p->flags & PF_VCPU) && (irq_count() - hardirq_offset == 0))
+		return account_guest_time(p, cputime);
 
 	p->stime = cputime_add(p->stime, cputime);
 
