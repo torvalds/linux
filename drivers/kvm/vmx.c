@@ -541,7 +541,6 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	vmx_load_host_state(to_vmx(vcpu));
-	kvm_put_guest_fpu(vcpu);
 }
 
 static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
