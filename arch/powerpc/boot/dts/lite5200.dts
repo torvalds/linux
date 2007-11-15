@@ -19,7 +19,7 @@
 / {
 	model = "fsl,lite5200";
 	// revision = "1.0";
-	compatible = "fsl,lite5200","generic-mpc5200";
+	compatible = "fsl,lite5200";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
