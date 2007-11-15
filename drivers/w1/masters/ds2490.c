@@ -233,7 +233,7 @@ static int ds_recv_status_nodump(struct ds_device *dev, struct ds_status *st,
 {
 	int count, err;
 
-	memset(st, 0, sizeof(st));
+	memset(st, 0, sizeof(*st));
 
 	count = 0;
 	err = usb_bulk_msg(dev->udev, usb_rcvbulkpipe(dev->udev, dev->ep[EP_STATUS]), buf, size, &count, 100);
