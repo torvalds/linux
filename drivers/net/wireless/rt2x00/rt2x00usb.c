@@ -159,7 +159,6 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	    interface_to_usbdev(rt2x00dev_usb(rt2x00dev));
 	struct data_entry *entry = rt2x00_get_data_entry(ring);
 	int pipe = usb_sndbulkpipe(usb_dev, 1);
-	int max_packet = usb_maxpacket(usb_dev, pipe, 1);
 	u32 length;
 
 	if (rt2x00_ring_full(ring)) {
@@ -194,8 +193,7 @@ int rt2x00usb_write_tx_data(struct rt2x00_dev *rt2x00dev,
 	 * length of the data to usb_fill_bulk_urb. Pass the skb
 	 * to the driver to determine what the length should be.
 	 */
-	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev,
-						      max_packet, skb);
+	length = rt2x00dev->ops->lib->get_tx_data_len(rt2x00dev, skb);
 
 	/*
 	 * Initialize URB and send the frame to the device.
@@ -489,6 +487,11 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 	rt2x00dev->dev = usb_intf;
 	rt2x00dev->ops = ops;
 	rt2x00dev->hw = hw;
+
+	rt2x00dev->usb_maxpacket =
+	    usb_maxpacket(usb_dev, usb_sndbulkpipe(usb_dev, 1), 1);
+	if (!rt2x00dev->usb_maxpacket)
+		rt2x00dev->usb_maxpacket = 1;
 
 	retval = rt2x00usb_alloc_reg(rt2x00dev);
 	if (retval)

@@ -1251,7 +1251,7 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 }
 
 static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
-				   int maxpacket, struct sk_buff *skb)
+				   struct sk_buff *skb)
 {
 	int length;
 
@@ -1260,7 +1260,7 @@ static int rt73usb_get_tx_data_len(struct rt2x00_dev *rt2x00dev,
 	 * but it must _not_ be a multiple of the USB packet size.
 	 */
 	length = roundup(skb->len, 4);
-	length += (4 * !(length % maxpacket));
+	length += (4 * !(length % rt2x00dev->usb_maxpacket));
 
 	return length;
 }
