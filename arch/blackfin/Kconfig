@@ -3,7 +3,7 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
-mainmenu "uClinux/Blackfin (w/o MMU) Kernel Configuration"
+mainmenu "Blackfin Kernel Configuration"
 
 config MMU
 	bool
