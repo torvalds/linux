@@ -50,6 +50,7 @@ config ACPI_SLEEP
 config ACPI_PROCFS
 	bool "Deprecated /proc/acpi files"
 	depends on PROC_FS
+	default y
 	---help---
 	  For backwards compatibility, this option allows
 	  deprecated /proc/acpi/ files to exist, even when
