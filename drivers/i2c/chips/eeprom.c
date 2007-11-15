@@ -204,12 +204,16 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_kfree;
 
 	/* Detect the Vaio nature of EEPROMs.
-	   We use the "PCG-" prefix as the signature. */
+	   We use the "PCG-" or "VGN-" prefix as the signature. */
 	if (address == 0x57) {
-		if (i2c_smbus_read_byte_data(new_client, 0x80) == 'P'
-		 && i2c_smbus_read_byte(new_client) == 'C'
-		 && i2c_smbus_read_byte(new_client) == 'G'
-		 && i2c_smbus_read_byte(new_client) == '-') {
+		char name[4];
+
+		name[0] = i2c_smbus_read_byte_data(new_client, 0x80);
+		name[1] = i2c_smbus_read_byte(new_client);
+		name[2] = i2c_smbus_read_byte(new_client);
+		name[3] = i2c_smbus_read_byte(new_client);
+
+		if (!memcmp(name, "PCG-", 4) || !memcmp(name, "VGN-", 4)) {
 			dev_info(&new_client->dev, "Vaio EEPROM detected, "
 				 "enabling privacy protection\n");
 			data->nature = VAIO;
