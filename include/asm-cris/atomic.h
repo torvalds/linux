@@ -5,6 +5,7 @@
 
 #include <asm/system.h>
 #include <asm/arch/atomic.h>
+#include <linux/compiler.h>
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
