@@ -354,13 +354,6 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
 		goto excess_failures;
 
-	/* Get the current PCI slot state. */
-	rc = eeh_wait_for_slot_status (frozen_pdn, MAX_WAIT_FOR_RECOVERY*1000);
-	if (rc < 0) {
-		printk(KERN_WARNING "EEH: Permanent failure\n");
-		goto hard_fail;
-	}
-
 	printk(KERN_WARNING
 	   "EEH: This PCI device has failed %d times in the last hour:\n",
 		frozen_pdn->eeh_freeze_count);
@@ -375,6 +368,14 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	 * slot is dlpar removed and added.
 	 */
 	pci_walk_bus(frozen_bus, eeh_report_error, &result);
+
+	/* Get the current PCI slot state. This can take a long time,
+	 * sometimes over 3 seconds for certain systems. */
+	rc = eeh_wait_for_slot_status (frozen_pdn, MAX_WAIT_FOR_RECOVERY*1000);
+	if (rc < 0) {
+		printk(KERN_WARNING "EEH: Permanent failure\n");
+		goto hard_fail;
+	}
 
 	/* Since rtas may enable MMIO when posting the error log,
 	 * don't post the error log until after all dev drivers
