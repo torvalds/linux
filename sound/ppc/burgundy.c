@@ -136,6 +136,9 @@ snd_pmac_burgundy_write_volume(struct snd_pmac *chip, unsigned int address,
 {
 	int hardvolume, lvolume, rvolume;
 
+	if (volume[0] < 0 || volume[0] > 100 ||
+	    volume[1] < 0 || volume[1] > 100)
+		return; /* -EINVAL */
 	lvolume = volume[0] ? volume[0] + BURGUNDY_VOLUME_OFFSET : 0;
 	rvolume = volume[1] ? volume[1] + BURGUNDY_VOLUME_OFFSET : 0;
 
@@ -301,14 +304,14 @@ static int snd_pmac_burgundy_put_volume_out(struct snd_kcontrol *kcontrol,
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	unsigned int addr = BASE2ADDR(kcontrol->private_value & 0xff);
 	int stereo = (kcontrol->private_value >> 24) & 1;
-	int oval, val;
+	unsigned int oval, val;
 
 	oval = ~snd_pmac_burgundy_rcb(chip, addr) & 0xff;
-	val = ucontrol->value.integer.value[0];
+	val = ucontrol->value.integer.value[0] & 15;
 	if (stereo)
-		val |= ucontrol->value.integer.value[1] << 4;
+		val |= (ucontrol->value.integer.value[1] & 15) << 4;
 	else
-		val |= ucontrol->value.integer.value[0] << 4;
+		val |= val << 4;
 	val = ~val & 0xff;
 	snd_pmac_burgundy_wcb(chip, addr, val);
 	return val != oval;

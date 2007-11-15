@@ -195,10 +195,13 @@ static int snd_pmac_put_beep(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
-	int oval;
+	unsigned int oval, nval;
 	snd_assert(chip->beep, return -ENXIO);
 	oval = chip->beep->volume;
-	chip->beep->volume = ucontrol->value.integer.value[0];
+	nval = ucontrol->value.integer.value[0];
+	if (nval > 100)
+		return -EINVAL;
+	chip->beep->volume = nval;
 	return oval != chip->beep->volume;
 }
 

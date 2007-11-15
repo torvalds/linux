@@ -1028,7 +1028,7 @@ static int pmac_auto_mute_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_pmac *chip = snd_kcontrol_chip(kcontrol);
 	if (ucontrol->value.integer.value[0] != chip->auto_mute) {
-		chip->auto_mute = ucontrol->value.integer.value[0];
+		chip->auto_mute = !!ucontrol->value.integer.value[0];
 		if (chip->update_automute)
 			chip->update_automute(chip, 1);
 		return 1;
