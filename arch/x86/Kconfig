@@ -1,18 +1,24 @@
-#
-# For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
-#
+# x86 configuration
+mainmenu "Linux Kernel Configuration for x86"
 
-mainmenu "Linux Kernel Configuration"
+# Select 32 or 64 bit
+config 64BIT
+	bool "64-bit kernel"
+	default n
+	help
+	  Say yes to build a 64-bit kernel - formerly known as x86_64
+	  Say no to build a 32-bit kernel - formerly known as i386
 
 config X86_32
+	def_bool !64BIT
+
+config X86_64
+	def_bool 64BIT
+
+### Arch settings
+config X86
 	bool
 	default y
-	help
-	  This is Linux's home port.  Linux was originally native to the Intel
-	  386, and runs on all the later x86 processors including the Intel
-	  486, 586, Pentiums, and various instruction-set-compatible chips by
-	  AMD, Cyrix, and others.
 
 config GENERIC_TIME
 	bool
@@ -33,7 +39,7 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	default y
-	depends on X86_LOCAL_APIC
+	depends on X86_64 || (X86_32 && X86_LOCAL_APIC)
 
 config LOCKDEP_SUPPORT
 	bool
@@ -47,10 +53,6 @@ config SEMAPHORE_SLEEPERS
 	bool
 	default y
 
-config X86
-	bool
-	default y
-
 config MMU
 	bool
 	default y
@@ -61,7 +63,7 @@ config ZONE_DMA
 
 config QUICKLIST
 	bool
-	default y
+	default X86_32
 
 config SBUS
 	bool
@@ -91,6 +93,76 @@ config DMI
 	bool
 	default y
 
+config RWSEM_GENERIC_SPINLOCK
+	def_bool !X86_XADD
+
+config RWSEM_XCHGADD_ALGORITHM
+	def_bool X86_XADD
+
+config ARCH_HAS_ILOG2_U32
+	def_bool n
+
+config ARCH_HAS_ILOG2_U64
+	def_bool n
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_TIME_VSYSCALL
+	bool
+	default X86_64
+
+
+
+
+
+config ZONE_DMA32
+	bool
+	default X86_64
+
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
+config AUDIT_ARCH
+	bool
+	default X86_64
+
+# Use the generic interrupt handling code in kernel/irq/:
+config GENERIC_HARDIRQS
+	bool
+	default y
+
+config GENERIC_IRQ_PROBE
+	bool
+	default y
+
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
+	default y
+
+config X86_SMP
+	bool
+	depends on X86_32 && SMP && !X86_VOYAGER
+	default y
+
+config X86_HT
+	bool
+	depends on SMP && !(X86_VISWS || X86_VOYAGER || MK8)
+	default y
+
+config X86_BIOS_REBOOT
+	bool
+	depends on X86_32 && !(X86_VISWS || X86_VOYAGER)
+	default y
+
+config X86_TRAMPOLINE
+	bool
+	depends on X86_SMP || (X86_VOYAGER && SMP)
+	default y
+
+config KTIME_SCALAR
+	def_bool X86_32
 source "init/Kconfig"
 
 menu "Processor type and features"
@@ -137,6 +209,7 @@ config X86_PC
 
 config X86_ELAN
 	bool "AMD Elan"
+	depends on X86_32
 	help
 	  Select this for an AMD Elan processor.
 
@@ -146,6 +219,7 @@ config X86_ELAN
 
 config X86_VOYAGER
 	bool "Voyager (NCR)"
+	depends on X86_32
 	select SMP if !BROKEN
 	help
 	  Voyager is an MCA-based 32-way capable SMP architecture proprietary
@@ -160,6 +234,7 @@ config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
 	select SMP
 	select NUMA
+	depends on X86_32
 	help
 	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA
 	  multiquad box. This changes the way that processors are bootstrapped,
@@ -169,7 +244,7 @@ config X86_NUMAQ
 
 config X86_SUMMIT
 	bool "Summit/EXA (IBM x440)"
-	depends on SMP
+	depends on X86_32 && SMP
 	help
 	  This option is needed for IBM systems that use the Summit/EXA chipset.
 	  In particular, it is needed for the x440.
@@ -179,7 +254,7 @@ config X86_SUMMIT
 
 config X86_BIGSMP
 	bool "Support for other sub-arch SMP systems with more than 8 CPUs"
-	depends on SMP
+	depends on X86_32 && SMP
 	help
 	  This option is needed for the systems that have more than 8 CPUs
 	  and if the system is not of any sub-arch type above.
@@ -188,6 +263,7 @@ config X86_BIGSMP
 
 config X86_VISWS
 	bool "SGI 320/540 (Visual Workstation)"
+	depends on X86_32
 	help
 	  The SGI Visual Workstation series is an IA32-based workstation
 	  based on SGI systems chips with some legacy PC hardware attached.
@@ -199,6 +275,7 @@ config X86_VISWS
 
 config X86_GENERICARCH
        bool "Generic architecture (Summit, bigsmp, ES7000, default)"
+	depends on X86_32
        help
           This option compiles in the Summit, bigsmp, ES7000, default subarchitectures.
 	  It is intended for a generic binary kernel.
@@ -206,18 +283,27 @@ config X86_GENERICARCH
 
 config X86_ES7000
 	bool "Support for Unisys ES7000 IA32 series"
-	depends on SMP
+	depends on X86_32 && SMP
 	help
 	  Support for Unisys ES7000 systems.  Say 'Y' here if this kernel is
 	  supposed to run on an IA32-based Unisys ES7000 system.
 	  Only choose this option if you have such a system, otherwise you
 	  should say N here.
 
+config X86_VSMP
+	bool "Support for ScaleMP vSMP"
+	depends on X86_64 && PCI
+	 help
+	  Support for ScaleMP vSMP systems.  Say 'Y' here if this kernel is
+	  supposed to run on these EM64T-based machines.  Only choose this option
+	  if you have one of these machines.
+
 endchoice
 
 config SCHED_NO_NO_OMIT_FRAME_POINTER
 	bool "Single-depth WCHAN output"
 	default y
+	depends on X86_32
 	help
 	  Calculate simpler /proc/<PID>/wchan values. If this option
 	  is disabled then wchan values will recurse back to the
@@ -228,7 +314,7 @@ config SCHED_NO_NO_OMIT_FRAME_POINTER
 
 config PARAVIRT
 	bool
-	depends on !(X86_VISWS || X86_VOYAGER)
+	depends on X86_32 && !(X86_VISWS || X86_VOYAGER)
 	help
 	  This changes the kernel so it can modify itself when it is run
 	  under a hypervisor, potentially improving performance significantly
@@ -237,6 +323,7 @@ config PARAVIRT
 
 menuconfig PARAVIRT_GUEST
 	bool "Paravirtualized guest support"
+	depends on X86_32
 	help
 	  Say Y here to get to see options related to running Linux under
 	  various hypervisors.  This option alone does not add any kernel code.
@@ -264,7 +351,7 @@ endif
 config ACPI_SRAT
 	bool
 	default y
-	depends on ACPI && NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	depends on X86_32 && ACPI && NUMA && (X86_SUMMIT || X86_GENERICARCH)
 	select ACPI_NUMA
 
 config HAVE_ARCH_PARSE_SRAT
@@ -275,12 +362,12 @@ config HAVE_ARCH_PARSE_SRAT
 config X86_SUMMIT_NUMA
 	bool
 	default y
-	depends on NUMA && (X86_SUMMIT || X86_GENERICARCH)
+	depends on X86_32 && NUMA && (X86_SUMMIT || X86_GENERICARCH)
 
 config X86_CYCLONE_TIMER
 	bool
 	default y
-	depends on X86_SUMMIT || X86_GENERICARCH
+	depends on X86_32 && X86_SUMMIT || X86_GENERICARCH
 
 config ES7000_CLUSTERED_APIC
 	bool
@@ -290,20 +377,88 @@ config ES7000_CLUSTERED_APIC
 source "arch/x86/Kconfig.cpu"
 
 config HPET_TIMER
-	bool "HPET Timer Support"
+	bool
+	prompt "HPET Timer Support" if X86_32
+	default X86_64
 	help
-	  This enables the use of the HPET for the kernel's internal timer.
-	  HPET is the next generation timer replacing legacy 8254s.
-	  You can safely choose Y here.  However, HPET will only be
-	  activated if the platform and the BIOS support this feature.
-	  Otherwise the 8254 will be used for timing services.
+         Use the IA-PC HPET (High Precision Event Timer) to manage
+         time in preference to the PIT and RTC, if a HPET is
+         present.
+         HPET is the next generation timer replacing legacy 8254s.
+         The HPET provides a stable time base on SMP
+         systems, unlike the TSC, but it is more expensive to access,
+         as it is off-chip.  You can find the HPET spec at
+         <http://www.intel.com/hardwaredesign/hpetspec.htm>.
 
-	  Choose N to continue using the legacy 8254 timer.
+         You can safely choose Y here.  However, HPET will only be
+         activated if the platform and the BIOS support this feature.
+         Otherwise the 8254 will be used for timing services.
+
+         Choose N to continue using the legacy 8254 timer.
 
 config HPET_EMULATE_RTC
 	bool
 	depends on HPET_TIMER && RTC=y
 	default y
+
+# Mark as embedded because too many people got it wrong.
+# The code disables itself when not needed.
+config GART_IOMMU
+	bool "GART IOMMU support" if EMBEDDED
+	default y
+	select SWIOTLB
+	select AGP
+	depends on X86_64 && PCI
+	help
+	  Support for full DMA access of devices with 32bit memory access only
+	  on systems with more than 3GB. This is usually needed for USB,
+	  sound, many IDE/SATA chipsets and some other devices.
+	  Provides a driver for the AMD Athlon64/Opteron/Turion/Sempron GART
+	  based hardware IOMMU and a software bounce buffer based IOMMU used
+	  on Intel systems and as fallback.
+	  The code is only active when needed (enough memory and limited
+	  device) unless CONFIG_IOMMU_DEBUG or iommu=force is specified
+	  too.
+
+config CALGARY_IOMMU
+	bool "IBM Calgary IOMMU support"
+	select SWIOTLB
+	depends on X86_64 && PCI && EXPERIMENTAL
+	help
+	  Support for hardware IOMMUs in IBM's xSeries x366 and x460
+	  systems. Needed to run systems with more than 3GB of memory
+	  properly with 32-bit PCI devices that do not support DAC
+	  (Double Address Cycle). Calgary also supports bus level
+	  isolation, where all DMAs pass through the IOMMU.  This
+	  prevents them from going anywhere except their intended
+	  destination. This catches hard-to-find kernel bugs and
+	  mis-behaving drivers and devices that do not use the DMA-API
+	  properly to set up their DMA buffers.  The IOMMU can be
+	  turned off at boot time with the iommu=off parameter.
+	  Normally the kernel will make the right choice by itself.
+	  If unsure, say Y.
+
+config CALGARY_IOMMU_ENABLED_BY_DEFAULT
+	bool "Should Calgary be enabled by default?"
+	default y
+	depends on CALGARY_IOMMU
+	help
+	  Should Calgary be enabled by default? if you choose 'y', Calgary
+	  will be used (if it exists). If you choose 'n', Calgary will not be
+	  used even if it exists. If you choose 'n' and would like to use
+	  Calgary anyway, pass 'iommu=calgary' on the kernel command line.
+	  If unsure, say Y.
+
+# need this always selected by IOMMU for the VIA workaround
+config SWIOTLB
+	bool
+	help
+	  Support for software bounce buffers used on x86-64 systems
+	  which don't have a hardware IOMMU (e.g. the current generation
+	  of Intel's x86-64 CPUs). Using this PCI devices which can only
+	  access 32-bits of memory can be used on systems with more than
+	  3 GB of memory. If unsure, say Y.
+
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-255)"
@@ -321,7 +476,7 @@ config NR_CPUS
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
-	depends on X86_HT
+	depends on (X86_64 && SMP) || (X86_32 && X86_HT)
 	help
 	  SMT scheduler support improves the CPU scheduler's decision making
 	  when dealing with Intel Pentium 4 chips with HyperThreading at a
@@ -330,7 +485,7 @@ config SCHED_SMT
 
 config SCHED_MC
 	bool "Multi-core scheduler support"
-	depends on X86_HT
+	depends on (X86_64 && SMP) || (X86_32 && X86_HT)
 	default y
 	help
 	  Multi-core scheduler support improves the CPU scheduler's decision
@@ -341,7 +496,7 @@ source "kernel/Kconfig.preempt"
 
 config X86_UP_APIC
 	bool "Local APIC support on uniprocessors"
-	depends on !SMP && !(X86_VISWS || X86_VOYAGER || X86_GENERICARCH)
+	depends on X86_32 && !SMP && !(X86_VISWS || X86_VOYAGER || X86_GENERICARCH)
 	help
 	  A local APIC (Advanced Programmable Interrupt Controller) is an
 	  integrated interrupt controller in the CPU. If you have a single-CPU
@@ -366,17 +521,17 @@ config X86_UP_IOAPIC
 
 config X86_LOCAL_APIC
 	bool
-	depends on X86_UP_APIC || ((X86_VISWS || SMP) && !X86_VOYAGER) || X86_GENERICARCH
+	depends on X86_64 || (X86_32 && (X86_UP_APIC || ((X86_VISWS || SMP) && !X86_VOYAGER) || X86_GENERICARCH))
 	default y
 
 config X86_IO_APIC
 	bool
-	depends on X86_UP_IOAPIC || (SMP && !(X86_VISWS || X86_VOYAGER)) || X86_GENERICARCH
+	depends on X86_64 || (X86_32 && (X86_UP_IOAPIC || (SMP && !(X86_VISWS || X86_VOYAGER)) || X86_GENERICARCH))
 	default y
 
 config X86_VISWS_APIC
 	bool
-	depends on X86_VISWS
+	depends on X86_32 && X86_VISWS
 	default y
 
 config X86_MCE
@@ -396,9 +551,25 @@ config X86_MCE
 	  to disable it.  MCE support simply ignores non-MCE processors like
 	  the 386 and 486, so nearly everyone can say Y here.
 
+config X86_MCE_INTEL
+	bool "Intel MCE features"
+	depends on X86_64 && X86_MCE && X86_LOCAL_APIC
+	default y
+	help
+	   Additional support for intel specific MCE features such as
+	   the thermal monitor.
+
+config X86_MCE_AMD
+	bool "AMD MCE features"
+	depends on X86_64 && X86_MCE && X86_LOCAL_APIC
+	default y
+	help
+	   Additional support for AMD specific MCE features such as
+	   the DRAM Error Threshold.
+
 config X86_MCE_NONFATAL
 	tristate "Check for non-fatal errors on AMD Athlon/Duron / Intel Pentium 4"
-	depends on X86_MCE
+	depends on X86_32 && X86_MCE
 	help
 	  Enabling this feature starts a timer that triggers every 5 seconds which
 	  will look at the machine check registers to see if anything happened.
@@ -411,14 +582,15 @@ config X86_MCE_NONFATAL
 
 config X86_MCE_P4THERMAL
 	bool "check for P4 thermal throttling interrupt."
-	depends on X86_MCE && (X86_UP_APIC || SMP) && !X86_VISWS
+	depends on X86_32 && X86_MCE && (X86_UP_APIC || SMP) && !X86_VISWS
 	help
 	  Enabling this feature will cause a message to be printed when the P4
 	  enters thermal throttling.
 
 config VM86
-	default y
 	bool "Enable VM86 support" if EMBEDDED
+	default y
+	depends on X86_32
 	help
           This option is required by programs like DOSEMU to run 16-bit legacy
 	  code on X86 processors. It also may be needed by software like
@@ -427,6 +599,7 @@ config VM86
 
 config TOSHIBA
 	tristate "Toshiba Laptop support"
+	depends on X86_32
 	---help---
 	  This adds a driver to safely access the System Management Mode of
 	  the CPU on Toshiba portables with a genuine Toshiba BIOS. It does
@@ -442,6 +615,7 @@ config TOSHIBA
 
 config I8K
 	tristate "Dell laptop support"
+	depends on X86_32
 	---help---
 	  This adds a driver to safely access the System Management Mode
 	  of the CPU on the Dell Inspiron 8000. The System Management Mode
@@ -462,7 +636,7 @@ config I8K
 
 config X86_REBOOTFIXUPS
 	bool "Enable X86 board specific fixups for reboot"
-	depends on X86
+	depends on X86_32 && X86
 	default n
 	---help---
 	  This enables chipset and/or board specific fixups to be done
@@ -517,12 +691,11 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-source "drivers/firmware/Kconfig"
-
 choice
 	prompt "High Memory Support"
 	default HIGHMEM4G if !X86_NUMAQ
 	default HIGHMEM64G if X86_NUMAQ
+	depends on X86_32
 
 config NOHIGHMEM
 	bool "off"
@@ -582,6 +755,7 @@ choice
 	depends on EXPERIMENTAL
 	prompt "Memory split" if EMBEDDED
 	default VMSPLIT_3G
+	depends on X86_32
 	help
 	  Select the desired split between kernel and user memory.
 
@@ -619,16 +793,17 @@ config PAGE_OFFSET
 	default 0x78000000 if VMSPLIT_2G_OPT
 	default 0x40000000 if VMSPLIT_1G
 	default 0xC0000000
+	depends on X86_32
 
 config HIGHMEM
 	bool
-	depends on HIGHMEM64G || HIGHMEM4G
+	depends on X86_32 && (HIGHMEM64G || HIGHMEM4G)
 	default y
 
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
 	default n
-	depends on !HIGHMEM4G
+	depends on X86_32 && !HIGHMEM4G
 	select RESOURCES_64BIT
 	help
 	  PAE is required for NX support, and furthermore enables
@@ -639,46 +814,82 @@ config X86_PAE
 # Common NUMA Features
 config NUMA
 	bool "Numa Memory Allocation and Scheduler Support (EXPERIMENTAL)"
-	depends on SMP && HIGHMEM64G && (X86_NUMAQ || (X86_SUMMIT || X86_GENERICARCH) && ACPI) && EXPERIMENTAL
+	depends on SMP
+	depends on X86_64 || (X86_32 && HIGHMEM64G && (X86_NUMAQ || (X86_SUMMIT || X86_GENERICARCH) && ACPI) && EXPERIMENTAL)
 	default n if X86_PC
 	default y if (X86_NUMAQ || X86_SUMMIT)
 	help
-	  NUMA support for i386. This is currently highly experimental
-	  and should be only used for kernel development. It might also
-	  cause boot failures.
+	  Enable NUMA (Non Uniform Memory Access) support.
+	  The kernel will try to allocate memory used by a CPU on the
+	  local memory controller of the CPU and add some more
+	  NUMA awareness to the kernel.
+
+	  For i386 this is currently highly experimental and should be only
+	  used for kernel development. It might also cause boot failures.
+	  For x86_64 this is recommended on all multiprocessor Opteron systems.
+	  If the system is EM64T, you should say N unless your system is
+	  EM64T NUMA.
 
 comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
-	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
+	depends on X86_32 && X86_SUMMIT && (!HIGHMEM64G || !ACPI)
+
+config K8_NUMA
+       bool "Old style AMD Opteron NUMA detection"
+       depends on X86_64 && NUMA && PCI
+       default y
+       help
+	 Enable K8 NUMA node topology detection.  You should say Y here if
+	 you have a multi processor AMD K8 system. This uses an old
+	 method to read the NUMA configuration directly from the builtin
+	 Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
+	 instead, which also takes priority if both are compiled in.
+
+config X86_64_ACPI_NUMA
+	bool "ACPI NUMA detection"
+	depends on X86_64 && NUMA && ACPI && PCI
+	select ACPI_NUMA
+	default y
+	help
+	  Enable ACPI SRAT based node topology detection.
+
+config NUMA_EMU
+	bool "NUMA emulation"
+	depends on X86_64 && NUMA
+	help
+	  Enable NUMA emulation. A flat machine will be split
+	  into virtual nodes when booted with "numa=fake=N", where N is the
+	  number of nodes. This is only useful for debugging.
 
 config NODES_SHIFT
 	int
+	default "6" if X86_64
 	default "4" if X86_NUMAQ
 	default "3"
 	depends on NEED_MULTIPLE_NODES
 
 config HAVE_ARCH_BOOTMEM_NODE
 	bool
-	depends on NUMA
+	depends on X86_32 && NUMA
 	default y
 
 config ARCH_HAVE_MEMORY_PRESENT
 	bool
-	depends on DISCONTIGMEM
+	depends on X86_32 && DISCONTIGMEM
 	default y
 
 config NEED_NODE_MEMMAP_SIZE
 	bool
-	depends on DISCONTIGMEM || SPARSEMEM
+	depends on X86_32 && (DISCONTIGMEM || SPARSEMEM)
 	default y
 
 config HAVE_ARCH_ALLOC_REMAP
 	bool
-	depends on NUMA
+	depends on X86_32 && NUMA
 	default y
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
-	depends on (ARCH_SELECT_MEMORY_MODEL && X86_PC)
+	depends on (X86_32 && ARCH_SELECT_MEMORY_MODEL && X86_PC) || (X86_64 && !NUMA)
 
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
@@ -690,21 +901,23 @@ config ARCH_DISCONTIGMEM_DEFAULT
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on (NUMA || (X86_PC && EXPERIMENTAL))
-	select SPARSEMEM_STATIC
+	depends on NUMA || (EXPERIMENTAL && (X86_PC || X86_64))
+	select SPARSEMEM_STATIC if X86_32
+	select SPARSEMEM_VMEMMAP_ENABLE if X86_64
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
-	depends on ARCH_SPARSEMEM_ENABLE
+	depends on X86_32 && ARCH_SPARSEMEM_ENABLE
 
-config ARCH_POPULATES_NODE_MAP
-	def_bool y
+config ARCH_MEMORY_PROBE
+	def_bool X86_64
+	depends on MEMORY_HOTPLUG
 
 source "mm/Kconfig"
 
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"
-	depends on HIGHMEM4G || HIGHMEM64G
+	depends on X86_32 && (HIGHMEM4G || HIGHMEM64G)
 	help
 	  The VM uses one page table entry for each page of physical memory.
 	  For systems with a lot of RAM, this can be wasteful of precious
@@ -712,7 +925,8 @@ config HIGHPTE
 	  entries in high memory.
 
 config MATH_EMULATION
-	bool "Math emulation"
+	bool
+	prompt "Math emulation" if X86_32
 	---help---
 	  Linux can emulate a math coprocessor (used for floating point
 	  operations) if you don't have one. 486DX and Pentium processors have
@@ -772,7 +986,7 @@ config MTRR
 
 config EFI
 	bool "Boot from EFI support"
-	depends on ACPI
+	depends on X86_32 && ACPI
 	default n
 	---help---
 	This enables the kernel to boot on EFI platforms using
@@ -789,18 +1003,18 @@ config EFI
 	kernel should continue to boot on existing non-EFI platforms.
 
 config IRQBALANCE
- 	bool "Enable kernel irq balancing"
-	depends on SMP && X86_IO_APIC
+	bool "Enable kernel irq balancing"
+	depends on X86_32 && SMP && X86_IO_APIC
 	default y
 	help
- 	  The default yes will allow the kernel to do irq load balancing.
+	  The default yes will allow the kernel to do irq load balancing.
 	  Saying no will keep the kernel from doing irq load balancing.
 
 # turning this on wastes a bunch of space.
 # Summit needs it only when NUMA is on
 config BOOT_IOREMAP
 	bool
-	depends on (((X86_SUMMIT || X86_GENERICARCH) && NUMA) || (X86 && EFI))
+	depends on X86_32 && (((X86_SUMMIT || X86_GENERICARCH) && NUMA) || (X86 && EFI))
 	default y
 
 config SECCOMP
@@ -819,6 +1033,30 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
+
+config CC_STACKPROTECTOR
+	bool "Enable -fstack-protector buffer overflow detection (EXPERIMENTAL)"
+	depends on X86_64 && EXPERIMENTAL
+	help
+         This option turns on the -fstack-protector GCC feature. This
+	  feature puts, at the beginning of critical functions, a canary
+	  value on the stack just before the return address, and validates
+	  the value just before actually returning.  Stack based buffer
+	  overflows (that need to overwrite this return address) now also
+	  overwrite the canary, which gets detected and the attack is then
+	  neutralized via a kernel panic.
+
+	  This feature requires gcc version 4.2 or above, or a distribution
+	  gcc with the feature backported. Older versions are automatically
+	  detected and for those versions, this configuration option is ignored.
+
+config CC_STACKPROTECTOR_ALL
+	bool "Use stack-protector for all functions"
+	depends on CC_STACKPROTECTOR
+	help
+	  Normally, GCC only inserts the canary value protection for
+	  functions that use large-ish on-stack buffers. By enabling
+	  this option, GCC will be asked to do this for ALL functions.
 
 source kernel/Kconfig.hz
 
@@ -841,7 +1079,7 @@ config KEXEC
 config CRASH_DUMP
 	bool "kernel crash dumps (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
-	depends on HIGHMEM
+	depends on X86_64 || (X86_32 && HIGHMEM)
 	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels
@@ -856,6 +1094,7 @@ config CRASH_DUMP
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
 	default "0x1000000" if X86_NUMAQ
+	default "0x200000" if X86_64
 	default "0x100000"
 	help
 	  This gives the physical address where the kernel is loaded.
@@ -908,25 +1147,31 @@ config RELOCATABLE
 	  must live at a different physical address than the primary
 	  kernel.
 
+	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
+	  it has been loaded at and the compile time physical address
+	  (CONFIG_PHYSICAL_START) is ignored.
+
 config PHYSICAL_ALIGN
-	hex "Alignment value to which kernel should be aligned"
-	default "0x100000"
+	hex
+	prompt "Alignment value to which kernel should be aligned" if X86_32
+	default "0x100000" if X86_32
+	default "0x200000" if X86_64
 	range 0x2000 0x400000
 	help
 	  This value puts the alignment restrictions on physical address
- 	  where kernel is loaded and run from. Kernel is compiled for an
- 	  address which meets above alignment restriction.
+	  where kernel is loaded and run from. Kernel is compiled for an
+	  address which meets above alignment restriction.
 
- 	  If bootloader loads the kernel at a non-aligned address and
- 	  CONFIG_RELOCATABLE is set, kernel will move itself to nearest
- 	  address aligned to above value and run from there.
+	  If bootloader loads the kernel at a non-aligned address and
+	  CONFIG_RELOCATABLE is set, kernel will move itself to nearest
+	  address aligned to above value and run from there.
 
- 	  If bootloader loads the kernel at a non-aligned address and
- 	  CONFIG_RELOCATABLE is not set, kernel will ignore the run time
- 	  load address and decompress itself to the address it has been
- 	  compiled for and run from there. The address for which kernel is
- 	  compiled already meets above alignment restrictions. Hence the
- 	  end result is that kernel runs from a physical address meeting
+	  If bootloader loads the kernel at a non-aligned address and
+	  CONFIG_RELOCATABLE is not set, kernel will ignore the run time
+	  load address and decompress itself to the address it has been
+	  compiled for and run from there. The address for which kernel is
+	  compiled already meets above alignment restrictions. Hence the
+	  end result is that kernel runs from a physical address meeting
 	  above alignment restrictions.
 
 	  Don't change this unless you know what you are doing.
@@ -938,10 +1183,13 @@ config HOTPLUG_CPU
 	  Say Y here to experiment with turning CPUs off and on, and to
 	  enable suspend on SMP systems. CPUs can be controlled through
 	  /sys/devices/system/cpu.
+	  Say N if you want to disable CPU hotplug and don't need to
+	  suspend.
 
 config COMPAT_VDSO
 	bool "Compat VDSO support"
 	default y
+	depends on X86_32
 	help
 	  Map the VDSO to the predictable old-style address too.
 	---help---
@@ -955,18 +1203,35 @@ endmenu
 
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
-	depends on HIGHMEM
+	depends on X86_64 || (X86_32 && HIGHMEM)
 
-menu "Power management options (ACPI, APM)"
+config MEMORY_HOTPLUG_RESERVE
+	def_bool X86_64
+	depends on (MEMORY_HOTPLUG && DISCONTIGMEM)
+
+config HAVE_ARCH_EARLY_PFN_TO_NID
+	def_bool X86_64
+	depends on NUMA
+
+config OUT_OF_LINE_PFN_TO_PAGE
+	def_bool X86_64
+	depends on DISCONTIGMEM
+
+menu "Power management options"
 	depends on !X86_VOYAGER
 
-source kernel/power/Kconfig
+config ARCH_HIBERNATION_HEADER
+	bool
+	depends on X86_64 && HIBERNATION
+	default y
+
+source "kernel/power/Kconfig"
 
 source "drivers/acpi/Kconfig"
 
 menuconfig APM
 	tristate "APM (Advanced Power Management) BIOS support"
-	depends on PM_SLEEP && !X86_VISWS
+	depends on X86_32 && PM_SLEEP && !X86_VISWS
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
@@ -1092,13 +1357,14 @@ config APM_REAL_MODE_POWER_OFF
 
 endif # APM
 
-source "arch/x86/kernel/cpu/cpufreq/Kconfig_32"
+source "arch/x86/kernel/cpu/cpufreq/Kconfig"
 
 source "drivers/cpuidle/Kconfig"
 
 endmenu
 
-menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
+
+menu "Bus options (PCI etc.)"
 
 config PCI
 	bool "PCI support" if !X86_VISWS
@@ -1118,7 +1384,7 @@ config PCI
 
 choice
 	prompt "PCI access mode"
-	depends on PCI && !X86_VISWS
+	depends on X86_32 && PCI && !X86_VISWS
 	default PCI_GOANY
 	---help---
 	  On PCI systems, the BIOS can be used to detect the PCI devices and
@@ -1151,17 +1417,18 @@ endchoice
 
 config PCI_BIOS
 	bool
-	depends on !X86_VISWS && PCI && (PCI_GOBIOS || PCI_GOANY)
+	depends on X86_32 && !X86_VISWS && PCI && (PCI_GOBIOS || PCI_GOANY)
 	default y
 
+# x86-64 doesn't support PCI BIOS access from long mode so always go direct.
 config PCI_DIRECT
 	bool
- 	depends on PCI && ((PCI_GODIRECT || PCI_GOANY) || X86_VISWS)
+	depends on PCI && (X86_64 || (PCI_GODIRECT || PCI_GOANY) || X86_VISWS)
 	default y
 
 config PCI_MMCONFIG
 	bool
-	depends on PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
+	depends on X86_32 && PCI && ACPI && (PCI_GOMMCONFIG || PCI_GOANY)
 	default y
 
 config PCI_DOMAINS
@@ -1169,13 +1436,51 @@ config PCI_DOMAINS
 	depends on PCI
 	default y
 
+config PCI_MMCONFIG
+	bool "Support mmconfig PCI config space access"
+	depends on X86_64 && PCI && ACPI
+
+config DMAR
+	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
+	depends on X86_64 && PCI_MSI && ACPI && EXPERIMENTAL
+	help
+	  DMA remapping (DMAR) devices support enables independent address
+	  translations for Direct Memory Access (DMA) from devices.
+	  These DMA remapping devices are reported via ACPI tables
+	  and include PCI device scope covered by these DMA
+	  remapping devices.
+
+config DMAR_GFX_WA
+	bool "Support for Graphics workaround"
+	depends on DMAR
+	default y
+	help
+	 Current Graphics drivers tend to use physical address
+	 for DMA and avoid using DMA APIs. Setting this config
+	 option permits the IOMMU driver to set a unity map for
+	 all the OS-visible memory. Hence the driver can continue
+	 to use physical addresses for DMA.
+
+config DMAR_FLOPPY_WA
+	bool
+	depends on DMAR
+	default y
+	help
+	 Floppy disk drivers are know to bypass DMA API calls
+	 thereby failing to work when IOMMU is enabled. This
+	 workaround will setup a 1:1 mapping for the first
+	 16M to make floppy (an ISA device) work.
+
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"
 
+# x86_64 have no ISA slots, but do have ISA-style DMA.
 config ISA_DMA_API
 	bool
 	default y
+
+if X86_32
 
 config ISA
 	bool "ISA support"
@@ -1248,9 +1553,11 @@ config GEODE_MFGPT_TIMER
 	  MFGPTs have a better resolution and max interval than the
 	  generic PIT, and are suitable for use as high-res timers.
 
+endif # X86_32
+
 config K8_NB
 	def_bool y
-	depends on AGP_AMD64
+	depends on AGP_AMD64 || (X86_64 && (GART_IOMMU || (PCI && NUMA)))
 
 source "drivers/pcmcia/Kconfig"
 
@@ -1258,15 +1565,47 @@ source "drivers/pci/hotplug/Kconfig"
 
 endmenu
 
-menu "Executable file formats"
+
+menu "Executable file formats / Emulations"
 
 source "fs/Kconfig.binfmt"
 
+config IA32_EMULATION
+	bool "IA32 Emulation"
+	depends on X86_64
+	help
+	  Include code to run 32-bit programs under a 64-bit kernel. You should
+	  likely turn this on, unless you're 100% sure that you don't have any
+	  32-bit programs left.
+
+config IA32_AOUT
+       tristate "IA32 a.out support"
+       depends on IA32_EMULATION
+       help
+         Support old a.out binaries in the 32bit emulation.
+
+config COMPAT
+	bool
+	depends on IA32_EMULATION
+	default y
+
+config COMPAT_FOR_U64_ALIGNMENT
+	def_bool COMPAT
+	depends on X86_64
+
+config SYSVIPC_COMPAT
+	bool
+	depends on X86_64 && COMPAT && SYSVIPC
+	default y
+
 endmenu
+
 
 source "net/Kconfig"
 
 source "drivers/Kconfig"
+
+source "drivers/firmware/Kconfig"
 
 source "fs/Kconfig"
 
@@ -1279,43 +1618,3 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
-
-#
-# Use the generic interrupt handling code in kernel/irq/:
-#
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config GENERIC_IRQ_PROBE
-	bool
-	default y
-
-config GENERIC_PENDING_IRQ
-	bool
-	depends on GENERIC_HARDIRQS && SMP
-	default y
-
-config X86_SMP
-	bool
-	depends on SMP && !X86_VOYAGER
-	default y
-
-config X86_HT
-	bool
-	depends on SMP && !(X86_VISWS || X86_VOYAGER)
-	default y
-
-config X86_BIOS_REBOOT
-	bool
-	depends on !(X86_VISWS || X86_VOYAGER)
-	default y
-
-config X86_TRAMPOLINE
-	bool
-	depends on X86_SMP || (X86_VOYAGER && SMP)
-	default y
-
-config KTIME_SCALAR
-	bool
-	default y

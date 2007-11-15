@@ -3,7 +3,9 @@
 #
 
 extra-y 	:= head_64.o head64.o init_task.o vmlinux.lds
+CPPFLAGS_vmlinux.lds += -Ux86_64
 EXTRA_AFLAGS	:= -traditional
+
 obj-y	:= process_64.o signal_64.o entry_64.o traps_64.o irq_64.o \
 		ptrace_64.o time_64.o ioport_64.o ldt_64.o setup_64.o i8259_64.o sys_x86_64.o \
 		x8664_ksyms_64.o i387_64.o syscall_64.o vsyscall_64.o \
