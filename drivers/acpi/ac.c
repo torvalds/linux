@@ -59,6 +59,7 @@ static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 
 static int acpi_ac_add(struct acpi_device *device);
 static int acpi_ac_remove(struct acpi_device *device, int type);
+static int acpi_ac_resume(struct acpi_device *device);
 
 const static struct acpi_device_id ac_device_ids[] = {
 	{"ACPI0003", 0},
@@ -73,6 +74,7 @@ static struct acpi_driver acpi_ac_driver = {
 	.ops = {
 		.add = acpi_ac_add,
 		.remove = acpi_ac_remove,
+		.resume = acpi_ac_resume,
 		},
 };
 
@@ -305,6 +307,21 @@ static int acpi_ac_add(struct acpi_device *device)
 	}
 
 	return result;
+}
+
+static int acpi_ac_resume(struct acpi_device *device)
+{
+	struct acpi_ac *ac;
+	unsigned old_state;
+	if (!device || !acpi_driver_data(device))
+		return -EINVAL;
+	ac = acpi_driver_data(device);
+	old_state = ac->state;
+	if (acpi_ac_get_state(ac))
+		return 0;
+	if (old_state != ac->state)
+		kobject_uevent(&ac->charger.dev->kobj, KOBJ_CHANGE);
+	return 0;
 }
 
 static int acpi_ac_remove(struct acpi_device *device, int type)
