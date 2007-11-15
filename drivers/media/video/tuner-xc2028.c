@@ -116,6 +116,8 @@ void dump_firm_type(unsigned int type)
 {
 	 if (type & BASE)
 		printk("BASE ");
+	 if (type & INIT1)
+		printk("INIT1 ");
 	 if (type & F8MHZ)
 		printk("F8MHZ ");
 	 if (type & MTS)
@@ -201,7 +203,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 	tuner_info("%s called\n", __FUNCTION__);
 
-	tuner_info("Loading firmware %s\n", priv->ctrl.fname);
+	tuner_info("Reading firmware %s\n", priv->ctrl.fname);
 	rc = request_firmware(&fw, priv->ctrl.fname, priv->dev);
 	if (rc < 0) {
 		if (rc == -ENOENT)
@@ -325,12 +327,11 @@ done:
 	return rc;
 }
 
-static int load_firmware(struct dvb_frontend *fe, unsigned int type,
-			 v4l2_std_id * id)
+static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
+			 v4l2_std_id *id)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
-	int                i, rc;
-	unsigned char      *p, *endp, buf[priv->max_len];
+	int                i;
 
 	tuner_info("%s called\n", __FUNCTION__);
 
@@ -339,7 +340,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 		return -EINVAL;
 	}
 
-	if ((type == 0) && (*id == 0))
+	if (((type & ~SCODE) == 0) && (*id == 0))
 		*id = V4L2_STD_PAL;
 
 	/* Seek for exact match */
@@ -356,21 +357,40 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	/*FIXME: Would make sense to seek for type "hint" match ? */
 
-	tuner_info("Can't find firmware for type=%x, id=%lx\n", type,
-		   (long int)*id);
-	return -EINVAL;
+	i = -EINVAL;
+	goto ret;
 
 found:
 	*id = priv->firm[i].id;
-	tuner_info("Found firmware for type=%x, id=%lx\n", type, (long int)*id);
 
-	p = priv->firm[i].ptr;
+ret:
+	tuner_info("%s firmware for type=", (i < 0)? "Can't find": "Found");
+	dump_firm_type(type);
+	printk("(%x), id %08lx.\n", type, (unsigned long)*id);
+
+	return i;
+}
+
+static int load_firmware(struct dvb_frontend *fe, unsigned int type,
+			 v4l2_std_id *id)
+{
+	struct xc2028_data *priv = fe->tuner_priv;
+	int                pos, rc;
+	unsigned char      *p, *endp, buf[priv->max_len];
+
+	tuner_info("%s called\n", __FUNCTION__);
+
+	pos = seek_firmware(fe, type, id);
+	if (pos < 0)
+		return pos;
+
+	p = priv->firm[pos].ptr;
 
 	if (!p) {
 		printk(KERN_ERR PREFIX "Firmware pointer were freed!");
 		return -EINVAL;
 	}
-	endp = p + priv->firm[i].size;
+	endp = p + priv->firm[pos].size;
 
 	while (p < endp) {
 		__u16 size;
@@ -432,6 +452,42 @@ found:
 			size -= len;
 		}
 	}
+	return 0;
+}
+
+static int load_scode(struct dvb_frontend *fe, unsigned int type,
+			 v4l2_std_id *id, int scode)
+{
+	struct xc2028_data *priv = fe->tuner_priv;
+	int                pos, rc;
+	unsigned char	   *p;
+
+	tuner_info("%s called\n", __FUNCTION__);
+
+	pos = seek_firmware(fe, type, id);
+	if (pos < 0)
+		return pos;
+
+	p = priv->firm[pos].ptr;
+
+	if (!p) {
+		printk(KERN_ERR PREFIX "Firmware pointer were freed!");
+		return -EINVAL;
+	}
+
+	if ((priv->firm[pos].size != 12 * 16) || (scode >= 16))
+		return -EINVAL;
+
+	if (priv->version < 0x0202) {
+		send_seq(priv, {0x20, 0x00, 0x00, 0x00});
+	} else {
+		send_seq(priv, {0xa0, 0x00, 0x00, 0x00});
+	}
+
+	i2c_send(rc, priv, p + 12 * scode, 12);
+
+	send_seq(priv, {0x00, 0x8c});
+
 	return 0;
 }
 
@@ -527,8 +583,8 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	}
 
 	/* Load INIT1, if needed */
-	tuner_info("Trying to load init1 firmware\n");
-	type0 = BASE | INIT1 | priv->ctrl.type;
+	tuner_info("Load init1 firmware, if exists\n");
+	type0 = BASE | INIT1;
 	if (priv->ctrl.type == XC2028_FIRM_MTS)
 		type0 |= MTS;
 
@@ -541,9 +597,9 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	if (priv->ctrl.type == XC2028_FIRM_MTS)
 		type |= MTS;
 
-	tuner_info("firmware standard to load: %08lx\n", (unsigned long)std);
+	tuner_info("Firmware standard to load: %08lx\n", (unsigned long)std);
 	if (priv->firm_type & std) {
-		tuner_info("no need to load a std-specific firmware.\n");
+		tuner_info("Std-specific firmware already loaded.\n");
 		return 0;
 	}
 
@@ -551,11 +607,11 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	if (rc < 0)
 		return rc;
 
-	/* Load SCODE firmware, if needed */
-	tuner_info("Trying to load scode firmware\n");
-	type0 = SCODE | priv->ctrl.type;
-	if (priv->ctrl.type == XC2028_FIRM_MTS)
-		type0 |= MTS;
+	/* Load SCODE firmware, if exists */
+	tuner_info("Trying to load scode 0\n");
+	type |= SCODE;
+
+	rc = load_scode(fe, type, &std, 0);
 
 	version = xc2028_get_reg(priv, 0x0004);
 	hwmodel = xc2028_get_reg(priv, 0x0008);
