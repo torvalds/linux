@@ -393,6 +393,74 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 	return 0;
 }
 
+#ifdef CONFIG_X86
+static int acpi_throttling_rdmsr(struct acpi_processor *pr,
+					acpi_integer * value)
+{
+	struct cpuinfo_x86 *c;
+	u64 msr_high, msr_low;
+	unsigned int cpu;
+	u64 msr = 0;
+	int ret = -1;
+
+	cpu = pr->id;
+	c = &cpu_data(cpu);
+
+	if ((c->x86_vendor != X86_VENDOR_INTEL) ||
+		!cpu_has(c, X86_FEATURE_ACPI)) {
+		printk(KERN_ERR PREFIX
+			"HARDWARE addr space,NOT supported yet\n");
+	} else {
+		msr_low = 0;
+		msr_high = 0;
+		rdmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL,
+			(u32 *)&msr_low , (u32 *) &msr_high);
+		msr = (msr_high << 32) | msr_low;
+		*value = (acpi_integer) msr;
+		ret = 0;
+	}
+	return ret;
+}
+
+static int acpi_throttling_wrmsr(struct acpi_processor *pr, acpi_integer value)
+{
+	struct cpuinfo_x86 *c;
+	unsigned int cpu;
+	int ret = -1;
+	u64 msr;
+
+	cpu = pr->id;
+	c = &cpu_data(cpu);
+
+	if ((c->x86_vendor != X86_VENDOR_INTEL) ||
+		!cpu_has(c, X86_FEATURE_ACPI)) {
+		printk(KERN_ERR PREFIX
+			"HARDWARE addr space,NOT supported yet\n");
+	} else {
+		msr = value;
+		wrmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL,
+			msr & 0xffffffff, msr >> 32);
+		ret = 0;
+	}
+	return ret;
+}
+#else
+static int acpi_throttling_rdmsr(struct acpi_processor *pr,
+				acpi_integer * value)
+{
+	printk(KERN_ERR PREFIX
+		"HARDWARE addr space,NOT supported yet\n");
+	return -1;
+}
+
+static int acpi_throttling_wrmsr(struct acpi_processor *pr, acpi_integer value)
+{
+	printk(KERN_ERR PREFIX
+		"HARDWARE addr space,NOT supported yet\n");
+	return -1;
+}
+#endif
+
 static int acpi_read_throttling_status(struct acpi_processor *pr,
 					acpi_integer *value)
 {
@@ -417,8 +485,7 @@ static int acpi_read_throttling_status(struct acpi_processor *pr,
 		ret = 0;
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
-		printk(KERN_ERR PREFIX
-		       "HARDWARE addr space,NOT supported yet\n");
+		ret = acpi_throttling_rdmsr(pr, value);
 		break;
 	default:
 		printk(KERN_ERR PREFIX "Unknown addr space %d\n",
@@ -451,8 +518,7 @@ static int acpi_write_throttling_state(struct acpi_processor *pr,
 		ret = 0;
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
-		printk(KERN_ERR PREFIX
-		       "HARDWARE addr space,NOT supported yet\n");
+		ret = acpi_throttling_wrmsr(pr, value);
 		break;
 	default:
 		printk(KERN_ERR PREFIX "Unknown addr space %d\n",
