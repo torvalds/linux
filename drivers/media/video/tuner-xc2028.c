@@ -24,6 +24,10 @@
 
 #define PREFIX "xc2028"
 
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable verbose debug messages");
+
 static LIST_HEAD(xc2028_list);
 /* struct for storing firmware table */
 struct firmware_description {
@@ -68,14 +72,14 @@ struct xc2028_data {
 #define i2c_send(rc, priv, buf, size) do {				\
 	rc = tuner_i2c_xfer_send(&priv->i2c_props, buf, size);		\
 	if (size != rc)							\
-		tuner_info("i2c output error: rc = %d (should be %d)\n",\
+		tuner_err("i2c output error: rc = %d (should be %d)\n",	\
 			   rc, (int)size);				\
 } while (0)
 
 #define i2c_rcv(rc, priv, buf, size) do {				\
 	rc = tuner_i2c_xfer_recv(&priv->i2c_props, buf, size);		\
 	if (size != rc)							\
-		tuner_info("i2c input error: rc = %d (should be %d)\n",	\
+		tuner_err("i2c input error: rc = %d (should be %d)\n",	\
 			   rc, (int)size); 				\
 } while (0)
 
@@ -85,7 +89,7 @@ struct xc2028_data {
 	if (sizeof(_val) !=						\
 			(rc = tuner_i2c_xfer_send(&priv->i2c_props,	\
 						_val, sizeof(_val)))) {	\
-		tuner_info("Error on line %d: %d\n", __LINE__, rc);	\
+		tuner_err("Error on line %d: %d\n", __LINE__, rc);	\
 		return -EINVAL;						\
 	}								\
 	msleep(10);							\
@@ -96,7 +100,7 @@ static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
 	int rc;
 	unsigned char buf[2];
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	buf[0] = reg>>8;
 	buf[1] = (unsigned char) reg;
@@ -201,16 +205,16 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	int		      n, n_array;
 	char		      name[33];
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	tuner_info("Reading firmware %s\n", priv->ctrl.fname);
 	rc = request_firmware(&fw, priv->ctrl.fname, priv->dev);
 	if (rc < 0) {
 		if (rc == -ENOENT)
-			tuner_info("Error: firmware %s not found.\n",
+			tuner_err("Error: firmware %s not found.\n",
 				   priv->ctrl.fname);
 		else
-			tuner_info("Error %d while requesting firmware %s \n",
+			tuner_err("Error %d while requesting firmware %s \n",
 				   rc, priv->ctrl.fname);
 
 		return rc;
@@ -219,7 +223,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	endp = p + fw->size;
 
 	if (fw->size < sizeof(name) - 1 + 2) {
-		tuner_info("Error: firmware size is zero!\n");
+		tuner_err("Error: firmware size is zero!\n");
 		rc = -EINVAL;
 		goto done;
 	}
@@ -231,7 +235,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	priv->version = le16_to_cpu(*(__u16 *) p);
 	p += 2;
 
-	tuner_info("firmware: %s, ver %d.%d\n", name,
+	tuner_info("Firmware: %s, ver %d.%d\n", name,
 		   priv->version >> 8, priv->version & 0xff);
 
 	if (p + 2 > endp)
@@ -240,12 +244,13 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	n_array = le16_to_cpu(*(__u16 *) p);
 	p += 2;
 
-	tuner_info("there are %d firmwares at %s\n", n_array, priv->ctrl.fname);
+	tuner_info("There are %d firmwares at %s\n",
+		   n_array, priv->ctrl.fname);
 
 	priv->firm = kzalloc(sizeof(*priv->firm) * n_array, GFP_KERNEL);
 
 	if (!fw) {
-		tuner_info("Not enough memory for loading firmware.\n");
+		tuner_err("Not enough memory for reading firmware.\n");
 		rc = -ENOMEM;
 		goto done;
 	}
@@ -258,13 +263,13 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 		n++;
 		if (n >= n_array) {
-			tuner_info("Too much firmwares at the file\n");
+			tuner_err("Too much firmwares at the file\n");
 			goto corrupt;
 		}
 
 		/* Checks if there's enough bytes to read */
 		if (p + sizeof(type) + sizeof(id) + sizeof(size) > endp) {
-			tuner_info("Lost firmware!\n");
+			tuner_err("Firmware header is incomplete!\n");
 			goto corrupt;
 		}
 
@@ -278,20 +283,21 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		p += sizeof(size);
 
 		if ((!size) || (size + p > endp)) {
-			tuner_info("Firmware type ");
+			tuner_err("Firmware type ");
 			dump_firm_type(type);
-			printk("(%x), id %lx corrupt (size=%ld, expected %d)\n",
-				   type, (unsigned long)id, endp - p, size);
+			printk("(%x), id %lx is corrupted "
+			       "(size=%ld, expected %d)\n",
+			       type, (unsigned long)id, endp - p, size);
 			goto corrupt;
 		}
 
 		priv->firm[n].ptr = kzalloc(size, GFP_KERNEL);
 		if (!priv->firm[n].ptr) {
-			tuner_info("Not enough memory.\n");
+			tuner_err("Not enough memory.\n");
 			rc = -ENOMEM;
 			goto err;
 		}
-		tuner_info("Loading firmware type ");
+		tuner_info("Reading firmware type ");
 		dump_firm_type(type);
 		printk("(%x), id %lx, size=%d.\n",
 			   type, (unsigned long)id, size);
@@ -305,7 +311,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	}
 
 	if (n + 1 != priv->firm_size) {
-		tuner_info("Firmware file is incomplete!\n");
+		tuner_err("Firmware file is incomplete!\n");
 		goto corrupt;
 	}
 
@@ -313,7 +319,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 corrupt:
 	rc = -EINVAL;
-	tuner_info("Error: firmware file is corrupted!\n");
+	tuner_err("Error: firmware file is corrupted!\n");
 
 err:
 	tuner_info("Releasing loaded firmware file.\n");
@@ -322,7 +328,7 @@ err:
 
 done:
 	release_firmware(fw);
-	tuner_info("Firmware files loaded.\n");
+	tuner_dbg("Firmware files loaded.\n");
 
 	return rc;
 }
@@ -333,10 +339,10 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	struct xc2028_data *priv = fe->tuner_priv;
 	int                i;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	if (!priv->firm) {
-		printk(KERN_ERR PREFIX "Error! firmware not loaded\n");
+		tuner_err("Error! firmware not loaded\n");
 		return -EINVAL;
 	}
 
@@ -364,10 +370,11 @@ found:
 	*id = priv->firm[i].id;
 
 ret:
-	tuner_info("%s firmware for type=", (i < 0)? "Can't find": "Found");
-	dump_firm_type(type);
-	printk("(%x), id %08lx.\n", type, (unsigned long)*id);
-
+	tuner_dbg("%s firmware for type=", (i < 0)? "Can't find": "Found");
+	if (debug) {
+		dump_firm_type(type);
+		printk("(%x), id %08lx.\n", type, (unsigned long)*id);
+	}
 	return i;
 }
 
@@ -378,16 +385,20 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	int                pos, rc;
 	unsigned char      *p, *endp, buf[priv->max_len];
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	pos = seek_firmware(fe, type, id);
 	if (pos < 0)
 		return pos;
 
+	tuner_info("Loading firmware for type=");
+	dump_firm_type(type);
+	printk("(%x), id %08lx.\n", type, (unsigned long)*id);
+
 	p = priv->firm[pos].ptr;
 
 	if (!p) {
-		printk(KERN_ERR PREFIX "Firmware pointer were freed!");
+		tuner_err("Firmware pointer were freed!");
 		return -EINVAL;
 	}
 	endp = p + priv->firm[pos].size;
@@ -397,7 +408,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 
 		/* Checks if there's enough bytes to read */
 		if (p + sizeof(size) > endp) {
-			tuner_info("missing bytes\n");
+			tuner_err("Firmware chunk size is wrong\n");
 			return -EINVAL;
 		}
 
@@ -412,7 +423,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 			rc = priv->tuner_callback(priv->video_dev,
 						  XC2028_TUNER_RESET, 0);
 			if (rc < 0) {
-				tuner_info("Error at RESET code %d\n",
+				tuner_err("Error at RESET code %d\n",
 					   (*p) & 0x7f);
 				return -EINVAL;
 			}
@@ -426,7 +437,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 		}
 
 		if ((size + p > endp)) {
-			tuner_info("missing bytes: need %d, have %d\n",
+			tuner_err("missing bytes: need %d, have %d\n",
 				   size, (int)(endp - p));
 			return -EINVAL;
 		}
@@ -444,7 +455,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 
 			i2c_send(rc, priv, buf, len + 1);
 			if (rc < 0) {
-				tuner_info("%d returned from send\n", rc);
+				tuner_err("%d returned from send\n", rc);
 				return -EINVAL;
 			}
 
@@ -462,7 +473,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	int                pos, rc;
 	unsigned char	   *p;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	pos = seek_firmware(fe, type, id);
 	if (pos < 0)
@@ -471,7 +482,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	p = priv->firm[pos].ptr;
 
 	if (!p) {
-		printk(KERN_ERR PREFIX "Firmware pointer were freed!");
+		tuner_err("Firmware pointer were freed!");
 		return -EINVAL;
 	}
 
@@ -500,7 +511,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	unsigned int		type0 = 0, type = 0;
 	int			change_digital_bandwidth;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	if (!priv->firm) {
 		if (!priv->ctrl.fname)
@@ -511,7 +522,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			return rc;
 	}
 
-	tuner_info("I am in mode %u and I should switch to mode %i\n",
+	tuner_dbg("I am in mode %u and I should switch to mode %i\n",
 		   priv->mode, new_mode);
 
 	/* first of all, determine whether we have switched the mode */
@@ -522,7 +533,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 
 	change_digital_bandwidth = (priv->mode == T_DIGITAL_TV
 				    && bandwidth != priv->bandwidth) ? 1 : 0;
-	tuner_info("old bandwidth %u, new bandwidth %u\n", priv->bandwidth,
+	tuner_dbg("old bandwidth %u, new bandwidth %u\n", priv->bandwidth,
 		   bandwidth);
 
 	if (priv->need_load_generic) {
@@ -544,8 +555,8 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 
 		rc = load_firmware(fe, type0, &std0);
 		if (rc < 0) {
-			tuner_info("Error %d while loading generic firmware\n",
-				   rc);
+			tuner_err("Error %d while loading generic firmware\n",
+				  rc);
 			return rc;
 		}
 
@@ -555,7 +566,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			change_digital_bandwidth = 1;
 	}
 
-	tuner_info("I should change bandwidth %u\n", change_digital_bandwidth);
+	tuner_dbg("I should change bandwidth %u\n", change_digital_bandwidth);
 
 	if (change_digital_bandwidth) {
 
@@ -577,13 +588,13 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			break;
 
 		default:
-			tuner_info("error: bandwidth not supported.\n");
+			tuner_err("error: bandwidth not supported.\n");
 		};
 		priv->bandwidth = bandwidth;
 	}
 
 	/* Load INIT1, if needed */
-	tuner_info("Load init1 firmware, if exists\n");
+	tuner_dbg("Load init1 firmware, if exists\n");
 	type0 = BASE | INIT1;
 	if (priv->ctrl.type == XC2028_FIRM_MTS)
 		type0 |= MTS;
@@ -597,9 +608,8 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	if (priv->ctrl.type == XC2028_FIRM_MTS)
 		type |= MTS;
 
-	tuner_info("Firmware standard to load: %08lx\n", (unsigned long)std);
 	if (priv->firm_type & std) {
-		tuner_info("Std-specific firmware already loaded.\n");
+		tuner_dbg("Std-specific firmware already loaded.\n");
 		return 0;
 	}
 
@@ -608,7 +618,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 		return rc;
 
 	/* Load SCODE firmware, if exists */
-	tuner_info("Trying to load scode 0\n");
+	tuner_dbg("Trying to load scode 0\n");
 	type |= SCODE;
 
 	rc = load_scode(fe, type, &std, 0);
@@ -631,7 +641,7 @@ static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 	struct xc2028_data *priv = fe->tuner_priv;
 	int                frq_lock, signal = 0;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	mutex_lock(&priv->lock);
 
@@ -669,7 +679,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 	unsigned char	   buf[5];
 	u32		   div, offset = 0;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	mutex_lock(&priv->lock);
 
@@ -684,7 +694,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 		goto ret;
 
 	msleep(10);
-	tuner_info("should set frequency %d kHz)\n", freq / 1000);
+	tuner_dbg("should set frequency %d kHz)\n", freq / 1000);
 
 	if (check_firmware(fe, new_mode, std, bandwidth) < 0)
 		goto ret;
@@ -721,7 +731,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 
 	priv->frequency = freq;
 
-	printk("divider= %02x %02x %02x %02x (freq=%d.%02d)\n",
+	tuner_dbg("divider= %02x %02x %02x %02x (freq=%d.%02d)\n",
 	       buf[1], buf[2], buf[3], buf[4],
 	       freq / 1000000, (freq % 1000000) / 10000);
 
@@ -738,7 +748,7 @@ static int xc2028_set_tv_freq(struct dvb_frontend *fe,
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	return generic_set_tv_freq(fe, 62500l * p->frequency, T_ANALOG_TV,
 				   p->std, BANDWIDTH_8_MHZ /* NOT USED */);
@@ -749,11 +759,11 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	/* FIXME: Only OFDM implemented */
 	if (fe->ops.info.type != FE_OFDM) {
-		tuner_info("DTV type not implemented.\n");
+		tuner_err("DTV type not implemented.\n");
 		return -EINVAL;
 	}
 
@@ -767,7 +777,7 @@ static int xc2028_dvb_release(struct dvb_frontend *fe)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	priv->count--;
 
@@ -787,7 +797,7 @@ static int xc2028_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	*frequency = priv->frequency;
 
@@ -799,7 +809,7 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 	struct xc2028_data *priv = fe->tuner_priv;
 	struct xc2028_ctrl *p    = priv_cfg;
 
-	tuner_info("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	priv->ctrl.type = p->type;
 
@@ -816,8 +826,6 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	if (p->max_len > 0)
 		priv->max_len = p->max_len;
-
-	tuner_info("%s OK\n", __FUNCTION__);
 
 	return 0;
 }
@@ -845,7 +853,8 @@ int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c_adap,
 {
 	struct xc2028_data *priv;
 
-	printk(KERN_INFO PREFIX "Xcv2028/3028 init called!\n");
+	if (debug)
+		printk(KERN_DEBUG PREFIX "Xcv2028/3028 init called!\n");
 
 	if (NULL == dev)
 		return -ENODEV;
