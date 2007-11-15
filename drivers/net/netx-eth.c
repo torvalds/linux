@@ -128,8 +128,8 @@ netx_eth_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	           FIFO_PTR_FRAMELEN(len));
 
 	ndev->trans_start = jiffies;
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
+	ndev->stats.tx_packets++;
+	ndev->stats.tx_bytes += skb->len;
 
 	netif_stop_queue(ndev);
 	spin_unlock_irq(&priv->lock);
@@ -155,7 +155,7 @@ static void netx_eth_receive(struct net_device *ndev)
 	if (unlikely(skb == NULL)) {
 		printk(KERN_NOTICE "%s: Low memory, packet dropped.\n",
 			ndev->name);
-		dev->stats.rx_dropped++;
+		ndev->stats.rx_dropped++;
 		return;
 	}
 

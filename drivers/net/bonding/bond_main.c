@@ -1847,9 +1847,9 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 */
 void bond_destroy(struct bonding *bond)
 {
-	unregister_netdevice(bond->dev);
 	bond_deinit(bond->dev);
 	bond_destroy_sysfs_entry(bond);
+	unregister_netdevice(bond->dev);
 }
 
 /*
@@ -4475,8 +4475,8 @@ static void bond_free_all(void)
 		bond_mc_list_destroy(bond);
 		/* Release the bonded slaves */
 		bond_release_all(bond_dev);
-		unregister_netdevice(bond_dev);
 		bond_deinit(bond_dev);
+		unregister_netdevice(bond_dev);
 	}
 
 #ifdef CONFIG_PROC_FS

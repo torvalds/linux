@@ -4804,6 +4804,7 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 			spin_unlock_irqrestore(&adapter->stats_lock, flags);
 			return -EIO;
 		}
+		spin_unlock_irqrestore(&adapter->stats_lock, flags);
 		if (adapter->hw.media_type == e1000_media_type_copper) {
 			switch (data->reg_num) {
 			case PHY_CTRL:
@@ -4824,12 +4825,8 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 						   DUPLEX_HALF;
 					retval = e1000_set_spd_dplx(adapter,
 								    spddplx);
-					if (retval) {
-						spin_unlock_irqrestore(
-							&adapter->stats_lock,
-							flags);
+					if (retval)
 						return retval;
-					}
 				}
 				if (netif_running(adapter->netdev))
 					e1000_reinit_locked(adapter);
@@ -4838,11 +4835,8 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 				break;
 			case M88E1000_PHY_SPEC_CTRL:
 			case M88E1000_EXT_PHY_SPEC_CTRL:
-				if (e1000_phy_reset(&adapter->hw)) {
-					spin_unlock_irqrestore(
-						&adapter->stats_lock, flags);
+				if (e1000_phy_reset(&adapter->hw))
 					return -EIO;
-				}
 				break;
 			}
 		} else {
@@ -4857,7 +4851,6 @@ e1000_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&adapter->stats_lock, flags);
 		break;
 	default:
 		return -EOPNOTSUPP;
