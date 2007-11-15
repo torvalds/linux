@@ -672,16 +672,6 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(!spin_trylock_irqsave(&priv->tx_lock, flags)))
 		return NETDEV_TX_LOCKED;
 
-	/*
-	 * Check if our queue is stopped.  Since we have the LLTX bit
-	 * set, we can't rely on netif_stop_queue() preventing our
-	 * xmit function from being called with a full queue.
-	 */
-	if (unlikely(netif_queue_stopped(dev))) {
-		spin_unlock_irqrestore(&priv->tx_lock, flags);
-		return NETDEV_TX_BUSY;
-	}
-
 	if (likely(skb->dst && skb->dst->neighbour)) {
 		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
 			ipoib_path_lookup(skb, dev);
