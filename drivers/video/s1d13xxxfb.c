@@ -540,7 +540,7 @@ s1d13xxxfb_probe(struct platform_device *pdev)
 	int ret = 0;
 	u8 revision;
 
-	dbg("probe called: device is %p\n", dev);
+	dbg("probe called: device is %p\n", pdev);
 
 	printk(KERN_INFO "Epson S1D13XXX FB Driver\n");
 
@@ -753,8 +753,11 @@ static struct platform_driver s1d13xxxfb_driver = {
 static int __init
 s1d13xxxfb_init(void)
 {
+
+#ifndef MODULE
 	if (fb_get_options("s1d13xxxfb", NULL))
 		return -ENODEV;
+#endif
 
 	return platform_driver_register(&s1d13xxxfb_driver);
 }
