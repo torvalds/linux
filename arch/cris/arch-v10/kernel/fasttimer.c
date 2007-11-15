@@ -46,8 +46,6 @@ static int sanity_failed;
 #define D2(x)
 #define DP(x)
 
-#define __INLINE__ inline
-
 static unsigned int fast_timer_running;
 static unsigned int fast_timers_added;
 static unsigned int fast_timers_started;
@@ -118,13 +116,13 @@ int timer_freq_settings[NUM_TIMER_STATS];
 int timer_delay_settings[NUM_TIMER_STATS];
 
 /* Not true gettimeofday, only checks the jiffies (uptime) + useconds */
-void __INLINE__ do_gettimeofday_fast(struct fasttime_t *tv)
+inline void do_gettimeofday_fast(struct fasttime_t *tv)
 {
 	tv->tv_jiff = jiffies;
 	tv->tv_usec = GET_JIFFIES_USEC();
 }
 
-int __INLINE__ timeval_cmp(struct fasttime_t *t0, struct fasttime_t *t1)
+inline int fasttime_cmp(struct fasttime_t *t0, struct fasttime_t *t1)
 {
 	/* Compare jiffies. Takes care of wrapping */
 	if (time_before(t0->tv_jiff, t1->tv_jiff))
@@ -140,7 +138,7 @@ int __INLINE__ timeval_cmp(struct fasttime_t *t0, struct fasttime_t *t1)
 	return 0;
 }
 
-void __INLINE__ start_timer1(unsigned long delay_us)
+inline void start_timer1(unsigned long delay_us)
 {
   int freq_index = 0; /* This is the lowest resolution */
   unsigned long upper_limit = MAX_DELAY_US;
@@ -264,7 +262,7 @@ void start_one_shot_timer(struct fast_timer *t,
   fast_timers_added++;
 
   /* Check if this should timeout before anything else */
-  if (tmp == NULL || timeval_cmp(&t->tv_expires, &tmp->tv_expires) < 0)
+	if (tmp == NULL || fasttime_cmp(&t->tv_expires, &tmp->tv_expires) < 0)
   {
     /* Put first in list and modify the timer value */
     t->prev = NULL;
@@ -280,8 +278,8 @@ void start_one_shot_timer(struct fast_timer *t,
     start_timer1(delay_us);
   } else {
     /* Put in correct place in list */
-    while (tmp->next &&
-           timeval_cmp(&t->tv_expires, &tmp->next->tv_expires) > 0)
+		while (tmp->next && fasttime_cmp(&t->tv_expires,
+				&tmp->next->tv_expires) > 0)
     {
       tmp = tmp->next;
     }
@@ -382,7 +380,7 @@ timer1_handler(int irq, void *dev_id)
 		D1(printk(KERN_DEBUG "t: %is %06ius\n",
 			tv.tv_jiff, tv.tv_usec));
 
-    if (timeval_cmp(&t->tv_expires, &tv) <= 0)
+		if (fasttime_cmp(&t->tv_expires, &tv) <= 0)
     {
       /* Yes it has expired */
 #ifdef FAST_TIMER_LOG
