@@ -130,6 +130,63 @@ static int param_get_debug_level(char *buffer, struct kernel_param *kp) {
 module_param_call(debug_layer, param_set_uint, param_get_debug_layer, &acpi_dbg_layer, 0644);
 module_param_call(debug_level, param_set_uint, param_get_debug_level, &acpi_dbg_level, 0644);
 
+static char trace_method_name[6];
+module_param_string(trace_method_name, trace_method_name, 6, 0644);
+static unsigned int trace_debug_layer;
+module_param(trace_debug_layer, uint, 0644);
+static unsigned int trace_debug_level;
+module_param(trace_debug_level, uint, 0644);
+
+static int param_set_trace_state(const char *val, struct kernel_param *kp)
+{
+	int result = 0;
+
+	if (!strncmp(val, "enable", strlen("enable") - 1)) {
+		result = acpi_debug_trace(trace_method_name, trace_debug_level,
+					  trace_debug_layer, 0);
+		if (result)
+			result = -EBUSY;
+		goto exit;
+	}
+
+	if (!strncmp(val, "disable", strlen("disable") - 1)) {
+		int name = 0;
+		result = acpi_debug_trace((char *)&name, trace_debug_level,
+					  trace_debug_layer, 0);
+		if (result)
+			result = -EBUSY;
+		goto exit;
+	}
+
+	if (!strncmp(val, "1", 1)) {
+		result = acpi_debug_trace(trace_method_name, trace_debug_level,
+					  trace_debug_layer, 1);
+		if (result)
+			result = -EBUSY;
+		goto exit;
+	}
+
+	result = -EINVAL;
+exit:
+	return result;
+}
+
+static int param_get_trace_state(char *buffer, struct kernel_param *kp)
+{
+	if (!acpi_gbl_trace_method_name)
+		return sprintf(buffer, "disable");
+	else {
+		if (acpi_gbl_trace_flags & 1)
+			return sprintf(buffer, "1");
+		else
+			return sprintf(buffer, "enable");
+	}
+	return 0;
+}
+
+module_param_call(trace_state, param_set_trace_state, param_get_trace_state,
+		  NULL, 0644);
+
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
