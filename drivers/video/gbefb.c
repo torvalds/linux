@@ -183,8 +183,8 @@ static struct fb_videomode default_mode_LCD __initdata = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-struct fb_videomode *default_mode = &default_mode_CRT;
-struct fb_var_screeninfo *default_var = &default_var_CRT;
+struct fb_videomode *default_mode __initdata = &default_mode_CRT;
+struct fb_var_screeninfo *default_var __initdata = &default_var_CRT;
 
 static int flat_panel_enabled = 0;
 
