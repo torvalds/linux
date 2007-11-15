@@ -236,7 +236,7 @@ void __init setup_arch(char **cmdline_p)
 	/* by now the stack is part of the init task */
 	memory_end = _ramend - DMA_UNCACHED_REGION;
 
-	_ramstart = (unsigned long)__bss_stop;
+	_ramstart = (unsigned long)_end;
 	memory_start = PAGE_ALIGN(_ramstart);
 
 #if defined(CONFIG_MTD_UCLINUX)
@@ -285,7 +285,7 @@ void __init setup_arch(char **cmdline_p)
 	}
 
 	/* Relocate MTD image to the top of memory after the uncached memory area */
-	dma_memcpy((char *)memory_end, __bss_stop, mtd_size);
+	dma_memcpy((char *)memory_end, _end, mtd_size);
 
 	memory_mtd_start = memory_end;
 	_ebss = memory_mtd_start;	/* define _ebss for compatible */
@@ -357,10 +357,10 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "Memory map:\n"
 	       KERN_INFO "  text      = 0x%p-0x%p\n"
 	       KERN_INFO "  rodata    = 0x%p-0x%p\n"
+	       KERN_INFO "  bss       = 0x%p-0x%p\n"
 	       KERN_INFO "  data      = 0x%p-0x%p\n"
 	       KERN_INFO "    stack   = 0x%p-0x%p\n"
 	       KERN_INFO "  init      = 0x%p-0x%p\n"
-	       KERN_INFO "  bss       = 0x%p-0x%p\n"
 	       KERN_INFO "  available = 0x%p-0x%p\n"
 #ifdef CONFIG_MTD_UCLINUX
 	       KERN_INFO "  rootfs    = 0x%p-0x%p\n"
@@ -370,10 +370,10 @@ void __init setup_arch(char **cmdline_p)
 #endif
 	       , _stext, _etext,
 	       __start_rodata, __end_rodata,
+	       __bss_start, __bss_stop,
 	       _sdata, _edata,
 	       (void *)&init_thread_union, (void *)((int)(&init_thread_union) + 0x2000),
 	       __init_begin, __init_end,
-	       __bss_start, __bss_stop,
 	       (void *)_ramstart, (void *)memory_end
 #ifdef CONFIG_MTD_UCLINUX
 	       , (void *)memory_mtd_start, (void *)(memory_mtd_start + mtd_size)
