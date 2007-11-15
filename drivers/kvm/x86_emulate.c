@@ -1528,7 +1528,9 @@ special_insn:
 	case 0xaa ... 0xab:	/* stos */
 		c->dst.type = OP_MEM;
 		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->dst.ptr = (unsigned long *)cr2;
+		c->dst.ptr = (unsigned long *)register_address(
+						   ctxt->es_base,
+						   c->regs[VCPU_REGS_RDI]);
 		c->dst.val = c->regs[VCPU_REGS_RAX];
 		register_address_increment(c->regs[VCPU_REGS_RDI],
 				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
@@ -1538,9 +1540,13 @@ special_insn:
 		c->dst.type = OP_REG;
 		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		c->dst.ptr = (unsigned long *)&c->regs[VCPU_REGS_RAX];
-		if ((rc = ops->read_emulated(cr2, &c->dst.val,
-					     c->dst.bytes,
-					     ctxt->vcpu)) != 0)
+		if ((rc = ops->read_emulated(register_address(
+				c->override_base ? *c->override_base :
+						   ctxt->ds_base,
+						 c->regs[VCPU_REGS_RSI]),
+						 &c->dst.val,
+						 c->dst.bytes,
+						 ctxt->vcpu)) != 0)
 			goto done;
 		register_address_increment(c->regs[VCPU_REGS_RSI],
 				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
