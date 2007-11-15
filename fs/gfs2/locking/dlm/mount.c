@@ -68,8 +68,7 @@ static int make_args(struct gdlm_ls *ls, char *data_arg, int *nodir)
 	strncpy(data, data_arg, 255);
 
 	if (!strlen(data)) {
-		printk(KERN_ERR
-		       "DLM/GFS2/GFS ERROR: (u)mount helpers are not installed!\n");
+		log_error("no mount options, (u)mount helpers not installed");
 		return -EINVAL;
 	}
 
