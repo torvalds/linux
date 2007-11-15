@@ -7087,8 +7087,10 @@ void sched_move_task(struct task_struct *tsk)
 
 	rq = task_rq_lock(tsk, &flags);
 
-	if (tsk->sched_class != &fair_sched_class)
+	if (tsk->sched_class != &fair_sched_class) {
+		set_task_cfs_rq(tsk);
 		goto done;
+	}
 
 	update_rq_clock(rq);
 
