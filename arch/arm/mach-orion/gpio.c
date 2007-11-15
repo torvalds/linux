@@ -93,7 +93,7 @@ int gpio_get_value(unsigned pin)
 	int val, mask = 1 << pin;
 
 	if (orion_read(GPIO_IO_CONF) & mask)
-		val = orion_read(GPIO_DATA_IN);
+		val = orion_read(GPIO_DATA_IN) ^ orion_read(GPIO_IN_POL);
 	else
 		val = orion_read(GPIO_OUT);
 
