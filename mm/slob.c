@@ -321,7 +321,8 @@ static void *slob_alloc(size_t size, gfp_t gfp, int align, int node)
 		/* Improve fragment distribution and reduce our average
 		 * search time by starting our next search here. (see
 		 * Knuth vol 1, sec 2.5, pg 449) */
-		if (free_slob_pages.next != prev->next)
+		if (prev != free_slob_pages.prev &&
+				free_slob_pages.next != prev->next)
 			list_move_tail(&free_slob_pages, prev->next);
 		break;
 	}
