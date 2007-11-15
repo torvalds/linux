@@ -5282,23 +5282,9 @@ static void migrate_live_tasks(int src_cpu)
 }
 
 /*
- * activate_idle_task - move idle task to the _front_ of runqueue.
- */
-static void activate_idle_task(struct task_struct *p, struct rq *rq)
-{
-	update_rq_clock(rq);
-
-	if (p->state == TASK_UNINTERRUPTIBLE)
-		rq->nr_uninterruptible--;
-
-	enqueue_task(rq, p, 0);
-	inc_nr_running(p, rq);
-}
-
-/*
  * Schedules idle task to be the next runnable task on current CPU.
- * It does so by boosting its priority to highest possible and adding it to
- * the _front_ of the runqueue. Used by CPU offline code.
+ * It does so by boosting its priority to highest possible.
+ * Used by CPU offline code.
  */
 void sched_idle_next(void)
 {
@@ -5318,8 +5304,8 @@ void sched_idle_next(void)
 
 	__setscheduler(rq, p, SCHED_FIFO, MAX_RT_PRIO-1);
 
-	/* Add idle task to the _front_ of its priority queue: */
-	activate_idle_task(p, rq);
+	update_rq_clock(rq);
+	activate_task(rq, p, 0);
 
 	spin_unlock_irqrestore(&rq->lock, flags);
 }
