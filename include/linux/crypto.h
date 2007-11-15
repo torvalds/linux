@@ -33,10 +33,12 @@
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000002
 #define CRYPTO_ALG_TYPE_HASH		0x00000003
 #define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
-#define CRYPTO_ALG_TYPE_COMPRESS	0x00000005
-#define CRYPTO_ALG_TYPE_AEAD		0x00000006
+#define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
+#define CRYPTO_ALG_TYPE_COMPRESS	0x00000008
+#define CRYPTO_ALG_TYPE_AEAD		0x00000009
 
 #define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
+#define CRYPTO_ALG_TYPE_BLKCIPHER_MASK	0x0000000c
 
 #define CRYPTO_ALG_LARVAL		0x00000010
 #define CRYPTO_ALG_DEAD			0x00000020
@@ -530,7 +532,7 @@ static inline struct crypto_ablkcipher *crypto_alloc_ablkcipher(
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK;
+	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 
 	return __crypto_ablkcipher_cast(
 		crypto_alloc_base(alg_name, type, mask));
@@ -552,7 +554,7 @@ static inline int crypto_has_ablkcipher(const char *alg_name, u32 type,
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK;
+	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 
 	return crypto_has_alg(alg_name, type, mask);
 }
@@ -841,9 +843,9 @@ static inline struct crypto_blkcipher *crypto_blkcipher_cast(
 static inline struct crypto_blkcipher *crypto_alloc_blkcipher(
 	const char *alg_name, u32 type, u32 mask)
 {
-	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
+	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+	mask |= CRYPTO_ALG_TYPE_MASK;
 
 	return __crypto_blkcipher_cast(crypto_alloc_base(alg_name, type, mask));
 }
@@ -861,9 +863,9 @@ static inline void crypto_free_blkcipher(struct crypto_blkcipher *tfm)
 
 static inline int crypto_has_blkcipher(const char *alg_name, u32 type, u32 mask)
 {
-	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC);
+	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
-	mask |= CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+	mask |= CRYPTO_ALG_TYPE_MASK;
 
 	return crypto_has_alg(alg_name, type, mask);
 }

@@ -191,7 +191,7 @@ static inline struct crypto_ablkcipher *crypto_spawn_ablkcipher(
 	struct crypto_spawn *spawn)
 {
 	u32 type = CRYPTO_ALG_TYPE_BLKCIPHER;
-	u32 mask = CRYPTO_ALG_TYPE_MASK;
+	u32 mask = CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 
 	return __crypto_ablkcipher_cast(crypto_spawn_tfm(spawn, type, mask));
 }
@@ -200,7 +200,7 @@ static inline struct crypto_blkcipher *crypto_spawn_blkcipher(
 	struct crypto_spawn *spawn)
 {
 	u32 type = CRYPTO_ALG_TYPE_BLKCIPHER;
-	u32 mask = CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_ASYNC;
+	u32 mask = CRYPTO_ALG_TYPE_MASK;
 
 	return __crypto_blkcipher_cast(crypto_spawn_tfm(spawn, type, mask));
 }

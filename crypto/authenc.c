@@ -292,7 +292,7 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 		goto out_put_auth;
 
 	enc = crypto_attr_alg(tb[3], CRYPTO_ALG_TYPE_BLKCIPHER,
-			      CRYPTO_ALG_TYPE_MASK);
+			      CRYPTO_ALG_TYPE_BLKCIPHER_MASK);
 	inst = ERR_PTR(PTR_ERR(enc));
 	if (IS_ERR(enc))
 		goto out_put_auth;
