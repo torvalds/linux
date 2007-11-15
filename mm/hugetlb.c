@@ -132,7 +132,7 @@ static void free_huge_page(struct page *page)
 	}
 	spin_unlock(&hugetlb_lock);
 	if (mapping)
-		hugetlb_put_quota(mapping);
+		hugetlb_put_quota(mapping, 1);
 	set_page_private(page, 0);
 }
 
@@ -390,7 +390,7 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	struct page *page;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 
-	if (hugetlb_get_quota(mapping))
+	if (hugetlb_get_quota(mapping, 1))
 		return ERR_PTR(-VM_FAULT_SIGBUS);
 
 	if (vma->vm_flags & VM_MAYSHARE)
