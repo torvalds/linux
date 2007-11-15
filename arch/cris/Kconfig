@@ -57,6 +57,10 @@ menu "General setup"
 
 source "fs/Kconfig.binfmt"
 
+config GENERIC_HARDIRQS
+	bool
+	default y
+
 config ETRAX_CMDLINE
 	string "Kernel command line"
 	default "root=/dev/mtdblock3"
