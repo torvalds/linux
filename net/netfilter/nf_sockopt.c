@@ -143,12 +143,12 @@ static int compat_nf_sockopt(struct sock *sk, int pf, int val,
 		if (ops->compat_get)
 			ret = ops->compat_get(sk, val, opt, len);
 		else
-			ret = ops->get(sk, val, ops, len);
+			ret = ops->get(sk, val, opt, len);
 	} else {
 		if (ops->compat_set)
-			ret = ops->compat_set(sk, val, ops, *len);
+			ret = ops->compat_set(sk, val, opt, *len);
 		else
-			ret = ops->set(sk, val, ops, *len);
+			ret = ops->set(sk, val, opt, *len);
 	}
 
 	module_put(ops->owner);
