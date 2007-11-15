@@ -185,11 +185,10 @@ static int srp_host_match(struct attribute_container *cont, struct device *dev)
 
 /**
  * srp_rport_add - add a SRP remote port to the device hierarchy
- *
  * @shost:	scsi host the remote port is connected to.
  * @ids:	The port id for the remote port.
  *
- * publishes a port to the rest of the system
+ * Publishes a port to the rest of the system.
  */
 struct srp_rport *srp_rport_add(struct Scsi_Host *shost,
 				struct srp_rport_identifiers *ids)

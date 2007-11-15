@@ -960,7 +960,7 @@ EXPORT_SYMBOL(__starget_for_each_device);
  * reference.  You must hold the host's host_lock over this call and
  * any access to the returned scsi_device.
  *
- * Note:  The only reason why drivers would want to use this is because
+ * Note:  The only reason why drivers should use this is because
  * they need to access the device list in irq context.  Otherwise you
  * really want to use scsi_device_lookup_by_target instead.
  **/

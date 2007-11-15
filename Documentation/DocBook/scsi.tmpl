@@ -4,7 +4,7 @@
 
 <book id="scsimid">
   <bookinfo>
-    <title>SCSI Mid Layer Guide</title>
+    <title>SCSI Interfaces Guide</title>
 
     <authorgroup>
       <author>
@@ -92,7 +92,7 @@
         The SCSI subsystem uses a three layer design, with upper, mid, and low
         layers.  Every operation involving the SCSI subsystem (such as reading
         a sector from a disk) uses one driver at each of the 3 levels: one
-        upper layer driver, one lower layer driver, and the scsi midlayer.
+        upper layer driver, one lower layer driver, and the SCSI midlayer.
       </para>
       <para>
         The SCSI upper layer provides the interface between userspace and the
@@ -154,7 +154,7 @@
 
       <sect2 id="scsi.c">
         <title>drivers/scsi/scsi.c</title>
-        <para>Main file for the scsi midlayer.</para>
+        <para>Main file for the SCSI midlayer.</para>
 !Edrivers/scsi/scsi.c
       </sect2>
       <sect2 id="scsicam.c">
@@ -182,7 +182,7 @@
       <sect2 id="scsi_ioctl.c">
         <title>drivers/scsi/scsi_ioctl.c</title>
         <para>
-          Handle ioctl() calls for scsi devices.
+          Handle ioctl() calls for SCSI devices.
         </para>
 !Edrivers/scsi/scsi_ioctl.c
       </sect2>
@@ -287,7 +287,7 @@
     <sect1 id="Transport_classes">
       <title>Transport classes</title>
       <para>
-        Transport classes are service libraries for drivers in the scsi
+        Transport classes are service libraries for drivers in the SCSI
         lower layer, which expose transport attributes in sysfs.
       </para>
       <sect2 id="Fibre_Channel_transport">
