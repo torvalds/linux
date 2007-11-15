@@ -69,6 +69,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"CTL3001",		0	},
 	/* Creative Labs Modem Blaster 28.8 DSVD PnP Voice */
 	{	"CTL3011",		0	},
+	/* Davicom ISA 33.6K Modem */
+	{	"DAV0336",		0	},
 	/* Creative */
 	/* Creative Modem Blaster Flash56 DI5601-1 */
 	{	"DMB1032",		0	},
