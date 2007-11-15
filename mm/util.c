@@ -95,8 +95,8 @@ void *krealloc(const void *p, size_t new_size, gfp_t flags)
 		return (void *)p;
 
 	ret = kmalloc_track_caller(new_size, flags);
-	if (ret) {
-		memcpy(ret, p, min(new_size, ks));
+	if (ret && p) {
+		memcpy(ret, p, ks);
 		kfree(p);
 	}
 	return ret;
