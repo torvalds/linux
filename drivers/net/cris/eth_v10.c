@@ -1088,6 +1088,8 @@ e100_set_duplex(struct net_device* dev, enum duplex new_duplex)
 static int
 e100_probe_transceiver(struct net_device* dev)
 {
+	int ret = 0;
+
 #if !defined(CONFIG_ETRAX_NO_PHY)
 	unsigned int phyid_high;
 	unsigned int phyid_low;
@@ -1104,8 +1106,10 @@ e100_probe_transceiver(struct net_device* dev)
 				      np->mii_if.phy_id, MII_BMSR) != 0xffff)
 			break;
 	}
-	if (np->mii_if.phy_id == 32)
-		 return -ENODEV;
+	if (np->mii_if.phy_id == 32) {
+		ret = -ENODEV;
+		goto out;
+	}
 
 	/* Get manufacturer */
 	phyid_high = e100_get_mdio_reg(dev, np->mii_if.phy_id, MII_PHYSID1);
@@ -1117,10 +1121,10 @@ e100_probe_transceiver(struct net_device* dev)
 			break;
 	}
 	transceiver = ops;
-
+out:
 	spin_unlock(&np->transceiver_lock);
 #endif
-	return 0;
+	return ret;
 }
 
 static int
