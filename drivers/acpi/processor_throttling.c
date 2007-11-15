@@ -131,6 +131,7 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *ptc = NULL;
 	union acpi_object obj = { 0 };
+	struct acpi_processor_throttling *throttling;
 
 	status = acpi_evaluate_object(pr->handle, "_PTC", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -181,6 +182,22 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 
 	memcpy(&pr->throttling.status_register, obj.buffer.pointer,
 	       sizeof(struct acpi_ptc_register));
+
+	throttling = &pr->throttling;
+
+	if ((throttling->control_register.bit_width +
+		throttling->control_register.bit_offset) > 32) {
+		printk(KERN_ERR PREFIX "Invalid _PTC control register\n");
+		result = -EFAULT;
+		goto end;
+	}
+
+	if ((throttling->status_register.bit_width +
+		throttling->status_register.bit_offset) > 32) {
+		printk(KERN_ERR PREFIX "Invalid _PTC status register\n");
+		result = -EFAULT;
+		goto end;
+	}
 
       end:
 	kfree(buffer.pointer);
@@ -379,7 +396,9 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 static int acpi_read_throttling_status(struct acpi_processor *pr,
 					acpi_integer *value)
 {
+	u32 bit_width, bit_offset;
 	u64 ptc_value;
+	u64 ptc_mask;
 	struct acpi_processor_throttling *throttling;
 	int ret = -1;
 
@@ -387,11 +406,14 @@ static int acpi_read_throttling_status(struct acpi_processor *pr,
 	switch (throttling->status_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 		ptc_value = 0;
+		bit_width = throttling->status_register.bit_width;
+		bit_offset = throttling->status_register.bit_offset;
+
 		acpi_os_read_port((acpi_io_address) throttling->status_register.
 				  address, (u32 *) &ptc_value,
-				  (u32) throttling->status_register.bit_width *
-				  8);
-		*value = (acpi_integer) ptc_value;
+				  (u32) (bit_width + bit_offset));
+		ptc_mask = (1 << bit_width) - 1;
+		*value = (acpi_integer) ((ptc_value >> bit_offset) & ptc_mask);
 		ret = 0;
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
@@ -408,18 +430,24 @@ static int acpi_read_throttling_status(struct acpi_processor *pr,
 static int acpi_write_throttling_state(struct acpi_processor *pr,
 				acpi_integer value)
 {
+	u32 bit_width, bit_offset;
 	u64 ptc_value;
+	u64 ptc_mask;
 	struct acpi_processor_throttling *throttling;
 	int ret = -1;
 
 	throttling = &pr->throttling;
 	switch (throttling->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
-		ptc_value = value;
+		bit_width = throttling->control_register.bit_width;
+		bit_offset = throttling->control_register.bit_offset;
+		ptc_mask = (1 << bit_width) - 1;
+		ptc_value = value & ptc_mask;
+
 		acpi_os_write_port((acpi_io_address) throttling->
-				   control_register.address, (u32) ptc_value,
-				   (u32) throttling->control_register.
-				   bit_width * 8);
+					control_register.address,
+					(u32) (ptc_value << bit_offset),
+					(u32) (bit_width + bit_offset));
 		ret = 0;
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
