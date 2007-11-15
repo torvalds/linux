@@ -15,4 +15,7 @@
 #define SET_ETH_DUPLEX_AUTO     SIOCDEVPRIVATE+3        /* Auto neg duplex */
 #define SET_ETH_DUPLEX_HALF     SIOCDEVPRIVATE+4        /* Full duplex */
 #define SET_ETH_DUPLEX_FULL     SIOCDEVPRIVATE+5        /* Half duplex */
+#define SET_ETH_ENABLE_LEDS     SIOCDEVPRIVATE+6        /* Enable net LEDs */
+#define SET_ETH_DISABLE_LEDS    SIOCDEVPRIVATE+7        /* Disable net LEDs */
+#define SET_ETH_AUTONEG         SIOCDEVPRIVATE+8
 #endif /* _CRIS_ETHERNET_H */
