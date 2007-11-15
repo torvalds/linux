@@ -670,8 +670,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		printk("\n");
 	} else
 		printk("\n" KERN_NOTICE
-			"Cannot look at the [PC] for it is"
-			" in unreadable memory - sorry\n");
+			"Cannot look at the [PC] <%p> for it is"
+			" in unreadable memory - sorry\n", retaddr);
 
 	printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\n");
 	printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",

@@ -163,8 +163,8 @@ static struct cplb_desc cplb_data[] = {
 
 static u16 __init lock_kernel_check(u32 start, u32 end)
 {
-	if ((start <= (u32) _stext && end >= (u32) _end)
-	    || (start >= (u32) _stext && end <= (u32) _end))
+	if ((end   <= (u32) _end && end   >= (u32)_stext) ||
+	    (start <= (u32) _end && start >= (u32)_stext))
 		return IN_KERNEL;
 	return 0;
 }
