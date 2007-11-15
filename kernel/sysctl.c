@@ -2620,6 +2620,10 @@ static int deprecated_sysctl_warning(struct __sysctl_args *args)
 	int name[CTL_MAXNAME];
 	int i;
 
+	/* Check args->nlen. */
+	if (args->nlen < 0 || args->nlen > CTL_MAXNAME)
+		return -ENOTDIR;
+
 	/* Read in the sysctl name for better debug message logging */
 	for (i = 0; i < args->nlen; i++)
 		if (get_user(name[i], args->name + i))
