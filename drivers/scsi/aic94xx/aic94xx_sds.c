@@ -377,7 +377,7 @@ out:
 
 #define FLASH_RESET			0xF0
 
-#define FLASH_SIZE                      0x200000
+#define ASD_FLASH_SIZE                  0x200000
 #define FLASH_DIR_COOKIE                "*** ADAPTEC FLASH DIRECTORY *** "
 #define FLASH_NEXT_ENTRY_OFFS		0x2000
 #define FLASH_MAX_DIR_ENTRIES		32
@@ -609,7 +609,7 @@ static int asd_find_flash_dir(struct asd_ha_struct *asd_ha,
 			      struct asd_flash_dir *flash_dir)
 {
 	u32 v;
-	for (v = 0; v < FLASH_SIZE; v += FLASH_NEXT_ENTRY_OFFS) {
+	for (v = 0; v < ASD_FLASH_SIZE; v += FLASH_NEXT_ENTRY_OFFS) {
 		asd_read_flash_seg(asd_ha, flash_dir, v,
 				   sizeof(FLASH_DIR_COOKIE)-1);
 		if (memcmp(flash_dir->cookie, FLASH_DIR_COOKIE,
