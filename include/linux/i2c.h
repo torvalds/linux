@@ -400,11 +400,6 @@ extern int i2c_release_client(struct i2c_client *);
 extern void i2c_clients_command(struct i2c_adapter *adap,
 				unsigned int cmd, void *arg);
 
-/* returns -EBUSY if address has been taken, 0 if not. Note that the only
-   other place at which this is called is within i2c_attach_client; so
-   you can cheat by simply not registering. Not recommended, of course! */
-extern int i2c_check_addr (struct i2c_adapter *adapter, int addr);
-
 /* Detect function. It iterates over all possible addresses itself.
  * It will only call found_proc if some client is connected at the
  * specific address (unless a 'force' matched);

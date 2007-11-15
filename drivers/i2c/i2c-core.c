@@ -673,7 +673,7 @@ static int __i2c_check_addr(struct i2c_adapter *adapter, unsigned int addr)
 	return 0;
 }
 
-int i2c_check_addr(struct i2c_adapter *adapter, int addr)
+static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 {
 	int rval;
 
@@ -683,7 +683,6 @@ int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 
 	return rval;
 }
-EXPORT_SYMBOL(i2c_check_addr);
 
 int i2c_attach_client(struct i2c_client *client)
 {
