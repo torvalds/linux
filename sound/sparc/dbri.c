@@ -2279,9 +2279,20 @@ static int snd_cs4215_put_volume(struct snd_kcontrol *kcontrol,
 	struct snd_dbri *dbri = snd_kcontrol_chip(kcontrol);
 	struct dbri_streaminfo *info =
 				&dbri->stream_info[kcontrol->private_value];
+	unsigned int vol[2];
 	int changed = 0;
 
-	if (info->left_gain != ucontrol->value.integer.value[0]) {
+	vol[0] = ucontrol->value.integer.value[0];
+	vol[1] = ucontrol->value.integer.value[1];
+	if (kcontrol->private_value == DBRI_PLAY) {
+		if (vol[0] > DBRI_MAX_VOLUME || vol[1] > DBRI_MAX_VOLUME)
+			return -EINVAL;
+	} else {
+		if (vol[0] > DBRI_MAX_GAIN || vol[1] > DBRI_MAX_GAIN)
+			return -EINVAL;
+	}
+
+	if (info->left_gain != 
 		info->left_gain = ucontrol->value.integer.value[0];
 		changed = 1;
 	}

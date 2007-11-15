@@ -461,13 +461,14 @@ static int snd_mts64_ctl_smpte_switch_put(struct snd_kcontrol* kctl,
 {
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
 	int changed = 0;
+	int val = !!uctl->value.integer.value[0];
 
 	spin_lock_irq(&mts->lock);
-	if (mts->smpte_switch == uctl->value.integer.value[0])
+	if (mts->smpte_switch == val)
 		goto __out;
 
 	changed = 1;
-	mts->smpte_switch = uctl->value.integer.value[0];
+	mts->smpte_switch = val;
 	if (mts->smpte_switch) {
 		mts64_smpte_start(mts->pardev->port,
 				  mts->time[0], mts->time[1],
@@ -541,12 +542,13 @@ static int snd_mts64_ctl_smpte_time_put(struct snd_kcontrol *kctl,
 {
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
 	int idx = kctl->private_value;
+	unsigned int time = uctl->value.integer.value[0] % 60;
 	int changed = 0;
 
 	spin_lock_irq(&mts->lock);
-	if (mts->time[idx] != uctl->value.integer.value[0]) {
+	if (mts->time[idx] != time) {
 		changed = 1;
-		mts->time[idx] = uctl->value.integer.value[0];
+		mts->time[idx] = time;
 	}
 	spin_unlock_irq(&mts->lock);
 
@@ -636,6 +638,8 @@ static int snd_mts64_ctl_smpte_fps_put(struct snd_kcontrol *kctl,
 	struct mts64 *mts = snd_kcontrol_chip(kctl);
 	int changed = 0;
 
+	if (uctl->value.enumerated.item[0] >= 5)
+		return -EINVAL;
 	spin_lock_irq(&mts->lock);
 	if (mts->fps != uctl->value.enumerated.item[0]) {
 		changed = 1;

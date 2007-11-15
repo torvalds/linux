@@ -483,6 +483,10 @@ static int snd_miro_put_double(struct snd_kcontrol *kcontrol,
 
 		/* equalizer elements */
 
+		if (left < -0x7f || left > 0x7f ||
+		    right < -0x7f || right > 0x7f)
+			return -EINVAL;
+
 		if (left_old > 0x80) 
 			left_old = 0x80 - left_old;
 		if (right_old > 0x80) 
@@ -519,6 +523,10 @@ static int snd_miro_put_double(struct snd_kcontrol *kcontrol,
 	} else {
 
 		/* non-equalizer elements */
+
+		if (left < 0 || left > 0x20 ||
+		    right < 0 || right > 0x20)
+			return -EINVAL;
 
 		left_old = 0x20 - left_old;
 		right_old = 0x20 - right_old;

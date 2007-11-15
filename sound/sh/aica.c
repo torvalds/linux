@@ -523,11 +523,14 @@ static int aica_pcmvolume_put(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_card_aica *dreamcastcard;
+	unsigned int vol;
 	dreamcastcard = kcontrol->private_data;
 	if (unlikely(!dreamcastcard->channel))
 		return -ETXTBSY;
-	if (unlikely(dreamcastcard->channel->vol ==
-		     ucontrol->value.integer.value[0]))
+	vol = ucontrol->value.integer.value[0];
+	if (vol > 0xff)
+		return -EINVAL;
+	if (unlikely(dreamcastcard->channel->vol == vol))
 		return 0;
 	dreamcastcard->channel->vol = ucontrol->value.integer.value[0];
 	dreamcastcard->master_volume = ucontrol->value.integer.value[0];
