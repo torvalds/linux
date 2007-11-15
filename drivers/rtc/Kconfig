@@ -135,8 +135,8 @@ config RTC_DRV_DS1307
 
 	  The first seven registers on these chips hold an RTC, and other
 	  registers may add features such as NVRAM, a trickle charger for
-	  the RTC/NVRAM backup power, and alarms.  This driver may not
-	  expose all those available chip features.
+	  the RTC/NVRAM backup power, and alarms.  NVRAM is visible in
+	  sysfs, but other chip features may not be available.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1307.
