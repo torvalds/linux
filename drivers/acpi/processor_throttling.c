@@ -70,7 +70,55 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 {
-	return acpi_processor_get_platform_limit(pr);
+	int result = 0;
+	int throttling_limit;
+	int current_state;
+	struct acpi_processor_limit *limit;
+	int target_state;
+
+	result = acpi_processor_get_platform_limit(pr);
+	if (result) {
+		/* Throttling Limit is unsupported */
+		return result;
+	}
+
+	throttling_limit = pr->throttling_platform_limit;
+	if (throttling_limit >= pr->throttling.state_count) {
+		/* Uncorrect Throttling Limit */
+		return -EINVAL;
+	}
+
+	current_state = pr->throttling.state;
+	if (current_state > throttling_limit) {
+		/*
+		 * The current state can meet the requirement of
+		 * _TPC limit. But it is reasonable that OSPM changes
+		 * t-states from high to low for better performance.
+		 * Of course the limit condition of thermal
+		 * and user should be considered.
+		 */
+		limit = &pr->limit;
+		target_state = throttling_limit;
+		if (limit->thermal.tx > target_state)
+			target_state = limit->thermal.tx;
+		if (limit->user.tx > target_state)
+			target_state = limit->user.tx;
+	} else if (current_state == throttling_limit) {
+		/*
+		 * Unnecessary to change the throttling state
+		 */
+		return 0;
+	} else {
+		/*
+		 * If the current state is lower than the limit of _TPC, it
+		 * will be forced to switch to the throttling state defined
+		 * by throttling_platfor_limit.
+		 * Because the previous state meets with the limit condition
+		 * of thermal and user, it is unnecessary to check it again.
+		 */
+		target_state = throttling_limit;
+	}
+	return acpi_processor_set_throttling(pr, target_state);
 }
 
 /*
