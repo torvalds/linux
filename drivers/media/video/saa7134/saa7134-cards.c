@@ -4207,7 +4207,37 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x0070,
+		.subdevice    = 0x6700,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
 		.subdevice    = 0x6701,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6702,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6703,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6704,
+		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0070,
+		.subdevice    = 0x6705,
 		.driver_data  = SAA7134_BOARD_HAUPPAUGE_HVR1110,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
