@@ -293,12 +293,15 @@ static int snd_emu1010_output_source_put(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	unsigned int channel;
 
+	val = ucontrol->value.enumerated.item[0];
+	if (val >= 53)
+		return -EINVAL;
 	channel = (kcontrol->private_value) & 0xff;
 	/* Limit: emu1010_output_dst, emu->emu1010.output_source */
 	if (channel >= 24)
 		return -EINVAL;
-	if (emu->emu1010.output_source[channel] != ucontrol->value.enumerated.item[0]) {
-		val = emu->emu1010.output_source[channel] = ucontrol->value.enumerated.item[0];
+	if (emu->emu1010.output_source[channel] != val) {
+		emu->emu1010.output_source[channel] = val;
 		change = 1;
 		snd_emu1010_fpga_link_dst_src_write(emu,
 			emu1010_output_dst[channel], emu1010_src_regs[val]);
@@ -328,12 +331,15 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	unsigned int channel;
 
+	val = ucontrol->value.enumerated.item[0];
+	if (val >= 53)
+		return -EINVAL;
 	channel = (kcontrol->private_value) & 0xff;
 	/* Limit: emu1010_input_dst, emu->emu1010.input_source */
 	if (channel >= 22)
 		return -EINVAL;
-	if (emu->emu1010.input_source[channel] != ucontrol->value.enumerated.item[0]) {
-		val = emu->emu1010.input_source[channel] = ucontrol->value.enumerated.item[0];
+	if (emu->emu1010.input_source[channel] != val) {
+		emu->emu1010.input_source[channel] = val;
 		change = 1;
 		snd_emu1010_fpga_link_dst_src_write(emu,
 			emu1010_input_dst[channel], emu1010_src_regs[val]);
@@ -1083,7 +1089,6 @@ static int snd_emu10k1_send_volume_put(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int change = 0, idx, val;
@@ -1136,7 +1141,6 @@ static int snd_emu10k1_attn_get(struct snd_kcontrol *kcontrol,
                                 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	unsigned long flags;
@@ -1154,7 +1158,6 @@ static int snd_emu10k1_attn_put(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int change = 0, idx, val;
@@ -1207,7 +1210,6 @@ static int snd_emu10k1_efx_send_routing_get(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int idx;
@@ -1227,7 +1229,6 @@ static int snd_emu10k1_efx_send_routing_put(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	int ch = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	struct snd_emu10k1_pcm_mixer *mix = &emu->efx_pcm_mixer[ch];
 	int change = 0, idx, val;
@@ -1279,7 +1280,6 @@ static int snd_emu10k1_efx_send_volume_get(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	int idx;
@@ -1297,7 +1297,6 @@ static int snd_emu10k1_efx_send_volume_put(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	int ch = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	struct snd_emu10k1_pcm_mixer *mix = &emu->efx_pcm_mixer[ch];
 	int change = 0, idx, val;
@@ -1346,7 +1345,6 @@ static int snd_emu10k1_efx_attn_get(struct snd_kcontrol *kcontrol,
                                 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	struct snd_emu10k1_pcm_mixer *mix =
 		&emu->efx_pcm_mixer[snd_ctl_get_ioffidx(kcontrol, &ucontrol->id)];
 	unsigned long flags;
@@ -1362,7 +1360,6 @@ static int snd_emu10k1_efx_attn_put(struct snd_kcontrol *kcontrol,
 {
 	unsigned long flags;
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	/* FIXME: Check limits */
 	int ch = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	struct snd_emu10k1_pcm_mixer *mix = &emu->efx_pcm_mixer[ch];
 	int change = 0, val;
