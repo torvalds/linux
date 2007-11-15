@@ -388,6 +388,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr)
 {
 	struct page *page;
+	struct address_space *mapping = vma->vm_file->f_mapping;
+
+	if (hugetlb_get_quota(mapping))
+		return ERR_PTR(-VM_FAULT_SIGBUS);
 
 	if (vma->vm_flags & VM_MAYSHARE)
 		page = alloc_huge_page_shared(vma, addr);
@@ -395,9 +399,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 		page = alloc_huge_page_private(vma, addr);
 	if (page) {
 		set_page_refcounted(page);
-		set_page_private(page, (unsigned long) vma->vm_file->f_mapping);
-	}
-	return page;
+		set_page_private(page, (unsigned long) mapping);
+		return page;
+	} else
+		return ERR_PTR(-VM_FAULT_OOM);
 }
 
 static int __init hugetlb_init(void)
@@ -737,15 +742,13 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 		set_huge_ptep_writable(vma, address, ptep);
 		return 0;
 	}
-	if (hugetlb_get_quota(vma->vm_file->f_mapping))
-		return VM_FAULT_SIGBUS;
 
 	page_cache_get(old_page);
 	new_page = alloc_huge_page(vma, address);
 
-	if (!new_page) {
+	if (IS_ERR(new_page)) {
 		page_cache_release(old_page);
-		return VM_FAULT_OOM;
+		return -PTR_ERR(new_page);
 	}
 
 	spin_unlock(&mm->page_table_lock);
@@ -789,12 +792,9 @@ retry:
 		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
 		if (idx >= size)
 			goto out;
-		if (hugetlb_get_quota(mapping))
-			goto out;
 		page = alloc_huge_page(vma, address);
-		if (!page) {
-			hugetlb_put_quota(mapping);
-			ret = VM_FAULT_OOM;
+		if (IS_ERR(page)) {
+			ret = -PTR_ERR(page);
 			goto out;
 		}
 		clear_huge_page(page, address);
