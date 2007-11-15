@@ -57,6 +57,9 @@ int reiserfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 			if (get_user(flags, (int __user *)arg))
 				return -EFAULT;
 
+			/* Is it quota file? Do not allow user to mess with it. */
+			if (IS_NOQUOTA(inode))
+				return -EPERM;
 			if (((flags ^ REISERFS_I(inode)->
 			      i_attrs) & (REISERFS_IMMUTABLE_FL |
 					  REISERFS_APPEND_FL))
