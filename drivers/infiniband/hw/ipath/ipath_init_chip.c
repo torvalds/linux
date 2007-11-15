@@ -348,7 +348,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 
 	spin_lock_init(&dd->ipath_gpio_lock);
 	spin_lock_init(&dd->ipath_eep_st_lock);
-	sema_init(&dd->ipath_eep_sem, 1);
+	mutex_init(&dd->ipath_eep_lock);
 
 done:
 	*pdp = pd;

@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/mutex.h>
 #include <asm/io.h>
 #include <rdma/ib_verbs.h>
 
@@ -616,7 +617,7 @@ struct ipath_devdata {
 	/* control access to actual counters, timer */
 	spinlock_t ipath_eep_st_lock;
 	/* control high-level access to EEPROM */
-	struct semaphore ipath_eep_sem;
+	struct mutex ipath_eep_lock;
 	/* Below inc'd by ipath_snap_cntrs(), locked by ipath_eep_st_lock */
 	uint64_t ipath_traffic_wds;
 	/* active time is kept in seconds, but logged in hours */

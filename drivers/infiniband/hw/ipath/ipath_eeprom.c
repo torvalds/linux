@@ -510,10 +510,10 @@ int ipath_eeprom_read(struct ipath_devdata *dd, u8 eeprom_offset,
 {
 	int ret;
 
-	ret = down_interruptible(&dd->ipath_eep_sem);
+	ret = mutex_lock_interruptible(&dd->ipath_eep_lock);
 	if (!ret) {
 		ret = ipath_eeprom_internal_read(dd, eeprom_offset, buff, len);
-		up(&dd->ipath_eep_sem);
+		mutex_unlock(&dd->ipath_eep_lock);
 	}
 
 	return ret;
@@ -524,10 +524,10 @@ int ipath_eeprom_write(struct ipath_devdata *dd, u8 eeprom_offset,
 {
 	int ret;
 
-	ret = down_interruptible(&dd->ipath_eep_sem);
+	ret = mutex_lock_interruptible(&dd->ipath_eep_lock);
 	if (!ret) {
 		ret = ipath_eeprom_internal_write(dd, eeprom_offset, buff, len);
-		up(&dd->ipath_eep_sem);
+		mutex_unlock(&dd->ipath_eep_lock);
 	}
 
 	return ret;
@@ -616,9 +616,9 @@ void ipath_get_eeprom_info(struct ipath_devdata *dd)
 		goto bail;
 	}
 
-	down(&dd->ipath_eep_sem);
+	mutex_lock(&dd->ipath_eep_lock);
 	eep_stat = ipath_eeprom_internal_read(dd, 0, buf, len);
-	up(&dd->ipath_eep_sem);
+	mutex_unlock(&dd->ipath_eep_lock);
 
 	if (eep_stat) {
 		ipath_dev_err(dd, "Failed reading GUID from eeprom\n");
@@ -764,14 +764,14 @@ int ipath_update_eeprom_log(struct ipath_devdata *dd)
 	/* Grab semaphore and read current EEPROM. If we get an
 	 * error, let go, but if not, keep it until we finish write.
 	 */
-	ret = down_interruptible(&dd->ipath_eep_sem);
+	ret = mutex_lock_interruptible(&dd->ipath_eep_lock);
 	if (ret) {
 		ipath_dev_err(dd, "Unable to acquire EEPROM for logging\n");
 		goto free_bail;
 	}
 	ret = ipath_eeprom_internal_read(dd, 0, buf, len);
 	if (ret) {
-		up(&dd->ipath_eep_sem);
+		mutex_unlock(&dd->ipath_eep_lock);
 		ipath_dev_err(dd, "Unable read EEPROM for logging\n");
 		goto free_bail;
 	}
@@ -779,7 +779,7 @@ int ipath_update_eeprom_log(struct ipath_devdata *dd)
 
 	csum = flash_csum(ifp, 0);
 	if (csum != ifp->if_csum) {
-		up(&dd->ipath_eep_sem);
+		mutex_unlock(&dd->ipath_eep_lock);
 		ipath_dev_err(dd, "EEPROM cks err (0x%02X, S/B 0x%02X)\n",
 				csum, ifp->if_csum);
 		ret = 1;
@@ -849,7 +849,7 @@ int ipath_update_eeprom_log(struct ipath_devdata *dd)
 		csum = flash_csum(ifp, 1);
 		ret = ipath_eeprom_internal_write(dd, 0, buf, hi_water + 1);
 	}
-	up(&dd->ipath_eep_sem);
+	mutex_unlock(&dd->ipath_eep_lock);
 	if (ret)
 		ipath_dev_err(dd, "Failed updating EEPROM\n");
 
