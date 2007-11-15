@@ -525,6 +525,7 @@ static inline int set_sysint1_assign(unsigned int irq, unsigned char assign)
 		intassign1 |= (uint16_t)assign << 9;
 		break;
 	default:
+		spin_unlock_irq(&desc->lock);
 		return -EINVAL;
 	}
 
@@ -592,6 +593,7 @@ static inline int set_sysint2_assign(unsigned int irq, unsigned char assign)
 		intassign3 |= (uint16_t)assign << 12;
 		break;
 	default:
+		spin_unlock_irq(&desc->lock);
 		return -EINVAL;
 	}
 
