@@ -166,11 +166,11 @@ choice
 
 config BF_REV_0_0
 	bool "0.0"
-	depends on (BF549 || BF527)
+	depends on (BF52x || BF54x)
 
 config BF_REV_0_1
-	bool "0.2"
-	depends on (BF549 || BF527)
+	bool "0.1"
+	depends on (BF52x || BF54x)
 
 config BF_REV_0_2
 	bool "0.2"
