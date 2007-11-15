@@ -26,6 +26,7 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 #include <media/v4l2-common.h>
+#include <media/tveeprom.h>
 
 /* commly used strings */
 static char name_mute[]    = "mute";
@@ -4381,6 +4382,34 @@ static void board_flyvideo(struct saa7134_dev *dev)
 
 /* ----------------------------------------------------------- */
 
+static void hauppauge_eeprom(struct saa7134_dev *dev, u8 *eeprom_data)
+{
+	struct tveeprom tv;
+
+	tveeprom_hauppauge_analog(&dev->i2c_client, &tv, eeprom_data);
+
+	/* Make sure we support the board model */
+	switch (tv.model) {
+	case 67019: /* WinTV-HVR1110 (Retail, IR Blaster, hybrid, FM, SVid/Comp, 3.5mm audio in) */
+	case 67109: /* WinTV-HVR1000 (Retail, IR Receive, analog, no FM, SVid/Comp, 3.5mm audio in) */
+	case 67559: /* WinTV-HVR1110 (OEM, no IR, hybrid, FM, SVid/Comp, RCA aud) */
+	case 67569: /* WinTV-HVR1110 (OEM, no IR, hybrid, FM) */
+	case 67579: /* WinTV-HVR1110 (OEM, no IR, hybrid, no FM) */
+	case 67589: /* WinTV-HVR1110 (OEM, no IR, hybrid, no FM, SVid/Comp, RCA aud) */
+	case 67599: /* WinTV-HVR1110 (OEM, no IR, hybrid, no FM, SVid/Comp, RCA aud) */
+		break;
+	default:
+		printk(KERN_WARNING "%s: warning: "
+		       "unknown hauppauge model #%d\n", dev->name, tv.model);
+		break;
+	}
+
+	printk(KERN_INFO "%s: hauppauge eeprom: model=%d\n",
+	       dev->name, tv.model);
+}
+
+/* ----------------------------------------------------------- */
+
 int saa7134_board_init1(struct saa7134_dev *dev)
 {
 	/* Always print gpio, often manufacturers encode tuner type and other info. */
@@ -4661,13 +4690,15 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		}
 		break;
+	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
+		hauppauge_eeprom(dev, dev->eedata+0x80);
+		/* break intentionally omitted */
 	case SAA7134_BOARD_PINNACLE_PCTV_310i:
 	case SAA7134_BOARD_KWORLD_DVBT_210:
 	case SAA7134_BOARD_TEVION_DVBT_220RF:
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 	case SAA7134_BOARD_MEDION_MD8800_QUADRO:
-	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		/* this is a hybrid board, initialize to analog mode
 		 * and configure firmware eeprom address
 		 */
