@@ -296,7 +296,7 @@ static struct bfin5xx_spi_chip spi_mmc_chip_info = {
 
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
-	.cs_change_per_word = 1,
+	.cs_change_per_word = 0,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
@@ -388,7 +388,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	.platform_data		= &bfin_ad7877_ts_info,
 	.irq			= IRQ_PF2,
 	.max_speed_hz		= 12500000,     /* max spi clock (SCK) speed in HZ */
-	.bus_num		= 1,
+	.bus_num		= 0,
 	.chip_select  		= 5,
 	.controller_data = &spi_ad7877_chip_info,
 },

@@ -451,7 +451,7 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE) \
+#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_SND_SOC_WM8731_MODULE) \
 	 && defined(CONFIG_SND_SOC_WM8731_SPI)
 static struct bfin5xx_spi_chip spi_wm8731_chip_info = {
 	.enable_dma = 0,
@@ -564,7 +564,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &spi_ad7877_chip_info,
 	},
 #endif
-#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE) \
+#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_SND_SOC_WM8731_MODULE) \
 	 && defined(CONFIG_SND_SOC_WM8731_SPI)
 	{
 		.modalias	= "wm8731",
