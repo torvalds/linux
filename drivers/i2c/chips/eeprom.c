@@ -128,13 +128,20 @@ static ssize_t eeprom_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	for (slice = off >> 5; slice <= (off + count - 1) >> 5; slice++)
 		eeprom_update_client(client, slice);
 
-	/* Hide Vaio security settings to regular users (16 first bytes) */
-	if (data->nature == VAIO && off < 16 && !capable(CAP_SYS_ADMIN)) {
-		size_t in_row1 = 16 - off;
-		in_row1 = min(in_row1, count);
-		memset(buf, 0, in_row1);
-		if (count - in_row1 > 0)
-			memcpy(buf + in_row1, &data->data[16], count - in_row1);
+	/* Hide Vaio private settings to regular users:
+	   - BIOS passwords: bytes 0x00 to 0x0f
+	   - UUID: bytes 0x10 to 0x1f
+	   - Serial number: 0xc0 to 0xdf */
+	if (data->nature == VAIO && !capable(CAP_SYS_ADMIN)) {
+		int i;
+
+		for (i = 0; i < count; i++) {
+			if ((off + i <= 0x1f) ||
+			    (off + i >= 0xc0 && off + i <= 0xdf))
+				buf[i] = 0;
+			else
+				buf[i] = data->data[off + i];
+		}
 	} else {
 		memcpy(buf, &data->data[off], count);
 	}
@@ -197,14 +204,18 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 		goto exit_kfree;
 
 	/* Detect the Vaio nature of EEPROMs.
-	   We use the "PCG-" prefix as the signature. */
+	   We use the "PCG-" or "VGN-" prefix as the signature. */
 	if (address == 0x57) {
-		if (i2c_smbus_read_byte_data(new_client, 0x80) == 'P'
-		 && i2c_smbus_read_byte(new_client) == 'C'
-		 && i2c_smbus_read_byte(new_client) == 'G'
-		 && i2c_smbus_read_byte(new_client) == '-') {
+		char name[4];
+
+		name[0] = i2c_smbus_read_byte_data(new_client, 0x80);
+		name[1] = i2c_smbus_read_byte(new_client);
+		name[2] = i2c_smbus_read_byte(new_client);
+		name[3] = i2c_smbus_read_byte(new_client);
+
+		if (!memcmp(name, "PCG-", 4) || !memcmp(name, "VGN-", 4)) {
 			dev_info(&new_client->dev, "Vaio EEPROM detected, "
-				"enabling password protection\n");
+				 "enabling privacy protection\n");
 			data->nature = VAIO;
 		}
 	}
