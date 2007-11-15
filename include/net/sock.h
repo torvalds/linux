@@ -1396,14 +1396,6 @@ extern int net_msg_warn;
 				lock_sock(sk); \
 				}
 
-static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
-{
-	if (valbool)
-		sock_set_flag(sk, bit);
-	else
-		sock_reset_flag(sk, bit);
-}
-
 extern __u32 sysctl_wmem_max;
 extern __u32 sysctl_rmem_max;
 

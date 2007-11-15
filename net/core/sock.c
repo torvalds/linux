@@ -419,6 +419,14 @@ out:
 	return ret;
 }
 
+static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
+{
+	if (valbool)
+		sock_set_flag(sk, bit);
+	else
+		sock_reset_flag(sk, bit);
+}
+
 /*
  *	This is meant for all protocols to use and covers goings on
  *	at the socket level. Everything here is generic.
@@ -463,11 +471,8 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	case SO_DEBUG:
 		if (val && !capable(CAP_NET_ADMIN)) {
 			ret = -EACCES;
-		}
-		else if (valbool)
-			sock_set_flag(sk, SOCK_DBG);
-		else
-			sock_reset_flag(sk, SOCK_DBG);
+		} else
+			sock_valbool_flag(sk, SOCK_DBG, valbool);
 		break;
 	case SO_REUSEADDR:
 		sk->sk_reuse = valbool;
@@ -477,10 +482,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 		ret = -ENOPROTOOPT;
 		break;
 	case SO_DONTROUTE:
-		if (valbool)
-			sock_set_flag(sk, SOCK_LOCALROUTE);
-		else
-			sock_reset_flag(sk, SOCK_LOCALROUTE);
+		sock_valbool_flag(sk, SOCK_LOCALROUTE, valbool);
 		break;
 	case SO_BROADCAST:
 		sock_valbool_flag(sk, SOCK_BROADCAST, valbool);
