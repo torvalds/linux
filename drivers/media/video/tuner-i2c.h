@@ -47,24 +47,30 @@ static inline int tuner_i2c_xfer_recv(struct tuner_i2c_props *props, char *buf, 
 }
 
 #ifndef __TUNER_DRIVER_H__
-#define tuner_warn(fmt, arg...) do {\
-	printk(KERN_WARNING "%s %d-%04x: " fmt, PREFIX, \
-			i2c_adapter_id(priv->i2c_props.adap), priv->i2c_props.addr , ##arg); } while (0)
-#define tuner_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x: " fmt, PREFIX, \
-			i2c_adapter_id(priv->i2c_props.adap), priv->i2c_props.addr , ##arg); } while (0)
-#define tuner_dbg(fmt, arg...) do {\
-	if ((debug)) \
-		printk(KERN_DEBUG "%s %d-%04x: " fmt, PREFIX, \
-			i2c_adapter_id(priv->i2c_props.adap), priv->i2c_props.addr , ##arg); } while (0)
+#define tuner_warn(fmt, arg...) do {					\
+	printk(KERN_WARNING "%s %d-%04x: " fmt, PREFIX,			\
+			i2c_adapter_id(priv->i2c_props.adap),		\
+			priv->i2c_props.addr, ##arg);			\
+	 } while (0)
+
+#define tuner_info(fmt, arg...) do {					\
+	printk(KERN_INFO "%s %d-%04x: " fmt, PREFIX,			\
+			i2c_adapter_id(priv->i2c_props.adap),		\
+			priv->i2c_props.addr , ##arg);			\
+	} while (0)
+
+#define tuner_err(fmt, arg...) do {					\
+	printk(KERN_ERR "%s %d-%04x: " fmt, PREFIX, 			\
+			i2c_adapter_id(priv->i2c_props.adap),		\
+			priv->i2c_props.addr , ##arg);			\
+	} while (0)
+
+#define tuner_dbg(fmt, arg...) do {					\
+	if ((debug))							\
+		printk(KERN_DEBUG "%s %d-%04x: " fmt, PREFIX,		\
+			i2c_adapter_id(priv->i2c_props.adap),		\
+			priv->i2c_props.addr , ##arg);			\
+	} while (0)
 #endif /* __TUNER_DRIVER_H__ */
 
 #endif /* __TUNER_I2C_H__ */
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */
