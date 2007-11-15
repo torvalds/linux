@@ -367,7 +367,7 @@ static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
 	spin_lock(&hugetlb_lock);
 	page = dequeue_huge_page(vma, addr);
 	spin_unlock(&hugetlb_lock);
-	return page;
+	return page ? page : ERR_PTR(-VM_FAULT_OOM);
 }
 
 static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
@@ -375,13 +375,16 @@ static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
 {
 	struct page *page = NULL;
 
+	if (hugetlb_get_quota(vma->vm_file->f_mapping, 1))
+		return ERR_PTR(-VM_FAULT_SIGBUS);
+
 	spin_lock(&hugetlb_lock);
 	if (free_huge_pages > resv_huge_pages)
 		page = dequeue_huge_page(vma, addr);
 	spin_unlock(&hugetlb_lock);
 	if (!page)
 		page = alloc_buddy_huge_page(vma, addr);
-	return page;
+	return page ? page : ERR_PTR(-VM_FAULT_OOM);
 }
 
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
@@ -390,19 +393,16 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 	struct page *page;
 	struct address_space *mapping = vma->vm_file->f_mapping;
 
-	if (hugetlb_get_quota(mapping, 1))
-		return ERR_PTR(-VM_FAULT_SIGBUS);
-
 	if (vma->vm_flags & VM_MAYSHARE)
 		page = alloc_huge_page_shared(vma, addr);
 	else
 		page = alloc_huge_page_private(vma, addr);
-	if (page) {
+
+	if (!IS_ERR(page)) {
 		set_page_refcounted(page);
 		set_page_private(page, (unsigned long) mapping);
-		return page;
-	} else
-		return ERR_PTR(-VM_FAULT_OOM);
+	}
+	return page;
 }
 
 static int __init hugetlb_init(void)
@@ -1148,6 +1148,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 	if (chg < 0)
 		return chg;
 
+	if (hugetlb_get_quota(inode->i_mapping, chg))
+		return -ENOSPC;
 	ret = hugetlb_acct_memory(chg);
 	if (ret < 0)
 		return ret;
@@ -1158,5 +1160,6 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 {
 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
-	hugetlb_acct_memory(freed - chg);
+	hugetlb_put_quota(inode->i_mapping, (chg - freed));
+	hugetlb_acct_memory(-(chg - freed));
 }
