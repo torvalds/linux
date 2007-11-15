@@ -353,35 +353,43 @@ void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	}
 }
 
+
+static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
+						unsigned long addr)
+{
+	struct page *page;
+
+	spin_lock(&hugetlb_lock);
+	page = dequeue_huge_page(vma, addr);
+	spin_unlock(&hugetlb_lock);
+	return page;
+}
+
+static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
+						unsigned long addr)
+{
+	struct page *page = NULL;
+
+	spin_lock(&hugetlb_lock);
+	if (free_huge_pages > resv_huge_pages)
+		page = dequeue_huge_page(vma, addr);
+	spin_unlock(&hugetlb_lock);
+	if (!page)
+		page = alloc_buddy_huge_page(vma, addr);
+	return page;
+}
+
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr)
 {
-	struct page *page = NULL;
-	int use_reserved_page = vma->vm_flags & VM_MAYSHARE;
+	struct page *page;
 
-	spin_lock(&hugetlb_lock);
-	if (!use_reserved_page && (free_huge_pages <= resv_huge_pages))
-		goto fail;
-
-	page = dequeue_huge_page(vma, addr);
-	if (!page)
-		goto fail;
-
-	spin_unlock(&hugetlb_lock);
-	set_page_refcounted(page);
-	return page;
-
-fail:
-	spin_unlock(&hugetlb_lock);
-
-	/*
-	 * Private mappings do not use reserved huge pages so the allocation
-	 * may have failed due to an undersized hugetlb pool.  Try to grab a
-	 * surplus huge page from the buddy allocator.
-	 */
-	if (!use_reserved_page)
-		page = alloc_buddy_huge_page(vma, addr);
-
+	if (vma->vm_flags & VM_MAYSHARE)
+		page = alloc_huge_page_shared(vma, addr);
+	else
+		page = alloc_huge_page_private(vma, addr);
+	if (page)
+		set_page_refcounted(page);
 	return page;
 }
 
