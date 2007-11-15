@@ -415,132 +415,175 @@ static const struct se200pci_control se200pci_cont[] = {
 	}
 };
 
-static int se200pci_cont_info(struct snd_kcontrol *kc,
-				struct snd_ctl_elem_info *uinfo)
+static int se200pci_get_enum_count(int n)
 {
-	struct snd_ice1712 *ice;
-	int n;
-	int c;
 	const char **member;
+	int c;
 
-	ice = snd_kcontrol_chip(kc);
-	n = kc->private_value;
+	member = se200pci_cont[n].member;
+	if (!member)
+		return 0;
+	for (c = 0; member[c]; c++)
+		;
+	return c;
+}
 
-	if (se200pci_cont[n].type == VOLUME1 ||
-	    se200pci_cont[n].type == VOLUME2) {
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-		uinfo->count = 2;
-		uinfo->value.integer.min = 0; /* mute */
-		uinfo->value.integer.max = 0xff; /* 0dB */
-
-	} else if (se200pci_cont[n].type == BOOLEAN) {
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-		uinfo->count = 1;
-		uinfo->value.integer.min = 0;
-		uinfo->value.integer.max = 1;
-
-	} else if (se200pci_cont[n].type == ENUM) {
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-		member = se200pci_cont[n].member;
-		if (member == NULL)
-			return -EINVAL;
-		for (c = 0; member[c]; c++)
-			;
-
-		uinfo->count = 1;
-		uinfo->value.enumerated.items = c;
-		if (uinfo->value.enumerated.item >= c)
-			uinfo->value.enumerated.item = c - 1;
-		strcpy(uinfo->value.enumerated.name,
-			member[uinfo->value.enumerated.item]);
-	}
-
+static int se200pci_cont_volume_info(struct snd_kcontrol *kc,
+				     struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0; /* mute */
+	uinfo->value.integer.max = 0xff; /* 0dB */
 	return 0;
 }
 
-static int se200pci_cont_get(struct snd_kcontrol *kc,
-				struct snd_ctl_elem_value *uc)
+#define se200pci_cont_boolean_info	snd_ctl_boolean_mono_info
+
+static int se200pci_cont_enum_info(struct snd_kcontrol *kc,
+				   struct snd_ctl_elem_info *uinfo)
 {
-	struct snd_ice1712 *ice;
-	int n;
+	int n, c;
 
-	ice = snd_kcontrol_chip(kc);
 	n = kc->private_value;
-	if (se200pci_cont[n].type == VOLUME1 ||
-	    se200pci_cont[n].type == VOLUME2) {
-		uc->value.integer.value[0] = ice->spec.se.vol[n].ch1;
-		uc->value.integer.value[1] = ice->spec.se.vol[n].ch2;
-
-	} else if (se200pci_cont[n].type == BOOLEAN ||
-		   se200pci_cont[n].type == ENUM)
-		uc->value.integer.value[0] = ice->spec.se.vol[n].ch1;
-
+	c = se200pci_get_enum_count(n);
+	if (!c)
+		return -EINVAL;
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
+	uinfo->count = 1;
+	uinfo->value.enumerated.items = c;
+	if (uinfo->value.enumerated.item >= c)
+		uinfo->value.enumerated.item = c - 1;
+	strcpy(uinfo->value.enumerated.name,
+	       se200pci_cont[n].member[uinfo->value.enumerated.item]);
 	return 0;
 }
 
-static int se200pci_cont_put(struct snd_kcontrol *kc,
-				struct snd_ctl_elem_value *uc)
+static int se200pci_cont_volume_get(struct snd_kcontrol *kc,
+				    struct snd_ctl_elem_value *uc)
 {
-	struct snd_ice1712 *ice;
-	int n;
-	unsigned int vol1, vol2;
-	int changed;
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	int n = kc->private_value;
+	uc->value.integer.value[0] = ice->spec.se.vol[n].ch1;
+	uc->value.integer.value[1] = ice->spec.se.vol[n].ch2;
+	return 0;
+}
 
-	ice = snd_kcontrol_chip(kc);
-	n = kc->private_value;
+static int se200pci_cont_boolean_get(struct snd_kcontrol *kc,
+				     struct snd_ctl_elem_value *uc)
+{
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	int n = kc->private_value;
+	uc->value.integer.value[0] = ice->spec.se.vol[n].ch1;
+	return 0;
+}
 
-	changed = 0;
-	vol1 = 0; vol2 = 0;
-	if (se200pci_cont[n].type == VOLUME1 ||
-	    se200pci_cont[n].type == VOLUME2) {
-		vol1 = uc->value.integer.value[0];
-		vol2 = uc->value.integer.value[1];
-		if (ice->spec.se.vol[n].ch1 != vol1)
-			changed = 1;
-		if (ice->spec.se.vol[n].ch2 != vol2)
-			changed = 1;
-		ice->spec.se.vol[n].ch1 = vol1;
-		ice->spec.se.vol[n].ch2 = vol2;
+static int se200pci_cont_enum_get(struct snd_kcontrol *kc,
+				  struct snd_ctl_elem_value *uc)
+{
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	int n = kc->private_value;
+	uc->value.enumerated.item[0] = ice->spec.se.vol[n].ch1;
+	return 0;
+}
 
-	} else if (se200pci_cont[n].type == BOOLEAN ||
-		   se200pci_cont[n].type == ENUM) {
-		vol1 = uc->value.integer.value[0];
-		if (ice->spec.se.vol[n].ch1 != vol1)
-			changed = 1;
-		ice->spec.se.vol[n].ch1 = vol1;
-	}
-
+static void se200pci_cont_update(struct snd_ice1712 *ice, int n)
+{
 	switch (se200pci_cont[n].target) {
 	case WM8766:
 		se200pci_WM8766_set_volume(ice,
-			se200pci_cont[n].ch, vol1, vol2);
+					   se200pci_cont[n].ch,
+					   ice->spec.se.vol[n].ch1,
+					   ice->spec.se.vol[n].ch2);
 		break;
 
 	case WM8776in:
-		se200pci_WM8776_set_input_volume(ice, vol1, vol2);
+		se200pci_WM8776_set_input_volume(ice,
+						 ice->spec.se.vol[n].ch1,
+						 ice->spec.se.vol[n].ch2);
 		break;
 
 	case WM8776out:
-		se200pci_WM8776_set_output_volume(ice, vol1, vol2);
+		se200pci_WM8776_set_output_volume(ice,
+						  ice->spec.se.vol[n].ch1,
+						  ice->spec.se.vol[n].ch2);
 		break;
 
 	case WM8776sel:
-		se200pci_WM8776_set_input_selector(ice, vol1);
+		se200pci_WM8776_set_input_selector(ice,
+						   ice->spec.se.vol[n].ch1);
 		break;
 
 	case WM8776agc:
-		se200pci_WM8776_set_agc(ice, vol1);
+		se200pci_WM8776_set_agc(ice, ice->spec.se.vol[n].ch1);
 		break;
 
 	case WM8776afl:
-		se200pci_WM8776_set_afl(ice, vol1);
+		se200pci_WM8776_set_afl(ice, ice->spec.se.vol[n].ch1);
 		break;
 
 	default:
 		break;
 	}
+}
+
+static int se200pci_cont_volume_put(struct snd_kcontrol *kc,
+				    struct snd_ctl_elem_value *uc)
+{
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	int n = kc->private_value;
+	unsigned int vol1, vol2;
+	int changed;
+
+	changed = 0;
+	vol1 = uc->value.integer.value[0] & 0xff;
+	vol2 = uc->value.integer.value[1] & 0xff;
+	if (ice->spec.se.vol[n].ch1 != vol1) {
+		ice->spec.se.vol[n].ch1 = vol1;
+		changed = 1;
+	}
+	if (ice->spec.se.vol[n].ch2 != vol2) {
+		ice->spec.se.vol[n].ch2 = vol2;
+		changed = 1;
+	}
+	if (changed)
+		se200pci_cont_update(ice, n);
 
 	return changed;
+}
+
+static int se200pci_cont_boolean_put(struct snd_kcontrol *kc,
+				     struct snd_ctl_elem_value *uc)
+{
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	int n = kc->private_value;
+	unsigned int vol1;
+
+	vol1 = !!uc->value.integer.value[0];
+	if (ice->spec.se.vol[n].ch1 != vol1) {
+		ice->spec.se.vol[n].ch1 = vol1;
+		se200pci_cont_update(ice, n);
+		return 1;
+	}
+	return 0;
+}
+
+static int se200pci_cont_enum_put(struct snd_kcontrol *kc,
+				  struct snd_ctl_elem_value *uc)
+{
+	struct snd_ice1712 *ice = snd_kcontrol_chip(kc);
+	int n = kc->private_value;
+	unsigned int vol1;
+
+	vol1 = uc->value.enumerated.item[0];
+	if (vol1 >= se200pci_get_enum_count(n))
+		return -EINVAL;
+	if (ice->spec.se.vol[n].ch1 != vol1) {
+		ice->spec.se.vol[n].ch1 = vol1;
+		se200pci_cont_update(ice, n);
+		return 1;
+	}
+	return 0;
 }
 
 static const DECLARE_TLV_DB_SCALE(db_scale_gain1, -12750, 50, 1);
@@ -554,23 +597,36 @@ static int __devinit se200pci_add_controls(struct snd_ice1712 *ice)
 
 	memset(&cont, 0, sizeof(cont));
 	cont.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	cont.info = se200pci_cont_info;
-	cont.get = se200pci_cont_get;
-	cont.put = se200pci_cont_put;
 	for (i = 0; i < ARRAY_SIZE(se200pci_cont); i++) {
 		cont.private_value = i;
 		cont.name = se200pci_cont[i].name;
 		cont.access = SNDRV_CTL_ELEM_ACCESS_READWRITE;
 		cont.tlv.p = NULL;
-		if (se200pci_cont[i].type == VOLUME1 ||
-		    se200pci_cont[i].type == VOLUME2) {
-
+		switch (se200pci_cont[i].type) {
+		case VOLUME1:
+		case VOLUME2:
+			cont.info = se200pci_cont_volume_info;
+			cont.get = se200pci_cont_volume_get;
+			cont.put = se200pci_cont_volume_put;
 			cont.access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-
 			if (se200pci_cont[i].type == VOLUME1)
 				cont.tlv.p = db_scale_gain1;
 			else
 				cont.tlv.p = db_scale_gain2;
+			break;
+		case BOOLEAN:
+			cont.info = se200pci_cont_boolean_info;
+			cont.get = se200pci_cont_boolean_get;
+			cont.put = se200pci_cont_boolean_put;
+			break;
+		case ENUM:
+			cont.info = se200pci_cont_enum_info;
+			cont.get = se200pci_cont_enum_get;
+			cont.put = se200pci_cont_enum_put;
+			break;
+		default:
+			snd_BUG();
+			return -EINVAL;
 		}
 		err = snd_ctl_add(ice->card, snd_ctl_new1(&cont, ice));
 		if (err < 0)
