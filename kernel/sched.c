@@ -216,15 +216,15 @@ static inline struct task_group *task_group(struct task_struct *p)
 }
 
 /* Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
-static inline void set_task_cfs_rq(struct task_struct *p)
+static inline void set_task_cfs_rq(struct task_struct *p, unsigned int cpu)
 {
-	p->se.cfs_rq = task_group(p)->cfs_rq[task_cpu(p)];
-	p->se.parent = task_group(p)->se[task_cpu(p)];
+	p->se.cfs_rq = task_group(p)->cfs_rq[cpu];
+	p->se.parent = task_group(p)->se[cpu];
 }
 
 #else
 
-static inline void set_task_cfs_rq(struct task_struct *p) { }
+static inline void set_task_cfs_rq(struct task_struct *p, unsigned int cpu) { }
 
 #endif	/* CONFIG_FAIR_GROUP_SCHED */
 
@@ -455,18 +455,18 @@ static void update_rq_clock(struct rq *rq)
  */
 enum {
 	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 1,
-	SCHED_FEAT_START_DEBIT		= 2,
-	SCHED_FEAT_TREE_AVG             = 4,
-	SCHED_FEAT_APPROX_AVG           = 8,
-	SCHED_FEAT_WAKEUP_PREEMPT	= 16,
+	SCHED_FEAT_WAKEUP_PREEMPT	= 2,
+	SCHED_FEAT_START_DEBIT		= 4,
+	SCHED_FEAT_TREE_AVG             = 8,
+	SCHED_FEAT_APPROX_AVG           = 16,
 };
 
 const_debug unsigned int sysctl_sched_features =
 		SCHED_FEAT_NEW_FAIR_SLEEPERS	* 1 |
+		SCHED_FEAT_WAKEUP_PREEMPT	* 1 |
 		SCHED_FEAT_START_DEBIT		* 1 |
 		SCHED_FEAT_TREE_AVG		* 0 |
-		SCHED_FEAT_APPROX_AVG		* 0 |
-		SCHED_FEAT_WAKEUP_PREEMPT	* 1;
+		SCHED_FEAT_APPROX_AVG		* 0;
 
 #define sched_feat(x) (sysctl_sched_features & SCHED_FEAT_##x)
 
@@ -1022,10 +1022,16 @@ unsigned long weighted_cpuload(const int cpu)
 
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 {
+	set_task_cfs_rq(p, cpu);
 #ifdef CONFIG_SMP
+	/*
+	 * After ->cpu is set up to a new value, task_rq_lock(p, ...) can be
+	 * successfuly executed on another CPU. We must ensure that updates of
+	 * per-task data have been completed by this moment.
+	 */
+	smp_wmb();
 	task_thread_info(p)->cpu = cpu;
 #endif
-	set_task_cfs_rq(p);
 }
 
 #ifdef CONFIG_SMP
@@ -3390,10 +3396,8 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 	struct rq *rq = this_rq();
 	cputime64_t tmp;
 
-	if (p->flags & PF_VCPU) {
-		account_guest_time(p, cputime);
-		return;
-	}
+	if ((p->flags & PF_VCPU) && (irq_count() - hardirq_offset == 0))
+		return account_guest_time(p, cputime);
 
 	p->stime = cputime_add(p->stime, cputime);
 
@@ -5278,23 +5282,9 @@ static void migrate_live_tasks(int src_cpu)
 }
 
 /*
- * activate_idle_task - move idle task to the _front_ of runqueue.
- */
-static void activate_idle_task(struct task_struct *p, struct rq *rq)
-{
-	update_rq_clock(rq);
-
-	if (p->state == TASK_UNINTERRUPTIBLE)
-		rq->nr_uninterruptible--;
-
-	enqueue_task(rq, p, 0);
-	inc_nr_running(p, rq);
-}
-
-/*
  * Schedules idle task to be the next runnable task on current CPU.
- * It does so by boosting its priority to highest possible and adding it to
- * the _front_ of the runqueue. Used by CPU offline code.
+ * It does so by boosting its priority to highest possible.
+ * Used by CPU offline code.
  */
 void sched_idle_next(void)
 {
@@ -5314,8 +5304,8 @@ void sched_idle_next(void)
 
 	__setscheduler(rq, p, SCHED_FIFO, MAX_RT_PRIO-1);
 
-	/* Add idle task to the _front_ of its priority queue: */
-	activate_idle_task(p, rq);
+	update_rq_clock(rq);
+	activate_task(rq, p, 0);
 
 	spin_unlock_irqrestore(&rq->lock, flags);
 }
@@ -7089,8 +7079,10 @@ void sched_move_task(struct task_struct *tsk)
 
 	rq = task_rq_lock(tsk, &flags);
 
-	if (tsk->sched_class != &fair_sched_class)
+	if (tsk->sched_class != &fair_sched_class) {
+		set_task_cfs_rq(tsk, task_cpu(tsk));
 		goto done;
+	}
 
 	update_rq_clock(rq);
 
@@ -7103,7 +7095,7 @@ void sched_move_task(struct task_struct *tsk)
 			tsk->sched_class->put_prev_task(rq, tsk);
 	}
 
-	set_task_cfs_rq(tsk);
+	set_task_cfs_rq(tsk, task_cpu(tsk));
 
 	if (on_rq) {
 		if (unlikely(running))
