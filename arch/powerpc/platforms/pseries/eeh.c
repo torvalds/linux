@@ -546,7 +546,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 
 	/* Note that config-io to empty slots may fail;
 	 * they are empty when they don't have children. */
-	if ((rets[0] == 5) && (dn->child == NULL)) {
+	if ((rets[0] == 5) && (rets[2] == 0) && (dn->child == NULL)) {
 		false_positives++;
 		pdn->eeh_false_positives ++;
 		rc = 0;
