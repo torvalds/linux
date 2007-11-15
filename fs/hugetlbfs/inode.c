@@ -364,7 +364,6 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 			++next;
 			truncate_huge_page(page);
 			unlock_page(page);
-			hugetlb_put_quota(mapping);
 			freed++;
 		}
 		huge_pagevec_release(&pvec);

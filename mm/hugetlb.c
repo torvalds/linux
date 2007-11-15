@@ -116,7 +116,9 @@ static void update_and_free_page(struct page *page)
 static void free_huge_page(struct page *page)
 {
 	int nid = page_to_nid(page);
+	struct address_space *mapping;
 
+	mapping = (struct address_space *) page_private(page);
 	BUG_ON(page_count(page));
 	INIT_LIST_HEAD(&page->lru);
 
@@ -129,6 +131,9 @@ static void free_huge_page(struct page *page)
 		enqueue_huge_page(page);
 	}
 	spin_unlock(&hugetlb_lock);
+	if (mapping)
+		hugetlb_put_quota(mapping);
+	set_page_private(page, 0);
 }
 
 /*
@@ -388,8 +393,10 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
 		page = alloc_huge_page_shared(vma, addr);
 	else
 		page = alloc_huge_page_private(vma, addr);
-	if (page)
+	if (page) {
 		set_page_refcounted(page);
+		set_page_private(page, (unsigned long) vma->vm_file->f_mapping);
+	}
 	return page;
 }
 
@@ -730,6 +737,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 		set_huge_ptep_writable(vma, address, ptep);
 		return 0;
 	}
+	if (hugetlb_get_quota(vma->vm_file->f_mapping))
+		return VM_FAULT_SIGBUS;
 
 	page_cache_get(old_page);
 	new_page = alloc_huge_page(vma, address);
@@ -796,7 +805,6 @@ retry:
 			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
 			if (err) {
 				put_page(page);
-				hugetlb_put_quota(mapping);
 				if (err == -EEXIST)
 					goto retry;
 				goto out;
@@ -830,7 +838,6 @@ out:
 
 backout:
 	spin_unlock(&mm->page_table_lock);
-	hugetlb_put_quota(mapping);
 	unlock_page(page);
 	put_page(page);
 	goto out;
