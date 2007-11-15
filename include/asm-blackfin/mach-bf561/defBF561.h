@@ -881,8 +881,8 @@
 #define SYSTEM_RESET           0x0007	/* Initiates a system software reset */
 #define DOUBLE_FAULT_A         0x0008	/* Core A Double Fault Causes Reset */
 #define DOUBLE_FAULT_B         0x0010	/* Core B Double Fault Causes Reset */
-#define SWRST_DBL_FAULT_B      0x0800	/* SWRST Core B Double Fault */
-#define SWRST_DBL_FAULT_A      0x1000	/* SWRST Core A Double Fault */
+#define SWRST_DBL_FAULT_A      0x0800	/* SWRST Core A Double Fault */
+#define SWRST_DBL_FAULT_B      0x1000	/* SWRST Core B Double Fault */
 #define SWRST_WDT_B		       0x2000	/* SWRST Watchdog B */
 #define SWRST_WDT_A		       0x4000	/* SWRST Watchdog A */
 #define SWRST_OCCURRED         0x8000	/* SWRST Status */
