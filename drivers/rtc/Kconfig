@@ -36,7 +36,9 @@ config RTC_HCTOSYS_DEVICE
 	help
 	  The RTC device that will be used to (re)initialize the system
 	  clock, usually rtc0.  Initialization is done when the system
-	  starts up, and when it resumes from a low power state.
+	  starts up, and when it resumes from a low power state.  This
+	  device should record time in UTC, since the kernel won't do
+	  timezone correction.
 
 	  The driver for this RTC device must be loaded before late_initcall
 	  functions run, so it must usually be statically linked.
