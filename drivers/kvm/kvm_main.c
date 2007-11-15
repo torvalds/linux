@@ -1198,23 +1198,9 @@ static long kvm_dev_ioctl(struct file *filp,
 			goto out;
 		r = kvm_dev_ioctl_create_vm();
 		break;
-	case KVM_CHECK_EXTENSION: {
-		int ext = (long)argp;
-
-		switch (ext) {
-		case KVM_CAP_IRQCHIP:
-		case KVM_CAP_HLT:
-		case KVM_CAP_MMU_SHADOW_CACHE_CONTROL:
-		case KVM_CAP_USER_MEMORY:
-		case KVM_CAP_SET_TSS_ADDR:
-			r = 1;
-			break;
-		default:
-			r = 0;
-			break;
-		}
+	case KVM_CHECK_EXTENSION:
+		r = kvm_dev_ioctl_check_extension((long)argp);
 		break;
-	}
 	case KVM_GET_VCPU_MMAP_SIZE:
 		r = -EINVAL;
 		if (arg)

@@ -599,6 +599,26 @@ void decache_vcpus_on_cpu(int cpu)
 	spin_unlock(&kvm_lock);
 }
 
+int kvm_dev_ioctl_check_extension(long ext)
+{
+	int r;
+
+	switch (ext) {
+	case KVM_CAP_IRQCHIP:
+	case KVM_CAP_HLT:
+	case KVM_CAP_MMU_SHADOW_CACHE_CONTROL:
+	case KVM_CAP_USER_MEMORY:
+	case KVM_CAP_SET_TSS_ADDR:
+		r = 1;
+		break;
+	default:
+		r = 0;
+		break;
+	}
+	return r;
+
+}
+
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg)
 {
