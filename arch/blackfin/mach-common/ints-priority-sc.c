@@ -308,7 +308,7 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 }
 #endif				/* BF537_GENERIC_ERROR_INT_DEMUX */
 
-#if defined(CONFIG_IRQCHIP_DEMUX_GPIO) && !defined(CONFIG_BF54x)
+#if !defined(CONFIG_BF54x)
 
 static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)];
@@ -464,7 +464,7 @@ static void bfin_demux_gpio_irq(unsigned int intb_irq,
 	}
 }
 
-#else				/* CONFIG_IRQCHIP_DEMUX_GPIO */
+#else				/* CONFIG_BF54x */
 
 #define NR_PINT_SYS_IRQS	4
 #define NR_PINT_BITS		32
@@ -726,7 +726,7 @@ static void bfin_demux_gpio_irq(unsigned int intb_irq,
 	}
 
 }
-#endif				/* CONFIG_IRQCHIP_DEMUX_GPIO */
+#endif
 
 void __init init_exception_vectors(void)
 {
@@ -766,10 +766,10 @@ int __init init_arch_irq(void)
 	bfin_write_SIC_IMASK1(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
 	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
-#ifdef CONFIG_BF54x
+# ifdef CONFIG_BF54x
 	bfin_write_SIC_IMASK2(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
-#endif
+# endif
 #else
 	bfin_write_SIC_IMASK(SIC_UNMASK_ALL);
 	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
@@ -778,13 +778,13 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
-#if defined(CONFIG_IRQCHIP_DEMUX_GPIO) && defined(CONFIG_BF54x)
-#ifdef CONFIG_PINTx_REASSIGN
+#ifdef CONFIG_BF54x
+# ifdef CONFIG_PINTx_REASSIGN
 	pint[0]->assign = CONFIG_PINT0_ASSIGN;
 	pint[1]->assign = CONFIG_PINT1_ASSIGN;
 	pint[2]->assign = CONFIG_PINT2_ASSIGN;
 	pint[3]->assign = CONFIG_PINT3_ASSIGN;
-#endif
+# endif
 	/* Whenever PINTx_ASSIGN is altered init_pint_lut() must be executed! */
 	init_pint_lut();
 #endif
@@ -799,18 +799,17 @@ int __init init_arch_irq(void)
 #endif
 
 			switch (irq) {
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #if defined(CONFIG_BF53x)
 			case IRQ_PROG_INTA:
 				set_irq_chained_handler(irq,
 							bfin_demux_gpio_irq);
 				break;
-#if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
+# if defined(BF537_FAMILY) && !(defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE))
 			case IRQ_MAC_RX:
 				set_irq_chained_handler(irq,
 							bfin_demux_gpio_irq);
 				break;
-#endif
+# endif
 #elif defined(CONFIG_BF54x)
 			case IRQ_PINT0:
 				set_irq_chained_handler(irq,
@@ -842,7 +841,6 @@ int __init init_arch_irq(void)
 							bfin_demux_gpio_irq);
 				break;
 #endif
-#endif
 			default:
 				set_irq_handler(irq, handle_simple_irq);
 				break;
@@ -861,7 +859,6 @@ int __init init_arch_irq(void)
 	}
 #endif
 
-#ifdef CONFIG_IRQCHIP_DEMUX_GPIO
 #ifndef CONFIG_BF54x
 	for (irq = IRQ_PF0; irq < NR_IRQS; irq++) {
 #else
@@ -871,7 +868,7 @@ int __init init_arch_irq(void)
 		/* if configured as edge, then will be changed to do_edge_IRQ */
 		set_irq_handler(irq, handle_level_irq);
 	}
-#endif
+
 	bfin_write_IMASK(0);
 	CSYNC();
 	ilat = bfin_read_ILAT();
@@ -896,9 +893,8 @@ int __init init_arch_irq(void)
 }
 
 #ifdef CONFIG_DO_IRQ_L1
-void do_irq(int vec, struct pt_regs *fp) __attribute__((l1_text));
+__attribute__((l1_text))
 #endif
-
 void do_irq(int vec, struct pt_regs *fp)
 {
 	if (vec == EVT_IVTMR_P) {
