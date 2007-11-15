@@ -349,12 +349,13 @@ static int stac92xx_aloopback_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
 	unsigned int dac_mode;
+	unsigned int val;
 
-	if (spec->aloopback == ucontrol->value.integer.value[0])
+	val = !!ucontrol->value.integer.value[0];
+	if (spec->aloopback == val)
 		return 0;
 
-	spec->aloopback = ucontrol->value.integer.value[0];
-
+	spec->aloopback = val;
 
 	dac_mode = snd_hda_codec_read(codec, codec->afg, 0,
 		kcontrol->private_value & 0xFFFF, 0x0);
@@ -370,6 +371,42 @@ static int stac92xx_aloopback_put(struct snd_kcontrol *kcontrol,
 	snd_hda_codec_write_cache(codec, codec->afg, 0,
 		kcontrol->private_value >> 16, dac_mode);
 
+	return 1;
+}
+
+static int stac92xx_volknob_info(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = 127;
+	return 0;
+}
+
+static int stac92xx_volknob_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = kcontrol->private_value & 0xff;
+	return 0;
+}
+
+static int stac92xx_volknob_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int oval = kcontrol->private_value & 0xff;
+	unsigned int val;
+
+	val = ucontrol->value.integer.value[0] & 0xff;
+	if (val == oval)
+		return 0;
+
+	kcontrol->private_value &= ~0xff;
+	kcontrol->private_value |= val;
+
+	snd_hda_codec_write_cache(codec, kcontrol->private_value >> 16, 0,
+		AC_VERB_SET_VOLUME_KNOB_CONTROL, val | 0x80);
 	return 1;
 }
 
@@ -1588,7 +1625,7 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	struct sigmatel_spec *spec = codec->spec;
         hda_nid_t nid = kcontrol->private_value >> 8;
 	int io_idx = kcontrol-> private_value & 0xff;
-        unsigned short val = ucontrol->value.integer.value[0];
+	unsigned short val = !!ucontrol->value.integer.value[0];
 
 	spec->io_switch[io_idx] = val;
 
@@ -1628,11 +1665,12 @@ static int stac92xx_clfe_switch_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct sigmatel_spec *spec = codec->spec;
 	hda_nid_t nid = kcontrol->private_value & 0xff;
+	unsigned int val = !!ucontrol->value.integer.value[0];
 
-	if (spec->clfe_swap == ucontrol->value.integer.value[0])
+	if (spec->clfe_swap == val)
 		return 0;
 
-	spec->clfe_swap = ucontrol->value.integer.value[0];
+	spec->clfe_swap = val;
 
 	snd_hda_codec_write_cache(codec, nid, 0, AC_VERB_SET_EAPD_BTLENABLE,
 		spec->clfe_swap ? 0x4 : 0x0);

@@ -373,7 +373,7 @@ static int cxt_eapd_put(struct snd_kcontrol *kcontrol,
 	hda_nid_t nid = kcontrol->private_value & 0xff;
 	unsigned int eapd;
 
-	eapd = ucontrol->value.integer.value[0];
+	eapd = !!ucontrol->value.integer.value[0];
 	if (invert)
 		eapd = !eapd;
 	if (eapd == spec->cur_eapd)

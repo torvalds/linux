@@ -2337,7 +2337,8 @@ int snd_hda_ch_mode_put(struct hda_codec *codec,
 	unsigned int mode;
 
 	mode = ucontrol->value.enumerated.item[0];
-	snd_assert(mode < num_chmodes, return -EINVAL);
+	if (mode >= num_chmodes)
+		return -EINVAL;
 	if (*max_channelsp == chmode[mode].channels)
 		return 0;
 	/* change the current channel setting */

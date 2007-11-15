@@ -370,7 +370,7 @@ static int ad198x_eapd_put(struct snd_kcontrol *kcontrol,
 	int invert = (kcontrol->private_value >> 8) & 1;
 	hda_nid_t nid = kcontrol->private_value & 0xff;
 	unsigned int eapd;
-	eapd = ucontrol->value.integer.value[0];
+	eapd = !!ucontrol->value.integer.value[0];
 	if (invert)
 		eapd = !eapd;
 	if (eapd == spec->cur_eapd)
@@ -1021,6 +1021,8 @@ static int ad1983_spdif_route_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct ad198x_spec *spec = codec->spec;
 
+	if (ucontrol->value.enumerated.item[0] > 1)
+		return -EINVAL;
 	if (spec->spdif_route != ucontrol->value.enumerated.item[0]) {
 		spec->spdif_route = ucontrol->value.enumerated.item[0];
 		snd_hda_codec_write_cache(codec, spec->multiout.dig_out_nid, 0,
@@ -1966,6 +1968,8 @@ static int ad1988_spdif_playback_source_put(struct snd_kcontrol *kcontrol,
 	int change;
 
 	val = ucontrol->value.enumerated.item[0];
+	if (val > 3)
+		return -EINVAL;
 	if (!val) {
 		sel = snd_hda_codec_read(codec, 0x1d, 0,
 					 AC_VERB_GET_AMP_GAIN_MUTE,
