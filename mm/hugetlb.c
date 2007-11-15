@@ -328,7 +328,7 @@ free:
  * allocated to satisfy the reservation must be explicitly freed if they were
  * never used.
  */
-void return_unused_surplus_pages(unsigned long unused_resv_pages)
+static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 {
 	static int nid = -1;
 	struct page *page;
