@@ -4,4 +4,3 @@ unifdef-y += stats.h
 unifdef-y += syscall.h
 unifdef-y += nfsfh.h
 unifdef-y += debug.h
-unifdef-y += auth.h

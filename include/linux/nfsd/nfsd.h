@@ -20,7 +20,6 @@
 #include <linux/nfsd/debug.h>
 #include <linux/nfsd/nfsfh.h>
 #include <linux/nfsd/export.h>
-#include <linux/nfsd/auth.h>
 #include <linux/nfsd/stats.h>
 /*
  * nfsd version

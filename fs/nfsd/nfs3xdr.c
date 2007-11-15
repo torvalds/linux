@@ -21,6 +21,7 @@
 #include <linux/sunrpc/svc.h>
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/xdr3.h>
+#include "auth.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
