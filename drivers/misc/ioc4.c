@@ -244,10 +244,11 @@ ioc4_variant(struct ioc4_driver_data *idd)
 		    idd->idd_pdev->bus->number == pdev->bus->number &&
 		    3 == PCI_SLOT(pdev->devfn))
 			found = 1;
-		pci_dev_put(pdev);
 	} while (pdev && !found);
-	if (NULL != pdev)
+	if (NULL != pdev) {
+		pci_dev_put(pdev);
 		return IOC4_VARIANT_IO9;
+	}
 
 	/* IO10: Look for a Vitesse VSC 7174 at the same bus and slot 3. */
 	pdev = NULL;
@@ -258,10 +259,11 @@ ioc4_variant(struct ioc4_driver_data *idd)
 		    idd->idd_pdev->bus->number == pdev->bus->number &&
 		    3 == PCI_SLOT(pdev->devfn))
 			found = 1;
-		pci_dev_put(pdev);
 	} while (pdev && !found);
-	if (NULL != pdev)
+	if (NULL != pdev) {
+		pci_dev_put(pdev);
 		return IOC4_VARIANT_IO10;
+	}
 
 	/* PCI-RT: No SCSI/SATA controller will be present */
 	return IOC4_VARIANT_PCI_RT;
