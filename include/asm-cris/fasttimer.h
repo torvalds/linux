@@ -1,9 +1,8 @@
-/* $Id: fasttimer.h,v 1.3 2004/05/14 10:19:19 starvik Exp $
+/*
  * linux/include/asm-cris/fasttimer.h
  *
  * Fast timers for ETRAX100LX
- * This may be useful in other OS than Linux so use 2 space indentation...
- * Copyright (C) 2000, 2002 Axis Communications AB
+ * Copyright (C) 2000-2007 Axis Communications AB
  */
 #include <linux/time.h> /* struct timeval */
 #include <linux/timex.h>
@@ -12,11 +11,16 @@
 
 typedef void fast_timer_function_type(unsigned long);
 
+struct fasttime_t {
+	unsigned long tv_jiff;  /* jiffies */
+	unsigned long tv_usec;  /* microseconds */
+};
+
 struct fast_timer{ /* Close to timer_list */
   struct fast_timer *next;
   struct fast_timer *prev;
-  struct timeval tv_set;
-  struct timeval tv_expires;
+	struct fasttime_t tv_set;
+	struct fasttime_t tv_expires;
   unsigned long delay_us;
   fast_timer_function_type *function;
   unsigned long data;
@@ -38,6 +42,6 @@ int del_fast_timer(struct fast_timer * t);
 void schedule_usleep(unsigned long us);
 
 
-void fast_timer_init(void);
+int fast_timer_init(void);
 
 #endif
