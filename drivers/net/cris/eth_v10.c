@@ -630,7 +630,7 @@ e100_set_mac_address(struct net_device *dev, void *p)
 {
 	struct net_local *np = netdev_priv(dev);
 	struct sockaddr *addr = p;
-	int i;
+	DECLARE_MAC_BUF(mac);
 
 	spin_lock(&np->lock); /* preemption protection */
 
