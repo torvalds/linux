@@ -751,14 +751,16 @@ static inline char rt2x00_rf(const struct rt2x00_chip *chipset, const u16 chip)
 	return (chipset->rf == chip);
 }
 
-static inline u16 rt2x00_get_rev(const struct rt2x00_chip *chipset)
+static inline u16 rt2x00_rev(const struct rt2x00_chip *chipset)
 {
 	return chipset->rev;
 }
 
-static inline u16 rt2x00_rev(const struct rt2x00_chip *chipset, const u32 mask)
+static inline u16 rt2x00_check_rev(const struct rt2x00_chip *chipset,
+				   const u32 rev)
 {
-	return chipset->rev & mask;
+	return (((chipset->rev & 0xffff0) == rev) &&
+		!!(chipset->rev & 0x0000f));
 }
 
 /*
