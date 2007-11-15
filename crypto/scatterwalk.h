@@ -20,11 +20,6 @@
 
 #include "internal.h"
 
-static inline struct scatterlist *scatterwalk_sg_next(struct scatterlist *sg)
-{
-	return (++sg)->length ? sg : (void *) sg_page(sg);
-}
-
 static inline unsigned long scatterwalk_samebuf(struct scatter_walk *walk_in,
 						struct scatter_walk *walk_out)
 {

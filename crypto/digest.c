@@ -21,7 +21,6 @@
 #include <linux/scatterlist.h>
 
 #include "internal.h"
-#include "scatterwalk.h"
 
 static int init(struct hash_desc *desc)
 {
@@ -77,7 +76,7 @@ static int update2(struct hash_desc *desc,
 
 		if (!nbytes)
 			break;
-		sg = scatterwalk_sg_next(sg);
+		sg = sg_next(sg);
 	}
 
 	return 0;
