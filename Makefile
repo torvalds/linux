@@ -1334,12 +1334,7 @@ else
 ALLINCLUDE_ARCHS := $(ALLSOURCE_ARCHS)
 endif
 
-# Take care of arch/x86
-ifeq ($(ARCH), $(SRCARCH))
-ALLSOURCE_ARCHS := $(ARCH)
-else
-ALLSOURCE_ARCHS := $(ARCH) $(SRCARCH)
-endif
+ALLSOURCE_ARCHS := $(SRCARCH)
 
 define find-sources
         ( for arch in $(ALLSOURCE_ARCHS) ; do \
