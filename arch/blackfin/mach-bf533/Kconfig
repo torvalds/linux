@@ -1,5 +1,7 @@
 if (BF533 || BF532 || BF531)
 
+source "arch/blackfin/mach-bf533/boards/Kconfig"
+
 menu "BF533/2/1 Specific Configuration"
 
 comment "Interrupt Priority Assignment"

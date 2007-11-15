@@ -1,0 +1,34 @@
+choice
+	prompt "System type"
+	default BFIN533_STAMP
+	help
+	  Select your board!
+
+config BFIN533_EZKIT
+	bool "BF533-EZKIT"
+	help
+	  BF533-EZKIT-LITE board support.
+
+config BFIN533_STAMP
+	bool "BF533-STAMP"
+	help
+	  BF533-STAMP board support.
+
+config BFIN533_BLUETECHNIX_CM
+	bool "Bluetechnix CM-BF533"
+	depends on (BF533)
+	help
+	  CM-BF533 support for EVAL- and DEV-Board.
+
+config H8606_HVSISTEMAS
+	bool "HV Sistemas H8606"
+	depends on (BF532)
+	help
+	  HV Sistemas H8606 board support.
+
+config GENERIC_BF533_BOARD
+	bool "Generic"
+	help
+	  Generic or Custom board support.
+
+endchoice

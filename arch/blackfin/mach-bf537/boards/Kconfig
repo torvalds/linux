@@ -1,0 +1,29 @@
+choice
+	prompt "System type"
+	default BFIN537_STAMP
+	help
+	  Select your board!
+
+config BFIN537_STAMP
+	bool "BF537-STAMP"
+	help
+	  BF537-STAMP board support.
+
+config BFIN537_BLUETECHNIX_CM
+	bool "Bluetechnix CM-BF537"
+	depends on (BF537)
+	help
+	  CM-BF537 support for EVAL- and DEV-Board.
+
+config PNAV10
+	bool "PNAV board"
+	depends on (BF537)
+	help
+	  PNAV board support.
+
+config GENERIC_BF537_BOARD
+	bool "Generic"
+	help
+	  Generic or Custom board support.
+
+endchoice
