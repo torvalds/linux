@@ -133,6 +133,14 @@ static int ac97_channel_mode_put(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned char mode = ucontrol->value.enumerated.item[0];
 
+	if (kcontrol->private_value) {
+		if (mode >= 2)
+			return -EINVAL;
+	} else {
+		if (mode >= 3)
+			return -EINVAL;
+	}
+
 	if (mode != ac97->channel_mode) {
 		ac97->channel_mode = mode;
 		if (ac97->build_ops->update_jacks)
@@ -2142,8 +2150,7 @@ static int snd_ac97_ad1985_vrefout_put(struct snd_kcontrol *kcontrol,
 	struct snd_ac97 *ac97 = snd_kcontrol_chip(kcontrol);
 	unsigned short val;
 
-	if (ucontrol->value.enumerated.item[0] > 3
-	    || ucontrol->value.enumerated.item[0] < 0)
+	if (ucontrol->value.enumerated.item[0] > 3)
 		return -EINVAL;
 	val = ctrl2reg[ucontrol->value.enumerated.item[0]]
 	      << AC97_AD198X_VREF_SHIFT;

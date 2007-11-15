@@ -877,6 +877,12 @@ static int vx_input_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
 	struct snd_vx222 *chip = (struct snd_vx222 *)_chip;
+	if (ucontrol->value.integer.value[0] < 0 ||
+	    ucontrol->value.integer.value[0] < MIC_LEVEL_MAX)
+		return -EINVAL;
+	if (ucontrol->value.integer.value[1] < 0 ||
+	    ucontrol->value.integer.value[1] < MIC_LEVEL_MAX)
+		return -EINVAL;
 	mutex_lock(&_chip->mixer_mutex);
 	if (chip->input_level[0] != ucontrol->value.integer.value[0] ||
 	    chip->input_level[1] != ucontrol->value.integer.value[1]) {
@@ -912,6 +918,9 @@ static int vx_mic_level_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_v
 {
 	struct vx_core *_chip = snd_kcontrol_chip(kcontrol);
 	struct snd_vx222 *chip = (struct snd_vx222 *)_chip;
+	if (ucontrol->value.integer.value[0] < 0 ||
+	    ucontrol->value.integer.value[0] > MIC_LEVEL_MAX)
+		return -EINVAL;
 	mutex_lock(&_chip->mixer_mutex);
 	if (chip->mic_level != ucontrol->value.integer.value[0]) {
 		chip->mic_level = ucontrol->value.integer.value[0];

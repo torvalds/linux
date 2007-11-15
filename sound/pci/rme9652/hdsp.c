@@ -2119,7 +2119,7 @@ static int snd_hdsp_put_clock_source_lock(struct snd_kcontrol *kcontrol, struct 
 
 	change = (int)ucontrol->value.integer.value[0] != hdsp->clock_source_locked;
 	if (change)
-		hdsp->clock_source_locked = ucontrol->value.integer.value[0];
+		hdsp->clock_source_locked = !!ucontrol->value.integer.value[0];
 	return change;
 }
 

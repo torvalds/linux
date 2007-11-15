@@ -1752,22 +1752,22 @@ static int snd_korg1212_control_phase_put(struct snd_kcontrol *kcontrol,
 
 	i = kcontrol->private_value;
 
-	korg1212->volumePhase[i] = u->value.integer.value[0];
+	korg1212->volumePhase[i] = !!u->value.integer.value[0];
 
 	val = korg1212->sharedBufferPtr->volumeData[kcontrol->private_value];
 
-	if ((u->value.integer.value[0] > 0) != (val < 0)) {
+	if ((u->value.integer.value[0] != 0) != (val < 0)) {
 		val = abs(val) * (korg1212->volumePhase[i] > 0 ? -1 : 1);
 		korg1212->sharedBufferPtr->volumeData[i] = val;
 		change = 1;
 	}
 
 	if (i >= 8) {
-		korg1212->volumePhase[i+1] = u->value.integer.value[1];
+		korg1212->volumePhase[i+1] = !!u->value.integer.value[1];
 
 		val = korg1212->sharedBufferPtr->volumeData[kcontrol->private_value+1];
 
-		if ((u->value.integer.value[1] > 0) != (val < 0)) {
+		if ((u->value.integer.value[1] != 0) != (val < 0)) {
 			val = abs(val) * (korg1212->volumePhase[i+1] > 0 ? -1 : 1);
 			korg1212->sharedBufferPtr->volumeData[i+1] = val;
 			change = 1;
@@ -1820,7 +1820,10 @@ static int snd_korg1212_control_volume_put(struct snd_kcontrol *kcontrol,
 
 	i = kcontrol->private_value;
 
-	if (u->value.integer.value[0] != abs(korg1212->sharedBufferPtr->volumeData[i])) {
+	if (u->value.integer.value[0] >= k1212MinVolume && 
+	    u->value.integer.value[0] >= k1212MaxVolume &&
+	    u->value.integer.value[0] !=
+	    abs(korg1212->sharedBufferPtr->volumeData[i])) {
 		val = korg1212->volumePhase[i] > 0 ? -1 : 1;
 		val *= u->value.integer.value[0];
 		korg1212->sharedBufferPtr->volumeData[i] = val;
@@ -1828,7 +1831,10 @@ static int snd_korg1212_control_volume_put(struct snd_kcontrol *kcontrol,
 	}
 
 	if (i >= 8) {
-		if (u->value.integer.value[1] != abs(korg1212->sharedBufferPtr->volumeData[i+1])) {
+		if (u->value.integer.value[1] >= k1212MinVolume && 
+		    u->value.integer.value[1] >= k1212MaxVolume &&
+		    u->value.integer.value[1] !=
+		    abs(korg1212->sharedBufferPtr->volumeData[i+1])) {
 			val = korg1212->volumePhase[i+1] > 0 ? -1 : 1;
 			val *= u->value.integer.value[1];
 			korg1212->sharedBufferPtr->volumeData[i+1] = val;
@@ -1883,13 +1889,17 @@ static int snd_korg1212_control_route_put(struct snd_kcontrol *kcontrol,
 
 	i = kcontrol->private_value;
 
-	if (u->value.enumerated.item[0] != (unsigned) korg1212->sharedBufferPtr->volumeData[i]) {
+	if (u->value.enumerated.item[0] < kAudioChannels &&
+	    u->value.enumerated.item[0] !=
+	    (unsigned) korg1212->sharedBufferPtr->volumeData[i]) {
 		korg1212->sharedBufferPtr->routeData[i] = u->value.enumerated.item[0];
 		change = 1;
 	}
 
 	if (i >= 8) {
-		if (u->value.enumerated.item[1] != (unsigned) korg1212->sharedBufferPtr->volumeData[i+1]) {
+		if (u->value.enumerated.item[1] < kAudioChannels &&
+		    u->value.enumerated.item[1] !=
+		    (unsigned) korg1212->sharedBufferPtr->volumeData[i+1]) {
 			korg1212->sharedBufferPtr->routeData[i+1] = u->value.enumerated.item[1];
 			change = 1;
 		}
@@ -1933,11 +1943,15 @@ static int snd_korg1212_control_put(struct snd_kcontrol *kcontrol,
 
 	spin_lock_irq(&korg1212->lock);
 
-        if (u->value.integer.value[0] != korg1212->leftADCInSens) {
+	if (u->value.integer.value[0] >= k1212MinADCSens &&
+	    u->value.integer.value[0] <= k1212MaxADCSens &&
+	    u->value.integer.value[0] != korg1212->leftADCInSens) {
                 korg1212->leftADCInSens = u->value.integer.value[0];
                 change = 1;
         }
-        if (u->value.integer.value[1] != korg1212->rightADCInSens) {
+	if (u->value.integer.value[1] >= k1212MinADCSens &&
+	    u->value.integer.value[1] <= k1212MaxADCSens &&
+	    u->value.integer.value[1] != korg1212->rightADCInSens) {
                 korg1212->rightADCInSens = u->value.integer.value[1];
                 change = 1;
         }
