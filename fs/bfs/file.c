@@ -2,6 +2,11 @@
  *	fs/bfs/file.c
  *	BFS file operations.
  *	Copyright (C) 1999,2000 Tigran Aivazian <tigran@veritas.com>
+ *
+ *	Make the file block allocation algorithm understand the size
+ *	of the underlying block device.
+ *	Copyright (C) 2007 Dmitri Vorobiev <dmitri.vorobiev@gmail.com>
+ *
  */
 
 #include <linux/fs.h>
@@ -27,7 +32,8 @@ const struct file_operations bfs_file_operations = {
 	.splice_read	= generic_file_splice_read,
 };
 
-static int bfs_move_block(unsigned long from, unsigned long to, struct super_block *sb)
+static int bfs_move_block(unsigned long from, unsigned long to,
+					struct super_block *sb)
 {
 	struct buffer_head *bh, *new;
 
@@ -43,21 +49,22 @@ static int bfs_move_block(unsigned long from, unsigned long to, struct super_blo
 }
 
 static int bfs_move_blocks(struct super_block *sb, unsigned long start,
-                           unsigned long end, unsigned long where)
+				unsigned long end, unsigned long where)
 {
 	unsigned long i;
 
 	dprintf("%08lx-%08lx->%08lx\n", start, end, where);
 	for (i = start; i <= end; i++)
 		if(bfs_move_block(i, where + i, sb)) {
-			dprintf("failed to move block %08lx -> %08lx\n", i, where + i);
+			dprintf("failed to move block %08lx -> %08lx\n", i,
+								where + i);
 			return -EIO;
 		}
 	return 0;
 }
 
-static int bfs_get_block(struct inode * inode, sector_t block, 
-	struct buffer_head * bh_result, int create)
+static int bfs_get_block(struct inode *inode, sector_t block,
+			struct buffer_head *bh_result, int create)
 {
 	unsigned long phys;
 	int err;
@@ -65,9 +72,6 @@ static int bfs_get_block(struct inode * inode, sector_t block,
 	struct bfs_sb_info *info = BFS_SB(sb);
 	struct bfs_inode_info *bi = BFS_I(inode);
 	struct buffer_head *sbh = info->si_sbh;
-
-	if (block > info->si_blocks)
-		return -EIO;
 
 	phys = bi->i_sblock + block;
 	if (!create) {
@@ -79,21 +83,29 @@ static int bfs_get_block(struct inode * inode, sector_t block,
 		return 0;
 	}
 
-	/* if the file is not empty and the requested block is within the range
-	   of blocks allocated for this file, we can grant it */
-	if (inode->i_size && phys <= bi->i_eblock) {
+	/*
+	 * If the file is not empty and the requested block is within the
+	 * range of blocks allocated for this file, we can grant it.
+	 */
+	if (bi->i_sblock && (phys <= bi->i_eblock)) {
 		dprintf("c=%d, b=%08lx, phys=%08lx (interim block granted)\n", 
 				create, (unsigned long)block, phys);
 		map_bh(bh_result, sb, phys);
 		return 0;
 	}
 
-	/* the rest has to be protected against itself */
+	/* The file will be extended, so let's see if there is enough space. */
+	if (phys >= info->si_blocks)
+		return -ENOSPC;
+
+	/* The rest has to be protected against itself. */
 	lock_kernel();
 
-	/* if the last data block for this file is the last allocated
-	   block, we can extend the file trivially, without moving it
-	   anywhere */
+	/*
+	 * If the last data block for this file is the last allocated
+	 * block, we can extend the file trivially, without moving it
+	 * anywhere.
+	 */
 	if (bi->i_eblock == info->si_lf_eblk) {
 		dprintf("c=%d, b=%08lx, phys=%08lx (simple extension)\n", 
 				create, (unsigned long)block, phys);
@@ -106,13 +118,19 @@ static int bfs_get_block(struct inode * inode, sector_t block,
 		goto out;
 	}
 
-	/* Ok, we have to move this entire file to the next free block */
+	/* Ok, we have to move this entire file to the next free block. */
 	phys = info->si_lf_eblk + 1;
-	if (bi->i_sblock) { /* if data starts on block 0 then there is no data */
+	if (phys + block >= info->si_blocks) {
+		err = -ENOSPC;
+		goto out;
+	}
+
+	if (bi->i_sblock) {
 		err = bfs_move_blocks(inode->i_sb, bi->i_sblock, 
-				bi->i_eblock, phys);
+						bi->i_eblock, phys);
 		if (err) {
-			dprintf("failed to move ino=%08lx -> fs corruption\n", inode->i_ino);
+			dprintf("failed to move ino=%08lx -> fs corruption\n",
+								inode->i_ino);
 			goto out;
 		}
 	} else
@@ -124,8 +142,10 @@ static int bfs_get_block(struct inode * inode, sector_t block,
 	phys += block;
 	info->si_lf_eblk = bi->i_eblock = phys;
 
-	/* this assumes nothing can write the inode back while we are here
-	 * and thus update inode->i_blocks! (XXX)*/
+	/*
+	 * This assumes nothing can write the inode back while we are here
+	 * and thus update inode->i_blocks! (XXX)
+	 */
 	info->si_freeb -= bi->i_eblock - bi->i_sblock + 1 - inode->i_blocks;
 	mark_inode_dirty(inode);
 	mark_buffer_dirty(sbh);
