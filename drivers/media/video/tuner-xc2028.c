@@ -28,6 +28,20 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
+static char audio_std[8];
+module_param_string(audio_std, audio_std, sizeof(audio_std), 0);
+MODULE_PARM_DESC(audio_std,
+	"Audio standard. XC3028 audio decoder explicitly "
+	"needs to know what audio\n"
+	"standard is needed for some video standards with audio A2 or NICAM.\n"
+	"The valid values are:\n"
+	"A2\n"
+	"A2/A\n"
+	"A2/B\n"
+	"NICAM\n"
+	"NICAM/A\n"
+	"NICAM/B\n");
+
 static LIST_HEAD(xc2028_list);
 /* struct for storing firmware table */
 struct firmware_description {
@@ -178,6 +192,24 @@ void dump_firm_type(unsigned int type)
 		printk("INPUT2 ");
 	 if (type & SCODE)
 		printk("SCODE ");
+}
+
+static v4l2_std_id parse_audio_std_option(void)
+{
+	if (strcasecmp(audio_std, "A2"))
+		return V4L2_STD_A2;
+	if (strcasecmp(audio_std, "A2/A"))
+		return V4L2_STD_A2_A;
+	if (strcasecmp(audio_std, "A2/B"))
+		return V4L2_STD_A2_B;
+	if (strcasecmp(audio_std, "NICAM"))
+		return V4L2_STD_NICAM;
+	if (strcasecmp(audio_std, "NICAM/A"))
+		return V4L2_STD_NICAM_A;
+	if (strcasecmp(audio_std, "NICAM/B"))
+		return V4L2_STD_NICAM_B;
+
+	return 0;
 }
 
 static void free_firmware(struct xc2028_data *priv)
@@ -612,6 +644,9 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 		tuner_dbg("Std-specific firmware already loaded.\n");
 		return 0;
 	}
+
+	/* Add audio hack to std mask */
+	std |= parse_audio_std_option();
 
 	rc = load_firmware(fe, type, &std);
 	if (rc < 0)
