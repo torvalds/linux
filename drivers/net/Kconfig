@@ -2597,6 +2597,15 @@ config TEHUTI
 	help
 	  Tehuti Networks 10G Ethernet NIC
 
+config BNX2X
+	tristate "Broadcom NetXtremeII 10Gb support"
+	depends on PCI
+	help
+	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
+	  To compile this driver as a module, choose M here: the module
+	  will be called bnx2x.  This is recommended.
+
+
 endif # NETDEV_10000
 
 source "drivers/net/tokenring/Kconfig"
