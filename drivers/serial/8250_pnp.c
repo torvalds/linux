@@ -347,6 +347,11 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	/* Fujitsu Wacom Tablet PC devices */
 	{	"FUJ02E5",		0	},
 	{	"FUJ02E6",		0	},
+	/*
+	 * LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6 in
+	 * disguise)
+	 */
+	{	"LTS0001",		0       },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
 	/* Unkown PnP modems */
