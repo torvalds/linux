@@ -50,7 +50,7 @@ config GENERIC_HARDIRQS
 	default y
 
 config GENERIC_IRQ_PROBE
-        bool
+	bool
 	default y
 
 config GENERIC_TIME
@@ -300,9 +300,9 @@ config BFIN_KERNEL_CLOCK
 	  configuration.
 
 config PLL_BYPASS
-        bool "Bypass PLL"
-        depends on BFIN_KERNEL_CLOCK
-        default n
+	bool "Bypass PLL"
+	depends on BFIN_KERNEL_CLOCK
+	default n
 
 config CLKIN_HALF
 	bool "Half Clock In"
