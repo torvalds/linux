@@ -3,7 +3,6 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <asm/unistd.h>
-#include <asm/page.h>
 #include "as-layout.h"
 #include "ptrace_user.h"
 #include "skas.h"
