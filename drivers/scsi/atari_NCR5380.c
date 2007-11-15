@@ -1868,7 +1868,7 @@ static int do_abort(struct Scsi_Host *host)
 	 * the target sees, so we just handshake.
 	 */
 
-	while (!(tmp = NCR5380_read(STATUS_REG)) & SR_REQ)
+	while (!((tmp = NCR5380_read(STATUS_REG)) & SR_REQ))
 		;
 
 	NCR5380_write(TARGET_COMMAND_REG, PHASE_SR_TO_TCR(tmp));
