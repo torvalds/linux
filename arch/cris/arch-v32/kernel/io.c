@@ -49,7 +49,7 @@ struct crisv32_ioport crisv32_ioports[] =
 	}
 };
 
-#define NBR_OF_PORTS sizeof(crisv32_ioports)/sizeof(struct crisv32_ioport)
+#define NBR_OF_PORTS ARRAY_SIZE(crisv32_ioports)
 
 struct crisv32_iopin crisv32_led1_green;
 struct crisv32_iopin crisv32_led1_red;
