@@ -64,6 +64,8 @@ int alloc_cpu_buffers(void)
 		b->head_pos = 0;
 		b->sample_received = 0;
 		b->sample_lost_overflow = 0;
+		b->backtrace_aborted = 0;
+		b->sample_invalid_eip = 0;
 		b->cpu = i;
 		INIT_DELAYED_WORK(&b->work, wq_sync_buffer);
 	}
@@ -174,6 +176,11 @@ static int log_sample(struct oprofile_cpu_buffer * cpu_buf, unsigned long pc,
 	struct task_struct * task;
 
 	cpu_buf->sample_received++;
+
+	if (pc == ESCAPE_CODE) {
+		cpu_buf->sample_invalid_eip++;
+		return 0;
+	}
 
 	if (nr_available_slots(cpu_buf) < 3) {
 		cpu_buf->sample_lost_overflow++;
