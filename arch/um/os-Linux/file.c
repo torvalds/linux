@@ -496,8 +496,7 @@ int os_rcv_fd(int fd, int *helper_pid_out)
 	n = recvmsg(fd, &msg, 0);
 	if(n < 0)
 		return -errno;
-
-	else if(n != sizeof(iov.iov_len))
+	else if(n != iov.iov_len)
 		*helper_pid_out = -1;
 
 	cmsg = CMSG_FIRSTHDR(&msg);
