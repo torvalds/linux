@@ -1196,10 +1196,6 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_QKEY, 1);
 	}
 	if (attr_mask & IB_QP_AV) {
-		int ah_mult = ib_rate_to_mult(attr->ah_attr.static_rate);
-		int ehca_mult = ib_rate_to_mult(shca->sport[my_qp->
-						init_attr.port_num].rate);
-
 		mqpcb->dlid = attr->ah_attr.dlid;
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_DLID, 1);
 		mqpcb->source_path_bits = attr->ah_attr.src_path_bits;
@@ -1207,11 +1203,12 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		mqpcb->service_level = attr->ah_attr.sl;
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_SERVICE_LEVEL, 1);
 
-		if (ah_mult < ehca_mult)
-			mqpcb->max_static_rate = (ah_mult > 0) ?
-			((ehca_mult - 1) / ah_mult) : 0;
-		else
-			mqpcb->max_static_rate = 0;
+		if (ehca_calc_ipd(shca, my_qp->init_attr.port_num,
+				  attr->ah_attr.static_rate,
+				  &mqpcb->max_static_rate)) {
+			ret = -EINVAL;
+			goto modify_qp_exit2;
+		}
 		update_mask |= EHCA_BMASK_SET(MQPCB_MASK_MAX_STATIC_RATE, 1);
 
 		/*
@@ -1280,10 +1277,6 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 			(MQPCB_MASK_RDMA_ATOMIC_OUTST_DEST_QP, 1);
 	}
 	if (attr_mask & IB_QP_ALT_PATH) {
-		int ah_mult = ib_rate_to_mult(attr->alt_ah_attr.static_rate);
-		int ehca_mult = ib_rate_to_mult(
-			shca->sport[my_qp->init_attr.port_num].rate);
-
 		if (attr->alt_port_num < 1
 		    || attr->alt_port_num > shca->num_ports) {
 			ret = -EINVAL;
@@ -1309,10 +1302,12 @@ static int internal_modify_qp(struct ib_qp *ibqp,
 		mqpcb->source_path_bits_al = attr->alt_ah_attr.src_path_bits;
 		mqpcb->service_level_al = attr->alt_ah_attr.sl;
 
-		if (ah_mult > 0 && ah_mult < ehca_mult)
-			mqpcb->max_static_rate_al = (ehca_mult - 1) / ah_mult;
-		else
-			mqpcb->max_static_rate_al = 0;
+		if (ehca_calc_ipd(shca, my_qp->init_attr.port_num,
+				  attr->alt_ah_attr.static_rate,
+				  &mqpcb->max_static_rate_al)) {
+			ret = -EINVAL;
+			goto modify_qp_exit2;
+		}
 
 		/* OpenIB doesn't support alternate retry counts - copy them */
 		mqpcb->retry_count_al = mqpcb->retry_count;

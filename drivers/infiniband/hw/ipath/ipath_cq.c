@@ -404,7 +404,7 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 
 		ret = ib_copy_to_udata(udata, &offset, sizeof(offset));
 		if (ret)
-			goto bail;
+			goto bail_free;
 	}
 
 	spin_lock_irq(&cq->lock);
@@ -424,10 +424,8 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	else
 		n = head - tail;
 	if (unlikely((u32)cqe < n)) {
-		spin_unlock_irq(&cq->lock);
-		vfree(wc);
 		ret = -EOVERFLOW;
-		goto bail;
+		goto bail_unlock;
 	}
 	for (n = 0; tail != head; n++) {
 		if (cq->ip)
@@ -459,7 +457,12 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 	}
 
 	ret = 0;
+	goto bail;
 
+bail_unlock:
+	spin_unlock_irq(&cq->lock);
+bail_free:
+	vfree(wc);
 bail:
 	return ret;
 }

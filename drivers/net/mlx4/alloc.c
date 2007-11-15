@@ -171,9 +171,10 @@ void mlx4_buf_free(struct mlx4_dev *dev, int size, struct mlx4_buf *buf)
 				  buf->u.direct.map);
 	else {
 		for (i = 0; i < buf->nbufs; ++i)
-			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
-					  buf->u.page_list[i].buf,
-					  buf->u.page_list[i].map);
+			if (buf->u.page_list[i].buf)
+				dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+						  buf->u.page_list[i].buf,
+						  buf->u.page_list[i].map);
 		kfree(buf->u.page_list);
 	}
 }

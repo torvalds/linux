@@ -959,8 +959,9 @@ static int do_rc_ack(struct ipath_qp *qp, u32 aeth, u32 psn, int opcode,
 		/* If this is a partial ACK, reset the retransmit timer. */
 		if (qp->s_last != qp->s_tail) {
 			spin_lock(&dev->pending_lock);
-			list_add_tail(&qp->timerwait,
-				      &dev->pending[dev->pending_index]);
+			if (list_empty(&qp->timerwait))
+				list_add_tail(&qp->timerwait,
+					&dev->pending[dev->pending_index]);
 			spin_unlock(&dev->pending_lock);
 			/*
 			 * If we get a partial ACK for a resent operation,
