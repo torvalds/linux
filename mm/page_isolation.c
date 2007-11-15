@@ -55,7 +55,7 @@ start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
 	return 0;
 undo:
 	for (pfn = start_pfn;
-	     pfn <= undo_pfn;
+	     pfn < undo_pfn;
 	     pfn += pageblock_nr_pages)
 		unset_migratetype_isolate(pfn_to_page(pfn));
 
@@ -76,7 +76,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn)
 	     pfn < end_pfn;
 	     pfn += pageblock_nr_pages) {
 		page = __first_valid_page(pfn, pageblock_nr_pages);
-		if (!page || get_pageblock_flags(page) != MIGRATE_ISOLATE)
+		if (!page || get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
 			continue;
 		unset_migratetype_isolate(page);
 	}
@@ -126,7 +126,7 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn)
 	 */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += pageblock_nr_pages) {
 		page = __first_valid_page(pfn, pageblock_nr_pages);
-		if (page && get_pageblock_flags(page) != MIGRATE_ISOLATE)
+		if (page && get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
 			break;
 	}
 	if (pfn < end_pfn)
