@@ -474,7 +474,7 @@ static struct resource at32ap700x_rtc0_resource[] = {
 static struct resource at32_wdt0_resource[] = {
 	{
 		.start	= 0xfff000b0,
-		.end	= 0xfff000bf,
+		.end	= 0xfff000cf,
 		.flags	= IORESOURCE_MEM,
 	},
 };
@@ -690,7 +690,7 @@ static struct resource atmel_usart0_resource[] = {
 	IRQ(6),
 };
 DEFINE_DEV_DATA(atmel_usart, 0);
-DEV_CLK(usart, atmel_usart0, pba, 4);
+DEV_CLK(usart, atmel_usart0, pba, 3);
 
 static struct atmel_uart_data atmel_usart1_data = {
 	.use_dma_tx	= 1,

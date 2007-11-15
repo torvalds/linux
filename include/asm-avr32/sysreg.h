@@ -215,6 +215,8 @@
 #define SYSREG_IRP_SIZE				6
 
 /* Bitfields in PCCR */
+#define SYSREG_PCCR_E_OFFSET			0
+#define SYSREG_PCCR_E_SIZE			1
 #define SYSREG_PCCR_R_OFFSET			1
 #define SYSREG_PCCR_R_SIZE			1
 #define SYSREG_PCCR_C_OFFSET			2

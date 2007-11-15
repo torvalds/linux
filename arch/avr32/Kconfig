@@ -19,9 +19,6 @@ config AVR32
 	  There is an AVR32 Linux project with a web page at
 	  http://avr32linux.org/.
 
-config UID16
-	bool
-
 config GENERIC_GPIO
 	bool
 	default y
