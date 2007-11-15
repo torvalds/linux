@@ -167,7 +167,7 @@ static void inline buffer_filled (struct tm6000_core *dev,
 
 	/* Advice that buffer was filled */
 	dprintk(dev, V4L2_DEBUG_ISOC, "[%p/%d] wakeup\n",buf,buf->vb.i);
-	buf->vb.state = STATE_DONE;
+	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
 	do_gettimeofday(&buf->vb.ts);
 
@@ -764,7 +764,7 @@ static int restart_video_queue(struct tm6000_dmaqueue *dma_q)
 			buf = list_entry(item, struct tm6000_buffer, vb.queue);
 
 			list_del(&buf->vb.queue);
-			buf->vb.state = STATE_ERROR;
+			buf->vb.state = VIDEOBUF_ERROR;
 			wake_up(&buf->vb.done);
 		}
 		mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
@@ -785,7 +785,7 @@ static int restart_video_queue(struct tm6000_dmaqueue *dma_q)
 			tm6000_stop_thread(dma_q);
 			tm6000_start_thread(dma_q, buf);
 
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
 			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] restart_queue -"
 					" first active\n", buf, buf->vb.i);
@@ -795,7 +795,7 @@ static int restart_video_queue(struct tm6000_dmaqueue *dma_q)
 			   prev->fmt       == buf->fmt) {
 			list_del(&buf->vb.queue);
 			list_add_tail(&buf->vb.queue,&dma_q->active);
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] restart_queue -"
 					" move to active\n",buf,buf->vb.i);
 		} else {
@@ -817,7 +817,7 @@ static void tm6000_vid_timeout(unsigned long data)
 		buf = list_entry(vidq->active.next, struct tm6000_buffer,
 								 vb.queue);
 		list_del(&buf->vb.queue);
-		buf->vb.state = STATE_ERROR;
+		buf->vb.state = VIDEOBUF_ERROR;
 		wake_up(&buf->vb.done);
 		dprintk(dev, V4L2_DEBUG_QUEUE, "tm6000/0: [%p/%d] timeout\n",
 							 buf, buf->vb.i);
@@ -857,7 +857,7 @@ static void free_buffer(struct videobuf_queue *vq, struct tm6000_buffer *buf)
 
 	videobuf_waiton(&buf->vb,0,0);
 	videobuf_vmalloc_free(&buf->vb);
-	buf->vb.state = STATE_NEEDS_INIT;
+	buf->vb.state = VIDEOBUF_NEEDS_INIT;
 }
 
 static int
@@ -886,10 +886,10 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		buf->vb.width  = fh->width;
 		buf->vb.height = fh->height;
 		buf->vb.field  = field;
-		buf->vb.state = STATE_NEEDS_INIT;
+		buf->vb.state = VIDEOBUF_NEEDS_INIT;
 	}
 
-	if (STATE_NEEDS_INIT == buf->vb.state) {
+	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
 		if (0 != (rc = videobuf_iolock(vq,&buf->vb,NULL)))
 			goto fail;
 		urb_init=1;
@@ -943,7 +943,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 			goto fail;
 	}
 
-	buf->vb.state = STATE_PREPARED;
+	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
 
 fail:
@@ -962,12 +962,12 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 
 	if (!list_empty(&vidq->queued)) {
 		list_add_tail(&buf->vb.queue,&vidq->queued);
-		buf->vb.state = STATE_QUEUED;
+		buf->vb.state = VIDEOBUF_QUEUED;
 		dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue - "
 					"append to queued\n", buf, buf->vb.i);
 	} else if (list_empty(&vidq->active)) {
 		list_add_tail(&buf->vb.queue,&vidq->active);
-		buf->vb.state = STATE_ACTIVE;
+		buf->vb.state = VIDEOBUF_ACTIVE;
 		mod_timer(&vidq->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue - "
 					"first active\n", buf, buf->vb.i);
@@ -978,12 +978,12 @@ buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 		    prev->vb.height == buf->vb.height &&
 		    prev->fmt       == buf->fmt) {
 			list_add_tail(&buf->vb.queue,&vidq->active);
-			buf->vb.state = STATE_ACTIVE;
+			buf->vb.state = VIDEOBUF_ACTIVE;
 			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue -"
 					" append to active\n", buf, buf->vb.i);
 		} else {
 			list_add_tail(&buf->vb.queue,&vidq->queued);
-			buf->vb.state = STATE_QUEUED;
+			buf->vb.state = VIDEOBUF_QUEUED;
 			dprintk(dev, V4L2_DEBUG_QUEUE, "[%p/%d] buffer_queue -"
 					" first queued\n", buf, buf->vb.i);
 		}
@@ -1583,8 +1583,8 @@ tm6000_poll(struct file *file, struct poll_table_struct *wait)
 					    wait);
 	}
 	poll_wait(file, &buf->vb.done, wait);
-	if (buf->vb.state == STATE_DONE ||
-	    buf->vb.state == STATE_ERROR)
+	if (buf->vb.state == VIDEOBUF_DONE ||
+	    buf->vb.state == VIDEOBUF_ERROR)
 		return POLLIN|POLLRDNORM;
 	return 0;
 }
