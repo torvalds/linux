@@ -136,6 +136,11 @@ config BF544
 	help
 	  BF544 Processor Support.
 
+config BF547
+	bool "BF547"
+	help
+	  BF547 Processor Support.
+
 config BF548
 	bool "BF548"
 	help
@@ -204,7 +209,7 @@ config BF53x
 
 config BF54x
 	bool
-	depends on (BF542 || BF544 || BF548 || BF549)
+	depends on (BF542 || BF544 || BF547 || BF548 || BF549)
 	default y
 
 config BFIN_DUAL_CORE
