@@ -2328,21 +2328,18 @@ out:
 
 void proc_flush_task(struct task_struct *task)
 {
-	int i, leader;
-	struct pid *pid, *tgid;
+	int i;
+	struct pid *pid, *tgid = NULL;
 	struct upid *upid;
 
-	leader = thread_group_leader(task);
-	proc_flush_task_mnt(proc_mnt, task->pid, leader ? task->tgid : 0);
 	pid = task_pid(task);
-	if (pid->level == 0)
-		return;
+	if (thread_group_leader(task))
+		tgid = task_tgid(task);
 
-	tgid = task_tgid(task);
-	for (i = 1; i <= pid->level; i++) {
+	for (i = 0; i <= pid->level; i++) {
 		upid = &pid->numbers[i];
 		proc_flush_task_mnt(upid->ns->proc_mnt, upid->nr,
-				leader ? 0 : tgid->numbers[i].nr);
+			tgid ? tgid->numbers[i].nr : 0);
 	}
 
 	upid = &pid->numbers[pid->level];
