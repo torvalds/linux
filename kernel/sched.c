@@ -52,7 +52,6 @@
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
 #include <linux/percpu.h>
-#include <linux/cpu_acct.h>
 #include <linux/kthread.h>
 #include <linux/seq_file.h>
 #include <linux/sysctl.h>
@@ -3338,12 +3337,8 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
 {
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
 	cputime64_t tmp;
-	struct rq *rq = this_rq();
 
 	p->utime = cputime_add(p->utime, cputime);
-
-	if (p != rq->idle)
-		cpuacct_charge(p, cputime);
 
 	/* Add user time to cpustat. */
 	tmp = cputime_to_cputime64(cputime);
@@ -3408,10 +3403,9 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 		cpustat->irq = cputime64_add(cpustat->irq, tmp);
 	else if (softirq_count())
 		cpustat->softirq = cputime64_add(cpustat->softirq, tmp);
-	else if (p != rq->idle) {
+	else if (p != rq->idle)
 		cpustat->system = cputime64_add(cpustat->system, tmp);
-		cpuacct_charge(p, cputime);
-	} else if (atomic_read(&rq->nr_iowait) > 0)
+	else if (atomic_read(&rq->nr_iowait) > 0)
 		cpustat->iowait = cputime64_add(cpustat->iowait, tmp);
 	else
 		cpustat->idle = cputime64_add(cpustat->idle, tmp);
@@ -3447,10 +3441,8 @@ void account_steal_time(struct task_struct *p, cputime_t steal)
 			cpustat->iowait = cputime64_add(cpustat->iowait, tmp);
 		else
 			cpustat->idle = cputime64_add(cpustat->idle, tmp);
-	} else {
+	} else
 		cpustat->steal = cputime64_add(cpustat->steal, tmp);
-		cpuacct_charge(p, -tmp);
-	}
 }
 
 /*
