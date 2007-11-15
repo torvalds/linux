@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2004 - 2006 Intel Corporation. All rights reserved.
+ * Copyright(c) 2004 - 2007 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -28,7 +28,7 @@
 #include <linux/cache.h>
 #include <linux/pci_ids.h>
 
-#define IOAT_DMA_VERSION "1.26"
+#define IOAT_DMA_VERSION  "2.04"
 
 enum ioat_interrupt {
 	none = 0,
@@ -39,6 +39,8 @@ enum ioat_interrupt {
 };
 
 #define IOAT_LOW_COMPLETION_MASK	0xffffffc0
+#define IOAT_DMA_DCA_ANY_CPU		~0
+
 
 /**
  * struct ioatdma_device - internal representation of a IOAT device
@@ -47,6 +49,9 @@ enum ioat_interrupt {
  * @dma_pool: for allocating DMA descriptors
  * @common: embedded struct dma_device
  * @version: version of ioatdma device
+ * @irq_mode: which style irq to use
+ * @msix_entries: irq handlers
+ * @idx: per channel data
  */
 
 struct ioatdma_device {
@@ -63,23 +68,7 @@ struct ioatdma_device {
 
 /**
  * struct ioat_dma_chan - internal representation of a DMA channel
- * @device:
- * @reg_base:
- * @sw_in_use:
- * @completion:
- * @completion_low:
- * @completion_high:
- * @completed_cookie: last cookie seen completed on cleanup
- * @cookie: value of last cookie given to client
- * @last_completion:
- * @xfercap:
- * @desc_lock:
- * @free_desc:
- * @used_desc:
- * @resource:
- * @device_node:
  */
-
 struct ioat_dma_chan {
 
 	void __iomem *reg_base;
@@ -95,6 +84,8 @@ struct ioat_dma_chan {
 	struct list_head used_desc;
 
 	int pending;
+	int dmacount;
+	int desccount;
 
 	struct ioatdma_device *device;
 	struct dma_chan common;
@@ -134,12 +125,13 @@ struct ioat_desc_sw {
 struct ioatdma_device *ioat_dma_probe(struct pci_dev *pdev,
 				      void __iomem *iobase);
 void ioat_dma_remove(struct ioatdma_device *device);
-struct dca_provider *ioat_dca_init(struct pci_dev *pdev,
-				   void __iomem *iobase);
+struct dca_provider *ioat_dca_init(struct pci_dev *pdev, void __iomem *iobase);
+struct dca_provider *ioat2_dca_init(struct pci_dev *pdev, void __iomem *iobase);
 #else
 #define ioat_dma_probe(pdev, iobase)    NULL
 #define ioat_dma_remove(device)         do { } while (0)
 #define ioat_dca_init(pdev, iobase)	NULL
+#define ioat2_dca_init(pdev, iobase)	NULL
 #endif
 
 #endif /* IOATDMA_H */
