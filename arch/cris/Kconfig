@@ -13,6 +13,10 @@ config ZONE_DMA
 	bool
 	default y
 
+config NO_DMA
+	bool
+	default y
+
 config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
@@ -153,7 +157,8 @@ source "net/Kconfig"
 
 # bring in ETRAX built-in drivers
 menu "Drivers for built-in interfaces"
-source arch/cris/arch-v10/drivers/Kconfig
+# arch/cris/arch is a symlink to correct arch (arch-v10 or arch-v32)
+source arch/cris/arch/drivers/Kconfig
 
 endmenu
 
@@ -184,6 +189,10 @@ source "drivers/isdn/Kconfig"
 
 source "drivers/telephony/Kconfig"
 
+source "drivers/i2c/Kconfig"
+
+source "drivers/rtc/Kconfig"
+
 #
 # input before char - char/joystick depends on it. As does USB.
 #
@@ -197,6 +206,10 @@ source "drivers/media/Kconfig"
 source "fs/Kconfig"
 
 source "sound/Kconfig"
+
+source "drivers/pcmcia/Kconfig"
+
+source "drivers/pci/Kconfig"
 
 source "drivers/usb/Kconfig"
 

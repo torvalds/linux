@@ -500,9 +500,8 @@ _work_notifysig:
 	;; deal with pending signals and notify-resume requests
 
 	move.d	$r9, $r10	; do_notify_resume syscall/irq param
-	moveq	0, $r11		; oldset param - 0 in this case
-	move.d	$sp, $r12	; the regs param
-	move.d  $r1, $r13	; the thread_info_flags parameter
+	move.d	$sp, $r11	; the regs param
+	move.d  $r1, $r12	; the thread_info_flags parameter
 	jsr	do_notify_resume
 	
 	ba _Rexit
@@ -678,13 +677,19 @@ IRQ1_interrupt:
 	push	$r10		; push orig_r10
 	clear.d [$sp=$sp-4]	; frametype == 0, normal frame
 
+	;; If there is a glitch on the NMI pin shorter than ~100ns
+	;; (i.e. non-active by the time we get here) then the nmi_pin bit
+	;; in R_IRQ_MASK0_RD will already be cleared.  The watchdog_nmi bit
+	;; is cleared by us however (when feeding the watchdog), which is why
+	;; we use that bit to determine what brought us here.
+
 	move.d	[R_IRQ_MASK0_RD], $r1 ; External NMI or watchdog?
-	and.d   0x80000000, $r1
-	beq	wdog
+	and.d   (1<<30), $r1
+	bne	wdog
 	move.d  $sp, $r10
 	jsr	handle_nmi
 	setf m			; Enable NMI again
-	retb			; Return from NMI
+	ba	_Rexit		; Return the standard way
 	nop
 wdog:
 #if defined(CONFIG_ETRAX_WATCHDOG) && !defined(CONFIG_SVINTO_SIM)
@@ -775,22 +780,9 @@ multiple_interrupt:
 	push	$r10		; push orig_r10
 	clear.d [$sp=$sp-4]	; frametype == 0, normal frame
 	
-	moveq	2, $r2		; first bit we care about is the timer0 irq
-	move.d	[R_VECT_MASK_RD], $r0; read the irq bits that triggered the multiple irq
-	move.d	$r0, [R_VECT_MASK_CLR] ; Block all active IRQs
-1:	
-	btst	$r2, $r0	; check for the irq given by bit r2
-	bpl	2f
-	move.d  $r2, $r10	; First argument to do_IRQ
-	move.d  $sp, $r11	; second argument to do_IRQ
-	jsr	do_IRQ
-2:
-	addq	1, $r2		; next vector bit
-	cmp.b	32, $r2
-	bne	1b	; process all irq's up to and including number 31
-	moveq	0, $r9  ; make ret_from_intr realise we came from an ir
+	move.d  $sp, $r10
+	jsr	do_multiple_IRQ
 	
-	move.d	$r0, [R_VECT_MASK_SET] ;  Unblock all the IRQs
 	jump    ret_from_intr
 
 do_sigtrap:
@@ -837,6 +829,13 @@ _ugdb_handle_breakpoint:
 	ba	do_sigtrap		; SIGTRAP the offending process. 
 	pop	$dccr			; Restore dccr in delay slot.
 	
+	.global kernel_execve
+kernel_execve:
+	move.d __NR_execve, $r9
+	break 13
+	ret
+	nop
+
 	.data
 
 hw_bp_trigs:
