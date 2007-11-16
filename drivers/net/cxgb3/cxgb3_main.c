@@ -2316,6 +2316,112 @@ void t3_fatal_err(struct adapter *adapter)
 
 }
 
+/**
+ * t3_io_error_detected - called when PCI error is detected
+ * @pdev: Pointer to PCI device
+ * @state: The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
+					     pci_channel_state_t state)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+	int i;
+
+	/* Stop all ports */
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+
+		if (netif_running(netdev))
+			cxgb_close(netdev);
+	}
+
+	if (is_offload(adapter) && 
+	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
+		offload_close(&adapter->tdev);
+
+	/* Free sge resources */
+	t3_free_sge_resources(adapter);
+
+	adapter->flags &= ~FULL_INIT_DONE;
+
+	pci_disable_device(pdev);
+
+	/* Request a slot slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * t3_io_slot_reset - called after the pci bus has been reset.
+ * @pdev: Pointer to PCI device
+ *
+ * Restart the card from scratch, as if from a cold-boot.
+ */
+static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+
+	if (pci_enable_device(pdev)) {
+		dev_err(&pdev->dev,
+			"Cannot re-enable PCI device after reset.\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+	pci_set_master(pdev);
+
+	t3_prep_adapter(adapter, adapter->params.info, 1);
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+/**
+ * t3_io_resume - called when traffic can start flowing again.
+ * @pdev: Pointer to PCI device
+ *
+ * This callback is called when the error recovery driver tells us that
+ * its OK to resume normal operation.
+ */
+static void t3_io_resume(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adapter = pi->adapter;
+	int i;
+
+	/* Restart the ports */
+	for_each_port(adapter, i) {
+		struct net_device *netdev = adapter->port[i];
+
+		if (netif_running(netdev)) {
+			if (cxgb_open(netdev)) {
+				dev_err(&pdev->dev,
+					"can't bring device back up"
+					" after reset\n");
+				continue;
+			}
+			netif_device_attach(netdev);
+		}
+	}
+
+	if (is_offload(adapter)) {
+		__set_bit(OFFLOAD_DEVMAP_BIT, &adapter->registered_device_map);
+		if (offload_open(dev))
+			printk(KERN_WARNING
+			       "Could not bring back offload capabilities\n");
+	}
+}
+
+static struct pci_error_handlers t3_err_handler = {
+	.error_detected = t3_io_error_detected,
+	.slot_reset = t3_io_slot_reset,
+	.resume = t3_io_resume,
+};
+
 static int __devinit cxgb_enable_msix(struct adapter *adap)
 {
 	struct msix_entry entries[SGE_QSETS + 1];
@@ -2616,6 +2722,7 @@ static struct pci_driver driver = {
 	.id_table = cxgb3_pci_tbl,
 	.probe = init_one,
 	.remove = __devexit_p(remove_one),
+	.err_handler = &t3_err_handler,
 };
 
 static int __init cxgb3_init_module(void)
