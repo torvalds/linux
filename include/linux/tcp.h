@@ -330,7 +330,7 @@ struct tcp_sock {
 	struct tcp_sack_block duplicate_sack[1]; /* D-SACK block */
 	struct tcp_sack_block selective_acks[4]; /* The SACKS themselves*/
 
-	struct tcp_sack_block_wire recv_sack_cache[4];
+	struct tcp_sack_block recv_sack_cache[4];
 
 	struct sk_buff *highest_sack;   /* highest skb with SACK received
 					 * (validity guaranteed only if

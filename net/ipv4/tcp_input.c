@@ -1340,9 +1340,11 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	struct tcp_sock *tp = tcp_sk(sk);
 	unsigned char *ptr = (skb_transport_header(ack_skb) +
 			      TCP_SKB_CB(ack_skb)->sacked);
-	struct tcp_sack_block_wire *sp = (struct tcp_sack_block_wire *)(ptr+2);
+	struct tcp_sack_block_wire *sp_wire = (struct tcp_sack_block_wire *)(ptr+2);
+	struct tcp_sack_block sp[4];
 	struct sk_buff *cached_skb;
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
+	int used_sacks;
 	int reord = tp->packets_out;
 	int flag = 0;
 	int found_dup_sack = 0;
@@ -1357,7 +1359,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		tp->highest_sack = tcp_write_queue_head(sk);
 	}
 
-	found_dup_sack = tcp_check_dsack(tp, ack_skb, sp,
+	found_dup_sack = tcp_check_dsack(tp, ack_skb, sp_wire,
 					 num_sacks, prior_snd_una);
 	if (found_dup_sack)
 		flag |= FLAG_DSACKING_ACK;
@@ -1372,14 +1374,49 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	if (!tp->packets_out)
 		goto out;
 
+	used_sacks = 0;
+	first_sack_index = 0;
+	for (i = 0; i < num_sacks; i++) {
+		int dup_sack = !i && found_dup_sack;
+
+		sp[used_sacks].start_seq = ntohl(get_unaligned(&sp_wire[i].start_seq));
+		sp[used_sacks].end_seq = ntohl(get_unaligned(&sp_wire[i].end_seq));
+
+		if (!tcp_is_sackblock_valid(tp, dup_sack,
+					    sp[used_sacks].start_seq,
+					    sp[used_sacks].end_seq)) {
+			if (dup_sack) {
+				if (!tp->undo_marker)
+					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDNOUNDO);
+				else
+					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDOLD);
+			} else {
+				/* Don't count olds caused by ACK reordering */
+				if ((TCP_SKB_CB(ack_skb)->ack_seq != tp->snd_una) &&
+				    !after(sp[used_sacks].end_seq, tp->snd_una))
+					continue;
+				NET_INC_STATS_BH(LINUX_MIB_TCPSACKDISCARD);
+			}
+			if (i == 0)
+				first_sack_index = -1;
+			continue;
+		}
+
+		/* Ignore very old stuff early */
+		if (!after(sp[used_sacks].end_seq, prior_snd_una))
+			continue;
+
+		used_sacks++;
+	}
+
 	/* SACK fastpath:
 	 * if the only SACK change is the increase of the end_seq of
 	 * the first block then only apply that SACK block
 	 * and use retrans queue hinting otherwise slowpath */
 	force_one_sack = 1;
-	for (i = 0; i < num_sacks; i++) {
-		__be32 start_seq = sp[i].start_seq;
-		__be32 end_seq = sp[i].end_seq;
+	for (i = 0; i < used_sacks; i++) {
+		u32 start_seq = sp[i].start_seq;
+		u32 end_seq = sp[i].end_seq;
 
 		if (i == 0) {
 			if (tp->recv_sack_cache[i].start_seq != start_seq)
@@ -1398,19 +1435,17 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		tp->recv_sack_cache[i].end_seq = 0;
 	}
 
-	first_sack_index = 0;
 	if (force_one_sack)
-		num_sacks = 1;
+		used_sacks = 1;
 	else {
 		int j;
 		tp->fastpath_skb_hint = NULL;
 
 		/* order SACK blocks to allow in order walk of the retrans queue */
-		for (i = num_sacks-1; i > 0; i--) {
+		for (i = used_sacks - 1; i > 0; i--) {
 			for (j = 0; j < i; j++){
-				if (after(ntohl(sp[j].start_seq),
-					  ntohl(sp[j+1].start_seq))){
-					struct tcp_sack_block_wire tmp;
+				if (after(sp[j].start_seq, sp[j+1].start_seq)) {
+					struct tcp_sack_block tmp;
 
 					tmp = sp[j];
 					sp[j] = sp[j+1];
@@ -1433,31 +1468,13 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		cached_fack_count = 0;
 	}
 
-	for (i = 0; i < num_sacks; i++) {
+	for (i = 0; i < used_sacks; i++) {
 		struct sk_buff *skb;
-		__u32 start_seq = ntohl(sp->start_seq);
-		__u32 end_seq = ntohl(sp->end_seq);
+		u32 start_seq = sp[i].start_seq;
+		u32 end_seq = sp[i].end_seq;
 		int fack_count;
 		int dup_sack = (found_dup_sack && (i == first_sack_index));
 		int next_dup = (found_dup_sack && (i+1 == first_sack_index));
-
-		sp++;
-
-		if (!tcp_is_sackblock_valid(tp, dup_sack, start_seq, end_seq)) {
-			if (dup_sack) {
-				if (!tp->undo_marker)
-					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDNOUNDO);
-				else
-					NET_INC_STATS_BH(LINUX_MIB_TCPDSACKIGNOREDOLD);
-			} else {
-				/* Don't count olds caused by ACK reordering */
-				if ((TCP_SKB_CB(ack_skb)->ack_seq != tp->snd_una) &&
-				    !after(end_seq, tp->snd_una))
-					continue;
-				NET_INC_STATS_BH(LINUX_MIB_TCPSACKDISCARD);
-			}
-			continue;
-		}
 
 		skb = cached_skb;
 		fack_count = cached_fack_count;
@@ -1489,8 +1506,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 			/* Due to sorting DSACK may reside within this SACK block! */
 			if (next_dup) {
-				u32 dup_start = ntohl(sp->start_seq);
-				u32 dup_end = ntohl(sp->end_seq);
+				u32 dup_start = sp[i+1].start_seq;
+				u32 dup_end = sp[i+1].end_seq;
 
 				if (before(TCP_SKB_CB(skb)->seq, dup_end)) {
 					in_sack = tcp_match_skb_to_sack(sk, skb, dup_start, dup_end);
