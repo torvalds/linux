@@ -370,11 +370,11 @@ void __init arch_init_irq(void)
 #endif
 		/* Setup uart 1 settings, mapper */
 		/* QQQ FIXME */
-		__raw_writeq(M_DUART_IMR_BRK, IO_SPACE_BASE + A_DUART_IMRREG(kgdb_port));
+		__raw_writeq(M_DUART_IMR_BRK, IOADDR(A_DUART_IMRREG(kgdb_port)));
 
 		__raw_writeq(IMR_IP6_VAL,
-			     IO_SPACE_BASE + A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
-			     (kgdb_irq<<3));
+			     IOADDR(A_BCM1480_IMR_REGISTER(0, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
+			     (kgdb_irq << 3)));
 		bcm1480_unmask_irq(0, kgdb_irq);
 
 #ifdef CONFIG_GDB_CONSOLE
@@ -412,18 +412,6 @@ static void bcm1480_kgdb_interrupt(void)
 
 extern void bcm1480_mailbox_interrupt(void);
 
-static inline void dispatch_ip4(void)
-{
-	int cpu = smp_processor_id();
-	int irq = K_BCM1480_INT_TIMER_0 + cpu;
-
-	/* Reset the timer */
-	__raw_writeq(M_SCD_TIMER_ENABLE|M_SCD_TIMER_MODE_CONTINUOUS,
-	            IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
-
-	do_IRQ(irq);
-}
-
 static inline void dispatch_ip2(void)
 {
 	unsigned long long mask_h, mask_l;
@@ -451,6 +439,7 @@ static inline void dispatch_ip2(void)
 
 asmlinkage void plat_irq_dispatch(void)
 {
+	unsigned int cpu = smp_processor_id();
 	unsigned int pending;
 
 #ifdef CONFIG_SIBYTE_BCM1480_PROF
@@ -467,7 +456,7 @@ asmlinkage void plat_irq_dispatch(void)
 #endif
 
 	if (pending & CAUSEF_IP4)
-		dispatch_ip4();
+		do_IRQ(K_BCM1480_INT_TIMER_0 + cpu);
 #ifdef CONFIG_SMP
 	else if (pending & CAUSEF_IP3)
 		bcm1480_mailbox_interrupt();

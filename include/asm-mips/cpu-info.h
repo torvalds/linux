@@ -54,6 +54,7 @@ struct cpuinfo_mips {
 	struct cache_desc	dcache;	/* Primary D or combined I/D cache */
 	struct cache_desc	scache;	/* Secondary cache */
 	struct cache_desc	tcache;	/* Tertiary/split secondary cache */
+	int			srsets;	/* Shadow register sets */
 #if defined(CONFIG_MIPS_MT_SMTC)
 	/*
 	 * In the MIPS MT "SMTC" model, each TC is considered

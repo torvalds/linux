@@ -5,12 +5,14 @@
  *
  * Copyright (C) 2000, 2001, 04 Keith M Wesolowski
  */
-#include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/types.h>
+
 #include <asm/bootinfo.h>
-#include <asm/lasat/lasatint.h>
+
+#include <irq.h>
 
 extern struct pci_ops nile4_pci_ops;
 extern struct pci_ops gt64xxx_pci0_ops;
@@ -55,15 +57,15 @@ static int __init lasat_pci_setup(void)
 
 arch_initcall(lasat_pci_setup);
 
-#define LASATINT_ETH1   (LASATINT_BASE + 0)
-#define LASATINT_ETH0   (LASATINT_BASE + 1)
-#define LASATINT_HDC    (LASATINT_BASE + 2)
-#define LASATINT_COMP   (LASATINT_BASE + 3)
-#define LASATINT_HDLC   (LASATINT_BASE + 4)
-#define LASATINT_PCIA   (LASATINT_BASE + 5)
-#define LASATINT_PCIB   (LASATINT_BASE + 6)
-#define LASATINT_PCIC   (LASATINT_BASE + 7)
-#define LASATINT_PCID   (LASATINT_BASE + 8)
+#define LASAT_IRQ_ETH1   (LASAT_IRQ_BASE + 0)
+#define LASAT_IRQ_ETH0   (LASAT_IRQ_BASE + 1)
+#define LASAT_IRQ_HDC    (LASAT_IRQ_BASE + 2)
+#define LASAT_IRQ_COMP   (LASAT_IRQ_BASE + 3)
+#define LASAT_IRQ_HDLC   (LASAT_IRQ_BASE + 4)
+#define LASAT_IRQ_PCIA   (LASAT_IRQ_BASE + 5)
+#define LASAT_IRQ_PCIB   (LASAT_IRQ_BASE + 6)
+#define LASAT_IRQ_PCIC   (LASAT_IRQ_BASE + 7)
+#define LASAT_IRQ_PCID   (LASAT_IRQ_BASE + 8)
 
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
@@ -71,13 +73,13 @@ int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	case 1:
 	case 2:
 	case 3:
-		return LASATINT_PCIA + (((slot-1) + (pin-1)) % 4);
+		return LASAT_IRQ_PCIA + (((slot-1) + (pin-1)) % 4);
 	case 4:
-		return LASATINT_ETH1;   /* Ethernet 1 (LAN 2) */
+		return LASAT_IRQ_ETH1;   /* Ethernet 1 (LAN 2) */
 	case 5:
-		return LASATINT_ETH0;   /* Ethernet 0 (LAN 1) */
+		return LASAT_IRQ_ETH0;   /* Ethernet 0 (LAN 1) */
 	case 6:
-		return LASATINT_HDC;    /* IDE controller */
+		return LASAT_IRQ_HDC;    /* IDE controller */
 	default:
 		return 0xff;            /* Illegal */
 	}

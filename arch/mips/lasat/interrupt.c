@@ -19,17 +19,14 @@
  * Lasat boards.
  */
 #include <linux/init.h>
-#include <linux/irq.h>
-#include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/kernel_stat.h>
+#include <linux/irq.h>
 
 #include <asm/bootinfo.h>
 #include <asm/irq_cpu.h>
 #include <asm/lasat/lasatint.h>
-#include <asm/time.h>
-#include <asm/gdb-stub.h>
+
+#include <irq.h>
 
 static volatile int *lasat_int_status;
 static volatile int *lasat_int_mask;
@@ -97,11 +94,17 @@ asmlinkage void plat_irq_dispatch(void)
 
 	/* if int_status == 0, then the interrupt has already been cleared */
 	if (int_status) {
-		irq = LASATINT_BASE + ls1bit32(int_status);
+		irq = LASAT_IRQ_BASE + ls1bit32(int_status);
 
 		do_IRQ(irq);
 	}
 }
+
+static struct irqaction cascade = {
+	.handler	= no_action,
+	.mask		= CPU_MASK_NONE,
+	.name		= "cascade",
+};
 
 void __init arch_init_irq(void)
 {
@@ -127,6 +130,9 @@ void __init arch_init_irq(void)
 	}
 
 	mips_cpu_irq_init();
-	for (i = LASATINT_BASE; i <= LASATINT_END; i++)
+
+	for (i = LASAT_IRQ_BASE; i <= LASAT_IRQ_END; i++)
 		set_irq_chip_and_handler(i, &lasat_irq_type, handle_level_irq);
+
+	setup_irq(LASAT_CASCADE_IRQ, &cascade);
 }

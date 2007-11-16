@@ -2,6 +2,9 @@
 #include <linux/string.h>
 #include <asm/addrspace.h>
 #include <asm/bootinfo.h>
+#include <asm/io.h>
+
+#define QEMU_PORT_BASE 0xb4000000
 
 void __init prom_init(void)
 {
@@ -15,4 +18,7 @@ void __init prom_init(void)
 	} else {
 		add_memory_region(0x0<<20, 0x10<<20, BOOT_MEM_RAM);
 	}
+
+
+	set_io_port_base(QEMU_PORT_BASE);
 }

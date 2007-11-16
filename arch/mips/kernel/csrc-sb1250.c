@@ -43,7 +43,7 @@ static cycle_t sb1250_hpt_read(void)
 }
 
 struct clocksource bcm1250_clocksource = {
-	.name	= "MIPS",
+	.name	= "bcm1250-counter-3",
 	.rating	= 200,
 	.read	= sb1250_hpt_read,
 	.mask	= CLOCKSOURCE_MASK(23),
