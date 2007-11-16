@@ -1406,28 +1406,25 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			if (unlikely(in_sack < 0))
 				break;
 
-			sacked = TCP_SKB_CB(skb)->sacked;
-
-			/* Account D-SACK for retransmitted packet. */
-			if ((dup_sack && in_sack) &&
-			    (sacked & TCPCB_RETRANS) &&
-			    after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
-				tp->undo_retrans--;
-
-			/* The frame is ACKed. */
-			if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una)) {
-				if (sacked&TCPCB_RETRANS) {
-					if ((dup_sack && in_sack) &&
-					    (sacked&TCPCB_SACKED_ACKED))
-						reord = min(fack_count, reord);
-				}
-
-				/* Nothing to do; acked frame is about to be dropped. */
+			if (!in_sack) {
 				fack_count += tcp_skb_pcount(skb);
 				continue;
 			}
 
-			if (!in_sack) {
+			sacked = TCP_SKB_CB(skb)->sacked;
+
+			/* Account D-SACK for retransmitted packet. */
+			if (dup_sack && (sacked & TCPCB_RETRANS)) {
+				if (after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
+					tp->undo_retrans--;
+				if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una) &&
+				    (sacked & TCPCB_SACKED_ACKED))
+					reord = min(fack_count, reord);
+			}
+
+
+			/* Nothing to do; acked frame is about to be dropped (was ACKed). */
+			if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una)) {
 				fack_count += tcp_skb_pcount(skb);
 				continue;
 			}
