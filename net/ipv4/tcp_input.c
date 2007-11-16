@@ -1251,7 +1251,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	struct sk_buff *cached_skb;
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
-	int prior_fackets;
 	int flag = 0;
 	int found_dup_sack = 0;
 	int cached_fack_count;
@@ -1264,7 +1263,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			tp->fackets_out = 0;
 		tp->highest_sack = tcp_write_queue_head(sk);
 	}
-	prior_fackets = tp->fackets_out;
 
 	found_dup_sack = tcp_check_dsack(tp, ack_skb, sp,
 					 num_sacks, prior_snd_una);
@@ -1457,7 +1455,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						/* New sack for not retransmitted frame,
 						 * which was in hole. It is reordering.
 						 */
-						if (fack_count < prior_fackets)
+						if (before(TCP_SKB_CB(skb)->seq,
+							   tcp_highest_sack_seq(tp)))
 							reord = min(fack_count, reord);
 
 						/* SACK enhanced F-RTO (RFC4138; Appendix B) */
