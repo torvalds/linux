@@ -77,8 +77,7 @@ extern void header_assemble(struct smb_hdr *, char /* command */ ,
 extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				struct cifsSesInfo *ses,
 				void **request_buf);
-extern struct key *cifs_get_spnego_key(struct cifsSesInfo *sesInfo,
-					const char *hostname);
+extern struct key *cifs_get_spnego_key(struct cifsSesInfo *sesInfo);
 extern int CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses,
 			     const int stage,
 			     const struct nls_table *nls_cp);

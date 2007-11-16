@@ -73,12 +73,13 @@ struct key_type cifs_spnego_key_type = {
 #define MAX_IPV6_ADDR_LEN 42 /* eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/60 */
 /* get a key struct with a SPNEGO security blob, suitable for session setup */
 struct key *
-cifs_get_spnego_key(struct cifsSesInfo *sesInfo, const char *hostname)
+cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 {
 	struct TCP_Server_Info *server = sesInfo->server;
 	char *description, *dp;
 	size_t desc_len;
 	struct key *spnego_key;
+	const char *hostname = server->hostname;
 
 	/* BB: come up with better scheme for determining length */
 	/* length of fields (with semicolons): ver=0xyz ipv4= ipaddress host=
