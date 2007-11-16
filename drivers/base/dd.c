@@ -289,11 +289,10 @@ static void __device_release_driver(struct device * dev)
 {
 	struct device_driver * drv;
 
-	drv = get_driver(dev->driver);
+	drv = dev->driver;
 	if (drv) {
 		driver_sysfs_remove(dev);
 		sysfs_remove_link(&dev->kobj, "driver");
-		klist_remove(&dev->knode_driver);
 
 		if (dev->bus)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -306,7 +305,7 @@ static void __device_release_driver(struct device * dev)
 			drv->remove(dev);
 		devres_release_all(dev);
 		dev->driver = NULL;
-		put_driver(drv);
+		klist_remove(&dev->knode_driver);
 	}
 }
 
