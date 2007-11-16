@@ -1702,7 +1702,6 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 		vcpu->emulate_ctxt.vcpu = vcpu;
 		vcpu->emulate_ctxt.eflags = kvm_x86_ops->get_rflags(vcpu);
-		vcpu->emulate_ctxt.cr2 = cr2;
 		vcpu->emulate_ctxt.mode =
 			(vcpu->emulate_ctxt.eflags & X86_EFLAGS_VM)
 			? X86EMUL_MODE_REAL : cs_l

@@ -145,7 +145,6 @@ struct x86_emulate_ctxt {
 
 	/* Linear faulting address (if emulating a page-faulting instruction). */
 	unsigned long eflags;
-	unsigned long cr2;
 
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
