@@ -839,7 +839,8 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto irq_err;
 
-		if (request_msix_data_irqs(adap)) {
+		err = request_msix_data_irqs(adap);
+		if (err) {
 			free_irq(adap->msix_info[0].vec, adap);
 			goto irq_err;
 		}
