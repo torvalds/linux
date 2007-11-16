@@ -569,6 +569,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 	fs_info->do_barriers = 1;
 	fs_info->closing = 0;
+	fs_info->total_pinned = 0;
 
 	INIT_DELAYED_WORK(&fs_info->trans_work, btrfs_transaction_cleaner);
 	BTRFS_I(fs_info->btree_inode)->root = tree_root;

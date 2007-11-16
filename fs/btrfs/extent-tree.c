@@ -277,7 +277,8 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 		if (shint && (shint->data == data ||
 			      shint->data == BTRFS_BLOCK_GROUP_MIXED)) {
 			used = btrfs_block_group_used(&shint->item);
-			if (used < div_factor(shint->key.offset, factor)) {
+			if (used + shint->pinned <
+			    div_factor(shint->key.offset, factor)) {
 				return shint;
 			}
 		}
@@ -285,7 +286,8 @@ struct btrfs_block_group_cache *btrfs_find_block_group(struct btrfs_root *root,
 	if (hint && (hint->data == data ||
 		     hint->data == BTRFS_BLOCK_GROUP_MIXED)) {
 		used = btrfs_block_group_used(&hint->item);
-		if (used < div_factor(hint->key.offset, factor)) {
+		if (used + hint->pinned <
+		    div_factor(hint->key.offset, factor)) {
 			return hint;
 		}
 		last = hint->key.objectid + hint->key.offset;
@@ -317,8 +319,7 @@ again:
 			free_check = cache->key.offset;
 		else
 			free_check = div_factor(cache->key.offset, factor);
-
-		if (used < free_check) {
+		if (used + cache->pinned < free_check) {
 			found_group = cache;
 			goto found;
 		}
@@ -664,6 +665,37 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 	}
 	return 0;
 }
+static int update_pinned_extents(struct btrfs_root *root,
+				u64 bytenr, u64 num, int pin)
+{
+	u64 len;
+	struct btrfs_block_group_cache *cache;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+
+	if (pin) {
+		set_extent_dirty(&fs_info->pinned_extents,
+				bytenr, bytenr + num - 1, GFP_NOFS);
+	} else {
+		clear_extent_dirty(&fs_info->pinned_extents,
+				bytenr, bytenr + num - 1, GFP_NOFS);
+	}
+	while (num > 0) {
+		cache = btrfs_lookup_block_group(fs_info, bytenr);
+		WARN_ON(!cache);
+		len = min(num, cache->key.offset -
+			  (bytenr - cache->key.objectid));
+		if (pin) {
+			cache->pinned += len;
+			fs_info->total_pinned += len;
+		} else {
+			cache->pinned -= len;
+			fs_info->total_pinned -= len;
+		}
+		bytenr += len;
+		num -= len;
+	}
+	return 0;
+}
 
 int btrfs_copy_pinned(struct btrfs_root *root, struct extent_map_tree *copy)
 {
@@ -691,9 +723,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 	u64 start;
 	u64 end;
 	int ret;
-	struct extent_map_tree *pinned_extents = &root->fs_info->pinned_extents;
 	struct extent_map_tree *free_space_cache;
-
 	free_space_cache = &root->fs_info->free_space_cache;
 
 	while(1) {
@@ -701,9 +731,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 					    EXTENT_DIRTY);
 		if (ret)
 			break;
-
-		clear_extent_dirty(pinned_extents, start, end,
-				   GFP_NOFS);
+		update_pinned_extents(root, start, end + 1 - start, 0);
 		clear_extent_dirty(unpin, start, end, GFP_NOFS);
 		set_extent_dirty(free_space_cache, start, end, GFP_NOFS);
 	}
@@ -761,8 +789,7 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 			}
 			free_extent_buffer(buf);
 		}
-		set_extent_dirty(&root->fs_info->pinned_extents,
-				 bytenr, bytenr + num_bytes - 1, GFP_NOFS);
+		update_pinned_extents(root, bytenr, num_bytes, 1);
 	} else {
 		set_extent_bits(&root->fs_info->pending_del,
 				bytenr, bytenr + num_bytes - 1,
@@ -866,8 +893,7 @@ static int del_pending_extents(struct btrfs_trans_handle *trans, struct
 					    EXTENT_LOCKED);
 		if (ret)
 			break;
-
-		set_extent_dirty(pinned_extents, start, end, GFP_NOFS);
+		update_pinned_extents(extent_root, start, end + 1 - start, 1);
 		clear_extent_bits(pending_del, start, end, EXTENT_LOCKED,
 				  GFP_NOFS);
 		ret = __free_extent(trans, extent_root,
@@ -1579,7 +1605,7 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 				   sizeof(cache->item));
 		memcpy(&cache->key, &found_key, sizeof(found_key));
 		cache->cached = 0;
-
+		cache->pinned = 0;
 		key.objectid = found_key.objectid + found_key.offset;
 		btrfs_release_path(root, path);
 
