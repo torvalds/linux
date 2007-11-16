@@ -461,6 +461,23 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 			}
 			continue;
 		}
+		if (size >= 0xff00) {
+			switch (size) {
+			case 0xff00:
+				rc = priv->tuner_callback(priv->video_dev,
+							XC2028_RESET_CLK, 0);
+				if (rc < 0) {
+					tuner_err("Error at RESET code %d\n",
+						  (*p) & 0x7f);
+					return -EINVAL;
+				}
+			default:
+				tuner_info("Invalid RESET code %d\n",
+					   size & 0x7f);
+				return -EINVAL;
+
+			}
+		}
 
 		/* Checks for a sleep command */
 		if (size & 0x8000) {
@@ -626,6 +643,9 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 		};
 		priv->bandwidth = bandwidth;
 	}
+
+	if (!change_digital_bandwidth && priv->mode == T_DIGITAL_TV)
+		return 0;
 
 	/* Load INIT1, if needed */
 	tuner_dbg("Load init1 firmware, if exists\n");
