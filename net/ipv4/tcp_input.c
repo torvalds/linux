@@ -1115,16 +1115,23 @@ static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
  *
  * Search retransmitted skbs from write_queue that were sent when snd_nxt was
  * less than what is now known to be received by the other end (derived from
- * SACK blocks by the caller). Also calculate the lowest snd_nxt among the
- * remaining retransmitted skbs to avoid some costly processing per ACKs.
+ * highest SACK block). Also calculate the lowest snd_nxt among the remaining
+ * retransmitted skbs to avoid some costly processing per ACKs.
  */
-static int tcp_mark_lost_retrans(struct sock *sk, u32 received_upto)
+static int tcp_mark_lost_retrans(struct sock *sk)
 {
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int flag = 0;
 	int cnt = 0;
 	u32 new_low_seq = tp->snd_nxt;
+	u32 received_upto = TCP_SKB_CB(tp->highest_sack)->end_seq;
+
+	if (!tcp_is_fack(tp) || !tp->retrans_out ||
+	    !after(received_upto, tp->lost_retrans_low) ||
+	    icsk->icsk_ca_state != TCP_CA_Recovery)
+		return flag;
 
 	tcp_for_write_queue(skb, sk) {
 		u32 ack_seq = TCP_SKB_CB(skb)->ack_seq;
@@ -1245,7 +1252,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
-	u32 highest_sack_end_seq;
 	int flag = 0;
 	int found_dup_sack = 0;
 	int cached_fack_count;
@@ -1513,11 +1519,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			flag &= ~FLAG_ONLY_ORIG_SACKED;
 	}
 
-	highest_sack_end_seq = TCP_SKB_CB(tp->highest_sack)->end_seq;
-	if (tcp_is_fack(tp) && tp->retrans_out &&
-	    after(highest_sack_end_seq, tp->lost_retrans_low) &&
-	    icsk->icsk_ca_state == TCP_CA_Recovery)
-		flag |= tcp_mark_lost_retrans(sk, highest_sack_end_seq);
+	flag |= tcp_mark_lost_retrans(sk);
 
 	tcp_verify_left_out(tp);
 
