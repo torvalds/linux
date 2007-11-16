@@ -315,6 +315,9 @@ void tm6000_dvb_unregister(struct tm6000_core *dev)
 // 	mutex_lock(&tm6000_driver.open_close_mutex);
 	if(dvb->frontend) {
 		dvb_unregister_frontend(dvb->frontend);
+#ifdef CONFIG_DVB_CORE_ATTACH
+		symbol_put(xc3028_attach);
+#endif
 	}
 
 	dvb_dmxdev_release(&dvb->dmxdev);
