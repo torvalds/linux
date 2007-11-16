@@ -297,20 +297,12 @@ get_dirty_limits(long *pbackground, long *pdirty, long *pbdi_dirty,
 {
 	int background_ratio;		/* Percentages */
 	int dirty_ratio;
-	int unmapped_ratio;
 	long background;
 	long dirty;
 	unsigned long available_memory = determine_dirtyable_memory();
 	struct task_struct *tsk;
 
-	unmapped_ratio = 100 - ((global_page_state(NR_FILE_MAPPED) +
-				global_page_state(NR_ANON_PAGES)) * 100) /
-					available_memory;
-
 	dirty_ratio = vm_dirty_ratio;
-	if (dirty_ratio > unmapped_ratio / 2)
-		dirty_ratio = unmapped_ratio / 2;
-
 	if (dirty_ratio < 5)
 		dirty_ratio = 5;
 
