@@ -2858,12 +2858,10 @@ ctl_table ipv4_route_table[] = {
 #endif
 
 #ifdef CONFIG_NET_CLS_ROUTE
-struct ip_rt_acct *ip_rt_acct;
-
-/* This code sucks.  But you should have seen it before! --RR */
+struct ip_rt_acct *ip_rt_acct __read_mostly;
 
 /* IP route accounting ptr for this logical cpu number. */
-#define IP_RT_ACCT_CPU(i) (ip_rt_acct + i * 256)
+#define IP_RT_ACCT_CPU(cpu) (per_cpu_ptr(ip_rt_acct, cpu))
 
 #ifdef CONFIG_PROC_FS
 static int ip_rt_acct_read(char *buffer, char **start, off_t offset,
@@ -2923,16 +2921,9 @@ int __init ip_rt_init(void)
 			     (jiffies ^ (jiffies >> 7)));
 
 #ifdef CONFIG_NET_CLS_ROUTE
-	{
-	int order;
-	for (order = 0;
-	     (PAGE_SIZE << order) < 256 * sizeof(struct ip_rt_acct) * NR_CPUS; order++)
-		/* NOTHING */;
-	ip_rt_acct = (struct ip_rt_acct *)__get_free_pages(GFP_KERNEL, order);
+	ip_rt_acct = __alloc_percpu(256 * sizeof(struct ip_rt_acct));
 	if (!ip_rt_acct)
 		panic("IP: failed to allocate ip_rt_acct\n");
-	memset(ip_rt_acct, 0, PAGE_SIZE << order);
-	}
 #endif
 
 	ipv4_dst_ops.kmem_cachep =

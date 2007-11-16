@@ -347,7 +347,7 @@ static int ip_rcv_finish(struct sk_buff *skb)
 
 #ifdef CONFIG_NET_CLS_ROUTE
 	if (unlikely(skb->dst->tclassid)) {
-		struct ip_rt_acct *st = ip_rt_acct + 256*smp_processor_id();
+		struct ip_rt_acct *st = per_cpu_ptr(ip_rt_acct, smp_processor_id());
 		u32 idx = skb->dst->tclassid;
 		st[idx&0xFF].o_packets++;
 		st[idx&0xFF].o_bytes+=skb->len;
