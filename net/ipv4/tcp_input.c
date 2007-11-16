@@ -1240,6 +1240,99 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 	return in_sack;
 }
 
+static int tcp_sacktag_one(struct sk_buff *skb, struct tcp_sock *tp,
+			   int *reord, int dup_sack, int fack_count)
+{
+	u8 sacked = TCP_SKB_CB(skb)->sacked;
+	int flag = 0;
+
+	/* Account D-SACK for retransmitted packet. */
+	if (dup_sack && (sacked & TCPCB_RETRANS)) {
+		if (after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
+			tp->undo_retrans--;
+		if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una) &&
+		    (sacked & TCPCB_SACKED_ACKED))
+			*reord = min(fack_count, *reord);
+	}
+
+	/* Nothing to do; acked frame is about to be dropped (was ACKed). */
+	if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una))
+		return flag;
+
+	if (!(sacked & TCPCB_SACKED_ACKED)) {
+		if (sacked & TCPCB_SACKED_RETRANS) {
+			/* If the segment is not tagged as lost,
+			 * we do not clear RETRANS, believing
+			 * that retransmission is still in flight.
+			 */
+			if (sacked & TCPCB_LOST) {
+				TCP_SKB_CB(skb)->sacked &=
+					~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
+				tp->lost_out -= tcp_skb_pcount(skb);
+				tp->retrans_out -= tcp_skb_pcount(skb);
+
+				/* clear lost hint */
+				tp->retransmit_skb_hint = NULL;
+			}
+		} else {
+			if (!(sacked & TCPCB_RETRANS)) {
+				/* New sack for not retransmitted frame,
+				 * which was in hole. It is reordering.
+				 */
+				if (before(TCP_SKB_CB(skb)->seq,
+					   tcp_highest_sack_seq(tp)))
+					*reord = min(fack_count, *reord);
+
+				/* SACK enhanced F-RTO (RFC4138; Appendix B) */
+				if (!after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark))
+					flag |= FLAG_ONLY_ORIG_SACKED;
+			}
+
+			if (sacked & TCPCB_LOST) {
+				TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
+				tp->lost_out -= tcp_skb_pcount(skb);
+
+				/* clear lost hint */
+				tp->retransmit_skb_hint = NULL;
+			}
+		}
+
+		TCP_SKB_CB(skb)->sacked |= TCPCB_SACKED_ACKED;
+		flag |= FLAG_DATA_SACKED;
+		tp->sacked_out += tcp_skb_pcount(skb);
+
+		fack_count += tcp_skb_pcount(skb);
+
+		/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
+		if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
+		    before(TCP_SKB_CB(skb)->seq,
+			   TCP_SKB_CB(tp->lost_skb_hint)->seq))
+			tp->lost_cnt_hint += tcp_skb_pcount(skb);
+
+		if (fack_count > tp->fackets_out)
+			tp->fackets_out = fack_count;
+
+		if (after(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
+			tp->highest_sack = skb;
+
+	} else {
+		if (dup_sack && (sacked & TCPCB_RETRANS))
+			*reord = min(fack_count, *reord);
+	}
+
+	/* D-SACK. We can detect redundant retransmission in S|R and plain R
+	 * frames and clear it. undo_retrans is decreased above, L|R frames
+	 * are accounted above as well.
+	 */
+	if (dup_sack && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)) {
+		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
+		tp->retrans_out -= tcp_skb_pcount(skb);
+		tp->retransmit_skb_hint = NULL;
+	}
+
+	return flag;
+}
+
 static int
 tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_una)
 {
@@ -1375,7 +1468,6 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 		tcp_for_write_queue_from(skb, sk) {
 			int in_sack = 0;
-			u8 sacked;
 
 			if (skb == tcp_send_head(sk))
 				break;
@@ -1413,102 +1505,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			if (unlikely(in_sack < 0))
 				break;
 
-			if (!in_sack) {
-				fack_count += tcp_skb_pcount(skb);
-				continue;
-			}
+			if (in_sack)
+				flag |= tcp_sacktag_one(skb, tp, &reord, dup_sack, fack_count);
 
-			sacked = TCP_SKB_CB(skb)->sacked;
-
-			/* Account D-SACK for retransmitted packet. */
-			if (dup_sack && (sacked & TCPCB_RETRANS)) {
-				if (after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
-					tp->undo_retrans--;
-				if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una) &&
-				    (sacked & TCPCB_SACKED_ACKED))
-					reord = min(fack_count, reord);
-			}
-
-
-			/* Nothing to do; acked frame is about to be dropped (was ACKed). */
-			if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una)) {
-				fack_count += tcp_skb_pcount(skb);
-				continue;
-			}
-
-			if (!(sacked&TCPCB_SACKED_ACKED)) {
-				if (sacked & TCPCB_SACKED_RETRANS) {
-					/* If the segment is not tagged as lost,
-					 * we do not clear RETRANS, believing
-					 * that retransmission is still in flight.
-					 */
-					if (sacked & TCPCB_LOST) {
-						TCP_SKB_CB(skb)->sacked &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
-						tp->lost_out -= tcp_skb_pcount(skb);
-						tp->retrans_out -= tcp_skb_pcount(skb);
-
-						/* clear lost hint */
-						tp->retransmit_skb_hint = NULL;
-					}
-				} else {
-					if (!(sacked & TCPCB_RETRANS)) {
-						/* New sack for not retransmitted frame,
-						 * which was in hole. It is reordering.
-						 */
-						if (before(TCP_SKB_CB(skb)->seq,
-							   tcp_highest_sack_seq(tp)))
-							reord = min(fack_count, reord);
-
-						/* SACK enhanced F-RTO (RFC4138; Appendix B) */
-						if (!after(TCP_SKB_CB(skb)->end_seq, tp->frto_highmark))
-							flag |= FLAG_ONLY_ORIG_SACKED;
-					}
-
-					if (sacked & TCPCB_LOST) {
-						TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
-						tp->lost_out -= tcp_skb_pcount(skb);
-
-						/* clear lost hint */
-						tp->retransmit_skb_hint = NULL;
-					}
-				}
-
-				TCP_SKB_CB(skb)->sacked |= TCPCB_SACKED_ACKED;
-				flag |= FLAG_DATA_SACKED;
-				tp->sacked_out += tcp_skb_pcount(skb);
-
-				fack_count += tcp_skb_pcount(skb);
-
-				/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
-				if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
-				    before(TCP_SKB_CB(skb)->seq,
-					   TCP_SKB_CB(tp->lost_skb_hint)->seq))
-					tp->lost_cnt_hint += tcp_skb_pcount(skb);
-
-				if (fack_count > tp->fackets_out)
-					tp->fackets_out = fack_count;
-
-				if (after(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
-					tp->highest_sack = skb;
-
-			} else {
-				if (dup_sack && (sacked&TCPCB_RETRANS))
-					reord = min(fack_count, reord);
-
-				fack_count += tcp_skb_pcount(skb);
-			}
-
-			/* D-SACK. We can detect redundant retransmission
-			 * in S|R and plain R frames and clear it.
-			 * undo_retrans is decreased above, L|R frames
-			 * are accounted above as well.
-			 */
-			if (dup_sack &&
-			    (TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_RETRANS)) {
-				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
-				tp->retrans_out -= tcp_skb_pcount(skb);
-				tp->retransmit_skb_hint = NULL;
-			}
+			fack_count += tcp_skb_pcount(skb);
 		}
 
 		/* SACK enhanced FRTO (RFC4138, Appendix B): Clearing correct
