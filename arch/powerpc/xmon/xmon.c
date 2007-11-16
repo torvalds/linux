@@ -153,6 +153,10 @@ static const char *getvecname(unsigned long vec);
 
 static int do_spu_cmd(void);
 
+#ifdef CONFIG_44x
+static void dump_tlb_44x(void);
+#endif
+
 int xmon_no_auto_backtrace;
 
 extern void xmon_enter(void);
@@ -230,6 +234,9 @@ Commands:\n\
 #endif
 #ifdef CONFIG_PPC_STD_MMU_32
 "  u	dump segment registers\n"
+#endif
+#ifdef CONFIG_44x
+"  u	dump TLB\n"
 #endif
 "  ?	help\n"
 "  zr	reboot\n\
@@ -854,6 +861,11 @@ cmds(struct pt_regs *excp)
 #ifdef CONFIG_PPC_STD_MMU
 		case 'u':
 			dump_segments();
+			break;
+#endif
+#ifdef CONFIG_4xx
+		case 'u':
+			dump_tlb_44x();
 			break;
 #endif
 		default:
@@ -2581,6 +2593,32 @@ void dump_segments(void)
 }
 #endif
 
+#ifdef CONFIG_44x
+static void dump_tlb_44x(void)
+{
+	int i;
+
+	for (i = 0; i < PPC44x_TLB_SIZE; i++) {
+		unsigned long w0,w1,w2;
+		asm volatile("tlbre  %0,%1,0" : "=r" (w0) : "r" (i));
+		asm volatile("tlbre  %0,%1,1" : "=r" (w1) : "r" (i));
+		asm volatile("tlbre  %0,%1,2" : "=r" (w2) : "r" (i));
+		printf("[%02x] %08x %08x %08x ", i, w0, w1, w2);
+		if (w0 & PPC44x_TLB_VALID) {
+			printf("V %08x -> %01x%08x %c%c%c%c%c",
+			       w0 & PPC44x_TLB_EPN_MASK,
+			       w1 & PPC44x_TLB_ERPN_MASK,
+			       w1 & PPC44x_TLB_RPN_MASK,
+			       (w2 & PPC44x_TLB_W) ? 'W' : 'w',
+			       (w2 & PPC44x_TLB_I) ? 'I' : 'i',
+			       (w2 & PPC44x_TLB_M) ? 'M' : 'm',
+			       (w2 & PPC44x_TLB_G) ? 'G' : 'g',
+			       (w2 & PPC44x_TLB_E) ? 'E' : 'e');
+		}
+		printf("\n");
+	}
+}
+#endif /* CONFIG_44x */
 void xmon_init(int enable)
 {
 #ifdef CONFIG_PPC_ISERIES
