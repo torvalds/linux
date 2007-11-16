@@ -1511,7 +1511,8 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 
 	tcp_verify_left_out(tp);
 
-	if ((reord < tp->fackets_out) && icsk->icsk_ca_state != TCP_CA_Loss &&
+	if ((reord < tp->fackets_out) &&
+	    ((icsk->icsk_ca_state != TCP_CA_Loss) || tp->undo_marker) &&
 	    (!tp->frto_highmark || after(tp->snd_una, tp->frto_highmark)))
 		tcp_update_reordering(sk, tp->fackets_out - reord, 0);
 
