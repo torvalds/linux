@@ -1781,11 +1781,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 	memset(&volume_info, 0, sizeof(struct smb_vol));
 	if (cifs_parse_mount_options(mount_data, devname, &volume_info)) {
-		kfree(volume_info.UNC);
-		kfree(volume_info.password);
-		kfree(volume_info.prepath);
-		FreeXid(xid);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	if (volume_info.nullauth) {
@@ -1798,11 +1795,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifserror("No username specified");
 	/* In userspace mount helper we can get user name from alternate
 	   locations such as env variables and files on disk */
-		kfree(volume_info.UNC);
-		kfree(volume_info.password);
-		kfree(volume_info.prepath);
-		FreeXid(xid);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	if (volume_info.UNCip && volume_info.UNC) {
@@ -1821,11 +1815,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 		if (rc <= 0) {
 			/* we failed translating address */
-			kfree(volume_info.UNC);
-			kfree(volume_info.password);
-			kfree(volume_info.prepath);
-			FreeXid(xid);
-			return -EINVAL;
+			rc = -EINVAL;
+			goto out;
 		}
 
 		cFYI(1, ("UNC: %s ip: %s", volume_info.UNC, volume_info.UNCip));
@@ -1835,20 +1826,14 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		/* BB using ip addr as server name to connect to the
 		   DFS root below */
 		cERROR(1, ("Connecting to DFS root not implemented yet"));
-		kfree(volume_info.UNC);
-		kfree(volume_info.password);
-		kfree(volume_info.prepath);
-		FreeXid(xid);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	} else /* which servers DFS root would we conect to */ {
 		cERROR(1,
 		       ("CIFS mount error: No UNC path (e.g. -o "
 			"unc=//192.168.1.100/public) specified"));
-		kfree(volume_info.UNC);
-		kfree(volume_info.password);
-		kfree(volume_info.prepath);
-		FreeXid(xid);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	/* this is needed for ASCII cp to Unicode converts */
@@ -1860,11 +1845,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		if (cifs_sb->local_nls == NULL) {
 			cERROR(1, ("CIFS mount error: iocharset %s not found",
 				 volume_info.iocharset));
-			kfree(volume_info.UNC);
-			kfree(volume_info.password);
-			kfree(volume_info.prepath);
-			FreeXid(xid);
-			return -ELIBACC;
+			rc = -ELIBACC;
+			goto out;
 		}
 	}
 
@@ -1878,11 +1860,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			&sin_server6.sin6_addr,
 			volume_info.username, &srvTcp);
 	} else {
-		kfree(volume_info.UNC);
-		kfree(volume_info.password);
-		kfree(volume_info.prepath);
-		FreeXid(xid);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto out;
 	}
 
 	if (srvTcp) {
@@ -1906,22 +1885,14 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				   "Aborting operation"));
 			if (csocket != NULL)
 				sock_release(csocket);
-			kfree(volume_info.UNC);
-			kfree(volume_info.password);
-			kfree(volume_info.prepath);
-			FreeXid(xid);
-			return rc;
+			goto out;
 		}
 
 		srvTcp = kzalloc(sizeof(struct TCP_Server_Info), GFP_KERNEL);
 		if (!srvTcp) {
 			rc = -ENOMEM;
 			sock_release(csocket);
-			kfree(volume_info.UNC);
-			kfree(volume_info.password);
-			kfree(volume_info.prepath);
-			FreeXid(xid);
-			return rc;
+			goto out;
 		} else {
 			memcpy(&srvTcp->addr.sockAddr, &sin_server,
 				sizeof(struct sockaddr_in));
@@ -1943,11 +1914,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				cERROR(1, ("error %d create cifsd thread", rc));
 				srvTcp->tsk = NULL;
 				sock_release(csocket);
-				kfree(volume_info.UNC);
-				kfree(volume_info.password);
-				kfree(volume_info.prepath);
-				FreeXid(xid);
-				return rc;
+				goto out;
 			}
 			wait_for_completion(&cifsd_complete);
 			rc = 0;
@@ -1962,8 +1929,6 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	if (existingCifsSes) {
 		pSesInfo = existingCifsSes;
 		cFYI(1, ("Existing smb sess found"));
-		kfree(volume_info.password);
-		/* volume_info.UNC freed at end of function */
 	} else if (!rc) {
 		cFYI(1, ("Existing smb sess not found"));
 		pSesInfo = sesInfoAlloc();
@@ -1977,8 +1942,11 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 
 		if (!rc) {
 			/* volume_info.password freed at unmount */
-			if (volume_info.password)
+			if (volume_info.password) {
 				pSesInfo->password = volume_info.password;
+				/* set to NULL to prevent freeing on exit */
+				volume_info.password = NULL;
+			}
 			if (volume_info.username)
 				strncpy(pSesInfo->userName,
 					volume_info.username,
@@ -2000,8 +1968,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			up(&pSesInfo->sesSem);
 			if (!rc)
 				atomic_inc(&srvTcp->socketUseCount);
-		} else
-			kfree(volume_info.password);
+		}
 	}
 
 	/* search for existing tcon to this server share */
@@ -2106,9 +2073,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 						"", cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &
 						  CIFS_MOUNT_MAP_SPECIAL_CHR);
-					kfree(volume_info.UNC);
-					FreeXid(xid);
-					return -ENODEV;
+					rc = -ENODEV;
+					goto out;
 				} else {
 					/* BB Do we need to wrap sesSem around
 					 * this TCon call and Unix SetFS as
@@ -2231,6 +2197,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	(in which case it is not needed anymore) but when new sesion is created
 	the password ptr is put in the new session structure (in which case the
 	password will be freed at unmount time) */
+out:
+	/* zero out password before freeing */
+	if (volume_info.password != NULL) {
+		memset(volume_info.password, 0, strlen(volume_info.password));
+		kfree(volume_info.password);
+	}
 	kfree(volume_info.UNC);
 	kfree(volume_info.prepath);
 	FreeXid(xid);
