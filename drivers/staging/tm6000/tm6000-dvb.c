@@ -28,6 +28,8 @@
 
 #include <media/tuner.h>
 
+#include "tuner-xc2028.h"
+
 static void tm6000_urb_received(struct urb *urb)
 {
 	int ret;
@@ -231,20 +233,29 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 							  THIS_MODULE, &dev->udev->dev);
 	dvb->adapter.priv = dev;
 
-	if(dvb->frontend) {
+	if (dvb->frontend) {
+		struct xc2028_config cfg = {
+			.i2c_adap  = &dev->i2c_adap,
+			.video_dev = dev,
+		};
+
 		ret = dvb_register_frontend(&dvb->adapter, dvb->frontend);
-		if(ret < 0) {
-			printk("tm6000: couldn't register frontend\n");
+		if (ret < 0) {
+			printk(KERN_ERR
+				"tm6000: couldn't register frontend\n");
 			goto adapter_err;
 		}
 
-		// attach the tuner like this for now
-		tm6000_i2c_call_clients(dev, VIDIOC_INT_DVB_TUNER_ATTACH, dvb->frontend);
-
-		printk("tm6000: XC2028/3028 asked to be attached to frontend!\n");
-	}
-	else {
-		printk("tm6000: no frontend found\n");
+		if (!dvb_attach(xc2028_attach, dvb->frontend, &cfg)) {
+			printk(KERN_ERR "tm6000: couldn't register "
+					"frontend (xc3028)\n");
+			ret = -EINVAL;
+			goto adapter_err;
+		}
+		printk(KERN_INFO "tm6000: XC2028/3028 asked to be "
+				 "attached to frontend!\n");
+	} else {
+		printk(KERN_ERR "tm6000: no frontend found\n");
 	}
 
 	dvb->demux.dmx.capabilities = DMX_TS_FILTERING | DMX_SECTION_FILTERING
@@ -278,6 +289,9 @@ dvb_dmx_err:
 frontend_err:
 	if(dvb->frontend) {
 		dvb_unregister_frontend(dvb->frontend);
+#ifdef CONFIG_DVB_CORE_ATTACH
+		symbol_put(xc3028_attach);
+#endif
 	}
 adapter_err:
 	dvb_unregister_adapter(&dvb->adapter);
