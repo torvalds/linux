@@ -217,7 +217,6 @@ int gfs2_glock_put(struct gfs2_glock *gl)
 	if (atomic_dec_and_test(&gl->gl_ref)) {
 		hlist_del(&gl->gl_list);
 		write_unlock(gl_lock_addr(gl->gl_hash));
-		BUG_ON(spin_is_locked(&gl->gl_spin));
 		gfs2_assert(sdp, gl->gl_state == LM_ST_UNLOCKED);
 		gfs2_assert(sdp, list_empty(&gl->gl_reclaim));
 		gfs2_assert(sdp, list_empty(&gl->gl_holders));
@@ -460,7 +459,6 @@ static void wait_on_holder(struct gfs2_holder *gh)
 
 static void gfs2_demote_wake(struct gfs2_glock *gl)
 {
-	BUG_ON(!spin_is_locked(&gl->gl_spin));
 	gl->gl_demote_state = LM_ST_EXCLUSIVE;
         clear_bit(GLF_DEMOTE, &gl->gl_flags);
         smp_mb__after_clear_bit();
@@ -680,7 +678,6 @@ static void gfs2_glmutex_unlock(struct gfs2_glock *gl)
 	gl->gl_owner_pid = 0;
 	gl->gl_ip = 0;
 	run_queue(gl);
-	BUG_ON(!spin_is_locked(&gl->gl_spin));
 	spin_unlock(&gl->gl_spin);
 }
 

@@ -92,8 +92,6 @@ static void gfs2_ail1_start_one(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 	struct buffer_head *bh;
 	int retry;
 
-	BUG_ON(!spin_is_locked(&sdp->sd_log_lock));
-
 	do {
 		retry = 0;
 
