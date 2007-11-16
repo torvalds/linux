@@ -336,10 +336,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	case TUNER_XC2028:
 	{
-		int rc=xc2028_attach(&t->fe, t->i2c->adapter, t->i2c->addr,
-				     &c->dev, c->adapter->algo_data,
-				     t->tuner_callback);
-		if (rc<0) {
+		struct xc2028_config cfg = {
+			.i2c_adap  = t->i2c->adapter,
+			.i2c_addr  = t->i2c->addr,
+			.video_dev = c->adapter->algo_data,
+			.callback  = t->tuner_callback,
+		};
+		if (!xc2028_attach(&t->fe, &cfg)) {
 			t->type = TUNER_ABSENT;
 			t->mode_mask = T_UNINITIALIZED;
 			return;

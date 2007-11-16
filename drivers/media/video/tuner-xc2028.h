@@ -22,22 +22,22 @@ struct xc2028_ctrl {
 	int			max_len;
 };
 
+struct xc2028_config {
+	struct i2c_adapter *i2c_adap;
+	u8 		   i2c_addr;
+	void               *video_dev;
+	int                (*callback) (void *dev, int command, int arg);
+};
+
 /* xc2028 commands for callback */
 #define XC2028_TUNER_RESET	0
 #define XC2028_RESET_CLK	1
 
 #if defined(CONFIG_TUNER_XC2028) || (defined(CONFIG_TUNER_XC2028_MODULE) && defined(MODULE))
-int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c_adap,
-		  u8 i2c_addr, struct device *dev, void *video_dev,
-		  int (*tuner_callback) (void *dev, int command, int arg));
-
+void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg);
 #else
-static inline int xc2028_attach(struct dvb_frontend *fe,
-				struct i2c_adapter *i2c_adap,
-				u8 i2c_addr, struct device *dev,
-				void *video_dev,
-				int (*tuner_callback) (void *dev, int command,
-						       int arg))
+void *xc2028_attach(struct dvb_frontend *fe,
+				struct xc2028_config *cfg)
 {
 	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
 	       __FUNCTION__);

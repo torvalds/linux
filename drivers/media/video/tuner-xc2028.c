@@ -56,7 +56,6 @@ struct xc2028_data {
 	struct tuner_i2c_props  i2c_props;
 	int                     (*tuner_callback) (void *dev,
 						   int command, int arg);
-	struct device           *dev;
 	void			*video_dev;
 	int			count;
 	__u32			frequency;
@@ -240,7 +239,8 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	tuner_dbg("%s called\n", __FUNCTION__);
 
 	tuner_info("Reading firmware %s\n", priv->ctrl.fname);
-	rc = request_firmware(&fw, priv->ctrl.fname, priv->dev);
+	rc = request_firmware(&fw, priv->ctrl.fname,
+			      &priv->i2c_props.adap->dev);
 	if (rc < 0) {
 		if (rc == -ENOENT)
 			tuner_err("Error: firmware %s not found.\n",
@@ -546,8 +546,10 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	tuner_dbg("%s called\n", __FUNCTION__);
 
 	if (!priv->firm) {
-		if (!priv->ctrl.fname)
+		if (!priv->ctrl.fname) {
+			tuner_info("xc2028/3028 firmware name not set!\n");
 			return -EINVAL;
+		}
 
 		rc = load_all_firmwares(fe);
 		if (rc < 0)
@@ -882,53 +884,51 @@ static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 
 };
 
-int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c_adap,
-		  u8 i2c_addr, struct device *dev, void *video_dev,
-		  int (*tuner_callback) (void *dev, int command, int arg))
+void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 {
 	struct xc2028_data *priv;
+	void               *video_dev;
 
 	if (debug)
 		printk(KERN_DEBUG PREFIX "Xcv2028/3028 init called!\n");
 
-	if (NULL == dev)
-		return -ENODEV;
+	if (NULL == cfg->video_dev)
+		return NULL;
 
-	if (NULL == video_dev)
-		return -ENODEV;
-
-	if (!tuner_callback) {
-		printk(KERN_ERR PREFIX "No tuner callback!\n");
-		return -EINVAL;
+	if (!fe) {
+		printk(KERN_ERR PREFIX "No frontend!\n");
+		return NULL;
 	}
+
+	video_dev = cfg->video_dev;
 
 	list_for_each_entry(priv, &xc2028_list, xc2028_list) {
-		if (priv->dev == dev)
-			dev = NULL;
+		if (priv->video_dev == cfg->video_dev) {
+			video_dev = NULL;
+			break;
+		}
 	}
 
-	if (dev) {
+	if (video_dev) {
 		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 		if (priv == NULL)
-			return -ENOMEM;
-
-		fe->tuner_priv = priv;
+			return NULL;
 
 		priv->bandwidth = BANDWIDTH_6_MHZ;
 		priv->need_load_generic = 1;
 		priv->mode = T_UNINITIALIZED;
-		priv->i2c_props.addr = i2c_addr;
-		priv->i2c_props.adap = i2c_adap;
-		priv->dev = dev;
+		priv->i2c_props.addr = cfg->i2c_addr;
+		priv->i2c_props.adap = cfg->i2c_adap;
 		priv->video_dev = video_dev;
-		priv->tuner_callback = tuner_callback;
+		priv->tuner_callback = cfg->callback;
 		priv->max_len = 13;
-
 
 		mutex_init(&priv->lock);
 
 		list_add_tail(&priv->xc2028_list, &xc2028_list);
 	}
+
+	fe->tuner_priv = priv;
 	priv->count++;
 
 	memcpy(&fe->ops.tuner_ops, &xc2028_dvb_tuner_ops,
@@ -936,8 +936,9 @@ int xc2028_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c_adap,
 
 	tuner_info("type set to %s\n", "XCeive xc2028/xc3028 tuner");
 
-	return 0;
+	return fe;
 }
+
 EXPORT_SYMBOL(xc2028_attach);
 
 MODULE_DESCRIPTION("Xceive xc2028/xc3028 tuner driver");
