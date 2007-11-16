@@ -1087,11 +1087,11 @@ refind_writable:
 				read_unlock(&GlobalSMBSeslock);
 				return open_file;
 			}
-	
+
 			read_unlock(&GlobalSMBSeslock);
 			/* Had to unlock since following call can block */
 			rc = cifs_reopen_file(open_file->pfile, FALSE);
-			if (!rc) { 
+			if (!rc) {
 				if (!open_file->closePend)
 					return open_file;
 				else { /* start over in case this was deleted */
@@ -1114,7 +1114,7 @@ refind_writable:
 			/* can not use this handle, no write
 			   pending on this one after all */
 			atomic_dec(&open_file->wrtPending);
-			
+
 			if (open_file->closePend) /* list could have changed */
 				goto refind_writable;
 			/* else we simply continue to the next entry. Thus

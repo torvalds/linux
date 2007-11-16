@@ -248,15 +248,15 @@ extern int CIFSSMBQueryReparseLinkInfo(const int xid,
 extern int CIFSSMBOpen(const int xid, struct cifsTconInfo *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
-			__u16 * netfid, int *pOplock, FILE_ALL_INFO *,
+			__u16 *netfid, int *pOplock, FILE_ALL_INFO *,
 			const struct nls_table *nls_codepage, int remap);
 extern int SMBLegacyOpen(const int xid, struct cifsTconInfo *tcon,
 			const char *fileName, const int disposition,
 			const int access_flags, const int omode,
-			__u16 * netfid, int *pOplock, FILE_ALL_INFO *,
+			__u16 *netfid, int *pOplock, FILE_ALL_INFO *,
 			const struct nls_table *nls_codepage, int remap);
 extern int CIFSPOSIXCreate(const int xid, struct cifsTconInfo *tcon,
-			u32 posix_flags, __u64 mode, __u16 * netfid,
+			u32 posix_flags, __u64 mode, __u16 *netfid,
 			FILE_UNIX_BASIC_INFO *pRetData,
 			__u32 *pOplock, const char *name,
 			const struct nls_table *nls_codepage, int remap);
@@ -277,7 +277,7 @@ extern int CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 			const __u64 offset, unsigned int *nbytes,
 			struct kvec *iov, const int nvec, const int long_op);
 extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
-			const unsigned char *searchName, __u64 * inode_number,
+			const unsigned char *searchName, __u64 *inode_number,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 extern int cifs_convertUCSpath(char *target, const __le16 *source, int maxlen,
@@ -352,5 +352,5 @@ extern int CIFSSMBSetPosixACL(const int xid, struct cifsTconInfo *tcon,
 		const char *local_acl, const int buflen, const int acl_type,
 		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSGetExtAttr(const int xid, struct cifsTconInfo *tcon,
-			const int netfid, __u64 * pExtAttrBits, __u64 *pMask);
+			const int netfid, __u64 *pExtAttrBits, __u64 *pMask);
 #endif			/* _CIFSPROTO_H */

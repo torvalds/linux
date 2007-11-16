@@ -1944,7 +1944,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			srvTcp->tcpStatus = CifsNew;
 			init_MUTEX(&srvTcp->tcpSem);
 			srvTcp->tsk = kthread_run((void *)(void *)cifs_demultiplex_thread, srvTcp, "cifsd");
-			if ( IS_ERR(srvTcp->tsk) ) {
+			if (IS_ERR(srvTcp->tsk)) {
 				rc = PTR_ERR(srvTcp->tsk);
 				cERROR(1, ("error %d create cifsd thread", rc));
 				srvTcp->tsk = NULL;
