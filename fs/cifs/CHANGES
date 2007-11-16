@@ -1,6 +1,7 @@
 Version 1.52
 ------------
 Fix oops on second mount to server when null auth is used.
+Enable experimental Kerberos support
 
 Version 1.51
 ------------
