@@ -806,7 +806,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 }
 
 /* Locking: Caller holds q->lock */
-int videobuf_read_start(struct videobuf_queue *q)
+int __videobuf_read_start(struct videobuf_queue *q)
 {
 	enum v4l2_field field;
 	unsigned long flags=0;
@@ -860,6 +860,17 @@ static void __videobuf_read_stop(struct videobuf_queue *q)
 	q->read_buf = NULL;
 	q->reading  = 0;
 	
+}
+
+int videobuf_read_start(struct videobuf_queue *q)
+{
+	int rc;
+
+	mutex_lock(&q->lock);
+	rc = __videobuf_read_start(q);
+	mutex_unlock(&q->lock);
+
+	return rc;
 }
 
 void videobuf_read_stop(struct videobuf_queue *q)
@@ -1058,6 +1069,7 @@ EXPORT_SYMBOL_GPL(videobuf_dqbuf);
 EXPORT_SYMBOL_GPL(videobuf_streamon);
 EXPORT_SYMBOL_GPL(videobuf_streamoff);
 
+EXPORT_SYMBOL_GPL(videobuf_read_start);
 EXPORT_SYMBOL_GPL(videobuf_read_stop);
 EXPORT_SYMBOL_GPL(videobuf_stop);
 EXPORT_SYMBOL_GPL(videobuf_read_stream);
