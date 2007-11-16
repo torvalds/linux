@@ -1280,7 +1280,7 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 #define PCIE_INTR_MASK (F_UNXSPLCPLERRR | F_UNXSPLCPLERRC | F_PCIE_PIOPARERR |\
 			F_PCIE_WFPARERR | F_PCIE_RFPARERR | F_PCIE_CFPARERR | \
 			/* V_PCIE_MSIXPARERR(M_PCIE_MSIXPARERR) | */ \
-			V_BISTERR(M_BISTERR) | F_PEXERR)
+			V_BISTERR(M_BISTERR))
 #define ULPRX_INTR_MASK F_PARERR
 #define ULPTX_INTR_MASK 0
 #define CPLSW_INTR_MASK (F_TP_FRAMING_ERROR | \
@@ -1383,8 +1383,16 @@ static void tp_intr_handler(struct adapter *adapter)
 		{0}
 	};
 
+	static struct intr_info tp_intr_info_t3c[] = {
+		{ 0x1ffffff,  "TP parity error", -1, 1 },
+		{ F_FLMRXFLSTEMPTY, "TP out of Rx pages", -1, 1 },
+		{ F_FLMTXFLSTEMPTY, "TP out of Tx pages", -1, 1 },
+		{ 0 }
+	};
+
 	if (t3_handle_intr_status(adapter, A_TP_INT_CAUSE, 0xffffffff,
-				  tp_intr_info, NULL))
+				  adapter->params.rev < T3_REV_C ?
+					tp_intr_info : tp_intr_info_t3c, NULL))
 		t3_fatal_err(adapter);
 }
 
@@ -1734,7 +1742,6 @@ void t3_intr_enable(struct adapter *adapter)
 		 MC7_INTR_MASK},
 		{A_MC5_DB_INT_ENABLE, MC5_INTR_MASK},
 		{A_ULPRX_INT_ENABLE, ULPRX_INTR_MASK},
-		{A_TP_INT_ENABLE, 0x3bfffff},
 		{A_PM1_TX_INT_ENABLE, PMTX_INTR_MASK},
 		{A_PM1_RX_INT_ENABLE, PMRX_INTR_MASK},
 		{A_CIM_HOST_INT_ENABLE, CIM_INTR_MASK},
@@ -1744,6 +1751,8 @@ void t3_intr_enable(struct adapter *adapter)
 	adapter->slow_intr_mask = PL_INTR_MASK;
 
 	t3_write_regs(adapter, intr_en_avp, ARRAY_SIZE(intr_en_avp), 0);
+	t3_write_reg(adapter, A_TP_INT_ENABLE,
+		     adapter->params.rev >= T3_REV_C ? 0x2bfffff : 0x3bfffff);
 
 	if (adapter->params.rev > 0) {
 		t3_write_reg(adapter, A_CPL_INTR_ENABLE,
@@ -2509,6 +2518,11 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 	} else
 		t3_set_reg_field(adap, A_TP_PARA_REG3, 0, F_TXPACEFIXED);
 
+	if (adap->params.rev == T3_REV_C)
+		t3_set_reg_field(adap, A_TP_PC_CONFIG,
+				 V_TABLELATENCYDELTA(M_TABLELATENCYDELTA),
+				 V_TABLELATENCYDELTA(4));
+
 	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT1, 0);
 	t3_write_reg(adap, A_TP_TX_MOD_QUEUE_WEIGHT0, 0);
 	t3_write_reg(adap, A_TP_MOD_CHANNEL_WEIGHT, 0);
@@ -3245,6 +3259,10 @@ int t3_init_hw(struct adapter *adapter, u32 fw_params)
 		config_pcie(adapter);
 	else
 		t3_set_reg_field(adapter, A_PCIX_CFG, 0, F_CLIDECEN);
+
+	if (adapter->params.rev == T3_REV_C)
+		t3_set_reg_field(adapter, A_ULPTX_CONFIG, 0,
+				 F_CFG_CQE_SOP_MASK);
 
 	t3_write_reg(adapter, A_PM1_RX_CFG, 0xffffffff);
 	t3_write_reg(adapter, A_PM1_RX_MODE, 0);
