@@ -477,6 +477,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 				return -EINVAL;
 
 			}
+			continue;
 		}
 
 		/* Checks for a sleep command */
