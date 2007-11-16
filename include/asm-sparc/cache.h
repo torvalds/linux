@@ -1,20 +1,28 @@
-/* $Id: cache.h,v 1.9 1999/08/14 03:51:58 anton Exp $
- * cache.h:  Cache specific code for the Sparc.  These include flushing
+/* cache.h:  Cache specific code for the Sparc.  These include flushing
  *           and direct tag/data line access.
  *
- * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ * Copyright (C) 1995, 2007 David S. Miller (davem@davemloft.net)
  */
 
 #ifndef _SPARC_CACHE_H
 #define _SPARC_CACHE_H
 
-#include <asm/asi.h>
-
 #define L1_CACHE_SHIFT 5
 #define L1_CACHE_BYTES 32
 #define L1_CACHE_ALIGN(x) ((((x)+(L1_CACHE_BYTES-1))&~(L1_CACHE_BYTES-1)))
 
-#define SMP_CACHE_BYTES 32
+#ifdef CONFIG_SPARC32
+#define SMP_CACHE_BYTES_SHIFT 5
+#else
+#define SMP_CACHE_BYTES_SHIFT 6
+#endif
+
+#define SMP_CACHE_BYTES (1 << SMP_CACHE_BYTES_SHIFT)
+
+#define __read_mostly __attribute__((__section__(".data.read_mostly")))
+
+#ifdef CONFIG_SPARC32
+#include <asm/asi.h>
 
 /* Direct access to the instruction cache is provided through and
  * alternate address space.  The IDC bit must be off in the ICCR on
@@ -125,5 +133,6 @@ static inline void flush_ei_user(unsigned int addr)
 			     "r" (addr), "i" (ASI_M_FLUSH_USER) :
 			     "memory");
 }
+#endif /* CONFIG_SPARC32 */
 
 #endif /* !(_SPARC_CACHE_H) */
