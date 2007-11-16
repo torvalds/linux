@@ -988,13 +988,17 @@ int t3_check_fw_version(struct adapter *adapter, int *must_load)
 		CH_ERR(adapter, "found wrong FW version(%u.%u), "
 		       "driver needs version %u.%u\n", major, minor,
 		       FW_VERSION_MAJOR, FW_VERSION_MINOR);
-	else {
+	else if (minor < FW_VERSION_MINOR) {
 		*must_load = 0;
-		CH_WARN(adapter, "found wrong FW minor version(%u.%u), "
+		CH_WARN(adapter, "found old FW minor version(%u.%u), "
 		        "driver compiled for version %u.%u\n", major, minor,
 			FW_VERSION_MAJOR, FW_VERSION_MINOR);
+	} else {
+		CH_WARN(adapter, "found newer FW version(%u.%u), "
+		        "driver compiled for version %u.%u\n", major, minor,
+			FW_VERSION_MAJOR, FW_VERSION_MINOR);
+			return 0;
 	}
-
 	return -EINVAL;
 }
 
