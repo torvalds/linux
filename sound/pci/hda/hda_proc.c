@@ -305,6 +305,12 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_iprintf(buffer, " Amp-Out");
 		snd_iprintf(buffer, "\n");
 
+		/* volume knob is a special widget that always have connection
+		 * list
+		 */
+		if (wid_type == AC_WID_VOL_KNB)
+			wid_caps |= AC_WCAP_CONN_LIST;
+
 		if (wid_caps & AC_WCAP_CONN_LIST)
 			conn_len = snd_hda_get_connections(codec, nid, conn,
 							   HDA_MAX_CONNECTIONS);
@@ -340,9 +346,15 @@ static void print_codec_info(struct snd_info_entry *entry,
 			snd_iprintf(buffer, "\n");
 			break;
 		case AC_WID_VOL_KNB:
-			snd_iprintf(buffer, "  Volume-Knob: 0x%x\n",
-				    snd_hda_codec_read(codec, nid, 0,
-					AC_VERB_GET_VOLUME_KNOB_CONTROL, 0));
+			pinctls = snd_hda_param_read(codec, nid,
+						     AC_PAR_VOL_KNB_CAP);
+			snd_iprintf(buffer, "  Volume-Knob: delta=%d, "
+				    "steps=%d, ",
+				    (pinctls >> 7) & 1, pinctls & 0x7f);
+			pinctls = snd_hda_codec_read(codec, nid, 0,
+					AC_VERB_GET_VOLUME_KNOB_CONTROL, 0);
+			snd_iprintf(buffer, "direct=%d, val=%d\n",
+				    (pinctls >> 7) & 1, pinctls & 0x7f);
 			break;
 		case AC_WID_AUD_OUT:
 		case AC_WID_AUD_IN:
@@ -365,13 +377,15 @@ static void print_codec_info(struct snd_info_entry *entry,
 				curr = snd_hda_codec_read(codec, nid, 0,
 					AC_VERB_GET_CONNECT_SEL, 0);
 			snd_iprintf(buffer, "  Connection: %d\n", conn_len);
-			snd_iprintf(buffer, "    ");
-			for (c = 0; c < conn_len; c++) {
-				snd_iprintf(buffer, " 0x%02x", conn[c]);
-				if (c == curr)
-					snd_iprintf(buffer, "*");
+			if (conn_len > 0) {
+				snd_iprintf(buffer, "    ");
+				for (c = 0; c < conn_len; c++) {
+					snd_iprintf(buffer, " 0x%02x", conn[c]);
+					if (c == curr)
+						snd_iprintf(buffer, "*");
+				}
+				snd_iprintf(buffer, "\n");
 			}
-			snd_iprintf(buffer, "\n");
 		}
 	}
 	snd_hda_power_down(codec);

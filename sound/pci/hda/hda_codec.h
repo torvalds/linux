@@ -135,6 +135,7 @@ enum {
 #define AC_PAR_PROC_CAP			0x10
 #define AC_PAR_GPIO_CAP			0x11
 #define AC_PAR_AMP_OUT_CAP		0x12
+#define AC_PAR_VOL_KNB_CAP		0x13
 
 /*
  * AC_VERB_PARAMETERS results (32bit)
