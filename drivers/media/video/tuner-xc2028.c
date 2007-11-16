@@ -311,7 +311,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		id = le64_to_cpu(*(v4l2_std_id *) p);
 		p += sizeof(id);
 
-		size = le32_to_cpu(*(v4l2_std_id *) p);
+		size = le32_to_cpu(*(__u32 *) p);
 		p += sizeof(size);
 
 		if ((!size) || (size + p > endp)) {
