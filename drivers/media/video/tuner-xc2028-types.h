@@ -82,13 +82,13 @@
 
 /* Audio types */
 
-#define V4L2_STD_A2_A		(1L<<32)
-#define V4L2_STD_A2_B		(1L<<33)
-#define V4L2_STD_NICAM_A	(1L<<34)
-#define V4L2_STD_NICAM_B	(1L<<35)
-#define V4L2_STD_AM		(1L<<36)
-#define V4L2_STD_BTSC		(1L<<37)
-#define V4L2_STD_EIAJ		(1L<<38)
+#define V4L2_STD_A2_A		(1LL<<32)
+#define V4L2_STD_A2_B		(1LL<<33)
+#define V4L2_STD_NICAM_A	(1LL<<34)
+#define V4L2_STD_NICAM_B	(1LL<<35)
+#define V4L2_STD_AM		(1LL<<36)
+#define V4L2_STD_BTSC		(1LL<<37)
+#define V4L2_STD_EIAJ		(1LL<<38)
 
 #define V4L2_STD_A2		(V4L2_STD_A2_A    | V4L2_STD_A2_B)
 #define V4L2_STD_NICAM		(V4L2_STD_NICAM_A | V4L2_STD_NICAM_B)

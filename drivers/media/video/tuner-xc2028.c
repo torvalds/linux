@@ -22,6 +22,7 @@
 #include <linux/dvb/frontend.h>
 #include "dvb_frontend.h"
 
+
 #define PREFIX "xc2028"
 
 static int debug;
@@ -193,7 +194,7 @@ void dump_firm_type(unsigned int type)
 		printk("SCODE ");
 }
 
-static v4l2_std_id parse_audio_std_option(void)
+static  v4l2_std_id parse_audio_std_option(void)
 {
 	if (strcasecmp(audio_std, "A2"))
 		return V4L2_STD_A2;
@@ -317,9 +318,10 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		if ((!size) || (size + p > endp)) {
 			tuner_err("Firmware type ");
 			dump_firm_type(type);
-			printk("(%x), id %lx is corrupted "
-			       "(size=%ld, expected %d)\n",
-			       type, (unsigned long)id, endp - p, size);
+			printk("(%x), id %llx is corrupted "
+			       "(size=%d, expected %d)\n",
+			       type, id,
+			       (unsigned)(endp - p), size);
 			goto corrupt;
 		}
 
