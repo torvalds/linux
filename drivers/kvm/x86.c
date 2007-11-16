@@ -2318,6 +2318,28 @@ struct fxsave {
 #endif
 };
 
+/*
+ * Translate a guest virtual address to a guest physical address.
+ */
+int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
+				    struct kvm_translation *tr)
+{
+	unsigned long vaddr = tr->linear_address;
+	gpa_t gpa;
+
+	vcpu_load(vcpu);
+	mutex_lock(&vcpu->kvm->lock);
+	gpa = vcpu->mmu.gva_to_gpa(vcpu, vaddr);
+	tr->physical_address = gpa;
+	tr->valid = gpa != UNMAPPED_GVA;
+	tr->writeable = 1;
+	tr->usermode = 0;
+	mutex_unlock(&vcpu->kvm->lock);
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	struct fxsave *fxsave = (struct fxsave *)&vcpu->guest_fx_image;

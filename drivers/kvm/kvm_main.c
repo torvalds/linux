@@ -761,28 +761,6 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
 
-/*
- * Translate a guest virtual address to a guest physical address.
- */
-static int kvm_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
-				    struct kvm_translation *tr)
-{
-	unsigned long vaddr = tr->linear_address;
-	gpa_t gpa;
-
-	vcpu_load(vcpu);
-	mutex_lock(&vcpu->kvm->lock);
-	gpa = vcpu->mmu.gva_to_gpa(vcpu, vaddr);
-	tr->physical_address = gpa;
-	tr->valid = gpa != UNMAPPED_GVA;
-	tr->writeable = 1;
-	tr->usermode = 0;
-	mutex_unlock(&vcpu->kvm->lock);
-	vcpu_put(vcpu);
-
-	return 0;
-}
-
 static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 				    struct kvm_interrupt *irq)
 {
@@ -986,7 +964,7 @@ static long kvm_vcpu_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&tr, argp, sizeof tr))
 			goto out;
-		r = kvm_vcpu_ioctl_translate(vcpu, &tr);
+		r = kvm_arch_vcpu_ioctl_translate(vcpu, &tr);
 		if (r)
 			goto out;
 		r = -EFAULT;
