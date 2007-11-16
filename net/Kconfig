@@ -218,6 +218,7 @@ endmenu
 endmenu
 
 source "net/ax25/Kconfig"
+source "net/can/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
 source "net/rxrpc/Kconfig"
