@@ -1333,6 +1333,88 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct tcp_sock *tp,
 	return flag;
 }
 
+static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
+					struct tcp_sack_block *next_dup,
+					u32 start_seq, u32 end_seq,
+					int dup_sack_in, int *fack_count,
+					int *reord, int *flag)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tcp_for_write_queue_from(skb, sk) {
+		int in_sack = 0;
+		int dup_sack = dup_sack_in;
+
+		if (skb == tcp_send_head(sk))
+			break;
+
+		/* queue is in-order => we can short-circuit the walk early */
+		if (!before(TCP_SKB_CB(skb)->seq, end_seq))
+			break;
+
+		if ((next_dup != NULL) &&
+		    before(TCP_SKB_CB(skb)->seq, next_dup->end_seq)) {
+			in_sack = tcp_match_skb_to_sack(sk, skb,
+							next_dup->start_seq,
+							next_dup->end_seq);
+			if (in_sack > 0)
+				dup_sack = 1;
+		}
+
+		if (in_sack <= 0)
+			in_sack = tcp_match_skb_to_sack(sk, skb, start_seq, end_seq);
+		if (unlikely(in_sack < 0))
+			break;
+
+		if (in_sack)
+			*flag |= tcp_sacktag_one(skb, tp, reord, dup_sack, *fack_count);
+
+		*fack_count += tcp_skb_pcount(skb);
+	}
+	return skb;
+}
+
+/* Avoid all extra work that is being done by sacktag while walking in
+ * a normal way
+ */
+static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
+					u32 skip_to_seq)
+{
+	tcp_for_write_queue_from(skb, sk) {
+		if (skb == tcp_send_head(sk))
+			break;
+
+		if (before(TCP_SKB_CB(skb)->end_seq, skip_to_seq))
+			break;
+	}
+	return skb;
+}
+
+static struct sk_buff *tcp_maybe_skipping_dsack(struct sk_buff *skb,
+						struct sock *sk,
+						struct tcp_sack_block *next_dup,
+						u32 skip_to_seq,
+						int *fack_count, int *reord,
+						int *flag)
+{
+	if (next_dup == NULL)
+		return skb;
+
+	if (before(next_dup->start_seq, skip_to_seq)) {
+		skb = tcp_sacktag_skip(skb, sk, next_dup->start_seq);
+		tcp_sacktag_walk(skb, sk, NULL,
+				 next_dup->start_seq, next_dup->end_seq,
+				 1, fack_count, reord, flag);
+	}
+
+	return skb;
+}
+
+static int tcp_sack_cache_ok(struct tcp_sock *tp, struct tcp_sack_block *cache)
+{
+	return cache < tp->recv_sack_cache + ARRAY_SIZE(tp->recv_sack_cache);
+}
+
 static int
 tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_una)
 {
@@ -1342,16 +1424,16 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			      TCP_SKB_CB(ack_skb)->sacked);
 	struct tcp_sack_block_wire *sp_wire = (struct tcp_sack_block_wire *)(ptr+2);
 	struct tcp_sack_block sp[4];
-	struct sk_buff *cached_skb;
+	struct tcp_sack_block *cache;
+	struct sk_buff *skb;
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int used_sacks;
 	int reord = tp->packets_out;
 	int flag = 0;
 	int found_dup_sack = 0;
-	int cached_fack_count;
-	int i;
+	int fack_count;
+	int i, j;
 	int first_sack_index;
-	int force_one_sack;
 
 	if (!tp->sacked_out) {
 		if (WARN_ON(tp->fackets_out))
@@ -1409,131 +1491,122 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 		used_sacks++;
 	}
 
-	/* SACK fastpath:
-	 * if the only SACK change is the increase of the end_seq of
-	 * the first block then only apply that SACK block
-	 * and use retrans queue hinting otherwise slowpath */
-	force_one_sack = 1;
-	for (i = 0; i < used_sacks; i++) {
-		u32 start_seq = sp[i].start_seq;
-		u32 end_seq = sp[i].end_seq;
+	/* order SACK blocks to allow in order walk of the retrans queue */
+	for (i = used_sacks - 1; i > 0; i--) {
+		for (j = 0; j < i; j++){
+			if (after(sp[j].start_seq, sp[j+1].start_seq)) {
+				struct tcp_sack_block tmp;
 
-		if (i == 0) {
-			if (tp->recv_sack_cache[i].start_seq != start_seq)
-				force_one_sack = 0;
-		} else {
-			if ((tp->recv_sack_cache[i].start_seq != start_seq) ||
-			    (tp->recv_sack_cache[i].end_seq != end_seq))
-				force_one_sack = 0;
-		}
-		tp->recv_sack_cache[i].start_seq = start_seq;
-		tp->recv_sack_cache[i].end_seq = end_seq;
-	}
-	/* Clear the rest of the cache sack blocks so they won't match mistakenly. */
-	for (; i < ARRAY_SIZE(tp->recv_sack_cache); i++) {
-		tp->recv_sack_cache[i].start_seq = 0;
-		tp->recv_sack_cache[i].end_seq = 0;
-	}
+				tmp = sp[j];
+				sp[j] = sp[j+1];
+				sp[j+1] = tmp;
 
-	if (force_one_sack)
-		used_sacks = 1;
-	else {
-		int j;
-		tp->fastpath_skb_hint = NULL;
-
-		/* order SACK blocks to allow in order walk of the retrans queue */
-		for (i = used_sacks - 1; i > 0; i--) {
-			for (j = 0; j < i; j++){
-				if (after(sp[j].start_seq, sp[j+1].start_seq)) {
-					struct tcp_sack_block tmp;
-
-					tmp = sp[j];
-					sp[j] = sp[j+1];
-					sp[j+1] = tmp;
-
-					/* Track where the first SACK block goes to */
-					if (j == first_sack_index)
-						first_sack_index = j+1;
-				}
-
+				/* Track where the first SACK block goes to */
+				if (j == first_sack_index)
+					first_sack_index = j+1;
 			}
 		}
 	}
 
-	/* Use SACK fastpath hint if valid */
-	cached_skb = tp->fastpath_skb_hint;
-	cached_fack_count = tp->fastpath_cnt_hint;
-	if (!cached_skb) {
-		cached_skb = tcp_write_queue_head(sk);
-		cached_fack_count = 0;
+	skb = tcp_write_queue_head(sk);
+	fack_count = 0;
+	i = 0;
+
+	if (!tp->sacked_out) {
+		/* It's already past, so skip checking against it */
+		cache = tp->recv_sack_cache + ARRAY_SIZE(tp->recv_sack_cache);
+	} else {
+		cache = tp->recv_sack_cache;
+		/* Skip empty blocks in at head of the cache */
+		while (tcp_sack_cache_ok(tp, cache) && !cache->start_seq &&
+		       !cache->end_seq)
+			cache++;
 	}
 
-	for (i = 0; i < used_sacks; i++) {
-		struct sk_buff *skb;
+	while (i < used_sacks) {
 		u32 start_seq = sp[i].start_seq;
 		u32 end_seq = sp[i].end_seq;
-		int fack_count;
 		int dup_sack = (found_dup_sack && (i == first_sack_index));
-		int next_dup = (found_dup_sack && (i+1 == first_sack_index));
+		struct tcp_sack_block *next_dup = NULL;
 
-		skb = cached_skb;
-		fack_count = cached_fack_count;
+		if (found_dup_sack && ((i + 1) == first_sack_index))
+			next_dup = &sp[i + 1];
 
 		/* Event "B" in the comment above. */
 		if (after(end_seq, tp->high_seq))
 			flag |= FLAG_DATA_LOST;
 
-		tcp_for_write_queue_from(skb, sk) {
-			int in_sack = 0;
+		/* Skip too early cached blocks */
+		while (tcp_sack_cache_ok(tp, cache) &&
+		       !before(start_seq, cache->end_seq))
+			cache++;
 
-			if (skb == tcp_send_head(sk))
-				break;
+		/* Can skip some work by looking recv_sack_cache? */
+		if (tcp_sack_cache_ok(tp, cache) && !dup_sack &&
+		    after(end_seq, cache->start_seq)) {
 
-			cached_skb = skb;
-			cached_fack_count = fack_count;
-			if (i == first_sack_index) {
-				tp->fastpath_skb_hint = skb;
-				tp->fastpath_cnt_hint = fack_count;
+			/* Head todo? */
+			if (before(start_seq, cache->start_seq)) {
+				skb = tcp_sacktag_skip(skb, sk, start_seq);
+				skb = tcp_sacktag_walk(skb, sk, next_dup, start_seq,
+						       cache->start_seq, dup_sack,
+						       &fack_count, &reord, &flag);
 			}
 
-			/* The retransmission queue is always in order, so
-			 * we can short-circuit the walk early.
-			 */
-			if (!before(TCP_SKB_CB(skb)->seq, end_seq))
-				break;
-
-			dup_sack = (found_dup_sack && (i == first_sack_index));
-
-			/* Due to sorting DSACK may reside within this SACK block! */
-			if (next_dup) {
-				u32 dup_start = sp[i+1].start_seq;
-				u32 dup_end = sp[i+1].end_seq;
-
-				if (before(TCP_SKB_CB(skb)->seq, dup_end)) {
-					in_sack = tcp_match_skb_to_sack(sk, skb, dup_start, dup_end);
-					if (in_sack > 0)
-						dup_sack = 1;
-				}
+			/* Rest of the block already fully processed? */
+			if (!after(end_seq, cache->end_seq)) {
+				skb = tcp_maybe_skipping_dsack(skb, sk, next_dup, cache->end_seq,
+							       &fack_count, &reord, &flag);
+				goto advance_sp;
 			}
 
-			/* DSACK info lost if out-of-mem, try SACK still */
-			if (in_sack <= 0)
-				in_sack = tcp_match_skb_to_sack(sk, skb, start_seq, end_seq);
-			if (unlikely(in_sack < 0))
-				break;
+			/* ...tail remains todo... */
+			if (TCP_SKB_CB(tp->highest_sack)->end_seq == cache->end_seq) {
+				/* ...but better entrypoint exists! Check that DSACKs are
+				 * properly accounted while skipping here
+				 */
+				tcp_maybe_skipping_dsack(skb, sk, next_dup, cache->end_seq,
+							 &fack_count, &reord, &flag);
 
-			if (in_sack)
-				flag |= tcp_sacktag_one(skb, tp, &reord, dup_sack, fack_count);
+				skb = tcp_write_queue_next(sk, tp->highest_sack);
+				fack_count = tp->fackets_out;
+				cache++;
+				goto walk;
+			}
 
-			fack_count += tcp_skb_pcount(skb);
+			skb = tcp_sacktag_skip(skb, sk, cache->end_seq);
+			/* Check overlap against next cached too (past this one already) */
+			cache++;
+			continue;
 		}
 
+		if (!before(start_seq, tcp_highest_sack_seq(tp))) {
+			skb = tcp_write_queue_next(sk, tp->highest_sack);
+			fack_count = tp->fackets_out;
+		}
+		skb = tcp_sacktag_skip(skb, sk, start_seq);
+
+walk:
+		skb = tcp_sacktag_walk(skb, sk, next_dup, start_seq, end_seq,
+				       dup_sack, &fack_count, &reord, &flag);
+
+advance_sp:
 		/* SACK enhanced FRTO (RFC4138, Appendix B): Clearing correct
 		 * due to in-order walk
 		 */
 		if (after(end_seq, tp->frto_highmark))
 			flag &= ~FLAG_ONLY_ORIG_SACKED;
+
+		i++;
 	}
+
+	/* Clear the head of the cache sack blocks so we can skip it next time */
+	for (i = 0; i < ARRAY_SIZE(tp->recv_sack_cache) - used_sacks; i++) {
+		tp->recv_sack_cache[i].start_seq = 0;
+		tp->recv_sack_cache[i].end_seq = 0;
+	}
+	for (j = 0; j < used_sacks; j++)
+		tp->recv_sack_cache[i++] = sp[j];
 
 	flag |= tcp_mark_lost_retrans(sk);
 
@@ -2821,9 +2894,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 		}
 
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
-		/* hint's skb might be NULL but we don't need to care */
-		tp->fastpath_cnt_hint -= min_t(u32, pkts_acked,
-					       tp->fastpath_cnt_hint);
+
 		if (ca_ops->pkts_acked) {
 			s32 rtt_us = -1;
 

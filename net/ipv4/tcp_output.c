@@ -653,9 +653,7 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
 }
 
 /* When a modification to fackets out becomes necessary, we need to check
- * skb is counted to fackets_out or not. Another important thing is to
- * tweak SACK fastpath hint too as it would overwrite all changes unless
- * hint is also changed.
+ * skb is counted to fackets_out or not.
  */
 static void tcp_adjust_fackets_out(struct sock *sk, struct sk_buff *skb,
 				   int decr)
@@ -667,11 +665,6 @@ static void tcp_adjust_fackets_out(struct sock *sk, struct sk_buff *skb,
 
 	if (!before(tcp_highest_sack_seq(tp), TCP_SKB_CB(skb)->seq))
 		tp->fackets_out -= decr;
-
-	/* cnt_hint is "off-by-one" compared with fackets_out (see sacktag) */
-	if (tp->fastpath_skb_hint != NULL &&
-	    after(TCP_SKB_CB(tp->fastpath_skb_hint)->seq, TCP_SKB_CB(skb)->seq))
-		tp->fastpath_cnt_hint -= decr;
 }
 
 /* Function to create two new TCP segments.  Shrinks the given segment
@@ -1753,11 +1746,6 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 
 		/* changed transmit queue under us so clear hints */
 		tcp_clear_retrans_hints_partial(tp);
-		/* manually tune sacktag skb hint */
-		if (tp->fastpath_skb_hint == next_skb) {
-			tp->fastpath_skb_hint = skb;
-			tp->fastpath_cnt_hint -= tcp_skb_pcount(skb);
-		}
 
 		sk_stream_free_skb(sk, next_skb);
 	}

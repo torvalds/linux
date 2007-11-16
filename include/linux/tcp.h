@@ -343,10 +343,7 @@ struct tcp_sock {
 	struct sk_buff *scoreboard_skb_hint;
 	struct sk_buff *retransmit_skb_hint;
 	struct sk_buff *forward_skb_hint;
-	struct sk_buff *fastpath_skb_hint;
 
-	int     fastpath_cnt_hint;	/* Lags behind by current skb's pcount
-					 * compared to respective fackets_out */
 	int     lost_cnt_hint;
 	int     retransmit_cnt_hint;
 
