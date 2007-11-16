@@ -150,12 +150,9 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 		return NULL;
 
 	block_group = (struct btrfs_block_group_cache *)(unsigned long)ptr;
-
-
-	if (block_group->key.objectid <= bytenr && bytenr <=
+	if (block_group->key.objectid <= bytenr && bytenr <
 	    block_group->key.objectid + block_group->key.offset)
 		return block_group;
-
 	return NULL;
 }
 static u64 find_search_start(struct btrfs_root *root,
@@ -195,7 +192,7 @@ again:
 			continue;
 		}
 		if (data != BTRFS_BLOCK_GROUP_MIXED &&
-		    start + num >= cache->key.objectid + cache->key.offset)
+		    start + num > cache->key.objectid + cache->key.offset)
 			goto new_group;
 		return start;
 	}
@@ -1088,9 +1085,8 @@ check_pending:
 
 	if (ins->objectid + num_bytes >= search_end)
 		goto enospc;
-
 	if (!full_scan && data != BTRFS_BLOCK_GROUP_MIXED &&
-	    ins->objectid + num_bytes >= block_group->
+	    ins->objectid + num_bytes > block_group->
 	    key.objectid + block_group->key.offset) {
 		search_start = block_group->key.objectid +
 			block_group->key.offset;
