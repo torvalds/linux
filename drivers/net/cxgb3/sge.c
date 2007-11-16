@@ -174,6 +174,7 @@ static inline struct sge_qset *txq_to_qset(const struct sge_txq *q, int qidx)
 static inline void refill_rspq(struct adapter *adapter,
 			       const struct sge_rspq *q, unsigned int credits)
 {
+	rmb();
 	t3_write_reg(adapter, A_SG_RSPQ_CREDIT_RETURN,
 		     V_RSPQ(q->cntxt_id) | V_CREDITS(credits));
 }
@@ -458,7 +459,7 @@ nomem:				q->alloc_failed++;
 		}
 		q->credits++;
 	}
-
+	wmb();
 	t3_write_reg(adap, A_SG_KDOORBELL, V_EGRCNTX(q->cntxt_id));
 }
 
@@ -1353,6 +1354,7 @@ static void restart_ctrlq(unsigned long data)
 	}
 
 	spin_unlock(&q->lock);
+	wmb();
 	t3_write_reg(qs->adap, A_SG_KDOORBELL,
 		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
 }
@@ -1572,6 +1574,7 @@ static void restart_offloadq(unsigned long data)
 	set_bit(TXQ_RUNNING, &q->flags);
 	set_bit(TXQ_LAST_PKT_DB, &q->flags);
 #endif
+	wmb();
 	t3_write_reg(adap, A_SG_KDOORBELL,
 		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
 }
@@ -1737,7 +1740,6 @@ static inline int rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
 			     struct sk_buff *skb, struct sk_buff *rx_gather[],
 			     unsigned int gather_idx)
 {
-	rq->offload_pkts++;
 	skb_reset_mac_header(skb);
 	skb_reset_network_header(skb);
 	skb_reset_transport_header(skb);
@@ -2031,6 +2033,7 @@ no_mem:
 			if (eth)
 				rx_eth(adap, q, skb, ethpad);
 			else {
+				q->offload_pkts++;
 				/* Preserve the RSS info in csum & priority */
 				skb->csum = rss_hi;
 				skb->priority = rss_lo;
