@@ -1281,7 +1281,7 @@ static void happy_meal_init_rings(struct happy_meal *hp)
 		skb->dev = dev;
 
 		/* Because we reserve afterwards. */
-		skb_put(skb, (ETH_FRAME_LEN + RX_OFFSET));
+		skb_put(skb, (ETH_FRAME_LEN + RX_OFFSET + 4));
 		hme_write_rxd(hp, &hb->happy_meal_rxd[i],
 			      (RXFLAG_OWN | ((RX_BUF_ALLOC_SIZE - RX_OFFSET) << 16)),
 			      hme_dma_map(hp, skb->data, RX_BUF_ALLOC_SIZE, DMA_FROMDEVICE));
@@ -1700,6 +1700,11 @@ static int happy_meal_init(struct happy_meal *hp)
 	HMD(("tx old[%08x] and rx [%08x] ON!\n",
 	     hme_read32(hp, bregs + BMAC_TXCFG),
 	     hme_read32(hp, bregs + BMAC_RXCFG)));
+
+	/* Set larger TX/RX size to allow for 802.1q */
+	hme_write32(hp, bregs + BMAC_TXMAX, ETH_FRAME_LEN + 8);
+	hme_write32(hp, bregs + BMAC_RXMAX, ETH_FRAME_LEN + 8);
+
 	hme_write32(hp, bregs + BMAC_TXCFG,
 		    hme_read32(hp, bregs + BMAC_TXCFG) | BIGMAC_TXCFG_ENABLE);
 	hme_write32(hp, bregs + BMAC_RXCFG,
@@ -2039,7 +2044,7 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 			hme_dma_unmap(hp, dma_addr, RX_BUF_ALLOC_SIZE, DMA_FROMDEVICE);
 			hp->rx_skbs[elem] = new_skb;
 			new_skb->dev = dev;
-			skb_put(new_skb, (ETH_FRAME_LEN + RX_OFFSET));
+			skb_put(new_skb, (ETH_FRAME_LEN + RX_OFFSET + 4));
 			hme_write_rxd(hp, this,
 				      (RXFLAG_OWN|((RX_BUF_ALLOC_SIZE-RX_OFFSET)<<16)),
 				      hme_dma_map(hp, new_skb->data, RX_BUF_ALLOC_SIZE, DMA_FROMDEVICE));
@@ -2809,8 +2814,8 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	dev->watchdog_timeo = 5*HZ;
 	dev->ethtool_ops = &hme_ethtool_ops;
 
-	/* Happy Meal can do it all... except VLAN. */
-	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_VLAN_CHALLENGED;
+	/* Happy Meal can do it all... */
+	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
 	dev->irq = sdev->irqs[0];
 
@@ -3143,8 +3148,8 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	dev->irq = pdev->irq;
 	dev->dma = 0;
 
-	/* Happy Meal can do it all... except VLAN. */
-	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_VLAN_CHALLENGED;
+	/* Happy Meal can do it all... */
+	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	/* Hook up PCI register/dma accessors. */

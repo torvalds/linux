@@ -1963,6 +1963,11 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 	}
 
+	if (!netif_running(dev)) {
+		dev->mtu = new_mtu;
+		return 0;
+	}
+
 	if (new_mtu != oldmtu) {
 		spin_lock_irqsave(&vptr->lock, flags);
 

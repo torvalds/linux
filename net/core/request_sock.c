@@ -71,6 +71,41 @@ int reqsk_queue_alloc(struct request_sock_queue *queue,
 
 EXPORT_SYMBOL(reqsk_queue_alloc);
 
+void __reqsk_queue_destroy(struct request_sock_queue *queue)
+{
+	struct listen_sock *lopt;
+	size_t lopt_size;
+
+	/*
+	 * this is an error recovery path only
+	 * no locking needed and the lopt is not NULL
+	 */
+
+	lopt = queue->listen_opt;
+	lopt_size = sizeof(struct listen_sock) +
+		lopt->nr_table_entries * sizeof(struct request_sock *);
+
+	if (lopt_size > PAGE_SIZE)
+		vfree(lopt);
+	else
+		kfree(lopt);
+}
+
+EXPORT_SYMBOL(__reqsk_queue_destroy);
+
+static inline struct listen_sock *reqsk_queue_yank_listen_sk(
+		struct request_sock_queue *queue)
+{
+	struct listen_sock *lopt;
+
+	write_lock_bh(&queue->syn_wait_lock);
+	lopt = queue->listen_opt;
+	queue->listen_opt = NULL;
+	write_unlock_bh(&queue->syn_wait_lock);
+
+	return lopt;
+}
+
 void reqsk_queue_destroy(struct request_sock_queue *queue)
 {
 	/* make all the listen_opt local to us */

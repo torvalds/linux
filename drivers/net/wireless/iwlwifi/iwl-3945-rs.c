@@ -71,19 +71,19 @@ struct iwl_rate_scale_priv {
 };
 
 static s32 iwl_expected_tpt_g[IWL_RATE_COUNT] = {
-	0, 0, 76, 104, 130, 168, 191, 202, 7, 13, 35, 58
+	7, 13, 35, 58, 0, 0, 76, 104, 130, 168, 191, 202
 };
 
 static s32 iwl_expected_tpt_g_prot[IWL_RATE_COUNT] = {
-	0, 0, 0, 80, 93, 113, 123, 125, 7, 13, 35, 58
+	7, 13, 35, 58, 0, 0, 0, 80, 93, 113, 123, 125
 };
 
 static s32 iwl_expected_tpt_a[IWL_RATE_COUNT] = {
-	40, 57, 72, 98, 121, 154, 177, 186, 0, 0, 0, 0
+	0, 0, 0, 0, 40, 57, 72, 98, 121, 154, 177, 186
 };
 
 static s32 iwl_expected_tpt_b[IWL_RATE_COUNT] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 7, 13, 35, 58
+	7, 13, 35, 58, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 struct iwl_tpt_entry {
@@ -350,6 +350,10 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	sta->last_txrate = sta->txrate;
 
+	/* For MODE_IEEE80211A mode it start at IWL_FIRST_OFDM_RATE */
+        if (local->hw.conf.phymode == MODE_IEEE80211A)
+                sta->last_txrate += IWL_FIRST_OFDM_RATE;
+
 	IWL_DEBUG_RATE("leave\n");
 }
 
@@ -417,6 +421,33 @@ static void rs_free_sta(void *priv, void *priv_sta)
 	IWL_DEBUG_RATE("leave\n");
 }
 
+
+/*
+ * get ieee prev rate from rate scale table.
+ * for A and B mode we need to overright prev
+ * value
+ */
+static int rs_adjust_next_rate(struct iwl_priv *priv, int rate)
+{
+	int next_rate = iwl_get_prev_ieee_rate(rate);
+
+	switch (priv->phymode) {
+	case MODE_IEEE80211A:
+		if (rate == IWL_RATE_12M_INDEX)
+			next_rate = IWL_RATE_9M_INDEX;
+		else if (rate == IWL_RATE_6M_INDEX)
+			next_rate = IWL_RATE_6M_INDEX;
+		break;
+	case MODE_IEEE80211B:
+		if (rate == IWL_RATE_11M_INDEX_TABLE)
+			next_rate = IWL_RATE_5M_INDEX_TABLE;
+		break;
+	default:
+		break;
+	}
+
+	return next_rate;
+}
 /**
  * rs_tx_status - Update rate control values based on Tx results
  *
@@ -479,7 +510,8 @@ static void rs_tx_status(void *priv_rate,
 			last_index = scale_rate_index;
 		} else {
 			current_count = priv->retry_rate;
-			last_index = iwl_get_prev_ieee_rate(scale_rate_index);
+			last_index = rs_adjust_next_rate(priv,
+							 scale_rate_index);
 		}
 
 		/* Update this rate accounting for as many retries
@@ -494,8 +526,9 @@ static void rs_tx_status(void *priv_rate,
 
 		if (retries)
 			scale_rate_index =
-			    iwl_get_prev_ieee_rate(scale_rate_index);
+			    rs_adjust_next_rate(priv, scale_rate_index);
 	}
+
 
 	/* Update the last index window with success/failure based on ACK */
 	IWL_DEBUG_RATE("Update rate %d with %s.\n",
@@ -672,7 +705,10 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 	}
 
 	rate_mask = sta->supp_rates;
-	index = min(sta->txrate & 0xffff, IWL_RATE_COUNT - 1);
+	index = min(sta->last_txrate & 0xffff, IWL_RATE_COUNT - 1);
+
+	if (priv->phymode == (u8) MODE_IEEE80211A)
+		rate_mask = rate_mask << IWL_FIRST_OFDM_RATE;
 
 	rs_priv = (void *)sta->rate_ctrl_priv;
 
@@ -801,7 +837,11 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
  out:
 
 	sta->last_txrate = index;
-	sta->txrate = sta->last_txrate;
+	if (priv->phymode == (u8) MODE_IEEE80211A)
+		sta->txrate = sta->last_txrate - IWL_FIRST_OFDM_RATE;
+	else
+		sta->txrate = sta->last_txrate;
+
 	sta_info_put(sta);
 
 	IWL_DEBUG_RATE("leave: %d\n", index);
