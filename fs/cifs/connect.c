@@ -752,12 +752,41 @@ multi_t2_fnd:
 	}
 	write_unlock(&GlobalSMBSeslock);
 
+	kfree(server->hostname);
 	kfree(server);
 	if (length  > 0)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
 				GFP_KERNEL);
 
 	return 0;
+}
+
+/* extract the host portion of the UNC string */
+static char *
+extract_hostname(const char *unc)
+{
+	const char *src;
+	char *dst, *delim;
+	unsigned int len;
+
+	/* skip double chars at beginning of string */
+	/* BB: check validity of these bytes? */
+	src = unc + 2;
+
+	/* delimiter between hostname and sharename is always '\\' now */
+	delim = strchr(src, '\\');
+	if (!delim)
+		return ERR_PTR(-EINVAL);
+
+	len = delim - src;
+	dst = kmalloc((len + 1), GFP_KERNEL);
+	if (dst == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	memcpy(dst, src, len);
+	dst[len] = '\0';
+
+	return dst;
 }
 
 static int
@@ -1900,6 +1929,12 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			/* BB Add code for ipv6 case too */
 			srvTcp->ssocket = csocket;
 			srvTcp->protocolType = IPV4;
+			srvTcp->hostname = extract_hostname(volume_info.UNC);
+			if (IS_ERR(srvTcp->hostname)) {
+				rc = PTR_ERR(srvTcp->hostname);
+				sock_release(csocket);
+				goto out;
+			}
 			init_waitqueue_head(&srvTcp->response_q);
 			init_waitqueue_head(&srvTcp->request_q);
 			INIT_LIST_HEAD(&srvTcp->pending_mid_q);
@@ -1914,6 +1949,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 				cERROR(1, ("error %d create cifsd thread", rc));
 				srvTcp->tsk = NULL;
 				sock_release(csocket);
+				kfree(srvTcp->hostname);
 				goto out;
 			}
 			wait_for_completion(&cifsd_complete);

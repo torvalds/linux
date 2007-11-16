@@ -139,6 +139,7 @@ struct TCP_Server_Info {
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
+	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
 	union {
 		struct sockaddr_in sockAddr;
