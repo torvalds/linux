@@ -2585,16 +2585,16 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		sysfs_remove_group(&adapter->port[0]->dev.kobj,
 				   &cxgb3_attr_group);
 
-		for_each_port(adapter, i)
-		    if (test_bit(i, &adapter->registered_device_map))
-			unregister_netdev(adapter->port[i]);
-
 		if (is_offload(adapter)) {
 			cxgb3_adapter_unofld(adapter);
 			if (test_bit(OFFLOAD_DEVMAP_BIT,
 				     &adapter->open_device_map))
 				offload_close(&adapter->tdev);
 		}
+
+		for_each_port(adapter, i)
+		    if (test_bit(i, &adapter->registered_device_map))
+			unregister_netdev(adapter->port[i]);
 
 		t3_free_sge_resources(adapter);
 		cxgb_disable_msi(adapter);
