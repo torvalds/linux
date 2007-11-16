@@ -1049,7 +1049,7 @@ out:
 	return r;
 }
 
-static __init void kvm_init_msr_list(void)
+static void kvm_init_msr_list(void)
 {
 	u32 dummy[2];
 	unsigned i, j;

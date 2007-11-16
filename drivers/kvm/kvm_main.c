@@ -1332,7 +1332,7 @@ static u64 stat_get(void *_offset)
 
 DEFINE_SIMPLE_ATTRIBUTE(stat_fops, stat_get, NULL, "%llu\n");
 
-static __init void kvm_init_debug(void)
+static void kvm_init_debug(void)
 {
 	struct kvm_stats_debugfs_item *p;
 
