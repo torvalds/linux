@@ -863,6 +863,9 @@ void tcp_enter_cwr(struct sock *sk, const int set_ssthresh)
  */
 static void tcp_disable_fack(struct tcp_sock *tp)
 {
+	/* RFC3517 uses different metric in lost marker => reset on change */
+	if (tcp_is_fack(tp))
+		tp->lost_skb_hint = NULL;
 	tp->rx_opt.sack_ok &= ~2;
 }
 
@@ -1470,6 +1473,13 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				tp->sacked_out += tcp_skb_pcount(skb);
 
 				fack_count += tcp_skb_pcount(skb);
+
+				/* Lost marker hint past SACKed? Tweak RFC3517 cnt */
+				if (!tcp_is_fack(tp) && (tp->lost_skb_hint != NULL) &&
+				    before(TCP_SKB_CB(skb)->seq,
+					   TCP_SKB_CB(tp->lost_skb_hint)->seq))
+					tp->lost_cnt_hint += tcp_skb_pcount(skb);
+
 				if (fack_count > tp->fackets_out)
 					tp->fackets_out = fack_count;
 
@@ -1504,7 +1514,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			flag &= ~FLAG_ONLY_ORIG_SACKED;
 	}
 
-	if (tp->retrans_out &&
+	if (tcp_is_fack(tp) && tp->retrans_out &&
 	    after(highest_sack_end_seq, tp->lost_retrans_low) &&
 	    icsk->icsk_ca_state == TCP_CA_Recovery)
 		flag |= tcp_mark_lost_retrans(sk, highest_sack_end_seq);
@@ -1858,6 +1868,26 @@ static inline int tcp_fackets_out(struct tcp_sock *tp)
 	return tcp_is_reno(tp) ? tp->sacked_out+1 : tp->fackets_out;
 }
 
+/* Heurestics to calculate number of duplicate ACKs. There's no dupACKs
+ * counter when SACK is enabled (without SACK, sacked_out is used for
+ * that purpose).
+ *
+ * Instead, with FACK TCP uses fackets_out that includes both SACKed
+ * segments up to the highest received SACK block so far and holes in
+ * between them.
+ *
+ * With reordering, holes may still be in flight, so RFC3517 recovery
+ * uses pure sacked_out (total number of SACKed segments) even though
+ * it violates the RFC that uses duplicate ACKs, often these are equal
+ * but when e.g. out-of-window ACKs or packet duplication occurs,
+ * they differ. Since neither occurs due to loss, TCP should really
+ * ignore them.
+ */
+static inline int tcp_dupack_heurestics(struct tcp_sock *tp)
+{
+	return tcp_is_fack(tp) ? tp->fackets_out : tp->sacked_out + 1;
+}
+
 static inline int tcp_skb_timedout(struct sock *sk, struct sk_buff *skb)
 {
 	return (tcp_time_stamp - TCP_SKB_CB(skb)->when > inet_csk(sk)->icsk_rto);
@@ -1978,13 +2008,13 @@ static int tcp_time_to_recover(struct sock *sk)
 		return 1;
 
 	/* Not-A-Trick#2 : Classic rule... */
-	if (tcp_fackets_out(tp) > tp->reordering)
+	if (tcp_dupack_heurestics(tp) > tp->reordering)
 		return 1;
 
 	/* Trick#3 : when we use RFC2988 timer restart, fast
 	 * retransmit can be triggered by timeout of queue head.
 	 */
-	if (tcp_head_timedout(sk))
+	if (tcp_is_fack(tp) && tcp_head_timedout(sk))
 		return 1;
 
 	/* Trick#4: It is still not OK... But will it be useful to delay
@@ -2017,8 +2047,10 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp,
 		tp->retransmit_skb_hint = NULL;
 }
 
-/* Mark head of queue up as lost. */
-static void tcp_mark_head_lost(struct sock *sk, int packets)
+/* Mark head of queue up as lost. With RFC3517 SACK, the packets is
+ * is against sacked "cnt", otherwise it's against facked "cnt"
+ */
+static void tcp_mark_head_lost(struct sock *sk, int packets, int fast_rexmit)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
@@ -2040,8 +2072,13 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 		/* this is not the most efficient way to do this... */
 		tp->lost_skb_hint = skb;
 		tp->lost_cnt_hint = cnt;
-		cnt += tcp_skb_pcount(skb);
-		if (cnt > packets || after(TCP_SKB_CB(skb)->end_seq, tp->high_seq))
+
+		if (tcp_is_fack(tp) ||
+		    (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
+			cnt += tcp_skb_pcount(skb);
+
+		if (((!fast_rexmit || (tp->lost_out > 0)) && (cnt > packets)) ||
+		     after(TCP_SKB_CB(skb)->end_seq, tp->high_seq))
 			break;
 		if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
@@ -2054,17 +2091,22 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 
 /* Account newly detected lost packet(s) */
 
-static void tcp_update_scoreboard(struct sock *sk)
+static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (tcp_is_fack(tp)) {
+	if (tcp_is_reno(tp)) {
+		tcp_mark_head_lost(sk, 1, fast_rexmit);
+	} else if (tcp_is_fack(tp)) {
 		int lost = tp->fackets_out - tp->reordering;
 		if (lost <= 0)
 			lost = 1;
-		tcp_mark_head_lost(sk, lost);
+		tcp_mark_head_lost(sk, lost, fast_rexmit);
 	} else {
-		tcp_mark_head_lost(sk, 1);
+		int sacked_upto = tp->sacked_out - tp->reordering;
+		if (sacked_upto < 0)
+			sacked_upto = 0;
+		tcp_mark_head_lost(sk, sacked_upto, fast_rexmit);
 	}
 
 	/* New heuristics: it is possible only after we switched
@@ -2072,7 +2114,7 @@ static void tcp_update_scoreboard(struct sock *sk)
 	 * Hence, we can detect timed out packets during fast
 	 * retransmit without falling to slow start.
 	 */
-	if (!tcp_is_reno(tp) && tcp_head_timedout(sk)) {
+	if (tcp_is_fack(tp) && tcp_head_timedout(sk)) {
 		struct sk_buff *skb;
 
 		skb = tp->scoreboard_skb_hint ? tp->scoreboard_skb_hint
@@ -2245,7 +2287,7 @@ static int tcp_try_undo_partial(struct sock *sk, int acked)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	/* Partial ACK arrived. Force Hoe's retransmit. */
-	int failed = tcp_is_reno(tp) || tp->fackets_out>tp->reordering;
+	int failed = tcp_is_reno(tp) || (tcp_fackets_out(tp) > tp->reordering);
 
 	if (tcp_may_undo(tp)) {
 		/* Plain luck! Hole if filled with delayed
@@ -2379,7 +2421,8 @@ tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 	struct tcp_sock *tp = tcp_sk(sk);
 	int is_dupack = !(flag&(FLAG_SND_UNA_ADVANCED|FLAG_NOT_DUP));
 	int do_lost = is_dupack || ((flag&FLAG_DATA_SACKED) &&
-				    (tp->fackets_out > tp->reordering));
+				    (tcp_fackets_out(tp) > tp->reordering));
+	int fast_rexmit = 0;
 
 	/* Some technical things:
 	 * 1. Reno does not count dupacks (sacked_out) automatically. */
@@ -2399,11 +2442,11 @@ tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 		return;
 
 	/* C. Process data loss notification, provided it is valid. */
-	if ((flag&FLAG_DATA_LOST) &&
+	if (tcp_is_fack(tp) && (flag & FLAG_DATA_LOST) &&
 	    before(tp->snd_una, tp->high_seq) &&
 	    icsk->icsk_ca_state != TCP_CA_Open &&
 	    tp->fackets_out > tp->reordering) {
-		tcp_mark_head_lost(sk, tp->fackets_out - tp->reordering);
+		tcp_mark_head_lost(sk, tp->fackets_out-tp->reordering, 0);
 		NET_INC_STATS_BH(LINUX_MIB_TCPLOSS);
 	}
 
@@ -2522,10 +2565,11 @@ tcp_fastretrans_alert(struct sock *sk, int pkts_acked, int flag)
 		tp->bytes_acked = 0;
 		tp->snd_cwnd_cnt = 0;
 		tcp_set_ca_state(sk, TCP_CA_Recovery);
+		fast_rexmit = 1;
 	}
 
-	if (do_lost || tcp_head_timedout(sk))
-		tcp_update_scoreboard(sk);
+	if (do_lost || (tcp_is_fack(tp) && tcp_head_timedout(sk)))
+		tcp_update_scoreboard(sk, fast_rexmit);
 	tcp_cwnd_down(sk, flag);
 	tcp_xmit_retransmit_queue(sk);
 }
