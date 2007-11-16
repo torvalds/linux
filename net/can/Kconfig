@@ -15,3 +15,14 @@ menuconfig CAN
 
 	  If you want CAN support you should say Y here and also to the
 	  specific driver for your controller(s) below.
+
+config CAN_RAW
+	tristate "Raw CAN Protocol (raw access with CAN-ID filtering)"
+	depends on CAN
+	default N
+	---help---
+	  The raw CAN protocol option offers access to the CAN bus via
+	  the BSD socket API. You probably want to use the raw socket in
+	  most cases where no higher level protocol is being used. The raw
+	  socket has several filter options e.g. ID masking / error frames.
+	  To receive/send raw CAN messages, use AF_CAN with protocol CAN_RAW.
