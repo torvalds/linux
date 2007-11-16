@@ -63,7 +63,8 @@ extern struct kmem_cache *btrfs_path_cachep;
 #define BTRFS_FT_FIFO		5
 #define BTRFS_FT_SOCK		6
 #define BTRFS_FT_SYMLINK	7
-#define BTRFS_FT_MAX		8
+#define BTRFS_FT_XATTR		8
+#define BTRFS_FT_MAX		9
 
 /*
  * the key defines the order in the tree, and so it also defines (optimal)
@@ -226,7 +227,7 @@ struct btrfs_inode_item {
 
 struct btrfs_dir_item {
 	struct btrfs_disk_key location;
-	__le16 flags;
+	__le16 data_len;
 	__le16 name_len;
 	u8 type;
 } __attribute__ ((__packed__));
@@ -367,7 +368,7 @@ struct btrfs_root {
  * the FS
  */
 #define BTRFS_INODE_ITEM_KEY		1
-
+#define BTRFS_XATTR_ITEM_KEY		2
 /* reserve 2-15 close to the inode for later flexibility */
 
 /*
@@ -621,7 +622,7 @@ static inline void btrfs_set_item_key(struct extent_buffer *eb,
 }
 
 /* struct btrfs_dir_item */
-BTRFS_SETGET_FUNCS(dir_flags, struct btrfs_dir_item, flags, 16);
+BTRFS_SETGET_FUNCS(dir_data_len, struct btrfs_dir_item, data_len, 16);
 BTRFS_SETGET_FUNCS(dir_type, struct btrfs_dir_item, type, 8);
 BTRFS_SETGET_FUNCS(dir_name_len, struct btrfs_dir_item, name_len, 16);
 
@@ -962,6 +963,15 @@ int btrfs_delete_one_dir_name(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      struct btrfs_path *path,
 			      struct btrfs_dir_item *di);
+int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
+			    struct btrfs_root *root, const char *name,
+			    u16 name_len, const void *data, u16 data_len,
+			    u64 dir);
+struct btrfs_dir_item *btrfs_lookup_xattr(struct btrfs_trans_handle *trans,
+					  struct btrfs_root *root,
+					  struct btrfs_path *path, u64 dir,
+					  const char *name, u16 name_len,
+					  int mod);
 /* inode-map.c */
 int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *fs_root,
@@ -1039,4 +1049,8 @@ int btrfs_sysfs_add_root(struct btrfs_root *root);
 void btrfs_sysfs_del_root(struct btrfs_root *root);
 void btrfs_sysfs_del_super(struct btrfs_fs_info *root);
 
+/* xattr.c */
+ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
+int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root, struct inode *inode);
 #endif

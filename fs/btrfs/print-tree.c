@@ -58,9 +58,8 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 		case BTRFS_DIR_ITEM_KEY:
 			di = btrfs_item_ptr(l, i, struct btrfs_dir_item);
 			btrfs_dir_item_key_to_cpu(l, di, &found_key);
-			printk("\t\tdir oid %llu flags %u type %u\n",
+			printk("\t\tdir oid %llu type %u\n",
 				(unsigned long long)found_key.objectid,
-				btrfs_dir_flags(l, di),
 				btrfs_dir_type(l, di));
 			break;
 		case BTRFS_ROOT_ITEM_KEY:

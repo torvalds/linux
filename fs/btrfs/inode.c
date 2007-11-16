@@ -32,6 +32,7 @@
 #include <linux/compat.h>
 #include <linux/bit_spinlock.h>
 #include <linux/version.h>
+#include <linux/xattr.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -841,6 +842,9 @@ void btrfs_delete_inode(struct inode *inode)
 	ret = btrfs_truncate_in_trans(trans, root, inode);
 	if (ret)
 		goto no_delete_lock;
+	ret = btrfs_delete_xattrs(trans, root, inode);
+	if (ret)
+		goto no_delete_lock;
 	ret = btrfs_free_inode(trans, root, inode);
 	if (ret)
 		goto no_delete_lock;
@@ -1110,7 +1114,8 @@ static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 			if (over)
 				goto nopos;
-			di_len = btrfs_dir_name_len(leaf, di) + sizeof(*di);
+			di_len = btrfs_dir_name_len(leaf, di) +
+				btrfs_dir_data_len(leaf, di) +sizeof(*di);
 			di_cur += di_len;
 			di = (struct btrfs_dir_item *)((char *)di + di_len);
 		}
@@ -2519,6 +2524,10 @@ static struct inode_operations btrfs_dir_inode_operations = {
 	.symlink	= btrfs_symlink,
 	.setattr	= btrfs_setattr,
 	.mknod		= btrfs_mknod,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
+	.listxattr	= btrfs_listxattr,
+	.removexattr	= generic_removexattr,
 };
 
 static struct inode_operations btrfs_dir_ro_inode_operations = {
@@ -2567,6 +2576,10 @@ static struct inode_operations btrfs_file_inode_operations = {
 	.truncate	= btrfs_truncate,
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
+	.listxattr      = btrfs_listxattr,
+	.removexattr	= generic_removexattr,
 };
 
 static struct inode_operations btrfs_special_inode_operations = {
