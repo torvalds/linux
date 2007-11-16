@@ -158,10 +158,10 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(struct
 
 	return NULL;
 }
-
 static u64 find_search_start(struct btrfs_root *root,
 			     struct btrfs_block_group_cache **cache_ret,
-			     u64 search_start, int num, int data)
+			     u64 search_start, int num,
+			     int data, int full_scan)
 {
 	int ret;
 	struct btrfs_block_group_cache *cache = *cache_ret;
@@ -218,10 +218,10 @@ wrapped:
 	if (cache_miss && !cache->cached) {
 		cache_block_group(root, cache);
 		last = cache_miss;
-
 		cache = btrfs_lookup_block_group(root->fs_info, last);
 	}
-	cache = btrfs_find_block_group(root, cache, last, data, 0);
+	if (!full_scan)
+		cache = btrfs_find_block_group(root, cache, last, data, 0);
 	*cache_ret = cache;
 	cache_miss = 0;
 	goto again;
@@ -979,12 +979,10 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	total_needed += empty_size;
 	path = btrfs_alloc_path();
-
 check_failed:
-	search_start = find_search_start(root, &block_group,
-					 search_start, total_needed, data);
+	search_start = find_search_start(root, &block_group, search_start,
+					 total_needed, data, full_scan);
 	cached_start = search_start;
-
 	btrfs_init_path(path);
 	ins->objectid = search_start;
 	ins->offset = 0;
