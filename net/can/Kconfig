@@ -26,3 +26,16 @@ config CAN_RAW
 	  most cases where no higher level protocol is being used. The raw
 	  socket has several filter options e.g. ID masking / error frames.
 	  To receive/send raw CAN messages, use AF_CAN with protocol CAN_RAW.
+
+config CAN_BCM
+	tristate "Broadcast Manager CAN Protocol (with content filtering)"
+	depends on CAN
+	default N
+	---help---
+	  The Broadcast Manager offers content filtering, timeout monitoring,
+	  sending of RTR frames, and cyclic CAN messages without permanent user
+	  interaction. The BCM can be 'programmed' via the BSD socket API and
+	  informs you on demand e.g. only on content updates / timeouts.
+	  You probably want to use the bcm socket in most cases where cyclic
+	  CAN messages are used on the bus (e.g. in automotive environments).
+	  To use the Broadcast Manager, use AF_CAN with protocol CAN_BCM.
