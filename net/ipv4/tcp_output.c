@@ -657,13 +657,15 @@ static void tcp_set_skb_tso_segs(struct sock *sk, struct sk_buff *skb, unsigned 
  * tweak SACK fastpath hint too as it would overwrite all changes unless
  * hint is also changed.
  */
-static void tcp_adjust_fackets_out(struct tcp_sock *tp, struct sk_buff *skb,
+static void tcp_adjust_fackets_out(struct sock *sk, struct sk_buff *skb,
 				   int decr)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	if (!tp->sacked_out || tcp_is_reno(tp))
 		return;
 
-	if (!before(tp->highest_sack, TCP_SKB_CB(skb)->seq))
+	if (!before(tcp_highest_sack_seq(tp), TCP_SKB_CB(skb)->seq))
 		tp->fackets_out -= decr;
 
 	/* cnt_hint is "off-by-one" compared with fackets_out (see sacktag) */
@@ -712,9 +714,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	TCP_SKB_CB(buff)->end_seq = TCP_SKB_CB(skb)->end_seq;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(buff)->seq;
 
-	if (tcp_is_sack(tp) && tp->sacked_out &&
-	    (TCP_SKB_CB(skb)->seq == tp->highest_sack))
-		tp->highest_sack = TCP_SKB_CB(buff)->seq;
+	if (tcp_is_sack(tp) && tp->sacked_out && (skb == tp->highest_sack))
+		tp->highest_sack = buff;
 
 	/* PSH and FIN should only be set in the second packet. */
 	flags = TCP_SKB_CB(skb)->flags;
@@ -772,7 +773,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 			tcp_dec_pcount_approx_int(&tp->sacked_out, diff);
 			tcp_verify_left_out(tp);
 		}
-		tcp_adjust_fackets_out(tp, skb, diff);
+		tcp_adjust_fackets_out(sk, skb, diff);
 	}
 
 	/* Link BUFF into the send queue. */
@@ -1712,7 +1713,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		       tcp_skb_pcount(next_skb) != 1);
 
 		if (WARN_ON(tcp_is_sack(tp) && tp->sacked_out &&
-		    (TCP_SKB_CB(next_skb)->seq == tp->highest_sack)))
+		    (next_skb == tp->highest_sack)))
 			return;
 
 		/* Ok.	We will be able to collapse the packet. */
@@ -1747,7 +1748,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		if (tcp_is_reno(tp) && tp->sacked_out)
 			tcp_dec_pcount_approx(&tp->sacked_out, next_skb);
 
-		tcp_adjust_fackets_out(tp, next_skb, tcp_skb_pcount(next_skb));
+		tcp_adjust_fackets_out(sk, next_skb, tcp_skb_pcount(next_skb));
 		tp->packets_out -= tcp_skb_pcount(next_skb);
 
 		/* changed transmit queue under us so clear hints */
@@ -2028,7 +2029,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			break;
 		tp->forward_skb_hint = skb;
 
-		if (after(TCP_SKB_CB(skb)->seq, tp->highest_sack))
+		if (after(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
 			break;
 
 		if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)

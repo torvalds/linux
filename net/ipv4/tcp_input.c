@@ -1245,7 +1245,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
 	int reord = tp->packets_out;
 	int prior_fackets;
-	u32 highest_sack_end_seq = tp->lost_retrans_low;
+	u32 highest_sack_end_seq;
 	int flag = 0;
 	int found_dup_sack = 0;
 	int cached_fack_count;
@@ -1256,7 +1256,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	if (!tp->sacked_out) {
 		if (WARN_ON(tp->fackets_out))
 			tp->fackets_out = 0;
-		tp->highest_sack = tp->snd_una;
+		tp->highest_sack = tcp_write_queue_head(sk);
 	}
 	prior_fackets = tp->fackets_out;
 
@@ -1483,10 +1483,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				if (fack_count > tp->fackets_out)
 					tp->fackets_out = fack_count;
 
-				if (after(TCP_SKB_CB(skb)->seq, tp->highest_sack)) {
-					tp->highest_sack = TCP_SKB_CB(skb)->seq;
-					highest_sack_end_seq = TCP_SKB_CB(skb)->end_seq;
-				}
+				if (after(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
+					tp->highest_sack = skb;
+
 			} else {
 				if (dup_sack && (sacked&TCPCB_RETRANS))
 					reord = min(fack_count, reord);
@@ -1514,6 +1513,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			flag &= ~FLAG_ONLY_ORIG_SACKED;
 	}
 
+	highest_sack_end_seq = TCP_SKB_CB(tp->highest_sack)->end_seq;
 	if (tcp_is_fack(tp) && tp->retrans_out &&
 	    after(highest_sack_end_seq, tp->lost_retrans_low) &&
 	    icsk->icsk_ca_state == TCP_CA_Recovery)

@@ -1312,6 +1312,16 @@ static inline int tcp_write_queue_empty(struct sock *sk)
 	return skb_queue_empty(&sk->sk_write_queue);
 }
 
+/* Start sequence of the highest skb with SACKed bit, valid only if
+ * sacked > 0 or when the caller has ensured validity by itself.
+ */
+static inline u32 tcp_highest_sack_seq(struct tcp_sock *tp)
+{
+	if (!tp->sacked_out)
+		return tp->snd_una;
+	return TCP_SKB_CB(tp->highest_sack)->seq;
+}
+
 /* /proc */
 enum tcp_seq_states {
 	TCP_SEQ_STATE_LISTENING,
