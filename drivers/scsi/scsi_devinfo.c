@@ -549,7 +549,7 @@ void scsi_exit_devinfo(void)
 }
 
 /**
- * scsi_dev_list_init - set up the dynamic device list.
+ * scsi_init_devinfo - set up the dynamic device list.
  *
  * Description:
  * 	Add command line entries from scsi_dev_flags, then add
