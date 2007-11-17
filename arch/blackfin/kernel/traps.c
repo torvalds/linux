@@ -629,6 +629,7 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		}
 	} else {
 		printk(KERN_NOTICE "Kernel or interrupt exception\n");
+		print_modules();
 	}
 
 	if (retaddr >= (void *)FIXED_CODE_START  && retaddr < (void *)physical_mem_end
