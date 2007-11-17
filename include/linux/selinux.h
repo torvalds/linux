@@ -136,7 +136,7 @@ static inline int selinux_audit_rule_init(u32 field, u32 op,
                                           char *rulestr,
                                           struct selinux_audit_rule **rule)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static inline void selinux_audit_rule_free(struct selinux_audit_rule *rule)
