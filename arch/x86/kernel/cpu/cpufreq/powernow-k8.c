@@ -46,7 +46,7 @@
 
 #define PFX "powernow-k8: "
 #define BFX PFX "BIOS error: "
-#define VERSION "version 2.00.00"
+#define VERSION "version 2.20.00"
 #include "powernow-k8.h"
 
 /* serialize freq changes  */
@@ -73,33 +73,11 @@ static u32 find_khz_freq_from_fid(u32 fid)
 	return 1000 * find_freq_from_fid(fid);
 }
 
-/* Return a frequency in MHz, given an input fid and did */
-static u32 find_freq_from_fiddid(u32 fid, u32 did)
+static u32 find_khz_freq_from_pstate(struct cpufreq_frequency_table *data, u32 pstate)
 {
-	if (current_cpu_data.x86 == 0x10)
-		return 100 * (fid + 0x10) >> did;
-	else
-		return 100 * (fid + 0x8) >> did;
+	return data[pstate].frequency;
 }
 
-static u32 find_khz_freq_from_fiddid(u32 fid, u32 did)
-{
-	return 1000 * find_freq_from_fiddid(fid, did);
-}
-
-static u32 find_fid_from_pstate(u32 pstate)
-{
-	u32 hi, lo;
-	rdmsr(MSR_PSTATE_DEF_BASE + pstate, lo, hi);
-	return lo & HW_PSTATE_FID_MASK;
-}
-
-static u32 find_did_from_pstate(u32 pstate)
-{
-	u32 hi, lo;
-	rdmsr(MSR_PSTATE_DEF_BASE + pstate, lo, hi);
-	return (lo & HW_PSTATE_DID_MASK) >> HW_PSTATE_DID_SHIFT;
-}
 
 /* Return the vco fid for an input fid
  *
@@ -142,9 +120,7 @@ static int query_current_values_with_pending_wait(struct powernow_k8_data *data)
 	if (cpu_family == CPU_HW_PSTATE) {
 		rdmsr(MSR_PSTATE_STATUS, lo, hi);
 		i = lo & HW_PSTATE_MASK;
-		rdmsr(MSR_PSTATE_DEF_BASE + i, lo, hi);
-		data->currfid = lo & HW_PSTATE_FID_MASK;
-		data->currdid = (lo & HW_PSTATE_DID_MASK) >> HW_PSTATE_DID_SHIFT;
+		data->currpstate = i;
 		return 0;
 	}
 	do {
@@ -295,7 +271,7 @@ static int decrease_vid_code_by_step(struct powernow_k8_data *data, u32 reqvid, 
 static int transition_pstate(struct powernow_k8_data *data, u32 pstate)
 {
 	wrmsr(MSR_PSTATE_CTRL, pstate, 0);
-	data->currfid = find_fid_from_pstate(pstate);
+	data->currpstate = pstate;
 	return 0;
 }
 
@@ -845,17 +821,20 @@ err_out:
 static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpufreq_frequency_table *powernow_table)
 {
 	int i;
+	u32 hi = 0, lo = 0;
+	rdmsr(MSR_PSTATE_CUR_LIMIT, hi, lo);
+	data->max_hw_pstate = (hi & HW_PSTATE_MAX_MASK) >> HW_PSTATE_MAX_SHIFT;
 
 	for (i = 0; i < data->acpi_data.state_count; i++) {
 		u32 index;
 		u32 hi = 0, lo = 0;
-		u32 fid;
-		u32 did;
 
 		index = data->acpi_data.states[i].control & HW_PSTATE_MASK;
-		if (index > MAX_HW_PSTATE) {
+		if (index > data->max_hw_pstate) {
 			printk(KERN_ERR PFX "invalid pstate %d - bad value %d.\n", i, index);
 			printk(KERN_ERR PFX "Please report to BIOS manufacturer\n");
+			powernow_table[i].frequency = CPUFREQ_ENTRY_INVALID;
+			continue;
 		}
 		rdmsr(MSR_PSTATE_DEF_BASE + index, lo, hi);
 		if (!(hi & HW_PSTATE_VALID_MASK)) {
@@ -864,22 +843,9 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data, struct cpuf
 			continue;
 		}
 
-		fid = lo & HW_PSTATE_FID_MASK;
-		did = (lo & HW_PSTATE_DID_MASK) >> HW_PSTATE_DID_SHIFT;
+		powernow_table[i].index = index;
 
-		dprintk("   %d : fid 0x%x, did 0x%x\n", index, fid, did);
-
-		powernow_table[i].index = index | (fid << HW_FID_INDEX_SHIFT) | (did << HW_DID_INDEX_SHIFT);
-
-		powernow_table[i].frequency = find_khz_freq_from_fiddid(fid, did);
-
-		if (powernow_table[i].frequency != (data->acpi_data.states[i].core_frequency * 1000)) {
-			printk(KERN_INFO PFX "invalid freq entries %u kHz vs. %u kHz\n",
-				powernow_table[i].frequency,
-				(unsigned int) (data->acpi_data.states[i].core_frequency * 1000));
-			powernow_table[i].frequency = CPUFREQ_ENTRY_INVALID;
-			continue;
-		}
+		powernow_table[i].frequency = data->acpi_data.states[i].core_frequency * 1000;
 	}
 	return 0;
 }
@@ -1020,22 +986,18 @@ static int transition_frequency_fidvid(struct powernow_k8_data *data, unsigned i
 /* Take a frequency, and issue the hardware pstate transition command */
 static int transition_frequency_pstate(struct powernow_k8_data *data, unsigned int index)
 {
-	u32 fid = 0;
-	u32 did = 0;
 	u32 pstate = 0;
 	int res, i;
 	struct cpufreq_freqs freqs;
 
 	dprintk("cpu %d transition to index %u\n", smp_processor_id(), index);
 
-	/* get fid did for hardware pstate transition */
+	/* get MSR index for hardware pstate transition */
 	pstate = index & HW_PSTATE_MASK;
-	if (pstate > MAX_HW_PSTATE)
+	if (pstate > data->max_hw_pstate)
 		return 0;
-	fid = (index & HW_FID_INDEX_MASK) >> HW_FID_INDEX_SHIFT;
-	did = (index & HW_DID_INDEX_MASK) >> HW_DID_INDEX_SHIFT;
-	freqs.old = find_khz_freq_from_fiddid(data->currfid, data->currdid);
-	freqs.new = find_khz_freq_from_fiddid(fid, did);
+	freqs.old = find_khz_freq_from_pstate(data->powernow_table, data->currpstate);
+	freqs.new = find_khz_freq_from_pstate(data->powernow_table, pstate);
 
 	for_each_cpu_mask(i, *(data->available_cores)) {
 		freqs.cpu = i;
@@ -1043,9 +1005,7 @@ static int transition_frequency_pstate(struct powernow_k8_data *data, unsigned i
 	}
 
 	res = transition_pstate(data, pstate);
-	data->currfid = find_fid_from_pstate(pstate);
-	data->currdid = find_did_from_pstate(pstate);
-	freqs.new = find_khz_freq_from_fiddid(data->currfid, data->currdid);
+	freqs.new = find_khz_freq_from_pstate(data->powernow_table, pstate);
 
 	for_each_cpu_mask(i, *(data->available_cores)) {
 		freqs.cpu = i;
@@ -1090,10 +1050,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	if (query_current_values_with_pending_wait(data))
 		goto err_out;
 
-	if (cpu_family == CPU_HW_PSTATE)
-		dprintk("targ: curr fid 0x%x, did 0x%x\n",
-			data->currfid, data->currdid);
-	else {
+	if (cpu_family != CPU_HW_PSTATE) {
 		dprintk("targ: curr fid 0x%x, vid 0x%x\n",
 		data->currfid, data->currvid);
 
@@ -1124,7 +1081,7 @@ static int powernowk8_target(struct cpufreq_policy *pol, unsigned targfreq, unsi
 	mutex_unlock(&fidvid_mutex);
 
 	if (cpu_family == CPU_HW_PSTATE)
-		pol->cur = find_khz_freq_from_fiddid(data->currfid, data->currdid);
+		pol->cur = find_khz_freq_from_pstate(data->powernow_table, newstate);
 	else
 		pol->cur = find_khz_freq_from_fid(data->currfid);
 	ret = 0;
@@ -1223,7 +1180,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	    + (3 * (1 << data->irt) * 10)) * 1000;
 
 	if (cpu_family == CPU_HW_PSTATE)
-		pol->cur = find_khz_freq_from_fiddid(data->currfid, data->currdid);
+		pol->cur = find_khz_freq_from_pstate(data->powernow_table, data->currpstate);
 	else
 		pol->cur = find_khz_freq_from_fid(data->currfid);
 	dprintk("policy current frequency %d kHz\n", pol->cur);
@@ -1240,8 +1197,7 @@ static int __cpuinit powernowk8_cpu_init(struct cpufreq_policy *pol)
 	cpufreq_frequency_table_get_attr(data->powernow_table, pol->cpu);
 
 	if (cpu_family == CPU_HW_PSTATE)
-		dprintk("cpu_init done, current fid 0x%x, did 0x%x\n",
-			data->currfid, data->currdid);
+		dprintk("cpu_init done, current pstate 0x%x\n", data->currpstate);
 	else
 		dprintk("cpu_init done, current fid 0x%x, vid 0x%x\n",
 			data->currfid, data->currvid);
@@ -1297,7 +1253,7 @@ static unsigned int powernowk8_get (unsigned int cpu)
 		goto out;
 
 	if (cpu_family == CPU_HW_PSTATE)
-		khz = find_khz_freq_from_fiddid(data->currfid, data->currdid);
+		khz = find_khz_freq_from_pstate(data->powernow_table, data->currpstate);
 	else
 		khz = find_khz_freq_from_fid(data->currfid);
 
