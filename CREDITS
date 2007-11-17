@@ -1353,6 +1353,14 @@ S: Gen Stedmanstraat 212
 S: 5623 HZ Eindhoven
 S: The Netherlands
 
+N: Oliver Hartkopp
+E: oliver.hartkopp@volkswagen.de
+W: http://www.volkswagen.de
+D: Controller Area Network (network layer core)
+S: Brieffach 1776
+S: 38436 Wolfsburg
+S: Germany
+
 N: Andrew Haylett
 E: ajh@primag.co.uk
 D: Selection mechanism
@@ -3305,6 +3313,14 @@ S: IRISA
 S: Universit=E9 de Rennes I
 S: F-35042 Rennes Cedex
 S: France
+
+N: Urs Thuermann
+E: urs.thuermann@volkswagen.de
+W: http://www.volkswagen.de
+D: Controller Area Network (network layer core)
+S: Brieffach 1776
+S: 38436 Wolfsburg
+S: Germany
 
 N: Jon Tombs
 E: jon@gte.esi.us.es
