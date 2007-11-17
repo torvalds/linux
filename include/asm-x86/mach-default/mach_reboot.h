@@ -49,7 +49,7 @@ static inline void mach_reboot(void)
 		udelay(50);
 		kb_wait();
 		udelay(50);
-		outb(cmd | 0x04, 0x60);	/* set "System flag" */
+		outb(cmd | 0x14, 0x60); /* set "System flag" and "Keyboard Disabled" */
 		udelay(50);
 		kb_wait();
 		udelay(50);

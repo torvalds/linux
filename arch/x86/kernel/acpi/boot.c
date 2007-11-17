@@ -637,6 +637,38 @@ static int __init acpi_parse_hpet(struct acpi_table_header *table)
 	}
 
 	hpet_address = hpet_tbl->address.address;
+
+	/*
+	 * Some broken BIOSes advertise HPET at 0x0. We really do not
+	 * want to allocate a resource there.
+	 */
+	if (!hpet_address) {
+		printk(KERN_WARNING PREFIX
+		       "HPET id: %#x base: %#lx is invalid\n",
+		       hpet_tbl->id, hpet_address);
+		return 0;
+	}
+#ifdef CONFIG_X86_64
+	/*
+	 * Some even more broken BIOSes advertise HPET at
+	 * 0xfed0000000000000 instead of 0xfed00000. Fix it up and add
+	 * some noise:
+	 */
+	if (hpet_address == 0xfed0000000000000UL) {
+		if (!hpet_force_user) {
+			printk(KERN_WARNING PREFIX "HPET id: %#x "
+			       "base: 0xfed0000000000000 is bogus\n "
+			       "try hpet=force on the kernel command line to "
+			       "fix it up to 0xfed00000.\n", hpet_tbl->id);
+			hpet_address = 0;
+			return 0;
+		}
+		printk(KERN_WARNING PREFIX
+		       "HPET id: %#x base: 0xfed0000000000000 fixed up "
+		       "to 0xfed00000.\n", hpet_tbl->id);
+		hpet_address >>= 32;
+	}
+#endif
 	printk(KERN_INFO PREFIX "HPET id: %#x base: %#lx\n",
 	       hpet_tbl->id, hpet_address);
 

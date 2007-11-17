@@ -29,9 +29,9 @@ extern int mps_oem_check(struct mp_config_table *mpc, char *oem,
 static inline int es7000_check_dsdt(void)
 {
 	struct acpi_table_header header;
-	memcpy(&header, 0, sizeof(struct acpi_table_header));
-	acpi_get_table_header(ACPI_SIG_DSDT, 0, &header);
-	if (!strncmp(header.oem_id, "UNISYS", 6))
+
+	if (ACPI_SUCCESS(acpi_get_table_header(ACPI_SIG_DSDT, 0, &header)) &&
+	    !strncmp(header.oem_id, "UNISYS", 6))
 		return 1;
 	return 0;
 }

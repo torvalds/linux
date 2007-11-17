@@ -1,5 +1,5 @@
 #include <asm/voyager.h>
-#include <asm/setup_32.h>
+#include <asm/setup.h>
 #define VOYAGER_BIOS_INFO ((struct voyager_bios_info *) \
 			(&boot_params.apm_bios_info))
 
