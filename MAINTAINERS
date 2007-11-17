@@ -758,22 +758,20 @@ S:	Supported
 
 BLACKFIN RTC DRIVER
 P:	Mike Frysinger
-M:	michael.frysinger@analog.com
 M:	vapier.adi@gmail.com
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
 
 BLACKFIN SERIAL DRIVER
-P:	Aubrey Li
-M:	aubrey.li@analog.com
+P:	Sonic Zhang
+M:	sonic.zhang@analog.com
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
 S:	Supported
 
 BLACKFIN WATCHDOG DRIVER
 P:	Mike Frysinger
-M:	michael.frysinger@analog.com
 M:	vapier.adi@gmail.com
 L:	uclinux-dist-devel@blackfin.uclinux.org (subscribers-only)
 W:	http://blackfin.uclinux.org
