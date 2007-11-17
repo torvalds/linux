@@ -458,8 +458,8 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		show_stack(current, &stack);
 		if (oops_in_progress) {
 #ifndef CONFIG_ACCESS_CHECK
-			printk(KERN_EMERG "Hey - dork - please turn on "
-				"CONFIG_ACCESS_CHECK\n");
+			printk(KERN_EMERG "Please turn on "
+			       "CONFIG_ACCESS_CHECK\n");
 #endif
 			panic("Kernel exception");
 		}
