@@ -145,33 +145,6 @@ static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
 	return 0;
 }
 
-/* Read an environment variable and assign the value to the symbol */
-int conf_set_env_sym(const char *env, const char *symname, int def)
-{
-	struct symbol *sym;
-	char *p;
-	int def_flags;
-
-	p = getenv(env);
-	if (p) {
-		char warning[200];
-		sprintf(warning, "Environment variable (%s = \"%s\")", env, p);
-		conf_filename = warning;
-		def_flags = SYMBOL_DEF << def;
-		if (def == S_DEF_USER) {
-			sym = sym_find(symname);
-			if (!sym)
-				return 1;
-		} else {
-			sym = sym_lookup(symname, 0);
-			if (sym->type == S_UNKNOWN)
-				sym->type = S_OTHER;
-		}
-		conf_set_sym_val(sym, def, def_flags, p);
-	}
-	return 0;
-}
-
 int conf_read_simple(const char *name, int def)
 {
 	FILE *in = NULL;
