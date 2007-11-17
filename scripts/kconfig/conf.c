@@ -591,7 +591,6 @@ int main(int ac, char **av)
 			conf_read_simple(name, S_DEF_USER);
 		else if (!stat("all.config", &tmpstat))
 			conf_read_simple("all.config", S_DEF_USER);
-		conf_set_env_sym("K64BIT", "64BIT", S_DEF_USER);
 		break;
 	default:
 		break;
