@@ -67,7 +67,7 @@ struct key_type cifs_spnego_key_type = {
 };
 
 #define MAX_VER_STR_LEN   9 /* length of longest version string e.g.
-				strlen(";ver=0xFF) */
+				strlen(";ver=0xFF") */
 #define MAX_MECH_STR_LEN 13 /* length of longest security mechanism name, eg
 			       in future could have strlen(";sec=ntlmsspi") */
 #define MAX_IPV6_ADDR_LEN 42 /* eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/60 */
