@@ -372,7 +372,7 @@ static void __mdio_cmd(void __iomem *ioaddr, u32 ctl)
 		msleep(1);
 	}
 
-	if (i > 999)
+	if (i > 99)
 		printk(KERN_ERR PFX "PHY command failed !\n");
 }
 
