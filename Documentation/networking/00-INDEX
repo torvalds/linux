@@ -24,6 +24,8 @@ baycom.txt
 	- info on the driver for Baycom style amateur radio modems
 bridge.txt
 	- where to get user space programs for ethernet bridging with Linux.
+can.txt
+	- documentation on CAN protocol family.
 cops.txt
 	- info on the COPS LocalTalk Linux driver
 cs89x0.txt
