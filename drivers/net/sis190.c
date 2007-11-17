@@ -847,10 +847,8 @@ static void sis190_soft_reset(void __iomem *ioaddr)
 {
 	SIS_W32(IntrControl, 0x8000);
 	SIS_PCI_COMMIT();
-	msleep(1);
 	SIS_W32(IntrControl, 0x0);
 	sis190_asic_down(ioaddr);
-	msleep(1);
 }
 
 static void sis190_hw_start(struct net_device *dev)
