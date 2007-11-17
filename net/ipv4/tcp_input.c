@@ -1554,20 +1554,15 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			}
 
 			/* Rest of the block already fully processed? */
-			if (!after(end_seq, cache->end_seq)) {
-				skb = tcp_maybe_skipping_dsack(skb, sk, next_dup, cache->end_seq,
-							       &fack_count, &reord, &flag);
+			if (!after(end_seq, cache->end_seq))
 				goto advance_sp;
-			}
+
+			skb = tcp_maybe_skipping_dsack(skb, sk, next_dup, cache->end_seq,
+						       &fack_count, &reord, &flag);
 
 			/* ...tail remains todo... */
 			if (TCP_SKB_CB(tp->highest_sack)->end_seq == cache->end_seq) {
-				/* ...but better entrypoint exists! Check that DSACKs are
-				 * properly accounted while skipping here
-				 */
-				tcp_maybe_skipping_dsack(skb, sk, next_dup, cache->end_seq,
-							 &fack_count, &reord, &flag);
-
+				/* ...but better entrypoint exists! */
 				skb = tcp_write_queue_next(sk, tp->highest_sack);
 				fack_count = tp->fackets_out;
 				cache++;
