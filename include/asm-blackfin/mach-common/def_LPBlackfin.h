@@ -46,7 +46,7 @@
 #endif
 
 #define bfin_read8(addr) ({ \
-	uint8_t __v; \
+	uint32_t __v; \
 	__asm__ __volatile__( \
 		NOP_PAD_ANOMALY_05000198 \
 		"%0 = b[%1] (z);" \
@@ -56,7 +56,7 @@
 	__v; })
 
 #define bfin_read16(addr) ({ \
-	uint16_t __v; \
+	uint32_t __v; \
 	__asm__ __volatile__( \
 		NOP_PAD_ANOMALY_05000198 \
 		"%0 = w[%1] (z);" \
@@ -80,7 +80,7 @@
 		NOP_PAD_ANOMALY_05000198 \
 		"b[%0] = %1;" \
 		: \
-		: "a" (addr), "d" (val) \
+		: "a" (addr), "d" ((uint8_t)(val)) \
 		: "memory" \
 	)
 
@@ -89,7 +89,7 @@
 		NOP_PAD_ANOMALY_05000198 \
 		"w[%0] = %1;" \
 		: \
-		: "a" (addr), "d" (val) \
+		: "a" (addr), "d" ((uint16_t)(val)) \
 		: "memory" \
 	)
 
