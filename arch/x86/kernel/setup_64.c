@@ -892,7 +892,6 @@ void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 
 #ifdef CONFIG_SMP
 	c->phys_proc_id = (cpuid_ebx(1) >> 24) & 0xff;
-	c->cpu_index = 0;
 #endif
 }
 
