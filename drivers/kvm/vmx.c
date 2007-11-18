@@ -463,6 +463,7 @@ static void vmx_load_host_state(struct vcpu_vmx *vmx)
 	if (!vmx->host_state.loaded)
 		return;
 
+	++vmx->vcpu.stat.host_state_reload;
 	vmx->host_state.loaded = 0;
 	if (vmx->host_state.fs_reload_needed)
 		load_fs(vmx->host_state.fs_sel);

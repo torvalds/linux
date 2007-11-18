@@ -60,7 +60,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "halt_wakeup", STAT_OFFSET(halt_wakeup) },
 	{ "request_irq", STAT_OFFSET(request_irq_exits) },
 	{ "irq_exits", STAT_OFFSET(irq_exits) },
-	{ "light_exits", STAT_OFFSET(light_exits) },
+	{ "host_state_reload", STAT_OFFSET(host_state_reload) },
 	{ "efer_reload", STAT_OFFSET(efer_reload) },
 	{ NULL }
 };
@@ -1988,10 +1988,8 @@ again:
 			++vcpu->stat.request_irq_exits;
 			goto out;
 		}
-		if (!need_resched()) {
-			++vcpu->stat.light_exits;
+		if (!need_resched())
 			goto again;
-		}
 	}
 
 out:
