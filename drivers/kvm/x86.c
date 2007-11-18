@@ -62,6 +62,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "irq_exits", STAT_OFFSET(irq_exits) },
 	{ "host_state_reload", STAT_OFFSET(host_state_reload) },
 	{ "efer_reload", STAT_OFFSET(efer_reload) },
+	{ "fpu_reload", STAT_OFFSET(fpu_reload) },
 	{ NULL }
 };
 
@@ -2417,6 +2418,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu)
 	vcpu->guest_fpu_loaded = 0;
 	fx_save(&vcpu->guest_fx_image);
 	fx_restore(&vcpu->host_fx_image);
+	++vcpu->stat.fpu_reload;
 }
 EXPORT_SYMBOL_GPL(kvm_put_guest_fpu);
 

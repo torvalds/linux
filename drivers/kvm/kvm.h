@@ -248,6 +248,7 @@ struct kvm_stat {
 	u32 irq_exits;
 	u32 host_state_reload;
 	u32 efer_reload;
+	u32 fpu_reload;
 };
 
 struct kvm_io_device {
