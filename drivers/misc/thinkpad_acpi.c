@@ -4817,9 +4817,15 @@ static int __init set_ibm_param(const char *val, struct kernel_param *kp)
 	unsigned int i;
 	struct ibm_struct *ibm;
 
+	if (!kp || !kp->name || !val)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
 		ibm = ibms_init[i].data;
-		BUG_ON(ibm == NULL);
+		WARN_ON(ibm == NULL);
+
+		if (!ibm || !ibm->name)
+			continue;
 
 		if (strcmp(ibm->name, kp->name) == 0 && ibm->write) {
 			if (strlen(val) > sizeof(ibms_init[i].param) - 2)
