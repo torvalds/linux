@@ -899,10 +899,9 @@ static void sis190_phy_task(struct work_struct *work)
 		mod_timer(&tp->timer, jiffies + HZ/10);
 	} else if (!(mdio_read_latched(ioaddr, phy_id, MII_BMSR) &
 		     BMSR_ANEGCOMPLETE)) {
-		net_link(tp, KERN_WARNING "%s: PHY reset until link up.\n",
-			 dev->name);
 		netif_carrier_off(dev);
-		mdio_write(ioaddr, phy_id, MII_BMCR, val | BMCR_RESET);
+		net_link(tp, KERN_WARNING "%s: auto-negotiating...\n",
+			 dev->name);
 		mod_timer(&tp->timer, jiffies + SIS190_PHY_TIMEOUT);
 	} else {
 		/* Rejoice ! */
