@@ -755,6 +755,7 @@ static void kvm_mmu_zap_page(struct kvm *kvm,
 {
 	u64 *parent_pte;
 
+	++kvm->stat.mmu_shadow_zapped;
 	while (page->multimapped || page->parent_pte) {
 		if (!page->multimapped)
 			parent_pte = page->parent_pte;
@@ -1226,9 +1227,12 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 				  const void *new, int bytes,
 				  int offset_in_pte)
 {
-	if (page->role.level != PT_PAGE_TABLE_LEVEL)
+	if (page->role.level != PT_PAGE_TABLE_LEVEL) {
+		++vcpu->kvm->stat.mmu_pde_zapped;
 		return;
+	}
 
+	++vcpu->kvm->stat.mmu_pte_updated;
 	if (page->role.glevels == PT32_ROOT_LEVEL)
 		paging32_update_pte(vcpu, page, spte, new, bytes,
 				    offset_in_pte);
@@ -1263,6 +1267,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int npte;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
+	++vcpu->kvm->stat.mmu_pte_write;
 	kvm_mmu_audit(vcpu, "pre pte write");
 	if (gfn == vcpu->last_pt_write_gfn
 	    && !last_updated_pte_accessed(vcpu)) {
@@ -1296,6 +1301,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			pgprintk("misaligned: gpa %llx bytes %d role %x\n",
 				 gpa, bytes, page->role.word);
 			kvm_mmu_zap_page(vcpu->kvm, page);
+			++vcpu->kvm->stat.mmu_flooded;
 			continue;
 		}
 		page_offset = offset;
@@ -1344,6 +1350,7 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 		page = container_of(vcpu->kvm->active_mmu_pages.prev,
 				    struct kvm_mmu_page, link);
 		kvm_mmu_zap_page(vcpu->kvm, page);
+		++vcpu->kvm->stat.mmu_recycled;
 	}
 }
 

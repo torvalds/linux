@@ -362,6 +362,12 @@ struct kvm_memory_slot {
 };
 
 struct kvm_vm_stat {
+	u32 mmu_shadow_zapped;
+	u32 mmu_pte_write;
+	u32 mmu_pte_updated;
+	u32 mmu_pde_zapped;
+	u32 mmu_flooded;
+	u32 mmu_recycled;
 };
 
 struct kvm {

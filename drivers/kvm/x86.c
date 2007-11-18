@@ -66,6 +66,12 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "fpu_reload", VCPU_STAT(fpu_reload) },
 	{ "insn_emulation", VCPU_STAT(insn_emulation) },
 	{ "insn_emulation_fail", VCPU_STAT(insn_emulation_fail) },
+	{ "mmu_shadow_zapped", VM_STAT(mmu_shadow_zapped) },
+	{ "mmu_pte_write", VM_STAT(mmu_pte_write) },
+	{ "mmu_pte_updated", VM_STAT(mmu_pte_updated) },
+	{ "mmu_pde_zapped", VM_STAT(mmu_pde_zapped) },
+	{ "mmu_flooded", VM_STAT(mmu_flooded) },
+	{ "mmu_recycled", VM_STAT(mmu_recycled) },
 	{ NULL }
 };
 
