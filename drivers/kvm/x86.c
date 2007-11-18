@@ -63,6 +63,8 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "host_state_reload", STAT_OFFSET(host_state_reload) },
 	{ "efer_reload", STAT_OFFSET(efer_reload) },
 	{ "fpu_reload", STAT_OFFSET(fpu_reload) },
+	{ "insn_emulation", STAT_OFFSET(insn_emulation) },
+	{ "insn_emulation_fail", STAT_OFFSET(insn_emulation_fail) },
 	{ NULL }
 };
 
@@ -1381,7 +1383,9 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 					get_segment_base(vcpu, VCPU_SREG_FS);
 
 		r = x86_decode_insn(&vcpu->emulate_ctxt, &emulate_ops);
+		++vcpu->stat.insn_emulation;
 		if (r)  {
+			++vcpu->stat.insn_emulation_fail;
 			if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
 				return EMULATE_DONE;
 			return EMULATE_FAIL;

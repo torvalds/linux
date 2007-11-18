@@ -249,6 +249,8 @@ struct kvm_stat {
 	u32 host_state_reload;
 	u32 efer_reload;
 	u32 fpu_reload;
+	u32 insn_emulation;
+	u32 insn_emulation_fail;
 };
 
 struct kvm_io_device {
