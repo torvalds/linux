@@ -565,7 +565,7 @@ void atari_kbd_leds(unsigned int leds)
 
 static int atari_keyb_done = 0;
 
-int __init atari_keyb_init(void)
+int atari_keyb_init(void)
 {
 	if (atari_keyb_done)
 		return 0;
@@ -631,6 +631,7 @@ int __init atari_keyb_init(void)
 	atari_keyb_done = 1;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(atari_keyb_init);
 
 int atari_kbd_translate(unsigned char keycode, unsigned char *keycodep, char raw_mode)
 {
