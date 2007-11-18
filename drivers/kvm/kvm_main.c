@@ -1281,7 +1281,22 @@ static struct notifier_block kvm_cpu_notifier = {
 	.priority = 20, /* must be > scheduler priority */
 };
 
-static u64 stat_get(void *_offset)
+static u64 vm_stat_get(void *_offset)
+{
+	unsigned offset = (long)_offset;
+	u64 total = 0;
+	struct kvm *kvm;
+
+	spin_lock(&kvm_lock);
+	list_for_each_entry(kvm, &vm_list, vm_list)
+		total += *(u32 *)((void *)kvm + offset);
+	spin_unlock(&kvm_lock);
+	return total;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(vm_stat_fops, vm_stat_get, NULL, "%llu\n");
+
+static u64 vcpu_stat_get(void *_offset)
 {
 	unsigned offset = (long)_offset;
 	u64 total = 0;
@@ -1300,7 +1315,12 @@ static u64 stat_get(void *_offset)
 	return total;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(stat_fops, stat_get, NULL, "%llu\n");
+DEFINE_SIMPLE_ATTRIBUTE(vcpu_stat_fops, vcpu_stat_get, NULL, "%llu\n");
+
+static struct file_operations *stat_fops[] = {
+	[KVM_STAT_VCPU] = &vcpu_stat_fops,
+	[KVM_STAT_VM]   = &vm_stat_fops,
+};
 
 static void kvm_init_debug(void)
 {
@@ -1310,7 +1330,7 @@ static void kvm_init_debug(void)
 	for (p = debugfs_entries; p->name; ++p)
 		p->dentry = debugfs_create_file(p->name, 0444, debugfs_dir,
 						(void *)(long)p->offset,
-						&stat_fops);
+						stat_fops[p->kind]);
 }
 
 static void kvm_exit_debug(void)

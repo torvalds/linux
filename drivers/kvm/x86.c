@@ -42,29 +42,30 @@
 #define CR8_RESERVED_BITS (~(unsigned long)X86_CR8_TPR)
 #define EFER_RESERVED_BITS 0xfffffffffffff2fe
 
-#define STAT_OFFSET(x) offsetof(struct kvm_vcpu, stat.x)
+#define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
+#define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
 struct kvm_x86_ops *kvm_x86_ops;
 
 struct kvm_stats_debugfs_item debugfs_entries[] = {
-	{ "pf_fixed", STAT_OFFSET(pf_fixed) },
-	{ "pf_guest", STAT_OFFSET(pf_guest) },
-	{ "tlb_flush", STAT_OFFSET(tlb_flush) },
-	{ "invlpg", STAT_OFFSET(invlpg) },
-	{ "exits", STAT_OFFSET(exits) },
-	{ "io_exits", STAT_OFFSET(io_exits) },
-	{ "mmio_exits", STAT_OFFSET(mmio_exits) },
-	{ "signal_exits", STAT_OFFSET(signal_exits) },
-	{ "irq_window", STAT_OFFSET(irq_window_exits) },
-	{ "halt_exits", STAT_OFFSET(halt_exits) },
-	{ "halt_wakeup", STAT_OFFSET(halt_wakeup) },
-	{ "request_irq", STAT_OFFSET(request_irq_exits) },
-	{ "irq_exits", STAT_OFFSET(irq_exits) },
-	{ "host_state_reload", STAT_OFFSET(host_state_reload) },
-	{ "efer_reload", STAT_OFFSET(efer_reload) },
-	{ "fpu_reload", STAT_OFFSET(fpu_reload) },
-	{ "insn_emulation", STAT_OFFSET(insn_emulation) },
-	{ "insn_emulation_fail", STAT_OFFSET(insn_emulation_fail) },
+	{ "pf_fixed", VCPU_STAT(pf_fixed) },
+	{ "pf_guest", VCPU_STAT(pf_guest) },
+	{ "tlb_flush", VCPU_STAT(tlb_flush) },
+	{ "invlpg", VCPU_STAT(invlpg) },
+	{ "exits", VCPU_STAT(exits) },
+	{ "io_exits", VCPU_STAT(io_exits) },
+	{ "mmio_exits", VCPU_STAT(mmio_exits) },
+	{ "signal_exits", VCPU_STAT(signal_exits) },
+	{ "irq_window", VCPU_STAT(irq_window_exits) },
+	{ "halt_exits", VCPU_STAT(halt_exits) },
+	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
+	{ "request_irq", VCPU_STAT(request_irq_exits) },
+	{ "irq_exits", VCPU_STAT(irq_exits) },
+	{ "host_state_reload", VCPU_STAT(host_state_reload) },
+	{ "efer_reload", VCPU_STAT(efer_reload) },
+	{ "fpu_reload", VCPU_STAT(fpu_reload) },
+	{ "insn_emulation", VCPU_STAT(insn_emulation) },
+	{ "insn_emulation_fail", VCPU_STAT(insn_emulation_fail) },
 	{ NULL }
 };
 

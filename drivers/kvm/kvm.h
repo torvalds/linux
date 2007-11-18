@@ -231,7 +231,7 @@ struct kvm_pio_request {
 	int rep;
 };
 
-struct kvm_stat {
+struct kvm_vcpu_stat {
 	u32 pf_fixed;
 	u32 pf_guest;
 	u32 tlb_flush;
@@ -342,7 +342,7 @@ void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 	wait_queue_head_t wq;				\
 	int sigset_active;				\
 	sigset_t sigset;				\
-	struct kvm_stat stat;				\
+	struct kvm_vcpu_stat stat;			\
 	KVM_VCPU_MMIO
 
 struct kvm_mem_alias {
@@ -359,6 +359,9 @@ struct kvm_memory_slot {
 	unsigned long *dirty_bitmap;
 	unsigned long userspace_addr;
 	int user_alloc;
+};
+
+struct kvm_vm_stat {
 };
 
 struct kvm {
@@ -387,6 +390,7 @@ struct kvm {
 	int round_robin_prev_vcpu;
 	unsigned int tss_addr;
 	struct page *apic_access_page;
+	struct kvm_vm_stat stat;
 };
 
 static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
@@ -809,9 +813,15 @@ static inline u32 get_rdx_init_val(void)
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE (TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
 
+enum kvm_stat_kind {
+	KVM_STAT_VM,
+	KVM_STAT_VCPU,
+};
+
 struct kvm_stats_debugfs_item {
 	const char *name;
 	int offset;
+	enum kvm_stat_kind kind;
 	struct dentry *dentry;
 };
 extern struct kvm_stats_debugfs_item debugfs_entries[];
