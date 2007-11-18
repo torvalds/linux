@@ -1383,10 +1383,6 @@ int kvm_init(void *opaque, unsigned int vcpu_size,
 	int r;
 	int cpu;
 
-	r = kvm_mmu_module_init();
-	if (r)
-		goto out4;
-
 	kvm_init_debug();
 
 	r = kvm_arch_init(opaque);
@@ -1446,8 +1442,6 @@ int kvm_init(void *opaque, unsigned int vcpu_size,
 	kvm_preempt_ops.sched_in = kvm_sched_in;
 	kvm_preempt_ops.sched_out = kvm_sched_out;
 
-	kvm_mmu_set_nonpresent_ptes(0ull, 0ull);
-
 	return 0;
 
 out_free:
@@ -1466,7 +1460,6 @@ out_free_0:
 out:
 	kvm_arch_exit();
 	kvm_exit_debug();
-	kvm_mmu_module_exit();
 out4:
 	return r;
 }
@@ -1485,6 +1478,5 @@ void kvm_exit(void)
 	kvm_arch_exit();
 	kvm_exit_debug();
 	__free_page(bad_page);
-	kvm_mmu_module_exit();
 }
 EXPORT_SYMBOL_GPL(kvm_exit);
