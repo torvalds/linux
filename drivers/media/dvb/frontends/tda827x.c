@@ -796,11 +796,13 @@ static int tda827x_probe_version(struct dvb_frontend *fe)
 		dprintk("tda827x tuner found\n");
 		fe->ops.tuner_ops.init  = tda827x_init;
 		fe->ops.tuner_ops.sleep = tda827xo_sleep;
-		priv->cfg->agcf = tda827xo_agcf;
+		if (priv->cfg)
+			priv->cfg->agcf = tda827xo_agcf;
 	} else {
 		dprintk("tda827xa tuner found\n");
 		memcpy(&fe->ops.tuner_ops, &tda827xa_tuner_ops, sizeof(struct dvb_tuner_ops));
-		priv->cfg->agcf = tda827xa_agcf;
+		if (priv->cfg)
+			priv->cfg->agcf = tda827xa_agcf;
 	}
 	return 0;
 }
