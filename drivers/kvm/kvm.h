@@ -674,6 +674,10 @@ int kvm_arch_hardware_setup(void);
 void kvm_arch_hardware_unsetup(void);
 void kvm_arch_check_processor_compat(void *rtn);
 
+void kvm_free_physmem(struct kvm *kvm);
+
+struct  kvm *kvm_arch_create_vm(void);
+void kvm_arch_destroy_vm(struct kvm *kvm);
 
 static inline void kvm_guest_enter(void)
 {

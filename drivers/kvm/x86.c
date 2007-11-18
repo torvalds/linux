@@ -2543,3 +2543,50 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 	kvm_mmu_destroy(vcpu);
 	free_page((unsigned long)vcpu->pio_data);
 }
+
+struct  kvm *kvm_arch_create_vm(void)
+{
+	struct kvm *kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
+
+	if (!kvm)
+		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&kvm->active_mmu_pages);
+
+	return kvm;
+}
+
+static void kvm_unload_vcpu_mmu(struct kvm_vcpu *vcpu)
+{
+	vcpu_load(vcpu);
+	kvm_mmu_unload(vcpu);
+	vcpu_put(vcpu);
+}
+
+static void kvm_free_vcpus(struct kvm *kvm)
+{
+	unsigned int i;
+
+	/*
+	 * Unpin any mmu pages first.
+	 */
+	for (i = 0; i < KVM_MAX_VCPUS; ++i)
+		if (kvm->vcpus[i])
+			kvm_unload_vcpu_mmu(kvm->vcpus[i]);
+	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
+		if (kvm->vcpus[i]) {
+			kvm_arch_vcpu_free(kvm->vcpus[i]);
+			kvm->vcpus[i] = NULL;
+		}
+	}
+
+}
+
+void kvm_arch_destroy_vm(struct kvm *kvm)
+{
+	kfree(kvm->vpic);
+	kfree(kvm->vioapic);
+	kvm_free_vcpus(kvm);
+	kvm_free_physmem(kvm);
+	kfree(kvm);
+}

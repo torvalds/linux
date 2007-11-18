@@ -156,18 +156,18 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_uninit);
 
 static struct kvm *kvm_create_vm(void)
 {
-	struct kvm *kvm = kzalloc(sizeof(struct kvm), GFP_KERNEL);
+	struct kvm *kvm = kvm_arch_create_vm();
 
-	if (!kvm)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(kvm))
+		goto out;
 
 	kvm_io_bus_init(&kvm->pio_bus);
 	mutex_init(&kvm->lock);
-	INIT_LIST_HEAD(&kvm->active_mmu_pages);
 	kvm_io_bus_init(&kvm->mmio_bus);
 	spin_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
 	spin_unlock(&kvm_lock);
+out:
 	return kvm;
 }
 
@@ -188,38 +188,12 @@ static void kvm_free_physmem_slot(struct kvm_memory_slot *free,
 	free->rmap = NULL;
 }
 
-static void kvm_free_physmem(struct kvm *kvm)
+void kvm_free_physmem(struct kvm *kvm)
 {
 	int i;
 
 	for (i = 0; i < kvm->nmemslots; ++i)
 		kvm_free_physmem_slot(&kvm->memslots[i], NULL);
-}
-
-static void kvm_unload_vcpu_mmu(struct kvm_vcpu *vcpu)
-{
-	vcpu_load(vcpu);
-	kvm_mmu_unload(vcpu);
-	vcpu_put(vcpu);
-}
-
-static void kvm_free_vcpus(struct kvm *kvm)
-{
-	unsigned int i;
-
-	/*
-	 * Unpin any mmu pages first.
-	 */
-	for (i = 0; i < KVM_MAX_VCPUS; ++i)
-		if (kvm->vcpus[i])
-			kvm_unload_vcpu_mmu(kvm->vcpus[i]);
-	for (i = 0; i < KVM_MAX_VCPUS; ++i) {
-		if (kvm->vcpus[i]) {
-			kvm_arch_vcpu_free(kvm->vcpus[i]);
-			kvm->vcpus[i] = NULL;
-		}
-	}
-
 }
 
 static void kvm_destroy_vm(struct kvm *kvm)
@@ -229,11 +203,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
-	kfree(kvm->vpic);
-	kfree(kvm->vioapic);
-	kvm_free_vcpus(kvm);
-	kvm_free_physmem(kvm);
-	kfree(kvm);
+	kvm_arch_destroy_vm(kvm);
 }
 
 static int kvm_vm_release(struct inode *inode, struct file *filp)
