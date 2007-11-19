@@ -183,35 +183,31 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 
-	// if there is no attached secondary tuner, we call set_params to program
-	// a potential tuner attached somewhere else
+	/*
+	 * If there is no tuner attached to the secondary I2C bus, we call
+	 * set_params to program a potential tuner attached somewhere else.
+	 * Otherwise, we update the PLL registers via calc_regs.
+	 */
 	if (state->config.no_tuner) {
 		if (fe->ops.tuner_ops.set_params) {
 			fe->ops.tuner_ops.set_params(fe, param);
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 0);
 		}
-	}
-
-	// if pllbuf is defined, retrieve the settings
-	if (fe->ops.tuner_ops.calc_regs) {
-		fe->ops.tuner_ops.calc_regs(fe, param, pllbuf+1, 5);
+	} else if (fe->ops.tuner_ops.calc_regs) {
+		fe->ops.tuner_ops.calc_regs(fe, param, pllbuf + 1, 5);
 		pllbuf[1] <<= 1;
-	} else {
-		// fake pllbuf settings
-		pllbuf[1] = 0x61 << 1;
-		pllbuf[2] = 0;
-		pllbuf[3] = 0;
-		pllbuf[3] = 0;
-		pllbuf[4] = 0;
+		zl10353_write(fe, pllbuf, sizeof(pllbuf));
 	}
-
-	// there is no call to _just_ start decoding, so we send the pllbuf anyway
-	// even if there isn't a PLL attached to the secondary bus
-	zl10353_write(fe, pllbuf, sizeof(pllbuf));
 
 	zl10353_single_write(fe, 0x5F, 0x13);
-	zl10353_single_write(fe, 0x70, 0x01);
+
+	/* If no attached tuner or invalid PLL registers, just start the FSM. */
+	if (state->config.no_tuner || fe->ops.tuner_ops.calc_regs == NULL)
+		zl10353_single_write(fe, FSM_GO, 0x01);
+	else
+		zl10353_single_write(fe, TUNER_GO, 0x01);
+
 	udelay(250);
 	zl10353_single_write(fe, 0xE4, 0x00);
 	zl10353_single_write(fe, 0xE5, 0x2A);

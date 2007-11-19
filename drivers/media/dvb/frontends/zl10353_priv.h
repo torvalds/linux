@@ -48,6 +48,8 @@ enum zl10353_reg_addr {
 	RS_UBC_0           = 0x15,
 	TRL_NOMINAL_RATE_1 = 0x65,
 	TRL_NOMINAL_RATE_0 = 0x66,
+	TUNER_GO           = 0x70,
+	FSM_GO             = 0x71,
 	CHIP_ID            = 0x7F,
 };
 
