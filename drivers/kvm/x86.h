@@ -55,6 +55,41 @@
 extern spinlock_t kvm_lock;
 extern struct list_head vm_list;
 
+enum {
+	VCPU_REGS_RAX = 0,
+	VCPU_REGS_RCX = 1,
+	VCPU_REGS_RDX = 2,
+	VCPU_REGS_RBX = 3,
+	VCPU_REGS_RSP = 4,
+	VCPU_REGS_RBP = 5,
+	VCPU_REGS_RSI = 6,
+	VCPU_REGS_RDI = 7,
+#ifdef CONFIG_X86_64
+	VCPU_REGS_R8 = 8,
+	VCPU_REGS_R9 = 9,
+	VCPU_REGS_R10 = 10,
+	VCPU_REGS_R11 = 11,
+	VCPU_REGS_R12 = 12,
+	VCPU_REGS_R13 = 13,
+	VCPU_REGS_R14 = 14,
+	VCPU_REGS_R15 = 15,
+#endif
+	NR_VCPU_REGS
+};
+
+enum {
+	VCPU_SREG_CS,
+	VCPU_SREG_DS,
+	VCPU_SREG_ES,
+	VCPU_SREG_FS,
+	VCPU_SREG_GS,
+	VCPU_SREG_SS,
+	VCPU_SREG_TR,
+	VCPU_SREG_LDTR,
+};
+
+#include "x86_emulate.h"
+
 struct kvm_vcpu {
 	KVM_VCPU_COMM;
 	u64 host_tsc;
