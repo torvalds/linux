@@ -151,21 +151,6 @@ struct kvm_fpu {
 };
 
 
-struct kvm_segment {
-	__u64 base;
-	__u32 limit;
-	__u16 selector;
-	__u8  type;
-	__u8  present, dpl, db, s, l, g, avl;
-	__u8  unusable;
-	__u8  padding;
-};
-
-struct kvm_dtable {
-	__u64 base;
-	__u16 limit;
-	__u16 padding[3];
-};
 
 /* for KVM_GET_SREGS and KVM_SET_SREGS */
 struct kvm_sregs {
