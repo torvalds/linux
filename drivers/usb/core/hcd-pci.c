@@ -250,6 +250,12 @@ int usb_hcd_pci_suspend (struct pci_dev *dev, pm_message_t message)
 			pci_disable_device (dev);
 		}
 
+		if (message.event == PM_EVENT_FREEZE ||
+				message.event == PM_EVENT_PRETHAW) {
+			dev_dbg(hcd->self.controller, "--> no state change\n");
+			goto done;
+		}
+
 		if (!has_pci_pm) {
 			dev_dbg (hcd->self.controller, "--> PCI D0/legacy\n");
 			goto done;
