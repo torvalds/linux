@@ -75,9 +75,6 @@ struct xc2028_data {
 							      6M, 7M or 8M */
 	int			need_load_generic; /* The generic firmware
 							      were loaded? */
-
-	int			max_len;	/* Max firmware chunk */
-
 	enum tuner_mode	mode;
 	struct i2c_client	*i2c_client;
 
@@ -426,7 +423,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	int                pos, rc;
-	unsigned char      *p, *endp, buf[priv->max_len];
+	unsigned char      *p, *endp, buf[priv->ctrl.max_len];
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
@@ -505,8 +502,8 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 
 		/* Sends message chunks */
 		while (size > 0) {
-			int len = (size < priv->max_len - 1) ?
-				   size : priv->max_len - 1;
+			int len = (size < priv->ctrl.max_len - 1) ?
+				   size : priv->ctrl.max_len - 1;
 
 			memcpy(buf + 1, p, len);
 
@@ -881,32 +878,30 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	struct xc2028_ctrl *p    = priv_cfg;
+	int                 rc   = 0;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
 	mutex_lock(&priv->lock);
 
-	priv->ctrl.type = p->type;
+	kfree(priv->ctrl.fname);
+	free_firmware(priv);
+
+	memcpy(&priv->ctrl, p, sizeof(priv->ctrl));
+	priv->ctrl.fname = NULL;
 
 	if (p->fname) {
-		kfree(priv->ctrl.fname);
-
-		priv->ctrl.fname = kmalloc(strlen(p->fname) + 1, GFP_KERNEL);
-		if (priv->ctrl.fname == NULL) {
-			mutex_unlock(&priv->lock);
-			return -ENOMEM;
-		}
-
-		free_firmware(priv);
-		strcpy(priv->ctrl.fname, p->fname);
+		priv->ctrl.fname = kstrdup(p->fname, GFP_KERNEL);
+		if (priv->ctrl.fname == NULL)
+			rc = -ENOMEM;
 	}
 
-	if (p->max_len > 0)
-		priv->max_len = p->max_len;
+	if (priv->ctrl.max_len < 9)
+		priv->ctrl.max_len = 13;
 
 	mutex_unlock(&priv->lock);
 
-	return 0;
+	return rc;
 }
 
 static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
@@ -967,7 +962,7 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 		priv->i2c_props.adap = cfg->i2c_adap;
 		priv->video_dev = video_dev;
 		priv->tuner_callback = cfg->callback;
-		priv->max_len = 13;
+		priv->ctrl.max_len = 13;
 
 		mutex_init(&priv->lock);
 
