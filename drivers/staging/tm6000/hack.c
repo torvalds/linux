@@ -237,8 +237,9 @@ struct dvb_frontend* pseudo_zl10353_attach(struct tm6000_core *dev,
 {
 	struct tm6000_dvb *dvb = dev->dvb;
 
-	dvb->frontend = zl10353_attach(config, i2c);
+	dvb->frontend = dvb_attach(zl10353_attach, config, i2c);
 	if(!dvb->frontend) {
+		printk(KERN_ERR "Error during zl10353_attach!\n");
 		return NULL;
 	}
 

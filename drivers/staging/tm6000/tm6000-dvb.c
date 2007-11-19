@@ -205,12 +205,7 @@ int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 		return -1;
 	}
 
-	if(dvb->frontend) {
-		return 0;
-	}
-	else {
-		return -1;
-	}
+	return (!dvb->frontend) ? -1 : 0;
 }
 
 int tm6000_dvb_register(struct tm6000_core *dev)
@@ -226,7 +221,7 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 	ret = tm6000_dvb_attach_frontend(dev);
 	if(ret < 0) {
 		printk(KERN_ERR "tm6000: couldn't attach the frontend!\n");
-//		goto err;
+		goto err;
 	}
 
 	ret = dvb_register_adapter(&dvb->adapter, "Trident TVMaster 6000 DVB-T",
@@ -250,7 +245,7 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 			printk(KERN_ERR "tm6000: couldn't register "
 					"frontend (xc3028)\n");
 			ret = -EINVAL;
-			goto adapter_err;
+			goto frontend_err;
 		}
 		printk(KERN_INFO "tm6000: XC2028/3028 asked to be "
 				 "attached to frontend!\n");
@@ -288,10 +283,8 @@ dvb_dmx_err:
 	dvb_dmx_release(&dvb->demux);
 frontend_err:
 	if(dvb->frontend) {
+		dvb_frontend_detach(dvb->frontend);
 		dvb_unregister_frontend(dvb->frontend);
-#ifdef CONFIG_DVB_CORE_ATTACH
-		symbol_put(xc3028_attach);
-#endif
 	}
 adapter_err:
 	dvb_unregister_adapter(&dvb->adapter);
@@ -314,10 +307,8 @@ void tm6000_dvb_unregister(struct tm6000_core *dev)
 
 // 	mutex_lock(&tm6000_driver.open_close_mutex);
 	if(dvb->frontend) {
+		dvb_frontend_detach(dvb->frontend);
 		dvb_unregister_frontend(dvb->frontend);
-#ifdef CONFIG_DVB_CORE_ATTACH
-		symbol_put(xc3028_attach);
-#endif
 	}
 
 	dvb_dmxdev_release(&dvb->dmxdev);
