@@ -461,7 +461,7 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu);
 struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id);
-void kvm_arch_vcpu_destory(struct kvm_vcpu *vcpu);
+void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu);
 
 int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu);
 void kvm_arch_hardware_enable(void *garbage);

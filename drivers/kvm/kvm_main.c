@@ -824,7 +824,7 @@ unlink:
 	kvm->vcpus[n] = NULL;
 	mutex_unlock(&kvm->lock);
 vcpu_destroy:
-	kvm_arch_vcpu_destory(vcpu);
+	kvm_arch_vcpu_destroy(vcpu);
 	return r;
 }
 

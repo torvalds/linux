@@ -2513,7 +2513,7 @@ fail:
 	return ERR_PTR(r);
 }
 
-void kvm_arch_vcpu_destory(struct kvm_vcpu *vcpu)
+void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	vcpu_load(vcpu);
 	kvm_mmu_unload(vcpu);
