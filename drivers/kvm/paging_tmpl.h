@@ -72,7 +72,6 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 			    struct kvm_vcpu *vcpu, gva_t addr,
 			    int write_fault, int user_fault, int fetch_fault)
 {
-	pt_element_t *table;
 	pt_element_t pte;
 	gfn_t table_gfn;
 	unsigned index;
