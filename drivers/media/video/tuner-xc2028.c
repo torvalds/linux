@@ -485,6 +485,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 						  (*p) & 0x7f);
 					return -EINVAL;
 				}
+				break;
 			default:
 				tuner_info("Invalid RESET code %d\n",
 					   size & 0x7f);
