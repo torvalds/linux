@@ -101,6 +101,16 @@ struct xc2028_data {
 	_rc;								\
 })
 
+#define i2c_send_recv(priv, obuf, osize, ibuf, isize) ({		\
+	int _rc;							\
+	_rc = tuner_i2c_xfer_send_recv(&priv->i2c_props, obuf, osize,	\
+				       ibuf, isize);			\
+	if (isize != _rc)						\
+		tuner_err("i2c input error: rc = %d (should be %d)\n",	\
+			   _rc, (int)isize); 				\
+	_rc;								\
+})
+
 #define send_seq(priv, data...)	({					\
 	static u8 _val[] = data;					\
 	int _rc;							\
@@ -113,25 +123,21 @@ struct xc2028_data {
 	_rc;								\
 })
 
-static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
+static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg, u16 *val)
 {
-	int rc;
 	unsigned char buf[2];
+	unsigned char ibuf[2];
 
-	tuner_dbg("%s called\n", __FUNCTION__);
+	tuner_dbg("%s %04x called\n", __FUNCTION__, reg);
 
-	buf[0] = reg>>8;
+	buf[0] = reg >> 8;
 	buf[1] = (unsigned char) reg;
 
-	rc = i2c_send(priv, buf, 2);
-	if (rc < 0)
-		return rc;
+	if (i2c_send_recv(priv, buf, 2, ibuf, 2) != 2)
+		return -EIO;
 
-	rc = i2c_rcv(priv, buf, 2);
-	if (rc < 0)
-		return rc;
-
-	return (buf[1]) | (buf[0] << 8);
+	*val = (ibuf[1]) | (ibuf[0] << 8);
+	return 0;
 }
 
 void dump_firm_type(unsigned int type)
@@ -567,7 +573,8 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			  v4l2_std_id std, fe_bandwidth_t bandwidth)
 {
 	struct xc2028_data      *priv = fe->tuner_priv;
-	int			rc, version, hwmodel;
+	int			rc;
+	u16			version, hwmodel;
 	v4l2_std_id		std0 = 0;
 	unsigned int		type0 = 0, type = 0;
 	int			change_digital_bandwidth;
@@ -692,8 +699,8 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 
 	rc = load_scode(fe, type, &std, 0);
 
-	version = xc2028_get_reg(priv, 0x0004);
-	hwmodel = xc2028_get_reg(priv, 0x0008);
+	xc2028_get_reg(priv, 0x0004, &version);
+	xc2028_get_reg(priv, 0x0008, &hwmodel);
 
 	tuner_info("Device is Xceive %d version %d.%d, "
 		   "firmware version %d.%d\n",
@@ -708,33 +715,31 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
-	int                frq_lock, signal = 0;
+	u16                 frq_lock, signal = 0;
+	int                 rc;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
 	mutex_lock(&priv->lock);
 
-	*strength = 0;
-
 	/* Sync Lock Indicator */
-	frq_lock = xc2028_get_reg(priv, 0x0002);
-	if (frq_lock <= 0)
+	rc = xc2028_get_reg(priv, 0x0002, &frq_lock);
+	if (rc < 0 || frq_lock == 0)
 		goto ret;
 
 	/* Frequency is locked. Return signal quality */
 
 	/* Get SNR of the video signal */
-	signal = xc2028_get_reg(priv, 0x0040);
-
-	if (signal <= 0)
-		signal = frq_lock;
+	rc = xc2028_get_reg(priv, 0x0040, &signal);
+	if (rc < 0)
+		signal = -frq_lock;
 
 ret:
 	mutex_unlock(&priv->lock);
 
 	*strength = signal;
 
-	return 0;
+	return rc;
 }
 
 #define DIV 15625

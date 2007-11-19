@@ -46,6 +46,19 @@ static inline int tuner_i2c_xfer_recv(struct tuner_i2c_props *props, char *buf, 
 	return (ret == 1) ? len : ret;
 }
 
+static inline int tuner_i2c_xfer_send_recv(struct tuner_i2c_props *props,
+					   char *obuf, int olen,
+					   char *ibuf, int ilen)
+{
+	struct i2c_msg msg[2] = { { .addr = props->addr, .flags = 0,
+				    .buf = obuf, .len = olen },
+				  { .addr = props->addr, .flags = I2C_M_RD,
+				    .buf = ibuf, .len = ilen } };
+	int ret = i2c_transfer(props->adap, msg, 2);
+
+	return (ret == 2) ? ilen : ret;
+}
+
 #ifndef __TUNER_DRIVER_H__
 #define tuner_warn(fmt, arg...) do {					\
 	printk(KERN_WARNING "%s %d-%04x: " fmt, PREFIX,			\
