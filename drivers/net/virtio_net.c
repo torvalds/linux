@@ -404,8 +404,12 @@ free:
 
 static void virtnet_remove(struct virtio_device *vdev)
 {
-	unregister_netdev(vdev->priv);
-	free_netdev(vdev->priv);
+	struct virtnet_info *vi = vdev->priv;
+
+	vdev->config->del_vq(vi->svq);
+	vdev->config->del_vq(vi->rvq);
+	unregister_netdev(vi->dev);
+	free_netdev(vi->dev);
 }
 
 static struct virtio_device_id id_table[] = {

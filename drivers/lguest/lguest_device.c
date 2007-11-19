@@ -247,6 +247,8 @@ static void lg_del_vq(struct virtqueue *vq)
 {
 	struct lguest_vq_info *lvq = vq->priv;
 
+	/* Release the interrupt */
+	free_irq(lvq->config.irq, vq);
 	/* Tell virtio_ring.c to free the virtqueue. */
 	vring_del_virtqueue(vq);
 	/* Unmap the pages containing the ring. */
