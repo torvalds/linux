@@ -49,11 +49,9 @@ static int cxusb_ctrl_msg(struct dvb_usb_device *d,
 	sndbuf[0] = cmd;
 	memcpy(&sndbuf[1], wbuf, wlen);
 	if (wo)
-		dvb_usb_generic_write(d, sndbuf, 1+wlen);
+		return dvb_usb_generic_write(d, sndbuf, 1+wlen);
 	else
-		dvb_usb_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen, 0);
-
-	return 0;
+		return dvb_usb_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen, 0);
 }
 
 /* GPIO */
