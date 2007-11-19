@@ -377,9 +377,13 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 			 v4l2_std_id *id)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
-	int                i;
+	int                 i, best_i = -1, best_nr_matches = 0;
 
-	tuner_dbg("%s called\n", __FUNCTION__);
+	tuner_dbg("%s called, want type=", __FUNCTION__);
+	if (debug) {
+		dump_firm_type(type);
+		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
+	}
 
 	if (!priv->firm) {
 		tuner_err("Error! firmware not loaded\n");
@@ -397,20 +401,45 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	/* Seek for generic video standard match */
 	for (i = 0; i < priv->firm_size; i++) {
-		if ((type == priv->firm[i].type) && (*id & priv->firm[i].id))
-			goto found;
+		v4l2_std_id match_mask;
+		int nr_matches;
+
+		if (type != priv->firm[i].type)
+			continue;
+
+		match_mask = *id & priv->firm[i].id;
+		if (!match_mask)
+			continue;
+
+		if ((*id & match_mask) == *id)
+			goto found; /* Supports all the requested standards */
+
+		nr_matches = hweight64(match_mask);
+		if (nr_matches > best_nr_matches) {
+			best_nr_matches = nr_matches;
+			best_i = i;
+		}
+	}
+
+	if (best_nr_matches > 0) {
+		tuner_dbg("Selecting best matching firmware (%d bits) for "
+			  "type=", best_nr_matches);
+		dump_firm_type(type);
+		printk("(%x), id %016llx:\n", type, (unsigned long long)*id);
+		i = best_i;
+		goto found;
 	}
 
 	/*FIXME: Would make sense to seek for type "hint" match ? */
 
-	i = -EINVAL;
+	i = -ENOENT;
 	goto ret;
 
 found:
 	*id = priv->firm[i].id;
 
 ret:
-	tuner_dbg("%s firmware for type=", (i < 0)? "Can't find": "Found");
+	tuner_dbg("%s firmware for type=", (i < 0) ? "Can't find" : "Found");
 	if (debug) {
 		dump_firm_type(type);
 		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
@@ -432,8 +461,9 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 		return pos;
 
 	tuner_info("Loading firmware for type=");
-	dump_firm_type(type);
-	printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
+	dump_firm_type(priv->firm[pos].type);
+	printk("(%x), id %016llx.\n", priv->firm[pos].type,
+	       (unsigned long long)*id);
 
 	p = priv->firm[pos].ptr;
 	endp = p + priv->firm[pos].size;
