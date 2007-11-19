@@ -72,7 +72,6 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 			    struct kvm_vcpu *vcpu, gva_t addr,
 			    int write_fault, int user_fault, int fetch_fault)
 {
-	struct page *page = NULL;
 	pt_element_t *table;
 	pt_element_t pte;
 	gfn_t table_gfn;
@@ -99,16 +98,13 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		index = PT_INDEX(addr, walker->level);
 
 		table_gfn = (pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+		pte_gpa = table_gfn << PAGE_SHIFT;
+		pte_gpa += index * sizeof(pt_element_t);
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		pgprintk("%s: table_gfn[%d] %lx\n", __FUNCTION__,
 			 walker->level - 1, table_gfn);
 
-		page = gfn_to_page(vcpu->kvm, (pte & PT64_BASE_ADDR_MASK)
-				   >> PAGE_SHIFT);
-
-		table = kmap_atomic(page, KM_USER0);
-		pte = table[index];
-		kunmap_atomic(table, KM_USER0);
+		kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
 
 		if (!is_present_pte(pte))
 			goto not_present;
@@ -128,9 +124,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		if (!(pte & PT_ACCESSED_MASK)) {
 			mark_page_dirty(vcpu->kvm, table_gfn);
 			pte |= PT_ACCESSED_MASK;
-			table = kmap_atomic(page, KM_USER0);
-			table[index] = pte;
-			kunmap_atomic(table, KM_USER0);
+			kvm_write_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
 		}
 
 		if (walker->level == PT_PAGE_TABLE_LEVEL) {
@@ -149,21 +143,15 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 
 		walker->inherited_ar &= pte;
 		--walker->level;
-		kvm_release_page(page);
 	}
 
 	if (write_fault && !is_dirty_pte(pte)) {
 		mark_page_dirty(vcpu->kvm, table_gfn);
 		pte |= PT_DIRTY_MASK;
-		table = kmap_atomic(page, KM_USER0);
-		table[index] = pte;
-		kunmap_atomic(table, KM_USER0);
-		pte_gpa = table_gfn << PAGE_SHIFT;
-		pte_gpa += index * sizeof(pt_element_t);
+		kvm_write_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
 		kvm_mmu_pte_write(vcpu, pte_gpa, (u8 *)&pte, sizeof(pte));
 	}
 
-	kvm_release_page(page);
 	walker->pte = pte;
 	pgprintk("%s: pte %llx\n", __FUNCTION__, (u64)pte);
 	return 1;
@@ -182,8 +170,6 @@ err:
 		walker->error_code |= PFERR_USER_MASK;
 	if (fetch_fault)
 		walker->error_code |= PFERR_FETCH_MASK;
-	if (page)
-		kvm_release_page(page);
 	return 0;
 }
 
