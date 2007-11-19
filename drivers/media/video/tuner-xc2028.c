@@ -764,8 +764,11 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 	if (check_firmware(fe, new_mode, std, bandwidth) < 0)
 		goto ret;
 
-	if (new_mode == T_DIGITAL_TV)
+	if (new_mode == T_DIGITAL_TV) {
 		offset = 2750000;
+		if (priv->bandwidth == BANDWIDTH_7_MHZ)
+			offset -= 500000;
+	}
 
 	div = (freq - offset + DIV / 2) / DIV;
 
