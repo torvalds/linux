@@ -63,6 +63,7 @@
 #include "main_store.h"
 #include "call_sm.h"
 #include "call_hpt.h"
+#include "pci.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -74,11 +75,6 @@
 static unsigned long build_iSeries_Memory_Map(void);
 static void iseries_shared_idle(void);
 static void iseries_dedicated_idle(void);
-#ifdef CONFIG_PCI
-extern void iSeries_pci_final_fixup(void);
-#else
-static void iSeries_pci_final_fixup(void) { }
-#endif
 
 
 struct MemoryBlock {
