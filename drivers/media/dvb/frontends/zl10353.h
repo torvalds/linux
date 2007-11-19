@@ -30,7 +30,7 @@ struct zl10353_config
 	u8 demod_address;
 
 	/* frequencies in kHz */
-	int adc_clock;  // default: 22528
+	int adc_clock;	/* default: 45056 */
 
 	/* set if no pll is connected to the secondary i2c bus */
 	int no_tuner;
