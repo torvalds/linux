@@ -65,8 +65,7 @@ struct xc2028_data {
 
 	struct firmware_description *firm;
 	int			firm_size;
-
-	__u16			version;
+	__u16			firm_version;
 
 	struct xc2028_ctrl	ctrl;
 
@@ -237,6 +236,7 @@ static void free_firmware(struct xc2028_data *priv)
 	kfree(priv->firm);
 
 	priv->firm = NULL;
+	priv->firm_size = 0;
 	priv->need_load_generic = 1;
 }
 
@@ -251,7 +251,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
-	tuner_info("Reading firmware %s\n", priv->ctrl.fname);
+	tuner_dbg("Reading firmware %s\n", priv->ctrl.fname);
 	rc = request_firmware(&fw, priv->ctrl.fname,
 			      &priv->i2c_props.adap->dev);
 	if (rc < 0) {
@@ -267,40 +267,34 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	p = fw->data;
 	endp = p + fw->size;
 
-	if (fw->size < sizeof(name) - 1 + 2) {
-		tuner_err("Error: firmware size is zero!\n");
-		rc = -EINVAL;
-		goto done;
+	if (fw->size < sizeof(name) - 1 + 2 + 2) {
+		tuner_err("Error: firmware file %s has invalid size!\n",
+			  priv->ctrl.fname);
+		goto corrupt;
 	}
 
 	memcpy(name, p, sizeof(name) - 1);
 	name[sizeof(name) - 1] = 0;
 	p += sizeof(name) - 1;
 
-	priv->version = le16_to_cpu(*(__u16 *) p);
+	priv->firm_version = le16_to_cpu(*(__u16 *) p);
 	p += 2;
-
-	tuner_info("Firmware: %s, ver %d.%d\n", name,
-		   priv->version >> 8, priv->version & 0xff);
-
-	if (p + 2 > endp)
-		goto corrupt;
 
 	n_array = le16_to_cpu(*(__u16 *) p);
 	p += 2;
 
-	tuner_info("There are %d firmwares at %s\n",
-		   n_array, priv->ctrl.fname);
+	tuner_info("Loading %d firmware images from %s, type: %s, ver %d.%d\n",
+		   n_array, priv->ctrl.fname, name,
+		   priv->firm_version >> 8, priv->firm_version & 0xff);
 
 	priv->firm = kzalloc(sizeof(*priv->firm) * n_array, GFP_KERNEL);
-
-	if (!fw) {
-		tuner_err("Not enough memory for reading firmware.\n");
+	if (priv->firm == NULL) {
+		tuner_err("Not enough memory to load firmware file.\n");
 		rc = -ENOMEM;
-		goto done;
+		goto err;
 	}
-
 	priv->firm_size = n_array;
+
 	n = -1;
 	while (p < endp) {
 		__u32 type, size;
@@ -308,7 +302,8 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 		n++;
 		if (n >= n_array) {
-			tuner_err("Too much firmwares at the file\n");
+			tuner_err("More firmware images in file than "
+				  "were expected!\n");
 			goto corrupt;
 		}
 
@@ -338,15 +333,17 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		}
 
 		priv->firm[n].ptr = kzalloc(size, GFP_KERNEL);
-		if (!priv->firm[n].ptr) {
-			tuner_err("Not enough memory.\n");
+		if (priv->firm[n].ptr == NULL) {
+			tuner_err("Not enough memory to load firmware file.\n");
 			rc = -ENOMEM;
 			goto err;
 		}
-		tuner_info("Reading firmware type ");
-		dump_firm_type(type);
-		printk("(%x), id %llx, size=%d.\n",
-			   type, (unsigned long long)id, size);
+		tuner_dbg("Reading firmware type ");
+		if (debug) {
+			dump_firm_type(type);
+			printk("(%x), id %llx, size=%d.\n",
+				   type, (unsigned long long)id, size);
+		}
 
 		memcpy(priv->firm[n].ptr, p, size);
 		priv->firm[n].type = type;
@@ -368,13 +365,13 @@ corrupt:
 	tuner_err("Error: firmware file is corrupted!\n");
 
 err:
-	tuner_info("Releasing loaded firmware file.\n");
-
+	tuner_info("Releasing partially loaded firmware file.\n");
 	free_firmware(priv);
 
 done:
 	release_firmware(fw);
-	tuner_dbg("Firmware files loaded.\n");
+	if (rc == 0)
+		tuner_dbg("Firmware files loaded.\n");
 
 	return rc;
 }
@@ -442,11 +439,6 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 	printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
 
 	p = priv->firm[pos].ptr;
-
-	if (!p) {
-		tuner_err("Firmware pointer were freed!");
-		return -EINVAL;
-	}
 	endp = p + priv->firm[pos].size;
 
 	while (p < endp) {
@@ -546,15 +538,10 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 
 	p = priv->firm[pos].ptr;
 
-	if (!p) {
-		tuner_err("Firmware pointer were freed!");
-		return -EINVAL;
-	}
-
 	if ((priv->firm[pos].size != 12 * 16) || (scode >= 16))
 		return -EINVAL;
 
-	if (priv->version < 0x0202)
+	if (priv->firm_version < 0x0202)
 		rc = send_seq(priv, {0x20, 0x00, 0x00, 0x00});
 	else
 		rc = send_seq(priv, {0xa0, 0x00, 0x00, 0x00});
@@ -783,7 +770,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 
 	/* CMD= Set frequency */
 
-	if (priv->version < 0x0202)
+	if (priv->firm_version < 0x0202)
 		rc = send_seq(priv, {0x00, 0x02, 0x00, 0x00});
 	else
 		rc = send_seq(priv, {0x80, 0x02, 0x00, 0x00});
@@ -868,6 +855,7 @@ static int xc2028_dvb_release(struct dvb_frontend *fe)
 
 		free_firmware(priv);
 		kfree(priv);
+		fe->tuner_priv = NULL;
 	}
 
 	mutex_unlock(&xc2028_list_mutex);
@@ -893,14 +881,18 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
+	mutex_lock(&priv->lock);
+
 	priv->ctrl.type = p->type;
 
 	if (p->fname) {
 		kfree(priv->ctrl.fname);
 
 		priv->ctrl.fname = kmalloc(strlen(p->fname) + 1, GFP_KERNEL);
-		if (!priv->ctrl.fname)
+		if (priv->ctrl.fname == NULL) {
+			mutex_unlock(&priv->lock);
 			return -ENOMEM;
+		}
 
 		free_firmware(priv);
 		strcpy(priv->ctrl.fname, p->fname);
@@ -908,6 +900,8 @@ static int xc2028_set_config(struct dvb_frontend *fe, void *priv_cfg)
 
 	if (p->max_len > 0)
 		priv->max_len = p->max_len;
+
+	mutex_unlock(&priv->lock);
 
 	return 0;
 }
