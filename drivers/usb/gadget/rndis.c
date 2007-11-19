@@ -53,20 +53,17 @@
  */
 
 #if 0
-#define DBG(str,args...) do { \
-	if (rndis_debug) \
-		printk(KERN_DEBUG str , ## args ); \
-	} while (0)
 static int rndis_debug = 0;
-
 module_param (rndis_debug, int, 0);
 MODULE_PARM_DESC (rndis_debug, "enable debugging");
-
 #else
-
 #define rndis_debug		0
-#define DBG(str,args...)	do{}while(0)
 #endif
+
+#define DBG(str,args...) do { \
+	if (rndis_debug) \
+		pr_debug(str , ## args); \
+	} while (0)
 
 #define RNDIS_MAX_CONFIGS	1
 
@@ -679,7 +676,7 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 #endif
 
 	default:
-		printk (KERN_WARNING "%s: query unknown OID 0x%08X\n",
+		pr_warning("%s: query unknown OID 0x%08X\n",
 			 __FUNCTION__, OID);
 	}
 	if (retval < 0)
@@ -804,7 +801,7 @@ update_linkstate:
 #endif	/* RNDIS_PM */
 
 	default:
-		printk (KERN_WARNING "%s: set unknown OID 0x%08X, size %d\n",
+		pr_warning("%s: set unknown OID 0x%08X, size %d\n",
 			 __FUNCTION__, OID, buf_len);
 	}
 
@@ -1126,8 +1123,7 @@ int rndis_msg_parser (u8 configNr, u8 *buf)
 		 * In one case those messages seemed to relate to the host
 		 * suspending itself.
 		 */
-		printk (KERN_WARNING
-			"%s: unknown RNDIS message 0x%08X len %d\n",
+		pr_warning("%s: unknown RNDIS message 0x%08X len %d\n",
 			__FUNCTION__ , MsgType, MsgLength);
 		{
 			unsigned i;

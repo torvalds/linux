@@ -1699,7 +1699,7 @@ gadgetfs_bind (struct usb_gadget *gadget)
 	if (!dev)
 		return -ESRCH;
 	if (0 != strcmp (CHIP, gadget->name)) {
-		printk (KERN_ERR "%s expected %s controller not %s\n",
+		pr_err("%s expected %s controller not %s\n",
 			shortname, CHIP, gadget->name);
 		return -ENODEV;
 	}

@@ -2099,7 +2099,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	/* insist on Intel/ARM/XScale */
 	asm("mrc%? p15, 0, %0, c0, c0" : "=r" (chiprev));
 	if ((chiprev & CP15R0_VENDOR_MASK) != CP15R0_XSCALE_VALUE) {
-		printk(KERN_ERR "%s: not XScale!\n", driver_name);
+		pr_err("%s: not XScale!\n", driver_name);
 		return -ENODEV;
 	}
 
@@ -2128,7 +2128,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 		break;
 #endif
 	default:
-		printk(KERN_ERR "%s: unrecognized processor: %08x\n",
+		pr_err("%s: unrecognized processor: %08x\n",
 			driver_name, chiprev);
 		/* iop3xx, ixp4xx, ... */
 		return -ENODEV;
@@ -2199,7 +2199,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 	retval = request_irq(irq, pxa2xx_udc_irq,
 			IRQF_DISABLED, driver_name, dev);
 	if (retval != 0) {
-		printk(KERN_ERR "%s: can't get irq %d, err %d\n",
+		pr_err("%s: can't get irq %d, err %d\n",
 			driver_name, irq, retval);
 		goto err_irq1;
 	}
@@ -2212,7 +2212,7 @@ static int __init pxa2xx_udc_probe(struct platform_device *pdev)
 				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
-			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
+			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_DISC_IRQ, retval);
 lubbock_fail0:
 			goto err_irq_lub;
@@ -2222,7 +2222,7 @@ lubbock_fail0:
 				IRQF_DISABLED | IRQF_SAMPLE_RANDOM,
 				driver_name, dev);
 		if (retval != 0) {
-			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
+			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, LUBBOCK_USB_IRQ, retval);
 			free_irq(LUBBOCK_USB_DISC_IRQ, dev);
 			goto lubbock_fail0;
@@ -2235,7 +2235,7 @@ lubbock_fail0:
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				driver_name, dev);
 		if (retval != 0) {
-			printk(KERN_ERR "%s: can't get irq %i, err %d\n",
+			pr_err("%s: can't get irq %i, err %d\n",
 				driver_name, vbus_irq, retval);
 			goto err_vbus_irq;
 		}
@@ -2361,7 +2361,7 @@ static struct platform_driver udc_driver = {
 
 static int __init udc_init(void)
 {
-	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
+	pr_info("%s: version %s\n", driver_name, DRIVER_VERSION);
 	return platform_driver_probe(&udc_driver, pxa2xx_udc_probe);
 }
 module_init(udc_init);

@@ -1384,8 +1384,7 @@ delegate:
 	return retval;
 
 stall:
-	printk(KERN_ERR
-		"udc: %s: Invalid setup request: %02x.%02x v%04x i%04x l%d, "
+	pr_err("udc: %s: Invalid setup request: %02x.%02x v%04x i%04x l%d, "
 		"halting endpoint...\n",
 		ep->ep.name, crq->bRequestType, crq->bRequest,
 		le16_to_cpu(crq->wValue), le16_to_cpu(crq->wIndex),
@@ -1456,8 +1455,7 @@ restart:
 				set_protocol_stall(udc, ep);
 			break;
 		default:
-			printk(KERN_ERR
-				"udc: %s: TXCOMP: Invalid endpoint state %d, "
+			pr_err("udc: %s: TXCOMP: Invalid endpoint state %d, "
 				"halting endpoint...\n",
 				ep->ep.name, ep->state);
 			set_protocol_stall(udc, ep);
@@ -1486,8 +1484,7 @@ restart:
 		default:
 			usba_ep_writel(ep, CLR_STA, USBA_RX_BK_RDY);
 			usba_ep_writel(ep, CTL_DIS, USBA_RX_BK_RDY);
-			printk(KERN_ERR
-				"udc: %s: RXRDY: Invalid endpoint state %d, "
+			pr_err("udc: %s: RXRDY: Invalid endpoint state %d, "
 				"halting endpoint...\n",
 				ep->ep.name, ep->state);
 			set_protocol_stall(udc, ep);
@@ -1532,7 +1529,7 @@ restart:
 		pkt_len = USBA_BFEXT(BYTE_COUNT, usba_ep_readl(ep, STA));
 		DBG(DBG_HW, "Packet length: %u\n", pkt_len);
 		if (pkt_len != sizeof(crq)) {
-			printk(KERN_WARNING "udc: Invalid packet length %u "
+			pr_warning("udc: Invalid packet length %u "
 				"(expected %lu)\n", pkt_len, sizeof(crq));
 			set_protocol_stall(udc, ep);
 			return;

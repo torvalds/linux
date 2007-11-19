@@ -151,6 +151,8 @@ static struct pxa2xx_udc *the_controller;
 #define DBG_NOISY	3	/* ... even more: request level */
 #define DBG_VERY_NOISY	4	/* ... even more: packet level */
 
+#define DMSG(stuff...)	pr_debug("udc: " stuff)
+
 #ifdef DEBUG
 
 static const char *state_name[] = {
@@ -158,8 +160,6 @@ static const char *state_name[] = {
 	"EP0_IN_DATA_PHASE", "EP0_OUT_DATA_PHASE",
 	"EP0_END_XFER", "EP0_STALL"
 };
-
-#define DMSG(stuff...) printk(KERN_DEBUG "udc: " stuff)
 
 #ifdef VERBOSE
 #    define UDC_DEBUG DBG_VERBOSE
@@ -241,8 +241,6 @@ dump_state(struct pxa2xx_udc *dev)
 
 #else
 
-#define DMSG(stuff...)		do{}while(0)
-
 #define	dump_udccr(x)	do{}while(0)
 #define	dump_udccs0(x)	do{}while(0)
 #define	dump_state(x)	do{}while(0)
@@ -253,8 +251,9 @@ dump_state(struct pxa2xx_udc *dev)
 
 #define DBG(lvl, stuff...) do{if ((lvl) <= UDC_DEBUG) DMSG(stuff);}while(0)
 
-#define WARN(stuff...) printk(KERN_WARNING "udc: " stuff)
-#define INFO(stuff...) printk(KERN_INFO "udc: " stuff)
+#define ERR(stuff...)		pr_err("udc: " stuff)
+#define WARN(stuff...)		pr_warning("udc: " stuff)
+#define INFO(stuff...)		pr_info("udc: " stuff)
 
 
 #endif /* __LINUX_USB_GADGET_PXA2XX_H */

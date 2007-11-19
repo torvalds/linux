@@ -158,12 +158,6 @@ struct at91_request {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef DEBUG
-#define DBG(stuff...)		printk(KERN_DEBUG "udc: " stuff)
-#else
-#define DBG(stuff...)		do{}while(0)
-#endif
-
 #ifdef VERBOSE
 #    define VDBG		DBG
 #else
@@ -176,9 +170,10 @@ struct at91_request {
 #    define PACKET(stuff...)	do{}while(0)
 #endif
 
-#define ERR(stuff...)		printk(KERN_ERR "udc: " stuff)
-#define WARN(stuff...)		printk(KERN_WARNING "udc: " stuff)
-#define INFO(stuff...)		printk(KERN_INFO "udc: " stuff)
+#define ERR(stuff...)		pr_err("udc: " stuff)
+#define WARN(stuff...)		pr_warning("udc: " stuff)
+#define INFO(stuff...)		pr_info("udc: " stuff)
+#define DBG(stuff...)		pr_debug("udc: " stuff)
 
 #endif
 

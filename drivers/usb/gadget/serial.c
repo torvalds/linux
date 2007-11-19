@@ -89,9 +89,9 @@ static int debug = 1;
 #endif
 
 #define gs_debug(format, arg...) \
-	do { if (debug) printk(KERN_DEBUG format, ## arg); } while(0)
+	do { if (debug) pr_debug(format, ## arg); } while (0)
 #define gs_debug_level(level, format, arg...) \
-	do { if (debug>=level) printk(KERN_DEBUG format, ## arg); } while(0)
+	do { if (debug >= level) pr_debug(format, ## arg); } while (0)
 
 
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -553,7 +553,8 @@ static int __init gs_module_init(void)
 
 	retval = usb_gadget_register_driver(&gs_gadget_driver);
 	if (retval) {
-		printk(KERN_ERR "gs_module_init: cannot register gadget driver, ret=%d\n", retval);
+		pr_err("gs_module_init: cannot register gadget driver, "
+			"ret=%d\n", retval);
 		return retval;
 	}
 
@@ -579,11 +580,13 @@ static int __init gs_module_init(void)
 	if (retval) {
 		usb_gadget_unregister_driver(&gs_gadget_driver);
 		put_tty_driver(gs_tty_driver);
-		printk(KERN_ERR "gs_module_init: cannot register tty driver, ret=%d\n", retval);
+		pr_err("gs_module_init: cannot register tty driver, "
+				"ret=%d\n", retval);
 		return retval;
 	}
 
-	printk(KERN_INFO "gs_module_init: %s %s loaded\n", GS_LONG_NAME, GS_VERSION_STR);
+	pr_info("gs_module_init: %s %s loaded\n",
+			GS_LONG_NAME, GS_VERSION_STR);
 	return 0;
 }
 
@@ -598,7 +601,8 @@ static void __exit gs_module_exit(void)
 	put_tty_driver(gs_tty_driver);
 	usb_gadget_unregister_driver(&gs_gadget_driver);
 
-	printk(KERN_INFO "gs_module_exit: %s %s unloaded\n", GS_LONG_NAME, GS_VERSION_STR);
+	pr_info("gs_module_exit: %s %s unloaded\n",
+			GS_LONG_NAME, GS_VERSION_STR);
 }
 
 /* TTY Driver */
@@ -621,7 +625,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	gs_debug("gs_open: (%d,%p,%p)\n", port_num, tty, file);
 
 	if (port_num < 0 || port_num >= GS_NUM_PORTS) {
-		printk(KERN_ERR "gs_open: (%d,%p,%p) invalid port number\n",
+		pr_err("gs_open: (%d,%p,%p) invalid port number\n",
 			port_num, tty, file);
 		return -ENODEV;
 	}
@@ -629,15 +633,14 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	dev = gs_device;
 
 	if (dev == NULL) {
-		printk(KERN_ERR "gs_open: (%d,%p,%p) NULL device pointer\n",
+		pr_err("gs_open: (%d,%p,%p) NULL device pointer\n",
 			port_num, tty, file);
 		return -ENODEV;
 	}
 
 	mtx = &gs_open_close_lock[port_num];
 	if (mutex_lock_interruptible(mtx)) {
-		printk(KERN_ERR
-		"gs_open: (%d,%p,%p) interrupted waiting for mutex\n",
+		pr_err("gs_open: (%d,%p,%p) interrupted waiting for mutex\n",
 			port_num, tty, file);
 		return -ERESTARTSYS;
 	}
@@ -645,8 +648,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	spin_lock_irqsave(&dev->dev_lock, flags);
 
 	if (dev->dev_config == GS_NO_CONFIG_ID) {
-		printk(KERN_ERR
-			"gs_open: (%d,%p,%p) device is not connected\n",
+		pr_err("gs_open: (%d,%p,%p) device is not connected\n",
 			port_num, tty, file);
 		ret = -ENODEV;
 		goto exit_unlock_dev;
@@ -655,7 +657,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	port = dev->dev_port[port_num];
 
 	if (port == NULL) {
-		printk(KERN_ERR "gs_open: (%d,%p,%p) NULL port pointer\n",
+		pr_err("gs_open: (%d,%p,%p) NULL port pointer\n",
 			port_num, tty, file);
 		ret = -ENODEV;
 		goto exit_unlock_dev;
@@ -665,7 +667,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	spin_unlock(&dev->dev_lock);
 
 	if (port->port_dev == NULL) {
-		printk(KERN_ERR "gs_open: (%d,%p,%p) port disconnected (1)\n",
+		pr_err("gs_open: (%d,%p,%p) port disconnected (1)\n",
 			port_num, tty, file);
 		ret = -EIO;
 		goto exit_unlock_port;
@@ -692,8 +694,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 
 		/* might have been disconnected while asleep, check */
 		if (port->port_dev == NULL) {
-			printk(KERN_ERR
-				"gs_open: (%d,%p,%p) port disconnected (2)\n",
+			pr_err("gs_open: (%d,%p,%p) port disconnected (2)\n",
 				port_num, tty, file);
 			port->port_in_use = 0;
 			ret = -EIO;
@@ -701,7 +702,8 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 		}
 
 		if ((port->port_write_buf=buf) == NULL) {
-			printk(KERN_ERR "gs_open: (%d,%p,%p) cannot allocate port write buffer\n",
+			pr_err("gs_open: (%d,%p,%p) cannot allocate "
+				"port write buffer\n",
 				port_num, tty, file);
 			port->port_in_use = 0;
 			ret = -ENOMEM;
@@ -714,7 +716,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 
 	/* might have been disconnected while asleep, check */
 	if (port->port_dev == NULL) {
-		printk(KERN_ERR "gs_open: (%d,%p,%p) port disconnected (3)\n",
+		pr_err("gs_open: (%d,%p,%p) port disconnected (3)\n",
 			port_num, tty, file);
 		port->port_in_use = 0;
 		ret = -EIO;
@@ -762,7 +764,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	struct mutex *mtx;
 
 	if (port == NULL) {
-		printk(KERN_ERR "gs_close: NULL port pointer\n");
+		pr_err("gs_close: NULL port pointer\n");
 		return;
 	}
 
@@ -774,8 +776,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	spin_lock_irq(&port->port_lock);
 
 	if (port->port_open_count == 0) {
-		printk(KERN_ERR
-			"gs_close: (%d,%p,%p) port is already closed\n",
+		pr_err("gs_close: (%d,%p,%p) port is already closed\n",
 			port->port_num, tty, file);
 		goto exit;
 	}
@@ -837,7 +838,7 @@ static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	int ret;
 
 	if (port == NULL) {
-		printk(KERN_ERR "gs_write: NULL port pointer\n");
+		pr_err("gs_write: NULL port pointer\n");
 		return -EIO;
 	}
 
@@ -850,14 +851,14 @@ static int gs_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	spin_lock_irqsave(&port->port_lock, flags);
 
 	if (port->port_dev == NULL) {
-		printk(KERN_ERR "gs_write: (%d,%p) port is not connected\n",
+		pr_err("gs_write: (%d,%p) port is not connected\n",
 			port->port_num, tty);
 		ret = -EIO;
 		goto exit;
 	}
 
 	if (port->port_open_count == 0) {
-		printk(KERN_ERR "gs_write: (%d,%p) port is closed\n",
+		pr_err("gs_write: (%d,%p) port is closed\n",
 			port->port_num, tty);
 		ret = -EBADF;
 		goto exit;
@@ -888,7 +889,7 @@ static void gs_put_char(struct tty_struct *tty, unsigned char ch)
 	struct gs_port *port = tty->driver_data;
 
 	if (port == NULL) {
-		printk(KERN_ERR "gs_put_char: NULL port pointer\n");
+		pr_err("gs_put_char: NULL port pointer\n");
 		return;
 	}
 
@@ -898,13 +899,13 @@ static void gs_put_char(struct tty_struct *tty, unsigned char ch)
 	spin_lock_irqsave(&port->port_lock, flags);
 
 	if (port->port_dev == NULL) {
-		printk(KERN_ERR "gs_put_char: (%d,%p) port is not connected\n",
+		pr_err("gs_put_char: (%d,%p) port is not connected\n",
 			port->port_num, tty);
 		goto exit;
 	}
 
 	if (port->port_open_count == 0) {
-		printk(KERN_ERR "gs_put_char: (%d,%p) port is closed\n",
+		pr_err("gs_put_char: (%d,%p) port is closed\n",
 			port->port_num, tty);
 		goto exit;
 	}
@@ -924,7 +925,7 @@ static void gs_flush_chars(struct tty_struct *tty)
 	struct gs_port *port = tty->driver_data;
 
 	if (port == NULL) {
-		printk(KERN_ERR "gs_flush_chars: NULL port pointer\n");
+		pr_err("gs_flush_chars: NULL port pointer\n");
 		return;
 	}
 
@@ -933,14 +934,13 @@ static void gs_flush_chars(struct tty_struct *tty)
 	spin_lock_irqsave(&port->port_lock, flags);
 
 	if (port->port_dev == NULL) {
-		printk(KERN_ERR
-			"gs_flush_chars: (%d,%p) port is not connected\n",
+		pr_err("gs_flush_chars: (%d,%p) port is not connected\n",
 			port->port_num, tty);
 		goto exit;
 	}
 
 	if (port->port_open_count == 0) {
-		printk(KERN_ERR "gs_flush_chars: (%d,%p) port is closed\n",
+		pr_err("gs_flush_chars: (%d,%p) port is closed\n",
 			port->port_num, tty);
 		goto exit;
 	}
@@ -1038,7 +1038,7 @@ static int gs_ioctl(struct tty_struct *tty, struct file *file, unsigned int cmd,
 	struct gs_port *port = tty->driver_data;
 
 	if (port == NULL) {
-		printk(KERN_ERR "gs_ioctl: NULL port pointer\n");
+		pr_err("gs_ioctl: NULL port pointer\n");
 		return -EIO;
 	}
 
@@ -1076,7 +1076,7 @@ static int gs_send(struct gs_dev *dev)
 	struct gs_req_entry *req_entry;
 
 	if (dev == NULL) {
-		printk(KERN_ERR "gs_send: NULL device pointer\n");
+		pr_err("gs_send: NULL device pointer\n");
 		return -ENODEV;
 	}
 
@@ -1103,7 +1103,7 @@ static int gs_send(struct gs_dev *dev)
 			req->length = len;
 			spin_unlock_irqrestore(&dev->dev_lock, flags);
 			if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
-				printk(KERN_ERR
+				pr_err(
 				"gs_send: cannot queue read request, ret=%d\n",
 					ret);
 				spin_lock_irqsave(&dev->dev_lock, flags);
@@ -1144,9 +1144,7 @@ static int gs_send_packet(struct gs_dev *dev, char *packet, unsigned int size)
 	port = dev->dev_port[0];
 
 	if (port == NULL) {
-		printk(KERN_ERR
-			"gs_send_packet: port=%d, NULL port pointer\n",
-			0);
+		pr_err("gs_send_packet: port=%d, NULL port pointer\n", 0);
 		return -EIO;
 	}
 
@@ -1193,7 +1191,7 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 	port = dev->dev_port[0];
 
 	if (port == NULL) {
-		printk(KERN_ERR "gs_recv_packet: port=%d, NULL port pointer\n",
+		pr_err("gs_recv_packet: port=%d, NULL port pointer\n",
 			port->port_num);
 		return -EIO;
 	}
@@ -1201,7 +1199,7 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 	spin_lock(&port->port_lock);
 
 	if (port->port_open_count == 0) {
-		printk(KERN_ERR "gs_recv_packet: port=%d, port is closed\n",
+		pr_err("gs_recv_packet: port=%d, port is closed\n",
 			port->port_num);
 		ret = -EIO;
 		goto exit;
@@ -1211,14 +1209,14 @@ static int gs_recv_packet(struct gs_dev *dev, char *packet, unsigned int size)
 	tty = port->port_tty;
 
 	if (tty == NULL) {
-		printk(KERN_ERR "gs_recv_packet: port=%d, NULL tty pointer\n",
+		pr_err("gs_recv_packet: port=%d, NULL tty pointer\n",
 			port->port_num);
 		ret = -EIO;
 		goto exit;
 	}
 
 	if (port->port_tty->magic != TTY_MAGIC) {
-		printk(KERN_ERR "gs_recv_packet: port=%d, bad tty magic\n",
+		pr_err("gs_recv_packet: port=%d, bad tty magic\n",
 			port->port_num);
 		ret = -EIO;
 		goto exit;
@@ -1245,7 +1243,7 @@ static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
 	struct gs_dev *dev = ep->driver_data;
 
 	if (dev == NULL) {
-		printk(KERN_ERR "gs_read_complete: NULL device pointer\n");
+		pr_err("gs_read_complete: NULL device pointer\n");
 		return;
 	}
 
@@ -1256,7 +1254,7 @@ static void gs_read_complete(struct usb_ep *ep, struct usb_request *req)
 requeue:
 		req->length = ep->maxpacket;
 		if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
-			printk(KERN_ERR
+			pr_err(
 			"gs_read_complete: cannot queue read request, ret=%d\n",
 				ret);
 		}
@@ -1270,7 +1268,7 @@ requeue:
 
 	default:
 		/* unexpected */
-		printk(KERN_ERR
+		pr_err(
 		"gs_read_complete: unexpected status error, status=%d\n",
 			req->status);
 		goto requeue;
@@ -1287,7 +1285,7 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 	struct gs_req_entry *gs_req = req->context;
 
 	if (dev == NULL) {
-		printk(KERN_ERR "gs_write_complete: NULL device pointer\n");
+		pr_err("gs_write_complete: NULL device pointer\n");
 		return;
 	}
 
@@ -1296,8 +1294,7 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 		/* normal completion */
 requeue:
 		if (gs_req == NULL) {
-			printk(KERN_ERR
-				"gs_write_complete: NULL request pointer\n");
+			pr_err("gs_write_complete: NULL request pointer\n");
 			return;
 		}
 
@@ -1316,7 +1313,7 @@ requeue:
 		break;
 
 	default:
-		printk(KERN_ERR
+		pr_err(
 		"gs_write_complete: unexpected status error, status=%d\n",
 			req->status);
 		goto requeue;
@@ -1351,7 +1348,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 		gs_device_desc.bcdDevice =
 				cpu_to_le16(GS_VERSION_NUM | gcnum);
 	else {
-		printk(KERN_WARNING "gs_bind: controller '%s' not recognized\n",
+		pr_warning("gs_bind: controller '%s' not recognized\n",
 			gadget->name);
 		/* unrecognized, but safe unless bulk is REALLY quirky */
 		gs_device_desc.bcdDevice =
@@ -1375,7 +1372,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	if (use_acm) {
 		ep = usb_ep_autoconfig(gadget, &gs_fullspeed_notify_desc);
 		if (!ep) {
-			printk(KERN_ERR "gs_bind: cannot run ACM on %s\n", gadget->name);
+			pr_err("gs_bind: cannot run ACM on %s\n", gadget->name);
 			goto autoconf_fail;
 		}
 		gs_device_desc.idProduct = __constant_cpu_to_le16(
@@ -1425,7 +1422,7 @@ static int __init gs_bind(struct usb_gadget *gadget)
 	set_gadget_data(gadget, dev);
 
 	if ((ret=gs_alloc_ports(dev, GFP_KERNEL)) != 0) {
-		printk(KERN_ERR "gs_bind: cannot allocate ports\n");
+		pr_err("gs_bind: cannot allocate ports\n");
 		gs_unbind(gadget);
 		return ret;
 	}
@@ -1441,13 +1438,13 @@ static int __init gs_bind(struct usb_gadget *gadget)
 
 	gadget->ep0->driver_data = dev;
 
-	printk(KERN_INFO "gs_bind: %s %s bound\n",
+	pr_info("gs_bind: %s %s bound\n",
 		GS_LONG_NAME, GS_VERSION_STR);
 
 	return 0;
 
 autoconf_fail:
-	printk(KERN_ERR "gs_bind: cannot autoconfigure on %s\n", gadget->name);
+	pr_err("gs_bind: cannot autoconfigure on %s\n", gadget->name);
 	return -ENODEV;
 }
 
@@ -1480,7 +1477,7 @@ static void /* __init_or_exit */ gs_unbind(struct usb_gadget *gadget)
 		set_gadget_data(gadget, NULL);
 	}
 
-	printk(KERN_INFO "gs_unbind: %s %s unbound\n", GS_LONG_NAME,
+	pr_info("gs_unbind: %s %s unbound\n", GS_LONG_NAME,
 		GS_VERSION_STR);
 }
 
@@ -1513,7 +1510,8 @@ static int gs_setup(struct usb_gadget *gadget,
 		break;
 
 	default:
-		printk(KERN_ERR "gs_setup: unknown request, type=%02x, request=%02x, value=%04x, index=%04x, length=%d\n",
+		pr_err("gs_setup: unknown request, type=%02x, request=%02x, "
+			"value=%04x, index=%04x, length=%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			wValue, wIndex, wLength);
 		break;
@@ -1526,7 +1524,7 @@ static int gs_setup(struct usb_gadget *gadget,
 				&& (ret % gadget->ep0->maxpacket) == 0;
 		ret = usb_ep_queue(gadget->ep0, req, GFP_ATOMIC);
 		if (ret < 0) {
-			printk(KERN_ERR "gs_setup: cannot queue response, ret=%d\n",
+			pr_err("gs_setup: cannot queue response, ret=%d\n",
 				ret);
 			req->status = 0;
 			gs_setup_complete(gadget->ep0, req);
@@ -1656,7 +1654,8 @@ set_interface_done:
 		break;
 
 	default:
-		printk(KERN_ERR "gs_setup: unknown standard request, type=%02x, request=%02x, value=%04x, index=%04x, length=%d\n",
+		pr_err("gs_setup: unknown standard request, type=%02x, "
+			"request=%02x, value=%04x, index=%04x, length=%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
 			wValue, wIndex, wLength);
 		break;
@@ -1682,7 +1681,7 @@ static int gs_setup_class(struct usb_gadget *gadget,
 		 * handler copy that data to port->port_line_coding (iff
 		 * it's valid) and maybe pass it on.  Until then, fail.
 		 */
-		printk(KERN_WARNING "gs_setup: set_line_coding "
+		pr_warning("gs_setup: set_line_coding "
 				"unuspported\n");
 		break;
 
@@ -1702,12 +1701,12 @@ static int gs_setup_class(struct usb_gadget *gadget,
 		 * handler use that to set the state (iff it's valid) and
 		 * maybe pass it on.  Until then, fail.
 		 */
-		printk(KERN_WARNING "gs_setup: set_control_line_state "
+		pr_warning("gs_setup: set_control_line_state "
 				"unuspported\n");
 		break;
 
 	default:
-		printk(KERN_ERR "gs_setup: unknown class request, "
+		pr_err("gs_setup: unknown class request, "
 				"type=%02x, request=%02x, value=%04x, "
 				"index=%04x, length=%d\n",
 			ctrl->bRequestType, ctrl->bRequest,
@@ -1724,7 +1723,8 @@ static int gs_setup_class(struct usb_gadget *gadget,
 static void gs_setup_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	if (req->status || req->actual != req->length) {
-		printk(KERN_ERR "gs_setup_complete: status error, status=%d, actual=%d, length=%d\n",
+		pr_err("gs_setup_complete: status error, status=%d, "
+			"actual=%d, length=%d\n",
 			req->status, req->actual, req->length);
 	}
 }
@@ -1751,11 +1751,11 @@ static void gs_disconnect(struct usb_gadget *gadget)
 
 	/* re-allocate ports for the next connection */
 	if (gs_alloc_ports(dev, GFP_ATOMIC) != 0)
-		printk(KERN_ERR "gs_disconnect: cannot re-allocate ports\n");
+		pr_err("gs_disconnect: cannot re-allocate ports\n");
 
 	spin_unlock_irqrestore(&dev->dev_lock, flags);
 
-	printk(KERN_INFO "gs_disconnect: %s disconnected\n", GS_LONG_NAME);
+	pr_info("gs_disconnect: %s disconnected\n", GS_LONG_NAME);
 }
 
 /*
@@ -1778,7 +1778,7 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 	struct gs_req_entry *req_entry;
 
 	if (dev == NULL) {
-		printk(KERN_ERR "gs_set_config: NULL device pointer\n");
+		pr_err("gs_set_config: NULL device pointer\n");
 		return 0;
 	}
 
@@ -1823,7 +1823,8 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 				dev->dev_notify_ep = ep;
 				dev->dev_notify_ep_desc = ep_desc;
 			} else {
-				printk(KERN_ERR "gs_set_config: cannot enable notify endpoint %s, ret=%d\n",
+				pr_err("gs_set_config: cannot enable NOTIFY "
+					"endpoint %s, ret=%d\n",
 					ep->name, ret);
 				goto exit_reset_config;
 			}
@@ -1839,7 +1840,8 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 				dev->dev_in_ep = ep;
 				dev->dev_in_ep_desc = ep_desc;
 			} else {
-				printk(KERN_ERR "gs_set_config: cannot enable in endpoint %s, ret=%d\n",
+				pr_err("gs_set_config: cannot enable IN "
+					"endpoint %s, ret=%d\n",
 					ep->name, ret);
 				goto exit_reset_config;
 			}
@@ -1855,7 +1857,8 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 				dev->dev_out_ep = ep;
 				dev->dev_out_ep_desc = ep_desc;
 			} else {
-				printk(KERN_ERR "gs_set_config: cannot enable out endpoint %s, ret=%d\n",
+				pr_err("gs_set_config: cannot enable OUT "
+					"endpoint %s, ret=%d\n",
 					ep->name, ret);
 				goto exit_reset_config;
 			}
@@ -1865,7 +1868,7 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 
 	if (dev->dev_in_ep == NULL || dev->dev_out_ep == NULL
 	|| (config != GS_BULK_CONFIG_ID && dev->dev_notify_ep == NULL)) {
-		printk(KERN_ERR "gs_set_config: cannot find endpoints\n");
+		pr_err("gs_set_config: cannot find endpoints\n");
 		ret = -ENODEV;
 		goto exit_reset_config;
 	}
@@ -1876,11 +1879,12 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 		if ((req=gs_alloc_req(ep, ep->maxpacket, GFP_ATOMIC))) {
 			req->complete = gs_read_complete;
 			if ((ret=usb_ep_queue(ep, req, GFP_ATOMIC))) {
-				printk(KERN_ERR "gs_set_config: cannot queue read request, ret=%d\n",
-					ret);
+				pr_err("gs_set_config: cannot queue read "
+					"request, ret=%d\n", ret);
 			}
 		} else {
-			printk(KERN_ERR "gs_set_config: cannot allocate read requests\n");
+			pr_err("gs_set_config: cannot allocate "
+					"read requests\n");
 			ret = -ENOMEM;
 			goto exit_reset_config;
 		}
@@ -1893,13 +1897,14 @@ static int gs_set_config(struct gs_dev *dev, unsigned config)
 			req_entry->re_req->complete = gs_write_complete;
 			list_add(&req_entry->re_entry, &dev->dev_req_list);
 		} else {
-			printk(KERN_ERR "gs_set_config: cannot allocate write requests\n");
+			pr_err("gs_set_config: cannot allocate "
+					"write requests\n");
 			ret = -ENOMEM;
 			goto exit_reset_config;
 		}
 	}
 
-	printk(KERN_INFO "gs_set_config: %s configured, %s speed %s config\n",
+	pr_info("gs_set_config: %s configured, %s speed %s config\n",
 		GS_LONG_NAME,
 		gadget->speed == USB_SPEED_HIGH ? "high" : "full",
 		config == GS_BULK_CONFIG_ID ? "BULK" : "CDC-ACM");
@@ -1926,7 +1931,7 @@ static void gs_reset_config(struct gs_dev *dev)
 	struct gs_req_entry *req_entry;
 
 	if (dev == NULL) {
-		printk(KERN_ERR "gs_reset_config: NULL device pointer\n");
+		pr_err("gs_reset_config: NULL device pointer\n");
 		return;
 	}
 
