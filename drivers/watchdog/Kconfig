@@ -392,6 +392,16 @@ config ITCO_VENDOR_SUPPORT
 	  devices. At this moment we only have additional support for some
 	  SuperMicro Inc. motherboards.
 
+config IT8712F_WDT
+	tristate "IT8712F (Smart Guardian) Watchdog Timer"
+	depends on X86
+	---help---
+	  This is the driver for the built-in watchdog timer on the IT8712F
+	  Super I/0 chipset used on many motherboards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called it8712f_wdt.
+
 config SC1200_WDT
 	tristate "National Semiconductor PC87307/PC97307 (ala SC1200) Watchdog"
 	depends on X86
