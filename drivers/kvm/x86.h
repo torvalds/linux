@@ -19,6 +19,39 @@
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
+#define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
+#define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
+#define CR3_L_MODE_RESERVED_BITS (CR3_NONPAE_RESERVED_BITS|0xFFFFFF0000000000ULL)
+
+#define KVM_GUEST_CR0_MASK \
+	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE \
+	 | X86_CR0_NW | X86_CR0_CD)
+#define KVM_VM_CR0_ALWAYS_ON \
+	(X86_CR0_PG | X86_CR0_PE | X86_CR0_WP | X86_CR0_NE | X86_CR0_TS \
+	 | X86_CR0_MP)
+#define KVM_GUEST_CR4_MASK \
+	(X86_CR4_VME | X86_CR4_PSE | X86_CR4_PAE | X86_CR4_PGE | X86_CR4_VMXE)
+#define KVM_PMODE_VM_CR4_ALWAYS_ON (X86_CR4_PAE | X86_CR4_VMXE)
+#define KVM_RMODE_VM_CR4_ALWAYS_ON (X86_CR4_VME | X86_CR4_PAE | X86_CR4_VMXE)
+
+#define INVALID_PAGE (~(hpa_t)0)
+#define UNMAPPED_GVA (~(gpa_t)0)
+
+#define DE_VECTOR 0
+#define UD_VECTOR 6
+#define NM_VECTOR 7
+#define DF_VECTOR 8
+#define TS_VECTOR 10
+#define NP_VECTOR 11
+#define SS_VECTOR 12
+#define GP_VECTOR 13
+#define PF_VECTOR 14
+
+#define SELECTOR_TI_MASK (1 << 2)
+#define SELECTOR_RPL_MASK 0x03
+
+#define IOPL_SHIFT 12
+
 extern spinlock_t kvm_lock;
 extern struct list_head vm_list;
 
