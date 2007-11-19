@@ -1205,13 +1205,10 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		DEB_D(("VIDIOCGMBUF \n"));
 
 		q = &fh->video_q;
-		mutex_lock(&q->lock);
 		err = videobuf_mmap_setup(q,gbuffers,gbufsize,
 					  V4L2_MEMORY_MMAP);
-		if (err < 0) {
-			mutex_unlock(&q->lock);
+		if (err < 0)
 			return err;
-		}
 
 		gbuffers = err;
 		memset(mbuf,0,sizeof(*mbuf));
@@ -1219,7 +1216,6 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 		mbuf->size   = gbuffers * gbufsize;
 		for (i = 0; i < gbuffers; i++)
 			mbuf->offsets[i] = i * gbufsize;
-		mutex_unlock(&q->lock);
 		return 0;
 	}
 #endif
