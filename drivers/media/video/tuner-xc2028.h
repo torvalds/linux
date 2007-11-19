@@ -21,6 +21,7 @@ struct xc2028_ctrl {
 	char			*fname;
 	int			max_len;
 	int			d2633:1;
+	unsigned int		scode_table;
 };
 
 struct xc2028_config {

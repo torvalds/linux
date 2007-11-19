@@ -8,6 +8,7 @@
 
 /* BASE firmware should be loaded before any other firmware */
 #define BASE		(1<<0)
+#define BASE_TYPES	(BASE|F8MHZ|MTS|FM|INPUT1|INPUT2|INIT1)
 
 /* F8MHZ marks BASE firmwares for 8 MHz Bandwidth */
 #define F8MHZ		(1<<1)
@@ -37,6 +38,8 @@
 #define DTV78		(1<<8)
 #define DTV8		(1<<9)
 
+#define DTV_TYPES	(D2620|D2633|DTV6|QAM|DTV7|DTV78|DTV8|ATSC)
+
 /* There's a FM | BASE firmware + FM specific firmware (std=0) */
 #define	FM		(1<<10)
 
@@ -60,6 +63,7 @@
 /* Old firmwares were broken into init0 and init1 */
 #define INIT1		(1<<14)
 
+/* SCODE firmware selects particular behaviours */
 #define MONO           (1 << 15)
 #define ATSC           (1 << 16)
 #define IF             (1 << 17)
@@ -75,6 +79,10 @@
 #define F6MHZ          (1 << 27)
 #define INPUT2         (1 << 28)
 #define SCODE          (1 << 29)
+
+#define SCODE_TYPES	(MTS|DTV6|QAM|DTV7|DTV78|DTV8|LCD|NOGD|MONO|ATSC|IF| \
+			 LG60|ATI638|OREN538|OREN36|TOYOTA388|TOYOTA794|     \
+			 DIBCOM52|ZARLINK456|CHINA|F6MHZ|SCODE)
 
 /* Newer types to be moved to videodev2.h */
 

@@ -54,6 +54,14 @@ struct firmware_description {
 	unsigned int  size;
 };
 
+struct firmware_properties {
+	unsigned int	type;
+	v4l2_std_id	id;
+	v4l2_std_id	std_req;
+	unsigned int	scode_table;
+	int 		scode_nr;
+};
+
 struct xc2028_data {
 	struct list_head        xc2028_list;
 	struct tuner_i2c_props  i2c_props;
@@ -69,14 +77,7 @@ struct xc2028_data {
 
 	struct xc2028_ctrl	ctrl;
 
-	v4l2_std_id		firm_type;	   /* video stds supported
-							by current firmware */
-	fe_bandwidth_t		bandwidth;	   /* Firmware bandwidth:
-							      6M, 7M or 8M */
-	int			need_load_generic; /* The generic firmware
-							      were loaded? */
-	enum tuner_mode	mode;
-	struct i2c_client	*i2c_client;
+	struct firmware_properties cur_fw;
 
 	struct mutex lock;
 };
@@ -234,7 +235,8 @@ static void free_firmware(struct xc2028_data *priv)
 
 	priv->firm = NULL;
 	priv->firm_size = 0;
-	priv->need_load_generic = 1;
+
+	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
 }
 
 static int load_all_firmwares(struct dvb_frontend *fe)
@@ -392,6 +394,13 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	if (((type & ~SCODE) == 0) && (*id == 0))
 		*id = V4L2_STD_PAL;
+
+	if (type & BASE)
+		type &= BASE_TYPES;
+	else if (type & SCODE)
+		type &= SCODE_TYPES;
+	else if (type & DTV_TYPES)
+		type = type & DTV_TYPES;
 
 	/* Seek for exact match */
 	for (i = 0; i < priv->firm_size; i++) {
@@ -598,11 +607,10 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			  v4l2_std_id std, fe_bandwidth_t bandwidth)
 {
 	struct xc2028_data      *priv = fe->tuner_priv;
-	int			rc;
+	int			rc = 0;
+	unsigned int		type = 0;
+	struct firmware_properties new_fw;
 	u16			version, hwmodel;
-	v4l2_std_id		std0 = 0;
-	unsigned int		type0 = 0, type = 0;
-	int			change_digital_bandwidth;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
@@ -617,61 +625,19 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			return rc;
 	}
 
-	tuner_dbg("I am in mode %u and I should switch to mode %i\n",
-		   priv->mode, new_mode);
+	if (priv->ctrl.type == XC2028_FIRM_MTS)
+		type |= MTS;
+	if (bandwidth == BANDWIDTH_7_MHZ || bandwidth == BANDWIDTH_8_MHZ)
+		type |= F8MHZ;
 
-	/* first of all, determine whether we have switched the mode */
-	if (new_mode != priv->mode) {
-		priv->mode = new_mode;
-		priv->need_load_generic = 1;
-	}
+	/* FIXME: How to load FM and FM|INPUT1 firmwares? */
 
-	change_digital_bandwidth = (priv->mode == T_DIGITAL_TV
-				    && bandwidth != priv->bandwidth) ? 1 : 0;
-	tuner_dbg("old bandwidth %u, new bandwidth %u\n", priv->bandwidth,
-		   bandwidth);
-
-	if (priv->need_load_generic) {
-		/* Reset is needed before loading firmware */
-		rc = priv->tuner_callback(priv->video_dev,
-					  XC2028_TUNER_RESET, 0);
-		if (rc < 0)
-			return rc;
-
-		type0 = BASE;
-
-		if (priv->ctrl.type == XC2028_FIRM_MTS)
-			type0 |= MTS;
-
-		if (bandwidth == BANDWIDTH_7_MHZ ||
-		    bandwidth == BANDWIDTH_8_MHZ)
-			type0 |= F8MHZ;
-
-		/* FIXME: How to load FM and FM|INPUT1 firmwares? */
-
-		rc = load_firmware(fe, type0, &std0);
-		if (rc < 0) {
-			tuner_err("Error %d while loading generic firmware\n",
-				  rc);
-			return rc;
-		}
-
-		priv->need_load_generic = 0;
-		priv->firm_type = 0;
-		if (priv->mode == T_DIGITAL_TV)
-			change_digital_bandwidth = 1;
-	}
-
-	tuner_dbg("I should change bandwidth %u\n", change_digital_bandwidth);
-
-	if (change_digital_bandwidth) {
+	if (new_mode == T_DIGITAL_TV) {
 		if (priv->ctrl.d2633)
 			type |= D2633;
 		else
 			type |= D2620;
 
-		/* FIXME: When should select a DTV78 firmware?
-		 */
 		switch (bandwidth) {
 		case BANDWIDTH_8_MHZ:
 			type |= DTV8;
@@ -683,49 +649,96 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			/* FIXME: Should allow select also ATSC */
 			type |= DTV6 | QAM;
 			break;
-
 		default:
 			tuner_err("error: bandwidth not supported.\n");
 		};
-		priv->bandwidth = bandwidth;
 	}
 
-	if (!change_digital_bandwidth && priv->mode == T_DIGITAL_TV)
-		return 0;
+	new_fw.type = type;
+	new_fw.id = std;
+	new_fw.std_req = std;
+	new_fw.scode_table = SCODE | priv->ctrl.scode_table;
+	new_fw.scode_nr = 0;
+
+	tuner_dbg("checking firmware, user requested type=");
+	if (debug) {
+		dump_firm_type(new_fw.type);
+		printk("(%x), id %016llx, scode_tbl ", new_fw.type,
+		       (unsigned long long)new_fw.std_req);
+		dump_firm_type(priv->ctrl.scode_table);
+		printk("(%x), scode_nr %d\n", priv->ctrl.scode_table,
+		       new_fw.scode_nr);
+	}
+
+	/* No need to reload base firmware if it matches */
+	if (((BASE | new_fw.type) & BASE_TYPES) ==
+	    (priv->cur_fw.type & BASE_TYPES)) {
+		tuner_dbg("BASE firmware not changed.\n");
+		goto skip_base;
+	}
+
+	/* Updating BASE - forget about all currently loaded firmware */
+	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
+
+	/* Reset is needed before loading firmware */
+	rc = priv->tuner_callback(priv->video_dev,
+				  XC2028_TUNER_RESET, 0);
+	if (rc < 0)
+		goto fail;
+
+	rc = load_firmware(fe, BASE | new_fw.type, &new_fw.id);
+	if (rc < 0) {
+		tuner_err("Error %d while loading base firmware\n",
+			  rc);
+		goto fail;
+	}
 
 	/* Load INIT1, if needed */
 	tuner_dbg("Load init1 firmware, if exists\n");
-	type0 = BASE | INIT1;
-	if (priv->ctrl.type == XC2028_FIRM_MTS)
-		type0 |= MTS;
 
-	/* FIXME: Should handle errors - if INIT1 found */
-	rc = load_firmware(fe, type0, &std0);
-
-	/* FIXME: Should add support for FM radio
-	 */
-
-	if (priv->ctrl.type == XC2028_FIRM_MTS)
-		type |= MTS;
-
-	if (priv->firm_type & std) {
-		tuner_dbg("Std-specific firmware already loaded.\n");
-		return 0;
+	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &new_fw.id);
+	if (rc < 0 && rc != -ENOENT) {
+		tuner_err("Error %d while loading init1 firmware\n",
+			  rc);
+		goto fail;
 	}
 
-	/* Add audio hack to std mask */
-	std |= parse_audio_std_option();
+skip_base:
+	/*
+	 * No need to reload standard specific firmware if base firmware
+	 * was not reloaded and requested video standards have not changed.
+	 */
+	if (priv->cur_fw.type == (BASE | new_fw.type) &&
+	    priv->cur_fw.std_req == std) {
+		tuner_dbg("Std-specific firmware already loaded.\n");
+		goto skip_std_specific;
+	}
 
-	rc = load_firmware(fe, type, &std);
+	/* Reloading std-specific firmware forces a SCODE update */
+	priv->cur_fw.scode_table = 0;
+
+	/* Add audio hack to std mask */
+	if (new_mode == T_ANALOG_TV)
+		new_fw.id |= parse_audio_std_option();
+
+	rc = load_firmware(fe, new_fw.type, &new_fw.id);
 	if (rc < 0)
-		return rc;
+		goto fail;
+
+skip_std_specific:
+	if (priv->cur_fw.scode_table == new_fw.scode_table &&
+	    priv->cur_fw.scode_nr == new_fw.scode_nr) {
+		tuner_dbg("SCODE firmware already loaded.\n");
+		goto check_device;
+	}
 
 	/* Load SCODE firmware, if exists */
-	tuner_dbg("Trying to load scode 0\n");
-	type |= SCODE;
+	tuner_dbg("Trying to load scode %d\n", new_fw.scode_nr);
 
-	rc = load_scode(fe, type, &std, 0);
+	rc = load_scode(fe, new_fw.type | new_fw.scode_table,
+			&new_fw.id, new_fw.scode_nr);
 
+check_device:
 	xc2028_get_reg(priv, 0x0004, &version);
 	xc2028_get_reg(priv, 0x0008, &hwmodel);
 
@@ -734,9 +747,23 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 		   hwmodel, (version & 0xf000) >> 12, (version & 0xf00) >> 8,
 		   (version & 0xf0) >> 4, version & 0xf);
 
-	priv->firm_type = std;
+	memcpy(&priv->cur_fw, &new_fw, sizeof(priv->cur_fw));
+
+	/*
+	 * By setting BASE in cur_fw.type only after successfully loading all
+	 * firmwares, we can:
+	 * 1. Identify that BASE firmware with type=0 has been loaded;
+	 * 2. Tell whether BASE firmware was just changed the next time through.
+	 */
+	priv->cur_fw.type |= BASE;
 
 	return 0;
+
+fail:
+	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
+	if (rc == -ENOENT)
+		rc = -EINVAL;
+	return rc;
 }
 
 static int xc2028_signal(struct dvb_frontend *fe, u16 *strength)
@@ -785,16 +812,10 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 	mutex_lock(&priv->lock);
 
 	/* HACK: It seems that specific firmware need to be reloaded
-	   when freq is changed */
+	   when watching analog TV and freq is changed */
+	if (new_mode != T_DIGITAL_TV)
+		priv->cur_fw.type = 0;
 
-	priv->firm_type = 0;
-
-	/* Reset GPIO 1 */
-	rc = priv->tuner_callback(priv->video_dev, XC2028_TUNER_RESET, 0);
-	if (rc < 0)
-		goto ret;
-
-	msleep(10);
 	tuner_dbg("should set frequency %d kHz\n", freq / 1000);
 
 	if (check_firmware(fe, new_mode, std, bandwidth) < 0)
@@ -802,7 +823,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 
 	if (new_mode == T_DIGITAL_TV) {
 		offset = 2750000;
-		if (priv->bandwidth == BANDWIDTH_7_MHZ)
+		if (priv->cur_fw.type & DTV7)
 			offset -= 500000;
 	}
 
@@ -994,9 +1015,6 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 			return NULL;
 		}
 
-		priv->bandwidth = BANDWIDTH_6_MHZ;
-		priv->need_load_generic = 1;
-		priv->mode = T_UNINITIALIZED;
 		priv->i2c_props.addr = cfg->i2c_addr;
 		priv->i2c_props.adap = cfg->i2c_adap;
 		priv->video_dev = video_dev;
