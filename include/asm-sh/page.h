@@ -96,12 +96,18 @@ typedef struct { unsigned long long pgd; } pgd_t;
 	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
 #define __pte(x) \
 	({ pte_t __pte = {(x), ((unsigned long long)(x)) >> 32}; __pte; })
-#else
+#elif defined(CONFIG_SUPERH32)
 typedef struct { unsigned long pte_low; } pte_t;
 typedef struct { unsigned long pgprot; } pgprot_t;
 typedef struct { unsigned long pgd; } pgd_t;
 #define pte_val(x)	((x).pte_low)
-#define __pte(x) ((pte_t) { (x) } )
+#define __pte(x)	((pte_t) { (x) } )
+#else
+typedef struct { unsigned long long pte_low; } pte_t;
+typedef struct { unsigned long pgprot; } pgprot_t;
+typedef struct { unsigned long pgd; } pgd_t;
+#define pte_val(x)	((x).pte_low)
+#define __pte(x)	((pte_t) { (x) } )
 #endif
 
 #define pgd_val(x)	((x).pgd)

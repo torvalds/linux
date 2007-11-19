@@ -1,23 +1,24 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/mm/ioremap.c
+ * arch/sh/mm/ioremap_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003, 2004  Paul Mundt
+ * Copyright (C) 2003 - 2007  Paul Mundt
  *
  * Mostly derived from arch/sh/mm/ioremap.c which, in turn is mostly
  * derived from arch/i386/mm/ioremap.c .
  *
  *   (C) Copyright 1995 1996 Linus Torvalds
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/vmalloc.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/io.h>
+#include <linux/bootmem.h>
 #include <linux/proc_fs.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -42,7 +43,8 @@ static unsigned long shmedia_ioremap(struct resource *, u32, int);
  * have to convert them into an offset in a page-aligned mapping, but the
  * caller shouldn't need to know that small detail.
  */
-void * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flags)
+void *__ioremap(unsigned long phys_addr, unsigned long size,
+		unsigned long flags)
 {
 	void * addr;
 	struct vm_struct * area;
@@ -83,7 +85,7 @@ void * __ioremap(unsigned long phys_addr, unsigned long size, unsigned long flag
 }
 EXPORT_SYMBOL(__ioremap);
 
-void iounmap(void *addr)
+void __iounmap(void *addr)
 {
 	struct vm_struct *area;
 
@@ -96,7 +98,7 @@ void iounmap(void *addr)
 
 	kfree(area);
 }
-EXPORT_SYMBOL(iounmap);
+EXPORT_SYMBOL(__iounmap);
 
 static struct resource shmedia_iomap = {
 	.name	= "shmedia_iomap",
@@ -265,6 +267,7 @@ static __init_refok void *sh64_get_page(void)
 static void shmedia_mapioaddr(unsigned long pa, unsigned long va)
 {
 	pgd_t *pgdp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep, pte;
 	pgprot_t prot;
@@ -274,11 +277,17 @@ static void shmedia_mapioaddr(unsigned long pa, unsigned long va)
 
 	pgdp = pgd_offset_k(va);
 	if (pgd_none(*pgdp) || !pgd_present(*pgdp)) {
-		pmdp = (pmd_t *)sh64_get_page();
-		set_pgd(pgdp, __pgd((unsigned long)pmdp | _KERNPG_TABLE));
+		pudp = (pud_t *)sh64_get_page();
+		set_pgd(pgdp, __pgd((unsigned long)pudp | _KERNPG_TABLE));
 	}
 
-	pmdp = pmd_offset(pgdp, va);
+	pudp = pud_offset(pgdp, va);
+	if (pud_none(*pudp) || !pud_present(*pudp)) {
+		pmdp = (pmd_t *)sh64_get_page();
+		set_pud(pudp, __pud((unsigned long)pmdp | _KERNPG_TABLE));
+	}
+
+	pmdp = pmd_offset(pudp, va);
 	if (pmd_none(*pmdp) || !pmd_present(*pmdp) ) {
 		ptep = (pte_t *)sh64_get_page();
 		set_pmd(pmdp, __pmd((unsigned long)ptep + _PAGE_TABLE));
@@ -302,12 +311,19 @@ static void shmedia_mapioaddr(unsigned long pa, unsigned long va)
 static void shmedia_unmapioaddr(unsigned long vaddr)
 {
 	pgd_t *pgdp;
+	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 
 	pgdp = pgd_offset_k(vaddr);
-	pmdp = pmd_offset(pgdp, vaddr);
+	if (pgd_none(*pgdp) || pgd_bad(*pgdp))
+		return;
 
+	pudp = pud_offset(pgdp, vaddr);
+	if (pud_none(*pudp) || pud_bad(*pudp))
+		return;
+
+	pmdp = pmd_offset(pudp, vaddr);
 	if (pmd_none(*pmdp) || pmd_bad(*pmdp))
 		return;
 
