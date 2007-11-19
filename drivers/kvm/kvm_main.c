@@ -46,6 +46,7 @@
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>
+#include <asm/pgtable.h>
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -633,22 +634,7 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
 
 int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len)
 {
-	void *page_virt;
-	struct page *page;
-
-	page = gfn_to_page(kvm, gfn);
-	if (is_error_page(page)) {
-		kvm_release_page(page);
-		return -EFAULT;
-	}
-	page_virt = kmap_atomic(page, KM_USER0);
-
-	memset(page_virt + offset, 0, len);
-
-	kunmap_atomic(page_virt, KM_USER0);
-	kvm_release_page(page);
-	mark_page_dirty(kvm, gfn);
-	return 0;
+	return kvm_write_guest_page(kvm, gfn, empty_zero_page, offset, len);
 }
 EXPORT_SYMBOL_GPL(kvm_clear_guest_page);
 
