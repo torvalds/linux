@@ -565,8 +565,16 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 
 	p = priv->firm[pos].ptr;
 
-	if ((priv->firm[pos].size != 12 * 16) || (scode >= 16))
+	/* 16 SCODE entries per file; each SCODE entry is 12 bytes and
+	 * has a 2-byte size header in the firmware format. */
+	if (priv->firm[pos].size != 14 * 16 || scode >= 16 ||
+	    le16_to_cpu(*(__u16 *)(p + 14 * scode)) != 12)
 		return -EINVAL;
+
+	tuner_info("Loading SCODE for type=");
+	dump_firm_type(priv->firm[pos].type);
+	printk("(%x), id %016llx.\n", priv->firm[pos].type,
+	       (unsigned long long)*id);
 
 	if (priv->firm_version < 0x0202)
 		rc = send_seq(priv, {0x20, 0x00, 0x00, 0x00});
@@ -575,7 +583,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	if (rc < 0)
 		return -EIO;
 
-	rc = i2c_send(priv, p + 12 * scode, 12);
+	rc = i2c_send(priv, p + 14 * scode + 2, 12);
 	if (rc < 0)
 		return -EIO;
 
