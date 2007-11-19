@@ -1,7 +1,7 @@
 /*
  *  Driver for Zarlink DVB-T ZL10353 demodulator
  *
- *  Copyright (C) 2006 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
+ *  Copyright (C) 2006, 2007 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
+ *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _ZL10353_PRIV_
@@ -48,6 +48,8 @@ enum zl10353_reg_addr {
 	RS_UBC_0           = 0x15,
 	TRL_NOMINAL_RATE_1 = 0x65,
 	TRL_NOMINAL_RATE_0 = 0x66,
+	INPUT_FREQ_1       = 0x6C,
+	INPUT_FREQ_0       = 0x6D,
 	TUNER_GO           = 0x70,
 	FSM_GO             = 0x71,
 	CHIP_ID            = 0x7F,

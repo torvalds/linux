@@ -1,7 +1,7 @@
 /*
  * Driver for Zarlink DVB-T ZL10353 demodulator
  *
- * Copyright (C) 2006 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
+ * Copyright (C) 2006, 2007 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.=
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <asm/div64.h>
 
 #include "dvb_frontend.h"
 #include "zl10353_priv.h"
@@ -148,6 +149,35 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 		__FUNCTION__, bw, adc_clock, *nominal_rate);
 }
 
+static void zl10353_calc_input_freq(struct dvb_frontend *fe,
+				    u16 *input_freq)
+{
+	struct zl10353_state *state = fe->demodulator_priv;
+	u32 adc_clock = 45056;	/* 45.056 MHz */
+	int if2 = 36167;	/* 36.167 MHz */
+	int ife;
+	u64 value;
+
+	if (state->config.adc_clock)
+		adc_clock = state->config.adc_clock;
+	if (state->config.if2)
+		if2 = state->config.if2;
+
+	if (adc_clock >= if2 * 2)
+		ife = if2;
+	else {
+		ife = adc_clock - (if2 % adc_clock);
+		if (ife > adc_clock / 2)
+			ife = adc_clock - ife;
+	}
+	value = 65536ULL * ife + adc_clock / 2;
+	do_div(value, adc_clock);
+	*input_freq = -value;
+
+	dprintk("%s: if2 %d, ife %d, adc_clock %d => %d / 0x%x\n",
+		__FUNCTION__, if2, ife, adc_clock, -(int)value, *input_freq);
+}
+
 static int zl10353_sleep(struct dvb_frontend *fe)
 {
 	static u8 zl10353_softdown[] = { 0x50, 0x0C, 0x44 };
@@ -160,7 +190,7 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 				  struct dvb_frontend_parameters *param)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
-	u16 nominal_rate;
+	u16 nominal_rate, input_freq;
 	u8 pllbuf[6] = { 0x67 };
 
 	/* These settings set "auto-everything" and start the FSM. */
@@ -178,8 +208,10 @@ static int zl10353_set_parameters(struct dvb_frontend *fe,
 	zl10353_single_write(fe, TRL_NOMINAL_RATE_1, msb(nominal_rate));
 	zl10353_single_write(fe, TRL_NOMINAL_RATE_0, lsb(nominal_rate));
 
-	zl10353_single_write(fe, 0x6C, 0xCD);
-	zl10353_single_write(fe, 0x6D, 0x7E);
+	zl10353_calc_input_freq(fe, &input_freq);
+	zl10353_single_write(fe, INPUT_FREQ_1, msb(input_freq));
+	zl10353_single_write(fe, INPUT_FREQ_0, lsb(input_freq));
+
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
 

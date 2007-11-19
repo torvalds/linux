@@ -1,7 +1,7 @@
 /*
  *  Driver for Zarlink DVB-T ZL10353 demodulator
  *
- *  Copyright (C) 2006 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
+ *  Copyright (C) 2006, 2007 Christopher Pascoe <c.pascoe@itee.uq.edu.au>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ struct zl10353_config
 
 	/* frequencies in kHz */
 	int adc_clock;	/* default: 45056 */
+	int if2;	/* default: 36167 */
 
 	/* set if no pll is connected to the secondary i2c bus */
 	int no_tuner;
