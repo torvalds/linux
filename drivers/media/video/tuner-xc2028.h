@@ -20,6 +20,7 @@ struct xc2028_ctrl {
 	enum xc2028_firm_type	type;
 	char			*fname;
 	int			max_len;
+	int			d2633:1;
 };
 
 struct xc2028_config {

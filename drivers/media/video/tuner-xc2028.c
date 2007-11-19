@@ -665,9 +665,10 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	tuner_dbg("I should change bandwidth %u\n", change_digital_bandwidth);
 
 	if (change_digital_bandwidth) {
-
-		/*FIXME: Should allow selecting between D2620 and D2633 */
-		type |= D2620;
+		if (priv->ctrl.d2633)
+			type |= D2633;
+		else
+			type |= D2620;
 
 		/* FIXME: When should select a DTV78 firmware?
 		 */
