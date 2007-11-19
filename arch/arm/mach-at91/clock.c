@@ -351,7 +351,7 @@ static void init_programmable_clock(struct clk *clk)
 	pckr = at91_sys_read(AT91_PMC_PCKR(clk->id));
 	parent = at91_css_to_clk(pckr & AT91_PMC_CSS);
 	clk->parent = parent;
-	clk->rate_hz = parent->rate_hz / (1 << ((pckr >> 2) & 3));
+	clk->rate_hz = parent->rate_hz / (1 << ((pckr & AT91_PMC_PRES) >> 2));
 }
 
 #endif	/* CONFIG_AT91_PROGRAMMABLE_CLOCKS */
@@ -587,8 +587,11 @@ int __init at91_clock_init(unsigned long main_clock)
 	mckr = at91_sys_read(AT91_PMC_MCKR);
 	mck.parent = at91_css_to_clk(mckr & AT91_PMC_CSS);
 	freq = mck.parent->rate_hz;
-	freq /= (1 << ((mckr >> 2) & 3));		/* prescale */
-	mck.rate_hz = freq / (1 + ((mckr >> 8) & 3));	/* mdiv */
+	freq /= (1 << ((mckr & AT91_PMC_PRES) >> 2));				/* prescale */
+	if (cpu_is_at91rm9200())
+		mck.rate_hz = freq / (1 + ((mckr & AT91_PMC_MDIV) >> 8));	/* mdiv */
+	else
+		mck.rate_hz = freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));	/* mdiv */
 
 	/* Register the PMC's standard clocks */
 	for (i = 0; i < ARRAY_SIZE(standard_pmc_clocks); i++)
