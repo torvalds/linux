@@ -44,6 +44,8 @@ MODULE_PARM_DESC(audio_std,
 	"NICAM/B\n");
 
 static LIST_HEAD(xc2028_list);
+static DEFINE_MUTEX(xc2028_list_mutex);
+
 /* struct for storing firmware table */
 struct firmware_description {
 	unsigned int  type;
@@ -854,6 +856,8 @@ static int xc2028_dvb_release(struct dvb_frontend *fe)
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
+	mutex_lock(&xc2028_list_mutex);
+
 	priv->count--;
 
 	if (!priv->count) {
@@ -864,6 +868,8 @@ static int xc2028_dvb_release(struct dvb_frontend *fe)
 		free_firmware(priv);
 		kfree(priv);
 	}
+
+	mutex_unlock(&xc2028_list_mutex);
 
 	return 0;
 }
@@ -940,6 +946,8 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 
 	video_dev = cfg->video_dev;
 
+	mutex_lock(&xc2028_list_mutex);
+
 	list_for_each_entry(priv, &xc2028_list, xc2028_list) {
 		if (priv->video_dev == cfg->video_dev) {
 			video_dev = NULL;
@@ -949,8 +957,10 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 
 	if (video_dev) {
 		priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-		if (priv == NULL)
+		if (priv == NULL) {
+			mutex_unlock(&xc2028_list_mutex);
 			return NULL;
+		}
 
 		priv->bandwidth = BANDWIDTH_6_MHZ;
 		priv->need_load_generic = 1;
@@ -973,6 +983,8 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 	       sizeof(xc2028_dvb_tuner_ops));
 
 	tuner_info("type set to %s\n", "XCeive xc2028/xc3028 tuner");
+
+	mutex_unlock(&xc2028_list_mutex);
 
 	return fe;
 }
