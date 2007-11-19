@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/io.h>
+#include <linux/proc_fs.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/addrspace.h>
