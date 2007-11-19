@@ -302,9 +302,9 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	key.offset = 0;
 
 	path = btrfs_alloc_path();
-	path->reada = 2;
 	if (!path)
 		return -ENOMEM;
+	path->reada = 2;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 
@@ -410,7 +410,7 @@ int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-
+	path->reada = -1;
 	key.objectid = inode->i_ino;
 	btrfs_set_key_type(&key, BTRFS_XATTR_ITEM_KEY);
 	key.offset = (u64)-1;
