@@ -87,7 +87,7 @@ static DEFINE_SPINLOCK(iomm_table_lock);
  * - CurrentIndex is incremented to keep track of the last entry.
  * - Builds the resource entry for allocated BARs.
  */
-static void iomm_table_allocate_entry(struct pci_dev *dev, int bar_num)
+static void __init iomm_table_allocate_entry(struct pci_dev *dev, int bar_num)
 {
 	struct resource *bar_res = &dev->resource[bar_num];
 	long bar_size = pci_resource_len(dev, bar_num);
@@ -130,7 +130,7 @@ static void iomm_table_allocate_entry(struct pci_dev *dev, int bar_num)
  * - Loops through The Bar resources(0 - 5) including the ROM
  *   is resource(6).
  */
-static void allocate_device_bars(struct pci_dev *dev)
+static void __init allocate_device_bars(struct pci_dev *dev)
 {
 	int bar_num;
 
