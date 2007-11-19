@@ -198,8 +198,8 @@ again:
 	if (vi->num < vi->max / 2)
 		try_fill_recv(vi);
 
-	/* All done? */
-	if (!skb) {
+	/* Out of packets? */
+	if (received < budget) {
 		netif_rx_complete(vi->dev, napi);
 		if (unlikely(!vi->rvq->vq_ops->restart(vi->rvq))
 		    && netif_rx_reschedule(vi->dev, napi))
