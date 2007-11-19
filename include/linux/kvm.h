@@ -150,11 +150,6 @@ struct kvm_fpu {
 	__u32 pad2;
 };
 
-/* for KVM_GET_LAPIC and KVM_SET_LAPIC */
-#define KVM_APIC_REG_SIZE 0x400
-struct kvm_lapic_state {
-	char regs[KVM_APIC_REG_SIZE];
-};
 
 struct kvm_segment {
 	__u64 base;

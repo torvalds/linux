@@ -76,4 +76,10 @@ struct kvm_regs {
 	__u64 rip, rflags;
 };
 
+/* for KVM_GET_LAPIC and KVM_SET_LAPIC */
+#define KVM_APIC_REG_SIZE 0x400
+struct kvm_lapic_state {
+	char regs[KVM_APIC_REG_SIZE];
+};
+
 #endif
