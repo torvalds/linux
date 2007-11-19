@@ -1872,9 +1872,9 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	if (udc_info && udc_info->vbus_pin > 0) {
 		irq = s3c2410_gpio_getirq(udc_info->vbus_pin);
 		retval = request_irq(irq, s3c2410_udc_vbus_irq,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING
-				| IRQF_TRIGGER_FALLING,
-				gadget_name, udc);
+				     IRQF_DISABLED | IRQF_TRIGGER_RISING
+				     | IRQF_TRIGGER_FALLING | IRQF_SHARED,
+				     gadget_name, udc);
 
 		if (retval != 0) {
 			dev_err(dev, "can't get vbus irq %i, err %d\n",
