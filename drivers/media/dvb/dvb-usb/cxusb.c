@@ -83,9 +83,6 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
-	if (num > 2)
-		warn("more than two i2c messages at a time is not handled yet. TODO.");
-
 	for (i = 0; i < num; i++) {
 
 		if (d->udev->descriptor.idVendor == USB_VID_MEDION)
@@ -111,8 +108,9 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				break;
 			}
 			memcpy(msg[i].buf, &ibuf[1], msg[i].len);
-		} else if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
-			/* write then read */
+		} else if (i+1 < num && (msg[i+1].flags & I2C_M_RD) &&
+			   msg[i].addr == msg[i+1].addr) {
+			/* write to then read from same address */
 			u8 obuf[3+msg[i].len], ibuf[1+msg[i+1].len];
 			obuf[0] = msg[i].len;
 			obuf[1] = msg[i+1].len;
