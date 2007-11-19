@@ -996,7 +996,7 @@ int b43legacy_dma_init(struct b43legacy_wldev *dev)
 
 	err = ssb_dma_set_mask(dev->dev, dmamask);
 	if (err) {
-#ifdef BCM43XX_PIO
+#ifdef CONFIG_B43LEGACY_PIO
 		b43legacywarn(dev->wl, "DMA for this device not supported. "
 			"Falling back to PIO\n");
 		dev->__using_pio = 1;
