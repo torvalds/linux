@@ -1,16 +1,14 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/mm/fault.c
+ * arch/sh/mm/tlb-flush_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003  Richard Curnow (/proc/tlb, bug fixes)
  * Copyright (C) 2003  Paul Mundt
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/signal.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
@@ -23,39 +21,12 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/tlb.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
-#include <asm/registers.h>		/* required by inline asm statements */
-
-#if defined(CONFIG_SH64_PROC_TLB)
-#include <linux/init.h>
-#include <linux/proc_fs.h>
-/* Count numbers of tlb refills in each region */
-static unsigned long long calls_to_update_mmu_cache = 0ULL;
-static unsigned long long calls_to_flush_tlb_page   = 0ULL;
-static unsigned long long calls_to_flush_tlb_range  = 0ULL;
-static unsigned long long calls_to_flush_tlb_mm     = 0ULL;
-static unsigned long long calls_to_flush_tlb_all    = 0ULL;
-unsigned long long calls_to_do_slow_page_fault = 0ULL;
-unsigned long long calls_to_do_fast_page_fault = 0ULL;
-
-/* Count size of ranges for flush_tlb_range */
-static unsigned long long flush_tlb_range_1         = 0ULL;
-static unsigned long long flush_tlb_range_2         = 0ULL;
-static unsigned long long flush_tlb_range_3_4       = 0ULL;
-static unsigned long long flush_tlb_range_5_7       = 0ULL;
-static unsigned long long flush_tlb_range_8_11      = 0ULL;
-static unsigned long long flush_tlb_range_12_15     = 0ULL;
-static unsigned long long flush_tlb_range_16_up     = 0ULL;
-
-static unsigned long long page_not_present          = 0ULL;
-
-#endif
 
 extern void die(const char *,struct pt_regs *,long);
 
@@ -87,29 +58,27 @@ static inline void print_task(struct task_struct *tsk)
 static pte_t *lookup_pte(struct mm_struct *mm, unsigned long address)
 {
 	pgd_t *dir;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
 
 	dir = pgd_offset(mm, address);
-	if (pgd_none(*dir)) {
+	if (pgd_none(*dir))
 		return NULL;
-	}
 
-	pmd = pmd_offset(dir, address);
-	if (pmd_none(*pmd)) {
+	pud = pud_offset(dir, address);
+	if (pud_none(*pud))
 		return NULL;
-	}
+
+	pmd = pmd_offset(pud, address);
+	if (pmd_none(*pmd))
+		return NULL;
 
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
-
-	if (pte_none(entry)) {
+	if (pte_none(entry) || !pte_present(entry))
 		return NULL;
-	}
-	if (!pte_present(entry)) {
-		return NULL;
-	}
 
 	return pte;
 }
@@ -128,10 +97,6 @@ asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long writeaccess,
 	const struct exception_table_entry *fixup;
 	pte_t *pte;
 	int fault;
-
-#if defined(CONFIG_SH64_PROC_TLB)
-        ++calls_to_do_slow_page_fault;
-#endif
 
 	/* SIM
 	 * Note this is now called with interrupts still disabled
@@ -355,16 +320,9 @@ do_sigbus:
 		goto no_context;
 }
 
-
-void flush_tlb_all(void);
-
 void update_mmu_cache(struct vm_area_struct * vma,
 			unsigned long address, pte_t pte)
 {
-#if defined(CONFIG_SH64_PROC_TLB)
-	++calls_to_update_mmu_cache;
-#endif
-
 	/*
 	 * This appears to get called once for every pte entry that gets
 	 * established => I don't think it's efficient to try refilling the
@@ -378,40 +336,29 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	 */
 }
 
-static void __flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
+void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
 	unsigned long long match, pteh=0, lpage;
 	unsigned long tlb;
-	struct mm_struct *mm;
-
-	mm = vma->vm_mm;
-
-	if (mm->context == NO_CONTEXT)
-		return;
 
 	/*
 	 * Sign-extend based on neff.
 	 */
 	lpage = (page & NEFF_SIGN) ? (page | NEFF_MASK) : page;
-	match = ((mm->context & MMU_CONTEXT_ASID_MASK) << PTEH_ASID_SHIFT) | PTEH_VALID;
+	match = (asid << PTEH_ASID_SHIFT) | PTEH_VALID;
 	match |= lpage;
 
-        /* Do ITLB : don't bother for pages in non-exectutable VMAs */
-	if (vma->vm_flags & VM_EXEC) {
-		for_each_itlb_entry(tlb) {
-			asm volatile ("getcfg	%1, 0, %0"
-				      : "=r" (pteh)
-				      : "r" (tlb) );
+	for_each_itlb_entry(tlb) {
+		asm volatile ("getcfg	%1, 0, %0"
+			      : "=r" (pteh)
+			      : "r" (tlb) );
 
-			if (pteh == match) {
-				__flush_tlb_slot(tlb);
-				break;
-			}
-
+		if (pteh == match) {
+			__flush_tlb_slot(tlb);
+			break;
 		}
 	}
 
-        /* Do DTLB : any page could potentially be in here. */
 	for_each_dtlb_entry(tlb) {
 		asm volatile ("getcfg	%1, 0, %0"
 			      : "=r" (pteh)
@@ -425,52 +372,29 @@ static void __flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 	}
 }
 
-void flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
+void local_flush_tlb_page(struct vm_area_struct *vma, unsigned long page)
 {
 	unsigned long flags;
-
-#if defined(CONFIG_SH64_PROC_TLB)
-        ++calls_to_flush_tlb_page;
-#endif
 
 	if (vma->vm_mm) {
 		page &= PAGE_MASK;
 		local_irq_save(flags);
-		__flush_tlb_page(vma, page);
+		local_flush_tlb_one(get_asid(), page);
 		local_irq_restore(flags);
 	}
 }
 
-void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
-		     unsigned long end)
+void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
+			   unsigned long end)
 {
 	unsigned long flags;
 	unsigned long long match, pteh=0, pteh_epn, pteh_low;
 	unsigned long tlb;
+	unsigned int cpu = smp_processor_id();
 	struct mm_struct *mm;
 
 	mm = vma->vm_mm;
-
-#if defined(CONFIG_SH64_PROC_TLB)
-	++calls_to_flush_tlb_range;
-
-	{
-		unsigned long size = (end - 1) - start;
-		size >>= 12; /* divide by PAGE_SIZE */
-		size++; /* end=start+4096 => 1 page */
-		switch (size) {
-		  case  1        : flush_tlb_range_1++;     break;
-		  case  2        : flush_tlb_range_2++;     break;
-		  case  3 ...  4 : flush_tlb_range_3_4++;   break;
-		  case  5 ...  7 : flush_tlb_range_5_7++;   break;
-		  case  8 ... 11 : flush_tlb_range_8_11++;  break;
-		  case 12 ... 15 : flush_tlb_range_12_15++; break;
-		  default        : flush_tlb_range_16_up++; break;
-		}
-	}
-#endif
-
-	if (mm->context == NO_CONTEXT)
+	if (cpu_context(cpu, mm) == NO_CONTEXT)
 		return;
 
 	local_irq_save(flags);
@@ -478,7 +402,7 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	start &= PAGE_MASK;
 	end &= PAGE_MASK;
 
-	match = ((mm->context & MMU_CONTEXT_ASID_MASK) << PTEH_ASID_SHIFT) | PTEH_VALID;
+	match = (cpu_asid(cpu, mm) << PTEH_ASID_SHIFT) | PTEH_VALID;
 
 	/* Flush ITLB */
 	for_each_itlb_entry(tlb) {
@@ -509,94 +433,43 @@ void flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	local_irq_restore(flags);
 }
 
-void flush_tlb_mm(struct mm_struct *mm)
+void local_flush_tlb_mm(struct mm_struct *mm)
 {
 	unsigned long flags;
+	unsigned int cpu = smp_processor_id();
 
-#if defined(CONFIG_SH64_PROC_TLB)
-	++calls_to_flush_tlb_mm;
-#endif
-
-	if (mm->context == NO_CONTEXT)
+	if (cpu_context(cpu, mm) == NO_CONTEXT)
 		return;
 
 	local_irq_save(flags);
 
-	mm->context=NO_CONTEXT;
-	if(mm==current->mm)
-		activate_context(mm);
+	cpu_context(cpu, mm) = NO_CONTEXT;
+	if (mm == current->mm)
+		activate_context(mm, cpu);
 
 	local_irq_restore(flags);
-
 }
 
-void flush_tlb_all(void)
+void local_flush_tlb_all(void)
 {
 	/* Invalidate all, including shared pages, excluding fixed TLBs */
-
 	unsigned long flags, tlb;
-
-#if defined(CONFIG_SH64_PROC_TLB)
-	++calls_to_flush_tlb_all;
-#endif
 
 	local_irq_save(flags);
 
 	/* Flush each ITLB entry */
-	for_each_itlb_entry(tlb) {
+	for_each_itlb_entry(tlb)
 		__flush_tlb_slot(tlb);
-	}
 
 	/* Flush each DTLB entry */
-	for_each_dtlb_entry(tlb) {
+	for_each_dtlb_entry(tlb)
 		__flush_tlb_slot(tlb);
-	}
 
 	local_irq_restore(flags);
 }
 
-void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+void local_flush_tlb_kernel_range(unsigned long start, unsigned long end)
 {
         /* FIXME: Optimize this later.. */
         flush_tlb_all();
 }
-
-#if defined(CONFIG_SH64_PROC_TLB)
-/* Procfs interface to read the performance information */
-
-static int
-tlb_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void *data)
-{
-  int len=0;
-  len += sprintf(buf+len, "do_fast_page_fault   called %12lld times\n", calls_to_do_fast_page_fault);
-  len += sprintf(buf+len, "do_slow_page_fault   called %12lld times\n", calls_to_do_slow_page_fault);
-  len += sprintf(buf+len, "update_mmu_cache     called %12lld times\n", calls_to_update_mmu_cache);
-  len += sprintf(buf+len, "flush_tlb_page       called %12lld times\n", calls_to_flush_tlb_page);
-  len += sprintf(buf+len, "flush_tlb_range      called %12lld times\n", calls_to_flush_tlb_range);
-  len += sprintf(buf+len, "flush_tlb_mm         called %12lld times\n", calls_to_flush_tlb_mm);
-  len += sprintf(buf+len, "flush_tlb_all        called %12lld times\n", calls_to_flush_tlb_all);
-  len += sprintf(buf+len, "flush_tlb_range_sizes\n"
-                          " 1      : %12lld\n"
-                          " 2      : %12lld\n"
-                          " 3 -  4 : %12lld\n"
-                          " 5 -  7 : %12lld\n"
-                          " 8 - 11 : %12lld\n"
-                          "12 - 15 : %12lld\n"
-                          "16+     : %12lld\n",
-                          flush_tlb_range_1, flush_tlb_range_2, flush_tlb_range_3_4,
-                          flush_tlb_range_5_7, flush_tlb_range_8_11, flush_tlb_range_12_15,
-                          flush_tlb_range_16_up);
-  len += sprintf(buf+len, "page not present           %12lld times\n", page_not_present);
-  *eof = 1;
-  return len;
-}
-
-static int __init register_proc_tlb(void)
-{
-  create_proc_read_entry("tlb", 0, NULL, tlb_proc_info, NULL);
-  return 0;
-}
-
-__initcall(register_proc_tlb);
-
-#endif

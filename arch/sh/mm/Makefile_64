@@ -5,7 +5,7 @@
 obj-y			:= init.o extable_64.o consistent.o
 
 mmu-y			:= tlb-nommu.o pg-nommu.o
-mmu-$(CONFIG_MMU)	:= ioremap_64.o
+mmu-$(CONFIG_MMU)	:= ioremap_64.o tlb-flush_64.o
 
 obj-y			+= $(mmu-y)
 
