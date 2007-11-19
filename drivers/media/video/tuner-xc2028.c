@@ -608,7 +608,8 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 		if (priv->ctrl.type == XC2028_FIRM_MTS)
 			type0 |= MTS;
 
-		if (priv->bandwidth == 8)
+		if (bandwidth == BANDWIDTH_7_MHZ ||
+		    bandwidth == BANDWIDTH_8_MHZ)
 			type0 |= F8MHZ;
 
 		/* FIXME: How to load FM and FM|INPUT1 firmwares? */
@@ -814,7 +815,8 @@ static int xc2028_set_tv_freq(struct dvb_frontend *fe,
 	tuner_dbg("%s called\n", __FUNCTION__);
 
 	return generic_set_tv_freq(fe, 62500l * p->frequency, T_ANALOG_TV,
-				   p->std, BANDWIDTH_8_MHZ /* NOT USED */);
+				   p->std, BANDWIDTH_8_MHZ);
+				   /* XXX Are some analog standards 6MHz? */
 }
 
 static int xc2028_set_params(struct dvb_frontend *fe,
