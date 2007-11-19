@@ -368,14 +368,9 @@ static int scsi_tgt_init_cmd(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 	dprintk("cmd %p cnt %d %lu\n", cmd, scsi_sg_count(cmd),
 		rq_data_dir(rq));
 	count = blk_rq_map_sg(rq->q, rq, scsi_sglist(cmd));
-	if (likely(count <= scsi_sg_count(cmd))) {
-		cmd->use_sg = count;
-		return 0;
-	}
-
-	eprintk("cmd %p cnt %d\n", cmd, scsi_sg_count(cmd));
-	scsi_free_sgtable(cmd);
-	return -EINVAL;
+	BUG_ON(count > cmd->use_sg);
+	cmd->use_sg = count;
+	return 0;
 }
 
 /* TODO: test this crap and replace bio_map_user with new interface maybe */

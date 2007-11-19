@@ -1104,7 +1104,6 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
  *
  * Returns:     0 on success
  *		BLKPREP_DEFER if the failure is retryable
- *		BLKPREP_KILL if the failure is fatal
  */
 static int scsi_init_io(struct scsi_cmnd *cmd)
 {
@@ -1138,17 +1137,9 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	 * each segment.
 	 */
 	count = blk_rq_map_sg(req->q, req, cmd->request_buffer);
-	if (likely(count <= cmd->use_sg)) {
-		cmd->use_sg = count;
-		return BLKPREP_OK;
-	}
-
-	printk(KERN_ERR "Incorrect number of segments after building list\n");
-	printk(KERN_ERR "counted %d, received %d\n", count, cmd->use_sg);
-	printk(KERN_ERR "req nr_sec %lu, cur_nr_sec %u\n", req->nr_sectors,
-			req->current_nr_sectors);
-
-	return BLKPREP_KILL;
+	BUG_ON(count > cmd->use_sg);
+	cmd->use_sg = count;
+	return BLKPREP_OK;
 }
 
 static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
