@@ -152,7 +152,7 @@ do_fpu_state_restore(unsigned long ex, struct pt_regs *regs)
 	if (last_task_used_math == current)
 		return;
 
-	grab_fpu();
+	enable_fpu();
 	if (last_task_used_math != NULL) {
 		/* Other processes fpu state, save away */
 		fpsave(&last_task_used_math->thread.fpu.hard);
@@ -165,6 +165,6 @@ do_fpu_state_restore(unsigned long ex, struct pt_regs *regs)
 		fpload(&init_fpuregs.hard);
                 set_used_math();
         }
-	release_fpu();
+	disable_fpu();
 }
 

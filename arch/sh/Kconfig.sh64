@@ -83,6 +83,7 @@ choice
 
 config CPU_SH5
 	bool "SH-5"
+	select CPU_HAS_FPU
 
 endchoice
 

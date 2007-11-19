@@ -211,9 +211,9 @@ setup_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
 		return err;
 
 	if (current == last_task_used_math) {
-		grab_fpu();
+		enable_fpu();
 		fpsave(&current->thread.fpu.hard);
-		release_fpu();
+		disable_fpu();
 		last_task_used_math = NULL;
 		regs->sr |= SR_FD;
 	}
