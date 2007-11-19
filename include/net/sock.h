@@ -1236,6 +1236,9 @@ static inline struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 {
 	struct sk_buff *skb;
 
+	/* The TCP header must be at least 32-bit aligned.  */
+	size = ALIGN(size, 4);
+
 	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
 	if (skb) {
 		skb->truesize += mem;
