@@ -24,12 +24,36 @@
 
 #include "power.h"
 
-BLOCKING_NOTIFIER_HEAD(pm_chain_head);
-
 DEFINE_MUTEX(pm_mutex);
 
 unsigned int pm_flags;
 EXPORT_SYMBOL(pm_flags);
+
+#ifdef CONFIG_PM_SLEEP
+
+/* Routines for PM-transition notifications */
+
+static BLOCKING_NOTIFIER_HEAD(pm_chain_head);
+
+int register_pm_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&pm_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(register_pm_notifier);
+
+int unregister_pm_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&pm_chain_head, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_pm_notifier);
+
+int pm_notifier_call_chain(unsigned long val)
+{
+	return (blocking_notifier_call_chain(&pm_chain_head, val, NULL)
+			== NOTIFY_BAD) ? -EINVAL : 0;
+}
+
+#endif /* CONFIG_PM_SLEEP */
 
 #ifdef CONFIG_PM_DEBUG
 int pm_test_level = TEST_NONE;

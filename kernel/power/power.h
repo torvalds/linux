@@ -172,14 +172,10 @@ static inline int suspend_devices_and_enter(suspend_state_t state)
 }
 #endif /* !CONFIG_SUSPEND */
 
-/* kernel/power/common.c */
-extern struct blocking_notifier_head pm_chain_head;
-
-static inline int pm_notifier_call_chain(unsigned long val)
-{
-	return (blocking_notifier_call_chain(&pm_chain_head, val, NULL)
-			== NOTIFY_BAD) ? -EINVAL : 0;
-}
+#ifdef CONFIG_PM_SLEEP
+/* kernel/power/main.c */
+extern int pm_notifier_call_chain(unsigned long val);
+#endif
 
 #ifdef CONFIG_HIGHMEM
 unsigned int count_highmem_pages(void);

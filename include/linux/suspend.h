@@ -213,17 +213,8 @@ void save_processor_state(void);
 void restore_processor_state(void);
 
 /* kernel/power/main.c */
-extern struct blocking_notifier_head pm_chain_head;
-
-static inline int register_pm_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_register(&pm_chain_head, nb);
-}
-
-static inline int unregister_pm_notifier(struct notifier_block *nb)
-{
-	return blocking_notifier_chain_unregister(&pm_chain_head, nb);
-}
+extern int register_pm_notifier(struct notifier_block *nb);
+extern int unregister_pm_notifier(struct notifier_block *nb);
 
 #define pm_notifier(fn, pri) {				\
 	static struct notifier_block fn##_nb =			\
