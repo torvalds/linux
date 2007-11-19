@@ -75,6 +75,9 @@ struct xc2028_data {
 	int			firm_size;
 	__u16			firm_version;
 
+	__u16			hwmodel;
+	__u16			hwvers;
+
 	struct xc2028_ctrl	ctrl;
 
 	struct firmware_properties cur_fw;
@@ -607,7 +610,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			  v4l2_std_id std, fe_bandwidth_t bandwidth)
 {
 	struct xc2028_data      *priv = fe->tuner_priv;
-	int			rc = 0;
+	int			rc = 0, is_retry = 0;
 	unsigned int		type = 0;
 	struct firmware_properties new_fw;
 	u16			version, hwmodel;
@@ -654,6 +657,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 		};
 	}
 
+retry:
 	new_fw.type = type;
 	new_fw.id = std;
 	new_fw.std_req = std;
@@ -739,13 +743,33 @@ skip_std_specific:
 			&new_fw.id, new_fw.scode_nr);
 
 check_device:
-	xc2028_get_reg(priv, 0x0004, &version);
-	xc2028_get_reg(priv, 0x0008, &hwmodel);
+	if (xc2028_get_reg(priv, 0x0004, &version) < 0 ||
+	    xc2028_get_reg(priv, 0x0008, &hwmodel) < 0) {
+		tuner_err("Unable to read tuner registers.\n");
+		goto fail;
+	}
 
 	tuner_info("Device is Xceive %d version %d.%d, "
 		   "firmware version %d.%d\n",
 		   hwmodel, (version & 0xf000) >> 12, (version & 0xf00) >> 8,
 		   (version & 0xf0) >> 4, version & 0xf);
+
+	/* Check firmware version against what we downloaded. */
+	if (priv->firm_version != ((version & 0xf0) << 4 | (version & 0x0f))) {
+		tuner_err("Incorrect readback of firmware version.\n");
+		goto fail;
+	}
+
+	/* Check that the tuner hardware model remains consistent over time. */
+	if (priv->hwmodel == 0 && (hwmodel == 2028 || hwmodel == 3028)) {
+		priv->hwmodel = hwmodel;
+		priv->hwvers  = version & 0xff00;
+	} else if (priv->hwmodel == 0 || priv->hwmodel != hwmodel ||
+		   priv->hwvers != (version & 0xff00)) {
+		tuner_err("Read invalid device hardware information - tuner "
+			  "hung?\n");
+		goto fail;
+	}
 
 	memcpy(&priv->cur_fw, &new_fw, sizeof(priv->cur_fw));
 
@@ -761,6 +785,13 @@ check_device:
 
 fail:
 	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
+	if (!is_retry) {
+		msleep(50);
+		is_retry = 1;
+		tuner_dbg("Retrying firmware load\n");
+		goto retry;
+	}
+
 	if (rc == -ENOENT)
 		rc = -EINVAL;
 	return rc;
