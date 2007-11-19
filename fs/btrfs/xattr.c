@@ -180,7 +180,7 @@ ssize_t btrfs_xattr_get(struct inode *inode, int name_index,
 	data_ptr = (unsigned long)((char *)(di + 1) +
 				   btrfs_dir_name_len(leaf, di));
 	read_extent_buffer(leaf, buffer, data_ptr,
-			   btrfs_dir_name_len(leaf, di));
+			   btrfs_dir_data_len(leaf, di));
 	ret = btrfs_dir_data_len(leaf, di);
 
 out:
@@ -490,7 +490,7 @@ struct xattr_handler btrfs_xattr_user_handler = {
 };
 
 struct xattr_handler btrfs_xattr_trusted_handler = {
-	.prefix = XATTR_USER_PREFIX,
+	.prefix = XATTR_TRUSTED_PREFIX,
 	.list	= btrfs_xattr_generic_list,
 	.get	= btrfs_xattr_trusted_get,
 	.set	= btrfs_xattr_trusted_set,
