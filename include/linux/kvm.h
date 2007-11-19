@@ -9,6 +9,7 @@
 
 #include <asm/types.h>
 #include <linux/ioctl.h>
+#include <asm/kvm.h>
 
 #define KVM_API_VERSION 12
 
@@ -35,13 +36,6 @@ struct kvm_userspace_memory_region {
 /* for kvm_memory_region::flags */
 #define KVM_MEM_LOG_DIRTY_PAGES  1UL
 
-struct kvm_memory_alias {
-	__u32 slot;  /* this has a different namespace than memory slots */
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size;
-	__u64 target_phys_addr;
-};
 
 /* for KVM_IRQ_LINE */
 struct kvm_irq_level {
