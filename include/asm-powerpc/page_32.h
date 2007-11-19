@@ -6,6 +6,10 @@
 
 #define PPC_MEMSTART	0
 
+#ifdef CONFIG_NOT_COHERENT_CACHE
+#define ARCH_KMALLOC_MINALIGN	L1_CACHE_BYTES
+#endif
+
 #ifndef __ASSEMBLY__
 /*
  * The basic type of a PTE - 64 bits for those CPUs with > 32 bit
