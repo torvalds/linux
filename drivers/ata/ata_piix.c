@@ -430,7 +430,7 @@ static const struct piix_map_db ich6m_map_db = {
 
 static const struct piix_map_db ich8_map_db = {
 	.mask = 0x3,
-	.port_enable = 0x3,
+	.port_enable = 0xf,
 	.map = {
 		/* PM   PS   SM   SS       MAP */
 		{  P0,  P2,  P1,  P3 }, /* 00b (hardwired when in AHCI) */
