@@ -740,7 +740,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	int		   rc = -EINVAL;
-	unsigned char	   buf[5];
+	unsigned char	   buf[4];
 	u32		   div, offset = 0;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
@@ -758,7 +758,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 		goto ret;
 
 	msleep(10);
-	tuner_dbg("should set frequency %d kHz)\n", freq / 1000);
+	tuner_dbg("should set frequency %d kHz\n", freq / 1000);
 
 	if (check_firmware(fe, new_mode, std, bandwidth) < 0)
 		goto ret;
@@ -769,7 +769,6 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 	div = (freq - offset + DIV / 2) / DIV;
 
 	/* CMD= Set frequency */
-
 	if (priv->firm_version < 0x0202)
 		rc = send_seq(priv, {0x00, 0x02, 0x00, 0x00});
 	else
@@ -787,7 +786,6 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 	buf[1] = 0xff & (div >> 16);
 	buf[2] = 0xff & (div >> 8);
 	buf[3] = 0xff & (div);
-	buf[4] = 0;
 
 	rc = i2c_send(priv, buf, sizeof(buf));
 	if (rc < 0)
@@ -796,9 +794,9 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 
 	priv->frequency = freq;
 
-	tuner_dbg("divider= %02x %02x %02x %02x (freq=%d.%02d)\n",
-	       buf[1], buf[2], buf[3], buf[4],
-	       freq / 1000000, (freq % 1000000) / 10000);
+	tuner_dbg("divisor= %02x %02x %02x %02x (freq=%d.%03d)\n",
+	       buf[0], buf[1], buf[2], buf[3],
+	       freq / 1000000, (freq % 1000000) / 1000);
 
 	rc = 0;
 
