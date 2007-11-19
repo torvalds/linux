@@ -50,8 +50,6 @@ static DEFINE_SPINLOCK(hose_spinlock);
 /* XXX kill that some day ... */
 static int global_phb_number;		/* Global phb counter */
 
-extern struct list_head hose_list;
-
 /*
  * pci_controller(phb) initialized common variables.
  */
