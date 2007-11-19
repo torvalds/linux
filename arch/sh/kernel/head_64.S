@@ -105,8 +105,8 @@ empty_zero_page:
 	.section	.data, "aw"
 	.balign	PAGE_SIZE
 
-	.global swapper_pg_dir
-swapper_pg_dir:
+	.global mmu_pdtp_cache
+mmu_pdtp_cache:
 	.space PAGE_SIZE, 0
 
 	.global empty_bad_page
