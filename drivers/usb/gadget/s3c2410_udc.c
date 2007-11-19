@@ -1511,7 +1511,11 @@ static irqreturn_t s3c2410_udc_vbus_irq(int irq, void *_dev)
 	unsigned int		value;
 
 	dprintk(DEBUG_NORMAL, "%s()\n", __func__);
+
+	/* some cpus cannot read from an line configured to IRQ! */
+	s3c2410_gpio_cfgpin(udc_info->vbus_pin, S3C2410_GPIO_INPUT);
 	value = s3c2410_gpio_getpin(udc_info->vbus_pin);
+	s3c2410_gpio_cfgpin(udc_info->vbus_pin, S3C2410_GPIO_SFN2);
 
 	if (udc_info->vbus_pin_inverted)
 		value = !value;
