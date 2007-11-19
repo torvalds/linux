@@ -145,7 +145,7 @@ static void __init ek_board_init(void)
 	at91_add_device_udc(&ek_udc_data);
 	at91_set_multi_drive(ek_udc_data.pullup_pin, 1);	/* pullup_pin is connected to reset */
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* SPI */
 	at91_add_device_spi(ek_spi_devices, ARRAY_SIZE(ek_spi_devices));
 #ifdef CONFIG_MTD_AT91_DATAFLASH_CARD

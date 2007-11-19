@@ -129,7 +129,7 @@ static void __init csb637_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&csb637_udc_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
 	/* NOR flash */
