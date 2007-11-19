@@ -1914,10 +1914,8 @@ L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 
 IMS TWINTURBO FRAMEBUFFER DRIVER
-P:	Paul Mundt
-M:	lethal@chaoticdreams.org
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
-S:	Maintained
+S:	Orphan
 
 INFINIBAND SUBSYSTEM
 P:	Roland Dreier
