@@ -52,10 +52,10 @@
 #include <asm/arch/irqs.h>
 
 #include <asm/arch/hardware.h>
-#include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-udc.h>
-#include <asm/arch/udc.h>
+
+#include <asm/plat-s3c24xx/regs-udc.h>
+#include <asm/plat-s3c24xx/udc.h>
 
 #include <asm/mach-types.h>
 
