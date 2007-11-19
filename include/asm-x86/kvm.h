@@ -135,4 +135,21 @@ struct kvm_msr_list {
 };
 
 
+struct kvm_cpuid_entry {
+	__u32 function;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding;
+};
+
+/* for KVM_SET_CPUID */
+struct kvm_cpuid {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry entries[0];
+};
+
+
 #endif
