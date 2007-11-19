@@ -1,5 +1,8 @@
-/* zd_mac.c
+/* ZD1211 USB-WLAN driver for Linux
  *
+ * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
+ * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
+ * Copyright (C) 2006-2007 Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2007 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
  *
  * This program is free software; you can redistribute it and/or modify
