@@ -22,7 +22,6 @@ extern void pci_setup_phb_io_dynamic(struct pci_controller *hose, int primary);
 
 
 extern struct list_head hose_list;
-extern int global_phb_number;
 
 extern void find_and_init_phbs(void);
 
