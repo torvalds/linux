@@ -206,3 +206,5 @@ enum {
 
 #define TEST_FIRST	TEST_NONE
 #define TEST_MAX	(__TEST_AFTER_LAST - 1)
+
+extern int pm_test_level;

@@ -70,6 +70,35 @@ void hibernation_set_ops(struct platform_hibernation_ops *ops)
 	mutex_unlock(&pm_mutex);
 }
 
+#ifdef CONFIG_PM_DEBUG
+static void hibernation_debug_sleep(void)
+{
+	printk(KERN_INFO "hibernation debug: Waiting for 5 seconds.\n");
+	mdelay(5000);
+}
+
+static int hibernation_testmode(int mode)
+{
+	if (hibernation_mode == mode) {
+		hibernation_debug_sleep();
+		return 1;
+	}
+	return 0;
+}
+
+static int hibernation_test(int level)
+{
+	if (pm_test_level == level) {
+		hibernation_debug_sleep();
+		return 1;
+	}
+	return 0;
+}
+#else /* !CONFIG_PM_DEBUG */
+static int hibernation_testmode(int mode) { return 0; }
+static int hibernation_test(int level) { return 0; }
+#endif /* !CONFIG_PM_DEBUG */
+
 /**
  *	platform_start - tell the platform driver that we're starting
  *	hibernation
@@ -167,6 +196,10 @@ int create_image(int platform_mode)
 		goto Enable_irqs;
 	}
 
+	if (hibernation_test(TEST_CORE))
+		goto Power_up;
+
+	in_suspend = 1;
 	save_processor_state();
 	error = swsusp_arch_suspend();
 	if (error)
@@ -175,6 +208,7 @@ int create_image(int platform_mode)
 	restore_processor_state();
 	if (!in_suspend)
 		platform_leave(platform_mode);
+ Power_up:
 	/* NOTE:  device_power_up() is just a resume() for devices
 	 * that suspended with irqs off ... no overall powerup.
 	 */
@@ -211,24 +245,29 @@ int hibernation_snapshot(int platform_mode)
 	if (error)
 		goto Resume_console;
 
-	error = platform_pre_snapshot(platform_mode);
-	if (error)
+	if (hibernation_test(TEST_DEVICES))
 		goto Resume_devices;
+
+	error = platform_pre_snapshot(platform_mode);
+	if (error || hibernation_test(TEST_PLATFORM))
+		goto Finish;
 
 	error = disable_nonboot_cpus();
 	if (!error) {
-		if (hibernation_mode != HIBERNATION_TEST) {
-			in_suspend = 1;
-			error = create_image(platform_mode);
-			/* Control returns here after successful restore */
-		} else {
-			printk("swsusp debug: Waiting for 5 seconds.\n");
-			mdelay(5000);
-		}
+		if (hibernation_test(TEST_CPUS))
+			goto Enable_cpus;
+
+		if (hibernation_testmode(HIBERNATION_TEST))
+			goto Enable_cpus;
+
+		error = create_image(platform_mode);
+		/* Control returns here after successful restore */
 	}
+ Enable_cpus:
 	enable_nonboot_cpus();
- Resume_devices:
+ Finish:
 	platform_finish(platform_mode);
+ Resume_devices:
 	device_resume();
  Resume_console:
 	resume_console();
@@ -406,11 +445,12 @@ int hibernate(void)
 	if (error)
 		goto Finish;
 
-	if (hibernation_mode == HIBERNATION_TESTPROC) {
-		printk("swsusp debug: Waiting for 5 seconds.\n");
-		mdelay(5000);
+	if (hibernation_test(TEST_FREEZER))
 		goto Thaw;
-	}
+
+	if (hibernation_testmode(HIBERNATION_TESTPROC))
+		goto Thaw;
+
 	error = hibernation_snapshot(hibernation_mode == HIBERNATION_PLATFORM);
 	if (in_suspend && !error) {
 		unsigned int flags = 0;
