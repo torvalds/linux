@@ -120,6 +120,8 @@ struct s3c2410_nand_info {
 	int				sel_bit;
 	int				mtd_count;
 
+	unsigned long			save_nfconf;
+
 	enum s3c_cpu_type		cpu_type;
 };
 
@@ -810,6 +812,16 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
 
 	if (info) {
+		info->save_nfconf = readl(info->regs + S3C2410_NFCONF);
+
+		/* For the moment, we must ensure nFCE is high during
+		 * the time we are suspended. This really should be
+		 * handled by suspending the MTDs we are using, but
+		 * that is currently not the case. */
+
+		writel(info->save_nfconf | info->sel_bit,
+		       info->regs + S3C2410_NFCONF);
+
 		if (!allow_clk_stop(info))
 			clk_disable(info->clk);
 	}
@@ -820,10 +832,18 @@ static int s3c24xx_nand_suspend(struct platform_device *dev, pm_message_t pm)
 static int s3c24xx_nand_resume(struct platform_device *dev)
 {
 	struct s3c2410_nand_info *info = platform_get_drvdata(dev);
+	unsigned long nfconf;
 
 	if (info) {
 		clk_enable(info->clk);
 		s3c2410_nand_inithw(info, dev);
+
+		/* Restore the state of the nFCE line. */
+
+		nfconf = readl(info->regs + S3C2410_NFCONF);
+		nfconf &= ~info->sel_bit;
+		nfconf |= info->save_nfconf & info->sel_bit;
+		writel(nfconf, info->regs + S3C2410_NFCONF);
 
 		if (allow_clk_stop(info))
 			clk_disable(info->clk);
