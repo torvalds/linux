@@ -66,4 +66,14 @@ struct kvm_ioapic_state {
 #define KVM_IRQCHIP_PIC_SLAVE    1
 #define KVM_IRQCHIP_IOAPIC       2
 
+/* for KVM_GET_REGS and KVM_SET_REGS */
+struct kvm_regs {
+	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
+	__u64 rax, rbx, rcx, rdx;
+	__u64 rsi, rdi, rsp, rbp;
+	__u64 r8,  r9,  r10, r11;
+	__u64 r12, r13, r14, r15;
+	__u64 rip, rflags;
+};
+
 #endif
