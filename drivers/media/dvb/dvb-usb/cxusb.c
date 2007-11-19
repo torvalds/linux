@@ -98,8 +98,21 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 				break;
 			}
 
-		/* read request */
-		if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
+		if (msg[i].flags & I2C_M_RD) {
+			/* read only */
+			u8 obuf[3], ibuf[1+msg[i].len];
+			obuf[0] = 0;
+			obuf[1] = msg[i].len;
+			obuf[2] = msg[i].addr;
+			if (cxusb_ctrl_msg(d, CMD_I2C_READ,
+					   obuf, 3,
+					   ibuf, 1+msg[i].len) < 0) {
+				warn("i2c read failed");
+				break;
+			}
+			memcpy(msg[i].buf, &ibuf[1], msg[i].len);
+		} else if (i+1 < num && (msg[i+1].flags & I2C_M_RD)) {
+			/* write then read */
 			u8 obuf[3+msg[i].len], ibuf[1+msg[i+1].len];
 			obuf[0] = msg[i].len;
 			obuf[1] = msg[i+1].len;
@@ -117,7 +130,8 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			memcpy(msg[i+1].buf, &ibuf[1], msg[i+1].len);
 
 			i++;
-		} else { /* write */
+		} else {
+			/* write only */
 			u8 obuf[2+msg[i].len], ibuf;
 			obuf[0] = msg[i].addr;
 			obuf[1] = msg[i].len;
