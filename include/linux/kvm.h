@@ -13,9 +13,6 @@
 
 #define KVM_API_VERSION 12
 
-/* Architectural interrupt line count. */
-#define KVM_NR_INTERRUPTS 256
-
 /* for KVM_CREATE_MEMORY_REGION */
 struct kvm_memory_region {
 	__u32 slot;
@@ -150,39 +147,6 @@ struct kvm_fpu {
 	__u32 pad2;
 };
 
-
-
-/* for KVM_GET_SREGS and KVM_SET_SREGS */
-struct kvm_sregs {
-	/* out (KVM_GET_SREGS) / in (KVM_SET_SREGS) */
-	struct kvm_segment cs, ds, es, fs, gs, ss;
-	struct kvm_segment tr, ldt;
-	struct kvm_dtable gdt, idt;
-	__u64 cr0, cr2, cr3, cr4, cr8;
-	__u64 efer;
-	__u64 apic_base;
-	__u64 interrupt_bitmap[(KVM_NR_INTERRUPTS + 63) / 64];
-};
-
-struct kvm_msr_entry {
-	__u32 index;
-	__u32 reserved;
-	__u64 data;
-};
-
-/* for KVM_GET_MSRS and KVM_SET_MSRS */
-struct kvm_msrs {
-	__u32 nmsrs; /* number of msrs in entries */
-	__u32 pad;
-
-	struct kvm_msr_entry entries[0];
-};
-
-/* for KVM_GET_MSR_INDEX_LIST */
-struct kvm_msr_list {
-	__u32 nmsrs; /* number of msrs in entries */
-	__u32 indices[0];
-};
 
 /* for KVM_TRANSLATE */
 struct kvm_translation {
