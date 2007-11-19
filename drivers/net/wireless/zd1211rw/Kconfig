@@ -1,14 +1,13 @@
 config ZD1211RW
 	tristate "ZyDAS ZD1211/ZD1211B USB-wireless support"
-	depends on USB && IEEE80211_SOFTMAC && WLAN_80211 && EXPERIMENTAL
-	select WIRELESS_EXT
+	depends on USB && MAC80211 && WLAN_80211 && EXPERIMENTAL
 	select FW_LOADER
 	---help---
 	  This is an experimental driver for the ZyDAS ZD1211/ZD1211B wireless
 	  chip, present in many USB-wireless adapters.
 
-	  Device firmware is required alongside this driver. You can download the
-	  firmware distribution from http://zd1211.ath.cx/get-firmware
+	  Device firmware is required alongside this driver. You can download
+	  the firmware distribution from http://zd1211.ath.cx/get-firmware
 
 config ZD1211RW_DEBUG
 	bool "ZyDAS ZD1211 debugging"
