@@ -37,7 +37,6 @@
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
-#include <asm/smp.h>
 #include <asm/time.h>
 
 #ifdef CONFIG_MIPS_MT_SMTC
@@ -84,6 +83,16 @@ static inline void set_cpu_sibling_map(int cpu)
 		cpu_set(cpu, cpu_sibling_map[cpu]);
 }
 
+struct plat_smp_ops *mp_ops;
+
+__cpuinit void register_smp_ops(struct plat_smp_ops *ops)
+{
+	if (ops)
+		printk(KERN_WARNING "Overriding previous set SMP ops\n");
+
+	mp_ops = ops;
+}
+
 /*
  * First C code run on the secondary CPUs after being started up by
  * the master.
@@ -100,7 +109,7 @@ asmlinkage __cpuinit void start_secondary(void)
 	cpu_report();
 	per_cpu_trap_init();
 	mips_clockevent_init();
-	prom_init_secondary();
+	mp_ops->init_secondary();
 
 	/*
 	 * XXX parity protection should be folded in here when it's converted
@@ -112,7 +121,7 @@ asmlinkage __cpuinit void start_secondary(void)
 	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
-	prom_smp_finish();
+	mp_ops->smp_finish();
 	set_cpu_sibling_map(cpu);
 
 	cpu_set(cpu, cpu_callin_map);
@@ -184,7 +193,7 @@ int smp_call_function_mask(cpumask_t mask, void (*func) (void *info),
 	smp_mb();
 
 	/* Send a message to all other CPUs and wait for them to respond */
-	core_send_ipi_mask(mask, SMP_CALL_FUNCTION);
+	mp_ops->send_ipi_mask(mask, SMP_CALL_FUNCTION);
 
 	/* Wait for response */
 	/* FIXME: lock-up detection, backtrace on lock-up */
@@ -278,7 +287,7 @@ void smp_send_stop(void)
 
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-	prom_cpus_done();
+	mp_ops->cpus_done();
 }
 
 /* called from main before smp_init() */
@@ -286,7 +295,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	init_new_context(current, &init_mm);
 	current_thread_info()->cpu = 0;
-	plat_prepare_cpus(max_cpus);
+	mp_ops->prepare_cpus(max_cpus);
 	set_cpu_sibling_map(0);
 #ifndef CONFIG_HOTPLUG_CPU
 	cpu_present_map = cpu_possible_map;
@@ -325,7 +334,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	if (IS_ERR(idle))
 		panic(KERN_ERR "Fork failed for CPU %d", cpu);
 
-	prom_boot_secondary(cpu, idle);
+	mp_ops->boot_secondary(cpu, idle);
 
 	/*
 	 * Trust is futile.  We should really have timeouts ...

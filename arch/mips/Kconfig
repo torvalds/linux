@@ -1441,6 +1441,7 @@ config MIPS_MT_SMP
 	select SMP
 	select SYS_SUPPORTS_SCHED_SMT if SMP
 	select SYS_SUPPORTS_SMP
+	select SMP_UP
 	help
 	  This is a kernel model which is also known a VSMP or lately
 	  has been marketesed into SMVP.
@@ -1457,6 +1458,7 @@ config MIPS_MT_SMTC
 	select NR_CPUS_DEFAULT_8
 	select SMP
 	select SYS_SUPPORTS_SMP
+	select SMP_UP
 	help
 	  This is a kernel model which is known a SMTC or lately has been
 	  marketesed into SMVP.
@@ -1734,6 +1736,9 @@ config SMP
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config SMP_UP
+	bool
 
 config SYS_SUPPORTS_SMP
 	bool

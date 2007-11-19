@@ -29,6 +29,7 @@
 #include <asm/cpu.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/smp-ops.h>
 #include <asm/system.h>
 
 struct cpuinfo_mips cpu_data[NR_CPUS] __read_mostly;
@@ -575,9 +576,7 @@ void __init setup_arch(char **cmdline_p)
 	arch_mem_init(cmdline_p);
 
 	resource_init();
-#ifdef CONFIG_SMP
 	plat_smp_setup();
-#endif
 }
 
 static int __init fpu_disable(char *s)

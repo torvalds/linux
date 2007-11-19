@@ -27,7 +27,6 @@
 #include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
 #include <asm/current.h>
-#include <asm/smp.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 #include <asm/thread_info.h>
