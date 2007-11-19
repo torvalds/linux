@@ -83,31 +83,35 @@ struct xc2028_data {
 	struct mutex lock;
 };
 
-#define i2c_send(rc, priv, buf, size) do {				\
-	rc = tuner_i2c_xfer_send(&priv->i2c_props, buf, size);		\
-	if (size != rc)							\
-		tuner_err("i2c output error: rc = %d (should be %d)\n",	\
-			   rc, (int)size);				\
-} while (0)
+#define i2c_send(priv, buf, size) ({					\
+	int _rc;							\
+	_rc = tuner_i2c_xfer_send(&priv->i2c_props, buf, size);		\
+	if (size != _rc)						\
+		tuner_info("i2c output error: rc = %d (should be %d)\n",\
+			   _rc, (int)size);				\
+	_rc;								\
+})
 
-#define i2c_rcv(rc, priv, buf, size) do {				\
-	rc = tuner_i2c_xfer_recv(&priv->i2c_props, buf, size);		\
-	if (size != rc)							\
+#define i2c_rcv(priv, buf, size) ({					\
+	int _rc;							\
+	_rc = tuner_i2c_xfer_recv(&priv->i2c_props, buf, size);		\
+	if (size != _rc)						\
 		tuner_err("i2c input error: rc = %d (should be %d)\n",	\
-			   rc, (int)size); 				\
-} while (0)
+			   _rc, (int)size); 				\
+	_rc;								\
+})
 
-#define send_seq(priv, data...)	do {					\
-	int rc;								\
+#define send_seq(priv, data...)	({					\
 	static u8 _val[] = data;					\
+	int _rc;							\
 	if (sizeof(_val) !=						\
-			(rc = tuner_i2c_xfer_send(&priv->i2c_props,	\
+			(_rc = tuner_i2c_xfer_send(&priv->i2c_props,	\
 						_val, sizeof(_val)))) {	\
-		tuner_err("Error on line %d: %d\n", __LINE__, rc);	\
-		return -EINVAL;						\
-	}								\
-	msleep(10);							\
-} while (0)
+		tuner_err("Error on line %d: %d\n", __LINE__, _rc);	\
+	} else 								\
+		msleep(10);						\
+	_rc;								\
+})
 
 static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
 {
@@ -119,11 +123,11 @@ static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg)
 	buf[0] = reg>>8;
 	buf[1] = (unsigned char) reg;
 
-	i2c_send(rc, priv, buf, 2);
+	rc = i2c_send(priv, buf, 2);
 	if (rc < 0)
 		return rc;
 
-	i2c_rcv(rc, priv, buf, 2);
+	rc = i2c_rcv(priv, buf, 2);
 	if (rc < 0)
 		return rc;
 
@@ -505,7 +509,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 
 			memcpy(buf + 1, p, len);
 
-			i2c_send(rc, priv, buf, len + 1);
+			rc = i2c_send(priv, buf, len + 1);
 			if (rc < 0) {
 				tuner_err("%d returned from send\n", rc);
 				return -EINVAL;
@@ -541,15 +545,20 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	if ((priv->firm[pos].size != 12 * 16) || (scode >= 16))
 		return -EINVAL;
 
-	if (priv->version < 0x0202) {
-		send_seq(priv, {0x20, 0x00, 0x00, 0x00});
-	} else {
-		send_seq(priv, {0xa0, 0x00, 0x00, 0x00});
-	}
+	if (priv->version < 0x0202)
+		rc = send_seq(priv, {0x20, 0x00, 0x00, 0x00});
+	else
+		rc = send_seq(priv, {0xa0, 0x00, 0x00, 0x00});
+	if (rc < 0)
+		return -EIO;
 
-	i2c_send(rc, priv, p + 12 * scode, 12);
+	rc = i2c_send(priv, p + 12 * scode, 12);
+	if (rc < 0)
+		return -EIO;
 
-	send_seq(priv, {0x00, 0x8c});
+	rc = send_seq(priv, {0x00, 0x8c});
+	if (rc < 0)
+		return -EIO;
 
 	return 0;
 }
@@ -766,11 +775,12 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 
 	/* CMD= Set frequency */
 
-	if (priv->version < 0x0202) {
-		send_seq(priv, {0x00, 0x02, 0x00, 0x00});
-	} else {
-		send_seq(priv, {0x80, 0x02, 0x00, 0x00});
-	}
+	if (priv->version < 0x0202)
+		rc = send_seq(priv, {0x00, 0x02, 0x00, 0x00});
+	else
+		rc = send_seq(priv, {0x80, 0x02, 0x00, 0x00});
+	if (rc < 0)
+		goto ret;
 
 	rc = priv->tuner_callback(priv->video_dev, XC2028_RESET_CLK, 1);
 	if (rc < 0)
@@ -784,7 +794,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 	buf[3] = 0xff & (div);
 	buf[4] = 0;
 
-	i2c_send(rc, priv, buf, sizeof(buf));
+	rc = i2c_send(priv, buf, sizeof(buf));
 	if (rc < 0)
 		goto ret;
 	msleep(100);
