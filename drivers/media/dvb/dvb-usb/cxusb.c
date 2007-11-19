@@ -132,7 +132,7 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 	}
 
 	mutex_unlock(&d->i2c_mutex);
-	return i;
+	return i == num ? num : -EREMOTEIO;
 }
 
 static u32 cxusb_i2c_func(struct i2c_adapter *adapter)
