@@ -110,7 +110,7 @@ struct extent_map *alloc_extent_map(gfp_t mask);
 void free_extent_map(struct extent_map *em);
 int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 			  get_extent_t *get_extent);
-void __init extent_map_init(void);
+int __init extent_map_init(void);
 void __exit extent_map_exit(void);
 
 int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,

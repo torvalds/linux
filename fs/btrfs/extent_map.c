@@ -42,18 +42,30 @@ struct extent_page_data {
 	struct extent_map_tree *tree;
 	get_extent_t *get_extent;
 };
-
-void __init extent_map_init(void)
+int __init extent_map_init(void)
 {
 	extent_map_cache = btrfs_cache_create("extent_map",
 					    sizeof(struct extent_map), 0,
 					    NULL);
+	if (!extent_map_cache)
+		return -ENOMEM;
 	extent_state_cache = btrfs_cache_create("extent_state",
 					    sizeof(struct extent_state), 0,
 					    NULL);
+	if (!extent_state_cache)
+		goto free_map_cache;
 	extent_buffer_cache = btrfs_cache_create("extent_buffers",
 					    sizeof(struct extent_buffer), 0,
 					    NULL);
+	if (!extent_buffer_cache)
+		goto free_state_cache;
+	return 0;
+
+free_state_cache:
+	kmem_cache_destroy(extent_state_cache);
+free_map_cache:
+	kmem_cache_destroy(extent_map_cache);
+	return -ENOMEM;
 }
 
 void __exit extent_map_exit(void)
