@@ -108,13 +108,13 @@ static unsigned long iSeries_process_Condor_mainstore_vpd(
 	 * correctly.
 	 */
 	mb_array[0].logicalStart = 0;
-	mb_array[0].logicalEnd = 0x100000000;
+	mb_array[0].logicalEnd = 0x100000000UL;
 	mb_array[0].absStart = 0;
-	mb_array[0].absEnd = 0x100000000;
+	mb_array[0].absEnd = 0x100000000UL;
 
 	if (holeSize) {
 		numMemoryBlocks = 2;
-		holeStart = holeStart & 0x000fffffffffffff;
+		holeStart = holeStart & 0x000fffffffffffffUL;
 		holeStart = addr_to_chunk(holeStart);
 		holeFirstChunk = holeStart;
 		holeSize = addr_to_chunk(holeSize);
@@ -124,9 +124,9 @@ static unsigned long iSeries_process_Condor_mainstore_vpd(
 		mb_array[0].logicalEnd = holeFirstChunk;
 		mb_array[0].absEnd = holeFirstChunk;
 		mb_array[1].logicalStart = holeFirstChunk;
-		mb_array[1].logicalEnd = 0x100000000 - holeSizeChunks;
+		mb_array[1].logicalEnd = 0x100000000UL - holeSizeChunks;
 		mb_array[1].absStart = holeFirstChunk + holeSizeChunks;
-		mb_array[1].absEnd = 0x100000000;
+		mb_array[1].absEnd = 0x100000000UL;
 	}
 	return numMemoryBlocks;
 }
@@ -230,9 +230,9 @@ static unsigned long iSeries_process_Regatta_mainstore_vpd(
 				mb_array[i].logicalEnd,
 				mb_array[i].absStart, mb_array[i].absEnd);
 		mb_array[i].absStart = addr_to_chunk(mb_array[i].absStart &
-				0x000fffffffffffff);
+				0x000fffffffffffffUL);
 		mb_array[i].absEnd = addr_to_chunk(mb_array[i].absEnd &
-				0x000fffffffffffff);
+				0x000fffffffffffffUL);
 		mb_array[i].logicalStart =
 			addr_to_chunk(mb_array[i].logicalStart);
 		mb_array[i].logicalEnd = addr_to_chunk(mb_array[i].logicalEnd);
@@ -316,7 +316,7 @@ struct mschunks_map mschunks_map = {
 };
 EXPORT_SYMBOL(mschunks_map);
 
-void mschunks_alloc(unsigned long num_chunks)
+static void mschunks_alloc(unsigned long num_chunks)
 {
 	klimit = _ALIGN(klimit, sizeof(u32));
 	mschunks_map.mapping = (u32 *)klimit;
