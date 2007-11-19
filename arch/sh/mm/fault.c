@@ -304,14 +304,6 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 		entry = pte_mkdirty(entry);
 	entry = pte_mkyoung(entry);
 
-#ifdef CONFIG_CPU_SH4
-	/*
-	 * ITLB is not affected by "ldtlb" instruction.
-	 * So, we need to flush the entry by ourselves.
-	 */
-	local_flush_tlb_one(get_asid(), address & PAGE_MASK);
-#endif
-
 	set_pte(pte, entry);
 	update_mmu_cache(NULL, address, entry);
 	ret = 0;
