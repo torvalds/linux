@@ -44,9 +44,30 @@ config PM_VERBOSE
 	---help---
 	This option enables verbose messages from the Power Management code.
 
+config CAN_PM_TRACE
+	def_bool y
+	depends on PM_DEBUG && PM_SLEEP && EXPERIMENTAL
+
 config PM_TRACE
+	bool
+	help
+	  This enables code to save the last PM event point across
+	  reboot. The architecture needs to support this, x86 for
+	  example does by saving things in the RTC, see below.
+
+	  The architecture specific code must provide the extern
+	  functions from <linux/resume-trace.h> as well as the
+	  <asm/resume-trace.h> header with a TRACE_RESUME() macro.
+
+	  The way the information is presented is architecture-
+	  dependent, x86 will print the information during a
+	  late_initcall.
+
+config PM_TRACE_RTC
 	bool "Suspend/resume event tracing"
-	depends on PM_DEBUG && X86 && PM_SLEEP && EXPERIMENTAL
+	depends on CAN_PM_TRACE
+	depends on X86
+	select PM_TRACE
 	default n
 	---help---
 	This enables some cheesy code to save the last PM event point in the
