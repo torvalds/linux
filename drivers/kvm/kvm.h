@@ -135,15 +135,15 @@ struct kvm_mmu {
 
 #define KVM_NR_MEM_OBJS 40
 
+/*
+ * We don't want allocation failures within the mmu code, so we preallocate
+ * enough memory for a single page fault in a cache.
+ */
 struct kvm_mmu_memory_cache {
 	int nobjs;
 	void *objects[KVM_NR_MEM_OBJS];
 };
 
-/*
- * We don't want allocation failures within the mmu code, so we preallocate
- * enough memory for a single page fault in a cache.
- */
 struct kvm_guest_debug {
 	int enabled;
 	unsigned long bp[4];
