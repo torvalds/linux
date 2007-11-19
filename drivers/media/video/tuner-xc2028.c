@@ -330,7 +330,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 			dump_firm_type(type);
 			printk("(%x), id %llx is corrupted "
 			       "(size=%d, expected %d)\n",
-			       type, id,
+			       type, (unsigned long long)id,
 			       (unsigned)(endp - p), size);
 			goto corrupt;
 		}
@@ -343,8 +343,8 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		}
 		tuner_info("Reading firmware type ");
 		dump_firm_type(type);
-		printk("(%x), id %lx, size=%d.\n",
-			   type, (unsigned long)id, size);
+		printk("(%x), id %llx, size=%d.\n",
+			   type, (unsigned long long)id, size);
 
 		memcpy(priv->firm[n].ptr, p, size);
 		priv->firm[n].type = type;
@@ -417,7 +417,7 @@ ret:
 	tuner_dbg("%s firmware for type=", (i < 0)? "Can't find": "Found");
 	if (debug) {
 		dump_firm_type(type);
-		printk("(%x), id %08lx.\n", type, (unsigned long)*id);
+		printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
 	}
 	return i;
 }
@@ -437,7 +437,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	tuner_info("Loading firmware for type=");
 	dump_firm_type(type);
-	printk("(%x), id %08lx.\n", type, (unsigned long)*id);
+	printk("(%x), id %016llx.\n", type, (unsigned long long)*id);
 
 	p = priv->firm[pos].ptr;
 
