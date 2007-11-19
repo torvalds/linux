@@ -374,42 +374,6 @@ static int stac92xx_aloopback_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static int stac92xx_volknob_info(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 1;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = 127;
-	return 0;
-}
-
-static int stac92xx_volknob_get(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = kcontrol->private_value & 0xff;
-	return 0;
-}
-
-static int stac92xx_volknob_put(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int oval = kcontrol->private_value & 0xff;
-	unsigned int val;
-
-	val = ucontrol->value.integer.value[0] & 0xff;
-	if (val == oval)
-		return 0;
-
-	kcontrol->private_value &= ~0xff;
-	kcontrol->private_value |= val;
-
-	snd_hda_codec_write_cache(codec, kcontrol->private_value >> 16, 0,
-		AC_VERB_SET_VOLUME_KNOB_CONTROL, val | 0x80);
-	return 1;
-}
-
 static struct hda_verb stac9200_core_init[] = {
 	/* set dac0mux for dac converter */
 	{ 0x07, AC_VERB_SET_CONNECT_SEL, 0x00},
@@ -507,17 +471,6 @@ static struct hda_verb stac9205_core_init[] = {
 		.private_value = verb_read | (verb_write << 16), \
 	}
 
-#define STAC_VOLKNOB(knob_nid)	\
-	{ \
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-		.name  = "Master Playback Volume", \
-		.count = 1, \
-		.info  = stac92xx_volknob_info, \
-		.get   = stac92xx_volknob_get, \
-		.put   = stac92xx_volknob_put, \
-			.private_value = 127 | (knob_nid << 16), \
-	}
-
 static struct snd_kcontrol_new stac9200_mixer[] = {
 	HDA_CODEC_VOLUME("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
@@ -531,7 +484,6 @@ static struct snd_kcontrol_new stac9200_mixer[] = {
 static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
 	STAC_DIGITAL_INPUT_SOURCE(1),
 	STAC_INPUT_SOURCE(2),
-	STAC_VOLKNOB(0x28),
 
 	/* hardware gain controls */
 	HDA_CODEC_VOLUME_IDX("Digital Mic Volume", 0x0, 0x18, 0x0, HDA_OUTPUT),
