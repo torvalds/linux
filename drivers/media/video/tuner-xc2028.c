@@ -929,6 +929,28 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 
 }
 
+static int xc2028_sleep(struct dvb_frontend *fe)
+{
+	struct xc2028_data *priv = fe->tuner_priv;
+	int rc = 0;
+
+	tuner_dbg("%s called\n", __FUNCTION__);
+
+	mutex_lock(&priv->lock);
+
+	if (priv->firm_version < 0x0202)
+		rc = send_seq(priv, {0x00, 0x08, 0x00, 0x00});
+	else
+		rc = send_seq(priv, {0x80, 0x08, 0x00, 0x00});
+
+	priv->cur_fw.type = 0;	/* need firmware reload */
+
+	mutex_unlock(&priv->lock);
+
+	return rc;
+}
+
+
 static int xc2028_dvb_release(struct dvb_frontend *fe)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
@@ -1009,6 +1031,7 @@ static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 	.get_frequency     = xc2028_get_frequency,
 	.get_rf_strength   = xc2028_signal,
 	.set_params        = xc2028_set_params,
+	.sleep             = xc2028_sleep,
 
 };
 
