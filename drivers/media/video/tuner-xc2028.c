@@ -928,13 +928,13 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 	void               *video_dev;
 
 	if (debug)
-		printk(KERN_DEBUG PREFIX "Xcv2028/3028 init called!\n");
+		printk(KERN_DEBUG PREFIX ": Xcv2028/3028 init called!\n");
 
 	if (NULL == cfg->video_dev)
 		return NULL;
 
 	if (!fe) {
-		printk(KERN_ERR PREFIX "No frontend!\n");
+		printk(KERN_ERR PREFIX ": No frontend!\n");
 		return NULL;
 	}
 
