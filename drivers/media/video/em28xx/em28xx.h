@@ -48,6 +48,7 @@
 #define EM2880_BOARD_TERRATEC_PRODIGY_XS	13
 #define EM2820_BOARD_PROLINK_PLAYTV_USB2	14
 #define EM2800_BOARD_VGEAR_POCKETTV             15
+#define EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950	16
 
 #define UNSET -1
 
@@ -177,6 +178,7 @@ struct em28xx_board {
 	unsigned int has_msp34xx:1;
 
 	enum em28xx_decoder decoder;
+	int xc2028_type;
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 };

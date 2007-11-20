@@ -149,7 +149,29 @@ struct em28xx_board em28xx_boards[] = {
 		}},
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
-		.name         = "Hauppauge WinTV HVR 900/950",
+		.name         = "Hauppauge WinTV HVR 900",
+		.vchannels    = 3,
+		.tda9887_conf = TDA9887_PRESENT,
+		.tuner_type   = TUNER_XC2028,
+		.has_tuner    = 1,
+		.xc2028_type  = XC2028_FIRM_MTS,
+		.decoder      = EM28XX_TVP5150,
+		.input          = {{
+			.type     = EM28XX_VMUX_TELEVISION,
+			.vmux     = TVP5150_COMPOSITE0,
+			.amux     = 0,
+		},{
+			.type     = EM28XX_VMUX_COMPOSITE1,
+			.vmux     = TVP5150_COMPOSITE1,
+			.amux     = 1,
+		},{
+			.type     = EM28XX_VMUX_SVIDEO,
+			.vmux     = TVP5150_SVIDEO,
+			.amux     = 1,
+		}},
+	},
+	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
+		.name         = "Hauppauge WinTV HVR 950",
 		.vchannels    = 3,
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
@@ -376,7 +398,7 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0x2040, 0x4200), .driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
 	{ USB_DEVICE(0x2304, 0x0207), .driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x2040, 0x6500), .driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
-	{ USB_DEVICE(0x2040, 0x6513), .driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
+	{ USB_DEVICE(0x2040, 0x6513), .driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
 	{ USB_DEVICE(0x0ccd, 0x0042), .driver_info = EM2880_BOARD_TERRATEC_HYBRID_XS },
 	{ USB_DEVICE(0x0ccd, 0x0047), .driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ },
@@ -404,6 +426,7 @@ void em28xx_pre_card_setup(struct em28xx *dev)
 	switch(dev->model){
 	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_TERRATEC_HYBRID_XS:
 		/* reset through GPIO? */
 		em28xx_write_regs_req(dev, 0x00, 0x08, "\x7d", 1);
@@ -453,6 +476,7 @@ static void em28xx_config_tuner (struct em28xx *dev)
 
 		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
 		ctl.max_len = 64;
+		ctl.type = em28xx_boards[dev->model].xc2028_type;
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
@@ -574,6 +598,7 @@ void em28xx_card_setup(struct em28xx *dev)
 	switch (dev->model) {
 	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
+	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	{
 		struct tveeprom tv;
 #ifdef CONFIG_MODULES
