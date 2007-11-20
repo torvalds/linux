@@ -83,18 +83,21 @@ static void ccid3_hc_tx_set_state(struct sock *sk,
 }
 
 /*
- * Compute the initial sending rate X_init according to RFC 3390:
- *	w_init   =    min(4 * MSS, max(2 * MSS, 4380 bytes))
- *	X_init   =    w_init / RTT
+ * Compute the initial sending rate X_init in the manner of RFC 3390:
+ *
+ *	X_init  =  min(4 * s, max(2 * s, 4380 bytes)) / RTT
+ *
+ * Note that RFC 3390 uses MSS, RFC 4342 refers to RFC 3390, and rfc3448bis
+ * (rev-02) clarifies the use of RFC 3390 with regard to the above formula.
  * For consistency with other parts of the code, X_init is scaled by 2^6.
  */
 static inline u64 rfc3390_initial_rate(struct sock *sk)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	const __u32 w_init = min(4 * dp->dccps_mss_cache,
-				 max(2 * dp->dccps_mss_cache, 4380U));
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
+	const __u32 w_init = min_t(__u32, 4 * hctx->ccid3hctx_s,
+				   max_t(__u32, 2 * hctx->ccid3hctx_s, 4380));
 
-	return scaled_div(w_init << 6, ccid3_hc_tx_sk(sk)->ccid3hctx_rtt);
+	return scaled_div(w_init << 6, hctx->ccid3hctx_rtt);
 }
 
 /*
@@ -336,8 +339,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
 			hctx->ccid3hctx_t_ld = now;
 		} else {
-			/* Sender does not have RTT sample: X = MSS/second */
-			hctx->ccid3hctx_x = dp->dccps_mss_cache;
+			/* Sender does not have RTT sample: X_pps = 1 pkt/sec */
+			hctx->ccid3hctx_x = hctx->ccid3hctx_s;
 			hctx->ccid3hctx_x <<= 6;
 		}
 		ccid3_update_send_interval(hctx);
