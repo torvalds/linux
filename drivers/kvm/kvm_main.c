@@ -769,6 +769,10 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 
 	preempt_notifier_init(&vcpu->preempt_notifier, &kvm_preempt_ops);
 
+	r = kvm_arch_vcpu_setup(vcpu);
+	if (r)
+		goto vcpu_destroy;
+
 	mutex_lock(&kvm->lock);
 	if (kvm->vcpus[n]) {
 		r = -EEXIST;
