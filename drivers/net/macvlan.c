@@ -73,8 +73,6 @@ static void macvlan_broadcast(struct sk_buff *skb,
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++) {
 		hlist_for_each_entry_rcu(vlan, n, &port->vlan_hash[i], hlist) {
 			dev = vlan->dev;
-			if (unlikely(!(dev->flags & IFF_UP)))
-				continue;
 
 			nskb = skb_clone(skb, GFP_ATOMIC);
 			if (nskb == NULL) {
