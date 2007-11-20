@@ -739,6 +739,7 @@ flush_thread (void)
 		ia32_drop_ia64_partial_page_list(current);
 		current->thread.task_size = IA32_PAGE_OFFSET;
 		set_fs(USER_DS);
+		memset(current->thread.tls_array, 0, sizeof(current->thread.tls_array));
 	}
 #endif
 }
