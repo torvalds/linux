@@ -98,6 +98,11 @@ static void cxusb_bluebird_gpio_pulse(struct dvb_usb_device *d, u8 pin, int low)
 	cxusb_bluebird_gpio_rw(d, pin, low ? pin : 0);
 }
 
+static void cxusb_nano2_led(struct dvb_usb_device *d, int onoff)
+{
+	cxusb_bluebird_gpio_rw(d, 0x40, onoff ? 0 : 0x40);
+}
+
 /* I2C */
 static int cxusb_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 			  int num)
@@ -198,6 +203,17 @@ static int cxusb_bluebird_power_ctrl(struct dvb_usb_device *d, int onoff)
 		return cxusb_ctrl_msg(d, CMD_POWER_ON, &b, 1, NULL, 0);
 	else
 		return 0;
+}
+
+static int cxusb_nano2_power_ctrl(struct dvb_usb_device *d, int onoff)
+{
+	int rc = 0;
+
+	rc = cxusb_power_ctrl(d, onoff);
+	if (!onoff)
+		cxusb_nano2_led(d, 0);
+
+	return rc;
 }
 
 static int cxusb_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
@@ -606,6 +622,26 @@ no_IR:
 	return 0;
 }
 
+static int cxusb_nano2_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	if (usb_set_interface(adap->dev->udev, 0, 1) < 0)
+		err("set interface failed");
+
+	cxusb_ctrl_msg(adap->dev, CMD_DIGITAL, NULL, 0, NULL, 0);
+
+	/* reset the tuner and demodulator */
+	cxusb_bluebird_gpio_rw(adap->dev, 0x04, 0);
+	cxusb_bluebird_gpio_pulse(adap->dev, 0x01, 1);
+	cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1);
+
+	if ((adap->fe = dvb_attach(zl10353_attach,
+				   &cxusb_zl10353_xc3028_config,
+				   &adap->dev->i2c_adap)) != NULL)
+		return 0;
+
+	return -EIO;
+}
+
 /*
  * DViCO bluebird firmware needs the "warm" product ID to be patched into the
  * firmware file before download.
@@ -639,6 +675,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_lgz201_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties;
+static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -648,7 +685,8 @@ static int cxusb_probe(struct usb_interface *intf,
 		dvb_usb_device_init(intf,&cxusb_bluebird_dee1601_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&cxusb_bluebird_lgz201_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&cxusb_bluebird_dtt7579_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_dualdig4_properties,THIS_MODULE,NULL) == 0) {
+		dvb_usb_device_init(intf,&cxusb_bluebird_dualdig4_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&cxusb_bluebird_nano2_properties,THIS_MODULE,NULL) == 0) {
 		return 0;
 	}
 
@@ -670,6 +708,7 @@ static struct usb_device_id cxusb_table [] = {
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_2_COLD) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_2_WARM) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_4) },
+	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DVB_T_NANO_2) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -971,6 +1010,53 @@ static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties = {
 		{   "DViCO FusionHDTV DVB-T Dual Digital 4",
 			{ NULL },
 			{ &cxusb_table[13], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_nano2_frontend_attach,
+			.tuner_attach     = cxusb_dvico_xc3028_tuner_attach,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
+		},
+	},
+
+	.power_ctrl       = cxusb_nano2_power_ctrl,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_bluebird2_rc_query,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "DViCO FusionHDTV DVB-T NANO2",
+			{ NULL },
+			{ &cxusb_table[14], NULL },
 		},
 	}
 };
