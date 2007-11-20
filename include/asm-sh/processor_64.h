@@ -262,11 +262,16 @@ static inline void grab_fpu(struct pt_regs *regs)
 #define FPSCR_INIT  0x00000000
 #endif
 
+#ifdef CONFIG_SH_FPU
 /* Save the current FP regs */
 void fpsave(struct sh_fpu_hard_struct *fpregs);
 
 /* Initialise the FP state of a task */
 void fpinit(struct sh_fpu_hard_struct *fpregs);
+#else
+#define fpsave(fpregs)	do { } while (0)
+#define fpinit(fpregs)	do { } while (0)
+#endif
 
 extern struct task_struct *last_task_used_math;
 
