@@ -435,7 +435,7 @@ static struct mt352_config cxusb_mt352_config = {
 
 static struct zl10353_config cxusb_zl10353_xc3028_config = {
 	.demod_address = 0x0f,
-	.if2 = 4560,
+	.if2 = 45600,
 	.no_tuner = 1,
 	.parallel_ts = 1,
 };

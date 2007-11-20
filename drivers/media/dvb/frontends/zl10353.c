@@ -123,9 +123,10 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 				      enum fe_bandwidth bandwidth,
 				      u16 *nominal_rate)
 {
-	u32 adc_clock = 45056; /* 45.056 MHz */
-	u8 bw;
 	struct zl10353_state *state = fe->demodulator_priv;
+	u32 adc_clock = 450560; /* 45.056 MHz */
+	u64 value;
+	u8 bw;
 
 	if (state->config.adc_clock)
 		adc_clock = state->config.adc_clock;
@@ -143,7 +144,9 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 		break;
 	}
 
-	*nominal_rate = (bw * (1 << 23) / 7 * 125 + adc_clock / 2) / adc_clock;
+	value = (bw * (u64)10 * (1 << 23) / 7 * 125 + adc_clock / 2);
+	do_div(value, adc_clock);
+	*nominal_rate = value;
 
 	dprintk("%s: bw %d, adc_clock %d => 0x%x\n",
 		__FUNCTION__, bw, adc_clock, *nominal_rate);
@@ -153,8 +156,8 @@ static void zl10353_calc_input_freq(struct dvb_frontend *fe,
 				    u16 *input_freq)
 {
 	struct zl10353_state *state = fe->demodulator_priv;
-	u32 adc_clock = 45056;	/* 45.056 MHz */
-	int if2 = 36167;	/* 36.167 MHz */
+	u32 adc_clock = 450560;	/* 45.056  MHz */
+	int if2 = 361667;	/* 36.1667 MHz */
 	int ife;
 	u64 value;
 
@@ -170,7 +173,7 @@ static void zl10353_calc_input_freq(struct dvb_frontend *fe,
 		if (ife > adc_clock / 2)
 			ife = adc_clock - ife;
 	}
-	value = 65536ULL * ife + adc_clock / 2;
+	value = (u64)65536 * ife + adc_clock / 2;
 	do_div(value, adc_clock);
 	*input_freq = -value;
 
