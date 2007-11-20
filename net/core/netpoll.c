@@ -816,11 +816,7 @@ void netpoll_cleanup(struct netpoll *np)
 				cancel_rearming_delayed_work(&npinfo->tx_work);
 
 				/* clean after last, unfinished work */
-				if (!skb_queue_empty(&npinfo->txq)) {
-					struct sk_buff *skb;
-					skb = __skb_dequeue(&npinfo->txq);
-					kfree_skb(skb);
-				}
+				__skb_queue_purge(&npinfo->txq);
 				kfree(npinfo);
 				np->dev->npinfo = NULL;
 			}
