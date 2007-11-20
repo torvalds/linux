@@ -743,7 +743,7 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	}while (time_after(timeout, jiffies));
 
 	if (!stat) {
-		printk(KERN_WARNING "wanXL %s: timeout while initializing card"
+		printk(KERN_WARNING "wanXL %s: timeout while initializing card "
 		       "firmware\n", pci_name(pdev));
 		wanxl_pci_remove_one(pdev);
 		return -ENODEV;
