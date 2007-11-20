@@ -155,6 +155,7 @@ void __init isa_init(void)
 		isa_br = kzalloc(sizeof(*isa_br), GFP_KERNEL);
 		if (!isa_br) {
 			printk(KERN_DEBUG "isa: cannot allocate sparc_isa_bridge");
+			pci_dev_put(pdev);
 			return;
 		}
 
@@ -168,6 +169,7 @@ void __init isa_init(void)
 			printk(KERN_DEBUG "isa: device registration error for %s!\n",
 			       dp->path_component_name);
 			kfree(isa_br);
+			pci_dev_put(pdev);
 			return;
 		}
 
