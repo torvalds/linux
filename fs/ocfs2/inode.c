@@ -455,8 +455,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	status = -EINVAL;
 	fe = (struct ocfs2_dinode *) bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
-		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
+		mlog(0, "Invalid dinode #%llu: signature = %.*s\n",
+		     (unsigned long long)args->fi_blkno, 7,
 		     fe->i_signature);
 		goto bail;
 	}
