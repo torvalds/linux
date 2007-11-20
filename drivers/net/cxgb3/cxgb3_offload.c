@@ -1004,7 +1004,7 @@ void cxgb_redirect(struct dst_entry *old, struct dst_entry *new)
 	if (!is_offloading(olddev))
 		return;
 	if (!is_offloading(newdev)) {
-		printk(KERN_WARNING "%s: Redirect to non-offload"
+		printk(KERN_WARNING "%s: Redirect to non-offload "
 		       "device ignored.\n", __FUNCTION__);
 		return;
 	}
