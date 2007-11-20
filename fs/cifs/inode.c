@@ -1233,7 +1233,7 @@ cifs_rename_exit:
 int cifs_revalidate(struct dentry *direntry)
 {
 	int xid;
-	int rc = 0;
+	int rc = 0, wbrc = 0;
 	char *full_path;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsInodeInfo *cifsInode;
@@ -1333,7 +1333,9 @@ int cifs_revalidate(struct dentry *direntry)
 	if (direntry->d_inode->i_mapping) {
 		/* do we need to lock inode until after invalidate completes
 		   below? */
-		filemap_fdatawrite(direntry->d_inode->i_mapping);
+		wbrc = filemap_fdatawrite(direntry->d_inode->i_mapping);
+		if (wbrc)
+			CIFS_I(direntry->d_inode)->write_behind_rc = wbrc;
 	}
 	if (invalidate_inode) {
 	/* shrink_dcache not necessary now that cifs dentry ops
@@ -1342,7 +1344,9 @@ int cifs_revalidate(struct dentry *direntry)
 			shrink_dcache_parent(direntry); */
 		if (S_ISREG(direntry->d_inode->i_mode)) {
 			if (direntry->d_inode->i_mapping)
-				filemap_fdatawait(direntry->d_inode->i_mapping);
+				wbrc = filemap_fdatawait(direntry->d_inode->i_mapping);
+				if (wbrc)
+					CIFS_I(direntry->d_inode)->write_behind_rc = wbrc;
 			/* may eventually have to do this for open files too */
 			if (list_empty(&(cifsInode->openFileList))) {
 				/* changed on server - flush read ahead pages */
@@ -1485,10 +1489,20 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 
 	/* BB check if we need to refresh inode from server now ? BB */
 
-	/* need to flush data before changing file size on server */
-	filemap_write_and_wait(direntry->d_inode->i_mapping);
-
 	if (attrs->ia_valid & ATTR_SIZE) {
+		/*
+		   Flush data before changing file size on server. If the
+		   flush returns error, store it to report later and continue.
+		   BB: This should be smarter. Why bother flushing pages that
+		   will be truncated anyway? Also, should we error out here if
+		   the flush returns error?
+		 */
+		rc = filemap_write_and_wait(direntry->d_inode->i_mapping);
+		if (rc != 0) {
+			CIFS_I(direntry->d_inode)->write_behind_rc = rc;
+			rc = 0;
+		}
+
 		/* To avoid spurious oplock breaks from server, in the case of
 		   inodes that we already have open, avoid doing path based
 		   setting of file size if we can do it by handle.

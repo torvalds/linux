@@ -130,7 +130,9 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 		if (file->f_path.dentry->d_inode->i_mapping) {
 		/* BB no need to lock inode until after invalidate
 		   since namei code should already have it locked? */
-			filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
+			rc = filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
+			if (rc != 0)
+				CIFS_I(file->f_path.dentry->d_inode)->write_behind_rc = rc;
 		}
 		cFYI(1, ("invalidating remote inode since open detected it "
 			 "changed"));
@@ -425,7 +427,9 @@ reopen_error_exit:
 		pCifsInode = CIFS_I(inode);
 		if (pCifsInode) {
 			if (can_flush) {
-				filemap_write_and_wait(inode->i_mapping);
+				rc = filemap_write_and_wait(inode->i_mapping);
+				if (rc != 0)
+					CIFS_I(inode)->write_behind_rc = rc;
 			/* temporarily disable caching while we
 			   go to server to get inode info */
 				pCifsInode->clientCanCacheAll = FALSE;
@@ -1367,7 +1371,10 @@ retry:
 						  rc, bytes_written));
 					/* BB what if continued retry is
 					   requested via mount flags? */
-					set_bit(AS_EIO, &mapping->flags);
+					if (rc == -ENOSPC)
+						set_bit(AS_ENOSPC, &mapping->flags);
+					else
+						set_bit(AS_EIO, &mapping->flags);
 				} else {
 					cifs_stats_bytes_written(cifs_sb->tcon,
 								 bytes_written);
@@ -1499,9 +1506,11 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	cFYI(1, ("Sync file - name: %s datasync: 0x%x",
 		dentry->d_name.name, datasync));
 
-	rc = filemap_fdatawrite(inode->i_mapping);
-	if (rc == 0)
+	rc = filemap_write_and_wait(inode->i_mapping);
+	if (rc == 0) {
+		rc = CIFS_I(inode)->write_behind_rc;
 		CIFS_I(inode)->write_behind_rc = 0;
+	}
 	FreeXid(xid);
 	return rc;
 }
@@ -1553,8 +1562,11 @@ int cifs_flush(struct file *file, fl_owner_t id)
 	   filemapfdatawrite appears easier for the time being */
 
 	rc = filemap_fdatawrite(inode->i_mapping);
-	if (!rc) /* reset wb rc if we were able to write out dirty pages */
+	/* reset wb rc if we were able to write out dirty pages */
+	if (!rc) {
+		rc = CIFS_I(inode)->write_behind_rc;
 		CIFS_I(inode)->write_behind_rc = 0;
+	}
 
 	cFYI(1, ("Flush inode %p file %p rc %d", inode, file, rc));
 
