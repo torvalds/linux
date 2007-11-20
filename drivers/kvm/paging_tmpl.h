@@ -486,19 +486,22 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 				 struct kvm_mmu_page *sp)
 {
-	int i;
+	int i, offset = 0;
 	pt_element_t *gpt;
 	struct page *page;
 
-	if (sp->role.metaphysical || PTTYPE == 32) {
+	if (sp->role.metaphysical
+	    || (PTTYPE == 32 && sp->role.level > PT_PAGE_TABLE_LEVEL)) {
 		nonpaging_prefetch_page(vcpu, sp);
 		return;
 	}
 
+	if (PTTYPE == 32)
+		offset = sp->role.quadrant << PT64_LEVEL_BITS;
 	page = gfn_to_page(vcpu->kvm, sp->gfn);
 	gpt = kmap_atomic(page, KM_USER0);
 	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
-		if (is_present_pte(gpt[i]))
+		if (is_present_pte(gpt[offset + i]))
 			sp->spt[i] = shadow_trap_nonpresent_pte;
 		else
 			sp->spt[i] = shadow_notrap_nonpresent_pte;
