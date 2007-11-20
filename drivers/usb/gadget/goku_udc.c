@@ -1422,6 +1422,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	spin_unlock_irqrestore(&dev->lock, flags);
 
 	driver->unbind(&dev->gadget);
+	dev->gadget.dev.driver = NULL;
 
 	DBG(dev, "unregistered driver '%s'\n", driver->driver.name);
 	return 0;

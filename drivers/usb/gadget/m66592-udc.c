@@ -1508,6 +1508,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	m66592_bclr(m66592, M66592_VBSE | M66592_URST, M66592_INTENB0);
 
 	driver->unbind(&m66592->gadget);
+	m66592->gadget.dev.driver = NULL;
 
 	init_controller(m66592);
 	disable_controller(m66592);

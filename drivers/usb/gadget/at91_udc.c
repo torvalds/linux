@@ -1616,6 +1616,8 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
 	local_irq_enable();
 
 	driver->unbind(&udc->gadget);
+	udc->gadget.dev.driver = NULL;
+	udc->gadget.dev.driver_data = NULL;
 	udc->driver = NULL;
 
 	DBG("unbound from %s\n", driver->driver.name);

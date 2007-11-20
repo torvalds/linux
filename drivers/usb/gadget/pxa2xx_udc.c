@@ -1345,6 +1345,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	local_irq_enable();
 
 	driver->unbind(&dev->gadget);
+	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	device_del (&dev->gadget.dev);
