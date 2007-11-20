@@ -67,13 +67,7 @@ static struct raw_hashinfo raw_v6_hashinfo = {
 
 static void raw_v6_hash(struct sock *sk)
 {
-	struct hlist_head *list = &raw_v6_hashinfo.ht[inet_sk(sk)->num &
-						 (RAW_HTABLE_SIZE - 1)];
-
-	write_lock_bh(&raw_v6_hashinfo.lock);
-	sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
-	write_unlock_bh(&raw_v6_hashinfo.lock);
+	raw_hash_sk(sk, &raw_v6_hashinfo);
 }
 
 static void raw_v6_unhash(struct sock *sk)

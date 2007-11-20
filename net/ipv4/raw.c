@@ -84,15 +84,22 @@ static struct raw_hashinfo raw_v4_hashinfo = {
 	.lock = __RW_LOCK_UNLOCKED(),
 };
 
-static void raw_v4_hash(struct sock *sk)
+void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h)
 {
-	struct hlist_head *head = &raw_v4_hashinfo.ht[inet_sk(sk)->num &
-						 (RAW_HTABLE_SIZE - 1)];
+	struct hlist_head *head;
 
-	write_lock_bh(&raw_v4_hashinfo.lock);
+	head = &h->ht[inet_sk(sk)->num & (RAW_HTABLE_SIZE - 1)];
+
+	write_lock_bh(&h->lock);
 	sk_add_node(sk, head);
 	sock_prot_inc_use(sk->sk_prot);
-	write_unlock_bh(&raw_v4_hashinfo.lock);
+	write_unlock_bh(&h->lock);
+}
+EXPORT_SYMBOL_GPL(raw_hash_sk);
+
+static void raw_v4_hash(struct sock *sk)
+{
+	raw_hash_sk(sk, &raw_v4_hashinfo);
 }
 
 static void raw_v4_unhash(struct sock *sk)

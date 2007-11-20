@@ -39,4 +39,6 @@ extern int  raw_proc_init(void);
 extern void raw_proc_exit(void);
 #endif
 
+void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h);
+
 #endif	/* _RAW_H */
