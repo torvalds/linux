@@ -19,9 +19,8 @@
 #define MESSAGE_HEADER_LEN	4
 
 static const char usbdriver_name[] = "usb8xxx";
-static u8 *default_fw_name = "usb8388.bin";
 
-static char *lbs_fw_name;
+static char *lbs_fw_name = "usb8388.bin";
 module_param_named(fw_name, lbs_fw_name, charp, 0644);
 
 /*
@@ -1026,10 +1025,6 @@ static int if_usb_init_module(void)
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
-
-	if (lbs_fw_name == NULL) {
-		lbs_fw_name = default_fw_name;
-	}
 
 	ret = usb_register(&if_usb_driver);
 
