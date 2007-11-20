@@ -1033,11 +1033,11 @@ out:
 EXPORT_SYMBOL(find_first_extent_bit);
 
 u64 find_lock_delalloc_range(struct extent_map_tree *tree,
-			     u64 start, u64 lock_start, u64 *end, u64 max_bytes)
+			     u64 *start, u64 *end, u64 max_bytes)
 {
 	struct rb_node *node;
 	struct extent_state *state;
-	u64 cur_start = start;
+	u64 cur_start = *start;
 	u64 found = 0;
 	u64 total_bytes = 0;
 
@@ -1054,27 +1054,43 @@ search_again:
 
 	while(1) {
 		state = rb_entry(node, struct extent_state, rb_node);
-		if (state->start != cur_start) {
+		if (found && state->start != cur_start) {
 			goto out;
 		}
 		if (!(state->state & EXTENT_DELALLOC)) {
 			goto out;
 		}
-		if (state->start >= lock_start) {
-			if (state->state & EXTENT_LOCKED) {
-				DEFINE_WAIT(wait);
-				atomic_inc(&state->refs);
-				prepare_to_wait(&state->wq, &wait,
-						TASK_UNINTERRUPTIBLE);
-				write_unlock_irq(&tree->lock);
-				schedule();
-				write_lock_irq(&tree->lock);
-				finish_wait(&state->wq, &wait);
-				free_extent_state(state);
-				goto search_again;
+		if (!found) {
+			struct extent_state *prev_state;
+			struct rb_node *prev_node = node;
+			while(1) {
+				prev_node = rb_prev(prev_node);
+				if (!prev_node)
+					break;
+				prev_state = rb_entry(prev_node,
+						      struct extent_state,
+						      rb_node);
+				if (!(prev_state->state & EXTENT_DELALLOC))
+					break;
+				state = prev_state;
+				node = prev_node;
 			}
-			state->state |= EXTENT_LOCKED;
 		}
+		if (state->state & EXTENT_LOCKED) {
+			DEFINE_WAIT(wait);
+			atomic_inc(&state->refs);
+			prepare_to_wait(&state->wq, &wait,
+					TASK_UNINTERRUPTIBLE);
+			write_unlock_irq(&tree->lock);
+			schedule();
+			write_lock_irq(&tree->lock);
+			finish_wait(&state->wq, &wait);
+			free_extent_state(state);
+			goto search_again;
+		}
+		state->state |= EXTENT_LOCKED;
+		if (!found)
+			*start = state->start;
 		found++;
 		*end = state->end;
 		cur_start = state->end + 1;
@@ -1695,6 +1711,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	struct extent_page_data *epd = data;
 	struct extent_map_tree *tree = epd->tree;
 	u64 start = (u64)page->index << PAGE_CACHE_SHIFT;
+	u64 delalloc_start;
 	u64 page_end = start + PAGE_CACHE_SIZE - 1;
 	u64 end;
 	u64 cur = start;
@@ -1729,25 +1746,23 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 
 	set_page_extent_mapped(page);
 
-	lock_extent(tree, start, page_end, GFP_NOFS);
-	nr_delalloc = find_lock_delalloc_range(tree, start, page_end + 1,
-					       &delalloc_end,
-					       128 * 1024 * 1024);
-	if (nr_delalloc) {
-		tree->ops->fill_delalloc(inode, start, delalloc_end);
-		if (delalloc_end >= page_end + 1) {
-			clear_extent_bit(tree, page_end + 1, delalloc_end,
-					 EXTENT_LOCKED | EXTENT_DELALLOC,
-					 1, 0, GFP_NOFS);
-		}
-		clear_extent_bit(tree, start, page_end, EXTENT_DELALLOC,
-				 0, 0, GFP_NOFS);
-		if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
-			printk("found delalloc bits after clear extent_bit\n");
-		}
-	} else if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
-		printk("found delalloc bits after find_delalloc_range returns 0\n");
+	delalloc_start = start;
+	delalloc_end = 0;
+	while(delalloc_end < page_end) {
+		nr_delalloc = find_lock_delalloc_range(tree, &delalloc_start,
+						       &delalloc_end,
+						       128 * 1024 * 1024);
+		if (nr_delalloc <= 0)
+			break;
+		tree->ops->fill_delalloc(inode, delalloc_start,
+					 delalloc_end);
+		clear_extent_bit(tree, delalloc_start,
+				 delalloc_end,
+				 EXTENT_LOCKED | EXTENT_DELALLOC,
+				 1, 0, GFP_NOFS);
+		delalloc_start = delalloc_end + 1;
 	}
+	lock_extent(tree, start, page_end, GFP_NOFS);
 
 	end = page_end;
 	if (test_range_bit(tree, start, page_end, EXTENT_DELALLOC, 0)) {
