@@ -346,23 +346,31 @@ typedef uint32_t mfp_cfg_t;
 #define MFP_CFG_PIN(mfp_cfg)	(((mfp_cfg) >> 16) & 0xffff)
 #define MFP_CFG_VAL(mfp_cfg)	((mfp_cfg) & 0xffff)
 
-#define MFPR_DEFAULT	(0x0000)
+/*
+ * MFP register defaults to
+ *   drive strength fast 3mA (010'b)
+ *   edge detection logic disabled
+ *   alternate function 0
+ */
+#define MFPR_DEFAULT	(0x0840)
 
 #define MFP_CFG(pin, af)		\
 	((MFP_PIN_##pin << 16) | MFPR_DEFAULT | (MFP_##af))
 
 #define MFP_CFG_DRV(pin, af, drv)	\
-	((MFP_PIN_##pin << 16) | MFPR_DEFAULT |\
+	((MFP_PIN_##pin << 16) | (MFPR_DEFAULT & ~MFPR_DRV_MASK) |\
 	 ((MFP_##drv) << 10) | (MFP_##af))
 
 #define MFP_CFG_LPM(pin, af, lpm)	\
-	((MFP_PIN_##pin << 16) | MFPR_DEFAULT | (MFP_##af) |\
+	((MFP_PIN_##pin << 16) | (MFPR_DEFAULT & ~MFPR_LPM_MASK) |\
 	 (((MFP_LPM_##lpm) & 0x3) << 7)  |\
 	 (((MFP_LPM_##lpm) & 0x4) << 12) |\
-	 (((MFP_LPM_##lpm) & 0x8) << 10))
+	 (((MFP_LPM_##lpm) & 0x8) << 10) |\
+	 (MFP_##af))
 
 #define MFP_CFG_X(pin, af, drv, lpm)	\
-	((MFP_PIN_##pin << 16) | MFPR_DEFAULT |\
+	((MFP_PIN_##pin << 16) |\
+	 (MFPR_DEFAULT & ~(MFPR_DRV_MASK | MFPR_LPM_MASK)) |\
 	 ((MFP_##drv) << 10) | (MFP_##af) |\
 	 (((MFP_LPM_##lpm) & 0x3) << 7)  |\
 	 (((MFP_LPM_##lpm) & 0x4) << 12) |\
