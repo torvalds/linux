@@ -5,6 +5,8 @@
 #include "dvb-usb.h"
 
 /* usb commands - some of it are guesses, don't have a reference yet */
+#define CMD_BLUEBIRD_GPIO_RW 0x05
+
 #define CMD_I2C_WRITE     0x08
 #define CMD_I2C_READ      0x09
 

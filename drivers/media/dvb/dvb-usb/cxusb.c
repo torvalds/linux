@@ -15,7 +15,7 @@
  *
  * Copyright (C) 2005 Patrick Boettcher (patrick.boettcher@desy.de)
  * Copyright (C) 2006 Michael Krufky (mkrufky@linuxtv.org)
- * Copyright (C) 2006 Chris Pascoe (c.pascoe@itee.uq.edu.au)
+ * Copyright (C) 2006, 2007 Chris Pascoe (c.pascoe@itee.uq.edu.au)
  *
  *   This program is free software; you can redistribute it and/or modify it
  *   under the terms of the GNU General Public License as published by the Free
@@ -30,6 +30,8 @@
 #include "mt352.h"
 #include "mt352_priv.h"
 #include "zl10353.h"
+#include "tuner-xc2028.h"
+#include "tuner-xc2028-types.h"
 
 /* debug */
 static int dvb_usb_cxusb_debug;
@@ -71,6 +73,29 @@ static void cxusb_gpio_tuner(struct dvb_usb_device *d, int onoff)
 		deb_info("gpio_write failed.\n");
 
 	st->gpio_write_state[GPIO_TUNER] = onoff;
+}
+
+static int cxusb_bluebird_gpio_rw(struct dvb_usb_device *d, u8 changemask,
+				 u8 newval)
+{
+	u8 o[2], gpio_state;
+	int rc;
+
+	o[0] = 0xff & ~changemask;	/* mask of bits to keep */
+	o[1] = newval & changemask;	/* new values for bits  */
+
+	rc = cxusb_ctrl_msg(d, CMD_BLUEBIRD_GPIO_RW, o, 2, &gpio_state, 1);
+	if (rc < 0 || (gpio_state & changemask) != (newval & changemask))
+		deb_info("bluebird_gpio_write failed.\n");
+
+	return rc < 0 ? rc : gpio_state;
+}
+
+static void cxusb_bluebird_gpio_pulse(struct dvb_usb_device *d, u8 pin, int low)
+{
+	cxusb_bluebird_gpio_rw(d, pin, low ? 0 : pin);
+	msleep(5);
+	cxusb_bluebird_gpio_rw(d, pin, low ? pin : 0);
 }
 
 /* I2C */
@@ -200,6 +225,34 @@ static int cxusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	for (i = 0; i < d->props.rc_key_map_size; i++) {
 		if (keymap[i].custom == ircode[2] &&
 		    keymap[i].data == ircode[3]) {
+			*event = keymap[i].event;
+			*state = REMOTE_KEY_PRESSED;
+
+			return 0;
+		}
+	}
+
+	return 0;
+}
+
+static int cxusb_bluebird2_rc_query(struct dvb_usb_device *d, u32 *event,
+				    int *state)
+{
+	struct dvb_usb_rc_key *keymap = d->props.rc_key_map;
+	u8 ircode[4];
+	int i;
+	struct i2c_msg msg = { .addr = 0x6b, .flags = I2C_M_RD,
+			       .buf = ircode, .len = 4 };
+
+	*event = 0;
+	*state = REMOTE_NO_KEY_PRESSED;
+
+	if (cxusb_i2c_xfer(&d->i2c_adap, &msg, 1) != 1)
+		return 0;
+
+	for (i = 0; i < d->props.rc_key_map_size; i++) {
+		if (keymap[i].custom == ircode[1] &&
+		    keymap[i].data == ircode[2]) {
 			*event = keymap[i].event;
 			*state = REMOTE_KEY_PRESSED;
 
@@ -364,6 +417,13 @@ static struct mt352_config cxusb_mt352_config = {
 	.demod_init    = cxusb_mt352_demod_init,
 };
 
+static struct zl10353_config cxusb_zl10353_xc3028_config = {
+	.demod_address = 0x0f,
+	.if2 = 4560,
+	.no_tuner = 1,
+	.parallel_ts = 1,
+};
+
 /* Callbacks for DVB USB */
 static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
@@ -396,6 +456,52 @@ static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	dvb_attach(dvb_pll_attach, adap->fe, 0x61, &adap->dev->i2c_adap,
 		   DVB_PLL_LG_TDVS_H06XF);
+	return 0;
+}
+
+static int dvico_bluebird_xc2028_callback(void *ptr, int command, int arg)
+{
+	struct dvb_usb_device *d = ptr;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		deb_info("%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+		cxusb_bluebird_gpio_pulse(d, 0x01, 1);
+		break;
+	case XC2028_RESET_CLK:
+		deb_info("%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		break;
+	default:
+		deb_info("%s: unknown command %d, arg %d\n", __FUNCTION__,
+			 command, arg);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	struct dvb_frontend	 *fe;
+	struct xc2028_config	  cfg = {
+		.i2c_adap  = &adap->dev->i2c_adap,
+		.i2c_addr  = 0x61,
+		.video_dev = adap->dev,
+		.callback  = dvico_bluebird_xc2028_callback,
+	};
+	static struct xc2028_ctrl ctl = {
+		.type        = XC2028_FIRM_NORMAL,
+		.fname       = "xc3028-dvico-au-01.fw",
+		.max_len     = 64,
+		.scode_table = ZARLINK456,
+	};
+
+	fe = dvb_attach(xc2028_attach, adap->fe, &cfg);
+	if (fe == NULL || fe->ops.tuner_ops.set_config == NULL)
+		return -EIO;
+
+	fe->ops.tuner_ops.set_config(fe, &ctl);
+
 	return 0;
 }
 
@@ -460,6 +566,46 @@ static int cxusb_dee1601_frontend_attach(struct dvb_usb_adapter *adap)
 	return -EIO;
 }
 
+static int cxusb_dualdig4_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	u8 ircode[4];
+	int i;
+	struct i2c_msg msg = { .addr = 0x6b, .flags = I2C_M_RD,
+			       .buf = ircode, .len = 4 };
+
+	if (usb_set_interface(adap->dev->udev, 0, 1) < 0)
+		err("set interface failed");
+
+	cxusb_ctrl_msg(adap->dev, CMD_DIGITAL, NULL, 0, NULL, 0);
+
+	/* reset the tuner and demodulator */
+	cxusb_bluebird_gpio_rw(adap->dev, 0x04, 0);
+	cxusb_bluebird_gpio_pulse(adap->dev, 0x01, 1);
+	cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1);
+
+	if ((adap->fe = dvb_attach(zl10353_attach,
+				   &cxusb_zl10353_xc3028_config,
+				   &adap->dev->i2c_adap)) == NULL)
+		return -EIO;
+
+	/* try to determine if there is no IR decoder on the I2C bus */
+	for (i = 0; adap->dev->props.rc_key_map != NULL && i < 5; i++) {
+		msleep(20);
+		if (cxusb_i2c_xfer(&adap->dev->i2c_adap, &msg, 1) != 1)
+			goto no_IR;
+		if (ircode[0] == 0 && ircode[1] == 0)
+			continue;
+		if (ircode[2] + ircode[3] != 0xff) {
+no_IR:
+			adap->dev->props.rc_key_map = NULL;
+			info("No IR receiver detected on this device.");
+			break;
+		}
+	}
+
+	return 0;
+}
+
 /*
  * DViCO bluebird firmware needs the "warm" product ID to be patched into the
  * firmware file before download.
@@ -492,6 +638,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgh064f_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_lgz201_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties;
+static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -500,7 +647,8 @@ static int cxusb_probe(struct usb_interface *intf,
 		dvb_usb_device_init(intf,&cxusb_bluebird_lgh064f_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&cxusb_bluebird_dee1601_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&cxusb_bluebird_lgz201_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_dtt7579_properties,THIS_MODULE,NULL) == 0) {
+		dvb_usb_device_init(intf,&cxusb_bluebird_dtt7579_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&cxusb_bluebird_dualdig4_properties,THIS_MODULE,NULL) == 0) {
 		return 0;
 	}
 
@@ -521,6 +669,7 @@ static struct usb_device_id cxusb_table [] = {
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DIGITALNOW_BLUEBIRD_DUAL_1_WARM) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_2_COLD) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_2_WARM) },
+	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_4) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -775,6 +924,53 @@ static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties = {
 		{   "DViCO FusionHDTV DVB-T USB (TH7579)",
 			{ &cxusb_table[7], NULL },
 			{ &cxusb_table[8], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl         = CYPRESS_FX2,
+
+	.size_of_priv     = sizeof(struct cxusb_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_dualdig4_frontend_attach,
+			.tuner_attach     = cxusb_dvico_xc3028_tuner_attach,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
+		},
+	},
+
+	.power_ctrl       = cxusb_power_ctrl,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_mce_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_mce_rc_keys),
+	.rc_query         = cxusb_bluebird2_rc_query,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "DViCO FusionHDTV DVB-T Dual Digital 4",
+			{ NULL },
+			{ &cxusb_table[13], NULL },
 		},
 	}
 };
