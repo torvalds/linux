@@ -31,11 +31,11 @@ config SND_USB_USX2Y
 
 config SND_USB_CAIAQ
 	tristate "Native Instruments USB audio devices"
-	 depends on SND && USB
-	 select SND_HWDEP
-	 select SND_RAWMIDI
-	 select SND_PCM
-	 help
+	depends on SND && USB
+	select SND_HWDEP
+	select SND_RAWMIDI
+	select SND_PCM
+	help
 	   Say Y here to include support for caiaq USB audio interfaces,
 	   namely:
 
