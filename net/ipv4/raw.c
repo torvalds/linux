@@ -80,8 +80,10 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
-struct hlist_head raw_v4_htable[RAWV4_HTABLE_SIZE];
-DEFINE_RWLOCK(raw_v4_lock);
+#define RAWV4_HTABLE_SIZE	MAX_INET_PROTOS
+
+static struct hlist_head raw_v4_htable[RAWV4_HTABLE_SIZE];
+static DEFINE_RWLOCK(raw_v4_lock);
 
 static void raw_v4_hash(struct sock *sk)
 {
@@ -102,7 +104,7 @@ static void raw_v4_unhash(struct sock *sk)
 	write_unlock_bh(&raw_v4_lock);
 }
 
-struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
+static struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
 			     __be32 raddr, __be32 laddr,
 			     int dif)
 {
@@ -150,7 +152,7 @@ static __inline__ int icmp_filter(struct sock *sk, struct sk_buff *skb)
  * RFC 1122: SHOULD pass TOS value up to the transport layer.
  * -> It does. And not only TOS, but all IP header.
  */
-int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
+static int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 {
 	struct sock *sk;
 	struct hlist_head *head;
@@ -182,7 +184,25 @@ out:
 	return delivered;
 }
 
-void raw_err (struct sock *sk, struct sk_buff *skb, u32 info)
+int raw_local_deliver(struct sk_buff *skb, int protocol)
+{
+	int hash;
+	struct sock *raw_sk;
+
+	hash = protocol & (RAWV4_HTABLE_SIZE - 1);
+	raw_sk = sk_head(&raw_v4_htable[hash]);
+
+	/* If there maybe a raw socket we must check - if not we
+	 * don't care less
+	 */
+	if (raw_sk && !raw_v4_input(skb, ip_hdr(skb), hash))
+		raw_sk = NULL;
+
+	return raw_sk != NULL;
+
+}
+
+static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	const int type = icmp_hdr(skb)->type;
@@ -234,6 +254,29 @@ void raw_err (struct sock *sk, struct sk_buff *skb, u32 info)
 		sk->sk_err = err;
 		sk->sk_error_report(sk);
 	}
+}
+
+void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
+{
+	int hash;
+	struct sock *raw_sk;
+	struct iphdr *iph;
+
+	hash = protocol & (RAWV4_HTABLE_SIZE - 1);
+
+	read_lock(&raw_v4_lock);
+	raw_sk = sk_head(&raw_v4_htable[hash]);
+	if (raw_sk != NULL) {
+		iph = (struct iphdr *)skb->data;
+		while ((raw_sk = __raw_v4_lookup(raw_sk, protocol, iph->daddr,
+						iph->saddr,
+						skb->dev->ifindex)) != NULL) {
+			raw_err(raw_sk, skb, info);
+			raw_sk = sk_next(raw_sk);
+			iph = (struct iphdr *)skb->data;
+		}
+	}
+	read_unlock(&raw_v4_lock);
 }
 
 static int raw_rcv_skb(struct sock * sk, struct sk_buff * skb)

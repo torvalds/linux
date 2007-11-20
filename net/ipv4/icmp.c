@@ -603,7 +603,6 @@ static void icmp_unreach(struct sk_buff *skb)
 	struct icmphdr *icmph;
 	int hash, protocol;
 	struct net_protocol *ipprot;
-	struct sock *raw_sk;
 	u32 info = 0;
 
 	/*
@@ -697,21 +696,9 @@ static void icmp_unreach(struct sk_buff *skb)
 	/*
 	 *	Deliver ICMP message to raw sockets. Pretty useless feature?
 	 */
+	raw_icmp_error(skb, protocol, info);
 
-	/* Note: See raw.c and net/raw.h, RAWV4_HTABLE_SIZE==MAX_INET_PROTOS */
 	hash = protocol & (MAX_INET_PROTOS - 1);
-	read_lock(&raw_v4_lock);
-	if ((raw_sk = sk_head(&raw_v4_htable[hash])) != NULL) {
-		while ((raw_sk = __raw_v4_lookup(raw_sk, protocol, iph->daddr,
-						 iph->saddr,
-						 skb->dev->ifindex)) != NULL) {
-			raw_err(raw_sk, skb, info);
-			raw_sk = sk_next(raw_sk);
-			iph = (struct iphdr *)skb->data;
-		}
-	}
-	read_unlock(&raw_v4_lock);
-
 	rcu_read_lock();
 	ipprot = rcu_dereference(inet_protos[hash]);
 	if (ipprot && ipprot->err_handler)

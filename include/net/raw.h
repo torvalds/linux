@@ -22,23 +22,10 @@
 
 extern struct proto raw_prot;
 
-extern void 	raw_err(struct sock *, struct sk_buff *, u32 info);
+void raw_icmp_error(struct sk_buff *, int, u32);
+int raw_local_deliver(struct sk_buff *, int);
+
 extern int 	raw_rcv(struct sock *, struct sk_buff *);
-
-/* Note: v4 ICMP wants to get at this stuff, if you change the
- *       hashing mechanism, make sure you update icmp.c as well.
- */
-#define RAWV4_HTABLE_SIZE	MAX_INET_PROTOS
-extern struct hlist_head raw_v4_htable[RAWV4_HTABLE_SIZE];
-
-extern rwlock_t raw_v4_lock;
-
-
-extern struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
-				    __be32 raddr, __be32 laddr,
-				    int dif);
-
-extern int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash);
 
 #ifdef CONFIG_PROC_FS
 extern int  raw_proc_init(void);
