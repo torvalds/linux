@@ -383,7 +383,7 @@ int Level)		/* Initialization level */
 			SK_ERR_LOG(pAC, SK_ERRCL_SW, SK_PNMI_ERR049, SK_PNMI_ERR049MSG);
 
 			SK_DBG_MSG(pAC, SK_DBGMOD_PNMI, SK_DBGCAT_INIT | SK_DBGCAT_FATAL,
-					   ("CounterOffset struct size (%d) differs from"
+					   ("CounterOffset struct size (%d) differs from "
 						"SK_PNMI_MAX_IDX (%d)\n",
 						SK_PNMI_CNT_NO, SK_PNMI_MAX_IDX));
 		}
