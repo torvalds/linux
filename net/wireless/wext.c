@@ -673,26 +673,8 @@ static const struct seq_operations wireless_seq_ops = {
 
 static int wireless_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int res;
-	res = seq_open(file, &wireless_seq_ops);
-	if (!res) {
-		seq = file->private_data;
-		seq->private = get_proc_net(inode);
-		if (!seq->private) {
-			seq_release(inode, file);
-			res = -ENXIO;
-		}
-	}
-	return res;
-}
-
-static int wireless_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return seq_release(inode, file);
+	return seq_open_net(inode, file, &wireless_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations wireless_seq_fops = {
@@ -700,7 +682,7 @@ static const struct file_operations wireless_seq_fops = {
 	.open    = wireless_seq_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = wireless_seq_release,
+	.release = seq_release_net,
 };
 
 int wext_proc_init(struct net *net)

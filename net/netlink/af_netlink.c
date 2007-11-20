@@ -1681,7 +1681,7 @@ int nlmsg_notify(struct sock *sk, struct sk_buff *skb, u32 pid,
 
 #ifdef CONFIG_PROC_FS
 struct nl_seq_iter {
-	struct net *net;
+	struct seq_net_private p;
 	int link;
 	int hash_idx;
 };
@@ -1699,7 +1699,7 @@ static struct sock *netlink_seq_socket_idx(struct seq_file *seq, loff_t pos)
 
 		for (j = 0; j <= hash->mask; j++) {
 			sk_for_each(s, node, &hash->table[j]) {
-				if (iter->net != s->sk_net)
+				if (iter->p.net != s->sk_net)
 					continue;
 				if (off == pos) {
 					iter->link = i;
@@ -1734,7 +1734,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	s = v;
 	do {
 		s = sk_next(s);
-	} while (s && (iter->net != s->sk_net));
+	} while (s && (iter->p.net != s->sk_net));
 	if (s)
 		return s;
 
@@ -1746,7 +1746,7 @@ static void *netlink_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 		for (; j <= hash->mask; j++) {
 			s = sk_head(&hash->table[j]);
-			while (s && (iter->net != s->sk_net))
+			while (s && (iter->p.net != s->sk_net))
 				s = sk_next(s);
 			if (s) {
 				iter->link = i;
@@ -1802,27 +1802,8 @@ static const struct seq_operations netlink_seq_ops = {
 
 static int netlink_seq_open(struct inode *inode, struct file *file)
 {
-	struct nl_seq_iter *iter;
-
-	iter = __seq_open_private(file, &netlink_seq_ops, sizeof(*iter));
-	if (!iter)
-		return -ENOMEM;
-
-	iter->net = get_proc_net(inode);
-	if (!iter->net) {
-		seq_release_private(inode, file);
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
-static int netlink_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct nl_seq_iter *iter = seq->private;
-	put_net(iter->net);
-	return seq_release_private(inode, file);
+	return seq_open_net(inode, file, &netlink_seq_ops,
+				sizeof(struct nl_seq_iter));
 }
 
 static const struct file_operations netlink_seq_fops = {
@@ -1830,7 +1811,7 @@ static const struct file_operations netlink_seq_fops = {
 	.open		= netlink_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= netlink_seq_release,
+	.release	= seq_release_net,
 };
 
 #endif

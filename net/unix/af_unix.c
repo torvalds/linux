@@ -2018,7 +2018,7 @@ static unsigned int unix_poll(struct file * file, struct socket *sock, poll_tabl
 
 #ifdef CONFIG_PROC_FS
 struct unix_iter_state {
-	struct net *net;
+	struct seq_net_private p;
 	int i;
 };
 static struct sock *unix_seq_idx(struct unix_iter_state *iter, loff_t pos)
@@ -2027,7 +2027,7 @@ static struct sock *unix_seq_idx(struct unix_iter_state *iter, loff_t pos)
 	struct sock *s;
 
 	for (s = first_unix_socket(&iter->i); s; s = next_unix_socket(&iter->i, s)) {
-		if (s->sk_net != iter->net)
+		if (s->sk_net != iter->p.net)
 			continue;
 		if (off == pos)
 			return s;
@@ -2054,7 +2054,7 @@ static void *unix_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		sk = first_unix_socket(&iter->i);
 	else
 		sk = next_unix_socket(&iter->i, sk);
-	while (sk && (sk->sk_net != iter->net))
+	while (sk && (sk->sk_net != iter->p.net))
 		sk = next_unix_socket(&iter->i, sk);
 	return sk;
 }
@@ -2118,27 +2118,8 @@ static const struct seq_operations unix_seq_ops = {
 
 static int unix_seq_open(struct inode *inode, struct file *file)
 {
-	struct unix_iter_state *it;
-
-	it = __seq_open_private(file, &unix_seq_ops,
-				sizeof(struct unix_iter_state));
-	if (it == NULL)
-		return -ENOMEM;
-
-	it->net = get_proc_net(inode);
-	if (it->net == NULL) {
-		seq_release_private(inode, file);
-		return -ENXIO;
-	}
-	return 0;
-}
-
-static int unix_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq = file->private_data;
-	struct unix_iter_state *iter = seq->private;
-	put_net(iter->net);
-	return seq_release_private(inode, file);
+	return seq_open_net(inode, file, &unix_seq_ops,
+			    sizeof(struct unix_iter_state));
 }
 
 static const struct file_operations unix_seq_fops = {
@@ -2146,7 +2127,7 @@ static const struct file_operations unix_seq_fops = {
 	.open		= unix_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= unix_seq_release,
+	.release	= seq_release_net,
 };
 
 #endif

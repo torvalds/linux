@@ -1871,7 +1871,7 @@ static inline struct sock *packet_seq_idx(struct net *net, loff_t off)
 
 static void *packet_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct net *net = seq->private;
+	struct net *net = seq_file_net(seq);
 	read_lock(&net->packet_sklist_lock);
 	return *pos ? packet_seq_idx(net, *pos - 1) : SEQ_START_TOKEN;
 }
@@ -1924,26 +1924,8 @@ static const struct seq_operations packet_seq_ops = {
 
 static int packet_seq_open(struct inode *inode, struct file *file)
 {
-	struct seq_file *seq;
-	int res;
-	res = seq_open(file, &packet_seq_ops);
-	if (!res) {
-		seq = file->private_data;
-		seq->private = get_proc_net(inode);
-		if (!seq->private) {
-			seq_release(inode, file);
-			res = -ENXIO;
-		}
-	}
-	return res;
-}
-
-static int packet_seq_release(struct inode *inode, struct file *file)
-{
-	struct seq_file *seq=  file->private_data;
-	struct net *net = seq->private;
-	put_net(net);
-	return seq_release(inode, file);
+	return seq_open_net(inode, file, &packet_seq_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations packet_seq_fops = {
@@ -1951,7 +1933,7 @@ static const struct file_operations packet_seq_fops = {
 	.open		= packet_seq_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= packet_seq_release,
+	.release	= seq_release_net,
 };
 
 #endif
