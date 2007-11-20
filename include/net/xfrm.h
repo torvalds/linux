@@ -534,7 +534,6 @@ struct xfrm_spi_skb_cb {
 		struct inet6_skb_parm h6;
 	} header;
 
-	unsigned int nhoff;
 	unsigned int daddroff;
 };
 

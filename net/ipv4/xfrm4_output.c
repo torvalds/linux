@@ -47,6 +47,8 @@ int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (err)
 		return err;
 
+	XFRM_MODE_SKB_CB(skb)->protocol = ip_hdr(skb)->protocol;
+
 	return xfrm4_extract_header(skb);
 }
 

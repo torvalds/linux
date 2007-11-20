@@ -21,7 +21,6 @@ int xfrm4_extract_input(struct xfrm_state *x, struct sk_buff *skb)
 	return xfrm4_extract_header(skb);
 }
 
-#ifdef CONFIG_NETFILTER
 static inline int xfrm4_rcv_encap_finish(struct sk_buff *skb)
 {
 	if (skb->dst == NULL) {
@@ -36,12 +35,10 @@ drop:
 	kfree_skb(skb);
 	return NET_RX_DROP;
 }
-#endif
 
 int xfrm4_rcv_encap(struct sk_buff *skb, int nexthdr, __be32 spi,
 		    int encap_type)
 {
-	XFRM_SPI_SKB_CB(skb)->nhoff = offsetof(struct iphdr, protocol);
 	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct iphdr, daddr);
 	return xfrm_input(skb, nexthdr, spi, encap_type);
 }
@@ -49,16 +46,20 @@ EXPORT_SYMBOL(xfrm4_rcv_encap);
 
 int xfrm4_transport_finish(struct sk_buff *skb, int async)
 {
+	struct iphdr *iph = ip_hdr(skb);
+
+	iph->protocol = XFRM_MODE_SKB_CB(skb)->protocol;
+
 #ifdef CONFIG_NETFILTER
 	__skb_push(skb, skb->data - skb_network_header(skb));
-	ip_hdr(skb)->tot_len = htons(skb->len);
-	ip_send_check(ip_hdr(skb));
+	iph->tot_len = htons(skb->len);
+	ip_send_check(iph);
 
 	NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, skb->dev, NULL,
 		xfrm4_rcv_encap_finish);
 	return 0;
 #else
-	return -ip_hdr(skb)->protocol;
+	return -iph->protocol;
 #endif
 }
 

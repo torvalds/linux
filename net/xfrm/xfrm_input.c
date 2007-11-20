@@ -102,7 +102,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	__be32 seq;
 	struct xfrm_state *x;
 	int decaps = 0;
-	unsigned int nhoff = XFRM_SPI_SKB_CB(skb)->nhoff;
 	unsigned int daddroff = XFRM_SPI_SKB_CB(skb)->daddroff;
 
 	/* Allocate new secpath or COW existing one. */
@@ -157,8 +156,6 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			goto drop_unlock;
 		}
 
-		skb_network_header(skb)[nhoff] = nexthdr;
-
 		/* only the first xfrm gets the encap type */
 		encap_type = 0;
 
@@ -169,6 +166,8 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		x->curlft.packets++;
 
 		spin_unlock(&x->lock);
+
+		XFRM_MODE_SKB_CB(skb)->protocol = nexthdr;
 
 		if (x->inner_mode->input(x, skb))
 			goto drop;

@@ -23,7 +23,6 @@ int xfrm6_extract_input(struct xfrm_state *x, struct sk_buff *skb)
 
 int xfrm6_rcv_spi(struct sk_buff *skb, int nexthdr, __be32 spi)
 {
-	XFRM_SPI_SKB_CB(skb)->nhoff = IP6CB(skb)->nhoff;
 	XFRM_SPI_SKB_CB(skb)->daddroff = offsetof(struct ipv6hdr, daddr);
 	return xfrm_input(skb, nexthdr, spi, 0);
 }
@@ -31,6 +30,9 @@ EXPORT_SYMBOL(xfrm6_rcv_spi);
 
 int xfrm6_transport_finish(struct sk_buff *skb, int async)
 {
+	skb_network_header(skb)[IP6CB(skb)->nhoff] =
+		XFRM_MODE_SKB_CB(skb)->protocol;
+
 #ifdef CONFIG_NETFILTER
 	ipv6_hdr(skb)->payload_len = htons(skb->len);
 	__skb_push(skb, skb->data - skb_network_header(skb));
