@@ -235,36 +235,120 @@
 		clock-frequency = <1fca055>;
 		interrupt-parent = <&mpic>;
 		interrupts = <18 2>;
-		interrupt-map-mask = <fb00 0 0 0>;
+		interrupt-map-mask = <ff00 0 0 7>;
 		interrupt-map = <
-			/* IDSEL 0x11 */
-			8800 0 0 1 &i8259 9 2
-			8800 0 0 2 &i8259 a 2
-			8800 0 0 3 &i8259 b 2
-			8800 0 0 4 &i8259 c 2
+			/* IDSEL 0x11 func 0 - PCI slot 1 */
+			8800 0 0 1 &mpic 2 1
+			8800 0 0 2 &mpic 3 1
+			8800 0 0 3 &mpic 4 1
+			8800 0 0 4 &mpic 1 1
 
-			/* IDSEL 0x12 */
-			9000 0 0 1 &i8259 a 2
-			9000 0 0 2 &i8259 b 2
-			9000 0 0 3 &i8259 c 2
-			9000 0 0 4 &i8259 9 2
+			/* IDSEL 0x11 func 1 - PCI slot 1 */
+			8900 0 0 1 &mpic 2 1
+			8900 0 0 2 &mpic 3 1
+			8900 0 0 3 &mpic 4 1
+			8900 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 2 - PCI slot 1 */
+			8a00 0 0 1 &mpic 2 1
+			8a00 0 0 2 &mpic 3 1
+			8a00 0 0 3 &mpic 4 1
+			8a00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 3 - PCI slot 1 */
+			8b00 0 0 1 &mpic 2 1
+			8b00 0 0 2 &mpic 3 1
+			8b00 0 0 3 &mpic 4 1
+			8b00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 4 - PCI slot 1 */
+			8c00 0 0 1 &mpic 2 1
+			8c00 0 0 2 &mpic 3 1
+			8c00 0 0 3 &mpic 4 1
+			8c00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 5 - PCI slot 1 */
+			8d00 0 0 1 &mpic 2 1
+			8d00 0 0 2 &mpic 3 1
+			8d00 0 0 3 &mpic 4 1
+			8d00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 6 - PCI slot 1 */
+			8e00 0 0 1 &mpic 2 1
+			8e00 0 0 2 &mpic 3 1
+			8e00 0 0 3 &mpic 4 1
+			8e00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x11 func 7 - PCI slot 1 */
+			8f00 0 0 1 &mpic 2 1
+			8f00 0 0 2 &mpic 3 1
+			8f00 0 0 3 &mpic 4 1
+			8f00 0 0 4 &mpic 1 1
+
+			/* IDSEL 0x12 func 0 - PCI slot 2 */
+			9000 0 0 1 &mpic 3 1
+			9000 0 0 2 &mpic 4 1
+			9000 0 0 3 &mpic 1 1
+			9000 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 1 - PCI slot 2 */
+			9100 0 0 1 &mpic 3 1
+			9100 0 0 2 &mpic 4 1
+			9100 0 0 3 &mpic 1 1
+			9100 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 2 - PCI slot 2 */
+			9200 0 0 1 &mpic 3 1
+			9200 0 0 2 &mpic 4 1
+			9200 0 0 3 &mpic 1 1
+			9200 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 3 - PCI slot 2 */
+			9300 0 0 1 &mpic 3 1
+			9300 0 0 2 &mpic 4 1
+			9300 0 0 3 &mpic 1 1
+			9300 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 4 - PCI slot 2 */
+			9400 0 0 1 &mpic 3 1
+			9400 0 0 2 &mpic 4 1
+			9400 0 0 3 &mpic 1 1
+			9400 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 5 - PCI slot 2 */
+			9500 0 0 1 &mpic 3 1
+			9500 0 0 2 &mpic 4 1
+			9500 0 0 3 &mpic 1 1
+			9500 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 6 - PCI slot 2 */
+			9600 0 0 1 &mpic 3 1
+			9600 0 0 2 &mpic 4 1
+			9600 0 0 3 &mpic 1 1
+			9600 0 0 4 &mpic 2 1
+
+			/* IDSEL 0x12 func 7 - PCI slot 2 */
+			9700 0 0 1 &mpic 3 1
+			9700 0 0 2 &mpic 4 1
+			9700 0 0 3 &mpic 1 1
+			9700 0 0 4 &mpic 2 1
 
 			// IDSEL 0x1c  USB
-			e000 0 0 0 &i8259 c 2
-			e100 0 0 0 &i8259 9 2
-			e200 0 0 0 &i8259 a 2
-			e300 0 0 0 &i8259 b 2
+			e000 0 0 1 &i8259 c 2
+			e100 0 0 1 &i8259 9 2
+			e200 0 0 1 &i8259 a 2
+			e300 0 0 1 &i8259 b 2
 
 			// IDSEL 0x1d  Audio
-			e800 0 0 0 &i8259 6 2
+			e800 0 0 1 &i8259 6 2
 
 			// IDSEL 0x1e Legacy
-			f000 0 0 0 &i8259 7 2
-			f100 0 0 0 &i8259 7 2
+			f000 0 0 1 &i8259 7 2
+			f100 0 0 1 &i8259 7 2
 
 			// IDSEL 0x1f IDE/SATA
-			f800 0 0 0 &i8259 e 2
-			f900 0 0 0 &i8259 5 2
+			f800 0 0 1 &i8259 e 2
+			f900 0 0 1 &i8259 5 2
 			>;
 
 		pcie@0 {

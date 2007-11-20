@@ -90,10 +90,11 @@ static void __init mpc832x_sys_setup_arch(void)
 
 	if ((np = of_find_compatible_node(NULL, "network", "ucc_geth"))
 			!= NULL){
-		/* Reset the Ethernet PHY */
-		bcsr_regs[9] &= ~0x20;
+		/* Reset the Ethernet PHYs */
+#define BCSR8_FETH_RST 0x50
+		bcsr_regs[8] &= ~BCSR8_FETH_RST;
 		udelay(1000);
-		bcsr_regs[9] |= 0x20;
+		bcsr_regs[8] |= BCSR8_FETH_RST;
 		iounmap(bcsr_regs);
 		of_node_put(np);
 	}
