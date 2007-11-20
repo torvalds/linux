@@ -195,7 +195,7 @@ skpinv:	addi	r4,r4,1				/* Increment */
 	li	r5,0
 	ori	r5,r5,(PPC44x_TLB_SW | PPC44x_TLB_SR | PPC44x_TLB_I | PPC44x_TLB_G)
 
-        li      r0,0                    /* TLB slot 0 */
+	li	r0,62			/* TLB slot 62 */
 
 	tlbwe	r3,r0,PPC44x_TLB_PAGEID	/* Load the pageid fields */
 	tlbwe	r4,r0,PPC44x_TLB_XLAT	/* Load the translation fields */

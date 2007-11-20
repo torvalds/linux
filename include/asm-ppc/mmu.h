@@ -383,6 +383,12 @@ typedef struct _P601_BAT {
 #define BOOKE_PAGESZ_256GB	14
 #define BOOKE_PAGESZ_1TB	15
 
+#ifndef CONFIG_SERIAL_TEXT_DEBUG
+#define PPC44x_EARLY_TLBS	1
+#else
+#define PPC44x_EARLY_TLBS	2
+#endif
+
 /*
  * Freescale Book-E MMU support
  */
