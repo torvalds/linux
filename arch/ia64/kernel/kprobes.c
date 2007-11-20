@@ -182,8 +182,8 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 	qp = kprobe_inst & 0x3f;
 	if (is_cmp_ctype_unc_inst(template, slot, major_opcode, kprobe_inst)) {
 		if (slot == 1 && qp)  {
-			printk(KERN_WARNING "Kprobes on cmp unc"
-					"instruction on slot 1 at <0x%lx>"
+			printk(KERN_WARNING "Kprobes on cmp unc "
+					"instruction on slot 1 at <0x%lx> "
 					"is not supported\n", addr);
 			return -EINVAL;
 
@@ -221,8 +221,8 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			 * bit 12 to be equal to 1
 			 */
 			if (slot == 1 && qp) {
-				printk(KERN_WARNING "Kprobes on test bit"
-						"instruction on slot at <0x%lx>"
+				printk(KERN_WARNING "Kprobes on test bit "
+						"instruction on slot at <0x%lx> "
 						"is not supported\n", addr);
 				return -EINVAL;
 			}
@@ -242,7 +242,7 @@ static int __kprobes unsupported_inst(uint template, uint  slot,
 			 */
 			int x6=(kprobe_inst >> 27) & 0x3F;
 			if ((x6 == 0x10) || (x6 == 0x11)) {
-				printk(KERN_WARNING "Kprobes on"
+				printk(KERN_WARNING "Kprobes on "
 					"Indirect Predict is not supported\n");
 				return -EINVAL;
 			}

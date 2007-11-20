@@ -180,7 +180,7 @@ ia64_tlb_init (void)
 	long status;
 
 	if ((status = ia64_pal_vm_page_size(&tr_pgbits, &purge.mask)) != 0) {
-		printk(KERN_ERR "PAL_VM_PAGE_SIZE failed with status=%ld;"
+		printk(KERN_ERR "PAL_VM_PAGE_SIZE failed with status=%ld; "
 		       "defaulting to architected purge page-sizes.\n", status);
 		purge.mask = 0x115557000UL;
 	}

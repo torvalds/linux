@@ -347,7 +347,7 @@ sn_common_bus_fixup(struct pci_bus *bus,
 	if (controller->node >= num_online_nodes()) {
 		struct pcibus_bussoft *b = SN_PCIBUS_BUSSOFT(bus);
 
-		printk(KERN_WARNING "Device ASIC=%u XID=%u PBUSNUM=%u"
+		printk(KERN_WARNING "Device ASIC=%u XID=%u PBUSNUM=%u "
 		       "L_IO=%lx L_MEM=%lx BASE=%lx\n",
 		       b->bs_asic_type, b->bs_xid, b->bs_persist_busnum,
 		       b->bs_legacy_io, b->bs_legacy_mem, b->bs_base);
