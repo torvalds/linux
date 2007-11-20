@@ -60,8 +60,10 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-struct hlist_head raw_v6_htable[RAWV6_HTABLE_SIZE];
-DEFINE_RWLOCK(raw_v6_lock);
+#define RAWV6_HTABLE_SIZE	MAX_INET_PROTOS
+
+static struct hlist_head raw_v6_htable[RAWV6_HTABLE_SIZE];
+static DEFINE_RWLOCK(raw_v6_lock);
 
 static void raw_v6_hash(struct sock *sk)
 {
@@ -83,10 +85,8 @@ static void raw_v6_unhash(struct sock *sk)
 }
 
 
-/* Grumble... icmp and ip_input want to get at this... */
-struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
-			     struct in6_addr *loc_addr, struct in6_addr *rmt_addr,
-			     int dif)
+static struct sock *__raw_v6_lookup(struct sock *sk, unsigned short num,
+		struct in6_addr *loc_addr, struct in6_addr *rmt_addr, int dif)
 {
 	struct hlist_node *node;
 	int is_multicast = ipv6_addr_is_multicast(loc_addr);
@@ -167,7 +167,7 @@ EXPORT_SYMBOL(rawv6_mh_filter_unregister);
  *
  *	Caller owns SKB so we must make clones.
  */
-int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
+static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 {
 	struct in6_addr *saddr;
 	struct in6_addr *daddr;
@@ -240,6 +240,17 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 out:
 	read_unlock(&raw_v6_lock);
 	return delivered;
+}
+
+int raw6_local_deliver(struct sk_buff *skb, int nexthdr)
+{
+	struct sock *raw_sk;
+
+	raw_sk = sk_head(&raw_v6_htable[nexthdr & (MAX_INET_PROTOS - 1)]);
+	if (raw_sk && !ipv6_raw_deliver(skb, nexthdr))
+		raw_sk = NULL;
+
+	return raw_sk != NULL;
 }
 
 /* This cleans up af_inet6 a bit. -DaveM */
@@ -316,7 +327,7 @@ out:
 	return err;
 }
 
-void rawv6_err(struct sock *sk, struct sk_buff *skb,
+static void rawv6_err(struct sock *sk, struct sk_buff *skb,
 	       struct inet6_skb_parm *opt,
 	       int type, int code, int offset, __be32 info)
 {
@@ -348,6 +359,31 @@ void rawv6_err(struct sock *sk, struct sk_buff *skb,
 		sk->sk_err = err;
 		sk->sk_error_report(sk);
 	}
+}
+
+void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
+		int type, int code, int inner_offset, __be32 info)
+{
+	struct sock *sk;
+	int hash;
+	struct in6_addr *saddr, *daddr;
+
+	hash = nexthdr & (RAWV6_HTABLE_SIZE - 1);
+
+	read_lock(&raw_v6_lock);
+	sk = sk_head(&raw_v6_htable[hash]);
+	if (sk != NULL) {
+		saddr = &ipv6_hdr(skb)->saddr;
+		daddr = &ipv6_hdr(skb)->daddr;
+
+		while ((sk = __raw_v6_lookup(sk, nexthdr, saddr, daddr,
+						IP6CB(skb)->iif))) {
+			rawv6_err(sk, skb, NULL, type, code,
+					inner_offset, info);
+			sk = sk_next(sk);
+		}
+	}
+	read_unlock(&raw_v6_lock);
 }
 
 static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)

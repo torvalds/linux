@@ -555,9 +555,7 @@ out:
 
 static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 {
-	struct in6_addr *saddr, *daddr;
 	struct inet6_protocol *ipprot;
-	struct sock *sk;
 	int inner_offset;
 	int hash;
 	u8 nexthdr;
@@ -579,9 +577,6 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 	if (!pskb_may_pull(skb, inner_offset+8))
 		return;
 
-	saddr = &ipv6_hdr(skb)->saddr;
-	daddr = &ipv6_hdr(skb)->daddr;
-
 	/* BUGGG_FUTURE: we should try to parse exthdrs in this packet.
 	   Without this we will not able f.e. to make source routed
 	   pmtu discovery.
@@ -597,15 +592,7 @@ static void icmpv6_notify(struct sk_buff *skb, int type, int code, __be32 info)
 		ipprot->err_handler(skb, NULL, type, code, inner_offset, info);
 	rcu_read_unlock();
 
-	read_lock(&raw_v6_lock);
-	if ((sk = sk_head(&raw_v6_htable[hash])) != NULL) {
-		while ((sk = __raw_v6_lookup(sk, nexthdr, saddr, daddr,
-					    IP6CB(skb)->iif))) {
-			rawv6_err(sk, skb, NULL, type, code, inner_offset, info);
-			sk = sk_next(sk);
-		}
-	}
-	read_unlock(&raw_v6_lock);
+	raw6_icmp_error(skb, nexthdr, type, code, inner_offset, info);
 }
 
 /*
