@@ -270,18 +270,18 @@ acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	case ACPI_GPE_TYPE_WAKE_RUN:
 		ACPI_CLEAR_BIT(gpe_event_info->flags, ACPI_GPE_WAKE_ENABLED);
 
-		/*lint -fallthrough */
+		/* fallthrough */
 
 	case ACPI_GPE_TYPE_RUNTIME:
 
 		/* Disable the requested runtime GPE */
 
 		ACPI_CLEAR_BIT(gpe_event_info->flags, ACPI_GPE_RUN_ENABLED);
-		status = acpi_hw_write_gpe_enable_reg(gpe_event_info);
-		break;
+
+		/* fallthrough */
 
 	default:
-		return_ACPI_STATUS(AE_BAD_PARAMETER);
+		acpi_hw_write_gpe_enable_reg(gpe_event_info);
 	}
 
 	return_ACPI_STATUS(AE_OK);
