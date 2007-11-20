@@ -27,6 +27,13 @@ int raw_local_deliver(struct sk_buff *, int);
 
 extern int 	raw_rcv(struct sock *, struct sk_buff *);
 
+#define RAW_HTABLE_SIZE	MAX_INET_PROTOS
+
+struct raw_hashinfo {
+	rwlock_t lock;
+	struct hlist_head ht[RAW_HTABLE_SIZE];
+};
+
 #ifdef CONFIG_PROC_FS
 extern int  raw_proc_init(void);
 extern void raw_proc_exit(void);

@@ -80,28 +80,27 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
-#define RAWV4_HTABLE_SIZE	MAX_INET_PROTOS
-
-static struct hlist_head raw_v4_htable[RAWV4_HTABLE_SIZE];
-static DEFINE_RWLOCK(raw_v4_lock);
+static struct raw_hashinfo raw_v4_hashinfo = {
+	.lock = __RW_LOCK_UNLOCKED(),
+};
 
 static void raw_v4_hash(struct sock *sk)
 {
-	struct hlist_head *head = &raw_v4_htable[inet_sk(sk)->num &
-						 (RAWV4_HTABLE_SIZE - 1)];
+	struct hlist_head *head = &raw_v4_hashinfo.ht[inet_sk(sk)->num &
+						 (RAW_HTABLE_SIZE - 1)];
 
-	write_lock_bh(&raw_v4_lock);
+	write_lock_bh(&raw_v4_hashinfo.lock);
 	sk_add_node(sk, head);
 	sock_prot_inc_use(sk->sk_prot);
-	write_unlock_bh(&raw_v4_lock);
+	write_unlock_bh(&raw_v4_hashinfo.lock);
 }
 
 static void raw_v4_unhash(struct sock *sk)
 {
-	write_lock_bh(&raw_v4_lock);
+	write_lock_bh(&raw_v4_hashinfo.lock);
 	if (sk_del_node_init(sk))
 		sock_prot_dec_use(sk->sk_prot);
-	write_unlock_bh(&raw_v4_lock);
+	write_unlock_bh(&raw_v4_hashinfo.lock);
 }
 
 static struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
@@ -158,8 +157,8 @@ static int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 	struct hlist_head *head;
 	int delivered = 0;
 
-	read_lock(&raw_v4_lock);
-	head = &raw_v4_htable[hash];
+	read_lock(&raw_v4_hashinfo.lock);
+	head = &raw_v4_hashinfo.ht[hash];
 	if (hlist_empty(head))
 		goto out;
 	sk = __raw_v4_lookup(__sk_head(head), iph->protocol,
@@ -180,7 +179,7 @@ static int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash)
 				     skb->dev->ifindex);
 	}
 out:
-	read_unlock(&raw_v4_lock);
+	read_unlock(&raw_v4_hashinfo.lock);
 	return delivered;
 }
 
@@ -189,8 +188,8 @@ int raw_local_deliver(struct sk_buff *skb, int protocol)
 	int hash;
 	struct sock *raw_sk;
 
-	hash = protocol & (RAWV4_HTABLE_SIZE - 1);
-	raw_sk = sk_head(&raw_v4_htable[hash]);
+	hash = protocol & (RAW_HTABLE_SIZE - 1);
+	raw_sk = sk_head(&raw_v4_hashinfo.ht[hash]);
 
 	/* If there maybe a raw socket we must check - if not we
 	 * don't care less
@@ -262,10 +261,10 @@ void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 	struct sock *raw_sk;
 	struct iphdr *iph;
 
-	hash = protocol & (RAWV4_HTABLE_SIZE - 1);
+	hash = protocol & (RAW_HTABLE_SIZE - 1);
 
-	read_lock(&raw_v4_lock);
-	raw_sk = sk_head(&raw_v4_htable[hash]);
+	read_lock(&raw_v4_hashinfo.lock);
+	raw_sk = sk_head(&raw_v4_hashinfo.ht[hash]);
 	if (raw_sk != NULL) {
 		iph = (struct iphdr *)skb->data;
 		while ((raw_sk = __raw_v4_lookup(raw_sk, protocol, iph->daddr,
@@ -276,7 +275,7 @@ void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 			iph = (struct iphdr *)skb->data;
 		}
 	}
-	read_unlock(&raw_v4_lock);
+	read_unlock(&raw_v4_hashinfo.lock);
 }
 
 static int raw_rcv_skb(struct sock * sk, struct sk_buff * skb)
@@ -844,10 +843,11 @@ static struct sock *raw_get_first(struct seq_file *seq)
 	struct sock *sk;
 	struct raw_iter_state* state = raw_seq_private(seq);
 
-	for (state->bucket = 0; state->bucket < RAWV4_HTABLE_SIZE; ++state->bucket) {
+	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
+			++state->bucket) {
 		struct hlist_node *node;
 
-		sk_for_each(sk, node, &raw_v4_htable[state->bucket])
+		sk_for_each(sk, node, &raw_v4_hashinfo.ht[state->bucket])
 			if (sk->sk_family == PF_INET)
 				goto found;
 	}
@@ -866,8 +866,8 @@ try_again:
 		;
 	} while (sk && sk->sk_family != PF_INET);
 
-	if (!sk && ++state->bucket < RAWV4_HTABLE_SIZE) {
-		sk = sk_head(&raw_v4_htable[state->bucket]);
+	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
+		sk = sk_head(&raw_v4_hashinfo.ht[state->bucket]);
 		goto try_again;
 	}
 	return sk;
@@ -885,7 +885,7 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 
 static void *raw_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	read_lock(&raw_v4_lock);
+	read_lock(&raw_v4_hashinfo.lock);
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
 
@@ -903,7 +903,7 @@ static void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void raw_seq_stop(struct seq_file *seq, void *v)
 {
-	read_unlock(&raw_v4_lock);
+	read_unlock(&raw_v4_hashinfo.lock);
 }
 
 static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)

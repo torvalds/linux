@@ -54,34 +54,34 @@
 #include <net/mip6.h>
 #endif
 
+#include <net/raw.h>
 #include <net/rawv6.h>
 #include <net/xfrm.h>
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 
-#define RAWV6_HTABLE_SIZE	MAX_INET_PROTOS
-
-static struct hlist_head raw_v6_htable[RAWV6_HTABLE_SIZE];
-static DEFINE_RWLOCK(raw_v6_lock);
+static struct raw_hashinfo raw_v6_hashinfo = {
+	.lock = __RW_LOCK_UNLOCKED(),
+};
 
 static void raw_v6_hash(struct sock *sk)
 {
-	struct hlist_head *list = &raw_v6_htable[inet_sk(sk)->num &
-						 (RAWV6_HTABLE_SIZE - 1)];
+	struct hlist_head *list = &raw_v6_hashinfo.ht[inet_sk(sk)->num &
+						 (RAW_HTABLE_SIZE - 1)];
 
-	write_lock_bh(&raw_v6_lock);
+	write_lock_bh(&raw_v6_hashinfo.lock);
 	sk_add_node(sk, list);
 	sock_prot_inc_use(sk->sk_prot);
-	write_unlock_bh(&raw_v6_lock);
+	write_unlock_bh(&raw_v6_hashinfo.lock);
 }
 
 static void raw_v6_unhash(struct sock *sk)
 {
-	write_lock_bh(&raw_v6_lock);
+	write_lock_bh(&raw_v6_hashinfo.lock);
 	if (sk_del_node_init(sk))
 		sock_prot_dec_use(sk->sk_prot);
-	write_unlock_bh(&raw_v6_lock);
+	write_unlock_bh(&raw_v6_hashinfo.lock);
 }
 
 
@@ -180,8 +180,8 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 
 	hash = nexthdr & (MAX_INET_PROTOS - 1);
 
-	read_lock(&raw_v6_lock);
-	sk = sk_head(&raw_v6_htable[hash]);
+	read_lock(&raw_v6_hashinfo.lock);
+	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 
 	/*
 	 *	The first socket found will be delivered after
@@ -238,7 +238,7 @@ static int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 				     IP6CB(skb)->iif);
 	}
 out:
-	read_unlock(&raw_v6_lock);
+	read_unlock(&raw_v6_hashinfo.lock);
 	return delivered;
 }
 
@@ -246,7 +246,7 @@ int raw6_local_deliver(struct sk_buff *skb, int nexthdr)
 {
 	struct sock *raw_sk;
 
-	raw_sk = sk_head(&raw_v6_htable[nexthdr & (MAX_INET_PROTOS - 1)]);
+	raw_sk = sk_head(&raw_v6_hashinfo.ht[nexthdr & (MAX_INET_PROTOS - 1)]);
 	if (raw_sk && !ipv6_raw_deliver(skb, nexthdr))
 		raw_sk = NULL;
 
@@ -368,10 +368,10 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	int hash;
 	struct in6_addr *saddr, *daddr;
 
-	hash = nexthdr & (RAWV6_HTABLE_SIZE - 1);
+	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
 
-	read_lock(&raw_v6_lock);
-	sk = sk_head(&raw_v6_htable[hash]);
+	read_lock(&raw_v6_hashinfo.lock);
+	sk = sk_head(&raw_v6_hashinfo.ht[hash]);
 	if (sk != NULL) {
 		saddr = &ipv6_hdr(skb)->saddr;
 		daddr = &ipv6_hdr(skb)->daddr;
@@ -383,7 +383,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 			sk = sk_next(sk);
 		}
 	}
-	read_unlock(&raw_v6_lock);
+	read_unlock(&raw_v6_hashinfo.lock);
 }
 
 static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
@@ -1221,8 +1221,9 @@ static struct sock *raw6_get_first(struct seq_file *seq)
 	struct hlist_node *node;
 	struct raw6_iter_state* state = raw6_seq_private(seq);
 
-	for (state->bucket = 0; state->bucket < RAWV6_HTABLE_SIZE; ++state->bucket)
-		sk_for_each(sk, node, &raw_v6_htable[state->bucket])
+	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
+			++state->bucket)
+		sk_for_each(sk, node, &raw_v6_hashinfo.ht[state->bucket])
 			if (sk->sk_family == PF_INET6)
 				goto out;
 	sk = NULL;
@@ -1240,8 +1241,8 @@ try_again:
 		;
 	} while (sk && sk->sk_family != PF_INET6);
 
-	if (!sk && ++state->bucket < RAWV6_HTABLE_SIZE) {
-		sk = sk_head(&raw_v6_htable[state->bucket]);
+	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
+		sk = sk_head(&raw_v6_hashinfo.ht[state->bucket]);
 		goto try_again;
 	}
 	return sk;
@@ -1258,7 +1259,7 @@ static struct sock *raw6_get_idx(struct seq_file *seq, loff_t pos)
 
 static void *raw6_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	read_lock(&raw_v6_lock);
+	read_lock(&raw_v6_hashinfo.lock);
 	return *pos ? raw6_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
 
@@ -1276,7 +1277,7 @@ static void *raw6_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void raw6_seq_stop(struct seq_file *seq, void *v)
 {
-	read_unlock(&raw_v6_lock);
+	read_unlock(&raw_v6_hashinfo.lock);
 }
 
 static void raw6_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
