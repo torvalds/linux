@@ -440,6 +440,13 @@ static struct zl10353_config cxusb_zl10353_xc3028_config = {
 	.parallel_ts = 1,
 };
 
+static struct mt352_config cxusb_mt352_xc3028_config = {
+	.demod_address = 0x0f,
+	.if2 = 4560,
+	.no_tuner = 1,
+	.demod_init = cxusb_mt352_demod_init,
+};
+
 /* Callbacks for DVB USB */
 static int cxusb_fmd1216me_tuner_attach(struct dvb_usb_adapter *adap)
 {
@@ -639,7 +646,35 @@ static int cxusb_nano2_frontend_attach(struct dvb_usb_adapter *adap)
 				   &adap->dev->i2c_adap)) != NULL)
 		return 0;
 
+	if ((adap->fe = dvb_attach(mt352_attach,
+				   &cxusb_mt352_xc3028_config,
+				   &adap->dev->i2c_adap)) != NULL)
+		return 0;
+
 	return -EIO;
+}
+
+/*
+ * DViCO has shipped two devices with the same USB ID, but only one of them
+ * needs a firmware download.  Check the device class details to see if they
+ * have non-default values to decide whether the device is actually cold or
+ * not, and forget a match if it turns out we selected the wrong device.
+ */
+static int bluebird_fx2_identify_state(struct usb_device *udev,
+				       struct dvb_usb_device_properties *props,
+				       struct dvb_usb_device_description **desc,
+				       int *cold)
+{
+	int wascold = *cold;
+
+	*cold = udev->descriptor.bDeviceClass == 0xff &&
+		udev->descriptor.bDeviceSubClass == 0xff &&
+		udev->descriptor.bDeviceProtocol == 0xff;
+
+	if (*cold && !wascold)
+		*desc = NULL;
+
+	return 0;
 }
 
 /*
@@ -647,22 +682,27 @@ static int cxusb_nano2_frontend_attach(struct dvb_usb_adapter *adap)
  * firmware file before download.
  */
 
-#define BLUEBIRD_01_ID_OFFSET 6638
+static const int dvico_firmware_id_offsets[] = { 6638, 3204 };
 static int bluebird_patch_dvico_firmware_download(struct usb_device *udev,
 						  const struct firmware *fw)
 {
-	if (fw->size < BLUEBIRD_01_ID_OFFSET + 4)
-		return -EINVAL;
+	int pos;
 
-	if (fw->data[BLUEBIRD_01_ID_OFFSET] == (USB_VID_DVICO & 0xff) &&
-	    fw->data[BLUEBIRD_01_ID_OFFSET + 1] == USB_VID_DVICO >> 8) {
+	for (pos = 0; pos < ARRAY_SIZE(dvico_firmware_id_offsets); pos++) {
+		int idoff = dvico_firmware_id_offsets[pos];
 
-		fw->data[BLUEBIRD_01_ID_OFFSET + 2] =
-			le16_to_cpu(udev->descriptor.idProduct) + 1;
-		fw->data[BLUEBIRD_01_ID_OFFSET + 3] =
-			le16_to_cpu(udev->descriptor.idProduct) >> 8;
+		if (fw->size < idoff + 4)
+			continue;
 
-		return usb_cypress_load_firmware(udev, fw, CYPRESS_FX2);
+		if (fw->data[idoff] == (USB_VID_DVICO & 0xff) &&
+		    fw->data[idoff + 1] == USB_VID_DVICO >> 8) {
+			fw->data[idoff + 2] =
+				le16_to_cpu(udev->descriptor.idProduct) + 1;
+			fw->data[idoff + 3] =
+				le16_to_cpu(udev->descriptor.idProduct) >> 8;
+
+			return usb_cypress_load_firmware(udev, fw, CYPRESS_FX2);
+		}
 	}
 
 	return -EINVAL;
@@ -676,6 +716,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgz201_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties;
 static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties;
+static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_properties;
 
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
@@ -686,7 +727,8 @@ static int cxusb_probe(struct usb_interface *intf,
 		dvb_usb_device_init(intf,&cxusb_bluebird_lgz201_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&cxusb_bluebird_dtt7579_properties,THIS_MODULE,NULL) == 0 ||
 		dvb_usb_device_init(intf,&cxusb_bluebird_dualdig4_properties,THIS_MODULE,NULL) == 0 ||
-		dvb_usb_device_init(intf,&cxusb_bluebird_nano2_properties,THIS_MODULE,NULL) == 0) {
+		dvb_usb_device_init(intf,&cxusb_bluebird_nano2_properties,THIS_MODULE,NULL) == 0 ||
+		dvb_usb_device_init(intf,&cxusb_bluebird_nano2_needsfirmware_properties,THIS_MODULE,NULL) == 0) {
 		return 0;
 	}
 
@@ -709,6 +751,7 @@ static struct usb_device_id cxusb_table [] = {
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_2_WARM) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DUAL_4) },
 	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DVB_T_NANO_2) },
+	{ USB_DEVICE(USB_VID_DVICO, USB_PID_DVICO_BLUEBIRD_DVB_T_NANO_2_NFW_WARM) },
 	{}		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE (usb, cxusb_table);
@@ -1018,6 +1061,7 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl         = CYPRESS_FX2,
+	.identify_state   = bluebird_fx2_identify_state,
 
 	.size_of_priv     = sizeof(struct cxusb_state),
 
@@ -1057,6 +1101,56 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties = {
 		{   "DViCO FusionHDTV DVB-T NANO2",
 			{ NULL },
 			{ &cxusb_table[14], NULL },
+		},
+	}
+};
+
+static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_properties = {
+	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+	.usb_ctrl          = DEVICE_SPECIFIC,
+	.firmware          = "dvb-usb-bluebird-02.fw",
+	.download_firmware = bluebird_patch_dvico_firmware_download,
+	.identify_state    = bluebird_fx2_identify_state,
+
+	.size_of_priv      = sizeof(struct cxusb_state),
+
+	.num_adapters = 1,
+	.adapter = {
+		{
+			.streaming_ctrl   = cxusb_streaming_ctrl,
+			.frontend_attach  = cxusb_nano2_frontend_attach,
+			.tuner_attach     = cxusb_dvico_xc3028_tuner_attach,
+			/* parameter for the MPEG2-data transfer */
+			.stream = {
+				.type = USB_BULK,
+				.count = 5,
+				.endpoint = 0x02,
+				.u = {
+					.bulk = {
+						.buffersize = 8192,
+					}
+				}
+			},
+		},
+	},
+
+	.power_ctrl       = cxusb_nano2_power_ctrl,
+
+	.i2c_algo         = &cxusb_i2c_algo,
+
+	.generic_bulk_ctrl_endpoint = 0x01,
+
+	.rc_interval      = 100,
+	.rc_key_map       = dvico_portable_rc_keys,
+	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_query         = cxusb_rc_query,
+
+	.num_device_descs = 1,
+	.devices = {
+		{   "DViCO FusionHDTV DVB-T NANO2 w/o firmware",
+			{ &cxusb_table[14], NULL },
+			{ &cxusb_table[15], NULL },
 		},
 	}
 };
