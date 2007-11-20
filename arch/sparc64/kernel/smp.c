@@ -236,8 +236,9 @@ void smp_synchronize_tick_client(void)
 		       t[i].rt, t[i].master, t[i].diff, t[i].lat);
 #endif
 
-	printk(KERN_INFO "CPU %d: synchronized TICK with master CPU (last diff %ld cycles,"
-	       "maxerr %lu cycles)\n", smp_processor_id(), delta, rt);
+	printk(KERN_INFO "CPU %d: synchronized TICK with master CPU "
+	       "(last diff %ld cycles, maxerr %lu cycles)\n",
+	       smp_processor_id(), delta, rt);
 }
 
 static void smp_start_sync_tick_client(int cpu);
