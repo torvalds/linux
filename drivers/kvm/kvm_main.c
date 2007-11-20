@@ -115,6 +115,9 @@ void kvm_flush_remote_tlbs(struct kvm *kvm)
 		if (cpu != -1 && cpu != raw_smp_processor_id())
 			cpu_set(cpu, cpus);
 	}
+	if (cpus_empty(cpus))
+		return;
+	++kvm->stat.remote_tlb_flush;
 	smp_call_function_mask(cpus, ack_flush, NULL, 1);
 }
 
