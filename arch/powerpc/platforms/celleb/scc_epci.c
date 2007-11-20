@@ -95,7 +95,7 @@ void __init epci_workaround_init(struct pci_controller *hose)
 	private->dummy_page_da = dma_map_single(hose->parent,
 		celleb_dummy_page_va, PAGE_SIZE, DMA_FROM_DEVICE);
 	if (private->dummy_page_da == DMA_ERROR_CODE) {
-		printk(KERN_ERR "EPCI: dummy read disabled."
+		printk(KERN_ERR "EPCI: dummy read disabled. "
 		       "Map dummy page failed.\n");
 		return;
 	}

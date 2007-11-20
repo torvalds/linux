@@ -120,7 +120,7 @@ void __init mpc8xx_calibrate_decr(void)
 	ppc_tb_freq /= 16;
 	ppc_proc_freq = 50000000;
 	if (!get_freq("clock-frequency", &ppc_proc_freq))
-		printk(KERN_ERR "WARNING: Estimating processor frequency"
+		printk(KERN_ERR "WARNING: Estimating processor frequency "
 		                "(not found)\n");
 
 	printk("Decrementer Frequency = 0x%lx\n", ppc_tb_freq);

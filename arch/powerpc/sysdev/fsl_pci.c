@@ -222,7 +222,7 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
 	}
 
-	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx."
+	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx. "
 		"Firmware bus number: %d->%d\n",
 		(unsigned long long)rsrc.start, hose->first_busno,
 		hose->last_busno);

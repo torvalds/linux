@@ -256,7 +256,7 @@ int __init celleb_pci_workaround_init(void)
 
 	celleb_dummy_page_va = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!celleb_dummy_page_va) {
-		printk(KERN_ERR "Celleb: dummy read disabled."
+		printk(KERN_ERR "Celleb: dummy read disabled. "
 			"Alloc celleb_dummy_page_va failed\n");
 		return 1;
 	}
