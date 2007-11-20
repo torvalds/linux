@@ -614,6 +614,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 	unsigned int		type = 0;
 	struct firmware_properties new_fw;
 	u16			version, hwmodel;
+	v4l2_std_id		std0;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
@@ -690,7 +691,9 @@ retry:
 	if (rc < 0)
 		goto fail;
 
-	rc = load_firmware(fe, BASE | new_fw.type, &new_fw.id);
+	/* BASE firmwares are all std0 */
+	std0 = 0;
+	rc = load_firmware(fe, BASE | new_fw.type, &std0);
 	if (rc < 0) {
 		tuner_err("Error %d while loading base firmware\n",
 			  rc);
@@ -700,7 +703,7 @@ retry:
 	/* Load INIT1, if needed */
 	tuner_dbg("Load init1 firmware, if exists\n");
 
-	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &new_fw.id);
+	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
 	if (rc < 0 && rc != -ENOENT) {
 		tuner_err("Error %d while loading init1 firmware\n",
 			  rc);
