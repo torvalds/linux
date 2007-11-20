@@ -795,10 +795,6 @@ int lbs_ret_80211_associate(lbs_private *priv,
 	netif_carrier_on(priv->dev);
 	netif_wake_queue(priv->dev);
 
-	if (priv->mesh_dev) {
-		netif_carrier_on(priv->mesh_dev);
-		netif_wake_queue(priv->mesh_dev);
-	}
 
 	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -883,11 +879,6 @@ int lbs_ret_80211_ad_hoc_start(lbs_private *priv,
 
 	netif_carrier_on(priv->dev);
 	netif_wake_queue(priv->dev);
-
-	if (priv->mesh_dev) {
-		netif_carrier_on(priv->mesh_dev);
-		netif_wake_queue(priv->mesh_dev);
-	}
 
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);

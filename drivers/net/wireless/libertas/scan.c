@@ -297,7 +297,8 @@ static void lbs_scan_create_channel_list(lbs_private *priv,
 
 	for (rgnidx = 0; rgnidx < ARRAY_SIZE(adapter->region_channel); rgnidx++) {
 		if (priv->adapter->enable11d &&
-		    adapter->connect_status != LBS_CONNECTED) {
+		    (adapter->connect_status != LBS_CONNECTED) &&
+		    (adapter->mesh_connect_status != LBS_CONNECTED)) {
 			/* Scan all the supported chan for the first scan */
 			if (!adapter->universal_channel[rgnidx].valid)
 				continue;
@@ -897,13 +898,14 @@ int lbs_scan_networks(lbs_private *priv,
 	mutex_unlock(&adapter->lock);
 #endif
 
-	if (priv->adapter->connect_status == LBS_CONNECTED) {
+	if (adapter->connect_status == LBS_CONNECTED) {
 		netif_carrier_on(priv->dev);
 		netif_wake_queue(priv->dev);
-		if (priv->mesh_dev) {
-			netif_carrier_on(priv->mesh_dev);
-			netif_wake_queue(priv->mesh_dev);
-		}
+	}
+
+	if (priv->mesh_dev && (adapter->mesh_connect_status == LBS_CONNECTED)) {
+		netif_carrier_on(priv->mesh_dev);
+		netif_wake_queue(priv->mesh_dev);
 	}
 
 out:

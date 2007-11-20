@@ -154,7 +154,8 @@ static void copy_active_data_rates(lbs_adapter *adapter, u8 *rates)
 {
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (adapter->connect_status != LBS_CONNECTED)
+	if ((adapter->connect_status != LBS_CONNECTED) &&
+		(adapter->mesh_connect_status != LBS_CONNECTED))
 		memcpy(rates, lbs_bg_rates, MAX_RATES);
 	else
 		memcpy(rates, adapter->curbssparams.rates, MAX_RATES);
@@ -274,7 +275,7 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 
 	/* Use nickname to indicate that mesh is on */
 
-	if (adapter->connect_status == LBS_CONNECTED) {
+	if (adapter->mesh_connect_status == LBS_CONNECTED) {
 		strncpy(extra, "Mesh", 12);
 		extra[12] = '\0';
 		dwrq->length = strlen(extra);
@@ -589,7 +590,8 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 
 	range->num_frequency = 0;
 	if (priv->adapter->enable11d &&
-	    adapter->connect_status == LBS_CONNECTED) {
+	    (adapter->connect_status == LBS_CONNECTED ||
+	    adapter->mesh_connect_status == LBS_CONNECTED)) {
 		u8 chan_no;
 		u8 band;
 
@@ -827,7 +829,8 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 	priv->wstats.status = adapter->mode;
 
 	/* If we're not associated, all quality values are meaningless */
-	if (adapter->connect_status != LBS_CONNECTED)
+	if ((adapter->connect_status != LBS_CONNECTED) &&
+	    (adapter->mesh_connect_status != LBS_CONNECTED))
 		goto out;
 
 	/* Quality by RSSI */

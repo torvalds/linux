@@ -273,10 +273,11 @@ void lbs_send_tx_feedback(lbs_private *priv)
 	lbs_upload_rx_packet(priv, adapter->currenttxskb);
 	adapter->currenttxskb = NULL;
 	priv->adapter->TxLockFlag = 0;
-	if (priv->adapter->connect_status == LBS_CONNECTED) {
+
+	if (adapter->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_wake_queue(priv->mesh_dev);
-	}
+
+	if (priv->mesh_dev && (adapter->mesh_connect_status == LBS_CONNECTED))
+		netif_wake_queue(priv->mesh_dev);
 }
 EXPORT_SYMBOL_GPL(lbs_send_tx_feedback);

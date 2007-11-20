@@ -73,10 +73,11 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 			if (!adapter->cur_cmd)
 				wake_up_interruptible(&priv->waitq);
 
-			if ((adapter->connect_status == LBS_CONNECTED)) {
+			if (adapter->connect_status == LBS_CONNECTED)
 				netif_wake_queue(dev);
+
+			if (priv->mesh_dev && (adapter->mesh_connect_status == LBS_CONNECTED))
 				netif_wake_queue(priv->mesh_dev);
-			}
 		}
 	} else {
 		/* print the failure status number for debug */

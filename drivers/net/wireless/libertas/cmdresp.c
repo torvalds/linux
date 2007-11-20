@@ -979,7 +979,7 @@ int lbs_process_event(lbs_private * priv)
 			break;
 		}
 		lbs_pr_info("EVENT: MESH_AUTO_STARTED\n");
-		adapter->connect_status = LBS_CONNECTED;
+		adapter->mesh_connect_status = LBS_CONNECTED;
 		if (priv->mesh_open == 1) {
 			netif_wake_queue(priv->mesh_dev);
 			netif_carrier_on(priv->mesh_dev);

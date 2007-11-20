@@ -406,13 +406,15 @@ static int lbs_dev_open(struct net_device *dev)
 
 	priv->open = 1;
 
-	if (adapter->connect_status == LBS_CONNECTED) {
+	if (adapter->connect_status == LBS_CONNECTED)
 		netif_carrier_on(priv->dev);
-		if (priv->mesh_dev)
-			netif_carrier_on(priv->mesh_dev);
-	} else {
+	else
 		netif_carrier_off(priv->dev);
-		if (priv->mesh_dev)
+
+	if (priv->mesh_dev) {
+		if (adapter->mesh_connect_status == LBS_CONNECTED)
+			netif_carrier_on(priv->mesh_dev);
+		else
 			netif_carrier_off(priv->mesh_dev);
 	}
 
@@ -432,6 +434,11 @@ static int lbs_mesh_open(struct net_device *dev)
 	if (pre_open_check(dev) == -1)
 		return -1;
 	priv->mesh_open = 1 ;
+	netif_wake_queue(priv->mesh_dev);
+
+	priv->adapter->mesh_connect_status = LBS_CONNECTED;
+
+	netif_carrier_on(priv->mesh_dev);
 	netif_wake_queue(priv->mesh_dev);
 	if (priv->infra_open == 0)
 		return lbs_dev_open(priv->dev) ;
@@ -548,7 +555,7 @@ static int lbs_mesh_pre_start_xmit(struct sk_buff *skb,
 
 	SET_MESH_FRAME(skb);
 
-	ret = lbs_hard_start_xmit(skb, priv->dev);
+	ret = lbs_hard_start_xmit(skb, priv->mesh_dev);
 	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
 	return ret;
 }
@@ -595,9 +602,12 @@ static void lbs_tx_timeout(struct net_device *dev)
 			lbs_send_tx_feedback(priv);
 		} else
 			wake_up_interruptible(&priv->waitq);
-	} else if (priv->adapter->connect_status == LBS_CONNECTED) {
-		netif_wake_queue(priv->dev);
-		if (priv->mesh_dev)
+	} else if (dev == priv->dev) {
+		if (priv->adapter->connect_status == LBS_CONNECTED)
+			netif_wake_queue(priv->dev);
+
+	} else if (dev == priv->mesh_dev) {
+		if (priv->adapter->mesh_connect_status == LBS_CONNECTED)
 			netif_wake_queue(priv->mesh_dev);
 	}
 
@@ -1054,6 +1064,7 @@ static int lbs_init_adapter(lbs_private *priv)
 	memset(adapter->current_addr, 0xff, ETH_ALEN);
 
 	adapter->connect_status = LBS_DISCONNECTED;
+	adapter->mesh_connect_status = LBS_DISCONNECTED;
 	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	adapter->mode = IW_MODE_INFRA;
 	adapter->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;

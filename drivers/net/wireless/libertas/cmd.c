@@ -1755,7 +1755,8 @@ int lbs_execute_next_command(lbs_private * priv)
 		 */
 		if ((adapter->psmode != LBS802_11POWERMODECAM) &&
 		    (adapter->psstate == PS_STATE_FULL_POWER) &&
-		    (adapter->connect_status == LBS_CONNECTED)) {
+		    ((adapter->connect_status == LBS_CONNECTED) ||
+		    (adapter->mesh_connect_status == LBS_CONNECTED))) {
 			if (adapter->secinfo.WPAenabled ||
 			    adapter->secinfo.WPA2enabled) {
 				/* check for valid WPA group keys */
