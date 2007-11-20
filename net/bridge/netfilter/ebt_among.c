@@ -187,7 +187,7 @@ static int ebt_among_check(const char *tablename, unsigned int hookmask,
 
 	if (datalen != EBT_ALIGN(expected_length)) {
 		printk(KERN_WARNING
-		       "ebtables: among: wrong size: %d"
+		       "ebtables: among: wrong size: %d "
 		       "against expected %d, rounded to %Zd\n",
 		       datalen, expected_length,
 		       EBT_ALIGN(expected_length));
