@@ -24,9 +24,6 @@
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-void (*copy_page)(void *from, void *to);
-void (*clear_page)(void *to);
-
 void show_mem(void)
 {
 	int total = 0, reserved = 0, free = 0;
@@ -202,18 +199,6 @@ void __init mem_init(void)
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
-
-	/*
-	 * Setup wrappers for copy/clear_page(), these will get overridden
-	 * later in the boot process if a better method is available.
-	 */
-#ifdef CONFIG_MMU
-	copy_page = copy_page_slow;
-	clear_page = clear_page_slow;
-#else
-	copy_page = copy_page_nommu;
-	clear_page = clear_page_nommu;
-#endif
 
 	after_bootmem = 1;
 

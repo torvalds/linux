@@ -25,8 +25,8 @@
 	.little
 
 	.balign 8
-	.global sh64_page_clear
-sh64_page_clear:
+	.global clear_page
+clear_page:
 	pta/l 1f, tr1
 	pta/l 2f, tr2
 	ptabs/l r18, tr0

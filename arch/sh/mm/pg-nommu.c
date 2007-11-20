@@ -14,12 +14,12 @@
 #include <linux/string.h>
 #include <asm/page.h>
 
-void copy_page_nommu(void *to, void *from)
+void copy_page(void *to, void *from)
 {
 	memcpy(to, from, PAGE_SIZE);
 }
 
-void clear_page_nommu(void *to)
+void clear_page(void *to)
 {
 	memset(to, 0, PAGE_SIZE);
 }

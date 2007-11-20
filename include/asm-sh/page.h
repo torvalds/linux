@@ -55,20 +55,12 @@
 
 #ifndef __ASSEMBLY__
 
-extern void (*clear_page)(void *to);
-extern void (*copy_page)(void *to, void *from);
-
 extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
 extern unsigned long memory_start, memory_end;
 
-#ifdef CONFIG_MMU
-extern void clear_page_slow(void *to);
-extern void copy_page_slow(void *to, void *from);
-#else
-extern void clear_page_nommu(void *to);
-extern void copy_page_nommu(void *to, void *from);
-#endif
+extern void clear_page(void *to);
+extern void copy_page(void *to, void *from);
 
 #if !defined(CONFIG_CACHE_OFF) && defined(CONFIG_MMU) && \
 	(defined(CONFIG_CPU_SH4) || defined(CONFIG_SH7705_CACHE_32KB))

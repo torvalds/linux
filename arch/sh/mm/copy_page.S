@@ -9,11 +9,11 @@
 #include <asm/page.h>
 
 /*
- * copy_page_slow
+ * copy_page
  * @to: P1 address
  * @from: P1 address
  *
- * void copy_page_slow(void *to, void *from)
+ * void copy_page(void *to, void *from)
  */
 
 /*
@@ -23,7 +23,7 @@
  * r10 --- to
  * r11 --- from
  */
-ENTRY(copy_page_slow)
+ENTRY(copy_page)
 	mov.l	r8,@-r15
 	mov.l	r10,@-r15
 	mov.l	r11,@-r15
