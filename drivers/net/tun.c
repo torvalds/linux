@@ -292,17 +292,6 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 	return count;
 }
 
-static inline size_t iov_total(const struct iovec *iv, unsigned long count)
-{
-	unsigned long i;
-	size_t len;
-
-	for (i = 0, len = 0; i < count; i++)
-		len += iv[i].iov_len;
-
-	return len;
-}
-
 static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 			      unsigned long count, loff_t pos)
 {
@@ -313,7 +302,7 @@ static ssize_t tun_chr_aio_write(struct kiocb *iocb, const struct iovec *iv,
 
 	DBG(KERN_INFO "%s: tun_chr_write %ld\n", tun->dev->name, count);
 
-	return tun_get_user(tun, (struct iovec *) iv, iov_total(iv, count));
+	return tun_get_user(tun, (struct iovec *) iv, iov_length(iv, count));
 }
 
 /* Put packet to the user space buffer */
@@ -364,7 +353,7 @@ static ssize_t tun_chr_aio_read(struct kiocb *iocb, const struct iovec *iv,
 
 	DBG(KERN_INFO "%s: tun_chr_read\n", tun->dev->name);
 
-	len = iov_total(iv, count);
+	len = iov_length(iv, count);
 	if (len < 0)
 		return -EINVAL;
 
