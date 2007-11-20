@@ -639,13 +639,13 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 		    (child->number > bus->subordinate) ||
 		    (child->number < bus->number) ||
 		    (child->subordinate < bus->number)) {
-			pr_debug("PCI: Bus #%02x (-#%02x) is %s"
+			pr_debug("PCI: Bus #%02x (-#%02x) is %s "
 				"hidden behind%s bridge #%02x (-#%02x)\n",
 				child->number, child->subordinate,
 				(bus->number > child->subordinate &&
 				 bus->subordinate < child->number) ?
-					"wholly " : " partially",
-				bus->self->transparent ? " transparent" : " ",
+					"wholly" : "partially",
+				bus->self->transparent ? " transparent" : "",
 				bus->number, bus->subordinate);
 		}
 		bus = bus->parent;
