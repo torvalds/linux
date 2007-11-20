@@ -258,8 +258,6 @@ static struct trans_ctl_table trans_net_ipv4_vs_table[] = {
 	{ NET_IPV4_VS_EXPIRE_NODEST_CONN,	"expire_nodest_conn" },
 	{ NET_IPV4_VS_EXPIRE_QUIESCENT_TEMPLATE,	"expire_quiescent_template" },
 	{ NET_IPV4_VS_NAT_ICMP_SEND,	"nat_icmp_send" },
-	{ NET_IPV4_VS_LBLC_EXPIRE,		"lblc_expiration" },
-	{ NET_IPV4_VS_LBLCR_EXPIRE,		"lblcr_expiration" },
 	{}
 };
 
