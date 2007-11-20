@@ -1411,6 +1411,8 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	struct acpi_processor *pr;
 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
 	u32 t1, t2;
+	int sleep_ticks = 0;
+
 	pr = processors[smp_processor_id()];
 
 	if (unlikely(!pr))
@@ -1440,6 +1442,8 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		ACPI_FLUSH_CPU_CACHE();
 
 	t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
+	/* Tell the scheduler that we are going deep-idle: */
+	sched_clock_idle_sleep_event();
 	acpi_state_timer_broadcast(pr, cx, 1);
 	acpi_idle_do_entry(cx);
 	t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
@@ -1448,6 +1452,10 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	/* TSC could halt in idle, so notify users */
 	mark_tsc_unstable("TSC halts in idle");;
 #endif
+	sleep_ticks = ticks_elapsed(t1, t2);
+
+	/* Tell the scheduler how much we idled: */
+	sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
 
 	local_irq_enable();
 	current_thread_info()->status |= TS_POLLING;
@@ -1455,7 +1463,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	cx->usage++;
 
 	acpi_state_timer_broadcast(pr, cx, 0);
-	cx->time += ticks_elapsed(t1, t2);
+	cx->time += sleep_ticks;
 	return ticks_elapsed_in_us(t1, t2);
 }
 
@@ -1475,6 +1483,8 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	struct acpi_processor *pr;
 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
 	u32 t1, t2;
+	int sleep_ticks = 0;
+
 	pr = processors[smp_processor_id()];
 
 	if (unlikely(!pr))
@@ -1497,6 +1507,8 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		return 0;
 	}
 
+	/* Tell the scheduler that we are going deep-idle: */
+	sched_clock_idle_sleep_event();
 	/*
 	 * Must be done before busmaster disable as we might need to
 	 * access HPET !
@@ -1552,6 +1564,9 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	/* TSC could halt in idle, so notify users */
 	mark_tsc_unstable("TSC halts in idle");
 #endif
+	sleep_ticks = ticks_elapsed(t1, t2);
+	/* Tell the scheduler how much we idled: */
+	sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
 
 	local_irq_enable();
 	current_thread_info()->status |= TS_POLLING;
@@ -1559,7 +1574,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	cx->usage++;
 
 	acpi_state_timer_broadcast(pr, cx, 0);
-	cx->time += ticks_elapsed(t1, t2);
+	cx->time += sleep_ticks;
 	return ticks_elapsed_in_us(t1, t2);
 }
 
