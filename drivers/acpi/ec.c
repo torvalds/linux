@@ -175,12 +175,12 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 		if (acpi_ec_check_status(ec, event)) {
 			if (event == ACPI_EC_EVENT_OBF_1) {
 				/* miss OBF = 1 GPE, don't expect it anymore */
-				printk(KERN_INFO PREFIX "missing OBF_1 confirmation,"
+				printk(KERN_INFO PREFIX "missing OBF_1 confirmation, "
 					"switching to degraded mode.\n");
 				set_bit(EC_FLAGS_ONLY_IBF_GPE, &ec->flags);
 			} else {
 				/* missing GPEs, switch back to poll mode */
-				printk(KERN_INFO PREFIX "missing IBF_1 confirmations,"
+				printk(KERN_INFO PREFIX "missing IBF_1 confirmations, "
 					"switch off interrupt mode.\n");
 				clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 			}
