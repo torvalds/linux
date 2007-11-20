@@ -711,7 +711,7 @@ static int ql_mii_write_reg_ex(struct ql3_adapter *qdev,
 	if (ql_wait_for_mii_ready(qdev)) {
 		if (netif_msg_link(qdev))
 			printk(KERN_WARNING PFX
-			       "%s: Timed out waiting for management port to"
+			       "%s: Timed out waiting for management port to "
 			       "get free before issuing command.\n",
 			       qdev->ndev->name);
 		return -1;

@@ -3772,7 +3772,7 @@ static int s2io_test_msi(struct s2io_nic *sp)
 
 	if (!sp->msi_detected) {
 		/* MSI(X) test failed, go back to INTx mode */
-		DBG_PRINT(ERR_DBG, "%s: PCI %s: No interrupt was generated"
+		DBG_PRINT(ERR_DBG, "%s: PCI %s: No interrupt was generated "
 			"using MSI(X) during test\n", sp->dev->name,
 			pci_name(pdev));
 
@@ -6868,7 +6868,7 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				/* If either data or addr is zero print it */
 				if(!(sp->msix_info[i].addr &&
 					sp->msix_info[i].data)) {
-					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx"
+					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
 						"Data:0x%lx\n",sp->desc[i],
 						(unsigned long long)
 						sp->msix_info[i].addr,
@@ -6886,7 +6886,7 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				/* If either data or addr is zero print it */
 				if(!(sp->msix_info[i].addr &&
 					sp->msix_info[i].data)) {
-					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx"
+					DBG_PRINT(ERR_DBG, "%s @ Addr:0x%llx "
 						"Data:0x%lx\n",sp->desc[i],
 						(unsigned long long)
 						sp->msix_info[i].addr,

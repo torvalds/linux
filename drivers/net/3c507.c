@@ -747,7 +747,7 @@ static void init_82586_mem(struct net_device *dev)
 		int boguscnt = 50;
 		while (readw(shmem+iSCB_STATUS) == 0)
 			if (--boguscnt == 0) {
-				printk("%s: i82586 initialization timed out with status %04x,"
+				printk("%s: i82586 initialization timed out with status %04x, "
 					   "cmd %04x.\n", dev->name,
 					   readw(shmem+iSCB_STATUS), readw(shmem+iSCB_CMD));
 				break;
@@ -832,7 +832,7 @@ static void el16_rx(struct net_device *dev)
 
 		if (rfd_cmd != 0 || data_buffer_addr != rx_head + 22
 			|| (pkt_len & 0xC000) != 0xC000) {
-			printk("%s: Rx frame at %#x corrupted, status %04x cmd %04x"
+			printk("%s: Rx frame at %#x corrupted, status %04x cmd %04x "
 				   "next %04x data-buf @%04x %04x.\n", dev->name, rx_head,
 				   frame_status, rfd_cmd, next_rx_frame, data_buffer_addr,
 				   pkt_len);

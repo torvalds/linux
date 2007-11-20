@@ -906,7 +906,7 @@ static int __init smc_probe(struct net_device *dev, int ioaddr)
 	SMC_SELECT_BANK(1);
 	base_address_register = inw( ioaddr + BASE );
 	if ( ioaddr != ( base_address_register >> 3 & 0x3E0 ) )  {
-		printk(CARDNAME ": IOADDR %x doesn't match configuration (%x)."
+		printk(CARDNAME ": IOADDR %x doesn't match configuration (%x). "
 			"Probably not a SMC chip\n",
 			ioaddr, base_address_register >> 3 & 0x3E0 );
 		/* well, the base address register didn't match.  Must not have

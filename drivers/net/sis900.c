@@ -419,7 +419,7 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 
 	i = pci_set_dma_mask(pci_dev, DMA_32BIT_MASK);
 	if(i){
-		printk(KERN_ERR "sis900.c: architecture does not support"
+		printk(KERN_ERR "sis900.c: architecture does not support "
 			"32bit PCI busmaster DMA\n");
 		return i;
 	}
@@ -1667,7 +1667,7 @@ static irqreturn_t sis900_interrupt(int irq, void *dev_instance)
 		/* something strange happened !!! */
 		if (status & HIBERR) {
 			if(netif_msg_intr(sis_priv))
-				printk(KERN_INFO "%s: Abnormal interrupt,"
+				printk(KERN_INFO "%s: Abnormal interrupt, "
 					"status %#8.8x.\n", net_dev->name, status);
 			break;
 		}
@@ -1820,7 +1820,7 @@ refill_rx_ring:
 				 * how the hardware will react to this kind
 				 * of degenerated buffer */
 				if (netif_msg_rx_err(sis_priv))
-					printk(KERN_INFO "%s: Memory squeeze,"
+					printk(KERN_INFO "%s: Memory squeeze, "
 						"deferring packet.\n",
 						net_dev->name);
 				net_dev->stats.rx_dropped++;
