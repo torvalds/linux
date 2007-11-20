@@ -744,11 +744,6 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	hcrx->ccid3hcrx_ccval_last_counter   = packet->dccphrx_ccval;
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
-	/* Elapsed time information [RFC 4340, 13.2] in units of 10 * usecs */
-	delta = ktime_us_delta(now, packet->dccphrx_tstamp);
-	DCCP_BUG_ON(delta < 0);
-	hcrx->ccid3hcrx_elapsed_time = delta / 10;
-
 	if (hcrx->ccid3hcrx_p == 0)
 		hcrx->ccid3hcrx_pinv = ~0U;	/* see RFC 4342, 8.5 */
 	else if (hcrx->ccid3hcrx_p > 1000000) {
@@ -778,10 +773,7 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	x_recv = htonl(hcrx->ccid3hcrx_x_recv);
 	pinv   = htonl(hcrx->ccid3hcrx_pinv);
 
-	if ((hcrx->ccid3hcrx_elapsed_time != 0 &&
-	     dccp_insert_option_elapsed_time(sk, skb,
-					     hcrx->ccid3hcrx_elapsed_time)) ||
-	    dccp_insert_option_timestamp(sk, skb) ||
+	if (dccp_insert_option_timestamp(sk, skb) ||
 	    dccp_insert_option(sk, skb, TFRC_OPT_LOSS_EVENT_RATE,
 			       &pinv, sizeof(pinv)) ||
 	    dccp_insert_option(sk, skb, TFRC_OPT_RECEIVE_RATE,

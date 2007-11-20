@@ -147,7 +147,6 @@ enum ccid3_hc_rx_states {
  *  @ccid3hcrx_li_hist  -  Loss Interval History
  *  @ccid3hcrx_s  -  Received packet size in bytes
  *  @ccid3hcrx_pinv  -  Inverse of Loss Event Rate (RFC 4342, sec. 8.5)
- *  @ccid3hcrx_elapsed_time  -  Time since packet reception
  */
 struct ccid3_hc_rx_sock {
 	struct tfrc_rx_info		ccid3hcrx_tfrc;
@@ -165,7 +164,6 @@ struct ccid3_hc_rx_sock {
 	struct list_head		ccid3hcrx_li_hist;
 	u16				ccid3hcrx_s;
 	u32				ccid3hcrx_pinv;
-	u32				ccid3hcrx_elapsed_time;
 };
 
 static inline struct ccid3_hc_rx_sock *ccid3_hc_rx_sk(const struct sock *sk)
