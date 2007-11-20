@@ -561,7 +561,7 @@ void iser_rcv_completion(struct iser_desc *rx_desc,
 	if (opcode == ISCSI_OP_SCSI_CMD_RSP) {
 	        itt = get_itt(hdr->itt); /* mask out cid and age bits */
 		if (!(itt < session->cmds_max))
-			iser_err("itt can't be matched to task!!!"
+			iser_err("itt can't be matched to task!!! "
 				 "conn %p opcode %d cmds_max %d itt %d\n",
 				 conn->iscsi_conn,opcode,session->cmds_max,itt);
 		/* use the mapping given with the cmds array indexed by itt */

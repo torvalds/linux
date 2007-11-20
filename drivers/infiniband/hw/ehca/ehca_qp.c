@@ -858,7 +858,7 @@ struct ib_srq *ehca_create_srq(struct ib_pd *pd,
 				update_mask,
 				mqpcb, my_qp->galpas.kernel);
 	if (hret != H_SUCCESS) {
-		ehca_err(pd->device, "Could not modify SRQ to INIT"
+		ehca_err(pd->device, "Could not modify SRQ to INIT "
 			 "ehca_qp=%p qp_num=%x h_ret=%li",
 			 my_qp, my_qp->real_qp_num, hret);
 		goto create_srq2;
@@ -872,7 +872,7 @@ struct ib_srq *ehca_create_srq(struct ib_pd *pd,
 				update_mask,
 				mqpcb, my_qp->galpas.kernel);
 	if (hret != H_SUCCESS) {
-		ehca_err(pd->device, "Could not enable SRQ"
+		ehca_err(pd->device, "Could not enable SRQ "
 			 "ehca_qp=%p qp_num=%x h_ret=%li",
 			 my_qp, my_qp->real_qp_num, hret);
 		goto create_srq2;
@@ -886,7 +886,7 @@ struct ib_srq *ehca_create_srq(struct ib_pd *pd,
 				update_mask,
 				mqpcb, my_qp->galpas.kernel);
 	if (hret != H_SUCCESS) {
-		ehca_err(pd->device, "Could not modify SRQ to RTR"
+		ehca_err(pd->device, "Could not modify SRQ to RTR "
 			 "ehca_qp=%p qp_num=%x h_ret=%li",
 			 my_qp, my_qp->real_qp_num, hret);
 		goto create_srq2;
