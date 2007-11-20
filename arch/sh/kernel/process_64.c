@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
+#include <linux/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
@@ -106,9 +107,20 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
-	extern void enter_deep_standby(void);
+#if 0
+	/* Disable watchdog timer */
+	ctrl_outl(0xa5000000, WTCSR);
+	/* Configure deep standby on sleep */
+	ctrl_outl(0x03, STBCR);
+#endif
 
-	enter_deep_standby();
+	__asm__ __volatile__ (
+		"sleep\n\t"
+		"synci\n\t"
+		"nop;nop;nop;nop\n\t"
+	);
+
+	panic("Unexpected wakeup!\n");
 }
 
 void (*pm_power_off)(void) = machine_power_off;
