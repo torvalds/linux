@@ -97,6 +97,15 @@ void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h)
 }
 EXPORT_SYMBOL_GPL(raw_hash_sk);
 
+void raw_unhash_sk(struct sock *sk, struct raw_hashinfo *h)
+{
+	write_lock_bh(&h->lock);
+	if (sk_del_node_init(sk))
+		sock_prot_dec_use(sk->sk_prot);
+	write_unlock_bh(&h->lock);
+}
+EXPORT_SYMBOL_GPL(raw_unhash_sk);
+
 static void raw_v4_hash(struct sock *sk)
 {
 	raw_hash_sk(sk, &raw_v4_hashinfo);
@@ -104,10 +113,7 @@ static void raw_v4_hash(struct sock *sk)
 
 static void raw_v4_unhash(struct sock *sk)
 {
-	write_lock_bh(&raw_v4_hashinfo.lock);
-	if (sk_del_node_init(sk))
-		sock_prot_dec_use(sk->sk_prot);
-	write_unlock_bh(&raw_v4_hashinfo.lock);
+	raw_unhash_sk(sk, &raw_v4_hashinfo);
 }
 
 static struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,

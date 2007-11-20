@@ -72,10 +72,7 @@ static void raw_v6_hash(struct sock *sk)
 
 static void raw_v6_unhash(struct sock *sk)
 {
-	write_lock_bh(&raw_v6_hashinfo.lock);
-	if (sk_del_node_init(sk))
-		sock_prot_dec_use(sk->sk_prot);
-	write_unlock_bh(&raw_v6_hashinfo.lock);
+	raw_unhash_sk(sk, &raw_v6_hashinfo);
 }
 
 
