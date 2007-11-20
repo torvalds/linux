@@ -248,6 +248,11 @@ static inline void ctrl_delay(void)
 #endif
 }
 
+/* Quad-word real-mode I/O, don't ask.. */
+unsigned long long peek_real_address_q(unsigned long long addr);
+unsigned long long poke_real_address_q(unsigned long long addr,
+				       unsigned long long val);
+
 #define IO_SPACE_LIMIT 0xffffffff
 
 #if !defined(CONFIG_MMU)

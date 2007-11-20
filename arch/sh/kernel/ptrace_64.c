@@ -253,7 +253,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 {
-	extern void poke_real_address_q(unsigned long long addr, unsigned long long data);
 #define WPC_DBRMODE 0x0d104008
 	static int first_call = 1;
 
