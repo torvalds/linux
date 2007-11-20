@@ -74,15 +74,21 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment -R .stab -R
 # never be used by anyone. Use a board-specific defconfig that has a
 # reasonable chance of being current instead.
 #
-KBUILD_DEFCONFIG := r7780rp_defconfig
+KBUILD_DEFCONFIG	:= r7780rp_defconfig
 
-KBUILD_IMAGE	:= arch/sh/boot/zImage
+KBUILD_IMAGE		:= arch/sh/boot/zImage
 
 #
 # Choosing incompatible machines durings configuration will result in
 # error messages during linking.
 #
-LDFLAGS_vmlinux     += -e _stext
+ifdef CONFIG_SUPERH32
+LDFLAGS_vmlinux	+= -e _stext
+else
+LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_CACHED_MEMORY_OFFSET) \
+		   --defsym phys_stext_shmedia=phys_stext+1 \
+		   -e phys_stext_shmedia
+endif
 
 ifdef CONFIG_CPU_LITTLE_ENDIAN
 LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64'
