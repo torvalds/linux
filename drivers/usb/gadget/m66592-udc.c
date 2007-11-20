@@ -748,7 +748,7 @@ static void irq_ep0_write(struct m66592_ep *ep, struct m66592_request *req)
 	do {
 		tmp = m66592_read(m66592, ep->fifoctr);
 		if (i++ > 100000) {
-			printk(KERN_ERR "pipe0 is busy. maybe cpu i/o bus"
+			printk(KERN_ERR "pipe0 is busy. maybe cpu i/o bus "
 				"conflict. please power off this controller.");
 			return;
 		}

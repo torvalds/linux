@@ -1990,7 +1990,7 @@ static void uea_dispatch_cmv_e1(struct uea_softc *sc, struct intr_pkt *intr)
 	return;
 
 bad2:
-	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received,"
+	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received, "
 			"Function : %d, Subfunction : %d\n",
 			E1_FUNCTION_TYPE(cmv->bFunction),
 			E1_FUNCTION_SUBTYPE(cmv->bFunction));
@@ -2038,7 +2038,7 @@ static void uea_dispatch_cmv_e4(struct uea_softc *sc, struct intr_pkt *intr)
 	return;
 
 bad2:
-	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received,"
+	uea_err(INS_TO_USBDEV(sc), "unexpected cmv received, "
 			"Function : %d, Subfunction : %d\n",
 			E4_FUNCTION_TYPE(cmv->wFunction),
 			E4_FUNCTION_SUBTYPE(cmv->wFunction));
