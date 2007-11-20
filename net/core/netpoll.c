@@ -40,7 +40,6 @@ static atomic_t trapped;
 
 #define USEC_PER_POLL	50
 #define NETPOLL_RX_ENABLED  1
-#define NETPOLL_RX_DROP     2
 
 #define MAX_SKB_SIZE \
 		(MAX_UDP_CHUNK + sizeof(struct udphdr) + \
@@ -128,13 +127,11 @@ static int poll_one_napi(struct netpoll_info *npinfo,
 	if (!test_bit(NAPI_STATE_SCHED, &napi->state))
 		return budget;
 
-	npinfo->rx_flags |= NETPOLL_RX_DROP;
 	atomic_inc(&trapped);
 
 	work = napi->poll(napi, budget);
 
 	atomic_dec(&trapped);
-	npinfo->rx_flags &= ~NETPOLL_RX_DROP;
 
 	return budget - work;
 }
@@ -475,7 +472,7 @@ int __netpoll_rx(struct sk_buff *skb)
 	if (skb->dev->type != ARPHRD_ETHER)
 		goto out;
 
-	/* check if netpoll clients need ARP */
+	/* if receive ARP during middle of NAPI poll, then queue */
 	if (skb->protocol == htons(ETH_P_ARP) &&
 	    atomic_read(&trapped)) {
 		skb_queue_tail(&npi->arp_tx, skb);
@@ -537,6 +534,9 @@ int __netpoll_rx(struct sk_buff *skb)
 	return 1;
 
 out:
+	/* If packet received while already in poll then just
+	 * silently drop.
+	 */
 	if (atomic_read(&trapped)) {
 		kfree_skb(skb);
 		return 1;
