@@ -1162,15 +1162,6 @@ int emulator_read_std(unsigned long addr,
 }
 EXPORT_SYMBOL_GPL(emulator_read_std);
 
-static int emulator_write_std(unsigned long addr,
-			      const void *val,
-			      unsigned int bytes,
-			      struct kvm_vcpu *vcpu)
-{
-	pr_unimpl(vcpu, "emulator_write_std: addr %lx n %d\n", addr, bytes);
-	return X86EMUL_UNHANDLEABLE;
-}
-
 static int emulator_read_emulated(unsigned long addr,
 				  void *val,
 				  unsigned int bytes,
@@ -1367,7 +1358,6 @@ EXPORT_SYMBOL_GPL(kvm_report_emulation_failure);
 
 struct x86_emulate_ops emulate_ops = {
 	.read_std            = emulator_read_std,
-	.write_std           = emulator_write_std,
 	.read_emulated       = emulator_read_emulated,
 	.write_emulated      = emulator_write_emulated,
 	.cmpxchg_emulated    = emulator_cmpxchg_emulated,

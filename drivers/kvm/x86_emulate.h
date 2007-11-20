@@ -63,17 +63,6 @@ struct x86_emulate_ops {
 			unsigned int bytes, struct kvm_vcpu *vcpu);
 
 	/*
-	 * write_std: Write bytes of standard (non-emulated/special) memory.
-	 *            Used for stack operations, and others.
-	 *  @addr:  [IN ] Linear address to which to write.
-	 *  @val:   [IN ] Value to write to memory (low-order bytes used as
-	 *                required).
-	 *  @bytes: [IN ] Number of bytes to write to memory.
-	 */
-	int (*write_std)(unsigned long addr, const void *val,
-			 unsigned int bytes, struct kvm_vcpu *vcpu);
-
-	/*
 	 * read_emulated: Read bytes from emulated/special memory area.
 	 *  @addr:  [IN ] Linear address from which to read.
 	 *  @val:   [OUT] Value read from memory, zero-extended to 'u_long'.
