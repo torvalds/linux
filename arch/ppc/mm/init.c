@@ -561,7 +561,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		 * That means the zeroed TLB has to be invalidated
 		 * whenever a page miss occurs.
 		 */
-		_tlbie(address);
+		_tlbie(address, 0 /* 8xx doesn't care about PID */);
 #endif
 		if (!PageReserved(page)
 		    && !test_bit(PG_arch_1, &page->flags)) {
