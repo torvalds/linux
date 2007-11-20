@@ -1,10 +1,3 @@
-/*
- * shutdown.c
- */
-
-extern void device_shutdown(void);
-
-
 #ifdef CONFIG_PM_SLEEP
 
 /*

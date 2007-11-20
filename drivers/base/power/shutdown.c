@@ -12,10 +12,6 @@
 #include <asm/semaphore.h>
 
 #include "../base.h"
-#include "power.h"
-
-#define to_dev(node) container_of(node, struct device, kobj.entry)
-
 
 /**
  * We handle system devices differently - we suspend and shut them
@@ -45,4 +41,3 @@ void device_shutdown(void)
 		}
 	}
 }
-
