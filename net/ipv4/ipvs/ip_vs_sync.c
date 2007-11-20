@@ -308,7 +308,7 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 		unsigned flags;
 
 		s = (struct ip_vs_sync_conn *)p;
-		flags = ntohs(s->flags);
+		flags = ntohs(s->flags) | IP_VS_CONN_F_SYNC;
 		if (!(flags & IP_VS_CONN_F_TEMPLATE))
 			cp = ip_vs_conn_in_get(s->protocol,
 					       s->caddr, s->cport,

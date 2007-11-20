@@ -781,6 +781,57 @@ static const struct file_operations ip_vs_conn_fops = {
 	.llseek  = seq_lseek,
 	.release = seq_release,
 };
+
+static const char *ip_vs_origin_name(unsigned flags)
+{
+	if (flags & IP_VS_CONN_F_SYNC)
+		return "SYNC";
+	else
+		return "LOCAL";
+}
+
+static int ip_vs_conn_sync_seq_show(struct seq_file *seq, void *v)
+{
+
+	if (v == SEQ_START_TOKEN)
+		seq_puts(seq,
+   "Pro FromIP   FPrt ToIP     TPrt DestIP   DPrt State       Origin Expires\n");
+	else {
+		const struct ip_vs_conn *cp = v;
+
+		seq_printf(seq,
+			"%-3s %08X %04X %08X %04X %08X %04X %-11s %-6s %7lu\n",
+				ip_vs_proto_name(cp->protocol),
+				ntohl(cp->caddr), ntohs(cp->cport),
+				ntohl(cp->vaddr), ntohs(cp->vport),
+				ntohl(cp->daddr), ntohs(cp->dport),
+				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_origin_name(cp->flags),
+				(cp->timer.expires-jiffies)/HZ);
+	}
+	return 0;
+}
+
+static const struct seq_operations ip_vs_conn_sync_seq_ops = {
+	.start = ip_vs_conn_seq_start,
+	.next  = ip_vs_conn_seq_next,
+	.stop  = ip_vs_conn_seq_stop,
+	.show  = ip_vs_conn_sync_seq_show,
+};
+
+static int ip_vs_conn_sync_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &ip_vs_conn_sync_seq_ops);
+}
+
+static const struct file_operations ip_vs_conn_sync_fops = {
+	.owner	 = THIS_MODULE,
+	.open    = ip_vs_conn_sync_open,
+	.read    = seq_read,
+	.llseek  = seq_lseek,
+	.release = seq_release,
+};
+
 #endif
 
 
@@ -940,6 +991,7 @@ int ip_vs_conn_init(void)
 	}
 
 	proc_net_fops_create(&init_net, "ip_vs_conn", 0, &ip_vs_conn_fops);
+	proc_net_fops_create(&init_net, "ip_vs_conn_sync", 0, &ip_vs_conn_sync_fops);
 
 	/* calculate the random value for connection hash */
 	get_random_bytes(&ip_vs_conn_rnd, sizeof(ip_vs_conn_rnd));
@@ -956,5 +1008,6 @@ void ip_vs_conn_cleanup(void)
 	/* Release the empty cache */
 	kmem_cache_destroy(ip_vs_conn_cachep);
 	proc_net_remove(&init_net, "ip_vs_conn");
+	proc_net_remove(&init_net, "ip_vs_conn_sync");
 	vfree(ip_vs_conn_tab);
 }
