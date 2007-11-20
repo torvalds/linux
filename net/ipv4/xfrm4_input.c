@@ -59,6 +59,9 @@ int xfrm4_transport_finish(struct sk_buff *skb, int async)
 		xfrm4_rcv_encap_finish);
 	return 0;
 #else
+	if (async)
+		return xfrm4_rcv_encap_finish(skb);
+
 	return -iph->protocol;
 #endif
 }

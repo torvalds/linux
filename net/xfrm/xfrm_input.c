@@ -101,8 +101,17 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	int err;
 	__be32 seq;
 	struct xfrm_state *x;
+	xfrm_address_t *daddr;
 	int decaps = 0;
-	unsigned int daddroff = XFRM_SPI_SKB_CB(skb)->daddroff;
+	int async = 0;
+
+	/* A negative encap_type indicates async resumption. */
+	if (encap_type < 0) {
+		async = 1;
+		x = skb->sp->xvec[skb->sp->len - 1];
+		seq = XFRM_SKB_CB(skb)->seq;
+		goto resume;
+	}
 
 	/* Allocate new secpath or COW existing one. */
 	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
@@ -116,6 +125,9 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		skb->sp = sp;
 	}
 
+	daddr = (xfrm_address_t *)(skb_network_header(skb) +
+				   XFRM_SPI_SKB_CB(skb)->daddroff);
+
 	seq = 0;
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
 		goto drop;
@@ -124,9 +136,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		if (skb->sp->len == XFRM_MAX_DEPTH)
 			goto drop;
 
-		x = xfrm_state_lookup((xfrm_address_t *)
-				      (skb_network_header(skb) + daddroff),
-				      spi, nexthdr, AF_INET);
+		x = xfrm_state_lookup(daddr, spi, nexthdr, AF_INET);
 		if (x == NULL)
 			goto drop;
 
@@ -147,8 +157,14 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		spin_unlock(&x->lock);
 
+		XFRM_SKB_CB(skb)->seq = seq;
+
 		nexthdr = x->type->input(x, skb);
 
+		if (nexthdr == -EINPROGRESS)
+			return 0;
+
+resume:
 		spin_lock(&x->lock);
 		if (nexthdr <= 0) {
 			if (nexthdr == -EBADMSG)
@@ -177,6 +193,12 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			break;
 		}
 
+		/*
+		 * We need the inner address.  However, we only get here for
+		 * transport mode so the outer address is identical.
+		 */
+		daddr = &x->id.daddr;
+
 		err = xfrm_parse_spi(skb, nexthdr, &spi, &seq);
 		if (err < 0)
 			goto drop;
@@ -190,7 +212,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		netif_rx(skb);
 		return 0;
 	} else {
-		return x->inner_mode->afinfo->transport_finish(skb, 0);
+		return x->inner_mode->afinfo->transport_finish(skb, async);
 	}
 
 drop_unlock:
@@ -200,6 +222,12 @@ drop:
 	return 0;
 }
 EXPORT_SYMBOL(xfrm_input);
+
+int xfrm_input_resume(struct sk_buff *skb, int nexthdr)
+{
+	return xfrm_input(skb, nexthdr, 0, -1);
+}
+EXPORT_SYMBOL(xfrm_input_resume);
 
 void __init xfrm_input_init(void)
 {

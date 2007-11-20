@@ -41,6 +41,9 @@ int xfrm6_transport_finish(struct sk_buff *skb, int async)
 		ip6_rcv_finish);
 	return -1;
 #else
+	if (async)
+		return ip6_rcv_finish(skb);
+
 	return 1;
 #endif
 }
