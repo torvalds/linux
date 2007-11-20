@@ -333,25 +333,12 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	if (mem->slot >= kvm->nmemslots)
 		kvm->nmemslots = mem->slot + 1;
 
-	if (!kvm->n_requested_mmu_pages) {
-		unsigned int n_pages;
-
-		if (npages) {
-			n_pages = npages * KVM_PERMILLE_MMU_PAGES / 1000;
-			kvm_mmu_change_mmu_pages(kvm, kvm->n_alloc_mmu_pages +
-						 n_pages);
-		} else {
-			unsigned int nr_mmu_pages;
-
-			n_pages = old.npages * KVM_PERMILLE_MMU_PAGES / 1000;
-			nr_mmu_pages = kvm->n_alloc_mmu_pages - n_pages;
-			nr_mmu_pages = max(nr_mmu_pages,
-				        (unsigned int) KVM_MIN_ALLOC_MMU_PAGES);
-			kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
-		}
-	}
-
 	*memslot = new;
+
+	if (!kvm->n_requested_mmu_pages) {
+		unsigned int nr_mmu_pages = kvm_mmu_calculate_mmu_pages(kvm);
+		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
+	}
 
 	kvm_mmu_slot_remove_write_access(kvm, mem->slot);
 	kvm_flush_remote_tlbs(kvm);
