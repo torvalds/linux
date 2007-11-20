@@ -510,7 +510,9 @@ int lbs_cmd_80211_ad_hoc_start(lbs_private *priv,
 	/* set the BSS type */
 	adhs->bsstype = CMD_BSS_TYPE_IBSS;
 	adapter->mode = IW_MODE_ADHOC;
-	adhs->beaconperiod = cpu_to_le16(MRVDRV_BEACON_INTERVAL);
+	if (adapter->beacon_period == 0)
+		adapter->beacon_period = MRVDRV_BEACON_INTERVAL;
+	adhs->beaconperiod = cpu_to_le16(adapter->beacon_period);
 
 	/* set Physical param set */
 #define DS_PARA_IE_ID   3

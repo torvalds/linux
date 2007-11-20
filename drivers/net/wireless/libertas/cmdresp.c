@@ -536,6 +536,24 @@ static int lbs_ret_802_11_enable_rsn(lbs_private * priv,
 	return 0;
 }
 
+static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
+					struct cmd_ds_command *resp)
+{
+	struct cmd_ds_802_11_beacon_control *bcn_ctrl =
+	    &resp->params.bcn_ctrl;
+	struct lbs_adapter *adapter = priv->adapter;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (bcn_ctrl->action == CMD_ACT_GET) {
+		adapter->beacon_enable = (u8) le16_to_cpu(bcn_ctrl->beacon_enable);
+		adapter->beacon_period = le16_to_cpu(bcn_ctrl->beacon_period);
+	}
+
+	lbs_deb_enter(LBS_DEB_CMD);
+	return 0;
+}
+
 static inline int handle_cmd_response(u16 respcmd,
 				      struct cmd_ds_command *resp,
 				      lbs_private *priv)
@@ -704,6 +722,10 @@ static inline int handle_cmd_response(u16 respcmd,
 			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.mesh,
 			       sizeof(resp->params.mesh));
 		break;
+	case CMD_RET(CMD_802_11_BEACON_CTRL):
+		ret = lbs_ret_802_11_bcn_ctrl(priv, resp);
+		break;
+
 	default:
 		lbs_deb_host("CMD_RESP: unknown cmd response 0x%04x\n",
 			    resp->command);

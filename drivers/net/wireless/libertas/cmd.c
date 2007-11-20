@@ -901,6 +901,28 @@ static int lbs_cmd_mesh_access(lbs_private * priv,
 	return 0;
 }
 
+static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
+				struct cmd_ds_command *cmd,
+				u16 cmd_action)
+{
+	struct cmd_ds_802_11_beacon_control
+		*bcn_ctrl = &cmd->params.bcn_ctrl;
+	struct lbs_adapter *adapter = priv->adapter;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+	cmd->size =
+	    cpu_to_le16(sizeof(struct cmd_ds_802_11_beacon_control)
+			     + S_DS_GEN);
+	cmd->command = cpu_to_le16(CMD_802_11_BEACON_CTRL);
+
+	bcn_ctrl->action = cpu_to_le16(cmd_action);
+	bcn_ctrl->beacon_enable = cpu_to_le16(adapter->beacon_enable);
+	bcn_ctrl->beacon_period = cpu_to_le16(adapter->beacon_period);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return 0;
+}
+
 static int lbs_cmd_set_boot2_ver(lbs_private * priv,
 				struct cmd_ds_command *cmd,
 				u16 cmd_action, void *pdata_buf)
@@ -1399,6 +1421,9 @@ int lbs_prepare_and_send_command(lbs_private * priv,
 		cmdptr->size = cpu_to_le16(sizeof(struct cmd_ds_get_tsf) +
 					   S_DS_GEN);
 		ret = 0;
+		break;
+	case CMD_802_11_BEACON_CTRL:
+		ret = lbs_cmd_bcn_ctrl(priv, cmdptr, cmd_action);
 		break;
 	default:
 		lbs_deb_host("PREP_CMD: unknown command 0x%04x\n", cmd_no);

@@ -263,6 +263,8 @@ struct _lbs_adapter {
 	struct list_head network_free_list;
 	struct bss_descriptor *networks;
 
+	u16 beacon_period;
+	u8 beacon_enable;
 	u8 adhoccreate;
 
 	/** capability Info used in Association, start, join */

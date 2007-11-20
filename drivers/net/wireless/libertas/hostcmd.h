@@ -332,6 +332,12 @@ struct cmd_ds_802_11_radio_control {
 	__le16 control;
 };
 
+struct cmd_ds_802_11_beacon_control {
+	__le16 action;
+	__le16 beacon_enable;
+	__le16 beacon_period;
+};
+
 struct cmd_ds_802_11_sleep_params {
 	/* ACT_GET/ACT_SET */
 	__le16 action;
@@ -668,6 +674,7 @@ struct cmd_ds_command {
 		struct cmd_ds_set_boot2_ver boot2_ver;
 		struct cmd_ds_get_tsf gettsf;
 		struct cmd_ds_802_11_subscribe_event subscribe_event;
+		struct cmd_ds_802_11_beacon_control bcn_ctrl;
 	} params;
 } __attribute__ ((packed));
 

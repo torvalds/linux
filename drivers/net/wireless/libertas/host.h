@@ -116,6 +116,8 @@
 
 #define CMD_SET_BOOT2_VER                 0x00a5
 
+#define CMD_802_11_BEACON_CTRL        0x00b0
+
 /* For the IEEE Power Save */
 #define CMD_SUBCMD_ENTER_PS               0x0030
 #define CMD_SUBCMD_EXIT_PS                0x0031
