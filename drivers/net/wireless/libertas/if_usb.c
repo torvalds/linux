@@ -17,8 +17,6 @@
 
 #define MESSAGE_HEADER_LEN	4
 
-static const char usbdriver_name[] = "usb8xxx";
-
 static char *lbs_fw_name = "usb8388.bin";
 module_param_named(fw_name, lbs_fw_name, charp, 0644);
 
@@ -998,13 +996,9 @@ static int if_usb_resume(struct usb_interface *intf)
 #endif
 
 static struct usb_driver if_usb_driver = {
-	/* driver name */
-	.name = usbdriver_name,
-	/* probe function name */
+	.name = DRV_NAME,
 	.probe = if_usb_probe,
-	/* disconnect function  name */
 	.disconnect = if_usb_disconnect,
-	/* device signature table */
 	.id_table = if_usb_table,
 	.suspend = if_usb_suspend,
 	.resume = if_usb_resume,
