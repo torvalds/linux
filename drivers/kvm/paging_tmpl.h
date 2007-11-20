@@ -187,6 +187,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 	int dirty = gpte & PT_DIRTY_MASK;
 	u64 spte;
 	int was_rmapped = is_rmap_pte(*shadow_pte);
+	struct page *page;
 
 	pgprintk("%s: spte %llx gpte %llx access %llx write_fault %d"
 		 " user_fault %d gfn %lx\n",
@@ -205,6 +206,12 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 
 	paddr = gpa_to_hpa(vcpu->kvm, gaddr & PT64_BASE_ADDR_MASK);
 
+	/*
+	 * the reason paddr get mask even that it isnt pte is beacuse the
+	 * HPA_ERR_MASK bit might be used to signal error
+	 */
+	page = pfn_to_page((paddr & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
+
 	spte |= PT_PRESENT_MASK;
 	if (access_bits & PT_USER_MASK)
 		spte |= PT_USER_MASK;
@@ -212,8 +219,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 	if (is_error_hpa(paddr)) {
 		set_shadow_pte(shadow_pte,
 			       shadow_trap_nonpresent_pte | PT_SHADOW_IO_MARK);
-		kvm_release_page_clean(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
-				       >> PAGE_SHIFT));
+		kvm_release_page_clean(page);
 		return;
 	}
 
@@ -254,17 +260,11 @@ unshadowed:
 	if (!was_rmapped) {
 		rmap_add(vcpu, shadow_pte, (gaddr & PT64_BASE_ADDR_MASK)
 			 >> PAGE_SHIFT);
-		if (!is_rmap_pte(*shadow_pte)) {
-			struct page *page;
-
-			page = pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
-					   >> PAGE_SHIFT);
+		if (!is_rmap_pte(*shadow_pte))
 			kvm_release_page_clean(page);
-		}
 	}
 	else
-		kvm_release_page_clean(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
-				       >> PAGE_SHIFT));
+		kvm_release_page_clean(page);
 	if (!ptwrite || !*ptwrite)
 		vcpu->last_pte_updated = shadow_pte;
 }
