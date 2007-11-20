@@ -5,7 +5,6 @@
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
-#include <linux/list.h>
 #include <linux/usb.h>
 
 #define DRV_NAME "usb8xxx"
@@ -22,15 +21,6 @@ static const char usbdriver_name[] = "usb8xxx";
 
 static char *lbs_fw_name = "usb8388.bin";
 module_param_named(fw_name, lbs_fw_name, charp, 0644);
-
-/*
- * We need to send a RESET command to all USB devices before
- * we tear down the USB connection. Otherwise we would not
- * be able to re-init device the device if the module gets
- * loaded again. This is a list of all initialized USB devices,
- * for the reset code see if_usb_reset_device()
-*/
-static LIST_HEAD(usb_devices);
 
 static struct usb_device_id if_usb_table[] = {
 	/* Enter the device signature inside */
@@ -244,8 +234,6 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (lbs_start_card(priv))
 		goto err_start_card;
 
-	list_add_tail(&cardp->list, &usb_devices);
-
 	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);
 
@@ -279,8 +267,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	/* Update Surprise removed to TRUE */
 	cardp->surprise_removed = 1;
 
-	list_del(&cardp->list);
-
 	if (priv) {
 		lbs_adapter *adapter = priv->adapter;
 
@@ -289,6 +275,10 @@ static void if_usb_disconnect(struct usb_interface *intf)
 		lbs_remove_mesh(priv);
 		lbs_remove_card(priv);
 	}
+
+	/* this is (apparently?) necessary for future usage of the device */
+	lbs_prepare_and_send_command(priv, CMD_802_11_RESET, CMD_ACT_HALT,
+			0, 0, NULL);
 
 	/* Unlink and free urb */
 	if_usb_free(cardp);
@@ -1034,16 +1024,8 @@ static int __init if_usb_init_module(void)
 
 static void __exit if_usb_exit_module(void)
 {
-	struct usb_card_rec *cardp, *cardp_temp;
-
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	list_for_each_entry_safe(cardp, cardp_temp, &usb_devices, list) {
-		lbs_prepare_and_send_command(cardp->priv, CMD_802_11_RESET,
-		                                  CMD_ACT_HALT, 0, 0, NULL);
-	}
-
-	/* API unregisters the driver from USB subsystem */
 	usb_deregister(&if_usb_driver);
 
 	lbs_deb_leave(LBS_DEB_MAIN);

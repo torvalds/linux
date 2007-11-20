@@ -1,8 +1,6 @@
 #ifndef _LBS_IF_USB_H
 #define _LBS_IF_USB_H
 
-#include <linux/list.h>
-
 /**
   * This file contains definition for USB interface.
   */
@@ -44,7 +42,6 @@ struct read_cb_info {
 
 /** USB card description structure*/
 struct usb_card_rec {
-	struct list_head list;
 	struct net_device *eth_dev;
 	struct usb_device *udev;
 	struct urb *rx_urb, *tx_urb;
