@@ -291,33 +291,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		memset(new.rmap, 0, npages * sizeof(*new.rmap));
 
 		new.user_alloc = user_alloc;
-		if (user_alloc)
-			new.userspace_addr = mem->userspace_addr;
-		else {
-			down_write(&current->mm->mmap_sem);
-			new.userspace_addr = do_mmap(NULL, 0,
-						     npages * PAGE_SIZE,
-						     PROT_READ | PROT_WRITE,
-						     MAP_SHARED | MAP_ANONYMOUS,
-						     0);
-			up_write(&current->mm->mmap_sem);
-
-			if (IS_ERR((void *)new.userspace_addr))
-				goto out_free;
-		}
-	} else {
-		if (!old.user_alloc && old.rmap) {
-			int ret;
-
-			down_write(&current->mm->mmap_sem);
-			ret = do_munmap(current->mm, old.userspace_addr,
-					old.npages * PAGE_SIZE);
-			up_write(&current->mm->mmap_sem);
-			if (ret < 0)
-				printk(KERN_WARNING
-				       "kvm_vm_ioctl_set_memory_region: "
-				       "failed to munmap memory\n");
-		}
+		new.userspace_addr = mem->userspace_addr;
 	}
 
 	/* Allocate page dirty bitmap if needed */
@@ -335,13 +309,11 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	*memslot = new;
 
-	if (!kvm->n_requested_mmu_pages) {
-		unsigned int nr_mmu_pages = kvm_mmu_calculate_mmu_pages(kvm);
-		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
+	r = kvm_arch_set_memory_region(kvm, mem, old, user_alloc);
+	if (r) {
+		*memslot = old;
+		goto out_free;
 	}
-
-	kvm_mmu_slot_remove_write_access(kvm, mem->slot);
-	kvm_flush_remote_tlbs(kvm);
 
 	kvm_free_physmem_slot(&old, &new);
 	return 0;
