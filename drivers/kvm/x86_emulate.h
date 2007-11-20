@@ -108,6 +108,12 @@ struct operand {
 	unsigned long val, orig_val, *ptr;
 };
 
+struct fetch_cache {
+	u8 data[15];
+	unsigned long start;
+	unsigned long end;
+};
+
 struct decode_cache {
 	u8 twobyte;
 	u8 b;
@@ -130,6 +136,7 @@ struct decode_cache {
 	u8 use_modrm_ea;
 	unsigned long modrm_ea;
 	unsigned long modrm_val;
+	struct fetch_cache fetch;
 };
 
 struct x86_emulate_ctxt {

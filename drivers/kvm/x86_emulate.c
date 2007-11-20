@@ -414,8 +414,7 @@ static u16 twobyte_table[256] = {
 /* Fetch next part of the instruction being emulated. */
 #define insn_fetch(_type, _size, _eip)                                  \
 ({	unsigned long _x;						\
-	rc = ops->read_std((unsigned long)(_eip) + ctxt->cs_base, &_x,	\
-			   (_size), ctxt->vcpu);			\
+	rc = do_insn_fetch(ctxt, ops, (_eip), &_x, (_size));		\
 	if (rc != 0)							\
 		goto done;						\
 	(_eip) += (_size);						\
@@ -445,6 +444,41 @@ static u16 twobyte_table[256] = {
 	do {								\
 		register_address_increment(c->eip, rel);		\
 	} while (0)
+
+static int do_fetch_insn_byte(struct x86_emulate_ctxt *ctxt,
+			      struct x86_emulate_ops *ops,
+			      unsigned long linear, u8 *dest)
+{
+	struct fetch_cache *fc = &ctxt->decode.fetch;
+	int rc;
+	int size;
+
+	if (linear < fc->start || linear >= fc->end) {
+		size = min(15UL, PAGE_SIZE - offset_in_page(linear));
+		rc = ops->read_std(linear, fc->data, size, ctxt->vcpu);
+		if (rc)
+			return rc;
+		fc->start = linear;
+		fc->end = linear + size;
+	}
+	*dest = fc->data[linear - fc->start];
+	return 0;
+}
+
+static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
+			 struct x86_emulate_ops *ops,
+			 unsigned long eip, void *dest, unsigned size)
+{
+	int rc = 0;
+
+	eip += ctxt->cs_base;
+	while (size--) {
+		rc = do_fetch_insn_byte(ctxt, ops, eip++, dest++);
+		if (rc)
+			return rc;
+	}
+	return 0;
+}
 
 /*
  * Given the 'reg' portion of a ModRM byte, and a register block, return a
