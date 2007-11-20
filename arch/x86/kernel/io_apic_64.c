@@ -546,7 +546,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 #define default_PCI_trigger(idx)	(1)
 #define default_PCI_polarity(idx)	(1)
 
-static int __init MPBIOS_polarity(int idx)
+static int MPBIOS_polarity(int idx)
 {
 	int bus = mp_irqs[idx].mpc_srcbus;
 	int polarity;
@@ -2222,8 +2222,27 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int triggering, int p
 	return 0;
 }
 
-#endif /* CONFIG_ACPI */
 
+int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
+{
+	int i;
+
+	if (skip_ioapic_setup)
+		return -1;
+
+	for (i = 0; i < mp_irq_entries; i++)
+		if (mp_irqs[i].mpc_irqtype == mp_INT &&
+		    mp_irqs[i].mpc_srcbusirq == bus_irq)
+			break;
+	if (i >= mp_irq_entries)
+		return -1;
+
+	*trigger = irq_trigger(i);
+	*polarity = irq_polarity(i);
+	return 0;
+}
+
+#endif /* CONFIG_ACPI */
 
 /*
  * This function currently is only a helper for the i386 smp boot process where
@@ -2260,3 +2279,4 @@ void __init setup_ioapic_dest(void)
 	}
 }
 #endif
+
