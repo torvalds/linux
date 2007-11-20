@@ -1216,16 +1216,6 @@ static struct trans_ctl_table trans_arlan_table[] = {
 	{}
 };
 
-static struct trans_ctl_table trans_appldata_table[] = {
-	{ CTL_APPLDATA_TIMER,		"timer" },
-	{ CTL_APPLDATA_INTERVAL,	"interval" },
-	{ CTL_APPLDATA_OS,		"os" },
-	{ CTL_APPLDATA_NET_SUM,		"net_sum" },
-	{ CTL_APPLDATA_MEM,		"mem" },
-	{}
-
-};
-
 static struct trans_ctl_table trans_s390dbf_table[] = {
 	{ 5678 /* CTL_S390DBF_STOPPABLE */,	"debug_stoppable" },
 	{ 5679 /* CTL_S390DBF_ACTIVE */,	"debug_active" },
@@ -1270,7 +1260,6 @@ static struct trans_ctl_table trans_root_table[] = {
 	{ CTL_ABI,	"abi" },
 	/* CTL_CPU not used */
 	{ CTL_ARLAN,	"arlan",	trans_arlan_table },
-	{ CTL_APPLDATA,	"appldata",	trans_appldata_table },
 	{ CTL_S390DBF,	"s390dbf",	trans_s390dbf_table },
 	{ CTL_SUNRPC,	"sunrpc",	trans_sunrpc_table },
 	{ CTL_PM,	"pm",		trans_pm_table },
