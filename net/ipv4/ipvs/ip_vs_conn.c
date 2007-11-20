@@ -393,7 +393,15 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 	atomic_inc(&dest->refcnt);
 
 	/* Bind with the destination and its corresponding transmitter */
-	cp->flags |= atomic_read(&dest->conn_flags);
+	if ((cp->flags & IP_VS_CONN_F_SYNC) &&
+	    (!(cp->flags & IP_VS_CONN_F_TEMPLATE)))
+		/* if the connection is not template and is created
+		 * by sync, preserve the activity flag.
+		 */
+		cp->flags |= atomic_read(&dest->conn_flags) &
+			     (~IP_VS_CONN_F_INACTIVE);
+	else
+		cp->flags |= atomic_read(&dest->conn_flags);
 	cp->dest = dest;
 
 	IP_VS_DBG(7, "Bind-dest %s c:%u.%u.%u.%u:%d v:%u.%u.%u.%u:%d "
@@ -412,7 +420,11 @@ ip_vs_bind_dest(struct ip_vs_conn *cp, struct ip_vs_dest *dest)
 		/* It is a normal connection, so increase the inactive
 		   connection counter because it is in TCP SYNRECV
 		   state (inactive) or other protocol inacive state */
-		atomic_inc(&dest->inactconns);
+		if ((cp->flags & IP_VS_CONN_F_SYNC) &&
+		    (!(cp->flags & IP_VS_CONN_F_INACTIVE)))
+			atomic_inc(&dest->activeconns);
+		else
+			atomic_inc(&dest->inactconns);
 	} else {
 		/* It is a persistent connection/template, so increase
 		   the peristent connection counter */
