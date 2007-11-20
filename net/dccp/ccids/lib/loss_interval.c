@@ -166,7 +166,7 @@ static u32 dccp_li_calc_first_li(struct sock *sk,
 	}
 
 	if (unlikely(interval == 0)) {
-		DCCP_WARN("%s(%p), Could not find a win_count interval > 0."
+		DCCP_WARN("%s(%p), Could not find a win_count interval > 0. "
 			  "Defaulting to 1\n", dccp_role(sk), sk);
 		interval = 1;
 	}
