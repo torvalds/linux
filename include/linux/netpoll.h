@@ -20,7 +20,7 @@ struct netpoll {
 
 	u32 local_ip, remote_ip;
 	u16 local_port, remote_port;
- 	u8 local_mac[ETH_ALEN], remote_mac[ETH_ALEN];
+	u8 remote_mac[ETH_ALEN];
 };
 
 struct netpoll_info {

@@ -360,8 +360,8 @@ void netpoll_send_udp(struct netpoll *np, const char *msg, int len)
 	eth = (struct ethhdr *) skb_push(skb, ETH_HLEN);
 	skb_reset_mac_header(skb);
 	skb->protocol = eth->h_proto = htons(ETH_P_IP);
-	memcpy(eth->h_source, np->local_mac, 6);
-	memcpy(eth->h_dest, np->remote_mac, 6);
+	memcpy(eth->h_source, np->dev->dev_addr, ETH_ALEN);
+	memcpy(eth->h_dest, np->remote_mac, ETH_ALEN);
 
 	skb->dev = np->dev;
 
@@ -431,7 +431,7 @@ static void arp_reply(struct sk_buff *skb)
 
 	/* Fill the device header for the ARP frame */
 	if (dev_hard_header(send_skb, skb->dev, ptype,
-			    sha, np->local_mac,
+			    sha, np->dev->dev_addr,
 			    send_skb->len) < 0) {
 		kfree_skb(send_skb);
 		return;
@@ -736,9 +736,6 @@ int netpoll_setup(struct netpoll *np)
 			msleep(4000);
 		}
 	}
-
-	if (is_zero_ether_addr(np->local_mac) && ndev->dev_addr)
-		memcpy(np->local_mac, ndev->dev_addr, 6);
 
 	if (!np->local_ip) {
 		rcu_read_lock();
