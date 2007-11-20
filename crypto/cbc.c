@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -143,17 +144,13 @@ static int crypto_cbc_decrypt_inplace(struct blkcipher_desc *desc,
 	void (*fn)(struct crypto_tfm *, u8 *, const u8 *) =
 		crypto_cipher_alg(tfm)->cia_decrypt;
 	int bsize = crypto_cipher_blocksize(tfm);
-	unsigned long alignmask = crypto_cipher_alignmask(tfm);
 	unsigned int nbytes = walk->nbytes;
 	u8 *src = walk->src.virt.addr;
-	u8 stack[bsize + alignmask];
-	u8 *first_iv = (u8 *)ALIGN((unsigned long)stack, alignmask + 1);
-
-	memcpy(first_iv, walk->iv, bsize);
+	u8 last_iv[bsize];
 
 	/* Start of the last block. */
-	src += nbytes - nbytes % bsize - bsize;
-	memcpy(walk->iv, src, bsize);
+	src += nbytes - (nbytes & (bsize - 1)) - bsize;
+	memcpy(last_iv, src, bsize);
 
 	for (;;) {
 		fn(crypto_cipher_tfm(tfm), src, src);
@@ -163,7 +160,8 @@ static int crypto_cbc_decrypt_inplace(struct blkcipher_desc *desc,
 		src -= bsize;
 	}
 
-	crypto_xor(src, first_iv, bsize);
+	crypto_xor(src, walk->iv, bsize);
+	memcpy(walk->iv, last_iv, bsize);
 
 	return nbytes;
 }
@@ -227,6 +225,10 @@ static struct crypto_instance *crypto_cbc_alloc(struct rtattr **tb)
 				  CRYPTO_ALG_TYPE_MASK);
 	if (IS_ERR(alg))
 		return ERR_PTR(PTR_ERR(alg));
+
+	inst = ERR_PTR(-EINVAL);
+	if (!is_power_of_2(alg->cra_blocksize))
+		goto out_put_alg;
 
 	inst = crypto_alloc_instance("cbc", alg);
 	if (IS_ERR(inst))
