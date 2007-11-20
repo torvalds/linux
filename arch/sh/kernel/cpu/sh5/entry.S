@@ -161,7 +161,7 @@ trap_jtable:
 	.long	system_call				/* 0x160 */
 	.long	do_reserved_inst		/* 0x180 */
 	.long	do_illegal_slot_inst	/* 0x1A0 */
-	.long	do_NMI			/* 0x1C0 */
+	.long	do_exception_error		/* 0x1C0 - NMI */
 	.long	do_exception_error		/* 0x1E0 */
 	.rept 15
 		.long do_IRQ		/* 0x200 - 0x3C0 */
