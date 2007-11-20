@@ -809,7 +809,7 @@ static int snapper_get_capture_source(struct snd_kcontrol *kcontrol,
 	struct pmac_tumbler *mix = chip->mixer_data;
 
 	snd_assert(mix, return -ENODEV);
-	ucontrol->value.enumerated.value[0] = mix->capture_source;
+	ucontrol->value.enumerated.item[0] = mix->capture_source;
 	return 0;
 }
 
@@ -821,7 +821,7 @@ static int snapper_put_capture_source(struct snd_kcontrol *kcontrol,
 	int change;
 
 	snd_assert(mix, return -ENODEV);
-	change = ucontrol->value.enuemerated.item[0] != mix->capture_source;
+	change = ucontrol->value.enumerated.item[0] != mix->capture_source;
 	if (change) {
 		mix->capture_source = !!ucontrol->value.enumerated.item[0];
 		snapper_set_capture_source(mix);
