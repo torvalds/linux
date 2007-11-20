@@ -87,6 +87,29 @@
 	}, \
 }
 
+#define XPAR_AC97_CONTROLLER_REFERENCE(num) { \
+	.name = "ml403_ac97cr", \
+	.id = num, \
+	.num_resources = 3, \
+	.resource = (struct resource[]) { \
+		{ \
+			.start = XPAR_OPB_AC97_CONTROLLER_REF_##num##_BASEADDR, \
+			.end = XPAR_OPB_AC97_CONTROLLER_REF_##num##_HIGHADDR, \
+			.flags = IORESOURCE_MEM, \
+		}, \
+		{ \
+			.start = XPAR_OPB_INTC_0_OPB_AC97_CONTROLLER_REF_##num##_PLAYBACK_INTERRUPT_INTR, \
+			.end = XPAR_OPB_INTC_0_OPB_AC97_CONTROLLER_REF_##num##_PLAYBACK_INTERRUPT_INTR, \
+			.flags = IORESOURCE_IRQ, \
+		}, \
+		{ \
+			.start = XPAR_OPB_INTC_0_OPB_AC97_CONTROLLER_REF_##num##_RECORD_INTERRUPT_INTR, \
+			.end = XPAR_OPB_INTC_0_OPB_AC97_CONTROLLER_REF_##num##_RECORD_INTERRUPT_INTR, \
+			.flags = IORESOURCE_IRQ, \
+		}, \
+	}, \
+}
+
 /* UART 8250 driver platform data table */
 struct plat_serial8250_port virtex_serial_platform_data[] = {
 #if defined(XPAR_UARTNS550_0_BASEADDR)
@@ -172,6 +195,14 @@ struct platform_device virtex_platform_devices[] = {
 #endif
 #if defined(XPAR_TFT_3_BASEADDR)
 	XPAR_TFT(3),
+#endif
+
+	/* AC97 Controller Reference instances */
+#if defined(XPAR_OPB_AC97_CONTROLLER_REF_0_BASEADDR)
+	XPAR_AC97_CONTROLLER_REFERENCE(0),
+#endif
+#if defined(XPAR_OPB_AC97_CONTROLLER_REF_1_BASEADDR)
+	XPAR_AC97_CONTROLLER_REFERENCE(1),
 #endif
 };
 
