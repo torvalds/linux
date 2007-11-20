@@ -180,12 +180,12 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 		if (acpi_ec_check_status(ec, event)) {
 			if (test_bit(EC_FLAGS_ADDRESS, &ec->flags)) {
 				/* miss address GPE, don't expect it anymore */
-				printk(KERN_INFO PREFIX "missing address confirmation,"
+				printk(KERN_INFO PREFIX "missing address confirmation, "
 					"don't expect it any longer.\n");
 				set_bit(EC_FLAGS_NO_ADDRESS_GPE, &ec->flags);
 			} else {
 				/* missing GPEs, switch back to poll mode */
-				printk(KERN_INFO PREFIX "missing confirmations,"
+				printk(KERN_INFO PREFIX "missing confirmations, "
 					"switch off interrupt mode.\n");
 				clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 			}

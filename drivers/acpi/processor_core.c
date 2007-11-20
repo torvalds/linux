@@ -641,7 +641,7 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	 */
 	if (processor_device_array[pr->id] != NULL &&
 	    processor_device_array[pr->id] != device) {
-		printk(KERN_WARNING "BIOS reported wrong ACPI id"
+		printk(KERN_WARNING "BIOS reported wrong ACPI id "
 			"for the processor\n");
 		return -ENODEV;
 	}
