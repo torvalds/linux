@@ -214,7 +214,7 @@ static __init void pas_init_IRQ(void)
 	printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 
 	mpic = mpic_alloc(mpic_node, openpic_addr,
-			  MPIC_PRIMARY|MPIC_LARGE_VECTORS|MPIC_WANTS_RESET,
+			  MPIC_PRIMARY|MPIC_LARGE_VECTORS,
 			  0, 0, " PAS-OPIC  ");
 	BUG_ON(!mpic);
 
