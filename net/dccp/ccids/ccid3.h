@@ -88,7 +88,6 @@ enum ccid3_hc_tx_states {
  * @ccid3hctx_t_last_win_count - Timestamp of earliest packet
  *				 with last_win_count value sent
  * @ccid3hctx_no_feedback_timer - Handle to no feedback timer
- * @ccid3hctx_idle - Flag indicating that sender is idling
  * @ccid3hctx_t_ld - Time last doubled during slow start
  * @ccid3hctx_t_nom - Nominal send time of next packet
  * @ccid3hctx_delta - Send timer delta (RFC 3448, 4.6) in usecs
@@ -107,7 +106,6 @@ struct ccid3_hc_tx_sock {
 	u16				ccid3hctx_s;
 	enum ccid3_hc_tx_states		ccid3hctx_state:8;
 	u8				ccid3hctx_last_win_count;
-	u8				ccid3hctx_idle;
 	ktime_t				ccid3hctx_t_last_win_count;
 	struct timer_list		ccid3hctx_no_feedback_timer;
 	ktime_t				ccid3hctx_t_ld;
