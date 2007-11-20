@@ -845,12 +845,6 @@ struct proto raw_prot = {
 };
 
 #ifdef CONFIG_PROC_FS
-struct raw_iter_state {
-	int bucket;
-};
-
-#define raw_seq_private(seq) ((struct raw_iter_state *)(seq)->private)
-
 static struct sock *raw_get_first(struct seq_file *seq)
 {
 	struct sock *sk;
@@ -860,8 +854,8 @@ static struct sock *raw_get_first(struct seq_file *seq)
 			++state->bucket) {
 		struct hlist_node *node;
 
-		sk_for_each(sk, node, &raw_v4_hashinfo.ht[state->bucket])
-			if (sk->sk_family == PF_INET)
+		sk_for_each(sk, node, &state->h->ht[state->bucket])
+			if (sk->sk_family == state->family)
 				goto found;
 	}
 	sk = NULL;
@@ -877,10 +871,10 @@ static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 		sk = sk_next(sk);
 try_again:
 		;
-	} while (sk && sk->sk_family != PF_INET);
+	} while (sk && sk->sk_family != state->family);
 
 	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
-		sk = sk_head(&raw_v4_hashinfo.ht[state->bucket]);
+		sk = sk_head(&state->h->ht[state->bucket]);
 		goto try_again;
 	}
 	return sk;
@@ -896,13 +890,16 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 	return pos ? NULL : sk;
 }
 
-static void *raw_seq_start(struct seq_file *seq, loff_t *pos)
+void *raw_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	read_lock(&raw_v4_hashinfo.lock);
+	struct raw_iter_state *state = raw_seq_private(seq);
+
+	read_lock(&state->h->lock);
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
+EXPORT_SYMBOL_GPL(raw_seq_start);
 
-static void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct sock *sk;
 
@@ -913,11 +910,15 @@ static void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	++*pos;
 	return sk;
 }
+EXPORT_SYMBOL_GPL(raw_seq_next);
 
-static void raw_seq_stop(struct seq_file *seq, void *v)
+void raw_seq_stop(struct seq_file *seq, void *v)
 {
-	read_unlock(&raw_v4_hashinfo.lock);
+	struct raw_iter_state *state = raw_seq_private(seq);
+
+	read_unlock(&state->h->lock);
 }
+EXPORT_SYMBOL_GPL(raw_seq_stop);
 
 static __inline__ char *get_raw_sock(struct sock *sp, char *tmpbuf, int i)
 {
@@ -964,15 +965,30 @@ static const struct seq_operations raw_seq_ops = {
 	.show  = raw_seq_show,
 };
 
-static int raw_seq_open(struct inode *inode, struct file *file)
+int raw_seq_open(struct file *file, struct raw_hashinfo *h,
+		unsigned short family)
 {
-	return seq_open_private(file, &raw_seq_ops,
+	struct raw_iter_state *i;
+
+	i = __seq_open_private(file, &raw_seq_ops,
 			sizeof(struct raw_iter_state));
+	if (i == NULL)
+		return -ENOMEM;
+
+	i->h = h;
+	i->family = family;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(raw_seq_open);
+
+static int raw_v4_seq_open(struct inode *inode, struct file *file)
+{
+	return raw_seq_open(file, &raw_v4_hashinfo, PF_INET);
 }
 
 static const struct file_operations raw_seq_fops = {
 	.owner	 = THIS_MODULE,
-	.open	 = raw_seq_open,
+	.open	 = raw_v4_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
 	.release = seq_release_private,

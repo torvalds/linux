@@ -37,6 +37,20 @@ struct raw_hashinfo {
 #ifdef CONFIG_PROC_FS
 extern int  raw_proc_init(void);
 extern void raw_proc_exit(void);
+
+struct raw_iter_state {
+	int bucket;
+	unsigned short family;
+	struct raw_hashinfo *h;
+};
+
+#define raw_seq_private(seq) ((struct raw_iter_state *)(seq)->private)
+void *raw_seq_start(struct seq_file *seq, loff_t *pos);
+void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+void raw_seq_stop(struct seq_file *seq, void *v);
+int raw_seq_open(struct file *file, struct raw_hashinfo *h,
+		unsigned short family);
+
 #endif
 
 void raw_hash_sk(struct sock *sk, struct raw_hashinfo *h);

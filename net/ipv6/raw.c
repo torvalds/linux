@@ -1200,77 +1200,6 @@ struct proto rawv6_prot = {
 };
 
 #ifdef CONFIG_PROC_FS
-struct raw6_iter_state {
-	int bucket;
-};
-
-#define raw6_seq_private(seq) ((struct raw6_iter_state *)(seq)->private)
-
-static struct sock *raw6_get_first(struct seq_file *seq)
-{
-	struct sock *sk;
-	struct hlist_node *node;
-	struct raw6_iter_state* state = raw6_seq_private(seq);
-
-	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
-			++state->bucket)
-		sk_for_each(sk, node, &raw_v6_hashinfo.ht[state->bucket])
-			if (sk->sk_family == PF_INET6)
-				goto out;
-	sk = NULL;
-out:
-	return sk;
-}
-
-static struct sock *raw6_get_next(struct seq_file *seq, struct sock *sk)
-{
-	struct raw6_iter_state* state = raw6_seq_private(seq);
-
-	do {
-		sk = sk_next(sk);
-try_again:
-		;
-	} while (sk && sk->sk_family != PF_INET6);
-
-	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
-		sk = sk_head(&raw_v6_hashinfo.ht[state->bucket]);
-		goto try_again;
-	}
-	return sk;
-}
-
-static struct sock *raw6_get_idx(struct seq_file *seq, loff_t pos)
-{
-	struct sock *sk = raw6_get_first(seq);
-	if (sk)
-		while (pos && (sk = raw6_get_next(seq, sk)) != NULL)
-			--pos;
-	return pos ? NULL : sk;
-}
-
-static void *raw6_seq_start(struct seq_file *seq, loff_t *pos)
-{
-	read_lock(&raw_v6_hashinfo.lock);
-	return *pos ? raw6_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
-}
-
-static void *raw6_seq_next(struct seq_file *seq, void *v, loff_t *pos)
-{
-	struct sock *sk;
-
-	if (v == SEQ_START_TOKEN)
-		sk = raw6_get_first(seq);
-	else
-		sk = raw6_get_next(seq, v);
-	++*pos;
-	return sk;
-}
-
-static void raw6_seq_stop(struct seq_file *seq, void *v)
-{
-	read_unlock(&raw_v6_hashinfo.lock);
-}
-
 static void raw6_sock_seq_show(struct seq_file *seq, struct sock *sp, int i)
 {
 	struct ipv6_pinfo *np = inet6_sk(sp);
@@ -1308,21 +1237,20 @@ static int raw6_seq_show(struct seq_file *seq, void *v)
 			   "st tx_queue rx_queue tr tm->when retrnsmt"
 			   "   uid  timeout inode  drops\n");
 	else
-		raw6_sock_seq_show(seq, v, raw6_seq_private(seq)->bucket);
+		raw6_sock_seq_show(seq, v, raw_seq_private(seq)->bucket);
 	return 0;
 }
 
 static const struct seq_operations raw6_seq_ops = {
-	.start =	raw6_seq_start,
-	.next =		raw6_seq_next,
-	.stop =		raw6_seq_stop,
+	.start =	raw_seq_start,
+	.next =		raw_seq_next,
+	.stop =		raw_seq_stop,
 	.show =		raw6_seq_show,
 };
 
 static int raw6_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open_private(file, &raw6_seq_ops,
-			sizeof(struct raw6_iter_state));
+	return raw_seq_open(file, &raw_v6_hashinfo, PF_INET6);
 }
 
 static const struct file_operations raw6_seq_fops = {
