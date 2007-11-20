@@ -139,16 +139,15 @@ static int poll_one_napi(struct netpoll_info *npinfo,
 	return budget - work;
 }
 
-static void poll_napi(struct netpoll *np)
+static void poll_napi(struct net_device *dev)
 {
-	struct netpoll_info *npinfo = np->dev->npinfo;
 	struct napi_struct *napi;
 	int budget = 16;
 
-	list_for_each_entry(napi, &np->dev->napi_list, dev_list) {
+	list_for_each_entry(napi, &dev->napi_list, dev_list) {
 		if (napi->poll_owner != smp_processor_id() &&
 		    spin_trylock(&napi->poll_lock)) {
-			budget = poll_one_napi(npinfo, napi, budget);
+			budget = poll_one_napi(dev->npinfo, napi, budget);
 			spin_unlock(&napi->poll_lock);
 
 			if (!budget)
@@ -159,30 +158,27 @@ static void poll_napi(struct netpoll *np)
 
 static void service_arp_queue(struct netpoll_info *npi)
 {
-	struct sk_buff *skb;
+	if (npi) {
+		struct sk_buff *skb;
 
-	if (unlikely(!npi))
-		return;
-
-	skb = skb_dequeue(&npi->arp_tx);
-
-	while (skb != NULL) {
-		arp_reply(skb);
-		skb = skb_dequeue(&npi->arp_tx);
+		while ((skb = skb_dequeue(&npi->arp_tx)))
+			arp_reply(skb);
 	}
 }
 
 void netpoll_poll(struct netpoll *np)
 {
-	if (!np->dev || !netif_running(np->dev) || !np->dev->poll_controller)
+	struct net_device *dev = np->dev;
+
+	if (!dev || !netif_running(dev) || !dev->poll_controller)
 		return;
 
 	/* Process pending work on NIC */
-	np->dev->poll_controller(np->dev);
-	if (!list_empty(&np->dev->napi_list))
-		poll_napi(np);
+	dev->poll_controller(dev);
 
-	service_arp_queue(np->dev->npinfo);
+	poll_napi(dev);
+
+	service_arp_queue(dev->npinfo);
 
 	zap_completion_queue();
 }
