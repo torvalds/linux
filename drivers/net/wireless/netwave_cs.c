@@ -806,7 +806,7 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     for (i = 0; i < 6; i++) 
 	dev->dev_addr[i] = readb(ramBase + NETWAVE_EREG_PA + i);
 
-    printk(KERN_INFO "%s: Netwave: port %#3lx, irq %d, mem %lx"
+    printk(KERN_INFO "%s: Netwave: port %#3lx, irq %d, mem %lx, "
 	   "id %c%c, hw_addr %s\n",
 	   dev->name, dev->base_addr, dev->irq,
 	   (u_long) ramBase,
