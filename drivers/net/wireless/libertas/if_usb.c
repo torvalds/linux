@@ -1020,7 +1020,7 @@ static struct usb_driver if_usb_driver = {
 	.resume = if_usb_resume,
 };
 
-static int if_usb_init_module(void)
+static int __init if_usb_init_module(void)
 {
 	int ret = 0;
 
@@ -1032,7 +1032,7 @@ static int if_usb_init_module(void)
 	return ret;
 }
 
-static void if_usb_exit_module(void)
+static void __exit if_usb_exit_module(void)
 {
 	struct usb_card_rec *cardp, *cardp_temp;
 

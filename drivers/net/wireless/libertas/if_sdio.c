@@ -1052,7 +1052,7 @@ static struct sdio_driver if_sdio_driver = {
 /* Module functions                                                */
 /*******************************************************************/
 
-static int if_sdio_init_module(void)
+static int __init if_sdio_init_module(void)
 {
 	int ret = 0;
 
@@ -1068,7 +1068,7 @@ static int if_sdio_init_module(void)
 	return ret;
 }
 
-static void if_sdio_exit_module(void)
+static void __exit if_sdio_exit_module(void)
 {
 	lbs_deb_enter(LBS_DEB_SDIO);
 

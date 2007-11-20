@@ -1510,7 +1510,7 @@ int lbs_reset_device(lbs_private *priv)
 }
 EXPORT_SYMBOL_GPL(lbs_reset_device);
 
-static int lbs_init_module(void)
+static int __init lbs_init_module(void)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);
 	lbs_debugfs_init();
@@ -1518,7 +1518,7 @@ static int lbs_init_module(void)
 	return 0;
 }
 
-static void lbs_exit_module(void)
+static void __exit lbs_exit_module(void)
 {
 	lbs_deb_enter(LBS_DEB_MAIN);
 
