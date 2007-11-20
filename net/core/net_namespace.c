@@ -58,6 +58,7 @@ out_undo:
 
 #ifdef CONFIG_NET_NS
 static struct kmem_cache *net_cachep;
+static struct workqueue_struct *netns_wq;
 
 static struct net *net_alloc(void)
 {
@@ -149,7 +150,7 @@ void __put_net(struct net *net)
 {
 	/* Cleanup the network namespace in process context */
 	INIT_WORK(&net->work, cleanup_net);
-	schedule_work(&net->work);
+	queue_work(netns_wq, &net->work);
 }
 EXPORT_SYMBOL_GPL(__put_net);
 
@@ -171,7 +172,13 @@ static int __init net_ns_init(void)
 	net_cachep = kmem_cache_create("net_namespace", sizeof(struct net),
 					SMP_CACHE_BYTES,
 					SLAB_PANIC, NULL);
+
+	/* Create workqueue for cleanup */
+	netns_wq = create_singlethread_workqueue("netns");
+	if (!netns_wq)
+		panic("Could not create netns workq");
 #endif
+
 	mutex_lock(&net_mutex);
 	err = setup_net(&init_net);
 
