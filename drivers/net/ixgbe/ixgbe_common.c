@@ -954,7 +954,7 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	u32 rmcs_reg;
 
 	if (packetbuf_num < 0 || packetbuf_num > 7)
-		hw_dbg(hw, "Invalid packet buffer number [%d], expected range"
+		hw_dbg(hw, "Invalid packet buffer number [%d], expected range "
 		       "is 0-7\n", packetbuf_num);
 
 	frctl_reg = IXGBE_READ_REG(hw, IXGBE_FCTRL);
