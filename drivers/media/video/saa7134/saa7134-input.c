@@ -49,7 +49,7 @@ module_param(repeat_delay, int, 0644);
 MODULE_PARM_DESC(repeat_delay, "delay before key repeat started");
 static int repeat_period = 33;
 module_param(repeat_period, int, 0644);
-MODULE_PARM_DESC(repeat_period, "repeat period between"
+MODULE_PARM_DESC(repeat_period, "repeat period between "
     "keypresses when key is down");
 
 #define dprintk(fmt, arg...)	if (ir_debug) \
