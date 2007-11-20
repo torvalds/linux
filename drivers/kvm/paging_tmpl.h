@@ -212,8 +212,8 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 	if (is_error_hpa(paddr)) {
 		set_shadow_pte(shadow_pte,
 			       shadow_trap_nonpresent_pte | PT_SHADOW_IO_MARK);
-		kvm_release_page(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
-					     >> PAGE_SHIFT));
+		kvm_release_page_clean(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
+				       >> PAGE_SHIFT));
 		return;
 	}
 
@@ -259,12 +259,12 @@ unshadowed:
 
 			page = pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
 					   >> PAGE_SHIFT);
-			kvm_release_page(page);
+			kvm_release_page_clean(page);
 		}
 	}
 	else
-		kvm_release_page(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
-				 >> PAGE_SHIFT));
+		kvm_release_page_clean(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
+				       >> PAGE_SHIFT));
 	if (!ptwrite || !*ptwrite)
 		vcpu->last_pte_updated = shadow_pte;
 }
@@ -503,7 +503,7 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 		else
 			sp->spt[i] = shadow_notrap_nonpresent_pte;
 	kunmap_atomic(gpt, KM_USER0);
-	kvm_release_page(page);
+	kvm_release_page_clean(page);
 }
 
 #undef pt_element_t

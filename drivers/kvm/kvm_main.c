@@ -543,13 +543,19 @@ struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 
 EXPORT_SYMBOL_GPL(gfn_to_page);
 
-void kvm_release_page(struct page *page)
+void kvm_release_page_clean(struct page *page)
+{
+	put_page(page);
+}
+EXPORT_SYMBOL_GPL(kvm_release_page_clean);
+
+void kvm_release_page_dirty(struct page *page)
 {
 	if (!PageReserved(page))
 		SetPageDirty(page);
 	put_page(page);
 }
-EXPORT_SYMBOL_GPL(kvm_release_page);
+EXPORT_SYMBOL_GPL(kvm_release_page_dirty);
 
 static int next_segment(unsigned long len, int offset)
 {
@@ -1055,7 +1061,7 @@ static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
 	/* current->mm->mmap_sem is already held so call lockless version */
 	page = __gfn_to_page(kvm, pgoff);
 	if (is_error_page(page)) {
-		kvm_release_page(page);
+		kvm_release_page_clean(page);
 		return NOPAGE_SIGBUS;
 	}
 	if (type != NULL)

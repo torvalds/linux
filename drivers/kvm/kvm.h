@@ -393,7 +393,8 @@ int __kvm_set_memory_region(struct kvm *kvm,
 			    int user_alloc);
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn);
 struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn);
-void kvm_release_page(struct page *page);
+void kvm_release_page_clean(struct page *page);
+void kvm_release_page_dirty(struct page *page);
 int kvm_read_guest_page(struct kvm *kvm, gfn_t gfn, void *data, int offset,
 			int len);
 int kvm_read_guest(struct kvm *kvm, gpa_t gpa, void *data, unsigned long len);

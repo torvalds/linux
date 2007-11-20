@@ -1472,7 +1472,7 @@ static void free_pio_guest_pages(struct kvm_vcpu *vcpu)
 
 	for (i = 0; i < ARRAY_SIZE(vcpu->pio.guest_pages); ++i)
 		if (vcpu->pio.guest_pages[i]) {
-			kvm_release_page(vcpu->pio.guest_pages[i]);
+			kvm_release_page_dirty(vcpu->pio.guest_pages[i]);
 			vcpu->pio.guest_pages[i] = NULL;
 		}
 }
