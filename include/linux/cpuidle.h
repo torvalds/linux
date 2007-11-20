@@ -92,6 +92,7 @@ struct cpuidle_device {
 	struct kobject		kobj;
 	struct completion	kobj_unregister;
 	void			*governor_data;
+	struct cpuidle_state	*safe_state;
 };
 
 DECLARE_PER_CPU(struct cpuidle_device *, cpuidle_devices);
