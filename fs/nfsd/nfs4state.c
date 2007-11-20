@@ -835,9 +835,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	 * SETCLIENTID_CONFIRM request processing consisting
 	 * of 4 bullet points, labeled as CASE1 - CASE4 below.
 	 */
-	if ((conf && unconf) && 
-	    (same_verf(&unconf->cl_confirm, &confirm)) &&
-	    (!same_verf(&conf->cl_confirm, &unconf->cl_confirm))) {
+	if (conf && unconf && same_verf(&confirm, &unconf->cl_confirm)) {
 		/*
 		 * RFC 3530 14.2.34 CASE 1:
 		 * callback update
