@@ -706,6 +706,9 @@ retry:
 	tuner_dbg("Load init1 firmware, if exists\n");
 
 	rc = load_firmware(fe, BASE | INIT1 | new_fw.type, &std0);
+	if (rc == -ENOENT)
+		rc = load_firmware(fe, (BASE | INIT1 | new_fw.type) & ~F8MHZ,
+				   &std0);
 	if (rc < 0 && rc != -ENOENT) {
 		tuner_err("Error %d while loading init1 firmware\n",
 			  rc);
