@@ -769,7 +769,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		if (new == NULL)
 			goto out;
 		gen_clid(new);
-	} else if (!same_verf(&conf->cl_confirm, &unconf->cl_confirm)) {
+	} else {
 		/*
 		 * RFC 3530 14.2.33 CASE 3:
 		 * probable client reboot; state will be removed if
@@ -780,11 +780,6 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		if (new == NULL)
 			goto out;
 		gen_clid(new);
-	} else {
-		/* No cases hit !!! */
-		status = nfserr_inval;
-		goto out;
-
 	}
 	copy_verf(new, &clverifier);
 	new->cl_addr = sin->sin_addr.s_addr;
