@@ -2292,12 +2292,12 @@ static int snd_cs4215_put_volume(struct snd_kcontrol *kcontrol,
 			return -EINVAL;
 	}
 
-	if (info->left_gain != 
-		info->left_gain = ucontrol->value.integer.value[0];
+	if (info->left_gain != vol[0]) {
+		info->left_gain = vol[0];
 		changed = 1;
 	}
-	if (info->right_gain != ucontrol->value.integer.value[1]) {
-		info->right_gain = ucontrol->value.integer.value[1];
+	if (info->right_gain != vol[1]) {
+		info->right_gain = vol[1];
 		changed = 1;
 	}
 	if (changed) {
