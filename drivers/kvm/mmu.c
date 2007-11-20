@@ -907,8 +907,10 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 
 			pte = table[index];
 			was_rmapped = is_rmap_pte(pte);
-			if (is_shadow_present_pte(pte) && is_writeble_pte(pte))
+			if (is_shadow_present_pte(pte) && is_writeble_pte(pte)) {
+				kvm_release_page(pfn_to_page(p >> PAGE_SHIFT));
 				return 0;
+			}
 			mark_page_dirty(vcpu->kvm, v >> PAGE_SHIFT);
 			page_header_update_slot(vcpu->kvm, table, v);
 			table[index] = p | PT_PRESENT_MASK | PT_WRITABLE_MASK |
