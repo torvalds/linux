@@ -191,7 +191,7 @@ static int sysctl_tcp_congestion_control(ctl_table *table, int __user *name,
 
 	tcp_get_default_congestion_control(val);
 	ret = sysctl_string(&tbl, name, nlen, oldval, oldlenp, newval, newlen);
-	if (ret == 0 && newval && newlen)
+	if (ret == 1 && newval && newlen)
 		ret = tcp_set_default_congestion_control(val);
 	return ret;
 }
