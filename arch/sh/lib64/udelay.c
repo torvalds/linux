@@ -13,8 +13,6 @@
 #include <linux/sched.h>
 #include <asm/param.h>
 
-extern unsigned long loops_per_jiffy;
-
 /*
  * Use only for very small delays (< 1 msec).
  *
@@ -49,11 +47,10 @@ void __ndelay(unsigned long long nsecs, unsigned long lpj)
 
 void udelay(unsigned long usecs)
 {
-	__udelay(usecs, loops_per_jiffy);
+	__udelay(usecs, cpu_data[raw_smp_processor_id()].loops_per_jiffy);
 }
 
 void ndelay(unsigned long nsecs)
 {
-	__ndelay(nsecs, loops_per_jiffy);
+	__ndelay(nsecs, cpu_data[raw_smp_processor_id()].loops_per_jiffy);
 }
-
