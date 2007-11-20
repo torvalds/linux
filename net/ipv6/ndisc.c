@@ -533,7 +533,8 @@ static void __ndisc_send(struct net_device *dev,
 	idev = in6_dev_get(dst->dev);
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
 
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, skb, NULL, dst->dev, dst_output);
+	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
+		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, type);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);
@@ -1538,7 +1539,8 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	buff->dst = dst;
 	idev = in6_dev_get(dst->dev);
 	IP6_INC_STATS(idev, IPSTATS_MIB_OUTREQUESTS);
-	err = NF_HOOK(PF_INET6, NF_IP6_LOCAL_OUT, buff, NULL, dst->dev, dst_output);
+	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, buff, NULL, dst->dev,
+		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(idev, NDISC_REDIRECT);
 		ICMP6_INC_STATS(idev, ICMP6_MIB_OUTMSGS);

@@ -213,9 +213,9 @@ find_best_ips_proto(struct nf_conntrack_tuple *tuple,
 	*var_ipp = htonl(minip + j % (maxip - minip + 1));
 }
 
-/* Manipulate the tuple into the range given.  For NF_IP_POST_ROUTING,
- * we change the source to map into the range.  For NF_IP_PRE_ROUTING
- * and NF_IP_LOCAL_OUT, we change the destination to map into the
+/* Manipulate the tuple into the range given.  For NF_INET_POST_ROUTING,
+ * we change the source to map into the range.  For NF_INET_PRE_ROUTING
+ * and NF_INET_LOCAL_OUT, we change the destination to map into the
  * range.  It might not be possible to get a unique tuple, but we try.
  * At worst (or if we race), we will end up with a final duplicate in
  * __ip_conntrack_confirm and drop the packet. */
@@ -293,10 +293,10 @@ nf_nat_setup_info(struct nf_conn *ct,
 		}
 	}
 
-	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING ||
-		     hooknum == NF_IP_POST_ROUTING ||
-		     hooknum == NF_IP_LOCAL_IN ||
-		     hooknum == NF_IP_LOCAL_OUT);
+	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING ||
+		     hooknum == NF_INET_POST_ROUTING ||
+		     hooknum == NF_INET_LOCAL_IN ||
+		     hooknum == NF_INET_LOCAL_OUT);
 	BUG_ON(nf_nat_initialized(ct, maniptype));
 
 	/* What we've got will look like inverse of reply. Normally

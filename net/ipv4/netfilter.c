@@ -23,7 +23,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 		addr_type = type;
 
 	/* some non-standard hacks like ipt_REJECT.c:send_reset() can cause
-	 * packets with foreign saddr to appear on the NF_IP_LOCAL_OUT hook.
+	 * packets with foreign saddr to appear on the NF_INET_LOCAL_OUT hook.
 	 */
 	if (addr_type == RTN_LOCAL) {
 		fl.nl_u.ip4_u.daddr = iph->daddr;
@@ -126,7 +126,7 @@ static void nf_ip_saveroute(const struct sk_buff *skb, struct nf_info *info)
 {
 	struct ip_rt_info *rt_info = nf_info_reroute(info);
 
-	if (info->hook == NF_IP_LOCAL_OUT) {
+	if (info->hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		rt_info->tos = iph->tos;
@@ -139,7 +139,7 @@ static int nf_ip_reroute(struct sk_buff *skb, const struct nf_info *info)
 {
 	const struct ip_rt_info *rt_info = nf_info_reroute(info);
 
-	if (info->hook == NF_IP_LOCAL_OUT) {
+	if (info->hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->tos == rt_info->tos
@@ -158,7 +158,7 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
-		if (hook != NF_IP_PRE_ROUTING && hook != NF_IP_LOCAL_IN)
+		if (hook != NF_INET_PRE_ROUTING && hook != NF_INET_LOCAL_IN)
 			break;
 		if ((protocol == 0 && !csum_fold(skb->csum)) ||
 		    !csum_tcpudp_magic(iph->saddr, iph->daddr,

@@ -133,8 +133,7 @@ static int udplite_error(struct sk_buff *skb, unsigned int dataoff,
 
 	/* Checksum invalid? Ignore. */
 	if (nf_conntrack_checksum && !skb_csum_unnecessary(skb) &&
-	    ((pf == PF_INET && hooknum == NF_IP_PRE_ROUTING) ||
-	     (pf == PF_INET6 && hooknum == NF_IP6_PRE_ROUTING))) {
+	    hooknum == NF_INET_PRE_ROUTING) {
 		if (pf == PF_INET) {
 			struct iphdr *iph = ip_hdr(skb);
 

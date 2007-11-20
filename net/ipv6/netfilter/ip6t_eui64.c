@@ -67,8 +67,8 @@ static struct xt_match eui64_match __read_mostly = {
 	.family		= AF_INET6,
 	.match		= match,
 	.matchsize	= sizeof(int),
-	.hooks		= (1 << NF_IP6_PRE_ROUTING) | (1 << NF_IP6_LOCAL_IN) |
-			  (1 << NF_IP6_FORWARD),
+	.hooks		= (1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_IN) |
+			  (1 << NF_INET_FORWARD),
 	.me		= THIS_MODULE,
 };
 

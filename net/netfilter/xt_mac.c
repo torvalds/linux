@@ -50,9 +50,9 @@ static struct xt_match xt_mac_match[] __read_mostly = {
 		.family		= AF_INET,
 		.match		= match,
 		.matchsize	= sizeof(struct xt_mac_info),
-		.hooks		= (1 << NF_IP_PRE_ROUTING) |
-				  (1 << NF_IP_LOCAL_IN) |
-				  (1 << NF_IP_FORWARD),
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN) |
+				  (1 << NF_INET_FORWARD),
 		.me		= THIS_MODULE,
 	},
 	{
@@ -60,9 +60,9 @@ static struct xt_match xt_mac_match[] __read_mostly = {
 		.family		= AF_INET6,
 		.match		= match,
 		.matchsize	= sizeof(struct xt_mac_info),
-		.hooks		= (1 << NF_IP6_PRE_ROUTING) |
-				  (1 << NF_IP6_LOCAL_IN) |
-				  (1 << NF_IP6_FORWARD),
+		.hooks		= (1 << NF_INET_PRE_ROUTING) |
+				  (1 << NF_INET_LOCAL_IN) |
+				  (1 << NF_INET_FORWARD),
 		.me		= THIS_MODULE,
 	},
 };

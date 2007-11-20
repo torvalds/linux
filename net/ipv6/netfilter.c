@@ -60,7 +60,7 @@ static void nf_ip6_saveroute(const struct sk_buff *skb, struct nf_info *info)
 {
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
-	if (info->hook == NF_IP6_LOCAL_OUT) {
+	if (info->hook == NF_INET_LOCAL_OUT) {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		rt_info->daddr = iph->daddr;
@@ -72,7 +72,7 @@ static int nf_ip6_reroute(struct sk_buff *skb, const struct nf_info *info)
 {
 	struct ip6_rt_info *rt_info = nf_info_reroute(info);
 
-	if (info->hook == NF_IP6_LOCAL_OUT) {
+	if (info->hook == NF_INET_LOCAL_OUT) {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr))
@@ -89,7 +89,7 @@ __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
-		if (hook != NF_IP6_PRE_ROUTING && hook != NF_IP6_LOCAL_IN)
+		if (hook != NF_INET_PRE_ROUTING && hook != NF_INET_LOCAL_IN)
 			break;
 		if (!csum_ipv6_magic(&ip6h->saddr, &ip6h->daddr,
 				     skb->len - dataoff, protocol,

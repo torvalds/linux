@@ -325,8 +325,8 @@ struct compat_ipt_replace {
 	u32			valid_hooks;
 	u32			num_entries;
 	u32			size;
-	u32			hook_entry[NF_IP_NUMHOOKS];
-	u32			underflow[NF_IP_NUMHOOKS];
+	u32			hook_entry[NF_INET_NUMHOOKS];
+	u32			underflow[NF_INET_NUMHOOKS];
 	u32			num_counters;
 	compat_uptr_t		counters;	/* struct ipt_counters * */
 	struct ipt_entry	entries[0];
@@ -391,7 +391,7 @@ static int do_netfilter_replace(int fd, int level, int optname,
 			   origsize))
 		goto out;
 
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		if (__get_user(tmp32, &urepl->hook_entry[i]) ||
 		    __put_user(tmp32, &repl_nat->hook_entry[i]) ||
 		    __get_user(tmp32, &urepl->underflow[i]) ||

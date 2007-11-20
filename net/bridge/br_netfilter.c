@@ -511,7 +511,7 @@ static unsigned int br_nf_pre_routing_ipv6(unsigned int hook,
 	if (!setup_pre_routing(skb))
 		return NF_DROP;
 
-	NF_HOOK(PF_INET6, NF_IP6_PRE_ROUTING, skb, skb->dev, NULL,
+	NF_HOOK(PF_INET6, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		br_nf_pre_routing_finish_ipv6);
 
 	return NF_STOLEN;
@@ -584,7 +584,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 		return NF_DROP;
 	store_orig_dstaddr(skb);
 
-	NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, skb->dev, NULL,
+	NF_HOOK(PF_INET, NF_INET_PRE_ROUTING, skb, skb->dev, NULL,
 		br_nf_pre_routing_finish);
 
 	return NF_STOLEN;
@@ -681,7 +681,7 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 	nf_bridge->mask |= BRNF_BRIDGED;
 	nf_bridge->physoutdev = skb->dev;
 
-	NF_HOOK(pf, NF_IP_FORWARD, skb, bridge_parent(in), parent,
+	NF_HOOK(pf, NF_INET_FORWARD, skb, bridge_parent(in), parent,
 		br_nf_forward_finish);
 
 	return NF_STOLEN;
@@ -832,7 +832,7 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 	if (nf_bridge->netoutdev)
 		realoutdev = nf_bridge->netoutdev;
 #endif
-	NF_HOOK(pf, NF_IP_POST_ROUTING, skb, NULL, realoutdev,
+	NF_HOOK(pf, NF_INET_POST_ROUTING, skb, NULL, realoutdev,
 		br_nf_dev_queue_xmit);
 
 	return NF_STOLEN;
@@ -905,12 +905,12 @@ static struct nf_hook_ops br_nf_ops[] = {
 	{ .hook = ip_sabotage_in,
 	  .owner = THIS_MODULE,
 	  .pf = PF_INET,
-	  .hooknum = NF_IP_PRE_ROUTING,
+	  .hooknum = NF_INET_PRE_ROUTING,
 	  .priority = NF_IP_PRI_FIRST, },
 	{ .hook = ip_sabotage_in,
 	  .owner = THIS_MODULE,
 	  .pf = PF_INET6,
-	  .hooknum = NF_IP6_PRE_ROUTING,
+	  .hooknum = NF_INET_PRE_ROUTING,
 	  .priority = NF_IP6_PRI_FIRST, },
 };
 

@@ -73,7 +73,8 @@ static struct xt_match owner_match __read_mostly = {
 	.family		= AF_INET,
 	.match		= match,
 	.matchsize	= sizeof(struct ipt_owner_info),
-	.hooks		= (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_POST_ROUTING),
+	.hooks		= (1 << NF_INET_LOCAL_OUT) |
+			  (1 << NF_INET_POST_ROUTING),
 	.checkentry	= checkentry,
 	.me		= THIS_MODULE,
 };

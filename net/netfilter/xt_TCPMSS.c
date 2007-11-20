@@ -214,9 +214,9 @@ xt_tcpmss_checkentry4(const char *tablename,
 	const struct ipt_entry *e = entry;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
-	    (hook_mask & ~((1 << NF_IP_FORWARD) |
-			   (1 << NF_IP_LOCAL_OUT) |
-			   (1 << NF_IP_POST_ROUTING))) != 0) {
+	    (hook_mask & ~((1 << NF_INET_FORWARD) |
+			   (1 << NF_INET_LOCAL_OUT) |
+			   (1 << NF_INET_POST_ROUTING))) != 0) {
 		printk("xt_TCPMSS: path-MTU clamping only supported in "
 		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return false;
@@ -239,9 +239,9 @@ xt_tcpmss_checkentry6(const char *tablename,
 	const struct ip6t_entry *e = entry;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
-	    (hook_mask & ~((1 << NF_IP6_FORWARD) |
-			   (1 << NF_IP6_LOCAL_OUT) |
-			   (1 << NF_IP6_POST_ROUTING))) != 0) {
+	    (hook_mask & ~((1 << NF_INET_FORWARD) |
+			   (1 << NF_INET_LOCAL_OUT) |
+			   (1 << NF_INET_POST_ROUTING))) != 0) {
 		printk("xt_TCPMSS: path-MTU clamping only supported in "
 		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return false;

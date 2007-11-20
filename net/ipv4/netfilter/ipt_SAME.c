@@ -119,8 +119,8 @@ same_target(struct sk_buff *skb,
 	struct nf_nat_range newrange;
 	const struct nf_conntrack_tuple *t;
 
-	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING ||
-			hooknum == NF_IP_POST_ROUTING);
+	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING ||
+			hooknum == NF_INET_POST_ROUTING);
 	ct = nf_ct_get(skb, &ctinfo);
 
 	t = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
@@ -158,7 +158,8 @@ static struct xt_target same_reg __read_mostly = {
 	.target		= same_target,
 	.targetsize	= sizeof(struct ipt_same_info),
 	.table		= "nat",
-	.hooks		= (1 << NF_IP_PRE_ROUTING | 1 << NF_IP_POST_ROUTING),
+	.hooks		= (1 << NF_INET_PRE_ROUTING) |
+			  (1 << NF_INET_POST_ROUTING),
 	.checkentry	= same_check,
 	.destroy	= same_destroy,
 	.me		= THIS_MODULE,

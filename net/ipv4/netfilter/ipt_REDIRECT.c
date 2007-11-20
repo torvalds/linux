@@ -60,14 +60,14 @@ redirect_target(struct sk_buff *skb,
 	const struct nf_nat_multi_range_compat *mr = targinfo;
 	struct nf_nat_range newrange;
 
-	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING
-		     || hooknum == NF_IP_LOCAL_OUT);
+	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING
+		     || hooknum == NF_INET_LOCAL_OUT);
 
 	ct = nf_ct_get(skb, &ctinfo);
 	NF_CT_ASSERT(ct && (ctinfo == IP_CT_NEW || ctinfo == IP_CT_RELATED));
 
 	/* Local packets: make them go to loopback */
-	if (hooknum == NF_IP_LOCAL_OUT)
+	if (hooknum == NF_INET_LOCAL_OUT)
 		newdst = htonl(0x7F000001);
 	else {
 		struct in_device *indev;
@@ -101,7 +101,7 @@ static struct xt_target redirect_reg __read_mostly = {
 	.target		= redirect_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_LOCAL_OUT),
+	.hooks		= (1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT),
 	.checkentry	= redirect_check,
 	.me		= THIS_MODULE,
 };

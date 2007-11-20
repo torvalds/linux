@@ -41,8 +41,8 @@ static struct xt_match realm_match __read_mostly = {
 	.name		= "realm",
 	.match		= match,
 	.matchsize	= sizeof(struct xt_realm_info),
-	.hooks		= (1 << NF_IP_POST_ROUTING) | (1 << NF_IP_FORWARD) |
-			  (1 << NF_IP_LOCAL_OUT) | (1 << NF_IP_LOCAL_IN),
+	.hooks		= (1 << NF_INET_POST_ROUTING) | (1 << NF_INET_FORWARD) |
+			  (1 << NF_INET_LOCAL_OUT) | (1 << NF_INET_LOCAL_IN),
 	.family		= AF_INET,
 	.me		= THIS_MODULE
 };

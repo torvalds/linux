@@ -481,7 +481,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 
 
 /*
- *      It is hooked before NF_IP_PRI_NAT_SRC at the NF_IP_POST_ROUTING
+ *      It is hooked before NF_IP_PRI_NAT_SRC at the NF_INET_POST_ROUTING
  *      chain, and is used for VS/NAT.
  *      It detects packets for VS/NAT connections and sends the packets
  *      immediately. This can avoid that iptable_nat mangles the packets
@@ -679,7 +679,7 @@ static inline int is_tcp_reset(const struct sk_buff *skb)
 }
 
 /*
- *	It is hooked at the NF_IP_FORWARD chain, used only for VS/NAT.
+ *	It is hooked at the NF_INET_FORWARD chain, used only for VS/NAT.
  *	Check if outgoing packet belongs to the established ip_vs_conn,
  *      rewrite addresses of the packet and send it on its way...
  */
@@ -814,7 +814,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 
 	/* reassemble IP fragments */
 	if (ip_hdr(skb)->frag_off & htons(IP_MF | IP_OFFSET)) {
-		if (ip_vs_gather_frags(skb, hooknum == NF_IP_LOCAL_IN ?
+		if (ip_vs_gather_frags(skb, hooknum == NF_INET_LOCAL_IN ?
 					    IP_DEFRAG_VS_IN : IP_DEFRAG_VS_FWD))
 			return NF_STOLEN;
 	}
@@ -1003,12 +1003,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 
 
 /*
- *	It is hooked at the NF_IP_FORWARD chain, in order to catch ICMP
+ *	It is hooked at the NF_INET_FORWARD chain, in order to catch ICMP
  *      related packets destined for 0.0.0.0/0.
  *      When fwmark-based virtual service is used, such as transparent
  *      cache cluster, TCP packets can be marked and routed to ip_vs_in,
  *      but ICMP destined for 0.0.0.0/0 cannot not be easily marked and
- *      sent to ip_vs_in_icmp. So, catch them at the NF_IP_FORWARD chain
+ *      sent to ip_vs_in_icmp. So, catch them at the NF_INET_FORWARD chain
  *      and send them to ip_vs_in_icmp.
  */
 static unsigned int
@@ -1032,7 +1032,7 @@ static struct nf_hook_ops ip_vs_in_ops = {
 	.hook		= ip_vs_in,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
-	.hooknum        = NF_IP_LOCAL_IN,
+	.hooknum        = NF_INET_LOCAL_IN,
 	.priority       = 100,
 };
 
@@ -1041,7 +1041,7 @@ static struct nf_hook_ops ip_vs_out_ops = {
 	.hook		= ip_vs_out,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
-	.hooknum        = NF_IP_FORWARD,
+	.hooknum        = NF_INET_FORWARD,
 	.priority       = 100,
 };
 
@@ -1051,7 +1051,7 @@ static struct nf_hook_ops ip_vs_forward_icmp_ops = {
 	.hook		= ip_vs_forward_icmp,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
-	.hooknum        = NF_IP_FORWARD,
+	.hooknum        = NF_INET_FORWARD,
 	.priority       = 99,
 };
 
@@ -1060,7 +1060,7 @@ static struct nf_hook_ops ip_vs_post_routing_ops = {
 	.hook		= ip_vs_post_routing,
 	.owner		= THIS_MODULE,
 	.pf		= PF_INET,
-	.hooknum        = NF_IP_POST_ROUTING,
+	.hooknum        = NF_INET_POST_ROUTING,
 	.priority       = NF_IP_PRI_NAT_SRC-1,
 };
 

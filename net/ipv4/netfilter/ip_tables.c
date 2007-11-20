@@ -220,11 +220,11 @@ unconditional(const struct ipt_ip *ip)
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
 static const char *hooknames[] = {
-	[NF_IP_PRE_ROUTING]		= "PREROUTING",
-	[NF_IP_LOCAL_IN]		= "INPUT",
-	[NF_IP_FORWARD]			= "FORWARD",
-	[NF_IP_LOCAL_OUT]		= "OUTPUT",
-	[NF_IP_POST_ROUTING]		= "POSTROUTING",
+	[NF_INET_PRE_ROUTING]		= "PREROUTING",
+	[NF_INET_LOCAL_IN]		= "INPUT",
+	[NF_INET_FORWARD]			= "FORWARD",
+	[NF_INET_LOCAL_OUT]		= "OUTPUT",
+	[NF_INET_POST_ROUTING]		= "POSTROUTING",
 };
 
 enum nf_ip_trace_comments {
@@ -465,7 +465,7 @@ mark_source_chains(struct xt_table_info *newinfo,
 
 	/* No recursion; use packet counter to save back ptrs (reset
 	   to 0 as we leave), and comefrom to save source hook bitmask */
-	for (hook = 0; hook < NF_IP_NUMHOOKS; hook++) {
+	for (hook = 0; hook < NF_INET_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
 		struct ipt_entry *e
 			= (struct ipt_entry *)(entry0 + pos);
@@ -481,13 +481,13 @@ mark_source_chains(struct xt_table_info *newinfo,
 				= (void *)ipt_get_target(e);
 			int visited = e->comefrom & (1 << hook);
 
-			if (e->comefrom & (1 << NF_IP_NUMHOOKS)) {
+			if (e->comefrom & (1 << NF_INET_NUMHOOKS)) {
 				printk("iptables: loop hook %u pos %u %08X.\n",
 				       hook, pos, e->comefrom);
 				return 0;
 			}
 			e->comefrom
-				|= ((1 << hook) | (1 << NF_IP_NUMHOOKS));
+				|= ((1 << hook) | (1 << NF_INET_NUMHOOKS));
 
 			/* Unconditional return/END. */
 			if ((e->target_offset == sizeof(struct ipt_entry)
@@ -507,10 +507,10 @@ mark_source_chains(struct xt_table_info *newinfo,
 				/* Return: backtrack through the last
 				   big jump. */
 				do {
-					e->comefrom ^= (1<<NF_IP_NUMHOOKS);
+					e->comefrom ^= (1<<NF_INET_NUMHOOKS);
 #ifdef DEBUG_IP_FIREWALL_USER
 					if (e->comefrom
-					    & (1 << NF_IP_NUMHOOKS)) {
+					    & (1 << NF_INET_NUMHOOKS)) {
 						duprintf("Back unset "
 							 "on hook %u "
 							 "rule %u\n",
@@ -741,7 +741,7 @@ check_entry_size_and_hooks(struct ipt_entry *e,
 	}
 
 	/* Check hooks & underflows */
-	for (h = 0; h < NF_IP_NUMHOOKS; h++) {
+	for (h = 0; h < NF_INET_NUMHOOKS; h++) {
 		if ((unsigned char *)e - base == hook_entries[h])
 			newinfo->hook_entry[h] = hook_entries[h];
 		if ((unsigned char *)e - base == underflows[h])
@@ -795,7 +795,7 @@ translate_table(const char *name,
 	newinfo->number = number;
 
 	/* Init all hooks to impossible value. */
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		newinfo->hook_entry[i] = 0xFFFFFFFF;
 		newinfo->underflow[i] = 0xFFFFFFFF;
 	}
@@ -819,7 +819,7 @@ translate_table(const char *name,
 	}
 
 	/* Check hooks all assigned */
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		/* Only hooks which are valid */
 		if (!(valid_hooks & (1 << i)))
 			continue;
@@ -1107,7 +1107,7 @@ static int compat_calc_entry(struct ipt_entry *e, struct xt_table_info *info,
 	if (ret)
 		return ret;
 
-	for (i = 0; i< NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		if (info->hook_entry[i] && (e < (struct ipt_entry *)
 				(base + info->hook_entry[i])))
 			newinfo->hook_entry[i] -= off;
@@ -1130,7 +1130,7 @@ static int compat_table_info(struct xt_table_info *info,
 	memset(newinfo, 0, sizeof(struct xt_table_info));
 	newinfo->size = info->size;
 	newinfo->number = info->number;
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		newinfo->hook_entry[i] = info->hook_entry[i];
 		newinfo->underflow[i] = info->underflow[i];
 	}
@@ -1479,8 +1479,8 @@ struct compat_ipt_replace {
 	u32			valid_hooks;
 	u32			num_entries;
 	u32			size;
-	u32			hook_entry[NF_IP_NUMHOOKS];
-	u32			underflow[NF_IP_NUMHOOKS];
+	u32			hook_entry[NF_INET_NUMHOOKS];
+	u32			underflow[NF_INET_NUMHOOKS];
 	u32			num_counters;
 	compat_uptr_t		counters;	/* struct ipt_counters * */
 	struct compat_ipt_entry	entries[0];
@@ -1645,7 +1645,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 		goto out;
 
 	/* Check hooks & underflows */
-	for (h = 0; h < NF_IP_NUMHOOKS; h++) {
+	for (h = 0; h < NF_INET_NUMHOOKS; h++) {
 		if ((unsigned char *)e - base == hook_entries[h])
 			newinfo->hook_entry[h] = hook_entries[h];
 		if ((unsigned char *)e - base == underflows[h])
@@ -1700,7 +1700,7 @@ static int compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	xt_compat_target_from_user(t, dstptr, size);
 
 	de->next_offset = e->next_offset - (origsize - *size);
-	for (h = 0; h < NF_IP_NUMHOOKS; h++) {
+	for (h = 0; h < NF_INET_NUMHOOKS; h++) {
 		if ((unsigned char *)de - base < newinfo->hook_entry[h])
 			newinfo->hook_entry[h] -= origsize - *size;
 		if ((unsigned char *)de - base < newinfo->underflow[h])
@@ -1753,7 +1753,7 @@ translate_compat_table(const char *name,
 	info->number = number;
 
 	/* Init all hooks to impossible value. */
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		info->hook_entry[i] = 0xFFFFFFFF;
 		info->underflow[i] = 0xFFFFFFFF;
 	}
@@ -1778,7 +1778,7 @@ translate_compat_table(const char *name,
 	}
 
 	/* Check hooks all assigned */
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		/* Only hooks which are valid */
 		if (!(valid_hooks & (1 << i)))
 			continue;
@@ -1800,7 +1800,7 @@ translate_compat_table(const char *name,
 		goto out_unlock;
 
 	newinfo->number = number;
-	for (i = 0; i < NF_IP_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		newinfo->hook_entry[i] = info->hook_entry[i];
 		newinfo->underflow[i] = info->underflow[i];
 	}

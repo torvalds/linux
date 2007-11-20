@@ -56,14 +56,14 @@ target(struct sk_buff *skb,
 	const struct nf_nat_multi_range_compat *mr = targinfo;
 	struct nf_nat_range newrange;
 
-	NF_CT_ASSERT(hooknum == NF_IP_PRE_ROUTING
-		     || hooknum == NF_IP_POST_ROUTING
-		     || hooknum == NF_IP_LOCAL_OUT);
+	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING
+		     || hooknum == NF_INET_POST_ROUTING
+		     || hooknum == NF_INET_LOCAL_OUT);
 	ct = nf_ct_get(skb, &ctinfo);
 
 	netmask = ~(mr->range[0].min_ip ^ mr->range[0].max_ip);
 
-	if (hooknum == NF_IP_PRE_ROUTING || hooknum == NF_IP_LOCAL_OUT)
+	if (hooknum == NF_INET_PRE_ROUTING || hooknum == NF_INET_LOCAL_OUT)
 		new_ip = ip_hdr(skb)->daddr & ~netmask;
 	else
 		new_ip = ip_hdr(skb)->saddr & ~netmask;
@@ -84,8 +84,9 @@ static struct xt_target target_module __read_mostly = {
 	.target 	= target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= (1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_POST_ROUTING) |
-			  (1 << NF_IP_LOCAL_OUT),
+	.hooks		= (1 << NF_INET_PRE_ROUTING) |
+			  (1 << NF_INET_POST_ROUTING) |
+			  (1 << NF_INET_LOCAL_OUT),
 	.checkentry 	= check,
 	.me 		= THIS_MODULE
 };

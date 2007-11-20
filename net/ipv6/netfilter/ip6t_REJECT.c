@@ -164,7 +164,7 @@ static void send_reset(struct sk_buff *oldskb)
 static inline void
 send_unreach(struct sk_buff *skb_in, unsigned char code, unsigned int hooknum)
 {
-	if (hooknum == NF_IP6_LOCAL_OUT && skb_in->dev == NULL)
+	if (hooknum == NF_INET_LOCAL_OUT && skb_in->dev == NULL)
 		skb_in->dev = init_net.loopback_dev;
 
 	icmpv6_send(skb_in, ICMPV6_DEST_UNREACH, code, 0, NULL);
@@ -243,8 +243,8 @@ static struct xt_target ip6t_reject_reg __read_mostly = {
 	.target		= reject6_target,
 	.targetsize	= sizeof(struct ip6t_reject_info),
 	.table		= "filter",
-	.hooks		= (1 << NF_IP6_LOCAL_IN) | (1 << NF_IP6_FORWARD) |
-			  (1 << NF_IP6_LOCAL_OUT),
+	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD) |
+			  (1 << NF_INET_LOCAL_OUT),
 	.checkentry	= check,
 	.me		= THIS_MODULE
 };

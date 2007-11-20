@@ -123,7 +123,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	niph->id = 0;
 
 	addr_type = RTN_UNSPEC;
-	if (hook != NF_IP_FORWARD
+	if (hook != NF_INET_FORWARD
 #ifdef CONFIG_BRIDGE_NETFILTER
 	    || (nskb->nf_bridge && nskb->nf_bridge->mask & BRNF_BRIDGED)
 #endif
@@ -234,8 +234,8 @@ static struct xt_target ipt_reject_reg __read_mostly = {
 	.target		= reject,
 	.targetsize	= sizeof(struct ipt_reject_info),
 	.table		= "filter",
-	.hooks		= (1 << NF_IP_LOCAL_IN) | (1 << NF_IP_FORWARD) |
-			  (1 << NF_IP_LOCAL_OUT),
+	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD) |
+			  (1 << NF_INET_LOCAL_OUT),
 	.checkentry	= check,
 	.me		= THIS_MODULE,
 };

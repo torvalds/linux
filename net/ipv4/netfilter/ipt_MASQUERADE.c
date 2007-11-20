@@ -67,7 +67,7 @@ masquerade_target(struct sk_buff *skb,
 	const struct rtable *rt;
 	__be32 newsrc;
 
-	NF_CT_ASSERT(hooknum == NF_IP_POST_ROUTING);
+	NF_CT_ASSERT(hooknum == NF_INET_POST_ROUTING);
 
 	ct = nf_ct_get(skb, &ctinfo);
 	nat = nfct_nat(ct);
@@ -172,7 +172,7 @@ static struct xt_target masquerade __read_mostly = {
 	.target		= masquerade_target,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
-	.hooks		= 1 << NF_IP_POST_ROUTING,
+	.hooks		= 1 << NF_INET_POST_ROUTING,
 	.checkentry	= masquerade_check,
 	.me		= THIS_MODULE,
 };

@@ -258,11 +258,11 @@ unconditional(const struct ip6t_ip6 *ipv6)
     defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
 /* This cries for unification! */
 static const char *hooknames[] = {
-	[NF_IP6_PRE_ROUTING]		= "PREROUTING",
-	[NF_IP6_LOCAL_IN]		= "INPUT",
-	[NF_IP6_FORWARD]		= "FORWARD",
-	[NF_IP6_LOCAL_OUT]		= "OUTPUT",
-	[NF_IP6_POST_ROUTING]		= "POSTROUTING",
+	[NF_INET_PRE_ROUTING]		= "PREROUTING",
+	[NF_INET_LOCAL_IN]		= "INPUT",
+	[NF_INET_FORWARD]		= "FORWARD",
+	[NF_INET_LOCAL_OUT]		= "OUTPUT",
+	[NF_INET_POST_ROUTING]		= "POSTROUTING",
 };
 
 enum nf_ip_trace_comments {
@@ -502,7 +502,7 @@ mark_source_chains(struct xt_table_info *newinfo,
 
 	/* No recursion; use packet counter to save back ptrs (reset
 	   to 0 as we leave), and comefrom to save source hook bitmask */
-	for (hook = 0; hook < NF_IP6_NUMHOOKS; hook++) {
+	for (hook = 0; hook < NF_INET_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
 		struct ip6t_entry *e
 			= (struct ip6t_entry *)(entry0 + pos);
@@ -518,13 +518,13 @@ mark_source_chains(struct xt_table_info *newinfo,
 			struct ip6t_standard_target *t
 				= (void *)ip6t_get_target(e);
 
-			if (e->comefrom & (1 << NF_IP6_NUMHOOKS)) {
+			if (e->comefrom & (1 << NF_INET_NUMHOOKS)) {
 				printk("iptables: loop hook %u pos %u %08X.\n",
 				       hook, pos, e->comefrom);
 				return 0;
 			}
 			e->comefrom
-				|= ((1 << hook) | (1 << NF_IP6_NUMHOOKS));
+				|= ((1 << hook) | (1 << NF_INET_NUMHOOKS));
 
 			/* Unconditional return/END. */
 			if ((e->target_offset == sizeof(struct ip6t_entry)
@@ -544,10 +544,10 @@ mark_source_chains(struct xt_table_info *newinfo,
 				/* Return: backtrack through the last
 				   big jump. */
 				do {
-					e->comefrom ^= (1<<NF_IP6_NUMHOOKS);
+					e->comefrom ^= (1<<NF_INET_NUMHOOKS);
 #ifdef DEBUG_IP_FIREWALL_USER
 					if (e->comefrom
-					    & (1 << NF_IP6_NUMHOOKS)) {
+					    & (1 << NF_INET_NUMHOOKS)) {
 						duprintf("Back unset "
 							 "on hook %u "
 							 "rule %u\n",
@@ -746,7 +746,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 	}
 
 	/* Check hooks & underflows */
-	for (h = 0; h < NF_IP6_NUMHOOKS; h++) {
+	for (h = 0; h < NF_INET_NUMHOOKS; h++) {
 		if ((unsigned char *)e - base == hook_entries[h])
 			newinfo->hook_entry[h] = hook_entries[h];
 		if ((unsigned char *)e - base == underflows[h])
@@ -800,7 +800,7 @@ translate_table(const char *name,
 	newinfo->number = number;
 
 	/* Init all hooks to impossible value. */
-	for (i = 0; i < NF_IP6_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		newinfo->hook_entry[i] = 0xFFFFFFFF;
 		newinfo->underflow[i] = 0xFFFFFFFF;
 	}
@@ -824,7 +824,7 @@ translate_table(const char *name,
 	}
 
 	/* Check hooks all assigned */
-	for (i = 0; i < NF_IP6_NUMHOOKS; i++) {
+	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		/* Only hooks which are valid */
 		if (!(valid_hooks & (1 << i)))
 			continue;

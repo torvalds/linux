@@ -235,7 +235,7 @@ static struct nf_hook_ops ing_ops = {
 	.hook           = ing_hook,
 	.owner		= THIS_MODULE,
 	.pf             = PF_INET,
-	.hooknum        = NF_IP_PRE_ROUTING,
+	.hooknum        = NF_INET_PRE_ROUTING,
 	.priority       = NF_IP_PRI_FILTER + 1,
 };
 
@@ -243,7 +243,7 @@ static struct nf_hook_ops ing6_ops = {
 	.hook           = ing_hook,
 	.owner		= THIS_MODULE,
 	.pf             = PF_INET6,
-	.hooknum        = NF_IP6_PRE_ROUTING,
+	.hooknum        = NF_INET_PRE_ROUTING,
 	.priority       = NF_IP6_PRI_FILTER + 1,
 };
 

@@ -391,7 +391,7 @@ static void ip_nat_q931_expect(struct nf_conn *new,
 	range.min_ip = range.max_ip = new->tuplehash[!this->dir].tuple.src.u3.ip;
 
 	/* hook doesn't matter, but it has to do source manip */
-	nf_nat_setup_info(new, &range, NF_IP_POST_ROUTING);
+	nf_nat_setup_info(new, &range, NF_INET_POST_ROUTING);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
@@ -400,7 +400,7 @@ static void ip_nat_q931_expect(struct nf_conn *new,
 	    new->master->tuplehash[!this->dir].tuple.src.u3.ip;
 
 	/* hook doesn't matter, but it has to do destination manip */
-	nf_nat_setup_info(new, &range, NF_IP_PRE_ROUTING);
+	nf_nat_setup_info(new, &range, NF_INET_PRE_ROUTING);
 }
 
 /****************************************************************************/
@@ -481,7 +481,7 @@ static void ip_nat_callforwarding_expect(struct nf_conn *new,
 	range.min_ip = range.max_ip = new->tuplehash[!this->dir].tuple.src.u3.ip;
 
 	/* hook doesn't matter, but it has to do source manip */
-	nf_nat_setup_info(new, &range, NF_IP_POST_ROUTING);
+	nf_nat_setup_info(new, &range, NF_INET_POST_ROUTING);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
@@ -489,7 +489,7 @@ static void ip_nat_callforwarding_expect(struct nf_conn *new,
 	range.min_ip = range.max_ip = this->saved_ip;
 
 	/* hook doesn't matter, but it has to do destination manip */
-	nf_nat_setup_info(new, &range, NF_IP_PRE_ROUTING);
+	nf_nat_setup_info(new, &range, NF_INET_PRE_ROUTING);
 }
 
 /****************************************************************************/

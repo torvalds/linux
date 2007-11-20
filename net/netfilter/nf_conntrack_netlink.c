@@ -829,18 +829,18 @@ ctnetlink_change_status(struct nf_conn *ct, struct nlattr *cda[])
 						&range) < 0)
 				return -EINVAL;
 			if (nf_nat_initialized(ct,
-					       HOOK2MANIP(NF_IP_PRE_ROUTING)))
+					       HOOK2MANIP(NF_INET_PRE_ROUTING)))
 				return -EEXIST;
-			nf_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
+			nf_nat_setup_info(ct, &range, NF_INET_PRE_ROUTING);
 		}
 		if (cda[CTA_NAT_SRC]) {
 			if (nfnetlink_parse_nat(cda[CTA_NAT_SRC], ct,
 						&range) < 0)
 				return -EINVAL;
 			if (nf_nat_initialized(ct,
-					       HOOK2MANIP(NF_IP_POST_ROUTING)))
+					       HOOK2MANIP(NF_INET_POST_ROUTING)))
 				return -EEXIST;
-			nf_nat_setup_info(ct, &range, NF_IP_POST_ROUTING);
+			nf_nat_setup_info(ct, &range, NF_INET_POST_ROUTING);
 		}
 #endif
 	}
