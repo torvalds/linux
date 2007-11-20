@@ -623,15 +623,8 @@ io_preempt:
 io_resume_loop:
 	tm	__TI_flags+7(%r9),_TIF_NEED_RESCHED
 	jno	io_restore
-	larl	%r1,.Lc_pactive
-	mvc	__TI_precount(4,%r9),0(%r1)
-	TRACE_IRQS_ON
-	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
-	brasl	%r14,schedule		# call schedule
-	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
-	TRACE_IRQS_OFF
-	xc	__TI_precount(4,%r9),__TI_precount(%r9)
-	j	io_resume_loop
+	larl	%r14,io_resume_loop
+	jg	preempt_schedule_irq
 #endif
 
 #
@@ -1029,7 +1022,6 @@ cleanup_io_leave_insn:
  */
 		.align	4
 .Lconst:
-.Lc_pactive:	.long	PREEMPT_ACTIVE
 .Lnr_syscalls:	.long	NR_syscalls
 .L0x0130:	.short	0x130
 .L0x0140:	.short	0x140

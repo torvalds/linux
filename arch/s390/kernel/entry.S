@@ -640,15 +640,9 @@ io_preempt:
 io_resume_loop:
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
 	bno	BASED(io_restore)
-	mvc	__TI_precount(4,%r9),BASED(.Lc_pactive)
-	TRACE_IRQS_ON
-	stosm	__SF_EMPTY(%r15),0x03  # reenable interrupts
-	l	%r1,BASED(.Lschedule)
-	basr	%r14,%r1	       # call schedule
-	stnsm	__SF_EMPTY(%r15),0xfc  # disable I/O and ext. interrupts
-	TRACE_IRQS_OFF
-	xc	__TI_precount(4,%r9),__TI_precount(%r9)
-	b	BASED(io_resume_loop)
+	l	%r1,BASED(.Lpreempt_schedule_irq)
+	la	%r14,BASED(io_resume_loop)
+	br	%r1			# call schedule
 #endif
 
 #
@@ -1062,7 +1056,6 @@ cleanup_io_leave_insn:
 		.align	4
 .Lc_spsize:	.long	SP_SIZE
 .Lc_overhead:	.long	STACK_FRAME_OVERHEAD
-.Lc_pactive:	.long	PREEMPT_ACTIVE
 .Lnr_syscalls:	.long	NR_syscalls
 .L0x018:	.short	0x018
 .L0x020:	.short	0x020
@@ -1086,6 +1079,8 @@ cleanup_io_leave_insn:
 .Lexecve_tail:	.long	execve_tail
 .Ljump_table:	.long	pgm_check_table
 .Lschedule:	.long	schedule
+.Lpreempt_schedule_irq:
+		.long	preempt_schedule_irq
 .Ltrace:	.long	syscall_trace
 .Lschedtail:	.long	schedule_tail
 .Lsysc_table:	.long	sys_call_table
