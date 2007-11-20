@@ -192,7 +192,7 @@ static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
 {
 	const u16 old_s = hctx->ccid3hctx_s;
 
-	hctx->ccid3hctx_s = old_s == 0 ? len : (9 * old_s + len) / 10;
+	hctx->ccid3hctx_s = tfrc_ewma(hctx->ccid3hctx_s, len, 9);
 
 	if (hctx->ccid3hctx_s != old_s)
 		ccid3_update_send_interval(hctx);
@@ -449,25 +449,15 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 		now = ktime_get_real();
 		/*
-		 * Calculate new round trip sample as per [RFC 3448, 4.3] by
-		 *	R_sample  =  (now - t_recvdata) - t_elapsed
+		 * Calculate new RTT sample and update moving average
 		 */
 		r_sample = dccp_sample_rtt(sk, ktime_us_delta(now, packet->dccphtx_tstamp));
+		hctx->ccid3hctx_rtt = tfrc_ewma(hctx->ccid3hctx_rtt, r_sample, 9);
 
-		/*
-		 * Update RTT estimate by
-		 * If (No feedback recv)
-		 *    R = R_sample;
-		 * Else
-		 *    R = q * R + (1 - q) * R_sample;
-		 *
-		 * q is a constant, RFC 3448 recomments 0.9
-		 */
 		if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK) {
 			/*
 			 * Larger Initial Windows [RFC 4342, sec. 5]
 			 */
-			hctx->ccid3hctx_rtt  = r_sample;
 			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
 			hctx->ccid3hctx_t_ld = now;
 
@@ -481,8 +471,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 			ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
 		} else {
-			hctx->ccid3hctx_rtt = (9 * hctx->ccid3hctx_rtt +
-						   r_sample) / 10;
 
 			/* Update sending rate (step 4 of [RFC 3448, 4.3]) */
 			if (hctx->ccid3hctx_p > 0)
@@ -700,11 +688,8 @@ static void ccid3_hc_rx_set_state(struct sock *sk,
 
 static inline void ccid3_hc_rx_update_s(struct ccid3_hc_rx_sock *hcrx, int len)
 {
-	if (unlikely(len == 0))	/* don't update on empty packets (e.g. ACKs) */
-		ccid3_pr_debug("Packet payload length is 0 - not updating\n");
-	else
-		hcrx->ccid3hcrx_s = hcrx->ccid3hcrx_s == 0 ? len :
-				    (9 * hcrx->ccid3hcrx_s + len) / 10;
+	if (likely(len > 0))	/* don't update on empty packets (e.g. ACKs) */
+		hcrx->ccid3hcrx_s = tfrc_ewma(hcrx->ccid3hcrx_s, len, 9);
 }
 
 static void ccid3_hc_rx_send_feedback(struct sock *sk)
