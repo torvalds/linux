@@ -837,7 +837,6 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 	 */
 	if ((conf && unconf) && 
 	    (same_verf(&unconf->cl_confirm, &confirm)) &&
-	    (same_verf(&conf->cl_verifier, &unconf->cl_verifier)) &&
 	    (!same_verf(&conf->cl_confirm, &unconf->cl_confirm))) {
 		/*
 		 * RFC 3530 14.2.34 CASE 1:
@@ -855,9 +854,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			status = nfs_ok;
 
 		}
-	} else if ((conf && !unconf) ||
-	    ((conf && unconf) && 
-	     !same_verf(&conf->cl_verifier, &unconf->cl_verifier))) {
+	} else if (conf && !unconf) {
 		/*
 		 * RFC 3530 14.2.34 CASE 2:
 		 * probable retransmitted request; play it safe and
