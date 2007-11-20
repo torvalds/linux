@@ -1,9 +1,5 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/mm/tlbmiss.c
+ * The SH64 TLB miss.
  *
  * Original code from fault.c
  * Copyright (C) 2000, 2001  Paolo Alberelli
@@ -12,16 +8,20 @@
  * Copyright (C) 2003 Richard.Curnow@superh.com
  *
  * IMPORTANT NOTES :
- * The do_fast_page_fault function is called from a context in entry.S where very few registers
- * have been saved.  In particular, the code in this file must be compiled not to use ANY
- * caller-save registers that are not part of the restricted save set.  Also, it means that
- * code in this file must not make calls to functions elsewhere in the kernel, or else the
- * excepting context will see corruption in its caller-save registers.  Plus, the entry.S save
- * area is non-reentrant, so this code has to run with SR.BL==1, i.e. no interrupts taken inside
- * it and panic on any exception.
+ * The do_fast_page_fault function is called from a context in entry.S
+ * where very few registers have been saved.  In particular, the code in
+ * this file must be compiled not to use ANY caller-save registers that
+ * are not part of the restricted save set.  Also, it means that code in
+ * this file must not make calls to functions elsewhere in the kernel, or
+ * else the excepting context will see corruption in its caller-save
+ * registers.  Plus, the entry.S save area is non-reentrant, so this code
+ * has to run with SR.BL==1, i.e. no interrupts taken inside it and panic
+ * on any exception.
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -33,14 +33,13 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-
 #include <asm/system.h>
 #include <asm/tlb.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
-#include <asm/registers.h>		/* required by inline asm statements */
+#include <asm/cpu/registers.h>
 
 /* Callable from fault.c, so not static */
 inline void __do_tlb_refill(unsigned long address,
@@ -88,48 +87,47 @@ inline void __do_tlb_refill(unsigned long address,
 
 }
 
-static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long protection_flags,
+static int handle_vmalloc_fault(struct mm_struct *mm,
+				unsigned long protection_flags,
                                 unsigned long long textaccess,
 				unsigned long address)
 {
 	pgd_t *dir;
+	pud_t *pud;
 	pmd_t *pmd;
 	static pte_t *pte;
 	pte_t entry;
 
 	dir = pgd_offset_k(address);
-	pmd = pmd_offset(dir, address);
 
-	if (pmd_none(*pmd)) {
+	pud = pud_offset(dir, address);
+	if (pud_none_or_clear_bad(pud))
 		return 0;
-	}
 
-	if (pmd_bad(*pmd)) {
-		pmd_clear(pmd);
+	pmd = pmd_offset(pud, address);
+	if (pmd_none_or_clear_bad(pmd))
 		return 0;
-	}
 
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
 
-	if (pte_none(entry) || !pte_present(entry)) {
+	if (pte_none(entry) || !pte_present(entry))
 		return 0;
-	}
-
-	if ((pte_val(entry) & protection_flags) != protection_flags) {
+	if ((pte_val(entry) & protection_flags) != protection_flags)
 		return 0;
-	}
 
         __do_tlb_refill(address, textaccess, pte);
 
 	return 1;
 }
 
-static int handle_tlbmiss(struct mm_struct *mm, unsigned long long protection_flags,
-			unsigned long long textaccess,
-			unsigned long address)
+static int handle_tlbmiss(struct mm_struct *mm,
+			  unsigned long long protection_flags,
+			  unsigned long long textaccess,
+			  unsigned long address)
 {
 	pgd_t *dir;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
@@ -144,49 +142,49 @@ static int handle_tlbmiss(struct mm_struct *mm, unsigned long long protection_fl
 
 	   See how mm->pgd is allocated and initialised in pgd_alloc to see why
 	   the next test is necessary.  - RPC */
-	if (address >= (unsigned long) TASK_SIZE) {
+	if (address >= (unsigned long) TASK_SIZE)
 		/* upper half - never has page table entries. */
 		return 0;
-	}
-	dir = pgd_offset(mm, address);
-	if (pgd_none(*dir)) {
-		return 0;
-	}
-	if (!pgd_present(*dir)) {
-		return 0;
-	}
 
-	pmd = pmd_offset(dir, address);
-	if (pmd_none(*pmd)) {
+	dir = pgd_offset(mm, address);
+	if (pgd_none(*dir) || !pgd_present(*dir))
 		return 0;
-	}
-	if (!pmd_present(*pmd)) {
+	if (!pgd_present(*dir))
 		return 0;
-	}
+
+	pud = pud_offset(dir, address);
+	if (pud_none(*pud) || !pud_present(*pud))
+		return 0;
+
+	pmd = pmd_offset(pud, address);
+	if (pmd_none(*pmd) || !pmd_present(*pmd))
+		return 0;
+
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
-	if (pte_none(entry)) {
-		return 0;
-	}
-	if (!pte_present(entry)) {
-		return 0;
-	}
 
-	/* If the page doesn't have sufficient protection bits set to service the
-	   kind of fault being handled, there's not much point doing the TLB refill.
-	   Punt the fault to the general handler. */
-	if ((pte_val(entry) & protection_flags) != protection_flags) {
+	if (pte_none(entry) || !pte_present(entry))
 		return 0;
-	}
+
+	/*
+	 * If the page doesn't have sufficient protection bits set to
+	 * service the kind of fault being handled, there's not much
+	 * point doing the TLB refill.  Punt the fault to the general
+	 * handler.
+	 */
+	if ((pte_val(entry) & protection_flags) != protection_flags)
+		return 0;
 
         __do_tlb_refill(address, textaccess, pte);
 
 	return 1;
 }
 
-/* Put all this information into one structure so that everything is just arithmetic
-   relative to a single base address.  This reduces the number of movi/shori pairs needed
-   just to load addresses of static data. */
+/*
+ * Put all this information into one structure so that everything is just
+ * arithmetic relative to a single base address.  This reduces the number
+ * of movi/shori pairs needed just to load addresses of static data.
+ */
 struct expevt_lookup {
 	unsigned short protection_flags[8];
 	unsigned char  is_text_access[8];
@@ -216,7 +214,8 @@ static struct expevt_lookup expevt_lookup_table = {
    general fault handling in fault.c which deals with mapping file-backed
    pages, stack growth, segmentation faults, swapping etc etc)
  */
-asmlinkage int do_fast_page_fault(unsigned long long ssr_md, unsigned long long expevt,
+asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
+				  unsigned long long expevt,
 			          unsigned long address)
 {
 	struct task_struct *tsk;
@@ -226,17 +225,18 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md, unsigned long long 
 	unsigned long long index;
 	unsigned long long expevt4;
 
-	/* The next few lines implement a way of hashing EXPEVT into a small array index
-	   which can be used to lookup parameters specific to the type of TLBMISS being
-	   handled.  Note:
-	   ITLBMISS has EXPEVT==0xa40
-	   RTLBMISS has EXPEVT==0x040
-	   WTLBMISS has EXPEVT==0x060
-	*/
-
+	/* The next few lines implement a way of hashing EXPEVT into a
+	 * small array index which can be used to lookup parameters
+	 * specific to the type of TLBMISS being handled.
+	 *
+	 * Note:
+	 *	ITLBMISS has EXPEVT==0xa40
+	 *	RTLBMISS has EXPEVT==0x040
+	 *	WTLBMISS has EXPEVT==0x060
+	 */
 	expevt4 = (expevt >> 4);
-	/* TODO : xor ssr_md into this expression too.  Then we can check that PRU is set
-	   when it needs to be. */
+	/* TODO : xor ssr_md into this expression too. Then we can check
+	 * that PRU is set when it needs to be. */
 	index = expevt4 ^ (expevt4 >> 5);
 	index &= 7;
 	protection_flags = expevt_lookup_table.protection_flags[index];
@@ -262,18 +262,18 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md, unsigned long long 
 
 	if ((address >= VMALLOC_START && address < VMALLOC_END) ||
 	    (address >= IOBASE_VADDR  && address < IOBASE_END)) {
-		if (ssr_md) {
-			/* Process-contexts can never have this address range mapped */
-			if (handle_vmalloc_fault(mm, protection_flags, textaccess, address)) {
+		if (ssr_md)
+			/*
+			 * Process-contexts can never have this address
+			 * range mapped
+			 */
+			if (handle_vmalloc_fault(mm, protection_flags,
+						 textaccess, address))
 				return 1;
-			}
-		}
 	} else if (!in_interrupt() && mm) {
-		if (handle_tlbmiss(mm, protection_flags, textaccess, address)) {
+		if (handle_tlbmiss(mm, protection_flags, textaccess, address))
 			return 1;
-		}
 	}
 
 	return 0;
 }
-
