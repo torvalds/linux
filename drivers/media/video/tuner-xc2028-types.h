@@ -43,6 +43,8 @@
 /* There's a FM | BASE firmware + FM specific firmware (std=0) */
 #define	FM		(1<<10)
 
+#define STD_SPECIFIC_TYPES (MTS|FM|LCD|NOGD)
+
 /* Applies only for FM firmware
    Makes it use RF input 1 (pin #2) instead of input 2 (pin #4)
  */

@@ -403,7 +403,9 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 	else if (type & SCODE)
 		type &= SCODE_TYPES;
 	else if (type & DTV_TYPES)
-		type = type & DTV_TYPES;
+		type &= DTV_TYPES;
+	else if (type & STD_SPECIFIC_TYPES)
+		type &= STD_SPECIFIC_TYPES;
 
 	/* Seek for exact match */
 	for (i = 0; i < priv->firm_size; i++) {
