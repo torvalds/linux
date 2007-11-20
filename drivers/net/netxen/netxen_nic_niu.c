@@ -547,8 +547,8 @@ int netxen_niu_gbe_handle_phy_interrupt(struct netxen_adapter *adapter,
 								    port,
 								    enable);
 				} else {
-					printk(KERN_ERR PFX "ERROR reading"
-					       "PHY status. Illegal speed.\n");
+					printk(KERN_ERR PFX "ERROR reading "
+					       "PHY status. Invalid speed.\n");
 					result = -1;
 				}
 			} else {

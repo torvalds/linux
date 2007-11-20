@@ -286,7 +286,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	printk(KERN_INFO "%s \n", netxen_nic_driver_string);
 
 	if (pdev->class != 0x020000) {
-		printk(KERN_ERR"NetXen function %d, class %x will not"
+		printk(KERN_ERR"NetXen function %d, class %x will not "
 				"be enabled.\n",pci_func_id, pdev->class);
 		return -ENODEV;
 	}
@@ -510,7 +510,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    vmalloc(RCV_BUFFSIZE);
 
 			if (rcv_desc->rx_buf_arr == NULL) {
-				printk(KERN_ERR "%s: Could not allocate"
+				printk(KERN_ERR "%s: Could not allocate "
 				       "rcv_desc->rx_buf_arr memory:%d\n",
 				       netxen_nic_driver_name,
 				       (int)RCV_BUFFSIZE);
@@ -980,7 +980,7 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	if (frag_count > MAX_BUFFERS_PER_CMD) {
-		printk("%s: %s netxen_nic_xmit_frame: frag_count (%d)"
+		printk("%s: %s netxen_nic_xmit_frame: frag_count (%d) "
 		       "too large, can handle only %d frags\n",
 		       netxen_nic_driver_name, netdev->name,
 		       frag_count, MAX_BUFFERS_PER_CMD);

@@ -1107,8 +1107,8 @@ static void netxen_process_rcv(struct netxen_adapter *adapter, int ctxid,
 		}
 		if (buffer->lro_current_frags != buffer->lro_expected_frags) {
 			if (buffer->lro_expected_frags != 0) {
-				printk("LRO: (refhandle:%x) recv frag."
-				       "wait for last. flags: %x expected:%d"
+				printk("LRO: (refhandle:%x) recv frag. "
+				       "wait for last. flags: %x expected:%d "
 				       "have:%d\n", index,
 				       netxen_get_sts_desc_lro_last_frag(desc),
 				       buffer->lro_expected_frags,

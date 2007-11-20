@@ -666,7 +666,7 @@ void netxen_nic_pci_change_crbwindow(struct netxen_adapter *adapter, u32 wndw)
 					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW_F3));
 			break;
 		default:
-			printk(KERN_INFO "Changing the window for PCI function"
+			printk(KERN_INFO "Changing the window for PCI function "
 					"%d\n",	adapter->ahw.pci_func);
 			offset = PCI_OFFSET_SECOND_RANGE(adapter,
 					NETXEN_PCIX_PH_REG(PCIX_CRB_WINDOW));
