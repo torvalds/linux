@@ -1424,7 +1424,6 @@ proc_do_sync_threshold(ctl_table *table, int write, struct file *filp,
 
 static struct ctl_table vs_vars[] = {
 	{
-		.ctl_name	= NET_IPV4_VS_AMEMTHRESH,
 		.procname	= "amemthresh",
 		.data		= &sysctl_ip_vs_amemthresh,
 		.maxlen		= sizeof(int),
@@ -1433,7 +1432,6 @@ static struct ctl_table vs_vars[] = {
 	},
 #ifdef CONFIG_IP_VS_DEBUG
 	{
-		.ctl_name	= NET_IPV4_VS_DEBUG_LEVEL,
 		.procname	= "debug_level",
 		.data		= &sysctl_ip_vs_debug_level,
 		.maxlen		= sizeof(int),
@@ -1442,7 +1440,6 @@ static struct ctl_table vs_vars[] = {
 	},
 #endif
 	{
-		.ctl_name	= NET_IPV4_VS_AMDROPRATE,
 		.procname	= "am_droprate",
 		.data		= &sysctl_ip_vs_am_droprate,
 		.maxlen		= sizeof(int),
@@ -1472,7 +1469,6 @@ static struct ctl_table vs_vars[] = {
 	},
 #if 0
 	{
-		.ctl_name	= NET_IPV4_VS_TO_ES,
 		.procname	= "timeout_established",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_ESTABLISHED],
 		.maxlen		= sizeof(int),
@@ -1480,7 +1476,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_SS,
 		.procname	= "timeout_synsent",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_SYN_SENT],
 		.maxlen		= sizeof(int),
@@ -1488,7 +1483,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_SR,
 		.procname	= "timeout_synrecv",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_SYN_RECV],
 		.maxlen		= sizeof(int),
@@ -1496,7 +1490,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_FW,
 		.procname	= "timeout_finwait",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_FIN_WAIT],
 		.maxlen		= sizeof(int),
@@ -1504,7 +1497,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_TW,
 		.procname	= "timeout_timewait",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_TIME_WAIT],
 		.maxlen		= sizeof(int),
@@ -1512,7 +1504,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_CL,
 		.procname	= "timeout_close",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_CLOSE],
 		.maxlen		= sizeof(int),
@@ -1520,7 +1511,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_CW,
 		.procname	= "timeout_closewait",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_CLOSE_WAIT],
 		.maxlen		= sizeof(int),
@@ -1528,7 +1518,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_LA,
 		.procname	= "timeout_lastack",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_LAST_ACK],
 		.maxlen		= sizeof(int),
@@ -1536,7 +1525,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_LI,
 		.procname	= "timeout_listen",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_LISTEN],
 		.maxlen		= sizeof(int),
@@ -1544,7 +1532,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_SA,
 		.procname	= "timeout_synack",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_SYNACK],
 		.maxlen		= sizeof(int),
@@ -1552,7 +1539,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_UDP,
 		.procname	= "timeout_udp",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_UDP],
 		.maxlen		= sizeof(int),
@@ -1560,7 +1546,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec_jiffies,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_TO_ICMP,
 		.procname	= "timeout_icmp",
 		.data	= &vs_timeout_table_dos.timeout[IP_VS_S_ICMP],
 		.maxlen		= sizeof(int),
@@ -1569,7 +1554,6 @@ static struct ctl_table vs_vars[] = {
 	},
 #endif
 	{
-		.ctl_name	= NET_IPV4_VS_CACHE_BYPASS,
 		.procname	= "cache_bypass",
 		.data		= &sysctl_ip_vs_cache_bypass,
 		.maxlen		= sizeof(int),
@@ -1577,7 +1561,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_EXPIRE_NODEST_CONN,
 		.procname	= "expire_nodest_conn",
 		.data		= &sysctl_ip_vs_expire_nodest_conn,
 		.maxlen		= sizeof(int),
@@ -1585,7 +1568,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_EXPIRE_QUIESCENT_TEMPLATE,
 		.procname	= "expire_quiescent_template",
 		.data		= &sysctl_ip_vs_expire_quiescent_template,
 		.maxlen		= sizeof(int),
@@ -1600,7 +1582,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_do_sync_threshold,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_NAT_ICMP_SEND,
 		.procname	= "nat_icmp_send",
 		.data		= &sysctl_ip_vs_nat_icmp_send,
 		.maxlen		= sizeof(int),
@@ -1612,7 +1593,6 @@ static struct ctl_table vs_vars[] = {
 
 static ctl_table vs_table[] = {
 	{
-		.ctl_name	= NET_IPV4_VS,
 		.procname	= "vs",
 		.mode		= 0555,
 		.child		= vs_vars

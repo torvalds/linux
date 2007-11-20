@@ -125,7 +125,6 @@ static ctl_table vs_vars_table[] = {
 
 static ctl_table vs_table[] = {
 	{
-		.ctl_name	= NET_IPV4_VS,
 		.procname	= "vs",
 		.mode		= 0555,
 		.child		= vs_vars_table
