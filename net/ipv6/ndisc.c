@@ -1049,7 +1049,8 @@ static void ndisc_ra_useropt(struct sk_buff *ra, struct nd_opt_hdr *opt)
 		&ipv6_hdr(ra)->saddr);
 	nlmsg_end(skb, nlh);
 
-	err = rtnl_notify(skb, 0, RTNLGRP_ND_USEROPT, NULL, GFP_ATOMIC);
+	err = rtnl_notify(skb, &init_net, 0, RTNLGRP_ND_USEROPT, NULL,
+			  GFP_ATOMIC);
 	if (err < 0)
 		goto errout;
 
@@ -1059,7 +1060,7 @@ nla_put_failure:
 	nlmsg_free(skb);
 	err = -EMSGSIZE;
 errout:
-	rtnl_set_sk_err(RTNLGRP_ND_USEROPT, err);
+	rtnl_set_sk_err(&init_net, RTNLGRP_ND_USEROPT, err);
 }
 
 static void ndisc_router_discovery(struct sk_buff *skb)
