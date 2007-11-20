@@ -32,6 +32,10 @@ struct net {
 	struct hlist_head	*dev_index_head;
 
 	struct sock 		*rtnl;			/* rtnetlink socket */
+
+	/* List of all packet sockets. */
+	rwlock_t		packet_sklist_lock;
+	struct hlist_head	packet_sklist;
 };
 
 #ifdef CONFIG_NET
