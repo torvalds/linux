@@ -622,6 +622,9 @@ static void parse_fpe(struct pt_regs *regs)
 #define INST_POPCNTB		0x7c0000f4
 #define INST_POPCNTB_MASK	0xfc0007fe
 
+#define INST_ISEL		0x7c00001e
+#define INST_ISEL_MASK		0xfc00003e
+
 static int emulate_string_inst(struct pt_regs *regs, u32 instword)
 {
 	u8 rT = (instword >> 21) & 0x1f;
@@ -707,6 +710,23 @@ static int emulate_popcntb_inst(struct pt_regs *regs, u32 instword)
 	return 0;
 }
 
+static int emulate_isel(struct pt_regs *regs, u32 instword)
+{
+	u8 rT = (instword >> 21) & 0x1f;
+	u8 rA = (instword >> 16) & 0x1f;
+	u8 rB = (instword >> 11) & 0x1f;
+	u8 BC = (instword >> 6) & 0x1f;
+	u8 bit;
+	unsigned long tmp;
+
+	tmp = (rA == 0) ? 0 : regs->gpr[rA];
+	bit = (regs->ccr >> (31 - BC)) & 0x1;
+
+	regs->gpr[rT] = bit ? tmp : regs->gpr[rB];
+
+	return 0;
+}
+
 static int emulate_instruction(struct pt_regs *regs)
 {
 	u32 instword;
@@ -747,6 +767,11 @@ static int emulate_instruction(struct pt_regs *regs)
 	/* Emulate the popcntb (Population Count Bytes) instruction. */
 	if ((instword & INST_POPCNTB_MASK) == INST_POPCNTB) {
 		return emulate_popcntb_inst(regs, instword);
+	}
+
+	/* Emulate isel (Integer Select) instruction */
+	if ((instword & INST_ISEL_MASK) == INST_ISEL) {
+		return emulate_isel(regs, instword);
 	}
 
 	return -EINVAL;
