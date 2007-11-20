@@ -837,10 +837,6 @@ void *set_exception_table_vec(unsigned int vec, void *handler)
 	return old_handler;
 }
 
-extern asmlinkage void address_error_handler(unsigned long r4, unsigned long r5,
-					     unsigned long r6, unsigned long r7,
-					     struct pt_regs __regs);
-
 void __init trap_init(void)
 {
 	set_exception_table_vec(TRAP_RESERVED_INST, do_reserved_inst);
@@ -866,7 +862,7 @@ void __init trap_init(void)
 #endif
 
 #ifdef CONFIG_CPU_SH2
-	set_exception_table_vec(TRAP_ADDRESS_ERROR, address_error_handler);
+	set_exception_table_vec(TRAP_ADDRESS_ERROR, address_error_trap_handler);
 #endif
 #ifdef CONFIG_CPU_SH2A
 	set_exception_table_vec(TRAP_DIVZERO_ERROR, do_divide_error);
@@ -876,25 +872,6 @@ void __init trap_init(void)
 	/* Setup VBR for boot cpu */
 	per_cpu_trap_init();
 }
-
-#ifdef CONFIG_BUG
-void handle_BUG(struct pt_regs *regs)
-{
-	enum bug_trap_type tt;
-	tt = report_bug(regs->pc, regs);
-	if (tt == BUG_TRAP_TYPE_WARN) {
-		regs->pc += 2;
-		return;
-	}
-
-	die("Kernel BUG", regs, TRAPA_BUG_OPCODE & 0xff);
-}
-
-int is_valid_bugaddr(unsigned long addr)
-{
-	return addr >= PAGE_OFFSET;
-}
-#endif
 
 void show_trace(struct task_struct *tsk, unsigned long *sp,
 		struct pt_regs *regs)

@@ -1,12 +1,10 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+ * arch/sh/kernel/process_64.c
  *
- * arch/sh64/kernel/process.c
+ * This file handles the architecture-dependent parts of process handling..
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003  Paul Mundt
+ * Copyright (C) 2003 - 2007  Paul Mundt
  * Copyright (C) 2003, 2004 Richard Curnow
  *
  * Started from SH3/4 version:
@@ -15,10 +13,9 @@
  *   In turn started from i386 version:
  *     Copyright (C) 1995  Linus Torvalds
  *
- */
-
-/*
- * This file handles the architecture-dependent parts of process handling..
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/mm.h>
 #include <linux/fs.h>

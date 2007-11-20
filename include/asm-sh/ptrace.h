@@ -95,7 +95,7 @@ struct pt_dspregs {
 #include <asm/addrspace.h>
 
 #define user_mode(regs)			(((regs)->sr & 0x40000000)==0)
-#define instruction_pointer(regs)	((regs)->pc)
+#define instruction_pointer(regs)	((unsigned long)(regs)->pc)
 
 extern void show_regs(struct pt_regs *);
 

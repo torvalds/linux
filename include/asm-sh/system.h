@@ -185,12 +185,25 @@ void default_idle(void);
 void per_cpu_trap_init(void);
 
 asmlinkage void break_point_trap(void);
-asmlinkage void debug_trap_handler(unsigned long r4, unsigned long r5,
-				   unsigned long r6, unsigned long r7,
-				   struct pt_regs __regs);
-asmlinkage void bug_trap_handler(unsigned long r4, unsigned long r5,
-				 unsigned long r6, unsigned long r7,
-				 struct pt_regs __regs);
+
+#ifdef CONFIG_SUPERH32
+#define BUILD_TRAP_HANDLER(name)					\
+asmlinkage void name##_trap_handler(unsigned long r4, unsigned long r5,	\
+				    unsigned long r6, unsigned long r7,	\
+				    struct pt_regs __regs)
+
+#define TRAP_HANDLER_DECL				\
+	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);	\
+	unsigned int vec = regs->tra;
+#else
+#define BUILD_TRAP_HANDLER(name)	\
+asmlinkage void name##_trap_handler(unsigned int vec, struct pt_regs *regs)
+#define TRAP_HANDLER_DECL
+#endif
+
+BUILD_TRAP_HANDLER(address_error);
+BUILD_TRAP_HANDLER(debug);
+BUILD_TRAP_HANDLER(bug);
 
 #define arch_align_stack(x) (x)
 

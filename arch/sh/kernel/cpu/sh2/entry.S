@@ -250,7 +250,7 @@ ENTRY(sh_bios_handler)
 1:	.long	gdb_vbr_vector
 #endif /* CONFIG_SH_STANDARD_BIOS */
 
-ENTRY(address_error_handler)
+ENTRY(address_error_trap_handler)
 	mov	r15,r4				! regs
 	add	#4,r4
 	mov	#OFF_PC,r0
