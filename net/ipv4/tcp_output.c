@@ -1352,7 +1352,6 @@ static int tcp_mtu_probe(struct sock *sk)
 
 	skb = tcp_send_head(sk);
 	tcp_insert_write_queue_before(nskb, skb, sk);
-	tcp_advance_send_head(sk, skb);
 
 	TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(nskb)->end_seq = TCP_SKB_CB(skb)->seq + probe_size;
