@@ -189,10 +189,7 @@ static unsigned int pentium4_get_frequency(void)
 		printk(KERN_DEBUG "speedstep-lib: couldn't detect FSB speed. Please send an e-mail to <linux@brodo.de>\n");
 
 	/* Multiplier. */
-	if (c->x86_model < 2)
-		mult = msr_lo >> 27;
-	else
-		mult = msr_lo >> 24;
+	mult = msr_lo >> 24;
 
 	dprintk("P4 - FSB %u kHz; Multiplier %u; Speed %u kHz\n", fsb, mult, (fsb * mult));
 
