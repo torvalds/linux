@@ -124,6 +124,10 @@ int crypto_enqueue_request(struct crypto_queue *queue,
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
 int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
 
+/* These functions require the input/output to be aligned as u32. */
+void crypto_inc(u8 *a, unsigned int size);
+void crypto_xor(u8 *dst, const u8 *src, unsigned int size);
+
 int blkcipher_walk_done(struct blkcipher_desc *desc,
 			struct blkcipher_walk *walk, int err);
 int blkcipher_walk_virt(struct blkcipher_desc *desc,
