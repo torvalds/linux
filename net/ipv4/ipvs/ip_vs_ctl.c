@@ -1450,7 +1450,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_DROP_ENTRY,
 		.procname	= "drop_entry",
 		.data		= &sysctl_ip_vs_drop_entry,
 		.maxlen		= sizeof(int),
@@ -1458,7 +1457,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_do_defense_mode,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_DROP_PACKET,
 		.procname	= "drop_packet",
 		.data		= &sysctl_ip_vs_drop_packet,
 		.maxlen		= sizeof(int),
@@ -1466,7 +1464,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_do_defense_mode,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_SECURE_TCP,
 		.procname	= "secure_tcp",
 		.data		= &sysctl_ip_vs_secure_tcp,
 		.maxlen		= sizeof(int),
@@ -1596,7 +1593,6 @@ static struct ctl_table vs_vars[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 	{
-		.ctl_name	= NET_IPV4_VS_SYNC_THRESHOLD,
 		.procname	= "sync_threshold",
 		.data		= &sysctl_ip_vs_sync_threshold,
 		.maxlen		= sizeof(sysctl_ip_vs_sync_threshold),
