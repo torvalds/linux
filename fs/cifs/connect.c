@@ -438,9 +438,9 @@ incomplete_rcv:
 			csocket = server->ssocket;
 			wake_up(&server->response_q);
 			continue;
-		} else if (length < 4) {
-			cFYI(1, ("less than four bytes received (%d bytes)",
-			      length));
+		} else if (length < pdu_length) {
+			cFYI(1, ("requested %d bytes but only got %d bytes",
+				  pdu_length, length));
 			pdu_length -= length;
 			msleep(1);
 			goto incomplete_rcv;
