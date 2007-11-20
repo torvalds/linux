@@ -1825,12 +1825,18 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		if (ret)
 			SetPageError(page);
 		else {
-			unsigned long nr = end_index + 1;
+			unsigned long max_nr = end_index + 1;
 			set_range_writeback(tree, cur, cur + iosize - 1);
+			if (!PageWriteback(page)) {
+				printk("warning page %lu not writeback, "
+				       "cur %llu end %llu\n", page->index,
+				       (unsigned long long)cur,
+				       (unsigned long long)end);
+			}
 
 			ret = submit_extent_page(WRITE, tree, page, sector,
 						 iosize, page_offset, bdev,
-						 &epd->bio, nr,
+						 &epd->bio, max_nr,
 						 end_bio_extent_writepage);
 			if (ret)
 				SetPageError(page);
@@ -1840,6 +1846,11 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		nr++;
 	}
 done:
+	if (nr == 0) {
+		/* make sure the mapping tag for page dirty gets cleared */
+		set_page_writeback(page);
+		end_page_writeback(page);
+	}
 	unlock_extent(tree, start, page_end, GFP_NOFS);
 	unlock_page(page);
 	return 0;
@@ -2408,6 +2419,13 @@ int clear_extent_buffer_dirty(struct extent_map_tree *tree,
 			}
 		}
 		clear_page_dirty_for_io(page);
+		write_lock_irq(&page->mapping->tree_lock);
+		if (!PageDirty(page)) {
+			radix_tree_tag_clear(&page->mapping->page_tree,
+						page_index(page),
+						PAGECACHE_TAG_DIRTY);
+		}
+		write_unlock_irq(&page->mapping->tree_lock);
 		unlock_page(page);
 	}
 	return 0;
