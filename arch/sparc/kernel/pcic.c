@@ -329,7 +329,7 @@ int __init pcic_probe(void)
 	pcic->pcic_res_cfg_addr.name = "pcic_cfg_addr";
 	if ((pcic->pcic_config_space_addr =
 	    ioremap(regs[2].phys_addr, regs[2].reg_size * 2)) == 0) {
-		prom_printf("PCIC: Error, cannot map" 
+		prom_printf("PCIC: Error, cannot map "
 			    "PCI Configuration Space Address.\n");
 		prom_halt();
 	}
@@ -341,7 +341,7 @@ int __init pcic_probe(void)
 	pcic->pcic_res_cfg_data.name = "pcic_cfg_data";
 	if ((pcic->pcic_config_space_data =
 	    ioremap(regs[3].phys_addr, regs[3].reg_size * 2)) == 0) {
-		prom_printf("PCIC: Error, cannot map" 
+		prom_printf("PCIC: Error, cannot map "
 			    "PCI Configuration Space Data.\n");
 		prom_halt();
 	}
@@ -518,8 +518,8 @@ static void pcic_map_pci_device(struct linux_pcic *pcic,
 				 * board in a PCI slot. We must remap it
 				 * under 64K but it is not done yet. XXX
 				 */
-				printk("PCIC: Skipping I/O space at 0x%lx,"
-				    "this will Oops if a driver attaches;"
+				printk("PCIC: Skipping I/O space at 0x%lx, "
+				    "this will Oops if a driver attaches "
 				    "device '%s' at %02x:%02x)\n", address,
 				    namebuf, dev->bus->number, dev->devfn);
 			}
