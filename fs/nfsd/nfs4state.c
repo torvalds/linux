@@ -491,15 +491,14 @@ gen_clid(struct nfs4_client *clp) {
 	clp->cl_clientid.cl_id = current_clientid++; 
 }
 
-static void
-gen_confirm(struct nfs4_client *clp) {
-	struct timespec 	tv;
-	u32 *			p;
+static void gen_confirm(struct nfs4_client *clp)
+{
+	static u32 i;
+	u32 *p;
 
-	tv = CURRENT_TIME;
 	p = (u32 *)clp->cl_confirm.data;
-	*p++ = tv.tv_sec;
-	*p++ = tv.tv_nsec;
+	*p++ = get_seconds();
+	*p++ = i++;
 }
 
 static int
