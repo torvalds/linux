@@ -665,23 +665,6 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
 
-static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
-				    struct kvm_interrupt *irq)
-{
-	if (irq->irq < 0 || irq->irq >= 256)
-		return -EINVAL;
-	if (irqchip_in_kernel(vcpu->kvm))
-		return -ENXIO;
-	vcpu_load(vcpu);
-
-	set_bit(irq->irq, vcpu->irq_pending);
-	set_bit(irq->irq / BITS_PER_LONG, &vcpu->irq_summary);
-
-	vcpu_put(vcpu);
-
-	return 0;
-}
-
 static struct page *kvm_vcpu_nopage(struct vm_area_struct *vma,
 				    unsigned long address,
 				    int *type)
@@ -879,18 +862,6 @@ static long kvm_vcpu_ioctl(struct file *filp,
 			goto out;
 		r = -EFAULT;
 		if (copy_to_user(argp, &tr, sizeof tr))
-			goto out;
-		r = 0;
-		break;
-	}
-	case KVM_INTERRUPT: {
-		struct kvm_interrupt irq;
-
-		r = -EFAULT;
-		if (copy_from_user(&irq, argp, sizeof irq))
-			goto out;
-		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
-		if (r)
 			goto out;
 		r = 0;
 		break;

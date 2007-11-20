@@ -1001,6 +1001,23 @@ static int kvm_vcpu_ioctl_set_lapic(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
+				    struct kvm_interrupt *irq)
+{
+	if (irq->irq < 0 || irq->irq >= 256)
+		return -EINVAL;
+	if (irqchip_in_kernel(vcpu->kvm))
+		return -ENXIO;
+	vcpu_load(vcpu);
+
+	set_bit(irq->irq, vcpu->irq_pending);
+	set_bit(irq->irq / BITS_PER_LONG, &vcpu->irq_summary);
+
+	vcpu_put(vcpu);
+
+	return 0;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -1029,6 +1046,18 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&lapic, argp, sizeof lapic))
 			goto out;
 		r = kvm_vcpu_ioctl_set_lapic(vcpu, &lapic);;
+		if (r)
+			goto out;
+		r = 0;
+		break;
+	}
+	case KVM_INTERRUPT: {
+		struct kvm_interrupt irq;
+
+		r = -EFAULT;
+		if (copy_from_user(&irq, argp, sizeof irq))
+			goto out;
+		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
 		if (r)
 			goto out;
 		r = 0;
