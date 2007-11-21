@@ -428,7 +428,6 @@ static inline void smc911x_drop_pkt(struct net_device *dev)
  */
 static inline void	 smc911x_rcv(struct net_device *dev)
 {
-	struct smc911x_local *lp = netdev_priv(dev);
 	unsigned long ioaddr = dev->base_addr;
 	unsigned int pkt_len, status;
 	struct sk_buff *skb;
@@ -473,6 +472,7 @@ static inline void	 smc911x_rcv(struct net_device *dev)
 		skb_put(skb,pkt_len-4);
 #ifdef SMC_USE_DMA
 		{
+		struct smc911x_local *lp = netdev_priv(dev);
 		unsigned int fifo;
 		/* Lower the FIFO threshold if possible */
 		fifo = SMC_GET_FIFO_INT();
