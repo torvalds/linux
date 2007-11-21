@@ -838,10 +838,6 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 
 	ret = -EFAULT;
 
-	/* check to see if this file has been deleted */
-	if (!filep->f_op)
-		goto out;
-
 	if (count > PAGE_SIZE) {
 		ret = -EINVAL;
 		goto out;
@@ -880,10 +876,6 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 
 	length = task_has_security(current, SECURITY__SETBOOL);
 	if (length)
-		goto out;
-
-	/* check to see if this file has been deleted */
-	if (!filep->f_op)
 		goto out;
 
 	if (count >= PAGE_SIZE) {
@@ -940,10 +932,6 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	if (length)
 		goto out;
 
-	/* check to see if this file has been deleted */
-	if (!filep->f_op)
-		goto out;
-
 	if (count >= PAGE_SIZE) {
 		length = -ENOMEM;
 		goto out;
@@ -982,11 +970,9 @@ static const struct file_operations sel_commit_bools_ops = {
 	.write          = sel_commit_bools_write,
 };
 
-/* partial revoke() from fs/proc/generic.c proc_kill_inodes */
 static void sel_remove_entries(struct dentry *de)
 {
-	struct list_head *p, *node;
-	struct super_block *sb = de->d_sb;
+	struct list_head *node;
 
 	spin_lock(&dcache_lock);
 	node = de->d_subdirs.next;
@@ -1006,18 +992,6 @@ static void sel_remove_entries(struct dentry *de)
 	}
 
 	spin_unlock(&dcache_lock);
-
-	file_list_lock();
-	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-		struct dentry * dentry = filp->f_path.dentry;
-
-		if (dentry->d_parent != de) {
-			continue;
-		}
-		filp->f_op = NULL;
-	}
-	file_list_unlock();
 }
 
 #define BOOL_DIR_NAME "booleans"
