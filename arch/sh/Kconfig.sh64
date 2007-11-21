@@ -106,26 +106,10 @@ config SH64_FPU_DENORM_FLUSH
 	depends on SH_FPU
 	bool "Flush floating point denorms to zero"
 
-choice
-	prompt "Page table levels"
-	default SH64_PGTABLE_2_LEVEL
-
-config SH64_PGTABLE_2_LEVEL
-	bool "2"
-
-config SH64_PGTABLE_3_LEVEL
-	bool "3"
-
-endchoice
-
 config SH64_USER_MISALIGNED_FIXUP
 	bool "Fixup misaligned loads/stores occurring in user mode"
 
 comment "Memory options"
-
-config CACHED_MEMORY_OFFSET
-	hex "Cached Area Offset"
-	default "20000000"
 
 config MEMORY_START
 	hex "Physical memory start address"
@@ -158,22 +142,6 @@ endchoice
 
 config ICACHE_DISABLED
 	bool "ICache Disabling"
-
-config PCIDEVICE_MEMORY_START
-	hex
-	default "C0000000"
-
-config DEVICE_MEMORY_START
-	hex
-	default "E0000000"
-
-config FLASH_MEMORY_START
-	hex "Flash memory/on-chip devices start address"
-	default "00000000"
-
-config PCI_BLOCK_START
-	hex "PCI block start address"
-	default "40000000"
 
 comment "CPU Subtype specific options"
 
