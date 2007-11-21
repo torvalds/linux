@@ -463,17 +463,19 @@ asmlinkage void trap_c(struct pt_regs *fp)
 #endif
 			panic("Kernel exception");
 		}
-
-		/* Ensure that bad return addresses don't end up in an infinite
-		 * loop, due to speculative loads/reads
-		 */
-		if (trapnr == VEC_CPLB_I_M)
-			fp->pc = SAFE_USER_INSTRUCTION;
 	}
+
 	info.si_signo = sig;
 	info.si_errno = 0;
 	info.si_addr = (void *)fp->pc;
 	force_sig_info(sig, &info, current);
+
+	/* Ensure that bad return addresses don't end up in an infinite
+	 * loop, due to speculative loads/reads. This needs to be done after
+	 * the signal has been sent.
+	 */
+	if (trapnr == VEC_CPLB_I_M && sig != SIGTRAP)
+		fp->pc = SAFE_USER_INSTRUCTION;
 
 	trace_buffer_restore(j);
 	return;
