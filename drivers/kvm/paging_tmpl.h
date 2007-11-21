@@ -305,17 +305,6 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 		       0, NULL, NULL, gpte_to_gfn(gpte));
 }
 
-static void FNAME(set_pde)(struct kvm_vcpu *vcpu, pt_element_t gpde,
-			   u64 *shadow_pte, u64 access_bits,
-			   int user_fault, int write_fault, int *ptwrite,
-			   struct guest_walker *walker, gfn_t gfn)
-{
-	access_bits &= gpde;
-	FNAME(set_pte_common)(vcpu, shadow_pte,
-			      gpde, access_bits, user_fault, write_fault,
-			      ptwrite, walker, gfn);
-}
-
 /*
  * Fetch a shadow pte for a specific level in the paging hierarchy.
  */
@@ -384,16 +373,10 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		prev_shadow_ent = shadow_ent;
 	}
 
-	if (walker->level == PT_DIRECTORY_LEVEL) {
-		FNAME(set_pde)(vcpu, walker->pte, shadow_ent,
-			       walker->inherited_ar, user_fault, write_fault,
-			       ptwrite, walker, walker->gfn);
-	} else {
-		ASSERT(walker->level == PT_PAGE_TABLE_LEVEL);
-		FNAME(set_pte)(vcpu, walker->pte, shadow_ent,
-			       walker->inherited_ar, user_fault, write_fault,
-			       ptwrite, walker, walker->gfn);
-	}
+	FNAME(set_pte)(vcpu, walker->pte, shadow_ent,
+		       walker->inherited_ar, user_fault, write_fault,
+		       ptwrite, walker, walker->gfn);
+
 	return shadow_ent;
 }
 
