@@ -18,7 +18,7 @@
 #include <linux/string.h>
 #include <linux/kdev_t.h>
 #include <linux/notifier.h>
-
+#include <linux/genhd.h>
 #include <asm/semaphore.h>
 
 #include "base.h"
@@ -538,22 +538,20 @@ void device_initialize(struct device *dev)
 }
 
 #ifdef CONFIG_SYSFS_DEPRECATED
-static struct kobject * get_device_parent(struct device *dev,
-					  struct device *parent)
+static struct kobject *get_device_parent(struct device *dev,
+					 struct device *parent)
 {
-	/*
-	 * Set the parent to the class, not the parent device
-	 * for topmost devices in class hierarchy.
-	 * This keeps sysfs from having a symlink to make old
-	 * udevs happy
-	 */
+	/* class devices without a parent live in /sys/class/<classname>/ */
 	if (dev->class && (!parent || parent->class != dev->class))
 		return &dev->class->subsys.kobj;
+	/* all other devices keep their parent */
 	else if (parent)
 		return &parent->kobj;
 
 	return NULL;
 }
+
+static inline void cleanup_device_parent(struct device *dev) {}
 #else
 static struct kobject *virtual_device_parent(struct device *dev)
 {
@@ -566,8 +564,8 @@ static struct kobject *virtual_device_parent(struct device *dev)
 	return virtual_dir;
 }
 
-static struct kobject * get_device_parent(struct device *dev,
-					  struct device *parent)
+static struct kobject *get_device_parent(struct device *dev,
+					 struct device *parent)
 {
 	int retval;
 
@@ -618,6 +616,34 @@ static struct kobject * get_device_parent(struct device *dev,
 		return &parent->kobj;
 	return NULL;
 }
+
+static void cleanup_device_parent(struct device *dev)
+{
+	struct device *d;
+	int other = 0;
+
+	if (!dev->class)
+		return;
+
+	/* see if we live in a parent class directory */
+	if (dev->kobj.parent->kset != &dev->class->class_dirs)
+		return;
+
+	/* if we are the last child of our class, delete the directory */
+	down(&dev->class->sem);
+	list_for_each_entry(d, &dev->class->devices, node) {
+		if (d == dev)
+			continue;
+		if (d->kobj.parent == dev->kobj.parent) {
+			other = 1;
+			break;
+		}
+	}
+	if (!other)
+		kobject_del(dev->kobj.parent);
+	kobject_put(dev->kobj.parent);
+	up(&dev->class->sem);
+}
 #endif
 
 static int setup_parent(struct device *dev, struct device *parent)
@@ -637,65 +663,74 @@ static int device_add_class_symlinks(struct device *dev)
 
 	if (!dev->class)
 		return 0;
+
 	error = sysfs_create_link(&dev->kobj, &dev->class->subsys.kobj,
 				  "subsystem");
 	if (error)
 		goto out;
-	/*
-	 * If this is not a "fake" compatible device, then create the
-	 * symlink from the class to the device.
-	 */
+
+#ifdef CONFIG_SYSFS_DEPRECATED
+	/* stacked class devices need a symlink in the class directory */
 	if (dev->kobj.parent != &dev->class->subsys.kobj) {
 		error = sysfs_create_link(&dev->class->subsys.kobj, &dev->kobj,
 					  dev->bus_id);
 		if (error)
 			goto out_subsys;
 	}
+
 	if (dev->parent) {
-#ifdef CONFIG_SYSFS_DEPRECATED
-		{
-			struct device *parent = dev->parent;
-			char *class_name;
+		struct device *parent = dev->parent;
+		char *class_name;
 
-			/*
-			 * In old sysfs stacked class devices had 'device'
-			 * link pointing to real device instead of parent
-			 */
-			while (parent->class && !parent->bus && parent->parent)
-				parent = parent->parent;
+		/*
+		 * stacked class devices have the 'device' link
+		 * pointing to the bus device instead of the parent
+		 */
+		while (parent->class && !parent->bus && parent->parent)
+			parent = parent->parent;
 
-			error = sysfs_create_link(&dev->kobj,
-						  &parent->kobj,
-						  "device");
-			if (error)
-				goto out_busid;
+		error = sysfs_create_link(&dev->kobj,
+					  &parent->kobj,
+					  "device");
+		if (error)
+			goto out_busid;
 
-			class_name = make_class_name(dev->class->name,
-							&dev->kobj);
-			if (class_name)
-				error = sysfs_create_link(&dev->parent->kobj,
-							&dev->kobj, class_name);
-			kfree(class_name);
-			if (error)
-				goto out_device;
-		}
+		class_name = make_class_name(dev->class->name,
+						&dev->kobj);
+		if (class_name)
+			error = sysfs_create_link(&dev->parent->kobj,
+						&dev->kobj, class_name);
+		kfree(class_name);
+		if (error)
+			goto out_device;
+	}
+	return 0;
+
+out_device:
+	if (dev->parent)
+		sysfs_remove_link(&dev->kobj, "device");
+out_busid:
+	if (dev->kobj.parent != &dev->class->subsys.kobj)
+		sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
 #else
+	/* link in the class directory pointing to the device */
+	error = sysfs_create_link(&dev->class->subsys.kobj, &dev->kobj,
+				  dev->bus_id);
+	if (error)
+		goto out_subsys;
+
+	if (dev->parent) {
 		error = sysfs_create_link(&dev->kobj, &dev->parent->kobj,
 					  "device");
 		if (error)
 			goto out_busid;
-#endif
 	}
 	return 0;
 
-#ifdef CONFIG_SYSFS_DEPRECATED
-out_device:
-	if (dev->parent)
-		sysfs_remove_link(&dev->kobj, "device");
-#endif
 out_busid:
-	if (dev->kobj.parent != &dev->class->subsys.kobj)
-		sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
+	sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
+#endif
+
 out_subsys:
 	sysfs_remove_link(&dev->kobj, "subsystem");
 out:
@@ -706,8 +741,9 @@ static void device_remove_class_symlinks(struct device *dev)
 {
 	if (!dev->class)
 		return;
-	if (dev->parent) {
+
 #ifdef CONFIG_SYSFS_DEPRECATED
+	if (dev->parent) {
 		char *class_name;
 
 		class_name = make_class_name(dev->class->name, &dev->kobj);
@@ -715,11 +751,18 @@ static void device_remove_class_symlinks(struct device *dev)
 			sysfs_remove_link(&dev->parent->kobj, class_name);
 			kfree(class_name);
 		}
-#endif
 		sysfs_remove_link(&dev->kobj, "device");
 	}
+
 	if (dev->kobj.parent != &dev->class->subsys.kobj)
 		sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
+#else
+	if (dev->parent)
+		sysfs_remove_link(&dev->kobj, "device");
+
+	sysfs_remove_link(&dev->class->subsys.kobj, dev->bus_id);
+#endif
+
 	sysfs_remove_link(&dev->kobj, "subsystem");
 }
 
@@ -830,26 +873,6 @@ int device_add(struct device *dev)
  SymlinkError:
 	if (MAJOR(dev->devt))
 		device_remove_file(dev, &devt_attr);
-
-	if (dev->class) {
-		sysfs_remove_link(&dev->kobj, "subsystem");
-		/* If this is not a "fake" compatible device, remove the
-		 * symlink from the class to the device. */
-		if (dev->kobj.parent != &dev->class->subsys.kobj)
-			sysfs_remove_link(&dev->class->subsys.kobj,
-					  dev->bus_id);
-		if (parent) {
-#ifdef CONFIG_SYSFS_DEPRECATED
-			char *class_name = make_class_name(dev->class->name,
-							   &dev->kobj);
-			if (class_name)
-				sysfs_remove_link(&dev->parent->kobj,
-						  class_name);
-			kfree(class_name);
-#endif
-			sysfs_remove_link(&dev->kobj, "device");
-		}
-	}
  ueventattrError:
 	device_remove_file(dev, &uevent_attr);
  attrError:
@@ -932,23 +955,7 @@ void device_del(struct device * dev)
 	if (MAJOR(dev->devt))
 		device_remove_file(dev, &devt_attr);
 	if (dev->class) {
-		sysfs_remove_link(&dev->kobj, "subsystem");
-		/* If this is not a "fake" compatible device, remove the
-		 * symlink from the class to the device. */
-		if (dev->kobj.parent != &dev->class->subsys.kobj)
-			sysfs_remove_link(&dev->class->subsys.kobj,
-					  dev->bus_id);
-		if (parent) {
-#ifdef CONFIG_SYSFS_DEPRECATED
-			char *class_name = make_class_name(dev->class->name,
-							   &dev->kobj);
-			if (class_name)
-				sysfs_remove_link(&dev->parent->kobj,
-						  class_name);
-			kfree(class_name);
-#endif
-			sysfs_remove_link(&dev->kobj, "device");
-		}
+		device_remove_class_symlinks(dev);
 
 		down(&dev->class->sem);
 		/* notify any interfaces that the device is now gone */
@@ -958,31 +965,6 @@ void device_del(struct device * dev)
 		/* remove the device from the class list */
 		list_del_init(&dev->node);
 		up(&dev->class->sem);
-
-		/* If we live in a parent class-directory, unreference it */
-		if (dev->kobj.parent->kset == &dev->class->class_dirs) {
-			struct device *d;
-			int other = 0;
-
-			/*
-			 * if we are the last child of our class, delete
-			 * our class-directory at this parent
-			 */
-			down(&dev->class->sem);
-			list_for_each_entry(d, &dev->class->devices, node) {
-				if (d == dev)
-					continue;
-				if (d->kobj.parent == dev->kobj.parent) {
-					other = 1;
-					break;
-				}
-			}
-			if (!other)
-				kobject_del(dev->kobj.parent);
-
-			kobject_put(dev->kobj.parent);
-			up(&dev->class->sem);
-		}
 	}
 	device_remove_file(dev, &uevent_attr);
 	device_remove_attrs(dev);
@@ -1004,9 +986,9 @@ void device_del(struct device * dev)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_DEL_DEVICE, dev);
 	kobject_uevent(&dev->kobj, KOBJ_REMOVE);
+	cleanup_device_parent(dev);
 	kobject_del(&dev->kobj);
-	if (parent)
-		put_device(parent);
+	put_device(parent);
 }
 
 /**
