@@ -881,15 +881,6 @@ hpa_t gpa_to_hpa(struct kvm *kvm, gpa_t gpa)
 	return hpa;
 }
 
-hpa_t gva_to_hpa(struct kvm_vcpu *vcpu, gva_t gva)
-{
-	gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, gva);
-
-	if (gpa == UNMAPPED_GVA)
-		return UNMAPPED_GVA;
-	return gpa_to_hpa(vcpu->kvm, gpa);
-}
-
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, gva);
