@@ -7,7 +7,7 @@
 
 #define USB_PID_RIGKONTROL2	0x1969
 #define USB_PID_RIGKONTROL3	0x1940
-#define USB_PID_KORECONTROLLER 	0x4711
+#define USB_PID_KORECONTROLLER	0x4711
 #define USB_PID_AK1		0x0815
 #define USB_PID_AUDIO8DJ	0x1978
 
@@ -62,7 +62,7 @@ struct snd_usb_caiaqdev {
 	struct urb **data_urbs_in;
 	struct urb **data_urbs_out;
 	struct snd_usb_caiaq_cb_info *data_cb_info;
-	
+
 	unsigned char ep1_in_buf[EP1_BUFSIZE];
 	unsigned char ep1_out_buf[EP1_BUFSIZE];
 	unsigned char midi_out_buf[EP1_BUFSIZE];
@@ -72,7 +72,7 @@ struct snd_usb_caiaqdev {
 	wait_queue_head_t ep1_wait_queue;
 	wait_queue_head_t prepare_wait_queue;
 	int spec_received, audio_parm_answer;
-	
+
 	char vendor_name[CAIAQ_USB_STR_LEN];
 	char product_name[CAIAQ_USB_STR_LEN];
 	char serial[CAIAQ_USB_STR_LEN];
@@ -93,8 +93,10 @@ struct snd_usb_caiaqdev {
 	/* Linux input */
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	struct input_dev *input_dev;
+	char phys[64];			/* physical device path */
+	unsigned short keycode[10];
 #endif
-	
+
 	/* ALSA */
 	struct snd_pcm *pcm;
 	struct snd_pcm_hardware pcm_info;
