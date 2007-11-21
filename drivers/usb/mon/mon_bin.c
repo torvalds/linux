@@ -1026,6 +1026,8 @@ mon_bin_poll(struct file *file, struct poll_table_struct *wait)
 	return mask;
 }
 
+#if 0
+
 /*
  * open and close: just keep track of how many times the device is
  * mapped, to use the proper memory allocation function.
@@ -1079,7 +1081,9 @@ int mon_bin_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-struct file_operations mon_fops_binary = {
+#endif  /*  0  */
+
+static struct file_operations mon_fops_binary = {
 	.owner =	THIS_MODULE,
 	.open =		mon_bin_open,
 	.llseek =	no_llseek,
