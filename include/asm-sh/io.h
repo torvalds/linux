@@ -191,6 +191,8 @@ __BUILD_MEMORY_STRING(w, u16)
 
 #define mmiowb()	wmb()	/* synco on SH-4A, otherwise a nop */
 
+#define IO_SPACE_LIMIT 0xffffffff
+
 /*
  * This function provides a method for the generic case where a board-specific
  * ioport_map simply needs to return the port + some arbitrary port base.
@@ -226,6 +228,11 @@ static inline unsigned int ctrl_inl(unsigned long addr)
 	return *(volatile unsigned long*)addr;
 }
 
+static inline unsigned long long ctrl_inq(unsigned long addr)
+{
+	return *(volatile unsigned long long*)addr;
+}
+
 static inline void ctrl_outb(unsigned char b, unsigned long addr)
 {
 	*(volatile unsigned char*)addr = b;
@@ -241,6 +248,11 @@ static inline void ctrl_outl(unsigned int b, unsigned long addr)
         *(volatile unsigned long*)addr = b;
 }
 
+static inline void ctrl_outq(unsigned long long b, unsigned long addr)
+{
+	*(volatile unsigned long long*)addr = b;
+}
+
 static inline void ctrl_delay(void)
 {
 #ifdef P2SEG
@@ -253,7 +265,10 @@ unsigned long long peek_real_address_q(unsigned long long addr);
 unsigned long long poke_real_address_q(unsigned long long addr,
 				       unsigned long long val);
 
-#define IO_SPACE_LIMIT 0xffffffff
+/* arch/sh/mm/ioremap_64.c */
+unsigned long onchip_remap(unsigned long addr, unsigned long size,
+			   const char *name);
+extern void onchip_unmap(unsigned long vaddr);
 
 #if !defined(CONFIG_MMU)
 #define virt_to_phys(address)	((unsigned long)(address))
