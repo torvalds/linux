@@ -903,13 +903,11 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
-static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
+static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, struct page *page)
 {
 	int level = PT32E_ROOT_LEVEL;
 	hpa_t table_addr = vcpu->mmu.root_hpa;
-	struct page *page;
 
-	page = pfn_to_page(p >> PAGE_SHIFT);
 	for (; ; level--) {
 		u32 index = PT64_INDEX(v, level);
 		u64 *table;
@@ -930,8 +928,9 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 			mark_page_dirty(vcpu->kvm, v >> PAGE_SHIFT);
 			page_header_update_slot(vcpu->kvm, table,
 						v >> PAGE_SHIFT);
-			table[index] = p | PT_PRESENT_MASK | PT_WRITABLE_MASK |
-								PT_USER_MASK;
+			table[index] = page_to_phys(page)
+				| PT_PRESENT_MASK | PT_WRITABLE_MASK
+				| PT_USER_MASK;
 			if (!was_rmapped)
 				rmap_add(vcpu, &table[index], v >> PAGE_SHIFT);
 			else
@@ -1050,10 +1049,9 @@ static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr)
 }
 
 static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
-			       u32 error_code)
+				u32 error_code)
 {
-	gpa_t addr = gva;
-	hpa_t paddr;
+	struct page *page;
 	int r;
 
 	r = mmu_topup_memory_caches(vcpu);
@@ -1063,16 +1061,14 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	ASSERT(vcpu);
 	ASSERT(VALID_PAGE(vcpu->mmu.root_hpa));
 
+	page = gfn_to_page(vcpu->kvm, gva >> PAGE_SHIFT);
 
-	paddr = gpa_to_hpa(vcpu->kvm, addr & PT64_BASE_ADDR_MASK);
-
-	if (is_error_hpa(paddr)) {
-		kvm_release_page_clean(pfn_to_page((paddr & PT64_BASE_ADDR_MASK)
-				       >> PAGE_SHIFT));
+	if (is_error_page(page)) {
+		kvm_release_page_clean(page);
 		return 1;
 	}
 
-	return nonpaging_map(vcpu, addr & PAGE_MASK, paddr);
+	return nonpaging_map(vcpu, gva & PAGE_MASK, page);
 }
 
 static void nonpaging_free(struct kvm_vcpu *vcpu)
