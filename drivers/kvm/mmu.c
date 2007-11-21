@@ -868,26 +868,13 @@ static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 	__set_bit(slot, &page_head->slot_bitmap);
 }
 
-hpa_t gpa_to_hpa(struct kvm *kvm, gpa_t gpa)
-{
-	struct page *page;
-	hpa_t hpa;
-
-	ASSERT((gpa & HPA_ERR_MASK) == 0);
-	page = gfn_to_page(kvm, gpa >> PAGE_SHIFT);
-	hpa = ((hpa_t)page_to_pfn(page) << PAGE_SHIFT) | (gpa & (PAGE_SIZE-1));
-	if (is_error_page(page))
-		return hpa | HPA_ERR_MASK;
-	return hpa;
-}
-
 struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, gva);
 
 	if (gpa == UNMAPPED_GVA)
 		return NULL;
-	return pfn_to_page(gpa_to_hpa(vcpu->kvm, gpa) >> PAGE_SHIFT);
+	return gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
 }
 
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
@@ -1611,8 +1598,8 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 			audit_mappings_page(vcpu, ent, va, level - 1);
 		} else {
 			gpa_t gpa = vcpu->mmu.gva_to_gpa(vcpu, va);
-			hpa_t hpa = gpa_to_hpa(vcpu, gpa);
-			struct page *page;
+			struct page *page = gpa_to_page(vcpu, gpa);
+			hpa_t hpa = page_to_phys(page);
 
 			if (is_shadow_present_pte(ent)
 			    && (ent & PT64_BASE_ADDR_MASK) != hpa)
@@ -1625,8 +1612,6 @@ static void audit_mappings_page(struct kvm_vcpu *vcpu, u64 page_pte,
 				 && !is_error_hpa(hpa))
 				printk(KERN_ERR "audit: (%s) notrap shadow,"
 				       " valid guest gva %lx\n", audit_msg, va);
-			page = pfn_to_page((gpa & PT64_BASE_ADDR_MASK)
-					   >> PAGE_SHIFT);
 			kvm_release_page_clean(page);
 
 		}
