@@ -47,6 +47,9 @@
 #undef PREFIX
 #define PREFIX				"ACPI: EC: "
 
+/* Uncomment next line to get verbose print outs*/
+/* #define DEBUG */
+
 /* EC status register */
 #define ACPI_EC_FLAG_OBF	0x01	/* Output buffer full */
 #define ACPI_EC_FLAG_IBF	0x02	/* Input buffer full */
@@ -77,6 +80,8 @@ enum {
 	EC_FLAGS_GPE_MODE,		/* Expect GPE to be sent for status change */
 	EC_FLAGS_NO_ADDRESS_GPE,	/* Expect GPE only for non-address event */
 	EC_FLAGS_ADDRESS,		/* Address is being written */
+	EC_FLAGS_NO_WDATA_GPE,		/* Don't expect WDATA GPE event */
+	EC_FLAGS_WDATA,			/* Data is being written */
 };
 
 static int acpi_ec_remove(struct acpi_device *device, int type);
@@ -132,21 +137,27 @@ static struct acpi_ec {
 
 static inline u8 acpi_ec_read_status(struct acpi_ec *ec)
 {
-	return inb(ec->command_addr);
+	u8 x = inb(ec->command_addr);
+	pr_debug(PREFIX "---> status = 0x%2x\n", x);
+	return x;
 }
 
 static inline u8 acpi_ec_read_data(struct acpi_ec *ec)
 {
+	u8 x = inb(ec->data_addr);
+	pr_debug(PREFIX "---> data = 0x%2x\n", x);
 	return inb(ec->data_addr);
 }
 
 static inline void acpi_ec_write_cmd(struct acpi_ec *ec, u8 command)
 {
+	pr_debug(PREFIX "<--- command = 0x%2x\n", command);
 	outb(command, ec->command_addr);
 }
 
 static inline void acpi_ec_write_data(struct acpi_ec *ec, u8 data)
 {
+	pr_debug(PREFIX "<--- data = 0x%2x\n", data);
 	outb(data, ec->data_addr);
 }
 
@@ -171,6 +182,9 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 	if (unlikely(test_bit(EC_FLAGS_ADDRESS, &ec->flags) &&
 		     test_bit(EC_FLAGS_NO_ADDRESS_GPE, &ec->flags)))
 		force_poll = 1;
+	if (unlikely(test_bit(EC_FLAGS_WDATA, &ec->flags) &&
+		     test_bit(EC_FLAGS_NO_WDATA_GPE, &ec->flags)))
+		force_poll = 1;
 	if (likely(test_bit(EC_FLAGS_GPE_MODE, &ec->flags)) &&
 	    likely(!force_poll)) {
 		if (wait_event_timeout(ec->wait, acpi_ec_check_status(ec, event),
@@ -180,13 +194,19 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 		if (acpi_ec_check_status(ec, event)) {
 			if (test_bit(EC_FLAGS_ADDRESS, &ec->flags)) {
 				/* miss address GPE, don't expect it anymore */
-				printk(KERN_INFO PREFIX "missing address confirmation, "
+				pr_info(PREFIX "missing address confirmation, "
 					"don't expect it any longer.\n");
 				set_bit(EC_FLAGS_NO_ADDRESS_GPE, &ec->flags);
+			} else if (test_bit(EC_FLAGS_WDATA, &ec->flags)) {
+				/* miss write data GPE, don't expect it */
+				pr_info(PREFIX "missing write data confirmation, "
+					"don't expect it any longer.\n");
+				set_bit(EC_FLAGS_NO_WDATA_GPE, &ec->flags);
 			} else {
 				/* missing GPEs, switch back to poll mode */
-				printk(KERN_INFO PREFIX "missing confirmations, "
-					"switch off interrupt mode.\n");
+				if (printk_ratelimit())
+					pr_info(PREFIX "missing confirmations, "
+						"switch off interrupt mode.\n");
 				clear_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 			}
 			goto end;
@@ -199,7 +219,7 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 				goto end;
 		}
 	}
-	printk(KERN_ERR PREFIX "acpi_ec_wait timeout,"
+	pr_err(PREFIX "acpi_ec_wait timeout,"
 			       " status = %d, expect_event = %d\n",
 			       acpi_ec_read_status(ec), event);
 	ret = -ETIME;
@@ -216,11 +236,11 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 	int result = 0;
 	set_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 	acpi_ec_write_cmd(ec, command);
-
+	pr_debug(PREFIX "transaction start\n");
 	for (; wdata_len > 0; --wdata_len) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, force_poll);
 		if (result) {
-			printk(KERN_ERR PREFIX
+			pr_err(PREFIX
 			       "write_cmd timeout, command = %d\n", command);
 			goto end;
 		}
@@ -232,9 +252,10 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 	}
 
 	if (!rdata_len) {
+		set_bit(EC_FLAGS_WDATA, &ec->flags);
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, force_poll);
 		if (result) {
-			printk(KERN_ERR PREFIX
+			pr_err(PREFIX
 			       "finish-write timeout, command = %d\n", command);
 			goto end;
 		}
@@ -244,8 +265,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 	for (; rdata_len > 0; --rdata_len) {
 		result = acpi_ec_wait(ec, ACPI_EC_EVENT_OBF_1, force_poll);
 		if (result) {
-			printk(KERN_ERR PREFIX "read timeout, command = %d\n",
-			       command);
+			pr_err(PREFIX "read timeout, command = %d\n", command);
 			goto end;
 		}
 		/* Don't expect GPE after last read */
@@ -254,6 +274,7 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec, u8 command,
 		*(rdata++) = acpi_ec_read_data(ec);
 	}
       end:
+	pr_debug(PREFIX "transaction end\n");
 	return result;
 }
 
@@ -282,8 +303,8 @@ static int acpi_ec_transaction(struct acpi_ec *ec, u8 command,
 
 	status = acpi_ec_wait(ec, ACPI_EC_EVENT_IBF_0, 0);
 	if (status) {
-		printk(KERN_ERR PREFIX
-		       "input buffer is not empty, aborting transaction\n");
+		pr_err(PREFIX "input buffer is not empty, "
+				"aborting transaction\n");
 		goto end;
 	}
 
@@ -497,6 +518,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 	acpi_status status = AE_OK;
 	struct acpi_ec *ec = data;
 
+	pr_debug(PREFIX "~~~> interrupt\n");
 	clear_bit(EC_FLAGS_WAIT_GPE, &ec->flags);
 	if (test_bit(EC_FLAGS_GPE_MODE, &ec->flags))
 		wake_up(&ec->wait);
@@ -507,8 +529,9 @@ static u32 acpi_ec_gpe_handler(void *data)
 				acpi_ec_gpe_query, ec);
 	} else if (unlikely(!test_bit(EC_FLAGS_GPE_MODE, &ec->flags))) {
 		/* this is non-query, must be confirmation */
-		printk(KERN_INFO PREFIX "non-query interrupt received,"
-			" switching to interrupt mode\n");
+		if (printk_ratelimit())
+			pr_info(PREFIX "non-query interrupt received,"
+				" switching to interrupt mode\n");
 		set_bit(EC_FLAGS_GPE_MODE, &ec->flags);
 	}
 
@@ -710,10 +733,10 @@ static void ec_remove_handlers(struct acpi_ec *ec)
 {
 	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
 				ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
-		printk(KERN_ERR PREFIX "failed to remove space handler\n");
+		pr_err(PREFIX "failed to remove space handler\n");
 	if (ACPI_FAILURE(acpi_remove_gpe_handler(NULL, ec->gpe,
 				&acpi_ec_gpe_handler)))
-		printk(KERN_ERR PREFIX "failed to remove gpe handler\n");
+		pr_err(PREFIX "failed to remove gpe handler\n");
 	ec->handlers_installed = 0;
 }
 
@@ -756,9 +779,9 @@ static int acpi_ec_add(struct acpi_device *device)
 		first_ec = ec;
 	acpi_driver_data(device) = ec;
 	acpi_ec_add_fs(device);
-	printk(KERN_INFO PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
+	pr_info(PREFIX "GPE = 0x%lx, I/O: command/status = 0x%lx, data = 0x%lx\n",
 			  ec->gpe, ec->command_addr, ec->data_addr);
-	printk(KERN_INFO PREFIX "driver started in %s mode\n",
+	pr_info(PREFIX "driver started in %s mode\n",
 		(test_bit(EC_FLAGS_GPE_MODE, &ec->flags))?"interrupt":"poll");
 	return 0;
 }
@@ -884,7 +907,7 @@ int __init acpi_ec_ecdt_probe(void)
 	status = acpi_get_table(ACPI_SIG_ECDT, 1,
 				(struct acpi_table_header **)&ecdt_ptr);
 	if (ACPI_SUCCESS(status)) {
-		printk(KERN_INFO PREFIX "EC description table is found, configuring boot EC\n");
+		pr_info(PREFIX "EC description table is found, configuring boot EC\n");
 		boot_ec->command_addr = ecdt_ptr->control.address;
 		boot_ec->data_addr = ecdt_ptr->data.address;
 		boot_ec->gpe = ecdt_ptr->gpe;
