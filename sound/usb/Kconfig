@@ -51,6 +51,7 @@ config SND_USB_CAIAQ
 config SND_USB_CAIAQ_INPUT
 	bool "enable input device for controllers"
 	depends on SND_USB_CAIAQ
+	depends on INPUT=y || INPUT=SND_USB_CAIAQ
 	help
 	  Say Y here to support input controllers like buttons, knobs,
 	  alpha dials and analog pedals on the following products:
