@@ -299,6 +299,7 @@ int emulator_write_emulated(unsigned long addr,
 
 unsigned long segment_base(u16 selector);
 
+void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu);
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *new, int bytes);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);

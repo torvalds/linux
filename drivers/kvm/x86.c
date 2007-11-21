@@ -166,6 +166,26 @@ out:
 	return ret;
 }
 
+static bool pdptrs_changed(struct kvm_vcpu *vcpu)
+{
+	u64 pdpte[ARRAY_SIZE(vcpu->pdptrs)];
+	bool changed = true;
+	int r;
+
+	if (is_long_mode(vcpu) || !is_pae(vcpu))
+		return false;
+
+	mutex_lock(&vcpu->kvm->lock);
+	r = kvm_read_guest(vcpu->kvm, vcpu->cr3 & ~31u, pdpte, sizeof(pdpte));
+	if (r < 0)
+		goto out;
+	changed = memcmp(pdpte, vcpu->pdptrs, sizeof(pdpte)) != 0;
+out:
+	mutex_unlock(&vcpu->kvm->lock);
+
+	return changed;
+}
+
 void set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	if (cr0 & CR0_RESERVED_BITS) {
@@ -271,6 +291,11 @@ EXPORT_SYMBOL_GPL(set_cr4);
 
 void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
+	if (cr3 == vcpu->cr3 && !pdptrs_changed(vcpu)) {
+		kvm_mmu_flush_tlb(vcpu);
+		return;
+	}
+
 	if (is_long_mode(vcpu)) {
 		if (cr3 & CR3_L_MODE_RESERVED_BITS) {
 			printk(KERN_DEBUG "set_cr3: #GP, reserved bits\n");
