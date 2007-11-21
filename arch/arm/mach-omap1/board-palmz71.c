@@ -44,7 +44,6 @@
 #include <asm/arch/common.h>
 #include <asm/arch/omap-alsa.h>
 
-#include <linux/input.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
