@@ -74,7 +74,6 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart);
 #else
 static void bfin_serial_do_work(struct work_struct *work);
 static void bfin_serial_tx_chars(struct bfin_serial_port *uart);
-static void local_put_char(struct bfin_serial_port *uart, char ch);
 #endif
 
 static void bfin_serial_mctrl_check(struct bfin_serial_port *uart);
@@ -85,6 +84,9 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart);
 static void bfin_serial_stop_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
+#ifndef CONFIG_BF54x
+	unsigned short ier;
+#endif
 
 	while (!(UART_GET_LSR(uart) & TEMT))
 		continue;
@@ -100,8 +102,6 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 	UART_PUT_LSR(uart, TFI);
 	UART_CLEAR_IER(uart, ETBEI);
 #else
-	unsigned short ier;
-
 	ier = UART_GET_IER(uart);
 	ier &= ~ETBEI;
 	UART_PUT_IER(uart, ier);
@@ -210,23 +210,6 @@ int kgdb_get_debug_char(void)
 #endif
 
 #ifdef CONFIG_SERIAL_BFIN_PIO
-static void local_put_char(struct bfin_serial_port *uart, char ch)
-{
-	unsigned short status;
-	int flags = 0;
-
-	spin_lock_irqsave(&uart->port.lock, flags);
-
-	do {
-		status = UART_GET_LSR(uart);
-	} while (!(status & THRE));
-
-	UART_PUT_CHAR(uart, ch);
-	SSYNC();
-
-	spin_unlock_irqrestore(&uart->port.lock, flags);
-}
-
 static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
 	struct tty_struct *tty = uart->port.info->tty;
@@ -236,8 +219,8 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	struct pt_regs *regs = get_irq_regs();
 #endif
 
-	status = UART_GET_LSR(uart);
  	ch = UART_GET_CHAR(uart);
+	status = UART_GET_LSR(uart);
  	uart->port.icount.rx++;
 
 #ifdef CONFIG_KGDB_UART
@@ -337,9 +320,12 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 		return;
 	}
 
-	local_put_char(uart, xmit->buf[xmit->tail]);
-	xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-	uart->port.icount.tx++;
+	while ((UART_GET_LSR(uart) & THRE) && xmit->tail != xmit->head) {
+		UART_PUT_CHAR(uart, xmit->buf[xmit->tail]);
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		uart->port.icount.tx++;
+		SSYNC();
+	}
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&uart->port);
@@ -352,21 +338,11 @@ static irqreturn_t bfin_serial_rx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 
-#ifdef CONFIG_BF54x
-	unsigned short status;
 	spin_lock(&uart->port.lock);
-	status = UART_GET_LSR(uart);
-	while ((UART_GET_IER(uart) & ERBFI) && (status & DR)) {
-		bfin_serial_rx_chars(uart);
-		status = UART_GET_LSR(uart);
-	}
-	spin_unlock(&uart->port.lock);
-#else
-	spin_lock(&uart->port.lock);
-	while ((UART_GET_IIR(uart) & IIR_STATUS) == IIR_RX_READY)
+	while ((UART_GET_IER(uart) & ERBFI) && (UART_GET_LSR(uart) & DR))
 		bfin_serial_rx_chars(uart);
 	spin_unlock(&uart->port.lock);
-#endif
+
 	return IRQ_HANDLED;
 }
 
@@ -374,21 +350,11 @@ static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 {
 	struct bfin_serial_port *uart = dev_id;
 
-#ifdef CONFIG_BF54x
-	unsigned short status;
 	spin_lock(&uart->port.lock);
-	status = UART_GET_LSR(uart);
-	while ((UART_GET_IER(uart) & ETBEI) && (status & THRE)) {
-		bfin_serial_tx_chars(uart);
-		status = UART_GET_LSR(uart);
-	}
-	spin_unlock(&uart->port.lock);
-#else
-	spin_lock(&uart->port.lock);
-	while ((UART_GET_IIR(uart) & IIR_STATUS) == IIR_TX_READY)
+	if ((UART_GET_IER(uart) & ETBEI) && (UART_GET_LSR(uart) & THRE))
 		bfin_serial_tx_chars(uart);
 	spin_unlock(&uart->port.lock);
-#endif
+
 	return IRQ_HANDLED;
 }
 
