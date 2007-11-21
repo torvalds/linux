@@ -521,7 +521,7 @@ static int pciehp_resume (struct pcie_device *dev)
 		u8 status;
 
 		/* reinitialize the chipset's event detection logic */
-		pcie_init_hardware(ctrl, dev);
+		pcie_init_hardware_part2(ctrl, dev);
 
 		t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
 
