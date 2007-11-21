@@ -63,23 +63,23 @@
 #define MMUDR_CACHED_L	0x000000000000015a | ALIGNED_PHYSICAL
 			/* 512 Mb, Cacheable, Write-back, read/write, Not User, Ph. Add. */
 
-#ifdef CONFIG_ICACHE_DISABLED
+#ifdef CONFIG_CACHE_OFF
 #define	ICCR0_INIT_VAL	ICCR0_OFF			/* ICACHE off */
 #else
 #define	ICCR0_INIT_VAL	ICCR0_ON | ICCR0_ICI		/* ICE + ICI */
 #endif
 #define	ICCR1_INIT_VAL	ICCR1_NOLOCK			/* No locking */
 
-#if defined (CONFIG_DCACHE_DISABLED)
+#if defined (CONFIG_CACHE_OFF)
 #define	OCCR0_INIT_VAL	OCCR0_OFF			   /* D-cache: off  */
-#elif defined (CONFIG_DCACHE_WRITE_THROUGH)
+#elif defined (CONFIG_CACHE_WRITETHROUGH)
 #define	OCCR0_INIT_VAL	OCCR0_ON | OCCR0_OCI | OCCR0_WT	   /* D-cache: on,   */
 							   /* WT, invalidate */
-#elif defined (CONFIG_DCACHE_WRITE_BACK)
+#elif defined (CONFIG_CACHE_WRITEBACK)
 #define	OCCR0_INIT_VAL	OCCR0_ON | OCCR0_OCI | OCCR0_WB	   /* D-cache: on,   */
 							   /* WB, invalidate */
 #else
-#error preprocessor flag CONFIG_DCACHE_... not recognized!
+#error preprocessor flag CONFIG_CACHE_... not recognized!
 #endif
 
 #define	OCCR1_INIT_VAL	OCCR1_NOLOCK			   /* No locking     */
