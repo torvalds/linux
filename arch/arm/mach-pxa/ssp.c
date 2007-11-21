@@ -309,6 +309,7 @@ void ssp_exit(struct ssp_dev *dev)
 
     	if (dev->port > PXA_SSP_PORTS || dev->port == 0) {
 		printk(KERN_WARNING "SSP: tried to close invalid port\n");
+		mutex_unlock(&mutex);
 		return;
 	}
 
