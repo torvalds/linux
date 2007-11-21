@@ -330,6 +330,8 @@ unsigned int t1_sched_update_parms(struct sge *sge, unsigned int port,
 	return max_avail_segs * (p->mtu - 40);
 }
 
+#if 0
+
 /*
  * t1_sched_max_avail_bytes() tells the scheduler the maximum amount of
  * data that can be pushed per port.
@@ -356,6 +358,8 @@ void t1_sched_set_drain_bits_per_us(struct sge *sge, unsigned int port,
 	p->drain_bits_per_1024ns = val * 1024 / 1000;
 	t1_sched_update_parms(sge, port, 0, 0);
 }
+
+#endif  /*  0  */
 
 
 /*
