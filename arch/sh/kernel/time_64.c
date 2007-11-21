@@ -31,14 +31,14 @@
 #include <linux/bcd.h>
 #include <linux/timex.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 #include <linux/platform_device.h>
-#include <asm/registers.h>	 /* required by inline __asm__ stmt. */
+#include <asm/cpu/registers.h>	 /* required by inline __asm__ stmt. */
+#include <asm/cpu/irq.h>
+#include <asm/addrspace.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
-#include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/delay.h>
-#include <asm/hardware.h>
 
 #define TMU_TOCR_INIT	0x00
 #define TMU0_TCR_INIT	0x0020
@@ -240,11 +240,8 @@ static inline void do_timer_interrupt(void)
 		profile_tick(CPU_PROFILING);
 
 #ifdef CONFIG_HEARTBEAT
-	{
-		extern void heartbeat(void);
-
-		heartbeat();
-	}
+	if (sh_mv.mv_heartbeat != NULL)
+		sh_mv.mv_heartbeat();
 #endif
 
 	/*
