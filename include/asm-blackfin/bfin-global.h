@@ -50,7 +50,8 @@ extern unsigned long get_sclk(void);
 extern unsigned long sclk_to_usecs(unsigned long sclk);
 extern unsigned long usecs_to_sclk(unsigned long usecs);
 
-extern void dump_bfin_regs(struct pt_regs *fp, void *retaddr);
+extern void dump_bfin_process(struct pt_regs *regs);
+extern void dump_bfin_mem(void *retaddr);
 extern void dump_bfin_trace_buffer(void);
 
 extern int init_arch_irq(void);

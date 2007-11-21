@@ -169,7 +169,9 @@ asmlinkage void double_fault_c(struct pt_regs *fp)
 	console_verbose();
 	oops_in_progress = 1;
 	printk(KERN_EMERG "\n" KERN_EMERG "Double Fault\n");
-	dump_bfin_regs(fp, (void *)fp->retx);
+	dump_bfin_process(fp);
+	dump_bfin_mem((void *)fp->retx);
+	show_regs(fp);
 	panic("Double Fault - unrecoverable event\n");
 
 }
@@ -444,7 +446,9 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 	if (sig != SIGTRAP) {
 		unsigned long stack;
-		dump_bfin_regs(fp, (void *)fp->retx);
+		dump_bfin_process(fp);
+		dump_bfin_mem((void *)fp->retx);
+		show_regs(fp);
 
 		/* Print out the trace buffer if it makes sense */
 #ifndef CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE
@@ -601,38 +605,48 @@ void dump_stack(void)
 	show_stack(current, &stack);
 	trace_buffer_restore(tflags);
 }
-
 EXPORT_SYMBOL(dump_stack);
 
-void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
+void dump_bfin_process(struct pt_regs *fp)
 {
-	char buf [150];
+	/* We should be able to look at fp->ipend, but we don't push it on the
+	 * stack all the time, so do this until we fix that */
+	unsigned int context = bfin_read_IPEND();
 
-	if (!oops_in_progress) {
-		if (current->pid && current->mm) {
-			printk(KERN_NOTICE "\n" KERN_NOTICE "CURRENT PROCESS:\n");
-			printk(KERN_NOTICE "COMM=%s PID=%d\n",
-				current->comm, current->pid);
+	if (oops_in_progress)
+		printk(KERN_EMERG "Kernel OOPS in progress\n");
 
-			printk(KERN_NOTICE "TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
-				KERN_NOTICE "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n"
-				KERN_NOTICE "\n",
-				(void *)current->mm->start_code,
-				(void *)current->mm->end_code,
-				(void *)current->mm->start_data,
-				(void *)current->mm->end_data,
-				(void *)current->mm->end_data,
-				(void *)current->mm->brk,
-				(void *)current->mm->start_stack);
-		} else {
-			printk (KERN_NOTICE "\n" KERN_NOTICE
-			     "No Valid pid - Either things are really messed up,"
-			     " or you are in the kernel\n");
-		}
-	} else {
-		printk(KERN_NOTICE "Kernel or interrupt exception\n");
-		print_modules();
-	}
+	if (context & 0x0020)
+		printk(KERN_NOTICE "Deferred excecption or HW Error context\n");
+	else if (context & 0x3FC0)
+		printk(KERN_NOTICE "Interrupt context\n");
+	else if (context & 0x4000)
+		printk(KERN_NOTICE "Deferred Interrupt context\n");
+	else if (context & 0x8000)
+		printk(KERN_NOTICE "Kernel process context\n");
+
+	if (current->pid && current->mm) {
+		printk(KERN_NOTICE "CURRENT PROCESS:\n");
+		printk(KERN_NOTICE "COMM=%s PID=%d\n",
+			current->comm, current->pid);
+
+		printk(KERN_NOTICE "TEXT = 0x%p-0x%p  DATA = 0x%p-0x%p\n"
+			KERN_NOTICE "BSS = 0x%p-0x%p   USER-STACK = 0x%p\n"
+			KERN_NOTICE "\n",
+			(void *)current->mm->start_code,
+			(void *)current->mm->end_code,
+			(void *)current->mm->start_data,
+			(void *)current->mm->end_data,
+			(void *)current->mm->end_data,
+			(void *)current->mm->brk,
+			(void *)current->mm->start_stack);
+	} else
+		printk(KERN_NOTICE "\n" KERN_NOTICE
+		     "No Valid process in current context\n");
+}
+
+void dump_bfin_mem(void *retaddr)
+{
 
 	if (retaddr >= (void *)FIXED_CODE_START  && retaddr < (void *)physical_mem_end
 #if L1_CODE_LENGTH != 0
@@ -675,6 +689,11 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 		printk("\n" KERN_NOTICE
 			"Cannot look at the [PC] <%p> for it is"
 			" in unreadable memory - sorry\n", retaddr);
+}
+
+void show_regs(struct pt_regs *fp)
+{
+	char buf [150];
 
 	printk(KERN_NOTICE "\n" KERN_NOTICE "SEQUENCER STATUS:\n");
 	printk(KERN_NOTICE " SEQSTAT: %08lx  IPEND: %04lx  SYSCFG: %04lx\n",
@@ -688,6 +707,8 @@ void dump_bfin_regs(struct pt_regs *fp, void *retaddr)
 	printk(KERN_NOTICE " RETX: %s\n", buf);
 	decode_address(buf, fp->rets);
 	printk(KERN_NOTICE " RETS: %s\n", buf);
+	decode_address(buf, fp->pc);
+	printk(KERN_NOTICE " PC: %s\n", buf);
 
 	if ((long)fp->seqstat & SEQSTAT_EXCAUSE) {
 		decode_address(buf, bfin_read_DCPLB_FAULT_ADDR());
@@ -802,7 +823,9 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 
 	printk(KERN_EMERG "DCPLB_FAULT_ADDR=%p\n", (void *)bfin_read_DCPLB_FAULT_ADDR());
 	printk(KERN_EMERG "ICPLB_FAULT_ADDR=%p\n", (void *)bfin_read_ICPLB_FAULT_ADDR());
-	dump_bfin_regs(fp, (void *)fp->retx);
+	dump_bfin_process(fp);
+	dump_bfin_mem((void *)fp->retx);
+	show_regs(fp);
 	dump_stack();
 	panic("Unrecoverable event\n");
 }

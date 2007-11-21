@@ -134,27 +134,6 @@ void cpu_idle(void)
 	}
 }
 
-void show_regs(struct pt_regs *regs)
-{
-	printk(KERN_NOTICE "\n");
-	printk(KERN_NOTICE
-	       "PC: %08lu  Status: %04lu  SysStatus: %04lu  RETS: %08lu\n",
-	       regs->pc, regs->astat, regs->seqstat, regs->rets);
-	printk(KERN_NOTICE
-	       "A0.x: %08lx  A0.w: %08lx  A1.x: %08lx  A1.w: %08lx\n",
-	       regs->a0x, regs->a0w, regs->a1x, regs->a1w);
-	printk(KERN_NOTICE "P0: %08lx  P1: %08lx  P2: %08lx  P3: %08lx\n",
-	       regs->p0, regs->p1, regs->p2, regs->p3);
-	printk(KERN_NOTICE "P4: %08lx  P5: %08lx\n", regs->p4, regs->p5);
-	printk(KERN_NOTICE "R0: %08lx  R1: %08lx  R2: %08lx  R3: %08lx\n",
-	       regs->r0, regs->r1, regs->r2, regs->r3);
-	printk(KERN_NOTICE "R4: %08lx  R5: %08lx  R6: %08lx  R7: %08lx\n",
-	       regs->r4, regs->r5, regs->r6, regs->r7);
-
-	if (!regs->ipend)
-		printk(KERN_NOTICE "USP: %08lx\n", rdusp());
-}
-
 /* Fill in the fpu structure for a core dump.  */
 
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpregs)

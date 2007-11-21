@@ -173,7 +173,9 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 	}
 
 	regs->ipend = bfin_read_IPEND();
-	dump_bfin_regs(regs, (void *)regs->pc);
+	dump_bfin_process(regs);
+	dump_bfin_mem((void *)regs->pc);
+	show_regs(regs);
 	if (0 == (info.si_signo = sig) || 0 == user_mode(regs))	/* in kernelspace */
 		panic("Unhandled IRQ or exceptions!\n");
 	else {			/* in userspace */
