@@ -72,11 +72,6 @@ do {							\
 	unlikely(__ret_warn_on);				\
 })
 
-struct pt_regs;
-
-/* arch/sh/kernel/traps.c */
-void handle_BUG(struct pt_regs *);
-
 #endif /* CONFIG_GENERIC_BUG */
 
 #include <asm-generic/bug.h>
