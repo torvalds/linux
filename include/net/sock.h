@@ -47,6 +47,7 @@
 #include <linux/module.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
+#include <linux/pcounter.h>
 #include <linux/skbuff.h>	/* struct sk_buff */
 #include <linux/mm.h>
 #include <linux/security.h>
@@ -565,14 +566,9 @@ struct proto {
 	void			(*unhash)(struct sock *sk);
 	int			(*get_port)(struct sock *sk, unsigned short snum);
 
-#ifdef CONFIG_SMP
 	/* Keeping track of sockets in use */
-	void			(*inuse_add)(struct proto *prot, int inc);
-	int			(*inuse_getval)(const struct proto *prot);
-	int			*inuse_ptr;
-#else
-	int			inuse;
-#endif
+	struct pcounter		inuse;
+
 	/* Memory pressure */
 	void			(*enter_memory_pressure)(void);
 	atomic_t		*memory_allocated;	/* Current allocated memory. */
@@ -607,35 +603,8 @@ struct proto {
 #endif
 };
 
-/*
- * Special macros to let protos use a fast version of inuse{get|add}
- * using a static percpu variable per proto instead of an allocated one,
- * saving one dereference.
- * This might be changed if/when dynamic percpu vars become fast.
- */
-#ifdef CONFIG_SMP
-# define DEFINE_PROTO_INUSE(NAME)			\
-static DEFINE_PER_CPU(int, NAME##_inuse);		\
-static void NAME##_inuse_add(struct proto *prot, int inc)	\
-{							\
-	__get_cpu_var(NAME##_inuse) += inc;		\
-}							\
-							\
-static int NAME##_inuse_getval(const struct proto *prot)\
-{							\
-	int res = 0, cpu;				\
-							\
-	for_each_possible_cpu(cpu)			\
-		res += per_cpu(NAME##_inuse, cpu);	\
-	return res;					\
-}
-# define REF_PROTO_INUSE(NAME)				\
-	.inuse_add = NAME##_inuse_add,			\
-	.inuse_getval = NAME##_inuse_getval,
-#else
-# define DEFINE_PROTO_INUSE(NAME)
-# define REF_PROTO_INUSE(NAME)
-#endif
+#define DEFINE_PROTO_INUSE(NAME) DEFINE_PCOUNTER(NAME)
+#define REF_PROTO_INUSE(NAME) PCOUNTER_MEMBER_INITIALIZER(NAME, .inuse)
 
 extern int proto_register(struct proto *prot, int alloc_slab);
 extern void proto_unregister(struct proto *prot);
@@ -668,29 +637,17 @@ static inline void sk_refcnt_debug_release(const struct sock *sk)
 /* Called with local bh disabled */
 static __inline__ void sock_prot_inc_use(struct proto *prot)
 {
-#ifdef CONFIG_SMP
-	prot->inuse_add(prot, 1);
-#else
-	prot->inuse++;
-#endif
+	pcounter_add(&prot->inuse, 1);
 }
 
 static __inline__ void sock_prot_dec_use(struct proto *prot)
 {
-#ifdef CONFIG_SMP
-	prot->inuse_add(prot, -1);
-#else
-	prot->inuse--;
-#endif
+	pcounter_add(&prot->inuse, -1);
 }
 
 static __inline__ int sock_prot_inuse(struct proto *proto)
 {
-#ifdef CONFIG_SMP
-	return proto->inuse_getval(proto);
-#else
-	return proto->inuse;
-#endif
+	return pcounter_getval(&proto->inuse);
 }
 
 /* With per-bucket locks this operation is not-atomic, so that

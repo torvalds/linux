@@ -1804,65 +1804,15 @@ EXPORT_SYMBOL(sk_common_release);
 static DEFINE_RWLOCK(proto_list_lock);
 static LIST_HEAD(proto_list);
 
-#ifdef CONFIG_SMP
-/*
- * Define default functions to keep track of inuse sockets per protocol
- * Note that often used protocols use dedicated functions to get a speed increase.
- * (see DEFINE_PROTO_INUSE/REF_PROTO_INUSE)
- */
-static void inuse_add(struct proto *prot, int inc)
-{
-	per_cpu_ptr(prot->inuse_ptr, smp_processor_id())[0] += inc;
-}
-
-static int inuse_get(const struct proto *prot)
-{
-	int res = 0, cpu;
-	for_each_possible_cpu(cpu)
-		res += per_cpu_ptr(prot->inuse_ptr, cpu)[0];
-	return res;
-}
-
-static int inuse_init(struct proto *prot)
-{
-	if (!prot->inuse_getval || !prot->inuse_add) {
-		prot->inuse_ptr = alloc_percpu(int);
-		if (prot->inuse_ptr == NULL)
-			return -ENOBUFS;
-
-		prot->inuse_getval = inuse_get;
-		prot->inuse_add = inuse_add;
-	}
-	return 0;
-}
-
-static void inuse_fini(struct proto *prot)
-{
-	if (prot->inuse_ptr != NULL) {
-		free_percpu(prot->inuse_ptr);
-		prot->inuse_ptr = NULL;
-		prot->inuse_getval = NULL;
-		prot->inuse_add = NULL;
-	}
-}
-#else
-static inline int inuse_init(struct proto *prot)
-{
-	return 0;
-}
-
-static inline void inuse_fini(struct proto *prot)
-{
-}
-#endif
-
 int proto_register(struct proto *prot, int alloc_slab)
 {
 	char *request_sock_slab_name = NULL;
 	char *timewait_sock_slab_name;
 
-	if (inuse_init(prot))
+	if (pcounter_alloc(&prot->inuse) != 0) {
+		printk(KERN_CRIT "%s: Can't alloc inuse counters!\n", prot->name);
 		goto out;
+	}
 
 	if (alloc_slab) {
 		prot->slab = kmem_cache_create(prot->name, prot->obj_size, 0,
@@ -1930,7 +1880,7 @@ out_free_sock_slab:
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
 out_free_inuse:
-	inuse_fini(prot);
+	pcounter_free(&prot->inuse);
 out:
 	return -ENOBUFS;
 }
@@ -1943,7 +1893,8 @@ void proto_unregister(struct proto *prot)
 	list_del(&prot->node);
 	write_unlock(&proto_list_lock);
 
-	inuse_fini(prot);
+	pcounter_free(&prot->inuse);
+
 	if (prot->slab != NULL) {
 		kmem_cache_destroy(prot->slab);
 		prot->slab = NULL;
