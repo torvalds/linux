@@ -1311,8 +1311,8 @@ void usb_hcd_flush_endpoint(struct usb_device *udev,
 	hcd = bus_to_hcd(udev->bus);
 
 	/* No more submits can occur */
-rescan:
 	spin_lock_irq(&hcd_urb_list_lock);
+rescan:
 	list_for_each_entry (urb, &ep->urb_list, urb_list) {
 		int	is_in;
 
@@ -1345,6 +1345,7 @@ rescan:
 		usb_put_urb (urb);
 
 		/* list contents may have changed */
+		spin_lock(&hcd_urb_list_lock);
 		goto rescan;
 	}
 	spin_unlock_irq(&hcd_urb_list_lock);
