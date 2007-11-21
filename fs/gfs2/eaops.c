@@ -59,9 +59,6 @@ unsigned int gfs2_ea_name2type(const char *name, const char **truncated_name)
 static int user_eo_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
 	struct inode *inode = &ip->i_inode;
-	int error = permission(inode, MAY_READ, NULL);
-	if (error)
-		return error;
 
 	return gfs2_ea_get_i(ip, er);
 }
@@ -70,28 +67,12 @@ static int user_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
 	struct inode *inode = &ip->i_inode;
 
-	if (S_ISREG(inode->i_mode) ||
-	    (S_ISDIR(inode->i_mode) && !(inode->i_mode & S_ISVTX))) {
-		int error = permission(inode, MAY_WRITE, NULL);
-		if (error)
-			return error;
-	} else
-		return -EPERM;
-
 	return gfs2_ea_set_i(ip, er);
 }
 
 static int user_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
 	struct inode *inode = &ip->i_inode;
-
-	if (S_ISREG(inode->i_mode) ||
-	    (S_ISDIR(inode->i_mode) && !(inode->i_mode & S_ISVTX))) {
-		int error = permission(inode, MAY_WRITE, NULL);
-		if (error)
-			return error;
-	} else
-		return -EPERM;
 
 	return gfs2_ea_remove_i(ip, er);
 }
@@ -107,8 +88,6 @@ static int system_eo_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 	    (GFS2_ACL_IS_ACCESS(er->er_name, er->er_name_len) ||
 	     GFS2_ACL_IS_DEFAULT(er->er_name, er->er_name_len)))
 		return -EOPNOTSUPP;
-
-
 
 	return gfs2_ea_get_i(ip, er);
 }
@@ -173,9 +152,6 @@ static int system_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 static int security_eo_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
 	struct inode *inode = &ip->i_inode;
-	int error = permission(inode, MAY_READ, NULL);
-	if (error)
-		return error;
 
 	return gfs2_ea_get_i(ip, er);
 }
@@ -183,9 +159,6 @@ static int security_eo_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 static int security_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
 	struct inode *inode = &ip->i_inode;
-	int error = permission(inode, MAY_WRITE, NULL);
-	if (error)
-		return error;
 
 	return gfs2_ea_set_i(ip, er);
 }
@@ -193,9 +166,6 @@ static int security_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 static int security_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
 	struct inode *inode = &ip->i_inode;
-	int error = permission(inode, MAY_WRITE, NULL);
-	if (error)
-		return error;
 
 	return gfs2_ea_remove_i(ip, er);
 }
