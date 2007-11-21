@@ -637,10 +637,6 @@ static int tcp_v6_md5_do_del(struct sock *sk, struct in6_addr *peer)
 				kfree(tp->md5sig_info->keys6);
 				tp->md5sig_info->keys6 = NULL;
 				tp->md5sig_info->alloced6 = 0;
-
-				tcp_free_md5sig_pool();
-
-				return 0;
 			} else {
 				/* shrink the database */
 				if (tp->md5sig_info->entries6 != i)
@@ -649,6 +645,8 @@ static int tcp_v6_md5_do_del(struct sock *sk, struct in6_addr *peer)
 						(tp->md5sig_info->entries6 - i)
 						* sizeof (tp->md5sig_info->keys6[0]));
 			}
+			tcp_free_md5sig_pool();
+			return 0;
 		}
 	}
 	return -ENOENT;
