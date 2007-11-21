@@ -375,11 +375,11 @@ config MAX_VCO_HZ
 	default 500000000 if BF534
 	default 400000000 if BF536
 	default 600000000 if BF537
-	default 533000000 if BF538
-	default 533000000 if BF539
+	default 533333333 if BF538
+	default 533333333 if BF539
 	default 600000000 if BF542
-	default 533000000 if BF544
-	default 533000000 if BF549
+	default 533333333 if BF544
+	default 533333333 if BF549
 	default 600000000 if BF561
 
 config MIN_VCO_HZ
@@ -388,7 +388,7 @@ config MIN_VCO_HZ
 
 config MAX_SCLK_HZ
 	int
-	default 133000000
+	default 133333333
 
 config MIN_SCLK_HZ
 	int
