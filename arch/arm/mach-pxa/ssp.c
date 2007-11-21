@@ -41,6 +41,7 @@
 #include <asm/hardware.h>
 #include <asm/arch/ssp.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/regs-ssp.h>
 
 #define TIMEOUT 100000
 

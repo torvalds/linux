@@ -36,6 +36,7 @@
 
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
+#include <asm/arch/regs-ssp.h>
 #include <asm/arch/pxa2xx_spi.h>
 
 MODULE_AUTHOR("Stephen Street");
