@@ -44,6 +44,9 @@
  * max 8 partitions per card
  */
 #define MMC_SHIFT	3
+#define MMC_NUM_MINORS	(256 >> MMC_SHIFT)
+
+static unsigned long dev_use[MMC_NUM_MINORS/(8*sizeof(unsigned long))];
 
 /*
  * There is one mmc_blk_data per slot.
@@ -80,6 +83,9 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
+		int devidx = md->disk->first_minor >> MMC_SHIFT;
+		__clear_bit(devidx, dev_use);
+
 		put_disk(md->disk);
 		kfree(md);
 	}
@@ -406,9 +412,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	return 0;
 }
 
-#define MMC_NUM_MINORS	(256 >> MMC_SHIFT)
-
-static unsigned long dev_use[MMC_NUM_MINORS/(8*sizeof(unsigned long))];
 
 static inline int mmc_blk_readonly(struct mmc_card *card)
 {
@@ -574,16 +577,11 @@ static void mmc_blk_remove(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 	if (md) {
-		int devidx;
-
 		/* Stop new requests from getting into the queue */
 		del_gendisk(md->disk);
 
 		/* Then flush out any already in there */
 		mmc_cleanup_queue(&md->queue);
-
-		devidx = md->disk->first_minor >> MMC_SHIFT;
-		__clear_bit(devidx, dev_use);
 
 		mmc_blk_put(md);
 	}
