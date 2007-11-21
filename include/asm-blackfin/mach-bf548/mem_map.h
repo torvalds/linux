@@ -89,9 +89,7 @@
 
 /* Scratch Pad Memory */
 
-#if defined(CONFIG_BF54x)
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
-#endif
 
 #endif/* _MEM_MAP_548_H_ */
