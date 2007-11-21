@@ -136,6 +136,12 @@ sync_ratelimit = 125 ms
 	sequence-invalid packets on the same socket (RFC 4340, 7.5.4). The unit
 	of this parameter is milliseconds; a value of 0 disables rate-limiting.
 
+IOCTLS
+======
+FIONREAD
+	Works as in udp(7): returns in the `int' argument pointer the size of
+	the next pending datagram in bytes, or 0 when no datagram is pending.
+
 Notes
 =====
 
