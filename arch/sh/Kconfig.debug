@@ -62,7 +62,7 @@ config DEBUG_BOOTMEM
 
 config DEBUG_STACKOVERFLOW
 	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && SUPERH32
 	help
 	  This option will cause messages to be printed if free stack space
 	  drops below a certain limit.
@@ -88,7 +88,7 @@ config 4KSTACKS
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
-	depends on DEBUG_KERNEL
+	depends on DEBUG_KERNEL && SUPERH32
 	help
 	  If you say Y here the kernel will use separate kernel stacks
 	  for handling hard and soft interrupts.  This can help avoid
