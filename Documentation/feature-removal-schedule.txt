@@ -315,3 +315,11 @@ Why:	This driver's functionality has been replaced by the
 Who:	John W. Linville <linville@tuxdriver.com>
 
 ---------------------------
+
+What:	iee80211 softmac wireless networking component
+When:	2.6.26 (or after removal of bcm43xx and port of zd1211rw to mac80211)
+Files:	net/ieee80211/softmac
+Why:	No in-kernel drivers will depend on it any longer.
+Who:	John W. Linville <linville@tuxdriver.com>
+
+---------------------------
