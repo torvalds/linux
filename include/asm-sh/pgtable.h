@@ -49,7 +49,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
  * traditional two-level paging structure
  */
 /* PTE bits */
-#ifdef CONFIG_X2TLB
+#if defined(CONFIG_X2TLB) || defined(CONFIG_SUPERH64)
 # define PTE_MAGNITUDE	3	/* 64-bit PTEs on extended mode SH-X2 TLB */
 #else
 # define PTE_MAGNITUDE	2	/* 32-bit PTEs */
