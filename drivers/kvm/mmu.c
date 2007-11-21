@@ -29,6 +29,7 @@
 
 #include <asm/page.h>
 #include <asm/cmpxchg.h>
+#include <asm/io.h>
 
 #undef MMU_DEBUG
 
