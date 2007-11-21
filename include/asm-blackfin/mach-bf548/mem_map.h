@@ -49,6 +49,11 @@
 #define BOOT_ROM_START		0xEF000000
 #define BOOT_ROM_LENGTH		0x1000
 
+/* L1 Instruction ROM */
+
+#define L1_ROM_START		0xFFA14000
+#define L1_ROM_LENGTH		0x10000
+
 /* Level 1 Memory */
 
 /* Memory Map for ADSP-BF548 processors */
