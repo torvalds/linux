@@ -33,7 +33,7 @@
  * after a timer-interrupt and after each system call.
  */
 
-
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/unistd.h>
 #include <asm/blackfin.h>
@@ -881,7 +881,7 @@ ENTRY(_software_trace_buff)
 #endif /* CONFIG_DEBUG_BFIN_HWTRACE_EXPAND */
 
 #if CONFIG_EARLY_PRINTK
-.section .init.text,"ax"
+__INIT
 ENTRY(_early_trap)
 	SAVE_ALL_SYS
 	trace_buffer_stop(p0,r0);
@@ -916,6 +916,7 @@ ENTRY(_early_trap)
 	call _early_trap_c;
 	SP += 12;
 ENDPROC(_early_trap)
+__FINIT
 #endif /* CONFIG_EARLY_PRINTK */
 
 /*
