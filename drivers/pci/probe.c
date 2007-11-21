@@ -971,6 +971,7 @@ struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn)
 
 	return dev;
 }
+EXPORT_SYMBOL(pci_scan_single_device);
 
 /**
  * pci_scan_slot - scan a PCI slot on a bus for devices.
@@ -1158,7 +1159,6 @@ EXPORT_SYMBOL(pci_add_new_bus);
 EXPORT_SYMBOL(pci_do_scan_bus);
 EXPORT_SYMBOL(pci_scan_slot);
 EXPORT_SYMBOL(pci_scan_bridge);
-EXPORT_SYMBOL(pci_scan_single_device);
 EXPORT_SYMBOL_GPL(pci_scan_child_bus);
 #endif
 
