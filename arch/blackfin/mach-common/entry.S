@@ -156,6 +156,7 @@ ENTRY(_ex_single_step)
 	r7 = [p4];
 	cc = r6 == r7;
 	if !cc jump _ex_trap_c;
+ENDPROC(_ex_single_step)
 
 ENTRY(_bfin_return_from_exception)
 	DEBUG_START_HWTRACE(p5, r7)
@@ -169,7 +170,7 @@ ENTRY(_bfin_return_from_exception)
 	ASTAT = [sp++];
 	sp = EX_SCRATCH_REG;
 	rtx;
-ENDPROC(_ex_soft_bp)
+ENDPROC(_bfin_return_from_exception)
 
 ENTRY(_handle_bad_cplb)
 	/* To get here, we just tried and failed to change a CPLB
