@@ -259,8 +259,7 @@ unshadowed:
 
 	pgprintk("%s: setting spte %llx\n", __FUNCTION__, spte);
 	set_shadow_pte(shadow_pte, spte);
-	page_header_update_slot(vcpu->kvm, shadow_pte,
-				(gpa_t)gfn << PAGE_SHIFT);
+	page_header_update_slot(vcpu->kvm, shadow_pte, gfn);
 	if (!was_rmapped) {
 		rmap_add(vcpu, shadow_pte, gfn);
 		if (!is_rmap_pte(*shadow_pte))

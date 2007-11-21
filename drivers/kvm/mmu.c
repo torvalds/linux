@@ -860,9 +860,9 @@ static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 	}
 }
 
-static void page_header_update_slot(struct kvm *kvm, void *pte, gpa_t gpa)
+static void page_header_update_slot(struct kvm *kvm, void *pte, gfn_t gfn)
 {
-	int slot = memslot_id(kvm, gfn_to_memslot(kvm, gpa >> PAGE_SHIFT));
+	int slot = memslot_id(kvm, gfn_to_memslot(kvm, gfn));
 	struct kvm_mmu_page *page_head = page_header(__pa(pte));
 
 	__set_bit(slot, &page_head->slot_bitmap);
@@ -928,7 +928,8 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, hpa_t p)
 				return 0;
 			}
 			mark_page_dirty(vcpu->kvm, v >> PAGE_SHIFT);
-			page_header_update_slot(vcpu->kvm, table, v);
+			page_header_update_slot(vcpu->kvm, table,
+						v >> PAGE_SHIFT);
 			table[index] = p | PT_PRESENT_MASK | PT_WRITABLE_MASK |
 								PT_USER_MASK;
 			if (!was_rmapped)
