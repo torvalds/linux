@@ -20,18 +20,9 @@ config IP_DCCP_CCID2
 	  to the user.  For example, a hypothetical application that
 	  transferred files over DCCP, using application-level retransmissions
 	  for lost packets, would prefer CCID 2 to CCID 3.  On-line games may
-	  also prefer CCID 2.
+	  also prefer CCID 2.  See RFC 4341 for further details.
 
-	  CCID 2 is further described in RFC 4341,
-	  http://www.ietf.org/rfc/rfc4341.txt
-
-	  This text was extracted from RFC 4340 (sec. 10.1),
-	  http://www.ietf.org/rfc/rfc4340.txt
-
-	  To compile this CCID as a module, choose M here: the module will be
-	  called dccp_ccid2.
-
-	  If in doubt, say M.
+	  CCID2 is the default CCID used by DCCP.
 
 config IP_DCCP_CCID2_DEBUG
 	  bool "CCID2 debugging messages"
