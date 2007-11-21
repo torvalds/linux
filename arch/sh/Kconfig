@@ -32,7 +32,7 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config GENERIC_BUG
 	def_bool y
-	depends on BUG
+	depends on BUG && SUPERH32
 
 config GENERIC_FIND_NEXT_BIT
 	bool
