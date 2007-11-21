@@ -39,12 +39,12 @@ config MEMORY_START
 
 config MEMORY_SIZE
 	hex "Physical memory size"
-	default "0x00400000"
+	default "0x04000000"
 	help
 	  This sets the default memory size assumed by your SH kernel. It can
 	  be overridden as normal by the 'mem=' argument on the kernel command
 	  line. If unsure, consult your board specifications or just leave it
-	  as 0x00400000 which was the default value before this became
+	  as 0x04000000 which was the default value before this became
 	  configurable.
 
 # Physical addressing modes
