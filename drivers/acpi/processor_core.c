@@ -684,7 +684,7 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_processor *pr = data;
 	struct acpi_device *device = NULL;
-
+	int saved;
 
 	if (!pr)
 		return;
@@ -694,7 +694,10 @@ static void acpi_processor_notify(acpi_handle handle, u32 event, void *data)
 
 	switch (event) {
 	case ACPI_PROCESSOR_NOTIFY_PERFORMANCE:
+		saved = pr->performance_platform_limit;
 		acpi_processor_ppc_has_changed(pr);
+		if (saved == pr->performance_platform_limit)
+			break;
 		acpi_bus_generate_proc_event(device, event,
 					pr->performance_platform_limit);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
