@@ -11,5 +11,5 @@
 
 # Panic should really be compiled as PIC
 lib-y  := udelay.o c-checksum.o dbg.o panic.o memcpy.o copy_user_memcpy.o \
-		page_copy.o page_clear.o
+		copy_page.o clear_page.o
 
