@@ -37,23 +37,24 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 
 	BUG_ON(tn->csize == 0);
 
-	if (!jffs2_is_writebuffered(c))
-		goto adj_acc;
-
 	/* Calculate how many bytes were already checked */
 	ofs = ref_offset(ref) + sizeof(struct jffs2_raw_inode);
-	len = ofs % c->wbuf_pagesize;
-	if (likely(len))
-		len = c->wbuf_pagesize - len;
+	len = tn->csize;
 
-	if (len >= tn->csize) {
-		dbg_readinode("no need to check node at %#08x, data length %u, data starts at %#08x - it has already been checked.\n",
-			ref_offset(ref), tn->csize, ofs);
-		goto adj_acc;
+	if (jffs2_is_writebuffered(c)) {
+		int adj = ofs % c->wbuf_pagesize;
+		if (likely(adj))
+			adj = c->wbuf_pagesize - adj;
+
+		if (adj >= tn->csize) {
+			dbg_readinode("no need to check node at %#08x, data length %u, data starts at %#08x - it has already been checked.\n",
+				      ref_offset(ref), tn->csize, ofs);
+			goto adj_acc;
+		}
+
+		ofs += adj;
+		len -= adj;
 	}
-
-	ofs += len;
-	len = tn->csize - len;
 
 	dbg_readinode("check node at %#08x, data length %u, partial CRC %#08x, correct CRC %#08x, data starts at %#08x, start checking from %#08x - %u bytes.\n",
 		ref_offset(ref), tn->csize, tn->partial_crc, tn->data_crc, ofs - len, ofs, len);
