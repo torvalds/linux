@@ -1,24 +1,26 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/kernel/irq_cayman.c
- *
- * SH-5 Cayman Interrupt Support
+ * arch/sh/mach-cayman/irq.c - SH-5 Cayman Interrupt Support
  *
  * This file handles the board specific parts of the Cayman interrupt system
  *
  * Copyright (C) 2002 Stuart Menefy
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
-#include <asm/irq.h>
-#include <asm/page.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/signal.h>
-#include <asm/cayman.h>
+#include <asm/cpu/irq.h>
+#include <asm/page.h>
+
+/* Setup for the SMSC FDC37C935 / LAN91C100FD */
+#define SMSC_IRQ         IRQ_IRL1
+
+/* Setup for PCI Bus 2, which transmits interrupts via the EPLD */
+#define PCI2_IRQ         IRQ_IRL3
 
 unsigned long epld_virt;
 

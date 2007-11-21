@@ -92,9 +92,6 @@
 #define NR_EXT_IRQS	0
 #endif
 
-#define NR_IRQS		(NR_INTC_IRQS+NR_EXT_IRQS)
-
-
 /* Default IRQs, fixed */
 #define TIMER_IRQ	IRQ_TUNI0
 #define RTC_IRQ		IRQ_CUI
@@ -116,29 +113,6 @@
 
 extern int intc_evt_to_irq[(0xE20/0x20)+1];
 int intc_irq_describe(char* p, int irq);
-
-#define irq_canonicalize(irq)	(irq)
-
-#ifdef CONFIG_SH_CAYMAN
-int cayman_irq_demux(int evt);
-int cayman_irq_describe(char* p, int irq);
-#define irq_demux(x) cayman_irq_demux(x)
-#define irq_describe(p, x) cayman_irq_describe(p, x)
-#else
-#define irq_demux(x) (intc_evt_to_irq[x])
-#define irq_describe(p, x) intc_irq_describe(p, x)
-#endif
-
-/*
- * Function for "on chip support modules".
- */
-
-/*
- * SH-5 supports Priority based interrupts only.
- * Interrupt priorities are defined at platform level.
- */
-#define set_ipr_data(a, b, c, d)
-#define make_ipr_irq(a)
-#define make_imask_irq(a)
+extern int platform_int_priority[NR_INTC_IRQS];
 
 #endif /* __ASM_SH64_IRQ_H */

@@ -14,21 +14,14 @@
  * controller.
  *
  */
-
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/stddef.h>
-#include <linux/bitops.h>       /* this includes also <asm/registers.h */
-                                /* which is required to remap register */
-                                /* names used into __asm__ blocks...   */
-
-#include <asm/hardware.h>
-#include <asm/platform.h>
+#include <linux/bitops.h>
+#include <asm/cpu/irq.h>
 #include <asm/page.h>
-#include <asm/io.h>
-#include <asm/irq.h>
 
 /*
  * Maybe the generic Peripheral block could move to a more
@@ -192,7 +185,7 @@ int intc_irq_describe(char* p, int irq)
 }
 #endif
 
-void __init init_IRQ(void)
+void __init plat_irq_setup(void)
 {
         unsigned long long __dummy0, __dummy1=~0x00000000100000f0;
 	unsigned long reg;
@@ -250,14 +243,6 @@ void __init init_IRQ(void)
 			reg += 8;
 		}
 	}
-
-#ifdef CONFIG_SH_CAYMAN
-	{
-		extern void init_cayman_irq(void);
-
-		init_cayman_irq();
-	}
-#endif
 
 	/*
 	 * And now let interrupts come in.

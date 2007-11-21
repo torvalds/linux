@@ -1,28 +1,19 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/mach-cayman/setup.c
+ * arch/sh/mach-cayman/setup.c
  *
  * SH5 Cayman support
  *
- * This file handles the architecture-dependent parts of initialization
+ * Copyright (C) 2002  David J. Mckay & Benedict Gaster
+ * Copyright (C) 2003 - 2007  Paul Mundt
  *
- * Copyright David J. Mckay.
- * Needs major work!
- *
- * benedict.gaster@superh.com:	 3rd May 2002
- *    Added support for ramdisk, removing statically linked romfs at the same time.
- *
- * lethal@linux-sh.org:          15th May 2003
- *    Use the generic procfs cpuinfo interface, just return a valid board name.
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
-#include <asm/platform.h>
-#include <asm/irq.h>
-#include <asm/io.h>
+#include <asm/cpu/irq.h>
 
 /*
  * Platform Dependent Interrupt Priorities.
@@ -95,42 +86,6 @@
 #define IDE1_SECONDARY_BASE	0x03f6
 
 unsigned long smsc_superio_virt;
-
-/*
- * Platform dependent structures: maps and parms block.
- */
-struct resource io_resources[] = {
-	/* To be updated with external devices */
-};
-
-struct resource kram_resources[] = {
-	/* These must be last in the array */
-	{ .name = "Kernel code", .start = 0, .end = 0 },
-	/* These must be last in the array */
-	{ .name = "Kernel data", .start = 0, .end = 0 }
-};
-
-struct resource xram_resources[] = {
-	/* To be updated with external devices */
-};
-
-struct resource rom_resources[] = {
-	/* To be updated with external devices */
-};
-
-struct sh64_platform platform_parms = {
-	.readonly_rootfs =	1,
-	.initial_root_dev =	0x0100,
-	.loader_type =		1,
-	.io_res_p =		io_resources,
-	.io_res_count =		ARRAY_SIZE(io_resources),
-	.kram_res_p =		kram_resources,
-	.kram_res_count =	ARRAY_SIZE(kram_resources),
-	.xram_res_p =		xram_resources,
-	.xram_res_count =	ARRAY_SIZE(xram_resources),
-	.rom_res_p =		rom_resources,
-	.rom_res_count =	ARRAY_SIZE(rom_resources),
-};
 
 int platform_int_priority[NR_INTC_IRQS] = {
 	IR0, IR1, IR2, IR3, PCA, PCB, PCC, PCD,	/* IRQ  0- 7 */
@@ -210,30 +165,23 @@ static int __init smsc_superio_setup(void)
 
 	return 0;
 }
-
-/* This is grotty, but, because kernel is always referenced on the link line
- * before any devices, this is safe.
- */
 __initcall(smsc_superio_setup);
 
-void __init platform_setup(void)
+static void __iomem *cayman_ioport_map(unsigned long port, unsigned int len)
 {
-	/* Cayman platform leaves the decision to head.S, for now */
-	platform_parms.fpu_flags = fpu_in_use;
+	if (port < 0x400) {
+		extern unsigned long smsc_superio_virt;
+		return (void __iomem *)((port << 2) | smsc_superio_virt);
+	}
+
+	return (void __iomem *)port;
 }
 
-void __init platform_monitor(void)
-{
-	/* Nothing yet .. */
-}
+extern void init_cayman_irq(void);
 
-void __init platform_reserve(void)
-{
-	/* Nothing yet .. */
-}
-
-const char *get_system_type(void)
-{
-	return "Hitachi Cayman";
-}
-
+static struct sh_machine_vector mv_cayman __initmv = {
+	.mv_name		= "Hitachi Cayman",
+	.mv_nr_irqs		= 64,
+	.mv_ioport_map		= cayman_ioport_map,
+	.mv_init_irq		= init_cayman_irq,
+};
