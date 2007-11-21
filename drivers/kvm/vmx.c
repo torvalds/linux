@@ -193,11 +193,6 @@ static inline int cpu_has_secondary_exec_ctrls(void)
 		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS);
 }
 
-static inline int vm_need_secondary_exec_ctrls(struct kvm *kvm)
-{
-	return ((cpu_has_secondary_exec_ctrls()) && (irqchip_in_kernel(kvm)));
-}
-
 static inline int cpu_has_vmx_virtualize_apic_accesses(void)
 {
 	return (vmcs_config.cpu_based_2nd_exec_ctrl &
@@ -1524,13 +1519,15 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 				CPU_BASED_CR8_LOAD_EXITING;
 #endif
 	}
-	if (!vm_need_secondary_exec_ctrls(vmx->vcpu.kvm))
-		exec_control &= ~CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
 	vmcs_write32(CPU_BASED_VM_EXEC_CONTROL, exec_control);
 
-	if (vm_need_secondary_exec_ctrls(vmx->vcpu.kvm))
-		vmcs_write32(SECONDARY_VM_EXEC_CONTROL,
-			     vmcs_config.cpu_based_2nd_exec_ctrl);
+	if (cpu_has_secondary_exec_ctrls()) {
+		exec_control = vmcs_config.cpu_based_2nd_exec_ctrl;
+		if (!vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
+			exec_control &=
+				~SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES;
+		vmcs_write32(SECONDARY_VM_EXEC_CONTROL, exec_control);
+	}
 
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK, !!bypass_guest_pf);
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MATCH, !!bypass_guest_pf);
