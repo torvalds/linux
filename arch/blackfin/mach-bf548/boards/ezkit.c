@@ -508,6 +508,7 @@ static struct platform_device i2c_bfin_twi0_device = {
 	.resource = bfin_twi0_resource,
 };
 
+#if !defined(CONFIG_BF542)	/* The BF542 only has 1 TWI */
 static struct resource bfin_twi1_resource[] = {
 	[0] = {
 		.start = TWI1_REGBASE,
@@ -527,6 +528,7 @@ static struct platform_device i2c_bfin_twi1_device = {
 	.num_resources = ARRAY_SIZE(bfin_twi1_resource),
 	.resource = bfin_twi1_resource,
 };
+#endif
 #endif
 
 static struct platform_device *ezkit_devices[] __initdata = {
@@ -577,7 +579,9 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_I2C_BLACKFIN_TWI) || defined(CONFIG_I2C_BLACKFIN_TWI_MODULE)
 	&i2c_bfin_twi0_device,
+#if !defined(CONFIG_BF542)
 	&i2c_bfin_twi1_device,
+#endif
 #endif
 };
 
