@@ -12,21 +12,21 @@
 #
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
-		   head.o misc.o cache.o piggy.o vmlinux.lds
-
+		   head_64.o misc_64.o cache.o piggy.o
 EXTRA_AFLAGS	:= -traditional
 
-OBJECTS		:= $(obj)/head.o $(obj)/misc.o $(obj)/cache.o
+OBJECTS		:= $(obj)/vmlinux_64.lds $(obj)/head_64.o $(obj)/misc_64.o \
+		   $(obj)/cache.o
 
 #
 # ZIMAGE_OFFSET is the load offset of the compression loader
 # (4M for the kernel plus 64K for this loader)
 #
-ZIMAGE_OFFSET = $(shell printf "0x%8x" $$[$(CONFIG_MEMORY_START)+0x400000+0x10000])
+ZIMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
+		     $$[$(CONFIG_PAGE_OFFSET)+0x400000+0x10000]')
 
 LDFLAGS_vmlinux := -Ttext $(ZIMAGE_OFFSET) -e startup \
-		    -T $(obj)/../../kernel/vmlinux.lds \
-		    --no-warn-mismatch
+		    -T $(obj)/../../kernel/vmlinux.lds
 
 $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
@@ -41,6 +41,5 @@ $(obj)/vmlinux.bin.gz: $(obj)/vmlinux.bin FORCE
 LDFLAGS_piggy.o := -r --format binary --oformat elf32-sh64-linux -T
 OBJCOPYFLAGS += -R .empty_zero_page
 
-$(obj)/piggy.o: $(obj)/vmlinux.lds $(obj)/vmlinux.bin.gz FORCE
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.gz FORCE
 	$(call if_changed,ld)
-

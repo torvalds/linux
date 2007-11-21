@@ -13,11 +13,10 @@
  * Modification for compressed loader:
  *   Copyright (C) 2002 Stuart Menefy (stuart.menefy@st.com)
  */
-
 #include <linux/linkage.h>
-#include <asm/registers.h>
 #include <asm/cache.h>
-#include <asm/mmu_context.h>
+#include <asm/cpu/mmu_context.h>
+#include <asm/cpu/registers.h>
 
 /*
  * Fixed TLB entries to identity map the beginning of RAM
@@ -51,14 +50,14 @@ startup:
 	 * uninitialized target registers.
 	 * This must be executed before the first branch.
 	 */
-	ptabs/u	ZERO, tr0
-	ptabs/u	ZERO, tr1
-	ptabs/u	ZERO, tr2
-	ptabs/u	ZERO, tr3
-	ptabs/u	ZERO, tr4
-	ptabs/u	ZERO, tr5
-	ptabs/u	ZERO, tr6
-	ptabs/u	ZERO, tr7
+	ptabs/u	r63, tr0
+	ptabs/u	r63, tr1
+	ptabs/u	r63, tr2
+	ptabs/u	r63, tr3
+	ptabs/u	r63, tr4
+	ptabs/u	r63, tr5
+	ptabs/u	r63, tr6
+	ptabs/u	r63, tr7
 	synci
 
 	/*
@@ -69,7 +68,7 @@ startup:
 	pta	1f, tr1
 	movi	ITLB_FIXED, r21
 	movi	ITLB_LAST_VAR_UNRESTRICTED+TLB_STEP, r22
-1:	putcfg	r21, 0, ZERO		/* Clear MMUIR[n].PTEH.V */
+1:	putcfg	r21, 0, r63		/* Clear MMUIR[n].PTEH.V */
 	addi	r21, TLB_STEP, r21
         bne	r21, r22, tr1
 
@@ -77,7 +76,7 @@ startup:
 	pta	1f, tr1
 	movi	DTLB_FIXED, r21
 	movi	DTLB_LAST_VAR_UNRESTRICTED+TLB_STEP, r22
-1:	putcfg	r21, 0, ZERO		/* Clear MMUDR[n].PTEH.V */
+1:	putcfg	r21, 0, r63		/* Clear MMUDR[n].PTEH.V */
 	addi	r21, TLB_STEP, r21
         bne	r21, r22, tr1
 
@@ -133,7 +132,7 @@ startup:
 	pt	1f, tr1
 	movi	datalabel __bss_start, r22
 	movi	datalabel _end, r23
-1:	st.l	r22, 0, ZERO
+1:	st.l	r22, 0, r63
 	addi	r22, 4, r22
 	bne	r22, r23, tr1
 
@@ -161,4 +160,4 @@ startup:
 
 	/* Shouldn't return here, but just in case, loop forever */
 	pt	1f, tr0
-1:	blink	tr0, ZERO
+1:	blink	tr0, r63
