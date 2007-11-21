@@ -165,6 +165,8 @@ static struct kvm *kvm_create_vm(void)
 	if (IS_ERR(kvm))
 		goto out;
 
+	kvm->mm = current->mm;
+	atomic_inc(&kvm->mm->mm_count);
 	kvm_io_bus_init(&kvm->pio_bus);
 	mutex_init(&kvm->lock);
 	kvm_io_bus_init(&kvm->mmio_bus);
@@ -202,12 +204,15 @@ void kvm_free_physmem(struct kvm *kvm)
 
 static void kvm_destroy_vm(struct kvm *kvm)
 {
+	struct mm_struct *mm = kvm->mm;
+
 	spin_lock(&kvm_lock);
 	list_del(&kvm->vm_list);
 	spin_unlock(&kvm_lock);
 	kvm_io_bus_destroy(&kvm->pio_bus);
 	kvm_io_bus_destroy(&kvm->mmio_bus);
 	kvm_arch_destroy_vm(kvm);
+	mmdrop(mm);
 }
 
 static int kvm_vm_release(struct inode *inode, struct file *filp)
@@ -818,6 +823,8 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 	int r;
 
+	if (vcpu->kvm->mm != current->mm)
+		return -EIO;
 	switch (ioctl) {
 	case KVM_RUN:
 		r = -EINVAL;
@@ -976,6 +983,8 @@ static long kvm_vm_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 	int r;
 
+	if (kvm->mm != current->mm)
+		return -EIO;
 	switch (ioctl) {
 	case KVM_CREATE_VCPU:
 		r = kvm_vm_ioctl_create_vcpu(kvm, arg);

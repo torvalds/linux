@@ -305,6 +305,7 @@ struct kvm_vm_stat {
 
 struct kvm {
 	struct mutex lock; /* protects everything except vcpus */
+	struct mm_struct *mm; /* userspace tied to this vm */
 	int naliases;
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
 	int nmemslots;

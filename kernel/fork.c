@@ -393,6 +393,7 @@ void fastcall __mmdrop(struct mm_struct *mm)
 	destroy_context(mm);
 	free_mm(mm);
 }
+EXPORT_SYMBOL_GPL(__mmdrop);
 
 /*
  * Decrement the use count and release all resources for an mm.
