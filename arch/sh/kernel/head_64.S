@@ -38,9 +38,9 @@
 #define MMUDR_END	DTLB_LAST_VAR_UNRESTRICTED+TLB_STEP
 #define MMUDR_STEP	TLB_STEP
 
-/* Safety check : CONFIG_CACHED_MEMORY_OFFSET has to be a multiple of 512Mb */
-#if (CONFIG_CACHED_MEMORY_OFFSET & ((1UL<<29)-1))
-#error "CONFIG_CACHED_MEMORY_OFFSET must be a multiple of 512Mb"
+/* Safety check : CONFIG_PAGE_OFFSET has to be a multiple of 512Mb */
+#if (CONFIG_PAGE_OFFSET & ((1UL<<29)-1))
+#error "CONFIG_PAGE_OFFSET must be a multiple of 512Mb"
 #endif
 
 /*
@@ -49,7 +49,7 @@
 /* Deal safely with the case where the base of RAM is not 512Mb aligned */
 
 #define ALIGN_512M_MASK (0xffffffffe0000000)
-#define ALIGNED_EFFECTIVE ((CONFIG_CACHED_MEMORY_OFFSET + CONFIG_MEMORY_START) & ALIGN_512M_MASK)
+#define ALIGNED_EFFECTIVE ((CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START) & ALIGN_512M_MASK)
 #define ALIGNED_PHYSICAL (CONFIG_MEMORY_START & ALIGN_512M_MASK)
 
 #define MMUIR_TEXT_H	(0x0000000000000003 | ALIGNED_EFFECTIVE)

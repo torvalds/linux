@@ -432,7 +432,7 @@ reset_or_panic:
 	synco	/* TAKum03020 (but probably a good idea anyway.) */
 	putcon	SP, DCR
 	/* First save r0-1 and tr0, as we need to use these */
-	movi	resvec_save_area-CONFIG_CACHED_MEMORY_OFFSET, SP
+	movi	resvec_save_area-CONFIG_PAGE_OFFSET, SP
 	st.q	SP, 0, r0
 	st.q	SP, 8, r1
 	gettr	tr0, r0
@@ -442,7 +442,7 @@ reset_or_panic:
 	getcon	EXPEVT, r0
 	movi	RESET_CAUSE, r1
 	sub	r1, r0, r1		/* r1=0 if reset */
-	movi	_stext-CONFIG_CACHED_MEMORY_OFFSET, r0
+	movi	_stext-CONFIG_PAGE_OFFSET, r0
 	ori	r0, 1, r0
 	ptabs	r0, tr0
 	beqi	r1, 0, tr0		/* Jump to start address if reset */
@@ -454,7 +454,7 @@ reset_or_panic:
 	beqi	r1, 0, tr0		/* jump if single step */
 
 	/* Now jump to where we save the registers. */
-	movi	panic_stash_regs-CONFIG_CACHED_MEMORY_OFFSET, r1
+	movi	panic_stash_regs-CONFIG_PAGE_OFFSET, r1
 	ptabs	r1, tr0
 	blink	tr0, r63
 
@@ -490,7 +490,7 @@ debug_exception:
 	 */
 	putcon	SP, DCR
 	/* Save SSR & SPC, together with R0 & R1, as we need to use 2 regs. */
-	movi	resvec_save_area-CONFIG_CACHED_MEMORY_OFFSET, SP
+	movi	resvec_save_area-CONFIG_PAGE_OFFSET, SP
 
 	/* With the MMU off, we are bypassing the cache, so purge any
          * data that will be made stale by the following stores.
@@ -558,7 +558,7 @@ debug_interrupt:
 	/* Save original stack pointer into KCR1 */
 	synco
 	putcon	SP, KCR1
-	movi	resvec_save_area-CONFIG_CACHED_MEMORY_OFFSET, SP
+	movi	resvec_save_area-CONFIG_PAGE_OFFSET, SP
 	ocbp	SP, 0
 	ocbp	SP, 32
 	synco
@@ -607,7 +607,7 @@ debug_interrupt:
 	movi	EVENT_FAULT_NOT_TLB, r4
 
 	or	SP, ZERO, r5
-	movi	CONFIG_CACHED_MEMORY_OFFSET, r6
+	movi	CONFIG_PAGE_OFFSET, r6
 	add	r6, r5, r5
 	getcon	KCR1, SP
 
@@ -1366,7 +1366,7 @@ route_to_panic_handler:
 	   last-chance debugging, e.g. if no output wants to go to the console.
 	   */
 
-	movi	panic_handler - CONFIG_CACHED_MEMORY_OFFSET, r1
+	movi	panic_handler - CONFIG_PAGE_OFFSET, r1
 	ptabs	r1, tr0
 	pta	1f, tr1
 	gettr	tr1, r0
@@ -1408,7 +1408,7 @@ peek_real_address_q:
 	andc	r1, r36, r1	/* turn sr.mmu off in real mode section */
 
 	putcon	r1, ssr
-	movi	.peek0 - CONFIG_CACHED_MEMORY_OFFSET, r36 /* real mode target address */
+	movi	.peek0 - CONFIG_PAGE_OFFSET, r36 /* real mode target address */
 	movi	1f, r37		/* virtual mode return addr */
 	putcon	r36, spc
 
@@ -1457,7 +1457,7 @@ poke_real_address_q:
 	andc	r1, r36, r1	/* turn sr.mmu off in real mode section */
 
 	putcon	r1, ssr
-	movi	.poke0-CONFIG_CACHED_MEMORY_OFFSET, r36 /* real mode target address */
+	movi	.poke0-CONFIG_PAGE_OFFSET, r36 /* real mode target address */
 	movi	1f, r37		/* virtual mode return addr */
 	putcon	r36, spc
 
@@ -1954,7 +1954,7 @@ panic_stash_regs:
 	getcon	SSR,r3
 	getcon	EXPEVT,r4
 	/* Prepare to jump to C - physical address */
-	movi	panic_handler-CONFIG_CACHED_MEMORY_OFFSET, r1
+	movi	panic_handler-CONFIG_PAGE_OFFSET, r1
 	ori	r1, 1, r1
 	ptabs   r1, tr0
 	getcon	DCR, SP
@@ -2055,7 +2055,7 @@ trap_init:
 	andi	r19, -4, r19			/* reset MMUOFF + reserved */
 	/* For RESVEC exceptions we force the MMU off, which means we need the
 	   physical address. */
-	movi	LRESVEC_block-CONFIG_CACHED_MEMORY_OFFSET, r20
+	movi	LRESVEC_block-CONFIG_PAGE_OFFSET, r20
 	andi	r20, -4, r20			/* reset reserved */
 	ori	r20, 1, r20			/* set MMUOFF */
 	putcon	r19, VBR

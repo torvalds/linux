@@ -17,7 +17,8 @@ config MMU
 
 config PAGE_OFFSET
 	hex
-	default "0x80000000" if MMU
+	default "0x80000000" if MMU && SUPERH32
+	default "0x20000000" if MMU && SUPERH64
 	default "0x00000000"
 
 config MEMORY_START

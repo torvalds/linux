@@ -24,7 +24,7 @@
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 
-#define LOAD_OFFSET	CONFIG_CACHED_MEMORY_OFFSET
+#define LOAD_OFFSET	CONFIG_PAGE_OFFSET
 #include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_ARCH(sh:sh5)
@@ -34,7 +34,7 @@ OUTPUT_ARCH(sh:sh5)
 ENTRY(__start)
 SECTIONS
 {
-	. = CONFIG_CACHED_MEMORY_OFFSET + CONFIG_MEMORY_START + PAGE_SIZE;
+	. = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + PAGE_SIZE;
 	_text = .;			/* Text and read-only data */
 
 	.empty_zero_page : C_PHYS(.empty_zero_page) {
