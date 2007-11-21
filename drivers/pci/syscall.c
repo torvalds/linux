@@ -34,7 +34,6 @@ sys_pciconfig_read(unsigned long bus, unsigned long dfn,
 	if (!dev)
 		goto error;
 
-	lock_kernel();
 	switch (len) {
 	case 1:
 		cfg_ret = pci_user_read_config_byte(dev, off, &byte);
@@ -47,10 +46,8 @@ sys_pciconfig_read(unsigned long bus, unsigned long dfn,
 		break;
 	default:
 		err = -EINVAL;
-		unlock_kernel();
 		goto error;
 	};
-	unlock_kernel();
 
 	err = -EIO;
 	if (cfg_ret != PCIBIOS_SUCCESSFUL)
@@ -107,7 +104,6 @@ sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 	if (!dev)
 		return -ENODEV;
 
-	lock_kernel();
 	switch(len) {
 	case 1:
 		err = get_user(byte, (u8 __user *)buf);
@@ -140,7 +136,6 @@ sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 		err = -EINVAL;
 		break;
 	}
-	unlock_kernel();
 	pci_dev_put(dev);
 	return err;
 }
