@@ -117,7 +117,11 @@ static struct _intel_private {
 	 * popup and for the GTT.
 	 */
 	int gtt_entries;			/* i830+ */
-	void __iomem *flush_page;
+	union {
+		void __iomem *i9xx_flush_page;
+		void *i8xx_flush_page;
+	};
+	struct page *i8xx_page;
 	struct resource ifp_resource;
 } intel_private;
 
@@ -579,6 +583,44 @@ static void intel_i830_init_gtt_entries(void)
 	intel_private.gtt_entries = gtt_entries;
 }
 
+static void intel_i830_fini_flush(void)
+{
+	kunmap(intel_private.i8xx_page);
+	intel_private.i8xx_flush_page = NULL;
+	unmap_page_from_agp(intel_private.i8xx_page);
+	flush_agp_mappings();
+
+	__free_page(intel_private.i8xx_page);
+}
+
+static void intel_i830_setup_flush(void)
+{
+
+	intel_private.i8xx_page = alloc_page(GFP_KERNEL | __GFP_ZERO | GFP_DMA32);
+	if (!intel_private.i8xx_page) {
+		return;
+	}
+
+	/* make page uncached */
+	map_page_into_agp(intel_private.i8xx_page);
+	flush_agp_mappings();
+
+	intel_private.i8xx_flush_page = kmap(intel_private.i8xx_page);
+	if (!intel_private.i8xx_flush_page)
+		intel_i830_fini_flush();
+}
+
+static void intel_i830_chipset_flush(struct agp_bridge_data *bridge)
+{
+	unsigned int *pg = intel_private.i8xx_flush_page;
+	int i;
+
+	for (i = 0; i < 256; i+=2)
+		*(pg + i) = i;
+	
+	wmb();
+}
+
 /* The intel i830 automatically initializes the agp aperture during POST.
  * Use the memory already set aside for in the GTT.
  */
@@ -679,6 +721,8 @@ static int intel_i830_configure(void)
 	}
 
 	global_cache_flush();
+
+	intel_i830_setup_flush();
 	return 0;
 }
 
@@ -778,11 +822,8 @@ static int intel_alloc_chipset_flush_resource(void)
 	ret = pci_bus_alloc_resource(agp_bridge->dev->bus, &intel_private.ifp_resource, PAGE_SIZE,
 				     PAGE_SIZE, PCIBIOS_MIN_MEM, 0,
 				     pcibios_align_resource, agp_bridge->dev);
-	if (ret != 0)
-		return ret;
 
-	printk("intel priv bus start %08lx\n", intel_private.ifp_resource.start);
-	return 0;
+	return ret;
 }
 
 static void intel_i915_setup_chipset_flush(void)
@@ -822,7 +863,6 @@ static void intel_i965_g33_setup_chipset_flush(void)
 
 		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR + 4, (intel_private.ifp_resource.start >> 32));
 		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
-		intel_private.flush_page = ioremap_nocache(intel_private.ifp_resource.start, PAGE_SIZE);
 	} else {
 		u64 l64;
 		
@@ -833,9 +873,30 @@ static void intel_i965_g33_setup_chipset_flush(void)
 		intel_private.ifp_resource.end = l64 + PAGE_SIZE;
 		ret = request_resource(&iomem_resource, &intel_private.ifp_resource);
 		if (!ret) {
-			intel_private.ifp_resource.start = 0;
-			printk("Failed inserting resource into tree\n");
+			printk("Failed inserting resource into tree - continuing\n");
 		}
+	}
+}
+
+static void intel_i9xx_setup_flush(void)
+{
+	/* setup a resource for this object */
+	memset(&intel_private.ifp_resource, 0, sizeof(intel_private.ifp_resource));
+
+	intel_private.ifp_resource.name = "Intel Flush Page";
+	intel_private.ifp_resource.flags = IORESOURCE_MEM;
+
+	/* Setup chipset flush for 915 */
+	if (IS_I965 || IS_G33) {
+		intel_i965_g33_setup_chipset_flush();
+	} else {
+		intel_i915_setup_chipset_flush();
+	}
+
+	if (intel_private.ifp_resource.start) {
+		intel_private.i9xx_flush_page = ioremap_nocache(intel_private.ifp_resource.start, PAGE_SIZE);
+		if (!intel_private.i9xx_flush_page)
+			printk("unable to ioremap flush  page - no chipset flushing");
 	}
 }
 
@@ -868,40 +929,23 @@ static int intel_i915_configure(void)
 
 	global_cache_flush();
 
-	/* setup a resource for this object */
-	memset(&intel_private.ifp_resource, 0, sizeof(intel_private.ifp_resource));
-
-	intel_private.ifp_resource.name = "Intel Flush Page";
-	intel_private.ifp_resource.flags = IORESOURCE_MEM;
-
-	/* Setup chipset flush for 915 */
-	if (IS_I965 || IS_G33) {
-		intel_i965_g33_setup_chipset_flush();
-	} else {
-		intel_i915_setup_chipset_flush();
-	}
-
-	if (intel_private.ifp_resource.start) {
-		intel_private.flush_page = ioremap_nocache(intel_private.ifp_resource.start, PAGE_SIZE);
-		if (!intel_private.flush_page)
-			printk("unable to ioremap flush  page - no chipset flushing");
-	}
+	intel_i9xx_setup_flush();
 	
 	return 0;
 }
 
 static void intel_i915_cleanup(void)
 {
-	if (intel_private.flush_page)
-		iounmap(intel_private.flush_page);
+	if (intel_private.i9xx_flush_page)
+		iounmap(intel_private.i9xx_flush_page);
 	iounmap(intel_private.gtt);
 	iounmap(intel_private.registers);
 }
 
 static void intel_i915_chipset_flush(struct agp_bridge_data *bridge)
 {
-	if (intel_private.flush_page)
-		writel(1, intel_private.flush_page);
+	if (intel_private.i9xx_flush_page)
+		writel(1, intel_private.i9xx_flush_page);
 }
 
 static int intel_i915_insert_entries(struct agp_memory *mem,off_t pg_start,
@@ -1395,6 +1439,8 @@ static int intel_845_configure(void)
 	pci_write_config_byte(agp_bridge->dev, INTEL_I845_AGPM, temp2 | (1 << 1));
 	/* clear any possible error conditions */
 	pci_write_config_word(agp_bridge->dev, INTEL_I845_ERRSTS, 0x001c);
+
+	intel_i830_setup_flush();
 	return 0;
 }
 
@@ -1651,6 +1697,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
+	.chipset_flush		= intel_i830_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_820_driver = {
@@ -1747,6 +1794,7 @@ static const struct agp_bridge_driver intel_845_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_destroy_page	= agp_generic_destroy_page,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
+	.chipset_flush		= intel_i830_chipset_flush,
 };
 
 static const struct agp_bridge_driver intel_850_driver = {
