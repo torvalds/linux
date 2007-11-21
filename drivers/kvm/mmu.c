@@ -134,6 +134,8 @@ static int dbg = 1;
 #define PT32_DIR_BASE_ADDR_MASK \
 	(PAGE_MASK & ~((1ULL << (PAGE_SHIFT + PT32_LEVEL_BITS)) - 1))
 
+#define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | PT_USER_MASK \
+			| PT64_NX_MASK)
 
 #define PFERR_PRESENT_MASK (1U << 0)
 #define PFERR_WRITE_MASK (1U << 1)
@@ -1227,7 +1229,6 @@ static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
 		}
 	}
 	set_shadow_pte(spte, shadow_trap_nonpresent_pte);
-	kvm_flush_remote_tlbs(vcpu->kvm);
 }
 
 static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
@@ -1250,6 +1251,27 @@ static void mmu_pte_write_new_pte(struct kvm_vcpu *vcpu,
 				    offset_in_pte);
 }
 
+static bool need_remote_flush(u64 old, u64 new)
+{
+	if (!is_shadow_present_pte(old))
+		return false;
+	if (!is_shadow_present_pte(new))
+		return true;
+	if ((old ^ new) & PT64_BASE_ADDR_MASK)
+		return true;
+	old ^= PT64_NX_MASK;
+	new ^= PT64_NX_MASK;
+	return (old & ~new & PT64_PERM_MASK) != 0;
+}
+
+static void mmu_pte_write_flush_tlb(struct kvm_vcpu *vcpu, u64 old, u64 new)
+{
+	if (need_remote_flush(old, new))
+		kvm_flush_remote_tlbs(vcpu->kvm);
+	else
+		kvm_mmu_flush_tlb(vcpu);
+}
+
 static bool last_updated_pte_accessed(struct kvm_vcpu *vcpu)
 {
 	u64 *spte = vcpu->last_pte_updated;
@@ -1265,6 +1287,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	struct hlist_node *node, *n;
 	struct hlist_head *bucket;
 	unsigned index;
+	u64 entry;
 	u64 *spte;
 	unsigned offset = offset_in_page(gpa);
 	unsigned pte_size;
@@ -1335,9 +1358,11 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		}
 		spte = &page->spt[page_offset / sizeof(*spte)];
 		while (npte--) {
+			entry = *spte;
 			mmu_pte_write_zap_pte(vcpu, page, spte);
 			mmu_pte_write_new_pte(vcpu, page, spte, new, bytes,
 					      page_offset & (pte_size - 1));
+			mmu_pte_write_flush_tlb(vcpu, entry, *spte);
 			++spte;
 		}
 	}
