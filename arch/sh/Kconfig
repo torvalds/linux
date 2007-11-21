@@ -24,9 +24,6 @@ config RWSEM_GENERIC_SPINLOCK
 	bool
 	default y
 
-config SUPERH64
-	def_bool y if CPU_SH5
-
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 
