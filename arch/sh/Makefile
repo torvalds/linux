@@ -1,17 +1,13 @@
-# $Id: Makefile,v 1.35 2004/04/15 03:39:20 sugioka Exp $
 #
-# This file is subject to the terms and conditions of the GNU General Public
-# License.  See the file "COPYING" in the main directory of this archive
-# for more details.
+# arch/sh/Makefile
 #
 # Copyright (C) 1999  Kaz Kojima
 # Copyright (C) 2002, 2003, 2004  Paul Mundt
 # Copyright (C) 2002  M. R. Brown
 #
-# This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture
+# This file is subject to the terms and conditions of the GNU General Public
+# License.  See the file "COPYING" in the main directory of this archive
+# for more details.
 #
 isa-y					:= any
 isa-$(CONFIG_SH_DSP)			:= sh
@@ -67,16 +63,15 @@ cflags-y	+= $(isaflags-y) -ffreestanding
 cflags-$(CONFIG_MORE_COMPILE_OPTIONS)	+= \
 	$(shell echo $(CONFIG_COMPILE_OPTIONS) | sed -e 's/"//g')
 
-OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment -R .stab -R .stabstr -S
+OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
+		   -R .stab -R .stabstr -S
 
-#
-# arch/sh/defconfig doesn't reflect any real hardware, and as such should
-# never be used by anyone. Use a board-specific defconfig that has a
-# reasonable chance of being current instead.
-#
+# Give the various platforms the opportunity to set default image types
+defaultimage-$(CONFIG_SUPERH32)	:= arch/sh/boot/zImage
+
+# Set some sensible Kbuild defaults
 KBUILD_DEFCONFIG	:= r7780rp_defconfig
-
-KBUILD_IMAGE		:= arch/sh/boot/zImage
+KBUILD_IMAGE		:= $(defaultimage-y)
 
 #
 # Choosing incompatible machines durings configuration will result in
@@ -214,7 +209,7 @@ PHONY += maketools FORCE
 maketools:  include/linux/version.h FORCE
 	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
 
-all: zImage
+all: $(KBUILD_IMAGE)
 
 zImage uImage uImage.srec vmlinux.srec: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
