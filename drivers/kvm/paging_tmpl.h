@@ -110,7 +110,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		index = PT_INDEX(addr, walker->level);
 
 		table_gfn = gpte_to_gfn(pte);
-		pte_gpa = table_gfn << PAGE_SHIFT;
+		pte_gpa = gfn_to_gpa(table_gfn);
 		pte_gpa += index * sizeof(pt_element_t);
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		pgprintk("%s: table_gfn[%d] %lx\n", __FUNCTION__,
@@ -442,7 +442,7 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 	r = FNAME(walk_addr)(&walker, vcpu, vaddr, 0, 0, 0);
 
 	if (r) {
-		gpa = (gpa_t)walker.gfn << PAGE_SHIFT;
+		gpa = gfn_to_gpa(walker.gfn);
 		gpa |= vaddr & ~PAGE_MASK;
 	}
 

@@ -499,6 +499,10 @@ static inline int memslot_id(struct kvm *kvm, struct kvm_memory_slot *slot)
 	return slot - kvm->memslots;
 }
 
+static inline gpa_t gfn_to_gpa(gfn_t gfn)
+{
+	return (gpa_t)gfn << PAGE_SHIFT;
+}
 
 enum kvm_stat_kind {
 	KVM_STAT_VM,
