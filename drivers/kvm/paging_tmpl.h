@@ -149,6 +149,8 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 		    && (PTTYPE == 64 || is_pse(vcpu))) {
 			walker->gfn = gpte_to_gfn_pde(pte);
 			walker->gfn += PT_INDEX(addr, PT_PAGE_TABLE_LEVEL);
+			if (PTTYPE == 32 && is_cpuid_PSE36())
+				walker->gfn += pse36_gfn_delta(pte);
 			break;
 		}
 
@@ -320,9 +322,6 @@ static void FNAME(set_pde)(struct kvm_vcpu *vcpu, pt_element_t gpde,
 
 	access_bits &= gpde;
 	gaddr = (gpa_t)gfn << PAGE_SHIFT;
-	if (PTTYPE == 32 && is_cpuid_PSE36())
-		gaddr |= (gpde & PT32_DIR_PSE36_MASK) <<
-			(32 - PT32_DIR_PSE36_SHIFT);
 	FNAME(set_pte_common)(vcpu, shadow_pte, gaddr,
 			      gpde, access_bits, user_fault, write_fault,
 			      ptwrite, walker, gfn);

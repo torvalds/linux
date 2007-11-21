@@ -218,6 +218,13 @@ static int is_rmap_pte(u64 pte)
 		&& pte != shadow_notrap_nonpresent_pte;
 }
 
+static gfn_t pse36_gfn_delta(u32 gpte)
+{
+	int shift = 32 - PT32_DIR_PSE36_SHIFT - PAGE_SHIFT;
+
+	return (gpte & PT32_DIR_PSE36_MASK) << shift;
+}
+
 static void set_shadow_pte(u64 *sptep, u64 spte)
 {
 #ifdef CONFIG_X86_64
