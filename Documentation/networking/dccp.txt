@@ -19,18 +19,22 @@ for real time and multimedia traffic.
 
 It has a base protocol and pluggable congestion control IDs (CCIDs).
 
-It is at proposed standard RFC status and the homepage for DCCP as a protocol
-is at:
-	http://www.read.cs.ucla.edu/dccp/
+DCCP is a Proposed Standard (RFC 2026), and the homepage for DCCP as a protocol
+is at http://www.ietf.org/html.charters/dccp-charter.html
 
 Missing features
 ================
 
-The DCCP implementation does not currently have all the features that are in
-the RFC.
+The Linux DCCP implementation does not currently support all the features that are
+specified in RFCs 4340...42.
 
 The known bugs are at:
 	http://linux-net.osdl.org/index.php/TODO#DCCP
+
+For more up-to-date versions of the DCCP implementation, please consider using
+the experimental DCCP test tree; instructions for checking this out are on:
+http://linux-net.osdl.org/index.php/DCCP_Testing#Experimental_DCCP_source_tree
+
 
 Socket options
 ==============
