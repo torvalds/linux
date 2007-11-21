@@ -89,7 +89,7 @@ ENTRY(_ex_workaround_261)
 	r6 = retx;
 	[p5] = r6;
 	cc = r6 == r7;
-	if !cc jump _return_from_exception;
+	if !cc jump _bfin_return_from_exception;
 	/* fall through */
 	R7 = P4;
 	R6 = 0x26;	/* Data CPLB Miss */
@@ -139,7 +139,7 @@ ENTRY(_ex_single_step)
 	r7 = retx;
 	r6 = reti;
 	cc = r7 == r6;
-	if cc jump _return_from_exception
+	if cc jump _bfin_return_from_exception
 	r7 = syscfg;
 	bitclr (r7, 0);
 	syscfg = R7;
@@ -157,7 +157,7 @@ ENTRY(_ex_single_step)
 	cc = r6 == r7;
 	if !cc jump _ex_trap_c;
 
-ENTRY(_return_from_exception)
+ENTRY(_bfin_return_from_exception)
 	DEBUG_START_HWTRACE(p5, r7)
 #if ANOMALY_05000257
 	R7=LC0;
@@ -862,7 +862,7 @@ ENTRY(_ex_trace_buff_full)
 	LC0 = [sp++];
 	P2 = [sp++];
 	P3 = [sp++];
-	jump _return_from_exception;
+	jump _bfin_return_from_exception;
 ENDPROC(_ex_trace_buff_full)
 
 #if CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN == 4

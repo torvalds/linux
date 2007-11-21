@@ -48,6 +48,7 @@ EXPORT_SYMBOL(__down_trylock);
 EXPORT_SYMBOL(__down_interruptible);
 
 EXPORT_SYMBOL(is_in_rom);
+EXPORT_SYMBOL(bfin_return_from_exception);
 
 /* Networking helper routines. */
 EXPORT_SYMBOL(csum_partial_copy);

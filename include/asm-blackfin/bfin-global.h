@@ -62,6 +62,7 @@ extern void bfin_dcache_init(void);
 extern int read_iloc(void);
 extern int bfin_console_init(void);
 extern asmlinkage void lower_to_irq14(void);
+extern asmlinkage void bfin_return_from_exception(void);
 extern void init_exception_vectors(void);
 extern void init_dma(void);
 extern void program_IAR(void);
