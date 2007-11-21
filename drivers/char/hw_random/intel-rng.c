@@ -29,6 +29,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/stop_machine.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 
 
@@ -162,11 +163,19 @@ static inline u8 hwstatus_set(void __iomem *mem,
 	return hwstatus_get(mem);
 }
 
-static int intel_rng_data_present(struct hwrng *rng)
+static int intel_rng_data_present(struct hwrng *rng, int wait)
 {
 	void __iomem *mem = (void __iomem *)rng->priv;
+	int data, i;
 
-	return !!(readb(mem + INTEL_RNG_STATUS) & INTEL_RNG_DATA_PRESENT);
+	for (i = 0; i < 20; i++) {
+		data = !!(readb(mem + INTEL_RNG_STATUS) &
+			  INTEL_RNG_DATA_PRESENT);
+		if (data || !wait)
+			break;
+		udelay(10);
+	}
+	return data;
 }
 
 static int intel_rng_data_read(struct hwrng *rng, u32 *data)

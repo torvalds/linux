@@ -28,6 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/hw_random.h>
+#include <linux/delay.h>
 #include <asm/io.h>
 
 
@@ -52,11 +53,18 @@ MODULE_DEVICE_TABLE(pci, pci_tbl);
 static struct pci_dev *amd_pdev;
 
 
-static int amd_rng_data_present(struct hwrng *rng)
+static int amd_rng_data_present(struct hwrng *rng, int wait)
 {
 	u32 pmbase = (u32)rng->priv;
+	int data, i;
 
-      	return !!(inl(pmbase + 0xF4) & 1);
+	for (i = 0; i < 20; i++) {
+		data = !!(inl(pmbase + 0xF4) & 1);
+		if (data || !wait)
+			break;
+		udelay(10);
+	}
+	return data;
 }
 
 static int amd_rng_data_read(struct hwrng *rng, u32 *data)
