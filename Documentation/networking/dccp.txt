@@ -72,6 +72,8 @@ DCCP_SOCKOPT_CCID_TX_INFO
 	Returns a `struct tfrc_tx_info' in optval; the buffer for optval and
 	optlen must be set to at least sizeof(struct tfrc_tx_info).
 
+On unidirectional connections it is useful to close the unused half-connection
+via shutdown (SHUT_WR or SHUT_RD): this will reduce per-packet processing costs.
 
 Sysctl variables
 ================

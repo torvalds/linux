@@ -103,6 +103,21 @@ static void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
 					    DCCP_SKB_CB(skb)->dccpd_ack_seq);
 }
 
+static void dccp_deliver_input_to_ccids(struct sock *sk, struct sk_buff *skb)
+{
+	const struct dccp_sock *dp = dccp_sk(sk);
+
+	/* Don't deliver to RX CCID when node has shut down read end. */
+	if (!(sk->sk_shutdown & RCV_SHUTDOWN))
+		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
+	/*
+	 * Until the TX queue has been drained, we can not honour SHUT_WR, since
+	 * we need received feedback as input to adjust congestion control.
+	 */
+	if (sk->sk_write_queue.qlen > 0 || !(sk->sk_shutdown & SEND_SHUTDOWN))
+		ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
+}
+
 static int dccp_check_seqno(struct sock *sk, struct sk_buff *skb)
 {
 	const struct dccp_hdr *dh = dccp_hdr(skb);
@@ -209,8 +224,9 @@ static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	case DCCP_PKT_DATAACK:
 	case DCCP_PKT_DATA:
 		/*
-		 * FIXME: check if sk_receive_queue is full, schedule DATA_DROPPED
-		 * option if it is.
+		 * FIXME: schedule DATA_DROPPED (RFC 4340, 11.7.2) if and when
+		 * - sk_shutdown == RCV_SHUTDOWN, use Code 1, "Not Listening"
+		 * - sk_receive_queue is full, use Code 2, "Receive Buffer"
 		 */
 		__skb_pull(skb, dh->dccph_doff * 4);
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
@@ -300,9 +316,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			    DCCP_SKB_CB(skb)->dccpd_seq,
 			    DCCP_ACKVEC_STATE_RECEIVED))
 		goto discard;
-
-	ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
-	ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
+	dccp_deliver_input_to_ccids(sk, skb);
 
 	return __dccp_rcv_established(sk, skb, dh, len);
 discard:
@@ -543,8 +557,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				    DCCP_ACKVEC_STATE_RECEIVED))
 			goto discard;
 
-		ccid_hc_rx_packet_recv(dp->dccps_hc_rx_ccid, sk, skb);
-		ccid_hc_tx_packet_recv(dp->dccps_hc_tx_ccid, sk, skb);
+		dccp_deliver_input_to_ccids(sk, skb);
 	}
 
 	/*

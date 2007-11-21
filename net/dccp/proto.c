@@ -981,7 +981,7 @@ EXPORT_SYMBOL_GPL(dccp_close);
 
 void dccp_shutdown(struct sock *sk, int how)
 {
-	dccp_pr_debug("entry\n");
+	dccp_pr_debug("called shutdown(%x)\n", how);
 }
 
 EXPORT_SYMBOL_GPL(dccp_shutdown);
