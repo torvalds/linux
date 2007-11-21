@@ -64,7 +64,7 @@ static struct cplb_desc cplb_data[] = {
 #else
 		.valid = 0,
 #endif
-		.name = "ZERO Pointer Saveguard",
+		.name = "Zero Pointer Guard Page",
 	},
 	{
 		.start = L1_CODE_START,
@@ -95,20 +95,20 @@ static struct cplb_desc cplb_data[] = {
 		.end = 0,  /* dynamic */
 		.psize = 0,
 		.attr = INITIAL_T | SWITCH_T | I_CPLB | D_CPLB,
-		.i_conf =  SDRAM_IGENERIC,
-		.d_conf =  SDRAM_DGENERIC,
+		.i_conf = SDRAM_IGENERIC,
+		.d_conf = SDRAM_DGENERIC,
 		.valid = 1,
-		.name = "SDRAM Kernel",
+		.name = "Kernel Memory",
 	},
 	{
 		.start = 0, /* dynamic */
 		.end = 0, /* dynamic */
 		.psize = 0,
 		.attr = INITIAL_T | SWITCH_T | D_CPLB,
-		.i_conf =  SDRAM_IGENERIC,
-		.d_conf =  SDRAM_DNON_CHBL,
+		.i_conf = SDRAM_IGENERIC,
+		.d_conf = SDRAM_DNON_CHBL,
 		.valid = 1,
-		.name = "SDRAM RAM MTD",
+		.name = "uClinux MTD Memory",
 	},
 	{
 		.start = 0, /* dynamic */
@@ -117,7 +117,7 @@ static struct cplb_desc cplb_data[] = {
 		.attr = INITIAL_T | SWITCH_T | D_CPLB,
 		.d_conf = SDRAM_DNON_CHBL,
 		.valid = 1,
-		.name = "SDRAM Uncached DMA ZONE",
+		.name = "Uncached DMA Zone",
 	},
 	{
 		.start = 0, /* dynamic */
@@ -127,7 +127,7 @@ static struct cplb_desc cplb_data[] = {
 		.i_conf = 0, /* dynamic */
 		.d_conf = 0, /* dynamic */
 		.valid = 1,
-		.name = "SDRAM Reserved Memory",
+		.name = "Reserved Memory",
 	},
 	{
 		.start = ASYNC_BANK0_BASE,
@@ -136,14 +136,14 @@ static struct cplb_desc cplb_data[] = {
 		.attr = SWITCH_T | D_CPLB,
 		.d_conf = SDRAM_EBIU,
 		.valid = 1,
-		.name = "ASYNC Memory",
+		.name = "Asynchronous Memory Banks",
 	},
 	{
-#if defined(CONFIG_BF561)
-		.start = L2_SRAM,
-		.end = L2_SRAM_END,
+#ifdef L2_START
+		.start = L2_START,
+		.end = L2_START + L2_LENGTH,
 		.psize = SIZE_1M,
-		.attr = SWITCH_T | D_CPLB,
+		.attr = SWITCH_T | I_CPLB | D_CPLB,
 		.i_conf = L2_MEMORY,
 		.d_conf = L2_MEMORY,
 		.valid = 1,
@@ -151,7 +151,17 @@ static struct cplb_desc cplb_data[] = {
 		.valid = 0,
 #endif
 		.name = "L2 Memory",
-	}
+	},
+	{
+		.start = BOOT_ROM_START,
+		.end = BOOT_ROM_START + BOOT_ROM_LENGTH,
+		.psize = SIZE_1M,
+		.attr = SWITCH_T | I_CPLB | D_CPLB,
+		.i_conf = SDRAM_IGENERIC,
+		.d_conf = SDRAM_DGENERIC,
+		.valid = 1,
+		.name = "On-Chip BootROM",
+	},
 };
 
 static u16 __init lock_kernel_check(u32 start, u32 end)
@@ -343,7 +353,7 @@ void __init generate_cpl_tables(void)
 	else
 		cplb_data[RES_MEM].i_conf = SDRAM_INON_CHBL;
 
-	for (i = ZERO_P; i <= L2_MEM; i++) {
+	for (i = ZERO_P; i < ARRAY_SIZE(cplb_data); ++i) {
 		if (!cplb_data[i].valid)
 			continue;
 

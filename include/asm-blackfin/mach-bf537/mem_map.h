@@ -47,6 +47,7 @@
 /* Boot ROM Memory */
 
 #define BOOT_ROM_START		0xEF000000
+#define BOOT_ROM_LENGTH		0x800
 
 /* Level 1 Memory */
 

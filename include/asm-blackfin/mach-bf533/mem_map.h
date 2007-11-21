@@ -1,4 +1,3 @@
-
 /*
  * File:         include/asm-blackfin/mach-bf533/mem_map.h
  * Based on:
@@ -48,6 +47,7 @@
 /* Boot ROM Memory */
 
 #define BOOT_ROM_START		0xEF000000
+#define BOOT_ROM_LENGTH		0x400
 
 /* Level 1 Memory */
 

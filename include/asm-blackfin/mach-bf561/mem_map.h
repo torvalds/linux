@@ -19,6 +19,11 @@
 #define ASYNC_BANK0_BASE	0x20000000	 /* Async Bank 0 */
 #define ASYNC_BANK0_SIZE	0x04000000	/* 64M */
 
+/* Boot ROM Memory */
+
+#define BOOT_ROM_START		0xEF000000
+#define BOOT_ROM_LENGTH		0x800
+
 /* Level 1 Memory */
 
 #ifdef CONFIG_BFIN_ICACHE
