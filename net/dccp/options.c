@@ -136,7 +136,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			break;
 		case DCCPO_ACK_VECTOR_0:
 		case DCCPO_ACK_VECTOR_1:
-			if (pkt_type == DCCP_PKT_DATA)
+			if (dccp_packet_without_ack(skb))   /* RFC 4340, 11.4 */
 				break;
 
 			if (dccp_msk(sk)->dccpms_send_ack_vector &&
@@ -194,18 +194,17 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				opt_recv->dccpor_elapsed_time = elapsed_time;
 			break;
 		case DCCPO_ELAPSED_TIME:
-			if (len != 2 && len != 4)
-				goto out_invalid_option;
-
-			if (pkt_type == DCCP_PKT_DATA)
-				continue;
+			if (dccp_packet_without_ack(skb))   /* RFC 4340, 13.2 */
+				break;
 
 			if (len == 2) {
 				__be16 opt_val2 = get_unaligned((__be16 *)value);
 				elapsed_time = ntohs(opt_val2);
-			} else {
+			} else if (len == 4) {
 				opt_val = get_unaligned((__be32 *)value);
 				elapsed_time = ntohl(opt_val);
+			} else {
+				goto out_invalid_option;
 			}
 
 			if (elapsed_time > opt_recv->dccpor_elapsed_time)
