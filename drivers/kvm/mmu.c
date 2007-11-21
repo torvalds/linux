@@ -430,18 +430,18 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	struct kvm_rmap_desc *desc;
 	struct kvm_rmap_desc *prev_desc;
 	struct kvm_mmu_page *sp;
-	struct page *release_page;
+	struct page *page;
 	unsigned long *rmapp;
 	int i;
 
 	if (!is_rmap_pte(*spte))
 		return;
 	sp = page_header(__pa(spte));
-	release_page = pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
+	page = pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
 	if (is_writeble_pte(*spte))
-		kvm_release_page_dirty(release_page);
+		kvm_release_page_dirty(page);
 	else
-		kvm_release_page_clean(release_page);
+		kvm_release_page_clean(page);
 	rmapp = gfn_to_rmap(kvm, sp->gfns[spte - sp->spt]);
 	if (!*rmapp) {
 		printk(KERN_ERR "rmap_remove: %p %llx 0->BUG\n", spte, *spte);
