@@ -28,7 +28,7 @@
  */
 
 #if defined(__SH5__) || defined(CONFIG_CPU_SH5)
-struct user fpu_struct {
+struct user_fpu_struct {
 	unsigned long fp_regs[32];
 	unsigned int fpscr;
 };
