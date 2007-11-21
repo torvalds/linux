@@ -80,6 +80,7 @@
 #include <linux/ioctl.h>
 #include <linux/serial.h>
 #include <linux/circ_buf.h>
+#include <linux/mutex.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <linux/usb.h>
@@ -139,7 +140,7 @@ struct ti_port {
 };
 
 struct ti_device {
-	struct semaphore	td_open_close_sem;
+	struct mutex		td_open_close_lock;
 	int			td_open_port_count;
 	struct usb_serial	*td_serial;
 	int			td_is_3410;
@@ -424,7 +425,7 @@ static int ti_startup(struct usb_serial *serial)
 		dev_err(&dev->dev, "%s - out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	sema_init(&tdev->td_open_close_sem, 1);
+	mutex_init(&tdev->td_open_close_lock);
 	tdev->td_serial = serial;
 	usb_set_serial_data(serial, tdev);
 
@@ -547,7 +548,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 	tdev = tport->tp_tdev;
 
 	/* only one open on any port on a device at a time */
-	if (down_interruptible(&tdev->td_open_close_sem))
+	if (mutex_lock_interruptible(&tdev->td_open_close_lock))
 		return -ERESTARTSYS;
 
 	if (port->tty)
@@ -568,7 +569,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 		if (!urb) {
 			dev_err(&port->dev, "%s - no interrupt urb\n", __FUNCTION__);
 			status = -EINVAL;
-			goto up_sem;
+			goto release_lock;
 		}
 		urb->complete = ti_interrupt_callback;
 		urb->context = tdev;
@@ -576,7 +577,7 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 		status = usb_submit_urb(urb, GFP_KERNEL);
 		if (status) {
 			dev_err(&port->dev, "%s - submit interrupt urb failed, %d\n", __FUNCTION__, status);
-			goto up_sem;
+			goto release_lock;
 		}
 	}
 
@@ -656,13 +657,13 @@ static int ti_open(struct usb_serial_port *port, struct file *file)
 	tport->tp_is_open = 1;
 	++tdev->td_open_port_count;
 
-	goto up_sem;
+	goto release_lock;
 
 unlink_int_urb:
 	if (tdev->td_open_port_count == 0)
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
-up_sem:
-	up(&tdev->td_open_close_sem);
+release_lock:
+	mutex_unlock(&tdev->td_open_close_lock);
 	dbg("%s - exit %d", __FUNCTION__, status);
 	return status;
 }
@@ -674,7 +675,7 @@ static void ti_close(struct usb_serial_port *port, struct file *file)
 	struct ti_port *tport;
 	int port_number;
 	int status;
-	int do_up;
+	int do_unlock;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 			 
@@ -699,16 +700,16 @@ static void ti_close(struct usb_serial_port *port, struct file *file)
 	if (status)
 		dev_err(&port->dev, "%s - cannot send close port command, %d\n" , __FUNCTION__, status);
 
-	/* if down is interrupted, continue anyway */
-	do_up = !down_interruptible(&tdev->td_open_close_sem);
+	/* if mutex_lock is interrupted, continue anyway */
+	do_unlock = !mutex_lock_interruptible(&tdev->td_open_close_lock);
 	--tport->tp_tdev->td_open_port_count;
 	if (tport->tp_tdev->td_open_port_count <= 0) {
 		/* last port is closed, shut down interrupt urb */
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 		tport->tp_tdev->td_open_port_count = 0;
 	}
-	if (do_up)
-		up(&tdev->td_open_close_sem);
+	if (do_unlock)
+		mutex_unlock(&tdev->td_open_close_lock);
 
 	dbg("%s - exit", __FUNCTION__);
 }
