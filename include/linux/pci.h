@@ -66,7 +66,6 @@ enum pci_mmap_state {
 #define PCI_DMA_FROMDEVICE	2
 #define PCI_DMA_NONE		3
 
-#define DEVICE_COUNT_COMPATIBLE	4
 #define DEVICE_COUNT_RESOURCE	12
 
 typedef int __bitwise pci_power_t;
@@ -166,10 +165,6 @@ struct pci_dev {
 
 	pci_channel_state_t error_state;	/* current connectivity state */
 	struct	device	dev;		/* Generic device interface */
-
-	/* device is compatible with these IDs */
-	unsigned short vendor_compatible[DEVICE_COUNT_COMPATIBLE];
-	unsigned short device_compatible[DEVICE_COUNT_COMPATIBLE];
 
 	int		cfg_size;	/* Size of configuration space */
 
