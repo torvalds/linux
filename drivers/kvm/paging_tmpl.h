@@ -186,15 +186,11 @@ err:
 	return 0;
 }
 
-static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
-				  u64 *shadow_pte,
-				  pt_element_t gpte,
-				  u64 access_bits,
-				  int user_fault,
-				  int write_fault,
-				  int *ptwrite,
-				  struct guest_walker *walker,
-				  gfn_t gfn)
+static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t gpte,
+			   u64 *shadow_pte, u64 access_bits,
+			   int user_fault, int write_fault,
+			   int *ptwrite, struct guest_walker *walker,
+			   gfn_t gfn)
 {
 	int dirty = gpte & PT_DIRTY_MASK;
 	u64 spte;
@@ -206,6 +202,7 @@ static void FNAME(set_pte_common)(struct kvm_vcpu *vcpu,
 		 __FUNCTION__, *shadow_pte, (u64)gpte, access_bits,
 		 write_fault, user_fault, gfn);
 
+	access_bits &= gpte;
 	/*
 	 * We don't set the accessed bit, since we sometimes want to see
 	 * whether the guest actually used the pte (in order to detect
@@ -273,17 +270,6 @@ unshadowed:
 		kvm_release_page_clean(page);
 	if (!ptwrite || !*ptwrite)
 		vcpu->last_pte_updated = shadow_pte;
-}
-
-static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t gpte,
-			   u64 *shadow_pte, u64 access_bits,
-			   int user_fault, int write_fault, int *ptwrite,
-			   struct guest_walker *walker, gfn_t gfn)
-{
-	access_bits &= gpte;
-	FNAME(set_pte_common)(vcpu, shadow_pte,
-			      gpte, access_bits, user_fault, write_fault,
-			      ptwrite, walker, gfn);
 }
 
 static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
