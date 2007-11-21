@@ -242,10 +242,6 @@ asmlinkage int do_fast_page_fault(unsigned long long ssr_md,
 	protection_flags = expevt_lookup_table.protection_flags[index];
 	textaccess       = expevt_lookup_table.is_text_access[index];
 
-#ifdef CONFIG_SH64_PROC_TLB
-	++calls_to_do_fast_page_fault;
-#endif
-
 	/* SIM
 	 * Note this is now called with interrupts still disabled
 	 * This is to cope with being called for a missing IO port
