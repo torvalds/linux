@@ -224,6 +224,7 @@ struct kvm_signal_mask {
 #define KVM_CAP_MMU_SHADOW_CACHE_CONTROL 2
 #define KVM_CAP_USER_MEMORY 3
 #define KVM_CAP_SET_TSS_ADDR 4
+#define KVM_CAP_EXT_CPUID 5
 
 /*
  * ioctls for VM fds
@@ -241,6 +242,7 @@ struct kvm_signal_mask {
 #define KVM_CREATE_VCPU           _IO(KVMIO,  0x41)
 #define KVM_GET_DIRTY_LOG         _IOW(KVMIO, 0x42, struct kvm_dirty_log)
 #define KVM_SET_MEMORY_ALIAS      _IOW(KVMIO, 0x43, struct kvm_memory_alias)
+#define KVM_GET_SUPPORTED_CPUID   _IOWR(KVMIO, 0x48, struct kvm_cpuid2)
 /* Device model IOC */
 #define KVM_CREATE_IRQCHIP	  _IO(KVMIO,  0x60)
 #define KVM_IRQ_LINE		  _IOW(KVMIO, 0x61, struct kvm_irq_level)
@@ -266,5 +268,7 @@ struct kvm_signal_mask {
 #define KVM_SET_FPU               _IOW(KVMIO,  0x8d, struct kvm_fpu)
 #define KVM_GET_LAPIC             _IOR(KVMIO,  0x8e, struct kvm_lapic_state)
 #define KVM_SET_LAPIC             _IOW(KVMIO,  0x8f, struct kvm_lapic_state)
+#define KVM_SET_CPUID2            _IOW(KVMIO,  0x90, struct kvm_cpuid2)
+#define KVM_GET_CPUID2            _IOWR(KVMIO, 0x91, struct kvm_cpuid2)
 
 #endif

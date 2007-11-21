@@ -151,5 +151,26 @@ struct kvm_cpuid {
 	struct kvm_cpuid_entry entries[0];
 };
 
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
+#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
+#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
+
+/* for KVM_SET_CPUID2 */
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry2 entries[0];
+};
 
 #endif
