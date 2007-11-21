@@ -1,9 +1,8 @@
 menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
-	depends on IP_DCCP && EXPERIMENTAL
+	depends on EXPERIMENTAL
 
 config IP_DCCP_CCID2
 	tristate "CCID2 (TCP-Like) (EXPERIMENTAL)"
-	depends on IP_DCCP
 	def_tristate IP_DCCP
 	select IP_DCCP_ACKVEC
 	---help---
@@ -38,7 +37,6 @@ config IP_DCCP_CCID2_DEBUG
 
 config IP_DCCP_CCID3
 	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
-	depends on IP_DCCP
 	def_tristate IP_DCCP
 	---help---
 	  CCID 3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
