@@ -881,7 +881,7 @@ ENTRY(_software_trace_buff)
 #endif /* CONFIG_DEBUG_BFIN_HWTRACE_EXPAND */
 
 #if CONFIG_EARLY_PRINTK
-.section .init.text
+.section .init.text,"ax"
 ENTRY(_early_trap)
 	SAVE_ALL_SYS
 	trace_buffer_stop(p0,r0);
