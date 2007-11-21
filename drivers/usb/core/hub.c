@@ -2482,6 +2482,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 {
 	struct usb_device *hdev = hub->hdev;
 	struct device *hub_dev = hub->intfdev;
+	struct usb_hcd *hcd = bus_to_hcd(hdev->bus);
 	u16 wHubCharacteristics = le16_to_cpu(hub->descriptor->wHubCharacteristics);
 	int status, i;
  
@@ -2645,6 +2646,8 @@ loop:
  
 done:
 	hub_port_disable(hub, port1, 1);
+	if (hcd->driver->relinquish_port && !hub->hdev->parent)
+		hcd->driver->relinquish_port(hcd, port1);
 }
 
 static void hub_events(void)

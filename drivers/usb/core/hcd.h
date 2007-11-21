@@ -210,6 +210,9 @@ struct hc_driver {
 	int		(*start_port_reset)(struct usb_hcd *, unsigned port_num);
 	void		(*hub_irq_enable)(struct usb_hcd *);
 		/* Needed only if port-change IRQs are level-triggered */
+
+		/* force handover of high-speed port to full-speed companion */
+	void		(*relinquish_port)(struct usb_hcd *, int);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);

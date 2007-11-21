@@ -364,6 +364,7 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	.hub_control =		ehci_hub_control,
 	.bus_suspend =		ehci_bus_suspend,
 	.bus_resume =		ehci_bus_resume,
+	.relinquish_port = 	ehci_relinquish_port,
 };
 
 /*-------------------------------------------------------------------------*/

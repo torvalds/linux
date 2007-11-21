@@ -314,41 +314,21 @@ static ssize_t show_companion(struct device *dev,
 }
 
 /*
- * Dedicate or undedicate a port to the companion controller.
- * Syntax is "[-]portnum", where a leading '-' sign means
- * return control of the port to the EHCI controller.
+ * Sets the owner of a port
  */
-static ssize_t store_companion(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+static void set_owner(struct ehci_hcd *ehci, int portnum, int new_owner)
 {
-	struct ehci_hcd		*ehci;
-	int			portnum, new_owner, try;
 	u32 __iomem		*status_reg;
 	u32			port_status;
+	int 			try;
 
-	ehci = hcd_to_ehci(bus_to_hcd(dev_get_drvdata(dev)));
-	new_owner = PORT_OWNER;		/* Owned by companion */
-	if (sscanf(buf, "%d", &portnum) != 1)
-		return -EINVAL;
-	if (portnum < 0) {
-		portnum = - portnum;
-		new_owner = 0;		/* Owned by EHCI */
-	}
-	if (portnum <= 0 || portnum > HCS_N_PORTS(ehci->hcs_params))
-		return -ENOENT;
-	status_reg = &ehci->regs->port_status[--portnum];
-	if (new_owner)
-		set_bit(portnum, &ehci->companion_ports);
-	else
-		clear_bit(portnum, &ehci->companion_ports);
+	status_reg = &ehci->regs->port_status[portnum];
 
 	/*
 	 * The controller won't set the OWNER bit if the port is
 	 * enabled, so this loop will sometimes require at least two
 	 * iterations: one to disable the port and one to set OWNER.
 	 */
-
 	for (try = 4; try > 0; --try) {
 		spin_lock_irq(&ehci->lock);
 		port_status = ehci_readl(ehci, status_reg);
@@ -365,6 +345,36 @@ static ssize_t store_companion(struct device *dev,
 		if (try > 1)
 			msleep(5);
 	}
+}
+
+/*
+ * Dedicate or undedicate a port to the companion controller.
+ * Syntax is "[-]portnum", where a leading '-' sign means
+ * return control of the port to the EHCI controller.
+ */
+static ssize_t store_companion(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct ehci_hcd		*ehci;
+	int			portnum, new_owner;
+
+	ehci = hcd_to_ehci(bus_to_hcd(dev_get_drvdata(dev)));
+	new_owner = PORT_OWNER;		/* Owned by companion */
+	if (sscanf(buf, "%d", &portnum) != 1)
+		return -EINVAL;
+	if (portnum < 0) {
+		portnum = - portnum;
+		new_owner = 0;		/* Owned by EHCI */
+	}
+	if (portnum <= 0 || portnum > HCS_N_PORTS(ehci->hcs_params))
+		return -ENOENT;
+	portnum--;
+	if (new_owner)
+		set_bit(portnum, &ehci->companion_ports);
+	else
+		clear_bit(portnum, &ehci->companion_ports);
+	set_owner(ehci, portnum, new_owner);
 	return count;
 }
 static DEVICE_ATTR(companion, 0644, show_companion, store_companion);
@@ -867,3 +877,13 @@ error:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 	return retval;
 }
+
+static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+
+	if (ehci_is_TDI(ehci))
+		return;
+	set_owner(ehci, --portnum, PORT_OWNER);
+}
+

@@ -72,6 +72,7 @@ static const struct hc_driver ps3_ehci_hc_driver = {
 	.bus_suspend		= ehci_bus_suspend,
 	.bus_resume		= ehci_bus_resume,
 #endif
+	.relinquish_port	= ehci_relinquish_port,
 };
 
 static int ps3_ehci_probe(struct ps3_system_bus_device *dev)
