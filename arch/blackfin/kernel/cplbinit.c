@@ -26,29 +26,22 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
-u_long icplb_table[MAX_CPLBS+1];
-u_long dcplb_table[MAX_CPLBS+1];
+u_long icplb_table[MAX_CPLBS + 1];
+u_long dcplb_table[MAX_CPLBS + 1];
 
 #ifdef CONFIG_CPLB_SWITCH_TAB_L1
-u_long ipdt_table[MAX_SWITCH_I_CPLBS+1]__attribute__((l1_data));
-u_long dpdt_table[MAX_SWITCH_D_CPLBS+1]__attribute__((l1_data));
-
-#ifdef CONFIG_CPLB_INFO
-u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS]__attribute__((l1_data));
-u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS]__attribute__((l1_data));
-#endif /* CONFIG_CPLB_INFO */
-
+# define PDT_ATTR __attribute__((l1_data))
 #else
+# define PDT_ATTR
+#endif
 
-u_long ipdt_table[MAX_SWITCH_I_CPLBS+1];
-u_long dpdt_table[MAX_SWITCH_D_CPLBS+1];
+u_long ipdt_table[MAX_SWITCH_I_CPLBS + 1] PDT_ATTR;
+u_long dpdt_table[MAX_SWITCH_D_CPLBS + 1] PDT_ATTR;
 
 #ifdef CONFIG_CPLB_INFO
-u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS];
-u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS];
-#endif /* CONFIG_CPLB_INFO */
-
-#endif /*CONFIG_CPLB_SWITCH_TAB_L1*/
+u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS] PDT_ATTR;
+u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS] PDT_ATTR;
+#endif
 
 struct s_cplb {
 	struct cplb_tab init_i;
