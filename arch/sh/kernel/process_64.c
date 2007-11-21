@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
+#include <asm/mmu_context.h>
 
 struct task_struct *last_task_used_math = NULL;
 
@@ -674,17 +675,14 @@ asids_proc_info(char *buf, char **start, off_t fpos, int length, int *eof, void 
 	read_lock(&tasklist_lock);
 	for_each_process(p) {
 		int pid = p->pid;
-		struct mm_struct *mm;
-		if (!pid) continue;
-		mm = p->mm;
-		if (mm) {
-			unsigned long asid, context;
-			context = mm->context;
-			asid = (context & 0xff);
-			len += sprintf(buf+len, "%5d : %02lx\n", pid, asid);
-		} else {
+
+		if (!pid)
+			continue;
+		if (p->mm)
+			len += sprintf(buf+len, "%5d : %02lx\n", pid,
+				       asid_cache(smp_processor_id()));
+		else
 			len += sprintf(buf+len, "%5d : (none)\n", pid);
-		}
 	}
 	read_unlock(&tasklist_lock);
 	*eof = 1;
