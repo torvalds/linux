@@ -25,6 +25,10 @@ config SH_FPU
 
 	  This option must be set in order to enable the FPU.
 
+config SH64_FPU_DENORM_FLUSH
+	bool "Flush floating point denorms to zero"
+	depends on SH_FPU && SUPERH64
+
 config SH_FPU_EMU
 	bool "FPU emulation support"
 	depends on !SH_FPU && EXPERIMENTAL
@@ -70,6 +74,15 @@ config SPECULATIVE_EXECUTION
 	  this, as outlined in the SH7780 hardware manual.
 
 	  If unsure, say N.
+
+config SH64_USER_MISALIGNED_FIXUP
+	bool "Fixup misaligned loads/stores occurring in user mode"
+	depends on SUPERH64
+	default y
+
+config SH64_ID2815_WORKAROUND
+	bool "Include workaround for SH5-101 cut2 silicon defect ID2815"
+	depends on CPU_SUBTYPE_SH5_101
 
 config CPU_HAS_INTEVT
 	bool
