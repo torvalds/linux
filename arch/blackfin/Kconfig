@@ -866,6 +866,20 @@ config BANK_3
 	default 0x99B3
 endmenu
 
+config EBIU_MBSCTLVAL
+	hex "EBIU Bank Select Control Register"
+	depends on BF54x
+	default 0
+
+config EBIU_MODEVAL
+	hex "Flash Memory Mode Control Register"
+	depends on BF54x
+	default 1
+
+config EBIU_FCTLVAL
+	hex "Flash Memory Bank Control Register"
+	depends on BF54x
+	default 6
 endmenu
 
 #############################################################################
