@@ -817,11 +817,11 @@ static __be32 *
 encode_entryplus_baggage(struct nfsd3_readdirres *cd, __be32 *p,
 		struct svc_fh *fhp)
 {
-		p = encode_post_op_attr(cd->rqstp, p, fhp);
-		*p++ = xdr_one;			/* yes, a file handle follows */
-		p = encode_fh(p, fhp);
-		fh_put(fhp);
-		return p;
+	p = encode_post_op_attr(cd->rqstp, p, fhp);
+	*p++ = xdr_one;			/* yes, a file handle follows */
+	p = encode_fh(p, fhp);
+	fh_put(fhp);
+	return p;
 }
 
 static int
