@@ -900,8 +900,7 @@ int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
 				       sizeof(*keys) * md5sig->entries4);
 
 			/* Free old key list, and reference new one */
-			if (md5sig->keys4)
-				kfree(md5sig->keys4);
+			kfree(md5sig->keys4);
 			md5sig->keys4 = keys;
 			md5sig->alloced4++;
 		}
