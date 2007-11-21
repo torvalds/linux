@@ -45,6 +45,8 @@
 #define HPAGE_SHIFT	22
 #elif defined(CONFIG_HUGETLB_PAGE_SIZE_64MB)
 #define HPAGE_SHIFT	26
+#elif defined(CONFIG_HUGETLB_PAGE_SIZE_512MB)
+#define HPAGE_SHIFT	29
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE
