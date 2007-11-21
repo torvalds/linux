@@ -1077,24 +1077,14 @@ static int saa7134_alsa_init(void)
 	struct saa7134_dev *dev = NULL;
 	struct list_head *list;
 
-	if (!saa7134_dmasound_init && !saa7134_dmasound_exit) {
-		saa7134_dmasound_init = alsa_device_init;
-		saa7134_dmasound_exit = alsa_device_exit;
-	} else {
-		printk(KERN_WARNING "saa7134 ALSA: can't load, DMA sound handler already assigned (probably to OSS)\n");
-		return -EBUSY;
-	}
+	saa7134_dmasound_init = alsa_device_init;
+	saa7134_dmasound_exit = alsa_device_exit;
 
 	printk(KERN_INFO "saa7134 ALSA driver for DMA sound loaded\n");
 
 	list_for_each(list,&saa7134_devlist) {
 		dev = list_entry(list, struct saa7134_dev, devlist);
-		if (dev->dmasound.priv_data == NULL) {
-			alsa_device_init(dev);
-		} else {
-			printk(KERN_ERR "saa7134 ALSA: DMA sound is being handled by OSS. ignoring %s\n",dev->name);
-			return -EBUSY;
-		}
+		alsa_device_init(dev);
 	}
 
 	if (dev == NULL)
