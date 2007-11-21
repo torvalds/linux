@@ -250,7 +250,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_EXCPT03:
 		info.si_code = SEGV_STACKFLOW;
 		sig = SIGSEGV;
-		printk(KERN_NOTICE EXC_0x03);
+		printk(KERN_NOTICE EXC_0x03(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x04 - User Defined, Caught by default */
@@ -279,7 +279,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_OVFLOW:
 		info.si_code = TRAP_TRACEFLOW;
 		sig = SIGTRAP;
-		printk(KERN_NOTICE EXC_0x11);
+		printk(KERN_NOTICE EXC_0x11(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x12 - Reserved, Caught by default */
@@ -301,35 +301,35 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_UNDEF_I:
 		info.si_code = ILL_ILLOPC;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x21);
+		printk(KERN_NOTICE EXC_0x21(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x22 - Illegal Instruction Combination, handled here */
 	case VEC_ILGAL_I:
 		info.si_code = ILL_ILLPARAOP;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x22);
+		printk(KERN_NOTICE EXC_0x22(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x23 - Data CPLB protection violation, handled here */
 	case VEC_CPLB_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x23);
+		printk(KERN_NOTICE EXC_0x23(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x24 - Data access misaligned, handled here */
 	case VEC_MISALI_D:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x24);
+		printk(KERN_NOTICE EXC_0x24(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x25 - Unrecoverable Event, handled here */
 	case VEC_UNCOV:
 		info.si_code = ILL_ILLEXCPT;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x25);
+		printk(KERN_NOTICE EXC_0x25(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x26 - Data CPLB Miss, normal case is handled in _cplb_hdr,
@@ -337,7 +337,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_CPLB_M:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x26);
+		printk(KERN_NOTICE EXC_0x26(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x27 - Data CPLB Multiple Hits - Linux Trap Zero, handled here */
@@ -348,7 +348,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		printk(KERN_NOTICE "NULL pointer access (probably)\n");
 #else
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x27);
+		printk(KERN_NOTICE EXC_0x27(KERN_NOTICE));
 #endif
 		CHK_DEBUGGER_TRAP();
 		break;
@@ -356,7 +356,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_WATCH:
 		info.si_code = TRAP_WATCHPT;
 		sig = SIGTRAP;
-		pr_debug(EXC_0x28);
+		pr_debug(EXC_0x28(KERN_DEBUG));
 		CHK_DEBUGGER_TRAP_MAYBE();
 		/* Check if this is a watchpoint in kernel space */
 		if (fp->ipend & 0xffc0)
@@ -378,21 +378,21 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_MISALI_I:
 		info.si_code = BUS_ADRALN;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x2A);
+		printk(KERN_NOTICE EXC_0x2A(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x2B - Instruction CPLB protection violation, handled here */
 	case VEC_CPLB_I_VL:
 		info.si_code = ILL_CPLB_VI;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x2B);
+		printk(KERN_NOTICE EXC_0x2B(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x2C - Instruction CPLB miss, handled in _cplb_hdr */
 	case VEC_CPLB_I_M:
 		info.si_code = ILL_CPLB_MISS;
 		sig = SIGBUS;
-		printk(KERN_NOTICE EXC_0x2C);
+		printk(KERN_NOTICE EXC_0x2C(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x2D - Instruction CPLB Multiple Hits, handled here */
@@ -403,7 +403,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		printk(KERN_NOTICE "Jump to address 0 - 0x0fff\n");
 #else
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x2D);
+		printk(KERN_NOTICE EXC_0x2D(KERN_NOTICE));
 #endif
 		CHK_DEBUGGER_TRAP();
 		break;
@@ -411,7 +411,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	case VEC_ILL_RES:
 		info.si_code = ILL_PRVOPC;
 		sig = SIGILL;
-		printk(KERN_NOTICE EXC_0x2E);
+		printk(KERN_NOTICE EXC_0x2E(KERN_NOTICE));
 		CHK_DEBUGGER_TRAP();
 		break;
 	/* 0x2F - Reserved, Caught by default */

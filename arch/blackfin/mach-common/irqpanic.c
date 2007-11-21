@@ -153,21 +153,21 @@ asmlinkage void irq_panic(int reason, struct pt_regs *regs)
 		case (SEQSTAT_HWERRCAUSE_SYSTEM_MMR):	/* System MMR Error */
 			info.si_code = BUS_ADRALN;
 			sig = SIGBUS;
-			printk(KERN_EMERG HWC_x2);
+			printk(KERN_EMERG HWC_x2(KERN_EMERG));
 			break;
 		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):	/* External Memory Addressing Error */
 			info.si_code = BUS_ADRERR;
 			sig = SIGBUS;
-			printk(KERN_EMERG HWC_x3);
+			printk(KERN_EMERG HWC_x3(KERN_EMERG));
 			break;
 		case (SEQSTAT_HWERRCAUSE_PERF_FLOW):	/* Performance Monitor Overflow */
-			printk(KERN_EMERG HWC_x12);
+			printk(KERN_EMERG HWC_x12(KERN_EMERG));
 			break;
 		case (SEQSTAT_HWERRCAUSE_RAISE_5):	/* RAISE 5 instruction */
-			printk(KERN_EMERG HWC_x18);
+			printk(KERN_EMERG HWC_x18(KERN_EMERG));
 			break;
 		default:	/* Reserved */
-			printk(KERN_EMERG HWC_default);
+			printk(KERN_EMERG HWC_default(KERN_EMERG));
 			break;
 		}
 	}
