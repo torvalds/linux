@@ -206,30 +206,13 @@ static struct resource smc91x_resources[] = {
  * (to J5) and poking board registers (as done below).  Else it's only useful
  * for the temperature sensors.
  */
-static struct resource pxa_ssp_resources[] = {
-	[0] = {
-		.start	= __PREG(SSCR0_P(1)),
-		.end	= __PREG(SSCR0_P(1)) + 0x14,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_SSP,
-		.end	= IRQ_SSP,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
-	.ssp_type	= PXA25x_SSP,
-	.clock_enable	= CKEN_SSP,
 	.num_chipselect	= 0,
 };
 
 static struct platform_device pxa_ssp = {
 	.name		= "pxa2xx-spi",
 	.id		= 1,
-	.resource	= pxa_ssp_resources,
-	.num_resources	= ARRAY_SIZE(pxa_ssp_resources),
 	.dev = {
 		.platform_data	= &pxa_ssp_master_info,
 	},
