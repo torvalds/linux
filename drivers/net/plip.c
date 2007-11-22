@@ -1269,7 +1269,7 @@ static void plip_attach (struct parport *port)
 
 		nl = netdev_priv(dev);
 		nl->dev = dev;
-		nl->pardev = parport_register_device(port, name, plip_preempt,
+		nl->pardev = parport_register_device(port, dev->name, plip_preempt,
 						 plip_wakeup, plip_interrupt,
 						 0, dev);
 
