@@ -30,8 +30,6 @@
 #include "caiaq-device.h"
 #include "caiaq-input.h"
 
-#ifdef CONFIG_SND_USB_CAIAQ_INPUT
-
 static unsigned short keycode_ak1[] =  { KEY_C, KEY_B, KEY_A };
 static unsigned short keycode_rk2[] =  { KEY_1, KEY_2, KEY_3, KEY_4,
 					 KEY_5, KEY_6, KEY_7 };
@@ -358,6 +356,4 @@ void snd_usb_caiaq_input_free(struct snd_usb_caiaqdev *dev)
 	input_unregister_device(dev->input_dev);
 	dev->input_dev = NULL;
 }
-
-#endif /* CONFIG_SND_USB_CAIAQ_INPUT */
 
