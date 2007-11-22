@@ -910,12 +910,18 @@ static int xc2028_set_tv_freq(struct dvb_frontend *fe,
 			      struct analog_parameters *p)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
+	fe_bandwidth_t bw;
+
+	/* FIXME: Maybe there are more 6 MHz video standards */
+	if (p->std & V4L2_STD_MN)
+		bw = BANDWIDTH_6_MHZ;
+	else
+		bw = BANDWIDTH_8_MHZ;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
 	return generic_set_tv_freq(fe, 62500l * p->frequency, T_ANALOG_TV,
-				   p->std, BANDWIDTH_8_MHZ);
-				   /* XXX Are some analog standards 6MHz? */
+				   p->std, bw);
 }
 
 static int xc2028_set_params(struct dvb_frontend *fe,
