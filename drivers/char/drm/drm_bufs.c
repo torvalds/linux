@@ -429,6 +429,7 @@ int drm_rmmap(struct drm_device *dev, drm_local_map_t *map)
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_rmmap);
 
 /* The rmmap ioctl appears to be unnecessary.  All mappings are torn down on
  * the last close of the device, and this is necessary for cleanup when things
