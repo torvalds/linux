@@ -38,6 +38,41 @@ static unsigned short keycode_rk2[] =  { KEY_1, KEY_2, KEY_3, KEY_4,
 static unsigned short keycode_rk3[] =  { KEY_1, KEY_2, KEY_3, KEY_4,
 					 KEY_5, KEY_6, KEY_7, KEY_5, KEY_6 };
 
+static unsigned short keycode_kore[] = {
+	KEY_FN_F1,      /* "menu"               */
+	KEY_FN_F7,      /* "lcd backlight       */
+	KEY_FN_F2,      /* "control"            */
+	KEY_FN_F3,      /* "enter"              */
+	KEY_FN_F4,      /* "view"               */
+	KEY_FN_F5,      /* "esc"                */
+	KEY_FN_F6,      /* "sound"              */
+	KEY_FN_F8,      /* array spacer, never triggered. */
+	KEY_RIGHT,
+	KEY_DOWN,
+	KEY_UP,
+	KEY_LEFT,
+	KEY_SOUND,      /* "listen"             */
+	KEY_RECORD,
+	KEY_PLAYPAUSE,
+	KEY_STOP,
+	BTN_4,          /* 8 softkeys */
+	BTN_3,
+	BTN_2,
+	BTN_1,
+	BTN_8,
+	BTN_7,
+	BTN_6,
+	BTN_5,
+	KEY_BRL_DOT4,   /* touch sensitive knobs */
+	KEY_BRL_DOT3,
+	KEY_BRL_DOT2,
+	KEY_BRL_DOT1,
+	KEY_BRL_DOT8,
+	KEY_BRL_DOT7,
+	KEY_BRL_DOT6,
+	KEY_BRL_DOT5
+};
+
 #define DEG90		(range / 2)
 #define DEG180		(range)
 #define DEG270		(DEG90 + DEG180)
@@ -115,14 +150,20 @@ static void snd_caiaq_input_read_analog(struct snd_usb_caiaqdev *dev,
 {
 	struct input_dev *input_dev = dev->input_dev;
 
-	switch (input_dev->id.product) {
-	case USB_PID_RIGKONTROL2:
+	switch (dev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL2):
 		input_report_abs(input_dev, ABS_X, (buf[4] << 8) | buf[5]);
 		input_report_abs(input_dev, ABS_Y, (buf[0] << 8) | buf[1]);
 		input_report_abs(input_dev, ABS_Z, (buf[2] << 8) | buf[3]);
 		input_sync(input_dev);
 		break;
-	case USB_PID_RIGKONTROL3:
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL3):
+		input_report_abs(input_dev, ABS_X, (buf[0] << 8) | buf[1]);
+		input_report_abs(input_dev, ABS_Y, (buf[2] << 8) | buf[3]);
+		input_report_abs(input_dev, ABS_Z, (buf[4] << 8) | buf[5]);
+		input_sync(input_dev);
+		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
 		input_report_abs(input_dev, ABS_X, (buf[0] << 8) | buf[1]);
 		input_report_abs(input_dev, ABS_Y, (buf[2] << 8) | buf[3]);
 		input_report_abs(input_dev, ABS_Z, (buf[4] << 8) | buf[5]);
@@ -137,10 +178,29 @@ static void snd_caiaq_input_read_erp(struct snd_usb_caiaqdev *dev,
 	struct input_dev *input_dev = dev->input_dev;
 	int i;
 
-	switch (input_dev->id.product) {
-	case USB_PID_AK1:
+	switch (dev->chip.usb_id) {
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
 		i = decode_erp(buf[0], buf[1]);
 		input_report_abs(input_dev, ABS_X, i);
+		input_sync(input_dev);
+		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
+		i = decode_erp(buf[7], buf[5]);
+		input_report_abs(input_dev, ABS_HAT0X, i);
+		i = decode_erp(buf[12], buf[14]);
+		input_report_abs(input_dev, ABS_HAT0Y, i);
+		i = decode_erp(buf[15], buf[13]);
+		input_report_abs(input_dev, ABS_HAT1X, i);
+		i = decode_erp(buf[0], buf[2]);
+		input_report_abs(input_dev, ABS_HAT1Y, i);
+		i = decode_erp(buf[3], buf[1]);
+		input_report_abs(input_dev, ABS_HAT2X, i);
+		i = decode_erp(buf[8], buf[10]);
+		input_report_abs(input_dev, ABS_HAT2Y, i);
+		i = decode_erp(buf[11], buf[9]);
+		input_report_abs(input_dev, ABS_HAT3X, i);
+		i = decode_erp(buf[4], buf[6]);
+		input_report_abs(input_dev, ABS_HAT3Y, i);
 		input_sync(input_dev);
 		break;
 	}
@@ -160,9 +220,13 @@ static void snd_caiaq_input_read_io(struct snd_usb_caiaqdev *dev,
 		for (i = 0; i < len; i++)
 			buf[i] = ~buf[i];
 
-	for (i = 0; i < input_dev->keycodemax && i < len; i++)
+	for (i = 0; i < input_dev->keycodemax && i < len * 8; i++)
 		input_report_key(input_dev, keycode[i],
 				 buf[i / 8] & (1 << (i % 8)));
+
+	if (dev->chip.usb_id ==
+	    USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER))
+		input_report_abs(dev->input_dev, ABS_MISC, 255 - buf[4]);
 
 	input_sync(input_dev);
 }
@@ -218,10 +282,10 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 		input_set_abs_params(input, ABS_Z, 0, 4096, 0, 10);
 		snd_usb_caiaq_set_auto_msg(dev, 1, 10, 0);
 		break;
-
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL3):
-		input->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-		input->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_Z);
+		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+		input->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
+			BIT_MASK(ABS_Z);
 		BUILD_BUG_ON(sizeof(dev->keycode) < sizeof(keycode_rk3));
 		memcpy(dev->keycode, keycode_rk3, sizeof(keycode_rk3));
 		input->keycodemax = ARRAY_SIZE(keycode_rk3);
@@ -238,6 +302,32 @@ int snd_usb_caiaq_input_init(struct snd_usb_caiaqdev *dev)
 		input->keycodemax = ARRAY_SIZE(keycode_ak1);
 		input_set_abs_params(input, ABS_X, 0, 999, 0, 10);
 		snd_usb_caiaq_set_auto_msg(dev, 1, 0, 5);
+		break;
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
+		input->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+		input->absbit[0] = BIT_MASK(ABS_HAT0X) | BIT_MASK(ABS_HAT0Y) |
+				   BIT_MASK(ABS_HAT1X) | BIT_MASK(ABS_HAT1Y) |
+				   BIT_MASK(ABS_HAT2X) | BIT_MASK(ABS_HAT2Y) |
+				   BIT_MASK(ABS_HAT3X) | BIT_MASK(ABS_HAT3Y) |
+				   BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) |
+				   BIT_MASK(ABS_Z);
+		input->absbit[BIT_WORD(ABS_MISC)] |= BIT_MASK(ABS_MISC);
+		BUILD_BUG_ON(sizeof(dev->keycode) < sizeof(keycode_kore));
+		memcpy(dev->keycode, keycode_kore, sizeof(keycode_kore));
+		input->keycodemax = ARRAY_SIZE(keycode_kore);
+		input_set_abs_params(input, ABS_HAT0X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT0Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT1X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT1Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT2X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT2Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT3X, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_HAT3Y, 0, 999, 0, 10);
+		input_set_abs_params(input, ABS_X, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_Y, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_Z, 0, 4096, 0, 10);
+		input_set_abs_params(input, ABS_MISC, 0, 255, 0, 1);
+		snd_usb_caiaq_set_auto_msg(dev, 1, 10, 5);
 		break;
 	default:
 		/* no input methods supported on this device */

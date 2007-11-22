@@ -27,9 +27,7 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/rawmidi.h>
-#ifdef CONFIG_SND_USB_CAIAQ_INPUT
 #include <linux/input.h>
-#endif
 
 #include "caiaq-device.h"
 #include "caiaq-audio.h"

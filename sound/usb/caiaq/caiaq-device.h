@@ -35,6 +35,7 @@
 #define EP1_CMD_MIDI_WRITE	0x7
 #define EP1_CMD_AUDIO_PARAMS	0x9
 #define EP1_CMD_AUTO_MSG	0xb
+#define EP1_CMD_DIMM_LEDS       0xc
 
 struct caiaq_device_spec {
 	unsigned short fw_version;
@@ -90,11 +91,14 @@ struct snd_usb_caiaqdev {
 	struct snd_pcm_substream *sub_playback[MAX_STREAMS];
 	struct snd_pcm_substream *sub_capture[MAX_STREAMS];
 
+	/* Controls */
+	unsigned char control_state[64];
+
 	/* Linux input */
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */
-	unsigned short keycode[10];
+	unsigned short keycode[64];
 #endif
 
 	/* ALSA */
@@ -114,6 +118,9 @@ struct snd_usb_caiaq_cb_info {
 
 int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev, int rate, int depth, int bbp);
 int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *dev, int digital, int analog, int erp);
-
+int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *dev,
+			       unsigned char command,
+			       const unsigned char *buffer,
+			       int len);
 
 #endif /* CAIAQ_DEVICE_H */
