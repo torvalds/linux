@@ -162,6 +162,10 @@ struct x86_emulate_ctxt {
 	struct decode_cache decode;
 };
 
+/* Repeat String Operation Prefix */
+#define REPE_PREFIX  1
+#define REPNE_PREFIX    2
+
 /* Execution mode, passed to the emulator. */
 #define X86EMUL_MODE_REAL     0	/* Real mode.             */
 #define X86EMUL_MODE_PROT16   2	/* 16-bit protected mode. */
