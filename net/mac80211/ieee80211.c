@@ -334,6 +334,11 @@ static int ieee80211_stop(struct net_device *dev)
 			cancel_delayed_work(&local->scan_work);
 		}
 		flush_workqueue(local->hw.workqueue);
+
+		sdata->u.sta.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
+		kfree(sdata->u.sta.extra_ie);
+		sdata->u.sta.extra_ie = NULL;
+		sdata->u.sta.extra_ie_len = 0;
 		/* fall through */
 	default:
 		conf.if_id = dev->ifindex;
