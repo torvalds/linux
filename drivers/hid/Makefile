@@ -1,7 +1,7 @@
 #
 # Makefile for the HID driver
 #
-hid-objs			:= hid-core.o hid-input.o
+hid-objs			:= hid-core.o hid-input.o hid-input-quirks.o
 
 obj-$(CONFIG_HID)		+= hid.o
 
