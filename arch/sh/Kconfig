@@ -512,6 +512,7 @@ config SH_SIMULATOR
 config SH_CAYMAN
 	bool "Hitachi Cayman"
 	depends on CPU_SUBTYPE_SH5_101 || CPU_SUBTYPE_SH5_103
+	select SYS_SUPPORTS_PCI
 
 config SH_HARP
 	bool "ST50 Harp"

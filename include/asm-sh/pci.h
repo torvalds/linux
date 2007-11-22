@@ -38,9 +38,12 @@ extern struct pci_channel board_pci_channels[];
 #if defined(CONFIG_CPU_SUBTYPE_SH7780) || defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define PCI_IO_AREA		0xFE400000
 #define PCI_IO_SIZE		0x00400000
+#elif defined(CONFIG_CPU_SH5)
+extern unsigned long PCI_IO_AREA;
+#define PCI_IO_SIZE		0x00010000
 #else
 #define PCI_IO_AREA		0xFE240000
-#define PCI_IO_SIZE		0X00040000
+#define PCI_IO_SIZE		0x00040000
 #endif
 
 #define PCI_MEM_SIZE		0x01000000

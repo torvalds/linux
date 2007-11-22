@@ -6,6 +6,8 @@
  *
  * Definitions for the SH5 PCI hardware.
  */
+#ifndef __PCI_SH5_H
+#define __PCI_SH5_H
 
 /* Product ID */
 #define PCISH5_PID		0x350d
@@ -73,13 +75,12 @@
 #define PCISH5_ICR_CSR_MBAR0   0x014   /* First  Memory base address register */
 #define PCISH5_ICR_CSR_MBAR1   0x018   /* Second Memory base address register */
 
-
-
 /* Base address of registers */
 #define SH5PCI_ICR_BASE (PHYS_PCI_BLOCK + 0x00040000)
 #define SH5PCI_IO_BASE  (PHYS_PCI_BLOCK + 0x00800000)
 /* #define SH5PCI_VCR_BASE (P2SEG_PCICB_BLOCK + P2SEG)    */
 
+extern unsigned long pcicr_virt;
 /* Register selection macro */
 #define PCISH5_ICR_REG(x)                ( pcicr_virt + (PCISH5_ICR_##x))
 /* #define PCISH5_VCR_REG(x)                ( SH5PCI_VCR_BASE (PCISH5_VCR_##x)) */
@@ -104,4 +105,9 @@
 #define PCISH5_MEM_SIZCONV(x)		  (((x / 0x40000) - 1) << 18)
 #define PCISH5_IO_SIZCONV(x)		  (((x / 0x40000) - 1) << 18)
 
+extern struct pci_ops sh5_pci_ops;
 
+/* arch/sh/drivers/pci/pci-sh5.c */
+int sh5pci_init(unsigned long memStart, unsigned long memSize);
+
+#endif /* __PCI_SH5_H */
