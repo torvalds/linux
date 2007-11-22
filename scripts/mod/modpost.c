@@ -33,7 +33,9 @@ enum export {
 	export_unused_gpl, export_gpl_future, export_unknown
 };
 
-void fatal(const char *fmt, ...)
+#define PRINTF __attribute__ ((format (printf, 1, 2)))
+
+PRINTF void fatal(const char *fmt, ...)
 {
 	va_list arglist;
 
@@ -46,7 +48,7 @@ void fatal(const char *fmt, ...)
 	exit(1);
 }
 
-void warn(const char *fmt, ...)
+PRINTF void warn(const char *fmt, ...)
 {
 	va_list arglist;
 
@@ -57,7 +59,7 @@ void warn(const char *fmt, ...)
 	va_end(arglist);
 }
 
-void merror(const char *fmt, ...)
+PRINTF void merror(const char *fmt, ...)
 {
 	va_list arglist;
 
