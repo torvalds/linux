@@ -427,3 +427,10 @@ static int __init cm_bf537_init(void)
 }
 
 arch_initcall(cm_bf537_init);
+
+void get_bf537_ether_addr(char *addr)
+{
+	random_ether_addr(addr);
+	printk(KERN_WARNING "%s:%s: Setting Ethernet MAC to a random one\n", __FILE__, __func__);
+}
+EXPORT_SYMBOL(get_bf537_ether_addr);
