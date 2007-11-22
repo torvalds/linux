@@ -758,6 +758,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = 0;
 	int mode = ctxt->mode;
+	int def_op_bytes, def_ad_bytes;
 
 	/* Shadow copy of register state. Committed on successful emulation. */
 
@@ -768,34 +769,38 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	switch (mode) {
 	case X86EMUL_MODE_REAL:
 	case X86EMUL_MODE_PROT16:
-		c->op_bytes = c->ad_bytes = 2;
+		def_op_bytes = def_ad_bytes = 2;
 		break;
 	case X86EMUL_MODE_PROT32:
-		c->op_bytes = c->ad_bytes = 4;
+		def_op_bytes = def_ad_bytes = 4;
 		break;
 #ifdef CONFIG_X86_64
 	case X86EMUL_MODE_PROT64:
-		c->op_bytes = 4;
-		c->ad_bytes = 8;
+		def_op_bytes = 4;
+		def_ad_bytes = 8;
 		break;
 #endif
 	default:
 		return -1;
 	}
 
+	c->op_bytes = def_op_bytes;
+	c->ad_bytes = def_ad_bytes;
+
 	/* Legacy prefixes. */
 	for (;;) {
 		switch (c->b = insn_fetch(u8, 1, c->eip)) {
 		case 0x66:	/* operand-size override */
-			c->op_bytes ^= 6;	/* switch between 2/4 bytes */
+			/* switch between 2/4 bytes */
+			c->op_bytes = def_op_bytes ^ 6;
 			break;
 		case 0x67:	/* address-size override */
 			if (mode == X86EMUL_MODE_PROT64)
 				/* switch between 4/8 bytes */
-				c->ad_bytes ^= 12;
+				c->ad_bytes = def_ad_bytes ^ 12;
 			else
 				/* switch between 2/4 bytes */
-				c->ad_bytes ^= 6;
+				c->ad_bytes = def_ad_bytes ^ 6;
 			break;
 		case 0x2e:	/* CS override */
 			c->override_base = &ctxt->cs_base;
