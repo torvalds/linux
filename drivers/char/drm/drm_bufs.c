@@ -229,11 +229,17 @@ static int drm_addmap_core(struct drm_device * dev, unsigned int offset,
 #ifdef __alpha__
 		map->offset += dev->hose->mem_space->start;
 #endif
-		/* Note: dev->agp->base may actually be 0 when the DRM
-		 * is not in control of AGP space. But if user space is
-		 * it should already have added the AGP base itself.
+		/* In some cases (i810 driver), user space may have already
+		 * added the AGP base itself, because dev->agp->base previously
+		 * only got set during AGP enable.  So, only add the base
+		 * address if the map's offset isn't already within the
+		 * aperture.
 		 */
-		map->offset += dev->agp->base;
+		if (map->offset < dev->agp->base ||
+		    map->offset > dev->agp->base +
+		    dev->agp->agp_info.aper_size * 1024 * 1024 - 1) {
+			map->offset += dev->agp->base;
+		}
 		map->mtrr = dev->agp->agp_mtrr;	/* for getmap */
 
 		/* This assumes the DRM is in total control of AGP space.
