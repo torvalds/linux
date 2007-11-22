@@ -255,8 +255,6 @@ int drm_init(struct drm_driver *driver)
 
 	DRM_DEBUG("\n");
 
-	drm_mem_init();
-
 	for (i = 0; driver->pci_driver.id_table[i].vendor != 0; i++) {
 		pid = (struct pci_device_id *)&driver->pci_driver.id_table[i];
 
@@ -382,6 +380,8 @@ static int __init drm_core_init(void)
 		ret = -1;
 		goto err_p3;
 	}
+
+	drm_mem_init();
 
 	DRM_INFO("Initialized %s %d.%d.%d %s\n",
 		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
