@@ -48,9 +48,16 @@ static void __init check_bugs(void)
 		*p++ = 's';
 		*p++ = 'p';
 		break;
-	default:
-		*p++ = '?';
-		*p++ = '!';
+	case CPU_SH5_101 ... CPU_SH5_103:
+		*p++ = '6';
+		*p++ = '4';
+		break;
+	case CPU_SH_NONE:
+		/*
+		 * Specifically use CPU_SH_NONE rather than default:,
+		 * so we're able to have the compiler whine about
+		 * unhandled enumerations.
+		 */
 		break;
 	}
 
