@@ -65,7 +65,6 @@ extern struct sh_cpuinfo cpu_data[];
  * IMASK-bit:
  *     Interrupt level mask
  */
-#define SR_FD		0x00008000
 #define SR_DSP		0x00001000
 #define SR_IMASK	0x000000f0
 
@@ -177,31 +176,6 @@ static __inline__ void enable_fpu(void)
 			     : "=&r" (__dummy)
 			     : "r" (~SR_FD));
 }
-
-static __inline__ void release_fpu(struct pt_regs *regs)
-{
-	regs->sr |= SR_FD;
-}
-
-static __inline__ void grab_fpu(struct pt_regs *regs)
-{
-	regs->sr &= ~SR_FD;
-}
-
-extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
-
-#define unlazy_fpu(tsk, regs) do {			\
-	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {	\
-		save_fpu(tsk, regs);			\
-	}						\
-} while (0)
-
-#define clear_fpu(tsk, regs) do {				\
-	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {		\
-		clear_tsk_thread_flag(tsk, TIF_USEDFPU);	\
-		release_fpu(regs);				\
-	}							\
-} while (0)
 
 /* Double presision, NANS as NANS, rounding to nearest, no exceptions */
 #define FPSCR_INIT  0x00080000

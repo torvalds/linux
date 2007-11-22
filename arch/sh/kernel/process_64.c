@@ -480,7 +480,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 	if (fpvalid) {
 		if (current == last_task_used_math) {
 			enable_fpu();
-			fpsave(&tsk->thread.fpu.hard);
+			save_fpu(tsk, regs);
 			disable_fpu();
 			last_task_used_math = 0;
 			regs->sr |= SR_FD;
@@ -507,7 +507,7 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_SH_FPU
 	if(last_task_used_math == current) {
 		enable_fpu();
-		fpsave(&current->thread.fpu.hard);
+		save_fpu(current, regs);
 		disable_fpu();
 		last_task_used_math = NULL;
 		regs->sr |= SR_FD;

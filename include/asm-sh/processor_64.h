@@ -102,8 +102,6 @@ extern struct sh_cpuinfo cpu_data[];
  *     Single step bit
  *
  */
-#define SR_FD    0x00008000
-
 #if defined(CONFIG_SH64_SR_WATCH)
 #define SR_MMU   0x84000000
 #else
@@ -243,16 +241,6 @@ static inline void enable_fpu(void)
 			     : "r" (~SR_FD));
 }
 
-static inline void release_fpu(struct pt_regs *regs)
-{
-	regs->sr |= SR_FD;
-}
-
-static inline void grab_fpu(struct pt_regs *regs)
-{
-	regs->sr &= ~SR_FD;
-}
-
 /* Round to nearest, no exceptions on inexact, overflow, underflow,
    zero-divide, invalid.  Configure option for whether to flush denorms to
    zero, or except if a denorm is encountered.  */
@@ -263,13 +251,9 @@ static inline void grab_fpu(struct pt_regs *regs)
 #endif
 
 #ifdef CONFIG_SH_FPU
-/* Save the current FP regs */
-void fpsave(struct sh_fpu_hard_struct *fpregs);
-
 /* Initialise the FP state of a task */
 void fpinit(struct sh_fpu_hard_struct *fpregs);
 #else
-#define fpsave(fpregs)	do { } while (0)
 #define fpinit(fpregs)	do { } while (0)
 #endif
 

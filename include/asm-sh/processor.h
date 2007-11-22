@@ -2,9 +2,9 @@
 #define __ASM_SH_PROCESSOR_H
 
 #include <asm/cpu-features.h>
+#include <asm/fpu.h>
 
 #ifndef __ASSEMBLY__
-
 /*
  *  CPU type and hardware bug flags. Kept separately for each CPU.
  *

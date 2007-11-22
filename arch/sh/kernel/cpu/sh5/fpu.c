@@ -30,12 +30,12 @@
 
 static union sh_fpu_union init_fpuregs = {
 	.hard = {
-	  .fp_regs = { [0 ... 63] = sNAN32 },
-	  .fpscr = FPSCR_INIT
+		.fp_regs = { [0 ... 63] = sNAN32 },
+		.fpscr = FPSCR_INIT
 	}
 };
 
-inline void fpsave(struct sh_fpu_hard_struct *fpregs)
+void save_fpu(struct task_struct *tsk, struct pt_regs *regs)
 {
 	asm volatile("fst.p     %0, (0*8), fp0\n\t"
 		     "fst.p     %0, (1*8), fp2\n\t"
@@ -73,10 +73,9 @@ inline void fpsave(struct sh_fpu_hard_struct *fpregs)
 		     "fgetscr   fr63\n\t"
 		     "fst.s     %0, (32*8), fr63\n\t"
 		: /* no output */
-		: "r" (fpregs)
+		: "r" (&tsk->thread.fpu.hard)
 		: "memory");
 }
-
 
 static inline void
 fpload(struct sh_fpu_hard_struct *fpregs)
@@ -153,10 +152,10 @@ do_fpu_state_restore(unsigned long ex, struct pt_regs *regs)
 		return;
 
 	enable_fpu();
-	if (last_task_used_math != NULL) {
+	if (last_task_used_math != NULL)
 		/* Other processes fpu state, save away */
-		fpsave(&last_task_used_math->thread.fpu.hard);
-        }
+		save_fpu(last_task_used_math, regs);
+
         last_task_used_math = current;
         if (used_math()) {
                 fpload(&current->thread.fpu.hard);
@@ -167,4 +166,3 @@ do_fpu_state_restore(unsigned long ex, struct pt_regs *regs)
         }
 	disable_fpu();
 }
-

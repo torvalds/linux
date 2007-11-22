@@ -75,7 +75,7 @@ get_fpu_long(struct task_struct *task, unsigned long addr)
 
 	if (last_task_used_math == task) {
 		enable_fpu();
-		fpsave(&task->thread.fpu.hard);
+		save_fpu(task, regs);
 		disable_fpu();
 		last_task_used_math = 0;
 		regs->sr |= SR_FD;
@@ -111,7 +111,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 		set_stopped_child_used_math(task);
 	} else if (last_task_used_math == task) {
 		enable_fpu();
-		fpsave(&task->thread.fpu.hard);
+		save_fpu(task, regs);
 		disable_fpu();
 		last_task_used_math = 0;
 		regs->sr |= SR_FD;

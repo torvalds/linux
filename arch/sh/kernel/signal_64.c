@@ -212,7 +212,7 @@ setup_sigcontext_fpu(struct pt_regs *regs, struct sigcontext __user *sc)
 
 	if (current == last_task_used_math) {
 		enable_fpu();
-		fpsave(&current->thread.fpu.hard);
+		save_fpu(current, regs);
 		disable_fpu();
 		last_task_used_math = NULL;
 		regs->sr |= SR_FD;
