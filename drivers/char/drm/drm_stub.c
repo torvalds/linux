@@ -98,10 +98,6 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 
 	dev->driver = driver;
 
-	if (dev->driver->load)
-		if ((retcode = dev->driver->load(dev, ent->driver_data)))
-			goto error_out_unreg;
-
 	if (drm_core_has_AGP(dev)) {
 		if (drm_device_is_agp(dev))
 			dev->agp = drm_agp_init(dev);
@@ -119,6 +115,10 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 					     1024 * 1024, MTRR_TYPE_WRCOMB, 1);
 		}
 	}
+
+	if (dev->driver->load)
+		if ((retcode = dev->driver->load(dev, ent->driver_data)))
+			goto error_out_unreg;
 
 	retcode = drm_ctxbitmap_init(dev);
 	if (retcode) {
