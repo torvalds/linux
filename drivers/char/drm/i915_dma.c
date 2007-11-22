@@ -757,7 +757,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	dev_priv->status_gfx_addr = hws->addr & (0x1ffff<<12);
 
-	dev_priv->hws_map.offset = dev->agp->agp_info.aper_base + hws->addr;
+	dev_priv->hws_map.offset = dev->agp->base + hws->addr;
 	dev_priv->hws_map.size = 4*1024;
 	dev_priv->hws_map.type = 0;
 	dev_priv->hws_map.flags = 0;
