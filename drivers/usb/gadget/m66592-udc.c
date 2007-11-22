@@ -36,9 +36,14 @@ MODULE_DESCRIPTION("M66592 USB gadget driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yoshihiro Shimoda");
 
-#define DRIVER_VERSION	"29 May 2007"
+#define DRIVER_VERSION	"18 Oct 2007"
 
 /* module parameters */
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+static unsigned short endian = M66592_LITTLE;
+module_param(endian, ushort, 0644);
+MODULE_PARM_DESC(endian, "data endian: big=0, little=0 (default=0)");
+#else
 static unsigned short clock = M66592_XTAL24;
 module_param(clock, ushort, 0644);
 MODULE_PARM_DESC(clock, "input clock: 48MHz=32768, 24MHz=16384, 12MHz=0 "
@@ -56,6 +61,7 @@ static unsigned short irq_sense = M66592_INTL;
 module_param(irq_sense, ushort, 0644);
 MODULE_PARM_DESC(irq_sense, "IRQ sense: low level=2, falling edge=0 "
 		"(default=2)");
+#endif
 
 static const char udc_name[] = "m66592_udc";
 static const char *m66592_ep_name[] = {
@@ -360,6 +366,7 @@ static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
 			ep->fifosel = M66592_D0FIFOSEL;
 			ep->fifoctr = M66592_D0FIFOCTR;
 			ep->fifotrn = M66592_D0FIFOTRN;
+#if !defined(CONFIG_SUPERH_BUILT_IN_M66592)
 		} else if (m66592->num_dma == 1) {
 			m66592->num_dma++;
 			ep->use_dma = 1;
@@ -367,6 +374,7 @@ static void m66592_ep_setting(struct m66592 *m66592, struct m66592_ep *ep,
 			ep->fifosel = M66592_D1FIFOSEL;
 			ep->fifoctr = M66592_D1FIFOCTR;
 			ep->fifotrn = M66592_D1FIFOTRN;
+#endif
 		} else {
 			ep->use_dma = 0;
 			ep->fifoaddr = M66592_CFIFO;
@@ -611,6 +619,28 @@ static void start_ep0(struct m66592_ep *ep, struct m66592_request *req)
 	}
 }
 
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+static void init_controller(struct m66592 *m66592)
+{
+	usbf_start_clock();
+	m66592_bset(m66592, M66592_HSE, M66592_SYSCFG);		/* High spd */
+	m66592_bclr(m66592, M66592_USBE, M66592_SYSCFG);
+	m66592_bclr(m66592, M66592_DPRPU, M66592_SYSCFG);
+	m66592_bset(m66592, M66592_USBE, M66592_SYSCFG);
+
+	/* This is a workaound for SH7722 2nd cut */
+	m66592_bset(m66592, 0x8000, M66592_DVSTCTR);
+	m66592_bset(m66592, 0x1000, M66592_TESTMODE);
+	m66592_bclr(m66592, 0x8000, M66592_DVSTCTR);
+
+	m66592_bset(m66592, M66592_INTL, M66592_INTENB1);
+
+	m66592_write(m66592, 0, M66592_CFBCFG);
+	m66592_write(m66592, 0, M66592_D0FBCFG);
+	m66592_bset(m66592, endian, M66592_CFBCFG);
+	m66592_bset(m66592, endian, M66592_D0FBCFG);
+}
+#else	/* #if defined(CONFIG_SUPERH_BUILT_IN_M66592) */
 static void init_controller(struct m66592 *m66592)
 {
 	m66592_bset(m66592, (vif & M66592_LDRV) | (endian & M66592_BIGEND),
@@ -636,9 +666,13 @@ static void init_controller(struct m66592 *m66592)
 	m66592_write(m66592, M66592_BURST | M66592_CPU_ADR_RD_WR,
 			M66592_DMA0CFG);
 }
+#endif	/* #if defined(CONFIG_SUPERH_BUILT_IN_M66592) */
 
 static void disable_controller(struct m66592 *m66592)
 {
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+	usbf_stop_clock();
+#else
 	m66592_bclr(m66592, M66592_SCKE, M66592_SYSCFG);
 	udelay(1);
 	m66592_bclr(m66592, M66592_PLLC, M66592_SYSCFG);
@@ -646,15 +680,20 @@ static void disable_controller(struct m66592 *m66592)
 	m66592_bclr(m66592, M66592_RCKE, M66592_SYSCFG);
 	udelay(1);
 	m66592_bclr(m66592, M66592_XCKE, M66592_SYSCFG);
+#endif
 }
 
 static void m66592_start_xclock(struct m66592 *m66592)
 {
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+	usbf_start_clock();
+#else
 	u16 tmp;
 
 	tmp = m66592_read(m66592, M66592_SYSCFG);
 	if (!(tmp & M66592_XCKE))
 		m66592_bset(m66592, M66592_XCKE, M66592_SYSCFG);
+#endif
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1142,6 +1181,19 @@ static irqreturn_t m66592_irq(int irq, void *_m66592)
 	intsts0 = m66592_read(m66592, M66592_INTSTS0);
 	intenb0 = m66592_read(m66592, M66592_INTENB0);
 
+#if defined(CONFIG_SUPERH_BUILT_IN_M66592)
+	if (!intsts0 && !intenb0) {
+		/*
+		 * When USB clock stops, it cannot read register. Even if a
+		 * clock stops, the interrupt occurs. So this driver turn on
+		 * a clock by this timing and do re-reading of register.
+		 */
+		m66592_start_xclock(m66592);
+		intsts0 = m66592_read(m66592, M66592_INTSTS0);
+		intenb0 = m66592_read(m66592, M66592_INTENB0);
+	}
+#endif
+
 	savepipe = m66592_read(m66592, M66592_CFIFOSEL);
 
 	mask0 = intsts0 & intenb0;
@@ -1485,6 +1537,7 @@ static int __exit m66592_remove(struct platform_device *pdev)
 	iounmap(m66592->reg);
 	free_irq(platform_get_irq(pdev, 0), m66592);
 	m66592_free_request(&m66592->ep[0].ep, m66592->ep0_req);
+	usbf_stop_clock();
 	kfree(m66592);
 	return 0;
 }
