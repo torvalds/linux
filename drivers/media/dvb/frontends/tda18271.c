@@ -429,16 +429,10 @@ static void tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 
 /*---------------------------------------------------------------------*/
 
-static void tda18271_init_regs(struct dvb_frontend *fe)
+static int tda18271_init_regs(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
-
-	tda18271_read_regs(fe);
-
-	/* test IR_CAL_OK to see if we need init */
-	if ((regs[R_EP1] & 0x08) != 0)
-		return;
 
 	printk(KERN_INFO "tda18271: initializing registers\n");
 
@@ -616,6 +610,8 @@ static void tda18271_init_regs(struct dvb_frontend *fe)
 
 	regs[R_EP1] = 0xc6;
 	tda18271_write_regs(fe, R_EP1, 1);
+
+	return 0;
 }
 
 static int tda18271_tune(struct dvb_frontend *fe,
@@ -626,10 +622,15 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	u32 div, N = 0;
 	int i;
 
+	tda18271_read_regs(fe);
+
+	/* test IR_CAL_OK to see if we need init */
+	if ((regs[R_EP1] & 0x08) == 0)
+		tda18271_init_regs(fe);
+
 
 	dprintk(1, "freq = %d, ifc = %d\n", freq, ifc);
 
-	tda18271_init_regs(fe);
 	/* RF tracking filter calibration */
 
 	/* calculate BP_Filter */
@@ -1024,6 +1025,7 @@ static struct dvb_tuner_ops tda18271_tuner_ops = {
 		.frequency_max  = 864000000,
 		.frequency_step =     62500
 	},
+	.init              = tda18271_init_regs,
 	.set_params        = tda18271_set_params,
 	.set_analog_params = tda18271_set_analog_params,
 	.release           = tda18271_release,
