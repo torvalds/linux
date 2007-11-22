@@ -513,7 +513,6 @@ static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
 		.callback  = dvico_bluebird_xc2028_callback,
 	};
 	static struct xc2028_ctrl ctl = {
-		.type        = XC2028_FIRM_NORMAL,
 		.fname       = "xc3028-dvico-au-01.fw",
 		.max_len     = 64,
 		.scode_table = ZARLINK456,

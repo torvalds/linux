@@ -176,9 +176,9 @@ struct em28xx_board {
 
 	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
+	unsigned int mts_firmware:1;
 
 	enum em28xx_decoder decoder;
-	int xc2028_type;
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 };

@@ -154,7 +154,7 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.tuner_type   = TUNER_XC2028,
 		.has_tuner    = 1,
-		.xc2028_type  = XC2028_FIRM_MTS,
+		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
@@ -476,7 +476,7 @@ static void em28xx_config_tuner (struct em28xx *dev)
 
 		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
 		ctl.max_len = 64;
-		ctl.type = em28xx_boards[dev->model].xc2028_type;
+		ctl.mts = em28xx_boards[dev->model].mts_firmware;
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;

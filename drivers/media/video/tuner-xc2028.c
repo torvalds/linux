@@ -631,7 +631,7 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 			return rc;
 	}
 
-	if (priv->ctrl.type == XC2028_FIRM_MTS)
+	if (priv->ctrl.mts)
 		type |= MTS;
 	if (bandwidth == BANDWIDTH_7_MHZ || bandwidth == BANDWIDTH_8_MHZ)
 		type |= F8MHZ;

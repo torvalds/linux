@@ -11,17 +11,12 @@
 
 #define XC2028_DEFAULT_FIRMWARE "xc3028-v27.fw"
 
-enum xc2028_firm_type {
-	XC2028_FIRM_NORMAL,
-	XC2028_FIRM_MTS,
-};
-
 struct xc2028_ctrl {
-	enum xc2028_firm_type	type;
 	char			*fname;
 	int			max_len;
-	int			d2633:1;
 	unsigned int		scode_table;
+	unsigned int		mts  :1;
+	unsigned int		d2633:1;
 };
 
 struct xc2028_config {
