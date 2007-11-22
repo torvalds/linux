@@ -65,7 +65,13 @@ struct vcpu_vmx {
 		int           fs_reload_needed;
 		int           guest_efer_loaded;
 	} host_state;
-
+	struct {
+		struct {
+			bool pending;
+			u8 vector;
+			unsigned rip;
+		} irq;
+	} rmode;
 };
 
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
@@ -1713,11 +1719,16 @@ out:
 
 static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 {
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
 	if (vcpu->rmode.active) {
+		vmx->rmode.irq.pending = true;
+		vmx->rmode.irq.vector = irq;
+		vmx->rmode.irq.rip = vmcs_readl(GUEST_RIP);
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
 			     irq | INTR_TYPE_SOFT_INTR | INTR_INFO_VALID_MASK);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN, 1);
-		vmcs_writel(GUEST_RIP, vmcs_readl(GUEST_RIP) - 1);
+		vmcs_writel(GUEST_RIP, vmx->rmode.irq.rip - 1);
 		return;
 	}
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
@@ -2251,6 +2262,17 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 		return;
 	}
 	if (unlikely(idtv_info_field & INTR_INFO_VALID_MASK)) {
+		if ((idtv_info_field & VECTORING_INFO_TYPE_MASK)
+		    == INTR_TYPE_EXT_INTR
+		    && vcpu->rmode.active) {
+			u8 vect = idtv_info_field & VECTORING_INFO_VECTOR_MASK;
+
+			vmx_inject_irq(vcpu, vect);
+			if (unlikely(has_ext_irq))
+				enable_irq_window(vcpu);
+			return;
+		}
+
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, idtv_info_field);
 		vmcs_write32(VM_ENTRY_INSTRUCTION_LEN,
 				vmcs_read32(VM_EXIT_INSTRUCTION_LEN));
@@ -2273,6 +2295,29 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 		kvm_timer_intr_post(vcpu, vector);
 	} else
 		enable_irq_window(vcpu);
+}
+
+/*
+ * Failure to inject an interrupt should give us the information
+ * in IDT_VECTORING_INFO_FIELD.  However, if the failure occurs
+ * when fetching the interrupt redirection bitmap in the real-mode
+ * tss, this doesn't happen.  So we do it ourselves.
+ */
+static void fixup_rmode_irq(struct vcpu_vmx *vmx)
+{
+	vmx->rmode.irq.pending = 0;
+	if (vmcs_readl(GUEST_RIP) + 1 != vmx->rmode.irq.rip)
+		return;
+	vmcs_writel(GUEST_RIP, vmx->rmode.irq.rip);
+	if (vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK) {
+		vmx->idt_vectoring_info &= ~VECTORING_INFO_TYPE_MASK;
+		vmx->idt_vectoring_info |= INTR_TYPE_EXT_INTR;
+		return;
+	}
+	vmx->idt_vectoring_info =
+		VECTORING_INFO_VALID_MASK
+		| INTR_TYPE_EXT_INTR
+		| vmx->rmode.irq.vector;
 }
 
 static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
@@ -2401,6 +2446,8 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	      );
 
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
+	if (vmx->rmode.irq.pending)
+		fixup_rmode_irq(vmx);
 
 	vcpu->interrupt_window_open =
 		(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0;
