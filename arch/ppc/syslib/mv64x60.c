@@ -411,7 +411,6 @@ static struct mv64xxx_i2c_pdata mv64xxx_i2c_pdata = {
 	.freq_m			= 8,
 	.freq_n			= 3,
 	.timeout		= 1000, /* Default timeout of 1 second */
-	.retries		= 1,
 };
 
 static struct resource mv64xxx_i2c_resources[] = {

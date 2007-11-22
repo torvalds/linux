@@ -532,7 +532,6 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	drv_data->adapter.owner = THIS_MODULE;
 	drv_data->adapter.class = I2C_CLASS_HWMON;
 	drv_data->adapter.timeout = pdata->timeout;
-	drv_data->adapter.retries = pdata->retries;
 	drv_data->adapter.nr = pd->id;
 	platform_set_drvdata(pd, drv_data);
 	i2c_set_adapdata(&drv_data->adapter, drv_data);

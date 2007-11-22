@@ -361,12 +361,6 @@ static int __init mv64x60_i2c_device_setup(struct device_node *np, int id)
 	else
 		pdata.timeout = 1000;	/* 1 second */
 
-	prop = of_get_property(np, "retries", NULL);
-	if (prop)
-		pdata.retries = *prop;
-	else
-		pdata.retries = 1;
-
 	pdev = platform_device_alloc(MV64XXX_I2C_CTLR_NAME, id);
 	if (!pdev)
 		return -ENOMEM;
