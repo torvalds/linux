@@ -218,22 +218,10 @@ int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
 }
 EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
 
-int ieee80211_is_eapol(const struct sk_buff *skb)
+int ieee80211_is_eapol(const struct sk_buff *skb, int hdrlen)
 {
-	const struct ieee80211_hdr *hdr;
-	u16 fc;
-	int hdrlen;
-
 	if (unlikely(skb->len < 10))
 		return 0;
-
-	hdr = (const struct ieee80211_hdr *) skb->data;
-	fc = le16_to_cpu(hdr->frame_control);
-
-	if (unlikely(!WLAN_FC_DATA_PRESENT(fc)))
-		return 0;
-
-	hdrlen = ieee80211_get_hdrlen(fc);
 
 	if (unlikely(skb->len >= hdrlen + sizeof(eapol_header) &&
 		     memcmp(skb->data + hdrlen, eapol_header,
