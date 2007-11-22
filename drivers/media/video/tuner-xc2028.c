@@ -734,6 +734,9 @@ skip_base:
 		new_fw.id |= parse_audio_std_option();
 
 	rc = load_firmware(fe, new_fw.type, &new_fw.id);
+	if (rc == -ENOENT)
+		rc = load_firmware(fe, new_fw.type & ~F8MHZ, &new_fw.id);
+
 	if (rc < 0)
 		goto fail;
 
