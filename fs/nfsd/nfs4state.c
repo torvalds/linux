@@ -61,7 +61,6 @@ static time_t lease_time = 90;     /* default lease time */
 static time_t user_lease_time = 90;
 static time_t boot_time;
 static int in_grace = 1;
-static u32 current_clientid = 1;
 static u32 current_ownerid = 1;
 static u32 current_fileid = 1;
 static u32 current_delegid = 1;
@@ -485,8 +484,10 @@ same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 	return cr1->cr_uid == cr2->cr_uid;
 }
 
-static void
-gen_clid(struct nfs4_client *clp) {
+static void gen_clid(struct nfs4_client *clp)
+{
+	static u32 current_clientid = 1;
+
 	clp->cl_clientid.cl_boot = boot_time;
 	clp->cl_clientid.cl_id = current_clientid++; 
 }
