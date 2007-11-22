@@ -1061,7 +1061,7 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 	if (debug)
 		printk(KERN_DEBUG PREFIX ": Xcv2028/3028 init called!\n");
 
-	if (NULL == cfg->video_dev)
+	if (NULL == cfg || NULL == cfg->video_dev)
 		return NULL;
 
 	if (!fe) {
@@ -1105,6 +1105,9 @@ void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
 	       sizeof(xc2028_dvb_tuner_ops));
 
 	tuner_info("type set to %s\n", "XCeive xc2028/xc3028 tuner");
+
+	if (cfg->ctrl)
+		xc2028_set_config(fe, cfg->ctrl);
 
 	mutex_unlock(&xc2028_list_mutex);
 

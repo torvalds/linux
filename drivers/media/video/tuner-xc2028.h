@@ -23,6 +23,7 @@ struct xc2028_config {
 	struct i2c_adapter *i2c_adap;
 	u8 		   i2c_addr;
 	void               *video_dev;
+	struct xc2028_ctrl *ctrl;
 	int                (*callback) (void *dev, int command, int arg);
 };
 
