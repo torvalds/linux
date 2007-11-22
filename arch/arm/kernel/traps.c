@@ -327,7 +327,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 		if ((instr & hook->instr_mask) == hook->instr_val &&
 		    (regs->ARM_cpsr & hook->cpsr_mask) == hook->cpsr_val) {
 			if (hook->fn(regs, instr) == 0) {
-				spin_unlock_irq(&undef_lock);
+				spin_unlock_irqrestore(&undef_lock, flags);
 				return;
 			}
 		}
