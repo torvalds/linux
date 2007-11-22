@@ -850,15 +850,20 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 
 	mutex_lock(&priv->lock);
 
-	/* HACK: It seems that specific firmware need to be reloaded
-	   when watching analog TV and freq is changed */
-	if (new_mode != T_DIGITAL_TV)
-		priv->cur_fw.type = 0;
-
 	tuner_dbg("should set frequency %d kHz\n", freq / 1000);
 
 	if (check_firmware(fe, new_mode, std, bandwidth) < 0)
 		goto ret;
+
+	/* On some cases xc2028 can disable video output, if
+	 * very weak signals are received. By sending a soft
+	 * reset, this is re-enabled. So, it is better to always
+	 * send a soft reset before changing channels, to be sure
+	 * that xc2028 will be in a safe state.
+	 * Maybe this might also be needed for DTV.
+	 */
+	if (new_mode != T_DIGITAL_TV)
+		rc = send_seq(priv, {0x00, 0x00});
 
 	if (new_mode == T_DIGITAL_TV) {
 		offset = 2750000;
