@@ -350,11 +350,14 @@ static int ieee80211_stop(struct net_device *dev)
 		synchronize_rcu();
 		skb_queue_purge(&sdata->u.sta.skb_queue);
 
-		if (!local->ops->hw_scan &&
-		    local->scan_dev == sdata->dev) {
-			local->sta_scanning = 0;
-			cancel_delayed_work(&local->scan_work);
+		if (local->scan_dev == sdata->dev) {
+			if (!local->ops->hw_scan) {
+				local->sta_sw_scanning = 0;
+				cancel_delayed_work(&local->scan_work);
+			} else
+				local->sta_hw_scanning = 0;
 		}
+
 		flush_workqueue(local->hw.workqueue);
 
 		sdata->u.sta.flags &= ~IEEE80211_STA_PRIVACY_INVOKED;
@@ -526,7 +529,7 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 	struct ieee80211_channel *chan;
 	int ret = 0;
 
-	if (local->sta_scanning) {
+	if (local->sta_sw_scanning) {
 		chan = local->scan_channel;
 		mode = local->scan_hw_mode;
 	} else {

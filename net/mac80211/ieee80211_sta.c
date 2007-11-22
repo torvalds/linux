@@ -1483,8 +1483,18 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 		u32 supp_rates, prev_rates;
 		int i, j;
 
-		mode = local->sta_scanning ?
+		mode = local->sta_sw_scanning ?
 		       local->scan_hw_mode : local->oper_hw_mode;
+
+		if (local->sta_hw_scanning) {
+			/* search for the correct mode matches the beacon */
+			list_for_each_entry(mode, &local->modes_list, list)
+				if (mode->mode == rx_status->phymode)
+					break;
+
+			if (mode == NULL)
+				mode = local->oper_hw_mode;
+		}
 		rates = mode->rates;
 		num_rates = mode->num_rates;
 
@@ -1867,31 +1877,39 @@ static void ieee80211_sta_rx_queued_mgmt(struct net_device *dev,
 }
 
 
-void ieee80211_sta_rx_scan(struct net_device *dev, struct sk_buff *skb,
-			   struct ieee80211_rx_status *rx_status)
+ieee80211_txrx_result
+ieee80211_sta_rx_scan(struct net_device *dev, struct sk_buff *skb,
+		      struct ieee80211_rx_status *rx_status)
 {
 	struct ieee80211_mgmt *mgmt;
 	u16 fc;
 
-	if (skb->len < 24) {
-		dev_kfree_skb(skb);
-		return;
-	}
+	if (skb->len < 2)
+		return TXRX_DROP;
 
 	mgmt = (struct ieee80211_mgmt *) skb->data;
 	fc = le16_to_cpu(mgmt->frame_control);
+
+	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL)
+		return TXRX_CONTINUE;
+
+	if (skb->len < 24)
+		return TXRX_DROP;
 
 	if ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) {
 		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP) {
 			ieee80211_rx_mgmt_probe_resp(dev, mgmt,
 						     skb->len, rx_status);
+			dev_kfree_skb(skb);
+			return TXRX_QUEUED;
 		} else if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON) {
 			ieee80211_rx_mgmt_beacon(dev, mgmt, skb->len,
 						 rx_status);
+			dev_kfree_skb(skb);
+			return TXRX_QUEUED;
 		}
 	}
-
-	dev_kfree_skb(skb);
+	return TXRX_CONTINUE;
 }
 
 
@@ -1981,7 +1999,7 @@ void ieee80211_sta_work(struct work_struct *work)
 	if (!netif_running(dev))
 		return;
 
-	if (local->sta_scanning)
+	if (local->sta_sw_scanning || local->sta_hw_scanning)
 		return;
 
 	if (sdata->type != IEEE80211_IF_TYPE_STA &&
@@ -2639,9 +2657,15 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	union iwreq_data wrqu;
 
 	local->last_scan_completed = jiffies;
-	wmb();
-	local->sta_scanning = 0;
+	memset(&wrqu, 0, sizeof(wrqu));
+	wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
 
+	if (local->sta_hw_scanning) {
+		local->sta_hw_scanning = 0;
+		goto done;
+	}
+
+	local->sta_sw_scanning = 0;
 	if (ieee80211_hw_config(local))
 		printk(KERN_DEBUG "%s: failed to restore operational "
 		       "channel after scan\n", dev->name);
@@ -2656,9 +2680,6 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 				     local->mdev->mc_list);
 
 	netif_tx_unlock_bh(local->mdev);
-
-	memset(&wrqu, 0, sizeof(wrqu));
-	wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
@@ -2677,6 +2698,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	}
 	rcu_read_unlock();
 
+done:
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->type == IEEE80211_IF_TYPE_IBSS) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
@@ -2699,7 +2721,7 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 	int skip;
 	unsigned long next_delay = 0;
 
-	if (!local->sta_scanning)
+	if (!local->sta_sw_scanning)
 		return;
 
 	switch (local->scan_state) {
@@ -2762,7 +2784,7 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 		break;
 	}
 
-	if (local->sta_scanning)
+	if (local->sta_sw_scanning)
 		queue_delayed_work(local->hw.workqueue, &local->scan_work,
 				   next_delay);
 }
@@ -2794,7 +2816,7 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 	  * ResultCode: SUCCESS, INVALID_PARAMETERS
 	 */
 
-	if (local->sta_scanning) {
+	if (local->sta_sw_scanning || local->sta_hw_scanning) {
 		if (local->scan_dev == dev)
 			return 0;
 		return -EBUSY;
@@ -2802,15 +2824,15 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 
 	if (local->ops->hw_scan) {
 		int rc = local->ops->hw_scan(local_to_hw(local),
-					    ssid, ssid_len);
+					     ssid, ssid_len);
 		if (!rc) {
-			local->sta_scanning = 1;
+			local->sta_hw_scanning = 1;
 			local->scan_dev = dev;
 		}
 		return rc;
 	}
 
-	local->sta_scanning = 1;
+	local->sta_sw_scanning = 1;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
@@ -2865,7 +2887,7 @@ int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len)
 	if (sdata->type != IEEE80211_IF_TYPE_STA)
 		return ieee80211_sta_start_scan(dev, ssid, ssid_len);
 
-	if (local->sta_scanning) {
+	if (local->sta_sw_scanning || local->sta_hw_scanning) {
 		if (local->scan_dev == dev)
 			return 0;
 		return -EBUSY;

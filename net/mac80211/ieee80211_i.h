@@ -470,7 +470,8 @@ struct ieee80211_local {
 
 	struct list_head interfaces;
 
-	int sta_scanning;
+	bool sta_sw_scanning;
+	bool sta_hw_scanning;
 	int scan_channel_idx;
 	enum { SCAN_SET_CHANNEL, SCAN_SEND_PROBE } scan_state;
 	unsigned long last_scan_completed;
@@ -745,7 +746,8 @@ int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len);
 void ieee80211_sta_req_auth(struct net_device *dev,
 			    struct ieee80211_if_sta *ifsta);
 int ieee80211_sta_scan_results(struct net_device *dev, char *buf, size_t len);
-void ieee80211_sta_rx_scan(struct net_device *dev, struct sk_buff *skb,
+ieee80211_txrx_result ieee80211_sta_rx_scan(struct net_device *dev,
+					    struct sk_buff *skb,
 			   struct ieee80211_rx_status *rx_status);
 void ieee80211_rx_bss_list_init(struct net_device *dev);
 void ieee80211_rx_bss_list_deinit(struct net_device *dev);
