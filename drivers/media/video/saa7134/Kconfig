@@ -4,6 +4,7 @@ config VIDEO_SAA7134
 	select VIDEOBUF_DMA_SG
 	select VIDEO_IR
 	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
 	select CRC32
 	---help---
 	  This is a video4linux driver for Philips SAA713x based
