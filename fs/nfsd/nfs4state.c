@@ -339,21 +339,20 @@ STALE_CLIENTID(clientid_t *clid)
  * This type of memory management is somewhat inefficient, but we use it
  * anyway since SETCLIENTID is not a common operation.
  */
-static inline struct nfs4_client *
-alloc_client(struct xdr_netobj name)
+static struct nfs4_client *alloc_client(struct xdr_netobj name)
 {
 	struct nfs4_client *clp;
 
-	if ((clp = kzalloc(sizeof(struct nfs4_client), GFP_KERNEL))!= NULL) {
-		if ((clp->cl_name.data = kmalloc(name.len, GFP_KERNEL)) != NULL) {
-			memcpy(clp->cl_name.data, name.data, name.len);
-			clp->cl_name.len = name.len;
-		}
-		else {
-			kfree(clp);
-			clp = NULL;
-		}
+	clp = kzalloc(sizeof(struct nfs4_client), GFP_KERNEL);
+	if (clp == NULL)
+		return NULL;
+	clp->cl_name.data = kmalloc(name.len, GFP_KERNEL);
+	if (clp->cl_name.data == NULL) {
+		kfree(clp);
+		return NULL;
 	}
+	memcpy(clp->cl_name.data, name.data, name.len);
+	clp->cl_name.len = name.len;
 	return clp;
 }
 
@@ -421,12 +420,13 @@ expire_client(struct nfs4_client *clp)
 	put_nfs4_client(clp);
 }
 
-static struct nfs4_client *
-create_client(struct xdr_netobj name, char *recdir) {
+static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir)
+{
 	struct nfs4_client *clp;
 
-	if (!(clp = alloc_client(name)))
-		goto out;
+	clp = alloc_client(name);
+	if (clp == NULL)
+		return NULL;
 	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
 	atomic_set(&clp->cl_count, 1);
 	atomic_set(&clp->cl_callback.cb_set, 0);
@@ -435,32 +435,30 @@ create_client(struct xdr_netobj name, char *recdir) {
 	INIT_LIST_HEAD(&clp->cl_openowners);
 	INIT_LIST_HEAD(&clp->cl_delegations);
 	INIT_LIST_HEAD(&clp->cl_lru);
-out:
 	return clp;
 }
 
-static void
-copy_verf(struct nfs4_client *target, nfs4_verifier *source) {
-	memcpy(target->cl_verifier.data, source->data, sizeof(target->cl_verifier.data));
+static void copy_verf(struct nfs4_client *target, nfs4_verifier *source)
+{
+	memcpy(target->cl_verifier.data, source->data,
+			sizeof(target->cl_verifier.data));
 }
 
-static void
-copy_clid(struct nfs4_client *target, struct nfs4_client *source) {
+static void copy_clid(struct nfs4_client *target, struct nfs4_client *source)
+{
 	target->cl_clientid.cl_boot = source->cl_clientid.cl_boot; 
 	target->cl_clientid.cl_id = source->cl_clientid.cl_id; 
 }
 
-static void
-copy_cred(struct svc_cred *target, struct svc_cred *source) {
-
+static void copy_cred(struct svc_cred *target, struct svc_cred *source)
+{
 	target->cr_uid = source->cr_uid;
 	target->cr_gid = source->cr_gid;
 	target->cr_group_info = source->cr_group_info;
 	get_group_info(target->cr_group_info);
 }
 
-static inline int
-same_name(const char *n1, const char *n2)
+static int same_name(const char *n1, const char *n2)
 {
 	return 0 == memcmp(n1, n2, HEXDIR_LEN);
 }
@@ -502,9 +500,8 @@ static void gen_confirm(struct nfs4_client *clp)
 	*p++ = i++;
 }
 
-static int
-check_name(struct xdr_netobj name) {
-
+static int check_name(struct xdr_netobj name)
+{
 	if (name.len == 0) 
 		return 0;
 	if (name.len > NFS4_OPAQUE_LIMIT) {
