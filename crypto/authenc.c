@@ -11,10 +11,12 @@
  */
 
 #include <crypto/algapi.h>
+#include <crypto/authenc.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -23,8 +25,6 @@
 struct authenc_instance_ctx {
 	struct crypto_spawn auth;
 	struct crypto_spawn enc;
-
-	unsigned int enckeylen;
 };
 
 struct crypto_authenc_ctx {
@@ -36,19 +36,31 @@ struct crypto_authenc_ctx {
 static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 				 unsigned int keylen)
 {
-	struct authenc_instance_ctx *ictx =
-		crypto_instance_ctx(crypto_aead_alg_instance(authenc));
-	unsigned int enckeylen = ictx->enckeylen;
 	unsigned int authkeylen;
+	unsigned int enckeylen;
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
 	struct crypto_hash *auth = ctx->auth;
 	struct crypto_ablkcipher *enc = ctx->enc;
+	struct rtattr *rta = (void *)key;
+	struct crypto_authenc_key_param *param;
 	int err = -EINVAL;
 
-	if (keylen < enckeylen) {
-		crypto_aead_set_flags(authenc, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		goto out;
-	}
+	if (keylen < sizeof(*rta))
+		goto badkey;
+	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
+		goto badkey;
+	if (RTA_PAYLOAD(rta) < sizeof(*param))
+		goto badkey;
+
+	param = RTA_DATA(rta);
+	enckeylen = be32_to_cpu(param->enckeylen);
+
+	key += RTA_ALIGN(rta->rta_len);
+	keylen -= RTA_ALIGN(rta->rta_len);
+
+	if (keylen < enckeylen)
+		goto badkey;
+
 	authkeylen = keylen - enckeylen;
 
 	crypto_hash_clear_flags(auth, CRYPTO_TFM_REQ_MASK);
@@ -70,6 +82,10 @@ static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 
 out:
 	return err;
+
+badkey:
+	crypto_aead_set_flags(authenc, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	goto out;
 }
 
 static int crypto_authenc_hash(struct aead_request *req)
@@ -263,7 +279,6 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	struct crypto_alg *auth;
 	struct crypto_alg *enc;
 	struct authenc_instance_ctx *ctx;
-	unsigned int enckeylen;
 	int err;
 
 	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_AEAD);
@@ -281,10 +296,6 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	if (IS_ERR(enc))
 		goto out_put_auth;
 
-	err = crypto_attr_u32(tb[3], &enckeylen);
-	if (err)
-		goto out_put_enc;
-
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
 	err = -ENOMEM;
 	if (!inst)
@@ -292,18 +303,16 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME,
-		     "authenc(%s,%s,%u)", auth->cra_name,
-		     enc->cra_name, enckeylen) >= CRYPTO_MAX_ALG_NAME)
-		goto err_free_inst;
-
-	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
-		     "authenc(%s,%s,%u)", auth->cra_driver_name,
-		     enc->cra_driver_name, enckeylen) >=
+		     "authenc(%s,%s)", auth->cra_name, enc->cra_name) >=
 	    CRYPTO_MAX_ALG_NAME)
 		goto err_free_inst;
 
+	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
+		     "authenc(%s,%s)", auth->cra_driver_name,
+		     enc->cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
+		goto err_free_inst;
+
 	ctx = crypto_instance_ctx(inst);
-	ctx->enckeylen = enckeylen;
 
 	err = crypto_init_spawn(&ctx->auth, auth, inst, CRYPTO_ALG_TYPE_MASK);
 	if (err)
