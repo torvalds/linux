@@ -714,6 +714,7 @@ struct iwl3945_priv {
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
+	struct ieee80211_conf *cache_conf;
 
 	/* temporary frame storage list */
 	struct list_head free_frames;

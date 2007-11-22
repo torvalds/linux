@@ -7403,6 +7403,8 @@ static void iwl4965_bg_abort_scan(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
+static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
+
 static void iwl4965_bg_scan_completed(struct work_struct *work)
 {
 	struct iwl4965_priv *priv =
@@ -7412,6 +7414,9 @@ static void iwl4965_bg_scan_completed(struct work_struct *work)
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
+
+	if (priv->cache_conf)
+		iwl4965_mac_config(priv->hw, priv->cache_conf);
 
 	ieee80211_scan_completed(priv->hw);
 
@@ -7541,23 +7546,38 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	struct iwl4965_priv *priv = hw->priv;
 	const struct iwl4965_channel_info *ch_info;
 	unsigned long flags;
+	int ret = 0;
 
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter to channel %d\n", conf->channel);
 
 	if (!iwl4965_is_ready(priv)) {
 		IWL_DEBUG_MAC80211("leave - not ready\n");
-		mutex_unlock(&priv->mutex);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	/* TODO: Figure out how to get ieee80211_local->sta_scanning w/ only
 	 * what is exposed through include/ declarations */
 	if (unlikely(!iwl4965_param_disable_hw_scan &&
 		     test_bit(STATUS_SCANNING, &priv->status))) {
-		IWL_DEBUG_MAC80211("leave - scanning\n");
+
+		if (unlikely(priv->cache_conf))
+			IWL_DEBUG_MAC80211("leave - still scanning\n");
+		else {
+			/* Cache the configuration now so that we can
+			 * replay it after the hardware scan is finished. */
+			priv->cache_conf = kmalloc(sizeof(*conf), GFP_KERNEL);
+			if (priv->cache_conf) {
+				memcpy(priv->cache_conf, conf, sizeof(*conf));
+				IWL_DEBUG_MAC80211("leave - scanning\n");
+			} else {
+				IWL_DEBUG_MAC80211("leave - no memory\n");
+				ret = -ENOMEM;
+			}
+		}
 		mutex_unlock(&priv->mutex);
-		return 0;
+		return ret;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -7568,8 +7588,8 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 			       conf->channel, conf->phymode);
 		IWL_DEBUG_MAC80211("leave - invalid channel\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
-		mutex_unlock(&priv->mutex);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 #ifdef CONFIG_IWL4965_HT
@@ -7598,8 +7618,7 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 #ifdef IEEE80211_CONF_CHANNEL_SWITCH
 	if (conf->flags & IEEE80211_CONF_CHANNEL_SWITCH) {
 		iwl4965_hw_channel_switch(priv, conf->channel);
-		mutex_unlock(&priv->mutex);
-		return 0;
+		goto out;
 	}
 #endif
 
@@ -7607,14 +7626,13 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	if (!conf->radio_enabled) {
 		IWL_DEBUG_MAC80211("leave - radio disabled\n");
-		mutex_unlock(&priv->mutex);
-		return 0;
+		goto out;
 	}
 
 	if (iwl4965_is_rfkill(priv)) {
 		IWL_DEBUG_MAC80211("leave - RF kill\n");
-		mutex_unlock(&priv->mutex);
-		return -EIO;
+		ret = -EIO;
+		goto out;
 	}
 
 	iwl4965_set_rate(priv);
@@ -7627,9 +7645,13 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	IWL_DEBUG_MAC80211("leave\n");
 
+out:
+	if (priv->cache_conf) {
+		kfree(priv->cache_conf);
+		priv->cache_conf = NULL;
+	}
 	mutex_unlock(&priv->mutex);
-
-	return 0;
+	return ret;
 }
 
 static void iwl4965_config_ap(struct iwl4965_priv *priv)
