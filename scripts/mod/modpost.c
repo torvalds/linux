@@ -1656,7 +1656,6 @@ int main(int argc, char **argv)
 {
 	struct module *mod;
 	struct buffer buf = { };
-	char fname[SZ];
 	char *kernel_read = NULL, *module_read = NULL;
 	char *dump_write = NULL;
 	int opt;
@@ -1709,6 +1708,8 @@ int main(int argc, char **argv)
 	err = 0;
 
 	for (mod = modules; mod; mod = mod->next) {
+		char fname[strlen(mod->name) + 10];
+
 		if (mod->skip)
 			continue;
 
