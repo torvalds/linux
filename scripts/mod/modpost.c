@@ -388,7 +388,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 
 	/* Check if file offset is correct */
 	if (hdr->e_shoff > info->size) {
-		fatal("section header offset=%u in file '%s' is bigger then filesize=%lu\n", hdr->e_shoff, filename, info->size);
+		fatal("section header offset=%lu in file '%s' is bigger then filesize=%lu\n", (unsigned long)hdr->e_shoff, filename, info->size);
 		return 0;
 	}
 
@@ -409,7 +409,7 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		const char *secname;
 
 		if (sechdrs[i].sh_offset > info->size) {
-			fatal("%s is truncated. sechdrs[i].sh_offset=%u > sizeof(*hrd)=%ul\n", filename, (unsigned int)sechdrs[i].sh_offset, sizeof(*hdr));
+			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > sizeof(*hrd)=%lu\n", filename, (unsigned long)sechdrs[i].sh_offset, sizeof(*hdr));
 			return 0;
 		}
 		secname = secstrings + sechdrs[i].sh_name;
@@ -907,7 +907,8 @@ static void warn_sec_mismatch(const char *modname, const char *fromsec,
 		     "before '%s' (at offset -0x%llx)\n",
 		     modname, fromsec, (unsigned long long)r.r_offset,
 		     secname, refsymname,
-		     elf->strtab + after->st_name);
+		     elf->strtab + after->st_name,
+		     (unsigned long long)r.r_offset);
 	} else {
 		warn("%s(%s+0x%llx): Section mismatch: reference to %s:%s\n",
 		     modname, fromsec, (unsigned long long)r.r_offset,
