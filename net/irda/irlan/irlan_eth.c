@@ -296,6 +296,7 @@ void irlan_eth_flow_indication(void *instance, void *sap, LOCAL_FLOW flow)
  */
 void irlan_eth_send_gratuitous_arp(struct net_device *dev)
 {
+#ifdef CONFIG_INET
 	struct in_device *in_dev;
 
 	/*
@@ -303,7 +304,6 @@ void irlan_eth_send_gratuitous_arp(struct net_device *dev)
 	 * is useful if we have changed access points on the same
 	 * subnet.
 	 */
-#ifdef CONFIG_INET
 	IRDA_DEBUG(4, "IrLAN: Sending gratuitous ARP\n");
 	rcu_read_lock();
 	in_dev = __in_dev_get_rcu(dev);
