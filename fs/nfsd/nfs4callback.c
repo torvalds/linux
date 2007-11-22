@@ -395,8 +395,7 @@ nfsd4_probe_callback(struct nfs4_client *clp)
 	};
 	struct task_struct *t;
 
-	if (atomic_read(&cb->cb_set))
-		return;
+	BUG_ON(atomic_read(&clp->cl_callback.cb_set));
 
 	/* Initialize address */
 	memset(&addr, 0, sizeof(addr));

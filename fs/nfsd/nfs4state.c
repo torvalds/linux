@@ -948,6 +948,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			}
 			move_to_confirmed(unconf);
 			conf = unconf;
+			nfsd4_probe_callback(conf);
 			status = nfs_ok;
 		}
 	} else if ((!conf || (conf && !same_verf(&conf->cl_confirm, &confirm)))
@@ -965,8 +966,6 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		status = nfserr_clid_inuse;
 	}
 out:
-	if (!status)
-		nfsd4_probe_callback(conf);
 	nfs4_unlock_state();
 	return status;
 }
