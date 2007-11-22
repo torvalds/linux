@@ -568,6 +568,8 @@ struct drm_driver {
 	void (*postclose) (struct drm_device *, struct drm_file *);
 	void (*lastclose) (struct drm_device *);
 	int (*unload) (struct drm_device *);
+	int (*suspend) (struct drm_device *);
+	int (*resume) (struct drm_device *);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	void (*dma_ready) (struct drm_device *);
 	int (*dma_quiescent) (struct drm_device *);
@@ -643,6 +645,7 @@ struct drm_head {
  * may contain multiple heads.
  */
 struct drm_device {
+	struct device dev;		/**< Linux device */
 	char *unique;			/**< Unique identifier: e.g., busid */
 	int unique_len;			/**< Length of unique field */
 	char *devname;			/**< For /proc/interrupts */
@@ -1063,11 +1066,11 @@ extern void __drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 
 			       /* sysfs support (drm_sysfs.c) */
+struct drm_sysfs_class;
 extern struct class *drm_sysfs_create(struct module *owner, char *name);
-extern void drm_sysfs_destroy(struct class *cs);
-extern struct class_device *drm_sysfs_device_add(struct class *cs,
-						 struct drm_head *head);
-extern void drm_sysfs_device_remove(struct class_device *class_dev);
+extern void drm_sysfs_destroy(void);
+extern int drm_sysfs_device_add(struct drm_device *dev, struct drm_head *head);
+extern void drm_sysfs_device_remove(struct drm_device *dev);
 
 /*
  * Basic memory manager support (drm_mm.c)
