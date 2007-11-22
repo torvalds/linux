@@ -333,7 +333,7 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	inst->alg.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC;
 	inst->alg.cra_priority = enc->cra_priority * 10 + auth->cra_priority;
 	inst->alg.cra_blocksize = enc->cra_blocksize;
-	inst->alg.cra_alignmask = max(auth->cra_alignmask, enc->cra_alignmask);
+	inst->alg.cra_alignmask = auth->cra_alignmask | enc->cra_alignmask;
 	inst->alg.cra_type = &crypto_aead_type;
 
 	inst->alg.cra_aead.ivsize = enc->cra_blkcipher.ivsize;
