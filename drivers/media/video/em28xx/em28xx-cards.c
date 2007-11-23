@@ -1,5 +1,6 @@
 /*
-   em28xx-cards.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
+   em28xx-cards.c - driver for Empia EM2800/EM2820/2840 USB
+		    video capture devices
 
    Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 		      Markus Rechberger <mrechberger@gmail.com>
@@ -55,15 +56,15 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input           = {{
+		.input           = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2820_BOARD_UNKNOWN] = {
 		.name         = "Unknown EM2750/28xx video grabber",
@@ -76,15 +77,15 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input           = {{
+		.input           = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2820_BOARD_TERRATEC_CINERGY_250] = {
 		.name         = "Terratec Cinergy 250 USB",
@@ -93,19 +94,19 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2820_BOARD_PINNACLE_USB_2] = {
 		.name         = "Pinnacle PCTV USB 2",
@@ -114,39 +115,41 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2820_BOARD_HAUPPAUGE_WINTV_USB_2] = {
 		.name         = "Hauppauge WinTV USB 2",
 		.vchannels    = 3,
 		.tuner_type   = TUNER_PHILIPS_FM1236_MK3,
-		.tda9887_conf = TDA9887_PRESENT|TDA9887_PORT1_ACTIVE|TDA9887_PORT2_ACTIVE,
+		.tda9887_conf = TDA9887_PRESENT |
+				TDA9887_PORT1_ACTIVE|
+				TDA9887_PORT2_ACTIVE,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_TVP5150,
 		.has_msp34xx  = 1,
 		/*FIXME: S-Video not tested */
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = MSP_INPUT_DEFAULT,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = MSP_INPUT(MSP_IN_SCART1, MSP_IN_TUNER1,
 					MSP_DSP_IN_SCART, MSP_DSP_IN_SCART),
-		}},
+		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900] = {
 		.name         = "Hauppauge WinTV HVR 900",
@@ -156,19 +159,19 @@ struct em28xx_board em28xx_boards[] = {
 		.has_tuner    = 1,
 		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950] = {
 		.name         = "Hauppauge WinTV HVR 950",
@@ -177,19 +180,19 @@ struct em28xx_board em28xx_boards[] = {
 		.tuner_type   = TUNER_XC2028,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_TVP5150,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2880_BOARD_TERRATEC_HYBRID_XS] = {
 		.name         = "Terratec Hybrid XS",
@@ -198,22 +201,23 @@ struct em28xx_board em28xx_boards[] = {
 		.has_tuner    = 1,
 		.tuner_type   = TUNER_XC2028,
 		.decoder      = EM28XX_TVP5150,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
-		}},
+		} },
 	},
-	/* maybe there's a reason behind it why Terratec sells the Hybrid XS as Prodigy XS with a
-	 * different PID, let's keep it separated for now maybe we'll need it lateron */
+	/* maybe there's a reason behind it why Terratec sells the Hybrid XS
+	   as Prodigy XS with a different PID, let's keep it separated for now
+	   maybe we'll need it lateron */
 	[EM2880_BOARD_TERRATEC_PRODIGY_XS] = {
 		.name         = "Terratec Prodigy XS",
 		.vchannels    = 3,
@@ -221,40 +225,42 @@ struct em28xx_board em28xx_boards[] = {
 		.has_tuner    = 1,
 		.tuner_type   = TUNER_XC2028,
 		.decoder      = EM28XX_TVP5150,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = TVP5150_COMPOSITE0,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = TVP5150_COMPOSITE1,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = TVP5150_SVIDEO,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2820_BOARD_MSI_VOX_USB_2] = {
 		.name		= "MSI VOX USB 2.0",
 		.vchannels	= 3,
 		.tuner_type	= TUNER_LG_PAL_NEW_TAPC,
-		.tda9887_conf	= TDA9887_PRESENT|TDA9887_PORT1_ACTIVE|TDA9887_PORT2_ACTIVE,
+		.tda9887_conf	= TDA9887_PRESENT      |
+				  TDA9887_PORT1_ACTIVE |
+				  TDA9887_PORT2_ACTIVE,
 		.has_tuner	= 1,
 		.decoder        = EM28XX_SAA7114,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE4,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2800_BOARD_TERRATEC_CINERGY_200] = {
 		.name         = "Terratec Cinergy 200 USB",
@@ -264,19 +270,19 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2800_BOARD_LEADTEK_WINFAST_USBII] = {
 		.name         = "Leadtek Winfast USB II",
@@ -286,19 +292,19 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2800_BOARD_KWORLD_USB2800] = {
 		.name         = "Kworld USB2800",
@@ -308,34 +314,34 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2820_BOARD_PINNACLE_DVC_90] = {
 		.name         = "Pinnacle Dazzle DVC 90",
 		.vchannels    = 3,
 		.has_tuner    = 0,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2800_BOARD_VGEAR_POCKETTV] = {
 		.name         = "V-Gear PocketTV",
@@ -345,19 +351,19 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 0,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 	[EM2820_BOARD_PROLINK_PLAYTV_USB2] = {
 		.name         = "Pixelview Prolink PlayTV USB 2.0",
@@ -365,56 +371,73 @@ struct em28xx_board em28xx_boards[] = {
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
 		.decoder      = EM28XX_SAA7113,
-		.input          = {{
+		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = SAA7115_COMPOSITE2,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = SAA7115_COMPOSITE0,
 			.amux     = 1,
-		},{
+		}, {
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = SAA7115_SVIDEO3,
 			.amux     = 1,
-		}},
+		} },
 	},
 };
 const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id em28xx_id_table [] = {
-	{ USB_DEVICE(0xeb1a, 0x2750), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2800), .driver_info = EM2800_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2821), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2860), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2861), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2870), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2881), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2883), .driver_info = EM2820_BOARD_UNKNOWN },
-	{ USB_DEVICE(0x0ccd, 0x0036), .driver_info = EM2820_BOARD_TERRATEC_CINERGY_250 },
-	{ USB_DEVICE(0x2304, 0x0208), .driver_info = EM2820_BOARD_PINNACLE_USB_2 },
-	{ USB_DEVICE(0x2040, 0x4200), .driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
-	{ USB_DEVICE(0x2304, 0x0207), .driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
-	{ USB_DEVICE(0x2040, 0x6500), .driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
-	{ USB_DEVICE(0x2040, 0x6513), .driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
-	{ USB_DEVICE(0x0ccd, 0x0042), .driver_info = EM2880_BOARD_TERRATEC_HYBRID_XS },
-	{ USB_DEVICE(0x0ccd, 0x0047), .driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
+	{ USB_DEVICE(0xeb1a, 0x2750),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2800),
+			.driver_info = EM2800_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2820),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2821),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2860),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2861),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2870),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2881),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2883),
+			.driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0x0ccd, 0x0036),
+			.driver_info = EM2820_BOARD_TERRATEC_CINERGY_250 },
+	{ USB_DEVICE(0x2304, 0x0208),
+			.driver_info = EM2820_BOARD_PINNACLE_USB_2 },
+	{ USB_DEVICE(0x2040, 0x4200),
+			.driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
+	{ USB_DEVICE(0x2304, 0x0207),
+			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
+	{ USB_DEVICE(0x2040, 0x6500),
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
+	{ USB_DEVICE(0x2040, 0x6513),
+			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950 },
+	{ USB_DEVICE(0x0ccd, 0x0042),
+			.driver_info = EM2880_BOARD_TERRATEC_HYBRID_XS },
+	{ USB_DEVICE(0x0ccd, 0x0047),
+			.driver_info = EM2880_BOARD_TERRATEC_PRODIGY_XS },
 	{ },
 };
-MODULE_DEVICE_TABLE (usb, em28xx_id_table);
+MODULE_DEVICE_TABLE(usb, em28xx_id_table);
 
 /* EEPROM hash table for devices with generic USB IDs */
 static struct em28xx_hash_table em28xx_eeprom_hash [] = {
 	/* P/N: SA 60002070465 Tuner: TVF7533-MF */
-	{ 0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF },
+	{0x6ce05a8f, EM2820_BOARD_PROLINK_PLAYTV_USB2, TUNER_YMEC_TVF_5533MF},
 };
 
 /* I2C devicelist hash table for devices with generic USB IDs */
 static struct em28xx_hash_table em28xx_i2c_hash[] = {
-	{ 0xb06a32c3, EM2800_BOARD_TERRATEC_CINERGY_200, TUNER_LG_PAL_NEW_TAPC },
-	{ 0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC },
+	{0xb06a32c3, EM2800_BOARD_TERRATEC_CINERGY_200, TUNER_LG_PAL_NEW_TAPC},
+	{0xf51200e3, EM2800_BOARD_VGEAR_POCKETTV, TUNER_LG_PAL_NEW_TAPC},
 };
 
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
@@ -423,7 +446,7 @@ static struct em28xx_hash_table em28xx_i2c_hash[] = {
 void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
-	switch(dev->model){
+	switch (dev->model) {
 	case EM2880_BOARD_TERRATEC_PRODIGY_XS:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900:
 	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
@@ -454,7 +477,7 @@ static int em28xx_tuner_callback(void *ptr, int command, int arg)
 	return rc;
 }
 
-static void em28xx_config_tuner (struct em28xx *dev)
+static void em28xx_config_tuner(struct em28xx *dev)
 {
 	struct v4l2_priv_tun_config  xc2028_cfg;
 	struct xc2028_ctrl           ctl;
@@ -472,7 +495,7 @@ static void em28xx_config_tuner (struct em28xx *dev)
 	em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 
 	if (dev->tuner_type == TUNER_XC2028) {
-		memset (&ctl, 0, sizeof(ctl));
+		memset(&ctl, 0, sizeof(ctl));
 
 		ctl.fname   = XC2028_DEFAULT_FIRMWARE;
 		ctl.max_len = 64;
@@ -648,5 +671,5 @@ void em28xx_card_setup(struct em28xx *dev)
 		request_module("tuner");
 #endif
 
-	em28xx_config_tuner (dev);
+	em28xx_config_tuner(dev);
 }
