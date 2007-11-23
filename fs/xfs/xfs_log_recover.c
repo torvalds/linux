@@ -2733,21 +2733,13 @@ xlog_recover_do_efd_trans(
 				 * AIL lock.
 				 */
 				xfs_trans_delete_ail(mp, lip);
-				break;
+				xfs_efi_item_free(efip);
+				return;
 			}
 		}
 		lip = xfs_trans_next_ail(mp, lip, &gen, NULL);
 	}
-
-	/*
-	 * If we found it, then free it up.  If it wasn't there, it
-	 * must have been overwritten in the log.  Oh well.
-	 */
-	if (lip != NULL) {
-		xfs_efi_item_free(efip);
-	} else {
-		spin_unlock(&mp->m_ail_lock);
-	}
+	spin_unlock(&mp->m_ail_lock);
 }
 
 /*
