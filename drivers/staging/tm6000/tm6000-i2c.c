@@ -94,7 +94,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 {
 	struct tm6000_core *dev = i2c_adap->algo_data;
 	int addr, rc, i, byte;
-	u8 prev_reg = 0;
+	int prev_reg = -1;
 
 	if (num <= 0)
 		return 0;
@@ -113,16 +113,38 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 	   out of message data.
 	 */
 			/* SMBus Read Byte command */
+			if (prev_reg < 0)
+				printk("XXX read from unknown prev_reg\n");
 			rc = tm6000_read_write_usb (dev,
 				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				REQ_16_SET_GET_I2CSEQ,
 				addr | (prev_reg << 8), 0,
 				msgs[i].buf, msgs[i].len);
+			if (prev_reg >= 0)
+				prev_reg += msgs[i].len;
 			if (i2c_debug>=2) {
 				for (byte = 0; byte < msgs[i].len; byte++) {
 					printk(" %02x", msgs[i].buf[byte]);
 				}
 			}
+		} else if (i+1 < num && msgs[i].len == 2 &&
+			   (msgs[i+1].flags & I2C_M_RD) &&
+			   msgs[i].addr == msgs[i+1].addr) {
+			i2c_dprintk(2, "msg %d: write 2, read %d", i,
+				    msgs[i+1].len);
+			/* Write 2 Read N command */
+			rc = tm6000_read_write_usb (dev,
+				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				REQ_14_SET_GET_EEPROM_PAGE, /* XXX wrong name */
+				addr | msgs[i].buf[0] << 8, msgs[i].buf[1],
+				msgs[i+1].buf, msgs[i+1].len);
+			i++;
+			if (i2c_debug>=2) {
+				for (byte = 0; byte < msgs[i].len; byte++) {
+					printk(" %02x", msgs[i].buf[byte]);
+				}
+			}
+			prev_reg = -1;
 		} else {
 			/* write bytes */
 			if (i2c_debug>=2) {
@@ -134,6 +156,8 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			if(msgs[i].len == 1 && i+1 < num && msgs[i+1].flags & I2C_M_RD
 					    && msgs[i+1].addr == msgs[i].addr) {
 				prev_reg = msgs[i].buf[0];
+				if (i2c_debug >= 2)
+					printk("\n");
 				continue;
 			}
 
@@ -143,12 +167,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 				addr|(*msgs[i].buf)<<8, 0,
 				msgs[i].buf+1, msgs[i].len-1);
 
-			if(msgs[i].len >= 1) {
-				prev_reg = msgs[i].buf[0];
-			}
-			else {
-				prev_reg = 0;
-			}
+			prev_reg = -1;
 		}
 		if (i2c_debug>=2)
 			printk("\n");
