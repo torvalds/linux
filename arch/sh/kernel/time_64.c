@@ -353,7 +353,6 @@ static __init unsigned int get_cpu_hz(void)
          * wrap-around (128) and CUI interrupt being raised (64).
 	 */
 	return count*2;
-#endif
 }
 
 static irqreturn_t sh64_rtc_interrupt(int irq, void *dev_id)

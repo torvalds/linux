@@ -131,6 +131,7 @@ machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	+= se/7206
 machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	+= se/7619
 machdir-$(CONFIG_SH_LBOX_RE2)			+= lboxre2
 machdir-$(CONFIG_SH_MAGIC_PANEL_R2)		+= magicpanelr2
+machdir-$(CONFIG_SH_CAYMAN)			+= cayman
 
 incdir-y	:= $(notdir $(machdir-y))
 
@@ -138,10 +139,6 @@ ifneq ($(machdir-y),)
 core-y	+= $(addprefix arch/sh/boards/, \
 	     $(filter-out ., $(patsubst %,%/,$(machdir-y))))
 endif
-
-# SH-5 mach types
-# XXX.. to be reconciled with machdir-y later.
-core-$(CONFIG_SH_CAYMAN)	+= arch/sh/mach-cayman/
 
 # Companion chips
 core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
