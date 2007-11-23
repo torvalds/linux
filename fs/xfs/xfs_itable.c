@@ -291,7 +291,7 @@ xfs_bulkstat_use_dinode(
 	dip = (xfs_dinode_t *)
 			xfs_buf_offset(bp, clustidx << mp->m_sb.sb_inodelog);
 	/*
-	 * Check the buffer containing the on-disk inode for di_nlink == 0.
+	 * Check the buffer containing the on-disk inode for di_mode == 0.
 	 * This is to prevent xfs_bulkstat from picking up just reclaimed
 	 * inodes that have their in-core state initialized but not flushed
 	 * to disk yet. This is a temporary hack that would require a proper
@@ -299,7 +299,7 @@ xfs_bulkstat_use_dinode(
 	 */
 	if (be16_to_cpu(dip->di_core.di_magic) != XFS_DINODE_MAGIC ||
 	    !XFS_DINODE_GOOD_VERSION(dip->di_core.di_version) ||
-	    !dip->di_core.di_nlink)
+	    !dip->di_core.di_mode)
 		return 0;
 	if (flags & BULKSTAT_FG_QUICK) {
 		*dipp = dip;
