@@ -68,7 +68,7 @@ MODULE_LICENSE("GPL");
 
 int sysctl_ipv6_bindv6only __read_mostly;
 
-/* The inetsw table contains everything that inet_create needs to
+/* The inetsw6 table contains everything that inet6_create needs to
  * build a new socket.
  */
 static struct list_head inetsw6[SOCK_MAX];
