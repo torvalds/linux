@@ -141,9 +141,7 @@ endif
 
 # SH-5 mach types
 # XXX.. to be reconciled with machdir-y later.
-core-$(CONFIG_SH_SIMULATOR)	+= arch/sh/mach-sim/
 core-$(CONFIG_SH_CAYMAN)	+= arch/sh/mach-cayman/
-core-$(CONFIG_SH_HARP)		+= arch/sh/mach-harp/
 
 # Companion chips
 core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/

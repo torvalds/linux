@@ -347,14 +347,6 @@ static __init unsigned int get_cpu_hz(void)
 
 	count = ctc_val_init - ctc_val; /* CTC counts down */
 
-#if defined (CONFIG_SH_SIMULATOR)
-	/*
-	 * Let's pretend we are a 5MHz SH-5 to avoid a too
-	 * little timer interval. Also to keep delay
-	 * calibration within a reasonable time.
-	 */
-	return 5000000;
-#else
 	/*
 	 * This really is count by the number of clock cycles
          * by the ratio between a complete R64CNT
