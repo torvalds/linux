@@ -996,6 +996,7 @@ i2sbus_attach_codec(struct soundbus_dev *dev, struct snd_card *card,
 		if (dev->pcm->card != card) {
 			printk(KERN_ERR
 			       "Can't attach same bus to different cards!\n");
+			err = -EINVAL;
 			goto out_put_ci_module;
 		}
 		err = snd_pcm_new_stream(dev->pcm, SNDRV_PCM_STREAM_CAPTURE, 1);
