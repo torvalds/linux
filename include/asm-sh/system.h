@@ -194,7 +194,8 @@ asmlinkage void name##_trap_handler(unsigned long r4, unsigned long r5,	\
 
 #define TRAP_HANDLER_DECL				\
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);	\
-	unsigned int vec = regs->tra;
+	unsigned int vec = regs->tra;			\
+	(void)vec;
 #else
 #define BUILD_TRAP_HANDLER(name)	\
 asmlinkage void name##_trap_handler(unsigned int vec, struct pt_regs *regs)
