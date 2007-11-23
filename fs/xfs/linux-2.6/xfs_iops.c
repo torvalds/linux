@@ -52,6 +52,7 @@
 #include <linux/xattr.h>
 #include <linux/namei.h>
 #include <linux/security.h>
+#include <linux/falloc.h>
 
 /*
  * Bring the atime in the XFS inode uptodate.
@@ -794,6 +795,47 @@ xfs_vn_removexattr(
 	return namesp->attr_remove(vp, attr, xflags);
 }
 
+STATIC long
+xfs_vn_fallocate(
+	struct inode	*inode,
+	int		mode,
+	loff_t		offset,
+	loff_t		len)
+{
+	long		error;
+	loff_t		new_size = 0;
+	xfs_flock64_t	bf;
+	xfs_inode_t	*ip = XFS_I(inode);
+
+	/* preallocation on directories not yet supported */
+	error = -ENODEV;
+	if (S_ISDIR(inode->i_mode))
+		goto out_error;
+
+	bf.l_whence = 0;
+	bf.l_start = offset;
+	bf.l_len = len;
+
+	xfs_ilock(ip, XFS_IOLOCK_EXCL);
+	error = xfs_change_file_space(ip, XFS_IOC_RESVSP, &bf,
+						0, NULL, ATTR_NOLOCK);
+	if (!error && !(mode & FALLOC_FL_KEEP_SIZE) &&
+	    offset + len > i_size_read(inode))
+		new_size = offset + len;
+
+	/* Change file size if needed */
+	if (new_size) {
+		bhv_vattr_t	va;
+
+		va.va_mask = XFS_AT_SIZE;
+		va.va_size = new_size;
+		error = xfs_setattr(ip, &va, ATTR_NOLOCK, NULL);
+	}
+
+	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
+out_error:
+	return error;
+}
 
 const struct inode_operations xfs_inode_operations = {
 	.permission		= xfs_vn_permission,
@@ -804,6 +846,7 @@ const struct inode_operations xfs_inode_operations = {
 	.getxattr		= xfs_vn_getxattr,
 	.listxattr		= xfs_vn_listxattr,
 	.removexattr		= xfs_vn_removexattr,
+	.fallocate		= xfs_vn_fallocate,
 };
 
 const struct inode_operations xfs_dir_inode_operations = {
