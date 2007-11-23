@@ -29,10 +29,6 @@ config ZONE_DMA
 	bool
 	default y
 
-config BFIN
-	bool
-	default y
-
 config SEMAPHORE_SLEEPERS
 	bool
 	default y
