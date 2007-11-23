@@ -457,7 +457,7 @@ static struct snd_pcm_hardware snd_card_saa7134_capture =
 	.buffer_bytes_max =	(256*1024),
 	.period_bytes_min =	64,
 	.period_bytes_max =	(256*1024),
-	.periods_min =		2,
+	.periods_min =		4,
 	.periods_max =		1024,
 };
 
@@ -491,7 +491,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 
 	snd_assert(period_size >= 0x100 && period_size <= 0x10000,
 		   return -EINVAL);
-	snd_assert(periods >= 2, return -EINVAL);
+	snd_assert(periods >= 4, return -EINVAL);
 	snd_assert(period_size * periods <= 1024 * 1024, return -EINVAL);
 
 	dev = saa7134->dev;
@@ -647,7 +647,14 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 		saa7134_tvaudio_setmute(dev);
 	}
 
-	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+	err = snd_pcm_hw_constraint_integer(runtime,
+						SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
+		return err;
+
+	err = snd_pcm_hw_constraint_step(runtime, 0,
+						SNDRV_PCM_HW_PARAM_PERIODS, 2);
+	if (err < 0)
 		return err;
 
 	return 0;
