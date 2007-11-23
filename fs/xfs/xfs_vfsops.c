@@ -1806,15 +1806,17 @@ done:
 	return 0;
 }
 
+struct proc_xfs_info {
+	int	flag;
+	char	*str;
+};
+
 int
 xfs_showargs(
 	struct xfs_mount	*mp,
 	struct seq_file		*m)
 {
-	static struct proc_xfs_info {
-		int	flag;
-		char	*str;
-	} xfs_info[] = {
+	static struct proc_xfs_info xfs_info_set[] = {
 		/* the few simple ones we can get from the mount struct */
 		{ XFS_MOUNT_WSYNC,		"," MNTOPT_WSYNC },
 		{ XFS_MOUNT_INO64,		"," MNTOPT_INO64 },
@@ -1823,12 +1825,28 @@ xfs_showargs(
 		{ XFS_MOUNT_NOUUID,		"," MNTOPT_NOUUID },
 		{ XFS_MOUNT_NORECOVERY,		"," MNTOPT_NORECOVERY },
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
+		{ XFS_MOUNT_ATTR2,		"," MNTOPT_ATTR2 },
+		{ XFS_MOUNT_FILESTREAMS,	"," MNTOPT_FILESTREAM },
+		{ XFS_MOUNT_DMAPI,		"," MNTOPT_DMAPI },
+		{ XFS_MOUNT_GRPID,		"," MNTOPT_GRPID },
+		{ 0, NULL }
+	};
+	static struct proc_xfs_info xfs_info_unset[] = {
+		/* the few simple ones we can get from the mount struct */
+		{ XFS_MOUNT_IDELETE,		"," MNTOPT_IKEEP },
+		{ XFS_MOUNT_COMPAT_IOSIZE,	"," MNTOPT_LARGEIO },
+		{ XFS_MOUNT_BARRIER,		"," MNTOPT_NOBARRIER },
+		{ XFS_MOUNT_SMALL_INUMS,	"," MNTOPT_64BITINODE },
 		{ 0, NULL }
 	};
 	struct proc_xfs_info	*xfs_infop;
 
-	for (xfs_infop = xfs_info; xfs_infop->flag; xfs_infop++) {
+	for (xfs_infop = xfs_info_set; xfs_infop->flag; xfs_infop++) {
 		if (mp->m_flags & xfs_infop->flag)
+			seq_puts(m, xfs_infop->str);
+	}
+	for (xfs_infop = xfs_info_unset; xfs_infop->flag; xfs_infop++) {
+		if (!(mp->m_flags & xfs_infop->flag))
 			seq_puts(m, xfs_infop->str);
 	}
 
@@ -1853,41 +1871,23 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_SWIDTH "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
-	if (!(mp->m_flags & XFS_MOUNT_IDELETE))
-		seq_printf(m, "," MNTOPT_IKEEP);
-	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
-		seq_printf(m, "," MNTOPT_LARGEIO);
+	if (mp->m_qflags & (XFS_UQUOTA_ACCT|XFS_UQUOTA_ENFD))
+		seq_puts(m, "," MNTOPT_USRQUOTA);
+	else if (mp->m_qflags & XFS_UQUOTA_ACCT)
+		seq_puts(m, "," MNTOPT_UQUOTANOENF);
 
-	if (!(mp->m_flags & XFS_MOUNT_SMALL_INUMS))
-		seq_printf(m, "," MNTOPT_64BITINODE);
-	if (mp->m_flags & XFS_MOUNT_GRPID)
-		seq_printf(m, "," MNTOPT_GRPID);
+	if (mp->m_qflags & (XFS_PQUOTA_ACCT|XFS_OQUOTA_ENFD))
+		seq_puts(m, "," MNTOPT_PRJQUOTA);
+	else if (mp->m_qflags & XFS_PQUOTA_ACCT)
+		seq_puts(m, "," MNTOPT_PQUOTANOENF);
 
-	if (mp->m_qflags & XFS_UQUOTA_ACCT) {
-		if (mp->m_qflags & XFS_UQUOTA_ENFD)
-			seq_puts(m, "," MNTOPT_USRQUOTA);
-		else
-			seq_puts(m, "," MNTOPT_UQUOTANOENF);
-	}
-
-	if (mp->m_qflags & XFS_PQUOTA_ACCT) {
-		if (mp->m_qflags & XFS_OQUOTA_ENFD)
-			seq_puts(m, "," MNTOPT_PRJQUOTA);
-		else
-			seq_puts(m, "," MNTOPT_PQUOTANOENF);
-	}
-
-	if (mp->m_qflags & XFS_GQUOTA_ACCT) {
-		if (mp->m_qflags & XFS_OQUOTA_ENFD)
-			seq_puts(m, "," MNTOPT_GRPQUOTA);
-		else
-			seq_puts(m, "," MNTOPT_GQUOTANOENF);
-	}
+	if (mp->m_qflags & (XFS_GQUOTA_ACCT|XFS_OQUOTA_ENFD))
+		seq_puts(m, "," MNTOPT_GRPQUOTA);
+	else if (mp->m_qflags & XFS_GQUOTA_ACCT)
+		seq_puts(m, "," MNTOPT_GQUOTANOENF);
 
 	if (!(mp->m_qflags & XFS_ALL_QUOTA_ACCT))
 		seq_puts(m, "," MNTOPT_NOQUOTA);
 
-	if (mp->m_flags & XFS_MOUNT_DMAPI)
-		seq_puts(m, "," MNTOPT_DMAPI);
 	return 0;
 }
