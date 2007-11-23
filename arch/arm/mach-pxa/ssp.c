@@ -138,6 +138,16 @@ int ssp_flush(struct ssp_dev *dev)
 	struct ssp_device *ssp = dev->ssp;
 	int timeout = TIMEOUT * 2;
 
+	/* ensure TX FIFO is empty instead of not full */
+	if (cpu_is_pxa3xx()) {
+		while (__raw_readl(ssp->mmio_base + SSSR) & 0xf00) {
+			if (!--timeout)
+				return -ETIMEDOUT;
+			cpu_relax();
+		}
+		timeout = TIMEOUT * 2;
+	}
+
 	do {
 		while (__raw_readl(ssp->mmio_base + SSSR) & SSSR_RNE) {
 		        if (!--timeout)
