@@ -43,6 +43,7 @@
 #include <asm/cacheflush.h>
 #include <asm/blackfin.h>
 #include <asm/cplbinit.h>
+#include <asm/div64.h>
 #include <asm/fixed_code.h>
 #include <asm/early_printk.h>
 
@@ -504,13 +505,17 @@ EXPORT_SYMBOL(get_sclk);
 
 unsigned long sclk_to_usecs(unsigned long sclk)
 {
-	return (USEC_PER_SEC * (u64)sclk) / get_sclk();
+	u64 tmp = USEC_PER_SEC * (u64)sclk;
+	do_div(tmp, get_sclk());
+	return tmp;
 }
 EXPORT_SYMBOL(sclk_to_usecs);
 
 unsigned long usecs_to_sclk(unsigned long usecs)
 {
-	return (get_sclk() * (u64)usecs) / USEC_PER_SEC;
+	u64 tmp = get_sclk() * (u64)usecs;
+	do_div(tmp, USEC_PER_SEC);
+	return tmp;
 }
 EXPORT_SYMBOL(usecs_to_sclk);
 
