@@ -702,6 +702,9 @@ retry:
  * the originating callers request.
  *
  * Called without a lock on the inode.
+ *
+ * We no longer bother to look at the incoming map - all we have to
+ * guarantee is that whatever we allocate fills the required range.
  */
 int
 xfs_iomap_write_allocate(
@@ -717,9 +720,9 @@ xfs_iomap_write_allocate(
 	xfs_fsblock_t	first_block;
 	xfs_bmap_free_t	free_list;
 	xfs_filblks_t	count_fsb;
-	xfs_bmbt_irec_t	imap[XFS_STRAT_WRITE_IMAPS];
+	xfs_bmbt_irec_t	imap;
 	xfs_trans_t	*tp;
-	int		i, nimaps, committed;
+	int		nimaps, committed;
 	int		error = 0;
 	int		nres;
 
@@ -766,13 +769,38 @@ xfs_iomap_write_allocate(
 
 			XFS_BMAP_INIT(&free_list, &first_block);
 
-			nimaps = XFS_STRAT_WRITE_IMAPS;
 			/*
-			 * Ensure we don't go beyond eof - it is possible
-			 * the extents changed since we did the read call,
-			 * we dropped the ilock in the interim.
+			 * it is possible that the extents have changed since
+			 * we did the read call as we dropped the ilock for a
+			 * while. We have to be careful about truncates or hole
+			 * punchs here - we are not allowed to allocate
+			 * non-delalloc blocks here.
+			 *
+			 * The only protection against truncation is the pages
+			 * for the range we are being asked to convert are
+			 * locked and hence a truncate will block on them
+			 * first.
+			 *
+			 * As a result, if we go beyond the range we really
+			 * need and hit an delalloc extent boundary followed by
+			 * a hole while we have excess blocks in the map, we
+			 * will fill the hole incorrectly and overrun the
+			 * transaction reservation.
+			 *
+			 * Using a single map prevents this as we are forced to
+			 * check each map we look for overlap with the desired
+			 * range and abort as soon as we find it. Also, given
+			 * that we only return a single map, having one beyond
+			 * what we can return is probably a bit silly.
+			 *
+			 * We also need to check that we don't go beyond EOF;
+			 * this is a truncate optimisation as a truncate sets
+			 * the new file size before block on the pages we
+			 * currently have locked under writeback. Because they
+			 * are about to be tossed, we don't need to write them
+			 * back....
 			 */
-
+			nimaps = 1;
 			end_fsb = XFS_B_TO_FSB(mp, ip->i_size);
 			xfs_bmap_last_offset(NULL, ip, &last_block,
 				XFS_DATA_FORK);
@@ -788,7 +816,7 @@ xfs_iomap_write_allocate(
 			/* Go get the actual blocks */
 			error = xfs_bmapi(tp, ip, map_start_fsb, count_fsb,
 					XFS_BMAPI_WRITE, &first_block, 1,
-					imap, &nimaps, &free_list, NULL);
+					&imap, &nimaps, &free_list, NULL);
 			if (error)
 				goto trans_cancel;
 
@@ -807,27 +835,24 @@ xfs_iomap_write_allocate(
 		 * See if we were able to allocate an extent that
 		 * covers at least part of the callers request
 		 */
-		for (i = 0; i < nimaps; i++) {
-			if (unlikely(!imap[i].br_startblock &&
-				     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)))
-				return xfs_cmn_err_fsblock_zero(ip, &imap[i]);
-			if ((offset_fsb >= imap[i].br_startoff) &&
-			    (offset_fsb < (imap[i].br_startoff +
-					   imap[i].br_blockcount))) {
-				*map = imap[i];
-				*retmap = 1;
-				XFS_STATS_INC(xs_xstrat_quick);
-				return 0;
-			}
-			count_fsb -= imap[i].br_blockcount;
+		if (unlikely(!imap.br_startblock &&
+			     XFS_IS_REALTIME_INODE(ip)))
+			return xfs_cmn_err_fsblock_zero(ip, &imap);
+		if ((offset_fsb >= imap.br_startoff) &&
+		    (offset_fsb < (imap.br_startoff +
+				   imap.br_blockcount))) {
+			*map = imap;
+			*retmap = 1;
+			XFS_STATS_INC(xs_xstrat_quick);
+			return 0;
 		}
 
-		/* So far we have not mapped the requested part of the
+		/*
+		 * So far we have not mapped the requested part of the
 		 * file, just surrounding data, try again.
 		 */
-		nimaps--;
-		map_start_fsb = imap[nimaps].br_startoff +
-				imap[nimaps].br_blockcount;
+		count_fsb -= imap.br_blockcount;
+		map_start_fsb = imap.br_startoff + imap.br_blockcount;
 	}
 
 trans_cancel:
