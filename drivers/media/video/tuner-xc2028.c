@@ -912,7 +912,11 @@ static int xc2028_set_tv_freq(struct dvb_frontend *fe,
 	struct xc2028_data *priv = fe->tuner_priv;
 	fe_bandwidth_t bw;
 
-	/* FIXME: Maybe there are more 6 MHz video standards */
+	/* if std is not defined, choose one */
+	if (!p->std)
+		p->std = V4L2_STD_MN;
+
+	/* PAL/M, PAL/N, PAL/Nc and NTSC variants should use 6MHz firmware */
 	if (p->std & V4L2_STD_MN)
 		bw = BANDWIDTH_6_MHZ;
 	else
