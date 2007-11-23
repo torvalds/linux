@@ -141,7 +141,7 @@ xfs_imap_to_bmap(
 		iomapp->iomap_bsize = XFS_FSB_TO_B(mp, imap->br_blockcount);
 		iomapp->iomap_flags = flags;
 
-		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
+		if (XFS_IS_REALTIME_INODE(ip)) {
 			iomapp->iomap_flags |= IOMAP_REALTIME;
 			iomapp->iomap_target = mp->m_rtdev_targp;
 		} else {
@@ -298,7 +298,7 @@ xfs_iomap_eof_align_last_fsb(
 	xfs_extlen_t	align;
 	int		eof, error;
 
-	if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
+	if (XFS_IS_REALTIME_INODE(ip))
 		;
 	/*
 	 * If mounted with the "-o swalloc" option, roundup the allocation
@@ -524,7 +524,7 @@ xfs_iomap_write_direct(
 	}
 
 	if (unlikely(!imap.br_startblock &&
-		     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME))) {
+		     !(XFS_IS_REALTIME_INODE(ip)))) {
 		error = xfs_cmn_err_fsblock_zero(ip, &imap);
 		goto error_out;
 	}
@@ -687,7 +687,7 @@ retry:
 	}
 
 	if (unlikely(!imap[0].br_startblock &&
-		     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)))
+		     !(XFS_IS_REALTIME_INODE(ip))))
 		return xfs_cmn_err_fsblock_zero(ip, &imap[0]);
 
 	*ret_imap = imap[0];
@@ -932,7 +932,7 @@ xfs_iomap_write_unwritten(
 			return XFS_ERROR(error);
 
 		if (unlikely(!imap.br_startblock &&
-			     !(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)))
+			     !(XFS_IS_REALTIME_INODE(ip))))
 			return xfs_cmn_err_fsblock_zero(ip, &imap);
 
 		if ((numblks_fsb = imap.br_blockcount) == 0) {

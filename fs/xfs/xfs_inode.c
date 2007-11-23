@@ -1296,7 +1296,10 @@ xfs_isize_check(
 	if ((ip->i_d.di_mode & S_IFMT) != S_IFREG)
 		return;
 
-	if (ip->i_d.di_flags & (XFS_DIFLAG_REALTIME | XFS_DIFLAG_EXTSIZE))
+	if (XFS_IS_REALTIME_INODE(ip))
+		return;
+
+	if (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
 		return;
 
 	nimaps = 2;

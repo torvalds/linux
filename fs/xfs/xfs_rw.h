@@ -32,7 +32,7 @@ struct xfs_mount;
 static inline xfs_daddr_t
 xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 {
-	return (((ip)->i_d.di_flags & XFS_DIFLAG_REALTIME) ? \
+	return (XFS_IS_REALTIME_INODE(ip) ? \
 		 (xfs_daddr_t)XFS_FSB_TO_BB((ip)->i_mount, (fsb)) : \
 		 XFS_FSB_TO_DADDR((ip)->i_mount, (fsb)));
 }
@@ -53,7 +53,7 @@ xfs_get_extsz_hint(
 {
 	xfs_extlen_t	extsz;
 
-	if (unlikely(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+	if (unlikely(XFS_IS_REALTIME_INODE(ip))) {
 		extsz = (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
 				? ip->i_d.di_extsize
 				: ip->i_mount->m_sb.sb_rextsize;

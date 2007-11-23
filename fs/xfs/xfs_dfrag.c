@@ -185,8 +185,7 @@ xfs_swap_extents(
 	}
 
 	/* Verify both files are either real-time or non-realtime */
-	if ((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) !=
-	    (tip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+	if (XFS_IS_REALTIME_INODE(ip) != XFS_IS_REALTIME_INODE(tip)) {
 		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}

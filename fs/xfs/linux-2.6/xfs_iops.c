@@ -612,7 +612,7 @@ xfs_vn_getattr(
 				   sysv_minor(ip->i_df.if_u2.if_rdev));
 		break;
 	default:
-		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) {
+		if (XFS_IS_REALTIME_INODE(ip)) {
 			/*
 			 * If the file blocks are being allocated from a
 			 * realtime volume, then return the inode's realtime

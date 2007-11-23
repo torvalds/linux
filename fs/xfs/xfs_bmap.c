@@ -2969,7 +2969,7 @@ STATIC int
 xfs_bmap_alloc(
 	xfs_bmalloca_t	*ap)		/* bmap alloc argument struct */
 {
-	if ((ap->ip->i_d.di_flags & XFS_DIFLAG_REALTIME) && ap->userdata)
+	if (XFS_IS_REALTIME_INODE(ap->ip) && ap->userdata)
 		return xfs_bmap_rtalloc(ap);
 	return xfs_bmap_btalloc(ap);
 }
@@ -3096,8 +3096,7 @@ xfs_bmap_del_extent(
 		/*
 		 * Realtime allocation.  Free it and record di_nblocks update.
 		 */
-		if (whichfork == XFS_DATA_FORK &&
-		    (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+		if (whichfork == XFS_DATA_FORK && XFS_IS_REALTIME_INODE(ip)) {
 			xfs_fsblock_t	bno;
 			xfs_filblks_t	len;
 

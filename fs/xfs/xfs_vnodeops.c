@@ -136,7 +136,7 @@ xfs_getattr(
 	default:
 		vap->va_rdev = 0;
 
-		if (!(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
+		if (!(XFS_IS_REALTIME_INODE(ip))) {
 			vap->va_blocksize = xfs_preferred_iosize(mp);
 		} else {
 
@@ -508,7 +508,7 @@ xfs_setattr(
 		 */
 		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
 		    (mask & XFS_AT_XFLAGS) &&
-		    (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) !=
+		    (XFS_IS_REALTIME_INODE(ip)) !=
 		    (vap->va_xflags & XFS_XFLAG_REALTIME)) {
 			code = XFS_ERROR(EINVAL);	/* EFBIG? */
 			goto error_return;
@@ -520,7 +520,7 @@ xfs_setattr(
 		if ((mask & XFS_AT_EXTSIZE) && vap->va_extsize != 0) {
 			xfs_extlen_t	size;
 
-			if ((ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ||
+			if (XFS_IS_REALTIME_INODE(ip) ||
 			    ((mask & XFS_AT_XFLAGS) &&
 			    (vap->va_xflags & XFS_XFLAG_REALTIME))) {
 				size = mp->m_sb.sb_rextsize <<
@@ -1144,7 +1144,7 @@ xfs_fsync(
 		 * If this inode is on the RT dev we need to flush that
 		 * cache as well.
 		 */
-		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
+		if (XFS_IS_REALTIME_INODE(ip))
 			xfs_blkdev_issue_flush(ip->i_mount->m_rtdev_targp);
 	}
 
@@ -4044,7 +4044,7 @@ xfs_zero_remaining_bytes(
 	int			error = 0;
 
 	bp = xfs_buf_get_noaddr(mp->m_sb.sb_blocksize,
-				ip->i_d.di_flags & XFS_DIFLAG_REALTIME ?
+				XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp);
 
 	for (offset = startoff; offset <= endoff; offset = lastoffset + 1) {
@@ -4141,7 +4141,7 @@ xfs_free_file_space(
 	error = 0;
 	if (len <= 0)	/* if nothing being freed */
 		return error;
-	rt = (ip->i_d.di_flags & XFS_DIFLAG_REALTIME);
+	rt = XFS_IS_REALTIME_INODE(ip);
 	startoffset_fsb	= XFS_B_TO_FSB(mp, offset);
 	end_dmi_offset = offset + len;
 	endoffset_fsb = XFS_B_TO_FSBT(mp, end_dmi_offset);

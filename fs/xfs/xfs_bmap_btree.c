@@ -2062,8 +2062,7 @@ xfs_bmbt_insert(
 				pcur->bc_private.b.allocated;
 			pcur->bc_private.b.allocated = 0;
 			ASSERT((cur->bc_private.b.firstblock != NULLFSBLOCK) ||
-			       (cur->bc_private.b.ip->i_d.di_flags &
-				XFS_DIFLAG_REALTIME));
+			       XFS_IS_REALTIME_INODE(cur->bc_private.b.ip));
 			cur->bc_private.b.firstblock =
 				pcur->bc_private.b.firstblock;
 			ASSERT(cur->bc_private.b.flist ==

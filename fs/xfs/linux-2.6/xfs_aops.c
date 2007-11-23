@@ -113,7 +113,7 @@ xfs_find_bdev_for_inode(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 
-	if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
+	if (XFS_IS_REALTIME_INODE(ip))
 		return mp->m_rtdev_targp->bt_bdev;
 	else
 		return mp->m_ddev_targp->bt_bdev;

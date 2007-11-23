@@ -202,7 +202,7 @@ xfs_read(
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
 		xfs_buftarg_t	*target =
-			(ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
+			XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 		if ((*offset & target->bt_smask) ||
 		    (size & target->bt_smask)) {
@@ -657,7 +657,7 @@ start:
 
 	if (ioflags & IO_ISDIRECT) {
 		xfs_buftarg_t	*target =
-			(xip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
+			XFS_IS_REALTIME_INODE(xip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
 
 		if ((pos & target->bt_smask) || (count & target->bt_smask)) {

@@ -741,7 +741,7 @@ xfs_ioctl(
 	case XFS_IOC_DIOINFO: {
 		struct dioattr	da;
 		xfs_buftarg_t	*target =
-			(ip->i_d.di_flags & XFS_DIFLAG_REALTIME) ?
+			XFS_IS_REALTIME_INODE(ip) ?
 			mp->m_rtdev_targp : mp->m_ddev_targp;
 
 		da.d_mem = da.d_miniosz = 1 << target->bt_sshift;
