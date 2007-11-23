@@ -291,6 +291,9 @@ xfs_ioc_bulkstat_compat(
 	if ((count = bulkreq.icount) <= 0)
 		return -XFS_ERROR(EINVAL);
 
+	if (bulkreq.ubuffer == NULL)
+		return -XFS_ERROR(EINVAL);
+
 	if (cmd == XFS_IOC_FSINUMBERS)
 		error = xfs_inumbers(mp, &inlast, &count,
 				bulkreq.ubuffer, xfs_inumbers_fmt_compat);
