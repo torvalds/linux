@@ -512,7 +512,7 @@ xfs_attrmulti_attr_get(
 	if (!kbuf)
 		return ENOMEM;
 
-	error = xfs_attr_get(XFS_I(inode), name, kbuf, len, flags, NULL);
+	error = xfs_attr_get(XFS_I(inode), name, kbuf, (int *)len, flags, NULL);
 	if (error)
 		goto out_kfree;
 

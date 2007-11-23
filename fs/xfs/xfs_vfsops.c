@@ -61,11 +61,6 @@
 int
 xfs_init(void)
 {
-	extern kmem_zone_t	*xfs_bmap_free_item_zone;
-	extern kmem_zone_t	*xfs_btree_cur_zone;
-	extern kmem_zone_t	*xfs_trans_zone;
-	extern kmem_zone_t	*xfs_buf_item_zone;
-	extern kmem_zone_t	*xfs_dabuf_zone;
 #ifdef XFS_DABUF_DEBUG
 	extern spinlock_t        xfs_dabuf_global_lock;
 	spin_lock_init(&xfs_dabuf_global_lock);
@@ -155,15 +150,9 @@ xfs_init(void)
 void
 xfs_cleanup(void)
 {
-	extern kmem_zone_t	*xfs_bmap_free_item_zone;
-	extern kmem_zone_t	*xfs_btree_cur_zone;
 	extern kmem_zone_t	*xfs_inode_zone;
-	extern kmem_zone_t	*xfs_trans_zone;
-	extern kmem_zone_t	*xfs_da_state_zone;
-	extern kmem_zone_t	*xfs_dabuf_zone;
 	extern kmem_zone_t	*xfs_efd_zone;
 	extern kmem_zone_t	*xfs_efi_zone;
-	extern kmem_zone_t	*xfs_buf_item_zone;
 	extern kmem_zone_t	*xfs_icluster_zone;
 
 	xfs_cleanup_procfs();

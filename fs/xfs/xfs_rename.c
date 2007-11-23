@@ -39,6 +39,7 @@
 #include "xfs_refcache.h"
 #include "xfs_utils.h"
 #include "xfs_trans_space.h"
+#include "xfs_vnodeops.h"
 
 
 /*

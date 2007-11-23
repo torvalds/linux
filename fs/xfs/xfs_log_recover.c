@@ -293,7 +293,7 @@ xlog_recover_iodone(
  * Note that the algorithm can not be perfect because the disk will not
  * necessarily be perfect.
  */
-int
+STATIC int
 xlog_find_cycle_start(
 	xlog_t		*log,
 	xfs_buf_t	*bp,
@@ -986,7 +986,7 @@ exit:
  *	-1 => use *blk_no as the first block of the log
  *	>0 => error has occurred
  */
-int
+STATIC int
 xlog_find_zeroed(
 	xlog_t		*log,
 	xfs_daddr_t	*blk_no)

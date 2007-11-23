@@ -6393,7 +6393,7 @@ xfs_bmap_count_blocks(
  * Recursively walks each level of a btree
  * to count total fsblocks is use.
  */
-int                                     /* error */
+STATIC int                                     /* error */
 xfs_bmap_count_tree(
 	xfs_mount_t     *mp,            /* file system mount point */
 	xfs_trans_t     *tp,            /* transaction pointer */
@@ -6469,7 +6469,7 @@ xfs_bmap_count_tree(
 /*
  * Count leaf blocks given a range of extent records.
  */
-int
+STATIC int
 xfs_bmap_count_leaves(
 	xfs_ifork_t		*ifp,
 	xfs_extnum_t		idx,
@@ -6489,7 +6489,7 @@ xfs_bmap_count_leaves(
  * Count leaf blocks given a range of extent records originally
  * in btree format.
  */
-int
+STATIC int
 xfs_bmap_disk_count_leaves(
 	xfs_extnum_t		idx,
 	xfs_bmbt_block_t	*block,

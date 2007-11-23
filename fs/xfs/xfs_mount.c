@@ -2343,7 +2343,7 @@ out:
 		spin_unlock(&mp->m_sb_lock);
 }
 
-int
+STATIC int
 xfs_icsb_modify_counters(
 	xfs_mount_t	*mp,
 	xfs_sb_field_t	field,

@@ -1001,6 +1001,8 @@ xfs_log_busy_slot_t *xfs_trans_add_busy(xfs_trans_t *tp,
 					xfs_agnumber_t ag,
 					xfs_extlen_t idx);
 
+extern kmem_zone_t	*xfs_trans_zone;
+
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_TRANS_H__ */

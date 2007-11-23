@@ -907,7 +907,7 @@ xlog_assign_tail_lsn(xfs_mount_t *mp)
  * the tail.  The details of this case are described below, but the end
  * result is that we return the size of the log as the amount of space left.
  */
-int
+STATIC int
 xlog_space_left(xlog_t *log, int cycle, int bytes)
 {
 	int free_bytes;
@@ -1289,7 +1289,7 @@ xlog_commit_record(xfs_mount_t  *mp,
  * pushes on an lsn which is further along in the log once we reach the high
  * water mark.  In this manner, we would be creating a low water mark.
  */
-void
+STATIC void
 xlog_grant_push_ail(xfs_mount_t	*mp,
 		    int		need_bytes)
 {
@@ -1372,7 +1372,7 @@ xlog_grant_push_ail(xfs_mount_t	*mp,
  * is added immediately before calling bwrite().
  */
 
-int
+STATIC int
 xlog_sync(xlog_t		*log,
 	  xlog_in_core_t	*iclog)
 {
@@ -1516,7 +1516,7 @@ xlog_sync(xlog_t		*log,
 /*
  * Deallocate a log structure
  */
-void
+STATIC void
 xlog_dealloc_log(xlog_t *log)
 {
 	xlog_in_core_t	*iclog, *next_iclog;
@@ -1738,7 +1738,7 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
  *	we don't update ic_offset until the end when we know exactly how many
  *	bytes have been written out.
  */
-int
+STATIC int
 xlog_write(xfs_mount_t *	mp,
 	   xfs_log_iovec_t	reg[],
 	   int			nentries,
@@ -2280,7 +2280,7 @@ xlog_state_do_callback(
  * global state machine log lock.  Assume that the calls to cvsema won't
  * take a long time.  At least we know it won't sleep.
  */
-void
+STATIC void
 xlog_state_done_syncing(
 	xlog_in_core_t	*iclog,
 	int		aborted)
@@ -2340,7 +2340,7 @@ xlog_state_done_syncing(
  *		needs to be incremented, depending on the amount of data which
  *		is copied.
  */
-int
+STATIC int
 xlog_state_get_iclog_space(xlog_t	  *log,
 			   int		  len,
 			   xlog_in_core_t **iclogp,
@@ -2776,7 +2776,7 @@ xlog_ungrant_log_space(xlog_t	     *log,
 /*
  * Atomically put back used ticket.
  */
-void
+STATIC void
 xlog_state_put_ticket(xlog_t	    *log,
 		      xlog_ticket_t *tic)
 {
@@ -2794,7 +2794,7 @@ xlog_state_put_ticket(xlog_t	    *log,
  *
  *
  */
-int
+STATIC int
 xlog_state_release_iclog(xlog_t		*log,
 			 xlog_in_core_t	*iclog)
 {
@@ -3024,7 +3024,7 @@ no_sleep:
  * If filesystem activity goes to zero, the iclog will get flushed only by
  * bdflush().
  */
-int
+STATIC int
 xlog_state_sync(xlog_t	  *log,
 		xfs_lsn_t lsn,
 		uint	  flags,
@@ -3129,7 +3129,7 @@ try_again:
  * Called when we want to mark the current iclog as being ready to sync to
  * disk.
  */
-void
+STATIC void
 xlog_state_want_sync(xlog_t *log, xlog_in_core_t *iclog)
 {
 	spin_lock(&log->l_icloglock);
@@ -3241,7 +3241,7 @@ xlog_ticket_put(xlog_t		*log,
 /*
  * Grab ticket off freelist or allocation some more
  */
-xlog_ticket_t *
+STATIC xlog_ticket_t *
 xlog_ticket_get(xlog_t		*log,
 		int		unit_bytes,
 		int		cnt,
