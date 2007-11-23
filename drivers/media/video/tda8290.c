@@ -597,13 +597,13 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 		tda827x_attach(&t->fe, priv->tda827x_addr,
 			       priv->i2c_props.adap, &priv->cfg);
-
-		/* FIXME: tda827x module doesn't probe the tuner until
-		 * tda827x_initial_sleep is called
-		 */
-		if (t->fe.ops.tuner_ops.sleep)
-			t->fe.ops.tuner_ops.sleep(&t->fe);
 	}
+	if (t->fe.ops.tuner_ops.init)
+		t->fe.ops.tuner_ops.init(&t->fe);
+
+	if (t->fe.ops.tuner_ops.sleep)
+		t->fe.ops.tuner_ops.sleep(&t->fe);
+
 	ops->i2c_gate_ctrl(fe, 0);
 
 	switch (priv->ver) {
