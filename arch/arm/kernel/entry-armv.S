@@ -453,9 +453,9 @@ __und_usr:
 	@
 	@  r0 - instruction
 	@
-1:	ldrt	r0, [r4]
 	adr	r9, ret_from_exception
 	adr	lr, __und_usr_unknown
+1:	ldrt	r0, [r4]
 	@
 	@ fallthrough to call_fpe
 	@
