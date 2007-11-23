@@ -401,6 +401,7 @@ config SGI_IP22
 	select DMA_NONCOHERENT
 	select HW_HAS_EISA
 	select I8253
+	select I8259
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
