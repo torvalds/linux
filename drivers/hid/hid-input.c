@@ -86,11 +86,6 @@ static const struct {
 #define map_abs_clear(c)	do { map_abs(c); clear_bit(c, bit); } while (0)
 #define map_key_clear(c)	do { map_key(c); clear_bit(c, bit); } while (0)
 
-/* hardware needing special handling due to colliding MSVENDOR page usages */
-#define IS_CHICONY_TACTICAL_PAD(x) (x->vendor == 0x04f2 && device->product == 0x0418)
-#define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
-#define IS_MS_PRESENTER_8000(x) (x->vendor == 0x045e && x->product == 0x0713)
-
 #ifdef CONFIG_USB_HIDINPUT_POWERBOOK
 
 struct hidinput_key_translation {
@@ -177,7 +172,7 @@ static struct hidinput_key_translation *find_translation(struct hidinput_key_tra
 	return NULL;
 }
 
-static int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
+int hidinput_apple_event(struct hid_device *hid, struct input_dev *input,
 		struct hid_usage *usage, __s32 value)
 {
 	struct hidinput_key_translation *trans;
@@ -269,7 +264,7 @@ static void hidinput_apple_setup(struct input_dev *input)
 
 }
 #else
-static inline int hidinput_apple_event(struct hid_device *hid,
+inline int hidinput_apple_event(struct hid_device *hid,
 				       struct input_dev *input,
 				       struct hid_usage *usage, __s32 value)
 {
@@ -386,6 +381,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		goto ignore;
 	}
 
+	/* handle input mappings for quirky devices */
 	ret = hidinput_mapping_quirks(usage, input, bit, &max);
 	if (ret)
 		goto mapped;
@@ -857,38 +853,8 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 	if (!usage->type)
 		return;
 
-	if (((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
-		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007))) {
-		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
-			(usage->type == EV_REL) &&
-			(usage->code == REL_WHEEL)) {
-		hid->delayed_value = value;
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
-			(usage->hid == 0x000100b8)) {
-		input_event(input, EV_REL, value ? REL_HWHEEL : REL_WHEEL, hid->delayed_value);
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_INVERT_HWHEEL) && (usage->code == REL_HWHEEL)) {
-		input_event(input, usage->type, usage->code, -value);
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
-		input_event(input, usage->type, REL_HWHEEL, value);
-		return;
-	}
-
-	if ((hid->quirks & HID_QUIRK_APPLE_HAS_FN) && hidinput_apple_event(hid, input, usage, value))
-		return;
+	/* handle input events for quirky devices */
+	hidinput_event_quirks(hid, field, usage, value);
 
 	if (usage->hat_min < usage->hat_max || usage->hat_dir) {
 		int hat_dir = usage->hat_dir;
@@ -949,25 +915,6 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	/* Handling MS keyboards special buttons */
-	if (IS_MS_KB(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
-		int key = 0;
-		static int last_key = 0;
-		switch (value) {
-			case 0x01: key = KEY_F14; break;
-			case 0x02: key = KEY_F15; break;
-			case 0x04: key = KEY_F16; break;
-			case 0x08: key = KEY_F17; break;
-			case 0x10: key = KEY_F18; break;
-			default: break;
-		}
-		if (key) {
-			input_event(input, usage->type, key, 1);
-			last_key = key;
-		} else {
-			input_event(input, usage->type, last_key, 0);
-		}
-	}
 	/* report the usage code as scancode if the key status has changed */
 	if (usage->type == EV_KEY && !!test_bit(usage->code, input->key) != value)
 		input_event(input, EV_MSC, MSC_SCAN, usage->hid);

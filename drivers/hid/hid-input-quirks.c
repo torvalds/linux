@@ -322,5 +322,68 @@ int hidinput_mapping_quirks(struct hid_usage *usage,
 	}
 	return 0;
 }
-EXPORT_SYMBOL_GPL(hidinput_mapping_quirks);
+
+#define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
+
+void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
+{
+	struct input_dev *input;
+	unsigned *quirks = &hid->quirks;
+
+	input = field->hidinput->input;
+
+	if (((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_5) && (usage->hid == 0x00090005))
+		|| ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_7) && (usage->hid == 0x00090007))) {
+		if (value) hid->quirks |=  HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
+		else       hid->quirks &= ~HID_QUIRK_2WHEEL_MOUSE_HACK_ON;
+		return;
+	}
+
+	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
+			(usage->type == EV_REL) &&
+			(usage->code == REL_WHEEL)) {
+		hid->delayed_value = value;
+		return;
+	}
+
+	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_B8) &&
+			(usage->hid == 0x000100b8)) {
+		input_event(input, EV_REL, value ? REL_HWHEEL : REL_WHEEL, hid->delayed_value);
+		return;
+	}
+
+	if ((hid->quirks & HID_QUIRK_INVERT_HWHEEL) && (usage->code == REL_HWHEEL)) {
+		input_event(input, usage->type, usage->code, -value);
+		return;
+	}
+
+	if ((hid->quirks & HID_QUIRK_2WHEEL_MOUSE_HACK_ON) && (usage->code == REL_WHEEL)) {
+		input_event(input, usage->type, REL_HWHEEL, value);
+		return;
+	}
+
+	if ((hid->quirks & HID_QUIRK_APPLE_HAS_FN) && hidinput_apple_event(hid, input, usage, value))
+		return;
+
+	/* Handling MS keyboards special buttons */
+	if (IS_MS_KB(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
+		int key = 0;
+		static int last_key = 0;
+		switch (value) {
+			case 0x01: key = KEY_F14; break;
+			case 0x02: key = KEY_F15; break;
+			case 0x04: key = KEY_F16; break;
+			case 0x08: key = KEY_F17; break;
+			case 0x10: key = KEY_F18; break;
+			default: break;
+		}
+		if (key) {
+			input_event(input, usage->type, key, 1);
+			last_key = key;
+		} else {
+			input_event(input, usage->type, last_key, 0);
+		}
+	}
+}
+
 
