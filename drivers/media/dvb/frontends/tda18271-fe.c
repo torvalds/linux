@@ -25,12 +25,12 @@
 #include "tda18271.h"
 #include "tda18271-priv.h"
 
-static int debug;
-module_param(debug, int, 0644);
+static int tda18271_debug;
+module_param_named(debug, tda18271_debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off frontend debugging (default:off).");
 
 #define dprintk(level, fmt, arg...) do {\
-	if (debug >= level) \
+	if (tda18271_debug >= level) \
 		printk(KERN_DEBUG "%s: " fmt, __FUNCTION__, ##arg); } while (0)
 
 /*---------------------------------------------------------------------*/
@@ -118,7 +118,7 @@ static void tda18271_read_regs(struct dvb_frontend *fe)
 		printk("ERROR: %s: i2c_transfer returned: %d\n",
 		       __FUNCTION__, ret);
 
-	if (debug > 2)
+	if (tda18271_debug > 2)
 		tda18271_dump_regs(fe);
 }
 
