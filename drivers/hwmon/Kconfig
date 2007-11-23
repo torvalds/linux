@@ -683,6 +683,16 @@ config SENSORS_W83L785TS
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83l785ts.
 
+config SENSORS_W83L786NG
+	tristate "Winbond W83L786NG, W83L786NR"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Winbond W83L786NG
+	  and W83L786NR sensor chips.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called w83l786ng.
+
 config SENSORS_W83627HF
 	tristate "Winbond W83627HF, W83627THF, W83637HF, W83687THF, W83697HF"
 	select HWMON_VID
