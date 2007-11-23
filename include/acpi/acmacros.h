@@ -486,7 +486,7 @@
 #define ACPI_FUNCTION_NAME(name)
 #endif
 
-#ifdef DEBUG_FUNC_TRACE
+#ifdef CONFIG_ACPI_DEBUG_FUNC_TRACE
 
 #define ACPI_FUNCTION_TRACE(a)          ACPI_FUNCTION_NAME(a) \
 			  acpi_ut_trace(ACPI_DEBUG_PARAMETERS)
@@ -565,7 +565,7 @@
 
 #endif				/* ACPI_SIMPLE_RETURN_MACROS */
 
-#else /* !DEBUG_FUNC_TRACE */
+#else /* !CONFIG_ACPI_DEBUG_FUNC_TRACE */
 
 #define ACPI_FUNCTION_TRACE(a)
 #define ACPI_FUNCTION_TRACE_PTR(a,b)
@@ -584,7 +584,7 @@
 #define return_UINT32(s)                return(s)
 #define return_PTR(s)                   return(s)
 
-#endif /* DEBUG_FUNC_TRACE */
+#endif /* CONFIG_ACPI_DEBUG_FUNC_TRACE */
 
 /* Conditional execution */
 
