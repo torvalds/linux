@@ -15,6 +15,8 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+#include <linux/log2.h>
+
 #include "xfs.h"
 #include "xfs_fs.h"
 #include "xfs_types.h"
@@ -3642,32 +3644,6 @@ xfs_iaccess(
 	return XFS_ERROR(EACCES);
 }
 
-/*
- * xfs_iroundup: round up argument to next power of two
- */
-uint
-xfs_iroundup(
-	uint	v)
-{
-	int i;
-	uint m;
-
-	if ((v & (v - 1)) == 0)
-		return v;
-	ASSERT((v & 0x80000000) == 0);
-	if ((v & (v + 1)) == 0)
-		return v + 1;
-	for (i = 0, m = 1; i < 31; i++, m <<= 1) {
-		if (v & m)
-			continue;
-		v |= m;
-		if ((v & (v + 1)) == 0)
-			return v + 1;
-	}
-	ASSERT(0);
-	return( 0 );
-}
-
 #ifdef XFS_ILOCK_TRACE
 ktrace_t	*xfs_ilock_trace_buf;
 
@@ -4174,7 +4150,7 @@ xfs_iext_realloc_direct(
 			return;
 		}
 		if (!is_power_of_2(new_size)){
-			rnew_size = xfs_iroundup(new_size);
+			rnew_size = roundup_pow_of_two(new_size);
 		}
 		if (rnew_size != ifp->if_real_bytes) {
 			ifp->if_u1.if_extents =
@@ -4197,7 +4173,7 @@ xfs_iext_realloc_direct(
 	else {
 		new_size += ifp->if_bytes;
 		if (!is_power_of_2(new_size)) {
-			rnew_size = xfs_iroundup(new_size);
+			rnew_size = roundup_pow_of_two(new_size);
 		}
 		xfs_iext_inline_to_direct(ifp, rnew_size);
 	}
