@@ -37,7 +37,7 @@ static u8 is_command_allowed_in_ps(__le16 command)
 	return 0;
 }
 
-static int lbs_cmd_hw_spec(lbs_private * priv, struct cmd_ds_command *cmd)
+static int lbs_cmd_hw_spec(struct lbs_private *priv, struct cmd_ds_command *cmd)
 {
 	struct cmd_ds_get_hw_spec *hwspec = &cmd->params.hwspec;
 
@@ -51,7 +51,7 @@ static int lbs_cmd_hw_spec(lbs_private * priv, struct cmd_ds_command *cmd)
 	return 0;
 }
 
-static int lbs_cmd_802_11_ps_mode(lbs_private * priv,
+static int lbs_cmd_802_11_ps_mode(struct lbs_private *priv,
 				   struct cmd_ds_command *cmd,
 				   u16 cmd_action)
 {
@@ -90,7 +90,7 @@ static int lbs_cmd_802_11_ps_mode(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_inactivity_timeout(lbs_private * priv,
+static int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
 					      struct cmd_ds_command *cmd,
 					      u16 cmd_action, void *pdata_buf)
 {
@@ -114,11 +114,11 @@ static int lbs_cmd_802_11_inactivity_timeout(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_sleep_params(lbs_private * priv,
+static int lbs_cmd_802_11_sleep_params(struct lbs_private *priv,
 					struct cmd_ds_command *cmd,
 					u16 cmd_action)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_sleep_params *sp = &cmd->params.sleep_params;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -145,13 +145,13 @@ static int lbs_cmd_802_11_sleep_params(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_set_wep(lbs_private * priv,
+static int lbs_cmd_802_11_set_wep(struct lbs_private *priv,
                                    struct cmd_ds_command *cmd,
                                    u32 cmd_act,
                                    void * pdata_buf)
 {
 	struct cmd_ds_802_11_set_wep *wep = &cmd->params.wep;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct assoc_request * assoc_req = pdata_buf;
 
@@ -219,7 +219,7 @@ done:
 	return ret;
 }
 
-static int lbs_cmd_802_11_enable_rsn(lbs_private * priv,
+static int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv,
 				      struct cmd_ds_command *cmd,
 				      u16 cmd_action,
 				      void * pdata_buf)
@@ -272,7 +272,7 @@ static void set_one_wpa_key(struct MrvlIEtype_keyParamSet * pkeyparamset,
 	lbs_deb_leave(LBS_DEB_CMD);
 }
 
-static int lbs_cmd_802_11_key_material(lbs_private * priv,
+static int lbs_cmd_802_11_key_material(struct lbs_private *priv,
 					struct cmd_ds_command *cmd,
 					u16 cmd_action,
 					u32 cmd_oid, void *pdata_buf)
@@ -319,7 +319,7 @@ done:
 	return ret;
 }
 
-static int lbs_cmd_802_11_reset(lbs_private * priv,
+static int lbs_cmd_802_11_reset(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd, int cmd_action)
 {
 	struct cmd_ds_802_11_reset *reset = &cmd->params.reset;
@@ -334,7 +334,7 @@ static int lbs_cmd_802_11_reset(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_get_log(lbs_private * priv,
+static int lbs_cmd_802_11_get_log(struct lbs_private *priv,
 				   struct cmd_ds_command *cmd)
 {
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -346,7 +346,7 @@ static int lbs_cmd_802_11_get_log(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_get_stat(lbs_private * priv,
+static int lbs_cmd_802_11_get_stat(struct lbs_private *priv,
 				    struct cmd_ds_command *cmd)
 {
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -358,13 +358,13 @@ static int lbs_cmd_802_11_get_stat(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_snmp_mib(lbs_private * priv,
+static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 				    struct cmd_ds_command *cmd,
 				    int cmd_action,
 				    int cmd_oid, void *pdata_buf)
 {
 	struct cmd_ds_802_11_snmp_mib *pSNMPMIB = &cmd->params.smib;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u8 ucTemp;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -479,11 +479,11 @@ static int lbs_cmd_802_11_snmp_mib(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_radio_control(lbs_private * priv,
+static int lbs_cmd_802_11_radio_control(struct lbs_private *priv,
 					 struct cmd_ds_command *cmd,
 					 int cmd_action)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_radio_control *pradiocontrol = &cmd->params.radio;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -519,7 +519,7 @@ static int lbs_cmd_802_11_radio_control(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rf_tx_power(lbs_private * priv,
+static int lbs_cmd_802_11_rf_tx_power(struct lbs_private *priv,
 				       struct cmd_ds_command *cmd,
 				       u16 cmd_action, void *pdata_buf)
 {
@@ -563,7 +563,7 @@ static int lbs_cmd_802_11_rf_tx_power(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_monitor_mode(lbs_private * priv,
+static int lbs_cmd_802_11_monitor_mode(struct lbs_private *priv,
 				      struct cmd_ds_command *cmd,
 				      u16 cmd_action, void *pdata_buf)
 {
@@ -583,13 +583,13 @@ static int lbs_cmd_802_11_monitor_mode(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rate_adapt_rateset(lbs_private * priv,
+static int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 					      struct cmd_ds_command *cmd,
 					      u16 cmd_action)
 {
 	struct cmd_ds_802_11_rate_adapt_rateset
 	*rateadapt = &cmd->params.rateset;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->size =
@@ -605,12 +605,12 @@ static int lbs_cmd_802_11_rate_adapt_rateset(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_data_rate(lbs_private * priv,
+static int lbs_cmd_802_11_data_rate(struct lbs_private *priv,
 				     struct cmd_ds_command *cmd,
 				     u16 cmd_action)
 {
 	struct cmd_ds_802_11_data_rate *pdatarate = &cmd->params.drate;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -632,12 +632,12 @@ static int lbs_cmd_802_11_data_rate(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_mac_multicast_adr(lbs_private * priv,
+static int lbs_cmd_mac_multicast_adr(struct lbs_private *priv,
 				      struct cmd_ds_command *cmd,
 				      u16 cmd_action)
 {
 	struct cmd_ds_mac_multicast_adr *pMCastAdr = &cmd->params.madr;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_multicast_adr) +
@@ -655,7 +655,7 @@ static int lbs_cmd_mac_multicast_adr(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rf_channel(lbs_private * priv,
+static int lbs_cmd_802_11_rf_channel(struct lbs_private *priv,
 				      struct cmd_ds_command *cmd,
 				      int option, void *pdata_buf)
 {
@@ -676,10 +676,10 @@ static int lbs_cmd_802_11_rf_channel(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rssi(lbs_private * priv,
+static int lbs_cmd_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *cmd)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->command = cpu_to_le16(CMD_802_11_RSSI);
@@ -698,7 +698,7 @@ static int lbs_cmd_802_11_rssi(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_reg_access(lbs_private * priv,
+static int lbs_cmd_reg_access(struct lbs_private *priv,
 			       struct cmd_ds_command *cmdptr,
 			       u8 cmd_action, void *pdata_buf)
 {
@@ -773,11 +773,11 @@ static int lbs_cmd_reg_access(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_mac_address(lbs_private * priv,
+static int lbs_cmd_802_11_mac_address(struct lbs_private *priv,
 				       struct cmd_ds_command *cmd,
 				       u16 cmd_action)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->command = cpu_to_le16(CMD_802_11_MAC_ADDRESS);
@@ -797,7 +797,7 @@ static int lbs_cmd_802_11_mac_address(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_eeprom_access(lbs_private * priv,
+static int lbs_cmd_802_11_eeprom_access(struct lbs_private *priv,
 					 struct cmd_ds_command *cmd,
 					 int cmd_action, void *pdata_buf)
 {
@@ -819,7 +819,7 @@ static int lbs_cmd_802_11_eeprom_access(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_bt_access(lbs_private * priv,
+static int lbs_cmd_bt_access(struct lbs_private *priv,
 			       struct cmd_ds_command *cmd,
 			       u16 cmd_action, void *pdata_buf)
 {
@@ -857,7 +857,7 @@ static int lbs_cmd_bt_access(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_fwt_access(lbs_private * priv,
+static int lbs_cmd_fwt_access(struct lbs_private *priv,
 			       struct cmd_ds_command *cmd,
 			       u16 cmd_action, void *pdata_buf)
 {
@@ -879,7 +879,7 @@ static int lbs_cmd_fwt_access(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_mesh_access(lbs_private * priv,
+static int lbs_cmd_mesh_access(struct lbs_private *priv,
 				struct cmd_ds_command *cmd,
 				u16 cmd_action, void *pdata_buf)
 {
@@ -923,7 +923,7 @@ static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_set_boot2_ver(lbs_private * priv,
+static int lbs_cmd_set_boot2_ver(struct lbs_private *priv,
 				struct cmd_ds_command *cmd,
 				u16 cmd_action, void *pdata_buf)
 {
@@ -938,7 +938,9 @@ static int lbs_cmd_set_boot2_ver(lbs_private * priv,
  * Note: NEVER use lbs_queue_cmd() with addtail==0 other than for
  * the command timer, because it does not account for queued commands.
  */
-void lbs_queue_cmd(lbs_adapter * adapter, struct cmd_ctrl_node *cmdnode, u8 addtail)
+void lbs_queue_cmd(struct lbs_adapter *adapter,
+	struct cmd_ctrl_node *cmdnode,
+	u8 addtail)
 {
 	unsigned long flags;
 	struct cmd_ds_command *cmdptr;
@@ -990,12 +992,12 @@ done:
  * For now - we are not performing the endian conversion the second time - but
  * for PS and DEEP_SLEEP we need to worry
  */
-static int DownloadcommandToStation(lbs_private * priv,
+static int DownloadcommandToStation(struct lbs_private *priv,
 				    struct cmd_ctrl_node *cmdnode)
 {
 	unsigned long flags;
 	struct cmd_ds_command *cmdptr;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = -1;
 	u16 cmdsize;
 	u16 command;
@@ -1060,7 +1062,7 @@ done:
 	return ret;
 }
 
-static int lbs_cmd_mac_control(lbs_private * priv,
+static int lbs_cmd_mac_control(struct lbs_private *priv,
 				struct cmd_ds_command *cmd)
 {
 	struct cmd_ds_mac_control *mac = &cmd->params.macctrl;
@@ -1082,9 +1084,10 @@ static int lbs_cmd_mac_control(lbs_private * priv,
  *  This function inserts command node to cmdfreeq
  *  after cleans it. Requires adapter->driver_lock held.
  */
-void __lbs_cleanup_and_insert_cmd(lbs_private * priv, struct cmd_ctrl_node *ptempcmd)
+void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
+	struct cmd_ctrl_node *ptempcmd)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	if (!ptempcmd)
 		return;
@@ -1093,7 +1096,8 @@ void __lbs_cleanup_and_insert_cmd(lbs_private * priv, struct cmd_ctrl_node *ptem
 	list_add_tail((struct list_head *)ptempcmd, &adapter->cmdfreeq);
 }
 
-static void lbs_cleanup_and_insert_cmd(lbs_private * priv, struct cmd_ctrl_node *ptempcmd)
+static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
+	struct cmd_ctrl_node *ptempcmd)
 {
 	unsigned long flags;
 
@@ -1102,7 +1106,7 @@ static void lbs_cleanup_and_insert_cmd(lbs_private * priv, struct cmd_ctrl_node 
 	spin_unlock_irqrestore(&priv->adapter->driver_lock, flags);
 }
 
-int lbs_set_radio_control(lbs_private * priv)
+int lbs_set_radio_control(struct lbs_private *priv)
 {
 	int ret = 0;
 
@@ -1120,7 +1124,7 @@ int lbs_set_radio_control(lbs_private * priv)
 	return ret;
 }
 
-int lbs_set_mac_packet_filter(lbs_private * priv)
+int lbs_set_mac_packet_filter(struct lbs_private *priv)
 {
 	int ret = 0;
 
@@ -1137,7 +1141,7 @@ int lbs_set_mac_packet_filter(lbs_private * priv)
 /**
  *  @brief This function prepare the command before send to firmware.
  *
- *  @param priv		A pointer to lbs_private structure
+ *  @param priv		A pointer to struct lbs_private structure
  *  @param cmd_no	command number
  *  @param cmd_action	command action: GET or SET
  *  @param wait_option	wait option: wait response or not
@@ -1145,13 +1149,13 @@ int lbs_set_mac_packet_filter(lbs_private * priv)
  *  @param pdata_buf	A pointer to informaion buffer
  *  @return 		0 or -1
  */
-int lbs_prepare_and_send_command(lbs_private * priv,
+int lbs_prepare_and_send_command(struct lbs_private *priv,
 			  u16 cmd_no,
 			  u16 cmd_action,
 			  u16 wait_option, u32 cmd_oid, void *pdata_buf)
 {
 	int ret = 0;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmdnode;
 	struct cmd_ds_command *cmdptr;
 	unsigned long flags;
@@ -1470,17 +1474,17 @@ EXPORT_SYMBOL_GPL(lbs_prepare_and_send_command);
  *  @brief This function allocates the command buffer and link
  *  it to command free queue.
  *
- *  @param priv		A pointer to lbs_private structure
+ *  @param priv		A pointer to struct lbs_private structure
  *  @return 		0 or -1
  */
-int lbs_allocate_cmd_buffer(lbs_private * priv)
+int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 {
 	int ret = 0;
 	u32 ulbufsize;
 	u32 i;
 	struct cmd_ctrl_node *tempcmd_array;
 	u8 *ptempvirtualaddr;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -1522,15 +1526,15 @@ done:
 /**
  *  @brief This function frees the command buffer.
  *
- *  @param priv		A pointer to lbs_private structure
+ *  @param priv		A pointer to struct lbs_private structure
  *  @return 		0 or -1
  */
-int lbs_free_cmd_buffer(lbs_private * priv)
+int lbs_free_cmd_buffer(struct lbs_private *priv)
 {
 	u32 ulbufsize; /* Someone needs to die for this. Slowly and painfully */
 	unsigned int i;
 	struct cmd_ctrl_node *tempcmd_array;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -1566,13 +1570,13 @@ done:
  *  @brief This function gets a free command node if available in
  *  command free queue.
  *
- *  @param priv		A pointer to lbs_private structure
+ *  @param priv		A pointer to struct lbs_private structure
  *  @return cmd_ctrl_node A pointer to cmd_ctrl_node structure or NULL
  */
-struct cmd_ctrl_node *lbs_get_free_cmd_ctrl_node(lbs_private * priv)
+struct cmd_ctrl_node *lbs_get_free_cmd_ctrl_node(struct lbs_private *priv)
 {
 	struct cmd_ctrl_node *tempnode;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	unsigned long flags;
 
 	lbs_deb_enter(LBS_DEB_HOST);
@@ -1627,14 +1631,14 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
 /**
  *  @brief This function initializes the command node.
  *
- *  @param priv		A pointer to lbs_private structure
+ *  @param priv		A pointer to struct lbs_private structure
  *  @param ptempnode	A pointer to cmd_ctrl_node structure
  *  @param cmd_oid	cmd oid: treated as sub command
  *  @param wait_option	wait option: wait response or not
  *  @param pdata_buf	A pointer to informaion buffer
  *  @return 		0 or -1
  */
-void lbs_set_cmd_ctrl_node(lbs_private * priv,
+void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 		    struct cmd_ctrl_node *ptempnode,
 		    u32 cmd_oid, u16 wait_option, void *pdata_buf)
 {
@@ -1655,12 +1659,12 @@ void lbs_set_cmd_ctrl_node(lbs_private * priv,
  *  pending queue. It will put fimware back to PS mode
  *  if applicable.
  *
- *  @param priv     A pointer to lbs_private structure
+ *  @param priv     A pointer to struct lbs_private structure
  *  @return 	   0 or -1
  */
-int lbs_execute_next_command(lbs_private * priv)
+int lbs_execute_next_command(struct lbs_private *priv)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmdnode = NULL;
 	struct cmd_ds_command *cmdptr;
 	unsigned long flags;
@@ -1807,7 +1811,7 @@ done:
 	return ret;
 }
 
-void lbs_send_iwevcustom_event(lbs_private *priv, s8 *str)
+void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
 {
 	union iwreq_data iwrq;
 	u8 buf[50];
@@ -1831,10 +1835,10 @@ void lbs_send_iwevcustom_event(lbs_private *priv, s8 *str)
 	lbs_deb_leave(LBS_DEB_WEXT);
 }
 
-static int sendconfirmsleep(lbs_private *priv, u8 *cmdptr, u16 size)
+static int sendconfirmsleep(struct lbs_private *priv, u8 *cmdptr, u16 size)
 {
 	unsigned long flags;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_HOST);
@@ -1873,7 +1877,7 @@ static int sendconfirmsleep(lbs_private *priv, u8 *cmdptr, u16 size)
 	return ret;
 }
 
-void lbs_ps_sleep(lbs_private * priv, int wait_option)
+void lbs_ps_sleep(struct lbs_private *priv, int wait_option)
 {
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -1891,11 +1895,11 @@ void lbs_ps_sleep(lbs_private * priv, int wait_option)
 /**
  *  @brief This function sends Exit_PS command to firmware.
  *
- *  @param priv    	A pointer to lbs_private structure
+ *  @param priv    	A pointer to struct lbs_private structure
  *  @param wait_option	wait response or not
  *  @return 	   	n/a
  */
-void lbs_ps_wakeup(lbs_private * priv, int wait_option)
+void lbs_ps_wakeup(struct lbs_private *priv, int wait_option)
 {
 	__le32 Localpsmode;
 
@@ -1914,14 +1918,14 @@ void lbs_ps_wakeup(lbs_private * priv, int wait_option)
  *  @brief This function checks condition and prepares to
  *  send sleep confirm command to firmware if ok.
  *
- *  @param priv    	A pointer to lbs_private structure
+ *  @param priv    	A pointer to struct lbs_private structure
  *  @param psmode  	Power Saving mode
  *  @return 	   	n/a
  */
-void lbs_ps_confirm_sleep(lbs_private * priv, u16 psmode)
+void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 {
 	unsigned long flags =0;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u8 allowed = 1;
 
 	lbs_deb_enter(LBS_DEB_HOST);

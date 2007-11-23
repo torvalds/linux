@@ -52,11 +52,11 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
  *  @brief This function processes a single packet and sends
  *  to IF layer
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @param skb     A pointer to skb which includes TX packet
  *  @return 	   0 or -1
  */
-static int SendSinglePacket(lbs_private *priv, struct sk_buff *skb)
+static int SendSinglePacket(struct lbs_private *priv, struct sk_buff *skb)
 {
 	int ret = 0;
 	struct txpd localtxpd;
@@ -164,9 +164,9 @@ done:
 }
 
 
-void lbs_tx_runqueue(lbs_private *priv)
+void lbs_tx_runqueue(struct lbs_private *priv)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int i;
 
 	spin_lock(&adapter->txqueue_lock);
@@ -180,9 +180,9 @@ void lbs_tx_runqueue(lbs_private *priv)
 	spin_unlock(&adapter->txqueue_lock);
 }
 
-static void lbs_tx_queue(lbs_private *priv, struct sk_buff *skb)
+static void lbs_tx_queue(struct lbs_private *priv, struct sk_buff *skb)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	spin_lock(&adapter->txqueue_lock);
 
@@ -205,10 +205,10 @@ static void lbs_tx_queue(lbs_private *priv, struct sk_buff *skb)
  *  @brief This function checks the conditions and sends packet to IF
  *  layer if everything is ok.
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @return 	   n/a
  */
-int lbs_process_tx(lbs_private *priv, struct sk_buff *skb)
+int lbs_process_tx(struct lbs_private *priv, struct sk_buff *skb)
 {
 	int ret = -1;
 
@@ -239,14 +239,14 @@ done:
  *  @brief This function sends to the host the last transmitted packet,
  *  filling the radiotap headers with transmission information.
  *
- *  @param priv     A pointer to lbs_private structure
+ *  @param priv     A pointer to struct lbs_private structure
  *  @param status   A 32 bit value containing transmission status.
  *
  *  @returns void
  */
-void lbs_send_tx_feedback(lbs_private *priv)
+void lbs_send_tx_feedback(struct lbs_private *priv)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct tx_radiotap_hdr *radiotap_hdr;
 	u32 status = adapter->eventcause;
 	int txfail;

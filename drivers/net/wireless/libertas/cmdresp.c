@@ -20,12 +20,12 @@
  *  reports disconnect to upper layer, clean tx/rx packets,
  *  reset link state etc.
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @return 	   n/a
  */
-void lbs_mac_event_disconnected(lbs_private * priv)
+void lbs_mac_event_disconnected(struct lbs_private *priv)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	union iwreq_data wrqu;
 
 	if (adapter->connect_status != LBS_CONNECTED)
@@ -85,11 +85,11 @@ void lbs_mac_event_disconnected(lbs_private * priv)
 /**
  *  @brief This function handles MIC failure event.
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @para  event   the event id
  *  @return 	   n/a
  */
-static void handle_mic_failureevent(lbs_private * priv, u32 event)
+static void handle_mic_failureevent(struct lbs_private *priv, u32 event)
 {
 	char buf[50];
 
@@ -108,11 +108,11 @@ static void handle_mic_failureevent(lbs_private * priv, u32 event)
 	lbs_deb_leave(LBS_DEB_CMD);
 }
 
-static int lbs_ret_reg_access(lbs_private * priv,
+static int lbs_ret_reg_access(struct lbs_private *priv,
 			       u16 type, struct cmd_ds_command *resp)
 {
 	int ret = 0;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -152,12 +152,12 @@ static int lbs_ret_reg_access(lbs_private * priv,
 	return ret;
 }
 
-static int lbs_ret_get_hw_spec(lbs_private * priv,
+static int lbs_ret_get_hw_spec(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
 	u32 i;
 	struct cmd_ds_get_hw_spec *hwspec = &resp->params.hwspec;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	DECLARE_MAC_BUF(mac);
 
@@ -216,11 +216,11 @@ done:
 	return ret;
 }
 
-static int lbs_ret_802_11_sleep_params(lbs_private * priv,
+static int lbs_ret_802_11_sleep_params(struct lbs_private *priv,
 					struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_sleep_params *sp = &resp->params.sleep_params;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -240,14 +240,14 @@ static int lbs_ret_802_11_sleep_params(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_stat(lbs_private * priv,
+static int lbs_ret_802_11_stat(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
 	lbs_deb_enter(LBS_DEB_CMD);
 /*	currently adapter->wlan802_11Stat is unused
 
 	struct cmd_ds_802_11_get_stat *p11Stat = &resp->params.gstat;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	// TODO Convert it to Big endian befor copy
 	memcpy(&adapter->wlan802_11Stat,
@@ -257,7 +257,7 @@ static int lbs_ret_802_11_stat(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_snmp_mib(lbs_private * priv,
+static int lbs_ret_802_11_snmp_mib(struct lbs_private *priv,
 				    struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_snmp_mib *smib = &resp->params.smib;
@@ -299,12 +299,12 @@ static int lbs_ret_802_11_snmp_mib(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_key_material(lbs_private * priv,
+static int lbs_ret_802_11_key_material(struct lbs_private *priv,
 					struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_key_material *pkeymaterial =
 	    &resp->params.keymaterial;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u16 action = le16_to_cpu(pkeymaterial->action);
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -355,11 +355,11 @@ static int lbs_ret_802_11_key_material(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_mac_address(lbs_private * priv,
+static int lbs_ret_802_11_mac_address(struct lbs_private *priv,
 				       struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_mac_address *macadd = &resp->params.macadd;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -369,11 +369,11 @@ static int lbs_ret_802_11_mac_address(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_rf_tx_power(lbs_private * priv,
+static int lbs_ret_802_11_rf_tx_power(struct lbs_private *priv,
 				       struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rf_tx_power *rtp = &resp->params.txp;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -385,11 +385,11 @@ static int lbs_ret_802_11_rf_tx_power(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_rate_adapt_rateset(lbs_private * priv,
+static int lbs_ret_802_11_rate_adapt_rateset(struct lbs_private *priv,
 					      struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rate_adapt_rateset *rates = &resp->params.rateset;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -402,11 +402,11 @@ static int lbs_ret_802_11_rate_adapt_rateset(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_data_rate(lbs_private * priv,
+static int lbs_ret_802_11_data_rate(struct lbs_private *priv,
 				     struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_data_rate *pdatarate = &resp->params.drate;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -423,11 +423,11 @@ static int lbs_ret_802_11_data_rate(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_rf_channel(lbs_private * priv,
+static int lbs_ret_802_11_rf_channel(struct lbs_private *priv,
 				      struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rf_channel *rfchannel = &resp->params.rfchannel;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u16 action = le16_to_cpu(rfchannel->action);
 	u16 newchannel = le16_to_cpu(rfchannel->currentchannel);
 
@@ -446,11 +446,11 @@ static int lbs_ret_802_11_rf_channel(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_rssi(lbs_private * priv,
+static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rssi_rsp *rssirsp = &resp->params.rssirsp;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -477,10 +477,10 @@ static int lbs_ret_802_11_rssi(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_eeprom_access(lbs_private * priv,
+static int lbs_ret_802_11_eeprom_access(struct lbs_private *priv,
 				  struct cmd_ds_command *resp)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_ioctl_regrdwr *pbuf;
 	pbuf = (struct lbs_ioctl_regrdwr *) adapter->prdeeprom;
 
@@ -503,11 +503,11 @@ static int lbs_ret_802_11_eeprom_access(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_get_log(lbs_private * priv,
+static int lbs_ret_get_log(struct lbs_private *priv,
 			    struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_get_log *logmessage = &resp->params.glog;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -518,11 +518,11 @@ static int lbs_ret_get_log(lbs_private * priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_enable_rsn(lbs_private * priv,
+static int lbs_ret_802_11_enable_rsn(struct lbs_private *priv,
                                           struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_enable_rsn *enable_rsn = &resp->params.enbrsn;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u32 * pdata_buf = adapter->cur_cmd->pdata_buf;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -556,11 +556,11 @@ static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
 
 static inline int handle_cmd_response(u16 respcmd,
 				      struct cmd_ds_command *resp,
-				      lbs_private *priv)
+				      struct lbs_private *priv)
 {
 	int ret = 0;
 	unsigned long flags;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -735,11 +735,11 @@ static inline int handle_cmd_response(u16 respcmd,
 	return ret;
 }
 
-int lbs_process_rx_command(lbs_private * priv)
+int lbs_process_rx_command(struct lbs_private *priv)
 {
 	u16 respcmd;
 	struct cmd_ds_command *resp;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	ulong flags;
 	u16 result;
@@ -888,10 +888,10 @@ done:
 	return ret;
 }
 
-int lbs_process_event(lbs_private * priv)
+int lbs_process_event(struct lbs_private *priv)
 {
 	int ret = 0;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u32 eventcause;
 
 	lbs_deb_enter(LBS_DEB_CMD);

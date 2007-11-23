@@ -78,26 +78,28 @@ struct region_code_mapping {
 	u8 code;
 };
 
+struct lbs_private;
+
 u8 lbs_get_scan_type_11d(u8 chan,
 			  struct parsed_region_chan_11d *parsed_region_chan);
 
 u32 lbs_chan_2_freq(u8 chan, u8 band);
 
-void lbs_init_11d(lbs_private * priv);
+void lbs_init_11d(struct lbs_private *priv);
 
-int lbs_set_universaltable(lbs_private * priv, u8 band);
+int lbs_set_universaltable(struct lbs_private *priv, u8 band);
 
-int lbs_cmd_802_11d_domain_info(lbs_private * priv,
+int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd, u16 cmdno,
 				 u16 cmdOption);
 
-int lbs_ret_802_11d_domain_info(lbs_private * priv,
+int lbs_ret_802_11d_domain_info(struct lbs_private *priv,
 				 struct cmd_ds_command *resp);
 
 struct bss_descriptor;
-int lbs_parse_dnld_countryinfo_11d(lbs_private * priv,
+int lbs_parse_dnld_countryinfo_11d(struct lbs_private *priv,
                                         struct bss_descriptor * bss);
 
-int lbs_create_dnld_countryinfo_11d(lbs_private * priv);
+int lbs_create_dnld_countryinfo_11d(struct lbs_private *priv);
 
 #endif

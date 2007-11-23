@@ -22,7 +22,7 @@ static const char * mesh_stat_strings[]= {
 static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 					 struct ethtool_drvinfo *info)
 {
-	lbs_private *priv = (lbs_private *) dev->priv;
+	struct lbs_private *priv = (struct lbs_private *) dev->priv;
 	char fwver[32];
 
 	lbs_get_fwversion(priv->adapter, fwver, sizeof(fwver) - 1);
@@ -45,8 +45,8 @@ static int lbs_ethtool_get_eeprom_len(struct net_device *dev)
 static int lbs_ethtool_get_eeprom(struct net_device *dev,
                                   struct ethtool_eeprom *eeprom, u8 * bytes)
 {
-	lbs_private *priv = (lbs_private *) dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = (struct lbs_private *) dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_ioctl_regrdwr regctrl;
 	char *ptr;
 	int ret;
@@ -108,7 +108,7 @@ done:
 static void lbs_ethtool_get_stats(struct net_device * dev,
 				struct ethtool_stats * stats, u64 * data)
 {
-	lbs_private *priv = dev->priv;
+	struct lbs_private *priv = dev->priv;
 	struct cmd_ds_mesh_access mesh_access;
 	int ret;
 

@@ -1,7 +1,7 @@
 /**
   * This file contains definitions and data structures specific
   * to Marvell 802.11 NIC. It contains the Device Information
-  * structure lbs_adapter.
+  * structure struct lbs_adapter.
   */
 #ifndef _LBS_DEV_H_
 #define _LBS_DEV_H_
@@ -99,7 +99,7 @@ struct lbs_mesh_stats {
 };
 
 /** Private structure for the MV device */
-struct _lbs_private {
+struct lbs_private {
 	int open;
 	int mesh_open;
 	int infra_open;
@@ -109,7 +109,7 @@ struct _lbs_private {
 	char name[DEV_NAME_LEN];
 
 	void *card;
-	lbs_adapter *adapter;
+	struct lbs_adapter *adapter;
 	struct net_device *dev;
 
 	struct net_device_stats stats;
@@ -155,9 +155,9 @@ struct _lbs_private {
 	struct work_struct sync_channel;
 
 	/** Hardware access */
-	int (*hw_host_to_card) (lbs_private *priv, u8 type, u8 *payload, u16 nb);
-	int (*hw_get_int_status) (lbs_private *priv, u8 *);
-	int (*hw_read_event_cause) (lbs_private *);
+	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
+	int (*hw_get_int_status) (struct lbs_private *priv, u8 *);
+	int (*hw_read_event_cause) (struct lbs_private *);
 };
 
 /** Association request
@@ -205,7 +205,7 @@ struct assoc_request {
 };
 
 /** Wlan adapter data structure*/
-struct _lbs_adapter {
+struct lbs_adapter {
 	/** STATUS variables */
 	u8 fwreleasenumber[4];
 	u32 fwcapinfo;

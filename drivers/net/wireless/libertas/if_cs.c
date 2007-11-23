@@ -57,7 +57,7 @@ MODULE_LICENSE("GPL");
 
 struct if_cs_card {
 	struct pcmcia_device *p_dev;
-	lbs_private *priv;
+	struct lbs_private *priv;
 	void __iomem *iobase;
 };
 
@@ -286,7 +286,7 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 /*
  * Called from if_cs_host_to_card to send a command to the hardware
  */
-static int if_cs_send_cmd(lbs_private *priv, u8 *buf, u16 nb)
+static int if_cs_send_cmd(struct lbs_private *priv, u8 *buf, u16 nb)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
 	int ret = -1;
@@ -331,7 +331,7 @@ done:
 /*
  * Called from if_cs_host_to_card to send a data to the hardware
  */
-static void if_cs_send_data(lbs_private *priv, u8 *buf, u16 nb)
+static void if_cs_send_data(struct lbs_private *priv, u8 *buf, u16 nb)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
 
@@ -354,7 +354,7 @@ static void if_cs_send_data(lbs_private *priv, u8 *buf, u16 nb)
 /*
  * Get the command result out of the card.
  */
-static int if_cs_receive_cmdres(lbs_private *priv, u8 *data, u32 *len)
+static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 {
 	int ret = -1;
 	u16 val;
@@ -386,7 +386,7 @@ out:
 }
 
 
-static struct sk_buff *if_cs_receive_data(lbs_private *priv)
+static struct sk_buff *if_cs_receive_data(struct lbs_private *priv)
 {
 	struct sk_buff *skb = NULL;
 	u16 len;
@@ -616,7 +616,10 @@ done:
 /********************************************************************/
 
 /* Send commands or data packets to the card */
-static int if_cs_host_to_card(lbs_private *priv, u8 type, u8 *buf, u16 nb)
+static int if_cs_host_to_card(struct lbs_private *priv,
+	u8 type,
+	u8 *buf,
+	u16 nb)
 {
 	int ret = -1;
 
@@ -641,10 +644,10 @@ static int if_cs_host_to_card(lbs_private *priv, u8 type, u8 *buf, u16 nb)
 }
 
 
-static int if_cs_get_int_status(lbs_private *priv, u8 *ireg)
+static int if_cs_get_int_status(struct lbs_private *priv, u8 *ireg)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
-	/* lbs_adapter *adapter = priv->adapter; */
+	/* struct lbs_adapter *adapter = priv->adapter; */
 	int ret = 0;
 	u16 int_cause;
 	u8 *cmdbuf;
@@ -698,7 +701,7 @@ out:
 }
 
 
-static int if_cs_read_event_cause(lbs_private *priv)
+static int if_cs_read_event_cause(struct lbs_private *priv)
 {
 	lbs_deb_enter(LBS_DEB_CS);
 
@@ -746,7 +749,7 @@ static void if_cs_release(struct pcmcia_device *p_dev)
 static int if_cs_probe(struct pcmcia_device *p_dev)
 {
 	int ret = -ENOMEM;
-	lbs_private *priv;
+	struct lbs_private *priv;
 	struct if_cs_card *card;
 	/* CIS parsing */
 	tuple_t tuple;

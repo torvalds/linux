@@ -12,41 +12,41 @@
 #include "dev.h"
 
 struct cmd_ds_command;
-int lbs_cmd_80211_authenticate(lbs_private *priv,
+int lbs_cmd_80211_authenticate(struct lbs_private *priv,
 					struct cmd_ds_command *cmd,
 					void *pdata_buf);
-int lbs_cmd_80211_ad_hoc_join(lbs_private *priv,
+int lbs_cmd_80211_ad_hoc_join(struct lbs_private *priv,
 				       struct cmd_ds_command *cmd,
 				       void *pdata_buf);
-int lbs_cmd_80211_ad_hoc_stop(lbs_private *priv,
+int lbs_cmd_80211_ad_hoc_stop(struct lbs_private *priv,
 				       struct cmd_ds_command *cmd);
-int lbs_cmd_80211_ad_hoc_start(lbs_private *priv,
+int lbs_cmd_80211_ad_hoc_start(struct lbs_private *priv,
 					struct cmd_ds_command *cmd,
 					void *pdata_buf);
-int lbs_cmd_80211_deauthenticate(lbs_private *priv,
+int lbs_cmd_80211_deauthenticate(struct lbs_private *priv,
 					  struct cmd_ds_command *cmd);
-int lbs_cmd_80211_associate(lbs_private *priv,
+int lbs_cmd_80211_associate(struct lbs_private *priv,
 				     struct cmd_ds_command *cmd,
 				     void *pdata_buf);
 
-int lbs_ret_80211_ad_hoc_start(lbs_private *priv,
+int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,
 					struct cmd_ds_command *resp);
-int lbs_ret_80211_ad_hoc_stop(lbs_private *priv,
+int lbs_ret_80211_ad_hoc_stop(struct lbs_private *priv,
 				       struct cmd_ds_command *resp);
-int lbs_ret_80211_disassociate(lbs_private *priv,
+int lbs_ret_80211_disassociate(struct lbs_private *priv,
 					struct cmd_ds_command *resp);
-int lbs_ret_80211_associate(lbs_private *priv,
+int lbs_ret_80211_associate(struct lbs_private *priv,
 				     struct cmd_ds_command *resp);
 
-int lbs_start_adhoc_network(lbs_private *priv,
+int lbs_start_adhoc_network(struct lbs_private *priv,
 			     struct assoc_request * assoc_req);
-int lbs_join_adhoc_network(lbs_private *priv,
+int lbs_join_adhoc_network(struct lbs_private *priv,
 				struct assoc_request * assoc_req);
-int lbs_stop_adhoc_network(lbs_private *priv);
+int lbs_stop_adhoc_network(struct lbs_private *priv);
 
-int lbs_send_deauthentication(lbs_private *priv);
+int lbs_send_deauthentication(struct lbs_private *priv);
 
-int lbs_associate(lbs_private *priv, struct assoc_request *assoc_req);
+int lbs_associate(struct lbs_private *priv, struct assoc_request *assoc_req);
 
 void lbs_unset_basic_rate_flags(u8 *rates, size_t len);
 

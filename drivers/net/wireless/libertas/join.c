@@ -30,13 +30,15 @@
  * NOTE: Setting the MSB of the basic rates need to be taken
  *   care, either before or after calling this function
  *
- *  @param adapter     A pointer to lbs_adapter structure
+ *  @param adapter     A pointer to struct lbs_adapter structure
  *  @param rate1       the buffer which keeps input and output
  *  @param rate1_size  the size of rate1 buffer; new size of buffer on return
  *
  *  @return            0 or -1
  */
-static int get_common_rates(lbs_adapter *adapter, u8 *rates, u16 *rates_size)
+static int get_common_rates(struct lbs_adapter *adapter,
+	u8 *rates,
+	u16 *rates_size)
 {
 	u8 *card_rates = lbs_bg_rates;
 	size_t num_card_rates = sizeof(lbs_bg_rates);
@@ -116,14 +118,14 @@ void lbs_unset_basic_rate_flags(u8 *rates, size_t len)
 /**
  *  @brief Associate to a specific BSS discovered in a scan
  *
- *  @param priv      A pointer to lbs_private structure
+ *  @param priv      A pointer to struct lbs_private structure
  *  @param pbssdesc  Pointer to the BSS descriptor to associate with.
  *
  *  @return          0-success, otherwise fail
  */
-int lbs_associate(lbs_private *priv, struct assoc_request *assoc_req)
+int lbs_associate(struct lbs_private *priv, struct assoc_request *assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
@@ -155,13 +157,14 @@ done:
 /**
  *  @brief Start an Adhoc Network
  *
- *  @param priv         A pointer to lbs_private structure
+ *  @param priv         A pointer to struct lbs_private structure
  *  @param adhocssid    The ssid of the Adhoc Network
  *  @return             0--success, -1--fail
  */
-int lbs_start_adhoc_network(lbs_private *priv, struct assoc_request *assoc_req)
+int lbs_start_adhoc_network(struct lbs_private *priv,
+	struct assoc_request *assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	adapter->adhoccreate = 1;
@@ -188,15 +191,16 @@ int lbs_start_adhoc_network(lbs_private *priv, struct assoc_request *assoc_req)
 /**
  *  @brief Join an adhoc network found in a previous scan
  *
- *  @param priv         A pointer to lbs_private structure
+ *  @param priv         A pointer to struct lbs_private structure
  *  @param pbssdesc     Pointer to a BSS descriptor found in a previous scan
  *                      to attempt to join
  *
  *  @return             0--success, -1--fail
  */
-int lbs_join_adhoc_network(lbs_private *priv, struct assoc_request *assoc_req)
+int lbs_join_adhoc_network(struct lbs_private *priv,
+	struct assoc_request *assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct bss_descriptor * bss = &assoc_req->bss;
 	int ret = 0;
 
@@ -258,7 +262,7 @@ out:
 	return ret;
 }
 
-int lbs_stop_adhoc_network(lbs_private * priv)
+int lbs_stop_adhoc_network(struct lbs_private *priv)
 {
 	return lbs_prepare_and_send_command(priv, CMD_802_11_AD_HOC_STOP,
 				     0, CMD_OPTION_WAITFORRSP, 0, NULL);
@@ -267,10 +271,10 @@ int lbs_stop_adhoc_network(lbs_private * priv)
 /**
  *  @brief Send Deauthentication Request
  *
- *  @param priv      A pointer to lbs_private structure
+ *  @param priv      A pointer to struct lbs_private structure
  *  @return          0--success, -1--fail
  */
-int lbs_send_deauthentication(lbs_private *priv)
+int lbs_send_deauthentication(struct lbs_private *priv)
 {
 	return lbs_prepare_and_send_command(priv, CMD_802_11_DEAUTHENTICATE,
 				     0, CMD_OPTION_WAITFORRSP, 0, NULL);
@@ -279,17 +283,17 @@ int lbs_send_deauthentication(lbs_private *priv)
 /**
  *  @brief This function prepares command of authenticate.
  *
- *  @param priv      A pointer to lbs_private structure
+ *  @param priv      A pointer to struct lbs_private structure
  *  @param cmd       A pointer to cmd_ds_command structure
  *  @param pdata_buf Void cast of pointer to a BSSID to authenticate with
  *
  *  @return         0 or -1
  */
-int lbs_cmd_80211_authenticate(lbs_private *priv,
+int lbs_cmd_80211_authenticate(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd,
 				 void *pdata_buf)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_authenticate *pauthenticate = &cmd->params.auth;
 	int ret = -1;
 	u8 *bssid = pdata_buf;
@@ -329,10 +333,10 @@ out:
 	return ret;
 }
 
-int lbs_cmd_80211_deauthenticate(lbs_private *priv,
+int lbs_cmd_80211_deauthenticate(struct lbs_private *priv,
 				   struct cmd_ds_command *cmd)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_deauthenticate *dauth = &cmd->params.deauth;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
@@ -352,10 +356,10 @@ int lbs_cmd_80211_deauthenticate(lbs_private *priv,
 	return 0;
 }
 
-int lbs_cmd_80211_associate(lbs_private *priv,
+int lbs_cmd_80211_associate(struct lbs_private *priv,
 			      struct cmd_ds_command *cmd, void *pdata_buf)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_associate *passo = &cmd->params.associate;
 	int ret = 0;
 	struct assoc_request * assoc_req = pdata_buf;
@@ -468,10 +472,10 @@ done:
 	return ret;
 }
 
-int lbs_cmd_80211_ad_hoc_start(lbs_private *priv,
+int lbs_cmd_80211_ad_hoc_start(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd, void *pdata_buf)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_ad_hoc_start *adhs = &cmd->params.ads;
 	int ret = 0;
 	int cmdappendsize = 0;
@@ -582,7 +586,7 @@ done:
 	return ret;
 }
 
-int lbs_cmd_80211_ad_hoc_stop(lbs_private *priv,
+int lbs_cmd_80211_ad_hoc_stop(struct lbs_private *priv,
 				struct cmd_ds_command *cmd)
 {
 	cmd->command = cpu_to_le16(CMD_802_11_AD_HOC_STOP);
@@ -591,10 +595,10 @@ int lbs_cmd_80211_ad_hoc_stop(lbs_private *priv,
 	return 0;
 }
 
-int lbs_cmd_80211_ad_hoc_join(lbs_private *priv,
+int lbs_cmd_80211_ad_hoc_join(struct lbs_private *priv,
 				struct cmd_ds_command *cmd, void *pdata_buf)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_ad_hoc_join *join_cmd = &cmd->params.adj;
 	struct assoc_request * assoc_req = pdata_buf;
 	struct bss_descriptor *bss = &assoc_req->bss;
@@ -694,10 +698,10 @@ done:
 	return ret;
 }
 
-int lbs_ret_80211_associate(lbs_private *priv,
+int lbs_ret_80211_associate(struct lbs_private *priv,
 			      struct cmd_ds_command *resp)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	union iwreq_data wrqu;
 	struct ieeetypes_assocrsp *passocrsp;
@@ -807,7 +811,7 @@ done:
 	return ret;
 }
 
-int lbs_ret_80211_disassociate(lbs_private *priv,
+int lbs_ret_80211_disassociate(struct lbs_private *priv,
 				 struct cmd_ds_command *resp)
 {
 	lbs_deb_enter(LBS_DEB_JOIN);
@@ -818,10 +822,10 @@ int lbs_ret_80211_disassociate(lbs_private *priv,
 	return 0;
 }
 
-int lbs_ret_80211_ad_hoc_start(lbs_private *priv,
+int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,
 				 struct cmd_ds_command *resp)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	u16 command = le16_to_cpu(resp->command);
 	u16 result = le16_to_cpu(resp->result);
@@ -897,7 +901,7 @@ done:
 	return ret;
 }
 
-int lbs_ret_80211_ad_hoc_stop(lbs_private *priv,
+int lbs_ret_80211_ad_hoc_stop(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
 	lbs_deb_enter(LBS_DEB_JOIN);

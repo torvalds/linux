@@ -35,19 +35,20 @@ struct rx80211packethdr {
 	void *eth80211_hdr;
 } __attribute__ ((packed));
 
-static int process_rxed_802_11_packet(lbs_private *priv, struct sk_buff *skb);
+static int process_rxed_802_11_packet(struct lbs_private *priv,
+	struct sk_buff *skb);
 
 /**
  *  @brief This function computes the avgSNR .
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @return 	   avgSNR
  */
-static u8 lbs_getavgsnr(lbs_private *priv)
+static u8 lbs_getavgsnr(struct lbs_private *priv)
 {
 	u8 i;
 	u16 temp = 0;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	if (adapter->numSNRNF == 0)
 		return 0;
 	for (i = 0; i < adapter->numSNRNF; i++)
@@ -59,14 +60,14 @@ static u8 lbs_getavgsnr(lbs_private *priv)
 /**
  *  @brief This function computes the AvgNF
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @return 	   AvgNF
  */
-static u8 lbs_getavgnf(lbs_private *priv)
+static u8 lbs_getavgnf(struct lbs_private *priv)
 {
 	u8 i;
 	u16 temp = 0;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	if (adapter->numSNRNF == 0)
 		return 0;
 	for (i = 0; i < adapter->numSNRNF; i++)
@@ -78,13 +79,13 @@ static u8 lbs_getavgnf(lbs_private *priv)
 /**
  *  @brief This function save the raw SNR/NF to our internel buffer
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @param prxpd   A pointer to rxpd structure of received packet
  *  @return 	   n/a
  */
-static void lbs_save_rawSNRNF(lbs_private *priv, struct rxpd *p_rx_pd)
+static void lbs_save_rawSNRNF(struct lbs_private *priv, struct rxpd *p_rx_pd)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	if (adapter->numSNRNF < DEFAULT_DATA_AVG_FACTOR)
 		adapter->numSNRNF++;
 	adapter->rawSNR[adapter->nextSNRNF] = p_rx_pd->snr;
@@ -98,13 +99,13 @@ static void lbs_save_rawSNRNF(lbs_private *priv, struct rxpd *p_rx_pd)
 /**
  *  @brief This function computes the RSSI in received packet.
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @param prxpd   A pointer to rxpd structure of received packet
  *  @return 	   n/a
  */
-static void lbs_compute_rssi(lbs_private *priv, struct rxpd *p_rx_pd)
+static void lbs_compute_rssi(struct lbs_private *priv, struct rxpd *p_rx_pd)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_RX);
 
@@ -134,7 +135,7 @@ static void lbs_compute_rssi(lbs_private *priv, struct rxpd *p_rx_pd)
 	lbs_deb_leave(LBS_DEB_RX);
 }
 
-void lbs_upload_rx_packet(lbs_private *priv, struct sk_buff *skb)
+void lbs_upload_rx_packet(struct lbs_private *priv, struct sk_buff *skb)
 {
 	lbs_deb_rx("skb->data %p\n", skb->data);
 
@@ -154,13 +155,13 @@ void lbs_upload_rx_packet(lbs_private *priv, struct sk_buff *skb)
  *  @brief This function processes received packet and forwards it
  *  to kernel/upper layer
  *
- *  @param priv    A pointer to lbs_private
+ *  @param priv    A pointer to struct lbs_private
  *  @param skb     A pointer to skb which includes the received packet
  *  @return 	   0 or -1
  */
-int lbs_process_rxed_packet(lbs_private *priv, struct sk_buff *skb)
+int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	struct rxpackethdr *p_rx_pkt;
@@ -319,13 +320,14 @@ static u8 convert_mv_rate_to_radiotap(u8 rate)
  *  @brief This function processes a received 802.11 packet and forwards it
  *  to kernel/upper layer
  *
- *  @param priv    A pointer to lbs_private
+ *  @param priv    A pointer to struct lbs_private
  *  @param skb     A pointer to skb which includes the received packet
  *  @return 	   0 or -1
  */
-static int process_rxed_802_11_packet(lbs_private *priv, struct sk_buff *skb)
+static int process_rxed_802_11_packet(struct lbs_private *priv,
+	struct sk_buff *skb)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	struct rx80211packethdr *p_rx_pkt;

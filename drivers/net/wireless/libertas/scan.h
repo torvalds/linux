@@ -10,6 +10,8 @@
 #include <net/ieee80211.h>
 #include "hostcmd.h"
 
+struct lbs_adapter;
+
 /**
  *  @brief Maximum number of channels that can be sent in a setuserscan ioctl
  *
@@ -176,27 +178,27 @@ struct bss_descriptor {
 
 int lbs_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len);
 
-struct bss_descriptor *lbs_find_ssid_in_list(lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_adapter *adapter,
 		u8 *ssid, u8 ssid_len, u8 *bssid, u8 mode,
 		int channel);
 
-struct bss_descriptor *lbs_find_bssid_in_list(lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_adapter *adapter,
 	u8 *bssid, u8 mode);
 
-int lbs_find_best_network_ssid(lbs_private *priv, u8 *out_ssid,
+int lbs_find_best_network_ssid(struct lbs_private *priv, u8 *out_ssid,
 			u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode);
 
-int lbs_send_specific_ssid_scan(lbs_private *priv, u8 *ssid,
+int lbs_send_specific_ssid_scan(struct lbs_private *priv, u8 *ssid,
 				u8 ssid_len, u8 clear_ssid);
 
-int lbs_cmd_80211_scan(lbs_private *priv,
+int lbs_cmd_80211_scan(struct lbs_private *priv,
 				struct cmd_ds_command *cmd,
 				void *pdata_buf);
 
-int lbs_ret_80211_scan(lbs_private *priv,
+int lbs_ret_80211_scan(struct lbs_private *priv,
 				struct cmd_ds_command *resp);
 
-int lbs_scan_networks(lbs_private *priv,
+int lbs_scan_networks(struct lbs_private *priv,
 	const struct lbs_ioctl_user_scan_cfg *puserscanin,
                 int full_scan);
 

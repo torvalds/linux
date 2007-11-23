@@ -15,10 +15,10 @@ static const u8 bssid_any[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 static const u8 bssid_off[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 
-static int assoc_helper_essid(lbs_private *priv,
+static int assoc_helper_essid(struct lbs_private *priv,
                               struct assoc_request * assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct bss_descriptor * bss;
 	int channel = -1;
@@ -75,10 +75,10 @@ static int assoc_helper_essid(lbs_private *priv,
 }
 
 
-static int assoc_helper_bssid(lbs_private *priv,
+static int assoc_helper_bssid(struct lbs_private *priv,
                               struct assoc_request * assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct bss_descriptor * bss;
 	DECLARE_MAC_BUF(mac);
@@ -109,7 +109,7 @@ out:
 }
 
 
-static int assoc_helper_associate(lbs_private *priv,
+static int assoc_helper_associate(struct lbs_private *priv,
                                   struct assoc_request * assoc_req)
 {
 	int ret = 0, done = 0;
@@ -135,10 +135,10 @@ static int assoc_helper_associate(lbs_private *priv,
 }
 
 
-static int assoc_helper_mode(lbs_private *priv,
+static int assoc_helper_mode(struct lbs_private *priv,
                              struct assoc_request * assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -165,7 +165,7 @@ done:
 }
 
 
-static int update_channel(lbs_private * priv)
+static int update_channel(struct lbs_private *priv)
 {
 	int ret;
 	/* the channel in f/w could be out of sync, get the current channel */
@@ -179,7 +179,8 @@ static int update_channel(lbs_private * priv)
 
 void lbs_sync_channel(struct work_struct *work)
 {
-	lbs_private *priv = container_of(work, lbs_private, sync_channel);
+	struct lbs_private *priv = container_of(work, struct lbs_private,
+		sync_channel);
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 	if (update_channel(priv) != 0)
@@ -187,10 +188,10 @@ void lbs_sync_channel(struct work_struct *work)
 	lbs_deb_leave(LBS_DEB_ASSOC);
 }
 
-static int assoc_helper_channel(lbs_private *priv,
+static int assoc_helper_channel(struct lbs_private *priv,
                                 struct assoc_request * assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -242,10 +243,10 @@ done:
 }
 
 
-static int assoc_helper_wep_keys(lbs_private *priv,
+static int assoc_helper_wep_keys(struct lbs_private *priv,
                                  struct assoc_request * assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int i;
 	int ret = 0;
 
@@ -297,10 +298,10 @@ out:
 	return ret;
 }
 
-static int assoc_helper_secinfo(lbs_private *priv,
+static int assoc_helper_secinfo(struct lbs_private *priv,
                                 struct assoc_request * assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	u32 do_wpa;
 	u32 rsn = 0;
@@ -349,7 +350,7 @@ out:
 }
 
 
-static int assoc_helper_wpa_keys(lbs_private *priv,
+static int assoc_helper_wpa_keys(struct lbs_private *priv,
                                  struct assoc_request * assoc_req)
 {
 	int ret = 0;
@@ -392,10 +393,10 @@ out:
 }
 
 
-static int assoc_helper_wpa_ie(lbs_private *priv,
+static int assoc_helper_wpa_ie(struct lbs_private *priv,
                                struct assoc_request * assoc_req)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -413,7 +414,7 @@ static int assoc_helper_wpa_ie(lbs_private *priv,
 }
 
 
-static int should_deauth_infrastructure(lbs_adapter *adapter,
+static int should_deauth_infrastructure(struct lbs_adapter *adapter,
                                         struct assoc_request * assoc_req)
 {
 	int ret = 0;
@@ -465,7 +466,7 @@ out:
 }
 
 
-static int should_stop_adhoc(lbs_adapter *adapter,
+static int should_stop_adhoc(struct lbs_adapter *adapter,
                              struct assoc_request * assoc_req)
 {
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -496,8 +497,9 @@ static int should_stop_adhoc(lbs_adapter *adapter,
 
 void lbs_association_worker(struct work_struct *work)
 {
-	lbs_private *priv = container_of(work, lbs_private, assoc_work.work);
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = container_of(work, struct lbs_private,
+		assoc_work.work);
+	struct lbs_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req = NULL;
 	int ret = 0;
 	int find_any_ssid = 0;
@@ -684,7 +686,7 @@ done:
 /*
  * Caller MUST hold any necessary locks
  */
-struct assoc_request *lbs_get_association_request(lbs_adapter *adapter)
+struct assoc_request *lbs_get_association_request(struct lbs_adapter *adapter)
 {
 	struct assoc_request * assoc_req;
 

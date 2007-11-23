@@ -82,7 +82,7 @@ struct if_sdio_packet {
 
 struct if_sdio_card {
 	struct sdio_func	*func;
-	lbs_private		*priv;
+	struct lbs_private	*priv;
 
 	int			model;
 	unsigned long		ioport;
@@ -694,7 +694,8 @@ out:
 /* Libertas callbacks                                              */
 /*******************************************************************/
 
-static int if_sdio_host_to_card(lbs_private *priv, u8 type, u8 *buf, u16 nb)
+static int if_sdio_host_to_card(struct lbs_private *priv,
+		u8 type, u8 *buf, u16 nb)
 {
 	int ret;
 	struct if_sdio_card *card;
@@ -775,7 +776,7 @@ out:
 	return ret;
 }
 
-static int if_sdio_get_int_status(lbs_private *priv, u8 *ireg)
+static int if_sdio_get_int_status(struct lbs_private *priv, u8 *ireg)
 {
 	struct if_sdio_card *card;
 
@@ -791,7 +792,7 @@ static int if_sdio_get_int_status(lbs_private *priv, u8 *ireg)
 	return 0;
 }
 
-static int if_sdio_read_event_cause(lbs_private *priv)
+static int if_sdio_read_event_cause(struct lbs_private *priv)
 {
 	struct if_sdio_card *card;
 
@@ -857,7 +858,7 @@ static int if_sdio_probe(struct sdio_func *func,
 		const struct sdio_device_id *id)
 {
 	struct if_sdio_card *card;
-	lbs_private *priv;
+	struct lbs_private *priv;
 	int ret, i;
 	unsigned int model;
 	struct if_sdio_packet *packet;

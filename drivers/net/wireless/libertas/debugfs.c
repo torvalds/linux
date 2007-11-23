@@ -18,7 +18,7 @@ static char *szStates[] = {
 };
 
 #ifdef PROC_DEBUG
-static void lbs_debug_init(lbs_private * priv, struct net_device *dev);
+static void lbs_debug_init(struct lbs_private *priv, struct net_device *dev);
 #endif
 
 static int open_file_generic(struct inode *inode, struct file *file)
@@ -38,7 +38,7 @@ static const size_t len = PAGE_SIZE;
 static ssize_t lbs_dev_info(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	size_t pos = 0;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -59,7 +59,7 @@ static ssize_t lbs_dev_info(struct file *file, char __user *userbuf,
 static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	size_t pos = 0;
 	int numscansdone = 0, res;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -102,7 +102,7 @@ static ssize_t lbs_sleepparams_write(struct file *file,
 				const char __user *user_buf, size_t count,
 				loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t buf_size, res;
 	int p1, p2, p3, p4, p5, p6;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -143,8 +143,8 @@ out_unlock:
 static ssize_t lbs_sleepparams_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res;
 	size_t pos = 0;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -174,7 +174,7 @@ out_unlock:
 static ssize_t lbs_extscan(struct file *file, const char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	union iwreq_data wrqu;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -342,7 +342,7 @@ static ssize_t lbs_setuserscan(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	struct lbs_ioctl_user_scan_cfg *scan_cfg;
 	union iwreq_data wrqu;
@@ -384,7 +384,7 @@ out_unlock:
 	return count;
 }
 
-static int lbs_event_initcmd(lbs_private *priv, void **response_buf,
+static int lbs_event_initcmd(struct lbs_private *priv, void **response_buf,
 			struct cmd_ctrl_node **cmdnode,
 			struct cmd_ds_command **cmd)
 {
@@ -413,8 +413,8 @@ static int lbs_event_initcmd(lbs_private *priv, void **response_buf,
 static ssize_t lbs_lowrssi_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -480,9 +480,9 @@ static ssize_t lbs_lowrssi_read(struct file *file, char __user *userbuf,
 	return res;
 }
 
-static u16 lbs_get_events_bitmap(lbs_private *priv)
+static u16 lbs_get_events_bitmap(struct lbs_private *priv)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -529,8 +529,8 @@ static ssize_t lbs_lowrssi_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -609,8 +609,8 @@ out_unlock:
 static ssize_t lbs_lowsnr_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -682,8 +682,8 @@ static ssize_t lbs_lowsnr_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -762,8 +762,8 @@ out_unlock:
 static ssize_t lbs_failcount_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -834,8 +834,8 @@ static ssize_t lbs_failcount_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -913,8 +913,8 @@ out_unlock:
 static ssize_t lbs_bcnmiss_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -985,8 +985,8 @@ static ssize_t lbs_bcnmiss_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -1063,8 +1063,8 @@ out_unlock:
 static ssize_t lbs_highrssi_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -1136,8 +1136,8 @@ static ssize_t lbs_highrssi_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -1213,8 +1213,8 @@ out_unlock:
 static ssize_t lbs_highsnr_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *pcmdnode;
 	struct cmd_ds_command *pcmdptr;
 	struct cmd_ds_802_11_subscribe_event *event;
@@ -1286,8 +1286,8 @@ static ssize_t lbs_highsnr_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res, buf_size;
 	int value, freq, subscribed, cmd_len;
 	struct cmd_ctrl_node *pcmdnode;
@@ -1365,8 +1365,8 @@ out_unlock:
 static ssize_t lbs_rdmac_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
@@ -1392,7 +1392,7 @@ static ssize_t lbs_rdmac_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -1414,7 +1414,7 @@ static ssize_t lbs_wrmac_write(struct file *file,
 				    size_t count, loff_t *ppos)
 {
 
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
 	struct lbs_offset_value offval;
@@ -1448,8 +1448,8 @@ out_unlock:
 static ssize_t lbs_rdbbp_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
@@ -1476,7 +1476,7 @@ static ssize_t lbs_rdbbp_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -1498,7 +1498,7 @@ static ssize_t lbs_wrbbp_write(struct file *file,
 				    size_t count, loff_t *ppos)
 {
 
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
 	struct lbs_offset_value offval;
@@ -1532,8 +1532,8 @@ out_unlock:
 static ssize_t lbs_rdrf_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = file->private_data;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
@@ -1560,7 +1560,7 @@ static ssize_t lbs_rdrf_write(struct file *file,
 				    const char __user *userbuf,
 				    size_t count, loff_t *ppos)
 {
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
@@ -1582,7 +1582,7 @@ static ssize_t lbs_wrrf_write(struct file *file,
 				    size_t count, loff_t *ppos)
 {
 
-	lbs_private *priv = file->private_data;
+	struct lbs_private *priv = file->private_data;
 	ssize_t res, buf_size;
 	u32 offset, value;
 	struct lbs_offset_value offval;
@@ -1675,7 +1675,7 @@ void lbs_debugfs_remove(void)
 	return;
 }
 
-void lbs_debugfs_init_one(lbs_private *priv, struct net_device *dev)
+void lbs_debugfs_init_one(struct lbs_private *priv, struct net_device *dev)
 {
 	int i;
 	struct lbs_debugfs_files *files;
@@ -1728,7 +1728,7 @@ exit:
 	return;
 }
 
-void lbs_debugfs_remove_one(lbs_private *priv)
+void lbs_debugfs_remove_one(struct lbs_private *priv)
 {
 	int i;
 
@@ -1755,8 +1755,8 @@ void lbs_debugfs_remove_one(lbs_private *priv)
 
 #ifdef PROC_DEBUG
 
-#define item_size(n)	(FIELD_SIZEOF(lbs_adapter, n))
-#define item_addr(n)	(offsetof(lbs_adapter, n))
+#define item_size(n)	(FIELD_SIZEOF(struct lbs_adapter, n))
+#define item_addr(n)	(offsetof(struct lbs_adapter, n))
 
 
 struct debug_data {
@@ -1765,7 +1765,7 @@ struct debug_data {
 	size_t addr;
 };
 
-/* To debug any member of lbs_adapter, simply add one line here.
+/* To debug any member of struct lbs_adapter, simply add one line here.
  */
 static struct debug_data items[] = {
 	{"intcounter", item_size(intcounter), item_addr(intcounter)},
@@ -1892,11 +1892,11 @@ static struct file_operations lbs_debug_fops = {
 /**
  *  @brief create debug proc file
  *
- *  @param priv	   pointer lbs_private
+ *  @param priv	   pointer struct lbs_private
  *  @param dev     pointer net_device
  *  @return 	   N/A
  */
-static void lbs_debug_init(lbs_private * priv, struct net_device *dev)
+static void lbs_debug_init(struct lbs_private *priv, struct net_device *dev)
 {
 	int i;
 

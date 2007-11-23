@@ -21,7 +21,7 @@
 #include "assoc.h"
 
 
-static inline void lbs_postpone_association_work(lbs_private *priv)
+static inline void lbs_postpone_association_work(struct lbs_private *priv)
 {
 	if (priv->adapter->surpriseremoved)
 		return;
@@ -29,7 +29,7 @@ static inline void lbs_postpone_association_work(lbs_private *priv)
 	queue_delayed_work(priv->work_thread, &priv->assoc_work, HZ / 2);
 }
 
-static inline void lbs_cancel_association_work(lbs_private *priv)
+static inline void lbs_cancel_association_work(struct lbs_private *priv)
 {
 	cancel_delayed_work(&priv->assoc_work);
 	kfree(priv->adapter->pending_assoc_req);
@@ -40,13 +40,15 @@ static inline void lbs_cancel_association_work(lbs_private *priv)
 /**
  *  @brief Find the channel frequency power info with specific channel
  *
- *  @param adapter 	A pointer to lbs_adapter structure
+ *  @param adapter 	A pointer to struct lbs_adapter structure
  *  @param band		it can be BAND_A, BAND_G or BAND_B
  *  @param channel      the channel for looking
  *  @return 	   	A pointer to struct chan_freq_power structure or NULL if not find.
  */
-struct chan_freq_power *lbs_find_cfp_by_band_and_channel(lbs_adapter *adapter,
-						 u8 band, u16 channel)
+struct chan_freq_power *lbs_find_cfp_by_band_and_channel(
+	struct lbs_adapter *adapter,
+	u8 band,
+	u16 channel)
 {
 	struct chan_freq_power *cfp = NULL;
 	struct region_channel *rc;
@@ -79,13 +81,15 @@ struct chan_freq_power *lbs_find_cfp_by_band_and_channel(lbs_adapter *adapter,
 /**
  *  @brief Find the channel frequency power info with specific frequency
  *
- *  @param adapter 	A pointer to lbs_adapter structure
+ *  @param adapter 	A pointer to struct lbs_adapter structure
  *  @param band		it can be BAND_A, BAND_G or BAND_B
  *  @param freq	        the frequency for looking
  *  @return 	   	A pointer to struct chan_freq_power structure or NULL if not find.
  */
-static struct chan_freq_power *find_cfp_by_band_and_freq(lbs_adapter *adapter,
-						     u8 band, u32 freq)
+static struct chan_freq_power *find_cfp_by_band_and_freq(
+	struct lbs_adapter *adapter,
+	u8 band,
+	u32 freq)
 {
 	struct chan_freq_power *cfp = NULL;
 	struct region_channel *rc;
@@ -119,14 +123,14 @@ static struct chan_freq_power *find_cfp_by_band_and_freq(lbs_adapter *adapter,
 /**
  *  @brief Set Radio On/OFF
  *
- *  @param priv                 A pointer to lbs_private structure
+ *  @param priv                 A pointer to struct lbs_private structure
  *  @option 			Radio Option
  *  @return 	   		0 --success, otherwise fail
  */
-static int lbs_radio_ioctl(lbs_private *priv, u8 option)
+static int lbs_radio_ioctl(struct lbs_private *priv, u8 option)
 {
 	int ret = 0;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -147,10 +151,10 @@ static int lbs_radio_ioctl(lbs_private *priv, u8 option)
 /**
  *  @brief Copy active data rates based on adapter mode and status
  *
- *  @param adapter              A pointer to lbs_adapter structure
+ *  @param adapter              A pointer to struct lbs_adapter structure
  *  @param rate		        The buf to return the active rates
  */
-static void copy_active_data_rates(lbs_adapter *adapter, u8 *rates)
+static void copy_active_data_rates(struct lbs_adapter *adapter, u8 *rates)
 {
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -179,8 +183,8 @@ static int lbs_get_name(struct net_device *dev, struct iw_request_info *info,
 static int lbs_get_freq(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_freq *fwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct chan_freq_power *cfp;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
@@ -206,8 +210,8 @@ static int lbs_get_freq(struct net_device *dev, struct iw_request_info *info,
 static int lbs_get_wap(struct net_device *dev, struct iw_request_info *info,
 			struct sockaddr *awrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -225,8 +229,8 @@ static int lbs_get_wap(struct net_device *dev, struct iw_request_info *info,
 static int lbs_set_nick(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -250,8 +254,8 @@ static int lbs_set_nick(struct net_device *dev, struct iw_request_info *info,
 static int lbs_get_nick(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -268,8 +272,8 @@ static int lbs_get_nick(struct net_device *dev, struct iw_request_info *info,
 static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -294,8 +298,8 @@ static int lbs_set_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	u32 rthr = vwrq->value;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
@@ -320,8 +324,8 @@ static int lbs_get_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -347,8 +351,8 @@ static int lbs_set_frag(struct net_device *dev, struct iw_request_info *info,
 {
 	int ret = 0;
 	u32 fthr = vwrq->value;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -373,8 +377,8 @@ static int lbs_get_frag(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_param *vwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -399,8 +403,8 @@ out:
 static int lbs_get_mode(struct net_device *dev,
 			 struct iw_request_info *info, u32 * uwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -427,8 +431,8 @@ static int lbs_get_txpow(struct net_device *dev,
 			  struct iw_param *vwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -459,8 +463,8 @@ static int lbs_set_retry(struct net_device *dev, struct iw_request_info *info,
 			  struct iw_param *vwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -494,8 +498,8 @@ out:
 static int lbs_get_retry(struct net_device *dev, struct iw_request_info *info,
 			  struct iw_param *vwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
@@ -563,8 +567,8 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 			  struct iw_point *dwrq, char *extra)
 {
 	int i, j;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct iw_range *range = (struct iw_range *)extra;
 	struct chan_freq_power *cfp;
 	u8 rates[MAX_RATES + 1];
@@ -740,8 +744,8 @@ out:
 static int lbs_set_power(struct net_device *dev, struct iw_request_info *info,
 			  struct iw_param *vwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -784,8 +788,8 @@ static int lbs_set_power(struct net_device *dev, struct iw_request_info *info,
 static int lbs_get_power(struct net_device *dev, struct iw_request_info *info,
 			  struct iw_param *vwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	int mode;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
@@ -815,8 +819,8 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 		EXCELLENT = 95,
 		PERFECT = 100
 	};
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	u32 rssi_qual;
 	u32 tx_qual;
 	u32 quality = 0;
@@ -919,8 +923,8 @@ static int lbs_set_freq(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_freq *fwrq, char *extra)
 {
 	int ret = -EINVAL;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct chan_freq_power *cfp;
 	struct assoc_request * assoc_req;
 
@@ -976,8 +980,8 @@ out:
 static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	u32 new_rate;
 	u16 action;
 	int ret = -EINVAL;
@@ -1020,8 +1024,8 @@ out:
 static int lbs_get_rate(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -1046,8 +1050,8 @@ static int lbs_set_mode(struct net_device *dev,
 		  struct iw_request_info *info, u32 * uwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
@@ -1092,8 +1096,8 @@ static int lbs_get_encode(struct net_device *dev,
 			   struct iw_request_info *info,
 			   struct iw_point *dwrq, u8 * extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
@@ -1297,8 +1301,8 @@ static int lbs_set_encode(struct net_device *dev,
 		    struct iw_point *dwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
 	u16 is_default = 0, index = 0, set_tx_key = 0;
 
@@ -1374,8 +1378,8 @@ static int lbs_get_encodeext(struct net_device *dev,
 			      char *extra)
 {
 	int ret = -EINVAL;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	int index, max_key_len;
 
@@ -1481,8 +1485,8 @@ static int lbs_set_encodeext(struct net_device *dev,
 			      char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	int alg = ext->alg;
 	struct assoc_request * assoc_req;
@@ -1606,8 +1610,8 @@ static int lbs_set_genie(struct net_device *dev,
 			  struct iw_point *dwrq,
 			  char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct assoc_request * assoc_req;
 
@@ -1653,8 +1657,8 @@ static int lbs_get_genie(struct net_device *dev,
 			  char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -1682,8 +1686,8 @@ static int lbs_set_auth(struct net_device *dev,
 			 struct iw_param *dwrq,
 			 char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
 	int ret = 0;
 	int updated = 0;
@@ -1782,8 +1786,8 @@ static int lbs_get_auth(struct net_device *dev,
 			 char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -1820,8 +1824,8 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 		   struct iw_param *vwrq, char *extra)
 {
 	int ret = 0;
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	u16 dbm;
 
@@ -1862,8 +1866,8 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 static int lbs_get_essid(struct net_device *dev, struct iw_request_info *info,
 		   struct iw_point *dwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
@@ -1898,8 +1902,8 @@ static int lbs_get_essid(struct net_device *dev, struct iw_request_info *info,
 static int lbs_set_essid(struct net_device *dev, struct iw_request_info *info,
 		   struct iw_point *dwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	u8 ssid[IW_ESSID_MAX_SIZE];
 	u8 ssid_len = 0;
@@ -1970,8 +1974,8 @@ out:
 static int lbs_set_wap(struct net_device *dev, struct iw_request_info *info,
 		 struct sockaddr *awrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct assoc_request * assoc_req;
 	int ret = 0;
 	DECLARE_MAC_BUF(mac);
@@ -2002,7 +2006,7 @@ static int lbs_set_wap(struct net_device *dev, struct iw_request_info *info,
 	return ret;
 }
 
-void lbs_get_fwversion(lbs_adapter *adapter, char *fwversion, int maxlen)
+void lbs_get_fwversion(struct lbs_adapter *adapter, char *fwversion, int maxlen)
 {
 	char fwver[32];
 

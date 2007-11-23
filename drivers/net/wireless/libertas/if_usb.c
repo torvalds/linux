@@ -32,9 +32,12 @@ MODULE_DEVICE_TABLE(usb, if_usb_table);
 static void if_usb_receive(struct urb *urb);
 static void if_usb_receive_fwload(struct urb *urb);
 static int if_usb_prog_firmware(struct usb_card_rec *cardp);
-static int if_usb_host_to_card(lbs_private *priv, u8 type, u8 *payload, u16 nb);
-static int if_usb_get_int_status(lbs_private *priv, u8 *);
-static int if_usb_read_event_cause(lbs_private *);
+static int if_usb_host_to_card(struct lbs_private *priv,
+	u8 type,
+	u8 *payload,
+	u16 nb);
+static int if_usb_get_int_status(struct lbs_private *priv, u8 *);
+static int if_usb_read_event_cause(struct lbs_private *);
 static int usb_tx_block(struct usb_card_rec *cardp, u8 *payload, u16 nb);
 static void if_usb_free(struct usb_card_rec *cardp);
 static int if_usb_submit_rx_urb(struct usb_card_rec *cardp);
@@ -52,7 +55,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 	/* handle the transmission complete validations */
 
 	if (urb->status == 0) {
-		lbs_private *priv = cardp->priv;
+		struct lbs_private *priv = cardp->priv;
 
 		/*
 		lbs_deb_usbd(&urb->dev->dev, "URB status is successfull\n");
@@ -64,7 +67,7 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		 * valid at firmware load time.
 		 */
 		if (priv) {
-			lbs_adapter *adapter = priv->adapter;
+			struct lbs_adapter *adapter = priv->adapter;
 			struct net_device *dev = priv->dev;
 
 			priv->dnld_sent = DNLD_RES_RECEIVED;
@@ -124,7 +127,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	struct usb_device *udev;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	lbs_private *priv;
+	struct lbs_private *priv;
 	struct usb_card_rec *cardp;
 	int i;
 
@@ -259,7 +262,7 @@ error:
 static void if_usb_disconnect(struct usb_interface *intf)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
-	lbs_private *priv = (lbs_private *) cardp->priv;
+	struct lbs_private *priv = (struct lbs_private *) cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
@@ -267,7 +270,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	cardp->surprise_removed = 1;
 
 	if (priv) {
-		lbs_adapter *adapter = priv->adapter;
+		struct lbs_adapter *adapter = priv->adapter;
 
 		adapter->surpriseremoved = 1;
 		lbs_stop_card(priv);
@@ -290,7 +293,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
 
 /**
  *  @brief  This function download FW
- *  @param priv		pointer to lbs_private
+ *  @param priv		pointer to struct lbs_private
  *  @return 	   	0
  */
 static int if_prog_firmware(struct usb_card_rec *cardp)
@@ -373,7 +376,7 @@ static int if_prog_firmware(struct usb_card_rec *cardp)
 static int if_usb_reset_device(struct usb_card_rec *cardp)
 {
 	int ret;
-	lbs_private * priv = cardp->priv;
+	struct lbs_private *priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
@@ -394,7 +397,7 @@ static int if_usb_reset_device(struct usb_card_rec *cardp)
 
 /**
  *  @brief This function transfer the data to the device.
- *  @param priv 	pointer to lbs_private
+ *  @param priv 	pointer to struct lbs_private
  *  @param payload	pointer to payload data
  *  @param nb		data length
  *  @return 	   	0 or -1
@@ -571,7 +574,7 @@ exit:
 
 static inline void process_cmdtypedata(int recvlength, struct sk_buff *skb,
 				       struct usb_card_rec *cardp,
-				       lbs_private *priv)
+				       struct lbs_private *priv)
 {
 	if (recvlength > MRVDRV_ETH_RX_PACKET_BUFFER_SIZE +
 	    MESSAGE_HEADER_LEN || recvlength < MRVDRV_MIN_PKT_LEN) {
@@ -591,7 +594,7 @@ static inline void process_cmdtypedata(int recvlength, struct sk_buff *skb,
 static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 				      struct sk_buff *skb,
 				      struct usb_card_rec *cardp,
-				      lbs_private *priv)
+				      struct lbs_private *priv)
 {
 	u8 *cmdbuf;
 	if (recvlength > MRVDRV_SIZE_OF_CMD_BUFFER) {
@@ -640,7 +643,7 @@ static void if_usb_receive(struct urb *urb)
 	struct read_cb_info *rinfo = (struct read_cb_info *)urb->context;
 	struct sk_buff *skb = rinfo->skb;
 	struct usb_card_rec *cardp = (struct usb_card_rec *) rinfo->cardp;
-	lbs_private * priv = cardp->priv;
+	struct lbs_private *priv = cardp->priv;
 
 	int recvlength = urb->actual_length;
 	u8 *recvbuff = NULL;
@@ -708,13 +711,16 @@ rx_exit:
 
 /**
  *  @brief This function downloads data to FW
- *  @param priv		pointer to lbs_private structure
+ *  @param priv		pointer to struct lbs_private structure
  *  @param type		type of data
  *  @param buf		pointer to data buffer
  *  @param len		number of bytes
  *  @return 	   	0 or -1
  */
-static int if_usb_host_to_card(lbs_private *priv, u8 type, u8 *payload, u16 nb)
+static int if_usb_host_to_card(struct lbs_private *priv,
+	u8 type,
+	u8 *payload,
+	u16 nb)
 {
 	struct usb_card_rec *cardp = (struct usb_card_rec *)priv->card;
 
@@ -741,7 +747,7 @@ static int if_usb_host_to_card(lbs_private *priv, u8 type, u8 *payload, u16 nb)
 }
 
 /* called with adapter->driver_lock held */
-static int if_usb_get_int_status(lbs_private *priv, u8 *ireg)
+static int if_usb_get_int_status(struct lbs_private *priv, u8 *ireg)
 {
 	struct usb_card_rec *cardp = priv->card;
 
@@ -753,7 +759,7 @@ static int if_usb_get_int_status(lbs_private *priv, u8 *ireg)
 	return 0;
 }
 
-static int if_usb_read_event_cause(lbs_private * priv)
+static int if_usb_read_event_cause(struct lbs_private *priv)
 {
 	struct usb_card_rec *cardp = priv->card;
 
@@ -928,7 +934,7 @@ done:
 static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
-	lbs_private *priv = cardp->priv;
+	struct lbs_private *priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
@@ -964,7 +970,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 static int if_usb_resume(struct usb_interface *intf)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
-	lbs_private *priv = cardp->priv;
+	struct lbs_private *priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 

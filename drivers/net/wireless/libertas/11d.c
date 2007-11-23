@@ -430,7 +430,7 @@ u8 lbs_get_scan_type_11d(u8 chan,
 
 }
 
-void lbs_init_11d(lbs_private * priv)
+void lbs_init_11d(struct lbs_private *priv)
 {
 	priv->adapter->enable11d = 0;
 	memset(&(priv->adapter->parsed_region_chan), 0,
@@ -440,10 +440,10 @@ void lbs_init_11d(lbs_private * priv)
 
 /**
  *  @brief This function sets DOMAIN INFO to FW
- *  @param priv       pointer to lbs_private
+ *  @param priv       pointer to struct lbs_private
  *  @return 	      0; -1
 */
-static int set_domain_info_11d(lbs_private * priv)
+static int set_domain_info_11d(struct lbs_private *priv)
 {
 	int ret;
 
@@ -463,13 +463,13 @@ static int set_domain_info_11d(lbs_private * priv)
 
 /**
  *  @brief This function setups scan channels
- *  @param priv       pointer to lbs_private
+ *  @param priv       pointer to struct lbs_private
  *  @param band       band
  *  @return 	      0
 */
-int lbs_set_universaltable(lbs_private * priv, u8 band)
+int lbs_set_universaltable(struct lbs_private *priv, u8 band)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u16 size = sizeof(struct chan_freq_power);
 	u16 i = 0;
 
@@ -492,20 +492,20 @@ int lbs_set_universaltable(lbs_private * priv, u8 band)
 
 /**
  *  @brief This function implements command CMD_802_11D_DOMAIN_INFO
- *  @param priv       pointer to lbs_private
+ *  @param priv       pointer to struct lbs_private
  *  @param cmd        pointer to cmd buffer
  *  @param cmdno      cmd ID
  *  @param cmdOption  cmd action
  *  @return 	      0
 */
-int lbs_cmd_802_11d_domain_info(lbs_private * priv,
+int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd, u16 cmdno,
 				 u16 cmdoption)
 {
 	struct cmd_ds_802_11d_domain_info *pdomaininfo =
 	    &cmd->params.domaininfo;
 	struct mrvlietypes_domainparamset *domain = &pdomaininfo->domain;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	u8 nr_subband = adapter->domainreg.nr_subband;
 
 	lbs_deb_enter(LBS_DEB_11D);
@@ -552,11 +552,11 @@ done:
 
 /**
  *  @brief This function parses countryinfo from AP and download country info to FW
- *  @param priv    pointer to lbs_private
+ *  @param priv    pointer to struct lbs_private
  *  @param resp    pointer to command response buffer
  *  @return 	   0; -1
  */
-int lbs_ret_802_11d_domain_info(lbs_private * priv,
+int lbs_ret_802_11d_domain_info(struct lbs_private *priv,
 				 struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11d_domain_info *domaininfo = &resp->params.domaininforesp;
@@ -598,14 +598,14 @@ int lbs_ret_802_11d_domain_info(lbs_private * priv,
 
 /**
  *  @brief This function parses countryinfo from AP and download country info to FW
- *  @param priv    pointer to lbs_private
+ *  @param priv    pointer to struct lbs_private
  *  @return 	   0; -1
  */
-int lbs_parse_dnld_countryinfo_11d(lbs_private * priv,
+int lbs_parse_dnld_countryinfo_11d(struct lbs_private *priv,
                                         struct bss_descriptor * bss)
 {
 	int ret;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_11D);
 	if (priv->adapter->enable11d) {
@@ -640,13 +640,13 @@ done:
 
 /**
  *  @brief This function generates 11D info from user specified regioncode and download to FW
- *  @param priv    pointer to lbs_private
+ *  @param priv    pointer to struct lbs_private
  *  @return 	   0; -1
  */
-int lbs_create_dnld_countryinfo_11d(lbs_private * priv)
+int lbs_create_dnld_countryinfo_11d(struct lbs_private *priv)
 {
 	int ret;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct region_channel *region_chan;
 	u8 j;
 

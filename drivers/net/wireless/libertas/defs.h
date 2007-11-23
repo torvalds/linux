@@ -262,8 +262,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define UNSET_MESH_FRAME(x) (x->cb[6]=0)
 
 /** Global Variable Declaration */
-typedef struct _lbs_private lbs_private;
-typedef struct _lbs_adapter lbs_adapter;
 extern const char lbs_driver_version[];
 extern u16 lbs_region_code_to_index[MRVDRV_MAX_REGION_CODE];
 

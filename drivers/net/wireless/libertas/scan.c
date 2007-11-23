@@ -163,13 +163,13 @@ static inline int match_bss_dynamic_wep(struct lbs_802_11_security *secinfo,
  *    0       0        0       0     !=NONE     1      0    0   yes Dynamic WEP
  *
  *
- *  @param adapter A pointer to lbs_adapter
+ *  @param adapter A pointer to struct lbs_adapter
  *  @param index   Index in scantable to check against current driver settings
  *  @param mode    Network mode: Infrastructure or IBSS
  *
  *  @return        Index in scantable, or error code if negative
  */
-static int is_network_compatible(lbs_adapter *adapter,
+static int is_network_compatible(struct lbs_adapter *adapter,
 		struct bss_descriptor * bss, u8 mode)
 {
 	int matched = 0;
@@ -262,7 +262,7 @@ int lbs_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
  *    of channels to scan.  This routine is used for any scan that is not
  *    provided a specific channel list to scan.
  *
- *  @param priv          A pointer to lbs_private structure
+ *  @param priv          A pointer to struct lbs_private structure
  *  @param scanchanlist  Output parameter: resulting channel list to scan
  *  @param filteredscan  Flag indicating whether or not a BSSID or SSID filter
  *                       is being sent in the command to firmware.  Used to
@@ -272,12 +272,12 @@ int lbs_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len)
  *
  *  @return              void
  */
-static void lbs_scan_create_channel_list(lbs_private *priv,
+static void lbs_scan_create_channel_list(struct lbs_private *priv,
 					  struct chanscanparamset * scanchanlist,
 					  u8 filteredscan)
 {
 
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct region_channel *scanregion;
 	struct chan_freq_power *cfp;
 	int rgnidx;
@@ -360,7 +360,9 @@ static void lbs_scan_create_channel_list(lbs_private *priv,
 /* Delayed partial scan worker */
 void lbs_scan_worker(struct work_struct *work)
 {
-	lbs_private *priv = container_of(work, lbs_private, scan_work.work);
+	struct lbs_private *priv = container_of(work,
+		struct lbs_private,
+		scan_work.work);
 
 	lbs_scan_networks(priv, NULL, 0);
 }
@@ -386,7 +388,7 @@ void lbs_scan_worker(struct work_struct *work)
  *  If the number of probes is not set, use the adapter default setting
  *  Qualify the channel
  *
- *  @param priv             A pointer to lbs_private structure
+ *  @param priv             A pointer to struct lbs_private structure
  *  @param puserscanin      NULL or pointer to scan configuration parameters
  *  @param ppchantlvout     Output parameter: Pointer to the start of the
  *                          channel TLV portion of the output scan config
@@ -405,7 +407,7 @@ void lbs_scan_worker(struct work_struct *work)
  *  @return                 resulting scan configuration
  */
 static struct lbs_scan_cmd_config *
-lbs_scan_setup_scan_config(lbs_private *priv,
+lbs_scan_setup_scan_config(struct lbs_private *priv,
 			    const struct lbs_ioctl_user_scan_cfg *puserscanin,
 			    struct mrvlietypes_chanlistparamset ** ppchantlvout,
 			    struct chanscanparamset * pscanchanlist,
@@ -587,7 +589,7 @@ out:
  *   and sends the portion of the channel TLV along with the other TLVs
  *   to the lbs_cmd routines for execution in the firmware.
  *
- *  @param priv            A pointer to lbs_private structure
+ *  @param priv            A pointer to struct lbs_private structure
  *  @param maxchanperscan  Maximum number channels to be included in each
  *                         scan command sent to firmware
  *  @param filteredscan    Flag indicating whether or not a BSSID or SSID
@@ -601,7 +603,7 @@ out:
  *
  *  @return                0 or error return otherwise
  */
-static int lbs_scan_channel_list(lbs_private *priv,
+static int lbs_scan_channel_list(struct lbs_private *priv,
 				  int maxchanperscan,
 				  u8 filteredscan,
 				  struct lbs_scan_cmd_config *pscancfgout,
@@ -754,7 +756,7 @@ out:
 /*
  * Only used from lbs_scan_networks()
 */
-static void clear_selected_scan_list_entries(lbs_adapter *adapter,
+static void clear_selected_scan_list_entries(struct lbs_adapter *adapter,
 	const struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
 	struct bss_descriptor *bss;
@@ -813,18 +815,18 @@ out:
  *    order to send the appropriate scan commands to firmware to populate or
  *    update the internal driver scan table
  *
- *  @param priv          A pointer to lbs_private structure
+ *  @param priv          A pointer to struct lbs_private structure
  *  @param puserscanin   Pointer to the input configuration for the requested
  *                       scan.
  *  @param full_scan     ???
  *
  *  @return              0 or < 0 if error
  */
-int lbs_scan_networks(lbs_private *priv,
+int lbs_scan_networks(struct lbs_private *priv,
 	const struct lbs_ioctl_user_scan_cfg *puserscanin,
                        int full_scan)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct mrvlietypes_chanlistparamset *pchantlvout;
 	struct chanscanparamset * scan_chan_list = NULL;
 	struct lbs_scan_cmd_config *scan_cfg = NULL;
@@ -1155,13 +1157,13 @@ done:
  *
  *  Used in association code
  *
- *  @param adapter  A pointer to lbs_adapter
+ *  @param adapter  A pointer to struct lbs_adapter
  *  @param bssid    BSSID to find in the scan list
  *  @param mode     Network mode: Infrastructure or IBSS
  *
  *  @return         index in BSSID list, or error return code (< 0)
  */
-struct bss_descriptor *lbs_find_bssid_in_list(lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_adapter *adapter,
 		u8 * bssid, u8 mode)
 {
 	struct bss_descriptor * iter_bss;
@@ -1207,14 +1209,14 @@ out:
  *
  *  Used in association code
  *
- *  @param adapter  A pointer to lbs_adapter
+ *  @param adapter  A pointer to struct lbs_adapter
  *  @param ssid     SSID to find in the list
  *  @param bssid    BSSID to qualify the SSID selection (if provided)
  *  @param mode     Network mode: Infrastructure or IBSS
  *
  *  @return         index in BSSID list
  */
-struct bss_descriptor *lbs_find_ssid_in_list(lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_adapter *adapter,
 		   u8 *ssid, u8 ssid_len, u8 * bssid, u8 mode,
 		   int channel)
 {
@@ -1279,12 +1281,13 @@ out:
  *  Search the scan table for the best SSID that also matches the current
  *   adapter network preference (infrastructure or adhoc)
  *
- *  @param adapter  A pointer to lbs_adapter
+ *  @param adapter  A pointer to struct lbs_adapter
  *
  *  @return         index in BSSID list
  */
-static struct bss_descriptor *lbs_find_best_ssid_in_list(lbs_adapter *adapter,
-		u8 mode)
+static struct bss_descriptor *lbs_find_best_ssid_in_list(
+	struct lbs_adapter *adapter,
+	u8 mode)
 {
 	u8 bestrssi = 0;
 	struct bss_descriptor * iter_bss;
@@ -1325,15 +1328,15 @@ static struct bss_descriptor *lbs_find_best_ssid_in_list(lbs_adapter *adapter,
  *
  *  Used from association worker.
  *
- *  @param priv         A pointer to lbs_private structure
+ *  @param priv         A pointer to struct lbs_private structure
  *  @param pSSID        A pointer to AP's ssid
  *
  *  @return             0--success, otherwise--fail
  */
-int lbs_find_best_network_ssid(lbs_private *priv,
+int lbs_find_best_network_ssid(struct lbs_private *priv,
 		u8 *out_ssid, u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	int ret = -1;
 	struct bss_descriptor * found;
 
@@ -1371,8 +1374,8 @@ out:
 int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
 {
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
@@ -1394,7 +1397,7 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
  *
  *  Used in association code and from debugfs
  *
- *  @param priv             A pointer to lbs_private structure
+ *  @param priv             A pointer to struct lbs_private structure
  *  @param ssid             A pointer to the SSID to scan for
  *  @param ssid_len         Length of the SSID
  *  @param clear_ssid       Should existing scan results with this SSID
@@ -1404,10 +1407,10 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
  *
  *  @return                0-success, otherwise fail
  */
-int lbs_send_specific_ssid_scan(lbs_private *priv,
+int lbs_send_specific_ssid_scan(struct lbs_private *priv,
 			u8 *ssid, u8 ssid_len, u8 clear_ssid)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_ioctl_user_scan_cfg scancfg;
 	int ret = 0;
 
@@ -1445,11 +1448,11 @@ out:
 
 #define MAX_CUSTOM_LEN 64
 
-static inline char *lbs_translate_scan(lbs_private *priv,
+static inline char *lbs_translate_scan(struct lbs_private *priv,
 					char *start, char *stop,
 					struct bss_descriptor *bss)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct chan_freq_power *cfp;
 	char *current_val;	/* For rates */
 	struct iw_event iwe;	/* Temporary buffer */
@@ -1612,8 +1615,8 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_point *dwrq, char *extra)
 {
 #define SCAN_ITEM_SIZE 128
-	lbs_private *priv = dev->priv;
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_private *priv = dev->priv;
+	struct lbs_adapter *adapter = priv->adapter;
 	int err = 0;
 	char *ev = extra;
 	char *stop = ev + dwrq->length;
@@ -1684,7 +1687,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
  *  Sends a fixed lenght data part (specifying the BSS type and BSSID filters)
  *  as well as a variable number/length of TLVs to the firmware.
  *
- *  @param priv       A pointer to lbs_private structure
+ *  @param priv       A pointer to struct lbs_private structure
  *  @param cmd        A pointer to cmd_ds_command structure to be sent to
  *                    firmware with the cmd_DS_801_11_SCAN structure
  *  @param pdata_buf  Void pointer cast of a lbs_scan_cmd_config struct used
@@ -1692,7 +1695,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
  *
  *  @return           0 or -1
  */
-int lbs_cmd_80211_scan(lbs_private *priv,
+int lbs_cmd_80211_scan(struct lbs_private *priv,
 			 struct cmd_ds_command *cmd, void *pdata_buf)
 {
 	struct cmd_ds_802_11_scan *pscan = &cmd->params.scan;
@@ -1752,14 +1755,14 @@ static inline int is_same_network(struct bss_descriptor *src,
  *     |            bufsize and sizeof the fixed fields above)     |
  *     .-----------------------------------------------------------.
  *
- *  @param priv    A pointer to lbs_private structure
+ *  @param priv    A pointer to struct lbs_private structure
  *  @param resp    A pointer to cmd_ds_command
  *
  *  @return        0 or -1
  */
-int lbs_ret_80211_scan(lbs_private *priv, struct cmd_ds_command *resp)
+int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 {
-	lbs_adapter *adapter = priv->adapter;
+	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_scan_rsp *pscan;
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * safe;
