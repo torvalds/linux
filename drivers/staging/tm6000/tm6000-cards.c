@@ -168,7 +168,7 @@ static void tm6000_config_tuner (struct tm6000_core *dev)
 
 	if (dev->tuner_type == TUNER_XC2028) {
 		ctl.fname = "tm6000-xc3028.fw";
-		ctl.type  = XC2028_FIRM_MTS;
+		ctl.mts   = 1;
 
 		xc2028_cfg.tuner = TUNER_XC2028;
 		xc2028_cfg.priv  = &ctl;
