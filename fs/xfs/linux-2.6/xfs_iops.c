@@ -71,6 +71,22 @@ xfs_synchronize_atime(
 }
 
 /*
+ * If the linux inode exists, mark it dirty.
+ * Used when commiting a dirty inode into a transaction so that
+ * the inode will get written back by the linux code
+ */
+void
+xfs_mark_inode_dirty_sync(
+	xfs_inode_t	*ip)
+{
+	bhv_vnode_t	*vp;
+
+	vp = XFS_ITOV_NULL(ip);
+	if (vp)
+		mark_inode_dirty_sync(vn_to_inode(vp));
+}
+
+/*
  * Change the requested timestamp in the given inode.
  * We don't lock across timestamp updates, and we don't log them but
  * we do record the fact that there is dirty information in core.

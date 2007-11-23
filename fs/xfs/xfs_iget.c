@@ -140,27 +140,9 @@ again:
 				return ENOENT;
 			}
 
-			/*
-			 * There may be transactions sitting in the
-			 * incore log buffers or being flushed to disk
-			 * at this time.  We can't clear the
-			 * XFS_IRECLAIMABLE flag until these
-			 * transactions have hit the disk, otherwise we
-			 * will void the guarantee the flag provides
-			 * xfs_iunpin()
-			 */
-			if (xfs_ipincount(ip)) {
-				read_unlock(&pag->pag_ici_lock);
-				xfs_log_force(mp, 0,
-					XFS_LOG_FORCE|XFS_LOG_SYNC);
-				XFS_STATS_INC(xs_ig_frecycle);
-				goto again;
-			}
-
 			xfs_itrace_exit_tag(ip, "xfs_iget.alloc");
 
 			XFS_STATS_INC(xs_ig_found);
-
 			xfs_iflags_clear(ip, XFS_IRECLAIMABLE);
 			read_unlock(&pag->pag_ici_lock);
 
