@@ -80,7 +80,7 @@ static char *check[] = {
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", NULL
+	"camellia", "seed", "salsa20", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -1307,6 +1307,12 @@ static void do_test(void)
 		break;
 	case 33:
 		test_hash("sha224", sha224_tv_template, SHA224_TEST_VECTORS);
+		break;
+
+	case 34:
+		test_cipher("salsa20", ENCRYPT,
+			    salsa20_stream_enc_tv_template,
+			    SALSA20_STREAM_ENC_TEST_VECTORS);
 		break;
 
 	case 100:
