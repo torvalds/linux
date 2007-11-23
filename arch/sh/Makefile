@@ -67,7 +67,7 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
 		   -R .stab -R .stabstr -S
 
 # Give the various platforms the opportunity to set default image types
-defaultimage-$(CONFIG_SUPERH32)	:= arch/sh/boot/zImage
+defaultimage-$(CONFIG_SUPERH32)	:= zImage
 
 # Set some sensible Kbuild defaults
 KBUILD_DEFCONFIG	:= r7780rp_defconfig
