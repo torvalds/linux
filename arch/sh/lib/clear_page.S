@@ -9,10 +9,10 @@
 #include <asm/page.h>
 
 /*
- * clear_page_slow
+ * clear_page
  * @to: P1 address
  *
- * void clear_page_slow(void *to)
+ * void clear_page(void *to)
  */
 
 /*
@@ -20,7 +20,7 @@
  * r4 --- to
  * r5 --- to + PAGE_SIZE
  */
-ENTRY(clear_page_slow)
+ENTRY(clear_page)
 	mov	r4,r5
 	mov.l	.Llimit,r0
 	add	r0,r5
