@@ -393,7 +393,91 @@ static const u32 camellia_sp4404[256] = {
 static void camellia_setup_tail(u32 *subkey, u32 *subL, u32 *subR, int max)
 {
 	u32 dw, tl, tr;
+	u32 kw4l, kw4r;
 	int i;
+
+	/* absorb kw2 to other subkeys */
+	/* round 2 */
+	subL[3] ^= subL[1]; subR[3] ^= subR[1];
+	/* round 4 */
+	subL[5] ^= subL[1]; subR[5] ^= subR[1];
+	/* round 6 */
+	subL[7] ^= subL[1]; subR[7] ^= subR[1];
+	subL[1] ^= subR[1] & ~subR[9];
+	dw = subL[1] & subL[9],
+		subR[1] ^= ROL1(dw); /* modified for FLinv(kl2) */
+	/* round 8 */
+	subL[11] ^= subL[1]; subR[11] ^= subR[1];
+	/* round 10 */
+	subL[13] ^= subL[1]; subR[13] ^= subR[1];
+	/* round 12 */
+	subL[15] ^= subL[1]; subR[15] ^= subR[1];
+	subL[1] ^= subR[1] & ~subR[17];
+	dw = subL[1] & subL[17],
+		subR[1] ^= ROL1(dw); /* modified for FLinv(kl4) */
+	/* round 14 */
+	subL[19] ^= subL[1]; subR[19] ^= subR[1];
+	/* round 16 */
+	subL[21] ^= subL[1]; subR[21] ^= subR[1];
+	/* round 18 */
+	subL[23] ^= subL[1]; subR[23] ^= subR[1];
+	if (max == 24) {
+		/* kw3 */
+		subL[24] ^= subL[1]; subR[24] ^= subR[1];
+
+	/* absorb kw4 to other subkeys */
+		kw4l = subL[25]; kw4r = subR[25];
+	} else {
+		subL[1] ^= subR[1] & ~subR[25];
+		dw = subL[1] & subL[25],
+			subR[1] ^= ROL1(dw); /* modified for FLinv(kl6) */
+		/* round 20 */
+		subL[27] ^= subL[1]; subR[27] ^= subR[1];
+		/* round 22 */
+		subL[29] ^= subL[1]; subR[29] ^= subR[1];
+		/* round 24 */
+		subL[31] ^= subL[1]; subR[31] ^= subR[1];
+		/* kw3 */
+		subL[32] ^= subL[1]; subR[32] ^= subR[1];
+
+	/* absorb kw4 to other subkeys */
+		kw4l = subL[33]; kw4r = subR[33];
+		/* round 23 */
+		subL[30] ^= kw4l; subR[30] ^= kw4r;
+		/* round 21 */
+		subL[28] ^= kw4l; subR[28] ^= kw4r;
+		/* round 19 */
+		subL[26] ^= kw4l; subR[26] ^= kw4r;
+		kw4l ^= kw4r & ~subR[24];
+		dw = kw4l & subL[24],
+			kw4r ^= ROL1(dw); /* modified for FL(kl5) */
+	}
+	/* round 17 */
+	subL[22] ^= kw4l; subR[22] ^= kw4r;
+	/* round 15 */
+	subL[20] ^= kw4l; subR[20] ^= kw4r;
+	/* round 13 */
+	subL[18] ^= kw4l; subR[18] ^= kw4r;
+	kw4l ^= kw4r & ~subR[16];
+	dw = kw4l & subL[16],
+		kw4r ^= ROL1(dw); /* modified for FL(kl3) */
+	/* round 11 */
+	subL[14] ^= kw4l; subR[14] ^= kw4r;
+	/* round 9 */
+	subL[12] ^= kw4l; subR[12] ^= kw4r;
+	/* round 7 */
+	subL[10] ^= kw4l; subR[10] ^= kw4r;
+	kw4l ^= kw4r & ~subR[8];
+	dw = kw4l & subL[8],
+		kw4r ^= ROL1(dw); /* modified for FL(kl1) */
+	/* round 5 */
+	subL[6] ^= kw4l; subR[6] ^= kw4r;
+	/* round 3 */
+	subL[4] ^= kw4l; subR[4] ^= kw4r;
+	/* round 1 */
+	subL[2] ^= kw4l; subR[2] ^= kw4r;
+	/* kw1 */
+	subL[0] ^= kw4l; subR[0] ^= kw4r;
 
 	/* key XOR is end of F-function */
 	SUBKEY_L(0) = subL[0] ^ subL[2];/* kw1 */
@@ -509,7 +593,6 @@ static void camellia_setup128(const unsigned char *key, u32 *subkey)
 {
 	u32 kll, klr, krl, krr;
 	u32 il, ir, t0, t1, w0, w1;
-	u32 kw4l, kw4r, dw;
 	u32 subL[26];
 	u32 subR[26];
 
@@ -609,63 +692,6 @@ static void camellia_setup128(const unsigned char *key, u32 *subkey)
 	subL[24] = kll; subR[24] = klr;
 	subL[25] = krl; subR[25] = krr;
 
-	/* absorb kw2 to other subkeys */
-	/* round 2 */
-	subL[3] ^= subL[1]; subR[3] ^= subR[1];
-	/* round 4 */
-	subL[5] ^= subL[1]; subR[5] ^= subR[1];
-	/* round 6 */
-	subL[7] ^= subL[1]; subR[7] ^= subR[1];
-	subL[1] ^= subR[1] & ~subR[9];
-	dw = subL[1] & subL[9],
-		subR[1] ^= ROL1(dw); /* modified for FLinv(kl2) */
-	/* round 8 */
-	subL[11] ^= subL[1]; subR[11] ^= subR[1];
-	/* round 10 */
-	subL[13] ^= subL[1]; subR[13] ^= subR[1];
-	/* round 12 */
-	subL[15] ^= subL[1]; subR[15] ^= subR[1];
-	subL[1] ^= subR[1] & ~subR[17];
-	dw = subL[1] & subL[17],
-		subR[1] ^= ROL1(dw); /* modified for FLinv(kl4) */
-	/* round 14 */
-	subL[19] ^= subL[1]; subR[19] ^= subR[1];
-	/* round 16 */
-	subL[21] ^= subL[1]; subR[21] ^= subR[1];
-	/* round 18 */
-	subL[23] ^= subL[1]; subR[23] ^= subR[1];
-	/* kw3 */
-	subL[24] ^= subL[1]; subR[24] ^= subR[1];
-
-	/* absorb kw4 to other subkeys */
-	kw4l = subL[25]; kw4r = subR[25];
-	/* round 17 */
-	subL[22] ^= kw4l; subR[22] ^= kw4r;
-	/* round 15 */
-	subL[20] ^= kw4l; subR[20] ^= kw4r;
-	/* round 13 */
-	subL[18] ^= kw4l; subR[18] ^= kw4r;
-	kw4l ^= kw4r & ~subR[16];
-	dw = kw4l & subL[16],
-		kw4r ^= ROL1(dw); /* modified for FL(kl3) */
-	/* round 11 */
-	subL[14] ^= kw4l; subR[14] ^= kw4r;
-	/* round 9 */
-	subL[12] ^= kw4l; subR[12] ^= kw4r;
-	/* round 7 */
-	subL[10] ^= kw4l; subR[10] ^= kw4r;
-	kw4l ^= kw4r & ~subR[8];
-	dw = kw4l & subL[8],
-		kw4r ^= ROL1(dw); /* modified for FL(kl1) */
-	/* round 5 */
-	subL[6] ^= kw4l; subR[6] ^= kw4r;
-	/* round 3 */
-	subL[4] ^= kw4l; subR[4] ^= kw4r;
-	/* round 1 */
-	subL[2] ^= kw4l; subR[2] ^= kw4r;
-	/* kw1 */
-	subL[0] ^= kw4l; subR[0] ^= kw4r;
-
 	camellia_setup_tail(subkey, subL, subR, 24);
 }
 
@@ -674,7 +700,6 @@ static void camellia_setup256(const unsigned char *key, u32 *subkey)
 	u32 kll, klr, krl, krr;        /* left half of key */
 	u32 krll, krlr, krrl, krrr;    /* right half of key */
 	u32 il, ir, t0, t1, w0, w1;    /* temporary variables */
-	u32 kw4l, kw4r, dw;
 	u32 subL[34];
 	u32 subR[34];
 
@@ -815,81 +840,6 @@ static void camellia_setup256(const unsigned char *key, u32 *subkey)
 	subL[32] = krll; subR[32] = krlr;
 	/* kw4 */
 	subL[33] = krrl; subR[33] = krrr;
-
-	/* absorb kw2 to other subkeys */
-	/* round 2 */
-	subL[3] ^= subL[1]; subR[3] ^= subR[1];
-	/* round 4 */
-	subL[5] ^= subL[1]; subR[5] ^= subR[1];
-	/* round 6 */
-	subL[7] ^= subL[1]; subR[7] ^= subR[1];
-	subL[1] ^= subR[1] & ~subR[9];
-	dw = subL[1] & subL[9],
-		subR[1] ^= ROL1(dw); /* modified for FLinv(kl2) */
-	/* round 8 */
-	subL[11] ^= subL[1]; subR[11] ^= subR[1];
-	/* round 10 */
-	subL[13] ^= subL[1]; subR[13] ^= subR[1];
-	/* round 12 */
-	subL[15] ^= subL[1]; subR[15] ^= subR[1];
-	subL[1] ^= subR[1] & ~subR[17];
-	dw = subL[1] & subL[17],
-		subR[1] ^= ROL1(dw); /* modified for FLinv(kl4) */
-	/* round 14 */
-	subL[19] ^= subL[1]; subR[19] ^= subR[1];
-	/* round 16 */
-	subL[21] ^= subL[1]; subR[21] ^= subR[1];
-	/* round 18 */
-	subL[23] ^= subL[1]; subR[23] ^= subR[1];
-	subL[1] ^= subR[1] & ~subR[25];
-	dw = subL[1] & subL[25],
-		subR[1] ^= ROL1(dw); /* modified for FLinv(kl6) */
-	/* round 20 */
-	subL[27] ^= subL[1]; subR[27] ^= subR[1];
-	/* round 22 */
-	subL[29] ^= subL[1]; subR[29] ^= subR[1];
-	/* round 24 */
-	subL[31] ^= subL[1]; subR[31] ^= subR[1];
-	/* kw3 */
-	subL[32] ^= subL[1]; subR[32] ^= subR[1];
-
-	/* absorb kw4 to other subkeys */
-	kw4l = subL[33]; kw4r = subR[33];
-	/* round 23 */
-	subL[30] ^= kw4l; subR[30] ^= kw4r;
-	/* round 21 */
-	subL[28] ^= kw4l; subR[28] ^= kw4r;
-	/* round 19 */
-	subL[26] ^= kw4l; subR[26] ^= kw4r;
-	kw4l ^= kw4r & ~subR[24];
-	dw = kw4l & subL[24],
-		kw4r ^= ROL1(dw); /* modified for FL(kl5) */
-	/* round 17 */
-	subL[22] ^= kw4l; subR[22] ^= kw4r;
-	/* round 15 */
-	subL[20] ^= kw4l; subR[20] ^= kw4r;
-	/* round 13 */
-	subL[18] ^= kw4l; subR[18] ^= kw4r;
-	kw4l ^= kw4r & ~subR[16];
-	dw = kw4l & subL[16],
-		kw4r ^= ROL1(dw); /* modified for FL(kl3) */
-	/* round 11 */
-	subL[14] ^= kw4l; subR[14] ^= kw4r;
-	/* round 9 */
-	subL[12] ^= kw4l; subR[12] ^= kw4r;
-	/* round 7 */
-	subL[10] ^= kw4l; subR[10] ^= kw4r;
-	kw4l ^= kw4r & ~subR[8];
-	dw = kw4l & subL[8],
-		kw4r ^= ROL1(dw); /* modified for FL(kl1) */
-	/* round 5 */
-	subL[6] ^= kw4l; subR[6] ^= kw4r;
-	/* round 3 */
-	subL[4] ^= kw4l; subR[4] ^= kw4r;
-	/* round 1 */
-	subL[2] ^= kw4l; subR[2] ^= kw4r;
-	/* kw1 */
-	subL[0] ^= kw4l; subR[0] ^= kw4r;
 
 	camellia_setup_tail(subkey, subL, subR, 32);
 }
