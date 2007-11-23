@@ -24,6 +24,9 @@ config GENERIC_GPIO
 config GENERIC_HARDIRQS
 	def_bool y
 
+config STACKTRACE_SUPPORT
+	def_bool y
+
 config HARDIRQS_SW_RESEND
 	def_bool y
 
