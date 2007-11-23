@@ -4164,15 +4164,12 @@ xfs_free_file_space(
 		vn_iowait(ip);	/* wait for the completion of any pending DIOs */
 	}
 
-	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, NBPP);
+	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
 	ioffset = offset & ~(rounding - 1);
 
 	if (VN_CACHED(vp) != 0) {
-		xfs_inval_cached_trace(ip, ioffset, -1,
-				ctooff(offtoct(ioffset)), -1);
-		error = xfs_flushinval_pages(ip,
-				ctooff(offtoct(ioffset)),
-				-1, FI_REMAPF_LOCKED);
+		xfs_inval_cached_trace(ip, ioffset, -1, ioffset, -1);
+		error = xfs_flushinval_pages(ip, ioffset, -1, FI_REMAPF_LOCKED);
 		if (error)
 			goto out_unlock_iolock;
 	}

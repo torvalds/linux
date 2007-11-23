@@ -243,9 +243,8 @@ xfs_read(
 
 	if (unlikely(ioflags & IO_ISDIRECT)) {
 		if (VN_CACHED(vp))
-			ret = xfs_flushinval_pages(ip,
-					ctooff(offtoct(*offset)),
-					-1, FI_REMAPF_LOCKED);
+			ret = xfs_flushinval_pages(ip, (*offset & PAGE_CACHE_MASK),
+						    -1, FI_REMAPF_LOCKED);
 		mutex_unlock(&inode->i_mutex);
 		if (ret) {
 			xfs_iunlock(ip, XFS_IOLOCK_SHARED);
@@ -731,9 +730,9 @@ retry:
 		if (VN_CACHED(vp)) {
 			WARN_ON(need_i_mutex == 0);
 			xfs_inval_cached_trace(xip, pos, -1,
-					ctooff(offtoct(pos)), -1);
+					(pos & PAGE_CACHE_MASK), -1);
 			error = xfs_flushinval_pages(xip,
-					ctooff(offtoct(pos)),
+					(pos & PAGE_CACHE_MASK),
 					-1, FI_REMAPF_LOCKED);
 			if (error)
 				goto out_unlock_internal;

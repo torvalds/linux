@@ -138,42 +138,16 @@
 
 #define spinlock_destroy(lock)
 
-#define NBPP		PAGE_SIZE
-#define NDPP		(1 << (PAGE_SHIFT - 9))
-
 #define NBBY		8		/* number of bits per byte */
-#define	NBPC		PAGE_SIZE	/* Number of bytes per click */
-#define	BPCSHIFT	PAGE_SHIFT	/* LOG2(NBPC) if exact */
 
 /*
  * Size of block device i/o is parameterized here.
  * Currently the system supports page-sized i/o.
  */
-#define	BLKDEV_IOSHIFT		BPCSHIFT
+#define	BLKDEV_IOSHIFT		PAGE_CACHE_SHIFT
 #define	BLKDEV_IOSIZE		(1<<BLKDEV_IOSHIFT)
 /* number of BB's per block device block */
 #define	BLKDEV_BB		BTOBB(BLKDEV_IOSIZE)
-
-/* bytes to clicks */
-#define	btoc(x)		(((__psunsigned_t)(x)+(NBPC-1))>>BPCSHIFT)
-#define	btoct(x)	((__psunsigned_t)(x)>>BPCSHIFT)
-#define	btoc64(x)	(((__uint64_t)(x)+(NBPC-1))>>BPCSHIFT)
-#define	btoct64(x)	((__uint64_t)(x)>>BPCSHIFT)
-
-/* off_t bytes to clicks */
-#define offtoc(x)       (((__uint64_t)(x)+(NBPC-1))>>BPCSHIFT)
-#define offtoct(x)      ((xfs_off_t)(x)>>BPCSHIFT)
-
-/* clicks to off_t bytes */
-#define	ctooff(x)	((xfs_off_t)(x)<<BPCSHIFT)
-
-/* clicks to bytes */
-#define	ctob(x)		((__psunsigned_t)(x)<<BPCSHIFT)
-#define btoct(x)        ((__psunsigned_t)(x)>>BPCSHIFT)
-#define	ctob64(x)	((__uint64_t)(x)<<BPCSHIFT)
-
-/* bytes to clicks */
-#define btoc(x)         (((__psunsigned_t)(x)+(NBPC-1))>>BPCSHIFT)
 
 #define ENOATTR		ENODATA		/* Attribute not found */
 #define EWRONGFS	EINVAL		/* Mount with wrong filesystem type */

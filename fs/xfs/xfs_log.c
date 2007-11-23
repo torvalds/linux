@@ -1552,7 +1552,7 @@ xlog_dealloc_log(xlog_t *log)
 		tic = log->l_unmount_free;
 		while (tic) {
 			next_tic = tic->t_next;
-			kmem_free(tic, NBPP);
+			kmem_free(tic, PAGE_SIZE);
 			tic = next_tic;
 		}
 	}
@@ -3161,13 +3161,13 @@ xlog_state_ticket_alloc(xlog_t *log)
 	xlog_ticket_t	*t_list;
 	xlog_ticket_t	*next;
 	xfs_caddr_t	buf;
-	uint		i = (NBPP / sizeof(xlog_ticket_t)) - 2;
+	uint		i = (PAGE_SIZE / sizeof(xlog_ticket_t)) - 2;
 
 	/*
 	 * The kmem_zalloc may sleep, so we shouldn't be holding the
 	 * global lock.  XXXmiken: may want to use zone allocator.
 	 */
-	buf = (xfs_caddr_t) kmem_zalloc(NBPP, KM_SLEEP);
+	buf = (xfs_caddr_t) kmem_zalloc(PAGE_SIZE, KM_SLEEP);
 
 	spin_lock(&log->l_icloglock);
 
