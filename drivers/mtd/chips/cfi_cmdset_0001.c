@@ -320,7 +320,7 @@ read_pri_intelext(struct map_info *map, __u16 adr)
 		return NULL;
 
 	if (extp->MajorVersion != '1' ||
-	    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
+	    (extp->MinorVersion < '0' || extp->MinorVersion > '5')) {
 		printk(KERN_ERR "  Unknown Intel/Sharp Extended Query "
 		       "version %c.%c.\n",  extp->MajorVersion,
 		       extp->MinorVersion);
