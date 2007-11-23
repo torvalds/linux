@@ -148,8 +148,6 @@ static inline snd_pcm_uframes_t snd_pcm_update_hw_ptr_pos(struct snd_pcm_substre
 	pos = substream->ops->pointer(substream);
 	if (pos == SNDRV_PCM_POS_XRUN)
 		return pos; /* XRUN */
-	if (runtime->tstamp_mode & SNDRV_PCM_TSTAMP_MMAP)
-		getnstimeofday((struct timespec *)&runtime->status->tstamp);
 #ifdef CONFIG_SND_DEBUG
 	if (pos >= runtime->buffer_size) {
 		snd_printk(KERN_ERR  "BUG: stream = %i, pos = 0x%lx, buffer size = 0x%lx, period size = 0x%lx\n", substream->stream, pos, runtime->buffer_size, runtime->period_size);
@@ -189,6 +187,8 @@ static inline int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *subs
 	snd_pcm_uframes_t new_hw_ptr, hw_ptr_interrupt;
 	snd_pcm_sframes_t delta;
 
+	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_MMAP)
+		getnstimeofday((struct timespec *)&runtime->status->tstamp);
 	pos = snd_pcm_update_hw_ptr_pos(substream, runtime);
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);

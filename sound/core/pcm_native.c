@@ -595,7 +595,7 @@ int snd_pcm_status(struct snd_pcm_substream *substream,
 	status->trigger_tstamp = runtime->trigger_tstamp;
 	if (snd_pcm_running(substream)) {
 		snd_pcm_update_hw_ptr(substream);
-		if (runtime->tstamp_mode & SNDRV_PCM_TSTAMP_MMAP)
+		if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_MMAP)
 			status->tstamp = runtime->status->tstamp;
 		else
 			getnstimeofday(&status->tstamp);
