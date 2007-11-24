@@ -118,22 +118,6 @@ enum {
 	PIIX_80C_PRI		= (1 << 5) | (1 << 4),
 	PIIX_80C_SEC		= (1 << 7) | (1 << 6),
 
-	/* controller IDs */
-	piix_pata_mwdma		= 0,	/* PIIX3 MWDMA only */
-	piix_pata_33,			/* PIIX4 at 33Mhz */
-	ich_pata_33,			/* ICH up to UDMA 33 only */
-	ich_pata_66,			/* ICH up to 66 Mhz */
-	ich_pata_100,			/* ICH up to UDMA 100 */
-	ich5_sata,
-	ich6_sata,
-	ich6_sata_ahci,
-	ich6m_sata_ahci,
-	ich8_sata_ahci,
-	ich8_2port_sata,
-	ich8m_apple_sata_ahci,		/* locks up on second port enable */
-	tolapai_sata_ahci,
-	piix_pata_vmw,			/* PIIX4 for VMware, spurious DMA_ERR */
-
 	/* constants for mapping table */
 	P0			= 0,  /* port 0 */
 	P1			= 1,  /* port 1 */
@@ -147,6 +131,24 @@ enum {
 
 	/* host->flags bits */
 	PIIX_HOST_BROKEN_SUSPEND = (1 << 24),
+};
+
+enum piix_controller_ids {
+	/* controller IDs */
+	piix_pata_mwdma,	/* PIIX3 MWDMA only */
+	piix_pata_33,		/* PIIX4 at 33Mhz */
+	ich_pata_33,		/* ICH up to UDMA 33 only */
+	ich_pata_66,		/* ICH up to 66 Mhz */
+	ich_pata_100,		/* ICH up to UDMA 100 */
+	ich5_sata,
+	ich6_sata,
+	ich6_sata_ahci,
+	ich6m_sata_ahci,
+	ich8_sata_ahci,
+	ich8_2port_sata,
+	ich8m_apple_sata_ahci,	/* locks up on second port enable */
+	tolapai_sata_ahci,
+	piix_pata_vmw,			/* PIIX4 for VMware, spurious DMA_ERR */
 };
 
 struct piix_map_db {
