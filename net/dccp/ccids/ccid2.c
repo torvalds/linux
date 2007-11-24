@@ -140,7 +140,7 @@ static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	return 1; /* XXX CCID should dequeue when ready instead of polling */
 }
 
-static void ccid2_change_l_ack_ratio(struct sock *sk, int val)
+static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	/*
@@ -159,9 +159,10 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, int val)
 		if (val > max)
 			val = max;
 	}
+	if (val > 0xFFFF)		/* RFC 4340, 11.3 */
+		val = 0xFFFF;
 
-	ccid2_pr_debug("changing local ack ratio to %d\n", val);
-	WARN_ON(val <= 0);
+	ccid2_pr_debug("changing local ack ratio to %u\n", val);
 	dp->dccps_l_ack_ratio = val;
 }
 
@@ -572,7 +573,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 				hctx->ccid2hctx_rpdupack = -1; /* XXX lame */
 				hctx->ccid2hctx_rpseq = 0;
 
-				ccid2_change_l_ack_ratio(sk, dp->dccps_l_ack_ratio << 1);
+				ccid2_change_l_ack_ratio(sk, 2 * dp->dccps_l_ack_ratio);
 			}
 		}
 	}
