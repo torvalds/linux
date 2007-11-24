@@ -69,6 +69,20 @@ unsigned int acpi_cpei_phys_cpuid;
 
 unsigned long acpi_wakeup_address = 0;
 
+#ifdef CONFIG_IA64_GENERIC
+static unsigned long __init acpi_find_rsdp(void)
+{
+	unsigned long rsdp_phys = 0;
+
+	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
+		rsdp_phys = efi.acpi20;
+	else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
+		printk(KERN_WARNING PREFIX
+		       "v1.0/r0.71 tables no longer supported\n");
+	return rsdp_phys;
+}
+#endif
+
 const char __init *
 acpi_get_sysname(void)
 {
@@ -629,18 +643,6 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 
 	acpi_register_gsi(fadt->sci_interrupt, ACPI_LEVEL_SENSITIVE, ACPI_ACTIVE_LOW);
 	return 0;
-}
-
-unsigned long __init acpi_find_rsdp(void)
-{
-	unsigned long rsdp_phys = 0;
-
-	if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
-		rsdp_phys = efi.acpi20;
-	else if (efi.acpi != EFI_INVALID_TABLE_ADDR)
-		printk(KERN_WARNING PREFIX
-		       "v1.0/r0.71 tables no longer supported\n");
-	return rsdp_phys;
 }
 
 int __init acpi_boot_init(void)

@@ -100,7 +100,7 @@ static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_tb_find_rsdp
+ * FUNCTION:    acpi_find_root_pointer
  *
  * PARAMETERS:  table_address           - Where the table pointer is returned
  *
@@ -218,8 +218,6 @@ acpi_status acpi_find_root_pointer(acpi_native_uint * table_address)
 	ACPI_ERROR((AE_INFO, "A valid RSDP was not found"));
 	return_ACPI_STATUS(AE_NOT_FOUND);
 }
-
-ACPI_EXPORT_SYMBOL(acpi_find_root_pointer)
 
 /*******************************************************************************
  *
