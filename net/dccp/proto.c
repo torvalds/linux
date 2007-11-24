@@ -174,6 +174,19 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 
 	dccp_minisock_init(&dp->dccps_minisock);
 
+	icsk->icsk_rto		= DCCP_TIMEOUT_INIT;
+	icsk->icsk_syn_retries	= sysctl_dccp_request_retries;
+	sk->sk_state		= DCCP_CLOSED;
+	sk->sk_write_space	= dccp_write_space;
+	icsk->icsk_sync_mss	= dccp_sync_mss;
+	dp->dccps_mss_cache	= 536;
+	dp->dccps_rate_last	= jiffies;
+	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
+	dp->dccps_service	= DCCP_SERVICE_CODE_IS_ABSENT;
+	dp->dccps_l_ack_ratio	= dp->dccps_r_ack_ratio = 1;
+
+	dccp_init_xmit_timers(sk);
+
 	/*
 	 * FIXME: We're hardcoding the CCID, and doing this at this point makes
 	 * the listening (master) sock get CCID control blocks, which is not
@@ -212,18 +225,6 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 		INIT_LIST_HEAD(&dmsk->dccpms_pending);
 		INIT_LIST_HEAD(&dmsk->dccpms_conf);
 	}
-
-	dccp_init_xmit_timers(sk);
-	icsk->icsk_rto		= DCCP_TIMEOUT_INIT;
-	icsk->icsk_syn_retries	= sysctl_dccp_request_retries;
-	sk->sk_state		= DCCP_CLOSED;
-	sk->sk_write_space	= dccp_write_space;
-	icsk->icsk_sync_mss	= dccp_sync_mss;
-	dp->dccps_mss_cache	= 536;
-	dp->dccps_rate_last	= jiffies;
-	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
-	dp->dccps_service	= DCCP_SERVICE_CODE_IS_ABSENT;
-	dp->dccps_l_ack_ratio	= dp->dccps_r_ack_ratio = 1;
 
 	return 0;
 }
