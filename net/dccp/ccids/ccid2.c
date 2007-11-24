@@ -741,14 +741,24 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct ccid2_hc_tx_sock *hctx = ccid_priv(ccid);
+	struct dccp_sock *dp = dccp_sk(sk);
+	u32 max_ratio;
 
-	ccid2_change_cwnd(hctx, 1);
-	/* Initialize ssthresh to infinity.  This means that we will exit the
-	 * initial slow-start after the first packet loss.  This is what we
-	 * want.
-	 */
+	/* RFC 4341, 5: initialise ssthresh to arbitrarily high (max) value */
 	hctx->ccid2hctx_ssthresh  = ~0;
 	hctx->ccid2hctx_numdupack = 3;
+
+	/*
+	 * RFC 4341, 5: "The cwnd parameter is initialized to at most four
+	 * packets for new connections, following the rules from [RFC3390]".
+	 * We need to convert the bytes of RFC3390 into the packets of RFC 4341.
+	 */
+	hctx->ccid2hctx_cwnd = min(4U, max(2U, 4380U / dp->dccps_mss_cache));
+
+	/* Make sure that Ack Ratio is enabled and within bounds. */
+	max_ratio = DIV_ROUND_UP(hctx->ccid2hctx_cwnd, 2);
+	if (dp->dccps_l_ack_ratio == 0 || dp->dccps_l_ack_ratio > max_ratio)
+		dp->dccps_l_ack_ratio = max_ratio;
 
 	/* XXX init ~ to window size... */
 	if (ccid2_hc_tx_alloc_seq(hctx))
