@@ -276,6 +276,8 @@
 #define B43legacy_DEFAULT_SHORT_RETRY_LIMIT	7
 #define B43legacy_DEFAULT_LONG_RETRY_LIMIT	4
 
+#define B43legacy_PHY_TX_BADNESS_LIMIT		1000
+
 /* Max size of a security key */
 #define B43legacy_SEC_KEYSIZE		16
 /* Security algorithms. */
@@ -511,6 +513,9 @@ struct b43legacy_phy {
 	u16 lofcal;
 
 	u16 initval;
+
+	/* PHY TX errors counter. */
+	atomic_t txerr_cnt;
 };
 
 /* Data structures for DMA transmission, per 80211 core. */

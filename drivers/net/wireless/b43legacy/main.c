@@ -1221,8 +1221,15 @@ static void b43legacy_interrupt_tasklet(struct b43legacy_wldev *dev)
 	if (unlikely(reason & B43legacy_IRQ_MAC_TXERR))
 		b43legacyerr(dev->wl, "MAC transmission error\n");
 
-	if (unlikely(reason & B43legacy_IRQ_PHY_TXERR))
+	if (unlikely(reason & B43legacy_IRQ_PHY_TXERR)) {
 		b43legacyerr(dev->wl, "PHY transmission error\n");
+		rmb();
+		if (unlikely(atomic_dec_and_test(&dev->phy.txerr_cnt))) {
+			b43legacyerr(dev->wl, "Too many PHY TX errors, "
+					      "restarting the controller\n");
+			b43legacy_controller_restart(dev, "PHY TX errors");
+		}
+	}
 
 	if (unlikely(merged_dma_reason & (B43legacy_DMAIRQ_FATALMASK |
 					  B43legacy_DMAIRQ_NONFATALMASK))) {
@@ -2094,6 +2101,9 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	b43legacy_write16(dev, B43legacy_MMIO_POWERUP_DELAY,
 			  dev->dev->bus->chipco.fast_pwrup_delay);
 
+	/* PHY TX errors counter. */
+	atomic_set(&phy->txerr_cnt, B43legacy_PHY_TX_BADNESS_LIMIT);
+
 	B43legacy_WARN_ON(err != 0);
 	b43legacydbg(dev->wl, "Chip initialized\n");
 out:
@@ -2138,6 +2148,9 @@ static void b43legacy_periodic_every30sec(struct b43legacy_wldev *dev)
 static void b43legacy_periodic_every15sec(struct b43legacy_wldev *dev)
 {
 	b43legacy_phy_xmitpower(dev); /* FIXME: unless scanning? */
+
+	atomic_set(&dev->phy.txerr_cnt, B43legacy_PHY_TX_BADNESS_LIMIT);
+	wmb();
 }
 
 static void do_periodic_work(struct b43legacy_wldev *dev)
