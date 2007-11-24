@@ -6,6 +6,7 @@ choice
 config CASIO_E55
 	bool "CASIO CASSIOPEIA E-10/15/55/65"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select ISA
@@ -15,6 +16,7 @@ config CASIO_E55
 config IBM_WORKPAD
 	bool "IBM WorkPad z50"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select ISA
@@ -24,6 +26,7 @@ config IBM_WORKPAD
 config NEC_CMBVR4133
 	bool "NEC CMB-VR4133"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
@@ -33,6 +36,7 @@ config NEC_CMBVR4133
 config TANBAC_TB022X
 	bool "TANBAC VR4131 multichip module and TANBAC VR4131DIMM"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
@@ -48,6 +52,7 @@ config TANBAC_TB022X
 config VICTOR_MPC30X
 	bool "Victor MP-C303/304"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI
@@ -58,6 +63,7 @@ config VICTOR_MPC30X
 config ZAO_CAPCELLA
 	bool "ZAO Networks Capcella"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select HW_HAS_PCI

@@ -67,6 +67,17 @@ static inline int mips_clockevent_init(void)
 }
 #endif
 
+/*
+ * Initialize the count register as a clocksource
+ */
+#ifdef CONFIG_CEVT_R4K
+extern void init_mips_clocksource(void);
+#else
+static inline void init_mips_clocksource(void)
+{
+}
+#endif
+
 extern void clocksource_set_clock(struct clocksource *cs, unsigned int clock);
 extern void clockevent_set_clock(struct clock_event_device *cd,
 		unsigned int clock);

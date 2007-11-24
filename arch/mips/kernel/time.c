@@ -50,14 +50,6 @@ int update_persistent_clock(struct timespec now)
 	return rtc_mips_set_mmss(now.tv_sec);
 }
 
-/*
- * High precision timer functions for a R4k-compatible timer.
- */
-static cycle_t c0_hpt_read(void)
-{
-	return read_c0_count();
-}
-
 int (*mips_timer_state)(void);
 
 int null_perf_irq(void)
@@ -83,13 +75,6 @@ EXPORT_SYMBOL(perf_irq);
  */
 
 unsigned int mips_hpt_frequency;
-
-static struct clocksource clocksource_mips = {
-	.name		= "MIPS",
-	.read		= c0_hpt_read,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
 
 void __init clocksource_set_clock(struct clocksource *cs, unsigned int clock)
 {
@@ -122,16 +107,6 @@ void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
 	}
 	cd->shift = shift;
 	cd->mult = (u32) temp;
-}
-
-static void __init init_mips_clocksource(void)
-{
-	/* Calclate a somewhat reasonable rating value */
-	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
-
-	clocksource_set_clock(&clocksource_mips, mips_hpt_frequency);
-
-	clocksource_register(&clocksource_mips);
 }
 
 void __init __weak plat_time_init(void)
