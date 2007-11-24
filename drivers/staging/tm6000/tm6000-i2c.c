@@ -73,7 +73,7 @@ static int tm6000_i2c_scan(struct i2c_adapter *i2c_adap, int addr)
 	/* This sends addr + 1 byte with 0 */
 	rc = tm6000_read_write_usb (dev,
 		USB_DIR_IN | USB_TYPE_VENDOR,
-		REQ_16_SET_GET_I2CSEQ,
+		REQ_16_SET_GET_I2C_WR1_RDN,
 		addr, 0,
 		buf, 0);
 	msleep(10);
@@ -94,82 +94,61 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 {
 	struct tm6000_core *dev = i2c_adap->algo_data;
 	int addr, rc, i, byte;
-	int prev_reg = -1;
 
 	if (num <= 0)
 		return 0;
 	for (i = 0; i < num; i++) {
-		addr = (msgs[i].addr << 1) &0xff;
+		addr = (msgs[i].addr << 1) & 0xff;
 		i2c_dprintk(2,"%s %s addr=0x%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
 		if (!msgs[i].len) {
 			/* Do I2C scan */
-			rc=tm6000_i2c_scan(i2c_adap, addr);
+			rc = tm6000_i2c_scan(i2c_adap, addr);
 		} else if (msgs[i].flags & I2C_M_RD) {
-			/* Read bytes */
-	/* I2C is assumed to have always a subaddr at the first byte of the
-	   message bus. Also, the first i2c value of the answer is returned
-	   out of message data.
-	 */
-			/* SMBus Read Byte command */
-			if (prev_reg < 0)
-				printk("XXX read from unknown prev_reg\n");
-			rc = tm6000_read_write_usb (dev,
-				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				REQ_16_SET_GET_I2CSEQ,
-				addr | (prev_reg << 8), 0,
-				msgs[i].buf, msgs[i].len);
-			if (prev_reg >= 0)
-				prev_reg += msgs[i].len;
-			if (i2c_debug>=2) {
-				for (byte = 0; byte < msgs[i].len; byte++) {
-					printk(" %02x", msgs[i].buf[byte]);
-				}
-			}
-		} else if (i+1 < num && msgs[i].len == 2 &&
-			   (msgs[i+1].flags & I2C_M_RD) &&
-			   msgs[i].addr == msgs[i+1].addr) {
-			i2c_dprintk(2, "msg %d: write 2, read %d", i,
-				    msgs[i+1].len);
-			/* Write 2 Read N command */
-			rc = tm6000_read_write_usb (dev,
-				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				REQ_14_SET_GET_EEPROM_PAGE, /* XXX wrong name */
-				addr | msgs[i].buf[0] << 8, msgs[i].buf[1],
-				msgs[i+1].buf, msgs[i+1].len);
-			i++;
-			if (i2c_debug>=2) {
-				for (byte = 0; byte < msgs[i].len; byte++) {
-					printk(" %02x", msgs[i].buf[byte]);
-				}
-			}
-			prev_reg = -1;
-		} else {
-			/* write bytes */
-			if (i2c_debug>=2) {
+			/* read request without preceding register selection */
+			/*
+			 * The TM6000 only supports a read transaction
+			 * immediately after a 1 or 2 byte write to select
+			 * a register.  We cannot fulfil this request.
+			 */
+			i2c_dprintk(2, " read without preceding write not"
+				       " supported");
+			rc = -EOPNOTSUPP;
+			goto err;
+		} else if (i + 1 < num && msgs[i].len <= 2 &&
+			   (msgs[i + 1].flags & I2C_M_RD) &&
+			   msgs[i].addr == msgs[i + 1].addr) {
+			/* 1 or 2 byte write followed by a read */
+			if (i2c_debug >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
-			}
-
-			/* SMBus Write Byte command followed by a read command */
-			if(msgs[i].len == 1 && i+1 < num && msgs[i+1].flags & I2C_M_RD
-					    && msgs[i+1].addr == msgs[i].addr) {
-				prev_reg = msgs[i].buf[0];
-				if (i2c_debug >= 2)
-					printk("\n");
-				continue;
-			}
-
+			i2c_dprintk(2, "; joined to read %s len=%d:",
+				    i == num - 2 ? "stop" : "nonstop",
+				    msgs[i + 1].len);
 			rc = tm6000_read_write_usb (dev,
+				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+				msgs[i].len == 1 ? REQ_16_SET_GET_I2C_WR1_RDN
+						 : REQ_14_SET_GET_I2C_WR2_RDN,
+				addr | msgs[i].buf[0] << 8,
+				msgs[i].len == 1 ? 0 : msgs[i].buf[1],
+				msgs[i + 1].buf, msgs[i + 1].len);
+			i++;
+			if (i2c_debug >= 2)
+				for (byte = 0; byte < msgs[i].len; byte++)
+					printk(" %02x", msgs[i].buf[byte]);
+		} else {
+			/* write bytes */
+			if (i2c_debug >= 2)
+				for (byte = 0; byte < msgs[i].len; byte++)
+					printk(" %02x", msgs[i].buf[byte]);
+			rc = tm6000_read_write_usb(dev,
 				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				REQ_16_SET_GET_I2CSEQ,
-				addr|(*msgs[i].buf)<<8, 0,
-				msgs[i].buf+1, msgs[i].len-1);
-
-			prev_reg = -1;
+				REQ_16_SET_GET_I2C_WR1_RDN,
+				addr | msgs[i].buf[0] << 8, 0,
+				msgs[i].buf + 1, msgs[i].len - 1);
 		}
-		if (i2c_debug>=2)
+		if (i2c_debug >= 2)
 			printk("\n");
 		if (rc < 0)
 			goto err;
@@ -180,7 +159,6 @@ err:
 	i2c_dprintk(2," ERROR: %i\n", rc);
 	return rc;
 }
-
 
 static int tm6000_i2c_eeprom(struct tm6000_core *dev,
 			     unsigned char *eedata, int len)
@@ -196,7 +174,7 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev,
 	*p = i;
 	rc = tm6000_read_write_usb (dev,
 		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		REQ_16_SET_GET_I2CSEQ, 0xa0 | i<<8, 0, p, 1);
+		REQ_16_SET_GET_I2C_WR1_RDN, 0xa0 | i<<8, 0, p, 1);
 		if (rc < 1) {
 			if (p == eedata)
 				goto noeeprom;
@@ -273,7 +251,7 @@ static void dec_use(struct i2c_adapter *adap)
 #define mass_write(addr, reg, data...)					\
 	{ const static u8 _val[] = data;				\
 	rc=tm6000_read_write_usb(dev,USB_DIR_OUT | USB_TYPE_VENDOR,	\
-	REQ_16_SET_GET_I2CSEQ,(reg<<8)+addr, 0x00, (u8 *) _val,		\
+	REQ_16_SET_GET_I2C_WR1_RDN,(reg<<8)+addr, 0x00, (u8 *) _val,	\
 	ARRAY_SIZE(_val));						\
 	if (rc<0) {							\
 		printk(KERN_ERR "Error on line %d: %d\n",__LINE__,rc);	\

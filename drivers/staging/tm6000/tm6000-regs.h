@@ -38,11 +38,11 @@
 #define REQ_11_SET_EEPROM_ADDR		11
 #define REQ_12_SET_GET_EEPROMBYTE	12
 #define REQ_13_GET_EEPROM_SEQREAD	13
-#define REQ_14_SET_GET_EEPROM_PAGE	14
+#define REQ_14_SET_GET_I2C_WR2_RDN	14
 #define REQ_15_SET_GET_I2CBYTE		15
 	/* Write: Subaddr, Slave Addr, value, 0 */
 	/* Read : Subaddr, Slave Addr, value, 1 */
-#define REQ_16_SET_GET_I2CSEQ		16
+#define REQ_16_SET_GET_I2C_WR1_RDN	16
 	/* Subaddr, Slave Addr, 0, length */
 #define REQ_17_SET_GET_I2CFP		17
 	/* Write: Slave Addr, register, value */
