@@ -361,8 +361,11 @@ shutdown_callback_client(struct nfs4_client *clp)
 {
 	struct rpc_clnt *clnt = clp->cl_callback.cb_client;
 
-	/* shutdown rpc client, ending any outstanding recall rpcs */
 	if (clnt) {
+		/*
+		 * Callback threads take a reference on the client, so there
+		 * should be no outstanding callbacks at this point.
+		 */
 		clp->cl_callback.cb_client = NULL;
 		rpc_shutdown_client(clnt);
 	}

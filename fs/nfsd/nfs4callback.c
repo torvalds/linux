@@ -457,9 +457,6 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 	int retries = 1;
 	int status = 0;
 
-	if ((!atomic_read(&clp->cl_callback.cb_set)) || !clnt)
-		return;
-
 	cbr->cbr_trunc = 0; /* XXX need to implement truncate optimization */
 	cbr->cbr_dp = dp;
 
@@ -468,6 +465,7 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 		switch (status) {
 			case -EIO:
 				/* Network partition? */
+				atomic_set(&clp->cl_callback.cb_set, 0);
 			case -EBADHANDLE:
 			case -NFS4ERR_BAD_STATEID:
 				/* Race: client probably got cb_recall
@@ -480,11 +478,10 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 		status = rpc_call_sync(clnt, &msg, RPC_TASK_SOFT);
 	}
 out_put_cred:
-	if (status == -EIO)
-		atomic_set(&clp->cl_callback.cb_set, 0);
-	/* Success or failure, now we're either waiting for lease expiration
-	 * or deleg_return. */
-	dprintk("NFSD: nfs4_cb_recall: dp %p dl_flock %p dl_count %d\n",dp, dp->dl_flock, atomic_read(&dp->dl_count));
+	/*
+	 * Success or failure, now we're either waiting for lease expiration
+	 * or deleg_return.
+	 */
 	put_nfs4_client(clp);
 	nfs4_put_delegation(dp);
 	return;
