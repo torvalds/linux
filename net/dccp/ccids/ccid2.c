@@ -666,7 +666,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 					done = 1;
 					break;
 				}
-				seqp = seqp->ccid2s_next;
+				seqp = seqp->ccid2s_prev;
 			}
 			if (done)
 				break;
