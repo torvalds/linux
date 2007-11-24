@@ -914,6 +914,19 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 				T_ANALOG_TV, type, p->std);
 }
 
+static unsigned int demod_type [] = {
+	[XC3028_FE_DEFAULT]	= 0,
+	[XC3028_FE_LG60]	= LG60,
+	[XC3028_FE_ATI638]	= ATI638,
+	[XC3028_FE_OREN538]	= OREN538,
+	[XC3028_FE_OREN36]	= OREN36,
+	[XC3028_FE_TOYOTA388]	= TOYOTA388,
+	[XC3028_FE_TOYOTA794]	= TOYOTA794,
+	[XC3028_FE_DIBCOM52]	= DIBCOM52,
+	[XC3028_FE_ZARLINK456]	= ZARLINK456,
+	[XC3028_FE_CHINA]	= CHINA,
+};
+
 static int xc2028_set_params(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *p)
 {
@@ -964,6 +977,11 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 	default:
 		tuner_err("error: bandwidth not supported.\n");
 	};
+
+	if (priv->ctrl.demod < 0 || priv->ctrl.demod > ARRAY_SIZE(demod_type))
+		tuner_err("error: demod type invalid. Assuming default.\n");
+	else
+		type |= demod_type[priv->ctrl.demod];
 
 	return generic_set_freq(fe, p->frequency,
 				T_DIGITAL_TV, type, 0);
