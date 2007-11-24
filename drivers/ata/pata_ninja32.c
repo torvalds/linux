@@ -61,7 +61,8 @@ static void ninja32_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	static u16 pio_timing[5] = {
 		0xd6, 0x85, 0x44, 0x33, 0x13
 	};
-	iowrite8(pio_timing[adev->pio_mode - XFER_PIO_0], ap->ioaddr.bmdma_addr + 0x1f);
+	iowrite8(pio_timing[adev->pio_mode - XFER_PIO_0],
+		 ap->ioaddr.bmdma_addr + 0x1f);
 	ap->private_data = adev;
 }
 
@@ -176,12 +177,13 @@ static int ninja32_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	iowrite8(0xB3, base + 0x02);	/* Burst, ?? setup */
 	iowrite8(0x00, base + 0x04);	/* WAIT0 ? */
 	/* FIXME: Should we disable them at remove ? */
-	return ata_host_activate(host, dev->irq, ata_interrupt, IRQF_SHARED, &ninja32_sht);
+	return ata_host_activate(host, dev->irq, ata_interrupt,
+				 IRQF_SHARED, &ninja32_sht);
 }
 
 static const struct pci_device_id ninja32[] = {
-	{ 0x1145, 0xf021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{ 0x1145, 0xf024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ 0x1145, 0xf021, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
+	{ 0x1145, 0xf024, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },
 	{ },
 };
 
