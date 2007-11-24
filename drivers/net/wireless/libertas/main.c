@@ -1165,8 +1165,6 @@ wlan_private *libertas_add_card(void *card, struct device *dmdev)
 #ifdef	WIRELESS_EXT
 	dev->wireless_handlers = (struct iw_handler_def *)&libertas_handler_def;
 #endif
-#define NETIF_F_DYNALLOC 16
-	dev->features |= NETIF_F_DYNALLOC;
 	dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
 	dev->set_multicast_list = libertas_set_multicast_list;
 
@@ -1348,8 +1346,6 @@ int libertas_add_mesh(wlan_private *priv, struct device *dev)
 #ifdef	WIRELESS_EXT
 	mesh_dev->wireless_handlers = (struct iw_handler_def *)&mesh_handler_def;
 #endif
-#define NETIF_F_DYNALLOC 16
-
 	/* Register virtual mesh interface */
 	ret = register_netdev(mesh_dev);
 	if (ret) {
