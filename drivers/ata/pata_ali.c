@@ -291,7 +291,7 @@ static void ali_lock_sectors(struct ata_device *adev)
  *
  *	Called to decide whether commands should be sent by DMA or PIO
  */
- 
+
 static int ali_check_atapi_dma(struct ata_queued_cmd *qc)
 {
 	/* If its not a media command, its not worth it */
