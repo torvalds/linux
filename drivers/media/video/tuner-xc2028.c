@@ -891,6 +891,14 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
+	if (p->mode == V4L2_TUNER_RADIO) {
+		type |= FM;
+		if (priv->ctrl.input1)
+			type |= INPUT1;
+		return generic_set_freq(fe, (625l * p->frequency) / 10,
+				T_ANALOG_TV, type, 0);
+	}
+
 	/* if std is not defined, choose one */
 	if (!p->std)
 		p->std = V4L2_STD_MN;

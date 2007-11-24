@@ -15,8 +15,9 @@ struct xc2028_ctrl {
 	char			*fname;
 	int			max_len;
 	unsigned int		scode_table;
-	unsigned int		mts  :1;
-	unsigned int		d2633:1;
+	unsigned int		mts   :1;
+	unsigned int		d2633 :1;
+	unsigned int		input1:1;
 };
 
 struct xc2028_config {
