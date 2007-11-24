@@ -8788,8 +8788,7 @@ static int __devinit bnx2x_init_board(struct pci_dev *pdev,
 	INIT_WORK(&bp->reset_task, bnx2x_reset_task);
 	INIT_WORK(&bp->sp_task, bnx2x_sp_task);
 
-	dev->base_addr = dev->mem_start = pci_resource_start(pdev, 0);
-	dev->mem_end = pci_resource_end(pdev, 0);
+	dev->base_addr = pci_resource_start(pdev, 0);
 
 	dev->irq = pdev->irq;
 

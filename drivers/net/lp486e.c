@@ -1144,7 +1144,7 @@ i596_handle_CU_completion(struct net_device *dev,
 }
 
 static irqreturn_t
-i596_interrupt (int irq, void *dev_instance)
+i596_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct i596_private *lp = dev->priv;

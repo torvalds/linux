@@ -743,7 +743,7 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, uint64_t *data,
 		if (read != (write & test[i] & mask)) {
 			DPRINTK(DRV, ERR, "pattern test reg %04X failed: "
 				"got 0x%08X expected 0x%08X\n",
-			        reg, read, (write & test[i] & mask));
+				reg, read, (write & test[i] & mask));
 			*data = reg;
 			return true;
 		}
