@@ -2119,7 +2119,7 @@ static int dmfe_suspend(struct pci_dev *pci_dev, pm_message_t state)
 
 	/* Power down device*/
 	pci_save_state(pci_dev);
-	pci_set_power_state(pci_dev, pci_choose_state (pci_dev,state));
+	pci_set_power_state(pci_dev, pci_choose_state (pci_dev, state));
 
 	return 0;
 }
