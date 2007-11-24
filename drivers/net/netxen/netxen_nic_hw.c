@@ -160,7 +160,7 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	    },
 	    /* Jumbo frames */
 	    {
-	    /* crb_rcv_producer_offset: */		    
+	    /* crb_rcv_producer_offset: */
 	    NETXEN_NIC_REG(0x1f8),
 	    /* crb_rcv_consumer_offset: */
 	    NETXEN_NIC_REG(0x1fc),
@@ -209,7 +209,7 @@ struct netxen_recv_crb recv_crb_registers[] = {
 	    },
 	    /* Jumbo frames */
 	    {
-	    /* crb_rcv_producer_offset: */ 
+	    /* crb_rcv_producer_offset: */
 	    NETXEN_NIC_REG(0x23c),
 	    /* crb_rcv_consumer_offset: */
 	    NETXEN_NIC_REG(0x240),
@@ -888,7 +888,7 @@ void netxen_nic_read_w0(struct netxen_adapter *adapter, u32 index, u32 * value)
 	netxen_nic_pci_change_crbwindow(adapter, 1);
 }
 
-static int netxen_pci_set_window_warning_count = 0;
+static int netxen_pci_set_window_warning_count;
 
 static  unsigned long netxen_nic_pci_set_window(struct netxen_adapter *adapter,
 						unsigned long long addr)
@@ -958,7 +958,7 @@ int
 netxen_nic_erase_pxe(struct netxen_adapter *adapter)
 {
 	if (netxen_rom_fast_write(adapter, NETXEN_PXE_START, 0) == -1) {
-		printk(KERN_ERR "%s: erase pxe failed\n", 
+		printk(KERN_ERR "%s: erase pxe failed\n",
 			netxen_nic_driver_name);
 		return -1;
 	}
@@ -1039,9 +1039,9 @@ int netxen_nic_set_mtu_xgb(struct netxen_adapter *adapter, int new_mtu)
 {
 	new_mtu += NETXEN_NIU_HDRSIZE + NETXEN_NIU_TLRSIZE;
 	if (physical_port[adapter->portnum] == 0)
-		netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE, 
+		netxen_nic_write_w0(adapter, NETXEN_NIU_XGE_MAX_FRAME_SIZE,
 				new_mtu);
-	else 
+	else
 		netxen_nic_write_w0(adapter, NETXEN_NIU_XG1_MAX_FRAME_SIZE,
 				new_mtu);
 	return 0;

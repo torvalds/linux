@@ -449,7 +449,7 @@ static int do_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 }
 
 int
-netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr, 
+netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 				u8 *bytes, size_t size)
 {
 	int ret;
@@ -490,7 +490,7 @@ int netxen_rom_fast_write(struct netxen_adapter *adapter, int addr, int data)
 }
 #endif  /*  0  */
 
-static int do_rom_fast_write_words(struct netxen_adapter *adapter, 
+static int do_rom_fast_write_words(struct netxen_adapter *adapter,
 				   int addr, u8 *bytes, size_t size)
 {
 	int addridx = addr;
@@ -505,7 +505,7 @@ static int do_rom_fast_write_words(struct netxen_adapter *adapter,
 		ret = do_rom_fast_write(adapter, addridx, data);
 		if (ret < 0)
 			return ret;
-			
+
 		while(1) {
 			int data1;
 
@@ -518,7 +518,7 @@ static int do_rom_fast_write_words(struct netxen_adapter *adapter,
 
 			if (timeout++ >= rom_write_timeout) {
 				if (last_attempt++ < 4) {
-					ret = do_rom_fast_write(adapter, 
+					ret = do_rom_fast_write(adapter,
 								addridx, data);
 					if (ret < 0)
 						return ret;
@@ -538,7 +538,7 @@ static int do_rom_fast_write_words(struct netxen_adapter *adapter,
 	return ret;
 }
 
-int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr, 
+int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr,
 					u8 *bytes, size_t size)
 {
 	int ret = 0;
@@ -562,7 +562,7 @@ static int netxen_rom_wrsr(struct netxen_adapter *adapter, int data)
 		return ret;
 
 	netxen_crb_writelit_adapter(adapter, NETXEN_ROMUSB_ROM_WDATA, data);
-	netxen_crb_writelit_adapter(adapter, 
+	netxen_crb_writelit_adapter(adapter,
 					NETXEN_ROMUSB_ROM_INSTR_OPCODE, 0x1);
 
 	ret = netxen_wait_rom_done(adapter);
@@ -592,7 +592,7 @@ int netxen_backup_crbinit(struct netxen_adapter *adapter)
 	char *buffer = kmalloc(NETXEN_FLASH_SECTOR_SIZE, GFP_KERNEL);
 
 	if (!buffer)
-		return -ENOMEM;	
+		return -ENOMEM;
 	/* unlock sector 63 */
 	val = netxen_rom_rdsr(adapter);
 	val = val & 0xe3;
@@ -605,12 +605,12 @@ int netxen_backup_crbinit(struct netxen_adapter *adapter)
 		goto out_kfree;
 
 	/* copy  sector 0 to sector 63 */
-	ret = netxen_rom_fast_read_words(adapter, NETXEN_CRBINIT_START, 
+	ret = netxen_rom_fast_read_words(adapter, NETXEN_CRBINIT_START,
 					buffer, NETXEN_FLASH_SECTOR_SIZE);
 	if (ret != FLASH_SUCCESS)
 		goto out_kfree;
 
-	ret = netxen_rom_fast_write_words(adapter, NETXEN_FIXED_START, 
+	ret = netxen_rom_fast_write_words(adapter, NETXEN_FIXED_START,
 					buffer, NETXEN_FLASH_SECTOR_SIZE);
 	if (ret != FLASH_SUCCESS)
 		goto out_kfree;
@@ -658,9 +658,9 @@ static void check_erased_flash(struct netxen_adapter *adapter, int addr)
 	int count = 0, erased_errors = 0;
 	int range;
 
-	range = (addr == NETXEN_USER_START) ? 
+	range = (addr == NETXEN_USER_START) ?
 		NETXEN_FIXED_START : addr + NETXEN_FLASH_SECTOR_SIZE;
-	
+
 	for (i = addr; i < range; i += 4) {
 		netxen_rom_fast_read(adapter, i, &val);
 		if (val != 0xffffffff)
@@ -1495,7 +1495,7 @@ static void netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 		count++;	/* now there should be no failure */
 		pdesc = &rcv_desc->desc_head[producer];
 		skb_reserve(skb, 2);
-		/* 
+		/*
 		 * This will be setup when we receive the
 		 * buffer after it has been filled
 		 * skb->dev = netdev;

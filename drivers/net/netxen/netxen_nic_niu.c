@@ -75,7 +75,7 @@ static int phy_unlock(struct netxen_adapter *adapter)
 	return 0;
 }
 
-/* 
+/*
  * netxen_niu_gbe_phy_read - read a register from the GbE PHY via
  * mii management interface.
  *
@@ -88,7 +88,7 @@ static int phy_unlock(struct netxen_adapter *adapter)
  *	  -1 on error
  *
  */
-int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg, 
+int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 				__u32 * readval)
 {
 	long timeout = 0;
@@ -171,7 +171,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
 	return result;
 }
 
-/* 
+/*
  * netxen_niu_gbe_phy_write - write a register to the GbE PHY via
  * mii management interface.
  *
@@ -184,7 +184,7 @@ int netxen_niu_gbe_phy_read(struct netxen_adapter *adapter, long reg,
  *	  -1 on error
  *
  */
-int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long reg, 
+int netxen_niu_gbe_phy_write(struct netxen_adapter *adapter, long reg,
 				__u32 val)
 {
 	long timeout = 0;
@@ -275,7 +275,7 @@ int netxen_niu_gbe_enable_phy_interrupts(struct netxen_adapter *adapter)
 	netxen_set_phy_int_speed_changed(enable);
 
 	if (0 !=
-	    netxen_niu_gbe_phy_write(adapter, 
+	    netxen_niu_gbe_phy_write(adapter,
 				     NETXEN_NIU_GB_MII_MGMT_ADDR_INT_ENABLE,
 				     enable))
 		result = -EIO;
@@ -312,7 +312,7 @@ static int netxen_niu_gbe_clear_phy_interrupts(struct netxen_adapter *adapter)
 {
 	int result = 0;
 	if (0 !=
-	    netxen_niu_gbe_phy_write(adapter, 
+	    netxen_niu_gbe_phy_write(adapter,
 				     NETXEN_NIU_GB_MII_MGMT_ADDR_INT_STATUS,
 				     -EIO))
 		result = -EIO;
@@ -320,7 +320,7 @@ static int netxen_niu_gbe_clear_phy_interrupts(struct netxen_adapter *adapter)
 	return result;
 }
 
-/* 
+/*
  * netxen_niu_gbe_set_mii_mode- Set 10/100 Mbit Mode for GbE MAC
  *
  */
@@ -344,9 +344,9 @@ static void netxen_niu_gbe_set_mii_mode(struct netxen_adapter *adapter,
 				    NETXEN_NIU_GB_MII_MGMT_CONFIG(port), 0x7);
 
 	if (enable) {
-		/* 
-		 * Do NOT enable flow control until a suitable solution for 
-		 *  shutting down pause frames is found. 
+		/*
+		 * Do NOT enable flow control until a suitable solution for
+		 *  shutting down pause frames is found.
 		 */
 		netxen_crb_writelit_adapter(adapter,
 					    NETXEN_NIU_GB_MAC_CONFIG_0(port),
@@ -359,7 +359,7 @@ static void netxen_niu_gbe_set_mii_mode(struct netxen_adapter *adapter,
 		printk(KERN_ERR PFX "ERROR clearing PHY interrupts\n");
 }
 
-/* 
+/*
  * netxen_niu_gbe_set_gmii_mode- Set GbE Mode for GbE MAC
  */
 static void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter,
@@ -382,9 +382,9 @@ static void netxen_niu_gbe_set_gmii_mode(struct netxen_adapter *adapter,
 				    NETXEN_NIU_GB_MII_MGMT_CONFIG(port), 0x7);
 
 	if (enable) {
-		/* 
-		 * Do NOT enable flow control until a suitable solution for 
-		 *  shutting down pause frames is found. 
+		/*
+		 * Do NOT enable flow control until a suitable solution for
+		 *  shutting down pause frames is found.
 		 */
 		netxen_crb_writelit_adapter(adapter,
 					    NETXEN_NIU_GB_MAC_CONFIG_0(port),
@@ -467,7 +467,7 @@ int netxen_niu_xg_init_port(struct netxen_adapter *adapter, int port)
 }
 
 #if 0
-/* 
+/*
  * netxen_niu_gbe_handle_phy_interrupt - Handles GbE PHY interrupts
  * @param enable 0 means don't enable the port
  *		 1 means enable (or re-enable) the port
@@ -623,7 +623,7 @@ int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 		    (adapter, NETXEN_NIU_GB_STATION_ADDR_0(phy), &val, 4))
 			return -2;
 
-		netxen_niu_macaddr_get(adapter, 
+		netxen_niu_macaddr_get(adapter,
 				       (netxen_ethernet_macaddr_t *) mac_addr);
 		if (memcmp(mac_addr, addr, 6) == 0)
 			break;
@@ -753,7 +753,7 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 }
 
 /* Set promiscuous mode for a GbE interface */
-int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter, 
+int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
 				    netxen_niu_prom_mode_t mode)
 {
 	__u32 reg;

@@ -350,7 +350,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		first_page_group_start = 0;
 		first_page_group_end   = 0;
 	} else {
-		err = -EIO; 
+		err = -EIO;
 		goto err_out_free_netdev;
 	}
 
@@ -410,7 +410,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
 	netdev->hard_start_xmit    = netxen_nic_xmit_frame;
-	netdev->get_stats	   = netxen_nic_get_stats;	
+	netdev->get_stats	   = netxen_nic_get_stats;
 	netdev->set_multicast_list = netxen_nic_set_multi;
 	netdev->set_mac_address    = netxen_nic_set_mac;
 	netdev->change_mtu	   = netxen_nic_change_mtu;
@@ -457,8 +457,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->max_tx_desc_count = MAX_CMD_DESCRIPTORS_HOST;
 	if ((adapter->ahw.boardcfg.board_type == NETXEN_BRDTYPE_P2_SB35_4G) ||
-			(adapter->ahw.boardcfg.board_type == 
-			 NETXEN_BRDTYPE_P2_SB31_2G)) 
+			(adapter->ahw.boardcfg.board_type ==
+			 NETXEN_BRDTYPE_P2_SB31_2G))
 		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_1G;
 	else
 		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS;
@@ -583,9 +583,9 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (adapter->portnum == 0) {
 		err = netxen_initialize_adapter_offload(adapter);
-		if (err) 
+		if (err)
 			goto err_out_free_rx_buffer;
-		val = readl(NETXEN_CRB_NORMALIZE(adapter, 
+		val = readl(NETXEN_CRB_NORMALIZE(adapter,
 					NETXEN_CAM_RAM(0x1fc)));
 		if (val == 0x55555555) {
 		    /* This is the first boot after power up */
@@ -619,7 +619,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		/*
 		 * Tell the hardware our version number.
 		 */
-		i = (_NETXEN_NIC_LINUX_MAJOR << 16) 
+		i = (_NETXEN_NIC_LINUX_MAJOR << 16)
 			| ((_NETXEN_NIC_LINUX_MINOR << 8))
 			| (_NETXEN_NIC_LINUX_SUBVERSION);
 		writel(i, NETXEN_CRB_NORMALIZE(adapter, CRB_DRIVER_VERSION));
@@ -659,7 +659,7 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			break;
 
 		case NETXEN_NIC_XGBE:
-			printk(KERN_INFO "%s: XGbE board initialized\n", 
+			printk(KERN_INFO "%s: XGbE board initialized\n",
 					netxen_nic_driver_name);
 			break;
 	}
@@ -930,7 +930,7 @@ static int netxen_nic_close(struct net_device *netdev)
 			buffrag++;
 			if (buffrag->dma) {
 				pci_unmap_page(adapter->pdev, buffrag->dma,
-					       buffrag->length, 
+					       buffrag->length,
 					       PCI_DMA_TODEVICE);
 				buffrag->dma = 0ULL;
 			}
@@ -1194,7 +1194,7 @@ static void netxen_tx_timeout(struct net_device *netdev)
 
 static void netxen_tx_timeout_task(struct work_struct *work)
 {
-	struct netxen_adapter *adapter = 
+	struct netxen_adapter *adapter =
 		container_of(work, struct netxen_adapter, tx_timeout_task);
 
 	printk(KERN_ERR "%s %s: transmit timeout, resetting.\n",

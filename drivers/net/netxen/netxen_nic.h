@@ -113,8 +113,8 @@
 #define FLUSH_SCHEDULED_WORK()	flush_workqueue(netxen_workq)
 extern struct workqueue_struct *netxen_workq;
 
-/* 
- * normalize a 64MB crb address to 32MB PCI window 
+/*
+ * normalize a 64MB crb address to 32MB PCI window
  * To use NETXEN_CRB_NORMALIZE, window _must_ be set to 1
  */
 #define NETXEN_CRB_NORMAL(reg)	\
@@ -736,11 +736,11 @@ struct netxen_skb_frag {
 	(config_word) &= ~__tmask;      \
 	(config_word) |= (((__tvalue) << (start)) & __tmask); \
 }
-	
+
 #define _netxen_clear_bits(config_word, start, bits) {\
 	unsigned long long __tmask = (((1ULL << (bits)) - 1) << (start));  \
 	(config_word) &= ~__tmask; \
-}		
+}
 
 /*    Following defines are for the state of the buffers    */
 #define	NETXEN_BUFFER_FREE	0
@@ -879,7 +879,7 @@ struct netxen_dummy_dma {
 
 struct netxen_adapter {
 	struct netxen_hardware_context ahw;
-	
+
 	struct netxen_adapter *master;
 	struct net_device *netdev;
 	struct pci_dev *pdev;
@@ -916,7 +916,7 @@ struct netxen_adapter {
 	u32 temp;
 
 	struct netxen_adapter_stats stats;
-	
+
 	u16 portno;
 	u16 link_speed;
 	u16 link_duplex;
@@ -1050,9 +1050,9 @@ int netxen_phantom_init(struct netxen_adapter *adapter, int pegtune_val);
 int netxen_load_firmware(struct netxen_adapter *adapter);
 int netxen_pinit_from_rom(struct netxen_adapter *adapter, int verbose);
 int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr, int *valp);
-int netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr, 
+int netxen_rom_fast_read_words(struct netxen_adapter *adapter, int addr,
 				u8 *bytes, size_t size);
-int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr, 
+int netxen_rom_fast_write_words(struct netxen_adapter *adapter, int addr,
 				u8 *bytes, size_t size);
 int netxen_flash_unlock(struct netxen_adapter *adapter);
 int netxen_backup_crbinit(struct netxen_adapter *adapter);
