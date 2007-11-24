@@ -44,8 +44,6 @@ struct ccid2_seq {
  * @ccid2hctx_acks - ACKS recv in AI phase
  * @ccid2hctx_sent - packets sent in this window
  * @ccid2hctx_lastrtt -time RTT was last measured
- * @ccid2hctx_arsent - packets sent [ack ratio]
- * @ccid2hctx_ackloss - ack was lost in this win
  * @ccid2hctx_rpseq - last consecutive seqno
  * @ccid2hctx_rpdupack - dupacks since rpseq
 */
@@ -66,8 +64,6 @@ struct ccid2_hc_tx_sock {
 	int			ccid2hctx_sent;
 	unsigned long		ccid2hctx_lastrtt;
 	struct timer_list	ccid2hctx_rtotimer;
-	unsigned long		ccid2hctx_arsent;
-	int			ccid2hctx_ackloss;
 	u64			ccid2hctx_rpseq;
 	int			ccid2hctx_rpdupack;
 	int			ccid2hctx_sendwait;

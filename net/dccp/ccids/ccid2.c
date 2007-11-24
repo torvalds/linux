@@ -224,8 +224,6 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	hctx->ccid2hctx_sent	= 0;
 
 	/* clear ack ratio state. */
-	hctx->ccid2hctx_arsent	 = 0;
-	hctx->ccid2hctx_ackloss  = 0;
 	hctx->ccid2hctx_rpseq	 = 0;
 	hctx->ccid2hctx_rpdupack = -1;
 	ccid2_change_l_ack_ratio(sk, 1);
@@ -289,6 +287,26 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 
 	hctx->ccid2hctx_sent++;
 
+	/*
+	 * FIXME: The code below is broken and the variables have been removed
+	 * from the socket struct. The `ackloss' variable was always set to 0,
+	 * and with arsent there are several problems:
+	 *  (i) it doesn't just count the number of Acks, but all sent packets;
+	 *  (ii) it is expressed in # of packets, not # of windows, so the
+	 *  comparison below uses the wrong formula: Appendix A of RFC 4341
+	 *  comes up with the number K = cwnd / (R^2 - R) of consecutive windows
+	 *  of data with no lost or marked Ack packets. If arsent were the # of
+	 *  consecutive Acks received without loss, then Ack Ratio needs to be
+	 *  decreased by 1 when
+	 *	      arsent >=  K * cwnd / R  =  cwnd^2 / (R^3 - R^2)
+	 *  where cwnd / R is the number of Acks received per window of data
+	 *  (cf. RFC 4341, App. A). The problems are that
+	 *  - arsent counts other packets as well;
+	 *  - the comparison uses a formula different from RFC 4341;
+	 *  - computing a cubic/quadratic equation each time is too complicated.
+	 *  Hence a different algorithm is needed.
+	 */
+#if 0
 	/* Ack Ratio.  Need to maintain a concept of how many windows we sent */
 	hctx->ccid2hctx_arsent++;
 	/* We had an ack loss in this window... */
@@ -316,6 +334,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 			hctx->ccid2hctx_arsent = 0; /* or maybe set it to cwnd*/
 		}
 	}
+#endif
 
 	/* setup RTO timer */
 	if (!timer_pending(&hctx->ccid2hctx_rtotimer))
