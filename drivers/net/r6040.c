@@ -42,12 +42,12 @@
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
 #include <linux/spinlock.h>
+#include <linux/bitops.h>
+#include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/uaccess.h>
 
 #include <asm/processor.h>
-#include <asm/bitops.h>
-#include <asm/io.h>
-#include <asm/irq.h>
-#include <asm/uaccess.h>
 
 #define DRV_NAME	"r6040"
 #define DRV_VERSION	"0.16"
@@ -181,7 +181,7 @@ static char version[] __devinitdata = KERN_INFO DRV_NAME
 	": RDC R6040 NAPI net driver,"
 	"version "DRV_VERSION " (" DRV_RELDATE ")\n";
 
-static int phy_table[] = { PHY1_ADDR, PHY2_ADDR};
+static int phy_table[] = { PHY1_ADDR, PHY2_ADDR };
 
 /* Read a word data from PHY Chip */
 static int phy_read(void __iomem *ioaddr, int phy_addr, int reg)
@@ -771,15 +771,7 @@ r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct r6040_descriptor *descptr;
 	void __iomem *ioaddr = lp->base;
 	unsigned long flags;
-	int ret;
-
-	if (!skb)	/* NULL skb directly return */
-		return ret;
-
-	if (skb->len >= MAX_BUF_SIZE) {	/* Packet too long, drop it */
-		dev_kfree_skb(skb);
-		return ret;
-	}
+	int ret = NETDEV_TX_OK;
 
 	/* Critical Section */
 	spin_lock_irqsave(&lp->lock, flags);
@@ -787,8 +779,9 @@ r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* TX resource check */
 	if (!lp->tx_free_desc) {
 		spin_unlock_irqrestore(&lp->lock, flags);
+		netif_stop_queue(dev);
 		printk(KERN_ERR DRV_NAME ": no tx descriptor\n");
-		ret = 1;
+		ret = NETDEV_TX_BUSY;
 		return ret;
 	}
 
@@ -916,7 +909,7 @@ static int netdev_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	spin_lock_irq(&rp->lock);
 	rc = mii_ethtool_gset(&rp->mii_if, cmd);
-	spin_unlock_irq(&rp->mii_if);
+	spin_unlock_irq(&rp->lock);
 
 	return rc;
 }
@@ -973,6 +966,11 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 				"not supported by the card\n");
 		return -ENODEV;
 	}
+	if (pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
+		printk(KERN_ERR DRV_NAME "32-bit PCI DMA addresses"
+				"not supported by the card\n");
+		return -ENODEV;
+	}
 
 	/* IO Size check */
 	if (pci_resource_len(pdev, 0) < io_size) {
@@ -1006,7 +1004,6 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	}
 
 	/* Init system & device */
-	dev->base_addr = (unsigned long)ioaddr;
 	lp->base = ioaddr;
 	dev->irq = pdev->irq;
 
