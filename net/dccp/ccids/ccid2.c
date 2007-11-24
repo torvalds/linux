@@ -24,9 +24,6 @@
 
 /*
  * This implementation should follow RFC 4341
- *
- * BUGS:
- * - sequence number wrapping
  */
 
 #include "../ccid.h"
@@ -619,9 +616,8 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* go through this ack vector */
 		while (veclen--) {
 			const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
-			u64 ackno_end_rl;
+			u64 ackno_end_rl = SUB48(ackno, rl);
 
-			dccp_set_seqno(&ackno_end_rl, ackno - rl);
 			ccid2_pr_debug("ackvec start:%llu end:%llu\n",
 				       (unsigned long long)ackno,
 				       (unsigned long long)ackno_end_rl);
@@ -671,8 +667,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			if (done)
 				break;
 
-
-			dccp_set_seqno(&ackno, ackno_end_rl - 1);
+			ackno = SUB48(ackno_end_rl, 1);
 			vector++;
 		}
 		if (done)
