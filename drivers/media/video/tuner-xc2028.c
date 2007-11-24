@@ -608,15 +608,14 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	return 0;
 }
 
-static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
-			  v4l2_std_id std, fe_bandwidth_t bandwidth)
+static int check_firmware(struct dvb_frontend *fe, unsigned int type,
+			  v4l2_std_id std)
 {
-	struct xc2028_data      *priv = fe->tuner_priv;
-	int			rc = 0, is_retry = 0;
-	unsigned int		type = 0;
+	struct xc2028_data         *priv = fe->tuner_priv;
 	struct firmware_properties new_fw;
-	u16			version, hwmodel;
-	v4l2_std_id		std0;
+	int			   rc = 0, is_retry = 0;
+	u16			   version, hwmodel;
+	v4l2_std_id		   std0;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
@@ -633,32 +632,6 @@ static int check_firmware(struct dvb_frontend *fe, enum tuner_mode new_mode,
 
 	if (priv->ctrl.mts)
 		type |= MTS;
-	if (bandwidth == BANDWIDTH_7_MHZ || bandwidth == BANDWIDTH_8_MHZ)
-		type |= F8MHZ;
-
-	/* FIXME: How to load FM and FM|INPUT1 firmwares? */
-
-	if (new_mode == T_DIGITAL_TV) {
-		if (priv->ctrl.d2633)
-			type |= D2633;
-		else
-			type |= D2620;
-
-		switch (bandwidth) {
-		case BANDWIDTH_8_MHZ:
-			type |= DTV8;
-			break;
-		case BANDWIDTH_7_MHZ:
-			type |= DTV7;
-			break;
-		case BANDWIDTH_6_MHZ:
-			/* FIXME: Should allow select also ATSC */
-			type |= DTV6 | QAM;
-			break;
-		default:
-			tuner_err("error: bandwidth not supported.\n");
-		};
-	}
 
 retry:
 	new_fw.type = type;
@@ -728,10 +701,6 @@ skip_base:
 
 	/* Reloading std-specific firmware forces a SCODE update */
 	priv->cur_fw.scode_table = 0;
-
-	/* Add audio hack to std mask */
-	if (new_mode == T_ANALOG_TV)
-		new_fw.id |= parse_audio_std_option();
 
 	rc = load_firmware(fe, new_fw.type, &new_fw.id);
 	if (rc == -ENOENT)
@@ -840,9 +809,10 @@ ret:
 
 #define DIV 15625
 
-static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
+static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 			       enum tuner_mode new_mode,
-			       v4l2_std_id std, fe_bandwidth_t bandwidth)
+			       unsigned int type,
+			       v4l2_std_id std)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	int		   rc = -EINVAL;
@@ -855,7 +825,7 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 
 	tuner_dbg("should set frequency %d kHz\n", freq / 1000);
 
-	if (check_firmware(fe, new_mode, std, bandwidth) < 0)
+	if (check_firmware(fe, type, std) < 0)
 		goto ret;
 
 	/* On some cases xc2028 can disable video output, if
@@ -865,10 +835,9 @@ static int generic_set_tv_freq(struct dvb_frontend *fe, u32 freq /* in Hz */ ,
 	 * that xc2028 will be in a safe state.
 	 * Maybe this might also be needed for DTV.
 	 */
-	if (new_mode != T_DIGITAL_TV)
+	if (new_mode == T_ANALOG_TV) {
 		rc = send_seq(priv, {0x00, 0x00});
-
-	if (new_mode == T_DIGITAL_TV) {
+	} else {
 		offset = 2750000;
 		if (priv->cur_fw.type & DTV7)
 			offset -= 500000;
@@ -914,32 +883,35 @@ ret:
 	return rc;
 }
 
-static int xc2028_set_tv_freq(struct dvb_frontend *fe,
+static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 			      struct analog_parameters *p)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
-	fe_bandwidth_t bw;
+	unsigned int       type=0;
+
+	tuner_dbg("%s called\n", __FUNCTION__);
 
 	/* if std is not defined, choose one */
 	if (!p->std)
 		p->std = V4L2_STD_MN;
 
 	/* PAL/M, PAL/N, PAL/Nc and NTSC variants should use 6MHz firmware */
-	if (p->std & V4L2_STD_MN)
-		bw = BANDWIDTH_6_MHZ;
-	else
-		bw = BANDWIDTH_8_MHZ;
+	if (!(p->std & V4L2_STD_MN))
+		type |= F8MHZ;
 
-	tuner_dbg("%s called\n", __FUNCTION__);
+	/* Add audio hack to std mask */
+	p->std |= parse_audio_std_option();
 
-	return generic_set_tv_freq(fe, 62500l * p->frequency, T_ANALOG_TV,
-				   p->std, bw);
+	return generic_set_freq(fe, 62500l * p->frequency,
+				T_ANALOG_TV, type, p->std);
 }
 
 static int xc2028_set_params(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *p)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
+	unsigned int       type=0;
+	fe_bandwidth_t     bw;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
@@ -948,11 +920,33 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		tuner_err("DTV type not implemented.\n");
 		return -EINVAL;
 	}
+	bw = p->u.ofdm.bandwidth;
 
-	return generic_set_tv_freq(fe, p->frequency, T_DIGITAL_TV,
-				   0 /* NOT USED */,
-				   p->u.ofdm.bandwidth);
+	if (bw == BANDWIDTH_7_MHZ || bw == BANDWIDTH_8_MHZ)
+		type |= F8MHZ;
 
+	if (priv->ctrl.d2633)
+		type |= D2633;
+	else
+		type |= D2620;
+
+	switch (bw) {
+	case BANDWIDTH_8_MHZ:
+		type |= DTV8;
+		break;
+	case BANDWIDTH_7_MHZ:
+		type |= DTV7;
+		break;
+	case BANDWIDTH_6_MHZ:
+		/* FIXME: Should allow select also ATSC */
+		type |= DTV6 | QAM;
+		break;
+	default:
+		tuner_err("error: bandwidth not supported.\n");
+	};
+
+	return generic_set_freq(fe, p->frequency,
+				T_DIGITAL_TV, type, 0);
 }
 
 static int xc2028_sleep(struct dvb_frontend *fe)
@@ -1052,7 +1046,7 @@ static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 		 },
 
 	.set_config	   = xc2028_set_config,
-	.set_analog_params = xc2028_set_tv_freq,
+	.set_analog_params = xc2028_set_analog_freq,
 	.release           = xc2028_dvb_release,
 	.get_frequency     = xc2028_get_frequency,
 	.get_rf_strength   = xc2028_signal,
