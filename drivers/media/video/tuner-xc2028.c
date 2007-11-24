@@ -919,35 +919,47 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	unsigned int       type=0;
-	fe_bandwidth_t     bw;
+	fe_bandwidth_t     bw = BANDWIDTH_8_MHZ;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
-
-	/* FIXME: Only OFDM implemented */
-	if (fe->ops.info.type != FE_OFDM) {
-		tuner_err("DTV type not implemented.\n");
-		return -EINVAL;
-	}
-	bw = p->u.ofdm.bandwidth;
-
-	if (bw == BANDWIDTH_7_MHZ || bw == BANDWIDTH_8_MHZ)
-		type |= F8MHZ;
 
 	if (priv->ctrl.d2633)
 		type |= D2633;
 	else
 		type |= D2620;
 
+	switch(fe->ops.info.type) {
+	case FE_QPSK:
+		break;
+	case FE_OFDM:
+		bw = p->u.ofdm.bandwidth;
+		break;
+	case FE_QAM:
+		bw = BANDWIDTH_6_MHZ;
+		type |= QAM;
+		break;
+	case FE_ATSC:
+		bw = BANDWIDTH_6_MHZ;
+		type |= ATSC| D2633;
+		break;
+	}
+
+	bw = p->u.ofdm.bandwidth;
+
+	/* FIXME:
+	  There are two Scodes that will never be selected:
+		DTV78 ZARLINK456, DTV78 DIBCOM52
+	  When it should opt for DTV78 instead of DTV7 or DTV8?
+	*/
 	switch (bw) {
 	case BANDWIDTH_8_MHZ:
-		type |= DTV8;
+		type |= DTV8 | F8MHZ;
 		break;
 	case BANDWIDTH_7_MHZ:
-		type |= DTV7;
+		type |= DTV7 | F8MHZ;
 		break;
 	case BANDWIDTH_6_MHZ:
-		/* FIXME: Should allow select also ATSC */
-		type |= DTV6 | QAM;
+		type |= DTV6 ;
 		break;
 	default:
 		tuner_err("error: bandwidth not supported.\n");
