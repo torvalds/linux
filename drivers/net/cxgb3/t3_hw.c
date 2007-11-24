@@ -865,7 +865,7 @@ int t3_get_tp_version(struct adapter *adapter, u32 *vers)
 			      1, 1, 5, 1);
 	if (ret)
 		return ret;
-	
+
 	*vers = t3_read_reg(adapter, A_TP_EMBED_OP_FIELD1);
 
 	return 0;
@@ -896,7 +896,7 @@ int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
 	major = G_TP_VERSION_MAJOR(vers);
 	minor = G_TP_VERSION_MINOR(vers);
 
-	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR) 
+	if (major == TP_VERSION_MAJOR && minor == TP_VERSION_MINOR)
 		return 0;
 
 	if (major != TP_VERSION_MAJOR)
@@ -913,7 +913,7 @@ int t3_check_tpsram_version(struct adapter *adapter, int *must_load)
 }
 
 /**
- *	t3_check_tpsram - check if provided protocol SRAM 
+ *	t3_check_tpsram - check if provided protocol SRAM
  *			  is compatible with this driver
  *	@adapter: the adapter
  *	@tp_sram: the firmware image to write
@@ -2508,7 +2508,7 @@ static void tp_config(struct adapter *adap, const struct tp_params *p)
 	t3_set_reg_field(adap, A_TP_PC_CONFIG2, F_CHDRAFULL, 0);
 	t3_write_reg(adap, A_TP_PROXY_FLOW_CNTL, 1080);
 	t3_write_reg(adap, A_TP_PROXY_FLOW_CNTL, 1000);
-	
+
 	if (adap->params.rev > 0) {
 		tp_wr_indirect(adap, A_TP_EGRESS_CONFIG, F_REWRITEFORCETOSIZE);
 		t3_set_reg_field(adap, A_TP_PARA_REG3, F_TXPACEAUTO,
@@ -2835,7 +2835,7 @@ int t3_set_proto_sram(struct adapter *adap, u8 *data)
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, cpu_to_be32(*buf++));
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, cpu_to_be32(*buf++));
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, cpu_to_be32(*buf++));
-		
+
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD0, i << 1 | 1 << 31);
 		if (t3_wait_op_done(adap, A_TP_EMBED_OP_FIELD0, 1, 1, 5, 1))
 			return -EIO;
@@ -3425,13 +3425,13 @@ void early_hw_init(struct adapter *adapter, const struct adapter_info *ai)
 }
 
 /*
- * Reset the adapter. 
+ * Reset the adapter.
  * Older PCIe cards lose their config space during reset, PCI-X
  * ones don't.
  */
 static int t3_reset_adapter(struct adapter *adapter)
 {
-	int i, save_and_restore_pcie = 
+	int i, save_and_restore_pcie =
 	    adapter->params.rev < T3_REV_B2 && is_pcie(adapter);
 	uint16_t devid = 0;
 

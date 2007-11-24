@@ -719,7 +719,7 @@ static int upgrade_fw(struct adapter *adap)
 	else
 		dev_err(dev, "failed to upgrade to firmware %d.%d.%d\n",
 			FW_VERSION_MAJOR, FW_VERSION_MINOR, FW_VERSION_MICRO);
-	
+
 	return ret;
 }
 
@@ -746,7 +746,7 @@ static int update_tpsram(struct adapter *adap)
 	struct device *dev = &adap->pdev->dev;
 	int ret;
 	char rev;
-	
+
 	rev = t3rev2char(adap);
 	if (!rev)
 		return 0;
@@ -760,10 +760,10 @@ static int update_tpsram(struct adapter *adap)
 			buf);
 		return ret;
 	}
-	
+
 	ret = t3_check_tpsram(adap, tpsram->data, tpsram->size);
 	if (ret)
-		goto release_tpsram;	
+		goto release_tpsram;
 
 	ret = t3_set_proto_sram(adap, tpsram->data);
 	if (ret == 0)
@@ -779,7 +779,7 @@ static int update_tpsram(struct adapter *adap)
 
 release_tpsram:
 	release_firmware(tpsram);
-	
+
 	return ret;
 }
 
@@ -2144,7 +2144,7 @@ static void cxgb_netpoll(struct net_device *dev)
 	for (qidx = pi->first_qset; qidx < pi->first_qset + pi->nqsets; qidx++) {
 		struct sge_qset *qs = &adapter->sge.qs[qidx];
 		void *source;
-		
+
 		if (adapter->flags & USING_MSIX)
 			source = qs;
 		else
@@ -2339,7 +2339,7 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 			cxgb_close(netdev);
 	}
 
-	if (is_offload(adapter) && 
+	if (is_offload(adapter) &&
 	    test_bit(OFFLOAD_DEVMAP_BIT, &adapter->open_device_map))
 		offload_close(&adapter->tdev);
 
@@ -2613,7 +2613,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 		err = -ENODEV;
 		goto out_free_dev;
 	}
-		
+
 	/*
 	 * The card is now ready to go.  If any errors occur during device
 	 * registration we do not fail the whole card but rather proceed only

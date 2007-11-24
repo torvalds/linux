@@ -488,7 +488,7 @@ static void t3_process_tid_release_list(struct work_struct *work)
 					   tid_release_task);
 	struct sk_buff *skb;
 	struct t3cdev *tdev = td->dev;
-	
+
 
 	spin_lock_bh(&td->tid_release_lock);
 	while (td->tid_release_list) {

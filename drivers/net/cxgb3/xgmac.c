@@ -153,7 +153,7 @@ static int t3b2_mac_reset(struct cmac *mac)
 	unsigned int oft = mac->offset;
 	u32 val;
 
-	if (!macidx(mac)) 
+	if (!macidx(mac))
 		t3_set_reg_field(adap, A_MPS_CFG, F_PORT0ACTIVE, 0);
 	else
 		t3_set_reg_field(adap, A_MPS_CFG, F_PORT1ACTIVE, 0);
@@ -187,11 +187,11 @@ static int t3b2_mac_reset(struct cmac *mac)
 		msleep(1);
 		t3b_pcs_reset(mac);
 	}
-	t3_write_reg(adap, A_XGM_RX_CFG + oft, 
+	t3_write_reg(adap, A_XGM_RX_CFG + oft,
 		     F_DISPAUSEFRAMES | F_EN1536BFRAMES |
 		     F_RMFCS | F_ENJUMBO | F_ENHASHMCAST);
 
-	if (!macidx(mac)) 
+	if (!macidx(mac))
 		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT0ACTIVE);
 	else
 		t3_set_reg_field(adap, A_MPS_CFG, 0, F_PORT1ACTIVE);
@@ -336,7 +336,7 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 	 * Adjust the PAUSE frame watermarks.  We always set the LWM, and the
 	 * HWM only if flow-control is enabled.
 	 */
-	hwm = max_t(unsigned int, MAC_RXFIFO_SIZE - 3 * mtu, 
+	hwm = max_t(unsigned int, MAC_RXFIFO_SIZE - 3 * mtu,
 		    MAC_RXFIFO_SIZE * 38 / 100);
 	hwm = min(hwm, MAC_RXFIFO_SIZE - 8192);
 	lwm = min(3 * (int)mtu, MAC_RXFIFO_SIZE / 4);
@@ -449,7 +449,7 @@ int t3_mac_enable(struct cmac *mac, int which)
 	struct adapter *adap = mac->adapter;
 	unsigned int oft = mac->offset;
 	struct mac_stats *s = &mac->stats;
-	
+
 	if (which & MAC_DIRECTION_TX) {
 		t3_write_reg(adap, A_TP_PIO_ADDR, A_TP_TX_DROP_CFG_CH0 + idx);
 		t3_write_reg(adap, A_TP_PIO_DATA, 0xc0ede401);
