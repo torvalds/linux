@@ -599,6 +599,8 @@ struct b43legacy_wl {
 	/* List of all wireless devices on this chip */
 	struct list_head devlist;
 	u8 nr_devs;
+
+	bool radiotap_enabled;
 };
 
 /* Pointers to the firmware data and meta information about it. */

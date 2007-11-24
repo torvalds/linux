@@ -2553,6 +2553,8 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 			b43legacy_short_slot_timing_disable(dev);
 	}
 
+	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
+
 	/* Adjust the desired TX power level. */
 	if (conf->power_level != 0) {
 		if (conf->power_level != phy->power_level) {
