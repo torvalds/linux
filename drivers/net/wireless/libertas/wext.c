@@ -32,10 +32,8 @@ static inline void libertas_postpone_association_work(wlan_private *priv)
 static inline void libertas_cancel_association_work(wlan_private *priv)
 {
 	cancel_delayed_work(&priv->assoc_work);
-	if (priv->adapter->pending_assoc_req) {
-		kfree(priv->adapter->pending_assoc_req);
-		priv->adapter->pending_assoc_req = NULL;
-	}
+	kfree(priv->adapter->pending_assoc_req);
+	priv->adapter->pending_assoc_req = NULL;
 }
 
 

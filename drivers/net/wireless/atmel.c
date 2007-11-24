@@ -1759,9 +1759,8 @@ static int atmel_set_encode(struct net_device *dev,
 			priv->default_key = index;
 		} else
 			/* Don't complain if only change the mode */
-			if (!(dwrq->flags & IW_ENCODE_MODE)) {
+			if (!(dwrq->flags & IW_ENCODE_MODE))
 				return -EINVAL;
-			}
 	}
 	/* Read the flags */
 	if (dwrq->flags & IW_ENCODE_DISABLED) {

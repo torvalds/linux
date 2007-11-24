@@ -3223,14 +3223,14 @@ wv_mmc_init(struct net_device *	dev)
    * non-NCR/AT&T/Lucent PCMCIA cards, see wavelan_cs.h for detail on
    * how to configure your card...
    */
-  for(i = 0; i < ARRAY_SIZE(MAC_ADDRESSES); i++)
-    if((psa.psa_univ_mac_addr[0] == MAC_ADDRESSES[i][0]) &&
-       (psa.psa_univ_mac_addr[1] == MAC_ADDRESSES[i][1]) &&
-       (psa.psa_univ_mac_addr[2] == MAC_ADDRESSES[i][2]))
+  for (i = 0; i < ARRAY_SIZE(MAC_ADDRESSES); i++)
+    if ((psa.psa_univ_mac_addr[0] == MAC_ADDRESSES[i][0]) &&
+        (psa.psa_univ_mac_addr[1] == MAC_ADDRESSES[i][1]) &&
+        (psa.psa_univ_mac_addr[2] == MAC_ADDRESSES[i][2]))
       break;
 
   /* If we have not found it... */
-  if(i == ARRAY_SIZE(MAC_ADDRESSES))
+  if (i == ARRAY_SIZE(MAC_ADDRESSES))
     {
 #ifdef DEBUG_CONFIG_ERRORS
       printk(KERN_WARNING "%s: wv_mmc_init(): Invalid MAC address: %02X:%02X:%02X:...\n",

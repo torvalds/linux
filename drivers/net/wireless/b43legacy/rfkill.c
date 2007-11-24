@@ -97,7 +97,7 @@ out_unlock:
 	return err;
 }
 
-char * b43legacy_rfkill_led_name(struct b43legacy_wldev *dev)
+char *b43legacy_rfkill_led_name(struct b43legacy_wldev *dev)
 {
 	struct b43legacy_wl *wl = dev->wl;
 

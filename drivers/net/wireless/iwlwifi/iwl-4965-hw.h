@@ -400,7 +400,7 @@ struct iwl_eeprom {
 
 #define CSR_FH_INT_TX_MASK	(CSR_FH_INT_BIT_TX_CHNL6 | \
 				 CSR_FH_INT_BIT_TX_CHNL1 | \
-				 CSR_FH_INT_BIT_TX_CHNL0 )
+				 CSR_FH_INT_BIT_TX_CHNL0)
 
 
 /* RESET */

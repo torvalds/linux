@@ -27,7 +27,7 @@ void b43legacy_rfkill_free(struct b43legacy_wldev *dev);
 void b43legacy_rfkill_init(struct b43legacy_wldev *dev);
 void b43legacy_rfkill_exit(struct b43legacy_wldev *dev);
 
-char * b43legacy_rfkill_led_name(struct b43legacy_wldev *dev);
+char *b43legacy_rfkill_led_name(struct b43legacy_wldev *dev);
 
 
 #else /* CONFIG_B43LEGACY_RFKILL */
@@ -49,7 +49,7 @@ static inline void b43legacy_rfkill_init(struct b43legacy_wldev *dev)
 static inline void b43legacy_rfkill_exit(struct b43legacy_wldev *dev)
 {
 }
-static inline char * b43legacy_rfkill_led_name(struct b43legacy_wldev *dev)
+static inline char *b43legacy_rfkill_led_name(struct b43legacy_wldev *dev)
 {
 	return NULL;
 }
