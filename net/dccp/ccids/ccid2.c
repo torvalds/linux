@@ -228,18 +228,10 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 	struct ccid2_seq *next;
-	u64 seq;
 
 	hctx->ccid2hctx_pipe++;
 
-	/* There is an issue.  What if another packet is sent between
-	 * packet_send() and packet_sent().  Then the sequence number would be
-	 * wrong.
-	 * -sorbo.
-	 */
-	seq = dp->dccps_gss;
-
-	hctx->ccid2hctx_seqh->ccid2s_seq   = seq;
+	hctx->ccid2hctx_seqh->ccid2s_seq   = dp->dccps_gss;
 	hctx->ccid2hctx_seqh->ccid2s_acked = 0;
 	hctx->ccid2hctx_seqh->ccid2s_sent  = jiffies;
 
@@ -313,7 +305,6 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 		ccid2_start_rto_timer(sk);
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-	ccid2_pr_debug("Sent: seq=%llu\n", (unsigned long long)seq);
 	do {
 		struct ccid2_seq *seqp = hctx->ccid2hctx_seqt;
 
