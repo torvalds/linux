@@ -41,10 +41,6 @@
 
 #define USBVISION_DEBUG		/* Turn on debug messages */
 
-#ifndef VID_HARDWARE_USBVISION
-	#define VID_HARDWARE_USBVISION 34   /* USBVision Video Grabber */
-#endif
-
 #define USBVISION_PWR_REG		0x00
 	#define USBVISION_SSPND_EN		(1 << 1)
 	#define USBVISION_RES2			(1 << 2)
