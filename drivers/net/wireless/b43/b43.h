@@ -393,6 +393,8 @@ enum {
 #define B43_DEFAULT_SHORT_RETRY_LIMIT	7
 #define B43_DEFAULT_LONG_RETRY_LIMIT	4
 
+#define B43_PHY_TX_BADNESS_LIMIT	1000
+
 /* Max size of a security key */
 #define B43_SEC_KEYSIZE			16
 /* Security algorithms. */
@@ -548,6 +550,9 @@ struct b43_phy {
 	/* OFDM address read/write caching for hardware auto-increment. */
 	u16 ofdm_addr;
 	u8 ofdm_valid; /* 0: invalid, 1: read, 2: write */
+
+	/* PHY TX errors counter. */
+	atomic_t txerr_cnt;
 };
 
 /* Data structures for DMA transmission, per 80211 core. */

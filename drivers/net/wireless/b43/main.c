@@ -1394,8 +1394,17 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 	if (unlikely(reason & B43_IRQ_MAC_TXERR))
 		b43err(dev->wl, "MAC transmission error\n");
 
-	if (unlikely(reason & B43_IRQ_PHY_TXERR))
+	if (unlikely(reason & B43_IRQ_PHY_TXERR)) {
 		b43err(dev->wl, "PHY transmission error\n");
+		rmb();
+		if (unlikely(atomic_dec_and_test(&dev->phy.txerr_cnt))) {
+			atomic_set(&dev->phy.txerr_cnt,
+				   B43_PHY_TX_BADNESS_LIMIT);
+			b43err(dev->wl, "Too many PHY TX errors, "
+					"restarting the controller\n");
+			b43_controller_restart(dev, "PHY TX errors");
+		}
+	}
 
 	if (unlikely(merged_dma_reason & (B43_DMAIRQ_FATALMASK |
 					  B43_DMAIRQ_NONFATALMASK))) {
@@ -2257,6 +2266,9 @@ static int b43_chip_init(struct b43_wldev *dev)
 	/* OFDM address caching. */
 	phy->ofdm_valid = 0;
 
+	/* PHY TX errors counter. */
+	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
+
 	err = 0;
 	b43dbg(dev->wl, "Chip initialized\n");
 out:
@@ -2341,6 +2353,9 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 	}
 	b43_phy_xmitpower(dev);	//FIXME: unless scanning?
 	//TODO for APHY (temperature?)
+
+	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
+	wmb();
 }
 
 static void do_periodic_work(struct b43_wldev *dev)
