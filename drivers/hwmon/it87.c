@@ -17,7 +17,7 @@
               IT8726F  Super I/O chip w/LPC interface
               Sis950   A clone of the IT8705F
 
-    Copyright (C) 2001 Chris Gauthron <chrisg@0-in.com> 
+    Copyright (C) 2001 Chris Gauthron
     Copyright (C) 2005-2006 Jean Delvare <khali@linux-fr.org>
 
     This program is free software; you can redistribute it and/or modify
@@ -1492,7 +1492,7 @@ static void __exit sm_it87_exit(void)
 }
 
 
-MODULE_AUTHOR("Chris Gauthron <chrisg@0-in.com>, "
+MODULE_AUTHOR("Chris Gauthron, "
 	      "Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("IT8705F/8712F/8716F/8718F/8726F, SiS950 driver");
 module_param(update_vbat, bool, 0);
