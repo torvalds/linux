@@ -12,7 +12,7 @@
 
 / {
 	model = "MPC866ADS";
-	compatible = "mpc8xx";
+	compatible = "fsl,mpc866ads";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -23,15 +23,15 @@
 		PowerPC,866@0 {
 			device_type = "cpu";
 			reg = <0>;
-			d-cache-line-size = <20>;	// 32 bytes
-			i-cache-line-size = <20>;	// 32 bytes
+			d-cache-line-size = <10>;	// 16 bytes
+			i-cache-line-size = <10>;	// 16 bytes
 			d-cache-size = <2000>;		// L1, 8K
 			i-cache-size = <4000>;		// L1, 16K
 			timebase-frequency = <0>;
 			bus-frequency = <0>;
 			clock-frequency = <0>;
 			interrupts = <f 2>;	// decrementer interrupt
-			interrupt-parent = <&Mpc8xx_pic>;
+			interrupt-parent = <&PIC>;
 		};
 	};
 
@@ -40,107 +40,139 @@
 		reg = <00000000 800000>;
 	};
 
-	soc866@ff000000 {
+	localbus@ff000100 {
+		compatible = "fsl,mpc866-localbus", "fsl,pq1-localbus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <ff000100 40>;
+
+		ranges = <
+			1 0 ff080000 00008000
+			5 0 ff0a0000 00008000
+		>;
+
+		board-control@1,0 {
+			reg = <1 0 20 5 300 4>;
+			compatible = "fsl,mpc866ads-bcsr";
+		};
+	};
+
+	soc@ff000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
 		ranges = <0 ff000000 00100000>;
 		reg = <ff000000 00000200>;
 		bus-frequency = <0>;
-		mdio@e80 {
-			device_type = "mdio";
-			compatible = "fs_enet";
-			reg = <e80 8>;
+
+		mdio@e00 {
+			compatible = "fsl,mpc866-fec-mdio", "fsl,pq1-fec-mdio";
+			reg = <e00 188>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			phy: ethernet-phy@f {
+			PHY: ethernet-phy@f {
 				reg = <f>;
 				device_type = "ethernet-phy";
 			};
 		};
 
-		fec@e00 {
+		ethernet@e00 {
 			device_type = "network";
-			compatible = "fs_enet";
-			model = "FEC";
-			device-id = <1>;
+			compatible = "fsl,mpc866-fec-enet",
+			             "fsl,pq1-fec-enet";
 			reg = <e00 188>;
-			mac-address = [ 00 00 0C 00 01 FD ];
+			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <3 1>;
-			interrupt-parent = <&Mpc8xx_pic>;
-			phy-handle = <&Phy>;
+			interrupt-parent = <&PIC>;
+			phy-handle = <&PHY>;
+			linux,network-index = <0>;
 		};
 
-		mpc8xx_pic: pic@ff000000 {
+		PIC: pic@0 {
 			interrupt-controller;
-			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <0 24>;
-			device_type = "mpc8xx-pic";
-			compatible = "CPM";
+			compatible = "fsl,mpc866-pic", "fsl,pq1-pic";
 		};
 
-		cpm@ff000000 {
+		cpm@9c0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
-			device_type = "cpm";
-			model = "CPM";
-			ranges = <0 0 4000>;
-			reg = <860 f0>;
-			command-proc = <9c0>;
+			compatible = "fsl,mpc866-cpm", "fsl,cpm1";
+			ranges;
+			reg = <9c0 40>;
 			brg-frequency = <0>;
 			interrupts = <0 2>;	// cpm error interrupt
-			interrupt-parent = <&Cpm_pic>;
+			interrupt-parent = <&CPM_PIC>;
 
-			cpm_pic: pic@930 {
+			muram@2000 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 2000 2000>;
+
+				data@0 {
+					compatible = "fsl,cpm-muram-data";
+					reg = <0 1c00>;
+				};
+			};
+
+			brg@9f0 {
+				compatible = "fsl,mpc866-brg",
+					     "fsl,cpm1-brg",
+					     "fsl,cpm-brg";
+				reg = <9f0 10>;
+				clock-frequency = <0>;
+			};
+
+			CPM_PIC: pic@930 {
 				interrupt-controller;
 				#address-cells = <0>;
-				#interrupt-cells = <2>;
+				#interrupt-cells = <1>;
 				interrupts = <5 2 0 2>;
-				interrupt-parent = <&Mpc8xx_pic>;
+				interrupt-parent = <&PIC>;
 				reg = <930 20>;
-				device_type = "cpm-pic";
-				compatible = "CPM";
+				compatible = "fsl,mpc866-cpm-pic",
+				             "fsl,cpm1-pic";
 			};
 
-			smc@a80 {
+
+			serial@a80 {
 				device_type = "serial";
-				compatible = "cpm_uart";
-				model = "SMC";
-				device-id = <1>;
+				compatible = "fsl,mpc866-smc-uart",
+				             "fsl,cpm1-smc-uart";
 				reg = <a80 10 3e80 40>;
-				clock-setup = <00ffffff 0>;
-				rx-clock = <1>;
-				tx-clock = <1>;
-				current-speed = <0>;
-				interrupts = <4 3>;
-				interrupt-parent = <&Cpm_pic>;
+				interrupts = <4>;
+				interrupt-parent = <&CPM_PIC>;
+				fsl,cpm-brg = <1>;
+				fsl,cpm-command = <0090>;
 			};
 
-			smc@a90 {
+			serial@a90 {
 				device_type = "serial";
-				compatible = "cpm_uart";
-				model = "SMC";
-				device-id = <2>;
-				reg = <a90 20 3f80 40>;
-				clock-setup = <ff00ffff 90000>;
-				rx-clock = <2>;
-				tx-clock = <2>;
-				current-speed = <0>;
-				interrupts = <3 3>;
-				interrupt-parent = <&Cpm_pic>;
+				compatible = "fsl,mpc866-smc-uart",
+				             "fsl,cpm1-smc-uart";
+				reg = <a90 10 3f80 40>;
+				interrupts = <3>;
+				interrupt-parent = <&CPM_PIC>;
+				fsl,cpm-brg = <2>;
+				fsl,cpm-command = <00d0>;
 			};
 
-			scc@a00 {
+			ethernet@a00 {
 				device_type = "network";
-				compatible = "fs_enet";
-				model = "SCC";
-				device-id = <1>;
-				reg = <a00 18 3c00 80>;
-				mac-address = [ 00 00 0C 00 03 FD ];
-				interrupts = <1e 3>;
-				interrupt-parent = <&Cpm_pic>;
+				compatible = "fsl,mpc866-scc-enet",
+				             "fsl,cpm1-scc-enet";
+				reg = <a00 18 3c00 100>;
+				local-mac-address = [ 00 00 00 00 00 00 ];
+				interrupts = <1e>;
+				interrupt-parent = <&CPM_PIC>;
+				fsl,cpm-command = <0000>;
+				linux,network-index = <1>;
 			};
 		};
+	};
+
+	chosen {
+		linux,stdout-path = "/soc/cpm/serial@a80";
 	};
 };

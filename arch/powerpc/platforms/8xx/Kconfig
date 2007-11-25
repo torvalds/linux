@@ -18,6 +18,7 @@ config MPC8XXFADS
 config MPC86XADS
 	bool "MPC86XADS"
 	select CPM1
+	select PPC_CPM_NEW_BINDING
 	help
 	  MPC86x Application Development System by Freescale Semiconductor.
 	  The MPC86xADS is meant to serve as a platform for s/w and h/w
