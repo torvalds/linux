@@ -50,9 +50,9 @@ struct ccid2_seq {
 */
 struct ccid2_hc_tx_sock {
 	u32			ccid2hctx_cwnd;
+	u32			ccid2hctx_ssthresh;
 	int			ccid2hctx_ssacks;
 	int			ccid2hctx_acks;
-	unsigned int		ccid2hctx_ssthresh;
 	int			ccid2hctx_pipe;
 	struct ccid2_seq	*ccid2hctx_seqbuf[CCID2_SEQBUF_MAX];
 	int			ccid2hctx_seqbufc;
