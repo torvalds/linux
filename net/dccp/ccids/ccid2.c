@@ -221,7 +221,6 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	hctx->ccid2hctx_seqt	= hctx->ccid2hctx_seqh;
 	hctx->ccid2hctx_ssacks	= 0;
 	hctx->ccid2hctx_acks	= 0;
-	hctx->ccid2hctx_sent	= 0;
 
 	/* clear ack ratio state. */
 	hctx->ccid2hctx_rpseq	 = 0;
@@ -284,8 +283,6 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 
 	ccid2_pr_debug("cwnd=%d pipe=%d\n", hctx->ccid2hctx_cwnd,
 		       hctx->ccid2hctx_pipe);
-
-	hctx->ccid2hctx_sent++;
 
 	/*
 	 * FIXME: The code below is broken and the variables have been removed
@@ -517,7 +514,6 @@ static inline void ccid2_new_ack(struct sock *sk,
 		ccid2_pr_debug("srtt: %ld rttvar: %ld rto: %ld (HZ=%d) R=%lu\n",
 			       hctx->ccid2hctx_srtt, hctx->ccid2hctx_rttvar,
 			       hctx->ccid2hctx_rto, HZ, r);
-		hctx->ccid2hctx_sent = 0;
 	}
 
 	/* we got a new ack, so re-start RTO timer */
