@@ -219,8 +219,6 @@ struct kvm_x86_ops {
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 
 	void (*tlb_flush)(struct kvm_vcpu *vcpu);
-	void (*inject_page_fault)(struct kvm_vcpu *vcpu,
-				  unsigned long addr, u32 err_code);
 
 	void (*inject_gp)(struct kvm_vcpu *vcpu, unsigned err_code);
 
@@ -306,6 +304,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
 
 void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
+void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long cr2,
+			   u32 error_code);
 
 void fx_init(struct kvm_vcpu *vcpu);
 

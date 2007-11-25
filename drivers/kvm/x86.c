@@ -142,6 +142,21 @@ void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 }
 EXPORT_SYMBOL_GPL(kvm_queue_exception);
 
+void kvm_inject_page_fault(struct kvm_vcpu *vcpu, unsigned long addr,
+			   u32 error_code)
+{
+	++vcpu->stat.pf_guest;
+	if (vcpu->exception.pending && vcpu->exception.nr == PF_VECTOR) {
+		printk(KERN_DEBUG "kvm: inject_page_fault:"
+		       " double fault 0x%lx\n", addr);
+		vcpu->exception.nr = DF_VECTOR;
+		vcpu->exception.error_code = 0;
+		return;
+	}
+	vcpu->cr2 = addr;
+	kvm_queue_exception_e(vcpu, PF_VECTOR, error_code);
+}
+
 void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
 {
 	WARN_ON(vcpu->exception.pending);
@@ -1601,7 +1616,7 @@ static int emulator_write_emulated_onepage(unsigned long addr,
 	gpa_t                 gpa = vcpu->mmu.gva_to_gpa(vcpu, addr);
 
 	if (gpa == UNMAPPED_GVA) {
-		kvm_x86_ops->inject_page_fault(vcpu, addr, 2);
+		kvm_inject_page_fault(vcpu, addr, 2);
 		return X86EMUL_PROPAGATE_FAULT;
 	}
 

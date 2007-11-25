@@ -2487,37 +2487,6 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		asm("int $2");
 }
 
-static void vmx_inject_page_fault(struct kvm_vcpu *vcpu,
-				  unsigned long addr,
-				  u32 err_code)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	u32 vect_info = vmx->idt_vectoring_info;
-
-	++vcpu->stat.pf_guest;
-
-	if (is_page_fault(vect_info)) {
-		printk(KERN_DEBUG "inject_page_fault: "
-		       "double fault 0x%lx @ 0x%lx\n",
-		       addr, vmcs_readl(GUEST_RIP));
-		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, 0);
-		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-			     DF_VECTOR |
-			     INTR_TYPE_EXCEPTION |
-			     INTR_INFO_DELIEVER_CODE_MASK |
-			     INTR_INFO_VALID_MASK);
-		return;
-	}
-	vcpu->cr2 = addr;
-	vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, err_code);
-	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-		     PF_VECTOR |
-		     INTR_TYPE_EXCEPTION |
-		     INTR_INFO_DELIEVER_CODE_MASK |
-		     INTR_INFO_VALID_MASK);
-
-}
-
 static void vmx_free_vmcs(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2649,7 +2618,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_rflags = vmx_set_rflags,
 
 	.tlb_flush = vmx_flush_tlb,
-	.inject_page_fault = vmx_inject_page_fault,
 
 	.inject_gp = vmx_inject_gp,
 

@@ -225,12 +225,6 @@ static void inject_ud(struct kvm_vcpu *vcpu)
 						UD_VECTOR;
 }
 
-static int is_page_fault(uint32_t info)
-{
-	info &= SVM_EVTINJ_VEC_MASK | SVM_EVTINJ_TYPE_MASK | SVM_EVTINJ_VALID;
-	return info == (PF_VECTOR | SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_EXEPT);
-}
-
 static int is_external_interrupt(u32 info)
 {
 	info &= SVM_EVTINJ_TYPE_MASK | SVM_EVTINJ_VALID;
@@ -1624,34 +1618,6 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 	}
 }
 
-static void svm_inject_page_fault(struct kvm_vcpu *vcpu,
-				  unsigned long  addr,
-				  uint32_t err_code)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-	uint32_t exit_int_info = svm->vmcb->control.exit_int_info;
-
-	++vcpu->stat.pf_guest;
-
-	if (is_page_fault(exit_int_info)) {
-
-		svm->vmcb->control.event_inj_err = 0;
-		svm->vmcb->control.event_inj = 	SVM_EVTINJ_VALID |
-						SVM_EVTINJ_VALID_ERR |
-						SVM_EVTINJ_TYPE_EXEPT |
-						DF_VECTOR;
-		return;
-	}
-	vcpu->cr2 = addr;
-	svm->vmcb->save.cr2 = addr;
-	svm->vmcb->control.event_inj = 	SVM_EVTINJ_VALID |
-					SVM_EVTINJ_VALID_ERR |
-					SVM_EVTINJ_TYPE_EXEPT |
-					PF_VECTOR;
-	svm->vmcb->control.event_inj_err = err_code;
-}
-
-
 static int is_disabled(void)
 {
 	u64 vm_cr;
@@ -1721,7 +1687,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_rflags = svm_set_rflags,
 
 	.tlb_flush = svm_flush_tlb,
-	.inject_page_fault = svm_inject_page_fault,
 
 	.inject_gp = svm_inject_gp,
 
