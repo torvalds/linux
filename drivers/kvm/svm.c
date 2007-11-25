@@ -207,13 +207,6 @@ static bool svm_exception_injected(struct kvm_vcpu *vcpu)
 	return !(svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID);
 }
 
-static void inject_ud(struct kvm_vcpu *vcpu)
-{
-	to_svm(vcpu)->vmcb->control.event_inj = SVM_EVTINJ_VALID |
-						SVM_EVTINJ_TYPE_EXEPT |
-						UD_VECTOR;
-}
-
 static int is_external_interrupt(u32 info)
 {
 	info &= SVM_EVTINJ_TYPE_MASK | SVM_EVTINJ_VALID;
@@ -948,8 +941,7 @@ static int ud_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 
 	er = emulate_instruction(&svm->vcpu, kvm_run, 0, 0, 0);
 	if (er != EMULATE_DONE)
-		inject_ud(&svm->vcpu);
-
+		kvm_queue_exception(&svm->vcpu, UD_VECTOR);
 	return 1;
 }
 
@@ -1027,7 +1019,7 @@ static int vmmcall_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 static int invalid_op_interception(struct vcpu_svm *svm,
 				   struct kvm_run *kvm_run)
 {
-	inject_ud(&svm->vcpu);
+	kvm_queue_exception(&svm->vcpu, UD_VECTOR);
 	return 1;
 }
 

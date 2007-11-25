@@ -613,14 +613,6 @@ static bool vmx_exception_injected(struct kvm_vcpu *vcpu)
 	return !(vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK);
 }
 
-static void vmx_inject_ud(struct kvm_vcpu *vcpu)
-{
-	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-		     UD_VECTOR |
-		     INTR_TYPE_EXCEPTION |
-		     INTR_INFO_VALID_MASK);
-}
-
 /*
  * Swap MSR entry in host/guest MSR entry array.
  */
@@ -1866,8 +1858,7 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (is_invalid_opcode(intr_info)) {
 		er = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
 		if (er != EMULATE_DONE)
-			vmx_inject_ud(vcpu);
-
+			kvm_queue_exception(vcpu, UD_VECTOR);
 		return 1;
 	}
 
