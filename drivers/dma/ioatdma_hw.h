@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2004 - 2006 Intel Corporation. All rights reserved.
+ * Copyright(c) 2004 - 2007 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -22,12 +22,19 @@
 #define _IOAT_HW_H_
 
 /* PCI Configuration Space Values */
-#define IOAT_PCI_VID			0x8086
-#define IOAT_PCI_DID			0x1A38
-#define IOAT_PCI_RID			0x00
-#define IOAT_PCI_SVID			0x8086
-#define IOAT_PCI_SID			0x8086
-#define IOAT_VER_1_2			0x12	/* Version 1.2 */
+#define IOAT_PCI_VID            0x8086
+
+/* CB device ID's */
+#define IOAT_PCI_DID_5000       0x1A38
+#define IOAT_PCI_DID_CNB        0x360B
+#define IOAT_PCI_DID_SCNB       0x65FF
+#define IOAT_PCI_DID_SNB        0x402F
+
+#define IOAT_PCI_RID            0x00
+#define IOAT_PCI_SVID           0x8086
+#define IOAT_PCI_SID            0x8086
+#define IOAT_VER_1_2            0x12    /* Version 1.2 */
+#define IOAT_VER_2_0            0x20    /* Version 2.0 */
 
 struct ioat_dma_descriptor {
 	uint32_t	size;
@@ -47,6 +54,16 @@ struct ioat_dma_descriptor {
 #define IOAT_DMA_DESCRIPTOR_CTL_CP_STS	0x00000008
 #define IOAT_DMA_DESCRIPTOR_CTL_FRAME	0x00000010
 #define IOAT_DMA_DESCRIPTOR_NUL		0x00000020
-#define IOAT_DMA_DESCRIPTOR_OPCODE	0xFF000000
+#define IOAT_DMA_DESCRIPTOR_CTL_SP_BRK	0x00000040
+#define IOAT_DMA_DESCRIPTOR_CTL_DP_BRK	0x00000080
+#define IOAT_DMA_DESCRIPTOR_CTL_BNDL	0x00000100
+#define IOAT_DMA_DESCRIPTOR_CTL_DCA	0x00000200
+#define IOAT_DMA_DESCRIPTOR_CTL_BUFHINT	0x00000400
+
+#define IOAT_DMA_DESCRIPTOR_CTL_OPCODE_CONTEXT	0xFF000000
+#define IOAT_DMA_DESCRIPTOR_CTL_OPCODE_DMA	0x00000000
+
+#define IOAT_DMA_DESCRIPTOR_CTL_CONTEXT_DCA	0x00000001
+#define IOAT_DMA_DESCRIPTOR_CTL_OPCODE_MASK	0xFF000000
 
 #endif

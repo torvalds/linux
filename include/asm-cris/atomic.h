@@ -3,6 +3,8 @@
 #ifndef __ASM_CRIS_ATOMIC__
 #define __ASM_CRIS_ATOMIC__
 
+#include <linux/compiler.h>
+
 #include <asm/system.h>
 #include <asm/arch/atomic.h>
 

@@ -918,6 +918,31 @@ static const struct file_operations rtc_proc_fops = {
 };
 #endif
 
+static resource_size_t rtc_size;
+
+static struct resource * __init rtc_request_region(resource_size_t size)
+{
+	struct resource *r;
+
+	if (RTC_IOMAPPED)
+		r = request_region(RTC_PORT(0), size, "rtc");
+	else
+		r = request_mem_region(RTC_PORT(0), size, "rtc");
+
+	if (r)
+		rtc_size = size;
+
+	return r;
+}
+
+static void rtc_release_region(void)
+{
+	if (RTC_IOMAPPED)
+		release_region(RTC_PORT(0), rtc_size);
+	else
+		release_mem_region(RTC_PORT(0), rtc_size);
+}
+
 static int __init rtc_init(void)
 {
 #ifdef CONFIG_PROC_FS
@@ -968,10 +993,17 @@ found:
 	}
 no_irq:
 #else
-	if (RTC_IOMAPPED)
-		r = request_region(RTC_PORT(0), RTC_IO_EXTENT, "rtc");
-	else
-		r = request_mem_region(RTC_PORT(0), RTC_IO_EXTENT, "rtc");
+	r = rtc_request_region(RTC_IO_EXTENT);
+
+	/*
+	 * If we've already requested a smaller range (for example, because
+	 * PNPBIOS or ACPI told us how the device is configured), the request
+	 * above might fail because it's too big.
+	 *
+	 * If so, request just the range we actually use.
+	 */
+	if (!r)
+		r = rtc_request_region(RTC_IO_EXTENT_USED);
 	if (!r) {
 #ifdef RTC_IRQ
 		rtc_has_irq = 0;
@@ -992,10 +1024,7 @@ no_irq:
 		/* Yeah right, seeing as irq 8 doesn't even hit the bus. */
 		rtc_has_irq = 0;
 		printk(KERN_ERR "rtc: IRQ %d is not free.\n", RTC_IRQ);
-		if (RTC_IOMAPPED)
-			release_region(RTC_PORT(0), RTC_IO_EXTENT);
-		else
-			release_mem_region(RTC_PORT(0), RTC_IO_EXTENT);
+		rtc_release_region();
 		return -EIO;
 	}
 	hpet_rtc_timer_init();
@@ -1009,7 +1038,7 @@ no_irq:
 		free_irq(RTC_IRQ, NULL);
 		rtc_has_irq = 0;
 #endif
-		release_region(RTC_PORT(0), RTC_IO_EXTENT);
+		rtc_release_region();
 		return -ENODEV;
 	}
 
@@ -1091,10 +1120,7 @@ static void __exit rtc_exit (void)
 	if (rtc_has_irq)
 		free_irq (rtc_irq, &rtc_port);
 #else
-	if (RTC_IOMAPPED)
-		release_region(RTC_PORT(0), RTC_IO_EXTENT);
-	else
-		release_mem_region(RTC_PORT(0), RTC_IO_EXTENT);
+	rtc_release_region();
 #ifdef RTC_IRQ
 	if (rtc_has_irq)
 		free_irq (RTC_IRQ, NULL);

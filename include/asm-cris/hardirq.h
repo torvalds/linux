@@ -1,6 +1,7 @@
 #ifndef __ASM_HARDIRQ_H
 #define __ASM_HARDIRQ_H
 
+#include <asm/irq.h>
 #include <linux/threads.h>
 #include <linux/cache.h>
 

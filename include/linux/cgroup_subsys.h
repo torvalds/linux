@@ -13,12 +13,6 @@ SUBSYS(cpuset)
 
 /* */
 
-#ifdef CONFIG_CGROUP_CPUACCT
-SUBSYS(cpuacct)
-#endif
-
-/* */
-
 #ifdef CONFIG_CGROUP_DEBUG
 SUBSYS(debug)
 #endif

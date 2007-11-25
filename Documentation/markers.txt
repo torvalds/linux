@@ -35,12 +35,14 @@ In order to use the macro trace_mark, you should include linux/marker.h.
 
 And,
 
-trace_mark(subsystem_event, "%d %s", someint, somestring);
+trace_mark(subsystem_event, "myint %d mystring %s", someint, somestring);
 Where :
 - subsystem_event is an identifier unique to your event
     - subsystem is the name of your subsystem.
     - event is the name of the event to mark.
-- "%d %s" is the formatted string for the serializer.
+- "myint %d mystring %s" is the formatted string for the serializer. "myint" and
+  "mystring" are repectively the field names associated with the first and
+  second parameter.
 - someint is an integer.
 - somestring is a char pointer.
 

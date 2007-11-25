@@ -69,6 +69,8 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	{	"CTL3001",		0	},
 	/* Creative Labs Modem Blaster 28.8 DSVD PnP Voice */
 	{	"CTL3011",		0	},
+	/* Davicom ISA 33.6K Modem */
+	{	"DAV0336",		0	},
 	/* Creative */
 	/* Creative Modem Blaster Flash56 DI5601-1 */
 	{	"DMB1032",		0	},
@@ -345,6 +347,11 @@ static const struct pnp_device_id pnp_dev_table[] = {
 	/* Fujitsu Wacom Tablet PC devices */
 	{	"FUJ02E5",		0	},
 	{	"FUJ02E6",		0	},
+	/*
+	 * LG C1 EXPRESS DUAL (C1-PB11A3) touch screen (actually a FUJ02E6 in
+	 * disguise)
+	 */
+	{	"LTS0001",		0       },
 	/* Rockwell's (PORALiNK) 33600 INT PNP */
 	{	"WCI0003",		0	},
 	/* Unkown PnP modems */
@@ -432,7 +439,8 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	}
 
 	memset(&port, 0, sizeof(struct uart_port));
-	port.irq = pnp_irq(dev, 0);
+	if (pnp_irq_valid(dev, 0))
+		port.irq = pnp_irq(dev, 0);
 	if (pnp_port_valid(dev, 0)) {
 		port.iobase = pnp_port_start(dev, 0);
 		port.iotype = UPIO_PORT;

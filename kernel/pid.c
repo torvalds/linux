@@ -537,6 +537,7 @@ err_alloc:
 	return NULL;
 }
 
+#ifdef CONFIG_PID_NS
 static struct pid_namespace *create_pid_namespace(int level)
 {
 	struct pid_namespace *ns;
@@ -621,6 +622,7 @@ void free_pid_ns(struct kref *kref)
 	if (parent != NULL)
 		put_pid_ns(parent);
 }
+#endif /* CONFIG_PID_NS */
 
 void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 {

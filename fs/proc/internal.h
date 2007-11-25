@@ -78,3 +78,5 @@ static inline int proc_fd(struct inode *inode)
 {
 	return PROC_I(inode)->fd;
 }
+
+extern struct file_system_type proc_fs_type;

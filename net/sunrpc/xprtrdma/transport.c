@@ -320,9 +320,9 @@ xprt_setup_rdma(struct xprt_create *args)
 	xprt->slot = kcalloc(xprt->max_reqs,
 				sizeof(struct rpc_rqst), GFP_KERNEL);
 	if (xprt->slot == NULL) {
-		kfree(xprt);
 		dprintk("RPC:       %s: couldn't allocate %d slots\n",
 			__func__, xprt->max_reqs);
+		kfree(xprt);
 		return ERR_PTR(-ENOMEM);
 	}
 

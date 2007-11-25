@@ -4850,7 +4850,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 	if ((inta == 0xFFFFFFFF) || ((inta & 0xFFFFFFF0) == 0xa5a5a5a0)) {
 		/* Hardware disappeared */
 		IWL_WARNING("HARDWARE GONE?? INTA == 0x%080x\n", inta);
-		goto none;
+		goto unplugged;
 	}
 
 	IWL_DEBUG_ISR("ISR inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
@@ -4858,6 +4858,7 @@ static irqreturn_t iwl_isr(int irq, void *data)
 
 	/* iwl_irq_tasklet() will service interrupts and re-enable them */
 	tasklet_schedule(&priv->irq_tasklet);
+unplugged:
 	spin_unlock(&priv->lock);
 
 	return IRQ_HANDLED;
@@ -5331,13 +5332,13 @@ static int iwl_init_geos(struct iwl_priv *priv)
 	/* 5.2GHz channels start after the 2.4GHz channels */
 	modes[A].mode = MODE_IEEE80211A;
 	modes[A].channels = &channels[ARRAY_SIZE(iwl_eeprom_band_1)];
-	modes[A].rates = rates;
+	modes[A].rates = &rates[4];
 	modes[A].num_rates = 8;	/* just OFDM */
 	modes[A].num_channels = 0;
 
 	modes[B].mode = MODE_IEEE80211B;
 	modes[B].channels = channels;
-	modes[B].rates = &rates[8];
+	modes[B].rates = rates;
 	modes[B].num_rates = 4;	/* just CCK */
 	modes[B].num_channels = 0;
 

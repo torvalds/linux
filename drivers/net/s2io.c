@@ -84,7 +84,7 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "2.0.26.5"
+#define DRV_VERSION "2.0.26.6"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
@@ -3775,6 +3775,40 @@ static int __devinit s2io_test_msi(struct s2io_nic *sp)
 
 	return err;
 }
+
+static void remove_msix_isr(struct s2io_nic *sp)
+{
+	int i;
+	u16 msi_control;
+
+	for (i = 0; i < MAX_REQUESTED_MSI_X; i++) {
+		if (sp->s2io_entries[i].in_use ==
+			MSIX_REGISTERED_SUCCESS) {
+			int vector = sp->entries[i].vector;
+			void *arg = sp->s2io_entries[i].arg;
+			free_irq(vector, arg);
+		}
+	}
+
+	kfree(sp->entries);
+	kfree(sp->s2io_entries);
+	sp->entries = NULL;
+	sp->s2io_entries = NULL;
+
+	pci_read_config_word(sp->pdev, 0x42, &msi_control);
+	msi_control &= 0xFFFE; /* Disable MSI */
+	pci_write_config_word(sp->pdev, 0x42, msi_control);
+
+	pci_disable_msix(sp->pdev);
+}
+
+static void remove_inta_isr(struct s2io_nic *sp)
+{
+	struct net_device *dev = sp->dev;
+
+	free_irq(sp->pdev->irq, dev);
+}
+
 /* ********************************************************* *
  * Functions defined below concern the OS part of the driver *
  * ********************************************************* */
@@ -3809,28 +3843,9 @@ static int s2io_open(struct net_device *dev)
 		int ret = s2io_enable_msi_x(sp);
 
 		if (!ret) {
-			u16 msi_control;
-
 			ret = s2io_test_msi(sp);
-
 			/* rollback MSI-X, will re-enable during add_isr() */
-			kfree(sp->entries);
-			sp->mac_control.stats_info->sw_stat.mem_freed +=
-				(MAX_REQUESTED_MSI_X *
-				sizeof(struct msix_entry));
-			kfree(sp->s2io_entries);
-			sp->mac_control.stats_info->sw_stat.mem_freed +=
-				(MAX_REQUESTED_MSI_X *
-				sizeof(struct s2io_msix_entry));
-			sp->entries = NULL;
-			sp->s2io_entries = NULL;
-
-			pci_read_config_word(sp->pdev, 0x42, &msi_control);
-			msi_control &= 0xFFFE; /* Disable MSI */
-			pci_write_config_word(sp->pdev, 0x42, msi_control);
-
-			pci_disable_msix(sp->pdev);
-
+			remove_msix_isr(sp);
 		}
 		if (ret) {
 
@@ -6719,15 +6734,22 @@ static int s2io_add_isr(struct s2io_nic * sp)
 				}
 			}
 			if (err) {
+				remove_msix_isr(sp);
 				DBG_PRINT(ERR_DBG,"%s:MSI-X-%d registration "
 					  "failed\n", dev->name, i);
-				DBG_PRINT(ERR_DBG, "Returned: %d\n", err);
-				return -1;
+				DBG_PRINT(ERR_DBG, "%s: defaulting to INTA\n",
+						 dev->name);
+				sp->config.intr_type = INTA;
+				break;
 			}
 			sp->s2io_entries[i].in_use = MSIX_REGISTERED_SUCCESS;
 		}
-		printk("MSI-X-TX %d entries enabled\n",msix_tx_cnt);
-		printk("MSI-X-RX %d entries enabled\n",msix_rx_cnt);
+		if (!err) {
+			printk(KERN_INFO "MSI-X-TX %d entries enabled\n",
+				msix_tx_cnt);
+			printk(KERN_INFO "MSI-X-RX %d entries enabled\n",
+				msix_rx_cnt);
+		}
 	}
 	if (sp->config.intr_type == INTA) {
 		err = request_irq((int) sp->pdev->irq, s2io_isr, IRQF_SHARED,
@@ -6742,40 +6764,10 @@ static int s2io_add_isr(struct s2io_nic * sp)
 }
 static void s2io_rem_isr(struct s2io_nic * sp)
 {
-	struct net_device *dev = sp->dev;
-	struct swStat *stats = &sp->mac_control.stats_info->sw_stat;
-
-	if (sp->config.intr_type == MSI_X) {
-		int i;
-		u16 msi_control;
-
-		for (i=1; (sp->s2io_entries[i].in_use ==
-			MSIX_REGISTERED_SUCCESS); i++) {
-			int vector = sp->entries[i].vector;
-			void *arg = sp->s2io_entries[i].arg;
-
-			synchronize_irq(vector);
-			free_irq(vector, arg);
-		}
-
-		kfree(sp->entries);
-		stats->mem_freed +=
-			(MAX_REQUESTED_MSI_X * sizeof(struct msix_entry));
-		kfree(sp->s2io_entries);
-		stats->mem_freed +=
-			(MAX_REQUESTED_MSI_X * sizeof(struct s2io_msix_entry));
-		sp->entries = NULL;
-		sp->s2io_entries = NULL;
-
-		pci_read_config_word(sp->pdev, 0x42, &msi_control);
-		msi_control &= 0xFFFE; /* Disable MSI */
-		pci_write_config_word(sp->pdev, 0x42, msi_control);
-
-		pci_disable_msix(sp->pdev);
-	} else {
-		synchronize_irq(sp->pdev->irq);
-		free_irq(sp->pdev->irq, dev);
-	}
+	if (sp->config.intr_type == MSI_X)
+		remove_msix_isr(sp);
+	else
+		remove_inta_isr(sp);
 }
 
 static void do_s2io_card_down(struct s2io_nic * sp, int do_io)

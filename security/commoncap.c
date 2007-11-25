@@ -526,6 +526,10 @@ int cap_task_kill(struct task_struct *p, struct siginfo *info,
 	if (info != SEND_SIG_NOINFO && (is_si_special(info) || SI_FROMKERNEL(info)))
 		return 0;
 
+	/* sigcont is permitted within same session */
+	if (sig == SIGCONT && (task_session_nr(current) == task_session_nr(p)))
+		return 0;
+
 	if (secid)
 		/*
 		 * Signal sent as a particular user.

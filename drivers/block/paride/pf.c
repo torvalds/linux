@@ -488,13 +488,11 @@ static int pf_atapi(struct pf_unit *pf, char *cmd, int dlen, char *buf, char *fu
 	return r;
 }
 
-#define DBMSG(msg)      ((verbose>1)?(msg):NULL)
-
 static void pf_lock(struct pf_unit *pf, int func)
 {
 	char lo_cmd[12] = { ATAPI_LOCK, pf->lun << 5, 0, 0, func, 0, 0, 0, 0, 0, 0, 0 };
 
-	pf_atapi(pf, lo_cmd, 0, pf_scratch, func ? "unlock" : "lock");
+	pf_atapi(pf, lo_cmd, 0, pf_scratch, func ? "lock" : "unlock");
 }
 
 static void pf_eject(struct pf_unit *pf)
@@ -555,7 +553,7 @@ static void pf_mode_sense(struct pf_unit *pf)
 	    { ATAPI_MODE_SENSE, pf->lun << 5, 0, 0, 0, 0, 0, 0, 8, 0, 0, 0 };
 	char buf[8];
 
-	pf_atapi(pf, ms_cmd, 8, buf, DBMSG("mode sense"));
+	pf_atapi(pf, ms_cmd, 8, buf, "mode sense");
 	pf->media_status = PF_RW;
 	if (buf[3] & 0x80)
 		pf->media_status = PF_RO;
@@ -591,7 +589,7 @@ static void pf_get_capacity(struct pf_unit *pf)
 	char buf[8];
 	int bs;
 
-	if (pf_atapi(pf, rc_cmd, 8, buf, DBMSG("get capacity"))) {
+	if (pf_atapi(pf, rc_cmd, 8, buf, "get capacity")) {
 		pf->media_status = PF_NM;
 		return;
 	}
@@ -804,13 +802,18 @@ static int pf_next_buf(void)
 	pf_buf += 512;
 	pf_block++;
 	if (!pf_run)
-		return 0;
-	if (!pf_count)
 		return 1;
-	spin_lock_irqsave(&pf_spin_lock, saved_flags);
-	pf_end_request(1);
-	spin_unlock_irqrestore(&pf_spin_lock, saved_flags);
-	return 1;
+	if (!pf_count) {
+		spin_lock_irqsave(&pf_spin_lock, saved_flags);
+		pf_end_request(1);
+		pf_req = elv_next_request(pf_queue);
+		spin_unlock_irqrestore(&pf_spin_lock, saved_flags);
+		if (!pf_req)
+			return 1;
+		pf_count = pf_req->current_nr_sectors;
+		pf_buf = pf_req->buffer;
+	}
+	return 0;
 }
 
 static inline void next_request(int success)

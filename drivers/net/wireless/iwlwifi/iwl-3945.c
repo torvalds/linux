@@ -54,7 +54,9 @@
 				    IWL_RATE_##rp##M_INDEX, \
 				    IWL_RATE_##rn##M_INDEX, \
 				    IWL_RATE_##pp##M_INDEX, \
-				    IWL_RATE_##np##M_INDEX }
+				    IWL_RATE_##np##M_INDEX, \
+				    IWL_RATE_##r##M_INDEX_TABLE, \
+				    IWL_RATE_##ip##M_INDEX_TABLE }
 
 /*
  * Parameter order:
@@ -65,6 +67,10 @@
  *
  */
 const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
+	IWL_DECLARE_RATE_INFO(1, INV, 2, INV, 2, INV, 2),    /*  1mbps */
+	IWL_DECLARE_RATE_INFO(2, 1, 5, 1, 5, 1, 5),          /*  2mbps */
+	IWL_DECLARE_RATE_INFO(5, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
+	IWL_DECLARE_RATE_INFO(11, 9, 12, 5, 12, 5, 18),      /* 11mbps */
 	IWL_DECLARE_RATE_INFO(6, 5, 9, 5, 11, 5, 11),        /*  6mbps */
 	IWL_DECLARE_RATE_INFO(9, 6, 11, 5, 11, 5, 11),       /*  9mbps */
 	IWL_DECLARE_RATE_INFO(12, 11, 18, 11, 18, 11, 18),   /* 12mbps */
@@ -73,10 +79,6 @@ const struct iwl_rate_info iwl_rates[IWL_RATE_COUNT] = {
 	IWL_DECLARE_RATE_INFO(36, 24, 48, 24, 48, 24, 48),   /* 36mbps */
 	IWL_DECLARE_RATE_INFO(48, 36, 54, 36, 54, 36, 54),   /* 48mbps */
 	IWL_DECLARE_RATE_INFO(54, 48, INV, 48, INV, 48, INV),/* 54mbps */
-	IWL_DECLARE_RATE_INFO(1, INV, 2, INV, 2, INV, 2),    /*  1mbps */
-	IWL_DECLARE_RATE_INFO(2, 1, 5, 1, 5, 1, 5),          /*  2mbps */
-	IWL_DECLARE_RATE_INFO(5, 2, 6, 2, 11, 2, 11),        /*5.5mbps */
-	IWL_DECLARE_RATE_INFO(11, 9, 12, 5, 12, 5, 18),      /* 11mbps */
 };
 
 /* 1 = enable the iwl_disable_events() function */
@@ -662,10 +664,11 @@ void iwl_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 	cmd->cmd.tx.tx_flags = tx_flags;
 
 	/* OFDM */
-	cmd->cmd.tx.supp_rates[0] = rate_mask & IWL_OFDM_RATES_MASK;
+	cmd->cmd.tx.supp_rates[0] =
+	   ((rate_mask & IWL_OFDM_RATES_MASK) >> IWL_FIRST_OFDM_RATE) & 0xFF;
 
 	/* CCK */
-	cmd->cmd.tx.supp_rates[1] = (rate_mask >> 8) & 0xF;
+	cmd->cmd.tx.supp_rates[1] = (rate_mask & 0xF);
 
 	IWL_DEBUG_RATE("Tx sta id: %d, rate: %d (plcp), flags: 0x%4X "
 		       "cck/ofdm mask: 0x%x/0x%x\n", sta_id,
@@ -1432,7 +1435,7 @@ static void iwl_hw_reg_set_scan_power(struct iwl_priv *priv, u32 scan_tbl_index,
 	/* use this channel group's 6Mbit clipping/saturation pwr,
 	 *   but cap at regulatory scan power restriction (set during init
 	 *   based on eeprom channel data) for this channel.  */
-	power = min(ch_info->scan_power, clip_pwrs[IWL_RATE_6M_INDEX]);
+	power = min(ch_info->scan_power, clip_pwrs[IWL_RATE_6M_INDEX_TABLE]);
 
 	/* further limit to user's max power preference.
 	 * FIXME:  Other spectrum management power limitations do not
@@ -1447,7 +1450,7 @@ static void iwl_hw_reg_set_scan_power(struct iwl_priv *priv, u32 scan_tbl_index,
 	 *   *index*. */
 	power_index = ch_info->power_info[rate_index].power_table_index
 	    - (power - ch_info->power_info
-	       [IWL_RATE_6M_INDEX].requested_power) * 2;
+	       [IWL_RATE_6M_INDEX_TABLE].requested_power) * 2;
 
 	/* store reference index that we use when adjusting *all* scan
 	 *   powers.  So we can accommodate user (all channel) or spectrum
@@ -1476,7 +1479,7 @@ static void iwl_hw_reg_set_scan_power(struct iwl_priv *priv, u32 scan_tbl_index,
  */
 int iwl_hw_reg_send_txpower(struct iwl_priv *priv)
 {
-	int rate_idx;
+	int rate_idx, i;
 	const struct iwl_channel_info *ch_info = NULL;
 	struct iwl_txpowertable_cmd txpower = {
 		.channel = priv->active_rxon.channel,
@@ -1500,20 +1503,36 @@ int iwl_hw_reg_send_txpower(struct iwl_priv *priv)
 	}
 
 	/* fill cmd with power settings for all rates for current channel */
-	for (rate_idx = 0; rate_idx < IWL_RATE_COUNT; rate_idx++) {
-		txpower.power[rate_idx].tpc = ch_info->power_info[rate_idx].tpc;
-		txpower.power[rate_idx].rate = iwl_rates[rate_idx].plcp;
+	/* Fill OFDM rate */
+	for (rate_idx = IWL_FIRST_OFDM_RATE, i = 0;
+	     rate_idx <= IWL_LAST_OFDM_RATE; rate_idx++, i++) {
+
+		txpower.power[i].tpc = ch_info->power_info[i].tpc;
+		txpower.power[i].rate = iwl_rates[rate_idx].plcp;
 
 		IWL_DEBUG_POWER("ch %d:%d rf %d dsp %3d rate code 0x%02x\n",
 				le16_to_cpu(txpower.channel),
 				txpower.band,
-				txpower.power[rate_idx].tpc.tx_gain,
-				txpower.power[rate_idx].tpc.dsp_atten,
-				txpower.power[rate_idx].rate);
+				txpower.power[i].tpc.tx_gain,
+				txpower.power[i].tpc.dsp_atten,
+				txpower.power[i].rate);
+	}
+	/* Fill CCK rates */
+	for (rate_idx = IWL_FIRST_CCK_RATE;
+	     rate_idx <= IWL_LAST_CCK_RATE; rate_idx++, i++) {
+		txpower.power[i].tpc = ch_info->power_info[i].tpc;
+		txpower.power[i].rate = iwl_rates[rate_idx].plcp;
+
+		IWL_DEBUG_POWER("ch %d:%d rf %d dsp %3d rate code 0x%02x\n",
+				le16_to_cpu(txpower.channel),
+				txpower.band,
+				txpower.power[i].tpc.tx_gain,
+				txpower.power[i].tpc.dsp_atten,
+				txpower.power[i].rate);
 	}
 
 	return iwl_send_cmd_pdu(priv, REPLY_TX_PWR_TABLE_CMD,
-				sizeof(struct iwl_txpowertable_cmd), &txpower);
+			sizeof(struct iwl_txpowertable_cmd), &txpower);
 
 }
 
@@ -1549,7 +1568,7 @@ static int iwl_hw_reg_set_new_power(struct iwl_priv *priv,
 	power_info = ch_info->power_info;
 
 	/* update OFDM Txpower settings */
-	for (i = IWL_FIRST_OFDM_RATE; i <= IWL_LAST_OFDM_RATE;
+	for (i = IWL_RATE_6M_INDEX_TABLE; i <= IWL_RATE_54M_INDEX_TABLE;
 	     i++, ++power_info) {
 		int delta_idx;
 
@@ -1573,14 +1592,14 @@ static int iwl_hw_reg_set_new_power(struct iwl_priv *priv,
 	 *    ... all CCK power settings for a given channel are the *same*. */
 	if (power_changed) {
 		power =
-		    ch_info->power_info[IWL_RATE_12M_INDEX].
+		    ch_info->power_info[IWL_RATE_12M_INDEX_TABLE].
 		    requested_power + IWL_CCK_FROM_OFDM_POWER_DIFF;
 
 		/* do all CCK rates' iwl_channel_power_info structures */
-		for (i = IWL_FIRST_CCK_RATE; i <= IWL_LAST_CCK_RATE; i++) {
+		for (i = IWL_RATE_1M_INDEX_TABLE; i <= IWL_RATE_11M_INDEX_TABLE; i++) {
 			power_info->requested_power = power;
 			power_info->base_power_index =
-			    ch_info->power_info[IWL_RATE_12M_INDEX].
+			    ch_info->power_info[IWL_RATE_12M_INDEX_TABLE].
 			    base_power_index + IWL_CCK_FROM_OFDM_INDEX_DIFF;
 			++power_info;
 		}
@@ -1674,7 +1693,7 @@ static int iwl_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 		for (scan_tbl_index = 0;
 		     scan_tbl_index < IWL_NUM_SCAN_RATES; scan_tbl_index++) {
 			s32 actual_index = (scan_tbl_index == 0) ?
-			    IWL_RATE_1M_INDEX : IWL_RATE_6M_INDEX;
+			    IWL_RATE_1M_INDEX_TABLE : IWL_RATE_6M_INDEX_TABLE;
 			iwl_hw_reg_set_scan_power(priv, scan_tbl_index,
 					   actual_index, clip_pwrs,
 					   ch_info, a_band);
@@ -1905,19 +1924,19 @@ static void iwl_hw_reg_init_channel_groups(struct iwl_priv *priv)
 		for (rate_index = 0;
 		     rate_index < IWL_RATE_COUNT; rate_index++, clip_pwrs++) {
 			switch (rate_index) {
-			case IWL_RATE_36M_INDEX:
+			case IWL_RATE_36M_INDEX_TABLE:
 				if (i == 0)	/* B/G */
 					*clip_pwrs = satur_pwr;
 				else	/* A */
 					*clip_pwrs = satur_pwr - 5;
 				break;
-			case IWL_RATE_48M_INDEX:
+			case IWL_RATE_48M_INDEX_TABLE:
 				if (i == 0)
 					*clip_pwrs = satur_pwr - 7;
 				else
 					*clip_pwrs = satur_pwr - 10;
 				break;
-			case IWL_RATE_54M_INDEX:
+			case IWL_RATE_54M_INDEX_TABLE:
 				if (i == 0)
 					*clip_pwrs = satur_pwr - 9;
 				else
@@ -2031,7 +2050,7 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 		}
 
 		/* set tx power for CCK rates, based on OFDM 12 Mbit settings*/
-		pwr_info = &ch_info->power_info[IWL_RATE_12M_INDEX];
+		pwr_info = &ch_info->power_info[IWL_RATE_12M_INDEX_TABLE];
 		power = pwr_info->requested_power +
 			IWL_CCK_FROM_OFDM_POWER_DIFF;
 		pwr_index = pwr_info->power_table_index +
@@ -2047,9 +2066,9 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 		/* fill each CCK rate's iwl_channel_power_info structure
 		 * NOTE:  All CCK-rate Txpwrs are the same for a given chnl!
 		 * NOTE:  CCK rates start at end of OFDM rates! */
-		for (rate_index = IWL_OFDM_RATES;
-		     rate_index < IWL_RATE_COUNT; rate_index++) {
-			pwr_info = &ch_info->power_info[rate_index];
+		for (rate_index = 0;
+		     rate_index < IWL_CCK_RATES; rate_index++) {
+			pwr_info = &ch_info->power_info[rate_index+IWL_OFDM_RATES];
 			pwr_info->requested_power = power;
 			pwr_info->power_table_index = pwr_index;
 			pwr_info->base_power_index = base_pwr_index;
@@ -2061,7 +2080,7 @@ int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv)
 		for (scan_tbl_index = 0;
 		     scan_tbl_index < IWL_NUM_SCAN_RATES; scan_tbl_index++) {
 			s32 actual_index = (scan_tbl_index == 0) ?
-				IWL_RATE_1M_INDEX : IWL_RATE_6M_INDEX;
+				IWL_RATE_1M_INDEX_TABLE : IWL_RATE_6M_INDEX_TABLE;
 			iwl_hw_reg_set_scan_power(priv, scan_tbl_index,
 				actual_index, clip_pwrs, ch_info, a_band);
 		}
@@ -2139,17 +2158,20 @@ int iwl_hw_get_rx_read(struct iwl_priv *priv)
  */
 int iwl3945_init_hw_rate_table(struct iwl_priv *priv)
 {
-	int rc, i;
+	int rc, i, index, prev_index;
 	struct iwl_rate_scaling_cmd rate_cmd = {
 		.reserved = {0, 0, 0},
 	};
 	struct iwl_rate_scaling_info *table = rate_cmd.table;
 
 	for (i = 0; i < ARRAY_SIZE(iwl_rates); i++) {
-		table[i].rate_n_flags =
+		index = iwl_rates[i].table_rs_index;
+
+		table[index].rate_n_flags =
 			iwl_hw_set_rate_n_flags(iwl_rates[i].plcp, 0);
-		table[i].try_cnt = priv->retry_rate;
-		table[i].next_rate_index = iwl_get_prev_ieee_rate(i);
+		table[index].try_cnt = priv->retry_rate;
+		prev_index = iwl_get_prev_ieee_rate(i);
+		table[index].next_rate_index = iwl_rates[prev_index].table_rs_index;
 	}
 
 	switch (priv->phymode) {
@@ -2157,26 +2179,26 @@ int iwl3945_init_hw_rate_table(struct iwl_priv *priv)
 		IWL_DEBUG_RATE("Select A mode rate scale\n");
 		/* If one of the following CCK rates is used,
 		 * have it fall back to the 6M OFDM rate */
-		for (i = IWL_FIRST_CCK_RATE; i <= IWL_LAST_CCK_RATE; i++)
-			table[i].next_rate_index = IWL_FIRST_OFDM_RATE;
+		for (i = IWL_RATE_1M_INDEX_TABLE; i <= IWL_RATE_11M_INDEX_TABLE; i++)
+			table[i].next_rate_index = iwl_rates[IWL_FIRST_OFDM_RATE].table_rs_index;
 
 		/* Don't fall back to CCK rates */
-		table[IWL_RATE_12M_INDEX].next_rate_index = IWL_RATE_9M_INDEX;
+		table[IWL_RATE_12M_INDEX_TABLE].next_rate_index = IWL_RATE_9M_INDEX_TABLE;
 
 		/* Don't drop out of OFDM rates */
-		table[IWL_FIRST_OFDM_RATE].next_rate_index =
-		    IWL_FIRST_OFDM_RATE;
+		table[IWL_RATE_6M_INDEX_TABLE].next_rate_index =
+		    iwl_rates[IWL_FIRST_OFDM_RATE].table_rs_index;
 		break;
 
 	case MODE_IEEE80211B:
 		IWL_DEBUG_RATE("Select B mode rate scale\n");
 		/* If an OFDM rate is used, have it fall back to the
 		 * 1M CCK rates */
-		for (i = IWL_FIRST_OFDM_RATE; i <= IWL_LAST_OFDM_RATE; i++)
-			table[i].next_rate_index = IWL_FIRST_CCK_RATE;
+		for (i = IWL_RATE_6M_INDEX_TABLE; i <= IWL_RATE_54M_INDEX_TABLE; i++)
+			table[i].next_rate_index = iwl_rates[IWL_FIRST_CCK_RATE].table_rs_index;
 
 		/* CCK shouldn't fall back to OFDM... */
-		table[IWL_RATE_11M_INDEX].next_rate_index = IWL_RATE_5M_INDEX;
+		table[IWL_RATE_11M_INDEX_TABLE].next_rate_index = IWL_RATE_5M_INDEX_TABLE;
 		break;
 
 	default:
@@ -2248,22 +2270,12 @@ unsigned int iwl_hw_get_beacon_cmd(struct iwl_priv *priv,
 	tx_beacon_cmd->tx.tx_flags = (TX_CMD_FLG_SEQ_CTL_MSK |
 				      TX_CMD_FLG_TSF_MSK);
 
-	/* supp_rates[0] == OFDM  */
-	tx_beacon_cmd->tx.supp_rates[0] = IWL_OFDM_BASIC_RATES_MASK;
+	/* supp_rates[0] == OFDM start at IWL_FIRST_OFDM_RATE*/
+	tx_beacon_cmd->tx.supp_rates[0] =
+		(IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 
-	/* supp_rates[1] == CCK
-	 *
-	 * NOTE:  IWL_*_RATES_MASK are not in the order that supp_rates
-	 * expects so we have to shift them around.
-	 *
-	 * supp_rates expects:
-	 * CCK rates are bit0..3
-	 *
-	 * However IWL_*_RATES_MASK has:
-	 * CCK rates are bit8..11
-	 */
 	tx_beacon_cmd->tx.supp_rates[1] =
-		(IWL_CCK_BASIC_RATES_MASK >> 8) & 0xF;
+		(IWL_CCK_BASIC_RATES_MASK & 0xF);
 
 	return (sizeof(struct iwl_tx_beacon_cmd) + frame_size);
 }

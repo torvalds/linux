@@ -514,6 +514,7 @@ static u8 ide_dump_ata_status(ide_drive_t *drive, const char *msg, u8 stat)
 			if (drive->addressing == 1) {
 				__u64 sectors = 0;
 				u32 low = 0, high = 0;
+				hwif->OUTB(drive->ctl&~0x80, IDE_CONTROL_REG);
 				low = ide_read_24(drive);
 				hwif->OUTB(drive->ctl|0x80, IDE_CONTROL_REG);
 				high = ide_read_24(drive);

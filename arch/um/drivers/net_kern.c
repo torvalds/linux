@@ -753,6 +753,7 @@ static struct mc_device net_mc = {
 	.remove		= net_remove,
 };
 
+#ifdef CONFIG_INET
 static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 			      void *ptr)
 {
@@ -789,14 +790,13 @@ struct notifier_block uml_inetaddr_notifier = {
 	.notifier_call		= uml_inetaddr_event,
 };
 
-static int uml_net_init(void)
+static void inet_register(void)
 {
 	struct list_head *ele;
 	struct uml_net_private *lp;
 	struct in_device *ip;
 	struct in_ifaddr *in;
 
-	mconsole_register_dev(&net_mc);
 	register_inetaddr_notifier(&uml_inetaddr_notifier);
 
 	/* Devices may have been opened already, so the uml_inetaddr_notifier
@@ -816,7 +816,17 @@ static int uml_net_init(void)
 		}
 	}
 	spin_unlock(&opened_lock);
+}
+#else
+static inline void inet_register(void)
+{
+}
+#endif
 
+static int uml_net_init(void)
+{
+	mconsole_register_dev(&net_mc);
+	inet_register();
 	return 0;
 }
 

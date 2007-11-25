@@ -2512,31 +2512,32 @@ static int skge_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return err;
 }
 
-/* Assign Ram Buffer allocation to queue */
-static void skge_ramset(struct skge_hw *hw, u16 q, u32 start, u32 space)
+static void skge_ramset(struct skge_hw *hw, u16 q, u32 start, size_t len)
 {
 	u32 end;
 
-	/* convert from K bytes to qwords used for hw register */
-	start *= 1024/8;
-	space *= 1024/8;
-	end = start + space - 1;
+	start /= 8;
+	len /= 8;
+	end = start + len - 1;
 
 	skge_write8(hw, RB_ADDR(q, RB_CTRL), RB_RST_CLR);
 	skge_write32(hw, RB_ADDR(q, RB_START), start);
-	skge_write32(hw, RB_ADDR(q, RB_END), end);
 	skge_write32(hw, RB_ADDR(q, RB_WP), start);
 	skge_write32(hw, RB_ADDR(q, RB_RP), start);
+	skge_write32(hw, RB_ADDR(q, RB_END), end);
 
 	if (q == Q_R1 || q == Q_R2) {
-		u32 tp = space - space/4;
-
 		/* Set thresholds on receive queue's */
-		skge_write32(hw, RB_ADDR(q, RB_RX_UTPP), tp);
-		skge_write32(hw, RB_ADDR(q, RB_RX_LTPP), space/4);
-	} else if (hw->chip_id != CHIP_ID_GENESIS)
-		/* Genesis Tx Fifo is too small for normal store/forward */
+		skge_write32(hw, RB_ADDR(q, RB_RX_UTPP),
+			     start + (2*len)/3);
+		skge_write32(hw, RB_ADDR(q, RB_RX_LTPP),
+			     start + (len/3));
+	} else {
+		/* Enable store & forward on Tx queue's because
+		 * Tx FIFO is only 4K on Genesis and 1K on Yukon
+		 */
 		skge_write8(hw, RB_ADDR(q, RB_CTRL), RB_ENA_STFWD);
+	}
 
 	skge_write8(hw, RB_ADDR(q, RB_CTRL), RB_ENA_OP_MD);
 }
@@ -2564,7 +2565,7 @@ static int skge_up(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	u32 ramaddr, ramsize, rxspace;
+	u32 chunk, ram_addr;
 	size_t rx_size, tx_size;
 	int err;
 
@@ -2619,15 +2620,14 @@ static int skge_up(struct net_device *dev)
 	spin_unlock_bh(&hw->phy_lock);
 
 	/* Configure RAMbuffers */
-	ramsize = (hw->ram_size - hw->ram_offset) / hw->ports;
-	ramaddr = hw->ram_offset + port * ramsize;
-	rxspace = 8 + (2*(ramsize - 16))/3;
+	chunk = hw->ram_size / ((hw->ports + 1)*2);
+	ram_addr = hw->ram_offset + 2 * chunk * port;
 
-	skge_ramset(hw, rxqaddr[port], ramaddr, rxspace);
-	skge_ramset(hw, txqaddr[port], ramaddr + rxspace, ramsize - rxspace);
-
+	skge_ramset(hw, rxqaddr[port], ram_addr, chunk);
 	skge_qset(skge, rxqaddr[port], skge->rx_ring.to_clean);
+
 	BUG_ON(skge->tx_ring.to_use != skge->tx_ring.to_clean);
+	skge_ramset(hw, txqaddr[port], ram_addr+chunk, chunk);
 	skge_qset(skge, txqaddr[port], skge->tx_ring.to_use);
 
 	/* Start receiver BMU */
@@ -3591,12 +3591,15 @@ static int skge_reset(struct skge_hw *hw)
 	if (hw->chip_id == CHIP_ID_GENESIS) {
 		if (t8 == 3) {
 			/* special case: 4 x 64k x 36, offset = 0x80000 */
-			hw->ram_size = 1024;
-			hw->ram_offset = 512;
+			hw->ram_size = 0x100000;
+			hw->ram_offset = 0x80000;
 		} else
 			hw->ram_size = t8 * 512;
-	} else /* Yukon */
-		hw->ram_size = t8 ? t8 * 4 : 128;
+	}
+	else if (t8 == 0)
+		hw->ram_size = 0x20000;
+	else
+		hw->ram_size = t8 * 4096;
 
 	hw->intr_mask = IS_HW_ERR;
 

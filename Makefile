@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 24
-EXTRAVERSION = -rc2
+EXTRAVERSION = -rc3
 NAME = Arr Matey! A Hairy Bilge Rat!
 
 # *DOCUMENTATION*
@@ -197,8 +197,13 @@ CROSS_COMPILE	?=
 UTS_MACHINE 	:= $(ARCH)
 SRCARCH 	:= $(ARCH)
 
-# for i386 and x86_64 we use SRCARCH equal to x86
-SRCARCH := $(if $(filter x86_64 i386,$(SRCARCH)),x86,$(SRCARCH))
+# Additional ARCH settings for x86
+ifeq ($(ARCH),i386)
+        SRCARCH := x86
+endif
+ifeq ($(ARCH),x86_64)
+        SRCARCH := x86
+endif
 
 KCONFIG_CONFIG	?= .config
 
@@ -1327,12 +1332,7 @@ else
 ALLINCLUDE_ARCHS := $(ALLSOURCE_ARCHS)
 endif
 
-# Take care of arch/x86
-ifeq ($(ARCH), $(SRCARCH))
-ALLSOURCE_ARCHS := $(ARCH)
-else
-ALLSOURCE_ARCHS := $(ARCH) $(SRCARCH)
-endif
+ALLSOURCE_ARCHS := $(SRCARCH)
 
 define find-sources
         ( for arch in $(ALLSOURCE_ARCHS) ; do \

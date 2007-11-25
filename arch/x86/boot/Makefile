@@ -49,10 +49,10 @@ HOSTCFLAGS_build.o := $(LINUXINCLUDE)
 
 # How to compile the 16-bit code.  Note we always compile for -march=i386,
 # that way we can complain to the user if the CPU is insufficient.
-cflags-i386   := 
-cflags-x86_64 := -m32
+cflags-$(CONFIG_X86_32) :=
+cflags-$(CONFIG_X86_64) := -m32
 KBUILD_CFLAGS	:= $(LINUXINCLUDE) -g -Os -D_SETUP -D__KERNEL__ \
-		   $(cflags-$(ARCH)) \
+		   $(cflags-y) \
 		   -Wall -Wstrict-prototypes \
 		   -march=i386 -mregparm=3 \
 		   -include $(srctree)/$(src)/code16gcc.h \

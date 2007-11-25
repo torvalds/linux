@@ -43,7 +43,7 @@ unsigned int sysctl_sched_min_granularity = 1000000ULL;
 /*
  * is kept at sysctl_sched_latency / sysctl_sched_min_granularity
  */
-unsigned int sched_nr_latency = 20;
+static unsigned int sched_nr_latency = 20;
 
 /*
  * After fork, child runs first. (default) If set to 0 then

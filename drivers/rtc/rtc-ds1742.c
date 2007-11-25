@@ -160,10 +160,13 @@ static ssize_t ds1742_nvram_write(struct kobject *kobj,
 static struct bin_attribute ds1742_nvram_attr = {
 	.attr = {
 		.name = "nvram",
-		.mode = S_IRUGO | S_IWUGO,
+		.mode = S_IRUGO | S_IWUSR,
 	},
 	.read = ds1742_nvram_read,
 	.write = ds1742_nvram_write,
+	/* REVISIT: size in sysfs won't match actual size... if it's
+	 * not a constant, each RTC should have its own attribute.
+	 */
 };
 
 static int __devinit ds1742_rtc_probe(struct platform_device *pdev)

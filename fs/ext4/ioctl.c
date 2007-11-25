@@ -51,6 +51,11 @@ int ext4_ioctl (struct inode * inode, struct file * filp, unsigned int cmd,
 			flags &= ~EXT4_DIRSYNC_FL;
 
 		mutex_lock(&inode->i_mutex);
+		/* Is it quota file? Do not allow user to mess with it */
+		if (IS_NOQUOTA(inode)) {
+			mutex_unlock(&inode->i_mutex);
+			return -EPERM;
+		}
 		oldflags = ei->i_flags;
 
 		/* The JOURNAL_DATA flag is modifiable only by root */

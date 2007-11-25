@@ -1486,7 +1486,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt73usb_register_read(rt2x00dev, MAC_CSR0, &reg);
 	rt2x00_set_chip(rt2x00dev, RT2571, value, reg);
 
-	if (!rt2x00_rev(&rt2x00dev->chip, 0x25730)) {
+	if (!rt2x00_check_rev(&rt2x00dev->chip, 0x25730)) {
 		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
 		return -ENODEV;
 	}

@@ -195,6 +195,11 @@ EXPORT_SYMBOL(enable_hlt);
  */
 void (*pm_idle)(void);
 
+extern void default_idle(void);
+
+void (*pm_power_off)(void);
+EXPORT_SYMBOL(pm_power_off);
+
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a

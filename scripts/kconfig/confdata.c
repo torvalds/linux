@@ -83,6 +83,68 @@ char *conf_get_default_confname(void)
 	return name;
 }
 
+static int conf_set_sym_val(struct symbol *sym, int def, int def_flags, char *p)
+{
+	char *p2;
+
+	switch (sym->type) {
+	case S_TRISTATE:
+		if (p[0] == 'm') {
+			sym->def[def].tri = mod;
+			sym->flags |= def_flags;
+			break;
+		}
+	case S_BOOLEAN:
+		if (p[0] == 'y') {
+			sym->def[def].tri = yes;
+			sym->flags |= def_flags;
+			break;
+		}
+		if (p[0] == 'n') {
+			sym->def[def].tri = no;
+			sym->flags |= def_flags;
+			break;
+		}
+		conf_warning("symbol value '%s' invalid for %s", p, sym->name);
+		break;
+	case S_OTHER:
+		if (*p != '"') {
+			for (p2 = p; *p2 && !isspace(*p2); p2++)
+				;
+			sym->type = S_STRING;
+			goto done;
+		}
+	case S_STRING:
+		if (*p++ != '"')
+			break;
+		for (p2 = p; (p2 = strpbrk(p2, "\"\\")); p2++) {
+			if (*p2 == '"') {
+				*p2 = 0;
+				break;
+			}
+			memmove(p2, p2 + 1, strlen(p2));
+		}
+		if (!p2) {
+			conf_warning("invalid string found");
+			return 1;
+		}
+	case S_INT:
+	case S_HEX:
+	done:
+		if (sym_string_valid(sym, p)) {
+			sym->def[def].val = strdup(p);
+			sym->flags |= def_flags;
+		} else {
+			conf_warning("symbol value '%s' invalid for %s", p, sym->name);
+			return 1;
+		}
+		break;
+	default:
+		;
+	}
+	return 0;
+}
+
 int conf_read_simple(const char *name, int def)
 {
 	FILE *in = NULL;
@@ -213,61 +275,8 @@ load:
 				conf_warning("trying to reassign symbol %s", sym->name);
 				break;
 			}
-			switch (sym->type) {
-			case S_TRISTATE:
-				if (p[0] == 'm') {
-					sym->def[def].tri = mod;
-					sym->flags |= def_flags;
-					break;
-				}
-			case S_BOOLEAN:
-				if (p[0] == 'y') {
-					sym->def[def].tri = yes;
-					sym->flags |= def_flags;
-					break;
-				}
-				if (p[0] == 'n') {
-					sym->def[def].tri = no;
-					sym->flags |= def_flags;
-					break;
-				}
-				conf_warning("symbol value '%s' invalid for %s", p, sym->name);
-				break;
-			case S_OTHER:
-				if (*p != '"') {
-					for (p2 = p; *p2 && !isspace(*p2); p2++)
-						;
-					sym->type = S_STRING;
-					goto done;
-				}
-			case S_STRING:
-				if (*p++ != '"')
-					break;
-				for (p2 = p; (p2 = strpbrk(p2, "\"\\")); p2++) {
-					if (*p2 == '"') {
-						*p2 = 0;
-						break;
-					}
-					memmove(p2, p2 + 1, strlen(p2));
-				}
-				if (!p2) {
-					conf_warning("invalid string found");
-					continue;
-				}
-			case S_INT:
-			case S_HEX:
-			done:
-				if (sym_string_valid(sym, p)) {
-					sym->def[def].val = strdup(p);
-					sym->flags |= def_flags;
-				} else {
-					conf_warning("symbol value '%s' invalid for %s", p, sym->name);
-					continue;
-				}
-				break;
-			default:
-				;
-			}
+			if (conf_set_sym_val(sym, def, def_flags, p))
+				continue;
 			break;
 		case '\r':
 		case '\n':

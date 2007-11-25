@@ -184,7 +184,7 @@ static int initialize(struct file *file, const unsigned long __user *input)
 free_regs:
 	free_page(lg->regs_page);
 release_guest:
-	memset(lg, 0, sizeof(*lg));
+	kfree(lg);
 unlock:
 	mutex_unlock(&lguest_lock);
 	return err;

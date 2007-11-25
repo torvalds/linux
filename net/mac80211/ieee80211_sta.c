@@ -2002,7 +2002,10 @@ void ieee80211_sta_work(struct work_struct *work)
 	if (ifsta->state != IEEE80211_AUTHENTICATE &&
 	    ifsta->state != IEEE80211_ASSOCIATE &&
 	    test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request)) {
-		ieee80211_sta_start_scan(dev, NULL, 0);
+		if (ifsta->scan_ssid_len)
+			ieee80211_sta_start_scan(dev, ifsta->scan_ssid, ifsta->scan_ssid_len);
+		else
+			ieee80211_sta_start_scan(dev, NULL, 0);
 		return;
 	}
 
@@ -2872,6 +2875,9 @@ int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len)
 		return -EBUSY;
 	}
 
+	ifsta->scan_ssid_len = ssid_len;
+	if (ssid_len)
+		memcpy(ifsta->scan_ssid, ssid, ssid_len);
 	set_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request);
 	queue_work(local->hw.workqueue, &ifsta->work);
 	return 0;

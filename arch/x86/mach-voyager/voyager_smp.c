@@ -1900,7 +1900,7 @@ voyager_smp_prepare_cpus(unsigned int max_cpus)
 	smp_boot_cpus();
 }
 
-static void __devinit voyager_smp_prepare_boot_cpu(void)
+static void __cpuinit voyager_smp_prepare_boot_cpu(void)
 {
 	init_gdt(smp_processor_id());
 	switch_to_new_gdt();
@@ -1911,7 +1911,7 @@ static void __devinit voyager_smp_prepare_boot_cpu(void)
 	cpu_set(smp_processor_id(), cpu_present_map);
 }
 
-static int __devinit
+static int __cpuinit
 voyager_cpu_up(unsigned int cpu)
 {
 	/* This only works at boot for x86.  See "rewrite" above. */

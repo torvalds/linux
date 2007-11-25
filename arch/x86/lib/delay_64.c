@@ -10,7 +10,9 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/preempt.h>
 #include <linux/delay.h>
+
 #include <asm/delay.h>
 #include <asm/msr.h>
 
@@ -27,14 +29,15 @@ int read_current_timer(unsigned long *timer_value)
 void __delay(unsigned long loops)
 {
 	unsigned bclock, now;
-	
+
+	preempt_disable();		/* TSC's are pre-cpu */
 	rdtscl(bclock);
-	do
-	{
+	do {
 		rep_nop(); 
 		rdtscl(now);
 	}
-	while((now-bclock) < loops);
+	while ((now-bclock) < loops);
+	preempt_enable();
 }
 EXPORT_SYMBOL(__delay);
 

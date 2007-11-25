@@ -1215,20 +1215,18 @@ static int keyspan_chars_in_buffer (struct usb_serial_port *port)
 
 static int keyspan_open (struct usb_serial_port *port, struct file *filp)
 {
-	struct keyspan_port_private 	*p_priv;
-	struct keyspan_serial_private 	*s_priv;
-	struct usb_serial 		*serial = port->serial;
+	struct keyspan_port_private	*p_priv;
+	struct keyspan_serial_private	*s_priv;
+	struct usb_serial		*serial = port->serial;
 	const struct keyspan_device_details	*d_details;
 	int				i, err;
-	int				baud_rate, device_port;
 	struct urb			*urb;
-	unsigned int			cflag;
 
 	s_priv = usb_get_serial_data(serial);
 	p_priv = usb_get_serial_port_data(port);
 	d_details = p_priv->device_details;
-	
-	dbg("%s - port%d.", __FUNCTION__, port->number); 
+
+	dbg("%s - port%d.", __FUNCTION__, port->number);
 
 	/* Set some sane defaults */
 	p_priv->rts_state = 1;
@@ -1249,7 +1247,7 @@ static int keyspan_open (struct usb_serial_port *port, struct file *filp)
 		urb->dev = serial->dev;
 
 		/* make sure endpoint data toggle is synchronized with the device */
-		
+
 		usb_clear_halt(urb->dev, urb->pipe);
 
 		if ((err = usb_submit_urb(urb, GFP_KERNEL)) != 0) {
@@ -1264,30 +1262,6 @@ static int keyspan_open (struct usb_serial_port *port, struct file *filp)
 		urb->dev = serial->dev;
 		/* usb_settoggle(urb->dev, usb_pipeendpoint(urb->pipe), usb_pipeout(urb->pipe), 0); */
 	}
-
-	/* get the terminal config for the setup message now so we don't 
-	 * need to send 2 of them */
-
-	cflag = port->tty->termios->c_cflag;
-	device_port = port->number - port->serial->minor;
-
-	/* Baud rate calculation takes baud rate as an integer
-	   so other rates can be generated if desired. */
-	baud_rate = tty_get_baud_rate(port->tty);
-	/* If no match or invalid, leave as default */		
-	if (baud_rate >= 0
-	    && d_details->calculate_baud_rate(baud_rate, d_details->baudclk,
-				NULL, NULL, NULL, device_port) == KEYSPAN_BAUD_RATE_OK) {
-		p_priv->baud = baud_rate;
-	}
-
-	/* set CTS/RTS handshake etc. */
-	p_priv->cflag = cflag;
-	p_priv->flow_control = (cflag & CRTSCTS)? flow_cts: flow_none;
-
-	keyspan_send_setup(port, 1);
-	//mdelay(100);
-	//keyspan_set_termios(port, NULL);
 
 	return (0);
 }

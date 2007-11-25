@@ -146,7 +146,7 @@ NESTED(handle_int, PT_SIZE, sp)
 	and	k0, ST0_IEP
 	bnez	k0, 1f
 
-	mfc0	k0, EP0_EPC
+	mfc0	k0, CP0_EPC
 	.set	noreorder
 	j	k0
 	rfe

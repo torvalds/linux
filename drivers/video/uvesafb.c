@@ -926,8 +926,10 @@ static int uvesafb_setpalette(struct uvesafb_pal_entry *entries, int count,
 		int start, struct fb_info *info)
 {
 	struct uvesafb_ktask *task;
+#ifdef CONFIG_X86
 	struct uvesafb_par *par = info->par;
 	int i = par->mode_idx;
+#endif
 	int err = 0;
 
 	/*
@@ -1103,11 +1105,11 @@ static int uvesafb_pan_display(struct fb_var_screeninfo *var,
 
 static int uvesafb_blank(int blank, struct fb_info *info)
 {
-	struct uvesafb_par *par = info->par;
 	struct uvesafb_ktask *task;
 	int err = 1;
-
 #ifdef CONFIG_X86
+	struct uvesafb_par *par = info->par;
+
 	if (par->vbe_ib.capabilities & VBE_CAP_VGACOMPAT) {
 		int loop = 10000;
 		u8 seq = 0, crtc17 = 0;

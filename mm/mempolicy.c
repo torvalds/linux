@@ -722,12 +722,29 @@ out:
 
 }
 
+/*
+ * Allocate a new page for page migration based on vma policy.
+ * Start assuming that page is mapped by vma pointed to by @private.
+ * Search forward from there, if not.  N.B., this assumes that the
+ * list of pages handed to migrate_pages()--which is how we get here--
+ * is in virtual address order.
+ */
 static struct page *new_vma_page(struct page *page, unsigned long private, int **x)
 {
 	struct vm_area_struct *vma = (struct vm_area_struct *)private;
+	unsigned long uninitialized_var(address);
 
-	return alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
-					page_address_in_vma(page, vma));
+	while (vma) {
+		address = page_address_in_vma(page, vma);
+		if (address != -EFAULT)
+			break;
+		vma = vma->vm_next;
+	}
+
+	/*
+	 * if !vma, alloc_page_vma() will use task or system default policy
+	 */
+	return alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma, address);
 }
 #else
 

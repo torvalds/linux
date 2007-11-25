@@ -304,7 +304,7 @@ static unsigned char clear_group_from_set(const unsigned char groups, struct if_
 static struct if_group *get_group(const unsigned char groups)
 {
 	int i;
-	for (i = 0; i < sizeof(if_groups)/sizeof(struct if_group); i++) {
+	for (i = 0; i < ARRAY_SIZE(if_groups); i++) {
 		if (groups & if_groups[i].group) {
 			return &if_groups[i];
 		}

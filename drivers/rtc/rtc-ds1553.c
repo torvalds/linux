@@ -291,7 +291,7 @@ static ssize_t ds1553_nvram_write(struct kobject *kobj,
 static struct bin_attribute ds1553_nvram_attr = {
 	.attr = {
 		.name = "nvram",
-		.mode = S_IRUGO | S_IWUGO,
+		.mode = S_IRUGO | S_IWUSR,
 	},
 	.size = RTC_OFFSET,
 	.read = ds1553_nvram_read,

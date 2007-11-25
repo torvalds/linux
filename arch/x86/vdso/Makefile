@@ -20,7 +20,7 @@ quiet_cmd_syscall = SYSCALL $@
       cmd_syscall = $(CC) -m elf_x86_64 -nostdlib $(SYSCFLAGS_$(@F)) \
 		          -Wl,-T,$(filter-out FORCE,$^) -o $@
 
-export CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
+export CPPFLAGS_vdso.lds += -P -C
 
 vdso-flags = -fPIC -shared -Wl,-soname=linux-vdso.so.1 \
 		 $(call ld-option, -Wl$(comma)--hash-style=sysv) \

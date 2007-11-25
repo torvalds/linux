@@ -73,6 +73,7 @@ static int sibyte_next_event(unsigned long delta, struct clock_event_device *cd)
 	cfg = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG));
 	init = IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT));
 
+	__raw_writeq(0, cfg);
 	__raw_writeq(delta - 1, init);
 	__raw_writeq(M_SCD_TIMER_ENABLE, cfg);
 
@@ -121,7 +122,7 @@ void __cpuinit sb1250_clockevent_init(void)
 				  CLOCK_EVT_FEAT_ONESHOT;
 	clockevent_set_clock(cd, V_SCD_TIMER_FREQ);
 	cd->max_delta_ns	= clockevent_delta2ns(0x7fffff, cd);
-	cd->min_delta_ns	= clockevent_delta2ns(1, cd);
+	cd->min_delta_ns	= clockevent_delta2ns(2, cd);
 	cd->rating		= 200;
 	cd->irq			= irq;
 	cd->cpumask		= cpumask_of_cpu(cpu);
@@ -142,7 +143,10 @@ void __cpuinit sb1250_clockevent_init(void)
 
 	action->handler	= sibyte_counter_handler;
 	action->flags	= IRQF_DISABLED | IRQF_PERCPU;
+	action->mask	= cpumask_of_cpu(cpu);
 	action->name	= name;
 	action->dev_id	= cd;
+
+	irq_set_affinity(irq, cpumask_of_cpu(cpu));
 	setup_irq(irq, action);
 }

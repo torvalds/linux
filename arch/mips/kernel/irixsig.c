@@ -430,6 +430,7 @@ asmlinkage int irix_sigprocmask(int how, irix_sigset_t __user *new,
 			break;
 
 		default:
+			spin_unlock_irq(&current->sighand->siglock);
 			return -EINVAL;
 		}
 		recalc_sigpending();

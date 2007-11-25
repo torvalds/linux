@@ -116,7 +116,9 @@ static void update_and_free_page(struct page *page)
 static void free_huge_page(struct page *page)
 {
 	int nid = page_to_nid(page);
+	struct address_space *mapping;
 
+	mapping = (struct address_space *) page_private(page);
 	BUG_ON(page_count(page));
 	INIT_LIST_HEAD(&page->lru);
 
@@ -129,6 +131,9 @@ static void free_huge_page(struct page *page)
 		enqueue_huge_page(page);
 	}
 	spin_unlock(&hugetlb_lock);
+	if (mapping)
+		hugetlb_put_quota(mapping, 1);
+	set_page_private(page, 0);
 }
 
 /*
@@ -323,7 +328,7 @@ free:
  * allocated to satisfy the reservation must be explicitly freed if they were
  * never used.
  */
-void return_unused_surplus_pages(unsigned long unused_resv_pages)
+static void return_unused_surplus_pages(unsigned long unused_resv_pages)
 {
 	static int nid = -1;
 	struct page *page;
@@ -353,35 +358,50 @@ void return_unused_surplus_pages(unsigned long unused_resv_pages)
 	}
 }
 
+
+static struct page *alloc_huge_page_shared(struct vm_area_struct *vma,
+						unsigned long addr)
+{
+	struct page *page;
+
+	spin_lock(&hugetlb_lock);
+	page = dequeue_huge_page(vma, addr);
+	spin_unlock(&hugetlb_lock);
+	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+}
+
+static struct page *alloc_huge_page_private(struct vm_area_struct *vma,
+						unsigned long addr)
+{
+	struct page *page = NULL;
+
+	if (hugetlb_get_quota(vma->vm_file->f_mapping, 1))
+		return ERR_PTR(-VM_FAULT_SIGBUS);
+
+	spin_lock(&hugetlb_lock);
+	if (free_huge_pages > resv_huge_pages)
+		page = dequeue_huge_page(vma, addr);
+	spin_unlock(&hugetlb_lock);
+	if (!page)
+		page = alloc_buddy_huge_page(vma, addr);
+	return page ? page : ERR_PTR(-VM_FAULT_OOM);
+}
+
 static struct page *alloc_huge_page(struct vm_area_struct *vma,
 				    unsigned long addr)
 {
-	struct page *page = NULL;
-	int use_reserved_page = vma->vm_flags & VM_MAYSHARE;
+	struct page *page;
+	struct address_space *mapping = vma->vm_file->f_mapping;
 
-	spin_lock(&hugetlb_lock);
-	if (!use_reserved_page && (free_huge_pages <= resv_huge_pages))
-		goto fail;
+	if (vma->vm_flags & VM_MAYSHARE)
+		page = alloc_huge_page_shared(vma, addr);
+	else
+		page = alloc_huge_page_private(vma, addr);
 
-	page = dequeue_huge_page(vma, addr);
-	if (!page)
-		goto fail;
-
-	spin_unlock(&hugetlb_lock);
-	set_page_refcounted(page);
-	return page;
-
-fail:
-	spin_unlock(&hugetlb_lock);
-
-	/*
-	 * Private mappings do not use reserved huge pages so the allocation
-	 * may have failed due to an undersized hugetlb pool.  Try to grab a
-	 * surplus huge page from the buddy allocator.
-	 */
-	if (!use_reserved_page)
-		page = alloc_buddy_huge_page(vma, addr);
-
+	if (!IS_ERR(page)) {
+		set_page_refcounted(page);
+		set_page_private(page, (unsigned long) mapping);
+	}
 	return page;
 }
 
@@ -726,9 +746,9 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 	page_cache_get(old_page);
 	new_page = alloc_huge_page(vma, address);
 
-	if (!new_page) {
+	if (IS_ERR(new_page)) {
 		page_cache_release(old_page);
-		return VM_FAULT_OOM;
+		return -PTR_ERR(new_page);
 	}
 
 	spin_unlock(&mm->page_table_lock);
@@ -772,27 +792,28 @@ retry:
 		size = i_size_read(mapping->host) >> HPAGE_SHIFT;
 		if (idx >= size)
 			goto out;
-		if (hugetlb_get_quota(mapping))
-			goto out;
 		page = alloc_huge_page(vma, address);
-		if (!page) {
-			hugetlb_put_quota(mapping);
-			ret = VM_FAULT_OOM;
+		if (IS_ERR(page)) {
+			ret = -PTR_ERR(page);
 			goto out;
 		}
 		clear_huge_page(page, address);
 
 		if (vma->vm_flags & VM_SHARED) {
 			int err;
+			struct inode *inode = mapping->host;
 
 			err = add_to_page_cache(page, mapping, idx, GFP_KERNEL);
 			if (err) {
 				put_page(page);
-				hugetlb_put_quota(mapping);
 				if (err == -EEXIST)
 					goto retry;
 				goto out;
 			}
+
+			spin_lock(&inode->i_lock);
+			inode->i_blocks += BLOCKS_PER_HUGEPAGE;
+			spin_unlock(&inode->i_lock);
 		} else
 			lock_page(page);
 	}
@@ -822,7 +843,6 @@ out:
 
 backout:
 	spin_unlock(&mm->page_table_lock);
-	hugetlb_put_quota(mapping);
 	unlock_page(page);
 	put_page(page);
 	goto out;
@@ -868,7 +888,8 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 
 int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			struct page **pages, struct vm_area_struct **vmas,
-			unsigned long *position, int *length, int i)
+			unsigned long *position, int *length, int i,
+			int write)
 {
 	unsigned long pfn_offset;
 	unsigned long vaddr = *position;
@@ -890,7 +911,7 @@ int follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			int ret;
 
 			spin_unlock(&mm->page_table_lock);
-			ret = hugetlb_fault(mm, vma, vaddr, 0);
+			ret = hugetlb_fault(mm, vma, vaddr, write);
 			spin_lock(&mm->page_table_lock);
 			if (!(ret & VM_FAULT_ERROR))
 				continue;
@@ -1132,6 +1153,8 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 	if (chg < 0)
 		return chg;
 
+	if (hugetlb_get_quota(inode->i_mapping, chg))
+		return -ENOSPC;
 	ret = hugetlb_acct_memory(chg);
 	if (ret < 0)
 		return ret;
@@ -1142,5 +1165,11 @@ int hugetlb_reserve_pages(struct inode *inode, long from, long to)
 void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 {
 	long chg = region_truncate(&inode->i_mapping->private_list, offset);
-	hugetlb_acct_memory(freed - chg);
+
+	spin_lock(&inode->i_lock);
+	inode->i_blocks -= BLOCKS_PER_HUGEPAGE * freed;
+	spin_unlock(&inode->i_lock);
+
+	hugetlb_put_quota(inode->i_mapping, (chg - freed));
+	hugetlb_acct_memory(-(chg - freed));
 }

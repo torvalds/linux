@@ -154,7 +154,7 @@ static void check_bus_watcher(void)
 	if (status & ~(1UL << 31)) {
 		l2_err = csr_in32(IOADDR(A_BUS_L2_ERRORS));
 #ifdef DUMP_L2_ECC_TAG_ON_ERROR
-		l2_tag = in64(IO_SPACE_BASE | A_L2_ECC_TAG);
+		l2_tag = in64(IOADDR(A_L2_ECC_TAG));
 #endif
 		memio_err = csr_in32(IOADDR(A_BUS_MEM_IO_ERRORS));
 		printk("Bus watcher error counters: %08x %08x\n", l2_err, memio_err);
@@ -183,9 +183,9 @@ asmlinkage void sb1_cache_error(void)
 #ifdef CONFIG_SIBYTE_BW_TRACE
 	/* Freeze the trace buffer now */
 #if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
-	csr_out32(M_BCM1480_SCD_TRACE_CFG_FREEZE, IO_SPACE_BASE | A_SCD_TRACE_CFG);
+	csr_out32(M_BCM1480_SCD_TRACE_CFG_FREEZE, IOADDR(A_SCD_TRACE_CFG));
 #else
-	csr_out32(M_SCD_TRACE_CFG_FREEZE, IO_SPACE_BASE | A_SCD_TRACE_CFG);
+	csr_out32(M_SCD_TRACE_CFG_FREEZE, IOADDR(A_SCD_TRACE_CFG));
 #endif
 	printk("Trace buffer frozen\n");
 #endif

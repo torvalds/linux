@@ -568,7 +568,7 @@ static voyager_module_t *voyager_initial_module;
  * boot cpu *after* all memory initialisation has been done (so we can
  * use kmalloc) but before smp initialisation, so we can probe the SMP
  * configuration and pick up necessary information.  */
-void
+void __init
 voyager_cat_init(void)
 {
 	voyager_module_t **modpp = &voyager_initial_module;

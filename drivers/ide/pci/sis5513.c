@@ -356,7 +356,6 @@ static void sis_set_dma_mode(ide_drive_t *drive, const u8 speed)
 			sis_program_timings(drive, speed);
 			break;
 		default:
-			BUG();
 			break;
 	}
 }

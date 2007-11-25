@@ -150,22 +150,45 @@ static void clk_pxa3xx_cken_disable(struct clk *clk)
 	local_irq_enable();
 }
 
+static const struct clkops clk_pxa3xx_cken_ops = {
+	.enable		= clk_pxa3xx_cken_enable,
+	.disable	= clk_pxa3xx_cken_disable,
+};
+
 static const struct clkops clk_pxa3xx_hsio_ops = {
 	.enable		= clk_pxa3xx_cken_enable,
 	.disable	= clk_pxa3xx_cken_disable,
 	.getrate	= clk_pxa3xx_hsio_getrate,
 };
 
+#define PXA3xx_CKEN(_name, _cken, _rate, _delay, _dev)	\
+	{						\
+		.name	= _name,			\
+		.dev	= _dev,				\
+		.ops	= &clk_pxa3xx_cken_ops,		\
+		.rate	= _rate,			\
+		.cken	= CKEN_##_cken,			\
+		.delay	= _delay,			\
+	}
+
+#define PXA3xx_CK(_name, _cken, _ops, _dev)		\
+	{						\
+		.name	= _name,			\
+		.dev	= _dev,				\
+		.ops	= _ops,				\
+		.cken	= CKEN_##_cken,			\
+	}
+
 static struct clk pxa3xx_clks[] = {
-	INIT_CK("LCDCLK", LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
-	INIT_CK("CAMCLK", CAMERA, &clk_pxa3xx_hsio_ops, NULL),
+	PXA3xx_CK("LCDCLK", LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
+	PXA3xx_CK("CAMCLK", CAMERA, &clk_pxa3xx_hsio_ops, NULL),
 
-	INIT_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
-	INIT_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
-	INIT_CKEN("UARTCLK", STUART, 14857000, 1, NULL),
+	PXA3xx_CKEN("UARTCLK", FFUART, 14857000, 1, &pxa_device_ffuart.dev),
+	PXA3xx_CKEN("UARTCLK", BTUART, 14857000, 1, &pxa_device_btuart.dev),
+	PXA3xx_CKEN("UARTCLK", STUART, 14857000, 1, NULL),
 
-	INIT_CKEN("I2CCLK",  I2C,  32842000, 0, &pxa_device_i2c.dev),
-	INIT_CKEN("UDCCLK",  UDC,  48000000, 5, &pxa_device_udc.dev),
+	PXA3xx_CKEN("I2CCLK", I2C,  32842000, 0, &pxa_device_i2c.dev),
+	PXA3xx_CKEN("UDCCLK", UDC,  48000000, 5, &pxa_device_udc.dev),
 };
 
 void __init pxa3xx_init_irq(void)

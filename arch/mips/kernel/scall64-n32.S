@@ -293,7 +293,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_ni_syscall			/* 6170, was get_kernel_syms */
 	PTR	sys_ni_syscall			/* was query_module */
 	PTR	sys_quotactl
-	PTR	sys_nfsservctl
+	PTR	compat_sys_nfsservctl
 	PTR	sys_ni_syscall			/* res. for getpmsg */
 	PTR	sys_ni_syscall			/* 6175  for putpmsg */
 	PTR	sys_ni_syscall			/* res. for afs_syscall */

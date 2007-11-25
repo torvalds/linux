@@ -139,8 +139,7 @@ static const struct ide_port_info jmicron_chipset __devinitdata = {
 
 static int __devinit jmicron_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	ide_setup_pci_device(dev, &jmicron_chipset);
-	return 0;
+	return ide_setup_pci_device(dev, &jmicron_chipset);
 }
 
 /* All JMB PATA controllers have and will continue to have the same

@@ -12,9 +12,15 @@
  */
 
 #include <asm/irq.h>
+#include <asm/current.h>
 #include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+
+/* From kgdb.c. */
+extern void kgdb_init(void);
+extern void breakpoint(void);
 
 #define mask_irq(irq_nr) (*R_VECT_MASK_CLR = 1 << (irq_nr));
 #define unmask_irq(irq_nr) (*R_VECT_MASK_SET = 1 << (irq_nr));
@@ -75,8 +81,8 @@ BUILD_IRQ(12, 0x1000)
 BUILD_IRQ(13, 0x2000)
 void mmu_bus_fault(void);      /* IRQ 14 is the bus fault interrupt */
 void multiple_interrupt(void); /* IRQ 15 is the multiple IRQ interrupt */
-BUILD_IRQ(16, 0x10000)
-BUILD_IRQ(17, 0x20000)
+BUILD_IRQ(16, 0x10000 | 0x20000)  /* ethernet tx interrupt needs to block rx */
+BUILD_IRQ(17, 0x20000 | 0x10000)  /* ...and vice versa */
 BUILD_IRQ(18, 0x40000)
 BUILD_IRQ(19, 0x80000)
 BUILD_IRQ(20, 0x100000)
@@ -146,6 +152,55 @@ void weird_irq(void);
 void system_call(void);  /* from entry.S */
 void do_sigtrap(void); /* from entry.S */
 void gdb_handle_breakpoint(void); /* from entry.S */
+
+extern void do_IRQ(int irq, struct pt_regs * regs);
+
+/* Handle multiple IRQs */
+void do_multiple_IRQ(struct pt_regs* regs)
+{
+	int bit;
+	unsigned masked;
+	unsigned mask;
+	unsigned ethmask = 0;
+
+	/* Get interrupts to mask and handle */
+	mask = masked = *R_VECT_MASK_RD;
+
+	/* Never mask timer IRQ */
+	mask &= ~(IO_MASK(R_VECT_MASK_RD, timer0));
+
+	/*
+	 * If either ethernet interrupt (rx or tx) is active then block
+	 * the other one too. Unblock afterwards also.
+	 */
+	if (mask &
+	    (IO_STATE(R_VECT_MASK_RD, dma0, active) |
+	     IO_STATE(R_VECT_MASK_RD, dma1, active))) {
+		ethmask = (IO_MASK(R_VECT_MASK_RD, dma0) |
+			   IO_MASK(R_VECT_MASK_RD, dma1));
+	}
+
+	/* Block them */
+	*R_VECT_MASK_CLR = (mask | ethmask);
+
+	/* An extra irq_enter here to prevent softIRQs to run after
+	 * each do_IRQ. This will decrease the interrupt latency.
+	 */
+	irq_enter();
+
+	/* Handle all IRQs */
+	for (bit = 2; bit < 32; bit++) {
+		if (masked & (1 << bit)) {
+			do_IRQ(bit, regs);
+		}
+	}
+
+	/* This irq_exit() will trigger the soft IRQs. */
+	irq_exit();
+
+	/* Unblock the IRQs again */
+	*R_VECT_MASK_SET = (masked | ethmask);
+}
 
 /* init_IRQ() is called by start_kernel and is responsible for fixing IRQ masks and
    setting the irq vector table.

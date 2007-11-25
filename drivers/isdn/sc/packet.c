@@ -20,7 +20,7 @@
 #include "message.h"
 #include "card.h"
 
-int sndpkt(int devId, int channel, struct sk_buff *data)
+int sndpkt(int devId, int channel, int ack, struct sk_buff *data)
 {
 	LLData	ReqLnkWrite;
 	int status;

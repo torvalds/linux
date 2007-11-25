@@ -53,7 +53,7 @@ void probe_subsystem_eventb(const struct marker *mdata, void *private,
 static struct probe_data probe_array[] =
 {
 	{	.name = "subsystem_event",
-		.format = "%d %s",
+		.format = "integer %d string %s",
 		.probe_func = probe_subsystem_event },
 	{	.name = "subsystem_eventb",
 		.format = MARK_NOARGS,

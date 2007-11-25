@@ -113,6 +113,16 @@ static char irq_tab_pcit[13][5] __initdata = {
 	{     0,  INTA,  INTB,  INTC,  INTD },	/* Slot 5 */
 };
 
+static char irq_tab_pcit_cplus[13][5] __initdata = {
+	/*       INTA  INTB  INTC  INTD */
+	{     0,     0,     0,     0,     0 },	/* HOST bridge */
+	{     0,  INTB,  INTC,  INTD,  INTA },	/* PCI Slot 9 */
+	{     0,     0,     0,     0,     0 },	/* PCI-EISA */
+	{     0,     0,     0,     0,     0 },	/* Unused */
+	{     0,  INTA,  INTB,  INTC,  INTD },	/* PCI-PCI bridge */
+	{     0,  INTB,  INTC,  INTD,  INTA },	/* fixup */
+};
+
 static inline int is_rm300_revd(void)
 {
 	unsigned char csmsr = *(volatile unsigned char *)PCIMT_CSMSR;
@@ -123,8 +133,19 @@ static inline int is_rm300_revd(void)
 int __init pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	switch (sni_brd_type) {
-	case SNI_BRD_PCI_TOWER:
 	case SNI_BRD_PCI_TOWER_CPLUS:
+		if (slot == 4) {
+			/*
+			 * SNI messed up interrupt wiring for onboard
+			 * PCI bus 1; we need to fix this up here
+			 */
+			while (dev && dev->bus->number != 1)
+				dev = dev->bus->self;
+			if (dev && dev->devfn >= PCI_DEVFN(4, 0))
+				slot = 5;
+		}
+		return irq_tab_pcit_cplus[slot][pin];
+	case SNI_BRD_PCI_TOWER:
 	        return irq_tab_pcit[slot][pin];
 
 	case SNI_BRD_PCI_MTOWER:

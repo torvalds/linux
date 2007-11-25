@@ -82,18 +82,15 @@ static int set_rtc_mmss(unsigned long nowtime)
 	int retval = 0;
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char control, freq_select;
+	unsigned long flags;
 
 /*
- * IRQs are disabled when we're called from the timer interrupt,
- * no need for spin_lock_irqsave()
+ * set_rtc_mmss is called when irqs are enabled, so disable irqs here
  */
-
-	spin_lock(&rtc_lock);
-
+	spin_lock_irqsave(&rtc_lock, flags);
 /*
  * Tell the clock it's being set and stop it.
  */
-
 	control = CMOS_READ(RTC_CONTROL);
 	CMOS_WRITE(control | RTC_SET, RTC_CONTROL);
 
@@ -138,7 +135,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 	CMOS_WRITE(control, RTC_CONTROL);
 	CMOS_WRITE(freq_select, RTC_FREQ_SELECT);
 
-	spin_unlock(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return retval;
 }
@@ -164,21 +161,27 @@ unsigned long read_persistent_clock(void)
 	unsigned century = 0;
 
 	spin_lock_irqsave(&rtc_lock, flags);
+	/*
+	 * if UIP is clear, then we have >= 244 microseconds before RTC
+	 * registers will be updated.  Spec sheet says that this is the
+	 * reliable way to read RTC - registers invalid (off bus) during update
+	 */
+	while ((CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP))
+		cpu_relax();
 
-	do {
-		sec = CMOS_READ(RTC_SECONDS);
-		min = CMOS_READ(RTC_MINUTES);
-		hour = CMOS_READ(RTC_HOURS);
-		day = CMOS_READ(RTC_DAY_OF_MONTH);
-		mon = CMOS_READ(RTC_MONTH);
-		year = CMOS_READ(RTC_YEAR);
+
+	/* now read all RTC registers while stable with interrupts disabled */
+	sec = CMOS_READ(RTC_SECONDS);
+	min = CMOS_READ(RTC_MINUTES);
+	hour = CMOS_READ(RTC_HOURS);
+	day = CMOS_READ(RTC_DAY_OF_MONTH);
+	mon = CMOS_READ(RTC_MONTH);
+	year = CMOS_READ(RTC_YEAR);
 #ifdef CONFIG_ACPI
-		if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
-					acpi_gbl_FADT.century)
-			century = CMOS_READ(acpi_gbl_FADT.century);
+	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
+				acpi_gbl_FADT.century)
+		century = CMOS_READ(acpi_gbl_FADT.century);
 #endif
-	} while (sec != CMOS_READ(RTC_SECONDS));
-
 	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	/*

@@ -347,14 +347,15 @@ int um_request_irq(unsigned int irq, int fd, int type,
 {
 	int err;
 
-	err = request_irq(irq, handler, irqflags, devname, dev_id);
-	if (err)
-		return err;
-
-	if (fd != -1)
+	if (fd != -1) {
 		err = activate_fd(irq, fd, type, dev_id);
-	return err;
+		if (err)
+			return err;
+	}
+
+	return request_irq(irq, handler, irqflags, devname, dev_id);
 }
+
 EXPORT_SYMBOL(um_request_irq);
 EXPORT_SYMBOL(reactivate_fd);
 

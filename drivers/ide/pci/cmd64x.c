@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/cmd64x.c		Version 1.50	May 10, 2007
+ * linux/drivers/ide/pci/cmd64x.c		Version 1.51	Nov 8, 2007
  *
  * cmd64x.c: Enable interrupts at initialization time on Ultra/PCI machines.
  *           Due to massive hardware bugs, UltraDMA is only supported
@@ -339,7 +339,8 @@ static int cmd648_ide_dma_end (ide_drive_t *drive)
 	u8  mrdmode		= inb(hwif->dma_master + 0x01);
 
 	/* clear the interrupt bit */
-	outb(mrdmode | irq_mask, hwif->dma_master + 0x01);
+	outb((mrdmode & ~(MRDMODE_INTR_CH0 | MRDMODE_INTR_CH1)) | irq_mask,
+	     hwif->dma_master + 0x01);
 
 	return err;
 }

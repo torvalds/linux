@@ -312,12 +312,12 @@ static struct mtd_info *probe_cs(struct map_info *map_cs)
                "%s: Probing a 0x%08lx bytes large window at 0x%08lx.\n",
 	       map_cs->name, map_cs->size, map_cs->map_priv_1);
 
-#ifdef CONFIG_MTD_AMDSTD
-	mtd_cs = do_map_probe("amd_flash", map_cs);
-#endif
 #ifdef CONFIG_MTD_CFI
+	mtd_cs = do_map_probe("cfi_probe", map_cs);
+#endif
+#ifdef CONFIG_MTD_JEDECPROBE
 	if (!mtd_cs) {
-		mtd_cs = do_map_probe("cfi_probe", map_cs);
+		mtd_cs = do_map_probe("jedec_probe", map_cs);
 	}
 #endif
 

@@ -457,10 +457,11 @@ done:
 EXPORT_SYMBOL_GPL(spi_register_master);
 
 
-static int __unregister(struct device *dev, void *unused)
+static int __unregister(struct device *dev, void *master_dev)
 {
 	/* note: before about 2.6.14-rc1 this would corrupt memory: */
-	spi_unregister_device(to_spi_device(dev));
+	if (dev != master_dev)
+		spi_unregister_device(to_spi_device(dev));
 	return 0;
 }
 
@@ -478,7 +479,8 @@ void spi_unregister_master(struct spi_master *master)
 {
 	int dummy;
 
-	dummy = device_for_each_child(master->dev.parent, NULL, __unregister);
+	dummy = device_for_each_child(master->dev.parent, &master->dev,
+					__unregister);
 	device_unregister(&master->dev);
 }
 EXPORT_SYMBOL_GPL(spi_unregister_master);

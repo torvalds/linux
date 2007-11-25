@@ -561,28 +561,33 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 static void proc_kill_inodes(struct proc_dir_entry *de)
 {
 	struct list_head *p;
-	struct super_block *sb = proc_mnt->mnt_sb;
+	struct super_block *sb;
 
 	/*
 	 * Actually it's a partial revoke().
 	 */
-	file_list_lock();
-	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_u.fu_list);
-		struct dentry * dentry = filp->f_path.dentry;
-		struct inode * inode;
-		const struct file_operations *fops;
+	spin_lock(&sb_lock);
+	list_for_each_entry(sb, &proc_fs_type.fs_supers, s_instances) {
+		file_list_lock();
+		list_for_each(p, &sb->s_files) {
+			struct file *filp = list_entry(p, struct file,
+							f_u.fu_list);
+			struct dentry *dentry = filp->f_path.dentry;
+			struct inode *inode;
+			const struct file_operations *fops;
 
-		if (dentry->d_op != &proc_dentry_operations)
-			continue;
-		inode = dentry->d_inode;
-		if (PDE(inode) != de)
-			continue;
-		fops = filp->f_op;
-		filp->f_op = NULL;
-		fops_put(fops);
+			if (dentry->d_op != &proc_dentry_operations)
+				continue;
+			inode = dentry->d_inode;
+			if (PDE(inode) != de)
+				continue;
+			fops = filp->f_op;
+			filp->f_op = NULL;
+			fops_put(fops);
+		}
+		file_list_unlock();
 	}
-	file_list_unlock();
+	spin_unlock(&sb_lock);
 }
 
 static struct proc_dir_entry *proc_create(struct proc_dir_entry **parent,

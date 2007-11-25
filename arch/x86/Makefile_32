@@ -160,7 +160,7 @@ archclean:
 	$(Q)$(MAKE) $(clean)=arch/x86/boot
 
 define archhelp
-  echo  '* bzImage	- Compressed kernel image (arch/$(ARCH)/boot/bzImage)'
+  echo  '* bzImage	- Compressed kernel image (arch/x86/boot/bzImage)'
   echo  '  install	- Install kernel using'
   echo  '		   (your) ~/bin/installkernel or'
   echo  '		   (distribution) /sbin/installkernel or'
@@ -170,6 +170,6 @@ define archhelp
   echo  '  isoimage     - Create a boot CD-ROM image'
 endef
 
-CLEAN_FILES += arch/$(ARCH)/boot/fdimage \
-	       arch/$(ARCH)/boot/image.iso \
-	       arch/$(ARCH)/boot/mtools.conf
+CLEAN_FILES += arch/x86/boot/fdimage \
+	       arch/x86/boot/image.iso \
+	       arch/x86/boot/mtools.conf
