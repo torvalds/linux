@@ -276,6 +276,12 @@ static inline int dccp_listen_start(struct sock *sk, int backlog)
 	return inet_csk_listen_start(sk, backlog);
 }
 
+static inline int dccp_need_reset(int state)
+{
+	return state != DCCP_CLOSED && state != DCCP_LISTEN &&
+	       state != DCCP_REQUESTING;
+}
+
 int dccp_disconnect(struct sock *sk, int flags)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
@@ -286,10 +292,15 @@ int dccp_disconnect(struct sock *sk, int flags)
 	if (old_state != DCCP_CLOSED)
 		dccp_set_state(sk, DCCP_CLOSED);
 
-	/* ABORT function of RFC793 */
+	/*
+	 * This corresponds to the ABORT function of RFC793, sec. 3.8
+	 * TCP uses a RST segment, DCCP a Reset packet with Code 2, "Aborted".
+	 */
 	if (old_state == DCCP_LISTEN) {
 		inet_csk_listen_stop(sk);
-	/* FIXME: do the active reset thing */
+	} else if (dccp_need_reset(old_state)) {
+		dccp_send_reset(sk, DCCP_RESET_CODE_ABORTED);
+		sk->sk_err = ECONNRESET;
 	} else if (old_state == DCCP_REQUESTING)
 		sk->sk_err = ECONNRESET;
 
