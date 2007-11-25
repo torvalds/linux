@@ -613,18 +613,6 @@ static bool vmx_exception_injected(struct kvm_vcpu *vcpu)
 	return !(vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK);
 }
 
-static void vmx_inject_gp(struct kvm_vcpu *vcpu, unsigned error_code)
-{
-	printk(KERN_DEBUG "inject_general_protection: rip 0x%lx\n",
-	       vmcs_readl(GUEST_RIP));
-	vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
-	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
-		     GP_VECTOR |
-		     INTR_TYPE_EXCEPTION |
-		     INTR_INFO_DELIEVER_CODE_MASK |
-		     INTR_INFO_VALID_MASK);
-}
-
 static void vmx_inject_ud(struct kvm_vcpu *vcpu)
 {
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
@@ -2083,7 +2071,7 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	u64 data;
 
 	if (vmx_get_msr(vcpu, ecx, &data)) {
-		vmx_inject_gp(vcpu, 0);
+		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 
@@ -2101,7 +2089,7 @@ static int handle_wrmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		| ((u64)(vcpu->regs[VCPU_REGS_RDX] & -1u) << 32);
 
 	if (vmx_set_msr(vcpu, ecx, data) != 0) {
-		vmx_inject_gp(vcpu, 0);
+		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 
@@ -2618,8 +2606,6 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_rflags = vmx_set_rflags,
 
 	.tlb_flush = vmx_flush_tlb,
-
-	.inject_gp = vmx_inject_gp,
 
 	.run = vmx_vcpu_run,
 	.handle_exit = kvm_handle_exit,

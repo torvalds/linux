@@ -207,17 +207,6 @@ static bool svm_exception_injected(struct kvm_vcpu *vcpu)
 	return !(svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID);
 }
 
-static void svm_inject_gp(struct kvm_vcpu *vcpu, unsigned error_code)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	svm->vmcb->control.event_inj =		SVM_EVTINJ_VALID |
-						SVM_EVTINJ_VALID_ERR |
-						SVM_EVTINJ_TYPE_EXEPT |
-						GP_VECTOR;
-	svm->vmcb->control.event_inj_err = error_code;
-}
-
 static void inject_ud(struct kvm_vcpu *vcpu)
 {
 	to_svm(vcpu)->vmcb->control.event_inj = SVM_EVTINJ_VALID |
@@ -1115,7 +1104,7 @@ static int rdmsr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	u64 data;
 
 	if (svm_get_msr(&svm->vcpu, ecx, &data))
-		svm_inject_gp(&svm->vcpu, 0);
+		kvm_inject_gp(&svm->vcpu, 0);
 	else {
 		svm->vmcb->save.rax = data & 0xffffffff;
 		svm->vcpu.regs[VCPU_REGS_RDX] = data >> 32;
@@ -1176,7 +1165,7 @@ static int wrmsr_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 		| ((u64)(svm->vcpu.regs[VCPU_REGS_RDX] & -1u) << 32);
 	svm->next_rip = svm->vmcb->save.rip + 2;
 	if (svm_set_msr(&svm->vcpu, ecx, data))
-		svm_inject_gp(&svm->vcpu, 0);
+		kvm_inject_gp(&svm->vcpu, 0);
 	else
 		skip_emulated_instruction(&svm->vcpu);
 	return 1;
@@ -1687,8 +1676,6 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_rflags = svm_set_rflags,
 
 	.tlb_flush = svm_flush_tlb,
-
-	.inject_gp = svm_inject_gp,
 
 	.run = svm_vcpu_run,
 	.handle_exit = handle_exit,

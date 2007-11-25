@@ -1779,7 +1779,7 @@ twobyte_insn:
 			| ((u64)c->regs[VCPU_REGS_RDX] << 32);
 		rc = kvm_set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data);
 		if (rc) {
-			kvm_x86_ops->inject_gp(ctxt->vcpu, 0);
+			kvm_inject_gp(ctxt->vcpu, 0);
 			c->eip = ctxt->vcpu->rip;
 		}
 		rc = X86EMUL_CONTINUE;
@@ -1789,7 +1789,7 @@ twobyte_insn:
 		/* rdmsr */
 		rc = kvm_get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data);
 		if (rc) {
-			kvm_x86_ops->inject_gp(ctxt->vcpu, 0);
+			kvm_inject_gp(ctxt->vcpu, 0);
 			c->eip = ctxt->vcpu->rip;
 		} else {
 			c->regs[VCPU_REGS_RAX] = (u32)msr_data;

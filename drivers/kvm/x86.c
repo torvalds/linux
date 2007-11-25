@@ -128,11 +128,6 @@ void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data)
 }
 EXPORT_SYMBOL_GPL(kvm_set_apic_base);
 
-static void inject_gp(struct kvm_vcpu *vcpu)
-{
-	kvm_x86_ops->inject_gp(vcpu, 0);
-}
-
 void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 {
 	WARN_ON(vcpu->exception.pending);
@@ -232,20 +227,20 @@ void set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	if (cr0 & CR0_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr0: 0x%lx #GP, reserved bits 0x%lx\n",
 		       cr0, vcpu->cr0);
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD)) {
 		printk(KERN_DEBUG "set_cr0: #GP, CD == 0 && NW == 1\n");
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE)) {
 		printk(KERN_DEBUG "set_cr0: #GP, set PG flag "
 		       "and a clear PE flag\n");
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
@@ -257,14 +252,14 @@ void set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 			if (!is_pae(vcpu)) {
 				printk(KERN_DEBUG "set_cr0: #GP, start paging "
 				       "in long mode while PAE is disabled\n");
-				inject_gp(vcpu);
+				kvm_inject_gp(vcpu, 0);
 				return;
 			}
 			kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 			if (cs_l) {
 				printk(KERN_DEBUG "set_cr0: #GP, start paging "
 				       "in long mode while CS.L == 1\n");
-				inject_gp(vcpu);
+				kvm_inject_gp(vcpu, 0);
 				return;
 
 			}
@@ -273,7 +268,7 @@ void set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		if (is_pae(vcpu) && !load_pdptrs(vcpu, vcpu->cr3)) {
 			printk(KERN_DEBUG "set_cr0: #GP, pdptrs "
 			       "reserved bits\n");
-			inject_gp(vcpu);
+			kvm_inject_gp(vcpu, 0);
 			return;
 		}
 
@@ -299,7 +294,7 @@ void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	if (cr4 & CR4_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr4: #GP, reserved bits\n");
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
@@ -307,19 +302,19 @@ void set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		if (!(cr4 & X86_CR4_PAE)) {
 			printk(KERN_DEBUG "set_cr4: #GP, clearing PAE while "
 			       "in long mode\n");
-			inject_gp(vcpu);
+			kvm_inject_gp(vcpu, 0);
 			return;
 		}
 	} else if (is_paging(vcpu) && !is_pae(vcpu) && (cr4 & X86_CR4_PAE)
 		   && !load_pdptrs(vcpu, vcpu->cr3)) {
 		printk(KERN_DEBUG "set_cr4: #GP, pdptrs reserved bits\n");
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if (cr4 & X86_CR4_VMXE) {
 		printk(KERN_DEBUG "set_cr4: #GP, setting VMXE\n");
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 	kvm_x86_ops->set_cr4(vcpu, cr4);
@@ -340,7 +335,7 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	if (is_long_mode(vcpu)) {
 		if (cr3 & CR3_L_MODE_RESERVED_BITS) {
 			printk(KERN_DEBUG "set_cr3: #GP, reserved bits\n");
-			inject_gp(vcpu);
+			kvm_inject_gp(vcpu, 0);
 			return;
 		}
 	} else {
@@ -348,13 +343,13 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 			if (cr3 & CR3_PAE_RESERVED_BITS) {
 				printk(KERN_DEBUG
 				       "set_cr3: #GP, reserved bits\n");
-				inject_gp(vcpu);
+				kvm_inject_gp(vcpu, 0);
 				return;
 			}
 			if (is_paging(vcpu) && !load_pdptrs(vcpu, cr3)) {
 				printk(KERN_DEBUG "set_cr3: #GP, pdptrs "
 				       "reserved bits\n");
-				inject_gp(vcpu);
+				kvm_inject_gp(vcpu, 0);
 				return;
 			}
 		}
@@ -375,7 +370,7 @@ void set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	 * to debug) behavior on the guest side.
 	 */
 	if (unlikely(!gfn_to_memslot(vcpu->kvm, cr3 >> PAGE_SHIFT)))
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 	else {
 		vcpu->cr3 = cr3;
 		vcpu->mmu.new_cr3(vcpu);
@@ -388,7 +383,7 @@ void set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
 	if (cr8 & CR8_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_cr8: #GP, reserved bits 0x%lx\n", cr8);
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 	if (irqchip_in_kernel(vcpu->kvm))
@@ -436,14 +431,14 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	if (efer & EFER_RESERVED_BITS) {
 		printk(KERN_DEBUG "set_efer: 0x%llx #GP, reserved bits\n",
 		       efer);
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if (is_paging(vcpu)
 	    && (vcpu->shadow_efer & EFER_LME) != (efer & EFER_LME)) {
 		printk(KERN_DEBUG "set_efer: #GP, change LME while paging\n");
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
@@ -2047,7 +2042,7 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		 * String I/O in reverse.  Yuck.  Kill the guest, fix later.
 		 */
 		pr_unimpl(vcpu, "guest string pio down\n");
-		inject_gp(vcpu);
+		kvm_inject_gp(vcpu, 0);
 		return 1;
 	}
 	vcpu->run->io.count = now;
@@ -2062,7 +2057,7 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 		vcpu->pio.guest_pages[i] = page;
 		mutex_unlock(&vcpu->kvm->lock);
 		if (!page) {
-			inject_gp(vcpu);
+			kvm_inject_gp(vcpu, 0);
 			free_pio_guest_pages(vcpu);
 			return 1;
 		}

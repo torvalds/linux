@@ -220,8 +220,6 @@ struct kvm_x86_ops {
 
 	void (*tlb_flush)(struct kvm_vcpu *vcpu);
 
-	void (*inject_gp)(struct kvm_vcpu *vcpu, unsigned err_code);
-
 	void (*run)(struct kvm_vcpu *vcpu, struct kvm_run *run);
 	int (*handle_exit)(struct kvm_run *run, struct kvm_vcpu *vcpu);
 	void (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
@@ -465,6 +463,11 @@ static inline void fpu_init(void)
 static inline u32 get_rdx_init_val(void)
 {
 	return 0x600; /* P6 family */
+}
+
+static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
+{
+	kvm_queue_exception_e(vcpu, GP_VECTOR, error_code);
 }
 
 #define ASM_VMX_VMCLEAR_RAX       ".byte 0x66, 0x0f, 0xc7, 0x30"
