@@ -171,11 +171,6 @@ static void ccid2_change_srtt(struct ccid2_hc_tx_sock *hctx, long val)
 	hctx->ccid2hctx_srtt = val;
 }
 
-static void ccid2_change_pipe(struct ccid2_hc_tx_sock *hctx, long val)
-{
-	hctx->ccid2hctx_pipe = val;
-}
-
 static void ccid2_start_rto_timer(struct sock *sk);
 
 static void ccid2_hc_tx_rto_expire(unsigned long data)
@@ -205,11 +200,11 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	ccid2_start_rto_timer(sk);
 
 	/* adjust pipe, cwnd etc */
-	ccid2_change_pipe(hctx, 0);
 	hctx->ccid2hctx_ssthresh = hctx->ccid2hctx_cwnd / 2;
 	if (hctx->ccid2hctx_ssthresh < 2)
 		hctx->ccid2hctx_ssthresh = 2;
 	hctx->ccid2hctx_cwnd	 = 1;
+	hctx->ccid2hctx_pipe	 = 0;
 
 	/* clear state about stuff we sent */
 	hctx->ccid2hctx_seqt	= hctx->ccid2hctx_seqh;
@@ -248,8 +243,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 
 	BUG_ON(!hctx->ccid2hctx_sendwait);
 	hctx->ccid2hctx_sendwait = 0;
-	ccid2_change_pipe(hctx, hctx->ccid2hctx_pipe + 1);
-	BUG_ON(hctx->ccid2hctx_pipe < 0);
+	hctx->ccid2hctx_pipe++;
 
 	/* There is an issue.  What if another packet is sent between
 	 * packet_send() and packet_sent().  Then the sequence number would be
@@ -519,8 +513,10 @@ static void ccid2_hc_tx_dec_pipe(struct sock *sk)
 {
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
-	ccid2_change_pipe(hctx, hctx->ccid2hctx_pipe-1);
-	BUG_ON(hctx->ccid2hctx_pipe < 0);
+	if (hctx->ccid2hctx_pipe == 0)
+		DCCP_BUG("pipe == 0");
+	else
+		hctx->ccid2hctx_pipe--;
 
 	if (hctx->ccid2hctx_pipe == 0)
 		ccid2_hc_tx_kill_rto_timer(sk);

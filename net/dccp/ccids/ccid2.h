@@ -42,6 +42,7 @@ struct ccid2_seq {
 
 /** struct ccid2_hc_tx_sock - CCID2 TX half connection
  *
+ * @ccid2hctx_{cwnd,ssthresh,pipe}: as per RFC 4341, section 5
  * @ccid2hctx_ssacks - ACKs recv in slow start
  * @ccid2hctx_acks - ACKS recv in AI phase
  * @ccid2hctx_lastrtt -time RTT was last measured
@@ -51,9 +52,9 @@ struct ccid2_seq {
 struct ccid2_hc_tx_sock {
 	u32			ccid2hctx_cwnd;
 	u32			ccid2hctx_ssthresh;
+	u32			ccid2hctx_pipe;
 	int			ccid2hctx_ssacks;
 	int			ccid2hctx_acks;
-	int			ccid2hctx_pipe;
 	struct ccid2_seq	*ccid2hctx_seqbuf[CCID2_SEQBUF_MAX];
 	int			ccid2hctx_seqbufc;
 	struct ccid2_seq	*ccid2hctx_seqh;
