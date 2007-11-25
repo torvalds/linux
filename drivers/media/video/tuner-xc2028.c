@@ -972,8 +972,6 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		break;
 	}
 
-	bw = p->u.ofdm.bandwidth;
-
 	/* FIXME:
 	  There are two Scodes that will never be selected:
 		DTV78 ZARLINK456, DTV78 DIBCOM52
