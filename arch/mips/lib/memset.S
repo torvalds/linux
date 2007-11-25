@@ -86,6 +86,7 @@ FEXPORT(__bzero)
 	.set		at
 #endif
 
+	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_L, a1, (a0), first_fixup)	/* make word/dword aligned */
 #endif
@@ -103,11 +104,13 @@ FEXPORT(__bzero)
 	PTR_ADDU	t1, a0			/* end address */
 	.set		reorder
 1:	PTR_ADDIU	a0, 64
+	R10KCBARRIER(0(ra))
 	f_fill64 a0, -64, a1, fwd_fixup
 	bne		t1, a0, 1b
 	.set		noreorder
 
 memset_partial:
+	R10KCBARRIER(0(ra))
 	PTR_LA		t1, 2f			/* where to start */
 #if LONGSIZE == 4
 	PTR_SUBU	t1, t0
@@ -129,6 +132,7 @@ memset_partial:
 
 	beqz		a2, 1f
 	 PTR_ADDU	a0, a2			/* What's left */
+	R10KCBARRIER(0(ra))
 #ifdef __MIPSEB__
 	EX(LONG_S_R, a1, -1(a0), last_fixup)
 #endif
@@ -143,6 +147,7 @@ small_memset:
 	 PTR_ADDU	t1, a0, a2
 
 1:	PTR_ADDIU	a0, 1			/* fill bytewise */
+	R10KCBARRIER(0(ra))
 	bne		t1, a0, 1b
 	 sb		a1, -1(a0)
 

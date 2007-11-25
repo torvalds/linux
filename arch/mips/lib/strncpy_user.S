@@ -38,6 +38,7 @@ FEXPORT(__strncpy_from_user_nocheck_asm)
 	.set		noreorder
 1:	EX(lbu, t0, (v1), fault)
 	PTR_ADDIU	v1, 1
+	R10KCBARRIER(0(ra))
 	beqz		t0, 2f
 	 sb		t0, (a0)
 	PTR_ADDIU	v0, 1

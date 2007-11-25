@@ -199,6 +199,7 @@ FEXPORT(__copy_user)
 	 */
 #define rem t8
 
+	R10KCBARRIER(0(ra))
 	/*
 	 * The "issue break"s below are very approximate.
 	 * Issue delays for dcache fills will perturb the schedule, as will
@@ -231,6 +232,7 @@ both_aligned:
 	PREF(	1, 3*32(dst) )
 	.align	4
 1:
+	R10KCBARRIER(0(ra))
 EXC(	LOAD	t0, UNIT(0)(src),	l_exc)
 EXC(	LOAD	t1, UNIT(1)(src),	l_exc_copy)
 EXC(	LOAD	t2, UNIT(2)(src),	l_exc_copy)
@@ -272,6 +274,7 @@ EXC(	LOAD	t2, UNIT(2)(src),	l_exc_copy)
 EXC(	LOAD	t3, UNIT(3)(src),	l_exc_copy)
 	SUB	len, len, 4*NBYTES
 	ADD	src, src, 4*NBYTES
+	R10KCBARRIER(0(ra))
 EXC(	STORE	t0, UNIT(0)(dst),	s_exc_p4u)
 EXC(	STORE	t1, UNIT(1)(dst),	s_exc_p3u)
 EXC(	STORE	t2, UNIT(2)(dst),	s_exc_p2u)
@@ -287,6 +290,7 @@ less_than_4units:
 	beq	rem, len, copy_bytes
 	 nop
 1:
+	R10KCBARRIER(0(ra))
 EXC(	LOAD	t0, 0(src),		l_exc)
 	ADD	src, src, NBYTES
 	SUB	len, len, NBYTES
@@ -334,6 +338,7 @@ EXC(	LDFIRST	t3, FIRST(0)(src),	l_exc)
 EXC(	LDREST	t3, REST(0)(src),	l_exc_copy)
 	SUB	t2, t2, t1	# t2 = number of bytes copied
 	xor	match, t0, t1
+	R10KCBARRIER(0(ra))
 EXC(	STFIRST t3, FIRST(0)(dst),	s_exc)
 	beq	len, t2, done
 	 SUB	len, len, t2
@@ -354,6 +359,7 @@ src_unaligned_dst_aligned:
  * It's OK to load FIRST(N+1) before REST(N) because the two addresses
  * are to the same unit (unless src is aligned, but it's not).
  */
+	R10KCBARRIER(0(ra))
 EXC(	LDFIRST	t0, FIRST(0)(src),	l_exc)
 EXC(	LDFIRST	t1, FIRST(1)(src),	l_exc_copy)
 	SUB     len, len, 4*NBYTES
@@ -384,6 +390,7 @@ cleanup_src_unaligned:
 	beq	rem, len, copy_bytes
 	 nop
 1:
+	R10KCBARRIER(0(ra))
 EXC(	LDFIRST t0, FIRST(0)(src),	l_exc)
 EXC(	LDREST	t0, REST(0)(src),	l_exc_copy)
 	ADD	src, src, NBYTES
@@ -399,6 +406,7 @@ copy_bytes_checklen:
 	 nop
 copy_bytes:
 	/* 0 < len < NBYTES  */
+	R10KCBARRIER(0(ra))
 #define COPY_BYTE(N)			\
 EXC(	lb	t0, N(src), l_exc);	\
 	SUB	len, len, 1;		\
@@ -528,6 +536,7 @@ LEAF(__rmemcpy)					/* a0=dst a1=src a2=len */
 	ADD	a1, a2				# src = src + len
 
 r_end_bytes:
+	R10KCBARRIER(0(ra))
 	lb	t0, -1(a1)
 	SUB	a2, a2, 0x1
 	sb	t0, -1(a0)
@@ -542,6 +551,7 @@ r_out:
 	 move	a2, zero
 
 r_end_bytes_up:
+	R10KCBARRIER(0(ra))
 	lb	t0, (a1)
 	SUB	a2, a2, 0x1
 	sb	t0, (a0)
