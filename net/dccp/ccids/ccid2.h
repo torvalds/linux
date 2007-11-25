@@ -66,7 +66,6 @@ struct ccid2_hc_tx_sock {
 	struct timer_list	ccid2hctx_rtotimer;
 	u64			ccid2hctx_rpseq;
 	int			ccid2hctx_rpdupack;
-	int			ccid2hctx_sendwait;
 	unsigned long		ccid2hctx_last_cong;
 	u64			ccid2hctx_high_ack;
 };

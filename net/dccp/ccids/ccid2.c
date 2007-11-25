@@ -126,13 +126,8 @@ static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
-	if (hctx->ccid2hctx_pipe < hctx->ccid2hctx_cwnd) {
-		/* OK we can send... make sure previous packet was sent off */
-		if (!hctx->ccid2hctx_sendwait) {
-			hctx->ccid2hctx_sendwait = 1;
-			return 0;
-		}
-	}
+	if (hctx->ccid2hctx_pipe < hctx->ccid2hctx_cwnd)
+		return 0;
 
 	return 1; /* XXX CCID should dequeue when ready instead of polling */
 }
@@ -236,8 +231,6 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	struct ccid2_seq *next;
 	u64 seq;
 
-	BUG_ON(!hctx->ccid2hctx_sendwait);
-	hctx->ccid2hctx_sendwait = 0;
 	hctx->ccid2hctx_pipe++;
 
 	/* There is an issue.  What if another packet is sent between
