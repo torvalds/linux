@@ -50,6 +50,7 @@ static DEFINE_MUTEX(xc2028_list_mutex);
 struct firmware_description {
 	unsigned int  type;
 	v4l2_std_id   id;
+	__u16         int_freq;
 	unsigned char *ptr;
 	unsigned int  size;
 };
@@ -58,6 +59,7 @@ struct firmware_properties {
 	unsigned int	type;
 	v4l2_std_id	id;
 	v4l2_std_id	std_req;
+	__u16		int_freq;
 	unsigned int	scode_table;
 	int 		scode_nr;
 };
@@ -301,6 +303,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 	while (p < endp) {
 		__u32 type, size;
 		v4l2_std_id id;
+		__u16 int_freq = 0;
 
 		n++;
 		if (n >= n_array) {
@@ -320,6 +323,11 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 
 		id = le64_to_cpu(*(v4l2_std_id *) p);
 		p += sizeof(id);
+
+		if (type & HAS_IF) {
+			int_freq = le16_to_cpu(*(__u16 *) p);
+			p += sizeof(int_freq);
+		}
 
 		size = le32_to_cpu(*(__u32 *) p);
 		p += sizeof(size);
@@ -351,6 +359,7 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		priv->firm[n].type = type;
 		priv->firm[n].id   = id;
 		priv->firm[n].size = size;
+		priv->firm[n].int_freq = int_freq;
 
 		p += size;
 	}
@@ -565,7 +574,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 }
 
 static int load_scode(struct dvb_frontend *fe, unsigned int type,
-			 v4l2_std_id *id, int scode)
+			 v4l2_std_id *id, __u16 int_freq, int scode)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	int                pos, rc;
@@ -573,17 +582,34 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
-	pos = seek_firmware(fe, type, id);
-	if (pos < 0)
-		return pos;
+	if (!int_freq) {
+		pos = seek_firmware(fe, type, id);
+		if (pos < 0)
+			return pos;
+	} else {
+		for (pos = 0; pos < priv->firm_size; pos++) {
+			if ((priv->firm[pos].int_freq == int_freq) &&
+			    (type & HAS_IF))
+				break;
+		}
+		if (pos == priv->firm_size)
+			return -ENOENT;
+	}
 
 	p = priv->firm[pos].ptr;
 
-	/* 16 SCODE entries per file; each SCODE entry is 12 bytes and
-	 * has a 2-byte size header in the firmware format. */
-	if (priv->firm[pos].size != 14 * 16 || scode >= 16 ||
-	    le16_to_cpu(*(__u16 *)(p + 14 * scode)) != 12)
-		return -EINVAL;
+	if (type & HAS_IF) {
+		if (priv->firm[pos].size != 12 * 16 || scode >= 16)
+			return -EINVAL;
+		p += 12 * scode;
+	} else {
+		/* 16 SCODE entries per file; each SCODE entry is 12 bytes and
+		 * has a 2-byte size header in the firmware format. */
+		if (priv->firm[pos].size != 14 * 16 || scode >= 16 ||
+		    le16_to_cpu(*(__u16 *)(p + 14 * scode)) != 12)
+			return -EINVAL;
+		p += 14 * scode + 2;
+	}
 
 	tuner_info("Loading SCODE for type=");
 	dump_firm_type(priv->firm[pos].type);
@@ -597,7 +623,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	if (rc < 0)
 		return -EIO;
 
-	rc = i2c_send(priv, p + 14 * scode + 2, 12);
+	rc = i2c_send(priv, p, 12);
 	if (rc < 0)
 		return -EIO;
 
@@ -609,7 +635,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 }
 
 static int check_firmware(struct dvb_frontend *fe, unsigned int type,
-			  v4l2_std_id std)
+			  v4l2_std_id std, __u16 int_freq)
 {
 	struct xc2028_data         *priv = fe->tuner_priv;
 	struct firmware_properties new_fw;
@@ -639,6 +665,7 @@ retry:
 	new_fw.std_req = std;
 	new_fw.scode_table = SCODE | priv->ctrl.scode_table;
 	new_fw.scode_nr = 0;
+	new_fw.int_freq = int_freq;
 
 	tuner_dbg("checking firmware, user requested type=");
 	if (debug) {
@@ -719,8 +746,8 @@ skip_std_specific:
 	/* Load SCODE firmware, if exists */
 	tuner_dbg("Trying to load scode %d\n", new_fw.scode_nr);
 
-	rc = load_scode(fe, new_fw.type | new_fw.scode_table,
-			&new_fw.id, new_fw.scode_nr);
+	rc = load_scode(fe, new_fw.type | new_fw.scode_table, &new_fw.id,
+			new_fw.int_freq, new_fw.scode_nr);
 
 check_device:
 	if (xc2028_get_reg(priv, 0x0004, &version) < 0 ||
@@ -810,9 +837,10 @@ ret:
 #define DIV 15625
 
 static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
-			       enum tuner_mode new_mode,
-			       unsigned int type,
-			       v4l2_std_id std)
+			    enum tuner_mode new_mode,
+			    unsigned int type,
+			    v4l2_std_id std,
+			    u16 int_freq)
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	int		   rc = -EINVAL;
@@ -825,7 +853,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 
 	tuner_dbg("should set frequency %d kHz\n", freq / 1000);
 
-	if (check_firmware(fe, type, std) < 0)
+	if (check_firmware(fe, type, std, int_freq) < 0)
 		goto ret;
 
 	/* On some cases xc2028 can disable video output, if
@@ -896,7 +924,7 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 		if (priv->ctrl.input1)
 			type |= INPUT1;
 		return generic_set_freq(fe, (625l * p->frequency) / 10,
-				T_ANALOG_TV, type, 0);
+				T_ANALOG_TV, type, 0, 0);
 	}
 
 	/* if std is not defined, choose one */
@@ -911,21 +939,8 @@ static int xc2028_set_analog_freq(struct dvb_frontend *fe,
 	p->std |= parse_audio_std_option();
 
 	return generic_set_freq(fe, 62500l * p->frequency,
-				T_ANALOG_TV, type, p->std);
+				T_ANALOG_TV, type, p->std, 0);
 }
-
-static unsigned int demod_type [] = {
-	[XC3028_FE_DEFAULT]	= 0,
-	[XC3028_FE_LG60]	= LG60,
-	[XC3028_FE_ATI638]	= ATI638,
-	[XC3028_FE_OREN538]	= OREN538,
-	[XC3028_FE_OREN36]	= OREN36,
-	[XC3028_FE_TOYOTA388]	= TOYOTA388,
-	[XC3028_FE_TOYOTA794]	= TOYOTA794,
-	[XC3028_FE_DIBCOM52]	= DIBCOM52,
-	[XC3028_FE_ZARLINK456]	= ZARLINK456,
-	[XC3028_FE_CHINA]	= CHINA,
-};
 
 static int xc2028_set_params(struct dvb_frontend *fe,
 			     struct dvb_frontend_parameters *p)
@@ -978,13 +993,12 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		tuner_err("error: bandwidth not supported.\n");
 	};
 
-	if (priv->ctrl.demod < 0 || priv->ctrl.demod > ARRAY_SIZE(demod_type))
-		tuner_err("error: demod type invalid. Assuming default.\n");
-	else
-		type |= demod_type[priv->ctrl.demod];
+	/* All S-code tables need a 200kHz shift */
+	if (priv->ctrl.demod)
+		priv->ctrl.demod += 200;
 
 	return generic_set_freq(fe, p->frequency,
-				T_DIGITAL_TV, type, 0);
+				T_DIGITAL_TV, type, 0, priv->ctrl.demod);
 }
 
 static int xc2028_sleep(struct dvb_frontend *fe)

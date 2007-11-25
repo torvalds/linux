@@ -82,6 +82,9 @@
 #define INPUT2         (1 << 28)
 #define SCODE          (1 << 29)
 
+/* This flag identifies that the scode table has a new format */
+#define HAS_IF         (1 << 30)
+
 #define SCODE_TYPES	(MTS|DTV6|QAM|DTV7|DTV78|DTV8|LCD|NOGD|MONO|ATSC|IF| \
 			 LG60|ATI638|OREN538|OREN36|TOYOTA388|TOYOTA794|     \
 			 DIBCOM52|ZARLINK456|CHINA|F6MHZ|SCODE)
