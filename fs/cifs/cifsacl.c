@@ -269,6 +269,13 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 	/* BB need to add parm so we can store the SID BB */
 
+	if (!pdacl) {
+		/* no DACL in the security descriptor, set
+		   all the permissions for user/group/other */
+		inode->i_mode |= S_IRWXUGO;
+		return;
+	}
+
 	/* validate that we do not go past end of acl */
 	if (end_of_acl < (char *)pdacl + le16_to_cpu(pdacl->size)) {
 		cERROR(1, ("ACL too small to parse DACL"));
@@ -286,12 +293,6 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 	   user/group/other have no permissions */
 	inode->i_mode &= ~(S_IRWXUGO);
 
-	if (!pdacl) {
-		/* no DACL in the security descriptor, set
-		   all the permissions for user/group/other */
-		inode->i_mode |= S_IRWXUGO;
-		return;
-	}
 	acl_base = (char *)pdacl;
 	acl_size = sizeof(struct cifs_acl);
 
