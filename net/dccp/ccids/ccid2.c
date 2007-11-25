@@ -199,9 +199,8 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	hctx->ccid2hctx_pipe	 = 0;
 
 	/* clear state about stuff we sent */
-	hctx->ccid2hctx_seqt	= hctx->ccid2hctx_seqh;
-	hctx->ccid2hctx_ssacks	= 0;
-	hctx->ccid2hctx_acks	= 0;
+	hctx->ccid2hctx_seqt = hctx->ccid2hctx_seqh;
+	hctx->ccid2hctx_packets_acked = 0;
 
 	/* clear ack ratio state. */
 	hctx->ccid2hctx_rpseq	 = 0;
@@ -406,31 +405,15 @@ static inline void ccid2_new_ack(struct sock *sk,
 {
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
-	/* slow start */
 	if (hctx->ccid2hctx_cwnd < hctx->ccid2hctx_ssthresh) {
-		hctx->ccid2hctx_acks = 0;
-
-		/* We can increase cwnd at most maxincr [ack_ratio/2] */
-		if (*maxincr) {
-			/* increase every 2 acks */
-			hctx->ccid2hctx_ssacks++;
-			if (hctx->ccid2hctx_ssacks == 2) {
-				hctx->ccid2hctx_cwnd++;
-				hctx->ccid2hctx_ssacks = 0;
-				*maxincr = *maxincr - 1;
-			}
-		} else {
-			/* increased cwnd enough for this single ack */
-			hctx->ccid2hctx_ssacks = 0;
+		if (*maxincr > 0 && ++hctx->ccid2hctx_packets_acked == 2) {
+			hctx->ccid2hctx_cwnd += 1;
+			*maxincr	     -= 1;
+			hctx->ccid2hctx_packets_acked = 0;
 		}
-	} else {
-		hctx->ccid2hctx_ssacks = 0;
-		hctx->ccid2hctx_acks++;
-
-		if (hctx->ccid2hctx_acks >= hctx->ccid2hctx_cwnd) {
-			hctx->ccid2hctx_cwnd++;
-			hctx->ccid2hctx_acks = 0;
-		}
+	} else if (++hctx->ccid2hctx_packets_acked >= hctx->ccid2hctx_cwnd) {
+			hctx->ccid2hctx_cwnd += 1;
+			hctx->ccid2hctx_packets_acked = 0;
 	}
 
 	/* update RTO */
@@ -596,12 +579,13 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		}
 	}
 
-	/* If in slow-start, cwnd can increase at most Ack Ratio / 2 packets for
-	 * this single ack.  I round up.
-	 * -sorbo.
+	/*
+	 * In slow-start, cwnd can increase up to a maximum of Ack Ratio/2
+	 * packets per acknowledgement. Rounding up avoids that cwnd is not
+	 * advanced when Ack Ratio is 1 and gives a slight edge otherwise.
 	 */
-	maxincr = dp->dccps_l_ack_ratio >> 1;
-	maxincr++;
+	if (hctx->ccid2hctx_cwnd < hctx->ccid2hctx_ssthresh)
+		maxincr = DIV_ROUND_UP(dp->dccps_l_ack_ratio, 2);
 
 	/* go through all ack vectors */
 	while ((offset = ccid2_ackvector(sk, skb, offset,
