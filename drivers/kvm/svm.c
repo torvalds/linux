@@ -188,6 +188,25 @@ static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	vcpu->shadow_efer = efer;
 }
 
+static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
+				bool has_error_code, u32 error_code)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	svm->vmcb->control.event_inj = nr
+		| SVM_EVTINJ_VALID
+		| (has_error_code ? SVM_EVTINJ_VALID_ERR : 0)
+		| SVM_EVTINJ_TYPE_EXEPT;
+	svm->vmcb->control.event_inj_err = error_code;
+}
+
+static bool svm_exception_injected(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	return !(svm->vmcb->control.exit_int_info & SVM_EXITINTINFO_VALID);
+}
+
 static void svm_inject_gp(struct kvm_vcpu *vcpu, unsigned error_code)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1712,6 +1731,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.patch_hypercall = svm_patch_hypercall,
 	.get_irq = svm_get_irq,
 	.set_irq = svm_set_irq,
+	.queue_exception = svm_queue_exception,
+	.exception_injected = svm_exception_injected,
 	.inject_pending_irq = svm_intr_assist,
 	.inject_pending_vectors = do_interrupt_requests,
 

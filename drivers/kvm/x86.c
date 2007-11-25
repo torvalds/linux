@@ -133,6 +133,32 @@ static void inject_gp(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->inject_gp(vcpu, 0);
 }
 
+void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr)
+{
+	WARN_ON(vcpu->exception.pending);
+	vcpu->exception.pending = true;
+	vcpu->exception.has_error_code = false;
+	vcpu->exception.nr = nr;
+}
+EXPORT_SYMBOL_GPL(kvm_queue_exception);
+
+void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code)
+{
+	WARN_ON(vcpu->exception.pending);
+	vcpu->exception.pending = true;
+	vcpu->exception.has_error_code = true;
+	vcpu->exception.nr = nr;
+	vcpu->exception.error_code = error_code;
+}
+EXPORT_SYMBOL_GPL(kvm_queue_exception_e);
+
+static void __queue_exception(struct kvm_vcpu *vcpu)
+{
+	kvm_x86_ops->queue_exception(vcpu, vcpu->exception.nr,
+				     vcpu->exception.has_error_code,
+				     vcpu->exception.error_code);
+}
+
 /*
  * Load the pae pdptrs.  Return true is they are all valid.
  */
@@ -2370,7 +2396,9 @@ again:
 		goto out;
 	}
 
-	if (irqchip_in_kernel(vcpu->kvm))
+	if (vcpu->exception.pending)
+		__queue_exception(vcpu);
+	else if (irqchip_in_kernel(vcpu->kvm))
 		kvm_x86_ops->inject_pending_irq(vcpu);
 	else
 		kvm_x86_ops->inject_pending_vectors(vcpu, kvm_run);
@@ -2408,6 +2436,9 @@ again:
 		kvm_x86_ops->cache_regs(vcpu);
 		profile_hit(KVM_PROFILING, (void *)vcpu->rip);
 	}
+
+	if (vcpu->exception.pending && kvm_x86_ops->exception_injected(vcpu))
+		vcpu->exception.pending = false;
 
 	r = kvm_x86_ops->handle_exit(kvm_run, vcpu);
 

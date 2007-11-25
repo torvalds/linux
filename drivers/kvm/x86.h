@@ -139,6 +139,13 @@ struct kvm_vcpu {
 	struct kvm_pio_request pio;
 	void *pio_data;
 
+	struct kvm_queued_exception {
+		bool pending;
+		bool has_error_code;
+		u8 nr;
+		u32 error_code;
+	} exception;
+
 	struct {
 		int active;
 		u8 save_iopl;
@@ -224,6 +231,9 @@ struct kvm_x86_ops {
 				unsigned char *hypercall_addr);
 	int (*get_irq)(struct kvm_vcpu *vcpu);
 	void (*set_irq)(struct kvm_vcpu *vcpu, int vec);
+	void (*queue_exception)(struct kvm_vcpu *vcpu, unsigned nr,
+				bool has_error_code, u32 error_code);
+	bool (*exception_injected)(struct kvm_vcpu *vcpu);
 	void (*inject_pending_irq)(struct kvm_vcpu *vcpu);
 	void (*inject_pending_vectors)(struct kvm_vcpu *vcpu,
 				       struct kvm_run *run);
@@ -293,6 +303,9 @@ void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l);
 
 int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata);
 int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data);
+
+void kvm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr);
+void kvm_queue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 
 void fx_init(struct kvm_vcpu *vcpu);
 

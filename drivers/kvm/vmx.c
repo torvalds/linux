@@ -595,6 +595,24 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	vcpu->interrupt_window_open = 1;
 }
 
+static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
+				bool has_error_code, u32 error_code)
+{
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD,
+		     nr | INTR_TYPE_EXCEPTION
+		     | (has_error_code ? INTR_INFO_DELIEVER_CODE_MASK : 0)
+		     | INTR_INFO_VALID_MASK);
+	if (has_error_code)
+		vmcs_write32(VM_ENTRY_EXCEPTION_ERROR_CODE, error_code);
+}
+
+static bool vmx_exception_injected(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+
+	return !(vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK);
+}
+
 static void vmx_inject_gp(struct kvm_vcpu *vcpu, unsigned error_code)
 {
 	printk(KERN_DEBUG "inject_general_protection: rip 0x%lx\n",
@@ -2641,6 +2659,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.patch_hypercall = vmx_patch_hypercall,
 	.get_irq = vmx_get_irq,
 	.set_irq = vmx_inject_irq,
+	.queue_exception = vmx_queue_exception,
+	.exception_injected = vmx_exception_injected,
 	.inject_pending_irq = vmx_intr_assist,
 	.inject_pending_vectors = do_interrupt_requests,
 
