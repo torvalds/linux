@@ -586,8 +586,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid2hctx_rpdupack++;
 
 			/* check if we got enough dupacks */
-			if (hctx->ccid2hctx_rpdupack >=
-			    hctx->ccid2hctx_numdupack) {
+			if (hctx->ccid2hctx_rpdupack >= NUMDUPACK) {
 				hctx->ccid2hctx_rpdupack = -1; /* XXX lame */
 				hctx->ccid2hctx_rpseq = 0;
 
@@ -708,7 +707,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	while (1) {
 		if (seqp->ccid2s_acked) {
 			done++;
-			if (done == hctx->ccid2hctx_numdupack)
+			if (done == NUMDUPACK)
 				break;
 		}
 		if (seqp == hctx->ccid2hctx_seqt)
@@ -719,7 +718,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	/* If there are at least 3 acknowledgements, anything unacknowledged
 	 * below the last sequence number is considered lost
 	 */
-	if (done == hctx->ccid2hctx_numdupack) {
+	if (done == NUMDUPACK) {
 		struct ccid2_seq *last_acked = seqp;
 
 		/* check for lost packets */
@@ -761,7 +760,6 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 
 	/* RFC 4341, 5: initialise ssthresh to arbitrarily high (max) value */
 	hctx->ccid2hctx_ssthresh  = ~0;
-	hctx->ccid2hctx_numdupack = 3;
 
 	/*
 	 * RFC 4341, 5: "The cwnd parameter is initialized to at most four

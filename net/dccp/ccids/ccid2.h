@@ -24,6 +24,8 @@
 #include <linux/timer.h>
 #include <linux/types.h>
 #include "../ccid.h"
+/* NUMDUPACK parameter from RFC 4341, p. 6 */
+#define NUMDUPACK	3
 
 struct sock;
 
@@ -52,7 +54,6 @@ struct ccid2_hc_tx_sock {
 	int			ccid2hctx_acks;
 	unsigned int		ccid2hctx_ssthresh;
 	int			ccid2hctx_pipe;
-	int			ccid2hctx_numdupack;
 	struct ccid2_seq	*ccid2hctx_seqbuf[CCID2_SEQBUF_MAX];
 	int			ccid2hctx_seqbufc;
 	struct ccid2_seq	*ccid2hctx_seqh;
