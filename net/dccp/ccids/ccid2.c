@@ -126,9 +126,6 @@ static int ccid2_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
-	ccid2_pr_debug("pipe=%d cwnd=%d\n", hctx->ccid2hctx_pipe,
-		       hctx->ccid2hctx_cwnd);
-
 	if (hctx->ccid2hctx_pipe < hctx->ccid2hctx_cwnd) {
 		/* OK we can send... make sure previous packet was sent off */
 		if (!hctx->ccid2hctx_sendwait) {
@@ -239,8 +236,6 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 	struct ccid2_seq *next;
 	u64 seq;
 
-	ccid2_hc_tx_check_sanity(hctx);
-
 	BUG_ON(!hctx->ccid2hctx_sendwait);
 	hctx->ccid2hctx_sendwait = 0;
 	hctx->ccid2hctx_pipe++;
@@ -326,7 +321,6 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, int more, unsigned int len)
 		ccid2_start_rto_timer(sk);
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
-	ccid2_pr_debug("pipe=%d\n", hctx->ccid2hctx_pipe);
 	ccid2_pr_debug("Sent: seq=%llu\n", (unsigned long long)seq);
 	do {
 		struct ccid2_seq *seqp = hctx->ccid2hctx_seqt;
