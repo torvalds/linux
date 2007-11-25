@@ -12,6 +12,8 @@
 
 #include <linux/power_supply.h>
 
+#include "power_supply.h"
+
 /* Battery specific LEDs triggers. */
 
 static void power_supply_update_bat_leds(struct power_supply *psy)
