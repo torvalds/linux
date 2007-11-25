@@ -2344,7 +2344,7 @@ again:
 
 	if (irqchip_in_kernel(vcpu->kvm))
 		kvm_x86_ops->inject_pending_irq(vcpu);
-	else if (!vcpu->mmio_read_completed)
+	else
 		kvm_x86_ops->inject_pending_vectors(vcpu, kvm_run);
 
 	vcpu->guest_mode = 1;
