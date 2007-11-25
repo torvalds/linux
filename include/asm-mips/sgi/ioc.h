@@ -138,8 +138,8 @@ struct sgioc_regs {
 	u8 _sysid[3];
 	volatile u8 sysid;
 #define SGIOC_SYSID_FULLHOUSE	0x01
-#define SGIOC_SYSID_BOARDREV(x)	((x & 0xe0) > 5)
-#define SGIOC_SYSID_CHIPREV(x)	((x & 0x1e) > 1)
+#define SGIOC_SYSID_BOARDREV(x)	(((x) & 0x1e) >> 1)
+#define SGIOC_SYSID_CHIPREV(x)	(((x) & 0xe0) >> 5)
 	u32 _unused2;
 	u8 _read[3];
 	volatile u8 read;
