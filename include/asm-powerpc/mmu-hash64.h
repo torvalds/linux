@@ -80,7 +80,7 @@ extern char initial_stab[];
 #define HPTE_V_AVPN_SHIFT	7
 #define HPTE_V_AVPN		ASM_CONST(0x3fffffffffffff80)
 #define HPTE_V_AVPN_VAL(x)	(((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
-#define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & 0xffffffffffffff80))
+#define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & 0xffffffffffffff80UL))
 #define HPTE_V_BOLTED		ASM_CONST(0x0000000000000010)
 #define HPTE_V_LOCK		ASM_CONST(0x0000000000000008)
 #define HPTE_V_LARGE		ASM_CONST(0x0000000000000004)
