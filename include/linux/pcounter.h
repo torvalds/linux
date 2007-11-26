@@ -84,7 +84,7 @@ static inline int pcounter_getval(const struct pcounter *self)
 
 static inline void pcounter_add(struct pcounter *self, int inc)
 {
-	self->value += inc;
+	self->val += inc;
 }
 
 static inline int pcounter_getval(const struct pcounter *self)
