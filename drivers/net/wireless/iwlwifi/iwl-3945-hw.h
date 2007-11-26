@@ -646,9 +646,6 @@ struct iwl3945_eeprom {
 #define RX_FREE_BUFFERS 64
 #define RX_LOW_WATERMARK 8
 
-/* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE 3000
-
 /* Sizes and addresses for instruction and data memory (SRAM) in
  * 3945's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
 #define RTC_INST_LOWER_BOUND			(0x000000)

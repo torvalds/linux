@@ -75,6 +75,7 @@ enum iwl3945_antenna {
  * else RTS for data/management frames where MPDU is larger
  *   than RTS value.
  */
+#define IWL_RX_BUF_SIZE           3000U
 #define DEFAULT_RTS_THRESHOLD     2347U
 #define MIN_RTS_THRESHOLD         0U
 #define MAX_RTS_THRESHOLD         2347U
@@ -452,6 +453,30 @@ union iwl3945_ht_rate_supp {
 	};
 };
 
+#ifdef CONFIG_IWL3945_HT
+#define CFG_HT_RX_AMPDU_FACTOR_DEF  (0x3)
+#define CFG_HT_MPDU_DENSITY_2USEC   (0x5)
+#define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_2USEC
+
+struct sta_ht_info {
+	u8 is_ht;
+	u16 rx_mimo_ps_mode;
+	u16 tx_mimo_ps_mode;
+	u16 control_channel;
+	u8 max_amsdu_size;
+	u8 ampdu_factor;
+	u8 mpdu_density;
+	u8 operating_mode;
+	u8 supported_chan_width;
+	u8 extension_chan_offset;
+	u8 is_green_field;
+	u8 sgf;
+	u8 supp_rates[16];
+	u8 tx_chan_width;
+	u8 chan_width_cap;
+};
+#endif				/*CONFIG_IWL3945_HT */
+
 #ifdef CONFIG_IWL3945_QOS
 
 union iwl3945_qos_capabity {
@@ -535,7 +560,8 @@ struct iwl3945_ibss_seq {
  * @ac_queue_count: # Tx queues for EDCA Access Categories (AC)
  * @tx_cmd_len: Size of Tx command (but not including frame itself)
  * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
- * @rx_buffer_size:
+ * @rx_buf_size:
+ * @max_pkt_size:
  * @max_rxq_log: Log-base-2 of max_rxq_size
  * @max_stations:
  * @bcast_sta_id:
@@ -547,7 +573,8 @@ struct iwl3945_driver_hw_info {
 	u16 ac_queue_count;
 	u16 tx_cmd_len;
 	u16 max_rxq_size;
-	u32 rx_buffer_size;
+	u32 rx_buf_size;
+	u32 max_pkt_size;
 	u16 max_rxq_log;
 	u8  max_stations;
 	u8  bcast_sta_id;

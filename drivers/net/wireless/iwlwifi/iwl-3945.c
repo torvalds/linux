@@ -2229,7 +2229,8 @@ int iwl3945_hw_set_hw_setting(struct iwl3945_priv *priv)
 	}
 
 	priv->hw_setting.ac_queue_count = AC_NUM;
-	priv->hw_setting.rx_buffer_size = IWL_RX_BUF_SIZE;
+	priv->hw_setting.rx_buf_size = IWL_RX_BUF_SIZE;
+	priv->hw_setting.max_pkt_size = 2342;
 	priv->hw_setting.tx_cmd_len = sizeof(struct iwl3945_tx_cmd);
 	priv->hw_setting.max_rxq_size = RX_QUEUE_SIZE;
 	priv->hw_setting.max_rxq_log = RX_QUEUE_SIZE_LOG;

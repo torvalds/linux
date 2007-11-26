@@ -60,6 +60,7 @@ extern struct pci_device_id iwl4965_hw_card_ids[];
 /* Module parameters accessible from iwl-*.c */
 extern int iwl4965_param_hwcrypto;
 extern int iwl4965_param_queues_num;
+extern int iwl4965_param_amsdu_size_8K;
 
 enum iwl4965_antenna {
 	IWL_ANTENNA_DIVERSITY,
@@ -506,7 +507,6 @@ union iwl4965_ht_rate_supp {
 
 #ifdef CONFIG_IWL4965_HT
 #define CFG_HT_RX_AMPDU_FACTOR_DEF  (0x3)
-#define HT_IE_MAX_AMSDU_SIZE_4K     (0)
 #define CFG_HT_MPDU_DENSITY_2USEC   (0x5)
 #define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_2USEC
 
@@ -618,7 +618,8 @@ struct iwl4965_driver_hw_info {
 	u16 ac_queue_count;
 	u16 tx_cmd_len;
 	u16 max_rxq_size;
-	u32 rx_buffer_size;
+	u32 rx_buf_size;
+	u32 max_pkt_size;
 	u16 max_rxq_log;
 	u8  max_stations;
 	u8  bcast_sta_id;

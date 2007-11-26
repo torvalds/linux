@@ -70,6 +70,7 @@ static int iwl4965_param_antenna;  /* def: 0 = both antennas (use diversity) */
 int iwl4965_param_hwcrypto;        /* def: using software encryption */
 static int iwl4965_param_qos_enable = 1; /* def: 1 = use quality of service */
 int iwl4965_param_queues_num = IWL_MAX_NUM_QUEUES; /* def: 16 Tx queues */
+int iwl4965_param_amsdu_size_8K;   /* def: enable 8K amsdu size */
 
 /*
  * module name, copyright, version, etc.
@@ -3263,7 +3264,7 @@ void iwl4965_handle_data_packet_monitor(struct iwl4965_priv *priv,
 	__le16 phy_flags_hw = cpu_to_le16(phy_flags);
 
 	/* We received data from the HW, so stop the watchdog */
-	if (len > IWL_RX_BUF_SIZE - sizeof(*iwl4965_rt)) {
+	if (len > priv->hw_setting.rx_buf_size - sizeof(*iwl4965_rt)) {
 		IWL_DEBUG_DROP("Dropping too large packet in monitor\n");
 		return;
 	}
@@ -4506,7 +4507,8 @@ static void iwl4965_rx_allocate(struct iwl4965_priv *priv)
 
 		/* Alloc a new receive buffer */
 		rxb->skb =
-		    alloc_skb(IWL_RX_BUF_SIZE, __GFP_NOWARN | GFP_ATOMIC);
+		    alloc_skb(priv->hw_setting.rx_buf_size,
+				__GFP_NOWARN | GFP_ATOMIC);
 		if (!rxb->skb) {
 			if (net_ratelimit())
 				printk(KERN_CRIT DRV_NAME
@@ -4522,7 +4524,7 @@ static void iwl4965_rx_allocate(struct iwl4965_priv *priv)
 		/* Get physical address of RB/SKB */
 		rxb->dma_addr =
 		    pci_map_single(priv->pci_dev, rxb->skb->data,
-				   IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			   priv->hw_setting.rx_buf_size, PCI_DMA_FROMDEVICE);
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;
 	}
@@ -4565,7 +4567,8 @@ static void iwl4965_rx_queue_free(struct iwl4965_priv *priv, struct iwl4965_rx_q
 		if (rxq->pool[i].skb != NULL) {
 			pci_unmap_single(priv->pci_dev,
 					 rxq->pool[i].dma_addr,
-					 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+					 priv->hw_setting.rx_buf_size,
+					 PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(rxq->pool[i].skb);
 		}
 	}
@@ -4616,7 +4619,8 @@ void iwl4965_rx_queue_reset(struct iwl4965_priv *priv, struct iwl4965_rx_queue *
 		if (rxq->pool[i].skb != NULL) {
 			pci_unmap_single(priv->pci_dev,
 					 rxq->pool[i].dma_addr,
-					 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+					 priv->hw_setting.rx_buf_size,
+					 PCI_DMA_FROMDEVICE);
 			priv->alloc_rxb_skb--;
 			dev_kfree_skb(rxq->pool[i].skb);
 			rxq->pool[i].skb = NULL;
@@ -4750,7 +4754,7 @@ static void iwl4965_rx_handle(struct iwl4965_priv *priv)
 		rxq->queue[i] = NULL;
 
 		pci_dma_sync_single_for_cpu(priv->pci_dev, rxb->dma_addr,
-					    IWL_RX_BUF_SIZE,
+					    priv->hw_setting.rx_buf_size,
 					    PCI_DMA_FROMDEVICE);
 		pkt = (struct iwl4965_rx_packet *)rxb->skb->data;
 
@@ -4803,7 +4807,8 @@ static void iwl4965_rx_handle(struct iwl4965_priv *priv)
 		}
 
 		pci_unmap_single(priv->pci_dev, rxb->dma_addr,
-				 IWL_RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+				 priv->hw_setting.rx_buf_size,
+				 PCI_DMA_FROMDEVICE);
 		spin_lock_irqsave(&rxq->lock, flags);
 		list_add_tail(&rxb->list, &priv->rxq.rx_used);
 		spin_unlock_irqrestore(&rxq->lock, flags);
@@ -9523,6 +9528,8 @@ MODULE_PARM_DESC(queues_num, "number of hw queues.");
 /* QoS */
 module_param_named(qos_enable, iwl4965_param_qos_enable, int, 0444);
 MODULE_PARM_DESC(qos_enable, "enable all QoS functionality");
+module_param_named(amsdu_size_8K, iwl4965_param_amsdu_size_8K, int, 0444);
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
 
 module_exit(iwl4965_exit);
 module_init(iwl4965_init);
