@@ -78,10 +78,34 @@ static const struct routing_scheme_item routing_scheme0[] = {
 	},
 };
 
+/* Specific to gotview device */
+static const struct routing_scheme_item routing_schemegv[] = {
+	[PVR2_CVAL_INPUT_TV] = {
+		.vid = CX25840_COMPOSITE2,
+		.aud = CX25840_AUDIO5,
+	},
+	[PVR2_CVAL_INPUT_RADIO] = { /* Treat the same as composite */
+		.vid = CX25840_COMPOSITE1,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+	[PVR2_CVAL_INPUT_COMPOSITE] = {
+		.vid = CX25840_COMPOSITE1,
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+	[PVR2_CVAL_INPUT_SVIDEO] = {
+		.vid = (CX25840_SVIDEO_LUMA3|CX25840_SVIDEO_CHROMA4),
+		.aud = CX25840_AUDIO_SERIAL,
+	},
+};
+
 static const struct routing_scheme routing_schemes[] = {
 	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
 		.def = routing_scheme0,
 		.cnt = ARRAY_SIZE(routing_scheme0),
+	},
+	[PVR2_ROUTING_SCHEME_GOTVIEW] = {
+		.def = routing_schemegv,
+		.cnt = ARRAY_SIZE(routing_schemegv),
 	},
 };
 

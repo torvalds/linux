@@ -36,6 +36,7 @@ struct pvr2_string_table {
 };
 
 #define PVR2_ROUTING_SCHEME_HAUPPAUGE 0
+#define PVR2_ROUTING_SCHEME_GOTVIEW 1
 
 /* This describes a particular hardware type (except for the USB device ID
    which must live in a separate structure due to environmental

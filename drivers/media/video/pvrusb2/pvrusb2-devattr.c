@@ -29,14 +29,20 @@ pvr2_device_desc structures.
 
 #include "pvrusb2-devattr.h"
 #include <linux/usb.h>
+/* All this is needed in order to pull in tuner type ids... */
+#include <linux/i2c.h>
+#include <linux/videodev2.h>
+#include <media/tuner.h>
 
 /* Known major hardware variants, keyed from device ID */
 #define PVR2_HDW_TYPE_29XXX 0
 #define PVR2_HDW_TYPE_24XXX 1
+#define PVR2_HDW_TYPE_GOTVIEW_2 2
 
 struct usb_device_id pvr2_device_table[] = {
 	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
 	[PVR2_HDW_TYPE_24XXX] = { USB_DEVICE(0x2040, 0x2400) },
+	[PVR2_HDW_TYPE_GOTVIEW_2] = { USB_DEVICE(0x1164, 0x0622) },
 	{ }
 };
 
@@ -51,6 +57,12 @@ static const char *pvr2_client_24xxx[] = {
 static const char *pvr2_client_29xxx[] = {
 	"msp3400",
 	"saa7115",
+	"tuner",
+};
+
+// Names of other client modules to request for Gotview 2 model hardware
+static const char *pvr2_client_gotview_2[] = {
+	"cx25840",
 	"tuner",
 };
 
@@ -87,6 +99,14 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.flag_has_hauppauge_rom = !0,
 		.flag_has_hauppauge_custom_ir = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+	},
+	[PVR2_HDW_TYPE_GOTVIEW_2] = {
+		.description = "Gotview USB 2.0 DVD 2",
+		.shortname = "gv2",
+		.client_modules.lst = pvr2_client_gotview_2,
+		.client_modules.cnt = ARRAY_SIZE(pvr2_client_gotview_2),
+		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_GOTVIEW,
 	},
 };
 
