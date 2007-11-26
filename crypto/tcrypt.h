@@ -6,12 +6,14 @@
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
  * Copyright (c) 2002 Jean-Francois Dive <jef@linuxbe.org>
+ * Copyright (c) 2007 Nokia Siemens Networks
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
+ * 2007-11-13 Added AEAD support
  * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
  * 2004-08-09 Cipher speed tests by Reyk Floeter <reyk@vantronix.net>
  * 2003-09-14 Changes by Kartikey Mahendra Bhatt
@@ -49,6 +51,26 @@ struct cipher_testvec {
 	unsigned char klen;
 	unsigned short ilen;
 	unsigned short rlen;
+};
+
+struct aead_testvec {
+	char key[MAX_KEYLEN] __attribute__ ((__aligned__(4)));
+	char iv[MAX_IVLEN];
+	char input[512];
+	char assoc[512];
+	char result[512];
+	char tag[128];
+	unsigned char tap[MAX_TAP];
+	unsigned char atap[MAX_TAP];
+	int np;
+	int anp;
+	unsigned char fail;
+	unsigned char wk; /* weak key flag */
+	unsigned char klen;
+	unsigned short ilen;
+	unsigned short alen;
+	unsigned short rlen;
+	unsigned short tlen;
 };
 
 struct cipher_speed {
