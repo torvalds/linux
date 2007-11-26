@@ -35,6 +35,7 @@ struct pvr2_string_table {
 	unsigned int cnt;
 };
 
+#define PVR2_ROUTING_SCHEME_HAUPPAUGE 0
 
 /* This describes a particular hardware type (except for the USB device ID
    which must live in a separate structure due to environmental
@@ -54,6 +55,14 @@ struct pvr2_device_desc {
 	   FX2 firmware check / load is skipped and we assume the device
 	   was initialized from internal ROM. */
 	struct pvr2_string_table fx2_firmware;
+
+	/* Signal routing scheme used by device, contains one of
+	   PVR2_ROUTING_SCHEME_XXX.  Schemes have to be defined as we
+	   encounter them.  This is an arbitrary integer scheme id; its
+	   meaning is contained entirely within the driver and is
+	   interpreted by logic which must send commands to the chip-level
+	   drivers (search for things which touch this field). */
+	unsigned int signal_routing_scheme;
 
 	/* V4L tuner type ID to use with this device (only used if the
 	   driver could not discover the type any other way). */

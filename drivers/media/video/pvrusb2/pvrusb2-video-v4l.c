@@ -49,29 +49,50 @@ struct pvr2_v4l_decoder {
 };
 
 
+struct routing_scheme {
+	const int *def;
+	unsigned int cnt;
+};
+
+
+static const int routing_scheme0[] = {
+	[PVR2_CVAL_INPUT_TV] = SAA7115_COMPOSITE4,
+	/* In radio mode, we mute the video, but point at one
+	   spot just to stay consistent */
+	[PVR2_CVAL_INPUT_RADIO] = SAA7115_COMPOSITE5,
+	[PVR2_CVAL_INPUT_COMPOSITE] = SAA7115_COMPOSITE5,
+	[PVR2_CVAL_INPUT_SVIDEO] =  SAA7115_SVIDEO2,
+};
+
+static const struct routing_scheme routing_schemes[] = {
+	[PVR2_ROUTING_SCHEME_HAUPPAUGE] = {
+		.def = routing_scheme0,
+		.cnt = ARRAY_SIZE(routing_scheme0),
+	},
+};
+
 static void set_input(struct pvr2_v4l_decoder *ctxt)
 {
 	struct pvr2_hdw *hdw = ctxt->hdw;
 	struct v4l2_routing route;
+	const struct routing_scheme *sp;
+	unsigned int sid = hdw->hdw_desc->signal_routing_scheme;
 
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 set_input(%d)",hdw->input_val);
-	switch(hdw->input_val) {
-	case PVR2_CVAL_INPUT_TV:
-		route.input = SAA7115_COMPOSITE4;
-		break;
-	case PVR2_CVAL_INPUT_COMPOSITE:
-		route.input = SAA7115_COMPOSITE5;
-		break;
-	case PVR2_CVAL_INPUT_SVIDEO:
-		route.input = SAA7115_SVIDEO2;
-		break;
-	case PVR2_CVAL_INPUT_RADIO:
-		// In radio mode, we mute the video, but point at one
-		// spot just to stay consistent
-		route.input = SAA7115_COMPOSITE5;
-	default:
+
+	if ((sid < ARRAY_SIZE(routing_schemes)) &&
+	    ((sp = routing_schemes + sid) != 0) &&
+	    (hdw->input_val >= 0) &&
+	    (hdw->input_val < sp->cnt)) {
+		route.input = sp->def[hdw->input_val];
+	} else {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "*** WARNING *** i2c v4l2 set_input:"
+			   " Invalid routing scheme (%u) and/or input (%d)",
+			   sid,hdw->input_val);
 		return;
 	}
+
 	route.output = 0;
 	pvr2_i2c_client_cmd(ctxt->client,VIDIOC_INT_S_VIDEO_ROUTING,&route);
 }
