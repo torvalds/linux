@@ -240,6 +240,34 @@ void __init cpm_reset(void)
 #endif
 }
 
+static DEFINE_SPINLOCK(cmd_lock);
+
+#define MAX_CR_CMD_LOOPS        10000
+
+int cpm_command(u32 command, u8 opcode)
+{
+	int i, ret;
+	unsigned long flags;
+
+	if (command & 0xffffff0f)
+		return -EINVAL;
+
+	spin_lock_irqsave(&cmd_lock, flags);
+
+	ret = 0;
+	out_be16(&cpmp->cp_cpcr, command | CPM_CR_FLG | (opcode << 8));
+	for (i = 0; i < MAX_CR_CMD_LOOPS; i++)
+		if ((in_be16(&cpmp->cp_cpcr) & CPM_CR_FLG) == 0)
+			goto out;
+
+	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __FUNCTION__);
+	ret = -EIO;
+out:
+	spin_unlock_irqrestore(&cmd_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(cpm_command);
+
 /* We used to do this earlier, but have to postpone as long as possible
  * to ensure the kernel VM is now running.
  */

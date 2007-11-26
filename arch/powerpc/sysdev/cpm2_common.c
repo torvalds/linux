@@ -83,6 +83,31 @@ cpm2_reset(void)
 	cpmp = &cpm2_immr->im_cpm;
 }
 
+static DEFINE_SPINLOCK(cmd_lock);
+
+#define MAX_CR_CMD_LOOPS        10000
+
+int cpm_command(u32 command, u8 opcode)
+{
+	int i, ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cmd_lock, flags);
+
+	ret = 0;
+	out_be32(&cpmp->cp_cpcr, command | opcode | CPM_CR_FLG);
+	for (i = 0; i < MAX_CR_CMD_LOOPS; i++)
+		if ((in_be32(&cpmp->cp_cpcr) & CPM_CR_FLG) == 0)
+			goto out;
+
+	printk(KERN_ERR "%s(): Not able to issue CPM command\n", __FUNCTION__);
+	ret = -EIO;
+out:
+	spin_unlock_irqrestore(&cmd_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(cpm_command);
+
 /* Set a baud rate generator.  This needs lots of work.  There are
  * eight BRGs, which can be connected to the CPM channels or output
  * as clocks.  The BRGs are in two different block of internal

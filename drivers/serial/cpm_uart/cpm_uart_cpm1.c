@@ -52,11 +52,7 @@
 #ifdef CONFIG_PPC_CPM_NEW_BINDING
 void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
 {
-	u16 __iomem *cpcr = &cpmp->cp_cpcr;
-
-	out_be16(cpcr, port->command | (cmd << 8) | CPM_CR_FLG);
-	while (in_be16(cpcr) & CPM_CR_FLG)
-		;
+	cpm_command(port->command, cmd);
 }
 #else
 void cpm_line_cr_cmd(struct uart_cpm_port *port, int cmd)
