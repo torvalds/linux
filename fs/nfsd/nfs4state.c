@@ -2093,8 +2093,10 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 		goto check_replay;
 	}
 
+	*stpp = stp;
+	*sopp = sop = stp->st_stateowner;
+
 	if (lock) {
-		struct nfs4_stateowner *sop = stp->st_stateowner;
 		clientid_t *lockclid = &lock->v.new.clientid;
 		struct nfs4_client *clp = sop->so_client;
 		int lkflg = 0;
@@ -2123,9 +2125,6 @@ nfs4_preprocess_seqid_op(struct svc_fh *current_fh, u32 seqid, stateid_t *statei
 		dprintk("NFSD: preprocess_seqid_op: fh-stateid mismatch!\n");
 		return nfserr_bad_stateid;
 	}
-
-	*stpp = stp;
-	*sopp = sop = stp->st_stateowner;
 
 	/*
 	*  We now validate the seqid and stateid generation numbers.
