@@ -158,6 +158,10 @@ config CPU_SUBTYPE_SH7619
 
 # SH-2A Processor Support
 
+config CPU_SUBTYPE_SH7203
+	bool "Support SH7203 processor"
+	select CPU_SH2A
+
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
 	select CPU_SH2A
@@ -556,7 +560,7 @@ config SH_PCLK_FREQ
 	default "32000000" if CPU_SUBTYPE_SH7722
 	default "33333333" if CPU_SUBTYPE_SH7770 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
-			      CPU_SUBTYPE_SH7206
+			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
@@ -567,7 +571,7 @@ config SH_PCLK_FREQ
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
-	depends on CPU_SUBTYPE_SH7619 || CPU_SUBTYPE_SH7206
+	depends on CPU_SH2
 	default 6 if CPU_SUBTYPE_SH7206
 	default 5 if CPU_SUBTYPE_SH7619
 	default 0

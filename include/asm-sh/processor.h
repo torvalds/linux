@@ -17,7 +17,7 @@ enum cpu_type {
 	CPU_SH7619,
 
 	/* SH-2A types */
-	CPU_SH7206,
+	CPU_SH7203, CPU_SH7206,
 
 	/* SH-3 types */
 	CPU_SH7705, CPU_SH7706, CPU_SH7707,
