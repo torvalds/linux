@@ -89,7 +89,7 @@ static struct ctl_table_header *sunrpc_table_header;
 
 static ctl_table xr_tunables_table[] = {
 	{
-		.ctl_name	= CTL_SLOTTABLE_RDMA,
+		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_slot_table_entries",
 		.data		= &xprt_rdma_slot_table_entries,
 		.maxlen		= sizeof(unsigned int),
@@ -100,7 +100,7 @@ static ctl_table xr_tunables_table[] = {
 		.extra2		= &max_slot_table_size
 	},
 	{
-		.ctl_name	= CTL_RDMA_MAXINLINEREAD,
+		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_max_inline_read",
 		.data		= &xprt_rdma_max_inline_read,
 		.maxlen		= sizeof(unsigned int),
@@ -109,7 +109,7 @@ static ctl_table xr_tunables_table[] = {
 		.strategy	= &sysctl_intvec,
 	},
 	{
-		.ctl_name	= CTL_RDMA_MAXINLINEWRITE,
+		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_max_inline_write",
 		.data		= &xprt_rdma_max_inline_write,
 		.maxlen		= sizeof(unsigned int),
@@ -118,7 +118,7 @@ static ctl_table xr_tunables_table[] = {
 		.strategy	= &sysctl_intvec,
 	},
 	{
-		.ctl_name	= CTL_RDMA_WRITEPADDING,
+		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_inline_write_padding",
 		.data		= &xprt_rdma_inline_write_padding,
 		.maxlen		= sizeof(unsigned int),
@@ -129,7 +129,7 @@ static ctl_table xr_tunables_table[] = {
 		.extra2		= &max_padding,
 	},
 	{
-		.ctl_name	= CTL_RDMA_MEMREG,
+		.ctl_name       = CTL_UNNUMBERED,
 		.procname	= "rdma_memreg_strategy",
 		.data		= &xprt_rdma_memreg_strategy,
 		.maxlen		= sizeof(unsigned int),
