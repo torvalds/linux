@@ -13,6 +13,7 @@
  * Software Foundation; either version 2 of the License, or (at your option)
  * any later version.
  *
+ * 2007-11-13 Added GCM tests
  * 2007-11-13 Added AEAD support
  * 2007-11-06 Added SHA-224 and SHA-224-HMAC tests
  * 2006-12-07 Added SHA384 HMAC and SHA512 HMAC tests
@@ -1208,6 +1209,10 @@ static void do_test(void)
 			    AES_CTR_ENC_TEST_VECTORS);
 		test_cipher("ctr(aes,4,8,4)", DECRYPT, aes_ctr_dec_tv_template,
 			    AES_CTR_DEC_TEST_VECTORS);
+		test_aead("gcm(aes)", ENCRYPT, aes_gcm_enc_tv_template,
+			  AES_GCM_ENC_TEST_VECTORS);
+		test_aead("gcm(aes)", DECRYPT, aes_gcm_dec_tv_template,
+			  AES_GCM_DEC_TEST_VECTORS);
 
 		//CAST5
 		test_cipher("ecb(cast5)", ENCRYPT, cast5_enc_tv_template,

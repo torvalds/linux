@@ -206,6 +206,15 @@ config CRYPTO_CTR
 	  CTR: Counter mode
 	  This block cipher algorithm is required for IPSec.
 
+config CRYPTO_GCM
+	tristate "GCM/GMAC support"
+	select CRYPTO_CTR
+	select CRYPTO_AEAD
+	select CRYPTO_GF128MUL
+	help
+	  Support for Galois/Counter Mode (GCM) and Galois Message
+	  Authentication Code (GMAC). Required for IPSec.
+
 config CRYPTO_CRYPTD
 	tristate "Software async crypto daemon"
 	select CRYPTO_ABLKCIPHER
