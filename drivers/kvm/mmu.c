@@ -26,6 +26,7 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/swap.h>
 
 #include <asm/page.h>
 #include <asm/cmpxchg.h>
@@ -438,6 +439,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 		return;
 	sp = page_header(__pa(spte));
 	page = pfn_to_page((*spte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT);
+	mark_page_accessed(page);
 	if (is_writeble_pte(*spte))
 		kvm_release_page_dirty(page);
 	else
