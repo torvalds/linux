@@ -143,7 +143,8 @@
 # define SCSCR_INIT(port)	0x3a	/* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 # define SCIF_ONLY
 #elif defined(CONFIG_CPU_SUBTYPE_SH7203) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7206)
+      defined(CONFIG_CPU_SUBTYPE_SH7206) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7263)
 # define SCSPTR0 0xfffe8020 /* 16 bit SCIF */
 # define SCSPTR1 0xfffe8820 /* 16 bit SCIF */
 # define SCSPTR2 0xfffe9020 /* 16 bit SCIF */
@@ -619,7 +620,8 @@ static inline int sci_rxd_in(struct uart_port *port)
 	return 1;
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7203) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7206)
+      defined(CONFIG_CPU_SUBTYPE_SH7206) || \
+      defined(CONFIG_CPU_SUBTYPE_SH7263)
 static inline int sci_rxd_in(struct uart_port *port)
 {
 	if (port->mapbase == 0xfffe8000)

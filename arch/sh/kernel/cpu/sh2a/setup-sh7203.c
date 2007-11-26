@@ -1,5 +1,5 @@
 /*
- * SH7203 Setup
+ * SH7203 and SH7263 Setup
  *
  *  Copyright (C) 2007  Paul Mundt
  *
@@ -41,17 +41,27 @@ enum {
 	SSU0_SSERI, SSU0_SSRXI, SSU0_SSTXI,
 	SSU1_SSERI, SSU1_SSRXI, SSU1_SSTXI,
 	SSI0_SSII, SSI1_SSII, SSI2_SSII, SSI3_SSII,
+
+	/* ROM-DEC, SDHI, SRC, and IEB are SH7263 specific */
+	ROMDEC_ISY, ROMDEC_IERR, ROMDEC_IARG, ROMDEC_ISEC, ROMDEC_IBUF,
+	ROMDEC_IREADY,
+
 	FLCTL_FLSTEI, FLCTL_FLTENDI, FLCTL_FLTREQ0I, FLCTL_FLTREQ1I,
+
+	SDHI3, SDHI0, SDHI1,
+
 	RTC_ARM, RTC_PRD, RTC_CUP,
 	RCAN0_ERS, RCAN0_OVR, RCAN0_RM0, RCAN0_RM1, RCAN0_SLE,
 	RCAN1_ERS, RCAN1_OVR, RCAN1_RM0, RCAN1_RM1, RCAN1_SLE,
+
+	SRC_OVF, SRC_ODFI, SRC_IDEI, IEBI,
 
 	/* interrupt groups */
 	PINT, DMAC0, DMAC1, DMAC2, DMAC3, DMAC4, DMAC5, DMAC6, DMAC7,
 	MTU0_ABCD, MTU0_VEF, MTU1_AB, MTU1_VU, MTU2_AB, MTU2_VU,
 	MTU3_ABCD, MTU4_ABCD,
 	IIC30, IIC31, IIC32, IIC33, SCIF0, SCIF1, SCIF2, SCIF3,
-	SSU0, SSU1, FLCTL, RTC, RCAN0, RCAN1
+	SSU0, SSU1, ROMDEC, SDHI, FLCTL, RTC, RCAN0, RCAN1, SRC
 };
 
 static struct intc_vect vectors[] __initdata = {
@@ -125,6 +135,20 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_IRQ(RCAN1_ERS, 239), INTC_IRQ(RCAN1_OVR, 240),
 	INTC_IRQ(RCAN1_RM0, 241), INTC_IRQ(RCAN1_RM1, 242),
 	INTC_IRQ(RCAN1_SLE, 243),
+
+	/* SH7263-specific trash */
+#ifdef CONFIG_CPU_SUBTYPE_SH7263
+	INTC_IRQ(ROMDEC_ISY, 218), INTC_IRQ(ROMDEC_IERR, 219),
+	INTC_IRQ(ROMDEC_IARG, 220), INTC_IRQ(ROMDEC_ISEC, 221),
+	INTC_IRQ(ROMDEC_IBUF, 222), INTC_IRQ(ROMDEC_IREADY, 223),
+
+	INTC_IRQ(SDHI3, 228), INTC_IRQ(SDHI0, 229), INTC_IRQ(SDHI1, 230),
+
+	INTC_IRQ(SRC_OVF, 244), INTC_IRQ(SRC_ODFI, 245),
+	INTC_IRQ(SRC_IDEI, 246),
+
+	INTC_IRQ(IEBI, 247),
+#endif
 };
 
 static struct intc_group groups[] __initdata = {
@@ -167,6 +191,13 @@ static struct intc_group groups[] __initdata = {
 		   RCAN0_SLE),
 	INTC_GROUP(RCAN1, RCAN1_ERS, RCAN1_OVR, RCAN1_RM0, RCAN1_RM1,
 		   RCAN1_SLE),
+
+#ifdef CONFIG_CPU_SUBTYPE_SH7263
+	INTC_GROUP(ROMDEC, ROMDEC_ISY, ROMDEC_IERR, ROMDEC_IARG,
+		   ROMDEC_ISEC, ROMDEC_IBUF, ROMDEC_IREADY),
+	INTC_GROUP(SDHI, SDHI3, SDHI0, SDHI1),
+	INTC_GROUP(SRC, SRC_OVF, SRC_ODFI, SRC_IDEI),
+#endif
 };
 
 static struct intc_prio_reg prio_registers[] __initdata = {
@@ -184,10 +215,17 @@ static struct intc_prio_reg prio_registers[] __initdata = {
 	{ 0xfffe0c0c, 0, 16, 4, /* IPR12 */ { ADC_ADI, IIC30, IIC31, IIC32 } },
 	{ 0xfffe0c0e, 0, 16, 4, /* IPR13 */ { IIC33, SCIF0, SCIF1, SCIF2 } },
 	{ 0xfffe0c10, 0, 16, 4, /* IPR14 */ { SCIF3, SSU0, SSU1, SSI0_SSII } },
+#ifdef CONFIG_CPU_SUBTYPE_SH7203
 	{ 0xfffe0c12, 0, 16, 4, /* IPR15 */ { SSI1_SSII, SSI2_SSII,
 					      SSI3_SSII, 0 } },
 	{ 0xfffe0c14, 0, 16, 4, /* IPR16 */ { FLCTL, 0, RTC, RCAN0 } },
 	{ 0xfffe0c16, 0, 16, 4, /* IPR17 */ { RCAN1, 0, 0, 0 } },
+#else
+	{ 0xfffe0c12, 0, 16, 4, /* IPR15 */ { SSI1_SSII, SSI2_SSII,
+					      SSI3_SSII, ROMDEC } },
+	{ 0xfffe0c14, 0, 16, 4, /* IPR16 */ { FLCTL, SDHI, RTC, RCAN0 } },
+	{ 0xfffe0c16, 0, 16, 4, /* IPR17 */ { RCAN1, SRC, IEBI, 0 } },
+#endif
 };
 
 static struct intc_mask_reg mask_registers[] __initdata = {

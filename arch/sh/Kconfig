@@ -166,6 +166,10 @@ config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
 	select CPU_SH2A
 
+config CPU_SUBTYPE_SH7263
+	bool "Support SH7263 processor"
+	select CPU_SH2A
+
 # SH-3 Processor Support
 
 config CPU_SUBTYPE_SH7705
@@ -560,7 +564,8 @@ config SH_PCLK_FREQ
 	default "32000000" if CPU_SUBTYPE_SH7722
 	default "33333333" if CPU_SUBTYPE_SH7770 || \
 			      CPU_SUBTYPE_SH7760 || CPU_SUBTYPE_SH7705 || \
-			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206
+			      CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7206 || \
+			      CPU_SUBTYPE_SH7263
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
