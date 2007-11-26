@@ -731,6 +731,13 @@ UNUSUAL_DEV(  0x0584, 0x0008, 0x0102, 0x0102,
  		US_SC_SCSI, US_PR_ALAUDA, init_alauda, 0 ),
 #endif
 
+/* Reported by RTE <raszilki@yandex.ru> */
+UNUSUAL_DEV(  0x058f, 0x6387, 0x0141, 0x0141,
+		"JetFlash",
+		"TS1GJF2A/120",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_MAX_SECTORS_64 ),
+
 /* Fabrizio Fellini <fello@libero.it> */
 UNUSUAL_DEV(  0x0595, 0x4343, 0x0000, 0x2210,
 		"Fujifilm",
