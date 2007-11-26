@@ -39,11 +39,11 @@ static struct {
 #endif
 
 #define metapage_locked(mp) test_bit(META_locked, &(mp)->flag)
-#define trylock_metapage(mp) test_and_set_bit(META_locked, &(mp)->flag)
+#define trylock_metapage(mp) test_and_set_bit_lock(META_locked, &(mp)->flag)
 
 static inline void unlock_metapage(struct metapage *mp)
 {
-	clear_bit(META_locked, &mp->flag);
+	clear_bit_unlock(META_locked, &mp->flag);
 	wake_up(&mp->wait);
 }
 
