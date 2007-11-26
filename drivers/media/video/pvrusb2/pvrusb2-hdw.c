@@ -1093,7 +1093,10 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 
 	if (!hdw->hdw_desc->fx2_firmware.cnt) {
 		hdw->fw1_state = FW1_STATE_OK;
-		return 0;
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Connected device type defines"
+			   " no firmware to upload; ignoring firmware");
+		return -ENOTTY;
 	}
 
 	hdw->fw1_state = FW1_STATE_FAILED; // default result
@@ -1524,7 +1527,8 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 
 	bcnt = pvr2_std_id_to_str(buf,sizeof(buf),hdw->std_mask_eeprom);
 	pvr2_trace(PVR2_TRACE_STD,
-		   "Supported video standard(s) reported by eeprom: %.*s",
+		   "Supported video standard(s) reported available"
+		   " in hardware: %.*s",
 		   bcnt,buf);
 
 	hdw->std_mask_avail = hdw->std_mask_eeprom;
@@ -1682,9 +1686,9 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "pvr2_hdw_setup: Tuner type overridden to %d",
 			   hdw->tuner_type);
+		hdw->tuner_updated = !0;
 	}
 
-	hdw->tuner_updated = !0;
 	pvr2_i2c_core_check_stale(hdw);
 	hdw->tuner_updated = 0;
 
