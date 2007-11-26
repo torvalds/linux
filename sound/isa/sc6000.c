@@ -390,7 +390,7 @@ static int __devinit sc6000_init_board(char __iomem *vport, int irq, int dma,
 
 	err = sc6000_init_mss(vport, config, vmss_port, mss_config);
 	if (err < 0) {
-		snd_printk(KERN_ERR "Can not initialize"
+		snd_printk(KERN_ERR "Can not initialize "
 			   "Microsoft Sound System mode.\n");
 		return -ENODEV;
 	}
