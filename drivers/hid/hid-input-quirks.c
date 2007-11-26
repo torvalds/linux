@@ -253,6 +253,27 @@ static int quirk_cherry_genius_29e(struct hid_usage *usage, struct input_dev *in
 	return 1;
 }
 
+static int quirk_btc_8193(struct hid_usage *usage, struct input_dev *input,
+			      unsigned long *bit, int *max)
+{
+	if ((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER)
+		return 0;
+
+	switch (usage->hid & HID_USAGE) {
+		case 0x230: map_key(BTN_MOUSE);			break;
+		case 0x231: map_rel(REL_WHEEL);			break;
+		/* 
+		 * this keyboard has a scrollwheel implemented in
+		 * totally broken way. We map this usage temporarily
+		 * to HWHEEL and handle it in the event quirk handler
+		 */
+		case 0x232: map_rel(REL_HWHEEL);		break;
+
+		default:
+			return 0;
+	}
+	return 1;
+}
 
 #define VENDOR_ID_BELKIN			0x1020
 #define DEVICE_ID_BELKIN_WIRELESS_KEYBOARD	0x0006
@@ -262,6 +283,9 @@ static int quirk_cherry_genius_29e(struct hid_usage *usage, struct input_dev *in
 
 #define VENDOR_ID_CHICONY			0x04f2
 #define DEVICE_ID_CHICONY_TACTICAL_PAD		0x0418
+
+#define VENDOR_ID_EZKEY				0x0518
+#define DEVICE_ID_BTC_8193			0x0002
 
 #define VENDOR_ID_LOGITECH			0x046d
 #define DEVICE_ID_LOGITECH_RECEIVER		0xc101
@@ -290,6 +314,8 @@ static const struct hid_input_blacklist {
 	{ VENDOR_ID_CHERRY, DEVICE_ID_CHERRY_CYMOTION, quirk_cherry_cymotion },
 
 	{ VENDOR_ID_CHICONY, DEVICE_ID_CHICONY_TACTICAL_PAD, quirk_chicony_tactical_pad },
+
+	{ VENDOR_ID_EZKEY, DEVICE_ID_BTC_8193, quirk_btc_8193 },
 
 	{ VENDOR_ID_LOGITECH, DEVICE_ID_LOGITECH_RECEIVER, quirk_logitech_ultrax_remote },
 	{ VENDOR_ID_LOGITECH, DEVICE_ID_S510_RECEIVER, quirk_logitech_wireless },
@@ -323,6 +349,7 @@ int hidinput_mapping_quirks(struct hid_usage *usage,
 	return 0;
 }
 
+#define IS_BTC8193(x) (x->vendor == 0x0518 && x->product == 0x0002)
 #define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
 
 void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
@@ -383,6 +410,13 @@ void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, stru
 		} else {
 			input_event(input, usage->type, last_key, 0);
 		}
+	}
+
+	/* handle the temporary quirky mapping to HWHEEL */
+	if (hid->quirks & HID_QUIRK_HWHEEL_WHEEL_INVERT &&
+			usage->type == EV_REL && usage->code == REL_HWHEEL) {
+		input_event(input, usage->type, REL_WHEEL, -value);
+		return;
 	}
 }
 
