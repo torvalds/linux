@@ -151,6 +151,13 @@ struct cmd_ds_802_11_reset {
 struct cmd_ds_802_11_subscribe_event {
 	__le16 action;
 	__le16 events;
+
+	/* A TLV to the CMD_802_11_SUBSCRIBE_EVENT command can contain a
+	 * number of TLVs. From the v5.1 manual, those TLVs would add up to
+	 * 40 bytes. However, future firmware might add additional TLVs, so I
+	 * bump this up a bit.
+	 */
+	u8 tlv[128];
 };
 
 /*

@@ -554,6 +554,26 @@ static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
 	return 0;
 }
 
+static int lbs_ret_802_11_subscribe_event(struct lbs_private *priv,
+	struct cmd_ds_command *resp)
+{
+	struct lbs_adapter *adapter = priv->adapter;
+	struct cmd_ds_802_11_subscribe_event *cmd_event =
+		&resp->params.subscribe_event;
+	struct cmd_ds_802_11_subscribe_event *dst_event =
+		adapter->cur_cmd->pdata_buf;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (dst_event->action == cpu_to_le16(CMD_ACT_GET)) {
+		dst_event->events = le16_to_cpu(cmd_event->events);
+		memcpy(dst_event->tlv, cmd_event->tlv, sizeof(dst_event->tlv));
+	}
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return 0;
+}
+
 static inline int handle_cmd_response(u16 respcmd,
 				      struct cmd_ds_command *resp,
 				      struct lbs_private *priv)
@@ -689,6 +709,10 @@ static inline int handle_cmd_response(u16 respcmd,
 			sizeof(struct cmd_ds_802_11_led_ctrl));
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		break;
+	case CMD_RET(CMD_802_11_SUBSCRIBE_EVENT):
+		ret = lbs_ret_802_11_subscribe_event(priv, resp);
+		break;
+
 	case CMD_RET(CMD_802_11_PWR_CFG):
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		memmove(adapter->cur_cmd->pdata_buf, &resp->params.pwrcfg,

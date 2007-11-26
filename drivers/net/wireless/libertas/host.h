@@ -180,6 +180,14 @@
 #define CMD_TYPE_SHORT_PREAMBLE             0x0002
 #define CMD_TYPE_LONG_PREAMBLE              0x0003
 
+/* Event flags for CMD_802_11_SUBSCRIBE_EVENT */
+#define CMD_SUBSCRIBE_RSSI_LOW              0x0001
+#define CMD_SUBSCRIBE_SNR_LOW               0x0002
+#define CMD_SUBSCRIBE_FAILCOUNT             0x0004
+#define CMD_SUBSCRIBE_BCNMISS               0x0008
+#define CMD_SUBSCRIBE_RSSI_HIGH             0x0010
+#define CMD_SUBSCRIBE_SNR_HIGH              0x0020
+
 #define TURN_ON_RF                              0x01
 #define RADIO_ON                                0x01
 #define RADIO_OFF                               0x00
