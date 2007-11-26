@@ -2,6 +2,8 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/kdebug.h>
+#include <linux/signal.h>
+#include <linux/sched.h>
 #include <asm/system.h>
 
 #ifdef CONFIG_BUG
