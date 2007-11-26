@@ -79,7 +79,7 @@ scb2_fixup_mtd(struct mtd_info *mtd)
 	struct cfi_private *cfi = map->fldrv_priv;
 
 	/* barf if this doesn't look right */
-	if (cfi->cfiq->InterfaceDesc != 1) {
+	if (cfi->cfiq->InterfaceDesc != CFI_INTERFACE_X16_ASYNC) {
 		printk(KERN_ERR MODNAME ": unsupported InterfaceDesc: %#x\n",
 		    cfi->cfiq->InterfaceDesc);
 		return -1;

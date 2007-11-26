@@ -98,6 +98,18 @@ static inline int cfi_interleave_supported(int i)
 #define CFI_DEVICETYPE_X32 (32 / 8)
 #define CFI_DEVICETYPE_X64 (64 / 8)
 
+
+/* Device Interface Code Assignments from the "Common Flash Memory Interface
+ * Publication 100" dated December 1, 2001.
+ */
+#define CFI_INTERFACE_X8_ASYNC		0x0000
+#define CFI_INTERFACE_X16_ASYNC		0x0001
+#define CFI_INTERFACE_X8_BY_X16_ASYNC	0x0002
+#define CFI_INTERFACE_X32_ASYNC		0x0003
+#define CFI_INTERFACE_X16_BY_X32_ASYNC	0x0005
+#define CFI_INTERFACE_NOT_ALLOWED	0xffff
+
+
 /* NB: We keep these structures in memory in HOST byteorder, except
  * where individually noted.
  */
