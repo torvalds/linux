@@ -188,7 +188,7 @@ static unsigned char data_direction_register_offset[8] = {
 	0x10, 0x14, 0x18, 0x1c, 0x24, 0x34, 0x3c, 0x44,
 };
 
-void gpio_line_config(int line, int direction)
+static void ep93xx_gpio_set_direction(unsigned line, int direction)
 {
 	unsigned int data_direction_register;
 	unsigned long flags;
@@ -219,39 +219,64 @@ void gpio_line_config(int line, int direction)
 	}
 	local_irq_restore(flags);
 }
+
+void __deprecated gpio_line_config(int line, int direction)
+{
+	ep93xx_gpio_set_direction(line, direction);
+}
 EXPORT_SYMBOL(gpio_line_config);
 
-int gpio_line_get(int line)
+int gpio_direction_input(unsigned gpio)
+{
+	if (gpio > EP93XX_GPIO_LINE_H(7))
+		return -EINVAL;
+
+	ep93xx_gpio_set_direction(gpio, GPIO_IN);
+
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_input);
+
+int gpio_direction_output(unsigned gpio, int value)
+{
+	if (gpio > EP93XX_GPIO_LINE_H(7))
+		return -EINVAL;
+
+	gpio_set_value(gpio, value);
+	ep93xx_gpio_set_direction(gpio, GPIO_OUT);
+
+	return 0;
+}
+EXPORT_SYMBOL(gpio_direction_output);
+
+int gpio_get_value(unsigned gpio)
 {
 	unsigned int data_register;
 
-	data_register = EP93XX_GPIO_REG(data_register_offset[line >> 3]);
+	data_register = EP93XX_GPIO_REG(data_register_offset[gpio >> 3]);
 
-	return !!(__raw_readb(data_register) & (1 << (line & 7)));
+	return !!(__raw_readb(data_register) & (1 << (gpio & 7)));
 }
-EXPORT_SYMBOL(gpio_line_get);
+EXPORT_SYMBOL(gpio_get_value);
 
-void gpio_line_set(int line, int value)
+void gpio_set_value(unsigned gpio, int value)
 {
 	unsigned int data_register;
 	unsigned long flags;
 	unsigned char v;
 
-	data_register = EP93XX_GPIO_REG(data_register_offset[line >> 3]);
+	data_register = EP93XX_GPIO_REG(data_register_offset[gpio >> 3]);
 
 	local_irq_save(flags);
-	if (value == EP93XX_GPIO_HIGH) {
-		v = __raw_readb(data_register);
-		v |= 1 << (line & 7);
-		__raw_writeb(v, data_register);
-	} else if (value == EP93XX_GPIO_LOW) {
-		v = __raw_readb(data_register);
-		v &= ~(1 << (line & 7));
-		__raw_writeb(v, data_register);
-	}
+	v = __raw_readb(data_register);
+	if (value)
+		v |= 1 << (gpio & 7);
+	else
+		v &= ~(1 << (gpio & 7));
+	__raw_writeb(v, data_register);
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(gpio_line_set);
+EXPORT_SYMBOL(gpio_set_value);
 
 
 /*************************************************************************
@@ -334,9 +359,9 @@ static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 
 	line = irq - IRQ_EP93XX_GPIO(0);
 	if (line >= 0 && line < 16) {
-		gpio_line_config(line, GPIO_IN);
+		ep93xx_gpio_set_direction(line, GPIO_IN);
 	} else {
-		gpio_line_config(EP93XX_GPIO_LINE_F(line-16), GPIO_IN);
+		ep93xx_gpio_set_direction(EP93XX_GPIO_LINE_F(line-16), GPIO_IN);
 	}
 
 	port = line >> 3;

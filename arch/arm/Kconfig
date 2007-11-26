@@ -217,6 +217,7 @@ config ARCH_EP93XX
 	bool "EP93xx-based"
 	select ARM_AMBA
 	select ARM_VIC
+	select GENERIC_GPIO
 	help
 	  This enables support for the Cirrus EP93xx series of CPUs.
 
