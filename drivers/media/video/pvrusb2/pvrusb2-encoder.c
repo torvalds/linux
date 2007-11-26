@@ -286,8 +286,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
 				"Giving up on command."
-				"  It is likely that"
-				" this is a bad idea...");
+				"  This is normally recovered by the driver.");
 			break;
 		}
 		wrData[0] = 0x7;
