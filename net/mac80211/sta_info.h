@@ -99,6 +99,9 @@ struct sta_info {
 
 	u16 listen_interval;
 
+	struct ieee80211_ht_info ht_info; /* 802.11n HT capabilities
+					     of this STA */
+
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct sta_info_debugfsdentries {
 		struct dentry *dir;

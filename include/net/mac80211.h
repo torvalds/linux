@@ -139,17 +139,54 @@ enum ieee80211_phymode {
 };
 
 /**
+ * struct ieee80211_ht_info - describing STA's HT capabilities
+ *
+ * This structure describes most essential parameters needed
+ * to describe 802.11n HT capabilities for an STA.
+ *
+ * @ht_supported: is HT supported by STA, 0: no, 1: yes
+ * @cap: HT capabilities map as described in 802.11n spec
+ * @ampdu_factor: Maximum A-MPDU length factor
+ * @ampdu_density: Minimum A-MPDU spacing
+ * @supp_mcs_set: Supported MCS set as described in 802.11n spec
+ */
+struct ieee80211_ht_info {
+	u8 ht_supported;
+	u16 cap; /* use IEEE80211_HT_CAP_ */
+	u8 ampdu_factor;
+	u8 ampdu_density;
+	u8 supp_mcs_set[16];
+};
+
+/**
+ * struct ieee80211_ht_bss_info - describing BSS's HT characteristics
+ *
+ * This structure describes most essential parameters needed
+ * to describe 802.11n HT characteristics in a BSS
+ *
+ * @primary_channel: channel number of primery channel
+ * @bss_cap: 802.11n's general BSS capabilities (e.g. channel width)
+ * @bss_op_mode: 802.11n's BSS operation modes (e.g. HT protection)
+ */
+struct ieee80211_ht_bss_info {
+	u8 primary_channel;
+	u8 bss_cap;  /* use IEEE80211_HT_IE_CHA_ */
+	u8 bss_op_mode; /* use IEEE80211_HT_IE_ */
+};
+
+/**
  * struct ieee80211_hw_mode - PHY mode definition
  *
  * This structure describes the capabilities supported by the device
  * in a single PHY mode.
  *
+ * @list: internal
+ * @channels: pointer to array of supported channels
+ * @rates: pointer to array of supported bitrates
  * @mode: the PHY mode for this definition
  * @num_channels: number of supported channels
- * @channels: pointer to array of supported channels
  * @num_rates: number of supported bitrates
- * @rates: pointer to array of supported bitrates
- * @list: internal
+ * @ht_info: PHY's 802.11n HT abilities for this mode
  */
 struct ieee80211_hw_mode {
 	struct list_head list;
@@ -158,6 +195,7 @@ struct ieee80211_hw_mode {
 	enum ieee80211_phymode mode;
 	int num_channels;
 	int num_rates;
+	struct ieee80211_ht_info ht_info;
 };
 
 /**
@@ -406,11 +444,12 @@ struct ieee80211_tx_status {
  *
  * @IEEE80211_CONF_SHORT_SLOT_TIME: use 802.11g short slot time
  * @IEEE80211_CONF_RADIOTAP: add radiotap header at receive time (if supported)
- *
+ * @IEEE80211_CONF_SUPPORT_HT_MODE: use 802.11n HT capabilities (if supported)
  */
 enum ieee80211_conf_flags {
-	IEEE80211_CONF_SHORT_SLOT_TIME	= 1<<0,
-	IEEE80211_CONF_RADIOTAP		= 1<<1,
+	IEEE80211_CONF_SHORT_SLOT_TIME	= (1<<0),
+	IEEE80211_CONF_RADIOTAP		= (1<<1),
+	IEEE80211_CONF_SUPPORT_HT_MODE	= (1<<2),
 };
 
 /**
@@ -434,6 +473,8 @@ enum ieee80211_conf_flags {
  * @antenna_sel_tx: transmit antenna selection, 0: default/diversity,
  *	1/2: antenna 0/1
  * @antenna_sel_rx: receive antenna selection, like @antenna_sel_tx
+ * @ht_conf: describes current self configuration of 802.11n HT capabilies
+ * @ht_bss_conf: describes current BSS configuration of 802.11n HT parameters
  */
 struct ieee80211_conf {
 	int channel;			/* IEEE 802.11 channel number */
@@ -452,6 +493,9 @@ struct ieee80211_conf {
 	u8 antenna_max;
 	u8 antenna_sel_tx;
 	u8 antenna_sel_rx;
+
+	struct ieee80211_ht_info ht_conf;
+	struct ieee80211_ht_bss_info ht_bss_conf;
 };
 
 /**
