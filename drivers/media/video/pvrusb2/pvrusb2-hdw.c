@@ -1831,7 +1831,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->controls = kzalloc(sizeof(struct pvr2_ctrl) * hdw->control_cnt,
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
-	hdw->hdw_type = hdw_type;
 	hdw->hdw_desc = hdw_desc;
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;

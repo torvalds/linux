@@ -174,8 +174,8 @@ struct pvr2_hdw {
 	struct usb_device *usb_dev;
 	struct usb_interface *usb_intf;
 
-	/* Device type, one of PVR2_HDW_TYPE_xxxxx */
-	unsigned int hdw_type;
+	/* Device description, anything that must adjust behavior based on
+	   device specific info will use information held here. */
 	const struct pvr2_device_desc *hdw_desc;
 
 	/* Kernel worker thread handling */
