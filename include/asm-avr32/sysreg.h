@@ -93,6 +93,8 @@
 #define SYSREG_I3M_SIZE				1
 #define SYSREG_EM_OFFSET			21
 #define SYSREG_EM_SIZE				1
+#define SYSREG_MODE_OFFSET			22
+#define SYSREG_MODE_SIZE			3
 #define SYSREG_M0_OFFSET			22
 #define SYSREG_M0_SIZE				1
 #define SYSREG_M1_OFFSET			23

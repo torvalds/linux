@@ -527,15 +527,14 @@ fault_exit_work:
 
 	/* If we get a debug trap from privileged context we end up here */
 handle_debug_priv:
-	/* Fix up LR and SP in regs. r11 contains the mode we came from */
-	mfsr	r8, SYSREG_SR
-	mov	r9, r8
-	andh	r8, hi(~MODE_MASK)
-	or	r8, r11
-	mtsr	SYSREG_SR, r8
+	/* Fix up LR and SP in regs. r1 contains the mode we came from */
+	mfsr	r2, SYSREG_SR
+	mov	r3, r2
+	bfins	r2, r1, SYSREG_MODE_OFFSET, SYSREG_MODE_SIZE
+	mtsr	SYSREG_SR, r2
 	sub	pc, -2
 	stdsp	sp[REG_LR], lr
-	mtsr	SYSREG_SR, r9
+	mtsr	SYSREG_SR, r3
 	sub	pc, -2
 	sub	r10, sp, -FRAME_SIZE_FULL
 	stdsp	sp[REG_SP], r10
@@ -547,15 +546,19 @@ handle_debug_priv:
 	popm	r10, r11
 	mtsr	SYSREG_RAR_DBG, r10
 	mtsr	SYSREG_RSR_DBG, r11
-	mfsr	r8, SYSREG_SR
-	mov	r9, r8
-	andh	r8, hi(~MODE_MASK)
-	andh	r11, hi(MODE_MASK)
-	or	r8, r11
-	mtsr	SYSREG_SR, r8
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bld	r11, SYSREG_GM_OFFSET
+	brcc	1f
+	rcall	trace_hardirqs_on
+1:
+#endif
+	mfsr	r2, SYSREG_SR
+	mov	r3, r2
+	bfins	r2, r1, SYSREG_MODE_OFFSET, SYSREG_MODE_SIZE
+	mtsr	SYSREG_SR, r2
 	sub	pc, -2
 	popm	lr
-	mtsr	SYSREG_SR, r9
+	mtsr	SYSREG_SR, r3
 	sub	pc, -2
 	sub	sp, -4		/* skip SP */
 	popm	r0-r12
@@ -572,11 +575,14 @@ handle_debug_priv:
 handle_debug:
 	sub	sp, 4		/* r12_orig */
 	stmts	--sp, r0-lr
-	mfsr	r10, SYSREG_RAR_DBG
-	mfsr	r11, SYSREG_RSR_DBG
+	mfsr	r0, SYSREG_RAR_DBG
+	mfsr	r1, SYSREG_RSR_DBG
+#ifdef CONFIG_TRACE_IRQFLAGS
+	rcall	trace_hardirqs_off
+#endif
 	unmask_exceptions
-	pushm	r10,r11
-	andh	r11, (MODE_MASK >> 16), COH
+	stm	--sp, r0, r1
+	bfextu	r1, r1, SYSREG_MODE_OFFSET, SYSREG_MODE_SIZE
 	brne	handle_debug_priv
 
 	mov	r12, sp
@@ -591,6 +597,12 @@ debug_restore_all:
 	mask_exceptions
 	mtsr	SYSREG_RSR_DBG, r11
 	mtsr	SYSREG_RAR_DBG, r10
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bld	r11, SYSREG_GM_OFFSET
+	brcc	1f
+	rcall	trace_hardirqs_on
+1:
+#endif
 	ldmts	sp++, r0-lr
 	sub	sp, -4
 	retd
@@ -675,7 +687,11 @@ irq_level\level:
 	andl	r1, _TIF_WORK_MASK, COH
 	brne	irq_exit_work
 
-1:	popm	r8-r9
+1:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	rcall	trace_hardirqs_on
+#endif
+	popm	r8-r9
 	mtsr	rar_int\level, r8
 	mtsr	rsr_int\level, r9
 	ldmts	sp++,r0-lr
