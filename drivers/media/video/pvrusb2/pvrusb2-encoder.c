@@ -209,7 +209,7 @@ static int pvr2_encoder_cmd(void *ctxt,
 
 	LOCK_TAKE(hdw->ctl_lock); do {
 
-		if (!hdw->flag_encoder_ok) {
+		if (!hdw->state_encoder_ok) {
 			ret = -EIO;
 			break;
 		}
@@ -278,7 +278,11 @@ static int pvr2_encoder_cmd(void *ctxt,
 			ret = -EBUSY;
 		}
 		if (ret) {
-			hdw->flag_encoder_ok = 0;
+			hdw->state_encoder_ok = 0;
+			pvr2_trace(PVR2_TRACE_STBITS,
+				   "State bit %s <-- %s",
+				   "state_encoder_ok",
+				   (hdw->state_encoder_ok ? "true" : "false"));
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
 				"Giving up on command."
@@ -394,6 +398,24 @@ static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 	return ret;
 }
 
+int pvr2_encoder_adjust(struct pvr2_hdw *hdw)
+{
+	int ret;
+	ret = cx2341x_update(hdw,pvr2_encoder_cmd,
+			     (hdw->enc_cur_valid ? &hdw->enc_cur_state : NULL),
+			     &hdw->enc_ctl_state);
+	if (ret) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Error from cx2341x module code=%d",ret);
+	} else {
+		memcpy(&hdw->enc_cur_state,&hdw->enc_ctl_state,
+		       sizeof(struct cx2341x_mpeg_params));
+		hdw->enc_cur_valid = !0;
+	}
+	return ret;
+}
+
+
 int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 {
 	int ret;
@@ -436,18 +458,10 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 		return ret;
 	}
 
-	ret = cx2341x_update(hdw,pvr2_encoder_cmd,
-			     (hdw->enc_cur_valid ? &hdw->enc_cur_state : NULL),
-			     &hdw->enc_ctl_state);
-	if (ret) {
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Error from cx2341x module code=%d",ret);
-		return ret;
-	}
+	ret = pvr2_encoder_adjust(hdw);
+	if (ret) return ret;
 
-	ret = 0;
-
-	if (!ret) ret = pvr2_encoder_vcmd(
+	ret = pvr2_encoder_vcmd(
 		hdw, CX2341X_ENC_INITIALIZE_INPUT, 0);
 
 	if (ret) {
@@ -456,10 +470,6 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 		return ret;
 	}
 
-	hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_CFG);
-	memcpy(&hdw->enc_cur_state,&hdw->enc_ctl_state,
-	       sizeof(struct cx2341x_mpeg_params));
-	hdw->enc_cur_valid = !0;
 	return 0;
 }
 
@@ -478,7 +488,7 @@ int pvr2_encoder_start(struct pvr2_hdw *hdw)
 	pvr2_encoder_vcmd(hdw,CX2341X_ENC_MUTE_VIDEO,1,
 			  hdw->input_val == PVR2_CVAL_INPUT_RADIO ? 1 : 0);
 
-	switch (hdw->config) {
+	switch (hdw->active_stream_type) {
 	case pvr2_config_vbi:
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_START_CAPTURE,2,
 					   0x01,0x14);
@@ -492,9 +502,6 @@ int pvr2_encoder_start(struct pvr2_hdw *hdw)
 					   0,0x13);
 		break;
 	}
-	if (!status) {
-		hdw->subsys_enabled_mask |= (1<<PVR2_SUBSYS_B_ENC_RUN);
-	}
 	return status;
 }
 
@@ -505,7 +512,7 @@ int pvr2_encoder_stop(struct pvr2_hdw *hdw)
 	/* mask all interrupts */
 	pvr2_write_register(hdw, 0x0048, 0xffffffff);
 
-	switch (hdw->config) {
+	switch (hdw->active_stream_type) {
 	case pvr2_config_vbi:
 		status = pvr2_encoder_vcmd(hdw,CX2341X_ENC_STOP_CAPTURE,3,
 					   0x01,0x01,0x14);
@@ -526,9 +533,6 @@ int pvr2_encoder_stop(struct pvr2_hdw *hdw)
 	pvr2_hdw_gpio_chg_dir(hdw,0xffffffff,0x00000401);
 	pvr2_hdw_gpio_chg_out(hdw,0xffffffff,0x00000000);
 
-	if (!status) {
-		hdw->subsys_enabled_mask &= ~(1<<PVR2_SUBSYS_B_ENC_RUN);
-	}
 	return status;
 }
 

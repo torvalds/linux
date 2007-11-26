@@ -129,7 +129,7 @@ static const struct pvr2_v4l_decoder_ops decoder_ops[] = {
 static void decoder_detach(struct pvr2_v4l_decoder *ctxt)
 {
 	ctxt->client->handler = NULL;
-	ctxt->hdw->decoder_ctrl = NULL;
+	pvr2_hdw_set_decoder(ctxt->hdw,NULL);
 	kfree(ctxt);
 }
 
@@ -217,7 +217,7 @@ int pvr2_i2c_decoder_v4l_setup(struct pvr2_hdw *hdw,
 	ctxt->client = cp;
 	ctxt->hdw = hdw;
 	ctxt->stale_mask = (1 << ARRAY_SIZE(decoder_ops)) - 1;
-	hdw->decoder_ctrl = &ctxt->ctrl;
+	pvr2_hdw_set_decoder(hdw,&ctxt->ctrl);
 	cp->handler = &ctxt->handler;
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c 0x%x saa711x V4L2 handler set up",
 		   cp->client->addr);

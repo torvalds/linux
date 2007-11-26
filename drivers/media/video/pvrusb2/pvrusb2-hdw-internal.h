@@ -35,6 +35,7 @@
 
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
+#include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
@@ -179,15 +180,18 @@ struct pvr2_hdw {
 	/* Device type, one of PVR2_HDW_TYPE_xxxxx */
 	unsigned int hdw_type;
 
+	/* Kernel worker thread handling */
+	struct workqueue_struct *workqueue;
+	struct work_struct workpoll;     /* Update driver state */
+	struct work_struct worki2csync;  /* Update i2c clients */
+	struct work_struct workinit;     /* Driver initialization sequence */
+
 	/* Video spigot */
 	struct pvr2_stream *vid_stream;
 
 	/* Mutex for all hardware state control */
 	struct mutex big_lock_mutex;
 	int big_lock_held;  /* For debugging */
-
-	void (*poll_trigger_func)(void *);
-	void *poll_trigger_data;
 
 	char name[32];
 
@@ -225,14 +229,48 @@ struct pvr2_hdw {
 	unsigned int cmd_debug_write_len;  //
 	unsigned int cmd_debug_read_len;   //
 
+	/* Bits of state that describe what is going on with various parts
+	   of the driver. */
+	volatile int state_encoder_ok;         /* Encoder is operational */
+	volatile int state_encoder_run;        /* Encoder is running */
+	volatile int state_encoder_config;     /* Encoder is configured */
+	volatile int state_encoder_waitok;     /* Encoder pre-wait done */
+	volatile int state_decoder_run;        /* Decoder is running */
+	volatile int state_usbstream_run;      /* FX2 is streaming */
+	volatile int state_decoder_quiescent;  /* Decoder idle for > 50msec */
+	volatile int state_pipeline_config;    /* Pipeline is configured */
+	int state_pipeline_req;                /* Somebody wants to stream */
+	int state_pipeline_pause;              /* Pipeline must be paused */
+	int state_pipeline_idle;               /* Pipeline not running */
+
+	/* This is the master state of the driver.  It is the combined
+	   result of other bits of state.  Examining this will indicate the
+	   overall state of the driver.  Values here are one of
+	   PVR2_STATE_xxxx */
+	unsigned int master_state;
+
+	/* True if states must be re-evaluated */
+	int state_stale;
+
+	void (*state_func)(void *);
+	void *state_data;
+
+	/* Timer for measuring decoder settling time */
+	struct timer_list quiescent_timer;
+
+	/* Timer for measuring encoder pre-wait time */
+	struct timer_list encoder_wait_timer;
+
+	/* Place to block while waiting for state changes */
+	wait_queue_head_t state_wait_data;
+
+
 	int flag_ok;            /* device in known good state */
 	int flag_disconnected;  /* flag_ok == 0 due to disconnect */
 	int flag_init_ok;       /* true if structure is fully initialized */
-	int flag_streaming_enabled; /* true if streaming should be on */
 	int fw1_state;          /* current situation with fw1 */
-	int flag_encoder_ok;    /* True if encoder is healthy */
-
-	int flag_decoder_is_tuned;
+	int flag_decoder_missed;/* We've noticed missing decoder */
+	int flag_tripped;       /* Indicates overall failure to start */
 
 	struct pvr2_decoder_ctrl *decoder_ctrl;
 
@@ -240,12 +278,6 @@ struct pvr2_hdw {
 	char *fw_buffer;
 	unsigned int fw_size;
 	int fw_cpu_flag; /* True if we are dealing with the CPU */
-
-	// Which subsystem pieces have been enabled / configured
-	unsigned long subsys_enabled_mask;
-
-	// Which subsystems are manipulated to enable streaming
-	unsigned long subsys_stream_mask;
 
 	// True if there is a request to trigger logging of state in each
 	// module.
@@ -296,13 +328,16 @@ struct pvr2_hdw {
 	/* Location of eeprom or a negative number if none */
 	int eeprom_addr;
 
-	enum pvr2_config config;
+	enum pvr2_config active_stream_type;
+	enum pvr2_config desired_stream_type;
 
 	/* Control state needed for cx2341x module */
 	struct cx2341x_mpeg_params enc_cur_state;
 	struct cx2341x_mpeg_params enc_ctl_state;
 	/* True if an encoder attribute has changed */
 	int enc_stale;
+	/* True if an unsafe encoder attribute has changed */
+	int enc_unsafe_stale;
 	/* True if enc_cur_state is valid */
 	int enc_cur_valid;
 
@@ -332,6 +367,7 @@ struct pvr2_hdw {
 
 /* This function gets the current frequency */
 unsigned long pvr2_hdw_get_cur_freq(struct pvr2_hdw *);
+void pvr2_hdw_set_decoder(struct pvr2_hdw *,struct pvr2_decoder_ctrl *);
 
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
 

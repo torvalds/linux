@@ -895,7 +895,7 @@ static int pvr2_i2c_attach_inform(struct i2c_client *client)
 		list_add_tail(&cp->list,&hdw->i2c_clients);
 		hdw->i2c_pend_types |= PVR2_I2C_PEND_DETECT;
 	} while (0); mutex_unlock(&hdw->i2c_list_lock);
-	if (fl) pvr2_hdw_poll_trigger_unlocked(hdw);
+	if (fl) queue_work(hdw->workqueue,&hdw->worki2csync);
 	return 0;
 }
 

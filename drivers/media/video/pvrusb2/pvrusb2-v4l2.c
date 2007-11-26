@@ -1015,10 +1015,8 @@ static int pvr2_v4l2_iosetup(struct pvr2_v4l2_fh *fh)
 	sp = fh->dev_info->stream->stream;
 	pvr2_stream_set_callback(sp,(pvr2_stream_callback)pvr2_v4l2_notify,fh);
 	pvr2_hdw_set_stream_type(hdw,fh->dev_info->config);
-	pvr2_hdw_set_streaming(hdw,!0);
-	ret = pvr2_ioread_set_enabled(fh->rhp,!0);
-
-	return ret;
+	if ((ret = pvr2_hdw_set_streaming(hdw,!0)) < 0) return ret;
+	return pvr2_ioread_set_enabled(fh->rhp,!0);
 }
 
 
