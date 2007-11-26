@@ -853,6 +853,8 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 	struct task_struct *tsk = current;
 	siginfo_t info;
 
+	trace_hardirqs_fixup();
+
 	get_debugreg(condition, 6);
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,

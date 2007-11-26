@@ -833,6 +833,8 @@ fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 	unsigned int condition;
 	struct task_struct *tsk = current;
 
+	trace_hardirqs_fixup();
+
 	get_debugreg(condition, 6);
 
 	if (notify_die(DIE_DEBUG, "debug", regs, condition, error_code,
