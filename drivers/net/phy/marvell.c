@@ -143,20 +143,28 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	int err;
 
 	if ((phydev->interface == PHY_INTERFACE_MODE_RGMII) ||
-	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID)) {
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) ||
+	    (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)) {
 		int temp;
 
+		temp = phy_read(phydev, MII_M1111_PHY_EXT_CR);
+		if (temp < 0)
+			return temp;
+
 		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_ID) {
-			temp = phy_read(phydev, MII_M1111_PHY_EXT_CR);
-			if (temp < 0)
-				return temp;
-
 			temp |= (MII_M1111_RX_DELAY | MII_M1111_TX_DELAY);
-
-			err = phy_write(phydev, MII_M1111_PHY_EXT_CR, temp);
-			if (err < 0)
-				return err;
+		} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_RXID) {
+			temp &= ~MII_M1111_TX_DELAY;
+			temp |= MII_M1111_RX_DELAY;
+		} else if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+			temp &= ~MII_M1111_RX_DELAY;
+			temp |= MII_M1111_TX_DELAY;
 		}
+
+		err = phy_write(phydev, MII_M1111_PHY_EXT_CR, temp);
+		if (err < 0)
+			return err;
 
 		temp = phy_read(phydev, MII_M1111_PHY_EXT_SR);
 		if (temp < 0)
