@@ -33,6 +33,15 @@ config IWL4965_QOS
 	  This option will enable wireless quality of service (QoS) for the
 	  iw4965 driver.
 
+config IWL4965_HT
+	bool "Enable 802.11n HT features in iwl4965 driver"
+	depends on EXPERIMENTAL
+	depends on IWL4965 && IWL4965_QOS
+	depends on n
+	---help---
+	  This option enables IEEE 802.11n High Throughput features
+	  for the iwl4965 driver.
+
 config IWL4965_SPECTRUM_MEASUREMENT
 	bool "Enable Spectrum Measurement in iw4965 driver"
 	depends on IWL4965
@@ -45,14 +54,6 @@ config IWL4965_SENSITIVITY
 	---help---
 	  This option will enable sensitivity calibration for the iwl4965
 	  driver.
-
-config IWL4965_HT
-	bool "Enable 802.11n HT features in iwl4965 driver"
-	depends on EXPERIMENTAL
-	depends on IWL4965 && MAC80211_HT
-	---help---
-	  This option enables IEEE 802.11n High Throughput features
-	  for the iwl4965 driver.
 
 config IWL4965_DEBUG
 	bool "Enable full debugging output in iwl4965 driver"
