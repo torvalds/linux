@@ -1801,11 +1801,6 @@ static void genesis_mac_intr(struct skge_hw *hw, int port)
 		xm_write32(hw, port, XM_MODE, XM_MD_FTF);
 		++dev->stats.tx_fifo_errors;
 	}
-
-	if (status & XM_IS_RXF_OV) {
-		xm_write32(hw, port, XM_MODE, XM_MD_FRF);
-		++dev->stats.rx_fifo_errors;
-	}
 }
 
 static void genesis_link_up(struct skge_port *skge)
@@ -1862,9 +1857,9 @@ static void genesis_link_up(struct skge_port *skge)
 
 	xm_write32(hw, port, XM_MODE, mode);
 
-	/* Turn on detection of Tx underrun, Rx overrun */
+	/* Turn on detection of Tx underrun */
 	msk = xm_read16(hw, port, XM_IMSK);
-	msk &= ~(XM_IS_RXF_OV | XM_IS_TXF_UR);
+	msk &= ~XM_IS_TXF_UR;
 	xm_write16(hw, port, XM_IMSK, msk);
 
 	xm_read16(hw, port, XM_ISRC);
