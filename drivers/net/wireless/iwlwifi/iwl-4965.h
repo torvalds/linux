@@ -766,7 +766,6 @@ extern int iwl4965_hw_channel_switch(struct iwl4965_priv *priv, u16 channel);
 extern int iwl4965_tx_queue_reclaim(struct iwl4965_priv *priv, int txq_id, int index);
 
 struct iwl4965_priv;
-struct sta_ht_info;
 
 /*
  * Forward declare iwl-4965.c functions for iwl-base.c
@@ -779,9 +778,6 @@ extern int iwl4965_tx_queue_update_wr_ptr(struct iwl4965_priv *priv,
 					  u16 byte_cnt);
 extern void iwl4965_add_station(struct iwl4965_priv *priv, const u8 *addr,
 				int is_ap);
-extern void iwl4965_set_rxon_ht(struct iwl4965_priv *priv,
-				struct sta_ht_info *ht_info);
-
 extern void iwl4965_set_rxon_chain(struct iwl4965_priv *priv);
 extern int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd,
 			  u8 sta_id, dma_addr_t txcmd_phys,
@@ -803,6 +799,8 @@ extern void iwl4965_rf_kill_ct_config(struct iwl4965_priv *priv);
 #ifdef CONFIG_IWL4965_HT
 extern void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
 					int mode);
+extern void iwl4965_set_rxon_ht(struct iwl4965_priv *priv,
+				struct iwl_ht_info *ht_info);
 #ifdef CONFIG_IWL4965_HT_AGG
 extern int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da,
 				   u16 tid, u16 *start_seq_num);

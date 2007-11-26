@@ -87,8 +87,8 @@ static int is_fat_channel(__le32 rxon_flags)
 static u8 is_single_stream(struct iwl4965_priv *priv)
 {
 #ifdef CONFIG_IWL4965_HT
-	if (!priv->is_ht_enabled || !priv->current_assoc_ht.is_ht ||
-	    (priv->active_rate_ht[1] == 0) ||
+	if (!priv->current_ht_config.is_ht ||
+	    (priv->current_ht_config.supp_mcs_set[1] == 0) ||
 	    (priv->ps_mode == IWL_MIMO_PS_STATIC))
 		return 1;
 #else
@@ -4541,27 +4541,27 @@ static u8 iwl4965_is_channel_extension(struct iwl4965_priv *priv, int phymode,
 }
 
 static u8 iwl4965_is_fat_tx_allowed(struct iwl4965_priv *priv,
-				const struct sta_ht_info *ht_info)
+				struct ieee80211_ht_info *sta_ht_inf)
 {
+	struct iwl_ht_info *iwl_ht_conf = &priv->current_ht_config;
 
-	if (priv->channel_width != IWL_CHANNEL_WIDTH_40MHZ)
+	if ((!iwl_ht_conf->is_ht) ||
+	   (iwl_ht_conf->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ) ||
+	   (iwl_ht_conf->extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_AUTO))
 		return 0;
 
-	if (ht_info->supported_chan_width != IWL_CHANNEL_WIDTH_40MHZ)
-		return 0;
+	if (sta_ht_inf) {
+		if ((!sta_ht_inf->ht_supported) ||
+		   (!sta_ht_inf->cap & IEEE80211_HT_CAP_SUP_WIDTH))
+			return 0;
+	}
 
-	if (ht_info->extension_chan_offset == IWL_EXT_CHANNEL_OFFSET_AUTO)
-		return 0;
-
-	/* no fat tx allowed on 2.4GHZ */
-	if (priv->phymode != MODE_IEEE80211A)
-		return 0;
 	return (iwl4965_is_channel_extension(priv, priv->phymode,
-					 ht_info->control_channel,
-					 ht_info->extension_chan_offset));
+					 iwl_ht_conf->control_channel,
+					 iwl_ht_conf->extension_chan_offset));
 }
 
-void iwl4965_set_rxon_ht(struct iwl4965_priv *priv, struct sta_ht_info *ht_info)
+void iwl4965_set_rxon_ht(struct iwl4965_priv *priv, struct iwl_ht_info *ht_info)
 {
 	struct iwl4965_rxon_cmd *rxon = &priv->staging_rxon;
 	u32 val;
@@ -4570,7 +4570,7 @@ void iwl4965_set_rxon_ht(struct iwl4965_priv *priv, struct sta_ht_info *ht_info)
 		return;
 
 	/* Set up channel bandwidth:  20 MHz only, or 20/40 mixed if fat ok */
-	if (iwl4965_is_fat_tx_allowed(priv, ht_info))
+	if (iwl4965_is_fat_tx_allowed(priv, NULL))
 		rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED_MSK;
 	else
 		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED_MSK |
@@ -4600,20 +4600,18 @@ void iwl4965_set_rxon_ht(struct iwl4965_priv *priv, struct sta_ht_info *ht_info)
 		break;
 	}
 
-	val = ht_info->operating_mode;
+	val = ht_info->ht_protection;
 
 	rxon->flags |= cpu_to_le32(val << RXON_FLG_HT_OPERATING_MODE_POS);
 
-	priv->active_rate_ht[0] = ht_info->supp_rates[0];
-	priv->active_rate_ht[1] = ht_info->supp_rates[1];
 	iwl4965_set_rxon_chain(priv);
 
 	IWL_DEBUG_ASSOC("supported HT rate 0x%X %X "
 			"rxon flags 0x%X operation mode :0x%X "
 			"extension channel offset 0x%x "
 			"control chan %d\n",
-			priv->active_rate_ht[0], priv->active_rate_ht[1],
-			le32_to_cpu(rxon->flags), ht_info->operating_mode,
+			ht_info->supp_mcs_set[0], ht_info->supp_mcs_set[1],
+			le32_to_cpu(rxon->flags), ht_info->ht_protection,
 			ht_info->extension_chan_offset,
 			ht_info->control_channel);
 	return;
