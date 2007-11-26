@@ -3,6 +3,7 @@
  * Core routines for Cirrus EP93xx chips.
  *
  * Copyright (C) 2006 Lennert Buytenhek <buytenh@wantstofly.org>
+ * Copyright (C) 2007 Herbert Valerio Riedel <hvr@gnu.org>
  *
  * Thanks go to Michael Burian and Ray Lehtiniemi for their key
  * role in the ep93xx linux community.
@@ -315,11 +316,28 @@ static void ep93xx_gpio_f_irq_handler(unsigned int irq, struct irq_desc *desc)
 	desc_handle_irq(gpio_irq, irq_desc + gpio_irq);
 }
 
+static void ep93xx_gpio_irq_ack(unsigned int irq)
+{
+	int line = irq_to_gpio(irq);
+	int port = line >> 3;
+	int port_mask = 1 << (line & 7);
+
+	if ((irq_desc[irq].status & IRQ_TYPE_SENSE_MASK) == IRQT_BOTHEDGE) {
+		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
+		update_gpio_int_params(port);
+	}
+
+	__raw_writeb(port_mask, EP93XX_GPIO_REG(eoi_register_offset[port]));
+}
+
 static void ep93xx_gpio_irq_mask_ack(unsigned int irq)
 {
 	int line = irq_to_gpio(irq);
 	int port = line >> 3;
 	int port_mask = 1 << (line & 7);
+
+	if ((irq_desc[irq].status & IRQ_TYPE_SENSE_MASK) == IRQT_BOTHEDGE)
+		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
 
 	gpio_int_unmasked[port] &= ~port_mask;
 	update_gpio_int_params(port);
@@ -353,31 +371,54 @@ static void ep93xx_gpio_irq_unmask(unsigned int irq)
  */
 static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 {
+	struct irq_desc *desc = irq_desc + irq;
 	const int gpio = irq_to_gpio(irq);
 	const int port = gpio >> 3;
 	const int port_mask = 1 << (gpio & 7);
 
 	ep93xx_gpio_set_direction(gpio, GPIO_IN);
 
-	if (type & IRQT_RISING) {
-		gpio_int_enabled[port] |= port_mask;
+	switch (type) {
+	case IRQT_RISING:
 		gpio_int_type1[port] |= port_mask;
 		gpio_int_type2[port] |= port_mask;
-	} else if (type & IRQT_FALLING) {
-		gpio_int_enabled[port] |= port_mask;
+		desc->handle_irq = handle_edge_irq;
+		break;
+	case IRQT_FALLING:
 		gpio_int_type1[port] |= port_mask;
 		gpio_int_type2[port] &= ~port_mask;
-	} else if (type & IRQT_HIGH) {
-		gpio_int_enabled[port] |= port_mask;
+		desc->handle_irq = handle_edge_irq;
+		break;
+	case IRQT_HIGH:
 		gpio_int_type1[port] &= ~port_mask;
 		gpio_int_type2[port] |= port_mask;
-	} else if (type & IRQT_LOW) {
-		gpio_int_enabled[port] |= port_mask;
+		desc->handle_irq = handle_level_irq;
+		break;
+	case IRQT_LOW:
 		gpio_int_type1[port] &= ~port_mask;
 		gpio_int_type2[port] &= ~port_mask;
-	} else {
-		gpio_int_enabled[port] &= ~port_mask;
+		desc->handle_irq = handle_level_irq;
+		break;
+	case IRQT_BOTHEDGE:
+		gpio_int_type1[port] |= port_mask;
+		/* set initial polarity based on current input level */
+		if (gpio_get_value(gpio))
+			gpio_int_type2[port] &= ~port_mask; /* falling */
+		else
+			gpio_int_type2[port] |= port_mask; /* rising */
+		desc->handle_irq = handle_edge_irq;
+		break;
+	default:
+		pr_err("ep93xx: failed to set irq type %d for gpio %d\n",
+		       type, gpio);
+		return -EINVAL;
 	}
+
+	gpio_int_enabled[port] |= port_mask;
+
+	desc->status &= ~IRQ_TYPE_SENSE_MASK;
+	desc->status |= type & IRQ_TYPE_SENSE_MASK;
+
 	update_gpio_int_params(port);
 
 	return 0;
@@ -385,7 +426,8 @@ static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 
 static struct irq_chip ep93xx_gpio_irq_chip = {
 	.name		= "GPIO",
-	.ack		= ep93xx_gpio_irq_mask_ack,
+	.ack		= ep93xx_gpio_irq_ack,
+	.mask_ack	= ep93xx_gpio_irq_mask_ack,
 	.mask		= ep93xx_gpio_irq_mask,
 	.unmask		= ep93xx_gpio_irq_unmask,
 	.set_type	= ep93xx_gpio_irq_type,
