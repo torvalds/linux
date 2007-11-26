@@ -155,6 +155,7 @@ struct ieee80211_txrx_data {
 			int load;
 			u32 tkip_iv32;
 			u16 tkip_iv16;
+			u8  amsdu_frame;
 		} rx;
 	} u;
 };
