@@ -1437,6 +1437,19 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 	}
 	sta->supp_rates = rates;
 
+	if (elems.ht_cap_elem && elems.ht_info_elem && elems.wmm_param &&
+	    local->ops->conf_ht) {
+		struct ieee80211_ht_bss_info bss_info;
+
+		ieee80211_ht_cap_ie_to_ht_info(
+				(struct ieee80211_ht_cap *)
+				elems.ht_cap_elem, &sta->ht_info);
+		ieee80211_ht_addt_info_ie_to_ht_bss_info(
+				(struct ieee80211_ht_addt_info *)
+				elems.ht_info_elem, &bss_info);
+		ieee80211_hw_config_ht(local, 1, &sta->ht_info, &bss_info);
+	}
+
 	rate_control_rate_init(sta, local);
 
 	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
@@ -1859,6 +1872,8 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 	struct ieee80211_if_sta *ifsta;
 	size_t baselen;
 	struct ieee802_11_elems elems;
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_conf *conf = &local->hw.conf;
 
 	ieee80211_rx_bss_info(dev, mgmt, len, rx_status, 1);
 
@@ -1880,6 +1895,23 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 
 	if (elems.erp_info && elems.erp_info_len >= 1)
 		ieee80211_handle_erp_ie(dev, elems.erp_info[0]);
+
+	if (elems.ht_cap_elem && elems.ht_info_elem &&
+	    elems.wmm_param && local->ops->conf_ht &&
+	    conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {
+		struct ieee80211_ht_bss_info bss_info;
+
+		ieee80211_ht_addt_info_ie_to_ht_bss_info(
+				(struct ieee80211_ht_addt_info *)
+				elems.ht_info_elem, &bss_info);
+		/* check if AP changed bss inforamation */
+		if ((conf->ht_bss_conf.primary_channel !=
+		     bss_info.primary_channel) ||
+		    (conf->ht_bss_conf.bss_cap != bss_info.bss_cap) ||
+		    (conf->ht_bss_conf.bss_op_mode != bss_info.bss_op_mode))
+			ieee80211_hw_config_ht(local, 1, &conf->ht_conf,
+						&bss_info);
+	}
 
 	if (elems.wmm_param && (ifsta->flags & IEEE80211_STA_WMM_ENABLED)) {
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,

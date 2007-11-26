@@ -34,6 +34,8 @@
 #include "debugfs.h"
 #include "debugfs_netdev.h"
 
+#define SUPP_MCS_SET_LEN 16
+
 /*
  * For seeing transmitted packets on monitor interfaces
  * we have a radiotap header too.
@@ -561,6 +563,55 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 		ret = local->ops->config(local_to_hw(local), &local->hw.conf);
 
 	return ret;
+}
+
+/**
+ * ieee80211_hw_config_ht should be used only after legacy configuration
+ * has been determined, as ht configuration depends upon the hardware's
+ * HT abilities for a _specific_ band.
+ */
+int ieee80211_hw_config_ht(struct ieee80211_local *local, int enable_ht,
+			   struct ieee80211_ht_info *req_ht_cap,
+			   struct ieee80211_ht_bss_info *req_bss_cap)
+{
+	struct ieee80211_conf *conf = &local->hw.conf;
+	struct ieee80211_hw_mode *mode = conf->mode;
+	int i;
+
+	/* HT is not supported */
+	if (!mode->ht_info.ht_supported) {
+		conf->flags &= ~IEEE80211_CONF_SUPPORT_HT_MODE;
+		return -EOPNOTSUPP;
+	}
+
+	/* disable HT */
+	if (!enable_ht) {
+		conf->flags &= ~IEEE80211_CONF_SUPPORT_HT_MODE;
+	} else {
+		conf->flags |= IEEE80211_CONF_SUPPORT_HT_MODE;
+		conf->ht_conf.cap = req_ht_cap->cap & mode->ht_info.cap;
+		conf->ht_conf.cap &= ~(IEEE80211_HT_CAP_MIMO_PS);
+		conf->ht_conf.cap |=
+			mode->ht_info.cap & IEEE80211_HT_CAP_MIMO_PS;
+		conf->ht_bss_conf.primary_channel =
+			req_bss_cap->primary_channel;
+		conf->ht_bss_conf.bss_cap = req_bss_cap->bss_cap;
+		conf->ht_bss_conf.bss_op_mode = req_bss_cap->bss_op_mode;
+		for (i = 0; i < SUPP_MCS_SET_LEN; i++)
+			conf->ht_conf.supp_mcs_set[i] =
+				mode->ht_info.supp_mcs_set[i] &
+				  req_ht_cap->supp_mcs_set[i];
+
+		/* In STA mode, this gives us indication
+		 * to the AP's mode of operation */
+		conf->ht_conf.ht_supported = 1;
+		conf->ht_conf.ampdu_factor = req_ht_cap->ampdu_factor;
+		conf->ht_conf.ampdu_density = req_ht_cap->ampdu_density;
+	}
+
+	local->ops->conf_ht(local_to_hw(local), &local->hw.conf);
+
+	return 0;
 }
 
 void ieee80211_erp_info_change_notify(struct net_device *dev, u8 changes)
