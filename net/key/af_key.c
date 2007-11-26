@@ -1015,9 +1015,7 @@ static inline struct sk_buff *pfkey_xfrm_state2msg(struct xfrm_state *x)
 {
 	struct sk_buff *skb;
 
-	spin_lock_bh(&x->lock);
 	skb = __pfkey_xfrm_state2msg(x, 1, 3);
-	spin_unlock_bh(&x->lock);
 
 	return skb;
 }
