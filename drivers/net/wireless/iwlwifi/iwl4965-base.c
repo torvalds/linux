@@ -9296,8 +9296,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	priv->ps_mode = 0;
 	priv->use_ant_b_for_management_frame = 1; /* start with ant B */
-	priv->is_ht_enabled = 1;
-	priv->channel_width = IWL_CHANNEL_WIDTH_40MHZ;
 	priv->valid_antenna = 0x7;	/* assume all 3 connected */
 	priv->ps_mode = IWL_MIMO_PS_NONE;
 

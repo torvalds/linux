@@ -510,22 +510,23 @@ union iwl4965_ht_rate_supp {
 #define CFG_HT_MPDU_DENSITY_2USEC   (0x5)
 #define CFG_HT_MPDU_DENSITY_DEF CFG_HT_MPDU_DENSITY_2USEC
 
-struct sta_ht_info {
+struct iwl_ht_info {
+	/* self configuration data */
 	u8 is_ht;
-	u16 rx_mimo_ps_mode;
+	u8 supported_chan_width;
 	u16 tx_mimo_ps_mode;
-	u16 control_channel;
+	u8 is_green_field;
+	u8 sgf;
 	u8 max_amsdu_size;
 	u8 ampdu_factor;
 	u8 mpdu_density;
-	u8 operating_mode;
-	u8 supported_chan_width;
+	u8 supp_mcs_set[16];
+	/* BSS related data */
+	u8 control_channel;
 	u8 extension_chan_offset;
-	u8 is_green_field;
-	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
-	u8 supp_rates[16];
 	u8 tx_chan_width;
-	u8 chan_width_cap;
+	u8 ht_protection;
+	u8 non_GF_STA_present;
 };
 #endif				/*CONFIG_IWL4965_HT */
 
@@ -1142,12 +1143,6 @@ struct iwl4965_priv {
 	u8 call_post_assoc_from_beacon;
 	u8 assoc_station_added;
 	u8 use_ant_b_for_management_frame;	/* Tx antenna selection */
-
-	/* High Throughput (HT) variables */
-	u8 is_dup;
-	u8 is_ht_enabled;
-	u8 channel_width;	/* 0=20MHZ, 1=40MHZ supported */
-	u8 current_channel_width;
 	u8 valid_antenna;	/* Bit mask of antennas actually connected */
 #ifdef CONFIG_IWL4965_SENSITIVITY
 	struct iwl4965_sensitivity_data sensitivity_data;
@@ -1157,9 +1152,8 @@ struct iwl4965_priv {
 #endif /*CONFIG_IWL4965_SENSITIVITY*/
 
 #ifdef CONFIG_IWL4965_HT
-	struct sta_ht_info current_assoc_ht;
+	struct iwl_ht_info current_ht_config;
 #endif
-	u8 active_rate_ht[2];
 	u8 last_phy_res[100];
 
 	/* Rate scaling data */

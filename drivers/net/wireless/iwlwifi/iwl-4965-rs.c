@@ -2123,7 +2123,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	if (local->hw.conf.phymode == MODE_IEEE80211A)
 		sta->last_txrate += IWL_FIRST_OFDM_RATE;
 
-	crl->is_dup = priv->is_dup;
+	crl->is_dup = 0;
 	crl->valid_antenna = priv->valid_antenna;
 	crl->antenna = priv->antenna;
 	crl->is_green = rs_use_green(priv);
