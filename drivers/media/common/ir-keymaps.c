@@ -1331,7 +1331,12 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[ 0x35 ] = KEY_FASTFORWARD,
 	[ 0x36 ] = KEY_TV,
 	[ 0x37 ] = KEY_RADIO,         /* FM */
-	[ 0x38 ] = KEY_DVD
+	[ 0x38 ] = KEY_DVD,
+
+	[ 0x3e ] = KEY_F21,           /* MCE +VOL, on Y04G0033 */
+	[ 0x3a ] = KEY_F22,           /* MCE -VOL, on Y04G0033 */
+	[ 0x3b ] = KEY_F23,           /* MCE +CH,  on Y04G0033 */
+	[ 0x3f ] = KEY_F24            /* MCE -CH,  on Y04G0033 */
 };
 
 EXPORT_SYMBOL_GPL(ir_codes_winfast);
