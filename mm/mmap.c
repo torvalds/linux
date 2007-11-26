@@ -912,6 +912,9 @@ unsigned long do_mmap_pgoff(struct file * file, unsigned long addr,
 	if (!len)
 		return -EINVAL;
 
+	if (!(flags & MAP_FIXED))
+		addr = round_hint_to_min(addr);
+
 	error = arch_mmap_check(addr, len, flags);
 	if (error)
 		return error;
