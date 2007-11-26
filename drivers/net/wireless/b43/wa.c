@@ -642,6 +642,7 @@ void b43_wa_all(struct b43_wldev *dev)
 		case 6:
 		case 7:
 		case 8:
+		case 9:
 			b43_wa_tr_ltov(dev);
 			b43_wa_crs_ed(dev);
 			b43_wa_rssi_lt(dev);
