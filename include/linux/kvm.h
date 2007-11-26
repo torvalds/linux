@@ -51,8 +51,10 @@ struct kvm_irqchip {
 	__u32 pad;
         union {
 		char dummy[512];  /* reserving space */
+#ifdef CONFIG_X86
 		struct kvm_pic_state pic;
 		struct kvm_ioapic_state ioapic;
+#endif
 	} chip;
 };
 
