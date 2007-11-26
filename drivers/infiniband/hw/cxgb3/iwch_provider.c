@@ -39,6 +39,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/rtnetlink.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -1053,7 +1054,9 @@ static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
 	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
 
 	PDBG("%s class dev 0x%p\n", __FUNCTION__, cdev);
+	rtnl_lock();
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
+	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.fw_version);
 }
 
@@ -1065,7 +1068,9 @@ static ssize_t show_hca(struct class_device *cdev, char *buf)
 	struct net_device *lldev = dev->rdev.t3cdev_p->lldev;
 
 	PDBG("%s class dev 0x%p\n", __FUNCTION__, cdev);
+	rtnl_lock();
 	lldev->ethtool_ops->get_drvinfo(lldev, &info);
+	rtnl_unlock();
 	return sprintf(buf, "%s\n", info.driver);
 }
 
