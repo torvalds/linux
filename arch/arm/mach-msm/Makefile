@@ -1,4 +1,4 @@
-obj-y += io.o idle.o irq.o timer.o
+obj-y += io.o idle.o irq.o timer.o dma.o
 
 # Common code for board init
 obj-y += common.o
