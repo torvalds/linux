@@ -204,6 +204,7 @@ new_group:
 wrapped:
 	cache = btrfs_lookup_block_group(root->fs_info, last);
 	if (!cache) {
+no_cache:
 		if (!wrapped) {
 			wrapped = 1;
 			last = search_start;
@@ -219,6 +220,8 @@ wrapped:
 	}
 	if (!full_scan)
 		cache = btrfs_find_block_group(root, cache, last, data, 0);
+	if (!cache)
+		goto no_cache;
 	*cache_ret = cache;
 	cache_miss = 0;
 	goto again;
