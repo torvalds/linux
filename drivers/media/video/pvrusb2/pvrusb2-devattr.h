@@ -55,8 +55,15 @@ struct pvr2_device_desc {
 	   was initialized from internal ROM. */
 	struct pvr2_string_table fx2_firmware;
 
+	/* V4L tuner type ID to use with this device (only used if the
+	   driver could not discover the type any other way). */
+	int default_tuner_type;
+
 	/* If set, we don't bother trying to load cx23416 firmware. */
 	char flag_skip_cx23416_firmware;
+
+	/* Device has a hauppauge eeprom which we can interrogate. */
+	char flag_has_hauppauge_rom;
 
 	/* Device does not require a powerup command to be issued. */
 	char flag_no_powerup;

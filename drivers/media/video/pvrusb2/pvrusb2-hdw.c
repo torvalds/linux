@@ -1428,6 +1428,7 @@ static int get_default_tuner_type(struct pvr2_hdw *hdw)
 	}
 	if (tp < 0) return -EINVAL;
 	hdw->tuner_type = tp;
+	hdw->tuner_updated = !0;
 	return 0;
 }
 
@@ -1669,15 +1670,22 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	// thread-safe against the normal pvr2_send_request() mechanism.
 	// (We should make it thread safe).
 
-	ret = pvr2_hdw_get_eeprom_addr(hdw);
-	if (!pvr2_hdw_dev_ok(hdw)) return;
-	if (ret < 0) {
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Unable to determine location of eeprom, skipping");
-	} else {
-		hdw->eeprom_addr = ret;
-		pvr2_eeprom_analyze(hdw);
+	if (hdw->hdw_desc->flag_has_hauppauge_rom) {
+		ret = pvr2_hdw_get_eeprom_addr(hdw);
 		if (!pvr2_hdw_dev_ok(hdw)) return;
+		if (ret < 0) {
+			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+				   "Unable to determine location of eeprom,"
+				   " skipping");
+		} else {
+			hdw->eeprom_addr = ret;
+			pvr2_eeprom_analyze(hdw);
+			if (!pvr2_hdw_dev_ok(hdw)) return;
+		}
+	} else {
+		hdw->tuner_type = hdw->hdw_desc->default_tuner_type;
+		hdw->tuner_updated = !0;
+		hdw->std_mask_eeprom = V4L2_STD_ALL;
 	}
 
 	pvr2_hdw_setup_std(hdw);
@@ -1686,7 +1694,6 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		pvr2_trace(PVR2_TRACE_INIT,
 			   "pvr2_hdw_setup: Tuner type overridden to %d",
 			   hdw->tuner_type);
-		hdw->tuner_updated = !0;
 	}
 
 	pvr2_i2c_core_check_stale(hdw);

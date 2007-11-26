@@ -72,6 +72,7 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_29xxx),
 		.fx2_firmware.lst = pvr2_fw1_names_29xxx,
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_29xxx),
+		.flag_has_hauppauge_rom = !0,
 	},
 	[PVR2_HDW_TYPE_24XXX] = {
 		.description = "WinTV PVR USB2 Model Category 24xxxx",
@@ -82,6 +83,7 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_24xxx),
 		.flag_has_cx25840 = !0,
 		.flag_has_wm8775 = !0,
+		.flag_has_hauppauge_rom = !0,
 	},
 };
 
