@@ -413,7 +413,7 @@ static u32 encode_float(u64 value)
  *  The acct_process() call is the workhorse of the process
  *  accounting system. The struct acct is built here and then written
  *  into the accounting file. This function should only be called from
- *  do_exit().
+ *  do_exit() or when switching to a different output file.
  */
 
 /*
