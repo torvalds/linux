@@ -797,6 +797,8 @@ static int __devinit snd_portman_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, card);
 
+	snd_card_set_dev(card, &pdev->dev);
+
 	/* At this point card will be usable */
 	if ((err = snd_card_register(card)) < 0) {
 		snd_printd("Cannot register card\n");

@@ -1312,6 +1312,8 @@ static int __devinit snd_ml403_ac97cr_probe(struct platform_device *pfdev)
 		(unsigned long)ml403_ac97cr->port, ml403_ac97cr->irq,
 		ml403_ac97cr->capture_irq, dev + 1);
 
+	snd_card_set_dev(card, &pfdev->dev);
+
 	err = snd_card_register(card);
 	if (err < 0) {
 		snd_card_free(card);
