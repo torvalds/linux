@@ -498,15 +498,14 @@ static inline void rs_toggle_antenna(struct iwl4965_rate *new_rate,
 	}
 }
 
-static inline u8 rs_use_green(struct iwl4965_priv *priv)
+static inline u8 rs_use_green(struct iwl4965_priv *priv,
+			      struct ieee80211_conf *conf)
 {
 #ifdef CONFIG_IWL4965_HT
-	if (!priv->is_ht_enabled || !priv->current_assoc_ht.is_ht)
-		return 0;
-
-	return ((priv->current_assoc_ht.is_green_field) &&
-	    !(priv->current_assoc_ht.operating_mode & 0x4));
-#endif	/*CONFIG_IWL4965_HT */
+	return ((conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
+		priv->current_ht_config.is_green_field &&
+		!priv->current_ht_config.non_GF_STA_present);
+#endif	/* CONFIG_IWL4965_HT */
 	return 0;
 }
 
@@ -1047,6 +1046,8 @@ static inline u8 rs_is_both_ant_supp(u8 valid_antenna)
  */
 static int rs_switch_to_mimo(struct iwl4965_priv *priv,
 			     struct iwl4965_rate_scale_priv *lq_data,
+			     struct ieee80211_conf *conf,
+			     struct sta_info *sta,
 			     struct iwl4965_scale_tbl_info *tbl, int index)
 {
 #ifdef CONFIG_IWL4965_HT
@@ -1054,7 +1055,8 @@ static int rs_switch_to_mimo(struct iwl4965_priv *priv,
 	s32 rate;
 	s8 is_green = lq_data->is_green;
 
-	if (!priv->is_ht_enabled || !priv->current_assoc_ht.is_ht)
+	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
+	    !sta->ht_info.ht_supported)
 		return -1;
 
 	IWL_DEBUG_HT("LQ: try to switch to MIMO\n");
@@ -1062,7 +1064,7 @@ static int rs_switch_to_mimo(struct iwl4965_priv *priv,
 	rs_get_supported_rates(lq_data, NULL, tbl->lq_type,
 				&rate_mask);
 
-	if (priv->current_assoc_ht.tx_mimo_ps_mode == IWL_MIMO_PS_STATIC)
+	if (priv->current_ht_config.tx_mimo_ps_mode == IWL_MIMO_PS_STATIC)
 		return -1;
 
 	/* Need both Tx chains/antennas to support MIMO */
@@ -1071,17 +1073,18 @@ static int rs_switch_to_mimo(struct iwl4965_priv *priv,
 
 	tbl->is_dup = lq_data->is_dup;
 	tbl->action = 0;
-	if (priv->current_channel_width == IWL_CHANNEL_WIDTH_40MHZ)
+	if (priv->current_ht_config.supported_chan_width
+	    == IWL_CHANNEL_WIDTH_40MHZ)
 		tbl->is_fat = 1;
 	else
 		tbl->is_fat = 0;
 
 	if (tbl->is_fat) {
-		if (priv->current_assoc_ht.sgf & HT_SHORT_GI_40MHZ_ONLY)
+		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
 			tbl->is_SGI = 1;
 		else
 			tbl->is_SGI = 0;
-	} else if (priv->current_assoc_ht.sgf & HT_SHORT_GI_20MHZ_ONLY)
+	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
 		tbl->is_SGI = 1;
 	else
 		tbl->is_SGI = 0;
@@ -1108,6 +1111,8 @@ static int rs_switch_to_mimo(struct iwl4965_priv *priv,
  */
 static int rs_switch_to_siso(struct iwl4965_priv *priv,
 			     struct iwl4965_rate_scale_priv *lq_data,
+			     struct ieee80211_conf *conf,
+			     struct sta_info *sta,
 			     struct iwl4965_scale_tbl_info *tbl, int index)
 {
 #ifdef CONFIG_IWL4965_HT
@@ -1116,7 +1121,8 @@ static int rs_switch_to_siso(struct iwl4965_priv *priv,
 	s32 rate;
 
 	IWL_DEBUG_HT("LQ: try to switch to SISO\n");
-	if (!priv->is_ht_enabled || !priv->current_assoc_ht.is_ht)
+	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
+	    !sta->ht_info.ht_supported)
 		return -1;
 
 	tbl->is_dup = lq_data->is_dup;
@@ -1125,17 +1131,18 @@ static int rs_switch_to_siso(struct iwl4965_priv *priv,
 	rs_get_supported_rates(lq_data, NULL, tbl->lq_type,
 				&rate_mask);
 
-	if (priv->current_channel_width == IWL_CHANNEL_WIDTH_40MHZ)
+	if (priv->current_ht_config.supported_chan_width
+	    == IWL_CHANNEL_WIDTH_40MHZ)
 		tbl->is_fat = 1;
 	else
 		tbl->is_fat = 0;
 
 	if (tbl->is_fat) {
-		if (priv->current_assoc_ht.sgf & HT_SHORT_GI_40MHZ_ONLY)
+		if (priv->current_ht_config.sgf & HT_SHORT_GI_40MHZ_ONLY)
 			tbl->is_SGI = 1;
 		else
 			tbl->is_SGI = 0;
-	} else if (priv->current_assoc_ht.sgf & HT_SHORT_GI_20MHZ_ONLY)
+	} else if (priv->current_ht_config.sgf & HT_SHORT_GI_20MHZ_ONLY)
 		tbl->is_SGI = 1;
 	else
 		tbl->is_SGI = 0;
@@ -1167,6 +1174,8 @@ static int rs_switch_to_siso(struct iwl4965_priv *priv,
  */
 static int rs_move_legacy_other(struct iwl4965_priv *priv,
 				struct iwl4965_rate_scale_priv *lq_data,
+				struct ieee80211_conf *conf,
+				struct sta_info *sta,
 				int index)
 {
 	int ret = 0;
@@ -1213,8 +1222,8 @@ static int rs_move_legacy_other(struct iwl4965_priv *priv,
 			search_tbl->lq_type = LQ_SISO;
 			search_tbl->is_SGI = 0;
 			search_tbl->is_fat = 0;
-			ret = rs_switch_to_siso(priv, lq_data, search_tbl,
-					       index);
+			ret = rs_switch_to_siso(priv, lq_data, conf, sta,
+						 search_tbl, index);
 			if (!ret) {
 				lq_data->search_better_tbl = 1;
 				lq_data->action_counter = 0;
@@ -1231,8 +1240,8 @@ static int rs_move_legacy_other(struct iwl4965_priv *priv,
 			search_tbl->is_SGI = 0;
 			search_tbl->is_fat = 0;
 			search_tbl->antenna_type = ANT_BOTH;
-			ret = rs_switch_to_mimo(priv, lq_data, search_tbl,
-					       index);
+			ret = rs_switch_to_mimo(priv, lq_data, conf, sta,
+						 search_tbl, index);
 			if (!ret) {
 				lq_data->search_better_tbl = 1;
 				lq_data->action_counter = 0;
@@ -1263,6 +1272,8 @@ static int rs_move_legacy_other(struct iwl4965_priv *priv,
  */
 static int rs_move_siso_to_other(struct iwl4965_priv *priv,
 				 struct iwl4965_rate_scale_priv *lq_data,
+				 struct ieee80211_conf *conf,
+				 struct sta_info *sta,
 				 int index)
 {
 	int ret;
@@ -1303,8 +1314,8 @@ static int rs_move_siso_to_other(struct iwl4965_priv *priv,
 			search_tbl->is_SGI = 0;
 			search_tbl->is_fat = 0;
 			search_tbl->antenna_type = ANT_BOTH;
-			ret = rs_switch_to_mimo(priv, lq_data, search_tbl,
-					       index);
+			ret = rs_switch_to_mimo(priv, lq_data, conf, sta,
+						 search_tbl, index);
 			if (!ret) {
 				lq_data->search_better_tbl = 1;
 				goto out;
@@ -1356,6 +1367,8 @@ static int rs_move_siso_to_other(struct iwl4965_priv *priv,
  */
 static int rs_move_mimo_to_other(struct iwl4965_priv *priv,
 				 struct iwl4965_rate_scale_priv *lq_data,
+				 struct ieee80211_conf *conf,
+				 struct sta_info *sta,
 				 int index)
 {
 	int ret;
@@ -1385,8 +1398,8 @@ static int rs_move_mimo_to_other(struct iwl4965_priv *priv,
 			else
 				search_tbl->antenna_type = ANT_AUX;
 
-			ret = rs_switch_to_siso(priv, lq_data, search_tbl,
-					       index);
+			ret = rs_switch_to_siso(priv, lq_data, conf, sta,
+						 search_tbl, index);
 			if (!ret) {
 				lq_data->search_better_tbl = 1;
 				goto out;
@@ -1536,6 +1549,9 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 				  struct ieee80211_hdr *hdr,
 				  struct sta_info *sta)
 {
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_hw *hw = local_to_hw(local);
+	struct ieee80211_conf *conf = &hw->conf;
 	int low = IWL_RATE_INVALID;
 	int high = IWL_RATE_INVALID;
 	int index;
@@ -1851,11 +1867,11 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 		/* Select a new "search" modulation mode to try.
 		 * If one is found, set up the new "search" table. */
 		if (is_legacy(tbl->lq_type))
-			rs_move_legacy_other(priv, lq_data, index);
+			rs_move_legacy_other(priv, lq_data, conf, sta, index);
 		else if (is_siso(tbl->lq_type))
-			rs_move_siso_to_other(priv, lq_data, index);
+			rs_move_siso_to_other(priv, lq_data, conf, sta, index);
 		else
-			rs_move_mimo_to_other(priv, lq_data, index);
+			rs_move_mimo_to_other(priv, lq_data, conf, sta, index);
 
 		/* If new "search" mode was selected, set up in uCode table */
 		if (lq_data->search_better_tbl) {
@@ -1883,7 +1899,7 @@ static void rs_rate_scale_perform(struct iwl4965_priv *priv,
 		tbl1 = &(lq_data->lq_info[lq_data->active_tbl]);
 		if (is_legacy(tbl1->lq_type) &&
 #ifdef CONFIG_IWL4965_HT
-		    !priv->current_assoc_ht.is_ht &&
+		   (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE)) &&
 #endif
 		    (lq_data->action_counter >= 1)) {
 			lq_data->action_counter = 0;
@@ -1939,6 +1955,7 @@ out:
 
 
 static void rs_initialize_lq(struct iwl4965_priv *priv,
+			     struct ieee80211_conf *conf,
 			     struct sta_info *sta)
 {
 	int i;
@@ -1946,7 +1963,7 @@ static void rs_initialize_lq(struct iwl4965_priv *priv,
 	struct iwl4965_scale_tbl_info *tbl;
 	u8 active_tbl = 0;
 	int rate_idx;
-	u8 use_green = rs_use_green(priv);
+	u8 use_green = rs_use_green(priv, conf);
 	struct iwl4965_rate mcs_rate;
 
 	if (!sta || !sta->rate_ctrl_priv)
@@ -1997,6 +2014,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	int i;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_conf *conf = &local->hw.conf;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct sta_info *sta;
 	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
@@ -2030,7 +2048,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 			lq->lq.sta_id = sta_id;
 			lq->lq.rs_table[0].rate_n_flags = 0;
 			lq->ibss_sta_added = 1;
-			rs_initialize_lq(priv, sta);
+			rs_initialize_lq(priv, conf, sta);
 		}
 		if (!lq->ibss_sta_added)
 			goto done;
@@ -2072,6 +2090,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 			 struct sta_info *sta)
 {
 	int i, j;
+	struct ieee80211_conf *conf = &local->hw.conf;
 	struct ieee80211_hw_mode *mode = local->oper_hw_mode;
 	struct iwl4965_priv *priv = (struct iwl4965_priv *)priv_rate;
 	struct iwl4965_rate_scale_priv *crl = priv_sta;
@@ -2126,7 +2145,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	crl->is_dup = 0;
 	crl->valid_antenna = priv->valid_antenna;
 	crl->antenna = priv->antenna;
-	crl->is_green = rs_use_green(priv);
+	crl->is_green = rs_use_green(priv, conf);
 	crl->active_rate = priv->active_rate;
 	crl->active_rate &= ~(0x1000);
 	crl->active_rate_basic = priv->active_rate_basic;
@@ -2136,14 +2155,16 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.
 	 */
-	crl->active_siso_rate = (priv->current_assoc_ht.supp_rates[0] << 1);
-	crl->active_siso_rate |= (priv->current_assoc_ht.supp_rates[0] & 0x1);
+	crl->active_siso_rate = (priv->current_ht_config.supp_mcs_set[0] << 1);
+	crl->active_siso_rate |=
+			(priv->current_ht_config.supp_mcs_set[0] & 0x1);
 	crl->active_siso_rate &= ~((u16)0x2);
 	crl->active_siso_rate = crl->active_siso_rate << IWL_FIRST_OFDM_RATE;
 
 	/* Same here */
-	crl->active_mimo_rate = (priv->current_assoc_ht.supp_rates[1] << 1);
-	crl->active_mimo_rate |= (priv->current_assoc_ht.supp_rates[1] & 0x1);
+	crl->active_mimo_rate = (priv->current_ht_config.supp_mcs_set[1] << 1);
+	crl->active_mimo_rate |=
+			(priv->current_ht_config.supp_mcs_set[1] & 0x1);
 	crl->active_mimo_rate &= ~((u16)0x2);
 	crl->active_mimo_rate = crl->active_mimo_rate << IWL_FIRST_OFDM_RATE;
 	IWL_DEBUG_HT("MIMO RATE 0x%X SISO MASK 0x%X\n", crl->active_siso_rate,
@@ -2156,7 +2177,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	if (priv->assoc_station_added)
 		priv->lq_mngr.lq_ready = 1;
 
-	rs_initialize_lq(priv, sta);
+	rs_initialize_lq(priv, conf, sta);
 }
 
 static void rs_fill_link_cmd(struct iwl4965_rate_scale_priv *lq_data,
