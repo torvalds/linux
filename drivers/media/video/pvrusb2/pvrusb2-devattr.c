@@ -85,6 +85,7 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.flag_has_cx25840 = !0,
 		.flag_has_wm8775 = !0,
 		.flag_has_hauppauge_rom = !0,
+		.flag_has_hauppauge_custom_ir = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
 	},
 };

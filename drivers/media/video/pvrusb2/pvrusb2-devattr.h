@@ -84,6 +84,10 @@ struct pvr2_device_desc {
 	/* Device has a wm8775 - this enables special additional logic to
 	   ensure that it is found. */
 	char flag_has_wm8775;
+
+	/* Device has IR hardware that can be faked into looking like a
+	   normal Hauppauge i2c IR receiver. */
+	char flag_has_hauppauge_custom_ir;
 };
 
 extern const struct pvr2_device_desc pvr2_device_descriptions[];
