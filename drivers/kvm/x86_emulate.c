@@ -1535,9 +1535,30 @@ special_insn:
 		break;
 	}
 	if (c->rep_prefix) {
+		/* All REP prefixes have the same first termination condition */
 		if (c->regs[VCPU_REGS_RCX] == 0) {
 			ctxt->vcpu->rip = c->eip;
 			goto done;
+		}
+		/* The second termination condition only applies for REPE
+		 * and REPNE. Test if the repeat string operation prefix is
+		 * REPE/REPZ or REPNE/REPNZ and if it's the case it tests the
+		 * corresponding termination condition according to:
+		 * 	- if REPE/REPZ and ZF = 0 then done
+		 * 	- if REPNE/REPNZ and ZF = 1 then done
+		 */
+		if ((c->b == 0xa6) || (c->b == 0xa7) ||
+				(c->b == 0xae) || (c->b == 0xaf)) {
+			if ((c->rep_prefix == REPE_PREFIX) &&
+				((ctxt->eflags & EFLG_ZF) == 0)) {
+					ctxt->vcpu->rip = c->eip;
+					goto done;
+			}
+			if ((c->rep_prefix == REPNE_PREFIX) &&
+				((ctxt->eflags & EFLG_ZF) == EFLG_ZF)) {
+				ctxt->vcpu->rip = c->eip;
+				goto done;
+			}
 		}
 		c->regs[VCPU_REGS_RCX]--;
 		c->eip = ctxt->vcpu->rip;
@@ -1564,8 +1585,41 @@ special_insn:
 							   : c->dst.bytes);
 		break;
 	case 0xa6 ... 0xa7:	/* cmps */
-		DPRINTF("Urk! I don't handle CMPS.\n");
-		goto cannot_emulate;
+		c->src.type = OP_NONE; /* Disable writeback. */
+		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		c->src.ptr = (unsigned long *)register_address(
+				c->override_base ? *c->override_base :
+						   ctxt->ds_base,
+						   c->regs[VCPU_REGS_RSI]);
+		if ((rc = ops->read_emulated((unsigned long)c->src.ptr,
+						&c->src.val,
+						c->src.bytes,
+						ctxt->vcpu)) != 0)
+			goto done;
+
+		c->dst.type = OP_NONE; /* Disable writeback. */
+		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		c->dst.ptr = (unsigned long *)register_address(
+						   ctxt->es_base,
+						   c->regs[VCPU_REGS_RDI]);
+		if ((rc = ops->read_emulated((unsigned long)c->dst.ptr,
+						&c->dst.val,
+						c->dst.bytes,
+						ctxt->vcpu)) != 0)
+			goto done;
+
+		DPRINTF("cmps: mem1=0x%p mem2=0x%p\n", c->src.ptr, c->dst.ptr);
+
+		emulate_2op_SrcV("cmp", c->src, c->dst, ctxt->eflags);
+
+		register_address_increment(c->regs[VCPU_REGS_RSI],
+				       (ctxt->eflags & EFLG_DF) ? -c->src.bytes
+								  : c->src.bytes);
+		register_address_increment(c->regs[VCPU_REGS_RDI],
+				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
+								  : c->dst.bytes);
+
+		break;
 	case 0xaa ... 0xab:	/* stos */
 		c->dst.type = OP_MEM;
 		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
