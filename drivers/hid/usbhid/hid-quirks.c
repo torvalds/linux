@@ -911,6 +911,8 @@ u32 usbhid_lookup_quirk(const u16 idVendor, const u16 idProduct)
 	return quirks;
 }
 
+EXPORT_SYMBOL_GPL(usbhid_lookup_quirk);
+
 /*
  * Cherry Cymotion keyboard have an invalid HID report descriptor,
  * that needs fixing before we can parse it.

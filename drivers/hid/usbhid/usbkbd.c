@@ -235,6 +235,12 @@ static int usb_kbd_probe(struct usb_interface *iface,
 	if (!usb_endpoint_is_int_in(endpoint))
 		return -ENODEV;
 
+	if (usbhid_lookup_quirk(le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct))
+			& HID_QUIRK_IGNORE) {
+		return -ENODEV;
+	}
+
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
 
