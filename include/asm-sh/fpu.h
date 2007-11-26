@@ -26,6 +26,8 @@ extern void save_fpu(struct task_struct *__tsk, struct pt_regs *regs);
 #define save_fpu(tsk, regs)	do { } while (0)
 #endif
 
+extern int do_fpu_inst(unsigned short, struct pt_regs *);
+
 #define unlazy_fpu(tsk, regs) do {			\
 	if (test_tsk_thread_flag(tsk, TIF_USEDFPU)) {	\
 		save_fpu(tsk, regs);			\

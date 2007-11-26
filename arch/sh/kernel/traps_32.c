@@ -662,11 +662,6 @@ asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
 }
 #endif
 
-/* arch/sh/kernel/cpu/sh4/fpu.c */
-extern int do_fpu_inst(unsigned short, struct pt_regs *);
-extern asmlinkage void do_fpu_state_restore(unsigned long r4, unsigned long r5,
-		unsigned long r6, unsigned long r7, struct pt_regs __regs);
-
 asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 				unsigned long r6, unsigned long r7,
 				struct pt_regs __regs)
@@ -853,11 +848,11 @@ void __init trap_init(void)
 	set_exception_table_evt(0x820, do_illegal_slot_inst);
 #elif defined(CONFIG_SH_FPU)
 #ifdef CONFIG_CPU_SUBTYPE_SHX3
-	set_exception_table_evt(0xd80, do_fpu_state_restore);
-	set_exception_table_evt(0xda0, do_fpu_state_restore);
+	set_exception_table_evt(0xd80, fpu_state_restore_trap_handler);
+	set_exception_table_evt(0xda0, fpu_state_restore_trap_handler);
 #else
-	set_exception_table_evt(0x800, do_fpu_state_restore);
-	set_exception_table_evt(0x820, do_fpu_state_restore);
+	set_exception_table_evt(0x800, fpu_state_restore_trap_handler);
+	set_exception_table_evt(0x820, fpu_state_restore_trap_handler);
 #endif
 #endif
 

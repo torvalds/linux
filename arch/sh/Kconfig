@@ -161,6 +161,7 @@ config CPU_SUBTYPE_SH7619
 config CPU_SUBTYPE_SH7203
 	bool "Support SH7203 processor"
 	select CPU_SH2A
+	select CPU_HAS_FPU
 
 config CPU_SUBTYPE_SH7206
 	bool "Support SH7206 processor"
@@ -169,6 +170,7 @@ config CPU_SUBTYPE_SH7206
 config CPU_SUBTYPE_SH7263
 	bool "Support SH7263 processor"
 	select CPU_SH2A
+	select CPU_HAS_FPU
 
 # SH-3 Processor Support
 

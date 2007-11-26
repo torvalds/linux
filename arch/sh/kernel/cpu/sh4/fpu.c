@@ -82,8 +82,8 @@ save_fpu(struct task_struct *tsk, struct pt_regs *regs)
 		       "r" (FPSCR_INIT)
 		     : "memory");
 
- 	disable_fpu();
- 	release_fpu(regs);
+	disable_fpu();
+	release_fpu(regs);
 }
 
 static void
@@ -91,7 +91,7 @@ restore_fpu(struct task_struct *tsk)
 {
 	unsigned long dummy;
 
- 	enable_fpu();
+	enable_fpu();
 	asm volatile("lds	%2, fpscr\n\t"
 		     "fmov.s	@%0+, fr0\n\t"
 		     "fmov.s	@%0+, fr1\n\t"
@@ -138,7 +138,7 @@ restore_fpu(struct task_struct *tsk)
 /*
  * Load the FPU with signalling NANS.  This bit pattern we're using
  * has the property that no matter wether considered as single or as
- * double precision represents signaling NANS.  
+ * double precision represents signaling NANS.
  */
 
 static void
@@ -184,7 +184,7 @@ fpu_init(void)
 		     "lds	%2, fpscr\n\t"
 		     : /* no output */
 		     : "r" (0), "r" (FPSCR_RCHG), "r" (FPSCR_INIT));
- 	disable_fpu();
+	disable_fpu();
 }
 
 /**
@@ -238,7 +238,6 @@ ieee_fpe_handler (struct pt_regs *regs)
 	if (nib[0] == 0xb ||
 	    (nib[0] == 0x4 && nib[2] == 0x0 && nib[3] == 0xb)) /* bsr & jsr */
 		regs->pr = regs->pc + 4;
-  
 	if (nib[0] == 0xa || nib[0] == 0xb) { /* bra & bsr */
 		nextpc = regs->pc + 4 + ((short) ((insn & 0xfff) << 4) >> 3);
 		finsn = *(unsigned short *) (regs->pc + 2);
@@ -293,12 +292,10 @@ ieee_fpe_handler (struct pt_regs *regs)
 	return 0;
 }
 
-asmlinkage void
-do_fpu_error(unsigned long r4, unsigned long r5, unsigned long r6,
-	     unsigned long r7, struct pt_regs __regs)
+BUILD_TRAP_HANDLER(fpu_error)
 {
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	struct task_struct *tsk = current;
+	TRAP_HANDLER_DECL;
 
 	if (ieee_fpe_handler(regs))
 		return;
@@ -308,12 +305,10 @@ do_fpu_error(unsigned long r4, unsigned long r5, unsigned long r6,
 	force_sig(SIGFPE, tsk);
 }
 
-asmlinkage void
-do_fpu_state_restore(unsigned long r4, unsigned long r5, unsigned long r6,
-		     unsigned long r7, struct pt_regs __regs)
+BUILD_TRAP_HANDLER(fpu_state_restore)
 {
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	struct task_struct *tsk = current;
+	TRAP_HANDLER_DECL;
 
 	grab_fpu(regs);
 	if (!user_mode(regs)) {

@@ -20,10 +20,6 @@ isa-$(CONFIG_CPU_SH4AL_DSP)		:= sh4al
 isa-$(CONFIG_CPU_SH5)			:= shmedia
 isa-$(CONFIG_SH_DSP)			:= $(isa-y)-dsp
 
-ifndef CONFIG_MMU
-isa-y			:= $(isa-y)-nommu
-endif
-
 ifndef CONFIG_SH_DSP
 ifndef CONFIG_SH_FPU
 isa-y			:= $(isa-y)-nofpu

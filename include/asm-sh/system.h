@@ -205,6 +205,8 @@ asmlinkage void name##_trap_handler(unsigned int vec, struct pt_regs *regs)
 BUILD_TRAP_HANDLER(address_error);
 BUILD_TRAP_HANDLER(debug);
 BUILD_TRAP_HANDLER(bug);
+BUILD_TRAP_HANDLER(fpu_error);
+BUILD_TRAP_HANDLER(fpu_state_restore);
 
 #define arch_align_stack(x) (x)
 
