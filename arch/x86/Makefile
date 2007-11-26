@@ -11,10 +11,9 @@ endif
 $(srctree)/arch/x86/Makefile%: ;
 
 ifeq ($(CONFIG_X86_32),y)
+        UTS_MACHINE := i386
         include $(srctree)/arch/x86/Makefile_32
 else
+        UTS_MACHINE := x86_64
         include $(srctree)/arch/x86/Makefile_64
 endif
-
-
-
