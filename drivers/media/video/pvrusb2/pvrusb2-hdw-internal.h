@@ -40,6 +40,7 @@
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-io.h"
 #include <media/cx2341x.h>
+#include "pvrusb2-devattr.h"
 
 /* Legal values for PVR2_CID_HSM */
 #define PVR2_CVAL_HSM_FAIL 0
@@ -162,10 +163,6 @@ struct pvr2_decoder_ctrl {
 #define FW1_STATE_RELOAD 3
 #define FW1_STATE_OK 4
 
-/* Known major hardware variants, keyed from device ID */
-#define PVR2_HDW_TYPE_29XXX 0
-#define PVR2_HDW_TYPE_24XXX 1
-
 typedef int (*pvr2_i2c_func)(struct pvr2_hdw *,u8,u8 *,u16,u8 *, u16);
 #define PVR2_I2C_FUNC_CNT 128
 
@@ -179,6 +176,7 @@ struct pvr2_hdw {
 
 	/* Device type, one of PVR2_HDW_TYPE_xxxxx */
 	unsigned int hdw_type;
+	const struct pvr2_device_desc *hdw_desc;
 
 	/* Kernel worker thread handling */
 	struct workqueue_struct *workqueue;

@@ -41,47 +41,6 @@
 #define TV_MIN_FREQ     55250000L
 #define TV_MAX_FREQ    850000000L
 
-struct usb_device_id pvr2_device_table[] = {
-	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
-	[PVR2_HDW_TYPE_24XXX] = { USB_DEVICE(0x2040, 0x2400) },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(usb, pvr2_device_table);
-
-static const char *pvr2_device_names[] = {
-	[PVR2_HDW_TYPE_29XXX] = "WinTV PVR USB2 Model Category 29xxxx",
-	[PVR2_HDW_TYPE_24XXX] = "WinTV PVR USB2 Model Category 24xxxx",
-};
-
-struct pvr2_string_table {
-	const char **lst;
-	unsigned int cnt;
-};
-
-// Names of other client modules to request for 24xxx model hardware
-static const char *pvr2_client_24xxx[] = {
-	"cx25840",
-	"tuner",
-	"wm8775",
-};
-
-// Names of other client modules to request for 29xxx model hardware
-static const char *pvr2_client_29xxx[] = {
-	"msp3400",
-	"saa7115",
-	"tuner",
-};
-
-static struct pvr2_string_table pvr2_client_lists[] = {
-	[PVR2_HDW_TYPE_29XXX] = {
-		pvr2_client_29xxx, ARRAY_SIZE(pvr2_client_29xxx)
-	},
-	[PVR2_HDW_TYPE_24XXX] = {
-		pvr2_client_24xxx, ARRAY_SIZE(pvr2_client_24xxx)
-	},
-};
-
 static struct pvr2_hdw *unit_pointers[PVR_NUM] = {[ 0 ... PVR_NUM-1 ] = NULL};
 static DEFINE_MUTEX(pvr2_unit_mtx);
 
@@ -394,8 +353,8 @@ static int ctrl_vres_max_get(struct pvr2_ctrl *cptr,int *vp)
 
 static int ctrl_vres_min_get(struct pvr2_ctrl *cptr,int *vp)
 {
-	/* Actual minimum depends on device type. */
-	if (cptr->hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+	/* Actual minimum depends on device digitizer type. */
+	if (cptr->hdw->hdw_desc->flag_has_cx25840) {
 		*vp = 75;
 	} else {
 		*vp = 17;
@@ -1131,23 +1090,8 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	unsigned int pipe;
 	int ret;
 	u16 address;
-	static const char *fw_files_29xxx[] = {
-		"v4l-pvrusb2-29xxx-01.fw",
-	};
-	static const char *fw_files_24xxx[] = {
-		"v4l-pvrusb2-24xxx-01.fw",
-	};
-	static const struct pvr2_string_table fw_file_defs[] = {
-		[PVR2_HDW_TYPE_29XXX] = {
-			fw_files_29xxx, ARRAY_SIZE(fw_files_29xxx)
-		},
-		[PVR2_HDW_TYPE_24XXX] = {
-			fw_files_24xxx, ARRAY_SIZE(fw_files_24xxx)
-		},
-	};
 
-	if ((hdw->hdw_type >= ARRAY_SIZE(fw_file_defs)) ||
-	    (!fw_file_defs[hdw->hdw_type].lst)) {
+	if (!hdw->hdw_desc->fx2_firmware.cnt) {
 		hdw->fw1_state = FW1_STATE_OK;
 		return 0;
 	}
@@ -1157,8 +1101,8 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	trace_firmware("pvr2_upload_firmware1");
 
 	ret = pvr2_locate_firmware(hdw,&fw_entry,"fx2 controller",
-				   fw_file_defs[hdw->hdw_type].cnt,
-				   fw_file_defs[hdw->hdw_type].lst);
+				   hdw->hdw_desc->fx2_firmware.cnt,
+				   hdw->hdw_desc->fx2_firmware.lst);
 	if (ret < 0) {
 		if (ret == -ENOENT) hdw->fw1_state = FW1_STATE_MISSING;
 		return ret;
@@ -1233,8 +1177,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 		CX2341X_FIRM_ENC_FILENAME,
 	};
 
-	if ((hdw->hdw_type != PVR2_HDW_TYPE_29XXX) &&
-	    (hdw->hdw_type != PVR2_HDW_TYPE_24XXX)) {
+	if (hdw->hdw_desc->flag_skip_cx23416_firmware) {
 		return 0;
 	}
 
@@ -1652,8 +1595,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	unsigned int idx;
 	struct pvr2_ctrl *cptr;
 	int reloadFl = 0;
-	if ((hdw->hdw_type == PVR2_HDW_TYPE_29XXX) ||
-	    (hdw->hdw_type == PVR2_HDW_TYPE_24XXX)) {
+	if (hdw->hdw_desc->fx2_firmware.cnt) {
 		if (!reloadFl) {
 			reloadFl =
 				(hdw->usb_intf->cur_altsetting->desc.bNumEndpoints
@@ -1689,17 +1631,11 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 	}
 	if (!pvr2_hdw_dev_ok(hdw)) return;
 
-	if (hdw->hdw_type < ARRAY_SIZE(pvr2_client_lists)) {
-		for (idx = 0;
-		     idx < pvr2_client_lists[hdw->hdw_type].cnt;
-		     idx++) {
-			request_module(
-				pvr2_client_lists[hdw->hdw_type].lst[idx]);
-		}
+	for (idx = 0; idx < hdw->hdw_desc->client_modules.cnt; idx++) {
+		request_module(hdw->hdw_desc->client_modules.lst[idx]);
 	}
 
-	if ((hdw->hdw_type == PVR2_HDW_TYPE_29XXX) ||
-	    (hdw->hdw_type == PVR2_HDW_TYPE_24XXX)) {
+	if (!hdw->hdw_desc->flag_no_powerup) {
 		pvr2_hdw_cmd_powerup(hdw);
 		if (!pvr2_hdw_dev_ok(hdw)) return;
 	}
@@ -1857,20 +1793,22 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	unsigned int hdw_type;
 	int valid_std_mask;
 	struct pvr2_ctrl *cptr;
+	const struct pvr2_device_desc *hdw_desc;
 	__u8 ifnum;
 	struct v4l2_queryctrl qctrl;
 	struct pvr2_ctl_info *ciptr;
 
 	hdw_type = devid - pvr2_device_table;
-	if (hdw_type >= ARRAY_SIZE(pvr2_device_names)) {
+	if (hdw_type >= pvr2_device_count) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "Bogus device type of %u reported",hdw_type);
 		return NULL;
 	}
+	hdw_desc = pvr2_device_descriptions + hdw_type;
 
 	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
-		   hdw,pvr2_device_names[hdw_type]);
+		   hdw,hdw_desc->description);
 	if (!hdw) goto fail;
 
 	init_timer(&hdw->quiescent_timer);
@@ -1894,6 +1832,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				GFP_KERNEL);
 	if (!hdw->controls) goto fail;
 	hdw->hdw_type = hdw_type;
+	hdw->hdw_desc = hdw_desc;
 	for (idx = 0; idx < hdw->control_cnt; idx++) {
 		cptr = hdw->controls + idx;
 		cptr->hdw = hdw;

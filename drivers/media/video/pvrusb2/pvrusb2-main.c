@@ -28,6 +28,7 @@
 #include <linux/videodev2.h>
 
 #include "pvrusb2-hdw.h"
+#include "pvrusb2-devattr.h"
 #include "pvrusb2-context.h"
 #include "pvrusb2-debug.h"
 #include "pvrusb2-v4l2.h"

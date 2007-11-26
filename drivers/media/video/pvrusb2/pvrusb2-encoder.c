@@ -370,13 +370,13 @@ static int pvr2_encoder_prep_config(struct pvr2_hdw *hdw)
 
 	/* This ENC_MISC(3,encMisc3Arg) command is critical - without
 	   it there will eventually be video corruption.  Also, the
-	   29xxx case is strange - the Windows driver is passing 1
-	   regardless of device type but if we have 1 for 29xxx device
-	   the video turns sluggish.  */
-	switch (hdw->hdw_type) {
-	case PVR2_HDW_TYPE_24XXX: encMisc3Arg = 1; break;
-	case PVR2_HDW_TYPE_29XXX: encMisc3Arg = 0; break;
-	default: break;
+	   saa7115 case is strange - the Windows driver is passing 1
+	   regardless of device type but if we have 1 for saa7115
+	   devices the video turns sluggish.  */
+	if (hdw->hdw_desc->flag_has_cx25840) {
+		encMisc3Arg = 1;
+	} else {
+		encMisc3Arg = 0;
 	}
 	ret |= pvr2_encoder_vcmd(hdw, CX2341X_ENC_MISC,4, 3,
 				 encMisc3Arg,0,0);
@@ -434,7 +434,7 @@ int pvr2_encoder_configure(struct pvr2_hdw *hdw)
 
 	/* saa7115: 0xf0 */
 	val = 0xf0;
-	if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+	if (hdw->hdw_desc->flag_has_cx25840) {
 		/* ivtv cx25840: 0x140 */
 		val = 0x140;
 	}

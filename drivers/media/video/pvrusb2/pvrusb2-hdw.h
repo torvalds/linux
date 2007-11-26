@@ -311,9 +311,6 @@ void pvr2_hdw_trigger_module_log(struct pvr2_hdw *hdw);
    a debugging aid. */
 int pvr2_upload_firmware2(struct pvr2_hdw *hdw);
 
-/* List of device types that we can match */
-extern struct usb_device_id pvr2_device_table[];
-
 #endif /* __PVRUSB2_HDW_H */
 
 /*

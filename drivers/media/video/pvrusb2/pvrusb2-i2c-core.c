@@ -980,13 +980,15 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
 		hdw->i2c_func[0x18] = i2c_black_hole;
 	} else if (ir_mode[hdw->unit_number] == 1) {
-		if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
+		if (hdw->hdw_desc->flag_has_cx25840) {
 			hdw->i2c_func[0x18] = i2c_24xxx_ir;
 		}
 	}
-	if (hdw->hdw_type == PVR2_HDW_TYPE_24XXX) {
-		hdw->i2c_func[0x1b] = i2c_hack_wm8775;
+	if (hdw->hdw_desc->flag_has_cx25840) {
 		hdw->i2c_func[0x44] = i2c_hack_cx25840;
+	}
+	if (hdw->hdw_desc->flag_has_wm8775) {
+		hdw->i2c_func[0x1b] = i2c_hack_wm8775;
 	}
 
 	// Configure the adapter and set up everything else related to it.
