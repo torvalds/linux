@@ -42,6 +42,7 @@ config SND_USB_CAIAQ
 	    * Native Instruments RigKontrol2
 	    * Native Instruments RigKontrol3
 	    * Native Instruments Kore Controller
+	    * Native Instruments Kore Controller 2
 	    * Native Instruments Audio Kontrol 1
 	    * Native Instruments Audio 8 DJ
 
@@ -59,6 +60,7 @@ config SND_USB_CAIAQ_INPUT
 	   * Native Instruments RigKontrol2
 	   * Native Instruments RigKontrol3
 	   * Native Instruments Kore Controller
+	   * Native Instruments Kore Controller 2
 	   * Native Instruments Audio Kontrol 1
 
 endmenu

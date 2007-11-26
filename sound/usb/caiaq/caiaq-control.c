@@ -288,6 +288,7 @@ int __devinit snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *dev)
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
+	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2):
 		for (i = 0; i < ARRAY_SIZE(kore_controller); i++) {
 			struct caiaq_controller *c = kore_controller + i;
 			kcontrol_template.name = c->name;

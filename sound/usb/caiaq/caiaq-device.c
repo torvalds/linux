@@ -43,11 +43,12 @@
 #endif
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
-MODULE_DESCRIPTION("caiaq USB audio, version 1.3.0");
+MODULE_DESCRIPTION("caiaq USB audio, version 1.3.1");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 			 "{Native Instruments, RigKontrol3},"
 			 "{Native Instruments, Kore Controller},"
+			 "{Native Instruments, Kore Controller 2},"
 			 "{Native Instruments, Audio Kontrol 1}"
 			 "{Native Instruments, Audio 8 DJ}}");
 
@@ -94,6 +95,11 @@ static struct usb_device_id snd_usb_id_table[] = {
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	USB_VID_NATIVEINSTRUMENTS,
 		.idProduct =	USB_PID_KORECONTROLLER
+	},
+	{
+		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
+		.idVendor =	USB_VID_NATIVEINSTRUMENTS,
+		.idProduct =	USB_PID_KORECONTROLLER2
 	},
 	{
 		.match_flags =  USB_DEVICE_ID_MATCH_DEVICE,
@@ -291,13 +297,21 @@ static void setup_card(struct snd_usb_caiaqdev *dev)
 		break;
 	}
 	
-	ret = snd_usb_caiaq_audio_init(dev);
-	if (ret < 0)
-		log("Unable to set up audio system (ret=%d)\n", ret);
+	if (dev->spec.num_analog_audio_out +
+	    dev->spec.num_analog_audio_in +
+	    dev->spec.num_digital_audio_out +
+	    dev->spec.num_digital_audio_in > 0) {
+		ret = snd_usb_caiaq_audio_init(dev);
+		if (ret < 0)
+			log("Unable to set up audio system (ret=%d)\n", ret);
+	}
 	
-	ret = snd_usb_caiaq_midi_init(dev);
-	if (ret < 0)
-		log("Unable to set up MIDI system (ret=%d)\n", ret);
+	if (dev->spec.num_midi_in +
+	    dev->spec.num_midi_out > 0) {
+		ret = snd_usb_caiaq_midi_init(dev);
+		if (ret < 0)
+			log("Unable to set up MIDI system (ret=%d)\n", ret);
+	}
 
 #ifdef CONFIG_SND_USB_CAIAQ_INPUT
 	ret = snd_usb_caiaq_input_init(dev);
