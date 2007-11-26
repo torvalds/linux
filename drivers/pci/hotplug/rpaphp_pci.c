@@ -64,19 +64,6 @@ int rpaphp_get_sensor_state(struct slot *slot, int *state)
 	return rc;
 }
 
-static void set_slot_name(struct slot *slot)
-{
-	struct pci_bus *bus = slot->bus;
-	struct pci_dev *bridge;
-
-	bridge = bus->self;
-	if (bridge)
-		strcpy(slot->name, pci_name(bridge));
-	else
-		sprintf(slot->name, "%04x:%02x:00.0", pci_domain_nr(bus),
-			bus->number);
-}
-
 /**
  * rpaphp_enable_slot - record slot state, config pci device
  * @slot: target &slot
@@ -115,7 +102,6 @@ int rpaphp_enable_slot(struct slot *slot)
 	info->adapter_status = EMPTY;
 	slot->bus = bus;
 	slot->pci_devs = &bus->devices;
-	set_slot_name(slot);
 
 	/* if there's an adapter in the slot, go add the pci devices */
 	if (state == PRESENT) {

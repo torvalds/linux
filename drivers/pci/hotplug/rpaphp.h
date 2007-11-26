@@ -74,7 +74,6 @@ struct slot {
 	u32 type;
 	u32 power_domain;
 	char *name;
-	char *location;
 	struct device_node *dn;
 	struct pci_bus *bus;
 	struct list_head *pci_devs;
