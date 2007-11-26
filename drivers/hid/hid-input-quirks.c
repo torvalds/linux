@@ -349,9 +349,6 @@ int hidinput_mapping_quirks(struct hid_usage *usage,
 	return 0;
 }
 
-#define IS_BTC8193(x) (x->vendor == 0x0518 && x->product == 0x0002)
-#define IS_MS_KB(x) (x->vendor == 0x045e && (x->product == 0x00db || x->product == 0x00f9))
-
 void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, struct hid_usage *usage, __s32 value)
 {
 	struct input_dev *input;
@@ -392,7 +389,8 @@ void hidinput_event_quirks(struct hid_device *hid, struct hid_field *field, stru
 		return;
 
 	/* Handling MS keyboards special buttons */
-	if (IS_MS_KB(hid) && usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
+	if (hid->quirks & HID_QUIRK_MICROSOFT_KEYS && 
+			usage->hid == (HID_UP_MSVENDOR | 0xff05)) {
 		int key = 0;
 		static int last_key = 0;
 		switch (value) {

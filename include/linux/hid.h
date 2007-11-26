@@ -283,6 +283,7 @@ struct hid_item {
 #define HID_QUIRK_IGNORE_HIDINPUT		0x01000000
 #define HID_QUIRK_2WHEEL_MOUSE_HACK_B8		0x02000000
 #define HID_QUIRK_HWHEEL_WHEEL_INVERT		0x04000000
+#define HID_QUIRK_MICROSOFT_KEYS		0x08000000
 
 /*
  * Separate quirks for runtime report descriptor fixup
