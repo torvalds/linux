@@ -138,23 +138,4 @@ static inline int irq_to_gpio(unsigned irq)
 	return irq - gpio_to_irq(0);
 }
 
-/* obsolete specific GPIO API */
-#define GPIO_IN				0
-#define GPIO_OUT			1
-
-#define EP93XX_GPIO_LOW			0
-#define EP93XX_GPIO_HIGH		1
-
-void __deprecated gpio_line_config(int line, int direction);
-
-static inline int  __deprecated gpio_line_get(int line)
-{
-	return gpio_get_value(line);
-}
-
-static inline void __deprecated gpio_line_set(int line, int value)
-{
-	gpio_set_value(line, value);
-}
-
 #endif

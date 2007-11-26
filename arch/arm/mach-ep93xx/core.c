@@ -189,6 +189,9 @@ static const u8 data_direction_register_offset[8] = {
 	0x10, 0x14, 0x34, 0x1c, 0x24, 0x18, 0x3c, 0x44,
 };
 
+#define GPIO_IN		0
+#define GPIO_OUT	1
+
 static void ep93xx_gpio_set_direction(unsigned line, int direction)
 {
 	unsigned int data_direction_register;
@@ -216,12 +219,6 @@ static void ep93xx_gpio_set_direction(unsigned line, int direction)
 	}
 	local_irq_restore(flags);
 }
-
-void __deprecated gpio_line_config(int line, int direction)
-{
-	ep93xx_gpio_set_direction(line, direction);
-}
-EXPORT_SYMBOL(gpio_line_config);
 
 int gpio_direction_input(unsigned gpio)
 {
