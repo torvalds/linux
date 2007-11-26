@@ -1717,11 +1717,10 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 			      btrfs_item_nr_offset(push_items),
 			     (btrfs_header_nritems(right) - push_items) *
 			     sizeof(struct btrfs_item));
-
 	}
-	btrfs_set_header_nritems(right, right_nritems - push_items);
+	right_nritems -= push_items;
+	btrfs_set_header_nritems(right, right_nritems);
 	push_space = BTRFS_LEAF_DATA_SIZE(root);
-
 	for (i = 0; i < right_nritems; i++) {
 		item = btrfs_item_nr(right, i);
 
