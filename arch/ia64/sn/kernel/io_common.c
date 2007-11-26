@@ -545,19 +545,18 @@ sn_io_late_init(void)
 		nasid = NASID_GET(bussoft->bs_base);
 		cnode = nasid_to_cnodeid(nasid);
 		if ((bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP) ||
-		    (bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCE)) {
-			/* TIO PCI Bridge: find nearest node with CPUs */
+		    (bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCE) ||
+		    (bussoft->bs_asic_type == PCIIO_ASIC_TYPE_PIC)) {
+			/* PCI Bridge: find nearest node with CPUs */
 			int e = sn_hwperf_get_nearest_node(cnode, NULL,
 							   &near_cnode);
 			if (e < 0) {
 				near_cnode = (cnodeid_t)-1; /* use any node */
-				printk(KERN_WARNING "pcibr_bus_fixup: failed "
-				       "to find near node with CPUs to TIO "
+				printk(KERN_WARNING "sn_io_late_init: failed "
+				       "to find near node with CPUs for "
 				       "node %d, err=%d\n", cnode, e);
 			}
 			PCI_CONTROLLER(bus)->node = near_cnode;
-		} else if (bussoft->bs_asic_type == PCIIO_ASIC_TYPE_PIC) {
-			PCI_CONTROLLER(bus)->node = cnode;
 		}
 	}
 
