@@ -497,7 +497,8 @@ static void iwl4965_clear_stations_table(struct iwl4965_priv *priv)
 /**
  * iwl4965_add_station_flags - Add station to tables in driver and device
  */
-u8 iwl4965_add_station_flags(struct iwl4965_priv *priv, const u8 *addr, int is_ap, u8 flags)
+u8 iwl4965_add_station_flags(struct iwl4965_priv *priv, const u8 *addr,
+				int is_ap, u8 flags, void *ht_data)
 {
 	int i;
 	int index = IWL_INVALID_STATION;
@@ -554,7 +555,8 @@ u8 iwl4965_add_station_flags(struct iwl4965_priv *priv, const u8 *addr, int is_a
 	/* BCAST station and IBSS stations do not work in HT mode */
 	if (index != priv->hw_setting.bcast_sta_id &&
 	    priv->iw_mode != IEEE80211_IF_TYPE_IBSS)
-		iwl4965_set_ht_add_station(priv, index);
+		iwl4965_set_ht_add_station(priv, index,
+				 (struct ieee80211_ht_info *) ht_data);
 #endif /*CONFIG_IWL4965_HT*/
 
 	spin_unlock_irqrestore(&priv->sta_lock, flags_spin);
@@ -900,7 +902,19 @@ static int iwl4965_rxon_add_station(struct iwl4965_priv *priv,
 	u8 sta_id;
 
 	/* Add station to device's station table */
-	sta_id = iwl4965_add_station_flags(priv, addr, is_ap, 0);
+#ifdef CONFIG_IWL4965_HT
+	struct ieee80211_conf *conf = &priv->hw->conf;
+	struct ieee80211_ht_info *cur_ht_config = &conf->ht_conf;
+
+	if ((is_ap) &&
+	    (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) &&
+	    (priv->iw_mode == IEEE80211_IF_TYPE_STA))
+		sta_id = iwl4965_add_station_flags(priv, addr, is_ap,
+						   0, cur_ht_config);
+	else
+#endif /* CONFIG_IWL4965_HT */
+		sta_id = iwl4965_add_station_flags(priv, addr, is_ap,
+						   0, NULL);
 
 	/* Set up default rate scaling table in device's station table */
 	iwl4965_add_station(priv, addr, is_ap);
@@ -2834,7 +2848,8 @@ static int iwl4965_get_sta_id(struct iwl4965_priv *priv,
 			return sta_id;
 
 		/* Create new station table entry */
-		sta_id = iwl4965_add_station_flags(priv, hdr->addr1, 0, CMD_ASYNC);
+		sta_id = iwl4965_add_station_flags(priv, hdr->addr1,
+						   0, CMD_ASYNC, NULL);
 
 		if (sta_id != IWL_INVALID_STATION)
 			return sta_id;

@@ -649,8 +649,8 @@ struct iwl4965_driver_hw_info {
 struct iwl4965_addsta_cmd;
 extern int iwl4965_send_add_station(struct iwl4965_priv *priv,
 				struct iwl4965_addsta_cmd *sta, u8 flags);
-extern u8 iwl4965_add_station_flags(struct iwl4965_priv *priv, const u8 *bssid,
-			  int is_ap, u8 flags);
+extern u8 iwl4965_add_station_flags(struct iwl4965_priv *priv, const u8 *addr,
+			  int is_ap, u8 flags, void *ht_data);
 extern int iwl4965_is_network_packet(struct iwl4965_priv *priv,
 				 struct ieee80211_hdr *header);
 extern int iwl4965_power_init_handle(struct iwl4965_priv *priv);
@@ -785,8 +785,6 @@ extern int iwl4965_tx_cmd(struct iwl4965_priv *priv, struct iwl4965_cmd *out_cmd
 			  struct ieee80211_tx_control *ctrl, void *sta_in);
 extern int iwl4965_alive_notify(struct iwl4965_priv *priv);
 extern void iwl4965_update_rate_scaling(struct iwl4965_priv *priv, u8 mode);
-extern void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index);
-
 extern void iwl4965_chain_noise_reset(struct iwl4965_priv *priv);
 extern void iwl4965_init_sensitivity(struct iwl4965_priv *priv, u8 flags,
 				     u8 force);
@@ -801,6 +799,8 @@ extern void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
 					int mode);
 extern void iwl4965_set_rxon_ht(struct iwl4965_priv *priv,
 				struct iwl_ht_info *ht_info);
+extern void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
+				struct ieee80211_ht_info *sta_ht_inf);
 #ifdef CONFIG_IWL4965_HT_AGG
 extern int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da,
 				   u16 tid, u16 *start_seq_num);

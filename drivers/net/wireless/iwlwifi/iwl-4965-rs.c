@@ -2023,8 +2023,8 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE("LQ: ADD station %s\n",
 				       print_mac(mac, hdr->addr1));
-			sta_id = iwl4965_add_station_flags(priv,
-						 hdr->addr1, 0, CMD_ASYNC);
+			sta_id = iwl4965_add_station_flags(priv, hdr->addr1,
+							0, CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			lq->lq.sta_id = sta_id;
@@ -2101,8 +2101,8 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE("LQ: ADD station %s\n",
 				       print_mac(mac, sta->addr));
-			sta_id = iwl4965_add_station_flags(priv,
-						 sta->addr, 0, CMD_ASYNC);
+			sta_id = iwl4965_add_station_flags(priv, sta->addr,
+							0, CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
 			crl->lq.sta_id = sta_id;

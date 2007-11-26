@@ -4617,39 +4617,33 @@ void iwl4965_set_rxon_ht(struct iwl4965_priv *priv, struct iwl_ht_info *ht_info)
 	return;
 }
 
-void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index)
+void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
+				struct ieee80211_ht_info *sta_ht_inf)
 {
 	__le32 sta_flags;
-	struct sta_ht_info *ht_info = &priv->current_assoc_ht;
 
-	priv->current_channel_width = IWL_CHANNEL_WIDTH_20MHZ;
-	if (!ht_info->is_ht)
+	if (!sta_ht_inf || !sta_ht_inf->ht_supported)
 		goto done;
 
 	sta_flags = priv->stations[index].sta.station_flags;
 
-	if (ht_info->tx_mimo_ps_mode == IWL_MIMO_PS_DYNAMIC)
+	if (((sta_ht_inf->cap & IEEE80211_HT_CAP_MIMO_PS >> 2))
+						== IWL_MIMO_PS_DYNAMIC)
 		sta_flags |= STA_FLG_RTS_MIMO_PROT_MSK;
 	else
 		sta_flags &= ~STA_FLG_RTS_MIMO_PROT_MSK;
 
 	sta_flags |= cpu_to_le32(
-		(u32)ht_info->ampdu_factor << STA_FLG_MAX_AGG_SIZE_POS);
+	      (u32)sta_ht_inf->ampdu_factor << STA_FLG_MAX_AGG_SIZE_POS);
 
 	sta_flags |= cpu_to_le32(
-		(u32)ht_info->mpdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
+	      (u32)sta_ht_inf->ampdu_density << STA_FLG_AGG_MPDU_DENSITY_POS);
 
-	sta_flags &= (~STA_FLG_FAT_EN_MSK);
-	ht_info->tx_chan_width = IWL_CHANNEL_WIDTH_20MHZ;
-	ht_info->chan_width_cap = IWL_CHANNEL_WIDTH_20MHZ;
-
-	if (iwl4965_is_fat_tx_allowed(priv, ht_info)) {
+	if (iwl4965_is_fat_tx_allowed(priv, sta_ht_inf))
 		sta_flags |= STA_FLG_FAT_EN_MSK;
-		ht_info->chan_width_cap = IWL_CHANNEL_WIDTH_40MHZ;
-		if (ht_info->supported_chan_width == IWL_CHANNEL_WIDTH_40MHZ)
-			ht_info->tx_chan_width = IWL_CHANNEL_WIDTH_40MHZ;
-	}
-	priv->current_channel_width = ht_info->tx_chan_width;
+	else
+		sta_flags &= (~STA_FLG_FAT_EN_MSK);
+
 	priv->stations[index].sta.station_flags = sta_flags;
  done:
 	return;
