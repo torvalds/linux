@@ -113,7 +113,7 @@ static void vcc_write_space(struct sock *sk)
 		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 			wake_up_interruptible(sk->sk_sleep);
 
-		sk_wake_async(sk, 2, POLL_OUT);
+		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 
 	read_unlock(&sk->sk_callback_lock);

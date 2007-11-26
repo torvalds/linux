@@ -170,7 +170,7 @@ void dccp_write_space(struct sock *sk)
 		wake_up_interruptible(sk->sk_sleep);
 	/* Should agree with poll, otherwise some programs break */
 	if (sock_writeable(sk))
-		sk_wake_async(sk, 2, POLL_OUT);
+		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 
 	read_unlock(&sk->sk_callback_lock);
 }

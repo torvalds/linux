@@ -3595,9 +3595,9 @@ static void tcp_fin(struct sk_buff *skb, struct sock *sk, struct tcphdr *th)
 		/* Do not send POLL_HUP for half duplex close. */
 		if (sk->sk_shutdown == SHUTDOWN_MASK ||
 		    sk->sk_state == TCP_CLOSE)
-			sk_wake_async(sk, 1, POLL_HUP);
+			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_HUP);
 		else
-			sk_wake_async(sk, 1, POLL_IN);
+			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	}
 }
 
@@ -4956,7 +4956,7 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 
 		if (!sock_flag(sk, SOCK_DEAD)) {
 			sk->sk_state_change(sk);
-			sk_wake_async(sk, 0, POLL_OUT);
+			sk_wake_async(sk, SOCK_WAKE_IO, POLL_OUT);
 		}
 
 		if (sk->sk_write_pending ||
@@ -5186,9 +5186,9 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				 * are not waked up, because sk->sk_sleep ==
 				 * NULL and sk->sk_socket == NULL.
 				 */
-				if (sk->sk_socket) {
-					sk_wake_async(sk,0,POLL_OUT);
-				}
+				if (sk->sk_socket)
+					sk_wake_async(sk,
+							SOCK_WAKE_IO, POLL_OUT);
 
 				tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
 				tp->snd_wnd = ntohs(th->window) <<

@@ -186,6 +186,13 @@ struct net_proto_family {
 struct iovec;
 struct kvec;
 
+enum {
+	SOCK_WAKE_IO,
+	SOCK_WAKE_WAITD,
+	SOCK_WAKE_SPACE,
+	SOCK_WAKE_URG,
+};
+
 extern int	     sock_wake_async(struct socket *sk, int how, int band);
 extern int	     sock_register(const struct net_proto_family *fam);
 extern void	     sock_unregister(int family);

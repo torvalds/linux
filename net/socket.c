@@ -1070,20 +1070,19 @@ int sock_wake_async(struct socket *sock, int how, int band)
 	if (!sock || !sock->fasync_list)
 		return -1;
 	switch (how) {
-	case 1:
-
+	case SOCK_WAKE_WAITD:
 		if (test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
 			break;
 		goto call_kill;
-	case 2:
+	case SOCK_WAKE_SPACE:
 		if (!test_and_clear_bit(SOCK_ASYNC_NOSPACE, &sock->flags))
 			break;
 		/* fall through */
-	case 0:
+	case SOCK_WAKE_IO:
 call_kill:
 		__kill_fasync(sock->fasync_list, SIGIO, band);
 		break;
-	case 3:
+	case SOCK_WAKE_URG:
 		__kill_fasync(sock->fasync_list, SIGURG, band);
 	}
 	return 0;

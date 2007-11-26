@@ -317,7 +317,7 @@ static void unix_write_space(struct sock *sk)
 	if (unix_writable(sk)) {
 		if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 			wake_up_interruptible_sync(sk->sk_sleep);
-		sk_wake_async(sk, 2, POLL_OUT);
+		sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 	read_unlock(&sk->sk_callback_lock);
 }
@@ -403,7 +403,7 @@ static int unix_release_sock (struct sock *sk, int embrion)
 			unix_state_unlock(skpair);
 			skpair->sk_state_change(skpair);
 			read_lock(&skpair->sk_callback_lock);
-			sk_wake_async(skpair,1,POLL_HUP);
+			sk_wake_async(skpair, SOCK_WAKE_WAITD, POLL_HUP);
 			read_unlock(&skpair->sk_callback_lock);
 		}
 		sock_put(skpair); /* It may now die */
@@ -1900,9 +1900,9 @@ static int unix_shutdown(struct socket *sock, int mode)
 			other->sk_state_change(other);
 			read_lock(&other->sk_callback_lock);
 			if (peer_mode == SHUTDOWN_MASK)
-				sk_wake_async(other,1,POLL_HUP);
+				sk_wake_async(other, SOCK_WAKE_WAITD, POLL_HUP);
 			else if (peer_mode & RCV_SHUTDOWN)
-				sk_wake_async(other,1,POLL_IN);
+				sk_wake_async(other, SOCK_WAKE_WAITD, POLL_IN);
 			read_unlock(&other->sk_callback_lock);
 		}
 		if (other)

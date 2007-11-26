@@ -1498,7 +1498,7 @@ static void sock_def_error_report(struct sock *sk)
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible(sk->sk_sleep);
-	sk_wake_async(sk,0,POLL_ERR);
+	sk_wake_async(sk, SOCK_WAKE_IO, POLL_ERR);
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1507,7 +1507,7 @@ static void sock_def_readable(struct sock *sk, int len)
 	read_lock(&sk->sk_callback_lock);
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible(sk->sk_sleep);
-	sk_wake_async(sk,1,POLL_IN);
+	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
 	read_unlock(&sk->sk_callback_lock);
 }
 
@@ -1524,7 +1524,7 @@ static void sock_def_write_space(struct sock *sk)
 
 		/* Should agree with poll, otherwise some programs break */
 		if (sock_writeable(sk))
-			sk_wake_async(sk, 2, POLL_OUT);
+			sk_wake_async(sk, SOCK_WAKE_SPACE, POLL_OUT);
 	}
 
 	read_unlock(&sk->sk_callback_lock);
@@ -1539,7 +1539,7 @@ void sk_send_sigurg(struct sock *sk)
 {
 	if (sk->sk_socket && sk->sk_socket->file)
 		if (send_sigurg(&sk->sk_socket->file->f_owner))
-			sk_wake_async(sk, 3, POLL_PRI);
+			sk_wake_async(sk, SOCK_WAKE_URG, POLL_PRI);
 }
 
 void sk_reset_timer(struct sock *sk, struct timer_list* timer,

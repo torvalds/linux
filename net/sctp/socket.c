@@ -6008,7 +6008,8 @@ static void __sctp_write_space(struct sctp_association *asoc)
 			 */
 			if (sock->fasync_list &&
 			    !(sk->sk_shutdown & SEND_SHUTDOWN))
-				sock_wake_async(sock, 2, POLL_OUT);
+				sock_wake_async(sock,
+						SOCK_WAKE_SPACE, POLL_OUT);
 		}
 	}
 }
