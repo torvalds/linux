@@ -80,6 +80,10 @@ static void update_send_head(struct sock *sk, struct sk_buff *skb)
 	tcp_advance_send_head(sk, skb);
 	tp->snd_nxt = TCP_SKB_CB(skb)->end_seq;
 	tcp_packets_out_inc(sk, skb);
+
+	/* Don't override Nagle indefinately with F-RTO */
+	if (tp->frto_counter == 2)
+		tp->frto_counter = 3;
 }
 
 /* SND.NXT, if window was not shrunk.
