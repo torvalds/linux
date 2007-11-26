@@ -409,6 +409,17 @@ config ARCH_OMAP
 	help
 	  Support for TI's OMAP platform (OMAP1 and OMAP2).
 
+config ARCH_MSM7X00A
+	bool "Qualcomm MSM7X00A"
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	help
+	  Support for Qualcomm MSM7X00A based systems.  This runs on the ARM11
+	  apps processor of the MSM7X00A and depends on a shared memory
+	  interface to the ARM9 modem processor which runs the baseband stack
+	  and controls some vital subsystems (clock and power control, etc).
+	  <http://www.cdmatech.com/products/msm7200_chipset_solution.jsp>
+
 endchoice
 
 source "arch/arm/mach-clps711x/Kconfig"

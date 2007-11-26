@@ -345,8 +345,9 @@ config CPU_XSC3
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2 || ARCH_MX3
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2 || ARCH_MX3 || ARCH_MSM7X00A
 	default y if ARCH_MX3
+	default y if ARCH_MSM7X00A
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
