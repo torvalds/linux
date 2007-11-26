@@ -32,7 +32,11 @@ ENTRY(empty_zero_page)
 	.long	1		/* LOADER_TYPE */
 	.long	0x00360000	/* INITRD_START */
 	.long	0x000a0000	/* INITRD_SIZE */
-	.long	0
+#ifdef CONFIG_32BIT
+	.long	0x53453f00 + 32	/* "SE?" = 32 bit */
+#else
+	.long	0x53453f00 + 29	/* "SE?" = 29 bit */
+#endif
 1:
 	.skip	PAGE_SIZE - empty_zero_page - 1b
 
