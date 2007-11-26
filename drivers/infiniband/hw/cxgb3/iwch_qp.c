@@ -208,36 +208,19 @@ static int iwch_sgl2pbl_map(struct iwch_dev *rhp, struct ib_sge *sg_list,
 static int iwch_build_rdma_recv(struct iwch_dev *rhp, union t3_wr *wqe,
 				struct ib_recv_wr *wr)
 {
-	int i, err = 0;
-	u32 pbl_addr[4];
-	u8 page_size[4];
+	int i;
 	if (wr->num_sge > T3_MAX_SGE)
 		return -EINVAL;
-	err = iwch_sgl2pbl_map(rhp, wr->sg_list, wr->num_sge, pbl_addr,
-			       page_size);
-	if (err)
-		return err;
-	wqe->recv.pagesz[0] = page_size[0];
-	wqe->recv.pagesz[1] = page_size[1];
-	wqe->recv.pagesz[2] = page_size[2];
-	wqe->recv.pagesz[3] = page_size[3];
 	wqe->recv.num_sgle = cpu_to_be32(wr->num_sge);
 	for (i = 0; i < wr->num_sge; i++) {
 		wqe->recv.sgl[i].stag = cpu_to_be32(wr->sg_list[i].lkey);
 		wqe->recv.sgl[i].len = cpu_to_be32(wr->sg_list[i].length);
-
-		/* to in the WQE == the offset into the page */
-		wqe->recv.sgl[i].to = cpu_to_be64(((u32) wr->sg_list[i].addr) %
-				(1UL << (12 + page_size[i])));
-
-		/* pbl_addr is the adapters address in the PBL */
-		wqe->recv.pbl_addr[i] = cpu_to_be32(pbl_addr[i]);
+		wqe->recv.sgl[i].to = cpu_to_be64(wr->sg_list[i].addr);
 	}
 	for (; i < T3_MAX_SGE; i++) {
 		wqe->recv.sgl[i].stag = 0;
 		wqe->recv.sgl[i].len = 0;
 		wqe->recv.sgl[i].to = 0;
-		wqe->recv.pbl_addr[i] = 0;
 	}
 	return 0;
 }
