@@ -22,6 +22,8 @@
 #define MMU_UTLB_ADDRESS_ARRAY	0xF6000000
 #define MMU_PAGE_ASSOC_BIT	0x80
 
+#define MMUCR_TI		(1<<2)
+
 #ifdef CONFIG_X2TLB
 #define MMUCR_ME		(1 << 7)
 #else

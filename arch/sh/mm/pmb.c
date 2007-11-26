@@ -27,6 +27,7 @@
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/io.h>
+#include <asm/mmu_context.h>
 
 #define NR_PMB_ENTRIES	16
 
@@ -328,6 +329,11 @@ static int __init pmb_init(void)
 
 	/* PMB.SE and UB[7] */
 	ctrl_outl((1 << 31) | (1 << 7), PMB_PASCR);
+
+	/* Flush out the TLB */
+	i =  ctrl_inl(MMUCR);
+	i |= MMUCR_TI;
+	ctrl_outl(i, MMUCR);
 
 	back_to_P1();
 
