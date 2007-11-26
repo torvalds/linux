@@ -3768,6 +3768,30 @@ static int parse_elems(u8 *start, size_t len, struct ieee802_11_elems *elems)
 
 	return 0;
 }
+
+void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info, int mode)
+{
+	ht_info->cap = 0;
+	memset(ht_info->supp_mcs_set, 0, 16);
+
+	ht_info->ht_supported = 1;
+
+	if (mode == MODE_IEEE80211A) {
+		ht_info->cap |= (u16)IEEE80211_HT_CAP_SUP_WIDTH;
+		ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_40;
+		ht_info->supp_mcs_set[4] = 0x01;
+	}
+	ht_info->cap |= (u16)IEEE80211_HT_CAP_GRN_FLD;
+	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
+	ht_info->cap |= (u16)(IEEE80211_HT_CAP_MIMO_PS &
+			     (IWL_MIMO_PS_NONE << 2));
+
+	ht_info->ampdu_factor = CFG_HT_RX_AMPDU_FACTOR_DEF;
+	ht_info->ampdu_density = CFG_HT_MPDU_DENSITY_DEF;
+
+	ht_info->supp_mcs_set[0] = 0xFF;
+	ht_info->supp_mcs_set[1] = 0xFF;
+}
 #endif /* CONFIG_IWL4965_HT */
 
 static void iwl4965_sta_modify_ps_wake(struct iwl4965_priv *priv, int sta_id)

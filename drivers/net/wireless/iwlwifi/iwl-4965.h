@@ -801,6 +801,8 @@ extern int iwl4965_set_fat_chan_info(struct iwl4965_priv *priv, int phymode,
 extern void iwl4965_rf_kill_ct_config(struct iwl4965_priv *priv);
 
 #ifdef CONFIG_IWL4965_HT
+extern void iwl4965_init_ht_hw_capab(struct ieee80211_ht_info *ht_info,
+					int mode);
 #ifdef CONFIG_IWL4965_HT_AGG
 extern int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da,
 				   u16 tid, u16 *start_seq_num);

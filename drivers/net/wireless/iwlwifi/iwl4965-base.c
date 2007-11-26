@@ -5822,10 +5822,8 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 		A = 0,
 		B = 1,
 		G = 2,
-		A_11N = 3,
-		G_11N = 4,
 	};
-	int mode_count = 5;
+	int mode_count = 3;
 
 	if (priv->modes) {
 		IWL_DEBUG_INFO("Geography modes already initialized.\n");
@@ -5865,6 +5863,9 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 	modes[A].num_rates = 8;	/* just OFDM */
 	modes[A].rates = &rates[4];
 	modes[A].num_channels = 0;
+#ifdef CONFIG_IWL4965_HT
+	iwl4965_init_ht_hw_capab(&modes[A].ht_info, MODE_IEEE80211A);
+#endif
 
 	modes[B].mode = MODE_IEEE80211B;
 	modes[B].channels = channels;
@@ -5877,18 +5878,9 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 	modes[G].rates = rates;
 	modes[G].num_rates = 12;	/* OFDM & CCK */
 	modes[G].num_channels = 0;
-
-	modes[G_11N].mode = MODE_IEEE80211G;
-	modes[G_11N].channels = channels;
-	modes[G_11N].num_rates = 13;        /* OFDM & CCK */
-	modes[G_11N].rates = rates;
-	modes[G_11N].num_channels = 0;
-
-	modes[A_11N].mode = MODE_IEEE80211A;
-	modes[A_11N].channels = &channels[ARRAY_SIZE(iwl4965_eeprom_band_1)];
-	modes[A_11N].rates = &rates[4];
-	modes[A_11N].num_rates = 9; /* just OFDM */
-	modes[A_11N].num_channels = 0;
+#ifdef CONFIG_IWL4965_HT
+	iwl4965_init_ht_hw_capab(&modes[G].ht_info, MODE_IEEE80211G);
+#endif
 
 	priv->ieee_channels = channels;
 	priv->ieee_rates = rates;
@@ -5908,11 +5900,9 @@ static int iwl4965_init_geos(struct iwl4965_priv *priv)
 
 		if (is_channel_a_band(ch)) {
 			geo_ch = &modes[A].channels[modes[A].num_channels++];
-			modes[A_11N].num_channels++;
 		} else {
 			geo_ch = &modes[B].channels[modes[B].num_channels++];
 			modes[G].num_channels++;
-			modes[G_11N].num_channels++;
 		}
 
 		geo_ch->freq = ieee80211chan2mhz(ch->channel);
