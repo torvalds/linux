@@ -158,6 +158,12 @@ int pvr2_hdw_get_tuner_status(struct pvr2_hdw *,struct v4l2_tuner *);
 /* Query device and see if it thinks it is on a high-speed USB link */
 int pvr2_hdw_is_hsm(struct pvr2_hdw *);
 
+/* Return a string token representative of the hardware type */
+const char *pvr2_hdw_get_type(struct pvr2_hdw *);
+
+/* Return a single line description of the hardware type */
+const char *pvr2_hdw_get_desc(struct pvr2_hdw *);
+
 /* Turn streaming on/off */
 int pvr2_hdw_set_streaming(struct pvr2_hdw *,int);
 

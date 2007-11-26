@@ -2474,6 +2474,18 @@ const char *pvr2_hdw_get_driver_name(struct pvr2_hdw *hdw)
 }
 
 
+const char *pvr2_hdw_get_desc(struct pvr2_hdw *hdw)
+{
+	return hdw->hdw_desc->description;
+}
+
+
+const char *pvr2_hdw_get_type(struct pvr2_hdw *hdw)
+{
+	return hdw->hdw_desc->shortname;
+}
+
+
 int pvr2_hdw_is_hsm(struct pvr2_hdw *hdw)
 {
 	int result;
