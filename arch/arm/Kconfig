@@ -488,6 +488,8 @@ source "arch/arm/mach-davinci/Kconfig"
 
 source "arch/arm/mach-ks8695/Kconfig"
 
+source "arch/arm/mach-msm/Kconfig"
+
 # Definitions to make life easier
 config ARCH_ACORN
 	bool
