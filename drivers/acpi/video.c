@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/input.h>
@@ -135,8 +136,8 @@ struct acpi_video_bus {
 	u8 attached_count;
 	struct acpi_video_bus_cap cap;
 	struct acpi_video_bus_flags flags;
-	struct semaphore sem;
 	struct list_head video_device_list;
+	struct mutex device_list_lock;	/* protects video_device_list */
 	struct proc_dir_entry *dir;
 	struct input_dev *input;
 	char phys[32];	/* for input device */
@@ -896,7 +897,7 @@ acpi_video_device_write_brightness(struct file *file,
 {
 	struct seq_file *m = file->private_data;
 	struct acpi_video_device *dev = m->private;
-	char str[4] = { 0 };
+	char str[5] = { 0 };
 	unsigned int level = 0;
 	int i;
 
@@ -1436,9 +1437,9 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 			return -ENODEV;
 		}
 
-		down(&video->sem);
+		mutex_lock(&video->device_list_lock);
 		list_add_tail(&data->entry, &video->video_device_list);
-		up(&video->sem);
+		mutex_unlock(&video->device_list_lock);
 
 		acpi_video_device_add_fs(device);
 
@@ -1462,12 +1463,14 @@ acpi_video_bus_get_one_device(struct acpi_device *device,
 
 static void acpi_video_device_rebind(struct acpi_video_bus *video)
 {
-	struct list_head *node, *next;
-	list_for_each_safe(node, next, &video->video_device_list) {
-		struct acpi_video_device *dev =
-		    container_of(node, struct acpi_video_device, entry);
+	struct acpi_video_device *dev;
+
+	mutex_lock(&video->device_list_lock);
+
+	list_for_each_entry(dev, &video->video_device_list, entry)
 		acpi_video_device_bind(video, dev);
-	}
+
+	mutex_unlock(&video->device_list_lock);
 }
 
 /*
@@ -1592,30 +1595,33 @@ static int acpi_video_device_enumerate(struct acpi_video_bus *video)
 
 static int acpi_video_switch_output(struct acpi_video_bus *video, int event)
 {
-	struct list_head *node, *next;
+	struct list_head *node;
 	struct acpi_video_device *dev = NULL;
 	struct acpi_video_device *dev_next = NULL;
 	struct acpi_video_device *dev_prev = NULL;
 	unsigned long state;
 	int status = 0;
 
+	mutex_lock(&video->device_list_lock);
 
-	list_for_each_safe(node, next, &video->video_device_list) {
+	list_for_each(node, &video->video_device_list) {
 		dev = container_of(node, struct acpi_video_device, entry);
 		status = acpi_video_device_get_state(dev, &state);
 		if (state & 0x2) {
-			dev_next =
-			    container_of(node->next, struct acpi_video_device,
-					 entry);
-			dev_prev =
-			    container_of(node->prev, struct acpi_video_device,
-					 entry);
+			dev_next = container_of(node->next,
+					struct acpi_video_device, entry);
+			dev_prev = container_of(node->prev,
+					struct acpi_video_device, entry);
 			goto out;
 		}
 	}
+
 	dev_next = container_of(node->next, struct acpi_video_device, entry);
 	dev_prev = container_of(node->prev, struct acpi_video_device, entry);
-      out:
+
+ out:
+	mutex_unlock(&video->device_list_lock);
+
 	switch (event) {
 	case ACPI_VIDEO_NOTIFY_CYCLE:
 	case ACPI_VIDEO_NOTIFY_NEXT_OUTPUT:
@@ -1691,24 +1697,17 @@ acpi_video_bus_get_devices(struct acpi_video_bus *video,
 			   struct acpi_device *device)
 {
 	int status = 0;
-	struct list_head *node, *next;
-
+	struct acpi_device *dev;
 
 	acpi_video_device_enumerate(video);
 
-	list_for_each_safe(node, next, &device->children) {
-		struct acpi_device *dev =
-		    list_entry(node, struct acpi_device, node);
-
-		if (!dev)
-			continue;
+	list_for_each_entry(dev, &device->children, node) {
 
 		status = acpi_video_bus_get_one_device(dev, video);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status, "Cant attach device"));
 			continue;
 		}
-
 	}
 	return status;
 }
@@ -1724,9 +1723,6 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 
 	video = device->video;
 
-	down(&video->sem);
-	list_del(&device->entry);
-	up(&video->sem);
 	acpi_video_device_remove_fs(device->dev);
 
 	status = acpi_remove_notify_handler(device->dev->handle,
@@ -1734,31 +1730,33 @@ static int acpi_video_bus_put_one_device(struct acpi_video_device *device)
 					    acpi_video_device_notify);
 	backlight_device_unregister(device->backlight);
 	video_output_unregister(device->output_dev);
+
 	return 0;
 }
 
 static int acpi_video_bus_put_devices(struct acpi_video_bus *video)
 {
 	int status;
-	struct list_head *node, *next;
+	struct acpi_video_device *dev, *next;
 
+	mutex_lock(&video->device_list_lock);
 
-	list_for_each_safe(node, next, &video->video_device_list) {
-		struct acpi_video_device *data =
-		    list_entry(node, struct acpi_video_device, entry);
-		if (!data)
-			continue;
+	list_for_each_entry_safe(dev, next, &video->video_device_list, entry) {
 
-		status = acpi_video_bus_put_one_device(data);
+		status = acpi_video_bus_put_one_device(dev);
 		if (ACPI_FAILURE(status))
 			printk(KERN_WARNING PREFIX
 			       "hhuuhhuu bug in acpi video driver.\n");
 
-		if (data->brightness)
-			kfree(data->brightness->levels);
-		kfree(data->brightness);
-		kfree(data);
+		if (dev->brightness) {
+			kfree(dev->brightness->levels);
+			kfree(dev->brightness);
+		}
+		list_del(&dev->entry);
+		kfree(dev);
 	}
+
+	mutex_unlock(&video->device_list_lock);
 
 	return 0;
 }
@@ -1781,9 +1779,6 @@ static void acpi_video_bus_notify(acpi_handle handle, u32 event, void *data)
 	struct acpi_device *device = NULL;
 	struct input_dev *input;
 	int keycode;
-
-
-	printk("video bus notify\n");
 
 	if (!video)
 		return;
@@ -1897,14 +1892,10 @@ static void acpi_video_device_notify(acpi_handle handle, u32 event, void *data)
 static int instance;
 static int acpi_video_bus_add(struct acpi_device *device)
 {
-	int result = 0;
-	acpi_status status = 0;
-	struct acpi_video_bus *video = NULL;
+	acpi_status status;
+	struct acpi_video_bus *video;
 	struct input_dev *input;
-
-
-	if (!device)
-		return -EINVAL;
+	int error;
 
 	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
 	if (!video)
@@ -1923,15 +1914,15 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	acpi_driver_data(device) = video;
 
 	acpi_video_bus_find_cap(video);
-	result = acpi_video_bus_check(video);
-	if (result)
-		goto end;
+	error = acpi_video_bus_check(video);
+	if (error)
+		goto err_free_video;
 
-	result = acpi_video_bus_add_fs(device);
-	if (result)
-		goto end;
+	error = acpi_video_bus_add_fs(device);
+	if (error)
+		goto err_free_video;
 
-	init_MUTEX(&video->sem);
+	mutex_init(&video->device_list_lock);
 	INIT_LIST_HEAD(&video->video_device_list);
 
 	acpi_video_bus_get_devices(video, device);
@@ -1943,16 +1934,15 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Error installing notify handler\n"));
-		acpi_video_bus_stop_devices(video);
-		acpi_video_bus_put_devices(video);
-		kfree(video->attached_array);
-		acpi_video_bus_remove_fs(device);
-		result = -ENODEV;
-		goto end;
+		error = -ENODEV;
+		goto err_stop_video;
 	}
 
-
 	video->input = input = input_allocate_device();
+	if (!input) {
+		error = -ENOMEM;
+		goto err_uninstall_notify;
+	}
 
 	snprintf(video->phys, sizeof(video->phys),
 		"%s/video/input0", acpi_device_hid(video->device));
@@ -1961,6 +1951,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	input->phys = video->phys;
 	input->id.bustype = BUS_HOST;
 	input->id.product = 0x06;
+	input->dev.parent = &device->dev;
 	input->evbit[0] = BIT(EV_KEY);
 	set_bit(KEY_SWITCHVIDEOMODE, input->keybit);
 	set_bit(KEY_VIDEO_NEXT, input->keybit);
@@ -1971,18 +1962,10 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	set_bit(KEY_BRIGHTNESS_ZERO, input->keybit);
 	set_bit(KEY_DISPLAY_OFF, input->keybit);
 	set_bit(KEY_UNKNOWN, input->keybit);
-	result = input_register_device(input);
-	if (result) {
-		acpi_remove_notify_handler(video->device->handle,
-						ACPI_DEVICE_NOTIFY,
-						acpi_video_bus_notify);
-		acpi_video_bus_stop_devices(video);
-		acpi_video_bus_put_devices(video);
-		kfree(video->attached_array);
-		acpi_video_bus_remove_fs(device);
-		goto end;
-        }
 
+	error = input_register_device(input);
+	if (error)
+		goto err_free_input_dev;
 
 	printk(KERN_INFO PREFIX "%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
 	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
@@ -1990,11 +1973,23 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	       video->flags.rom ? "yes" : "no",
 	       video->flags.post ? "yes" : "no");
 
-      end:
-	if (result)
-		kfree(video);
+	return 0;
 
-	return result;
+ err_free_input_dev:
+	input_free_device(input);
+ err_uninstall_notify:
+	acpi_remove_notify_handler(device->handle, ACPI_DEVICE_NOTIFY,
+				   acpi_video_bus_notify);
+ err_stop_video:
+	acpi_video_bus_stop_devices(video);
+	acpi_video_bus_put_devices(video);
+	kfree(video->attached_array);
+	acpi_video_bus_remove_fs(device);
+ err_free_video:
+	kfree(video);
+	acpi_driver_data(device) = NULL;
+
+	return error;
 }
 
 static int acpi_video_bus_remove(struct acpi_device *device, int type)

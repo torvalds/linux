@@ -387,17 +387,14 @@ acpi_status acpi_os_read_port(acpi_io_address port, u32 * value, u32 width)
 	if (!value)
 		value = &dummy;
 
-	switch (width) {
-	case 8:
+	*value = 0;
+	if (width <= 8) {
 		*(u8 *) value = inb(port);
-		break;
-	case 16:
+	} else if (width <= 16) {
 		*(u16 *) value = inw(port);
-		break;
-	case 32:
+	} else if (width <= 32) {
 		*(u32 *) value = inl(port);
-		break;
-	default:
+	} else {
 		BUG();
 	}
 
@@ -408,17 +405,13 @@ EXPORT_SYMBOL(acpi_os_read_port);
 
 acpi_status acpi_os_write_port(acpi_io_address port, u32 value, u32 width)
 {
-	switch (width) {
-	case 8:
+	if (width <= 8) {
 		outb(value, port);
-		break;
-	case 16:
+	} else if (width <= 16) {
 		outw(value, port);
-		break;
-	case 32:
+	} else if (width <= 32) {
 		outl(value, port);
-		break;
-	default:
+	} else {
 		BUG();
 	}
 

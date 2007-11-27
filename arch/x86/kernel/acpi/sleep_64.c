@@ -115,6 +115,3 @@ static int __init acpi_sleep_setup(char *str)
 
 __setup("acpi_sleep=", acpi_sleep_setup);
 
-void acpi_pci_link_exit(void)
-{
-}

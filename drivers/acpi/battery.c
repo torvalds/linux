@@ -31,7 +31,7 @@
 #include <linux/types.h>
 #include <linux/jiffies.h>
 
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
@@ -63,7 +63,7 @@ static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
 
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 extern struct proc_dir_entry *acpi_lock_battery_dir(void);
 extern void *acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
 
@@ -153,6 +153,8 @@ static int acpi_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (battery->state == 0)
 			val->intval = POWER_SUPPLY_STATUS_FULL;
+		else
+			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = acpi_battery_present(battery);
@@ -221,7 +223,7 @@ static enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_MANUFACTURER,
 };
 
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 inline char *acpi_battery_units(struct acpi_battery *battery)
 {
 	return (battery->power_unit)?"mA":"mW";
@@ -479,7 +481,7 @@ static int acpi_battery_update(struct acpi_battery *battery)
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 static struct proc_dir_entry *acpi_battery_dir;
 
 static int acpi_battery_print_info(struct seq_file *seq, int result)
@@ -786,7 +788,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	acpi_driver_data(device) = battery;
 	mutex_init(&battery->lock);
 	acpi_battery_update(battery);
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	result = acpi_battery_add_fs(device);
 	if (result)
 		goto end;
@@ -804,7 +806,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	       device->status.battery_present ? "present" : "absent");
       end:
 	if (result) {
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 		acpi_battery_remove_fs(device);
 #endif
 		kfree(battery);
@@ -823,7 +825,7 @@ static int acpi_battery_remove(struct acpi_device *device, int type)
 	status = acpi_remove_notify_handler(device->handle,
 					    ACPI_ALL_NOTIFY,
 					    acpi_battery_notify);
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_remove_fs(device);
 #endif
 	sysfs_remove_battery(battery);
@@ -859,13 +861,13 @@ static int __init acpi_battery_init(void)
 {
 	if (acpi_disabled)
 		return -ENODEV;
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_dir = acpi_lock_battery_dir();
 	if (!acpi_battery_dir)
 		return -ENODEV;
 #endif
 	if (acpi_bus_register_driver(&acpi_battery_driver) < 0) {
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 		acpi_unlock_battery_dir(acpi_battery_dir);
 #endif
 		return -ENODEV;
@@ -876,7 +878,7 @@ static int __init acpi_battery_init(void)
 static void __exit acpi_battery_exit(void)
 {
 	acpi_bus_unregister_driver(&acpi_battery_driver);
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_unlock_battery_dir(acpi_battery_dir);
 #endif
 }
