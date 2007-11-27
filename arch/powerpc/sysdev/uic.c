@@ -97,6 +97,22 @@ static void uic_ack_irq(unsigned int virq)
 	spin_unlock_irqrestore(&uic->lock, flags);
 }
 
+static void uic_mask_ack_irq(unsigned int virq)
+{
+	struct uic *uic = get_irq_chip_data(virq);
+	unsigned int src = uic_irq_to_hw(virq);
+	unsigned long flags;
+	u32 er, sr;
+
+	sr = 1 << (31-src);
+	spin_lock_irqsave(&uic->lock, flags);
+	er = mfdcr(uic->dcrbase + UIC_ER);
+	er &= ~sr;
+	mtdcr(uic->dcrbase + UIC_ER, er);
+	mtdcr(uic->dcrbase + UIC_SR, sr);
+	spin_unlock_irqrestore(&uic->lock, flags);
+}
+
 static int uic_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
 	struct uic *uic = get_irq_chip_data(virq);
@@ -152,7 +168,7 @@ static struct irq_chip uic_irq_chip = {
 	.typename	= " UIC  ",
 	.unmask		= uic_unmask_irq,
 	.mask		= uic_mask_irq,
-/* 	.mask_ack	= uic_mask_irq_and_ack, */
+ 	.mask_ack	= uic_mask_ack_irq,
 	.ack		= uic_ack_irq,
 	.set_type	= uic_set_irq_type,
 };

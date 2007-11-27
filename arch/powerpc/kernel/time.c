@@ -241,8 +241,9 @@ void account_system_vtime(struct task_struct *tsk)
 		/* deltascaled includes both user and system time.
 		 * Hence scale it based on the purr ratio to estimate
 		 * the system time */
-		deltascaled = deltascaled * get_paca()->system_time /
-			(get_paca()->system_time + get_paca()->user_time);
+		if (get_paca()->user_time)
+			deltascaled = deltascaled * get_paca()->system_time /
+			     (get_paca()->system_time + get_paca()->user_time);
 		delta += get_paca()->system_time;
 		get_paca()->system_time = 0;
 	}

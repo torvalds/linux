@@ -130,7 +130,7 @@ int mpc831x_usb_cfg(void)
 	out_be32(immap + MPC83XX_SCCR_OFFS, temp);
 
 	/* Configure pin mux for ULPI.  There is no pin mux for UTMI */
-	if (!strcmp(prop, "ulpi")) {
+	if (prop && !strcmp(prop, "ulpi")) {
 		temp = in_be32(immap + MPC83XX_SICRL_OFFS);
 		temp &= ~MPC831X_SICRL_USB_MASK;
 		temp |= MPC831X_SICRL_USB_ULPI;
@@ -153,13 +153,13 @@ int mpc831x_usb_cfg(void)
 	usb_regs = ioremap(res.start, res.end - res.start + 1);
 
 	/* Using on-chip PHY */
-	if (!strcmp(prop, "utmi_wide") ||
-			!strcmp(prop, "utmi")) {
+	if (prop && (!strcmp(prop, "utmi_wide") ||
+		     !strcmp(prop, "utmi"))) {
 		/* Set UTMI_PHY_EN, REFSEL to 48MHZ */
 		out_be32(usb_regs + FSL_USB2_CONTROL_OFFS,
 				CONTROL_UTMI_PHY_EN | CONTROL_REFSEL_48MHZ);
 	/* Using external UPLI PHY */
-	} else if (!strcmp(prop, "ulpi")) {
+	} else if (prop && !strcmp(prop, "ulpi")) {
 		/* Set PHY_CLK_SEL to ULPI */
 		temp = CONTROL_PHY_CLK_SEL_ULPI;
 #ifdef CONFIG_USB_OTG

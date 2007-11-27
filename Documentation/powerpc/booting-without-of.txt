@@ -1645,8 +1645,9 @@ platforms are moved over to use the flattened-device-tree model.
      MAC addresses passed by the firmware when no information other
      than indices is available to associate an address with a device.
    - phy-connection-type : a string naming the controller/PHY interface type,
-     i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id", "tbi",
-     or "rtbi".
+     i.e., "mii" (default), "rmii", "gmii", "rgmii", "rgmii-id" (Internal
+     Delay), "rgmii-txid" (delay on TX only), "rgmii-rxid" (delay on RX only),
+     "tbi", or "rtbi".
 
    Example:
 	ucc@2000 {
