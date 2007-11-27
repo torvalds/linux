@@ -448,8 +448,7 @@ struct operand {
 
 #define JMP_REL(rel) 							\
 	do {								\
-		_eip += (int)(rel);					\
-		_eip = ((op_bytes == 2) ? (uint16_t)_eip : (uint32_t)_eip); \
+		register_address_increment(_eip, rel);			\
 	} while (0)
 
 /*
@@ -1147,7 +1146,7 @@ done_prefixes:
 			}
 			register_address_increment(_regs[VCPU_REGS_RSP],
 						   -dst.bytes);
-			if ((rc = ops->write_std(
+			if ((rc = ops->write_emulated(
 				     register_address(ctxt->ss_base,
 						      _regs[VCPU_REGS_RSP]),
 				     &dst.val, dst.bytes, ctxt->vcpu)) != 0)
@@ -1359,6 +1358,7 @@ special_insn:
 		}
 		src.val = (unsigned long) _eip;
 		JMP_REL(rel);
+		op_bytes = ad_bytes;
 		goto push;
 	}
 	case 0xe9: /* jmp rel */
