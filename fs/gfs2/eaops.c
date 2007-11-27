@@ -58,22 +58,16 @@ unsigned int gfs2_ea_name2type(const char *name, const char **truncated_name)
 
 static int user_eo_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
-	struct inode *inode = &ip->i_inode;
-
 	return gfs2_ea_get_i(ip, er);
 }
 
 static int user_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
-	struct inode *inode = &ip->i_inode;
-
 	return gfs2_ea_set_i(ip, er);
 }
 
 static int user_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
-	struct inode *inode = &ip->i_inode;
-
 	return gfs2_ea_remove_i(ip, er);
 }
 
@@ -151,22 +145,16 @@ static int system_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 
 static int security_eo_get(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
-	struct inode *inode = &ip->i_inode;
-
 	return gfs2_ea_get_i(ip, er);
 }
 
 static int security_eo_set(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
-	struct inode *inode = &ip->i_inode;
-
 	return gfs2_ea_set_i(ip, er);
 }
 
 static int security_eo_remove(struct gfs2_inode *ip, struct gfs2_ea_request *er)
 {
-	struct inode *inode = &ip->i_inode;
-
 	return gfs2_ea_remove_i(ip, er);
 }
 
