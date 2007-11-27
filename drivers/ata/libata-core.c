@@ -5358,7 +5358,7 @@ static inline int ata_hsm_ok_in_wq(struct ata_port *ap, struct ata_queued_cmd *q
 		    (qc->tf.flags & ATA_TFLAG_WRITE))
 		    return 1;
 
-		if (is_atapi_taskfile(&qc->tf) &&
+		if (ata_is_atapi(qc->tf.protocol) &&
 		    !(qc->dev->flags & ATA_DFLAG_CDB_INTR))
 			return 1;
 	}
@@ -5955,30 +5955,6 @@ int ata_qc_complete_multiple(struct ata_port *ap, u32 qc_active,
 	return nr_done;
 }
 
-static inline int ata_should_dma_map(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-
-	switch (qc->tf.protocol) {
-	case ATA_PROT_NCQ:
-	case ATA_PROT_DMA:
-	case ATA_PROT_ATAPI_DMA:
-		return 1;
-
-	case ATA_PROT_ATAPI:
-	case ATA_PROT_PIO:
-		if (ap->flags & ATA_FLAG_PIO_DMA)
-			return 1;
-
-		/* fall through */
-
-	default:
-		return 0;
-	}
-
-	/* never reached */
-}
-
 /**
  *	ata_qc_issue - issue taskfile to device
  *	@qc: command to issue to device
@@ -5995,6 +5971,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_link *link = qc->dev->link;
+	u8 prot = qc->tf.protocol;
 
 	/* Make sure only one non-NCQ command is outstanding.  The
 	 * check is skipped for old EH because it reuses active qc to
@@ -6002,7 +5979,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	WARN_ON(ap->ops->error_handler && ata_tag_valid(link->active_tag));
 
-	if (qc->tf.protocol == ATA_PROT_NCQ) {
+	if (prot == ATA_PROT_NCQ) {
 		WARN_ON(link->sactive & (1 << qc->tag));
 
 		if (!link->sactive)
@@ -6018,7 +5995,8 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	qc->flags |= ATA_QCFLAG_ACTIVE;
 	ap->qc_active |= 1 << qc->tag;
 
-	if (ata_should_dma_map(qc)) {
+	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
+				 (ap->flags & ATA_FLAG_PIO_DMA))) {
 		if (qc->flags & ATA_QCFLAG_SG) {
 			if (ata_sg_setup(qc))
 				goto sg_err;
@@ -6217,8 +6195,8 @@ inline unsigned int ata_host_intr(struct ata_port *ap,
 		 */
 
 		/* Check the ATA_DFLAG_CDB_INTR flag is enough here.
-		 * The flag was turned on only for atapi devices.
-		 * No need to check is_atapi_taskfile(&qc->tf) again.
+		 * The flag was turned on only for atapi devices.  No
+		 * need to check ata_is_atapi(qc->tf.protocol) again.
 		 */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
 			goto idle_irq;

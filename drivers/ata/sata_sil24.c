@@ -852,9 +852,7 @@ static int sil24_qc_defer(struct ata_queued_cmd *qc)
 	 *   set.
 	 *
  	 */
-	int is_excl = (prot == ATA_PROT_ATAPI ||
-		       prot == ATA_PROT_ATAPI_NODATA ||
-		       prot == ATA_PROT_ATAPI_DMA ||
+	int is_excl = (ata_is_atapi(prot) ||
 		       (qc->flags & ATA_QCFLAG_RESULT_TF));
 
 	if (unlikely(ap->excl_link)) {
@@ -885,35 +883,21 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 
 	cb = &pp->cmd_block[sil24_tag(qc->tag)];
 
-	switch (qc->tf.protocol) {
-	case ATA_PROT_PIO:
-	case ATA_PROT_DMA:
-	case ATA_PROT_NCQ:
-	case ATA_PROT_NODATA:
+	if (!ata_is_atapi(qc->tf.protocol)) {
 		prb = &cb->ata.prb;
 		sge = cb->ata.sge;
-		break;
-
-	case ATA_PROT_ATAPI:
-	case ATA_PROT_ATAPI_DMA:
-	case ATA_PROT_ATAPI_NODATA:
+	} else {
 		prb = &cb->atapi.prb;
 		sge = cb->atapi.sge;
 		memset(cb->atapi.cdb, 0, 32);
 		memcpy(cb->atapi.cdb, qc->cdb, qc->dev->cdb_len);
 
-		if (qc->tf.protocol != ATA_PROT_ATAPI_NODATA) {
+		if (ata_is_data(qc->tf.protocol)) {
 			if (qc->tf.flags & ATA_TFLAG_WRITE)
 				ctrl = PRB_CTRL_PACKET_WRITE;
 			else
 				ctrl = PRB_CTRL_PACKET_READ;
 		}
-		break;
-
-	default:
-		prb = NULL;	/* shut up, gcc */
-		sge = NULL;
-		BUG();
 	}
 
 	prb->ctrl = cpu_to_le16(ctrl);

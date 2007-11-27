@@ -417,7 +417,7 @@ static void sata_fsl_qc_prep(struct ata_queued_cmd *qc)
 	}
 
 	/* setup "ACMD - atapi command" in cmd. desc. if this is ATAPI cmd */
-	if (is_atapi_taskfile(&qc->tf)) {
+	if (ata_is_atapi(qc->tf.protocol)) {
 		desc_info |= ATAPI_CMD;
 		memset((void *)&cd->acmd, 0, 32);
 		memcpy((void *)&cd->acmd, qc->cdb, qc->dev->cdb_len);
