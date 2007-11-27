@@ -313,7 +313,6 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	default H8300
 	help
 	  If unsure, say N.
 
@@ -882,6 +881,14 @@ config BLK_DEV_IDE_BAST
 	help
 	  Say Y here if you want to support the onboard IDE channels on the
 	  Simtec BAST or the Thorcom VR1000
+
+config IDE_H8300
+	bool "H8300 IDE support"
+	depends on H8300
+	select IDE_GENERIC
+	default y
+	help
+	  Enables the H8300 IDE driver.
 
 config BLK_DEV_GAYLE
 	bool "Amiga Gayle IDE interface support"
