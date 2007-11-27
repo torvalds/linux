@@ -223,7 +223,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	err = virtio_config_val(vdev, VIRTIO_CONFIG_BLK_F_CAPACITY, &cap);
 	if (err) {
 		dev_err(&vdev->dev, "Bad/missing capacity in config\n");
-		goto out_put_disk;
+		goto out_cleanup_queue;
 	}
 
 	/* If capacity is too big, truncate with warning. */
@@ -239,7 +239,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 		blk_queue_max_segment_size(vblk->disk->queue, v);
 	else if (err != -ENOENT) {
 		dev_err(&vdev->dev, "Bad SIZE_MAX in config\n");
-		goto out_put_disk;
+		goto out_cleanup_queue;
 	}
 
 	err = virtio_config_val(vdev, VIRTIO_CONFIG_BLK_F_SEG_MAX, &v);
@@ -247,12 +247,14 @@ static int virtblk_probe(struct virtio_device *vdev)
 		blk_queue_max_hw_segments(vblk->disk->queue, v);
 	else if (err != -ENOENT) {
 		dev_err(&vdev->dev, "Bad SEG_MAX in config\n");
-		goto out_put_disk;
+		goto out_cleanup_queue;
 	}
 
 	add_disk(vblk->disk);
 	return 0;
 
+out_cleanup_queue:
+	blk_cleanup_queue(vblk->disk->queue);
 out_put_disk:
 	put_disk(vblk->disk);
 out_unregister_blkdev:
@@ -277,6 +279,8 @@ static void virtblk_remove(struct virtio_device *vdev)
 	put_disk(vblk->disk);
 	unregister_blkdev(major, "virtblk");
 	mempool_destroy(vblk->pool);
+	/* There should be nothing in the queue now, so no need to shutdown */
+	vdev->config->del_vq(vblk->vq);
 	kfree(vblk);
 }
 

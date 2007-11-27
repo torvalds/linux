@@ -1040,6 +1040,11 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 		/ getpagesize();
 	p = get_pages(pages);
 
+	/* Initialize the virtqueue */
+	vq->next = NULL;
+	vq->last_avail_idx = 0;
+	vq->dev = dev;
+
 	/* Initialize the configuration. */
 	vq->config.num = num_descs;
 	vq->config.irq = devices.next_irq++;
@@ -1056,9 +1061,6 @@ static void add_virtqueue(struct device *dev, unsigned int num_descs,
 	 * second.  */
 	for (i = &dev->vq; *i; i = &(*i)->next);
 	*i = vq;
-
-	/* Link virtqueue back to device. */
-	vq->dev = dev;
 
 	/* Set the routine to call when the Guest does something to this
 	 * virtqueue. */
@@ -1093,6 +1095,7 @@ static struct device *new_device(const char *name, u16 type, int fd,
 	dev->desc = new_dev_desc(type);
 	dev->handle_input = handle_input;
 	dev->name = name;
+	dev->vq = NULL;
 	return dev;
 }
 
