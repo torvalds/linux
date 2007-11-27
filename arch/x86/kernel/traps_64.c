@@ -31,6 +31,7 @@
 #include <linux/uaccess.h>
 #include <linux/bug.h>
 #include <linux/kdebug.h>
+#include <linux/utsname.h>
 
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
@@ -400,6 +401,12 @@ void show_stack(struct task_struct *tsk, unsigned long * rsp)
 void dump_stack(void)
 {
 	unsigned long dummy;
+
+	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
+		current->pid, current->comm, print_tainted(),
+		init_utsname()->release,
+		(int)strcspn(init_utsname()->version, " "),
+		init_utsname()->version);
 	show_trace(NULL, NULL, &dummy);
 }
 
@@ -845,6 +852,8 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 	unsigned long condition;
 	struct task_struct *tsk = current;
 	siginfo_t info;
+
+	trace_hardirqs_fixup();
 
 	get_debugreg(condition, 6);
 

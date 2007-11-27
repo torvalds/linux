@@ -12,7 +12,7 @@
 #include <asm/gart.h>
 #include <asm/calgary.h>
 
-int iommu_merge __read_mostly = 1;
+int iommu_merge __read_mostly = 0;
 EXPORT_SYMBOL(iommu_merge);
 
 dma_addr_t bad_dma_address __read_mostly;

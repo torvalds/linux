@@ -1673,6 +1673,7 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 
 	if (!first_run) {
 		dmi_check_system(processor_power_dmi_table);
+		max_cstate = acpi_processor_cstate_check(max_cstate);
 		if (max_cstate < ACPI_C_STATES_MAX)
 			printk(KERN_NOTICE
 			       "ACPI: processor limited to max C-state %d\n",

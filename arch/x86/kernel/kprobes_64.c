@@ -58,7 +58,7 @@ const int kretprobe_blacklist_size = ARRAY_SIZE(kretprobe_blacklist);
 /*
  * returns non-zero if opcode modifies the interrupt flag.
  */
-static __always_inline int is_IF_modifier(kprobe_opcode_t *insn)
+static int __kprobes is_IF_modifier(kprobe_opcode_t *insn)
 {
 	switch (*insn) {
 	case 0xfa:		/* cli */
