@@ -526,11 +526,14 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 		      struct rxdata_entry_desc *desc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->ring->rt2x00dev;
+	struct interface *intf = &rt2x00dev->interface;
 	struct ieee80211_rx_status *rx_status = &rt2x00dev->rx_status;
 	struct ieee80211_hw_mode *mode;
 	struct ieee80211_rate *rate;
+	struct ieee80211_hdr *hdr;
 	unsigned int i;
 	int val = 0;
+	u16 fc;
 
 	/*
 	 * Update RX statistics.
@@ -555,7 +558,21 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 		}
 	}
 
-	rt2x00lib_update_link_stats(&rt2x00dev->link, desc->rssi);
+	/*
+	 * Only update link status if this is a beacon frame carrying our
+	 * bssid.
+	 */
+	hdr = (struct ieee80211_hdr *) skb->data;
+	if (skb->len >= sizeof(struct ieee80211_hdr *)) {
+		fc = le16_to_cpu(hdr->frame_control);
+		if ((intf->type == IEEE80211_IF_TYPE_STA
+		     || intf->type == IEEE80211_IF_TYPE_IBSS)
+		    && is_beacon(fc)
+		    && compare_ether_addr(hdr->addr3, intf->bssid) == 0)
+			rt2x00lib_update_link_stats(&rt2x00dev->link,
+						    desc->rssi);
+	}
+
 	rt2x00dev->link.qual.rx_success++;
 
 	rx_status->rate = val;

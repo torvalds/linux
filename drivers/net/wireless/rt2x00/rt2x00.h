@@ -32,6 +32,7 @@
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
 #include <linux/mutex.h>
+#include <linux/etherdevice.h>
 
 #include <net/mac80211.h>
 
@@ -147,6 +148,12 @@ static inline int is_probe_resp(u16 fc)
 {
 	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
 		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP));
+}
+
+static inline int is_beacon(u16 fc)
+{
+	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
+		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_BEACON));
 }
 
 /*
