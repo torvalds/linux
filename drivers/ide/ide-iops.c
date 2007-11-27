@@ -589,6 +589,9 @@ EXPORT_SYMBOL_GPL(ide_in_drive_list);
 static const struct drive_list_entry ivb_list[] = {
 	{ "QUANTUM FIREBALLlct10 05"	, "A03.0900"	},
 	{ "TSSTcorp CDDVDW SH-S202J"	, "SB00"	},
+	{ "TSSTcorp CDDVDW SH-S202J"	, "SB01"	},
+	{ "TSSTcorp CDDVDW SH-S202N"	, "SB00"	},
+	{ "TSSTcorp CDDVDW SH-S202N"	, "SB01"	},
 	{ NULL				, NULL		}
 };
 
