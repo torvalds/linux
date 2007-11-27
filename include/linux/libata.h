@@ -267,7 +267,7 @@ enum {
 	PORT_DISABLED		= 2,
 
 	/* encoding various smaller bitmaps into a single
-	 * unsigned int bitmap
+	 * unsigned long bitmap
 	 */
 	ATA_NR_PIO_MODES	= 7,
 	ATA_NR_MWDMA_MODES	= 5,
@@ -276,13 +276,6 @@ enum {
 	ATA_SHIFT_PIO		= 0,
 	ATA_SHIFT_MWDMA		= ATA_SHIFT_PIO + ATA_NR_PIO_MODES,
 	ATA_SHIFT_UDMA		= ATA_SHIFT_MWDMA + ATA_NR_MWDMA_MODES,
-
-	ATA_MASK_PIO		= ((1 << ATA_NR_PIO_MODES) - 1)
-					<< ATA_SHIFT_PIO,
-	ATA_MASK_MWDMA		= ((1 << ATA_NR_MWDMA_MODES) - 1)
-					<< ATA_SHIFT_MWDMA,
-	ATA_MASK_UDMA		= ((1 << ATA_NR_UDMA_MODES) - 1)
-					<< ATA_SHIFT_UDMA,
 
 	/* size of buffer to pad xfers ending on unaligned boundaries */
 	ATA_DMA_PAD_SZ		= 4,
@@ -353,6 +346,15 @@ enum {
 	ATA_DMA_MASK_ATA	= (1 << 0),	/* DMA on ATA Disk */
 	ATA_DMA_MASK_ATAPI	= (1 << 1),	/* DMA on ATAPI */
 	ATA_DMA_MASK_CFA	= (1 << 2),	/* DMA on CF Card */
+};
+
+enum ata_xfer_mask {
+	ATA_MASK_PIO		= ((1LU << ATA_NR_PIO_MODES) - 1)
+					<< ATA_SHIFT_PIO,
+	ATA_MASK_MWDMA		= ((1LU << ATA_NR_MWDMA_MODES) - 1)
+					<< ATA_SHIFT_MWDMA,
+	ATA_MASK_UDMA		= ((1LU << ATA_NR_UDMA_MODES) - 1)
+					<< ATA_SHIFT_UDMA,
 };
 
 enum hsm_task_states {
@@ -526,9 +528,9 @@ struct ata_device {
 	unsigned int		cdb_len;
 
 	/* per-dev xfer mask */
-	unsigned int		pio_mask;
-	unsigned int		mwdma_mask;
-	unsigned int		udma_mask;
+	unsigned long		pio_mask;
+	unsigned long		mwdma_mask;
+	unsigned long		udma_mask;
 
 	/* for CHS addressing */
 	u16			cylinders;	/* Number of cylinders */
@@ -854,15 +856,16 @@ extern void ata_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 extern void ata_tf_to_fis(const struct ata_taskfile *tf,
 			  u8 pmp, int is_cmd, u8 *fis);
 extern void ata_tf_from_fis(const u8 *fis, struct ata_taskfile *tf);
-extern unsigned int ata_pack_xfermask(unsigned int pio_mask,
-			unsigned int mwdma_mask, unsigned int udma_mask);
-extern void ata_unpack_xfermask(unsigned int xfer_mask, unsigned int *pio_mask,
-			unsigned int *mwdma_mask, unsigned int *udma_mask);
-extern u8 ata_xfer_mask2mode(unsigned int xfer_mask);
-extern unsigned int ata_xfer_mode2mask(u8 xfer_mode);
-extern int ata_xfer_mode2shift(unsigned int xfer_mode);
-extern const char *ata_mode_string(unsigned int xfer_mask);
-extern unsigned int ata_id_xfermask(const u16 *id);
+extern unsigned long ata_pack_xfermask(unsigned long pio_mask,
+			unsigned long mwdma_mask, unsigned long udma_mask);
+extern void ata_unpack_xfermask(unsigned long xfer_mask,
+			unsigned long *pio_mask, unsigned long *mwdma_mask,
+			unsigned long *udma_mask);
+extern u8 ata_xfer_mask2mode(unsigned long xfer_mask);
+extern unsigned long ata_xfer_mode2mask(u8 xfer_mode);
+extern int ata_xfer_mode2shift(unsigned long xfer_mode);
+extern const char *ata_mode_string(unsigned long xfer_mask);
+extern unsigned long ata_id_xfermask(const u16 *id);
 extern void ata_noop_dev_select(struct ata_port *ap, unsigned int device);
 extern void ata_std_dev_select(struct ata_port *ap, unsigned int device);
 extern u8 ata_check_status(struct ata_port *ap);
@@ -1001,7 +1004,8 @@ extern int ata_pci_prepare_sff_host(struct pci_dev *pdev,
 				    const struct ata_port_info * const * ppi,
 				    struct ata_host **r_host);
 extern int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bits);
-extern unsigned long ata_pci_default_filter(struct ata_device *, unsigned long);
+extern unsigned long ata_pci_default_filter(struct ata_device *dev,
+					    unsigned long xfer_mask);
 #endif /* CONFIG_PCI */
 
 /*

@@ -454,8 +454,9 @@ int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
  *	RETURNS:
  *	Packed xfer_mask.
  */
-unsigned int ata_pack_xfermask(unsigned int pio_mask,
-			       unsigned int mwdma_mask, unsigned int udma_mask)
+unsigned long ata_pack_xfermask(unsigned long pio_mask,
+				unsigned long mwdma_mask,
+				unsigned long udma_mask)
 {
 	return ((pio_mask << ATA_SHIFT_PIO) & ATA_MASK_PIO) |
 		((mwdma_mask << ATA_SHIFT_MWDMA) & ATA_MASK_MWDMA) |
@@ -472,8 +473,8 @@ unsigned int ata_pack_xfermask(unsigned int pio_mask,
  *	Unpack @xfer_mask into @pio_mask, @mwdma_mask and @udma_mask.
  *	Any NULL distination masks will be ignored.
  */
-void ata_unpack_xfermask(unsigned int xfer_mask, unsigned int *pio_mask,
-			 unsigned int *mwdma_mask, unsigned int *udma_mask)
+void ata_unpack_xfermask(unsigned long xfer_mask, unsigned long *pio_mask,
+			 unsigned long *mwdma_mask, unsigned long *udma_mask)
 {
 	if (pio_mask)
 		*pio_mask = (xfer_mask & ATA_MASK_PIO) >> ATA_SHIFT_PIO;
@@ -506,7 +507,7 @@ static const struct ata_xfer_ent {
  *	RETURNS:
  *	Matching XFER_* value, 0xff if no match found.
  */
-u8 ata_xfer_mask2mode(unsigned int xfer_mask)
+u8 ata_xfer_mask2mode(unsigned long xfer_mask)
 {
 	int highbit = fls(xfer_mask) - 1;
 	const struct ata_xfer_ent *ent;
@@ -529,7 +530,7 @@ u8 ata_xfer_mask2mode(unsigned int xfer_mask)
  *	RETURNS:
  *	Matching xfer_mask, 0 if no match found.
  */
-unsigned int ata_xfer_mode2mask(u8 xfer_mode)
+unsigned long ata_xfer_mode2mask(u8 xfer_mode)
 {
 	const struct ata_xfer_ent *ent;
 
@@ -552,7 +553,7 @@ unsigned int ata_xfer_mode2mask(u8 xfer_mode)
  *	RETURNS:
  *	Matching xfer_shift, -1 if no match found.
  */
-int ata_xfer_mode2shift(unsigned int xfer_mode)
+int ata_xfer_mode2shift(unsigned long xfer_mode)
 {
 	const struct ata_xfer_ent *ent;
 
@@ -576,7 +577,7 @@ int ata_xfer_mode2shift(unsigned int xfer_mode)
  *	Constant C string representing highest speed listed in
  *	@mode_mask, or the constant C string "<n/a>".
  */
-const char *ata_mode_string(unsigned int xfer_mask)
+const char *ata_mode_string(unsigned long xfer_mask)
 {
 	static const char * const xfer_mode_str[] = {
 		"PIO0",
@@ -1424,9 +1425,9 @@ static inline void ata_dump_id(const u16 *id)
  *	RETURNS:
  *	Computed xfermask
  */
-unsigned int ata_id_xfermask(const u16 *id)
+unsigned long ata_id_xfermask(const u16 *id)
 {
-	unsigned int pio_mask, mwdma_mask, udma_mask;
+	unsigned long pio_mask, mwdma_mask, udma_mask;
 
 	/* Usual case. Word 53 indicates word 64 is valid */
 	if (id[ATA_ID_FIELD_VALID] & (1 << 1)) {
@@ -2050,7 +2051,7 @@ int ata_dev_configure(struct ata_device *dev)
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 	int print_info = ehc->i.flags & ATA_EHI_PRINTINFO;
 	const u16 *id = dev->id;
-	unsigned int xfer_mask;
+	unsigned long xfer_mask;
 	char revbuf[7];		/* XYZ-99\0 */
 	char fwrevbuf[ATA_ID_FW_REV_LEN+1];
 	char modelbuf[ATA_ID_PROD_LEN+1];
@@ -2907,8 +2908,8 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 {
 	char buf[32];
-	unsigned int orig_mask, xfer_mask;
-	unsigned int pio_mask, mwdma_mask, udma_mask;
+	unsigned long orig_mask, xfer_mask;
+	unsigned long pio_mask, mwdma_mask, udma_mask;
 	int quiet, highbit;
 
 	quiet = !!(sel & ATA_DNXFER_QUIET);
@@ -3052,7 +3053,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 
 	/* step 1: calculate xfer_mask */
 	ata_link_for_each_dev(dev, link) {
-		unsigned int pio_mask, dma_mask;
+		unsigned long pio_mask, dma_mask;
 		unsigned int mode_mask;
 
 		if (!ata_dev_enabled(dev))
