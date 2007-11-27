@@ -845,6 +845,13 @@ static void sky2_mac_init(struct sky2_hw *hw, unsigned port)
 		sky2_set_tx_stfwd(hw, port);
 	}
 
+	if (hw->chip_id == CHIP_ID_YUKON_FE_P &&
+	    hw->chip_rev == CHIP_REV_YU_FE2_A0) {
+		/* disable dynamic watermark */
+		reg = sky2_read16(hw, SK_REG(port, TX_GMF_EA));
+		reg &= ~TX_DYN_WM_ENA;
+		sky2_write16(hw, SK_REG(port, TX_GMF_EA), reg);
+	}
 }
 
 /* Assign Ram Buffer allocation to queue */
