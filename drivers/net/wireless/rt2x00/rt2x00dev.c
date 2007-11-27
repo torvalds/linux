@@ -28,6 +28,7 @@
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
+#include "rt2x00dump.h"
 
 /*
  * Ring handler.
@@ -511,9 +512,11 @@ void rt2x00lib_txdone(struct data_entry *entry,
 	}
 
 	/*
-	 * Send the tx_status to mac80211,
-	 * that method also cleans up the skb structure.
+	 * Send the tx_status to mac80211 & debugfs.
+	 * mac80211 will clean up the skb structure.
 	 */
+	get_skb_desc(entry->skb)->frame_type = DUMP_FRAME_TXDONE;
+	rt2x00debug_dump_frame(rt2x00dev, entry->skb);
 	ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb, tx_status);
 	entry->skb = NULL;
 }
@@ -563,8 +566,10 @@ void rt2x00lib_rxdone(struct data_entry *entry, struct sk_buff *skb,
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 
 	/*
-	 * Send frame to mac80211
+	 * Send frame to mac80211 & debugfs
 	 */
+	get_skb_desc(skb)->frame_type = DUMP_FRAME_RXDONE;
+	rt2x00debug_dump_frame(rt2x00dev, skb);
 	ieee80211_rx_irqsafe(rt2x00dev->hw, skb, rx_status);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_rxdone);
@@ -715,6 +720,15 @@ void rt2x00lib_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	 */
 	skbdesc->entry->skb = skb;
 	memcpy(&skbdesc->entry->tx_status.control, control, sizeof(*control));
+
+	/*
+	 * The frame has been completely initialized and ready
+	 * for sending to the device. The caller will push the
+	 * frame to the device, but we are going to push the
+	 * frame to debugfs here.
+	 */
+	skbdesc->frame_type = DUMP_FRAME_TX;
+	rt2x00debug_dump_frame(rt2x00dev, skb);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_write_tx_desc);
 

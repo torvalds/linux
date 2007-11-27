@@ -178,8 +178,8 @@ void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 		 * Fill in skb descriptor
 		 */
 		skbdesc = get_skb_desc(skb);
-		skbdesc->desc_len = desc.size;
-		skbdesc->data_len = entry->ring->desc_size;
+		skbdesc->desc_len = entry->ring->desc_size;
+		skbdesc->data_len = skb->len;
 		skbdesc->desc = entry->priv;
 		skbdesc->data = skb->data;
 		skbdesc->ring = ring;

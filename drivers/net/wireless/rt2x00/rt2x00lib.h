@@ -80,12 +80,18 @@ static inline void rt2x00lib_free_firmware(struct rt2x00_dev *rt2x00dev)
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 void rt2x00debug_register(struct rt2x00_dev *rt2x00dev);
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev);
+void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
 #else
 static inline void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 {
 }
 
 static inline void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
+{
+}
+
+static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+					  struct skb_buff *skb)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */

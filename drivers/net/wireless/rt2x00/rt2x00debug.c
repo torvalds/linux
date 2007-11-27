@@ -26,10 +26,12 @@
 #include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/poll.h>
 #include <linux/uaccess.h>
 
 #include "rt2x00.h"
 #include "rt2x00lib.h"
+#include "rt2x00dump.h"
 
 #define PRINT_LINE_LEN_MAX 32
 
@@ -58,6 +60,8 @@ struct rt2x00debug_intf {
 	 *     - eeprom offset/value files
 	 *     - bbp offset/value files
 	 *     - rf offset/value files
+	 *   - frame dump folder
+	 *     - frame dump file
 	 */
 	struct dentry *driver_folder;
 	struct dentry *driver_entry;
@@ -72,6 +76,24 @@ struct rt2x00debug_intf {
 	struct dentry *bbp_val_entry;
 	struct dentry *rf_off_entry;
 	struct dentry *rf_val_entry;
+	struct dentry *frame_folder;
+	struct dentry *frame_dump_entry;
+
+	/*
+	 * The frame dump file only allows a single reader,
+	 * so we need to store the current state here.
+	 */
+	unsigned long frame_dump_flags;
+#define FRAME_DUMP_FILE_OPEN	1
+
+	/*
+	 * We queue each frame before dumping it to the user,
+	 * per read command we will pass a single skb structure
+	 * so we should be prepared to queue multiple sk buffers
+	 * before sending it to userspace.
+	 */
+	struct sk_buff_head frame_dump_skbqueue;
+	wait_queue_head_t frame_dump_waitqueue;
 
 	/*
 	 * Driver and chipset files will use a data buffer
@@ -89,6 +111,63 @@ struct rt2x00debug_intf {
 	unsigned int offset_bbp;
 	unsigned int offset_rf;
 };
+
+void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+			    struct sk_buff *skb)
+{
+	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
+	struct skb_desc *desc = get_skb_desc(skb);
+	struct sk_buff *skbcopy;
+	struct rt2x00dump_hdr *dump_hdr;
+	struct timeval timestamp;
+	unsigned int ring_index;
+	unsigned int entry_index;
+
+	do_gettimeofday(&timestamp);
+	ring_index = ARRAY_INDEX(desc->ring, rt2x00dev->rx);
+	entry_index = ARRAY_INDEX(desc->entry, desc->ring->entry);
+
+	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
+		return;
+
+	if (skb_queue_len(&intf->frame_dump_skbqueue) > 20) {
+		DEBUG(rt2x00dev, "txrx dump queue length exceeded.\n");
+		return;
+	}
+
+	skbcopy = alloc_skb(sizeof(*dump_hdr) + desc->desc_len + desc->data_len,
+			    GFP_ATOMIC);
+	if (!skbcopy) {
+		DEBUG(rt2x00dev, "Failed to copy skb for dump.\n");
+		return;
+	}
+
+	dump_hdr = (struct rt2x00dump_hdr *)skb_put(skbcopy, sizeof(*dump_hdr));
+	dump_hdr->version = cpu_to_le32(DUMP_HEADER_VERSION);
+	dump_hdr->header_length = cpu_to_le32(sizeof(*dump_hdr));
+	dump_hdr->desc_length = cpu_to_le32(desc->desc_len);
+	dump_hdr->data_length = cpu_to_le32(desc->data_len);
+	dump_hdr->chip_rt = cpu_to_le16(rt2x00dev->chip.rt);
+	dump_hdr->chip_rf = cpu_to_le16(rt2x00dev->chip.rf);
+	dump_hdr->chip_rev = cpu_to_le32(rt2x00dev->chip.rev);
+	dump_hdr->type = cpu_to_le16(desc->frame_type);
+	dump_hdr->ring_index = ring_index;
+	dump_hdr->entry_index = entry_index;
+	dump_hdr->timestamp_sec = cpu_to_le32(timestamp.tv_sec);
+	dump_hdr->timestamp_usec = cpu_to_le32(timestamp.tv_usec);
+
+	memcpy(skb_put(skbcopy, desc->desc_len), desc->desc, desc->desc_len);
+	memcpy(skb_put(skbcopy, desc->data_len), desc->data, desc->data_len);
+
+	skb_queue_tail(&intf->frame_dump_skbqueue, skbcopy);
+	wake_up_interruptible(&intf->frame_dump_waitqueue);
+
+	/*
+	 * Verify that the file has not been closed while we were working.
+	 */
+	if (!test_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags))
+		skb_queue_purge(&intf->frame_dump_skbqueue);
+}
 
 static int rt2x00debug_file_open(struct inode *inode, struct file *file)
 {
@@ -110,6 +189,89 @@ static int rt2x00debug_file_release(struct inode *inode, struct file *file)
 
 	return 0;
 }
+
+static int rt2x00debug_open_ring_dump(struct inode *inode, struct file *file)
+{
+	struct rt2x00debug_intf *intf = inode->i_private;
+	int retval;
+
+	retval = rt2x00debug_file_open(inode, file);
+	if (retval)
+		return retval;
+
+	if (test_and_set_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags)) {
+		rt2x00debug_file_release(inode, file);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static int rt2x00debug_release_ring_dump(struct inode *inode, struct file *file)
+{
+	struct rt2x00debug_intf *intf = inode->i_private;
+
+	skb_queue_purge(&intf->frame_dump_skbqueue);
+
+	clear_bit(FRAME_DUMP_FILE_OPEN, &intf->frame_dump_flags);
+
+	return rt2x00debug_file_release(inode, file);
+}
+
+static ssize_t rt2x00debug_read_ring_dump(struct file *file,
+					  char __user *buf,
+					  size_t length,
+					  loff_t *offset)
+{
+	struct rt2x00debug_intf *intf = file->private_data;
+	struct sk_buff *skb;
+	size_t status;
+	int retval;
+
+	if (file->f_flags & O_NONBLOCK)
+		return -EAGAIN;
+
+	retval =
+	    wait_event_interruptible(intf->frame_dump_waitqueue,
+				     (skb =
+				     skb_dequeue(&intf->frame_dump_skbqueue)));
+	if (retval)
+		return retval;
+
+	status = min((size_t)skb->len, length);
+	if (copy_to_user(buf, skb->data, status)) {
+		status = -EFAULT;
+		goto exit;
+	}
+
+	*offset += status;
+
+exit:
+	kfree_skb(skb);
+
+	return status;
+}
+
+static unsigned int rt2x00debug_poll_ring_dump(struct file *file,
+					       poll_table *wait)
+{
+	struct rt2x00debug_intf *intf = file->private_data;
+
+	poll_wait(file, &intf->frame_dump_waitqueue, wait);
+
+	if (!skb_queue_empty(&intf->frame_dump_skbqueue))
+		return POLLOUT | POLLWRNORM;
+
+	return 0;
+}
+
+static const struct file_operations rt2x00debug_fop_ring_dump = {
+	.owner		= THIS_MODULE,
+	.read		= rt2x00debug_read_ring_dump,
+	.poll		= rt2x00debug_poll_ring_dump,
+	.open		= rt2x00debug_open_ring_dump,
+	.release	= rt2x00debug_release_ring_dump,
+};
 
 #define RT2X00DEBUGFS_OPS_READ(__name, __format, __type)	\
 static ssize_t rt2x00debug_read_##__name(struct file *file,	\
@@ -339,6 +501,20 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 
 #undef RT2X00DEBUGFS_CREATE_REGISTER_ENTRY
 
+	intf->frame_folder =
+	    debugfs_create_dir("frame", intf->driver_folder);
+	if (IS_ERR(intf->frame_folder))
+		goto exit;
+
+	intf->frame_dump_entry =
+	    debugfs_create_file("dump", S_IRUGO, intf->frame_folder,
+				intf, &rt2x00debug_fop_ring_dump);
+	if (IS_ERR(intf->frame_dump_entry))
+		goto exit;
+
+	skb_queue_head_init(&intf->frame_dump_skbqueue);
+	init_waitqueue_head(&intf->frame_dump_waitqueue);
+
 	return;
 
 exit:
@@ -350,11 +526,15 @@ exit:
 
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
 {
-	const struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
+	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
 
 	if (unlikely(!intf))
 		return;
 
+	skb_queue_purge(&intf->frame_dump_skbqueue);
+
+	debugfs_remove(intf->frame_dump_entry);
+	debugfs_remove(intf->frame_folder);
 	debugfs_remove(intf->rf_val_entry);
 	debugfs_remove(intf->rf_off_entry);
 	debugfs_remove(intf->bbp_val_entry);

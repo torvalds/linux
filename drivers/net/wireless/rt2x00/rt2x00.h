@@ -623,7 +623,7 @@ struct rt2x00_dev {
 	 * required for deregistration of debugfs.
 	 */
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
-	const struct rt2x00debug_intf *debugfs_intf;
+	struct rt2x00debug_intf *debugfs_intf;
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
 	/*
@@ -789,6 +789,12 @@ struct rt2x00_dev {
 
 #define txringall_for_each(__dev, __entry) \
 	ring_loop(__entry, (__dev)->tx, ring_end(__dev))
+
+/*
+ * Compute an array index from a pointer to an element and the base pointer.
+ */
+#define ARRAY_INDEX(__elem, __base) \
+	( ((char *)(__elem) - (char *)(__base)) / sizeof(*(__elem)) )
 
 /*
  * Generic RF access.

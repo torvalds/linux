@@ -307,9 +307,9 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_desc(entry->skb);
-	skbdesc->desc_len = desc.size;
-	skbdesc->data_len = entry->ring->desc_size;
-	skbdesc->desc = entry->skb->data + desc.size;
+	skbdesc->desc_len = entry->ring->desc_size;
+	skbdesc->data_len = entry->skb->len;
+	skbdesc->desc = entry->skb->data - skbdesc->desc_len;
 	skbdesc->data = entry->skb->data;
 	skbdesc->ring = ring;
 	skbdesc->entry = entry;
