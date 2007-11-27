@@ -13,6 +13,7 @@ obj-$(CONFIG_CRYPTO_AEAD) += aead.o
 crypto_blkcipher-objs := ablkcipher.o
 crypto_blkcipher-objs += blkcipher.o
 obj-$(CONFIG_CRYPTO_BLKCIPHER) += crypto_blkcipher.o
+obj-$(CONFIG_CRYPTO_BLKCIPHER) += chainiv.o
 
 crypto_hash-objs := hash.o
 obj-$(CONFIG_CRYPTO_HASH) += crypto_hash.o
