@@ -482,7 +482,7 @@ struct ata_port_stats {
 };
 
 struct ata_ering_entry {
-	int			is_io;
+	unsigned int		eflags;
 	unsigned int		err_mask;
 	u64			timestamp;
 };
