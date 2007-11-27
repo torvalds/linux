@@ -59,7 +59,7 @@ int ipath_post_srq_receive(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 
 		if ((unsigned) wr->num_sge > srq->rq.max_sge) {
 			*bad_wr = wr;
-			ret = -ENOMEM;
+			ret = -EINVAL;
 			goto bail;
 		}
 
@@ -211,11 +211,11 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		     struct ib_udata *udata)
 {
 	struct ipath_srq *srq = to_isrq(ibsrq);
+	struct ipath_rwq *wq;
 	int ret = 0;
 
 	if (attr_mask & IB_SRQ_MAX_WR) {
 		struct ipath_rwq *owq;
-		struct ipath_rwq *wq;
 		struct ipath_rwqe *p;
 		u32 sz, size, n, head, tail;
 
@@ -236,27 +236,20 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			goto bail;
 		}
 
-		/*
-		 * Return the address of the RWQ as the offset to mmap.
-		 * See ipath_mmap() for details.
-		 */
+		/* Check that we can write the offset to mmap. */
 		if (udata && udata->inlen >= sizeof(__u64)) {
 			__u64 offset_addr;
-			__u64 offset = (__u64) wq;
+			__u64 offset = 0;
 
 			ret = ib_copy_from_udata(&offset_addr, udata,
 						 sizeof(offset_addr));
-			if (ret) {
-				vfree(wq);
-				goto bail;
-			}
+			if (ret)
+				goto bail_free;
 			udata->outbuf = (void __user *) offset_addr;
 			ret = ib_copy_to_udata(udata, &offset,
 					       sizeof(offset));
-			if (ret) {
-				vfree(wq);
-				goto bail;
-			}
+			if (ret)
+				goto bail_free;
 		}
 
 		spin_lock_irq(&srq->rq.lock);
@@ -277,10 +270,8 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 		else
 			n -= tail;
 		if (size <= n) {
-			spin_unlock_irq(&srq->rq.lock);
-			vfree(wq);
 			ret = -EINVAL;
-			goto bail;
+			goto bail_unlock;
 		}
 		n = 0;
 		p = wq->wq;
@@ -314,6 +305,18 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			u32 s = sizeof(struct ipath_rwq) + size * sz;
 
 			ipath_update_mmap_info(dev, ip, s, wq);
+
+			/*
+			 * Return the offset to mmap.
+			 * See ipath_mmap() for details.
+			 */
+			if (udata && udata->inlen >= sizeof(__u64)) {
+				ret = ib_copy_to_udata(udata, &ip->offset,
+						       sizeof(ip->offset));
+				if (ret)
+					goto bail;
+			}
+
 			spin_lock_irq(&dev->pending_lock);
 			if (list_empty(&ip->pending_mmaps))
 				list_add(&ip->pending_mmaps,
@@ -328,7 +331,12 @@ int ipath_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr,
 			srq->limit = attr->srq_limit;
 		spin_unlock_irq(&srq->rq.lock);
 	}
+	goto bail;
 
+bail_unlock:
+	spin_unlock_irq(&srq->rq.lock);
+bail_free:
+	vfree(wq);
 bail:
 	return ret;
 }

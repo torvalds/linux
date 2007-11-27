@@ -395,12 +395,9 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 		goto bail;
 	}
 
-	/*
-	 * Return the address of the WC as the offset to mmap.
-	 * See ipath_mmap() for details.
-	 */
+	/* Check that we can write the offset to mmap. */
 	if (udata && udata->outlen >= sizeof(__u64)) {
-		__u64 offset = (__u64) wc;
+		__u64 offset = 0;
 
 		ret = ib_copy_to_udata(udata, &offset, sizeof(offset));
 		if (ret)
@@ -450,6 +447,18 @@ int ipath_resize_cq(struct ib_cq *ibcq, int cqe, struct ib_udata *udata)
 		struct ipath_mmap_info *ip = cq->ip;
 
 		ipath_update_mmap_info(dev, ip, sz, wc);
+
+		/*
+		 * Return the offset to mmap.
+		 * See ipath_mmap() for details.
+		 */
+		if (udata && udata->outlen >= sizeof(__u64)) {
+			ret = ib_copy_to_udata(udata, &ip->offset,
+					       sizeof(ip->offset));
+			if (ret)
+				goto bail;
+		}
+
 		spin_lock_irq(&dev->pending_lock);
 		if (list_empty(&ip->pending_mmaps))
 			list_add(&ip->pending_mmaps, &dev->pending_mmaps);
