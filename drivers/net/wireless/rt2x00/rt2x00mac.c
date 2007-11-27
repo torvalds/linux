@@ -242,7 +242,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 		return;
 
 	intf->id = 0;
-	intf->type = INVALID_INTERFACE;
+	intf->type = IEEE80211_IF_TYPE_INVALID;
 	memset(&intf->bssid, 0x00, ETH_ALEN);
 	memset(&intf->mac, 0x00, ETH_ALEN);
 

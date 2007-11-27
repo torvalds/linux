@@ -369,10 +369,8 @@ struct interface {
 
 	/*
 	 * Current working type (IEEE80211_IF_TYPE_*).
-	 * When set to INVALID_INTERFACE, no interface is configured.
 	 */
 	int type;
-#define INVALID_INTERFACE	IEEE80211_IF_TYPE_INVALID
 
 	/*
 	 * MAC of the device.

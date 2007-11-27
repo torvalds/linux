@@ -1170,7 +1170,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Reset current working type.
 	 */
-	rt2x00dev->interface.type = INVALID_INTERFACE;
+	rt2x00dev->interface.type = IEEE80211_IF_TYPE_INVALID;
 
 	/*
 	 * Allocate ring array.
