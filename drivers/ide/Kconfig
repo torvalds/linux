@@ -313,7 +313,6 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	default H8300
 	help
 	  If unsure, say N.
 
@@ -484,6 +483,7 @@ config WDC_ALI15X3
 
 config BLK_DEV_AMD74XX
 	tristate "AMD and nVidia IDE support"
+	depends on !ARM
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  This driver adds explicit support for AMD-7xx and AMD-8111 chips
@@ -883,6 +883,49 @@ config BLK_DEV_IDE_BAST
 	  Say Y here if you want to support the onboard IDE channels on the
 	  Simtec BAST or the Thorcom VR1000
 
+config ETRAX_IDE
+	bool "ETRAX IDE support"
+	depends on CRIS && BROKEN
+	select BLK_DEV_IDEDMA
+	select IDE_GENERIC
+	help
+	  Enables the ETRAX IDE driver.
+
+	  You can't use parallel ports or SCSI ports at the same time.
+
+config ETRAX_IDE_DELAY
+	int "Delay for drives to regain consciousness"
+	depends on ETRAX_IDE && ETRAX_ARCH_V10
+	default 15
+	help
+	  Number of seconds to wait for IDE drives to spin up after an IDE
+	  reset.
+
+choice
+	prompt "IDE reset pin"
+	depends on ETRAX_IDE && ETRAX_ARCH_V10
+	default ETRAX_IDE_PB7_RESET
+
+config ETRAX_IDE_PB7_RESET
+	bool "Port_PB_Bit_7"
+	help
+	  IDE reset on pin 7 on port B
+
+config ETRAX_IDE_G27_RESET
+	bool "Port_G_Bit_27"
+	help
+	  IDE reset on pin 27 on port G
+
+endchoice
+
+config IDE_H8300
+	bool "H8300 IDE support"
+	depends on H8300
+	select IDE_GENERIC
+	default y
+	help
+	  Enables the H8300 IDE driver.
+
 config BLK_DEV_GAYLE
 	bool "Amiga Gayle IDE interface support"
 	depends on AMIGA
@@ -963,7 +1006,7 @@ config BLK_DEV_Q40IDE
 
 config BLK_DEV_MPC8xx_IDE
 	bool "MPC8xx IDE support"
-	depends on 8xx && IDE=y && BLK_DEV_IDE=y && !PPC_MERGE
+	depends on 8xx && (LWMON || IVMS8 || IVML24 || TQM8xxL) && IDE=y && BLK_DEV_IDE=y && !PPC_MERGE
 	select IDE_GENERIC
 	help
 	  This option provides support for IDE on Motorola MPC8xx Systems.

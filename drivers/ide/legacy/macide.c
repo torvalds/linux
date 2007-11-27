@@ -81,7 +81,7 @@ int macide_ack_intr(ide_hwif_t* hwif)
  * Probe for a Macintosh IDE interface
  */
 
-void macide_init(void)
+void __init macide_init(void)
 {
 	hw_regs_t hw;
 	ide_hwif_t *hwif;

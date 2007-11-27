@@ -603,6 +603,11 @@ static int ali_cable_override(struct pci_dev *pdev)
 	    pdev->subsystem_device == 0x10AF)
 		return 1;
 
+	/* Mitac 8317 (Winbook-A) and relatives */
+	if (pdev->subsystem_vendor == 0x1071 &&
+	    pdev->subsystem_device == 0x8317)
+		return 1;
+
 	/* Systems by DMI */
 	if (dmi_check_system(cable_dmi_table))
 		return 1;
