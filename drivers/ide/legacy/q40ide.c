@@ -111,7 +111,7 @@ static const char *q40_ide_names[Q40IDE_NUM_HWIFS]={
  *  Probe for Q40 IDE interfaces
  */
 
-void q40ide_init(void)
+void __init q40ide_init(void)
 {
     int i;
     ide_hwif_t *hwif;
