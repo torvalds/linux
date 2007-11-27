@@ -530,6 +530,11 @@ struct input_absinfo {
 #define KEY_DOLLAR		0x1b2
 #define KEY_EURO		0x1b3
 
+#define KEY_FRAMEBACK		0x1b4	/* Consumer - transport controls */
+#define KEY_FRAMEFORWARD	0x1b5
+
+#define KEY_CONTEXT_MENU	0x1b6	/* GenDesc - system context menu */
+
 #define KEY_DEL_EOL		0x1c0
 #define KEY_DEL_EOS		0x1c1
 #define KEY_INS_LINE		0x1c2

@@ -338,7 +338,7 @@ static void sony_laptop_report_input_event(u8 event)
 		dprintk("unknown input event %.2x\n", event);
 }
 
-static int sony_laptop_setup_input(void)
+static int sony_laptop_setup_input(struct acpi_device *acpi_device)
 {
 	struct input_dev *jog_dev;
 	struct input_dev *key_dev;
@@ -379,6 +379,7 @@ static int sony_laptop_setup_input(void)
 	key_dev->name = "Sony Vaio Keys";
 	key_dev->id.bustype = BUS_ISA;
 	key_dev->id.vendor = PCI_VENDOR_ID_SONY;
+	key_dev->dev.parent = &acpi_device->dev;
 
 	/* Initialize the Input Drivers: special keys */
 	set_bit(EV_KEY, key_dev->evbit);
@@ -410,6 +411,7 @@ static int sony_laptop_setup_input(void)
 	jog_dev->name = "Sony Vaio Jogdial";
 	jog_dev->id.bustype = BUS_ISA;
 	jog_dev->id.vendor = PCI_VENDOR_ID_SONY;
+	key_dev->dev.parent = &acpi_device->dev;
 
 	jog_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
 	jog_dev->keybit[BIT_WORD(BTN_MOUSE)] = BIT_MASK(BTN_MIDDLE);
@@ -1006,7 +1008,7 @@ static int sony_nc_add(struct acpi_device *device)
 	}
 
 	/* setup input devices and helper fifo */
-	result = sony_laptop_setup_input();
+	result = sony_laptop_setup_input(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
 				"Unabe to create input devices.\n");
@@ -1034,7 +1036,7 @@ static int sony_nc_add(struct acpi_device *device)
 			sony_backlight_device->props.brightness =
 			    sony_backlight_get_brightness
 			    (sony_backlight_device);
-			sony_backlight_device->props.max_brightness = 
+			sony_backlight_device->props.max_brightness =
 			    SONY_MAX_BRIGHTNESS - 1;
 		}
 
@@ -2453,7 +2455,7 @@ static int sony_pic_add(struct acpi_device *device)
 	}
 
 	/* setup input devices and helper fifo */
-	result = sony_laptop_setup_input();
+	result = sony_laptop_setup_input(device);
 	if (result) {
 		printk(KERN_ERR DRV_PFX
 				"Unabe to create input devices.\n");
