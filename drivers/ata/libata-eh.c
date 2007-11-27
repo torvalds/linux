@@ -1525,13 +1525,13 @@ static int speed_down_verdict_cb(struct ata_ering_entry *ent, void *void_arg)
  *	Even if multiple verdicts are returned, only one action is
  *	taken per error.  ering is cleared after an action is taken.
  *
- *	1. If more than 10 ATA_BUS, TOUT_HSM or UNK_DEV errors
+ *	1. If more than 6 ATA_BUS, TOUT_HSM or UNK_DEV errors
  *	   ocurred during last 5 mins, FALLBACK_TO_PIO
  *
  *	2. If more than 3 TOUT_HSM or UNK_DEV errors occurred
  *	   during last 10 mins, NCQ_OFF.
  *
- *	3. If more than 3 ATA_BUS or TOUT_HSM errors, or more than 10
+ *	3. If more than 3 ATA_BUS or TOUT_HSM errors, or more than 6
  *	   UNK_DEV errors occurred during last 10 mins, SPEED_DOWN.
  *
  *	LOCKING:
@@ -1554,7 +1554,7 @@ static unsigned int ata_eh_speed_down_verdict(struct ata_device *dev)
 
 	if (arg.nr_errors[ATA_ECAT_ATA_BUS] +
 	    arg.nr_errors[ATA_ECAT_TOUT_HSM] +
-	    arg.nr_errors[ATA_ECAT_UNK_DEV] > 10)
+	    arg.nr_errors[ATA_ECAT_UNK_DEV] > 6)
 		verdict |= ATA_EH_SPDN_FALLBACK_TO_PIO;
 
 	/* scan past 10 mins of error history */
@@ -1568,7 +1568,7 @@ static unsigned int ata_eh_speed_down_verdict(struct ata_device *dev)
 
 	if (arg.nr_errors[ATA_ECAT_ATA_BUS] +
 	    arg.nr_errors[ATA_ECAT_TOUT_HSM] > 3 ||
-	    arg.nr_errors[ATA_ECAT_UNK_DEV] > 10)
+	    arg.nr_errors[ATA_ECAT_UNK_DEV] > 6)
 		verdict |= ATA_EH_SPDN_SPEED_DOWN;
 
 	return verdict;
@@ -1647,10 +1647,10 @@ static unsigned int ata_eh_speed_down(struct ata_device *dev,
 	}
 
 	/* Fall back to PIO?  Slowing down to PIO is meaningless for
-	 * SATA.  Consider it only for PATA.
+	 * SATA ATA devices.  Consider it only for PATA and SATAPI.
 	 */
 	if ((verdict & ATA_EH_SPDN_FALLBACK_TO_PIO) && (dev->spdn_cnt >= 2) &&
-	    (link->ap->cbl != ATA_CBL_SATA) &&
+	    (link->ap->cbl != ATA_CBL_SATA || dev->class == ATA_DEV_ATAPI) &&
 	    (dev->xfer_shift != ATA_SHIFT_PIO)) {
 		if (ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO) == 0) {
 			dev->spdn_cnt = 0;
