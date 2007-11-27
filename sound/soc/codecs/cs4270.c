@@ -725,7 +725,8 @@ static int cs4270_probe(struct platform_device *pdev)
 	codec->owner = THIS_MODULE;
 	codec->dai = &cs4270_dai;
 	codec->num_dai = 1;
-	codec->private_data = codec + ALIGN(sizeof(struct snd_soc_codec), 4);
+	codec->private_data = (void *) codec +
+		ALIGN(sizeof(struct snd_soc_codec), 4);
 
 	socdev->codec = codec;
 

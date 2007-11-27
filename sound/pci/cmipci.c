@@ -246,10 +246,9 @@ MODULE_PARM_DESC(joystick_port, "Joystick port address.");
 #define CM_MMODE_MASK		0x00000E00	/* model DAA interface mode */
 #define CM_SPDIF_SELECT2	0x00000100	/* for model > 039 ? */
 #define CM_ENCENTER		0x00000080
-#define CM_FLINKON		0x00000080	/* force modem link detection on, model 037 */
+#define CM_FLINKON		0x00000040	/* force modem link detection on, model 037 */
 #define CM_MUTECH1		0x00000040	/* mute PCI ch1 to DAC */
-#define CM_FLINKOFF		0x00000040	/* force modem link detection off, model 037 */
-#define CM_UNKNOWN_18_5		0x00000020	/* ? */
+#define CM_FLINKOFF		0x00000020	/* force modem link detection off, model 037 */
 #define CM_MIDSMP		0x00000010	/* 1/2 interpolation at front end DAC */
 #define CM_UPDDMA_MASK		0x0000000C	/* TDMA position update notification */
 #define CM_UPDDMA_2048		0x00000000

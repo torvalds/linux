@@ -1625,19 +1625,26 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
-		if (get_wcaps(codec, nid) & AC_WCAP_POWER) {
-			unsigned int pincap;
-			/*
-			 * don't power down the widget if it controls eapd
-			 * and EAPD_BTLENABLE is set.
-			 */
-			pincap = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
-			if (pincap & AC_PINCAP_EAPD) {
-				int eapd = snd_hda_codec_read(codec, nid,
-					0, AC_VERB_GET_EAPD_BTLENABLE, 0);
-				eapd &= 0x02;
-				if (power_state == AC_PWRST_D3 && eapd)
-					continue;
+		unsigned int wcaps = get_wcaps(codec, nid);
+		if (wcaps & AC_WCAP_POWER) {
+			unsigned int wid_type = (wcaps & AC_WCAP_TYPE) >>
+				AC_WCAP_TYPE_SHIFT;
+			if (wid_type == AC_WID_PIN) {
+				unsigned int pincap;
+				/*
+				 * don't power down the widget if it controls
+				 * eapd and EAPD_BTLENABLE is set.
+				 */
+				pincap = snd_hda_param_read(codec, nid,
+							    AC_PAR_PIN_CAP);
+				if (pincap & AC_PINCAP_EAPD) {
+					int eapd = snd_hda_codec_read(codec,
+						nid, 0,
+						AC_VERB_GET_EAPD_BTLENABLE, 0);
+					eapd &= 0x02;
+					if (power_state == AC_PWRST_D3 && eapd)
+						continue;
+				}
 			}
 			snd_hda_codec_write(codec, nid, 0,
 					    AC_VERB_SET_POWER_STATE,
@@ -2485,13 +2492,14 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 	/* front */
 	snd_hda_codec_setup_stream(codec, nids[HDA_FRONT], stream_tag,
 				   0, format);
-	if (mout->hp_nid && mout->hp_nid != nids[HDA_FRONT])
+	if (!mout->no_share_stream &&
+	    mout->hp_nid && mout->hp_nid != nids[HDA_FRONT])
 		/* headphone out will just decode front left/right (stereo) */
 		snd_hda_codec_setup_stream(codec, mout->hp_nid, stream_tag,
 					   0, format);
 	/* extra outputs copied from front */
 	for (i = 0; i < ARRAY_SIZE(mout->extra_out_nid); i++)
-		if (mout->extra_out_nid[i])
+		if (!mout->no_share_stream && mout->extra_out_nid[i])
 			snd_hda_codec_setup_stream(codec,
 						   mout->extra_out_nid[i],
 						   stream_tag, 0, format);
@@ -2501,7 +2509,7 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 		if (chs >= (i + 1) * 2) /* independent out */
 			snd_hda_codec_setup_stream(codec, nids[i], stream_tag,
 						   i * 2, format);
-		else /* copy front */
+		else if (!mout->no_share_stream) /* copy front */
 			snd_hda_codec_setup_stream(codec, nids[i], stream_tag,
 						   0, format);
 	}
