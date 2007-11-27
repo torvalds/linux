@@ -470,6 +470,8 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 	lock_kernel();
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
+		if (!ret)
+			arch_ptrace_attach(current);
 		goto out;
 	}
 
