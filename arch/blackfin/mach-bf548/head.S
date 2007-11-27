@@ -158,6 +158,27 @@ ENTRY(__stext)
 	w[p2] = r0;
 	ssync;
 
+	p2.h = hi(EBIU_MBSCTL);
+	p2.l = lo(EBIU_MBSCTL);
+	r0.h = hi(CONFIG_EBIU_MBSCTLVAL);
+	r0.l = lo(CONFIG_EBIU_MBSCTLVAL);
+	[p2] = r0;
+	ssync;
+
+	p2.h = hi(EBIU_MODE);
+	p2.l = lo(EBIU_MODE);
+	r0.h = hi(CONFIG_EBIU_MODEVAL);
+	r0.l = lo(CONFIG_EBIU_MODEVAL);
+	[p2] = r0;
+	ssync;
+
+	p2.h = hi(EBIU_FCTL);
+	p2.l = lo(EBIU_FCTL);
+	r0.h = hi(CONFIG_EBIU_FCTLVAL);
+	r0.l = lo(CONFIG_EBIU_FCTLVAL);
+	[p2] = r0;
+	ssync;
+
 	/* This section keeps the processor in supervisor mode
 	 * during kernel boot.  Switches to user mode at end of boot.
 	 * See page 3-9 of Hardware Reference manual for documentation.

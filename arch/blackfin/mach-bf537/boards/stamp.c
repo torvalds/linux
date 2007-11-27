@@ -35,7 +35,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-#include <linux/usb_isp1362.h>
+#include <linux/usb/isp1362.h>
 #endif
 #include <linux/pata_platform.h>
 #include <linux/irq.h>
@@ -44,6 +44,7 @@
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
+#include <asm/portmux.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -179,6 +180,28 @@ static struct platform_device dm9000_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(dm9000_resources),
 	.resource	= dm9000_resources,
+};
+#endif
+
+#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
+static struct resource ax88180_resources[] = {
+	[0] = {
+		.start	= 0x20300000,
+		.end	= 0x20300000 + 0x8000,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_PF7,
+		.end	= IRQ_PF7,
+		.flags	= (IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL),
+	},
+};
+
+static struct platform_device ax88180_device = {
+	.name		= "ax88180",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ax88180_resources),
+	.resource	= ax88180_resources,
 };
 #endif
 
@@ -502,7 +525,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.platform_data		= &bfin_ad7877_ts_info,
 		.irq			= IRQ_PF6,
 		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
+		.bus_num	= 0,
 		.chip_select  = 1,
 		.controller_data = &spi_ad7877_chip_info,
 	},
@@ -513,6 +536,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 /* SPI (0) */
@@ -554,15 +578,20 @@ static struct platform_device bfin_fb_adv7393_device = {
 
 #if defined(CONFIG_SERIAL_BFIN) || defined(CONFIG_SERIAL_BFIN_MODULE)
 static struct resource bfin_uart_resources[] = {
+#ifdef CONFIG_SERIAL_BFIN_UART0
 	{
 		.start = 0xFFC00400,
 		.end = 0xFFC004FF,
 		.flags = IORESOURCE_MEM,
-	}, {
+	},
+#endif
+#ifdef CONFIG_SERIAL_BFIN_UART1
+	{
 		.start = 0xFFC02000,
 		.end = 0xFFC020FF,
 		.flags = IORESOURCE_MEM,
 	},
+#endif
 };
 
 static struct platform_device bfin_uart_device = {
@@ -669,6 +698,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&dm9000_device,
 #endif
 
+#if defined(CONFIG_AX88180) || defined(CONFIG_AX88180_MODULE)
+	&ax88180_device,
+#endif
+
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 	&bfin_mac_device,
 #endif
@@ -730,3 +763,14 @@ void native_machine_restart(char *cmd)
 	if ((bfin_read_SYSCR() & 0x7) == 0x3)
 		bfin_gpio_reset_spi0_ssel1();
 }
+
+/*
+ * Currently the MAC address is saved in Flash by U-Boot
+ */
+#define FLASH_MAC	0x203f0000
+void bfin_get_ether_addr(char *addr)
+{
+	*(u32 *)(&(addr[0])) = bfin_read32(FLASH_MAC);
+	*(u16 *)(&(addr[4])) = bfin_read16(FLASH_MAC + 4);
+}
+EXPORT_SYMBOL(bfin_get_ether_addr);

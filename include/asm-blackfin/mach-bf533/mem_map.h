@@ -1,4 +1,3 @@
-
 /*
  * File:         include/asm-blackfin/mach-bf533/mem_map.h
  * Based on:
@@ -48,6 +47,7 @@
 /* Boot ROM Memory */
 
 #define BOOT_ROM_START		0xEF000000
+#define BOOT_ROM_LENGTH		0x400
 
 /* Level 1 Memory */
 
@@ -160,9 +160,7 @@
 
 /* Scratch Pad Memory */
 
-#if defined(CONFIG_BF533) || defined(CONFIG_BF532) || defined(CONFIG_BF531)
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
-#endif
 
 #endif				/* _MEM_MAP_533_H_ */

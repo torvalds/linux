@@ -600,7 +600,7 @@ config SERIAL_SA1100_CONSOLE
 
 config SERIAL_BFIN
 	tristate "Blackfin serial port support"
-	depends on BFIN
+	depends on BLACKFIN
 	select SERIAL_CORE
 	select SERIAL_BFIN_UART0 if (BF531 || BF532 || BF533 || BF561)
 	help

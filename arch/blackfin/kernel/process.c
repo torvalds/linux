@@ -134,27 +134,6 @@ void cpu_idle(void)
 	}
 }
 
-void show_regs(struct pt_regs *regs)
-{
-	printk(KERN_NOTICE "\n");
-	printk(KERN_NOTICE
-	       "PC: %08lu  Status: %04lu  SysStatus: %04lu  RETS: %08lu\n",
-	       regs->pc, regs->astat, regs->seqstat, regs->rets);
-	printk(KERN_NOTICE
-	       "A0.x: %08lx  A0.w: %08lx  A1.x: %08lx  A1.w: %08lx\n",
-	       regs->a0x, regs->a0w, regs->a1x, regs->a1w);
-	printk(KERN_NOTICE "P0: %08lx  P1: %08lx  P2: %08lx  P3: %08lx\n",
-	       regs->p0, regs->p1, regs->p2, regs->p3);
-	printk(KERN_NOTICE "P4: %08lx  P5: %08lx\n", regs->p4, regs->p5);
-	printk(KERN_NOTICE "R0: %08lx  R1: %08lx  R2: %08lx  R3: %08lx\n",
-	       regs->r0, regs->r1, regs->r2, regs->r3);
-	printk(KERN_NOTICE "R4: %08lx  R5: %08lx  R6: %08lx  R7: %08lx\n",
-	       regs->r4, regs->r5, regs->r6, regs->r7);
-
-	if (!regs->ipend)
-		printk(KERN_NOTICE "USP: %08lx\n", rdusp());
-}
-
 /* Fill in the fpu structure for a core dump.  */
 
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpregs)
@@ -236,51 +215,6 @@ copy_thread(int nr, unsigned long clone_flags,
 	p->thread.pc = (unsigned long)ret_from_fork;
 
 	return 0;
-}
-
-/*
- * fill in the user structure for a core dump..
- */
-void dump_thread(struct pt_regs *regs, struct user *dump)
-{
-	dump->magic = CMAGIC;
-	dump->start_code = 0;
-	dump->start_stack = rdusp() & ~(PAGE_SIZE - 1);
-	dump->u_tsize = ((unsigned long)current->mm->end_code) >> PAGE_SHIFT;
-	dump->u_dsize = ((unsigned long)(current->mm->brk +
-					 (PAGE_SIZE - 1))) >> PAGE_SHIFT;
-	dump->u_dsize -= dump->u_tsize;
-	dump->u_ssize = 0;
-
-	if (dump->start_stack < TASK_SIZE)
-		dump->u_ssize =
-		    ((unsigned long)(TASK_SIZE -
-				     dump->start_stack)) >> PAGE_SHIFT;
-
-	dump->u_ar0 = (struct user_regs_struct *)((int)&dump->regs - (int)dump);
-
-	dump->regs.r0 = regs->r0;
-	dump->regs.r1 = regs->r1;
-	dump->regs.r2 = regs->r2;
-	dump->regs.r3 = regs->r3;
-	dump->regs.r4 = regs->r4;
-	dump->regs.r5 = regs->r5;
-	dump->regs.r6 = regs->r6;
-	dump->regs.r7 = regs->r7;
-	dump->regs.p0 = regs->p0;
-	dump->regs.p1 = regs->p1;
-	dump->regs.p2 = regs->p2;
-	dump->regs.p3 = regs->p3;
-	dump->regs.p4 = regs->p4;
-	dump->regs.p5 = regs->p5;
-	dump->regs.orig_p0 = regs->orig_p0;
-	dump->regs.a0w = regs->a0w;
-	dump->regs.a1w = regs->a1w;
-	dump->regs.a0x = regs->a0x;
-	dump->regs.a1x = regs->a1x;
-	dump->regs.rets = regs->rets;
-	dump->regs.astat = regs->astat;
-	dump->regs.pc = regs->pc;
 }
 
 /*

@@ -55,6 +55,7 @@
 /* For MMR's that are reserved on Core B, set up defines to better integrate with other ports */
 #define SWRST                   SICA_SWRST
 #define SYSCR                   SICA_SYSCR
+#define DOUBLE_FAULT            (DOUBLE_FAULT_B|DOUBLE_FAULT_A)
 #define RESET_DOUBLE            (SWRST_DBL_FAULT_B|SWRST_DBL_FAULT_A)
 #define RESET_WDOG              (SWRST_WDT_B|SWRST_WDT_A)
 #define RESET_SOFTWARE          (SWRST_OCCURRED)
@@ -877,12 +878,14 @@
 #define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
 
 /* SWRST Mask */
-#define SYSTEM_RESET           0x00000007	/* Initiates a system software reset */
-#define SWRST_DBL_FAULT_B      0x00000800	/* SWRST Core B Double Fault */
-#define SWRST_DBL_FAULT_A      0x00001000	/* SWRST Core A Double Fault */
-#define SWRST_WDT_B		       0x00002000	/* SWRST Watchdog B */
-#define SWRST_WDT_A		       0x00004000	/* SWRST Watchdog A */
-#define SWRST_OCCURRED         0x00008000	/* SWRST Status */
+#define SYSTEM_RESET           0x0007	/* Initiates a system software reset */
+#define DOUBLE_FAULT_A         0x0008	/* Core A Double Fault Causes Reset */
+#define DOUBLE_FAULT_B         0x0010	/* Core B Double Fault Causes Reset */
+#define SWRST_DBL_FAULT_A      0x0800	/* SWRST Core A Double Fault */
+#define SWRST_DBL_FAULT_B      0x1000	/* SWRST Core B Double Fault */
+#define SWRST_WDT_B		       0x2000	/* SWRST Watchdog B */
+#define SWRST_WDT_A		       0x4000	/* SWRST Watchdog A */
+#define SWRST_OCCURRED         0x8000	/* SWRST Status */
 
 /* *************  SYSTEM INTERRUPT CONTROLLER MASKS ***************** */
 

@@ -436,6 +436,7 @@ unsigned long get_dma_curr_desc_ptr(unsigned int channel)
 
 	return dma_ch[channel].regs->curr_desc_ptr;
 }
+EXPORT_SYMBOL(get_dma_curr_desc_ptr);
 
 unsigned long get_dma_curr_addr(unsigned int channel)
 {

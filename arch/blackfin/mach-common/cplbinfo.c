@@ -91,7 +91,7 @@ static char *cplb_print_entry(char *buf, int type)
 	} else
 		buf += sprintf(buf, "Data CPLB entry:\n");
 
-	buf += sprintf(buf, "Address\t\tData\tSize\tValid\tLocked\tSwapin\n\tiCount\toCount\n");
+	buf += sprintf(buf, "Address\t\tData\tSize\tValid\tLocked\tSwapin\tiCount\toCount\n");
 
 	while (*p_addr != 0xffffffff) {
 		entry = cplb_find_entry(cplb_addr, cplb_data, *p_addr, *p_data);

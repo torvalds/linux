@@ -3,7 +3,7 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
-mainmenu "uClinux/Blackfin (w/o MMU) Kernel Configuration"
+mainmenu "Blackfin Kernel Configuration"
 
 config MMU
 	bool
@@ -29,10 +29,6 @@ config ZONE_DMA
 	bool
 	default y
 
-config BFIN
-	bool
-	default y
-
 config SEMAPHORE_SLEEPERS
 	bool
 	default y
@@ -50,7 +46,7 @@ config GENERIC_HARDIRQS
 	default y
 
 config GENERIC_IRQ_PROBE
-        bool
+	bool
 	default y
 
 config GENERIC_TIME
@@ -67,11 +63,6 @@ config FORCE_MAX_ZONEORDER
 
 config GENERIC_CALIBRATE_DELAY
 	bool
-	default y
-
-config IRQCHIP_DEMUX_GPIO
-	bool
-	depends on (BF52x || BF53x || BF561 || BF54x)
 	default y
 
 source "init/Kconfig"
@@ -140,6 +131,11 @@ config BF544
 	help
 	  BF544 Processor Support.
 
+config BF547
+	bool "BF547"
+	help
+	  BF547 Processor Support.
+
 config BF548
 	bool "BF548"
 	help
@@ -166,11 +162,11 @@ choice
 
 config BF_REV_0_0
 	bool "0.0"
-	depends on (BF549 || BF527)
+	depends on (BF52x || BF54x)
 
 config BF_REV_0_1
-	bool "0.2"
-	depends on (BF549 || BF527)
+	bool "0.1"
+	depends on (BF52x || BF54x)
 
 config BF_REV_0_2
 	bool "0.2"
@@ -208,7 +204,7 @@ config BF53x
 
 config BF54x
 	bool
-	depends on (BF542 || BF544 || BF548 || BF549)
+	depends on (BF542 || BF544 || BF547 || BF548 || BF549)
 	default y
 
 config BFIN_DUAL_CORE
@@ -220,95 +216,6 @@ config BFIN_SINGLE_CORE
 	bool
 	depends on !BFIN_DUAL_CORE
 	default y
-
-choice
-	prompt "System type"
-	default BFIN533_STAMP
-	help
-	  Do NOT change the board here.  Please use the top level
-	  configuration to ensure that all the other settings are
-	  correct.
-
-config BFIN527_EZKIT
-	bool "BF527-EZKIT"
-	depends on (BF522 || BF525 || BF527)
-	help
-	  BF533-EZKIT-LITE board Support.
-
-config BFIN533_EZKIT
-	bool "BF533-EZKIT"
-	depends on (BF533 || BF532 || BF531)
-	help
-	  BF533-EZKIT-LITE board Support.
-
-config  BFIN533_STAMP
-	bool "BF533-STAMP"
-	depends on (BF533 || BF532 || BF531)
-	help
-	  BF533-STAMP board Support.
-
-config BFIN537_STAMP
-	bool "BF537-STAMP"
-	depends on (BF537 || BF536 || BF534)
-	help
-	  BF537-STAMP board Support.
-
-config BFIN533_BLUETECHNIX_CM
-	bool "Bluetechnix CM-BF533"
-	depends on (BF533)
-	help
-	  CM-BF533 support for EVAL- and DEV-Board.
-
-config BFIN537_BLUETECHNIX_CM
-	bool "Bluetechnix CM-BF537"
-	depends on (BF537)
-	help
-	  CM-BF537 support for EVAL- and DEV-Board.
-
-config BFIN548_EZKIT
-	bool "BF548-EZKIT"
-	depends on (BF548 || BF549)
-	  help
-	  BFIN548-EZKIT board Support.
-
-config BFIN561_BLUETECHNIX_CM
-	bool "Bluetechnix CM-BF561"
-	depends on (BF561)
-	help
-	  CM-BF561 support for EVAL- and DEV-Board.
-
-config BFIN561_EZKIT
-	bool "BF561-EZKIT"
-	depends on (BF561)
-	help
-	  BF561-EZKIT-LITE board Support.
-
-config BFIN561_TEPLA
-	bool "BF561-TEPLA"
-	depends on (BF561)
-	help
-	 BF561-TEPLA board Support.
-
-config PNAV10
-	bool "PNAV 1.0 board"
-	depends on (BF537)
-	help
-	  PNAV 1.0 board Support.
-
-config H8606_HVSISTEMAS
-        bool "HV Sistemas H8606"
-        depends on (BF532)
-        help
-          HV Sistemas H8606 board support.
-
-config GENERIC_BOARD
-	bool "Custom"
-	depends on (BF537 || BF536 \
-		|| BF534 || BF561 || BF535 || BF533 || BF532 || BF531)
-	help
-	  GENERIC or Custom board Support.
-
-endchoice
 
 config MEM_GENERIC_BOARD
 	bool
@@ -389,9 +296,9 @@ config BFIN_KERNEL_CLOCK
 	  configuration.
 
 config PLL_BYPASS
-        bool "Bypass PLL"
-        depends on BFIN_KERNEL_CLOCK
-        default n
+	bool "Bypass PLL"
+	depends on BFIN_KERNEL_CLOCK
+	default n
 
 config CLKIN_HALF
 	bool "Half Clock In"
@@ -468,11 +375,11 @@ config MAX_VCO_HZ
 	default 500000000 if BF534
 	default 400000000 if BF536
 	default 600000000 if BF537
-	default 533000000 if BF538
-	default 533000000 if BF539
+	default 533333333 if BF538
+	default 533333333 if BF539
 	default 600000000 if BF542
-	default 533000000 if BF544
-	default 533000000 if BF549
+	default 533333333 if BF544
+	default 533333333 if BF549
 	default 600000000 if BF561
 
 config MIN_VCO_HZ
@@ -481,7 +388,7 @@ config MIN_VCO_HZ
 
 config MAX_SCLK_HZ
 	int
-	default 133000000
+	default 133333333
 
 config MIN_SCLK_HZ
 	int
@@ -959,6 +866,20 @@ config BANK_3
 	default 0x99B3
 endmenu
 
+config EBIU_MBSCTLVAL
+	hex "EBIU Bank Select Control Register"
+	depends on BF54x
+	default 0
+
+config EBIU_MODEVAL
+	hex "Flash Memory Mode Control Register"
+	depends on BF54x
+	default 1
+
+config EBIU_FCTLVAL
+	hex "Flash Memory Bank Control Register"
+	depends on BF54x
+	default 6
 endmenu
 
 #############################################################################
@@ -1075,174 +996,7 @@ source "fs/Kconfig"
 
 source "kernel/Kconfig.instrumentation"
 
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-config DEBUG_HWERR
-	bool "Hardware error interrupt debugging"
-	depends on DEBUG_KERNEL
-	help
-	  When enabled, the hardware error interrupt is never disabled, and
-	  will happen immediately when an error condition occurs.  This comes
-	  at a slight cost in code size, but is necessary if you are getting
-	  hardware error interrupts and need to know where they are coming
-	  from.
-
-config DEBUG_ICACHE_CHECK
-	bool "Check Instruction cache coherency"
-	depends on DEBUG_KERNEL
-	depends on DEBUG_HWERR
-	help
-	  Say Y here if you are getting weird unexplained errors. This will
-	  ensure that icache is what SDRAM says it should be by doing a
-	  byte wise comparison between SDRAM and instruction cache. This
-	  also relocates the irq_panic() function to L1 memory, (which is
-	  un-cached).
-
-config DEBUG_HUNT_FOR_ZERO
-	bool "Catch NULL pointer reads/writes"
-	default y
-	help
-	  Say Y here to catch reads/writes to anywhere in the memory range
-	  from 0x0000 - 0x0FFF (the first 4k) of memory.  This is useful in
-	  catching common programming errors such as NULL pointer dereferences.
-
-	  Misbehaving applications will be killed (generate a SEGV) while the
-	  kernel will trigger a panic.
-
-	  Enabling this option will take up an extra entry in CPLB table.
-	  Otherwise, there is no extra overhead.
-
-config DEBUG_BFIN_HWTRACE_ON
-	bool "Turn on Blackfin's Hardware Trace"
-	default y
-	help
-	  All Blackfins include a Trace Unit which stores a history of the last
-	  16 changes in program flow taken by the program sequencer. The history
-	  allows the user to recreate the program sequencer’s recent path. This
-	  can be handy when an application dies - we print out the execution
-	  path of how it got to the offending instruction.
-
-	  By turning this off, you may save a tiny amount of power.
-
-choice
-	prompt "Omit loop Tracing"
-	default DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
-	depends on DEBUG_BFIN_HWTRACE_ON
-	help
-	  The trace buffer can be configured to omit recording of changes in
-	  program flow that match either the last entry or one of the last
-	  two entries. Omitting one of these entries from the record prevents
-	  the trace buffer from overflowing because of any sort of loop (for, do
-	  while, etc) in the program.
-
-	  Because zero-overhead Hardware loops are not recorded in the trace buffer,
-	  this feature can be used to prevent trace overflow from loops that
-	  are nested four deep.
-
-config DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
-	bool "Trace all Loops"
-	help
-	  The trace buffer records all changes of flow 
-
-config DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
-	bool "Compress single-level loops"
-	help
-	  The trace buffer does not record single loops - helpful if trace 
-	  is spinning on a while or do loop.
-
-config DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
-	bool "Compress two-level loops"
-	help
-	  The trace buffer does not record loops two levels deep. Helpful if
-	  the trace is spinning in a nested loop
-
-endchoice
-
-config DEBUG_BFIN_HWTRACE_COMPRESSION
-	int
-	depends on DEBUG_BFIN_HWTRACE_ON
-	default 0 if DEBUG_BFIN_HWTRACE_COMPRESSION_OFF
-	default 1 if DEBUG_BFIN_HWTRACE_COMPRESSION_ONE
-	default 2 if DEBUG_BFIN_HWTRACE_COMPRESSION_TWO
-
-
-config DEBUG_BFIN_HWTRACE_EXPAND
-	bool "Expand Trace Buffer greater than 16 entries"
-	depends on DEBUG_BFIN_HWTRACE_ON
-	default n
-	help
-	  By selecting this option, every time the 16 hardware entries in
-	  the Blackfin's HW Trace buffer are full, the kernel will move them
-	  into a software buffer, for dumping when there is an issue. This 
-	  has a great impact on performance, (an interrupt every 16 change of 
-	  flows) and should normally be turned off, except in those nasty
-	  debugging sessions
-
-config DEBUG_BFIN_HWTRACE_EXPAND_LEN
-	int "Size of Trace buffer (in power of 2k)"
-	range 0 4
-	depends on DEBUG_BFIN_HWTRACE_EXPAND
-	default 1
-	help
-	  This sets the size of the software buffer that the trace information
-	  is kept in.
-	  0 for (2^0)  1k, or 256 entries,
-	  1 for (2^1)  2k, or 512 entries,
-	  2 for (2^2)  4k, or 1024 entries,
-	  3 for (2^3)  8k, or 2048 entries,
-	  4 for (2^4) 16k, or 4096 entries
-
-config DEBUG_BFIN_NO_KERN_HWTRACE
-	bool "Trace user apps (turn off hwtrace in kernel)"
-	depends on DEBUG_BFIN_HWTRACE_ON
-	default n
-	help
-	  Some pieces of the kernel contain a lot of flow changes which can
-	  quickly fill up the hardware trace buffer.  When debugging crashes,
-	  the hardware trace may indicate that the problem lies in kernel
-	  space when in reality an application is buggy.
-
-	  Say Y here to disable hardware tracing in some known "jumpy" pieces
-	  of code so that the trace buffer will extend further back.
-
-config EARLY_PRINTK
-	bool "Early printk" 
-	default n
-	help
-	  This option enables special console drivers which allow the kernel
-	  to print messages very early in the bootup process.
-
-	  This is useful for kernel debugging when your machine crashes very
-	  early before the console code is initialized. After enabling this
-	  feature, you must add "earlyprintk=serial,uart0,57600" to the
-	  command line (bootargs). It is safe to say Y here in all cases, as
-	  all of this lives in the init section and is thrown away after the
-	  kernel boots completely.
-
-config DUAL_CORE_TEST_MODULE
-	tristate "Dual Core Test Module"
-	depends on (BF561)
-	default n
-	help
-	  Say Y here to build-in dual core test module for dual core test.
-
-config CPLB_INFO
-	bool "Display the CPLB information"
-	help
-	  Display the CPLB information.
-
-config ACCESS_CHECK
-	bool "Check the user pointer address"
-	default y
-	help
-	  Usually the pointer transfer from user space is checked to see if its
-	  address is in the kernel space.
-
-	  Say N here to disable that check to improve the performance.
-
-endmenu
+source "arch/blackfin/Kconfig.debug"
 
 source "security/Kconfig"
 

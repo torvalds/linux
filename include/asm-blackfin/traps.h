@@ -48,28 +48,80 @@
 
 #ifndef __ASSEMBLY__
 
-#define HWC_x2 "System MMR Error\nAn error occurred due to an invalid access to an System MMR location\nPossible reason: a 32-bit register is accessed with a 16-bit instruction,\nor a 16-bit register is accessed with a 32-bit instruction.\n"
-#define HWC_x3 "External Memory Addressing Error\n"
-#define HWC_x12 "Performance Monitor Overflow\n"
-#define HWC_x18 "RAISE 5 instruction\n Software issued a RAISE 5 instruction to invoke the Hardware\n"
-#define HWC_default "Reserved\n"
-
-#define EXC_0x03 "Application stack overflow\n - Please increase the stack size of the application using elf2flt -s option,\n and/or reduce the stack use of the application.\n"
-#define EXC_0x10 "Single step\n - When the processor is in single step mode, every instruction\n generates an exception. Primarily used for debugging.\n"
-#define EXC_0x11 "Exception caused by a trace buffer full condition\n - The processor takes this exception when the trace\n buffer overflows (only when enabled by the Trace Unit Control register).\n"
-#define EXC_0x21 "Undefined instruction\n - May be used to emulate instructions that are not defined for\n a particular processor implementation.\n"
-#define EXC_0x22 "Illegal instruction combination\n - See section for multi-issue rules in the ADSP-BF53x Blackfin\n Processor Instruction Set Reference.\n"
-#define EXC_0x23 "Data access CPLB protection violation\n - Attempted read or write to Supervisor resource,\n or illegal data memory access. \n"
-#define EXC_0x24 "Data access misaligned address violation\n - Attempted misaligned data memory or data cache access.\n"
-#define EXC_0x25 "Unrecoverable event\n - For example, an exception generated while processing a previous exception.\n"
-#define EXC_0x26 "Data access CPLB miss\n - Used by the MMU to signal a CPLB miss on a data access.\n"
-#define EXC_0x27 "Data access multiple CPLB hits\n - More than one CPLB entry matches data fetch address.\n"
-#define EXC_0x28 "Program Sequencer Exception caused by an emulation watchpoint match\n - There is a watchpoint match, and one of the EMUSW\n bits in the Watchpoint Instruction Address Control register (WPIACTL) is set.\n"
-#define EXC_0x2A "Instruction fetch misaligned address violation\n - Attempted misaligned instruction cache fetch. On a misaligned instruction fetch exception,\n the return address provided in RETX is the destination address which is misaligned, rather than the address of the offending instruction.\n"
-#define EXC_0x2B "CPLB protection violation\n - Illegal instruction fetch access (memory protection violation).\n"
-#define EXC_0x2C "Instruction fetch CPLB miss\n - CPLB miss on an instruction fetch.\n"
-#define EXC_0x2D "Instruction fetch multiple CPLB hits\n - More than one CPLB entry matches instruction fetch address.\n"
-#define EXC_0x2E "Illegal use of supervisor resource\n - Attempted to use a Supervisor register or instruction from User mode.\n Supervisor resources are registers and instructions that are reserved\n for Supervisor use: Supervisor only registers, all MMRs, and Supervisor\n only instructions.\n"
+#define HWC_x2(level) \
+	"System MMR Error\n" \
+	level " - An error occurred due to an invalid access to an System MMR location\n" \
+	level "   Possible reason: a 32-bit register is accessed with a 16-bit instruction\n" \
+	level "   or a 16-bit register is accessed with a 32-bit instruction.\n"
+#define HWC_x3(level) \
+	"External Memory Addressing Error\n"
+#define HWC_x12(level) \
+	"Performance Monitor Overflow\n"
+#define HWC_x18(level) \
+	"RAISE 5 instruction\n" \
+	level "    Software issued a RAISE 5 instruction to invoke the Hardware\n"
+#define HWC_default(level) \
+	 "Reserved\n"
+#define EXC_0x03(level) \
+	"Application stack overflow\n" \
+	level " - Please increase the stack size of the application using elf2flt -s option,\n" \
+	level "   and/or reduce the stack use of the application.\n"
+#define EXC_0x10(level) \
+	"Single step\n" \
+	level " - When the processor is in single step mode, every instruction\n" \
+	level "   generates an exception. Primarily used for debugging.\n"
+#define EXC_0x11(level) \
+	"Exception caused by a trace buffer full condition\n" \
+	level " - The processor takes this exception when the trace\n" \
+	level "   buffer overflows (only when enabled by the Trace Unit Control register).\n"
+#define EXC_0x21(level) \
+	"Undefined instruction\n" \
+	level " - May be used to emulate instructions that are not defined for\n" \
+	level "   a particular processor implementation.\n"
+#define EXC_0x22(level) \
+	"Illegal instruction combination\n" \
+	level " - See section for multi-issue rules in the ADSP-BF53x Blackfin\n" \
+	level "   Processor Instruction Set Reference.\n"
+#define EXC_0x23(level) \
+	"Data access CPLB protection violation\n" \
+	level " - Attempted read or write to Supervisor resource,\n" \
+	level "   or illegal data memory access. \n"
+#define EXC_0x24(level) \
+	"Data access misaligned address violation\n" \
+	level " - Attempted misaligned data memory or data cache access.\n"
+#define EXC_0x25(level) \
+	"Unrecoverable event\n" \
+	level " - For example, an exception generated while processing a previous exception.\n"
+#define EXC_0x26(level) \
+	"Data access CPLB miss\n" \
+	level " - Used by the MMU to signal a CPLB miss on a data access.\n"
+#define EXC_0x27(level) \
+	"Data access multiple CPLB hits\n" \
+	level " - More than one CPLB entry matches data fetch address.\n"
+#define EXC_0x28(level) \
+	"Program Sequencer Exception caused by an emulation watchpoint match\n" \
+	level " - There is a watchpoint match, and one of the EMUSW\n" \
+	level "   bits in the Watchpoint Instruction Address Control register (WPIACTL) is set.\n"
+#define EXC_0x2A(level) \
+	"Instruction fetch misaligned address violation\n" \
+	level " - Attempted misaligned instruction cache fetch. On a misaligned instruction fetch\n" \
+	level "   exception, the return address provided in RETX is the destination address which is\n" \
+	level "   misaligned, rather than the address of the offending instruction.\n"
+#define EXC_0x2B(level) \
+	"CPLB protection violation\n" \
+	level " - Illegal instruction fetch access (memory protection violation).\n"
+#define EXC_0x2C(level) \
+	"Instruction fetch CPLB miss\n" \
+	level " - CPLB miss on an instruction fetch.\n"
+#define EXC_0x2D(level) \
+	"Instruction fetch multiple CPLB hits\n" \
+	level " - More than one CPLB entry matches instruction fetch address.\n"
+#define EXC_0x2E(level) \
+	"Illegal use of supervisor resource\n" \
+	level " - Attempted to use a Supervisor register or instruction from User mode.\n" \
+	level "   Supervisor resources are registers and instructions that are reserved\n" \
+	level "   for Supervisor use: Supervisor only registers, all MMRs, and Supervisor\n" \
+	level "   only instructions.\n"
 
 #endif				/* __ASSEMBLY__ */
 #endif				/* _BFIN_TRAPS_H */

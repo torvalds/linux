@@ -26,29 +26,22 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
-u_long icplb_table[MAX_CPLBS+1];
-u_long dcplb_table[MAX_CPLBS+1];
+u_long icplb_table[MAX_CPLBS + 1];
+u_long dcplb_table[MAX_CPLBS + 1];
 
 #ifdef CONFIG_CPLB_SWITCH_TAB_L1
-u_long ipdt_table[MAX_SWITCH_I_CPLBS+1]__attribute__((l1_data));
-u_long dpdt_table[MAX_SWITCH_D_CPLBS+1]__attribute__((l1_data));
-
-#ifdef CONFIG_CPLB_INFO
-u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS]__attribute__((l1_data));
-u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS]__attribute__((l1_data));
-#endif /* CONFIG_CPLB_INFO */
-
+# define PDT_ATTR __attribute__((l1_data))
 #else
+# define PDT_ATTR
+#endif
 
-u_long ipdt_table[MAX_SWITCH_I_CPLBS+1];
-u_long dpdt_table[MAX_SWITCH_D_CPLBS+1];
+u_long ipdt_table[MAX_SWITCH_I_CPLBS + 1] PDT_ATTR;
+u_long dpdt_table[MAX_SWITCH_D_CPLBS + 1] PDT_ATTR;
 
 #ifdef CONFIG_CPLB_INFO
-u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS];
-u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS];
-#endif /* CONFIG_CPLB_INFO */
-
-#endif /*CONFIG_CPLB_SWITCH_TAB_L1*/
+u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS] PDT_ATTR;
+u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS] PDT_ATTR;
+#endif
 
 struct s_cplb {
 	struct cplb_tab init_i;
@@ -71,7 +64,7 @@ static struct cplb_desc cplb_data[] = {
 #else
 		.valid = 0,
 #endif
-		.name = "ZERO Pointer Saveguard",
+		.name = "Zero Pointer Guard Page",
 	},
 	{
 		.start = L1_CODE_START,
@@ -102,20 +95,20 @@ static struct cplb_desc cplb_data[] = {
 		.end = 0,  /* dynamic */
 		.psize = 0,
 		.attr = INITIAL_T | SWITCH_T | I_CPLB | D_CPLB,
-		.i_conf =  SDRAM_IGENERIC,
-		.d_conf =  SDRAM_DGENERIC,
+		.i_conf = SDRAM_IGENERIC,
+		.d_conf = SDRAM_DGENERIC,
 		.valid = 1,
-		.name = "SDRAM Kernel",
+		.name = "Kernel Memory",
 	},
 	{
 		.start = 0, /* dynamic */
 		.end = 0, /* dynamic */
 		.psize = 0,
 		.attr = INITIAL_T | SWITCH_T | D_CPLB,
-		.i_conf =  SDRAM_IGENERIC,
-		.d_conf =  SDRAM_DNON_CHBL,
+		.i_conf = SDRAM_IGENERIC,
+		.d_conf = SDRAM_DNON_CHBL,
 		.valid = 1,
-		.name = "SDRAM RAM MTD",
+		.name = "uClinux MTD Memory",
 	},
 	{
 		.start = 0, /* dynamic */
@@ -124,7 +117,7 @@ static struct cplb_desc cplb_data[] = {
 		.attr = INITIAL_T | SWITCH_T | D_CPLB,
 		.d_conf = SDRAM_DNON_CHBL,
 		.valid = 1,
-		.name = "SDRAM Uncached DMA ZONE",
+		.name = "Uncached DMA Zone",
 	},
 	{
 		.start = 0, /* dynamic */
@@ -134,7 +127,7 @@ static struct cplb_desc cplb_data[] = {
 		.i_conf = 0, /* dynamic */
 		.d_conf = 0, /* dynamic */
 		.valid = 1,
-		.name = "SDRAM Reserved Memory",
+		.name = "Reserved Memory",
 	},
 	{
 		.start = ASYNC_BANK0_BASE,
@@ -143,14 +136,14 @@ static struct cplb_desc cplb_data[] = {
 		.attr = SWITCH_T | D_CPLB,
 		.d_conf = SDRAM_EBIU,
 		.valid = 1,
-		.name = "ASYNC Memory",
+		.name = "Asynchronous Memory Banks",
 	},
 	{
-#if defined(CONFIG_BF561)
-		.start = L2_SRAM,
-		.end = L2_SRAM_END,
+#ifdef L2_START
+		.start = L2_START,
+		.end = L2_START + L2_LENGTH,
 		.psize = SIZE_1M,
-		.attr = SWITCH_T | D_CPLB,
+		.attr = SWITCH_T | I_CPLB | D_CPLB,
 		.i_conf = L2_MEMORY,
 		.d_conf = L2_MEMORY,
 		.valid = 1,
@@ -158,13 +151,23 @@ static struct cplb_desc cplb_data[] = {
 		.valid = 0,
 #endif
 		.name = "L2 Memory",
-	}
+	},
+	{
+		.start = BOOT_ROM_START,
+		.end = BOOT_ROM_START + BOOT_ROM_LENGTH,
+		.psize = SIZE_1M,
+		.attr = SWITCH_T | I_CPLB | D_CPLB,
+		.i_conf = SDRAM_IGENERIC,
+		.d_conf = SDRAM_DGENERIC,
+		.valid = 1,
+		.name = "On-Chip BootROM",
+	},
 };
 
 static u16 __init lock_kernel_check(u32 start, u32 end)
 {
-	if ((start <= (u32) _stext && end >= (u32) _end)
-	    || (start >= (u32) _stext && end <= (u32) _end))
+	if ((end   <= (u32) _end && end   >= (u32)_stext) ||
+	    (start <= (u32) _end && start >= (u32)_stext))
 		return IN_KERNEL;
 	return 0;
 }
@@ -350,7 +353,7 @@ void __init generate_cpl_tables(void)
 	else
 		cplb_data[RES_MEM].i_conf = SDRAM_INON_CHBL;
 
-	for (i = ZERO_P; i <= L2_MEM; i++) {
+	for (i = ZERO_P; i < ARRAY_SIZE(cplb_data); ++i) {
 		if (!cplb_data[i].valid)
 			continue;
 

@@ -1007,7 +1007,7 @@
 
 /* Bit masks for HOST_STATUS */
 
-#define                     READY  0x1        /* DMA Ready */
+#define                 DMA_READY  0x1        /* DMA Ready */
 #define                  FIFOFULL  0x2        /* FIFO Full */
 #define                 FIFOEMPTY  0x4        /* FIFO Empty */
 #define                  COMPLETE  0x8        /* DMA Complete */

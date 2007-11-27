@@ -47,6 +47,7 @@
 /* Boot ROM Memory */
 
 #define BOOT_ROM_START		0xEF000000
+#define BOOT_ROM_LENGTH		0x800
 
 /* Level 1 Memory */
 
@@ -167,9 +168,7 @@
 
 /* Scratch Pad Memory */
 
-#if defined(CONFIG_BF537) || defined(CONFIG_BF536) || defined(CONFIG_BF534)
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
-#endif
 
 #endif				/* _MEM_MAP_537_H_ */

@@ -35,11 +35,12 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-#include <linux/usb_isp1362.h>
+#include <linux/usb/isp1362.h>
 #endif
 #include <linux/irq.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
+#include <asm/portmux.h>
 #include <linux/usb/sl811.h>
 
 #include <linux/spi/ad7877.h>
@@ -295,7 +296,7 @@ static struct bfin5xx_spi_chip spi_mmc_chip_info = {
 
 #if defined(CONFIG_TOUCHSCREEN_AD7877) || defined(CONFIG_TOUCHSCREEN_AD7877_MODULE)
 static struct bfin5xx_spi_chip spi_ad7877_chip_info = {
-	.cs_change_per_word = 1,
+	.cs_change_per_word = 0,
 	.enable_dma = 0,
 	.bits_per_word = 16,
 };
@@ -387,7 +388,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	.platform_data		= &bfin_ad7877_ts_info,
 	.irq			= IRQ_PF2,
 	.max_speed_hz		= 12500000,     /* max spi clock (SCK) speed in HZ */
-	.bus_num		= 1,
+	.bus_num		= 0,
 	.chip_select  		= 5,
 	.controller_data = &spi_ad7877_chip_info,
 },
@@ -413,6 +414,7 @@ static struct resource bfin_spi0_resource[] = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 static struct platform_device bfin_spi0_device = {
@@ -508,3 +510,10 @@ static int __init stamp_init(void)
 }
 
 arch_initcall(stamp_init);
+
+void bfin_get_ether_addr(char *addr)
+{
+	random_ether_addr(addr);
+	printk(KERN_WARNING "%s:%s: Setting Ethernet MAC to a random one\n", __FILE__, __func__);
+}
+EXPORT_SYMBOL(bfin_get_ether_addr);

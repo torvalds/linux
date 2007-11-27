@@ -73,7 +73,7 @@ ENTRY(_cplb_mgr)
 	/* ICPLB Miss Exception. We need to choose one of the
 	* currently-installed CPLBs, and replace it with one
 	* from the configuration table.
- 	*/
+	*/
 
 	P4.L = LO(ICPLB_FAULT_ADDR);
 	P4.H = HI(ICPLB_FAULT_ADDR);
@@ -222,7 +222,7 @@ ENTRY(_cplb_mgr)
 
 	/* See if failed address > start address */
 	CC = R4 <= R0(IU);
- 	IF !CC JUMP .Linext;
+	IF !CC JUMP .Linext;
 
 	/* extract page size (17:16)*/
 	R3 = EXTRACT(R2, R1.L) (Z);
@@ -271,16 +271,27 @@ ENTRY(_cplb_mgr)
 
 /* FAILED CASES*/
 .Lno_page_in_table:
-	( R7:4,P5:3 ) = [SP++];
 	R0 = CPLB_NO_ADDR_MATCH;
-	RTS;
+	JUMP .Lfail_ret;
+
 .Lall_locked:
-	( R7:4,P5:3 ) = [SP++];
 	R0 = CPLB_NO_UNLOCKED;
-	RTS;
+	JUMP .Lfail_ret;
+
 .Lprot_violation:
-	( R7:4,P5:3 ) = [SP++];
 	R0 = CPLB_PROT_VIOL;
+
+.Lfail_ret:
+	/* Make sure we turn protection/cache back on, even in the failing case */
+	BITSET(R5,ENICPLB_P);
+	CLI R2;
+	SSYNC;          /* SSYNC required before writing to IMEM_CONTROL. */
+	.align 8;
+	[P4] = R5;
+	SSYNC;
+	STI R2;
+
+	( R7:4,P5:3 ) = [SP++];
 	RTS;
 
 .Ldcplb_write:

@@ -27,6 +27,9 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#ifndef __ASM_CPLBINIT_H__
+#define __ASM_CPLBINIT_H__
+
 #include <asm/blackfin.h>
 #include <asm/cplb.h>
 
@@ -57,8 +60,8 @@ struct cplb_tab {
 	u16 size;
 };
 
-extern u_long icplb_table[MAX_CPLBS+1];
-extern u_long dcplb_table[MAX_CPLBS+1];
+extern u_long icplb_table[];
+extern u_long dcplb_table[];
 
 /* Till here we are discussing about the static memory management model.
  * However, the operating envoronments commonly define more CPLB
@@ -69,28 +72,16 @@ extern u_long dcplb_table[MAX_CPLBS+1];
  * This is how Page descriptor Table is implemented in uClinux/Blackfin.
  */
 
-#ifdef CONFIG_CPLB_SWITCH_TAB_L1
-extern u_long ipdt_table[MAX_SWITCH_I_CPLBS+1]__attribute__((l1_data));
-extern u_long dpdt_table[MAX_SWITCH_D_CPLBS+1]__attribute__((l1_data));
-
+extern u_long ipdt_table[];
+extern u_long dpdt_table[];
 #ifdef CONFIG_CPLB_INFO
-extern u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS]__attribute__((l1_data));
-extern u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS]__attribute__((l1_data));
-#endif /* CONFIG_CPLB_INFO */
-
-#else
-
-extern u_long ipdt_table[MAX_SWITCH_I_CPLBS+1];
-extern u_long dpdt_table[MAX_SWITCH_D_CPLBS+1];
-
-#ifdef CONFIG_CPLB_INFO
-extern u_long ipdt_swapcount_table[MAX_SWITCH_I_CPLBS];
-extern u_long dpdt_swapcount_table[MAX_SWITCH_D_CPLBS];
-#endif /* CONFIG_CPLB_INFO */
-
-#endif /*CONFIG_CPLB_SWITCH_TAB_L1*/
+extern u_long ipdt_swapcount_table[];
+extern u_long dpdt_swapcount_table[];
+#endif
 
 extern unsigned long reserved_mem_dcache_on;
 extern unsigned long reserved_mem_icache_on;
 
 extern void generate_cpl_tables(void);
+
+#endif

@@ -1,5 +1,7 @@
 if (BF54x)
 
+source "arch/blackfin/mach-bf548/boards/Kconfig"
+
 menu "BF548 Specific Configuration"
 
 config DEB_DMA_URGENT
