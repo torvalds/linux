@@ -270,8 +270,8 @@ syscall_exit_work:
 	lsl	r3, 1
 	sbr	r3, 30
 	sbr	r3, 0
-	mtdr	DBGREG_BWA2A, r2
-	mtdr	DBGREG_BWC2A, r3
+	mtdr	OCD_BWA2A, r2
+	mtdr	OCD_BWC2A, r3
 	rjmp	syscall_exit_cont
 
 
@@ -521,8 +521,8 @@ fault_exit_work:
 	lsl	r3, 1
 	sbr	r3, 30
 	sbr	r3, 0
-	mtdr	DBGREG_BWA2A, r2
-	mtdr	DBGREG_BWC2A, r3
+	mtdr	OCD_BWA2A, r2
+	mtdr	OCD_BWC2A, r3
 	rjmp	fault_resume_user
 
 	/* If we get a debug trap from privileged context we end up here */
@@ -636,9 +636,9 @@ debug_resume_user:
 
 3:	bld	r1, TIF_SINGLE_STEP
 	brcc	debug_restore_all
-	mfdr	r2, DBGREG_DC
-	sbr	r2, DC_SS_BIT
-	mtdr	DBGREG_DC, r2
+	mfdr	r2, OCD_DC
+	sbr	r2, OCD_DC_SS_BIT
+	mtdr	OCD_DC, r2
 	rjmp	debug_restore_all
 
 	.set	rsr_int0,	SYSREG_RSR_INT0

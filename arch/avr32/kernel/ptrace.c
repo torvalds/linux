@@ -159,7 +159,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		 request, child->pid, addr, data);
 
 	pr_debug("ptrace: Enabling monitor mode...\n");
-	__mtdr(DBGREG_DC, __mfdr(DBGREG_DC) | DC_MM | DC_DBE);
+	ocd_write(DC, ocd_read(DC) | (1 << OCD_DC_MM_BIT)
+			| (1 << OCD_DC_DBE_BIT));
 
 	switch (request) {
 	/* Read the word at location addr in the child process */
@@ -240,7 +241,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
-	pr_debug("sys_ptrace returning %d (DC = 0x%08lx)\n", ret, __mfdr(DBGREG_DC));
+	pr_debug("sys_ptrace returning %d (DC = 0x%08lx)\n",
+			ret, ocd_read(DC));
 	return ret;
 }
 
@@ -276,11 +278,11 @@ asmlinkage void do_debug_priv(struct pt_regs *regs)
 	unsigned long dc, ds;
 	unsigned long die_val;
 
-	ds = __mfdr(DBGREG_DS);
+	ds = ocd_read(DS);
 
 	pr_debug("do_debug_priv: pc = %08lx, ds = %08lx\n", regs->pc, ds);
 
-	if (ds & DS_SSS)
+	if (ds & (1 << OCD_DS_SSS_BIT))
 		die_val = DIE_SSTEP;
 	else
 		die_val = DIE_BREAKPOINT;
@@ -288,14 +290,14 @@ asmlinkage void do_debug_priv(struct pt_regs *regs)
 	if (notify_die(die_val, "ptrace", regs, 0, 0, SIGTRAP) == NOTIFY_STOP)
 		return;
 
-	if (likely(ds & DS_SSS)) {
+	if (likely(ds & (1 << OCD_DS_SSS_BIT))) {
 		extern void itlb_miss(void);
 		extern void tlb_miss_common(void);
 		struct thread_info *ti;
 
-		dc = __mfdr(DBGREG_DC);
-		dc &= ~DC_SS;
-		__mtdr(DBGREG_DC, dc);
+		dc = ocd_read(DC);
+		dc &= ~(1 << OCD_DC_SS_BIT);
+		ocd_write(DC, dc);
 
 		ti = current_thread_info();
 		set_ti_thread_flag(ti, TIF_BREAKPOINT);
@@ -303,8 +305,8 @@ asmlinkage void do_debug_priv(struct pt_regs *regs)
 		/* The TLB miss handlers don't check thread flags */
 		if ((regs->pc >= (unsigned long)&itlb_miss)
 		    && (regs->pc <= (unsigned long)&tlb_miss_common)) {
-			__mtdr(DBGREG_BWA2A, sysreg_read(RAR_EX));
-			__mtdr(DBGREG_BWC2A, 0x40000001 | (get_asid() << 1));
+			ocd_write(BWA2A, sysreg_read(RAR_EX));
+			ocd_write(BWC2A, 0x40000001 | (get_asid() << 1));
 		}
 
 		/*
@@ -329,22 +331,22 @@ asmlinkage void do_debug(struct pt_regs *regs)
 {
 	unsigned long dc, ds;
 
-	ds = __mfdr(DBGREG_DS);
+	ds = ocd_read(DS);
 	pr_debug("do_debug: pc = %08lx, ds = %08lx\n", regs->pc, ds);
 
 	if (test_thread_flag(TIF_BREAKPOINT)) {
 		pr_debug("TIF_BREAKPOINT set\n");
 		/* We're taking care of it */
 		clear_thread_flag(TIF_BREAKPOINT);
-		__mtdr(DBGREG_BWC2A, 0);
+		ocd_write(BWC2A, 0);
 	}
 
 	if (test_thread_flag(TIF_SINGLE_STEP)) {
 		pr_debug("TIF_SINGLE_STEP set, ds = 0x%08lx\n", ds);
-		if (ds & DS_SSS) {
-			dc = __mfdr(DBGREG_DC);
-			dc &= ~DC_SS;
-			__mtdr(DBGREG_DC, dc);
+		if (ds & (1 << OCD_DS_SSS_BIT)) {
+			dc = ocd_read(DC);
+			dc &= ~(1 << OCD_DC_SS_BIT);
+			ocd_write(DC, dc);
 
 			clear_thread_flag(TIF_SINGLE_STEP);
 			ptrace_break(current, regs);

@@ -55,8 +55,8 @@ void machine_power_off(void)
 
 void machine_restart(char *cmd)
 {
-	__mtdr(DBGREG_DC, DC_DBE);
-	__mtdr(DBGREG_DC, DC_RES);
+	ocd_write(DC, (1 << OCD_DC_DBE_BIT));
+	ocd_write(DC, (1 << OCD_DC_RES_BIT));
 	while (1) ;
 }
 

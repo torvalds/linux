@@ -35,8 +35,8 @@
 #include <asm/ocd.h>
 #define finish_arch_switch(prev)			\
 	do {						\
-		__mtdr(DBGREG_PID, prev->pid);		\
-		__mtdr(DBGREG_PID, current->pid);	\
+		ocd_write(PID, prev->pid);		\
+		ocd_write(PID, current->pid);		\
 	} while(0)
 #endif
 
