@@ -483,7 +483,7 @@ static DECLARE_WORK(css_reprobe_work, reprobe_all);
 void css_schedule_reprobe(void)
 {
 	need_reprobe = 1;
-	queue_work(ccw_device_work, &css_reprobe_work);
+	queue_work(slow_path_wq, &css_reprobe_work);
 }
 
 EXPORT_SYMBOL_GPL(css_schedule_reprobe);

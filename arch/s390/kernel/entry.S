@@ -69,13 +69,31 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	basr	%r14,%r1
 	.endm
 
-	.macro	LOCKDEP_SYS_EXIT
-	l	%r1,BASED(.Llockdep_sys_exit)
+	.macro	TRACE_IRQS_CHECK
+	tm	SP_PSW(%r15),0x03	# irqs enabled?
+	jz	0f
+	l	%r1,BASED(.Ltrace_irq_on)
 	basr	%r14,%r1
+	j	1f
+0:	l	%r1,BASED(.Ltrace_irq_off)
+	basr	%r14,%r1
+1:
 	.endm
 #else
 #define TRACE_IRQS_ON
 #define TRACE_IRQS_OFF
+#define TRACE_IRQS_CHECK
+#endif
+
+#ifdef CONFIG_LOCKDEP
+	.macro	LOCKDEP_SYS_EXIT
+	tm	SP_PSW+1(%r15),0x01	# returning to user ?
+	jz	0f
+	l	%r1,BASED(.Llockdep_sys_exit)
+	basr	%r14,%r1
+0:
+	.endm
+#else
 #define LOCKDEP_SYS_EXIT
 #endif
 
@@ -234,8 +252,6 @@ sysc_saveall:
 	lh	%r7,0x8a	  # get svc number from lowcore
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 sysc_vtime:
-	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
-	bz	BASED(sysc_do_svc)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 sysc_stime:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
@@ -263,19 +279,34 @@ sysc_do_restart:
 
 sysc_return:
 	tm	SP_PSW+1(%r15),0x01	# returning to user ?
-	bno	BASED(sysc_leave)
+	bno	BASED(sysc_restore)
 	tm	__TI_flags+3(%r9),_TIF_WORK_SVC
 	bnz	BASED(sysc_work)  # there is work to do (signals etc.)
+sysc_restore:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	la	%r1,BASED(sysc_restore_trace_psw)
+	lpsw	0(%r1)
+sysc_restore_trace:
+	TRACE_IRQS_CHECK
 	LOCKDEP_SYS_EXIT
+#endif
 sysc_leave:
 	RESTORE_ALL __LC_RETURN_PSW,1
+sysc_done:
+
+#ifdef CONFIG_TRACE_IRQFLAGS
+	.align	8
+	.globl	sysc_restore_trace_psw
+sysc_restore_trace_psw:
+	.long	0, sysc_restore_trace + 0x80000000
+#endif
 
 #
 # recheck if there is more work to do
 #
 sysc_work_loop:
 	tm	__TI_flags+3(%r9),_TIF_WORK_SVC
-	bz	BASED(sysc_leave)	# there is no work to do
+	bz	BASED(sysc_restore)	# there is no work to do
 #
 # One of the work bits is on. Find out which one.
 #
@@ -290,8 +321,8 @@ sysc_work:
 	bo	BASED(sysc_restart)
 	tm	__TI_flags+3(%r9),_TIF_SINGLE_STEP
 	bo	BASED(sysc_singlestep)
-	LOCKDEP_SYS_EXIT
-	b	BASED(sysc_leave)
+	b	BASED(sysc_restore)
+sysc_work_done:
 
 #
 # _TIF_NEED_RESCHED is set, call schedule
@@ -458,6 +489,7 @@ pgm_check_handler:
 pgm_no_vtime:
 #endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	TRACE_IRQS_OFF
 	l	%r3,__LC_PGM_ILC	# load program interruption code
 	la	%r8,0x7f
 	nr	%r8,%r3
@@ -497,6 +529,7 @@ pgm_per_std:
 pgm_no_vtime2:
 #endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	TRACE_IRQS_OFF
 	l	%r1,__TI_task(%r9)
 	mvc	__THREAD_per+__PER_atmid(2,%r1),__LC_PER_ATMID
 	mvc	__THREAD_per+__PER_address(4,%r1),__LC_PER_ADDRESS
@@ -517,15 +550,13 @@ pgm_svcper:
 	SAVE_ALL_SYNC __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
-	bz	BASED(pgm_no_vtime3)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-pgm_no_vtime3:
 #endif
 	lh	%r7,0x8a		# get svc number from lowcore
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	TRACE_IRQS_OFF
 	l	%r1,__TI_task(%r9)
 	mvc	__THREAD_per+__PER_atmid(2,%r1),__LC_PER_ATMID
 	mvc	__THREAD_per+__PER_address(4,%r1),__LC_PER_ADDRESS
@@ -542,7 +573,7 @@ kernel_per:
 	mvi	SP_TRAP+1(%r15),0x28	# set trap indication to pgm check
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
-	la	%r14,BASED(sysc_leave)	# load adr. of system return
+	la	%r14,BASED(sysc_restore)# load adr. of system return
 	br	%r1			# branch to do_single_step
 
 /*
@@ -569,26 +600,38 @@ io_no_vtime:
 	l	%r1,BASED(.Ldo_IRQ)	# load address of do_IRQ
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	basr	%r14,%r1		# branch to standard irq handler
-	TRACE_IRQS_ON
-
 io_return:
 	tm	SP_PSW+1(%r15),0x01	# returning to user ?
 #ifdef CONFIG_PREEMPT
 	bno	BASED(io_preempt)	# no -> check for preemptive scheduling
 #else
-	bno	BASED(io_leave) 	# no-> skip resched & signal
+	bno	BASED(io_restore)	# no-> skip resched & signal
 #endif
 	tm	__TI_flags+3(%r9),_TIF_WORK_INT
 	bnz	BASED(io_work)		# there is work to do (signals etc.)
+io_restore:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	la	%r1,BASED(io_restore_trace_psw)
+	lpsw	0(%r1)
+io_restore_trace:
+	TRACE_IRQS_CHECK
 	LOCKDEP_SYS_EXIT
+#endif
 io_leave:
 	RESTORE_ALL __LC_RETURN_PSW,0
 io_done:
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	.align	8
+	.globl	io_restore_trace_psw
+io_restore_trace_psw:
+	.long	0, io_restore_trace + 0x80000000
+#endif
+
 #ifdef CONFIG_PREEMPT
 io_preempt:
 	icm	%r0,15,__TI_precount(%r9)
-	bnz	BASED(io_leave)
+	bnz	BASED(io_restore)
 	l	%r1,SP_R15(%r15)
 	s	%r1,BASED(.Lc_spsize)
 	mvc	SP_PTREGS(__PT_SIZE,%r1),SP_PTREGS(%r15)
@@ -596,14 +639,10 @@ io_preempt:
 	lr	%r15,%r1
 io_resume_loop:
 	tm	__TI_flags+3(%r9),_TIF_NEED_RESCHED
-	bno	BASED(io_leave)
-	mvc	__TI_precount(4,%r9),BASED(.Lc_pactive)
-	stosm	__SF_EMPTY(%r15),0x03  # reenable interrupts
-	l	%r1,BASED(.Lschedule)
-	basr	%r14,%r1	       # call schedule
-	stnsm	__SF_EMPTY(%r15),0xfc  # disable I/O and ext. interrupts
-	xc	__TI_precount(4,%r9),__TI_precount(%r9)
-	b	BASED(io_resume_loop)
+	bno	BASED(io_restore)
+	l	%r1,BASED(.Lpreempt_schedule_irq)
+	la	%r14,BASED(io_resume_loop)
+	br	%r1			# call schedule
 #endif
 
 #
@@ -627,40 +666,42 @@ io_work_loop:
 	bo	BASED(io_reschedule)
 	tm	__TI_flags+3(%r9),(_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK)
 	bnz	BASED(io_sigpending)
-	LOCKDEP_SYS_EXIT
-	b	BASED(io_leave)
+	b	BASED(io_restore)
+io_work_done:
 
 #
 # _TIF_MCCK_PENDING is set, call handler
 #
 io_mcck_pending:
-	TRACE_IRQS_OFF
 	l	%r1,BASED(.Ls390_handle_mcck)
 	basr	%r14,%r1		# TIF bit will be cleared by handler
-	TRACE_IRQS_ON
 	b	BASED(io_work_loop)
 
 #
 # _TIF_NEED_RESCHED is set, call schedule
 #
 io_reschedule:
+	TRACE_IRQS_ON
 	l	%r1,BASED(.Lschedule)
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	basr	%r14,%r1		# call scheduler
 	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
+	TRACE_IRQS_OFF
 	tm	__TI_flags+3(%r9),_TIF_WORK_INT
-	bz	BASED(io_leave) 	# there is no work to do
+	bz	BASED(io_restore)	# there is no work to do
 	b	BASED(io_work_loop)
 
 #
 # _TIF_SIGPENDING or _TIF_RESTORE_SIGMASK is set, call do_signal
 #
 io_sigpending:
+	TRACE_IRQS_ON
 	stosm	__SF_EMPTY(%r15),0x03	# reenable interrupts
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	l	%r1,BASED(.Ldo_signal)
 	basr	%r14,%r1		# call do_signal
 	stnsm	__SF_EMPTY(%r15),0xfc	# disable I/O and ext. interrupts
+	TRACE_IRQS_OFF
 	b	BASED(io_work_loop)
 
 /*
@@ -688,7 +729,6 @@ ext_no_vtime:
 	lh	%r3,__LC_EXT_INT_CODE	# get interruption code
 	l	%r1,BASED(.Ldo_extint)
 	basr	%r14,%r1
-	TRACE_IRQS_ON
 	b	BASED(io_return)
 
 __critical_end:
@@ -853,15 +893,15 @@ cleanup_table_system_call:
 cleanup_table_sysc_return:
 	.long	sysc_return + 0x80000000, sysc_leave + 0x80000000
 cleanup_table_sysc_leave:
-	.long	sysc_leave + 0x80000000, sysc_work_loop + 0x80000000
+	.long	sysc_leave + 0x80000000, sysc_done + 0x80000000
 cleanup_table_sysc_work_loop:
-	.long	sysc_work_loop + 0x80000000, sysc_reschedule + 0x80000000
+	.long	sysc_work_loop + 0x80000000, sysc_work_done + 0x80000000
 cleanup_table_io_return:
 	.long	io_return + 0x80000000, io_leave + 0x80000000
 cleanup_table_io_leave:
 	.long	io_leave + 0x80000000, io_done + 0x80000000
 cleanup_table_io_work_loop:
-	.long	io_work_loop + 0x80000000, io_mcck_pending + 0x80000000
+	.long	io_work_loop + 0x80000000, io_work_done + 0x80000000
 
 cleanup_critical:
 	clc	4(4,%r12),BASED(cleanup_table_system_call)
@@ -930,8 +970,6 @@ cleanup_system_call:
 cleanup_vtime:
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+12)
 	bhe	BASED(cleanup_stime)
-	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
-	bz	BASED(cleanup_novtime)
 	UPDATE_VTIME __LC_EXIT_TIMER,__LC_SYNC_ENTER_TIMER,__LC_USER_TIMER
 cleanup_stime:
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+16)
@@ -939,7 +977,6 @@ cleanup_stime:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 cleanup_update:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
-cleanup_novtime:
 #endif
 	mvc	__LC_RETURN_PSW+4(4),BASED(cleanup_table_system_call+4)
 	la	%r12,__LC_RETURN_PSW
@@ -978,10 +1015,10 @@ cleanup_sysc_leave:
 2:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_sysc_leave_insn:
+	.long	sysc_done - 4 + 0x80000000
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	.long	sysc_leave + 14 + 0x80000000
+	.long	sysc_done - 8 + 0x80000000
 #endif
-	.long	sysc_leave + 10 + 0x80000000
 
 cleanup_io_return:
 	mvc	__LC_RETURN_PSW(4),0(%r12)
@@ -1008,10 +1045,10 @@ cleanup_io_leave:
 2:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_io_leave_insn:
+	.long	io_done - 4 + 0x80000000
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	.long	io_leave + 18 + 0x80000000
+	.long	io_done - 8 + 0x80000000
 #endif
-	.long	io_leave + 14 + 0x80000000
 
 /*
  * Integer constants
@@ -1019,7 +1056,6 @@ cleanup_io_leave_insn:
 		.align	4
 .Lc_spsize:	.long	SP_SIZE
 .Lc_overhead:	.long	STACK_FRAME_OVERHEAD
-.Lc_pactive:	.long	PREEMPT_ACTIVE
 .Lnr_syscalls:	.long	NR_syscalls
 .L0x018:	.short	0x018
 .L0x020:	.short	0x020
@@ -1043,6 +1079,8 @@ cleanup_io_leave_insn:
 .Lexecve_tail:	.long	execve_tail
 .Ljump_table:	.long	pgm_check_table
 .Lschedule:	.long	schedule
+.Lpreempt_schedule_irq:
+		.long	preempt_schedule_irq
 .Ltrace:	.long	syscall_trace
 .Lschedtail:	.long	schedule_tail
 .Lsysc_table:	.long	sys_call_table

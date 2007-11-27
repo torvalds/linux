@@ -113,19 +113,10 @@ __ccw_device_sense_id_start(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 	struct ccw1 *ccw;
-	int ret;
 
 	sch = to_subchannel(cdev->dev.parent);
 	/* Setup sense channel program. */
 	ccw = cdev->private->iccws;
-	if (sch->schib.pmcw.pim != 0x80) {
-		/* more than one path installed. */
-		ccw->cmd_code = CCW_CMD_SUSPEND_RECONN;
-		ccw->cda = 0;
-		ccw->count = 0;
-		ccw->flags = CCW_FLAG_SLI | CCW_FLAG_CC;
-		ccw++;
-	}
 	ccw->cmd_code = CCW_CMD_SENSE_ID;
 	ccw->cda = (__u32) __pa (&cdev->private->senseid);
 	ccw->count = sizeof (struct senseid);
@@ -133,25 +124,9 @@ __ccw_device_sense_id_start(struct ccw_device *cdev)
 
 	/* Reset device status. */
 	memset(&cdev->private->irb, 0, sizeof(struct irb));
+	cdev->private->flags.intretry = 0;
 
-	/* Try on every path. */
-	ret = -ENODEV;
-	while (cdev->private->imask != 0) {
-		if ((sch->opm & cdev->private->imask) != 0 &&
-		    cdev->private->iretry > 0) {
-			cdev->private->iretry--;
-			/* Reset internal retry indication. */
-			cdev->private->flags.intretry = 0;
-			ret = cio_start (sch, cdev->private->iccws,
-					 cdev->private->imask);
-			/* ret is 0, -EBUSY, -EACCES or -ENODEV */
-			if (ret != -EACCES)
-				return ret;
-		}
-		cdev->private->imask >>= 1;
-		cdev->private->iretry = 5;
-	}
-	return ret;
+	return cio_start(sch, ccw, LPM_ANYPATH);
 }
 
 void
@@ -161,8 +136,7 @@ ccw_device_sense_id_start(struct ccw_device *cdev)
 
 	memset (&cdev->private->senseid, 0, sizeof (struct senseid));
 	cdev->private->senseid.cu_type = 0xFFFF;
-	cdev->private->imask = 0x80;
-	cdev->private->iretry = 5;
+	cdev->private->iretry = 3;
 	ret = __ccw_device_sense_id_start(cdev);
 	if (ret && ret != -EBUSY)
 		ccw_device_sense_id_done(cdev, ret);
@@ -278,14 +252,13 @@ ccw_device_sense_id_irq(struct ccw_device *cdev, enum dev_event dev_event)
 		ccw_device_sense_id_done(cdev, ret);
 		break;
 	case -EACCES:		/* channel is not operational. */
-		sch->lpm &= ~cdev->private->imask;
-		cdev->private->imask >>= 1;
-		cdev->private->iretry = 5;
-		/* fall through. */
 	case -EAGAIN:		/* try again. */
-		ret = __ccw_device_sense_id_start(cdev);
-		if (ret == 0 || ret == -EBUSY)
-			break;
+		cdev->private->iretry--;
+		if (cdev->private->iretry > 0) {
+			ret = __ccw_device_sense_id_start(cdev);
+			if (ret == 0 || ret == -EBUSY)
+				break;
+		}
 		/* fall through. */
 	default:		/* Sense ID failed. Try asking VM. */
 		if (MACHINE_IS_VM) {
