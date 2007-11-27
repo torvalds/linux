@@ -14,8 +14,7 @@
 /*
  * Status Register bits
  */
-#define SR_H		0x40000000
-#define SR_R		0x20000000
+#define SR_H		0x20000000
 #define SR_J		0x10000000
 #define SR_DM		0x08000000
 #define SR_D		0x04000000
@@ -35,8 +34,7 @@
 #define SR_I0M		0x00020000
 #define SR_GM		0x00010000
 
-#define SR_H_BIT	30
-#define SR_R_BIT	29
+#define SR_H_BIT	29
 #define SR_J_BIT	28
 #define SR_DM_BIT	27
 #define SR_D_BIT	26
