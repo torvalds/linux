@@ -3183,31 +3183,6 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 }
 
 /**
- *	ata_set_mode - Program timings and issue SET FEATURES - XFER
- *	@link: link on which timings will be programmed
- *	@r_failed_dev: out paramter for failed device
- *
- *	Set ATA device disk transfer mode (PIO3, UDMA6, etc.).  If
- *	ata_set_mode() fails, pointer to the failing device is
- *	returned in @r_failed_dev.
- *
- *	LOCKING:
- *	PCI/etc. bus probe sem.
- *
- *	RETURNS:
- *	0 on success, negative errno otherwise
- */
-int ata_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
-{
-	struct ata_port *ap = link->ap;
-
-	/* has private set_mode? */
-	if (ap->ops->set_mode)
-		return ap->ops->set_mode(link, r_failed_dev);
-	return ata_do_set_mode(link, r_failed_dev);
-}
-
-/**
  *	ata_tf_to_host - issue ATA taskfile to host controller
  *	@ap: port to which command is being issued
  *	@tf: ATA taskfile register set
