@@ -251,16 +251,21 @@ static struct dentry *rt2x00debug_create_file_chipset(const char *name,
 	const struct rt2x00debug *debug = intf->debug;
 	char *data;
 
-	data = kzalloc(4 * PRINT_LINE_LEN_MAX, GFP_KERNEL);
+	data = kzalloc(8 * PRINT_LINE_LEN_MAX, GFP_KERNEL);
 	if (!data)
 		return NULL;
 
-	blob->data = data;
+	data += sprintf(data, "rt chip: %04x\n", intf->rt2x00dev->chip.rt);
+	data += sprintf(data, "rf chip: %04x\n", intf->rt2x00dev->chip.rf);
+	data += sprintf(data, "revision:%08x\n", intf->rt2x00dev->chip.rev);
+	data += sprintf(data, "\n");
 	data += sprintf(data, "csr length: %d\n", debug->csr.word_count);
 	data += sprintf(data, "eeprom length: %d\n", debug->eeprom.word_count);
 	data += sprintf(data, "bbp length: %d\n", debug->bbp.word_count);
 	data += sprintf(data, "rf length: %d\n", debug->rf.word_count);
-	blob->size = strlen(blob->data);
+
+	blob->data = data;
+	blob->size = strlen(data);
 
 	return debugfs_create_blob(name, S_IRUGO, intf->driver_folder, blob);
 }
