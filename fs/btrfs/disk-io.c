@@ -210,6 +210,15 @@ static int btree_writepages(struct address_space *mapping,
 {
 	struct extent_map_tree *tree;
 	tree = &BTRFS_I(mapping->host)->extent_tree;
+	if (wbc->sync_mode == WB_SYNC_NONE) {
+		u64 num_dirty;
+		u64 start = 0;
+		unsigned long thresh = 96 * 1024 * 1024;
+		num_dirty = count_range_bits(tree, &start, thresh, EXTENT_DIRTY);
+		if (num_dirty < thresh) {
+			return 0;
+		}
+	}
 	return extent_writepages(tree, mapping, btree_get_extent, wbc);
 }
 

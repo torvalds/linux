@@ -1106,6 +1106,45 @@ out:
 	return found;
 }
 
+u64 count_range_bits(struct extent_map_tree *tree,
+		     u64 *start, u64 max_bytes, unsigned long bits)
+{
+	struct rb_node *node;
+	struct extent_state *state;
+	u64 cur_start = *start;
+	u64 total_bytes = 0;
+	int found = 0;
+
+	write_lock_irq(&tree->lock);
+	/*
+	 * this search will find all the extents that end after
+	 * our range starts.
+	 */
+	node = tree_search(&tree->state, cur_start);
+	if (!node || IS_ERR(node)) {
+		goto out;
+	}
+
+	while(1) {
+		state = rb_entry(node, struct extent_state, rb_node);
+		if ((state->state & bits)) {
+			total_bytes += state->end - state->start + 1;
+			if (total_bytes >= max_bytes)
+				break;
+			if (!found) {
+				*start = state->start;
+				found = 1;
+			}
+		}
+		node = rb_next(node);
+		if (!node)
+			break;
+	}
+out:
+	write_unlock_irq(&tree->lock);
+	return total_bytes;
+}
+
 /*
  * helper function to lock both pages and extents in the tree.
  * pages must be locked first.

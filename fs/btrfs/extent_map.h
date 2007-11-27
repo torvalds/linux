@@ -113,6 +113,9 @@ int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 int __init extent_map_init(void);
 void __exit extent_map_exit(void);
 
+u64 count_range_bits(struct extent_map_tree *tree,
+		     u64 *start, u64 max_bytes, unsigned long bits);
+
 int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,
 		   int bits, int filled);
 int clear_extent_bits(struct extent_map_tree *tree, u64 start, u64 end,
