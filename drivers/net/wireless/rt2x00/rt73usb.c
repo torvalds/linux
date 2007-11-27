@@ -24,11 +24,6 @@
 	Supported chipsets: rt2571W & rt2671.
  */
 
-/*
- * Set enviroment defines for rt2x00.h
- */
-#define DRV_NAME "rt73usb"
-
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
@@ -2046,7 +2041,7 @@ static const struct rt2x00lib_ops rt73usb_rt2x00_ops = {
 };
 
 static const struct rt2x00_ops rt73usb_ops = {
-	.name		= DRV_NAME,
+	.name		= KBUILD_MODNAME,
 	.rxd_size	= RXD_DESC_SIZE,
 	.txd_size	= TXD_DESC_SIZE,
 	.eeprom_size	= EEPROM_SIZE,
@@ -2133,7 +2128,7 @@ MODULE_FIRMWARE(FIRMWARE_RT2571);
 MODULE_LICENSE("GPL");
 
 static struct usb_driver rt73usb_driver = {
-	.name		= DRV_NAME,
+	.name		= KBUILD_MODNAME,
 	.id_table	= rt73usb_device_table,
 	.probe		= rt2x00usb_probe,
 	.disconnect	= rt2x00usb_disconnect,

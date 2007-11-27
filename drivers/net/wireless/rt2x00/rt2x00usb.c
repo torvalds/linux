@@ -23,11 +23,6 @@
 	Abstract: rt2x00 generic usb device routines.
  */
 
-/*
- * Set enviroment defines for rt2x00.h
- */
-#define DRV_NAME "rt2x00usb"
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/usb.h>

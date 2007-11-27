@@ -41,7 +41,6 @@
 
 /*
  * Module information.
- * DRV_NAME should be set within the individual module source files.
  */
 #define DRV_VERSION	"2.0.12"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
@@ -56,7 +55,7 @@
 
 #define DEBUG_PRINTK_PROBE(__kernlvl, __lvl, __msg, __args...)	\
 	printk(__kernlvl "%s -> %s: %s - " __msg,		\
-	       DRV_NAME, __FUNCTION__, __lvl, ##__args)
+	       KBUILD_MODNAME, __FUNCTION__, __lvl, ##__args)
 
 #ifdef CONFIG_RT2X00_DEBUG
 #define DEBUG_PRINTK(__dev, __kernlvl, __lvl, __msg, __args...)	\
