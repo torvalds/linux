@@ -31,7 +31,6 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
-#include <linux/aer.h>
 #include <linux/ip.h>
 #include <net/ip.h>
 #include <linux/tcp.h>
@@ -2432,26 +2431,15 @@ static void sky2_hw_intr(struct sky2_hw *hw)
 
 	if (status & Y2_IS_PCI_EXP) {
 		/* PCI-Express uncorrectable Error occurred */
-		int aer = pci_find_aer_capability(hw->pdev);
 		u32 err;
 
-		if (aer) {
-			pci_read_config_dword(pdev, aer + PCI_ERR_UNCOR_STATUS,
-					      &err);
-			pci_cleanup_aer_uncorrect_error_status(pdev);
-		} else {
-			/* Either AER not configured, or not working
-			 * because of bad MMCONFIG, so just do recover
-			 * manually.
-			 */
-			err = sky2_read32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS);
-			sky2_write32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS,
-				     0xfffffffful);
-		}
-
+		err = sky2_read32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS);
+		sky2_write32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS,
+			     0xfffffffful);
 		if (net_ratelimit())
 			dev_err(&pdev->dev, "PCI Express error (0x%x)\n", err);
 
+		sky2_read32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS);
 	}
 
 	if (status & Y2_HWE_L1_MASK)
@@ -2806,24 +2794,13 @@ static void sky2_reset(struct sky2_hw *hw)
 
 	cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (cap) {
-		if (pci_find_aer_capability(pdev)) {
-			/* Check for advanced error reporting */
-			pci_cleanup_aer_uncorrect_error_status(pdev);
-			pci_cleanup_aer_correct_error_status(pdev);
-		} else {
-			dev_warn(&pdev->dev,
-				"PCI Express Advanced Error Reporting"
-				" not configured or MMCONFIG problem?\n");
-
-			sky2_write32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS,
-				     0xfffffffful);
-		}
+		sky2_write32(hw, Y2_CFG_AER + PCI_ERR_UNCOR_STATUS,
+			     0xfffffffful);
 
 		/* If error bit is stuck on ignore it */
 		if (sky2_read32(hw, B0_HWE_ISRC) & Y2_IS_PCI_EXP)
 			dev_info(&pdev->dev, "ignoring stuck error report bit\n");
-
-		else if (pci_enable_pcie_error_reporting(pdev))
+		else
 			hwe_mask |= Y2_IS_PCI_EXP;
 	}
 
