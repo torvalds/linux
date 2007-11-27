@@ -136,12 +136,6 @@ int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->poll_dev->poll = rt2x00rfkill_poll;
 	rt2x00dev->poll_dev->poll_interval = RFKILL_POLL_INTERVAL;
 
-	rt2x00dev->poll_dev->input = input_allocate_device();
-	if (!rt2x00dev->poll_dev->input) {
-		ERROR(rt2x00dev, "Failed to allocate input device.\n");
-		goto exit_free_polldev;
-	}
-
 	rt2x00dev->poll_dev->input->name = rt2x00dev->ops->name;
 	rt2x00dev->poll_dev->input->phys = wiphy_name(rt2x00dev->hw->wiphy);
 	rt2x00dev->poll_dev->input->id.bustype = BUS_HOST;
