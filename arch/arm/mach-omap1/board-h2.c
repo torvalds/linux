@@ -389,14 +389,13 @@ static struct omap_usb_config h2_usb_config __initdata = {
 };
 
 static struct omap_mmc_config h2_mmc_config __initdata = {
-	.mmc [0] = {
-		.enabled 	= 1,
+	.mmc[0] = {
+		.enabled	= 1,
 		.wire4		= 1,
-		.wp_pin		= OMAP_MPUIO(3),
-		.power_pin	= -1,	/* tps65010 gpio3 */
-		.switch_pin	= OMAP_MPUIO(1),
 	},
 };
+
+extern struct omap_mmc_platform_data h2_mmc_data;
 
 static struct omap_uart_config h2_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
@@ -459,6 +458,7 @@ static void __init h2_init(void)
 	omap_board_config = h2_config;
 	omap_board_config_size = ARRAY_SIZE(h2_config);
 	omap_serial_init();
+	h2_mmc_init();
 
 	/* irq for tps65010 chip */
 	omap_cfg_reg(W4_GPIO58);

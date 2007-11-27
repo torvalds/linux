@@ -437,11 +437,12 @@ static struct omap_usb_config h3_usb_config __initdata = {
 
 static struct omap_mmc_config h3_mmc_config __initdata = {
 	.mmc[0] = {
-		.enabled 	= 1,
-		.power_pin	= -1,   /* tps65010 GPIO4 */
-		.switch_pin	= OMAP_MPUIO(1),
-	},
+		.enabled	= 1,
+		.wire4		= 1,
+       },
 };
+
+extern struct omap_mmc_platform_data h3_mmc_data;
 
 static struct omap_uart_config h3_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
@@ -469,6 +470,18 @@ static struct i2c_board_info __initdata h3_i2c_board_info[] = {
 	 *  - optional ov9640 camera sensor at 0x30
 	 *  - ...
 	 */
+};
+
+static struct omap_gpio_switch h3_gpio_switches[] __initdata = {
+	{
+		.name			= "mmc_slot",
+		.gpio                   = OMAP_MPUIO(1),
+		.type                   = OMAP_GPIO_SWITCH_TYPE_COVER,
+		.debounce_rising        = 100,
+		.debounce_falling       = 0,
+		.notify                 = h3_mmc_slot_cover_handler,
+		.notify_data            = NULL,
+	},
 };
 
 #define H3_NAND_RB_GPIO_PIN	10
@@ -504,6 +517,7 @@ static void __init h3_init(void)
 	omap_board_config = h3_config;
 	omap_board_config_size = ARRAY_SIZE(h3_config);
 	omap_serial_init();
+	h3_mmc_init();
 
 	/* FIXME setup irq for tps65013 chip */
 	i2c_register_board_info(1, h3_i2c_board_info,
