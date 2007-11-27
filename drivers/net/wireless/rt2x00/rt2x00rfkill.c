@@ -148,9 +148,6 @@ int rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 
 	return 0;
 
-exit_free_polldev:
-	input_free_polled_device(rt2x00dev->poll_dev);
-
 exit_free_rfkill:
 	rfkill_free(rt2x00dev->rfkill);
 
@@ -163,7 +160,6 @@ void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
 	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return;
 
-	input_free_device(rt2x00dev->poll_dev->input);
 	input_free_polled_device(rt2x00dev->poll_dev);
 	rfkill_free(rt2x00dev->rfkill);
 }
