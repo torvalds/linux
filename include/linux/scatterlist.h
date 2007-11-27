@@ -26,6 +26,16 @@
 
 #define SG_MAGIC	0x87654321
 
+/*
+ * We overload the LSB of the page pointer to indicate whether it's
+ * a valid sg entry, or whether it points to the start of a new scatterlist.
+ * Those low bits are there for everyone! (thanks mason :-)
+ */
+#define sg_is_chain(sg)		((sg)->page_link & 0x01)
+#define sg_is_last(sg)		((sg)->page_link & 0x02)
+#define sg_chain_ptr(sg)	\
+	((struct scatterlist *) ((sg)->page_link & ~0x03))
+
 /**
  * sg_assign_page - Assign a given page to an SG entry
  * @sg:		    SG entry
@@ -47,6 +57,7 @@ static inline void sg_assign_page(struct scatterlist *sg, struct page *page)
 	BUG_ON((unsigned long) page & 0x03);
 #ifdef CONFIG_DEBUG_SG
 	BUG_ON(sg->sg_magic != SG_MAGIC);
+	BUG_ON(sg_is_chain(sg));
 #endif
 	sg->page_link = page_link | (unsigned long) page;
 }
@@ -73,7 +84,14 @@ static inline void sg_set_page(struct scatterlist *sg, struct page *page,
 	sg->length = len;
 }
 
-#define sg_page(sg)	((struct page *) ((sg)->page_link & ~0x3))
+static inline struct page *sg_page(struct scatterlist *sg)
+{
+#ifdef CONFIG_DEBUG_SG
+	BUG_ON(sg->sg_magic != SG_MAGIC);
+	BUG_ON(sg_is_chain(sg));
+#endif
+	return (struct page *)((sg)->page_link & ~0x3);
+}
 
 /**
  * sg_set_buf - Set sg entry to point at given data
@@ -87,16 +105,6 @@ static inline void sg_set_buf(struct scatterlist *sg, const void *buf,
 {
 	sg_set_page(sg, virt_to_page(buf), buflen, offset_in_page(buf));
 }
-
-/*
- * We overload the LSB of the page pointer to indicate whether it's
- * a valid sg entry, or whether it points to the start of a new scatterlist.
- * Those low bits are there for everyone! (thanks mason :-)
- */
-#define sg_is_chain(sg)		((sg)->page_link & 0x01)
-#define sg_is_last(sg)		((sg)->page_link & 0x02)
-#define sg_chain_ptr(sg)	\
-	((struct scatterlist *) ((sg)->page_link & ~0x03))
 
 /**
  * sg_next - return the next scatterlist entry in a list
@@ -179,6 +187,13 @@ static inline void sg_chain(struct scatterlist *prv, unsigned int prv_nents,
 #ifndef ARCH_HAS_SG_CHAIN
 	BUG();
 #endif
+
+	/*
+	 * offset and length are unused for chain entry.  Clear them.
+	 */
+	prv->offset = 0;
+	prv->length = 0;
+
 	/*
 	 * Set lowest bit to indicate a link pointer, and make sure to clear
 	 * the termination bit if it happens to be set.
