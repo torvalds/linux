@@ -53,7 +53,7 @@ static struct kobj_attribute auto_poweron_attr =
 	__ATTR(auto_poweron, 0644, auto_poweron_show, auto_poweron_store);
 
 #ifndef CONFIG_PM
-struct kset *power_kset;
+struct kobject *power_kobj;
 
 static struct attribute *g[] = {
         &auto_poweron_attr.attr,
@@ -66,16 +66,16 @@ static struct attribute_group attr_group = {
 
 static int __init pm_init(void)
 {
-	power_kset = kset_create_and_add("power", NULL, NULL);
-	if (!power_kset)
+	power_kobj = kobject_create_and_add("power", NULL);
+	if (!power_kobj)
 		return -ENOMEM;
-	return sysfs_create_group(&power_kset->kobj, &attr_group);
+	return sysfs_create_group(power_kobj, &attr_group);
 }
 core_initcall(pm_init);
 #else
 static int __init apo_pm_init(void)
 {
-	return (sysfs_create_file(&power_kset->kobj, &auto_poweron_attr));
+	return (sysfs_create_file(power_kobj, &auto_poweron_attr));
 }
 __initcall(apo_pm_init);
 #endif

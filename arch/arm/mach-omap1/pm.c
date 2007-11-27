@@ -719,7 +719,7 @@ static int __init omap_pm_init(void)
 	omap_pm_init_proc();
 #endif
 
-	error = sysfs_create_file(&power_kset->kobj, &sleep_while_idle_attr);
+	error = sysfs_create_file(power_kobj, &sleep_while_idle_attr);
 	if (error)
 		printk(KERN_ERR "sysfs_create_file failed: %d\n", error);
 

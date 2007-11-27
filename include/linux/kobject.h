@@ -202,8 +202,8 @@ extern struct kobject * kset_find_obj(struct kset *, const char *);
 extern struct kobject *kernel_kobj;
 /* The global /sys/hypervisor/ kobject for people to chain off of */
 extern struct kobject *hypervisor_kobj;
-/* The global /sys/power/ kset for people to chain off of */
-extern struct kset *power_kset;
+/* The global /sys/power/ kobject for people to chain off of */
+extern struct kobject *power_kobj;
 /* The global /sys/firmware/ kobject for people to chain off of */
 extern struct kobject *firmware_kobj;
 
