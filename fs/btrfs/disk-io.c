@@ -214,6 +214,10 @@ static int btree_writepages(struct address_space *mapping,
 		u64 num_dirty;
 		u64 start = 0;
 		unsigned long thresh = 96 * 1024 * 1024;
+
+		if (wbc->for_kupdate)
+			return 0;
+
 		num_dirty = count_range_bits(tree, &start, thresh, EXTENT_DIRTY);
 		if (num_dirty < thresh) {
 			return 0;
