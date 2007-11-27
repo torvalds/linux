@@ -1019,30 +1019,6 @@ static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct ieee80211_tx_control *control)
 {
 	u32 word;
-	u32 signal = 0;
-	u32 service = 0;
-	u32 length_high = 0;
-	u32 length_low = 0;
-
-	/*
-	 * The PLCP values should be treated as if they
-	 * were BBP values.
-	 */
-	rt2x00_set_field32(&signal, BBPCSR_VALUE, desc->signal);
-	rt2x00_set_field32(&signal, BBPCSR_REGNUM, 5);
-	rt2x00_set_field32(&signal, BBPCSR_BUSY, 1);
-
-	rt2x00_set_field32(&service, BBPCSR_VALUE, desc->service);
-	rt2x00_set_field32(&service, BBPCSR_REGNUM, 6);
-	rt2x00_set_field32(&service, BBPCSR_BUSY, 1);
-
-	rt2x00_set_field32(&length_high, BBPCSR_VALUE, desc->length_high);
-	rt2x00_set_field32(&length_high, BBPCSR_REGNUM, 7);
-	rt2x00_set_field32(&length_high, BBPCSR_BUSY, 1);
-
-	rt2x00_set_field32(&length_low, BBPCSR_VALUE, desc->length_low);
-	rt2x00_set_field32(&length_low, BBPCSR_REGNUM, 8);
-	rt2x00_set_field32(&length_low, BBPCSR_BUSY, 1);
 
 	/*
 	 * Start writing the descriptor words.
@@ -1052,13 +1028,21 @@ static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, signal);
-	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, service);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL, desc->signal);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_REGNUM, 5);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SIGNAL_BUSY, 1);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE, desc->service);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_REGNUM, 6);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_SERVICE_BUSY, 1);
 	rt2x00_desc_write(txd, 3, word);
 
 	rt2x00_desc_read(txd, 4, &word);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW, length_low);
-	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH, length_high);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_LOW, desc->length_low);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_REGNUM, 8);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_LOW_BUSY, 1);
+	rt2x00_set_field32(&word, TXD_W4_PLCP_LENGTH_HIGH, desc->length_high);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_REGNUM, 7);
+	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_BUSY, 1);
 	rt2x00_desc_write(txd, 4, word);
 
 	rt2x00_desc_read(txd, 0, &word);
