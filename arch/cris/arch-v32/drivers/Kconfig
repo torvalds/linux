@@ -582,18 +582,6 @@ config ETRAX_PE_CHANGEABLE_BITS
 	  that a user can change the value on using ioctl's.
 	  Bit set = changeable.
 
-config ETRAX_IDE
-	bool "ATA/IDE support"
-	depends on ETRAX_ARCH_V32
-	select IDE
-	select BLK_DEV_IDE
-	select BLK_DEV_IDEDISK
-	select BLK_DEV_IDECD
-	select BLK_DEV_IDEDMA
-	select IDE_GENERIC
-	help
-	  Enables the ETRAX IDE driver.
-
 config ETRAX_CARDBUS
         bool "Cardbus support"
         depends on ETRAX_ARCH_V32
