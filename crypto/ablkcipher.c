@@ -96,6 +96,7 @@ static void crypto_ablkcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
 	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
+	seq_printf(m, "geniv        : %s\n", ablkcipher->geniv ?: "<default>");
 }
 
 const struct crypto_type crypto_ablkcipher_type = {
@@ -142,6 +143,7 @@ static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
 	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
 	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
+	seq_printf(m, "geniv        : %s\n", ablkcipher->geniv ?: "<built-in>");
 }
 
 const struct crypto_type crypto_givcipher_type = {

@@ -183,6 +183,8 @@ struct ablkcipher_alg {
 	int (*givencrypt)(struct skcipher_givcrypt_request *req);
 	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
 
+	const char *geniv;
+
 	unsigned int min_keysize;
 	unsigned int max_keysize;
 	unsigned int ivsize;
@@ -208,6 +210,8 @@ struct blkcipher_alg {
 	int (*decrypt)(struct blkcipher_desc *desc,
 		       struct scatterlist *dst, struct scatterlist *src,
 		       unsigned int nbytes);
+
+	const char *geniv;
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;
