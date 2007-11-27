@@ -58,10 +58,22 @@ extern int (*perf_irq)(void);
  * Initialize the calling CPU's compare interrupt as clockevent device
  */
 #ifdef CONFIG_CEVT_R4K
-extern void mips_clockevent_init(void);
+extern int mips_clockevent_init(void);
 extern unsigned int __weak get_c0_compare_int(void);
 #else
-static inline void mips_clockevent_init(void)
+static inline int mips_clockevent_init(void)
+{
+	return -ENXIO;
+}
+#endif
+
+/*
+ * Initialize the count register as a clocksource
+ */
+#ifdef CONFIG_CEVT_R4K
+extern void init_mips_clocksource(void);
+#else
+static inline void init_mips_clocksource(void)
 {
 }
 #endif

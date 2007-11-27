@@ -219,7 +219,7 @@ static int c0_compare_int_usable(void)
 	return 1;
 }
 
-void __cpuinit mips_clockevent_init(void)
+int __cpuinit mips_clockevent_init(void)
 {
 	uint64_t mips_freq = mips_hpt_frequency;
 	unsigned int cpu = smp_processor_id();
@@ -227,7 +227,7 @@ void __cpuinit mips_clockevent_init(void)
 	unsigned int irq;
 
 	if (!cpu_has_counter || !mips_hpt_frequency)
-		return;
+		return -ENXIO;
 
 #ifdef CONFIG_MIPS_MT_SMTC
 	setup_smtc_dummy_clockevent_device();
@@ -237,11 +237,11 @@ void __cpuinit mips_clockevent_init(void)
 	 * device.
 	 */
 	if (cpu)
-		return;
+		return 0;
 #endif
 
 	if (!c0_compare_int_usable())
-		return;
+		return -ENXIO;
 
 	/*
 	 * With vectored interrupts things are getting platform specific.
@@ -276,8 +276,8 @@ void __cpuinit mips_clockevent_init(void)
 
 	clockevents_register_device(cd);
 
-	if (!cp0_timer_irq_installed)
-		return;
+	if (cp0_timer_irq_installed)
+		return 0;
 
 	cp0_timer_irq_installed = 1;
 
@@ -287,4 +287,6 @@ void __cpuinit mips_clockevent_init(void)
 #else
 	setup_irq(irq, &c0_compare_irqaction);
 #endif
+
+	return 0;
 }

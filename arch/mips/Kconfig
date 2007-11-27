@@ -22,6 +22,7 @@ config MACH_ALCHEMY
 config BASLER_EXCITE
 	bool "Basler eXcite smart camera"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_COHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -49,6 +50,7 @@ config BASLER_EXCITE_PROTOTYPE
 config BCM47XX
 	bool "BCM47XX based boards"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -66,6 +68,7 @@ config BCM47XX
 config MIPS_COBALT
 	bool "Cobalt Server"
 	select CEVT_R4K
+	select CSRC_R4K
 	select CEVT_GT641XX
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
@@ -85,6 +88,7 @@ config MACH_DECSTATION
 	bool "DECstations"
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select NO_IOPORT
 	select IRQ_CPU
@@ -117,6 +121,7 @@ config MACH_JAZZ
 	select ARC32
 	select ARCH_MAY_HAVE_PC_FDC
 	select CEVT_R4K
+	select CSRC_R4K
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
 	select I8253
@@ -137,6 +142,7 @@ config MACH_JAZZ
 config LASAT
 	bool "LASAT Networks platforms"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select HW_HAS_PCI
@@ -154,6 +160,7 @@ config LEMOTE_FULONG
 	bool "Lemote Fulong mini-PC"
 	select ARCH_SPARSEMEM_ENABLE
 	select CEVT_R4K
+	select CSRC_R4K
 	select SYS_HAS_CPU_LOONGSON2
 	select DMA_NONCOHERENT
 	select BOOT_ELF32
@@ -179,6 +186,7 @@ config MIPS_ATLAS
 	bool "MIPS Atlas board"
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
@@ -210,6 +218,7 @@ config MIPS_MALTA
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select IRQ_CPU
@@ -241,6 +250,7 @@ config MIPS_MALTA
 config MIPS_SEAD
 	bool "MIPS SEAD board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select IRQ_CPU
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
@@ -260,6 +270,7 @@ config MIPS_SEAD
 config MIPS_SIM
 	bool 'MIPS simulator (MIPSsim)'
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select SYS_HAS_EARLY_PRINTK
 	select IRQ_CPU
@@ -278,6 +289,7 @@ config MIPS_SIM
 config MARKEINS
 	bool "NEC EMMA2RH Mark-eins"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -293,6 +305,7 @@ config MARKEINS
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
 	select CEVT_R4K
+	select CSRC_R4K
 	select SYS_HAS_CPU_VR41XX
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 
@@ -330,6 +343,7 @@ config PMC_MSP
 config PMC_YOSEMITE
 	bool "PMC-Sierra Yosemite eval board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_COHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -351,6 +365,7 @@ config PMC_YOSEMITE
 config QEMU
 	bool "Qemu"
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_COHERENT
 	select GENERIC_ISA_DMA
 	select HAVE_STD_PC_SERIAL_PORT
@@ -382,9 +397,11 @@ config SGI_IP22
 	select ARC32
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_EISA
 	select I8253
+	select I8259
 	select IP22_CPU_SCACHE
 	select IRQ_CPU
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
@@ -427,6 +444,7 @@ config SGI_IP32
 	select ARC32
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
 	select IRQ_CPU
@@ -498,6 +516,7 @@ config SIBYTE_SWARM
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_KGDB
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select ZONE_DMA32 if 64BIT
 
 config SIBYTE_LITTLESUR
 	bool "Sibyte BCM91250C2-LittleSur"
@@ -548,6 +567,7 @@ config SIBYTE_BIGSUR
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select ZONE_DMA32 if 64BIT
 
 config SNI_RM
 	bool "SNI RM200/300/400"
@@ -556,6 +576,7 @@ config SNI_RM
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select CEVT_R4K
+	select CSRC_R4K
 	select DMA_NONCOHERENT
 	select GENERIC_ISA_DMA
 	select HW_HAS_EISA
@@ -599,6 +620,7 @@ config TOSHIBA_JMR3927
 config TOSHIBA_RBTX4927
 	bool "Toshiba RBTX49[23]7 board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
@@ -621,6 +643,7 @@ config TOSHIBA_RBTX4927
 config TOSHIBA_RBTX4938
 	bool "Toshiba RBTX4938 board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select CEVT_TXX9
 	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
@@ -642,6 +665,7 @@ config TOSHIBA_RBTX4938
 config WR_PPMC
 	bool "Wind River PPMC board"
 	select CEVT_R4K
+	select CSRC_R4K
 	select IRQ_CPU
 	select BOOT_ELF32
 	select DMA_NONCOHERENT
@@ -750,6 +774,9 @@ config CEVT_TXX9
 	bool
 
 config CSRC_BCM1480
+	bool
+
+config CSRC_R4K
 	bool
 
 config CSRC_SB1250
@@ -1640,6 +1667,9 @@ config ARCH_DISCONTIGMEM_ENABLE
 	  or have huge holes in the physical address space for other reasons.
 	  See <file:Documentation/vm/numa> for more.
 
+config ARCH_POPULATES_NODE_MAP
+	def_bool y
+
 config ARCH_SPARSEMEM_ENABLE
 	bool
 	select SPARSEMEM_STATIC
@@ -1943,6 +1973,9 @@ config I8253
 	bool
 
 config PCSPEAKER
+	bool
+
+config ZONE_DMA32
 	bool
 
 source "drivers/pcmcia/Kconfig"

@@ -68,11 +68,15 @@ do {									\
 	if (cpu_has_dsp)						\
 		__save_dsp(prev);					\
 	(last) = resume(prev, next, task_thread_info(next));		\
+} while (0)
+
+#define finish_arch_switch(prev)					\
+do {									\
 	if (cpu_has_dsp)						\
 		__restore_dsp(current);					\
 	if (cpu_has_userlocal)						\
-		write_c0_userlocal(task_thread_info(current)->tp_value);\
-} while(0)
+		write_c0_userlocal(current_thread_info()->tp_value);	\
+} while (0)
 
 static inline unsigned long __xchg_u32(volatile int * m, unsigned int val)
 {

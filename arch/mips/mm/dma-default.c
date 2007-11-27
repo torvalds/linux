@@ -40,16 +40,38 @@ static inline int cpu_is_noncoherent_r10000(struct device *dev)
 	       current_cpu_type() == CPU_R12000);
 }
 
+static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)
+{
+	/* ignore region specifiers */
+	gfp &= ~(__GFP_DMA | __GFP_DMA32 | __GFP_HIGHMEM);
+
+#ifdef CONFIG_ZONE_DMA32
+	if (dev == NULL)
+		gfp |= __GFP_DMA;
+	else if (dev->coherent_dma_mask < DMA_BIT_MASK(24))
+		gfp |= __GFP_DMA;
+	else
+#endif
+#ifdef CONFIG_ZONE_DMA32
+	     if (dev->coherent_dma_mask < DMA_BIT_MASK(32))
+		gfp |= __GFP_DMA32;
+	else
+#endif
+		;
+
+	/* Don't invoke OOM killer */
+	gfp |= __GFP_NORETRY;
+
+	return gfp;
+}
+
 void *dma_alloc_noncoherent(struct device *dev, size_t size,
 	dma_addr_t * dma_handle, gfp_t gfp)
 {
 	void *ret;
 
-	/* ignore region specifiers */
-	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM);
+	gfp = massage_gfp_flags(dev, gfp);
 
-	if (dev == NULL || (dev->coherent_dma_mask < 0xffffffff))
-		gfp |= GFP_DMA;
 	ret = (void *) __get_free_pages(gfp, get_order(size));
 
 	if (ret != NULL) {
@@ -67,11 +89,8 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 {
 	void *ret;
 
-	/* ignore region specifiers */
-	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM);
+	gfp = massage_gfp_flags(dev, gfp);
 
-	if (dev == NULL || (dev->coherent_dma_mask < 0xffffffff))
-		gfp |= GFP_DMA;
 	ret = (void *) __get_free_pages(gfp, get_order(size));
 
 	if (ret) {
@@ -343,7 +362,7 @@ int dma_supported(struct device *dev, u64 mask)
 	 * so we can't guarantee allocations that must be
 	 * within a tighter range than GFP_DMA..
 	 */
-	if (mask < 0x00ffffff)
+	if (mask < DMA_BIT_MASK(24))
 		return 0;
 
 	return 1;

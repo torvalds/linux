@@ -108,6 +108,7 @@ int ieee754si_xcpt(int r, const char *op, ...)
 	ax.rv.si = r;
 	va_start(ax.ap, op);
 	ieee754_xcpt(&ax);
+	va_end(ax.ap);
 	return ax.rv.si;
 }
 
@@ -122,5 +123,6 @@ s64 ieee754di_xcpt(s64 r, const char *op, ...)
 	ax.rv.di = r;
 	va_start(ax.ap, op);
 	ieee754_xcpt(&ax);
+	va_end(ax.ap);
 	return ax.rv.di;
 }
