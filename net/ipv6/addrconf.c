@@ -967,7 +967,7 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 			if (unlikely(score.addr_type == IPV6_ADDR_ANY ||
 				     score.addr_type & IPV6_ADDR_MULTICAST)) {
 				LIMIT_NETDEBUG(KERN_DEBUG
-					       "ADDRCONF: unspecified / multicast address"
+					       "ADDRCONF: unspecified / multicast address "
 					       "assigned as unicast address on %s",
 					       dev->name);
 				continue;
