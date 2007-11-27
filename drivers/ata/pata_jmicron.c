@@ -80,11 +80,10 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 	 *	actually do our cable checking etc. Thankfully we don't need
 	 *	to do the plumbing for other cases.
 	 */
-	switch (port_map[port])
-	{
+	switch (port_map[port]) {
 	case PORT_PATA0:
-		if (control & (1 << 5))
-			return 0;
+		if ((control & (1 << 5)) == 0)
+			return -ENOENT;
 		if (control & (1 << 3))	/* 40/80 pin primary */
 			ap->cbl = ATA_CBL_PATA40;
 		else
@@ -93,7 +92,7 @@ static int jmicron_pre_reset(struct ata_link *link, unsigned long deadline)
 	case PORT_PATA1:
 		/* Bit 21 is set if the port is enabled */
 		if ((control5 & (1 << 21)) == 0)
-			return 0;
+			return -ENOENT;
 		if (control5 & (1 << 19))	/* 40/80 pin secondary */
 			ap->cbl = ATA_CBL_PATA40;
 		else
