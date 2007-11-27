@@ -1914,10 +1914,8 @@ L:	linux1394-devel@lists.sourceforge.net
 S:	Maintained
 
 IMS TWINTURBO FRAMEBUFFER DRIVER
-P:	Paul Mundt
-M:	lethal@chaoticdreams.org
 L:	linux-fbdev-devel@lists.sourceforge.net (subscribers-only)
-S:	Maintained
+S:	Orphan
 
 INFINIBAND SUBSYSTEM
 P:	Roland Dreier
@@ -3636,18 +3634,12 @@ M:	laredo@gnu.org
 W:	http://www.stradis.com/
 S:	Maintained
 
-SUPERH (sh)
+SUPERH
 P:	Paul Mundt
 M:	lethal@linux-sh.org
-L:	linuxsh-dev@lists.sourceforge.net (subscribers-only)
+L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
-S:	Maintained
-
-SUPERH64 (sh64)
-P:	Paul Mundt
-M:	lethal@linux-sh.org
-L:	linuxsh-shmedia-dev@lists.sourceforge.net
-W:	http://www.linux-sh.org
+T:	git kernel.org:/pub/scm/linux/kernel/git/lethal/sh-2.6.git
 S:	Maintained
 
 SUN3/3X

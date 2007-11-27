@@ -258,9 +258,6 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
-	struct mm_struct *mm = current->mm;
-	spinlock_t *ptl = NULL;
-	int ret = 1;
 
 #ifdef CONFIG_SH_KGDB
 	if (kgdb_nofault && kgdb_bus_err_hook)
@@ -274,12 +271,11 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	 */
 	if (address >= P3SEG && address < P3_ADDR_MAX) {
 		pgd = pgd_offset_k(address);
-		mm = NULL;
 	} else {
-		if (unlikely(address >= TASK_SIZE || !mm))
+		if (unlikely(address >= TASK_SIZE || !current->mm))
 			return 1;
 
-		pgd = pgd_offset(mm, address);
+		pgd = pgd_offset(current->mm, address);
 	}
 
 	pud = pud_offset(pgd, address);
@@ -289,34 +285,19 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	if (pmd_none_or_clear_bad(pmd))
 		return 1;
 
-	if (mm)
-		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
-	else
-		pte = pte_offset_kernel(pmd, address);
-
+	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
 	if (unlikely(pte_none(entry) || pte_not_present(entry)))
-		goto unlock;
+		return 1;
 	if (unlikely(writeaccess && !pte_write(entry)))
-		goto unlock;
+		return 1;
 
 	if (writeaccess)
 		entry = pte_mkdirty(entry);
 	entry = pte_mkyoung(entry);
 
-#ifdef CONFIG_CPU_SH4
-	/*
-	 * ITLB is not affected by "ldtlb" instruction.
-	 * So, we need to flush the entry by ourselves.
-	 */
-	local_flush_tlb_one(get_asid(), address & PAGE_MASK);
-#endif
-
 	set_pte(pte, entry);
 	update_mmu_cache(NULL, address, entry);
-	ret = 0;
-unlock:
-	if (mm)
-		pte_unmap_unlock(pte, ptl);
-	return ret;
+
+	return 0;
 }
