@@ -37,6 +37,13 @@
 #define	USB_PERSIST	0
 #endif
 
+/* if we are in debug mode, always announce new devices */
+#ifdef DEBUG
+#ifndef CONFIG_USB_ANNOUNCE_NEW_DEVICES
+#define CONFIG_USB_ANNOUNCE_NEW_DEVICES
+#endif
+#endif
+
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */
 	struct usb_device	*hdev;
@@ -1207,7 +1214,7 @@ void usb_disconnect(struct usb_device **pdev)
 	put_device(&udev->dev);
 }
 
-#ifdef DEBUG
+#ifdef CONFIG_USB_ANNOUNCE_NEW_DEVICES
 static void show_string(struct usb_device *udev, char *id, char *string)
 {
 	if (!string)
@@ -1215,11 +1222,23 @@ static void show_string(struct usb_device *udev, char *id, char *string)
 	dev_printk(KERN_INFO, &udev->dev, "%s: %s\n", id, string);
 }
 
+static void announce_device(struct usb_device *udev)
+{
+	dev_info(&udev->dev, "New USB device found, idVendor=%04x, idProduct=%04x\n",
+		le16_to_cpu(udev->descriptor.idVendor),
+		le16_to_cpu(udev->descriptor.idProduct));
+	dev_info(&udev->dev, "New USB device strings: Mfr=%d, Product=%d, "
+		"SerialNumber=%d\n",
+		udev->descriptor.iManufacturer,
+		udev->descriptor.iProduct,
+		udev->descriptor.iSerialNumber);
+	show_string(udev, "Product", udev->product);
+	show_string(udev, "Manufacturer", udev->manufacturer);
+	show_string(udev, "SerialNumber", udev->serial);
+}
 #else
-static inline void show_string(struct usb_device *udev, char *id, char *string)
-{}
+static inline void announce_device(struct usb_device *udev) { }
 #endif
-
 
 #ifdef	CONFIG_USB_OTG
 #include "otg_whitelist.h"
@@ -1390,14 +1409,7 @@ int usb_new_device(struct usb_device *udev)
 	}
 
 	/* Tell the world! */
-	dev_dbg(&udev->dev, "new device strings: Mfr=%d, Product=%d, "
-		"SerialNumber=%d\n",
-		udev->descriptor.iManufacturer,
-		udev->descriptor.iProduct,
-		udev->descriptor.iSerialNumber);
-	show_string(udev, "Product", udev->product);
-	show_string(udev, "Manufacturer", udev->manufacturer);
-	show_string(udev, "SerialNumber", udev->serial);
+	announce_device(udev);
 	return err;
 
 fail:
