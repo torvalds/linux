@@ -94,8 +94,8 @@ bail:
 /**
  * ipath_create_srq - create a shared receive queue
  * @ibpd: the protection domain of the SRQ to create
- * @attr: the attributes of the SRQ
- * @udata: not used by the InfiniPath verbs driver
+ * @srq_init_attr: the attributes of the SRQ
+ * @udata: data from libipathverbs when creating a user SRQ
  */
 struct ib_srq *ipath_create_srq(struct ib_pd *ibpd,
 				struct ib_srq_init_attr *srq_init_attr,
