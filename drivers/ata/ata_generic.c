@@ -63,7 +63,22 @@ static int generic_set_mode(struct ata_link *link, struct ata_device **unused)
 		/* We do need the right mode information for DMA or PIO
 		   and this comes from the current configuration flags */
 		if (dma_enabled & (1 << (5 + dev->devno))) {
-			ata_id_to_dma_mode(dev, XFER_MW_DMA_0);
+			unsigned int xfer_mask = ata_id_xfermask(dev->id);
+			const char *name;
+
+			if (xfer_mask & (ATA_MASK_MWDMA | ATA_MASK_UDMA))
+				name = ata_mode_string(xfer_mask);
+			else {
+				/* SWDMA perhaps? */
+				name = "DMA";
+				xfer_mask |= ata_xfer_mode2mask(XFER_MW_DMA_0);
+			}
+
+			ata_dev_printk(dev, KERN_INFO, "configured for %s\n",
+				       name);
+
+			dev->xfer_mode = ata_xfer_mask2mode(xfer_mask);
+			dev->xfer_shift = ata_xfer_mode2shift(dev->xfer_mode);
 			dev->flags &= ~ATA_DFLAG_PIO;
 		} else {
 			ata_dev_printk(dev, KERN_INFO, "configured for PIO\n");
