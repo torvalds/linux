@@ -756,7 +756,7 @@ int ide_driveid_update(ide_drive_t *drive)
 int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	int error;
+	int error = 0;
 	u8 stat;
 
 //	while (HWGROUP(drive)->busy)
@@ -766,6 +766,10 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	if (hwif->ide_dma_on)	/* check if host supports DMA */
 		hwif->dma_host_off(drive);
 #endif
+
+	/* Skip setting PIO flow-control modes on pre-EIDE drives */
+	if ((speed & 0xf8) == XFER_PIO_0 && !(drive->id->capability & 0x08))
+		goto skip;
 
 	/*
 	 * Don't use ide_wait_cmd here - it will
@@ -814,6 +818,7 @@ int ide_config_drive_speed(ide_drive_t *drive, u8 speed)
 	drive->id->dma_mword &= ~0x0F00;
 	drive->id->dma_1word &= ~0x0F00;
 
+ skip:
 #ifdef CONFIG_BLK_DEV_IDEDMA
 	if (speed >= XFER_SW_DMA_0)
 		hwif->dma_host_on(drive);
