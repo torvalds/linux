@@ -243,6 +243,8 @@ static struct crypto_instance *cryptd_alloc_blkcipher(
 	inst->alg.cra_ablkcipher.min_keysize = alg->cra_blkcipher.min_keysize;
 	inst->alg.cra_ablkcipher.max_keysize = alg->cra_blkcipher.max_keysize;
 
+	inst->alg.cra_ablkcipher.geniv = alg->cra_blkcipher.geniv;
+
 	inst->alg.cra_ctxsize = sizeof(struct cryptd_blkcipher_ctx);
 
 	inst->alg.cra_init = cryptd_blkcipher_init_tfm;
