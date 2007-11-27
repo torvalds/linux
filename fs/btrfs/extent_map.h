@@ -40,6 +40,7 @@ struct extent_map_tree {
 	struct rb_root map;
 	struct rb_root state;
 	struct address_space *mapping;
+	u64 dirty_bytes;
 	rwlock_t lock;
 	struct extent_map_ops *ops;
 	spinlock_t lru_lock;

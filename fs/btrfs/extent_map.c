@@ -42,6 +42,7 @@ struct extent_page_data {
 	struct extent_map_tree *tree;
 	get_extent_t *get_extent;
 };
+
 int __init extent_map_init(void)
 {
 	extent_map_cache = btrfs_cache_create("extent_map",
@@ -94,6 +95,7 @@ void extent_map_tree_init(struct extent_map_tree *tree,
 	tree->map.rb_node = NULL;
 	tree->state.rb_node = NULL;
 	tree->ops = NULL;
+	tree->dirty_bytes = 0;
 	rwlock_init(&tree->lock);
 	spin_lock_init(&tree->lru_lock);
 	tree->mapping = mapping;
@@ -414,6 +416,8 @@ static int insert_state(struct extent_map_tree *tree,
 		printk("end < start %Lu %Lu\n", end, start);
 		WARN_ON(1);
 	}
+	if (bits & EXTENT_DIRTY)
+		tree->dirty_bytes += end - start + 1;
 	state->state |= bits;
 	state->start = start;
 	state->end = end;
@@ -476,6 +480,12 @@ static int clear_state_bit(struct extent_map_tree *tree,
 			    int delete)
 {
 	int ret = state->state & bits;
+
+	if ((bits & EXTENT_DIRTY) && (state->state & EXTENT_DIRTY)) {
+		u64 range = state->end - state->start + 1;
+		WARN_ON(range > tree->dirty_bytes);
+		tree->dirty_bytes -= range;
+	}
 	state->state &= ~bits;
 	if (wake)
 		wake_up(&state->wq);
@@ -668,6 +678,17 @@ out:
 }
 EXPORT_SYMBOL(wait_extent_bit);
 
+static void set_state_bits(struct extent_map_tree *tree,
+			   struct extent_state *state,
+			   int bits)
+{
+	if ((bits & EXTENT_DIRTY) && !(state->state & EXTENT_DIRTY)) {
+		u64 range = state->end - state->start + 1;
+		tree->dirty_bytes += range;
+	}
+	state->state |= bits;
+}
+
 /*
  * set some bits on a range in the tree.  This may require allocations
  * or sleeping, so the gfp mask is used to indicate what is allowed.
@@ -727,7 +748,7 @@ again:
 			err = -EEXIST;
 			goto out;
 		}
-		state->state |= bits;
+		set_state_bits(tree, state, bits);
 		start = state->end + 1;
 		merge_state(tree, state);
 		goto search_again;
@@ -762,7 +783,7 @@ again:
 		if (err)
 			goto out;
 		if (state->end <= end) {
-			state->state |= bits;
+			set_state_bits(tree, state, bits);
 			start = state->end + 1;
 			merge_state(tree, state);
 		} else {
@@ -808,7 +829,7 @@ again:
 		err = split_state(tree, state, prealloc, end + 1);
 		BUG_ON(err == -EEXIST);
 
-		prealloc->state |= bits;
+		set_state_bits(tree, prealloc, bits);
 		merge_state(tree, prealloc);
 		prealloc = NULL;
 		goto out;
@@ -1116,6 +1137,11 @@ u64 count_range_bits(struct extent_map_tree *tree,
 	int found = 0;
 
 	write_lock_irq(&tree->lock);
+	if (bits == EXTENT_DIRTY) {
+		*start = 0;
+		total_bytes = tree->dirty_bytes;
+		goto out;
+	}
 	/*
 	 * this search will find all the extents that end after
 	 * our range starts.
