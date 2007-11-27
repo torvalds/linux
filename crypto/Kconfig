@@ -24,10 +24,6 @@ config CRYPTO_ALGAPI
 	help
 	  This option provides the API for cryptographic algorithms.
 
-config CRYPTO_ABLKCIPHER
-	tristate
-	select CRYPTO_BLKCIPHER
-
 config CRYPTO_AEAD
 	tristate
 	select CRYPTO_ALGAPI
@@ -217,7 +213,7 @@ config CRYPTO_GCM
 
 config CRYPTO_CRYPTD
 	tristate "Software async crypto daemon"
-	select CRYPTO_ABLKCIPHER
+	select CRYPTO_BLKCIPHER
 	select CRYPTO_MANAGER
 	help
 	  This is a generic software asynchronous crypto daemon that

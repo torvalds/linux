@@ -8,9 +8,11 @@ crypto_algapi-$(CONFIG_PROC_FS) += proc.o
 crypto_algapi-objs := algapi.o scatterwalk.o $(crypto_algapi-y)
 obj-$(CONFIG_CRYPTO_ALGAPI) += crypto_algapi.o
 
-obj-$(CONFIG_CRYPTO_ABLKCIPHER) += ablkcipher.o
 obj-$(CONFIG_CRYPTO_AEAD) += aead.o
-obj-$(CONFIG_CRYPTO_BLKCIPHER) += blkcipher.o
+
+crypto_blkcipher-objs := ablkcipher.o
+crypto_blkcipher-objs += blkcipher.o
+obj-$(CONFIG_CRYPTO_BLKCIPHER) += crypto_blkcipher.o
 
 crypto_hash-objs := hash.o
 obj-$(CONFIG_CRYPTO_HASH) += crypto_hash.o
