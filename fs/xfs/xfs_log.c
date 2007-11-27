@@ -764,7 +764,6 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
-	ASSERT(!XFS_FORCED_SHUTDOWN(mp));
 
 	if (tail_lsn == 0) {
 		/* needed since sync_lsn is 64 bits */
