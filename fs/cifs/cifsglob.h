@@ -110,6 +110,7 @@ struct mac_key {
 	unsigned int len;
 	union {
 		char ntlm[CIFS_SESS_KEY_SIZE + 16];
+		char krb5[CIFS_SESS_KEY_SIZE + 16]; /* BB: length correct? */
 		struct {
 			char key[16];
 			struct ntlmv2_resp resp;
@@ -139,6 +140,7 @@ struct TCP_Server_Info {
 	/* 15 character server name + 0x20 16th byte indicating type = srv */
 	char server_RFC1001_name[SERVER_NAME_LEN_WITH_NULL];
 	char unicode_server_Name[SERVER_NAME_LEN_WITH_NULL * 2];
+	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
 	union {
 		struct sockaddr_in sockAddr;
@@ -470,6 +472,17 @@ struct dir_notify_req {
 #define   CIFS_SMALL_BUFFER     1
 #define   CIFS_LARGE_BUFFER     2
 #define   CIFS_IOVEC            4    /* array of response buffers */
+
+/* Type of Request to SendReceive2 */
+#define   CIFS_STD_OP	        0    /* normal request timeout */
+#define   CIFS_LONG_OP          1    /* long op (up to 45 sec, oplock time) */
+#define   CIFS_VLONG_OP         2    /* sloow op - can take up to 180 seconds */
+#define   CIFS_BLOCKING_OP      4    /* operation can block */
+#define   CIFS_ASYNC_OP         8    /* do not wait for response */
+#define   CIFS_TIMEOUT_MASK 0x00F    /* only one of 5 above set in req */
+#define   CIFS_LOG_ERROR    0x010    /* log NT STATUS if non-zero */
+#define   CIFS_LARGE_BUF_OP 0x020    /* large request buffer */
+#define   CIFS_NO_RESP      0x040    /* no response buffer required */
 
 /* Security Flags: indicate type of session setup needed */
 #define   CIFSSEC_MAY_SIGN	0x00001

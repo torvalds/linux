@@ -266,6 +266,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->cifsAttrs = 0x20;	/* default */
 	atomic_set(&cifs_inode->inUse, 0);
 	cifs_inode->time = 0;
+	cifs_inode->write_behind_rc = 0;
 	/* Until the file is open and we have gotten oplock
 	info back from the server, can not assume caching of
 	file data or metadata */
@@ -852,7 +853,7 @@ static int cifs_oplock_thread(void *dummyarg)
 	struct cifsTconInfo *pTcon;
 	struct inode *inode;
 	__u16  netfid;
-	int rc;
+	int rc, waitrc = 0;
 
 	set_freezable();
 	do {
@@ -884,9 +885,11 @@ static int cifs_oplock_thread(void *dummyarg)
 					   filemap_fdatawrite(inode->i_mapping);
 					if (CIFS_I(inode)->clientCanCacheRead
 									 == 0) {
-						filemap_fdatawait(inode->i_mapping);
+						waitrc = filemap_fdatawait(inode->i_mapping);
 						invalidate_remote_inode(inode);
 					}
+					if (rc == 0)
+						rc = waitrc;
 				} else
 					rc = 0;
 				/* mutex_unlock(&inode->i_mutex);*/

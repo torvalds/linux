@@ -1,6 +1,9 @@
 Version 1.52
 ------------
 Fix oops on second mount to server when null auth is used.
+Enable experimental Kerberos support.  Return writebehind errors on flush
+and sync so that events like out of disk space get reported properly on
+cached files.
 
 Version 1.51
 ------------
