@@ -22,7 +22,7 @@
 
 /*
  * Targeted preemption latency for CPU-bound tasks:
- * (default: 20ms * ilog(ncpus), units: nanoseconds)
+ * (default: 20ms * (1 + ilog(ncpus)), units: nanoseconds)
  *
  * NOTE: this latency value is not the same as the concept of
  * 'timeslice length' - timeslices in CFS are of variable length
@@ -36,14 +36,14 @@ unsigned int sysctl_sched_latency = 20000000ULL;
 
 /*
  * Minimal preemption granularity for CPU-bound tasks:
- * (default: 1 msec * ilog(ncpus), units: nanoseconds)
+ * (default: 4 msec * (1 + ilog(ncpus)), units: nanoseconds)
  */
-unsigned int sysctl_sched_min_granularity = 1000000ULL;
+unsigned int sysctl_sched_min_granularity = 4000000ULL;
 
 /*
  * is kept at sysctl_sched_latency / sysctl_sched_min_granularity
  */
-static unsigned int sched_nr_latency = 20;
+static unsigned int sched_nr_latency = 5;
 
 /*
  * After fork, child runs first. (default) If set to 0 then
@@ -61,7 +61,7 @@ unsigned int __read_mostly sysctl_sched_compat_yield;
 
 /*
  * SCHED_BATCH wake-up granularity.
- * (default: 10 msec * ilog(ncpus), units: nanoseconds)
+ * (default: 10 msec * (1 + ilog(ncpus)), units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still
@@ -71,7 +71,7 @@ unsigned int sysctl_sched_batch_wakeup_granularity = 10000000UL;
 
 /*
  * SCHED_OTHER wake-up granularity.
- * (default: 10 msec * ilog(ncpus), units: nanoseconds)
+ * (default: 10 msec * (1 + ilog(ncpus)), units: nanoseconds)
  *
  * This option delays the preemption effects of decoupled workloads
  * and reduces their over-scheduling. Synchronous workloads will still

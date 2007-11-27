@@ -12,7 +12,7 @@
  *   then it defines them prior including asm-generic/resource.h. )
  */
 
-#define RLIMIT_CPU		0	/* CPU time in ms */
+#define RLIMIT_CPU		0	/* CPU time in sec */
 #define RLIMIT_FSIZE		1	/* Maximum filesize */
 #define RLIMIT_DATA		2	/* max data size */
 #define RLIMIT_STACK		3	/* max stack size */
