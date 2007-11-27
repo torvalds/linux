@@ -1861,13 +1861,25 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			  struct writeback_control *wbc)
 {
 	int ret;
+	struct address_space *mapping = page->mapping;
 	struct extent_page_data epd = {
 		.bio = NULL,
 		.tree = tree,
 		.get_extent = get_extent,
 	};
+	struct writeback_control wbc_writepages = {
+		.bdi		= wbc->bdi,
+		.sync_mode	= WB_SYNC_NONE,
+		.older_than_this = NULL,
+		.nr_to_write	= 64,
+		.range_start	= page_offset(page) + PAGE_CACHE_SIZE,
+		.range_end	= (loff_t)-1,
+	};
+
 
 	ret = __extent_writepage(page, wbc, &epd);
+
+	write_cache_pages(mapping, &wbc_writepages, __extent_writepage, &epd);
 	if (epd.bio)
 		submit_one_bio(WRITE, epd.bio);
 	return ret;

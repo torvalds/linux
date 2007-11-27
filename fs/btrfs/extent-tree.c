@@ -961,7 +961,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	level = btrfs_header_level(root->node);
 
-	if (num_bytes >= 96 * 1024 * 1024 && hint_byte) {
+	if (num_bytes >= 32 * 1024 * 1024 && hint_byte) {
 		data = BTRFS_BLOCK_GROUP_MIXED;
 	}
 
