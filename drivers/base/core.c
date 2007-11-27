@@ -1415,5 +1415,23 @@ out:
 	put_device(dev);
 	return error;
 }
-
 EXPORT_SYMBOL_GPL(device_move);
+
+/**
+ * device_shutdown - call ->shutdown() on each device to shutdown.
+ */
+void device_shutdown(void)
+{
+	struct device * dev, *devn;
+
+	list_for_each_entry_safe_reverse(dev, devn, &devices_kset->list,
+				kobj.entry) {
+		if (dev->bus && dev->bus->shutdown) {
+			dev_dbg(dev, "shutdown\n");
+			dev->bus->shutdown(dev);
+		} else if (dev->driver && dev->driver->shutdown) {
+			dev_dbg(dev, "shutdown\n");
+			dev->driver->shutdown(dev);
+		}
+	}
+}
