@@ -58,6 +58,7 @@
 #endif
 
 #ifdef CONFIG_PXA3xx
+#define IRQ_SSP4	PXA_IRQ(13)	/* SSP4 service request */
 #define IRQ_CIR		PXA_IRQ(34)	/* Consumer IR */
 #define IRQ_TSI		PXA_IRQ(36)	/* Touch Screen Interface (PXA320) */
 #define IRQ_USIM2	PXA_IRQ(38)	/* USIM2 Controller */
