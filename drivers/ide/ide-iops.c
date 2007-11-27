@@ -303,9 +303,6 @@ void default_hwif_transport(ide_hwif_t *hwif)
 	hwif->atapi_output_bytes	= atapi_output_bytes;
 }
 
-/*
- * Beginning of Taskfile OPCODE Library and feature sets.
- */
 void ide_fix_driveid (struct hd_driveid *id)
 {
 #ifndef __LITTLE_ENDIAN
