@@ -71,7 +71,7 @@ static const char *pvr2_fw1_names_29xxx[] = {
 		"v4l-pvrusb2-29xxx-01.fw",
 };
 
-/* Firmware file name(s) for 29xxx devices */
+/* Firmware file name(s) for 24xxx devices */
 static const char *pvr2_fw1_names_24xxx[] = {
 		"v4l-pvrusb2-24xxx-01.fw",
 };
