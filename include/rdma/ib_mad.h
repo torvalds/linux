@@ -230,7 +230,9 @@ struct ib_class_port_info
  * @seg_count: The number of RMPP segments allocated for this send.
  * @seg_size: Size of each RMPP segment.
  * @timeout_ms: Time to wait for a response.
- * @retries: Number of times to retry a request for a response.
+ * @retries: Number of times to retry a request for a response.  For MADs
+ *   using RMPP, this applies per window.  On completion, returns the number
+ *   of retries needed to complete the transfer.
  *
  * Users are responsible for initializing the MAD buffer itself, with the
  * exception of any RMPP header.  Additional segment buffer space allocated

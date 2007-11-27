@@ -1100,7 +1100,9 @@ int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
 		mad_send_wr->tid = ((struct ib_mad_hdr *) send_buf->mad)->tid;
 		/* Timeout will be updated after send completes */
 		mad_send_wr->timeout = msecs_to_jiffies(send_buf->timeout_ms);
-		mad_send_wr->retries = send_buf->retries;
+		mad_send_wr->max_retries = send_buf->retries;
+		mad_send_wr->retries_left = send_buf->retries;
+		send_buf->retries = 0;
 		/* Reference for work request to QP + response */
 		mad_send_wr->refcount = 1 + (mad_send_wr->timeout > 0);
 		mad_send_wr->status = IB_WC_SUCCESS;
@@ -2436,8 +2438,11 @@ static int retry_send(struct ib_mad_send_wr_private *mad_send_wr)
 {
 	int ret;
 
-	if (!mad_send_wr->retries--)
+	if (!mad_send_wr->retries_left)
 		return -ETIMEDOUT;
+
+	mad_send_wr->retries_left--;
+	mad_send_wr->send_buf.retries++;
 
 	mad_send_wr->timeout = msecs_to_jiffies(mad_send_wr->send_buf.timeout_ms);
 

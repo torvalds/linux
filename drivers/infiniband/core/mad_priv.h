@@ -131,7 +131,8 @@ struct ib_mad_send_wr_private {
 	struct ib_sge sg_list[IB_MAD_SEND_REQ_MAX_SG];
 	__be64 tid;
 	unsigned long timeout;
-	int retries;
+	int max_retries;
+	int retries_left;
 	int retry;
 	int refcount;
 	enum ib_wc_status status;
