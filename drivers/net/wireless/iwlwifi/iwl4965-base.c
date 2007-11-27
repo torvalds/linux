@@ -7330,9 +7330,6 @@ static int iwl_mac_add_interface(struct ieee80211_hw *hw,
 	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_MAC80211("enter: id %d, type %d\n", conf->if_id, conf->type);
-	if (conf->mac_addr)
-		IWL_DEBUG_MAC80211("enter: MAC %s\n",
-				   print_mac(mac, conf->mac_addr));
 
 	if (priv->interface_id) {
 		IWL_DEBUG_MAC80211("leave - interface_id != 0\n");
@@ -7345,6 +7342,11 @@ static int iwl_mac_add_interface(struct ieee80211_hw *hw,
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	mutex_lock(&priv->mutex);
+
+	if (conf->mac_addr) {
+		IWL_DEBUG_MAC80211("Set %s\n", print_mac(mac, conf->mac_addr));
+		memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
+	}
 	iwl_set_mode(priv, conf->type);
 
 	IWL_DEBUG_MAC80211("leave\n");
