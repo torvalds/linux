@@ -260,6 +260,11 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 {
 	struct ide_port_info d;
 	u8 idx = id->driver_data;
+	int err;
+
+	err = pci_enable_device(dev);
+	if (err)
+		return err;
 
 	d = aec62xx_chipsets[idx];
 
@@ -272,7 +277,11 @@ static int __devinit aec62xx_init_one(struct pci_dev *dev, const struct pci_devi
 		}
 	}
 
-	return ide_setup_pci_device(dev, &d);
+	err = ide_setup_pci_device(dev, &d);
+	if (err)
+		pci_disable_device(dev);
+
+	return err;
 }
 
 static const struct pci_device_id aec62xx_pci_tbl[] = {
