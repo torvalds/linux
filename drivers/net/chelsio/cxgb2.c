@@ -401,7 +401,8 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"TxTso",
 	"RxVlan",
 	"TxVlan",
-
+	"TxNeedHeadroom", 
+	
 	/* Interrupt stats */
 	"rx drops",
 	"pure_rsps",
