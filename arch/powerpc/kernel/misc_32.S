@@ -793,13 +793,6 @@ _GLOBAL(kernel_thread)
 	addi	r1,r1,16
 	blr
 
-_GLOBAL(kernel_execve)
-	li	r0,__NR_execve
-	sc
-	bnslr
-	neg	r3,r3
-	blr
-
 /*
  * This routine is just here to keep GCC happy - sigh...
  */

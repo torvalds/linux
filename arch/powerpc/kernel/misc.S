@@ -14,6 +14,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <asm/ppc_asm.h>
+#include <asm/unistd.h>
 
 	.text
 
@@ -42,4 +43,11 @@ _GLOBAL(add_reloc_offset)
 	subf	r5,r4,r5
 	add	r3,r3,r5
 	mtlr	r0
+	blr
+
+_GLOBAL(kernel_execve)
+	li	r0,__NR_execve
+	sc
+	bnslr
+	neg	r3,r3
 	blr
