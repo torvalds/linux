@@ -2896,11 +2896,7 @@ static void skge_tx_timeout(struct net_device *dev)
 
 static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
-	struct skge_port *skge = netdev_priv(dev);
-	struct skge_hw *hw = skge->hw;
-	int port = skge->port;
 	int err;
-	u16 ctl, reg;
 
 	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
 		return -EINVAL;
@@ -2910,40 +2906,13 @@ static int skge_change_mtu(struct net_device *dev, int new_mtu)
 		return 0;
 	}
 
-	skge_write32(hw, B0_IMSK, 0);
-	dev->trans_start = jiffies;	/* prevent tx timeout */
-	netif_stop_queue(dev);
-	napi_disable(&skge->napi);
-
-	ctl = gma_read16(hw, port, GM_GP_CTRL);
-	gma_write16(hw, port, GM_GP_CTRL, ctl & ~GM_GPCR_RX_ENA);
-
-	skge_rx_clean(skge);
-	skge_rx_stop(hw, port);
+	skge_down(dev);
 
 	dev->mtu = new_mtu;
 
-	reg = GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
-	if (new_mtu > 1500)
-		reg |= GM_SMOD_JUMBO_ENA;
-	gma_write16(hw, port, GM_SERIAL_MODE, reg);
-
-	skge_write8(hw, RB_ADDR(rxqaddr[port], RB_CTRL), RB_ENA_OP_MD);
-
-	err = skge_rx_fill(dev);
-	wmb();
-	if (!err)
-		skge_write8(hw, Q_ADDR(rxqaddr[port], Q_CSR), CSR_START | CSR_IRQ_CL_F);
-	skge_write32(hw, B0_IMSK, hw->intr_mask);
-
+	err = skge_up(dev);
 	if (err)
 		dev_close(dev);
-	else {
-		gma_write16(hw, port, GM_GP_CTRL, ctl);
-
-		napi_enable(&skge->napi);
-		netif_wake_queue(dev);
-	}
 
 	return err;
 }
