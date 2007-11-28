@@ -1,7 +1,8 @@
 /*
  *  net/dccp/packet_history.c
  *
- *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
+ *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *
  *  An implementation of the DCCP protocol
  *
@@ -39,93 +40,48 @@
 #include "packet_history.h"
 
 /*
- * 	Transmitter History Routines
+ * Transmitter History Routines
  */
-struct dccp_tx_hist *dccp_tx_hist_new(const char *name)
+static struct kmem_cache *tfrc_tx_hist;
+
+struct tfrc_tx_hist_entry *
+	tfrc_tx_hist_find_entry(struct tfrc_tx_hist_entry *head, u64 seqno)
 {
-	struct dccp_tx_hist *hist = kmalloc(sizeof(*hist), GFP_ATOMIC);
-	static const char dccp_tx_hist_mask[] = "tx_hist_%s";
-	char *slab_name;
+	while (head != NULL && head->seqno != seqno)
+		head = head->next;
 
-	if (hist == NULL)
-		goto out;
-
-	slab_name = kmalloc(strlen(name) + sizeof(dccp_tx_hist_mask) - 1,
-			    GFP_ATOMIC);
-	if (slab_name == NULL)
-		goto out_free_hist;
-
-	sprintf(slab_name, dccp_tx_hist_mask, name);
-	hist->dccptxh_slab = kmem_cache_create(slab_name,
-					     sizeof(struct dccp_tx_hist_entry),
-					       0, SLAB_HWCACHE_ALIGN,
-					       NULL);
-	if (hist->dccptxh_slab == NULL)
-		goto out_free_slab_name;
-out:
-	return hist;
-out_free_slab_name:
-	kfree(slab_name);
-out_free_hist:
-	kfree(hist);
-	hist = NULL;
-	goto out;
+	return head;
 }
+EXPORT_SYMBOL_GPL(tfrc_tx_hist_find_entry);
 
-EXPORT_SYMBOL_GPL(dccp_tx_hist_new);
-
-void dccp_tx_hist_delete(struct dccp_tx_hist *hist)
+int tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqno)
 {
-	const char* name = kmem_cache_name(hist->dccptxh_slab);
+	struct tfrc_tx_hist_entry *entry = kmem_cache_alloc(tfrc_tx_hist, gfp_any());
 
-	kmem_cache_destroy(hist->dccptxh_slab);
-	kfree(name);
-	kfree(hist);
+	if (entry == NULL)
+		return -ENOBUFS;
+	entry->seqno = seqno;
+	entry->stamp = ktime_get_real();
+	entry->next  = *headp;
+	*headp	     = entry;
+	return 0;
 }
+EXPORT_SYMBOL_GPL(tfrc_tx_hist_add);
 
-EXPORT_SYMBOL_GPL(dccp_tx_hist_delete);
-
-struct dccp_tx_hist_entry *
-	dccp_tx_hist_find_entry(const struct list_head *list, const u64 seq)
+void tfrc_tx_hist_purge(struct tfrc_tx_hist_entry **headp)
 {
-	struct dccp_tx_hist_entry *packet = NULL, *entry;
+	struct tfrc_tx_hist_entry *head = *headp;
 
-	list_for_each_entry(entry, list, dccphtx_node)
-		if (entry->dccphtx_seqno == seq) {
-			packet = entry;
-			break;
-		}
+	while (head != NULL) {
+		struct tfrc_tx_hist_entry *next = head->next;
 
-	return packet;
-}
-
-EXPORT_SYMBOL_GPL(dccp_tx_hist_find_entry);
-
-void dccp_tx_hist_purge(struct dccp_tx_hist *hist, struct list_head *list)
-{
-	struct dccp_tx_hist_entry *entry, *next;
-
-	list_for_each_entry_safe(entry, next, list, dccphtx_node) {
-		list_del_init(&entry->dccphtx_node);
-		dccp_tx_hist_entry_delete(hist, entry);
+		kmem_cache_free(tfrc_tx_hist, head);
+		head = next;
 	}
+
+	*headp = NULL;
 }
-
-EXPORT_SYMBOL_GPL(dccp_tx_hist_purge);
-
-void dccp_tx_hist_purge_older(struct dccp_tx_hist *hist,
-			      struct list_head *list,
-			      struct dccp_tx_hist_entry *packet)
-{
-	struct dccp_tx_hist_entry *next;
-
-	list_for_each_entry_safe_continue(packet, next, list, dccphtx_node) {
-		list_del_init(&packet->dccphtx_node);
-		dccp_tx_hist_entry_delete(hist, packet);
-	}
-}
-
-EXPORT_SYMBOL_GPL(dccp_tx_hist_purge_older);
+EXPORT_SYMBOL_GPL(tfrc_tx_hist_purge);
 
 /*
  * 	Receiver History Routines
@@ -147,8 +103,7 @@ struct dccp_rx_hist *dccp_rx_hist_new(const char *name)
 	sprintf(slab_name, dccp_rx_hist_mask, name);
 	hist->dccprxh_slab = kmem_cache_create(slab_name,
 					     sizeof(struct dccp_rx_hist_entry),
-					       0, SLAB_HWCACHE_ALIGN,
-					       NULL);
+					     0, SLAB_HWCACHE_ALIGN, NULL);
 	if (hist->dccprxh_slab == NULL)
 		goto out_free_slab_name;
 out:
@@ -293,6 +248,37 @@ void dccp_rx_hist_purge(struct dccp_rx_hist *hist, struct list_head *list)
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_purge);
 
+extern int __init dccp_li_init(void);
+extern void dccp_li_exit(void);
+
+static __init int packet_history_init(void)
+{
+	if (dccp_li_init() != 0)
+		goto out;
+
+	tfrc_tx_hist = kmem_cache_create("tfrc_tx_hist",
+					 sizeof(struct tfrc_tx_hist_entry), 0,
+					 SLAB_HWCACHE_ALIGN, NULL);
+	if (tfrc_tx_hist == NULL)
+		goto out_li_exit;
+
+	return 0;
+out_li_exit:
+	dccp_li_exit();
+out:
+	return -ENOBUFS;
+}
+module_init(packet_history_init);
+
+static __exit void packet_history_exit(void)
+{
+	if (tfrc_tx_hist != NULL) {
+		kmem_cache_destroy(tfrc_tx_hist);
+		tfrc_tx_hist = NULL;
+	}
+	dccp_li_exit();
+}
+module_exit(packet_history_exit);
 
 MODULE_AUTHOR("Ian McDonald <ian.mcdonald@jandi.co.nz>, "
 	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");

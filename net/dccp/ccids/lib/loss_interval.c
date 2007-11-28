@@ -277,7 +277,7 @@ void dccp_li_update_li(struct sock *sk,
 
 EXPORT_SYMBOL_GPL(dccp_li_update_li);
 
-static __init int dccp_li_init(void)
+int __init dccp_li_init(void)
 {
 	dccp_li_cachep = kmem_cache_create("dccp_li_hist",
 					   sizeof(struct dccp_li_hist_entry),
@@ -285,10 +285,10 @@ static __init int dccp_li_init(void)
 	return dccp_li_cachep == NULL ? -ENOBUFS : 0;
 }
 
-static __exit void dccp_li_exit(void)
+void dccp_li_exit(void)
 {
-	kmem_cache_destroy(dccp_li_cachep);
+	if (dccp_li_cachep != NULL) {
+		kmem_cache_destroy(dccp_li_cachep);
+		dccp_li_cachep = NULL;
+	}
 }
-
-module_init(dccp_li_init);
-module_exit(dccp_li_exit);

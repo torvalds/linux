@@ -49,7 +49,6 @@ static int ccid3_debug;
 #define ccid3_pr_debug(format, a...)
 #endif
 
-static struct dccp_tx_hist *ccid3_tx_hist;
 static struct dccp_rx_hist *ccid3_rx_hist;
 
 /*
@@ -389,28 +388,18 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 				    unsigned int len)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct dccp_tx_hist_entry *packet;
 
 	ccid3_hc_tx_update_s(hctx, len);
 
-	packet = dccp_tx_hist_entry_new(ccid3_tx_hist, GFP_ATOMIC);
-	if (unlikely(packet == NULL)) {
+	if (tfrc_tx_hist_add(&hctx->ccid3hctx_hist, dccp_sk(sk)->dccps_gss))
 		DCCP_CRIT("packet history - out of memory!");
-		return;
-	}
-	dccp_tx_hist_add_entry(&hctx->ccid3hctx_hist, packet);
-
-	packet->dccphtx_tstamp = ktime_get_real();
-	packet->dccphtx_seqno  = dccp_sk(sk)->dccps_gss;
-	packet->dccphtx_rtt    = hctx->ccid3hctx_rtt;
-	packet->dccphtx_sent   = 1;
 }
 
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
-	struct dccp_tx_hist_entry *packet;
+	struct tfrc_tx_hist_entry *packet;
 	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
@@ -425,16 +414,19 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
-		/* get packet from history to look up t_recvdata */
-		packet = dccp_tx_hist_find_entry(&hctx->ccid3hctx_hist,
-					      DCCP_SKB_CB(skb)->dccpd_ack_seq);
-		if (unlikely(packet == NULL)) {
-			DCCP_WARN("%s(%p), seqno %llu(%s) doesn't exist "
-				  "in history!\n",  dccp_role(sk), sk,
-			    (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq,
-				dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type));
+		/* estimate RTT from history if ACK number is valid */
+		packet = tfrc_tx_hist_find_entry(hctx->ccid3hctx_hist,
+						 DCCP_SKB_CB(skb)->dccpd_ack_seq);
+		if (packet == NULL) {
+			DCCP_WARN("%s(%p): %s with bogus ACK-%llu\n", dccp_role(sk), sk,
+				  dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type),
+				  (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			return;
 		}
+		/*
+		 * Garbage-collect older (irrelevant) entries
+		 */
+		tfrc_tx_hist_purge(&packet->next);
 
 		/* Update receive rate in units of 64 * bytes/second */
 		hctx->ccid3hctx_x_recv = opt_recv->ccid3or_receive_rate;
@@ -451,7 +443,7 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/*
 		 * Calculate new RTT sample and update moving average
 		 */
-		r_sample = dccp_sample_rtt(sk, ktime_us_delta(now, packet->dccphtx_tstamp));
+		r_sample = dccp_sample_rtt(sk, ktime_us_delta(now, packet->stamp));
 		hctx->ccid3hctx_rtt = tfrc_ewma(hctx->ccid3hctx_rtt, r_sample, 9);
 
 		if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK) {
@@ -493,9 +485,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		/* unschedule no feedback timer */
 		sk_stop_timer(sk, &hctx->ccid3hctx_no_feedback_timer);
 
-		/* remove all packets older than the one acked from history */
-		dccp_tx_hist_purge_older(ccid3_tx_hist,
-					 &hctx->ccid3hctx_hist, packet);
 		/*
 		 * As we have calculated new ipi, delta, t_nom it is possible
 		 * that we now can send a packet, so wake up dccp_wait_for_ccid
@@ -598,7 +587,7 @@ static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	struct ccid3_hc_tx_sock *hctx = ccid_priv(ccid);
 
 	hctx->ccid3hctx_state = TFRC_SSTATE_NO_SENT;
-	INIT_LIST_HEAD(&hctx->ccid3hctx_hist);
+	hctx->ccid3hctx_hist = NULL;
 	setup_timer(&hctx->ccid3hctx_no_feedback_timer,
 			ccid3_hc_tx_no_feedback_timer, (unsigned long)sk);
 
@@ -612,8 +601,7 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 	ccid3_hc_tx_set_state(sk, TFRC_SSTATE_TERM);
 	sk_stop_timer(sk, &hctx->ccid3hctx_no_feedback_timer);
 
-	/* Empty packet history */
-	dccp_tx_hist_purge(ccid3_tx_hist, &hctx->ccid3hctx_hist);
+	tfrc_tx_hist_purge(&hctx->ccid3hctx_hist);
 }
 
 static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
@@ -1036,19 +1024,12 @@ static __init int ccid3_module_init(void)
 	if (ccid3_rx_hist == NULL)
 		goto out;
 
-	ccid3_tx_hist = dccp_tx_hist_new("ccid3");
-	if (ccid3_tx_hist == NULL)
-		goto out_free_rx;
-
 	rc = ccid_register(&ccid3);
 	if (rc != 0)
-		goto out_free_tx;
+		goto out_free_rx;
 out:
 	return rc;
 
-out_free_tx:
-	dccp_tx_hist_delete(ccid3_tx_hist);
-	ccid3_tx_hist = NULL;
 out_free_rx:
 	dccp_rx_hist_delete(ccid3_rx_hist);
 	ccid3_rx_hist = NULL;
@@ -1060,10 +1041,6 @@ static __exit void ccid3_module_exit(void)
 {
 	ccid_unregister(&ccid3);
 
-	if (ccid3_tx_hist != NULL) {
-		dccp_tx_hist_delete(ccid3_tx_hist);
-		ccid3_tx_hist = NULL;
-	}
 	if (ccid3_rx_hist != NULL) {
 		dccp_rx_hist_delete(ccid3_rx_hist);
 		ccid3_rx_hist = NULL;

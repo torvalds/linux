@@ -40,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/tfrc.h>
+#include "lib/packet_history.h"
 #include "../ccid.h"
 
 /* Two seconds as per RFC 3448 4.2 */
@@ -111,7 +112,7 @@ struct ccid3_hc_tx_sock {
 	ktime_t				ccid3hctx_t_ld;
 	ktime_t				ccid3hctx_t_nom;
 	u32				ccid3hctx_delta;
-	struct list_head		ccid3hctx_hist;
+	struct tfrc_tx_hist_entry	*ccid3hctx_hist;
 	struct ccid3_options_received	ccid3hctx_options_received;
 };
 
