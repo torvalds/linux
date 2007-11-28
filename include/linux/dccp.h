@@ -227,29 +227,51 @@ struct dccp_so_feat {
 #include <net/tcp_states.h>
 
 enum dccp_state {
-	DCCP_OPEN	= TCP_ESTABLISHED,
-	DCCP_REQUESTING	= TCP_SYN_SENT,
-	DCCP_LISTEN	= TCP_LISTEN,
-	DCCP_RESPOND	= TCP_SYN_RECV,
-	DCCP_CLOSING	= TCP_CLOSING,
-	DCCP_TIME_WAIT	= TCP_TIME_WAIT,
-	DCCP_CLOSED	= TCP_CLOSE,
-	DCCP_PARTOPEN	= TCP_MAX_STATES,
+	DCCP_OPEN	     = TCP_ESTABLISHED,
+	DCCP_REQUESTING	     = TCP_SYN_SENT,
+	DCCP_LISTEN	     = TCP_LISTEN,
+	DCCP_RESPOND	     = TCP_SYN_RECV,
+	/*
+	 * States involved in closing a DCCP connection:
+	 * 1) ACTIVE_CLOSEREQ is entered by a server sending a CloseReq.
+	 *
+	 * 2) CLOSING can have three different meanings (RFC 4340, 8.3):
+	 *  a. Client has performed active-close, has sent a Close to the server
+	 *     from state OPEN or PARTOPEN, and is waiting for the final Reset
+	 *     (in this case, SOCK_DONE == 1).
+	 *  b. Client is asked to perform passive-close, by receiving a CloseReq
+	 *     in (PART)OPEN state. It sends a Close and waits for final Reset
+	 *     (in this case, SOCK_DONE == 0).
+	 *  c. Server performs an active-close as in (a), keeps TIMEWAIT state.
+	 *
+	 * 3) The following intermediate states are employed to give passively
+	 *    closing nodes a chance to process their unread data:
+	 *    - PASSIVE_CLOSE    (from OPEN => CLOSED) and
+	 *    - PASSIVE_CLOSEREQ (from (PART)OPEN to CLOSING; case (b) above).
+	 */
+	DCCP_ACTIVE_CLOSEREQ = TCP_FIN_WAIT1,
+	DCCP_PASSIVE_CLOSE   = TCP_CLOSE_WAIT,	/* any node receiving a Close */
+	DCCP_CLOSING	     = TCP_CLOSING,
+	DCCP_TIME_WAIT	     = TCP_TIME_WAIT,
+	DCCP_CLOSED	     = TCP_CLOSE,
+	DCCP_PARTOPEN	     = TCP_MAX_STATES,
+	DCCP_PASSIVE_CLOSEREQ,			/* clients receiving CloseReq */
 	DCCP_MAX_STATES
 };
 
-#define DCCP_STATE_MASK 0xf
+#define DCCP_STATE_MASK 0x1f
 #define DCCP_ACTION_FIN (1<<7)
 
 enum {
-	DCCPF_OPEN	 = TCPF_ESTABLISHED,
-	DCCPF_REQUESTING = TCPF_SYN_SENT,
-	DCCPF_LISTEN	 = TCPF_LISTEN,
-	DCCPF_RESPOND	 = TCPF_SYN_RECV,
-	DCCPF_CLOSING	 = TCPF_CLOSING,
-	DCCPF_TIME_WAIT	 = TCPF_TIME_WAIT,
-	DCCPF_CLOSED	 = TCPF_CLOSE,
-	DCCPF_PARTOPEN	 = 1 << DCCP_PARTOPEN,
+	DCCPF_OPEN	      = TCPF_ESTABLISHED,
+	DCCPF_REQUESTING      = TCPF_SYN_SENT,
+	DCCPF_LISTEN	      = TCPF_LISTEN,
+	DCCPF_RESPOND	      = TCPF_SYN_RECV,
+	DCCPF_ACTIVE_CLOSEREQ = TCPF_FIN_WAIT1,
+	DCCPF_CLOSING	      = TCPF_CLOSING,
+	DCCPF_TIME_WAIT	      = TCPF_TIME_WAIT,
+	DCCPF_CLOSED	      = TCPF_CLOSE,
+	DCCPF_PARTOPEN	      = (1 << DCCP_PARTOPEN),
 };
 
 static inline struct dccp_hdr *dccp_hdr(const struct sk_buff *skb)
