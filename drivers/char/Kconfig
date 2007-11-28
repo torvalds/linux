@@ -457,7 +457,7 @@ config LEGACY_PTYS
 config LEGACY_PTY_COUNT
 	int "Maximum number of legacy PTY in use"
 	depends on LEGACY_PTYS
-	range 1 256
+	range 0 256
 	default "256"
 	---help---
 	  The maximum number of legacy PTYs that can be used at any one time.
