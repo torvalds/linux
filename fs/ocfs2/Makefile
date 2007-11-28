@@ -2,7 +2,11 @@ EXTRA_CFLAGS += -Ifs/ocfs2
 
 EXTRA_CFLAGS += -DCATCH_BH_JBD_RACES
 
-obj-$(CONFIG_OCFS2_FS) += ocfs2.o ocfs2_stackglue.o ocfs2_stack_o2cb.o
+obj-$(CONFIG_OCFS2_FS) += 	\
+	ocfs2.o			\
+	ocfs2_stackglue.o	\
+	ocfs2_stack_o2cb.o	\
+	ocfs2_stack_user.o
 
 ocfs2-objs := \
 	alloc.o 		\
@@ -33,6 +37,7 @@ ocfs2-objs := \
 
 ocfs2_stackglue-objs := stackglue.o
 ocfs2_stack_o2cb-objs := stack_o2cb.o
+ocfs2_stack_user-objs := stack_user.o
 
 obj-$(CONFIG_OCFS2_FS) += cluster/
 obj-$(CONFIG_OCFS2_FS) += dlm/
