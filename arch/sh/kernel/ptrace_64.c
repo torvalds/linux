@@ -1,12 +1,8 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/kernel/ptrace.c
+ * arch/sh/kernel/ptrace_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2003  Paul Mundt
+ * Copyright (C) 2003 - 2007  Paul Mundt
  *
  * Started from SH3/4 version:
  *   SuperH version:   Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
@@ -15,8 +11,10 @@
  *	By Ross Biro 1/23/92
  *	edited by Linus Torvalds
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/kernel.h>
 #include <linux/rwsem.h>
 #include <linux/sched.h>
@@ -28,7 +26,7 @@
 #include <linux/user.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
-
+#include <linux/audit.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -274,17 +272,23 @@ asmlinkage int sh64_ptrace(long request, long pid, long addr, long data)
 	return sys_ptrace(request, pid, addr, data);
 }
 
-asmlinkage void syscall_trace(void)
+asmlinkage void syscall_trace(struct pt_regs *regs, int entryexit)
 {
 	struct task_struct *tsk = current;
 
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-	if (!(tsk->ptrace & PT_PTRACED))
-		return;
+	if (unlikely(current->audit_context) && entryexit)
+		audit_syscall_exit(AUDITSC_RESULT(regs->regs[9]),
+				   regs->regs[9]);
 
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
+	if (!test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    !test_thread_flag(TIF_SINGLESTEP))
+		goto out;
+	if (!(tsk->ptrace & PT_PTRACED))
+		goto out;
+
+	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) &&
+				!test_thread_flag(TIF_SINGLESTEP) ? 0x80 : 0));
+
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
 	 * for normal use.  strace only continues with a signal if the
@@ -294,6 +298,12 @@ asmlinkage void syscall_trace(void)
 		send_sig(tsk->exit_code, tsk, 1);
 		tsk->exit_code = 0;
 	}
+
+out:
+	if (unlikely(current->audit_context) && !entryexit)
+		audit_syscall_entry(AUDIT_ARCH_SH, regs->regs[1],
+				    regs->regs[2], regs->regs[3],
+				    regs->regs[4], regs->regs[5]);
 }
 
 /* Called with interrupts disabled */

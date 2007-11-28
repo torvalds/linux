@@ -942,9 +942,6 @@ ret_with_reschedule:
 	getcon	KCR0, r6		! r6 contains current_thread_info
 	ld.l	r6, TI_FLAGS, r7	! r7 contains current_thread_info->flags
 
-	! FIXME:!!!
-	! no handling of TIF_SYSCALL_TRACE yet!!
-
 	movi	_TIF_NEED_RESCHED, r8
 	and	r8, r7, r8
 	pta	work_resched, tr0
@@ -1280,14 +1277,17 @@ syscall_allowed:
 
 	getcon	KCR0, r2
 	ld.l	r2, TI_FLAGS, r4
-	movi	(1 << TIF_SYSCALL_TRACE), r6
+	movi	(_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP | _TIF_SYSCALL_AUDIT), r6
 	and	r6, r4, r6
 	beq/l	r6, ZERO, tr0
 
 	/* Trace it by calling syscall_trace before and after */
 	movi	syscall_trace, r4
+	or	SP, ZERO, r2
+	or	ZERO, ZERO, r3
 	ptabs	r4, tr0
 	blink	tr0, LINK
+
 	/* Reload syscall number as r5 is trashed by syscall_trace */
 	ld.q	SP, FRAME_S(FSYSCALL_ID), r5
 	andi	r5, 0x1ff, r5
@@ -1321,6 +1321,8 @@ syscall_ret_trace:
 	st.q	SP, FRAME_R(9), r2	/* Save return value */
 
 	movi	syscall_trace, LINK
+	or	SP, ZERO, r2
+	movi	1, r3
 	ptabs	LINK, tr0
 	blink	tr0, LINK
 
