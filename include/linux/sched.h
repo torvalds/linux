@@ -282,6 +282,10 @@ static inline void touch_all_softlockup_watchdogs(void)
 
 /* Attach to any functions which should be ignored in wchan output. */
 #define __sched		__attribute__((__section__(".sched.text")))
+
+/* Linker adds these: start and end of __sched functions */
+extern char __sched_text_start[], __sched_text_end[];
+
 /* Is this address in the __sched functions? */
 extern int in_sched_functions(unsigned long addr);
 
