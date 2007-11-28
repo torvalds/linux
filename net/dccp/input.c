@@ -629,16 +629,14 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 0;
 		/*
 		 *   Step 7: Check for unexpected packet types
-		 *      If (S.is_server and P.type == CloseReq)
-		 *	    or (S.is_server and P.type == Response)
+		 *      If (S.is_server and P.type == Response)
 		 *	    or (S.is_client and P.type == Request)
 		 *	    or (S.state == RESPOND and P.type == Data),
 		 *	  Send Sync packet acknowledging P.seqno
 		 *	  Drop packet and return
 		 */
 	} else if ((dp->dccps_role != DCCP_ROLE_CLIENT &&
-		    (dh->dccph_type == DCCP_PKT_RESPONSE ||
-		     dh->dccph_type == DCCP_PKT_CLOSEREQ)) ||
+		    dh->dccph_type == DCCP_PKT_RESPONSE) ||
 		    (dp->dccps_role == DCCP_ROLE_CLIENT &&
 		     dh->dccph_type == DCCP_PKT_REQUEST) ||
 		    (sk->sk_state == DCCP_RESPOND &&
