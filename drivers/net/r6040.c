@@ -674,7 +674,7 @@ static void r6040_up(struct net_device *dev)
 static void r6040_timer(unsigned long data)
 {
 	struct net_device *dev = (struct net_device *)data;
-	struct r6040_private *lp = netdev_priv(dev->priv);
+	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	u16 phy_mode;
 
