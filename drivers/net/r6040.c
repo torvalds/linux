@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2004 Sten Wang <sten.wang@rdc.com.tw>
  * Copyright (C) 2007
- * 	Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>
+ *	Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>
  *	Florian Fainelli <florian@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or
@@ -60,7 +60,7 @@
 #define PHY_CAP		0x01E1	/* PHY CHIP Register 4 */
 
 /* Time in jiffies before concluding the transmitter is hung. */
-#define TX_TIMEOUT  	(6000 * HZ / 1000)
+#define TX_TIMEOUT	(6000 * HZ / 1000)
 #define TIMER_WUT	(jiffies + HZ * 1)/* timer wakeup time : 1 second */
 
 /* RDC MAC I/O Size */
@@ -235,8 +235,7 @@ static void mdio_write(struct net_device *dev, int mii_id, int reg, int val)
 	phy_write(ioaddr, lp->phy_addr, reg, val);
 }
 
-static void
-r6040_tx_timeout(struct net_device *dev)
+static void r6040_tx_timeout(struct net_device *dev)
 {
 	struct r6040_private *priv = netdev_priv(dev);
 
@@ -341,8 +340,7 @@ static void r6040_down(struct net_device *dev)
 	pci_free_consistent(pdev, TX_DESC_SIZE, lp->tx_ring, lp->tx_ring_dma);
 }
 
-static int
-r6040_close(struct net_device *dev)
+static int r6040_close(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 
@@ -405,7 +403,7 @@ static void r6040_set_carrier(struct mii_if_info *mii)
 static int r6040_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct r6040_private *lp = netdev_priv(dev);
-	struct mii_ioctl_data *data = (struct mii_ioctl_data *) &rq->ifr_data;
+	struct mii_ioctl_data *data = if_mii(rq);
 	int rc;
 
 	if (!netif_running(dev))
@@ -574,11 +572,10 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 static void r6040_poll_controller(struct net_device *dev)
 {
 	disable_irq(dev->irq);
-	r6040_interrupt(dev->irq, (void *)dev);
+	r6040_interrupt(dev->irq, dev);
 	enable_irq(dev->irq);
 }
 #endif
-
 
 static void r6040_init_ring_desc(struct r6040_descriptor *desc_ring,
 				 dma_addr_t desc_dma, int size)
@@ -716,10 +713,9 @@ static void r6040_mac_address(struct net_device *dev)
 	iowrite16(adrp[2], ioaddr + MID_0H);
 }
 
-static int
-r6040_open(struct net_device *dev)
+static int r6040_open(struct net_device *dev)
 {
-	struct r6040_private *lp = dev->priv;
+	struct r6040_private *lp = netdev_priv(dev);
 	int ret;
 
 	/* Request IRQ and Register interrupt handler */
@@ -761,8 +757,7 @@ r6040_open(struct net_device *dev)
 	return 0;
 }
 
-static int
-r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static int r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	struct r6040_descriptor *descptr;
@@ -810,8 +805,7 @@ r6040_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return ret;
 }
 
-static void
-r6040_multicast_list(struct net_device *dev)
+static void r6040_multicast_list(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
@@ -937,7 +931,6 @@ static struct ethtool_ops netdev_ethtool_ops = {
 	.set_settings		= netdev_set_settings,
 	.get_link		= netdev_get_link,
 };
-
 
 static int __devinit r6040_init_one(struct pci_dev *pdev,
 					 const struct pci_device_id *ent)
@@ -1075,13 +1068,13 @@ static void __devexit r6040_remove_one(struct pci_dev *pdev)
 
 
 static struct pci_device_id r6040_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_RDC, PCI_DEVICE_ID_RDC_R6040) },
-	{0 }
+	{ PCI_DEVICE(PCI_VENDOR_ID_RDC, 0x6040) },
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, r6040_pci_tbl);
 
 static struct pci_driver r6040_driver = {
-	.name		= "r6040",
+	.name		= DRV_NAME,
 	.id_table	= r6040_pci_tbl,
 	.probe		= r6040_init_one,
 	.remove		= __devexit_p(r6040_remove_one),
