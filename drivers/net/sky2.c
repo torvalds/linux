@@ -1234,7 +1234,7 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	struct sky2_hw *hw = sky2->hw;
 	struct rx_ring_info *re;
 	unsigned rxq = rxqaddr[sky2->port];
-	unsigned i, size, space, thresh;
+	unsigned i, size, thresh;
 
 	sky2->rx_put = sky2->rx_next = 0;
 	sky2_qset(hw, rxq);
@@ -1261,28 +1261,18 @@ static int sky2_rx_start(struct sky2_port *sky2)
 	/* Stopping point for hardware truncation */
 	thresh = (size - 8) / sizeof(u32);
 
-	/* Account for overhead of skb - to avoid order > 0 allocation */
-	space = SKB_DATA_ALIGN(size) + NET_SKB_PAD
-		+ sizeof(struct skb_shared_info);
-
-	sky2->rx_nfrags = space >> PAGE_SHIFT;
+	sky2->rx_nfrags = size >> PAGE_SHIFT;
 	BUG_ON(sky2->rx_nfrags > ARRAY_SIZE(re->frag_addr));
 
-	if (sky2->rx_nfrags != 0) {
-		/* Compute residue after pages */
-		space = sky2->rx_nfrags << PAGE_SHIFT;
+	/* Compute residue after pages */
+	size -= sky2->rx_nfrags << PAGE_SHIFT;
 
-		if (space < size)
-			size -= space;
-		else
-			size = 0;
+	/* Optimize to handle small packets and headers */
+	if (size < copybreak)
+		size = copybreak;
+	if (size < ETH_HLEN)
+		size = ETH_HLEN;
 
-		/* Optimize to handle small packets and headers */
-		if (size < copybreak)
-			size = copybreak;
-		if (size < ETH_HLEN)
-			size = ETH_HLEN;
-	}
 	sky2->rx_data_size = size;
 
 	/* Fill Rx ring */
