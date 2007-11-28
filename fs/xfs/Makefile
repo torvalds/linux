@@ -25,8 +25,18 @@ ifeq ($(CONFIG_XFS_DEBUG),y)
 endif
 
 obj-$(CONFIG_XFS_FS)		+= xfs.o
-obj-$(CONFIG_XFS_QUOTA)		+= quota/
-obj-$(CONFIG_XFS_DMAPI)		+= dmapi/
+
+xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix quota/, \
+				   xfs_dquot.o \
+				   xfs_dquot_item.o \
+				   xfs_trans_dquot.o \
+				   xfs_qm_syscalls.o \
+				   xfs_qm_bhv.o \
+				   xfs_qm.o)
+
+ifeq ($(CONFIG_XFS_QUOTA),y)
+xfs-$(CONFIG_PROC_FS)		+= quota/xfs_qm_stats.o
+endif
 
 xfs-$(CONFIG_XFS_RT)		+= xfs_rtalloc.o
 xfs-$(CONFIG_XFS_POSIX_ACL)	+= xfs_acl.o
@@ -96,8 +106,7 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_iops.o \
 				   xfs_lrw.o \
 				   xfs_super.o \
-				   xfs_vnode.o \
-				   xfs_ksyms.o)
+				   xfs_vnode.o)
 
 # Objects in support/
 xfs-y				+= $(addprefix support/, \
@@ -106,17 +115,3 @@ xfs-y				+= $(addprefix support/, \
 
 xfs-$(CONFIG_XFS_TRACE)		+= support/ktrace.o
 
-# If both xfs and kdb modules are built in then xfsidbg is built in.  If xfs is
-# a module and kdb modules are being compiled then xfsidbg must be a module, to
-# follow xfs.  If xfs is built in then xfsidbg tracks the kdb module state.
-# This must come after the main xfs code so xfs initialises before xfsidbg.
-# KAO
-ifneq ($(CONFIG_KDB_MODULES),)
-  ifeq ($(CONFIG_XFS_FS),y)
-    obj-$(CONFIG_KDB_MODULES)	+= xfsidbg.o
-  else
-    obj-$(CONFIG_XFS_FS)	+= xfsidbg.o
-  endif
-endif
-
-CFLAGS_xfsidbg.o += -Iarch/$(ARCH)/kdb
