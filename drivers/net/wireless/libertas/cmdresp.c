@@ -916,12 +916,12 @@ int lbs_process_event(struct lbs_private *priv)
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	spin_lock_irq(&adapter->driver_lock);
-	eventcause = adapter->eventcause;
+	eventcause = adapter->eventcause >> SBI_EVENT_CAUSE_SHIFT;
 	spin_unlock_irq(&adapter->driver_lock);
 
-	lbs_deb_cmd("event cause 0x%x\n", eventcause);
+	lbs_deb_cmd("event cause %d\n", eventcause);
 
-	switch (eventcause >> SBI_EVENT_CAUSE_SHIFT) {
+	switch (eventcause) {
 	case MACREG_INT_CODE_LINK_SENSED:
 		lbs_deb_cmd("EVENT: MACREG_INT_CODE_LINK_SENSED\n");
 		break;
@@ -936,7 +936,7 @@ int lbs_process_event(struct lbs_private *priv)
 		lbs_mac_event_disconnected(priv);
 		break;
 
-	case MACREG_INT_CODE_LINK_LOSE_NO_SCAN:
+	case MACREG_INT_CODE_LINK_LOST_NO_SCAN:
 		lbs_deb_cmd("EVENT: link lost\n");
 		lbs_mac_event_disconnected(priv);
 		break;
@@ -1030,8 +1030,7 @@ int lbs_process_event(struct lbs_private *priv)
 		break;
 
 	default:
-		lbs_pr_alert("EVENT: unknown event id 0x%04x\n",
-		       eventcause >> SBI_EVENT_CAUSE_SHIFT);
+		lbs_pr_alert("EVENT: unknown event id %d\n", eventcause);
 		break;
 	}
 
