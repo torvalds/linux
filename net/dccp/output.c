@@ -391,7 +391,7 @@ int dccp_send_reset(struct sock *sk, enum dccp_reset_codes code)
 	 * FIXME: what if rebuild_header fails?
 	 * Should we be doing a rebuild_header here?
 	 */
-	int err = inet_sk_rebuild_header(sk);
+	int err = inet_csk(sk)->icsk_af_ops->rebuild_header(sk);
 
 	if (err != 0)
 		return err;
