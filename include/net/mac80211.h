@@ -1411,10 +1411,9 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw);
  *
  * This function iterates over the interfaces associated with a given
  * hardware that are currently active and calls the callback for them.
- * Must be called under RTNL.
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
- * @iterator: the iterator function to call
+ * @iterator: the iterator function to call, cannot sleep
  * @data: first argument of the iterator function
  */
 void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,

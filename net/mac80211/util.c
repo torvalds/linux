@@ -482,10 +482,9 @@ void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 
-	ASSERT_RTNL();
+	rcu_read_lock();
 
-	/* we hold the RTNL here so can safely walk the list */
-	list_for_each_entry(sdata, &local->interfaces, list) {
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->type) {
 		case IEEE80211_IF_TYPE_INVALID:
 		case IEEE80211_IF_TYPE_MNTR:
@@ -503,5 +502,7 @@ void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
 			iterator(data, sdata->dev->dev_addr,
 				 sdata->dev->ifindex);
 	}
+
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
