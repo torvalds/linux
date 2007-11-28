@@ -73,3 +73,12 @@ extern char *make_class_name(const char *name, struct kobject *kobj);
 extern int devres_release_all(struct device *dev);
 
 extern struct kset *devices_kset;
+
+#ifdef CONFIG_MODULES
+extern void module_add_driver(struct module *mod, struct device_driver *drv);
+extern void module_remove_driver(struct device_driver *drv);
+#else
+static inline void module_add_driver(struct module *mod,
+				     struct device_driver *drv) { }
+static inline void module_remove_driver(struct device_driver *drv) { }
+#endif
