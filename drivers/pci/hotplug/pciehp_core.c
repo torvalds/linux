@@ -471,6 +471,11 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
 
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
+	if (value) {
+		rc = pciehp_enable_slot(t_slot);
+		if (rc)	/* -ENODEV: shouldn't happen, but deal with it */
+			value = 0;
+	}
 	if ((POWER_CTRL(ctrl->ctrlcap)) && !value) {
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
 		if (rc)
