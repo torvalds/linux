@@ -160,12 +160,7 @@ int drm_sysfs_device_add(struct drm_device *dev, struct drm_head *head)
 	dev->dev.parent = &dev->pdev->dev;
 	dev->dev.class = drm_class;
 	dev->dev.release = drm_sysfs_device_release;
-	/*
-	 * This will actually add the major:minor file so that udev
-	 * will create the device node.  We don't want to do that just
-	 * yet...
-	 */
-	/* dev->dev.devt = head->device; */
+	dev->dev.devt = head->device;
 	snprintf(dev->dev.bus_id, BUS_ID_SIZE, "card%d", head->minor);
 
 	err = device_register(&dev->dev);
