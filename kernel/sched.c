@@ -5466,7 +5466,7 @@ sd_alloc_ctl_domain_table(struct sched_domain *sd)
 	return table;
 }
 
-static ctl_table * sd_alloc_ctl_cpu_table(int cpu)
+static ctl_table *sd_alloc_ctl_cpu_table(int cpu)
 {
 	struct ctl_table *entry, *table;
 	struct sched_domain *sd;
@@ -6708,9 +6708,6 @@ void __init sched_init_smp(void)
 
 int in_sched_functions(unsigned long addr)
 {
-	/* Linker adds these: start and end of __sched functions */
-	extern char __sched_text_start[], __sched_text_end[];
-
 	return in_lock_functions(addr) ||
 		(addr >= (unsigned long)__sched_text_start
 		&& addr < (unsigned long)__sched_text_end);
