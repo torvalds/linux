@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
+ * Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (c) 2007 Novell Inc.
  *
  * This file is released under the GPLv2
  *
@@ -15,7 +17,6 @@
 #include "base.h"
 
 #define to_dev(node) container_of(node, struct device, driver_list)
-#define to_drv(obj) container_of(obj, struct device_driver, kobj)
 
 
 static struct device * next_device(struct klist_iter * i)
@@ -44,7 +45,7 @@ int driver_for_each_device(struct device_driver * drv, struct device * start,
 	if (!drv)
 		return -EINVAL;
 
-	klist_iter_init_node(&drv->klist_devices, &i,
+	klist_iter_init_node(&drv->p->klist_devices, &i,
 			     start ? &start->knode_driver : NULL);
 	while ((dev = next_device(&i)) && !error)
 		error = fn(dev, data);
@@ -80,7 +81,7 @@ struct device * driver_find_device(struct device_driver *drv,
 	if (!drv)
 		return NULL;
 
-	klist_iter_init_node(&drv->klist_devices, &i,
+	klist_iter_init_node(&drv->p->klist_devices, &i,
 			     (start ? &start->knode_driver : NULL));
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
@@ -100,7 +101,7 @@ int driver_create_file(struct device_driver * drv, struct driver_attribute * att
 {
 	int error;
 	if (get_driver(drv)) {
-		error = sysfs_create_file(&drv->kobj, &attr->attr);
+		error = sysfs_create_file(&drv->p->kobj, &attr->attr);
 		put_driver(drv);
 	} else
 		error = -EINVAL;
@@ -117,7 +118,7 @@ int driver_create_file(struct device_driver * drv, struct driver_attribute * att
 void driver_remove_file(struct device_driver * drv, struct driver_attribute * attr)
 {
 	if (get_driver(drv)) {
-		sysfs_remove_file(&drv->kobj, &attr->attr);
+		sysfs_remove_file(&drv->p->kobj, &attr->attr);
 		put_driver(drv);
 	}
 }
@@ -143,7 +144,7 @@ int driver_add_kobj(struct device_driver *drv, struct kobject *kobj,
 	if (!name)
 		return -ENOMEM;
 
-	return kobject_add_ng(kobj, &drv->kobj, "%s", name);
+	return kobject_add_ng(kobj, &drv->p->kobj, "%s", name);
 }
 EXPORT_SYMBOL_GPL(driver_add_kobj);
 
@@ -153,7 +154,15 @@ EXPORT_SYMBOL_GPL(driver_add_kobj);
  */
 struct device_driver * get_driver(struct device_driver * drv)
 {
-	return drv ? to_drv(kobject_get(&drv->kobj)) : NULL;
+	if (drv) {
+		struct driver_private *priv;
+		struct kobject *kobj;
+
+		kobj = kobject_get(&drv->p->kobj);
+		priv = to_driver(kobj);
+		return priv->driver;
+	}
+	return NULL;
 }
 
 
@@ -163,7 +172,7 @@ struct device_driver * get_driver(struct device_driver * drv)
  */
 void put_driver(struct device_driver * drv)
 {
-	kobject_put(&drv->kobj);
+	kobject_put(&drv->p->kobj);
 }
 
 static int driver_add_groups(struct device_driver *drv,
@@ -174,10 +183,10 @@ static int driver_add_groups(struct device_driver *drv,
 
 	if (groups) {
 		for (i = 0; groups[i]; i++) {
-			error = sysfs_create_group(&drv->kobj, groups[i]);
+			error = sysfs_create_group(&drv->p->kobj, groups[i]);
 			if (error) {
 				while (--i >= 0)
-					sysfs_remove_group(&drv->kobj,
+					sysfs_remove_group(&drv->p->kobj,
 							   groups[i]);
 				break;
 			}
@@ -193,7 +202,7 @@ static void driver_remove_groups(struct device_driver *drv,
 
 	if (groups)
 		for (i = 0; groups[i]; i++)
-			sysfs_remove_group(&drv->kobj, groups[i]);
+			sysfs_remove_group(&drv->p->kobj, groups[i]);
 }
 
 
@@ -214,7 +223,6 @@ int driver_register(struct device_driver * drv)
 	    (drv->bus->shutdown && drv->shutdown)) {
 		printk(KERN_WARNING "Driver '%s' needs updating - please use bus_type methods\n", drv->name);
 	}
-	klist_init(&drv->klist_devices, NULL, NULL);
 	ret = bus_add_driver(drv);
 	if (ret)
 		return ret;
@@ -250,8 +258,12 @@ void driver_unregister(struct device_driver * drv)
 struct device_driver *driver_find(const char *name, struct bus_type *bus)
 {
 	struct kobject *k = kset_find_obj(bus->p->drivers_kset, name);
-	if (k)
-		return to_drv(k);
+	struct driver_private *priv;
+
+	if (k) {
+		priv = to_driver(k);
+		return priv->driver;
+	}
 	return NULL;
 }
 

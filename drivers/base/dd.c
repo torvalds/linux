@@ -11,6 +11,8 @@
  *
  *	Copyright (c) 2002-5 Patrick Mochel
  *	Copyright (c) 2002-3 Open Source Development Labs
+ *	Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
+ *	Copyright (c) 2007 Novell Inc.
  *
  *	This file is released under the GPLv2
  */
@@ -22,8 +24,6 @@
 
 #include "base.h"
 #include "power/power.h"
-
-#define to_drv(node) container_of(node, struct device_driver, kobj.entry)
 
 
 static void driver_bound(struct device *dev)
@@ -41,20 +41,20 @@ static void driver_bound(struct device *dev)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_BOUND_DRIVER, dev);
 
-	klist_add_tail(&dev->knode_driver, &dev->driver->klist_devices);
+	klist_add_tail(&dev->knode_driver, &dev->driver->p->klist_devices);
 }
 
 static int driver_sysfs_add(struct device *dev)
 {
 	int ret;
 
-	ret = sysfs_create_link(&dev->driver->kobj, &dev->kobj,
+	ret = sysfs_create_link(&dev->driver->p->kobj, &dev->kobj,
 			  kobject_name(&dev->kobj));
 	if (ret == 0) {
-		ret = sysfs_create_link(&dev->kobj, &dev->driver->kobj,
+		ret = sysfs_create_link(&dev->kobj, &dev->driver->p->kobj,
 					"driver");
 		if (ret)
-			sysfs_remove_link(&dev->driver->kobj,
+			sysfs_remove_link(&dev->driver->p->kobj,
 					kobject_name(&dev->kobj));
 	}
 	return ret;
@@ -65,7 +65,7 @@ static void driver_sysfs_remove(struct device *dev)
 	struct device_driver *drv = dev->driver;
 
 	if (drv) {
-		sysfs_remove_link(&drv->kobj, kobject_name(&dev->kobj));
+		sysfs_remove_link(&drv->p->kobj, kobject_name(&dev->kobj));
 		sysfs_remove_link(&dev->kobj, "driver");
 	}
 }
@@ -339,15 +339,15 @@ void driver_detach(struct device_driver * drv)
 	struct device * dev;
 
 	for (;;) {
-		spin_lock(&drv->klist_devices.k_lock);
-		if (list_empty(&drv->klist_devices.k_list)) {
-			spin_unlock(&drv->klist_devices.k_lock);
+		spin_lock(&drv->p->klist_devices.k_lock);
+		if (list_empty(&drv->p->klist_devices.k_list)) {
+			spin_unlock(&drv->p->klist_devices.k_lock);
 			break;
 		}
-		dev = list_entry(drv->klist_devices.k_list.prev,
+		dev = list_entry(drv->p->klist_devices.k_list.prev,
 				struct device, knode_driver.n_node);
 		get_device(dev);
-		spin_unlock(&drv->klist_devices.k_lock);
+		spin_unlock(&drv->p->klist_devices.k_lock);
 
 		if (dev->parent)	/* Needed for USB */
 			down(&dev->parent->sem);

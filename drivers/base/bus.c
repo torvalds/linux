@@ -3,6 +3,8 @@
  *
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
+ * Copyright (c) 2007 Greg Kroah-Hartman <gregkh@suse.de>
+ * Copyright (c) 2007 Novell Inc.
  *
  * This file is released under the GPLv2
  *
@@ -24,7 +26,6 @@
  */
 
 #define to_drv_attr(_attr) container_of(_attr, struct driver_attribute, attr)
-#define to_driver(obj) container_of(obj, struct device_driver, kobj)
 
 
 static int __must_check bus_rescan_devices_helper(struct device *dev,
@@ -49,11 +50,11 @@ static ssize_t
 drv_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct driver_attribute * drv_attr = to_drv_attr(attr);
-	struct device_driver * drv = to_driver(kobj);
+	struct driver_private *drv_priv = to_driver(kobj);
 	ssize_t ret = -EIO;
 
 	if (drv_attr->show)
-		ret = drv_attr->show(drv, buf);
+		ret = drv_attr->show(drv_priv->driver, buf);
 	return ret;
 }
 
@@ -62,11 +63,11 @@ drv_attr_store(struct kobject * kobj, struct attribute * attr,
 	       const char * buf, size_t count)
 {
 	struct driver_attribute * drv_attr = to_drv_attr(attr);
-	struct device_driver * drv = to_driver(kobj);
+	struct driver_private *drv_priv = to_driver(kobj);
 	ssize_t ret = -EIO;
 
 	if (drv_attr->store)
-		ret = drv_attr->store(drv, buf, count);
+		ret = drv_attr->store(drv_priv->driver, buf, count);
 	return ret;
 }
 
@@ -75,22 +76,12 @@ static struct sysfs_ops driver_sysfs_ops = {
 	.store	= drv_attr_store,
 };
 
-
-static void driver_release(struct kobject * kobj)
+static void driver_release(struct kobject *kobj)
 {
-	/*
-	 * Yes this is an empty release function, it is this way because struct
-	 * device is always a static object, not a dynamic one.  Yes, this is
-	 * not nice and bad, but remember, drivers are code, reference counted
-	 * by the module count, not a device, which is really data.  And yes,
-	 * in the future I do want to have all drivers be created dynamically,
-	 * and am working toward that goal, but it will take a bit longer...
-	 *
-	 * But do not let this example give _anyone_ the idea that they can
-	 * create a release function without any code in it at all, to do that
-	 * is almost always wrong.  If you have any questions about this,
-	 * please send an email to <greg@kroah.com>
-	 */
+	struct driver_private *drv_priv = to_driver(kobj);
+
+	pr_debug("%s: freeing %s\n", __FUNCTION__, kobject_name(kobj));
+	kfree(drv_priv);
 }
 
 static struct kobj_type driver_ktype = {
@@ -350,7 +341,13 @@ struct device * bus_find_device(struct bus_type *bus,
 static struct device_driver * next_driver(struct klist_iter * i)
 {
 	struct klist_node * n = klist_next(i);
-	return n ? container_of(n, struct device_driver, knode_bus) : NULL;
+	struct driver_private *drv_priv;
+
+	if (n) {
+		drv_priv = container_of(n, struct driver_private, knode_bus);
+		return drv_priv->driver;
+	}
+	return NULL;
 }
 
 /**
@@ -384,7 +381,7 @@ int bus_for_each_drv(struct bus_type * bus, struct device_driver * start,
 		return -EINVAL;
 
 	klist_iter_init_node(&bus->p->klist_drivers, &i,
-			     start ? &start->knode_bus : NULL);
+			     start ? &start->p->knode_bus : NULL);
 	while ((drv = next_driver(&i)) && !error)
 		error = fn(drv, data);
 	klist_iter_exit(&i);
@@ -620,7 +617,7 @@ static ssize_t driver_uevent_store(struct device_driver *drv,
 	enum kobject_action action;
 
 	if (kobject_action_type(buf, count, &action) == 0)
-		kobject_uevent(&drv->kobj, action);
+		kobject_uevent(&drv->p->kobj, action);
 	return count;
 }
 static DRIVER_ATTR(uevent, S_IWUSR, NULL, driver_uevent_store);
@@ -632,19 +629,29 @@ static DRIVER_ATTR(uevent, S_IWUSR, NULL, driver_uevent_store);
  */
 int bus_add_driver(struct device_driver *drv)
 {
-	struct bus_type * bus = bus_get(drv->bus);
+	struct bus_type *bus;
+	struct driver_private *priv;
 	int error = 0;
 
+	bus = bus_get(drv->bus);
 	if (!bus)
 		return -EINVAL;
 
 	pr_debug("bus %s: add driver %s\n", bus->name, drv->name);
-	error = kobject_set_name(&drv->kobj, "%s", drv->name);
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	error = kobject_set_name(&priv->kobj, "%s", drv->name);
 	if (error)
 		goto out_put_bus;
-	drv->kobj.kset = bus->p->drivers_kset;
-	drv->kobj.ktype = &driver_ktype;
-	error = kobject_register(&drv->kobj);
+	priv->kobj.kset = bus->p->drivers_kset;
+	priv->kobj.ktype = &driver_ktype;
+	klist_init(&priv->klist_devices, NULL, NULL);
+	priv->driver = drv;
+	drv->p = priv;
+	error = kobject_register(&priv->kobj);
 	if (error)
 		goto out_put_bus;
 
@@ -653,7 +660,7 @@ int bus_add_driver(struct device_driver *drv)
 		if (error)
 			goto out_unregister;
 	}
-	klist_add_tail(&drv->knode_bus, &bus->p->klist_drivers);
+	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
 	module_add_driver(drv->owner, drv);
 
 	error = driver_create_file(drv, &driver_attr_uevent);
@@ -676,7 +683,7 @@ int bus_add_driver(struct device_driver *drv)
 
 	return error;
 out_unregister:
-	kobject_unregister(&drv->kobj);
+	kobject_unregister(&priv->kobj);
 out_put_bus:
 	bus_put(bus);
 	return error;
@@ -699,11 +706,11 @@ void bus_remove_driver(struct device_driver * drv)
 	remove_bind_files(drv);
 	driver_remove_attrs(drv->bus, drv);
 	driver_remove_file(drv, &driver_attr_uevent);
-	klist_remove(&drv->knode_bus);
+	klist_remove(&drv->p->knode_bus);
 	pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
 	driver_detach(drv);
 	module_remove_driver(drv);
-	kobject_unregister(&drv->kobj);
+	kobject_unregister(&drv->p->kobj);
 	bus_put(drv->bus);
 }
 

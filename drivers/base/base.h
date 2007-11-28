@@ -27,6 +27,14 @@ struct bus_type_private {
 	struct bus_type *bus;
 };
 
+struct driver_private {
+	struct kobject kobj;
+	struct klist klist_devices;
+	struct klist_node knode_bus;
+	struct module_kobject *mkobj;
+	struct device_driver *driver;
+};
+#define to_driver(obj) container_of(obj, struct driver_private, kobj)
 
 /* initialisation functions */
 extern int devices_init(void);

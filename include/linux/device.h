@@ -32,6 +32,7 @@
 
 struct device;
 struct device_driver;
+struct driver_private;
 struct class;
 struct class_device;
 struct bus_type;
@@ -113,16 +114,11 @@ extern struct kset *bus_get_kset(struct bus_type *bus);
 extern struct klist *bus_get_device_klist(struct bus_type *bus);
 
 struct device_driver {
-	const char		* name;
-	struct bus_type		* bus;
+	const char		*name;
+	struct bus_type		*bus;
 
-	struct kobject		kobj;
-	struct klist		klist_devices;
-	struct klist_node	knode_bus;
-
-	struct module		* owner;
-	const char 		* mod_name;	/* used for built-in modules */
-	struct module_kobject	* mkobj;
+	struct module		*owner;
+	const char 		*mod_name;	/* used for built-in modules */
 
 	int	(*probe)	(struct device * dev);
 	int	(*remove)	(struct device * dev);
@@ -130,6 +126,8 @@ struct device_driver {
 	int	(*suspend)	(struct device * dev, pm_message_t state);
 	int	(*resume)	(struct device * dev);
 	struct attribute_group **groups;
+
+	struct driver_private *p;
 };
 
 
