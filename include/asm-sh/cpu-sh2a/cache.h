@@ -17,11 +17,8 @@
 #define SH_CACHE_COMBINED	4
 #define SH_CACHE_ASSOC		8
 
-#define CCR1		0xfffc1000
+#define CCR		0xfffc1000 /* CCR1 */
 #define CCR2		0xfffc1004
-
-/* CCR1 behaves more like the traditional CCR */
-#define CCR		CCR1
 
 /*
  * Most of the SH-2A CCR1 definitions resemble the SH-4 ones. All others not
@@ -41,4 +38,3 @@
 #define CCR_CACHE_INVALIDATE	(CCR_CACHE_OCI | CCR_CACHE_ICI)
 
 #endif /* __ASM_CPU_SH2A_CACHE_H */
-
