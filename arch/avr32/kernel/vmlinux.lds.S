@@ -77,10 +77,10 @@ SECTIONS
 		. = 0x100;
 		*(.scall.text)
 		*(.irq.text)
+		KPROBES_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
-		KPROBES_TEXT
 		*(.fixup)
 		*(.gnu.warning)
 		_etext = .;
