@@ -460,6 +460,8 @@ static int __if_usb_submit_rx_urb(struct usb_card_rec *cardp,
 	if ((ret = usb_submit_urb(cardp->rx_urb, GFP_ATOMIC))) {
 		/* handle failure conditions */
 		lbs_deb_usbd(&cardp->udev->dev, "Submit Rx URB failed\n");
+		kfree_skb(skb);
+		rinfo->skb = NULL;
 		ret = -1;
 	} else {
 		/* lbs_deb_usbd(&cardp->udev->dev, "Submit Rx URB success\n"); */
@@ -667,8 +669,10 @@ static void if_usb_receive(struct urb *urb)
 		lbs_deb_usbd(&cardp->udev->dev,
 			    "Recv length = 0x%x, Recv type = 0x%X\n",
 			    recvlength, recvtype);
-	} else if (urb->status)
+	} else if (urb->status) {
+		kfree_skb(skb);
 		goto rx_exit;
+	}
 
 	switch (recvtype) {
 	case CMD_TYPE_DATA:
