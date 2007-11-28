@@ -514,6 +514,24 @@ static int pciehp_suspend (struct pcie_device *dev, pm_message_t state)
 static int pciehp_resume (struct pcie_device *dev)
 {
 	printk("%s ENTRY\n", __FUNCTION__);
+	if (pciehp_force) {
+		struct pci_dev *pdev = dev->port;
+		struct controller *ctrl = pci_get_drvdata(pdev);
+		struct slot *t_slot;
+		u8 status;
+
+		/* reinitialize the chipset's event detection logic */
+		pcie_init_hardware(ctrl, dev);
+
+		t_slot = pciehp_find_slot(ctrl, ctrl->slot_device_offset);
+
+		/* Check if slot is occupied */
+		t_slot->hpc_ops->get_adapter_status(t_slot, &status);
+		if (status)
+			pciehp_enable_slot(t_slot);
+		else
+			pciehp_disable_slot(t_slot);
+	}
 	return 0;
 }
 #endif
