@@ -71,7 +71,8 @@ void dccp_set_state(struct sock *sk, const int state)
 		break;
 
 	case DCCP_CLOSED:
-		if (oldstate == DCCP_CLOSING || oldstate == DCCP_OPEN)
+		if (oldstate == DCCP_OPEN || oldstate == DCCP_ACTIVE_CLOSEREQ ||
+		    oldstate == DCCP_CLOSING)
 			DCCP_INC_STATS(DCCP_MIB_ESTABRESETS);
 
 		sk->sk_prot->unhash(sk);
@@ -91,6 +92,24 @@ void dccp_set_state(struct sock *sk, const int state)
 }
 
 EXPORT_SYMBOL_GPL(dccp_set_state);
+
+static void dccp_finish_passive_close(struct sock *sk)
+{
+	switch (sk->sk_state) {
+	case DCCP_PASSIVE_CLOSE:
+		/* Node (client or server) has received Close packet. */
+		dccp_send_reset(sk, DCCP_RESET_CODE_CLOSED);
+		dccp_set_state(sk, DCCP_CLOSED);
+		break;
+	case DCCP_PASSIVE_CLOSEREQ:
+		/*
+		 * Client received CloseReq. We set the `active' flag so that
+		 * dccp_send_close() retransmits the Close as per RFC 4340, 8.3.
+		 */
+		dccp_send_close(sk, 1);
+		dccp_set_state(sk, DCCP_CLOSING);
+	}
+}
 
 void dccp_done(struct sock *sk)
 {
@@ -762,19 +781,26 @@ int dccp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 		dh = dccp_hdr(skb);
 
-		if (dh->dccph_type == DCCP_PKT_DATA ||
-		    dh->dccph_type == DCCP_PKT_DATAACK)
+		switch (dh->dccph_type) {
+		case DCCP_PKT_DATA:
+		case DCCP_PKT_DATAACK:
 			goto found_ok_skb;
 
-		if (dh->dccph_type == DCCP_PKT_RESET ||
-		    dh->dccph_type == DCCP_PKT_CLOSE) {
-			dccp_pr_debug("found fin ok!\n");
+		case DCCP_PKT_CLOSE:
+		case DCCP_PKT_CLOSEREQ:
+			if (!(flags & MSG_PEEK))
+				dccp_finish_passive_close(sk);
+			/* fall through */
+		case DCCP_PKT_RESET:
+			dccp_pr_debug("found fin (%s) ok!\n",
+				      dccp_packet_name(dh->dccph_type));
 			len = 0;
 			goto found_fin_ok;
+		default:
+			dccp_pr_debug("packet_type=%s\n",
+				      dccp_packet_name(dh->dccph_type));
+			sk_eat_skb(sk, skb, 0);
 		}
-		dccp_pr_debug("packet_type=%s\n",
-			      dccp_packet_name(dh->dccph_type));
-		sk_eat_skb(sk, skb, 0);
 verify_sock_status:
 		if (sock_flag(sk, SOCK_DONE)) {
 			len = 0;
@@ -876,28 +902,30 @@ out:
 
 EXPORT_SYMBOL_GPL(inet_dccp_listen);
 
-static const unsigned char dccp_new_state[] = {
-	/* current state:   new state:      action:	*/
-	[0]		  = DCCP_CLOSED,
-	[DCCP_OPEN]	  = DCCP_CLOSING | DCCP_ACTION_FIN,
-	[DCCP_REQUESTING] = DCCP_CLOSED,
-	[DCCP_PARTOPEN]	  = DCCP_CLOSING | DCCP_ACTION_FIN,
-	[DCCP_LISTEN]	  = DCCP_CLOSED,
-	[DCCP_RESPOND]	  = DCCP_CLOSED,
-	[DCCP_CLOSING]	  = DCCP_CLOSED,
-	[DCCP_TIME_WAIT]  = DCCP_CLOSED,
-	[DCCP_CLOSED]	  = DCCP_CLOSED,
-};
-
-static int dccp_close_state(struct sock *sk)
+static void dccp_terminate_connection(struct sock *sk)
 {
-	const int next = dccp_new_state[sk->sk_state];
-	const int ns = next & DCCP_STATE_MASK;
+	u8 next_state = DCCP_CLOSED;
 
-	if (ns != sk->sk_state)
-		dccp_set_state(sk, ns);
+	switch (sk->sk_state) {
+	case DCCP_PASSIVE_CLOSE:
+	case DCCP_PASSIVE_CLOSEREQ:
+		dccp_finish_passive_close(sk);
+		break;
+	case DCCP_PARTOPEN:
+		dccp_pr_debug("Stop PARTOPEN timer (%p)\n", sk);
+		inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
+		/* fall through */
+	case DCCP_OPEN:
+		dccp_send_close(sk, 1);
 
-	return next & DCCP_ACTION_FIN;
+		if (dccp_sk(sk)->dccps_role == DCCP_ROLE_SERVER)
+			next_state = DCCP_ACTIVE_CLOSEREQ;
+		else
+			next_state = DCCP_CLOSING;
+		/* fall through */
+	default:
+		dccp_set_state(sk, next_state);
+	}
 }
 
 void dccp_close(struct sock *sk, long timeout)
@@ -940,8 +968,8 @@ void dccp_close(struct sock *sk, long timeout)
 	} else if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime) {
 		/* Check zero linger _after_ checking for unread data. */
 		sk->sk_prot->disconnect(sk, 0);
-	} else if (dccp_close_state(sk)) {
-		dccp_send_close(sk, 1);
+	} else if (sk->sk_state != DCCP_CLOSED) {
+		dccp_terminate_connection(sk);
 	}
 
 	sk_stream_wait_close(sk, timeout);

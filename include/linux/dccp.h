@@ -260,7 +260,6 @@ enum dccp_state {
 };
 
 #define DCCP_STATE_MASK 0x1f
-#define DCCP_ACTION_FIN (1<<7)
 
 enum {
 	DCCPF_OPEN	      = TCPF_ESTABLISHED,

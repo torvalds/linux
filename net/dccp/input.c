@@ -32,16 +32,56 @@ static void dccp_fin(struct sock *sk, struct sk_buff *skb)
 	sk->sk_data_ready(sk, 0);
 }
 
-static void dccp_rcv_close(struct sock *sk, struct sk_buff *skb)
+static int dccp_rcv_close(struct sock *sk, struct sk_buff *skb)
 {
-	dccp_send_reset(sk, DCCP_RESET_CODE_CLOSED);
-	dccp_fin(sk, skb);
-	dccp_set_state(sk, DCCP_CLOSED);
-	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_HUP);
+	int queued = 0;
+
+	switch (sk->sk_state) {
+	/*
+	 * We ignore Close when received in one of the following states:
+	 *  - CLOSED		(may be a late or duplicate packet)
+	 *  - PASSIVE_CLOSEREQ	(the peer has sent a CloseReq earlier)
+	 *  - RESPOND		(already handled by dccp_check_req)
+	 */
+	case DCCP_CLOSING:
+		/*
+		 * Simultaneous-close: receiving a Close after sending one. This
+		 * can happen if both client and server perform active-close and
+		 * will result in an endless ping-pong of crossing and retrans-
+		 * mitted Close packets, which only terminates when one of the
+		 * nodes times out (min. 64 seconds). Quicker convergence can be
+		 * achieved when one of the nodes acts as tie-breaker.
+		 * This is ok as both ends are done with data transfer and each
+		 * end is just waiting for the other to acknowledge termination.
+		 */
+		if (dccp_sk(sk)->dccps_role != DCCP_ROLE_CLIENT)
+			break;
+		/* fall through */
+	case DCCP_REQUESTING:
+	case DCCP_ACTIVE_CLOSEREQ:
+		dccp_send_reset(sk, DCCP_RESET_CODE_CLOSED);
+		dccp_done(sk);
+		break;
+	case DCCP_OPEN:
+	case DCCP_PARTOPEN:
+		/* Give waiting application a chance to read pending data */
+		queued = 1;
+		dccp_fin(sk, skb);
+		dccp_set_state(sk, DCCP_PASSIVE_CLOSE);
+		/* fall through */
+	case DCCP_PASSIVE_CLOSE:
+		/*
+		 * Retransmitted Close: we have already enqueued the first one.
+		 */
+		sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_HUP);
+	}
+	return queued;
 }
 
-static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
+static int dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 {
+	int queued = 0;
+
 	/*
 	 *   Step 7: Check for unexpected packet types
 	 *      If (S.is_server and P.type == CloseReq)
@@ -50,12 +90,26 @@ static void dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (dccp_sk(sk)->dccps_role != DCCP_ROLE_CLIENT) {
 		dccp_send_sync(sk, DCCP_SKB_CB(skb)->dccpd_seq, DCCP_PKT_SYNC);
-		return;
+		return queued;
 	}
 
-	if (sk->sk_state != DCCP_CLOSING)
+	/* Step 13: process relevant Client states < CLOSEREQ */
+	switch (sk->sk_state) {
+	case DCCP_REQUESTING:
+		dccp_send_close(sk, 0);
 		dccp_set_state(sk, DCCP_CLOSING);
-	dccp_send_close(sk, 0);
+		break;
+	case DCCP_OPEN:
+	case DCCP_PARTOPEN:
+		/* Give waiting application a chance to read pending data */
+		queued = 1;
+		dccp_fin(sk, skb);
+		dccp_set_state(sk, DCCP_PASSIVE_CLOSEREQ);
+		/* fall through */
+	case DCCP_PASSIVE_CLOSEREQ:
+		sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_HUP);
+	}
+	return queued;
 }
 
 static u8 dccp_reset_code_convert(const u8 code)
@@ -247,11 +301,13 @@ static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		dccp_rcv_reset(sk, skb);
 		return 0;
 	case DCCP_PKT_CLOSEREQ:
-		dccp_rcv_closereq(sk, skb);
+		if (dccp_rcv_closereq(sk, skb))
+			return 0;
 		goto discard;
 	case DCCP_PKT_CLOSE:
-		dccp_rcv_close(sk, skb);
-		return 0;
+		if (dccp_rcv_close(sk, skb))
+			return 0;
+		goto discard;
 	case DCCP_PKT_REQUEST:
 		/* Step 7
 		 *   or (S.is_server and P.type == Response)
@@ -590,11 +646,13 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		dccp_send_sync(sk, dcb->dccpd_seq, DCCP_PKT_SYNC);
 		goto discard;
 	} else if (dh->dccph_type == DCCP_PKT_CLOSEREQ) {
-		dccp_rcv_closereq(sk, skb);
+		if (dccp_rcv_closereq(sk, skb))
+			return 0;
 		goto discard;
 	} else if (dh->dccph_type == DCCP_PKT_CLOSE) {
-		dccp_rcv_close(sk, skb);
-		return 0;
+		if (dccp_rcv_close(sk, skb))
+			return 0;
+		goto discard;
 	}
 
 	switch (sk->sk_state) {
