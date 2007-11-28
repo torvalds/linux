@@ -71,6 +71,7 @@ static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(0x10C4, 0x815E) }, /* Helicomm IP-Link 1220-DVM */
 	{ USB_DEVICE(0x10C4, 0x81C8) }, /* Lipowsky Industrie Elektronik GmbH, Baby-JTAG */
 	{ USB_DEVICE(0x10C4, 0x81E2) }, /* Lipowsky Industrie Elektronik GmbH, Baby-LIN */
+	{ USB_DEVICE(0x10C4, 0x81E7) }, /* Aerocomm Radio */
 	{ USB_DEVICE(0x10C4, 0x8218) }, /* Lipowsky Industrie Elektronik GmbH, HARP-1 */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xEA61) }, /* Silicon Labs factory default */
@@ -98,8 +99,8 @@ static struct usb_serial_driver cp2101_device = {
 	.usb_driver		= &cp2101_driver,
 	.id_table		= id_table,
 	.num_interrupt_in	= 0,
-	.num_bulk_in		= 0,
-	.num_bulk_out		= 0,
+	.num_bulk_in		= NUM_DONT_CARE,
+	.num_bulk_out		= NUM_DONT_CARE,
 	.num_ports		= 1,
 	.open			= cp2101_open,
 	.close			= cp2101_close,
