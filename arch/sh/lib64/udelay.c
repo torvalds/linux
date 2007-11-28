@@ -1,5 +1,5 @@
 /*
- * arch/sh64/lib/udelay.c
+ * arch/sh/lib64/udelay.c
  *
  * Delay routines, using a pre-computed "loops_per_jiffy" value.
  *

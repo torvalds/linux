@@ -421,19 +421,22 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
  */
 void exit_thread(void)
 {
-	/* See arch/sparc/kernel/process.c for the precedent for doing this -- RPC.
-
-	   The SH-5 FPU save/restore approach relies on last_task_used_math
-	   pointing to a live task_struct.  When another task tries to use the
-	   FPU for the 1st time, the FPUDIS trap handling (see
-	   arch/sh64/kernel/fpu.c) will save the existing FPU state to the
-	   FP regs field within last_task_used_math before re-loading the new
-	   task's FPU state (or initialising it if the FPU has been used
-	   before).  So if last_task_used_math is stale, and its page has already been
-	   re-allocated for another use, the consequences are rather grim. Unless we
-	   null it here, there is no other path through which it would get safely
-	   nulled. */
-
+	/*
+	 * See arch/sparc/kernel/process.c for the precedent for doing
+	 * this -- RPC.
+	 *
+	 * The SH-5 FPU save/restore approach relies on
+	 * last_task_used_math pointing to a live task_struct.  When
+	 * another task tries to use the FPU for the 1st time, the FPUDIS
+	 * trap handling (see arch/sh/kernel/cpu/sh5/fpu.c) will save the
+	 * existing FPU state to the FP regs field within
+	 * last_task_used_math before re-loading the new task's FPU state
+	 * (or initialising it if the FPU has been used before).  So if
+	 * last_task_used_math is stale, and its page has already been
+	 * re-allocated for another use, the consequences are rather
+	 * grim. Unless we null it here, there is no other path through
+	 * which it would get safely nulled.
+	 */
 #ifdef CONFIG_SH_FPU
 	if (last_task_used_math == current) {
 		last_task_used_math = NULL;

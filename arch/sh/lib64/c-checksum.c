@@ -1,12 +1,9 @@
 /*
- * arch/sh64/lib/c-checksum.c
+ * arch/sh/lib64/c-checksum.c
  *
  * This file contains network checksum routines that are better done
  * in an architecture-specific manner due to speed..
  */
-
-#undef DEBUG
-
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>

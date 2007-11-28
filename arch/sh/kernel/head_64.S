@@ -1,23 +1,12 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/kernel/head.S
+ * arch/sh/kernel/head_64.S
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
  *
- *
- * benedict.gaster@superh.com:	 2nd May 2002
- *    Moved definition of empty_zero_page to its own section allowing
- *    it to be placed at an absolute address known at load time.
- *
- * lethal@linux-sh.org:          9th May 2003
- *    Kill off GLOBAL_NAME() usage.
- *
- * lethal@linux-sh.org:          8th May 2004
- *    Add early SCIF console DTLB mapping.
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <asm/page.h>
 #include <asm/cache.h>

@@ -1,14 +1,13 @@
 /*
+ * arch/sh/kernel/cpu/sh5/entry.S
+ *
+ * Copyright (C) 2000, 2001  Paolo Alberelli
+ * Copyright (C) 2004 - 2007  Paul Mundt
+ * Copyright (C) 2003, 2004  Richard Curnow
+ *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- *
- * arch/sh64/kernel/entry.S
- *
- * Copyright (C) 2000, 2001  Paolo Alberelli
- * Copyright (C) 2004, 2005  Paul Mundt
- * Copyright (C) 2003, 2004 Richard Curnow
- *
  */
 #include <linux/errno.h>
 #include <linux/sys.h>

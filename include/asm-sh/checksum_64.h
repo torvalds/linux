@@ -1,15 +1,14 @@
-#ifndef __ASM_SH64_CHECKSUM_H
-#define __ASM_SH64_CHECKSUM_H
+#ifndef __ASM_SH_CHECKSUM_64_H
+#define __ASM_SH_CHECKSUM_64_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * include/asm-sh64/checksum.h
+ * include/asm-sh/checksum_64.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 
 /*
@@ -76,5 +75,4 @@ static inline __sum16 ip_compute_csum(const void *buff, int len)
 	return csum_fold(csum_partial(buff, len, 0));
 }
 
-#endif /* __ASM_SH64_CHECKSUM_H */
-
+#endif /* __ASM_SH_CHECKSUM_64_H */

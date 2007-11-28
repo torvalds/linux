@@ -1,16 +1,15 @@
-#ifndef __ASM_SH64_CACHE_H
-#define __ASM_SH64_CACHE_H
+#ifndef __ASM_SH_CPU_SH5_CACHE_H
+#define __ASM_SH_CPU_SH5_CACHE_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * include/asm-sh64/cache.h
+ * include/asm-sh/cpu-sh5/cache.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 
 #define L1_CACHE_SHIFT		5
@@ -95,4 +94,4 @@
  * No Instruction Cache defines required, then.
  */
 
-#endif /* __ASM_SH64_CACHE_H */
+#endif /* __ASM_SH_CPU_SH5_CACHE_H */

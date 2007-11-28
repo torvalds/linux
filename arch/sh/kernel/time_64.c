@@ -1,9 +1,5 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/kernel/time.c
+ * arch/sh/kernel/time_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003 - 2007  Paul Mundt
@@ -13,6 +9,10 @@
  *    Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *      Some code taken from i386 version.
  *      Copyright (C) 1991, 1992, 1995  Linus Torvalds
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/errno.h>
 #include <linux/rwsem.h>

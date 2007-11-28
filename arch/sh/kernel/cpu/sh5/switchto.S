@@ -1,5 +1,5 @@
 /*
- * arch/sh64/kernel/switchto.S
+ * arch/sh/kernel/cpu/sh5/switchto.S
  *
  * sh64 context switch
  *

@@ -1,12 +1,8 @@
-#ifndef __ASM_SH64_UACCESS_H
-#define __ASM_SH64_UACCESS_H
+#ifndef __ASM_SH_UACCESS_64_H
+#define __ASM_SH_UACCESS_64_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * include/asm-sh64/uaccess.h
+ * include/asm-sh/uaccess_64.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
@@ -20,8 +16,10 @@
  *              Copyright (C) 1996, 1997, 1998 by Ralf Baechle
  *     and i386 version.
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/errno.h>
 #include <linux/sched.h>
 
@@ -301,4 +299,4 @@ struct exception_table_entry
 extern unsigned long search_exception_table(unsigned long addr);
 extern const struct exception_table_entry *search_exception_tables (unsigned long addr);
 
-#endif /* __ASM_SH64_UACCESS_H */
+#endif /* __ASM_SH_UACCESS_64_H */

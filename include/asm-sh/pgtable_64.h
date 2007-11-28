@@ -1,21 +1,20 @@
-#ifndef __ASM_SH64_PGTABLE_H
-#define __ASM_SH64_PGTABLE_H
+#ifndef __ASM_SH_PGTABLE_64_H
+#define __ASM_SH_PGTABLE_64_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+ * include/asm-sh/pgtable_64.h
  *
- * include/asm-sh64/pgtable.h
+ * This file contains the functions and defines necessary to modify and use
+ * the SuperH page table tree.
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003, 2004  Paul Mundt
  * Copyright (C) 2003, 2004  Richard Curnow
  *
- * This file contains the functions and defines necessary to modify and use
- * the SuperH page table tree.
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/threads.h>
 #include <asm/processor.h>
 #include <asm/page.h>
@@ -297,4 +296,4 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 #define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
-#endif /* __ASM_SH64_PGTABLE_H */
+#endif /* __ASM_SH_PGTABLE_64_H */

@@ -1,5 +1,5 @@
-#ifndef __ASM_SH64_CACHEFLUSH_H
-#define __ASM_SH64_CACHEFLUSH_H
+#ifndef __ASM_SH_CPU_SH5_CACHEFLUSH_H
+#define __ASM_SH_CPU_SH5_CACHEFLUSH_H
 
 #ifndef __ASSEMBLY__
 
@@ -31,5 +31,5 @@ extern void flush_icache_user_range(struct vm_area_struct *vma,
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* __ASM_SH64_CACHEFLUSH_H */
+#endif /* __ASM_SH_CPU_SH5_CACHEFLUSH_H */
 

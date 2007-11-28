@@ -1,5 +1,5 @@
 /*
- * arch/sh64/kernel/syscalls.S
+ * arch/sh/kernel/syscalls_64.S
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2004 - 2007  Paul Mundt

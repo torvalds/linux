@@ -1,15 +1,15 @@
-#ifndef __ASM_SH64_REGISTERS_H
-#define __ASM_SH64_REGISTERS_H
+#ifndef __ASM_SH_CPU_SH5_REGISTERS_H
+#define __ASM_SH_CPU_SH5_REGISTERS_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * include/asm-sh64/registers.h
+ * include/asm-sh/cpu-sh5/registers.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2004  Richard Curnow
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 
 #ifdef __ASSEMBLY__
@@ -103,4 +103,4 @@
 #define __USR __str(USR)
 
 #endif /* __ASSEMBLY__ */
-#endif /* __ASM_SH64_REGISTERS_H */
+#endif /* __ASM_SH_CPU_SH5_REGISTERS_H */

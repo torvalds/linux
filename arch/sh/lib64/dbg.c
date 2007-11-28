@@ -2,7 +2,7 @@
 --
 -- Identity : Linux50 Debug Funcions
 --
--- File     : arch/sh64/lib/dbg.C
+-- File     : arch/sh/lib64/dbg.c
 --
 -- Copyright 2000, 2001 STMicroelectronics Limited.
 -- Copyright 2004 Richard Curnow (evt_debug etc)

@@ -1,5 +1,5 @@
 /*
- * arch/sh64/mm/tlb.c
+ * arch/sh/mm/tlb-sh5.c
  *
  * Copyright (C) 2003  Paul Mundt <lethal@linux-sh.org>
  * Copyright (C) 2003  Richard Curnow <richard.curnow@superh.com>
@@ -7,7 +7,6 @@
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
- *
  */
 #include <linux/mm.h>
 #include <linux/init.h>
@@ -163,4 +162,3 @@ inline void sh64_setup_tlb_slot(unsigned long long config_addr,
  */
 inline void sh64_teardown_tlb_slot(unsigned long long config_addr)
 	__attribute__ ((alias("__flush_tlb_slot")));
-

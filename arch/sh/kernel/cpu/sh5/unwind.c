@@ -1,5 +1,5 @@
 /*
- * arch/sh64/kernel/unwind.c
+ * arch/sh/kernel/cpu/sh5/unwind.c
  *
  * Copyright (C) 2004  Paul Mundt
  * Copyright (C) 2004  Richard Curnow

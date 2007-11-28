@@ -1,9 +1,5 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/kernel/fpu.c
+ * arch/sh/kernel/cpu/sh5/fpu.c
  *
  * Copyright (C) 2001  Manuela Cirronis, Paolo Alberelli
  * Copyright (C) 2002  STMicroelectronics Limited
@@ -12,8 +8,10 @@
  * Started from SH4 version:
  *   Copyright (C) 1999, 2000  Kaz Kojima & Niibe Yutaka
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <asm/processor.h>

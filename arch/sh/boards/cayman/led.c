@@ -1,5 +1,5 @@
 /*
- * arch/sh64/mach-cayman/led.c
+ * arch/sh/boards/cayman/led.c
  *
  * Copyright (C) 2002 Stuart Menefy <stuart.menefy@st.com>
  *

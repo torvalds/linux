@@ -1,21 +1,19 @@
-#ifndef __ASM_SH64_UNISTD_H
-#define __ASM_SH64_UNISTD_H
+#ifndef __ASM_SH_UNISTD_64_H
+#define __ASM_SH_UNISTD_64_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
+ * include/asm-sh/unistd_64.h
  *
- * include/asm-sh64/unistd.h
+ * This file contains the system call numbers.
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  * Copyright (C) 2003 - 2007 Paul Mundt
  * Copyright (C) 2004  Sean McGoogan
  *
- * This file contains the system call numbers.
- *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
 #define __NR_restart_syscall	  0
 #define __NR_exit		  1
 #define __NR_fork		  2
@@ -414,4 +412,4 @@
 #endif
 
 #endif /* __KERNEL__ */
-#endif /* __ASM_SH64_UNISTD_H */
+#endif /* __ASM_SH_UNISTD_64_H */

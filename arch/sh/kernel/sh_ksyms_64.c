@@ -1,12 +1,11 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/kernel/sh_ksyms.c
+ * arch/sh/kernel/sh_ksyms_64.c
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/rwsem.h>
 #include <linux/module.h>

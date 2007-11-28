@@ -1,15 +1,14 @@
-#ifndef __ASM_SH64_IRQ_H
-#define __ASM_SH64_IRQ_H
+#ifndef __ASM_SH_CPU_SH5_IRQ_H
+#define __ASM_SH_CPU_SH5_IRQ_H
 
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * include/asm-sh64/irq.h
+ * include/asm-sh/cpu-sh5/irq.h
  *
  * Copyright (C) 2000, 2001  Paolo Alberelli
  *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 
 
@@ -115,4 +114,4 @@ extern int intc_evt_to_irq[(0xE20/0x20)+1];
 int intc_irq_describe(char* p, int irq);
 extern int platform_int_priority[NR_INTC_IRQS];
 
-#endif /* __ASM_SH64_IRQ_H */
+#endif /* __ASM_SH_CPU_SH5_IRQ_H */

@@ -1,18 +1,15 @@
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * arch/sh64/mm/cache.c
+ * arch/sh/mm/cache-sh5.c
  *
  * Original version Copyright (C) 2000, 2001  Paolo Alberelli
  * Second version Copyright (C) benedict.gaster@superh.com 2002
  * Third version Copyright Richard.Curnow@superh.com 2003
  * Hacks to third version Copyright (C) 2003 Paul Mundt
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
-
-/****************************************************************************/
-
 #include <linux/init.h>
 #include <linux/mman.h>
 #include <linux/mm.h>
@@ -146,7 +143,7 @@ int __init sh64_cache_init(void)
 /* The following group of functions deal with mapping and unmapping a temporary
    page into the DTLB slot that have been set aside for our exclusive use. */
 /* In order to accomplish this, we use the generic interface for adding and
-   removing a wired slot entry as defined in arch/sh64/mm/tlb.c */
+   removing a wired slot entry as defined in arch/sh/mm/tlb-sh5.c */
 /****************************************************************************/
 
 static unsigned long slot_own_flags;

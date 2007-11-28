@@ -1,14 +1,14 @@
 #
-# linux/arch/sh64/boot/compressed/Makefile
+# arch/sh/boot/compressed/Makefile_64
 #
-# This file is subject to the terms and conditions of the GNU General Public
-# License.  See the file "COPYING" in the main directory of this archive
-# for more details.
+# create a compressed vmlinux image from the original vmlinux
 #
 # Copyright (C) 2002 Stuart Menefy
 # Copyright (C) 2004 Paul Mundt
 #
-# create a compressed vmlinux image from the original vmlinux
+# This file is subject to the terms and conditions of the GNU General Public
+# License.  See the file "COPYING" in the main directory of this archive
+# for more details.
 #
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \

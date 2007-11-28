@@ -1,5 +1,5 @@
 /*
- * arch/sh64/boot/compressed/misc.c
+ * arch/sh/boot/compressed/misc_64.c
  *
  * This is a collection of several routines from gzip-1.0.3
  * adapted for Linux.
