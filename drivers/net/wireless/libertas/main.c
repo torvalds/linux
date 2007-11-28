@@ -521,7 +521,7 @@ static int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int ret = 0;
 	struct lbs_private *priv = dev->priv;
 
-	lbs_deb_enter(LBS_DEB_NET);
+	lbs_deb_enter(LBS_DEB_TX);
 
 	if (priv->dnld_sent || priv->adapter->TxLockFlag) {
 		priv->stats.tx_dropped++;
@@ -535,7 +535,7 @@ static int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (lbs_process_tx(priv, skb) == 0)
 		dev->trans_start = jiffies;
 done:
-	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
 }
 
@@ -571,7 +571,7 @@ static int lbs_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct lbs_private *priv = dev->priv;
 	int ret;
 
-	lbs_deb_enter(LBS_DEB_NET);
+	lbs_deb_enter(LBS_DEB_TX);
 
 	if (priv->adapter->monitormode != LBS_MONITOR_OFF) {
 		netif_stop_queue(dev);
@@ -581,7 +581,7 @@ static int lbs_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	UNSET_MESH_FRAME(skb);
 
 	ret = lbs_hard_start_xmit(skb, dev);
-	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
 }
 
