@@ -64,7 +64,6 @@
 #define RX_LE_BYTES		(RX_LE_SIZE*sizeof(struct sky2_rx_le))
 #define RX_MAX_PENDING		(RX_LE_SIZE/6 - 2)
 #define RX_DEF_PENDING		RX_MAX_PENDING
-#define RX_SKB_ALIGN		8
 
 #define TX_RING_SIZE		512
 #define TX_DEF_PENDING		(TX_RING_SIZE - 1)
@@ -1174,24 +1173,32 @@ static void sky2_vlan_rx_register(struct net_device *dev, struct vlan_group *grp
 /*
  * Allocate an skb for receiving. If the MTU is large enough
  * make the skb non-linear with a fragment list of pages.
- *
- * It appears the hardware has a bug in the FIFO logic that
- * cause it to hang if the FIFO gets overrun and the receive buffer
- * is not 64 byte aligned. The buffer returned from netdev_alloc_skb is
- * aligned except if slab debugging is enabled.
  */
 static struct sk_buff *sky2_rx_alloc(struct sky2_port *sky2)
 {
 	struct sk_buff *skb;
-	unsigned long p;
 	int i;
 
-	skb = netdev_alloc_skb(sky2->netdev, sky2->rx_data_size + RX_SKB_ALIGN);
-	if (!skb)
-		goto nomem;
-
-	p = (unsigned long) skb->data;
-	skb_reserve(skb, ALIGN(p, RX_SKB_ALIGN) - p);
+	if (sky2->hw->flags & SKY2_HW_FIFO_HANG_CHECK) {
+		unsigned char *start;
+		/*
+		 * Workaround for a bug in FIFO that cause hang
+		 * if the FIFO if the receive buffer is not 64 byte aligned.
+		 * The buffer returned from netdev_alloc_skb is
+		 * aligned except if slab debugging is enabled.
+		 */
+		skb = netdev_alloc_skb(sky2->netdev, sky2->rx_data_size + 8);
+		if (!skb)
+			goto nomem;
+		start = PTR_ALIGN(skb->data, 8);
+		skb_reserve(skb, start - skb->data);
+	} else {
+		skb = netdev_alloc_skb(sky2->netdev,
+				       sky2->rx_data_size + NET_IP_ALIGN);
+		if (!skb)
+			goto nomem;
+		skb_reserve(skb, NET_IP_ALIGN);
+	}
 
 	for (i = 0; i < sky2->rx_nfrags; i++) {
 		struct page *page = alloc_page(GFP_ATOMIC);
