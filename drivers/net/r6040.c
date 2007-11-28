@@ -260,7 +260,7 @@ static void rx_buf_alloc(struct r6040_private *lp, struct net_device *dev)
 		if (!descptr->skb_ptr)
 			break;
 		descptr->buf = cpu_to_le32(pci_map_single(lp->pdev,
-			descptr->skb_ptr->tail,
+			descptr->skb_ptr->data,
 			MAX_BUF_SIZE, PCI_DMA_FROMDEVICE));
 		descptr->status = 0x8000;
 		descptr = descptr->vndescp;
