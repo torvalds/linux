@@ -165,11 +165,11 @@ static void remove_slot(struct dummy_slot *dslot)
 }
 
 /**
- * Rescan slot.
- * Tries hard not to re-enable already existing devices
- * also handles scanning of subfunctions
+ * pci_rescan_slot - Rescan slot
+ * @temp: Device template. Should be set: bus and devfn.
  *
- * @param temp   Device template. Should be set: bus and devfn.
+ * Tries hard not to re-enable already existing devices;
+ * also handles scanning of subfunctions.
  */
 static void pci_rescan_slot(struct pci_dev *temp)
 {
@@ -229,10 +229,10 @@ static void pci_rescan_slot(struct pci_dev *temp)
 
 
 /**
- * Rescan PCI bus.
- * call pci_rescan_slot for each possible function of the bus
+ * pci_rescan_bus - Rescan PCI bus
+ * @bus: the PCI bus to rescan
  *
- * @param bus
+ * Call pci_rescan_slot for each possible function of the bus.
  */
 static void pci_rescan_bus(const struct pci_bus *bus)
 {

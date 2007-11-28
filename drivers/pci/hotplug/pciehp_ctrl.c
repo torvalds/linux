@@ -208,10 +208,10 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
 
 /**
  * board_added - Called after a board has been added to the system.
+ * @p_slot: &slot where board is added
  *
- * Turns power on for the board
- * Configures board
- *
+ * Turns power on for the board.
+ * Configures board.
  */
 static int board_added(struct slot *p_slot)
 {
@@ -276,8 +276,8 @@ err_exit:
 }
 
 /**
- * remove_board - Turns off slot and LED's
- *
+ * remove_board - Turns off slot and LEDs
+ * @p_slot: slot where board is being removed
  */
 static int remove_board(struct slot *p_slot)
 {
@@ -319,11 +319,11 @@ struct power_work_info {
 };
 
 /**
- * pciehp_pushbutton_thread
+ * pciehp_power_thread - handle pushbutton events
+ * @work: &struct work_struct describing work to be done
  *
- * Scheduled procedure to handle blocking stuff for the pushbuttons
+ * Scheduled procedure to handle blocking stuff for the pushbuttons.
  * Handles all pending events and exits.
- *
  */
 static void pciehp_power_thread(struct work_struct *work)
 {

@@ -134,11 +134,11 @@ static struct acpiphp_attention_info ibm_attention_info =
  * ibm_slot_from_id - workaround for bad ibm hardware
  * @id: the slot number that linux refers to the slot by
  *
- * Description: this method returns the aCPI slot descriptor
+ * Description: This method returns the aCPI slot descriptor
  * corresponding to the Linux slot number.  This descriptor
  * has info about the aPCI slot id and attention status.
  * This descriptor must be freed using kfree when done.
- **/
+ */
 static union apci_descriptor *ibm_slot_from_id(int id)
 {
 	int ind = 0, size;
@@ -173,9 +173,9 @@ ibm_slot_done:
  * @slot: the hotplug_slot to work with
  * @status: what to set the LED to (0 or 1)
  *
- * Description: this method is registered with the acpiphp module as a
- * callback to do the device specific task of setting the LED status
- **/
+ * Description: This method is registered with the acpiphp module as a
+ * callback to do the device specific task of setting the LED status.
+ */
 static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
 {
 	union acpi_object args[2]; 
@@ -213,13 +213,13 @@ static int ibm_set_attention_status(struct hotplug_slot *slot, u8 status)
  * @slot: the hotplug_slot to work with
  * @status: returns what the LED is set to (0 or 1)
  *
- * Description: this method is registered with the acpiphp module as a
- * callback to do the device specific task of getting the LED status
+ * Description: This method is registered with the acpiphp module as a
+ * callback to do the device specific task of getting the LED status.
  * 
  * Because there is no direct method of getting the LED status directly
  * from an ACPI call, we read the aPCI table and parse out our
  * slot descriptor to read the status from that.
- **/
+ */
 static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status)
 {
 	union apci_descriptor *ibm_slot;
@@ -245,8 +245,8 @@ static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status)
  * @event: the event info (device specific)
  * @context: passed context (our notification struct)
  *
- * Description: this method is registered as a callback with the ACPI
- * subsystem it is called when this device has an event to notify the OS of
+ * Description: This method is registered as a callback with the ACPI
+ * subsystem it is called when this device has an event to notify the OS of.
  *
  * The events actually come from the device as two events that get
  * synthesized into one event with data by this function.  The event
@@ -256,7 +256,7 @@ static int ibm_get_attention_status(struct hotplug_slot *slot, u8 *status)
  * From section 5.6.2.2 of the ACPI 2.0 spec, I understand that the OSPM will
  * only re-enable the interrupt that causes this event AFTER this method
  * has returned, thereby enforcing serial access for the notification struct.
- **/
+ */
 static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
 {
 	u8 detail = event & 0x0f;
@@ -279,16 +279,16 @@ static void ibm_handle_events(acpi_handle handle, u32 event, void *context)
  * ibm_get_table_from_acpi - reads the APLS buffer from ACPI
  * @bufp: address to pointer to allocate for the table
  *
- * Description: this method reads the APLS buffer in from ACPI and
+ * Description: This method reads the APLS buffer in from ACPI and
  * stores the "stripped" table into a single buffer
- * it allocates and passes the address back in bufp
+ * it allocates and passes the address back in bufp.
  *
  * If NULL is passed in as buffer, this method only calculates
  * the size of the table and returns that without filling
- * in the buffer
+ * in the buffer.
  *
- * returns < 0 on error or the size of the table on success
- **/
+ * Returns < 0 on error or the size of the table on success.
+ */
 static int ibm_get_table_from_acpi(char **bufp)
 {
 	union acpi_object *package;
@@ -349,17 +349,18 @@ read_table_done:
 /**
  * ibm_read_apci_table - callback for the sysfs apci_table file
  * @kobj: the kobject this binary attribute is a part of
+ * @bin_attr: struct bin_attribute for this file
  * @buffer: the kernel space buffer to fill
  * @pos: the offset into the file
  * @size: the number of bytes requested
  *
- * Description: gets registered with sysfs as the reader callback
- * to be executed when /sys/bus/pci/slots/apci_table gets read
+ * Description: Gets registered with sysfs as the reader callback
+ * to be executed when /sys/bus/pci/slots/apci_table gets read.
  *
  * Since we don't get notified on open and close for this file,
  * things get really tricky here...
- * our solution is to only allow reading the table in all at once
- **/
+ * our solution is to only allow reading the table in all at once.
+ */
 static ssize_t ibm_read_apci_table(struct kobject *kobj,
 				   struct bin_attribute *bin_attr,
 				   char *buffer, loff_t pos, size_t size)
@@ -385,10 +386,10 @@ static ssize_t ibm_read_apci_table(struct kobject *kobj,
  * @context: a pointer to our handle to fill when we find the device
  * @rv: a return value to fill if desired
  *
- * Description: used as a callback when calling acpi_walk_namespace
+ * Description: Used as a callback when calling acpi_walk_namespace
  * to find our device.  When this method returns non-zero
- * acpi_walk_namespace quits its search and returns our value
- **/
+ * acpi_walk_namespace quits its search and returns our value.
+ */
 static acpi_status __init ibm_find_acpi_device(acpi_handle handle,
 		u32 lvl, void *context, void **rv)
 {
