@@ -31,7 +31,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	if (adapter->connect_status != LBS_CONNECTED)
 		return;
 
-	lbs_deb_enter(LBS_DEB_CMD);
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	memset(wrqu.ap_addr.sa_data, 0x00, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -60,11 +60,6 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	memset(adapter->rawNF, 0x00, sizeof(adapter->rawNF));
 	adapter->nextSNRNF = 0;
 	adapter->numSNRNF = 0;
-	lbs_deb_cmd("current SSID '%s', length %u\n",
-	            escape_essid(adapter->curbssparams.ssid,
-	                         adapter->curbssparams.ssid_len),
-	            adapter->curbssparams.ssid_len);
-
 	adapter->connect_status = LBS_DISCONNECTED;
 
 	/* Clear out associated SSID and BSSID since connection is

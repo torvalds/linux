@@ -638,20 +638,19 @@ void lbs_association_worker(struct work_struct *work)
 
 		ret = assoc_helper_associate(priv, assoc_req);
 		if (ret) {
-			lbs_deb_assoc("ASSOC: association attempt unsuccessful: %d\n",
+			lbs_deb_assoc("ASSOC: association unsuccessful: %d\n",
 				ret);
 			success = 0;
 		}
 
 		if (adapter->connect_status != LBS_CONNECTED) {
-			lbs_deb_assoc("ASSOC: association attempt unsuccessful, "
-				"not connected.\n");
+			lbs_deb_assoc("ASSOC: association unsuccessful, "
+				"not connected\n");
 			success = 0;
 		}
 
 		if (success) {
-			lbs_deb_assoc("ASSOC: association attempt successful. "
-				"Associated to '%s' (%s)\n",
+			lbs_deb_assoc("ASSOC: associated to '%s', %s\n",
 				escape_essid(adapter->curbssparams.ssid,
 				             adapter->curbssparams.ssid_len),
 				print_mac(mac, adapter->curbssparams.bssid));

@@ -57,7 +57,7 @@ static int get_common_rates(struct lbs_adapter *adapter,
 	lbs_deb_hex(LBS_DEB_JOIN, "AP rates    ", rates, *rates_size);
 	lbs_deb_hex(LBS_DEB_JOIN, "card rates  ", card_rates, num_card_rates);
 	lbs_deb_hex(LBS_DEB_JOIN, "common rates", tmp, tmp_size);
-	lbs_deb_join("Tx datarate is currently 0x%X\n", adapter->cur_rate);
+	lbs_deb_join("TX data rate 0x%02x\n", adapter->cur_rate);
 
 	if (!adapter->auto_rate) {
 		for (i = 0; i < tmp_size; i++) {
@@ -128,7 +128,7 @@ int lbs_associate(struct lbs_private *priv, struct assoc_request *assoc_req)
 	struct lbs_adapter *adapter = priv->adapter;
 	int ret;
 
-	lbs_deb_enter(LBS_DEB_JOIN);
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	ret = lbs_prepare_and_send_command(priv, CMD_802_11_AUTHENTICATE,
 				    0, CMD_OPTION_WAITFORRSP,
@@ -150,7 +150,7 @@ int lbs_associate(struct lbs_private *priv, struct assoc_request *assoc_req)
 				    0, CMD_OPTION_WAITFORRSP, 0, assoc_req);
 
 done:
-	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -324,7 +324,7 @@ int lbs_cmd_80211_authenticate(struct lbs_private *priv,
 
 	memcpy(pauthenticate->macaddr, bssid, ETH_ALEN);
 
-	lbs_deb_join("AUTH_CMD: BSSID is : %s auth=0x%X\n",
+	lbs_deb_join("AUTH_CMD: BSSID %s, auth 0x%x\n",
 	             print_mac(mac, bssid), pauthenticate->authtype);
 	ret = 0;
 
@@ -372,7 +372,7 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	struct mrvlietypes_ratesparamset *rates;
 	struct mrvlietypes_rsnparamset *rsn;
 
-	lbs_deb_enter(LBS_DEB_JOIN);
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	pos = (u8 *) passo;
 
@@ -426,7 +426,7 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	}
 	pos += sizeof(rates->header) + tmplen;
 	rates->header.len = cpu_to_le16(tmplen);
-	lbs_deb_join("ASSOC_CMD: num rates = %u\n", tmplen);
+	lbs_deb_assoc("ASSOC_CMD: num rates %u\n", tmplen);
 
 	/* Copy the infra. association rates into Current BSS state structure */
 	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));
@@ -464,11 +464,10 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	if (bss->mode == IW_MODE_INFRA)
 		tmpcap |= WLAN_CAPABILITY_ESS;
 	passo->capability = cpu_to_le16(tmpcap);
-	lbs_deb_join("ASSOC_CMD: capability=%4X CAPINFO_MASK=%4X\n",
-		     tmpcap, CAPINFO_MASK);
+	lbs_deb_assoc("ASSOC_CMD: capability 0x%04x\n", tmpcap);
 
 done:
-	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -708,10 +707,10 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 	struct bss_descriptor * bss;
 	u16 status_code;
 
-	lbs_deb_enter(LBS_DEB_JOIN);
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	if (!adapter->in_progress_assoc_req) {
-		lbs_deb_join("ASSOC_RESP: no in-progress association request\n");
+		lbs_deb_assoc("ASSOC_RESP: no in-progress assoc request\n");
 		ret = -1;
 		goto done;
 	}
@@ -740,30 +739,25 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 	status_code = le16_to_cpu(passocrsp->statuscode);
 	switch (status_code) {
 	case 0x00:
-		lbs_deb_join("ASSOC_RESP: Association succeeded\n");
 		break;
 	case 0x01:
-		lbs_deb_join("ASSOC_RESP: Association failed; invalid "
-		             "parameters (status code %d)\n", status_code);
+		lbs_deb_assoc("ASSOC_RESP: invalid parameters\n");
 		break;
 	case 0x02:
-		lbs_deb_join("ASSOC_RESP: Association failed; internal timer "
-		             "expired while waiting for the AP (status code %d)"
-		             "\n", status_code);
+		lbs_deb_assoc("ASSOC_RESP: internal timer "
+			"expired while waiting for the AP\n");
 		break;
 	case 0x03:
-		lbs_deb_join("ASSOC_RESP: Association failed; association "
-		             "was refused by the AP (status code %d)\n",
-		             status_code);
+		lbs_deb_assoc("ASSOC_RESP: association "
+			"refused by AP\n");
 		break;
 	case 0x04:
-		lbs_deb_join("ASSOC_RESP: Association failed; authentication "
-		             "was refused by the AP (status code %d)\n",
-		             status_code);
+		lbs_deb_assoc("ASSOC_RESP: authentication "
+			"refused by AP\n");
 		break;
 	default:
-		lbs_deb_join("ASSOC_RESP: Association failed; reason unknown "
-		             "(status code %d)\n", status_code);
+		lbs_deb_assoc("ASSOC_RESP: failure reason 0x%02x "
+			" unknown\n", status_code);
 		break;
 	}
 
@@ -773,22 +767,19 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 		goto done;
 	}
 
-	lbs_deb_hex(LBS_DEB_JOIN, "ASSOC_RESP", (void *)&resp->params,
+	lbs_deb_hex(LBS_DEB_ASSOC, "ASSOC_RESP", (void *)&resp->params,
 		le16_to_cpu(resp->size) - S_DS_GEN);
 
 	/* Send a Media Connected event, according to the Spec */
 	adapter->connect_status = LBS_CONNECTED;
-
-	lbs_deb_join("ASSOC_RESP: assocated to '%s'\n",
-	             escape_essid(bss->ssid, bss->ssid_len));
 
 	/* Update current SSID and BSSID */
 	memcpy(&adapter->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
 	adapter->curbssparams.ssid_len = bss->ssid_len;
 	memcpy(adapter->curbssparams.bssid, bss->bssid, ETH_ALEN);
 
-	lbs_deb_join("ASSOC_RESP: currentpacketfilter is %x\n",
-	       adapter->currentpacketfilter);
+	lbs_deb_assoc("ASSOC_RESP: currentpacketfilter is 0x%x\n",
+		adapter->currentpacketfilter);
 
 	adapter->SNR[TYPE_RXPD][TYPE_AVG] = 0;
 	adapter->NF[TYPE_RXPD][TYPE_AVG] = 0;
@@ -807,7 +798,7 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 done:
-	lbs_deb_leave_args(LBS_DEB_JOIN, "ret %d", ret);
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
