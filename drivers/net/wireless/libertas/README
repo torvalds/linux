@@ -201,15 +201,14 @@ setuserscan
       ssid="[SSID]"            specify a SSID filter for the scan
       keep=[0 or 1]            keep the previous scan results (1), discard (0)
       dur=[scan time]          time to scan for each channel in milliseconds
-      probes=[#]               number of probe requests to send on each chan
       type=[1,2,3]             BSS type: 1 (Infra), 2(Adhoc), 3(Any)
 
-    Any combination of the above arguments can be supplied on the command line.
-      If the chan token is absent, a full channel scan will be completed by
-      the driver.  If the dur or probes tokens are absent, the driver default
-      setting will be used.  The bssid and ssid fields, if blank,
-      will produce an unfiltered scan. The type field will default to 3 (Any)
-      and the keep field will default to 0 (Discard).
+    Any combination of the above arguments can be supplied on the command
+      line.  If the chan token is absent, a full channel scan will be
+      completed by the driver.  If dur tokens are absent, the driver default
+      setting will be used.  The bssid and ssid fields, if blank, will
+      produce an unfiltered scan. The type field will default to 3 (Any) and
+      the keep field will default to 0 (Discard).
 
     Examples:
     1) Perform an active scan on channels 1, 6, and 11 in the 'g' band:
@@ -230,10 +229,10 @@ setuserscan
        the current scan table intact, update existing or append new scan data:
             echo "bssid=00:50:43:20:12:82 keep=1" > setuserscan
 
-    6) Scan channel 6, for all infrastructure networks, sending two probe
-       requests.  Keep the previous scan table intact. Update any duplicate
-       BSSID/SSID matches with the new scan data:
-            echo "chan=6g type=1 probes=2 keep=1" > setuserscan
+    6) Scan channel 6, for all infrastructure networks.
+       Keep the previous scan table intact. Update any duplicate BSSID/SSID
+       matches with the new scan data:
+            echo "chan=6g type=1 keep=1" > setuserscan
 
     All entries in the scan table (not just the new scan data when keep=1)
     will be displayed upon completion by use of the getscantable ioctl.

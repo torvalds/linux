@@ -41,7 +41,6 @@
 
 //! Maximum memory needed for a lbs_scan_cmd_config with all TLVs at max
 #define MAX_SCAN_CFG_ALLOC (sizeof(struct lbs_scan_cmd_config)  \
-                            + sizeof(struct mrvlietypes_numprobes)   \
                             + CHAN_TLV_MAX_SIZE                 \
                             + SSID_TLV_MAX_SIZE)
 
@@ -385,7 +384,6 @@ void lbs_scan_worker(struct work_struct *work)
  *             - channel list
  *
  *  If the SSID or BSSID filter is not present, disable/clear the filter.
- *  If the number of probes is not set, use the adapter default setting
  *  Qualify the channel
  *
  *  @param priv             A pointer to struct lbs_private structure
@@ -415,11 +413,9 @@ lbs_scan_setup_scan_config(struct lbs_private *priv,
 			    u8 * pfilteredscan,
 			    u8 * pscancurrentonly)
 {
-	struct mrvlietypes_numprobes *pnumprobestlv;
 	struct mrvlietypes_ssidparamset *pssidtlv;
 	struct lbs_scan_cmd_config *pscancfgout = NULL;
 	u8 *ptlvpos;
-	u16 numprobes;
 	int chanidx;
 	int scantype;
 	int scandur;
@@ -468,9 +464,6 @@ lbs_scan_setup_scan_config(struct lbs_private *priv,
 		pscancfgout->bsstype =
 		    puserscanin->bsstype ? puserscanin->bsstype : CMD_BSS_TYPE_ANY;
 
-		/* Set the number of probes to send, use adapter setting if unset */
-		numprobes = puserscanin->numprobes ? puserscanin->numprobes : 0;
-
 		/*
 		 * Set the BSSID filter to the incoming configuration,
 		 *   if non-zero.  If not set, it will remain disabled (all zeros).
@@ -502,22 +495,11 @@ lbs_scan_setup_scan_config(struct lbs_private *priv,
 		}
 	} else {
 		pscancfgout->bsstype = CMD_BSS_TYPE_ANY;
-		numprobes = 0;
-	}
-
-	/* If the input config or adapter has the number of Probes set, add tlv */
-	if (numprobes) {
-		pnumprobestlv = (struct mrvlietypes_numprobes *) ptlvpos;
-		pnumprobestlv->header.type = cpu_to_le16(TLV_TYPE_NUMPROBES);
-		pnumprobestlv->header.len = cpu_to_le16(2);
-		pnumprobestlv->numprobes = cpu_to_le16(numprobes);
-
-		ptlvpos += sizeof(*pnumprobestlv);
 	}
 
 	/*
 	 * Set the output for the channel TLV to the address in the tlv buffer
-	 *   past any TLVs that were added in this fuction (SSID, numprobes).
+	 *   past any TLVs that were added in this fuction (SSID).
 	 *   channel TLVs will be added past this for each scan command, preserving
 	 *   the TLVs that were previously added.
 	 */

@@ -300,23 +300,6 @@ static int lbs_parse_dur(char *buf, size_t count,
 	return val;
 }
 
-static void lbs_parse_probes(char *buf, size_t count,
-	struct lbs_ioctl_user_scan_cfg *scan_cfg)
-{
-	char *hold;
-	int val;
-
-	hold = strstr(buf, "probes=");
-	if (!hold)
-		return;
-	hold += 7;
-	sscanf(hold, "%d", &val);
-
-	scan_cfg->numprobes = val;
-
-	return;
-}
-
 static void lbs_parse_type(char *buf, size_t count,
 	struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
@@ -368,7 +351,6 @@ static ssize_t lbs_setuserscan(struct file *file,
 	scan_cfg->clear_bssid = lbs_parse_clear(buf, count, "clear_bssid=");
 	lbs_parse_ssid(buf, count, scan_cfg);
 	scan_cfg->clear_ssid = lbs_parse_clear(buf, count, "clear_ssid=");
-	lbs_parse_probes(buf, count, scan_cfg);
 	lbs_parse_type(buf, count, scan_cfg);
 
 	lbs_scan_networks(priv, scan_cfg, 1);

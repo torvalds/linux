@@ -105,11 +105,6 @@ struct lbs_ioctl_user_scan_cfg {
      */
 	u8 bsstype;
 
-    /**
-     *  @brief Configure the number of probe requests for active chan scans
-     */
-	u8 numprobes;
-
 	/**
 	 *  @brief BSSID filter sent in the firmware command to limit the results
 	 */
