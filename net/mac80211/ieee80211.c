@@ -216,6 +216,7 @@ static int ieee80211_open(struct net_device *dev)
 			res = local->ops->start(local_to_hw(local));
 		if (res)
 			return res;
+		ieee80211_hw_config(local);
 	}
 
 	switch (sdata->type) {
@@ -232,7 +233,6 @@ static int ieee80211_open(struct net_device *dev)
 			netif_tx_unlock_bh(local->mdev);
 
 			local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
-			ieee80211_hw_config(local);
 		}
 		break;
 	case IEEE80211_IF_TYPE_STA:
@@ -311,8 +311,7 @@ static int ieee80211_stop(struct net_device *dev)
 			ieee80211_configure_filter(local);
 			netif_tx_unlock_bh(local->mdev);
 
-			local->hw.conf.flags |= IEEE80211_CONF_RADIOTAP;
-			ieee80211_hw_config(local);
+			local->hw.conf.flags &= ~IEEE80211_CONF_RADIOTAP;
 		}
 		break;
 	case IEEE80211_IF_TYPE_STA:
