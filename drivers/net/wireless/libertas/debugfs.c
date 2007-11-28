@@ -196,43 +196,6 @@ out_unlock:
 	return count;
 }
 
-static int lbs_parse_chan(char *buf, size_t count,
-			struct lbs_ioctl_user_scan_cfg *scan_cfg, int dur)
-{
-	char *start, *end, *hold, *str;
-	int i = 0;
-
-	start = strstr(buf, "chan=");
-	if (!start)
-		return -EINVAL;
-	start += 5;
-	end = strchr(start, ' ');
-	if (!end)
-		end = buf + count;
-	hold = kzalloc((end - start)+1, GFP_KERNEL);
-	if (!hold)
-		return -ENOMEM;
-	strncpy(hold, start, end - start);
-	hold[(end-start)+1] = '\0';
-	while(hold && (str = strsep(&hold, ","))) {
-		int chan;
-		char band, passive = 0;
-		sscanf(str, "%d%c%c", &chan, &band, &passive);
-		scan_cfg->chanlist[i].channumber = chan;
-		scan_cfg->chanlist[i].scantype = passive ? 1 : 0;
-		if (band == 'b' || band == 'g')
-			scan_cfg->chanlist[i].radiotype = 0;
-		else if (band == 'a')
-			scan_cfg->chanlist[i].radiotype = 1;
-
-		scan_cfg->chanlist[i].scantime = dur;
-		i++;
-	}
-
-	kfree(hold);
-	return i;
-}
-
 static void lbs_parse_bssid(char *buf, size_t count,
 	struct lbs_ioctl_user_scan_cfg *scan_cfg)
 {
@@ -346,7 +309,6 @@ static ssize_t lbs_setuserscan(struct file *file,
 	scan_cfg->bsstype = LBS_SCAN_BSS_TYPE_ANY;
 
 	dur = lbs_parse_dur(buf, count, scan_cfg);
-	lbs_parse_chan(buf, count, scan_cfg, dur);
 	lbs_parse_bssid(buf, count, scan_cfg);
 	scan_cfg->clear_bssid = lbs_parse_clear(buf, count, "clear_bssid=");
 	lbs_parse_ssid(buf, count, scan_cfg);

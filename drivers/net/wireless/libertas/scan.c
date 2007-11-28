@@ -416,11 +416,6 @@ lbs_scan_setup_scan_config(struct lbs_private *priv,
 	struct mrvlietypes_ssidparamset *pssidtlv;
 	struct lbs_scan_cmd_config *pscancfgout = NULL;
 	u8 *ptlvpos;
-	int chanidx;
-	int scantype;
-	int scandur;
-	int channel;
-	int radiotype;
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
@@ -505,58 +500,8 @@ lbs_scan_setup_scan_config(struct lbs_private *priv,
 	 */
 	*ppchantlvout = (struct mrvlietypes_chanlistparamset *) ptlvpos;
 
-	if (!puserscanin || !puserscanin->chanlist[0].channumber) {
-		/* Create a default channel scan list */
-		lbs_deb_scan("creating full region channel list\n");
-		lbs_scan_create_channel_list(priv, pscanchanlist,
-					      *pfilteredscan);
-		goto out;
-	}
-
-	for (chanidx = 0;
-	     chanidx < LBS_IOCTL_USER_SCAN_CHAN_MAX
-	     && puserscanin->chanlist[chanidx].channumber; chanidx++) {
-
-		channel = puserscanin->chanlist[chanidx].channumber;
-		(pscanchanlist + chanidx)->channumber = channel;
-
-		radiotype = puserscanin->chanlist[chanidx].radiotype;
-		(pscanchanlist + chanidx)->radiotype = radiotype;
-
-		scantype = puserscanin->chanlist[chanidx].scantype;
-
-		if (scantype == CMD_SCAN_TYPE_PASSIVE) {
-			(pscanchanlist +
-			 chanidx)->chanscanmode.passivescan = 1;
-		} else {
-			(pscanchanlist +
-			 chanidx)->chanscanmode.passivescan = 0;
-		}
-
-		if (puserscanin->chanlist[chanidx].scantime) {
-			scandur = puserscanin->chanlist[chanidx].scantime;
-		} else {
-			if (scantype == CMD_SCAN_TYPE_PASSIVE) {
-				scandur = MRVDRV_PASSIVE_SCAN_CHAN_TIME;
-			} else {
-				scandur = MRVDRV_ACTIVE_SCAN_CHAN_TIME;
-			}
-		}
-
-		(pscanchanlist + chanidx)->minscantime =
-		    cpu_to_le16(scandur);
-		(pscanchanlist + chanidx)->maxscantime =
-		    cpu_to_le16(scandur);
-	}
-
-	/* Check if we are only scanning the current channel */
-	if ((chanidx == 1) &&
-	    (puserscanin->chanlist[0].channumber ==
-			       priv->adapter->curbssparams.channel)) {
-		*pscancurrentonly = 1;
-		lbs_deb_scan("scanning current channel only");
-	}
-
+	lbs_scan_create_channel_list(priv, pscanchanlist,
+				      *pfilteredscan);
 out:
 	return pscancfgout;
 }

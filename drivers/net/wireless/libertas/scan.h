@@ -121,11 +121,6 @@ struct lbs_ioctl_user_scan_cfg {
 
 	/* Clear existing scan results matching this SSID */
 	u8 clear_ssid;
-
-    /**
-     *  @brief Variable number (fixed maximum) of channels to scan up
-     */
-	struct lbs_ioctl_user_scan_chan chanlist[LBS_IOCTL_USER_SCAN_CHAN_MAX];
 };
 
 /**
