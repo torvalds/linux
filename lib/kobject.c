@@ -133,7 +133,6 @@ void kobject_init(struct kobject * kobj)
 		return;
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
-	kobj->kset = kset_get(kobj->kset);
 }
 
 
@@ -184,7 +183,7 @@ int kobject_add(struct kobject * kobj)
 		 kobj->kset ? kobject_name(&kobj->kset->kobj) : "<NULL>" );
 
 	if (kobj->kset) {
-		spin_lock(&kobj->kset->list_lock);
+		kobj->kset = kset_get(kobj->kset);
 
 		if (!parent) {
 			parent = kobject_get(&kobj->kset->kobj);
@@ -196,7 +195,8 @@ int kobject_add(struct kobject * kobj)
 			kobject_get(parent);
 		}
 
-		list_add_tail(&kobj->entry,&kobj->kset->list);
+		spin_lock(&kobj->kset->list_lock);
+		list_add_tail(&kobj->entry, &kobj->kset->list);
 		spin_unlock(&kobj->kset->list_lock);
 		kobj->parent = parent;
 	}
