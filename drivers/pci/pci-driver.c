@@ -96,17 +96,21 @@ pci_create_newid_file(struct pci_driver *drv)
 {
 	int error = 0;
 	if (drv->probe != NULL)
-		error = sysfs_create_file(&drv->driver.kobj,
-					  &driver_attr_new_id.attr);
+		error = driver_create_file(&drv->driver, &driver_attr_new_id);
 	return error;
 }
 
+static void pci_remove_newid_file(struct pci_driver *drv)
+{
+	driver_remove_file(&drv->driver, &driver_attr_new_id);
+}
 #else /* !CONFIG_HOTPLUG */
 static inline void pci_free_dynids(struct pci_driver *drv) {}
 static inline int pci_create_newid_file(struct pci_driver *drv)
 {
 	return 0;
 }
+static inline void pci_remove_newid_file(struct pci_driver *drv) {}
 #endif
 
 /**
@@ -447,6 +451,7 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 void
 pci_unregister_driver(struct pci_driver *drv)
 {
+	pci_remove_newid_file(drv);
 	driver_unregister(&drv->driver);
 	pci_free_dynids(drv);
 }
