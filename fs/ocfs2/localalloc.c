@@ -484,6 +484,7 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 
 	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
 
+#ifdef OCFS2_DEBUG_FS
 	if (le32_to_cpu(alloc->id1.bitmap1.i_used) !=
 	    ocfs2_local_alloc_count_bits(alloc)) {
 		ocfs2_error(osb->sb, "local alloc inode %llu says it has "
@@ -494,6 +495,7 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 		status = -EIO;
 		goto bail;
 	}
+#endif
 
 	free_bits = le32_to_cpu(alloc->id1.bitmap1.i_total) -
 		le32_to_cpu(alloc->id1.bitmap1.i_used);
@@ -712,9 +714,8 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 	void *bitmap;
 	struct ocfs2_local_alloc *la = OCFS2_LOCAL_ALLOC(alloc);
 
-	mlog_entry("total = %u, COUNT = %u, used = %u\n",
+	mlog_entry("total = %u, used = %u\n",
 		   le32_to_cpu(alloc->id1.bitmap1.i_total),
-		   ocfs2_local_alloc_count_bits(alloc),
 		   le32_to_cpu(alloc->id1.bitmap1.i_used));
 
 	if (!alloc->id1.bitmap1.i_total) {

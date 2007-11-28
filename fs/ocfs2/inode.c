@@ -455,8 +455,8 @@ static int ocfs2_read_locked_inode(struct inode *inode,
 	status = -EINVAL;
 	fe = (struct ocfs2_dinode *) bh->b_data;
 	if (!OCFS2_IS_VALID_DINODE(fe)) {
-		mlog(ML_ERROR, "Invalid dinode #%llu: signature = %.*s\n",
-		     (unsigned long long)le64_to_cpu(fe->i_blkno), 7,
+		mlog(0, "Invalid dinode #%llu: signature = %.*s\n",
+		     (unsigned long long)args->fi_blkno, 7,
 		     fe->i_signature);
 		goto bail;
 	}
@@ -863,7 +863,7 @@ static int ocfs2_query_inode_wipe(struct inode *inode,
 	status = ocfs2_try_open_lock(inode, 1);
 	if (status == -EAGAIN) {
 		status = 0;
-		mlog(0, "Skipping delete of %llu because it is in use on"
+		mlog(0, "Skipping delete of %llu because it is in use on "
 		     "other nodes\n", (unsigned long long)oi->ip_blkno);
 		goto bail;
 	}
