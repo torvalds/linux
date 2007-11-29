@@ -1063,22 +1063,30 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	int flags = LM_FLAG_TRY;
 	int skipped = 0;
 	int loops = 0;
-	int error;
+	int error, rg_locked;
 
 	/* Try recently successful rgrps */
 
 	rgd = recent_rgrp_first(sdp, ip->i_last_rg_alloc);
 
 	while (rgd) {
-		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
-					   LM_FLAG_TRY, &al->al_rgd_gh);
+		rg_locked = 0;
+
+		if (gfs2_glock_is_locked_by_me(rgd->rd_gl)) {
+			rg_locked = 1;
+			error = 0;
+		} else {
+			error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE,
+						   LM_FLAG_TRY, &al->al_rgd_gh);
+		}
 		switch (error) {
 		case 0:
 			if (try_rgrp_fit(rgd, al))
 				goto out;
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
 				inode = try_rgrp_unlink(rgd, last_unlinked);
-			gfs2_glock_dq_uninit(&al->al_rgd_gh);
+			if (!rg_locked)
+				gfs2_glock_dq_uninit(&al->al_rgd_gh);
 			if (inode)
 				return inode;
 			rgd = recent_rgrp_next(rgd, 1);
@@ -1098,15 +1106,23 @@ static struct inode *get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 	begin = rgd = forward_rgrp_get(sdp);
 
 	for (;;) {
-		error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, flags,
-					  &al->al_rgd_gh);
+		rg_locked = 0;
+
+		if (gfs2_glock_is_locked_by_me(rgd->rd_gl)) {
+			rg_locked = 1;
+			error = 0;
+		} else {
+			error = gfs2_glock_nq_init(rgd->rd_gl, LM_ST_EXCLUSIVE, flags,
+						   &al->al_rgd_gh);
+		}
 		switch (error) {
 		case 0:
 			if (try_rgrp_fit(rgd, al))
 				goto out;
 			if (rgd->rd_flags & GFS2_RDF_CHECK)
 				inode = try_rgrp_unlink(rgd, last_unlinked);
-			gfs2_glock_dq_uninit(&al->al_rgd_gh);
+			if (!rg_locked)
+				gfs2_glock_dq_uninit(&al->al_rgd_gh);
 			if (inode)
 				return inode;
 			break;
@@ -1213,7 +1229,8 @@ void gfs2_inplace_release(struct gfs2_inode *ip)
 			     al->al_line);
 
 	al->al_rgd = NULL;
-	gfs2_glock_dq_uninit(&al->al_rgd_gh);
+	if (al->al_rgd_gh.gh_gl)
+		gfs2_glock_dq_uninit(&al->al_rgd_gh);
 	if (ip != GFS2_I(sdp->sd_rindex))
 		gfs2_glock_dq_uninit(&al->al_ri_gh);
 }
