@@ -289,14 +289,16 @@ static int fuse_fsync(struct file *file, struct dentry *de, int datasync)
 	return fuse_fsync_common(file, de, datasync, 0);
 }
 
-void fuse_read_fill(struct fuse_req *req, struct fuse_file *ff,
+void fuse_read_fill(struct fuse_req *req, struct file *file,
 		    struct inode *inode, loff_t pos, size_t count, int opcode)
 {
 	struct fuse_read_in *inarg = &req->misc.read_in;
+	struct fuse_file *ff = file->private_data;
 
 	inarg->fh = ff->fh;
 	inarg->offset = pos;
 	inarg->size = count;
+	inarg->flags = file->f_flags;
 	req->in.h.opcode = opcode;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.numargs = 1;
@@ -313,9 +315,8 @@ static size_t fuse_send_read(struct fuse_req *req, struct file *file,
 			     fl_owner_t owner)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_file *ff = file->private_data;
 
-	fuse_read_fill(req, ff, inode, pos, count, FUSE_READ);
+	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
 	if (owner != NULL) {
 		struct fuse_read_in *inarg = &req->misc.read_in;
 
@@ -376,15 +377,16 @@ static void fuse_readpages_end(struct fuse_conn *fc, struct fuse_req *req)
 	fuse_put_request(fc, req);
 }
 
-static void fuse_send_readpages(struct fuse_req *req, struct fuse_file *ff,
+static void fuse_send_readpages(struct fuse_req *req, struct file *file,
 				struct inode *inode)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	loff_t pos = page_offset(req->pages[0]);
 	size_t count = req->num_pages << PAGE_CACHE_SHIFT;
 	req->out.page_zeroing = 1;
-	fuse_read_fill(req, ff, inode, pos, count, FUSE_READ);
+	fuse_read_fill(req, file, inode, pos, count, FUSE_READ);
 	if (fc->async_read) {
+		struct fuse_file *ff = file->private_data;
 		req->ff = fuse_file_get(ff);
 		req->end = fuse_readpages_end;
 		request_send_background(fc, req);
@@ -396,7 +398,7 @@ static void fuse_send_readpages(struct fuse_req *req, struct fuse_file *ff,
 
 struct fuse_fill_data {
 	struct fuse_req *req;
-	struct fuse_file *ff;
+	struct file *file;
 	struct inode *inode;
 };
 
@@ -411,7 +413,7 @@ static int fuse_readpages_fill(void *_data, struct page *page)
 	    (req->num_pages == FUSE_MAX_PAGES_PER_REQ ||
 	     (req->num_pages + 1) * PAGE_CACHE_SIZE > fc->max_read ||
 	     req->pages[req->num_pages - 1]->index + 1 != page->index)) {
-		fuse_send_readpages(req, data->ff, inode);
+		fuse_send_readpages(req, data->file, inode);
 		data->req = req = fuse_get_req(fc);
 		if (IS_ERR(req)) {
 			unlock_page(page);
@@ -435,7 +437,7 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 	if (is_bad_inode(inode))
 		goto out;
 
-	data.ff = file->private_data;
+	data.file = file;
 	data.inode = inode;
 	data.req = fuse_get_req(fc);
 	err = PTR_ERR(data.req);
@@ -445,7 +447,7 @@ static int fuse_readpages(struct file *file, struct address_space *mapping,
 	err = read_cache_pages(mapping, pages, fuse_readpages_fill, &data);
 	if (!err) {
 		if (data.req->num_pages)
-			fuse_send_readpages(data.req, data.ff, inode);
+			fuse_send_readpages(data.req, file, inode);
 		else
 			fuse_put_request(fc, data.req);
 	}
@@ -472,11 +474,12 @@ static ssize_t fuse_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	return generic_file_aio_read(iocb, iov, nr_segs, pos);
 }
 
-static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
+static void fuse_write_fill(struct fuse_req *req, struct file *file,
 			    struct inode *inode, loff_t pos, size_t count,
 			    int writepage)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_file *ff = file->private_data;
 	struct fuse_write_in *inarg = &req->misc.write.in;
 	struct fuse_write_out *outarg = &req->misc.write.out;
 
@@ -485,6 +488,7 @@ static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
 	inarg->offset = pos;
 	inarg->size = count;
 	inarg->write_flags = writepage ? FUSE_WRITE_CACHE : 0;
+	inarg->flags = file->f_flags;
 	req->in.h.opcode = FUSE_WRITE;
 	req->in.h.nodeid = get_node_id(inode);
 	req->in.argpages = 1;
@@ -505,7 +509,7 @@ static size_t fuse_send_write(struct fuse_req *req, struct file *file,
 			      fl_owner_t owner)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	fuse_write_fill(req, file->private_data, inode, pos, count, 0);
+	fuse_write_fill(req, file, inode, pos, count, 0);
 	if (owner != NULL) {
 		struct fuse_write_in *inarg = &req->misc.write.in;
 		inarg->write_flags |= FUSE_WRITE_LOCKOWNER;

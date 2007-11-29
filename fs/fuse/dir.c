@@ -964,7 +964,6 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	struct page *page;
 	struct inode *inode = file->f_path.dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_file *ff = file->private_data;
 	struct fuse_req *req;
 
 	if (is_bad_inode(inode))
@@ -981,7 +980,7 @@ static int fuse_readdir(struct file *file, void *dstbuf, filldir_t filldir)
 	}
 	req->num_pages = 1;
 	req->pages[0] = page;
-	fuse_read_fill(req, ff, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
+	fuse_read_fill(req, file, inode, file->f_pos, PAGE_SIZE, FUSE_READDIR);
 	request_send(fc, req);
 	nbytes = req->out.args[0].size;
 	err = req->out.h.error;
