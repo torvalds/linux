@@ -657,6 +657,9 @@ static int fuse_rename(struct inode *olddir, struct dentry *oldent,
 	err = req->out.h.error;
 	fuse_put_request(fc, req);
 	if (!err) {
+		/* ctime changes */
+		fuse_invalidate_attr(oldent->d_inode);
+
 		fuse_invalidate_attr(olddir);
 		if (olddir != newdir)
 			fuse_invalidate_attr(newdir);
