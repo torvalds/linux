@@ -1,23 +1,22 @@
-/* $Id: dram_init.S,v 1.4 2005/04/24 18:48:32 starvik Exp $
- *
+/*
  * DRAM/SDRAM initialization - alter with care
  * This file is intended to be included from other assembler files
  *
  * Note: This file may not modify r8 or r9 because they are used to
  * carry information from the decompresser to the kernel
  *
- * Copyright (C) 2000-2003 Axis Communications AB
+ * Copyright (C) 2000-2007 Axis Communications AB
  *
- * Authors:  Mikael Starvik (starvik@axis.com)
+ * Authors:  Mikael Starvik <starvik@axis.com>
  */
 
 /* Just to be certain the config file is included, we include it here
- * explicitly instead of depending on it being included in the file that
+ * explicitely instead of depending on it being included in the file that
  * uses this code.
  */
 
-#include <asm/arch/hwregs/asm/reg_map_asm.h>
-#include <asm/arch/hwregs/asm/bif_core_defs_asm.h>
+#include <hwregs/asm/reg_map_asm.h>
+#include <hwregs/asm/bif_core_defs_asm.h>
 
 	;; WARNING! The registers r8 and r9 are used as parameters carrying
 	;; information from the decompressor (if the kernel was compressed).
@@ -46,7 +45,7 @@
 
 	move.d   0x40, $r4       ; Assume 32 bits and CAS latency = 2
 	move.d   CONFIG_ETRAX_SDRAM_TIMING, $r1
- 	and.d    0x07, $r1       ; Get CAS latency
+	and.d    0x07, $r1       ; Get CAS latency
 	cmpq	 2, $r1		 ; CL = 2 ?
 	beq	 _bw_check
 	nop
@@ -80,12 +79,10 @@ _set_timing:
 	subq     1, $r2
 
 	; Issue initialization command sequence
-	move.d   _sdram_commands_start, $r2
-	and.d    0x000fffff, $r2 ; Make sure commands are read from flash
-	move.d   _sdram_commands_end,  $r3
-	and.d    0x000fffff, $r3
+	lapc     _sdram_commands_start, $r2
+	lapc     _sdram_commands_end,  $r3
 1:	clear.d  $r6
-	move.b   [$r2+], $r6 	; Load command
+	move.b   [$r2+], $r6	; Load command
 	or.d     $r4, $r6	; Add calculated mrs
 	move.d   $r6, [$r5]	; Write rw_sdram_cmd
 	; Wait 80 ns between each command

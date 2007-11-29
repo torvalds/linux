@@ -3,49 +3,54 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <asm/dma.h>
-#include <asm/arch/hwregs/reg_map.h>
-#include <asm/arch/hwregs/reg_rdwr.h>
-#include <asm/arch/hwregs/marb_defs.h>
-#include <asm/arch/hwregs/config_defs.h>
-#include <asm/arch/hwregs/strmux_defs.h>
+#include <hwregs/reg_map.h>
+#include <hwregs/reg_rdwr.h>
+#include <hwregs/marb_defs.h>
+#include <hwregs/config_defs.h>
+#include <hwregs/strmux_defs.h>
 #include <linux/errno.h>
 #include <asm/system.h>
-#include <asm/arch/arbiter.h>
+#include <asm/arch/mach/arbiter.h>
 
 static char used_dma_channels[MAX_DMA_CHANNELS];
-static const char * used_dma_channels_users[MAX_DMA_CHANNELS];
+static const char *used_dma_channels_users[MAX_DMA_CHANNELS];
 
 static DEFINE_SPINLOCK(dma_lock);
 
-int crisv32_request_dma(unsigned int dmanr, const char * device_id,
-                        unsigned options, unsigned int bandwidth,
+int crisv32_request_dma(unsigned int dmanr, const char *device_id,
+			unsigned options, unsigned int bandwidth,
 			enum dma_owner owner)
 {
 	unsigned long flags;
 	reg_config_rw_clk_ctrl clk_ctrl;
 	reg_strmux_rw_cfg strmux_cfg;
 
-        if (crisv32_arbiter_allocate_bandwidth(dmanr,
-					       options & DMA_INT_MEM ? INT_REGION : EXT_REGION,
-                                              bandwidth))
-          return -ENOMEM;
+	if (crisv32_arbiter_allocate_bandwidth(dmanr,
+					       options & DMA_INT_MEM ?
+					       INT_REGION : EXT_REGION,
+					       bandwidth))
+		return -ENOMEM;
 
 	spin_lock_irqsave(&dma_lock, flags);
 
 	if (used_dma_channels[dmanr]) {
 		spin_unlock_irqrestore(&dma_lock, flags);
 		if (options & DMA_VERBOSE_ON_ERROR) {
-			printk("Failed to request DMA %i for %s, already allocated by %s\n", dmanr, device_id, used_dma_channels_users[dmanr]);
+			printk(KERN_ERR "Failed to request DMA %i for %s, "
+				"already allocated by %s\n",
+				dmanr,
+				device_id,
+				used_dma_channels_users[dmanr]);
 		}
 		if (options & DMA_PANIC_ON_ERROR)
 			panic("request_dma error!");
+		spin_unlock_irqrestore(&dma_lock, flags);
 		return -EBUSY;
 	}
 	clk_ctrl = REG_RD(config, regi_config, rw_clk_ctrl);
 	strmux_cfg = REG_RD(strmux, regi_strmux, rw_cfg);
 
-	switch(dmanr)
-	{
+	switch (dmanr) {
 	case 0:
 	case 1:
 		clk_ctrl.dma01_eth0 = 1;
@@ -72,7 +77,9 @@ int crisv32_request_dma(unsigned int dmanr, const char * device_id,
 	default:
 		spin_unlock_irqrestore(&dma_lock, flags);
 		if (options & DMA_VERBOSE_ON_ERROR) {
-			printk("Failed to request DMA %i for %s, only 0-%i valid)\n", dmanr, device_id, MAX_DMA_CHANNELS-1);
+			printk(KERN_ERR "Failed to request DMA %i for %s, "
+				"only 0-%i valid)\n",
+				dmanr, device_id, MAX_DMA_CHANNELS - 1);
 		}
 
 		if (options & DMA_PANIC_ON_ERROR)
@@ -80,8 +87,7 @@ int crisv32_request_dma(unsigned int dmanr, const char * device_id,
 		return -EINVAL;
 	}
 
-	switch(owner)
-	{
+	switch (owner) {
 	case dma_eth0:
 		if (dmanr == 0)
 			strmux_cfg.dma0 = regk_strmux_eth0;
@@ -212,7 +218,7 @@ int crisv32_request_dma(unsigned int dmanr, const char * device_id,
 	used_dma_channels_users[dmanr] = device_id;
 	REG_WR(config, regi_config, rw_clk_ctrl, clk_ctrl);
 	REG_WR(strmux, regi_strmux, rw_cfg, strmux_cfg);
-	spin_unlock_irqrestore(&dma_lock,flags);
+	spin_unlock_irqrestore(&dma_lock, flags);
 	return 0;
 }
 
