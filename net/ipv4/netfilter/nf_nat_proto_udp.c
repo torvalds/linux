@@ -117,9 +117,9 @@ udp_manip_pkt(struct sk_buff *skb,
 		portptr = &hdr->dest;
 	}
 	if (hdr->check || skb->ip_summed == CHECKSUM_PARTIAL) {
-		nf_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
-		nf_proto_csum_replace2(&hdr->check, skb, *portptr, newport,
-				       0);
+		inet_proto_csum_replace4(&hdr->check, skb, oldip, newip, 1);
+		inet_proto_csum_replace2(&hdr->check, skb, *portptr, newport,
+					 0);
 		if (!hdr->check)
 			hdr->check = CSUM_MANGLED_0;
 	}

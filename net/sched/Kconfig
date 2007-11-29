@@ -445,7 +445,6 @@ config NET_ACT_IPT
 config NET_ACT_NAT
         tristate "Stateless NAT"
         depends on NET_CLS_ACT
-        select NETFILTER
         ---help---
 	  Say Y here to do stateless NAT on IPv4 packets.  You should use
 	  netfilter for NAT unless you know what you are doing.

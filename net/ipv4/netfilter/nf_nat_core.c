@@ -372,10 +372,10 @@ manip_pkt(u_int16_t proto,
 	iph = (void *)skb->data + iphdroff;
 
 	if (maniptype == IP_NAT_MANIP_SRC) {
-		nf_csum_replace4(&iph->check, iph->saddr, target->src.u3.ip);
+		csum_replace4(&iph->check, iph->saddr, target->src.u3.ip);
 		iph->saddr = target->src.u3.ip;
 	} else {
-		nf_csum_replace4(&iph->check, iph->daddr, target->dst.u3.ip);
+		csum_replace4(&iph->check, iph->daddr, target->dst.u3.ip);
 		iph->daddr = target->dst.u3.ip;
 	}
 	return 1;

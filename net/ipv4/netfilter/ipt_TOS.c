@@ -38,7 +38,7 @@ target(struct sk_buff *skb,
 		iph = ip_hdr(skb);
 		oldtos = iph->tos;
 		iph->tos = (iph->tos & IPTOS_PREC_MASK) | tosinfo->tos;
-		nf_csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
+		csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
 	}
 	return XT_CONTINUE;
 }

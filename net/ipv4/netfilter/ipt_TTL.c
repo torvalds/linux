@@ -54,8 +54,8 @@ ipt_ttl_target(struct sk_buff *skb,
 	}
 
 	if (new_ttl != iph->ttl) {
-		nf_csum_replace2(&iph->check, htons(iph->ttl << 8),
-					      htons(new_ttl << 8));
+		csum_replace2(&iph->check, htons(iph->ttl << 8),
+					   htons(new_ttl << 8));
 		iph->ttl = new_ttl;
 	}
 

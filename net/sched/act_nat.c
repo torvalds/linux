@@ -151,7 +151,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		else
 			iph->daddr = new_addr;
 
-		nf_csum_replace4(&iph->check, addr, new_addr);
+		csum_replace4(&iph->check, addr, new_addr);
 	}
 
 	ihl = iph->ihl * 4;
@@ -169,7 +169,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 			goto drop;
 
 		tcph = (void *)(skb_network_header(skb) + ihl);
-		nf_proto_csum_replace4(&tcph->check, skb, addr, new_addr, 1);
+		inet_proto_csum_replace4(&tcph->check, skb, addr, new_addr, 1);
 		break;
 	}
 	case IPPROTO_UDP:
@@ -184,8 +184,8 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 
 		udph = (void *)(skb_network_header(skb) + ihl);
 		if (udph->check || skb->ip_summed == CHECKSUM_PARTIAL) {
-			nf_proto_csum_replace4(&udph->check, skb, addr,
-					       new_addr, 1);
+			inet_proto_csum_replace4(&udph->check, skb, addr,
+						 new_addr, 1);
 			if (!udph->check)
 				udph->check = CSUM_MANGLED_0;
 		}
@@ -232,8 +232,8 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		else
 			iph->saddr = new_addr;
 
-		nf_proto_csum_replace4(&icmph->checksum, skb, addr, new_addr,
-				       1);
+		inet_proto_csum_replace4(&icmph->checksum, skb, addr, new_addr,
+					 1);
 		break;
 	}
 	default:

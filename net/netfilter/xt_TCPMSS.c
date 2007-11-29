@@ -95,8 +95,9 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 			opt[i+2] = (newmss & 0xff00) >> 8;
 			opt[i+3] = newmss & 0x00ff;
 
-			nf_proto_csum_replace2(&tcph->check, skb,
-					       htons(oldmss), htons(newmss), 0);
+			inet_proto_csum_replace2(&tcph->check, skb,
+						 htons(oldmss), htons(newmss),
+						 0);
 			return 0;
 		}
 	}
@@ -117,19 +118,19 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	opt = (u_int8_t *)tcph + sizeof(struct tcphdr);
 	memmove(opt + TCPOLEN_MSS, opt, tcplen - sizeof(struct tcphdr));
 
-	nf_proto_csum_replace2(&tcph->check, skb,
-			       htons(tcplen), htons(tcplen + TCPOLEN_MSS), 1);
+	inet_proto_csum_replace2(&tcph->check, skb,
+				 htons(tcplen), htons(tcplen + TCPOLEN_MSS), 1);
 	opt[0] = TCPOPT_MSS;
 	opt[1] = TCPOLEN_MSS;
 	opt[2] = (newmss & 0xff00) >> 8;
 	opt[3] = newmss & 0x00ff;
 
-	nf_proto_csum_replace4(&tcph->check, skb, 0, *((__be32 *)opt), 0);
+	inet_proto_csum_replace4(&tcph->check, skb, 0, *((__be32 *)opt), 0);
 
 	oldval = ((__be16 *)tcph)[6];
 	tcph->doff += TCPOLEN_MSS/4;
-	nf_proto_csum_replace2(&tcph->check, skb,
-				oldval, ((__be16 *)tcph)[6], 0);
+	inet_proto_csum_replace2(&tcph->check, skb,
+				 oldval, ((__be16 *)tcph)[6], 0);
 	return TCPOLEN_MSS;
 }
 
@@ -152,7 +153,7 @@ xt_tcpmss_target4(struct sk_buff *skb,
 	if (ret > 0) {
 		iph = ip_hdr(skb);
 		newlen = htons(ntohs(iph->tot_len) + ret);
-		nf_csum_replace2(&iph->check, iph->tot_len, newlen);
+		csum_replace2(&iph->check, iph->tot_len, newlen);
 		iph->tot_len = newlen;
 	}
 	return XT_CONTINUE;

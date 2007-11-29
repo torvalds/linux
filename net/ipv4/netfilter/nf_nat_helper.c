@@ -180,8 +180,8 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 								datalen, 0));
 		}
 	} else
-		nf_proto_csum_replace2(&tcph->check, skb,
-				       htons(oldlen), htons(datalen), 1);
+		inet_proto_csum_replace2(&tcph->check, skb,
+					 htons(oldlen), htons(datalen), 1);
 
 	if (rep_len != match_len) {
 		set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
@@ -270,8 +270,8 @@ nf_nat_mangle_udp_packet(struct sk_buff *skb,
 				udph->check = CSUM_MANGLED_0;
 		}
 	} else
-		nf_proto_csum_replace2(&udph->check, skb,
-				       htons(oldlen), htons(datalen), 1);
+		inet_proto_csum_replace2(&udph->check, skb,
+					 htons(oldlen), htons(datalen), 1);
 
 	return 1;
 }
@@ -310,10 +310,10 @@ sack_adjust(struct sk_buff *skb,
 			 ntohl(sack->start_seq), new_start_seq,
 			 ntohl(sack->end_seq), new_end_seq);
 
-		nf_proto_csum_replace4(&tcph->check, skb,
-				       sack->start_seq, new_start_seq, 0);
-		nf_proto_csum_replace4(&tcph->check, skb,
-				       sack->end_seq, new_end_seq, 0);
+		inet_proto_csum_replace4(&tcph->check, skb,
+					 sack->start_seq, new_start_seq, 0);
+		inet_proto_csum_replace4(&tcph->check, skb,
+					 sack->end_seq, new_end_seq, 0);
 		sack->start_seq = new_start_seq;
 		sack->end_seq = new_end_seq;
 		sackoff += sizeof(*sack);
@@ -397,8 +397,8 @@ nf_nat_seq_adjust(struct sk_buff *skb,
 	else
 		newack = htonl(ntohl(tcph->ack_seq) - other_way->offset_before);
 
-	nf_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, 0);
-	nf_proto_csum_replace4(&tcph->check, skb, tcph->ack_seq, newack, 0);
+	inet_proto_csum_replace4(&tcph->check, skb, tcph->seq, newseq, 0);
+	inet_proto_csum_replace4(&tcph->check, skb, tcph->ack_seq, newack, 0);
 
 	pr_debug("Adjusting sequence number from %u->%u, ack from %u->%u\n",
 		 ntohl(tcph->seq), ntohl(newseq), ntohl(tcph->ack_seq),

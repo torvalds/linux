@@ -38,7 +38,7 @@ set_ect_ip(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 		oldtos = iph->tos;
 		iph->tos &= ~IPT_ECN_IP_MASK;
 		iph->tos |= (einfo->ip_ect & IPT_ECN_IP_MASK);
-		nf_csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
+		csum_replace2(&iph->check, htons(oldtos), htons(iph->tos));
 	}
 	return true;
 }
@@ -71,8 +71,8 @@ set_ect_tcp(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 	if (einfo->operation & IPT_ECN_OP_SET_CWR)
 		tcph->cwr = einfo->proto.tcp.cwr;
 
-	nf_proto_csum_replace2(&tcph->check, skb,
-				oldval, ((__be16 *)tcph)[6], 0);
+	inet_proto_csum_replace2(&tcph->check, skb,
+				 oldval, ((__be16 *)tcph)[6], 0);
 	return true;
 }
 
