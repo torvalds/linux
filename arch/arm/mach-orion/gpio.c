@@ -76,6 +76,7 @@ int gpio_direction_output(unsigned pin, int value)
 		gpio_label[pin] = "?";
 
 	mask = 1 << pin;
+	orion_clrbits(GPIO_BLINK_EN, mask);
 	if (value)
 		orion_setbits(GPIO_OUT, mask);
 	else
@@ -107,6 +108,7 @@ void gpio_set_value(unsigned pin, int value)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
+	orion_clrbits(GPIO_BLINK_EN, mask);
 	if (value)
 		orion_setbits(GPIO_OUT, mask);
 	else
@@ -115,6 +117,23 @@ void gpio_set_value(unsigned pin, int value)
 	spin_unlock_irqrestore(&gpio_lock, flags);
 }
 EXPORT_SYMBOL(gpio_set_value);
+
+void orion_gpio_set_blink(unsigned pin, int blink)
+{
+	unsigned long flags;
+	int mask = 1 << pin;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+
+	orion_clrbits(GPIO_OUT, mask);
+	if (blink)
+		orion_setbits(GPIO_BLINK_EN, mask);
+	else
+		orion_clrbits(GPIO_BLINK_EN, mask);
+
+	spin_unlock_irqrestore(&gpio_lock, flags);
+}
+EXPORT_SYMBOL(orion_gpio_set_blink);
 
 int gpio_request(unsigned pin, const char *label)
 {

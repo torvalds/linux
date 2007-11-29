@@ -12,6 +12,7 @@ extern int gpio_direction_input(unsigned pin);
 extern int gpio_direction_output(unsigned pin, int value);
 extern int gpio_get_value(unsigned pin);
 extern void gpio_set_value(unsigned pin, int value);
+extern void orion_gpio_set_blink(unsigned pin, int blink);
 extern void gpio_display(void);		/* debug */
 
 static inline int gpio_to_irq(int pin)
