@@ -631,7 +631,7 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 	int found = 0;
 	int i;
 
-	if (!param)
+	if (!param || param->param_hdr.length == 0)
 		return 0;
 
 	len = ntohs(param->param_hdr.length) - sizeof(sctp_paramhdr_t);
