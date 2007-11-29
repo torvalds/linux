@@ -743,36 +743,86 @@ struct iwl4965_rx_mpdu_res_start {
  * (5)
  * Tx Commands & Responses:
  *
+ * Driver must place each REPLY_TX command into one of the prioritized Tx
+ * queues in host DRAM, shared between driver and device.  When the device's
+ * Tx scheduler and uCode are preparing to transmit, the device pulls the
+ * Tx command over the PCI bus via one of the device's Tx DMA channels,
+ * to fill an internal FIFO from which data will be transmitted.
+ *
+ * uCode handles all timing and protocol related to control frames
+ * (RTS/CTS/ACK), based on flags in the Tx command.
+ *
+ * uCode handles retrying Tx when an ACK is expected but not received.
+ * This includes trying lower data rates than the one requested in the Tx
+ * command, as set up by the REPLY_RATE_SCALE (for 3945) or
+ * REPLY_TX_LINK_QUALITY_CMD (4965).
+ *
+ * Driver sets up transmit power for various rates via REPLY_TX_PWR_TABLE_CMD.
+ * This command must be executed after every RXON command, before Tx can occur.
  *****************************************************************************/
 
-/* Tx flags */
+/* REPLY_TX Tx flags field */
+
+/* 1: Use Request-To-Send protocol before this frame.
+ * Mutually exclusive vs. TX_CMD_FLG_CTS_MSK. */
 #define TX_CMD_FLG_RTS_MSK __constant_cpu_to_le32(1 << 1)
+
+/* 1: Transmit Clear-To-Send to self before this frame.
+ * Driver should set this for AUTH/DEAUTH/ASSOC-REQ/REASSOC mgmnt frames.
+ * Mutually exclusive vs. TX_CMD_FLG_RTS_MSK. */
 #define TX_CMD_FLG_CTS_MSK __constant_cpu_to_le32(1 << 2)
+
+/* 1: Expect ACK from receiving station
+ * 0: Don't expect ACK (MAC header's duration field s/b 0)
+ * Set this for unicast frames, but not broadcast/multicast. */
 #define TX_CMD_FLG_ACK_MSK __constant_cpu_to_le32(1 << 3)
+
+/* 1: Use rate scale table (see REPLY_TX_LINK_QUALITY_CMD).
+ *    Tx command's initial_rate_index indicates first rate to try;
+ *    uCode walks through table for additional Tx attempts.
+ * 0: Use Tx rate/MCS from Tx command's rate_n_flags field.
+ *    This rate will be used for all Tx attempts; it will not be scaled. */
 #define TX_CMD_FLG_STA_RATE_MSK __constant_cpu_to_le32(1 << 4)
+
+/* 1: Expect immediate block-ack.
+ * Set when Txing a block-ack request frame.  Also set TX_CMD_FLG_ACK_MSK. */
 #define TX_CMD_FLG_IMM_BA_RSP_MASK  __constant_cpu_to_le32(1 << 6)
+
+/* 1: Frame requires full Tx-Op protection.
+ * Set this if either RTS or CTS Tx Flag gets set. */
 #define TX_CMD_FLG_FULL_TXOP_PROT_MSK __constant_cpu_to_le32(1 << 7)
+
+/* Tx antenna selection field; used only for 3945, reserved (0) for 4965.
+ * Set field to "0" to allow 3945 uCode to select antenna (normal usage). */
 #define TX_CMD_FLG_ANT_SEL_MSK __constant_cpu_to_le32(0xf00)
 #define TX_CMD_FLG_ANT_A_MSK __constant_cpu_to_le32(1 << 8)
 #define TX_CMD_FLG_ANT_B_MSK __constant_cpu_to_le32(1 << 9)
 
-/* ucode ignores BT priority for this frame */
+/* 1: Ignore Bluetooth priority for this frame.
+ * 0: Delay Tx until Bluetooth device is done (normal usage). */
 #define TX_CMD_FLG_BT_DIS_MSK __constant_cpu_to_le32(1 << 12)
 
-/* ucode overrides sequence control */
+/* 1: uCode overrides sequence control field in MAC header.
+ * 0: Driver provides sequence control field in MAC header.
+ * Set this for management frames, non-QOS data frames, non-unicast frames,
+ * and also in Tx command embedded in REPLY_SCAN_CMD for active scans. */
 #define TX_CMD_FLG_SEQ_CTL_MSK __constant_cpu_to_le32(1 << 13)
 
-/* signal that this frame is non-last MPDU */
+/* 1: This frame is non-last MPDU; more fragments are coming.
+ * 0: Last fragment, or not using fragmentation. */
 #define TX_CMD_FLG_MORE_FRAG_MSK __constant_cpu_to_le32(1 << 14)
 
-/* calculate TSF in outgoing frame */
+/* 1: uCode calculates and inserts Timestamp Function (TSF) in outgoing frame.
+ * 0: No TSF required in outgoing frame.
+ * Set this for transmitting beacons and probe responses. */
 #define TX_CMD_FLG_TSF_MSK __constant_cpu_to_le32(1 << 16)
 
-/* activate TX calibration. */
-#define TX_CMD_FLG_CALIB_MSK __constant_cpu_to_le32(1 << 17)
-
-/* signals that 2 bytes pad was inserted
-   after the MAC header */
+/* 1: Driver inserted 2 bytes pad after the MAC header, for (required) dword
+ *    alignment of frame's payload data field.
+ * 0: No pad
+ * Set this for MAC headers with 26 or 30 bytes, i.e. those with QOS or ADDR4
+ * field (but not both).  Driver must align frame data (i.e. data following
+ * MAC header) to DWORD boundary. */
 #define TX_CMD_FLG_MH_PAD_MSK __constant_cpu_to_le32(1 << 20)
 
 /* HCCA-AP - disable duration overwriting. */
@@ -789,23 +839,33 @@ struct iwl4965_rx_mpdu_res_start {
 #define TX_CMD_SEC_KEY128	0x08
 
 /*
- * TX command Frame life time
- */
-
-struct iwl3945_dram_scratch {
-	u8 try_cnt;
-	u8 bt_kill_cnt;
-	__le16 reserved;
-} __attribute__ ((packed));
-
-/*
  * REPLY_TX = 0x1c (command)
  */
 struct iwl3945_tx_cmd {
+	/*
+	 * MPDU byte count:
+	 * MAC header (24/26/30/32 bytes) + 2 bytes pad if 26/30 header size,
+	 * + 8 byte IV for CCM or TKIP (not used for WEP)
+	 * + Data payload
+	 * + 8-byte MIC (not used for CCM/WEP)
+	 * NOTE:  Does not include Tx command bytes, post-MAC pad bytes,
+	 *        MIC (CCM) 8 bytes, ICV (WEP/TKIP/CKIP) 4 bytes, CRC 4 bytes.i
+	 * Range: 14-2342 bytes.
+	 */
 	__le16 len;
+
+	/*
+	 * MPDU or MSDU byte count for next frame.
+	 * Used for fragmentation and bursting, but not 11n aggregation.
+	 * Same as "len", but for next frame.  Set to 0 if not applicable.
+	 */
 	__le16 next_frame_len;
-	__le32 tx_flags;
+
+	__le32 tx_flags;	/* TX_CMD_FLG_* */
+
 	u8 rate;
+
+	/* Index of recipient station in uCode's station table */
 	u8 sta_id;
 	u8 tid_tspec;
 	u8 sec_ctl;
@@ -827,7 +887,17 @@ struct iwl3945_tx_cmd {
 		__le16 pm_frame_timeout;
 		__le16 attempt_duration;
 	} timeout;
+
+	/*
+	 * Duration of EDCA burst Tx Opportunity, in 32-usec units.
+	 * Set this if txop time is not specified by HCCA protocol (e.g. by AP).
+	 */
 	__le16 driver_txop;
+
+	/*
+	 * MAC header goes here, followed by 2 bytes padding if MAC header
+	 * length is 26 or 30 bytes, followed by payload data
+	 */
 	u8 payload[0];
 	struct ieee80211_hdr hdr[0];
 } __attribute__ ((packed));
@@ -899,37 +969,6 @@ enum {
 	TX_ABORT_REQUIRED_MSK = 0x80000000,	/* bits 31:31 */
 };
 
-/* *******************************
- * TX aggregation state
- ******************************* */
-
-enum {
-	AGG_TX_STATE_TRANSMITTED = 0x00,
-	AGG_TX_STATE_UNDERRUN_MSK = 0x01,
-	AGG_TX_STATE_BT_PRIO_MSK = 0x02,
-	AGG_TX_STATE_FEW_BYTES_MSK = 0x04,
-	AGG_TX_STATE_ABORT_MSK = 0x08,
-	AGG_TX_STATE_LAST_SENT_TTL_MSK = 0x10,
-	AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK = 0x20,
-	AGG_TX_STATE_LAST_SENT_BT_KILL_MSK = 0x40,
-	AGG_TX_STATE_SCD_QUERY_MSK = 0x80,
-	AGG_TX_STATE_TEST_BAD_CRC32_MSK = 0x100,
-	AGG_TX_STATE_RESPONSE_MSK = 0x1ff,
-	AGG_TX_STATE_DUMP_TX_MSK = 0x200,
-	AGG_TX_STATE_DELAY_TX_MSK = 0x400
-};
-
-#define AGG_TX_STATE_LAST_SENT_MSK \
-(AGG_TX_STATE_LAST_SENT_TTL_MSK | \
- AGG_TX_STATE_LAST_SENT_TRY_CNT_MSK | \
- AGG_TX_STATE_LAST_SENT_BT_KILL_MSK)
-
-#define AGG_TX_STATE_TRY_CNT_POS 12
-#define AGG_TX_STATE_TRY_CNT_MSK 0xf000
-
-#define AGG_TX_STATE_SEQ_NUM_POS 16
-#define AGG_TX_STATE_SEQ_NUM_MSK 0xffff0000
-
 /*
  * REPLY_TX = 0x1c (response)
  */
@@ -939,23 +978,7 @@ struct iwl3945_tx_resp {
 	u8 bt_kill_count;
 	u8 rate;
 	__le32 wireless_media_time;
-	__le32 status;	/* TX status (for aggregation status of 1st frame) */
-} __attribute__ ((packed));
-
-/*
- * REPLY_COMPRESSED_BA = 0xc5 (response only, not a command)
- */
-struct iwl3945_compressed_ba_resp {
-	__le32 sta_addr_lo32;
-	__le16 sta_addr_hi16;
-	__le16 reserved;
-	u8 sta_id;
-	u8 tid;
-	__le16 ba_seq_ctl;
-	__le32 ba_bitmap0;
-	__le32 ba_bitmap1;
-	__le16 scd_flow;
-	__le16 scd_ssn;
+	__le32 status;		/* TX status */
 } __attribute__ ((packed));
 
 /*
