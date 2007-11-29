@@ -1068,6 +1068,7 @@ static int iwl4965_sensitivity_write(struct iwl4965_priv *priv, u8 flags)
 			data->auto_corr_cck, data->auto_corr_cck_mrc,
 			data->nrg_th_cck);
 
+	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
 
 	if (flags & CMD_ASYNC)

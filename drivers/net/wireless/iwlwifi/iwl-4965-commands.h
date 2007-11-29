@@ -1573,25 +1573,278 @@ struct iwl4965_missed_beacon_notif {
 	__le32 num_recvd_beacons;
 } __attribute__ ((packed));
 
+
 /******************************************************************************
  * (11)
  * Rx Calibration Commands:
  *
+ * With the uCode used for open source drivers, most Tx calibration (except
+ * for Tx Power) and most Rx calibration is done by uCode during the
+ * "initialize" phase of uCode boot.  Driver must calibrate only:
+ *
+ * 1)  Tx power (depends on temperature), described elsewhere
+ * 2)  Receiver gain balance (optimize MIMO, and detect disconnected antennas)
+ * 3)  Receiver sensitivity (to optimize signal detection)
+ *
  *****************************************************************************/
 
-#define PHY_CALIBRATE_DIFF_GAIN_CMD (7)
-#define HD_TABLE_SIZE  (11)
+/**
+ * SENSITIVITY_CMD = 0xa8 (command, has simple generic response)
+ *
+ * This command sets up the Rx signal detector for a sensitivity level that
+ * is high enough to lock onto all signals within the associated network,
+ * but low enough to ignore signals that are below a certain threshold, so as
+ * not to have too many "false alarms".  False alarms are signals that the
+ * Rx DSP tries to lock onto, but then discards after determining that they
+ * are noise.
+ *
+ * The optimum number of false alarms is between 5 and 50 per 200 TUs
+ * (200 * 1024 uSecs, i.e. 204.8 milliseconds) of actual Rx time (i.e.
+ * time listening, not transmitting).  Driver must adjust sensitivity so that
+ * the ratio of actual false alarms to actual Rx time falls within this range.
+ *
+ * While associated, uCode delivers STATISTICS_NOTIFICATIONs after each
+ * received beacon.  These provide information to the driver to analyze the
+ * sensitivity.  Don't analyze statistics that come in from scanning, or any
+ * other non-associated-network source.  Pertinent statistics include:
+ *
+ * From "general" statistics (struct statistics_rx_non_phy):
+ *
+ * (beacon_energy_[abc] & 0x0FF00) >> 8 (unsigned, higher value is lower level)
+ *   Measure of energy of desired signal.  Used for establishing a level
+ *   below which the device does not detect signals.
+ *
+ * (beacon_silence_rssi_[abc] & 0x0FF00) >> 8 (unsigned, units in dB)
+ *   Measure of background noise in silent period after beacon.
+ *
+ * channel_load
+ *   uSecs of actual Rx time during beacon period (varies according to
+ *   how much time was spent transmitting).
+ *
+ * From "cck" and "ofdm" statistics (struct statistics_rx_phy), separately:
+ *
+ * false_alarm_cnt
+ *   Signal locks abandoned early (before phy-level header).
+ *
+ * plcp_err
+ *   Signal locks abandoned late (during phy-level header).
+ *
+ * NOTE:  Both false_alarm_cnt and plcp_err increment monotonically from
+ *        beacon to beacon, i.e. each value is an accumulation of all errors
+ *        before and including the latest beacon.  Values will wrap around to 0
+ *        after counting up to 2^32 - 1.  Driver must differentiate vs.
+ *        previous beacon's values to determine # false alarms in the current
+ *        beacon period.
+ *
+ * Total number of false alarms = false_alarms + plcp_errs
+ *
+ * For OFDM, adjust the following table entries in struct iwl_sensitivity_cmd
+ * (notice that the start points for OFDM are at or close to settings for
+ * maximum sensitivity):
+ *
+ *                                             START  /  MIN  /  MAX
+ *   HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX          90   /   85  /  120
+ *   HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX     170   /  170  /  210
+ *   HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX         105   /  105  /  140
+ *   HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX     220   /  220  /  270
+ *
+ *   If actual rate of OFDM false alarms (+ plcp_errors) is too high
+ *   (greater than 50 for each 204.8 msecs listening), reduce sensitivity
+ *   by *adding* 1 to all 4 of the table entries above, up to the max for
+ *   each entry.  Conversely, if false alarm rate is too low (less than 5
+ *   for each 204.8 msecs listening), *subtract* 1 from each entry to
+ *   increase sensitivity.
+ *
+ * For CCK sensitivity, keep track of the following:
+ *
+ *   1).  20-beacon history of maximum background noise, indicated by
+ *        (beacon_silence_rssi_[abc] & 0x0FF00), units in dB, across the
+ *        3 receivers.  For any given beacon, the "silence reference" is
+ *        the maximum of last 60 samples (20 beacons * 3 receivers).
+ *
+ *   2).  10-beacon history of strongest signal level, as indicated
+ *        by (beacon_energy_[abc] & 0x0FF00) >> 8, across the 3 receivers,
+ *        i.e. the strength of the signal through the best receiver at the
+ *        moment.  These measurements are "upside down", with lower values
+ *        for stronger signals, so max energy will be *minimum* value.
+ *
+ *        Then for any given beacon, the driver must determine the *weakest*
+ *        of the strongest signals; this is the minimum level that needs to be
+ *        successfully detected, when using the best receiver at the moment.
+ *        "Max cck energy" is the maximum (higher value means lower energy!)
+ *        of the last 10 minima.  Once this is determined, driver must add
+ *        a little margin by adding "6" to it.
+ *
+ *   3).  Number of consecutive beacon periods with too few false alarms.
+ *        Reset this to 0 at the first beacon period that falls within the
+ *        "good" range (5 to 50 false alarms per 204.8 milliseconds rx).
+ *
+ * Then, adjust the following CCK table entries in struct iwl_sensitivity_cmd
+ * (notice that the start points for CCK are at maximum sensitivity):
+ *
+ *                                             START  /  MIN  /  MAX
+ *   HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX         125   /  125  /  200
+ *   HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX     200   /  200  /  400
+ *   HD_MIN_ENERGY_CCK_DET_INDEX                100   /    0  /  100
+ *
+ *   If actual rate of CCK false alarms (+ plcp_errors) is too high
+ *   (greater than 50 for each 204.8 msecs listening), method for reducing
+ *   sensitivity is:
+ *
+ *   1)  *Add* 3 to value in HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX,
+ *       up to max 400.
+ *
+ *   2)  If current value in HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX is < 160,
+ *       sensitivity has been reduced a significant amount; bring it up to
+ *       a moderate 161.  Otherwise, *add* 3, up to max 200.
+ *
+ *   3)  a)  If current value in HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX is > 160,
+ *       sensitivity has been reduced only a moderate or small amount;
+ *       *subtract* 2 from value in HD_MIN_ENERGY_CCK_DET_INDEX,
+ *       down to min 0.  Otherwise (if gain has been significantly reduced),
+ *       don't change the HD_MIN_ENERGY_CCK_DET_INDEX value.
+ *
+ *       b)  Save a snapshot of the "silence reference".
+ *
+ *   If actual rate of CCK false alarms (+ plcp_errors) is too low
+ *   (less than 5 for each 204.8 msecs listening), method for increasing
+ *   sensitivity is used only if:
+ *
+ *   1a)  Previous beacon did not have too many false alarms
+ *   1b)  AND difference between previous "silence reference" and current
+ *        "silence reference" (prev - current) is 2 or more,
+ *   OR 2)  100 or more consecutive beacon periods have had rate of
+ *          less than 5 false alarms per 204.8 milliseconds rx time.
+ *
+ *   Method for increasing sensitivity:
+ *
+ *   1)  *Subtract* 3 from value in HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX,
+ *       down to min 125.
+ *
+ *   2)  *Subtract* 3 from value in HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX,
+ *       down to min 200.
+ *
+ *   3)  *Add* 2 to value in HD_MIN_ENERGY_CCK_DET_INDEX, up to max 100.
+ *
+ *   If actual rate of CCK false alarms (+ plcp_errors) is within good range
+ *   (between 5 and 50 for each 204.8 msecs listening):
+ *
+ *   1)  Save a snapshot of the silence reference.
+ *
+ *   2)  If previous beacon had too many CCK false alarms (+ plcp_errors),
+ *       give some extra margin to energy threshold by *subtracting* 8
+ *       from value in HD_MIN_ENERGY_CCK_DET_INDEX.
+ *
+ *   For all cases (too few, too many, good range), make sure that the CCK
+ *   detection threshold (energy) is below the energy level for robust
+ *   detection over the past 10 beacon periods, the "Max cck energy".
+ *   Lower values mean higher energy; this means making sure that the value
+ *   in HD_MIN_ENERGY_CCK_DET_INDEX is at or *above* "Max cck energy".
+ *
+ * Driver should set the following entries to fixed values:
+ *
+ *   HD_MIN_ENERGY_OFDM_DET_INDEX               100
+ *   HD_BARKER_CORR_TH_ADD_MIN_INDEX            190
+ *   HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX        390
+ *   HD_OFDM_ENERGY_TH_IN_INDEX                  62
+ */
 
+/*
+ * Table entries in SENSITIVITY_CMD (struct iwl4965_sensitivity_cmd)
+ */
+#define HD_TABLE_SIZE  (11)	/* number of entries */
+#define HD_MIN_ENERGY_CCK_DET_INDEX                 (0)	/* table indexes */
+#define HD_MIN_ENERGY_OFDM_DET_INDEX                (1)
+#define HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX          (2)
+#define HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX      (3)
+#define HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX      (4)
+#define HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX          (5)
+#define HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX      (6)
+#define HD_BARKER_CORR_TH_ADD_MIN_INDEX             (7)
+#define HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX         (8)
+#define HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX          (9)
+#define HD_OFDM_ENERGY_TH_IN_INDEX                  (10)
+
+/* Control field in struct iwl4965_sensitivity_cmd */
+#define SENSITIVITY_CMD_CONTROL_DEFAULT_TABLE	__constant_cpu_to_le16(0)
+#define SENSITIVITY_CMD_CONTROL_WORK_TABLE	__constant_cpu_to_le16(1)
+
+/**
+ * struct iwl4965_sensitivity_cmd
+ * @control:  (1) updates working table, (0) updates default table
+ * @table:  energy threshold values, use HD_* as index into table
+ *
+ * Always use "1" in "control" to update uCode's working table and DSP.
+ */
 struct iwl4965_sensitivity_cmd {
-	__le16 control;
-	__le16 table[HD_TABLE_SIZE];
+	__le16 control;			/* always use "1" */
+	__le16 table[HD_TABLE_SIZE];	/* use HD_* as index */
 } __attribute__ ((packed));
 
+
+/**
+ * REPLY_PHY_CALIBRATION_CMD = 0xb0 (command, has simple generic response)
+ *
+ * This command sets the relative gains of 4965's 3 radio receiver chains.
+ *
+ * After the first association, driver should accumulate signal and noise
+ * statistics from the STATISTICS_NOTIFICATIONs that follow the first 20
+ * beacons from the associated network (don't collect statistics that come
+ * in from scanning, or any other non-network source).
+ *
+ * DISCONNECTED ANTENNA:
+ *
+ * Driver should determine which antennas are actually connected, by comparing
+ * average beacon signal levels for the 3 Rx chains.  Accumulate (add) the
+ * following values over 20 beacons, one accumulator for each of the chains
+ * a/b/c, from struct statistics_rx_non_phy:
+ *
+ * beacon_rssi_[abc] & 0x0FF (unsigned, units in dB)
+ *
+ * Find the strongest signal from among a/b/c.  Compare the other two to the
+ * strongest.  If any signal is more than 15 dB (times 20, unless you
+ * divide the accumulated values by 20) below the strongest, the driver
+ * considers that antenna to be disconnected, and should not try to use that
+ * antenna/chain for Rx or Tx.  If both A and B seem to be disconnected,
+ * driver should declare the stronger one as connected, and attempt to use it
+ * (A and B are the only 2 Tx chains!).
+ *
+ *
+ * RX BALANCE:
+ *
+ * Driver should balance the 3 receivers (but just the ones that are connected
+ * to antennas, see above) for gain, by comparing the average signal levels
+ * detected during the silence after each beacon (background noise).
+ * Accumulate (add) the following values over 20 beacons, one accumulator for
+ * each of the chains a/b/c, from struct statistics_rx_non_phy:
+ *
+ * beacon_silence_rssi_[abc] & 0x0FF (unsigned, units in dB)
+ *
+ * Find the weakest background noise level from among a/b/c.  This Rx chain
+ * will be the reference, with 0 gain adjustment.  Attenuate other channels by
+ * finding noise difference:
+ *
+ * (accum_noise[i] - accum_noise[reference]) / 30
+ *
+ * The "30" adjusts the dB in the 20 accumulated samples to units of 1.5 dB.
+ * For use in diff_gain_[abc] fields of struct iwl_calibration_cmd, the
+ * driver should limit the difference results to a range of 0-3 (0-4.5 dB),
+ * and set bit 2 to indicate "reduce gain".  The value for the reference
+ * (weakest) chain should be "0".
+ *
+ * diff_gain_[abc] bit fields:
+ *   2: (1) reduce gain, (0) increase gain
+ * 1-0: amount of gain, units of 1.5 dB
+ */
+
+/* "Differential Gain" opcode used in REPLY_PHY_CALIBRATION_CMD. */
+#define PHY_CALIBRATE_DIFF_GAIN_CMD (7)
+
 struct iwl4965_calibration_cmd {
-	u8 opCode;
-	u8 flags;
+	u8 opCode;		/* PHY_CALIBRATE_DIFF_GAIN_CMD (7) */
+	u8 flags;		/* not used */
 	__le16 reserved;
-	s8 diff_gain_a;
+	s8 diff_gain_a;		/* see above */
 	s8 diff_gain_b;
 	s8 diff_gain_c;
 	u8 reserved1;

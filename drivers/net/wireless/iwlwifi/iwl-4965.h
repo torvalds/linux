@@ -924,22 +924,6 @@ struct iwl4965_lq_mngr {
 #define CAL_NUM_OF_BEACONS		20
 #define MAXIMUM_ALLOWED_PATHLOSS	15
 
-/* Param table within SENSITIVITY_CMD */
-#define HD_MIN_ENERGY_CCK_DET_INDEX                 (0)
-#define HD_MIN_ENERGY_OFDM_DET_INDEX                (1)
-#define HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX          (2)
-#define HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX      (3)
-#define HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX      (4)
-#define HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX          (5)
-#define HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX      (6)
-#define HD_BARKER_CORR_TH_ADD_MIN_INDEX             (7)
-#define HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX         (8)
-#define HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX          (9)
-#define HD_OFDM_ENERGY_TH_IN_INDEX                  (10)
-
-#define SENSITIVITY_CMD_CONTROL_DEFAULT_TABLE	__constant_cpu_to_le16(0)
-#define SENSITIVITY_CMD_CONTROL_WORK_TABLE	__constant_cpu_to_le16(1)
-
 #define CHAIN_NOISE_MAX_DELTA_GAIN_CODE 3
 
 #define MAX_FA_OFDM  50
@@ -967,8 +951,6 @@ struct iwl4965_lq_mngr {
 #define AUTO_CORR_STEP_CCK     3
 #define AUTO_CORR_MAX_TH_CCK   160
 
-#define NRG_ALG                0
-#define AUTO_CORR_ALG          1
 #define NRG_DIFF               2
 #define NRG_STEP_CCK           2
 #define NRG_MARGIN             8
