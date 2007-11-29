@@ -247,9 +247,8 @@ static ssize_t netstat_show(const struct device *d,
 	struct net_device_stats *stats;
 	ssize_t ret = -EINVAL;
 
-	if (offset > sizeof(struct net_device_stats) ||
-	    offset % sizeof(unsigned long) != 0)
-		WARN_ON(1);
+	WARN_ON(offset > sizeof(struct net_device_stats) ||
+			offset % sizeof(unsigned long) != 0);
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev) && dev->get_stats &&
