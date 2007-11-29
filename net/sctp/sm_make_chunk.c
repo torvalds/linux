@@ -243,7 +243,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 		if (auth_chunks->length)
 			chunksize += ntohs(auth_chunks->length);
 		else
-			auth_hmacs = NULL;
+			auth_chunks = NULL;
 
 		extensions[num_ext] = SCTP_CID_AUTH;
 		num_ext += 1;
