@@ -124,7 +124,7 @@ enum {
 	/* Bluetooth device coexistance config command */
 	REPLY_BT_CONFIG = 0x9b,
 
-	/* 4965 Statistics */
+	/* Statistics */
 	REPLY_STATISTICS_CMD = 0x9c,
 	STATISTICS_NOTIFICATION = 0x9d,
 
@@ -140,7 +140,8 @@ enum {
 
 /******************************************************************************
  * (0)
- * Header
+ * Commonly used structures and definitions:
+ * Command header, txpower
  *
  *****************************************************************************/
 
@@ -181,6 +182,36 @@ struct iwl3945_cmd_header {
 
 	/* command or response/notification data follows immediately */
 	u8 data[0];
+} __attribute__ ((packed));
+
+/**
+ * struct iwl3945_tx_power
+ *
+ * Used in REPLY_TX_PWR_TABLE_CMD, REPLY_SCAN_CMD, REPLY_CHANNEL_SWITCH
+ *
+ * Each entry contains two values:
+ * 1)  DSP gain (or sometimes called DSP attenuation).  This is a fine-grained
+ *     linear value that multiplies the output of the digital signal processor,
+ *     before being sent to the analog radio.
+ * 2)  Radio gain.  This sets the analog gain of the radio Tx path.
+ *     It is a coarser setting, and behaves in a logarithmic (dB) fashion.
+ *
+ * Driver obtains values from struct iwl3945_tx_power power_gain_table[][].
+ */
+struct iwl3945_tx_power {
+	u8 tx_gain;		/* gain for analog radio */
+	u8 dsp_atten;		/* gain for DSP */
+} __attribute__ ((packed));
+
+/**
+ * struct iwl3945_power_per_rate
+ *
+ * Used in REPLY_TX_PWR_TABLE_CMD, REPLY_CHANNEL_SWITCH
+ */
+struct iwl3945_power_per_rate {
+	u8 rate;		/* plcp */
+	struct iwl3945_tx_power tpc;
+	u8 reserved;
 } __attribute__ ((packed));
 
 /******************************************************************************
@@ -328,8 +359,22 @@ enum {
 /* transfer to host non bssid beacons in associated state */
 #define RXON_FILTER_BCON_AWARE_MSK      __constant_cpu_to_le32(1 << 6)
 
-/*
+/**
  * REPLY_RXON = 0x10 (command, has simple generic response)
+ *
+ * RXON tunes the radio tuner to a service channel, and sets up a number
+ * of parameters that are used primarily for Rx, but also for Tx operations.
+ *
+ * NOTE:  When tuning to a new channel, driver must set the
+ *        RXON_FILTER_ASSOC_MSK to 0.  This will clear station-dependent
+ *        info within the device, including the station tables, tx retry
+ *        rate tables, and txpower tables.  Driver must build a new station
+ *        table and txpower table before transmitting anything on the RXON
+ *        channel.
+ *
+ * NOTE:  All RXONs wipe clean the internal txpower table.  Driver must
+ *        issue a new REPLY_TX_PWR_TABLE_CMD after each REPLY_RXON (0x10),
+ *        regardless of whether RXON_FILTER_ASSOC_MSK is set.
  */
 struct iwl3945_rxon_cmd {
 	u8 node_addr[6];
@@ -371,17 +416,6 @@ struct iwl3945_rxon_time_cmd {
 	__le32 beacon_init_val;
 	__le16 listen_interval;
 	__le16 reserved;
-} __attribute__ ((packed));
-
-struct iwl3945_tx_power {
-	u8 tx_gain;		/* gain for analog radio */
-	u8 dsp_atten;		/* gain for DSP */
-} __attribute__ ((packed));
-
-struct iwl3945_power_per_rate {
-	u8 rate;		/* plcp */
-	struct iwl3945_tx_power tpc;
-	u8 reserved;
 } __attribute__ ((packed));
 
 /*
