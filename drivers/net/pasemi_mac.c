@@ -1064,11 +1064,12 @@ static int pasemi_mac_open(struct net_device *dev)
 	write_mac_reg(mac, PAS_MAC_CFG_PCFG, flags);
 
 	ret = pasemi_mac_phy_init(dev);
-	/* Some configs don't have PHYs (XAUI etc), so don't complain about
-	 * failed init due to -ENODEV.
+	/* Warn for missing PHY on SGMII (1Gig) ports.
 	 */
-	if (ret && ret != -ENODEV)
-		dev_warn(&mac->pdev->dev, "phy init failed: %d\n", ret);
+	if (ret && mac->type == MAC_TYPE_GMAC) {
+		dev_warn(&mac->pdev->dev, "PHY init failed: %d.\n", ret);
+		dev_warn(&mac->pdev->dev, "Defaulting to 1Gbit full duplex\n");
+	}
 
 	netif_start_queue(dev);
 	napi_enable(&mac->napi);
