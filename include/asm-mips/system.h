@@ -209,8 +209,6 @@ extern void *set_except_vector(int n, void *addr);
 extern unsigned long ebase;
 extern void per_cpu_trap_init(void);
 
-extern int stop_a_enabled;
-
 /*
  * See include/asm-ia64/system.h; prevents deadlock on SMP
  * systems.
