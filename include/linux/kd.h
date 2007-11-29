@@ -126,7 +126,7 @@ struct kbdiacrs {
 #define KDSKBDIACR      0x4B4B  /* write kernel accent table */
 
 struct kbdiacruc {
-        __u32 diacr, base, result;
+	unsigned int diacr, base, result;
 };
 struct kbdiacrsuc {
         unsigned int kb_cnt;    /* number of entries in following array */
