@@ -4123,9 +4123,8 @@ static int iwl3945_rx_queue_restock(struct iwl3945_priv *priv)
  * Also restock the Rx queue via iwl3945_rx_queue_restock.
  * This is called as a scheduled work item (except for during initialization)
  */
-void iwl3945_rx_replenish(void *data)
+static void iwl3945_rx_allocate(struct iwl3945_priv *priv)
 {
-	struct iwl3945_priv *priv = data;
 	struct iwl3945_rx_queue *rxq = &priv->rxq;
 	struct list_head *element;
 	struct iwl3945_rx_mem_buffer *rxb;
@@ -4158,6 +4157,26 @@ void iwl3945_rx_replenish(void *data)
 		rxq->free_count++;
 	}
 	spin_unlock_irqrestore(&rxq->lock, flags);
+}
+
+/*
+ * this should be called while priv->lock is locked
+ */
+void __iwl3945_rx_replenish(void *data)
+{
+	struct iwl3945_priv *priv = data;
+
+	iwl3945_rx_allocate(priv);
+	iwl3945_rx_queue_restock(priv);
+}
+
+
+void iwl3945_rx_replenish(void *data)
+{
+	struct iwl3945_priv *priv = data;
+	unsigned long flags;
+
+	iwl3945_rx_allocate(priv);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl3945_rx_queue_restock(priv);
@@ -4335,12 +4354,16 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 	u32 r, i;
 	int reclaim;
 	unsigned long flags;
+	u8 fill_rx = 0;
+	u32 count = 0;
 
 	/* uCode's read index (stored in shared DRAM) indicates the last Rx
 	 * buffer that the driver may process (last buffer filled by ucode). */
 	r = iwl3945_hw_get_rx_read(priv);
 	i = rxq->read;
 
+	if (iwl3945_rx_queue_space(rxq) > (RX_QUEUE_SIZE / 2))
+		fill_rx = 1;
 	/* Rx interrupt, but nothing sent from uCode */
 	if (i == r)
 		IWL_DEBUG(IWL_DL_RX | IWL_DL_ISR, "r = %d, i = %d\n", r, i);
@@ -4411,6 +4434,16 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 		list_add_tail(&rxb->list, &priv->rxq.rx_used);
 		spin_unlock_irqrestore(&rxq->lock, flags);
 		i = (i + 1) & RX_QUEUE_MASK;
+		/* If there are a lot of unused frames,
+		 * restock the Rx queue so ucode won't assert. */
+		if (fill_rx) {
+			count++;
+			if (count >= 8) {
+				priv->rxq.read = i;
+				__iwl3945_rx_replenish(priv);
+				count = 0;
+			}
+		}
 	}
 
 	/* Backtrack one entry */
