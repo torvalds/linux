@@ -33,11 +33,27 @@ struct pasdma_status {
  * device. Use the normal PCI config access functions for them.
  */
 enum {
+	PAS_DMA_CAP_TXCH  = 0x44,	/* Transmit Channel Info      */
+	PAS_DMA_CAP_RXCH  = 0x48,	/* Transmit Channel Info      */
+	PAS_DMA_CAP_IFI	  = 0x4c,	/* Interface Info	      */
 	PAS_DMA_COM_TXCMD = 0x100,	/* Transmit Command Register  */
 	PAS_DMA_COM_TXSTA = 0x104,	/* Transmit Status Register   */
 	PAS_DMA_COM_RXCMD = 0x108,	/* Receive Command Register   */
 	PAS_DMA_COM_RXSTA = 0x10c,	/* Receive Status Register    */
 };
+
+
+#define PAS_DMA_CAP_TXCH_TCHN_M	0x00ff0000 /* # of TX channels */
+#define PAS_DMA_CAP_TXCH_TCHN_S	16
+
+#define PAS_DMA_CAP_RXCH_RCHN_M	0x00ff0000 /* # of RX channels */
+#define PAS_DMA_CAP_RXCH_RCHN_S	16
+
+#define PAS_DMA_CAP_IFI_IOFF_M	0xff000000 /* Cfg reg for intf pointers */
+#define PAS_DMA_CAP_IFI_IOFF_S	24
+#define PAS_DMA_CAP_IFI_NIN_M	0x00ff0000 /* # of interfaces */
+#define PAS_DMA_CAP_IFI_NIN_S	16
+
 #define PAS_DMA_COM_TXCMD_EN	0x00000001 /* enable */
 #define PAS_DMA_COM_TXSTA_ACT	0x00000001 /* active */
 #define PAS_DMA_COM_RXCMD_EN	0x00000001 /* enable */
@@ -387,5 +403,65 @@ enum {
 #define CTRL_CMD_REG(x)		((((long)(x)) << CTRL_CMD_REG_S) & \
 				 CTRL_CMD_REG_M)
 
+
+
+/* Prototypes for the shared DMA functions in the platform code. */
+
+/* DMA TX Channel type. Right now only limitations used are event types 0/1,
+ * for event-triggered DMA transactions.
+ */
+
+enum pasemi_dmachan_type {
+	RXCHAN = 0,		/* Any RX chan */
+	TXCHAN = 1,		/* Any TX chan */
+	TXCHAN_EVT0 = 0x1001,	/* TX chan in event class 0 (chan 0-9) */
+	TXCHAN_EVT1 = 0x2001,	/* TX chan in event class 1 (chan 10-19) */
+};
+
+struct pasemi_dmachan {
+	int		 chno;		/* Channel number */
+	enum pasemi_dmachan_type chan_type;	/* TX / RX */
+	u64		*status;	/* Ptr to cacheable status */
+	int		 irq;		/* IRQ used by channel */
+	unsigned int	 ring_size;	/* size of allocated ring */
+	dma_addr_t	 ring_dma;	/* DMA address for ring */
+	u64		*ring_virt;	/* Virt address for ring */
+	void		*priv;		/* Ptr to start of client struct */
+};
+
+/* Read/write the different registers in the I/O Bridge, Ethernet
+ * and DMA Controller
+ */
+extern unsigned int pasemi_read_iob_reg(unsigned int reg);
+extern void pasemi_write_iob_reg(unsigned int reg, unsigned int val);
+
+extern unsigned int pasemi_read_mac_reg(int intf, unsigned int reg);
+extern void pasemi_write_mac_reg(int intf, unsigned int reg, unsigned int val);
+
+extern unsigned int pasemi_read_dma_reg(unsigned int reg);
+extern void pasemi_write_dma_reg(unsigned int reg, unsigned int val);
+
+/* Channel management routines */
+
+extern void *pasemi_dma_alloc_chan(enum pasemi_dmachan_type type,
+				   int total_size, int offset);
+extern void pasemi_dma_free_chan(struct pasemi_dmachan *chan);
+
+extern void pasemi_dma_start_chan(const struct pasemi_dmachan *chan,
+				  const u32 cmdsta);
+extern int pasemi_dma_stop_chan(const struct pasemi_dmachan *chan);
+
+/* Common routines to allocate rings and buffers */
+
+extern int pasemi_dma_alloc_ring(struct pasemi_dmachan *chan, int ring_size);
+extern void pasemi_dma_free_ring(struct pasemi_dmachan *chan);
+
+extern void *pasemi_dma_alloc_buf(struct pasemi_dmachan *chan, int size,
+				  dma_addr_t *handle);
+extern void pasemi_dma_free_buf(struct pasemi_dmachan *chan, int size,
+				dma_addr_t *handle);
+
+/* Initialize the library, must be called before any other functions */
+extern int pasemi_dma_init(void);
 
 #endif /* ASM_PASEMI_DMA_H */
