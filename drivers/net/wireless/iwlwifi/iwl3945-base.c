@@ -4494,7 +4494,7 @@ static void iwl3945_dump_nic_error_log(struct iwl3945_priv *priv)
 
 }
 
-#define EVENT_START_OFFSET  (4 * sizeof(u32))
+#define EVENT_START_OFFSET  (6 * sizeof(u32))
 
 /**
  * iwl3945_print_event_log - Dump error event log to syslog
