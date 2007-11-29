@@ -453,6 +453,25 @@ out:
 	return err;
 }
 
+static ssize_t fuse_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
+				  unsigned long nr_segs, loff_t pos)
+{
+	struct inode *inode = iocb->ki_filp->f_mapping->host;
+
+	if (pos + iov_length(iov, nr_segs) > i_size_read(inode)) {
+		int err;
+		/*
+		 * If trying to read past EOF, make sure the i_size
+		 * attribute is up-to-date.
+		 */
+		err = fuse_update_attributes(inode, NULL, iocb->ki_filp, NULL);
+		if (err)
+			return err;
+	}
+
+	return generic_file_aio_read(iocb, iov, nr_segs, pos);
+}
+
 static void fuse_write_fill(struct fuse_req *req, struct fuse_file *ff,
 			    struct inode *inode, loff_t pos, size_t count,
 			    int writepage)
@@ -887,7 +906,7 @@ static sector_t fuse_bmap(struct address_space *mapping, sector_t block)
 static const struct file_operations fuse_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.aio_read	= generic_file_aio_read,
+	.aio_read	= fuse_file_aio_read,
 	.write		= do_sync_write,
 	.aio_write	= generic_file_aio_write,
 	.mmap		= fuse_file_mmap,

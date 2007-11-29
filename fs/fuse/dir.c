@@ -775,6 +775,31 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	return err;
 }
 
+int fuse_update_attributes(struct inode *inode, struct kstat *stat,
+			   struct file *file, bool *refreshed)
+{
+	struct fuse_inode *fi = get_fuse_inode(inode);
+	int err;
+	bool r;
+
+	if (fi->i_time < get_jiffies_64()) {
+		r = true;
+		err = fuse_do_getattr(inode, stat, file);
+	} else {
+		r = false;
+		err = 0;
+		if (stat) {
+			generic_fillattr(inode, stat);
+			stat->mode = fi->orig_i_mode;
+		}
+	}
+
+	if (refreshed != NULL)
+		*refreshed = r;
+
+	return err;
+}
+
 /*
  * Calling into a user-controlled filesystem gives the filesystem
  * daemon ptrace-like capabilities over the requester process.  This
@@ -862,14 +887,9 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 	 */
 	if ((fc->flags & FUSE_DEFAULT_PERMISSIONS) ||
 	    ((mask & MAY_EXEC) && S_ISREG(inode->i_mode))) {
-		struct fuse_inode *fi = get_fuse_inode(inode);
-		if (fi->i_time < get_jiffies_64()) {
-			err = fuse_do_getattr(inode, NULL, NULL);
-			if (err)
-				return err;
-
-			refreshed = true;
-		}
+		err = fuse_update_attributes(inode, NULL, NULL, &refreshed);
+		if (err)
+			return err;
 	}
 
 	if (fc->flags & FUSE_DEFAULT_PERMISSIONS) {
@@ -1173,22 +1193,12 @@ static int fuse_getattr(struct vfsmount *mnt, struct dentry *entry,
 			struct kstat *stat)
 {
 	struct inode *inode = entry->d_inode;
-	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	int err;
 
 	if (!fuse_allow_task(fc, current))
 		return -EACCES;
 
-	if (fi->i_time < get_jiffies_64())
-		err = fuse_do_getattr(inode, stat, NULL);
-	else {
-		err = 0;
-		generic_fillattr(inode, stat);
-		stat->mode = fi->orig_i_mode;
-	}
-
-	return err;
+	return fuse_update_attributes(inode, stat, NULL, NULL);
 }
 
 static int fuse_setxattr(struct dentry *entry, const char *name,
