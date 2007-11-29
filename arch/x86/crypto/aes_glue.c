@@ -1,5 +1,5 @@
 /*
- * Glue Code for AES Cipher Algorithm
+ * Glue Code for the asm optimized version of the AES Cipher Algorithm
  *
  */
 
@@ -19,21 +19,21 @@ static void aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 }
 
 static struct crypto_alg aes_alg = {
-	.cra_name		=	"aes",
-	.cra_driver_name	=	"aes-x86_64",
-	.cra_priority		=	200,
-	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
-	.cra_blocksize		=	AES_BLOCK_SIZE,
-	.cra_ctxsize		=	sizeof(struct crypto_aes_ctx),
-	.cra_module		=	THIS_MODULE,
-	.cra_list		=	LIST_HEAD_INIT(aes_alg.cra_list),
-	.cra_u			=	{
-		.cipher = {
-			.cia_min_keysize	=	AES_MIN_KEY_SIZE,
-			.cia_max_keysize	=	AES_MAX_KEY_SIZE,
-			.cia_setkey		=	crypto_aes_set_key,
-			.cia_encrypt	 	=	aes_encrypt,
-			.cia_decrypt	  	=	aes_decrypt
+	.cra_name		= "aes",
+	.cra_driver_name	= "aes-asm",
+	.cra_priority		= 200,
+	.cra_flags		= CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		= AES_BLOCK_SIZE,
+	.cra_ctxsize		= sizeof(struct crypto_aes_ctx),
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(aes_alg.cra_list),
+	.cra_u	= {
+		.cipher	= {
+			.cia_min_keysize	= AES_MIN_KEY_SIZE,
+			.cia_max_keysize	= AES_MAX_KEY_SIZE,
+			.cia_setkey		= crypto_aes_set_key,
+			.cia_encrypt		= aes_encrypt,
+			.cia_decrypt		= aes_decrypt
 		}
 	}
 };
@@ -51,6 +51,7 @@ static void __exit aes_fini(void)
 module_init(aes_init);
 module_exit(aes_fini);
 
-MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm");
+MODULE_DESCRIPTION("Rijndael (AES) Cipher Algorithm, asm optimized");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("aes");
+MODULE_ALIAS("aes-asm");
