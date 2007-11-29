@@ -130,6 +130,7 @@ struct iwl3945_queue {
 
 #define MAX_NUM_OF_TBS          (20)
 
+/* One for each TFD */
 struct iwl3945_tx_info {
 	struct ieee80211_tx_status status;
 	struct sk_buff *skb[MAX_NUM_OF_TBS];
@@ -137,10 +138,15 @@ struct iwl3945_tx_info {
 
 /**
  * struct iwl3945_tx_queue - Tx Queue for DMA
- * @need_update: need to update read/write index
- * @shed_retry: queue is HT AGG enabled
+ * @q: generic Rx/Tx queue descriptor
+ * @bd: base of circular buffer of TFDs
+ * @cmd: array of command/Tx buffers
+ * @dma_addr_cmd: physical address of cmd/tx buffer array
+ * @txb: array of per-TFD driver data
+ * @need_update: indicates need to update read/write index
  *
- * Queue consists of circular buffer of BD's and required locking structures.
+ * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
+ * descriptors) and required locking structures.
  */
 struct iwl3945_tx_queue {
 	struct iwl3945_queue q;
@@ -149,7 +155,6 @@ struct iwl3945_tx_queue {
 	dma_addr_t dma_addr_cmd;
 	struct iwl3945_tx_info *txb;
 	int need_update;
-	int sched_retry;
 	int active;
 };
 
@@ -325,6 +330,13 @@ struct iwl3945_cmd_meta {
 
 } __attribute__ ((packed));
 
+/**
+ * struct iwl3945_cmd
+ *
+ * For allocation of the command and tx queues, this establishes the overall
+ * size of the largest command we send to uCode, except for a scan command
+ * (which is relatively huge; space is allocated separately).
+ */
 struct iwl3945_cmd {
 	struct iwl3945_cmd_meta meta;
 	struct iwl3945_cmd_header hdr;
@@ -522,6 +534,19 @@ struct iwl3945_ibss_seq {
 	struct list_head list;
 };
 
+/**
+ * struct iwl4965_driver_hw_info
+ * @max_txq_num: Max # Tx queues supported
+ * @ac_queue_count: # Tx queues for EDCA Access Categories (AC)
+ * @tx_cmd_len: Size of Tx command (but not including frame itself)
+ * @max_rxq_size: Max # Rx frames in Rx queue (must be power-of-2)
+ * @rx_buffer_size:
+ * @max_rxq_log: Log-base-2 of max_rxq_size
+ * @max_stations:
+ * @bcast_sta_id:
+ * @shared_virt: Pointer to driver/uCode shared Tx Byte Counts and Rx status
+ * @shared_phys: Physical Pointer to Tx Byte Counts and Rx status
+ */
 struct iwl3945_driver_hw_info {
 	u16 max_txq_num;
 	u16 ac_queue_count;
@@ -857,6 +882,8 @@ struct iwl3945_priv {
 	u16 last_seq_num;
 	u16 last_frag_num;
 	unsigned long last_packet_time;
+
+	/* Hash table for finding stations in IBSS network */
 	struct list_head ibss_mac_hash[IWL_IBSS_MAC_HASH_SIZE];
 
 	/* eeprom */
