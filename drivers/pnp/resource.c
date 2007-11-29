@@ -367,8 +367,10 @@ int pnp_check_irq(struct pnp_dev *dev, int idx)
 	{
 		struct pci_dev *pci = NULL;
 		for_each_pci_dev(pci) {
-			if (pci->irq == *irq)
+			if (pci->irq == *irq) {
+				pci_dev_put(pci);
 				return 0;
+			}
 		}
 	}
 #endif
