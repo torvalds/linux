@@ -615,15 +615,6 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 	if (__mandatory_lock(&ip->i_inode))
 		return -ENOLCK;
 
-	if (sdp->sd_args.ar_localflocks) {
-		if (IS_GETLK(cmd)) {
-			posix_test_lock(file, fl);
-			return 0;
-		} else {
-			return posix_lock_file_wait(file, fl);
-		}
-	}
-
 	if (cmd == F_CANCELLK) {
 		/* Hack: */
 		cmd = F_SETLK;
@@ -716,9 +707,6 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (__mandatory_lock(&ip->i_inode))
 		return -ENOLCK;
 
-	if (sdp->sd_args.ar_localflocks)
-		return flock_lock_file_wait(file, fl);
-
 	if (fl->fl_type == F_UNLCK) {
 		do_unflock(file, fl);
 		return 0;
@@ -753,5 +741,29 @@ const struct file_operations gfs2_dir_fops = {
 	.fsync		= gfs2_fsync,
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
+};
+
+const struct file_operations gfs2_file_fops_nolock = {
+	.llseek		= gfs2_llseek,
+	.read		= do_sync_read,
+	.aio_read	= generic_file_aio_read,
+	.write		= do_sync_write,
+	.aio_write	= generic_file_aio_write,
+	.unlocked_ioctl	= gfs2_ioctl,
+	.mmap		= gfs2_mmap,
+	.open		= gfs2_open,
+	.release	= gfs2_close,
+	.fsync		= gfs2_fsync,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
+	.setlease	= gfs2_setlease,
+};
+
+const struct file_operations gfs2_dir_fops_nolock = {
+	.readdir	= gfs2_readdir,
+	.unlocked_ioctl	= gfs2_ioctl,
+	.open		= gfs2_open,
+	.release	= gfs2_close,
+	.fsync		= gfs2_fsync,
 };
 
