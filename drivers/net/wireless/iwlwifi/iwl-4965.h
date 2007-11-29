@@ -489,7 +489,7 @@ struct sta_ht_info {
 	u8 supported_chan_width;
 	u8 extension_chan_offset;
 	u8 is_green_field;
-	u8 sgf;
+	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
 	u8 supp_rates[16];
 	u8 tx_chan_width;
 	u8 chan_width_cap;

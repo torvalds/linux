@@ -1488,6 +1488,7 @@ int iwl4965_rate_index_from_plcp(int plcp)
 {
 	int i = 0;
 
+	/* 4965 HT rate format */
 	if (plcp & RATE_MCS_HT_MSK) {
 		i = (plcp & 0xff);
 
@@ -1501,6 +1502,8 @@ int iwl4965_rate_index_from_plcp(int plcp)
 		if ((i >= IWL_FIRST_OFDM_RATE) &&
 		    (i <= IWL_LAST_OFDM_RATE))
 			return i;
+
+	/* 4965 legacy rate format, search for match in table */
 	} else {
 		for (i = 0; i < ARRAY_SIZE(iwl4965_rates); i++)
 			if (iwl4965_rates[i].plcp == (plcp &0xFF))
