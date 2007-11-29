@@ -334,7 +334,7 @@ struct saa7134_board saa7134_boards[] = {
 			.tv   = 1,
 		},{
 			.name = name_comp1,
-			.vmux = 2,
+			.vmux = 0,
 			.amux = LINE1,
 		},{
 			.name = name_comp2,
