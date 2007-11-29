@@ -39,12 +39,12 @@ first subdirectory in the list below that it fits into.
 
 image/		- This is for still image drivers, like scanners or
 		  digital cameras.
-input/		- This is for any driver that uses the input subsystem,
+../input/	- This is for any driver that uses the input subsystem,
 		  like keyboard, mice, touchscreens, tablets, etc.
-media/		- This is for multimedia drivers, like video cameras,
+../media/	- This is for multimedia drivers, like video cameras,
 		  radios, and any other drivers that talk to the v4l
 		  subsystem.
-net/		- This is for network drivers.
+../net/		- This is for network drivers.
 serial/		- This is for USB to serial drivers.
 storage/	- This is for USB mass-storage drivers.
 class/		- This is for all USB device drivers that do not fit

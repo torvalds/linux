@@ -144,11 +144,13 @@ static void led_disconnect(struct usb_interface *interface)
 	struct usb_led *dev;
 
 	dev = usb_get_intfdata (interface);
-	usb_set_intfdata (interface, NULL);
 
 	device_remove_file(&interface->dev, &dev_attr_blue);
 	device_remove_file(&interface->dev, &dev_attr_red);
 	device_remove_file(&interface->dev, &dev_attr_green);
+
+	/* first remove the files, then set the pointer to NULL */
+	usb_set_intfdata (interface, NULL);
 
 	usb_put_dev(dev->udev);
 

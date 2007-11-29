@@ -735,6 +735,8 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 	struct usb_host_interface *alt = intf->cur_altsetting;
 	int retval;
 
+	if (intf->sysfs_files_created)
+		return 0;
 	retval = sysfs_create_group(&dev->kobj, &intf_attr_grp);
 	if (retval)
 		return retval;
@@ -746,6 +748,7 @@ int usb_create_sysfs_intf_files(struct usb_interface *intf)
 	if (intf->intf_assoc)
 		retval = sysfs_create_group(&dev->kobj, &intf_assoc_attr_grp);
 	usb_create_intf_ep_files(intf, udev);
+	intf->sysfs_files_created = 1;
 	return 0;
 }
 
@@ -753,8 +756,11 @@ void usb_remove_sysfs_intf_files(struct usb_interface *intf)
 {
 	struct device *dev = &intf->dev;
 
+	if (!intf->sysfs_files_created)
+		return;
 	usb_remove_intf_ep_files(intf);
 	device_remove_file(dev, &dev_attr_interface);
 	sysfs_remove_group(&dev->kobj, &intf_attr_grp);
 	sysfs_remove_group(&intf->dev.kobj, &intf_assoc_attr_grp);
+	intf->sysfs_files_created = 0;
 }

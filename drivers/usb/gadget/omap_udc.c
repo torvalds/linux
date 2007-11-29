@@ -1241,14 +1241,14 @@ static void pullup_enable(struct omap_udc *udc)
 	udc->gadget.dev.parent->power.power_state = PMSG_ON;
 	udc->gadget.dev.power.power_state = PMSG_ON;
 	UDC_SYSCON1_REG |= UDC_PULLUP_EN;
-	if (!gadget_is_otg(udc->gadget) && !cpu_is_omap15xx())
+	if (!gadget_is_otg(&udc->gadget) && !cpu_is_omap15xx())
 		OTG_CTRL_REG |= OTG_BSESSVLD;
 	UDC_IRQ_EN_REG = UDC_DS_CHG_IE;
 }
 
 static void pullup_disable(struct omap_udc *udc)
 {
-	if (!gadget_is_otg(udc->gadget) && !cpu_is_omap15xx())
+	if (!gadget_is_otg(&udc->gadget) && !cpu_is_omap15xx())
 		OTG_CTRL_REG &= ~OTG_BSESSVLD;
 	UDC_IRQ_EN_REG = UDC_DS_CHG_IE;
 	UDC_SYSCON1_REG &= ~UDC_PULLUP_EN;
@@ -1386,7 +1386,7 @@ static void update_otg(struct omap_udc *udc)
 {
 	u16	devstat;
 
-	if (!gadget_is_otg(udc->gadget))
+	if (!gadget_is_otg(&udc->gadget))
 		return;
 
 	if (OTG_CTRL_REG & OTG_ID)

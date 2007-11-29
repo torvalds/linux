@@ -104,3 +104,6 @@
 #define WS002IN_VENDOR_ID	0x11f6
 #define WS002IN_PRODUCT_ID	0x2001
 
+/* Corega CG-USBRS232R Serial Adapter */
+#define COREGA_VENDOR_ID	0x07aa
+#define COREGA_PRODUCT_ID	0x002a

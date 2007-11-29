@@ -157,6 +157,7 @@ struct usb_interface {
 					 * bound to */
 	enum usb_interface_condition condition;		/* state of binding */
 	unsigned is_active:1;		/* the interface is not suspended */
+	unsigned sysfs_files_created:1;	/* the sysfs attributes exist */
 	unsigned needs_remote_wakeup:1;	/* driver requires remote wakeup */
 
 	struct device dev;		/* interface specific device info */
