@@ -1227,6 +1227,8 @@ int mod_sysfs_init(struct module *mod)
 
 	kobject_init(&mod->mkobj.kobj);
 
+	/* delay uevent until full sysfs population */
+	err = kobject_add(&mod->mkobj.kobj);
 out:
 	return err;
 }
@@ -1236,11 +1238,6 @@ int mod_sysfs_setup(struct module *mod,
 			   unsigned int num_params)
 {
 	int err;
-
-	/* delay uevent until full sysfs population */
-	err = kobject_add(&mod->mkobj.kobj);
-	if (err)
-		goto out;
 
 	mod->holders_dir = kobject_create_and_add("holders", &mod->mkobj.kobj);
 	if (!mod->holders_dir) {
@@ -1266,7 +1263,6 @@ out_unreg_holders:
 out_unreg:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
-out:
 	return err;
 }
 #endif
@@ -1883,10 +1879,10 @@ static struct module *load_module(void __user *umod,
 	/* Now we've moved module, initialize linked lists, etc. */
 	module_unload_init(mod);
 
-	/* Initialize kobject, so we can reference it. */
+	/* add kobject, so we can reference it. */
 	err = mod_sysfs_init(mod);
 	if (err)
-		goto cleanup;
+		goto free_unload;
 
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
@@ -2056,6 +2052,9 @@ static struct module *load_module(void __user *umod,
  arch_cleanup:
 	module_arch_cleanup(mod);
  cleanup:
+	kobject_del(&mod->mkobj.kobj);
+	kobject_put(&mod->mkobj.kobj);
+ free_unload:
 	module_unload_free(mod);
 	module_free(mod, mod->module_init);
  free_core:
