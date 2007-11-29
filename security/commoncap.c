@@ -526,6 +526,15 @@ int cap_task_kill(struct task_struct *p, struct siginfo *info,
 	if (info != SEND_SIG_NOINFO && (is_si_special(info) || SI_FROMKERNEL(info)))
 		return 0;
 
+	/*
+	 * Running a setuid root program raises your capabilities.
+	 * Killing your own setuid root processes was previously
+	 * allowed.
+	 * We must preserve legacy signal behavior in this case.
+	 */
+	if (p->euid == 0 && p->uid == current->uid)
+		return 0;
+
 	/* sigcont is permitted within same session */
 	if (sig == SIGCONT && (task_session_nr(current) == task_session_nr(p)))
 		return 0;
