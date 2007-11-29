@@ -83,9 +83,11 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_resource_table *res,
 	while (!(res->irq_resource[i].flags & IORESOURCE_UNSET) &&
 	       i < PNP_MAX_IRQ)
 		i++;
-	if (i >= PNP_MAX_IRQ)
+	if (i >= PNP_MAX_IRQ) {
+		printk(KERN_ERR "pnpacpi: exceeded the max number of IRQ "
+				"resources: %d \n", PNP_MAX_IRQ);
 		return;
-
+	}
 	/*
 	 * in IO-APIC mode, use overrided attribute. Two reasons:
 	 * 1. BIOS bug in DSDT
@@ -181,6 +183,9 @@ static void pnpacpi_parse_allocated_dmaresource(struct pnp_resource_table *res,
 		}
 		res->dma_resource[i].start = dma;
 		res->dma_resource[i].end = dma;
+	} else {
+		printk(KERN_ERR "pnpacpi: exceeded the max number of DMA "
+				"resources: %d \n", PNP_MAX_DMA);
 	}
 }
 
@@ -202,6 +207,9 @@ static void pnpacpi_parse_allocated_ioresource(struct pnp_resource_table *res,
 		}
 		res->port_resource[i].start = io;
 		res->port_resource[i].end = io + len - 1;
+	} else {
+		printk(KERN_ERR "pnpacpi: exceeded the max number of IO "
+				"resources: %d \n", PNP_MAX_PORT);
 	}
 }
 
@@ -225,6 +233,9 @@ static void pnpacpi_parse_allocated_memresource(struct pnp_resource_table *res,
 
 		res->mem_resource[i].start = mem;
 		res->mem_resource[i].end = mem + len - 1;
+	} else {
+		printk(KERN_ERR "pnpacpi: exceeded the max number of mem "
+				"resources: %d\n", PNP_MAX_MEM);
 	}
 }
 
