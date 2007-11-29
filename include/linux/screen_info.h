@@ -63,6 +63,8 @@ struct screen_info {
 
 #define VIDEO_TYPE_PMAC		0x60	/* PowerMacintosh frame buffer. */
 
+#define VIDEO_TYPE_EFI		0x70	/* EFI graphic mode		*/
+
 #ifdef __KERNEL__
 extern struct screen_info screen_info;
 
