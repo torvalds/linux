@@ -98,7 +98,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	int i = 0;
 	int retval = 0;
 
-	pr_debug("%s\n", __FUNCTION__);
+	pr_debug("kobject: '%s' (%p): %s\n",
+		 kobject_name(kobj), kobj, __FUNCTION__);
 
 	/* search the kset we belong to */
 	top_kobj = kobj;
@@ -106,7 +107,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 		top_kobj = top_kobj->parent;
 
 	if (!top_kobj->kset) {
-		pr_debug("kobject attempted to send uevent without kset!\n");
+		pr_debug("kobject: '%s' (%p): %s: attempted to send uevent "
+			 "without kset!\n", kobject_name(kobj), kobj,
+			 __FUNCTION__);
 		return -EINVAL;
 	}
 
@@ -116,7 +119,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	/* skip the event, if the filter returns zero. */
 	if (uevent_ops && uevent_ops->filter)
 		if (!uevent_ops->filter(kset, kobj)) {
-			pr_debug("kobject filter function caused the event to drop!\n");
+			pr_debug("kobject: '%s' (%p): %s: filter function "
+				 "caused the event to drop!\n",
+				 kobject_name(kobj), kobj, __FUNCTION__);
 			return 0;
 		}
 
@@ -126,7 +131,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	else
 		subsystem = kobject_name(&kset->kobj);
 	if (!subsystem) {
-		pr_debug("unset subsystem caused the event to drop!\n");
+		pr_debug("kobject: '%s' (%p): %s: unset subsystem caused the "
+			 "event to drop!\n", kobject_name(kobj), kobj,
+			 __FUNCTION__);
 		return 0;
 	}
 
@@ -166,8 +173,9 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	if (uevent_ops && uevent_ops->uevent) {
 		retval = uevent_ops->uevent(kset, kobj, env);
 		if (retval) {
-			pr_debug ("%s - uevent() returned %d\n",
-				  __FUNCTION__, retval);
+			pr_debug("kobject: '%s' (%p): %s: uevent() returned "
+				 "%d\n", kobject_name(kobj), kobj,
+				 __FUNCTION__, retval);
 			goto exit;
 		}
 	}

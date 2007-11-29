@@ -95,7 +95,8 @@ static void fill_kobj_path(struct kobject *kobj, char *path, int length)
 		*(path + --length) = '/';
 	}
 
-	pr_debug("%s: path = '%s'\n",__FUNCTION__,path);
+	pr_debug("kobject: '%s' (%p): %s: path = '%s'\n", kobject_name(kobj),
+		 kobj, __FUNCTION__,path);
 }
 
 /**
@@ -171,15 +172,17 @@ int kobject_add(struct kobject * kobj)
 	if (!kobj->k_name)
 		kobject_set_name(kobj, "NO_NAME");
 	if (!*kobj->k_name) {
-		pr_debug("kobject attempted to be registered with no name!\n");
+		pr_debug("kobject (%p) attempted to be registered with no "
+			 "name!\n", kobj);
 		WARN_ON(1);
 		kobject_put(kobj);
 		return -EINVAL;
 	}
 	parent = kobject_get(kobj->parent);
 
-	pr_debug("kobject %s: registering. parent: %s, set: %s\n",
-		 kobject_name(kobj), parent ? kobject_name(parent) : "<NULL>", 
+	pr_debug("kobject: '%s' (%p): %s: parent: '%s', set: '%s'\n",
+		 kobject_name(kobj), kobj, __FUNCTION__,
+		 parent ? kobject_name(parent) : "<NULL>",
 		 kobj->kset ? kobject_name(&kobj->kset->kobj) : "<NULL>" );
 
 	if (kobj->kset) {
@@ -560,7 +563,8 @@ void kobject_unregister(struct kobject * kobj)
 {
 	if (!kobj)
 		return;
-	pr_debug("kobject %s: unregistering\n",kobject_name(kobj));
+	pr_debug("kobject: '%s' (%p): %s\n",
+		 kobject_name(kobj), kobj, __FUNCTION__);
 	kobject_uevent(kobj, KOBJ_REMOVE);
 	kobject_del(kobj);
 	kobject_put(kobj);
@@ -589,7 +593,8 @@ static void kobject_cleanup(struct kobject *kobj)
 	struct kobject * parent = kobj->parent;
 	const char *name = kobj->k_name;
 
-	pr_debug("kobject %s: cleaning up\n",kobject_name(kobj));
+	pr_debug("kobject: '%s' (%p): %s\n",
+		 kobject_name(kobj), kobj, __FUNCTION__);
 	if (t && t->release) {
 		t->release(kobj);
 		/* If we have a release function, we can guess that this was
@@ -621,7 +626,8 @@ void kobject_put(struct kobject * kobj)
 
 static void dynamic_kobj_release(struct kobject *kobj)
 {
-	pr_debug("%s: freeing %s\n", __FUNCTION__, kobject_name(kobj));
+	pr_debug("kobject: '%s' (%p): %s\n",
+		 kobject_name(kobj), kobj, __FUNCTION__);
 	kfree(kobj);
 }
 
@@ -803,7 +809,8 @@ struct kobject * kset_find_obj(struct kset * kset, const char * name)
 static void kset_release(struct kobject *kobj)
 {
 	struct kset *kset = container_of(kobj, struct kset, kobj);
-	pr_debug("kset %s: now freed\n", kobject_name(kobj));
+	pr_debug("kobject: '%s' (%p): %s\n",
+		 kobject_name(kobj), kobj, __FUNCTION__);
 	kfree(kset);
 }
 
