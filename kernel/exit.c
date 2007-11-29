@@ -1357,7 +1357,7 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 			     int __user *stat_addr, struct rusage __user *ru)
 {
 	int retval, exit_code;
-	struct pid_namespace *ns;
+	pid_t pid;
 
 	if (!p->exit_code)
 		return 0;
@@ -1376,12 +1376,11 @@ static int wait_task_stopped(struct task_struct *p, int delayed_group_leader,
 	 * keep holding onto the tasklist_lock while we call getrusage and
 	 * possibly take page faults for user memory.
 	 */
-	ns = current->nsproxy->pid_ns;
+	pid = task_pid_nr_ns(p, current->nsproxy->pid_ns);
 	get_task_struct(p);
 	read_unlock(&tasklist_lock);
 
 	if (unlikely(noreap)) {
-		pid_t pid = task_pid_nr_ns(p, ns);
 		uid_t uid = p->uid;
 		int why = (p->ptrace & PT_PTRACED) ? CLD_TRAPPED : CLD_STOPPED;
 
@@ -1451,11 +1450,11 @@ bail_ref:
 	if (!retval && infop)
 		retval = put_user(exit_code, &infop->si_status);
 	if (!retval && infop)
-		retval = put_user(task_pid_nr_ns(p, ns), &infop->si_pid);
+		retval = put_user(pid, &infop->si_pid);
 	if (!retval && infop)
 		retval = put_user(p->uid, &infop->si_uid);
 	if (!retval)
-		retval = task_pid_nr_ns(p, ns);
+		retval = pid;
 	put_task_struct(p);
 
 	BUG_ON(!retval);
