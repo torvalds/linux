@@ -84,36 +84,23 @@ config PLATFORM_AT32AP
 	select MMU
 	select PERFORMANCE_COUNTERS
 
+#
+# CPU types
+#
+
+# AP7000 derivatives
 config CPU_AT32AP700X
 	bool
 	select PLATFORM_AT32AP
-
-choice
-	prompt "AVR32 CPU type"
-	default CPU_AT32AP7000
-
 config CPU_AT32AP7000
-	bool "AT32AP7000"
+	bool
 	select CPU_AT32AP700X
-
 config CPU_AT32AP7001
-	bool "AT32AP7001"
+	bool
 	select CPU_AT32AP700X
-
 config CPU_AT32AP7002
-	bool "AT32AP7002"
+	bool
 	select CPU_AT32AP700X
-
-endchoice
-
-#
-# CPU Daughterboards for ATSTK1000
-config BOARD_ATSTK1002
-	bool
-config BOARD_ATSTK1003
-	bool
-config BOARD_ATSTK1004
-	bool
 
 choice
 	prompt "AVR32 board type"
@@ -121,12 +108,10 @@ choice
 
 config BOARD_ATSTK1000
 	bool "ATSTK1000 evaluation board"
-	select BOARD_ATSTK1002 if CPU_AT32AP7000
-	select BOARD_ATSTK1003 if CPU_AT32AP7001
-	select BOARD_ATSTK1004 if CPU_AT32AP7002
 
 config BOARD_ATNGW100
 	bool "ATNGW100 Network Gateway"
+	select CPU_AT32AP7000
 endchoice
 
 if BOARD_ATSTK1000

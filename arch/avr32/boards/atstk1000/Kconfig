@@ -2,6 +2,25 @@
 
 if BOARD_ATSTK1000
 
+choice
+	prompt "ATSTK1000 CPU daughterboard type"
+	default BOARD_ATSTK1002
+
+config BOARD_ATSTK1002
+	bool "ATSTK1002"
+	select CPU_AT32AP7000
+
+config BOARD_ATSTK1003
+	bool "ATSTK1003"
+	select CPU_AT32AP7001
+
+config BOARD_ATSTK1004
+	bool "ATSTK1004"
+	select CPU_AT32AP7002
+
+endchoice
+
+
 config BOARD_ATSTK100X_CUSTOM
 	bool "Non-default STK1002/STK1003/STK1004 jumper settings"
 	help
