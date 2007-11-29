@@ -285,6 +285,8 @@ static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
 	rxb->skb = NULL;
 }
 
+#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
+
 static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 				struct iwl3945_rx_mem_buffer *rxb)
 {
@@ -442,6 +444,13 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 		case IEEE80211_STYPE_REASSOC_RESP:{
 				struct ieee80211_mgmt *mgnt =
 				    (struct ieee80211_mgmt *)header;
+
+				/* We have just associated, give some
+				 * time for the 4-way handshake if
+				 * any. Don't start scan too early. */
+				priv->next_scan_jiffies = jiffies +
+					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
+
 				priv->assoc_id = (~((1 << 15) | (1 << 14)) &
 						  le16_to_cpu(mgnt->u.
 							      assoc_resp.aid));

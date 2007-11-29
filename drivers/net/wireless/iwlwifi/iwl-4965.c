@@ -3802,6 +3802,8 @@ static void iwl4965_update_ps_mode(struct iwl4965_priv *priv, u16 ps_bit, u8 *ad
 	}
 }
 
+#define IWL_DELAY_NEXT_SCAN_AFTER_ASSOC (HZ*6)
+
 /* Called for REPLY_4965_RX (legacy ABG frames), or
  * REPLY_RX_MPDU_CMD (HT high-throughput N frames). */
 static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
@@ -3972,6 +3974,12 @@ static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
 #endif				/*CONFIG_IWL4965_HT */
 				struct ieee80211_mgmt *mgnt =
 					(struct ieee80211_mgmt *)header;
+
+				/* We have just associated, give some
+				 * time for the 4-way handshake if
+				 * any. Don't start scan too early. */
+				priv->next_scan_jiffies = jiffies +
+					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 
 				priv->assoc_id = (~((1 << 15) | (1 << 14))
 					& le16_to_cpu(mgnt->u.assoc_resp.aid));

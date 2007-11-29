@@ -2800,7 +2800,8 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 		IWL_DEBUG_TX("Sending REASSOC frame\n");
 #endif
 
-	if (!iwl3945_is_associated(priv) &&
+	/* drop all data frame if we are not associated */
+	if (!iwl3945_is_associated(priv) && !priv->assoc_id &&
 	    ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
 		IWL_DEBUG_DROP("Dropping - !iwl3945_is_associated\n");
 		goto drop_unlock;
@@ -3737,6 +3738,7 @@ static void iwl3945_rx_scan_results_notif(struct iwl3945_priv *priv,
 					(priv->last_scan_jiffies, jiffies)));
 
 	priv->last_scan_jiffies = jiffies;
+	priv->next_scan_jiffies = 0;
 }
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
@@ -3779,6 +3781,7 @@ static void iwl3945_rx_scan_complete_notif(struct iwl3945_priv *priv,
 	}
 
 	priv->last_scan_jiffies = jiffies;
+	priv->next_scan_jiffies = 0;
 	IWL_DEBUG_INFO("Setting scan to off\n");
 
 	clear_bit(STATUS_SCANNING, &priv->status);
@@ -6806,6 +6809,8 @@ static void iwl3945_bg_rx_replenish(struct work_struct *data)
 	mutex_unlock(&priv->mutex);
 }
 
+#define IWL_DELAY_NEXT_SCAN (HZ*2)
+
 static void iwl3945_bg_post_associate(struct work_struct *data)
 {
 	struct iwl3945_priv *priv = container_of(data, struct iwl3945_priv,
@@ -6906,6 +6911,8 @@ static void iwl3945_bg_post_associate(struct work_struct *data)
 #ifdef CONFIG_IWL3945_QOS
 	iwl3945_activate_qos(priv, 0);
 #endif /* CONFIG_IWL3945_QOS */
+	/* we have just associated, don't start scan too early */
+	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 	mutex_unlock(&priv->mutex);
 }
 
@@ -7338,7 +7345,6 @@ static void iwl3945_mac_remove_interface(struct ieee80211_hw *hw,
 
 }
 
-#define IWL_DELAY_NEXT_SCAN (HZ*2)
 static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
 {
 	int rc = 0;
@@ -7362,16 +7368,20 @@ static int iwl3945_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
 		goto out_unlock;
 	}
 
+	/* we don't schedule scan within next_scan_jiffies period */
+	if (priv->next_scan_jiffies &&
+			time_after(priv->next_scan_jiffies, jiffies)) {
+		rc = -EAGAIN;
+		goto out_unlock;
+	}
 	/* if we just finished scan ask for delay */
-	if (priv->last_scan_jiffies &&
-	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN,
-		       jiffies)) {
+	if (priv->last_scan_jiffies && time_after(priv->last_scan_jiffies +
+				IWL_DELAY_NEXT_SCAN, jiffies)) {
 		rc = -EAGAIN;
 		goto out_unlock;
 	}
 	if (len) {
-		IWL_DEBUG_SCAN("direct scan for  "
-			       "%s [%d]\n ",
+		IWL_DEBUG_SCAN("direct scan for %s [%d]\n ",
 			       iwl3945_escape_essid(ssid, len), (int)len);
 
 		priv->one_direct_scan = 1;
