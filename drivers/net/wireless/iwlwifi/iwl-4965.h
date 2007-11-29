@@ -883,6 +883,11 @@ struct iwl4965_traffic_load {
 };
 
 #ifdef CONFIG_IWL4965_HT_AGG
+/**
+ * struct iwl4965_agg_control
+ * @requested_ba: bit map of tids requesting aggregation/block-ack
+ * @granted_ba: bit map of tids granted aggregation/block-ack
+ */
 struct iwl4965_agg_control {
 	unsigned long next_retry;
 	u32 wait_for_agg_status;
@@ -1054,29 +1059,8 @@ struct iwl4965_chain_noise_data {
 	u8 radio_write;
 };
 
-/* IWL4965 */
-#define RATE_MCS_CODE_MSK 0x7
-#define RATE_MCS_MIMO_POS 3
-#define RATE_MCS_MIMO_MSK 0x8
-#define RATE_MCS_HT_DUP_POS 5
-#define RATE_MCS_HT_DUP_MSK 0x20
-#define RATE_MCS_FLAGS_POS 8
-#define RATE_MCS_HT_POS 8
-#define RATE_MCS_HT_MSK 0x100
-#define RATE_MCS_CCK_POS 9
-#define RATE_MCS_CCK_MSK 0x200
-#define RATE_MCS_GF_POS 10
-#define RATE_MCS_GF_MSK 0x400
-
-#define RATE_MCS_FAT_POS 11
-#define RATE_MCS_FAT_MSK 0x800
-#define RATE_MCS_DUP_POS 12
-#define RATE_MCS_DUP_MSK 0x1000
-#define RATE_MCS_SGI_POS 13
-#define RATE_MCS_SGI_MSK 0x2000
-
-#define	EEPROM_SEM_TIMEOUT 10
-#define EEPROM_SEM_RETRY_LIMIT 1000
+#define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
+#define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
 
 
 #ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT

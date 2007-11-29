@@ -141,7 +141,8 @@ enum {
 
 /******************************************************************************
  * (0)
- * Header
+ * Commonly used structures and definitions:
+ * Command header, rate_n_flags
  *
  *****************************************************************************/
 
@@ -166,6 +167,89 @@ struct iwl4965_cmd_header {
 	/* command data follows immediately */
 	u8 data[0];
 } __attribute__ ((packed));
+
+/**
+ * 4965 rate_n_flags bit fields
+ *
+ * rate_n_flags format is used in following 4965 commands:
+ *  REPLY_4965_RX (response only)
+ *  REPLY_TX (both command and response)
+ *  REPLY_TX_LINK_QUALITY_CMD
+ *
+ * High-throughput (HT) rate format for bits 7:0 (bit 8 must be "1"):
+ *  2-0:  0)   6 Mbps
+ *        1)  12 Mbps
+ *        2)  18 Mbps
+ *        3)  24 Mbps
+ *        4)  36 Mbps
+ *        5)  48 Mbps
+ *        6)  54 Mbps
+ *        7)  60 Mbps
+ *
+ *    3:  0)  Single stream (SISO)
+ *        1)  Dual stream (MIMO)
+ *
+ *    5:  Value of 0x20 in bits 7:0 indicates 6 Mbps FAT duplicate data
+ *
+ * Legacy OFDM rate format for bits 7:0 (bit 8 must be "0", bit 9 "0"):
+ *  3-0:  0xD)   6 Mbps
+ *        0xF)   9 Mbps
+ *        0x5)  12 Mbps
+ *        0x7)  18 Mbps
+ *        0x9)  24 Mbps
+ *        0xB)  36 Mbps
+ *        0x1)  48 Mbps
+ *        0x3)  54 Mbps
+ *
+ * Legacy CCK rate format for bits 7:0 (bit 8 must be "0", bit 9 "1"):
+ *  3-0:   10)  1 Mbps
+ *         20)  2 Mbps
+ *         55)  5.5 Mbps
+ *        110)  11 Mbps
+ */
+#define RATE_MCS_CODE_MSK 0x7
+#define RATE_MCS_MIMO_POS 3
+#define RATE_MCS_MIMO_MSK 0x8
+#define RATE_MCS_HT_DUP_POS 5
+#define RATE_MCS_HT_DUP_MSK 0x20
+
+/* (1) HT format, (0) legacy format in bits 7:0 */
+#define RATE_MCS_FLAGS_POS 8
+#define RATE_MCS_HT_POS 8
+#define RATE_MCS_HT_MSK 0x100
+
+/* (1) CCK, (0) OFDM.  HT (bit 8) must be "0" for this bit to be valid */
+#define RATE_MCS_CCK_POS 9
+#define RATE_MCS_CCK_MSK 0x200
+
+/* (1) Use Green Field preamble */
+#define RATE_MCS_GF_POS 10
+#define RATE_MCS_GF_MSK 0x400
+
+/* (1) Use 40Mhz FAT channel width, (0) use 20 MHz legacy channel width */
+#define RATE_MCS_FAT_POS 11
+#define RATE_MCS_FAT_MSK 0x800
+
+/* (1) Duplicate data on both 20MHz channels.  FAT (bit 11) must be set. */
+#define RATE_MCS_DUP_POS 12
+#define RATE_MCS_DUP_MSK 0x1000
+
+/* (1) Short guard interval (0.4 usec), (0) normal GI (0.8 usec) */
+#define RATE_MCS_SGI_POS 13
+#define RATE_MCS_SGI_MSK 0x2000
+
+/**
+ * rate_n_flags Tx antenna masks (4965 has 2 transmitters):
+ * bit14:15 01 B inactive, A active
+ *          10 B active, A inactive
+ *          11 Both active
+ */
+#define RATE_MCS_ANT_A_POS	14
+#define RATE_MCS_ANT_B_POS	15
+#define RATE_MCS_ANT_A_MSK	0x4000
+#define RATE_MCS_ANT_B_MSK	0x8000
+#define RATE_MCS_ANT_AB_MSK	0xc000
+
 
 /******************************************************************************
  * (0a)
@@ -451,18 +535,6 @@ struct iwl4965_qosparam_cmd {
 #define STA_MODIFY_ADDBA_TID_MSK	0x08
 #define STA_MODIFY_DELBA_TID_MSK	0x10
 #define BUILD_RAxTID(sta_id, tid)	(((sta_id) << 4) + (tid))
-
-/*
- * Antenna masks:
- * bit14:15 01 B inactive, A active
- *          10 B active, A inactive
- *          11 Both active
- */
-#define RATE_MCS_ANT_A_POS	14
-#define RATE_MCS_ANT_B_POS	15
-#define RATE_MCS_ANT_A_MSK	0x4000
-#define RATE_MCS_ANT_B_MSK	0x8000
-#define RATE_MCS_ANT_AB_MSK	0xc000
 
 struct iwl4965_keyinfo {
 	__le16 key_flags;
