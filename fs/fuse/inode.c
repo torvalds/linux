@@ -56,6 +56,7 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 	fi->i_time = 0;
 	fi->nodeid = 0;
 	fi->nlookup = 0;
+	fi->attr_version = 0;
 	INIT_LIST_HEAD(&fi->write_files);
 	fi->forget_req = fuse_request_alloc();
 	if (!fi->forget_req) {
