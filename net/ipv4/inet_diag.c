@@ -853,8 +853,6 @@ static void inet_diag_rcv(struct sk_buff *skb)
 	mutex_unlock(&inet_diag_mutex);
 }
 
-static DEFINE_SPINLOCK(inet_diag_register_lock);
-
 int inet_diag_register(const struct inet_diag_handler *h)
 {
 	const __u16 type = h->idiag_type;
@@ -863,13 +861,13 @@ int inet_diag_register(const struct inet_diag_handler *h)
 	if (type >= INET_DIAG_GETSOCK_MAX)
 		goto out;
 
-	spin_lock(&inet_diag_register_lock);
+	mutex_lock(&inet_diag_mutex);
 	err = -EEXIST;
 	if (inet_diag_table[type] == NULL) {
 		inet_diag_table[type] = h;
 		err = 0;
 	}
-	spin_unlock(&inet_diag_register_lock);
+	mutex_unlock(&inet_diag_mutex);
 out:
 	return err;
 }
@@ -882,11 +880,9 @@ void inet_diag_unregister(const struct inet_diag_handler *h)
 	if (type >= INET_DIAG_GETSOCK_MAX)
 		return;
 
-	spin_lock(&inet_diag_register_lock);
+	mutex_lock(&inet_diag_mutex);
 	inet_diag_table[type] = NULL;
-	spin_unlock(&inet_diag_register_lock);
-
-	synchronize_rcu();
+	mutex_unlock(&inet_diag_mutex);
 }
 EXPORT_SYMBOL_GPL(inet_diag_unregister);
 
@@ -901,7 +897,7 @@ static int __init inet_diag_init(void)
 		goto out;
 
 	idiagnl = netlink_kernel_create(&init_net, NETLINK_INET_DIAG, 0,
-					inet_diag_rcv, NULL, THIS_MODULE);
+			inet_diag_rcv, &inet_diag_mutex, THIS_MODULE);
 	if (idiagnl == NULL)
 		goto out_free_table;
 	err = 0;
