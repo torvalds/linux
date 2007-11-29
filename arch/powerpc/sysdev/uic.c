@@ -309,28 +309,23 @@ void __init uic_init_tree(void)
 	const u32 *interrupts;
 
 	/* First locate and initialize the top-level UIC */
-
-	np = of_find_compatible_node(NULL, NULL, "ibm,uic");
-	while (np) {
+	for_each_compatible_node(np, NULL, "ibm,uic") {
 		interrupts = of_get_property(np, "interrupts", NULL);
-		if (! interrupts)
+		if (!interrupts)
 			break;
-
-		np = of_find_compatible_node(np, NULL, "ibm,uic");
 	}
 
 	BUG_ON(!np); /* uic_init_tree() assumes there's a UIC as the
 		      * top-level interrupt controller */
 	primary_uic = uic_init_one(np);
-	if (! primary_uic)
+	if (!primary_uic)
 		panic("Unable to initialize primary UIC %s\n", np->full_name);
 
 	irq_set_default_host(primary_uic->irqhost);
 	of_node_put(np);
 
 	/* The scan again for cascaded UICs */
-	np = of_find_compatible_node(NULL, NULL, "ibm,uic");
-	while (np) {
+	for_each_compatible_node(np, NULL, "ibm,uic") {
 		interrupts = of_get_property(np, "interrupts", NULL);
 		if (interrupts) {
 			/* Secondary UIC */
@@ -348,8 +343,6 @@ void __init uic_init_tree(void)
 
 			/* FIXME: setup critical cascade?? */
 		}
-
-		np = of_find_compatible_node(np, NULL, "ibm,uic");
 	}
 }
 
