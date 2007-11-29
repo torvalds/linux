@@ -191,14 +191,6 @@ struct iwl3945_scan_power_info {
 	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
 };
 
-/* Channel unlock period is 15 seconds. If no beacon or probe response
- * has been received within 15 seconds on a locked channel then the channel
- * remains locked. */
-#define TX_UNLOCK_PERIOD 15
-
-/* CSA lock period is 15 seconds.  If a CSA has been received on a channel in
- * the last 15 seconds, the channel is locked */
-#define CSA_LOCK_PERIOD 15
 /*
  * One for each channel, holds all channel setup data
  * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
@@ -559,19 +551,6 @@ struct iwl3945_driver_hw_info {
 	void *shared_virt;
 	dma_addr_t shared_phys;
 };
-
-
-#define STA_FLG_RTS_MIMO_PROT_MSK	__constant_cpu_to_le32(1 << 17)
-#define STA_FLG_AGG_MPDU_8US_MSK	__constant_cpu_to_le32(1 << 18)
-#define STA_FLG_MAX_AGG_SIZE_POS	(19)
-#define STA_FLG_MAX_AGG_SIZE_MSK	__constant_cpu_to_le32(3 << 19)
-#define STA_FLG_FAT_EN_MSK		__constant_cpu_to_le32(1 << 21)
-#define STA_FLG_MIMO_DIS_MSK		__constant_cpu_to_le32(1 << 22)
-#define STA_FLG_AGG_MPDU_DENSITY_POS	(23)
-#define STA_FLG_AGG_MPDU_DENSITY_MSK	__constant_cpu_to_le32(7 << 23)
-#define HT_SHORT_GI_20MHZ_ONLY          (1 << 0)
-#define HT_SHORT_GI_40MHZ_ONLY          (1 << 1)
-
 
 #define IWL_RX_HDR(x) ((struct iwl3945_rx_frame_hdr *)(\
 		       x->u.rx_frame.stats.payload + \

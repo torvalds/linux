@@ -192,14 +192,6 @@ struct iwl4965_scan_power_info {
 	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
 };
 
-/* Channel unlock period is 15 seconds. If no beacon or probe response
- * has been received within 15 seconds on a locked channel then the channel
- * remains locked. */
-#define TX_UNLOCK_PERIOD 15
-
-/* CSA lock period is 15 seconds.  If a CSA has been received on a channel in
- * the last 15 seconds, the channel is locked */
-#define CSA_LOCK_PERIOD 15
 /*
  * One for each channel, holds all channel setup data
  * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
@@ -620,15 +612,6 @@ struct iwl4965_driver_hw_info {
 	dma_addr_t shared_phys;
 };
 
-
-#define STA_FLG_RTS_MIMO_PROT_MSK	__constant_cpu_to_le32(1 << 17)
-#define STA_FLG_AGG_MPDU_8US_MSK	__constant_cpu_to_le32(1 << 18)
-#define STA_FLG_MAX_AGG_SIZE_POS	(19)
-#define STA_FLG_MAX_AGG_SIZE_MSK	__constant_cpu_to_le32(3 << 19)
-#define STA_FLG_FAT_EN_MSK		__constant_cpu_to_le32(1 << 21)
-#define STA_FLG_MIMO_DIS_MSK		__constant_cpu_to_le32(1 << 22)
-#define STA_FLG_AGG_MPDU_DENSITY_POS	(23)
-#define STA_FLG_AGG_MPDU_DENSITY_MSK	__constant_cpu_to_le32(7 << 23)
 #define HT_SHORT_GI_20MHZ_ONLY          (1 << 0)
 #define HT_SHORT_GI_40MHZ_ONLY          (1 << 1)
 
@@ -860,17 +843,8 @@ struct iwl4965_kw {
 #define NRG_NUM_PREV_STAT_L     20
 #define NUM_RX_CHAINS           (3)
 
-#define TX_POWER_IWL_ILLEGAL_VDET    -100000
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
-#define TX_POWER_IWL_CLOSED_LOOP_MIN_POWER 18
-#define TX_POWER_IWL_CLOSED_LOOP_MAX_POWER 34
-#define TX_POWER_IWL_VDET_SLOPE_BELOW_NOMINAL 17
-#define TX_POWER_IWL_VDET_SLOPE_ABOVE_NOMINAL 20
-#define TX_POWER_IWL_NOMINAL_POWER            26
-#define TX_POWER_IWL_CLOSED_LOOP_ITERATION_LIMIT 1
 #define TX_POWER_IWL_VOLTAGE_CODES_PER_03V       7
-#define TX_POWER_IWL_DEGREES_PER_VDET_CODE       11
-#define IWL_TX_POWER_MAX_NUM_PA_MEASUREMENTS 1
 #define IWL_TX_POWER_CCK_COMPENSATION_B_STEP (9)
 #define IWL_TX_POWER_CCK_COMPENSATION_C_STEP (5)
 

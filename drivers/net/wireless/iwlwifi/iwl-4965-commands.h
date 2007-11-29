@@ -515,6 +515,14 @@ struct iwl4965_qosparam_cmd {
 #define	IWL_INVALID_STATION 	255
 
 #define STA_FLG_PWR_SAVE_MSK		__constant_cpu_to_le32(1<<8);
+#define STA_FLG_RTS_MIMO_PROT_MSK	__constant_cpu_to_le32(1 << 17)
+#define STA_FLG_AGG_MPDU_8US_MSK	__constant_cpu_to_le32(1 << 18)
+#define STA_FLG_MAX_AGG_SIZE_POS	(19)
+#define STA_FLG_MAX_AGG_SIZE_MSK	__constant_cpu_to_le32(3 << 19)
+#define STA_FLG_FAT_EN_MSK		__constant_cpu_to_le32(1 << 21)
+#define STA_FLG_MIMO_DIS_MSK		__constant_cpu_to_le32(1 << 22)
+#define STA_FLG_AGG_MPDU_DENSITY_POS	(23)
+#define STA_FLG_AGG_MPDU_DENSITY_MSK	__constant_cpu_to_le32(7 << 23)
 
 #define STA_CONTROL_MODIFY_MSK		0x01
 
