@@ -377,6 +377,13 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 		       "%s: Disabled Privacy Extensions\n",
 		       dev->name);
 		ndev->cnf.use_tempaddr = -1;
+
+		if (dev->type == ARPHRD_SIT && (dev->priv_flags & IFF_ISATAP)) {
+			printk(KERN_INFO
+			       "%s: Disabled Multicast RS\n",
+			       dev->name);
+			ndev->cnf.rtr_solicits = 0;
+		}
 	} else {
 		in6_dev_hold(ndev);
 		ipv6_regen_rndid((unsigned long) ndev);
@@ -1409,6 +1416,9 @@ static int ipv6_generate_eui64(u8 *eui, struct net_device *dev)
 		return addrconf_ifid_arcnet(eui, dev);
 	case ARPHRD_INFINIBAND:
 		return addrconf_ifid_infiniband(eui, dev);
+	case ARPHRD_SIT:
+		if (dev->priv_flags & IFF_ISATAP)
+			return ipv6_isatap_eui64(eui, *(__be32 *)dev->dev_addr);
 	}
 	return -1;
 }
@@ -1444,7 +1454,7 @@ regen:
 	 *
 	 *  - Reserved subnet anycast (RFC 2526)
 	 *	11111101 11....11 1xxxxxxx
-	 *  - ISATAP (draft-ietf-ngtrans-isatap-13.txt) 5.1
+	 *  - ISATAP (RFC4214) 6.1
 	 *	00-00-5E-FE-xx-xx-xx-xx
 	 *  - value 0
 	 *  - XXX: already assigned to an address on the device
@@ -2172,6 +2182,16 @@ static void addrconf_sit_config(struct net_device *dev)
 
 	if ((idev = ipv6_find_idev(dev)) == NULL) {
 		printk(KERN_DEBUG "init sit: add_dev failed\n");
+		return;
+	}
+
+	if (dev->priv_flags & IFF_ISATAP) {
+		struct in6_addr addr;
+
+		ipv6_addr_set(&addr,  htonl(0xFE800000), 0, 0, 0);
+		addrconf_prefix_route(&addr, 64, dev, 0, 0);
+		if (!ipv6_generate_eui64(addr.s6_addr + 8, dev))
+			addrconf_add_linklocal(idev, &addr);
 		return;
 	}
 

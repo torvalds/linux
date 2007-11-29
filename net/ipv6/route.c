@@ -1659,6 +1659,8 @@ struct rt6_info *rt6_get_dflt_router(struct in6_addr *addr, struct net_device *d
 	return rt;
 }
 
+EXPORT_SYMBOL(rt6_get_dflt_router);
+
 struct rt6_info *rt6_add_dflt_router(struct in6_addr *gwaddr,
 				     struct net_device *dev,
 				     unsigned int pref)

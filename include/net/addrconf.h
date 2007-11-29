@@ -17,6 +17,7 @@
 
 #define IPV6_MAX_ADDRESSES		16
 
+#include <linux/in.h>
 #include <linux/in6.h>
 
 struct prefix_info {
@@ -247,6 +248,24 @@ static inline int ipv6_addr_is_ll_all_routers(const struct in6_addr *addr)
 		addr->s6_addr32[1] == 0 &&
 		addr->s6_addr32[2] == 0 &&
 		addr->s6_addr32[3] == htonl(0x00000002));
+}
+
+static inline int ipv6_isatap_eui64(u8 *eui, __be32 addr)
+{
+	eui[0] = (ZERONET(addr) || PRIVATE_10(addr) || LOOPBACK(addr) ||
+		  LINKLOCAL_169(addr) || PRIVATE_172(addr) || TEST_192(addr) ||
+		  ANYCAST_6TO4(addr) || PRIVATE_192(addr) || TEST_198(addr) ||
+		  MULTICAST(addr) || BADCLASS(addr)) ? 0x00 : 0x02;
+	eui[1] = 0;
+	eui[2] = 0x5E;
+	eui[3] = 0xFE;
+	memcpy (eui+4, &addr, 4);
+	return 0;
+}
+
+static inline int ipv6_addr_is_isatap(const struct in6_addr *addr)
+{
+	return ((addr->s6_addr32[2] | htonl(0x02000000)) == htonl(0x02005EFE));
 }
 
 #ifdef CONFIG_PROC_FS
