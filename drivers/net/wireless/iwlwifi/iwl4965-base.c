@@ -90,7 +90,7 @@ int iwl4965_param_queues_num = IWL_MAX_NUM_QUEUES; /* def: 16 Tx queues */
 #define VS
 #endif
 
-#define IWLWIFI_VERSION "1.1.19k" VD VS
+#define IWLWIFI_VERSION "1.2.22k" VD VS
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2007 Intel Corporation"
 #define DRV_VERSION     IWLWIFI_VERSION
 
