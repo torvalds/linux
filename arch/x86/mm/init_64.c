@@ -345,7 +345,7 @@ static void __init find_early_table_space(unsigned long end)
 /* Setup the direct mapping of the physical memory at PAGE_OFFSET.
    This runs before bootmem is initialized and gets pages directly from the 
    physical memory. To access them they are temporarily mapped. */
-void __meminit init_memory_mapping(unsigned long start, unsigned long end)
+void __init_refok init_memory_mapping(unsigned long start, unsigned long end)
 { 
 	unsigned long next; 
 
