@@ -861,7 +861,8 @@ static void intel_i965_g33_setup_chipset_flush(void)
 
 		intel_alloc_chipset_flush_resource();
 
-		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR + 4, (intel_private.ifp_resource.start >> 32));
+		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR + 4,
+			upper_32_bits(intel_private.ifp_resource.start));
 		pci_write_config_dword(agp_bridge->dev, I965_IFPADDR, (intel_private.ifp_resource.start & 0xffffffff) | 0x1);
 	} else {
 		u64 l64;
