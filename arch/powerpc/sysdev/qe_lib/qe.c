@@ -167,18 +167,19 @@ unsigned int get_brg_clk(void)
 
 /* Program the BRG to the given sampling rate and multiplier
  *
- * @brg: the BRG, 1-16
+ * @brg: the BRG, QE_BRG1 - QE_BRG16
  * @rate: the desired sampling rate
  * @multiplier: corresponds to the value programmed in GUMR_L[RDCR] or
  * GUMR_L[TDCR].  E.g., if this BRG is the RX clock, and GUMR_L[RDCR]=01,
  * then 'multiplier' should be 8.
- *
- * Also note that the value programmed into the BRGC register must be even.
  */
-void qe_setbrg(unsigned int brg, unsigned int rate, unsigned int multiplier)
+int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier)
 {
 	u32 divisor, tempval;
 	u32 div16 = 0;
+
+	if ((brg < QE_BRG1) || (brg > QE_BRG16))
+		return -EINVAL;
 
 	divisor = get_brg_clk() / (rate * multiplier);
 
@@ -196,8 +197,11 @@ void qe_setbrg(unsigned int brg, unsigned int rate, unsigned int multiplier)
 	tempval = ((divisor - 1) << QE_BRGC_DIVISOR_SHIFT) |
 		QE_BRGC_ENABLE | div16;
 
-	out_be32(&qe_immr->brg.brgc[brg - 1], tempval);
+	out_be32(&qe_immr->brg.brgc[brg - QE_BRG1], tempval);
+
+	return 0;
 }
+EXPORT_SYMBOL(qe_setbrg);
 
 /* Initialize SNUMs (thread serial numbers) according to
  * QE Module Control chapter, SNUM table

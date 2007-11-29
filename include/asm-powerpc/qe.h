@@ -28,6 +28,52 @@
 #define MEM_PART_SECONDARY	1
 #define MEM_PART_MURAM		2
 
+/* Clocks and BRGs */
+enum qe_clock {
+	QE_CLK_NONE = 0,
+	QE_BRG1,		/* Baud Rate Generator 1 */
+	QE_BRG2,		/* Baud Rate Generator 2 */
+	QE_BRG3,		/* Baud Rate Generator 3 */
+	QE_BRG4,		/* Baud Rate Generator 4 */
+	QE_BRG5,		/* Baud Rate Generator 5 */
+	QE_BRG6,		/* Baud Rate Generator 6 */
+	QE_BRG7,		/* Baud Rate Generator 7 */
+	QE_BRG8,		/* Baud Rate Generator 8 */
+	QE_BRG9,		/* Baud Rate Generator 9 */
+	QE_BRG10,		/* Baud Rate Generator 10 */
+	QE_BRG11,		/* Baud Rate Generator 11 */
+	QE_BRG12,		/* Baud Rate Generator 12 */
+	QE_BRG13,		/* Baud Rate Generator 13 */
+	QE_BRG14,		/* Baud Rate Generator 14 */
+	QE_BRG15,		/* Baud Rate Generator 15 */
+	QE_BRG16,		/* Baud Rate Generator 16 */
+	QE_CLK1,		/* Clock 1 */
+	QE_CLK2,		/* Clock 2 */
+	QE_CLK3,		/* Clock 3 */
+	QE_CLK4,		/* Clock 4 */
+	QE_CLK5,		/* Clock 5 */
+	QE_CLK6,		/* Clock 6 */
+	QE_CLK7,		/* Clock 7 */
+	QE_CLK8,		/* Clock 8 */
+	QE_CLK9,		/* Clock 9 */
+	QE_CLK10,		/* Clock 10 */
+	QE_CLK11,		/* Clock 11 */
+	QE_CLK12,		/* Clock 12 */
+	QE_CLK13,		/* Clock 13 */
+	QE_CLK14,		/* Clock 14 */
+	QE_CLK15,		/* Clock 15 */
+	QE_CLK16,		/* Clock 16 */
+	QE_CLK17,		/* Clock 17 */
+	QE_CLK18,		/* Clock 18 */
+	QE_CLK19,		/* Clock 19 */
+	QE_CLK20,		/* Clock 20 */
+	QE_CLK21,		/* Clock 21 */
+	QE_CLK22,		/* Clock 22 */
+	QE_CLK23,		/* Clock 23 */
+	QE_CLK24,		/* Clock 24 */
+	QE_CLK_DUMMY
+};
+
 /* Export QE common operations */
 extern void qe_reset(void);
 extern int par_io_init(struct device_node *np);
@@ -38,7 +84,7 @@ extern int par_io_data_set(u8 port, u8 pin, u8 val);
 
 /* QE internal API */
 int qe_issue_cmd(u32 cmd, u32 device, u8 mcn_protocol, u32 cmd_input);
-void qe_setbrg(unsigned int brg, unsigned int rate, unsigned int multiplier);
+int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier);
 int qe_get_snum(void);
 void qe_put_snum(u8 snum);
 unsigned long qe_muram_alloc(int size, int align);
@@ -127,52 +173,6 @@ enum comm_dir {
 	COMM_DIR_RX = 1,
 	COMM_DIR_TX = 2,
 	COMM_DIR_RX_AND_TX = 3
-};
-
-/* Clocks and BRGs */
-enum qe_clock {
-	QE_CLK_NONE = 0,
-	QE_BRG1,		/* Baud Rate Generator 1 */
-	QE_BRG2,		/* Baud Rate Generator 2 */
-	QE_BRG3,		/* Baud Rate Generator 3 */
-	QE_BRG4,		/* Baud Rate Generator 4 */
-	QE_BRG5,		/* Baud Rate Generator 5 */
-	QE_BRG6,		/* Baud Rate Generator 6 */
-	QE_BRG7,		/* Baud Rate Generator 7 */
-	QE_BRG8,		/* Baud Rate Generator 8 */
-	QE_BRG9,		/* Baud Rate Generator 9 */
-	QE_BRG10,		/* Baud Rate Generator 10 */
-	QE_BRG11,		/* Baud Rate Generator 11 */
-	QE_BRG12,		/* Baud Rate Generator 12 */
-	QE_BRG13,		/* Baud Rate Generator 13 */
-	QE_BRG14,		/* Baud Rate Generator 14 */
-	QE_BRG15,		/* Baud Rate Generator 15 */
-	QE_BRG16,		/* Baud Rate Generator 16 */
-	QE_CLK1,		/* Clock 1 */
-	QE_CLK2,		/* Clock 2 */
-	QE_CLK3,		/* Clock 3 */
-	QE_CLK4,		/* Clock 4 */
-	QE_CLK5,		/* Clock 5 */
-	QE_CLK6,		/* Clock 6 */
-	QE_CLK7,		/* Clock 7 */
-	QE_CLK8,		/* Clock 8 */
-	QE_CLK9,		/* Clock 9 */
-	QE_CLK10,		/* Clock 10 */
-	QE_CLK11,		/* Clock 11 */
-	QE_CLK12,		/* Clock 12 */
-	QE_CLK13,		/* Clock 13 */
-	QE_CLK14,		/* Clock 14 */
-	QE_CLK15,		/* Clock 15 */
-	QE_CLK16,		/* Clock 16 */
-	QE_CLK17,		/* Clock 17 */
-	QE_CLK18,		/* Clock 18 */
-	QE_CLK19,		/* Clock 19 */
-	QE_CLK20,		/* Clock 20 */
-	QE_CLK21,		/* Clock 21 */
-	QE_CLK22,		/* Clock 22 */
-	QE_CLK23,		/* Clock 23 */
-	QE_CLK24,		/* Clock 24 */
-	QE_CLK_DUMMY,
 };
 
 /* QE CMXUCR Registers.
