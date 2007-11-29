@@ -1180,7 +1180,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len, 
 	if (skb->len != skb->data_len)
 		return tcp_fragment(sk, skb, len, mss_now);
 
-	buff = sk_stream_alloc_pskb(sk, 0, 0, GFP_ATOMIC);
+	buff = sk_stream_alloc_skb(sk, 0, GFP_ATOMIC);
 	if (unlikely(buff == NULL))
 		return -ENOMEM;
 

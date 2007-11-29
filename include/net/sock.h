@@ -1192,15 +1192,7 @@ static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 	}
 }
 
-struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
-		int size, int mem, gfp_t gfp);
-
-static inline struct sk_buff *sk_stream_alloc_skb(struct sock *sk,
-						  int size,
-						  gfp_t gfp)
-{
-	return sk_stream_alloc_pskb(sk, size, 0, gfp);
-}
+struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp);
 
 static inline struct page *sk_stream_alloc_page(struct sock *sk)
 {

@@ -629,8 +629,7 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 	return ret;
 }
 
-struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
-		int size, int mem, gfp_t gfp)
+struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp)
 {
 	struct sk_buff *skb;
 
@@ -639,7 +638,6 @@ struct sk_buff *sk_stream_alloc_pskb(struct sock *sk,
 
 	skb = alloc_skb_fclone(size + sk->sk_prot->max_header, gfp);
 	if (skb) {
-		skb->truesize += mem;
 		if (sk_stream_wmem_schedule(sk, skb->truesize)) {
 			/*
 			 * Make sure that we have exactly size bytes
@@ -692,8 +690,7 @@ new_segment:
 			if (!sk_stream_memory_free(sk))
 				goto wait_for_sndbuf;
 
-			skb = sk_stream_alloc_pskb(sk, 0, 0,
-						   sk->sk_allocation);
+			skb = sk_stream_alloc_skb(sk, 0, sk->sk_allocation);
 			if (!skb)
 				goto wait_for_memory;
 
@@ -873,8 +870,8 @@ new_segment:
 				if (!sk_stream_memory_free(sk))
 					goto wait_for_sndbuf;
 
-				skb = sk_stream_alloc_pskb(sk, select_size(sk),
-							   0, sk->sk_allocation);
+				skb = sk_stream_alloc_skb(sk, select_size(sk),
+						sk->sk_allocation);
 				if (!skb)
 					goto wait_for_memory;
 
