@@ -132,6 +132,21 @@ static void fuse_lookup_init(struct fuse_req *req, struct inode *dir,
 	req->out.args[0].value = outarg;
 }
 
+static u64 fuse_get_attr_version(struct fuse_conn *fc)
+{
+	u64 curr_version;
+
+	/*
+	 * The spin lock isn't actually needed on 64bit archs, but we
+	 * don't yet care too much about such optimizations.
+	 */
+	spin_lock(&fc->lock);
+	curr_version = fc->attr_version;
+	spin_unlock(&fc->lock);
+
+	return curr_version;
+}
+
 /*
  * Check whether the dentry is still valid
  *
@@ -171,9 +186,7 @@ static int fuse_dentry_revalidate(struct dentry *entry, struct nameidata *nd)
 			return 0;
 		}
 
-		spin_lock(&fc->lock);
-		attr_version = fc->attr_version;
-		spin_unlock(&fc->lock);
+		attr_version = fuse_get_attr_version(fc);
 
 		parent = dget_parent(entry);
 		fuse_lookup_init(req, parent->d_inode, entry, &outarg);
@@ -264,9 +277,7 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 		return ERR_PTR(PTR_ERR(forget_req));
 	}
 
-	spin_lock(&fc->lock);
-	attr_version = fc->attr_version;
-	spin_unlock(&fc->lock);
+	attr_version = fuse_get_attr_version(fc);
 
 	fuse_lookup_init(req, dir, entry, &outarg);
 	request_send(fc, req);
@@ -733,9 +744,7 @@ static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	spin_lock(&fc->lock);
-	attr_version = fc->attr_version;
-	spin_unlock(&fc->lock);
+	attr_version = fuse_get_attr_version(fc);
 
 	memset(&inarg, 0, sizeof(inarg));
 	memset(&outarg, 0, sizeof(outarg));
