@@ -89,14 +89,14 @@ struct ccsr_guts {
  * them.
  *
  * guts: Pointer to GUTS structure
- * co: The DMA controller (1 or 2)
+ * co: The DMA controller (0 or 1)
  * ch: The channel on the DMA controller (0, 1, 2, or 3)
  * device: The device to set as the source (CCSR_GUTS_DMACR_DEV_xx)
  */
 static inline void guts_set_dmacr(struct ccsr_guts __iomem *guts,
 	unsigned int co, unsigned int ch, unsigned int device)
 {
-	unsigned int shift = 16 + (8 * (2 - co) + 2 * (3 - ch));
+	unsigned int shift = 16 + (8 * (1 - co) + 2 * (3 - ch));
 
 	clrsetbits_be32(&guts->dmacr, 3 << shift, device << shift);
 }
@@ -117,6 +117,27 @@ static inline void guts_set_dmacr(struct ccsr_guts __iomem *guts,
 #define CCSR_GUTS_PMUXCR_DMA2_3		0x00000004
 #define CCSR_GUTS_PMUXCR_DMA1_0		0x00000002
 #define CCSR_GUTS_PMUXCR_DMA1_3		0x00000001
+
+/*
+ * Set the DMA external control bits in the GUTS
+ *
+ * The DMA external control bits in the PMUXCR are only meaningful for
+ * channels 0 and 3.  Any other channels are ignored.
+ *
+ * guts: Pointer to GUTS structure
+ * co: The DMA controller (0 or 1)
+ * ch: The channel on the DMA controller (0, 1, 2, or 3)
+ * value: the new value for the bit (0 or 1)
+ */
+static inline void guts_set_pmuxcr_dma(struct ccsr_guts __iomem *guts,
+	unsigned int co, unsigned int ch, unsigned int value)
+{
+	if ((ch == 0) || (ch == 3)) {
+		unsigned int shift = 2 * (co + 1) - (ch & 1) - 1;
+
+		clrsetbits_be32(&guts->pmuxcr, 1 << shift, value << shift);
+	}
+}
 
 #define CCSR_GUTS_CLKDVDR_PXCKEN	0x80000000
 #define CCSR_GUTS_CLKDVDR_SSICKEN	0x20000000
