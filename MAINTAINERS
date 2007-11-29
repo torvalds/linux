@@ -2110,6 +2110,14 @@ L:	irda-users@lists.sourceforge.net (subscribers-only)
 W:	http://irda.sourceforge.net/
 S:	Maintained
 
+ISCSI
+P:	Mike Christie
+M:	michaelc@cs.wisc.edu
+L:	open-iscsi@googlegroups.com
+W:	www.open-iscsi.org
+T:	git kernel.org:/pub/scm/linux/kernel/mnc/linux-2.6-iscsi.git
+S:	Maintained
+
 ISAPNP
 P:	Jaroslav Kysela
 M:	perex@perex.cz
