@@ -503,13 +503,8 @@ static void pasemi_mac_replenish_rx_ring(const struct net_device *dev,
 		/* Entry in use? */
 		WARN_ON(*buff);
 
-		/* skb might still be in there for recycle on short receives */
-		if (info->skb)
-			skb = info->skb;
-		else {
-			skb = dev_alloc_skb(BUF_SIZE);
-			skb_reserve(skb, LOCAL_SKB_ALIGN);
-		}
+		skb = dev_alloc_skb(BUF_SIZE);
+		skb_reserve(skb, LOCAL_SKB_ALIGN);
 
 		if (unlikely(!skb))
 			break;
@@ -666,21 +661,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac_rxring *rx,
 			goto next;
 		}
 
-		if (len < 256) {
-			struct sk_buff *new_skb;
-
-			new_skb = netdev_alloc_skb(mac->netdev,
-						   len + LOCAL_SKB_ALIGN);
-			if (new_skb) {
-				skb_reserve(new_skb, LOCAL_SKB_ALIGN);
-				memcpy(new_skb->data, skb->data, len);
-				/* save the skb in buffer_info as good */
-				skb = new_skb;
-			}
-			/* else just continue with the old one */
-		} else
-			info->skb = NULL;
-
+		info->skb = NULL;
 		info->dma = 0;
 
 		if (likely((macrx & XCT_MACRX_HTY_M) == XCT_MACRX_HTY_IPV4_OK)) {
