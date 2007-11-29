@@ -504,14 +504,18 @@ static void pasemi_mac_replenish_rx_ring(const struct net_device *dev,
 
 static void pasemi_mac_restart_rx_intr(const struct pasemi_mac *mac)
 {
+	struct pasemi_mac_rxring *rx = rx_ring(mac);
 	unsigned int reg, pcnt;
 	/* Re-enable packet count interrupts: finally
 	 * ack the packet count interrupt we got in rx_intr.
 	 */
 
-	pcnt = *rx_ring(mac)->chan.status & PAS_STATUS_PCNT_M;
+	pcnt = *rx->chan.status & PAS_STATUS_PCNT_M;
 
 	reg = PAS_IOB_DMA_RXCH_RESET_PCNT(pcnt) | PAS_IOB_DMA_RXCH_RESET_PINTC;
+
+	if (*rx->chan.status & PAS_STATUS_TIMER)
+		reg |= PAS_IOB_DMA_RXCH_RESET_TINTC;
 
 	write_iob_reg(PAS_IOB_DMA_RXCH_RESET(mac->rx->chan.chno), reg);
 }
@@ -795,8 +799,6 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 		reg |= PAS_IOB_DMA_RXCH_RESET_SINTC;
 	if (*chan->status & PAS_STATUS_ERROR)
 		reg |= PAS_IOB_DMA_RXCH_RESET_DINTC;
-	if (*chan->status & PAS_STATUS_TIMER)
-		reg |= PAS_IOB_DMA_RXCH_RESET_TINTC;
 
 	netif_rx_schedule(dev, &mac->napi);
 
@@ -972,10 +974,6 @@ static int pasemi_mac_open(struct net_device *dev)
 
 	write_mac_reg(mac, PAS_MAC_CFG_TXP, flags);
 
-	/* 0xffffff is max value, about 16ms */
-	write_iob_reg(PAS_IOB_DMA_COM_TIMEOUTCFG,
-		      PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0xffffff));
-
 	ret = pasemi_mac_setup_rx_resources(dev);
 	if (ret)
 		goto out_rx_resources;
@@ -985,8 +983,12 @@ static int pasemi_mac_open(struct net_device *dev)
 	if (!mac->tx)
 		goto out_tx_ring;
 
+	/* 0x3ff with 33MHz clock is about 31us */
+	write_iob_reg(PAS_IOB_DMA_COM_TIMEOUTCFG,
+		      PAS_IOB_DMA_COM_TIMEOUTCFG_TCNT(0x3ff));
+
 	write_iob_reg(PAS_IOB_DMA_RXCH_CFG(mac->rx->chan.chno),
-		      PAS_IOB_DMA_RXCH_CFG_CNTTH(0));
+		      PAS_IOB_DMA_RXCH_CFG_CNTTH(128));
 
 	write_iob_reg(PAS_IOB_DMA_TXCH_CFG(mac->tx->chan.chno),
 		      PAS_IOB_DMA_TXCH_CFG_CNTTH(32));
