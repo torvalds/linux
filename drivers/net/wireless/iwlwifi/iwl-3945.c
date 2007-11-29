@@ -2202,6 +2202,7 @@ int iwl3945_init_hw_rate_table(struct iwl3945_priv *priv)
 				&rate_cmd);
 }
 
+/* Called when initializing driver */
 int iwl3945_hw_set_hw_setting(struct iwl3945_priv *priv)
 {
 	memset((void *)&priv->hw_setting, 0,
@@ -2284,6 +2285,14 @@ struct pci_device_id iwl3945_hw_card_ids[] = {
 	{0}
 };
 
+/*
+ * Clear the OWNER_MSK, to establish driver (instead of uCode running on
+ * embedded controller) as EEPROM reader; each read is a series of pulses
+ * to/from the EEPROM chip, not a single event, so even reads could conflict
+ * if they weren't arbitrated by some ownership mechanism.  Here, the driver
+ * simply claims ownership, which should be safe when this function is called
+ * (i.e. before loading uCode!).
+ */
 inline int iwl3945_eeprom_acquire_semaphore(struct iwl3945_priv *priv)
 {
 	_iwl3945_clear_bit(priv, CSR_EEPROM_GP, CSR_EEPROM_GP_IF_OWNER_MSK);

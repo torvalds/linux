@@ -85,24 +85,48 @@
 #define IWL_RSSI_OFFSET	95
 
 /*
- * This file defines EEPROM related constants, enums, and inline functions.
- *
+ * EEPROM related constants, enums, and structures.
  */
 
+/*
+ * EEPROM access time values:
+ *
+ * Driver initiates EEPROM read by writing byte address << 1 to CSR_EEPROM_REG,
+ *   then clearing (with subsequent read/modify/write) CSR_EEPROM_REG bit
+ *   CSR_EEPROM_REG_BIT_CMD (0x2).
+ * Driver then polls CSR_EEPROM_REG for CSR_EEPROM_REG_READ_VALID_MSK (0x1).
+ * When polling, wait 10 uSec between polling loops, up to a maximum 5000 uSec.
+ * Driver reads 16-bit value from bits 31-16 of CSR_EEPROM_REG.
+ */
 #define IWL_EEPROM_ACCESS_TIMEOUT	5000 /* uSec */
 #define IWL_EEPROM_ACCESS_DELAY		10   /* uSec */
+
 /* EEPROM field values */
 #define ANTENNA_SWITCH_NORMAL     0
 #define ANTENNA_SWITCH_INVERSE    1
 
+/*
+ * Regulatory channel usage flags in EEPROM struct iwl_eeprom_channel.flags.
+ *
+ * IBSS and/or AP operation is allowed *only* on those channels with
+ * (VALID && IBSS && ACTIVE && !RADAR).  This restriction is in place because
+ * RADAR detection is not supported by the 3945 driver, but is a
+ * requirement for establishing a new network for legal operation on channels
+ * requiring RADAR detection or restricting ACTIVE scanning.
+ *
+ * NOTE:  "WIDE" flag indicates that 20 MHz channel is supported;
+ *        3945 does not support FAT 40 MHz-wide channels.
+ *
+ * NOTE:  Using a channel inappropriately will result in a uCode error!
+ */
 enum {
 	EEPROM_CHANNEL_VALID = (1 << 0),	/* usable for this SKU/geo */
-	EEPROM_CHANNEL_IBSS = (1 << 1),	/* usable as an IBSS channel */
+	EEPROM_CHANNEL_IBSS = (1 << 1),		/* usable as an IBSS channel */
 	/* Bit 2 Reserved */
 	EEPROM_CHANNEL_ACTIVE = (1 << 3),	/* active scanning allowed */
 	EEPROM_CHANNEL_RADAR = (1 << 4),	/* radar detection required */
-	EEPROM_CHANNEL_WIDE = (1 << 5),
-	EEPROM_CHANNEL_NARROW = (1 << 6),
+	EEPROM_CHANNEL_WIDE = (1 << 5),		/* 20 MHz channel okay */
+	EEPROM_CHANNEL_NARROW = (1 << 6),	/* 10 MHz channel, not used */
 	EEPROM_CHANNEL_DFS = (1 << 7),	/* dynamic freq selection candidate */
 };
 
@@ -147,6 +171,7 @@ struct iwl3945_eeprom_channel {
  *   long packets in normal operation to provide feedback as to proper output
  *   level.
  * Data copied from EEPROM.
+ * DO NOT ALTER THIS STRUCTURE!!!
  */
 struct iwl3945_eeprom_txpower_sample {
 	u8 gain_index;		/* index into power (gain) setup table ... */
@@ -163,11 +188,11 @@ struct iwl3945_eeprom_txpower_sample {
  * DO NOT ALTER THIS STRUCTURE!!!
  */
 struct iwl3945_eeprom_txpower_group {
-	struct iwl3945_eeprom_txpower_sample samples[5];	/* 5 power levels */
+	struct iwl3945_eeprom_txpower_sample samples[5];  /* 5 power levels */
 	s32 a, b, c, d, e;	/* coefficients for voltage->power
 				 * formula (signed) */
 	s32 Fa, Fb, Fc, Fd, Fe;	/* these modify coeffs based on
-					 * frequency (signed) */
+				 * frequency (signed) */
 	s8 saturation_power;	/* highest power possible by h/w in this
 				 * band */
 	u8 group_channel;	/* "representative" channel # in this band */
@@ -189,6 +214,9 @@ struct iwl3945_eeprom_temperature_corr {
 	u32 Te;
 } __attribute__ ((packed));
 
+/*
+ * EEPROM map
+ */
 struct iwl3945_eeprom {
 	u8 reserved0[16];
 #define EEPROM_DEVICE_ID                    (2*0x08)	/* 2 bytes */
@@ -229,29 +257,67 @@ struct iwl3945_eeprom {
 	u8 reserved6[42];
 #define EEPROM_REGULATORY_SKU_ID            (2*0x60)	/* 4  bytes */
 	u8 sku_id[4];		/* abs.ofs: 192 */
+
+/*
+ * Per-channel regulatory data.
+ *
+ * Each channel that *might* be supported by 3945 or 4965 has a fixed location
+ * in EEPROM containing EEPROM_CHANNEL_* usage flags (LSB) and max regulatory
+ * txpower (MSB).
+ *
+ * Entries immediately below are for 20 MHz channel width.  FAT (40 MHz)
+ * channels (only for 4965, not supported by 3945) appear later in the EEPROM.
+ *
+ * 2.4 GHz channels 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+ */
 #define EEPROM_REGULATORY_BAND_1            (2*0x62)	/* 2  bytes */
 	u16 band_1_count;	/* abs.ofs: 196 */
 #define EEPROM_REGULATORY_BAND_1_CHANNELS   (2*0x63)	/* 28 bytes */
-	struct iwl3945_eeprom_channel band_1_channels[14];	/* abs.ofs: 196 */
+	struct iwl3945_eeprom_channel band_1_channels[14];  /* abs.ofs: 196 */
+
+/*
+ * 4.9 GHz channels 183, 184, 185, 187, 188, 189, 192, 196,
+ * 5.0 GHz channels 7, 8, 11, 12, 16
+ * (4915-5080MHz) (none of these is ever supported)
+ */
 #define EEPROM_REGULATORY_BAND_2            (2*0x71)	/* 2  bytes */
 	u16 band_2_count;	/* abs.ofs: 226 */
 #define EEPROM_REGULATORY_BAND_2_CHANNELS   (2*0x72)	/* 26 bytes */
-	struct iwl3945_eeprom_channel band_2_channels[13];	/* abs.ofs: 228 */
+	struct iwl3945_eeprom_channel band_2_channels[13];  /* abs.ofs: 228 */
+
+/*
+ * 5.2 GHz channels 34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
+ * (5170-5320MHz)
+ */
 #define EEPROM_REGULATORY_BAND_3            (2*0x7F)	/* 2  bytes */
 	u16 band_3_count;	/* abs.ofs: 254 */
 #define EEPROM_REGULATORY_BAND_3_CHANNELS   (2*0x80)	/* 24 bytes */
-	struct iwl3945_eeprom_channel band_3_channels[12];	/* abs.ofs: 256 */
+	struct iwl3945_eeprom_channel band_3_channels[12];  /* abs.ofs: 256 */
+
+/*
+ * 5.5 GHz channels 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140
+ * (5500-5700MHz)
+ */
 #define EEPROM_REGULATORY_BAND_4            (2*0x8C)	/* 2  bytes */
 	u16 band_4_count;	/* abs.ofs: 280 */
 #define EEPROM_REGULATORY_BAND_4_CHANNELS   (2*0x8D)	/* 22 bytes */
-	struct iwl3945_eeprom_channel band_4_channels[11];	/* abs.ofs: 282 */
+	struct iwl3945_eeprom_channel band_4_channels[11];  /* abs.ofs: 282 */
+
+/*
+ * 5.7 GHz channels 145, 149, 153, 157, 161, 165
+ * (5725-5825MHz)
+ */
 #define EEPROM_REGULATORY_BAND_5            (2*0x98)	/* 2  bytes */
 	u16 band_5_count;	/* abs.ofs: 304 */
 #define EEPROM_REGULATORY_BAND_5_CHANNELS   (2*0x99)	/* 12 bytes */
-	struct iwl3945_eeprom_channel band_5_channels[6];	/* abs.ofs: 306 */
+	struct iwl3945_eeprom_channel band_5_channels[6];  /* abs.ofs: 306 */
 
 	u8 reserved9[194];
 
+
+/*
+ * 3945 Txpower calibration data.
+ */
 #define EEPROM_TXPOWER_CALIB_GROUP0 0x200
 #define EEPROM_TXPOWER_CALIB_GROUP1 0x240
 #define EEPROM_TXPOWER_CALIB_GROUP2 0x280
@@ -261,11 +327,13 @@ struct iwl3945_eeprom {
 	struct iwl3945_eeprom_txpower_group groups[IWL_NUM_TX_CALIB_GROUPS];
 /* abs.ofs: 512 */
 #define EEPROM_CALIB_TEMPERATURE_CORRECT 0x340
-	struct iwl3945_eeprom_temperature_corr corrections;	/* abs.ofs: 832 */
+	struct iwl3945_eeprom_temperature_corr corrections;  /* abs.ofs: 832 */
 	u8 reserved16[172];	/* fill out to full 1024 byte block */
 } __attribute__ ((packed));
 
 #define IWL_EEPROM_IMAGE_SIZE 1024
+
+/* End of EEPROM */
 
 
 #include "iwl-3945-commands.h"

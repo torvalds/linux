@@ -4687,14 +4687,23 @@ struct pci_device_id iwl4965_hw_card_ids[] = {
 	{0}
 };
 
+/*
+ * The device's EEPROM semaphore prevents conflicts between driver and uCode
+ * when accessing the EEPROM; each access is a series of pulses to/from the
+ * EEPROM chip, not a single event, so even reads could conflict if they
+ * weren't arbitrated by the semaphore.
+ */
 int iwl4965_eeprom_acquire_semaphore(struct iwl4965_priv *priv)
 {
 	u16 count;
 	int rc;
 
 	for (count = 0; count < EEPROM_SEM_RETRY_LIMIT; count++) {
+		/* Request semaphore */
 		iwl4965_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 			CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM);
+
+		/* See if we got it */
 		rc = iwl4965_poll_bit(priv, CSR_HW_IF_CONFIG_REG,
 					CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
 					CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM,
