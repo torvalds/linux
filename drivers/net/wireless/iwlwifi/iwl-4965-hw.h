@@ -645,6 +645,52 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 	       (addr < KDR_RTC_DATA_UPPER_BOUND);
 }
 
+/********************* START TEMPERATURE *************************************/
+
+/*
+ * 4965 temperature calculation.
+ *
+ * The driver must calculate the device temperature before calculating
+ * a txpower setting (amplifier gain is temperature dependent).  The
+ * calculation uses 4 measurements, 3 of which (R1, R2, R3) are calibration
+ * values used for the life of the driver, and one of which (R4) is the
+ * real-time temperature indicator.
+ *
+ * uCode provides all 4 values to the driver via the "initialize alive"
+ * notification (see struct iwl4965_init_alive_resp).  After the runtime uCode
+ * image loads, uCode updates the R4 value via statistics notifications
+ * (see STATISTICS_NOTIFICATION), which occur after each received beacon
+ * when associated, or can be requested via REPLY_STATISTICS_CMD.
+ *
+ * NOTE:  uCode provides the R4 value as a 23-bit signed value.  Driver
+ *        must sign-extend to 32 bits before applying formula below.
+ *
+ * Formula:
+ *
+ * degrees Kelvin = ((97 * 259 * (R4 - R2) / (R3 - R1)) / 100) + 8
+ *
+ * NOTE:  The basic formula is 259 * (R4-R2) / (R3-R1).  The 97/100 is
+ * an additional correction, which should be centered around 0 degrees
+ * Celsius (273 degrees Kelvin).  The 8 (3 percent of 273) compensates for
+ * centering the 97/100 correction around 0 degrees K.
+ *
+ * Add 273 to Kelvin value to find degrees Celsius, for comparing current
+ * temperature with factory-measured temperatures when calculating txpower
+ * settings.
+ */
+#define TEMPERATURE_CALIB_KELVIN_OFFSET 8
+#define TEMPERATURE_CALIB_A_VAL 259
+
+/* Limit range of calculated temperature to be between these Kelvin values */
+#define IWL_TX_POWER_TEMPERATURE_MIN  (263)
+#define IWL_TX_POWER_TEMPERATURE_MAX  (410)
+
+#define IWL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(t) \
+	(((t) < IWL_TX_POWER_TEMPERATURE_MIN) || \
+	 ((t) > IWL_TX_POWER_TEMPERATURE_MAX))
+
+/********************* END TEMPERATURE ***************************************/
+
 /********************* START TXPOWER *****************************************/
 
 enum {
@@ -655,17 +701,6 @@ enum {
 	CALIB_CH_GROUP_5 = 4,
 	CALIB_CH_GROUP_MAX
 };
-
-/* Temperature calibration offset is 3% 0C in Kelvin */
-#define TEMPERATURE_CALIB_KELVIN_OFFSET 8
-#define TEMPERATURE_CALIB_A_VAL 259
-
-#define IWL_TX_POWER_TEMPERATURE_MIN  (263)
-#define IWL_TX_POWER_TEMPERATURE_MAX  (410)
-
-#define IWL_TX_POWER_TEMPERATURE_OUT_OF_RANGE(t) \
-	(((t) < IWL_TX_POWER_TEMPERATURE_MIN) || \
-	 ((t) > IWL_TX_POWER_TEMPERATURE_MAX))
 
 #define IWL_TX_POWER_MIMO_REGULATORY_COMPENSATION (6)
 
