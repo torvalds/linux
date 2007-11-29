@@ -28,8 +28,8 @@
 #define __iwl_3945_rs_h__
 
 struct iwl3945_rate_info {
-	u8 plcp;
-	u8 ieee;
+	u8 plcp;		/* uCode API:  IWL_RATE_6M_PLCP, etc. */
+	u8 ieee;		/* MAC header:  IWL_RATE_6M_IEEE, etc. */
 	u8 prev_ieee;		/* previous rate in IEEE speeds */
 	u8 next_ieee;		/* next rate in IEEE speeds */
 	u8 prev_rs;		/* previous rate used in rs algo */
@@ -38,9 +38,12 @@ struct iwl3945_rate_info {
 	u8 next_rs_tgg;		/* next rate used in TGG rs algo */
         u8 table_rs_index;	/* index in rate scale table cmd */
         u8 prev_table_rs;	/* prev in rate table cmd */
-
 };
 
+/*
+ * These serve as indexes into
+ * struct iwl3945_rate_info iwl3945_rates[IWL_RATE_COUNT];
+ */
 enum {
 	IWL_RATE_1M_INDEX = 0,
 	IWL_RATE_2M_INDEX,
@@ -96,6 +99,7 @@ enum {
 #define	IWL_RATE_5M_MASK   (1<<IWL_RATE_5M_INDEX)
 #define	IWL_RATE_11M_MASK  (1<<IWL_RATE_11M_INDEX)
 
+/* 3945 uCode API values for (legacy) bit rates, both OFDM and CCK */
 enum {
 	IWL_RATE_6M_PLCP = 13,
 	IWL_RATE_9M_PLCP = 15,
@@ -111,6 +115,7 @@ enum {
 	IWL_RATE_11M_PLCP = 110,
 };
 
+/* MAC header values for bit rates */
 enum {
 	IWL_RATE_6M_IEEE = 12,
 	IWL_RATE_9M_IEEE = 18,

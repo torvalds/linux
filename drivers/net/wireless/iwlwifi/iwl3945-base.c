@@ -27,16 +27,6 @@
  *
  *****************************************************************************/
 
-/*
- * NOTE:  This file (iwl-base.c) is used to build to multiple hardware targets
- * by defining IWL to either 3945 or 4965.  The Makefile used when building
- * the base targets will create base-3945.o and base-4965.o
- *
- * The eventual goal is to move as many of the #if IWL / #endif blocks out of
- * this file and into the hardware specific implementation files (iwl-XXXX.c)
- * and leave only the common (non #ifdef sprinkled) code in this file
- */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
@@ -75,9 +65,9 @@ static int iwl3945_tx_queue_update_write_ptr(struct iwl3945_priv *priv,
 /* module parameters */
 static int iwl3945_param_disable_hw_scan;
 static int iwl3945_param_debug;
-static int iwl3945_param_disable;      /* def: enable radio */
-static int iwl3945_param_antenna;      /* def: 0 = both antennas (use diversity) */
-int iwl3945_param_hwcrypto;     /* def: using software encryption */
+static int iwl3945_param_disable;  /* def: enable radio */
+static int iwl3945_param_antenna;  /* def: 0 = both antennas (use diversity) */
+int iwl3945_param_hwcrypto;        /* def: using software encryption */
 static int iwl3945_param_qos_enable = 1;
 int iwl3945_param_queues_num = IWL_MAX_NUM_QUEUES;
 
@@ -396,11 +386,7 @@ void iwl3945_tx_queue_free(struct iwl3945_priv *priv, struct iwl3945_tx_queue *t
 const u8 iwl3945_broadcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
 /*************** STATION TABLE MANAGEMENT ****
- *
- * NOTE:  This needs to be overhauled to better synchronize between
- * how the iwl-4965.c is using iwl3945_hw_find_station vs. iwl-3945.c
- *
- * mac80211 should also be examined to determine if sta_info is duplicating
+ * mac80211 should be examined to determine if sta_info is duplicating
  * the functionality provided here
  */
 
@@ -956,12 +942,12 @@ static int iwl3945_check_rxon_cmd(struct iwl3945_rxon_cmd *rxon)
 }
 
 /**
- * iwl3945_full_rxon_required - determine if RXON_ASSOC can be used in RXON commit
+ * iwl3945_full_rxon_required - check if full RXON (vs RXON_ASSOC) cmd is needed
  * @priv: staging_rxon is compared to active_rxon
  *
- * If the RXON structure is changing sufficient to require a new
- * tune or to clear and reset the RXON_FILTER_ASSOC_MSK then return 1
- * to indicate a new tune is required.
+ * If the RXON structure is changing enough to require a new tune,
+ * or is clearing the RXON_FILTER_ASSOC_MSK, then return 1 to indicate that
+ * a new tune (full RXON command, rather than RXON_ASSOC cmd) is required.
  */
 static int iwl3945_full_rxon_required(struct iwl3945_priv *priv)
 {
@@ -1235,7 +1221,7 @@ static int iwl3945_card_state_sync_callback(struct iwl3945_priv *priv,
 /*
  * CARD_STATE_CMD
  *
- * Use: Sets the internal card state to enable, disable, or halt
+ * Use: Sets the device's internal card state to enable, disable, or halt
  *
  * When in the 'enable' state the card operates as normal.
  * When in the 'disable' state, the card enters into a low power mode.
@@ -1589,14 +1575,9 @@ int iwl3945_eeprom_init(struct iwl3945_priv *priv)
 /**
  * iwl3945_report_frame - dump frame to syslog during debug sessions
  *
- * hack this function to show different aspects of received frames,
+ * You may hack this function to show different aspects of received frames,
  * including selective frame dumps.
  * group100 parameter selects whether to show 1 out of 100 good frames.
- *
- * TODO:  ieee80211_hdr stuff is common to 3945 and 4965, so frame type
- *        info output is okay, but some of this stuff (e.g. iwl3945_rx_frame_stats)
- *        is 3945-specific and gives bad output for 4965.  Need to split the
- *        functionality, keep common stuff here.
  */
 void iwl3945_report_frame(struct iwl3945_priv *priv,
 		      struct iwl3945_rx_packet *pkt,
@@ -3775,13 +3756,10 @@ static void iwl3945_setup_rx_handlers(struct iwl3945_priv *priv)
 	    iwl3945_rx_pm_debug_statistics_notif;
 	priv->rx_handlers[BEACON_NOTIFICATION] = iwl3945_rx_beacon_notif;
 
-	/* NOTE:  iwl3945_rx_statistics is different based on whether
-	 * the build is for the 3945 or the 4965.  See the
-	 * corresponding implementation in iwl-XXXX.c
-	 *
-	 * The same handler is used for both the REPLY to a
-	 * discrete statistics request from the host as well as
-	 * for the periodic statistics notification from the uCode
+	/*
+	 * The same handler is used for both the REPLY to a discrete
+	 * statistics request from the host as well as for the periodic
+	 * statistics notifications (after received beacons) from the uCode.
 	 */
 	priv->rx_handlers[REPLY_STATISTICS_CMD] = iwl3945_hw_rx_statistics;
 	priv->rx_handlers[STATISTICS_NOTIFICATION] = iwl3945_hw_rx_statistics;
@@ -3795,7 +3773,7 @@ static void iwl3945_setup_rx_handlers(struct iwl3945_priv *priv)
 	priv->rx_handlers[CARD_STATE_NOTIFICATION] = iwl3945_rx_card_state_notif;
 	priv->rx_handlers[REPLY_TX] = iwl3945_rx_reply_tx;
 
-	/* Setup hardware specific Rx handlers */
+	/* Set up hardware specific Rx handlers */
 	iwl3945_hw_rx_handler_setup(priv);
 }
 
@@ -3867,10 +3845,10 @@ static void iwl3945_tx_cmd_complete(struct iwl3945_priv *priv,
  * The queue is empty (no good data) if WRITE = READ - 1, and is full if
  * WRITE = READ.
  *
- * During initialization the host sets up the READ queue position to the first
+ * During initialization, the host sets up the READ queue position to the first
  * INDEX position, and WRITE to the last (READ - 1 wrapped)
  *
- * When the firmware places a packet in a buffer it will advance the READ index
+ * When the firmware places a packet in a buffer, it will advance the READ index
  * and fire the RX interrupt.  The driver can then query the READ index and
  * process as many packets as possible, moving the WRITE index forward as it
  * resets the Rx queue buffers with new memory.
@@ -3892,16 +3870,16 @@ static void iwl3945_tx_cmd_complete(struct iwl3945_priv *priv,
  *
  * Driver sequence:
  *
- * iwl3945_rx_queue_alloc()       Allocates rx_free
- * iwl3945_rx_replenish()         Replenishes rx_free list from rx_used, and calls
+ * iwl3945_rx_queue_alloc()   Allocates rx_free
+ * iwl3945_rx_replenish()     Replenishes rx_free list from rx_used, and calls
  *                            iwl3945_rx_queue_restock
- * iwl3945_rx_queue_restock()     Moves available buffers from rx_free into Rx
+ * iwl3945_rx_queue_restock() Moves available buffers from rx_free into Rx
  *                            queue, updates firmware pointers, and updates
  *                            the WRITE index.  If insufficient rx_free buffers
  *                            are available, schedules iwl3945_rx_replenish
  *
  * -- enable interrupts --
- * ISR - iwl3945_rx()             Detach iwl3945_rx_mem_buffers from pool up to the
+ * ISR - iwl3945_rx()         Detach iwl3945_rx_mem_buffers from pool up to the
  *                            READ INDEX, detaching the SKB from the pool.
  *                            Moves the packet buffer from queue to rx_used.
  *                            Calls iwl3945_rx_queue_restock to refill any empty
@@ -3927,12 +3905,6 @@ static int iwl3945_rx_queue_space(const struct iwl3945_rx_queue *q)
 
 /**
  * iwl3945_rx_queue_update_write_ptr - Update the write pointer for the RX queue
- *
- * NOTE: This function has 3945 and 4965 specific code sections
- * but is declared in base due to the majority of the
- * implementation being the same (only a numeric constant is
- * different)
- *
  */
 int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv, struct iwl3945_rx_queue *q)
 {
@@ -3973,9 +3945,7 @@ int iwl3945_rx_queue_update_write_ptr(struct iwl3945_priv *priv, struct iwl3945_
 }
 
 /**
- * iwl3945_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer pointer.
- *
- * NOTE: This function has 3945 and 4965 specific code paths in it.
+ * iwl3945_dma_addr2rbd_ptr - convert a DMA address to a uCode read buffer ptr
  */
 static inline __le32 iwl3945_dma_addr2rbd_ptr(struct iwl3945_priv *priv,
 					  dma_addr_t dma_addr)
@@ -3986,9 +3956,9 @@ static inline __le32 iwl3945_dma_addr2rbd_ptr(struct iwl3945_priv *priv,
 /**
  * iwl3945_rx_queue_restock - refill RX queue from pre-allocated pool
  *
- * If there are slots in the RX queue that  need to be restocked,
+ * If there are slots in the RX queue that need to be restocked,
  * and we have free pre-allocated buffers, fill the ranks as much
- * as we can pulling from rx_free.
+ * as we can, pulling from rx_free.
  *
  * This moves the 'write' index forward to catch up with 'processed', and
  * also updates the memory address in the firmware to reference the new
@@ -4080,7 +4050,7 @@ void iwl3945_rx_replenish(void *data)
 }
 
 /* Assumes that the skb field of the buffers in 'pool' is kept accurate.
- * If an SKB has been detached, the POOL needs to have it's SKB set to NULL
+ * If an SKB has been detached, the POOL needs to have its SKB set to NULL
  * This free routine walks the list of POOL entries and if SKB is set to
  * non NULL it is unmapped and freed
  */
@@ -4232,7 +4202,7 @@ int iwl3945_calc_sig_qual(int rssi_dbm, int noise_dbm)
 }
 
 /**
- * iwl3945_rx_handle - Main entry function for receiving responses from the uCode
+ * iwl3945_rx_handle - Main entry function for receiving responses from uCode
  *
  * Uses the priv->rx_handlers callback function array to invoke
  * the appropriate handlers, including command responses,
@@ -4257,7 +4227,7 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 	while (i != r) {
 		rxb = rxq->queue[i];
 
-		/* If an RXB doesn't have a queue slot associated with it
+		/* If an RXB doesn't have a Rx queue slot associated with it,
 		 * then a bug has been introduced in the queue refilling
 		 * routines -- catch it here */
 		BUG_ON(rxb == NULL);
@@ -4296,8 +4266,8 @@ static void iwl3945_rx_handle(struct iwl3945_priv *priv)
 		}
 
 		if (reclaim) {
-			/* Invoke any callbacks, transfer the skb to caller,
-			 * and fire off the (possibly) blocking iwl3945_send_cmd()
+			/* Invoke any callbacks, transfer the skb to caller, and
+			 * fire off the (possibly) blocking iwl3945_send_cmd()
 			 * as we reclaim the driver command queue */
 			if (rxb && rxb->skb)
 				iwl3945_tx_cmd_complete(priv, rxb);
@@ -4671,7 +4641,8 @@ static void iwl3945_irq_tasklet(struct iwl3945_priv *priv)
 
 #ifdef CONFIG_IWL3945_DEBUG
 	if (iwl3945_debug_level & IWL_DL_ISR) {
-		inta_mask = iwl3945_read32(priv, CSR_INT_MASK); /* just for debug */
+		/* just for debug */
+		inta_mask = iwl3945_read32(priv, CSR_INT_MASK);
 		IWL_DEBUG_ISR("inta 0x%08x, enabled 0x%08x, fh 0x%08x\n",
 			      inta, inta_mask, inta_fh);
 	}
@@ -4901,11 +4872,11 @@ static const u8 iwl3945_eeprom_band_1[14] = {
 };
 
 /* 5.2 GHz bands */
-static const u8 iwl3945_eeprom_band_2[] = {
+static const u8 iwl3945_eeprom_band_2[] = {	/* 4915-5080MHz */
 	183, 184, 185, 187, 188, 189, 192, 196, 7, 8, 11, 12, 16
 };
 
-static const u8 iwl3945_eeprom_band_3[] = {	/* 5205-5320MHz */
+static const u8 iwl3945_eeprom_band_3[] = {	/* 5170-5320MHz */
 	34, 36, 38, 40, 42, 44, 46, 48, 52, 56, 60, 64
 };
 
@@ -4929,7 +4900,7 @@ static void iwl3945_init_band_reference(const struct iwl3945_priv *priv, int ban
 		*eeprom_ch_info = priv->eeprom.band_1_channels;
 		*eeprom_ch_index = iwl3945_eeprom_band_1;
 		break;
-	case 2:		/* 5.2GHz band */
+	case 2:		/* 4.9GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_2);
 		*eeprom_ch_info = priv->eeprom.band_2_channels;
 		*eeprom_ch_index = iwl3945_eeprom_band_2;
@@ -4939,12 +4910,12 @@ static void iwl3945_init_band_reference(const struct iwl3945_priv *priv, int ban
 		*eeprom_ch_info = priv->eeprom.band_3_channels;
 		*eeprom_ch_index = iwl3945_eeprom_band_3;
 		break;
-	case 4:		/* 5.2GHz band */
+	case 4:		/* 5.5GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_4);
 		*eeprom_ch_info = priv->eeprom.band_4_channels;
 		*eeprom_ch_index = iwl3945_eeprom_band_4;
 		break;
-	case 5:		/* 5.2GHz band */
+	case 5:		/* 5.7GHz band */
 		*eeprom_ch_count = ARRAY_SIZE(iwl3945_eeprom_band_5);
 		*eeprom_ch_info = priv->eeprom.band_5_channels;
 		*eeprom_ch_index = iwl3945_eeprom_band_5;
@@ -5207,7 +5178,7 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
 		scan_ch->active_dwell = cpu_to_le16(active_dwell);
 		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
 
-		/* Set power levels to defaults */
+		/* Set txpower levels to defaults */
 		scan_ch->tpc.dsp_atten = 110;
 		/* scan_pwr_info->tpc.dsp_atten; */
 
@@ -5217,8 +5188,8 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv, int phymode,
 		else {
 			scan_ch->tpc.tx_gain = ((1 << 5) | (5 << 3));
 			/* NOTE: if we were doing 6Mb OFDM for scans we'd use
-			 * power level
-			 scan_ch->tpc.tx_gain = ((1<<5) | (2 << 3)) | 3;
+			 * power level:
+			 * scan_ch->tpc.tx_gain = ((1<<5) | (2 << 3)) | 3;
 			 */
 		}
 
@@ -5602,8 +5573,9 @@ static int iwl3945_verify_ucode(struct iwl3945_priv *priv)
 
 	IWL_ERROR("NO VALID UCODE IMAGE IN INSTRUCTION SRAM!!\n");
 
-	/* Show first several data entries in instruction SRAM.
-	 * Selection of bootstrap image is arbitrary. */
+	/* Since nothing seems to match, show first several data entries in
+	 * instruction SRAM, so maybe visual inspection will give a clue.
+	 * Selection of bootstrap image (vs. other images) is arbitrary. */
 	image = (__le32 *)priv->ucode_boot.v_addr;
 	len = priv->ucode_boot.len;
 	rc = iwl3945_verify_inst_full(priv, image, len);
@@ -5695,7 +5667,7 @@ static int iwl3945_load_bsm(struct iwl3945_priv *priv)
 		return -EINVAL;
 
 	/* Tell bootstrap uCode where to find the "Initialize" uCode
-	 *   in host DRAM ... bits 31:0 for 3945, bits 35:4 for 4965.
+	 *   in host DRAM ... host DRAM physical address bits 31:0 for 3945.
 	 * NOTE:  iwl3945_initialize_alive_start() will replace these values,
 	 *        after the "initialize" uCode has run, to point to
 	 *        runtime/protocol instructions and backup data cache. */
@@ -6020,12 +5992,8 @@ static int iwl3945_set_ucode_ptrs(struct iwl3945_priv *priv)
  *
  * Called after REPLY_ALIVE notification received from "initialize" uCode.
  *
- * The 4965 "initialize" ALIVE reply contains calibration data for:
- *   Voltage, temperature, and MIMO tx gain correction, now stored in priv
- *   (3945 does not contain this data).
- *
  * Tell "initialize" uCode to go ahead and load the runtime uCode.
-*/
+ */
 static void iwl3945_init_alive_start(struct iwl3945_priv *priv)
 {
 	/* Check alive response for "valid" sign from uCode */
@@ -6120,7 +6088,7 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 	} else
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
 
-	/* After the ALIVE response, we can process host commands */
+	/* After the ALIVE response, we can send commands to 3945 uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
 
 	/* Clear out the uCode error bit if it is set */
@@ -6177,7 +6145,7 @@ static void iwl3945_alive_start(struct iwl3945_priv *priv)
 		memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 	}
 
-	/* Configure BT coexistence */
+	/* Configure Bluetooth device coexistence support */
 	iwl3945_send_bt_config(priv);
 
 	/* Configure the adapter for unassociated operation */
@@ -6365,7 +6333,7 @@ static int __iwl3945_up(struct iwl3945_priv *priv)
 		/* start card; "initialize" will load runtime ucode */
 		iwl3945_nic_start(priv);
 
-		/* MAC Address location in EEPROM same for 3945/4965 */
+		/* MAC Address location in EEPROM is same for 3945/4965 */
 		get_eeprom_mac(priv, priv->mac_addr);
 		IWL_DEBUG_INFO("MAC address: %s\n",
 			       print_mac(mac, priv->mac_addr));

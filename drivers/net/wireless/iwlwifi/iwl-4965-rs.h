@@ -42,7 +42,10 @@ struct iwl4965_rate_info {
 	u8 next_rs_tgg;  /* next rate used in TGG rs algo */
 };
 
-/* For driver (not uCode API) */
+/*
+ * These serve as indexes into
+ * struct iwl4965_rate_info iwl4965_rates[IWL_RATE_COUNT];
+ */
 enum {
 	IWL_RATE_1M_INDEX = 0,
 	IWL_RATE_2M_INDEX,
