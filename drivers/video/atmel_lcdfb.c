@@ -268,6 +268,10 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	/* Turn off the LCD controller and the DMA controller */
 	lcdc_writel(sinfo, ATMEL_LCDC_PWRCON, sinfo->guard_time << ATMEL_LCDC_GUARDT_OFFSET);
 
+	/* Wait for the LCDC core to become idle */
+	while (lcdc_readl(sinfo, ATMEL_LCDC_PWRCON) & ATMEL_LCDC_BUSY)
+		msleep(10);
+
 	lcdc_writel(sinfo, ATMEL_LCDC_DMACON, 0);
 
 	if (info->var.bits_per_pixel == 1)
