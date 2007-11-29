@@ -698,44 +698,7 @@ enum {
 #define CALIB_IWL_TX_ATTEN_GR5_FCH 1
 #define CALIB_IWL_TX_ATTEN_GR5_LCH 20
 
-union iwl4965_tx_power_dual_stream {
-	struct {
-		u8 radio_tx_gain[2];
-		u8 dsp_predis_atten[2];
-	} s;
-	u32 dw;
-};
-
 /********************* END TXPOWER *****************************************/
-
-/* HT flags */
-#define RXON_FLG_CTRL_CHANNEL_LOC_POS		(22)
-#define RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK	__constant_cpu_to_le32(0x1<<22)
-
-#define RXON_FLG_HT_OPERATING_MODE_POS		(23)
-
-#define RXON_FLG_HT_PROT_MSK			__constant_cpu_to_le32(0x1<<23)
-#define RXON_FLG_FAT_PROT_MSK			__constant_cpu_to_le32(0x2<<23)
-
-#define RXON_FLG_CHANNEL_MODE_POS		(25)
-#define RXON_FLG_CHANNEL_MODE_MSK		__constant_cpu_to_le32(0x3<<25)
-#define RXON_FLG_CHANNEL_MODE_PURE_40_MSK	__constant_cpu_to_le32(0x1<<25)
-#define RXON_FLG_CHANNEL_MODE_MIXED_MSK		__constant_cpu_to_le32(0x2<<25)
-
-#define RXON_RX_CHAIN_DRIVER_FORCE_MSK		__constant_cpu_to_le16(0x1<<0)
-#define RXON_RX_CHAIN_VALID_MSK			__constant_cpu_to_le16(0x7<<1)
-#define RXON_RX_CHAIN_VALID_POS			(1)
-#define RXON_RX_CHAIN_FORCE_SEL_MSK		__constant_cpu_to_le16(0x7<<4)
-#define RXON_RX_CHAIN_FORCE_SEL_POS		(4)
-#define RXON_RX_CHAIN_FORCE_MIMO_SEL_MSK	__constant_cpu_to_le16(0x7<<7)
-#define RXON_RX_CHAIN_FORCE_MIMO_SEL_POS	(7)
-#define RXON_RX_CHAIN_CNT_MSK			__constant_cpu_to_le16(0x3<<10)
-#define RXON_RX_CHAIN_CNT_POS			(10)
-#define RXON_RX_CHAIN_MIMO_CNT_MSK		__constant_cpu_to_le16(0x3<<12)
-#define RXON_RX_CHAIN_MIMO_CNT_POS		(12)
-#define RXON_RX_CHAIN_MIMO_FORCE_MSK		__constant_cpu_to_le16(0x1<<14)
-#define RXON_RX_CHAIN_MIMO_FORCE_POS		(14)
-
 
 /* Flow Handler Definitions */
 
