@@ -610,8 +610,6 @@ struct iwl3945_eeprom {
 #define PCI_CFG_REV_ID_BIT_BASIC_SKU                (0x40)	/* bit 6    */
 #define PCI_CFG_REV_ID_BIT_RTP                      (0x80)	/* bit 7    */
 
-#define HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED         (0x00000004)
-
 #define TFD_QUEUE_MIN           0
 #define TFD_QUEUE_MAX           6
 #define TFD_QUEUE_SIZE_MAX      (256)
