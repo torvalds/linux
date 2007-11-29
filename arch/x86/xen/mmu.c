@@ -244,6 +244,8 @@ pte_t xen_make_pte(unsigned long long pte)
 	if (pte & 1)
 		pte = phys_to_machine(XPADDR(pte)).maddr;
 
+	pte &= ~_PAGE_PCD;
+
 	return (pte_t){ pte, pte >> 32 };
 }
 
@@ -290,6 +292,8 @@ pte_t xen_make_pte(unsigned long pte)
 {
 	if (pte & _PAGE_PRESENT)
 		pte = phys_to_machine(XPADDR(pte)).maddr;
+
+	pte &= ~_PAGE_PCD;
 
 	return (pte_t){ pte };
 }
