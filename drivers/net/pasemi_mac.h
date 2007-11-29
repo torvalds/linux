@@ -27,23 +27,18 @@
 #include <linux/phy.h>
 
 struct pasemi_mac_txring {
+	struct pasemi_dmachan chan; /* Must be first */
 	spinlock_t	 lock;
-	u64		*status; /* Ptr to cacheable status area */
-	u64		*ring;
-	dma_addr_t	 dma;
 	unsigned int	 size;
 	unsigned int	 next_to_fill;
 	unsigned int	 next_to_clean;
 	struct pasemi_mac_buffer *ring_info;
-	int		 chan;
 	struct pasemi_mac *mac;	/* Needed in intr handler */
 };
 
 struct pasemi_mac_rxring {
+	struct pasemi_dmachan chan; /* Must be first */
 	spinlock_t	 lock;
-	u64		*status; /* Ptr to cacheable status area */
-	u64		*ring;	/* RX channel descriptor ring */
-	dma_addr_t	 dma;
 	u64		*buffers;	/* RX interface buffer ring */
 	dma_addr_t	 buf_dma;
 	unsigned int	 size;
@@ -55,9 +50,6 @@ struct pasemi_mac_rxring {
 
 struct pasemi_mac {
 	struct net_device *netdev;
-	void __iomem *regs;
-	void __iomem *dma_regs;
-	void __iomem *iob_regs;
 	struct pci_dev *pdev;
 	struct pci_dev *dma_pdev;
 	struct pci_dev *iob_pdev;
@@ -67,8 +59,6 @@ struct pasemi_mac {
 	u8		type;
 #define MAC_TYPE_GMAC	1
 #define MAC_TYPE_XAUI	2
-	u32	dma_txch;
-	u32	dma_rxch;
 	u32	dma_if;
 
 	u8		mac_addr[6];
@@ -77,8 +67,6 @@ struct pasemi_mac {
 
 	struct pasemi_mac_txring *tx;
 	struct pasemi_mac_rxring *rx;
-	unsigned int	tx_irq;
-	unsigned int	rx_irq;
 	char		tx_irq_name[10];		/* "eth%d tx" */
 	char		rx_irq_name[10];		/* "eth%d rx" */
 	int	link;
