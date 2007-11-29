@@ -178,3 +178,10 @@ extern const struct inode_operations ext2_special_inode_operations;
 /* symlink.c */
 extern const struct inode_operations ext2_fast_symlink_inode_operations;
 extern const struct inode_operations ext2_symlink_inode_operations;
+
+static inline ext2_fsblk_t
+ext2_group_first_block_no(struct super_block *sb, unsigned long group_no)
+{
+	return group_no * (ext2_fsblk_t)EXT2_BLOCKS_PER_GROUP(sb) +
+		le32_to_cpu(EXT2_SB(sb)->s_es->s_first_data_block);
+}
