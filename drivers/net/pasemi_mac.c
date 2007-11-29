@@ -805,27 +805,43 @@ static irqreturn_t pasemi_mac_rx_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#define TX_CLEAN_INTERVAL HZ
+
+static void pasemi_mac_tx_timer(unsigned long data)
+{
+	struct pasemi_mac_txring *txring = (struct pasemi_mac_txring *)data;
+	struct pasemi_mac *mac = txring->mac;
+
+	pasemi_mac_clean_tx(txring);
+
+	mod_timer(&txring->clean_timer, jiffies + TX_CLEAN_INTERVAL);
+
+	pasemi_mac_restart_tx_intr(mac);
+}
+
 static irqreturn_t pasemi_mac_tx_intr(int irq, void *data)
 {
 	struct pasemi_mac_txring *txring = data;
 	const struct pasemi_dmachan *chan = &txring->chan;
-	unsigned int reg, pcnt;
+	struct pasemi_mac *mac = txring->mac;
+	unsigned int reg;
 
 	if (!(*chan->status & PAS_STATUS_CAUSE_M))
 		return IRQ_NONE;
 
-	pasemi_mac_clean_tx(txring);
-
-	pcnt = *chan->status & PAS_STATUS_PCNT_M;
-
-	reg = PAS_IOB_DMA_TXCH_RESET_PCNT(pcnt) | PAS_IOB_DMA_TXCH_RESET_PINTC;
+	reg = 0;
 
 	if (*chan->status & PAS_STATUS_SOFT)
 		reg |= PAS_IOB_DMA_TXCH_RESET_SINTC;
 	if (*chan->status & PAS_STATUS_ERROR)
 		reg |= PAS_IOB_DMA_TXCH_RESET_DINTC;
 
-	write_iob_reg(PAS_IOB_DMA_TXCH_RESET(chan->chno), reg);
+	mod_timer(&txring->clean_timer, jiffies + (TX_CLEAN_INTERVAL)*2);
+
+	netif_rx_schedule(mac->netdev, &mac->napi);
+
+	if (reg)
+		write_iob_reg(PAS_IOB_DMA_TXCH_RESET(chan->chno), reg);
 
 	return IRQ_HANDLED;
 }
@@ -973,7 +989,7 @@ static int pasemi_mac_open(struct net_device *dev)
 		      PAS_IOB_DMA_RXCH_CFG_CNTTH(0));
 
 	write_iob_reg(PAS_IOB_DMA_TXCH_CFG(mac->tx->chan.chno),
-		      PAS_IOB_DMA_TXCH_CFG_CNTTH(128));
+		      PAS_IOB_DMA_TXCH_CFG_CNTTH(32));
 
 	write_mac_reg(mac, PAS_MAC_IPC_CHNL,
 		      PAS_MAC_IPC_CHNL_DCHNO(mac->rx->chan.chno) |
@@ -1054,6 +1070,12 @@ static int pasemi_mac_open(struct net_device *dev)
 	if (mac->phydev)
 		phy_start(mac->phydev);
 
+	init_timer(&mac->tx->clean_timer);
+	mac->tx->clean_timer.function = pasemi_mac_tx_timer;
+	mac->tx->clean_timer.data = (unsigned long)mac->tx;
+	mac->tx->clean_timer.expires = jiffies+HZ;
+	add_timer(&mac->tx->clean_timer);
+
 	return 0;
 
 out_rx_int:
@@ -1086,6 +1108,8 @@ static int pasemi_mac_close(struct net_device *dev)
 		phy_stop(mac->phydev);
 		phy_disconnect(mac->phydev);
 	}
+
+	del_timer_sync(&mac->tx->clean_timer);
 
 	netif_stop_queue(dev);
 	napi_disable(&mac->napi);
@@ -1304,6 +1328,7 @@ static int pasemi_mac_poll(struct napi_struct *napi, int budget)
 		netif_rx_complete(dev, napi);
 
 		pasemi_mac_restart_rx_intr(mac);
+		pasemi_mac_restart_tx_intr(mac);
 	}
 	return pkts;
 }

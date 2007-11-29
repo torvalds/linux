@@ -34,6 +34,7 @@ struct pasemi_mac_txring {
 	unsigned int	 next_to_clean;
 	struct pasemi_mac_buffer *ring_info;
 	struct pasemi_mac *mac;	/* Needed in intr handler */
+	struct timer_list clean_timer;
 };
 
 struct pasemi_mac_rxring {
