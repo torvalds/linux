@@ -121,7 +121,7 @@ enum {
 	REPLY_TX_PWR_TABLE_CMD = 0x97,
 	MEASURE_ABORT_NOTIFICATION = 0x99,	/* not used */
 
-	/* BT config command */
+	/* Bluetooth device coexistance config command */
 	REPLY_BT_CONFIG = 0x9b,
 
 	/* 4965 Statistics */
@@ -144,25 +144,42 @@ enum {
  *
  *****************************************************************************/
 
+/* iwl3945_cmd_header flags value */
 #define IWL_CMD_FAILED_MSK 0x40
 
+/**
+ * struct iwl3945_cmd_header
+ *
+ * This header format appears in the beginning of each command sent from the
+ * driver, and each response/notification received from uCode.
+ */
 struct iwl3945_cmd_header {
-	u8 cmd;
-	u8 flags;
-	/* We have 15 LSB to use as we please (MSB indicates
-	 * a frame Rx'd from the HW).  We encode the following
-	 * information into the sequence field:
+	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
+	u8 flags;	/* IWL_CMD_* */
+	/*
+	 * The driver sets up the sequence number to values of its chosing.
+	 * uCode does not use this value, but passes it back to the driver
+	 * when sending the response to each driver-originated command, so
+	 * the driver can match the response to the command.  Since the values
+	 * don't get used by uCode, the driver may set up an arbitrary format.
 	 *
-	 *  0:7    index in fifo
-	 *  8:13   fifo selection
-	 * 14:14   bit indicating if this packet references the 'extra'
-	 *         storage at the end of the memory queue
-	 * 15:15   (Rx indication)
+	 * There is one exception:  uCode sets bit 15 when it originates
+	 * the response/notification, i.e. when the response/notification
+	 * is not a direct response to a command sent by the driver.  For
+	 * example, uCode issues REPLY_3945_RX when it sends a received frame
+	 * to the driver; it is not a direct response to any driver command.
 	 *
+	 * The Linux driver uses the following format:
+	 *
+	 *  0:7    index/position within Tx queue
+	 *  8:13   Tx queue selection
+	 * 14:14   driver sets this to indicate command is in the 'huge'
+	 *         storage at the end of the command buffers, i.e. scan cmd
+	 * 15:15   uCode sets this in uCode-originated response/notification
 	 */
 	__le16 sequence;
 
-	/* command data follows immediately */
+	/* command or response/notification data follows immediately */
 	u8 data[0];
 } __attribute__ ((packed));
 
@@ -176,15 +193,22 @@ struct iwl3945_cmd_header {
 #define INITIALIZE_SUBTYPE    (9)
 
 /*
- * REPLY_ALIVE = 0x1 (response only, not a command)
+ * ("Initialize") REPLY_ALIVE = 0x1 (response only, not a command)
+ *
+ * uCode issues this "initialize alive" notification once the initialization
+ * uCode image has completed its work, and is ready to load the runtime image.
+ * This is the *first* "alive" notification that the driver will receive after
+ * rebooting uCode; the "initialize" alive is indicated by subtype field == 9.
+ *
+ * See comments documenting "BSM" (bootstrap state machine).
  */
-struct iwl3945_alive_resp {
+struct iwl3945_init_alive_resp {
 	u8 ucode_minor;
 	u8 ucode_major;
 	__le16 reserved1;
 	u8 sw_rev[8];
 	u8 ver_type;
-	u8 ver_subtype;
+	u8 ver_subtype;			/* "9" for initialize alive */
 	__le16 reserved2;
 	__le32 log_event_table_ptr;
 	__le32 error_event_table_ptr;
@@ -192,16 +216,39 @@ struct iwl3945_alive_resp {
 	__le32 is_valid;
 } __attribute__ ((packed));
 
-struct iwl3945_init_alive_resp {
+
+/**
+ * REPLY_ALIVE = 0x1 (response only, not a command)
+ *
+ * uCode issues this "alive" notification once the runtime image is ready
+ * to receive commands from the driver.  This is the *second* "alive"
+ * notification that the driver will receive after rebooting uCode;
+ * this "alive" is indicated by subtype field != 9.
+ *
+ * See comments documenting "BSM" (bootstrap state machine).
+ *
+ * This response includes two pointers to structures within the device's
+ * data SRAM (access via HBUS_TARG_MEM_* regs) that are useful for debugging:
+ *
+ * 1)  log_event_table_ptr indicates base of the event log.  This traces
+ *     a 256-entry history of uCode execution within a circular buffer.
+ *
+ * 2)  error_event_table_ptr indicates base of the error log.  This contains
+ *     information about any uCode error that occurs.
+ *
+ * The Linux driver can print both logs to the system log when a uCode error
+ * occurs.
+ */
+struct iwl3945_alive_resp {
 	u8 ucode_minor;
 	u8 ucode_major;
 	__le16 reserved1;
 	u8 sw_rev[8];
 	u8 ver_type;
-	u8 ver_subtype;
+	u8 ver_subtype;			/* not "9" for runtime alive */
 	__le16 reserved2;
-	__le32 log_event_table_ptr;
-	__le32 error_event_table_ptr;
+	__le32 log_event_table_ptr;	/* SRAM address for event log */
+	__le32 error_event_table_ptr;	/* SRAM address for error log */
 	__le32 timestamp;
 	__le32 is_valid;
 } __attribute__ ((packed));
