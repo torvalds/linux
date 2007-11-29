@@ -2649,9 +2649,6 @@ static void iwl4965_connection_init_rx_config(struct iwl4965_priv *priv)
 
 static int iwl4965_set_mode(struct iwl4965_priv *priv, int mode)
 {
-	if (!iwl4965_is_ready_rf(priv))
-		return -EAGAIN;
-
 	if (mode == IEEE80211_IF_TYPE_IBSS) {
 		const struct iwl4965_channel_info *ch_info;
 
@@ -2666,19 +2663,23 @@ static int iwl4965_set_mode(struct iwl4965_priv *priv, int mode)
 		}
 	}
 
-	cancel_delayed_work(&priv->scan_check);
-	if (iwl4965_scan_cancel_timeout(priv, 100)) {
-		IWL_WARNING("Aborted scan still in progress after 100ms\n");
-		IWL_DEBUG_MAC80211("leaving - scan abort failed.\n");
-		return -EAGAIN;
-	}
-
 	priv->iw_mode = mode;
 
 	iwl4965_connection_init_rx_config(priv);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
 
 	iwl4965_clear_stations_table(priv);
+
+	/* dont commit rxon if rf-kill is on*/
+	if (!iwl4965_is_ready_rf(priv))
+		return -EAGAIN;
+
+	cancel_delayed_work(&priv->scan_check);
+	if (iwl4965_scan_cancel_timeout(priv, 100)) {
+		IWL_WARNING("Aborted scan still in progress after 100ms\n");
+		IWL_DEBUG_MAC80211("leaving - scan abort failed.\n");
+		return -EAGAIN;
+	}
 
 	iwl4965_commit_rxon(priv);
 
@@ -7458,6 +7459,12 @@ static void iwl4965_mac_stop(struct ieee80211_hw *hw)
 	 * RXON_FILTER_ASSOC_MSK BIT
 	 */
 	priv->is_open = 0;
+	if (!iwl4965_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211("leave - RF not ready\n");
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
 	iwl4965_scan_cancel_timeout(priv, 100);
 	cancel_delayed_work(&priv->post_associate);
 	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
@@ -7743,6 +7750,9 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 		priv->ibss_beacon = conf->beacon;
 	}
 
+	if (iwl4965_is_rfkill(priv))
+		goto done;
+
 	if (conf->bssid && !is_zero_ether_addr(conf->bssid) &&
 	    !is_multicast_ether_addr(conf->bssid)) {
 		/* If there is currently a HW scan going on in the background
@@ -7777,6 +7787,7 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 		iwl4965_commit_rxon(priv);
 	}
 
+ done:
 	spin_lock_irqsave(&priv->lock, flags);
 	if (!conf->ssid_len)
 		memset(priv->essid, 0, IW_ESSID_MAX_SIZE);
@@ -7813,11 +7824,12 @@ static void iwl4965_mac_remove_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	iwl4965_scan_cancel_timeout(priv, 100);
-	cancel_delayed_work(&priv->post_associate);
-	priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
-	iwl4965_commit_rxon(priv);
-
+	if (iwl4965_is_ready_rf(priv)) {
+		iwl4965_scan_cancel_timeout(priv, 100);
+		cancel_delayed_work(&priv->post_associate);
+		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		iwl4965_commit_rxon(priv);
+	}
 	if (priv->interface_id == conf->if_id) {
 		priv->interface_id = 0;
 		memset(priv->bssid, 0, ETH_ALEN);
@@ -8130,6 +8142,12 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	if (!iwl4965_is_ready_rf(priv)) {
+		IWL_DEBUG_MAC80211("leave - not ready\n");
+		mutex_unlock(&priv->mutex);
+		return;
+	}
+
 	/* we are restarting association process
 	 * clear RXON_FILTER_ASSOC_MSK bit
 	 */
@@ -8143,12 +8161,6 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	if (priv->iw_mode != IEEE80211_IF_TYPE_IBSS) {
 
 		IWL_DEBUG_MAC80211("leave - not in IBSS\n");
-		mutex_unlock(&priv->mutex);
-		return;
-	}
-
-	if (!iwl4965_is_ready_rf(priv)) {
-		IWL_DEBUG_MAC80211("leave - not ready\n");
 		mutex_unlock(&priv->mutex);
 		return;
 	}
