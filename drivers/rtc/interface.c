@@ -293,7 +293,7 @@ int rtc_irq_register(struct rtc_device *rtc, struct rtc_task *task)
 		return -EINVAL;
 
 	/* Cannot register while the char dev is in use */
-	if (!(mutex_trylock(&rtc->char_lock)))
+	if (test_and_set_bit(RTC_DEV_BUSY, &rtc->flags))
 		return -EBUSY;
 
 	spin_lock_irq(&rtc->irq_task_lock);
@@ -303,7 +303,7 @@ int rtc_irq_register(struct rtc_device *rtc, struct rtc_task *task)
 	}
 	spin_unlock_irq(&rtc->irq_task_lock);
 
-	mutex_unlock(&rtc->char_lock);
+	clear_bit(RTC_DEV_BUSY, &rtc->flags);
 
 	return retval;
 }
