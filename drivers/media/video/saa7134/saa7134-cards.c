@@ -350,6 +350,10 @@ struct saa7134_board saa7134_boards[] = {
 			.name = name_radio,
 			.amux = LINE2,
 		},
+	       .mute = {
+		       .name = name_mute,
+		       .amux = TV,
+	       },
 	},
 	[SAA7134_BOARD_TVSTATION_RDS] = {
 		/* Typhoon TV Tuner RDS: Art.Nr. 50694 */
@@ -566,6 +570,10 @@ struct saa7134_board saa7134_boards[] = {
 		.radio = {
 			.name   = name_radio,
 			.amux   = LINE2,
+	       },
+	       .mute = {
+		       .name = name_mute,
+		       .amux = TV,
 		},
 	},
 	[SAA7134_BOARD_TYPHOON_90031] = {
