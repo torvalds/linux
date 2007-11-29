@@ -1282,19 +1282,36 @@ enum {
 
 /********************* END TXPOWER *****************************************/
 
+/****************************/
 /* Flow Handler Definitions */
+/****************************/
 
-/**********************/
-/*     Addresses      */
-/**********************/
-
+/*
+ * This I/O area is directly read/writable by driver (e.g. Linux uses writel())
+ * Addresses are offsets from device's PCI hardware base address.
+ */
 #define FH_MEM_LOWER_BOUND                   (0x1000)
 #define FH_MEM_UPPER_BOUND                   (0x1EF0)
 
-#define IWL_FH_REGS_LOWER_BOUND		     (0x1000)
-#define IWL_FH_REGS_UPPER_BOUND		     (0x2000)
-
+/**
+ * Keep-Warm (KW) buffer base address.
+ *
+ * Driver must allocate a 4KByte buffer that is used by 4965 for keeping the
+ * host DRAM powered on (via dummy accesses to DRAM) to maintain low-latency
+ * DRAM access when 4965 is Txing or Rxing.  The dummy accesses prevent host
+ * from going into a power-savings mode that would cause higher DRAM latency,
+ * and possible data over/under-runs, before all Tx/Rx is complete.
+ *
+ * Driver loads IWL_FH_KW_MEM_ADDR_REG with the physical address (bits 35:4)
+ * of the buffer, which must be 4K aligned.  Once this is set up, the 4965
+ * automatically invokes keep-warm accesses when normal accesses might not
+ * be sufficient to maintain fast DRAM response.
+ *
+ * Bit fields:
+ *  31-0:  Keep-warm buffer physical base address [35:4], must be 4K aligned
+ */
 #define IWL_FH_KW_MEM_ADDR_REG		     (FH_MEM_LOWER_BOUND + 0x97C)
+
 
 /* CBBC Area - Circular buffers base address cache pointers table */
 #define FH_MEM_CBBC_LOWER_BOUND              (FH_MEM_LOWER_BOUND + 0x9D0)
@@ -1326,16 +1343,16 @@ enum {
 #define FH_MEM_RSSR_RX_ENABLE_ERR_IRQ2DRV  (FH_MEM_RSSR_LOWER_BOUND + 0x008)
 
 /* TCSR */
-#define IWL_FH_TCSR_LOWER_BOUND  (IWL_FH_REGS_LOWER_BOUND + 0xD00)
-#define IWL_FH_TCSR_UPPER_BOUND  (IWL_FH_REGS_LOWER_BOUND + 0xE60)
+#define IWL_FH_TCSR_LOWER_BOUND  (FH_MEM_LOWER_BOUND + 0xD00)
+#define IWL_FH_TCSR_UPPER_BOUND  (FH_MEM_LOWER_BOUND + 0xE60)
 
 #define IWL_FH_TCSR_CHNL_TX_CONFIG_REG(_chnl) \
 	(IWL_FH_TCSR_LOWER_BOUND + 0x20 * _chnl)
 
 /* TSSR Area - Tx shared status registers */
 /* TSSR */
-#define IWL_FH_TSSR_LOWER_BOUND		(IWL_FH_REGS_LOWER_BOUND + 0xEA0)
-#define IWL_FH_TSSR_UPPER_BOUND		(IWL_FH_REGS_LOWER_BOUND + 0xEC0)
+#define IWL_FH_TSSR_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xEA0)
+#define IWL_FH_TSSR_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xEC0)
 
 #define IWL_FH_TSSR_TX_STATUS_REG	(IWL_FH_TSSR_LOWER_BOUND + 0x010)
 
