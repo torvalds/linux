@@ -2881,6 +2881,8 @@ static void *cache_free_debugcheck(struct kmem_cache *cachep, void *objp,
 	unsigned int objnr;
 	struct slab *slabp;
 
+	BUG_ON(virt_to_cache(objp) != cachep);
+
 	objp -= obj_offset(cachep);
 	kfree_debugcheck(objp);
 	page = virt_to_head_page(objp);
@@ -3758,8 +3760,6 @@ EXPORT_SYMBOL(__kmalloc);
 void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 {
 	unsigned long flags;
-
-	BUG_ON(virt_to_cache(objp) != cachep);
 
 	local_irq_save(flags);
 	debug_check_no_locks_freed(objp, obj_size(cachep));
