@@ -118,6 +118,7 @@ static int s3c2410_spigpio_probe(struct platform_device *dev)
 
 	/* setup spi bitbang adaptor */
 	sp->bitbang.master = spi_master_get(master);
+	sp->bitbang.master->bus_num = info->bus_num;
 	sp->bitbang.chipselect = s3c2410_spigpio_chipselect;
 
 	sp->bitbang.txrx_word[SPI_MODE_0] = s3c2410_spigpio_txrx_mode0;
