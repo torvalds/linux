@@ -223,6 +223,13 @@ enum iwl4965_table_type {
 	LQ_MAX,
 };
 
+#define is_legacy(tbl) (((tbl) == LQ_G) || ((tbl) == LQ_A))
+#define is_siso(tbl) (((tbl) == LQ_SISO))
+#define is_mimo(tbl) (((tbl) == LQ_MIMO))
+#define is_Ht(tbl) (is_siso(tbl) || is_mimo(tbl))
+#define is_a_band(tbl) (((tbl) == LQ_A))
+#define is_g_and(tbl) (((tbl) == LQ_G))
+
 /* 4965 has 2 antennas/chains for Tx (but 3 for Rx) */
 enum iwl4965_antenna_type {
 	ANT_NONE,

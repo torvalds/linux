@@ -1036,13 +1036,6 @@ union iwl4965_tx_power_dual_stream {
 #define R_MCS_36M_DUAL_MSK 0x400
 #define R_MCS_48M_DUAL_MSK 0x800
 
-#define is_legacy(tbl) (((tbl) == LQ_G) || ((tbl) == LQ_A))
-#define is_siso(tbl) (((tbl) == LQ_SISO))
-#define is_mimo(tbl) (((tbl) == LQ_MIMO))
-#define is_Ht(tbl) (is_siso(tbl) || is_mimo(tbl))
-#define is_a_band(tbl) (((tbl) == LQ_A))
-#define is_g_and(tbl) (((tbl) == LQ_G))
-
 /* Flow Handler Definitions */
 
 /**********************/
