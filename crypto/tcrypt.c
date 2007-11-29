@@ -471,15 +471,11 @@ static void test_cipher(char *algo, int enc,
 	printk("\ntesting %s %s\n", algo, e);
 
 	tsize = sizeof (struct cipher_testvec);
-	tsize *= tcount;
-
 	if (tsize > TVMEMSIZE) {
 		printk("template (%u) too big for tvmem (%u)\n", tsize,
 		       TVMEMSIZE);
 		return;
 	}
-
-	memcpy(tvmem, template, tsize);
 	cipher_tv = (void *)tvmem;
 
 	init_completion(&result.completion);
@@ -503,33 +499,34 @@ static void test_cipher(char *algo, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
-		if (!(cipher_tv[i].np)) {
+		memcpy(cipher_tv, &template[i], tsize);
+		if (!(cipher_tv->np)) {
 			j++;
 			printk("test %u (%d bit key):\n",
-			j, cipher_tv[i].klen * 8);
+			j, cipher_tv->klen * 8);
 
 			crypto_ablkcipher_clear_flags(tfm, ~0);
-			if (cipher_tv[i].wk)
+			if (cipher_tv->wk)
 				crypto_ablkcipher_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-			key = cipher_tv[i].key;
+			key = cipher_tv->key;
 
 			ret = crypto_ablkcipher_setkey(tfm, key,
-						       cipher_tv[i].klen);
+						       cipher_tv->klen);
 			if (ret) {
 				printk("setkey() failed flags=%x\n",
 				       crypto_ablkcipher_get_flags(tfm));
 
-				if (!cipher_tv[i].fail)
+				if (!cipher_tv->fail)
 					goto out;
 			}
 
-			sg_init_one(&sg[0], cipher_tv[i].input,
-				    cipher_tv[i].ilen);
+			sg_init_one(&sg[0], cipher_tv->input,
+				    cipher_tv->ilen);
 
 			ablkcipher_request_set_crypt(req, sg, sg,
-						     cipher_tv[i].ilen,
-						     cipher_tv[i].iv);
+						     cipher_tv->ilen,
+						     cipher_tv->iv);
 
 			ret = enc ?
 				crypto_ablkcipher_encrypt(req) :
@@ -553,11 +550,11 @@ static void test_cipher(char *algo, int enc,
 			}
 
 			q = kmap(sg_page(&sg[0])) + sg[0].offset;
-			hexdump(q, cipher_tv[i].rlen);
+			hexdump(q, cipher_tv->rlen);
 
 			printk("%s\n",
-			       memcmp(q, cipher_tv[i].result,
-				      cipher_tv[i].rlen) ? "fail" : "pass");
+			       memcmp(q, cipher_tv->result,
+				      cipher_tv->rlen) ? "fail" : "pass");
 		}
 	}
 
@@ -566,41 +563,42 @@ static void test_cipher(char *algo, int enc,
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
-		if (cipher_tv[i].np) {
+		memcpy(cipher_tv, &template[i], tsize);
+		if (cipher_tv->np) {
 			j++;
 			printk("test %u (%d bit key):\n",
-			j, cipher_tv[i].klen * 8);
+			j, cipher_tv->klen * 8);
 
 			crypto_ablkcipher_clear_flags(tfm, ~0);
-			if (cipher_tv[i].wk)
+			if (cipher_tv->wk)
 				crypto_ablkcipher_set_flags(
 					tfm, CRYPTO_TFM_REQ_WEAK_KEY);
-			key = cipher_tv[i].key;
+			key = cipher_tv->key;
 
 			ret = crypto_ablkcipher_setkey(tfm, key,
-						       cipher_tv[i].klen);
+						       cipher_tv->klen);
 			if (ret) {
 				printk("setkey() failed flags=%x\n",
 				       crypto_ablkcipher_get_flags(tfm));
 
-				if (!cipher_tv[i].fail)
+				if (!cipher_tv->fail)
 					goto out;
 			}
 
 			temp = 0;
-			sg_init_table(sg, cipher_tv[i].np);
-			for (k = 0; k < cipher_tv[i].np; k++) {
+			sg_init_table(sg, cipher_tv->np);
+			for (k = 0; k < cipher_tv->np; k++) {
 				memcpy(&xbuf[IDX[k]],
-				       cipher_tv[i].input + temp,
-				       cipher_tv[i].tap[k]);
-				temp += cipher_tv[i].tap[k];
+				       cipher_tv->input + temp,
+				       cipher_tv->tap[k]);
+				temp += cipher_tv->tap[k];
 				sg_set_buf(&sg[k], &xbuf[IDX[k]],
-					   cipher_tv[i].tap[k]);
+					   cipher_tv->tap[k]);
 			}
 
 			ablkcipher_request_set_crypt(req, sg, sg,
-						     cipher_tv[i].ilen,
-						     cipher_tv[i].iv);
+						     cipher_tv->ilen,
+						     cipher_tv->iv);
 
 			ret = enc ?
 				crypto_ablkcipher_encrypt(req) :
@@ -624,15 +622,15 @@ static void test_cipher(char *algo, int enc,
 			}
 
 			temp = 0;
-			for (k = 0; k < cipher_tv[i].np; k++) {
+			for (k = 0; k < cipher_tv->np; k++) {
 				printk("page %u\n", k);
 				q = kmap(sg_page(&sg[k])) + sg[k].offset;
-				hexdump(q, cipher_tv[i].tap[k]);
+				hexdump(q, cipher_tv->tap[k]);
 				printk("%s\n",
-					memcmp(q, cipher_tv[i].result + temp,
-						cipher_tv[i].tap[k]) ? "fail" :
+					memcmp(q, cipher_tv->result + temp,
+						cipher_tv->tap[k]) ? "fail" :
 					"pass");
-				temp += cipher_tv[i].tap[k];
+				temp += cipher_tv->tap[k];
 			}
 		}
 	}
