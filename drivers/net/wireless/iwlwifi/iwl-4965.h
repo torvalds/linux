@@ -859,9 +859,6 @@ struct iwl4965_kw {
 #define NUM_RX_CHAINS           (3)
 
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
-#define TX_POWER_IWL_VOLTAGE_CODES_PER_03V       7
-#define IWL_TX_POWER_CCK_COMPENSATION_B_STEP (9)
-#define IWL_TX_POWER_CCK_COMPENSATION_C_STEP (5)
 
 struct iwl4965_traffic_load {
 	unsigned long time_stamp;
