@@ -201,6 +201,8 @@ static void iwl4965_print_hex_dump(int level, void *p, u32 len)
  * The 4965 operates with up to 17 queues:  One receive queue, one transmit
  * queue (#4) for sending commands to the device firmware, and 15 other
  * Tx queues that may be mapped to prioritized Tx DMA/FIFO channels.
+ *
+ * See more detailed info in iwl-4965-hw.h.
  ***************************************************/
 
 static int iwl4965_queue_space(const struct iwl4965_queue *q)

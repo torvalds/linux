@@ -63,7 +63,10 @@
 #ifndef	__iwl_prph_h__
 #define __iwl_prph_h__
 
-
+/*
+ * Registers in this file are internal, not PCI bus memory mapped.
+ * Driver accesses these via HBUS_TARG_PRPH_* registers.
+ */
 #define PRPH_BASE	(0x00000)
 #define PRPH_END	(0xFFFFF)
 
@@ -225,8 +228,8 @@
 #define BSM_SRAM_LOWER_BOUND         (PRPH_BASE + 0x3800)
 #define BSM_SRAM_SIZE			(1024) /* bytes */
 
-/* ALM SCD */
-/* SCD (Scheduler) */
+
+/* 3945 Tx scheduler registers */
 #define ALM_SCD_BASE                        (PRPH_BASE + 0x2E00)
 #define ALM_SCD_MODE_REG                    (ALM_SCD_BASE + 0x000)
 #define ALM_SCD_ARASTAT_REG                 (ALM_SCD_BASE + 0x004)
@@ -236,7 +239,10 @@
 #define ALM_SCD_SBYP_MODE_1_REG             (ALM_SCD_BASE + 0x02C)
 #define ALM_SCD_SBYP_MODE_2_REG             (ALM_SCD_BASE + 0x030)
 
-/* 4965 SCD memory mapped registers */
+/*
+ * 4965 Tx Scheduler registers.
+ * Details are documented in iwl-4965-hw.h
+ */
 #define KDR_SCD_BASE		(PRPH_BASE + 0xa02c00)
 
 #define KDR_SCD_SRAM_BASE_ADDR         (KDR_SCD_BASE + 0x0)
