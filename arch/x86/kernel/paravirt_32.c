@@ -465,8 +465,8 @@ struct pv_mmu_ops pv_mmu_ops = {
 };
 
 EXPORT_SYMBOL_GPL(pv_time_ops);
-EXPORT_SYMBOL_GPL(pv_cpu_ops);
-EXPORT_SYMBOL_GPL(pv_mmu_ops);
+EXPORT_SYMBOL    (pv_cpu_ops);
+EXPORT_SYMBOL    (pv_mmu_ops);
 EXPORT_SYMBOL_GPL(pv_apic_ops);
 EXPORT_SYMBOL_GPL(pv_info);
 EXPORT_SYMBOL    (pv_irq_ops);
