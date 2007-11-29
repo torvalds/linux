@@ -80,7 +80,7 @@ static void driver_release(struct kobject *kobj)
 {
 	struct driver_private *drv_priv = to_driver(kobj);
 
-	pr_debug("%s: freeing %s\n", __FUNCTION__, kobject_name(kobj));
+	pr_debug("driver: '%s': %s\n", kobject_name(kobj), __FUNCTION__);
 	kfree(drv_priv);
 }
 
@@ -446,7 +446,7 @@ int bus_add_device(struct device * dev)
 	int error = 0;
 
 	if (bus) {
-		pr_debug("bus %s: add device %s\n", bus->name, dev->bus_id);
+		pr_debug("bus: '%s': add device %s\n", bus->name, dev->bus_id);
 		error = device_add_attrs(bus, dev);
 		if (error)
 			goto out_put;
@@ -519,7 +519,7 @@ void bus_remove_device(struct device * dev)
 			dev->is_registered = 0;
 			klist_del(&dev->knode_bus);
 		}
-		pr_debug("bus %s: remove device %s\n", dev->bus->name, dev->bus_id);
+		pr_debug("bus: '%s': remove device %s\n", dev->bus->name, dev->bus_id);
 		device_release_driver(dev);
 		bus_put(dev->bus);
 	}
@@ -637,7 +637,7 @@ int bus_add_driver(struct device_driver *drv)
 	if (!bus)
 		return -EINVAL;
 
-	pr_debug("bus %s: add driver %s\n", bus->name, drv->name);
+	pr_debug("bus: '%s': add driver %s\n", bus->name, drv->name);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -707,7 +707,7 @@ void bus_remove_driver(struct device_driver * drv)
 	driver_remove_attrs(drv->bus, drv);
 	driver_remove_file(drv, &driver_attr_uevent);
 	klist_remove(&drv->p->knode_bus);
-	pr_debug("bus %s: remove driver %s\n", drv->bus->name, drv->name);
+	pr_debug("bus: '%s': remove driver %s\n", drv->bus->name, drv->name);
 	driver_detach(drv);
 	module_remove_driver(drv);
 	kobject_unregister(&drv->p->kobj);
@@ -907,7 +907,7 @@ int bus_register(struct bus_type * bus)
 	if (retval)
 		goto bus_attrs_fail;
 
-	pr_debug("bus type '%s' registered\n", bus->name);
+	pr_debug("bus: '%s': registered\n", bus->name);
 	return 0;
 
 bus_attrs_fail:
@@ -934,7 +934,7 @@ out:
  */
 void bus_unregister(struct bus_type * bus)
 {
-	pr_debug("bus %s: unregistering\n", bus->name);
+	pr_debug("bus: '%s': unregistering\n", bus->name);
 	bus_remove_attrs(bus);
 	remove_probe_files(bus);
 	kset_unregister(bus->p->drivers_kset);

@@ -193,15 +193,16 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	if (dev->bus && dev->bus->uevent) {
 		retval = dev->bus->uevent(dev, env);
 		if (retval)
-			pr_debug ("%s: bus uevent() returned %d\n",
-				  __FUNCTION__, retval);
+			pr_debug("device: '%s': %s: bus uevent() returned %d\n",
+				 dev->bus_id, __FUNCTION__, retval);
 	}
 
 	/* have the class specific function add its stuff */
 	if (dev->class && dev->class->dev_uevent) {
 		retval = dev->class->dev_uevent(dev, env);
 		if (retval)
-			pr_debug("%s: class uevent() returned %d\n",
+			pr_debug("device: '%s': %s: class uevent() "
+				 "returned %d\n", dev->bus_id,
 				 __FUNCTION__, retval);
 	}
 
@@ -209,7 +210,8 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 	if (dev->type && dev->type->uevent) {
 		retval = dev->type->uevent(dev, env);
 		if (retval)
-			pr_debug("%s: dev_type uevent() returned %d\n",
+			pr_debug("device: '%s': %s: dev_type uevent() "
+				 "returned %d\n", dev->bus_id,
 				 __FUNCTION__, retval);
 	}
 
@@ -751,7 +753,7 @@ int device_add(struct device *dev)
 		goto Error;
 	}
 
-	pr_debug("DEV: registering device: ID = '%s'\n", dev->bus_id);
+	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
 
 	parent = get_device(dev->parent);
 	error = setup_parent(dev, parent);
@@ -1020,7 +1022,7 @@ void device_del(struct device * dev)
  */
 void device_unregister(struct device * dev)
 {
-	pr_debug("DEV: Unregistering device. ID = '%s'\n", dev->bus_id);
+	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
 	device_del(dev);
 	put_device(dev);
 }
@@ -1116,7 +1118,7 @@ EXPORT_SYMBOL_GPL(device_remove_file);
 
 static void device_create_release(struct device *dev)
 {
-	pr_debug("%s called for %s\n", __FUNCTION__, dev->bus_id);
+	pr_debug("device: '%s': %s\n", dev->bus_id, __FUNCTION__);
 	kfree(dev);
 }
 
@@ -1259,7 +1261,8 @@ int device_rename(struct device *dev, char *new_name)
 	if (!dev)
 		return -EINVAL;
 
-	pr_debug("DEVICE: renaming '%s' to '%s'\n", dev->bus_id, new_name);
+	pr_debug("device: '%s': %s: renaming to '%s'\n", dev->bus_id,
+		 __FUNCTION__, new_name);
 
 #ifdef CONFIG_SYSFS_DEPRECATED
 	if ((dev->class) && (dev->parent))
@@ -1378,8 +1381,8 @@ int device_move(struct device *dev, struct device *new_parent)
 		put_device(new_parent);
 		goto out;
 	}
-	pr_debug("DEVICE: moving '%s' to '%s'\n", dev->bus_id,
-		 new_parent ? new_parent->bus_id : "<NULL>");
+	pr_debug("device: '%s': %s: moving to '%s'\n", dev->bus_id,
+		 __FUNCTION__, new_parent ? new_parent->bus_id : "<NULL>");
 	error = kobject_move(&dev->kobj, new_parent_kobj);
 	if (error) {
 		put_device(new_parent);

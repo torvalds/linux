@@ -34,8 +34,8 @@ static void driver_bound(struct device *dev)
 		return;
 	}
 
-	pr_debug("bound device '%s' to driver '%s'\n",
-		 dev->bus_id, dev->driver->name);
+	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev->bus_id,
+		 __FUNCTION__, dev->driver->name);
 
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -102,8 +102,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	int ret = 0;
 
 	atomic_inc(&probe_count);
-	pr_debug("%s: Probing driver %s with device %s\n",
-		 drv->bus->name, drv->name, dev->bus_id);
+	pr_debug("bus: '%s': %s: probing driver %s with device %s\n",
+		 drv->bus->name, __FUNCTION__, drv->name, dev->bus_id);
 	WARN_ON(!list_empty(&dev->devres_head));
 
 	dev->driver = drv;
@@ -125,8 +125,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 
 	driver_bound(dev);
 	ret = 1;
-	pr_debug("%s: Bound Device %s to Driver %s\n",
-		 drv->bus->name, dev->bus_id, drv->name);
+	pr_debug("bus: '%s': %s: bound device %s to driver %s\n",
+		 drv->bus->name, __FUNCTION__, dev->bus_id, drv->name);
 	goto done;
 
 probe_failed:
@@ -192,8 +192,8 @@ int driver_probe_device(struct device_driver * drv, struct device * dev)
 	if (drv->bus->match && !drv->bus->match(dev, drv))
 		goto done;
 
-	pr_debug("%s: Matched Device %s with Driver %s\n",
-		 drv->bus->name, dev->bus_id, drv->name);
+	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
+		 drv->bus->name, __FUNCTION__, dev->bus_id, drv->name);
 
 	ret = really_probe(dev, drv);
 
