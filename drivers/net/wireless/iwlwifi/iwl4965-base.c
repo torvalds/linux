@@ -305,6 +305,9 @@ static int iwl4965_tx_queue_alloc(struct iwl4965_priv *priv,
 	return -ENOMEM;
 }
 
+/**
+ * iwl4965_tx_queue_init - Allocate and initialize one tx/cmd queue
+ */
 int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
 		      struct iwl4965_tx_queue *txq, int slots_num, u32 txq_id)
 {
@@ -312,9 +315,14 @@ int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
 	int len;
 	int rc = 0;
 
-	/* allocate command space + one big command for scan since scan
-	 * command is very huge the system will not have two scan at the
-	 * same time */
+	/*
+	 * Alloc buffer array for commands (Tx or other types of commands).
+	 * For the command queue (#4), allocate command space + one big
+	 * command for scan, since scan command is very huge; the system will
+	 * not have two scans at the same time, so only one is needed.
+	 * For normal Tx queues (all other queues), no super-size command
+	 * space is needed.
+	 */
 	len = sizeof(struct iwl4965_cmd) * slots_num;
 	if (txq_id == IWL_CMD_QUEUE_NUM)
 		len +=  IWL_MAX_SCAN_SIZE;
@@ -322,6 +330,7 @@ int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
 	if (!txq->cmd)
 		return -ENOMEM;
 
+	/* Alloc driver data array and TFD circular buffer */
 	rc = iwl4965_tx_queue_alloc(priv, txq, txq_id);
 	if (rc) {
 		pci_free_consistent(dev, len, txq->cmd, txq->dma_addr_cmd);
@@ -333,8 +342,11 @@ int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
 	 * iwl4965_queue_inc_wrap and iwl4965_queue_dec_wrap are broken. */
 	BUILD_BUG_ON(TFD_QUEUE_SIZE_MAX & (TFD_QUEUE_SIZE_MAX - 1));
+
+	/* Initialize queue's high/low-water marks, and head/tail indexes */
 	iwl4965_queue_init(priv, &txq->q, TFD_QUEUE_SIZE_MAX, slots_num, txq_id);
 
+	/* Tell device where to find queue */
 	iwl4965_hw_tx_queue_init(priv, txq);
 
 	return 0;
