@@ -244,9 +244,9 @@ ieee80211_rx_h_parse_qos(struct ieee80211_txrx_data *rx)
 		/* frame has qos control */
 		tid = qc[0] & QOS_CONTROL_TID_MASK;
 		if (qc[0] & IEEE80211_QOS_CONTROL_A_MSDU_PRESENT)
-			rx->u.rx.amsdu_frame = 1;
+			rx->flags |= IEEE80211_TXRXD_RX_AMSDU;
 		else
-			rx->u.rx.amsdu_frame = 0;
+			rx->flags &= ~IEEE80211_TXRXD_RX_AMSDU;
 	} else {
 		if (unlikely((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT)) {
 			/* Separate TID for management frames */
@@ -1221,7 +1221,7 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 	if (unlikely(!WLAN_FC_DATA_PRESENT(fc)))
 		return TXRX_DROP;
 
-	if (!rx->u.rx.amsdu_frame)
+	if (!(rx->flags & IEEE80211_TXRXD_RX_AMSDU))
 		return TXRX_CONTINUE;
 
 	err = ieee80211_data_to_8023(rx);

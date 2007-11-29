@@ -123,6 +123,7 @@ typedef enum {
 /* frame is destined to interface currently processed (incl. multicast frames) */
 #define IEEE80211_TXRXD_RXRA_MATCH		BIT(5)
 #define IEEE80211_TXRXD_TX_INJECTED		BIT(6)
+#define IEEE80211_TXRXD_RX_AMSDU		BIT(7)
 struct ieee80211_txrx_data {
 	struct sk_buff *skb;
 	struct net_device *dev;
@@ -155,7 +156,6 @@ struct ieee80211_txrx_data {
 			int load;
 			u32 tkip_iv32;
 			u16 tkip_iv16;
-			u8  amsdu_frame;
 		} rx;
 	} u;
 };
