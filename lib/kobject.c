@@ -232,60 +232,53 @@ int kobject_register(struct kobject * kobj)
 	return error;
 }
 
-
 /**
- * kobject_set_name - Set the name of a kobject
- * @kobj: kobject to name
+ * kobject_set_name_vargs - Set the name of an kobject
+ * @kobj: struct kobject to set the name of
  * @fmt: format string used to build the name
- *
- * This sets the name of the kobject.  If you have already added the
- * kobject to the system, you must call kobject_rename() in order to
- * change the name of the kobject.
+ * @vargs: vargs to format the string.
  */
-int kobject_set_name(struct kobject * kobj, const char * fmt, ...)
+static int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
+				  va_list vargs)
 {
-	int error = 0;
-	int limit;
-	int need;
-	va_list args;
+	va_list aq;
 	char *name;
 
-	/* find out how big a buffer we need */
-	name = kmalloc(1024, GFP_KERNEL);
-	if (!name) {
-		error = -ENOMEM;
-		goto done;
-	}
-	va_start(args, fmt);
-	need = vsnprintf(name, 1024, fmt, args);
-	va_end(args);
-	kfree(name);
+	va_copy(aq, vargs);
+	name = kvasprintf(GFP_KERNEL, fmt, vargs);
+	va_end(aq);
 
-	/* Allocate the new space and copy the string in */
-	limit = need + 1;
-	name = kmalloc(limit, GFP_KERNEL);
-	if (!name) {
-		error = -ENOMEM;
-		goto done;
-	}
-	va_start(args, fmt);
-	need = vsnprintf(name, limit, fmt, args);
-	va_end(args);
-
-	/* something wrong with the string we copied? */
-	if (need >= limit) {
-		kfree(name);
-		error = -EFAULT;
-		goto done;
-	}
+	if (!name)
+		return -ENOMEM;
 
 	/* Free the old name, if necessary. */
 	kfree(kobj->k_name);
 
 	/* Now, set the new name */
 	kobj->k_name = name;
-done:
-	return error;
+
+	return 0;
+}
+
+/**
+ * kobject_set_name - Set the name of a kobject
+ * @kobj: struct kobject to set the name of
+ * @fmt: format string used to build the name
+ *
+ * This sets the name of the kobject.  If you have already added the
+ * kobject to the system, you must call kobject_rename() in order to
+ * change the name of the kobject.
+ */
+int kobject_set_name(struct kobject *kobj, const char *fmt, ...)
+{
+	va_list args;
+	int retval;
+
+	va_start(args, fmt);
+	retval = kobject_set_name_vargs(kobj, fmt, args);
+	va_end(args);
+
+	return retval;
 }
 EXPORT_SYMBOL(kobject_set_name);
 
