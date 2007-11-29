@@ -253,11 +253,11 @@ static int get_skb_hdr(struct sk_buff *skb, void **iphdr,
 }
 
 static int pasemi_mac_unmap_tx_skb(struct pasemi_mac *mac,
+				    const int nfrags,
 				    struct sk_buff *skb,
 				    const dma_addr_t *dmas)
 {
 	int f;
-	int nfrags = skb_shinfo(skb)->nr_frags;
 	struct pci_dev *pdev = mac->dma_pdev;
 
 	pci_unmap_single(pdev, dmas[0], skb_headlen(skb), PCI_DMA_TODEVICE);
@@ -425,7 +425,7 @@ static void pasemi_mac_free_tx_resources(struct pasemi_mac *mac)
 	unsigned int i, j;
 	struct pasemi_mac_buffer *info;
 	dma_addr_t dmas[MAX_SKB_FRAGS+1];
-	int freed;
+	int freed, nfrags;
 	int start, limit;
 
 	start = txring->next_to_clean;
@@ -438,10 +438,12 @@ static void pasemi_mac_free_tx_resources(struct pasemi_mac *mac)
 	for (i = start; i < limit; i += freed) {
 		info = &txring->ring_info[(i+1) & (TX_RING_SIZE-1)];
 		if (info->dma && info->skb) {
-			for (j = 0; j <= skb_shinfo(info->skb)->nr_frags; j++)
+			nfrags = skb_shinfo(info->skb)->nr_frags;
+			for (j = 0; j <= nfrags; j++)
 				dmas[j] = txring->ring_info[(i+1+j) &
 						(TX_RING_SIZE-1)].dma;
-			freed = pasemi_mac_unmap_tx_skb(mac, info->skb, dmas);
+			freed = pasemi_mac_unmap_tx_skb(mac, nfrags,
+							info->skb, dmas);
 		} else
 			freed = 2;
 	}
@@ -749,6 +751,8 @@ static int pasemi_mac_clean_tx(struct pasemi_mac_txring *txring)
 	unsigned long flags;
 	struct sk_buff *skbs[TX_CLEAN_BATCHSIZE];
 	dma_addr_t dmas[TX_CLEAN_BATCHSIZE][MAX_SKB_FRAGS+1];
+	int nf[TX_CLEAN_BATCHSIZE];
+	int nr_frags;
 
 	total_count = 0;
 	batch_limit = TX_CLEAN_BATCHSIZE;
@@ -757,6 +761,8 @@ restart:
 
 	start = txring->next_to_clean;
 	ring_limit = txring->next_to_fill;
+
+	prefetch(&TX_DESC_INFO(txring, start+1).skb);
 
 	/* Compensate for when fill has wrapped but clean has not */
 	if (start > ring_limit)
@@ -771,6 +777,9 @@ restart:
 		u64 mactx = TX_DESC(txring, i);
 		struct sk_buff *skb;
 
+		skb = TX_DESC_INFO(txring, i+1).skb;
+		nr_frags = TX_DESC_INFO(txring, i).dma;
+
 		if ((mactx  & XCT_MACTX_E) ||
 		    (*chan->status & PAS_STATUS_ERROR))
 			pasemi_mac_tx_error(mac, mactx);
@@ -779,21 +788,22 @@ restart:
 			/* Not yet transmitted */
 			break;
 
-		skb = TX_DESC_INFO(txring, i+1).skb;
-		skbs[descr_count] = skb;
-
-		buf_count = 2 + skb_shinfo(skb)->nr_frags;
-		for (j = 0; j <= skb_shinfo(skb)->nr_frags; j++)
-			dmas[descr_count][j] = TX_DESC_INFO(txring, i+1+j).dma;
-
-		TX_DESC(txring, i) = 0;
-		TX_DESC(txring, i+1) = 0;
-
+		buf_count = 2 + nr_frags;
 		/* Since we always fill with an even number of entries, make
 		 * sure we skip any unused one at the end as well.
 		 */
 		if (buf_count & 1)
 			buf_count++;
+
+		for (j = 0; j <= nr_frags; j++)
+			dmas[descr_count][j] = TX_DESC_INFO(txring, i+1+j).dma;
+
+		skbs[descr_count] = skb;
+		nf[descr_count] = nr_frags;
+
+		TX_DESC(txring, i) = 0;
+		TX_DESC(txring, i+1) = 0;
+
 		descr_count++;
 	}
 	txring->next_to_clean = i & (TX_RING_SIZE-1);
@@ -802,7 +812,7 @@ restart:
 	netif_wake_queue(mac->netdev);
 
 	for (i = 0; i < descr_count; i++)
-		pasemi_mac_unmap_tx_skb(mac, skbs[i], dmas[i]);
+		pasemi_mac_unmap_tx_skb(mac, nf[i], skbs[i], dmas[i]);
 
 	total_count += descr_count;
 
@@ -1299,6 +1309,7 @@ static int pasemi_mac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	TX_DESC(txring, fill) = mactx;
+	TX_DESC_INFO(txring, fill).dma = nfrags;
 	fill++;
 	TX_DESC_INFO(txring, fill).skb = skb;
 	for (i = 0; i <= nfrags; i++) {
