@@ -7362,7 +7362,7 @@ static int iwl3945_mac_conf_tx(struct ieee80211_hw *hw, int queue,
 #ifdef CONFIG_IWL3945_QOS
 	unsigned long flags;
 	int q;
-#endif /* CONFIG_IWL_QOS */
+#endif /* CONFIG_IWL3945_QOS */
 
 	IWL_DEBUG_MAC80211("enter\n");
 
