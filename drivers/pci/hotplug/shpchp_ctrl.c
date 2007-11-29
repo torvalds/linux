@@ -231,10 +231,10 @@ static int fix_bus_speed(struct controller *ctrl, struct slot *pslot,
 
 /**
  * board_added - Called after a board has been added to the system.
+ * @p_slot: target &slot
  *
- * Turns power on for the board
- * Configures board
- *
+ * Turns power on for the board.
+ * Configures board.
  */
 static int board_added(struct slot *p_slot)
 {
@@ -350,8 +350,8 @@ err_exit:
 
 
 /**
- * remove_board - Turns off slot and LED's
- *
+ * remove_board - Turns off slot and LEDs
+ * @p_slot: target &slot
  */
 static int remove_board(struct slot *p_slot)
 {
@@ -397,11 +397,11 @@ struct pushbutton_work_info {
 };
 
 /**
- * shpchp_pushbutton_thread
+ * shpchp_pushbutton_thread - handle pushbutton events
+ * @work: &struct work_struct to be handled
  *
- * Scheduled procedure to handle blocking stuff for the pushbuttons
+ * Scheduled procedure to handle blocking stuff for the pushbuttons.
  * Handles all pending events and exits.
- *
  */
 static void shpchp_pushbutton_thread(struct work_struct *work)
 {

@@ -123,7 +123,7 @@ static u8 handle_switch_change(u8 change, struct controller * ctrl)
 }
 
 /**
- * cpqhp_find_slot: find the struct slot of given device
+ * cpqhp_find_slot - find the struct slot of given device
  * @ctrl: scan lots of this controller
  * @device: the device id to find
  */
@@ -305,9 +305,8 @@ static u8 handle_power_fault(u8 change, struct controller * ctrl)
 
 
 /**
- * sort_by_size: sort nodes on the list by their length, smallest first.
+ * sort_by_size - sort nodes on the list by their length, smallest first.
  * @head: list to sort
- *
  */
 static int sort_by_size(struct pci_resource **head)
 {
@@ -354,9 +353,8 @@ static int sort_by_size(struct pci_resource **head)
 
 
 /**
- * sort_by_max_size: sort nodes on the list by their length, largest first.
+ * sort_by_max_size - sort nodes on the list by their length, largest first.
  * @head: list to sort
- *
  */
 static int sort_by_max_size(struct pci_resource **head)
 {
@@ -403,8 +401,10 @@ static int sort_by_max_size(struct pci_resource **head)
 
 
 /**
- * do_pre_bridge_resource_split: find node of resources that are unused
- *
+ * do_pre_bridge_resource_split - find node of resources that are unused
+ * @head: new list head
+ * @orig_head: original list head
+ * @alignment: max node size (?)
  */
 static struct pci_resource *do_pre_bridge_resource_split(struct pci_resource **head,
 				struct pci_resource **orig_head, u32 alignment)
@@ -477,8 +477,9 @@ static struct pci_resource *do_pre_bridge_resource_split(struct pci_resource **h
 
 
 /**
- * do_bridge_resource_split: find one node of resources that aren't in use
- *
+ * do_bridge_resource_split - find one node of resources that aren't in use
+ * @head: list head
+ * @alignment: max node size (?)
  */
 static struct pci_resource *do_bridge_resource_split(struct pci_resource **head, u32 alignment)
 {
@@ -525,14 +526,13 @@ error:
 
 
 /**
- * get_io_resource: find first node of given size not in ISA aliasing window.
+ * get_io_resource - find first node of given size not in ISA aliasing window.
  * @head: list to search
  * @size: size of node to find, must be a power of two.
  *
- * Description: this function sorts the resource list by size and then returns
+ * Description: This function sorts the resource list by size and then returns
  * returns the first node of "size" length that is not in the ISA aliasing
  * window.  If it finds a node larger than "size" it will split it up.
- *
  */
 static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size)
 {
@@ -620,7 +620,7 @@ static struct pci_resource *get_io_resource(struct pci_resource **head, u32 size
 
 
 /**
- * get_max_resource: get largest node which has at least the given size.
+ * get_max_resource - get largest node which has at least the given size.
  * @head: the list to search the node in
  * @size: the minimum size of the node to find
  *
@@ -712,7 +712,7 @@ static struct pci_resource *get_max_resource(struct pci_resource **head, u32 siz
 
 
 /**
- * get_resource: find resource of given size and split up larger ones.
+ * get_resource - find resource of given size and split up larger ones.
  * @head: the list to search for resources
  * @size: the size limit to use
  *
@@ -804,14 +804,14 @@ static struct pci_resource *get_resource(struct pci_resource **head, u32 size)
 
 
 /**
- * cpqhp_resource_sort_and_combine: sort nodes by base addresses and clean up.
+ * cpqhp_resource_sort_and_combine - sort nodes by base addresses and clean up
  * @head: the list to sort and clean up
  *
  * Description: Sorts all of the nodes in the list in ascending order by
  * their base addresses.  Also does garbage collection by
  * combining adjacent nodes.
  *
- * returns 0 if success
+ * Returns %0 if success.
  */
 int cpqhp_resource_sort_and_combine(struct pci_resource **head)
 {
@@ -951,9 +951,9 @@ irqreturn_t cpqhp_ctrl_intr(int IRQ, void *data)
 
 /**
  * cpqhp_slot_create - Creates a node and adds it to the proper bus.
- * @busnumber - bus where new node is to be located
+ * @busnumber: bus where new node is to be located
  *
- * Returns pointer to the new node or NULL if unsuccessful
+ * Returns pointer to the new node or %NULL if unsuccessful.
  */
 struct pci_func *cpqhp_slot_create(u8 busnumber)
 {
@@ -986,7 +986,7 @@ struct pci_func *cpqhp_slot_create(u8 busnumber)
  * slot_remove - Removes a node from the linked list of slots.
  * @old_slot: slot to remove
  *
- * Returns 0 if successful, !0 otherwise.
+ * Returns %0 if successful, !0 otherwise.
  */
 static int slot_remove(struct pci_func * old_slot)
 {
@@ -1026,7 +1026,7 @@ static int slot_remove(struct pci_func * old_slot)
  * bridge_slot_remove - Removes a node from the linked list of slots.
  * @bridge: bridge to remove
  *
- * Returns 0 if successful, !0 otherwise.
+ * Returns %0 if successful, !0 otherwise.
  */
 static int bridge_slot_remove(struct pci_func *bridge)
 {
@@ -1071,7 +1071,7 @@ out:
  * cpqhp_slot_find - Looks for a node by bus, and device, multiple functions accessed
  * @bus: bus to find
  * @device: device to find
- * @index: is 0 for first function found, 1 for the second...
+ * @index: is %0 for first function found, %1 for the second...
  *
  * Returns pointer to the node if successful, %NULL otherwise.
  */
@@ -1115,16 +1115,13 @@ static int is_bridge(struct pci_func * func)
 
 
 /**
- * set_controller_speed - set the frequency and/or mode of a specific
- * controller segment.
- *
+ * set_controller_speed - set the frequency and/or mode of a specific controller segment.
  * @ctrl: controller to change frequency/mode for.
  * @adapter_speed: the speed of the adapter we want to match.
  * @hp_slot: the slot number where the adapter is installed.
  *
- * Returns 0 if we successfully change frequency and/or mode to match the
+ * Returns %0 if we successfully change frequency and/or mode to match the
  * adapter speed.
- * 
  */
 static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_slot)
 {
@@ -1253,13 +1250,14 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 
 /**
  * board_replaced - Called after a board has been replaced in the system.
+ * @func: PCI device/function information
+ * @ctrl: hotplug controller
  *
- * This is only used if we don't have resources for hot add
- * Turns power on for the board
- * Checks to see if board is the same
- * If board is same, reconfigures it
+ * This is only used if we don't have resources for hot add.
+ * Turns power on for the board.
+ * Checks to see if board is the same.
+ * If board is same, reconfigures it.
  * If board isn't same, turns it back off.
- *
  */
 static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 {
@@ -1403,10 +1401,11 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 
 /**
  * board_added - Called after a board has been added to the system.
+ * @func: PCI device/function info
+ * @ctrl: hotplug controller
  *
- * Turns power on for the board
- * Configures board
- *
+ * Turns power on for the board.
+ * Configures board.
  */
 static u32 board_added(struct pci_func *func, struct controller *ctrl)
 {
@@ -1607,8 +1606,10 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 
 
 /**
- * remove_board - Turns off slot and LED's
- *
+ * remove_board - Turns off slot and LEDs
+ * @func: PCI device/function info
+ * @replace_flag: whether replacing or adding a new device
+ * @ctrl: target controller
  */
 static u32 remove_board(struct pci_func * func, u32 replace_flag, struct controller * ctrl)
 {
@@ -1902,11 +1903,11 @@ static void interrupt_event_handler(struct controller *ctrl)
 
 
 /**
- * cpqhp_pushbutton_thread
+ * cpqhp_pushbutton_thread - handle pushbutton events
+ * @slot: target slot (struct)
  *
- * Scheduled procedure to handle blocking stuff for the pushbuttons
+ * Scheduled procedure to handle blocking stuff for the pushbuttons.
  * Handles all pending events and exits.
- *
  */
 void cpqhp_pushbutton_thread(unsigned long slot)
 {
@@ -2137,9 +2138,10 @@ int cpqhp_process_SS(struct controller *ctrl, struct pci_func *func)
 }
 
 /**
- * switch_leds: switch the leds, go from one site to the other.
+ * switch_leds - switch the leds, go from one site to the other.
  * @ctrl: controller to use
  * @num_of_slots: number of slots to use
+ * @work_LED: LED control value
  * @direction: 1 to start from the left side, 0 to start right.
  */
 static void switch_leds(struct controller *ctrl, const int num_of_slots,
@@ -2165,11 +2167,11 @@ static void switch_leds(struct controller *ctrl, const int num_of_slots,
 }
 
 /**
- * hardware_test - runs hardware tests
+ * cpqhp_hardware_test - runs hardware tests
+ * @ctrl: target controller
+ * @test_num: the number written to the "test" file in sysfs.
  *
  * For hot plug ctrl folks to play with.
- * test_num is the number written to the "test" file in sysfs
- *
  */
 int cpqhp_hardware_test(struct controller *ctrl, int test_num)
 {
@@ -2249,14 +2251,12 @@ int cpqhp_hardware_test(struct controller *ctrl, int test_num)
 
 /**
  * configure_new_device - Configures the PCI header information of one board.
- *
  * @ctrl: pointer to controller structure
  * @func: pointer to function structure
  * @behind_bridge: 1 if this is a recursive call, 0 if not
  * @resources: pointer to set of resource lists
  *
- * Returns 0 if success
- *
+ * Returns 0 if success.
  */
 static u32 configure_new_device(struct controller * ctrl, struct pci_func * func,
 				 u8 behind_bridge, struct resource_lists * resources)
@@ -2346,15 +2346,13 @@ static u32 configure_new_device(struct controller * ctrl, struct pci_func * func
 
 /**
  * configure_new_function - Configures the PCI header information of one device
- *
  * @ctrl: pointer to controller structure
  * @func: pointer to function structure
  * @behind_bridge: 1 if this is a recursive call, 0 if not
  * @resources: pointer to set of resource lists
  *
  * Calls itself recursively for bridged devices.
- * Returns 0 if success
- *
+ * Returns 0 if success.
  */
 static int configure_new_function(struct controller *ctrl, struct pci_func *func,
 				   u8 behind_bridge,

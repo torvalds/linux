@@ -217,7 +217,7 @@ static int slot_reset_iter(struct device *device, void *data)
 
 static pci_ers_result_t pcie_portdrv_slot_reset(struct pci_dev *dev)
 {
-	pci_ers_result_t status;
+	pci_ers_result_t status = PCI_ERS_RESULT_NONE;
 	int retval;
 
 	/* If fatal, restore cfg space for possible link reset at upstream */

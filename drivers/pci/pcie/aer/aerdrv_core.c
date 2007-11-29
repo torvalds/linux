@@ -168,11 +168,11 @@ static int find_device_iter(struct device *device, void *data)
 
 /**
  * find_source_device - search through device hierarchy for source device
- * @p_dev: pointer to Root Port pci_dev data structure
+ * @parent: pointer to Root Port pci_dev data structure
  * @id: device ID of agent who sends an error message to this Root Port
  *
  * Invoked when error is detected at the Root Port.
- **/
+ */
 static struct device* find_source_device(struct pci_dev *parent, u16 id)
 {
 	struct pci_dev *dev = parent;
@@ -286,14 +286,15 @@ static void report_resume(struct pci_dev *dev, void *data)
 
 /**
  * broadcast_error_message - handle message broadcast to downstream drivers
- * @device: pointer to from where in a hierarchy message is broadcasted down
- * @api: callback to be broadcasted
+ * @dev: pointer to from where in a hierarchy message is broadcasted down
  * @state: error state
+ * @error_mesg: message to print
+ * @cb: callback to be broadcasted
  *
  * Invoked during error recovery process. Once being invoked, the content
  * of error severity will be broadcasted to all downstream drivers in a
  * hierarchy in question.
- **/
+ */
 static pci_ers_result_t broadcast_error_message(struct pci_dev *dev,
 	enum pci_channel_state state,
 	char *error_mesg,
@@ -428,7 +429,7 @@ static pci_ers_result_t reset_link(struct pcie_device *aerdev,
  * Invoked when an error is nonfatal/fatal. Once being invoked, broadcast
  * error detected message to all downstream drivers within a hierarchy in
  * question and return the returned code.
- **/
+ */
 static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
 		struct pci_dev *dev,
 		int severity)
@@ -488,7 +489,7 @@ static pci_ers_result_t do_recovery(struct pcie_device *aerdev,
  * @info: comprehensive error information
  *
  * Invoked when an error being detected by Root Port.
- **/
+ */
 static void handle_error_source(struct pcie_device * aerdev,
 	struct pci_dev *dev,
 	struct aer_err_info info)
@@ -521,7 +522,7 @@ static void handle_error_source(struct pcie_device * aerdev,
  * @rpc: pointer to a Root Port data structure
  *
  * Invoked when PCIE bus loads AER service driver.
- **/
+ */
 void aer_enable_rootport(struct aer_rpc *rpc)
 {
 	struct pci_dev *pdev = rpc->rpd->port;
@@ -569,7 +570,7 @@ void aer_enable_rootport(struct aer_rpc *rpc)
  * @rpc: pointer to a Root Port data structure
  *
  * Invoked when PCIE bus unloads AER service driver.
- **/
+ */
 static void disable_root_aer(struct aer_rpc *rpc)
 {
 	struct pci_dev *pdev = rpc->rpd->port;
@@ -590,7 +591,7 @@ static void disable_root_aer(struct aer_rpc *rpc)
  * @rpc: pointer to the root port which holds an error
  *
  * Invoked by DPC handler to consume an error.
- **/
+ */
 static struct aer_err_source* get_e_source(struct aer_rpc *rpc)
 {
 	struct aer_err_source *e_source;
@@ -655,7 +656,7 @@ static int get_device_error_info(struct pci_dev *dev, struct aer_err_info *info)
  * aer_isr_one_error - consume an error detected by root port
  * @p_device: pointer to error root port service device
  * @e_src: pointer to an error source
- **/
+ */
 static void aer_isr_one_error(struct pcie_device *p_device,
 		struct aer_err_source *e_src)
 {
@@ -706,7 +707,7 @@ static void aer_isr_one_error(struct pcie_device *p_device,
  * @work: definition of this work item
  *
  * Invoked, as DPC, when root port records new detected error
- **/
+ */
 void aer_isr(struct work_struct *work)
 {
 	struct aer_rpc *rpc = container_of(work, struct aer_rpc, dpc_handler);
@@ -729,7 +730,7 @@ void aer_isr(struct work_struct *work)
  * @rpc: pointer to a root port device being deleted
  *
  * Invoked when AER service unloaded on a specific Root Port
- **/
+ */
 void aer_delete_rootport(struct aer_rpc *rpc)
 {
 	/* Disable root port AER itself */
@@ -743,7 +744,7 @@ void aer_delete_rootport(struct aer_rpc *rpc)
  * @dev: pointer to AER pcie device
  *
  * Invoked when AER service driver is loaded.
- **/
+ */
 int aer_init(struct pcie_device *dev)
 {
 	if (aer_osc_setup(dev) && !forceload)
