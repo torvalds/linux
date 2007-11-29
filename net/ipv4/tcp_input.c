@@ -1384,7 +1384,7 @@ static struct sk_buff *tcp_sacktag_skip(struct sk_buff *skb, struct sock *sk,
 		if (skb == tcp_send_head(sk))
 			break;
 
-		if (before(TCP_SKB_CB(skb)->end_seq, skip_to_seq))
+		if (!before(TCP_SKB_CB(skb)->end_seq, skip_to_seq))
 			break;
 	}
 	return skb;
@@ -1575,7 +1575,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			continue;
 		}
 
-		if (!before(start_seq, tcp_highest_sack_seq(tp))) {
+		if (tp->sacked_out && !before(start_seq, tcp_highest_sack_seq(tp))) {
 			skb = tcp_write_queue_next(sk, tp->highest_sack);
 			fack_count = tp->fackets_out;
 		}
