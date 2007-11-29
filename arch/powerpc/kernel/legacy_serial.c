@@ -307,7 +307,7 @@ void __init find_legacy_serial_ports(void)
 	}
 
 	/* First fill our array with SOC ports */
-	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
+	for_each_compatible_node(np, "serial", "ns16550") {
 		struct device_node *soc = of_get_parent(np);
 		if (soc && !strcmp(soc->type, "soc")) {
 			index = add_legacy_soc_port(np, np);
@@ -318,7 +318,7 @@ void __init find_legacy_serial_ports(void)
 	}
 
 	/* First fill our array with ISA ports */
-	for (np = NULL; (np = of_find_node_by_type(np, "serial"));) {
+	for_each_node_by_type(np, "serial") {
 		struct device_node *isa = of_get_parent(np);
 		if (isa && !strcmp(isa->name, "isa")) {
 			index = add_legacy_isa_port(np, isa);
@@ -329,7 +329,7 @@ void __init find_legacy_serial_ports(void)
 	}
 
 	/* First fill our array with tsi-bridge ports */
-	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
+	for_each_compatible_node(np, "serial", "ns16550") {
 		struct device_node *tsi = of_get_parent(np);
 		if (tsi && !strcmp(tsi->type, "tsi-bridge")) {
 			index = add_legacy_soc_port(np, np);
@@ -340,7 +340,7 @@ void __init find_legacy_serial_ports(void)
 	}
 
 	/* First fill our array with opb bus ports */
-	for (np = NULL; (np = of_find_compatible_node(np, "serial", "ns16550")) != NULL;) {
+	for_each_compatible_node(np, "serial", "ns16550") {
 		struct device_node *opb = of_get_parent(np);
 		if (opb && (!strcmp(opb->type, "opb") ||
 			    of_device_is_compatible(opb, "ibm,opb"))) {
