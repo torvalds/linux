@@ -14,6 +14,7 @@
 #include <asm/mach/map.h>
 
 #include <linux/platform_device.h>
+#include <linux/i2c-gpio.h>
 
 #include <asm/arch/board.h>
 #include <asm/arch/gpio.h>
@@ -435,7 +436,40 @@ void __init at91_add_device_nand(struct at91_nand_data *data) {}
  *  TWI (i2c)
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_I2C_AT91) || defined(CONFIG_I2C_AT91_MODULE)
+/*
+ * Prefer the GPIO code since the TWI controller isn't robust
+ * (gets overruns and underruns under load) and can only issue
+ * repeated STARTs in one scenario (the driver doesn't yet handle them).
+ */
+#if defined(CONFIG_I2C_GPIO) || defined(CONFIG_I2C_GPIO_MODULE)
+
+static struct i2c_gpio_platform_data pdata = {
+	.sda_pin		= AT91_PIN_PA25,
+	.sda_is_open_drain	= 1,
+	.scl_pin		= AT91_PIN_PA26,
+	.scl_is_open_drain	= 1,
+	.udelay			= 2,		/* ~100 kHz */
+};
+
+static struct platform_device at91rm9200_twi_device = {
+	.name			= "i2c-gpio",
+	.id			= -1,
+	.dev.platform_data	= &pdata,
+};
+
+void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices)
+{
+	at91_set_GPIO_periph(AT91_PIN_PA25, 1);		/* TWD (SDA) */
+	at91_set_multi_drive(AT91_PIN_PA25, 1);
+
+	at91_set_GPIO_periph(AT91_PIN_PA26, 1);		/* TWCK (SCL) */
+	at91_set_multi_drive(AT91_PIN_PA26, 1);
+
+	i2c_register_board_info(0, devices, nr_devices);
+	platform_device_register(&at91rm9200_twi_device);
+}
+
+#elif defined(CONFIG_I2C_AT91) || defined(CONFIG_I2C_AT91_MODULE)
 
 static struct resource twi_resources[] = {
 	[0] = {
@@ -457,7 +491,7 @@ static struct platform_device at91rm9200_twi_device = {
 	.num_resources	= ARRAY_SIZE(twi_resources),
 };
 
-void __init at91_add_device_i2c(void)
+void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices)
 {
 	/* pins used for TWI interface */
 	at91_set_A_periph(AT91_PIN_PA25, 0);		/* TWD */
@@ -466,10 +500,11 @@ void __init at91_add_device_i2c(void)
 	at91_set_A_periph(AT91_PIN_PA26, 0);		/* TWCK */
 	at91_set_multi_drive(AT91_PIN_PA26, 1);
 
+	i2c_register_board_info(0, devices, nr_devices);
 	platform_device_register(&at91rm9200_twi_device);
 }
 #else
-void __init at91_add_device_i2c(void) {}
+void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices) {}
 #endif
 
 

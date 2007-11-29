@@ -291,7 +291,7 @@ static void __init ek_board_init(void)
 	/* NAND */
 	at91_add_device_nand(&ek_nand_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* AC97 */

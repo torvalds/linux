@@ -13,7 +13,7 @@
 
 #define PXA_IRQ(x)	(x)
 
-#ifdef CONFIG_PXA27x
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define IRQ_SSP3	PXA_IRQ(0)	/* SSP3 service request */
 #define IRQ_MSL		PXA_IRQ(1)	/* MSL Interface interrupt */
 #define IRQ_USBH2	PXA_IRQ(2)	/* USB Host interrupt 1 (OHCI) */
@@ -52,9 +52,25 @@
 #define	IRQ_RTC1Hz	PXA_IRQ(30)	/* RTC HZ Clock Tick */
 #define	IRQ_RTCAlrm	PXA_IRQ(31)	/* RTC Alarm */
 
-#ifdef CONFIG_PXA27x
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define IRQ_TPM		PXA_IRQ(32)	/* TPM interrupt */
 #define IRQ_CAMERA	PXA_IRQ(33)	/* Camera Interface */
+#endif
+
+#ifdef CONFIG_PXA3xx
+#define IRQ_SSP4	PXA_IRQ(13)	/* SSP4 service request */
+#define IRQ_CIR		PXA_IRQ(34)	/* Consumer IR */
+#define IRQ_TSI		PXA_IRQ(36)	/* Touch Screen Interface (PXA320) */
+#define IRQ_USIM2	PXA_IRQ(38)	/* USIM2 Controller */
+#define IRQ_GRPHICS	PXA_IRQ(39)	/* Graphics Controller */
+#define IRQ_MMC2	PXA_IRQ(41)	/* MMC2 Controller */
+#define IRQ_1WIRE	PXA_IRQ(44)	/* 1-Wire Controller */
+#define IRQ_NAND	PXA_IRQ(45)	/* NAND Controller */
+#define IRQ_USB2	PXA_IRQ(46)	/* USB 2.0 Device Controller */
+#define IRQ_WAKEUP0	PXA_IRQ(49)	/* EXT_WAKEUP0 */
+#define IRQ_WAKEUP1	PXA_IRQ(50)	/* EXT_WAKEUP1 */
+#define IRQ_DMEMC	PXA_IRQ(51)	/* Dynamic Memory Controller */
+#define IRQ_MMC3	PXA_IRQ(55)	/* MMC3 Controller (PXA310) */
 #endif
 
 #define PXA_GPIO_IRQ_BASE	(64)

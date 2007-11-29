@@ -110,7 +110,10 @@
 #define DALGN		__REG(0x400000a0)  /* DMA Alignment Register */
 #define DINT		__REG(0x400000f0)  /* DMA Interrupt Register */
 
-#define DRCMR(n)	__REG2(0x40000100, (n)<<2)
+#define DRCMR(n)	(*(((n) < 64) ? \
+			&__REG2(0x40000100, ((n) & 0x3f) << 2) : \
+			&__REG2(0x40001100, ((n) & 0x3f) << 2)))
+
 #define DRCMR0		__REG(0x40000100)  /* Request to Channel Map Register for DREQ 0 */
 #define DRCMR1		__REG(0x40000104)  /* Request to Channel Map Register for DREQ 1 */
 #define DRCMR2		__REG(0x40000108)  /* Request to Channel Map Register for I2S receive Request */

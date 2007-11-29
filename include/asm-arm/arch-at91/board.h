@@ -33,6 +33,7 @@
 
 #include <linux/mtd/partitions.h>
 #include <linux/device.h>
+#include <linux/i2c.h>
 #include <linux/spi/spi.h>
 
  /* USB Device */
@@ -94,7 +95,7 @@ struct at91_nand_data {
 extern void __init at91_add_device_nand(struct at91_nand_data *data);
 
  /* I2C*/
-extern void __init at91_add_device_i2c(void);
+extern void __init at91_add_device_i2c(struct i2c_board_info *devices, int nr_devices);
 
  /* SPI */
 extern void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices);
