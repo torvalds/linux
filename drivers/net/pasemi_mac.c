@@ -35,6 +35,7 @@
 
 #include <asm/irq.h>
 #include <asm/firmware.h>
+#include <asm/pasemi_dma.h>
 
 #include "pasemi_mac.h"
 
