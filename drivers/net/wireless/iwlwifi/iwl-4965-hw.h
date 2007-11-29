@@ -60,6 +60,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+/*
+ * Please use this file (iwl-4965-hw.h) only for hardware-related definitions.
+ * Use iwl-4965-commands.h for uCode API definitions.
+ * Use iwl-4965.h for driver implementation definitions.
+ */
 
 #ifndef __iwl_4965_hw_h__
 #define __iwl_4965_hw_h__
@@ -77,9 +82,7 @@
 /* Tx rates */
 #define IWL_CCK_RATES 4
 #define IWL_OFDM_RATES 8
-
 #define IWL_HT_RATES 16
-
 #define IWL_MAX_RATES  (IWL_CCK_RATES+IWL_OFDM_RATES+IWL_HT_RATES)
 
 /* Time constants */
@@ -449,8 +452,6 @@ struct iwl4965_eeprom {
  */
 #define CSR_HW_REV_WA_REG	(CSR_BASE+0x22C)
 
-#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM     (0x00200000)
-
 /* interrupt flags in INTA, set by uCode or hardware (e.g. dma),
  * acknowledged (reset) by host writing "1" to flagged bits. */
 #define CSR_INT_BIT_FH_RX        (1<<31) /* Rx DMA, cmd responses, FH_INT[17:16] */
@@ -592,17 +593,12 @@ struct iwl4965_eeprom {
 #define FH_TSSR_CBB_BASE        (FH_TSSR_TABLE+0x000)
 #define FH_TSSR_MSG_CONFIG      (FH_TSSR_TABLE+0x008)
 #define FH_TSSR_TX_STATUS       (FH_TSSR_TABLE+0x010)
-/* 18 - reserved */
 
-/* card static random access memory (SRAM) for processor data and instructs */
-#define RTC_INST_LOWER_BOUND			(0x000000)
-#define RTC_DATA_LOWER_BOUND			(0x800000)
 
 #define HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED         (0x00000004)
 
 #define TFD_QUEUE_SIZE_MAX      (256)
 
-/* spectrum and channel data structures */
 #define IWL_NUM_SCAN_RATES         (2)
 
 #define IWL_DEFAULT_TX_RETRY  15
@@ -623,16 +619,25 @@ struct iwl4965_eeprom {
 #define RX_FREE_BUFFERS 64
 #define RX_LOW_WATERMARK 8
 
-
+/* Size of one Rx buffer in host DRAM */
 #define IWL_RX_BUF_SIZE (4 * 1024)
-#define IWL_MAX_BSM_SIZE BSM_SRAM_SIZE
+
+/* Sizes and addresses for instruction and data memory (SRAM) in
+ * 4965's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
+#define RTC_INST_LOWER_BOUND			(0x000000)
 #define KDR_RTC_INST_UPPER_BOUND		(0x018000)
+
+#define RTC_DATA_LOWER_BOUND			(0x800000)
 #define KDR_RTC_DATA_UPPER_BOUND		(0x80A000)
+
 #define KDR_RTC_INST_SIZE    (KDR_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
 #define KDR_RTC_DATA_SIZE    (KDR_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
 
 #define IWL_MAX_INST_SIZE KDR_RTC_INST_SIZE
 #define IWL_MAX_DATA_SIZE KDR_RTC_DATA_SIZE
+
+/* Size of uCode instruction memory in bootstrap state machine */
+#define IWL_MAX_BSM_SIZE BSM_SRAM_SIZE
 
 static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 {
@@ -641,13 +646,6 @@ static inline int iwl4965_hw_valid_rtc_data_addr(u32 addr)
 }
 
 /********************* START TXPOWER *****************************************/
-enum {
-	HT_IE_EXT_CHANNEL_NONE = 0,
-	HT_IE_EXT_CHANNEL_ABOVE,
-	HT_IE_EXT_CHANNEL_INVALID,
-	HT_IE_EXT_CHANNEL_BELOW,
-	HT_IE_EXT_CHANNEL_MAX
-};
 
 enum {
 	CALIB_CH_GROUP_1 = 0,
@@ -812,6 +810,7 @@ enum {
 #define CSR_HW_IF_CONFIG_REG_MSK_BOARD_VER	(0x00000C00)
 #define CSR_HW_IF_CONFIG_REG_BIT_MAC_SI		(0x00000100)
 #define CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI	(0x00000200)
+#define CSR_HW_IF_CONFIG_REG_BIT_EEPROM_OWN_SEM (0x00200000)
 
 static inline u8 iwl4965_hw_get_rate(__le32 rate_n_flags)
 {

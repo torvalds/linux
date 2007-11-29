@@ -23,6 +23,12 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
+/*
+ * Please use this file (iwl-4965.h) for driver implementation definitions.
+ * Please use iwl-4965-commands.h for uCode API definitions.
+ * Please use iwl-4965-hw.h for hardware-related definitions.
+ */
+
 #ifndef __iwl_4965_h__
 #define __iwl_4965_h__
 
@@ -192,6 +198,15 @@ struct iwl4965_scan_power_info {
 	s8 requested_power;	/* scan pwr (dBm) requested for chnl/rate */
 };
 
+/* For fat_extension_channel */
+enum {
+	HT_IE_EXT_CHANNEL_NONE = 0,
+	HT_IE_EXT_CHANNEL_ABOVE,
+	HT_IE_EXT_CHANNEL_INVALID,
+	HT_IE_EXT_CHANNEL_BELOW,
+	HT_IE_EXT_CHANNEL_MAX
+};
+
 /*
  * One for each channel, holds all channel setup data
  * Some of the fields (e.g. eeprom and flags/max_power_avg) are redundant
@@ -202,14 +217,14 @@ struct iwl4965_scan_power_info {
 struct iwl4965_channel_info {
 	struct iwl4965_channel_tgd_info tgd;
 	struct iwl4965_channel_tgh_info tgh;
-	struct iwl4965_eeprom_channel eeprom;	/* EEPROM regulatory limit */
-	struct iwl4965_eeprom_channel fat_eeprom;	/* EEPROM regulatory limit for
-						 * FAT channel */
+	struct iwl4965_eeprom_channel eeprom;	  /* EEPROM regulatory limit */
+	struct iwl4965_eeprom_channel fat_eeprom; /* EEPROM regulatory limit for
+						   * FAT channel */
 
 	u8 channel;	  /* channel number */
 	u8 flags;	  /* flags copied from EEPROM */
 	s8 max_power_avg; /* (dBm) regul. eeprom, normal Tx, any rate */
-	s8 curr_txpow;	  /* (dBm) regulatory/spectrum/user (not h/w) */
+	s8 curr_txpow;	  /* (dBm) regulatory/spectrum/user (not h/w) limit */
 	s8 min_power;	  /* always 0 */
 	s8 scan_power;	  /* (dBm) regul. eeprom, direct scans, any rate */
 
@@ -228,7 +243,7 @@ struct iwl4965_channel_info {
 	s8 fat_min_power;	/* always 0 */
 	s8 fat_scan_power;	/* (dBm) eeprom, direct scans, any rate */
 	u8 fat_flags;		/* flags copied from EEPROM */
-	u8 fat_extension_channel;
+	u8 fat_extension_channel; /* HT_IE_EXT_CHANNEL_* */
 
 	/* Radio/DSP gain settings for each scan rate, for directed scans. */
 	struct iwl4965_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];

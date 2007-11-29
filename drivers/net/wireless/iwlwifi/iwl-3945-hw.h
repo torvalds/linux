@@ -60,6 +60,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+/*
+ * Please use this file (iwl-3945-hw.h) only for hardware-related definitions.
+ * Please use iwl-3945-commands.h for uCode API definitions.
+ * Please use iwl-3945.h for driver implementation definitions.
+ */
 
 #ifndef __iwl_3945_hw__
 #define __iwl_3945_hw__
@@ -73,9 +78,7 @@
 /* Tx rates */
 #define IWL_CCK_RATES 4
 #define IWL_OFDM_RATES 8
-
 #define IWL_HT_RATES 0
-
 #define IWL_MAX_RATES  (IWL_CCK_RATES+IWL_OFDM_RATES+IWL_HT_RATES)
 
 /* Time constants */
@@ -545,11 +548,6 @@ struct iwl3945_eeprom {
 #define FH_TSSR_CBB_BASE        (FH_TSSR_TABLE+0x000)
 #define FH_TSSR_MSG_CONFIG      (FH_TSSR_TABLE+0x008)
 #define FH_TSSR_TX_STATUS       (FH_TSSR_TABLE+0x010)
-/* 18 - reserved */
-
-/* card static random access memory (SRAM) for processor data and instructs */
-#define RTC_INST_LOWER_BOUND			(0x000000)
-#define RTC_DATA_LOWER_BOUND			(0x800000)
 
 
 /* DBM */
@@ -618,7 +616,6 @@ struct iwl3945_eeprom {
 #define TFD_QUEUE_MAX           6
 #define TFD_QUEUE_SIZE_MAX      (256)
 
-/* spectrum and channel data structures */
 #define IWL_NUM_SCAN_RATES         (2)
 
 #define IWL_DEFAULT_TX_RETRY  15
@@ -634,11 +631,6 @@ struct iwl3945_eeprom {
 
 #define U32_PAD(n)		((4-(n))&0x3)
 
-/*
- * Generic queue structure
- *
- * Contains common data for Rx and Tx queues
- */
 #define TFD_CTL_COUNT_SET(n)       (n<<24)
 #define TFD_CTL_COUNT_GET(ctl)     ((ctl>>24) & 7)
 #define TFD_CTL_PAD_SET(n)         (n<<28)
@@ -656,18 +648,26 @@ struct iwl3945_eeprom {
 #define RX_FREE_BUFFERS 64
 #define RX_LOW_WATERMARK 8
 
-
+/* Size of one Rx buffer in host DRAM */
 #define IWL_RX_BUF_SIZE 3000
-/* card static random access memory (SRAM) for processor data and instructs */
+
+/* Sizes and addresses for instruction and data memory (SRAM) in
+ * 3945's embedded processor.  Driver access is via HBUS_TARG_MEM_* regs. */
+#define RTC_INST_LOWER_BOUND			(0x000000)
 #define ALM_RTC_INST_UPPER_BOUND		(0x014000)
+
+#define RTC_DATA_LOWER_BOUND			(0x800000)
 #define ALM_RTC_DATA_UPPER_BOUND		(0x808000)
 
 #define ALM_RTC_INST_SIZE (ALM_RTC_INST_UPPER_BOUND - RTC_INST_LOWER_BOUND)
 #define ALM_RTC_DATA_SIZE (ALM_RTC_DATA_UPPER_BOUND - RTC_DATA_LOWER_BOUND)
 
-#define IWL_MAX_BSM_SIZE ALM_RTC_INST_SIZE
 #define IWL_MAX_INST_SIZE ALM_RTC_INST_SIZE
 #define IWL_MAX_DATA_SIZE ALM_RTC_DATA_SIZE
+
+/* Size of uCode instruction memory in bootstrap state machine */
+#define IWL_MAX_BSM_SIZE ALM_RTC_INST_SIZE
+
 #define IWL_MAX_NUM_QUEUES	8
 
 static inline int iwl3945_hw_valid_rtc_data_addr(u32 addr)

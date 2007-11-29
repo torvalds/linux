@@ -60,6 +60,11 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+/*
+ * Please use this file (iwl-3945-commands.h) only for uCode API definitions.
+ * Please use iwl-3945-hw.h for hardware-related definitions.
+ * Please use iwl-3945.h for driver implementation definitions.
+ */
 
 #ifndef __iwl_3945_commands_h__
 #define __iwl_3945_commands_h__

@@ -23,6 +23,11 @@
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  *****************************************************************************/
+/*
+ * Please use this file (iwl-3945.h) for driver implementation definitions.
+ * Please use iwl-3945-commands.h for uCode API definitions.
+ * Please use iwl-3945-hw.h for hardware-related definitions.
+ */
 
 #ifndef __iwl_3945_h__
 #define __iwl_3945_h__
