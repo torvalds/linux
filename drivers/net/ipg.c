@@ -776,7 +776,7 @@ static int init_rfdlist(struct net_device *dev)
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(rxfd->frag_info) & ~IPG_RFI_FRAGLEN,
 				sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
-			IPG_DEV_KFREE_SKB(sp->RxBuff[i]);
+			dev_kfree_skb_irq(sp->RxBuff[i]);
 			sp->RxBuff[i] = NULL;
 		}
 
@@ -829,7 +829,7 @@ static void init_tfdlist(struct net_device *dev)
 		txfd->tfc = cpu_to_le64(IPG_TFC_TFDDONE);
 
 		if (sp->TxBuff[i]) {
-			IPG_DEV_KFREE_SKB(sp->TxBuff[i]);
+			dev_kfree_skb_irq(sp->TxBuff[i]);
 			sp->TxBuff[i] = NULL;
 		}
 
@@ -884,7 +884,7 @@ static void ipg_nic_txfree(struct net_device *dev)
 				le64_to_cpu(txfd->frag_info) & ~IPG_TFI_FRAGLEN,
 				skb->len, PCI_DMA_TODEVICE);
 
-			IPG_DEV_KFREE_SKB(skb);
+			dev_kfree_skb_irq(skb);
 
 			sp->TxBuff[dirty] = NULL;
 		}
@@ -1112,7 +1112,7 @@ inline void ipg_nic_rx_free_skb(struct net_device *dev)
 		pci_unmap_single(sp->pdev,
 			le64_to_cpu(rxfd->frag_info & ~IPG_RFI_FRAGLEN),
 			sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
-		IPG_DEV_KFREE_SKB(sp->RxBuff[entry]);
+		dev_kfree_skb_irq(sp->RxBuff[entry]);
 		sp->RxBuff[entry] = NULL;
 	}
 }
@@ -1180,7 +1180,7 @@ inline int ipg_nic_rx_check_error(struct net_device *dev)
 				le64_to_cpu(rxfd->frag_info & ~IPG_RFI_FRAGLEN),
 				sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-			IPG_DEV_KFREE_SKB(sp->RxBuff[entry]);
+			dev_kfree_skb_irq(sp->RxBuff[entry]);
 			sp->RxBuff[entry] = NULL;
 		}
 		return ErrorPacket;
@@ -1197,7 +1197,7 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 	int framelen;
 
 	if (jumbo->FoundStart) {
-		IPG_DEV_KFREE_SKB(jumbo->skb);
+		dev_kfree_skb_irq(jumbo->skb);
 		jumbo->FoundStart = 0;
 		jumbo->CurrentSize = 0;
 		jumbo->skb = NULL;
@@ -1242,7 +1242,7 @@ static void ipg_nic_rx_with_start(struct net_device *dev,
 		return;
 
 	if (jumbo->FoundStart)
-		IPG_DEV_KFREE_SKB(jumbo->skb);
+		dev_kfree_skb_irq(jumbo->skb);
 
 	pci_unmap_single(pdev, le64_to_cpu(rxfd->frag_info & ~IPG_RFI_FRAGLEN),
 			 sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
@@ -1281,7 +1281,7 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 				framelen=IPG_RXFRAG_SIZE;
 			 */
 			if (framelen > IPG_RXSUPPORT_SIZE)
-				IPG_DEV_KFREE_SKB(jumbo->skb);
+				dev_kfree_skb_irq(jumbo->skb);
 			else {
 				memcpy(skb_put(jumbo->skb, endframeLen),
 				       skb->data, endframeLen);
@@ -1301,7 +1301,7 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 
 		ipg_nic_rx_free_skb(dev);
 	} else {
-		IPG_DEV_KFREE_SKB(jumbo->skb);
+		dev_kfree_skb_irq(jumbo->skb);
 		jumbo->FoundStart = 0;
 		jumbo->CurrentSize = 0;
 		jumbo->skb = NULL;
@@ -1331,7 +1331,7 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 			ipg_nic_rx_free_skb(dev);
 		}
 	} else {
-		IPG_DEV_KFREE_SKB(jumbo->skb);
+		dev_kfree_skb_irq(jumbo->skb);
 		jumbo->FoundStart = 0;
 		jumbo->CurrentSize = 0;
 		jumbo->skb = NULL;
@@ -1472,7 +1472,7 @@ static int ipg_nic_rx(struct net_device *dev)
 					le64_to_cpu(info) & ~IPG_RFI_FRAGLEN,
 					sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 
-				IPG_DEV_KFREE_SKB(skb);
+				dev_kfree_skb_irq(skb);
 			}
 		} else {
 
@@ -1565,7 +1565,7 @@ static int ipg_nic_rx(struct net_device *dev)
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(rxfd->frag_info) & ~IPG_RFI_FRAGLEN,
 				sp->rx_buf_sz, PCI_DMA_FROMDEVICE);
-			IPG_DEV_KFREE_SKB(sp->RxBuff[entry]);
+			dev_kfree_skb_irq(sp->RxBuff[entry]);
 		}
 
 		/* Assure RX buffer is not reused by IPG. */
@@ -1738,7 +1738,7 @@ static void ipg_rx_clear(struct ipg_nic_private *sp)
 		if (sp->RxBuff[i]) {
 			struct ipg_rx *rxfd = sp->rxd + i;
 
-			IPG_DEV_KFREE_SKB(sp->RxBuff[i]);
+			dev_kfree_skb_irq(sp->RxBuff[i]);
 			sp->RxBuff[i] = NULL;
 			pci_unmap_single(sp->pdev,
 				le64_to_cpu(rxfd->frag_info) & ~IPG_RFI_FRAGLEN,
@@ -1759,7 +1759,7 @@ static void ipg_tx_clear(struct ipg_nic_private *sp)
 				le64_to_cpu(txfd->frag_info) & ~IPG_TFI_FRAGLEN,
 				sp->TxBuff[i]->len, PCI_DMA_TODEVICE);
 
-			IPG_DEV_KFREE_SKB(sp->TxBuff[i]);
+			dev_kfree_skb_irq(sp->TxBuff[i]);
 
 			sp->TxBuff[i] = NULL;
 		}

@@ -27,8 +27,6 @@
 
 #define DrvVer "2.09d"
 
-#define IPG_DEV_KFREE_SKB(skb) dev_kfree_skb_irq(skb)
-
 /*
  *	Constants
  */
