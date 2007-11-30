@@ -700,7 +700,6 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
-	struct gfs2_sbd *sdp = GFS2_SB(file->f_mapping->host);
 
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
