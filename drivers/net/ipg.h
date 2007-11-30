@@ -51,7 +51,7 @@
 /* I/O register offsets. */
 enum ipg_regs {
 	DMA_CTRL		= 0x00,
-	RX_DMA_STATUS		= 0x08, // Unused + reserved
+	RX_DMA_STATUS		= 0x08, /* Unused + reserved */
 	TFD_LIST_PTR_0		= 0x10,
 	TFD_LIST_PTR_1		= 0x14,
 	TX_DMA_BURST_THRESH	= 0x18,
@@ -64,21 +64,21 @@ enum ipg_regs {
 	RX_DMA_POLL_PERIOD	= 0x26,
 	DEBUG_CTRL		= 0x2c,
 	ASIC_CTRL		= 0x30,
-	FIFO_CTRL		= 0x38, // Unused
+	FIFO_CTRL		= 0x38, /* Unused */
 	FLOW_OFF_THRESH		= 0x3c,
 	FLOW_ON_THRESH		= 0x3e,
 	EEPROM_DATA		= 0x48,
 	EEPROM_CTRL		= 0x4a,
-	EXPROM_ADDR		= 0x4c, // Unused
-	EXPROM_DATA		= 0x50, // Unused
-	WAKE_EVENT		= 0x51, // Unused
-	COUNTDOWN		= 0x54, // Unused
+	EXPROM_ADDR		= 0x4c, /* Unused */
+	EXPROM_DATA		= 0x50, /* Unused */
+	WAKE_EVENT		= 0x51, /* Unused */
+	COUNTDOWN		= 0x54, /* Unused */
 	INT_STATUS_ACK		= 0x5a,
 	INT_ENABLE		= 0x5c,
-	INT_STATUS		= 0x5e, // Unused
+	INT_STATUS		= 0x5e, /* Unused */
 	TX_STATUS		= 0x60,
 	MAC_CTRL		= 0x6c,
-	VLAN_TAG		= 0x70, // Unused
+	VLAN_TAG		= 0x70, /* Unused */
 	PHY_SET			= 0x75,
 	PHY_CTRL		= 0x76,
 	STATION_ADDRESS_0	= 0x78,
@@ -90,11 +90,11 @@ enum ipg_regs {
 	HASHTABLE_1		= 0x90,
 	RMON_STATISTICS_MASK	= 0x98,
 	STATISTICS_MASK		= 0x9c,
-	RX_JUMBO_FRAMES		= 0xbc, // Unused
-	TCP_CHECKSUM_ERRORS	= 0xc0, // Unused
-	IP_CHECKSUM_ERRORS	= 0xc2, // Unused
-	UDP_CHECKSUM_ERRORS	= 0xc4, // Unused
-	TX_JUMBO_FRAMES		= 0xf4  // Unused
+	RX_JUMBO_FRAMES		= 0xbc, /* Unused */
+	TCP_CHECKSUM_ERRORS	= 0xc0, /* Unused */
+	IP_CHECKSUM_ERRORS	= 0xc2, /* Unused */
+	UDP_CHECKSUM_ERRORS	= 0xc4, /* Unused */
+	TX_JUMBO_FRAMES		= 0xf4  /* Unused */
 };
 
 /* Ethernet MIB statistic register offsets. */
@@ -590,7 +590,7 @@ enum ipg_regs {
  * Define larger if expecting jumbo frames.
  */
 #ifdef JUMBO_FRAME
-//IPG_TXFRAG_SIZE must <= 0x2b00, or TX will crash
+/* IPG_TXFRAG_SIZE must <= 0x2b00, or TX will crash */
 #define		IPG_TXFRAG_SIZE		JUMBO_FRAME_SIZE
 #endif
 
@@ -598,7 +598,7 @@ enum ipg_regs {
  * Define larger if expecting jumbo frames.
  */
 #ifdef JUMBO_FRAME
-//4088=4096-8
+/* 4088 = 4096 - 8 */
 #define		IPG_RXFRAG_SIZE		__IPG_RXFRAG_SIZE
 #define     IPG_RXSUPPORT_SIZE   IPG_MAX_RXFRAME_SIZE
 #else
@@ -628,7 +628,7 @@ enum ipg_regs {
 /* specify the jumbo frame maximum size
  * per unit is 0x600 (the rx_buffer size that one RFD can carry)
  */
-#define     MAX_JUMBOSIZE	        0x8	// max is 12K
+#define     MAX_JUMBOSIZE	        0x8	/* max is 12K */
 
 /* Key register values loaded at driver start up. */
 

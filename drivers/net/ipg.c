@@ -34,9 +34,9 @@
 	 IPG_AC_DMA | IPG_AC_FIFO | IPG_AC_NETWORK | IPG_AC_HOST | \
 	 IPG_AC_AUTO_INIT)
 
-#define ipg_w32(val32,reg)	iowrite32((val32), ioaddr + (reg))
-#define ipg_w16(val16,reg)	iowrite16((val16), ioaddr + (reg))
-#define ipg_w8(val8,reg)	iowrite8((val8), ioaddr + (reg))
+#define ipg_w32(val32, reg)	iowrite32((val32), ioaddr + (reg))
+#define ipg_w16(val16, reg)	iowrite16((val16), ioaddr + (reg))
+#define ipg_w8(val8, reg)	iowrite8((val8), ioaddr + (reg))
 
 #define ipg_r32(reg)		ioread32(ioaddr + (reg))
 #define ipg_r16(reg)		ioread16(ioaddr + (reg))
@@ -54,20 +54,22 @@ MODULE_AUTHOR("IC Plus Corp. 2003");
 MODULE_DESCRIPTION("IC Plus IP1000 Gigabit Ethernet Adapter Linux Driver");
 MODULE_LICENSE("GPL");
 
-//variable record -- index by leading revision/length
-//Revision/Length(=N*4), Address1, Data1, Address2, Data2,...,AddressN,DataN
+/*
+ * Variable record -- index by leading revision/length
+ * Revision/Length(=N*4), Address1, Data1, Address2, Data2,...,AddressN,DataN
+ */
 static unsigned short DefaultPhyParam[] = {
-	// 11/12/03 IP1000A v1-3 rev=0x40
+	/* 11/12/03 IP1000A v1-3 rev=0x40 */
 	/*--------------------------------------------------------------------------
 	(0x4000|(15*4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 22, 0x85bd, 24, 0xfff2,
 				 27, 0x0c10, 28, 0x0c10, 29, 0x2c10, 31, 0x0003, 23, 0x92f6,
 				 31, 0x0000, 23, 0x003d, 30, 0x00de, 20, 0x20e7,  9, 0x0700,
 	  --------------------------------------------------------------------------*/
-	// 12/17/03 IP1000A v1-4 rev=0x40
+	/* 12/17/03 IP1000A v1-4 rev=0x40 */
 	(0x4000 | (07 * 4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 27, 0xeb8e, 31,
 	    0x0000,
 	30, 0x005e, 9, 0x0700,
-	// 01/09/04 IP1000A v1-5 rev=0x41
+	/* 01/09/04 IP1000A v1-5 rev=0x41 */
 	(0x4100 | (07 * 4)), 31, 0x0001, 27, 0x01e0, 31, 0x0002, 27, 0xeb8e, 31,
 	    0x0000,
 	30, 0x005e, 9, 0x0700,
@@ -187,7 +189,7 @@ static void send_end(void __iomem *ioaddr, u8 phyctrlpolarity)
 		phyctrlpolarity) & IPG_PC_RSVD_MASK, PHY_CTRL);
 }
 
-static u16 read_phy_bit(void __iomem * ioaddr, u8 phyctrlpolarity)
+static u16 read_phy_bit(void __iomem *ioaddr, u8 phyctrlpolarity)
 {
 	u16 bit_data;
 
@@ -204,7 +206,7 @@ static u16 read_phy_bit(void __iomem * ioaddr, u8 phyctrlpolarity)
  * Read a register from the Physical Layer device located
  * on the IPG NIC, using the IPG PHYCTRL register.
  */
-static int mdio_read(struct net_device * dev, int phy_id, int phy_reg)
+static int mdio_read(struct net_device *dev, int phy_id, int phy_reg)
 {
 	void __iomem *ioaddr = ipg_ioaddr(dev);
 	/*
@@ -548,7 +550,7 @@ static int ipg_config_autoneg(struct net_device *dev)
 		printk("\n");
 	} else {
 		/* Configure IPG for half duplex operation. */
-	        printk(KERN_INFO "%s: setting half duplex, "
+		printk(KERN_INFO "%s: setting half duplex, "
 		       "no TX flow control, no RX flow control.\n", dev->name);
 
 		mac_ctrl_val &= ~IPG_MC_DUPLEX_SELECT_FD &
@@ -1080,12 +1082,12 @@ static int ipg_nic_rxrestore(struct net_device *dev)
 #ifdef JUMBO_FRAME
 
 /* use jumboindex and jumbosize to control jumbo frame status
-   initial status is jumboindex=-1 and jumbosize=0
-   1. jumboindex = -1 and jumbosize=0 : previous jumbo frame has been done.
-   2. jumboindex != -1 and jumbosize != 0 : jumbo frame is not over size and receiving
-   3. jumboindex = -1 and jumbosize != 0 : jumbo frame is over size, already dump
-                previous receiving and need to continue dumping the current one
-*/
+ * initial status is jumboindex=-1 and jumbosize=0
+ * 1. jumboindex = -1 and jumbosize=0 : previous jumbo frame has been done.
+ * 2. jumboindex != -1 and jumbosize != 0 : jumbo frame is not over size and receiving
+ * 3. jumboindex = -1 and jumbosize != 0 : jumbo frame is over size, already dump
+ *               previous receiving and need to continue dumping the current one
+ */
 enum {
 	NORMAL_PACKET,
 	ERROR_PACKET
@@ -1200,7 +1202,7 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 		jumbo->skb = NULL;
 	}
 
-	// 1: found error, 0 no error
+	/* 1: found error, 0 no error */
 	if (ipg_nic_rx_check_error(dev) != NORMAL_PACKET)
 		return;
 
@@ -1208,7 +1210,7 @@ static void ipg_nic_rx_with_start_and_end(struct net_device *dev,
 	if (!skb)
 		return;
 
-	// accept this frame and send to upper layer
+	/* accept this frame and send to upper layer */
 	framelen = le64_to_cpu(rxfd->rfs) & IPG_RFS_RXFRAMELEN;
 	if (framelen > IPG_RXFRAG_SIZE)
 		framelen = IPG_RXFRAG_SIZE;
@@ -1229,11 +1231,11 @@ static void ipg_nic_rx_with_start(struct net_device *dev,
 	struct pci_dev *pdev = sp->pdev;
 	struct sk_buff *skb;
 
-	// 1: found error, 0 no error
+	/* 1: found error, 0 no error */
 	if (ipg_nic_rx_check_error(dev) != NORMAL_PACKET)
 		return;
 
-	// accept this frame and send to upper layer
+	/* accept this frame and send to upper layer */
 	skb = sp->rx_buff[entry];
 	if (!skb)
 		return;
@@ -1260,7 +1262,7 @@ static void ipg_nic_rx_with_end(struct net_device *dev,
 {
 	struct ipg_jumbo *jumbo = &sp->jumbo;
 
-	//1: found error, 0 no error
+	/* 1: found error, 0 no error */
 	if (ipg_nic_rx_check_error(dev) == NORMAL_PACKET) {
 		struct sk_buff *skb = sp->rx_buff[entry];
 
@@ -1311,7 +1313,7 @@ static void ipg_nic_rx_no_start_no_end(struct net_device *dev,
 {
 	struct ipg_jumbo *jumbo = &sp->jumbo;
 
-	//1: found error, 0 no error
+	/* 1: found error, 0 no error */
 	if (ipg_nic_rx_check_error(dev) == NORMAL_PACKET) {
 		struct sk_buff *skb = sp->rx_buff[entry];
 
