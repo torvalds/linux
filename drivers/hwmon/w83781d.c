@@ -151,10 +151,6 @@ static const u8 BIT_SCFG2[] = { 0x10, 0x20, 0x40 };
 
 #define W83781D_DEFAULT_BETA		3435
 
-/* RT Table registers */
-#define W83781D_REG_RT_IDX		0x50
-#define W83781D_REG_RT_VAL		0x51
-
 /* Conversions */
 #define IN_TO_REG(val)			SENSORS_LIMIT(((val) + 8) / 16, 0, 255)
 #define IN_FROM_REG(val)		((val) * 16)
@@ -269,7 +265,6 @@ static struct i2c_driver w83781d_driver = {
 	.driver = {
 		.name = "w83781d",
 	},
-	.id = I2C_DRIVERID_W83781D,
 	.attach_adapter = w83781d_attach_adapter,
 	.detach_client = w83781d_detach_client,
 };
@@ -694,7 +689,7 @@ store_fan_div(struct device *dev, struct device_attribute *da,
 	unsigned long val = simple_strtoul(buf, NULL, 10);
 
 	mutex_lock(&data->update_lock);
-	
+
 	/* Save fan_min */
 	min = FAN_FROM_REG(data->fan_min[nr],
 			   DIV_FROM_REG(data->fan_div[nr]));
@@ -1000,7 +995,7 @@ ERROR_SC_0:
 #define IN_UNIT_ATTRS(X)					\
 	&sensor_dev_attr_in##X##_input.dev_attr.attr,		\
 	&sensor_dev_attr_in##X##_min.dev_attr.attr,		\
-	&sensor_dev_attr_in##X##_max.dev_attr.attr, 		\
+	&sensor_dev_attr_in##X##_max.dev_attr.attr,		\
 	&sensor_dev_attr_in##X##_alarm.dev_attr.attr,		\
 	&sensor_dev_attr_in##X##_beep.dev_attr.attr
 
@@ -1441,9 +1436,9 @@ w83781d_isa_remove(struct platform_device *pdev)
 }
 
 /* The SMBus locks itself, usually, but nothing may access the Winbond between
-   bank switches. ISA access must always be locked explicitly! 
+   bank switches. ISA access must always be locked explicitly!
    We ignore the W83781D BUSY flag at this moment - it could lead to deadlocks,
-   would slow down the W83781D access and should not be necessary. 
+   would slow down the W83781D access and should not be necessary.
    There are some ugly typecasts here, but the good news is - they should
    nowhere else be necessary! */
 static int
