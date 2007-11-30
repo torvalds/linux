@@ -373,7 +373,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int phy_reg, int val)
 	}
 }
 
-/* Set LED_Mode JES20040127EEPROM */
 static void ipg_set_led_mode(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
@@ -395,7 +394,6 @@ static void ipg_set_led_mode(struct net_device *dev)
 	ipg_w32(mode, ASIC_CTRL);
 }
 
-/* Set PHYSet JES20040127EEPROM */
 static void ipg_set_phy_set(struct net_device *dev)
 {
 	struct ipg_nic_private *sp = netdev_priv(dev);
@@ -414,7 +412,7 @@ static int ipg_reset(struct net_device *dev, u32 resetflags)
 	 * register as specified by the 'resetflags' input
 	 * parameter.
 	 */
-	void __iomem *ioaddr = ipg_ioaddr(dev);	//JES20040127EEPROM:
+	void __iomem *ioaddr = ipg_ioaddr(dev);
 	unsigned int timeout_count = 0;
 
 	IPG_DEBUG_MSG("_reset\n");
@@ -429,10 +427,10 @@ static int ipg_reset(struct net_device *dev, u32 resetflags)
 		if (++timeout_count > IPG_AC_RESET_TIMEOUT)
 			return -ETIME;
 	}
-	/* Set LED Mode in Asic Control JES20040127EEPROM */
+	/* Set LED Mode in Asic Control */
 	ipg_set_led_mode(dev);
 
-	/* Set PHYSet Register Value JES20040127EEPROM */
+	/* Set PHYSet Register Value */
 	ipg_set_phy_set(dev);
 	return 0;
 }
@@ -2006,7 +2004,6 @@ static void ipg_set_phy_default_param(unsigned char rev,
 	}
 }
 
-/* JES20040127EEPROM */
 static int read_eeprom(struct net_device *dev, int eep_addr)
 {
 	void __iomem *ioaddr = ipg_ioaddr(dev);
@@ -2073,7 +2070,7 @@ static int ipg_hw_init(struct net_device *dev)
 	unsigned int i;
 	int rc;
 
-	/* Read/Write and Reset EEPROM Value Jesse20040128EEPROM_VALUE */
+	/* Read/Write and Reset EEPROM Value */
 	/* Read LED Mode Configuration from EEPROM */
 	sp->LED_Mode = read_eeprom(dev, 6);
 

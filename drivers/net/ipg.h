@@ -79,7 +79,7 @@ enum ipg_regs {
 	TX_STATUS		= 0x60,
 	MAC_CTRL		= 0x6c,
 	VLAN_TAG		= 0x70, // Unused
-	PHY_SET			= 0x75,	// JES20040127EEPROM
+	PHY_SET			= 0x75,
 	PHY_CTRL		= 0x76,
 	STATION_ADDRESS_0	= 0x78,
 	STATION_ADDRESS_1	= 0x7a,
@@ -312,7 +312,7 @@ enum ipg_regs {
 #define IPG_RM_RECEIVEMULTICASTHASH     0x10
 #define IPG_RM_RECEIVEIPMULTICAST       0x20
 
-/* PhySet JES20040127EEPROM*/
+/* PhySet */
 #define IPG_PS_MEM_LENB9B               0x01
 #define IPG_PS_MEM_LEN9                 0x02
 #define IPG_PS_NON_COMPDET              0x04
@@ -369,8 +369,8 @@ enum ipg_regs {
 #define IPG_AC_RST_OUT                  0x01000000
 #define IPG_AC_INT_REQUEST              0x02000000
 #define IPG_AC_RESET_BUSY               0x04000000
-#define IPG_AC_LED_SPEED                0x08000000	//JES20040127EEPROM
-#define IPG_AC_LED_MODE_BIT_1           0x20000000	//JES20040127EEPROM
+#define IPG_AC_LED_SPEED                0x08000000
+#define IPG_AC_LED_MODE_BIT_1           0x20000000
 
 /* EepromCtrl */
 #define IPG_EC_RSVD_MASK                0x83FF
@@ -785,7 +785,6 @@ struct ipg_nic_private {
 	unsigned int tx_dirty;
 	unsigned int rx_current;
 	unsigned int rx_dirty;
-// Add by Grace 2005/05/19
 #ifdef JUMBO_FRAME
 	struct SJumbo Jumbo;
 #endif
@@ -796,7 +795,6 @@ struct ipg_nic_private {
 	spinlock_t lock;
 	int tenmbpsmode;
 
-	/*Jesse20040128EEPROM_VALUE */
 	u16 LED_Mode;
 	u16 station_addr[3];	/* Station Address in EEPROM Reg 0x10..0x12 */
 
