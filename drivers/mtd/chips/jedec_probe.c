@@ -1952,7 +1952,7 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 	}
 	/* Ensure the unlock addresses we try stay inside the map */
 	probe_offset1 = cfi_build_cmd_addr(cfi->addr_unlock1, cfi_interleave(cfi), cfi->device_type);
-	probe_offset2 = cfi_build_cmd_addr(cfi->addr_unlock1, cfi_interleave(cfi), cfi->device_type);
+	probe_offset2 = cfi_build_cmd_addr(cfi->addr_unlock2, cfi_interleave(cfi), cfi->device_type);
 	if (	((base + probe_offset1 + map_bankwidth(map)) >= map->size) ||
 		((base + probe_offset2 + map_bankwidth(map)) >= map->size))
 		goto retry;
