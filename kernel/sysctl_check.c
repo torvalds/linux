@@ -1342,7 +1342,8 @@ static void sysctl_repair_table(struct ctl_table *table)
 	}
 }
 
-static struct ctl_table *sysctl_check_lookup(struct ctl_table *table)
+static struct ctl_table *sysctl_check_lookup(struct nsproxy *namespaces,
+						struct ctl_table *table)
 {
 	struct ctl_table_header *head;
 	struct ctl_table *ref, *test;
@@ -1350,8 +1351,8 @@ static struct ctl_table *sysctl_check_lookup(struct ctl_table *table)
 
 	depth = sysctl_depth(table);
 
-	for (head = sysctl_head_next(NULL); head;
-	     head = sysctl_head_next(head)) {
+	for (head = __sysctl_head_next(namespaces, NULL); head;
+	     head = __sysctl_head_next(namespaces, head)) {
 		cur_depth = depth;
 		ref = head->ctl_table;
 repeat:
@@ -1396,13 +1397,14 @@ static void set_fail(const char **fail, struct ctl_table *table, const char *str
 	*fail = str;
 }
 
-static int sysctl_check_dir(struct ctl_table *table)
+static int sysctl_check_dir(struct nsproxy *namespaces,
+				struct ctl_table *table)
 {
 	struct ctl_table *ref;
 	int error;
 
 	error = 0;
-	ref = sysctl_check_lookup(table);
+	ref = sysctl_check_lookup(namespaces, table);
 	if (ref) {
 		int match = 0;
 		if ((!table->procname && !ref->procname) ||
@@ -1427,11 +1429,12 @@ static int sysctl_check_dir(struct ctl_table *table)
 	return error;
 }
 
-static void sysctl_check_leaf(struct ctl_table *table, const char **fail)
+static void sysctl_check_leaf(struct nsproxy *namespaces,
+				struct ctl_table *table, const char **fail)
 {
 	struct ctl_table *ref;
 
-	ref = sysctl_check_lookup(table);
+	ref = sysctl_check_lookup(namespaces, table);
 	if (ref && (ref != table))
 		set_fail(fail, table, "Sysctl already exists");
 }
@@ -1455,7 +1458,7 @@ static void sysctl_check_bin_path(struct ctl_table *table, const char **fail)
 	}
 }
 
-int sysctl_check_table(struct ctl_table *table)
+int sysctl_check_table(struct nsproxy *namespaces, struct ctl_table *table)
 {
 	int error = 0;
 	for (; table->ctl_name || table->procname; table++) {
@@ -1485,7 +1488,7 @@ int sysctl_check_table(struct ctl_table *table)
 				set_fail(&fail, table, "Directory with extra1");
 			if (table->extra2)
 				set_fail(&fail, table, "Directory with extra2");
-			if (sysctl_check_dir(table))
+			if (sysctl_check_dir(namespaces, table))
 				set_fail(&fail, table, "Inconsistent directory names");
 		} else {
 			if ((table->strategy == sysctl_data) ||
@@ -1534,7 +1537,7 @@ int sysctl_check_table(struct ctl_table *table)
 			if (!table->procname && table->proc_handler)
 				set_fail(&fail, table, "proc_handler without procname");
 #endif
-			sysctl_check_leaf(table, &fail);
+			sysctl_check_leaf(namespaces, table, &fail);
 		}
 		sysctl_check_bin_path(table, &fail);
 		if (fail) {
@@ -1542,7 +1545,7 @@ int sysctl_check_table(struct ctl_table *table)
 			error = -EINVAL;
 		}
 		if (table->child)
-			error |= sysctl_check_table(table->child);
+			error |= sysctl_check_table(namespaces, table->child);
 	}
 	return error;
 }
