@@ -25,6 +25,8 @@ struct net {
 	struct proc_dir_entry 	*proc_net_stat;
 	struct proc_dir_entry 	*proc_net_root;
 
+	struct list_head	sysctl_table_headers;
+
 	struct net_device       *loopback_dev;          /* The loopback */
 
 	struct list_head 	dev_base_head;
@@ -143,5 +145,12 @@ extern int register_pernet_subsys(struct pernet_operations *);
 extern void unregister_pernet_subsys(struct pernet_operations *);
 extern int register_pernet_device(struct pernet_operations *);
 extern void unregister_pernet_device(struct pernet_operations *);
+
+struct ctl_path;
+struct ctl_table;
+struct ctl_table_header;
+extern struct ctl_table_header *register_net_sysctl_table(struct net *net,
+	const struct ctl_path *path, struct ctl_table *table);
+extern void unregister_net_sysctl_table(struct ctl_table_header *header);
 
 #endif /* __NET_NET_NAMESPACE_H */
