@@ -399,7 +399,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv;
-	struct tfrc_tx_hist_entry *packet;
 	ktime_t now;
 	unsigned long t_nfb;
 	u32 pinv, r_sample;
@@ -414,19 +413,17 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	switch (hctx->ccid3hctx_state) {
 	case TFRC_SSTATE_NO_FBACK:
 	case TFRC_SSTATE_FBACK:
+		now = ktime_get_real();
+
 		/* estimate RTT from history if ACK number is valid */
-		packet = tfrc_tx_hist_find_entry(hctx->ccid3hctx_hist,
-						 DCCP_SKB_CB(skb)->dccpd_ack_seq);
-		if (packet == NULL) {
+		r_sample = tfrc_tx_hist_rtt(hctx->ccid3hctx_hist,
+					    DCCP_SKB_CB(skb)->dccpd_ack_seq, now);
+		if (r_sample == 0) {
 			DCCP_WARN("%s(%p): %s with bogus ACK-%llu\n", dccp_role(sk), sk,
 				  dccp_packet_name(DCCP_SKB_CB(skb)->dccpd_type),
 				  (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			return;
 		}
-		/*
-		 * Garbage-collect older (irrelevant) entries
-		 */
-		tfrc_tx_hist_purge(&packet->next);
 
 		/* Update receive rate in units of 64 * bytes/second */
 		hctx->ccid3hctx_x_recv = opt_recv->ccid3or_receive_rate;
@@ -438,12 +435,10 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			hctx->ccid3hctx_p = 0;
 		else				       /* can not exceed 100% */
 			hctx->ccid3hctx_p = 1000000 / pinv;
-
-		now = ktime_get_real();
 		/*
-		 * Calculate new RTT sample and update moving average
+		 * Validate new RTT sample and update moving average
 		 */
-		r_sample = dccp_sample_rtt(sk, ktime_us_delta(now, packet->stamp));
+		r_sample = dccp_sample_rtt(sk, r_sample);
 		hctx->ccid3hctx_rtt = tfrc_ewma(hctx->ccid3hctx_rtt, r_sample, 9);
 
 		if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK) {
