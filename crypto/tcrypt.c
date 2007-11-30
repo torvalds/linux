@@ -89,10 +89,9 @@ static char *check[] = {
 
 static void hexdump(unsigned char *buf, unsigned int len)
 {
-	while (len--)
-		printk("%02x", *buf++);
-
-	printk("\n");
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
+			16, 1,
+			buf, len, false);
 }
 
 static void tcrypt_complete(struct crypto_async_request *req, int err)
