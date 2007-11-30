@@ -5,6 +5,8 @@
  * Copyright (C) 1999  Niibe Yutaka
  */
 
+#include <linux/const.h>
+
 #ifdef __KERNEL__
 
 /* PAGE_SHIFT determines the page size */
@@ -18,14 +20,12 @@
 # error "Bogus kernel page size?"
 #endif
 
-#ifdef __ASSEMBLY__
-#define PAGE_SIZE	(1 << PAGE_SHIFT)
-#else
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
-#endif
-
+#define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE-1))
 #define PTE_MASK	PAGE_MASK
+
+/* to align the pointer to the (next) page boundary */
+#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
 #if defined(CONFIG_HUGETLB_PAGE_SIZE_64K)
 #define HPAGE_SHIFT	16
@@ -104,20 +104,44 @@ typedef struct { unsigned long pgd; } pgd_t;
 
 #endif /* !__ASSEMBLY__ */
 
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
-
+/*
+ * __MEMORY_START and SIZE are the physical addresses and size of RAM.
+ */
 #define __MEMORY_START		CONFIG_MEMORY_START
 #define __MEMORY_SIZE		CONFIG_MEMORY_SIZE
 
+/*
+ * PAGE_OFFSET is the virtual address of the start of kernel address
+ * space.
+ */
 #define PAGE_OFFSET		CONFIG_PAGE_OFFSET
-#define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
-#define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
-#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 
+/*
+ * Virtual to physical RAM address translation.
+ *
+ * In 29 bit mode, the physical offset of RAM from address 0 is visible in
+ * the kernel virtual address space, and thus we don't have to take
+ * this into account when translating. However in 32 bit mode this offset
+ * is not visible (it is part of the PMB mapping) and so needs to be
+ * added or subtracted as required.
+ */
+#ifdef CONFIG_32BIT
+#define __pa(x)	((unsigned long)(x)-PAGE_OFFSET+__MEMORY_START)
+#define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET-__MEMORY_START))
+#else
+#define __pa(x)	((unsigned long)(x)-PAGE_OFFSET)
+#define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET))
+#endif
+
+#define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
-/* PFN start number, because of __MEMORY_START */
+/*
+ * PFN = physical frame number (ie PFN 0 == physical address 0)
+ * PFN_START is the PFN of the first page of RAM. By defining this we
+ * don't have struct page entries for the portion of address space
+ * between physical address 0 and the start of RAM.
+ */
 #define PFN_START		(__MEMORY_START >> PAGE_SHIFT)
 #define ARCH_PFN_OFFSET		(PFN_START)
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)

@@ -82,7 +82,7 @@ static int __init early_parse_mem(char *p)
 {
 	unsigned long size;
 
-	memory_start = (unsigned long)PAGE_OFFSET+__MEMORY_START;
+	memory_start = (unsigned long)__va(__MEMORY_START);
 	size = memparse(p, &p);
 
 	if (size > __MEMORY_SIZE) {
@@ -254,7 +254,7 @@ void __init setup_arch(char **cmdline_p)
 	data_resource.start = virt_to_phys(_etext);
 	data_resource.end = virt_to_phys(_edata)-1;
 
-	memory_start = (unsigned long)PAGE_OFFSET+__MEMORY_START;
+	memory_start = (unsigned long)__va(__MEMORY_START);
 	if (!memory_end)
 		memory_end = memory_start + __MEMORY_SIZE;
 

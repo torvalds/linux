@@ -31,6 +31,7 @@
 /* Returns the physical address of a PnSEG (n=1,2) address   */
 #define PHYSADDR(a)	(((unsigned long)(a)) & 0x1fffffff)
 
+#ifdef CONFIG_29BIT
 /*
  * Map an address to a certain privileged segment
  */
@@ -42,8 +43,11 @@
 	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P3SEG))
 #define P4SEGADDR(a)	\
 	((__typeof__(a))(((unsigned long)(a) & 0x1fffffff) | P4SEG))
-
+#endif /* 29BIT */
 #endif /* P1SEG */
+
+/* Check if an address can be reached in 29 bits */
+#define IS_29BIT(a)	(((unsigned long)(a)) < 0x20000000)
 
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_ADDRSPACE_H */

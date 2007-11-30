@@ -15,7 +15,12 @@ OUTPUT_ARCH(sh)
 ENTRY(_start)
 SECTIONS
 {
+#ifdef CONFIG_32BIT
+	. = CONFIG_PAGE_OFFSET + CONFIG_ZERO_PAGE_OFFSET;
+#else
 	. = CONFIG_PAGE_OFFSET + CONFIG_MEMORY_START + CONFIG_ZERO_PAGE_OFFSET;
+#endif
+
 	_text = .;			/* Text and read-only data */
 
 	.empty_zero_page : {

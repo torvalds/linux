@@ -273,23 +273,9 @@ extern void onchip_unmap(unsigned long vaddr);
 #if !defined(CONFIG_MMU)
 #define virt_to_phys(address)	((unsigned long)(address))
 #define phys_to_virt(address)	((void *)(address))
-#elif defined(CONFIG_SUPERH64)
+#else
 #define virt_to_phys(address)	(__pa(address))
 #define phys_to_virt(address)	(__va(address))
-#else
-/*
- * Change virtual addresses to physical addresses and vv.
- * These are trivial on the 1:1 Linux/SuperH mapping
- */
-static inline unsigned long virt_to_phys(volatile void *address)
-{
-	return PHYSADDR(address);
-}
-
-static inline void *phys_to_virt(unsigned long address)
-{
-	return (void *)P1SEGADDR(address);
-}
 #endif
 
 /*

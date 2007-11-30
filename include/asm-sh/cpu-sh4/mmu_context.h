@@ -30,6 +30,12 @@
 #define MMUCR_ME		(0)
 #endif
 
+#if defined(CONFIG_32BIT) && defined(CONFIG_CPU_SUBTYPE_ST40)
+#define MMUCR_SE		(1 << 4)
+#else
+#define MMUCR_SE		(0)
+#endif
+
 #ifdef CONFIG_SH_STORE_QUEUES
 #define MMUCR_SQMD		(1 << 9)
 #else
@@ -37,7 +43,7 @@
 #endif
 
 #define MMU_NTLB_ENTRIES	64
-#define MMU_CONTROL_INIT	(0x05|MMUCR_SQMD|MMUCR_ME)
+#define MMU_CONTROL_INIT	(0x05|MMUCR_SQMD|MMUCR_ME|MMUCR_SE)
 
 #define MMU_ITLB_DATA_ARRAY	0xF3000000
 #define MMU_UTLB_DATA_ARRAY	0xF7000000

@@ -69,7 +69,13 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
 #define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
-#define PTE_PHYS_MASK		(0x20000000 - PAGE_SIZE)
+#ifdef CONFIG_32BIT
+#define PHYS_ADDR_MASK		0xffffffff
+#else
+#define PHYS_ADDR_MASK		0x1fffffff
+#endif
+
+#define PTE_PHYS_MASK		(PHYS_ADDR_MASK & PAGE_MASK)
 
 #ifdef CONFIG_SUPERH32
 #define VMALLOC_START	(P3SEG)

@@ -230,7 +230,10 @@ long* stack_start = &user_stack[STACK_SIZE];
 void decompress_kernel(void)
 {
 	output_data = 0;
-	output_ptr = P2SEGADDR((unsigned long)&_text+PAGE_SIZE);
+	output_ptr = PHYSADDR((unsigned long)&_text+PAGE_SIZE);
+#ifdef CONFIG_29BIT
+	output_ptr |= P2SEG;
+#endif
 	free_mem_ptr = (unsigned long)&_end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 
