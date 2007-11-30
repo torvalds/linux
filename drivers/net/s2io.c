@@ -1081,7 +1081,7 @@ static int init_nic(struct s2io_nic *nic)
 	/* to set the swapper controle on the card */
 	if(s2io_set_swapper(nic)) {
 		DBG_PRINT(ERR_DBG,"ERROR: Setting Swapper failed\n");
-		return -1;
+		return -EIO;
 	}
 
 	/*
@@ -1503,7 +1503,7 @@ static int init_nic(struct s2io_nic *nic)
 			DBG_PRINT(ERR_DBG, "%s: failed rts ds steering",
 				dev->name);
 			DBG_PRINT(ERR_DBG, "set on codepoint %d\n", i);
-			return FAILURE;
+			return -ENODEV;
 		}
 	}
 
@@ -1570,7 +1570,7 @@ static int init_nic(struct s2io_nic *nic)
 		if (time > 10) {
 			DBG_PRINT(ERR_DBG, "%s: TTI init Failed\n",
 				  dev->name);
-			return -1;
+			return -ENODEV;
 		}
 		msleep(50);
 		time++;
@@ -1623,7 +1623,7 @@ static int init_nic(struct s2io_nic *nic)
 			if (time > 10) {
 				DBG_PRINT(ERR_DBG, "%s: RTI init Failed\n",
 					  dev->name);
-				return -1;
+				return -ENODEV;
 			}
 			time++;
 			msleep(50);
@@ -3913,6 +3913,12 @@ hw_init_failed:
 static int s2io_close(struct net_device *dev)
 {
 	struct s2io_nic *sp = dev->priv;
+
+	/* Return if the device is already closed               *
+	*  Can happen when s2io_card_up failed in change_mtu    *
+	*/
+	if (!is_s2io_card_up(sp))
+		return 0;
 
 	netif_stop_queue(dev);
 	napi_disable(&sp->napi);
@@ -6355,6 +6361,7 @@ static int s2io_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct s2io_nic *sp = dev->priv;
+	int ret = 0;
 
 	if ((new_mtu < MIN_MTU) || (new_mtu > S2IO_JUMBO_SIZE)) {
 		DBG_PRINT(ERR_DBG, "%s: MTU size is invalid.\n",
@@ -6366,9 +6373,11 @@ static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 	if (netif_running(dev)) {
 		s2io_card_down(sp);
 		netif_stop_queue(dev);
-		if (s2io_card_up(sp)) {
+		ret = s2io_card_up(sp);
+		if (ret) {
 			DBG_PRINT(ERR_DBG, "%s: Device bring up failed\n",
 				  __FUNCTION__);
+			return ret;
 		}
 		if (netif_queue_stopped(dev))
 			netif_wake_queue(dev);
@@ -6379,7 +6388,7 @@ static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 		writeq(vBIT(val64, 2, 14), &bar0->rmac_max_pyld_len);
 	}
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -6777,6 +6786,9 @@ static void do_s2io_card_down(struct s2io_nic * sp, int do_io)
 	unsigned long flags;
 	register u64 val64 = 0;
 
+	if (!is_s2io_card_up(sp))
+		return;
+
 	del_timer_sync(&sp->alarm_timer);
 	/* If s2io_set_link task is executing, wait till it completes. */
 	while (test_and_set_bit(__S2IO_STATE_LINK_TASK, &(sp->state))) {
@@ -6850,11 +6862,13 @@ static int s2io_card_up(struct s2io_nic * sp)
 	u16 interruptible;
 
 	/* Initialize the H/W I/O registers */
-	if (init_nic(sp) != 0) {
+	ret = init_nic(sp);
+	if (ret != 0) {
 		DBG_PRINT(ERR_DBG, "%s: H/W initialization failed\n",
 			  dev->name);
-		s2io_reset(sp);
-		return -ENODEV;
+		if (ret != -EIO)
+			s2io_reset(sp);
+		return ret;
 	}
 
 	/*
