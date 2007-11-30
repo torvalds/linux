@@ -22,8 +22,9 @@
  * - Bits 10 and 11 are low bits of the PPN that are reserved on >= 4K pages.
  *   Bit 10 is used for _PAGE_ACCESSED, bit 11 remains unused.
  *
- * - Bits 31, 30, and 29 remain unused by everyone and can be used for future
- *   software flags, although care must be taken to update _PAGE_CLEAR_FLAGS.
+ * - On 29 bit platforms, bits 31 to 29 are used for the space attributes
+ *   and timing control which (together with bit 0) are moved into the
+ *   old-style PTEA on the parts that support it.
  *
  * XXX: Leave the _PAGE_FILE and _PAGE_WT overhaul for a rainy day.
  *
