@@ -51,8 +51,7 @@ enum {
 #define DRV_NAME	"ipg"
 
 MODULE_AUTHOR("IC Plus Corp. 2003");
-MODULE_DESCRIPTION("IC Plus IP1000 Gigabit Ethernet Adapter Linux Driver "
-		   DrvVer);
+MODULE_DESCRIPTION("IC Plus IP1000 Gigabit Ethernet Adapter Linux Driver");
 MODULE_LICENSE("GPL");
 
 //variable record -- index by leading revision/length

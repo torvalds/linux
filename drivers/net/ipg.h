@@ -25,8 +25,6 @@
 #include <asm/bitops.h>
 /*#include <asm/spinlock.h>*/
 
-#define DrvVer "2.09d"
-
 /*
  *	Constants
  */
