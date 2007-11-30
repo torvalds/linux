@@ -68,8 +68,9 @@ ENTRY(copy_page)
 	rts
 	 nop
 
-	.align 2
+	.balign 4
 .Lpsz:	.long	PAGE_SIZE
+
 /*
  * __kernel_size_t __copy_user(void *to, const void *from, __kernel_size_t n);
  * Return the number of bytes NOT copied

@@ -50,6 +50,8 @@ ENTRY(clear_page)
 	!
 	rts
 	 nop
+
+	.balign 4
 .Llimit:	.long	(PAGE_SIZE-28)
 
 ENTRY(__clear_user)
