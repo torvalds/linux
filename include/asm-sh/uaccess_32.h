@@ -73,37 +73,24 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 /*
  * __access_ok: Check if address with size is OK or not.
  *
- * We do three checks:
- * (1) is it user space?
- * (2) addr + size --> carry?
- * (3) addr + size >= 0x80000000  (PAGE_OFFSET)
+ * Uhhuh, this needs 33-bit arithmetic. We have a carry..
  *
- * (1) (2) (3) | RESULT
- *  0   0   0  |  ok
- *  0   0   1  |  ok
- *  0   1   0  |  bad
- *  0   1   1  |  bad
- *  1   0   0  |  ok
- *  1   0   1  |  bad
- *  1   1   0  |  bad
- *  1   1   1  |  bad
+ * sum := addr + size;  carry? --> flag = true;
+ * if (sum >= addr_limit) flag = true;
  */
 static inline int __access_ok(unsigned long addr, unsigned long size)
 {
-	unsigned long flag, tmp;
+	unsigned long flag, sum;
 
-	__asm__("stc	r7_bank, %0\n\t"
-		"mov.l	@(8,%0), %0\n\t"
-		"clrt\n\t"
-		"addc	%2, %1\n\t"
-		"and	%1, %0\n\t"
-		"rotcl	%0\n\t"
-		"rotcl	%0\n\t"
-		"and	#3, %0"
-		: "=&z" (flag), "=r" (tmp)
-		: "r" (addr), "1" (size)
-		: "t");
-
+	__asm__("clrt\n\t"
+		"addc	%3, %1\n\t"
+		"movt	%0\n\t"
+		"cmp/hi	%4, %1\n\t"
+		"rotcl	%0"
+		:"=&r" (flag), "=r" (sum)
+		:"1" (addr), "r" (size),
+		 "r" (current_thread_info()->addr_limit.seg)
+		:"t");
 	return flag == 0;
 }
 #endif /* CONFIG_MMU */
@@ -165,135 +152,47 @@ do {								\
 #define __get_user_nocheck(x,ptr,size)				\
 ({								\
 	long __gu_err, __gu_val;				\
-	__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
+	__typeof__(*(ptr)) *__pu_addr = (ptr);  \
+	__get_user_size(__gu_val, (__pu_addr), (size), __gu_err);	\
 	(x) = (__typeof__(*(ptr)))__gu_val;			\
 	__gu_err;						\
 })
 
-#ifdef CONFIG_MMU
-#define __get_user_check(x,ptr,size)				\
-({								\
-	long __gu_err, __gu_val;				\
-	__chk_user_ptr(ptr);					\
-	switch (size) {						\
-	case 1:							\
-		__get_user_1(__gu_val, (ptr), __gu_err);	\
-		break;						\
-	case 2:							\
-		__get_user_2(__gu_val, (ptr), __gu_err);	\
-		break;						\
-	case 4:							\
-		__get_user_4(__gu_val, (ptr), __gu_err);	\
-		break;						\
-	default:						\
-		__get_user_unknown();				\
-		break;						\
-	}							\
-								\
-	(x) = (__typeof__(*(ptr)))__gu_val;			\
-	__gu_err;						\
-})
-
-#define __get_user_1(x,addr,err) ({		\
-__asm__("stc	r7_bank, %1\n\t"		\
-	"mov.l	@(8,%1), %1\n\t"		\
-	"and	%2, %1\n\t"			\
-	"cmp/pz	%1\n\t"				\
-	"bt/s	1f\n\t"				\
-	" mov	#0, %0\n\t"			\
-	"0:\n"					\
-	"mov	#-14, %0\n\t"			\
-	"bra	2f\n\t"				\
-	" mov	#0, %1\n"			\
-	"1:\n\t"				\
-	"mov.b	@%2, %1\n\t"			\
-	"extu.b	%1, %1\n"			\
-	"2:\n"					\
-	".section	__ex_table,\"a\"\n\t"	\
-	".long	1b, 0b\n\t"			\
-	".previous"				\
-	: "=&r" (err), "=&r" (x)		\
-	: "r" (addr)				\
-	: "t");					\
-})
-
-#define __get_user_2(x,addr,err) ({		\
-__asm__("stc	r7_bank, %1\n\t"		\
-	"mov.l	@(8,%1), %1\n\t"		\
-	"and	%2, %1\n\t"			\
-	"cmp/pz	%1\n\t"				\
-	"bt/s	1f\n\t"				\
-	" mov	#0, %0\n\t"			\
-	"0:\n"					\
-	"mov	#-14, %0\n\t"			\
-	"bra	2f\n\t"				\
-	" mov	#0, %1\n"			\
-	"1:\n\t"				\
-	"mov.w	@%2, %1\n\t"			\
-	"extu.w	%1, %1\n"			\
-	"2:\n"					\
-	".section	__ex_table,\"a\"\n\t"	\
-	".long	1b, 0b\n\t"			\
-	".previous"				\
-	: "=&r" (err), "=&r" (x)		\
-	: "r" (addr)				\
-	: "t");					\
-})
-
-#define __get_user_4(x,addr,err) ({		\
-__asm__("stc	r7_bank, %1\n\t"		\
-	"mov.l	@(8,%1), %1\n\t"		\
-	"and	%2, %1\n\t"			\
-	"cmp/pz	%1\n\t"				\
-	"bt/s	1f\n\t"				\
-	" mov	#0, %0\n\t"			\
-	"0:\n"					\
-	"mov	#-14, %0\n\t"			\
-	"bra	2f\n\t"				\
-	" mov	#0, %1\n"			\
-	"1:\n\t"				\
-	"mov.l	@%2, %1\n\t"			\
-	"2:\n"					\
-	".section	__ex_table,\"a\"\n\t"	\
-	".long	1b, 0b\n\t"			\
-	".previous"				\
-	: "=&r" (err), "=&r" (x)		\
-	: "r" (addr)				\
-	: "t");					\
-})
-#else /* CONFIG_MMU */
 #define __get_user_check(x,ptr,size)					\
 ({									\
 	long __gu_err, __gu_val;					\
-	if (__access_ok((unsigned long)(ptr), (size))) {		\
-		__get_user_size(__gu_val, (ptr), (size), __gu_err);	\
-		(x) = (__typeof__(*(ptr)))__gu_val;			\
-	} else								\
+	__typeof__(*(ptr)) *__pu_addr = (ptr);				\
+	__chk_user_ptr(__pu_addr);					\
+	if (likely(__addr_ok((unsigned long)(__pu_addr)))) {		\
+		__get_user_size(__gu_val, (__pu_addr), (size), __gu_err);\
+	} else {							\
 		__gu_err = -EFAULT;					\
+		__gu_val = 0;						\
+	}								\
+	(x) = (__typeof__(*(ptr)))__gu_val;				\
 	__gu_err;							\
 })
-#endif
 
 #define __get_user_asm(x, addr, err, insn) \
 ({ \
 __asm__ __volatile__( \
 	"1:\n\t" \
 	"mov." insn "	%2, %1\n\t" \
-	"mov	#0, %0\n" \
 	"2:\n" \
 	".section	.fixup,\"ax\"\n" \
 	"3:\n\t" \
 	"mov	#0, %1\n\t" \
 	"mov.l	4f, %0\n\t" \
 	"jmp	@%0\n\t" \
-	" mov	%3, %0\n" \
+	" mov	%3, %0\n\t" \
+	".balign	4\n" \
 	"4:	.long	2b\n\t" \
 	".previous\n" \
 	".section	__ex_table,\"a\"\n\t" \
 	".long	1b, 3b\n\t" \
 	".previous" \
 	:"=&r" (err), "=&r" (x) \
-	:"m" (__m(addr)), "i" (-EFAULT)); })
+	:"m" (__m(addr)), "i" (-EFAULT), "0" (err)); })
 
 extern void __get_user_unknown(void);
 
@@ -328,11 +227,13 @@ do {							\
 
 #define __put_user_check(x,ptr,size)				\
 ({								\
-	long __pu_err = -EFAULT;				\
+	long __pu_err;						\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
 								\
-	if (__access_ok((unsigned long)__pu_addr,size))		\
+	if (likely(__addr_ok((unsigned long)__pu_addr)))	\
 		__put_user_size((x),__pu_addr,(size),__pu_err);	\
+	else							\
+		__pu_err = -EFAULT;				\
 	__pu_err;						\
 })
 
@@ -341,45 +242,43 @@ do {							\
 __asm__ __volatile__( \
 	"1:\n\t" \
 	"mov." insn "	%1, %2\n\t" \
-	"mov	#0, %0\n" \
 	"2:\n" \
 	".section	.fixup,\"ax\"\n" \
 	"3:\n\t" \
-	"nop\n\t" \
 	"mov.l	4f, %0\n\t" \
 	"jmp	@%0\n\t" \
-	"mov	%3, %0\n" \
+	" mov	%3, %0\n\t" \
+	".balign	4\n" \
 	"4:	.long	2b\n\t" \
 	".previous\n" \
 	".section	__ex_table,\"a\"\n\t" \
 	".long	1b, 3b\n\t" \
 	".previous" \
 	:"=&r" (err) \
-	:"r" (x), "m" (__m(addr)), "i" (-EFAULT) \
+	:"r" (x), "m" (__m(addr)), "i" (-EFAULT), "0" (err)	\
         :"memory"); })
 
-#if defined(__LITTLE_ENDIAN__)
+#if defined(CONFIG_CPU_LITTLE_ENDIAN)
 #define __put_user_u64(val,addr,retval) \
 ({ \
 __asm__ __volatile__( \
 	"1:\n\t" \
 	"mov.l	%R1,%2\n\t" \
 	"mov.l	%S1,%T2\n\t" \
-	"mov	#0,%0\n" \
 	"2:\n" \
 	".section	.fixup,\"ax\"\n" \
 	"3:\n\t" \
-	"nop\n\t" \
 	"mov.l	4f,%0\n\t" \
 	"jmp	@%0\n\t" \
-	" mov	%3,%0\n" \
+	" mov	%3,%0\n\t" \
+	".balign	4\n" \
 	"4:	.long	2b\n\t" \
 	".previous\n" \
 	".section	__ex_table,\"a\"\n\t" \
 	".long	1b, 3b\n\t" \
 	".previous" \
 	: "=r" (retval) \
-	: "r" (val), "m" (__m(addr)), "i" (-EFAULT) \
+	: "r" (val), "m" (__m(addr)), "i" (-EFAULT), "0" (retval) \
         : "memory"); })
 #else
 #define __put_user_u64(val,addr,retval) \
@@ -388,21 +287,20 @@ __asm__ __volatile__( \
 	"1:\n\t" \
 	"mov.l	%S1,%2\n\t" \
 	"mov.l	%R1,%T2\n\t" \
-	"mov	#0,%0\n" \
 	"2:\n" \
 	".section	.fixup,\"ax\"\n" \
 	"3:\n\t" \
-	"nop\n\t" \
 	"mov.l	4f,%0\n\t" \
 	"jmp	@%0\n\t" \
-	" mov	%3,%0\n" \
+	" mov	%3,%0\n\t" \
+	".balign	4\n" \
 	"4:	.long	2b\n\t" \
 	".previous\n" \
 	".section	__ex_table,\"a\"\n\t" \
 	".long	1b, 3b\n\t" \
 	".previous" \
 	: "=r" (retval) \
-	: "r" (val), "m" (__m(addr)), "i" (-EFAULT) \
+	: "r" (val), "m" (__m(addr)), "i" (-EFAULT), "0" (retval) \
         : "memory"); })
 #endif
 
@@ -463,7 +361,7 @@ static __inline__ int
 __strncpy_from_user(unsigned long __dest, unsigned long __user __src, int __count)
 {
 	__kernel_size_t res;
-	unsigned long __dummy, _d, _s;
+	unsigned long __dummy, _d, _s, _c;
 
 	__asm__ __volatile__(
 		"9:\n"
@@ -472,17 +370,17 @@ __strncpy_from_user(unsigned long __dest, unsigned long __user __src, int __coun
 		"bt/s	2f\n"
 		"1:\n"
 		"mov.b	%1, @%3\n\t"
-		"dt	%7\n\t"
+		"dt	%4\n\t"
 		"bf/s	9b\n\t"
 		" add	#1, %3\n\t"
 		"2:\n\t"
-		"sub	%7, %0\n"
+		"sub	%4, %0\n"
 		"3:\n"
 		".section .fixup,\"ax\"\n"
 		"4:\n\t"
 		"mov.l	5f, %1\n\t"
 		"jmp	@%1\n\t"
-		" mov	%8, %0\n\t"
+		" mov	%9, %0\n\t"
 		".balign 4\n"
 		"5:	.long 3b\n"
 		".previous\n"
@@ -490,14 +388,32 @@ __strncpy_from_user(unsigned long __dest, unsigned long __user __src, int __coun
 		"	.balign 4\n"
 		"	.long 9b,4b\n"
 		".previous"
-		: "=r" (res), "=&z" (__dummy), "=r" (_s), "=r" (_d)
-		: "0" (__count), "2" (__src), "3" (__dest), "r" (__count),
+		: "=r" (res), "=&z" (__dummy), "=r" (_s), "=r" (_d), "=r"(_c)
+		: "0" (__count), "2" (__src), "3" (__dest), "4" (__count),
 		  "i" (-EFAULT)
 		: "memory", "t");
 
 	return res;
 }
 
+/**
+ * strncpy_from_user: - Copy a NUL terminated string from userspace.
+ * @dst:   Destination address, in kernel space.  This buffer must be at
+ *         least @count bytes long.
+ * @src:   Source address, in user space.
+ * @count: Maximum number of bytes to copy, including the trailing NUL.
+ *
+ * Copies a NUL-terminated string from userspace to kernel space.
+ *
+ * On success, returns the length of the string (not including the trailing
+ * NUL).
+ *
+ * If access to userspace fails, returns -EFAULT (some data may have been
+ * copied).
+ *
+ * If @count is smaller than the length of the string, copies @count bytes
+ * and returns @count.
+ */
 #define strncpy_from_user(dest,src,count) ({ \
 unsigned long __sfu_src = (unsigned long) (src); \
 int __sfu_count = (int) (count); \
@@ -507,7 +423,8 @@ __sfu_res = __strncpy_from_user((unsigned long) (dest), __sfu_src, __sfu_count);
 } __sfu_res; })
 
 /*
- * Return the size of a string (including the ending 0!)
+ * Return the size of a string (including the ending 0 even when we have
+ * exceeded the maximum string length).
  */
 static __inline__ long __strnlen_user(const char __user *__s, long __n)
 {
@@ -515,14 +432,13 @@ static __inline__ long __strnlen_user(const char __user *__s, long __n)
 	unsigned long __dummy;
 
 	__asm__ __volatile__(
-		"9:\n"
-		"cmp/eq	%4, %0\n\t"
-		"bt	2f\n"
 		"1:\t"
 		"mov.b	@(%0,%3), %1\n\t"
+		"cmp/eq	%4, %0\n\t"
+		"bt/s	2f\n\t"
+		" add	#1, %0\n\t"
 		"tst	%1, %1\n\t"
-		"bf/s	9b\n\t"
-		" add	#1, %0\n"
+		"bf	1b\n\t"
 		"2:\n"
 		".section .fixup,\"ax\"\n"
 		"3:\n\t"
@@ -542,6 +458,19 @@ static __inline__ long __strnlen_user(const char __user *__s, long __n)
 	return res;
 }
 
+/**
+ * strnlen_user: - Get the size of a string in user space.
+ * @s: The string to measure.
+ * @n: The maximum valid length
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * Get the size of a NUL-terminated string in user space.
+ *
+ * Returns the size of the string INCLUDING the terminating NUL.
+ * On exception, returns 0.
+ * If the string is too long, returns a value greater than @n.
+ */
 static __inline__ long strnlen_user(const char __user *s, long n)
 {
 	if (!__addr_ok(s))
@@ -550,6 +479,20 @@ static __inline__ long strnlen_user(const char __user *s, long n)
 		return __strnlen_user(s, n);
 }
 
+/**
+ * strlen_user: - Get the size of a string in user space.
+ * @str: The string to measure.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * Get the size of a NUL-terminated string in user space.
+ *
+ * Returns the size of the string INCLUDING the terminating NUL.
+ * On exception, returns 0.
+ *
+ * If there is a limit on the length of a valid string, you may wish to
+ * consider using strnlen_user() instead.
+ */
 #define strlen_user(str)	strnlen_user(str, ~0UL >> 1)
 
 /*
