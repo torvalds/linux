@@ -569,21 +569,22 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id)
 	for (loop = 0; loop < 10; loop++) {
 		report = saa_readl(SAA7134_IRQ_REPORT);
 		status = saa_readl(SAA7134_IRQ_STATUS);
-		if (0 == report) {
-			if (irq_debug > 1)
-				printk(KERN_DEBUG "%s/irq: no (more) work\n",
-				       dev->name);
-			goto out;
-		}
 
-		/* If dmasound support is active and we get a sound report, exit
-		   and let the saa7134-alsa/oss module deal with it */
-
+		/* If dmasound support is active and we get a sound report,
+		 * mask out the report and let the saa7134-alsa module deal
+		 * with it */
 		if ((report & SAA7134_IRQ_REPORT_DONE_RA3) &&
 			(dev->dmasound.priv_data != NULL) )
 		{
 			if (irq_debug > 1)
-				printk(KERN_DEBUG "%s/irq: ignoring interrupt for DMA sound\n",
+				printk(KERN_DEBUG "%s/irq: preserving DMA sound interrupt\n",
+				       dev->name);
+			report &= ~SAA7134_IRQ_REPORT_DONE_RA3;
+		}
+
+		if (0 == report) {
+			if (irq_debug > 1)
+				printk(KERN_DEBUG "%s/irq: no (more) work\n",
 				       dev->name);
 			goto out;
 		}

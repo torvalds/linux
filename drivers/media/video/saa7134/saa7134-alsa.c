@@ -222,7 +222,8 @@ static irqreturn_t saa7134_alsa_irq(int irq, void *dev_id)
 
 		if (report & SAA7134_IRQ_REPORT_DONE_RA3) {
 			handled = 1;
-			saa_writel(SAA7134_IRQ_REPORT,report);
+			saa_writel(SAA7134_IRQ_REPORT,
+				   SAA7134_IRQ_REPORT_DONE_RA3);
 			saa7134_irq_alsa_done(dev, status);
 		} else {
 			goto out;
