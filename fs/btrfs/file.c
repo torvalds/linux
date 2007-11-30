@@ -377,23 +377,23 @@ int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
  */
 int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
-		       u64 start, u64 end, u64 inline_end, u64 *hint_byte)
+		       u64 start, u64 end, u64 inline_limit, u64 *hint_byte)
 {
-	int ret;
-	struct btrfs_key key;
-	struct extent_buffer *leaf;
-	int slot;
-	struct btrfs_file_extent_item *extent;
 	u64 extent_end = 0;
-	int keep;
-	struct btrfs_file_extent_item old;
-	struct btrfs_path *path;
 	u64 search_start = start;
+	struct extent_buffer *leaf;
+	struct btrfs_file_extent_item *extent;
+	struct btrfs_path *path;
+	struct btrfs_key key;
+	struct btrfs_file_extent_item old;
+	int keep;
+	int slot;
 	int bookend;
 	int found_type;
 	int found_extent;
 	int found_inline;
 	int recow;
+	int ret;
 
 	btrfs_drop_extent_cache(inode, start, end - 1);
 
@@ -502,7 +502,7 @@ next_slot:
 			}
 			bookend = 1;
 			if (found_inline && start <= key.offset &&
-			    inline_end < extent_end)
+			    inline_limit < extent_end)
 				keep = 1;
 		}
 		/* truncate existing extent */
@@ -526,12 +526,12 @@ next_slot:
 				btrfs_set_file_extent_num_bytes(leaf, extent,
 								new_num);
 				btrfs_mark_buffer_dirty(leaf);
-			} else if (end > extent_end &&
-				   key.offset < inline_end &&
-				   inline_end < extent_end) {
+			} else if (key.offset < inline_limit &&
+				   (end > extent_end) &&
+				   (inline_limit < extent_end)) {
 				u32 new_size;
 				new_size = btrfs_file_extent_calc_inline_size(
-						   inline_end - key.offset);
+						   inline_limit - key.offset);
 				btrfs_truncate_item(trans, root, path,
 						    new_size, 1);
 			}
@@ -575,10 +575,10 @@ next_slot:
 				continue;
 		}
 		if (bookend && found_inline && start <= key.offset &&
-		    inline_end < extent_end) {
+		    inline_limit < extent_end && key.offset <= inline_limit) {
 			u32 new_size;
 			new_size = btrfs_file_extent_calc_inline_size(
-						   extent_end - inline_end);
+						   extent_end - inline_limit);
 			btrfs_truncate_item(trans, root, path, new_size, 0);
 		}
 		/* create bookend, splitting the extent in two */

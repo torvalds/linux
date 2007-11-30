@@ -45,6 +45,9 @@ static int cache_block_group(struct btrfs_root *root,
 	u64 first_free;
 	int found = 0;
 
+	if (!block_group)
+		return 0;
+
 	root = root->fs_info->extent_root;
 	free_space_cache = &root->fs_info->free_space_cache;
 
@@ -168,6 +171,11 @@ static u64 find_search_start(struct btrfs_root *root,
 	u64 cache_miss = 0;
 	int wrapped = 0;
 
+	if (!cache) {
+		cache = btrfs_lookup_block_group(root->fs_info, search_start);
+		if (!cache)
+			return search_start;
+	}
 again:
 	ret = cache_block_group(root, cache);
 	if (ret)
