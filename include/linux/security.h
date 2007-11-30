@@ -34,6 +34,12 @@
 #include <linux/xfrm.h>
 #include <net/flow.h>
 
+/* only a char in selinux superblock security struct flags */
+#define FSCONTEXT_MNT		0x01
+#define CONTEXT_MNT		0x02
+#define ROOTCONTEXT_MNT		0x04
+#define DEFCONTEXT_MNT		0x08
+
 /*
  * Bounding set
  */
@@ -261,6 +267,22 @@ struct request_sock;
  *	Update module state after a successful pivot.
  *	@old_nd contains the nameidata structure for the old root.
  *      @new_nd contains the nameidata structure for the new root.
+ * @sb_get_mnt_opts:
+ *	Get the security relevant mount options used for a superblock
+ *	@sb the superblock to get security mount options from
+ *	@mount_options array for pointers to mount options
+ *	@mount_flags array of ints specifying what each mount options is
+ *	@num_opts number of options in the arrays
+ * @sb_set_mnt_opts:
+ *	Set the security relevant mount options used for a superblock
+ *	@sb the superblock to set security mount options for
+ *	@mount_options array for pointers to mount options
+ *	@mount_flags array of ints specifying what each mount options is
+ *	@num_opts number of options in the arrays
+ * @sb_clone_mnt_opts:
+ *	Copy all security options from a given superblock to another
+ *	@oldsb old superblock which contain information to clone
+ *	@newsb new superblock which needs filled in
  *
  * Security hooks for inode operations.
  *
@@ -1242,6 +1264,13 @@ struct security_operations {
 			     struct nameidata * new_nd);
 	void (*sb_post_pivotroot) (struct nameidata * old_nd,
 				   struct nameidata * new_nd);
+	int (*sb_get_mnt_opts) (const struct super_block *sb,
+				char ***mount_options, int **flags,
+				int *num_opts);
+	int (*sb_set_mnt_opts) (struct super_block *sb, char **mount_options,
+				int *flags, int num_opts);
+	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
+				   struct super_block *newsb);
 
 	int (*inode_alloc_security) (struct inode *inode);	
 	void (*inode_free_security) (struct inode *inode);
@@ -1499,6 +1528,13 @@ void security_sb_post_mountroot(void);
 void security_sb_post_addmount(struct vfsmount *mnt, struct nameidata *mountpoint_nd);
 int security_sb_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
 void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_nd);
+int security_sb_get_mnt_opts(const struct super_block *sb, char ***mount_options,
+			     int **flags, int *num_opts);
+int security_sb_set_mnt_opts(struct super_block *sb, char **mount_options,
+			     int *flags, int num_opts);
+void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+				struct super_block *newsb);
+
 int security_inode_alloc(struct inode *inode);
 void security_inode_free(struct inode *inode);
 int security_inode_init_security(struct inode *inode, struct inode *dir,

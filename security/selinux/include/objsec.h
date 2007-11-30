@@ -65,6 +65,7 @@ struct superblock_security_struct {
 	u32 mntpoint_sid;		/* SECURITY_FS_USE_MNTPOINT context for files */
 	unsigned int behavior;          /* labeling behavior */
 	unsigned char initialized;      /* initialization flag */
+	unsigned char flags;		/* which mount options were specified */
 	unsigned char proc;             /* proc fs */
 	struct mutex lock;
 	struct list_head isec_head;

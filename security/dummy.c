@@ -245,6 +245,29 @@ static void dummy_sb_post_pivotroot (struct nameidata *old_nd, struct nameidata 
 	return;
 }
 
+static int dummy_sb_get_mnt_opts(const struct super_block *sb, char ***mount_options,
+				 int **flags, int *num_opts)
+{
+	*mount_options = NULL;
+	*flags = NULL;
+	*num_opts = 0;
+	return 0;
+}
+
+static int dummy_sb_set_mnt_opts(struct super_block *sb, char **mount_options,
+				 int *flags, int num_opts)
+{
+	if (unlikely(num_opts))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+static void dummy_sb_clone_mnt_opts(const struct super_block *oldsb,
+				    struct super_block *newsb)
+{
+	return;
+}
+
 static int dummy_inode_alloc_security (struct inode *inode)
 {
 	return 0;
@@ -998,6 +1021,9 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sb_post_addmount);
 	set_to_dummy_if_null(ops, sb_pivotroot);
 	set_to_dummy_if_null(ops, sb_post_pivotroot);
+	set_to_dummy_if_null(ops, sb_get_mnt_opts);
+	set_to_dummy_if_null(ops, sb_set_mnt_opts);
+	set_to_dummy_if_null(ops, sb_clone_mnt_opts);
 	set_to_dummy_if_null(ops, inode_alloc_security);
 	set_to_dummy_if_null(ops, inode_free_security);
 	set_to_dummy_if_null(ops, inode_init_security);

@@ -308,6 +308,26 @@ void security_sb_post_pivotroot(struct nameidata *old_nd, struct nameidata *new_
 	security_ops->sb_post_pivotroot(old_nd, new_nd);
 }
 
+int security_sb_get_mnt_opts(const struct super_block *sb,
+			      char ***mount_options,
+			      int **flags, int *num_opts)
+{
+	return security_ops->sb_get_mnt_opts(sb, mount_options, flags, num_opts);
+}
+
+int security_sb_set_mnt_opts(struct super_block *sb,
+			      char **mount_options,
+			      int *flags, int num_opts)
+{
+	return security_ops->sb_set_mnt_opts(sb, mount_options, flags, num_opts);
+}
+
+void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+				struct super_block *newsb)
+{
+	security_ops->sb_clone_mnt_opts(oldsb, newsb);
+}
+
 int security_inode_alloc(struct inode *inode)
 {
 	inode->i_security = NULL;
