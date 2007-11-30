@@ -355,7 +355,7 @@ int wait_on_tree_block_writeback(struct btrfs_root *root,
 }
 
 static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
-			struct btrfs_root *root,
+			u32 stripesize, struct btrfs_root *root,
 			struct btrfs_fs_info *fs_info,
 			u64 objectid)
 {
@@ -365,6 +365,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->sectorsize = sectorsize;
 	root->nodesize = nodesize;
 	root->leafsize = leafsize;
+	root->stripesize = stripesize;
 	root->ref_cows = 0;
 	root->fs_info = fs_info;
 	root->objectid = objectid;
@@ -393,7 +394,8 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	u32 blocksize;
 
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
-		     tree_root->sectorsize, root, fs_info, objectid);
+		     tree_root->sectorsize, tree_root->stripesize,
+		     root, fs_info, objectid);
 	ret = btrfs_find_last_root(tree_root, objectid,
 				   &root->root_item, &root->root_key);
 	BUG_ON(ret);
@@ -430,8 +432,8 @@ struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 	}
 
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
-		     tree_root->sectorsize, root, fs_info,
-		     location->objectid);
+		     tree_root->sectorsize, tree_root->stripesize,
+		     root, fs_info, location->objectid);
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
@@ -537,6 +539,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	u32 nodesize;
 	u32 leafsize;
 	u32 blocksize;
+	u32 stripesize;
 	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
 	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
@@ -607,7 +610,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 		goto fail_iput;
 	}
 #endif
-	__setup_root(512, 512, 512, tree_root,
+	__setup_root(512, 512, 512, 512, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
 	fs_info->sb_buffer = read_tree_block(tree_root,
@@ -630,9 +633,11 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	nodesize = btrfs_super_nodesize(disk_super);
 	leafsize = btrfs_super_leafsize(disk_super);
 	sectorsize = btrfs_super_sectorsize(disk_super);
+	stripesize = btrfs_super_stripesize(disk_super);
 	tree_root->nodesize = nodesize;
 	tree_root->leafsize = leafsize;
 	tree_root->sectorsize = sectorsize;
+	tree_root->stripesize = stripesize;
 	sb_set_blocksize(sb, sectorsize);
 
 	i_size_write(fs_info->btree_inode,

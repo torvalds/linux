@@ -932,6 +932,13 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	return ret ? ret : pending_ret;
 }
 
+static u64 stripe_align(struct btrfs_root *root, u64 val)
+{
+	u64 mask = ((u64)root->stripesize - 1);
+	u64 ret = (val + mask) & ~mask;
+	return ret;
+}
+
 /*
  * walks the btree of allocated extents and find a hole of a given size.
  * The key ins is changed to record the hole:
@@ -948,8 +955,9 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 {
 	struct btrfs_path *path;
 	struct btrfs_key key;
-	int ret;
 	u64 hole_size = 0;
+	u64 aligned;
+	int ret;
 	int slot = 0;
 	u64 last_byte = 0;
 	u64 orig_search_start = search_start;
@@ -990,6 +998,7 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 check_failed:
 	search_start = find_search_start(root, &block_group, search_start,
 					 total_needed, data, full_scan);
+	search_start = stripe_align(root, search_start);
 	cached_start = search_start;
 	btrfs_init_path(path);
 	ins->objectid = search_start;
@@ -1039,13 +1048,23 @@ check_failed:
 			search_start = max(search_start,
 					   block_group->key.objectid);
 			if (!start_found) {
-				ins->objectid = search_start;
-				ins->offset = search_end - search_start;
+				aligned = stripe_align(root, search_start);
+				ins->objectid = aligned;
+				if (aligned >= search_end) {
+					ret = -ENOSPC;
+					goto error;
+				}
+				ins->offset = search_end - aligned;
 				start_found = 1;
 				goto check_pending;
 			}
-			ins->objectid = last_byte > search_start ?
-					last_byte : search_start;
+			ins->objectid = stripe_align(root,
+						     last_byte > search_start ?
+						     last_byte : search_start);
+			if (search_end <= ins->objectid) {
+				ret = -ENOSPC;
+				goto error;
+			}
 			ins->offset = search_end - ins->objectid;
 			BUG_ON(ins->objectid >= search_end);
 			goto check_pending;
@@ -1056,9 +1075,10 @@ check_failed:
 		    start_found) {
 			if (last_byte < search_start)
 				last_byte = search_start;
-			hole_size = key.objectid - last_byte;
-			if (hole_size >= num_bytes) {
-				ins->objectid = last_byte;
+			aligned = stripe_align(root, last_byte);
+			hole_size = key.objectid - aligned;
+			if (key.objectid > aligned && hole_size >= num_bytes) {
+				ins->objectid = aligned;
 				ins->offset = hole_size;
 				goto check_pending;
 			}

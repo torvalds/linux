@@ -135,6 +135,7 @@ struct btrfs_super_block {
 	__le32 sectorsize;
 	__le32 nodesize;
 	__le32 leafsize;
+	__le32 stripesize;
 	u8 root_level;
 } __attribute__ ((__packed__));
 
@@ -352,6 +353,8 @@ struct btrfs_root {
 
 	/* leaf allocations are done in leafsize units */
 	u32 leafsize;
+
+	u32 stripesize;
 
 	u32 type;
 	u64 highest_inode;
@@ -776,6 +779,8 @@ BTRFS_SETGET_STACK_FUNCS(super_nodesize, struct btrfs_super_block,
 			 nodesize, 32);
 BTRFS_SETGET_STACK_FUNCS(super_leafsize, struct btrfs_super_block,
 			 leafsize, 32);
+BTRFS_SETGET_STACK_FUNCS(super_stripesize, struct btrfs_super_block,
+			 stripesize, 32);
 BTRFS_SETGET_STACK_FUNCS(super_root_dir, struct btrfs_super_block,
 			 root_dir_objectid, 64);
 
