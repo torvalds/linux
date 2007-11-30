@@ -322,25 +322,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	unlazy_fpu(prev, task_pt_regs(prev));
 #endif
 
-#if defined(CONFIG_GUSA) && defined(CONFIG_PREEMPT)
-	{
-		struct pt_regs *regs;
-
-		preempt_disable();
-		regs = task_pt_regs(prev);
-		if (user_mode(regs) && regs->regs[15] >= 0xc0000000) {
-			int offset = (int)regs->regs[15];
-
-			/* Reset stack pointer: clear critical region mark */
-			regs->regs[15] = regs->regs[1];
-			if (regs->pc < regs->regs[0])
-				/* Go to rewind point */
-				regs->pc = regs->regs[0] + offset;
-		}
-		preempt_enable_no_resched();
-	}
-#endif
-
 #ifdef CONFIG_MMU
 	/*
 	 * Restore the kernel mode register

@@ -176,25 +176,6 @@ work_notifysig:
 	jmp	@r1
 	 lds	r0, pr
 work_resched:
-#if defined(CONFIG_GUSA) && !defined(CONFIG_PREEMPT)
-	! gUSA handling
-	mov.l	@(OFF_SP,r15), r0	! get user space stack pointer
-	mov	r0, r1
-	shll	r0
-	bf/s	1f
-	 shll	r0
-	bf/s	1f
-	 mov	#OFF_PC, r0
-	! 				  SP >= 0xc0000000 : gUSA mark
-	mov.l	@(r0,r15), r2		! get user space PC (program counter)
-	mov.l	@(OFF_R0,r15), r3	! end point
-	cmp/hs	r3, r2			! r2 >= r3? 
-	bt	1f
-	add	r3, r1			! rewind point #2
-	mov.l	r1, @(r0,r15)		! reset PC to rewind point #2
-	!
-1:
-#endif
 	mov.l	1f, r1
 	jsr	@r1				! schedule
 	 nop

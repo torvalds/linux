@@ -692,7 +692,7 @@ source "kernel/Kconfig.preempt"
 
 config GUSA
 	def_bool y
-	depends on !SMP
+	depends on !SMP && SUPERH32
 	help
 	  This enables support for gUSA (general UserSpace Atomicity).
 	  This is the default implementation for both UP and non-ll/sc
@@ -703,6 +703,16 @@ config GUSA
 
 	  This should only be disabled for special cases where alternate
 	  atomicity implementations exist.
+
+config GUSA_RB
+	bool "Implement atomic operations by roll-back (gRB) (EXPERIMENTAL)"
+	depends on GUSA && CPU_SH3 || (CPU_SH4 && !CPU_SH4A)
+	help
+	  Enabling this option will allow the kernel to implement some
+	  atomic operations using a software implemention of load-locked/
+	  store-conditional (LLSC). On machines which do not have hardware
+	  LLSC, this should be more efficient than the other alternative of
+	  disabling insterrupts around the atomic sequence.
 
 endmenu
 

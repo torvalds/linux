@@ -68,27 +68,11 @@
 
 #define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 
-static inline unsigned long xchg_u32(volatile u32 *m, unsigned long val)
-{
-	unsigned long flags, retval;
-
-	local_irq_save(flags);
-	retval = *m;
-	*m = val;
-	local_irq_restore(flags);
-	return retval;
-}
-
-static inline unsigned long xchg_u8(volatile u8 *m, unsigned long val)
-{
-	unsigned long flags, retval;
-
-	local_irq_save(flags);
-	retval = *m;
-	*m = val & 0xff;
-	local_irq_restore(flags);
-	return retval;
-}
+#ifdef CONFIG_GUSA_RB
+#include <asm/cmpxchg-grb.h>
+#else
+#include <asm/cmpxchg-irq.h>
+#endif
 
 extern void __xchg_called_with_bad_pointer(void);
 
@@ -114,20 +98,6 @@ extern void __xchg_called_with_bad_pointer(void);
 
 #define xchg(ptr,x)	\
 	((__typeof__(*(ptr)))__xchg((ptr),(unsigned long)(x), sizeof(*(ptr))))
-
-static inline unsigned long __cmpxchg_u32(volatile int * m, unsigned long old,
-	unsigned long new)
-{
-	__u32 retval;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	retval = *m;
-	if (retval == old)
-		*m = new;
-	local_irq_restore(flags);       /* implies memory barrier  */
-	return retval;
-}
 
 /* This function doesn't exist, so you'll get a linker error
  * if something tries to do an invalid cmpxchg(). */

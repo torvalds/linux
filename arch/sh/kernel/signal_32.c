@@ -507,24 +507,6 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 						ctrl_inw(regs->pc - 4));
 				break;
 		}
-#ifdef CONFIG_GUSA
-	} else {
-		/* gUSA handling */
-		preempt_disable();
-
-		if (regs->regs[15] >= 0xc0000000) {
-			int offset = (int)regs->regs[15];
-
-			/* Reset stack pointer: clear critical region mark */
-			regs->regs[15] = regs->regs[1];
-			if (regs->pc < regs->regs[0])
-				/* Go to rewind point #1 */
-				regs->pc = regs->regs[0] + offset -
-					instruction_size(ctrl_inw(regs->pc-4));
-		}
-
-		preempt_enable_no_resched();
-#endif
 	}
 
 	/* Set up the stack frame */
