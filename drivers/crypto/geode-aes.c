@@ -315,7 +315,7 @@ geode_cbc_decrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
-	memcpy(op->iv, walk.iv, AES_IV_LENGTH);
+	op->iv = walk.iv;
 
 	while((nbytes = walk.nbytes)) {
 		op->src = walk.src.virt.addr,
@@ -330,7 +330,6 @@ geode_cbc_decrypt(struct blkcipher_desc *desc,
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
 
-	memcpy(walk.iv, op->iv, AES_IV_LENGTH);
 	return err;
 }
 
@@ -348,7 +347,7 @@ geode_cbc_encrypt(struct blkcipher_desc *desc,
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
-	memcpy(op->iv, walk.iv, AES_IV_LENGTH);
+	op->iv = walk.iv;
 
 	while((nbytes = walk.nbytes)) {
 		op->src = walk.src.virt.addr,
@@ -362,7 +361,6 @@ geode_cbc_encrypt(struct blkcipher_desc *desc,
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
 
-	memcpy(walk.iv, op->iv, AES_IV_LENGTH);
 	return err;
 }
 

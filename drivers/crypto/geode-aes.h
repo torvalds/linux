@@ -65,7 +65,7 @@ struct geode_aes_op {
 	int len;
 
 	u8 key[AES_KEY_LENGTH];
-	u8 iv[AES_IV_LENGTH];
+	u8 *iv;
 
 	union {
 		struct crypto_blkcipher *blk;
