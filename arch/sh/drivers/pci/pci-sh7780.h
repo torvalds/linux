@@ -30,7 +30,7 @@
 #define SH7780_PCI_MEMORY_BASE	0xFD000000	/* Memory space base addr */
 #define SH7780_PCI_MEM_SIZE	0x01000000	/* Size of Memory window */
 
-#define SH7780_PCI_IO_BASE	0xFE400000	/* IO space base address */
+#define SH7780_PCI_IO_BASE	0xFE200000	/* IO space base address */
 #define SH7780_PCI_IO_SIZE	0x00400000	/* Size of IO window */
 
 #define SH7780_PCIREG_BASE	0xFE040000	/* PCI regs base address */
