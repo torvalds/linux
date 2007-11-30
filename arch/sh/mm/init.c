@@ -130,6 +130,37 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 
 	set_pte_phys(address, phys, prot);
 }
+
+void __init page_table_range_init(unsigned long start, unsigned long end,
+					 pgd_t *pgd_base)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	int pgd_idx;
+	unsigned long vaddr;
+
+	vaddr = start & PMD_MASK;
+	end = (end + PMD_SIZE - 1) & PMD_MASK;
+	pgd_idx = pgd_index(vaddr);
+	pgd = pgd_base + pgd_idx;
+
+	for ( ; (pgd_idx < PTRS_PER_PGD) && (vaddr != end); pgd++, pgd_idx++) {
+		BUG_ON(pgd_none(*pgd));
+		pud = pud_offset(pgd, 0);
+		BUG_ON(pud_none(*pud));
+		pmd = pmd_offset(pud, 0);
+
+		if (!pmd_present(*pmd)) {
+			pte_t *pte_table;
+			pte_table = (pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+			memset(pte_table, 0, PAGE_SIZE);
+			pmd_populate_kernel(&init_mm, pmd, pte_table);
+		}
+
+		vaddr += PMD_SIZE;
+	}
+}
 #endif	/* CONFIG_MMU */
 
 /*
@@ -148,6 +179,11 @@ void __init paging_init(void)
 	/* Set an initial value for the MMU.TTB so we don't have to
 	 * check for a null value. */
 	set_TTB(swapper_pg_dir);
+
+	/* Populate the relevant portions of swapper_pg_dir so that
+	 * we can use the fixmap entries without calling kmalloc.
+	 * pte's will be filled in by __set_fixmap(). */
+	page_table_range_init(FIXADDR_START, FIXADDR_TOP, swapper_pg_dir);
 
 	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
 
