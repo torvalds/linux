@@ -74,5 +74,17 @@ static inline void *skcipher_givcrypt_reqctx(
 	return ablkcipher_request_ctx(&req->creq);
 }
 
+static inline void ablkcipher_request_complete(struct ablkcipher_request *req,
+					       int err)
+{
+	req->base.complete(&req->base, err);
+}
+
+static inline void skcipher_givcrypt_complete(
+	struct skcipher_givcrypt_request *req, int err)
+{
+	ablkcipher_request_complete(&req->creq, err);
+}
+
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */
 
