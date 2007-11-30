@@ -7,7 +7,20 @@
  * PXA255, PXA26x and PXA27x have extra ports, registers and bits.
  */
 
- /* Common PXA2xx bits first */
+#define SSCR0		(0x00)  /* SSP Control Register 0 */
+#define SSCR1		(0x04)  /* SSP Control Register 1 */
+#define SSSR		(0x08)  /* SSP Status Register */
+#define SSITR		(0x0C)  /* SSP Interrupt Test Register */
+#define SSDR		(0x10)  /* SSP Data Write/Data Read Register */
+
+#define SSTO		(0x28)  /* SSP Time Out Register */
+#define SSPSP		(0x2C)  /* SSP Programmable Serial Protocol */
+#define SSTSA		(0x30)  /* SSP Tx Timeslot Active */
+#define SSRSA		(0x34)  /* SSP Rx Timeslot Active */
+#define SSTSS		(0x38)  /* SSP Timeslot Status */
+#define SSACD		(0x3C)  /* SSP Audio Clock Divider */
+
+/* Common PXA2xx bits first */
 #define SSCR0_DSS	(0x0000000f)	/* Data Size Select (mask) */
 #define SSCR0_DataSize(x)  ((x) - 1)	/* Data Size Select [4..16] */
 #define SSCR0_FRF	(0x00000030)	/* FRame Format (mask) */
@@ -95,79 +108,5 @@
 #define SSACD_SCDB		(1 << 3)	/* SSPSYSCLK Divider Bypass */
 #define SSACD_ACPS(x)		((x) << 4)	/* Audio clock PLL select */
 #define SSACD_ACDS(x)		((x) << 0)	/* Audio clock divider select */
-
-#define SSCR0_P1	__REG(0x41000000)  /* SSP Port 1 Control Register 0 */
-#define SSCR1_P1	__REG(0x41000004)  /* SSP Port 1 Control Register 1 */
-#define SSSR_P1		__REG(0x41000008)  /* SSP Port 1 Status Register */
-#define SSITR_P1	__REG(0x4100000C)  /* SSP Port 1 Interrupt Test Register */
-#define SSDR_P1		__REG(0x41000010)  /* (Write / Read) SSP Port 1 Data Write Register/SSP Data Read Register */
-
-/* Support existing PXA25x drivers */
-#define SSCR0		SSCR0_P1  /* SSP Control Register 0 */
-#define SSCR1		SSCR1_P1  /* SSP Control Register 1 */
-#define SSSR		SSSR_P1	  /* SSP Status Register */
-#define SSITR		SSITR_P1  /* SSP Interrupt Test Register */
-#define SSDR		SSDR_P1	  /* (Write / Read) SSP Data Write Register/SSP Data Read Register */
-
-/* PXA27x ports */
-#if defined (CONFIG_PXA27x)
-#define SSTO_P1		__REG(0x41000028)  /* SSP Port 1 Time Out Register */
-#define SSPSP_P1	__REG(0x4100002C)  /* SSP Port 1 Programmable Serial Protocol */
-#define SSTSA_P1	__REG(0x41000030)  /* SSP Port 1 Tx Timeslot Active */
-#define SSRSA_P1	__REG(0x41000034)  /* SSP Port 1 Rx Timeslot Active */
-#define SSTSS_P1	__REG(0x41000038)  /* SSP Port 1 Timeslot Status */
-#define SSACD_P1	__REG(0x4100003C)  /* SSP Port 1 Audio Clock Divider */
-#define SSCR0_P2	__REG(0x41700000)  /* SSP Port 2 Control Register 0 */
-#define SSCR1_P2	__REG(0x41700004)  /* SSP Port 2 Control Register 1 */
-#define SSSR_P2		__REG(0x41700008)  /* SSP Port 2 Status Register */
-#define SSITR_P2	__REG(0x4170000C)  /* SSP Port 2 Interrupt Test Register */
-#define SSDR_P2		__REG(0x41700010)  /* (Write / Read) SSP Port 2 Data Write Register/SSP Data Read Register */
-#define SSTO_P2		__REG(0x41700028)  /* SSP Port 2 Time Out Register */
-#define SSPSP_P2	__REG(0x4170002C)  /* SSP Port 2 Programmable Serial Protocol */
-#define SSTSA_P2	__REG(0x41700030)  /* SSP Port 2 Tx Timeslot Active */
-#define SSRSA_P2	__REG(0x41700034)  /* SSP Port 2 Rx Timeslot Active */
-#define SSTSS_P2	__REG(0x41700038)  /* SSP Port 2 Timeslot Status */
-#define SSACD_P2	__REG(0x4170003C)  /* SSP Port 2 Audio Clock Divider */
-#define SSCR0_P3	__REG(0x41900000)  /* SSP Port 3 Control Register 0 */
-#define SSCR1_P3	__REG(0x41900004)  /* SSP Port 3 Control Register 1 */
-#define SSSR_P3		__REG(0x41900008)  /* SSP Port 3 Status Register */
-#define SSITR_P3	__REG(0x4190000C)  /* SSP Port 3 Interrupt Test Register */
-#define SSDR_P3		__REG(0x41900010)  /* (Write / Read) SSP Port 3 Data Write Register/SSP Data Read Register */
-#define SSTO_P3		__REG(0x41900028)  /* SSP Port 3 Time Out Register */
-#define SSPSP_P3	__REG(0x4190002C)  /* SSP Port 3 Programmable Serial Protocol */
-#define SSTSA_P3	__REG(0x41900030)  /* SSP Port 3 Tx Timeslot Active */
-#define SSRSA_P3	__REG(0x41900034)  /* SSP Port 3 Rx Timeslot Active */
-#define SSTSS_P3	__REG(0x41900038)  /* SSP Port 3 Timeslot Status */
-#define SSACD_P3	__REG(0x4190003C)  /* SSP Port 3 Audio Clock Divider */
-#else /* PXA255 (only port 2) and PXA26x ports*/
-#define SSTO_P1		__REG(0x41000028)  /* SSP Port 1 Time Out Register */
-#define SSPSP_P1	__REG(0x4100002C)  /* SSP Port 1 Programmable Serial Protocol */
-#define SSCR0_P2	__REG(0x41400000)  /* SSP Port 2 Control Register 0 */
-#define SSCR1_P2	__REG(0x41400004)  /* SSP Port 2 Control Register 1 */
-#define SSSR_P2		__REG(0x41400008)  /* SSP Port 2 Status Register */
-#define SSITR_P2	__REG(0x4140000C)  /* SSP Port 2 Interrupt Test Register */
-#define SSDR_P2		__REG(0x41400010)  /* (Write / Read) SSP Port 2 Data Write Register/SSP Data Read Register */
-#define SSTO_P2		__REG(0x41400028)  /* SSP Port 2 Time Out Register */
-#define SSPSP_P2	__REG(0x4140002C)  /* SSP Port 2 Programmable Serial Protocol */
-#define SSCR0_P3	__REG(0x41500000)  /* SSP Port 3 Control Register 0 */
-#define SSCR1_P3	__REG(0x41500004)  /* SSP Port 3 Control Register 1 */
-#define SSSR_P3		__REG(0x41500008)  /* SSP Port 3 Status Register */
-#define SSITR_P3	__REG(0x4150000C)  /* SSP Port 3 Interrupt Test Register */
-#define SSDR_P3		__REG(0x41500010)  /* (Write / Read) SSP Port 3 Data Write Register/SSP Data Read Register */
-#define SSTO_P3		__REG(0x41500028)  /* SSP Port 3 Time Out Register */
-#define SSPSP_P3	__REG(0x4150002C)  /* SSP Port 3 Programmable Serial Protocol */
-#endif
-
-#define SSCR0_P(x) (*(((x) == 1) ? &SSCR0_P1 : ((x) == 2) ? &SSCR0_P2 : ((x) == 3) ? &SSCR0_P3 : NULL))
-#define SSCR1_P(x) (*(((x) == 1) ? &SSCR1_P1 : ((x) == 2) ? &SSCR1_P2 : ((x) == 3) ? &SSCR1_P3 : NULL))
-#define SSSR_P(x) (*(((x) == 1) ? &SSSR_P1 : ((x) == 2) ? &SSSR_P2 : ((x) == 3) ? &SSSR_P3 : NULL))
-#define SSITR_P(x) (*(((x) == 1) ? &SSITR_P1 : ((x) == 2) ? &SSITR_P2 : ((x) == 3) ? &SSITR_P3 : NULL))
-#define SSDR_P(x) (*(((x) == 1) ? &SSDR_P1 : ((x) == 2) ? &SSDR_P2 : ((x) == 3) ? &SSDR_P3 : NULL))
-#define SSTO_P(x) (*(((x) == 1) ? &SSTO_P1 : ((x) == 2) ? &SSTO_P2 : ((x) == 3) ? &SSTO_P3 : NULL))
-#define SSPSP_P(x) (*(((x) == 1) ? &SSPSP_P1 : ((x) == 2) ? &SSPSP_P2 : ((x) == 3) ? &SSPSP_P3 : NULL))
-#define SSTSA_P(x) (*(((x) == 1) ? &SSTSA_P1 : ((x) == 2) ? &SSTSA_P2 : ((x) == 3) ? &SSTSA_P3 : NULL))
-#define SSRSA_P(x) (*(((x) == 1) ? &SSRSA_P1 : ((x) == 2) ? &SSRSA_P2 : ((x) == 3) ? &SSRSA_P3 : NULL))
-#define SSTSS_P(x) (*(((x) == 1) ? &SSTSS_P1 : ((x) == 2) ? &SSTSS_P2 : ((x) == 3) ? &SSTSS_P3 : NULL))
-#define SSACD_P(x) (*(((x) == 1) ? &SSACD_P1 : ((x) == 2) ? &SSACD_P2 : ((x) == 3) ? &SSACD_P3 : NULL))
 
 #endif /* __ASM_ARCH_REGS_SSP_H */

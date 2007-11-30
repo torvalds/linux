@@ -48,9 +48,11 @@
 static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 {
 	struct ssp_dev *dev = (struct ssp_dev*) dev_id;
-	unsigned int status = SSSR_P(dev->port);
+	struct ssp_device *ssp = dev->ssp;
+	unsigned int status;
 
-	SSSR_P(dev->port) = status; /* clear status bits */
+	status = __raw_readl(ssp->mmio_base + SSSR);
+	__raw_writel(status, ssp->mmio_base + SSSR);
 
 	if (status & SSSR_ROR)
 		printk(KERN_WARNING "SSP(%d): receiver overrun\n", dev->port);
@@ -79,15 +81,16 @@ static irqreturn_t ssp_interrupt(int irq, void *dev_id)
  */
 int ssp_write_word(struct ssp_dev *dev, u32 data)
 {
+	struct ssp_device *ssp = dev->ssp;
 	int timeout = TIMEOUT;
 
-	while (!(SSSR_P(dev->port) & SSSR_TNF)) {
+	while (!(__raw_readl(ssp->mmio_base + SSSR) & SSSR_TNF)) {
 	        if (!--timeout)
 	        	return -ETIMEDOUT;
 		cpu_relax();
 	}
 
-	SSDR_P(dev->port) = data;
+	__raw_writel(data, ssp->mmio_base + SSDR);
 
 	return 0;
 }
@@ -109,15 +112,16 @@ int ssp_write_word(struct ssp_dev *dev, u32 data)
  */
 int ssp_read_word(struct ssp_dev *dev, u32 *data)
 {
+	struct ssp_device *ssp = dev->ssp;
 	int timeout = TIMEOUT;
 
-	while (!(SSSR_P(dev->port) & SSSR_RNE)) {
+	while (!(__raw_readl(ssp->mmio_base + SSSR) & SSSR_RNE)) {
 	        if (!--timeout)
 	        	return -ETIMEDOUT;
 		cpu_relax();
 	}
 
-	*data = SSDR_P(dev->port);
+	*data = __raw_readl(ssp->mmio_base + SSDR);
 	return 0;
 }
 
@@ -131,17 +135,18 @@ int ssp_read_word(struct ssp_dev *dev, u32 *data)
  */
 int ssp_flush(struct ssp_dev *dev)
 {
+	struct ssp_device *ssp = dev->ssp;
 	int timeout = TIMEOUT * 2;
 
 	do {
-		while (SSSR_P(dev->port) & SSSR_RNE) {
+		while (__raw_readl(ssp->mmio_base + SSSR) & SSSR_RNE) {
 		        if (!--timeout)
 		        	return -ETIMEDOUT;
-			(void) SSDR_P(dev->port);
+			(void)__raw_readl(ssp->mmio_base + SSDR);
 		}
 	        if (!--timeout)
 	        	return -ETIMEDOUT;
-	} while (SSSR_P(dev->port) & SSSR_BSY);
+	} while (__raw_readl(ssp->mmio_base + SSSR) & SSSR_BSY);
 
 	return 0;
 }
@@ -153,7 +158,12 @@ int ssp_flush(struct ssp_dev *dev)
  */
 void ssp_enable(struct ssp_dev *dev)
 {
-	SSCR0_P(dev->port) |= SSCR0_SSE;
+	struct ssp_device *ssp = dev->ssp;
+	uint32_t sscr0;
+
+	sscr0 = __raw_readl(ssp->mmio_base + SSCR0);
+	sscr0 |= SSCR0_SSE;
+	__raw_writel(sscr0, ssp->mmio_base + SSCR0);
 }
 
 /**
@@ -163,7 +173,12 @@ void ssp_enable(struct ssp_dev *dev)
  */
 void ssp_disable(struct ssp_dev *dev)
 {
-	SSCR0_P(dev->port) &= ~SSCR0_SSE;
+	struct ssp_device *ssp = dev->ssp;
+	uint32_t sscr0;
+
+	sscr0 = __raw_readl(ssp->mmio_base + SSCR0);
+	sscr0 &= ~SSCR0_SSE;
+	__raw_writel(sscr0, ssp->mmio_base + SSCR0);
 }
 
 /**
@@ -172,14 +187,16 @@ void ssp_disable(struct ssp_dev *dev)
  *
  * Save the configured SSP state for suspend.
  */
-void ssp_save_state(struct ssp_dev *dev, struct ssp_state *ssp)
+void ssp_save_state(struct ssp_dev *dev, struct ssp_state *state)
 {
-	ssp->cr0 = SSCR0_P(dev->port);
-	ssp->cr1 = SSCR1_P(dev->port);
-	ssp->to = SSTO_P(dev->port);
-	ssp->psp = SSPSP_P(dev->port);
+	struct ssp_device *ssp = dev->ssp;
 
-	SSCR0_P(dev->port) &= ~SSCR0_SSE;
+	state->cr0 = __raw_readl(ssp->mmio_base + SSCR0);
+	state->cr1 = __raw_readl(ssp->mmio_base + SSCR1);
+	state->to  = __raw_readl(ssp->mmio_base + SSTO);
+	state->psp = __raw_readl(ssp->mmio_base + SSPSP);
+
+	ssp_disable(dev);
 }
 
 /**
@@ -188,16 +205,18 @@ void ssp_save_state(struct ssp_dev *dev, struct ssp_state *ssp)
  *
  * Restore the SSP configuration saved previously by ssp_save_state.
  */
-void ssp_restore_state(struct ssp_dev *dev, struct ssp_state *ssp)
+void ssp_restore_state(struct ssp_dev *dev, struct ssp_state *state)
 {
-	SSSR_P(dev->port) = SSSR_ROR | SSSR_TUR | SSSR_BCE;
+	struct ssp_device *ssp = dev->ssp;
+	uint32_t sssr = SSSR_ROR | SSSR_TUR | SSSR_BCE;
 
-	SSCR0_P(dev->port) = ssp->cr0 & ~SSCR0_SSE;
-	SSCR1_P(dev->port) = ssp->cr1;
-	SSTO_P(dev->port) = ssp->to;
-	SSPSP_P(dev->port) = ssp->psp;
+	__raw_writel(sssr, ssp->mmio_base + SSSR);
 
-	SSCR0_P(dev->port) = ssp->cr0;
+	__raw_writel(state->cr0 & ~SSCR0_SSE, ssp->mmio_base + SSCR0);
+	__raw_writel(state->cr1, ssp->mmio_base + SSCR1);
+	__raw_writel(state->to,  ssp->mmio_base + SSTO);
+	__raw_writel(state->psp, ssp->mmio_base + SSPSP);
+	__raw_writel(state->cr0, ssp->mmio_base + SSCR0);
 }
 
 /**
@@ -211,15 +230,17 @@ void ssp_restore_state(struct ssp_dev *dev, struct ssp_state *ssp)
  */
 int ssp_config(struct ssp_dev *dev, u32 mode, u32 flags, u32 psp_flags, u32 speed)
 {
+	struct ssp_device *ssp = dev->ssp;
+
 	dev->mode = mode;
 	dev->flags = flags;
 	dev->psp_flags = psp_flags;
 	dev->speed = speed;
 
 	/* set up port type, speed, port settings */
-	SSCR0_P(dev->port) = (dev->speed | dev->mode);
-	SSCR1_P(dev->port) = dev->flags;
-	SSPSP_P(dev->port) = dev->psp_flags;
+	__raw_writel((dev->speed | dev->mode), ssp->mmio_base + SSCR0);
+	__raw_writel(dev->flags, ssp->mmio_base + SSCR1);
+	__raw_writel(dev->psp_flags, ssp->mmio_base + SSPSP);
 
 	return 0;
 }
@@ -274,7 +295,7 @@ void ssp_exit(struct ssp_dev *dev)
 {
 	struct ssp_device *ssp = dev->ssp;
 
-	SSCR0_P(dev->port) &= ~SSCR0_SSE;
+	ssp_disable(dev);
 	free_irq(dev->irq, dev);
 	clk_disable(ssp->clk);
 	ssp_free(ssp);
