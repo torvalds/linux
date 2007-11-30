@@ -32,6 +32,14 @@ config CRYPTO_BLKCIPHER
 	tristate
 	select CRYPTO_ALGAPI
 
+config CRYPTO_SEQIV
+	tristate "Sequence Number IV Generator"
+	select CRYPTO_BLKCIPHER
+	help
+	  This IV generator generates an IV based on a sequence number by
+	  xoring it with a salt.  This algorithm is mainly useful for CTR
+	  and similar modes.
+
 config CRYPTO_HASH
 	tristate
 	select CRYPTO_ALGAPI
@@ -197,6 +205,7 @@ config CRYPTO_XTS
 config CRYPTO_CTR
 	tristate "CTR support"
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_SEQIV
 	select CRYPTO_MANAGER
 	help
 	  CTR: Counter mode

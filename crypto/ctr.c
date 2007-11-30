@@ -361,6 +361,8 @@ static struct crypto_instance *crypto_rfc3686_alloc(struct rtattr **tb)
 	inst->alg.cra_blkcipher.max_keysize = alg->cra_blkcipher.max_keysize
 					      + CTR_RFC3686_NONCE_SIZE;
 
+	inst->alg.cra_blkcipher.geniv = "seqiv";
+
 	inst->alg.cra_ctxsize = sizeof(struct crypto_rfc3686_ctx);
 
 	inst->alg.cra_init = crypto_rfc3686_init_tfm;
