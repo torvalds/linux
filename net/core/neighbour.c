@@ -1449,6 +1449,9 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct net_device *dev = NULL;
 	int err = -EINVAL;
 
+	if (net != &init_net)
+		return -EINVAL;
+
 	if (nlmsg_len(nlh) < sizeof(*ndm))
 		goto out;
 
@@ -1514,6 +1517,9 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct neigh_table *tbl;
 	struct net_device *dev = NULL;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
 	if (err < 0)
@@ -1789,10 +1795,14 @@ static const struct nla_policy nl_ntbl_parm_policy[NDTPA_MAX+1] = {
 
 static int neightbl_set(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct neigh_table *tbl;
 	struct ndtmsg *ndtmsg;
 	struct nlattr *tb[NDTA_MAX+1];
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ndtmsg), tb, NDTA_MAX,
 			  nl_neightbl_policy);
@@ -1913,10 +1923,14 @@ errout:
 
 static int neightbl_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int family, tidx, nidx = 0;
 	int tbl_skip = cb->args[0];
 	int neigh_skip = cb->args[1];
 	struct neigh_table *tbl;
+
+	if (net != &init_net)
+		return 0;
 
 	family = ((struct rtgenmsg *) nlmsg_data(cb->nlh))->rtgen_family;
 
@@ -2042,8 +2056,12 @@ out:
 
 static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	struct neigh_table *tbl;
 	int t, family, s_t;
+
+	if (net != &init_net)
+		return 0;
 
 	read_lock(&neigh_tbl_lock);
 	family = ((struct rtgenmsg *) nlmsg_data(cb->nlh))->rtgen_family;

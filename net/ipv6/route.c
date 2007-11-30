@@ -2003,8 +2003,12 @@ errout:
 
 static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct fib6_config cfg;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = rtm_to_fib6_config(skb, nlh, &cfg);
 	if (err < 0)
@@ -2015,8 +2019,12 @@ static int inet6_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *a
 
 static int inet6_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct fib6_config cfg;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = rtm_to_fib6_config(skb, nlh, &cfg);
 	if (err < 0)
@@ -2152,12 +2160,16 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 
 static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = in_skb->sk->sk_net;
 	struct nlattr *tb[RTA_MAX+1];
 	struct rt6_info *rt;
 	struct sk_buff *skb;
 	struct rtmsg *rtm;
 	struct flowi fl;
 	int err, iif = 0;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv6_policy);
 	if (err < 0)

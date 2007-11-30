@@ -2527,6 +2527,7 @@ nla_put_failure:
 
 static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = in_skb->sk->sk_net;
 	struct rtmsg *rtm;
 	struct nlattr *tb[RTA_MAX+1];
 	struct rtable *rt = NULL;
@@ -2535,6 +2536,9 @@ static int inet_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void 
 	u32 iif;
 	int err;
 	struct sk_buff *skb;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_ipv4_policy);
 	if (err < 0)

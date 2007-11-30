@@ -463,11 +463,15 @@ static int dn_fib_table_dump(struct dn_fib_table *tb, struct sk_buff *skb,
 
 int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct dn_fib_table *tb;
 	struct hlist_node *node;
 	int dumped = 0;
+
+	if (net != &init_net)
+		return 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) >= sizeof(struct rtmsg) &&
 		((struct rtmsg *)NLMSG_DATA(cb->nlh))->rtm_flags&RTM_F_CLONED)

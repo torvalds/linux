@@ -2971,10 +2971,14 @@ static const struct nla_policy ifa_ipv6_policy[IFA_MAX+1] = {
 static int
 inet6_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifaddrmsg *ifm;
 	struct nlattr *tb[IFA_MAX+1];
 	struct in6_addr *pfx;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy);
 	if (err < 0)
@@ -3028,6 +3032,7 @@ static int inet6_addr_modify(struct inet6_ifaddr *ifp, u8 ifa_flags,
 static int
 inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifaddrmsg *ifm;
 	struct nlattr *tb[IFA_MAX+1];
 	struct in6_addr *pfx;
@@ -3036,6 +3041,9 @@ inet6_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	u32 valid_lft = INFINITY_LIFE_TIME, preferred_lft = INFINITY_LIFE_TIME;
 	u8 ifa_flags;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy);
 	if (err < 0)
@@ -3310,26 +3318,42 @@ done:
 
 static int inet6_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	enum addr_type_t type = UNICAST_ADDR;
+
+	if (net != &init_net)
+		return 0;
+
 	return inet6_dump_addr(skb, cb, type);
 }
 
 static int inet6_dump_ifmcaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	enum addr_type_t type = MULTICAST_ADDR;
+
+	if (net != &init_net)
+		return 0;
+
 	return inet6_dump_addr(skb, cb, type);
 }
 
 
 static int inet6_dump_ifacaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	enum addr_type_t type = ANYCAST_ADDR;
+
+	if (net != &init_net)
+		return 0;
+
 	return inet6_dump_addr(skb, cb, type);
 }
 
 static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 			     void *arg)
 {
+	struct net *net = in_skb->sk->sk_net;
 	struct ifaddrmsg *ifm;
 	struct nlattr *tb[IFA_MAX+1];
 	struct in6_addr *addr = NULL;
@@ -3337,6 +3361,9 @@ static int inet6_rtm_getaddr(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 	struct inet6_ifaddr *ifa;
 	struct sk_buff *skb;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv6_policy);
 	if (err < 0)
@@ -3555,10 +3582,14 @@ nla_put_failure:
 
 static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int idx, err;
 	int s_idx = cb->args[0];
 	struct net_device *dev;
 	struct inet6_dev *idev;
+
+	if (net != &init_net)
+		return 0;
 
 	read_lock(&dev_base_lock);
 	idx = 0;

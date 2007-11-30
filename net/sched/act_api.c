@@ -18,6 +18,8 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/kmod.h>
+#include <net/net_namespace.h>
+#include <net/sock.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
@@ -924,9 +926,13 @@ done:
 
 static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct rtattr **tca = arg;
 	u32 pid = skb ? NETLINK_CB(skb).pid : 0;
 	int ret = 0, ovr = 0;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	if (tca[TCA_ACT_TAB-1] == NULL) {
 		printk("tc_ctl_action: received NO action attribs\n");
@@ -997,6 +1003,7 @@ find_dump_kind(struct nlmsghdr *n)
 static int
 tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	struct nlmsghdr *nlh;
 	unsigned char *b = skb_tail_pointer(skb);
 	struct rtattr *x;
@@ -1005,6 +1012,9 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	int ret = 0;
 	struct tcamsg *t = (struct tcamsg *) NLMSG_DATA(cb->nlh);
 	struct rtattr *kind = find_dump_kind(cb->nlh);
+
+	if (net != &init_net)
+		return 0;
 
 	if (kind == NULL) {
 		printk("tc_dump_action: action bad kind\n");

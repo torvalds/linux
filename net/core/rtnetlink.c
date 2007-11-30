@@ -703,6 +703,9 @@ static int rtnl_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	int s_idx = cb->args[0];
 	struct net_device *dev;
 
+	if (net != &init_net)
+		return 0;
+
 	idx = 0;
 	for_each_netdev(net, dev) {
 		if (idx < s_idx)
@@ -905,6 +908,9 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct nlattr *tb[IFLA_MAX+1];
 	char ifname[IFNAMSIZ];
 
+	if (net != &init_net)
+		return -EINVAL;
+
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
 		goto errout;
@@ -952,6 +958,9 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	char ifname[IFNAMSIZ];
 	struct nlattr *tb[IFLA_MAX+1];
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
@@ -1033,6 +1042,9 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct nlattr *tb[IFLA_MAX+1];
 	struct nlattr *linkinfo[IFLA_INFO_MAX+1];
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 #ifdef CONFIG_KMOD
 replay:
@@ -1160,6 +1172,9 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	struct sk_buff *nskb;
 	int err;
 
+	if (net != &init_net)
+		return -EINVAL;
+
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
 		return err;
@@ -1195,8 +1210,12 @@ errout:
 
 static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int idx;
 	int s_idx = cb->family;
+
+	if (net != &init_net)
+		return 0;
 
 	if (s_idx == 0)
 		s_idx = 1;

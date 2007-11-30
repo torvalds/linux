@@ -361,6 +361,7 @@ end:
 
 static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct rt6_rtnl_dump_arg arg;
@@ -368,6 +369,9 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct fib6_table *tb;
 	struct hlist_node *node;
 	int res = 0;
+
+	if (net != &init_net)
+		return 0;
 
 	s_h = cb->args[0];
 	s_e = cb->args[1];

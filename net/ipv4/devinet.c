@@ -441,6 +441,7 @@ struct in_ifaddr *inet_ifa_byprefix(struct in_device *in_dev, __be32 prefix,
 
 static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct nlattr *tb[IFA_MAX+1];
 	struct in_device *in_dev;
 	struct ifaddrmsg *ifm;
@@ -448,6 +449,9 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 	int err = -EINVAL;
 
 	ASSERT_RTNL();
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv4_policy);
 	if (err < 0)
@@ -560,9 +564,13 @@ errout:
 
 static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct in_ifaddr *ifa;
 
 	ASSERT_RTNL();
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	ifa = rtm_to_ifaddr(nlh);
 	if (IS_ERR(ifa))
@@ -1174,11 +1182,15 @@ nla_put_failure:
 
 static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int idx, ip_idx;
 	struct net_device *dev;
 	struct in_device *in_dev;
 	struct in_ifaddr *ifa;
 	int s_ip_idx, s_idx = cb->args[0];
+
+	if (net != &init_net)
+		return 0;
 
 	s_ip_idx = ip_idx = cb->args[1];
 	idx = 0;

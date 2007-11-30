@@ -538,9 +538,13 @@ errout:
 
 static int inet_rtm_delroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = rtm_to_fib_config(skb, nlh, &cfg);
 	if (err < 0)
@@ -559,9 +563,13 @@ errout:
 
 static int inet_rtm_newroute(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct fib_config cfg;
 	struct fib_table *tb;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	err = rtm_to_fib_config(skb, nlh, &cfg);
 	if (err < 0)
@@ -580,11 +588,15 @@ errout:
 
 static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
 	struct hlist_node *node;
 	int dumped = 0;
+
+	if (net != &init_net)
+		return 0;
 
 	if (nlmsg_len(cb->nlh) >= sizeof(struct rtmsg) &&
 	    ((struct rtmsg *) nlmsg_data(cb->nlh))->rtm_flags & RTM_F_CLONED)

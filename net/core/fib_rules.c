@@ -228,6 +228,9 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	struct nlattr *tb[FRA_MAX+1];
 	int err = -EINVAL, unresolved = 0;
 
+	if (net != &init_net)
+		return -EINVAL;
+
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh)))
 		goto errout;
 
@@ -358,11 +361,15 @@ errout:
 
 static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct fib_rule_hdr *frh = nlmsg_data(nlh);
 	struct fib_rules_ops *ops = NULL;
 	struct fib_rule *rule, *tmp;
 	struct nlattr *tb[FRA_MAX+1];
 	int err = -EINVAL;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh)))
 		goto errout;
@@ -539,8 +546,12 @@ skip:
 
 static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	struct fib_rules_ops *ops;
 	int idx = 0, family;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	family = rtnl_msg_family(cb->nlh);
 	if (family != AF_UNSPEC) {

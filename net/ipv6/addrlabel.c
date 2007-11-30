@@ -361,11 +361,15 @@ static const struct nla_policy ifal_policy[IFAL_MAX+1] = {
 static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 			     void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ifaddrlblmsg *ifal;
 	struct nlattr *tb[IFAL_MAX+1];
 	struct in6_addr *pfx;
 	u32 label;
 	int err = 0;
+
+	if (net != &init_net)
+		return 0;
 
 	err = nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX, ifal_policy);
 	if (err < 0)
@@ -445,10 +449,14 @@ static int ip6addrlbl_fill(struct sk_buff *skb,
 
 static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	struct ip6addrlbl_entry *p;
 	struct hlist_node *pos;
 	int idx = 0, s_idx = cb->args[0];
 	int err;
+
+	if (net != &init_net)
+		return 0;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(p, pos, &ip6addrlbl_table.head, list) {
@@ -479,6 +487,7 @@ static inline int ip6addrlbl_msgsize(void)
 static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 			  void *arg)
 {
+	struct net *net = in_skb->sk->sk_net;
 	struct ifaddrlblmsg *ifal;
 	struct nlattr *tb[IFAL_MAX+1];
 	struct in6_addr *addr;
@@ -486,6 +495,9 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 	int err = 0;
 	struct ip6addrlbl_entry *p;
 	struct sk_buff *skb;
+
+	if (net != &init_net)
+		return 0;
 
 	err = nlmsg_parse(nlh, sizeof(*ifal), tb, IFAL_MAX, ifal_policy);
 	if (err < 0)

@@ -29,6 +29,7 @@
 #include <linux/hrtimer.h>
 
 #include <net/net_namespace.h>
+#include <net/sock.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 
@@ -599,6 +600,7 @@ check_loop_fn(struct Qdisc *q, unsigned long cl, struct qdisc_walker *w)
 
 static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct tcmsg *tcm = NLMSG_DATA(n);
 	struct rtattr **tca = arg;
 	struct net_device *dev;
@@ -606,6 +608,9 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	struct Qdisc *q = NULL;
 	struct Qdisc *p = NULL;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	if ((dev = __dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return -ENODEV;
@@ -660,12 +665,16 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 
 static int tc_modify_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct tcmsg *tcm;
 	struct rtattr **tca;
 	struct net_device *dev;
 	u32 clid;
 	struct Qdisc *q, *p;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 replay:
 	/* Reinit, just in case something touches this. */
@@ -872,10 +881,14 @@ err_out:
 
 static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int idx, q_idx;
 	int s_idx, s_q_idx;
 	struct net_device *dev;
 	struct Qdisc *q;
+
+	if (net != &init_net)
+		return 0;
 
 	s_idx = cb->args[0];
 	s_q_idx = q_idx = cb->args[1];
@@ -920,6 +933,7 @@ done:
 
 static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct tcmsg *tcm = NLMSG_DATA(n);
 	struct rtattr **tca = arg;
 	struct net_device *dev;
@@ -931,6 +945,9 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	u32 clid = tcm->tcm_handle;
 	u32 qid = TC_H_MAJ(clid);
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	if ((dev = __dev_get_by_index(&init_net, tcm->tcm_ifindex)) == NULL)
 		return -ENODEV;
@@ -1106,12 +1123,16 @@ static int qdisc_class_dump(struct Qdisc *q, unsigned long cl, struct qdisc_walk
 
 static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int t;
 	int s_t;
 	struct net_device *dev;
 	struct Qdisc *q;
 	struct tcmsg *tcm = (struct tcmsg*)NLMSG_DATA(cb->nlh);
 	struct qdisc_dump_args arg;
+
+	if (net != &init_net)
+		return 0;
 
 	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
 		return 0;

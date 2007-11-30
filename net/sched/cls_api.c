@@ -23,6 +23,8 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/netlink.h>
+#include <net/net_namespace.h>
+#include <net/sock.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <net/pkt_cls.h>
@@ -119,6 +121,7 @@ static __inline__ u32 tcf_auto_prio(struct tcf_proto *tp)
 
 static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 {
+	struct net *net = skb->sk->sk_net;
 	struct rtattr **tca;
 	struct tcmsg *t;
 	u32 protocol;
@@ -134,6 +137,9 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	unsigned long cl;
 	unsigned long fh;
 	int err;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 replay:
 	tca = arg;
@@ -375,6 +381,7 @@ static int tcf_node_dump(struct tcf_proto *tp, unsigned long n, struct tcf_walke
 
 static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	int t;
 	int s_t;
 	struct net_device *dev;
@@ -384,6 +391,9 @@ static int tc_dump_tfilter(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned long cl = 0;
 	const struct Qdisc_class_ops *cops;
 	struct tcf_dump_args arg;
+
+	if (net != &init_net)
+		return 0;
 
 	if (cb->nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*tcm)))
 		return skb->len;

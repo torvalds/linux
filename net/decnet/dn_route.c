@@ -1511,6 +1511,7 @@ rtattr_failure:
  */
 static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void *arg)
 {
+	struct net *net = in_skb->sk->sk_net;
 	struct rtattr **rta = arg;
 	struct rtmsg *rtm = NLMSG_DATA(nlh);
 	struct dn_route *rt = NULL;
@@ -1518,6 +1519,9 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 	int err;
 	struct sk_buff *skb;
 	struct flowi fl;
+
+	if (net != &init_net)
+		return -EINVAL;
 
 	memset(&fl, 0, sizeof(fl));
 	fl.proto = DNPROTO_NSP;
@@ -1596,9 +1600,13 @@ out_free:
  */
 int dn_cache_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
+	struct net *net = skb->sk->sk_net;
 	struct dn_route *rt;
 	int h, s_h;
 	int idx, s_idx;
+
+	if (net != &init_net)
+		return 0;
 
 	if (NLMSG_PAYLOAD(cb->nlh, 0) < sizeof(struct rtmsg))
 		return -EINVAL;
