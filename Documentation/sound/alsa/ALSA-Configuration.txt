@@ -150,13 +150,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on Analog Devices AD1816A/AD1815 ISA chips.
 
-    port	- port # for AD1816A chip (PnP setup)
-    mpu_port	- port # for MPU-401 UART (PnP setup)
-    fm_port	- port # for OPL3 (PnP setup)
-    irq		- IRQ # for AD1816A chip (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 UART (PnP setup)
-    dma1	- first DMA # for AD1816A chip (PnP setup)
-    dma2	- second DMA # for AD1816A chip (PnP setup)
     clockfreq   - Clock frequency for AD1816A chip (default = 0, 33000Hz)
     
     This module supports multiple cards, autoprobe and PnP.
@@ -203,14 +196,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on Avance Logic ALS100/ALS120 ISA chips.
 
-    port	- port # for ALS100 (SB16) chip (PnP setup)
-    irq		- IRQ # for ALS100 (SB16) chip (PnP setup)
-    dma8	- 8-bit DMA # for ALS100 (SB16) chip (PnP setup)
-    dma16	- 16-bit DMA # for ALS100 (SB16) chip (PnP setup)
-    mpu_port	- port # for MPU-401 UART (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 (PnP setup)
-    fm_port	- port # for OPL3 FM (PnP setup)
-    
     This module supports multiple cards, autoprobe and PnP.
 
     The power-management is supported.
@@ -304,15 +289,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on Aztech System AZT2320 ISA chip (PnP only).
 
-    port	- port # for AZT2320 chip (PnP setup)
-    wss_port	- port # for WSS (PnP setup)
-    mpu_port	- port # for MPU-401 UART (PnP setup)
-    fm_port	- FM port # for AZT2320 chip (PnP setup)
-    irq		- IRQ # for AZT2320 (WSS) chip (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 UART (PnP setup)
-    dma1	- 1st DMA # for AZT2320 (WSS) chip (PnP setup)
-    dma2	- 2nd DMA # for AZT2320 (WSS) chip (PnP setup)
-    
     This module supports multiple cards, PnP and autoprobe.
     
     The power-management is supported.
@@ -505,13 +481,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     Module for Diamond Technologies DT-019X / Avance Logic ALS-007 (PnP
     only)
 
-    port	- Port # (PnP setup)
-    mpu_port	- Port # for MPU-401 (PnP setup)
-    fm_port	- Port # for FM OPL-3 (PnP setup)
-    irq		- IRQ # (PnP setup)
-    mpu_irq	- IRQ # for MPU-401 (PnP setup)
-    dma8	- DMA # (PnP setup)
-
     This module supports multiple cards.  This module is enabled only with
     ISA PnP support.
 
@@ -609,10 +578,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for sound cards based on ESS ES968 chip (PnP only).
 
-    port	- port # for ES968 (SB8) chip (PnP setup)
-    irq		- IRQ # for ES968 (SB8) chip (PnP setup)
-    dma1	- DMA # for ES968 (SB8) chip (PnP setup)
-    
     This module supports multiple cards, PnP and autoprobe.
     
     The power-management is supported.
