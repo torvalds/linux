@@ -1,20 +1,8 @@
 /*
- *
- * ipg.h
- *
  * Include file for Gigabit Ethernet device driver for Network
  * Interface Cards (NICs) utilizing the Tamarack Microelectronics
  * Inc. IPG Gigabit or Triple Speed Ethernet Media Access
  * Controller.
- *
- * Craig Rich
- * Sundance Technology, Inc.
- * 1485 Saratoga Avenue
- * Suite 200
- * San Jose, CA 95129
- * 408 873 4117
- * www.sundanceti.com
- * craig_rich@sundanceti.com
  */
 #ifndef __LINUX_IPG_H
 #define __LINUX_IPG_H
