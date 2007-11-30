@@ -382,14 +382,14 @@ static struct platform_device ek_button_device = {
 
 static void __init ek_add_device_buttons(void)
 {
-	at91_set_gpio_input(AT91_PIN_PB27, 0);	/* btn0 */
-	at91_set_deglitch(AT91_PIN_PB27, 1);
-	at91_set_gpio_input(AT91_PIN_PB26, 0);	/* btn1 */
-	at91_set_deglitch(AT91_PIN_PB26, 1);
-	at91_set_gpio_input(AT91_PIN_PB25, 0);	/* btn2 */
-	at91_set_deglitch(AT91_PIN_PB25, 1);
-	at91_set_gpio_input(AT91_PIN_PB24, 0);	/* btn3 */
-	at91_set_deglitch(AT91_PIN_PB24, 1);
+	at91_set_gpio_input(AT91_PIN_PA27, 0);	/* btn0 */
+	at91_set_deglitch(AT91_PIN_PA27, 1);
+	at91_set_gpio_input(AT91_PIN_PA26, 0);	/* btn1 */
+	at91_set_deglitch(AT91_PIN_PA26, 1);
+	at91_set_gpio_input(AT91_PIN_PA25, 0);	/* btn2 */
+	at91_set_deglitch(AT91_PIN_PA25, 1);
+	at91_set_gpio_input(AT91_PIN_PA24, 0);	/* btn3 */
+	at91_set_deglitch(AT91_PIN_PA24, 1);
 
 	platform_device_register(&ek_button_device);
 }
@@ -406,7 +406,7 @@ static void __init ek_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&ek_udc_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 	/* NAND */
 	at91_add_device_nand(&ek_nand_data);
 	/* DM9000 ethernet */

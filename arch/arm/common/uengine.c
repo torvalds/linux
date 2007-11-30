@@ -374,8 +374,8 @@ static int set_initial_registers(int uengine, struct ixp2000_uengine_code *c)
 	u8 *ucode;
 	int i;
 
-	gpr_a = kmalloc(128 * sizeof(u32), GFP_KERNEL);
-	gpr_b = kmalloc(128 * sizeof(u32), GFP_KERNEL);
+	gpr_a = kzalloc(128 * sizeof(u32), GFP_KERNEL);
+	gpr_b = kzalloc(128 * sizeof(u32), GFP_KERNEL);
 	ucode = kmalloc(513 * 5, GFP_KERNEL);
 	if (gpr_a == NULL || gpr_b == NULL || ucode == NULL) {
 		kfree(ucode);
@@ -388,8 +388,6 @@ static int set_initial_registers(int uengine, struct ixp2000_uengine_code *c)
 	if (c->uengine_parameters & IXP2000_UENGINE_4_CONTEXTS)
 		per_ctx_regs = 32;
 
-	memset(gpr_a, 0, sizeof(gpr_a));
-	memset(gpr_b, 0, sizeof(gpr_b));
 	for (i = 0; i < 256; i++) {
 		struct ixp2000_reg_value *r = c->initial_reg_values + i;
 		u32 *bank;

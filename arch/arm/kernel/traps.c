@@ -327,7 +327,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 		if ((instr & hook->instr_mask) == hook->instr_val &&
 		    (regs->ARM_cpsr & hook->cpsr_mask) == hook->cpsr_val) {
 			if (hook->fn(regs, instr) == 0) {
-				spin_unlock_irq(&undef_lock);
+				spin_unlock_irqrestore(&undef_lock, flags);
 				return;
 			}
 		}
@@ -509,7 +509,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 	 * existence.  Don't ever use this from user code.
 	 */
 	case 0xfff0:
-	{
+	for (;;) {
 		extern void do_DataAbort(unsigned long addr, unsigned int fsr,
 					 struct pt_regs *regs);
 		unsigned long val;
@@ -545,7 +545,6 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		up_read(&mm->mmap_sem);
 		/* simulate a write access fault */
 		do_DataAbort(addr, 15 + (1 << 11), regs);
-		return -1;
 	}
 #endif
 
