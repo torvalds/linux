@@ -631,13 +631,13 @@ config SENSORS_VT8231
 	  will be called vt8231.
 
 config SENSORS_W83781D
-	tristate "Winbond W83781D, W83782D, W83783S, W83627HF, Asus AS99127F"
+	tristate "Winbond W83781D, W83782D, W83783S, Asus AS99127F"
 	depends on I2C
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W8378x series
-	  of sensor chips: the W83781D, W83782D, W83783S and W83627HF,
-	  and the similar Asus AS99127F.
+	  of sensor chips: the W83781D, W83782D and W83783S, and the similar
+	  Asus AS99127F.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83781d.
