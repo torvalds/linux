@@ -144,6 +144,8 @@ extern unsigned int instruction_size(unsigned int insn);
 #define instruction_size(insn)	(4)
 #endif
 
+extern unsigned long cached_to_uncached;
+
 /* XXX
  * disable hlt during certain critical i/o operations
  */

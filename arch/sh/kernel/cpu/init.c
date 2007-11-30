@@ -64,11 +64,11 @@ static void __init speculative_execution_init(void)
  * Generic first-level cache init
  */
 #ifdef CONFIG_SUPERH32
-static void __init cache_init(void)
+static void __uses_jump_to_uncached cache_init(void)
 {
 	unsigned long ccr, flags;
 
-	jump_to_P2();
+	jump_to_uncached();
 	ccr = ctrl_inl(CCR);
 
 	/*
@@ -145,7 +145,7 @@ static void __init cache_init(void)
 #endif
 
 	ctrl_outl(flags, CCR);
-	back_to_P1();
+	back_to_cached();
 }
 #else
 #define cache_init()	do { } while (0)

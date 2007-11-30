@@ -32,8 +32,9 @@ do {								\
 			      &next->thread);			\
 } while (0)
 
-/* No segmentation.. */
-#define jump_to_P2()	do { } while (0)
-#define back_to_P1()	do { } while (0)
+#define __uses_jump_to_uncached
+
+#define jump_to_uncached()	do { } while (0)
+#define back_to_cached()	do { } while (0)
 
 #endif /* __ASM_SH_SYSTEM_64_H */

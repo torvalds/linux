@@ -79,7 +79,8 @@ void update_mmu_cache(struct vm_area_struct * vma,
 	local_irq_restore(flags);
 }
 
-void local_flush_tlb_one(unsigned long asid, unsigned long page)
+void __uses_jump_to_uncached local_flush_tlb_one(unsigned long asid,
+						 unsigned long page)
 {
 	unsigned long addr, data;
 
@@ -91,7 +92,7 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	 */
 	addr = MMU_UTLB_ADDRESS_ARRAY | MMU_PAGE_ASSOC_BIT;
 	data = page | asid; /* VALID bit is off */
-	jump_to_P2();
+	jump_to_uncached();
 	ctrl_outl(data, addr);
-	back_to_P1();
+	back_to_cached();
 }

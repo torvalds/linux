@@ -43,6 +43,15 @@ SECTIONS
 	NOTES
 	RO_DATA(PAGE_SIZE)
 
+	/*
+	 * Code which must be executed uncached and the associated data
+	 */
+	. = ALIGN(PAGE_SIZE);
+	__uncached_start = .;
+	.uncached.text : { *(.uncached.text) }
+	.uncached.data : { *(.uncached.data) }
+	__uncached_end = .;
+
 	. = ALIGN(THREAD_SIZE);
 	.data : {			/* Data */
 		*(.data.init_task)

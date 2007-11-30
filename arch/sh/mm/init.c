@@ -23,6 +23,7 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
+unsigned long cached_to_uncached = 0;
 
 void show_mem(void)
 {
@@ -99,7 +100,8 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
 
-	flush_tlb_one(get_asid(), addr);
+	if (cached_to_uncached)
+		flush_tlb_one(get_asid(), addr);
 }
 
 /*
@@ -164,6 +166,18 @@ void __init paging_init(void)
 	}
 
 	free_area_init_nodes(max_zone_pfns);
+
+	/* Set up the uncached fixmap */
+	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
+
+#ifdef CONFIG_29BIT
+	/*
+	 * Handle trivial transitions between cached and uncached
+	 * segments, making use of the 1:1 mapping relationship in
+	 * 512MB lowmem.
+	 */
+	cached_to_uncached = P2SEG - P1SEG;
+#endif
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;
