@@ -1059,7 +1059,15 @@ struct ctl_table_header
 	struct completion *unregistering;
 };
 
+/* struct ctl_path describes where in the hierarchy a table is added */
+struct ctl_path {
+	const char *procname;
+	int ctl_name;
+};
+
 struct ctl_table_header *register_sysctl_table(struct ctl_table * table);
+struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
+						struct ctl_table *table);
 
 void unregister_sysctl_table(struct ctl_table_header * table);
 int sysctl_check_table(struct ctl_table *table);
