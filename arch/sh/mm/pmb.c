@@ -305,7 +305,7 @@ static void pmb_cache_ctor(struct kmem_cache *cachep, void *pmb)
 static int __init pmb_init(void)
 {
 	unsigned int nr_entries = ARRAY_SIZE(pmb_init_map);
-	unsigned int entry;
+	unsigned int entry, i;
 
 	BUG_ON(unlikely(nr_entries >= NR_PMB_ENTRIES));
 
