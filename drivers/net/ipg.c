@@ -1483,35 +1483,13 @@ static int ipg_nic_rx(struct net_device *dev)
 			/* Set the buffer's protocol field to Ethernet. */
 			skb->protocol = eth_type_trans(skb, dev);
 
-			/* If the frame contains an IP/TCP/UDP frame,
-			 * determine if upper layer must check IP/TCP/UDP
-			 * checksums.
-			 *
-			 * NOTE: DO NOT RELY ON THE TCP/UDP CHECKSUM
-			 *       VERIFICATION FOR SILICON REVISIONS B3
-			 *       AND EARLIER!
-			 *
-			 if ((le64_to_cpu(rxfd->rfs &
-			     (IPG_RFS_TCPDETECTED | IPG_RFS_UDPDETECTED |
-			      IPG_RFS_IPDETECTED))) &&
-			    !(le64_to_cpu(rxfd->rfs &
-			      (IPG_RFS_TCPERROR | IPG_RFS_UDPERROR |
-			       IPG_RFS_IPERROR)))) {
-				 * Indicate IP checksums were performed
-				 * by the IPG.
-				 *
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
-			 } else
+			/* The IPG encountered an error with (or
+			 * there were no) IP/TCP/UDP checksums.
+			 * This may or may not indicate an invalid
+			 * IP/TCP/UDP frame was received. Let the
+			 * upper layer decide.
 			 */
-			 {
-				/* The IPG encountered an error with (or
-				 * there were no) IP/TCP/UDP checksums.
-				 * This may or may not indicate an invalid
-				 * IP/TCP/UDP frame was received. Let the
-				 * upper layer decide.
-				 */
-				skb->ip_summed = CHECKSUM_NONE;
-			}
+			skb->ip_summed = CHECKSUM_NONE;
 
 			/* Hand off frame for higher layer processing.
 			 * The function netif_rx() releases the sk_buff

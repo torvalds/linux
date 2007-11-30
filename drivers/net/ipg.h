@@ -23,7 +23,6 @@
 #include <linux/skbuff.h>
 #include <linux/version.h>
 #include <asm/bitops.h>
-/*#include <asm/spinlock.h>*/
 
 /*
  *	Constants
@@ -733,8 +732,7 @@ enum ipg_regs {
  * Miscellaneous macros.
  */
 
-/* Marco for printing debug statements.
-#  define IPG_DDEBUG_MSG(args...) printk(KERN_DEBUG "IPG: " ## args) */
+/* Marco for printing debug statements. */
 #ifdef IPG_DEBUG
 #  define IPG_DEBUG_MSG(args...)
 #  define IPG_DDEBUG_MSG(args...) printk(KERN_DEBUG "IPG: " args)
