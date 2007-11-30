@@ -1669,6 +1669,7 @@ struct ctl_table_header *register_sysctl_paths(const struct ctl_path *path,
 		new += 2;
 	}
 	*prevp = table;
+	header->ctl_table_arg = table;
 
 	INIT_LIST_HEAD(&header->ctl_entry);
 	header->used = 0;

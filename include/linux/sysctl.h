@@ -1057,6 +1057,7 @@ struct ctl_table_header
 	struct list_head ctl_entry;
 	int used;
 	struct completion *unregistering;
+	struct ctl_table *ctl_table_arg;
 };
 
 /* struct ctl_path describes where in the hierarchy a table is added */
