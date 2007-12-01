@@ -203,8 +203,6 @@ static int dn_fib_check_nh(const struct rtmsg *r, struct dn_fib_info *fi, struct
 		struct flowi fl;
 		struct dn_fib_res res;
 
-		memset(&fl, 0, sizeof(fl));
-
 		if (nh->nh_flags&RTNH_F_ONLINK) {
 			struct net_device *dev;
 
