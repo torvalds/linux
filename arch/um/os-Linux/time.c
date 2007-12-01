@@ -77,6 +77,7 @@ long long os_nsecs(void)
 #ifdef UML_CONFIG_NO_HZ
 static int after_sleep_interval(struct timespec *ts)
 {
+	return 0;
 }
 #else
 static inline long long timespec_to_us(const struct timespec *ts)
