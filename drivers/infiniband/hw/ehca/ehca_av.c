@@ -76,8 +76,12 @@ int ehca_calc_ipd(struct ehca_shca *shca, int port,
 
 	link = ib_width_enum_to_int(pa.active_width) * pa.active_speed;
 
-	/* IPD = round((link / path) - 1) */
-	*ipd = ((link + (path >> 1)) / path) - 1;
+	if (path >= link)
+		/* no need to throttle if path faster than link */
+		*ipd = 0;
+	else
+		/* IPD = round((link / path) - 1) */
+		*ipd = ((link + (path >> 1)) / path) - 1;
 
 	return 0;
 }
