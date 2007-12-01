@@ -1430,11 +1430,8 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 
 static struct devinet_sysctl_table {
 	struct ctl_table_header *sysctl_header;
-	ctl_table		devinet_vars[__NET_IPV4_CONF_MAX];
-	ctl_table		devinet_dev[2];
-	ctl_table		devinet_conf_dir[2];
-	ctl_table		devinet_proto_dir[2];
-	ctl_table		devinet_root_dir[2];
+	struct ctl_table devinet_vars[__NET_IPV4_CONF_MAX];
+	char *dev_name;
 } devinet_sysctl = {
 	.devinet_vars = {
 		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
@@ -1466,38 +1463,6 @@ static struct devinet_sysctl_table {
 		DEVINET_SYSCTL_FLUSHING_ENTRY(PROMOTE_SECONDARIES,
 					      "promote_secondaries"),
 	},
-	.devinet_dev = {
-		{
-			.ctl_name	= NET_PROTO_CONF_ALL,
-			.procname	= "all",
-			.mode		= 0555,
-			.child		= devinet_sysctl.devinet_vars,
-		},
-	},
-	.devinet_conf_dir = {
-		{
-			.ctl_name	= NET_IPV4_CONF,
-			.procname	= "conf",
-			.mode		= 0555,
-			.child		= devinet_sysctl.devinet_dev,
-		},
-	},
-	.devinet_proto_dir = {
-		{
-			.ctl_name	= NET_IPV4,
-			.procname	= "ipv4",
-			.mode		= 0555,
-			.child 		= devinet_sysctl.devinet_conf_dir,
-		},
-	},
-	.devinet_root_dir = {
-		{
-			.ctl_name	= CTL_NET,
-			.procname 	= "net",
-			.mode		= 0555,
-			.child		= devinet_sysctl.devinet_proto_dir,
-		},
-	},
 };
 
 static void __devinet_sysctl_register(char *dev_name, int ctl_name,
@@ -1505,6 +1470,16 @@ static void __devinet_sysctl_register(char *dev_name, int ctl_name,
 {
 	int i;
 	struct devinet_sysctl_table *t;
+
+#define DEVINET_CTL_PATH_DEV	3
+
+	struct ctl_path devinet_ctl_path[] = {
+		{ .procname = "net", .ctl_name = CTL_NET, },
+		{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+		{ .procname = "conf", .ctl_name = NET_IPV4_CONF, },
+		{ /* to be set */ },
+		{ },
+	};
 
 	t = kmemdup(&devinet_sysctl, sizeof(*t), GFP_KERNEL);
 	if (!t)
@@ -1515,24 +1490,20 @@ static void __devinet_sysctl_register(char *dev_name, int ctl_name,
 		t->devinet_vars[i].extra1 = p;
 	}
 
-	t->devinet_dev[0].ctl_name = ctl_name;
-
 	/*
 	 * Make a copy of dev_name, because '.procname' is regarded as const
 	 * by sysctl and we wouldn't want anyone to change it under our feet
 	 * (see SIOCSIFNAME).
 	 */
-	dev_name = kstrdup(dev_name, GFP_KERNEL);
-	if (!dev_name)
+	t->dev_name = kstrdup(dev_name, GFP_KERNEL);
+	if (!t->dev_name)
 		goto free;
 
-	t->devinet_dev[0].procname    = dev_name;
-	t->devinet_dev[0].child	      = t->devinet_vars;
-	t->devinet_conf_dir[0].child  = t->devinet_dev;
-	t->devinet_proto_dir[0].child = t->devinet_conf_dir;
-	t->devinet_root_dir[0].child  = t->devinet_proto_dir;
+	devinet_ctl_path[DEVINET_CTL_PATH_DEV].procname = t->dev_name;
+	devinet_ctl_path[DEVINET_CTL_PATH_DEV].ctl_name = ctl_name;
 
-	t->sysctl_header = register_sysctl_table(t->devinet_root_dir);
+	t->sysctl_header = register_sysctl_paths(devinet_ctl_path,
+			t->devinet_vars);
 	if (!t->sysctl_header)
 		goto free_procname;
 
@@ -1540,7 +1511,7 @@ static void __devinet_sysctl_register(char *dev_name, int ctl_name,
 	return;
 
 free_procname:
-	kfree(dev_name);
+	kfree(t->dev_name);
 free:
 	kfree(t);
 out:
@@ -1559,7 +1530,7 @@ static void devinet_sysctl_unregister(struct ipv4_devconf *p)
 		struct devinet_sysctl_table *t = p->sysctl;
 		p->sysctl = NULL;
 		unregister_sysctl_table(t->sysctl_header);
-		kfree(t->devinet_dev[0].procname);
+		kfree(t->dev_name);
 		kfree(t);
 	}
 }
