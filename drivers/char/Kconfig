@@ -543,28 +543,6 @@ config PPDEV
 
 	  If unsure, say N.
 
-config TIPAR
-	tristate "Texas Instruments parallel link cable support"
-	depends on PARPORT
-	---help---
-	  If you own a Texas Instruments graphing calculator and use a
-	  parallel link cable, then you might be interested in this driver.
-
-	  If you enable this driver, you will be able to communicate with
-	  your calculator through a set of device nodes under /dev. The
-	  main advantage of this driver is that you don't have to be root
-	  to use this precise link cable (depending on the permissions on
-	  the device nodes, though).
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called tipar.
-
-	  If you don't know what a parallel link cable is or what a Texas
-	  Instruments graphing calculator is, then you probably don't need this
-	  driver.
-
-	  If unsure, say N.
-
 config HVC_DRIVER
 	bool
 	help
