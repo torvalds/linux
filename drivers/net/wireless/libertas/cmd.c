@@ -1231,7 +1231,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		goto done;
 	}
 
-	lbs_set_cmd_ctrl_node(priv, cmdnode, cmd_oid, wait_option, pdata_buf);
+	lbs_set_cmd_ctrl_node(priv, cmdnode, wait_option, pdata_buf);
 
 	cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
 
@@ -1404,7 +1404,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_INACTIVITY_TIMEOUT:
 		ret = lbs_cmd_802_11_inactivity_timeout(priv, cmdptr,
 							 cmd_action, pdata_buf);
-		lbs_set_cmd_ctrl_node(priv, cmdnode, 0, 0, pdata_buf);
+		lbs_set_cmd_ctrl_node(priv, cmdnode, 0, pdata_buf);
 		break;
 
 	case CMD_802_11_TPC_CFG:
@@ -1668,7 +1668,6 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
 	ptempnode->cmdwaitqwoken = 1;
 	wake_up_interruptible(&ptempnode->cmdwait_q);
 	ptempnode->status = 0;
-	ptempnode->cmd_oid = (u32) 0;
 	ptempnode->wait_option = 0;
 	ptempnode->pdata_buf = NULL;
 
@@ -1683,21 +1682,19 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
  *
  *  @param priv		A pointer to struct lbs_private structure
  *  @param ptempnode	A pointer to cmd_ctrl_node structure
- *  @param cmd_oid	cmd oid: treated as sub command
  *  @param wait_option	wait option: wait response or not
  *  @param pdata_buf	A pointer to informaion buffer
  *  @return 		0 or -1
  */
 void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 		    struct cmd_ctrl_node *ptempnode,
-		    u32 cmd_oid, u16 wait_option, void *pdata_buf)
+		    u16 wait_option, void *pdata_buf)
 {
 	lbs_deb_enter(LBS_DEB_HOST);
 
 	if (!ptempnode)
 		return;
 
-	ptempnode->cmd_oid = cmd_oid;
 	ptempnode->wait_option = wait_option;
 	ptempnode->pdata_buf = pdata_buf;
 

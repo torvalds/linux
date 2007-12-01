@@ -69,8 +69,6 @@ struct cmd_ctrl_node {
 	/* CMD link list */
 	struct list_head list;
 	u32 status;
-	/* CMD ID */
-	u32 cmd_oid;
 	/*CMD wait option: wait for finish or no wait */
 	u16 wait_option;
 	/* command parameter */

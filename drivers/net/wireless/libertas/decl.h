@@ -26,7 +26,7 @@ struct cmd_ctrl_node *lbs_get_free_cmd_ctrl_node(struct lbs_private *priv);
 
 void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 	struct cmd_ctrl_node *ptempnode,
-	u32 cmd_oid, u16 wait_option, void *pdata_buf);
+	u16 wait_option, void *pdata_buf);
 
 int lbs_prepare_and_send_command(struct lbs_private *priv,
 	u16 cmd_no,
