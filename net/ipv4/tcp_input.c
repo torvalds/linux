@@ -1118,12 +1118,11 @@ static int tcp_is_sackblock_valid(struct tcp_sock *tp, int is_dsack,
  * highest SACK block). Also calculate the lowest snd_nxt among the remaining
  * retransmitted skbs to avoid some costly processing per ACKs.
  */
-static int tcp_mark_lost_retrans(struct sock *sk)
+static void tcp_mark_lost_retrans(struct sock *sk)
 {
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	int flag = 0;
 	int cnt = 0;
 	u32 new_low_seq = tp->snd_nxt;
 	u32 received_upto = TCP_SKB_CB(tp->highest_sack)->end_seq;
@@ -1131,7 +1130,7 @@ static int tcp_mark_lost_retrans(struct sock *sk)
 	if (!tcp_is_fack(tp) || !tp->retrans_out ||
 	    !after(received_upto, tp->lost_retrans_low) ||
 	    icsk->icsk_ca_state != TCP_CA_Recovery)
-		return flag;
+		return;
 
 	tcp_for_write_queue(skb, sk) {
 		u32 ack_seq = TCP_SKB_CB(skb)->ack_seq;
@@ -1159,7 +1158,6 @@ static int tcp_mark_lost_retrans(struct sock *sk)
 			if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_LOST|TCPCB_SACKED_ACKED))) {
 				tp->lost_out += tcp_skb_pcount(skb);
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
-				flag |= FLAG_DATA_SACKED;
 			}
 			NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
 		} else {
@@ -1171,8 +1169,6 @@ static int tcp_mark_lost_retrans(struct sock *sk)
 
 	if (tp->retrans_out)
 		tp->lost_retrans_low = new_low_seq;
-
-	return flag;
 }
 
 static int tcp_check_dsack(struct tcp_sock *tp, struct sk_buff *ack_skb,
@@ -1603,7 +1599,7 @@ advance_sp:
 	for (j = 0; j < used_sacks; j++)
 		tp->recv_sack_cache[i++] = sp[j];
 
-	flag |= tcp_mark_lost_retrans(sk);
+	tcp_mark_lost_retrans(sk);
 
 	tcp_verify_left_out(tp);
 
