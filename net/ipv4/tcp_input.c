@@ -1160,8 +1160,8 @@ static int tcp_mark_lost_retrans(struct sock *sk)
 				tp->lost_out += tcp_skb_pcount(skb);
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 				flag |= FLAG_DATA_SACKED;
-				NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
 			}
+			NET_INC_STATS_BH(LINUX_MIB_TCPLOSTRETRANSMIT);
 		} else {
 			if (before(ack_seq, new_low_seq))
 				new_low_seq = ack_seq;
