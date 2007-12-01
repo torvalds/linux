@@ -52,10 +52,10 @@
 #include <asm/arch/irqs.h>
 
 #include <asm/arch/hardware.h>
-#include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-udc.h>
-#include <asm/arch/udc.h>
+
+#include <asm/plat-s3c24xx/regs-udc.h>
+#include <asm/plat-s3c24xx/udc.h>
 
 #include <asm/mach-types.h>
 
@@ -1511,7 +1511,11 @@ static irqreturn_t s3c2410_udc_vbus_irq(int irq, void *_dev)
 	unsigned int		value;
 
 	dprintk(DEBUG_NORMAL, "%s()\n", __func__);
+
+	/* some cpus cannot read from an line configured to IRQ! */
+	s3c2410_gpio_cfgpin(udc_info->vbus_pin, S3C2410_GPIO_INPUT);
 	value = s3c2410_gpio_getpin(udc_info->vbus_pin);
+	s3c2410_gpio_cfgpin(udc_info->vbus_pin, S3C2410_GPIO_SFN2);
 
 	if (udc_info->vbus_pin_inverted)
 		value = !value;
@@ -1872,9 +1876,9 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	if (udc_info && udc_info->vbus_pin > 0) {
 		irq = s3c2410_gpio_getirq(udc_info->vbus_pin);
 		retval = request_irq(irq, s3c2410_udc_vbus_irq,
-				IRQF_DISABLED | IRQF_TRIGGER_RISING
-				| IRQF_TRIGGER_FALLING,
-				gadget_name, udc);
+				     IRQF_DISABLED | IRQF_TRIGGER_RISING
+				     | IRQF_TRIGGER_FALLING | IRQF_SHARED,
+				     gadget_name, udc);
 
 		if (retval != 0) {
 			dev_err(dev, "can't get vbus irq %i, err %d\n",

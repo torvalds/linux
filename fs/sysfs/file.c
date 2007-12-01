@@ -119,7 +119,11 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 
 	sysfs_put_active_two(attr_sd);
 
-	BUG_ON(count > (ssize_t)PAGE_SIZE);
+	/*
+	 * The code works fine with PAGE_SIZE return but it's likely to
+	 * indicate truncated result or overflow in normal use cases.
+	 */
+	BUG_ON(count >= (ssize_t)PAGE_SIZE);
 	if (count >= 0) {
 		buffer->needs_read_fill = 0;
 		buffer->count = count;

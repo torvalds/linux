@@ -58,6 +58,9 @@ static int snd_emu10k1_spdif_get(struct snd_kcontrol *kcontrol,
 	unsigned int idx = snd_ctl_get_ioffidx(kcontrol, &ucontrol->id);
 	unsigned long flags;
 
+	/* Limit: emu->spdif_bits */
+	if (idx >= 3)
+		return -EINVAL;
 	spin_lock_irqsave(&emu->reg_lock, flags);
 	ucontrol->value.iec958.status[0] = (emu->spdif_bits[idx] >> 0) & 0xff;
 	ucontrol->value.iec958.status[1] = (emu->spdif_bits[idx] >> 8) & 0xff;
@@ -272,9 +275,12 @@ static int snd_emu1010_output_source_get(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	int channel;
+	unsigned int channel;
 
 	channel = (kcontrol->private_value) & 0xff;
+	/* Limit: emu1010_output_dst, emu->emu1010.output_source */
+	if (channel >= 24)
+		return -EINVAL;
 	ucontrol->value.enumerated.item[0] = emu->emu1010.output_source[channel];
 	return 0;
 }
@@ -285,11 +291,17 @@ static int snd_emu1010_output_source_put(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	int change = 0;
 	unsigned int val;
-	int channel;
+	unsigned int channel;
 
+	val = ucontrol->value.enumerated.item[0];
+	if (val >= 53)
+		return -EINVAL;
 	channel = (kcontrol->private_value) & 0xff;
-	if (emu->emu1010.output_source[channel] != ucontrol->value.enumerated.item[0]) {
-		val = emu->emu1010.output_source[channel] = ucontrol->value.enumerated.item[0];
+	/* Limit: emu1010_output_dst, emu->emu1010.output_source */
+	if (channel >= 24)
+		return -EINVAL;
+	if (emu->emu1010.output_source[channel] != val) {
+		emu->emu1010.output_source[channel] = val;
 		change = 1;
 		snd_emu1010_fpga_link_dst_src_write(emu,
 			emu1010_output_dst[channel], emu1010_src_regs[val]);
@@ -301,9 +313,12 @@ static int snd_emu1010_input_source_get(struct snd_kcontrol *kcontrol,
                                  struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	int channel;
+	unsigned int channel;
 
 	channel = (kcontrol->private_value) & 0xff;
+	/* Limit: emu1010_input_dst, emu->emu1010.input_source */
+	if (channel >= 22)
+		return -EINVAL;
 	ucontrol->value.enumerated.item[0] = emu->emu1010.input_source[channel];
 	return 0;
 }
@@ -314,11 +329,17 @@ static int snd_emu1010_input_source_put(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	int change = 0;
 	unsigned int val;
-	int channel;
+	unsigned int channel;
 
+	val = ucontrol->value.enumerated.item[0];
+	if (val >= 53)
+		return -EINVAL;
 	channel = (kcontrol->private_value) & 0xff;
-	if (emu->emu1010.input_source[channel] != ucontrol->value.enumerated.item[0]) {
-		val = emu->emu1010.input_source[channel] = ucontrol->value.enumerated.item[0];
+	/* Limit: emu1010_input_dst, emu->emu1010.input_source */
+	if (channel >= 22)
+		return -EINVAL;
+	if (emu->emu1010.input_source[channel] != val) {
+		emu->emu1010.input_source[channel] = val;
 		change = 1;
 		snd_emu1010_fpga_link_dst_src_write(emu,
 			emu1010_input_dst[channel], emu1010_src_regs[val]);
@@ -533,6 +554,9 @@ static int snd_emu1010_internal_clock_put(struct snd_kcontrol *kcontrol,
 	int change = 0;
 
 	val = ucontrol->value.enumerated.item[0] ;
+	/* Limit: uinfo->value.enumerated.items = 4; */
+	if (val >= 4)
+		return -EINVAL;
 	change = (emu->emu1010.internal_clock != val);
 	if (change) {
 		emu->emu1010.internal_clock = val;
@@ -669,7 +693,11 @@ static int snd_audigy_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 	 * update the capture volume from the cached value
 	 * for the particular source.
 	 */
-	source_id = ucontrol->value.enumerated.item[0]; /* Use 2 and 3 */
+	source_id = ucontrol->value.enumerated.item[0];
+	/* Limit: uinfo->value.enumerated.items = 2; */
+	/*        emu->i2c_capture_volume */
+	if (source_id >= 2)
+		return -EINVAL;
 	change = (emu->i2c_capture_source != source_id);
 	if (change) {
 		snd_emu10k1_i2c_write(emu, ADC_MUX, 0); /* Mute input */
@@ -720,9 +748,13 @@ static int snd_audigy_i2c_volume_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
-	int source_id;
+	unsigned int source_id;
 
 	source_id = kcontrol->private_value;
+	/* Limit: emu->i2c_capture_volume */
+        /*        capture_source: uinfo->value.enumerated.items = 2 */
+	if (source_id >= 2)
+		return -EINVAL;
 
 	ucontrol->value.integer.value[0] = emu->i2c_capture_volume[source_id][0];
 	ucontrol->value.integer.value[1] = emu->i2c_capture_volume[source_id][1];
@@ -735,10 +767,14 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	struct snd_emu10k1 *emu = snd_kcontrol_chip(kcontrol);
 	unsigned int ogain;
 	unsigned int ngain;
-	int source_id;
+	unsigned int source_id;
 	int change = 0;
 
 	source_id = kcontrol->private_value;
+	/* Limit: emu->i2c_capture_volume */
+        /*        capture_source: uinfo->value.enumerated.items = 2 */
+	if (source_id >= 2)
+		return -EINVAL;
 	ogain = emu->i2c_capture_volume[source_id][0]; /* Left */
 	ngain = ucontrol->value.integer.value[0];
 	if (ngain > 0xff)
@@ -746,7 +782,7 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	if (ogain != ngain) {
 		if (emu->i2c_capture_source == source_id)
 			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff) );
-		emu->i2c_capture_volume[source_id][0] = ucontrol->value.integer.value[0];
+		emu->i2c_capture_volume[source_id][0] = ngain;
 		change = 1;
 	}
 	ogain = emu->i2c_capture_volume[source_id][1]; /* Right */
@@ -756,7 +792,7 @@ static int snd_audigy_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	if (ogain != ngain) {
 		if (emu->i2c_capture_source == source_id)
 			snd_emu10k1_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
-		emu->i2c_capture_volume[source_id][1] = ucontrol->value.integer.value[1];
+		emu->i2c_capture_volume[source_id][1] = ngain;
 		change = 1;
 	}
 
@@ -877,6 +913,9 @@ static int snd_emu10k1_spdif_put(struct snd_kcontrol *kcontrol,
 	unsigned int val;
 	unsigned long flags;
 
+	/* Limit: emu->spdif_bits */
+	if (idx >= 3)
+		return -EINVAL;
 	val = (ucontrol->value.iec958.status[0] << 0) |
 	      (ucontrol->value.iec958.status[1] << 8) |
 	      (ucontrol->value.iec958.status[2] << 16) |

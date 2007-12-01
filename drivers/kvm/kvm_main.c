@@ -1188,8 +1188,7 @@ int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address)
 
 int emulate_clts(struct kvm_vcpu *vcpu)
 {
-	vcpu->cr0 &= ~X86_CR0_TS;
-	kvm_x86_ops->set_cr0(vcpu, vcpu->cr0);
+	kvm_x86_ops->set_cr0(vcpu, vcpu->cr0 & ~X86_CR0_TS);
 	return X86EMUL_CONTINUE;
 }
 

@@ -1295,6 +1295,7 @@ static int tcp_mtu_probe(struct sock *sk)
 	struct sk_buff *skb, *nskb, *next;
 	int len;
 	int probe_size;
+	int size_needed;
 	unsigned int pif;
 	int copy;
 	int mss_now;
@@ -1313,27 +1314,20 @@ static int tcp_mtu_probe(struct sock *sk)
 	/* Very simple search strategy: just double the MSS. */
 	mss_now = tcp_current_mss(sk, 0);
 	probe_size = 2*tp->mss_cache;
+	size_needed = probe_size + (tp->reordering + 1) * tp->mss_cache;
 	if (probe_size > tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_high)) {
 		/* TODO: set timer for probe_converge_event */
 		return -1;
 	}
 
 	/* Have enough data in the send queue to probe? */
-	len = 0;
-	if ((skb = tcp_send_head(sk)) == NULL)
-		return -1;
-	while ((len += skb->len) < probe_size && !tcp_skb_is_last(sk, skb))
-		skb = tcp_write_queue_next(sk, skb);
-	if (len < probe_size)
+	if (tp->write_seq - tp->snd_nxt < size_needed)
 		return -1;
 
-	/* Receive window check. */
-	if (after(TCP_SKB_CB(skb)->seq + probe_size, tp->snd_una + tp->snd_wnd)) {
-		if (tp->snd_wnd < probe_size)
-			return -1;
-		else
-			return 0;
-	}
+	if (tp->snd_wnd < size_needed)
+		return -1;
+	if (after(tp->snd_nxt + size_needed, tp->snd_una + tp->snd_wnd))
+		return 0;
 
 	/* Do we need to wait to drain cwnd? */
 	pif = tcp_packets_in_flight(tp);
@@ -1352,7 +1346,6 @@ static int tcp_mtu_probe(struct sock *sk)
 
 	skb = tcp_send_head(sk);
 	tcp_insert_write_queue_before(nskb, skb, sk);
-	tcp_advance_send_head(sk, skb);
 
 	TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(nskb)->end_seq = TCP_SKB_CB(skb)->seq + probe_size;

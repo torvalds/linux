@@ -702,8 +702,10 @@ static int __init pci_sysfs_init(void)
 	sysfs_initialized = 1;
 	for_each_pci_dev(pdev) {
 		retval = pci_create_sysfs_dev_files(pdev);
-		if (retval)
+		if (retval) {
+			pci_dev_put(pdev);
 			return retval;
+		}
 	}
 
 	return 0;

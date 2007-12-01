@@ -18,7 +18,7 @@
 #include <asm/arch/mfp.h>
 
 /* GPIO */
-#define GPIO46_GPIO		MFP_CFG(GPIO6, AF0)
+#define GPIO46_GPIO		MFP_CFG(GPIO46, AF0)
 #define GPIO49_GPIO		MFP_CFG(GPIO49, AF0)
 #define GPIO50_GPIO		MFP_CFG(GPIO50, AF0)
 #define GPIO51_GPIO		MFP_CFG(GPIO51, AF0)

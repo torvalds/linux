@@ -26,10 +26,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 					struct rtc_device, char_dev);
 	const struct rtc_class_ops *ops = rtc->ops;
 
-	/* We keep the lock as long as the device is in use
-	 * and return immediately if busy
-	 */
-	if (!(mutex_trylock(&rtc->char_lock)))
+	if (test_and_set_bit(RTC_DEV_BUSY, &rtc->flags))
 		return -EBUSY;
 
 	file->private_data = rtc;
@@ -43,8 +40,8 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 		return 0;
 	}
 
-	/* something has gone wrong, release the lock */
-	mutex_unlock(&rtc->char_lock);
+	/* something has gone wrong */
+	clear_bit(RTC_DEV_BUSY, &rtc->flags);
 	return err;
 }
 
@@ -405,7 +402,7 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 	if (rtc->ops->release)
 		rtc->ops->release(rtc->dev.parent);
 
-	mutex_unlock(&rtc->char_lock);
+	clear_bit(RTC_DEV_BUSY, &rtc->flags);
 	return 0;
 }
 
@@ -440,7 +437,6 @@ void rtc_dev_prepare(struct rtc_device *rtc)
 
 	rtc->dev.devt = MKDEV(MAJOR(rtc_devt), rtc->id);
 
-	mutex_init(&rtc->char_lock);
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	INIT_WORK(&rtc->uie_task, rtc_uie_task);
 	setup_timer(&rtc->uie_timer, rtc_uie_timer, (unsigned long)rtc);

@@ -272,24 +272,24 @@
 		clock-frequency = <1fca055>;
 		interrupt-parent = <&mpic>;
 		interrupts = <1b 2>;
-		interrupt-map-mask = <fb00 0 0 0>;
+		interrupt-map-mask = <ff00 0 0 1>;
 		interrupt-map = <
 			// IDSEL 0x1c  USB
-			e000 0 0 0 &i8259 c 2
-			e100 0 0 0 &i8259 9 2
-			e200 0 0 0 &i8259 a 2
-			e300 0 0 0 &i8259 b 2
+			e000 0 0 1 &i8259 c 2
+			e100 0 0 1 &i8259 9 2
+			e200 0 0 1 &i8259 a 2
+			e300 0 0 1 &i8259 b 2
 
 			// IDSEL 0x1d  Audio
-			e800 0 0 0 &i8259 6 2
+			e800 0 0 1 &i8259 6 2
 
 			// IDSEL 0x1e Legacy
-			f000 0 0 0 &i8259 7 2
-			f100 0 0 0 &i8259 7 2
+			f000 0 0 1 &i8259 7 2
+			f100 0 0 1 &i8259 7 2
 
 			// IDSEL 0x1f IDE/SATA
-			f800 0 0 0 &i8259 e 2
-			f900 0 0 0 &i8259 5 2
+			f800 0 0 1 &i8259 e 2
+			f900 0 0 1 &i8259 5 2
 		>;
 
 		pcie@0 {

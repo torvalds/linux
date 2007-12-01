@@ -50,14 +50,6 @@ int update_persistent_clock(struct timespec now)
 	return rtc_mips_set_mmss(now.tv_sec);
 }
 
-/*
- * High precision timer functions for a R4k-compatible timer.
- */
-static cycle_t c0_hpt_read(void)
-{
-	return read_c0_count();
-}
-
 int (*mips_timer_state)(void);
 
 int null_perf_irq(void)
@@ -83,55 +75,6 @@ EXPORT_SYMBOL(perf_irq);
  */
 
 unsigned int mips_hpt_frequency;
-
-static struct clocksource clocksource_mips = {
-	.name		= "MIPS",
-	.read		= c0_hpt_read,
-	.mask		= CLOCKSOURCE_MASK(32),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
-static unsigned int __init calibrate_hpt(void)
-{
-	cycle_t frequency, hpt_start, hpt_end, hpt_count, hz;
-
-	const int loops = HZ / 10;
-	int log_2_loops = 0;
-	int i;
-
-	/*
-	 * We want to calibrate for 0.1s, but to avoid a 64-bit
-	 * division we round the number of loops up to the nearest
-	 * power of 2.
-	 */
-	while (loops > 1 << log_2_loops)
-		log_2_loops++;
-	i = 1 << log_2_loops;
-
-	/*
-	 * Wait for a rising edge of the timer interrupt.
-	 */
-	while (mips_timer_state());
-	while (!mips_timer_state());
-
-	/*
-	 * Now see how many high precision timer ticks happen
-	 * during the calculated number of periods between timer
-	 * interrupts.
-	 */
-	hpt_start = clocksource_mips.read();
-	do {
-		while (mips_timer_state());
-		while (!mips_timer_state());
-	} while (--i);
-	hpt_end = clocksource_mips.read();
-
-	hpt_count = (hpt_end - hpt_start) & clocksource_mips.mask;
-	hz = HZ;
-	frequency = hpt_count * hz;
-
-	return frequency >> log_2_loops;
-}
 
 void __init clocksource_set_clock(struct clocksource *cs, unsigned int clock)
 {
@@ -166,16 +109,6 @@ void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
 	cd->mult = (u32) temp;
 }
 
-static void __init init_mips_clocksource(void)
-{
-	/* Calclate a somewhat reasonable rating value */
-	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
-
-	clocksource_set_clock(&clocksource_mips, mips_hpt_frequency);
-
-	clocksource_register(&clocksource_mips);
-}
-
 void __init __weak plat_time_init(void)
 {
 }
@@ -194,21 +127,42 @@ void __init plat_timer_setup(void)
 	BUG();
 }
 
+static __init int cpu_has_mfc0_count_bug(void)
+{
+	switch (current_cpu_type()) {
+	case CPU_R4000PC:
+	case CPU_R4000SC:
+	case CPU_R4000MC:
+		/*
+		 * V3.0 is documented as suffering from the mfc0 from count bug.
+		 * Afaik this is the last version of the R4000.  Later versions
+		 * were marketed as R4400.
+		 */
+		return 1;
+
+	case CPU_R4400PC:
+	case CPU_R4400SC:
+	case CPU_R4400MC:
+		/*
+		 * The published errata for the R4400 upto 3.0 say the CPU
+		 * has the mfc0 from count bug.
+		 */
+		if ((current_cpu_data.processor_id & 0xff) <= 0x30)
+			return 1;
+
+		/*
+		 * I don't have erratas for newer R4400 so be paranoid.
+		 */
+		return 1;
+	}
+
+	return 0;
+}
+
 void __init time_init(void)
 {
 	plat_time_init();
 
-	if (cpu_has_counter && (mips_hpt_frequency || mips_timer_state)) {
-		/* We know counter frequency.  Or we can get it.  */
-		if (!mips_hpt_frequency)
-			mips_hpt_frequency = calibrate_hpt();
-
-		/* Report the high precision timer rate for a reference.  */
-		printk("Using %u.%03u MHz high precision timer.\n",
-		       ((mips_hpt_frequency + 500) / 1000) / 1000,
-		       ((mips_hpt_frequency + 500) / 1000) % 1000);
+	if (mips_clockevent_init() || !cpu_has_mfc0_count_bug())
 		init_mips_clocksource();
-	}
-
-	mips_clockevent_init();
 }

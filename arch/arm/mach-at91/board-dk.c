@@ -124,6 +124,19 @@ static struct spi_board_info dk_spi_devices[] = {
 #endif
 };
 
+static struct i2c_board_info __initdata dk_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("ics1523", 0x26),
+	},
+	{
+		I2C_BOARD_INFO("x9429", 0x28),
+	},
+	{
+		I2C_BOARD_INFO("at24c", 0x50),
+		.type	= "24c1024",
+	}
+};
+
 static struct mtd_partition __initdata dk_nand_partition[] = {
 	{
 		.name	= "NAND Partition 1",
@@ -185,7 +198,7 @@ static void __init dk_board_init(void)
 	/* Compact Flash */
 	at91_add_device_cf(&dk_cf_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(dk_i2c_devices, ARRAY_SIZE(dk_i2c_devices));
 	/* SPI */
 	at91_add_device_spi(dk_spi_devices, ARRAY_SIZE(dk_spi_devices));
 #ifdef CONFIG_MTD_AT91_DATAFLASH_CARD

@@ -86,7 +86,7 @@ static int snd_ca0106_shared_spdif_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_ca0106 *emu = snd_kcontrol_chip(kcontrol);
 
-	ucontrol->value.enumerated.item[0] = emu->spdif_enable;
+	ucontrol->value.integer.value[0] = emu->spdif_enable;
 	return 0;
 }
 
@@ -98,11 +98,11 @@ static int snd_ca0106_shared_spdif_put(struct snd_kcontrol *kcontrol,
 	int change = 0;
 	u32 mask;
 
-	val = ucontrol->value.enumerated.item[0] ;
+	val = !!ucontrol->value.integer.value[0];
 	change = (emu->spdif_enable != val);
 	if (change) {
 		emu->spdif_enable = val;
-		if (val == 1) {
+		if (val) {
 			/* Digital */
 			snd_ca0106_ptr_write(emu, SPDIF_SELECT1, 0, 0xf);
 			snd_ca0106_ptr_write(emu, SPDIF_SELECT2, 0, 0x0b000000);
@@ -159,6 +159,8 @@ static int snd_ca0106_capture_source_put(struct snd_kcontrol *kcontrol,
 	u32 source;
 
 	val = ucontrol->value.enumerated.item[0] ;
+	if (val >= 6)
+		return -EINVAL;
 	change = (emu->capture_source != val);
 	if (change) {
 		emu->capture_source = val;
@@ -207,6 +209,8 @@ static int snd_ca0106_i2c_capture_source_put(struct snd_kcontrol *kcontrol,
 	 * for the particular source.
 	 */
 	source_id = ucontrol->value.enumerated.item[0] ;
+	if (source_id >= 4)
+		return -EINVAL;
 	change = (emu->i2c_capture_source != source_id);
 	if (change) {
 		snd_ca0106_i2c_write(emu, ADC_MUX, 0); /* Mute input */
@@ -271,6 +275,8 @@ static int snd_ca0106_capture_mic_line_in_put(struct snd_kcontrol *kcontrol,
 	u32 tmp;
 
 	val = ucontrol->value.enumerated.item[0] ;
+	if (val > 1)
+		return -EINVAL;
 	change = (emu->capture_mic_line_in != val);
 	if (change) {
 		emu->capture_mic_line_in = val;
@@ -443,7 +449,7 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	ogain = emu->i2c_capture_volume[source_id][0]; /* Left */
 	ngain = ucontrol->value.integer.value[0];
 	if (ngain > 0xff)
-		return 0;
+		return -EINVAL;
 	if (ogain != ngain) {
 		if (emu->i2c_capture_source == source_id)
 			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCL, ((ngain) & 0xff) );
@@ -453,7 +459,7 @@ static int snd_ca0106_i2c_volume_put(struct snd_kcontrol *kcontrol,
 	ogain = emu->i2c_capture_volume[source_id][1]; /* Right */
 	ngain = ucontrol->value.integer.value[1];
 	if (ngain > 0xff)
-		return 0;
+		return -EINVAL;
 	if (ogain != ngain) {
 		if (emu->i2c_capture_source == source_id)
 			snd_ca0106_i2c_write(emu, ADC_ATTEN_ADCR, ((ngain) & 0xff));
@@ -497,7 +503,7 @@ static int spi_mute_put(struct snd_kcontrol *kcontrol,
 	}
 
 	ret = snd_ca0106_spi_write(emu, emu->spi_dac_reg[reg]);
-	return ret ? -1 : 1;
+	return ret ? -EINVAL : 1;
 }
 
 #define CA_VOLUME(xname,chid,reg) \

@@ -1,0 +1,12 @@
+choice
+	prompt "System type"
+	default BFIN527_EZKIT
+	help
+	  Select your board!
+
+config BFIN527_EZKIT
+	bool "BF527-EZKIT"
+	help
+	  BF527-EZKIT-LITE board support.
+
+endchoice

@@ -96,10 +96,23 @@ static int virtio_dev_probe(struct device *_d)
 	return err;
 }
 
+static int virtio_dev_remove(struct device *_d)
+{
+	struct virtio_device *dev = container_of(_d,struct virtio_device,dev);
+	struct virtio_driver *drv = container_of(dev->dev.driver,
+						 struct virtio_driver, driver);
+
+	dev->config->set_status(dev, dev->config->get_status(dev)
+				& ~VIRTIO_CONFIG_S_DRIVER);
+	drv->remove(dev);
+	return 0;
+}
+
 int register_virtio_driver(struct virtio_driver *driver)
 {
 	driver->driver.bus = &virtio_bus;
 	driver->driver.probe = virtio_dev_probe;
+	driver->driver.remove = virtio_dev_remove;
 	return driver_register(&driver->driver);
 }
 EXPORT_SYMBOL_GPL(register_virtio_driver);

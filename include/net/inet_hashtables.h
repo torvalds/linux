@@ -186,9 +186,8 @@ static inline void inet_ehash_locks_free(struct inet_hashinfo *hashinfo)
 		if (size > PAGE_SIZE)
 			vfree(hashinfo->ehash_locks);
 		else
-#else
-		kfree(hashinfo->ehash_locks);
 #endif
+		kfree(hashinfo->ehash_locks);
 		hashinfo->ehash_locks = NULL;
 	}
 }

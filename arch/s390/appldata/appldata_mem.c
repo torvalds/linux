@@ -147,7 +147,6 @@ static void appldata_get_mem_data(void *data)
 
 
 static struct appldata_ops ops = {
-	.ctl_nr    = CTL_APPLDATA_MEM,
 	.name      = "mem",
 	.record_nr = APPLDATA_RECORD_MEM_ID,
 	.size	   = sizeof(struct appldata_mem_data),

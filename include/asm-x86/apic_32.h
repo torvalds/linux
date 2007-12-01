@@ -120,6 +120,7 @@ extern int local_apic_timer_disabled;
 
 #else /* !CONFIG_X86_LOCAL_APIC */
 static inline void lapic_shutdown(void) { }
+#define local_apic_timer_c2_ok		1
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 

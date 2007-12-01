@@ -344,12 +344,24 @@ static void ocfs2_dentry_iput(struct dentry *dentry, struct inode *inode)
 {
 	struct ocfs2_dentry_lock *dl = dentry->d_fsdata;
 
-	mlog_bug_on_msg(!dl && !(dentry->d_flags & DCACHE_DISCONNECTED),
-			"dentry: %.*s\n", dentry->d_name.len,
-			dentry->d_name.name);
+	if (!dl) {
+		/*
+		 * No dentry lock is ok if we're disconnected or
+		 * unhashed.
+		 */
+		if (!(dentry->d_flags & DCACHE_DISCONNECTED) &&
+		    !d_unhashed(dentry)) {
+			unsigned long long ino = 0ULL;
+			if (inode)
+				ino = (unsigned long long)OCFS2_I(inode)->ip_blkno;
+			mlog(ML_ERROR, "Dentry is missing cluster lock. "
+			     "inode: %llu, d_flags: 0x%x, d_name: %.*s\n",
+			     ino, dentry->d_flags, dentry->d_name.len,
+			     dentry->d_name.name);
+		}
 
-	if (!dl)
 		goto out;
+	}
 
 	mlog_bug_on_msg(dl->dl_count == 0, "dentry: %.*s, count: %u\n",
 			dentry->d_name.len, dentry->d_name.name,

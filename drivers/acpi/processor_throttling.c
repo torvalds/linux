@@ -70,7 +70,55 @@ static int acpi_processor_get_platform_limit(struct acpi_processor *pr)
 
 int acpi_processor_tstate_has_changed(struct acpi_processor *pr)
 {
-	return acpi_processor_get_platform_limit(pr);
+	int result = 0;
+	int throttling_limit;
+	int current_state;
+	struct acpi_processor_limit *limit;
+	int target_state;
+
+	result = acpi_processor_get_platform_limit(pr);
+	if (result) {
+		/* Throttling Limit is unsupported */
+		return result;
+	}
+
+	throttling_limit = pr->throttling_platform_limit;
+	if (throttling_limit >= pr->throttling.state_count) {
+		/* Uncorrect Throttling Limit */
+		return -EINVAL;
+	}
+
+	current_state = pr->throttling.state;
+	if (current_state > throttling_limit) {
+		/*
+		 * The current state can meet the requirement of
+		 * _TPC limit. But it is reasonable that OSPM changes
+		 * t-states from high to low for better performance.
+		 * Of course the limit condition of thermal
+		 * and user should be considered.
+		 */
+		limit = &pr->limit;
+		target_state = throttling_limit;
+		if (limit->thermal.tx > target_state)
+			target_state = limit->thermal.tx;
+		if (limit->user.tx > target_state)
+			target_state = limit->user.tx;
+	} else if (current_state == throttling_limit) {
+		/*
+		 * Unnecessary to change the throttling state
+		 */
+		return 0;
+	} else {
+		/*
+		 * If the current state is lower than the limit of _TPC, it
+		 * will be forced to switch to the throttling state defined
+		 * by throttling_platfor_limit.
+		 * Because the previous state meets with the limit condition
+		 * of thermal and user, it is unnecessary to check it again.
+		 */
+		target_state = throttling_limit;
+	}
+	return acpi_processor_set_throttling(pr, target_state);
 }
 
 /*
@@ -83,6 +131,7 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *ptc = NULL;
 	union acpi_object obj = { 0 };
+	struct acpi_processor_throttling *throttling;
 
 	status = acpi_evaluate_object(pr->handle, "_PTC", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -133,6 +182,22 @@ static int acpi_processor_get_throttling_control(struct acpi_processor *pr)
 
 	memcpy(&pr->throttling.status_register, obj.buffer.pointer,
 	       sizeof(struct acpi_ptc_register));
+
+	throttling = &pr->throttling;
+
+	if ((throttling->control_register.bit_width +
+		throttling->control_register.bit_offset) > 32) {
+		printk(KERN_ERR PREFIX "Invalid _PTC control register\n");
+		result = -EFAULT;
+		goto end;
+	}
+
+	if ((throttling->status_register.bit_width +
+		throttling->status_register.bit_offset) > 32) {
+		printk(KERN_ERR PREFIX "Invalid _PTC status register\n");
+		result = -EFAULT;
+		goto end;
+	}
 
       end:
 	kfree(buffer.pointer);
@@ -328,44 +393,132 @@ static int acpi_processor_get_throttling_fadt(struct acpi_processor *pr)
 	return 0;
 }
 
-static int acpi_read_throttling_status(struct acpi_processor_throttling
-				       *throttling)
+#ifdef CONFIG_X86
+static int acpi_throttling_rdmsr(struct acpi_processor *pr,
+					acpi_integer * value)
 {
-	int value = -1;
+	struct cpuinfo_x86 *c;
+	u64 msr_high, msr_low;
+	unsigned int cpu;
+	u64 msr = 0;
+	int ret = -1;
+
+	cpu = pr->id;
+	c = &cpu_data(cpu);
+
+	if ((c->x86_vendor != X86_VENDOR_INTEL) ||
+		!cpu_has(c, X86_FEATURE_ACPI)) {
+		printk(KERN_ERR PREFIX
+			"HARDWARE addr space,NOT supported yet\n");
+	} else {
+		msr_low = 0;
+		msr_high = 0;
+		rdmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL,
+			(u32 *)&msr_low , (u32 *) &msr_high);
+		msr = (msr_high << 32) | msr_low;
+		*value = (acpi_integer) msr;
+		ret = 0;
+	}
+	return ret;
+}
+
+static int acpi_throttling_wrmsr(struct acpi_processor *pr, acpi_integer value)
+{
+	struct cpuinfo_x86 *c;
+	unsigned int cpu;
+	int ret = -1;
+	u64 msr;
+
+	cpu = pr->id;
+	c = &cpu_data(cpu);
+
+	if ((c->x86_vendor != X86_VENDOR_INTEL) ||
+		!cpu_has(c, X86_FEATURE_ACPI)) {
+		printk(KERN_ERR PREFIX
+			"HARDWARE addr space,NOT supported yet\n");
+	} else {
+		msr = value;
+		wrmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL,
+			msr & 0xffffffff, msr >> 32);
+		ret = 0;
+	}
+	return ret;
+}
+#else
+static int acpi_throttling_rdmsr(struct acpi_processor *pr,
+				acpi_integer * value)
+{
+	printk(KERN_ERR PREFIX
+		"HARDWARE addr space,NOT supported yet\n");
+	return -1;
+}
+
+static int acpi_throttling_wrmsr(struct acpi_processor *pr, acpi_integer value)
+{
+	printk(KERN_ERR PREFIX
+		"HARDWARE addr space,NOT supported yet\n");
+	return -1;
+}
+#endif
+
+static int acpi_read_throttling_status(struct acpi_processor *pr,
+					acpi_integer *value)
+{
+	u32 bit_width, bit_offset;
+	u64 ptc_value;
+	u64 ptc_mask;
+	struct acpi_processor_throttling *throttling;
+	int ret = -1;
+
+	throttling = &pr->throttling;
 	switch (throttling->status_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
+		ptc_value = 0;
+		bit_width = throttling->status_register.bit_width;
+		bit_offset = throttling->status_register.bit_offset;
+
 		acpi_os_read_port((acpi_io_address) throttling->status_register.
-				  address, &value,
-				  (u32) throttling->status_register.bit_width *
-				  8);
+				  address, (u32 *) &ptc_value,
+				  (u32) (bit_width + bit_offset));
+		ptc_mask = (1 << bit_width) - 1;
+		*value = (acpi_integer) ((ptc_value >> bit_offset) & ptc_mask);
+		ret = 0;
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
-		printk(KERN_ERR PREFIX
-		       "HARDWARE addr space,NOT supported yet\n");
+		ret = acpi_throttling_rdmsr(pr, value);
 		break;
 	default:
 		printk(KERN_ERR PREFIX "Unknown addr space %d\n",
 		       (u32) (throttling->status_register.space_id));
 	}
-	return value;
+	return ret;
 }
 
-static int acpi_write_throttling_state(struct acpi_processor_throttling
-				       *throttling, int value)
+static int acpi_write_throttling_state(struct acpi_processor *pr,
+				acpi_integer value)
 {
+	u32 bit_width, bit_offset;
+	u64 ptc_value;
+	u64 ptc_mask;
+	struct acpi_processor_throttling *throttling;
 	int ret = -1;
 
+	throttling = &pr->throttling;
 	switch (throttling->control_register.space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
+		bit_width = throttling->control_register.bit_width;
+		bit_offset = throttling->control_register.bit_offset;
+		ptc_mask = (1 << bit_width) - 1;
+		ptc_value = value & ptc_mask;
+
 		acpi_os_write_port((acpi_io_address) throttling->
-				   control_register.address, value,
-				   (u32) throttling->control_register.
-				   bit_width * 8);
+					control_register.address,
+					(u32) (ptc_value << bit_offset),
+					(u32) (bit_width + bit_offset));
 		ret = 0;
 		break;
 	case ACPI_ADR_SPACE_FIXED_HARDWARE:
-		printk(KERN_ERR PREFIX
-		       "HARDWARE addr space,NOT supported yet\n");
+		ret = acpi_throttling_wrmsr(pr, value);
 		break;
 	default:
 		printk(KERN_ERR PREFIX "Unknown addr space %d\n",
@@ -374,7 +527,8 @@ static int acpi_write_throttling_state(struct acpi_processor_throttling
 	return ret;
 }
 
-static int acpi_get_throttling_state(struct acpi_processor *pr, int value)
+static int acpi_get_throttling_state(struct acpi_processor *pr,
+				acpi_integer value)
 {
 	int i;
 
@@ -390,22 +544,26 @@ static int acpi_get_throttling_state(struct acpi_processor *pr, int value)
 	return i;
 }
 
-static int acpi_get_throttling_value(struct acpi_processor *pr, int state)
+static int acpi_get_throttling_value(struct acpi_processor *pr,
+			int state, acpi_integer *value)
 {
-	int value = -1;
+	int ret = -1;
+
 	if (state >= 0 && state <= pr->throttling.state_count) {
 		struct acpi_processor_tx_tss *tx =
 		    (struct acpi_processor_tx_tss *)&(pr->throttling.
 						      states_tss[state]);
-		value = tx->control;
+		*value = tx->control;
+		ret = 0;
 	}
-	return value;
+	return ret;
 }
 
 static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 {
 	int state = 0;
-	u32 value = 0;
+	int ret;
+	acpi_integer value;
 
 	if (!pr)
 		return -EINVAL;
@@ -415,8 +573,9 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 
 	pr->throttling.state = 0;
 	local_irq_disable();
-	value = acpi_read_throttling_status(&pr->throttling);
-	if (value >= 0) {
+	value = 0;
+	ret = acpi_read_throttling_status(pr, &value);
+	if (ret >= 0) {
 		state = acpi_get_throttling_state(pr, value);
 		pr->throttling.state = state;
 	}
@@ -428,6 +587,40 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 static int acpi_processor_get_throttling(struct acpi_processor *pr)
 {
 	return pr->throttling.acpi_processor_get_throttling(pr);
+}
+
+static int acpi_processor_get_fadt_info(struct acpi_processor *pr)
+{
+	int i, step;
+
+	if (!pr->throttling.address) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling register\n"));
+		return -EINVAL;
+	} else if (!pr->throttling.duty_width) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling states\n"));
+		return -EINVAL;
+	}
+	/* TBD: Support duty_cycle values that span bit 4. */
+	else if ((pr->throttling.duty_offset + pr->throttling.duty_width) > 4) {
+		printk(KERN_WARNING PREFIX "duty_cycle spans bit 4\n");
+		return -EINVAL;
+	}
+
+	pr->throttling.state_count = 1 << acpi_gbl_FADT.duty_width;
+
+	/*
+	 * Compute state values. Note that throttling displays a linear power
+	 * performance relationship (at 50% performance the CPU will consume
+	 * 50% power).  Values are in 1/10th of a percent to preserve accuracy.
+	 */
+
+	step = (1000 / pr->throttling.state_count);
+
+	for (i = 0; i < pr->throttling.state_count; i++) {
+		pr->throttling.states[i].performance = 1000 - step * i;
+		pr->throttling.states[i].power = 1000 - step * i;
+	}
+	return 0;
 }
 
 static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
@@ -506,7 +699,8 @@ static int acpi_processor_set_throttling_fadt(struct acpi_processor *pr,
 static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 					     int state)
 {
-	u32 value = 0;
+	int ret;
+	acpi_integer value;
 
 	if (!pr)
 		return -EINVAL;
@@ -524,10 +718,10 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 		return -EPERM;
 
 	local_irq_disable();
-
-	value = acpi_get_throttling_value(pr, state);
-	if (value >= 0) {
-		acpi_write_throttling_state(&pr->throttling, value);
+	value = 0;
+	ret = acpi_get_throttling_value(pr, state, &value);
+	if (ret >= 0) {
+		acpi_write_throttling_state(pr, value);
 		pr->throttling.state = state;
 	}
 	local_irq_enable();
@@ -543,8 +737,6 @@ int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 {
 	int result = 0;
-	int step = 0;
-	int i = 0;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "pblk_address[0x%08x] duty_offset[%d] duty_width[%d]\n",
@@ -563,6 +755,8 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		acpi_processor_get_throttling_states(pr) ||
 		acpi_processor_get_platform_limit(pr))
 	{
+		if (acpi_processor_get_fadt_info(pr))
+			return 0;
 		pr->throttling.acpi_processor_get_throttling =
 		    &acpi_processor_get_throttling_fadt;
 		pr->throttling.acpi_processor_set_throttling =
@@ -576,19 +770,6 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 
 	acpi_processor_get_tsd(pr);
 
-	if (!pr->throttling.address) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling register\n"));
-		return 0;
-	} else if (!pr->throttling.duty_width) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "No throttling states\n"));
-		return 0;
-	}
-	/* TBD: Support duty_cycle values that span bit 4. */
-	else if ((pr->throttling.duty_offset + pr->throttling.duty_width) > 4) {
-		printk(KERN_WARNING PREFIX "duty_cycle spans bit 4\n");
-		return 0;
-	}
-
 	/*
 	 * PIIX4 Errata: We don't support throttling on the original PIIX4.
 	 * This shouldn't be an issue as few (if any) mobile systems ever
@@ -598,21 +779,6 @@ int acpi_processor_get_throttling_info(struct acpi_processor *pr)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Throttling not supported on PIIX4 A- or B-step\n"));
 		return 0;
-	}
-
-	pr->throttling.state_count = 1 << acpi_gbl_FADT.duty_width;
-
-	/*
-	 * Compute state values. Note that throttling displays a linear power/
-	 * performance relationship (at 50% performance the CPU will consume
-	 * 50% power).  Values are in 1/10th of a percent to preserve accuracy.
-	 */
-
-	step = (1000 / pr->throttling.state_count);
-
-	for (i = 0; i < pr->throttling.state_count; i++) {
-		pr->throttling.states[i].performance = step * i;
-		pr->throttling.states[i].power = step * i;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Found %d throttling states\n",

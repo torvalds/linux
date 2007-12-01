@@ -56,7 +56,7 @@ extern unsigned long total_lowmem;
  * architectures.  -- Dan
  */
 #if defined(CONFIG_8xx)
-#define flush_HPTE(X, va, pg)	_tlbie(va)
+#define flush_HPTE(X, va, pg)	_tlbie(va, 0 /* 8xx doesn't care about PID */)
 #define MMU_init_hw()		do { } while(0)
 #define mmu_mapin_ram()		(0UL)
 

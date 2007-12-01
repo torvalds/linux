@@ -290,10 +290,50 @@
 #define __NR_mq_getsetattr	(__NR_mq_open+5)
 #define __NR_kexec_load		283
 #define __NR_waitid		284
+/* 285 is unused */
+#define __NR_add_key		286
+#define __NR_request_key	287
+#define __NR_keyctl		288
+#define __NR_ioprio_set		289
+#define __NR_ioprio_get		290
+#define __NR_inotify_init	291
+#define __NR_inotify_add_watch	292
+#define __NR_inotify_rm_watch	293
+#define __NR_migrate_pages	294
+#define __NR_openat		295
+#define __NR_mkdirat		296
+#define __NR_mknodat		297
+#define __NR_fchownat		298
+#define __NR_futimesat		299
+#define __NR_fstatat64		300
+#define __NR_unlinkat		301
+#define __NR_renameat		302
+#define __NR_linkat		303
+#define __NR_symlinkat		304
+#define __NR_readlinkat		305
+#define __NR_fchmodat		306
+#define __NR_faccessat		307
+#define __NR_pselect6		308
+#define __NR_ppoll		309
+#define __NR_unshare		310
+#define __NR_set_robust_list	311
+#define __NR_get_robust_list	312
+#define __NR_splice		313
+#define __NR_sync_file_range	314
+#define __NR_tee		315
+#define __NR_vmsplice		316
+#define __NR_move_pages		317
+#define __NR_getcpu		318
+#define __NR_epoll_pwait	319
+#define __NR_utimensat		320
+#define __NR_signalfd		321
+#define __NR_timerfd		322
+#define __NR_eventfd		323
+#define __NR_fallocate		324
 
 #ifdef __KERNEL__
 
-#define NR_syscalls 285
+#define NR_syscalls 325
 
 #define __ARCH_WANT_IPC_PARSE_VERSION
 #define __ARCH_WANT_STAT64
@@ -310,6 +350,30 @@
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT /*will be unused*/
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_RT_SIGACTION
+
+#define __IGNORE_lchown
+#define __IGNORE_setuid
+#define __IGNORE_getuid
+#define __IGNORE_setgid
+#define __IGNORE_getgid
+#define __IGNORE_geteuid
+#define __IGNORE_getegid
+#define __IGNORE_fcntl
+#define __IGNORE_setreuid
+#define __IGNORE_setregid
+#define __IGNORE_getrlimit
+#define __IGNORE_getgroups
+#define __IGNORE_setgroups
+#define __IGNORE_select
+#define __IGNORE_mmap
+#define __IGNORE_fchown
+#define __IGNORE_setfsuid
+#define __IGNORE_setfsgid
+#define __IGNORE_setresuid
+#define __IGNORE_getresuid
+#define __IGNORE_setresgid
+#define __IGNORE_getresgid
+#define __IGNORE_chown
 
 /*
  * "Conditional" syscalls

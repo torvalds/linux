@@ -156,7 +156,7 @@ static void sm501_dump_clk(struct sm501_devdata *sm)
 
 	dev_dbg(sm->dev, "PM0[%c]: "
 		 "P2 %ld.%ld MHz (%ld), V2 %ld.%ld (%ld), "
-x		 "M %ld.%ld (%ld), MX1 %ld.%ld (%ld)\n",
+		 "M %ld.%ld (%ld), MX1 %ld.%ld (%ld)\n",
 		 (pmc & 3 ) == 0 ? '*' : '-',
 		 fmt_freq(decode_div(pll2, pm0, 24, 1<<29, 31, px_div)),
 		 fmt_freq(decode_div(pll2, pm0, 16, 1<<20, 15, misc_div)),

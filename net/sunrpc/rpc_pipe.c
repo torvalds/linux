@@ -280,7 +280,7 @@ rpc_pipe_poll(struct file *filp, struct poll_table_struct *wait)
 	mask = POLLOUT | POLLWRNORM;
 	if (rpci->ops == NULL)
 		mask |= POLLERR | POLLHUP;
-	if (!list_empty(&rpci->pipe))
+	if (filp->private_data || !list_empty(&rpci->pipe))
 		mask |= POLLIN | POLLRDNORM;
 	return mask;
 }

@@ -23,7 +23,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/mtd/physmap.h>
 
@@ -85,11 +84,11 @@ static struct at91_udc_data __initdata csb337_udc_data = {
 };
 
 static struct i2c_board_info __initdata csb337_i2c_devices[] = {
-	{ I2C_BOARD_INFO("rtc-ds1307", 0x68),
-	  .type = "ds1307",
+	{
+		I2C_BOARD_INFO("rtc-ds1307", 0x68),
+		.type	= "ds1307",
 	},
 };
-
 
 static struct at91_cf_data __initdata csb337_cf_data = {
 	/*
@@ -168,9 +167,7 @@ static void __init csb337_board_init(void)
 	/* USB Device */
 	at91_add_device_udc(&csb337_udc_data);
 	/* I2C */
-	at91_add_device_i2c();
-	i2c_register_board_info(0, csb337_i2c_devices,
-			ARRAY_SIZE(csb337_i2c_devices));
+	at91_add_device_i2c(csb337_i2c_devices, ARRAY_SIZE(csb337_i2c_devices));
 	/* Compact Flash */
 	at91_set_gpio_input(AT91_PIN_PB22, 1);		/* IOIS16 */
 	at91_add_device_cf(&csb337_cf_data);

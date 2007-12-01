@@ -438,14 +438,14 @@ unlock_osb:
 	}
 
 	if (!ret) {
-		if (!ocfs2_is_hard_readonly(osb))
-			ocfs2_set_journal_params(osb);
-
 		/* Only save off the new mount options in case of a successful
 		 * remount. */
 		osb->s_mount_opt = parsed_options.mount_opt;
 		osb->s_atime_quantum = parsed_options.atime_quantum;
 		osb->preferred_slot = parsed_options.slot;
+
+		if (!ocfs2_is_hard_readonly(osb))
+			ocfs2_set_journal_params(osb);
 	}
 out:
 	return ret;

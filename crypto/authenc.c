@@ -84,8 +84,8 @@ static int crypto_authenc_hash(struct aead_request *req)
 		.tfm = auth,
 	};
 	u8 *hash = aead_request_ctx(req);
-	struct scatterlist *dst;
-	unsigned int cryptlen;
+	struct scatterlist *dst = req->dst;
+	unsigned int cryptlen = req->cryptlen;
 	int err;
 
 	hash = (u8 *)ALIGN((unsigned long)hash + crypto_hash_alignmask(auth), 
@@ -100,8 +100,6 @@ static int crypto_authenc_hash(struct aead_request *req)
 	if (err)
 		goto auth_unlock;
 
-	cryptlen = req->cryptlen;
-	dst = req->dst;
 	err = crypto_hash_update(&desc, dst, cryptlen);
 	if (err)
 		goto auth_unlock;
@@ -159,8 +157,8 @@ static int crypto_authenc_verify(struct aead_request *req)
 	};
 	u8 *ohash = aead_request_ctx(req);
 	u8 *ihash;
-	struct scatterlist *src;
-	unsigned int cryptlen;
+	struct scatterlist *src = req->src;
+	unsigned int cryptlen = req->cryptlen;
 	unsigned int authsize;
 	int err;
 
@@ -177,8 +175,6 @@ static int crypto_authenc_verify(struct aead_request *req)
 	if (err)
 		goto auth_unlock;
 
-	cryptlen = req->cryptlen;
-	src = req->src;
 	err = crypto_hash_update(&desc, src, cryptlen);
 	if (err)
 		goto auth_unlock;

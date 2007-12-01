@@ -32,19 +32,19 @@
 	for (x=0; x<100000; x++) __asm__ __volatile__(""); })
 
 #define eeprom_cs_on(ptr) ({	\
-	*ptr &= ~EEPROM_DATO;	\
-	*ptr &= ~EEPROM_ECLK;	\
-	*ptr &= ~EEPROM_EPROT;	\
-	delay();		\
-	*ptr |= EEPROM_CSEL;	\
-	*ptr |= EEPROM_ECLK; })
+	__raw_writel(__raw_readl(ptr) & ~EEPROM_DATO, ptr);	\
+	__raw_writel(__raw_readl(ptr) & ~EEPROM_ECLK, ptr);	\
+	__raw_writel(__raw_readl(ptr) & ~EEPROM_EPROT, ptr);	\
+	delay();		                                \
+	__raw_writel(__raw_readl(ptr) | EEPROM_CSEL, ptr);	\
+	__raw_writel(__raw_readl(ptr) | EEPROM_ECLK, ptr); })
 
 
 #define eeprom_cs_off(ptr) ({	\
-	*ptr &= ~EEPROM_ECLK;	\
-	*ptr &= ~EEPROM_CSEL;	\
-	*ptr |= EEPROM_EPROT;	\
-	*ptr |= EEPROM_ECLK; })
+	__raw_writel(__raw_readl(ptr) & ~EEPROM_ECLK, ptr);	\
+	__raw_writel(__raw_readl(ptr) & ~EEPROM_CSEL, ptr);	\
+	__raw_writel(__raw_readl(ptr) | EEPROM_EPROT, ptr);	\
+	__raw_writel(__raw_readl(ptr) | EEPROM_ECLK, ptr); })
 
 #define	BITS_IN_COMMAND	11
 /*
@@ -60,15 +60,17 @@ static inline void eeprom_cmd(unsigned int *ctrl, unsigned cmd, unsigned reg)
 	ser_cmd = cmd | (reg << (16 - BITS_IN_COMMAND));
 	for (i = 0; i < BITS_IN_COMMAND; i++) {
 		if (ser_cmd & (1<<15))	/* if high order bit set */
-			writel(readl(ctrl) | EEPROM_DATO, ctrl);
+			__raw_writel(__raw_readl(ctrl) | EEPROM_DATO, ctrl);
 		else
-			writel(readl(ctrl) & ~EEPROM_DATO, ctrl);
-		writel(readl(ctrl) & ~EEPROM_ECLK, ctrl);
-		writel(readl(ctrl) | EEPROM_ECLK, ctrl);
+			__raw_writel(__raw_readl(ctrl) & ~EEPROM_DATO, ctrl);
+		__raw_writel(__raw_readl(ctrl) & ~EEPROM_ECLK, ctrl);
+		delay();
+		__raw_writel(__raw_readl(ctrl) | EEPROM_ECLK, ctrl);
+		delay();
 		ser_cmd <<= 1;
 	}
 	/* see data sheet timing diagram */
-	writel(readl(ctrl) & ~EEPROM_DATO, ctrl);
+	__raw_writel(__raw_readl(ctrl) & ~EEPROM_DATO, ctrl);
 }
 
 unsigned short ip22_eeprom_read(unsigned int *ctrl, int reg)
@@ -76,18 +78,18 @@ unsigned short ip22_eeprom_read(unsigned int *ctrl, int reg)
 	unsigned short res = 0;
 	int i;
 
-	writel(readl(ctrl) & ~EEPROM_EPROT, ctrl);
+	__raw_writel(__raw_readl(ctrl) & ~EEPROM_EPROT, ctrl);
 	eeprom_cs_on(ctrl);
 	eeprom_cmd(ctrl, EEPROM_READ, reg);
 
 	/* clock the data ouf of serial mem */
 	for (i = 0; i < 16; i++) {
-		writel(readl(ctrl) & ~EEPROM_ECLK, ctrl);
+		__raw_writel(__raw_readl(ctrl) & ~EEPROM_ECLK, ctrl);
 		delay();
-		writel(readl(ctrl) | EEPROM_ECLK, ctrl);
+		__raw_writel(__raw_readl(ctrl) | EEPROM_ECLK, ctrl);
 		delay();
 		res <<= 1;
-		if (readl(ctrl) & EEPROM_DATI)
+		if (__raw_readl(ctrl) & EEPROM_DATI)
 			res |= 1;
 	}
 

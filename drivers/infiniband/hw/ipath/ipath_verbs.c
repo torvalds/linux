@@ -302,8 +302,10 @@ static int ipath_post_one_send(struct ipath_qp *qp, struct ib_send_wr *wr)
 	next = qp->s_head + 1;
 	if (next >= qp->s_size)
 		next = 0;
-	if (next == qp->s_last)
-		goto bail_inval;
+	if (next == qp->s_last) {
+		ret = -ENOMEM;
+		goto bail;
+	}
 
 	wqe = get_swqe_ptr(qp, qp->s_head);
 	wqe->wr = *wr;
@@ -404,7 +406,7 @@ static int ipath_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 		if ((unsigned) wr->num_sge > qp->r_rq.max_sge) {
 			*bad_wr = wr;
-			ret = -ENOMEM;
+			ret = -EINVAL;
 			goto bail;
 		}
 

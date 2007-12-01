@@ -63,7 +63,7 @@ __break_trace_through_exceptions:
 # entry point for Break Exceptions/Interrupts
 #
 ###############################################################################
-	.text
+	.section	.text.break
 	.balign		4
 	.globl		__entry_break
 __entry_break:

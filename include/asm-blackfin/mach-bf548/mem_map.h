@@ -47,6 +47,12 @@
 /* Boot ROM Memory */
 
 #define BOOT_ROM_START		0xEF000000
+#define BOOT_ROM_LENGTH		0x1000
+
+/* L1 Instruction ROM */
+
+#define L1_ROM_START		0xFFA14000
+#define L1_ROM_LENGTH		0x10000
 
 /* Level 1 Memory */
 
@@ -87,11 +93,19 @@
 #define BFIN_DSUPBANKS	0
 #endif /*CONFIG_BFIN_DCACHE*/
 
+/* Level 2 Memory */
+#if !defined(CONFIG_BF542)
+# define L2_START          0xFEB00000
+# if defined(CONFIG_BF544)
+#  define L2_LENGTH        0x10000
+# else
+#  define L2_LENGTH        0x20000
+# endif
+#endif
+
 /* Scratch Pad Memory */
 
-#if defined(CONFIG_BF54x)
 #define L1_SCRATCH_START	0xFFB00000
 #define L1_SCRATCH_LENGTH	0x1000
-#endif
 
 #endif/* _MEM_MAP_548_H_ */

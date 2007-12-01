@@ -773,15 +773,16 @@ init_e100_ide (void)
 	/* the IDE control register is at ATA address 6, with CS1 active instead of CS0 */
 	ide_offsets[IDE_CONTROL_OFFSET] = cris_ide_reg_addr(6, 1, 0);
 
-	/* first fill in some stuff in the ide_hwifs fields */
+	for (h = 0; h < 4; h++) {
+		ide_hwif_t *hwif = NULL;
 
-	for(h = 0; h < MAX_HWIFS; h++) {
-		ide_hwif_t *hwif = &ide_hwifs[h];
 		ide_setup_ports(&hw, cris_ide_base_address(h),
 		                ide_offsets,
 		                0, 0, cris_ide_ack_intr,
 		                ide_default_irq(0));
 		ide_register_hw(&hw, NULL, 1, &hwif);
+		if (hwif == NULL)
+			continue;
 		hwif->mmio = 1;
 		hwif->chipset = ide_etrax100;
 		hwif->set_pio_mode = &cris_set_pio_mode;

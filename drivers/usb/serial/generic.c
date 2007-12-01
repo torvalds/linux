@@ -327,6 +327,7 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb)
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
+	unsigned long flags;
 
 	dbg("%s - port %d", __FUNCTION__, port->number);
 
@@ -339,11 +340,11 @@ void usb_serial_generic_read_bulk_callback (struct urb *urb)
 	usb_serial_debug_data(debug, &port->dev, __FUNCTION__, urb->actual_length, data);
 
 	/* Throttle the device if requested by tty */
-	spin_lock(&port->lock);
+	spin_lock_irqsave(&port->lock, flags);
 	if (!(port->throttled = port->throttle_req))
 		/* Handle data and continue reading from device */
 		flush_and_resubmit_read_urb(port);
-	spin_unlock(&port->lock);
+	spin_unlock_irqrestore(&port->lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_read_bulk_callback);
 

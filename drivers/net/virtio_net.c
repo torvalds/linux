@@ -198,8 +198,8 @@ again:
 	if (vi->num < vi->max / 2)
 		try_fill_recv(vi);
 
-	/* All done? */
-	if (!skb) {
+	/* Out of packets? */
+	if (received < budget) {
 		netif_rx_complete(vi->dev, napi);
 		if (unlikely(!vi->rvq->vq_ops->restart(vi->rvq))
 		    && netif_rx_reschedule(vi->dev, napi))
@@ -404,8 +404,12 @@ free:
 
 static void virtnet_remove(struct virtio_device *vdev)
 {
-	unregister_netdev(vdev->priv);
-	free_netdev(vdev->priv);
+	struct virtnet_info *vi = vdev->priv;
+
+	vdev->config->del_vq(vi->svq);
+	vdev->config->del_vq(vi->rvq);
+	unregister_netdev(vi->dev);
+	free_netdev(vi->dev);
 }
 
 static struct virtio_device_id id_table[] = {

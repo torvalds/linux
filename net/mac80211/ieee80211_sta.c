@@ -2647,7 +2647,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	local->sta_scanning = 0;
 
 	if (ieee80211_hw_config(local))
-		printk(KERN_DEBUG "%s: failed to restore operational"
+		printk(KERN_DEBUG "%s: failed to restore operational "
 		       "channel after scan\n", dev->name);
 
 

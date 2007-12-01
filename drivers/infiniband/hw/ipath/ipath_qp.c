@@ -835,7 +835,8 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 				      init_attr->qp_type);
 		if (err) {
 			ret = ERR_PTR(err);
-			goto bail_rwq;
+			vfree(qp->r_rq.wq);
+			goto bail_qp;
 		}
 		qp->ip = NULL;
 		ipath_reset_qp(qp);
@@ -863,7 +864,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 					       sizeof(offset));
 			if (err) {
 				ret = ERR_PTR(err);
-				goto bail_rwq;
+				goto bail_ip;
 			}
 		} else {
 			u32 s = sizeof(struct ipath_rwq) +
@@ -875,7 +876,7 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 						   qp->r_rq.wq);
 			if (!qp->ip) {
 				ret = ERR_PTR(-ENOMEM);
-				goto bail_rwq;
+				goto bail_ip;
 			}
 
 			err = ib_copy_to_udata(udata, &(qp->ip->offset),
@@ -907,9 +908,11 @@ struct ib_qp *ipath_create_qp(struct ib_pd *ibpd,
 	goto bail;
 
 bail_ip:
-	kfree(qp->ip);
-bail_rwq:
-	vfree(qp->r_rq.wq);
+	if (qp->ip)
+		kref_put(&qp->ip->ref, ipath_release_mmap_info);
+	else
+		vfree(qp->r_rq.wq);
+	ipath_free_qp(&dev->qp_table, qp);
 bail_qp:
 	kfree(qp);
 bail_swq:

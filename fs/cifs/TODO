@@ -16,7 +16,7 @@ SecurityDescriptors
 c) Better pam/winbind integration (e.g. to handle uid mapping
 better)
 
-d) Kerberos/SPNEGO session setup support - (started)
+d) Verify that Kerberos signing works
 
 e) Cleanup now unneeded SessSetup code in
 fs/cifs/connect.c and add back in NTLMSSP code if any servers

@@ -140,9 +140,6 @@ static struct trans_ctl_table trans_vm_table[] = {
 	{ VM_PANIC_ON_OOM,		"panic_on_oom" },
 	{ VM_VDSO_ENABLED,		"vdso_enabled" },
 	{ VM_MIN_SLAB,			"min_slab_ratio" },
-	{ VM_CMM_PAGES,			"cmm_pages" },
-	{ VM_CMM_TIMED_PAGES,		"cmm_timed_pages" },
-	{ VM_CMM_TIMEOUT,		"cmm_timeout" },
 
 	{}
 };
@@ -237,36 +234,6 @@ static struct trans_ctl_table trans_net_ipv4_conf_table[] = {
 	{}
 };
 
-
-static struct trans_ctl_table trans_net_ipv4_vs_table[] = {
-	{ NET_IPV4_VS_AMEMTHRESH,	"amemthresh" },
-	{ NET_IPV4_VS_DEBUG_LEVEL,	"debug_level" },
-	{ NET_IPV4_VS_AMDROPRATE,	"am_droprate" },
-	{ NET_IPV4_VS_DROP_ENTRY,	"drop_entry" },
-	{ NET_IPV4_VS_DROP_PACKET,	"drop_packet" },
-	{ NET_IPV4_VS_SECURE_TCP,	"secure_tcp" },
-	{ NET_IPV4_VS_TO_ES,		"timeout_established" },
-	{ NET_IPV4_VS_TO_SS,		"timeout_synsent" },
-	{ NET_IPV4_VS_TO_SR,		"timeout_synrecv" },
-	{ NET_IPV4_VS_TO_FW,		"timeout_finwait" },
-	{ NET_IPV4_VS_TO_TW,		"timeout_timewait" },
-	{ NET_IPV4_VS_TO_CL,		"timeout_close" },
-	{ NET_IPV4_VS_TO_CW,		"timeout_closewait" },
-	{ NET_IPV4_VS_TO_LA,		"timeout_lastack" },
-	{ NET_IPV4_VS_TO_LI,		"timeout_listen" },
-	{ NET_IPV4_VS_TO_SA,		"timeout_synack" },
-	{ NET_IPV4_VS_TO_UDP,		"timeout_udp" },
-	{ NET_IPV4_VS_TO_ICMP,		"timeout_icmp" },
-	{ NET_IPV4_VS_CACHE_BYPASS,	"cache_bypass" },
-	{ NET_IPV4_VS_EXPIRE_NODEST_CONN,	"expire_nodest_conn" },
-	{ NET_IPV4_VS_EXPIRE_QUIESCENT_TEMPLATE,	"expire_quiescent_template" },
-	{ NET_IPV4_VS_SYNC_THRESHOLD,		"sync_threshold" },
-	{ NET_IPV4_VS_NAT_ICMP_SEND,	"nat_icmp_send" },
-	{ NET_IPV4_VS_LBLC_EXPIRE,		"lblc_expiration" },
-	{ NET_IPV4_VS_LBLCR_EXPIRE,		"lblcr_expiration" },
-	{}
-};
-
 static struct trans_ctl_table trans_net_neigh_vars_table[] = {
 	{ NET_NEIGH_MCAST_SOLICIT,	"mcast_solicit" },
 	{ NET_NEIGH_UCAST_SOLICIT,	"ucast_solicit" },
@@ -341,7 +308,6 @@ static struct trans_ctl_table trans_net_ipv4_table[] = {
 	{ NET_IPV4_ROUTE,		"route",	trans_net_ipv4_route_table },
 	/* NET_IPV4_FIB_HASH unused */
 	{ NET_IPV4_NETFILTER,		"netfilter",	trans_net_ipv4_netfilter_table },
-	{ NET_IPV4_VS,			"vs",		trans_net_ipv4_vs_table },
 
 	{ NET_IPV4_TCP_TIMESTAMPS,		"tcp_timestamps" },
 	{ NET_IPV4_TCP_WINDOW_SCALING,		"tcp_window_scaling" },
@@ -1219,16 +1185,6 @@ static struct trans_ctl_table trans_arlan_table[] = {
 	{}
 };
 
-static struct trans_ctl_table trans_appldata_table[] = {
-	{ CTL_APPLDATA_TIMER,		"timer" },
-	{ CTL_APPLDATA_INTERVAL,	"interval" },
-	{ CTL_APPLDATA_OS,		"os" },
-	{ CTL_APPLDATA_NET_SUM,		"net_sum" },
-	{ CTL_APPLDATA_MEM,		"mem" },
-	{}
-
-};
-
 static struct trans_ctl_table trans_s390dbf_table[] = {
 	{ 5678 /* CTL_S390DBF_STOPPABLE */,	"debug_stoppable" },
 	{ 5679 /* CTL_S390DBF_ACTIVE */,	"debug_active" },
@@ -1273,7 +1229,6 @@ static struct trans_ctl_table trans_root_table[] = {
 	{ CTL_ABI,	"abi" },
 	/* CTL_CPU not used */
 	{ CTL_ARLAN,	"arlan",	trans_arlan_table },
-	{ CTL_APPLDATA,	"appldata",	trans_appldata_table },
 	{ CTL_S390DBF,	"s390dbf",	trans_s390dbf_table },
 	{ CTL_SUNRPC,	"sunrpc",	trans_sunrpc_table },
 	{ CTL_PM,	"pm",		trans_pm_table },

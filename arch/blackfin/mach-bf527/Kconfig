@@ -1,5 +1,7 @@
 if (BF52x)
 
+source "arch/blackfin/mach-bf527/boards/Kconfig"
+
 menu "BF527 Specific Configuration"
 
 comment "Alternative Multiplexing Scheme"

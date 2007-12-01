@@ -283,6 +283,11 @@ void dump_stack(void)
 {
 	unsigned long stack;
 
+	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
+		current->pid, current->comm, print_tainted(),
+		init_utsname()->release,
+		(int)strcspn(init_utsname()->version, " "),
+		init_utsname()->version);
 	show_trace(current, NULL, &stack);
 }
 
@@ -827,6 +832,8 @@ fastcall void __kprobes do_debug(struct pt_regs * regs, long error_code)
 {
 	unsigned int condition;
 	struct task_struct *tsk = current;
+
+	trace_hardirqs_fixup();
 
 	get_debugreg(condition, 6);
 

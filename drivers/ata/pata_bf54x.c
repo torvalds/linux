@@ -1145,13 +1145,13 @@ static unsigned char bfin_bmdma_status(struct ata_port *ap)
 	unsigned short int_status = ATAPI_GET_INT_STATUS(base);
 
 	if (ATAPI_GET_STATUS(base) & (MULTI_XFER_ON|ULTRA_XFER_ON)) {
-		host_stat = ATA_DMA_ACTIVE;
+		host_stat |= ATA_DMA_ACTIVE;
 	}
 	if (int_status & (MULTI_DONE_INT|UDMAIN_DONE_INT|UDMAOUT_DONE_INT)) {
-		host_stat = ATA_DMA_INTR;
+		host_stat |= ATA_DMA_INTR;
 	}
 	if (int_status & (MULTI_TERM_INT|UDMAIN_TERM_INT|UDMAOUT_TERM_INT)) {
-		host_stat = ATA_DMA_ERR;
+		host_stat |= ATA_DMA_ERR;
 	}
 
 	return host_stat;

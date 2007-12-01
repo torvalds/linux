@@ -66,20 +66,26 @@ struct key_type cifs_spnego_key_type = {
 	.describe	= user_describe,
 };
 
+#define MAX_VER_STR_LEN   9 /* length of longest version string e.g.
+				strlen(";ver=0xFF") */
+#define MAX_MECH_STR_LEN 13 /* length of longest security mechanism name, eg
+			       in future could have strlen(";sec=ntlmsspi") */
+#define MAX_IPV6_ADDR_LEN 42 /* eg FEDC:BA98:7654:3210:FEDC:BA98:7654:3210/60 */
 /* get a key struct with a SPNEGO security blob, suitable for session setup */
 struct key *
-cifs_get_spnego_key(struct cifsSesInfo *sesInfo, const char *hostname)
+cifs_get_spnego_key(struct cifsSesInfo *sesInfo)
 {
 	struct TCP_Server_Info *server = sesInfo->server;
 	char *description, *dp;
 	size_t desc_len;
 	struct key *spnego_key;
+	const char *hostname = server->hostname;
 
-
-	/* version + ;ip{4|6}= + address + ;host=hostname +
-		;sec= + ;uid= + NULL */
-	desc_len = 4 + 5 + 32 + 1 + 5 + strlen(hostname) +
-		   strlen(";sec=krb5") + 7 + sizeof(uid_t)*2 + 1;
+	/* BB: come up with better scheme for determining length */
+	/* length of fields (with semicolons): ver=0xyz ipv4= ipaddress host=
+	   hostname sec=mechanism uid=0x uid */
+	desc_len = MAX_VER_STR_LEN + 5 + MAX_IPV6_ADDR_LEN + 1 + 6 +
+		  strlen(hostname) + MAX_MECH_STR_LEN + 8 + (sizeof(uid_t) * 2);
 	spnego_key = ERR_PTR(-ENOMEM);
 	description = kzalloc(desc_len, GFP_KERNEL);
 	if (description == NULL)
@@ -88,7 +94,7 @@ cifs_get_spnego_key(struct cifsSesInfo *sesInfo, const char *hostname)
 	dp = description;
 	/* start with version and hostname portion of UNC string */
 	spnego_key = ERR_PTR(-EINVAL);
-	sprintf(dp, "0x%2.2x;host=%s;", CIFS_SPNEGO_UPCALL_VERSION,
+	sprintf(dp, "ver=0x%x;host=%s;", CIFS_SPNEGO_UPCALL_VERSION,
 		hostname);
 	dp = description + strlen(description);
 

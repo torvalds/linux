@@ -96,14 +96,39 @@ static void __init mpc836x_mds_setup_arch(void)
 
 	if ((np = of_find_compatible_node(NULL, "network", "ucc_geth"))
 			!= NULL){
+		uint svid;
+
 		/* Reset the Ethernet PHY */
-		bcsr_regs[9] &= ~0x20;
+#define BCSR9_GETHRST 0x20
+		clrbits8(&bcsr_regs[9], BCSR9_GETHRST);
 		udelay(1000);
-		bcsr_regs[9] |= 0x20;
+		setbits8(&bcsr_regs[9], BCSR9_GETHRST);
+
+		/* handle mpc8360ea rev.2.1 erratum 2: RGMII Timing */
+		svid = mfspr(SPRN_SVR);
+		if (svid == 0x80480021) {
+			void __iomem *immap;
+
+			immap = ioremap(get_immrbase() + 0x14a8, 8);
+
+			/*
+			 * IMMR + 0x14A8[4:5] = 11 (clk delay for UCC 2)
+			 * IMMR + 0x14A8[18:19] = 11 (clk delay for UCC 1)
+			 */
+			setbits32(immap, 0x0c003000);
+
+			/*
+			 * IMMR + 0x14AC[20:27] = 10101010
+			 * (data delay for both UCC's)
+			 */
+			clrsetbits_be32(immap + 4, 0xff0, 0xaa0);
+
+			iounmap(immap);
+		}
+
 		iounmap(bcsr_regs);
 		of_node_put(np);
 	}
-
 #endif				/* CONFIG_QUICC_ENGINE */
 }
 
@@ -151,30 +176,6 @@ static void __init mpc836x_mds_init_IRQ(void)
 	of_node_put(np);
 #endif				/* CONFIG_QUICC_ENGINE */
 }
-
-#if defined(CONFIG_I2C_MPC) && defined(CONFIG_SENSORS_DS1374)
-extern ulong ds1374_get_rtc_time(void);
-extern int ds1374_set_rtc_time(ulong);
-
-static int __init mpc8360_rtc_hookup(void)
-{
-	struct timespec tv;
-
-	if (!machine_is(mpc836x_mds))
-		return 0;
-
-	ppc_md.get_rtc_time = ds1374_get_rtc_time;
-	ppc_md.set_rtc_time = ds1374_set_rtc_time;
-
-	tv.tv_nsec = 0;
-	tv.tv_sec = (ppc_md.get_rtc_time) ();
-	do_settimeofday(&tv);
-
-	return 0;
-}
-
-late_initcall(mpc8360_rtc_hookup);
-#endif
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

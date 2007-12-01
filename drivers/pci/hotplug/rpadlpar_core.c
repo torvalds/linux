@@ -100,6 +100,7 @@ static struct device_node *find_dlpar_node(char *drc_name, int *node_type)
 
 /**
  * find_php_slot - return hotplug slot structure for device node
+ * @dn: target &device_node
  *
  * This routine will return the hotplug slot structure
  * for a given device node. Note that built-in PCI slots
@@ -293,9 +294,8 @@ static int dlpar_add_vio_slot(char *drc_name, struct device_node *dn)
  * dlpar_add_slot - DLPAR add an I/O Slot
  * @drc_name: drc-name of newly added slot
  *
- * Make the hotplug module and the kernel aware
- * of a newly added I/O Slot.
- * Return Codes -
+ * Make the hotplug module and the kernel aware of a newly added I/O Slot.
+ * Return Codes:
  * 0			Success
  * -ENODEV		Not a valid drc_name
  * -EINVAL		Slot already added
@@ -339,9 +339,9 @@ exit:
 /**
  * dlpar_remove_vio_slot - DLPAR remove a virtual I/O Slot
  * @drc_name: drc-name of newly added slot
+ * @dn: &device_node
  *
- * Remove the kernel and hotplug representations
- * of an I/O Slot.
+ * Remove the kernel and hotplug representations of an I/O Slot.
  * Return Codes:
  * 0			Success
  * -EINVAL		Vio dev doesn't exist
@@ -359,11 +359,11 @@ static int dlpar_remove_vio_slot(char *drc_name, struct device_node *dn)
 }
 
 /**
- * dlpar_remove_slot - DLPAR remove a PCI I/O Slot
+ * dlpar_remove_pci_slot - DLPAR remove a PCI I/O Slot
  * @drc_name: drc-name of newly added slot
+ * @dn: &device_node
  *
- * Remove the kernel and hotplug representations
- * of a PCI I/O Slot.
+ * Remove the kernel and hotplug representations of a PCI I/O Slot.
  * Return Codes:
  * 0			Success
  * -ENODEV		Not a valid drc_name
@@ -405,8 +405,7 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
  * dlpar_remove_slot - DLPAR remove an I/O Slot
  * @drc_name: drc-name of newly added slot
  *
- * Remove the kernel and hotplug representations
- * of an I/O Slot.
+ * Remove the kernel and hotplug representations of an I/O Slot.
  * Return Codes:
  * 0			Success
  * -ENODEV		Not a valid drc_name

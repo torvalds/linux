@@ -347,7 +347,7 @@ void (*_machine_power_off)(void) = do_machine_power_off_nonsmp;
 
 void machine_restart(char *command)
 {
-	if (!in_interrupt() || oops_in_progress)
+	if ((!in_interrupt() && !in_atomic()) || oops_in_progress)
 		/*
 		 * Only unblank the console if we are called in enabled
 		 * context or a bust_spinlocks cleared the way for us.
@@ -492,6 +492,10 @@ static void setup_addressing_mode(void)
 		printk("S390 address spaces switched, ");
 		set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY);
 	}
+#ifdef CONFIG_TRACE_IRQFLAGS
+	sysc_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
+	io_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
+#endif
 }
 
 static void __init

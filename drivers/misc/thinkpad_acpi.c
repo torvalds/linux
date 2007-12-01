@@ -21,7 +21,7 @@
  *  02110-1301, USA.
  */
 
-#define IBM_VERSION "0.16"
+#define IBM_VERSION "0.17"
 #define TPACPI_SYSFS_VERSION 0x020000
 
 /*
@@ -964,15 +964,15 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
 		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
 		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
-		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
+		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
 		/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
-		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
+		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
 		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
 		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
 		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
-		KEY_VOLUMEUP,	/* 0x14: VOLUME UP */
-		KEY_VOLUMEDOWN,	/* 0x15: VOLUME DOWN */
-		KEY_MUTE,	/* 0x16: MUTE */
+		KEY_RESERVED,	/* 0x14: VOLUME UP */
+		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
+		KEY_RESERVED,	/* 0x16: MUTE */
 		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
 		/* (assignments unknown, please report if found) */
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
@@ -993,9 +993,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
 		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
 		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
-		KEY_VOLUMEUP,	/* 0x14: VOLUME UP */
-		KEY_VOLUMEDOWN,	/* 0x15: VOLUME DOWN */
-		KEY_MUTE,	/* 0x16: MUTE */
+		KEY_RESERVED,	/* 0x14: VOLUME UP */
+		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
+		KEY_RESERVED,	/* 0x16: MUTE */
 		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
 		/* (assignments unknown, please report if found) */
 		KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN, KEY_UNKNOWN,
@@ -1342,9 +1342,8 @@ static int hotkey_read(char *p)
 		return len;
 	}
 
-	res = mutex_lock_interruptible(&hotkey_mutex);
-	if (res < 0)
-		return res;
+	if (mutex_lock_interruptible(&hotkey_mutex))
+		return -ERESTARTSYS;
 	res = hotkey_get(&status, &mask);
 	mutex_unlock(&hotkey_mutex);
 	if (res)
@@ -1373,9 +1372,8 @@ static int hotkey_write(char *buf)
 	if (!tp_features.hotkey)
 		return -ENODEV;
 
-	res = mutex_lock_interruptible(&hotkey_mutex);
-	if (res < 0)
-		return res;
+	if (mutex_lock_interruptible(&hotkey_mutex))
+		return -ERESTARTSYS;
 
 	res = hotkey_get(&status, &mask);
 	if (res)
@@ -3114,6 +3112,99 @@ static struct backlight_ops ibm_backlight_data = {
 
 static struct mutex brightness_mutex;
 
+static int __init tpacpi_query_bcll_levels(acpi_handle handle)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	int rc;
+
+	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
+		obj = (union acpi_object *)buffer.pointer;
+		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
+			printk(IBM_ERR "Unknown BCLL data, "
+			       "please report this to %s\n", IBM_MAIL);
+			rc = 0;
+		} else {
+			rc = obj->package.count;
+		}
+	} else {
+		return 0;
+	}
+
+	kfree(buffer.pointer);
+	return rc;
+}
+
+static acpi_status __init brightness_find_bcll(acpi_handle handle, u32 lvl,
+					void *context, void **rv)
+{
+	char name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer buffer = { sizeof(name), &name };
+
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
+	    !strncmp("BCLL", name, sizeof(name) - 1)) {
+		if (tpacpi_query_bcll_levels(handle) == 16) {
+			*rv = handle;
+			return AE_CTRL_TERMINATE;
+		} else {
+			return AE_OK;
+		}
+	} else {
+		return AE_OK;
+	}
+}
+
+static int __init brightness_check_levels(void)
+{
+	int status;
+	void *found_node = NULL;
+
+	if (!vid_handle) {
+		IBM_ACPIHANDLE_INIT(vid);
+	}
+	if (!vid_handle)
+		return 0;
+
+	/* Search for a BCLL package with 16 levels */
+	status = acpi_walk_namespace(ACPI_TYPE_PACKAGE, vid_handle, 3,
+					brightness_find_bcll, NULL, &found_node);
+
+	return (ACPI_SUCCESS(status) && found_node != NULL);
+}
+
+static acpi_status __init brightness_find_bcl(acpi_handle handle, u32 lvl,
+					void *context, void **rv)
+{
+	char name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer buffer = { sizeof(name), &name };
+
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
+	    !strncmp("_BCL", name, sizeof(name) - 1)) {
+		*rv = handle;
+		return AE_CTRL_TERMINATE;
+	} else {
+		return AE_OK;
+	}
+}
+
+static int __init brightness_check_std_acpi_support(void)
+{
+	int status;
+	void *found_node = NULL;
+
+	if (!vid_handle) {
+		IBM_ACPIHANDLE_INIT(vid);
+	}
+	if (!vid_handle)
+		return 0;
+
+	/* Search for a _BCL method, but don't execute it */
+	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
+	                             brightness_find_bcl, NULL, &found_node);
+
+	return (ACPI_SUCCESS(status) && found_node != NULL);
+}
+
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	int b;
@@ -3121,6 +3212,18 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "initializing brightness subdriver\n");
 
 	mutex_init(&brightness_mutex);
+
+	if (!brightness_enable) {
+		dbg_printk(TPACPI_DBG_INIT,
+		           "brightness support disabled by module parameter\n");
+		return 1;
+	} else if (brightness_enable > 1) {
+		if (brightness_check_std_acpi_support()) {
+			printk(IBM_NOTICE
+			       "standard ACPI backlight interface available, not loading native one...\n");
+			return 1;
+		}
+	}
 
 	if (!brightness_mode) {
 		if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO)
@@ -3135,9 +3238,16 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (brightness_mode > 3)
 		return -EINVAL;
 
+	tp_features.bright_16levels =
+			thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO &&
+			brightness_check_levels();
+
 	b = brightness_get(NULL);
 	if (b < 0)
 		return 1;
+
+	if (tp_features.bright_16levels)
+		printk(IBM_INFO "detected a 16-level brightness capable ThinkPad\n");
 
 	ibm_backlight_device = backlight_device_register(
 					TPACPI_BACKLIGHT_DEV_NAME, NULL, NULL,
@@ -3148,7 +3258,8 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	}
 	vdbg_printk(TPACPI_DBG_INIT, "brightness is supported\n");
 
-	ibm_backlight_device->props.max_brightness = 7;
+	ibm_backlight_device->props.max_brightness =
+				(tp_features.bright_16levels)? 15 : 7;
 	ibm_backlight_device->props.brightness = b;
 	backlight_update_status(ibm_backlight_device);
 
@@ -3167,6 +3278,8 @@ static void brightness_exit(void)
 
 static int brightness_update_status(struct backlight_device *bd)
 {
+	/* it is the backlight class's job (caller) to handle
+	 * EINTR and other errors properly */
 	return brightness_set(
 		(bd->props.fb_blank == FB_BLANK_UNBLANK &&
 		 bd->props.power == FB_BLANK_UNBLANK) ?
@@ -3184,13 +3297,14 @@ static int brightness_get(struct backlight_device *bd)
 	if (brightness_mode & 1) {
 		if (!acpi_ec_read(brightness_offset, &lec))
 			return -EIO;
-		lec &= 7;
+		lec &= (tp_features.bright_16levels)? 0x0f : 0x07;
 		level = lec;
 	};
 	if (brightness_mode & 2) {
 		lcmos = (nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS)
 			 & TP_NVRAM_MASK_LEVEL_BRIGHTNESS)
 			>> TP_NVRAM_POS_LEVEL_BRIGHTNESS;
+		lcmos &= (tp_features.bright_16levels)? 0x0f : 0x07;
 		level = lcmos;
 	}
 
@@ -3206,12 +3320,13 @@ static int brightness_get(struct backlight_device *bd)
 	return level;
 }
 
+/* May return EINTR which can always be mapped to ERESTARTSYS */
 static int brightness_set(int value)
 {
 	int cmos_cmd, inc, i, res;
 	int current_value;
 
-	if (value > 7)
+	if (value > ((tp_features.bright_16levels)? 15 : 7))
 		return -EINVAL;
 
 	res = mutex_lock_interruptible(&brightness_mutex);
@@ -3227,7 +3342,7 @@ static int brightness_set(int value)
 	cmos_cmd = value > current_value ?
 			TP_CMOS_BRIGHTNESS_UP :
 			TP_CMOS_BRIGHTNESS_DOWN;
-	inc = value > current_value ? 1 : -1;
+	inc = (value > current_value)? 1 : -1;
 
 	res = 0;
 	for (i = current_value; i != value; i += inc) {
@@ -3256,10 +3371,11 @@ static int brightness_read(char *p)
 	if ((level = brightness_get(NULL)) < 0) {
 		len += sprintf(p + len, "level:\t\tunreadable\n");
 	} else {
-		len += sprintf(p + len, "level:\t\t%d\n", level & 0x7);
+		len += sprintf(p + len, "level:\t\t%d\n", level);
 		len += sprintf(p + len, "commands:\tup, down\n");
 		len += sprintf(p + len, "commands:\tlevel <level>"
-			       " (<level> is 0-7)\n");
+			       " (<level> is 0-%d)\n",
+			       (tp_features.bright_16levels) ? 15 : 7);
 	}
 
 	return len;
@@ -3268,28 +3384,34 @@ static int brightness_read(char *p)
 static int brightness_write(char *buf)
 {
 	int level;
-	int new_level;
+	int rc;
 	char *cmd;
+	int max_level = (tp_features.bright_16levels) ? 15 : 7;
+
+	level = brightness_get(NULL);
+	if (level < 0)
+		return level;
 
 	while ((cmd = next_cmd(&buf))) {
-		if ((level = brightness_get(NULL)) < 0)
-			return level;
-		level &= 7;
-
 		if (strlencmp(cmd, "up") == 0) {
-			new_level = level == 7 ? 7 : level + 1;
+			if (level < max_level)
+				level++;
 		} else if (strlencmp(cmd, "down") == 0) {
-			new_level = level == 0 ? 0 : level - 1;
-		} else if (sscanf(cmd, "level %d", &new_level) == 1 &&
-			   new_level >= 0 && new_level <= 7) {
-			/* new_level set */
+			if (level > 0)
+				level--;
+		} else if (sscanf(cmd, "level %d", &level) == 1 &&
+			   level >= 0 && level <= max_level) {
+			/* new level set */
 		} else
 			return -EINVAL;
-
-		brightness_set(new_level);
 	}
 
-	return 0;
+	/*
+	 * Now we know what the final level should be, so we try to set it.
+	 * Doing it this way makes the syscall restartable in case of EINTR
+	 */
+	rc = brightness_set(level);
+	return (rc == -EINTR)? ERESTARTSYS : rc;
 }
 
 static struct ibm_struct brightness_driver_data = {
@@ -3652,9 +3774,8 @@ static ssize_t fan_pwm1_store(struct device *dev,
 	/* scale down from 0-255 to 0-7 */
 	newlevel = (s >> 5) & 0x07;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	rc = fan_get_status(&status);
 	if (!rc && (status &
@@ -3904,9 +4025,8 @@ static int fan_get_status_safe(u8 *status)
 	int rc;
 	u8 s;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 	rc = fan_get_status(&s);
 	if (!rc)
 		fan_update_desired_level(s);
@@ -4040,9 +4160,8 @@ static int fan_set_level_safe(int level)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	if (level == TPACPI_FAN_LAST_LEVEL)
 		level = fan_control_desired_level;
@@ -4063,9 +4182,8 @@ static int fan_set_enable(void)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_FANS:
@@ -4119,9 +4237,8 @@ static int fan_set_disable(void)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	rc = 0;
 	switch (fan_control_access_mode) {
@@ -4158,9 +4275,8 @@ static int fan_set_speed(int speed)
 	if (!fan_control_allowed)
 		return -EPERM;
 
-	rc = mutex_lock_interruptible(&fan_mutex);
-	if (rc < 0)
-		return rc;
+	if (mutex_lock_interruptible(&fan_mutex))
+		return -ERESTARTSYS;
 
 	rc = 0;
 	switch (fan_control_access_mode) {
@@ -4701,9 +4817,15 @@ static int __init set_ibm_param(const char *val, struct kernel_param *kp)
 	unsigned int i;
 	struct ibm_struct *ibm;
 
+	if (!kp || !kp->name || !val)
+		return -EINVAL;
+
 	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
 		ibm = ibms_init[i].data;
-		BUG_ON(ibm == NULL);
+		WARN_ON(ibm == NULL);
+
+		if (!ibm || !ibm->name)
+			continue;
 
 		if (strcmp(ibm->name, kp->name) == 0 && ibm->write) {
 			if (strlen(val) > sizeof(ibms_init[i].param) - 2)
@@ -4731,6 +4853,9 @@ module_param_named(fan_control, fan_control_allowed, bool, 0);
 
 static int brightness_mode;
 module_param_named(brightness_mode, brightness_mode, int, 0);
+
+static unsigned int brightness_enable = 2; /* 2 = auto, 0 = no, 1 = yes */
+module_param(brightness_enable, uint, 0);
 
 static unsigned int hotkey_report_mode;
 module_param(hotkey_report_mode, uint, 0);

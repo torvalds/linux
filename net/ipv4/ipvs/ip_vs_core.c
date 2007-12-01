@@ -637,7 +637,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 	verdict = NF_DROP;
 
 	if (IP_VS_FWD_METHOD(cp) != 0) {
-		IP_VS_ERR("shouldn't reach here, because the box is on the"
+		IP_VS_ERR("shouldn't reach here, because the box is on the "
 			  "half connection in the tun/dr module.\n");
 	}
 

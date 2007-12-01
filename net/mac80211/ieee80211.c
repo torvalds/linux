@@ -267,6 +267,17 @@ static int ieee80211_open(struct net_device *dev)
 		tasklet_enable(&local->tasklet);
 	}
 
+	/*
+	 * set_multicast_list will be invoked by the networking core
+	 * which will check whether any increments here were done in
+	 * error and sync them down to the hardware as filter flags.
+	 */
+	if (sdata->flags & IEEE80211_SDATA_ALLMULTI)
+		atomic_inc(&local->iff_allmultis);
+
+	if (sdata->flags & IEEE80211_SDATA_PROMISC)
+		atomic_inc(&local->iff_promiscs);
+
 	local->open_count++;
 
 	netif_start_queue(dev);
@@ -283,6 +294,18 @@ static int ieee80211_stop(struct net_device *dev)
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	netif_stop_queue(dev);
+
+	/*
+	 * Don't count this interface for promisc/allmulti while it
+	 * is down. dev_mc_unsync() will invoke set_multicast_list
+	 * on the master interface which will sync these down to the
+	 * hardware as filter flags.
+	 */
+	if (sdata->flags & IEEE80211_SDATA_ALLMULTI)
+		atomic_dec(&local->iff_allmultis);
+
+	if (sdata->flags & IEEE80211_SDATA_PROMISC)
+		atomic_dec(&local->iff_promiscs);
 
 	dev_mc_unsync(local->mdev, dev);
 
@@ -366,8 +389,8 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 
 	allmulti = !!(dev->flags & IFF_ALLMULTI);
 	promisc = !!(dev->flags & IFF_PROMISC);
-	sdata_allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
-	sdata_promisc = sdata->flags & IEEE80211_SDATA_PROMISC;
+	sdata_allmulti = !!(sdata->flags & IEEE80211_SDATA_ALLMULTI);
+	sdata_promisc = !!(sdata->flags & IEEE80211_SDATA_PROMISC);
 
 	if (allmulti != sdata_allmulti) {
 		if (dev->flags & IFF_ALLMULTI)

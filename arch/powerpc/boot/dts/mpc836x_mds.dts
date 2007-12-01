@@ -62,15 +62,24 @@
 		};
 
 		i2c@3000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <e 8>;
 			interrupt-parent = < &ipic >;
 			dfsrr;
+
+			rtc@68 {
+				compatible = "dallas,ds1374";
+				reg = <68>;
+			};
 		};
 
 		i2c@3100 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			device_type = "i2c";
 			compatible = "fsl-i2c";
 			reg = <3100 100>;

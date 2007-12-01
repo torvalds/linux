@@ -21,6 +21,8 @@ struct s3c2410_spigpio_info {
 	unsigned long		 pin_mosi;
 	unsigned long		 pin_miso;
 
+	int			 bus_num;
+
 	unsigned long		 board_size;
 	struct spi_board_info	*board_info;
 

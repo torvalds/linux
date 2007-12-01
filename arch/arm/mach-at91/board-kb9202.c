@@ -124,7 +124,7 @@ static void __init kb9202_board_init(void)
 	/* MMC */
 	at91_add_device_mmc(0, &kb9202_mmc_data);
 	/* I2C */
-	at91_add_device_i2c();
+	at91_add_device_i2c(NULL, 0);
 	/* SPI */
 	at91_add_device_spi(NULL, 0);
 	/* NAND */

@@ -43,7 +43,7 @@ extern void __flush_purge_region(void *start, int size);
 extern void __flush_invalidate_region(void *start, int size);
 #endif
 
-#ifdef CONFIG_CPU_SH4
+#if defined(CONFIG_CPU_SH4) && !defined(CONFIG_CACHE_OFF)
 extern void copy_to_user_page(struct vm_area_struct *vma,
 	struct page *page, unsigned long vaddr, void *dst, const void *src,
 	unsigned long len);

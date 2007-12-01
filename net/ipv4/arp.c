@@ -111,12 +111,8 @@
 #include <net/tcp.h>
 #include <net/sock.h>
 #include <net/arp.h>
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 #include <net/ax25.h>
-#if defined(CONFIG_NETROM) || defined(CONFIG_NETROM_MODULE)
 #include <net/netrom.h>
-#endif
-#endif
 #if defined(CONFIG_ATM_CLIP) || defined(CONFIG_ATM_CLIP_MODULE)
 #include <net/atmclip.h>
 struct neigh_table *clip_tbl_hook;
@@ -731,20 +727,10 @@ static int arp_process(struct sk_buff *skb)
 		    htons(dev_type) != arp->ar_hrd)
 			goto out;
 		break;
-#ifdef CONFIG_NET_ETHERNET
 	case ARPHRD_ETHER:
-#endif
-#ifdef CONFIG_TR
 	case ARPHRD_IEEE802_TR:
-#endif
-#ifdef CONFIG_FDDI
 	case ARPHRD_FDDI:
-#endif
-#ifdef CONFIG_NET_FC
 	case ARPHRD_IEEE802:
-#endif
-#if defined(CONFIG_NET_ETHERNET) || defined(CONFIG_TR) || \
-    defined(CONFIG_FDDI)	 || defined(CONFIG_NET_FC)
 		/*
 		 * ETHERNET, Token Ring and Fibre Channel (which are IEEE 802
 		 * devices, according to RFC 2625) devices will accept ARP
@@ -759,21 +745,16 @@ static int arp_process(struct sk_buff *skb)
 		    arp->ar_pro != htons(ETH_P_IP))
 			goto out;
 		break;
-#endif
-#if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 	case ARPHRD_AX25:
 		if (arp->ar_pro != htons(AX25_P_IP) ||
 		    arp->ar_hrd != htons(ARPHRD_AX25))
 			goto out;
 		break;
-#if defined(CONFIG_NETROM) || defined(CONFIG_NETROM_MODULE)
 	case ARPHRD_NETROM:
 		if (arp->ar_pro != htons(AX25_P_IP) ||
 		    arp->ar_hrd != htons(ARPHRD_NETROM))
 			goto out;
 		break;
-#endif
-#endif
 	}
 
 	/* Understand only these message types */
@@ -828,7 +809,8 @@ static int arp_process(struct sk_buff *skb)
 		if (arp->ar_op == htons(ARPOP_REQUEST) &&
 		    inet_addr_type(tip) == RTN_LOCAL &&
 		    !arp_ignore(in_dev,dev,sip,tip))
-			arp_send(ARPOP_REPLY,ETH_P_ARP,tip,dev,tip,sha,dev->dev_addr,dev->dev_addr);
+			arp_send(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip, sha,
+				 dev->dev_addr, sha);
 		goto out;
 	}
 

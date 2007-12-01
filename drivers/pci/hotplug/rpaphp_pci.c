@@ -79,6 +79,7 @@ static void set_slot_name(struct slot *slot)
 
 /**
  * rpaphp_enable_slot - record slot state, config pci device
+ * @slot: target &slot
  *
  * Initialize values in the slot, and the hotplug_slot info
  * structures to indicate if there is a pci card plugged into

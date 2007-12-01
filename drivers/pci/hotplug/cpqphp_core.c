@@ -117,12 +117,10 @@ static inline int is_slot66mhz(struct slot *slot)
 
 /**
  * detect_SMBIOS_pointer - find the System Management BIOS Table in mem region.
- *
  * @begin: begin pointer for region to be scanned.
  * @end: end pointer for region to be scanned.
  *
- * Returns pointer to the head of the SMBIOS tables (or NULL)
- *
+ * Returns pointer to the head of the SMBIOS tables (or %NULL).
  */
 static void __iomem * detect_SMBIOS_pointer(void __iomem *begin, void __iomem *end)
 {
@@ -157,9 +155,9 @@ static void __iomem * detect_SMBIOS_pointer(void __iomem *begin, void __iomem *e
 
 /**
  * init_SERR - Initializes the per slot SERR generation.
+ * @ctrl: controller to use
  *
  * For unexpected switch opens
- *
  */
 static int init_SERR(struct controller * ctrl)
 {
@@ -224,14 +222,15 @@ static int pci_print_IRQ_route (void)
 
 /**
  * get_subsequent_smbios_entry: get the next entry from bios table.
- *
- * Gets the first entry if previous == NULL
- * Otherwise, returns the next entry
- * Uses global SMBIOS Table pointer
- *
+ * @smbios_start: where to start in the SMBIOS table
+ * @smbios_table: location of the SMBIOS table
  * @curr: %NULL or pointer to previously returned structure
  *
- * returns a pointer to an SMBIOS structure or NULL if none found
+ * Gets the first entry if previous == NULL;
+ * otherwise, returns the next entry.
+ * Uses global SMBIOS Table pointer.
+ *
+ * Returns a pointer to an SMBIOS structure or NULL if none found.
  */
 static void __iomem *get_subsequent_smbios_entry(void __iomem *smbios_start,
 						void __iomem *smbios_table,
@@ -272,17 +271,18 @@ static void __iomem *get_subsequent_smbios_entry(void __iomem *smbios_start,
 
 
 /**
- * get_SMBIOS_entry
- *
- * @type:SMBIOS structure type to be returned
+ * get_SMBIOS_entry - return the requested SMBIOS entry or %NULL
+ * @smbios_start: where to start in the SMBIOS table
+ * @smbios_table: location of the SMBIOS table
+ * @type: SMBIOS structure type to be returned
  * @previous: %NULL or pointer to previously returned structure
  *
- * Gets the first entry of the specified type if previous == NULL
+ * Gets the first entry of the specified type if previous == %NULL;
  * Otherwise, returns the next entry of the given type.
- * Uses global SMBIOS Table pointer
- * Uses get_subsequent_smbios_entry
+ * Uses global SMBIOS Table pointer.
+ * Uses get_subsequent_smbios_entry.
  *
- * returns a pointer to an SMBIOS structure or %NULL if none found
+ * Returns a pointer to an SMBIOS structure or %NULL if none found.
  */
 static void __iomem *get_SMBIOS_entry(void __iomem *smbios_start,
 					void __iomem *smbios_table,
@@ -581,7 +581,9 @@ get_slot_mapping(struct pci_bus *bus, u8 bus_num, u8 dev_num, u8 *slot)
 
 /**
  * cpqhp_set_attention_status - Turns the Amber LED for a slot on or off
- *
+ * @ctrl: struct controller to use
+ * @func: PCI device/function info
+ * @status: LED control flag: 1 = LED on, 0 = LED off
  */
 static int
 cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
@@ -621,7 +623,8 @@ cpqhp_set_attention_status(struct controller *ctrl, struct pci_func *func,
 
 /**
  * set_attention_status - Turns the Amber LED for a slot on or off
- *
+ * @hotplug_slot: slot to change LED on
+ * @status: LED control flag
  */
 static int set_attention_status (struct hotplug_slot *hotplug_slot, u8 status)
 {

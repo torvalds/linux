@@ -663,6 +663,7 @@ static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 		wrmsrl(host_save_user_msrs[i], svm->host_user_msrs[i]);
 
 	rdtscll(vcpu->host_tsc);
+	kvm_put_guest_fpu(vcpu);
 }
 
 static void svm_vcpu_decache(struct kvm_vcpu *vcpu)

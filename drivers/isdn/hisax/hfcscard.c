@@ -118,8 +118,7 @@ hfcs_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 			return(0);
 		case CARD_INIT:
 			delay = (75*HZ)/100 +1;
-			cs->hw.hfcD.timer.expires = jiffies + delay;
-			add_timer(&cs->hw.hfcD.timer);
+			mod_timer(&cs->hw.hfcD.timer, jiffies + delay);
 			spin_lock_irqsave(&cs->lock, flags);
 			reset_hfcs(cs);
 			init2bds0(cs);

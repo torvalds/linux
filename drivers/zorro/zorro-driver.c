@@ -60,6 +60,20 @@ static int zorro_device_probe(struct device *dev)
 }
 
 
+static int zorro_device_remove(struct device *dev)
+{
+	struct zorro_dev *z = to_zorro_dev(dev);
+	struct zorro_driver *drv = to_zorro_driver(dev->driver);
+
+	if (drv) {
+		if (drv->remove)
+			drv->remove(z);
+		z->driver = NULL;
+	}
+	return 0;
+}
+
+
     /**
      *  zorro_register_driver - register a new Zorro driver
      *  @drv: the driver structure to register
@@ -128,6 +142,7 @@ struct bus_type zorro_bus_type = {
 	.name	= "zorro",
 	.match	= zorro_bus_match,
 	.probe	= zorro_device_probe,
+	.remove	= zorro_device_remove,
 };
 
 

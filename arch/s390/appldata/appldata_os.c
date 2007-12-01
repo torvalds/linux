@@ -82,7 +82,6 @@ struct appldata_os_data {
 static struct appldata_os_data *appldata_os_data;
 
 static struct appldata_ops ops = {
-	.ctl_nr    = CTL_APPLDATA_OS,
 	.name	   = "os",
 	.record_nr = APPLDATA_RECORD_OS_ID,
 	.owner	   = THIS_MODULE,

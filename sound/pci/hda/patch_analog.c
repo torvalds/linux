@@ -957,6 +957,14 @@ static int patch_ad1986a(struct hda_codec *codec)
 		break;
 	}
 
+	/* AD1986A has a hardware problem that it can't share a stream
+	 * with multiple output pins.  The copy of front to surrounds
+	 * causes noisy or silent outputs at a certain timing, e.g.
+	 * changing the volume.
+	 * So, let's disable the shared stream.
+	 */
+	spec->multiout.no_share_stream = 1;
+
 	return 0;
 }
 

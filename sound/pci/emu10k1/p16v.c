@@ -742,6 +742,8 @@ static int snd_p16v_capture_source_put(struct snd_kcontrol *kcontrol,
 	u32 source;
 
 	val = ucontrol->value.enumerated.item[0] ;
+	if (val > 7)
+		return -EINVAL;
 	change = (emu->p16v_capture_source != val);
 	if (change) {
 		emu->p16v_capture_source = val;
@@ -784,6 +786,8 @@ static int snd_p16v_capture_channel_put(struct snd_kcontrol *kcontrol,
 	u32 tmp;
 
 	val = ucontrol->value.enumerated.item[0] ;
+	if (val > 3)
+		return -EINVAL;
 	change = (emu->p16v_capture_channel != val);
 	if (change) {
 		emu->p16v_capture_channel = val;

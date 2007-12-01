@@ -507,7 +507,6 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 				    struct xfrm_usersa_info *p,
 				    struct sk_buff *skb)
 {
-	spin_lock_bh(&x->lock);
 	copy_to_user_state(x, p);
 
 	if (x->coaddr)
@@ -515,7 +514,6 @@ static int copy_to_user_state_extra(struct xfrm_state *x,
 
 	if (x->lastused)
 		NLA_PUT_U64(skb, XFRMA_LASTUSED, x->lastused);
-	spin_unlock_bh(&x->lock);
 
 	if (x->aalg)
 		NLA_PUT(skb, XFRMA_ALG_AUTH, alg_len(x->aalg), x->aalg);

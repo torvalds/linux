@@ -19,6 +19,9 @@
 #include <linux/init.h>
 #include <linux/capability.h>
 #include <linux/delay.h>
+#include <linux/smp.h>
+#include <linux/completion.h>
+#include <linux/cpumask.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -34,6 +37,8 @@
 #include <asm/lmb.h>
 #include <asm/udbg.h>
 #include <asm/syscalls.h>
+#include <asm/smp.h>
+#include <asm/atomic.h>
 
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
@@ -41,8 +46,10 @@ struct rtas_t rtas = {
 EXPORT_SYMBOL(rtas);
 
 struct rtas_suspend_me_data {
-	long waiting;
-	struct rtas_args *args;
+	atomic_t working; /* number of cpus accessing this struct */
+	int token; /* ibm,suspend-me */
+	int error;
+	struct completion *complete; /* wait on this until working == 0 */
 };
 
 DEFINE_SPINLOCK(rtas_data_buf_lock);
@@ -631,17 +638,17 @@ void rtas_halt(void)
 /* Must be in the RMO region, so we place it here */
 static char rtas_os_term_buf[2048];
 
-void rtas_os_term(char *str)
+void rtas_panic_msg(char *str)
+{
+	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
+}
+
+void rtas_os_term(void)
 {
 	int status;
 
-	if (panic_timeout)
-		return;
-
 	if (RTAS_UNKNOWN_SERVICE == rtas_token("ibm,os-term"))
 		return;
-
-	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
 
 	do {
 		status = rtas_call(rtas_token("ibm,os-term"), 1, 1, NULL,
@@ -657,50 +664,62 @@ static int ibm_suspend_me_token = RTAS_UNKNOWN_SERVICE;
 #ifdef CONFIG_PPC_PSERIES
 static void rtas_percpu_suspend_me(void *info)
 {
-	int i;
 	long rc;
-	long flags;
+	unsigned long msr_save;
+	int cpu;
 	struct rtas_suspend_me_data *data =
 		(struct rtas_suspend_me_data *)info;
 
-	/*
-	 * We use "waiting" to indicate our state.  As long
-	 * as it is >0, we are still trying to all join up.
-	 * If it goes to 0, we have successfully joined up and
-	 * one thread got H_CONTINUE.  If any error happens,
-	 * we set it to <0.
-	 */
-	local_irq_save(flags);
-	do {
-		rc = plpar_hcall_norets(H_JOIN);
-		smp_rmb();
-	} while (rc == H_SUCCESS && data->waiting > 0);
-	if (rc == H_SUCCESS)
+	atomic_inc(&data->working);
+
+	/* really need to ensure MSR.EE is off for H_JOIN */
+	msr_save = mfmsr();
+	mtmsr(msr_save & ~(MSR_EE));
+
+	rc = plpar_hcall_norets(H_JOIN);
+
+	mtmsr(msr_save);
+
+	if (rc == H_SUCCESS) {
+		/* This cpu was prodded and the suspend is complete. */
 		goto out;
+	} else if (rc == H_CONTINUE) {
+		/* All other cpus are in H_JOIN, this cpu does
+		 * the suspend.
+		 */
+		printk(KERN_DEBUG "calling ibm,suspend-me on cpu %i\n",
+		       smp_processor_id());
+		data->error = rtas_call(data->token, 0, 1, NULL);
 
-	if (rc == H_CONTINUE) {
-		data->waiting = 0;
-		data->args->args[data->args->nargs] =
-			rtas_call(ibm_suspend_me_token, 0, 1, NULL);
-		for_each_possible_cpu(i)
-			plpar_hcall_norets(H_PROD,i);
+		if (data->error)
+			printk(KERN_DEBUG "ibm,suspend-me returned %d\n",
+			       data->error);
 	} else {
-		data->waiting = -EBUSY;
-		printk(KERN_ERR "Error on H_JOIN hypervisor call\n");
+		printk(KERN_ERR "H_JOIN on cpu %i failed with rc = %ld\n",
+		       smp_processor_id(), rc);
+		data->error = rc;
 	}
-
+	/* This cpu did the suspend or got an error; in either case,
+	 * we need to prod all other other cpus out of join state.
+	 * Extra prods are harmless.
+	 */
+	for_each_online_cpu(cpu)
+		plpar_hcall_norets(H_PROD, get_hard_smp_processor_id(cpu));
 out:
-	local_irq_restore(flags);
-	return;
+	if (atomic_dec_return(&data->working) == 0)
+		complete(data->complete);
 }
 
 static int rtas_ibm_suspend_me(struct rtas_args *args)
 {
-	int i;
 	long state;
 	long rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	struct rtas_suspend_me_data data;
+	DECLARE_COMPLETION_ONSTACK(done);
+
+	if (!rtas_service_present("ibm,suspend-me"))
+		return -ENOSYS;
 
 	/* Make sure the state is valid */
 	rc = plpar_hcall(H_VASI_STATE, retbuf,
@@ -721,25 +740,23 @@ static int rtas_ibm_suspend_me(struct rtas_args *args)
 		return 0;
 	}
 
-	data.waiting = 1;
-	data.args = args;
+	atomic_set(&data.working, 0);
+	data.token = rtas_token("ibm,suspend-me");
+	data.error = 0;
+	data.complete = &done;
 
 	/* Call function on all CPUs.  One of us will make the
 	 * rtas call
 	 */
 	if (on_each_cpu(rtas_percpu_suspend_me, &data, 1, 0))
-		data.waiting = -EINVAL;
+		data.error = -EINVAL;
 
-	if (data.waiting != 0)
+	wait_for_completion(&done);
+
+	if (data.error != 0)
 		printk(KERN_ERR "Error doing global join\n");
 
-	/* Prod each CPU.  This won't hurt, and will wake
-	 * anyone we successfully put to sleep with H_JOIN.
-	 */
-	for_each_possible_cpu(i)
-		plpar_hcall_norets(H_PROD, i);
-
-	return data.waiting;
+	return data.error;
 }
 #else /* CONFIG_PPC_PSERIES */
 static int rtas_ibm_suspend_me(struct rtas_args *args)

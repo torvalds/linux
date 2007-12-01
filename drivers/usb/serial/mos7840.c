@@ -2711,7 +2711,7 @@ static int mos7840_startup(struct usb_serial *serial)
 	status = mos7840_set_reg_sync(serial->port[0], ZLP_REG5, Data);
 	if (status < 0) {
 		dbg("Writing ZLP_REG5 failed status-0x%x\n", status);
-		return -1;
+		goto error;
 	} else
 		dbg("ZLP_REG5 Writing success status%d\n", status);
 

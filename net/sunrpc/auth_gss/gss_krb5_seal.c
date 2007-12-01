@@ -83,6 +83,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	u32			seq_send;
 
 	dprintk("RPC:       gss_krb5_seal\n");
+	BUG_ON(ctx == NULL);
 
 	now = get_seconds();
 

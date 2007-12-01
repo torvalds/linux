@@ -63,6 +63,21 @@ enum {
 	SIL24_HOST_BAR		= 0,
 	SIL24_PORT_BAR		= 2,
 
+	/* sil24 fetches in chunks of 64bytes.  The first block
+	 * contains the PRB and two SGEs.  From the second block, it's
+	 * consisted of four SGEs and called SGT.  Calculate the
+	 * number of SGTs that fit into one page.
+	 */
+	SIL24_PRB_SZ		= sizeof(struct sil24_prb)
+				  + 2 * sizeof(struct sil24_sge),
+	SIL24_MAX_SGT		= (PAGE_SIZE - SIL24_PRB_SZ)
+				  / (4 * sizeof(struct sil24_sge)),
+
+	/* This will give us one unused SGEs for ATA.  This extra SGE
+	 * will be used to store CDB for ATAPI devices.
+	 */
+	SIL24_MAX_SGE		= 4 * SIL24_MAX_SGT + 1,
+
 	/*
 	 * Global controller registers (128 bytes @ BAR0)
 	 */
@@ -247,13 +262,13 @@ enum {
 
 struct sil24_ata_block {
 	struct sil24_prb prb;
-	struct sil24_sge sge[LIBATA_MAX_PRD];
+	struct sil24_sge sge[SIL24_MAX_SGE];
 };
 
 struct sil24_atapi_block {
 	struct sil24_prb prb;
 	u8 cdb[16];
-	struct sil24_sge sge[LIBATA_MAX_PRD - 1];
+	struct sil24_sge sge[SIL24_MAX_SGE];
 };
 
 union sil24_cmd_block {
@@ -378,7 +393,7 @@ static struct scsi_host_template sil24_sht = {
 	.change_queue_depth	= ata_scsi_change_queue_depth,
 	.can_queue		= SIL24_MAX_CMDS,
 	.this_id		= ATA_SHT_THIS_ID,
-	.sg_tablesize		= LIBATA_MAX_PRD,
+	.sg_tablesize		= SIL24_MAX_SGE,
 	.cmd_per_lun		= ATA_SHT_CMD_PER_LUN,
 	.emulated		= ATA_SHT_EMULATED,
 	.use_clustering		= ATA_SHT_USE_CLUSTERING,
@@ -1284,6 +1299,7 @@ static void sil24_init_controller(struct ata_host *host)
 
 static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	extern int __MARKER__sil24_cmd_block_is_sized_wrongly;
 	static int printed_version;
 	struct ata_port_info pi = sil24_port_info[ent->driver_data];
 	const struct ata_port_info *ppi[] = { &pi, NULL };
@@ -1291,6 +1307,10 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_host *host;
 	int i, rc;
 	u32 tmp;
+
+	/* cause link error if sil24_cmd_block is sized wrongly */
+	if (sizeof(union sil24_cmd_block) != PAGE_SIZE)
+		__MARKER__sil24_cmd_block_is_sized_wrongly = 1;
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");

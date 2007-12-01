@@ -51,7 +51,6 @@
 #define L1GPU_DISPLAY_SYNC_HSYNC		1
 #define L1GPU_DISPLAY_SYNC_VSYNC		2
 
-#define DDR_SIZE				(0)	/* used no ddr */
 #define GPU_CMD_BUF_SIZE			(64 * 1024)
 #define GPU_IOIF				(0x0d000000UL)
 #define GPU_ALIGN_UP(x)				_ALIGN_UP((x), 64)
@@ -1060,6 +1059,7 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 	u64 xdr_lpar;
 	int status, res_index;
 	struct task_struct *task;
+	unsigned long max_ps3fb_size;
 
 	status = ps3_open_hv_device(dev);
 	if (status) {
@@ -1085,8 +1085,15 @@ static int __devinit ps3fb_probe(struct ps3_system_bus_device *dev)
 
 	ps3fb_set_sync(&dev->core);
 
+	max_ps3fb_size = _ALIGN_UP(GPU_IOIF, 256*1024*1024) - GPU_IOIF;
+	if (ps3fb_videomemory.size > max_ps3fb_size) {
+		dev_info(&dev->core, "Limiting ps3fb mem size to %lu bytes\n",
+			 max_ps3fb_size);
+		ps3fb_videomemory.size = max_ps3fb_size;
+	}
+
 	/* get gpu context handle */
-	status = lv1_gpu_memory_allocate(DDR_SIZE, 0, 0, 0, 0,
+	status = lv1_gpu_memory_allocate(ps3fb_videomemory.size, 0, 0, 0, 0,
 					 &ps3fb.memory_handle, &ddr_lpar);
 	if (status) {
 		dev_err(&dev->core, "%s: lv1_gpu_memory_allocate failed: %d\n",

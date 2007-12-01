@@ -66,7 +66,7 @@ struct slot {
 	char name[SLOT_NAME_SIZE];
 };
 
-/**
+/*
  * struct acpiphp_bridge - PCI bridge information
  *
  * for each bridge device in ACPI namespace
@@ -97,7 +97,7 @@ struct acpiphp_bridge {
 };
 
 
-/**
+/*
  * struct acpiphp_slot - PCI slot information
  *
  * PCI slot information for each *physical* PCI slot
@@ -118,7 +118,7 @@ struct acpiphp_slot {
 };
 
 
-/**
+/*
  * struct acpiphp_func - PCI function information
  *
  * PCI function information for each object in ACPI namespace
@@ -137,7 +137,7 @@ struct acpiphp_func {
 	u32		flags;		/* see below */
 };
 
-/**
+/*
  * struct acpiphp_attention_info - device specific attention registration
  *
  * ACPI has no generic method of setting/getting attention status

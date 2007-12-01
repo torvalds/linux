@@ -35,17 +35,18 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 #if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-#include <linux/usb_isp1362.h>
+#include <linux/usb/isp1362.h>
 #endif
 #include <linux/pata_platform.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/usb_sl811.h>
+#include <linux/usb/sl811.h>
 #include <asm/cplb.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
 #include <asm/reboot.h>
 #include <asm/nand.h>
+#include <asm/portmux.h>
 #include <linux/spi/ad7877.h>
 
 /*
@@ -450,6 +451,13 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 };
 #endif
 
+#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_SND_SOC_WM8731_MODULE) \
+	 && defined(CONFIG_SND_SOC_WM8731_SPI)
+static struct bfin5xx_spi_chip spi_wm8731_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
@@ -551,9 +559,20 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.platform_data		= &bfin_ad7877_ts_info,
 		.irq			= IRQ_PF6,
 		.max_speed_hz	= 12500000,     /* max spi clock (SCK) speed in HZ */
-		.bus_num	= 1,
+		.bus_num	= 0,
 		.chip_select  = 1,
 		.controller_data = &spi_ad7877_chip_info,
+	},
+#endif
+#if defined(CONFIG_SND_SOC_WM8731) || defined(CONFIG_SND_SOC_WM8731_MODULE) \
+	 && defined(CONFIG_SND_SOC_WM8731_SPI)
+	{
+		.modalias	= "wm8731",
+		.max_speed_hz	= 3125000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num	= 0,
+		.chip_select    = 5,
+		.controller_data = &spi_wm8731_chip_info,
+		.mode = SPI_MODE_0,
 	},
 #endif
 };
@@ -562,6 +581,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 static struct bfin5xx_spi_master bfin_spi0_info = {
 	.num_chipselect = 8,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
+	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
 
 /* SPI (0) */
@@ -788,3 +808,14 @@ void native_machine_restart(char *cmd)
 	if ((bfin_read_SYSCR() & 0x7) == 0x3)
 		bfin_gpio_reset_spi0_ssel1();
 }
+
+/*
+ * Currently the MAC address is saved in Flash by U-Boot
+ */
+#define FLASH_MAC	0x203f0000
+void bfin_get_ether_addr(char *addr)
+{
+	*(u32 *)(&(addr[0])) = bfin_read32(FLASH_MAC);
+	*(u16 *)(&(addr[4])) = bfin_read16(FLASH_MAC + 4);
+}
+EXPORT_SYMBOL(bfin_get_ether_addr);

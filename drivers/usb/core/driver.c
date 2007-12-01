@@ -585,9 +585,6 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct usb_device *usb_dev;
 
-	if (!dev)
-		return -ENODEV;
-
 	/* driver is often null here; dev_dbg() would oops */
 	pr_debug ("usb %s: uevent\n", dev->bus_id);
 
@@ -629,14 +626,6 @@ static int usb_uevent(struct device *dev, struct kobj_uevent_env *env)
 			   usb_dev->descriptor.bDeviceClass,
 			   usb_dev->descriptor.bDeviceSubClass,
 			   usb_dev->descriptor.bDeviceProtocol))
-		return -ENOMEM;
-
-	if (add_uevent_var(env, "BUSNUM=%03d",
-			   usb_dev->bus->busnum))
-		return -ENOMEM;
-
-	if (add_uevent_var(env, "DEVNUM=%03d",
-			   usb_dev->devnum))
 		return -ENOMEM;
 
 	return 0;

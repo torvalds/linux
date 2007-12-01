@@ -225,12 +225,9 @@ If no password is provided, mount.cifs will prompt for password entry
 
 Restrictions
 ============
-Servers must support the NTLM SMB dialect (which is the most recent, supported 
-by Samba and Windows NT version 4, 2000 and XP and many other SMB/CIFS servers) 
 Servers must support either "pure-TCP" (port 445 TCP/IP CIFS connections) or RFC 
-1001/1002 support for "Netbios-Over-TCP/IP." Neither of these is likely to be a 
-problem as most servers support this.  IPv6 support is planned for the future,
-and is almost complete.
+1001/1002 support for "Netbios-Over-TCP/IP." This is not likely to be a 
+problem as most servers support this.
 
 Valid filenames differ between Windows and Linux.  Windows typically restricts
 filenames which contain certain reserved characters (e.g.the character : 
@@ -458,6 +455,8 @@ A partial list of the supported mount options follows:
 		byte range locks).
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
+ cifsacl        Report mode bits (e.g. on stat) based on the Windows ACL for
+	        the file. (EXPERIMENTAL)
  servern        Specify the server 's netbios name (RFC1001 name) to use
 		when attempting to setup a session to the server.  This is
 		This is needed for mounting to some older servers (such
@@ -584,8 +583,8 @@ Experimental            When set to 1 used to enable certain experimental
 			performance enhancement was disabled when
 			signing turned on in case buffer was modified
 			just before it was sent, also this flag will
-			be used to use the new experimental sessionsetup
-			code).
+			be used to use the new experimental directory change 
+			notification code).
 
 These experimental features and tracing can be enabled by changing flags in 
 /proc/fs/cifs (after the cifs module has been installed or built into the 
@@ -608,7 +607,8 @@ the start of smb requests and responses can be enabled via:
 Two other experimental features are under development. To test these
 requires enabling CONFIG_CIFS_EXPERIMENTAL
 
-	ipv6 enablement
+	cifsacl support needed to retrieve approximated mode bits based on
+		the contents on the CIFS ACL.
 
 	DNOTIFY fcntl: needed for support of directory change 
 			    notification and perhaps later for file leases)
@@ -625,10 +625,7 @@ that they represent all for that share, not just those for which the server
 returned success.
 	
 Also note that "cat /proc/fs/cifs/DebugData" will display information about 
-the active sessions and the shares that are mounted.  Note: NTLMv2 enablement 
-will not work since its implementation is not quite complete yet. Do not alter
-the ExtendedSecurity configuration value unless you are doing specific testing.
-Enabling extended security works to Windows 2000 Workstations and XP but not to 
-Windows 2000 server or Samba since it does not usually send "raw NTLMSSP" 
-(instead it sends NTLMSSP encapsulated in SPNEGO/GSSAPI, which support is not 
-complete in the CIFS VFS yet).  
+the active sessions and the shares that are mounted.
+Enabling Kerberos (extended security) works when CONFIG_CIFS_EXPERIMENTAL is enabled
+but requires a user space helper (from the Samba project). NTLM and NTLMv2 and
+LANMAN support do not require this helpr.

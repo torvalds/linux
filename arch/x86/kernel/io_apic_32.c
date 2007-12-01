@@ -962,7 +962,7 @@ static int EISA_ELCR(unsigned int irq)
 #define default_MCA_trigger(idx)	(1)
 #define default_MCA_polarity(idx)	(0)
 
-static int __init MPBIOS_polarity(int idx)
+static int MPBIOS_polarity(int idx)
 {
 	int bus = mp_irqs[idx].mpc_srcbus;
 	int polarity;
@@ -2166,6 +2166,10 @@ static inline void __init check_timer(void)
 {
 	int apic1, pin1, apic2, pin2;
 	int vector;
+	unsigned int ver;
+
+	ver = apic_read(APIC_LVR);
+	ver = GET_APIC_VERSION(ver);
 
 	/*
 	 * get/set the timer IRQ vector:
@@ -2179,11 +2183,15 @@ static inline void __init check_timer(void)
 	 * mode for the 8259A whenever interrupts are routed
 	 * through I/O APICs.  Also IRQ0 has to be enabled in
 	 * the 8259A which implies the virtual wire has to be
-	 * disabled in the local APIC.
+	 * disabled in the local APIC.  Finally timer interrupts
+	 * need to be acknowledged manually in the 8259A for
+	 * timer_interrupt() and for the i82489DX when using
+	 * the NMI watchdog.
 	 */
 	apic_write_around(APIC_LVT0, APIC_LVT_MASKED | APIC_DM_EXTINT);
 	init_8259A(1);
-	timer_ack = 1;
+	timer_ack = !cpu_has_tsc;
+	timer_ack |= (nmi_watchdog == NMI_IO_APIC && !APIC_INTEGRATED(ver));
 	if (timer_over_8254 > 0)
 		enable_8259A_irq(0);
 
@@ -2827,6 +2835,25 @@ int io_apic_set_pci_routing (int ioapic, int pin, int irq, int edge_level, int a
 	__ioapic_write_entry(ioapic, pin, entry);
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
+	return 0;
+}
+
+int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
+{
+	int i;
+
+	if (skip_ioapic_setup)
+		return -1;
+
+	for (i = 0; i < mp_irq_entries; i++)
+		if (mp_irqs[i].mpc_irqtype == mp_INT &&
+		    mp_irqs[i].mpc_srcbusirq == bus_irq)
+			break;
+	if (i >= mp_irq_entries)
+		return -1;
+
+	*trigger = irq_trigger(i);
+	*polarity = irq_polarity(i);
 	return 0;
 }
 

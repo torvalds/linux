@@ -1128,6 +1128,7 @@ static void do_ubd_request(struct request_queue *q)
 					       "errno = %d\n", -n);
 				else if(list_empty(&dev->restart))
 					list_add(&dev->restart, &restart);
+				kfree(io_req);
 				return;
 			}
 

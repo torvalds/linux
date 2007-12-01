@@ -497,7 +497,7 @@ static int atmel_spi_setup(struct spi_device *spi)
 	/* chipselect must have been muxed as GPIO (e.g. in board setup) */
 	npcs_pin = (unsigned int)spi->controller_data;
 	if (!spi->controller_state) {
-		ret = gpio_request(npcs_pin, "spi_npcs");
+		ret = gpio_request(npcs_pin, spi->dev.bus_id);
 		if (ret)
 			return ret;
 		spi->controller_state = (void *)npcs_pin;

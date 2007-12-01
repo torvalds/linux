@@ -1,6 +1,8 @@
 #ifndef _BLACKFIN_STRING_H_
 #define _BLACKFIN_STRING_H_
 
+#include <linux/types.h>
+
 #ifdef __KERNEL__		/* only set these up for kernel code */
 
 #define __HAVE_ARCH_STRCPY

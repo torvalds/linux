@@ -310,13 +310,15 @@ static unsigned int iser_data_buf_aligned_len(struct iser_data_buf *data,
 		if (i + 1 < data->dma_nents) {
 			next_addr = ib_sg_dma_address(ibdev, sg_next(sg));
 			/* are i, i+1 fragments of the same page? */
-			if (end_addr == next_addr)
+			if (end_addr == next_addr) {
+				cnt++;
 				continue;
-			else if (!IS_4K_ALIGNED(end_addr)) {
+			} else if (!IS_4K_ALIGNED(end_addr)) {
 				ret_len = cnt + 1;
 				break;
 			}
 		}
+		cnt++;
 	}
 	if (i == data->dma_nents)
 		ret_len = cnt;	/* loop ended */

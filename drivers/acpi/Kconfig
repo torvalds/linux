@@ -50,7 +50,6 @@ config ACPI_SLEEP
 config ACPI_PROCFS
 	bool "Deprecated /proc/acpi files"
 	depends on PROC_FS
-	default y
 	---help---
 	  For backwards compatibility, this option allows
 	  deprecated /proc/acpi/ files to exist, even when
@@ -61,7 +60,6 @@ config ACPI_PROCFS
 	  /proc/acpi/info (/sys/modules/acpi/parameters/acpica_version)
 	  /proc/acpi/dsdt (/sys/firmware/acpi/tables/DSDT)
 	  /proc/acpi/fadt (/sys/firmware/acpi/tables/FACP)
-	  /proc/acpi/battery (/sys/class/power_supply)
 	  /proc/acpi/debug_layer (/sys/module/acpi/parameters/debug_layer)
 	  /proc/acpi/debug_level (/sys/module/acpi/parameters/debug_level)
 
@@ -69,7 +67,21 @@ config ACPI_PROCFS
 	  and functions which do not yet exist in /sys.
 
 	  Say N to delete /proc/acpi/ files that have moved to /sys/
+config ACPI_PROCFS_POWER
+	bool "Deprecated power /proc/acpi folders"
+	depends on PROC_FS
+	default y
+	---help---
+	  For backwards compatibility, this option allows
+          deprecated power /proc/acpi/ folders to exist, even when
+          they have been replaced by functions in /sys.
+          The deprecated folders (and their replacements) include:
+	  /proc/acpi/battery/* (/sys/class/power_supply/*)
+	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
+	  This option has no effect on /proc/acpi/ folders
+	  and functions, which do not yet exist in /sys
 
+	  Say N to delete power /proc/acpi/ folders that have moved to /sys/
 config ACPI_PROC_EVENT
 	bool "Deprecated /proc/acpi/event support"
 	depends on PROC_FS

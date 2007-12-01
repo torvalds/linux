@@ -90,10 +90,11 @@ static void __init mpc832x_sys_setup_arch(void)
 
 	if ((np = of_find_compatible_node(NULL, "network", "ucc_geth"))
 			!= NULL){
-		/* Reset the Ethernet PHY */
-		bcsr_regs[9] &= ~0x20;
+		/* Reset the Ethernet PHYs */
+#define BCSR8_FETH_RST 0x50
+		bcsr_regs[8] &= ~BCSR8_FETH_RST;
 		udelay(1000);
-		bcsr_regs[9] |= 0x20;
+		bcsr_regs[8] |= BCSR8_FETH_RST;
 		iounmap(bcsr_regs);
 		of_node_put(np);
 	}
@@ -144,30 +145,6 @@ static void __init mpc832x_sys_init_IRQ(void)
 	of_node_put(np);
 #endif				/* CONFIG_QUICC_ENGINE */
 }
-
-#if defined(CONFIG_I2C_MPC) && defined(CONFIG_SENSORS_DS1374)
-extern ulong ds1374_get_rtc_time(void);
-extern int ds1374_set_rtc_time(ulong);
-
-static int __init mpc832x_rtc_hookup(void)
-{
-	struct timespec tv;
-
-	if (!machine_is(mpc832x_mds))
-		return 0;
-
-	ppc_md.get_rtc_time = ds1374_get_rtc_time;
-	ppc_md.set_rtc_time = ds1374_set_rtc_time;
-
-	tv.tv_nsec = 0;
-	tv.tv_sec = (ppc_md.get_rtc_time) ();
-	do_settimeofday(&tv);
-
-	return 0;
-}
-
-late_initcall(mpc832x_rtc_hookup);
-#endif
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened

@@ -30,7 +30,6 @@
 
 #include <asm/blackfin.h>
 #include <asm/mach/irq.h>
-#include <linux/autoconf.h>
 #include <linux/linkage.h>
 #include <asm/entry.h>
 #include <asm/asm-offsets.h>

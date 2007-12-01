@@ -133,6 +133,9 @@ struct rtc_class_ops {
 #define RTC_DEVICE_NAME_SIZE 20
 struct rtc_task;
 
+/* flags */
+#define RTC_DEV_BUSY 0
+
 struct rtc_device
 {
 	struct device dev;
@@ -145,7 +148,7 @@ struct rtc_device
 	struct mutex ops_lock;
 
 	struct cdev char_dev;
-	struct mutex char_lock;
+	unsigned long flags;
 
 	unsigned long irq_data;
 	spinlock_t irq_lock;

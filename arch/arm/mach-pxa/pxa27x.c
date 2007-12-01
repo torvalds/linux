@@ -146,7 +146,7 @@ static struct clk pxa27x_clks[] = {
 	INIT_CKEN("MMCCLK",  MMC,  19500000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("FICPCLK", FICP, 48000000, 0, &pxa_device_ficp.dev),
 
-	INIT_CKEN("USBCLK", USB,    48000000, 0, &pxa27x_device_ohci.dev),
+	INIT_CKEN("USBCLK", USBHOST, 48000000, 0, &pxa27x_device_ohci.dev),
 	INIT_CKEN("I2CCLK", PWRI2C, 13000000, 0, &pxa27x_device_i2c_power.dev),
 	INIT_CKEN("KBDCLK", KEYPAD, 32768, 0, NULL),
 

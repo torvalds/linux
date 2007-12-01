@@ -1034,7 +1034,7 @@ device_trigger_reprobe(struct subchannel *sch)
 	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
 		PREPARE_WORK(&cdev->private->kick_work,
 			     ccw_device_move_to_orphanage);
-		queue_work(ccw_device_work, &cdev->private->kick_work);
+		queue_work(slow_path_wq, &cdev->private->kick_work);
 	} else
 		ccw_device_start_id(cdev, 0);
 }

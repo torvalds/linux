@@ -668,7 +668,7 @@ static int __devinit snd_portman_probe_port(struct parport *p)
 	parport_release(pardev);
 	parport_unregister_device(pardev);
 
-	return res;
+	return res ? -EIO : 0;
 }
 
 static void __devinit snd_portman_attach(struct parport *p)

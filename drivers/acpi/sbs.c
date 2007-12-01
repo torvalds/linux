@@ -29,7 +29,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
@@ -88,7 +88,7 @@ MODULE_DEVICE_TABLE(acpi, sbs_device_ids);
 struct acpi_battery {
 	struct power_supply bat;
 	struct acpi_sbs *sbs;
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	struct proc_dir_entry *proc_entry;
 #endif
 	unsigned long update_time;
@@ -113,6 +113,7 @@ struct acpi_battery {
 	u16 spec;
 	u8 id;
 	u8 present:1;
+	u8 have_sysfs_alarm:1;
 };
 
 #define to_acpi_battery(x) container_of(x, struct acpi_battery, bat);
@@ -122,7 +123,7 @@ struct acpi_sbs {
 	struct acpi_device *device;
 	struct acpi_smb_hc *hc;
 	struct mutex lock;
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	struct proc_dir_entry *charger_entry;
 #endif
 	struct acpi_battery battery[MAX_SBS_BAT];
@@ -468,7 +469,7 @@ static struct device_attribute alarm_attr = {
                               FS Interface (/proc/acpi)
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 /* Generic Routines */
 static int
 acpi_sbs_add_fs(struct proc_dir_entry **dir,
@@ -789,7 +790,7 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 		return result;
 
 	sprintf(battery->name, ACPI_BATTERY_DIR_NAME, id);
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_sbs_add_fs(&battery->proc_entry, acpi_battery_dir,
 			battery->name, &acpi_battery_info_fops,
 			&acpi_battery_state_fops, &acpi_battery_alarm_fops,
@@ -808,7 +809,13 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 	}
 	battery->bat.get_property = acpi_sbs_battery_get_property;
 	result = power_supply_register(&sbs->device->dev, &battery->bat);
-	device_create_file(battery->bat.dev, &alarm_attr);
+	if (result)
+		goto end;
+	result = device_create_file(battery->bat.dev, &alarm_attr);
+	if (result)
+		goto end;
+	battery->have_sysfs_alarm = 1;
+      end:
 	printk(KERN_INFO PREFIX "%s [%s]: Battery Slot [%s] (battery %s)\n",
 	       ACPI_SBS_DEVICE_NAME, acpi_device_bid(sbs->device),
 	       battery->name, sbs->battery->present ? "present" : "absent");
@@ -817,14 +824,16 @@ static int acpi_battery_add(struct acpi_sbs *sbs, int id)
 
 static void acpi_battery_remove(struct acpi_sbs *sbs, int id)
 {
-	if (sbs->battery[id].bat.dev)
-		device_remove_file(sbs->battery[id].bat.dev, &alarm_attr);
-		power_supply_unregister(&sbs->battery[id].bat);
-#ifdef CONFIG_ACPI_PROCFS
-	if (sbs->battery[id].proc_entry) {
-		acpi_sbs_remove_fs(&(sbs->battery[id].proc_entry),
-				   acpi_battery_dir);
+	struct acpi_battery *battery = &sbs->battery[id];
+
+	if (battery->bat.dev) {
+		if (battery->have_sysfs_alarm)
+			device_remove_file(battery->bat.dev, &alarm_attr);
+		power_supply_unregister(&battery->bat);
 	}
+#ifdef CONFIG_ACPI_PROCFS_POWER
+	if (battery->proc_entry)
+		acpi_sbs_remove_fs(&battery->proc_entry, acpi_battery_dir);
 #endif
 }
 
@@ -835,7 +844,7 @@ static int acpi_charger_add(struct acpi_sbs *sbs)
 	result = acpi_ac_get_present(sbs);
 	if (result)
 		goto end;
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	result = acpi_sbs_add_fs(&sbs->charger_entry, acpi_ac_dir,
 				 ACPI_AC_DIR_NAME, NULL,
 				 &acpi_ac_state_fops, NULL, sbs);
@@ -859,7 +868,7 @@ static void acpi_charger_remove(struct acpi_sbs *sbs)
 {
 	if (sbs->charger.dev)
 		power_supply_unregister(&sbs->charger);
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	if (sbs->charger_entry)
 		acpi_sbs_remove_fs(&sbs->charger_entry, acpi_ac_dir);
 #endif
@@ -965,7 +974,7 @@ static int acpi_sbs_remove(struct acpi_device *device, int type)
 
 static void acpi_sbs_rmdirs(void)
 {
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	if (acpi_ac_dir) {
 		acpi_unlock_ac_dir(acpi_ac_dir);
 		acpi_ac_dir = NULL;
@@ -1004,7 +1013,7 @@ static int __init acpi_sbs_init(void)
 
 	if (acpi_disabled)
 		return -ENODEV;
-#ifdef CONFIG_ACPI_PROCFS
+#ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_ac_dir = acpi_lock_ac_dir();
 	if (!acpi_ac_dir)
 		return -ENODEV;

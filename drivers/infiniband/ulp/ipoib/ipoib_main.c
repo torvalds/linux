@@ -460,6 +460,9 @@ static struct ipoib_path *path_rec_create(struct net_device *dev, void *gid)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
 
+	if (!priv->broadcast)
+		return NULL;
+
 	path = kzalloc(sizeof *path, GFP_ATOMIC);
 	if (!path)
 		return NULL;

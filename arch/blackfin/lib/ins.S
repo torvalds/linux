@@ -77,3 +77,22 @@ ENTRY(_insb)
 	sti R3;
 	RTS;
 ENDPROC(_insb)
+
+
+
+ENTRY(_insl_16)
+	P0 = R0;	/* P0 = port */
+	cli R3;
+	P1 = R1;	/* P1 = address */
+	P2 = R2;	/* P2 = count */
+	SSYNC;
+	LSETUP( .Llong16_loop_s, .Llong16_loop_e) LC0 = P2;
+.Llong16_loop_s:  R0 = [P0];
+		  W[P1++] = R0;
+		  R0 = R0 >> 16;
+		  W[P1++] = R0;
+		  NOP;
+.Llong16_loop_e:  NOP;
+	sti R3;
+	RTS;
+ENDPROC(_insl_16)

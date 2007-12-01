@@ -2463,8 +2463,6 @@ static int pktgen_output_ipsec(struct sk_buff *skb, struct pktgen_dev *pkt_dev)
 
 	x->curlft.bytes +=skb->len;
 	x->curlft.packets++;
-	spin_unlock(&x->lock);
-
 error:
 	spin_unlock(&x->lock);
 	return err;

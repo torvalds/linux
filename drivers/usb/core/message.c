@@ -1172,7 +1172,6 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	struct usb_host_interface *alt;
 	int ret;
 	int manual = 0;
-	int changed;
 
 	if (dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
@@ -1212,8 +1211,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 */
 
 	/* prevent submissions using previous endpoint settings */
-	changed = (iface->cur_altsetting != alt);
-	if (changed && device_is_registered(&iface->dev))
+	if (iface->cur_altsetting != alt && device_is_registered(&iface->dev))
 		usb_remove_sysfs_intf_files(iface);
 	usb_disable_interface(dev, iface);
 
@@ -1250,7 +1248,7 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * (Likewise, EP0 never "halts" on well designed devices.)
 	 */
 	usb_enable_interface(dev, iface);
-	if (changed && device_is_registered(&iface->dev))
+	if (device_is_registered(&iface->dev))
 		usb_create_sysfs_intf_files(iface);
 
 	return 0;
@@ -1348,33 +1346,9 @@ static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 	struct usb_interface *intf;
 	struct usb_host_interface *alt;
 
-	if (!dev)
-		return -ENODEV;
-
-	/* driver is often null here; dev_dbg() would oops */
-	pr_debug ("usb %s: uevent\n", dev->bus_id);
-
 	intf = to_usb_interface(dev);
 	usb_dev = interface_to_usbdev(intf);
 	alt = intf->cur_altsetting;
-
-#ifdef CONFIG_USB_DEVICEFS
-	if (add_uevent_var(env, "DEVICE=/proc/bus/usb/%03d/%03d",
-			   usb_dev->bus->busnum, usb_dev->devnum))
-		return -ENOMEM;
-#endif
-
-	if (add_uevent_var(env, "PRODUCT=%x/%x/%x",
-			   le16_to_cpu(usb_dev->descriptor.idVendor),
-			   le16_to_cpu(usb_dev->descriptor.idProduct),
-			   le16_to_cpu(usb_dev->descriptor.bcdDevice)))
-		return -ENOMEM;
-
-	if (add_uevent_var(env, "TYPE=%d/%d/%d",
-			   usb_dev->descriptor.bDeviceClass,
-			   usb_dev->descriptor.bDeviceSubClass,
-			   usb_dev->descriptor.bDeviceProtocol))
-		return -ENOMEM;
 
 	if (add_uevent_var(env, "INTERFACE=%d/%d/%d",
 		   alt->desc.bInterfaceClass,
@@ -1641,12 +1615,6 @@ free_interfaces:
 				intf->dev.bus_id, ret);
 			continue;
 		}
-
-		/* The driver's probe method can call usb_set_interface(),
-		 * which would mean the interface's sysfs files are already
-		 * created.  Just in case, we'll remove them first.
-		 */
-		usb_remove_sysfs_intf_files(intf);
 		usb_create_sysfs_intf_files(intf);
 	}
 

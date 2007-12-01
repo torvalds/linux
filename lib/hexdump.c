@@ -106,7 +106,8 @@ void hex_dump_to_buffer(const void *buf, size_t len, int rowsize,
 	while (lx < (linebuflen - 1) && lx < (ascii_column - 1))
 		linebuf[lx++] = ' ';
 	for (j = 0; (j < rowsize) && (j < len) && (lx + 2) < linebuflen; j++)
-		linebuf[lx++] = isprint(ptr[j]) ? ptr[j] : '.';
+		linebuf[lx++] = (isascii(ptr[j]) && isprint(ptr[j])) ? ptr[j]
+				: '.';
 nil:
 	linebuf[lx++] = '\0';
 }

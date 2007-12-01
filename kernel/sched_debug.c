@@ -199,7 +199,7 @@ static int sched_debug_show(struct seq_file *m, void *v)
 	u64 now = ktime_to_ns(ktime_get());
 	int cpu;
 
-	SEQ_printf(m, "Sched Debug Version: v0.06-v22, %s %.*s\n",
+	SEQ_printf(m, "Sched Debug Version: v0.07, %s %.*s\n",
 		init_utsname()->release,
 		(int)strcspn(init_utsname()->version, " "),
 		init_utsname()->version);
@@ -327,10 +327,12 @@ void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 			avg_atom = -1LL;
 
 		avg_per_cpu = p->se.sum_exec_runtime;
-		if (p->se.nr_migrations)
-			avg_per_cpu = div64_64(avg_per_cpu, p->se.nr_migrations);
-		else
+		if (p->se.nr_migrations) {
+			avg_per_cpu = div64_64(avg_per_cpu,
+					       p->se.nr_migrations);
+		} else {
 			avg_per_cpu = -1LL;
+		}
 
 		__PN(avg_atom);
 		__PN(avg_per_cpu);

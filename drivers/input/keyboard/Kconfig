@@ -286,7 +286,7 @@ config KEYBOARD_MAPLE
 
 config KEYBOARD_BFIN
 	tristate "Blackfin BF54x keypad support"
-	depends on BF54x
+	depends on (BF54x && !BF544)
 	help
 	  Say Y here if you want to use the BF54x keypad.
 

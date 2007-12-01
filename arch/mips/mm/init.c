@@ -347,11 +347,8 @@ static int __init page_is_ram(unsigned long pagenr)
 
 void __init paging_init(void)
 {
-	unsigned long zones_size[MAX_NR_ZONES] = { 0, };
-#ifndef CONFIG_FLATMEM
-	unsigned long zholes_size[MAX_NR_ZONES] = { 0, };
-	unsigned long i, j, pfn;
-#endif
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	unsigned long lastpfn;
 
 	pagetable_init();
 
@@ -361,35 +358,27 @@ void __init paging_init(void)
 	kmap_coherent_init();
 
 #ifdef CONFIG_ZONE_DMA
-	if (min_low_pfn < MAX_DMA_PFN && MAX_DMA_PFN <= max_low_pfn) {
-		zones_size[ZONE_DMA] = MAX_DMA_PFN - min_low_pfn;
-		zones_size[ZONE_NORMAL] = max_low_pfn - MAX_DMA_PFN;
-	} else if (max_low_pfn < MAX_DMA_PFN)
-		zones_size[ZONE_DMA] = max_low_pfn - min_low_pfn;
-	else
+	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
 #endif
-	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
-
+#ifdef CONFIG_ZONE_DMA32
+	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
+#endif
+	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
+	lastpfn = max_low_pfn;
 #ifdef CONFIG_HIGHMEM
-	zones_size[ZONE_HIGHMEM] = highend_pfn - highstart_pfn;
+	max_zone_pfns[ZONE_HIGHMEM] = highend_pfn;
+	lastpfn = highend_pfn;
 
-	if (cpu_has_dc_aliases && zones_size[ZONE_HIGHMEM]) {
+	if (cpu_has_dc_aliases && max_low_pfn != highend_pfn) {
 		printk(KERN_WARNING "This processor doesn't support highmem."
-		       " %ldk highmem ignored\n", zones_size[ZONE_HIGHMEM]);
-		zones_size[ZONE_HIGHMEM] = 0;
+		       " %ldk highmem ignored\n",
+		       (highend_pfn - max_low_pfn) << (PAGE_SHIFT - 10));
+		max_zone_pfns[ZONE_HIGHMEM] = max_low_pfn;
+		lastpfn = max_low_pfn;
 	}
 #endif
 
-#ifdef CONFIG_FLATMEM
-	free_area_init(zones_size);
-#else
-	pfn = min_low_pfn;
-	for (i = 0; i < MAX_NR_ZONES; i++)
-		for (j = 0; j < zones_size[i]; j++, pfn++)
-			if (!page_is_ram(pfn))
-				zholes_size[i]++;
-	free_area_init_node(0, NODE_DATA(0), zones_size, 0, zholes_size);
-#endif
+	free_area_init_nodes(max_zone_pfns);
 }
 
 static struct kcore_list kcore_mem, kcore_vmalloc;

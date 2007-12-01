@@ -220,6 +220,7 @@ struct hda_multi_out {
 	hda_nid_t dig_out_nid;	/* digital out audio widget */
 	int max_channels;	/* currently supported analog channels */
 	int dig_out_used;	/* current usage of digital out (HDA_DIG_XXX) */
+	int no_share_stream;	/* don't share a stream with multiple pins */
 };
 
 int snd_hda_multi_out_dig_open(struct hda_codec *codec,

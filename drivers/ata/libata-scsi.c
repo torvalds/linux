@@ -2485,10 +2485,39 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	if (!using_pio && ata_check_atapi_dma(qc))
 		using_pio = 1;
 
-	/* Some controller variants snoop this value for Packet transfers
-	   to do state machine and FIFO management. Thus we want to set it
-	   properly, and for DMA where it is effectively meaningless */
+	/* Some controller variants snoop this value for Packet
+	 * transfers to do state machine and FIFO management.  Thus we
+	 * want to set it properly, and for DMA where it is
+	 * effectively meaningless.
+	 */
 	nbytes = min(qc->nbytes, (unsigned int)63 * 1024);
+
+	/* Most ATAPI devices which honor transfer chunk size don't
+	 * behave according to the spec when odd chunk size which
+	 * matches the transfer length is specified.  If the number of
+	 * bytes to transfer is 2n+1.  According to the spec, what
+	 * should happen is to indicate that 2n+1 is going to be
+	 * transferred and transfer 2n+2 bytes where the last byte is
+	 * padding.
+	 *
+	 * In practice, this doesn't happen.  ATAPI devices first
+	 * indicate and transfer 2n bytes and then indicate and
+	 * transfer 2 bytes where the last byte is padding.
+	 *
+	 * This inconsistency confuses several controllers which
+	 * perform PIO using DMA such as Intel AHCIs and sil3124/32.
+	 * These controllers use actual number of transferred bytes to
+	 * update DMA poitner and transfer of 4n+2 bytes make those
+	 * controller push DMA pointer by 4n+4 bytes because SATA data
+	 * FISes are aligned to 4 bytes.  This causes data corruption
+	 * and buffer overrun.
+	 *
+	 * Always setting nbytes to even number solves this problem
+	 * because then ATAPI devices don't have to split data at 2n
+	 * boundaries.
+	 */
+	if (nbytes & 0x1)
+		nbytes++;
 
 	qc->tf.lbam = (nbytes & 0xFF);
 	qc->tf.lbah = (nbytes >> 8);
@@ -2869,7 +2898,8 @@ static inline int __ata_scsi_queuecmd(struct scsi_cmnd *scmd,
 		xlat_func = NULL;
 		if (likely((scsi_op != ATA_16) || !atapi_passthru16)) {
 			/* relay SCSI command to ATAPI device */
-			if (unlikely(scmd->cmd_len > dev->cdb_len))
+			int len = COMMAND_SIZE(scsi_op);
+			if (unlikely(len > scmd->cmd_len || len > dev->cdb_len))
 				goto bad_cdb_len;
 
 			xlat_func = atapi_xlat;
