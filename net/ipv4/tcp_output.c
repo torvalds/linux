@@ -1342,7 +1342,6 @@ static int tcp_mtu_probe(struct sock *sk)
 	sk_charge_skb(sk, nskb);
 
 	skb = tcp_send_head(sk);
-	tcp_insert_write_queue_before(nskb, skb, sk);
 
 	TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(skb)->seq;
 	TCP_SKB_CB(nskb)->end_seq = TCP_SKB_CB(skb)->seq + probe_size;
@@ -1350,6 +1349,8 @@ static int tcp_mtu_probe(struct sock *sk)
 	TCP_SKB_CB(nskb)->sacked = 0;
 	nskb->csum = 0;
 	nskb->ip_summed = skb->ip_summed;
+
+	tcp_insert_write_queue_before(nskb, skb, sk);
 
 	len = 0;
 	while (len < probe_size) {
