@@ -2825,8 +2825,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 		if (sacked & TCPCB_LOST)
 			tp->lost_out -= packets_acked;
 
-		if ((sacked & TCPCB_URG) && tp->urg_mode &&
-		    !before(end_seq, tp->snd_up))
+		if (unlikely((sacked & TCPCB_URG) && tp->urg_mode &&
+			     !before(end_seq, tp->snd_up)))
 			tp->urg_mode = 0;
 
 		tp->packets_out -= packets_acked;
