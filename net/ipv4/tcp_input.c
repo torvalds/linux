@@ -1246,8 +1246,7 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct tcp_sock *tp,
 	if (dup_sack && (sacked & TCPCB_RETRANS)) {
 		if (after(TCP_SKB_CB(skb)->end_seq, tp->undo_marker))
 			tp->undo_retrans--;
-		if (!after(TCP_SKB_CB(skb)->end_seq, tp->snd_una) &&
-		    (sacked & TCPCB_SACKED_ACKED))
+		if (sacked & TCPCB_SACKED_ACKED)
 			*reord = min(fack_count, *reord);
 	}
 
@@ -1310,10 +1309,6 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct tcp_sock *tp,
 
 		if (after(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
 			tp->highest_sack = skb;
-
-	} else {
-		if (dup_sack && (sacked & TCPCB_RETRANS))
-			*reord = min(fack_count, *reord);
 	}
 
 	/* D-SACK. We can detect redundant retransmission in S|R and plain R
