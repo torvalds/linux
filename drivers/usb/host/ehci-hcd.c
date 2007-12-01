@@ -998,6 +998,11 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_ppc_soc_driver
 #endif
 
+#ifdef CONFIG_ARCH_ORION
+#include "ehci-orion.c"
+#define	PLATFORM_DRIVER		ehci_orion_driver
+#endif
+
 #if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
     !defined(PS3_SYSTEM_BUS_DRIVER)
 #error "missing bus glue for ehci-hcd"
