@@ -2173,7 +2173,7 @@ S:	Maintained
 
 KDUMP
 P:	Vivek Goyal
-M:	vgoyal@in.ibm.com
+M:	vgoyal@redhat.com
 P:	Haren Myneni
 M:	hbabu@us.ibm.com
 L:	kexec@lists.infradead.org
