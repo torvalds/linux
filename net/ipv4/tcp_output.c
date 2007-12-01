@@ -1293,7 +1293,6 @@ static int tcp_mtu_probe(struct sock *sk)
 	int len;
 	int probe_size;
 	int size_needed;
-	unsigned int pif;
 	int copy;
 	int mss_now;
 
@@ -1326,11 +1325,9 @@ static int tcp_mtu_probe(struct sock *sk)
 	if (after(tp->snd_nxt + size_needed, tp->snd_una + tp->snd_wnd))
 		return 0;
 
-	/* Do we need to wait to drain cwnd? */
-	pif = tcp_packets_in_flight(tp);
-	if (pif + 2 > tp->snd_cwnd) {
-		/* With no packets in flight, don't stall. */
-		if (pif == 0)
+	/* Do we need to wait to drain cwnd? With none in flight, don't stall */
+	if (tcp_packets_in_flight(tp) + 2 > tp->snd_cwnd) {
+		if (!tcp_packets_in_flight(tp))
 			return -1;
 		else
 			return 0;
