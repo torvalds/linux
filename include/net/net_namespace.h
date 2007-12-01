@@ -38,6 +38,9 @@ struct net {
 	/* List of all packet sockets. */
 	rwlock_t		packet_sklist_lock;
 	struct hlist_head	packet_sklist;
+
+	/* unix sockets */
+	int			sysctl_unix_max_dgram_qlen;
 };
 
 #ifdef CONFIG_NET

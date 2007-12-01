@@ -117,8 +117,6 @@
 #include <net/checksum.h>
 #include <linux/security.h>
 
-int sysctl_unix_max_dgram_qlen __read_mostly = 10;
-
 static struct hlist_head unix_socket_table[UNIX_HASH_SIZE + 1];
 static DEFINE_SPINLOCK(unix_table_lock);
 static atomic_t unix_nr_socks = ATOMIC_INIT(0);
@@ -594,7 +592,7 @@ static struct sock * unix_create1(struct net *net, struct socket *sock)
 				&af_unix_sk_receive_queue_lock_key);
 
 	sk->sk_write_space	= unix_write_space;
-	sk->sk_max_ack_backlog	= sysctl_unix_max_dgram_qlen;
+	sk->sk_max_ack_backlog	= net->sysctl_unix_max_dgram_qlen;
 	sk->sk_destruct		= unix_sock_destructor;
 	u	  = unix_sk(sk);
 	u->dentry = NULL;
@@ -2139,6 +2137,8 @@ static struct net_proto_family unix_family_ops = {
 static int unix_net_init(struct net *net)
 {
 	int error = -ENOMEM;
+
+	net->sysctl_unix_max_dgram_qlen = 10;
 
 #ifdef CONFIG_PROC_FS
 	if (!proc_net_fops_create(net, "unix", 0, &unix_seq_fops))
