@@ -26,31 +26,17 @@ static ctl_table unix_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static ctl_table unix_net_table[] = {
-	{
-		.ctl_name	= NET_UNIX,
-		.procname	= "unix",
-		.mode		= 0555,
-		.child		= unix_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table unix_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= unix_net_table
-	},
-	{ .ctl_name = 0 }
+static struct ctl_path unix_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "unix", .ctl_name = NET_UNIX, },
+	{ },
 };
 
 static struct ctl_table_header * unix_sysctl_header;
 
 int unix_sysctl_register(struct net *net)
 {
-	unix_sysctl_header = register_sysctl_table(unix_root_table);
+	unix_sysctl_header = register_sysctl_paths(unix_path, unix_table);
 	return unix_sysctl_header == NULL ? -ENOMEM : 0;
 }
 
