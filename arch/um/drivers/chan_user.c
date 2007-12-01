@@ -74,10 +74,16 @@ void generic_free(void *data)
 
 int generic_console_write(int fd, const char *buf, int n)
 {
+	sigset_t old, no_sigio;
 	struct termios save, new;
 	int err;
 
 	if (isatty(fd)) {
+		sigemptyset(&no_sigio);
+		sigaddset(&no_sigio, SIGIO);
+		if (sigprocmask(SIG_BLOCK, &no_sigio, &old))
+			goto error;
+
 		CATCH_EINTR(err = tcgetattr(fd, &save));
 		if (err)
 			goto error;
@@ -97,8 +103,11 @@ int generic_console_write(int fd, const char *buf, int n)
 	 * Restore raw mode, in any case; we *must* ignore any error apart
 	 * EINTR, except for debug.
 	 */
-	if (isatty(fd))
+	if (isatty(fd)) {
 		CATCH_EINTR(tcsetattr(fd, TCSAFLUSH, &save));
+		sigprocmask(SIG_SETMASK, &old, NULL);
+	}
+
 	return err;
 error:
 	return -errno;
