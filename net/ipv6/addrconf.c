@@ -101,7 +101,7 @@
 #define TIME_DELTA(a,b) ((unsigned long)((long)(a) - (long)(b)))
 
 #ifdef CONFIG_SYSCTL
-static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf *p);
+static void addrconf_sysctl_register(struct inet6_dev *idev);
 static void addrconf_sysctl_unregister(struct ipv6_devconf *p);
 #endif
 
@@ -400,7 +400,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 			      NET_IPV6_NEIGH, "ipv6",
 			      &ndisc_ifinfo_sysctl_change,
 			      NULL);
-	addrconf_sysctl_register(ndev, &ndev->cnf);
+	addrconf_sysctl_register(ndev);
 #endif
 	/* protected by rtnl_lock */
 	rcu_assign_pointer(dev->ip6_ptr, ndev);
@@ -2386,7 +2386,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 					      NET_IPV6, NET_IPV6_NEIGH, "ipv6",
 					      &ndisc_ifinfo_sysctl_change,
 					      NULL);
-			addrconf_sysctl_register(idev, &idev->cnf);
+			addrconf_sysctl_register(idev);
 #endif
 			err = snmp6_register_dev(idev);
 			if (err)
@@ -4118,12 +4118,11 @@ static struct addrconf_sysctl_table
 	},
 };
 
-static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf *p)
+static void __addrconf_sysctl_register(char *dev_name, int ctl_name,
+		struct inet6_dev *idev, struct ipv6_devconf *p)
 {
 	int i;
-	struct net_device *dev = idev ? idev->dev : NULL;
 	struct addrconf_sysctl_table *t;
-	char *dev_name = NULL;
 
 	t = kmemdup(&addrconf_sysctl, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
@@ -4132,13 +4131,6 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 	for (i=0; t->addrconf_vars[i].data; i++) {
 		t->addrconf_vars[i].data += (char*)p - (char*)&ipv6_devconf;
 		t->addrconf_vars[i].extra1 = idev; /* embedded; no ref */
-	}
-	if (dev) {
-		dev_name = dev->name;
-		t->addrconf_dev[0].ctl_name = dev->ifindex;
-	} else {
-		dev_name = "default";
-		t->addrconf_dev[0].ctl_name = NET_PROTO_CONF_DEFAULT;
 	}
 
 	/*
@@ -4150,6 +4142,7 @@ static void addrconf_sysctl_register(struct inet6_dev *idev, struct ipv6_devconf
 	if (!dev_name)
 		goto free;
 
+	t->addrconf_dev[0].ctl_name = ctl_name;
 	t->addrconf_dev[0].procname = dev_name;
 
 	t->addrconf_dev[0].child = t->addrconf_vars;
@@ -4170,6 +4163,12 @@ free:
 	kfree(t);
 out:
 	return;
+}
+
+static void addrconf_sysctl_register(struct inet6_dev *idev)
+{
+	__addrconf_sysctl_register(idev->dev->name, idev->dev->ifindex,
+			idev, &idev->cnf);
 }
 
 static void addrconf_sysctl_unregister(struct ipv6_devconf *p)
@@ -4270,9 +4269,10 @@ int __init addrconf_init(void)
 	ipv6_addr_label_rtnl_register();
 
 #ifdef CONFIG_SYSCTL
-	addrconf_sysctl.sysctl_header =
-		register_sysctl_table(addrconf_sysctl.addrconf_root_dir);
-	addrconf_sysctl_register(NULL, &ipv6_devconf_dflt);
+	__addrconf_sysctl_register("all", NET_PROTO_CONF_ALL,
+			NULL, &ipv6_devconf);
+	__addrconf_sysctl_register("default", NET_PROTO_CONF_DEFAULT,
+			NULL, &ipv6_devconf_dflt);
 #endif
 
 	return 0;
