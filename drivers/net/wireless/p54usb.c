@@ -308,7 +308,7 @@ static int p54u_read_eeprom(struct ieee80211_hw *dev)
 
 	buf = kmalloc(0x2020, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "prism54usb: cannot allocate memory for"
+		printk(KERN_ERR "prism54usb: cannot allocate memory for "
 		       "eeprom readback!\n");
 		return -ENOMEM;
 	}
