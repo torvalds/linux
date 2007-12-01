@@ -2266,29 +2266,37 @@ void __init xfrm_init(void)
 static inline void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 						struct audit_buffer *audit_buf)
 {
-	if (xp->security)
-		audit_log_format(audit_buf, " sec_alg=%u sec_doi=%u sec_obj=%s",
-				 xp->security->ctx_alg, xp->security->ctx_doi,
-				 xp->security->ctx_str);
+	struct xfrm_sec_ctx *ctx = xp->security;
+	struct xfrm_selector *sel = &xp->selector;
 
-	switch(xp->selector.family) {
+	if (ctx)
+		audit_log_format(audit_buf, " sec_alg=%u sec_doi=%u sec_obj=%s",
+				 ctx->ctx_alg, ctx->ctx_doi, ctx->ctx_str);
+
+	switch(sel->family) {
 	case AF_INET:
-		audit_log_format(audit_buf, " src=%u.%u.%u.%u dst=%u.%u.%u.%u",
-				 NIPQUAD(xp->selector.saddr.a4),
-				 NIPQUAD(xp->selector.daddr.a4));
+		audit_log_format(audit_buf, " src=" NIPQUAD_FMT,
+				 NIPQUAD(sel->saddr.a4));
+		if (sel->prefixlen_s != 32)
+			audit_log_format(audit_buf, " src_prefixlen=%d",
+					 sel->prefixlen_s);
+		audit_log_format(audit_buf, " dst=" NIPQUAD_FMT,
+				 NIPQUAD(sel->daddr.a4));
+		if (sel->prefixlen_d != 32)
+			audit_log_format(audit_buf, " dst_prefixlen=%d",
+					 sel->prefixlen_d);
 		break;
 	case AF_INET6:
-		{
-			struct in6_addr saddr6, daddr6;
-
-			memcpy(&saddr6, xp->selector.saddr.a6,
-				sizeof(struct in6_addr));
-			memcpy(&daddr6, xp->selector.daddr.a6,
-				sizeof(struct in6_addr));
-			audit_log_format(audit_buf,
-				" src=" NIP6_FMT " dst=" NIP6_FMT,
-				NIP6(saddr6), NIP6(daddr6));
-		}
+		audit_log_format(audit_buf, " src=" NIP6_FMT,
+				 NIP6(*(struct in6_addr *)sel->saddr.a6));
+		if (sel->prefixlen_s != 128)
+			audit_log_format(audit_buf, " src_prefixlen=%d",
+					 sel->prefixlen_s);
+		audit_log_format(audit_buf, " dst=" NIP6_FMT,
+				 NIP6(*(struct in6_addr *)sel->daddr.a6));
+		if (sel->prefixlen_d != 128)
+			audit_log_format(audit_buf, " dst_prefixlen=%d",
+					 sel->prefixlen_d);
 		break;
 	}
 }
