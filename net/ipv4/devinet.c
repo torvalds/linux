@@ -1506,12 +1506,13 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 {
 	int i;
 	struct net_device *dev = in_dev ? in_dev->dev : NULL;
-	struct devinet_sysctl_table *t = kmemdup(&devinet_sysctl, sizeof(*t),
-						 GFP_KERNEL);
+	struct devinet_sysctl_table *t;
 	char *dev_name = NULL;
 
+	t = kmemdup(&devinet_sysctl, sizeof(*t), GFP_KERNEL);
 	if (!t)
-		return;
+		goto out;
+
 	for (i = 0; i < ARRAY_SIZE(t->devinet_vars) - 1; i++) {
 		t->devinet_vars[i].data += (char *)p - (char *)&ipv4_devconf;
 		t->devinet_vars[i].extra1 = p;
@@ -1532,7 +1533,7 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 	 */
 	dev_name = kstrdup(dev_name, GFP_KERNEL);
 	if (!dev_name)
-	    goto free;
+		goto free;
 
 	t->devinet_dev[0].procname    = dev_name;
 	t->devinet_dev[0].child	      = t->devinet_vars;
@@ -1542,16 +1543,16 @@ static void devinet_sysctl_register(struct in_device *in_dev,
 
 	t->sysctl_header = register_sysctl_table(t->devinet_root_dir);
 	if (!t->sysctl_header)
-	    goto free_procname;
+		goto free_procname;
 
 	p->sysctl = t;
 	return;
 
-	/* error path */
- free_procname:
+free_procname:
 	kfree(dev_name);
- free:
+free:
 	kfree(t);
+out:
 	return;
 }
 
