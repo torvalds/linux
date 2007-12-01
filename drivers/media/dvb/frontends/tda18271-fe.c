@@ -337,6 +337,20 @@ static int tda18271_init_regs(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int tda18271_init(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+
+	tda18271_read_regs(fe);
+
+	/* test IR_CAL_OK to see if we need init */
+	if ((regs[R_EP1] & 0x08) == 0)
+		tda18271_init_regs(fe);
+
+	return 0;
+}
+
 static int tda18271_tune(struct dvb_frontend *fe,
 			 u32 ifc, u32 freq, u32 bw, u8 std)
 {
@@ -742,7 +756,7 @@ static struct dvb_tuner_ops tda18271_tuner_ops = {
 		.frequency_max  = 864000000,
 		.frequency_step =     62500
 	},
-	.init              = tda18271_init_regs,
+	.init              = tda18271_init,
 	.set_params        = tda18271_set_params,
 	.set_analog_params = tda18271_set_analog_params,
 	.release           = tda18271_release,
@@ -767,6 +781,8 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	       sizeof(struct dvb_tuner_ops));
 
 	fe->tuner_priv = priv;
+
+	tda18271_init_regs(fe);
 
 	return fe;
 }
