@@ -114,14 +114,13 @@ static void tcp_veno_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 		tcp_veno_init(sk);
 }
 
-static void tcp_veno_cong_avoid(struct sock *sk, u32 ack,
-				u32 in_flight, int flag)
+static void tcp_veno_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct veno *veno = inet_csk_ca(sk);
 
 	if (!veno->doing_veno_now)
-		return tcp_reno_cong_avoid(sk, ack, in_flight, flag);
+		return tcp_reno_cong_avoid(sk, ack, in_flight);
 
 	/* limited by applications */
 	if (!tcp_is_cwnd_limited(sk, in_flight))
@@ -132,7 +131,7 @@ static void tcp_veno_cong_avoid(struct sock *sk, u32 ack,
 		/* We don't have enough rtt samples to do the Veno
 		 * calculation, so we'll behave like Reno.
 		 */
-		tcp_reno_cong_avoid(sk, ack, in_flight, flag);
+		tcp_reno_cong_avoid(sk, ack, in_flight);
 	} else {
 		u32 rtt, target_cwnd;
 
