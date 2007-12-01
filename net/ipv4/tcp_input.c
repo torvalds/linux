@@ -1125,7 +1125,7 @@ static void tcp_mark_lost_retrans(struct sock *sk)
 	struct sk_buff *skb;
 	int cnt = 0;
 	u32 new_low_seq = tp->snd_nxt;
-	u32 received_upto = TCP_SKB_CB(tp->highest_sack)->end_seq;
+	u32 received_upto = tcp_highest_sack_seq(tp);
 
 	if (!tcp_is_fack(tp) || !tp->retrans_out ||
 	    !after(received_upto, tp->lost_retrans_low) ||
@@ -1236,9 +1236,10 @@ static int tcp_match_skb_to_sack(struct sock *sk, struct sk_buff *skb,
 	return in_sack;
 }
 
-static int tcp_sacktag_one(struct sk_buff *skb, struct tcp_sock *tp,
+static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 			   int *reord, int dup_sack, int fack_count)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	u8 sacked = TCP_SKB_CB(skb)->sacked;
 	int flag = 0;
 
@@ -1307,8 +1308,8 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct tcp_sock *tp,
 		if (fack_count > tp->fackets_out)
 			tp->fackets_out = fack_count;
 
-		if (after(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
-			tp->highest_sack = skb;
+		if (!before(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
+			tcp_advance_highest_sack(sk, skb);
 	}
 
 	/* D-SACK. We can detect redundant retransmission in S|R and plain R
@@ -1330,8 +1331,6 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 					int dup_sack_in, int *fack_count,
 					int *reord, int *flag)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
 	tcp_for_write_queue_from(skb, sk) {
 		int in_sack = 0;
 		int dup_sack = dup_sack_in;
@@ -1358,7 +1357,7 @@ static struct sk_buff *tcp_sacktag_walk(struct sk_buff *skb, struct sock *sk,
 			break;
 
 		if (in_sack)
-			*flag |= tcp_sacktag_one(skb, tp, reord, dup_sack, *fack_count);
+			*flag |= tcp_sacktag_one(skb, sk, reord, dup_sack, *fack_count);
 
 		*fack_count += tcp_skb_pcount(skb);
 	}
@@ -1429,7 +1428,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	if (!tp->sacked_out) {
 		if (WARN_ON(tp->fackets_out))
 			tp->fackets_out = 0;
-		tp->highest_sack = tcp_write_queue_head(sk);
+		tcp_highest_sack_reset(sk);
 	}
 
 	found_dup_sack = tcp_check_dsack(tp, ack_skb, sp_wire,
@@ -1552,9 +1551,11 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						       &fack_count, &reord, &flag);
 
 			/* ...tail remains todo... */
-			if (TCP_SKB_CB(tp->highest_sack)->end_seq == cache->end_seq) {
+			if (tcp_highest_sack_seq(tp) == cache->end_seq) {
 				/* ...but better entrypoint exists! */
-				skb = tcp_write_queue_next(sk, tp->highest_sack);
+				skb = tcp_highest_sack(sk);
+				if (skb == NULL)
+					break;
 				fack_count = tp->fackets_out;
 				cache++;
 				goto walk;
@@ -1566,8 +1567,10 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			continue;
 		}
 
-		if (tp->sacked_out && !before(start_seq, tcp_highest_sack_seq(tp))) {
-			skb = tcp_write_queue_next(sk, tp->highest_sack);
+		if (!before(start_seq, tcp_highest_sack_seq(tp))) {
+			skb = tcp_highest_sack(sk);
+			if (skb == NULL)
+				break;
 			fack_count = tp->fackets_out;
 		}
 		skb = tcp_sacktag_skip(skb, sk, start_seq);

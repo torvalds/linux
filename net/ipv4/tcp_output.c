@@ -667,7 +667,7 @@ static void tcp_adjust_fackets_out(struct sock *sk, struct sk_buff *skb,
 	if (!tp->sacked_out || tcp_is_reno(tp))
 		return;
 
-	if (!before(tcp_highest_sack_seq(tp), TCP_SKB_CB(skb)->seq))
+	if (after(tcp_highest_sack_seq(tp), TCP_SKB_CB(skb)->seq))
 		tp->fackets_out -= decr;
 }
 
@@ -710,9 +710,6 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	TCP_SKB_CB(buff)->seq = TCP_SKB_CB(skb)->seq + len;
 	TCP_SKB_CB(buff)->end_seq = TCP_SKB_CB(skb)->end_seq;
 	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(buff)->seq;
-
-	if (tcp_is_sack(tp) && tp->sacked_out && (skb == tp->highest_sack))
-		tp->highest_sack = buff;
 
 	/* PSH and FIN should only be set in the second packet. */
 	flags = TCP_SKB_CB(skb)->flags;
@@ -1707,9 +1704,7 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		BUG_ON(tcp_skb_pcount(skb) != 1 ||
 		       tcp_skb_pcount(next_skb) != 1);
 
-		if (WARN_ON(tcp_is_sack(tp) && tp->sacked_out &&
-		    (next_skb == tp->highest_sack)))
-			return;
+		tcp_highest_sack_combine(sk, next_skb, skb);
 
 		/* Ok.	We will be able to collapse the packet. */
 		tcp_unlink_write_queue(next_skb, sk);
@@ -2019,7 +2014,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			break;
 		tp->forward_skb_hint = skb;
 
-		if (after(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
+		if (!before(TCP_SKB_CB(skb)->seq, tcp_highest_sack_seq(tp)))
 			break;
 
 		if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)

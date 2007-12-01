@@ -1267,8 +1267,12 @@ static inline void tcp_add_write_queue_tail(struct sock *sk, struct sk_buff *skb
 	__tcp_add_write_queue_tail(sk, skb);
 
 	/* Queue it, remembering where we must start sending. */
-	if (sk->sk_send_head == NULL)
+	if (sk->sk_send_head == NULL) {
 		sk->sk_send_head = skb;
+
+		if (tcp_sk(sk)->highest_sack == NULL)
+			tcp_sk(sk)->highest_sack = skb;
+	}
 }
 
 static inline void __tcp_add_write_queue_head(struct sock *sk, struct sk_buff *skb)
@@ -1318,7 +1322,36 @@ static inline u32 tcp_highest_sack_seq(struct tcp_sock *tp)
 {
 	if (!tp->sacked_out)
 		return tp->snd_una;
+
+	if (tp->highest_sack == NULL)
+		return tp->snd_nxt;
+
 	return TCP_SKB_CB(tp->highest_sack)->seq;
+}
+
+static inline void tcp_advance_highest_sack(struct sock *sk, struct sk_buff *skb)
+{
+	tcp_sk(sk)->highest_sack = tcp_skb_is_last(sk, skb) ? NULL :
+						tcp_write_queue_next(sk, skb);
+}
+
+static inline struct sk_buff *tcp_highest_sack(struct sock *sk)
+{
+	return tcp_sk(sk)->highest_sack;
+}
+
+static inline void tcp_highest_sack_reset(struct sock *sk)
+{
+	tcp_sk(sk)->highest_sack = tcp_write_queue_head(sk);
+}
+
+/* Called when old skb is about to be deleted (to be combined with new skb) */
+static inline void tcp_highest_sack_combine(struct sock *sk,
+					    struct sk_buff *old,
+					    struct sk_buff *new)
+{
+	if (tcp_sk(sk)->sacked_out && (old == tcp_sk(sk)->highest_sack))
+		tcp_sk(sk)->highest_sack = new;
 }
 
 /* /proc */
