@@ -42,9 +42,6 @@ MODULE_LICENSE("GPL");
 #define SEG_TYPE_LDT 2
 #define SEG_TYPE_BUSY_TSS16 3
 
-#define KVM_EFER_LMA (1 << 10)
-#define KVM_EFER_LME (1 << 8)
-
 #define SVM_FEATURE_NPT  (1 << 0)
 #define SVM_FEATURE_LBRV (1 << 1)
 #define SVM_DEATURE_SVML (1 << 2)
@@ -184,8 +181,8 @@ static inline void flush_guest_tlb(struct kvm_vcpu *vcpu)
 
 static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
-	if (!(efer & KVM_EFER_LMA))
-		efer &= ~KVM_EFER_LME;
+	if (!(efer & EFER_LMA))
+		efer &= ~EFER_LME;
 
 	to_svm(vcpu)->vmcb->save.efer = efer | MSR_EFER_SVME_MASK;
 	vcpu->shadow_efer = efer;
@@ -777,15 +774,15 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	struct vcpu_svm *svm = to_svm(vcpu);
 
 #ifdef CONFIG_X86_64
-	if (vcpu->shadow_efer & KVM_EFER_LME) {
+	if (vcpu->shadow_efer & EFER_LME) {
 		if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
-			vcpu->shadow_efer |= KVM_EFER_LMA;
-			svm->vmcb->save.efer |= KVM_EFER_LMA | KVM_EFER_LME;
+			vcpu->shadow_efer |= EFER_LMA;
+			svm->vmcb->save.efer |= EFER_LMA | EFER_LME;
 		}
 
 		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG)) {
-			vcpu->shadow_efer &= ~KVM_EFER_LMA;
-			svm->vmcb->save.efer &= ~(KVM_EFER_LMA | KVM_EFER_LME);
+			vcpu->shadow_efer &= ~EFER_LMA;
+			svm->vmcb->save.efer &= ~(EFER_LMA | EFER_LME);
 		}
 	}
 #endif
