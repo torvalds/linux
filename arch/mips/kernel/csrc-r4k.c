@@ -5,6 +5,10 @@
  *
  * Copyright (C) 2007 by Ralf Baechle
  */
+#include <linux/clocksource.h>
+#include <linux/init.h>
+
+#include <asm/time.h>
 
 static cycle_t c0_hpt_read(void)
 {
@@ -18,7 +22,7 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static void __init init_mips_clocksource(void)
+void __init init_mips_clocksource(void)
 {
 	/* Calclate a somewhat reasonable rating value */
 	clocksource_mips.rating = 200 + mips_hpt_frequency / 10000000;
