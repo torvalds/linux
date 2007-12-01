@@ -443,12 +443,8 @@ static ssize_t show_vrm_reg(struct device *dev, struct device_attribute *attr, c
 
 static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm85_data *data = i2c_get_clientdata(client);
-	u32 val;
-
-	val = simple_strtoul(buf, NULL, 10);
-	data->vrm = val;
+	struct lm85_data *data = dev_get_drvdata(dev);
+	data->vrm = simple_strtoul(buf, NULL, 10);
 	return count;
 }
 
