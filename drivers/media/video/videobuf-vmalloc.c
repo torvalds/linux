@@ -41,7 +41,7 @@ MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
 MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG "vbuf-sg: " fmt , ## arg)
+	printk(KERN_DEBUG "vbuf-vmalloc: " fmt , ## arg)
 
 
 /***************************************************************************/
