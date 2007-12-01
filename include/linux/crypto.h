@@ -532,6 +532,7 @@ static inline struct crypto_ablkcipher *crypto_alloc_ablkcipher(
 	const char *alg_name, u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
+	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
 	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 
@@ -554,6 +555,7 @@ static inline int crypto_has_ablkcipher(const char *alg_name, u32 type,
 					u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
+	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
 	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 
@@ -1086,6 +1088,7 @@ static inline struct crypto_hash *crypto_alloc_hash(const char *alg_name,
 						    u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
+	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_HASH;
 	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
 
@@ -1105,6 +1108,7 @@ static inline void crypto_free_hash(struct crypto_hash *tfm)
 static inline int crypto_has_hash(const char *alg_name, u32 type, u32 mask)
 {
 	type &= ~CRYPTO_ALG_TYPE_MASK;
+	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_HASH;
 	mask |= CRYPTO_ALG_TYPE_HASH_MASK;
 
