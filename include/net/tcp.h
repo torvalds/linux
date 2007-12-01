@@ -1229,6 +1229,11 @@ static inline struct sk_buff *tcp_write_queue_next(struct sock *sk, struct sk_bu
 		for (; (skb != (struct sk_buff *)&(sk)->sk_write_queue);\
 		     skb = skb->next)
 
+#define tcp_for_write_queue_from_safe(skb, tmp, sk)			\
+		for (tmp = skb->next;					\
+		     (skb != (struct sk_buff *)&(sk)->sk_write_queue);	\
+		     skb = tmp, tmp = skb->next)
+
 static inline struct sk_buff *tcp_send_head(struct sock *sk)
 {
 	return sk->sk_send_head;

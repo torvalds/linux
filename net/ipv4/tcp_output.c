@@ -1350,9 +1350,7 @@ static int tcp_mtu_probe(struct sock *sk)
 	tcp_insert_write_queue_before(nskb, skb, sk);
 
 	len = 0;
-	while (len < probe_size) {
-		next = tcp_write_queue_next(sk, skb);
-
+	tcp_for_write_queue_from_safe(skb, next, sk) {
 		copy = min_t(int, skb->len, probe_size - len);
 		if (nskb->ip_summed)
 			skb_copy_bits(skb, 0, skb_put(nskb, copy), copy);
@@ -1381,7 +1379,9 @@ static int tcp_mtu_probe(struct sock *sk)
 		}
 
 		len += copy;
-		skb = next;
+
+		if (len >= probe_size)
+			break;
 	}
 	tcp_init_tso_segs(sk, nskb, nskb->len);
 
