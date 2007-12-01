@@ -27,6 +27,7 @@ config KILAUEA
 	bool "Kilauea"
 	depends on 40x
 	default n
+	select 405EX
 	help
 	  This option enables support for the AMCC PPC405EX evaluation board.
 
@@ -99,6 +100,11 @@ config 405GP
 
 config 405EP
 	bool
+
+config 405EX
+	bool
+	select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_RGMII
 
 config 405GPR
 	bool
