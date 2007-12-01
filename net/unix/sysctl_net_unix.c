@@ -48,12 +48,13 @@ static ctl_table unix_root_table[] = {
 
 static struct ctl_table_header * unix_sysctl_header;
 
-void unix_sysctl_register(void)
+int unix_sysctl_register(struct net *net)
 {
 	unix_sysctl_header = register_sysctl_table(unix_root_table);
+	return unix_sysctl_header == NULL ? -ENOMEM : 0;
 }
 
-void unix_sysctl_unregister(void)
+void unix_sysctl_unregister(struct net *net)
 {
 	unregister_sysctl_table(unix_sysctl_header);
 }

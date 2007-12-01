@@ -2175,7 +2175,7 @@ static int __init af_unix_init(void)
 
 	sock_register(&unix_family_ops);
 	register_pernet_subsys(&unix_net_ops);
-	unix_sysctl_register();
+	unix_sysctl_register(&init_net);
 out:
 	return rc;
 }
@@ -2183,7 +2183,7 @@ out:
 static void __exit af_unix_exit(void)
 {
 	sock_unregister(PF_UNIX);
-	unix_sysctl_unregister();
+	unix_sysctl_unregister(&init_net);
 	proto_unregister(&unix_proto);
 	unregister_pernet_subsys(&unix_net_ops);
 }
