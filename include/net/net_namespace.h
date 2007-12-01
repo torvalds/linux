@@ -11,6 +11,8 @@
 struct proc_dir_entry;
 struct net_device;
 struct sock;
+struct ctl_table_header;
+
 struct net {
 	atomic_t		count;		/* To decided when the network
 						 *  namespace should be freed.
@@ -41,6 +43,7 @@ struct net {
 
 	/* unix sockets */
 	int			sysctl_unix_max_dgram_qlen;
+	struct ctl_table_header	*unix_ctl;
 };
 
 #ifdef CONFIG_NET

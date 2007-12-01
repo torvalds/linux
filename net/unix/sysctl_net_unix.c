@@ -32,16 +32,33 @@ static struct ctl_path unix_path[] = {
 	{ },
 };
 
-static struct ctl_table_header * unix_sysctl_header;
-
 int unix_sysctl_register(struct net *net)
 {
-	unix_sysctl_header = register_sysctl_paths(unix_path, unix_table);
-	return unix_sysctl_header == NULL ? -ENOMEM : 0;
+	struct ctl_table *table;
+
+	table = kmemdup(unix_table, sizeof(unix_table), GFP_KERNEL);
+	if (table == NULL)
+		goto err_alloc;
+
+	table[0].data = &net->sysctl_unix_max_dgram_qlen;
+	net->unix_ctl = register_net_sysctl_table(net, unix_path, table);
+	if (net->unix_ctl == NULL)
+		goto err_reg;
+
+	return 0;
+
+err_reg:
+	kfree(table);
+err_alloc:
+	return -ENOMEM;
 }
 
 void unix_sysctl_unregister(struct net *net)
 {
-	unregister_sysctl_table(unix_sysctl_header);
+	struct ctl_table *table;
+
+	table = net->unix_ctl->ctl_table_arg;
+	unregister_sysctl_table(net->unix_ctl);
+	kfree(table);
 }
 
