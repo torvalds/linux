@@ -30,3 +30,10 @@ SUBSYS(cpu_cgroup)
 #endif
 
 /* */
+
+#ifdef CONFIG_CGROUP_CPUACCT
+SUBSYS(cpuacct)
+#endif
+
+/* */
+
