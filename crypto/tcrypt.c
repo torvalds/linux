@@ -1548,6 +1548,13 @@ static void do_test(void)
 			    SALSA20_STREAM_ENC_TEST_VECTORS);
 		break;
 
+	case 35:
+		test_aead("gcm(aes)", ENCRYPT, aes_gcm_enc_tv_template,
+			  AES_GCM_ENC_TEST_VECTORS);
+		test_aead("gcm(aes)", DECRYPT, aes_gcm_dec_tv_template,
+			  AES_GCM_DEC_TEST_VECTORS);
+		break;
+
 	case 100:
 		test_hash("hmac(md5)", hmac_md5_tv_template,
 			  HMAC_MD5_TEST_VECTORS);
