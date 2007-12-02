@@ -29,6 +29,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 #include <linux/cpufreq.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -413,7 +414,7 @@ static int acpi_throttling_rdmsr(struct acpi_processor *pr,
 	} else {
 		msr_low = 0;
 		msr_high = 0;
-		rdmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL,
+		rdmsr_safe(MSR_IA32_THERM_CONTROL,
 			(u32 *)&msr_low , (u32 *) &msr_high);
 		msr = (msr_high << 32) | msr_low;
 		*value = (acpi_integer) msr;
@@ -438,7 +439,7 @@ static int acpi_throttling_wrmsr(struct acpi_processor *pr, acpi_integer value)
 			"HARDWARE addr space,NOT supported yet\n");
 	} else {
 		msr = value;
-		wrmsr_on_cpu(cpu, MSR_IA32_THERM_CONTROL,
+		wrmsr_safe(MSR_IA32_THERM_CONTROL,
 			msr & 0xffffffff, msr >> 32);
 		ret = 0;
 	}
@@ -572,21 +573,32 @@ static int acpi_processor_get_throttling_ptc(struct acpi_processor *pr)
 		return -ENODEV;
 
 	pr->throttling.state = 0;
-	local_irq_disable();
+
 	value = 0;
 	ret = acpi_read_throttling_status(pr, &value);
 	if (ret >= 0) {
 		state = acpi_get_throttling_state(pr, value);
 		pr->throttling.state = state;
 	}
-	local_irq_enable();
 
 	return 0;
 }
 
 static int acpi_processor_get_throttling(struct acpi_processor *pr)
 {
-	return pr->throttling.acpi_processor_get_throttling(pr);
+	cpumask_t saved_mask;
+	int ret;
+
+	/*
+	 * Migrate task to the cpu pointed by pr.
+	 */
+	saved_mask = current->cpus_allowed;
+	set_cpus_allowed(current, cpumask_of_cpu(pr->id));
+	ret = pr->throttling.acpi_processor_get_throttling(pr);
+	/* restore the previous state */
+	set_cpus_allowed(current, saved_mask);
+
+	return ret;
 }
 
 static int acpi_processor_get_fadt_info(struct acpi_processor *pr)
@@ -717,21 +729,29 @@ static int acpi_processor_set_throttling_ptc(struct acpi_processor *pr,
 	if (state < pr->throttling_platform_limit)
 		return -EPERM;
 
-	local_irq_disable();
 	value = 0;
 	ret = acpi_get_throttling_value(pr, state, &value);
 	if (ret >= 0) {
 		acpi_write_throttling_state(pr, value);
 		pr->throttling.state = state;
 	}
-	local_irq_enable();
 
 	return 0;
 }
 
 int acpi_processor_set_throttling(struct acpi_processor *pr, int state)
 {
-	return pr->throttling.acpi_processor_set_throttling(pr, state);
+	cpumask_t saved_mask;
+	int ret;
+	/*
+	 * Migrate task to the cpu pointed by pr.
+	 */
+	saved_mask = current->cpus_allowed;
+	set_cpus_allowed(current, cpumask_of_cpu(pr->id));
+	ret = pr->throttling.acpi_processor_set_throttling(pr, state);
+	/* restore the previous state */
+	set_cpus_allowed(current, saved_mask);
+	return ret;
 }
 
 int acpi_processor_get_throttling_info(struct acpi_processor *pr)
