@@ -185,8 +185,10 @@ int kvm_lapic_find_highest_irr(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_lapic_find_highest_irr);
 
-int kvm_apic_set_irq(struct kvm_lapic *apic, u8 vec, u8 trig)
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig)
 {
+	struct kvm_lapic *apic = vcpu->apic;
+
 	if (!apic_test_and_set_irr(vec, apic)) {
 		/* a new pending irq is set in IRR */
 		if (trig)
@@ -394,7 +396,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 	return result;
 }
 
-struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
+static struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 				       unsigned long bitmap)
 {
 	int last;
@@ -420,6 +422,17 @@ struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 		printk(KERN_DEBUG "vcpu not ready for apic_round_robin\n");
 
 	return apic;
+}
+
+struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
+		unsigned long bitmap)
+{
+	struct kvm_lapic *apic;
+
+	apic = kvm_apic_round_robin(kvm, vector, bitmap);
+	if (apic)
+		return apic->vcpu;
+	return NULL;
 }
 
 static void apic_set_eoi(struct kvm_lapic *apic)
@@ -453,7 +466,7 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	unsigned int delivery_mode = icr_low & APIC_MODE_MASK;
 	unsigned int vector = icr_low & APIC_VECTOR_MASK;
 
-	struct kvm_lapic *target;
+	struct kvm_vcpu *target;
 	struct kvm_vcpu *vcpu;
 	unsigned long lpr_map = 0;
 	int i;
@@ -480,9 +493,9 @@ static void apic_send_ipi(struct kvm_lapic *apic)
 	}
 
 	if (delivery_mode == APIC_DM_LOWEST) {
-		target = kvm_apic_round_robin(vcpu->kvm, vector, lpr_map);
+		target = kvm_get_lowest_prio_vcpu(vcpu->kvm, vector, lpr_map);
 		if (target != NULL)
-			__apic_accept_irq(target, delivery_mode,
+			__apic_accept_irq(target->apic, delivery_mode,
 					  vector, level, trig_mode);
 	}
 }

@@ -145,14 +145,15 @@ void kvm_free_lapic(struct kvm_vcpu *vcpu);
 u64 kvm_lapic_get_cr8(struct kvm_vcpu *vcpu);
 void kvm_lapic_set_tpr(struct kvm_vcpu *vcpu, unsigned long cr8);
 void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value);
-struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
+
+struct kvm_vcpu *kvm_get_lowest_prio_vcpu(struct kvm *kvm, u8 vector,
 				       unsigned long bitmap);
 u64 kvm_get_apic_base(struct kvm_vcpu *vcpu);
 void kvm_set_apic_base(struct kvm_vcpu *vcpu, u64 data);
 int kvm_apic_match_physical_addr(struct kvm_lapic *apic, u16 dest);
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector);
 int kvm_apic_match_logical_addr(struct kvm_lapic *apic, u8 mda);
-int kvm_apic_set_irq(struct kvm_lapic *apic, u8 vec, u8 trig);
+int kvm_apic_set_irq(struct kvm_vcpu *vcpu, u8 vec, u8 trig);
 void kvm_apic_post_state_restore(struct kvm_vcpu *vcpu);
 int kvm_ioapic_init(struct kvm *kvm);
 void kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int level);
