@@ -30,6 +30,8 @@ struct xc2028_ctrl {
 	unsigned int		mts   :1;
 	unsigned int		d2633 :1;
 	unsigned int		input1:1;
+	unsigned int		vhfbw7:1;
+	unsigned int		uhfbw8:1;
 	unsigned int		demod;
 };
 

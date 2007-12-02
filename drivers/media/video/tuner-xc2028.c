@@ -998,20 +998,27 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-	/* FIXME:
-	  There are two Scodes that will never be selected:
-		DTV78 ZARLINK456, DTV78 DIBCOM52
-	  When it should opt for DTV78 instead of DTV7 or DTV8?
-	*/
 	switch (bw) {
 	case BANDWIDTH_8_MHZ:
-		type |= DTV8 | F8MHZ;
+		if (p->frequency < 470000000)
+			priv->ctrl.vhfbw7 = 0;
+		else
+			priv->ctrl.uhfbw8 = 1;
+		type |= (priv->ctrl.vhfbw7 && priv->ctrl.uhfbw8) ? DTV78 : DTV8;
+		type |= F8MHZ;
 		break;
 	case BANDWIDTH_7_MHZ:
-		type |= DTV7 | F8MHZ;
+		if (p->frequency < 470000000)
+			priv->ctrl.vhfbw7 = 1;
+		else
+			priv->ctrl.uhfbw8 = 0;
+		type |= (priv->ctrl.vhfbw7 && priv->ctrl.uhfbw8) ? DTV78 : DTV7;
+		type |= F8MHZ;
 		break;
 	case BANDWIDTH_6_MHZ:
-		type |= DTV6 ;
+		type |= DTV6;
+		priv->ctrl.vhfbw7 = 0;
+		priv->ctrl.uhfbw8 = 0;
 		break;
 	default:
 		tuner_err("error: bandwidth not supported.\n");
