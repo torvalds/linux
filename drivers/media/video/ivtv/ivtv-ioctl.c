@@ -673,11 +673,8 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		chip->ident = V4L2_IDENT_NONE;
 		chip->revision = 0;
 		if (reg->match_type == V4L2_CHIP_MATCH_HOST) {
-			if (v4l2_chip_match_host(reg->match_type, reg->match_chip)) {
-				struct v4l2_chip_ident *chip = arg;
-
+			if (v4l2_chip_match_host(reg->match_type, reg->match_chip))
 				chip->ident = itv->has_cx23415 ? V4L2_IDENT_CX23415 : V4L2_IDENT_CX23416;
-			}
 			return 0;
 		}
 		if (reg->match_type == V4L2_CHIP_MATCH_I2C_DRIVER)
