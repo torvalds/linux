@@ -592,7 +592,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	} else {
 		for (pos = 0; pos < priv->firm_size; pos++) {
 			if ((priv->firm[pos].int_freq == int_freq) &&
-			    (type & HAS_IF))
+			    (priv->firm[pos].type & HAS_IF))
 				break;
 		}
 		if (pos == priv->firm_size)
@@ -601,7 +601,7 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 
 	p = priv->firm[pos].ptr;
 
-	if (type & HAS_IF) {
+	if (priv->firm[pos].type & HAS_IF) {
 		if (priv->firm[pos].size != 12 * 16 || scode >= 16)
 			return -EINVAL;
 		p += 12 * scode;
