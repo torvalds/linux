@@ -21,6 +21,7 @@
 #ifndef __TDA18271_PRIV_H__
 #define __TDA18271_PRIV_H__
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 
 #define R_ID     0x00	/* ID byte                */
@@ -65,26 +66,31 @@
 
 #define TDA18271_NUM_REGS 39
 
-struct tda18271_pll_map {
-	u32 lomax;
-	u8 pd; /* post div */
-	u8 d;  /*      div */
-};
+extern int tda18271_debug;
 
-extern struct tda18271_pll_map tda18271_main_pll[];
-extern struct tda18271_pll_map tda18271_cal_pll[];
+#define dprintk(level, fmt, arg...) do {\
+	if (tda18271_debug & level) \
+		printk(KERN_DEBUG "%s: " fmt, __FUNCTION__, ##arg); } while (0)
 
-struct tda18271_map {
-	u32 rfmax;
-	u8  val;
-};
+#define DBG_INFO 1
+#define DBG_MAP  2
+#define DBG_REG  4
 
-extern struct tda18271_map tda18271_bp_filter[];
-extern struct tda18271_map tda18271_km[];
-extern struct tda18271_map tda18271_rf_band[];
-extern struct tda18271_map tda18271_gain_taper[];
-extern struct tda18271_map tda18271_rf_cal[];
-extern struct tda18271_map tda18271_ir_measure[];
+#define dbg_info(fmt, arg...) dprintk(DBG_INFO, fmt, ##arg)
+#define dbg_map(fmt, arg...)   dprintk(DBG_MAP, fmt, ##arg)
+#define dbg_reg(fmt, arg...)   dprintk(DBG_REG, fmt, ##arg)
+
+/*---------------------------------------------------------------------*/
+
+extern void tda18271_calc_cal_pll(u32 *freq, u8 *post_div, u8 *div);
+extern void tda18271_calc_main_pll(u32 *freq, u8 *post_div, u8 *div);
+
+extern void tda18271_calc_bp_filter(u32 *freq, u8 *val);
+extern void tda18271_calc_km(u32 *freq, u8 *val);
+extern void tda18271_calc_rf_band(u32 *freq, u8 *val);
+extern void tda18271_calc_gain_taper(u32 *freq, u8 *val);
+extern void tda18271_calc_rf_cal(u32 *freq, u8 *val);
+extern void tda18271_calc_ir_measure(u32 *freq, u8 *val);
 
 #endif /* __TDA18271_PRIV_H__ */
 

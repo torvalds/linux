@@ -25,21 +25,9 @@
 #include "tda18271.h"
 #include "tda18271-priv.h"
 
-static int tda18271_debug;
+int tda18271_debug;
 module_param_named(debug, tda18271_debug, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, map=2, reg=4 (or-able))");
-
-#define dprintk(level, fmt, arg...) do {\
-	if (tda18271_debug & level) \
-		printk(KERN_DEBUG "%s: " fmt, __FUNCTION__, ##arg); } while (0)
-
-#define DBG_INFO 1
-#define DBG_MAP  2
-#define DBG_REG  4
-
-#define dbg_info(fmt, arg...) dprintk(DBG_INFO, fmt, ##arg)
-#define dbg_map(fmt, arg...)   dprintk(DBG_MAP, fmt, ##arg)
-#define dbg_reg(fmt, arg...)   dprintk(DBG_REG, fmt, ##arg)
 
 /*---------------------------------------------------------------------*/
 
@@ -365,7 +353,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 	u32 div, N = 0;
-	int i;
+	u8 d, pd, val;
 
 	tda18271_init(fe);
 
@@ -374,16 +362,10 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	/* RF tracking filter calibration */
 
 	/* calculate BP_Filter */
-	i = 0;
-	while ((tda18271_bp_filter[i].rfmax * 1000) < freq) {
-		if (tda18271_bp_filter[i + 1].rfmax == 0)
-			break;
-		i++;
-	}
-	dbg_map("bp filter = 0x%x, i = %d\n", tda18271_bp_filter[i].val, i);
+	tda18271_calc_bp_filter(&freq, &val);
 
 	regs[R_EP1]  &= ~0x07; /* clear bp filter bits */
-	regs[R_EP1]  |= tda18271_bp_filter[i].val;
+	regs[R_EP1]  |= val;
 	tda18271_write_regs(fe, R_EP1, 1);
 
 	regs[R_EB4]  &= 0x07;
@@ -413,18 +395,11 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	i = 0;
-	while ((tda18271_cal_pll[i].lomax * 1000) < N) {
-		if (tda18271_cal_pll[i + 1].lomax == 0)
-			break;
-		i++;
-	}
-	dbg_map("cal pll, pd = 0x%x, d = 0x%x, i = %d\n",
-		tda18271_cal_pll[i].pd, tda18271_cal_pll[i].d, i);
+	tda18271_calc_cal_pll(&N, &pd, &d);
 
-	regs[R_CPD]   = tda18271_cal_pll[i].pd;
+	regs[R_CPD]   = pd;
 
-	div =  ((tda18271_cal_pll[i].d * (N / 1000)) << 7) / 125;
+	div =  ((d * (N / 1000)) << 7) / 125;
 	regs[R_CD1]   = 0xff & (div >> 16);
 	regs[R_CD2]   = 0xff & (div >> 8);
 	regs[R_CD3]   = 0xff & div;
@@ -440,16 +415,9 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	i = 0;
-	while ((tda18271_main_pll[i].lomax * 1000) < N) {
-		if (tda18271_main_pll[i + 1].lomax == 0)
-			break;
-		i++;
-	}
-	dbg_map("main pll, pd = 0x%x, d = 0x%x, i = %d\n",
-		tda18271_main_pll[i].pd, tda18271_main_pll[i].d, i);
+	tda18271_calc_main_pll(&N, &pd, &d);
 
-	regs[R_MPD]   = (0x7f & tda18271_main_pll[i].pd);
+	regs[R_MPD]   = (0x7f & pd);
 
 	switch (priv->mode) {
 	case TDA18271_ANALOG:
@@ -460,7 +428,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	div =  ((tda18271_main_pll[i].d * (N / 1000)) << 7) / 125;
+	div =  ((d * (N / 1000)) << 7) / 125;
 	regs[R_MD1]   = 0xff & (div >> 16);
 	regs[R_MD2]   = 0xff & (div >> 8);
 	regs[R_MD3]   = 0xff & div;
@@ -469,42 +437,23 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	msleep(5); /* RF tracking filter calibration initialization */
 
 	/* search for K,M,CO for RF Calibration */
-	i = 0;
-	while ((tda18271_km[i].rfmax * 1000) < freq) {
-		if (tda18271_km[i + 1].rfmax == 0)
-			break;
-		i++;
-	}
-	dbg_map("km = 0x%x, i = %d\n", tda18271_km[i].val, i);
+	tda18271_calc_km(&freq, &val);
 
 	regs[R_EB13] &= 0x83;
-	regs[R_EB13] |= tda18271_km[i].val;
+	regs[R_EB13] |= val;
 	tda18271_write_regs(fe, R_EB13, 1);
 
 	/* search for RF_BAND */
-	i = 0;
-	while ((tda18271_rf_band[i].rfmax * 1000) < freq) {
-		if (tda18271_rf_band[i + 1].rfmax == 0)
-			break;
-		i++;
-	}
-	dbg_map("rf band = 0x%x, i = %d\n", tda18271_rf_band[i].val, i);
+	tda18271_calc_rf_band(&freq, &val);
 
 	regs[R_EP2]  &= ~0xe0; /* clear rf band bits */
-	regs[R_EP2]  |= (tda18271_rf_band[i].val << 5);
+	regs[R_EP2]  |= (val << 5);
 
 	/* search for Gain_Taper */
-	i = 0;
-	while ((tda18271_gain_taper[i].rfmax * 1000) < freq) {
-		if (tda18271_gain_taper[i + 1].rfmax == 0)
-			break;
-		i++;
-	}
-	dbg_map("gain taper = 0x%x, i = %d\n",
-		tda18271_gain_taper[i].val, i);
+	tda18271_calc_gain_taper(&freq, &val);
 
 	regs[R_EP2]  &= ~0x1f; /* clear gain taper bits */
-	regs[R_EP2]  |= tda18271_gain_taper[i].val;
+	regs[R_EP2]  |= val;
 
 	tda18271_write_regs(fe, R_EP2, 1);
 	tda18271_write_regs(fe, R_EP1, 1);
@@ -529,17 +478,11 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	tda18271_write_regs(fe, R_EP1, 1);
 
 	/* RF tracking filer correction for VHF_Low band */
-	i = 0;
-	while ((tda18271_rf_cal[i].rfmax * 1000) < freq) {
-		if (tda18271_rf_cal[i].rfmax == 0)
-			break;
-		i++;
-	}
-	dbg_map("rf cal = 0x%x, i = %d\n", tda18271_rf_cal[i].val, i);
+	tda18271_calc_rf_cal(&freq, &val);
 
 	/* VHF_Low band only */
-	if (tda18271_rf_cal[i].rfmax != 0) {
-		regs[R_EB14]   = tda18271_rf_cal[i].val;
+	if (val != 0) {
+		regs[R_EB14] = val;
 		tda18271_write_regs(fe, R_EB14, 1);
 	}
 
@@ -579,29 +522,17 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	regs[R_EP4]  &= ~0x80; /* turn this bit on only for fm */
 
 	/* image rejection validity EP5[2:0] */
-	i = 0;
-	while ((tda18271_ir_measure[i].rfmax * 1000) < freq) {
-		if (tda18271_ir_measure[i].rfmax == 0)
-			break;
-		i++;
-	}
-	dbg_map("ir measure, i = %d\n", i);
+	tda18271_calc_ir_measure(&freq, &val);
+
 	regs[R_EP5] &= ~0x07;
-	regs[R_EP5] |= tda18271_ir_measure[i].val;
+	regs[R_EP5] |= val;
 
 	/* calculate MAIN PLL */
 	N = freq + ifc;
 
-	i = 0;
-	while ((tda18271_main_pll[i].lomax * 1000) < N) {
-		if (tda18271_main_pll[i + 1].lomax == 0)
-			break;
-		i++;
-	}
-	dbg_map("main pll, pd = 0x%x, d = 0x%x, i = %d\n",
-		tda18271_main_pll[i].pd, tda18271_main_pll[i].d, i);
+	tda18271_calc_main_pll(&N, &pd, &d);
 
-	regs[R_MPD]   = (0x7f & tda18271_main_pll[i].pd);
+	regs[R_MPD]   = (0x7f & pd);
 	switch (priv->mode) {
 	case TDA18271_ANALOG:
 		regs[R_MPD]  &= ~0x08;
@@ -611,7 +542,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	div =  ((tda18271_main_pll[i].d * (N / 1000)) << 7) / 125;
+	div =  ((d * (N / 1000)) << 7) / 125;
 	regs[R_MD1]   = 0xff & (div >> 16);
 	regs[R_MD2]   = 0xff & (div >> 8);
 	regs[R_MD3]   = 0xff & div;

@@ -20,7 +20,20 @@
 
 #include "tda18271-priv.h"
 
-struct tda18271_pll_map tda18271_main_pll[] = {
+struct tda18271_pll_map {
+	u32 lomax;
+	u8 pd; /* post div */
+	u8 d;  /*      div */
+};
+
+struct tda18271_map {
+	u32 rfmax;
+	u8  val;
+};
+
+/*---------------------------------------------------------------------*/
+
+static struct tda18271_pll_map tda18271_main_pll[] = {
 	{ .lomax =  32000, .pd = 0x5f, .d = 0xf0 },
 	{ .lomax =  35000, .pd = 0x5e, .d = 0xe0 },
 	{ .lomax =  37000, .pd = 0x5d, .d = 0xd0 },
@@ -64,7 +77,7 @@ struct tda18271_pll_map tda18271_main_pll[] = {
 	{ .lomax =      0, .pd = 0x00, .d = 0x00 }, /* end */
 };
 
-struct tda18271_pll_map tda18271_cal_pll[] = {
+static struct tda18271_pll_map tda18271_cal_pll[] = {
 	{ .lomax =   33000, .pd = 0xdd, .d = 0xd0 },
 	{ .lomax =   36000, .pd = 0xdc, .d = 0xc0 },
 	{ .lomax =   40000, .pd = 0xdb, .d = 0xb0 },
@@ -103,7 +116,7 @@ struct tda18271_pll_map tda18271_cal_pll[] = {
 	{ .lomax =       0, .pd = 0x00, .d = 0x00 }, /* end */
 };
 
-struct tda18271_map tda18271_bp_filter[] = {
+static struct tda18271_map tda18271_bp_filter[] = {
 	{ .rfmax =  62000, .val = 0x00 },
 	{ .rfmax =  84000, .val = 0x01 },
 	{ .rfmax = 100000, .val = 0x02 },
@@ -114,7 +127,7 @@ struct tda18271_map tda18271_bp_filter[] = {
 	{ .rfmax =      0, .val = 0x00 }, /* end */
 };
 
-struct tda18271_map tda18271_km[] = {
+static struct tda18271_map tda18271_km[] = {
 	{ .rfmax =  61100, .val = 0x74 },
 	{ .rfmax = 350000, .val = 0x40 },
 	{ .rfmax = 720000, .val = 0x30 },
@@ -122,7 +135,7 @@ struct tda18271_map tda18271_km[] = {
 	{ .rfmax =      0, .val = 0x00 }, /* end */
 };
 
-struct tda18271_map tda18271_rf_band[] = {
+static struct tda18271_map tda18271_rf_band[] = {
 	{ .rfmax =  47900, .val = 0x00 },
 	{ .rfmax =  61100, .val = 0x01 },
 /*	{ .rfmax = 152600, .val = 0x02 }, */
@@ -134,7 +147,7 @@ struct tda18271_map tda18271_rf_band[] = {
 	{ .rfmax =      0, .val = 0x00 }, /* end */
 };
 
-struct tda18271_map tda18271_gain_taper[] = {
+static struct tda18271_map tda18271_gain_taper[] = {
 	{ .rfmax =  45400, .val = 0x1f },
 	{ .rfmax =  45800, .val = 0x1e },
 	{ .rfmax =  46200, .val = 0x1d },
@@ -223,7 +236,7 @@ struct tda18271_map tda18271_gain_taper[] = {
 	{ .rfmax =      0, .val = 0x00 }, /* end */
 };
 
-struct tda18271_map tda18271_rf_cal[] = {
+static struct tda18271_map tda18271_rf_cal[] = {
 	{ .rfmax = 41000, .val = 0x1e },
 	{ .rfmax = 43000, .val = 0x30 },
 	{ .rfmax = 45000, .val = 0x43 },
@@ -244,13 +257,90 @@ struct tda18271_map tda18271_rf_cal[] = {
 	{ .rfmax =     0, .val = 0x00 }, /* end */
 };
 
-struct tda18271_map tda18271_ir_measure[] = {
+static struct tda18271_map tda18271_ir_measure[] = {
 	{ .rfmax =  30000, .val = 4},
 	{ .rfmax = 200000, .val = 5},
 	{ .rfmax = 600000, .val = 6},
 	{ .rfmax = 865000, .val = 7},
 	{ .rfmax =      0, .val = 0}, /* end */
 };
+
+/*---------------------------------------------------------------------*/
+
+static void tda18271_lookup_map(struct tda18271_map *map,
+				u32 *freq, u8 *val)
+{
+	int i = 0;
+	while ((map[i].rfmax * 1000) < *freq) {
+		if (map[i + 1].rfmax == 0)
+			break;
+		i++;
+	}
+	*val = map[i].val;
+}
+
+static void tda18271_lookup_pll_map(struct tda18271_pll_map *map,
+				    u32 *freq, u8 *post_div, u8 *div)
+{
+	int i = 0;
+	while ((map[i].lomax * 1000) < *freq) {
+		if (map[i + 1].lomax == 0)
+			break;
+		i++;
+	}
+	*post_div = map[i].pd;
+	*div      = map[i].d;
+}
+
+/*---------------------------------------------------------------------*/
+
+void tda18271_calc_cal_pll(u32 *freq, u8 *post_div, u8 *div)
+{
+	tda18271_lookup_pll_map(tda18271_cal_pll, freq, post_div, div);
+	dbg_map("post div = 0x%02x, div = 0x%02x\n", *post_div, *div);
+}
+
+void tda18271_calc_main_pll(u32 *freq, u8 *post_div, u8 *div)
+{
+	tda18271_lookup_pll_map(tda18271_main_pll, freq, post_div, div);
+	dbg_map("post div = 0x%02x, div = 0x%02x\n", *post_div, *div);
+}
+
+void tda18271_calc_bp_filter(u32 *freq, u8 *val)
+{
+	tda18271_lookup_map(tda18271_bp_filter, freq, val);
+	dbg_map("0x%02x\n", *val);
+}
+
+void tda18271_calc_km(u32 *freq, u8 *val)
+{
+	tda18271_lookup_map(tda18271_km, freq, val);
+	dbg_map("0x%02x\n", *val);
+}
+
+void tda18271_calc_rf_band(u32 *freq, u8 *val)
+{
+	tda18271_lookup_map(tda18271_rf_band, freq, val);
+	dbg_map("0x%02x\n", *val);
+}
+
+void tda18271_calc_gain_taper(u32 *freq, u8 *val)
+{
+	tda18271_lookup_map(tda18271_gain_taper, freq, val);
+	dbg_map("0x%02x\n", *val);
+}
+
+void tda18271_calc_rf_cal(u32 *freq, u8 *val)
+{
+	tda18271_lookup_map(tda18271_rf_cal, freq, val);
+	dbg_map("0x%02x\n", *val);
+}
+
+void tda18271_calc_ir_measure(u32 *freq, u8 *val)
+{
+	tda18271_lookup_map(tda18271_ir_measure, freq, val);
+	dbg_map("0x%02x\n", *val);
+}
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
