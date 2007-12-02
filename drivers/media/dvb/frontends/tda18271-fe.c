@@ -72,22 +72,22 @@ static void tda18271_dump_regs(struct dvb_frontend *fe)
 	unsigned char *regs = priv->tda18271_regs;
 
 	dbg_reg("=== TDA18271 REG DUMP ===\n");
-	dbg_reg("ID_BYTE            = 0x%x\n", 0xff & regs[R_ID]);
-	dbg_reg("THERMO_BYTE        = 0x%x\n", 0xff & regs[R_TM]);
-	dbg_reg("POWER_LEVEL_BYTE   = 0x%x\n", 0xff & regs[R_PL]);
-	dbg_reg("EASY_PROG_BYTE_1   = 0x%x\n", 0xff & regs[R_EP1]);
-	dbg_reg("EASY_PROG_BYTE_2   = 0x%x\n", 0xff & regs[R_EP2]);
-	dbg_reg("EASY_PROG_BYTE_3   = 0x%x\n", 0xff & regs[R_EP3]);
-	dbg_reg("EASY_PROG_BYTE_4   = 0x%x\n", 0xff & regs[R_EP4]);
-	dbg_reg("EASY_PROG_BYTE_5   = 0x%x\n", 0xff & regs[R_EP5]);
-	dbg_reg("CAL_POST_DIV_BYTE  = 0x%x\n", 0xff & regs[R_CPD]);
-	dbg_reg("CAL_DIV_BYTE_1     = 0x%x\n", 0xff & regs[R_CD1]);
-	dbg_reg("CAL_DIV_BYTE_2     = 0x%x\n", 0xff & regs[R_CD2]);
-	dbg_reg("CAL_DIV_BYTE_3     = 0x%x\n", 0xff & regs[R_CD3]);
-	dbg_reg("MAIN_POST_DIV_BYTE = 0x%x\n", 0xff & regs[R_MPD]);
-	dbg_reg("MAIN_DIV_BYTE_1    = 0x%x\n", 0xff & regs[R_MD1]);
-	dbg_reg("MAIN_DIV_BYTE_2    = 0x%x\n", 0xff & regs[R_MD2]);
-	dbg_reg("MAIN_DIV_BYTE_3    = 0x%x\n", 0xff & regs[R_MD3]);
+	dbg_reg("ID_BYTE            = 0x%02x\n", 0xff & regs[R_ID]);
+	dbg_reg("THERMO_BYTE        = 0x%02x\n", 0xff & regs[R_TM]);
+	dbg_reg("POWER_LEVEL_BYTE   = 0x%02x\n", 0xff & regs[R_PL]);
+	dbg_reg("EASY_PROG_BYTE_1   = 0x%02x\n", 0xff & regs[R_EP1]);
+	dbg_reg("EASY_PROG_BYTE_2   = 0x%02x\n", 0xff & regs[R_EP2]);
+	dbg_reg("EASY_PROG_BYTE_3   = 0x%02x\n", 0xff & regs[R_EP3]);
+	dbg_reg("EASY_PROG_BYTE_4   = 0x%02x\n", 0xff & regs[R_EP4]);
+	dbg_reg("EASY_PROG_BYTE_5   = 0x%02x\n", 0xff & regs[R_EP5]);
+	dbg_reg("CAL_POST_DIV_BYTE  = 0x%02x\n", 0xff & regs[R_CPD]);
+	dbg_reg("CAL_DIV_BYTE_1     = 0x%02x\n", 0xff & regs[R_CD1]);
+	dbg_reg("CAL_DIV_BYTE_2     = 0x%02x\n", 0xff & regs[R_CD2]);
+	dbg_reg("CAL_DIV_BYTE_3     = 0x%02x\n", 0xff & regs[R_CD3]);
+	dbg_reg("MAIN_POST_DIV_BYTE = 0x%02x\n", 0xff & regs[R_MPD]);
+	dbg_reg("MAIN_DIV_BYTE_1    = 0x%02x\n", 0xff & regs[R_MD1]);
+	dbg_reg("MAIN_DIV_BYTE_2    = 0x%02x\n", 0xff & regs[R_MD2]);
+	dbg_reg("MAIN_DIV_BYTE_3    = 0x%02x\n", 0xff & regs[R_MD3]);
 }
 
 static void tda18271_read_regs(struct dvb_frontend *fe)
