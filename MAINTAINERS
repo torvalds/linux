@@ -2141,6 +2141,15 @@ L:	isdn4linux@listserv.isdn4linux.de
 W:	http://www.melware.de
 S:	Maintained
 
+IVTV VIDEO4LINUX DRIVER
+P:	Hans Verkuil
+M:	hverkuil@xs4all.nl
+L:	ivtv-devel@ivtvdriver.org
+L:	ivtv-users@ivtvdriver.org
+L:	video4linux-list@redhat.com
+W:	http://www.ivtvdriver.org
+S:	Maintained
+
 JOURNALLING FLASH FILE SYSTEM V2 (JFFS2)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
