@@ -957,12 +957,14 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		type |= D2620;
 
 	switch(fe->ops.info.type) {
-	case FE_QPSK:
-		break;
 	case FE_OFDM:
 		bw = p->u.ofdm.bandwidth;
 		break;
 	case FE_QAM:
+		tuner_info("WARN: There are some reports that "
+			   "QAM 6 MHz doesn't work.\n"
+			   "If this works for you, please report by "
+			   "e-mail to: v4l-dvb-maintainer@linuxtv.org\n");
 		bw = BANDWIDTH_6_MHZ;
 		type |= QAM;
 		break;
@@ -970,6 +972,9 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		bw = BANDWIDTH_6_MHZ;
 		type |= ATSC| D2633;
 		break;
+	/* DVB-S is not supported */
+	default:
+		return -EINVAL;
 	}
 
 	/* FIXME:
