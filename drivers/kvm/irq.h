@@ -79,6 +79,14 @@ void kvm_pic_update_irq(struct kvm_pic *s);
 #define IOAPIC_REG_VERSION 0x01
 #define IOAPIC_REG_ARB_ID  0x02	/* x86 IOAPIC only */
 
+/*ioapic delivery mode*/
+#define	IOAPIC_FIXED			0x0
+#define	IOAPIC_LOWEST_PRIORITY		0x1
+#define	IOAPIC_PMI			0x2
+#define	IOAPIC_NMI			0x4
+#define	IOAPIC_INIT			0x5
+#define	IOAPIC_EXTINT			0x7
+
 struct kvm_ioapic {
 	u64 base_address;
 	u32 ioregsel;

@@ -36,11 +36,8 @@
 #include <linux/hrtimer.h>
 #include <linux/io.h>
 #include <asm/processor.h>
-#include <asm/msr.h>
 #include <asm/page.h>
 #include <asm/current.h>
-#include <asm/apicdef.h>
-#include <asm/io_apic.h>
 #include "irq.h"
 #if 0
 #define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg)
@@ -142,8 +139,8 @@ static void ioapic_inj_irq(struct kvm_ioapic *ioapic,
 	ioapic_debug("irq %d trig %d deliv %d\n", vector, trig_mode,
 		     delivery_mode);
 
-	ASSERT((delivery_mode == dest_Fixed) ||
-	       (delivery_mode == dest_LowestPrio));
+	ASSERT((delivery_mode == IOAPIC_FIXED) ||
+	       (delivery_mode == IOAPIC_LOWEST_PRIORITY));
 
 	kvm_apic_set_irq(vcpu, vector, trig_mode);
 }
@@ -210,7 +207,7 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 	}
 
 	switch (delivery_mode) {
-	case dest_LowestPrio:
+	case IOAPIC_LOWEST_PRIORITY:
 		vcpu = kvm_get_lowest_prio_vcpu(ioapic->kvm, vector,
 				deliver_bitmask);
 		if (vcpu != NULL)
@@ -219,9 +216,9 @@ static void ioapic_deliver(struct kvm_ioapic *ioapic, int irq)
 		else
 			ioapic_debug("null lowest prio vcpu: "
 				     "mask=%x vector=%x delivery_mode=%x\n",
-				     deliver_bitmask, vector, dest_LowestPrio);
+				     deliver_bitmask, vector, IOAPIC_LOWEST_PRIORITY);
 		break;
-	case dest_Fixed:
+	case IOAPIC_FIXED:
 		for (vcpu_id = 0; deliver_bitmask != 0; vcpu_id++) {
 			if (!(deliver_bitmask & (1 << vcpu_id)))
 				continue;
