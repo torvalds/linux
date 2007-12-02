@@ -107,6 +107,7 @@ config ARCH_SUPPORTS_OPROFILE
 	bool
 	default y
 
+select HAVE_KVM
 
 config ZONE_DMA32
 	bool
