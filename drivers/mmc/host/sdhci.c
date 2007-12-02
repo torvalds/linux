@@ -7,6 +7,10 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or (at
  * your option) any later version.
+ *
+ * Thanks to the following companies for their support:
+ *
+ *     - JMicron (hardware and technical support)
  */
 
 #include <linux/delay.h>
@@ -47,6 +51,8 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<6)
 /* Controller can only DMA chunk sizes that are a multiple of 32 bits */
 #define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<7)
+/* Controller needs to be reset after each request to stay stable */
+#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<8)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -109,6 +115,16 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subdevice      = PCI_ANY_ID,
 		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
 				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_JMICRON,
+		.device         = PCI_DEVICE_ID_JMICRON_JMB38X_SD,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_32BIT_DMA_ADDR |
+				  SDHCI_QUIRK_32BIT_DMA_SIZE |
+				  SDHCI_QUIRK_RESET_AFTER_REQUEST,
 	},
 
 	{	/* Generic SD host controller */
@@ -922,7 +938,8 @@ static void sdhci_tasklet_finish(unsigned long param)
 	 */
 	if (mrq->cmd->error ||
 		(mrq->data && (mrq->data->error ||
-		(mrq->data->stop && mrq->data->stop->error)))) {
+		(mrq->data->stop && mrq->data->stop->error))) ||
+		(host->chip->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)) {
 
 		/* Some controllers need this kick or reset won't work here */
 		if (host->chip->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET) {
