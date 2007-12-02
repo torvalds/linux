@@ -359,12 +359,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	u32 div, N = 0;
 	int i;
 
-	tda18271_read_regs(fe);
-
-	/* test IR_CAL_OK to see if we need init */
-	if ((regs[R_EP1] & 0x08) == 0)
-		tda18271_init_regs(fe);
-
+	tda18271_init(fe);
 
 	dprintk(1, "freq = %d, ifc = %d\n", freq, ifc);
 
