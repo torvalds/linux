@@ -43,6 +43,10 @@ static unsigned int debug_quirks = 0;
 #define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
 /* Controller has an unusable DMA engine */
 #define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
+/* Controller can only DMA from 32-bit aligned addresses */
+#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<6)
+/* Controller can only DMA chunk sizes that are a multiple of 32 bits */
+#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<7)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -429,7 +433,29 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 	writeb(count, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 
-	if (host->flags & SDHCI_USE_DMA) {
+	if (host->flags & SDHCI_USE_DMA)
+		host->flags |= SDHCI_REQ_USE_DMA;
+
+	if (unlikely((host->flags & SDHCI_REQ_USE_DMA) &&
+		(host->chip->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE) &&
+		((data->blksz * data->blocks) & 0x3))) {
+		DBG("Reverting to PIO because of transfer size (%d)\n",
+			data->blksz * data->blocks);
+		host->flags &= ~SDHCI_REQ_USE_DMA;
+	}
+
+	/*
+	 * The assumption here being that alignment is the same after
+	 * translation to device address space.
+	 */
+	if (unlikely((host->flags & SDHCI_REQ_USE_DMA) &&
+		(host->chip->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) &&
+		(data->sg->offset & 0x3))) {
+		DBG("Reverting to PIO because of bad alignment\n");
+		host->flags &= ~SDHCI_REQ_USE_DMA;
+	}
+
+	if (host->flags & SDHCI_REQ_USE_DMA) {
 		int count;
 
 		count = pci_map_sg(host->chip->pdev, data->sg, data->sg_len,
@@ -466,7 +492,7 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 		mode |= SDHCI_TRNS_MULTI;
 	if (data->flags & MMC_DATA_READ)
 		mode |= SDHCI_TRNS_READ;
-	if (host->flags & SDHCI_USE_DMA)
+	if (host->flags & SDHCI_REQ_USE_DMA)
 		mode |= SDHCI_TRNS_DMA;
 
 	writew(mode, host->ioaddr + SDHCI_TRANSFER_MODE);
@@ -482,7 +508,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	data = host->data;
 	host->data = NULL;
 
-	if (host->flags & SDHCI_USE_DMA) {
+	if (host->flags & SDHCI_REQ_USE_DMA) {
 		pci_unmap_sg(host->chip->pdev, data->sg, data->sg_len,
 			(data->flags & MMC_DATA_READ)?PCI_DMA_FROMDEVICE:PCI_DMA_TODEVICE);
 	}
