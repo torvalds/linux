@@ -360,6 +360,11 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 	case IOAPIC_REG_WINDOW:
 		ioapic_write_indirect(ioapic, data);
 		break;
+#ifdef	CONFIG_IA64
+	case IOAPIC_REG_EOI:
+		kvm_ioapic_update_eoi(ioapic, data);
+		break;
+#endif
 
 	default:
 		break;
