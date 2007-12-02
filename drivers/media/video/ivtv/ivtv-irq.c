@@ -436,7 +436,7 @@ static void ivtv_dma_enc_start(struct ivtv_stream *s)
 		s_vbi->sg_pending_size = 0;
 		s_vbi->dma_xfer_cnt++;
 		set_bit(IVTV_F_S_DMA_HAS_VBI, &s->s_flags);
-		IVTV_DEBUG_HI_DMA("include DMA for %s\n", s->name);
+		IVTV_DEBUG_HI_DMA("include DMA for %s\n", s_vbi->name);
 	}
 
 	s->dma_xfer_cnt++;
