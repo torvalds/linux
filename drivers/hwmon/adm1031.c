@@ -542,18 +542,26 @@ set_fan_div(struct device *dev, const char *buf, size_t count, int nr)
 		return -EINVAL;
 	
 	mutex_lock(&data->update_lock);
+	/* Get fresh readings */
+	data->fan_div[nr] = adm1031_read_value(client,
+					       ADM1031_REG_FAN_DIV(nr));
+	data->fan_min[nr] = adm1031_read_value(client,
+					       ADM1031_REG_FAN_MIN(nr));
+
+	/* Write the new clock divider and fan min */
 	old_div = FAN_DIV_FROM_REG(data->fan_div[nr]);
 	data->fan_div[nr] = (tmp & 0xC0) | (0x3f & data->fan_div[nr]);
 	new_min = data->fan_min[nr] * old_div / 
 		FAN_DIV_FROM_REG(data->fan_div[nr]);
 	data->fan_min[nr] = new_min > 0xff ? 0xff : new_min;
-	data->fan[nr] = data->fan[nr] * old_div / 
-		FAN_DIV_FROM_REG(data->fan_div[nr]);
 
 	adm1031_write_value(client, ADM1031_REG_FAN_DIV(nr), 
 			    data->fan_div[nr]);
 	adm1031_write_value(client, ADM1031_REG_FAN_MIN(nr), 
 			    data->fan_min[nr]);
+
+	/* Invalidate the cache: fan speed is no longer valid */
+	data->valid = 0;
 	mutex_unlock(&data->update_lock);
 	return count;
 }
