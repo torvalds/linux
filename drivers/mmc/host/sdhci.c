@@ -1294,7 +1294,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	version = readw(host->ioaddr + SDHCI_HOST_VERSION);
 	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
-	if (version != 0) {
+	if (version > 1) {
 		printk(KERN_ERR "%s: Unknown controller version (%d). "
 			"You may experience problems.\n", host->slot_descr,
 			version);
