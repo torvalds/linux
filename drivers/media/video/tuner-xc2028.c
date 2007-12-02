@@ -956,6 +956,7 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 	struct xc2028_data *priv = fe->tuner_priv;
 	unsigned int       type=0;
 	fe_bandwidth_t     bw = BANDWIDTH_8_MHZ;
+	u16                demod = 0;
 
 	tuner_dbg("%s called\n", __FUNCTION__);
 
@@ -1009,10 +1010,10 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 
 	/* All S-code tables need a 200kHz shift */
 	if (priv->ctrl.demod)
-		priv->ctrl.demod += 200;
+		demod = priv->ctrl.demod + 200;
 
 	return generic_set_freq(fe, p->frequency,
-				T_DIGITAL_TV, type, 0, priv->ctrl.demod);
+				T_DIGITAL_TV, type, 0, demod);
 }
 
 static int xc2028_sleep(struct dvb_frontend *fe)
