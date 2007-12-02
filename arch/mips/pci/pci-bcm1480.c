@@ -76,8 +76,7 @@ static inline void WRITECFG32(u32 addr, u32 data)
 
 int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
-	This is b0rked.
-	return dev->irq;
+	return K_BCM1480_INT_PCI_INTA + pin;
 }
 
 /* Do platform specific device initialization at pci_enable_device() time */
