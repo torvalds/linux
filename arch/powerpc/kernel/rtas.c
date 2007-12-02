@@ -638,17 +638,17 @@ void rtas_halt(void)
 /* Must be in the RMO region, so we place it here */
 static char rtas_os_term_buf[2048];
 
-void rtas_panic_msg(char *str)
-{
-	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
-}
-
-void rtas_os_term(void)
+void rtas_os_term(char *str)
 {
 	int status;
 
+	if (panic_timeout)
+		return;
+
 	if (RTAS_UNKNOWN_SERVICE == rtas_token("ibm,os-term"))
 		return;
+
+	snprintf(rtas_os_term_buf, 2048, "OS panic: %s", str);
 
 	do {
 		status = rtas_call(rtas_token("ibm,os-term"), 1, 1, NULL,
