@@ -198,14 +198,6 @@ static inline struct crypto_instance *crypto_aead_alg_instance(
 	return crypto_tfm_alg_instance(&aead->base);
 }
 
-static inline struct crypto_ablkcipher *crypto_spawn_ablkcipher(
-	struct crypto_spawn *spawn)
-{
-	return __crypto_ablkcipher_cast(
-		crypto_spawn_tfm(spawn, crypto_skcipher_type(0),
-				 crypto_skcipher_mask(0)));
-}
-
 static inline struct crypto_blkcipher *crypto_spawn_blkcipher(
 	struct crypto_spawn *spawn)
 {
