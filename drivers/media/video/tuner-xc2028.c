@@ -395,6 +395,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 {
 	struct xc2028_data *priv = fe->tuner_priv;
 	int                 i, best_i = -1, best_nr_matches = 0;
+	unsigned int        ign_firm_type_mask = 0;
 
 	tuner_dbg("%s called, want type=", __FUNCTION__);
 	if (debug) {
@@ -412,16 +413,18 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 
 	if (type & BASE)
 		type &= BASE_TYPES;
-	else if (type & SCODE)
+	else if (type & SCODE) {
 		type &= SCODE_TYPES;
-	else if (type & DTV_TYPES)
+		ign_firm_type_mask = HAS_IF;
+	} else if (type & DTV_TYPES)
 		type &= DTV_TYPES;
 	else if (type & STD_SPECIFIC_TYPES)
 		type &= STD_SPECIFIC_TYPES;
 
 	/* Seek for exact match */
 	for (i = 0; i < priv->firm_size; i++) {
-		if ((type == priv->firm[i].type) && (*id == priv->firm[i].id))
+		if ((type == (priv->firm[i].type & ~ign_firm_type_mask)) &&
+		    (*id == priv->firm[i].id))
 			goto found;
 	}
 
@@ -430,7 +433,7 @@ static int seek_firmware(struct dvb_frontend *fe, unsigned int type,
 		v4l2_std_id match_mask;
 		int nr_matches;
 
-		if (type != priv->firm[i].type)
+		if (type != (priv->firm[i].type & ~ign_firm_type_mask))
 			continue;
 
 		match_mask = *id & priv->firm[i].id;
