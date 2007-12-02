@@ -1973,27 +1973,57 @@ scsi_mode_sense(struct scsi_device *sdev, int dbd, int modepage,
 }
 EXPORT_SYMBOL(scsi_mode_sense);
 
+/**
+ *	scsi_test_unit_ready - test if unit is ready
+ *	@sdev:	scsi device to change the state of.
+ *	@timeout: command timeout
+ *	@retries: number of retries before failing
+ *	@sshdr_external: Optional pointer to struct scsi_sense_hdr for
+ *		returning sense. Make sure that this is cleared before passing
+ *		in.
+ *
+ *	Returns zero if unsuccessful or an error if TUR failed.  For
+ *	removable media, a return of NOT_READY or UNIT_ATTENTION is
+ *	translated to success, with the ->changed flag updated.
+ **/
 int
-scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries)
+scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
+		     struct scsi_sense_hdr *sshdr_external)
 {
 	char cmd[] = {
 		TEST_UNIT_READY, 0, 0, 0, 0, 0,
 	};
-	struct scsi_sense_hdr sshdr;
+	struct scsi_sense_hdr *sshdr;
 	int result;
-	
-	result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, &sshdr,
-				  timeout, retries);
+
+	if (!sshdr_external)
+		sshdr = kzalloc(sizeof(*sshdr), GFP_KERNEL);
+	else
+		sshdr = sshdr_external;
+
+	/* try to eat the UNIT_ATTENTION if there are enough retries */
+	do {
+		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
+					  timeout, retries);
+	} while ((driver_byte(result) & DRIVER_SENSE) &&
+		 sshdr && sshdr->sense_key == UNIT_ATTENTION &&
+		 --retries);
+
+	if (!sshdr)
+		/* could not allocate sense buffer, so can't process it */
+		return result;
 
 	if ((driver_byte(result) & DRIVER_SENSE) && sdev->removable) {
 
-		if ((scsi_sense_valid(&sshdr)) &&
-		    ((sshdr.sense_key == UNIT_ATTENTION) ||
-		     (sshdr.sense_key == NOT_READY))) {
+		if ((scsi_sense_valid(sshdr)) &&
+		    ((sshdr->sense_key == UNIT_ATTENTION) ||
+		     (sshdr->sense_key == NOT_READY))) {
 			sdev->changed = 1;
 			result = 0;
 		}
 	}
+	if (!sshdr_external)
+		kfree(sshdr);
 	return result;
 }
 EXPORT_SYMBOL(scsi_test_unit_ready);

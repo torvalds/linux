@@ -736,6 +736,7 @@ static int sd_media_changed(struct gendisk *disk)
 {
 	struct scsi_disk *sdkp = scsi_disk(disk);
 	struct scsi_device *sdp = sdkp->device;
+	struct scsi_sense_hdr *sshdr = NULL;
 	int retval;
 
 	SCSI_LOG_HLQUEUE(3, sd_printk(KERN_INFO, sdkp, "sd_media_changed\n"));
@@ -766,8 +767,11 @@ static int sd_media_changed(struct gendisk *disk)
 	 */
 	retval = -ENODEV;
 
-	if (scsi_block_when_processing_errors(sdp))
-		retval = scsi_test_unit_ready(sdp, SD_TIMEOUT, SD_MAX_RETRIES);
+	if (scsi_block_when_processing_errors(sdp)) {
+		sshdr  = kzalloc(sizeof(*sshdr), GFP_KERNEL);
+		retval = scsi_test_unit_ready(sdp, SD_TIMEOUT, SD_MAX_RETRIES,
+					      sshdr);
+	}
 
 	/*
 	 * Unable to test, unit probably not ready.   This usually
@@ -775,7 +779,9 @@ static int sd_media_changed(struct gendisk *disk)
 	 * and we will figure it out later once the drive is
 	 * available again.
 	 */
-	if (retval) {
+	if (retval || (scsi_sense_valid(sshdr) &&
+		       /* 0x3a is medium not present */
+		       sshdr->asc == 0x3a)) {
 		set_media_not_present(sdkp);
 		retval = 1;
 		goto out;
@@ -794,6 +800,7 @@ out:
 	if (retval != sdkp->previous_state)
 		sdev_evt_send_simple(sdp, SDEV_EVT_MEDIA_CHANGE, GFP_KERNEL);
 	sdkp->previous_state = retval;
+	kfree(sshdr);
 	return retval;
 }
 

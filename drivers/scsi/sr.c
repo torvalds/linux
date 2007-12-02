@@ -179,18 +179,24 @@ static int sr_media_change(struct cdrom_device_info *cdi, int slot)
 {
 	struct scsi_cd *cd = cdi->handle;
 	int retval;
+	struct scsi_sense_hdr *sshdr;
 
 	if (CDSL_CURRENT != slot) {
 		/* no changer support */
 		return -EINVAL;
 	}
 
-	retval = scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES);
-	if (retval) {
-		/* Unable to test, unit probably not ready.  This usually
-		 * means there is no disc in the drive.  Mark as changed,
-		 * and we will figure it out later once the drive is
-		 * available again.  */
+	sshdr =  kzalloc(sizeof(*sshdr), GFP_KERNEL);
+	retval = scsi_test_unit_ready(cd->device, SR_TIMEOUT, MAX_RETRIES,
+				      sshdr);
+	if (retval || (scsi_sense_valid(sshdr) &&
+		       /* 0x3a is medium not present */
+		       sshdr->asc == 0x3a)) {
+		/* Media not present or unable to test, unit probably not
+		 * ready. This usually means there is no disc in the drive.
+		 * Mark as changed, and we will figure it out later once
+		 * the drive is available again.
+		 */
 		cd->device->changed = 1;
 		/* This will force a flush, if called from check_disk_change */
 		retval = 1;
@@ -213,6 +219,7 @@ out:
 		sdev_evt_send_simple(cd->device, SDEV_EVT_MEDIA_CHANGE,
 				     GFP_KERNEL);
 	cd->previous_state = retval;
+	kfree(sshdr);
 
 	return retval;
 }
