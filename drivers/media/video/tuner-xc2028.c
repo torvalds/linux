@@ -875,7 +875,16 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 		rc = send_seq(priv, {0x00, 0x00});
 	} else {
 		offset = 2750000;
-		if (priv->cur_fw.type & DTV7)
+		/*
+		 * We must adjust the offset by 500kHz in two cases in order
+		 * to correctly center the IF output:
+		 * 1) When the ZARLINK456 or DIBCOM52 tables were explicitly
+		 *    selected and a 7MHz channel is tuned;
+		 * 2) When tuning a VHF channel with DTV78 firmware.
+		 */
+		if (((priv->cur_fw.type & DTV7) &&
+		     (priv->cur_fw.scode_table & (ZARLINK456 | DIBCOM52))) ||
+		    ((priv->cur_fw.type & DTV78) && freq < 470000000))
 			offset -= 500000;
 	}
 
