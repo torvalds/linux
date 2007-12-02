@@ -144,7 +144,8 @@ static unsigned int xc2028_get_reg(struct xc2028_data *priv, u16 reg, u16 *val)
 	return 0;
 }
 
-void dump_firm_type(unsigned int type)
+#define dump_firm_type(t) 	dump_firm_type_and_int_freq(t, 0)
+void dump_firm_type_and_int_freq(unsigned int type, u16 int_freq)
 {
 	 if (type & BASE)
 		printk("BASE ");
@@ -206,6 +207,8 @@ void dump_firm_type(unsigned int type)
 		printk("INPUT2 ");
 	 if (type & SCODE)
 		printk("SCODE ");
+	 if (type & HAS_IF)
+		printk("HAS_IF_%d ", int_freq);
 }
 
 static  v4l2_std_id parse_audio_std_option(void)
@@ -350,9 +353,9 @@ static int load_all_firmwares(struct dvb_frontend *fe)
 		}
 		tuner_dbg("Reading firmware type ");
 		if (debug) {
-			dump_firm_type(type);
+			dump_firm_type_and_int_freq(type, int_freq);
 			printk("(%x), id %llx, size=%d.\n",
-				   type, (unsigned long long)id, size);
+			       type, (unsigned long long)id, size);
 		}
 
 		memcpy(priv->firm[n].ptr, p, size);
@@ -612,7 +615,8 @@ static int load_scode(struct dvb_frontend *fe, unsigned int type,
 	}
 
 	tuner_info("Loading SCODE for type=");
-	dump_firm_type(priv->firm[pos].type);
+	dump_firm_type_and_int_freq(priv->firm[pos].type,
+				    priv->firm[pos].int_freq);
 	printk("(%x), id %016llx.\n", priv->firm[pos].type,
 	       (unsigned long long)*id);
 
@@ -670,11 +674,15 @@ retry:
 	tuner_dbg("checking firmware, user requested type=");
 	if (debug) {
 		dump_firm_type(new_fw.type);
-		printk("(%x), id %016llx, scode_tbl ", new_fw.type,
+		printk("(%x), id %016llx, ", new_fw.type,
 		       (unsigned long long)new_fw.std_req);
-		dump_firm_type(priv->ctrl.scode_table);
-		printk("(%x), scode_nr %d\n", priv->ctrl.scode_table,
-		       new_fw.scode_nr);
+		if (!int_freq) {
+			printk("scode_tbl ");
+			dump_firm_type(priv->ctrl.scode_table);
+			printk("(%x), ", priv->ctrl.scode_table);
+		} else
+			printk("int_freq %d, ", new_fw.int_freq);
+		printk("scode_nr %d\n", new_fw.scode_nr);
 	}
 
 	/* No need to reload base firmware if it matches */
