@@ -53,6 +53,24 @@ static int setkey(struct crypto_aead *tfm, const u8 *key, unsigned int keylen)
 	return aead->setkey(tfm, key, keylen);
 }
 
+int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
+{
+	int err;
+
+	if (authsize > crypto_aead_alg(tfm)->maxauthsize)
+		return -EINVAL;
+
+	if (crypto_aead_alg(tfm)->setauthsize) {
+		err = crypto_aead_alg(tfm)->setauthsize(tfm, authsize);
+		if (err)
+			return err;
+	}
+
+	crypto_aead_crt(tfm)->authsize = authsize;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(crypto_aead_setauthsize);
+
 static unsigned int crypto_aead_ctxsize(struct crypto_alg *alg, u32 type,
 					u32 mask)
 {
@@ -64,14 +82,14 @@ static int crypto_init_aead_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	struct aead_alg *alg = &tfm->__crt_alg->cra_aead;
 	struct aead_tfm *crt = &tfm->crt_aead;
 
-	if (max(alg->authsize, alg->ivsize) > PAGE_SIZE / 8)
+	if (max(alg->maxauthsize, alg->ivsize) > PAGE_SIZE / 8)
 		return -EINVAL;
 
 	crt->setkey = setkey;
 	crt->encrypt = alg->encrypt;
 	crt->decrypt = alg->decrypt;
 	crt->ivsize = alg->ivsize;
-	crt->authsize = alg->authsize;
+	crt->authsize = alg->maxauthsize;
 
 	return 0;
 }
@@ -85,7 +103,7 @@ static void crypto_aead_show(struct seq_file *m, struct crypto_alg *alg)
 	seq_printf(m, "type         : aead\n");
 	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
 	seq_printf(m, "ivsize       : %u\n", aead->ivsize);
-	seq_printf(m, "authsize     : %u\n", aead->authsize);
+	seq_printf(m, "maxauthsize  : %u\n", aead->maxauthsize);
 }
 
 const struct crypto_type crypto_aead_type = {

@@ -187,11 +187,12 @@ struct ablkcipher_alg {
 struct aead_alg {
 	int (*setkey)(struct crypto_aead *tfm, const u8 *key,
 	              unsigned int keylen);
+	int (*setauthsize)(struct crypto_aead *tfm, unsigned int authsize);
 	int (*encrypt)(struct aead_request *req);
 	int (*decrypt)(struct aead_request *req);
 
 	unsigned int ivsize;
-	unsigned int authsize;
+	unsigned int maxauthsize;
 };
 
 struct blkcipher_alg {
@@ -753,6 +754,8 @@ static inline int crypto_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 {
 	return crypto_aead_crt(tfm)->setkey(tfm, key, keylen);
 }
+
+int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize);
 
 static inline struct crypto_aead *crypto_aead_reqtfm(struct aead_request *req)
 {

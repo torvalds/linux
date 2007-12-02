@@ -414,7 +414,7 @@ static struct crypto_instance *crypto_gcm_alloc(struct rtattr **tb)
 	inst->alg.cra_alignmask = __alignof__(u32) - 1;
 	inst->alg.cra_type = &crypto_aead_type;
 	inst->alg.cra_aead.ivsize = 12;
-	inst->alg.cra_aead.authsize = 16;
+	inst->alg.cra_aead.maxauthsize = 16;
 	inst->alg.cra_ctxsize = sizeof(struct crypto_gcm_ctx);
 	inst->alg.cra_init = crypto_gcm_init_tfm;
 	inst->alg.cra_exit = crypto_gcm_exit_tfm;

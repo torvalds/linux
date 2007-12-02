@@ -24,7 +24,6 @@ struct authenc_instance_ctx {
 	struct crypto_spawn auth;
 	struct crypto_spawn enc;
 
-	unsigned int authsize;
 	unsigned int enckeylen;
 };
 
@@ -76,8 +75,6 @@ out:
 static int crypto_authenc_hash(struct aead_request *req)
 {
 	struct crypto_aead *authenc = crypto_aead_reqtfm(req);
-	struct authenc_instance_ctx *ictx =
-		crypto_instance_ctx(crypto_aead_alg_instance(authenc));
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
 	struct crypto_hash *auth = ctx->auth;
 	struct hash_desc desc = {
@@ -111,7 +108,8 @@ auth_unlock:
 	if (err)
 		return err;
 
-	scatterwalk_map_and_copy(hash, dst, cryptlen, ictx->authsize, 1);
+	scatterwalk_map_and_copy(hash, dst, cryptlen,
+				 crypto_aead_authsize(authenc), 1);
 	return 0;
 }
 
@@ -147,8 +145,6 @@ static int crypto_authenc_encrypt(struct aead_request *req)
 static int crypto_authenc_verify(struct aead_request *req)
 {
 	struct crypto_aead *authenc = crypto_aead_reqtfm(req);
-	struct authenc_instance_ctx *ictx =
-		crypto_instance_ctx(crypto_aead_alg_instance(authenc));
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
 	struct crypto_hash *auth = ctx->auth;
 	struct hash_desc desc = {
@@ -186,7 +182,7 @@ auth_unlock:
 	if (err)
 		return err;
 
-	authsize = ictx->authsize;
+	authsize = crypto_aead_authsize(authenc);
 	scatterwalk_map_and_copy(ihash, src, cryptlen, authsize, 0);
 	return memcmp(ihash, ohash, authsize) ? -EINVAL : 0;
 }
@@ -224,17 +220,11 @@ static int crypto_authenc_init_tfm(struct crypto_tfm *tfm)
 	struct crypto_authenc_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct crypto_hash *auth;
 	struct crypto_ablkcipher *enc;
-	unsigned int digestsize;
 	int err;
 
 	auth = crypto_spawn_hash(&ictx->auth);
 	if (IS_ERR(auth))
 		return PTR_ERR(auth);
-
-	err = -EINVAL;
-	digestsize = crypto_hash_digestsize(auth);
-	if (ictx->authsize > digestsize)
-		goto err_free_hash;
 
 	enc = crypto_spawn_ablkcipher(&ictx->enc);
 	err = PTR_ERR(enc);
@@ -246,7 +236,7 @@ static int crypto_authenc_init_tfm(struct crypto_tfm *tfm)
 	tfm->crt_aead.reqsize = max_t(unsigned int,
 				      (crypto_hash_alignmask(auth) &
 				       ~(crypto_tfm_ctx_alignment() - 1)) +
-				      digestsize * 2,
+				      crypto_hash_digestsize(auth) * 2,
 				      sizeof(struct ablkcipher_request) +
 				      crypto_ablkcipher_reqsize(enc));
 
@@ -273,7 +263,6 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	struct crypto_alg *auth;
 	struct crypto_alg *enc;
 	struct authenc_instance_ctx *ctx;
-	unsigned int authsize;
 	unsigned int enckeylen;
 	int err;
 
@@ -286,18 +275,13 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	if (IS_ERR(auth))
 		return ERR_PTR(PTR_ERR(auth));
 
-	err = crypto_attr_u32(tb[2], &authsize);
-	inst = ERR_PTR(err);
-	if (err)
-		goto out_put_auth;
-
-	enc = crypto_attr_alg(tb[3], CRYPTO_ALG_TYPE_BLKCIPHER,
+	enc = crypto_attr_alg(tb[2], CRYPTO_ALG_TYPE_BLKCIPHER,
 			      CRYPTO_ALG_TYPE_BLKCIPHER_MASK);
 	inst = ERR_PTR(PTR_ERR(enc));
 	if (IS_ERR(enc))
 		goto out_put_auth;
 
-	err = crypto_attr_u32(tb[4], &enckeylen);
+	err = crypto_attr_u32(tb[3], &enckeylen);
 	if (err)
 		goto out_put_enc;
 
@@ -308,18 +292,17 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME,
-		     "authenc(%s,%u,%s,%u)", auth->cra_name, authsize,
+		     "authenc(%s,%s,%u)", auth->cra_name,
 		     enc->cra_name, enckeylen) >= CRYPTO_MAX_ALG_NAME)
 		goto err_free_inst;
 
 	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
-		     "authenc(%s,%u,%s,%u)", auth->cra_driver_name,
-		     authsize, enc->cra_driver_name, enckeylen) >=
+		     "authenc(%s,%s,%u)", auth->cra_driver_name,
+		     enc->cra_driver_name, enckeylen) >=
 	    CRYPTO_MAX_ALG_NAME)
 		goto err_free_inst;
 
 	ctx = crypto_instance_ctx(inst);
-	ctx->authsize = authsize;
 	ctx->enckeylen = enckeylen;
 
 	err = crypto_init_spawn(&ctx->auth, auth, inst, CRYPTO_ALG_TYPE_MASK);
@@ -337,7 +320,9 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	inst->alg.cra_type = &crypto_aead_type;
 
 	inst->alg.cra_aead.ivsize = enc->cra_blkcipher.ivsize;
-	inst->alg.cra_aead.authsize = authsize;
+	inst->alg.cra_aead.maxauthsize = auth->cra_type == &crypto_hash_type ?
+					 auth->cra_hash.digestsize :
+					 auth->cra_digest.dia_digestsize;
 
 	inst->alg.cra_ctxsize = sizeof(struct crypto_authenc_ctx);
 
