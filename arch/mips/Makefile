@@ -479,6 +479,20 @@ endif
 endif
 
 #
+# SGI IP28 (Indigo2 R10k)
+#
+# Set the load address to >= 0xa800000020080000 if you want to leave space for
+# symmon, 0xa800000020004000 for production kernels ?  Note that the value must
+# be 16kb aligned or the handling of the current variable will break.
+# Simplified: what IP22 does at 128MB+ in ksegN, IP28 does at 512MB+ in xkphys
+#
+#core-$(CONFIG_SGI_IP28)		+= arch/mips/sgi-ip22/ arch/mips/arc/arc_con.o
+core-$(CONFIG_SGI_IP28)		+= arch/mips/sgi-ip22/
+cflags-$(CONFIG_SGI_IP28)	+= -mr10k-cache-barrier=1 -Iinclude/asm-mips/mach-ip28
+#cflags-$(CONFIG_SGI_IP28)	+= -Iinclude/asm-mips/mach-ip28
+load-$(CONFIG_SGI_IP28)		+= 0xa800000020004000
+
+#
 # SGI-IP32 (O2)
 #
 # Set the load address to >= 80069000 if you want to leave space for symmon,
