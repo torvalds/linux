@@ -578,7 +578,16 @@ static int tda18271_tune(struct dvb_frontend *fe,
 
 	regs[R_EP4]  &= ~0x80; /* turn this bit on only for fm */
 
-	/* FIXME: image rejection validity EP5[2:0] */
+	/* image rejection validity EP5[2:0] */
+	i = 0;
+	while ((tda18271_ir_measure[i].rfmax * 1000) < freq) {
+		if (tda18271_ir_measure[i].rfmax == 0)
+			break;
+		i++;
+	}
+	dbg_map("ir measure, i = %d\n", i);
+	regs[R_EP5] &= ~0x07;
+	regs[R_EP5] |= tda18271_ir_measure[i].val;
 
 	/* calculate MAIN PLL */
 	N = freq + ifc;

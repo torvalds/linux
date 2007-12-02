@@ -244,6 +244,14 @@ struct tda18271_map tda18271_rf_cal[] = {
 	{ .rfmax =     0, .val = 0x00 }, /* end */
 };
 
+struct tda18271_map tda18271_ir_measure[] = {
+	{ .rfmax =  30000, .val = 4},
+	{ .rfmax = 200000, .val = 5},
+	{ .rfmax = 600000, .val = 6},
+	{ .rfmax = 865000, .val = 7},
+	{ .rfmax =      0, .val = 0}, /* end */
+};
+
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.
  * ---------------------------------------------------------------------------

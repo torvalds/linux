@@ -84,6 +84,7 @@ extern struct tda18271_map tda18271_km[];
 extern struct tda18271_map tda18271_rf_band[];
 extern struct tda18271_map tda18271_gain_taper[];
 extern struct tda18271_map tda18271_rf_cal[];
+extern struct tda18271_map tda18271_ir_measure[];
 
 #endif /* __TDA18271_PRIV_H__ */
 
