@@ -3125,16 +3125,12 @@ EXPORT_SYMBOL(usb_reset_device);
  * this from a driver probe() routine after downloading new firmware.
  * For calls that might not occur during probe(), drivers should lock
  * the device using usb_lock_device_for_reset().
- *
- * The interface locks are acquired during the pre_reset stage and released
- * during the post_reset stage.  However if iface is not NULL and is
- * currently being probed, we assume that the caller already owns its
- * lock.
  */
 int usb_reset_composite_device(struct usb_device *udev,
 		struct usb_interface *iface)
 {
 	int ret;
+	int i;
 	struct usb_host_config *config = udev->actconfig;
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
@@ -3151,16 +3147,11 @@ int usb_reset_composite_device(struct usb_device *udev,
 		iface = NULL;
 
 	if (config) {
-		int i;
-		struct usb_interface *cintf;
-		struct usb_driver *drv;
-
 		for (i = 0; i < config->desc.bNumInterfaces; ++i) {
-			cintf = config->interface[i];
-			if (cintf != iface)
-				down(&cintf->dev.sem);
-			if (device_is_registered(&cintf->dev) &&
-					cintf->dev.driver) {
+			struct usb_interface *cintf = config->interface[i];
+			struct usb_driver *drv;
+
+			if (cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->pre_reset)
 					(drv->pre_reset)(cintf);
@@ -3172,21 +3163,16 @@ int usb_reset_composite_device(struct usb_device *udev,
 	ret = usb_reset_device(udev);
 
 	if (config) {
-		int i;
-		struct usb_interface *cintf;
-		struct usb_driver *drv;
-
 		for (i = config->desc.bNumInterfaces - 1; i >= 0; --i) {
-			cintf = config->interface[i];
-			if (device_is_registered(&cintf->dev) &&
-					cintf->dev.driver) {
+			struct usb_interface *cintf = config->interface[i];
+			struct usb_driver *drv;
+
+			if (cintf->dev.driver) {
 				drv = to_usb_driver(cintf->dev.driver);
 				if (drv->post_reset)
 					(drv->post_reset)(cintf);
 	/* FIXME: Unbind if post_reset returns an error or isn't defined */
 			}
-			if (cintf != iface)
-				up(&cintf->dev.sem);
 		}
 	}
 
