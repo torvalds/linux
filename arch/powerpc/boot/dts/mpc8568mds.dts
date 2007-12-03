@@ -327,8 +327,8 @@
 			interrupts = <20>;
 			interrupt-parent = <&qeic>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock = <0>;
-			tx-clock = <20>;
+			rx-clock-name = "none";
+			tx-clock-name = "clk16";
 			pio-handle = <&pio1>;
 			phy-handle = <&phy0>;
 			phy-connection-type = "rgmii-id";
@@ -344,8 +344,8 @@
 			interrupts = <21>;
 			interrupt-parent = <&qeic>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
-			rx-clock = <0>;
-			tx-clock = <20>;
+			rx-clock-name = "none";
+			tx-clock-name = "clk16";
 			pio-handle = <&pio2>;
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
