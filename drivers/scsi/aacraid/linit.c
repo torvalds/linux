@@ -636,7 +636,7 @@ static int aac_cfg_open(struct inode *inode, struct file *file)
 static int aac_cfg_ioctl(struct inode *inode,  struct file *file,
 		unsigned int cmd, unsigned long arg)
 {
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 	return aac_do_ioctl(file->private_data, cmd, (void __user *)arg);
 }
@@ -691,7 +691,7 @@ static int aac_compat_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 
 static long aac_compat_cfg_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
 	return aac_compat_do_ioctl((struct aac_dev *)file->private_data, cmd, arg);
 }
@@ -950,7 +950,8 @@ static struct scsi_host_template aac_driver_template = {
 
 static void __aac_shutdown(struct aac_dev * aac)
 {
-	kthread_stop(aac->thread);
+	if (aac->aif_thread)
+		kthread_stop(aac->thread);
 	aac_send_shutdown(aac);
 	aac_adapter_disable_int(aac);
 	free_irq(aac->pdev->irq, aac);

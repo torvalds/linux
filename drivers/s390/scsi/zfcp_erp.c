@@ -977,7 +977,9 @@ static void zfcp_erp_action_dismiss(struct zfcp_erp_action *erp_action)
 	debug_text_event(adapter->erp_dbf, 2, "a_adis");
 	debug_event(adapter->erp_dbf, 2, &erp_action->action, sizeof (int));
 
-	zfcp_erp_async_handler_nolock(erp_action, ZFCP_STATUS_ERP_DISMISSED);
+	erp_action->status |= ZFCP_STATUS_ERP_DISMISSED;
+	if (zfcp_erp_action_exists(erp_action) == ZFCP_ERP_ACTION_RUNNING)
+		zfcp_erp_action_ready(erp_action);
 }
 
 int
@@ -1063,7 +1065,7 @@ zfcp_erp_thread(void *data)
 				 &adapter->status)) {
 
 		write_lock_irqsave(&adapter->erp_lock, flags);
-		next = adapter->erp_ready_head.prev;
+		next = adapter->erp_ready_head.next;
 		write_unlock_irqrestore(&adapter->erp_lock, flags);
 
 		if (next != &adapter->erp_ready_head) {
@@ -1153,15 +1155,13 @@ zfcp_erp_strategy(struct zfcp_erp_action *erp_action)
 
 	/*
 	 * check for dismissed status again to avoid follow-up actions,
-	 * failing of targets and so on for dismissed actions
+	 * failing of targets and so on for dismissed actions,
+	 * we go through down() here because there has been an up()
 	 */
-	retval = zfcp_erp_strategy_check_action(erp_action, retval);
+	if (erp_action->status & ZFCP_STATUS_ERP_DISMISSED)
+		retval = ZFCP_ERP_CONTINUES;
 
 	switch (retval) {
-	case ZFCP_ERP_DISMISSED:
-		/* leave since this action has ridden to its ancestors */
-		debug_text_event(adapter->erp_dbf, 6, "a_st_dis2");
-		goto unlock;
 	case ZFCP_ERP_NOMEM:
 		/* no memory to continue immediately, let it sleep */
 		if (!(erp_action->status & ZFCP_STATUS_ERP_LOWMEM)) {
@@ -3089,7 +3089,7 @@ zfcp_erp_action_enqueue(int action,
 	++adapter->erp_total_count;
 
 	/* finally put it into 'ready' queue and kick erp thread */
-	list_add(&erp_action->list, &adapter->erp_ready_head);
+	list_add_tail(&erp_action->list, &adapter->erp_ready_head);
 	up(&adapter->erp_ready_sem);
 	retval = 0;
  out:
