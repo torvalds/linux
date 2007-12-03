@@ -1277,11 +1277,12 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 				   ocfs2_orphan_filldir);
 	if (status) {
 		mlog_errno(status);
-		goto out;
+		goto out_cluster;
 	}
 
 	*head = priv.head;
 
+out_cluster:
 	ocfs2_meta_unlock(orphan_dir_inode, 0);
 out:
 	mutex_unlock(&orphan_dir_inode->i_mutex);
