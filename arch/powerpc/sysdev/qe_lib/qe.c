@@ -203,6 +203,38 @@ int qe_setbrg(enum qe_clock brg, unsigned int rate, unsigned int multiplier)
 }
 EXPORT_SYMBOL(qe_setbrg);
 
+/* Convert a string to a QE clock source enum
+ *
+ * This function takes a string, typically from a property in the device
+ * tree, and returns the corresponding "enum qe_clock" value.
+*/
+enum qe_clock qe_clock_source(const char *source)
+{
+	unsigned int i;
+
+	if (strcasecmp(source, "none") == 0)
+		return QE_CLK_NONE;
+
+	if (strncasecmp(source, "brg", 3) == 0) {
+		i = simple_strtoul(source + 3, NULL, 10);
+		if ((i >= 1) && (i <= 16))
+			return (QE_BRG1 - 1) + i;
+		else
+			return QE_CLK_DUMMY;
+	}
+
+	if (strncasecmp(source, "clk", 3) == 0) {
+		i = simple_strtoul(source + 3, NULL, 10);
+		if ((i >= 1) && (i <= 24))
+			return (QE_CLK1 - 1) + i;
+		else
+			return QE_CLK_DUMMY;
+	}
+
+	return QE_CLK_DUMMY;
+}
+EXPORT_SYMBOL(qe_clock_source);
+
 /* Initialize SNUMs (thread serial numbers) according to
  * QE Module Control chapter, SNUM table
  */

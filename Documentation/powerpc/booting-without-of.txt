@@ -1629,6 +1629,19 @@ platforms are moved over to use the flattened-device-tree model.
    - interrupt-parent : the phandle for the interrupt controller that
      services interrupts for this device.
    - pio-handle : The phandle for the Parallel I/O port configuration.
+   - rx-clock-name: the UCC receive clock source
+     "none": clock source is disabled
+     "brg1" through "brg16": clock source is BRG1-BRG16, respectively
+     "clk1" through "clk24": clock source is CLK1-CLK24, respectively
+   - tx-clock-name: the UCC transmit clock source
+     "none": clock source is disabled
+     "brg1" through "brg16": clock source is BRG1-BRG16, respectively
+     "clk1" through "clk24": clock source is CLK1-CLK24, respectively
+   The following two properties are deprecated.  rx-clock has been replaced
+   with rx-clock-name, and tx-clock has been replaced with tx-clock-name.
+   Drivers that currently use the deprecated properties should continue to
+   do so, in order to support older device trees, but they should be updated
+   to check for the new properties first.
    - rx-clock : represents the UCC receive clock source.
      0x00 : clock source is disabled;
      0x1~0x10 : clock source is BRG1~BRG16 respectively;
