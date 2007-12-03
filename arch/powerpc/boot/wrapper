@@ -116,6 +116,9 @@ while [ "$#" -gt 0 ]; do
 done
 
 if [ -n "$dts" ]; then
+    if [ ! -r "$dts" -a -r "$object/dts/$dts" ]; then
+	dts="$object/dts/$dts"
+    fi
     if [ -z "$dtb" ]; then
 	dtb="$platform.dtb"
     fi
