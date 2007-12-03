@@ -437,6 +437,21 @@ static void ar_context_run(struct ar_context *ctx)
 	flush_writes(ctx->ohci);
 }
 
+static struct descriptor *
+find_branch_descriptor(struct descriptor *d, int z)
+{
+	int b, key;
+
+	b   = (le16_to_cpu(d->control) & DESCRIPTOR_BRANCH_ALWAYS) >> 2;
+	key = (le16_to_cpu(d->control) & DESCRIPTOR_KEY_IMMEDIATE) >> 8;
+
+	/* figure out which descriptor the branch address goes in */
+	if (z == 2 && (b == 3 || key == 2))
+		return d;
+	else
+		return d + z - 1;
+}
+
 static void context_tasklet(unsigned long data)
 {
 	struct context *ctx = (struct context *) data;
@@ -455,7 +470,7 @@ static void context_tasklet(unsigned long data)
 		address = le32_to_cpu(last->branch_address);
 		z = address & 0xf;
 		d = ctx->buffer + (address - ctx->buffer_bus) / sizeof(*d);
-		last = (z == 2) ? d : d + z - 1;
+		last = find_branch_descriptor(d, z);
 
 		if (!ctx->callback(ctx, d, last))
 			break;
@@ -566,7 +581,7 @@ static void context_append(struct context *ctx,
 
 	ctx->head_descriptor = d + z + extra;
 	ctx->prev_descriptor->branch_address = cpu_to_le32(d_bus | z);
-	ctx->prev_descriptor = z == 2 ? d : d + z - 1;
+	ctx->prev_descriptor = find_branch_descriptor(d, z);
 
 	dma_sync_single_for_device(ctx->ohci->card.device, ctx->buffer_bus,
 				   ctx->buffer_size, DMA_TO_DEVICE);
@@ -655,7 +670,7 @@ at_context_queue_packet(struct context *ctx, struct fw_packet *packet)
 	driver_data = (struct driver_data *) &d[3];
 	driver_data->packet = packet;
 	packet->driver_data = driver_data;
-	
+
 	if (packet->payload_length > 0) {
 		payload_bus =
 			dma_map_single(ohci->card.device, packet->payload,
@@ -903,7 +918,7 @@ at_context_transmit(struct context *ctx, struct fw_packet *packet)
 
 	if (retval < 0)
 		packet->callback(packet, &ctx->ohci->card, packet->ack);
-	
+
 }
 
 static void bus_reset_tasklet(unsigned long data)
@@ -1431,6 +1446,57 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	return 1;
 }
 
+static int handle_ir_packet_per_buffer(struct context *context,
+				       struct descriptor *d,
+				       struct descriptor *last)
+{
+	struct iso_context *ctx =
+		container_of(context, struct iso_context, context);
+	struct descriptor *pd = d + 1;
+	__le32 *ir_header;
+	size_t header_length;
+	void *p, *end;
+	int i, z;
+
+	if (pd->res_count == pd->req_count)
+		/* Descriptor(s) not done yet, stop iteration */
+		return 0;
+
+	header_length = le16_to_cpu(d->req_count);
+
+	i   = ctx->header_length;
+	z   = le32_to_cpu(pd->branch_address) & 0xf;
+	p   = d + z;
+	end = p + header_length;
+
+	while (p < end && i + ctx->base.header_size <= PAGE_SIZE) {
+		/*
+		 * The iso header is byteswapped to little endian by
+		 * the controller, but the remaining header quadlets
+		 * are big endian.  We want to present all the headers
+		 * as big endian, so we have to swap the first quadlet.
+		 */
+		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
+		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
+		i += ctx->base.header_size;
+		p += ctx->base.header_size + 4;
+	}
+
+	ctx->header_length = i;
+
+	if (le16_to_cpu(pd->control) & DESCRIPTOR_IRQ_ALWAYS) {
+		ir_header = (__le32 *) (d + z);
+		ctx->base.callback(&ctx->base,
+				   le32_to_cpu(ir_header[0]) & 0xffff,
+				   ctx->header_length, ctx->header,
+				   ctx->base.callback_data);
+		ctx->header_length = 0;
+	}
+
+
+	return 1;
+}
+
 static int handle_it_packet(struct context *context,
 			    struct descriptor *d,
 			    struct descriptor *last)
@@ -1466,13 +1532,11 @@ ohci_allocate_iso_context(struct fw_card *card, int type, size_t header_size)
 	} else {
 		mask = &ohci->ir_context_mask;
 		list = ohci->ir_context_list;
-		callback = handle_ir_dualbuffer_packet;
+		if (ohci->version >= OHCI_VERSION_1_1)
+			callback = handle_ir_dualbuffer_packet;
+		else
+			callback = handle_ir_packet_per_buffer;
 	}
-
-	/* FIXME: We need a fallback for pre 1.1 OHCI. */
-	if (callback == handle_ir_dualbuffer_packet &&
-	    ohci->version < OHCI_VERSION_1_1)
-		return ERR_PTR(-ENOSYS);
 
 	spin_lock_irqsave(&ohci->lock, flags);
 	index = ffs(*mask) - 1;
@@ -1532,7 +1596,9 @@ static int ohci_start_iso(struct fw_iso_context *base,
 		context_run(&ctx->context, match);
 	} else {
 		index = ctx - ohci->ir_context_list;
-		control = IR_CONTEXT_DUAL_BUFFER_MODE | IR_CONTEXT_ISOCH_HEADER;
+		control = IR_CONTEXT_ISOCH_HEADER;
+		if (ohci->version >= OHCI_VERSION_1_1)
+			control |= IR_CONTEXT_DUAL_BUFFER_MODE;
 		match = (tags << 28) | (sync << 8) | ctx->base.channel;
 		if (cycle >= 0) {
 			match |= (cycle & 0x07fff) << 12;
@@ -1738,7 +1804,6 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	offset   = payload & ~PAGE_MASK;
 	rest     = p->payload_length;
 
-	/* FIXME: OHCI 1.0 doesn't support dual buffer receive */
 	/* FIXME: make packet-per-buffer/dual-buffer a context option */
 	while (rest > 0) {
 		d = context_get_descriptors(&ctx->context,
@@ -1777,6 +1842,81 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 }
 
 static int
+ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
+					 struct fw_iso_packet *packet,
+					 struct fw_iso_buffer *buffer,
+					 unsigned long payload)
+{
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	struct descriptor *d = NULL, *pd = NULL;
+	struct fw_iso_packet *p;
+	dma_addr_t d_bus, page_bus;
+	u32 z, header_z, rest;
+	int i, page, offset, packet_count, header_size;
+
+	if (packet->skip) {
+		d = context_get_descriptors(&ctx->context, 1, &d_bus);
+		if (d == NULL)
+			return -ENOMEM;
+
+		d->control = cpu_to_le16(DESCRIPTOR_STATUS |
+					 DESCRIPTOR_INPUT_LAST |
+					 DESCRIPTOR_BRANCH_ALWAYS |
+					 DESCRIPTOR_WAIT);
+		context_append(&ctx->context, d, 1, 0);
+	}
+
+	/* one descriptor for header, one for payload */
+	/* FIXME: handle cases where we need multiple desc. for payload */
+	z = 2;
+	p = packet;
+
+	/*
+	 * The OHCI controller puts the status word in the
+	 * buffer too, so we need 4 extra bytes per packet.
+	 */
+	packet_count = p->header_length / ctx->base.header_size;
+	header_size  = packet_count * (ctx->base.header_size + 4);
+
+	/* Get header size in number of descriptors. */
+	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
+	page     = payload >> PAGE_SHIFT;
+	offset   = payload & ~PAGE_MASK;
+	rest     = p->payload_length;
+
+	for (i = 0; i < packet_count; i++) {
+		/* d points to the header descriptor */
+		d = context_get_descriptors(&ctx->context,
+					    z + header_z, &d_bus);
+		if (d == NULL)
+			return -ENOMEM;
+
+		d->control      = cpu_to_le16(DESCRIPTOR_INPUT_MORE);
+		d->req_count    = cpu_to_le16(header_size);
+		d->res_count    = d->req_count;
+		d->data_address = cpu_to_le32(d_bus + (z * sizeof(*d)));
+
+		/* pd points to the payload descriptor */
+		pd = d + 1;
+		pd->control = cpu_to_le16(DESCRIPTOR_STATUS |
+					  DESCRIPTOR_INPUT_LAST |
+					  DESCRIPTOR_BRANCH_ALWAYS);
+		if (p->interrupt)
+			pd->control |= cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS);
+
+		pd->req_count = cpu_to_le16(rest);
+		pd->res_count = pd->req_count;
+
+		page_bus = page_private(buffer->pages[page]);
+		pd->data_address = cpu_to_le32(page_bus + offset);
+
+		context_append(&ctx->context, d, z, header_z);
+	}
+
+	return 0;
+}
+
+static int
 ohci_queue_iso(struct fw_iso_context *base,
 	       struct fw_iso_packet *packet,
 	       struct fw_iso_buffer *buffer,
@@ -1790,8 +1930,9 @@ ohci_queue_iso(struct fw_iso_context *base,
 		return ohci_queue_iso_receive_dualbuffer(base, packet,
 							 buffer, payload);
 	else
-		/* FIXME: Implement fallback for OHCI 1.0 controllers. */
-		return -ENOSYS;
+		return ohci_queue_iso_receive_packet_per_buffer(base, packet,
+								buffer,
+								payload);
 }
 
 static const struct fw_card_driver ohci_driver = {
@@ -1911,12 +2052,6 @@ pci_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	ohci->version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
 		  dev->dev.bus_id, ohci->version >> 16, ohci->version & 0xff);
-	if (ohci->version < OHCI_VERSION_1_1) {
-		fw_notify("    Isochronous I/O is not yet implemented for "
-			  "OHCI 1.0 chips.\n");
-		fw_notify("    Cameras, audio devices etc. won't work on "
-			  "this controller with this driver version.\n");
-	}
 	return 0;
 
  fail_self_id:
