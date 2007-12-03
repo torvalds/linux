@@ -55,7 +55,7 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	unsigned long addr = (unsigned long)p->addr;
 	int is;
 
-	if (addr & 0x3)
+	if (addr & 0x3 || in_exception_text(addr))
 		return -EINVAL;
 
 	insn = *p->addr;

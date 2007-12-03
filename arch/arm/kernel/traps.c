@@ -46,15 +46,6 @@ __setup("user_debug=", user_debug_setup);
 
 static void dump_mem(const char *str, unsigned long bottom, unsigned long top);
 
-static inline int in_exception_text(unsigned long ptr)
-{
-	extern char __exception_text_start[];
-	extern char __exception_text_end[];
-
-	return ptr >= (unsigned long)&__exception_text_start &&
-	       ptr < (unsigned long)&__exception_text_end;
-}
-
 void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long frame)
 {
 #ifdef CONFIG_KALLSYMS

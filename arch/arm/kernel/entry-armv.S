@@ -58,6 +58,12 @@
 
 	.endm
 
+#ifdef CONFIG_KPROBES
+	.section	.kprobes.text,"ax",%progbits
+#else
+	.text
+#endif
+
 /*
  * Invalid mode handlers
  */
@@ -562,7 +568,7 @@ do_fpe:
 	.data
 ENTRY(fp_enter)
 	.word	no_fp
-	.text
+	.previous
 
 no_fp:	mov	pc, lr
 
