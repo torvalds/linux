@@ -1958,6 +1958,7 @@ unsigned char snd_vt1724_read_i2c(struct snd_ice1712 *ice,
 	unsigned char val;
 
 	mutex_lock(&ice->i2c_mutex);
+	wait_i2c_busy(ice);
 	outb(addr, ICEREG1724(ice, I2C_BYTE_ADDR));
 	outb(dev & ~VT1724_I2C_WRITE, ICEREG1724(ice, I2C_DEV_ADDR));
 	wait_i2c_busy(ice);
