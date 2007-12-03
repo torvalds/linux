@@ -167,6 +167,9 @@ boot := arch/$(ARCH)/boot
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) ARCH=ppc64 $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
 
+bootwrapper_install:
+	$(Q)$(MAKE) ARCH=ppc64 $(build)=$(boot) $(patsubst %,$(boot)/%,$@)
+
 define archhelp
   @echo '* zImage          - Compressed kernel image (arch/$(ARCH)/boot/zImage.*)'
   @echo '  install         - Install kernel using'
