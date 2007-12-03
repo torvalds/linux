@@ -287,8 +287,6 @@ ps3)
     overlay_dest="256"
     overlay_size="256"
 
-    rm -f "$object/otheros.bld"
-
     ${CROSS}objcopy -O binary "$ofile" "$ofile.bin"
 
     dd if="$ofile.bin" of="$ofile.bin" conv=notrunc   \
@@ -299,6 +297,8 @@ ps3)
         skip=$system_reset_overlay seek=$overlay_dest \
         count=$overlay_size bs=1
 
-    gzip --force -9 --stdout "$ofile.bin" > "$object/otheros.bld"
+    odir="$(dirname "$ofile.bin")"
+    rm -f "$odir/otheros.bld"
+    gzip --force -9 --stdout "$ofile.bin" > "$odir/otheros.bld"
     ;;
 esac
