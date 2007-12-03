@@ -294,7 +294,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29LV160DT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -310,7 +309,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29LV160DB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -326,7 +324,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29LV400BB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_512KiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -342,7 +339,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29LV400BT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_512KiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -358,7 +354,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29LV800BB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -375,7 +370,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29DL800BB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 6,
@@ -393,7 +387,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29DL800BT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 6,
@@ -411,7 +404,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29F800BB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -427,7 +419,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29LV800BT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -443,7 +434,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "AMD AM29F800BT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -558,8 +548,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= AT49BV16X,
 		.name		= "Atmel AT49BV16X",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x0555_0x0AAA,
-			/* XX: Maybe MTD_UADDR_0x0555_0x0AAA ? */
+		.uaddr		= MTD_UADDR_0x0555_0x0AAA,	/* ???? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -572,8 +561,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= AT49BV16XT,
 		.name		= "Atmel AT49BV16XT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x0555_0x0AAA,
-			/* XX: Maybe MTD_UADDR_0x0555_0x0AAA ? */
+		.uaddr		= MTD_UADDR_0x0555_0x0AAA,	/* ???? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -586,8 +574,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= AT49BV32X,
 		.name		= "Atmel AT49BV32X",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x0555_0x0AAA,
-			/* XX: Maybe MTD_UADDR_0x0555_0x0AAA ? */
+		.uaddr		= MTD_UADDR_0x0555_0x0AAA,	/* ???? */
 		.dev_size	= SIZE_4MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -600,8 +587,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= AT49BV32XT,
 		.name		= "Atmel AT49BV32XT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x0555_0x0AAA,
-			/* XX: Maybe MTD_UADDR_0x0555_0x0AAA ? */
+		.uaddr		= MTD_UADDR_0x0555_0x0AAA,	/* ???? */
 		.dev_size	= SIZE_4MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -627,7 +613,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29F800BA",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -655,7 +640,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV320TE",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_4MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -669,7 +653,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV320BE",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_4MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -683,7 +666,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV160TE",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -699,7 +681,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV160BE",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -715,7 +696,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV800BA",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -731,7 +711,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV800TA",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -747,7 +726,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV400BC",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_512KiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -763,7 +741,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Fujitsu MBM29LV400TC",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_512KiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -820,7 +797,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Intel 28F400B3B",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_UNNECESSARY,
-			/* XX: Maybe MTD_UADDR_UNNECESSARY ? */
 		.dev_size	= SIZE_512KiB,
 		.cmd_set	= P_ID_INTEL_STD,
 		.nr_regions	= 2,
@@ -834,7 +810,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Intel 28F400B3T",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_UNNECESSARY,
-			/* XX: Maybe MTD_UADDR_UNNECESSARY ? */
 		.dev_size	= SIZE_512KiB,
 		.cmd_set	= P_ID_INTEL_STD,
 		.nr_regions	= 2,
@@ -1088,7 +1063,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "MXIC MX29LV160T",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1103,8 +1077,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= UPD29F064115,
 		.name		= "NEC uPD29F064115",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x0555_0x02AA,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
+		.uaddr		= MTD_UADDR_0x0555_0x02AA,	/* ???? */
 		.dev_size	= SIZE_8MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 3,
@@ -1119,7 +1092,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "MXIC MX29LV160B",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1418,8 +1390,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= SST39LF160,
 		.name		= "SST 39LF160",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,
-			/* XX: Maybe MTD_UADDR_0x5555_0x2AAA ? */
+		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1432,8 +1403,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= SST39VF1601,
 		.name		= "SST 39VF1601",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,
-			/* XX: Maybe MTD_UADDR_0x5555_0x2AAA ? */
+		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1447,7 +1417,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "ST M29F800AB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1462,8 +1431,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= M29W800DT,
 		.name		= "ST M29W800DT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,
-			/* XX: Maybe MTD_UADDR_0x5555_0x2AAA ? */
+		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1478,8 +1446,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= M29W800DB,
 		.name		= "ST M29W800DB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,
-			/* XX: Maybe MTD_UADDR_0x5555_0x2AAA ? */
+		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1494,8 +1461,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= M29W160DT,
 		.name		= "ST M29W160DT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x0555_0x02AA,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
+		.uaddr		= MTD_UADDR_0x0555_0x02AA,	/* ???? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1510,8 +1476,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= M29W160DB,
 		.name		= "ST M29W160DB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x0555_0x02AA,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
+		.uaddr		= MTD_UADDR_0x0555_0x02AA,	/* ???? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1587,7 +1552,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Toshiba TC58FVT160",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1603,7 +1567,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Toshiba TC58FVB160",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1619,7 +1582,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Toshiba TC58FVB321",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_4MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1633,7 +1595,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Toshiba TC58FVT321",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_4MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1647,7 +1608,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Toshiba TC58FVB641",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_8MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1661,7 +1621,6 @@ static const struct amd_flash_info jedec_table[] = {
 		.name		= "Toshiba TC58FVT641",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
 		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
-			/* XX: Maybe MTD_UADDR_0x0555_0x02AA ? */
 		.dev_size	= SIZE_8MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1728,7 +1687,7 @@ static inline void jedec_reset(u32 base, struct map_info *map,
 	 * 0x2aaa, 0xF0 at 0x5555 this will not affect the AMD chips
 	 * as they will ignore the writes and dont care what address
 	 * the F0 is written to */
-	if(cfi->addr_unlock1) {
+	if (cfi->addr_unlock1) {
 		DEBUG( MTD_DEBUG_LEVEL3,
 		       "reset unlock called %x %x \n",
 		       cfi->addr_unlock1,cfi->addr_unlock2);
@@ -1737,7 +1696,7 @@ static inline void jedec_reset(u32 base, struct map_info *map,
 	}
 
 	cfi_send_gen_cmd(0xF0, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
-	/* Some misdesigned intel chips do not respond for 0xF0 for a reset,
+	/* Some misdesigned Intel chips do not respond for 0xF0 for a reset,
 	 * so ensure we're in read mode.  Send both the Intel and the AMD command
 	 * for this.  Intel uses 0xff for this, AMD uses 0xff for NOP, so
 	 * this should be safe.
@@ -1786,8 +1745,12 @@ static int cfi_jedec_setup(struct cfi_private *p_cfi, int index)
 
 	uaddr = jedec_table[index].uaddr;
 
-	p_cfi->addr_unlock1 = unlock_addrs[uaddr].addr1;
-	p_cfi->addr_unlock2 = unlock_addrs[uaddr].addr2;
+	/* The table has unlock addresses in _bytes_, and we try not to let
+	   our brains explode when we see the datasheets talking about address
+	   lines numbered from A-1 to A18. The CFI table has unlock addresses
+	   in device-words according to the mode the device is connected in */
+	p_cfi->addr_unlock1 = unlock_addrs[uaddr].addr1 / p_cfi->device_type;
+	p_cfi->addr_unlock2 = unlock_addrs[uaddr].addr2 / p_cfi->device_type;
 
 	return 1; 	/* ok */
 }
@@ -1871,8 +1834,8 @@ static inline int jedec_match( uint32_t base,
 	DEBUG( MTD_DEBUG_LEVEL3, "MTD %s(): check unlock addrs 0x%.4x 0x%.4x\n",
 	       __func__, cfi->addr_unlock1, cfi->addr_unlock2 );
 	if ( MTD_UADDR_UNNECESSARY != uaddr && MTD_UADDR_DONT_CARE != uaddr
-	     && ( unlock_addrs[uaddr].addr1 != cfi->addr_unlock1 ||
-		  unlock_addrs[uaddr].addr2 != cfi->addr_unlock2 ) ) {
+	     && ( unlock_addrs[uaddr].addr1 / cfi->device_type != cfi->addr_unlock1 ||
+		  unlock_addrs[uaddr].addr2 / cfi->device_type != cfi->addr_unlock2 ) ) {
 		DEBUG( MTD_DEBUG_LEVEL3,
 			"MTD %s(): 0x%.4x 0x%.4x did not match\n",
 			__func__,
@@ -1912,7 +1875,7 @@ static inline int jedec_match( uint32_t base,
 	 * were truly frobbing a real device.
 	 */
 	DEBUG( MTD_DEBUG_LEVEL3, "MTD %s(): return to ID mode\n", __func__ );
-	if(cfi->addr_unlock1) {
+	if (cfi->addr_unlock1) {
 		cfi_send_gen_cmd(0xaa, cfi->addr_unlock1, base, map, cfi, cfi->device_type, NULL);
 		cfi_send_gen_cmd(0x55, cfi->addr_unlock2, base, map, cfi, cfi->device_type, NULL);
 	}
@@ -1938,8 +1901,8 @@ static int jedec_probe_chip(struct map_info *map, __u32 base,
 		if (MTD_UADDR_UNNECESSARY == uaddr_idx)
 			return 0;
 
-		cfi->addr_unlock1 = unlock_addrs[uaddr_idx].addr1;
-		cfi->addr_unlock2 = unlock_addrs[uaddr_idx].addr2;
+		cfi->addr_unlock1 = unlock_addrs[uaddr_idx].addr1 / cfi->device_type;
+		cfi->addr_unlock2 = unlock_addrs[uaddr_idx].addr2 / cfi->device_type;
 	}
 
 	/* Make certain we aren't probing past the end of map */
