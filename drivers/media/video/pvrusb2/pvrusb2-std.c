@@ -50,6 +50,10 @@ struct std_name {
 	 V4L2_STD_NTSC_M_KR| \
 	 V4L2_STD_NTSC_443)
 
+#define CSTD_ATSC \
+	(V4L2_STD_ATSC_8_VSB| \
+	 V4L2_STD_ATSC_16_VSB)
+
 #define CSTD_SECAM \
 	(V4L2_STD_SECAM_B| \
 	 V4L2_STD_SECAM_D| \
@@ -82,6 +86,7 @@ static const struct std_name std_groups[] = {
 	{"PAL",CSTD_PAL},
 	{"NTSC",CSTD_NTSC},
 	{"SECAM",CSTD_SECAM},
+	{"ATSC",CSTD_ATSC},
 };
 
 /* Mapping of standard bits to modulation system */
@@ -104,6 +109,8 @@ static const struct std_name std_items[] = {
 	{"N",TSTD_N},
 	{"Nc",TSTD_Nc},
 	{"60",TSTD_60},
+	{"8VSB",V4L2_STD_ATSC_8_VSB},
+	{"16VSB",V4L2_STD_ATSC_16_VSB},
 };
 
 
