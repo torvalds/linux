@@ -293,6 +293,11 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 	case SND_AK5365:
 		/* FIXME: any init sequence? */
 		return;
+	case NON_AKM:
+		/* fake value for non-akm codecs using akm infrastructure
+		 * (e.g. of ice1724) - certainly FIXME
+		 */
+		return;
 	default:
 		snd_BUG();
 		return;

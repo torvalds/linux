@@ -399,6 +399,8 @@ struct snd_ice1712 {
 		} juli;
 		struct {
 			struct ak4114 *ak4114;
+			/* rate change needs atomic mute/unmute of all dacs*/
+			struct mutex mute_mutex;
 		} prodigy192;
 		struct {
 			struct {
