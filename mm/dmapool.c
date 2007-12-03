@@ -106,16 +106,17 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 {
 	struct dma_pool *retval;
 
-	if (align == 0)
+	if (align == 0) {
 		align = 1;
+	} else if (align & (align - 1)) {
+		return NULL;
+	}
+
 	if (size == 0)
 		return NULL;
-	else if (size < align)
-		size = align;
-	else if ((size % align) != 0) {
-		size += align + 1;
-		size &= ~(align - 1);
-	}
+
+	if ((size % align) != 0)
+		size = ALIGN(size, align);
 
 	if (allocation == 0) {
 		if (PAGE_SIZE < size)
