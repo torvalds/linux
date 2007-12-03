@@ -519,10 +519,21 @@ static ssize_t show_pwm_enable(struct device *dev, struct device_attribute
 {
 	int nr = to_sensor_dev_attr(attr)->index;
 	struct lm85_data *data = lm85_update_device(dev);
-	int	pwm_zone;
+	int pwm_zone, enable;
 
 	pwm_zone = ZONE_FROM_REG(data->autofan[nr].config);
-	return sprintf(buf,"%d\n", (pwm_zone != 0 && pwm_zone != -1) );
+	switch (pwm_zone) {
+	case -1:	/* PWM is always at 100% */
+		enable = 0;
+		break;
+	case 0:		/* PWM is always at 0% */
+	case -2:	/* PWM responds to manual control */
+		enable = 1;
+		break;
+	default:	/* PWM in automatic mode */
+		enable = 2;
+	}
+	return sprintf(buf, "%d\n", enable);
 }
 
 #define show_pwm_reg(offset)						\
