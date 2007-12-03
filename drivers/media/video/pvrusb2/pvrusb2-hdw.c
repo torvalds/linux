@@ -1439,8 +1439,12 @@ static v4l2_std_id get_default_standard(struct pvr2_hdw *hdw)
 	int tp = 0;
 	if ((unit_number >= 0) && (unit_number < PVR_NUM)) {
 		tp = video_std[unit_number];
+		if (tp) return tp;
 	}
-	return tp;
+	if (hdw->hdw_desc->default_std_mask) {
+		return hdw->hdw_desc->default_std_mask;
+	}
+	return 0;
 }
 
 

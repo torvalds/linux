@@ -29,9 +29,8 @@ pvr2_device_desc structures.
 
 #include "pvrusb2-devattr.h"
 #include <linux/usb.h>
-/* All this is needed in order to pull in tuner type ids... */
+/* This is needed in order to pull in tuner type ids... */
 #include <linux/i2c.h>
-#include <linux/videodev2.h>
 #include <media/tuner.h>
 
 /* Known major hardware variants, keyed from device ID */

@@ -22,6 +22,7 @@
 #define __PVRUSB2_DEVATTR_H
 
 #include <linux/mod_devicetable.h>
+#include <linux/videodev2.h>
 
 /*
 
@@ -68,6 +69,12 @@ struct pvr2_device_desc {
 	/* V4L tuner type ID to use with this device (only used if the
 	   driver could not discover the type any other way). */
 	int default_tuner_type;
+
+	/* Initial standard bits to use for this device, if not zero.
+	   Anything set here is also implied as an available standard.
+	   Note: This is ignored if overridden on the module load line via
+	   the video_std module option. */
+	v4l2_std_id default_std_mask;
 
 	/* If set, we don't bother trying to load cx23416 firmware. */
 	char flag_skip_cx23416_firmware;
