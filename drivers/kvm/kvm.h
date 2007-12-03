@@ -168,48 +168,6 @@ struct kvm_vcpu_stat {
 	u32 insn_emulation_fail;
 };
 
-struct kvm_io_device {
-	void (*read)(struct kvm_io_device *this,
-		     gpa_t addr,
-		     int len,
-		     void *val);
-	void (*write)(struct kvm_io_device *this,
-		      gpa_t addr,
-		      int len,
-		      const void *val);
-	int (*in_range)(struct kvm_io_device *this, gpa_t addr);
-	void (*destructor)(struct kvm_io_device *this);
-
-	void             *private;
-};
-
-static inline void kvm_iodevice_read(struct kvm_io_device *dev,
-				     gpa_t addr,
-				     int len,
-				     void *val)
-{
-	dev->read(dev, addr, len, val);
-}
-
-static inline void kvm_iodevice_write(struct kvm_io_device *dev,
-				      gpa_t addr,
-				      int len,
-				      const void *val)
-{
-	dev->write(dev, addr, len, val);
-}
-
-static inline int kvm_iodevice_inrange(struct kvm_io_device *dev, gpa_t addr)
-{
-	return dev->in_range(dev, addr);
-}
-
-static inline void kvm_iodevice_destructor(struct kvm_io_device *dev)
-{
-	if (dev->destructor)
-		dev->destructor(dev);
-}
-
 /*
  * It would be nice to use something smarter than a linear search, TBD...
  * Thankfully we dont expect many devices to register (famous last words :),

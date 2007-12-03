@@ -23,6 +23,7 @@
 #define __IRQ_H
 
 #include "kvm.h"
+#include "iodev.h"
 
 typedef void irq_request_func(void *opaque, int level);
 

@@ -18,6 +18,7 @@
 #include "kvm.h"
 #include "x86.h"
 #include "irq.h"
+#include "iodev.h"
 
 #include <linux/kvm.h>
 #include <linux/module.h>
