@@ -275,8 +275,8 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 	size_t offset;
 	void *retval;
 
- restart:
 	spin_lock_irqsave(&pool->lock, flags);
+ restart:
 	list_for_each_entry(page, &pool->page_list, page_list) {
 		int i;
 		/* only cachable accesses here ... */
@@ -299,12 +299,13 @@ void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 			DECLARE_WAITQUEUE(wait, current);
 
 			__set_current_state(TASK_INTERRUPTIBLE);
-			add_wait_queue(&pool->waitq, &wait);
+			__add_wait_queue(&pool->waitq, &wait);
 			spin_unlock_irqrestore(&pool->lock, flags);
 
 			schedule_timeout(POOL_TIMEOUT_JIFFIES);
 
-			remove_wait_queue(&pool->waitq, &wait);
+			spin_lock_irqsave(&pool->lock, flags);
+			__remove_wait_queue(&pool->waitq, &wait);
 			goto restart;
 		}
 		retval = NULL;
@@ -406,7 +407,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 	page->in_use--;
 	set_bit(block, &page->bitmap[map]);
 	if (waitqueue_active(&pool->waitq))
-		wake_up(&pool->waitq);
+		wake_up_locked(&pool->waitq);
 	/*
 	 * Resist a temptation to do
 	 *    if (!is_page_busy(bpp, page->bitmap)) pool_free_page(pool, page);
