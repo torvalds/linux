@@ -1441,9 +1441,6 @@ static v4l2_std_id get_default_standard(struct pvr2_hdw *hdw)
 		tp = video_std[unit_number];
 		if (tp) return tp;
 	}
-	if (hdw->hdw_desc->default_std_mask) {
-		return hdw->hdw_desc->default_std_mask;
-	}
 	return 0;
 }
 
@@ -1526,9 +1523,10 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 {
 	char buf[40];
 	unsigned int bcnt;
-	v4l2_std_id std1,std2;
+	v4l2_std_id std1,std2,std3;
 
 	std1 = get_default_standard(hdw);
+	std3 = std1 ? 0 : hdw->hdw_desc->default_std_mask;
 
 	bcnt = pvr2_std_id_to_str(buf,sizeof(buf),hdw->std_mask_eeprom);
 	pvr2_trace(PVR2_TRACE_STD,
@@ -1538,7 +1536,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 
 	hdw->std_mask_avail = hdw->std_mask_eeprom;
 
-	std2 = std1 & ~hdw->std_mask_avail;
+	std2 = (std1|std3) & ~hdw->std_mask_avail;
 	if (std2) {
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std2);
 		pvr2_trace(PVR2_TRACE_STD,
@@ -1556,6 +1554,16 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 			   "Initial video standard forced to %.*s",
 			   bcnt,buf);
 		hdw->std_mask_cur = std1;
+		hdw->std_dirty = !0;
+		pvr2_hdw_internal_find_stdenum(hdw);
+		return;
+	}
+	if (std3) {
+		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std3);
+		pvr2_trace(PVR2_TRACE_STD,
+			   "Initial video standard"
+			   " (determined by device type): %.*s",bcnt,buf);
+		hdw->std_mask_cur = std3;
 		hdw->std_dirty = !0;
 		pvr2_hdw_internal_find_stdenum(hdw);
 		return;
