@@ -43,6 +43,7 @@ struct dma_pool {		/* the pool */
 	size_t size;
 	struct device *dev;
 	size_t allocation;
+	size_t boundary;
 	char name[32];
 	wait_queue_head_t waitq;
 	struct list_head pools;
@@ -107,7 +108,7 @@ static DEVICE_ATTR(pools, S_IRUGO, show_pools, NULL);
  * @dev: device that will be doing the DMA
  * @size: size of the blocks in this pool.
  * @align: alignment requirement for blocks; must be a power of two
- * @allocation: returned blocks won't cross this boundary (or zero)
+ * @boundary: returned blocks won't cross this power of two boundary
  * Context: !in_interrupt()
  *
  * Returns a dma allocation pool with the requested characteristics, or
@@ -117,15 +118,16 @@ static DEVICE_ATTR(pools, S_IRUGO, show_pools, NULL);
  * cache flushing primitives.  The actual size of blocks allocated may be
  * larger than requested because of alignment.
  *
- * If allocation is nonzero, objects returned from dma_pool_alloc() won't
+ * If @boundary is nonzero, objects returned from dma_pool_alloc() won't
  * cross that size boundary.  This is useful for devices which have
  * addressing restrictions on individual DMA transfers, such as not crossing
  * boundaries of 4KBytes.
  */
 struct dma_pool *dma_pool_create(const char *name, struct device *dev,
-				 size_t size, size_t align, size_t allocation)
+				 size_t size, size_t align, size_t boundary)
 {
 	struct dma_pool *retval;
+	size_t allocation;
 
 	if (align == 0) {
 		align = 1;
@@ -142,27 +144,26 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
 	if ((size % align) != 0)
 		size = ALIGN(size, align);
 
-	if (allocation == 0) {
-		if (PAGE_SIZE < size)
-			allocation = size;
-		else
-			allocation = PAGE_SIZE;
-		/* FIXME: round up for less fragmentation */
-	} else if (allocation < size)
-		return NULL;
+	allocation = max_t(size_t, size, PAGE_SIZE);
 
-	if (!
-	    (retval =
-	     kmalloc_node(sizeof *retval, GFP_KERNEL, dev_to_node(dev))))
+	if (!boundary) {
+		boundary = allocation;
+	} else if ((boundary < size) || (boundary & (boundary - 1))) {
+		return NULL;
+	}
+
+	retval = kmalloc_node(sizeof(*retval), GFP_KERNEL, dev_to_node(dev));
+	if (!retval)
 		return retval;
 
-	strlcpy(retval->name, name, sizeof retval->name);
+	strlcpy(retval->name, name, sizeof(retval->name));
 
 	retval->dev = dev;
 
 	INIT_LIST_HEAD(&retval->page_list);
 	spin_lock_init(&retval->lock);
 	retval->size = size;
+	retval->boundary = boundary;
 	retval->allocation = allocation;
 	init_waitqueue_head(&retval->waitq);
 
@@ -192,11 +193,14 @@ EXPORT_SYMBOL(dma_pool_create);
 static void pool_initialise_page(struct dma_pool *pool, struct dma_page *page)
 {
 	unsigned int offset = 0;
+	unsigned int next_boundary = pool->boundary;
 
 	do {
 		unsigned int next = offset + pool->size;
-		if (unlikely((next + pool->size) >= pool->allocation))
-			next = pool->allocation;
+		if (unlikely((next + pool->size) >= next_boundary)) {
+			next = next_boundary;
+			next_boundary += pool->boundary;
+		}
 		*(int *)(page->vaddr + offset) = next;
 		offset = next;
 	} while (offset < pool->allocation);
