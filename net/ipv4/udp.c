@@ -873,6 +873,8 @@ try_again:
 	if (err)
 		goto out_free;
 
+	UDP_INC_STATS_USER(UDP_MIB_INDATAGRAMS, is_udplite);
+
 	sock_recv_timestamp(msg, sk, skb);
 
 	/* Copy the address. */
@@ -966,10 +968,8 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 			int ret;
 
 			ret = (*up->encap_rcv)(sk, skb);
-			if (ret <= 0) {
-				UDP_INC_STATS_BH(UDP_MIB_INDATAGRAMS, up->pcflag);
+			if (ret <= 0)
 				return -ret;
-			}
 		}
 
 		/* FALLTHROUGH -- it's a UDP Packet */
@@ -1023,7 +1023,6 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		goto drop;
 	}
 
-	UDP_INC_STATS_BH(UDP_MIB_INDATAGRAMS, up->pcflag);
 	return 0;
 
 drop:

@@ -164,6 +164,8 @@ try_again:
 	if (err)
 		goto out_free;
 
+	UDP6_INC_STATS_USER(UDP_MIB_INDATAGRAMS, is_udplite);
+
 	sock_recv_timestamp(msg, sk, skb);
 
 	/* Copy the address. */
@@ -292,7 +294,7 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 			UDP6_INC_STATS_BH(UDP_MIB_RCVBUFERRORS, up->pcflag);
 		goto drop;
 	}
-	UDP6_INC_STATS_BH(UDP_MIB_INDATAGRAMS, up->pcflag);
+
 	return 0;
 drop:
 	UDP6_INC_STATS_BH(UDP_MIB_INERRORS, up->pcflag);
