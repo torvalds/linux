@@ -26,12 +26,6 @@
 #include <asm/traps.h>
 #include <asm/cacheflush.h>
 
-/*
- * This undefined instruction must be unique and
- * reserved solely for kprobes' use.
- */
-#define KPROBE_BREAKPOINT_INSTRUCTION	0xe7f001f8
-
 #define MIN_STACK_SIZE(addr) 				\
 	min((unsigned long)MAX_STACK_SIZE,		\
 	    (unsigned long)current_thread_info() + THREAD_START_SP - (addr))
@@ -206,7 +200,7 @@ void __kprobes kprobe_handler(struct pt_regs *regs)
 	}
 }
 
-static int kprobe_trap_handler(struct pt_regs *regs, unsigned int instr)
+int kprobe_trap_handler(struct pt_regs *regs, unsigned int instr)
 {
 	kprobe_handler(regs);
 	return 0;

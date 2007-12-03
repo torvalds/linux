@@ -25,6 +25,12 @@
 #define MAX_INSN_SIZE			2
 #define MAX_STACK_SIZE			64	/* 32 would probably be OK */
 
+/*
+ * This undefined instruction must be unique and
+ * reserved solely for kprobes' use.
+ */
+#define KPROBE_BREAKPOINT_INSTRUCTION	0xe7f001f8
+
 #define regs_return_value(regs)		((regs)->ARM_r0)
 #define flush_insn_slot(p)		do { } while (0)
 #define kretprobe_blacklist_size	0
@@ -55,6 +61,7 @@ struct kprobe_ctlblk {
 
 void arch_remove_kprobe(struct kprobe *);
 
+int kprobe_trap_handler(struct pt_regs *regs, unsigned int instr);
 int kprobe_fault_handler(struct pt_regs *regs, unsigned int fsr);
 int kprobe_exceptions_notify(struct notifier_block *self,
 			     unsigned long val, void *data);
