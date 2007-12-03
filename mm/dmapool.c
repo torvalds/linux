@@ -1,19 +1,39 @@
+/*
+ * DMA Pool allocator
+ *
+ * Copyright 2001 David Brownell
+ * Copyright 2007 Intel Corporation
+ *   Author: Matthew Wilcox <willy@linux.intel.com>
+ *
+ * This software may be redistributed and/or modified under the terms of
+ * the GNU General Public License ("GPL") version 2 as published by the
+ * Free Software Foundation.
+ *
+ * This allocator returns small blocks of a given size which are DMA-able by
+ * the given device.  It uses the dma_alloc_coherent page allocator to get
+ * new pages, then splits them up into blocks of the required size.
+ * Many older drivers still have their own code to do this.
+ *
+ * The current design of this allocator is fairly simple.  The pool is
+ * represented by the 'struct dma_pool' which keeps a doubly-linked list of
+ * allocated pages.  Each page in the page_list is split into blocks of at
+ * least 'size' bytes.
+ */
 
 #include <linux/device.h>
-#include <linux/mm.h>
-#include <asm/io.h>		/* Needed for i386 to build */
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
-#include <linux/slab.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/poison.h>
 #include <linux/sched.h>
-
-/*
- * Pool allocator ... wraps the dma_alloc_coherent page allocator, so
- * small blocks are easily used by drivers for bus mastering controllers.
- * This should probably be sharing the guts of the slab allocator.
- */
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/wait.h>
 
 struct dma_pool {		/* the pool */
 	struct list_head page_list;
@@ -265,7 +285,7 @@ EXPORT_SYMBOL(dma_pool_destroy);
  *
  * This returns the kernel virtual address of a currently unused block,
  * and reports its dma address through the handle.
- * If such a memory block can't be allocated, null is returned.
+ * If such a memory block can't be allocated, %NULL is returned.
  */
 void *dma_pool_alloc(struct dma_pool *pool, gfp_t mem_flags,
 		     dma_addr_t *handle)
