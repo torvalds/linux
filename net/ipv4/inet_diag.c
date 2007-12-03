@@ -51,6 +51,29 @@ static struct sock *idiagnl;
 #define INET_DIAG_PUT(skb, attrtype, attrlen) \
 	RTA_DATA(__RTA_PUT(skb, attrtype, attrlen))
 
+static DEFINE_MUTEX(inet_diag_table_mutex);
+
+static const struct inet_diag_handler *inet_diag_lock_handler(int type)
+{
+#ifdef CONFIG_KMOD
+	if (!inet_diag_table[type])
+		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
+			       NETLINK_INET_DIAG, type);
+#endif
+
+	mutex_lock(&inet_diag_table_mutex);
+	if (!inet_diag_table[type])
+		return ERR_PTR(-ENOENT);
+
+	return inet_diag_table[type];
+}
+
+static inline void inet_diag_unlock_handler(
+	const struct inet_diag_handler *handler)
+{
+	mutex_unlock(&inet_diag_table_mutex);
+}
+
 static int inet_csk_diag_fill(struct sock *sk,
 			      struct sk_buff *skb,
 			      int ext, u32 pid, u32 seq, u16 nlmsg_flags,
@@ -235,9 +258,12 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	struct inet_hashinfo *hashinfo;
 	const struct inet_diag_handler *handler;
 
-	handler = inet_diag_table[nlh->nlmsg_type];
-	BUG_ON(handler == NULL);
+	handler = inet_diag_lock_handler(nlh->nlmsg_type);
+	if (!handler)
+		return -ENOENT;
+
 	hashinfo = handler->idiag_hashinfo;
+	err = -EINVAL;
 
 	if (req->idiag_family == AF_INET) {
 		sk = inet_lookup(hashinfo, req->id.idiag_dst[0],
@@ -255,11 +281,12 @@ static int inet_diag_get_exact(struct sk_buff *in_skb,
 	}
 #endif
 	else {
-		return -EINVAL;
+		goto unlock;
 	}
 
+	err = -ENOENT;
 	if (sk == NULL)
-		return -ENOENT;
+		goto unlock;
 
 	err = -ESTALE;
 	if ((req->id.idiag_cookie[0] != INET_DIAG_NOCOOKIE ||
@@ -296,6 +323,8 @@ out:
 		else
 			sock_put(sk);
 	}
+unlock:
+	inet_diag_unlock_handler(handler);
 	return err;
 }
 
@@ -678,8 +707,10 @@ static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	const struct inet_diag_handler *handler;
 	struct inet_hashinfo *hashinfo;
 
-	handler = inet_diag_table[cb->nlh->nlmsg_type];
-	BUG_ON(handler == NULL);
+	handler = inet_diag_lock_handler(cb->nlh->nlmsg_type);
+	if (!handler)
+		goto no_handler;
+
 	hashinfo = handler->idiag_hashinfo;
 
 	s_i = cb->args[1];
@@ -743,7 +774,7 @@ skip_listen_ht:
 	}
 
 	if (!(r->idiag_states & ~(TCPF_LISTEN | TCPF_SYN_RECV)))
-		return skb->len;
+		goto unlock;
 
 	for (i = s_i; i < hashinfo->ehash_size; i++) {
 		struct inet_ehash_bucket *head = &hashinfo->ehash[i];
@@ -805,6 +836,9 @@ next_dying:
 done:
 	cb->args[1] = i;
 	cb->args[2] = num;
+unlock:
+	inet_diag_unlock_handler(handler);
+no_handler:
 	return skb->len;
 }
 
@@ -815,15 +849,6 @@ static int inet_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (nlh->nlmsg_type >= INET_DIAG_GETSOCK_MAX ||
 	    nlmsg_len(nlh) < hdrlen)
 		return -EINVAL;
-
-#ifdef CONFIG_KMOD
-	if (inet_diag_table[nlh->nlmsg_type] == NULL)
-		request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
-			       NETLINK_INET_DIAG, nlh->nlmsg_type);
-#endif
-
-	if (inet_diag_table[nlh->nlmsg_type] == NULL)
-		return -ENOENT;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
 		if (nlmsg_attrlen(nlh, hdrlen)) {
@@ -853,8 +878,6 @@ static void inet_diag_rcv(struct sk_buff *skb)
 	mutex_unlock(&inet_diag_mutex);
 }
 
-static DEFINE_SPINLOCK(inet_diag_register_lock);
-
 int inet_diag_register(const struct inet_diag_handler *h)
 {
 	const __u16 type = h->idiag_type;
@@ -863,13 +886,13 @@ int inet_diag_register(const struct inet_diag_handler *h)
 	if (type >= INET_DIAG_GETSOCK_MAX)
 		goto out;
 
-	spin_lock(&inet_diag_register_lock);
+	mutex_lock(&inet_diag_table_mutex);
 	err = -EEXIST;
 	if (inet_diag_table[type] == NULL) {
 		inet_diag_table[type] = h;
 		err = 0;
 	}
-	spin_unlock(&inet_diag_register_lock);
+	mutex_unlock(&inet_diag_table_mutex);
 out:
 	return err;
 }
@@ -882,11 +905,9 @@ void inet_diag_unregister(const struct inet_diag_handler *h)
 	if (type >= INET_DIAG_GETSOCK_MAX)
 		return;
 
-	spin_lock(&inet_diag_register_lock);
+	mutex_lock(&inet_diag_table_mutex);
 	inet_diag_table[type] = NULL;
-	spin_unlock(&inet_diag_register_lock);
-
-	synchronize_rcu();
+	mutex_unlock(&inet_diag_table_mutex);
 }
 EXPORT_SYMBOL_GPL(inet_diag_unregister);
 

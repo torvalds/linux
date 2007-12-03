@@ -1637,8 +1637,15 @@ static int unix_dgram_recvmsg(struct kiocb *iocb, struct socket *sock,
 	mutex_lock(&u->readlock);
 
 	skb = skb_recv_datagram(sk, flags, noblock, &err);
-	if (!skb)
+	if (!skb) {
+		unix_state_lock(sk);
+		/* Signal EOF on disconnected non-blocking SEQPACKET socket. */
+		if (sk->sk_type == SOCK_SEQPACKET && err == -EAGAIN &&
+		    (sk->sk_shutdown & RCV_SHUTDOWN))
+			err = 0;
+		unix_state_unlock(sk);
 		goto out_unlock;
+	}
 
 	wake_up_interruptible_sync(&u->peer_wait);
 

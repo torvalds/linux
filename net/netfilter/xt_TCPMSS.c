@@ -174,10 +174,8 @@ xt_tcpmss_target6(struct sk_buff *skb,
 
 	nexthdr = ipv6h->nexthdr;
 	tcphoff = ipv6_skip_exthdr(skb, sizeof(*ipv6h), &nexthdr);
-	if (tcphoff < 0) {
-		WARN_ON(1);
+	if (tcphoff < 0)
 		return NF_DROP;
-	}
 	ret = tcpmss_mangle_packet(skb, targinfo, tcphoff,
 				   sizeof(*ipv6h) + sizeof(struct tcphdr));
 	if (ret < 0)

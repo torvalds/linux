@@ -374,9 +374,16 @@ static int proc_delete_dentry(struct dentry * dentry)
 	return 1;
 }
 
+static int proc_revalidate_dentry(struct dentry *dentry, struct nameidata *nd)
+{
+	d_drop(dentry);
+	return 0;
+}
+
 static struct dentry_operations proc_dentry_operations =
 {
 	.d_delete	= proc_delete_dentry,
+	.d_revalidate	= proc_revalidate_dentry,
 };
 
 /*
@@ -397,8 +404,11 @@ struct dentry *proc_lookup(struct inode * dir, struct dentry *dentry, struct nam
 			if (de->namelen != dentry->d_name.len)
 				continue;
 			if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
-				unsigned int ino = de->low_ino;
+				unsigned int ino;
 
+				if (de->shadow_proc)
+					de = de->shadow_proc(current, de);
+				ino = de->low_ino;
 				de_get(de);
 				spin_unlock(&proc_subdir_lock);
 				error = -EINVAL;

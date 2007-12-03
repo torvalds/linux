@@ -48,6 +48,8 @@ typedef	int (read_proc_t)(char *page, char **start, off_t off,
 typedef	int (write_proc_t)(struct file *file, const char __user *buffer,
 			   unsigned long count, void *data);
 typedef int (get_info_t)(char *, char **, off_t, int);
+typedef struct proc_dir_entry *(shadow_proc_t)(struct task_struct *task,
+						struct proc_dir_entry *pde);
 
 struct proc_dir_entry {
 	unsigned int low_ino;
@@ -79,6 +81,7 @@ struct proc_dir_entry {
 	int pde_users;	/* number of callers into module in progress */
 	spinlock_t pde_unload_lock; /* proc_fops checks and pde_users bumps */
 	struct completion *pde_unload_completion;
+	shadow_proc_t *shadow_proc;
 };
 
 struct kcore_list {

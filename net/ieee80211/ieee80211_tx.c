@@ -144,7 +144,8 @@ static int ieee80211_copy_snap(u8 * data, u16 h_proto)
 	snap->oui[1] = oui[1];
 	snap->oui[2] = oui[2];
 
-	*(u16 *) (data + SNAP_SIZE) = htons(h_proto);
+	h_proto = htons(h_proto);
+	memcpy(data + SNAP_SIZE, &h_proto, sizeof(u16));
 
 	return SNAP_SIZE + sizeof(u16);
 }

@@ -6,9 +6,9 @@ menuconfig IP_SCTP
 	tristate "The SCTP Protocol (EXPERIMENTAL)"
 	depends on INET && EXPERIMENTAL
 	depends on IPV6 || IPV6=n
-	select CRYPTO if SCTP_HMAC_SHA1 || SCTP_HMAC_MD5
-	select CRYPTO_HMAC if SCTP_HMAC_SHA1 || SCTP_HMAC_MD5
-	select CRYPTO_SHA1 if SCTP_HMAC_SHA1
+	select CRYPTO
+	select CRYPTO_HMAC
+	select CRYPTO_SHA1
 	select CRYPTO_MD5 if SCTP_HMAC_MD5
 	---help---
 	  Stream Control Transmission Protocol
