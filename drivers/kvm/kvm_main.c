@@ -643,8 +643,7 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	 */
 	while (!kvm_cpu_has_interrupt(vcpu)
 	       && !signal_pending(current)
-	       && vcpu->mp_state != VCPU_MP_STATE_RUNNABLE
-	       && vcpu->mp_state != VCPU_MP_STATE_SIPI_RECEIVED) {
+	       && !kvm_arch_vcpu_runnable(vcpu)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		vcpu_put(vcpu);
 		schedule();

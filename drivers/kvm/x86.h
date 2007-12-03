@@ -471,4 +471,11 @@ static inline u32 get_rdx_init_val(void)
 #define TSS_IOPB_SIZE (65536 / 8)
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE (TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
+
+static inline int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
+{
+	return vcpu->mp_state == VCPU_MP_STATE_RUNNABLE
+	       || vcpu->mp_state == VCPU_MP_STATE_SIPI_RECEIVED;
+}
+
 #endif
