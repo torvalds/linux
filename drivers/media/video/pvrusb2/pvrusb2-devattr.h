@@ -94,7 +94,13 @@ struct pvr2_device_desc {
 	char flag_has_wm8775;
 
 	/* Device has IR hardware that can be faked into looking like a
-	   normal Hauppauge i2c IR receiver. */
+	   normal Hauppauge i2c IR receiver.  This is currently very
+	   specific to the 24xxx device, where Hauppauge had replaced their
+	   'standard' I2C IR receiver with a bunch of FPGA logic controlled
+	   directly via the FX2.  Turning this on tells the pvrusb2 driver
+	   to virtualize the presence of the non-existant IR receiver chip and
+	   implement the virtual receiver in terms of appropriate FX2
+	   commands. */
 	char flag_has_hauppauge_custom_ir;
 };
 
