@@ -164,9 +164,13 @@ enum {
 	MV_PCI_ERR_ATTRIBUTE	= 0x1d48,
 	MV_PCI_ERR_COMMAND	= 0x1d50,
 
-	PCI_IRQ_CAUSE_OFS		= 0x1d58,
-	PCI_IRQ_MASK_OFS		= 0x1d5c,
+	PCI_IRQ_CAUSE_OFS	= 0x1d58,
+	PCI_IRQ_MASK_OFS	= 0x1d5c,
 	PCI_UNMASK_ALL_IRQS	= 0x7fffff,	/* bits 22-0 */
+
+	PCIE_IRQ_CAUSE_OFS	= 0x1900,
+	PCIE_IRQ_MASK_OFS	= 0x1910,
+	PCIE_UNMASK_ALL_IRQS	= 0x70a,	/* assorted bits */
 
 	HC_MAIN_IRQ_CAUSE_OFS	= 0x1d60,
 	HC_MAIN_IRQ_MASK_OFS	= 0x1d64,
@@ -303,6 +307,7 @@ enum {
 	MV_HP_GEN_I		= (1 << 6),	/* Generation I: 50xx */
 	MV_HP_GEN_II		= (1 << 7),	/* Generation II: 60xx */
 	MV_HP_GEN_IIE		= (1 << 8),	/* Generation IIE: 6042/7042 */
+	MV_HP_PCIE		= (1 << 9),	/* PCIe bus/regs: 7042 */
 
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),	/* is EDMA engine enabled? */
@@ -388,7 +393,15 @@ struct mv_port_signal {
 	u32			pre;
 };
 
-struct mv_host_priv;
+struct mv_host_priv {
+	u32			hp_flags;
+	struct mv_port_signal	signal[8];
+	const struct mv_hw_ops	*ops;
+	u32			irq_cause_ofs;
+	u32			irq_mask_ofs;
+	u32			unmask_all_irqs;
+};
+
 struct mv_hw_ops {
 	void (*phy_errata)(struct mv_host_priv *hpriv, void __iomem *mmio,
 			   unsigned int port);
@@ -399,12 +412,6 @@ struct mv_hw_ops {
 			unsigned int n_hc);
 	void (*reset_flash)(struct mv_host_priv *hpriv, void __iomem *mmio);
 	void (*reset_bus)(struct pci_dev *pdev, void __iomem *mmio);
-};
-
-struct mv_host_priv {
-	u32			hp_flags;
-	struct mv_port_signal	signal[8];
-	const struct mv_hw_ops	*ops;
 };
 
 static void mv_irq_clear(struct ata_port *ap);
@@ -631,10 +638,12 @@ static const struct pci_device_id mv_pci_tbl[] = {
 	/* Adaptec 1430SA */
 	{ PCI_VDEVICE(ADAPTEC2, 0x0243), chip_7042 },
 
-	{ PCI_VDEVICE(TTI, 0x2310), chip_7042 },
-
-	/* add Marvell 7042 support */
+	/* Marvell 7042 support */
 	{ PCI_VDEVICE(MARVELL, 0x7042), chip_7042 },
+
+	/* Highpoint RocketRAID PCIe series */
+	{ PCI_VDEVICE(TTI, 0x2300), chip_7042 },
+	{ PCI_VDEVICE(TTI, 0x2310), chip_7042 },
 
 	{ }			/* terminate list */
 };
@@ -1648,13 +1657,14 @@ static void mv_host_intr(struct ata_host *host, u32 relevant, unsigned int hc)
 
 static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
 {
+	struct mv_host_priv *hpriv = host->private_data;
 	struct ata_port *ap;
 	struct ata_queued_cmd *qc;
 	struct ata_eh_info *ehi;
 	unsigned int i, err_mask, printed = 0;
 	u32 err_cause;
 
-	err_cause = readl(mmio + PCI_IRQ_CAUSE_OFS);
+	err_cause = readl(mmio + hpriv->irq_cause_ofs);
 
 	dev_printk(KERN_ERR, host->dev, "PCI ERROR; PCI IRQ cause=0x%08x\n",
 		   err_cause);
@@ -1662,7 +1672,7 @@ static void mv_pci_error(struct ata_host *host, void __iomem *mmio)
 	DPRINTK("All regs @ PCI error\n");
 	mv_dump_all_regs(mmio, -1, to_pci_dev(host->dev));
 
-	writelfl(0, mmio + PCI_IRQ_CAUSE_OFS);
+	writelfl(0, mmio + hpriv->irq_cause_ofs);
 
 	for (i = 0; i < host->n_ports; i++) {
 		ap = host->ports[i];
@@ -1926,6 +1936,8 @@ static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
 #define ZERO(reg) writel(0, mmio + (reg))
 static void mv_reset_pci_bus(struct pci_dev *pdev, void __iomem *mmio)
 {
+	struct ata_host     *host = dev_get_drvdata(&pdev->dev);
+	struct mv_host_priv *hpriv = host->private_data;
 	u32 tmp;
 
 	tmp = readl(mmio + MV_PCI_MODE);
@@ -1937,8 +1949,8 @@ static void mv_reset_pci_bus(struct pci_dev *pdev, void __iomem *mmio)
 	writel(0x000100ff, mmio + MV_PCI_XBAR_TMOUT);
 	ZERO(HC_MAIN_IRQ_MASK_OFS);
 	ZERO(MV_PCI_SERR_MASK);
-	ZERO(PCI_IRQ_CAUSE_OFS);
-	ZERO(PCI_IRQ_MASK_OFS);
+	ZERO(hpriv->irq_cause_ofs);
+	ZERO(hpriv->irq_mask_ofs);
 	ZERO(MV_PCI_ERR_LOW_ADDRESS);
 	ZERO(MV_PCI_ERR_HIGH_ADDRESS);
 	ZERO(MV_PCI_ERR_ATTRIBUTE);
@@ -2170,7 +2182,7 @@ static void mv_phy_reset(struct ata_port *ap, unsigned int *class,
 		mv_scr_read(ap, SCR_ERROR, &serror);
 		mv_scr_read(ap, SCR_CONTROL, &scontrol);
 		DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
-			"SCtrl 0x%08x\n", status, serror, scontrol);
+			"SCtrl 0x%08x\n", sstatus, serror, scontrol);
 	}
 #endif
 
@@ -2490,6 +2502,7 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 		break;
 
 	case chip_7042:
+		hp_flags |= MV_HP_PCIE;
 	case chip_6042:
 		hpriv->ops = &mv6xxx_ops;
 		hp_flags |= MV_HP_GEN_IIE;
@@ -2516,6 +2529,15 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 	}
 
 	hpriv->hp_flags = hp_flags;
+	if (hp_flags & MV_HP_PCIE) {
+		hpriv->irq_cause_ofs	= PCIE_IRQ_CAUSE_OFS;
+		hpriv->irq_mask_ofs	= PCIE_IRQ_MASK_OFS;
+		hpriv->unmask_all_irqs	= PCIE_UNMASK_ALL_IRQS;
+	} else {
+		hpriv->irq_cause_ofs	= PCI_IRQ_CAUSE_OFS;
+		hpriv->irq_mask_ofs	= PCI_IRQ_MASK_OFS;
+		hpriv->unmask_all_irqs	= PCI_UNMASK_ALL_IRQS;
+	}
 
 	return 0;
 }
@@ -2595,10 +2617,10 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 	}
 
 	/* Clear any currently outstanding host interrupt conditions */
-	writelfl(0, mmio + PCI_IRQ_CAUSE_OFS);
+	writelfl(0, mmio + hpriv->irq_cause_ofs);
 
 	/* and unmask interrupt generation for host regs */
-	writelfl(PCI_UNMASK_ALL_IRQS, mmio + PCI_IRQ_MASK_OFS);
+	writelfl(hpriv->unmask_all_irqs, mmio + hpriv->irq_mask_ofs);
 
 	if (IS_GEN_I(hpriv))
 		writelfl(~HC_MAIN_MASKED_IRQS_5, mmio + HC_MAIN_IRQ_MASK_OFS);
@@ -2609,8 +2631,8 @@ static int mv_init_host(struct ata_host *host, unsigned int board_idx)
 		"PCI int cause/mask=0x%08x/0x%08x\n",
 		readl(mmio + HC_MAIN_IRQ_CAUSE_OFS),
 		readl(mmio + HC_MAIN_IRQ_MASK_OFS),
-		readl(mmio + PCI_IRQ_CAUSE_OFS),
-		readl(mmio + PCI_IRQ_MASK_OFS));
+		readl(mmio + hpriv->irq_cause_ofs),
+		readl(mmio + hpriv->irq_mask_ofs));
 
 done:
 	return rc;
