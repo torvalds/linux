@@ -351,6 +351,12 @@ static void update_curr(struct cfs_rq *cfs_rq)
 
 	__update_curr(cfs_rq, curr, delta_exec);
 	curr->exec_start = now;
+
+	if (entity_is_task(curr)) {
+		struct task_struct *curtask = task_of(curr);
+
+		cpuacct_charge(curtask, delta_exec);
+	}
 }
 
 static inline void
