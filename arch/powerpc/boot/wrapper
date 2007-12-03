@@ -45,6 +45,7 @@ CROSS=
 
 # directory for object and other files used by this script
 object=arch/powerpc/boot
+objbin=$object
 
 # directory for working files
 tmpdir=.
@@ -95,6 +96,7 @@ while [ "$#" -gt 0 ]; do
 	shift
 	[ "$#" -gt 0 ] || usage
 	object="$1"
+	objbin="$1"
 	;;
     -W)
 	shift
@@ -249,11 +251,11 @@ fi
 # post-processing needed for some platforms
 case "$platform" in
 pseries|chrp)
-    $object/addnote "$ofile"
+    $objbin/addnote "$ofile"
     ;;
 coff)
     ${CROSS}objcopy -O aixcoff-rs6000 --set-start "$entry" "$ofile"
-    $object/hack-coff "$ofile"
+    $objbin/hack-coff "$ofile"
     ;;
 cuboot*)
     gzip -f -9 "$ofile"
@@ -262,7 +264,7 @@ cuboot*)
     ;;
 treeboot*)
     mv "$ofile" "$ofile.elf"
-    $object/mktree "$ofile.elf" "$ofile" "$base" "$entry"
+    $objbin/mktree "$ofile.elf" "$ofile" "$base" "$entry"
     if [ -z "$cacheit" ]; then
 	rm -f "$ofile.elf"
     fi
