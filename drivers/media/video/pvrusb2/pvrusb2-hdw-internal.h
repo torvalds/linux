@@ -229,14 +229,14 @@ struct pvr2_hdw {
 
 	/* Bits of state that describe what is going on with various parts
 	   of the driver. */
-	volatile int state_encoder_ok;         /* Encoder is operational */
-	volatile int state_encoder_run;        /* Encoder is running */
-	volatile int state_encoder_config;     /* Encoder is configured */
-	volatile int state_encoder_waitok;     /* Encoder pre-wait done */
-	volatile int state_decoder_run;        /* Decoder is running */
-	volatile int state_usbstream_run;      /* FX2 is streaming */
-	volatile int state_decoder_quiescent;  /* Decoder idle for > 50msec */
-	volatile int state_pipeline_config;    /* Pipeline is configured */
+	int state_encoder_ok;         /* Encoder is operational */
+	int state_encoder_run;        /* Encoder is running */
+	int state_encoder_config;     /* Encoder is configured */
+	int state_encoder_waitok;     /* Encoder pre-wait done */
+	int state_decoder_run;        /* Decoder is running */
+	int state_usbstream_run;      /* FX2 is streaming */
+	int state_decoder_quiescent;  /* Decoder idle for > 50msec */
+	int state_pipeline_config;    /* Pipeline is configured */
 	int state_pipeline_req;                /* Somebody wants to stream */
 	int state_pipeline_pause;              /* Pipeline must be paused */
 	int state_pipeline_idle;               /* Pipeline not running */
