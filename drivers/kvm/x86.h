@@ -12,12 +12,15 @@
 #define KVM_X86_H
 
 #include "kvm.h"
+#include "irq.h"
 
 #include <linux/types.h>
 #include <linux/mm.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
+
+#include <asm/desc.h>
 
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
@@ -155,6 +158,11 @@ struct kvm_vcpu {
 
 	struct x86_emulate_ctxt emulate_ctxt;
 };
+
+struct descriptor_table {
+	u16 limit;
+	unsigned long base;
+} __attribute__((packed));
 
 struct kvm_x86_ops {
 	int (*cpu_has_kvm_support)(void);          /* __init */

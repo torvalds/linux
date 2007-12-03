@@ -27,6 +27,7 @@
  */
 #include <linux/mm.h>
 #include "irq.h"
+#include "kvm.h"
 
 /*
  * set irq level. If an edge is detected, then the IRR is set to 1

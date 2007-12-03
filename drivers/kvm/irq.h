@@ -22,8 +22,13 @@
 #ifndef __IRQ_H
 #define __IRQ_H
 
-#include "kvm.h"
+#include <linux/mm_types.h>
+#include <linux/hrtimer.h>
+#include <asm/kvm.h>
 #include "iodev.h"
+
+struct kvm;
+struct kvm_vcpu;
 
 typedef void irq_request_func(void *opaque, int level);
 

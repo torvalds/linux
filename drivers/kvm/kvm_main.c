@@ -16,8 +16,6 @@
  */
 
 #include "kvm.h"
-#include "x86.h"
-#include "irq.h"
 #include "iodev.h"
 
 #include <linux/kvm.h>
@@ -46,7 +44,6 @@
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/desc.h>
 #include <asm/pgtable.h>
 
 MODULE_AUTHOR("Qumranet");
