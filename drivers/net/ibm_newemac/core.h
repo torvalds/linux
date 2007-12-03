@@ -258,6 +258,7 @@ struct emac_instance {
 	int				stop_timeout;	/* in us */
 	int				no_mcast;
 	int				mcast_pending;
+	int				opened;
 	struct work_struct		reset_work;
 	spinlock_t			lock;
 };

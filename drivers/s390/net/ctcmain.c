@@ -2782,35 +2782,14 @@ ctc_probe_device(struct ccwgroup_device *cgdev)
 }
 
 /**
- * Initialize everything of the net device except the name and the
- * channel structs.
+ * Device setup function called by alloc_netdev().
+ *
+ * @param dev  Device to be setup.
  */
-static struct net_device *
-ctc_init_netdevice(struct net_device * dev, int alloc_device,
-		   struct ctc_priv *privptr)
+void ctc_init_netdevice(struct net_device * dev)
 {
-	if (!privptr)
-		return NULL;
-
 	DBF_TEXT(setup, 3, __FUNCTION__);
 
-	if (alloc_device) {
-		dev = kzalloc(sizeof(struct net_device), GFP_KERNEL);
-		if (!dev)
-			return NULL;
-	}
-
-	dev->priv = privptr;
-	privptr->fsm = init_fsm("ctcdev", dev_state_names,
-				dev_event_names, CTC_NR_DEV_STATES, CTC_NR_DEV_EVENTS,
-				dev_fsm, DEV_FSM_LEN, GFP_KERNEL);
-	if (privptr->fsm == NULL) {
-		if (alloc_device)
-			kfree(dev);
-		return NULL;
-	}
-	fsm_newstate(privptr->fsm, DEV_STATE_STOPPED);
-	fsm_settimer(privptr->fsm, &privptr->restart_timer);
 	if (dev->mtu == 0)
 		dev->mtu = CTC_BUFSIZE_DEFAULT - LL_HEADER_LENGTH - 2;
 	dev->hard_start_xmit = ctc_tx;
@@ -2823,7 +2802,7 @@ ctc_init_netdevice(struct net_device * dev, int alloc_device,
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 100;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-	return dev;
+	SET_MODULE_OWNER(dev);
 }
 
 
@@ -2879,14 +2858,22 @@ ctc_new_device(struct ccwgroup_device *cgdev)
 		 	"ccw_device_set_online (cdev[1]) failed with ret = %d\n", ret);
 	}
 
-	dev = ctc_init_netdevice(NULL, 1, privptr);
-
+	dev = alloc_netdev(0, "ctc%d", ctc_init_netdevice);
 	if (!dev) {
 		ctc_pr_warn("ctc_init_netdevice failed\n");
 		goto out;
 	}
+	dev->priv = privptr;
 
-	strlcpy(dev->name, "ctc%d", IFNAMSIZ);
+	privptr->fsm = init_fsm("ctcdev", dev_state_names,
+			dev_event_names, CTC_NR_DEV_STATES, CTC_NR_DEV_EVENTS,
+			dev_fsm, DEV_FSM_LEN, GFP_KERNEL);
+	if (privptr->fsm == NULL) {
+		free_netdev(dev);
+		goto out;
+	}
+	fsm_newstate(privptr->fsm, DEV_STATE_STOPPED);
+	fsm_settimer(privptr->fsm, &privptr->restart_timer);
 
 	for (direction = READ; direction <= WRITE; direction++) {
 		privptr->channel[direction] =

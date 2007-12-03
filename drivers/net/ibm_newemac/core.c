@@ -642,9 +642,11 @@ static void emac_reset_work(struct work_struct *work)
 	DBG(dev, "reset_work" NL);
 
 	mutex_lock(&dev->link_lock);
-	emac_netif_stop(dev);
-	emac_full_tx_reset(dev);
-	emac_netif_start(dev);
+	if (dev->opened) {
+		emac_netif_stop(dev);
+		emac_full_tx_reset(dev);
+		emac_netif_start(dev);
+	}
 	mutex_unlock(&dev->link_lock);
 }
 
@@ -1063,10 +1065,9 @@ static int emac_open(struct net_device *ndev)
 	dev->rx_sg_skb = NULL;
 
 	mutex_lock(&dev->link_lock);
+	dev->opened = 1;
 
-	/* XXX Start PHY polling now. Shouldn't wr do like sungem instead and
-	 * always poll the PHY even when the iface is down ? That would allow
-	 * things like laptop-net to work. --BenH
+	/* Start PHY polling now.
 	 */
 	if (dev->phy.address >= 0) {
 		int link_poll_interval;
@@ -1145,8 +1146,10 @@ static void emac_link_timer(struct work_struct *work)
 	int link_poll_interval;
 
 	mutex_lock(&dev->link_lock);
-
 	DBG2(dev, "link timer" NL);
+
+	if (!dev->opened)
+		goto bail;
 
 	if (dev->phy.def->ops->poll_link(&dev->phy)) {
 		if (!netif_carrier_ok(dev->ndev)) {
@@ -1170,13 +1173,14 @@ static void emac_link_timer(struct work_struct *work)
 		link_poll_interval = PHY_POLL_LINK_OFF;
 	}
 	schedule_delayed_work(&dev->link_work, link_poll_interval);
-
+ bail:
 	mutex_unlock(&dev->link_lock);
 }
 
 static void emac_force_link_update(struct emac_instance *dev)
 {
 	netif_carrier_off(dev->ndev);
+	smp_rmb();
 	if (dev->link_polling) {
 		cancel_rearming_delayed_work(&dev->link_work);
 		if (dev->link_polling)
@@ -1191,11 +1195,14 @@ static int emac_close(struct net_device *ndev)
 
 	DBG(dev, "close" NL);
 
-	if (dev->phy.address >= 0)
+	if (dev->phy.address >= 0) {
+		dev->link_polling = 0;
 		cancel_rearming_delayed_work(&dev->link_work);
-
+	}
+	mutex_lock(&dev->link_lock);
 	emac_netif_stop(dev);
-	flush_scheduled_work();
+	dev->opened = 0;
+	mutex_unlock(&dev->link_lock);
 
 	emac_rx_disable(dev);
 	emac_tx_disable(dev);
@@ -2755,6 +2762,8 @@ static int __devexit emac_remove(struct of_device *ofdev)
 	dev_set_drvdata(&ofdev->dev, NULL);
 
 	unregister_netdev(dev->ndev);
+
+	flush_scheduled_work();
 
 	if (emac_has_feature(dev, EMAC_FTR_HAS_TAH))
 		tah_detach(dev->tah_dev, dev->tah_port);

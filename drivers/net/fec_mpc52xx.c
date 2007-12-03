@@ -971,6 +971,8 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	mpc52xx_fec_reset_stats(ndev);
 
+	SET_NETDEV_DEV(ndev, &op->dev);
+
 	/* Register the new network device */
 	rv = register_netdev(ndev);
 	if (rv < 0)

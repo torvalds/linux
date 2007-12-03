@@ -94,7 +94,7 @@ static void dm_write_async_callback(struct urb *urb)
 	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
 
 	if (urb->status < 0)
-		printk(KERN_DEBUG "dm_write_async_callback() failed with %d",
+		printk(KERN_DEBUG "dm_write_async_callback() failed with %d\n",
 		       urb->status);
 
 	kfree(req);
