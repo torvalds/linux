@@ -446,6 +446,20 @@ static __init int hpet_late_init(void)
 }
 fs_initcall(hpet_late_init);
 
+void hpet_disable(void)
+{
+	if (is_hpet_capable()) {
+		unsigned long cfg = hpet_readl(HPET_CFG);
+
+		if (hpet_legacy_int_enabled) {
+			cfg &= ~HPET_CFG_LEGACY;
+			hpet_legacy_int_enabled = 0;
+		}
+		cfg &= ~HPET_CFG_ENABLE;
+		hpet_writel(cfg, HPET_CFG);
+	}
+}
+
 #ifdef CONFIG_HPET_EMULATE_RTC
 
 /* HPET in LegacyReplacement Mode eats up RTC interrupt line. When, HPET
