@@ -217,9 +217,9 @@ struct pvr2_hdw {
 	struct urb *ctl_read_urb;
 	unsigned char *ctl_write_buffer;
 	unsigned char *ctl_read_buffer;
-	volatile int ctl_write_pend_flag;
-	volatile int ctl_read_pend_flag;
-	volatile int ctl_timeout_flag;
+	int ctl_write_pend_flag;
+	int ctl_read_pend_flag;
+	int ctl_timeout_flag;
 	struct completion ctl_done;
 	unsigned char cmd_buffer[PVR2_CTL_BUFFSIZE];
 	int cmd_debug_state;               // Low level command debugging info
