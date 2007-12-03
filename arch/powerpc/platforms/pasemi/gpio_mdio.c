@@ -318,6 +318,7 @@ static struct of_device_id gpio_mdio_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE(of, gpio_mdio_match);
 
 static struct of_platform_driver gpio_mdio_driver =
 {
@@ -356,3 +357,7 @@ void gpio_mdio_exit(void)
 		iounmap(gpio_regs);
 }
 module_exit(gpio_mdio_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Olof Johansson <olof@lixom.net>");
+MODULE_DESCRIPTION("Driver for MDIO over GPIO on PA Semi PWRficient-based boards");
