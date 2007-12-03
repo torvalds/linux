@@ -20,6 +20,8 @@
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
+#include "types.h"
+
 #define KVM_MAX_VCPUS 4
 #define KVM_ALIAS_SLOTS 4
 #define KVM_MEMORY_SLOTS 8
@@ -38,25 +40,6 @@
  * vcpu->requests bit members
  */
 #define KVM_REQ_TLB_FLUSH          0
-
-/*
- * Address types:
- *
- *  gva - guest virtual address
- *  gpa - guest physical address
- *  gfn - guest frame number
- *  hva - host virtual address
- *  hpa - host physical address
- *  hfn - host frame number
- */
-
-typedef unsigned long  gva_t;
-typedef u64            gpa_t;
-typedef unsigned long  gfn_t;
-
-typedef unsigned long  hva_t;
-typedef u64            hpa_t;
-typedef unsigned long  hfn_t;
 
 #define NR_PTE_CHAIN_ENTRIES 5
 
