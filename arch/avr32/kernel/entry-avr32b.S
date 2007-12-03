@@ -316,8 +316,8 @@ save_full_context_ex:
 
 	/* Low-level exception handlers */
 handle_critical:
-	pushm	r12
-	pushm	r0-r12
+	sub	sp, 4
+	stmts	--sp, r0-lr
 	rcall	save_full_context_ex
 	mfsr	r12, SYSREG_ECR
 	mov	r11, sp
