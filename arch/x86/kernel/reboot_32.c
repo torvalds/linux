@@ -11,6 +11,7 @@
 #include <linux/reboot.h>
 #include <asm/uaccess.h>
 #include <asm/apic.h>
+#include <asm/hpet.h>
 #include <asm/desc.h>
 #include "mach_reboot.h"
 #include <asm/reboot_fixups.h>
@@ -325,6 +326,9 @@ static void native_machine_shutdown(void)
 
 #ifdef CONFIG_X86_IO_APIC
 	disable_IO_APIC();
+#endif
+#ifdef CONFIG_HPET_TIMER
+	hpet_disable();
 #endif
 }
 
