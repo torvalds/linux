@@ -1514,7 +1514,7 @@ const static struct pvr2_std_hack std_eeprom_maps[] = {
 	},
 	{	/* PAL(D/D1/K) */
 		.pat = V4L2_STD_DK,
-		.std = V4L2_STD_PAL_D/V4L2_STD_PAL_D1|V4L2_STD_PAL_K,
+		.std = V4L2_STD_PAL_D|V4L2_STD_PAL_D1|V4L2_STD_PAL_K,
 	},
 };
 
