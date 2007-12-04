@@ -534,6 +534,7 @@ struct xfrm_spi_skb_cb {
 	} header;
 
 	unsigned int daddroff;
+	unsigned int family;
 };
 
 #define XFRM_SPI_SKB_CB(__skb) ((struct xfrm_spi_skb_cb *)&((__skb)->cb[0]))

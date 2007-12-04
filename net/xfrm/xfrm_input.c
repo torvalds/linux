@@ -102,6 +102,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	__be32 seq;
 	struct xfrm_state *x;
 	xfrm_address_t *daddr;
+	unsigned int family;
 	int decaps = 0;
 	int async = 0;
 
@@ -127,6 +128,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 	daddr = (xfrm_address_t *)(skb_network_header(skb) +
 				   XFRM_SPI_SKB_CB(skb)->daddroff);
+	family = XFRM_SPI_SKB_CB(skb)->family;
 
 	seq = 0;
 	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
@@ -136,7 +138,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		if (skb->sp->len == XFRM_MAX_DEPTH)
 			goto drop;
 
-		x = xfrm_state_lookup(daddr, spi, nexthdr, AF_INET);
+		x = xfrm_state_lookup(daddr, spi, nexthdr, family);
 		if (x == NULL)
 			goto drop;
 
@@ -198,6 +200,7 @@ resume:
 		 * transport mode so the outer address is identical.
 		 */
 		daddr = &x->id.daddr;
+		family = x->outer_mode->afinfo->family;
 
 		err = xfrm_parse_spi(skb, nexthdr, &spi, &seq);
 		if (err < 0)
