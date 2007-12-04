@@ -586,7 +586,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 			/* CRC error flagged */
 			mac->netdev->stats.rx_errors++;
 			mac->netdev->stats.rx_crc_errors++;
-			dev_kfree_skb_irq(skb);
+			/* No need to free skb, it'll be reused */
 			goto next;
 		}
 
