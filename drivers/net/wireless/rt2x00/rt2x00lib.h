@@ -91,7 +91,7 @@ static inline void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
 }
 
 static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
-					  struct skb_buff *skb)
+					  struct sk_buff *skb)
 {
 }
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
