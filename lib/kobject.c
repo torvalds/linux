@@ -391,6 +391,33 @@ int kobject_add_ng(struct kobject *kobj, struct kobject *parent,
 EXPORT_SYMBOL(kobject_add_ng);
 
 /**
+ * kobject_init_and_add - initialize a kobject structure and add it to the kobject hierarchy
+ * @kobj: pointer to the kobject to initialize
+ * @ktype: pointer to the ktype for this kobject.
+ * @parent: pointer to the parent of this kobject.
+ * @fmt: the name of the kobject.
+ *
+ * This function combines the call to kobject_init_ng() and
+ * kobject_add_ng().  The same type of error handling after a call to
+ * kobject_add_ng() and kobject lifetime rules are the same here.
+ */
+int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
+			 struct kobject *parent, const char *fmt, ...)
+{
+	va_list args;
+	int retval;
+
+	kobject_init_ng(kobj, ktype);
+
+	va_start(args, fmt);
+	retval = kobject_add_varg(kobj, parent, fmt, args);
+	va_end(args);
+
+	return retval;
+}
+EXPORT_SYMBOL_GPL(kobject_init_and_add);
+
+/**
  *	kobject_rename - change the name of an object
  *	@kobj:	object in question.
  *	@new_name: object's new name

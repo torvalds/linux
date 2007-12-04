@@ -84,6 +84,11 @@ extern int __must_check kobject_add(struct kobject *);
 extern int __must_check kobject_add_ng(struct kobject *kobj,
 				       struct kobject *parent,
 				       const char *fmt, ...);
+extern int __must_check kobject_init_and_add(struct kobject *kobj,
+					     struct kobj_type *ktype,
+					     struct kobject *parent,
+					     const char *fmt, ...);
+
 extern void kobject_del(struct kobject *);
 
 extern int __must_check kobject_rename(struct kobject *, const char *new_name);
