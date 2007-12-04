@@ -270,7 +270,7 @@ struct icom_adapter {
 #define V2_ONE_PORT_RVX_ONE_PORT_IMBED_MDM	0x0251
 	int numb_ports;
 	struct list_head icom_adapter_entry;
-	struct kobject kobj;
+	struct kref kref;
 };
 
 /* prototype */
