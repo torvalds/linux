@@ -34,6 +34,7 @@
 #include <asm/udbg.h>
 #include <asm/of_platform.h>
 #include <asm/lmb.h>
+#include <asm/firmware.h>
 #include <asm/cell-regs.h>
 
 #include "interrupt.h"
@@ -699,7 +700,8 @@ static int __init cell_iommu_init(void)
 {
 	struct device_node *np;
 
-	if (!machine_is(cell))
+	if ((!machine_is(cell) && !machine_is(celleb)) ||
+	    firmware_has_feature(FW_FEATURE_LPAR))
 		return -ENODEV;
 
 	/* If IOMMU is disabled or we have little enough RAM to not need
