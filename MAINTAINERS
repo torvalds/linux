@@ -2598,13 +2598,6 @@ L:	https://tango.0pointer.de/mailman/listinfo/s270-linux
 W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
 
-MTRR AND SIMILAR SUPPORT [i386]
-P:	Richard Gooch
-M:	rgooch@atnf.csiro.au
-L:	linux-kernel@vger.kernel.org
-W:	http://www.atnf.csiro.au/~rgooch/linux/kernel-patches.html
-S:	Maintained
-
 MULTIMEDIA CARD (MMC), SECURE DIGITAL (SD) AND SDIO SUBSYSTEM
 P:	Pierre Ossman
 M:	drzeus-mmc@drzeus.cx
