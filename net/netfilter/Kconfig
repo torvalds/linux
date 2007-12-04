@@ -631,6 +631,16 @@ config NETFILTER_XT_MATCH_QUOTA
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_MATCH_RATEEST
+	tristate '"rateest" match support'
+	depends on NETFILTER_XTABLES
+	select NETFILTER_XT_TARGET_RATEEST
+	help
+	  This option adds a `rateest' match, which allows to match on the
+	  rate estimated by the RATEEST target.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_REALM
 	tristate  '"realm" match support'
 	depends on NETFILTER_XTABLES
