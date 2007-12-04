@@ -2034,11 +2034,11 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	key.objectid = objectid;
 	key.offset = 1;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
-
+	extent_buffer_get(root->node);
 	btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
+	free_extent_buffer(tmp);
 	btrfs_set_root_bytenr(&new_root_item, root->node->start);
 	btrfs_set_root_level(&new_root_item, btrfs_header_level(root->node));
-
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&new_root_item);
 	if (ret)
