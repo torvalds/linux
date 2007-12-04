@@ -711,13 +711,14 @@ define a bus type with a more complex address format, including things
 like address space bits, you'll have to add a bus translator to the
 prom_parse.c file of the recent kernels for your bus type.
 
-The "reg" property only defines addresses and sizes (if #size-cells
-is non-0) within a given bus. In order to translate addresses upward
+The "reg" property only defines addresses and sizes (if #size-cells is
+non-0) within a given bus. In order to translate addresses upward
 (that is into parent bus addresses, and possibly into CPU physical
 addresses), all busses must contain a "ranges" property. If the
 "ranges" property is missing at a given level, it's assumed that
-translation isn't possible. The format of the "ranges" property for a
-bus is a list of:
+translation isn't possible, i.e., the registers are not visible on the
+parent bus.  The format of the "ranges" property for a bus is a list
+of:
 
 	bus address, parent bus address, size
 
@@ -735,6 +736,10 @@ fit in a single 32-bit word.   New 32-bit powerpc boards should use a
 1/1 format, unless the processor supports physical addresses greater
 than 32-bits, in which case a 2/1 format is recommended.
 
+Alternatively, the "ranges" property may be empty, indicating that the
+registers are visible on the parent bus using an identity mapping
+translation.  In other words, the parent bus address space is the same
+as the child bus address space.
 
 2) Note about "compatible" properties
 -------------------------------------
