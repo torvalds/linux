@@ -36,6 +36,7 @@ struct crypto_gcm_ghash_ctx {
 
 struct crypto_gcm_req_priv_ctx {
 	u8 auth_tag[16];
+	u8 iauth_tag[16];
 	u8 counter[16];
 	struct crypto_gcm_ghash_ctx ghash;
 };
@@ -88,6 +89,9 @@ static void crypto_gcm_ghash_update_sg(struct crypto_gcm_ghash_ctx *ctx,
 	struct scatter_walk walk;
 	u8 *src;
 	int n;
+
+	if (!len)
+		return;
 
 	scatterwalk_start(&walk, sg);
 
@@ -211,9 +215,10 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 }
 
 static int crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
-				  struct aead_request *req,
-				  void (*done)(struct crypto_async_request *,
-					       int))
+				 struct aead_request *req,
+				 unsigned int cryptlen,
+				 void (*done)(struct crypto_async_request *,
+					      int))
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct crypto_gcm_ctx *ctx = crypto_aead_ctx(aead);
@@ -228,7 +233,7 @@ static int crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
 	ablkcipher_request_set_callback(ablk_req, aead_request_flags(req),
 					done, req);
 	ablkcipher_request_set_crypt(ablk_req, req->src, req->dst,
-				     req->cryptlen, counter);
+				     cryptlen, counter);
 
 	err = crypto_gcm_encrypt_counter(aead, auth_tag, 0, req->iv);
 	if (err)
@@ -239,18 +244,16 @@ static int crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
 
 	crypto_gcm_ghash_init(ghash, flags, ctx->gf128);
 
-	if (req->assoclen) {
-		crypto_gcm_ghash_update_sg(ghash, req->assoc, req->assoclen);
-		crypto_gcm_ghash_flush(ghash);
-	}
+	crypto_gcm_ghash_update_sg(ghash, req->assoc, req->assoclen);
+	crypto_gcm_ghash_flush(ghash);
 
  out:
 	return err;
 }
 
-static void crypto_gcm_encrypt_done(struct crypto_async_request *areq, int err)
+static int crypto_gcm_hash(struct aead_request *req)
 {
-	struct aead_request *req = areq->data;
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct crypto_gcm_req_priv_ctx *pctx = aead_request_ctx(req);
 	u8 *auth_tag = pctx->auth_tag;
 	struct crypto_gcm_ghash_ctx *ghash = &pctx->ghash;
@@ -259,18 +262,28 @@ static void crypto_gcm_encrypt_done(struct crypto_async_request *areq, int err)
 	crypto_gcm_ghash_final_xor(ghash, req->assoclen, req->cryptlen,
 				   auth_tag);
 
+	scatterwalk_map_and_copy(auth_tag, req->dst, req->cryptlen,
+				 crypto_aead_authsize(aead), 1);
+	return 0;
+}
+
+static void crypto_gcm_encrypt_done(struct crypto_async_request *areq, int err)
+{
+	struct aead_request *req = areq->data;
+
+	if (!err)
+		err = crypto_gcm_hash(req);
+
 	aead_request_complete(req, err);
 }
 
 static int crypto_gcm_encrypt(struct aead_request *req)
 {
 	struct ablkcipher_request abreq;
-	struct crypto_gcm_req_priv_ctx *pctx = aead_request_ctx(req);
-	u8 *auth_tag = pctx->auth_tag;
-	struct crypto_gcm_ghash_ctx *ghash = &pctx->ghash;
 	int err = 0;
 
-	err = crypto_gcm_init_crypt(&abreq, req, crypto_gcm_encrypt_done);
+	err = crypto_gcm_init_crypt(&abreq, req, req->cryptlen,
+				    crypto_gcm_encrypt_done);
 	if (err)
 		return err;
 
@@ -278,14 +291,9 @@ static int crypto_gcm_encrypt(struct aead_request *req)
 		err = crypto_ablkcipher_encrypt(&abreq);
 		if (err)
 			return err;
-
-		crypto_gcm_ghash_update_sg(ghash, req->dst, req->cryptlen);
 	}
 
-	crypto_gcm_ghash_final_xor(ghash, req->assoclen, req->cryptlen,
-				   auth_tag);
-
-	return err;
+	return crypto_gcm_hash(req);
 }
 
 static void crypto_gcm_decrypt_done(struct crypto_async_request *areq, int err)
@@ -296,25 +304,29 @@ static void crypto_gcm_decrypt_done(struct crypto_async_request *areq, int err)
 static int crypto_gcm_decrypt(struct aead_request *req)
 {
 	struct ablkcipher_request abreq;
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct crypto_gcm_req_priv_ctx *pctx = aead_request_ctx(req);
 	u8 *auth_tag = pctx->auth_tag;
+	u8 *iauth_tag = pctx->iauth_tag;
 	struct crypto_gcm_ghash_ctx *ghash = &pctx->ghash;
-	u8 tag[16];
+	unsigned int cryptlen = req->cryptlen;
+	unsigned int authsize = crypto_aead_authsize(aead);
 	int err;
 
-	if (!req->cryptlen)
+	if (cryptlen < authsize)
 		return -EINVAL;
+	cryptlen -= authsize;
 
-	memcpy(tag, auth_tag, 16);
-	err = crypto_gcm_init_crypt(&abreq, req, crypto_gcm_decrypt_done);
+	err = crypto_gcm_init_crypt(&abreq, req, cryptlen,
+				    crypto_gcm_decrypt_done);
 	if (err)
 		return err;
 
-	crypto_gcm_ghash_update_sg(ghash, req->src, req->cryptlen);
-	crypto_gcm_ghash_final_xor(ghash, req->assoclen, req->cryptlen,
-				   auth_tag);
+	crypto_gcm_ghash_update_sg(ghash, req->src, cryptlen);
+	crypto_gcm_ghash_final_xor(ghash, req->assoclen, cryptlen, auth_tag);
 
-	if (memcmp(tag, auth_tag, 16))
+	scatterwalk_map_and_copy(iauth_tag, req->src, cryptlen, authsize, 0);
+	if (memcmp(iauth_tag, auth_tag, authsize))
 		return -EINVAL;
 
 	return crypto_ablkcipher_decrypt(&abreq);

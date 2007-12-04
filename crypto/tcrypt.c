@@ -235,6 +235,7 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 	struct scatterlist asg[8];
 	const char *e;
 	struct tcrypt_result result;
+	unsigned int authsize;
 
 	if (enc == ENCRYPT)
 		e = "encryption";
@@ -264,6 +265,8 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 		       algo, PTR_ERR(tfm));
 		return;
 	}
+
+	authsize = crypto_aead_authsize(tfm);
 
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
@@ -296,7 +299,7 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 			}
 
 			sg_init_one(&sg[0], aead_tv[i].input,
-				    aead_tv[i].ilen);
+				    aead_tv[i].ilen + (enc ? authsize : 0));
 
 			sg_init_one(&asg[0], aead_tv[i].assoc,
 				    aead_tv[i].alen);
@@ -307,13 +310,9 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 			aead_request_set_assoc(req, asg, aead_tv[i].alen);
 
-			if (enc) {
-				ret = crypto_aead_encrypt(req);
-			} else {
-				memcpy(req->__ctx, aead_tv[i].tag,
-				       aead_tv[i].tlen);
-				ret = crypto_aead_decrypt(req);
-			}
+			ret = enc ?
+				crypto_aead_encrypt(req) :
+				crypto_aead_decrypt(req);
 
 			switch (ret) {
 			case 0:
@@ -335,16 +334,10 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 			q = kmap(sg_page(&sg[0])) + sg[0].offset;
 			hexdump(q, aead_tv[i].rlen);
-			printk(KERN_INFO "auth tag: ");
-			hexdump((unsigned char *)req->__ctx, aead_tv[i].tlen);
 
 			printk(KERN_INFO "enc/dec: %s\n",
 			       memcmp(q, aead_tv[i].result,
 				      aead_tv[i].rlen) ? "fail" : "pass");
-
-			printk(KERN_INFO "auth tag: %s\n",
-			       memcmp(req->__ctx, aead_tv[i].tag,
-				      aead_tv[i].tlen) ? "fail" : "pass");
 		}
 	}
 
@@ -381,6 +374,9 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 					   aead_tv[i].tap[k]);
 			}
 
+			if (enc)
+				sg[k - 1].length += authsize;
+
 			sg_init_table(asg, aead_tv[i].anp);
 			for (k = 0, temp = 0; k < aead_tv[i].anp; k++) {
 				memcpy(&axbuf[IDX[k]],
@@ -397,13 +393,9 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 			aead_request_set_assoc(req, asg, aead_tv[i].alen);
 
-			if (enc) {
-				ret = crypto_aead_encrypt(req);
-			} else {
-				memcpy(req->__ctx, aead_tv[i].tag,
-				       aead_tv[i].tlen);
-				ret = crypto_aead_decrypt(req);
-			}
+			ret = enc ?
+				crypto_aead_encrypt(req) :
+				crypto_aead_decrypt(req);
 
 			switch (ret) {
 			case 0:
@@ -429,17 +421,13 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 				hexdump(q, aead_tv[i].tap[k]);
 				printk(KERN_INFO "%s\n",
 				       memcmp(q, aead_tv[i].result + temp,
-					      aead_tv[i].tap[k]) ?
+					      aead_tv[i].tap[k] -
+					      (k < aead_tv[i].np - 1 || enc ?
+					       0 : authsize)) ?
 				       "fail" : "pass");
 
 				temp += aead_tv[i].tap[k];
 			}
-			printk(KERN_INFO "auth tag: ");
-			hexdump((unsigned char *)req->__ctx, aead_tv[i].tlen);
-
-			printk(KERN_INFO "auth tag: %s\n",
-			       memcmp(req->__ctx, aead_tv[i].tag,
-				      aead_tv[i].tlen) ? "fail" : "pass");
 		}
 	}
 
