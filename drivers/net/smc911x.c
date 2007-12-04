@@ -1299,9 +1299,9 @@ smc911x_rx_dma_irq(int dma, void *data)
 	PRINT_PKT(skb->data, skb->len);
 	dev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, dev);
-	netif_rx(skb);
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += skb->len;
+	netif_rx(skb);
 
 	spin_lock_irqsave(&lp->lock, flags);
 	pkts = (SMC_GET_RX_FIFO_INF() & RX_FIFO_INF_RXSUSED_) >> 16;
