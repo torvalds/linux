@@ -179,7 +179,9 @@ static void __init cell_setup_arch(void)
 	conswitchp = &dummy_con;
 #endif
 
+#ifdef CONFIG_MMIO_NVRAM
 	mmio_nvram_init();
+#endif
 }
 
 static int __init cell_probe(void)
