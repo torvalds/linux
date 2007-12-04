@@ -200,7 +200,7 @@ auth_unlock:
 
 	authsize = crypto_aead_authsize(authenc);
 	scatterwalk_map_and_copy(ihash, src, cryptlen, authsize, 0);
-	return memcmp(ihash, ohash, authsize) ? -EINVAL : 0;
+	return memcmp(ihash, ohash, authsize) ? -EBADMSG: 0;
 }
 
 static void crypto_authenc_decrypt_done(struct crypto_async_request *req,

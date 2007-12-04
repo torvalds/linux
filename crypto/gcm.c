@@ -327,7 +327,7 @@ static int crypto_gcm_decrypt(struct aead_request *req)
 
 	scatterwalk_map_and_copy(iauth_tag, req->src, cryptlen, authsize, 0);
 	if (memcmp(iauth_tag, auth_tag, authsize))
-		return -EINVAL;
+		return -EBADMSG;
 
 	return crypto_ablkcipher_decrypt(&abreq);
 }
