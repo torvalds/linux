@@ -234,13 +234,13 @@ int kobject_register(struct kobject * kobj)
 
 
 /**
- *	kobject_set_name - Set the name of an object
- *	@kobj:	object.
- *	@fmt:	format string used to build the name
+ * kobject_set_name - Set the name of a kobject
+ * @kobj: kobject to name
+ * @fmt: format string used to build the name
  *
- *	If strlen(name) >= KOBJ_NAME_LEN, then use a dynamically allocated
- *	string that @kobj->k_name points to. Otherwise, use the static 
- *	@kobj->name array.
+ * This sets the name of the kobject.  If you have already added the
+ * kobject to the system, you must call kobject_rename() in order to
+ * change the name of the kobject.
  */
 int kobject_set_name(struct kobject * kobj, const char * fmt, ...)
 {
