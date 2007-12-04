@@ -1079,8 +1079,10 @@ cleanup_io_leave_insn:
 .Lexecve_tail:	.long	execve_tail
 .Ljump_table:	.long	pgm_check_table
 .Lschedule:	.long	schedule
+#ifdef CONFIG_PREEMPT
 .Lpreempt_schedule_irq:
 		.long	preempt_schedule_irq
+#endif
 .Ltrace:	.long	syscall_trace
 .Lschedtail:	.long	schedule_tail
 .Lsysc_table:	.long	sys_call_table
