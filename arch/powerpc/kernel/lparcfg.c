@@ -41,7 +41,6 @@
 /* #define LPARCFG_DEBUG */
 
 static struct proc_dir_entry *proc_ppc64_lparcfg;
-#define LPARCFG_BUFF_SIZE 4096
 
 /*
  * Track sum of all purrs across all processors. This is used to further
@@ -595,13 +594,6 @@ int __init lparcfg_init(void)
 	ent = create_proc_entry("ppc64/lparcfg", mode, NULL);
 	if (ent) {
 		ent->proc_fops = &lparcfg_fops;
-		ent->data = kmalloc(LPARCFG_BUFF_SIZE, GFP_KERNEL);
-		if (!ent->data) {
-			printk(KERN_ERR
-			       "Failed to allocate buffer for lparcfg\n");
-			remove_proc_entry("lparcfg", ent->parent);
-			return -ENOMEM;
-		}
 	} else {
 		printk(KERN_ERR "Failed to create ppc64/lparcfg\n");
 		return -EIO;
@@ -613,10 +605,8 @@ int __init lparcfg_init(void)
 
 void __exit lparcfg_cleanup(void)
 {
-	if (proc_ppc64_lparcfg) {
-		kfree(proc_ppc64_lparcfg->data);
+	if (proc_ppc64_lparcfg)
 		remove_proc_entry("lparcfg", proc_ppc64_lparcfg->parent);
-	}
 }
 
 module_init(lparcfg_init);
