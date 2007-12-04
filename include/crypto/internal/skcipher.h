@@ -53,6 +53,8 @@ static inline struct crypto_ablkcipher *crypto_spawn_skcipher(
 				 crypto_skcipher_mask(0)));
 }
 
+int skcipher_null_givencrypt(struct skcipher_givcrypt_request *req);
+int skcipher_null_givdecrypt(struct skcipher_givcrypt_request *req);
 const char *crypto_default_geniv(const struct crypto_alg *alg);
 
 struct crypto_instance *skcipher_geniv_alloc(struct crypto_template *tmpl,

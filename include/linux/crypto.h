@@ -561,13 +561,8 @@ static inline u32 crypto_skcipher_mask(u32 mask)
 	return mask;
 }
 
-static inline struct crypto_ablkcipher *crypto_alloc_ablkcipher(
-	const char *alg_name, u32 type, u32 mask)
-{
-	return __crypto_ablkcipher_cast(
-		crypto_alloc_base(alg_name, crypto_skcipher_type(type),
-				  crypto_skcipher_mask(mask)));
-}
+struct crypto_ablkcipher *crypto_alloc_ablkcipher(const char *alg_name,
+						  u32 type, u32 mask);
 
 static inline struct crypto_tfm *crypto_ablkcipher_tfm(
 	struct crypto_ablkcipher *tfm)
