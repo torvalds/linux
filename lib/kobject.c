@@ -324,6 +324,72 @@ error:
 }
 EXPORT_SYMBOL(kobject_init_ng);
 
+static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
+			    const char *fmt, va_list vargs)
+{
+	va_list aq;
+	int retval;
+
+	va_copy(aq, vargs);
+	retval = kobject_set_name_vargs(kobj, fmt, aq);
+	va_end(aq);
+	if (retval) {
+		printk(KERN_ERR "kobject: can not set name properly!\n");
+		return retval;
+	}
+	kobj->parent = parent;
+	return kobject_add(kobj);
+}
+
+/**
+ * kobject_add_ng - the main kobject add function
+ * @kobj: the kobject to add
+ * @parent: pointer to the parent of the kobject.
+ * @fmt: format to name the kobject with.
+ *
+ * The kobject name is set and added to the kobject hierarchy in this
+ * function.
+ *
+ * If @parent is set, then the parent of the @kobj will be set to it.
+ * If @parent is NULL, then the parent of the @kobj will be set to the
+ * kobject associted with the kset assigned to this kobject.  If no kset
+ * is assigned to the kobject, then the kobject will be located in the
+ * root of the sysfs tree.
+ *
+ * If this function returns an error, kobject_put() must be called to
+ * properly clean up the memory associated with the object.
+ *
+ * If the function is successful, the only way to properly clean up the
+ * memory is with a call to kobject_del(), in which case, a call to
+ * kobject_put() is not necessary (kobject_del() does the final
+ * kobject_put() to call the release function in the ktype's release
+ * pointer.)
+ *
+ * Under no instance should the kobject that is passed to this function
+ * be directly freed with a call to kfree(), that can leak memory.
+ *
+ * Note, no uevent will be created with this call, the caller should set
+ * up all of the necessary sysfs files for the object and then call
+ * kobject_uevent() with the UEVENT_ADD parameter to ensure that
+ * userspace is properly notified of this kobject's creation.
+ */
+int kobject_add_ng(struct kobject *kobj, struct kobject *parent,
+		   const char *fmt, ...)
+{
+	va_list args;
+	int retval;
+
+	if (!kobj)
+		return -EINVAL;
+
+	va_start(args, fmt);
+	retval = kobject_add_varg(kobj, parent, fmt, args);
+	va_end(args);
+
+	return retval;
+}
+EXPORT_SYMBOL(kobject_add_ng);
+
 /**
  *	kobject_rename - change the name of an object
  *	@kobj:	object in question.
