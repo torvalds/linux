@@ -27,7 +27,11 @@ _GLOBAL(__setup_cpu_440epx)
 	mtlr	r4
 	blr
 _GLOBAL(__setup_cpu_440grx)
-	b	__plb_disable_wrp
+	mflr	r4
+	bl	__plb_disable_wrp
+	bl	__fixup_440A_mcheck
+	mtlr	r4
+	blr
 _GLOBAL(__setup_cpu_440gx)
 _GLOBAL(__setup_cpu_440spe)
 	b	__fixup_440A_mcheck
