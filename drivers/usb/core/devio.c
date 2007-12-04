@@ -402,10 +402,25 @@ static void driver_disconnect(struct usb_interface *intf)
 	destroy_async_on_interface(ps, ifnum);
 }
 
+/* The following routines are merely placeholders.  There is no way
+ * to inform a user task about suspend or resumes.
+ */
+static int driver_suspend(struct usb_interface *intf, pm_message_t msg)
+{
+	return 0;
+}
+
+static int driver_resume(struct usb_interface *intf)
+{
+	return 0;
+}
+
 struct usb_driver usbfs_driver = {
 	.name =		"usbfs",
 	.probe =	driver_probe,
 	.disconnect =	driver_disconnect,
+	.suspend =	driver_suspend,
+	.resume =	driver_resume,
 };
 
 static int claimintf(struct dev_state *ps, unsigned int ifnum)
