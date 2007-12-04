@@ -18,20 +18,22 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 
+struct uio_map;
+
 /**
  * struct uio_mem - description of a UIO memory region
- * @kobj:		kobject for this mapping
  * @addr:		address of the device's memory
  * @size:		size of IO
  * @memtype:		type of memory addr points to
  * @internal_addr:	ioremap-ped version of addr, for driver internal use
+ * @map:		for use by the UIO core only.
  */
 struct uio_mem {
-	struct kobject		kobj;
 	unsigned long		addr;
 	unsigned long		size;
 	int			memtype;
 	void __iomem		*internal_addr;
+	struct uio_map		*map;
 };
 
 #define MAX_UIO_MAPS 	5
