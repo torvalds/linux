@@ -33,7 +33,7 @@
 
 static struct i386_cpu cpu_devices[NR_CPUS];
 
-int arch_register_cpu(int num)
+int __cpuinit arch_register_cpu(int num)
 {
 	/*
 	 * CPU0 cannot be offlined due to several
@@ -53,7 +53,8 @@ int arch_register_cpu(int num)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void arch_unregister_cpu(int num) {
+void arch_unregister_cpu(int num)
+{
 	return unregister_cpu(&cpu_devices[num].cpu);
 }
 EXPORT_SYMBOL(arch_register_cpu);
