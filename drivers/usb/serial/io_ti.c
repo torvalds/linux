@@ -34,6 +34,7 @@
 #include <linux/tty_flip.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/serial.h>
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
@@ -133,7 +134,7 @@ struct edgeport_serial {
 	struct product_info product_info;
 	u8 TI_I2C_Type;			// Type of I2C in UMP
 	u8 TiReadI2C;			// Set to TRUE if we have read the I2c in Boot Mode
-	struct semaphore es_sem;
+	struct mutex es_lock;
 	int num_ports_open;
 	struct usb_serial *serial;
 };
@@ -2044,7 +2045,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 	dbg ("ShadowMCR 0x%X", edge_port->shadow_mcr);
 
 	edge_serial = edge_port->edge_serial;
-	if (down_interruptible(&edge_serial->es_sem))
+	if (mutex_lock_interruptible(&edge_serial->es_lock))
 		return -ERESTARTSYS;
 	if (edge_serial->num_ports_open == 0) {
 		/* we are the first port to be opened, let's post the interrupt urb */
@@ -2052,7 +2053,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 		if (!urb) {
 			dev_err (&port->dev, "%s - no interrupt urb present, exiting\n", __FUNCTION__);
 			status = -EINVAL;
-			goto up_es_sem;
+			goto release_es_lock;
 		}
 		urb->complete = edge_interrupt_callback;
 		urb->context = edge_serial;
@@ -2060,7 +2061,7 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 		status = usb_submit_urb (urb, GFP_KERNEL);
 		if (status) {
 			dev_err (&port->dev, "%s - usb_submit_urb failed with value %d\n", __FUNCTION__, status);
-			goto up_es_sem;
+			goto release_es_lock;
 		}
 	}
 
@@ -2092,13 +2093,13 @@ static int edge_open (struct usb_serial_port *port, struct file * filp)
 
 	dbg("%s - exited", __FUNCTION__);
 
-	goto up_es_sem;
+	goto release_es_lock;
 
 unlink_int_urb:
 	if (edge_port->edge_serial->num_ports_open == 0)
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
-up_es_sem:
-	up(&edge_serial->es_sem);
+release_es_lock:
+	mutex_unlock(&edge_serial->es_lock);
 	return status;
 }
 
@@ -2137,14 +2138,14 @@ static void edge_close (struct usb_serial_port *port, struct file *filp)
 				     0,
 				     NULL,
 				     0);
-	down(&edge_serial->es_sem);
+	mutex_lock(&edge_serial->es_lock);
 	--edge_port->edge_serial->num_ports_open;
 	if (edge_port->edge_serial->num_ports_open <= 0) {
 		/* last port is now closed, let's shut down our interrupt urb */
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 		edge_port->edge_serial->num_ports_open = 0;
 	}
-	up(&edge_serial->es_sem);
+	mutex_unlock(&edge_serial->es_lock);
 	edge_port->close_pending = 0;
 
 	dbg("%s - exited", __FUNCTION__);
@@ -2743,7 +2744,7 @@ static int edge_startup (struct usb_serial *serial)
 		dev_err(&serial->dev->dev, "%s - Out of memory\n", __FUNCTION__);
 		return -ENOMEM;
 	}
-	sema_init(&edge_serial->es_sem, 1);
+	mutex_init(&edge_serial->es_lock);
 	edge_serial->serial = serial;
 	usb_set_serial_data(serial, edge_serial);
 
