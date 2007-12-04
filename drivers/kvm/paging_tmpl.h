@@ -300,7 +300,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	hpa_t shadow_addr;
 	int level;
 	u64 *shadow_ent;
-	u64 *prev_shadow_ent = NULL;
 
 	if (!is_present_pte(walker->pte))
 		return NULL;
@@ -326,7 +325,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			if (level == PT_PAGE_TABLE_LEVEL)
 				break;
 			shadow_addr = *shadow_ent & PT64_BASE_ADDR_MASK;
-			prev_shadow_ent = shadow_ent;
 			continue;
 		}
 
@@ -355,7 +353,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		shadow_pte = shadow_addr | PT_PRESENT_MASK | PT_ACCESSED_MASK
 			| PT_WRITABLE_MASK | PT_USER_MASK;
 		*shadow_ent = shadow_pte;
-		prev_shadow_ent = shadow_ent;
 	}
 
 	FNAME(set_pte)(vcpu, walker->pte, shadow_ent,
