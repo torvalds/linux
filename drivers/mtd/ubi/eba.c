@@ -1168,6 +1168,15 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		}
 	}
 
+	if (ubi->avail_pebs < EBA_RESERVED_PEBS) {
+		ubi_err("no enough physical eraseblocks (%d, need %d)",
+			ubi->avail_pebs, EBA_RESERVED_PEBS);
+		err = -ENOSPC;
+		goto out_free;
+	}
+	ubi->avail_pebs -= EBA_RESERVED_PEBS;
+	ubi->rsvd_pebs += EBA_RESERVED_PEBS;
+
 	if (ubi->bad_allowed) {
 		ubi_calculate_reserved(ubi);
 
@@ -1183,15 +1192,6 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		ubi->avail_pebs -= ubi->beb_rsvd_pebs;
 		ubi->rsvd_pebs  += ubi->beb_rsvd_pebs;
 	}
-
-	if (ubi->avail_pebs < EBA_RESERVED_PEBS) {
-		ubi_err("no enough physical eraseblocks (%d, need %d)",
-			ubi->avail_pebs, EBA_RESERVED_PEBS);
-		err = -ENOSPC;
-		goto out_free;
-	}
-	ubi->avail_pebs -= EBA_RESERVED_PEBS;
-	ubi->rsvd_pebs += EBA_RESERVED_PEBS;
 
 	dbg_eba("EBA unit is initialized");
 	return 0;
