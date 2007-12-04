@@ -172,9 +172,7 @@ static u64 find_search_start(struct btrfs_root *root,
 	int wrapped = 0;
 
 	if (!cache) {
-		cache = btrfs_lookup_block_group(root->fs_info, search_start);
-		if (!cache)
-			return search_start;
+		goto out;
 	}
 again:
 	ret = cache_block_group(root, cache);
@@ -205,6 +203,13 @@ again:
 		return start;
 	}
 out:
+	cache = btrfs_lookup_block_group(root->fs_info, search_start);
+	if (!cache) {
+		printk("Unable to find block group for %Lu\n",
+		       search_start);
+		WARN_ON(1);
+		return search_start;
+	}
 	return search_start;
 
 new_group:
@@ -219,15 +224,14 @@ no_cache:
 			data = BTRFS_BLOCK_GROUP_MIXED;
 			goto wrapped;
 		}
-		return search_start;
+		goto out;
 	}
 	if (cache_miss && !cache->cached) {
 		cache_block_group(root, cache);
 		last = cache_miss;
 		cache = btrfs_lookup_block_group(root->fs_info, last);
 	}
-	if (!full_scan)
-		cache = btrfs_find_block_group(root, cache, last, data, 0);
+	cache = btrfs_find_block_group(root, cache, last, data, 0);
 	if (!cache)
 		goto no_cache;
 	*cache_ret = cache;
@@ -985,12 +989,14 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		search_end = btrfs_super_total_bytes(&info->super_copy);
 	if (hint_byte) {
 		block_group = btrfs_lookup_block_group(info, hint_byte);
+		if (!block_group)
+			hint_byte = search_start;
 		block_group = btrfs_find_block_group(root, block_group,
 						     hint_byte, data, 1);
 	} else {
 		block_group = btrfs_find_block_group(root,
-						     trans->block_group, 0,
-						     data, 1);
+						     trans->block_group,
+						     search_start, data, 1);
 	}
 
 	total_needed += empty_size;
@@ -1159,14 +1165,14 @@ enospc:
 			if (!full_scan)
 				total_needed -= empty_size;
 			full_scan = 1;
+			data = BTRFS_BLOCK_GROUP_MIXED;
 		} else
 			wrapped = 1;
 	}
 	block_group = btrfs_lookup_block_group(info, search_start);
 	cond_resched();
-	if (!full_scan)
-		block_group = btrfs_find_block_group(root, block_group,
-						     search_start, data, 0);
+	block_group = btrfs_find_block_group(root, block_group,
+					     search_start, data, 0);
 	goto check_failed;
 
 error:
