@@ -314,6 +314,7 @@ static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.phymode = MODE_IEEE80211G;
 	rx_status.antenna = hdr->antenna;
 	rx_status.mactime = le64_to_cpu(hdr->timestamp);
+	rx_status.flag |= RX_FLAG_TSFT;
 
 	skb_pull(skb, sizeof(*hdr));
 	skb_trim(skb, le16_to_cpu(hdr->len));

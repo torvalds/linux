@@ -227,6 +227,7 @@ static void rtl8187_rx_cb(struct urb *urb)
 	rx_status.channel = dev->conf.channel;
 	rx_status.phymode = dev->conf.phymode;
 	rx_status.mactime = le64_to_cpu(hdr->mac_time);
+	rx_status.flag |= RX_FLAG_TSFT;
 	if (flags & (1 << 13))
 		rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 	ieee80211_rx_irqsafe(dev, skb, &rx_status);

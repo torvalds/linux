@@ -526,6 +526,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		status.rate = b43_plcp_get_bitrate_cck(plcp);
 	status.antenna = !!(phystat0 & B43_RX_PHYST0_ANT);
 	status.mactime = mactime;
+	status.flag |= RX_FLAG_TSFT;
 
 	chanid = (chanstat & B43_RX_CHAN_ID) >> B43_RX_CHAN_ID_SHIFT;
 	switch (chanstat & B43_RX_CHAN_PHYTYPE) {

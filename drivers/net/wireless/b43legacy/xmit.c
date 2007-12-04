@@ -532,6 +532,7 @@ void b43legacy_rx(struct b43legacy_wldev *dev,
 		status.rate = b43legacy_plcp_get_bitrate_cck(plcp);
 	status.antenna = !!(phystat0 & B43legacy_RX_PHYST0_ANT);
 	status.mactime = mactime;
+	status.flag |= RX_FLAG_TSFT;
 
 	chanid = (chanstat & B43legacy_RX_CHAN_ID) >>
 		  B43legacy_RX_CHAN_ID_SHIFT;
