@@ -2802,7 +2802,6 @@ void ctc_init_netdevice(struct net_device * dev)
 	dev->type = ARPHRD_SLIP;
 	dev->tx_queue_len = 100;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-	SET_MODULE_OWNER(dev);
 }
 
 
