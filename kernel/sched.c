@@ -4850,17 +4850,21 @@ long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
 	if (retval)
 		goto out_unlock;
 
-	if (p->policy == SCHED_FIFO)
-		time_slice = 0;
-	else if (p->policy == SCHED_RR)
+	/*
+	 * Time slice is 0 for SCHED_FIFO tasks and for SCHED_OTHER
+	 * tasks that are on an otherwise idle runqueue:
+	 */
+	time_slice = 0;
+	if (p->policy == SCHED_RR) {
 		time_slice = DEF_TIMESLICE;
-	else {
+	} else {
 		struct sched_entity *se = &p->se;
 		unsigned long flags;
 		struct rq *rq;
 
 		rq = task_rq_lock(p, &flags);
-		time_slice = NS_TO_JIFFIES(sched_slice(cfs_rq_of(se), se));
+		if (rq->cfs.load.weight)
+			time_slice = NS_TO_JIFFIES(sched_slice(&rq->cfs, se));
 		task_rq_unlock(rq, &flags);
 	}
 	read_unlock(&tasklist_lock);
