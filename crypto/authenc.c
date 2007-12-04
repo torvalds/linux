@@ -158,7 +158,8 @@ static int crypto_authenc_encrypt(struct aead_request *req)
 	return crypto_authenc_hash(req);
 }
 
-static int crypto_authenc_verify(struct aead_request *req)
+static int crypto_authenc_verify(struct aead_request *req,
+				 unsigned int cryptlen)
 {
 	struct crypto_aead *authenc = crypto_aead_reqtfm(req);
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
@@ -170,7 +171,6 @@ static int crypto_authenc_verify(struct aead_request *req)
 	u8 *ohash = aead_request_ctx(req);
 	u8 *ihash;
 	struct scatterlist *src = req->src;
-	unsigned int cryptlen = req->cryptlen;
 	unsigned int authsize;
 	int err;
 
@@ -214,16 +214,22 @@ static int crypto_authenc_decrypt(struct aead_request *req)
 	struct crypto_aead *authenc = crypto_aead_reqtfm(req);
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
 	struct ablkcipher_request *abreq = aead_request_ctx(req);
+	unsigned int cryptlen = req->cryptlen;
+	unsigned int authsize = crypto_aead_authsize(authenc);
 	int err;
 
-	err = crypto_authenc_verify(req);
+	if (cryptlen < authsize)
+		return -EINVAL;
+	cryptlen -= authsize;
+
+	err = crypto_authenc_verify(req, cryptlen);
 	if (err)
 		return err;
 
 	ablkcipher_request_set_tfm(abreq, ctx->enc);
 	ablkcipher_request_set_callback(abreq, aead_request_flags(req),
 					crypto_authenc_decrypt_done, req);
-	ablkcipher_request_set_crypt(abreq, req->src, req->dst, req->cryptlen,
+	ablkcipher_request_set_crypt(abreq, req->src, req->dst, cryptlen,
 				     req->iv);
 
 	return crypto_ablkcipher_decrypt(abreq);
