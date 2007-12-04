@@ -2,7 +2,6 @@
 #define __NET_PKT_CLS_H
 
 #include <linux/pkt_cls.h>
-#include <net/net_namespace.h>
 #include <net/sch_generic.h>
 #include <net/act_api.h>
 
@@ -336,6 +335,8 @@ static inline int tcf_valid_offset(const struct sk_buff *skb,
 }
 
 #ifdef CONFIG_NET_CLS_IND
+#include <net/net_namespace.h>
+
 static inline int
 tcf_change_indev(struct tcf_proto *tp, char *indev, struct rtattr *indev_tlv)
 {

@@ -57,7 +57,6 @@
 #include <asm/atomic.h>
 #include <net/dst.h>
 #include <net/checksum.h>
-#include <net/net_namespace.h>
 
 /*
  * This structure really needs to be cleaned up.
@@ -95,6 +94,7 @@ typedef struct {
 
 struct sock;
 struct proto;
+struct net;
 
 /**
  *	struct sock_common - minimal network layer representation of sockets
