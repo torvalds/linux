@@ -109,7 +109,8 @@ int __init check_nmi_watchdog (void)
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
 		if (cpu_pda(cpu)->__nmi_count - counts[cpu] <= 5) {
-			printk("CPU#%d: NMI appears to be stuck (%d->%d)!\n",
+			printk(KERN_WARNING "WARNING: CPU#%d: NMI "
+			       "appears to be stuck (%d->%d)!\n",
 			       cpu,
 			       counts[cpu],
 			       cpu_pda(cpu)->__nmi_count);
