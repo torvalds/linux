@@ -283,6 +283,48 @@ int kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 EXPORT_SYMBOL(kobject_set_name);
 
 /**
+ * kobject_init_ng - initialize a kobject structure
+ * @kobj: pointer to the kobject to initialize
+ * @ktype: pointer to the ktype for this kobject.
+ *
+ * This function will properly initialize a kobject such that it can then
+ * be passed to the kobject_add() call.
+ *
+ * After this function is called, the kobject MUST be cleaned up by a call
+ * to kobject_put(), not by a call to kfree directly to ensure that all of
+ * the memory is cleaned up properly.
+ */
+void kobject_init_ng(struct kobject *kobj, struct kobj_type *ktype)
+{
+	char *err_str;
+
+	if (!kobj) {
+		err_str = "invalid kobject pointer!";
+		goto error;
+	}
+	if (!ktype) {
+		err_str = "must have a ktype to be initialized properly!\n";
+		goto error;
+	}
+	if (atomic_read(&kobj->kref.refcount)) {
+		/* do not error out as sometimes we can recover */
+		printk(KERN_ERR "kobject: reference count is already set, "
+		       "something is seriously wrong.\n");
+		dump_stack();
+	}
+
+	kref_init(&kobj->kref);
+	INIT_LIST_HEAD(&kobj->entry);
+	kobj->ktype = ktype;
+	return;
+
+error:
+	printk(KERN_ERR "kobject: %s\n", err_str);
+	dump_stack();
+}
+EXPORT_SYMBOL(kobject_init_ng);
+
+/**
  *	kobject_rename - change the name of an object
  *	@kobj:	object in question.
  *	@new_name: object's new name
