@@ -2503,6 +2503,15 @@ static int mv_chip_id(struct ata_host *host, unsigned int board_idx)
 
 	case chip_7042:
 		hp_flags |= MV_HP_PCIE;
+		if (pdev->vendor == PCI_VENDOR_ID_TTI &&
+		    (pdev->device == 0x2300 || pdev->device == 0x2310))
+		{
+			printk(KERN_WARNING "sata_mv: Highpoint RocketRAID BIOS"
+				" will CORRUPT DATA on attached drives when"
+				" configured as \"Legacy\".  BEWARE!\n");
+			printk(KERN_WARNING "sata_mv: Use BIOS \"JBOD\" volumes"
+				" instead for safety.\n");
+		}
 	case chip_6042:
 		hpriv->ops = &mv6xxx_ops;
 		hp_flags |= MV_HP_GEN_IIE;
