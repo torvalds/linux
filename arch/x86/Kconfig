@@ -148,7 +148,8 @@ config X86_SMP
 
 config X86_HT
 	bool
-	depends on SMP && !(X86_VISWS || X86_VOYAGER || MK8)
+	depends on SMP
+	depends on (X86_32 && !(X86_VISWS || X86_VOYAGER)) || (X86_64 && !MK8)
 	default y
 
 config X86_BIOS_REBOOT
