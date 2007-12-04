@@ -436,12 +436,11 @@ struct kobject * kobject_get(struct kobject * kobj)
 	return kobj;
 }
 
-/**
- *	kobject_cleanup - free kobject resources. 
- *	@kobj:	object.
+/*
+ * kobject_cleanup - free kobject resources.
+ * @kobj: object to cleanup
  */
-
-void kobject_cleanup(struct kobject * kobj)
+static void kobject_cleanup(struct kobject *kobj)
 {
 	struct kobj_type * t = get_ktype(kobj);
 	struct kset * s = kobj->kset;
