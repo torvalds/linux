@@ -486,9 +486,7 @@ static void setup_addressing_mode(void)
 	if (s390_noexec) {
 		printk("S390 execute protection active, ");
 		set_amode_and_uaccess(PSW_ASC_SECONDARY, PSW32_ASC_SECONDARY);
-		return;
-	}
-	if (switch_amode) {
+	} else if (switch_amode) {
 		printk("S390 address spaces switched, ");
 		set_amode_and_uaccess(PSW_ASC_PRIMARY, PSW32_ASC_PRIMARY);
 	}
