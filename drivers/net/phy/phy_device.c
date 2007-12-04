@@ -44,6 +44,16 @@ static struct phy_driver genphy_driver;
 extern int mdio_bus_init(void);
 extern void mdio_bus_exit(void);
 
+void phy_device_free(struct phy_device *phydev)
+{
+	kfree(phydev);
+}
+
+static void phy_device_release(struct device *dev)
+{
+	phy_device_free(to_phy_device(dev));
+}
+
 struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 {
 	struct phy_device *dev;
@@ -53,6 +63,8 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 
 	if (NULL == dev)
 		return (struct phy_device*) PTR_ERR((void*)-ENOMEM);
+
+	dev->dev.release = phy_device_release;
 
 	dev->speed = 0;
 	dev->duplex = -1;
