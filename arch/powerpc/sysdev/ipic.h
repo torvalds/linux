@@ -44,13 +44,11 @@ struct ipic {
 
 	/* The remapper for this IPIC */
 	struct irq_host		*irqhost;
-
-	/* The "linux" controller struct */
-	struct irq_chip		hc_irq;
 };
 
 struct ipic_info {
-	u8	pend;		/* pending register offset from base */
+	u8	ack;		/* pending register offset from base if the irq
+				   supports ack operation */
 	u8	mask;		/* mask register offset from base */
 	u8	prio;		/* priority register offset from base */
 	u8	force;		/* force register offset from base */
