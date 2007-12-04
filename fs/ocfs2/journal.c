@@ -174,6 +174,12 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
  * transaction. extend_trans will either extend the current handle by
  * nblocks, or commit it and start a new one with nblocks credits.
  *
+ * This might call journal_restart() which will commit dirty buffers
+ * and then restart the transaction. Before calling
+ * ocfs2_extend_trans(), any changed blocks should have been
+ * dirtied. After calling it, all blocks which need to be changed must
+ * go through another set of journal_access/journal_dirty calls.
+ *
  * WARNING: This will not release any semaphores or disk locks taken
  * during the transaction, so make sure they were taken *before*
  * start_trans or we'll have ordering deadlocks.
