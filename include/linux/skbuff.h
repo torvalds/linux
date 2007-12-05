@@ -288,6 +288,7 @@ struct sk_buff {
 	__u8			pkt_type:3,
 				fclone:2,
 				ipvs_property:1,
+				peeked:1,
 				nf_trace:1;
 	__be16			protocol;
 
@@ -1538,6 +1539,8 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 		     skb = skb->prev)
 
 
+extern struct sk_buff *__skb_recv_datagram(struct sock *sk, unsigned flags,
+					   int *peeked, int *err);
 extern struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
 					 int noblock, int *err);
 extern unsigned int    datagram_poll(struct file *file, struct socket *sock,
