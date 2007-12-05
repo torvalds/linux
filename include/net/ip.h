@@ -395,6 +395,4 @@ int ipv4_doint_and_flush_strategy(ctl_table *table, int __user *name, int nlen,
 extern int ip_misc_proc_init(void);
 #endif
 
-extern struct ctl_table ipv4_table[];
-
 #endif	/* _IP_H */

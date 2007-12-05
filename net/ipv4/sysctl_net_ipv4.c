@@ -13,6 +13,7 @@
 #include <linux/igmp.h>
 #include <linux/inetdevice.h>
 #include <linux/seqlock.h>
+#include <linux/init.h>
 #include <net/snmp.h>
 #include <net/icmp.h>
 #include <net/ip.h>
@@ -247,7 +248,7 @@ static int strategy_allowed_congestion_control(ctl_table *table, int __user *nam
 
 }
 
-ctl_table ipv4_table[] = {
+static struct ctl_table ipv4_table[] = {
 	{
 		.ctl_name	= NET_IPV4_TCP_TIMESTAMPS,
 		.procname	= "tcp_timestamps",
@@ -878,3 +879,19 @@ ctl_table ipv4_table[] = {
 	},
 	{ .ctl_name = 0 }
 };
+
+static __initdata struct ctl_path net_ipv4_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ },
+};
+
+static __init int sysctl_ipv4_init(void)
+{
+	struct ctl_table_header *hdr;
+
+	hdr = register_sysctl_paths(net_ipv4_path, ipv4_table);
+	return hdr == NULL ? -ENOMEM : 0;
+}
+
+__initcall(sysctl_ipv4_init);

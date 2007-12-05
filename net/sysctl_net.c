@@ -31,14 +31,6 @@
 #endif
 
 struct ctl_table net_table[] = {
-#ifdef CONFIG_INET
-	{
-		.ctl_name	= NET_IPV4,
-		.procname	= "ipv4",
-		.mode		= 0555,
-		.child		= ipv4_table
-	},
-#endif
 #ifdef CONFIG_TR
 	{
 		.ctl_name	= NET_TR,
