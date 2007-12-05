@@ -2,21 +2,18 @@ menu "Core Netfilter Configuration"
 	depends on NET && INET && NETFILTER
 
 config NETFILTER_NETLINK
-       tristate "Netfilter netlink interface"
-       help
-         If this option is enabled, the kernel will include support
-         for the new netfilter netlink interface.
+	tristate
 
 config NETFILTER_NETLINK_QUEUE
 	tristate "Netfilter NFQUEUE over NFNETLINK interface"
-	depends on NETFILTER_NETLINK
+	select NETFILTER_NETLINK
 	help
 	  If this option is enabled, the kernel will include support
 	  for queueing packets via NFNETLINK.
 	  
 config NETFILTER_NETLINK_LOG
 	tristate "Netfilter LOG over NFNETLINK interface"
-	depends on NETFILTER_NETLINK
+	select NETFILTER_NETLINK
 	help
 	  If this option is enabled, the kernel will include support
 	  for logging packets via NFNETLINK.
@@ -246,8 +243,8 @@ config NF_CONNTRACK_TFTP
 
 config NF_CT_NETLINK
 	tristate 'Connection tracking netlink interface (EXPERIMENTAL)'
-	depends on EXPERIMENTAL && NF_CONNTRACK && NETFILTER_NETLINK
-	depends on NF_CONNTRACK!=y || NETFILTER_NETLINK!=m
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	select NETFILTER_NETLINK
 	depends on NF_NAT=n || NF_NAT
 	help
 	  This option enables support for a netlink-based userspace interface
