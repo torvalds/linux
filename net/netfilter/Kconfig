@@ -554,6 +554,14 @@ config NETFILTER_XT_MATCH_MARK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_OWNER
+	tristate '"owner" match support'
+	depends on NETFILTER_XTABLES
+	---help---
+	Socket owner matching allows you to match locally-generated packets
+	based on who created the socket: the user or group. It is also
+	possible to check whether a socket actually exists.
+
 config NETFILTER_XT_MATCH_POLICY
 	tristate 'IPsec "policy" match support'
 	depends on NETFILTER_XTABLES && XFRM
