@@ -589,7 +589,7 @@ int spi_write_then_read(struct spi_device *spi,
 		const u8 *txbuf, unsigned n_tx,
 		u8 *rxbuf, unsigned n_rx)
 {
-	static DECLARE_MUTEX(lock);
+	static DEFINE_MUTEX(lock);
 
 	int			status;
 	struct spi_message	message;
@@ -615,7 +615,7 @@ int spi_write_then_read(struct spi_device *spi,
 	}
 
 	/* ... unless someone else is using the pre-allocated buffer */
-	if (down_trylock(&lock)) {
+	if (!mutex_trylock(&lock)) {
 		local_buf = kmalloc(SPI_BUFSIZ, GFP_KERNEL);
 		if (!local_buf)
 			return -ENOMEM;
@@ -634,7 +634,7 @@ int spi_write_then_read(struct spi_device *spi,
 	}
 
 	if (x[0].tx_buf == buf)
-		up(&lock);
+		mutex_unlock(&lock);
 	else
 		kfree(local_buf);
 
