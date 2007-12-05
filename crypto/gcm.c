@@ -100,7 +100,7 @@ static void crypto_gcm_ghash_update_sg(struct crypto_gcm_ghash_ctx *ctx,
 		n = scatterwalk_clamp(&walk, len);
 
 		if (!n) {
-			scatterwalk_start(&walk, sg_next(walk.sg));
+			scatterwalk_start(&walk, scatterwalk_sg_next(walk.sg));
 			n = scatterwalk_clamp(&walk, len);
 		}
 

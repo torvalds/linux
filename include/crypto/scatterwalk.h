@@ -52,6 +52,17 @@ static inline void crypto_yield(u32 flags)
 		cond_resched();
 }
 
+static inline void scatterwalk_sg_chain(struct scatterlist *sg1, int num,
+					struct scatterlist *sg2)
+{
+	sg_set_page(&sg1[num - 1], (void *)sg2, 0, 0);
+}
+
+static inline struct scatterlist *scatterwalk_sg_next(struct scatterlist *sg)
+{
+	return (++sg)->length ? sg : (void *)sg_page(sg);
+}
+
 static inline unsigned long scatterwalk_samebuf(struct scatter_walk *walk_in,
 						struct scatter_walk *walk_out)
 {
