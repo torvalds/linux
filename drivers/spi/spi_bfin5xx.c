@@ -501,7 +501,7 @@ static void u16_cs_chg_reader(struct driver_data *drv_data)
 	cs_active(drv_data, chip);
 	dummy_read(drv_data);
 
-	while (drv_data->rx < drv_data->rx_end) {
+	while (drv_data->rx < drv_data->rx_end - 2) {
 		cs_deactive(drv_data, chip);
 
 		if (chip->cs_chg_udelay)
