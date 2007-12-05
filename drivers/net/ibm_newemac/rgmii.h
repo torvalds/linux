@@ -35,8 +35,9 @@ struct rgmii_regs {
 struct rgmii_instance {
 	struct rgmii_regs __iomem	*base;
 
-	/* Type of RGMII bridge */
-	int				type;
+	/* RGMII bridge flags */
+	int				flags;
+#define EMAC_RGMII_FLAG_HAS_MDIO	0x00000001
 
 	/* Only one EMAC whacks us at a time */
 	struct mutex			lock;

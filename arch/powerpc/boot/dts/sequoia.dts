@@ -245,6 +245,7 @@
 				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii-440epx", "ibm,rgmii";
 				reg = <ef601000 8>;
+				has-mdio;
 			};
 
 			EMAC0: ethernet@ef600e00 {
