@@ -15,6 +15,9 @@
 
 #include <crypto/algapi.h>
 #include <crypto/skcipher.h>
+#include <linux/types.h>
+
+struct rtattr;
 
 struct crypto_skcipher_spawn {
 	struct crypto_spawn base;
@@ -48,6 +51,21 @@ static inline struct crypto_ablkcipher *crypto_spawn_skcipher(
 	return __crypto_ablkcipher_cast(
 		crypto_spawn_tfm(&spawn->base, crypto_skcipher_type(0),
 				 crypto_skcipher_mask(0)));
+}
+
+const char *crypto_default_geniv(const struct crypto_alg *alg);
+
+struct crypto_instance *skcipher_geniv_alloc(struct crypto_template *tmpl,
+					     struct rtattr **tb, u32 type,
+					     u32 mask);
+void skcipher_geniv_free(struct crypto_instance *inst);
+int skcipher_geniv_init(struct crypto_tfm *tfm);
+void skcipher_geniv_exit(struct crypto_tfm *tfm);
+
+static inline struct crypto_ablkcipher *skcipher_geniv_cipher(
+	struct crypto_ablkcipher *geniv)
+{
+	return crypto_ablkcipher_crt(geniv)->base;
 }
 
 static inline void *skcipher_givcrypt_reqctx(

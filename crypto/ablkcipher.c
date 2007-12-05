@@ -80,6 +80,7 @@ static int crypto_init_ablkcipher_ops(struct crypto_tfm *tfm, u32 type,
 	crt->setkey = setkey;
 	crt->encrypt = alg->encrypt;
 	crt->decrypt = alg->decrypt;
+	crt->base = __crypto_ablkcipher_cast(tfm);
 	crt->ivsize = alg->ivsize;
 
 	return 0;
@@ -122,11 +123,13 @@ static int crypto_init_givcipher_ops(struct crypto_tfm *tfm, u32 type,
 	if (alg->ivsize > PAGE_SIZE / 8)
 		return -EINVAL;
 
-	crt->setkey = setkey;
+	crt->setkey = tfm->__crt_alg->cra_flags & CRYPTO_ALG_GENIV ?
+		      alg->setkey : setkey;
 	crt->encrypt = alg->encrypt;
 	crt->decrypt = alg->decrypt;
 	crt->givencrypt = alg->givencrypt;
 	crt->givdecrypt = alg->givdecrypt ?: no_givdecrypt;
+	crt->base = __crypto_ablkcipher_cast(tfm);
 	crt->ivsize = alg->ivsize;
 
 	return 0;
@@ -154,6 +157,11 @@ const struct crypto_type crypto_givcipher_type = {
 #endif
 };
 EXPORT_SYMBOL_GPL(crypto_givcipher_type);
+
+const char *crypto_default_geniv(const struct crypto_alg *alg)
+{
+	return alg->cra_flags & CRYPTO_ALG_ASYNC ? "eseqiv" : "chainiv";
+}
 
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn, const char *name,
 			 u32 type, u32 mask)

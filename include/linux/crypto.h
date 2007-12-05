@@ -53,6 +53,12 @@
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
 
 /*
+ * This bit is set for symmetric key ciphers that have already been wrapped
+ * with a generic IV generator to prevent them from being wrapped again.
+ */
+#define CRYPTO_ALG_GENIV		0x00000200
+
+/*
  * Transform masks and values (for crt_flags).
  */
 #define CRYPTO_TFM_REQ_MASK		0x000fff00
@@ -331,6 +337,8 @@ struct ablkcipher_tfm {
 	int (*givencrypt)(struct skcipher_givcrypt_request *req);
 	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
 
+	struct crypto_ablkcipher *base;
+
 	unsigned int ivsize;
 	unsigned int reqsize;
 };
@@ -541,14 +549,14 @@ static inline struct crypto_ablkcipher *__crypto_ablkcipher_cast(
 
 static inline u32 crypto_skcipher_type(u32 type)
 {
-	type &= ~CRYPTO_ALG_TYPE_MASK;
+	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV);
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
 	return type;
 }
 
 static inline u32 crypto_skcipher_mask(u32 mask)
 {
-	mask &= ~CRYPTO_ALG_TYPE_MASK;
+	mask &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV);
 	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 	return mask;
 }
@@ -623,7 +631,9 @@ static inline void crypto_ablkcipher_clear_flags(struct crypto_ablkcipher *tfm,
 static inline int crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	return crypto_ablkcipher_crt(tfm)->setkey(tfm, key, keylen);
+	struct ablkcipher_tfm *crt = crypto_ablkcipher_crt(tfm);
+
+	return crt->setkey(crt->base, key, keylen);
 }
 
 static inline struct crypto_ablkcipher *crypto_ablkcipher_reqtfm(
@@ -655,7 +665,7 @@ static inline unsigned int crypto_ablkcipher_reqsize(
 static inline void ablkcipher_request_set_tfm(
 	struct ablkcipher_request *req, struct crypto_ablkcipher *tfm)
 {
-	req->base.tfm = crypto_ablkcipher_tfm(tfm);
+	req->base.tfm = crypto_ablkcipher_tfm(crypto_ablkcipher_crt(tfm)->base);
 }
 
 static inline struct ablkcipher_request *ablkcipher_request_cast(
