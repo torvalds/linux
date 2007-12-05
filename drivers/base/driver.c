@@ -142,6 +142,37 @@ void put_driver(struct device_driver * drv)
 	kobject_put(&drv->kobj);
 }
 
+static int driver_add_groups(struct device_driver *drv,
+			     struct attribute_group **groups)
+{
+	int error = 0;
+	int i;
+
+	if (groups) {
+		for (i = 0; groups[i]; i++) {
+			error = sysfs_create_group(&drv->kobj, groups[i]);
+			if (error) {
+				while (--i >= 0)
+					sysfs_remove_group(&drv->kobj,
+							   groups[i]);
+				break;
+			}
+		}
+	}
+	return error;
+}
+
+static void driver_remove_groups(struct device_driver *drv,
+				 struct attribute_group **groups)
+{
+	int i;
+
+	if (groups)
+		for (i = 0; groups[i]; i++)
+			sysfs_remove_group(&drv->kobj, groups[i]);
+}
+
+
 /**
  *	driver_register - register driver with bus
  *	@drv:	driver to register
@@ -152,13 +183,21 @@ void put_driver(struct device_driver * drv)
  */
 int driver_register(struct device_driver * drv)
 {
+	int ret;
+
 	if ((drv->bus->probe && drv->probe) ||
 	    (drv->bus->remove && drv->remove) ||
 	    (drv->bus->shutdown && drv->shutdown)) {
 		printk(KERN_WARNING "Driver '%s' needs updating - please use bus_type methods\n", drv->name);
 	}
 	klist_init(&drv->klist_devices, NULL, NULL);
-	return bus_add_driver(drv);
+	ret = bus_add_driver(drv);
+	if (ret)
+		return ret;
+	ret = driver_add_groups(drv, drv->groups);
+	if (ret)
+		bus_remove_driver(drv);
+	return ret;
 }
 
 /**
@@ -170,6 +209,7 @@ int driver_register(struct device_driver * drv)
 
 void driver_unregister(struct device_driver * drv)
 {
+	driver_remove_groups(drv, drv->groups);
 	bus_remove_driver(drv);
 }
 
