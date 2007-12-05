@@ -35,6 +35,7 @@
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>
 #include <linux/acpi.h>
+#include <linux/cdrom.h>
 
 /*
  * Define if arch has non-standard setup.  This is a _PCI_ standard
@@ -346,6 +347,12 @@ enum {
 	ATA_DMA_MASK_ATA	= (1 << 0),	/* DMA on ATA Disk */
 	ATA_DMA_MASK_ATAPI	= (1 << 1),	/* DMA on ATAPI */
 	ATA_DMA_MASK_CFA	= (1 << 2),	/* DMA on CF Card */
+
+	/* ATAPI command types */
+	ATAPI_READ		= 0,		/* READs */
+	ATAPI_WRITE		= 1,		/* WRITEs */
+	ATAPI_READ_CD		= 2,		/* READ CD [MSF] */
+	ATAPI_MISC		= 3,		/* the rest */
 };
 
 enum ata_xfer_mask {
@@ -1406,6 +1413,27 @@ static inline int ata_try_flush_cache(const struct ata_device *dev)
 	return ata_id_wcache_enabled(dev->id) ||
 	       ata_id_has_flush(dev->id) ||
 	       ata_id_has_flush_ext(dev->id);
+}
+
+static inline int atapi_cmd_type(u8 opcode)
+{
+	switch (opcode) {
+	case GPCMD_READ_10:
+	case GPCMD_READ_12:
+		return ATAPI_READ;
+
+	case GPCMD_WRITE_10:
+	case GPCMD_WRITE_12:
+	case GPCMD_WRITE_AND_VERIFY_10:
+		return ATAPI_WRITE;
+
+	case GPCMD_READ_CD:
+	case GPCMD_READ_CD_MSF:
+		return ATAPI_READ_CD;
+
+	default:
+		return ATAPI_MISC;
+	}
 }
 
 static inline unsigned int ac_err_mask(u8 status)
