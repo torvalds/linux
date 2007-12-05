@@ -10,10 +10,11 @@
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/netdevice.h>
+#include <linux/init.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
 
-ctl_table core_table[] = {
+static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
 	{
 		.ctl_name	= NET_CORE_WMEM_MAX,
@@ -149,3 +150,19 @@ ctl_table core_table[] = {
 	},
 	{ .ctl_name = 0 }
 };
+
+static __initdata struct ctl_path net_core_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "core", .ctl_name = NET_CORE, },
+	{ },
+};
+
+static __init int sysctl_core_init(void)
+{
+	struct ctl_table_header *hdr;
+
+	hdr = register_sysctl_paths(net_core_path, net_core_table);
+	return hdr == NULL ? -ENOMEM : 0;
+}
+
+__initcall(sysctl_core_init);

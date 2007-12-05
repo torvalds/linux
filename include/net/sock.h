@@ -1325,10 +1325,6 @@ extern __u32 sysctl_rmem_max;
 
 extern void sk_init(void);
 
-#ifdef CONFIG_SYSCTL
-extern struct ctl_table core_table[];
-#endif
-
 extern int sysctl_optmem_max;
 
 extern __u32 sysctl_wmem_default;
