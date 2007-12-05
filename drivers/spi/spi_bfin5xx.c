@@ -1167,6 +1167,21 @@ static inline int destroy_queue(struct driver_data *drv_data)
 	return 0;
 }
 
+static int setup_pin_mux(int action)
+{
+
+	u16 pin_req[] = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0};
+
+	if (action) {
+		if (peripheral_request_list(pin_req, DRV_NAME))
+			return -EFAULT;
+	} else {
+		peripheral_free_list(pin_req);
+	}
+
+	return 0;
+}
+
 static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1184,12 +1199,9 @@ static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (peripheral_request(P_SPI0_SCK, DRV_NAME) ||
-		 peripheral_request(P_SPI0_MISO, DRV_NAME) ||
-		 peripheral_request(P_SPI0_MOSI, DRV_NAME)) {
-
+	if (setup_pin_mux(1)) {
 		dev_err(&pdev->dev, ": Requesting Peripherals failed\n");
-		goto out_error_queue_alloc;
+		goto out_error;
 	}
 
 	drv_data = spi_master_get_devdata(master);
@@ -1225,9 +1237,11 @@ static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "controller probe successfully\n");
 	return status;
 
-      out_error_queue_alloc:
+out_error_queue_alloc:
 	destroy_queue(drv_data);
+out_error:
 	spi_master_put(master);
+
 	return status;
 }
 
@@ -1256,6 +1270,8 @@ static int __devexit bfin5xx_spi_remove(struct platform_device *pdev)
 
 	/* Disconnect from the SPI framework */
 	spi_unregister_master(drv_data->master);
+
+	setup_pin_mux(0);
 
 	/* Prevent double remove */
 	platform_set_drvdata(pdev, NULL);
