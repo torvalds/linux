@@ -574,13 +574,27 @@ EXPORT_SYMBOL_GPL(spu_add_sysdev_attr);
 int spu_add_sysdev_attr_group(struct attribute_group *attrs)
 {
 	struct spu *spu;
+	int rc = 0;
 
 	mutex_lock(&spu_full_list_mutex);
-	list_for_each_entry(spu, &spu_full_list, full_list)
-		sysfs_create_group(&spu->sysdev.kobj, attrs);
+	list_for_each_entry(spu, &spu_full_list, full_list) {
+		rc = sysfs_create_group(&spu->sysdev.kobj, attrs);
+
+		/* we're in trouble here, but try unwinding anyway */
+		if (rc) {
+			printk(KERN_ERR "%s: can't create sysfs group '%s'\n",
+					__func__, attrs->name);
+
+			list_for_each_entry_continue_reverse(spu,
+					&spu_full_list, full_list)
+				sysfs_remove_group(&spu->sysdev.kobj, attrs);
+			break;
+		}
+	}
+
 	mutex_unlock(&spu_full_list_mutex);
 
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(spu_add_sysdev_attr_group);
 
