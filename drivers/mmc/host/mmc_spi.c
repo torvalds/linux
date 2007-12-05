@@ -176,8 +176,6 @@ mmc_spi_readbytes(struct mmc_spi_host *host, unsigned len)
 				DMA_FROM_DEVICE);
 
 	status = spi_sync(host->spi, &host->readback);
-	if (status == 0)
-		status = host->readback.status;
 
 	if (host->dma_dev)
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -480,8 +478,6 @@ mmc_spi_command_send(struct mmc_spi_host *host,
 				DMA_BIDIRECTIONAL);
 	}
 	status = spi_sync(host->spi, &host->m);
-	if (status == 0)
-		status = host->m.status;
 
 	if (host->dma_dev)
 		dma_sync_single_for_cpu(host->dma_dev,
@@ -624,8 +620,6 @@ mmc_spi_writeblock(struct mmc_spi_host *host, struct spi_transfer *t)
 				DMA_BIDIRECTIONAL);
 
 	status = spi_sync(spi, &host->m);
-	if (status == 0)
-		status = host->m.status;
 
 	if (status != 0) {
 		dev_dbg(&spi->dev, "write error (%d)\n", status);
@@ -726,8 +720,6 @@ mmc_spi_readblock(struct mmc_spi_host *host, struct spi_transfer *t)
 		}
 
 		status = spi_sync(spi, &host->m);
-		if (status == 0)
-			status = host->m.status;
 
 		if (host->dma_dev) {
 			dma_sync_single_for_cpu(host->dma_dev,
@@ -905,8 +897,6 @@ mmc_spi_data_do(struct mmc_spi_host *host, struct mmc_command *cmd,
 					DMA_BIDIRECTIONAL);
 
 		tmp = spi_sync(spi, &host->m);
-		if (tmp == 0)
-			tmp = host->m.status;
 
 		if (host->dma_dev)
 			dma_sync_single_for_cpu(host->dma_dev,
