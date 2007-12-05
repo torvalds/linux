@@ -43,13 +43,8 @@ void de_put(struct proc_dir_entry *de)
 			return;
 		}
 
-		if (atomic_dec_and_test(&de->count)) {
-			if (de->deleted) {
-				printk("de_put: deferred delete of %s\n",
-					de->name);
-				free_proc_entry(de);
-			}
-		}		
+		if (atomic_dec_and_test(&de->count))
+			free_proc_entry(de);
 		unlock_kernel();
 	}
 }
