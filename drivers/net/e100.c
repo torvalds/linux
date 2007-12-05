@@ -2214,13 +2214,11 @@ static void e100_get_drvinfo(struct net_device *netdev,
 	strcpy(info->bus_info, pci_name(nic->pdev));
 }
 
+#define E100_PHY_REGS 0x1C
 static int e100_get_regs_len(struct net_device *netdev)
 {
 	struct nic *nic = netdev_priv(netdev);
-#define E100_PHY_REGS		0x1C
-#define E100_REGS_LEN		1 + E100_PHY_REGS + \
-	sizeof(nic->mem->dump_buf) / sizeof(u32)
-	return E100_REGS_LEN * sizeof(u32);
+	return 1 + E100_PHY_REGS + sizeof(nic->mem->dump_buf);
 }
 
 static void e100_get_regs(struct net_device *netdev,
