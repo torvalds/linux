@@ -276,21 +276,25 @@ static void u8_writer(struct driver_data *drv_data)
 	dev_dbg(&drv_data->pdev->dev,
 		"cr8-s is 0x%x\n", read_STAT());
 
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
+
 	while (drv_data->tx < drv_data->tx_end) {
 		write_TDBR(*(u8 *) (drv_data->tx));
 		while (read_STAT() & BIT_STAT_TXS)
 			continue;
 		++drv_data->tx;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 static void u8_cs_chg_writer(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	while (drv_data->tx < drv_data->tx_end) {
 		cs_active(chip);
@@ -304,16 +308,16 @@ static void u8_cs_chg_writer(struct driver_data *drv_data)
 			udelay(chip->cs_chg_udelay);
 		++drv_data->tx;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 static void u8_reader(struct driver_data *drv_data)
 {
 	dev_dbg(&drv_data->pdev->dev,
 		"cr-8 is 0x%x\n", read_STAT());
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	/* clear TDBR buffer before read(else it will be shifted out) */
 	write_TDBR(0xFFFF);
@@ -336,6 +340,10 @@ static void u8_reader(struct driver_data *drv_data)
 static void u8_cs_chg_reader(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	/* clear TDBR buffer before read(else it will be shifted out) */
 	write_TDBR(0xFFFF);
@@ -365,6 +373,10 @@ static void u8_cs_chg_reader(struct driver_data *drv_data)
 
 static void u8_duplex(struct driver_data *drv_data)
 {
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
+
 	/* in duplex mode, clk is triggered by writing of TDBR */
 	while (drv_data->rx < drv_data->rx_end) {
 		write_TDBR(*(u8 *) (drv_data->tx));
@@ -376,15 +388,15 @@ static void u8_duplex(struct driver_data *drv_data)
 		++drv_data->rx;
 		++drv_data->tx;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 static void u8_cs_chg_duplex(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	while (drv_data->rx < drv_data->rx_end) {
 		cs_active(chip);
@@ -402,10 +414,6 @@ static void u8_cs_chg_duplex(struct driver_data *drv_data)
 		++drv_data->rx;
 		++drv_data->tx;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 static void u16_writer(struct driver_data *drv_data)
@@ -413,21 +421,25 @@ static void u16_writer(struct driver_data *drv_data)
 	dev_dbg(&drv_data->pdev->dev,
 		"cr16 is 0x%x\n", read_STAT());
 
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
+
 	while (drv_data->tx < drv_data->tx_end) {
 		write_TDBR(*(u16 *) (drv_data->tx));
 		while ((read_STAT() & BIT_STAT_TXS))
 			continue;
 		drv_data->tx += 2;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 static void u16_cs_chg_writer(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	while (drv_data->tx < drv_data->tx_end) {
 		cs_active(chip);
@@ -441,16 +453,16 @@ static void u16_cs_chg_writer(struct driver_data *drv_data)
 			udelay(chip->cs_chg_udelay);
 		drv_data->tx += 2;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 static void u16_reader(struct driver_data *drv_data)
 {
 	dev_dbg(&drv_data->pdev->dev,
 		"cr-16 is 0x%x\n", read_STAT());
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	/* clear TDBR buffer before read(else it will be shifted out) */
 	write_TDBR(0xFFFF);
@@ -473,6 +485,10 @@ static void u16_reader(struct driver_data *drv_data)
 static void u16_cs_chg_reader(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	/* clear TDBR buffer before read(else it will be shifted out) */
 	write_TDBR(0xFFFF);
@@ -502,6 +518,10 @@ static void u16_cs_chg_reader(struct driver_data *drv_data)
 
 static void u16_duplex(struct driver_data *drv_data)
 {
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
+
 	/* in duplex mode, clk is triggered by writing of TDBR */
 	while (drv_data->tx < drv_data->tx_end) {
 		write_TDBR(*(u16 *) (drv_data->tx));
@@ -513,15 +533,15 @@ static void u16_duplex(struct driver_data *drv_data)
 		drv_data->rx += 2;
 		drv_data->tx += 2;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 static void u16_cs_chg_duplex(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
+
+	/* poll for SPI completion before start */
+	while (!(read_STAT() & BIT_STAT_SPIF))
+		continue;
 
 	while (drv_data->tx < drv_data->tx_end) {
 		cs_active(chip);
@@ -539,10 +559,6 @@ static void u16_cs_chg_duplex(struct driver_data *drv_data)
 		drv_data->rx += 2;
 		drv_data->tx += 2;
 	}
-
-	/* poll for SPI completion before returning */
-	while (!(read_STAT() & BIT_STAT_SPIF))
-		continue;
 }
 
 /* test if ther is more transfer to be done */
@@ -764,6 +780,10 @@ static void pump_transfers(unsigned long data)
 			set_dma_x_modify(spi_dma_ch, 1);
 			dma_width = WDSIZE_8;
 		}
+
+		/* poll for SPI completion before start */
+		while (!(read_STAT() & BIT_STAT_SPIF))
+			continue;
 
 		/* dirty hack for autobuffer DMA mode */
 		if (drv_data->tx_dma == 0xFFFF) {
