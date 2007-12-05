@@ -1263,6 +1263,28 @@ static void devinet_copy_dflt_conf(int i)
 	read_unlock(&dev_base_lock);
 }
 
+static void inet_forward_change(void)
+{
+	struct net_device *dev;
+	int on = IPV4_DEVCONF_ALL(FORWARDING);
+
+	IPV4_DEVCONF_ALL(ACCEPT_REDIRECTS) = !on;
+	IPV4_DEVCONF_DFLT(FORWARDING) = on;
+
+	read_lock(&dev_base_lock);
+	for_each_netdev(&init_net, dev) {
+		struct in_device *in_dev;
+		rcu_read_lock();
+		in_dev = __in_dev_get_rcu(dev);
+		if (in_dev)
+			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
+		rcu_read_unlock();
+	}
+	read_unlock(&dev_base_lock);
+
+	rt_cache_flush(0);
+}
+
 static int devinet_conf_proc(ctl_table *ctl, int write,
 			     struct file* filp, void __user *buffer,
 			     size_t *lenp, loff_t *ppos)
@@ -1330,28 +1352,6 @@ static int devinet_conf_sysctl(ctl_table *table, int __user *name, int nlen,
 		devinet_copy_dflt_conf(i);
 
 	return 1;
-}
-
-void inet_forward_change(void)
-{
-	struct net_device *dev;
-	int on = IPV4_DEVCONF_ALL(FORWARDING);
-
-	IPV4_DEVCONF_ALL(ACCEPT_REDIRECTS) = !on;
-	IPV4_DEVCONF_DFLT(FORWARDING) = on;
-
-	read_lock(&dev_base_lock);
-	for_each_netdev(&init_net, dev) {
-		struct in_device *in_dev;
-		rcu_read_lock();
-		in_dev = __in_dev_get_rcu(dev);
-		if (in_dev)
-			IN_DEV_CONF_SET(in_dev, FORWARDING, on);
-		rcu_read_unlock();
-	}
-	read_unlock(&dev_base_lock);
-
-	rt_cache_flush(0);
 }
 
 static int devinet_sysctl_forward(ctl_table *ctl, int write,
@@ -1536,6 +1536,27 @@ static void devinet_sysctl_unregister(struct ipv4_devconf *p)
 }
 #endif
 
+static struct ctl_table ctl_forward_entry[] = {
+	{
+		.ctl_name	= NET_IPV4_FORWARD,
+		.procname	= "ip_forward",
+		.data		= &ipv4_devconf.data[
+					NET_IPV4_CONF_FORWARDING - 1],
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= devinet_sysctl_forward,
+		.strategy	= devinet_conf_sysctl,
+		.extra1		= &ipv4_devconf,
+	},
+	{ },
+};
+
+static __initdata struct ctl_path net_ipv4_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ },
+};
+
 void __init devinet_init(void)
 {
 	register_gifconf(PF_INET, inet_gifconf);
@@ -1549,6 +1570,7 @@ void __init devinet_init(void)
 			&ipv4_devconf);
 	__devinet_sysctl_register("default", NET_PROTO_CONF_DEFAULT,
 			&ipv4_devconf_dflt);
+	register_sysctl_paths(net_ipv4_path, ctl_forward_entry);
 #endif
 }
 
