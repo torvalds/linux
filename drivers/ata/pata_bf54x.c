@@ -1167,34 +1167,36 @@ static unsigned char bfin_bmdma_status(struct ata_port *ap)
  *	Note: Original code is ata_data_xfer().
  */
 
-static void bfin_data_xfer(struct ata_device *adev, unsigned char *buf,
-			   unsigned int buflen, int write_data)
+static unsigned int bfin_data_xfer(struct ata_device *dev, unsigned char *buf,
+				   unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
-	unsigned int words = buflen >> 1;
-	unsigned short *buf16 = (u16 *) buf;
+	struct ata_port *ap = dev->link->ap;
 	void __iomem *base = (void __iomem *)ap->ioaddr.ctl_addr;
+	unsigned int words = buflen >> 1;
+	unsigned short *buf16 = (u16 *)buf;
 
 	/* Transfer multiple of 2 bytes */
-	if (write_data) {
-		write_atapi_data(base, words, buf16);
-	} else {
+	if (rw == READ)
 		read_atapi_data(base, words, buf16);
-	}
+	else
+		write_atapi_data(base, words, buf16);
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
 		unsigned short align_buf[1] = { 0 };
 		unsigned char *trailing_buf = buf + buflen - 1;
 
-		if (write_data) {
-			memcpy(align_buf, trailing_buf, 1);
-			write_atapi_data(base, 1, align_buf);
-		} else {
+		if (rw == READ) {
 			read_atapi_data(base, 1, align_buf);
 			memcpy(trailing_buf, align_buf, 1);
+		} else {
+			memcpy(align_buf, trailing_buf, 1);
+			write_atapi_data(base, 1, align_buf);
 		}
+		words++;
 	}
+
+	return words << 1;
 }
 
 /**

@@ -701,7 +701,8 @@ struct ata_port_operations {
 	void (*bmdma_setup) (struct ata_queued_cmd *qc);
 	void (*bmdma_start) (struct ata_queued_cmd *qc);
 
-	void (*data_xfer) (struct ata_device *, unsigned char *, unsigned int, int);
+	unsigned int (*data_xfer) (struct ata_device *dev, unsigned char *buf,
+				   unsigned int buflen, int rw);
 
 	int (*qc_defer) (struct ata_queued_cmd *qc);
 	void (*qc_prep) (struct ata_queued_cmd *qc);
@@ -881,10 +882,10 @@ extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 extern int ata_port_start(struct ata_port *ap);
 extern int ata_sff_port_start(struct ata_port *ap);
 extern irqreturn_t ata_interrupt(int irq, void *dev_instance);
-extern void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
-			  unsigned int buflen, int write_data);
-extern void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
-				unsigned int buflen, int write_data);
+extern unsigned int ata_data_xfer(struct ata_device *dev,
+			unsigned char *buf, unsigned int buflen, int rw);
+extern unsigned int ata_data_xfer_noirq(struct ata_device *dev,
+			unsigned char *buf, unsigned int buflen, int rw);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);
 extern void ata_dumb_qc_prep(struct ata_queued_cmd *qc);
 extern void ata_qc_prep(struct ata_queued_cmd *qc);

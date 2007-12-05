@@ -4994,7 +4994,7 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
 
 /**
  *	ata_data_xfer - Transfer data by PIO
- *	@adev: device to target
+ *	@dev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
  *	@write_data: read/write
@@ -5003,37 +5003,44 @@ void swap_buf_le16(u16 *buf, unsigned int buf_words)
  *
  *	LOCKING:
  *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	Bytes consumed.
  */
-void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
-		   unsigned int buflen, int write_data)
+unsigned int ata_data_xfer(struct ata_device *dev, unsigned char *buf,
+			   unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
+	struct ata_port *ap = dev->link->ap;
+	void __iomem *data_addr = ap->ioaddr.data_addr;
 	unsigned int words = buflen >> 1;
 
 	/* Transfer multiple of 2 bytes */
-	if (write_data)
-		iowrite16_rep(ap->ioaddr.data_addr, buf, words);
+	if (rw == READ)
+		ioread16_rep(data_addr, buf, words);
 	else
-		ioread16_rep(ap->ioaddr.data_addr, buf, words);
+		iowrite16_rep(data_addr, buf, words);
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
 		u16 align_buf[1] = { 0 };
 		unsigned char *trailing_buf = buf + buflen - 1;
 
-		if (write_data) {
-			memcpy(align_buf, trailing_buf, 1);
-			iowrite16(le16_to_cpu(align_buf[0]), ap->ioaddr.data_addr);
-		} else {
-			align_buf[0] = cpu_to_le16(ioread16(ap->ioaddr.data_addr));
+		if (rw == READ) {
+			align_buf[0] = cpu_to_le16(ioread16(data_addr));
 			memcpy(trailing_buf, align_buf, 1);
+		} else {
+			memcpy(align_buf, trailing_buf, 1);
+			iowrite16(le16_to_cpu(align_buf[0]), data_addr);
 		}
+		words++;
 	}
+
+	return words << 1;
 }
 
 /**
  *	ata_data_xfer_noirq - Transfer data by PIO
- *	@adev: device to target
+ *	@dev: device to target
  *	@buf: data buffer
  *	@buflen: buffer length
  *	@write_data: read/write
@@ -5043,14 +5050,21 @@ void ata_data_xfer(struct ata_device *adev, unsigned char *buf,
  *
  *	LOCKING:
  *	Inherited from caller.
+ *
+ *	RETURNS:
+ *	Bytes consumed.
  */
-void ata_data_xfer_noirq(struct ata_device *adev, unsigned char *buf,
-			 unsigned int buflen, int write_data)
+unsigned int ata_data_xfer_noirq(struct ata_device *dev, unsigned char *buf,
+				 unsigned int buflen, int rw)
 {
 	unsigned long flags;
+	unsigned int consumed;
+
 	local_irq_save(flags);
-	ata_data_xfer(adev, buf, buflen, write_data);
+	consumed = ata_data_xfer(dev, buf, buflen, rw);
 	local_irq_restore(flags);
+
+	return consumed;
 }
 
 

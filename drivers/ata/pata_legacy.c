@@ -249,13 +249,14 @@ static void pdc20230_set_piomode(struct ata_port *ap, struct ata_device *adev)
 
 }
 
-static void pdc_data_xfer_vlb(struct ata_device *adev, unsigned char *buf, unsigned int buflen, int write_data)
+static unsigned int pdc_data_xfer_vlb(struct ata_device *dev,
+				unsigned char *buf, unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
-	int slop = buflen & 3;
-	unsigned long flags;
-
 	if (ata_id_has_dword_io(adev->id)) {
+		struct ata_port *ap = dev->link->ap;
+		int slop = buflen & 3;
+		unsigned long flags;
+
 		local_irq_save(flags);
 
 		/* Perform the 32bit I/O synchronization sequence */
@@ -264,26 +265,27 @@ static void pdc_data_xfer_vlb(struct ata_device *adev, unsigned char *buf, unsig
 		ioread8(ap->ioaddr.nsect_addr);
 
 		/* Now the data */
-
-		if (write_data)
-			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
-		else
+		if (rw == READ)
 			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
+		else
+			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
-			__le32 pad = 0;
-			if (write_data) {
-				memcpy(&pad, buf + buflen - slop, slop);
-				iowrite32(le32_to_cpu(pad), ap->ioaddr.data_addr);
-			} else {
+			u32 pad;
+			if (rw == READ) {
 				pad = cpu_to_le32(ioread32(ap->ioaddr.data_addr));
 				memcpy(buf + buflen - slop, &pad, slop);
+			} else {
+				memcpy(&pad, buf + buflen - slop, slop);
+				iowrite32(le32_to_cpu(pad), ap->ioaddr.data_addr);
 			}
+			buflen += 4 - slop;
 		}
 		local_irq_restore(flags);
-	}
-	else
-		ata_data_xfer_noirq(adev, buf, buflen, write_data);
+	} else
+		buflen = ata_data_xfer_noirq(dev, buf, buflen, rw);
+
+	return buflen;
 }
 
 static struct ata_port_operations pdc20230_port_ops = {

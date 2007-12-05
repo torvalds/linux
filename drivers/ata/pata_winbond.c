@@ -92,29 +92,33 @@ static void winbond_set_piomode(struct ata_port *ap, struct ata_device *adev)
 }
 
 
-static void winbond_data_xfer(struct ata_device *adev, unsigned char *buf, unsigned int buflen, int write_data)
+static void winbond_data_xfer(struct ata_device *dev, unsigned char *buf,
+			      unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
+	struct ata_port *ap = dev->link->ap;
 	int slop = buflen & 3;
 
-	if (ata_id_has_dword_io(adev->id)) {
-		if (write_data)
-			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
-		else
+	if (ata_id_has_dword_io(dev->id)) {
+		if (rw == READ)
 			ioread32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
+		else
+			iowrite32_rep(ap->ioaddr.data_addr, buf, buflen >> 2);
 
 		if (unlikely(slop)) {
-			__le32 pad = 0;
-			if (write_data) {
-				memcpy(&pad, buf + buflen - slop, slop);
-				iowrite32(le32_to_cpu(pad), ap->ioaddr.data_addr);
-			} else {
+			u32 pad;
+			if (rw == READ) {
 				pad = cpu_to_le32(ioread32(ap->ioaddr.data_addr));
 				memcpy(buf + buflen - slop, &pad, slop);
+			} else {
+				memcpy(&pad, buf + buflen - slop, slop);
+				iowrite32(le32_to_cpu(pad), ap->ioaddr.data_addr);
 			}
+			buflen += 4 - slop;
 		}
 	} else
-		ata_data_xfer(adev, buf, buflen, write_data);
+		buflen = ata_data_xfer(dev, buf, buflen, rw);
+
+	return buflen;
 }
 
 static struct scsi_host_template winbond_sht = {

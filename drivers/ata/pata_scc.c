@@ -768,45 +768,47 @@ static u8 scc_bmdma_status (struct ata_port *ap)
 
 /**
  *	scc_data_xfer - Transfer data by PIO
- *	@adev: device for this I/O
+ *	@dev: device for this I/O
  *	@buf: data buffer
  *	@buflen: buffer length
- *	@write_data: read/write
+ *	@rw: read/write
  *
  *	Note: Original code is ata_data_xfer().
  */
 
-static void scc_data_xfer (struct ata_device *adev, unsigned char *buf,
-			   unsigned int buflen, int write_data)
+static unsigned int scc_data_xfer (struct ata_device *dev, unsigned char *buf,
+				   unsigned int buflen, int rw)
 {
-	struct ata_port *ap = adev->link->ap;
+	struct ata_port *ap = dev->link->ap;
 	unsigned int words = buflen >> 1;
 	unsigned int i;
 	u16 *buf16 = (u16 *) buf;
 	void __iomem *mmio = ap->ioaddr.data_addr;
 
 	/* Transfer multiple of 2 bytes */
-	if (write_data) {
-		for (i = 0; i < words; i++)
-			out_be32(mmio, cpu_to_le16(buf16[i]));
-	} else {
+	if (rw == READ)
 		for (i = 0; i < words; i++)
 			buf16[i] = le16_to_cpu(in_be32(mmio));
-	}
+	else
+		for (i = 0; i < words; i++)
+			out_be32(mmio, cpu_to_le16(buf16[i]));
 
 	/* Transfer trailing 1 byte, if any. */
 	if (unlikely(buflen & 0x01)) {
 		u16 align_buf[1] = { 0 };
 		unsigned char *trailing_buf = buf + buflen - 1;
 
-		if (write_data) {
-			memcpy(align_buf, trailing_buf, 1);
-			out_be32(mmio, cpu_to_le16(align_buf[0]));
-		} else {
+		if (rw == READ) {
 			align_buf[0] = le16_to_cpu(in_be32(mmio));
 			memcpy(trailing_buf, align_buf, 1);
+		} else {
+			memcpy(align_buf, trailing_buf, 1);
+			out_be32(mmio, cpu_to_le16(align_buf[0]));
 		}
+		words++;
 	}
+
+	return words << 1;
 }
 
 /**
