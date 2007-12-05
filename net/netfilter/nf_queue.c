@@ -80,6 +80,27 @@ void nf_unregister_queue_handlers(const struct nf_queue_handler *qh)
 }
 EXPORT_SYMBOL_GPL(nf_unregister_queue_handlers);
 
+static void nf_queue_entry_release_refs(struct nf_queue_entry *entry)
+{
+	/* Release those devices we held, or Alexey will kill me. */
+	if (entry->indev)
+		dev_put(entry->indev);
+	if (entry->outdev)
+		dev_put(entry->outdev);
+#ifdef CONFIG_BRIDGE_NETFILTER
+	if (entry->skb->nf_bridge) {
+		struct nf_bridge_info *nf_bridge = entry->skb->nf_bridge;
+
+		if (nf_bridge->physindev)
+			dev_put(nf_bridge->physindev);
+		if (nf_bridge->physoutdev)
+			dev_put(nf_bridge->physoutdev);
+	}
+#endif
+	/* Drop reference to owner of hook which queued us. */
+	module_put(entry->elem->owner);
+}
+
 /*
  * Any packet that leaves via this function must come back
  * through nf_reinject().
@@ -93,10 +114,10 @@ static int __nf_queue(struct sk_buff *skb,
 		      unsigned int queuenum)
 {
 	int status;
-	struct nf_queue_entry *entry;
+	struct nf_queue_entry *entry = NULL;
 #ifdef CONFIG_BRIDGE_NETFILTER
-	struct net_device *physindev = NULL;
-	struct net_device *physoutdev = NULL;
+	struct net_device *physindev;
+	struct net_device *physoutdev;
 #endif
 	struct nf_afinfo *afinfo;
 	const struct nf_queue_handler *qh;
@@ -105,28 +126,16 @@ static int __nf_queue(struct sk_buff *skb,
 	rcu_read_lock();
 
 	qh = rcu_dereference(queue_handler[pf]);
-	if (!qh) {
-		rcu_read_unlock();
-		kfree_skb(skb);
-		return 1;
-	}
+	if (!qh)
+		goto err_unlock;
 
 	afinfo = nf_get_afinfo(pf);
-	if (!afinfo) {
-		rcu_read_unlock();
-		kfree_skb(skb);
-		return 1;
-	}
+	if (!afinfo)
+		goto err_unlock;
 
 	entry = kmalloc(sizeof(*entry) + afinfo->route_key_size, GFP_ATOMIC);
-	if (!entry) {
-		if (net_ratelimit())
-			printk(KERN_ERR "OOM queueing packet %p\n",
-			       skb);
-		rcu_read_unlock();
-		kfree_skb(skb);
-		return 1;
-	}
+	if (!entry)
+		goto err_unlock;
 
 	*entry = (struct nf_queue_entry) {
 		.skb	= skb,
@@ -166,24 +175,17 @@ static int __nf_queue(struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (status < 0) {
-		/* James M doesn't say fuck enough. */
-		if (indev)
-			dev_put(indev);
-		if (outdev)
-			dev_put(outdev);
-#ifdef CONFIG_BRIDGE_NETFILTER
-		if (physindev)
-			dev_put(physindev);
-		if (physoutdev)
-			dev_put(physoutdev);
-#endif
-		module_put(entry->elem->owner);
-		kfree(entry);
-		kfree_skb(skb);
-
-		return 1;
+		nf_queue_entry_release_refs(entry);
+		goto err;
 	}
 
+	return 1;
+
+err_unlock:
+	rcu_read_unlock();
+err:
+	kfree_skb(skb);
+	kfree(entry);
 	return 1;
 }
 
@@ -235,22 +237,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 
 	rcu_read_lock();
 
-	/* Release those devices we held, or Alexey will kill me. */
-	if (entry->indev)
-		dev_put(entry->indev);
-	if (entry->outdev)
-		dev_put(entry->outdev);
-#ifdef CONFIG_BRIDGE_NETFILTER
-	if (skb->nf_bridge) {
-		if (skb->nf_bridge->physindev)
-			dev_put(skb->nf_bridge->physindev);
-		if (skb->nf_bridge->physoutdev)
-			dev_put(skb->nf_bridge->physoutdev);
-	}
-#endif
-
-	/* Drop reference to owner of hook which queued us. */
-	module_put(entry->elem->owner);
+	nf_queue_entry_release_refs(entry);
 
 	/* Continue traversal iff userspace said ok... */
 	if (verdict == NF_REPEAT) {
