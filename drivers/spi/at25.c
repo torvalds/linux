@@ -21,6 +21,13 @@
 #include <linux/spi/eeprom.h>
 
 
+/*
+ * NOTE: this is an *EEPROM* driver.  The vagaries of product naming
+ * mean that some AT25 products are EEPROMs, and others are FLASH.
+ * Handle FLASH chips with the drivers/mtd/devices/m25p80.c driver,
+ * not this one!
+ */
+
 struct at25_data {
 	struct spi_device	*spi;
 	struct mutex		lock;
