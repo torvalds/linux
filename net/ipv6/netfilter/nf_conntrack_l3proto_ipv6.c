@@ -258,7 +258,7 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 	return ipv6_conntrack_in(hooknum, skb, in, out, okfn);
 }
 
-static struct nf_hook_ops ipv6_conntrack_ops[] = {
+static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
 	{
 		.hook		= ipv6_defrag,
 		.owner		= THIS_MODULE,

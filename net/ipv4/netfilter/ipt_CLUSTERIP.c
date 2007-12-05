@@ -551,7 +551,7 @@ arp_mangle(unsigned int hook,
 	return NF_ACCEPT;
 }
 
-static struct nf_hook_ops cip_arp_ops = {
+static struct nf_hook_ops cip_arp_ops __read_mostly = {
 	.hook = arp_mangle,
 	.pf = NF_ARP,
 	.hooknum = NF_ARP_OUT,

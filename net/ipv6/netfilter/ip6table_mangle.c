@@ -120,7 +120,7 @@ ip6t_local_hook(unsigned int hook,
 	return ret;
 }
 
-static struct nf_hook_ops ip6t_ops[] = {
+static struct nf_hook_ops ip6t_ops[] __read_mostly = {
 	{
 		.hook		= ip6t_route_hook,
 		.owner		= THIS_MODULE,

@@ -74,7 +74,7 @@ ipt_local_hook(unsigned int hook,
 }
 
 /* 'raw' is the very first table. */
-static struct nf_hook_ops ipt_ops[] = {
+static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
 		.hook = ipt_hook,
 		.pf = PF_INET,

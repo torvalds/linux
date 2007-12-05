@@ -128,7 +128,7 @@ ipt_local_hook(unsigned int hook,
 	return ret;
 }
 
-static struct nf_hook_ops ipt_ops[] = {
+static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
 		.hook		= ipt_route_hook,
 		.owner		= THIS_MODULE,

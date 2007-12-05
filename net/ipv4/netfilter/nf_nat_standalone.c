@@ -273,7 +273,7 @@ nf_nat_adjust(unsigned int hooknum,
 
 /* We must be after connection tracking and before packet filtering. */
 
-static struct nf_hook_ops nf_nat_ops[] = {
+static struct nf_hook_ops nf_nat_ops[] __read_mostly = {
 	/* Before packet filtering, change destination */
 	{
 		.hook		= nf_nat_in,

@@ -231,7 +231,7 @@ ing_hook(unsigned int hook, struct sk_buff *skb,
 }
 
 /* after ipt_filter */
-static struct nf_hook_ops ing_ops[] = {
+static struct nf_hook_ops ing_ops[] __read_mostly = {
 	{
 		.hook           = ing_hook,
 		.owner		= THIS_MODULE,

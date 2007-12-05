@@ -871,7 +871,7 @@ static unsigned int ip_sabotage_in(unsigned int hook, struct sk_buff *skb,
  * PF_BRIDGE/NF_BR_LOCAL_OUT functions don't get bridged traffic as input.
  * For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * ip_refrag() can return NF_STOLEN. */
-static struct nf_hook_ops br_nf_ops[] = {
+static struct nf_hook_ops br_nf_ops[] __read_mostly = {
 	{ .hook = br_nf_pre_routing,
 	  .owner = THIS_MODULE,
 	  .pf = PF_BRIDGE,

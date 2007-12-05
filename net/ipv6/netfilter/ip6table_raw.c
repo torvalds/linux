@@ -54,7 +54,7 @@ ip6t_hook(unsigned int hook,
 	return ip6t_do_table(skb, hook, in, out, &packet_raw);
 }
 
-static struct nf_hook_ops ip6t_ops[] = {
+static struct nf_hook_ops ip6t_ops[] __read_mostly = {
 	{
 	  .hook = ip6t_hook,
 	  .pf = PF_INET6,

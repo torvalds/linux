@@ -91,7 +91,7 @@ ipt_local_out_hook(unsigned int hook,
 	return ipt_do_table(skb, hook, in, out, &packet_filter);
 }
 
-static struct nf_hook_ops ipt_ops[] = {
+static struct nf_hook_ops ipt_ops[] __read_mostly = {
 	{
 		.hook		= ipt_hook,
 		.owner		= THIS_MODULE,
