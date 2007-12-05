@@ -13,8 +13,6 @@
 #include <net/sock.h>
 #include <net/xfrm.h>
 
-#ifdef CONFIG_SYSCTL
-
 ctl_table core_table[] = {
 #ifdef CONFIG_NET
 	{
@@ -151,5 +149,3 @@ ctl_table core_table[] = {
 	},
 	{ .ctl_name = 0 }
 };
-
-#endif
