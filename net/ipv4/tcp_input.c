@@ -3065,6 +3065,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	}
 
 	prior_fackets = tp->fackets_out;
+	prior_in_flight = tcp_packets_in_flight(tp);
 
 	if (!(flag&FLAG_SLOWPATH) && after(ack, prior_snd_una)) {
 		/* Window is constant, pure forward advance.
@@ -3103,8 +3104,6 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	prior_packets = tp->packets_out;
 	if (!prior_packets)
 		goto no_queue;
-
-	prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* See if we can take anything off of the retransmit queue. */
 	flag |= tcp_clean_rtx_queue(sk, &seq_rtt, prior_fackets);
