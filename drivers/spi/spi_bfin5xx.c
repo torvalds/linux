@@ -136,7 +136,6 @@ struct chip_data {
 	u16 flag;
 
 	u8 chip_select_num;
-	u8 chip_select_requested;
 	u8 n_bytes;
 	u8 width;		/* 0 or 1 */
 	u8 enable_dma;
@@ -216,19 +215,7 @@ static int restore_state(struct driver_data *drv_data)
 {
 	struct chip_data *chip = drv_data->cur_chip;
 	int ret = 0;
-	u16 ssel[3][MAX_SPI_SSEL] = {
-		{P_SPI0_SSEL1, P_SPI0_SSEL2, P_SPI0_SSEL3,
-		P_SPI0_SSEL4, P_SPI0_SSEL5,
-		P_SPI0_SSEL6, P_SPI0_SSEL7},
 
-		{P_SPI1_SSEL1, P_SPI1_SSEL2, P_SPI1_SSEL3,
-		P_SPI1_SSEL4, P_SPI1_SSEL5,
-		P_SPI1_SSEL6, P_SPI1_SSEL7},
-
-		{P_SPI2_SSEL1, P_SPI2_SSEL2, P_SPI2_SSEL3,
-		P_SPI2_SSEL4, P_SPI2_SSEL5,
-		P_SPI2_SSEL6, P_SPI2_SSEL7},
-	};
 	/* Clear status and disable clock */
 	write_STAT(BIT_STAT_CLR);
 	bfin_spi_disable(drv_data);
@@ -238,17 +225,6 @@ static int restore_state(struct driver_data *drv_data)
 	write_CTRL(chip->ctl_reg);
 	write_BAUD(chip->baud);
 	cs_active(chip);
-
-	if (!chip->chip_select_requested) {
-		int i = chip->chip_select_num;
-
-		dev_dbg(&drv_data->pdev->dev, "chip select number is %d\n", i);
-		if ((i > 0) && (i <= MAX_SPI_SSEL))
-			ret = peripheral_request(
-				ssel[drv_data->master->bus_num][i-1], DRV_NAME);
-
-		chip->chip_select_requested = 1;
-	}
 
 	if (ret)
 		dev_dbg(&drv_data->pdev->dev,
@@ -983,6 +959,22 @@ static int transfer(struct spi_device *spi, struct spi_message *msg)
 	return 0;
 }
 
+#define MAX_SPI_SSEL	7
+
+static u16 ssel[3][MAX_SPI_SSEL] = {
+	{P_SPI0_SSEL1, P_SPI0_SSEL2, P_SPI0_SSEL3,
+	P_SPI0_SSEL4, P_SPI0_SSEL5,
+	P_SPI0_SSEL6, P_SPI0_SSEL7},
+
+	{P_SPI1_SSEL1, P_SPI1_SSEL2, P_SPI1_SSEL3,
+	P_SPI1_SSEL4, P_SPI1_SSEL5,
+	P_SPI1_SSEL6, P_SPI1_SSEL7},
+
+	{P_SPI2_SSEL1, P_SPI2_SSEL2, P_SPI2_SSEL3,
+	P_SPI2_SSEL4, P_SPI2_SSEL5,
+	P_SPI2_SSEL6, P_SPI2_SSEL7},
+};
+
 /* first setup for new devices */
 static int setup(struct spi_device *spi)
 {
@@ -1113,6 +1105,12 @@ static int setup(struct spi_device *spi)
 
 	spi_set_ctldata(spi, chip);
 
+	dev_dbg(&spi->dev, "chip select number is %d\n", chip->chip_select_num);
+	if ((chip->chip_select_num > 0)
+		&& (chip->chip_select_num <= spi->master->num_chipselect))
+		peripheral_request(ssel[spi->master->bus_num]
+			[chip->chip_select_num-1], DRV_NAME);
+
 	return 0;
 }
 
@@ -1123,6 +1121,11 @@ static int setup(struct spi_device *spi)
 static void cleanup(struct spi_device *spi)
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
+
+	if ((chip->chip_select_num > 0)
+		&& (chip->chip_select_num <= spi->master->num_chipselect))
+		peripheral_free(ssel[spi->master->bus_num]
+					[chip->chip_select_num-1]);
 
 	kfree(chip);
 }
