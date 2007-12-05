@@ -1979,6 +1979,7 @@ static int myri10ge_open(struct net_device *dev)
 	lro_mgr->lro_arr = mgp->rx_done.lro_desc;
 	lro_mgr->get_frag_header = myri10ge_get_frag_header;
 	lro_mgr->max_aggr = myri10ge_lro_max_pkts;
+	lro_mgr->frag_align_pad = 2;
 	if (lro_mgr->max_aggr > MAX_SKB_FRAGS)
 		lro_mgr->max_aggr = MAX_SKB_FRAGS;
 
