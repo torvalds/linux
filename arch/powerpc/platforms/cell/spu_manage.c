@@ -411,10 +411,15 @@ static void init_affinity_qs20_harcoded(void)
 
 static int of_has_vicinity(void)
 {
-	struct spu* spu;
+	struct device_node *dn;
 
-	spu = list_first_entry(&cbe_spu_info[0].spus, struct spu, cbe_list);
-	return of_find_property(spu_devnode(spu), "vicinity", NULL) != NULL;
+	for_each_node_by_type(dn, "spe") {
+		if (of_find_property(dn, "vicinity", NULL))  {
+			of_node_put(dn);
+			return 1;
+		}
+	}
+	return 0;
 }
 
 static struct spu *devnode_spu(int cbe, struct device_node *dn)
