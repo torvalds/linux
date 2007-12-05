@@ -3,6 +3,7 @@
  * userspace via nfetlink.
  *
  * (C) 2005 by Harald Welte <laforge@netfilter.org>
+ * (C) 2007 by Patrick McHardy <kaber@trash.net>
  *
  * Based on the old ipv4-only ip_queue.c:
  * (C) 2000-2002 James Morris <jmorris@intercode.com.au>
