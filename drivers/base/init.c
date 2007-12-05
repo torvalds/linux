@@ -36,5 +36,4 @@ void __init driver_init(void)
 	system_bus_init();
 	cpu_dev_init();
 	memory_dev_init();
-	attribute_container_init();
 }
