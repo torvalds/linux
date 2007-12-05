@@ -249,15 +249,6 @@ Who:  Tejun Heo <htejun@gmail.com>
 
 ---------------------------
 
-What:	iptables SAME target
-When:	1.1. 2008
-Files:	net/ipv4/netfilter/ipt_SAME.c, include/linux/netfilter_ipv4/ipt_SAME.h
-Why:	Obsolete for multiple years now, NAT core provides the same behaviour.
-	Unfixable broken wrt. 32/64 bit cleanness.
-Who:	Patrick McHardy <kaber@trash.net>
-
----------------------------
-
 What: The arch/ppc and include/asm-ppc directories
 When: Jun 2008
 Why:  The arch/powerpc tree is the merged architecture for ppc32 and ppc64

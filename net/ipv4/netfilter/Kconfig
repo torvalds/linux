@@ -211,15 +211,6 @@ config IP_NF_TARGET_NETMAP
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
-config IP_NF_TARGET_SAME
-	tristate "SAME target support (OBSOLETE)"
-	depends on NF_NAT
-	help
-	  This option adds a `SAME' target, which works like the standard SNAT
-	  target, but attempts to give clients the same IP for all connections.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
-
 config NF_NAT_SNMP_BASIC
 	tristate "Basic SNMP-ALG support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && NF_NAT
