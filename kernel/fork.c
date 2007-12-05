@@ -1292,23 +1292,14 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 			__ptrace_link(p, current->parent);
 
 		if (thread_group_leader(p)) {
-			if (clone_flags & CLONE_NEWPID) {
+			if (clone_flags & CLONE_NEWPID)
 				p->nsproxy->pid_ns->child_reaper = p;
-				p->signal->tty = NULL;
-				set_task_pgrp(p, p->pid);
-				set_task_session(p, p->pid);
-				attach_pid(p, PIDTYPE_PGID, pid);
-				attach_pid(p, PIDTYPE_SID, pid);
-			} else {
-				p->signal->tty = current->signal->tty;
-				set_task_pgrp(p, task_pgrp_nr(current));
-				set_task_session(p, task_session_nr(current));
-				attach_pid(p, PIDTYPE_PGID,
-						task_pgrp(current));
-				attach_pid(p, PIDTYPE_SID,
-						task_session(current));
-			}
 
+			p->signal->tty = current->signal->tty;
+			set_task_pgrp(p, task_pgrp_nr(current));
+			set_task_session(p, task_session_nr(current));
+			attach_pid(p, PIDTYPE_PGID, task_pgrp(current));
+			attach_pid(p, PIDTYPE_SID, task_session(current));
 			list_add_tail_rcu(&p->tasks, &init_task.tasks);
 			__get_cpu_var(process_counts)++;
 		}
