@@ -231,20 +231,21 @@ ing_hook(unsigned int hook, struct sk_buff *skb,
 }
 
 /* after ipt_filter */
-static struct nf_hook_ops ing_ops = {
-	.hook           = ing_hook,
-	.owner		= THIS_MODULE,
-	.pf             = PF_INET,
-	.hooknum        = NF_INET_PRE_ROUTING,
-	.priority       = NF_IP_PRI_FILTER + 1,
-};
-
-static struct nf_hook_ops ing6_ops = {
-	.hook           = ing_hook,
-	.owner		= THIS_MODULE,
-	.pf             = PF_INET6,
-	.hooknum        = NF_INET_PRE_ROUTING,
-	.priority       = NF_IP6_PRI_FILTER + 1,
+static struct nf_hook_ops ing_ops[] = {
+	{
+		.hook           = ing_hook,
+		.owner		= THIS_MODULE,
+		.pf             = PF_INET,
+		.hooknum        = NF_INET_PRE_ROUTING,
+		.priority       = NF_IP_PRI_FILTER + 1,
+	},
+	{
+		.hook           = ing_hook,
+		.owner		= THIS_MODULE,
+		.pf             = PF_INET6,
+		.hooknum        = NF_INET_PRE_ROUTING,
+		.priority       = NF_IP6_PRI_FILTER + 1,
+	},
 };
 
 #endif
@@ -268,17 +269,11 @@ static int ingress_init(struct Qdisc *sch,struct rtattr *opt)
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
 	if (!nf_registered) {
-		if (nf_register_hook(&ing_ops) < 0) {
+		if (nf_register_hooks(ing_ops, ARRAY_SIZE(ing_ops)) < 0) {
 			printk("ingress qdisc registration error \n");
 			return -EINVAL;
 		}
 		nf_registered++;
-
-		if (nf_register_hook(&ing6_ops) < 0) {
-			printk("IPv6 ingress qdisc registration error, " \
-			    "disabling IPv6 support.\n");
-		} else
-			nf_registered++;
 	}
 #endif
 #endif
@@ -385,11 +380,8 @@ static void __exit ingress_module_exit(void)
 	unregister_qdisc(&ingress_qdisc_ops);
 #ifndef CONFIG_NET_CLS_ACT
 #ifdef CONFIG_NETFILTER
-	if (nf_registered) {
-		nf_unregister_hook(&ing_ops);
-		if (nf_registered > 1)
-			nf_unregister_hook(&ing6_ops);
-	}
+	if (nf_registered)
+		nf_unregister_hooks(ing_ops, ARRAY_SIZE(ing_ops));
 #endif
 #endif
 }

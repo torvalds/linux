@@ -1025,43 +1025,42 @@ ip_vs_forward_icmp(unsigned int hooknum, struct sk_buff *skb,
 }
 
 
-/* After packet filtering, forward packet through VS/DR, VS/TUN,
-   or VS/NAT(change destination), so that filtering rules can be
-   applied to IPVS. */
-static struct nf_hook_ops ip_vs_in_ops = {
-	.hook		= ip_vs_in,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_INET_LOCAL_IN,
-	.priority       = 100,
-};
-
-/* After packet filtering, change source only for VS/NAT */
-static struct nf_hook_ops ip_vs_out_ops = {
-	.hook		= ip_vs_out,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_INET_FORWARD,
-	.priority       = 100,
-};
-
-/* After packet filtering (but before ip_vs_out_icmp), catch icmp
-   destined for 0.0.0.0/0, which is for incoming IPVS connections */
-static struct nf_hook_ops ip_vs_forward_icmp_ops = {
-	.hook		= ip_vs_forward_icmp,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_INET_FORWARD,
-	.priority       = 99,
-};
-
-/* Before the netfilter connection tracking, exit from POST_ROUTING */
-static struct nf_hook_ops ip_vs_post_routing_ops = {
-	.hook		= ip_vs_post_routing,
-	.owner		= THIS_MODULE,
-	.pf		= PF_INET,
-	.hooknum        = NF_INET_POST_ROUTING,
-	.priority       = NF_IP_PRI_NAT_SRC-1,
+static struct nf_hook_ops ip_vs_ops[]  = {
+	/* After packet filtering, forward packet through VS/DR, VS/TUN,
+	 * or VS/NAT(change destination), so that filtering rules can be
+	 * applied to IPVS. */
+	{
+		.hook		= ip_vs_in,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_LOCAL_IN,
+		.priority       = 100,
+	},
+	/* After packet filtering, change source only for VS/NAT */
+	{
+		.hook		= ip_vs_out,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_FORWARD,
+		.priority       = 100,
+	},
+	/* After packet filtering (but before ip_vs_out_icmp), catch icmp
+	 * destined for 0.0.0.0/0, which is for incoming IPVS connections */
+	{
+		.hook		= ip_vs_forward_icmp,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_FORWARD,
+		.priority       = 99,
+	},
+	/* Before the netfilter connection tracking, exit from POST_ROUTING */
+	{
+		.hook		= ip_vs_post_routing,
+		.owner		= THIS_MODULE,
+		.pf		= PF_INET,
+		.hooknum        = NF_INET_POST_ROUTING,
+		.priority       = NF_IP_PRI_NAT_SRC-1,
+	},
 };
 
 
@@ -1092,37 +1091,15 @@ static int __init ip_vs_init(void)
 		goto cleanup_app;
 	}
 
-	ret = nf_register_hook(&ip_vs_in_ops);
+	ret = nf_register_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	if (ret < 0) {
-		IP_VS_ERR("can't register in hook.\n");
+		IP_VS_ERR("can't register hooks.\n");
 		goto cleanup_conn;
-	}
-
-	ret = nf_register_hook(&ip_vs_out_ops);
-	if (ret < 0) {
-		IP_VS_ERR("can't register out hook.\n");
-		goto cleanup_inops;
-	}
-	ret = nf_register_hook(&ip_vs_post_routing_ops);
-	if (ret < 0) {
-		IP_VS_ERR("can't register post_routing hook.\n");
-		goto cleanup_outops;
-	}
-	ret = nf_register_hook(&ip_vs_forward_icmp_ops);
-	if (ret < 0) {
-		IP_VS_ERR("can't register forward_icmp hook.\n");
-		goto cleanup_postroutingops;
 	}
 
 	IP_VS_INFO("ipvs loaded.\n");
 	return ret;
 
-  cleanup_postroutingops:
-	nf_unregister_hook(&ip_vs_post_routing_ops);
-  cleanup_outops:
-	nf_unregister_hook(&ip_vs_out_ops);
-  cleanup_inops:
-	nf_unregister_hook(&ip_vs_in_ops);
   cleanup_conn:
 	ip_vs_conn_cleanup();
   cleanup_app:
@@ -1136,10 +1113,7 @@ static int __init ip_vs_init(void)
 
 static void __exit ip_vs_cleanup(void)
 {
-	nf_unregister_hook(&ip_vs_forward_icmp_ops);
-	nf_unregister_hook(&ip_vs_post_routing_ops);
-	nf_unregister_hook(&ip_vs_out_ops);
-	nf_unregister_hook(&ip_vs_in_ops);
+	nf_unregister_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	ip_vs_conn_cleanup();
 	ip_vs_app_cleanup();
 	ip_vs_protocol_cleanup();
