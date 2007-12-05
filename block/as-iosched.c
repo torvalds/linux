@@ -880,7 +880,7 @@ static void as_remove_queued_request(struct request_queue *q,
 }
 
 /*
- * as_fifo_expired returns 0 if there are no expired reads on the fifo,
+ * as_fifo_expired returns 0 if there are no expired requests on the fifo,
  * 1 otherwise.  It is ratelimited so that we only perform the check once per
  * `fifo_expire' interval.  Otherwise a large number of expired requests
  * would create a hopeless seekstorm.
@@ -1159,7 +1159,7 @@ static void as_add_request(struct request_queue *q, struct request *rq)
 	as_add_rq_rb(ad, rq);
 
 	/*
-	 * set expire time (only used for reads) and add to fifo list
+	 * set expire time and add to fifo list
 	 */
 	rq_set_fifo_time(rq, jiffies + ad->fifo_expire[data_dir]);
 	list_add_tail(&rq->queuelist, &ad->fifo_list[data_dir]);
