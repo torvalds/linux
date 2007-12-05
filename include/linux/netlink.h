@@ -245,7 +245,7 @@ __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 }
 
 #define NLMSG_NEW(skb, pid, seq, type, len, flags) \
-({	if (skb_tailroom(skb) < (int)NLMSG_SPACE(len)) \
+({	if (unlikely(skb_tailroom(skb) < (int)NLMSG_SPACE(len))) \
 		goto nlmsg_failure; \
 	__nlmsg_put(skb, pid, seq, type, len, flags); })
 
