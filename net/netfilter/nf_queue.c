@@ -223,7 +223,6 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 		 unsigned int verdict)
 {
 	struct list_head *elem = &info->elem->list;
-	struct list_head *i;
 	struct nf_afinfo *afinfo;
 
 	rcu_read_lock();
@@ -244,18 +243,6 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 
 	/* Drop reference to owner of hook which queued us. */
 	module_put(info->elem->owner);
-
-	list_for_each_rcu(i, &nf_hooks[info->pf][info->hook]) {
-		if (i == elem)
-			break;
-	}
-
-	if (i == &nf_hooks[info->pf][info->hook]) {
-		/* The module which sent it to userspace is gone. */
-		NFDEBUG("%s: module disappeared, dropping packet.\n",
-			__FUNCTION__);
-		verdict = NF_DROP;
-	}
 
 	/* Continue traversal iff userspace said ok... */
 	if (verdict == NF_REPEAT) {

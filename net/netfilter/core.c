@@ -51,11 +51,6 @@ void nf_unregister_afinfo(struct nf_afinfo *afinfo)
 }
 EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
 
-/* In this code, we can be waiting indefinitely for userspace to
- * service a packet if a hook returns NF_QUEUE.  We could keep a count
- * of skbuffs queued for userspace, and not deregister a hook unless
- * this is zero, but that sucks.  Now, we simply check when the
- * packets come back: if the hook is gone, the packet is discarded. */
 struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS] __read_mostly;
 EXPORT_SYMBOL(nf_hooks);
 static DEFINE_MUTEX(nf_hook_mutex);
