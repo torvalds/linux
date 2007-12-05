@@ -402,7 +402,7 @@ static u32 __emac_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_s
 static u32 __emac4_calc_base_mr1(struct emac_instance *dev, int tx_size, int rx_size)
 {
 	u32 ret = EMAC_MR1_VLE | EMAC_MR1_IST | EMAC4_MR1_TR |
-		EMAC4_MR1_OBCI(dev->opb_bus_freq);
+		EMAC4_MR1_OBCI(dev->opb_bus_freq / 1000000);
 
 	DBG2(dev, "__emac4_calc_base_mr1" NL);
 
