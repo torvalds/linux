@@ -4163,7 +4163,7 @@ static void iwl3945_rx_allocate(struct iwl3945_priv *priv)
 /*
  * this should be called while priv->lock is locked
  */
-void __iwl3945_rx_replenish(void *data)
+static void __iwl3945_rx_replenish(void *data)
 {
 	struct iwl3945_priv *priv = data;
 

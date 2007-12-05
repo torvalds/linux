@@ -4534,7 +4534,7 @@ static void iwl4965_rx_allocate(struct iwl4965_priv *priv)
 /*
  * this should be called while priv->lock is locked
 */
-void __iwl4965_rx_replenish(void *data)
+static void __iwl4965_rx_replenish(void *data)
 {
 	struct iwl4965_priv *priv = data;
 
@@ -6038,7 +6038,7 @@ static void iwl4965_dealloc_ucode_pci(struct iwl4965_priv *priv)
  * iwl4965_verify_inst_full - verify runtime uCode image in card vs. host,
  *     looking at all data.
  */
-static int iwl4965_verify_inst_full(struct iwl4965_priv *priv, __le32 * image,
+static int iwl4965_verify_inst_full(struct iwl4965_priv *priv, __le32 *image,
 				 u32 len)
 {
 	u32 val;
