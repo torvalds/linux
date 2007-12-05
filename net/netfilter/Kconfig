@@ -25,8 +25,7 @@ config NETFILTER_NETLINK_LOG
 	  and is also scheduled to replace the old syslog-based ipt_LOG
 	  and ip6t_LOG modules.
 
-# Rename this to NF_CONNTRACK in a 2.6.25
-config NF_CONNTRACK_ENABLED
+config NF_CONNTRACK
 	tristate "Netfilter connection tracking support"
 	help
 	  Connection tracking keeps a record of what packets have passed
@@ -39,10 +38,6 @@ config NF_CONNTRACK_ENABLED
 	  below).
 
 	  To compile it as a module, choose M here.  If unsure, say N.
-
-config NF_CONNTRACK
-	tristate
-	default NF_CONNTRACK_ENABLED
 
 config NF_CT_ACCT
 	bool "Connection tracking flow accounting"
