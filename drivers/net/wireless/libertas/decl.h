@@ -15,18 +15,13 @@ struct lbs_private;
 struct lbs_adapter;
 struct sk_buff;
 struct net_device;
+struct cmd_ctrl_node;
 
 int lbs_set_mac_packet_filter(struct lbs_private *priv);
 
 void lbs_send_tx_feedback(struct lbs_private *priv);
 
 int lbs_free_cmd_buffer(struct lbs_private *priv);
-struct cmd_ctrl_node;
-struct cmd_ctrl_node *lbs_get_free_cmd_ctrl_node(struct lbs_private *priv);
-
-void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
-	struct cmd_ctrl_node *ptempnode,
-	u16 wait_option, void *pdata_buf);
 
 int lbs_prepare_and_send_command(struct lbs_private *priv,
 	u16 cmd_no,

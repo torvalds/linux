@@ -13,6 +13,11 @@
 #include "wext.h"
 
 static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode);
+struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
+void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
+		    struct cmd_ctrl_node *ptempnode,
+		    u16 wait_option, void *pdata_buf);
+
 
 static u16 commands_allowed_in_ps[] = {
 	CMD_802_11_RSSI,
@@ -1220,7 +1225,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		goto done;
 	}
 
-	cmdnode = lbs_get_free_cmd_ctrl_node(priv);
+	cmdnode = lbs_get_cmd_ctrl_node(priv);
 
 	if (cmdnode == NULL) {
 		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
@@ -1623,7 +1628,7 @@ done:
  *  @param priv		A pointer to struct lbs_private structure
  *  @return cmd_ctrl_node A pointer to cmd_ctrl_node structure or NULL
  */
-struct cmd_ctrl_node *lbs_get_free_cmd_ctrl_node(struct lbs_private *priv)
+struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 {
 	struct cmd_ctrl_node *tempnode;
 	struct lbs_adapter *adapter = priv->adapter;
