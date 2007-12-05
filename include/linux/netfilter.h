@@ -270,7 +270,7 @@ extern void nf_invalidate_cache(int pf);
 extern int skb_make_writable(struct sk_buff *skb, unsigned int writable_len);
 
 struct flowi;
-struct nf_info;
+struct nf_queue_entry;
 
 struct nf_afinfo {
 	unsigned short	family;
@@ -278,9 +278,9 @@ struct nf_afinfo {
 				    unsigned int dataoff, u_int8_t protocol);
 	int		(*route)(struct dst_entry **dst, struct flowi *fl);
 	void		(*saveroute)(const struct sk_buff *skb,
-				     struct nf_info *info);
+				     struct nf_queue_entry *entry);
 	int		(*reroute)(struct sk_buff *skb,
-				   const struct nf_info *info);
+				   const struct nf_queue_entry *entry);
 	int		route_key_size;
 };
 

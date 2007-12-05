@@ -123,11 +123,12 @@ struct ip_rt_info {
 	u_int8_t tos;
 };
 
-static void nf_ip_saveroute(const struct sk_buff *skb, struct nf_info *info)
+static void nf_ip_saveroute(const struct sk_buff *skb,
+			    struct nf_queue_entry *entry)
 {
-	struct ip_rt_info *rt_info = nf_info_reroute(info);
+	struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (info->hook == NF_INET_LOCAL_OUT) {
+	if (entry->hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		rt_info->tos = iph->tos;
@@ -136,11 +137,12 @@ static void nf_ip_saveroute(const struct sk_buff *skb, struct nf_info *info)
 	}
 }
 
-static int nf_ip_reroute(struct sk_buff *skb, const struct nf_info *info)
+static int nf_ip_reroute(struct sk_buff *skb,
+			 const struct nf_queue_entry *entry)
 {
-	const struct ip_rt_info *rt_info = nf_info_reroute(info);
+	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (info->hook == NF_INET_LOCAL_OUT) {
+	if (entry->hook == NF_INET_LOCAL_OUT) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->tos == rt_info->tos

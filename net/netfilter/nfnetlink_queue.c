@@ -45,13 +45,6 @@
 #define QDEBUG(x, ...)
 #endif
 
-struct nfqnl_queue_entry {
-	struct list_head list;
-	struct nf_info *info;
-	struct sk_buff *skb;
-	unsigned int id;
-};
-
 struct nfqnl_instance {
 	struct hlist_node hlist;		/* global list of queues */
 	atomic_t use;
@@ -73,7 +66,7 @@ struct nfqnl_instance {
 	struct list_head queue_list;		/* packets in queue */
 };
 
-typedef int (*nfqnl_cmpfn)(struct nfqnl_queue_entry *, unsigned long);
+typedef int (*nfqnl_cmpfn)(struct nf_queue_entry *, unsigned long);
 
 static DEFINE_RWLOCK(instances_lock);
 
@@ -212,7 +205,7 @@ instance_destroy(struct nfqnl_instance *inst)
 
 
 static void
-issue_verdict(struct nfqnl_queue_entry *entry, int verdict)
+issue_verdict(struct nf_queue_entry *entry, int verdict)
 {
 	QDEBUG("entering for entry %p, verdict %u\n", entry, verdict);
 
@@ -222,15 +215,12 @@ issue_verdict(struct nfqnl_queue_entry *entry, int verdict)
 	 * softirq, e.g.  We therefore emulate this by local_bh_disable() */
 
 	local_bh_disable();
-	nf_reinject(entry->skb, entry->info, verdict);
+	nf_reinject(entry, verdict);
 	local_bh_enable();
-
-	kfree(entry);
 }
 
 static inline void
-__enqueue_entry(struct nfqnl_instance *queue,
-		      struct nfqnl_queue_entry *entry)
+__enqueue_entry(struct nfqnl_instance *queue, struct nf_queue_entry *entry)
 {
        list_add_tail(&entry->list, &queue->queue_list);
        queue->queue_total++;
@@ -265,10 +255,10 @@ __nfqnl_set_mode(struct nfqnl_instance *queue,
 	return status;
 }
 
-static struct nfqnl_queue_entry *
+static struct nf_queue_entry *
 find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 {
-	struct nfqnl_queue_entry *entry = NULL, *i;
+	struct nf_queue_entry *entry = NULL, *i;
 
 	spin_lock_bh(&queue->lock);
 
@@ -292,7 +282,7 @@ find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 static void
 nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 {
-	struct nfqnl_queue_entry *entry, *next;
+	struct nf_queue_entry *entry, *next;
 
 	spin_lock_bh(&queue->lock);
 	list_for_each_entry_safe(entry, next, &queue->queue_list, list) {
@@ -307,7 +297,7 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 
 static struct sk_buff *
 nfqnl_build_packet_message(struct nfqnl_instance *queue,
-			   struct nfqnl_queue_entry *entry, int *errp)
+			   struct nf_queue_entry *entry, int *errp)
 {
 	sk_buff_data_t old_tail;
 	size_t size;
@@ -316,7 +306,6 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	struct nfqnl_msg_packet_hdr pmsg;
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	struct nf_info *entinf = entry->info;
 	struct sk_buff *entskb = entry->skb;
 	struct net_device *indev;
 	struct net_device *outdev;
@@ -336,7 +325,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hw))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
 
-	outdev = entinf->outdev;
+	outdev = entry->outdev;
 
 	spin_lock_bh(&queue->lock);
 
@@ -379,23 +368,23 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			NFNL_SUBSYS_QUEUE << 8 | NFQNL_MSG_PACKET,
 			sizeof(struct nfgenmsg));
 	nfmsg = NLMSG_DATA(nlh);
-	nfmsg->nfgen_family = entinf->pf;
+	nfmsg->nfgen_family = entry->pf;
 	nfmsg->version = NFNETLINK_V0;
 	nfmsg->res_id = htons(queue->queue_num);
 
 	pmsg.packet_id 		= htonl(entry->id);
 	pmsg.hw_protocol	= entskb->protocol;
-	pmsg.hook		= entinf->hook;
+	pmsg.hook		= entry->hook;
 
 	NLA_PUT(skb, NFQA_PACKET_HDR, sizeof(pmsg), &pmsg);
 
-	indev = entinf->indev;
+	indev = entry->indev;
 	if (indev) {
 		tmp_uint = htonl(indev->ifindex);
 #ifndef CONFIG_BRIDGE_NETFILTER
 		NLA_PUT(skb, NFQA_IFINDEX_INDEV, sizeof(tmp_uint), &tmp_uint);
 #else
-		if (entinf->pf == PF_BRIDGE) {
+		if (entry->pf == PF_BRIDGE) {
 			/* Case 1: indev is physical input device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
@@ -425,7 +414,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #ifndef CONFIG_BRIDGE_NETFILTER
 		NLA_PUT(skb, NFQA_IFINDEX_OUTDEV, sizeof(tmp_uint), &tmp_uint);
 #else
-		if (entinf->pf == PF_BRIDGE) {
+		if (entry->pf == PF_BRIDGE) {
 			/* Case 1: outdev is physical output device, we need to
 			 * look for bridge group (when called from
 			 * netfilter_bridge) */
@@ -504,13 +493,11 @@ nla_put_failure:
 }
 
 static int
-nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
-		     unsigned int queuenum)
+nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 {
 	int status = -EINVAL;
 	struct sk_buff *nskb;
 	struct nfqnl_instance *queue;
-	struct nfqnl_queue_entry *entry;
 
 	QDEBUG("entered\n");
 
@@ -526,22 +513,11 @@ nfqnl_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
 		goto err_out_put;
 	}
 
-	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		if (net_ratelimit())
-			printk(KERN_ERR
-				"nf_queue: OOM in nfqnl_enqueue_packet()\n");
-		status = -ENOMEM;
-		goto err_out_put;
-	}
-
-	entry->info = info;
-	entry->skb = skb;
 	entry->id = atomic_inc_return(&queue->id_sequence);
 
 	nskb = nfqnl_build_packet_message(queue, entry, &status);
 	if (nskb == NULL)
-		goto err_out_free;
+		goto err_out_put;
 
 	spin_lock_bh(&queue->lock);
 
@@ -577,15 +553,13 @@ err_out_free_nskb:
 err_out_unlock:
 	spin_unlock_bh(&queue->lock);
 
-err_out_free:
-	kfree(entry);
 err_out_put:
 	instance_put(queue);
 	return status;
 }
 
 static int
-nfqnl_mangle(void *data, int data_len, struct nfqnl_queue_entry *e)
+nfqnl_mangle(void *data, int data_len, struct nf_queue_entry *e)
 {
 	int diff;
 	int err;
@@ -630,15 +604,13 @@ nfqnl_set_mode(struct nfqnl_instance *queue,
 }
 
 static int
-dev_cmp(struct nfqnl_queue_entry *entry, unsigned long ifindex)
+dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 {
-	struct nf_info *entinf = entry->info;
-
-	if (entinf->indev)
-		if (entinf->indev->ifindex == ifindex)
+	if (entry->indev)
+		if (entry->indev->ifindex == ifindex)
 			return 1;
-	if (entinf->outdev)
-		if (entinf->outdev->ifindex == ifindex)
+	if (entry->outdev)
+		if (entry->outdev->ifindex == ifindex)
 			return 1;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	if (entry->skb->nf_bridge) {
@@ -748,7 +720,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_msg_verdict_hdr *vhdr;
 	struct nfqnl_instance *queue;
 	unsigned int verdict;
-	struct nfqnl_queue_entry *entry;
+	struct nf_queue_entry *entry;
 	int err;
 
 	queue = instance_lookup_get(queue_num);

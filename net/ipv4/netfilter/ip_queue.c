@@ -35,13 +35,7 @@
 #define NET_IPQ_QMAX 2088
 #define NET_IPQ_QMAX_NAME "ip_queue_maxlen"
 
-struct ipq_queue_entry {
-	struct list_head list;
-	struct nf_info *info;
-	struct sk_buff *skb;
-};
-
-typedef int (*ipq_cmpfn)(struct ipq_queue_entry *, unsigned long);
+typedef int (*ipq_cmpfn)(struct nf_queue_entry *, unsigned long);
 
 static unsigned char copy_mode __read_mostly = IPQ_COPY_NONE;
 static unsigned int queue_maxlen __read_mostly = IPQ_QMAX_DEFAULT;
@@ -56,7 +50,7 @@ static LIST_HEAD(queue_list);
 static DEFINE_MUTEX(ipqnl_mutex);
 
 static void
-ipq_issue_verdict(struct ipq_queue_entry *entry, int verdict)
+ipq_issue_verdict(struct nf_queue_entry *entry, int verdict)
 {
 	/* TCP input path (and probably other bits) assume to be called
 	 * from softirq context, not from syscall, like ipq_issue_verdict is
@@ -64,14 +58,12 @@ ipq_issue_verdict(struct ipq_queue_entry *entry, int verdict)
 	 * softirq, e.g.  We therefore emulate this by local_bh_disable() */
 
 	local_bh_disable();
-	nf_reinject(entry->skb, entry->info, verdict);
+	nf_reinject(entry, verdict);
 	local_bh_enable();
-
-	kfree(entry);
 }
 
 static inline void
-__ipq_enqueue_entry(struct ipq_queue_entry *entry)
+__ipq_enqueue_entry(struct nf_queue_entry *entry)
 {
        list_add_tail(&entry->list, &queue_list);
        queue_total++;
@@ -114,10 +106,10 @@ __ipq_reset(void)
 	__ipq_flush(NULL, 0);
 }
 
-static struct ipq_queue_entry *
+static struct nf_queue_entry *
 ipq_find_dequeue_entry(unsigned long id)
 {
-	struct ipq_queue_entry *entry = NULL, *i;
+	struct nf_queue_entry *entry = NULL, *i;
 
 	write_lock_bh(&queue_lock);
 
@@ -140,7 +132,7 @@ ipq_find_dequeue_entry(unsigned long id)
 static void
 __ipq_flush(ipq_cmpfn cmpfn, unsigned long data)
 {
-	struct ipq_queue_entry *entry, *next;
+	struct nf_queue_entry *entry, *next;
 
 	list_for_each_entry_safe(entry, next, &queue_list, list) {
 		if (!cmpfn || cmpfn(entry, data)) {
@@ -160,7 +152,7 @@ ipq_flush(ipq_cmpfn cmpfn, unsigned long data)
 }
 
 static struct sk_buff *
-ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
+ipq_build_packet_message(struct nf_queue_entry *entry, int *errp)
 {
 	sk_buff_data_t old_tail;
 	size_t size = 0;
@@ -217,20 +209,20 @@ ipq_build_packet_message(struct ipq_queue_entry *entry, int *errp)
 	pmsg->timestamp_sec   = tv.tv_sec;
 	pmsg->timestamp_usec  = tv.tv_usec;
 	pmsg->mark            = entry->skb->mark;
-	pmsg->hook            = entry->info->hook;
+	pmsg->hook            = entry->hook;
 	pmsg->hw_protocol     = entry->skb->protocol;
 
-	if (entry->info->indev)
-		strcpy(pmsg->indev_name, entry->info->indev->name);
+	if (entry->indev)
+		strcpy(pmsg->indev_name, entry->indev->name);
 	else
 		pmsg->indev_name[0] = '\0';
 
-	if (entry->info->outdev)
-		strcpy(pmsg->outdev_name, entry->info->outdev->name);
+	if (entry->outdev)
+		strcpy(pmsg->outdev_name, entry->outdev->name);
 	else
 		pmsg->outdev_name[0] = '\0';
 
-	if (entry->info->indev && entry->skb->dev) {
+	if (entry->indev && entry->skb->dev) {
 		pmsg->hw_type = entry->skb->dev->type;
 		pmsg->hw_addrlen = dev_parse_header(entry->skb,
 						    pmsg->hw_addr);
@@ -252,28 +244,17 @@ nlmsg_failure:
 }
 
 static int
-ipq_enqueue_packet(struct sk_buff *skb, struct nf_info *info,
-		   unsigned int queuenum)
+ipq_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 {
 	int status = -EINVAL;
 	struct sk_buff *nskb;
-	struct ipq_queue_entry *entry;
 
 	if (copy_mode == IPQ_COPY_NONE)
 		return -EAGAIN;
 
-	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		printk(KERN_ERR "ip_queue: OOM in ipq_enqueue_packet()\n");
-		return -ENOMEM;
-	}
-
-	entry->info = info;
-	entry->skb = skb;
-
 	nskb = ipq_build_packet_message(entry, &status);
 	if (nskb == NULL)
-		goto err_out_free;
+		return status;
 
 	write_lock_bh(&queue_lock);
 
@@ -307,14 +288,11 @@ err_out_free_nskb:
 
 err_out_unlock:
 	write_unlock_bh(&queue_lock);
-
-err_out_free:
-	kfree(entry);
 	return status;
 }
 
 static int
-ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
+ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct nf_queue_entry *e)
 {
 	int diff;
 	int err;
@@ -352,7 +330,7 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 static int
 ipq_set_verdict(struct ipq_verdict_msg *vmsg, unsigned int len)
 {
-	struct ipq_queue_entry *entry;
+	struct nf_queue_entry *entry;
 
 	if (vmsg->value > NF_MAX_VERDICT)
 		return -EINVAL;
@@ -412,13 +390,13 @@ ipq_receive_peer(struct ipq_peer_msg *pmsg,
 }
 
 static int
-dev_cmp(struct ipq_queue_entry *entry, unsigned long ifindex)
+dev_cmp(struct nf_queue_entry *entry, unsigned long ifindex)
 {
-	if (entry->info->indev)
-		if (entry->info->indev->ifindex == ifindex)
+	if (entry->indev)
+		if (entry->indev->ifindex == ifindex)
 			return 1;
-	if (entry->info->outdev)
-		if (entry->info->outdev->ifindex == ifindex)
+	if (entry->outdev)
+		if (entry->outdev->ifindex == ifindex)
 			return 1;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	if (entry->skb->nf_bridge) {

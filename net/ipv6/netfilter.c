@@ -57,11 +57,12 @@ struct ip6_rt_info {
 	struct in6_addr saddr;
 };
 
-static void nf_ip6_saveroute(const struct sk_buff *skb, struct nf_info *info)
+static void nf_ip6_saveroute(const struct sk_buff *skb,
+			     struct nf_queue_entry *entry)
 {
-	struct ip6_rt_info *rt_info = nf_info_reroute(info);
+	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (info->hook == NF_INET_LOCAL_OUT) {
+	if (entry->hook == NF_INET_LOCAL_OUT) {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		rt_info->daddr = iph->daddr;
@@ -69,11 +70,12 @@ static void nf_ip6_saveroute(const struct sk_buff *skb, struct nf_info *info)
 	}
 }
 
-static int nf_ip6_reroute(struct sk_buff *skb, const struct nf_info *info)
+static int nf_ip6_reroute(struct sk_buff *skb,
+			  const struct nf_queue_entry *entry)
 {
-	struct ip6_rt_info *rt_info = nf_info_reroute(info);
+	struct ip6_rt_info *rt_info = nf_queue_entry_reroute(entry);
 
-	if (info->hook == NF_INET_LOCAL_OUT) {
+	if (entry->hook == NF_INET_LOCAL_OUT) {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 		if (!ipv6_addr_equal(&iph->daddr, &rt_info->daddr) ||
 		    !ipv6_addr_equal(&iph->saddr, &rt_info->saddr))

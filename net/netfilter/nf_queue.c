@@ -93,7 +93,7 @@ static int __nf_queue(struct sk_buff *skb,
 		      unsigned int queuenum)
 {
 	int status;
-	struct nf_info *info;
+	struct nf_queue_entry *entry;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct net_device *physindev = NULL;
 	struct net_device *physoutdev = NULL;
@@ -118,8 +118,8 @@ static int __nf_queue(struct sk_buff *skb,
 		return 1;
 	}
 
-	info = kmalloc(sizeof(*info) + afinfo->route_key_size, GFP_ATOMIC);
-	if (!info) {
+	entry = kmalloc(sizeof(*entry) + afinfo->route_key_size, GFP_ATOMIC);
+	if (!entry) {
 		if (net_ratelimit())
 			printk(KERN_ERR "OOM queueing packet %p\n",
 			       skb);
@@ -128,13 +128,20 @@ static int __nf_queue(struct sk_buff *skb,
 		return 1;
 	}
 
-	*info = (struct nf_info) {
-		(struct nf_hook_ops *)elem, pf, hook, indev, outdev, okfn };
+	*entry = (struct nf_queue_entry) {
+		.skb	= skb,
+		.elem	= list_entry(elem, struct nf_hook_ops, list),
+		.pf	= pf,
+		.hook	= hook,
+		.indev	= indev,
+		.outdev	= outdev,
+		.okfn	= okfn,
+	};
 
 	/* If it's going away, ignore hook. */
-	if (!try_module_get(info->elem->owner)) {
+	if (!try_module_get(entry->elem->owner)) {
 		rcu_read_unlock();
-		kfree(info);
+		kfree(entry);
 		return 0;
 	}
 
@@ -153,8 +160,8 @@ static int __nf_queue(struct sk_buff *skb,
 			dev_hold(physoutdev);
 	}
 #endif
-	afinfo->saveroute(skb, info);
-	status = qh->outfn(skb, info, queuenum);
+	afinfo->saveroute(skb, entry);
+	status = qh->outfn(entry, queuenum);
 
 	rcu_read_unlock();
 
@@ -170,8 +177,8 @@ static int __nf_queue(struct sk_buff *skb,
 		if (physoutdev)
 			dev_put(physoutdev);
 #endif
-		module_put(info->elem->owner);
-		kfree(info);
+		module_put(entry->elem->owner);
+		kfree(entry);
 		kfree_skb(skb);
 
 		return 1;
@@ -220,19 +227,19 @@ int nf_queue(struct sk_buff *skb,
 	return 1;
 }
 
-void nf_reinject(struct sk_buff *skb, struct nf_info *info,
-		 unsigned int verdict)
+void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
-	struct list_head *elem = &info->elem->list;
+	struct sk_buff *skb = entry->skb;
+	struct list_head *elem = &entry->elem->list;
 	struct nf_afinfo *afinfo;
 
 	rcu_read_lock();
 
 	/* Release those devices we held, or Alexey will kill me. */
-	if (info->indev)
-		dev_put(info->indev);
-	if (info->outdev)
-		dev_put(info->outdev);
+	if (entry->indev)
+		dev_put(entry->indev);
+	if (entry->outdev)
+		dev_put(entry->outdev);
 #ifdef CONFIG_BRIDGE_NETFILTER
 	if (skb->nf_bridge) {
 		if (skb->nf_bridge->physindev)
@@ -243,7 +250,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 #endif
 
 	/* Drop reference to owner of hook which queued us. */
-	module_put(info->elem->owner);
+	module_put(entry->elem->owner);
 
 	/* Continue traversal iff userspace said ok... */
 	if (verdict == NF_REPEAT) {
@@ -252,28 +259,28 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	}
 
 	if (verdict == NF_ACCEPT) {
-		afinfo = nf_get_afinfo(info->pf);
-		if (!afinfo || afinfo->reroute(skb, info) < 0)
+		afinfo = nf_get_afinfo(entry->pf);
+		if (!afinfo || afinfo->reroute(skb, entry) < 0)
 			verdict = NF_DROP;
 	}
 
 	if (verdict == NF_ACCEPT) {
 	next_hook:
-		verdict = nf_iterate(&nf_hooks[info->pf][info->hook],
-				     skb, info->hook,
-				     info->indev, info->outdev, &elem,
-				     info->okfn, INT_MIN);
+		verdict = nf_iterate(&nf_hooks[entry->pf][entry->hook],
+				     skb, entry->hook,
+				     entry->indev, entry->outdev, &elem,
+				     entry->okfn, INT_MIN);
 	}
 
 	switch (verdict & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
 	case NF_STOP:
-		info->okfn(skb);
+		entry->okfn(skb);
 	case NF_STOLEN:
 		break;
 	case NF_QUEUE:
-		if (!__nf_queue(skb, elem, info->pf, info->hook,
-				info->indev, info->outdev, info->okfn,
+		if (!__nf_queue(skb, elem, entry->pf, entry->hook,
+				entry->indev, entry->outdev, entry->okfn,
 				verdict >> NF_VERDICT_BITS))
 			goto next_hook;
 		break;
@@ -281,7 +288,7 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 		kfree_skb(skb);
 	}
 	rcu_read_unlock();
-	kfree(info);
+	kfree(entry);
 	return;
 }
 EXPORT_SYMBOL(nf_reinject);
