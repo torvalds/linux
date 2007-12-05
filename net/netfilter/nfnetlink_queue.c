@@ -781,8 +781,14 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	QDEBUG("entering for msg %u\n", NFNL_MSG_TYPE(nlh->nlmsg_type));
 
 	queue = instance_lookup_get(queue_num);
+	if (queue && queue->peer_pid != NETLINK_CB(skb).pid) {
+		ret = -EPERM;
+		goto out_put;
+	}
+
 	if (nfqa[NFQA_CFG_CMD]) {
 		struct nfqnl_msg_config_cmd *cmd;
+
 		cmd = nla_data(nfqa[NFQA_CFG_CMD]);
 		QDEBUG("found CFG_CMD\n");
 
@@ -798,12 +804,6 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		case NFQNL_CFG_CMD_UNBIND:
 			if (!queue)
 				return -ENODEV;
-
-			if (queue->peer_pid != NETLINK_CB(skb).pid) {
-				ret = -EPERM;
-				goto out_put;
-			}
-
 			instance_destroy(queue);
 			break;
 		case NFQNL_CFG_CMD_PF_BIND:
@@ -820,25 +820,13 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			ret = -EINVAL;
 			break;
 		}
-	} else {
-		if (!queue) {
-			QDEBUG("no config command, and no instance ENOENT\n");
-			ret = -ENOENT;
-			goto out_put;
-		}
-
-		if (queue->peer_pid != NETLINK_CB(skb).pid) {
-			QDEBUG("no config command, and wrong pid\n");
-			ret = -EPERM;
-			goto out_put;
-		}
 	}
 
 	if (nfqa[NFQA_CFG_PARAMS]) {
 		struct nfqnl_msg_config_params *params;
 
 		if (!queue) {
-			ret = -ENOENT;
+			ret = -ENODEV;
 			goto out_put;
 		}
 		params = nla_data(nfqa[NFQA_CFG_PARAMS]);
@@ -848,6 +836,11 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 	if (nfqa[NFQA_CFG_QUEUE_MAXLEN]) {
 		__be32 *queue_maxlen;
+
+		if (!queue) {
+			ret = -ENODEV;
+			goto out_put;
+		}
 		queue_maxlen = nla_data(nfqa[NFQA_CFG_QUEUE_MAXLEN]);
 		spin_lock_bh(&queue->lock);
 		queue->queue_maxlen = ntohl(*queue_maxlen);
