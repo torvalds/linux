@@ -153,7 +153,7 @@ static int __nf_queue(struct sk_buff *skb,
 	}
 #endif
 	afinfo->saveroute(skb, info);
-	status = qh->outfn(skb, info, queuenum, qh->data);
+	status = qh->outfn(skb, info, queuenum);
 
 	rcu_read_unlock();
 

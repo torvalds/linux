@@ -277,8 +277,7 @@ int compat_nf_getsockopt(struct sock *sk, int pf, int optval,
 /* Packet queuing */
 struct nf_queue_handler {
 	int (*outfn)(struct sk_buff *skb, struct nf_info *info,
-		     unsigned int queuenum, void *data);
-	void *data;
+		     unsigned int queuenum);
 	char *name;
 };
 extern int nf_register_queue_handler(int pf,
