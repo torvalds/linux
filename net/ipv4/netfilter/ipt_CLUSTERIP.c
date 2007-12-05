@@ -109,11 +109,9 @@ clusterip_config_entry_put(struct clusterip_config *c)
 static struct clusterip_config *
 __clusterip_config_find(__be32 clusterip)
 {
-	struct list_head *pos;
+	struct clusterip_config *c;
 
-	list_for_each(pos, &clusterip_configs) {
-		struct clusterip_config *c = list_entry(pos,
-					struct clusterip_config, list);
+	list_for_each_entry(c, &clusterip_configs, list) {
 		if (c->clusterip == clusterip)
 			return c;
 	}
