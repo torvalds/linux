@@ -938,8 +938,7 @@ struct device_driver;
 
 extern const char ib_ipath_version[];
 
-int ipath_driver_create_group(struct device_driver *);
-void ipath_driver_remove_group(struct device_driver *);
+extern struct attribute_group *ipath_driver_attr_groups[];
 
 int ipath_device_create_group(struct device *, struct ipath_devdata *);
 void ipath_device_remove_group(struct device *, struct ipath_devdata *);

@@ -121,6 +121,9 @@ static struct pci_driver ipath_driver = {
 	.probe = ipath_init_one,
 	.remove = __devexit_p(ipath_remove_one),
 	.id_table = ipath_pci_tbl,
+	.driver = {
+		.groups = ipath_driver_attr_groups,
+	},
 };
 
 static void ipath_check_status(struct work_struct *work)
@@ -2217,24 +2220,14 @@ static int __init infinipath_init(void)
 		goto bail_unit;
 	}
 
-	ret = ipath_driver_create_group(&ipath_driver.driver);
-	if (ret < 0) {
-		printk(KERN_ERR IPATH_DRV_NAME ": Unable to create driver "
-		       "sysfs entries: error %d\n", -ret);
-		goto bail_pci;
-	}
-
 	ret = ipath_init_ipathfs();
 	if (ret < 0) {
 		printk(KERN_ERR IPATH_DRV_NAME ": Unable to create "
 		       "ipathfs: error %d\n", -ret);
-		goto bail_group;
+		goto bail_pci;
 	}
 
 	goto bail;
-
-bail_group:
-	ipath_driver_remove_group(&ipath_driver.driver);
 
 bail_pci:
 	pci_unregister_driver(&ipath_driver);
@@ -2249,8 +2242,6 @@ bail:
 static void __exit infinipath_cleanup(void)
 {
 	ipath_exit_ipathfs();
-
-	ipath_driver_remove_group(&ipath_driver.driver);
 
 	ipath_cdbg(VERBOSE, "Unregistering pci driver\n");
 	pci_unregister_driver(&ipath_driver);
