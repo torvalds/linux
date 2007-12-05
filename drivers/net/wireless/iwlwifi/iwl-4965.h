@@ -516,7 +516,7 @@ struct iwl_ht_info {
 	u8 supported_chan_width;
 	u16 tx_mimo_ps_mode;
 	u8 is_green_field;
-	u8 sgf;
+	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
 	u8 max_amsdu_size;
 	u8 ampdu_factor;
 	u8 mpdu_density;

@@ -350,7 +350,7 @@ int iwl4965_tx_queue_init(struct iwl4965_priv *priv,
 	 * For the command queue (#4), allocate command space + one big
 	 * command for scan, since scan command is very huge; the system will
 	 * not have two scans at the same time, so only one is needed.
-	 * For data Tx queues (all other queues), no super-size command
+	 * For normal Tx queues (all other queues), no super-size command
 	 * space is needed.
 	 */
 	len = sizeof(struct iwl4965_cmd) * slots_num;
