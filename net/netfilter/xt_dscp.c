@@ -23,6 +23,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_dscp");
 MODULE_ALIAS("ip6t_dscp");
 MODULE_ALIAS("ipt_tos");
+MODULE_ALIAS("ip6t_tos");
 
 static bool
 dscp_mt(const struct sk_buff *skb, const struct net_device *in,
@@ -72,6 +73,21 @@ static bool tos_mt_v0(const struct sk_buff *skb, const struct net_device *in,
 	return (ip_hdr(skb)->tos == info->tos) ^ info->invert;
 }
 
+static bool tos_mt(const struct sk_buff *skb, const struct net_device *in,
+                   const struct net_device *out, const struct xt_match *match,
+                   const void *matchinfo, int offset, unsigned int protoff,
+                   bool *hotdrop)
+{
+	const struct xt_tos_match_info *info = matchinfo;
+
+	if (match->family == AF_INET)
+		return ((ip_hdr(skb)->tos & info->tos_mask) ==
+		       info->tos_value) ^ !!info->invert;
+	else
+		return ((ipv6_get_dsfield(ipv6_hdr(skb)) & info->tos_mask) ==
+		       info->tos_value) ^ !!info->invert;
+}
+
 static struct xt_match dscp_mt_reg[] __read_mostly = {
 	{
 		.name		= "dscp",
@@ -95,6 +111,22 @@ static struct xt_match dscp_mt_reg[] __read_mostly = {
 		.family		= AF_INET,
 		.match		= tos_mt_v0,
 		.matchsize	= sizeof(struct ipt_tos_info),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "tos",
+		.revision	= 1,
+		.family		= AF_INET,
+		.match		= tos_mt,
+		.matchsize	= sizeof(struct xt_tos_match_info),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "tos",
+		.revision	= 1,
+		.family		= AF_INET6,
+		.match		= tos_mt,
+		.matchsize	= sizeof(struct xt_tos_match_info),
 		.me		= THIS_MODULE,
 	},
 };

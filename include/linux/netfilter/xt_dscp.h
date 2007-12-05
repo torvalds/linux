@@ -20,4 +20,10 @@ struct xt_dscp_info {
 	u_int8_t invert;
 };
 
+struct xt_tos_match_info {
+	u_int8_t tos_mask;
+	u_int8_t tos_value;
+	u_int8_t invert;
+};
+
 #endif /* _XT_DSCP_H */
