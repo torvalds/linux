@@ -21,19 +21,10 @@
 #include <net/cipso_ipv4.h>
 #include <net/inet_frag.h>
 
-/* From af_inet.c */
-extern int sysctl_ip_nonlocal_bind;
-
-#ifdef CONFIG_SYSCTL
 static int zero;
 static int tcp_retr1_max = 255;
 static int ip_local_port_range_min[] = { 1, 1 };
 static int ip_local_port_range_max[] = { 65535, 65535 };
-#endif
-
-struct ipv4_config ipv4_config;
-
-#ifdef CONFIG_SYSCTL
 
 static
 int ipv4_sysctl_forward(ctl_table *ctl, int write, struct file * filp,
@@ -887,7 +878,3 @@ ctl_table ipv4_table[] = {
 	},
 	{ .ctl_name = 0 }
 };
-
-#endif /* CONFIG_SYSCTL */
-
-EXPORT_SYMBOL(ipv4_config);
