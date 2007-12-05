@@ -26,7 +26,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 					struct rtc_device, char_dev);
 	const struct rtc_class_ops *ops = rtc->ops;
 
-	if (test_and_set_bit(RTC_DEV_BUSY, &rtc->flags))
+	if (test_and_set_bit_lock(RTC_DEV_BUSY, &rtc->flags))
 		return -EBUSY;
 
 	file->private_data = rtc;
@@ -41,7 +41,7 @@ static int rtc_dev_open(struct inode *inode, struct file *file)
 	}
 
 	/* something has gone wrong */
-	clear_bit(RTC_DEV_BUSY, &rtc->flags);
+	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
 	return err;
 }
 
@@ -402,7 +402,7 @@ static int rtc_dev_release(struct inode *inode, struct file *file)
 	if (rtc->ops->release)
 		rtc->ops->release(rtc->dev.parent);
 
-	clear_bit(RTC_DEV_BUSY, &rtc->flags);
+	clear_bit_unlock(RTC_DEV_BUSY, &rtc->flags);
 	return 0;
 }
 
