@@ -3173,6 +3173,13 @@ retry:
 		printk(" locked it.\n");
 
 	do_each_thread(g, p) {
+		/*
+		 * It's not reliable to print a task's held locks
+		 * if it's not sleeping (or if it's not the current
+		 * task):
+		 */
+		if (p->state == TASK_RUNNING && p != current)
+			continue;
 		if (p->lockdep_depth)
 			lockdep_print_held_locks(p);
 		if (!unlock)
