@@ -75,7 +75,6 @@ struct cmd_ctrl_node {
 	void *pdata_buf;
 	/*command data */
 	u8 *bufvirtualaddr;
-	u16 cmdflags;
 	/* wait queue */
 	u16 cmdwaitqwoken;
 	wait_queue_head_t cmdwait_q;

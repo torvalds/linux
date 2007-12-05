@@ -856,13 +856,6 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		goto done;
 	}
 
-	if (adapter->cur_cmd->cmdflags & CMD_F_HOSTCMD) {
-		/* Copy the response back to response buffer */
-		memcpy(adapter->cur_cmd->pdata_buf, resp,
-		       le16_to_cpu(resp->size));
-		adapter->cur_cmd->cmdflags &= ~CMD_F_HOSTCMD;
-	}
-
 	/* If the command is not successful, cleanup and return failure */
 	if ((result != 0 || !(respcmd & 0x8000))) {
 		lbs_deb_host("CMD_RESP: error 0x%04x in command reply 0x%04x\n",
