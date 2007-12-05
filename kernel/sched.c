@@ -209,9 +209,8 @@ static inline struct task_group *task_group(struct task_struct *p)
 	tg = container_of(task_subsys_state(p, cpu_cgroup_subsys_id),
 				struct task_group, css);
 #else
-	tg  = &init_task_group;
+	tg = &init_task_group;
 #endif
-
 	return tg;
 }
 
@@ -249,15 +248,16 @@ struct cfs_rq {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	struct rq *rq;	/* cpu runqueue to which this cfs_rq is attached */
 
-	/* leaf cfs_rqs are those that hold tasks (lowest schedulable entity in
+	/*
+	 * leaf cfs_rqs are those that hold tasks (lowest schedulable entity in
 	 * a hierarchy). Non-leaf lrqs hold other higher schedulable entities
 	 * (like users, containers etc.)
 	 *
 	 * leaf_cfs_rq_list ties together list of leaf cfs_rq's in a cpu. This
 	 * list is used during load balance.
 	 */
-	struct list_head leaf_cfs_rq_list; /* Better name : task_cfs_rq_list? */
-	struct task_group *tg;    /* group that "owns" this runqueue */
+	struct list_head leaf_cfs_rq_list;
+	struct task_group *tg;	/* group that "owns" this runqueue */
 #endif
 };
 
@@ -300,7 +300,7 @@ struct rq {
 	/* list of leaf cfs_rq on this cpu: */
 	struct list_head leaf_cfs_rq_list;
 #endif
-	struct rt_rq  rt;
+	struct rt_rq rt;
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -457,8 +457,8 @@ enum {
 	SCHED_FEAT_NEW_FAIR_SLEEPERS	= 1,
 	SCHED_FEAT_WAKEUP_PREEMPT	= 2,
 	SCHED_FEAT_START_DEBIT		= 4,
-	SCHED_FEAT_TREE_AVG             = 8,
-	SCHED_FEAT_APPROX_AVG           = 16,
+	SCHED_FEAT_TREE_AVG		= 8,
+	SCHED_FEAT_APPROX_AVG		= 16,
 };
 
 const_debug unsigned int sysctl_sched_features =
@@ -591,7 +591,7 @@ static inline struct rq *__task_rq_lock(struct task_struct *p)
 
 /*
  * task_rq_lock - lock the runqueue a given task resides on and disable
- * interrupts.  Note the ordering: we can safely lookup the task_rq without
+ * interrupts. Note the ordering: we can safely lookup the task_rq without
  * explicitly disabling preemption.
  */
 static struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
@@ -779,7 +779,7 @@ static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
  * To aid in avoiding the subversion of "niceness" due to uneven distribution
  * of tasks with abnormal "nice" values across CPUs the contribution that
  * each task makes to its run queue's load is weighted according to its
- * scheduling class and "nice" value.  For SCHED_NORMAL tasks this is just a
+ * scheduling class and "nice" value. For SCHED_NORMAL tasks this is just a
  * scaled version of the new time slice allocation that they receive on time
  * slice expiry etc.
  */
@@ -1854,7 +1854,7 @@ prepare_task_switch(struct rq *rq, struct task_struct *prev,
  * and do any other architecture-specific cleanup actions.
  *
  * Note that we may have delayed dropping an mm in context_switch(). If
- * so, we finish that here outside of the runqueue lock.  (Doing it
+ * so, we finish that here outside of the runqueue lock. (Doing it
  * with the lock held can cause deadlocks; see schedule() for
  * details.)
  */
@@ -2136,7 +2136,7 @@ static void double_lock_balance(struct rq *this_rq, struct rq *busiest)
 /*
  * If dest_cpu is allowed for this process, migrate the task to it.
  * This is accomplished by forcing the cpu_allowed mask to only
- * allow dest_cpu, which will force the cpu onto dest_cpu.  Then
+ * allow dest_cpu, which will force the cpu onto dest_cpu. Then
  * the cpu_allowed mask is restored.
  */
 static void sched_migrate_task(struct task_struct *p, int dest_cpu)
@@ -2581,7 +2581,7 @@ group_next:
 	 * tasks around. Thus we look for the minimum possible imbalance.
 	 * Negative imbalances (*we* are more loaded than anyone else) will
 	 * be counted as no imbalance for these purposes -- we can't fix that
-	 * by pulling tasks to us.  Be careful of negative numbers as they'll
+	 * by pulling tasks to us. Be careful of negative numbers as they'll
 	 * appear as very large values with unsigned longs.
 	 */
 	if (max_load <= busiest_load_per_task)
@@ -3016,7 +3016,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 
 	/*
 	 * This condition is "impossible", if it occurs
-	 * we need to fix it.  Originally reported by
+	 * we need to fix it. Originally reported by
 	 * Bjorn Helgaas on a 128-cpu setup.
 	 */
 	BUG_ON(busiest_rq == target_rq);
@@ -3048,7 +3048,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 #ifdef CONFIG_NO_HZ
 static struct {
 	atomic_t load_balancer;
-	cpumask_t  cpu_mask;
+	cpumask_t cpu_mask;
 } nohz ____cacheline_aligned = {
 	.load_balancer = ATOMIC_INIT(-1),
 	.cpu_mask = CPU_MASK_NONE,
@@ -3552,7 +3552,7 @@ static noinline void __schedule_bug(struct task_struct *prev)
 static inline void schedule_debug(struct task_struct *prev)
 {
 	/*
-	 * Test if we are atomic.  Since do_exit() needs to call into
+	 * Test if we are atomic. Since do_exit() needs to call into
 	 * schedule() atomically, we ignore that path for now.
 	 * Otherwise, whine if we are scheduling when we should not be.
 	 */
@@ -3674,7 +3674,7 @@ EXPORT_SYMBOL(schedule);
 #ifdef CONFIG_PREEMPT
 /*
  * this is the entry point to schedule() from in-kernel preemption
- * off of preempt_enable.  Kernel preemptions off return from interrupt
+ * off of preempt_enable. Kernel preemptions off return from interrupt
  * occur there and call schedule directly.
  */
 asmlinkage void __sched preempt_schedule(void)
@@ -3686,7 +3686,7 @@ asmlinkage void __sched preempt_schedule(void)
 #endif
 	/*
 	 * If there is a non-zero preempt_count or interrupts are disabled,
-	 * we do not want to preempt the current task.  Just return..
+	 * we do not want to preempt the current task. Just return..
 	 */
 	if (likely(ti->preempt_count || irqs_disabled()))
 		return;
@@ -3772,12 +3772,12 @@ int default_wake_function(wait_queue_t *curr, unsigned mode, int sync,
 EXPORT_SYMBOL(default_wake_function);
 
 /*
- * The core wakeup function.  Non-exclusive wakeups (nr_exclusive == 0) just
- * wake everything up.  If it's an exclusive wakeup (nr_exclusive == small +ve
+ * The core wakeup function. Non-exclusive wakeups (nr_exclusive == 0) just
+ * wake everything up. If it's an exclusive wakeup (nr_exclusive == small +ve
  * number) then we wake all the non-exclusive tasks and one exclusive task.
  *
  * There are circumstances in which we can try to wake a task which has already
- * started to run but is not in state TASK_RUNNING.  try_to_wake_up() returns
+ * started to run but is not in state TASK_RUNNING. try_to_wake_up() returns
  * zero in this (rare) case, and we handle it by continuing to scan the queue.
  */
 static void __wake_up_common(wait_queue_head_t *q, unsigned int mode,
@@ -4390,8 +4390,8 @@ do_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
  * @policy: new policy.
  * @param: structure containing the new RT priority.
  */
-asmlinkage long sys_sched_setscheduler(pid_t pid, int policy,
-				       struct sched_param __user *param)
+asmlinkage long
+sys_sched_setscheduler(pid_t pid, int policy, struct sched_param __user *param)
 {
 	/* negative values for policy are not valid */
 	if (policy < 0)
@@ -4491,7 +4491,7 @@ long sched_setaffinity(pid_t pid, cpumask_t new_mask)
 
 	/*
 	 * It is not safe to call set_cpus_allowed with the
-	 * tasklist_lock held.  We will bump the task_struct's
+	 * tasklist_lock held. We will bump the task_struct's
 	 * usage count and then drop tasklist_lock.
 	 */
 	get_task_struct(p);
@@ -4687,7 +4687,7 @@ EXPORT_SYMBOL(cond_resched);
  * cond_resched_lock() - if a reschedule is pending, drop the given lock,
  * call schedule, and on return reacquire the lock.
  *
- * This works OK both with and without CONFIG_PREEMPT.  We do strange low-level
+ * This works OK both with and without CONFIG_PREEMPT. We do strange low-level
  * operations here to prevent schedule() from being called twice (once via
  * spin_unlock(), once by hand).
  */
@@ -4741,7 +4741,7 @@ void __sched yield(void)
 EXPORT_SYMBOL(yield);
 
 /*
- * This task is about to go to sleep on IO.  Increment rq->nr_iowait so
+ * This task is about to go to sleep on IO. Increment rq->nr_iowait so
  * that process accounting knows that this is a task in IO wait state.
  *
  * But don't do that if it is a deliberate, throttling IO wait (this task
@@ -5050,7 +5050,7 @@ static inline void sched_init_granularity(void)
  * is removed from the allowed bitmask.
  *
  * NOTE: the caller must have a valid reference to the task, the
- * task must not exit() & deallocate itself prematurely.  The
+ * task must not exit() & deallocate itself prematurely. The
  * call is not atomic; no spinlocks may be held.
  */
 int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
@@ -5087,7 +5087,7 @@ out:
 EXPORT_SYMBOL_GPL(set_cpus_allowed);
 
 /*
- * Move (not current) task off this cpu, onto dest cpu.  We're doing
+ * Move (not current) task off this cpu, onto dest cpu. We're doing
  * this because either it can't run here any more (set_cpus_allowed()
  * away from this CPU, or CPU going down), or because we're
  * attempting to rebalance this task on exec (sched_exec).
@@ -5232,7 +5232,7 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 			 * Try to stay on the same cpuset, where the
 			 * current cpuset may be a subset of all cpus.
 			 * The cpuset_cpus_allowed_locked() variant of
-			 * cpuset_cpus_allowed() will not block.  It must be
+			 * cpuset_cpus_allowed() will not block. It must be
 			 * called within calls to cpuset_lock/cpuset_unlock.
 			 */
 			rq = task_rq_lock(p, &flags);
@@ -5245,10 +5245,11 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 			 * kernel threads (both mm NULL), since they never
 			 * leave kernel.
 			 */
-			if (p->mm && printk_ratelimit())
+			if (p->mm && printk_ratelimit()) {
 				printk(KERN_INFO "process %d (%s) no "
 				       "longer affine to cpu%d\n",
-			       task_pid_nr(p), p->comm, dead_cpu);
+					task_pid_nr(p), p->comm, dead_cpu);
+			}
 		}
 	} while (!__migrate_task_irq(p, dead_cpu, dest_cpu));
 }
@@ -5350,7 +5351,7 @@ static void migrate_dead(unsigned int dead_cpu, struct task_struct *p)
 
 	/*
 	 * Drop lock around migration; if someone else moves it,
-	 * that's OK.  No task can be added to this CPU, so iteration is
+	 * that's OK. No task can be added to this CPU, so iteration is
 	 * fine.
 	 */
 	spin_unlock_irq(&rq->lock);
@@ -5414,7 +5415,7 @@ static void sd_free_ctl_entry(struct ctl_table **tablep)
 	/*
 	 * In the intermediate directories, both the child directory and
 	 * procname are dynamically allocated and could fail but the mode
-	 * will always be set.  In the lowest directory the names are
+	 * will always be set. In the lowest directory the names are
 	 * static strings and all have proc handlers.
 	 */
 	for (entry = *tablep; entry->mode; entry++) {
@@ -5585,7 +5586,7 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 	case CPU_UP_CANCELED_FROZEN:
 		if (!cpu_rq(cpu)->migration_thread)
 			break;
-		/* Unbind it from offline cpu so it can run.  Fall thru. */
+		/* Unbind it from offline cpu so it can run. Fall thru. */
 		kthread_bind(cpu_rq(cpu)->migration_thread,
 			     any_online_cpu(cpu_online_map));
 		kthread_stop(cpu_rq(cpu)->migration_thread);
@@ -5612,9 +5613,11 @@ migration_call(struct notifier_block *nfb, unsigned long action, void *hcpu)
 		migrate_nr_uninterruptible(rq);
 		BUG_ON(rq->nr_running != 0);
 
-		/* No need to migrate the tasks: it was best-effort if
-		 * they didn't take sched_hotcpu_mutex.  Just wake up
-		 * the requestors. */
+		/*
+		 * No need to migrate the tasks: it was best-effort if
+		 * they didn't take sched_hotcpu_mutex. Just wake up
+		 * the requestors.
+		 */
 		spin_lock_irq(&rq->lock);
 		while (!list_empty(&rq->migration_queue)) {
 			struct migration_req *req;
@@ -5922,7 +5925,7 @@ init_sched_build_groups(cpumask_t span, const cpumask_t *cpu_map,
  * @node: node whose sched_domain we're building
  * @used_nodes: nodes already in the sched_domain
  *
- * Find the next node to include in a given scheduling domain.  Simply
+ * Find the next node to include in a given scheduling domain. Simply
  * finds the closest node not already in the @used_nodes map.
  *
  * Should use nodemask_t.
@@ -5962,7 +5965,7 @@ static int find_next_best_node(int node, unsigned long *used_nodes)
  * @node: node whose cpumask we're constructing
  * @size: number of nodes to include in this span
  *
- * Given a node, construct a good cpumask for its sched_domain to span.  It
+ * Given a node, construct a good cpumask for its sched_domain to span. It
  * should be one that prevents unnecessary balancing, but also spreads tasks
  * out optimally.
  */
@@ -5999,8 +6002,8 @@ int sched_smt_power_savings = 0, sched_mc_power_savings = 0;
 static DEFINE_PER_CPU(struct sched_domain, cpu_domains);
 static DEFINE_PER_CPU(struct sched_group, sched_group_cpus);
 
-static int cpu_to_cpu_group(int cpu, const cpumask_t *cpu_map,
-			    struct sched_group **sg)
+static int
+cpu_to_cpu_group(int cpu, const cpumask_t *cpu_map, struct sched_group **sg)
 {
 	if (sg)
 		*sg = &per_cpu(sched_group_cpus, cpu);
@@ -6017,8 +6020,8 @@ static DEFINE_PER_CPU(struct sched_group, sched_group_core);
 #endif
 
 #if defined(CONFIG_SCHED_MC) && defined(CONFIG_SCHED_SMT)
-static int cpu_to_core_group(int cpu, const cpumask_t *cpu_map,
-			     struct sched_group **sg)
+static int
+cpu_to_core_group(int cpu, const cpumask_t *cpu_map, struct sched_group **sg)
 {
 	int group;
 	cpumask_t mask = per_cpu(cpu_sibling_map, cpu);
@@ -6029,8 +6032,8 @@ static int cpu_to_core_group(int cpu, const cpumask_t *cpu_map,
 	return group;
 }
 #elif defined(CONFIG_SCHED_MC)
-static int cpu_to_core_group(int cpu, const cpumask_t *cpu_map,
-			     struct sched_group **sg)
+static int
+cpu_to_core_group(int cpu, const cpumask_t *cpu_map, struct sched_group **sg)
 {
 	if (sg)
 		*sg = &per_cpu(sched_group_core, cpu);
@@ -6041,8 +6044,8 @@ static int cpu_to_core_group(int cpu, const cpumask_t *cpu_map,
 static DEFINE_PER_CPU(struct sched_domain, phys_domains);
 static DEFINE_PER_CPU(struct sched_group, sched_group_phys);
 
-static int cpu_to_phys_group(int cpu, const cpumask_t *cpu_map,
-			     struct sched_group **sg)
+static int
+cpu_to_phys_group(int cpu, const cpumask_t *cpu_map, struct sched_group **sg)
 {
 	int group;
 #ifdef CONFIG_SCHED_MC
@@ -6222,7 +6225,7 @@ static int build_sched_domains(const cpumask_t *cpu_map)
 	 * Allocate the per-node list of sched groups
 	 */
 	sched_group_nodes = kcalloc(MAX_NUMNODES, sizeof(struct sched_group *),
-					   GFP_KERNEL);
+				    GFP_KERNEL);
 	if (!sched_group_nodes) {
 		printk(KERN_WARNING "Can not alloc sched group node list\n");
 		return -ENOMEM;
@@ -6469,7 +6472,7 @@ static int ndoms_cur;		/* number of sched domains in 'doms_cur' */
 static cpumask_t fallback_doms;
 
 /*
- * Set up scheduler domains and groups.  Callers must hold the hotplug lock.
+ * Set up scheduler domains and groups. Callers must hold the hotplug lock.
  * For now this just excludes isolated cpus, but could be used to
  * exclude other special cases in the future.
  */
@@ -6511,19 +6514,19 @@ static void detach_destroy_domains(const cpumask_t *cpu_map)
 
 /*
  * Partition sched domains as specified by the 'ndoms_new'
- * cpumasks in the array doms_new[] of cpumasks.  This compares
+ * cpumasks in the array doms_new[] of cpumasks. This compares
  * doms_new[] to the current sched domain partitioning, doms_cur[].
  * It destroys each deleted domain and builds each new domain.
  *
  * 'doms_new' is an array of cpumask_t's of length 'ndoms_new'.
- * The masks don't intersect (don't overlap.)  We should setup one
- * sched domain for each mask.  CPUs not in any of the cpumasks will
- * not be load balanced.  If the same cpumask appears both in the
+ * The masks don't intersect (don't overlap.) We should setup one
+ * sched domain for each mask. CPUs not in any of the cpumasks will
+ * not be load balanced. If the same cpumask appears both in the
  * current 'doms_cur' domains and in the new 'doms_new', we can leave
  * it as it is.
  *
- * The passed in 'doms_new' should be kmalloc'd.  This routine takes
- * ownership of it and will kfree it when done with it.  If the caller
+ * The passed in 'doms_new' should be kmalloc'd. This routine takes
+ * ownership of it and will kfree it when done with it. If the caller
  * failed the kmalloc call, then it can pass in doms_new == NULL,
  * and partition_sched_domains() will fallback to the single partition
  * 'fallback_doms'.
@@ -6653,7 +6656,7 @@ int sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
 #endif
 
 /*
- * Force a reinitialization of the sched domains hierarchy.  The domains
+ * Force a reinitialization of the sched domains hierarchy. The domains
  * and groups cannot be updated in place without racing with the balancing
  * code, so we temporarily attach all running cpus to the NULL domain
  * which will prevent rebalancing while the sched domains are recalculated.
@@ -6943,8 +6946,8 @@ struct task_struct *curr_task(int cpu)
  * @p: the task pointer to set.
  *
  * Description: This function must only be used when non-maskable interrupts
- * are serviced on a separate stack.  It allows the architecture to switch the
- * notion of the current task on a cpu in a non-blocking manner.  This function
+ * are serviced on a separate stack. It allows the architecture to switch the
+ * notion of the current task on a cpu in a non-blocking manner. This function
  * must be called with all CPU's synchronized, and interrupts disabled, the
  * and caller must save the original value of the current task (see
  * curr_task() above) and restore that value before reenabling interrupts and
@@ -7193,16 +7196,17 @@ cpu_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cgrp)
 	return &tg->css;
 }
 
-static void cpu_cgroup_destroy(struct cgroup_subsys *ss,
-			       struct cgroup *cgrp)
+static void
+cpu_cgroup_destroy(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
 	struct task_group *tg = cgroup_tg(cgrp);
 
 	sched_destroy_group(tg);
 }
 
-static int cpu_cgroup_can_attach(struct cgroup_subsys *ss,
-			     struct cgroup *cgrp, struct task_struct *tsk)
+static int
+cpu_cgroup_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
+		      struct task_struct *tsk)
 {
 	/* We don't support RT-tasks being in separate groups */
 	if (tsk->sched_class != &fair_sched_class)
@@ -7308,8 +7312,8 @@ static struct cgroup_subsys_state *cpuacct_create(
 }
 
 /* destroy an existing cpu accounting group */
-static void cpuacct_destroy(struct cgroup_subsys *ss,
-			    struct cgroup *cont)
+static void
+cpuacct_destroy(struct cgroup_subsys *ss, struct cgroup *cont)
 {
 	struct cpuacct *ca = cgroup_ca(cont);
 
