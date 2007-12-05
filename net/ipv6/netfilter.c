@@ -81,6 +81,12 @@ static int nf_ip6_reroute(struct sk_buff *skb, const struct nf_info *info)
 	return 0;
 }
 
+static int nf_ip6_route(struct dst_entry **dst, struct flowi *fl)
+{
+	*dst = ip6_route_output(NULL, fl);
+	return (*dst)->error;
+}
+
 __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 			     unsigned int dataoff, u_int8_t protocol)
 {
@@ -118,6 +124,7 @@ EXPORT_SYMBOL(nf_ip6_checksum);
 static struct nf_afinfo nf_ip6_afinfo = {
 	.family		= AF_INET6,
 	.checksum	= nf_ip6_checksum,
+	.route		= nf_ip6_route,
 	.saveroute	= nf_ip6_saveroute,
 	.reroute	= nf_ip6_reroute,
 	.route_key_size	= sizeof(struct ip6_rt_info),

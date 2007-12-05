@@ -182,9 +182,15 @@ __sum16 nf_ip_checksum(struct sk_buff *skb, unsigned int hook,
 
 EXPORT_SYMBOL(nf_ip_checksum);
 
+static int nf_ip_route(struct dst_entry **dst, struct flowi *fl)
+{
+	return ip_route_output_key((struct rtable **)dst, fl);
+}
+
 static struct nf_afinfo nf_ip_afinfo = {
 	.family		= AF_INET,
 	.checksum	= nf_ip_checksum,
+	.route		= nf_ip_route,
 	.saveroute	= nf_ip_saveroute,
 	.reroute	= nf_ip_reroute,
 	.route_key_size	= sizeof(struct ip_rt_info),

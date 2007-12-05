@@ -708,8 +708,14 @@ static int callforward_do_filter(union nf_conntrack_address *src,
 				 union nf_conntrack_address *dst,
 				 int family)
 {
+	struct nf_afinfo *afinfo;
 	struct flowi fl1, fl2;
 	int ret = 0;
+
+	/* rcu_read_lock()ed by nf_hook_slow() */
+	afinfo = nf_get_afinfo(family);
+	if (!afinfo)
+		return 0;
 
 	memset(&fl1, 0, sizeof(fl1));
 	memset(&fl2, 0, sizeof(fl2));
@@ -720,8 +726,8 @@ static int callforward_do_filter(union nf_conntrack_address *src,
 
 		fl1.fl4_dst = src->ip;
 		fl2.fl4_dst = dst->ip;
-		if (ip_route_output_key(&rt1, &fl1) == 0) {
-			if (ip_route_output_key(&rt2, &fl2) == 0) {
+		if (!afinfo->route((struct dst_entry **)&rt1, &fl1)) {
+			if (!afinfo->route((struct dst_entry **)&rt2, &fl2)) {
 				if (rt1->rt_gateway == rt2->rt_gateway &&
 				    rt1->u.dst.dev  == rt2->u.dst.dev)
 					ret = 1;
@@ -731,16 +737,15 @@ static int callforward_do_filter(union nf_conntrack_address *src,
 		}
 		break;
 	}
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if defined(CONFIG_NF_CONNTRACK_IPV6) || \
+    defined(CONFIG_NF_CONNTRACK_IPV6_MODULE)
 	case AF_INET6: {
 		struct rt6_info *rt1, *rt2;
 
 		memcpy(&fl1.fl6_dst, src, sizeof(fl1.fl6_dst));
 		memcpy(&fl2.fl6_dst, dst, sizeof(fl2.fl6_dst));
-		rt1 = (struct rt6_info *)ip6_route_output(NULL, &fl1);
-		if (rt1) {
-			rt2 = (struct rt6_info *)ip6_route_output(NULL, &fl2);
-			if (rt2) {
+		if (!afinfo->route((struct dst_entry **)&rt1, &fl1)) {
+			if (!afinfo->route((struct dst_entry **)&rt2, &fl2)) {
 				if (!memcmp(&rt1->rt6i_gateway, &rt2->rt6i_gateway,
 					    sizeof(rt1->rt6i_gateway)) &&
 				    rt1->u.dst.dev == rt2->u.dst.dev)
