@@ -232,7 +232,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 	spin_lock_bh(&queue->lock);
 
-	switch (queue->copy_mode) {
+	switch ((enum nfqnl_config_mode)queue->copy_mode) {
 	case NFQNL_COPY_META:
 	case NFQNL_COPY_NONE:
 		data_len = 0;
@@ -253,11 +253,6 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 
 		size += nla_total_size(data_len);
 		break;
-
-	default:
-		*errp = -EINVAL;
-		spin_unlock_bh(&queue->lock);
-		return NULL;
 	}
 
 	entry->id = queue->id_sequence++;
