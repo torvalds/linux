@@ -464,26 +464,34 @@ static int emac_configure(struct emac_instance *dev)
 {
 	struct emac_regs __iomem *p = dev->emacp;
 	struct net_device *ndev = dev->ndev;
-	int tx_size, rx_size;
+	int tx_size, rx_size, link = netif_carrier_ok(dev->ndev);
 	u32 r, mr1 = 0;
 
 	DBG(dev, "configure" NL);
 
-	if (emac_reset(dev) < 0)
+	if (!link) {
+		out_be32(&p->mr1, in_be32(&p->mr1)
+			 | EMAC_MR1_FDE | EMAC_MR1_ILE);
+		udelay(100);
+	} else if (emac_reset(dev) < 0)
 		return -ETIMEDOUT;
 
 	if (emac_has_feature(dev, EMAC_FTR_HAS_TAH))
 		tah_reset(dev->tah_dev);
 
-	DBG(dev, " duplex = %d, pause = %d, asym_pause = %d\n",
-	    dev->phy.duplex, dev->phy.pause, dev->phy.asym_pause);
+	DBG(dev, " link = %d duplex = %d, pause = %d, asym_pause = %d\n",
+	    link, dev->phy.duplex, dev->phy.pause, dev->phy.asym_pause);
 
 	/* Default fifo sizes */
 	tx_size = dev->tx_fifo_size;
 	rx_size = dev->rx_fifo_size;
 
+	/* No link, force loopback */
+	if (!link)
+		mr1 = EMAC_MR1_FDE | EMAC_MR1_ILE;
+
 	/* Check for full duplex */
-	if (dev->phy.duplex == DUPLEX_FULL)
+	else if (dev->phy.duplex == DUPLEX_FULL)
 		mr1 |= EMAC_MR1_FDE | EMAC_MR1_MWSW_001;
 
 	/* Adjust fifo sizes, mr1 and timeouts based on link speed */
@@ -1165,9 +1173,9 @@ static void emac_link_timer(struct work_struct *work)
 		link_poll_interval = PHY_POLL_LINK_ON;
 	} else {
 		if (netif_carrier_ok(dev->ndev)) {
-			emac_reinitialize(dev);
 			netif_carrier_off(dev->ndev);
 			netif_tx_disable(dev->ndev);
+			emac_reinitialize(dev);
 			emac_print_link_status(dev);
 		}
 		link_poll_interval = PHY_POLL_LINK_OFF;
