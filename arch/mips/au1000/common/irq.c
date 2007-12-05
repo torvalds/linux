@@ -464,7 +464,7 @@ static void intc0_req0_irqdispatch(void)
 #endif
 	bit = __ffs(intc0_req0);
 	intc0_req0 &= ~(1 << bit);
-	do_IRQ(MIPS_CPU_IRQ_BASE + bit);
+	do_IRQ(AU1000_INTC0_INT_BASE + bit);
 }
 
 
@@ -480,7 +480,7 @@ static void intc0_req1_irqdispatch(void)
 
 	bit = __ffs(intc0_req1);
 	intc0_req1 &= ~(1 << bit);
-	do_IRQ(bit);
+	do_IRQ(AU1000_INTC0_INT_BASE + bit);
 }
 
 
@@ -500,7 +500,7 @@ static void intc1_req0_irqdispatch(void)
 
 	bit = __ffs(intc1_req0);
 	intc1_req0 &= ~(1 << bit);
-	do_IRQ(MIPS_CPU_IRQ_BASE + 32 + bit);
+	do_IRQ(AU1000_INTC1_INT_BASE + bit);
 }
 
 
@@ -516,7 +516,7 @@ static void intc1_req1_irqdispatch(void)
 
 	bit = __ffs(intc1_req1);
 	intc1_req1 &= ~(1 << bit);
-	do_IRQ(MIPS_CPU_IRQ_BASE + 32 + bit);
+	do_IRQ(AU1000_INTC1_INT_BASE + bit);
 }
 
 asmlinkage void plat_irq_dispatch(void)
