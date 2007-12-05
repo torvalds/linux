@@ -533,17 +533,15 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg;
-	unsigned int idx;
 	const u32 SG_COUNT_ASIC_BUG = 41*4;
+	unsigned int si, idx;
+	u32 len;
 
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
 		return;
 
-	WARN_ON(qc->__sg == NULL);
-	WARN_ON(qc->n_elem == 0 && qc->pad_len == 0);
-
 	idx = 0;
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		u32 addr, offset;
 		u32 sg_len, len;
 
@@ -570,29 +568,27 @@ static void pdc_fill_sg(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (idx) {
-		u32 len = le32_to_cpu(ap->prd[idx - 1].flags_len);
+	len = le32_to_cpu(ap->prd[idx - 1].flags_len);
 
-		if (len > SG_COUNT_ASIC_BUG) {
-			u32 addr;
+	if (len > SG_COUNT_ASIC_BUG) {
+		u32 addr;
 
-			VPRINTK("Splitting last PRD.\n");
+		VPRINTK("Splitting last PRD.\n");
 
-			addr = le32_to_cpu(ap->prd[idx - 1].addr);
-			ap->prd[idx - 1].flags_len = cpu_to_le32(len - SG_COUNT_ASIC_BUG);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx - 1, addr, SG_COUNT_ASIC_BUG);
+		addr = le32_to_cpu(ap->prd[idx - 1].addr);
+		ap->prd[idx - 1].flags_len = cpu_to_le32(len - SG_COUNT_ASIC_BUG);
+		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx - 1, addr, SG_COUNT_ASIC_BUG);
 
-			addr = addr + len - SG_COUNT_ASIC_BUG;
-			len = SG_COUNT_ASIC_BUG;
-			ap->prd[idx].addr = cpu_to_le32(addr);
-			ap->prd[idx].flags_len = cpu_to_le32(len);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx, addr, len);
+		addr = addr + len - SG_COUNT_ASIC_BUG;
+		len = SG_COUNT_ASIC_BUG;
+		ap->prd[idx].addr = cpu_to_le32(addr);
+		ap->prd[idx].flags_len = cpu_to_le32(len);
+		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx, addr, len);
 
-			idx++;
-		}
-
-		ap->prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+		idx++;
 	}
+
+	ap->prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
 static void pdc_qc_prep(struct ata_queued_cmd *qc)

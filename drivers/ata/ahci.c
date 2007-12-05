@@ -1483,28 +1483,24 @@ static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc, void *cmd_tbl)
 {
 	struct scatterlist *sg;
-	struct ahci_sg *ahci_sg;
-	unsigned int n_sg = 0;
+	struct ahci_sg *ahci_sg = cmd_tbl + AHCI_CMD_TBL_HDR_SZ;
+	unsigned int si;
 
 	VPRINTK("ENTER\n");
 
 	/*
 	 * Next, the S/G list.
 	 */
-	ahci_sg = cmd_tbl + AHCI_CMD_TBL_HDR_SZ;
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		dma_addr_t addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
 
-		ahci_sg->addr = cpu_to_le32(addr & 0xffffffff);
-		ahci_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
-		ahci_sg->flags_size = cpu_to_le32(sg_len - 1);
-
-		ahci_sg++;
-		n_sg++;
+		ahci_sg[si].addr = cpu_to_le32(addr & 0xffffffff);
+		ahci_sg[si].addr_hi = cpu_to_le32((addr >> 16) >> 16);
+		ahci_sg[si].flags_size = cpu_to_le32(sg_len - 1);
 	}
 
-	return n_sg;
+	return si;
 }
 
 static void ahci_qc_prep(struct ata_queued_cmd *qc)

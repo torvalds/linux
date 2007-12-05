@@ -4471,13 +4471,13 @@ static unsigned int ata_dev_init_params(struct ata_device *dev,
 void ata_sg_clean(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg = qc->__sg;
+	struct scatterlist *sg = qc->sg;
 	int dir = qc->dma_dir;
 	void *pad_buf = NULL;
 
 	WARN_ON(sg == NULL);
 
-	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
+	VPRINTK("unmapping %u sg elements\n", qc->mapped_n_elem);
 
 	/* if we padded the buffer out to 32-bit bound, and data
 	 * xfer direction is from-device, we must copy from the
@@ -4486,19 +4486,20 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
 	if (qc->pad_len && !(qc->tf.flags & ATA_TFLAG_WRITE))
 		pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
 
-	if (qc->n_elem)
-		dma_unmap_sg(ap->dev, sg, qc->n_elem, dir);
+	if (qc->mapped_n_elem)
+		dma_unmap_sg(ap->dev, sg, qc->mapped_n_elem, dir);
 	/* restore last sg */
-	sg_last(sg, qc->orig_n_elem)->length += qc->pad_len;
+	if (qc->last_sg)
+		*qc->last_sg = qc->saved_last_sg;
 	if (pad_buf) {
-		struct scatterlist *psg = &qc->pad_sgent;
+		struct scatterlist *psg = &qc->extra_sg[1];
 		void *addr = kmap_atomic(sg_page(psg), KM_IRQ0);
 		memcpy(addr + psg->offset, pad_buf, qc->pad_len);
 		kunmap_atomic(addr, KM_IRQ0);
 	}
 
 	qc->flags &= ~ATA_QCFLAG_DMAMAP;
-	qc->__sg = NULL;
+	qc->sg = NULL;
 }
 
 /**
@@ -4516,13 +4517,10 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg;
-	unsigned int idx;
+	unsigned int si, pi;
 
-	WARN_ON(qc->__sg == NULL);
-	WARN_ON(qc->n_elem == 0 && qc->pad_len == 0);
-
-	idx = 0;
-	ata_for_each_sg(sg, qc) {
+	pi = 0;
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		u32 addr, offset;
 		u32 sg_len, len;
 
@@ -4539,18 +4537,17 @@ static void ata_fill_sg(struct ata_queued_cmd *qc)
 			if ((offset + sg_len) > 0x10000)
 				len = 0x10000 - offset;
 
-			ap->prd[idx].addr = cpu_to_le32(addr);
-			ap->prd[idx].flags_len = cpu_to_le32(len & 0xffff);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx, addr, len);
+			ap->prd[pi].addr = cpu_to_le32(addr);
+			ap->prd[pi].flags_len = cpu_to_le32(len & 0xffff);
+			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
 
-			idx++;
+			pi++;
 			sg_len -= len;
 			addr += len;
 		}
 	}
 
-	if (idx)
-		ap->prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
 /**
@@ -4570,13 +4567,10 @@ static void ata_fill_sg_dumb(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg;
-	unsigned int idx;
+	unsigned int si, pi;
 
-	WARN_ON(qc->__sg == NULL);
-	WARN_ON(qc->n_elem == 0 && qc->pad_len == 0);
-
-	idx = 0;
-	ata_for_each_sg(sg, qc) {
+	pi = 0;
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		u32 addr, offset;
 		u32 sg_len, len, blen;
 
@@ -4594,25 +4588,24 @@ static void ata_fill_sg_dumb(struct ata_queued_cmd *qc)
 				len = 0x10000 - offset;
 
 			blen = len & 0xffff;
-			ap->prd[idx].addr = cpu_to_le32(addr);
+			ap->prd[pi].addr = cpu_to_le32(addr);
 			if (blen == 0) {
 			   /* Some PATA chipsets like the CS5530 can't
 			      cope with 0x0000 meaning 64K as the spec says */
-				ap->prd[idx].flags_len = cpu_to_le32(0x8000);
+				ap->prd[pi].flags_len = cpu_to_le32(0x8000);
 				blen = 0x8000;
-				ap->prd[++idx].addr = cpu_to_le32(addr + 0x8000);
+				ap->prd[++pi].addr = cpu_to_le32(addr + 0x8000);
 			}
-			ap->prd[idx].flags_len = cpu_to_le32(blen);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", idx, addr, len);
+			ap->prd[pi].flags_len = cpu_to_le32(blen);
+			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
 
-			idx++;
+			pi++;
 			sg_len -= len;
 			addr += len;
 		}
 	}
 
-	if (idx)
-		ap->prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
 /**
@@ -4764,10 +4757,97 @@ void ata_noop_qc_prep(struct ata_queued_cmd *qc) { }
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem)
 {
-	qc->__sg = sg;
+	qc->sg = sg;
 	qc->n_elem = n_elem;
-	qc->orig_n_elem = n_elem;
-	qc->cursg = qc->__sg;
+	qc->cursg = qc->sg;
+}
+
+static unsigned int ata_sg_setup_extra(struct ata_queued_cmd *qc,
+				       unsigned int *n_elem_extra)
+{
+	struct ata_port *ap = qc->ap;
+	unsigned int n_elem = qc->n_elem;
+	struct scatterlist *lsg, *copy_lsg = NULL, *tsg = NULL, *esg = NULL;
+
+	*n_elem_extra = 0;
+
+	/* needs padding? */
+	qc->pad_len = qc->nbytes & 3;
+
+	if (likely(!qc->pad_len))
+		return n_elem;
+
+	/* locate last sg and save it */
+	lsg = sg_last(qc->sg, n_elem);
+	qc->last_sg = lsg;
+	qc->saved_last_sg = *lsg;
+
+	sg_init_table(qc->extra_sg, ARRAY_SIZE(qc->extra_sg));
+
+	if (qc->pad_len) {
+		struct scatterlist *psg = &qc->extra_sg[1];
+		void *pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
+		unsigned int offset;
+
+		WARN_ON(qc->dev->class != ATA_DEV_ATAPI);
+
+		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
+
+		/* psg->page/offset are used to copy to-be-written
+		 * data in this function or read data in ata_sg_clean.
+		 */
+		offset = lsg->offset + lsg->length - qc->pad_len;
+		sg_set_page(psg, nth_page(sg_page(lsg), offset >> PAGE_SHIFT),
+			    qc->pad_len, offset_in_page(offset));
+
+		if (qc->tf.flags & ATA_TFLAG_WRITE) {
+			void *addr = kmap_atomic(sg_page(psg), KM_IRQ0);
+			memcpy(pad_buf, addr + psg->offset, qc->pad_len);
+			kunmap_atomic(addr, KM_IRQ0);
+		}
+
+		sg_dma_address(psg) = ap->pad_dma + (qc->tag * ATA_DMA_PAD_SZ);
+		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
+
+		/* Trim the last sg entry and chain the original and
+		 * padding sg lists.
+		 *
+		 * Because chaining consumes one sg entry, one extra
+		 * sg entry is allocated and the last sg entry is
+		 * copied to it if the length isn't zero after padded
+		 * amount is removed.
+		 *
+		 * If the last sg entry is completely replaced by
+		 * padding sg entry, the first sg entry is skipped
+		 * while chaining.
+		 */
+		lsg->length -= qc->pad_len;
+		if (lsg->length) {
+			copy_lsg = &qc->extra_sg[0];
+			tsg = &qc->extra_sg[0];
+		} else {
+			n_elem--;
+			tsg = &qc->extra_sg[1];
+		}
+
+		esg = &qc->extra_sg[1];
+
+		(*n_elem_extra)++;
+	}
+
+	if (copy_lsg)
+		sg_set_page(copy_lsg, sg_page(lsg), lsg->length, lsg->offset);
+
+	sg_chain(lsg, 1, tsg);
+	sg_mark_end(esg);
+
+	/* sglist can't start with chaining sg entry, fast forward */
+	if (qc->sg == lsg) {
+		qc->sg = tsg;
+		qc->cursg = tsg;
+	}
+
+	return n_elem;
 }
 
 /**
@@ -4783,74 +4863,29 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
  *	Zero on success, negative on error.
  *
  */
-
 static int ata_sg_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg = qc->__sg;
-	struct scatterlist *lsg = sg_last(qc->__sg, qc->n_elem);
-	int n_elem, pre_n_elem, dir, trim_sg = 0;
+	unsigned int n_elem, n_elem_extra;
 
 	VPRINTK("ENTER, ata%u\n", ap->print_id);
 
-	/* we must lengthen transfers to end on a 32-bit boundary */
-	qc->pad_len = lsg->length & 3;
-	if (qc->pad_len) {
-		void *pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
-		struct scatterlist *psg = &qc->pad_sgent;
-		unsigned int offset;
+	n_elem = ata_sg_setup_extra(qc, &n_elem_extra);
 
-		WARN_ON(qc->dev->class != ATA_DEV_ATAPI);
-
-		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
-
-		/*
-		 * psg->page/offset are used to copy to-be-written
-		 * data in this function or read data in ata_sg_clean.
-		 */
-		offset = lsg->offset + lsg->length - qc->pad_len;
-		sg_init_table(psg, 1);
-		sg_set_page(psg, nth_page(sg_page(lsg), offset >> PAGE_SHIFT),
-				qc->pad_len, offset_in_page(offset));
-
-		if (qc->tf.flags & ATA_TFLAG_WRITE) {
-			void *addr = kmap_atomic(sg_page(psg), KM_IRQ0);
-			memcpy(pad_buf, addr + psg->offset, qc->pad_len);
-			kunmap_atomic(addr, KM_IRQ0);
+	if (n_elem) {
+		n_elem = dma_map_sg(ap->dev, qc->sg, n_elem, qc->dma_dir);
+		if (n_elem < 1) {
+			/* restore last sg */
+			if (qc->last_sg)
+				*qc->last_sg = qc->saved_last_sg;
+			return -1;
 		}
-
-		sg_dma_address(psg) = ap->pad_dma + (qc->tag * ATA_DMA_PAD_SZ);
-		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
-		/* trim last sg */
-		lsg->length -= qc->pad_len;
-		if (lsg->length == 0)
-			trim_sg = 1;
-
-		DPRINTK("padding done, sg[%d].length=%u pad_len=%u\n",
-			qc->n_elem - 1, lsg->length, qc->pad_len);
+		DPRINTK("%d sg elements mapped\n", n_elem);
 	}
 
-	pre_n_elem = qc->n_elem;
-	if (trim_sg && pre_n_elem)
-		pre_n_elem--;
+	qc->n_elem = qc->mapped_n_elem = n_elem;
+	qc->n_elem += n_elem_extra;
 
-	if (!pre_n_elem) {
-		n_elem = 0;
-		goto skip_map;
-	}
-
-	dir = qc->dma_dir;
-	n_elem = dma_map_sg(ap->dev, sg, pre_n_elem, dir);
-	if (n_elem < 1) {
-		/* restore last sg */
-		lsg->length += qc->pad_len;
-		return -1;
-	}
-
-	DPRINTK("%d sg elements mapped\n", n_elem);
-
-skip_map:
-	qc->n_elem = n_elem;
 	qc->flags |= ATA_QCFLAG_DMAMAP;
 
 	return 0;
@@ -5912,7 +5947,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	/* We guarantee to LLDs that they will have at least one
 	 * non-zero sg if the command is a data command.
 	 */
-	BUG_ON(ata_is_data(prot) && (!qc->__sg || !qc->n_elem || !qc->nbytes));
+	BUG_ON(ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes));
 
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))

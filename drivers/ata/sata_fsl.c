@@ -323,6 +323,7 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 	struct scatterlist *sg;
 	unsigned int num_prde = 0;
 	u32 ttl_dwords = 0;
+	unsigned int si;
 
 	/*
 	 * NOTE : direct & indirect prdt's are contigiously allocated
@@ -333,13 +334,14 @@ static unsigned int sata_fsl_fill_sg(struct ata_queued_cmd *qc, void *cmd_desc,
 	struct prde *prd_ptr_to_indirect_ext = NULL;
 	unsigned indirect_ext_segment_sz = 0;
 	dma_addr_t indirect_ext_segment_paddr;
+	unsigned int si;
 
 	VPRINTK("SATA FSL : cd = 0x%x, prd = 0x%x\n", cmd_desc, prd);
 
 	indirect_ext_segment_paddr = cmd_desc_paddr +
 	    SATA_FSL_CMD_DESC_OFFSET_TO_PRDT + SATA_FSL_MAX_PRD_DIRECT * 16;
 
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		dma_addr_t sg_addr = sg_dma_address(sg);
 		u32 sg_len = sg_dma_len(sg);
 

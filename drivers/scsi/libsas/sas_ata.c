@@ -158,8 +158,8 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 	struct Scsi_Host *host = sas_ha->core.shost;
 	struct sas_internal *i = to_sas_internal(host->transportt);
 	struct scatterlist *sg;
-	unsigned int num = 0;
 	unsigned int xfer = 0;
+	unsigned int si;
 
 	task = sas_alloc_task(GFP_ATOMIC);
 	if (!task)
@@ -181,17 +181,15 @@ static unsigned int sas_ata_qc_issue(struct ata_queued_cmd *qc)
 		task->total_xfer_len = qc->nbytes + qc->pad_len;
 		task->num_scatter = qc->pad_len ? qc->n_elem + 1 : qc->n_elem;
 	} else {
-		ata_for_each_sg(sg, qc) {
-			num++;
+		for_each_sg(qc->sg, sg, qc->n_elem, si)
 			xfer += sg->length;
-		}
 
 		task->total_xfer_len = xfer;
-		task->num_scatter = num;
+		task->num_scatter = si;
 	}
 
 	task->data_dir = qc->dma_dir;
-	task->scatter = qc->__sg;
+	task->scatter = qc->sg;
 	task->ata_task.retry_count = 1;
 	task->task_state_flags = SAS_TASK_STATE_PENDING;
 	qc->lldd_task = task;

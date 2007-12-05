@@ -321,8 +321,9 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 	u8  *buf = pp->pkt, *last_buf = NULL;
 	int i = (2 + buf[3]) * 8;
 	u8 pFLAGS = pORD | ((qc->tf.flags & ATA_TFLAG_WRITE) ? pDIRO : 0);
+	unsigned int si;
 
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		u32 addr;
 		u32 len;
 

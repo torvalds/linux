@@ -1336,21 +1336,18 @@ static void nv_adma_fill_aprd(struct ata_queued_cmd *qc,
 static void nv_adma_fill_sg(struct ata_queued_cmd *qc, struct nv_adma_cpb *cpb)
 {
 	struct nv_adma_port_priv *pp = qc->ap->private_data;
-	unsigned int idx;
 	struct nv_adma_prd *aprd;
 	struct scatterlist *sg;
+	unsigned int si;
 
 	VPRINTK("ENTER\n");
 
-	idx = 0;
-
-	ata_for_each_sg(sg, qc) {
-		aprd = (idx < 5) ? &cpb->aprd[idx] :
-			       &pp->aprd[NV_ADMA_SGTBL_LEN * qc->tag + (idx-5)];
-		nv_adma_fill_aprd(qc, sg, idx, aprd);
-		idx++;
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+		aprd = (si < 5) ? &cpb->aprd[si] :
+			       &pp->aprd[NV_ADMA_SGTBL_LEN * qc->tag + (si-5)];
+		nv_adma_fill_aprd(qc, sg, si, aprd);
 	}
-	if (idx > 5)
+	if (si > 5)
 		cpb->next_aprd = cpu_to_le64(((u64)(pp->aprd_dma + NV_ADMA_SGTBL_SZ * qc->tag)));
 	else
 		cpb->next_aprd = cpu_to_le64(0);
@@ -1995,17 +1992,14 @@ static void nv_swncq_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg;
-	unsigned int idx;
 	struct nv_swncq_port_priv *pp = ap->private_data;
 	struct ata_prd *prd;
-
-	WARN_ON(qc->__sg == NULL);
-	WARN_ON(qc->n_elem == 0 && qc->pad_len == 0);
+	unsigned int si, idx;
 
 	prd = pp->prd + ATA_MAX_PRD * qc->tag;
 
 	idx = 0;
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		u32 addr, offset;
 		u32 sg_len, len;
 
@@ -2027,8 +2021,7 @@ static void nv_swncq_fill_sg(struct ata_queued_cmd *qc)
 		}
 	}
 
-	if (idx)
-		prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+	prd[idx - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
 }
 
 static unsigned int nv_swncq_issue_atacmd(struct ata_port *ap,

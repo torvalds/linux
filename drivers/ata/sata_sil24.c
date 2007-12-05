@@ -813,8 +813,9 @@ static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
 {
 	struct scatterlist *sg;
 	struct sil24_sge *last_sge = NULL;
+	unsigned int si;
 
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		sge->addr = cpu_to_le64(sg_dma_address(sg));
 		sge->cnt = cpu_to_le32(sg_dma_len(sg));
 		sge->flags = 0;
@@ -823,8 +824,7 @@ static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
 		sge++;
 	}
 
-	if (likely(last_sge))
-		last_sge->flags = cpu_to_le32(SGE_TRM);
+	last_sge->flags = cpu_to_le32(SGE_TRM);
 }
 
 static int sil24_qc_defer(struct ata_queued_cmd *qc)

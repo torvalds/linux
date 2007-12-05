@@ -473,7 +473,7 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	void __iomem *mmio = ap->host->iomap[PDC_MMIO_BAR];
 	void __iomem *dimm_mmio = ap->host->iomap[PDC_DIMM_BAR];
 	unsigned int portno = ap->port_no;
-	unsigned int i, idx, total_len = 0, sgt_len;
+	unsigned int i, si, idx, total_len = 0, sgt_len;
 	u32 *buf = (u32 *) &pp->dimm_buf[PDC_DIMM_HEADER_SZ];
 
 	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
@@ -487,7 +487,7 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	 * Build S/G table
 	 */
 	idx = 0;
-	ata_for_each_sg(sg, qc) {
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		buf[idx++] = cpu_to_le32(sg_dma_address(sg));
 		buf[idx++] = cpu_to_le32(sg_dma_len(sg));
 		total_len += sg_dma_len(sg);
