@@ -80,6 +80,9 @@ struct driver_data {
 	/* Regs base of SPI controller */
 	void __iomem *regs_base;
 
+	/* Pin request list */
+	u16 *pin_req;
+
 	/* BFIN hookup */
 	struct bfin5xx_spi_master *master_info;
 
@@ -1255,25 +1258,6 @@ static inline int destroy_queue(struct driver_data *drv_data)
 	return 0;
 }
 
-static int setup_pin_mux(int action, int bus_num)
-{
-
-	u16 pin_req[3][4] = {
-		{P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
-		{P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
-		{P_SPI2_SCK, P_SPI2_MISO, P_SPI2_MOSI, 0},
-	};
-
-	if (action) {
-		if (peripheral_request_list(pin_req[bus_num], DRV_NAME))
-			return -EFAULT;
-	} else {
-		peripheral_free_list(pin_req[bus_num]);
-	}
-
-	return 0;
-}
-
 static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -1296,6 +1280,7 @@ static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 	drv_data->master = master;
 	drv_data->master_info = platform_info;
 	drv_data->pdev = pdev;
+	drv_data->pin_req = platform_info->pin_req;
 
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;
@@ -1346,7 +1331,8 @@ static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 		goto out_error_queue_alloc;
 	}
 
-	if (setup_pin_mux(1, master->bus_num)) {
+	status = peripheral_request_list(drv_data->pin_req, DRV_NAME);
+	if (status != 0) {
 		dev_err(&pdev->dev, ": Requesting Peripherals failed\n");
 		goto out_error;
 	}
@@ -1394,7 +1380,7 @@ static int __devexit bfin5xx_spi_remove(struct platform_device *pdev)
 	/* Disconnect from the SPI framework */
 	spi_unregister_master(drv_data->master);
 
-	setup_pin_mux(0, drv_data->master->bus_num);
+	peripheral_free_list(drv_data->pin_req);
 
 	/* Prevent double remove */
 	platform_set_drvdata(pdev, NULL);
