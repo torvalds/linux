@@ -4763,13 +4763,15 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 }
 
 static unsigned int ata_sg_setup_extra(struct ata_queued_cmd *qc,
-				       unsigned int *n_elem_extra)
+				       unsigned int *n_elem_extra,
+				       unsigned int *nbytes_extra)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned int n_elem = qc->n_elem;
 	struct scatterlist *lsg, *copy_lsg = NULL, *tsg = NULL, *esg = NULL;
 
 	*n_elem_extra = 0;
+	*nbytes_extra = 0;
 
 	/* needs padding? */
 	qc->pad_len = qc->nbytes & 3;
@@ -4833,6 +4835,7 @@ static unsigned int ata_sg_setup_extra(struct ata_queued_cmd *qc,
 		esg = &qc->extra_sg[1];
 
 		(*n_elem_extra)++;
+		(*nbytes_extra) += 4 - qc->pad_len;
 	}
 
 	if (copy_lsg)
@@ -4866,11 +4869,11 @@ static unsigned int ata_sg_setup_extra(struct ata_queued_cmd *qc,
 static int ata_sg_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	unsigned int n_elem, n_elem_extra;
+	unsigned int n_elem, n_elem_extra, nbytes_extra;
 
 	VPRINTK("ENTER, ata%u\n", ap->print_id);
 
-	n_elem = ata_sg_setup_extra(qc, &n_elem_extra);
+	n_elem = ata_sg_setup_extra(qc, &n_elem_extra, &nbytes_extra);
 
 	if (n_elem) {
 		n_elem = dma_map_sg(ap->dev, qc->sg, n_elem, qc->dma_dir);
@@ -4885,7 +4888,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 
 	qc->n_elem = qc->mapped_n_elem = n_elem;
 	qc->n_elem += n_elem_extra;
-
+	qc->nbytes += nbytes_extra;
 	qc->flags |= ATA_QCFLAG_DMAMAP;
 
 	return 0;
@@ -5948,6 +5951,9 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 * non-zero sg if the command is a data command.
 	 */
 	BUG_ON(ata_is_data(prot) && (!qc->sg || !qc->n_elem || !qc->nbytes));
+
+	/* ata_sg_setup() may update nbytes */
+	qc->raw_nbytes = qc->nbytes;
 
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
 				 (ap->flags & ATA_FLAG_PIO_DMA)))

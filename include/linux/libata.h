@@ -466,6 +466,7 @@ struct ata_queued_cmd {
 	unsigned int		sect_size;
 
 	unsigned int		nbytes;
+	unsigned int		raw_nbytes;
 	unsigned int		curbytes;
 
 	struct scatterlist	*cursg;
@@ -1362,7 +1363,7 @@ static inline void ata_qc_reinit(struct ata_queued_cmd *qc)
 	qc->flags = 0;
 	qc->cursg = NULL;
 	qc->cursg_ofs = 0;
-	qc->nbytes = qc->curbytes = 0;
+	qc->nbytes = qc->raw_nbytes = qc->curbytes = 0;
 	qc->n_elem = 0;
 	qc->mapped_n_elem = 0;
 	qc->n_iter = 0;
