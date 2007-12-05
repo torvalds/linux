@@ -203,7 +203,7 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 
 static struct sk_buff *
 nfqnl_build_packet_message(struct nfqnl_instance *queue,
-			   struct nf_queue_entry *entry, int *errp)
+			   struct nf_queue_entry *entry)
 {
 	sk_buff_data_t old_tail;
 	size_t size;
@@ -241,7 +241,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	case NFQNL_COPY_PACKET:
 		if ((entskb->ip_summed == CHECKSUM_PARTIAL ||
 		     entskb->ip_summed == CHECKSUM_COMPLETE) &&
-		    (*errp = skb_checksum_help(entskb))) {
+		    skb_checksum_help(entskb)) {
 			spin_unlock_bh(&queue->lock);
 			return NULL;
 		}
@@ -374,7 +374,6 @@ nlmsg_failure:
 nla_put_failure:
 	if (skb)
 		kfree_skb(skb);
-	*errp = -EINVAL;
 	if (net_ratelimit())
 		printk(KERN_ERR "nf_queue: error creating packet message\n");
 	return NULL;
@@ -383,21 +382,21 @@ nla_put_failure:
 static int
 nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 {
-	int status = -EINVAL;
 	struct sk_buff *nskb;
 	struct nfqnl_instance *queue;
+	int err;
 
 	/* rcu_read_lock()ed by nf_hook_slow() */
 	queue = instance_lookup(queuenum);
 	if (!queue)
-		return -EINVAL;
+		goto err_out;
 
 	if (queue->copy_mode == NFQNL_COPY_NONE)
-		return -EAGAIN;
+		goto err_out;
 
-	nskb = nfqnl_build_packet_message(queue, entry, &status);
+	nskb = nfqnl_build_packet_message(queue, entry);
 	if (nskb == NULL)
-		return status;
+		goto err_out;
 
 	spin_lock_bh(&queue->lock);
 
@@ -406,7 +405,6 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 
 	if (queue->queue_total >= queue->queue_maxlen) {
 		queue->queue_dropped++;
-		status = -ENOSPC;
 		if (net_ratelimit())
 			  printk(KERN_WARNING "nf_queue: full at %d entries, "
 				 "dropping packets(s). Dropped: %d\n",
@@ -415,8 +413,8 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	}
 
 	/* nfnetlink_unicast will either free the nskb or add it to a socket */
-	status = nfnetlink_unicast(nskb, queue->peer_pid, MSG_DONTWAIT);
-	if (status < 0) {
+	err = nfnetlink_unicast(nskb, queue->peer_pid, MSG_DONTWAIT);
+	if (err < 0) {
 		queue->queue_user_dropped++;
 		goto err_out_unlock;
 	}
@@ -424,14 +422,14 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	__enqueue_entry(queue, entry);
 
 	spin_unlock_bh(&queue->lock);
-	return status;
+	return 0;
 
 err_out_free_nskb:
 	kfree_skb(nskb);
-
 err_out_unlock:
 	spin_unlock_bh(&queue->lock);
-	return status;
+err_out:
+	return -1;
 }
 
 static int
