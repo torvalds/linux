@@ -849,7 +849,7 @@ static const struct nla_policy nfqa_cfg_policy[NFQA_CFG_MAX+1] = {
 	[NFQA_CFG_PARAMS]	= { .len = sizeof(struct nfqnl_msg_config_params) },
 };
 
-static struct nf_queue_handler nfqh = {
+static const struct nf_queue_handler nfqh = {
 	.name 	= "nf_queue",
 	.outfn	= &nfqnl_enqueue_packet,
 };

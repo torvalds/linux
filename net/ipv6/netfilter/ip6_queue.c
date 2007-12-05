@@ -634,7 +634,7 @@ static const struct file_operations ip6_queue_proc_fops = {
 	.owner		= THIS_MODULE,
 };
 
-static struct nf_queue_handler nfqh = {
+static const struct nf_queue_handler nfqh = {
 	.name	= "ip6_queue",
 	.outfn	= &ipq_enqueue_packet,
 };

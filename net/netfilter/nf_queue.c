@@ -15,13 +15,13 @@
  * long term mutex.  The handler must provide an an outfn() to accept packets
  * for queueing and must reinject all packets it receives, no matter what.
  */
-static struct nf_queue_handler *queue_handler[NPROTO];
+static const struct nf_queue_handler *queue_handler[NPROTO];
 
 static DEFINE_MUTEX(queue_handler_mutex);
 
 /* return EBUSY when somebody else is registered, return EEXIST if the
  * same handler is registered, return 0 in case of success. */
-int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
+int nf_register_queue_handler(int pf, const struct nf_queue_handler *qh)
 {
 	int ret;
 
@@ -44,7 +44,7 @@ int nf_register_queue_handler(int pf, struct nf_queue_handler *qh)
 EXPORT_SYMBOL(nf_register_queue_handler);
 
 /* The caller must flush their queue before this */
-int nf_unregister_queue_handler(int pf, struct nf_queue_handler *qh)
+int nf_unregister_queue_handler(int pf, const struct nf_queue_handler *qh)
 {
 	if (pf >= NPROTO)
 		return -EINVAL;
@@ -64,7 +64,7 @@ int nf_unregister_queue_handler(int pf, struct nf_queue_handler *qh)
 }
 EXPORT_SYMBOL(nf_unregister_queue_handler);
 
-void nf_unregister_queue_handlers(struct nf_queue_handler *qh)
+void nf_unregister_queue_handlers(const struct nf_queue_handler *qh)
 {
 	int pf;
 
@@ -98,7 +98,7 @@ static int __nf_queue(struct sk_buff *skb,
 	struct net_device *physoutdev = NULL;
 #endif
 	struct nf_afinfo *afinfo;
-	struct nf_queue_handler *qh;
+	const struct nf_queue_handler *qh;
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
 	rcu_read_lock();
@@ -313,7 +313,7 @@ static int seq_show(struct seq_file *s, void *v)
 {
 	int ret;
 	loff_t *pos = v;
-	struct nf_queue_handler *qh;
+	const struct nf_queue_handler *qh;
 
 	rcu_read_lock();
 	qh = rcu_dereference(queue_handler[*pos]);
