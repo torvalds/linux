@@ -662,30 +662,24 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
 
-static struct page *kvm_vcpu_nopage(struct vm_area_struct *vma,
-				    unsigned long address,
-				    int *type)
+static int kvm_vcpu_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct kvm_vcpu *vcpu = vma->vm_file->private_data;
-	unsigned long pgoff;
 	struct page *page;
 
-	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-	if (pgoff == 0)
+	if (vmf->pgoff == 0)
 		page = virt_to_page(vcpu->run);
-	else if (pgoff == KVM_PIO_PAGE_OFFSET)
+	else if (vmf->pgoff == KVM_PIO_PAGE_OFFSET)
 		page = virt_to_page(vcpu->pio_data);
 	else
-		return NOPAGE_SIGBUS;
+		return VM_FAULT_SIGBUS;
 	get_page(page);
-	if (type != NULL)
-		*type = VM_FAULT_MINOR;
-
-	return page;
+	vmf->page = page;
+	return 0;
 }
 
 static struct vm_operations_struct kvm_vcpu_vm_ops = {
-	.nopage = kvm_vcpu_nopage,
+	.fault = kvm_vcpu_fault,
 };
 
 static int kvm_vcpu_mmap(struct file *file, struct vm_area_struct *vma)
@@ -976,31 +970,25 @@ out:
 	return r;
 }
 
-static struct page *kvm_vm_nopage(struct vm_area_struct *vma,
-				  unsigned long address,
-				  int *type)
+static int kvm_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct kvm *kvm = vma->vm_file->private_data;
-	unsigned long pgoff;
 	struct page *page;
 
-	pgoff = ((address - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-	if (!kvm_is_visible_gfn(kvm, pgoff))
-		return NOPAGE_SIGBUS;
+	if (!kvm_is_visible_gfn(kvm, vmf->pgoff))
+		return VM_FAULT_SIGBUS;
 	/* current->mm->mmap_sem is already held so call lockless version */
-	page = __gfn_to_page(kvm, pgoff);
+	page = __gfn_to_page(kvm, vmf->pgoff);
 	if (is_error_page(page)) {
 		kvm_release_page_clean(page);
-		return NOPAGE_SIGBUS;
+		return VM_FAULT_SIGBUS;
 	}
-	if (type != NULL)
-		*type = VM_FAULT_MINOR;
-
-	return page;
+	vmf->page = page;
+	return 0;
 }
 
 static struct vm_operations_struct kvm_vm_vm_ops = {
-	.nopage = kvm_vm_nopage,
+	.fault = kvm_vm_fault,
 };
 
 static int kvm_vm_mmap(struct file *file, struct vm_area_struct *vma)
