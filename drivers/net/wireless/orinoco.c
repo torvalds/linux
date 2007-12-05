@@ -1194,7 +1194,7 @@ static int orinoco_process_scan_results(struct net_device *dev,
 	/* Read the entries one by one */
 	for (; offset + atom_len <= len; offset += atom_len) {
 		int found = 0;
-		bss_element *bss;
+		bss_element *bss = NULL;
 
 		/* Get next atom */
 		atom = (union hermes_scan_info *) (buf + offset);
@@ -1209,7 +1209,6 @@ static int orinoco_process_scan_results(struct net_device *dev,
 			if (memcmp(bss->bss.a.essid, atom->a.essid,
 			      le16_to_cpu(atom->a.essid_len)))
 				continue;
-			bss->last_scanned = jiffies;
 			found = 1;
 			break;
 		}
@@ -1220,9 +1219,13 @@ static int orinoco_process_scan_results(struct net_device *dev,
 					 bss_element, list);
 			list_del(priv->bss_free_list.next);
 
-			memcpy(bss, atom, sizeof(bss->bss));
-			bss->last_scanned = jiffies;
 			list_add_tail(&bss->list, &priv->bss_list);
+		}
+
+		if (bss) {
+			/* Always update the BSS to get latest beacon info */
+			memcpy(&bss->bss, atom, sizeof(bss->bss));
+			bss->last_scanned = jiffies;
 		}
 	}
 
