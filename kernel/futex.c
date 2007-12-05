@@ -658,7 +658,7 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 
 		if (curval == -EFAULT)
 			ret = -EFAULT;
-		if (curval != uval)
+		else if (curval != uval)
 			ret = -EINVAL;
 		if (ret) {
 			spin_unlock(&pi_state->pi_mutex.wait_lock);
