@@ -138,15 +138,18 @@ static int __nf_queue(struct sk_buff *skb,
 	}
 
 	/* Bump dev refs so they don't vanish while packet is out */
-	if (indev) dev_hold(indev);
-	if (outdev) dev_hold(outdev);
-
+	if (indev)
+		dev_hold(indev);
+	if (outdev)
+		dev_hold(outdev);
 #ifdef CONFIG_BRIDGE_NETFILTER
 	if (skb->nf_bridge) {
 		physindev = skb->nf_bridge->physindev;
-		if (physindev) dev_hold(physindev);
+		if (physindev)
+			dev_hold(physindev);
 		physoutdev = skb->nf_bridge->physoutdev;
-		if (physoutdev) dev_hold(physoutdev);
+		if (physoutdev)
+			dev_hold(physoutdev);
 	}
 #endif
 	afinfo->saveroute(skb, info);
@@ -156,11 +159,15 @@ static int __nf_queue(struct sk_buff *skb,
 
 	if (status < 0) {
 		/* James M doesn't say fuck enough. */
-		if (indev) dev_put(indev);
-		if (outdev) dev_put(outdev);
+		if (indev)
+			dev_put(indev);
+		if (outdev)
+			dev_put(outdev);
 #ifdef CONFIG_BRIDGE_NETFILTER
-		if (physindev) dev_put(physindev);
-		if (physoutdev) dev_put(physoutdev);
+		if (physindev)
+			dev_put(physindev);
+		if (physoutdev)
+			dev_put(physoutdev);
 #endif
 		module_put(info->elem->owner);
 		kfree(info);
@@ -222,8 +229,10 @@ void nf_reinject(struct sk_buff *skb, struct nf_info *info,
 	rcu_read_lock();
 
 	/* Release those devices we held, or Alexey will kill me. */
-	if (info->indev) dev_put(info->indev);
-	if (info->outdev) dev_put(info->outdev);
+	if (info->indev)
+		dev_put(info->indev);
+	if (info->outdev)
+		dev_put(info->outdev);
 #ifdef CONFIG_BRIDGE_NETFILTER
 	if (skb->nf_bridge) {
 		if (skb->nf_bridge->physindev)
