@@ -217,20 +217,27 @@ void skb_free_datagram(struct sock *sk, struct sk_buff *skb)
  *	This function currently only disables BH when acquiring the
  *	sk_receive_queue lock.  Therefore it must not be used in a
  *	context where that lock is acquired in an IRQ context.
+ *
+ *	It returns 0 if the packet was removed by us.
  */
 
-void skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
+int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 {
+	int err = 0;
+
 	if (flags & MSG_PEEK) {
+		err = -ENOENT;
 		spin_lock_bh(&sk->sk_receive_queue.lock);
 		if (skb == skb_peek(&sk->sk_receive_queue)) {
 			__skb_unlink(skb, &sk->sk_receive_queue);
 			atomic_dec(&skb->users);
+			err = 0;
 		}
 		spin_unlock_bh(&sk->sk_receive_queue.lock);
 	}
 
 	kfree_skb(skb);
+	return err;
 }
 
 EXPORT_SYMBOL(skb_kill_datagram);

@@ -899,9 +899,8 @@ out:
 	return err;
 
 csum_copy_err:
-	UDP_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
-
-	skb_kill_datagram(sk, skb, flags);
+	if (!skb_kill_datagram(sk, skb, flags))
+		UDP_INC_STATS_USER(UDP_MIB_INERRORS, is_udplite);
 
 	if (noblock)
 		return -EAGAIN;
