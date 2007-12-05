@@ -27,11 +27,9 @@ MODULE_DESCRIPTION("iptables REDIRECT target module");
 
 /* FIXME: Take multiple ranges --RR */
 static bool
-redirect_check(const char *tablename,
-	       const void *e,
-	       const struct xt_target *target,
-	       void *targinfo,
-	       unsigned int hook_mask)
+redirect_tg_check(const char *tablename, const void *e,
+                  const struct xt_target *target, void *targinfo,
+                  unsigned int hook_mask)
 {
 	const struct nf_nat_multi_range_compat *mr = targinfo;
 
@@ -47,12 +45,9 @@ redirect_check(const char *tablename,
 }
 
 static unsigned int
-redirect_target(struct sk_buff *skb,
-		const struct net_device *in,
-		const struct net_device *out,
-		unsigned int hooknum,
-		const struct xt_target *target,
-		const void *targinfo)
+redirect_tg(struct sk_buff *skb, const struct net_device *in,
+            const struct net_device *out, unsigned int hooknum,
+            const struct xt_target *target, const void *targinfo)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -95,26 +90,26 @@ redirect_target(struct sk_buff *skb,
 	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct xt_target redirect_reg __read_mostly = {
+static struct xt_target redirect_tg_reg __read_mostly = {
 	.name		= "REDIRECT",
 	.family		= AF_INET,
-	.target		= redirect_target,
+	.target		= redirect_tg,
 	.targetsize	= sizeof(struct nf_nat_multi_range_compat),
 	.table		= "nat",
 	.hooks		= (1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT),
-	.checkentry	= redirect_check,
+	.checkentry	= redirect_tg_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_redirect_init(void)
+static int __init redirect_tg_init(void)
 {
-	return xt_register_target(&redirect_reg);
+	return xt_register_target(&redirect_tg_reg);
 }
 
-static void __exit ipt_redirect_fini(void)
+static void __exit redirect_tg_exit(void)
 {
-	xt_unregister_target(&redirect_reg);
+	xt_unregister_target(&redirect_tg_reg);
 }
 
-module_init(ipt_redirect_init);
-module_exit(ipt_redirect_fini);
+module_init(redirect_tg_init);
+module_exit(redirect_tg_exit);

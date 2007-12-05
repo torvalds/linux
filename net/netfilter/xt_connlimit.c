@@ -54,7 +54,7 @@ static inline unsigned int connlimit_iphash(__be32 addr)
 
 static inline unsigned int
 connlimit_iphash6(const union nf_conntrack_address *addr,
-		  const union nf_conntrack_address *mask)
+                  const union nf_conntrack_address *mask)
 {
 	union nf_conntrack_address res;
 	unsigned int i;
@@ -178,12 +178,11 @@ static int count_them(struct xt_connlimit_data *data,
 	return matches;
 }
 
-static bool connlimit_match(const struct sk_buff *skb,
-			    const struct net_device *in,
-			    const struct net_device *out,
-			    const struct xt_match *match,
-			    const void *matchinfo, int offset,
-			    unsigned int protoff, bool *hotdrop)
+static bool
+connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
+             const struct net_device *out, const struct xt_match *match,
+             const void *matchinfo, int offset, unsigned int protoff,
+             bool *hotdrop)
 {
 	const struct xt_connlimit_info *info = matchinfo;
 	union nf_conntrack_address addr, mask;
@@ -227,9 +226,10 @@ static bool connlimit_match(const struct sk_buff *skb,
 	return false;
 }
 
-static bool connlimit_check(const char *tablename, const void *ip,
-			    const struct xt_match *match, void *matchinfo,
-			    unsigned int hook_mask)
+static bool
+connlimit_mt_check(const char *tablename, const void *ip,
+                   const struct xt_match *match, void *matchinfo,
+                   unsigned int hook_mask)
 {
 	struct xt_connlimit_info *info = matchinfo;
 	unsigned int i;
@@ -254,7 +254,8 @@ static bool connlimit_check(const char *tablename, const void *ip,
 	return true;
 }
 
-static void connlimit_destroy(const struct xt_match *match, void *matchinfo)
+static void
+connlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
 	struct xt_connlimit_info *info = matchinfo;
 	struct xt_connlimit_conn *conn;
@@ -274,39 +275,40 @@ static void connlimit_destroy(const struct xt_match *match, void *matchinfo)
 	kfree(info->data);
 }
 
-static struct xt_match connlimit_reg[] __read_mostly = {
+static struct xt_match connlimit_mt_reg[] __read_mostly = {
 	{
 		.name       = "connlimit",
 		.family     = AF_INET,
-		.checkentry = connlimit_check,
-		.match      = connlimit_match,
+		.checkentry = connlimit_mt_check,
+		.match      = connlimit_mt,
 		.matchsize  = sizeof(struct xt_connlimit_info),
-		.destroy    = connlimit_destroy,
+		.destroy    = connlimit_mt_destroy,
 		.me         = THIS_MODULE,
 	},
 	{
 		.name       = "connlimit",
 		.family     = AF_INET6,
-		.checkentry = connlimit_check,
-		.match      = connlimit_match,
+		.checkentry = connlimit_mt_check,
+		.match      = connlimit_mt,
 		.matchsize  = sizeof(struct xt_connlimit_info),
-		.destroy    = connlimit_destroy,
+		.destroy    = connlimit_mt_destroy,
 		.me         = THIS_MODULE,
 	},
 };
 
-static int __init xt_connlimit_init(void)
+static int __init connlimit_mt_init(void)
 {
-	return xt_register_matches(connlimit_reg, ARRAY_SIZE(connlimit_reg));
+	return xt_register_matches(connlimit_mt_reg,
+	       ARRAY_SIZE(connlimit_mt_reg));
 }
 
-static void __exit xt_connlimit_exit(void)
+static void __exit connlimit_mt_exit(void)
 {
-	xt_unregister_matches(connlimit_reg, ARRAY_SIZE(connlimit_reg));
+	xt_unregister_matches(connlimit_mt_reg, ARRAY_SIZE(connlimit_mt_reg));
 }
 
-module_init(xt_connlimit_init);
-module_exit(xt_connlimit_exit);
+module_init(connlimit_mt_init);
+module_exit(connlimit_mt_exit);
 MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
 MODULE_DESCRIPTION("netfilter xt_connlimit match module");
 MODULE_LICENSE("GPL");

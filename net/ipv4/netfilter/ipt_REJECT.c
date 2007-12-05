@@ -156,12 +156,10 @@ static inline void send_unreach(struct sk_buff *skb_in, int code)
 	icmp_send(skb_in, ICMP_DEST_UNREACH, code, 0);
 }
 
-static unsigned int reject(struct sk_buff *skb,
-			   const struct net_device *in,
-			   const struct net_device *out,
-			   unsigned int hooknum,
-			   const struct xt_target *target,
-			   const void *targinfo)
+static unsigned int
+reject_tg(struct sk_buff *skb, const struct net_device *in,
+          const struct net_device *out, unsigned int hooknum,
+          const struct xt_target *target, const void *targinfo)
 {
 	const struct ipt_reject_info *reject = targinfo;
 
@@ -205,11 +203,10 @@ static unsigned int reject(struct sk_buff *skb,
 	return NF_DROP;
 }
 
-static bool check(const char *tablename,
-		  const void *e_void,
-		  const struct xt_target *target,
-		  void *targinfo,
-		  unsigned int hook_mask)
+static bool
+reject_tg_check(const char *tablename, const void *e_void,
+                const struct xt_target *target, void *targinfo,
+                unsigned int hook_mask)
 {
 	const struct ipt_reject_info *rejinfo = targinfo;
 	const struct ipt_entry *e = e_void;
@@ -228,27 +225,27 @@ static bool check(const char *tablename,
 	return true;
 }
 
-static struct xt_target ipt_reject_reg __read_mostly = {
+static struct xt_target reject_tg_reg __read_mostly = {
 	.name		= "REJECT",
 	.family		= AF_INET,
-	.target		= reject,
+	.target		= reject_tg,
 	.targetsize	= sizeof(struct ipt_reject_info),
 	.table		= "filter",
 	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD) |
 			  (1 << NF_INET_LOCAL_OUT),
-	.checkentry	= check,
+	.checkentry	= reject_tg_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_reject_init(void)
+static int __init reject_tg_init(void)
 {
-	return xt_register_target(&ipt_reject_reg);
+	return xt_register_target(&reject_tg_reg);
 }
 
-static void __exit ipt_reject_fini(void)
+static void __exit reject_tg_exit(void)
 {
-	xt_unregister_target(&ipt_reject_reg);
+	xt_unregister_target(&reject_tg_reg);
 }
 
-module_init(ipt_reject_init);
-module_exit(ipt_reject_fini);
+module_init(reject_tg_init);
+module_exit(reject_tg_exit);

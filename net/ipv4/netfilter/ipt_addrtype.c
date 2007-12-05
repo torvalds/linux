@@ -27,10 +27,11 @@ static inline bool match_type(__be32 addr, u_int16_t mask)
 	return !!(mask & (1 << inet_addr_type(addr)));
 }
 
-static bool match(const struct sk_buff *skb,
-		  const struct net_device *in, const struct net_device *out,
-		  const struct xt_match *match, const void *matchinfo,
-		  int offset, unsigned int protoff, bool *hotdrop)
+static bool
+addrtype_mt(const struct sk_buff *skb, const struct net_device *in,
+            const struct net_device *out, const struct xt_match *match,
+            const void *matchinfo, int offset, unsigned int protoff,
+            bool *hotdrop)
 {
 	const struct ipt_addrtype_info *info = matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -44,23 +45,23 @@ static bool match(const struct sk_buff *skb,
 	return ret;
 }
 
-static struct xt_match addrtype_match __read_mostly = {
+static struct xt_match addrtype_mt_reg __read_mostly = {
 	.name		= "addrtype",
 	.family		= AF_INET,
-	.match		= match,
+	.match		= addrtype_mt,
 	.matchsize	= sizeof(struct ipt_addrtype_info),
 	.me		= THIS_MODULE
 };
 
-static int __init ipt_addrtype_init(void)
+static int __init addrtype_mt_init(void)
 {
-	return xt_register_match(&addrtype_match);
+	return xt_register_match(&addrtype_mt_reg);
 }
 
-static void __exit ipt_addrtype_fini(void)
+static void __exit addrtype_mt_exit(void)
 {
-	xt_unregister_match(&addrtype_match);
+	xt_unregister_match(&addrtype_mt_reg);
 }
 
-module_init(ipt_addrtype_init);
-module_exit(ipt_addrtype_fini);
+module_init(addrtype_mt_init);
+module_exit(addrtype_mt_exit);

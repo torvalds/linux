@@ -441,14 +441,10 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 }
 
 static bool
-hashlimit_match(const struct sk_buff *skb,
-		const struct net_device *in,
-		const struct net_device *out,
-		const struct xt_match *match,
-		const void *matchinfo,
-		int offset,
-		unsigned int protoff,
-		bool *hotdrop)
+hashlimit_mt(const struct sk_buff *skb, const struct net_device *in,
+             const struct net_device *out, const struct xt_match *match,
+             const void *matchinfo, int offset, unsigned int protoff,
+             bool *hotdrop)
 {
 	const struct xt_hashlimit_info *r =
 		((const struct xt_hashlimit_info *)matchinfo)->u.master;
@@ -500,11 +496,9 @@ hotdrop:
 }
 
 static bool
-hashlimit_checkentry(const char *tablename,
-		     const void *inf,
-		     const struct xt_match *match,
-		     void *matchinfo,
-		     unsigned int hook_mask)
+hashlimit_mt_check(const char *tablename, const void *inf,
+                   const struct xt_match *match, void *matchinfo,
+                   unsigned int hook_mask)
 {
 	struct xt_hashlimit_info *r = matchinfo;
 
@@ -548,7 +542,7 @@ hashlimit_checkentry(const char *tablename,
 }
 
 static void
-hashlimit_destroy(const struct xt_match *match, void *matchinfo)
+hashlimit_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
 	const struct xt_hashlimit_info *r = matchinfo;
 
@@ -563,7 +557,7 @@ struct compat_xt_hashlimit_info {
 	compat_uptr_t master;
 };
 
-static void compat_from_user(void *dst, void *src)
+static void hashlimit_mt_compat_from_user(void *dst, void *src)
 {
 	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
 
@@ -571,7 +565,7 @@ static void compat_from_user(void *dst, void *src)
 	memset(dst + off, 0, sizeof(struct compat_xt_hashlimit_info) - off);
 }
 
-static int compat_to_user(void __user *dst, void *src)
+static int hashlimit_mt_compat_to_user(void __user *dst, void *src)
 {
 	int off = offsetof(struct compat_xt_hashlimit_info, hinfo);
 
@@ -579,33 +573,33 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif
 
-static struct xt_match xt_hashlimit[] __read_mostly = {
+static struct xt_match hashlimit_mt_reg[] __read_mostly = {
 	{
 		.name		= "hashlimit",
 		.family		= AF_INET,
-		.match		= hashlimit_match,
+		.match		= hashlimit_mt,
 		.matchsize	= sizeof(struct xt_hashlimit_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_hashlimit_info),
-		.compat_from_user = compat_from_user,
-		.compat_to_user	= compat_to_user,
+		.compat_from_user = hashlimit_mt_compat_from_user,
+		.compat_to_user	= hashlimit_mt_compat_to_user,
 #endif
-		.checkentry	= hashlimit_checkentry,
-		.destroy	= hashlimit_destroy,
+		.checkentry	= hashlimit_mt_check,
+		.destroy	= hashlimit_mt_destroy,
 		.me		= THIS_MODULE
 	},
 	{
 		.name		= "hashlimit",
 		.family		= AF_INET6,
-		.match		= hashlimit_match,
+		.match		= hashlimit_mt,
 		.matchsize	= sizeof(struct xt_hashlimit_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_hashlimit_info),
-		.compat_from_user = compat_from_user,
-		.compat_to_user	= compat_to_user,
+		.compat_from_user = hashlimit_mt_compat_from_user,
+		.compat_to_user	= hashlimit_mt_compat_to_user,
 #endif
-		.checkentry	= hashlimit_checkentry,
-		.destroy	= hashlimit_destroy,
+		.checkentry	= hashlimit_mt_check,
+		.destroy	= hashlimit_mt_destroy,
 		.me		= THIS_MODULE
 	},
 };
@@ -728,11 +722,12 @@ static const struct file_operations dl_file_ops = {
 	.release = seq_release
 };
 
-static int __init xt_hashlimit_init(void)
+static int __init hashlimit_mt_init(void)
 {
 	int err;
 
-	err = xt_register_matches(xt_hashlimit, ARRAY_SIZE(xt_hashlimit));
+	err = xt_register_matches(hashlimit_mt_reg,
+	      ARRAY_SIZE(hashlimit_mt_reg));
 	if (err < 0)
 		goto err1;
 
@@ -762,19 +757,19 @@ err4:
 err3:
 	kmem_cache_destroy(hashlimit_cachep);
 err2:
-	xt_unregister_matches(xt_hashlimit, ARRAY_SIZE(xt_hashlimit));
+	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
 err1:
 	return err;
 
 }
 
-static void __exit xt_hashlimit_fini(void)
+static void __exit hashlimit_mt_exit(void)
 {
 	remove_proc_entry("ipt_hashlimit", init_net.proc_net);
 	remove_proc_entry("ip6t_hashlimit", init_net.proc_net);
 	kmem_cache_destroy(hashlimit_cachep);
-	xt_unregister_matches(xt_hashlimit, ARRAY_SIZE(xt_hashlimit));
+	xt_unregister_matches(hashlimit_mt_reg, ARRAY_SIZE(hashlimit_mt_reg));
 }
 
-module_init(xt_hashlimit_init);
-module_exit(xt_hashlimit_fini);
+module_init(hashlimit_mt_init);
+module_exit(hashlimit_mt_exit);

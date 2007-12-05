@@ -24,14 +24,10 @@ MODULE_LICENSE("GPL");
 
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+owner_mt6(const struct sk_buff *skb, const struct net_device *in,
+          const struct net_device *out, const struct xt_match *match,
+          const void *matchinfo, int offset, unsigned int protoff,
+          bool *hotdrop)
 {
 	const struct ip6t_owner_info *info = matchinfo;
 
@@ -52,11 +48,9 @@ match(const struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *ip,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+owner_mt6_check(const char *tablename, const void *ip,
+                const struct xt_match *match, void *matchinfo,
+                unsigned int hook_mask)
 {
 	const struct ip6t_owner_info *info = matchinfo;
 
@@ -68,26 +62,26 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_match owner_match __read_mostly = {
+static struct xt_match owner_mt6_reg __read_mostly = {
 	.name		= "owner",
 	.family		= AF_INET6,
-	.match		= match,
+	.match		= owner_mt6,
 	.matchsize	= sizeof(struct ip6t_owner_info),
 	.hooks		= (1 << NF_INET_LOCAL_OUT) |
 			  (1 << NF_INET_POST_ROUTING),
-	.checkentry	= checkentry,
+	.checkentry	= owner_mt6_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ip6t_owner_init(void)
+static int __init owner_mt6_init(void)
 {
-	return xt_register_match(&owner_match);
+	return xt_register_match(&owner_mt6_reg);
 }
 
-static void __exit ip6t_owner_fini(void)
+static void __exit owner_mt6_exit(void)
 {
-	xt_unregister_match(&owner_match);
+	xt_unregister_match(&owner_mt6_reg);
 }
 
-module_init(ip6t_owner_init);
-module_exit(ip6t_owner_fini);
+module_init(owner_mt6_init);
+module_exit(owner_mt6_exit);

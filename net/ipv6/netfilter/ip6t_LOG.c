@@ -431,12 +431,9 @@ ip6t_log_packet(unsigned int pf,
 }
 
 static unsigned int
-ip6t_log_target(struct sk_buff *skb,
-		const struct net_device *in,
-		const struct net_device *out,
-		unsigned int hooknum,
-		const struct xt_target *target,
-		const void *targinfo)
+log_tg6(struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, unsigned int hooknum,
+        const struct xt_target *target, const void *targinfo)
 {
 	const struct ip6t_log_info *loginfo = targinfo;
 	struct nf_loginfo li;
@@ -450,11 +447,10 @@ ip6t_log_target(struct sk_buff *skb,
 }
 
 
-static bool ip6t_log_checkentry(const char *tablename,
-				const void *entry,
-				const struct xt_target *target,
-				void *targinfo,
-				unsigned int hook_mask)
+static bool
+log_tg6_check(const char *tablename, const void *entry,
+              const struct xt_target *target, void *targinfo,
+              unsigned int hook_mask)
 {
 	const struct ip6t_log_info *loginfo = targinfo;
 
@@ -470,12 +466,12 @@ static bool ip6t_log_checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target ip6t_log_reg __read_mostly = {
+static struct xt_target log_tg6_reg __read_mostly = {
 	.name 		= "LOG",
 	.family		= AF_INET6,
-	.target 	= ip6t_log_target,
+	.target 	= log_tg6,
 	.targetsize	= sizeof(struct ip6t_log_info),
-	.checkentry	= ip6t_log_checkentry,
+	.checkentry	= log_tg6_check,
 	.me 		= THIS_MODULE,
 };
 
@@ -485,22 +481,22 @@ static struct nf_logger ip6t_logger = {
 	.me		= THIS_MODULE,
 };
 
-static int __init ip6t_log_init(void)
+static int __init log_tg6_init(void)
 {
 	int ret;
 
-	ret = xt_register_target(&ip6t_log_reg);
+	ret = xt_register_target(&log_tg6_reg);
 	if (ret < 0)
 		return ret;
 	nf_log_register(PF_INET6, &ip6t_logger);
 	return 0;
 }
 
-static void __exit ip6t_log_fini(void)
+static void __exit log_tg6_exit(void)
 {
 	nf_log_unregister(&ip6t_logger);
-	xt_unregister_target(&ip6t_log_reg);
+	xt_unregister_target(&log_tg6_reg);
 }
 
-module_init(ip6t_log_init);
-module_exit(ip6t_log_fini);
+module_init(log_tg6_init);
+module_exit(log_tg6_exit);

@@ -21,12 +21,9 @@ MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("iptables TOS mangling module");
 
 static unsigned int
-target(struct sk_buff *skb,
-       const struct net_device *in,
-       const struct net_device *out,
-       unsigned int hooknum,
-       const struct xt_target *target,
-       const void *targinfo)
+tos_tg(struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, unsigned int hooknum,
+       const struct xt_target *target, const void *targinfo)
 {
 	const struct ipt_tos_target_info *tosinfo = targinfo;
 	struct iphdr *iph = ip_hdr(skb);
@@ -44,11 +41,9 @@ target(struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *e_void,
-	   const struct xt_target *target,
-	   void *targinfo,
-	   unsigned int hook_mask)
+tos_tg_check(const char *tablename, const void *e_void,
+             const struct xt_target *target, void *targinfo,
+             unsigned int hook_mask)
 {
 	const u_int8_t tos = ((struct ipt_tos_target_info *)targinfo)->tos;
 
@@ -63,25 +58,25 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target ipt_tos_reg __read_mostly = {
+static struct xt_target tos_tg_reg __read_mostly = {
 	.name		= "TOS",
 	.family		= AF_INET,
-	.target		= target,
+	.target		= tos_tg,
 	.targetsize	= sizeof(struct ipt_tos_target_info),
 	.table		= "mangle",
-	.checkentry	= checkentry,
+	.checkentry	= tos_tg_check,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_tos_init(void)
+static int __init tos_tg_init(void)
 {
-	return xt_register_target(&ipt_tos_reg);
+	return xt_register_target(&tos_tg_reg);
 }
 
-static void __exit ipt_tos_fini(void)
+static void __exit tos_tg_exit(void)
 {
-	xt_unregister_target(&ipt_tos_reg);
+	xt_unregister_target(&tos_tg_reg);
 }
 
-module_init(ipt_tos_init);
-module_exit(ipt_tos_fini);
+module_init(tos_tg_init);
+module_exit(tos_tg_exit);

@@ -135,12 +135,9 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 }
 
 static unsigned int
-xt_tcpmss_target4(struct sk_buff *skb,
-		  const struct net_device *in,
-		  const struct net_device *out,
-		  unsigned int hooknum,
-		  const struct xt_target *target,
-		  const void *targinfo)
+tcpmss_tg4(struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, unsigned int hooknum,
+           const struct xt_target *target, const void *targinfo)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	__be16 newlen;
@@ -161,12 +158,9 @@ xt_tcpmss_target4(struct sk_buff *skb,
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static unsigned int
-xt_tcpmss_target6(struct sk_buff *skb,
-		  const struct net_device *in,
-		  const struct net_device *out,
-		  unsigned int hooknum,
-		  const struct xt_target *target,
-		  const void *targinfo)
+tcpmss_tg6(struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, unsigned int hooknum,
+           const struct xt_target *target, const void *targinfo)
 {
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	u8 nexthdr;
@@ -205,11 +199,9 @@ static inline bool find_syn_match(const struct xt_entry_match *m)
 }
 
 static bool
-xt_tcpmss_checkentry4(const char *tablename,
-		      const void *entry,
-		      const struct xt_target *target,
-		      void *targinfo,
-		      unsigned int hook_mask)
+tcpmss_tg4_check(const char *tablename, const void *entry,
+                 const struct xt_target *target, void *targinfo,
+                 unsigned int hook_mask)
 {
 	const struct xt_tcpmss_info *info = targinfo;
 	const struct ipt_entry *e = entry;
@@ -230,11 +222,9 @@ xt_tcpmss_checkentry4(const char *tablename,
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static bool
-xt_tcpmss_checkentry6(const char *tablename,
-		      const void *entry,
-		      const struct xt_target *target,
-		      void *targinfo,
-		      unsigned int hook_mask)
+tcpmss_tg6_check(const char *tablename, const void *entry,
+                 const struct xt_target *target, void *targinfo,
+                 unsigned int hook_mask)
 {
 	const struct xt_tcpmss_info *info = targinfo;
 	const struct ip6t_entry *e = entry;
@@ -254,12 +244,12 @@ xt_tcpmss_checkentry6(const char *tablename,
 }
 #endif
 
-static struct xt_target xt_tcpmss_reg[] __read_mostly = {
+static struct xt_target tcpmss_tg_reg[] __read_mostly = {
 	{
 		.family		= AF_INET,
 		.name		= "TCPMSS",
-		.checkentry	= xt_tcpmss_checkentry4,
-		.target		= xt_tcpmss_target4,
+		.checkentry	= tcpmss_tg4_check,
+		.target		= tcpmss_tg4,
 		.targetsize	= sizeof(struct xt_tcpmss_info),
 		.proto		= IPPROTO_TCP,
 		.me		= THIS_MODULE,
@@ -268,8 +258,8 @@ static struct xt_target xt_tcpmss_reg[] __read_mostly = {
 	{
 		.family		= AF_INET6,
 		.name		= "TCPMSS",
-		.checkentry	= xt_tcpmss_checkentry6,
-		.target		= xt_tcpmss_target6,
+		.checkentry	= tcpmss_tg6_check,
+		.target		= tcpmss_tg6,
 		.targetsize	= sizeof(struct xt_tcpmss_info),
 		.proto		= IPPROTO_TCP,
 		.me		= THIS_MODULE,
@@ -277,15 +267,15 @@ static struct xt_target xt_tcpmss_reg[] __read_mostly = {
 #endif
 };
 
-static int __init xt_tcpmss_init(void)
+static int __init tcpmss_tg_init(void)
 {
-	return xt_register_targets(xt_tcpmss_reg, ARRAY_SIZE(xt_tcpmss_reg));
+	return xt_register_targets(tcpmss_tg_reg, ARRAY_SIZE(tcpmss_tg_reg));
 }
 
-static void __exit xt_tcpmss_fini(void)
+static void __exit tcpmss_tg_exit(void)
 {
-	xt_unregister_targets(xt_tcpmss_reg, ARRAY_SIZE(xt_tcpmss_reg));
+	xt_unregister_targets(tcpmss_tg_reg, ARRAY_SIZE(tcpmss_tg_reg));
 }
 
-module_init(xt_tcpmss_init);
-module_exit(xt_tcpmss_fini);
+module_init(tcpmss_tg_init);
+module_exit(tcpmss_tg_exit);

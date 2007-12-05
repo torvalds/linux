@@ -28,11 +28,9 @@ MODULE_AUTHOR("Martin Josefsson <gandalf@wlug.westbo.se>");
 MODULE_DESCRIPTION("iptables special SNAT module for consistent sourceip");
 
 static bool
-same_check(const char *tablename,
-	      const void *e,
-	      const struct xt_target *target,
-	      void *targinfo,
-	      unsigned int hook_mask)
+same_tg_check(const char *tablename, const void *e,
+              const struct xt_target *target, void *targinfo,
+              unsigned int hook_mask)
 {
 	unsigned int count, countess, rangeip, index = 0;
 	struct ipt_same_info *mr = targinfo;
@@ -92,8 +90,7 @@ same_check(const char *tablename,
 	return true;
 }
 
-static void
-same_destroy(const struct xt_target *target, void *targinfo)
+static void same_tg_destroy(const struct xt_target *target, void *targinfo)
 {
 	struct ipt_same_info *mr = targinfo;
 
@@ -104,12 +101,9 @@ same_destroy(const struct xt_target *target, void *targinfo)
 }
 
 static unsigned int
-same_target(struct sk_buff *skb,
-		const struct net_device *in,
-		const struct net_device *out,
-		unsigned int hooknum,
-		const struct xt_target *target,
-		const void *targinfo)
+same_tg(struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, unsigned int hooknum,
+        const struct xt_target *target, const void *targinfo)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -152,29 +146,29 @@ same_target(struct sk_buff *skb,
 	return nf_nat_setup_info(ct, &newrange, hooknum);
 }
 
-static struct xt_target same_reg __read_mostly = {
+static struct xt_target same_tg_reg __read_mostly = {
 	.name		= "SAME",
 	.family		= AF_INET,
-	.target		= same_target,
+	.target		= same_tg,
 	.targetsize	= sizeof(struct ipt_same_info),
 	.table		= "nat",
 	.hooks		= (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING),
-	.checkentry	= same_check,
-	.destroy	= same_destroy,
+	.checkentry	= same_tg_check,
+	.destroy	= same_tg_destroy,
 	.me		= THIS_MODULE,
 };
 
-static int __init ipt_same_init(void)
+static int __init same_tg_init(void)
 {
-	return xt_register_target(&same_reg);
+	return xt_register_target(&same_tg_reg);
 }
 
-static void __exit ipt_same_fini(void)
+static void __exit same_tg_exit(void)
 {
-	xt_unregister_target(&same_reg);
+	xt_unregister_target(&same_tg_reg);
 }
 
-module_init(ipt_same_init);
-module_exit(ipt_same_fini);
+module_init(same_tg_init);
+module_exit(same_tg_exit);
 

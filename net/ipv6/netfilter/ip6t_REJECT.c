@@ -170,12 +170,10 @@ send_unreach(struct sk_buff *skb_in, unsigned char code, unsigned int hooknum)
 	icmpv6_send(skb_in, ICMPV6_DEST_UNREACH, code, 0, NULL);
 }
 
-static unsigned int reject6_target(struct sk_buff *skb,
-			   const struct net_device *in,
-			   const struct net_device *out,
-			   unsigned int hooknum,
-			   const struct xt_target *target,
-			   const void *targinfo)
+static unsigned int
+reject_tg6(struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, unsigned int hooknum,
+           const struct xt_target *target, const void *targinfo)
 {
 	const struct ip6t_reject_info *reject = targinfo;
 
@@ -214,11 +212,10 @@ static unsigned int reject6_target(struct sk_buff *skb,
 	return NF_DROP;
 }
 
-static bool check(const char *tablename,
-		  const void *entry,
-		  const struct xt_target *target,
-		  void *targinfo,
-		  unsigned int hook_mask)
+static bool
+reject_tg6_check(const char *tablename, const void *entry,
+                 const struct xt_target *target, void *targinfo,
+                 unsigned int hook_mask)
 {
 	const struct ip6t_reject_info *rejinfo = targinfo;
 	const struct ip6t_entry *e = entry;
@@ -237,27 +234,27 @@ static bool check(const char *tablename,
 	return true;
 }
 
-static struct xt_target ip6t_reject_reg __read_mostly = {
+static struct xt_target reject_tg6_reg __read_mostly = {
 	.name		= "REJECT",
 	.family		= AF_INET6,
-	.target		= reject6_target,
+	.target		= reject_tg6,
 	.targetsize	= sizeof(struct ip6t_reject_info),
 	.table		= "filter",
 	.hooks		= (1 << NF_INET_LOCAL_IN) | (1 << NF_INET_FORWARD) |
 			  (1 << NF_INET_LOCAL_OUT),
-	.checkentry	= check,
+	.checkentry	= reject_tg6_check,
 	.me		= THIS_MODULE
 };
 
-static int __init ip6t_reject_init(void)
+static int __init reject_tg6_init(void)
 {
-	return xt_register_target(&ip6t_reject_reg);
+	return xt_register_target(&reject_tg6_reg);
 }
 
-static void __exit ip6t_reject_fini(void)
+static void __exit reject_tg6_exit(void)
 {
-	xt_unregister_target(&ip6t_reject_reg);
+	xt_unregister_target(&reject_tg6_reg);
 }
 
-module_init(ip6t_reject_init);
-module_exit(ip6t_reject_fini);
+module_init(reject_tg6_init);
+module_exit(reject_tg6_exit);

@@ -24,14 +24,10 @@ MODULE_ALIAS("ip6t_helper");
 
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+helper_mt(const struct sk_buff *skb, const struct net_device *in,
+          const struct net_device *out, const struct xt_match *match,
+          const void *matchinfo, int offset, unsigned int protoff,
+          bool *hotdrop)
 {
 	const struct xt_helper_info *info = matchinfo;
 	const struct nf_conn *ct;
@@ -61,11 +57,10 @@ match(const struct sk_buff *skb,
 	return ret;
 }
 
-static bool check(const char *tablename,
-		  const void *inf,
-		  const struct xt_match *match,
-		  void *matchinfo,
-		  unsigned int hook_mask)
+static bool
+helper_mt_check(const char *tablename, const void *inf,
+                const struct xt_match *match, void *matchinfo,
+                unsigned int hook_mask)
 {
 	struct xt_helper_info *info = matchinfo;
 
@@ -78,44 +73,41 @@ static bool check(const char *tablename,
 	return true;
 }
 
-static void
-destroy(const struct xt_match *match, void *matchinfo)
+static void helper_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
 	nf_ct_l3proto_module_put(match->family);
 }
 
-static struct xt_match xt_helper_match[] __read_mostly = {
+static struct xt_match helper_mt_reg[] __read_mostly = {
 	{
 		.name		= "helper",
 		.family		= AF_INET,
-		.checkentry	= check,
-		.match		= match,
-		.destroy	= destroy,
+		.checkentry	= helper_mt_check,
+		.match		= helper_mt,
+		.destroy	= helper_mt_destroy,
 		.matchsize	= sizeof(struct xt_helper_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "helper",
 		.family		= AF_INET6,
-		.checkentry	= check,
-		.match		= match,
-		.destroy	= destroy,
+		.checkentry	= helper_mt_check,
+		.match		= helper_mt,
+		.destroy	= helper_mt_destroy,
 		.matchsize	= sizeof(struct xt_helper_info),
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_helper_init(void)
+static int __init helper_mt_init(void)
 {
-	return xt_register_matches(xt_helper_match,
-				   ARRAY_SIZE(xt_helper_match));
+	return xt_register_matches(helper_mt_reg, ARRAY_SIZE(helper_mt_reg));
 }
 
-static void __exit xt_helper_fini(void)
+static void __exit helper_mt_exit(void)
 {
-	xt_unregister_matches(xt_helper_match, ARRAY_SIZE(xt_helper_match));
+	xt_unregister_matches(helper_mt_reg, ARRAY_SIZE(helper_mt_reg));
 }
 
-module_init(xt_helper_init);
-module_exit(xt_helper_fini);
-
+module_init(helper_mt_init);
+module_exit(helper_mt_exit);

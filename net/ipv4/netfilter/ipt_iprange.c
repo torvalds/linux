@@ -18,12 +18,10 @@ MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
 MODULE_DESCRIPTION("iptables arbitrary IP range match module");
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset, unsigned int protoff, bool *hotdrop)
+iprange_mt(const struct sk_buff *skb, const struct net_device *in,
+           const struct net_device *out, const struct xt_match *match,
+           const void *matchinfo, int offset, unsigned int protoff,
+           bool *hotdrop)
 {
 	const struct ipt_iprange_info *info = matchinfo;
 	const struct iphdr *iph = ip_hdr(skb);
@@ -57,23 +55,23 @@ match(const struct sk_buff *skb,
 	return true;
 }
 
-static struct xt_match iprange_match __read_mostly = {
+static struct xt_match iprange_mt_reg __read_mostly = {
 	.name		= "iprange",
 	.family		= AF_INET,
-	.match		= match,
+	.match		= iprange_mt,
 	.matchsize	= sizeof(struct ipt_iprange_info),
 	.me		= THIS_MODULE
 };
 
-static int __init ipt_iprange_init(void)
+static int __init iprange_mt_init(void)
 {
-	return xt_register_match(&iprange_match);
+	return xt_register_match(&iprange_mt_reg);
 }
 
-static void __exit ipt_iprange_fini(void)
+static void __exit iprange_mt_exit(void)
 {
-	xt_unregister_match(&iprange_match);
+	xt_unregister_match(&iprange_mt_reg);
 }
 
-module_init(ipt_iprange_init);
-module_exit(ipt_iprange_fini);
+module_init(iprange_mt_init);
+module_exit(iprange_mt_exit);

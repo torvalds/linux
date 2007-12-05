@@ -108,14 +108,11 @@ match_policy_out(const struct sk_buff *skb, const struct xt_policy_info *info,
 	return strict ? i == info->len : 0;
 }
 
-static bool match(const struct sk_buff *skb,
-		  const struct net_device *in,
-		  const struct net_device *out,
-		  const struct xt_match *match,
-		  const void *matchinfo,
-		  int offset,
-		  unsigned int protoff,
-		  bool *hotdrop)
+static bool
+policy_mt(const struct sk_buff *skb, const struct net_device *in,
+          const struct net_device *out, const struct xt_match *match,
+          const void *matchinfo, int offset, unsigned int protoff,
+          bool *hotdrop)
 {
 	const struct xt_policy_info *info = matchinfo;
 	int ret;
@@ -133,9 +130,10 @@ static bool match(const struct sk_buff *skb,
 	return ret;
 }
 
-static bool checkentry(const char *tablename, const void *ip_void,
-		       const struct xt_match *match,
-		       void *matchinfo, unsigned int hook_mask)
+static bool
+policy_mt_check(const char *tablename, const void *ip_void,
+                const struct xt_match *match, void *matchinfo,
+                unsigned int hook_mask)
 {
 	struct xt_policy_info *info = matchinfo;
 
@@ -163,37 +161,36 @@ static bool checkentry(const char *tablename, const void *ip_void,
 	return true;
 }
 
-static struct xt_match xt_policy_match[] __read_mostly = {
+static struct xt_match policy_mt_reg[] __read_mostly = {
 	{
 		.name		= "policy",
 		.family		= AF_INET,
-		.checkentry 	= checkentry,
-		.match		= match,
+		.checkentry 	= policy_mt_check,
+		.match		= policy_mt,
 		.matchsize	= sizeof(struct xt_policy_info),
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "policy",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= policy_mt_check,
+		.match		= policy_mt,
 		.matchsize	= sizeof(struct xt_policy_info),
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init init(void)
+static int __init policy_mt_init(void)
 {
-	return xt_register_matches(xt_policy_match,
-				   ARRAY_SIZE(xt_policy_match));
+	return xt_register_matches(policy_mt_reg, ARRAY_SIZE(policy_mt_reg));
 }
 
-static void __exit fini(void)
+static void __exit policy_mt_exit(void)
 {
-	xt_unregister_matches(xt_policy_match, ARRAY_SIZE(xt_policy_match));
+	xt_unregister_matches(policy_mt_reg, ARRAY_SIZE(policy_mt_reg));
 }
 
-module_init(init);
-module_exit(fini);
+module_init(policy_mt_init);
+module_exit(policy_mt_exit);
 MODULE_ALIAS("ipt_policy");
 MODULE_ALIAS("ip6t_policy");

@@ -20,14 +20,10 @@ MODULE_DESCRIPTION("iptables connection tracking match module");
 MODULE_ALIAS("ipt_conntrack");
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
+             const struct net_device *out, const struct xt_match *match,
+             const void *matchinfo, int offset, unsigned int protoff,
+             bool *hotdrop)
 {
 	const struct xt_conntrack_info *sinfo = matchinfo;
 	const struct nf_conn *ct;
@@ -115,11 +111,9 @@ match(const struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *ip,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+conntrack_mt_check(const char *tablename, const void *ip,
+                   const struct xt_match *match, void *matchinfo,
+                   unsigned int hook_mask)
 {
 	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
@@ -129,7 +123,8 @@ checkentry(const char *tablename,
 	return true;
 }
 
-static void destroy(const struct xt_match *match, void *matchinfo)
+static void
+conntrack_mt_destroy(const struct xt_match *match, void *matchinfo)
 {
 	nf_ct_l3proto_module_put(match->family);
 }
@@ -148,7 +143,7 @@ struct compat_xt_conntrack_info
 	u_int8_t			invflags;
 };
 
-static void compat_from_user(void *dst, void *src)
+static void conntrack_mt_compat_from_user(void *dst, void *src)
 {
 	const struct compat_xt_conntrack_info *cm = src;
 	struct xt_conntrack_info m = {
@@ -165,7 +160,7 @@ static void compat_from_user(void *dst, void *src)
 	memcpy(dst, &m, sizeof(m));
 }
 
-static int compat_to_user(void __user *dst, void *src)
+static int conntrack_mt_compat_to_user(void __user *dst, void *src)
 {
 	const struct xt_conntrack_info *m = src;
 	struct compat_xt_conntrack_info cm = {
@@ -183,30 +178,30 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif
 
-static struct xt_match conntrack_match __read_mostly = {
+static struct xt_match conntrack_mt_reg __read_mostly = {
 	.name		= "conntrack",
-	.match		= match,
-	.checkentry	= checkentry,
-	.destroy	= destroy,
+	.match		= conntrack_mt,
+	.checkentry	= conntrack_mt_check,
+	.destroy	= conntrack_mt_destroy,
 	.matchsize	= sizeof(struct xt_conntrack_info),
 #ifdef CONFIG_COMPAT
 	.compatsize	= sizeof(struct compat_xt_conntrack_info),
-	.compat_from_user = compat_from_user,
-	.compat_to_user	= compat_to_user,
+	.compat_from_user = conntrack_mt_compat_from_user,
+	.compat_to_user	= conntrack_mt_compat_to_user,
 #endif
 	.family		= AF_INET,
 	.me		= THIS_MODULE,
 };
 
-static int __init xt_conntrack_init(void)
+static int __init conntrack_mt_init(void)
 {
-	return xt_register_match(&conntrack_match);
+	return xt_register_match(&conntrack_mt_reg);
 }
 
-static void __exit xt_conntrack_fini(void)
+static void __exit conntrack_mt_exit(void)
 {
-	xt_unregister_match(&conntrack_match);
+	xt_unregister_match(&conntrack_mt_reg);
 }
 
-module_init(xt_conntrack_init);
-module_exit(xt_conntrack_fini);
+module_init(conntrack_mt_init);
+module_exit(conntrack_mt_exit);

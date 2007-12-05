@@ -25,12 +25,10 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_DSCP");
 MODULE_ALIAS("ip6t_DSCP");
 
-static unsigned int target(struct sk_buff *skb,
-			   const struct net_device *in,
-			   const struct net_device *out,
-			   unsigned int hooknum,
-			   const struct xt_target *target,
-			   const void *targinfo)
+static unsigned int
+dscp_tg(struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, unsigned int hooknum,
+        const struct xt_target *target, const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
@@ -46,12 +44,10 @@ static unsigned int target(struct sk_buff *skb,
 	return XT_CONTINUE;
 }
 
-static unsigned int target6(struct sk_buff *skb,
-			    const struct net_device *in,
-			    const struct net_device *out,
-			    unsigned int hooknum,
-			    const struct xt_target *target,
-			    const void *targinfo)
+static unsigned int
+dscp_tg6(struct sk_buff *skb, const struct net_device *in,
+         const struct net_device *out, unsigned int hooknum,
+         const struct xt_target *target, const void *targinfo)
 {
 	const struct xt_DSCP_info *dinfo = targinfo;
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
@@ -66,11 +62,10 @@ static unsigned int target6(struct sk_buff *skb,
 	return XT_CONTINUE;
 }
 
-static bool checkentry(const char *tablename,
-		       const void *e_void,
-		       const struct xt_target *target,
-		       void *targinfo,
-		       unsigned int hook_mask)
+static bool
+dscp_tg_check(const char *tablename, const void *e_void,
+              const struct xt_target *target, void *targinfo,
+              unsigned int hook_mask)
 {
 	const u_int8_t dscp = ((struct xt_DSCP_info *)targinfo)->dscp;
 
@@ -81,12 +76,12 @@ static bool checkentry(const char *tablename,
 	return true;
 }
 
-static struct xt_target xt_dscp_target[] __read_mostly = {
+static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "DSCP",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.target		= target,
+		.checkentry	= dscp_tg_check,
+		.target		= dscp_tg,
 		.targetsize	= sizeof(struct xt_DSCP_info),
 		.table		= "mangle",
 		.me		= THIS_MODULE,
@@ -94,23 +89,23 @@ static struct xt_target xt_dscp_target[] __read_mostly = {
 	{
 		.name		= "DSCP",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.target		= target6,
+		.checkentry	= dscp_tg_check,
+		.target		= dscp_tg6,
 		.targetsize	= sizeof(struct xt_DSCP_info),
 		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_dscp_target_init(void)
+static int __init dscp_tg_init(void)
 {
-	return xt_register_targets(xt_dscp_target, ARRAY_SIZE(xt_dscp_target));
+	return xt_register_targets(dscp_tg_reg, ARRAY_SIZE(dscp_tg_reg));
 }
 
-static void __exit xt_dscp_target_fini(void)
+static void __exit dscp_tg_exit(void)
 {
-	xt_unregister_targets(xt_dscp_target, ARRAY_SIZE(xt_dscp_target));
+	xt_unregister_targets(dscp_tg_reg, ARRAY_SIZE(dscp_tg_reg));
 }
 
-module_init(xt_dscp_target_init);
-module_exit(xt_dscp_target_fini);
+module_init(dscp_tg_init);
+module_exit(dscp_tg_exit);

@@ -34,12 +34,9 @@ MODULE_ALIAS("ip6t_CONNMARK");
 #include <net/netfilter/nf_conntrack_ecache.h>
 
 static unsigned int
-target(struct sk_buff *skb,
-       const struct net_device *in,
-       const struct net_device *out,
-       unsigned int hooknum,
-       const struct xt_target *target,
-       const void *targinfo)
+connmark_tg(struct sk_buff *skb, const struct net_device *in,
+            const struct net_device *out, unsigned int hooknum,
+            const struct xt_target *target, const void *targinfo)
 {
 	const struct xt_connmark_target_info *markinfo = targinfo;
 	struct nf_conn *ct;
@@ -78,11 +75,9 @@ target(struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *entry,
-	   const struct xt_target *target,
-	   void *targinfo,
-	   unsigned int hook_mask)
+connmark_tg_check(const char *tablename, const void *entry,
+                  const struct xt_target *target, void *targinfo,
+                  unsigned int hook_mask)
 {
 	const struct xt_connmark_target_info *matchinfo = targinfo;
 
@@ -107,7 +102,7 @@ checkentry(const char *tablename,
 }
 
 static void
-destroy(const struct xt_target *target, void *targinfo)
+connmark_tg_destroy(const struct xt_target *target, void *targinfo)
 {
 	nf_ct_l3proto_module_put(target->family);
 }
@@ -120,7 +115,7 @@ struct compat_xt_connmark_target_info {
 	u_int16_t	__pad2;
 };
 
-static void compat_from_user(void *dst, void *src)
+static void connmark_tg_compat_from_user(void *dst, void *src)
 {
 	const struct compat_xt_connmark_target_info *cm = src;
 	struct xt_connmark_target_info m = {
@@ -131,7 +126,7 @@ static void compat_from_user(void *dst, void *src)
 	memcpy(dst, &m, sizeof(m));
 }
 
-static int compat_to_user(void __user *dst, void *src)
+static int connmark_tg_compat_to_user(void __user *dst, void *src)
 {
 	const struct xt_connmark_target_info *m = src;
 	struct compat_xt_connmark_target_info cm = {
@@ -143,43 +138,42 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_target xt_connmark_target[] __read_mostly = {
+static struct xt_target connmark_tg_reg[] __read_mostly = {
 	{
 		.name		= "CONNMARK",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.destroy	= destroy,
-		.target		= target,
+		.checkentry	= connmark_tg_check,
+		.destroy	= connmark_tg_destroy,
+		.target		= connmark_tg,
 		.targetsize	= sizeof(struct xt_connmark_target_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_connmark_target_info),
-		.compat_from_user = compat_from_user,
-		.compat_to_user	= compat_to_user,
+		.compat_from_user = connmark_tg_compat_from_user,
+		.compat_to_user	= connmark_tg_compat_to_user,
 #endif
 		.me		= THIS_MODULE
 	},
 	{
 		.name		= "CONNMARK",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.destroy	= destroy,
-		.target		= target,
+		.checkentry	= connmark_tg_check,
+		.destroy	= connmark_tg_destroy,
+		.target		= connmark_tg,
 		.targetsize	= sizeof(struct xt_connmark_target_info),
 		.me		= THIS_MODULE
 	},
 };
 
-static int __init xt_connmark_init(void)
+static int __init connmark_tg_init(void)
 {
-	return xt_register_targets(xt_connmark_target,
-				   ARRAY_SIZE(xt_connmark_target));
+	return xt_register_targets(connmark_tg_reg,
+	       ARRAY_SIZE(connmark_tg_reg));
 }
 
-static void __exit xt_connmark_fini(void)
+static void __exit connmark_tg_exit(void)
 {
-	xt_unregister_targets(xt_connmark_target,
-			      ARRAY_SIZE(xt_connmark_target));
+	xt_unregister_targets(connmark_tg_reg, ARRAY_SIZE(connmark_tg_reg));
 }
 
-module_init(xt_connmark_init);
-module_exit(xt_connmark_fini);
+module_init(connmark_tg_init);
+module_exit(connmark_tg_exit);

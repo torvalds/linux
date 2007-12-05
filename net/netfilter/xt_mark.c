@@ -20,14 +20,9 @@ MODULE_ALIAS("ipt_mark");
 MODULE_ALIAS("ip6t_mark");
 
 static bool
-match(const struct sk_buff *skb,
-      const struct net_device *in,
-      const struct net_device *out,
-      const struct xt_match *match,
-      const void *matchinfo,
-      int offset,
-      unsigned int protoff,
-      bool *hotdrop)
+mark_mt(const struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, const struct xt_match *match,
+        const void *matchinfo, int offset, unsigned int protoff, bool *hotdrop)
 {
 	const struct xt_mark_info *info = matchinfo;
 
@@ -35,11 +30,9 @@ match(const struct sk_buff *skb,
 }
 
 static bool
-checkentry(const char *tablename,
-	   const void *entry,
-	   const struct xt_match *match,
-	   void *matchinfo,
-	   unsigned int hook_mask)
+mark_mt_check(const char *tablename, const void *entry,
+              const struct xt_match *match, void *matchinfo,
+              unsigned int hook_mask)
 {
 	const struct xt_mark_info *minfo = matchinfo;
 
@@ -58,7 +51,7 @@ struct compat_xt_mark_info {
 	u_int16_t	__pad2;
 };
 
-static void compat_from_user(void *dst, void *src)
+static void mark_mt_compat_from_user(void *dst, void *src)
 {
 	const struct compat_xt_mark_info *cm = src;
 	struct xt_mark_info m = {
@@ -69,7 +62,7 @@ static void compat_from_user(void *dst, void *src)
 	memcpy(dst, &m, sizeof(m));
 }
 
-static int compat_to_user(void __user *dst, void *src)
+static int mark_mt_compat_to_user(void __user *dst, void *src)
 {
 	const struct xt_mark_info *m = src;
 	struct compat_xt_mark_info cm = {
@@ -81,39 +74,39 @@ static int compat_to_user(void __user *dst, void *src)
 }
 #endif /* CONFIG_COMPAT */
 
-static struct xt_match xt_mark_match[] __read_mostly = {
+static struct xt_match mark_mt_reg[] __read_mostly = {
 	{
 		.name		= "mark",
 		.family		= AF_INET,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= mark_mt_check,
+		.match		= mark_mt,
 		.matchsize	= sizeof(struct xt_mark_info),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_mark_info),
-		.compat_from_user = compat_from_user,
-		.compat_to_user	= compat_to_user,
+		.compat_from_user = mark_mt_compat_from_user,
+		.compat_to_user	= mark_mt_compat_to_user,
 #endif
 		.me		= THIS_MODULE,
 	},
 	{
 		.name		= "mark",
 		.family		= AF_INET6,
-		.checkentry	= checkentry,
-		.match		= match,
+		.checkentry	= mark_mt_check,
+		.match		= mark_mt,
 		.matchsize	= sizeof(struct xt_mark_info),
 		.me		= THIS_MODULE,
 	},
 };
 
-static int __init xt_mark_init(void)
+static int __init mark_mt_init(void)
 {
-	return xt_register_matches(xt_mark_match, ARRAY_SIZE(xt_mark_match));
+	return xt_register_matches(mark_mt_reg, ARRAY_SIZE(mark_mt_reg));
 }
 
-static void __exit xt_mark_fini(void)
+static void __exit mark_mt_exit(void)
 {
-	xt_unregister_matches(xt_mark_match, ARRAY_SIZE(xt_mark_match));
+	xt_unregister_matches(mark_mt_reg, ARRAY_SIZE(mark_mt_reg));
 }
 
-module_init(xt_mark_init);
-module_exit(xt_mark_fini);
+module_init(mark_mt_init);
+module_exit(mark_mt_exit);
