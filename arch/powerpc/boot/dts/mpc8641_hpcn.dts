@@ -16,6 +16,17 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+		pci1 = &pci1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -107,7 +118,7 @@
 			};
 		};
 
-		ethernet@24000 {
+		enet0: ethernet@24000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
@@ -127,7 +138,7 @@
 			phy-connection-type = "rgmii-id";
 		};
 
-		ethernet@25000 {
+		enet1: ethernet@25000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
@@ -147,7 +158,7 @@
 			phy-connection-type = "rgmii-id";
 		};
 		
-		ethernet@26000 {
+		enet2: ethernet@26000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
@@ -167,7 +178,7 @@
 			phy-connection-type = "rgmii-id";
 		};
 
-		ethernet@27000 {
+		enet3: ethernet@27000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			device_type = "network";
@@ -186,7 +197,8 @@
 			phy-handle = <&phy3>;
 			phy-connection-type = "rgmii-id";
 		};
-		serial@4500 {
+
+		serial0: serial@4500 {
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4500 100>;
@@ -195,7 +207,7 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		serial@4600 {
+		serial1: serial@4600 {
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4600 100>;
@@ -222,7 +234,7 @@
 		};
 	};
 
-	pcie@f8008000 {
+	pci0: pcie@f8008000 {
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -430,7 +442,7 @@
 
 	};
 
-	pcie@f8009000 {
+	pci1: pcie@f8009000 {
 		compatible = "fsl,mpc8641-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
