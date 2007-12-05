@@ -34,6 +34,7 @@
 #include <linux/linux_logo.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
+#include <asm/spu_csa.h>
 #include <asm/xmon.h>
 #include <asm/prom.h>
 
@@ -72,6 +73,10 @@ static DEFINE_SPINLOCK(spu_lock);
 static LIST_HEAD(spu_full_list);
 static DEFINE_SPINLOCK(spu_full_list_lock);
 static DEFINE_MUTEX(spu_full_list_mutex);
+
+struct spu_slb {
+	u64 esid, vsid;
+};
 
 void spu_invalidate_slbs(struct spu *spu)
 {
@@ -148,6 +153,18 @@ static void spu_restart_dma(struct spu *spu)
 
 	if (!test_bit(SPU_CONTEXT_SWITCH_PENDING, &spu->flags))
 		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
+}
+
+static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)
+{
+	struct spu_priv2 __iomem *priv2 = spu->priv2;
+
+	pr_debug("%s: adding SLB[%d] 0x%016lx 0x%016lx\n",
+			__func__, slbe, slb->vsid, slb->esid);
+
+	out_be64(&priv2->slb_index_W, slbe);
+	out_be64(&priv2->slb_vsid_RW, slb->vsid);
+	out_be64(&priv2->slb_esid_RW, slb->esid);
 }
 
 static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
@@ -238,6 +255,38 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	spu->stop_callback(spu);
 	return 0;
 }
+
+static void __spu_kernel_slb(void *addr, struct spu_slb *slb)
+{
+	unsigned long ea = (unsigned long)addr;
+	u64 llp;
+
+	if (REGION_ID(ea) == KERNEL_REGION_ID)
+		llp = mmu_psize_defs[mmu_linear_psize].sllp;
+	else
+		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+
+	slb->vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
+		SLB_VSID_KERNEL | llp;
+	slb->esid = (ea & ESID_MASK) | SLB_ESID_V;
+}
+
+/**
+ * Setup the SPU kernel SLBs, in preparation for a context save/restore. We
+ * need to map both the context save area, and the save/restore code.
+ */
+void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa, void *code)
+{
+	struct spu_slb code_slb, lscsa_slb;
+
+	__spu_kernel_slb(lscsa, &lscsa_slb);
+	__spu_kernel_slb(code, &code_slb);
+
+	spu_load_slb(spu, 0, &lscsa_slb);
+	if (lscsa_slb.esid != code_slb.esid)
+		spu_load_slb(spu, 1, &code_slb);
+}
+EXPORT_SYMBOL_GPL(spu_setup_kernel_slbs);
 
 static irqreturn_t
 spu_irq_class_0(int irq, void *data)

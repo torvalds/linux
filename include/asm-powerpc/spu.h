@@ -104,6 +104,7 @@
 
 struct spu_context;
 struct spu_runqueue;
+struct spu_lscsa;
 struct device_node;
 
 enum spu_utilization_state {
@@ -199,6 +200,9 @@ void spu_init_channels(struct spu *spu);
 int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
+
+void spu_setup_kernel_slbs(struct spu *spu,
+		struct spu_lscsa *lscsa, void *code);
 
 #ifdef CONFIG_KEXEC
 void crash_register_spus(struct list_head *list);
