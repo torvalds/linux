@@ -77,52 +77,6 @@ __ipq_enqueue_entry(struct ipq_queue_entry *entry)
        queue_total++;
 }
 
-/*
- * Find and return a queued entry matched by cmpfn, or return the last
- * entry if cmpfn is NULL.
- */
-static inline struct ipq_queue_entry *
-__ipq_find_entry(ipq_cmpfn cmpfn, unsigned long data)
-{
-	struct ipq_queue_entry *entry;
-
-	list_for_each_entry(entry, &queue_list, list) {
-		if (!cmpfn || cmpfn(entry, data))
-			return entry;
-	}
-	return NULL;
-}
-
-static inline void
-__ipq_dequeue_entry(struct ipq_queue_entry *entry)
-{
-	list_del(&entry->list);
-	queue_total--;
-}
-
-static inline struct ipq_queue_entry *
-__ipq_find_dequeue_entry(ipq_cmpfn cmpfn, unsigned long data)
-{
-	struct ipq_queue_entry *entry;
-
-	entry = __ipq_find_entry(cmpfn, data);
-	if (entry == NULL)
-		return NULL;
-
-	__ipq_dequeue_entry(entry);
-	return entry;
-}
-
-
-static inline void
-__ipq_flush(int verdict)
-{
-	struct ipq_queue_entry *entry;
-
-	while ((entry = __ipq_find_dequeue_entry(NULL, 0)))
-		ipq_issue_verdict(entry, verdict);
-}
-
 static inline int
 __ipq_set_mode(unsigned char mode, unsigned int range)
 {
@@ -149,31 +103,59 @@ __ipq_set_mode(unsigned char mode, unsigned int range)
 	return status;
 }
 
+static void __ipq_flush(ipq_cmpfn cmpfn, unsigned long data);
+
 static inline void
 __ipq_reset(void)
 {
 	peer_pid = 0;
 	net_disable_timestamp();
 	__ipq_set_mode(IPQ_COPY_NONE, 0);
-	__ipq_flush(NF_DROP);
+	__ipq_flush(NULL, 0);
 }
 
 static struct ipq_queue_entry *
-ipq_find_dequeue_entry(ipq_cmpfn cmpfn, unsigned long data)
+ipq_find_dequeue_entry(unsigned long id)
 {
-	struct ipq_queue_entry *entry;
+	struct ipq_queue_entry *entry = NULL, *i;
 
 	write_lock_bh(&queue_lock);
-	entry = __ipq_find_dequeue_entry(cmpfn, data);
+
+	list_for_each_entry(i, &queue_list, list) {
+		if ((unsigned long)i == id) {
+			entry = i;
+			break;
+		}
+	}
+
+	if (entry) {
+		list_del(&entry->list);
+		queue_total--;
+	}
+
 	write_unlock_bh(&queue_lock);
 	return entry;
 }
 
 static void
-ipq_flush(int verdict)
+__ipq_flush(ipq_cmpfn cmpfn, unsigned long data)
+{
+	struct ipq_queue_entry *entry, *next;
+
+	list_for_each_entry_safe(entry, next, &queue_list, list) {
+		if (!cmpfn || cmpfn(entry, data)) {
+			list_del(&entry->list);
+			queue_total--;
+			ipq_issue_verdict(entry, NF_DROP);
+		}
+	}
+}
+
+static void
+ipq_flush(ipq_cmpfn cmpfn, unsigned long data)
 {
 	write_lock_bh(&queue_lock);
-	__ipq_flush(verdict);
+	__ipq_flush(cmpfn, data);
 	write_unlock_bh(&queue_lock);
 }
 
@@ -367,12 +349,6 @@ ipq_mangle_ipv4(ipq_verdict_msg_t *v, struct ipq_queue_entry *e)
 	return 0;
 }
 
-static inline int
-id_cmp(struct ipq_queue_entry *e, unsigned long id)
-{
-	return (id == (unsigned long )e);
-}
-
 static int
 ipq_set_verdict(struct ipq_verdict_msg *vmsg, unsigned int len)
 {
@@ -381,7 +357,7 @@ ipq_set_verdict(struct ipq_verdict_msg *vmsg, unsigned int len)
 	if (vmsg->value > NF_MAX_VERDICT)
 		return -EINVAL;
 
-	entry = ipq_find_dequeue_entry(id_cmp, vmsg->id);
+	entry = ipq_find_dequeue_entry(vmsg->id);
 	if (entry == NULL)
 		return -ENOENT;
 	else {
@@ -460,10 +436,7 @@ dev_cmp(struct ipq_queue_entry *entry, unsigned long ifindex)
 static void
 ipq_dev_drop(int ifindex)
 {
-	struct ipq_queue_entry *entry;
-
-	while ((entry = ipq_find_dequeue_entry(dev_cmp, ifindex)) != NULL)
-		ipq_issue_verdict(entry, NF_DROP);
+	ipq_flush(dev_cmp, ifindex);
 }
 
 #define RCV_SKB_FAIL(err) do { netlink_ack(skb, nlh, (err)); return; } while (0)
@@ -699,7 +672,7 @@ static void __exit ip_queue_fini(void)
 {
 	nf_unregister_queue_handlers(&nfqh);
 	synchronize_net();
-	ipq_flush(NF_DROP);
+	ipq_flush(NULL, 0);
 
 	unregister_sysctl_table(ipq_sysctl_header);
 	unregister_netdevice_notifier(&ipq_dev_notifier);
