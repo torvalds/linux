@@ -487,13 +487,17 @@ config NETFILTER_XT_MATCH_DCCP
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_DSCP
-	tristate '"dscp" match support'
+	tristate '"dscp" and "tos" match support'
 	depends on NETFILTER_XTABLES
 	help
 	  This option adds a `DSCP' match, which allows you to match against
 	  the IPv4/IPv6 header DSCP field (differentiated services codepoint).
 
 	  The DSCP field can have any value between 0x0 and 0x3f inclusive.
+
+	  It will also add a "tos" match, which allows you to match packets
+	  based on the Type Of Service fields of the IPv4 packet (which share
+	  the same bits as DSCP).
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
