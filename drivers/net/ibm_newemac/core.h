@@ -293,9 +293,9 @@ struct emac_instance {
  */
 #define EMAC_FTR_HAS_RGMII		0x00000020
 /*
- * Set if we have axon-type STACR
+ * Set if we have new type STACR with STAOPC
  */
-#define EMAC_FTR_HAS_AXON_STACR		0x00000040
+#define EMAC_FTR_HAS_NEW_STACR		0x00000040
 
 
 /* Right now, we don't quite handle the always/possible masks on the
@@ -307,7 +307,7 @@ enum {
 
 	EMAC_FTRS_POSSIBLE	=
 #ifdef CONFIG_IBM_NEW_EMAC_EMAC4
-	    EMAC_FTR_EMAC4	| EMAC_FTR_HAS_AXON_STACR	|
+	    EMAC_FTR_EMAC4	| EMAC_FTR_HAS_NEW_STACR	|
 	    EMAC_FTR_STACR_OC_INVERT	|
 #endif
 #ifdef CONFIG_IBM_NEW_EMAC_TAH

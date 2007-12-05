@@ -711,7 +711,7 @@ static int __emac_mdio_read(struct emac_instance *dev, u8 id, u8 reg)
 		r = EMAC_STACR_BASE(dev->opb_bus_freq);
 	if (emac_has_feature(dev, EMAC_FTR_STACR_OC_INVERT))
 		r |= EMAC_STACR_OC;
-	if (emac_has_feature(dev, EMAC_FTR_HAS_AXON_STACR))
+	if (emac_has_feature(dev, EMAC_FTR_HAS_NEW_STACR))
 		r |= EMACX_STACR_STAC_READ;
 	else
 		r |= EMAC_STACR_STAC_READ;
@@ -783,7 +783,7 @@ static void __emac_mdio_write(struct emac_instance *dev, u8 id, u8 reg,
 		r = EMAC_STACR_BASE(dev->opb_bus_freq);
 	if (emac_has_feature(dev, EMAC_FTR_STACR_OC_INVERT))
 		r |= EMAC_STACR_OC;
-	if (emac_has_feature(dev, EMAC_FTR_HAS_AXON_STACR))
+	if (emac_has_feature(dev, EMAC_FTR_HAS_NEW_STACR))
 		r |= EMACX_STACR_STAC_WRITE;
 	else
 		r |= EMAC_STACR_STAC_WRITE;
@@ -2480,16 +2480,19 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 	/* Check EMAC version */
 	if (of_device_is_compatible(np, "ibm,emac4"))
 		dev->features |= EMAC_FTR_EMAC4;
-	if (of_device_is_compatible(np, "ibm,emac-axon")
-	    || of_device_is_compatible(np, "ibm,emac-440epx"))
-		dev->features |= EMAC_FTR_HAS_AXON_STACR
-			| EMAC_FTR_STACR_OC_INVERT;
-	if (of_device_is_compatible(np, "ibm,emac-440spe"))
-		dev->features |= EMAC_FTR_STACR_OC_INVERT;
 
-	/* Fixup some feature bits based on the device tree and verify
-	 * we have support for them compiled in
-	 */
+	/* Fixup some feature bits based on the device tree */
+	if (of_get_property(np, "has-inverted-stacr-oc", NULL))
+		dev->features |= EMAC_FTR_STACR_OC_INVERT;
+	if (of_get_property(np, "has-new-stacr-staopc", NULL))
+		dev->features |= EMAC_FTR_HAS_NEW_STACR;
+
+	/* CAB lacks the appropriate properties */
+	if (of_device_is_compatible(np, "ibm,emac-axon"))
+		dev->features |= EMAC_FTR_HAS_NEW_STACR |
+			EMAC_FTR_STACR_OC_INVERT;
+
+	/* Enable TAH/ZMII/RGMII features as found */
 	if (dev->tah_ph != 0) {
 #ifdef CONFIG_IBM_NEW_EMAC_TAH
 		dev->features |= EMAC_FTR_HAS_TAH;
