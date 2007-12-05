@@ -476,7 +476,7 @@ config NETFILTER_XT_MATCH_CONNTRACK
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_MATCH_DCCP
-	tristate  '"DCCP" protocol match support'
+	tristate '"dccp" protocol match support'
 	depends on NETFILTER_XTABLES
 	help
 	  With this option enabled, you will be able to use the iptables
@@ -487,7 +487,7 @@ config NETFILTER_XT_MATCH_DCCP
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_DSCP
-	tristate '"DSCP" match support'
+	tristate '"dscp" match support'
 	depends on NETFILTER_XTABLES
 	help
 	  This option adds a `DSCP' match, which allows you to match against
@@ -498,7 +498,7 @@ config NETFILTER_XT_MATCH_DSCP
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_MATCH_ESP
-	tristate '"ESP" match support'
+	tristate '"esp" match support'
 	depends on NETFILTER_XTABLES
 	help
 	  This match extension allows you to match a range of SPIs
@@ -573,7 +573,7 @@ config NETFILTER_XT_MATCH_POLICY
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config NETFILTER_XT_MATCH_MULTIPORT
-	tristate "Multiple port match support"
+	tristate '"multiport" Multiple port match support'
 	depends on NETFILTER_XTABLES
 	help
 	  Multiport matching allows you to match TCP or UDP packets based on

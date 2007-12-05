@@ -54,7 +54,7 @@ config IP6_NF_IPTABLES
 
 # The simple matches.
 config IP6_NF_MATCH_RT
-	tristate "Routing header match support"
+	tristate '"rt" Routing header match support'
 	depends on IP6_NF_IPTABLES
 	help
 	  rt matching allows you to match packets based on the routing
@@ -63,7 +63,7 @@ config IP6_NF_MATCH_RT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_OPTS
-	tristate "Hop-by-hop and Dst opts header match support"
+	tristate '"hopbyhop" and "dst" opts header match support'
 	depends on IP6_NF_IPTABLES
 	help
 	  This allows one to match packets based on the hop-by-hop
@@ -72,7 +72,7 @@ config IP6_NF_MATCH_OPTS
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_FRAG
-	tristate "Fragmentation header match support"
+	tristate '"frag" Fragmentation header match support'
 	depends on IP6_NF_IPTABLES
 	help
 	  frag matching allows you to match packets based on the fragmentation
@@ -81,7 +81,7 @@ config IP6_NF_MATCH_FRAG
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_HL
-	tristate "HL match support"
+	tristate '"hl" match support'
 	depends on IP6_NF_IPTABLES
 	help
 	  HL matching allows you to match packets based on the hop
@@ -90,7 +90,7 @@ config IP6_NF_MATCH_HL
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_IPV6HEADER
-	tristate "IPv6 Extension Headers Match"
+	tristate '"ipv6header" IPv6 Extension Headers Match'
 	depends on IP6_NF_IPTABLES
 	help
 	  This module allows one to match packets based upon
@@ -99,7 +99,7 @@ config IP6_NF_MATCH_IPV6HEADER
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_AH
-	tristate "AH match support"
+	tristate '"ah" match support'
 	depends on IP6_NF_IPTABLES
 	help
 	  This module allows one to match AH packets.
@@ -107,7 +107,7 @@ config IP6_NF_MATCH_AH
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_MH
-	tristate "MH match support"
+	tristate '"mh" match support'
 	depends on IP6_NF_IPTABLES
 	help
 	  This module allows one to match MH packets.
@@ -115,7 +115,7 @@ config IP6_NF_MATCH_MH
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP6_NF_MATCH_EUI64
-	tristate "EUI64 address check"
+	tristate '"eui64" address check'
 	depends on IP6_NF_IPTABLES
 	help
 	  This module performs checking on the IPv6 source address

@@ -55,7 +55,7 @@ config IP_NF_IPTABLES
 
 # The matches.
 config IP_NF_MATCH_IPRANGE
-	tristate "IP range match support"
+	tristate '"iprange" match support'
 	depends on IP_NF_IPTABLES
 	help
 	  This option makes possible to match IP addresses against IP address
@@ -73,7 +73,7 @@ config IP_NF_MATCH_TOS
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_MATCH_RECENT
-	tristate "recent match support"
+	tristate '"recent" match support'
 	depends on IP_NF_IPTABLES
 	help
 	  This match is used for creating one or many lists of recently
@@ -85,7 +85,7 @@ config IP_NF_MATCH_RECENT
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_MATCH_ECN
-	tristate "ECN match support"
+	tristate '"ecn" match support'
 	depends on IP_NF_IPTABLES
 	help
 	  This option adds a `ECN' match, which allows you to match against
@@ -94,7 +94,7 @@ config IP_NF_MATCH_ECN
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_MATCH_AH
-	tristate "AH match support"
+	tristate '"ah" match support'
 	depends on IP_NF_IPTABLES
 	help
 	  This match extension allows you to match a range of SPIs
@@ -103,7 +103,7 @@ config IP_NF_MATCH_AH
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_MATCH_TTL
-	tristate "TTL match support"
+	tristate '"ttl" match support'
 	depends on IP_NF_IPTABLES
 	help
 	  This adds CONFIG_IP_NF_MATCH_TTL option, which enabled the user
@@ -112,7 +112,7 @@ config IP_NF_MATCH_TTL
 	  To compile it as a module, choose M here.  If unsure, say N.
 
 config IP_NF_MATCH_ADDRTYPE
-	tristate  'address type match support'
+	tristate '"addrtype" address type match support'
 	depends on IP_NF_IPTABLES
 	help
 	  This option allows you to match what routing thinks of an address,
