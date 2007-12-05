@@ -202,23 +202,6 @@ instance_destroy(struct nfqnl_instance *inst)
 	_instance_destroy2(inst, 1);
 }
 
-
-
-static void
-issue_verdict(struct nf_queue_entry *entry, int verdict)
-{
-	QDEBUG("entering for entry %p, verdict %u\n", entry, verdict);
-
-	/* TCP input path (and probably other bits) assume to be called
-	 * from softirq context, not from syscall, like issue_verdict is
-	 * called.  TCP input path deadlocks with locks taken from timer
-	 * softirq, e.g.  We therefore emulate this by local_bh_disable() */
-
-	local_bh_disable();
-	nf_reinject(entry, verdict);
-	local_bh_enable();
-}
-
 static inline void
 __enqueue_entry(struct nfqnl_instance *queue, struct nf_queue_entry *entry)
 {
@@ -289,7 +272,7 @@ nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn, unsigned long data)
 		if (!cmpfn || cmpfn(entry, data)) {
 			list_del(&entry->list);
 			queue->queue_total--;
-			issue_verdict(entry, NF_DROP);
+			nf_reinject(entry, NF_DROP);
 		}
 	}
 	spin_unlock_bh(&queue->lock);
@@ -761,7 +744,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 		entry->skb->mark = ntohl(*(__be32 *)
 					 nla_data(nfqa[NFQA_MARK]));
 
-	issue_verdict(entry, verdict);
+	nf_reinject(entry, verdict);
 	instance_put(queue);
 	return 0;
 

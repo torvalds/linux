@@ -49,19 +49,6 @@ static struct sock *ipqnl __read_mostly;
 static LIST_HEAD(queue_list);
 static DEFINE_MUTEX(ipqnl_mutex);
 
-static void
-ipq_issue_verdict(struct nf_queue_entry *entry, int verdict)
-{
-	/* TCP input path (and probably other bits) assume to be called
-	 * from softirq context, not from syscall, like ipq_issue_verdict is
-	 * called.  TCP input path deadlocks with locks taken from timer
-	 * softirq, e.g.  We therefore emulate this by local_bh_disable() */
-
-	local_bh_disable();
-	nf_reinject(entry, verdict);
-	local_bh_enable();
-}
-
 static inline void
 __ipq_enqueue_entry(struct nf_queue_entry *entry)
 {
@@ -138,7 +125,7 @@ __ipq_flush(ipq_cmpfn cmpfn, unsigned long data)
 		if (!cmpfn || cmpfn(entry, data)) {
 			list_del(&entry->list);
 			queue_total--;
-			ipq_issue_verdict(entry, NF_DROP);
+			nf_reinject(entry, NF_DROP);
 		}
 	}
 }
@@ -345,7 +332,7 @@ ipq_set_verdict(struct ipq_verdict_msg *vmsg, unsigned int len)
 			if (ipq_mangle_ipv4(vmsg, entry) < 0)
 				verdict = NF_DROP;
 
-		ipq_issue_verdict(entry, verdict);
+		nf_reinject(entry, verdict);
 		return 0;
 	}
 }

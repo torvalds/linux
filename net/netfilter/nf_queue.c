@@ -275,7 +275,9 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	switch (verdict & NF_VERDICT_MASK) {
 	case NF_ACCEPT:
 	case NF_STOP:
+		local_bh_disable();
 		entry->okfn(skb);
+		local_bh_enable();
 	case NF_STOLEN:
 		break;
 	case NF_QUEUE:
