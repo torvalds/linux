@@ -1097,7 +1097,8 @@ dispatch_writes:
 		ad->batch_data_dir = REQ_ASYNC;
 		ad->current_write_count = ad->write_batch_count;
 		ad->write_batch_idled = 0;
-		rq = ad->next_rq[ad->batch_data_dir];
+		rq = rq_entry_fifo(ad->fifo_list[REQ_ASYNC].next);
+		ad->last_check_fifo[REQ_ASYNC] = jiffies;
 		goto dispatch_request;
 	}
 
