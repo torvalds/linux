@@ -337,7 +337,6 @@ static const struct proto_ops name##_ops = {			\
 
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
-extern ctl_table net_table[];
 extern int net_msg_cost;
 extern int net_msg_burst;
 #endif

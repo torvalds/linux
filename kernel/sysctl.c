@@ -200,14 +200,6 @@ static struct ctl_table root_table[] = {
 		.mode		= 0555,
 		.child		= vm_table,
 	},
-#ifdef CONFIG_NET
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= net_table,
-	},
-#endif
 	{
 		.ctl_name	= CTL_FS,
 		.procname	= "fs",

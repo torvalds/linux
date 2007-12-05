@@ -30,10 +30,6 @@
 #include <linux/if_tr.h>
 #endif
 
-struct ctl_table net_table[] = {
-	{ 0 },
-};
-
 static struct list_head *
 net_ctl_header_lookup(struct ctl_table_root *root, struct nsproxy *namespaces)
 {
