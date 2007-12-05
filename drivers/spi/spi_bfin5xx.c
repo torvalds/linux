@@ -234,10 +234,8 @@ static int restore_state(struct driver_data *drv_data)
 	dev_dbg(&drv_data->pdev->dev, "restoring spi ctl state\n");
 
 	/* Load the registers */
-	write_BAUD(drv_data, chip->baud);
-	chip->ctl_reg &= (~BIT_CTL_TIMOD);
-	chip->ctl_reg |= (chip->width << 8);
 	write_CTRL(drv_data, chip->ctl_reg);
+	write_BAUD(drv_data, chip->baud);
 
 	bfin_spi_enable(drv_data);
 	cs_active(drv_data, chip);
@@ -679,6 +677,7 @@ static void pump_transfers(unsigned long data)
 	message = drv_data->cur_msg;
 	transfer = drv_data->cur_transfer;
 	chip = drv_data->cur_chip;
+
 	/*
 	 * if msg is error or done, report it back using complete() callback
 	 */
@@ -736,15 +735,48 @@ static void pump_transfers(unsigned long data)
 	drv_data->len_in_bytes = transfer->len;
 	drv_data->cs_change = transfer->cs_change;
 
-	width = chip->width;
+	/* Bits per word setup */
+	switch (transfer->bits_per_word) {
+	case 8:
+		drv_data->n_bytes = 1;
+		width = CFG_SPI_WORDSIZE8;
+		drv_data->read = chip->cs_change_per_word ?
+			u8_cs_chg_reader : u8_reader;
+		drv_data->write = chip->cs_change_per_word ?
+			u8_cs_chg_writer : u8_writer;
+		drv_data->duplex = chip->cs_change_per_word ?
+			u8_cs_chg_duplex : u8_duplex;
+		break;
+
+	case 16:
+		drv_data->n_bytes = 2;
+		width = CFG_SPI_WORDSIZE16;
+		drv_data->read = chip->cs_change_per_word ?
+			u16_cs_chg_reader : u16_reader;
+		drv_data->write = chip->cs_change_per_word ?
+			u16_cs_chg_writer : u16_writer;
+		drv_data->duplex = chip->cs_change_per_word ?
+			u16_cs_chg_duplex : u16_duplex;
+		break;
+
+	default:
+		/* No change, the same as default setting */
+		drv_data->n_bytes = chip->n_bytes;
+		width = chip->width;
+		drv_data->write = drv_data->tx ? chip->write : null_writer;
+		drv_data->read = drv_data->rx ? chip->read : null_reader;
+		drv_data->duplex = chip->duplex ? chip->duplex : null_writer;
+		break;
+	}
+	cr = (read_CTRL(drv_data) & (~BIT_CTL_TIMOD));
+	cr |= (width << 8);
+	write_CTRL(drv_data, cr);
+
 	if (width == CFG_SPI_WORDSIZE16) {
 		drv_data->len = (transfer->len) >> 1;
 	} else {
 		drv_data->len = transfer->len;
 	}
-	drv_data->write = drv_data->tx ? chip->write : null_writer;
-	drv_data->read = drv_data->rx ? chip->read : null_reader;
-	drv_data->duplex = chip->duplex ? chip->duplex : null_writer;
 	dev_dbg(&drv_data->pdev->dev, "transfer: ",
 		"drv_data->write is %p, chip->write is %p, null_wr is %p\n",
 		drv_data->write, chip->write, null_writer);
@@ -752,6 +784,12 @@ static void pump_transfers(unsigned long data)
 	/* speed and width has been set on per message */
 	message->state = RUNNING_STATE;
 	dma_config = 0;
+
+	/* Speed setup (surely valid because already checked) */
+	if (transfer->speed_hz)
+		write_BAUD(drv_data, hz_to_spi_baud(transfer->speed_hz));
+	else
+		write_BAUD(drv_data, chip->baud);
 
 	write_STAT(drv_data, BIT_STAT_CLR);
 	cr = (read_CTRL(drv_data) & (~BIT_CTL_TIMOD));
