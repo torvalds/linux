@@ -35,6 +35,7 @@
 #include <asm/firmware.h>
 #include <asm/prom.h>
 
+#include "spufs/spufs.h"
 #include "interrupt.h"
 
 struct device_node *spu_devnode(struct spu *spu)
@@ -369,6 +370,16 @@ static int of_destroy_spu(struct spu *spu)
 	return 0;
 }
 
+static void enable_spu_by_master_run(struct spu_context *ctx)
+{
+	ctx->ops->master_start(ctx);
+}
+
+static void disable_spu_by_master_run(struct spu_context *ctx)
+{
+	ctx->ops->master_stop(ctx);
+}
+
 /* Hardcoded affinity idxs for qs20 */
 #define QS20_SPES_PER_BE 8
 static int qs20_reg_idxs[QS20_SPES_PER_BE] =   { 0, 2, 4, 6, 7, 5, 3, 1 };
@@ -540,5 +551,7 @@ const struct spu_management_ops spu_management_of_ops = {
 	.enumerate_spus = of_enumerate_spus,
 	.create_spu = of_create_spu,
 	.destroy_spu = of_destroy_spu,
+	.enable_spu = enable_spu_by_master_run,
+	.disable_spu = disable_spu_by_master_run,
 	.init_affinity = init_affinity,
 };

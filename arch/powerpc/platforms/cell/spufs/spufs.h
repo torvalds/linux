@@ -170,6 +170,7 @@ struct spu_context_ops {
 	char*(*get_ls) (struct spu_context * ctx);
 	 u32 (*runcntl_read) (struct spu_context * ctx);
 	void (*runcntl_write) (struct spu_context * ctx, u32 data);
+	void (*runcntl_stop) (struct spu_context * ctx);
 	void (*master_start) (struct spu_context * ctx);
 	void (*master_stop) (struct spu_context * ctx);
 	int (*set_mfc_query)(struct spu_context * ctx, u32 mask, u32 mode);
