@@ -214,6 +214,7 @@ static inline void crash_register_spus(struct list_head *list)
 
 extern void spu_invalidate_slbs(struct spu *spu);
 extern void spu_associate_mm(struct spu *spu, struct mm_struct *mm);
+int spu_64k_pages_available(void);
 
 /* Calls from the memory management to the SPU */
 struct mm_struct;

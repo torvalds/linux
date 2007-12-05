@@ -126,6 +126,12 @@ void spu_associate_mm(struct spu *spu, struct mm_struct *mm)
 }
 EXPORT_SYMBOL_GPL(spu_associate_mm);
 
+int spu_64k_pages_available(void)
+{
+	return mmu_psize_defs[MMU_PAGE_64K].shift != 0;
+}
+EXPORT_SYMBOL_GPL(spu_64k_pages_available);
+
 static int __spu_trap_invalid_dma(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
