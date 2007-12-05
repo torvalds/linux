@@ -62,7 +62,16 @@ sleep_common:
 	mflr	r0
 	std	r0, 16(r1)
 	stdu	r1,-64(r1)
+#ifdef CONFIG_PPC_PASEMI_CPUFREQ
+	std	r3, 48(r1)
 
+	/* Only do power savings when in astate 0 */
+	bl	.check_astate
+	cmpwi	r3,0
+	bne	1f
+
+	ld	r3, 48(r1)
+#endif
 	LOAD_REG_IMMEDIATE(r6,MSR_DR|MSR_IR|MSR_ME|MSR_EE)
 	mfmsr	r4
 	andc	r5,r4,r6
@@ -73,7 +82,7 @@ sleep_common:
 
 	mtmsrd	r4,0
 
-	addi	r1,r1,64
+1:	addi	r1,r1,64
 	ld	r0,16(r1)
 	mtlr	r0
 	blr

@@ -98,7 +98,7 @@ config HW_RANDOM_PASEMI
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number
-	  Generator hardware found on PA6T-1682M processor.
+	  Generator hardware found on PA Semi PWRficient SoCs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pasemi-rng.

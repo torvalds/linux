@@ -17,7 +17,7 @@ config PPC_PASEMI_IOMMU
 	bool "PA Semi IOMMU support"
 	depends on PPC_PASEMI
 	help
-	  IOMMU support for PA6T-1682M
+	  IOMMU support for PA Semi PWRficient
 
 config PPC_PASEMI_IOMMU_DMA_FORCE
 	bool "Force DMA engine to use IOMMU"
