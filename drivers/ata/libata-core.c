@@ -4475,7 +4475,6 @@ void ata_sg_clean(struct ata_queued_cmd *qc)
 	int dir = qc->dma_dir;
 	void *pad_buf = NULL;
 
-	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
 	WARN_ON(sg == NULL);
 
 	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
@@ -4762,11 +4761,9 @@ void ata_noop_qc_prep(struct ata_queued_cmd *qc) { }
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
  */
-
 void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem)
 {
-	qc->flags |= ATA_QCFLAG_DMAMAP;
 	qc->__sg = sg;
 	qc->n_elem = n_elem;
 	qc->orig_n_elem = n_elem;
@@ -4795,7 +4792,6 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 	int n_elem, pre_n_elem, dir, trim_sg = 0;
 
 	VPRINTK("ENTER, ata%u\n", ap->print_id);
-	WARN_ON(!(qc->flags & ATA_QCFLAG_DMAMAP));
 
 	/* we must lengthen transfers to end on a 32-bit boundary */
 	qc->pad_len = lsg->length & 3;
@@ -4855,6 +4851,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 
 skip_map:
 	qc->n_elem = n_elem;
+	qc->flags |= ATA_QCFLAG_DMAMAP;
 
 	return 0;
 }
@@ -5912,12 +5909,15 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	qc->flags |= ATA_QCFLAG_ACTIVE;
 	ap->qc_active |= 1 << qc->tag;
 
+	/* We guarantee to LLDs that they will have at least one
+	 * non-zero sg if the command is a data command.
+	 */
+	BUG_ON(ata_is_data(prot) && (!qc->__sg || !qc->n_elem || !qc->nbytes));
+
 	if (ata_is_dma(prot) || (ata_is_pio(prot) &&
-				 (ap->flags & ATA_FLAG_PIO_DMA))) {
+				 (ap->flags & ATA_FLAG_PIO_DMA)))
 		if (ata_sg_setup(qc))
 			goto sg_err;
-	} else
-		qc->flags &= ATA_QCFLAG_DMAMAP;
 
 	/* if device is sleeping, schedule softreset and abort the link */
 	if (unlikely(qc->dev->flags & ATA_DFLAG_SLEEPING)) {
@@ -5935,7 +5935,6 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	return;
 
 sg_err:
-	qc->flags &= ~ATA_QCFLAG_DMAMAP;
 	qc->err_mask |= AC_ERR_SYSTEM;
 err:
 	ata_qc_complete(qc);
