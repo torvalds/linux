@@ -128,7 +128,6 @@ static int icmp_new(struct nf_conn *conntrack,
 	return 1;
 }
 
-extern struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4;
 /* Returns conntrack if it dealt with ICMP, and filled in skb fields */
 static int
 icmp_error_message(struct sk_buff *skb,
