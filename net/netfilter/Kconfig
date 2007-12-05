@@ -304,7 +304,7 @@ config NETFILTER_XT_TARGET_DSCP
 
 	  It also adds the "TOS" target, which allows you to create rules in
 	  the "mangle" table which alter the Type Of Service field of an IPv4
-	  packet prior to routing.
+	  or the Priority field of an IPv6 packet, prior to routing.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 

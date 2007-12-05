@@ -26,6 +26,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_DSCP");
 MODULE_ALIAS("ip6t_DSCP");
 MODULE_ALIAS("ipt_TOS");
+MODULE_ALIAS("ip6t_TOS");
 
 static unsigned int
 dscp_tg(struct sk_buff *skb, const struct net_device *in,
@@ -117,6 +118,50 @@ tos_tg_check_v0(const char *tablename, const void *e_void,
 	return true;
 }
 
+static unsigned int
+tos_tg(struct sk_buff *skb, const struct net_device *in,
+       const struct net_device *out, unsigned int hooknum,
+       const struct xt_target *target, const void *targinfo)
+{
+	const struct xt_tos_target_info *info = targinfo;
+	struct iphdr *iph = ip_hdr(skb);
+	u_int8_t orig, nv;
+
+	orig = ipv4_get_dsfield(iph);
+	nv   = (orig & info->tos_mask) ^ info->tos_value;
+
+	if (orig != nv) {
+		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+			return NF_DROP;
+		iph = ip_hdr(skb);
+		ipv4_change_dsfield(iph, ~0, nv);
+	}
+
+	return XT_CONTINUE;
+}
+
+static unsigned int
+tos_tg6(struct sk_buff *skb, const struct net_device *in,
+        const struct net_device *out, unsigned int hooknum,
+        const struct xt_target *target, const void *targinfo)
+{
+	const struct xt_tos_target_info *info = targinfo;
+	struct ipv6hdr *iph = ipv6_hdr(skb);
+	u_int8_t orig, nv;
+
+	orig = ipv6_get_dsfield(iph);
+	nv   = (orig & info->tos_mask) ^ info->tos_value;
+
+	if (orig != nv) {
+		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+			return NF_DROP;
+		iph = ipv6_hdr(skb);
+		ipv6_change_dsfield(iph, ~0, nv);
+	}
+
+	return XT_CONTINUE;
+}
+
 static struct xt_target dscp_tg_reg[] __read_mostly = {
 	{
 		.name		= "DSCP",
@@ -144,6 +189,24 @@ static struct xt_target dscp_tg_reg[] __read_mostly = {
 		.target		= tos_tg_v0,
 		.targetsize	= sizeof(struct ipt_tos_target_info),
 		.checkentry	= tos_tg_check_v0,
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "TOS",
+		.revision	= 1,
+		.family		= AF_INET,
+		.table		= "mangle",
+		.target		= tos_tg,
+		.targetsize	= sizeof(struct xt_tos_target_info),
+		.me		= THIS_MODULE,
+	},
+	{
+		.name		= "TOS",
+		.revision	= 1,
+		.family		= AF_INET6,
+		.table		= "mangle",
+		.target		= tos_tg6,
+		.targetsize	= sizeof(struct xt_tos_target_info),
 		.me		= THIS_MODULE,
 	},
 };
