@@ -78,7 +78,7 @@ struct driver_data {
 	struct spi_master *master;
 
 	/* Regs base of SPI controller */
-	u32 regs_base;
+	void __iomem *regs_base;
 
 	/* BFIN hookup */
 	struct bfin5xx_spi_master *master_info;
@@ -1311,9 +1311,8 @@ static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 		goto out_error_get_res;
 	}
 
-	drv_data->regs_base = (u32) ioremap(res->start,
-					(res->end - res->start + 1));
-	if (!drv_data->regs_base) {
+	drv_data->regs_base = ioremap(res->start, (res->end - res->start + 1));
+	if (drv_data->regs_base == NULL) {
 		dev_err(dev, "Cannot map IO\n");
 		status = -ENXIO;
 		goto out_error_ioremap;
@@ -1352,7 +1351,7 @@ static int __init bfin5xx_spi_probe(struct platform_device *pdev)
 		goto out_error;
 	}
 
-	dev_info(dev, "%s, Version %s, regs_base@0x%08x, dma channel@%d\n",
+	dev_info(dev, "%s, Version %s, regs_base@%p, dma channel@%d\n",
 		DRV_DESC, DRV_VERSION, drv_data->regs_base,
 		drv_data->dma_channel);
 	return status;
