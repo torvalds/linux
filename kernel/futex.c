@@ -658,7 +658,7 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 
 		if (curval == -EFAULT)
 			ret = -EFAULT;
-		if (curval != uval)
+		else if (curval != uval)
 			ret = -EINVAL;
 		if (ret) {
 			spin_unlock(&pi_state->pi_mutex.wait_lock);
@@ -1149,9 +1149,9 @@ static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
 
 /*
  * In case we must use restart_block to restart a futex_wait,
- * we encode in the 'arg3' shared capability
+ * we encode in the 'flags' shared capability
  */
-#define ARG3_SHARED  1
+#define FLAGS_SHARED  1
 
 static long futex_wait_restart(struct restart_block *restart);
 
@@ -1290,12 +1290,13 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 		struct restart_block *restart;
 		restart = &current_thread_info()->restart_block;
 		restart->fn = futex_wait_restart;
-		restart->arg0 = (unsigned long)uaddr;
-		restart->arg1 = (unsigned long)val;
-		restart->arg2 = (unsigned long)abs_time;
-		restart->arg3 = 0;
+		restart->futex.uaddr = (u32 *)uaddr;
+		restart->futex.val = val;
+		restart->futex.time = abs_time->tv64;
+		restart->futex.flags = 0;
+
 		if (fshared)
-			restart->arg3 |= ARG3_SHARED;
+			restart->futex.flags |= FLAGS_SHARED;
 		return -ERESTART_RESTARTBLOCK;
 	}
 
@@ -1310,15 +1311,15 @@ static int futex_wait(u32 __user *uaddr, struct rw_semaphore *fshared,
 
 static long futex_wait_restart(struct restart_block *restart)
 {
-	u32 __user *uaddr = (u32 __user *)restart->arg0;
-	u32 val = (u32)restart->arg1;
-	ktime_t *abs_time = (ktime_t *)restart->arg2;
+	u32 __user *uaddr = (u32 __user *)restart->futex.uaddr;
 	struct rw_semaphore *fshared = NULL;
+	ktime_t t;
 
+	t.tv64 = restart->futex.time;
 	restart->fn = do_no_restart_syscall;
-	if (restart->arg3 & ARG3_SHARED)
+	if (restart->futex.flags & FLAGS_SHARED)
 		fshared = &current->mm->mmap_sem;
-	return (long)futex_wait(uaddr, fshared, val, abs_time);
+	return (long)futex_wait(uaddr, fshared, restart->futex.val, &t);
 }
 
 

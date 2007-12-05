@@ -7,12 +7,25 @@
 #ifndef _LINUX_THREAD_INFO_H
 #define _LINUX_THREAD_INFO_H
 
+#include <linux/types.h>
+
 /*
- * System call restart block. 
+ * System call restart block.
  */
 struct restart_block {
 	long (*fn)(struct restart_block *);
-	unsigned long arg0, arg1, arg2, arg3;
+	union {
+		struct {
+			unsigned long arg0, arg1, arg2, arg3;
+		};
+		/* For futex_wait */
+		struct {
+			u32 *uaddr;
+			u32 val;
+			u32 flags;
+			u64 time;
+		} futex;
+	};
 };
 
 extern long do_no_restart_syscall(struct restart_block *parm);

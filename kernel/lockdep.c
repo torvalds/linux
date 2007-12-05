@@ -3054,11 +3054,6 @@ void __init lockdep_info(void)
 #endif
 }
 
-static inline int in_range(const void *start, const void *addr, const void *end)
-{
-	return addr >= start && addr <= end;
-}
-
 static void
 print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 		     const void *mem_to, struct held_lock *hlock)
@@ -3080,6 +3075,13 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
 	dump_stack();
 }
 
+static inline int not_in_range(const void* mem_from, unsigned long mem_len,
+				const void* lock_from, unsigned long lock_len)
+{
+	return lock_from + lock_len <= mem_from ||
+		mem_from + mem_len <= lock_from;
+}
+
 /*
  * Called when kernel memory is freed (or unmapped), or if a lock
  * is destroyed or reinitialized - this code checks whether there is
@@ -3087,7 +3089,6 @@ print_freed_lock_bug(struct task_struct *curr, const void *mem_from,
  */
 void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 {
-	const void *mem_to = mem_from + mem_len, *lock_from, *lock_to;
 	struct task_struct *curr = current;
 	struct held_lock *hlock;
 	unsigned long flags;
@@ -3100,14 +3101,11 @@ void debug_check_no_locks_freed(const void *mem_from, unsigned long mem_len)
 	for (i = 0; i < curr->lockdep_depth; i++) {
 		hlock = curr->held_locks + i;
 
-		lock_from = (void *)hlock->instance;
-		lock_to = (void *)(hlock->instance + 1);
-
-		if (!in_range(mem_from, lock_from, mem_to) &&
-					!in_range(mem_from, lock_to, mem_to))
+		if (not_in_range(mem_from, mem_len, hlock->instance,
+					sizeof(*hlock->instance)))
 			continue;
 
-		print_freed_lock_bug(curr, mem_from, mem_to, hlock);
+		print_freed_lock_bug(curr, mem_from, mem_from + mem_len, hlock);
 		break;
 	}
 	local_irq_restore(flags);
@@ -3173,6 +3171,13 @@ retry:
 		printk(" locked it.\n");
 
 	do_each_thread(g, p) {
+		/*
+		 * It's not reliable to print a task's held locks
+		 * if it's not sleeping (or if it's not the current
+		 * task):
+		 */
+		if (p->state == TASK_RUNNING && p != current)
+			continue;
 		if (p->lockdep_depth)
 			lockdep_print_held_locks(p);
 		if (!unlock)
