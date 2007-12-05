@@ -82,31 +82,17 @@ static ctl_table ipv6_table[] = {
 	{ .ctl_name = 0 }
 };
 
+static struct ctl_path ipv6_ctl_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv6", .ctl_name = NET_IPV6, },
+	{ },
+};
+
 static struct ctl_table_header *ipv6_sysctl_header;
-
-static ctl_table ipv6_net_table[] = {
-	{
-		.ctl_name	= NET_IPV6,
-		.procname	= "ipv6",
-		.mode		= 0555,
-		.child		= ipv6_table
-	},
-	{ .ctl_name = 0 }
-};
-
-static ctl_table ipv6_root_table[] = {
-	{
-		.ctl_name	= CTL_NET,
-		.procname	= "net",
-		.mode		= 0555,
-		.child		= ipv6_net_table
-	},
-	{ .ctl_name = 0 }
-};
 
 void ipv6_sysctl_register(void)
 {
-	ipv6_sysctl_header = register_sysctl_table(ipv6_root_table);
+	ipv6_sysctl_header = register_sysctl_paths(ipv6_ctl_path, ipv6_table);
 }
 
 void ipv6_sysctl_unregister(void)
