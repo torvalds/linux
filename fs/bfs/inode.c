@@ -178,7 +178,8 @@ static void bfs_delete_inode(struct inode *inode)
 	brelse(bh);
 
         if (bi->i_dsk_ino) {
-		info->si_freeb += BFS_FILEBLOCKS(bi);
+		if (bi->i_sblock)
+			info->si_freeb += bi->i_eblock + 1 - bi->i_sblock;
 		info->si_freei++;
 		clear_bit(ino, info->si_imap);
 		dump_imap("delete_inode", s);
