@@ -201,8 +201,8 @@ int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
 
-void spu_setup_kernel_slbs(struct spu *spu,
-		struct spu_lscsa *lscsa, void *code);
+void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
+		void *code, int code_size);
 
 #ifdef CONFIG_KEXEC
 void crash_register_spus(struct list_head *list);

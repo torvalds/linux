@@ -691,7 +691,8 @@ static inline void resume_mfc_queue(struct spu_state *csa, struct spu *spu)
 	out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESUME_DMA_QUEUE);
 }
 
-static inline void setup_mfc_slbs(struct spu_state *csa, struct spu *spu)
+static inline void setup_mfc_slbs(struct spu_state *csa, struct spu *spu,
+		unsigned int *code, int code_size)
 {
 	/* Save, Step 47:
 	 * Restore, Step 30.
@@ -708,7 +709,7 @@ static inline void setup_mfc_slbs(struct spu_state *csa, struct spu *spu)
 	 *     translation is desired by OS environment).
 	 */
 	spu_invalidate_slbs(spu);
-	spu_setup_kernel_slbs(spu, csa->lscsa, &spu_save_code);
+	spu_setup_kernel_slbs(spu, csa->lscsa, code, code_size);
 }
 
 static inline void set_switch_active(struct spu_state *csa, struct spu *spu)
@@ -1835,7 +1836,8 @@ static void save_lscsa(struct spu_state *prev, struct spu *spu)
 	 */
 
 	resume_mfc_queue(prev, spu);	/* Step 46. */
-	setup_mfc_slbs(prev, spu);	/* Step 47. */
+	/* Step 47. */
+	setup_mfc_slbs(prev, spu, spu_save_code, sizeof(spu_save_code));
 	set_switch_active(prev, spu);	/* Step 48. */
 	enable_interrupts(prev, spu);	/* Step 49. */
 	save_ls_16kb(prev, spu);	/* Step 50. */
@@ -1940,7 +1942,8 @@ static void restore_lscsa(struct spu_state *next, struct spu *spu)
 	setup_spu_status_part1(next, spu);	/* Step 27. */
 	setup_spu_status_part2(next, spu);	/* Step 28. */
 	restore_mfc_rag(next, spu);	        /* Step 29. */
-	setup_mfc_slbs(next, spu);	        /* Step 30. */
+	/* Step 30. */
+	setup_mfc_slbs(next, spu, spu_restore_code, sizeof(spu_restore_code));
 	set_spu_npc(next, spu);	                /* Step 31. */
 	set_signot1(next, spu);	                /* Step 32. */
 	set_signot2(next, spu);	                /* Step 33. */

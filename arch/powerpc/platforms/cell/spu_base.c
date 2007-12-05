@@ -275,19 +275,55 @@ static void __spu_kernel_slb(void *addr, struct spu_slb *slb)
 }
 
 /**
+ * Given an array of @nr_slbs SLB entries, @slbs, return non-zero if the
+ * address @new_addr is present.
+ */
+static inline int __slb_present(struct spu_slb *slbs, int nr_slbs,
+		void *new_addr)
+{
+	unsigned long ea = (unsigned long)new_addr;
+	int i;
+
+	for (i = 0; i < nr_slbs; i++)
+		if (!((slbs[i].esid ^ ea) & ESID_MASK))
+			return 1;
+
+	return 0;
+}
+
+/**
  * Setup the SPU kernel SLBs, in preparation for a context save/restore. We
  * need to map both the context save area, and the save/restore code.
+ *
+ * Because the lscsa and code may cross segment boundaires, we check to see
+ * if mappings are required for the start and end of each range. We currently
+ * assume that the mappings are smaller that one segment - if not, something
+ * is seriously wrong.
  */
-void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa, void *code)
+void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
+		void *code, int code_size)
 {
-	struct spu_slb code_slb, lscsa_slb;
+	struct spu_slb slbs[4];
+	int i, nr_slbs = 0;
+	/* start and end addresses of both mappings */
+	void *addrs[] = {
+		lscsa, (void *)lscsa + sizeof(*lscsa) - 1,
+		code, code + code_size - 1
+	};
 
-	__spu_kernel_slb(lscsa, &lscsa_slb);
-	__spu_kernel_slb(code, &code_slb);
+	/* check the set of addresses, and create a new entry in the slbs array
+	 * if there isn't already a SLB for that address */
+	for (i = 0; i < ARRAY_SIZE(addrs); i++) {
+		if (__slb_present(slbs, nr_slbs, addrs[i]))
+			continue;
 
-	spu_load_slb(spu, 0, &lscsa_slb);
-	if (lscsa_slb.esid != code_slb.esid)
-		spu_load_slb(spu, 1, &code_slb);
+		__spu_kernel_slb(addrs[i], &slbs[nr_slbs]);
+		nr_slbs++;
+	}
+
+	/* Add the set of SLBs */
+	for (i = 0; i < nr_slbs; i++)
+		spu_load_slb(spu, i, &slbs[i]);
 }
 EXPORT_SYMBOL_GPL(spu_setup_kernel_slbs);
 
