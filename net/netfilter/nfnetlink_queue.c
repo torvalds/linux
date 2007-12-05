@@ -37,14 +37,6 @@
 
 #define NFQNL_QMAX_DEFAULT 1024
 
-#if 0
-#define QDEBUG(x, args ...)	printk(KERN_DEBUG "%s(%d):%s():	" x, 	   \
-					__FILE__, __LINE__, __FUNCTION__,  \
-					## args)
-#else
-#define QDEBUG(x, ...)
-#endif
-
 struct nfqnl_instance {
 	struct hlist_node hlist;		/* global list of queues */
 	struct rcu_head rcu;
@@ -96,17 +88,12 @@ instance_lookup(u_int16_t queue_num)
 static struct nfqnl_instance *
 instance_create(u_int16_t queue_num, int pid)
 {
-	struct nfqnl_instance *inst;
+	struct nfqnl_instance *inst = NULL;
 	unsigned int h;
 
-	QDEBUG("entering for queue_num=%u, pid=%d\n", queue_num, pid);
-
 	spin_lock(&instances_lock);
-	if (instance_lookup(queue_num)) {
-		inst = NULL;
-		QDEBUG("aborting, instance already exists\n");
+	if (instance_lookup(queue_num))
 		goto out_unlock;
-	}
 
 	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
 	if (!inst)
@@ -128,8 +115,6 @@ instance_create(u_int16_t queue_num, int pid)
 	hlist_add_head_rcu(&inst->hlist, &instance_table[h]);
 
 	spin_unlock(&instances_lock);
-
-	QDEBUG("successfully created new instance\n");
 
 	return inst;
 
@@ -231,8 +216,6 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	struct net_device *indev;
 	struct net_device *outdev;
 	__be32 tmp_uint;
-
-	QDEBUG("entered\n");
 
 	size =    NLMSG_ALIGN(sizeof(struct nfgenmsg))
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hdr))
@@ -422,19 +405,13 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	struct sk_buff *nskb;
 	struct nfqnl_instance *queue;
 
-	QDEBUG("entered\n");
-
 	/* rcu_read_lock()ed by nf_hook_slow() */
 	queue = instance_lookup(queuenum);
-	if (!queue) {
-		QDEBUG("no queue instance matching\n");
+	if (!queue)
 		return -EINVAL;
-	}
 
-	if (queue->copy_mode == NFQNL_COPY_NONE) {
-		QDEBUG("mode COPY_NONE, aborting\n");
+	if (queue->copy_mode == NFQNL_COPY_NONE)
 		return -EAGAIN;
-	}
 
 	nskb = nfqnl_build_packet_message(queue, entry, &status);
 	if (nskb == NULL)
@@ -567,8 +544,6 @@ static void
 nfqnl_dev_drop(int ifindex)
 {
 	int i;
-
-	QDEBUG("entering for ifindex %u\n", ifindex);
 
 	rcu_read_lock();
 
@@ -732,8 +707,6 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	struct nfqnl_instance *queue;
 	struct nfqnl_msg_config_cmd *cmd = NULL;
 	int ret = 0;
-
-	QDEBUG("entering for msg %u\n", NFNL_MSG_TYPE(nlh->nlmsg_type));
 
 	if (nfqa[NFQA_CFG_CMD]) {
 		cmd = nla_data(nfqa[NFQA_CFG_CMD]);
