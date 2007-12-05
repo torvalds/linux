@@ -176,35 +176,6 @@ __enqueue_entry(struct nfqnl_instance *queue, struct nf_queue_entry *entry)
        queue->queue_total++;
 }
 
-static inline int
-__nfqnl_set_mode(struct nfqnl_instance *queue,
-		 unsigned char mode, unsigned int range)
-{
-	int status = 0;
-
-	switch (mode) {
-	case NFQNL_COPY_NONE:
-	case NFQNL_COPY_META:
-		queue->copy_mode = mode;
-		queue->copy_range = 0;
-		break;
-
-	case NFQNL_COPY_PACKET:
-		queue->copy_mode = mode;
-		/* we're using struct nlattr which has 16bit nla_len */
-		if (range > 0xffff)
-			queue->copy_range = 0xffff;
-		else
-			queue->copy_range = range;
-		break;
-
-	default:
-		status = -EINVAL;
-
-	}
-	return status;
-}
-
 static struct nf_queue_entry *
 find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 {
@@ -540,10 +511,29 @@ static int
 nfqnl_set_mode(struct nfqnl_instance *queue,
 	       unsigned char mode, unsigned int range)
 {
-	int status;
+	int status = 0;
 
 	spin_lock_bh(&queue->lock);
-	status = __nfqnl_set_mode(queue, mode, range);
+	switch (mode) {
+	case NFQNL_COPY_NONE:
+	case NFQNL_COPY_META:
+		queue->copy_mode = mode;
+		queue->copy_range = 0;
+		break;
+
+	case NFQNL_COPY_PACKET:
+		queue->copy_mode = mode;
+		/* we're using struct nlattr which has 16bit nla_len */
+		if (range > 0xffff)
+			queue->copy_range = 0xffff;
+		else
+			queue->copy_range = range;
+		break;
+
+	default:
+		status = -EINVAL;
+
+	}
 	spin_unlock_bh(&queue->lock);
 
 	return status;
