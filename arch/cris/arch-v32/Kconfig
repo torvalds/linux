@@ -1,27 +1,73 @@
 if ETRAX_ARCH_V32
 
+source arch/cris/arch-v32/mach-fs/Kconfig
+source arch/cris/arch-v32/mach-a3/Kconfig
+
+source drivers/cpufreq/Kconfig
+
 config ETRAX_DRAM_VIRTUAL_BASE
 	hex
 	depends on ETRAX_ARCH_V32
 	default "c0000000"
 
-config ETRAX_LED1G
-	string "First green LED bit"
+choice
+	prompt "Nbr of Ethernet LED groups"
 	depends on ETRAX_ARCH_V32
+	default ETRAX_NBR_LED_GRP_ONE
+	help
+	  Select how many Ethernet LED groups that can be used. Usually one per Ethernet
+	  interface is a good choice.
+
+config	ETRAX_NBR_LED_GRP_ZERO
+	bool "Use zero LED groups"
+	help
+	  Select this if you do not want any Ethernet LEDs.
+
+config	ETRAX_NBR_LED_GRP_ONE
+	bool "Use one LED group"
+	help
+	  Select this if you want one Ethernet LED group. This LED group
+	  can be used for one or more Ethernet interfaces. However, it is
+	  recomended that each Ethernet interface use a dedicated LED group.
+
+config	ETRAX_NBR_LED_GRP_TWO
+	bool "Use two LED groups"
+	help
+	  Select this if you want two Ethernet LED groups. This is the
+	  best choice if you have more than one Ethernet interface and
+	  would like to have separate LEDs for the interfaces.
+
+endchoice
+
+config ETRAX_LED_G_NET0
+	string "Ethernet LED group 0 green LED bit"
+	depends on ETRAX_ARCH_V32 && (ETRAX_NBR_LED_GRP_ONE || ETRAX_NBR_LED_GRP_TWO)
 	default "PA3"
 	help
-	  Bit to use for the first green LED (network LED).
-	  Most Axis products use bit A3 here.
+	  Bit to use for the green LED in Ethernet LED group 0.
 
-config ETRAX_LED1R
-	string "First red LED bit"
-	depends on ETRAX_ARCH_V32
+config ETRAX_LED_R_NET0
+	string "Ethernet LED group 0 red LED bit"
+	depends on ETRAX_ARCH_V32 && (ETRAX_NBR_LED_GRP_ONE || ETRAX_NBR_LED_GRP_TWO)
 	default "PA4"
 	help
-	  Bit to use for the first red LED (network LED).
-	  Most Axis products use bit A4 here.
+	  Bit to use for the red LED in Ethernet LED group 0.
 
-config ETRAX_LED2G
+config ETRAX_LED_G_NET1
+	string "Ethernet group 1 green LED bit"
+	depends on ETRAX_ARCH_V32 && ETRAX_NBR_LED_GRP_TWO
+	default ""
+	help
+	  Bit to use for the green LED in Ethernet LED group 1.
+
+config ETRAX_LED_R_NET1
+	string "Ethernet group 1 red LED bit"
+	depends on ETRAX_ARCH_V32 && ETRAX_NBR_LED_GRP_TWO
+	default ""
+	help
+	  Bit to use for the red LED in Ethernet LED group 1.
+
+config ETRAX_V32_LED2G
 	string "Second green LED bit"
 	depends on ETRAX_ARCH_V32
 	default "PA5"
@@ -29,7 +75,7 @@ config ETRAX_LED2G
 	  Bit to use for the first green LED (status LED).
 	  Most Axis products use bit A5 here.
 
-config ETRAX_LED2R
+config ETRAX_V32_LED2R
 	string "Second red LED bit"
 	depends on ETRAX_ARCH_V32
 	default "PA6"
@@ -37,7 +83,7 @@ config ETRAX_LED2R
 	  Bit to use for the first red LED (network LED).
 	  Most Axis products use bit A6 here.
 
-config ETRAX_LED3G
+config ETRAX_V32_LED3G
 	string "Third green LED bit"
 	depends on ETRAX_ARCH_V32
 	default "PA7"
@@ -45,46 +91,13 @@ config ETRAX_LED3G
 	  Bit to use for the first green LED (drive/power LED).
 	  Most Axis products use bit A7 here.
 
-config ETRAX_LED3R
+config ETRAX_V32_LED3R
 	string "Third red LED bit"
 	depends on ETRAX_ARCH_V32
 	default "PA7"
 	help
 	  Bit to use for the first red LED (drive/power LED).
 	  Most Axis products use bit A7 here.
-
-choice
-	prompt "Product debug-port"
-	depends on ETRAX_ARCH_V32
-	default ETRAX_DEBUG_PORT0
-
-config ETRAX_DEBUG_PORT0
-	bool "Serial-0"
-	help
-	  Choose a serial port for the ETRAX debug console.  Default to
-	  port 0.
-
-config ETRAX_DEBUG_PORT1
-	bool "Serial-1"
-	help
-	  Use serial port 1 for the console.
-
-config ETRAX_DEBUG_PORT2
-	bool "Serial-2"
-	help
-	  Use serial port 2 for the console.
-
-config ETRAX_DEBUG_PORT3
-	bool "Serial-3"
-	help
-	  Use serial port 3 for the console.
-
-config ETRAX_DEBUG_PORT_NULL
-	bool "disabled"
-	help
-	  Disable serial-port debugging.
-
-endchoice
 
 choice
 	prompt "Kernel GDB port"
@@ -95,25 +108,11 @@ choice
 	  not be enabled under Drivers for built-in interfaces (as it has its
 	  own initialization code) and should not be the same as the debug port.
 
-config ETRAX_KGDB_PORT0
-	bool "Serial-0"
+config ETRAX_KGDB_PORT4
+	bool "Serial-4"
+	depends on ETRAX_SERIAL_PORTS = 5
 	help
-	  Use serial port 0 for kernel debugging.
-
-config ETRAX_KGDB_PORT1
-	bool "Serial-1"
-	help
-	  Use serial port 1 for kernel debugging.
-
-config ETRAX_KGDB_PORT2
-	bool "Serial-2"
-	help
-	  Use serial port 2 for kernel debugging.
-
-config ETRAX_KGDB_PORT3
-	bool "Serial-3"
-	help
-	  Use serial port 3 for kernel debugging.
+	  Use serial port 4 for kernel debugging.
 
 endchoice
 
