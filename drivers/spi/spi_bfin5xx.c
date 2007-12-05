@@ -132,7 +132,7 @@ struct chip_data {
 	u8 enable_dma;
 	u8 bits_per_word;	/* 8 or 16 */
 	u8 cs_change_per_word;
-	u8 cs_chg_udelay;
+	u16 cs_chg_udelay;	/* Some devices require > 255usec delay */
 	void (*write) (struct driver_data *);
 	void (*read) (struct driver_data *);
 	void (*duplex) (struct driver_data *);
@@ -211,6 +211,10 @@ static void cs_deactive(struct driver_data *drv_data, struct chip_data *chip)
 	flag |= (chip->flag << 8);
 
 	write_FLAG(drv_data, flag);
+
+	/* Move delay here for consistency */
+	if (chip->cs_chg_udelay)
+		udelay(chip->cs_chg_udelay);
 }
 
 #define MAX_SPI_SSEL	7
@@ -307,10 +311,9 @@ static void u8_cs_chg_writer(struct driver_data *drv_data)
 		write_TDBR(drv_data, (*(u8 *) (drv_data->tx)));
 		while (read_STAT(drv_data) & BIT_STAT_TXS)
 			continue;
+
 		cs_deactive(drv_data, chip);
 
-		if (chip->cs_chg_udelay)
-			udelay(chip->cs_chg_udelay);
 		++drv_data->tx;
 	}
 }
@@ -358,9 +361,6 @@ static void u8_cs_chg_reader(struct driver_data *drv_data)
 
 	while (drv_data->rx < drv_data->rx_end - 1) {
 		cs_deactive(drv_data, chip);
-
-		if (chip->cs_chg_udelay)
-			udelay(chip->cs_chg_udelay);
 
 		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
 			continue;
@@ -412,10 +412,9 @@ static void u8_cs_chg_duplex(struct driver_data *drv_data)
 		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
 			continue;
 		*(u8 *) (drv_data->rx) = read_RDBR(drv_data);
+
 		cs_deactive(drv_data, chip);
 
-		if (chip->cs_chg_udelay)
-			udelay(chip->cs_chg_udelay);
 		++drv_data->rx;
 		++drv_data->tx;
 	}
@@ -452,10 +451,9 @@ static void u16_cs_chg_writer(struct driver_data *drv_data)
 		write_TDBR(drv_data, (*(u16 *) (drv_data->tx)));
 		while ((read_STAT(drv_data) & BIT_STAT_TXS))
 			continue;
+
 		cs_deactive(drv_data, chip);
 
-		if (chip->cs_chg_udelay)
-			udelay(chip->cs_chg_udelay);
 		drv_data->tx += 2;
 	}
 }
@@ -503,9 +501,6 @@ static void u16_cs_chg_reader(struct driver_data *drv_data)
 
 	while (drv_data->rx < drv_data->rx_end - 2) {
 		cs_deactive(drv_data, chip);
-
-		if (chip->cs_chg_udelay)
-			udelay(chip->cs_chg_udelay);
 
 		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
 			continue;
@@ -557,10 +552,9 @@ static void u16_cs_chg_duplex(struct driver_data *drv_data)
 		while (!(read_STAT(drv_data) & BIT_STAT_RXS))
 			continue;
 		*(u16 *) (drv_data->rx) = read_RDBR(drv_data);
+
 		cs_deactive(drv_data, chip);
 
-		if (chip->cs_chg_udelay)
-			udelay(chip->cs_chg_udelay);
 		drv_data->rx += 2;
 		drv_data->tx += 2;
 	}

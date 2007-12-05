@@ -162,7 +162,7 @@ struct bfin5xx_spi_chip {
 	u8 enable_dma;
 	u8 bits_per_word;
 	u8 cs_change_per_word;
-	u8 cs_chg_udelay;
+	u16 cs_chg_udelay; /* Some devices require 16-bit delays */
 };
 
 #endif /* _SPI_CHANNEL_H_ */
