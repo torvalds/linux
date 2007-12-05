@@ -357,6 +357,16 @@ config NETFILTER_XT_TARGET_NOTRACK
 	  If you want to compile it as a module, say M here and read
 	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
 
+config NETFILTER_XT_TARGET_RATEEST
+	tristate '"RATEEST" target support'
+	depends on NETFILTER_XTABLES
+	help
+	  This option adds a `RATEEST' target, which allows to measure
+	  rates similar to TC estimators. The `rateest' match can be
+	  used to match on the measured rates.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_TARGET_TRACE
 	tristate  '"TRACE" target support'
 	depends on NETFILTER_XTABLES
