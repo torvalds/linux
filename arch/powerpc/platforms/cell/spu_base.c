@@ -169,9 +169,8 @@ static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)
 
 static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 {
-	struct spu_priv2 __iomem *priv2 = spu->priv2;
 	struct mm_struct *mm = spu->mm;
-	u64 esid, vsid, llp;
+	struct spu_slb slb;
 	int psize;
 
 	pr_debug("%s\n", __FUNCTION__);
@@ -183,7 +182,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 		printk("%s: invalid access during switch!\n", __func__);
 		return 1;
 	}
-	esid = (ea & ESID_MASK) | SLB_ESID_V;
+	slb.esid = (ea & ESID_MASK) | SLB_ESID_V;
 
 	switch(REGION_ID(ea)) {
 	case USER_REGION_ID:
@@ -192,21 +191,21 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 #else
 		psize = mm->context.user_psize;
 #endif
-		vsid = (get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
-				SLB_VSID_USER;
+		slb.vsid = (get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M)
+				<< SLB_VSID_SHIFT) | SLB_VSID_USER;
 		break;
 	case VMALLOC_REGION_ID:
 		if (ea < VMALLOC_END)
 			psize = mmu_vmalloc_psize;
 		else
 			psize = mmu_io_psize;
-		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
-			SLB_VSID_KERNEL;
+		slb.vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M)
+				<< SLB_VSID_SHIFT) | SLB_VSID_KERNEL;
 		break;
 	case KERNEL_REGION_ID:
 		psize = mmu_linear_psize;
-		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
-			SLB_VSID_KERNEL;
+		slb.vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M)
+				<< SLB_VSID_SHIFT) | SLB_VSID_KERNEL;
 		break;
 	default:
 		/* Future: support kernel segments so that drivers
@@ -215,11 +214,9 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 		pr_debug("invalid region access at %016lx\n", ea);
 		return 1;
 	}
-	llp = mmu_psize_defs[psize].sllp;
+	slb.vsid |= mmu_psize_defs[psize].sllp;
 
-	out_be64(&priv2->slb_index_W, spu->slb_replace);
-	out_be64(&priv2->slb_vsid_RW, vsid | llp);
-	out_be64(&priv2->slb_esid_RW, esid);
+	spu_load_slb(spu, spu->slb_replace, &slb);
 
 	spu->slb_replace++;
 	if (spu->slb_replace >= 8)
