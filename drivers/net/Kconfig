@@ -2588,6 +2588,7 @@ config MLX4_DEBUG
 config TEHUTI
 	tristate "Tehuti Networks 10G Ethernet"
 	depends on PCI
+	select ZLIB_INFLATE
 	help
 	  Tehuti Networks 10G Ethernet NIC
 
