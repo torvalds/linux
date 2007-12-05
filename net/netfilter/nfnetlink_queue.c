@@ -56,7 +56,7 @@ struct nfqnl_instance {
 	unsigned int queue_dropped;
 	unsigned int queue_user_dropped;
 
-	atomic_t id_sequence;			/* 'sequence' of pkt ids */
+	unsigned int id_sequence;		/* 'sequence' of pkt ids */
 
 	u_int16_t queue_num;			/* number of this queue */
 	u_int8_t copy_mode;
@@ -139,7 +139,6 @@ instance_create(u_int16_t queue_num, int pid)
 	inst->queue_maxlen = NFQNL_QMAX_DEFAULT;
 	inst->copy_range = 0xfffff;
 	inst->copy_mode = NFQNL_COPY_NONE;
-	atomic_set(&inst->id_sequence, 0);
 	/* needs to be two, since we _put() after creation */
 	atomic_set(&inst->use, 2);
 	spin_lock_init(&inst->lock);
@@ -340,6 +339,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		return NULL;
 	}
 
+	entry->id = queue->id_sequence++;
+
 	spin_unlock_bh(&queue->lock);
 
 	skb = alloc_skb(size, GFP_ATOMIC);
@@ -495,8 +496,6 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 		status = -EAGAIN;
 		goto err_out_put;
 	}
-
-	entry->id = atomic_inc_return(&queue->id_sequence);
 
 	nskb = nfqnl_build_packet_message(queue, entry, &status);
 	if (nskb == NULL)
@@ -948,7 +947,7 @@ static int seq_show(struct seq_file *s, void *v)
 			  inst->peer_pid, inst->queue_total,
 			  inst->copy_mode, inst->copy_range,
 			  inst->queue_dropped, inst->queue_user_dropped,
-			  atomic_read(&inst->id_sequence),
+			  inst->id_sequence,
 			  atomic_read(&inst->use));
 }
 
