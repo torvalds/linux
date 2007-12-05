@@ -5309,12 +5309,15 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 	bytes = (bc_hi << 8) | bc_lo;
 
 	/* shall be cleared to zero, indicating xfer of data */
-	if (ireason & (1 << 0))
+	if (unlikely(ireason & (1 << 0)))
 		goto err_out;
 
 	/* make sure transfer direction matches expected */
 	i_write = ((ireason & (1 << 1)) == 0) ? 1 : 0;
-	if (do_write != i_write)
+	if (unlikely(do_write != i_write))
+		goto err_out;
+
+	if (unlikely(!bytes))
 		goto err_out;
 
 	VPRINTK("ata%u: xfering %d bytes\n", ap->print_id, bytes);
