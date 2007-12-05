@@ -22,11 +22,6 @@ export LDFLAGS HOSTCFLAGS HOSTLDFLAGS UML_OBJCOPYFLAGS
 endif
 endif
 
-KBUILD_CFLAGS		+= -DCONFIG_X86_32
-KBUILD_AFLAGS		+= -DCONFIG_X86_32
-CONFIG_X86_32		:= y
-export CONFIG_X86_32
-
 # First of all, tune CFLAGS for the specific CPU. This actually sets cflags-y.
 include $(srctree)/arch/x86/Makefile_32.cpu
 
