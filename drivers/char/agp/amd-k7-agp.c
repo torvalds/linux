@@ -436,10 +436,6 @@ static int __devinit agp_amdk7_probe(struct pci_dev *pdev,
 				return -ENODEV;
 			}
 			cap_ptr = pci_find_capability(gfxcard, PCI_CAP_ID_AGP);
-			if (!cap_ptr) {
-				pci_dev_put(gfxcard);
-				continue;
-			}
 		}
 
 		/* With so many variants of NVidia cards, it's simpler just
