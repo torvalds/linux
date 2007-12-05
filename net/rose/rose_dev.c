@@ -55,13 +55,13 @@ static int rose_header(struct sk_buff *skb, struct net_device *dev,
 
 static int rose_rebuild_header(struct sk_buff *skb)
 {
+#ifdef CONFIG_INET
 	struct net_device *dev = skb->dev;
 	struct net_device_stats *stats = netdev_priv(dev);
 	unsigned char *bp = (unsigned char *)skb->data;
 	struct sk_buff *skbn;
 	unsigned int len;
 
-#ifdef CONFIG_INET
 	if (arp_find(bp + 7, skb)) {
 		return 1;
 	}

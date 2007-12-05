@@ -183,19 +183,6 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 	/* increase the module use count */
 	ip_vs_use_count_inc();
 
-	/*
-	 *  Make sure that the scheduler with this name doesn't exist
-	 *  in the scheduler list.
-	 */
-	sched = ip_vs_sched_getbyname(scheduler->name);
-	if (sched) {
-		ip_vs_scheduler_put(sched);
-		ip_vs_use_count_dec();
-		IP_VS_ERR("register_ip_vs_scheduler(): [%s] scheduler "
-			  "already existed in the system\n", scheduler->name);
-		return -EINVAL;
-	}
-
 	write_lock_bh(&__ip_vs_sched_lock);
 
 	if (scheduler->n_list.next != &scheduler->n_list) {
@@ -206,6 +193,20 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 		return -EINVAL;
 	}
 
+	/*
+	 *  Make sure that the scheduler with this name doesn't exist
+	 *  in the scheduler list.
+	 */
+	list_for_each_entry(sched, &ip_vs_schedulers, n_list) {
+		if (strcmp(scheduler->name, sched->name) == 0) {
+			write_unlock_bh(&__ip_vs_sched_lock);
+			ip_vs_use_count_dec();
+			IP_VS_ERR("register_ip_vs_scheduler(): [%s] scheduler "
+					"already existed in the system\n",
+					scheduler->name);
+			return -EINVAL;
+		}
+	}
 	/*
 	 *	Add it into the d-linked scheduler list
 	 */

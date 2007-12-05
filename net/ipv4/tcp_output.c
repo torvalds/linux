@@ -1162,8 +1162,7 @@ int tcp_may_send_now(struct sock *sk)
 	return (skb &&
 		tcp_snd_test(sk, skb, tcp_current_mss(sk, 1),
 			     (tcp_skb_is_last(sk, skb) ?
-			      TCP_NAGLE_PUSH :
-			      tp->nonagle)));
+			      tp->nonagle : TCP_NAGLE_PUSH)));
 }
 
 /* Trim TSO SKB to LEN bytes, put the remaining data into a new packet
