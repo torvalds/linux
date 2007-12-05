@@ -14,8 +14,6 @@
 #include <net/addrconf.h>
 #include <net/inet_frag.h>
 
-#ifdef CONFIG_SYSCTL
-
 static ctl_table ipv6_table[] = {
 	{
 		.ctl_name	= NET_IPV6_ROUTE,
@@ -115,8 +113,3 @@ void ipv6_sysctl_unregister(void)
 {
 	unregister_sysctl_table(ipv6_sysctl_header);
 }
-
-#endif /* CONFIG_SYSCTL */
-
-
-
