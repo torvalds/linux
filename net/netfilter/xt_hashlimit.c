@@ -21,6 +21,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/ipv6.h>
 #include <net/net_namespace.h>
 
 #include <linux/netfilter/x_tables.h>
@@ -379,7 +380,7 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 		   const struct sk_buff *skb, unsigned int protoff)
 {
 	__be16 _ports[2], *ports;
-	int nexthdr;
+	u8 nexthdr;
 
 	memset(dst, 0, sizeof(*dst));
 
@@ -407,8 +408,9 @@ hashlimit_init_dst(const struct xt_hashlimit_htable *hinfo,
 		if (!(hinfo->cfg.mode &
 		      (XT_HASHLIMIT_HASH_DPT | XT_HASHLIMIT_HASH_SPT)))
 			return 0;
-		nexthdr = ipv6_find_hdr(skb, &protoff, -1, NULL);
-		if (nexthdr < 0)
+		nexthdr = ipv6_hdr(skb)->nexthdr;
+		protoff = ipv6_skip_exthdr(skb, sizeof(struct ipv6hdr), &nexthdr);
+		if ((int)protoff < 0)
 			return -1;
 		break;
 #endif
