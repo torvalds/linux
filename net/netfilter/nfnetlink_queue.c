@@ -63,7 +63,7 @@ typedef int (*nfqnl_cmpfn)(struct nf_queue_entry *, unsigned long);
 static DEFINE_SPINLOCK(instances_lock);
 
 #define INSTANCE_BUCKETS	16
-static struct hlist_head instance_table[INSTANCE_BUCKETS];
+static struct hlist_head instance_table[INSTANCE_BUCKETS] __read_mostly;
 
 static inline u_int8_t instance_hashfn(u_int16_t queue_num)
 {
