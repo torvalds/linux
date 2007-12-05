@@ -71,7 +71,7 @@ ipq_issue_verdict(struct ipq_queue_entry *entry, int verdict)
 static inline void
 __ipq_enqueue_entry(struct ipq_queue_entry *entry)
 {
-       list_add(&entry->list, &queue_list);
+       list_add_tail(&entry->list, &queue_list);
        queue_total++;
 }
 
@@ -82,11 +82,9 @@ __ipq_enqueue_entry(struct ipq_queue_entry *entry)
 static inline struct ipq_queue_entry *
 __ipq_find_entry(ipq_cmpfn cmpfn, unsigned long data)
 {
-	struct list_head *p;
+	struct ipq_queue_entry *entry;
 
-	list_for_each_prev(p, &queue_list) {
-		struct ipq_queue_entry *entry = (struct ipq_queue_entry *)p;
-
+	list_for_each_entry(entry, &queue_list, list) {
 		if (!cmpfn || cmpfn(entry, data))
 			return entry;
 	}

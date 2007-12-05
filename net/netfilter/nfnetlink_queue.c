@@ -231,7 +231,7 @@ static inline void
 __enqueue_entry(struct nfqnl_instance *queue,
 		      struct nfqnl_queue_entry *entry)
 {
-       list_add(&entry->list, &queue->queue_list);
+       list_add_tail(&entry->list, &queue->queue_list);
        queue->queue_total++;
 }
 
@@ -243,11 +243,9 @@ static inline struct nfqnl_queue_entry *
 __find_entry(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn,
 		   unsigned long data)
 {
-	struct list_head *p;
+	struct nfqnl_queue_entry *entry;
 
-	list_for_each_prev(p, &queue->queue_list) {
-		struct nfqnl_queue_entry *entry = (struct nfqnl_queue_entry *)p;
-
+	list_for_each_entry(entry, &queue->queue_list, list) {
 		if (!cmpfn || cmpfn(entry, data))
 			return entry;
 	}
