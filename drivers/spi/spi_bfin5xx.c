@@ -231,13 +231,13 @@ static int restore_state(struct driver_data *drv_data)
 	dev_dbg(&drv_data->pdev->dev, "restoring spi ctl state\n");
 
 	/* Load the registers */
-	cs_deactive(drv_data, chip);
 	write_BAUD(drv_data, chip->baud);
 	chip->ctl_reg &= (~BIT_CTL_TIMOD);
 	chip->ctl_reg |= (chip->width << 8);
 	write_CTRL(drv_data, chip->ctl_reg);
 
 	bfin_spi_enable(drv_data);
+	cs_active(drv_data, chip);
 
 	if (ret)
 		dev_dbg(&drv_data->pdev->dev,
@@ -767,6 +767,7 @@ static void pump_transfers(unsigned long data)
 
 		disable_dma(drv_data->dma_channel);
 		clear_dma_irqstat(drv_data->dma_channel);
+		bfin_spi_disable(drv_data);
 
 		/* config dma channel */
 		dev_dbg(&drv_data->pdev->dev, "doing dma transfer\n");
@@ -789,9 +790,6 @@ static void pump_transfers(unsigned long data)
 			dev_dbg(&drv_data->pdev->dev,
 				"doing autobuffer DMA out.\n");
 
-			/* set SPI transfer mode */
-			write_CTRL(drv_data, (cr | CFG_SPI_DMAWRITE));
-
 			/* no irq in autobuffer mode */
 			dma_config =
 			    (DMAFLOW_AUTO | RESTART | dma_width | DI_EN);
@@ -800,7 +798,13 @@ static void pump_transfers(unsigned long data)
 					(unsigned long)drv_data->tx);
 			enable_dma(drv_data->dma_channel);
 
-			/* just return here, there can only be one transfer in this mode */
+			/* start SPI transfer */
+			write_CTRL(drv_data,
+				(cr | CFG_SPI_DMAWRITE | BIT_CTL_ENABLE));
+
+			/* just return here, there can only be one transfer
+			 * in this mode
+			 */
 			message->status = 0;
 			giveback(drv_data);
 			return;
@@ -810,9 +814,6 @@ static void pump_transfers(unsigned long data)
 		if (drv_data->rx != NULL) {
 			/* set transfer mode, and enable SPI */
 			dev_dbg(&drv_data->pdev->dev, "doing DMA in.\n");
-
-			/* set SPI transfer mode */
-			write_CTRL(drv_data, (cr | CFG_SPI_DMAREAD));
 
 			/* clear tx reg soformer data is not shifted out */
 			write_TDBR(drv_data, 0xFFFF);
@@ -827,11 +828,12 @@ static void pump_transfers(unsigned long data)
 					(unsigned long)drv_data->rx);
 			enable_dma(drv_data->dma_channel);
 
+			/* start SPI transfer */
+			write_CTRL(drv_data,
+				(cr | CFG_SPI_DMAREAD | BIT_CTL_ENABLE));
+
 		} else if (drv_data->tx != NULL) {
 			dev_dbg(&drv_data->pdev->dev, "doing DMA out.\n");
-
-			/* set SPI transfer mode */
-			write_CTRL(drv_data, (cr | CFG_SPI_DMAWRITE));
 
 			/* start dma */
 			dma_enable_irq(drv_data->dma_channel);
@@ -840,6 +842,10 @@ static void pump_transfers(unsigned long data)
 			set_dma_start_addr(drv_data->dma_channel,
 					(unsigned long)drv_data->tx);
 			enable_dma(drv_data->dma_channel);
+
+			/* start SPI transfer */
+			write_CTRL(drv_data,
+				(cr | CFG_SPI_DMAWRITE | BIT_CTL_ENABLE));
 		}
 	} else {
 		/* IO mode write then read */
@@ -1141,6 +1147,8 @@ static int setup(struct spi_device *spi)
 		&& (chip->chip_select_num <= spi->master->num_chipselect))
 		peripheral_request(ssel[spi->master->bus_num]
 			[chip->chip_select_num-1], DRV_NAME);
+
+	cs_deactive(drv_data, chip);
 
 	return 0;
 }
