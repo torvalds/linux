@@ -223,6 +223,7 @@ static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
 	.agc2_slope2 = 0x1e,
 };
 
+#ifdef CONFIG_DVB_DIB3000MC
 static struct dib3000mc_config mod3000p_dib3000p_config = {
 	&dib3000p_panasonic_agc_config,
 
@@ -305,6 +306,7 @@ int dibusb_dib3000mc_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 EXPORT_SYMBOL(dibusb_dib3000mc_tuner_attach);
+#endif
 
 /*
  * common remote control stuff
