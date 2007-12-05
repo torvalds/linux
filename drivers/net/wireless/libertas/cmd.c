@@ -2007,3 +2007,99 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }
+
+
+/**
+ *  @brief Simple way to call firmware functions
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param psmode  	one of the many CMD_802_11_xxxx
+ *  @param cmd          pointer to the parameters structure for above command
+ *                      (this should not include the command, size, sequence
+ *                      and result fields from struct cmd_ds_gen)
+ *  @param cmd_size     size structure pointed to by cmd
+ *  @param rsp          pointer to an area where the result should be placed
+ *  @param rsp_size     pointer to the size of the rsp area. If the firmware
+ *                      returns fewer bytes, then this *rsp_size will be
+ *                      changed to the actual size.
+ *  @return 	   	-1 in case of a higher level error, otherwise
+ *                      the result code from the firmware
+ */
+int lbs_cmd(struct lbs_private *priv,
+	u16 command,
+	void *cmd, int cmd_size,
+	void *rsp, int *rsp_size)
+{
+	struct lbs_adapter *adapter = priv->adapter;
+	struct cmd_ctrl_node *cmdnode;
+	struct cmd_ds_gen *cmdptr;
+	unsigned long flags;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_HOST);
+	lbs_deb_host("rsp at %p, rsp_size at %p\n", rsp, rsp_size);
+
+	if (!adapter || !rsp_size) {
+		lbs_deb_host("PREP_CMD: adapter is NULL\n");
+		ret = -1;
+		goto done;
+	}
+
+	if (adapter->surpriseremoved) {
+		lbs_deb_host("PREP_CMD: card removed\n");
+		ret = -1;
+		goto done;
+	}
+
+	cmdnode = lbs_get_cmd_ctrl_node(priv);
+
+	if (cmdnode == NULL) {
+		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
+
+		/* Wake up main thread to execute next command */
+		wake_up_interruptible(&priv->waitq);
+		ret = -1;
+		goto done;
+	}
+
+	cmdptr = (struct cmd_ds_gen *)cmdnode->bufvirtualaddr;
+	cmdnode->wait_option = CMD_OPTION_WAITFORRSP;
+	cmdnode->pdata_buf = rsp;
+	cmdnode->pdata_size = rsp_size;
+
+	/* Set sequence number, clean result, move to buffer */
+	adapter->seqnum++;
+	cmdptr->command = cpu_to_le16(command);
+	cmdptr->size    = cmd_size + S_DS_GEN;
+	cmdptr->seqnum = cpu_to_le16(adapter->seqnum);
+	cmdptr->result = 0;
+	memcpy(cmdptr->cmdresp, cmd, cmd_size);
+
+	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);
+
+	/* here was the big old switch() statement, which is now obsolete,
+	 * because the caller of lbs_cmd() sets up all of *cmd for us. */
+
+	cmdnode->cmdwaitqwoken = 0;
+	lbs_queue_cmd(adapter, cmdnode, 1);
+	wake_up_interruptible(&priv->waitq);
+
+	might_sleep();
+	wait_event_interruptible(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
+
+	spin_lock_irqsave(&adapter->driver_lock, flags);
+	if (adapter->cur_cmd_retcode) {
+		lbs_deb_host("PREP_CMD: command failed with return code %d\n",
+		       adapter->cur_cmd_retcode);
+		adapter->cur_cmd_retcode = 0;
+		ret = -1;
+	}
+	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+
+done:
+	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lbs_cmd);
+
+

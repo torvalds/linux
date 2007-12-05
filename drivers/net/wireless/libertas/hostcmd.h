@@ -66,13 +66,13 @@ struct rxpd {
 };
 
 struct cmd_ctrl_node {
-	/* CMD link list */
 	struct list_head list;
-	/*CMD wait option: wait for finish or no wait */
+	/* wait for finish or not */
 	u16 wait_option;
-	/* command parameter */
+	/* command response */
 	void *pdata_buf;
-	/*command data */
+	int *pdata_size;
+	/* command data */
 	u8 *bufvirtualaddr;
 	/* wait queue */
 	u16 cmdwaitqwoken;
@@ -100,9 +100,12 @@ struct cmd_ds_gen {
 	__le16 size;
 	__le16 seqnum;
 	__le16 result;
+	void *cmdresp[0];
 };
 
 #define S_DS_GEN sizeof(struct cmd_ds_gen)
+
+
 /*
  * Define data structure for CMD_GET_HW_SPEC
  * This structure defines the response for the GET_HW_SPEC command

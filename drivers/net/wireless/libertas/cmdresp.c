@@ -799,7 +799,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	}
 
 	/* Store the response code to cur_cmd_retcode. */
-	adapter->cur_cmd_retcode = result;;
+	adapter->cur_cmd_retcode = result;
 
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
 		struct cmd_ds_802_11_ps_mode *psmode = &resp->params.psmode;
@@ -880,11 +880,22 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		goto done;
 	}
 
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
-
-	ret = handle_cmd_response(respcmd, resp, priv);
-
-	spin_lock_irqsave(&adapter->driver_lock, flags);
+	if (adapter->cur_cmd->pdata_size) {
+		struct cmd_ds_gen *r = (struct cmd_ds_gen *)resp;
+		u16 sz = cpu_to_le16(resp->size);
+		if (sz > *adapter->cur_cmd->pdata_size) {
+			lbs_pr_err("response 0x%04x doesn't fit into "
+				"buffer (%d > %d)\n", respcmd,
+				sz, *adapter->cur_cmd->pdata_size);
+			sz = *adapter->cur_cmd->pdata_size;
+		}
+		memcpy(adapter->cur_cmd->pdata_buf, r->cmdresp, sz);
+		*adapter->cur_cmd->pdata_size = sz;
+	} else {
+		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		ret = handle_cmd_response(respcmd, resp, priv);
+		spin_lock_irqsave(&adapter->driver_lock, flags);
+	}
 	if (adapter->cur_cmd) {
 		/* Clean up and Put current command back to cmdfreeq */
 		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
