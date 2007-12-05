@@ -5990,7 +5990,7 @@ void ata_qc_issue(struct ata_queued_cmd *qc)
 	 */
 	WARN_ON(ap->ops->error_handler && ata_tag_valid(link->active_tag));
 
-	if (prot == ATA_PROT_NCQ) {
+	if (ata_is_ncq(prot)) {
 		WARN_ON(link->sactive & (1 << qc->tag));
 
 		if (!link->sactive)
