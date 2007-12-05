@@ -12,15 +12,15 @@
 #include <asm/byteorder.h>
 
 
-static inline __u8 ipv4_get_dsfield(struct iphdr *iph)
+static inline __u8 ipv4_get_dsfield(const struct iphdr *iph)
 {
 	return iph->tos;
 }
 
 
-static inline __u8 ipv6_get_dsfield(struct ipv6hdr *ipv6h)
+static inline __u8 ipv6_get_dsfield(const struct ipv6hdr *ipv6h)
 {
-	return ntohs(*(__be16 *) ipv6h) >> 4;
+	return ntohs(*(const __be16 *)ipv6h) >> 4;
 }
 
 
