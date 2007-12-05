@@ -96,7 +96,7 @@ static struct trans_ctl_table trans_kern_table[] = {
 
 	{ KERN_PTY,			"pty",		trans_pty_table },
 	{ KERN_NGROUPS_MAX,		"ngroups_max" },
-	{ KERN_SPARC_SCONS_PWROFF,	"scons_poweroff" },
+	{ KERN_SPARC_SCONS_PWROFF,	"scons-poweroff" },
 	{ KERN_HZ_TIMER,		"hz_timer" },
 	{ KERN_UNKNOWN_NMI_PANIC,	"unknown_nmi_panic" },
 	{ KERN_BOOTLOADER_TYPE,		"bootloader_type" },
