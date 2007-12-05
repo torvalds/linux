@@ -68,7 +68,6 @@ struct rxpd {
 struct cmd_ctrl_node {
 	/* CMD link list */
 	struct list_head list;
-	u32 status;
 	/*CMD wait option: wait for finish or no wait */
 	u16 wait_option;
 	/* command parameter */

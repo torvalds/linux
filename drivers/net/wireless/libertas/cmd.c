@@ -1667,7 +1667,6 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
 		return;
 	ptempnode->cmdwaitqwoken = 1;
 	wake_up_interruptible(&ptempnode->cmdwait_q);
-	ptempnode->status = 0;
 	ptempnode->wait_option = 0;
 	ptempnode->pdata_buf = NULL;
 
