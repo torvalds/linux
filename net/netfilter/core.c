@@ -178,8 +178,7 @@ next_hook:
 	} else if (verdict == NF_DROP) {
 		kfree_skb(skb);
 		ret = -EPERM;
-	} else if ((verdict & NF_VERDICT_MASK)  == NF_QUEUE) {
-		NFDEBUG("nf_hook: Verdict = QUEUE.\n");
+	} else if ((verdict & NF_VERDICT_MASK) == NF_QUEUE) {
 		if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn,
 			      verdict >> NF_VERDICT_BITS))
 			goto next_hook;
