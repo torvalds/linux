@@ -28,6 +28,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <net/route.h>
+#include <net/netfilter/nf_queue.h>
 
 #define IPQ_QMAX_DEFAULT 1024
 #define IPQ_PROC_FS_NAME "ip_queue"

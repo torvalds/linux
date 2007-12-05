@@ -27,6 +27,7 @@
 #include <linux/netfilter/nfnetlink_queue.h>
 #include <linux/list.h>
 #include <net/sock.h>
+#include <net/netfilter/nf_queue.h>
 
 #include <asm/atomic.h>
 

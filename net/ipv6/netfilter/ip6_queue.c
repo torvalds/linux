@@ -29,6 +29,7 @@
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
+#include <net/netfilter/nf_queue.h>
 #include <linux/netfilter_ipv4/ip_queue.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>

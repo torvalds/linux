@@ -7,6 +7,7 @@
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
 #include <net/protocol.h>
+#include <net/netfilter/nf_queue.h>
 
 #include "nf_internals.h"
 

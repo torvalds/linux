@@ -101,19 +101,6 @@ struct nf_sockopt_ops
 	struct module *owner;
 };
 
-/* Each queued (to userspace) skbuff has one of these. */
-struct nf_info
-{
-	/* The ops struct which sent us to userspace. */
-	struct nf_hook_ops *elem;
-	
-	/* If we're sent to userspace, this keeps housekeeping info */
-	int pf;
-	unsigned int hook;
-	struct net_device *indev, *outdev;
-	int (*okfn)(struct sk_buff *);
-};
-                                                                                
 /* Function to register/unregister hook points. */
 int nf_register_hook(struct nf_hook_ops *reg);
 void nf_unregister_hook(struct nf_hook_ops *reg);
@@ -274,21 +261,6 @@ int compat_nf_setsockopt(struct sock *sk, int pf, int optval,
 int compat_nf_getsockopt(struct sock *sk, int pf, int optval,
 		char __user *opt, int *len);
 
-/* Packet queuing */
-struct nf_queue_handler {
-	int (*outfn)(struct sk_buff *skb, struct nf_info *info,
-		     unsigned int queuenum);
-	char *name;
-};
-extern int nf_register_queue_handler(int pf,
-				     const struct nf_queue_handler *qh);
-extern int nf_unregister_queue_handler(int pf,
-				       const struct nf_queue_handler *qh);
-extern void nf_unregister_queue_handlers(const struct nf_queue_handler *qh);
-extern void nf_reinject(struct sk_buff *skb,
-			struct nf_info *info,
-			unsigned int verdict);
-
 /* FIXME: Before cache is ever used, this must be implemented for real. */
 extern void nf_invalidate_cache(int pf);
 
@@ -298,6 +270,8 @@ extern void nf_invalidate_cache(int pf);
 extern int skb_make_writable(struct sk_buff *skb, unsigned int writable_len);
 
 struct flowi;
+struct nf_info;
+
 struct nf_afinfo {
 	unsigned short	family;
 	__sum16		(*checksum)(struct sk_buff *skb, unsigned int hook,
@@ -333,8 +307,6 @@ nf_checksum(struct sk_buff *skb, unsigned int hook, unsigned int dataoff,
 
 extern int nf_register_afinfo(struct nf_afinfo *afinfo);
 extern void nf_unregister_afinfo(struct nf_afinfo *afinfo);
-
-#define nf_info_reroute(x) ((void *)x + sizeof(struct nf_info))
 
 #include <net/flow.h>
 extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);

@@ -7,6 +7,7 @@
 #include <net/route.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#include <net/netfilter/nf_queue.h>
 
 /* route_me_harder function, used by iptable_nat, iptable_mangle + ip_queue */
 int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
