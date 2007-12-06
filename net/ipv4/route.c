@@ -520,6 +520,44 @@ static int ip_rt_acct_read(char *buffer, char **start, off_t offset,
 	return length;
 }
 #endif
+
+static __init int ip_rt_proc_init(struct net *net)
+{
+	struct proc_dir_entry *pde;
+
+	pde = proc_net_fops_create(net, "rt_cache", S_IRUGO,
+			&rt_cache_seq_fops);
+	if (!pde)
+		goto err1;
+
+	pde = create_proc_entry("rt_cache", S_IRUGO, net->proc_net_stat);
+	if (!pde)
+		goto err2;
+
+	pde->proc_fops = &rt_cpu_seq_fops;
+
+#ifdef CONFIG_NET_CLS_ROUTE
+	pde = create_proc_read_entry("rt_acct", 0, net->proc_net,
+			ip_rt_acct_read, NULL);
+	if (!pde)
+		goto err3;
+#endif
+	return 0;
+
+#ifdef CONFIG_NET_CLS_ROUTE
+err3:
+	remove_proc_entry("rt_cache", net->proc_net_stat);
+#endif
+err2:
+	remove_proc_entry("rt_cache", net->proc_net);
+err1:
+	return -ENOMEM;
+}
+#else
+static inline int ip_rt_proc_init(struct net *net)
+{
+	return 0;
+}
 #endif /* CONFIG_PROC_FS */
 
 static __inline__ void rt_free(struct rtable *rt)
@@ -3000,20 +3038,8 @@ int __init ip_rt_init(void)
 		ip_rt_secret_interval;
 	add_timer(&rt_secret_timer);
 
-#ifdef CONFIG_PROC_FS
-	{
-	struct proc_dir_entry *rtstat_pde = NULL; /* keep gcc happy */
-	if (!proc_net_fops_create(&init_net, "rt_cache", S_IRUGO, &rt_cache_seq_fops) ||
-	    !(rtstat_pde = create_proc_entry("rt_cache", S_IRUGO,
-					     init_net.proc_net_stat))) {
-		return -ENOMEM;
-	}
-	rtstat_pde->proc_fops = &rt_cpu_seq_fops;
-	}
-#ifdef CONFIG_NET_CLS_ROUTE
-	create_proc_read_entry("rt_acct", 0, init_net.proc_net, ip_rt_acct_read, NULL);
-#endif
-#endif
+	if (ip_rt_proc_init(&init_net))
+		printk(KERN_ERR "Unable to create route proc files\n");
 #ifdef CONFIG_XFRM
 	xfrm_init();
 	xfrm4_init();
