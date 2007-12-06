@@ -65,6 +65,7 @@
 #define BitOp       (1<<8)
 #define MemAbs      (1<<9)      /* Memory operand is absolute displacement */
 #define String      (1<<10)     /* String instruction (rep capable) */
+#define Stack       (1<<11)     /* Stack instruction (push/pop) */
 
 static u16 opcode_table[256] = {
 	/* 0x00 - 0x07 */
@@ -104,14 +105,16 @@ static u16 opcode_table[256] = {
 	/* 0x48 - 0x4F */
 	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
 	/* 0x50 - 0x57 */
-	SrcReg, SrcReg, SrcReg, SrcReg, SrcReg, SrcReg, SrcReg, SrcReg,
+	SrcReg | Stack, SrcReg | Stack, SrcReg | Stack, SrcReg | Stack,
+	SrcReg | Stack, SrcReg | Stack, SrcReg | Stack, SrcReg | Stack,
 	/* 0x58 - 0x5F */
-	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
+	DstReg | Stack, DstReg | Stack, DstReg | Stack, DstReg | Stack,
+	DstReg | Stack, DstReg | Stack, DstReg | Stack, DstReg | Stack,
 	/* 0x60 - 0x67 */
 	0, 0, 0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
 	0, 0, 0, 0,
 	/* 0x68 - 0x6F */
-	0, 0, ImplicitOps|Mov, 0,
+	0, 0, ImplicitOps | Mov | Stack, 0,
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
 	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
 	/* 0x70 - 0x77 */
@@ -128,9 +131,10 @@ static u16 opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	0, ModRM | DstReg, 0, DstMem | SrcNone | ModRM | Mov,
+	0, ModRM | DstReg, 0, DstMem | SrcNone | ModRM | Mov | Stack,
 	/* 0x90 - 0x9F */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ImplicitOps, ImplicitOps, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov | MemAbs, DstReg | SrcMem | Mov | MemAbs,
 	ByteOp | DstMem | SrcReg | Mov | MemAbs, DstMem | SrcReg | Mov | MemAbs,
@@ -144,7 +148,7 @@ static u16 opcode_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xC0 - 0xC7 */
 	ByteOp | DstMem | SrcImm | ModRM, DstMem | SrcImmByte | ModRM,
-	0, ImplicitOps, 0, 0,
+	0, ImplicitOps | Stack, 0, 0,
 	ByteOp | DstMem | SrcImm | ModRM | Mov, DstMem | SrcImm | ModRM | Mov,
 	/* 0xC8 - 0xCF */
 	0, 0, 0, 0, 0, 0, 0, 0,
@@ -157,7 +161,8 @@ static u16 opcode_table[256] = {
 	/* 0xE0 - 0xE7 */
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xE8 - 0xEF */
-	ImplicitOps, SrcImm|ImplicitOps, 0, SrcImmByte|ImplicitOps, 0, 0, 0, 0,
+	ImplicitOps | Stack, SrcImm|ImplicitOps, 0, SrcImmByte|ImplicitOps,
+	0, 0, 0, 0,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
 	ImplicitOps, ImplicitOps,
@@ -868,6 +873,9 @@ done_prefixes:
 		}
 	}
 
+	if (mode == X86EMUL_MODE_PROT64 && (c->d & Stack))
+		c->op_bytes = 8;
+
 	/* ModRM and SIB bytes. */
 	if (c->d & ModRM)
 		rc = decode_modrm(ctxt, ops);
@@ -987,11 +995,6 @@ static inline int emulate_grp1a(struct x86_emulate_ctxt *ctxt,
 {
 	struct decode_cache *c = &ctxt->decode;
 	int rc;
-
-	/* 64-bit mode: POP always pops a 64-bit operand. */
-
-	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		c->dst.bytes = 8;
 
 	rc = ops->read_std(register_address(ctxt->ss_base,
 					    c->regs[VCPU_REGS_RSP]),
