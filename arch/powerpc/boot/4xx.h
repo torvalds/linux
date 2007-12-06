@@ -20,6 +20,7 @@ void ibm4xx_quiesce_eth(u32 *emac0, u32 *emac1);
 void ibm4xx_fixup_ebc_ranges(const char *ebc);
 
 void ibm405gp_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk);
+void ibm405ep_fixup_clocks(unsigned int sys_clk);
 void ibm440gp_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk);
 void ibm440ep_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk,
 			   unsigned int tmr_clk);
