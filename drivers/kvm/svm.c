@@ -1048,6 +1048,15 @@ static int emulate_on_interception(struct vcpu_svm *svm,
 	return 1;
 }
 
+static int cr8_write_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
+	emulate_instruction(&svm->vcpu, NULL, 0, 0, 0);
+	if (irqchip_in_kernel(svm->vcpu.kvm))
+		return 1;
+	kvm_run->exit_reason = KVM_EXIT_SET_TPR;
+	return 0;
+}
+
 static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -1202,7 +1211,7 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_WRITE_CR0]          		= emulate_on_interception,
 	[SVM_EXIT_WRITE_CR3]          		= emulate_on_interception,
 	[SVM_EXIT_WRITE_CR4]          		= emulate_on_interception,
-	[SVM_EXIT_WRITE_CR8]          		= emulate_on_interception,
+	[SVM_EXIT_WRITE_CR8]          		= cr8_write_interception,
 	[SVM_EXIT_READ_DR0] 			= emulate_on_interception,
 	[SVM_EXIT_READ_DR1]			= emulate_on_interception,
 	[SVM_EXIT_READ_DR2]			= emulate_on_interception,
