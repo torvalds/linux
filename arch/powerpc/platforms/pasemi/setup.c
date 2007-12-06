@@ -36,6 +36,7 @@
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
+#include <asm/mmu.h>
 
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
@@ -302,7 +303,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 		int i;
 
 		printk(KERN_ERR "slb contents:\n");
-		for (i = 0; i < SLB_NUM_ENTRIES; i++) {
+		for (i = 0; i < mmu_slb_size; i++) {
 			asm volatile("slbmfee  %0,%1" : "=r" (e) : "r" (i));
 			asm volatile("slbmfev  %0,%1" : "=r" (v) : "r" (i));
 			printk(KERN_ERR "%02d %016lx %016lx\n", i, e, v);
