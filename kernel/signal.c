@@ -994,6 +994,11 @@ void zap_other_threads(struct task_struct *p)
 	}
 }
 
+int fastcall __fatal_signal_pending(struct task_struct *tsk)
+{
+	return sigismember(&tsk->pending.signal, SIGKILL);
+}
+
 /*
  * Must be called under rcu_read_lock() or with tasklist_lock read-held.
  */
