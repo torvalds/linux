@@ -188,39 +188,36 @@ void __init iSeries_pci_final_fixup(void)
 
 	printk("pcibios_final_fixup\n");
 	for_each_pci_dev(pdev) {
-		struct pci_dn *pdn;
 		const u32 *agent;
 		const u32 *sub_bus;
+		unsigned char bus = pdev->bus->number;
 
-		node = find_device_node(pdev->bus->number, pdev->devfn);
-		printk("pci dev %p (%x.%x), node %p\n", pdev,
-		       pdev->bus->number, pdev->devfn, node);
+		node = find_device_node(bus, pdev->devfn);
+		printk("pci dev %p (%x.%x), node %p\n", pdev, bus,
+			pdev->devfn, node);
 		if (!node) {
 			printk("PCI: Device Tree not found for 0x%016lX\n",
 					(unsigned long)pdev);
 			continue;
 		}
 
-		pdn = PCI_DN(node);
 		agent = of_get_property(node, "linux,agent-id", NULL);
 		sub_bus = of_get_property(node, "linux,subbus", NULL);
-		if (pdn && agent && sub_bus) {
-			u8 irq = iSeries_allocate_IRQ(pdn->busno, 0, *sub_bus);
+		if (agent && sub_bus) {
+			u8 irq = iSeries_allocate_IRQ(bus, 0, *sub_bus);
 			int err;
 
-			err = HvCallXm_connectBusUnit(pdn->busno, *sub_bus,
+			err = HvCallXm_connectBusUnit(bus, *sub_bus,
 					*agent, irq);
 			if (err)
 				pci_log_error("Connect Bus Unit",
-					pdn->busno, *sub_bus, *agent, err);
+					bus, *sub_bus, *agent, err);
 			else {
-				err = HvCallPci_configStore8(pdn->busno,
-					*sub_bus, *agent,
-					PCI_INTERRUPT_LINE, irq);
+				err = HvCallPci_configStore8(bus, *sub_bus,
+					*agent, PCI_INTERRUPT_LINE, irq);
 				if (err)
 					pci_log_error("PciCfgStore Irq Failed!",
-						pdn->busno, *sub_bus,
-						*agent, err);
+						bus, *sub_bus, *agent, err);
 				else
 					pdev->irq = irq;
 			}
@@ -230,7 +227,7 @@ void __init iSeries_pci_final_fixup(void)
 		pdev->sysdata = node;
 		PCI_DN(node)->pcidev = pdev;
 		allocate_device_bars(pdev);
-		iSeries_Device_Information(pdev, num_dev, pdn->busno, *sub_bus);
+		iSeries_Device_Information(pdev, num_dev, bus, *sub_bus);
 		iommu_devnode_init_iSeries(pdev, node);
 	}
 	iSeries_activate_IRQs();
