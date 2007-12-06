@@ -61,6 +61,8 @@
 #define DRIVER_DESC	"USB Host+Gadget Emulator"
 #define DRIVER_VERSION	"02 May 2005"
 
+#define POWER_BUDGET	500	/* in mA; use 8 for low-power port testing */
+
 static const char	driver_name [] = "dummy_hcd";
 static const char	driver_desc [] = "USB Host+Gadget Emulator";
 
@@ -1810,8 +1812,7 @@ static int dummy_start (struct usb_hcd *hcd)
 
 	INIT_LIST_HEAD (&dum->urbp_list);
 
-	/* only show a low-power port: just 8mA */
-	hcd->power_budget = 8;
+	hcd->power_budget = POWER_BUDGET;
 	hcd->state = HC_STATE_RUNNING;
 	hcd->uses_new_polling = 1;
 
