@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc2
-# Tue Nov  6 23:23:50 2007
+# Linux kernel version: 2.6.24-rc4
+# Thu Dec  6 16:49:03 2007
 #
 CONFIG_PPC64=y
 
@@ -68,6 +68,7 @@ CONFIG_SYSVIPC_SYSCTL=y
 # CONFIG_BSD_PROCESS_ACCT is not set
 # CONFIG_TASKSTATS is not set
 # CONFIG_USER_NS is not set
+# CONFIG_PID_NS is not set
 # CONFIG_AUDIT is not set
 # CONFIG_IKCONFIG is not set
 CONFIG_LOG_BUF_SHIFT=17
@@ -211,6 +212,7 @@ CONFIG_PREEMPT_NONE=y
 CONFIG_BINFMT_ELF=y
 # CONFIG_BINFMT_MISC is not set
 CONFIG_FORCE_MAX_ZONEORDER=9
+CONFIG_HUGETLB_PAGE_SIZE_VARIABLE=y
 CONFIG_IOMMU_VMERGE=y
 CONFIG_ARCH_ENABLE_MEMORY_HOTPLUG=y
 # CONFIG_KEXEC is not set
@@ -774,7 +776,6 @@ CONFIG_PASEMI_MAC=y
 # CONFIG_USB_KAWETH is not set
 # CONFIG_USB_PEGASUS is not set
 # CONFIG_USB_RTL8150 is not set
-# CONFIG_USB_USBNET_MII is not set
 # CONFIG_USB_USBNET is not set
 # CONFIG_NET_PCMCIA is not set
 # CONFIG_WAN is not set
@@ -958,6 +959,7 @@ CONFIG_HWMON_VID=y
 # CONFIG_SENSORS_ADT7470 is not set
 # CONFIG_SENSORS_ATXP1 is not set
 # CONFIG_SENSORS_DS1621 is not set
+# CONFIG_SENSORS_I5K_AMB is not set
 # CONFIG_SENSORS_F71805F is not set
 # CONFIG_SENSORS_F71882FG is not set
 # CONFIG_SENSORS_F75375S is not set
