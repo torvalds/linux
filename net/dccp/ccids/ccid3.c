@@ -677,7 +677,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct dccp_rx_hist_entry *packet;
+	struct tfrc_rx_hist_entry *packet;
 	ktime_t now;
 	suseconds_t delta;
 
@@ -701,7 +701,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 		return;
 	}
 
-	packet = dccp_rx_hist_find_data_packet(&hcrx->ccid3hcrx_hist);
+	packet = tfrc_rx_hist_find_data_packet(&hcrx->ccid3hcrx_hist);
 	if (unlikely(packet == NULL)) {
 		DCCP_WARN("%s(%p), no data packet in history!\n",
 			  dccp_role(sk), sk);
@@ -709,7 +709,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk)
 	}
 
 	hcrx->ccid3hcrx_tstamp_last_feedback = now;
-	hcrx->ccid3hcrx_ccval_last_counter   = packet->dccphrx_ccval;
+	hcrx->ccid3hcrx_ccval_last_counter   = packet->tfrchrx_ccval;
 	hcrx->ccid3hcrx_bytes_recv	     = 0;
 
 	if (hcrx->ccid3hcrx_p == 0)
@@ -752,12 +752,12 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 }
 
 static int ccid3_hc_rx_detect_loss(struct sock *sk,
-				    struct dccp_rx_hist_entry *packet)
+				    struct tfrc_rx_hist_entry *packet)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	struct dccp_rx_hist_entry *rx_hist =
-				dccp_rx_hist_head(&hcrx->ccid3hcrx_hist);
-	u64 seqno = packet->dccphrx_seqno;
+	struct tfrc_rx_hist_entry *rx_hist =
+				tfrc_rx_hist_head(&hcrx->ccid3hcrx_hist);
+	u64 seqno = packet->tfrchrx_seqno;
 	u64 tmp_seqno;
 	int loss = 0;
 	u8 ccval;
@@ -766,9 +766,9 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 	tmp_seqno = hcrx->ccid3hcrx_seqno_nonloss;
 
 	if (!rx_hist ||
-	   follows48(packet->dccphrx_seqno, hcrx->ccid3hcrx_seqno_nonloss)) {
+	   follows48(packet->tfrchrx_seqno, hcrx->ccid3hcrx_seqno_nonloss)) {
 		hcrx->ccid3hcrx_seqno_nonloss = seqno;
-		hcrx->ccid3hcrx_ccval_nonloss = packet->dccphrx_ccval;
+		hcrx->ccid3hcrx_ccval_nonloss = packet->tfrchrx_ccval;
 		goto detect_out;
 	}
 
@@ -789,7 +789,7 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 		dccp_inc_seqno(&tmp_seqno);
 		hcrx->ccid3hcrx_seqno_nonloss = tmp_seqno;
 		dccp_inc_seqno(&tmp_seqno);
-		while (dccp_rx_hist_find_entry(&hcrx->ccid3hcrx_hist,
+		while (tfrc_rx_hist_find_entry(&hcrx->ccid3hcrx_hist,
 		   tmp_seqno, &ccval)) {
 			hcrx->ccid3hcrx_seqno_nonloss = tmp_seqno;
 			hcrx->ccid3hcrx_ccval_nonloss = ccval;
@@ -799,13 +799,13 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 
 	/* FIXME - this code could be simplified with above while */
 	/* but works at moment */
-	if (follows48(packet->dccphrx_seqno, hcrx->ccid3hcrx_seqno_nonloss)) {
+	if (follows48(packet->tfrchrx_seqno, hcrx->ccid3hcrx_seqno_nonloss)) {
 		hcrx->ccid3hcrx_seqno_nonloss = seqno;
-		hcrx->ccid3hcrx_ccval_nonloss = packet->dccphrx_ccval;
+		hcrx->ccid3hcrx_ccval_nonloss = packet->tfrchrx_ccval;
 	}
 
 detect_out:
-	dccp_rx_hist_add_packet(&hcrx->ccid3hcrx_hist,
+	tfrc_rx_hist_add_packet(&hcrx->ccid3hcrx_hist,
 				&hcrx->ccid3hcrx_li_hist, packet,
 				hcrx->ccid3hcrx_seqno_nonloss);
 	return loss;
@@ -815,7 +815,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	const struct dccp_options_received *opt_recv;
-	struct dccp_rx_hist_entry *packet;
+	struct tfrc_rx_hist_entry *packet;
 	u32 p_prev, r_sample, rtt_prev;
 	int loss, payload_size;
 	ktime_t now;
@@ -850,7 +850,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	packet = dccp_rx_hist_entry_new(opt_recv->dccpor_ndp, skb, GFP_ATOMIC);
+	packet = tfrc_rx_hist_entry_new(opt_recv->dccpor_ndp, skb, GFP_ATOMIC);
 	if (unlikely(packet == NULL)) {
 		DCCP_WARN("%s(%p), Not enough mem to add rx packet "
 			  "to history, consider it lost!\n", dccp_role(sk), sk);
@@ -933,7 +933,7 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 	ccid3_hc_rx_set_state(sk, TFRC_RSTATE_TERM);
 
 	/* Empty packet history */
-	dccp_rx_hist_purge(&hcrx->ccid3hcrx_hist);
+	tfrc_rx_hist_purge(&hcrx->ccid3hcrx_hist);
 
 	/* Empty loss interval history */
 	dccp_li_hist_purge(&hcrx->ccid3hcrx_li_hist);

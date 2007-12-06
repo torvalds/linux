@@ -129,7 +129,7 @@ static u32 dccp_li_calc_first_li(struct sock *sk,
 				 u16 s, u32 bytes_recv,
 				 u32 previous_x_recv)
 {
-	struct dccp_rx_hist_entry *entry, *next, *tail = NULL;
+	struct tfrc_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 x_recv, p;
 	suseconds_t rtt, delta;
 	ktime_t tstamp = ktime_set(0, 0);
@@ -138,18 +138,18 @@ static u32 dccp_li_calc_first_li(struct sock *sk,
 	int step = 0;
 	u64 fval;
 
-	list_for_each_entry_safe(entry, next, hist_list, dccphrx_node) {
-		if (dccp_rx_hist_entry_data_packet(entry)) {
+	list_for_each_entry_safe(entry, next, hist_list, tfrchrx_node) {
+		if (tfrc_rx_hist_entry_data_packet(entry)) {
 			tail = entry;
 
 			switch (step) {
 			case 0:
-				tstamp	  = entry->dccphrx_tstamp;
-				win_count = entry->dccphrx_ccval;
+				tstamp	  = entry->tfrchrx_tstamp;
+				win_count = entry->tfrchrx_ccval;
 				step = 1;
 				break;
 			case 1:
-				interval = win_count - entry->dccphrx_ccval;
+				interval = win_count - entry->tfrchrx_ccval;
 				if (interval < 0)
 					interval += TFRC_WIN_COUNT_LIMIT;
 				if (interval > 4)
@@ -176,7 +176,7 @@ found:
 		return ~0;
 	}
 
-	delta = ktime_us_delta(tstamp, tail->dccphrx_tstamp);
+	delta = ktime_us_delta(tstamp, tail->tfrchrx_tstamp);
 	DCCP_BUG_ON(delta < 0);
 
 	rtt = delta * 4 / interval;

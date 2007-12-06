@@ -57,51 +57,51 @@ extern u32  tfrc_tx_hist_rtt(struct tfrc_tx_hist_entry *head,
 /*
  * 	Receiver History data structures and declarations
  */
-struct dccp_rx_hist_entry {
-	struct list_head dccphrx_node;
-	u64		 dccphrx_seqno:48,
-			 dccphrx_ccval:4,
-			 dccphrx_type:4;
-	u32		 dccphrx_ndp; /* In fact it is from 8 to 24 bits */
-	ktime_t		 dccphrx_tstamp;
+struct tfrc_rx_hist_entry {
+	struct list_head tfrchrx_node;
+	u64		 tfrchrx_seqno:48,
+			 tfrchrx_ccval:4,
+			 tfrchrx_type:4;
+	u32		 tfrchrx_ndp; /* In fact it is from 8 to 24 bits */
+	ktime_t		 tfrchrx_tstamp;
 };
 
-extern struct dccp_rx_hist_entry *
-			dccp_rx_hist_entry_new(const u32 ndp,
+extern struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_entry_new(const u32 ndp,
 					       const struct sk_buff *skb,
 					       const gfp_t prio);
 
-static inline struct dccp_rx_hist_entry *
-			dccp_rx_hist_head(struct list_head *list)
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_head(struct list_head *list)
 {
-	struct dccp_rx_hist_entry *head = NULL;
+	struct tfrc_rx_hist_entry *head = NULL;
 
 	if (!list_empty(list))
-		head = list_entry(list->next, struct dccp_rx_hist_entry,
-				  dccphrx_node);
+		head = list_entry(list->next, struct tfrc_rx_hist_entry,
+				  tfrchrx_node);
 	return head;
 }
 
-extern int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
+extern int tfrc_rx_hist_find_entry(const struct list_head *list, const u64 seq,
 				   u8 *ccval);
-extern struct dccp_rx_hist_entry *
-		dccp_rx_hist_find_data_packet(const struct list_head *list);
+extern struct tfrc_rx_hist_entry *
+		tfrc_rx_hist_find_data_packet(const struct list_head *list);
 
-extern void dccp_rx_hist_add_packet(struct list_head *rx_list,
+extern void tfrc_rx_hist_add_packet(struct list_head *rx_list,
 				    struct list_head *li_list,
-				    struct dccp_rx_hist_entry *packet,
+				    struct tfrc_rx_hist_entry *packet,
 				    u64 nonloss_seqno);
 
-extern void dccp_rx_hist_purge(struct list_head *list);
+extern void tfrc_rx_hist_purge(struct list_head *list);
 
 static inline int
-	dccp_rx_hist_entry_data_packet(const struct dccp_rx_hist_entry *entry)
+	tfrc_rx_hist_entry_data_packet(const struct tfrc_rx_hist_entry *entry)
 {
-	return entry->dccphrx_type == DCCP_PKT_DATA ||
-	       entry->dccphrx_type == DCCP_PKT_DATAACK;
+	return entry->tfrchrx_type == DCCP_PKT_DATA ||
+	       entry->tfrchrx_type == DCCP_PKT_DATAACK;
 }
 
-extern u64 dccp_rx_hist_detect_loss(struct list_head *rx_list,
+extern u64 tfrc_rx_hist_detect_loss(struct list_head *rx_list,
 				    struct list_head *li_list, u8 *win_loss);
 
 #endif /* _DCCP_PKT_HIST_ */
