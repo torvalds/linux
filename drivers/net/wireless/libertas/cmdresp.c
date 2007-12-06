@@ -882,7 +882,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 
 	if (adapter->cur_cmd->pdata_size) {
 		struct cmd_ds_gen *r = (struct cmd_ds_gen *)resp;
-		u16 sz = cpu_to_le16(resp->size);
+		u16 sz = cpu_to_le16(resp->size) - S_DS_GEN;
 		if (sz > *adapter->cur_cmd->pdata_size) {
 			lbs_pr_err("response 0x%04x doesn't fit into "
 				"buffer (%d > %d)\n", respcmd,
