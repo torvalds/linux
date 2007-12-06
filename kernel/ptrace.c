@@ -51,7 +51,7 @@ void __ptrace_link(struct task_struct *child, struct task_struct *new_parent)
 void ptrace_untrace(struct task_struct *child)
 {
 	spin_lock(&child->sighand->siglock);
-	if (child->state == TASK_TRACED) {
+	if (task_is_traced(child)) {
 		if (child->signal->flags & SIGNAL_STOP_STOPPED) {
 			child->state = TASK_STOPPED;
 		} else {
@@ -79,7 +79,7 @@ void __ptrace_unlink(struct task_struct *child)
 		add_parent(child);
 	}
 
-	if (child->state == TASK_TRACED)
+	if (task_is_traced(child))
 		ptrace_untrace(child);
 }
 
@@ -103,9 +103,9 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	    && child->signal != NULL) {
 		ret = 0;
 		spin_lock_irq(&child->sighand->siglock);
-		if (child->state == TASK_STOPPED) {
+		if (task_is_stopped(child)) {
 			child->state = TASK_TRACED;
-		} else if (child->state != TASK_TRACED && !kill) {
+		} else if (!task_is_traced(child) && !kill) {
 			ret = -ESRCH;
 		}
 		spin_unlock_irq(&child->sighand->siglock);
