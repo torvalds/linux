@@ -974,17 +974,6 @@ static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
 	return 0;
 }
 
-static int lbs_cmd_set_boot2_ver(struct lbs_private *priv,
-				struct cmd_ds_command *cmd,
-				u16 cmd_action, void *pdata_buf)
-{
-	struct cmd_ds_set_boot2_ver *boot2_ver = &cmd->params.boot2_ver;
-	cmd->command = cpu_to_le16(CMD_SET_BOOT2_VER);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_set_boot2_ver) + S_DS_GEN);
-	boot2_ver->version = priv->boot2_version;
-	return 0;
-}
-
 /*
  * Note: NEVER use lbs_queue_cmd() with addtail==0 other than for
  * the command timer, because it does not account for queued commands.
@@ -1468,10 +1457,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_MESH_ACCESS:
 		ret = lbs_cmd_mesh_access(priv, cmdptr, cmd_action, pdata_buf);
-		break;
-
-	case CMD_SET_BOOT2_VER:
-		ret = lbs_cmd_set_boot2_ver(priv, cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_GET_TSF:
