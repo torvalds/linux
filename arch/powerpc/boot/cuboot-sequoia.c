@@ -39,7 +39,7 @@ static void sequoia_fixups(void)
 {
 	unsigned long sysclk = 33333333;
 
-	ibm440ep_fixup_clocks(sysclk, 11059200, 25000000);
+	ibm440ep_fixup_clocks(sysclk, 11059200, 50000000);
 	ibm4xx_fixup_ebc_ranges("/plb/opb/ebc");
 	ibm4xx_denali_fixup_memsize();
 	dt_fixup_mac_addresses(&bd.bi_enetaddr, &bd.bi_enet1addr);

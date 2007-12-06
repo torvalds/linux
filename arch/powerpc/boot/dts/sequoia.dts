@@ -94,7 +94,6 @@
 		clock-frequency = <0>; /* Filled in by zImage */
 
 		SDRAM0: sdram {
-			device_type = "memory-controller";
 			compatible = "ibm,sdram-440epx", "ibm,sdram-44x-ddr2denali";
 			dcr-reg = <010 2>;
 		};
