@@ -147,7 +147,7 @@ void lbs_upload_rx_packet(struct lbs_private *priv, struct sk_buff *skb)
 		else
 			skb->protocol = eth_type_trans(skb, priv->dev);
 	}
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
+	skb->ip_summed = CHECKSUM_NONE;
 	netif_rx(skb);
 }
 
