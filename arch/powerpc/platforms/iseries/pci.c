@@ -190,6 +190,7 @@ void __init iSeries_pci_final_fixup(void)
 	for_each_pci_dev(pdev) {
 		struct pci_dn *pdn;
 		const u32 *agent;
+		const u32 *sub_bus;
 
 		node = find_device_node(pdev->bus->number, pdev->devfn);
 		printk("pci dev %p (%x.%x), node %p\n", pdev,
@@ -202,23 +203,23 @@ void __init iSeries_pci_final_fixup(void)
 
 		pdn = PCI_DN(node);
 		agent = of_get_property(node, "linux,agent-id", NULL);
-		if (pdn && agent) {
-			u8 irq = iSeries_allocate_IRQ(pdn->busno, 0,
-					pdn->bussubno);
+		sub_bus = of_get_property(node, "linux,subbus", NULL);
+		if (pdn && agent && sub_bus) {
+			u8 irq = iSeries_allocate_IRQ(pdn->busno, 0, *sub_bus);
 			int err;
 
-			err = HvCallXm_connectBusUnit(pdn->busno, pdn->bussubno,
+			err = HvCallXm_connectBusUnit(pdn->busno, *sub_bus,
 					*agent, irq);
 			if (err)
 				pci_log_error("Connect Bus Unit",
-					pdn->busno, pdn->bussubno, *agent, err);
+					pdn->busno, *sub_bus, *agent, err);
 			else {
 				err = HvCallPci_configStore8(pdn->busno,
-					pdn->bussubno, *agent,
+					*sub_bus, *agent,
 					PCI_INTERRUPT_LINE, irq);
 				if (err)
 					pci_log_error("PciCfgStore Irq Failed!",
-						pdn->busno, pdn->bussubno,
+						pdn->busno, *sub_bus,
 						*agent, err);
 				else
 					pdev->irq = irq;
@@ -229,8 +230,7 @@ void __init iSeries_pci_final_fixup(void)
 		pdev->sysdata = node;
 		PCI_DN(node)->pcidev = pdev;
 		allocate_device_bars(pdev);
-		iSeries_Device_Information(pdev, num_dev, pdn->busno,
-				pdn->bussubno);
+		iSeries_Device_Information(pdev, num_dev, pdn->busno, *sub_bus);
 		iommu_devnode_init_iSeries(pdev, node);
 	}
 	iSeries_activate_IRQs();
