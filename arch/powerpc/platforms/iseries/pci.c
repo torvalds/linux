@@ -210,7 +210,7 @@ void __init iSeries_pci_final_fixup(void)
 			}
 
 			++num_dev;
-			pdev->sysdata = (void *)node;
+			pdev->sysdata = node;
 			PCI_DN(node)->pcidev = pdev;
 			allocate_device_bars(pdev);
 			iSeries_Device_Information(pdev, num_dev);
@@ -222,23 +222,6 @@ void __init iSeries_pci_final_fixup(void)
 	iSeries_activate_IRQs();
 	mf_display_src(0xC9000200);
 }
-
-#if 0
-/*
- * Returns the device node for the passed pci_dev
- * Sanity Check Node PciDev to passed pci_dev
- * If none is found, returns a NULL which the client must handle.
- */
-static struct device_node *get_device_node(struct pci_dev *pdev)
-{
-	struct device_node *node;
-
-	node = pdev->sysdata;
-	if (node == NULL || PCI_DN(node)->pcidev != pdev)
-		node = find_device_node(pdev->bus->number, pdev->devfn);
-	return node;
-}
-#endif
 
 /*
  * Config space read and write functions.
