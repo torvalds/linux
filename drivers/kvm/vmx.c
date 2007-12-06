@@ -1973,6 +1973,8 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			vcpu_load_rsp_rip(vcpu);
 			set_cr8(vcpu, vcpu->regs[reg]);
 			skip_emulated_instruction(vcpu);
+			if (irqchip_in_kernel(vcpu->kvm))
+				return 1;
 			kvm_run->exit_reason = KVM_EXIT_SET_TPR;
 			return 0;
 		};
