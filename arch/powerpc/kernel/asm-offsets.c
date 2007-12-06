@@ -326,8 +326,7 @@ int main(void)
 	DEFINE(VMALLOC_START_VSID, KERNEL_VSID(VMALLOC_START));
 #endif
 
-#ifdef CONFIG_PPC64
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
-#endif
+
 	return 0;
 }
