@@ -166,9 +166,12 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		 * got a signal? (This code gets eliminated in the
 		 * TASK_UNINTERRUPTIBLE case.)
 		 */
-		if (unlikely(state == TASK_INTERRUPTIBLE &&
-						signal_pending(task))) {
-			mutex_remove_waiter(lock, &waiter, task_thread_info(task));
+		if (unlikely((state == TASK_INTERRUPTIBLE &&
+					signal_pending(task)) ||
+			      (state == TASK_KILLABLE &&
+					fatal_signal_pending(task)))) {
+			mutex_remove_waiter(lock, &waiter,
+					    task_thread_info(task));
 			mutex_release(&lock->dep_map, 1, ip);
 			spin_unlock_mutex(&lock->wait_lock, flags);
 
@@ -209,6 +212,14 @@ mutex_lock_nested(struct mutex *lock, unsigned int subclass)
 }
 
 EXPORT_SYMBOL_GPL(mutex_lock_nested);
+
+int __sched
+mutex_lock_killable_nested(struct mutex *lock, unsigned int subclass)
+{
+	might_sleep();
+	return __mutex_lock_common(lock, TASK_KILLABLE, subclass, _RET_IP_);
+}
+EXPORT_SYMBOL_GPL(mutex_lock_killable_nested);
 
 int __sched
 mutex_lock_interruptible_nested(struct mutex *lock, unsigned int subclass)
@@ -272,6 +283,9 @@ __mutex_unlock_slowpath(atomic_t *lock_count)
  * mutex_lock_interruptible() and mutex_trylock().
  */
 static int fastcall noinline __sched
+__mutex_lock_killable_slowpath(atomic_t *lock_count);
+
+static noinline int fastcall __sched
 __mutex_lock_interruptible_slowpath(atomic_t *lock_count);
 
 /***
@@ -294,6 +308,14 @@ int fastcall __sched mutex_lock_interruptible(struct mutex *lock)
 
 EXPORT_SYMBOL(mutex_lock_interruptible);
 
+int fastcall __sched mutex_lock_killable(struct mutex *lock)
+{
+	might_sleep();
+	return __mutex_fastpath_lock_retval
+			(&lock->count, __mutex_lock_killable_slowpath);
+}
+EXPORT_SYMBOL(mutex_lock_killable);
+
 static void fastcall noinline __sched
 __mutex_lock_slowpath(atomic_t *lock_count)
 {
@@ -303,6 +325,14 @@ __mutex_lock_slowpath(atomic_t *lock_count)
 }
 
 static int fastcall noinline __sched
+__mutex_lock_killable_slowpath(atomic_t *lock_count)
+{
+	struct mutex *lock = container_of(lock_count, struct mutex, count);
+
+	return __mutex_lock_common(lock, TASK_KILLABLE, 0, _RET_IP_);
+}
+
+static noinline int fastcall __sched
 __mutex_lock_interruptible_slowpath(atomic_t *lock_count)
 {
 	struct mutex *lock = container_of(lock_count, struct mutex, count);
