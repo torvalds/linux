@@ -952,37 +952,45 @@ out_of_mem:
  *	Set (create) an ARP cache entry.
  */
 
+static int arp_req_set_public(struct arpreq *r, struct net_device *dev)
+{
+	__be32 ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
+	__be32 mask = ((struct sockaddr_in *)&r->arp_netmask)->sin_addr.s_addr;
+
+	if (mask && mask != htonl(0xFFFFFFFF))
+		return -EINVAL;
+	if (!dev && (r->arp_flags & ATF_COM)) {
+		dev = dev_getbyhwaddr(&init_net, r->arp_ha.sa_family,
+				r->arp_ha.sa_data);
+		if (!dev)
+			return -ENODEV;
+	}
+	if (mask) {
+		if (pneigh_lookup(&arp_tbl, &ip, dev, 1) == NULL)
+			return -ENOBUFS;
+		return 0;
+	}
+	if (dev == NULL) {
+		IPV4_DEVCONF_ALL(PROXY_ARP) = 1;
+		return 0;
+	}
+	if (__in_dev_get_rtnl(dev)) {
+		IN_DEV_CONF_SET(__in_dev_get_rtnl(dev), PROXY_ARP, 1);
+		return 0;
+	}
+	return -ENXIO;
+}
+
 static int arp_req_set(struct arpreq *r, struct net_device * dev)
 {
-	__be32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
+	__be32 ip;
 	struct neighbour *neigh;
 	int err;
 
-	if (r->arp_flags&ATF_PUBL) {
-		__be32 mask = ((struct sockaddr_in *) &r->arp_netmask)->sin_addr.s_addr;
-		if (mask && mask != htonl(0xFFFFFFFF))
-			return -EINVAL;
-		if (!dev && (r->arp_flags & ATF_COM)) {
-			dev = dev_getbyhwaddr(&init_net, r->arp_ha.sa_family, r->arp_ha.sa_data);
-			if (!dev)
-				return -ENODEV;
-		}
-		if (mask) {
-			if (pneigh_lookup(&arp_tbl, &ip, dev, 1) == NULL)
-				return -ENOBUFS;
-			return 0;
-		}
-		if (dev == NULL) {
-			IPV4_DEVCONF_ALL(PROXY_ARP) = 1;
-			return 0;
-		}
-		if (__in_dev_get_rtnl(dev)) {
-			IN_DEV_CONF_SET(__in_dev_get_rtnl(dev), PROXY_ARP, 1);
-			return 0;
-		}
-		return -ENXIO;
-	}
+	if (r->arp_flags & ATF_PUBL)
+		return arp_req_set_public(r, dev);
 
+	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (r->arp_flags & ATF_PERM)
 		r->arp_flags |= ATF_COM;
 	if (dev == NULL) {
