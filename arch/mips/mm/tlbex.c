@@ -917,6 +917,8 @@ static void __init build_tlb_write_entry(u32 **p, struct label **l,
 	case CPU_AU1500:
 	case CPU_AU1550:
 	case CPU_AU1200:
+	case CPU_AU1210:
+	case CPU_AU1250:
 	case CPU_PR4450:
 		i_nop(p);
 		tlbw(p);

@@ -980,6 +980,8 @@ static void __init probe_pcache(void)
 	case CPU_AU1100:
 	case CPU_AU1550:
 	case CPU_AU1200:
+	case CPU_AU1210:
+	case CPU_AU1250:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
 		break;
 	}
