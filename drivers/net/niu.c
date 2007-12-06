@@ -1045,6 +1045,7 @@ static int niu_serdes_init(struct niu *np)
 }
 
 static void niu_init_xif(struct niu *);
+static void niu_handle_led(struct niu *, int status);
 
 static int niu_link_status_common(struct niu *np, int link_up)
 {
@@ -1066,11 +1067,15 @@ static int niu_link_status_common(struct niu *np, int link_up)
 
 		spin_lock_irqsave(&np->lock, flags);
 		niu_init_xif(np);
+		niu_handle_led(np, 1);
 		spin_unlock_irqrestore(&np->lock, flags);
 
 		netif_carrier_on(dev);
 	} else if (netif_carrier_ok(dev) && !link_up) {
 		niuwarn(LINK, "%s: Link is down\n", dev->name);
+		spin_lock_irqsave(&np->lock, flags);
+		niu_handle_led(np, 0);
+		spin_unlock_irqrestore(&np->lock, flags);
 		netif_carrier_off(dev);
 	}
 
@@ -3915,16 +3920,14 @@ static int niu_init_ipp(struct niu *np)
 	return 0;
 }
 
-static void niu_init_xif_xmac(struct niu *np)
+static void niu_handle_led(struct niu *np, int status)
 {
-	struct niu_link_config *lp = &np->link_config;
 	u64 val;
-
 	val = nr64_mac(XMAC_CONFIG);
 
 	if ((np->flags & NIU_FLAGS_10G) != 0 &&
 	    (np->flags & NIU_FLAGS_FIBER) != 0) {
-		if (netif_carrier_ok(np->dev)) {
+		if (status) {
 			val |= XMAC_CONFIG_LED_POLARITY;
 			val &= ~XMAC_CONFIG_FORCE_LED_ON;
 		} else {
@@ -3933,6 +3936,15 @@ static void niu_init_xif_xmac(struct niu *np)
 		}
 	}
 
+	nw64_mac(XMAC_CONFIG, val);
+}
+
+static void niu_init_xif_xmac(struct niu *np)
+{
+	struct niu_link_config *lp = &np->link_config;
+	u64 val;
+
+	val = nr64_mac(XMAC_CONFIG);
 	val &= ~XMAC_CONFIG_SEL_POR_CLK_SRC;
 
 	val |= XMAC_CONFIG_TX_OUTPUT_EN;
@@ -4775,6 +4787,8 @@ static int niu_close(struct net_device *dev)
 	niu_free_irq(np);
 
 	niu_free_channels(np);
+
+	niu_handle_led(np, 0);
 
 	return 0;
 }
