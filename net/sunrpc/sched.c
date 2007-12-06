@@ -245,9 +245,9 @@ void rpc_init_wait_queue(struct rpc_wait_queue *queue, const char *qname)
 }
 EXPORT_SYMBOL(rpc_init_wait_queue);
 
-static int rpc_wait_bit_interruptible(void *word)
+static int rpc_wait_bit_killable(void *word)
 {
-	if (signal_pending(current))
+	if (fatal_signal_pending(current))
 		return -ERESTARTSYS;
 	schedule();
 	return 0;
@@ -299,9 +299,9 @@ static void rpc_mark_complete_task(struct rpc_task *task)
 int __rpc_wait_for_completion_task(struct rpc_task *task, int (*action)(void *))
 {
 	if (action == NULL)
-		action = rpc_wait_bit_interruptible;
+		action = rpc_wait_bit_killable;
 	return wait_on_bit(&task->tk_runstate, RPC_TASK_ACTIVE,
-			action, TASK_INTERRUPTIBLE);
+			action, TASK_KILLABLE);
 }
 EXPORT_SYMBOL(__rpc_wait_for_completion_task);
 
@@ -690,10 +690,9 @@ static void __rpc_execute(struct rpc_task *task)
 
 		/* sync task: sleep here */
 		dprintk("RPC: %5u sync task going to sleep\n", task->tk_pid);
-		/* Note: Caller should be using rpc_clnt_sigmask() */
 		status = out_of_line_wait_on_bit(&task->tk_runstate,
-				RPC_TASK_QUEUED, rpc_wait_bit_interruptible,
-				TASK_INTERRUPTIBLE);
+				RPC_TASK_QUEUED, rpc_wait_bit_killable,
+				TASK_KILLABLE);
 		if (status == -ERESTARTSYS) {
 			/*
 			 * When a sync task receives a signal, it exits with
@@ -837,8 +836,6 @@ void rpc_init_task(struct rpc_task *task, struct rpc_clnt *clnt, int flags, cons
 		kref_get(&clnt->cl_kref);
 		if (clnt->cl_softrtry)
 			task->tk_flags |= RPC_TASK_SOFT;
-		if (!clnt->cl_intr)
-			task->tk_flags |= RPC_TASK_NOINTR;
 	}
 
 	BUG_ON(task->tk_ops == NULL);

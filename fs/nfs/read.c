@@ -212,12 +212,7 @@ nfs_async_read_error(struct list_head *head)
  */
 static void nfs_execute_read(struct nfs_read_data *data)
 {
-	struct rpc_clnt *clnt = NFS_CLIENT(data->inode);
-	sigset_t oldset;
-
-	rpc_clnt_sigmask(clnt, &oldset);
 	rpc_execute(&data->task);
-	rpc_clnt_sigunmask(clnt, &oldset);
 }
 
 /*

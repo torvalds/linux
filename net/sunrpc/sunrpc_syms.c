@@ -38,8 +38,6 @@ EXPORT_SYMBOL(rpc_killall_tasks);
 EXPORT_SYMBOL(rpc_call_sync);
 EXPORT_SYMBOL(rpc_call_async);
 EXPORT_SYMBOL(rpc_call_setup);
-EXPORT_SYMBOL(rpc_clnt_sigmask);
-EXPORT_SYMBOL(rpc_clnt_sigunmask);
 EXPORT_SYMBOL(rpc_delay);
 EXPORT_SYMBOL(rpc_restart_call);
 EXPORT_SYMBOL(rpc_setbufsize);

@@ -490,7 +490,7 @@ int nfs_reschedule_unstable_write(struct nfs_page *req)
 /*
  * Wait for a request to complete.
  *
- * Interruptible by signals only if mounted with intr flag.
+ * Interruptible by fatal signals only.
  */
 static int nfs_wait_on_requests_locked(struct inode *inode, pgoff_t idx_start, unsigned int npages)
 {
@@ -816,12 +816,7 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 
 static void nfs_execute_write(struct nfs_write_data *data)
 {
-	struct rpc_clnt *clnt = NFS_CLIENT(data->inode);
-	sigset_t oldset;
-
-	rpc_clnt_sigmask(clnt, &oldset);
 	rpc_execute(&data->task);
-	rpc_clnt_sigunmask(clnt, &oldset);
 }
 
 /*

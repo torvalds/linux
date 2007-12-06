@@ -41,7 +41,6 @@ struct rpc_clnt {
 	struct rpc_iostats *	cl_metrics;	/* per-client statistics */
 
 	unsigned int		cl_softrtry : 1,/* soft timeouts */
-				cl_intr     : 1,/* interruptible */
 				cl_discrtry : 1,/* disconnect before retry */
 				cl_autobind : 1;/* use getport() */
 
@@ -109,7 +108,6 @@ struct rpc_create_args {
 
 /* Values for "flags" field */
 #define RPC_CLNT_CREATE_HARDRTRY	(1UL << 0)
-#define RPC_CLNT_CREATE_INTR		(1UL << 1)
 #define RPC_CLNT_CREATE_AUTOBIND	(1UL << 2)
 #define RPC_CLNT_CREATE_NONPRIVPORT	(1UL << 3)
 #define RPC_CLNT_CREATE_NOPING		(1UL << 4)

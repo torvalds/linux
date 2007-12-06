@@ -281,7 +281,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		return clnt;
 
 	if (!(args->flags & RPC_CLNT_CREATE_NOPING)) {
-		int err = rpc_ping(clnt, RPC_TASK_SOFT|RPC_TASK_NOINTR);
+		int err = rpc_ping(clnt, RPC_TASK_SOFT);
 		if (err != 0) {
 			rpc_shutdown_client(clnt);
 			return ERR_PTR(err);
@@ -292,8 +292,6 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	if (args->flags & RPC_CLNT_CREATE_HARDRTRY)
 		clnt->cl_softrtry = 0;
 
-	if (args->flags & RPC_CLNT_CREATE_INTR)
-		clnt->cl_intr = 1;
 	if (args->flags & RPC_CLNT_CREATE_AUTOBIND)
 		clnt->cl_autobind = 1;
 	if (args->flags & RPC_CLNT_CREATE_DISCRTRY)
@@ -459,7 +457,7 @@ struct rpc_clnt *rpc_bind_new_program(struct rpc_clnt *old,
 	clnt->cl_prog     = program->number;
 	clnt->cl_vers     = version->number;
 	clnt->cl_stats    = program->stats;
-	err = rpc_ping(clnt, RPC_TASK_SOFT|RPC_TASK_NOINTR);
+	err = rpc_ping(clnt, RPC_TASK_SOFT);
 	if (err != 0) {
 		rpc_shutdown_client(clnt);
 		clnt = ERR_PTR(err);
@@ -480,44 +478,6 @@ static const struct rpc_call_ops rpc_default_ops = {
 	.rpc_call_done = rpc_default_callback,
 };
 
-/*
- *	Export the signal mask handling for synchronous code that
- *	sleeps on RPC calls
- */
-#define RPC_INTR_SIGNALS (sigmask(SIGHUP) | sigmask(SIGINT) | sigmask(SIGQUIT) | sigmask(SIGTERM))
-
-static void rpc_save_sigmask(sigset_t *oldset, int intr)
-{
-	unsigned long	sigallow = sigmask(SIGKILL);
-	sigset_t sigmask;
-
-	/* Block all signals except those listed in sigallow */
-	if (intr)
-		sigallow |= RPC_INTR_SIGNALS;
-	siginitsetinv(&sigmask, sigallow);
-	sigprocmask(SIG_BLOCK, &sigmask, oldset);
-}
-
-static inline void rpc_task_sigmask(struct rpc_task *task, sigset_t *oldset)
-{
-	rpc_save_sigmask(oldset, !RPC_TASK_UNINTERRUPTIBLE(task));
-}
-
-static inline void rpc_restore_sigmask(sigset_t *oldset)
-{
-	sigprocmask(SIG_SETMASK, oldset, NULL);
-}
-
-void rpc_clnt_sigmask(struct rpc_clnt *clnt, sigset_t *oldset)
-{
-	rpc_save_sigmask(oldset, clnt->cl_intr);
-}
-
-void rpc_clnt_sigunmask(struct rpc_clnt *clnt, sigset_t *oldset)
-{
-	rpc_restore_sigmask(oldset);
-}
-
 static
 struct rpc_task *rpc_do_run_task(struct rpc_clnt *clnt,
 		struct rpc_message *msg,
@@ -526,7 +486,6 @@ struct rpc_task *rpc_do_run_task(struct rpc_clnt *clnt,
 		void *data)
 {
 	struct rpc_task *task, *ret;
-	sigset_t oldset;
 
 	task = rpc_new_task(clnt, flags, ops, data);
 	if (task == NULL) {
@@ -535,7 +494,6 @@ struct rpc_task *rpc_do_run_task(struct rpc_clnt *clnt,
 	}
 
 	/* Mask signals on synchronous RPC calls and RPCSEC_GSS upcalls */
-	rpc_task_sigmask(task, &oldset);
 	if (msg != NULL) {
 		rpc_call_setup(task, msg, 0);
 		if (task->tk_status != 0) {
@@ -548,7 +506,6 @@ struct rpc_task *rpc_do_run_task(struct rpc_clnt *clnt,
 	rpc_execute(task);
 	ret = task;
 out:
-	rpc_restore_sigmask(&oldset);
 	return ret;
 }
 

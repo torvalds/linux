@@ -27,17 +27,14 @@
 static int
 nfs3_rpc_wrapper(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 {
-	sigset_t oldset;
 	int res;
-	rpc_clnt_sigmask(clnt, &oldset);
 	do {
 		res = rpc_call_sync(clnt, msg, flags);
 		if (res != -EJUKEBOX)
 			break;
-		schedule_timeout_interruptible(NFS_JUKEBOX_RETRY_TIME);
+		schedule_timeout_killable(NFS_JUKEBOX_RETRY_TIME);
 		res = -ERESTARTSYS;
-	} while (!signalled());
-	rpc_clnt_sigunmask(clnt, &oldset);
+	} while (!fatal_signal_pending(current));
 	return res;
 }
 
