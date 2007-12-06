@@ -49,8 +49,6 @@ static int ccid3_debug;
 #define ccid3_pr_debug(format, a...)
 #endif
 
-static struct dccp_rx_hist *ccid3_rx_hist;
-
 /*
  *	Transmitter Half-Connection Routines
  */
@@ -807,9 +805,9 @@ static int ccid3_hc_rx_detect_loss(struct sock *sk,
 	}
 
 detect_out:
-	dccp_rx_hist_add_packet(ccid3_rx_hist, &hcrx->ccid3hcrx_hist,
-		   &hcrx->ccid3hcrx_li_hist, packet,
-		   hcrx->ccid3hcrx_seqno_nonloss);
+	dccp_rx_hist_add_packet(&hcrx->ccid3hcrx_hist,
+				&hcrx->ccid3hcrx_li_hist, packet,
+				hcrx->ccid3hcrx_seqno_nonloss);
 	return loss;
 }
 
@@ -852,8 +850,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		return;
 	}
 
-	packet = dccp_rx_hist_entry_new(ccid3_rx_hist, opt_recv->dccpor_ndp,
-					skb, GFP_ATOMIC);
+	packet = dccp_rx_hist_entry_new(opt_recv->dccpor_ndp, skb, GFP_ATOMIC);
 	if (unlikely(packet == NULL)) {
 		DCCP_WARN("%s(%p), Not enough mem to add rx packet "
 			  "to history, consider it lost!\n", dccp_role(sk), sk);
@@ -936,7 +933,7 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 	ccid3_hc_rx_set_state(sk, TFRC_RSTATE_TERM);
 
 	/* Empty packet history */
-	dccp_rx_hist_purge(ccid3_rx_hist, &hcrx->ccid3hcrx_hist);
+	dccp_rx_hist_purge(&hcrx->ccid3hcrx_hist);
 
 	/* Empty loss interval history */
 	dccp_li_hist_purge(&hcrx->ccid3hcrx_li_hist);
@@ -1013,33 +1010,13 @@ MODULE_PARM_DESC(ccid3_debug, "Enable debug messages");
 
 static __init int ccid3_module_init(void)
 {
-	int rc = -ENOBUFS;
-
-	ccid3_rx_hist = dccp_rx_hist_new("ccid3");
-	if (ccid3_rx_hist == NULL)
-		goto out;
-
-	rc = ccid_register(&ccid3);
-	if (rc != 0)
-		goto out_free_rx;
-out:
-	return rc;
-
-out_free_rx:
-	dccp_rx_hist_delete(ccid3_rx_hist);
-	ccid3_rx_hist = NULL;
-	goto out;
+	return ccid_register(&ccid3);
 }
 module_init(ccid3_module_init);
 
 static __exit void ccid3_module_exit(void)
 {
 	ccid_unregister(&ccid3);
-
-	if (ccid3_rx_hist != NULL) {
-		dccp_rx_hist_delete(ccid3_rx_hist);
-		ccid3_rx_hist = NULL;
-	}
 }
 module_exit(ccid3_module_exit);
 

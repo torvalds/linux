@@ -114,48 +114,33 @@ EXPORT_SYMBOL_GPL(tfrc_tx_hist_rtt);
 /*
  * 	Receiver History Routines
  */
-struct dccp_rx_hist *dccp_rx_hist_new(const char *name)
+static struct kmem_cache *tfrc_rx_hist_slab;
+
+struct dccp_rx_hist_entry *dccp_rx_hist_entry_new(const u32 ndp,
+						  const struct sk_buff *skb,
+						  const gfp_t prio)
 {
-	struct dccp_rx_hist *hist = kmalloc(sizeof(*hist), GFP_ATOMIC);
-	static const char dccp_rx_hist_mask[] = "rx_hist_%s";
-	char *slab_name;
+	struct dccp_rx_hist_entry *entry = kmem_cache_alloc(tfrc_rx_hist_slab,
+							    prio);
 
-	if (hist == NULL)
-		goto out;
+	if (entry != NULL) {
+		const struct dccp_hdr *dh = dccp_hdr(skb);
 
-	slab_name = kmalloc(strlen(name) + sizeof(dccp_rx_hist_mask) - 1,
-			    GFP_ATOMIC);
-	if (slab_name == NULL)
-		goto out_free_hist;
+		entry->dccphrx_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
+		entry->dccphrx_ccval = dh->dccph_ccval;
+		entry->dccphrx_type  = dh->dccph_type;
+		entry->dccphrx_ndp   = ndp;
+		entry->dccphrx_tstamp = ktime_get_real();
+	}
 
-	sprintf(slab_name, dccp_rx_hist_mask, name);
-	hist->dccprxh_slab = kmem_cache_create(slab_name,
-					     sizeof(struct dccp_rx_hist_entry),
-					     0, SLAB_HWCACHE_ALIGN, NULL);
-	if (hist->dccprxh_slab == NULL)
-		goto out_free_slab_name;
-out:
-	return hist;
-out_free_slab_name:
-	kfree(slab_name);
-out_free_hist:
-	kfree(hist);
-	hist = NULL;
-	goto out;
+	return entry;
 }
+EXPORT_SYMBOL_GPL(dccp_rx_hist_entry_new);
 
-EXPORT_SYMBOL_GPL(dccp_rx_hist_new);
-
-void dccp_rx_hist_delete(struct dccp_rx_hist *hist)
+static inline void dccp_rx_hist_entry_delete(struct dccp_rx_hist_entry *entry)
 {
-	const char* name = kmem_cache_name(hist->dccprxh_slab);
-
-	kmem_cache_destroy(hist->dccprxh_slab);
-	kfree(name);
-	kfree(hist);
+	kmem_cache_free(tfrc_rx_hist_slab, entry);
 }
-
-EXPORT_SYMBOL_GPL(dccp_rx_hist_delete);
 
 int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
 			    u8 *ccval)
@@ -192,11 +177,10 @@ struct dccp_rx_hist_entry *
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_find_data_packet);
 
-void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
-			    struct list_head *rx_list,
-			    struct list_head *li_list,
-			    struct dccp_rx_hist_entry *packet,
-			    u64 nonloss_seqno)
+void dccp_rx_hist_add_packet(struct list_head *rx_list,
+			     struct list_head *li_list,
+			     struct dccp_rx_hist_entry *packet,
+			     u64 nonloss_seqno)
 {
 	struct dccp_rx_hist_entry *entry, *next;
 	u8 num_later = 0;
@@ -211,7 +195,7 @@ void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
 				if (after48(nonloss_seqno,
 				   entry->dccphrx_seqno)) {
 					list_del_init(&entry->dccphrx_node);
-					dccp_rx_hist_entry_delete(hist, entry);
+					dccp_rx_hist_entry_delete(entry);
 				}
 			} else if (dccp_rx_hist_entry_data_packet(entry))
 				--num_later;
@@ -253,7 +237,7 @@ void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
 					break;
 				case 3:
 					list_del_init(&entry->dccphrx_node);
-					dccp_rx_hist_entry_delete(hist, entry);
+					dccp_rx_hist_entry_delete(entry);
 					break;
 				}
 			} else if (dccp_rx_hist_entry_data_packet(entry))
@@ -264,13 +248,13 @@ void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_add_packet);
 
-void dccp_rx_hist_purge(struct dccp_rx_hist *hist, struct list_head *list)
+void dccp_rx_hist_purge(struct list_head *list)
 {
 	struct dccp_rx_hist_entry *entry, *next;
 
 	list_for_each_entry_safe(entry, next, list, dccphrx_node) {
 		list_del_init(&entry->dccphrx_node);
-		kmem_cache_free(hist->dccprxh_slab, entry);
+		dccp_rx_hist_entry_delete(entry);
 	}
 }
 
@@ -281,8 +265,22 @@ __init int packet_history_init(void)
 	tfrc_tx_hist_slab = kmem_cache_create("tfrc_tx_hist",
 					      sizeof(struct tfrc_tx_hist_entry), 0,
 					      SLAB_HWCACHE_ALIGN, NULL);
+	if (tfrc_tx_hist_slab == NULL)
+		goto out_err;
 
-	return tfrc_tx_hist_slab == NULL ? -ENOBUFS : 0;
+	tfrc_rx_hist_slab = kmem_cache_create("tfrc_rx_hist",
+					      sizeof(struct dccp_rx_hist_entry), 0,
+					      SLAB_HWCACHE_ALIGN, NULL);
+	if (tfrc_rx_hist_slab == NULL)
+		goto out_free_tx;
+
+	return 0;
+
+out_free_tx:
+	kmem_cache_destroy(tfrc_tx_hist_slab);
+	tfrc_tx_hist_slab = NULL;
+out_err:
+	return -ENOBUFS;
 }
 
 void packet_history_exit(void)
@@ -290,5 +288,10 @@ void packet_history_exit(void)
 	if (tfrc_tx_hist_slab != NULL) {
 		kmem_cache_destroy(tfrc_tx_hist_slab);
 		tfrc_tx_hist_slab = NULL;
+	}
+
+	if (tfrc_rx_hist_slab != NULL) {
+		kmem_cache_destroy(tfrc_rx_hist_slab);
+		tfrc_rx_hist_slab = NULL;
 	}
 }

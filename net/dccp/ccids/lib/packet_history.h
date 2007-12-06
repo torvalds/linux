@@ -66,34 +66,10 @@ struct dccp_rx_hist_entry {
 	ktime_t		 dccphrx_tstamp;
 };
 
-struct dccp_rx_hist {
-	struct kmem_cache *dccprxh_slab;
-};
-
-extern struct dccp_rx_hist *dccp_rx_hist_new(const char *name);
-extern void 		dccp_rx_hist_delete(struct dccp_rx_hist *hist);
-
-static inline struct dccp_rx_hist_entry *
-			dccp_rx_hist_entry_new(struct dccp_rx_hist *hist,
-					       const u32 ndp,
+extern struct dccp_rx_hist_entry *
+			dccp_rx_hist_entry_new(const u32 ndp,
 					       const struct sk_buff *skb,
-					       const gfp_t prio)
-{
-	struct dccp_rx_hist_entry *entry = kmem_cache_alloc(hist->dccprxh_slab,
-							    prio);
-
-	if (entry != NULL) {
-		const struct dccp_hdr *dh = dccp_hdr(skb);
-
-		entry->dccphrx_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
-		entry->dccphrx_ccval = dh->dccph_ccval;
-		entry->dccphrx_type  = dh->dccph_type;
-		entry->dccphrx_ndp   = ndp;
-		entry->dccphrx_tstamp = ktime_get_real();
-	}
-
-	return entry;
-}
+					       const gfp_t prio);
 
 static inline struct dccp_rx_hist_entry *
 			dccp_rx_hist_head(struct list_head *list)
@@ -111,21 +87,12 @@ extern int dccp_rx_hist_find_entry(const struct list_head *list, const u64 seq,
 extern struct dccp_rx_hist_entry *
 		dccp_rx_hist_find_data_packet(const struct list_head *list);
 
-extern void dccp_rx_hist_add_packet(struct dccp_rx_hist *hist,
-				    struct list_head *rx_list,
+extern void dccp_rx_hist_add_packet(struct list_head *rx_list,
 				    struct list_head *li_list,
 				    struct dccp_rx_hist_entry *packet,
 				    u64 nonloss_seqno);
 
-static inline void dccp_rx_hist_entry_delete(struct dccp_rx_hist *hist,
-					     struct dccp_rx_hist_entry *entry)
-{
-	if (entry != NULL)
-		kmem_cache_free(hist->dccprxh_slab, entry);
-}
-
-extern void dccp_rx_hist_purge(struct dccp_rx_hist *hist,
-			       struct list_head *list);
+extern void dccp_rx_hist_purge(struct list_head *list);
 
 static inline int
 	dccp_rx_hist_entry_data_packet(const struct dccp_rx_hist_entry *entry)
