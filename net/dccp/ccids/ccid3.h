@@ -1,7 +1,8 @@
 /*
  *  net/dccp/ccids/ccid3.h
  *
- *  Copyright (c) 2005-6 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
+ *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *
  *  An implementation of the DCCP protocol
  *
@@ -135,9 +136,7 @@ enum ccid3_hc_rx_states {
  *  @ccid3hcrx_x_recv  -  Receiver estimate of send rate (RFC 3448 4.3)
  *  @ccid3hcrx_rtt  -  Receiver estimate of rtt (non-standard)
  *  @ccid3hcrx_p  -  current loss event rate (RFC 3448 5.4)
- *  @ccid3hcrx_seqno_nonloss  -  Last received non-loss sequence number
- *  @ccid3hcrx_ccval_nonloss  -  Last received non-loss Window CCVal
- *  @ccid3hcrx_ccval_last_counter  -  Tracks window counter (RFC 4342, 8.1)
+ *  @ccid3hcrx_last_counter  -  Tracks window counter (RFC 4342, 8.1)
  *  @ccid3hcrx_state  -  receiver state, one of %ccid3_hc_rx_states
  *  @ccid3hcrx_bytes_recv  -  Total sum of DCCP payload bytes
  *  @ccid3hcrx_tstamp_last_feedback  -  Time at which last feedback was sent
@@ -152,14 +151,11 @@ struct ccid3_hc_rx_sock {
 #define ccid3hcrx_x_recv		ccid3hcrx_tfrc.tfrcrx_x_recv
 #define ccid3hcrx_rtt			ccid3hcrx_tfrc.tfrcrx_rtt
 #define ccid3hcrx_p			ccid3hcrx_tfrc.tfrcrx_p
-	u64				ccid3hcrx_seqno_nonloss:48,
-					ccid3hcrx_ccval_nonloss:4,
-					ccid3hcrx_ccval_last_counter:4;
+	u8				ccid3hcrx_last_counter:4;
 	enum ccid3_hc_rx_states		ccid3hcrx_state:8;
 	u32				ccid3hcrx_bytes_recv;
 	ktime_t				ccid3hcrx_tstamp_last_feedback;
-	ktime_t				ccid3hcrx_tstamp_last_ack;
-	struct list_head		ccid3hcrx_hist;
+	struct tfrc_rx_hist		ccid3hcrx_hist;
 	struct list_head		ccid3hcrx_li_hist;
 	u16				ccid3hcrx_s;
 	u32				ccid3hcrx_pinv;

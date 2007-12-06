@@ -36,7 +36,9 @@
  */
 
 #include <linux/string.h>
+#include <linux/slab.h>
 #include "packet_history.h"
+#include "../../dccp.h"
 
 /**
  *  tfrc_tx_hist_entry  -  Simple singly-linked TX history list
@@ -111,154 +113,214 @@ u32 tfrc_tx_hist_rtt(struct tfrc_tx_hist_entry *head, const u64 seqno,
 }
 EXPORT_SYMBOL_GPL(tfrc_tx_hist_rtt);
 
+
+/**
+ * tfrc_rx_hist_index - index to reach n-th entry after loss_start
+ */
+static inline u8 tfrc_rx_hist_index(const struct tfrc_rx_hist *h, const u8 n)
+{
+	return (h->loss_start + n) & TFRC_NDUPACK;
+}
+
+/**
+ * tfrc_rx_hist_last_rcv - entry with highest-received-seqno so far
+ */
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_last_rcv(const struct tfrc_rx_hist *h)
+{
+	return h->ring[tfrc_rx_hist_index(h, h->loss_count)];
+}
+
 /*
  * 	Receiver History Routines
  */
 static struct kmem_cache *tfrc_rx_hist_slab;
 
-struct tfrc_rx_hist_entry *tfrc_rx_hist_entry_new(const u32 ndp,
-						  const struct sk_buff *skb,
-						  const gfp_t prio)
+void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
+			     const struct sk_buff *skb,
+			     const u32 ndp)
 {
-	struct tfrc_rx_hist_entry *entry = kmem_cache_alloc(tfrc_rx_hist_slab,
-							    prio);
+	struct tfrc_rx_hist_entry *entry = tfrc_rx_hist_last_rcv(h);
+	const struct dccp_hdr *dh = dccp_hdr(skb);
 
-	if (entry != NULL) {
-		const struct dccp_hdr *dh = dccp_hdr(skb);
-
-		entry->tfrchrx_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
-		entry->tfrchrx_ccval = dh->dccph_ccval;
-		entry->tfrchrx_type  = dh->dccph_type;
-		entry->tfrchrx_ndp   = ndp;
-		entry->tfrchrx_tstamp = ktime_get_real();
-	}
-
-	return entry;
+	entry->tfrchrx_seqno = DCCP_SKB_CB(skb)->dccpd_seq;
+	entry->tfrchrx_ccval = dh->dccph_ccval;
+	entry->tfrchrx_type  = dh->dccph_type;
+	entry->tfrchrx_ndp   = ndp;
+	entry->tfrchrx_tstamp = ktime_get_real();
 }
-EXPORT_SYMBOL_GPL(tfrc_rx_hist_entry_new);
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_add_packet);
 
 static inline void tfrc_rx_hist_entry_delete(struct tfrc_rx_hist_entry *entry)
 {
 	kmem_cache_free(tfrc_rx_hist_slab, entry);
 }
 
-int tfrc_rx_hist_find_entry(const struct list_head *list, const u64 seq,
-			    u8 *ccval)
+/**
+ * tfrc_rx_hist_entry - return the n-th history entry after loss_start
+ */
+static inline struct tfrc_rx_hist_entry *
+		tfrc_rx_hist_entry(const struct tfrc_rx_hist *h, const u8 n)
 {
-	struct tfrc_rx_hist_entry *packet = NULL, *entry;
-
-	list_for_each_entry(entry, list, tfrchrx_node)
-		if (entry->tfrchrx_seqno == seq) {
-			packet = entry;
-			break;
-		}
-
-	if (packet)
-		*ccval = packet->tfrchrx_ccval;
-
-	return packet != NULL;
+	return h->ring[tfrc_rx_hist_index(h, n)];
 }
 
-EXPORT_SYMBOL_GPL(tfrc_rx_hist_find_entry);
-struct tfrc_rx_hist_entry *
-		tfrc_rx_hist_find_data_packet(const struct list_head *list)
+/**
+ * tfrc_rx_hist_loss_prev - entry with highest-received-seqno before loss was detected
+ */
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_loss_prev(const struct tfrc_rx_hist *h)
 {
-	struct tfrc_rx_hist_entry *entry, *packet = NULL;
-
-	list_for_each_entry(entry, list, tfrchrx_node)
-		if (entry->tfrchrx_type == DCCP_PKT_DATA ||
-		    entry->tfrchrx_type == DCCP_PKT_DATAACK) {
-			packet = entry;
-			break;
-		}
-
-	return packet;
+	return h->ring[h->loss_start];
 }
 
-EXPORT_SYMBOL_GPL(tfrc_rx_hist_find_data_packet);
-
-void tfrc_rx_hist_add_packet(struct list_head *rx_list,
-			     struct list_head *li_list,
-			     struct tfrc_rx_hist_entry *packet,
-			     u64 nonloss_seqno)
+/* has the packet contained in skb been seen before? */
+int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb)
 {
-	struct tfrc_rx_hist_entry *entry, *next;
-	u8 num_later = 0;
+	const u64 seq = DCCP_SKB_CB(skb)->dccpd_seq;
+	int i;
 
-	list_add(&packet->tfrchrx_node, rx_list);
+	if (dccp_delta_seqno(tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno, seq) <= 0)
+		return 1;
 
-	num_later = TFRC_RECV_NUM_LATE_LOSS + 1;
+	for (i = 1; i <= h->loss_count; i++)
+		if (tfrc_rx_hist_entry(h, i)->tfrchrx_seqno == seq)
+			return 1;
 
-	if (!list_empty(li_list)) {
-		list_for_each_entry_safe(entry, next, rx_list, tfrchrx_node) {
-			if (num_later == 0) {
-				if (after48(nonloss_seqno,
-				   entry->tfrchrx_seqno)) {
-					list_del_init(&entry->tfrchrx_node);
-					tfrc_rx_hist_entry_delete(entry);
-				}
-			} else if (tfrc_rx_hist_entry_data_packet(entry))
-				--num_later;
-		}
-	} else {
-		int step = 0;
-		u8 win_count = 0; /* Not needed, but lets shut up gcc */
-		int tmp;
-		/*
-		 * We have no loss interval history so we need at least one
-		 * rtt:s of data packets to approximate rtt.
-		 */
-		list_for_each_entry_safe(entry, next, rx_list, tfrchrx_node) {
-			if (num_later == 0) {
-				switch (step) {
-				case 0:
-					step = 1;
-					/* OK, find next data packet */
-					num_later = 1;
-					break;
-				case 1:
-					step = 2;
-					/* OK, find next data packet */
-					num_later = 1;
-					win_count = entry->tfrchrx_ccval;
-					break;
-				case 2:
-					tmp = win_count - entry->tfrchrx_ccval;
-					if (tmp < 0)
-						tmp += TFRC_WIN_COUNT_LIMIT;
-					if (tmp > TFRC_WIN_COUNT_PER_RTT + 1) {
-						/*
-						 * We have found a packet older
-						 * than one rtt remove the rest
-						 */
-						step = 3;
-					} else /* OK, find next data packet */
-						num_later = 1;
-					break;
-				case 3:
-					list_del_init(&entry->tfrchrx_node);
-					tfrc_rx_hist_entry_delete(entry);
-					break;
-				}
-			} else if (tfrc_rx_hist_entry_data_packet(entry))
-				--num_later;
-		}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_duplicate);
+
+/* initialise loss detection and disable RTT sampling */
+static inline void tfrc_rx_hist_loss_indicated(struct tfrc_rx_hist *h)
+{
+	h->loss_count = 1;
+}
+
+/* indicate whether previously a packet was detected missing */
+static inline int tfrc_rx_hist_loss_pending(const struct tfrc_rx_hist *h)
+{
+	return h->loss_count;
+}
+
+/* any data packets missing between last reception and skb ? */
+int tfrc_rx_hist_new_loss_indicated(struct tfrc_rx_hist *h,
+				    const struct sk_buff *skb, u32 ndp)
+{
+	int delta = dccp_delta_seqno(tfrc_rx_hist_last_rcv(h)->tfrchrx_seqno,
+				     DCCP_SKB_CB(skb)->dccpd_seq);
+
+	if (delta > 1 && ndp < delta)
+		tfrc_rx_hist_loss_indicated(h);
+
+	return tfrc_rx_hist_loss_pending(h);
+}
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_new_loss_indicated);
+
+int tfrc_rx_hist_alloc(struct tfrc_rx_hist *h)
+{
+	int i;
+
+	for (i = 0; i <= TFRC_NDUPACK; i++) {
+		h->ring[i] = kmem_cache_alloc(tfrc_rx_hist_slab, GFP_ATOMIC);
+		if (h->ring[i] == NULL)
+			goto out_free;
 	}
-}
 
-EXPORT_SYMBOL_GPL(tfrc_rx_hist_add_packet);
+	h->loss_count = h->loss_start = 0;
+	return 0;
 
-void tfrc_rx_hist_purge(struct list_head *list)
-{
-	struct tfrc_rx_hist_entry *entry, *next;
-
-	list_for_each_entry_safe(entry, next, list, tfrchrx_node) {
-		list_del_init(&entry->tfrchrx_node);
-		tfrc_rx_hist_entry_delete(entry);
+out_free:
+	while (i-- != 0) {
+		kmem_cache_free(tfrc_rx_hist_slab, h->ring[i]);
+		h->ring[i] = NULL;
 	}
+	return -ENOBUFS;
 }
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_alloc);
 
+void tfrc_rx_hist_purge(struct tfrc_rx_hist *h)
+{
+	int i;
+
+	for (i = 0; i <= TFRC_NDUPACK; ++i)
+		if (h->ring[i] != NULL) {
+			kmem_cache_free(tfrc_rx_hist_slab, h->ring[i]);
+			h->ring[i] = NULL;
+		}
+}
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_purge);
+
+/**
+ * tfrc_rx_hist_rtt_last_s - reference entry to compute RTT samples against
+ */
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_rtt_last_s(const struct tfrc_rx_hist *h)
+{
+	return h->ring[0];
+}
+
+/**
+ * tfrc_rx_hist_rtt_prev_s: previously suitable (wrt rtt_last_s) RTT-sampling entry
+ */
+static inline struct tfrc_rx_hist_entry *
+			tfrc_rx_hist_rtt_prev_s(const struct tfrc_rx_hist *h)
+{
+	return h->ring[h->rtt_sample_prev];
+}
+
+/**
+ * tfrc_rx_hist_sample_rtt  -  Sample RTT from timestamp / CCVal
+ * Based on ideas presented in RFC 4342, 8.1. Returns 0 if it was not able
+ * to compute a sample with given data - calling function should check this.
+ */
+u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
+{
+	u32 sample = 0,
+	    delta_v = SUB16(dccp_hdr(skb)->dccph_ccval,
+			    tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
+
+	if (delta_v < 1 || delta_v > 4) {	/* unsuitable CCVal delta */
+		if (h->rtt_sample_prev == 2) {	/* previous candidate stored */
+			sample = SUB16(tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_ccval,
+				       tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
+			if (sample)
+				sample = 4 / sample *
+				         ktime_us_delta(tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_tstamp,
+							tfrc_rx_hist_rtt_last_s(h)->tfrchrx_tstamp);
+			else    /*
+				 * FIXME: This condition is in principle not
+				 * possible but occurs when CCID is used for
+				 * two-way data traffic. I have tried to trace
+				 * it, but the cause does not seem to be here.
+				 */
+				DCCP_BUG("please report to dccp@vger.kernel.org"
+					 " => prev = %u, last = %u",
+					 tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_ccval,
+					 tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
+		} else if (delta_v < 1) {
+			h->rtt_sample_prev = 1;
+			goto keep_ref_for_next_time;
+		}
+
+	} else if (delta_v == 4) /* optimal match */
+		sample = ktime_to_us(net_timedelta(tfrc_rx_hist_rtt_last_s(h)->tfrchrx_tstamp));
+	else {			 /* suboptimal match */
+		h->rtt_sample_prev = 2;
+		goto keep_ref_for_next_time;
+	}
+
+	if (unlikely(sample > DCCP_SANE_RTT_MAX)) {
+		DCCP_WARN("RTT sample %u too large, using max\n", sample);
+		sample = DCCP_SANE_RTT_MAX;
+	}
+
+	h->rtt_sample_prev = 0;	       /* use current entry as next reference */
+keep_ref_for_next_time:
+
+	return sample;
+}
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_sample_rtt);
 
 __init int packet_history_init(void)
 {

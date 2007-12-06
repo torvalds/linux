@@ -129,6 +129,13 @@ static u32 dccp_li_calc_first_li(struct sock *sk,
 				 u16 s, u32 bytes_recv,
 				 u32 previous_x_recv)
 {
+/*
+ * FIXME:
+ * Will be rewritten in the upcoming new loss intervals code.
+ * Has to be commented ou because it relies on the old rx history
+ * data structures
+ */
+#if 0
 	struct tfrc_rx_hist_entry *entry, *next, *tail = NULL;
 	u32 x_recv, p;
 	suseconds_t rtt, delta;
@@ -216,10 +223,10 @@ found:
 	dccp_pr_debug("%s(%p), receive rate=%u bytes/s, implied "
 		      "loss rate=%u\n", dccp_role(sk), sk, x_recv, p);
 
-	if (p == 0)
-		return ~0;
-	else
+	if (p != 0)
 		return 1000000 / p;
+#endif
+	return ~0;
 }
 
 void dccp_li_update_li(struct sock *sk,
