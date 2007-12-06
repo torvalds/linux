@@ -2539,16 +2539,33 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 static void dump_slb(void)
 {
 	int i;
-	unsigned long tmp;
+	unsigned long esid,vsid,valid;
+	unsigned long llp;
 
 	printf("SLB contents of cpu %x\n", smp_processor_id());
 
 	for (i = 0; i < mmu_slb_size; i++) {
-		asm volatile("slbmfee  %0,%1" : "=r" (tmp) : "r" (i));
-		printf("%02d %016lx ", i, tmp);
-
-		asm volatile("slbmfev  %0,%1" : "=r" (tmp) : "r" (i));
-		printf("%016lx\n", tmp);
+		asm volatile("slbmfee  %0,%1" : "=r" (esid) : "r" (i));
+		asm volatile("slbmfev  %0,%1" : "=r" (vsid) : "r" (i));
+		valid = (esid & SLB_ESID_V);
+		if (valid | esid | vsid) {
+			printf("%02d %016lx %016lx", i, esid, vsid);
+			if (valid) {
+				llp = vsid & SLB_VSID_LLP;
+				if (vsid & SLB_VSID_B_1T) {
+					printf("  1T  ESID=%9lx  VSID=%13lx LLP:%3lx \n",
+						GET_ESID_1T(esid),
+						(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT_1T,
+						llp);
+				} else {
+					printf(" 256M ESID=%9lx  VSID=%13lx LLP:%3lx \n",
+						GET_ESID(esid),
+						(vsid & ~SLB_VSID_B) >> SLB_VSID_SHIFT,
+						llp);
+				}
+			} else
+				printf("\n");
+		}
 	}
 }
 
