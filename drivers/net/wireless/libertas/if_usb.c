@@ -101,6 +101,21 @@ static void if_usb_free(struct usb_card_rec *cardp)
 	lbs_deb_leave(LBS_DEB_USB);
 }
 
+static void if_usb_set_boot2_ver(struct lbs_private *priv)
+{
+	struct cmd_ds_set_boot2_ver b2_cmd;
+	int rsp_len = sizeof(b2_cmd);
+
+	b2_cmd.action = 0;
+	b2_cmd.version = cpu_to_le16(priv->boot2_version);
+
+	if (lbs_cmd(priv, CMD_SET_BOOT2_VER, &b2_cmd, sizeof(b2_cmd),
+		    &b2_cmd, &rsp_len)) {
+		lbs_deb_usb("Setting boot2 version failed\n");
+	}
+}
+
+
 /**
  *  @brief sets the configuration values
  *  @param ifnum	interface number
@@ -222,10 +237,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (lbs_start_card(priv))
 		goto err_start_card;
 
-	/* Set the boot2 version in firmware, ignoring errors. */
-	(void)lbs_prepare_and_send_command(priv, CMD_SET_BOOT2_VER,
-					   0, CMD_OPTION_WAITFORRSP, 0, NULL);
-
+	if_usb_set_boot2_ver(priv);
 
 	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);
