@@ -69,6 +69,17 @@ static const char pci_io_text[] = "iSeries PCI I/O";
 static DEFINE_SPINLOCK(iomm_table_lock);
 
 /*
+ * Generate a Direct Select Address for the Hypervisor
+ */
+static inline u64 iseries_ds_addr(struct device_node *node)
+{
+	struct pci_dn *pdn = PCI_DN(node);
+
+	return ((u64)pdn->busno << 48) + ((u64)pdn->bussubno << 40)
+			+ ((u64)0x10 << 32);
+}
+
+/*
  * iomm_table_allocate_entry
  *
  * Adds pci_dev entry in address translation table
