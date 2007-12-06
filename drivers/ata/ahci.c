@@ -1271,9 +1271,9 @@ static int ahci_do_softreset(struct ata_link *link, unsigned int *class,
 
 	/* prepare for SRST (AHCI-1.1 10.4.1) */
 	rc = ahci_kick_engine(ap, 1);
-	if (rc)
+	if (rc && rc != -EOPNOTSUPP)
 		ata_link_printk(link, KERN_WARNING,
-				"failed to reset engine (errno=%d)", rc);
+				"failed to reset engine (errno=%d)\n", rc);
 
 	ata_tf_init(link->device, &tf);
 
