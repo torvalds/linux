@@ -115,15 +115,10 @@ int pcibios_vaddr_is_ioport(void __iomem *address)
  */
 int pci_domain_nr(struct pci_bus *bus)
 {
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		return 0;
-	else {
-		struct pci_controller *hose = pci_bus_to_host(bus);
+	struct pci_controller *hose = pci_bus_to_host(bus);
 
-		return hose->global_number;
-	}
+	return hose->global_number;
 }
-
 EXPORT_SYMBOL(pci_domain_nr);
 
 #ifdef CONFIG_PPC_OF

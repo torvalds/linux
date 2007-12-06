@@ -673,6 +673,8 @@ void __init iSeries_pcibios_init(void)
 		phb = pcibios_alloc_controller(node);
 		if (phb == NULL)
 			continue;
+		/* All legacy iSeries PHBs are in domain zero */
+		phb->global_number = 0;
 
 		phb->pci_mem_offset = bus;
 		phb->first_busno = bus;
