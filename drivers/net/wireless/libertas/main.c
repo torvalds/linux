@@ -616,6 +616,24 @@ static void lbs_tx_timeout(struct net_device *dev)
 	lbs_deb_leave(LBS_DEB_TX);
 }
 
+void lbs_host_to_card_done(struct lbs_private *priv)
+{
+	struct lbs_adapter *adapter = priv->adapter;
+
+	priv->dnld_sent = DNLD_RES_RECEIVED;
+
+	/* Wake main thread if commands are pending */
+	if (!adapter->cur_cmd)
+		wake_up_interruptible(&priv->waitq);
+
+	if (priv->dev && adapter->connect_status == LBS_CONNECTED)
+		netif_wake_queue(priv->dev);
+
+	if (priv->mesh_dev && adapter->mesh_connect_status == LBS_CONNECTED)
+		netif_wake_queue(priv->mesh_dev);
+}
+EXPORT_SYMBOL_GPL(lbs_host_to_card_done);
+
 /**
  *  @brief This function returns the network statistics
  *

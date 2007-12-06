@@ -835,12 +835,9 @@ static void if_sdio_interrupt(struct sdio_func *func)
 	 * Ignore the define name, this really means the card has
 	 * successfully received the command.
 	 */
-	if (cause & IF_SDIO_H_INT_DNLD) {
-		if ((card->priv->dnld_sent == DNLD_DATA_SENT) &&
-			(card->priv->adapter->connect_status == LBS_CONNECTED))
-			netif_wake_queue(card->priv->dev);
-		card->priv->dnld_sent = DNLD_RES_RECEIVED;
-	}
+	if (cause & IF_SDIO_H_INT_DNLD)
+		lbs_host_to_card_done(card->priv);
+
 
 	if (cause & IF_SDIO_H_INT_UPLD) {
 		ret = if_sdio_card_to_host(card);

@@ -253,19 +253,13 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		/* Not for us */
 		return IRQ_NONE;
 
-	} else if(int_cause == 0xffff) {
+	} else if (int_cause == 0xffff) {
 		/* Read in junk, the card has probably been removed */
 		card->priv->adapter->surpriseremoved = 1;
 
 	} else {
-		if(int_cause & IF_CS_H_IC_TX_OVER) {
-			card->priv->dnld_sent = DNLD_RES_RECEIVED;
-			if (!card->priv->adapter->cur_cmd)
-				wake_up_interruptible(&card->priv->waitq);
-
-			if (card->priv->adapter->connect_status == LBS_CONNECTED)
-				netif_wake_queue(card->priv->dev);
-		}
+		if (int_cause & IF_CS_H_IC_TX_OVER)
+			lbs_host_to_card_done(card->priv);
 
 		/* clear interrupt */
 		if_cs_write16(card, IF_CS_C_INT_CAUSE, int_cause & IF_CS_C_IC_MASK);

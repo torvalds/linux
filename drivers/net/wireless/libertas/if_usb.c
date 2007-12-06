@@ -66,22 +66,8 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		/* Used for both firmware TX and regular TX.  priv isn't
 		 * valid at firmware load time.
 		 */
-		if (priv) {
-			struct lbs_adapter *adapter = priv->adapter;
-			struct net_device *dev = priv->dev;
-
-			priv->dnld_sent = DNLD_RES_RECEIVED;
-
-			/* Wake main thread if commands are pending */
-			if (!adapter->cur_cmd)
-				wake_up_interruptible(&priv->waitq);
-
-			if (adapter->connect_status == LBS_CONNECTED)
-				netif_wake_queue(dev);
-
-			if (priv->mesh_dev && (adapter->mesh_connect_status == LBS_CONNECTED))
-				netif_wake_queue(priv->mesh_dev);
-		}
+		if (priv)
+			lbs_host_to_card_done(priv);
 	} else {
 		/* print the failure status number for debug */
 		lbs_pr_info("URB in failure status: %d\n", urb->status);
