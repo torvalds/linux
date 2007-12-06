@@ -44,6 +44,10 @@ static int force_start;
 module_param(force_start, bool, 0);
 MODULE_PARM_DESC(force_start, "Force the chip to start monitoring inputs");
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 /* Addresses to scan */
 static unsigned short normal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
 
@@ -2191,7 +2195,7 @@ static int __init dme1737_isa_detect(int sio_cip, unsigned short *addr)
 	/* Check device ID
 	 * We currently know about SCH3112 (0x7c), SCH3114 (0x7d), and
 	 * SCH3116 (0x7f). */
-	reg = dme1737_sio_inb(sio_cip, 0x20);
+	reg = force_id ? force_id : dme1737_sio_inb(sio_cip, 0x20);
 	if (!(reg == 0x7c || reg == 0x7d || reg == 0x7f)) {
 		err = -ENODEV;
 		goto exit;

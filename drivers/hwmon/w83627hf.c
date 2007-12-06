@@ -75,6 +75,10 @@ static int init = 1;
 module_param(init, bool, 0);
 MODULE_PARM_DESC(init, "Set to zero to bypass chip initialization");
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 /* modified from kernel/include/traps.c */
 static int REG;		/* The register to read/write */
 #define	DEV	0x07	/* Register: Logical device select */
@@ -1014,7 +1018,7 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr,
 	VAL = sioaddr + 1;
 
 	superio_enter();
-	val= superio_inb(DEVID);
+	val = force_id ? force_id : superio_inb(DEVID);
 	switch (val) {
 	case W627_DEVID:
 		sio_data->type = w83627hf;

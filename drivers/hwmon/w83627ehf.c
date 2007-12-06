@@ -59,6 +59,10 @@ static const char * w83627ehf_device_names[] = {
 	"w83627dhg",
 };
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 #define DRVNAME "w83627ehf"
 
 /*
@@ -1445,8 +1449,11 @@ static int __init w83627ehf_find(int sioaddr, unsigned short *addr,
 
 	superio_enter(sioaddr);
 
-	val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8)
-	    | superio_inb(sioaddr, SIO_REG_DEVID + 1);
+	if (force_id)
+		val = force_id;
+	else
+		val = (superio_inb(sioaddr, SIO_REG_DEVID) << 8)
+		    | superio_inb(sioaddr, SIO_REG_DEVID + 1);
 	switch (val & SIO_ID_MASK) {
 	case SIO_W83627EHF_ID:
 		sio_data->kind = w83627ehf;

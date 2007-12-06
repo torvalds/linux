@@ -52,6 +52,10 @@
 
 enum chips { it87, it8712, it8716, it8718 };
 
+static unsigned short force_id;
+module_param(force_id, ushort, 0);
+MODULE_PARM_DESC(force_id, "Override the detected device ID");
+
 static struct platform_device *pdev;
 
 #define	REG	0x2e	/* The register to read/write */
@@ -906,7 +910,7 @@ static int __init it87_find(unsigned short *address,
 	u16 chip_type;
 
 	superio_enter();
-	chip_type = superio_inw(DEVID);
+	chip_type = force_id ? force_id : superio_inw(DEVID);
 
 	switch (chip_type) {
 	case IT8705F_DEVID:
