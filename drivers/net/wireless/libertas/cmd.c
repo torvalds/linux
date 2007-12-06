@@ -2072,7 +2072,7 @@ int lbs_cmd(struct lbs_private *priv,
 	/* Set sequence number, clean result, move to buffer */
 	adapter->seqnum++;
 	cmdptr->command = cpu_to_le16(command);
-	cmdptr->size    = cmd_size + S_DS_GEN;
+	cmdptr->size    = cpu_to_le16(cmd_size + S_DS_GEN);
 	cmdptr->seqnum = cpu_to_le16(adapter->seqnum);
 	cmdptr->result = 0;
 	memcpy(cmdptr->cmdresp, cmd, cmd_size);
