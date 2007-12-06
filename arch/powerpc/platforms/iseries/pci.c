@@ -342,7 +342,7 @@ static int check_return_code(char *type, struct device_node *dn,
  */
 static inline struct device_node *xlate_iomm_address(
 		const volatile void __iomem *addr,
-		u64 *dsaptr, u64 *bar_offset)
+		u64 *dsaptr, u64 *bar_offset, const char *func)
 {
 	unsigned long orig_addr;
 	unsigned long base_addr;
@@ -350,8 +350,20 @@ static inline struct device_node *xlate_iomm_address(
 	struct device_node *dn;
 
 	orig_addr = (unsigned long __force)addr;
-	if ((orig_addr < BASE_IO_MEMORY) || (orig_addr >= max_io_memory))
+	if ((orig_addr < BASE_IO_MEMORY) || (orig_addr >= max_io_memory)) {
+		static unsigned long last_jiffies;
+		static int num_printed;
+
+		if ((jiffies - last_jiffies) > 60 * HZ) {
+			last_jiffies = jiffies;
+			num_printed = 0;
+		}
+		if (num_printed++ < 10)
+			printk(KERN_ERR
+				"iSeries_%s: invalid access at IO address %p\n",
+				func, addr);
 		return NULL;
+	}
 	base_addr = orig_addr - BASE_IO_MEMORY;
 	ind = base_addr / IOMM_TABLE_ENTRY_SIZE;
 	dn = iomm_table[ind];
@@ -377,21 +389,10 @@ static u8 iSeries_read_byte(const volatile void __iomem *addr)
 	int retry = 0;
 	struct HvCallPci_LoadReturn ret;
 	struct device_node *dn =
-		xlate_iomm_address(addr, &dsa, &bar_offset);
+		xlate_iomm_address(addr, &dsa, &bar_offset, "read_byte");
 
-	if (dn == NULL) {
-		static unsigned long last_jiffies;
-		static int num_printed;
-
-		if ((jiffies - last_jiffies) > 60 * HZ) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
-			printk(KERN_ERR "iSeries_read_byte: invalid access at IO address %p\n",
-			       addr);
+	if (dn == NULL)
 		return 0xff;
-	}
 	do {
 		HvCall3Ret16(HvCallPciBarLoad8, &ret, dsa, bar_offset, 0);
 	} while (check_return_code("RDB", dn, &retry, ret.rc) != 0);
@@ -406,21 +407,10 @@ static u16 iSeries_read_word(const volatile void __iomem *addr)
 	int retry = 0;
 	struct HvCallPci_LoadReturn ret;
 	struct device_node *dn =
-		xlate_iomm_address(addr, &dsa, &bar_offset);
+		xlate_iomm_address(addr, &dsa, &bar_offset, "read_word");
 
-	if (dn == NULL) {
-		static unsigned long last_jiffies;
-		static int num_printed;
-
-		if ((jiffies - last_jiffies) > 60 * HZ) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
-			printk(KERN_ERR "iSeries_read_word: invalid access at IO address %p\n",
-			       addr);
+	if (dn == NULL)
 		return 0xffff;
-	}
 	do {
 		HvCall3Ret16(HvCallPciBarLoad16, &ret, dsa,
 				bar_offset, 0);
@@ -436,21 +426,10 @@ static u32 iSeries_read_long(const volatile void __iomem *addr)
 	int retry = 0;
 	struct HvCallPci_LoadReturn ret;
 	struct device_node *dn =
-		xlate_iomm_address(addr, &dsa, &bar_offset);
+		xlate_iomm_address(addr, &dsa, &bar_offset, "read_long");
 
-	if (dn == NULL) {
-		static unsigned long last_jiffies;
-		static int num_printed;
-
-		if ((jiffies - last_jiffies) > 60 * HZ) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
-			printk(KERN_ERR "iSeries_read_long: invalid access at IO address %p\n",
-			       addr);
+	if (dn == NULL)
 		return 0xffffffff;
-	}
 	do {
 		HvCall3Ret16(HvCallPciBarLoad32, &ret, dsa,
 				bar_offset, 0);
@@ -470,20 +449,10 @@ static void iSeries_write_byte(u8 data, volatile void __iomem *addr)
 	int retry = 0;
 	u64 rc;
 	struct device_node *dn =
-		xlate_iomm_address(addr, &dsa, &bar_offset);
+		xlate_iomm_address(addr, &dsa, &bar_offset, "write_byte");
 
-	if (dn == NULL) {
-		static unsigned long last_jiffies;
-		static int num_printed;
-
-		if ((jiffies - last_jiffies) > 60 * HZ) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
-			printk(KERN_ERR "iSeries_write_byte: invalid access at IO address %p\n", addr);
+	if (dn == NULL)
 		return;
-	}
 	do {
 		rc = HvCall4(HvCallPciBarStore8, dsa, bar_offset, data, 0);
 	} while (check_return_code("WWB", dn, &retry, rc) != 0);
@@ -496,21 +465,10 @@ static void iSeries_write_word(u16 data, volatile void __iomem *addr)
 	int retry = 0;
 	u64 rc;
 	struct device_node *dn =
-		xlate_iomm_address(addr, &dsa, &bar_offset);
+		xlate_iomm_address(addr, &dsa, &bar_offset, "write_word");
 
-	if (dn == NULL) {
-		static unsigned long last_jiffies;
-		static int num_printed;
-
-		if ((jiffies - last_jiffies) > 60 * HZ) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
-			printk(KERN_ERR "iSeries_write_word: invalid access at IO address %p\n",
-			       addr);
+	if (dn == NULL)
 		return;
-	}
 	do {
 		rc = HvCall4(HvCallPciBarStore16, dsa, bar_offset, data, 0);
 	} while (check_return_code("WWW", dn, &retry, rc) != 0);
@@ -523,21 +481,10 @@ static void iSeries_write_long(u32 data, volatile void __iomem *addr)
 	int retry = 0;
 	u64 rc;
 	struct device_node *dn =
-		xlate_iomm_address(addr, &dsa, &bar_offset);
+		xlate_iomm_address(addr, &dsa, &bar_offset, "write_long");
 
-	if (dn == NULL) {
-		static unsigned long last_jiffies;
-		static int num_printed;
-
-		if ((jiffies - last_jiffies) > 60 * HZ) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
-			printk(KERN_ERR "iSeries_write_long: invalid access at IO address %p\n",
-			       addr);
+	if (dn == NULL)
 		return;
-	}
 	do {
 		rc = HvCall4(HvCallPciBarStore32, dsa, bar_offset, data, 0);
 	} while (check_return_code("WWL", dn, &retry, rc) != 0);
