@@ -656,11 +656,14 @@ retry:
 		goto write_error;
 	}
 
-	err = ubi_io_write_data(ubi, buf, pnum, offset, len);
-	if (err) {
-		ubi_warn("failed to write %d bytes at offset %d of LEB %d:%d, "
-			 "PEB %d", len, offset, vol_id, lnum, pnum);
-		goto write_error;
+	if (len) {
+		err = ubi_io_write_data(ubi, buf, pnum, offset, len);
+		if (err) {
+			ubi_warn("failed to write %d bytes at offset %d of "
+				 "LEB %d:%d, PEB %d", len, offset, vol_id,
+				 lnum, pnum);
+			goto write_error;
+		}
 	}
 
 	vol->eba_tbl[lnum] = pnum;

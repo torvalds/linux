@@ -547,6 +547,51 @@ int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 EXPORT_SYMBOL_GPL(ubi_leb_unmap);
 
 /**
+ * ubi_leb_map - map logical erasblock to a physical eraseblock.
+ * @desc: volume descriptor
+ * @lnum: logical eraseblock number
+ * @dtype: expected data type
+ *
+ * This function maps an un-mapped logical eraseblock @lnum to a physical
+ * eraseblock. This means, that after a successfull invocation of this
+ * function the logical eraseblock @lnum will be empty (contain only %0xFF
+ * bytes) and be mapped to a physical eraseblock, even if an unclean reboot
+ * happens.
+ *
+ * This function returns zero in case of success, %-EBADF if the volume is
+ * damaged because of an interrupted update, %-EBADMSG if the logical
+ * eraseblock is already mapped, and other negative error codes in case of
+ * other failures.
+ */
+int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
+{
+	struct ubi_volume *vol = desc->vol;
+	struct ubi_device *ubi = vol->ubi;
+	int vol_id = vol->vol_id;
+
+	dbg_msg("unmap LEB %d:%d", vol_id, lnum);
+
+	if (desc->mode == UBI_READONLY || vol->vol_type == UBI_STATIC_VOLUME)
+		return -EROFS;
+
+	if (lnum < 0 || lnum >= vol->reserved_pebs)
+		return -EINVAL;
+
+	if (dtype != UBI_LONGTERM && dtype != UBI_SHORTTERM &&
+	    dtype != UBI_UNKNOWN)
+		return -EINVAL;
+
+	if (vol->upd_marker)
+		return -EBADF;
+
+	if (vol->eba_tbl[lnum] >= 0)
+		return -EBADMSG;
+
+	return ubi_eba_write_leb(ubi, vol_id, lnum, NULL, 0, 0, dtype);
+}
+EXPORT_SYMBOL_GPL(ubi_leb_map);
+
+/**
  * ubi_is_mapped - check if logical eraseblock is mapped.
  * @desc: volume descriptor
  * @lnum: logical eraseblock number

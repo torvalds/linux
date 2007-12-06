@@ -167,6 +167,7 @@ int ubi_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 		   int len, int dtype);
 int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum);
 int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum);
+int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype);
 int ubi_is_mapped(struct ubi_volume_desc *desc, int lnum);
 
 /*
