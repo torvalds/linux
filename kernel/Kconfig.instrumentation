@@ -20,8 +20,8 @@ config PROFILING
 
 config OPROFILE
 	tristate "OProfile system profiling (EXPERIMENTAL)"
-	depends on PROFILING
-	depends on (ARCH_SUPPORTS_OPROFILE || ALPHA || ARM || BLACKFIN || X86_32 || IA64 || M32R || PARISC || PPC || S390 || SUPERH || SPARC || X86_64) && !UML
+	depends on PROFILING && !UML
+	depends on ARCH_SUPPORTS_OPROFILE || ALPHA || ARM || BLACKFIN || IA64 || M32R || PARISC || PPC || S390 || SUPERH || SPARC
 	help
 	  OProfile is a profiling system capable of profiling the
 	  whole system, include the kernel, kernel modules, libraries,
@@ -31,8 +31,8 @@ config OPROFILE
 
 config KPROBES
 	bool "Kprobes"
-	depends on KALLSYMS && MODULES
-	depends on (X86_32 || IA64 || PPC || S390 || SPARC64 || X86_64 || AVR32) && !UML
+	depends on KALLSYMS && MODULES && !UML
+	depends on X86_32 || IA64 || PPC || S390 || SPARC64 || X86_64 || AVR32
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
