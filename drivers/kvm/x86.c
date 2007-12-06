@@ -2236,6 +2236,8 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 		return vcpu->cr3;
 	case 4:
 		return vcpu->cr4;
+	case 8:
+		return get_cr8(vcpu);
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
 		return 0;
@@ -2258,6 +2260,9 @@ void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
 		break;
 	case 4:
 		set_cr4(vcpu, mk_cr_64(vcpu->cr4, val));
+		break;
+	case 8:
+		set_cr8(vcpu, val & 0xfUL);
 		break;
 	default:
 		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __FUNCTION__, cr);
