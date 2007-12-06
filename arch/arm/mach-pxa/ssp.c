@@ -32,38 +32,17 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
+#include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/arch/ssp.h>
 #include <asm/arch/pxa-regs.h>
 
-#define PXA_SSP_PORTS 	3
-
 #define TIMEOUT 100000
-
-struct ssp_info_ {
-	int irq;
-	u32 clock;
-};
-
-/*
- * SSP port clock and IRQ settings
- */
-static const struct ssp_info_ ssp_info[PXA_SSP_PORTS] = {
-#if defined (CONFIG_PXA27x)
-	{IRQ_SSP,	CKEN_SSP1},
-	{IRQ_SSP2,	CKEN_SSP2},
-	{IRQ_SSP3,	CKEN_SSP3},
-#else
-	{IRQ_SSP,	CKEN_SSP},
-	{IRQ_NSSP,	CKEN_NSSP},
-	{IRQ_ASSP,	CKEN_ASSP},
-#endif
-};
-
-static DEFINE_MUTEX(mutex);
-static int use_count[PXA_SSP_PORTS] = {0, 0, 0};
 
 static irqreturn_t ssp_interrupt(int irq, void *dev_id)
 {
@@ -256,44 +235,32 @@ int ssp_config(struct ssp_dev *dev, u32 mode, u32 flags, u32 psp_flags, u32 spee
  */
 int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags)
 {
+	struct ssp_device *ssp;
 	int ret;
 
-	if (port > PXA_SSP_PORTS || port == 0)
+	ssp = ssp_request(port, "SSP");
+	if (ssp == NULL)
 		return -ENODEV;
 
-	mutex_lock(&mutex);
-	if (use_count[port - 1]) {
-		mutex_unlock(&mutex);
-		return -EBUSY;
-	}
-	use_count[port - 1]++;
-
-	if (!request_mem_region(__PREG(SSCR0_P(port)), 0x2c, "SSP")) {
-		use_count[port - 1]--;
-		mutex_unlock(&mutex);
-		return -EBUSY;
-	}
+	dev->ssp = ssp;
 	dev->port = port;
 
 	/* do we need to get irq */
 	if (!(init_flags & SSP_NO_IRQ)) {
-		ret = request_irq(ssp_info[port-1].irq, ssp_interrupt,
+		ret = request_irq(ssp->irq, ssp_interrupt,
 				0, "SSP", dev);
 	    	if (ret)
 			goto out_region;
-	    	dev->irq = ssp_info[port-1].irq;
+		dev->irq = ssp->irq;
 	} else
 		dev->irq = 0;
 
 	/* turn on SSP port clock */
-	pxa_set_cken(ssp_info[port-1].clock, 1);
-	mutex_unlock(&mutex);
+	clk_enable(ssp->clk);
 	return 0;
 
 out_region:
-	release_mem_region(__PREG(SSCR0_P(port)), 0x2c);
-	use_count[port - 1]--;
-	mutex_unlock(&mutex);
+	ssp_free(ssp);
 	return ret;
 }
 
@@ -304,22 +271,239 @@ out_region:
  */
 void ssp_exit(struct ssp_dev *dev)
 {
-	mutex_lock(&mutex);
-	SSCR0_P(dev->port) &= ~SSCR0_SSE;
+	struct ssp_device *ssp = dev->ssp;
 
-    	if (dev->port > PXA_SSP_PORTS || dev->port == 0) {
-		printk(KERN_WARNING "SSP: tried to close invalid port\n");
-		mutex_unlock(&mutex);
-		return;
+	SSCR0_P(dev->port) &= ~SSCR0_SSE;
+	free_irq(dev->irq, dev);
+	clk_disable(ssp->clk);
+	ssp_free(ssp);
+}
+
+static DEFINE_MUTEX(ssp_lock);
+static LIST_HEAD(ssp_list);
+
+struct ssp_device *ssp_request(int port, const char *label)
+{
+	struct ssp_device *ssp = NULL;
+
+	mutex_lock(&ssp_lock);
+
+	list_for_each_entry(ssp, &ssp_list, node) {
+		if (ssp->port_id == port && ssp->use_count == 0) {
+			ssp->use_count++;
+			ssp->label = label;
+			break;
+		}
 	}
 
-	pxa_set_cken(ssp_info[dev->port-1].clock, 0);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	release_mem_region(__PREG(SSCR0_P(dev->port)), 0x2c);
-	use_count[dev->port - 1]--;
-	mutex_unlock(&mutex);
+	mutex_unlock(&ssp_lock);
+
+	if (ssp->port_id != port)
+		return NULL;
+
+	return ssp;
 }
+EXPORT_SYMBOL(ssp_request);
+
+void ssp_free(struct ssp_device *ssp)
+{
+	mutex_lock(&ssp_lock);
+	if (ssp->use_count) {
+		ssp->use_count--;
+		ssp->label = NULL;
+	} else
+		dev_err(&ssp->pdev->dev, "device already free\n");
+	mutex_unlock(&ssp_lock);
+}
+EXPORT_SYMBOL(ssp_free);
+
+static int __devinit ssp_probe(struct platform_device *pdev, int type)
+{
+	struct resource *res;
+	struct ssp_device *ssp;
+	int ret = 0;
+
+	ssp = kzalloc(sizeof(struct ssp_device), GFP_KERNEL);
+	if (ssp == NULL) {
+		dev_err(&pdev->dev, "failed to allocate memory");
+		return -ENOMEM;
+	}
+
+	ssp->clk = clk_get(&pdev->dev, "SSPCLK");
+	if (IS_ERR(ssp->clk)) {
+		ret = PTR_ERR(ssp->clk);
+		goto err_free;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "no memory resource defined\n");
+		ret = -ENODEV;
+		goto err_free_clk;
+	}
+
+	res = request_mem_region(res->start, res->end - res->start + 1,
+			pdev->name);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "failed to request memory resource\n");
+		ret = -EBUSY;
+		goto err_free_clk;
+	}
+
+	ssp->phys_base = res->start;
+
+	ssp->mmio_base = ioremap(res->start, res->end - res->start + 1);
+	if (ssp->mmio_base == NULL) {
+		dev_err(&pdev->dev, "failed to ioremap() registers\n");
+		ret = -ENODEV;
+		goto err_free_mem;
+	}
+
+	ssp->irq = platform_get_irq(pdev, 0);
+	if (ssp->irq < 0) {
+		dev_err(&pdev->dev, "no IRQ resource defined\n");
+		ret = -ENODEV;
+		goto err_free_io;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "no SSP RX DRCMR defined\n");
+		ret = -ENODEV;
+		goto err_free_io;
+	}
+	ssp->drcmr_rx = res->start;
+
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "no SSP TX DRCMR defined\n");
+		ret = -ENODEV;
+		goto err_free_io;
+	}
+	ssp->drcmr_tx = res->start;
+
+	/* PXA2xx/3xx SSP ports starts from 1 and the internal pdev->id
+	 * starts from 0, do a translation here
+	 */
+	ssp->port_id = pdev->id + 1;
+	ssp->use_count = 0;
+	ssp->type = type;
+
+	mutex_lock(&ssp_lock);
+	list_add(&ssp->node, &ssp_list);
+	mutex_unlock(&ssp_lock);
+
+	platform_set_drvdata(pdev, ssp);
+	return 0;
+
+err_free_io:
+	iounmap(ssp->mmio_base);
+err_free_mem:
+	release_mem_region(res->start, res->end - res->start + 1);
+err_free_clk:
+	clk_put(ssp->clk);
+err_free:
+	kfree(ssp);
+	return ret;
+}
+
+static int __devexit ssp_remove(struct platform_device *pdev)
+{
+	struct resource *res;
+	struct ssp_device *ssp;
+
+	ssp = platform_get_drvdata(pdev);
+	if (ssp == NULL)
+		return -ENODEV;
+
+	iounmap(ssp->mmio_base);
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	release_mem_region(res->start, res->end - res->start + 1);
+
+	clk_put(ssp->clk);
+
+	mutex_lock(&ssp_lock);
+	list_del(&ssp->node);
+	mutex_unlock(&ssp_lock);
+
+	kfree(ssp);
+	return 0;
+}
+
+static int __devinit pxa25x_ssp_probe(struct platform_device *pdev)
+{
+	return ssp_probe(pdev, PXA25x_SSP);
+}
+
+static int __devinit pxa25x_nssp_probe(struct platform_device *pdev)
+{
+	return ssp_probe(pdev, PXA25x_NSSP);
+}
+
+static int __devinit pxa27x_ssp_probe(struct platform_device *pdev)
+{
+	return ssp_probe(pdev, PXA27x_SSP);
+}
+
+static struct platform_driver pxa25x_ssp_driver = {
+	.driver		= {
+		.name	= "pxa25x-ssp",
+	},
+	.probe		= pxa25x_ssp_probe,
+	.remove		= __devexit_p(ssp_remove),
+};
+
+static struct platform_driver pxa25x_nssp_driver = {
+	.driver		= {
+		.name	= "pxa25x-nssp",
+	},
+	.probe		= pxa25x_nssp_probe,
+	.remove		= __devexit_p(ssp_remove),
+};
+
+static struct platform_driver pxa27x_ssp_driver = {
+	.driver		= {
+		.name	= "pxa27x-ssp",
+	},
+	.probe		= pxa27x_ssp_probe,
+	.remove		= __devexit_p(ssp_remove),
+};
+
+static int __init pxa_ssp_init(void)
+{
+	int ret = 0;
+
+	ret = platform_driver_register(&pxa25x_ssp_driver);
+	if (ret) {
+		printk(KERN_ERR "failed to register pxa25x_ssp_driver");
+		return ret;
+	}
+
+	ret = platform_driver_register(&pxa25x_nssp_driver);
+	if (ret) {
+		printk(KERN_ERR "failed to register pxa25x_nssp_driver");
+		return ret;
+	}
+
+	ret = platform_driver_register(&pxa27x_ssp_driver);
+	if (ret) {
+		printk(KERN_ERR "failed to register pxa27x_ssp_driver");
+		return ret;
+	}
+
+	return ret;
+}
+
+static void __exit pxa_ssp_exit(void)
+{
+	platform_driver_unregister(&pxa25x_ssp_driver);
+	platform_driver_unregister(&pxa25x_nssp_driver);
+	platform_driver_unregister(&pxa27x_ssp_driver);
+}
+
+module_init(pxa_ssp_init);
+module_exit(pxa_ssp_exit);
 
 EXPORT_SYMBOL(ssp_write_word);
 EXPORT_SYMBOL(ssp_read_word);
