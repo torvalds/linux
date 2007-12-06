@@ -45,15 +45,8 @@
 #include "pci.h"
 #include "call_pci.h"
 
-/*
- * Forward declares of prototypes.
- */
-static struct device_node *find_Device_Node(int bus, int devfn);
-
 static int Pci_Retry_Max = 3;	/* Only retry 3 times  */
 static int Pci_Error_Flag = 1;	/* Set Retry Error on. */
-
-static struct pci_ops iSeries_pci_ops;
 
 /*
  * Table defines
@@ -155,6 +148,22 @@ static void pci_Log_Error(char *Error_Text, int Bus, int SubBus,
 }
 
 /*
+ * Look down the chain to find the matching Device Device
+ */
+static struct device_node *find_Device_Node(int bus, int devfn)
+{
+	struct device_node *node;
+
+	for (node = NULL; (node = of_find_all_nodes(node)); ) {
+		struct pci_dn *pdn = PCI_DN(node);
+
+		if (pdn && (bus == pdn->busno) && (devfn == pdn->devfn))
+			return node;
+	}
+	return NULL;
+}
+
+/*
  * iSeries_pci_final_fixup(void)
  */
 void __init iSeries_pci_final_fixup(void)
@@ -212,22 +221,6 @@ void __init iSeries_pci_final_fixup(void)
 	}
 	iSeries_activate_IRQs();
 	mf_display_src(0xC9000200);
-}
-
-/*
- * Look down the chain to find the matching Device Device
- */
-static struct device_node *find_Device_Node(int bus, int devfn)
-{
-	struct device_node *node;
-
-	for (node = NULL; (node = of_find_all_nodes(node)); ) {
-		struct pci_dn *pdn = PCI_DN(node);
-
-		if (pdn && (bus == pdn->busno) && (devfn == pdn->devfn))
-			return node;
-	}
-	return NULL;
 }
 
 #if 0
