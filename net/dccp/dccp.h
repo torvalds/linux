@@ -334,6 +334,7 @@ struct dccp_skb_cb {
 
 #define DCCP_SKB_CB(__skb) ((struct dccp_skb_cb *)&((__skb)->cb[0]))
 
+/* RFC 4340, sec. 7.7 */
 static inline int dccp_non_data_packet(const struct sk_buff *skb)
 {
 	const __u8 type = DCCP_SKB_CB(skb)->dccpd_type;
@@ -344,6 +345,17 @@ static inline int dccp_non_data_packet(const struct sk_buff *skb)
 	       type == DCCP_PKT_RESET	 ||
 	       type == DCCP_PKT_SYNC	 ||
 	       type == DCCP_PKT_SYNCACK;
+}
+
+/* RFC 4340, sec. 7.7 */
+static inline int dccp_data_packet(const struct sk_buff *skb)
+{
+	const __u8 type = DCCP_SKB_CB(skb)->dccpd_type;
+
+	return type == DCCP_PKT_DATA	 ||
+	       type == DCCP_PKT_DATAACK  ||
+	       type == DCCP_PKT_REQUEST  ||
+	       type == DCCP_PKT_RESPONSE;
 }
 
 static inline int dccp_packet_without_ack(const struct sk_buff *skb)
