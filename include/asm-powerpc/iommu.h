@@ -69,10 +69,9 @@ struct iommu_table {
 };
 
 struct scatterlist;
-struct device_node;
 
 /* Frees table for an individual device node */
-extern void iommu_free_table(struct device_node *dn);
+extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
 
 /* Initializes an iommu_table based in values set in the passed-in
  * structure

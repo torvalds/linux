@@ -556,7 +556,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 	case PSERIES_RECONFIG_REMOVE:
 		if (pci && pci->iommu_table &&
 		    of_get_property(np, "ibm,dma-window", NULL))
-			iommu_free_table(np);
+			iommu_free_table(pci->iommu_table, np->full_name);
 		break;
 	default:
 		err = NOTIFY_DONE;
