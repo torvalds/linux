@@ -31,7 +31,6 @@
 #include <asm/byteorder.h>
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
-#include <asm/firmware.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -196,9 +195,6 @@ EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
 static void __init pcibios_claim_of_setup(void)
 {
 	struct pci_bus *b;
-
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		return;
 
 	list_for_each_entry(b, &pci_root_buses, node)
 		pcibios_claim_one_bus(b);
@@ -477,8 +473,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 	bus->secondary = hose->first_busno;
 	hose->bus = bus;
 
-	if (!firmware_has_feature(FW_FEATURE_ISERIES))
-		pcibios_map_io_space(bus);
+	pcibios_map_io_space(bus);
 
 	bus->resource[0] = res = &hose->io_resource;
 	if (res->flags && request_resource(&ioport_resource, res)) {
@@ -527,15 +522,13 @@ static int __init pcibios_init(void)
 		pci_bus_add_devices(hose->bus);
 	}
 
-	if (!firmware_has_feature(FW_FEATURE_ISERIES)) {
-		if (pci_probe_only)
-			pcibios_claim_of_setup();
-		else
-			/* FIXME: `else' will be removed when
-			   pci_assign_unassigned_resources() is able to work
-			   correctly with [partially] allocated PCI tree. */
-			pci_assign_unassigned_resources();
-	}
+	if (pci_probe_only)
+		pcibios_claim_of_setup();
+	else
+		/* FIXME: `else' will be removed when
+		   pci_assign_unassigned_resources() is able to work
+		   correctly with [partially] allocated PCI tree. */
+		pci_assign_unassigned_resources();
 
 	/* Call machine dependent final fixup */
 	if (ppc_md.pcibios_fixup)

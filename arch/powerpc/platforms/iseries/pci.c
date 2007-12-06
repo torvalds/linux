@@ -646,6 +646,8 @@ void __init iSeries_pcibios_init(void)
 	/* Install IO hooks */
 	ppc_pci_io = iseries_pci_io;
 
+	pci_probe_only = 1;
+
 	/* iSeries has no IO space in the common sense, it needs to set
 	 * the IO base to 0
 	 */
