@@ -177,47 +177,49 @@ void __init iSeries_pci_final_fixup(void)
 
 	printk("pcibios_final_fixup\n");
 	for_each_pci_dev(pdev) {
+		struct pci_dn *pdn;
+		const u32 *agent;
+
 		node = find_device_node(pdev->bus->number, pdev->devfn);
 		printk("pci dev %p (%x.%x), node %p\n", pdev,
 		       pdev->bus->number, pdev->devfn, node);
-
-		if (node != NULL) {
-			struct pci_dn *pdn = PCI_DN(node);
-			const u32 *agent;
-
-			agent = of_get_property(node, "linux,agent-id", NULL);
-			if ((pdn != NULL) && (agent != NULL)) {
-				u8 irq = iSeries_allocate_IRQ(pdn->busno, 0,
-						pdn->bussubno);
-				int err;
-
-				err = HvCallXm_connectBusUnit(pdn->busno, pdn->bussubno,
-						*agent, irq);
-				if (err)
-					pci_log_error("Connect Bus Unit",
-						pdn->busno, pdn->bussubno, *agent, err);
-				else {
-					err = HvCallPci_configStore8(pdn->busno, pdn->bussubno,
-							*agent,
-							PCI_INTERRUPT_LINE,
-							irq);
-					if (err)
-						pci_log_error("PciCfgStore Irq Failed!",
-							pdn->busno, pdn->bussubno, *agent, err);
-				}
-				if (!err)
-					pdev->irq = irq;
-			}
-
-			++num_dev;
-			pdev->sysdata = node;
-			PCI_DN(node)->pcidev = pdev;
-			allocate_device_bars(pdev);
-			iSeries_Device_Information(pdev, num_dev);
-			iommu_devnode_init_iSeries(pdev, node);
-		} else
+		if (!node) {
 			printk("PCI: Device Tree not found for 0x%016lX\n",
 					(unsigned long)pdev);
+			continue;
+		}
+
+		pdn = PCI_DN(node);
+		agent = of_get_property(node, "linux,agent-id", NULL);
+		if (pdn && agent) {
+			u8 irq = iSeries_allocate_IRQ(pdn->busno, 0,
+					pdn->bussubno);
+			int err;
+
+			err = HvCallXm_connectBusUnit(pdn->busno, pdn->bussubno,
+					*agent, irq);
+			if (err)
+				pci_log_error("Connect Bus Unit",
+					pdn->busno, pdn->bussubno, *agent, err);
+			else {
+				err = HvCallPci_configStore8(pdn->busno,
+					pdn->bussubno, *agent,
+					PCI_INTERRUPT_LINE, irq);
+				if (err)
+					pci_log_error("PciCfgStore Irq Failed!",
+						pdn->busno, pdn->bussubno,
+						*agent, err);
+				else
+					pdev->irq = irq;
+			}
+		}
+
+		num_dev++;
+		pdev->sysdata = node;
+		PCI_DN(node)->pcidev = pdev;
+		allocate_device_bars(pdev);
+		iSeries_Device_Information(pdev, num_dev);
+		iommu_devnode_init_iSeries(pdev, node);
 	}
 	iSeries_activate_IRQs();
 	mf_display_src(0xC9000200);
