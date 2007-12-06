@@ -6,6 +6,7 @@
  * Copyright (C) 2004, 05, 06 by Ralf Baechle
  * Copyright (C) 2005 by MIPS Technologies, Inc.
  */
+#include <linux/cpumask.h>
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
 #include <linux/smp.h>
@@ -33,10 +34,44 @@
 #ifdef CONFIG_MIPS_MT_SMP
 #define WHAT		(M_TC_EN_VPE | M_PERFCTL_VPEID(smp_processor_id()))
 #define vpe_id()	smp_processor_id()
+
+/*
+ * The number of bits to shift to convert between counters per core and
+ * counters per VPE.  There is no reasonable interface atm to obtain the
+ * number of VPEs used by Linux and in the 34K this number is fixed to two
+ * anyways so we hardcore a few things here for the moment.  The way it's
+ * done here will ensure that oprofile VSMP kernel will run right on a lesser
+ * core like a 24K also or with maxcpus=1.
+ */
+static inline unsigned int vpe_shift(void)
+{
+	if (num_possible_cpus() > 1)
+		return 1;
+
+	return 0;
+}
+
 #else
+
 #define WHAT		0
 #define vpe_id()	0
+
+static inline unsigned int vpe_shift(void)
+{
+	return 0;
+}
+
 #endif
+
+static inline unsigned int counters_total_to_per_cpu(unsigned int counters)
+{
+	return counters >> vpe_shift();
+}
+
+static inline unsigned int counters_per_cpu_to_total(unsigned int counters)
+{
+	return counters << vpe_shift();
+}
 
 #define __define_perf_accessors(r, n, np)				\
 									\
@@ -269,9 +304,7 @@ static int __init mipsxx_init(void)
 
 	reset_counters(counters);
 
-#ifdef CONFIG_MIPS_MT_SMP
-	counters >>= 1;
-#endif
+	counters = counters_total_to_per_cpu(counters);
 
 	op_model_mipsxx_ops.num_counters = counters;
 	switch (current_cpu_type()) {
@@ -330,9 +363,8 @@ static int __init mipsxx_init(void)
 static void mipsxx_exit(void)
 {
 	int counters = op_model_mipsxx_ops.num_counters;
-#ifdef CONFIG_MIPS_MT_SMP
-	counters <<= 1;
-#endif
+
+	counters = counters_per_cpu_to_total(counters);
 	reset_counters(counters);
 
 	perf_irq = null_perf_irq;
