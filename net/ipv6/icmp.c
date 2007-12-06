@@ -777,6 +777,22 @@ drop_no_count:
 	return 0;
 }
 
+void icmpv6_flow_init(struct sock *sk, struct flowi *fl,
+		      u8 type,
+		      const struct in6_addr *saddr,
+		      const struct in6_addr *daddr,
+		      int oif)
+{
+	memset(fl, 0, sizeof(*fl));
+	ipv6_addr_copy(&fl->fl6_src, saddr);
+	ipv6_addr_copy(&fl->fl6_dst, daddr);
+	fl->proto	 	= IPPROTO_ICMPV6;
+	fl->fl_icmp_type	= type;
+	fl->fl_icmp_code	= 0;
+	fl->oif			= oif;
+	security_sk_classify_flow(sk, fl);
+}
+
 /*
  * Special lock-class for __icmpv6_sk:
  */
