@@ -45,8 +45,8 @@
 #include "pci.h"
 #include "call_pci.h"
 
-static int Pci_Retry_Max = 3;	/* Only retry 3 times  */
-static int Pci_Error_Flag = 1;	/* Set Retry Error on. */
+#define PCI_RETRY_MAX	3
+static int limit_pci_retries = 1;	/* Set Retry Error on. */
 
 /*
  * Table defines
@@ -338,8 +338,8 @@ static int CheckReturnCode(char *TextHdr, struct device_node *DevNode,
 		 * Bump the retry and check for retry count exceeded.
 		 * If, Exceeded, panic the system.
 		 */
-		if (((*retry) > Pci_Retry_Max) &&
-				(Pci_Error_Flag > 0)) {
+		if (((*retry) > PCI_RETRY_MAX) &&
+				(limit_pci_retries > 0)) {
 			mf_display_src(0xB6000103);
 			panic_timeout = 0;
 			panic("PCI: Hardware I/O Error, SRC B6000103, "
