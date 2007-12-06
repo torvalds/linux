@@ -17,14 +17,15 @@
 	#size-cells = <1>;
 	model = "amcc,sequoia";
 	compatible = "amcc,sequoia";
-	dcr-parent = <&/cpus/PowerPC,440EPx@0>;
+	dcr-parent = <&/cpus/cpu@0>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		PowerPC,440EPx@0 {
+		cpu@0 {
 			device_type = "cpu";
+			model = "PowerPC,440EPx";
 			reg = <0>;
 			clock-frequency = <0>; /* Filled in by zImage */
 			timebase-frequency = <0>; /* Filled in by zImage */

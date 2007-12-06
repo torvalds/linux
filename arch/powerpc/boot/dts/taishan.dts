@@ -15,14 +15,15 @@
 	#size-cells = <1>;
 	model = "amcc,taishan";
 	compatible = "amcc,taishan";
-	dcr-parent = <&/cpus/PowerPC,440GX@0>;
+	dcr-parent = <&/cpus/cpu@0>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		PowerPC,440GX@0 {
+		cpu@0 {
 			device_type = "cpu";
+			model = "PowerPC,440GX";
 			reg = <0>;
 			clock-frequency = <2FAF0800>; // 800MHz
 			timebase-frequency = <0>; // Filled in by zImage

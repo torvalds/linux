@@ -14,14 +14,15 @@
 	#size-cells = <1>;
 	model = "ibm,walnut";
 	compatible = "ibm,walnut";
-	dcr-parent = <&/cpus/PowerPC,405GP@0>;
+	dcr-parent = <&/cpus/cpu@0>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		PowerPC,405GP@0 {
+		cpu@0 {
 			device_type = "cpu";
+			model = "PowerPC,405GP";
 			reg = <0>;
 			clock-frequency = <bebc200>; /* Filled in by zImage */
 			timebase-frequency = <0>; /* Filled in by zImage */

@@ -16,14 +16,15 @@
 	#size-cells = <1>;
 	model = "ibm,ebony";
 	compatible = "ibm,ebony";
-	dcr-parent = <&/cpus/PowerPC,440GP@0>;
+	dcr-parent = <&/cpus/cpu@0>;
 
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		PowerPC,440GP@0 {
+		cpu@0 {
 			device_type = "cpu";
+			model = "PowerPC,440GP";
 			reg = <0>;
 			clock-frequency = <0>; // Filled in by zImage
 			timebase-frequency = <0>; // Filled in by zImage
