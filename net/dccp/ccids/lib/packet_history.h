@@ -39,8 +39,7 @@
 #include <linux/ktime.h>
 #include <linux/list.h>
 #include <linux/slab.h>
-
-#include "../../dccp.h"
+#include "tfrc.h"
 
 /* Number of later packets received before one is considered lost */
 #define TFRC_RECV_NUM_LATE_LOSS	 3

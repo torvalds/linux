@@ -38,6 +38,7 @@ config IP_DCCP_CCID2_DEBUG
 config IP_DCCP_CCID3
 	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
 	def_tristate IP_DCCP
+	select IP_DCCP_TFRC_LIB
 	---help---
 	  CCID 3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
 	  rate-controlled congestion control mechanism.  TFRC is designed to
@@ -62,10 +63,6 @@ config IP_DCCP_CCID3
 	  called dccp_ccid3.
 
 	  If in doubt, say M.
-
-config IP_DCCP_TFRC_LIB
-	depends on IP_DCCP_CCID3
-	def_tristate IP_DCCP_CCID3
 
 config IP_DCCP_CCID3_DEBUG
 	  bool "CCID3 debugging messages"
@@ -110,5 +107,13 @@ config IP_DCCP_CCID3_RTO
 	    is serious network congestion: experimenting with larger values should
 	    therefore not be performed on WANs.
 
+config IP_DCCP_TFRC_LIB
+	tristate
+	default n
+
+config IP_DCCP_TFRC_DEBUG
+	bool
+	depends on IP_DCCP_TFRC_LIB
+	default y if IP_DCCP_CCID3_DEBUG
 
 endmenu

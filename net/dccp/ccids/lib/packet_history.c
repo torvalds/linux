@@ -35,7 +35,6 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/module.h>
 #include <linux/string.h>
 #include "packet_history.h"
 
@@ -277,39 +276,19 @@ void dccp_rx_hist_purge(struct dccp_rx_hist *hist, struct list_head *list)
 
 EXPORT_SYMBOL_GPL(dccp_rx_hist_purge);
 
-extern int __init dccp_li_init(void);
-extern void dccp_li_exit(void);
-
-static __init int packet_history_init(void)
+__init int packet_history_init(void)
 {
-	if (dccp_li_init() != 0)
-		goto out;
-
 	tfrc_tx_hist = kmem_cache_create("tfrc_tx_hist",
 					 sizeof(struct tfrc_tx_hist_entry), 0,
 					 SLAB_HWCACHE_ALIGN, NULL);
-	if (tfrc_tx_hist == NULL)
-		goto out_li_exit;
 
-	return 0;
-out_li_exit:
-	dccp_li_exit();
-out:
-	return -ENOBUFS;
+	return tfrc_tx_hist == NULL ? -ENOBUFS : 0;
 }
-module_init(packet_history_init);
 
-static __exit void packet_history_exit(void)
+void packet_history_exit(void)
 {
 	if (tfrc_tx_hist != NULL) {
 		kmem_cache_destroy(tfrc_tx_hist);
 		tfrc_tx_hist = NULL;
 	}
-	dccp_li_exit();
 }
-module_exit(packet_history_exit);
-
-MODULE_AUTHOR("Ian McDonald <ian.mcdonald@jandi.co.nz>, "
-	      "Arnaldo Carvalho de Melo <acme@ghostprotocols.net>");
-MODULE_DESCRIPTION("DCCP TFRC library");
-MODULE_LICENSE("GPL");
