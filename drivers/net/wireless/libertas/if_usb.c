@@ -222,6 +222,11 @@ static int if_usb_probe(struct usb_interface *intf,
 	if (lbs_start_card(priv))
 		goto err_start_card;
 
+	/* Set the boot2 version in firmware, ignoring errors. */
+	(void)lbs_prepare_and_send_command(priv, CMD_SET_BOOT2_VER,
+					   0, CMD_OPTION_WAITFORRSP, 0, NULL);
+
+
 	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);
 

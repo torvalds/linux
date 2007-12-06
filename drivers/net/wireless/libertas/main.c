@@ -999,10 +999,6 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 		priv->mesh_autostart_enabled = 0;
 	}
 
-       /* Set the boot2 version in firmware */
-       ret = lbs_prepare_and_send_command(priv, CMD_SET_BOOT2_VER,
-                                   0, CMD_OPTION_WAITFORRSP, 0, NULL);
-
 	ret = 0;
 done:
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
