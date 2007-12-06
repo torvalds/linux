@@ -693,7 +693,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 				 * except kernel
 				 */
 				tl = *(u64 *) pd->port_rcvhdrtail_kvaddr;
-				if (tl == dd->ipath_lastrcvhdrqtails[i])
+				if (tl == pd->port_lastrcvhdrqtail)
 					continue;
 				hd = ipath_read_ureg32(dd, ur_rcvhdrhead,
 						       i);
@@ -703,7 +703,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 			    (!hd && tl == dd->ipath_hdrqlast)) {
 				if (i == 0)
 					chkerrpkts = 1;
-				dd->ipath_lastrcvhdrqtails[i] = tl;
+				pd->port_lastrcvhdrqtail = tl;
 				pd->port_hdrqfull++;
 				/* flush hdrqfull so that poll() sees it */
 				wmb();

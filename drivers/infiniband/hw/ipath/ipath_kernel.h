@@ -141,6 +141,11 @@ struct ipath_portdata {
 	u32 port_pionowait;
 	/* total number of rcvhdrqfull errors */
 	u32 port_hdrqfull;
+	/*
+	 * Used to suppress multiple instances of same
+	 * port staying stuck at same point.
+	 */
+	u32 port_lastrcvhdrqtail;
 	/* saved total number of rcvhdrqfull errors for poll edge trigger */
 	u32 port_hdrqfull_poll;
 	/* total number of polled urgent packets */
@@ -149,6 +154,7 @@ struct ipath_portdata {
 	u32 port_urgent_poll;
 	/* pid of process using this port */
 	pid_t port_pid;
+	pid_t port_subpid[INFINIPATH_MAX_SUBPORT];
 	/* same size as task_struct .comm[] */
 	char port_comm[16];
 	/* pkeys set by this use of this port */
@@ -319,16 +325,6 @@ struct ipath_devdata {
 	/* count of port 0 hdrqfull errors */
 	u32 ipath_p0_hdrqfull;
 
-	/*
-	 * (*cfgports) used to suppress multiple instances of same
-	 * port staying stuck at same point
-	 */
-	u32 *ipath_lastrcvhdrqtails;
-	/*
-	 * (*cfgports) used to suppress multiple instances of same
-	 * port staying stuck at same point
-	 */
-	u32 *ipath_lastegrheads;
 	/*
 	 * index of last piobuffer we used.  Speeds up searching, by
 	 * starting at this point.  Doesn't matter if multiple cpu's use and

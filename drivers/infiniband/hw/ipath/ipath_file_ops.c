@@ -1785,6 +1785,7 @@ static int find_shared_port(struct file *fp,
 			}
 			port_fp(fp) = pd;
 			subport_fp(fp) = pd->port_cnt++;
+			pd->port_subpid[subport_fp(fp)] = current->pid;
 			tidcursor_fp(fp) = 0;
 			pd->active_slaves |= 1 << subport_fp(fp);
 			ipath_cdbg(PROC,
@@ -1915,8 +1916,7 @@ static int ipath_do_user_init(struct file *fp,
 	 */
 	head32 = ipath_read_ureg32(dd, ur_rcvegrindextail, pd->port_port);
 	ipath_write_ureg(dd, ur_rcvegrindexhead, head32, pd->port_port);
-	dd->ipath_lastegrheads[pd->port_port] = -1;
-	dd->ipath_lastrcvhdrqtails[pd->port_port] = -1;
+	pd->port_lastrcvhdrqtail = -1;
 	ipath_cdbg(VERBOSE, "Wrote port%d egrhead %x from tail regs\n",
 		pd->port_port, head32);
 	pd->port_tidcursor = 0;	/* start at beginning after open */
@@ -2019,6 +2019,7 @@ static int ipath_close(struct inode *in, struct file *fp)
 		 * the slave(s) don't wait for receive data forever.
 		 */
 		pd->active_slaves &= ~(1 << fd->subport);
+		pd->port_subpid[fd->subport] = 0;
 		mutex_unlock(&ipath_mutex);
 		goto bail;
 	}

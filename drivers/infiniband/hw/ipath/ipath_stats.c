@@ -238,7 +238,7 @@ static void ipath_chk_errormask(struct ipath_devdata *dd)
 void ipath_get_faststats(unsigned long opaque)
 {
 	struct ipath_devdata *dd = (struct ipath_devdata *) opaque;
-	u32 val;
+	int i;
 	static unsigned cnt;
 	unsigned long flags;
 	u64 traffic_wds;
@@ -322,12 +322,11 @@ void ipath_get_faststats(unsigned long opaque)
 
 	/* limit qfull messages to ~one per minute per port */
 	if ((++cnt & 0x10)) {
-		for (val = dd->ipath_cfgports - 1; ((int)val) >= 0;
-		     val--) {
-			if (dd->ipath_lastegrheads[val] != -1)
-				dd->ipath_lastegrheads[val] = -1;
-			if (dd->ipath_lastrcvhdrqtails[val] != -1)
-				dd->ipath_lastrcvhdrqtails[val] = -1;
+		for (i = (int) dd->ipath_cfgports; --i >= 0; ) {
+			struct ipath_portdata *pd = dd->ipath_pd[i];
+
+			if (pd && pd->port_lastrcvhdrqtail != -1)
+				pd->port_lastrcvhdrqtail = -1;
 		}
 	}
 

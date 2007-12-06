@@ -272,22 +272,7 @@ static int init_chip_first(struct ipath_devdata *dd,
 		goto done;
 	}
 
-	dd->ipath_lastegrheads = kzalloc(sizeof(*dd->ipath_lastegrheads)
-					 * dd->ipath_cfgports,
-					 GFP_KERNEL);
-	dd->ipath_lastrcvhdrqtails =
-		kzalloc(sizeof(*dd->ipath_lastrcvhdrqtails)
-			* dd->ipath_cfgports, GFP_KERNEL);
-
-	if (!dd->ipath_lastegrheads || !dd->ipath_lastrcvhdrqtails) {
-		ipath_dev_err(dd, "Unable to allocate head arrays, "
-			      "failing\n");
-		ret = -ENOMEM;
-		goto done;
-	}
-
 	pd = create_portdata0(dd);
-
 	if (!pd) {
 		ipath_dev_err(dd, "Unable to allocate portdata for port "
 			      "0, failing\n");
