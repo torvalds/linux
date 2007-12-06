@@ -449,11 +449,13 @@ static void init_vmcb(struct vmcb *vmcb)
 
 	control->intercept_cr_read = 	INTERCEPT_CR0_MASK |
 					INTERCEPT_CR3_MASK |
-					INTERCEPT_CR4_MASK;
+					INTERCEPT_CR4_MASK |
+					INTERCEPT_CR8_MASK;
 
 	control->intercept_cr_write = 	INTERCEPT_CR0_MASK |
 					INTERCEPT_CR3_MASK |
-					INTERCEPT_CR4_MASK;
+					INTERCEPT_CR4_MASK |
+					INTERCEPT_CR8_MASK;
 
 	control->intercept_dr_read = 	INTERCEPT_DR0_MASK |
 					INTERCEPT_DR1_MASK |
@@ -1195,10 +1197,12 @@ static int (*svm_exit_handlers[])(struct vcpu_svm *svm,
 	[SVM_EXIT_READ_CR0]           		= emulate_on_interception,
 	[SVM_EXIT_READ_CR3]           		= emulate_on_interception,
 	[SVM_EXIT_READ_CR4]           		= emulate_on_interception,
+	[SVM_EXIT_READ_CR8]           		= emulate_on_interception,
 	/* for now: */
 	[SVM_EXIT_WRITE_CR0]          		= emulate_on_interception,
 	[SVM_EXIT_WRITE_CR3]          		= emulate_on_interception,
 	[SVM_EXIT_WRITE_CR4]          		= emulate_on_interception,
+	[SVM_EXIT_WRITE_CR8]          		= emulate_on_interception,
 	[SVM_EXIT_READ_DR0] 			= emulate_on_interception,
 	[SVM_EXIT_READ_DR1]			= emulate_on_interception,
 	[SVM_EXIT_READ_DR2]			= emulate_on_interception,

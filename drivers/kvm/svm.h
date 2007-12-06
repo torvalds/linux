@@ -204,6 +204,7 @@ struct __attribute__ ((__packed__)) vmcb {
 #define INTERCEPT_CR0_MASK 1
 #define INTERCEPT_CR3_MASK (1 << 3)
 #define INTERCEPT_CR4_MASK (1 << 4)
+#define INTERCEPT_CR8_MASK (1 << 8)
 
 #define INTERCEPT_DR0_MASK 1
 #define INTERCEPT_DR1_MASK (1 << 1)
