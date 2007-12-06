@@ -53,9 +53,6 @@ struct uic {
 
 	/* The remapper for this UIC */
 	struct irq_host	*irqhost;
-
-	/* For secondary UICs, the cascade interrupt's irqaction */
-	struct irqaction cascade;
 };
 
 static void uic_unmask_irq(unsigned int virq)
@@ -221,23 +218,36 @@ static struct irq_host_ops uic_host_ops = {
 	.xlate	= uic_host_xlate,
 };
 
-irqreturn_t uic_cascade(int virq, void *data)
+void uic_irq_cascade(unsigned int virq, struct irq_desc *desc)
 {
-	struct uic *uic = data;
+	struct uic *uic = get_irq_data(virq);
 	u32 msr;
 	int src;
 	int subvirq;
 
+	spin_lock(&desc->lock);
+	if (desc->status & IRQ_LEVEL)
+		desc->chip->mask(virq);
+	else
+		desc->chip->mask_ack(virq);
+	spin_unlock(&desc->lock);
+
 	msr = mfdcr(uic->dcrbase + UIC_MSR);
 	if (!msr) /* spurious interrupt */
-		return IRQ_HANDLED;
+		goto uic_irq_ret;
 
 	src = 32 - ffs(msr);
 
 	subvirq = irq_linear_revmap(uic->irqhost, src);
 	generic_handle_irq(subvirq);
 
-	return IRQ_HANDLED;
+uic_irq_ret:
+	spin_lock(&desc->lock);
+	if (desc->status & IRQ_LEVEL)
+		desc->chip->ack(virq);
+	if (!(desc->status & IRQ_DISABLED) && desc->chip->unmask)
+		desc->chip->unmask(virq);
+	spin_unlock(&desc->lock);
 }
 
 static struct uic * __init uic_init_one(struct device_node *node)
@@ -325,7 +335,6 @@ void __init uic_init_tree(void)
 		if (interrupts) {
 			/* Secondary UIC */
 			int cascade_virq;
-			int ret;
 
 			uic = uic_init_one(np);
 			if (! uic)
@@ -334,15 +343,8 @@ void __init uic_init_tree(void)
 
 			cascade_virq = irq_of_parse_and_map(np, 0);
 
-			uic->cascade.handler = uic_cascade;
-			uic->cascade.name = "UIC cascade";
-			uic->cascade.dev_id = uic;
-
-			ret = setup_irq(cascade_virq, &uic->cascade);
-			if (ret)
-				printk(KERN_ERR "Failed to setup_irq(%d) for "
-				       "UIC%d cascade\n", cascade_virq,
-				       uic->index);
+			set_irq_data(cascade_virq, uic);
+			set_irq_chained_handler(cascade_virq, uic_irq_cascade);
 
 			/* FIXME: setup critical cascade?? */
 		}
