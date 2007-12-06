@@ -46,9 +46,6 @@ extern void init_pci_config_tokens (void);
 extern unsigned long get_phb_buid (struct device_node *);
 extern int rtas_setup_phb(struct pci_controller *phb);
 
-/* From iSeries PCI */
-extern void iSeries_pcibios_init(void);
-
 extern unsigned long pci_probe_only;
 
 /* ---- EEH internal-use-only related routines ---- */

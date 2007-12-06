@@ -519,9 +519,6 @@ static int __init pcibios_init(void)
 	 */
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
 
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		iSeries_pcibios_init();
-
 	printk(KERN_DEBUG "PCI: Probing PCI hardware\n");
 
 	/* Scan all of the recorded PCI controllers.  */

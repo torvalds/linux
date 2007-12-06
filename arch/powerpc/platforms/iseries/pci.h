@@ -50,9 +50,11 @@ struct pci_dev;				/* For Forward Reference */
 extern void	iSeries_Device_Information(struct pci_dev *PciDev, int count,
 			u16 bus, HvSubBusNumber subbus);
 #ifdef CONFIG_PCI
+extern void	iSeries_pcibios_init(void);
 extern void	iSeries_pci_final_fixup(void);
 #else
-static void	iSeries_pci_final_fixup(void) { }
+static inline void	iSeries_pcibios_init(void) { }
+static inline void	iSeries_pci_final_fixup(void) { }
 #endif
 
 #endif /* _PLATFORMS_ISERIES_PCI_H */

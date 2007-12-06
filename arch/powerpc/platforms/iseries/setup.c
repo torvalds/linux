@@ -495,6 +495,8 @@ static void __init iSeries_setup_arch(void)
 			itVpdAreas.xSlicMaxLogicalProcs);
 	printk("Max physical processors = %d\n",
 			itVpdAreas.xSlicMaxPhysicalProcs);
+
+	iSeries_pcibios_init();
 }
 
 static void iSeries_show_cpuinfo(struct seq_file *m)
