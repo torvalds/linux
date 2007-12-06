@@ -722,7 +722,7 @@ empty_zero_page:
  */
 	.globl	swapper_pg_dir
 swapper_pg_dir:
-	.space	8192
+	.space	PGD_TABLE_SIZE
 
 /* Reserved 4k for the critical exception stack & 4k for the machine
  * check stack per CPU for kernel mode exceptions */

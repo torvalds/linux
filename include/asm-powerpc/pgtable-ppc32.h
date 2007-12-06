@@ -86,6 +86,11 @@ extern int icache_44x_need_flush;
  * entries per page directory level: our page-table tree is two-level, so
  * we don't really have any PMD directory.
  */
+#ifndef __ASSEMBLY__
+#define PTE_TABLE_SIZE	(sizeof(pte_t) << PTE_SHIFT)
+#define PGD_TABLE_SIZE	(sizeof(pgd_t) << (32 - PGDIR_SHIFT))
+#endif	/* __ASSEMBLY__ */
+
 #define PTRS_PER_PTE	(1 << PTE_SHIFT)
 #define PTRS_PER_PMD	1
 #define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
