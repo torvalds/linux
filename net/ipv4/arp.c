@@ -952,6 +952,19 @@ out_of_mem:
  *	Set (create) an ARP cache entry.
  */
 
+static int arp_req_set_proxy(struct net_device *dev, int on)
+{
+	if (dev == NULL) {
+		IPV4_DEVCONF_ALL(PROXY_ARP) = on;
+		return 0;
+	}
+	if (__in_dev_get_rtnl(dev)) {
+		IN_DEV_CONF_SET(__in_dev_get_rtnl(dev), PROXY_ARP, on);
+		return 0;
+	}
+	return -ENXIO;
+}
+
 static int arp_req_set_public(struct arpreq *r, struct net_device *dev)
 {
 	__be32 ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
@@ -970,15 +983,8 @@ static int arp_req_set_public(struct arpreq *r, struct net_device *dev)
 			return -ENOBUFS;
 		return 0;
 	}
-	if (dev == NULL) {
-		IPV4_DEVCONF_ALL(PROXY_ARP) = 1;
-		return 0;
-	}
-	if (__in_dev_get_rtnl(dev)) {
-		IN_DEV_CONF_SET(__in_dev_get_rtnl(dev), PROXY_ARP, 1);
-		return 0;
-	}
-	return -ENXIO;
+
+	return arp_req_set_proxy(dev, 1);
 }
 
 static int arp_req_set(struct arpreq *r, struct net_device * dev)
@@ -1082,19 +1088,10 @@ static int arp_req_delete_public(struct arpreq *r, struct net_device *dev)
 	if (mask == htonl(0xFFFFFFFF))
 		return pneigh_delete(&arp_tbl, &ip, dev);
 
-	if (mask == 0) {
-		if (dev == NULL) {
-			IPV4_DEVCONF_ALL(PROXY_ARP) = 0;
-			return 0;
-		}
-		if (__in_dev_get_rtnl(dev)) {
-			IN_DEV_CONF_SET(__in_dev_get_rtnl(dev),
-					PROXY_ARP, 0);
-			return 0;
-		}
-		return -ENXIO;
-	}
-	return -EINVAL;
+	if (mask)
+		return -EINVAL;
+
+	return arp_req_set_proxy(dev, 0);
 }
 
 static int arp_req_delete(struct arpreq *r, struct net_device * dev)
