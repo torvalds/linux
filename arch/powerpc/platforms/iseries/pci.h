@@ -58,7 +58,8 @@ static inline u64 iseries_ds_addr(struct device_node *node)
 			+ ((u64)0x10 << 32);
 }
 
-extern void	iSeries_Device_Information(struct pci_dev*, int);
+extern void	iSeries_Device_Information(struct pci_dev *PciDev, int count,
+			u16 bus, HvSubBusNumber subbus);
 #ifdef CONFIG_PCI
 extern void	iSeries_pci_final_fixup(void);
 #else

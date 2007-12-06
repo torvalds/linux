@@ -31,7 +31,6 @@
 #include <asm/types.h>
 #include <asm/resource.h>
 #include <asm/abs_addr.h>
-#include <asm/pci-bridge.h>
 #include <asm/iseries/hv_types.h>
 
 #include "pci.h"
@@ -244,25 +243,13 @@ out_free:
  * PCI: Bus  0, Device 26, Vendor 0x12AE  Frame  1, Card  C10  Ethernet
  * controller
  */
-void __init iSeries_Device_Information(struct pci_dev *PciDev, int count)
+void __init iSeries_Device_Information(struct pci_dev *PciDev, int count,
+		u16 bus, HvSubBusNumber subbus)
 {
-	struct device_node *DevNode = PciDev->sysdata;
-	struct pci_dn *pdn;
-	u16 bus;
 	u8 frame = 0;
 	char card[4];
-	HvSubBusNumber subbus;
 	HvAgentId agent;
 
-	if (DevNode == NULL) {
-		printk("%d. PCI: iSeries_Device_Information DevNode is NULL\n",
-				count);
-		return;
-	}
-
-	pdn = PCI_DN(DevNode);
-	bus = pdn->busno;
-	subbus = pdn->bussubno;
 	agent = ISERIES_PCI_AGENTID(ISERIES_GET_DEVICE_FROM_SUBBUS(subbus),
 			ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus));
 
