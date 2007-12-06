@@ -376,7 +376,7 @@ ocp_remove_one_device(unsigned int vendor, unsigned int function, int index)
 
 	down_write(&ocp_devices_sem);
 	dev = __ocp_find_device(vendor, function, index);
-	list_del((struct list_head *)dev);
+	list_del(&dev->link);
 	up_write(&ocp_devices_sem);
 
 	DBG(("ocp: ocp_remove_one_device(vendor: %x, function: %x, index: %d)... done.\n", vendor, function, index));
