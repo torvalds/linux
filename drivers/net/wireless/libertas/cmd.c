@@ -1674,6 +1674,7 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
 	wake_up_interruptible(&ptempnode->cmdwait_q);
 	ptempnode->wait_option = 0;
 	ptempnode->pdata_buf = NULL;
+	ptempnode->pdata_size = 0;
 
 	if (ptempnode->bufvirtualaddr != NULL)
 		memset(ptempnode->bufvirtualaddr, 0, MRVDRV_SIZE_OF_CMD_BUFFER);
@@ -1701,6 +1702,7 @@ void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 
 	ptempnode->wait_option = wait_option;
 	ptempnode->pdata_buf = pdata_buf;
+	ptempnode->pdata_size = 0;
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }
