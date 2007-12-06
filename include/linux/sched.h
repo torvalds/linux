@@ -178,6 +178,22 @@ print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq)
 /* in tsk->state again */
 #define TASK_DEAD		64
 
+/* Convenience macros for the sake of wake_up */
+#define TASK_NORMAL		(TASK_INTERRUPTIBLE | TASK_UNINTERRUPTIBLE)
+#define TASK_ALL		(TASK_NORMAL | TASK_STOPPED | TASK_TRACED)
+
+/* get_task_state() */
+#define TASK_REPORT		(TASK_RUNNING | TASK_INTERRUPTIBLE | \
+				 TASK_UNINTERRUPTIBLE | TASK_STOPPED | \
+				 TASK_TRACED)
+
+#define task_is_traced(task)	((task->state & TASK_TRACED) != 0)
+#define task_is_stopped(task)	((task->state & TASK_STOPPED) != 0)
+#define task_is_stopped_or_traced(task)	\
+			((task->state & (TASK_STOPPED | TASK_TRACED)) != 0)
+#define task_contributes_to_load(task)	\
+				((task->state & TASK_UNINTERRUPTIBLE) != 0)
+
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
 #define set_task_state(tsk, state_value)		\
