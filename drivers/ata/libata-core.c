@@ -3923,6 +3923,7 @@ void ata_std_postreset(struct ata_link *link, unsigned int *classes)
 	/* clear SError */
 	if (sata_scr_read(link, SCR_ERROR, &serror) == 0)
 		sata_scr_write(link, SCR_ERROR, serror);
+	link->eh_info.serror = 0;
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)

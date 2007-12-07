@@ -394,16 +394,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		 * it's PHYRDY CHG.
 		 */
 		if (serror & SERR_PHYRDY_CHG) {
-			/* Trigger hotplug and accumulate SError only
-			 * if the port isn't already frozen.
-			 * Otherwise, PHY events during hardreset
-			 * makes controllers with broken SIEN repeat
-			 * probing needlessly.
-			 */
-			if (!(ap->pflags & ATA_PFLAG_FROZEN)) {
-				ata_ehi_hotplugged(&ap->link.eh_info);
-				ap->link.eh_info.serror |= serror;
-			}
+			ap->link.eh_info.serror |= serror;
 			goto freeze;
 		}
 
