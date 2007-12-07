@@ -1743,6 +1743,8 @@ xfsbufd(
 
 	current->flags |= PF_MEMALLOC;
 
+	set_freezable();
+
 	do {
 		if (unlikely(freezing(current))) {
 			set_bit(XBT_FORCE_SLEEP, &target->bt_flags);
