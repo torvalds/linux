@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <net/x25.h>
 
-struct list_head x25_route_list = LIST_HEAD_INIT(x25_route_list);
+LIST_HEAD(x25_route_list);
 DEFINE_RWLOCK(x25_route_list_lock);
 
 /*
