@@ -127,8 +127,10 @@ static int is_vbus_present(void)
 {
 	struct pxa2xx_udc_mach_info		*mach = the_controller->mach;
 
-	if (mach->gpio_vbus)
-		return gpio_get_value(mach->gpio_vbus);
+	if (mach->gpio_vbus) {
+		int value = gpio_get_value(mach->gpio_vbus);
+		return mach->gpio_vbus_inverted ? !value : value;
+	}
 	if (mach->udc_is_connected)
 		return mach->udc_is_connected();
 	return 1;
@@ -1397,6 +1399,9 @@ static irqreturn_t udc_vbus_irq(int irq, void *_dev)
 {
 	struct pxa2xx_udc	*dev = _dev;
 	int			vbus = gpio_get_value(dev->mach->gpio_vbus);
+
+	if (dev->mach->gpio_vbus_inverted)
+		vbus = !vbus;
 
 	pxa2xx_udc_vbus_session(&dev->gadget, vbus);
 	return IRQ_HANDLED;
