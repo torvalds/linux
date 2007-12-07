@@ -849,7 +849,9 @@ static int __init inet6_init(void)
 	if (if6_proc_init())
 		goto proc_if6_fail;
 #endif
-	ip6_route_init();
+	err = ip6_route_init();
+	if (err)
+		goto ip6_route_fail;
 	ip6_flowlabel_init();
 	err = addrconf_init();
 	if (err)
@@ -874,6 +876,7 @@ out:
 addrconf_fail:
 	ip6_flowlabel_cleanup();
 	ip6_route_cleanup();
+ip6_route_fail:
 #ifdef CONFIG_PROC_FS
 	if6_proc_exit();
 proc_if6_fail:
@@ -904,6 +907,7 @@ icmp_fail:
 	cleanup_ipv6_mibs();
 out_unregister_sock:
 	sock_unregister(PF_INET6);
+	rtnl_unregister_all(PF_INET6);
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
 out_unregister_udplite_proto:
