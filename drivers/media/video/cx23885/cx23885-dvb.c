@@ -32,6 +32,7 @@
 
 #include "s5h1409.h"
 #include "mt2131.h"
+#include "tda8290.h"
 #include "lgdt330x.h"
 #include "xc5000.h"
 #include "dvb-pll.h"
@@ -42,6 +43,12 @@ static unsigned int debug = 0;
 
 #define dprintk(level,fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG "%s: " fmt, dev->name, ## arg)
+
+/* ------------------------------------------------------------------ */
+
+static unsigned int alt_tuner;
+module_param(alt_tuner, int, 0644);
+MODULE_PARM_DESC(alt_tuner, "Enable alternate tuner configuration");
 
 /* ------------------------------------------------------------------ */
 
@@ -116,6 +123,15 @@ static struct s5h1409_config hauppauge_generic_config = {
 	.gpio          = S5H1409_GPIO_ON,
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING
+};
+
+static struct s5h1409_config hauppauge_ezqam_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_OFF,
+	.qam_if        = 4000,
+	.inversion     = S5H1409_INVERSION_ON,
 	.status_mode   = S5H1409_DEMODLOCKING
 };
 
@@ -203,7 +219,6 @@ static int dvb_register(struct cx23885_tsport *port)
 	/* init frontend */
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
-	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		i2c_bus = &dev->i2c_bus[0];
 		port->dvb.frontend = dvb_attach(s5h1409_attach,
 						&hauppauge_generic_config,
@@ -212,6 +227,33 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(mt2131_attach, port->dvb.frontend,
 				   &i2c_bus->i2c_adap,
 				   &hauppauge_generic_tunerconfig, 0);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1800:
+		i2c_bus = &dev->i2c_bus[0];
+		switch (alt_tuner) {
+		case 1:
+			port->dvb.frontend =
+				dvb_attach(s5h1409_attach,
+					   &hauppauge_ezqam_config,
+					   &i2c_bus->i2c_adap);
+			if (port->dvb.frontend != NULL) {
+				dvb_attach(tda829x_attach, port->dvb.frontend,
+					   &dev->i2c_bus[1].i2c_adap, 0x42,
+					   NULL);
+			}
+			break;
+		case 0:
+		default:
+			port->dvb.frontend =
+				dvb_attach(s5h1409_attach,
+					   &hauppauge_generic_config,
+					   &i2c_bus->i2c_adap);
+			if (port->dvb.frontend != NULL)
+				dvb_attach(mt2131_attach, port->dvb.frontend,
+					   &i2c_bus->i2c_adap,
+					   &hauppauge_generic_tunerconfig, 0);
+			break;
 		}
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
@@ -283,6 +325,9 @@ static int dvb_register(struct cx23885_tsport *port)
 
 	/* Put the analog decoder in standby to keep it quiet */
 	cx23885_call_i2c_clients(i2c_bus, TUNER_SET_STANDBY, NULL);
+
+	if (port->dvb.frontend->ops.analog_ops.standby)
+		port->dvb.frontend->ops.analog_ops.standby(port->dvb.frontend);
 
 	/* register everything */
 	return videobuf_dvb_register(&port->dvb, THIS_MODULE, port,

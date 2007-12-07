@@ -246,7 +246,8 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		/* GPIO-11-14 cx23417 addr0-3 */
 		/* GPIO-15-18 cx23417 READY, CS, RD, WR */
 		/* GPIO-19 IR_RX */
-		// FIXME: Analog requires the tuner is brought out of reset
+
+		cx_set(GP0_IO, 0x00040004); /* Bring the tuner out of reset */
 		break;
 	}
 }
