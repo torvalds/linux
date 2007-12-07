@@ -956,6 +956,34 @@ static const struct ivtv_card ivtv_card_aver_pvr150 = {
 
 /* ------------------------------------------------------------------------- */
 
+/* AVerMedia EZMaker PCI Deluxe card */
+
+static const struct ivtv_card_pci_info ivtv_pci_aver_ezmaker[] = {
+	{ PCI_DEVICE_ID_IVTV16, IVTV_PCI_ID_AVERMEDIA, 0xc03f },
+	{ 0, 0, 0 }
+};
+
+static const struct ivtv_card ivtv_card_aver_ezmaker = {
+	.type = IVTV_CARD_AVER_EZMAKER,
+	.name = "AVerMedia EZMaker PCI Deluxe",
+	.v4l2_capabilities = IVTV_CAP_ENCODER,
+	.hw_video = IVTV_HW_CX25840,
+	.hw_audio = IVTV_HW_CX25840,
+	.hw_audio_ctrl = IVTV_HW_CX25840,
+	.hw_all = IVTV_HW_CX25840 | IVTV_HW_WM8739,
+	.video_inputs = {
+		{ IVTV_CARD_INPUT_SVIDEO1,    0, CX25840_SVIDEO3 },
+		{ IVTV_CARD_INPUT_COMPOSITE1, 0, CX25840_COMPOSITE1 },
+	},
+	.audio_inputs = {
+		{ IVTV_CARD_INPUT_LINE_IN1,   CX25840_AUDIO_SERIAL, 0 },
+	},
+	.gpio_init = { .direction = 0x4000, .initial_value = 0x4000 },
+	.pci_list = ivtv_pci_aver_ezmaker,
+};
+
+/* ------------------------------------------------------------------------- */
+
 /* ASUS Falcon2 */
 
 static const struct ivtv_card_pci_info ivtv_pci_asus_falcon2[] = {
@@ -1016,6 +1044,7 @@ static const struct ivtv_card *ivtv_card_list[] = {
 	&ivtv_card_avertv_mce116,
 	&ivtv_card_asus_falcon2,
 	&ivtv_card_aver_pvr150,
+	&ivtv_card_aver_ezmaker,
 
 	/* Variations of standard cards but with the same PCI IDs.
 	   These cards must come last in this list. */

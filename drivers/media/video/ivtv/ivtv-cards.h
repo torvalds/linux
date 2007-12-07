@@ -47,7 +47,8 @@
 #define IVTV_CARD_AVERTV_MCE116	     20 /* AVerTV MCE 116 Plus */
 #define IVTV_CARD_ASUS_FALCON2	     21 /* ASUS Falcon2 */
 #define IVTV_CARD_AVER_PVR150PLUS    22 /* AVerMedia PVR-150 Plus */
-#define IVTV_CARD_LAST 		     22
+#define IVTV_CARD_AVER_EZMAKER       23 /* AVerMedia EZMaker PCI Deluxe */
+#define IVTV_CARD_LAST 		     23
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
