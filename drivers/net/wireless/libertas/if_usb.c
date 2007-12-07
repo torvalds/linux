@@ -227,7 +227,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	priv->hw_host_to_card = if_usb_host_to_card;
 	priv->hw_get_int_status = if_usb_get_int_status;
 	priv->hw_read_event_cause = if_usb_read_event_cause;
-	priv->boot2_version = udev->descriptor.bcdDevice;
+	priv->boot2_version = le16_to_cpu(udev->descriptor.bcdDevice);
 
 	/* Delay 200 ms to waiting for the FW ready */
 	if_usb_submit_rx_urb(cardp);
