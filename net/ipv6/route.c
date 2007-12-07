@@ -2468,26 +2468,70 @@ ctl_table ipv6_route_table[] = {
 
 #endif
 
-void __init ip6_route_init(void)
+int __init ip6_route_init(void)
 {
+	int ret;
+
 	ip6_dst_ops.kmem_cachep =
 		kmem_cache_create("ip6_dst_cache", sizeof(struct rt6_info), 0,
 				  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
 	ip6_dst_blackhole_ops.kmem_cachep = ip6_dst_ops.kmem_cachep;
 
-	fib6_init();
-	proc_net_fops_create(&init_net, "ipv6_route", 0, &ipv6_route_proc_fops);
-	proc_net_fops_create(&init_net, "rt6_stats", S_IRUGO, &rt6_stats_seq_fops);
-#ifdef CONFIG_XFRM
-	xfrm6_init();
-#endif
-#ifdef CONFIG_IPV6_MULTIPLE_TABLES
-	fib6_rules_init();
+	ret = fib6_init();
+	if (ret)
+		goto out_kmem_cache;
+
+#ifdef CONFIG_PROC_FS
+	ret = -ENOMEM;
+	if (!proc_net_fops_create(&init_net, "ipv6_route",
+				  0, &ipv6_route_proc_fops))
+		goto out_fib6_init;
+
+	if (!proc_net_fops_create(&init_net, "rt6_stats",
+				  S_IRUGO, &rt6_stats_seq_fops))
+		goto out_proc_ipv6_route;
 #endif
 
-	__rtnl_register(PF_INET6, RTM_NEWROUTE, inet6_rtm_newroute, NULL);
-	__rtnl_register(PF_INET6, RTM_DELROUTE, inet6_rtm_delroute, NULL);
-	__rtnl_register(PF_INET6, RTM_GETROUTE, inet6_rtm_getroute, NULL);
+#ifdef CONFIG_XFRM
+	ret = xfrm6_init();
+	if (ret)
+		goto out_proc_rt6_stats;
+#endif
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	ret = fib6_rules_init();
+	if (ret)
+		goto xfrm6_init;
+#endif
+	ret = -ENOBUFS;
+	if (__rtnl_register(PF_INET6, RTM_NEWROUTE, inet6_rtm_newroute, NULL) ||
+	    __rtnl_register(PF_INET6, RTM_DELROUTE, inet6_rtm_delroute, NULL) ||
+	    __rtnl_register(PF_INET6, RTM_GETROUTE, inet6_rtm_getroute, NULL))
+		goto fib6_rules_init;
+
+	ret = 0;
+out:
+	return ret;
+
+fib6_rules_init:
+#ifdef CONFIG_IPV6_MULTIPLE_TABLES
+	fib6_rules_cleanup();
+xfrm6_init:
+#endif
+#ifdef CONFIG_XFRM
+	xfrm6_fini();
+out_proc_rt6_stats:
+#endif
+#ifdef CONFIG_PROC_FS
+	proc_net_remove(&init_net, "rt6_stats");
+out_proc_ipv6_route:
+	proc_net_remove(&init_net, "ipv6_route");
+out_fib6_init:
+#endif
+	rt6_ifdown(NULL);
+	fib6_gc_cleanup();
+out_kmem_cache:
+	kmem_cache_destroy(ip6_dst_ops.kmem_cachep);
+	goto out;
 }
 
 void ip6_route_cleanup(void)
@@ -2495,10 +2539,8 @@ void ip6_route_cleanup(void)
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	fib6_rules_cleanup();
 #endif
-#ifdef CONFIG_PROC_FS
 	proc_net_remove(&init_net, "ipv6_route");
 	proc_net_remove(&init_net, "rt6_stats");
-#endif
 #ifdef CONFIG_XFRM
 	xfrm6_fini();
 #endif

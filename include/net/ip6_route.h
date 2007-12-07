@@ -50,7 +50,7 @@ extern void			ip6_route_input(struct sk_buff *skb);
 extern struct dst_entry *	ip6_route_output(struct sock *sk,
 						 struct flowi *fl);
 
-extern void			ip6_route_init(void);
+extern int			ip6_route_init(void);
 extern void			ip6_route_cleanup(void);
 
 extern int			ipv6_route_ioctl(unsigned int cmd, void __user *arg);
