@@ -456,17 +456,11 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if ((bond->params.mode == BOND_MODE_XOR) ||
-	    (bond->params.mode == BOND_MODE_8023AD)) {
-		count = sprintf(buf, "%s %d\n",
-			xmit_hashtype_tbl[bond->params.xmit_policy].modename,
-			bond->params.xmit_policy);
-	}
-
-	return count;
+	return sprintf(buf, "%s %d\n",
+		       xmit_hashtype_tbl[bond->params.xmit_policy].modename,
+		       bond->params.xmit_policy);
 }
 
 static ssize_t bonding_store_xmit_hash(struct device *d,
@@ -479,15 +473,6 @@ static ssize_t bonding_store_xmit_hash(struct device *d,
 	if (bond->dev->flags & IFF_UP) {
 		printk(KERN_ERR DRV_NAME
 		       "%s: Interface is up. Unable to update xmit policy.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
-
-	if ((bond->params.mode != BOND_MODE_XOR) &&
-	    (bond->params.mode != BOND_MODE_8023AD)) {
-		printk(KERN_ERR DRV_NAME
-		       "%s: Transmit hash policy is irrelevant in this mode.\n",
 		       bond->dev->name);
 		ret = -EPERM;
 		goto out;
