@@ -39,7 +39,7 @@
 #include <linux/init.h>
 #include <net/lapb.h>
 
-static struct list_head lapb_list = LIST_HEAD_INIT(lapb_list);
+static LIST_HEAD(lapb_list);
 static DEFINE_RWLOCK(lapb_list_lock);
 
 /*
