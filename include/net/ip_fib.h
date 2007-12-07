@@ -191,9 +191,6 @@ extern void __init fib4_rules_init(void);
 extern u32 fib_rules_tclass(struct fib_result *res);
 #endif
 
-#define ip_fib_local_table fib_get_table(RT_TABLE_LOCAL)
-#define ip_fib_main_table fib_get_table(RT_TABLE_MAIN)
-
 extern int fib_lookup(struct flowi *flp, struct fib_result *res);
 
 extern struct fib_table *fib_new_table(u32 id);
