@@ -170,7 +170,7 @@ xfs_bulkstat_one_dinode(
 	buf->bs_mtime.tv_nsec = be32_to_cpu(dic->di_mtime.t_nsec);
 	buf->bs_ctime.tv_sec = be32_to_cpu(dic->di_ctime.t_sec);
 	buf->bs_ctime.tv_nsec = be32_to_cpu(dic->di_ctime.t_nsec);
-	buf->bs_xflags = xfs_dic2xflags(dic);
+	buf->bs_xflags = xfs_dic2xflags(dip);
 	buf->bs_extsize = be32_to_cpu(dic->di_extsize) << mp->m_sb.sb_blocklog;
 	buf->bs_extents = be32_to_cpu(dic->di_nextents);
 	buf->bs_gen = be32_to_cpu(dic->di_gen);
@@ -307,7 +307,7 @@ xfs_bulkstat_use_dinode(
 	}
 	/* BULKSTAT_FG_INLINE: if attr fork is local, or not there, use it */
 	aformat = dip->di_core.di_aformat;
-	if ((XFS_CFORK_Q(&dip->di_core) == 0) ||
+	if ((XFS_DFORK_Q(dip) == 0) ||
 	    (aformat == XFS_DINODE_FMT_LOCAL) ||
 	    (aformat == XFS_DINODE_FMT_EXTENTS && !dip->di_core.di_anextents)) {
 		*dipp = dip;

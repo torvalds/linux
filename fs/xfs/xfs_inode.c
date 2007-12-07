@@ -828,15 +828,17 @@ xfs_ip2xflags(
 	xfs_icdinode_t		*dic = &ip->i_d;
 
 	return _xfs_dic2xflags(dic->di_flags) |
-				(XFS_CFORK_Q(dic) ? XFS_XFLAG_HASATTR : 0);
+				(XFS_IFORK_Q(ip) ? XFS_XFLAG_HASATTR : 0);
 }
 
 uint
 xfs_dic2xflags(
-	xfs_dinode_core_t	*dic)
+	xfs_dinode_t		*dip)
 {
+	xfs_dinode_core_t	*dic = &dip->di_core;
+
 	return _xfs_dic2xflags(be16_to_cpu(dic->di_flags)) |
-				(XFS_CFORK_Q_DISK(dic) ? XFS_XFLAG_HASATTR : 0);
+				(XFS_DFORK_Q(dip) ? XFS_XFLAG_HASATTR : 0);
 }
 
 /*
