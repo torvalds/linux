@@ -431,7 +431,7 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 		u8 mode = (u8) (size_t) pdata_buf;
 		pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
 		pSNMPMIB->oid = cpu_to_le16((u16) DESIRED_BSSTYPE_I);
-		pSNMPMIB->bufsize = sizeof(u8);
+		pSNMPMIB->bufsize = cpu_to_le16(sizeof(u8));
 		if (mode == IW_MODE_ADHOC) {
 			ucTemp = SNMP_MIB_VALUE_ADHOC;
 		} else {
@@ -451,8 +451,8 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 			pSNMPMIB->oid = cpu_to_le16((u16) DOT11D_I);
 
 			if (cmd_action == CMD_ACT_SET) {
-				pSNMPMIB->querytype = CMD_ACT_SET;
-				pSNMPMIB->bufsize = sizeof(u16);
+				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
+				pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
 				ulTemp = *(u32 *)pdata_buf;
 				*((__le16 *)(pSNMPMIB->value)) =
 				    cpu_to_le16((u16) ulTemp);
@@ -484,7 +484,7 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 		{
 
 			u32 ulTemp;
-			pSNMPMIB->oid = le16_to_cpu((u16) RTSTHRESH_I);
+			pSNMPMIB->oid = cpu_to_le16(RTSTHRESH_I);
 
 			if (cmd_action == CMD_ACT_GET) {
 				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_GET);
@@ -759,7 +759,7 @@ static int lbs_cmd_reg_access(struct lbs_private *priv,
 
 	offval = (struct lbs_offset_value *)pdata_buf;
 
-	switch (cmdptr->command) {
+	switch (le16_to_cpu(cmdptr->command)) {
 	case CMD_MAC_REG_ACCESS:
 		{
 			struct cmd_ds_mac_reg_access *macreg;
@@ -999,7 +999,7 @@ void lbs_queue_cmd(struct lbs_adapter *adapter,
 	}
 
 	/* Exit_PS command needs to be queued in the header always. */
-	if (cmdptr->command == CMD_802_11_PS_MODE) {
+	if (le16_to_cpu(cmdptr->command) == CMD_802_11_PS_MODE) {
 		struct cmd_ds_802_11_ps_mode *psm = &cmdptr->params.psmode;
 		if (psm->action == cpu_to_le16(CMD_SUBCMD_EXIT_PS)) {
 			if (adapter->psstate != PS_STATE_FULL_POWER)
@@ -1062,15 +1062,14 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 	adapter->cur_cmd_retcode = 0;
 	spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
-	cmdsize = cmdptr->size;
-	command = cpu_to_le16(cmdptr->command);
+	cmdsize = le16_to_cpu(cmdptr->size);
+	command = le16_to_cpu(cmdptr->command);
 
 	lbs_deb_host("DNLD_CMD: command 0x%04x, size %d, jiffies %lu\n",
-		    command, le16_to_cpu(cmdptr->size), jiffies);
+		    command, cmdsize, jiffies);
 	lbs_deb_hex(LBS_DEB_HOST, "DNLD_CMD", cmdnode->bufvirtualaddr, cmdsize);
 
 	cmdnode->cmdwaitqwoken = 0;
-	cmdsize = cpu_to_le16(cmdsize);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmdptr, cmdsize);
 
@@ -1426,9 +1425,10 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 #define ACTION_NUMLED_TLVTYPE_LEN_FIELDS_LEN 8
 			cmdptr->size =
-			    cpu_to_le16(gpio->header.len + S_DS_GEN +
-					     ACTION_NUMLED_TLVTYPE_LEN_FIELDS_LEN);
-			gpio->header.len = cpu_to_le16(gpio->header.len);
+			    cpu_to_le16(le16_to_cpu(gpio->header.len)
+				+ S_DS_GEN
+				+ ACTION_NUMLED_TLVTYPE_LEN_FIELDS_LEN);
+			gpio->header.len = gpio->header.len;
 
 			ret = 0;
 			break;
@@ -2019,7 +2019,7 @@ static int lbs_cmd_callback(uint16_t respcmd, struct cmd_ds_command *resp, struc
 { 
 	struct cmd_ds_gen *r = (struct cmd_ds_gen *)resp;
 	struct lbs_adapter *adapter = priv->adapter;
-	u16 sz = cpu_to_le16(resp->size) - S_DS_GEN;
+	u16 sz = le16_to_cpu(resp->size) - S_DS_GEN;
 
 	if (sz > *adapter->cur_cmd->pdata_size) {
 		lbs_pr_err("response 0x%04x doesn't fit into buffer (%d > %d)\n",

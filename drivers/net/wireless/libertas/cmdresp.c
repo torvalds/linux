@@ -561,7 +561,7 @@ static int lbs_ret_802_11_subscribe_event(struct lbs_private *priv,
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (dst_event->action == cpu_to_le16(CMD_ACT_GET)) {
-		dst_event->events = le16_to_cpu(cmd_event->events);
+		dst_event->events = cmd_event->events;
 		memcpy(dst_event->tlv, cmd_event->tlv, sizeof(dst_event->tlv));
 	}
 

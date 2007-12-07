@@ -419,13 +419,13 @@ struct cmd_ds_802_11_rf_antenna {
 };
 
 struct cmd_ds_802_11_monitor_mode {
-	u16 action;
-	u16 mode;
+	__le16 action;
+	__le16 mode;
 };
 
 struct cmd_ds_set_boot2_ver {
-	u16 action;
-	u16 version;
+	__le16 action;
+	__le16 version;
 };
 
 struct cmd_ds_802_11_ps_mode {

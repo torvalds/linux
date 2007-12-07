@@ -518,7 +518,7 @@ int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
 		cmd->size =
 		    cpu_to_le16(sizeof(pdomaininfo->action) + S_DS_GEN);
 		lbs_deb_hex(LBS_DEB_11D, "802_11D_DOMAIN_INFO", (u8 *) cmd,
-			(int)(cmd->size));
+			le16_to_cpu(cmd->size));
 		goto done;
 	}
 

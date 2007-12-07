@@ -454,7 +454,7 @@ static int if_sdio_prog_helper(struct if_sdio_card *card)
 
 		chunk_size = min(size, (size_t)60);
 
-		*((u32*)chunk_buffer) = cpu_to_le32(chunk_size);
+		*((__le32*)chunk_buffer) = cpu_to_le32(chunk_size);
 		memcpy(chunk_buffer + 4, firmware, chunk_size);
 /*
 		lbs_deb_sdio("sending %d bytes chunk\n", chunk_size);
