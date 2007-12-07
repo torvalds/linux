@@ -1668,6 +1668,11 @@ static void do_test(void)
 				camellia_speed_template);
 		break;
 
+	case 206:
+		test_cipher_speed("salsa20", ENCRYPT, sec, NULL, 0,
+				  salsa20_speed_template);
+		break;
+
 	case 300:
 		/* fall through */
 

@@ -7947,4 +7947,20 @@ static struct cipher_speed camellia_speed_template[] = {
       {  .klen = 0, .blen = 0, }
 };
 
+static struct cipher_speed salsa20_speed_template[] = {
+      { .klen = 16, .blen = 16, },
+      { .klen = 16, .blen = 64, },
+      { .klen = 16, .blen = 256, },
+      { .klen = 16, .blen = 1024, },
+      { .klen = 16, .blen = 8192, },
+      { .klen = 32, .blen = 16, },
+      { .klen = 32, .blen = 64, },
+      { .klen = 32, .blen = 256, },
+      { .klen = 32, .blen = 1024, },
+      { .klen = 32, .blen = 8192, },
+
+      /* End marker */
+      {  .klen = 0, .blen = 0, }
+};
+
 #endif	/* _CRYPTO_TCRYPT_H */
