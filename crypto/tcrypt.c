@@ -1019,7 +1019,8 @@ out:
 	crypto_free_hash(tfm);
 }
 
-static void test_deflate(void)
+static void test_comp(char *algo, struct comp_testvec *ctemplate,
+		       struct comp_testvec *dtemplate, int ctcount, int dtcount)
 {
 	unsigned int i;
 	char result[COMP_BUF_SIZE];
@@ -1027,25 +1028,26 @@ static void test_deflate(void)
 	struct comp_testvec *tv;
 	unsigned int tsize;
 
-	printk("\ntesting deflate compression\n");
+	printk("\ntesting %s compression\n", algo);
 
-	tsize = sizeof (deflate_comp_tv_template);
+	tsize = sizeof(struct comp_testvec);
+	tsize *= ctcount;
 	if (tsize > TVMEMSIZE) {
 		printk("template (%u) too big for tvmem (%u)\n", tsize,
 		       TVMEMSIZE);
 		return;
 	}
 
-	memcpy(tvmem, deflate_comp_tv_template, tsize);
+	memcpy(tvmem, ctemplate, tsize);
 	tv = (void *)tvmem;
 
-	tfm = crypto_alloc_comp("deflate", 0, CRYPTO_ALG_ASYNC);
+	tfm = crypto_alloc_comp(algo, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(tfm)) {
-		printk("failed to load transform for deflate\n");
+		printk("failed to load transform for %s\n", algo);
 		return;
 	}
 
-	for (i = 0; i < DEFLATE_COMP_TEST_VECTORS; i++) {
+	for (i = 0; i < ctcount; i++) {
 		int ilen, ret, dlen = COMP_BUF_SIZE;
 
 		printk("test %u:\n", i + 1);
@@ -1064,19 +1066,20 @@ static void test_deflate(void)
 		       ilen, dlen);
 	}
 
-	printk("\ntesting deflate decompression\n");
+	printk("\ntesting %s decompression\n", algo);
 
-	tsize = sizeof (deflate_decomp_tv_template);
+	tsize = sizeof(struct comp_testvec);
+	tsize *= dtcount;
 	if (tsize > TVMEMSIZE) {
 		printk("template (%u) too big for tvmem (%u)\n", tsize,
 		       TVMEMSIZE);
 		goto out;
 	}
 
-	memcpy(tvmem, deflate_decomp_tv_template, tsize);
+	memcpy(tvmem, dtemplate, tsize);
 	tv = (void *)tvmem;
 
-	for (i = 0; i < DEFLATE_DECOMP_TEST_VECTORS; i++) {
+	for (i = 0; i < dtcount; i++) {
 		int ilen, ret, dlen = COMP_BUF_SIZE;
 
 		printk("test %u:\n", i + 1);
@@ -1286,7 +1289,9 @@ static void do_test(void)
 		test_hash("tgr192", tgr192_tv_template, TGR192_TEST_VECTORS);
 		test_hash("tgr160", tgr160_tv_template, TGR160_TEST_VECTORS);
 		test_hash("tgr128", tgr128_tv_template, TGR128_TEST_VECTORS);
-		test_deflate();
+		test_comp("deflate", deflate_comp_tv_template,
+			  deflate_decomp_tv_template, DEFLATE_COMP_TEST_VECTORS,
+			  DEFLATE_DECOMP_TEST_VECTORS);
 		test_hash("crc32c", crc32c_tv_template, CRC32C_TEST_VECTORS);
 		test_hash("hmac(md5)", hmac_md5_tv_template,
 			  HMAC_MD5_TEST_VECTORS);
@@ -1402,7 +1407,9 @@ static void do_test(void)
 		break;
 
 	case 13:
-		test_deflate();
+		test_comp("deflate", deflate_comp_tv_template,
+			  deflate_decomp_tv_template, DEFLATE_COMP_TEST_VECTORS,
+			  DEFLATE_DECOMP_TEST_VECTORS);
 		break;
 
 	case 14:
