@@ -3,6 +3,7 @@ config VIDEO_IVTV
 	depends on VIDEO_V4L1 && VIDEO_V4L2 && PCI && I2C && EXPERIMENTAL
 	select I2C_ALGOBIT
 	select FW_LOADER
+	select VIDEO_IR
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_CX2341X
