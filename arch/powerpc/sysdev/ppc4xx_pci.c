@@ -844,6 +844,8 @@ static int ppc405ex_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 
 	dcr_write(port->dcrs, DCRO_PEGPL_CFG, 0x10000000);  /* guarded on */
 
+	port->has_ibpre = 1;
+
 	return 0;
 }
 
