@@ -105,6 +105,32 @@ out:
 	return error;
 }
 
+/* Exactly duplicate the address lists.  This is necessary when doing
+ * peer-offs and accepts.  We don't want to put all the current system
+ * addresses into the endpoint.  That's useless.  But we do want duplicat
+ * the list of bound addresses that the older endpoint used.
+ */
+int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
+			const struct sctp_bind_addr *src,
+			gfp_t gfp)
+{
+	struct sctp_sockaddr_entry *addr;
+	struct list_head *pos;
+	int error = 0;
+
+	/* All addresses share the same port.  */
+	dest->port = src->port;
+
+	list_for_each(pos, &src->address_list) {
+		addr = list_entry(pos, struct sctp_sockaddr_entry, list);
+		error = sctp_add_bind_addr(dest, &addr->a, 1, gfp);
+		if (error < 0)
+			break;
+	}
+
+	return error;
+}
+
 /* Initialize the SCTP_bind_addr structure for either an endpoint or
  * an association.
  */

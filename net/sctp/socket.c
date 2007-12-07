@@ -6326,7 +6326,6 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	struct sk_buff *skb, *tmp;
 	struct sctp_ulpevent *event;
 	struct sctp_bind_hashbucket *head;
-	int flags = 0;
 
 	/* Migrate socket buffer sizes and all the socket level options to the
 	 * new socket.
@@ -6356,15 +6355,8 @@ static void sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 	/* Copy the bind_addr list from the original endpoint to the new
 	 * endpoint so that we can handle restarts properly
 	 */
-	if (PF_INET6 == assoc->base.sk->sk_family)
-		flags = SCTP_ADDR6_ALLOWED;
-	if (assoc->peer.ipv4_address)
-		flags |= SCTP_ADDR4_PEERSUPP;
-	if (assoc->peer.ipv6_address)
-		flags |= SCTP_ADDR6_PEERSUPP;
-	sctp_bind_addr_copy(&newsp->ep->base.bind_addr,
-			     &oldsp->ep->base.bind_addr,
-			     SCTP_SCOPE_GLOBAL, GFP_KERNEL, flags);
+	sctp_bind_addr_dup(&newsp->ep->base.bind_addr,
+				&oldsp->ep->base.bind_addr, GFP_KERNEL);
 
 	/* Move any messages in the old socket's receive queue that are for the
 	 * peeled off association to the new socket's receive queue.
