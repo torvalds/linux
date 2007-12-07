@@ -30,10 +30,6 @@
  * End Change Activity
  */
 
-#include <asm/iseries/hv_types.h>
-
-struct pci_dev;				/* For Forward Reference */
-
 /*
  * Decodes Linux DevFn to iSeries DevFn, bridge device, or function.
  * For Linux, see PCI_SLOT and PCI_FUNC in include/linux/pci.h
@@ -47,8 +43,6 @@ struct pci_dev;				/* For Forward Reference */
 #define ISERIES_GET_DEVICE_FROM_SUBBUS(subbus)		((subbus >> 5) & 0x7)
 #define ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus)	((subbus >> 2) & 0x7)
 
-extern void	iseries_device_information(struct pci_dev *pdev, int count,
-			u16 bus, HvSubBusNumber subbus);
 #ifdef CONFIG_PCI
 extern void	iSeries_pcibios_init(void);
 extern void	iSeries_pci_final_fixup(void);
