@@ -80,7 +80,6 @@ extern int iosapic_remove (unsigned int gsi_base);
 #else
 #define iosapic_remove(gsi_base)				(-EINVAL)
 #endif /* CONFIG_HOTPLUG */
-extern int gsi_to_vector (unsigned int gsi);
 extern int gsi_to_irq (unsigned int gsi);
 extern int iosapic_register_intr (unsigned int gsi, unsigned long polarity,
 				  unsigned long trigger);
@@ -94,7 +93,6 @@ extern int __init iosapic_register_platform_intr (u32 int_type,
 					   u16 eid, u16 id,
 					   unsigned long polarity,
 					   unsigned long trigger);
-extern unsigned int iosapic_version (char __iomem *addr);
 
 #ifdef CONFIG_NUMA
 extern void __devinit map_iosapic_to_node (unsigned int, int);

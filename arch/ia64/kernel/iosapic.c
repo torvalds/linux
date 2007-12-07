@@ -199,19 +199,6 @@ static inline int __gsi_to_irq(unsigned int gsi)
 	return -1;
 }
 
-/*
- * Translate GSI number to the corresponding IA-64 interrupt vector.  If no
- * entry exists, return -1.
- */
-inline int
-gsi_to_vector (unsigned int gsi)
-{
-	int irq = __gsi_to_irq(gsi);
-	if (check_irq_used(irq) < 0)
-		return -1;
-	return irq_to_vector(irq);
-}
-
 int
 gsi_to_irq (unsigned int gsi)
 {
@@ -429,7 +416,7 @@ iosapic_end_level_irq (unsigned int irq)
 #define iosapic_disable_level_irq	mask_irq
 #define iosapic_ack_level_irq		nop
 
-struct irq_chip irq_type_iosapic_level = {
+static struct irq_chip irq_type_iosapic_level = {
 	.name =		"IO-SAPIC-level",
 	.startup =	iosapic_startup_level_irq,
 	.shutdown =	iosapic_shutdown_level_irq,
@@ -478,7 +465,7 @@ iosapic_ack_edge_irq (unsigned int irq)
 #define iosapic_disable_edge_irq	nop
 #define iosapic_end_edge_irq		nop
 
-struct irq_chip irq_type_iosapic_edge = {
+static struct irq_chip irq_type_iosapic_edge = {
 	.name =		"IO-SAPIC-edge",
 	.startup =	iosapic_startup_edge_irq,
 	.shutdown =	iosapic_disable_edge_irq,
@@ -491,7 +478,7 @@ struct irq_chip irq_type_iosapic_edge = {
 	.set_affinity =	iosapic_set_affinity
 };
 
-unsigned int
+static unsigned int
 iosapic_version (char __iomem *addr)
 {
 	/*
