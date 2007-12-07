@@ -1122,14 +1122,6 @@ static int lbs_get_encode(struct net_device *dev,
 		break;
 	}
 
-	if (   adapter->secinfo.wep_enabled
-	    || adapter->secinfo.WPAenabled
-	    || adapter->secinfo.WPA2enabled) {
-		dwrq->flags &= ~IW_ENCODE_DISABLED;
-	} else {
-		dwrq->flags |= IW_ENCODE_DISABLED;
-	}
-
 	memset(extra, 0, 16);
 
 	mutex_lock(&adapter->lock);
@@ -1150,13 +1142,12 @@ static int lbs_get_encode(struct net_device *dev,
 		   || (adapter->secinfo.WPA2enabled)) {
 		/* return WPA enabled */
 		dwrq->flags &= ~IW_ENCODE_DISABLED;
+		dwrq->flags |= IW_ENCODE_NOKEY;
 	} else {
 		dwrq->flags |= IW_ENCODE_DISABLED;
 	}
 
 	mutex_unlock(&adapter->lock);
-
-	dwrq->flags |= IW_ENCODE_NOKEY;
 
 	lbs_deb_wext("key: %02x:%02x:%02x:%02x:%02x:%02x, keylen %d\n",
 	       extra[0], extra[1], extra[2],
