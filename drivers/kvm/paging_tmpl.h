@@ -34,7 +34,9 @@
 	#define PT_LEVEL_BITS PT64_LEVEL_BITS
 	#ifdef CONFIG_X86_64
 	#define PT_MAX_FULL_LEVELS 4
+	#define CMPXCHG cmpxchg
 	#else
+	#define CMPXCHG cmpxchg64
 	#define PT_MAX_FULL_LEVELS 2
 	#endif
 #elif PTTYPE == 32
@@ -48,6 +50,7 @@
 	#define PT_LEVEL_MASK(level) PT32_LEVEL_MASK(level)
 	#define PT_LEVEL_BITS PT32_LEVEL_BITS
 	#define PT_MAX_FULL_LEVELS 2
+	#define CMPXCHG cmpxchg
 #else
 	#error Invalid PTTYPE value
 #endif
@@ -78,6 +81,26 @@ static gfn_t gpte_to_gfn_pde(pt_element_t gpte)
 	return (gpte & PT_DIR_BASE_ADDR_MASK) >> PAGE_SHIFT;
 }
 
+static bool FNAME(cmpxchg_gpte)(struct kvm *kvm,
+			 gfn_t table_gfn, unsigned index,
+			 pt_element_t orig_pte, pt_element_t new_pte)
+{
+	pt_element_t ret;
+	pt_element_t *table;
+	struct page *page;
+
+	page = gfn_to_page(kvm, table_gfn);
+	table = kmap_atomic(page, KM_USER0);
+
+	ret = CMPXCHG(&table[index], orig_pte, new_pte);
+
+	kunmap_atomic(table, KM_USER0);
+
+	kvm_release_page_dirty(page);
+
+	return (ret != orig_pte);
+}
+
 /*
  * Fetch a guest pte for a guest virtual address
  */
@@ -91,6 +114,7 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	gpa_t pte_gpa;
 
 	pgprintk("%s: addr %lx\n", __FUNCTION__, addr);
+walk:
 	walker->level = vcpu->mmu.root_level;
 	pte = vcpu->cr3;
 #if PTTYPE == 64
@@ -135,8 +159,10 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 
 		if (!(pte & PT_ACCESSED_MASK)) {
 			mark_page_dirty(vcpu->kvm, table_gfn);
+			if (FNAME(cmpxchg_gpte)(vcpu->kvm, table_gfn,
+			    index, pte, pte|PT_ACCESSED_MASK))
+				goto walk;
 			pte |= PT_ACCESSED_MASK;
-			kvm_write_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
 		}
 
 		if (walker->level == PT_PAGE_TABLE_LEVEL) {
@@ -159,9 +185,14 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 	}
 
 	if (write_fault && !is_dirty_pte(pte)) {
+		bool ret;
+
 		mark_page_dirty(vcpu->kvm, table_gfn);
+		ret = FNAME(cmpxchg_gpte)(vcpu->kvm, table_gfn, index, pte,
+			    pte|PT_DIRTY_MASK);
+		if (ret)
+			goto walk;
 		pte |= PT_DIRTY_MASK;
-		kvm_write_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
 		kvm_mmu_pte_write(vcpu, pte_gpa, (u8 *)&pte, sizeof(pte));
 	}
 
@@ -484,3 +515,4 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 #undef PT_MAX_FULL_LEVELS
 #undef gpte_to_gfn
 #undef gpte_to_gfn_pde
+#undef CMPXCHG
