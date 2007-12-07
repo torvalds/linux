@@ -84,7 +84,7 @@ static char *check[] = {
 	"cast6", "arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"arc4", "michael_mic", "deflate", "crc32c", "tea", "xtea",
 	"khazad", "wp512", "wp384", "wp256", "tnepres", "xeta",  "fcrypt",
-	"camellia", "seed", "salsa20", NULL
+	"camellia", "seed", "salsa20", "lzo", NULL
 };
 
 static void hexdump(unsigned char *buf, unsigned int len)
@@ -1292,6 +1292,8 @@ static void do_test(void)
 		test_comp("deflate", deflate_comp_tv_template,
 			  deflate_decomp_tv_template, DEFLATE_COMP_TEST_VECTORS,
 			  DEFLATE_DECOMP_TEST_VECTORS);
+		test_comp("lzo", lzo_comp_tv_template, lzo_decomp_tv_template,
+			  LZO_COMP_TEST_VECTORS, LZO_DECOMP_TEST_VECTORS);
 		test_hash("crc32c", crc32c_tv_template, CRC32C_TEST_VECTORS);
 		test_hash("hmac(md5)", hmac_md5_tv_template,
 			  HMAC_MD5_TEST_VECTORS);
@@ -1548,6 +1550,11 @@ static void do_test(void)
 			  AES_GCM_ENC_TEST_VECTORS);
 		test_aead("gcm(aes)", DECRYPT, aes_gcm_dec_tv_template,
 			  AES_GCM_DEC_TEST_VECTORS);
+		break;
+
+	case 36:
+		test_comp("lzo", lzo_comp_tv_template, lzo_decomp_tv_template,
+			  LZO_COMP_TEST_VECTORS, LZO_DECOMP_TEST_VECTORS);
 		break;
 
 	case 100:

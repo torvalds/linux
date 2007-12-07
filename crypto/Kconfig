@@ -536,6 +536,14 @@ config CRYPTO_AUTHENC
 	  Authenc: Combined mode wrapper for IPsec.
 	  This is required for IPSec.
 
+config CRYPTO_LZO
+	tristate "LZO compression algorithm"
+	select CRYPTO_ALGAPI
+	select LZO_COMPRESS
+	select LZO_DECOMPRESS
+	help
+	  This is the LZO algorithm.
+
 source "drivers/crypto/Kconfig"
 
 endif	# if CRYPTO
