@@ -198,9 +198,9 @@ static struct xfrm_state_afinfo xfrm6_state_afinfo = {
 	.transport_finish	= xfrm6_transport_finish,
 };
 
-void __init xfrm6_state_init(void)
+int __init xfrm6_state_init(void)
 {
-	xfrm_state_register_afinfo(&xfrm6_state_afinfo);
+	return xfrm_state_register_afinfo(&xfrm6_state_afinfo);
 }
 
 void xfrm6_state_fini(void)

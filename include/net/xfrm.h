@@ -1066,11 +1066,11 @@ struct xfrm6_tunnel {
 
 extern void xfrm_init(void);
 extern void xfrm4_init(void);
-extern void xfrm6_init(void);
+extern int xfrm6_init(void);
 extern void xfrm6_fini(void);
 extern void xfrm_state_init(void);
 extern void xfrm4_state_init(void);
-extern void xfrm6_state_init(void);
+extern int xfrm6_state_init(void);
 extern void xfrm6_state_fini(void);
 
 extern int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*), void *);

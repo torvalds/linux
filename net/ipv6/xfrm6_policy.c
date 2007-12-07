@@ -269,9 +269,9 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.fill_dst =		xfrm6_fill_dst,
 };
 
-static void __init xfrm6_policy_init(void)
+static int __init xfrm6_policy_init(void)
 {
-	xfrm_policy_register_afinfo(&xfrm6_policy_afinfo);
+	return xfrm_policy_register_afinfo(&xfrm6_policy_afinfo);
 }
 
 static void xfrm6_policy_fini(void)
@@ -279,10 +279,22 @@ static void xfrm6_policy_fini(void)
 	xfrm_policy_unregister_afinfo(&xfrm6_policy_afinfo);
 }
 
-void __init xfrm6_init(void)
+int __init xfrm6_init(void)
 {
-	xfrm6_policy_init();
-	xfrm6_state_init();
+	int ret;
+
+	ret = xfrm6_policy_init();
+	if (ret)
+		goto out;
+
+	ret = xfrm6_state_init();
+	if (ret)
+		goto out_policy;
+out:
+	return ret;
+out_policy:
+	xfrm6_policy_fini();
+	goto out;
 }
 
 void xfrm6_fini(void)
