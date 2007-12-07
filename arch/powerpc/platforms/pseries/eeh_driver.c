@@ -310,8 +310,6 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 	const char *location, *pci_str, *drv_str;
 
 	frozen_dn = find_device_pe(event->dn);
-	frozen_bus = pcibios_find_pci_bus(frozen_dn);
-
 	if (!frozen_dn) {
 
 		location = of_get_property(event->dn, "ibm,loc-code", NULL);
@@ -321,6 +319,8 @@ struct pci_dn * handle_eeh_events (struct eeh_event *event)
 		        location, pci_name(event->dev));
 		return NULL;
 	}
+
+	frozen_bus = pcibios_find_pci_bus(frozen_dn);
 	location = of_get_property(frozen_dn, "ibm,loc-code", NULL);
 	location = location ? location : "unknown";
 
