@@ -1473,16 +1473,24 @@ void fib6_run_gc(unsigned long dummy)
 	spin_unlock_bh(&fib6_gc_lock);
 }
 
-void __init fib6_init(void)
+int __init fib6_init(void)
 {
+	int ret;
 	fib6_node_kmem = kmem_cache_create("fib6_nodes",
 					   sizeof(struct fib6_node),
 					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
 					   NULL);
-
 	fib6_tables_init();
 
-	__rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
+	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
+	if (ret)
+		goto out_kmem_cache_create;
+out:
+	return ret;
+
+out_kmem_cache_create:
+	kmem_cache_destroy(fib6_node_kmem);
+	goto out;
 }
 
 void fib6_gc_cleanup(void)
