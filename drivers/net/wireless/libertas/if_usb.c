@@ -424,7 +424,7 @@ static int usb_tx_block(struct usb_card_rec *cardp, u8 * payload, u16 nb)
 
 	if ((ret = usb_submit_urb(cardp->tx_urb, GFP_ATOMIC))) {
 		/*  transfer failed */
-		lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb failed\n");
+		lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb failed: %d\n", ret);
 		ret = -1;
 	} else {
 		/* lbs_deb_usbd(&cardp->udev->dev, "usb_submit_urb success\n"); */
@@ -462,7 +462,7 @@ static int __if_usb_submit_rx_urb(struct usb_card_rec *cardp,
 	/* lbs_deb_usbd(&cardp->udev->dev, "Pointer for rx_urb %p\n", cardp->rx_urb); */
 	if ((ret = usb_submit_urb(cardp->rx_urb, GFP_ATOMIC))) {
 		/* handle failure conditions */
-		lbs_deb_usbd(&cardp->udev->dev, "Submit Rx URB failed\n");
+		lbs_deb_usbd(&cardp->udev->dev, "Submit Rx URB failed: %d\n", ret);
 		kfree_skb(skb);
 		rinfo->skb = NULL;
 		ret = -1;
