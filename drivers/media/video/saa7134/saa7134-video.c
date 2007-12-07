@@ -1670,30 +1670,6 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	}
 }
 
-static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
-{
-	struct saa7134_fh *fh = priv;
-	struct saa7134_dev *dev = fh->dev;
-
-	*i = dev->ctl_input;
-	return 0;
-}
-
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
-{
-	struct saa7134_fh *fh = priv;
-	struct saa7134_dev *dev = fh->dev;
-
-	if (i < 0  ||  i >= SAA7134_INPUT_MAX)
-		return -EINVAL;
-	if (NULL == card_in(dev, i).name)
-		return -EINVAL;
-	mutex_lock(&dev->lock);
-	video_mux(dev, i);
-	mutex_unlock(&dev->lock);
-	return 0;
-}
-
 static int vidioc_queryctrl(struct file *file, void *priv,
 					struct v4l2_queryctrl *c)
 {
@@ -1741,6 +1717,30 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	}
 	for (n = 0; n < TVNORMS; n++)
 		i->std |= tvnorms[n].id;
+	return 0;
+}
+
+static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	*i = dev->ctl_input;
+	return 0;
+}
+
+static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+
+	if (i < 0  ||  i >= SAA7134_INPUT_MAX)
+		return -EINVAL;
+	if (NULL == card_in(dev, i).name)
+		return -EINVAL;
+	mutex_lock(&dev->lock);
+	video_mux(dev, i);
+	mutex_unlock(&dev->lock);
 	return 0;
 }
 
@@ -1847,6 +1847,55 @@ static int vidioc_cropcap(struct file *file, void *priv,
 	return 0;
 }
 
+static int vidioc_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
+{
+	struct saa7134_fh *fh = f;
+	struct saa7134_dev *dev = fh->dev;
+
+	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
+		return -EINVAL;
+	crop->c = dev->crop_current;
+	return 0;
+}
+
+static int vidioc_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
+{
+	struct saa7134_fh *fh = f;
+	struct saa7134_dev *dev = fh->dev;
+	struct v4l2_rect *b = &dev->crop_bounds;
+
+	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
+		return -EINVAL;
+	if (crop->c.height < 0)
+		return -EINVAL;
+	if (crop->c.width < 0)
+		return -EINVAL;
+
+	if (res_locked(fh->dev, RESOURCE_OVERLAY))
+		return -EBUSY;
+	if (res_locked(fh->dev, RESOURCE_VIDEO))
+		return -EBUSY;
+
+	if (crop->c.top < b->top)
+		crop->c.top = b->top;
+	if (crop->c.top > b->top + b->height)
+		crop->c.top = b->top + b->height;
+	if (crop->c.height > b->top - crop->c.top + b->height)
+		crop->c.height = b->top - crop->c.top + b->height;
+
+	if (crop->c.left < b->left)
+		crop->c.left = b->left;
+	if (crop->c.left > b->left + b->width)
+		crop->c.left = b->left + b->width;
+	if (crop->c.width > b->left - crop->c.left + b->width)
+		crop->c.width = b->left - crop->c.left + b->width;
+
+	dev->crop_current = crop->c;
+	return 0;
+}
+
 static int vidioc_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *t)
 {
@@ -1939,97 +1988,6 @@ static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 	return 0;
 }
 
-static int vidioc_streamon(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	struct saa7134_fh *fh = priv;
-	struct saa7134_dev *dev = fh->dev;
-	int res = saa7134_resource(fh);
-
-	if (!res_get(dev, fh, res))
-		return -EBUSY;
-
-	return videobuf_streamon(saa7134_queue(fh));
-}
-
-static int vidioc_streamoff(struct file *file, void *priv,
-					enum v4l2_buf_type type)
-{
-	int err;
-	struct saa7134_fh *fh = priv;
-	struct saa7134_dev *dev = fh->dev;
-	int res = saa7134_resource(fh);
-
-	err = videobuf_streamoff(saa7134_queue(fh));
-	if (err < 0)
-		return err;
-	res_free(dev, fh, res);
-	return 0;
-}
-
-static int vidioc_reqbufs(struct file *file, void *priv,
-					struct v4l2_requestbuffers *p)
-{
-	struct saa7134_fh *fh = priv;
-	return videobuf_reqbufs(saa7134_queue(fh), p);
-}
-
-static int vidioc_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-	struct v4l2_rect *b = &dev->crop_bounds;
-
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
-		return -EINVAL;
-	if (crop->c.height < 0)
-		return -EINVAL;
-	if (crop->c.width < 0)
-		return -EINVAL;
-
-	if (res_locked(fh->dev, RESOURCE_OVERLAY))
-		return -EBUSY;
-	if (res_locked(fh->dev, RESOURCE_VIDEO))
-		return -EBUSY;
-
-	if (crop->c.top < b->top)
-		crop->c.top = b->top;
-	if (crop->c.top > b->top + b->height)
-		crop->c.top = b->top + b->height;
-	if (crop->c.height > b->top - crop->c.top + b->height)
-		crop->c.height = b->top - crop->c.top + b->height;
-
-	if (crop->c.left < b->left)
-		crop->c.left = b->left;
-	if (crop->c.left > b->left + b->width)
-		crop->c.left = b->left + b->width;
-	if (crop->c.width > b->left - crop->c.left + b->width)
-		crop->c.width = b->left - crop->c.left + b->width;
-
-	dev->crop_current = crop->c;
-	return 0;
-}
-
-static int vidioc_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
-		return -EINVAL;
-	crop->c = dev->crop_current;
-	return 0;
-}
-
-static int vidioc_g_parm(struct file *file, void *fh,
-				struct v4l2_streamparm *parm)
-{
-	memset(parm, 0, sizeof(*parm));
-	return 0;
-}
-
 static int vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 {
 	struct saa7134_fh *fh = f;
@@ -2046,92 +2004,6 @@ static int vidioc_s_priority(struct file *file, void *f,
 	struct saa7134_dev *dev = fh->dev;
 
 	return v4l2_prio_change(&dev->prio, &fh->prio, prio);
-}
-
-static int vidioc_g_fbuf(struct file *file, void *f,
-				struct v4l2_framebuffer *fb)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-
-	*fb = dev->ovbuf;
-	fb->capability = V4L2_FBUF_CAP_LIST_CLIPPING;
-
-	return 0;
-}
-
-static int vidioc_s_fbuf(struct file *file, void *f,
-					struct v4l2_framebuffer *fb)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-	struct saa7134_format *fmt;
-
-	if (!capable(CAP_SYS_ADMIN) &&
-	   !capable(CAP_SYS_RAWIO))
-		return -EPERM;
-
-	/* check args */
-	fmt = format_by_fourcc(fb->fmt.pixelformat);
-	if (NULL == fmt)
-		return -EINVAL;
-
-	/* ok, accept it */
-	dev->ovbuf = *fb;
-	dev->ovfmt = fmt;
-	if (0 == dev->ovbuf.fmt.bytesperline)
-		dev->ovbuf.fmt.bytesperline =
-			dev->ovbuf.fmt.width*fmt->depth/8;
-	return 0;
-}
-
-static int vidioc_querybuf(struct file *file, void *priv,
-					struct v4l2_buffer *b)
-{
-	struct saa7134_fh *fh = priv;
-	return videobuf_querybuf(saa7134_queue(fh), b);
-}
-
-static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct saa7134_fh *fh = priv;
-	return videobuf_qbuf(saa7134_queue(fh), b);
-}
-
-static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
-{
-	struct saa7134_fh *fh = priv;
-	return videobuf_dqbuf(saa7134_queue(fh), b,
-				file->f_flags & O_NONBLOCK);
-}
-
-static int vidioc_overlay(struct file *file, void *f, unsigned int on)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-	unsigned long flags;
-
-	if (on) {
-		if (saa7134_no_overlay > 0) {
-			dprintk("no_overlay\n");
-			return -EINVAL;
-		}
-
-		if (!res_get(dev, fh, RESOURCE_OVERLAY))
-			return -EBUSY;
-		spin_lock_irqsave(&dev->slock, flags);
-		start_preview(dev, fh);
-		spin_unlock_irqrestore(&dev->slock, flags);
-	}
-	if (!on) {
-		if (!res_check(fh, RESOURCE_OVERLAY))
-			return -EINVAL;
-		spin_lock_irqsave(&dev->slock, flags);
-		stop_preview(dev, fh);
-		spin_unlock_irqrestore(&dev->slock, flags);
-		res_free(dev, fh, RESOURCE_OVERLAY);
-	}
-	return 0;
 }
 
 static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
@@ -2176,6 +2048,72 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
+static int vidioc_g_fbuf(struct file *file, void *f,
+				struct v4l2_framebuffer *fb)
+{
+	struct saa7134_fh *fh = f;
+	struct saa7134_dev *dev = fh->dev;
+
+	*fb = dev->ovbuf;
+	fb->capability = V4L2_FBUF_CAP_LIST_CLIPPING;
+
+	return 0;
+}
+
+static int vidioc_s_fbuf(struct file *file, void *f,
+					struct v4l2_framebuffer *fb)
+{
+	struct saa7134_fh *fh = f;
+	struct saa7134_dev *dev = fh->dev;
+	struct saa7134_format *fmt;
+
+	if (!capable(CAP_SYS_ADMIN) &&
+	   !capable(CAP_SYS_RAWIO))
+		return -EPERM;
+
+	/* check args */
+	fmt = format_by_fourcc(fb->fmt.pixelformat);
+	if (NULL == fmt)
+		return -EINVAL;
+
+	/* ok, accept it */
+	dev->ovbuf = *fb;
+	dev->ovfmt = fmt;
+	if (0 == dev->ovbuf.fmt.bytesperline)
+		dev->ovbuf.fmt.bytesperline =
+			dev->ovbuf.fmt.width*fmt->depth/8;
+	return 0;
+}
+
+static int vidioc_overlay(struct file *file, void *f, unsigned int on)
+{
+	struct saa7134_fh *fh = f;
+	struct saa7134_dev *dev = fh->dev;
+	unsigned long flags;
+
+	if (on) {
+		if (saa7134_no_overlay > 0) {
+			dprintk("no_overlay\n");
+			return -EINVAL;
+		}
+
+		if (!res_get(dev, fh, RESOURCE_OVERLAY))
+			return -EBUSY;
+		spin_lock_irqsave(&dev->slock, flags);
+		start_preview(dev, fh);
+		spin_unlock_irqrestore(&dev->slock, flags);
+	}
+	if (!on) {
+		if (!res_check(fh, RESOURCE_OVERLAY))
+			return -EINVAL;
+		spin_lock_irqsave(&dev->slock, flags);
+		stop_preview(dev, fh);
+		spin_unlock_irqrestore(&dev->slock, flags);
+		res_free(dev, fh, RESOURCE_OVERLAY);
+	}
+	return 0;
+}
+
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 {
@@ -2183,6 +2121,68 @@ static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 	return videobuf_cgmbuf(saa7134_queue(fh), mbuf, 8);
 }
 #endif
+
+static int vidioc_reqbufs(struct file *file, void *priv,
+					struct v4l2_requestbuffers *p)
+{
+	struct saa7134_fh *fh = priv;
+	return videobuf_reqbufs(saa7134_queue(fh), p);
+}
+
+static int vidioc_querybuf(struct file *file, void *priv,
+					struct v4l2_buffer *b)
+{
+	struct saa7134_fh *fh = priv;
+	return videobuf_querybuf(saa7134_queue(fh), b);
+}
+
+static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+{
+	struct saa7134_fh *fh = priv;
+	return videobuf_qbuf(saa7134_queue(fh), b);
+}
+
+static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+{
+	struct saa7134_fh *fh = priv;
+	return videobuf_dqbuf(saa7134_queue(fh), b,
+				file->f_flags & O_NONBLOCK);
+}
+
+static int vidioc_streamon(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+	int res = saa7134_resource(fh);
+
+	if (!res_get(dev, fh, res))
+		return -EBUSY;
+
+	return videobuf_streamon(saa7134_queue(fh));
+}
+
+static int vidioc_streamoff(struct file *file, void *priv,
+					enum v4l2_buf_type type)
+{
+	int err;
+	struct saa7134_fh *fh = priv;
+	struct saa7134_dev *dev = fh->dev;
+	int res = saa7134_resource(fh);
+
+	err = videobuf_streamoff(saa7134_queue(fh));
+	if (err < 0)
+		return err;
+	res_free(dev, fh, res);
+	return 0;
+}
+
+static int vidioc_g_parm(struct file *file, void *fh,
+				struct v4l2_streamparm *parm)
+{
+	memset(parm, 0, sizeof(*parm));
+	return 0;
+}
 
 static int radio_querycap(struct file *file, void *priv,
 					struct v4l2_capability *cap)
