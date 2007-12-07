@@ -237,18 +237,14 @@ struct cpu_usage {
 
 DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-extern void account_process_vtime(struct task_struct *tsk);
-#else
-#define account_process_vtime(tsk)		do { } while (0)
-#endif
-
 #if defined(CONFIG_VIRT_CPU_ACCOUNTING)
 extern void calculate_steal_time(void);
 extern void snapshot_timebases(void);
+#define account_process_vtime(tsk)		account_process_tick(tsk, 0)
 #else
 #define calculate_steal_time()			do { } while (0)
 #define snapshot_timebases()			do { } while (0)
+#define account_process_vtime(tsk)		do { } while (0)
 #endif
 
 extern void secondary_cpu_time_init(void);
