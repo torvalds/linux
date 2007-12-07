@@ -3492,7 +3492,7 @@ static int dev_new_index(struct net *net)
 
 /* Delayed registration/unregisteration */
 static DEFINE_SPINLOCK(net_todo_list_lock);
-static struct list_head net_todo_list = LIST_HEAD_INIT(net_todo_list);
+static LIST_HEAD(net_todo_list);
 
 static void net_set_todo(struct net_device *dev)
 {
