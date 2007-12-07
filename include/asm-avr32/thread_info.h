@@ -25,6 +25,11 @@ struct thread_info {
 	unsigned long		flags;		/* low level flags */
 	__u32			cpu;
 	__s32			preempt_count;	/* 0 => preemptable, <0 => BUG */
+	__u32			rar_saved;	/* return address... */
+	__u32			rsr_saved;	/* ...and status register
+						   saved by debug handler
+						   when setting up
+						   trampoline */
 	struct restart_block	restart_block;
 	__u8			supervisor_stack[0];
 };
@@ -78,8 +83,8 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_NEED_RESCHED        2       /* rescheduling necessary */
 #define TIF_POLLING_NRFLAG      3       /* true if poll_idle() is polling
 					   TIF_NEED_RESCHED */
-#define TIF_BREAKPOINT		4	/* true if we should break after return */
-#define TIF_SINGLE_STEP		5	/* single step after next break */
+#define TIF_BREAKPOINT		4	/* enter monitor mode on return */
+#define TIF_SINGLE_STEP		5	/* single step in progress */
 #define TIF_MEMDIE		6
 #define TIF_RESTORE_SIGMASK	7	/* restore signal mask in do_signal */
 #define TIF_CPU_GOING_TO_SLEEP	8	/* CPU is entering sleep 0 mode */
@@ -89,18 +94,24 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
 #define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
-#define _TIF_BREAKPOINT		(1 << TIF_BREAKPOINT)
 #define _TIF_SINGLE_STEP	(1 << TIF_SINGLE_STEP)
 #define _TIF_MEMDIE		(1 << TIF_MEMDIE)
 #define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
 #define _TIF_CPU_GOING_TO_SLEEP (1 << TIF_CPU_GOING_TO_SLEEP)
 
-/* XXX: These two masks must never span more than 16 bits! */
+/* Note: The masks below must never span more than 16 bits! */
+
 /* work to do on interrupt/exception return */
-#define _TIF_WORK_MASK		0x0000013e
+#define _TIF_WORK_MASK				\
+	((1 << TIF_SIGPENDING)			\
+	 | (1 << TIF_NEED_RESCHED)		\
+	 | (1 << TIF_POLLING_NRFLAG)		\
+	 | (1 << TIF_BREAKPOINT)		\
+	 | (1 << TIF_RESTORE_SIGMASK))
+
 /* work to do on any return to userspace */
-#define _TIF_ALLWORK_MASK	0x0000013f
+#define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK | (1 << TIF_SYSCALL_TRACE))
 /* work to do on return from debug mode */
-#define _TIF_DBGWORK_MASK	0x0000017e
+#define _TIF_DBGWORK_MASK	(_TIF_WORK_MASK & ~(1 << TIF_BREAKPOINT))
 
 #endif /* __ASM_AVR32_THREAD_INFO_H */

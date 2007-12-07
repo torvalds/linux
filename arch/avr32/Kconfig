@@ -6,8 +6,7 @@
 mainmenu "Linux Kernel Configuration"
 
 config AVR32
-	bool
-	default y
+	def_bool y
 	# With EMBEDDED=n, we get lots of stuff automatically selected
 	# that we usually don't need on AVR32.
 	select EMBEDDED
@@ -20,51 +19,49 @@ config AVR32
 	  http://avr32linux.org/.
 
 config GENERIC_GPIO
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
 
 config HARDIRQS_SW_RESEND
-	bool
-	default y
+	def_bool y
 
 config GENERIC_IRQ_PROBE
-	bool
-	default y
+	def_bool y
 
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
+	def_bool y
 
 config GENERIC_TIME
-	bool
-	default y
+	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
-	bool
+	def_bool n
 
 config ARCH_HAS_ILOG2_U32
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAS_ILOG2_U64
-	bool
-	default n
+	def_bool n
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
+	def_bool y
 
 config GENERIC_BUG
-	bool
-	default y
+	def_bool y
 	depends on BUG
 
 source "init/Kconfig"
@@ -139,28 +136,22 @@ config PHYS_OFFSET
 source "kernel/Kconfig.preempt"
 
 config HAVE_ARCH_BOOTMEM_NODE
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAVE_MEMORY_PRESENT
-	bool
-	default n
+	def_bool n
 
 config NEED_NODE_MEMMAP_SIZE
-	bool
-	default n
+	def_bool n
 
 config ARCH_FLATMEM_ENABLE
-	bool
-	default y
+	def_bool y
 
 config ARCH_DISCONTIGMEM_ENABLE
-	bool
-	default n
+	def_bool n
 
 config ARCH_SPARSEMEM_ENABLE
-	bool
-	default n
+	def_bool n
 
 source "mm/Kconfig"
 

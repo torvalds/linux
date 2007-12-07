@@ -139,6 +139,9 @@ extern void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl);
 extern void show_stack_log_lvl(struct task_struct *tsk, unsigned long sp,
 			       struct pt_regs *regs, const char *log_lvl);
 
+#define task_pt_regs(p) \
+	((struct pt_regs *)(THREAD_SIZE + task_stack_page(p)) - 1)
+
 #define KSTK_EIP(tsk)	((tsk)->thread.cpu_context.pc)
 #define KSTK_ESP(tsk)	((tsk)->thread.cpu_context.ksp)
 

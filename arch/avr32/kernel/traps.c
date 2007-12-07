@@ -39,7 +39,7 @@ void NORET_TYPE die(const char *str, struct pt_regs *regs, long err)
 	printk("FRAME_POINTER ");
 #endif
 	if (current_cpu_data.features & AVR32_FEATURE_OCD) {
-		unsigned long did = __mfdr(DBGREG_DID);
+		unsigned long did = ocd_read(DID);
 		printk("chip: 0x%03lx:0x%04lx rev %lu\n",
 		       (did >> 1) & 0x7ff,
 		       (did >> 12) & 0x7fff,

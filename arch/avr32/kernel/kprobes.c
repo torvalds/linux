@@ -70,9 +70,9 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 
 	BUG_ON(!(sysreg_read(SR) & SYSREG_BIT(SR_D)));
 
-	dc = __mfdr(DBGREG_DC);
-	dc |= DC_SS;
-	__mtdr(DBGREG_DC, dc);
+	dc = ocd_read(DC);
+	dc |= 1 << OCD_DC_SS_BIT;
+	ocd_write(DC, dc);
 
 	/*
 	 * We must run the instruction from its original location
@@ -91,9 +91,9 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 
 	pr_debug("resuming execution at PC=%08lx\n", regs->pc);
 
-	dc = __mfdr(DBGREG_DC);
-	dc &= ~DC_SS;
-	__mtdr(DBGREG_DC, dc);
+	dc = ocd_read(DC);
+	dc &= ~(1 << OCD_DC_SS_BIT);
+	ocd_write(DC, dc);
 
 	*p->addr = BREAKPOINT_INSTRUCTION;
 	flush_icache_range((unsigned long)p->addr,
@@ -261,7 +261,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 int __init arch_init_kprobes(void)
 {
 	printk("KPROBES: Enabling monitor mode (MM|DBE)...\n");
-	__mtdr(DBGREG_DC, DC_MM | DC_DBE);
+	ocd_write(DC, (1 << OCD_DC_MM_BIT) | (1 << OCD_DC_DBE_BIT));
 
 	/* TODO: Register kretprobe trampoline */
 	return 0;

@@ -264,16 +264,7 @@ syscall_exit_work:
 
 3:	bld	r1, TIF_BREAKPOINT
 	brcc	syscall_exit_cont
-	mfsr	r3, SYSREG_TLBEHI
-	lddsp	r2, sp[REG_PC]
-	andl	r3, 0xff, COH
-	lsl	r3, 1
-	sbr	r3, 30
-	sbr	r3, 0
-	mtdr	DBGREG_BWA2A, r2
-	mtdr	DBGREG_BWC2A, r3
-	rjmp	syscall_exit_cont
-
+	rjmp	enter_monitor_mode
 
 	/* The slow path of the TLB miss handler */
 page_table_not_present:
@@ -288,11 +279,16 @@ page_not_present:
 	rjmp	ret_from_exception
 
 	/* This function expects to find offending PC in SYSREG_RAR_EX */
+	.type	save_full_context_ex, @function
+	.align	2
 save_full_context_ex:
+	mfsr	r11, SYSREG_RAR_EX
+	sub	r9, pc, . - debug_trampoline
 	mfsr	r8, SYSREG_RSR_EX
+	cp.w	r9, r11
+	breq	3f
 	mov	r12, r8
 	andh	r8, (MODE_MASK >> 16), COH
-	mfsr	r11, SYSREG_RAR_EX
 	brne	2f
 
 1:	pushm	r11, r12	/* PC and SR */
@@ -303,10 +299,25 @@ save_full_context_ex:
 	stdsp	sp[4], r10	/* replace saved SP */
 	rjmp	1b
 
+	/*
+	 * The debug handler set up a trampoline to make us
+	 * automatically enter monitor mode upon return, but since
+	 * we're saving the full context, we must assume that the
+	 * exception handler might want to alter the return address
+	 * and/or status register. So we need to restore the original
+	 * context and enter monitor mode manually after the exception
+	 * has been handled.
+	 */
+3:	get_thread_info r8
+	ld.w	r11, r8[TI_rar_saved]
+	ld.w	r12, r8[TI_rsr_saved]
+	rjmp	1b
+	.size	save_full_context_ex, . - save_full_context_ex
+
 	/* Low-level exception handlers */
 handle_critical:
-	pushm	r12
-	pushm	r0-r12
+	sub	sp, 4
+	stmts	--sp, r0-lr
 	rcall	save_full_context_ex
 	mfsr	r12, SYSREG_ECR
 	mov	r11, sp
@@ -439,6 +450,7 @@ do_fpe_ll:
 ret_from_exception:
 	mask_interrupts
 	lddsp	r4, sp[REG_SR]
+
 	andh	r4, (MODE_MASK >> 16), COH
 	brne	fault_resume_kernel
 
@@ -515,119 +527,124 @@ fault_exit_work:
 
 2:	bld	r1, TIF_BREAKPOINT
 	brcc	fault_resume_user
-	mfsr	r3, SYSREG_TLBEHI
-	lddsp	r2, sp[REG_PC]
-	andl	r3, 0xff, COH
-	lsl	r3, 1
-	sbr	r3, 30
-	sbr	r3, 0
-	mtdr	DBGREG_BWA2A, r2
-	mtdr	DBGREG_BWC2A, r3
-	rjmp	fault_resume_user
+	rjmp	enter_monitor_mode
 
-	/* If we get a debug trap from privileged context we end up here */
-handle_debug_priv:
-	/* Fix up LR and SP in regs. r11 contains the mode we came from */
+	.section .kprobes.text, "ax", @progbits
+	.type	handle_debug, @function
+handle_debug:
+	sub	sp, 4		/* r12_orig */
+	stmts	--sp, r0-lr
+	mfsr	r8, SYSREG_RAR_DBG
+	mfsr	r9, SYSREG_RSR_DBG
+	unmask_exceptions
+	pushm	r8-r9
+	bfextu	r9, r9, SYSREG_MODE_OFFSET, SYSREG_MODE_SIZE
+	brne	debug_fixup_regs
+
+.Ldebug_fixup_cont:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	rcall	trace_hardirqs_off
+#endif
+	mov	r12, sp
+	rcall	do_debug
+	mov	sp, r12
+
+	lddsp	r2, sp[REG_SR]
+	bfextu	r3, r2, SYSREG_MODE_OFFSET, SYSREG_MODE_SIZE
+	brne	debug_resume_kernel
+
+	get_thread_info r0
+	ld.w	r1, r0[TI_flags]
+	mov	r2, _TIF_DBGWORK_MASK
+	tst	r1, r2
+	brne	debug_exit_work
+
+	bld	r1, TIF_SINGLE_STEP
+	brcc	1f
+	mfdr	r4, OCD_DC
+	sbr	r4, OCD_DC_SS_BIT
+	mtdr	OCD_DC, r4
+
+1:	popm	r10,r11
+	mask_exceptions
+	mtsr	SYSREG_RSR_DBG, r11
+	mtsr	SYSREG_RAR_DBG, r10
+#ifdef CONFIG_TRACE_IRQFLAGS
+	rcall	trace_hardirqs_on
+1:
+#endif
+	ldmts	sp++, r0-lr
+	sub	sp, -4
+	retd
+	.size	handle_debug, . - handle_debug
+
+	/* Mode of the trapped context is in r9 */
+	.type	debug_fixup_regs, @function
+debug_fixup_regs:
 	mfsr	r8, SYSREG_SR
-	mov	r9, r8
-	andh	r8, hi(~MODE_MASK)
-	or	r8, r11
+	mov	r10, r8
+	bfins	r8, r9, SYSREG_MODE_OFFSET, SYSREG_MODE_SIZE
 	mtsr	SYSREG_SR, r8
 	sub	pc, -2
 	stdsp	sp[REG_LR], lr
-	mtsr	SYSREG_SR, r9
+	mtsr	SYSREG_SR, r10
 	sub	pc, -2
-	sub	r10, sp, -FRAME_SIZE_FULL
-	stdsp	sp[REG_SP], r10
-	mov	r12, sp
-	rcall	do_debug_priv
+	sub	r8, sp, -FRAME_SIZE_FULL
+	stdsp	sp[REG_SP], r8
+	rjmp	.Ldebug_fixup_cont
+	.size	debug_fixup_regs, . - debug_fixup_regs
 
-	/* Now, put everything back */
-	ssrf	SR_EM_BIT
+	.type	debug_resume_kernel, @function
+debug_resume_kernel:
+	mask_exceptions
 	popm	r10, r11
 	mtsr	SYSREG_RAR_DBG, r10
 	mtsr	SYSREG_RSR_DBG, r11
-	mfsr	r8, SYSREG_SR
-	mov	r9, r8
-	andh	r8, hi(~MODE_MASK)
-	andh	r11, hi(MODE_MASK)
-	or	r8, r11
-	mtsr	SYSREG_SR, r8
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bld	r11, SYSREG_GM_OFFSET
+	brcc	1f
+	rcall	trace_hardirqs_on
+1:
+#endif
+	mfsr	r2, SYSREG_SR
+	mov	r1, r2
+	bfins	r2, r3, SYSREG_MODE_OFFSET, SYSREG_MODE_SIZE
+	mtsr	SYSREG_SR, r2
 	sub	pc, -2
 	popm	lr
-	mtsr	SYSREG_SR, r9
+	mtsr	SYSREG_SR, r1
 	sub	pc, -2
 	sub	sp, -4		/* skip SP */
 	popm	r0-r12
 	sub	sp, -4
 	retd
+	.size	debug_resume_kernel, . - debug_resume_kernel
 
+	.type	debug_exit_work, @function
+debug_exit_work:
 	/*
-	 * At this point, everything is masked, that is, interrupts,
-	 * exceptions and debugging traps. We might get called from
-	 * interrupt or exception context in some rare cases, but this
-	 * will be taken care of by do_debug(), so we're not going to
-	 * do a 100% correct context save here.
+	 * We must return from Monitor Mode using a retd, and we must
+	 * not schedule since that involves the D bit in SR getting
+	 * cleared by something other than the debug hardware. This
+	 * may cause undefined behaviour according to the Architecture
+	 * manual.
+	 *
+	 * So we fix up the return address and status and return to a
+	 * stub below in Exception mode. From there, we can follow the
+	 * normal exception return path.
+	 *
+	 * The real return address and status registers are stored on
+	 * the stack in the way the exception return path understands,
+	 * so no need to fix anything up there.
 	 */
-handle_debug:
-	sub	sp, 4		/* r12_orig */
-	stmts	--sp, r0-lr
-	mfsr	r10, SYSREG_RAR_DBG
-	mfsr	r11, SYSREG_RSR_DBG
-	unmask_exceptions
-	pushm	r10,r11
-	andh	r11, (MODE_MASK >> 16), COH
-	brne	handle_debug_priv
-
-	mov	r12, sp
-	rcall	do_debug
-
-	lddsp	r10, sp[REG_SR]
-	andh	r10, (MODE_MASK >> 16), COH
-	breq	debug_resume_user
-
-debug_restore_all:
-	popm	r10,r11
-	mask_exceptions
-	mtsr	SYSREG_RSR_DBG, r11
-	mtsr	SYSREG_RAR_DBG, r10
-	ldmts	sp++, r0-lr
-	sub	sp, -4
+	sub	r8, pc, . - fault_exit_work
+	mtsr	SYSREG_RAR_DBG, r8
+	mov	r9, 0
+	orh	r9, hi(SR_EM | SR_GM | MODE_EXCEPTION)
+	mtsr	SYSREG_RSR_DBG, r9
+	sub	pc, -2
 	retd
-
-debug_resume_user:
-	get_thread_info r0
-	mask_interrupts
-
-	ld.w	r1, r0[TI_flags]
-	andl	r1, _TIF_DBGWORK_MASK, COH
-	breq	debug_restore_all
-
-1:	bld	r1, TIF_NEED_RESCHED
-	brcc	2f
-	unmask_interrupts
-	rcall	schedule
-	mask_interrupts
-	ld.w	r1, r0[TI_flags]
-	rjmp	1b
-
-2:	mov	r2, _TIF_SIGPENDING | _TIF_RESTORE_SIGMASK
-	tst	r1, r2
-	breq	3f
-	unmask_interrupts
-	mov	r12, sp
-	mov	r11, r0
-	rcall	do_notify_resume
-	mask_interrupts
-	ld.w	r1, r0[TI_flags]
-	rjmp	1b
-
-3:	bld	r1, TIF_SINGLE_STEP
-	brcc	debug_restore_all
-	mfdr	r2, DBGREG_DC
-	sbr	r2, DC_SS_BIT
-	mtdr	DBGREG_DC, r2
-	rjmp	debug_restore_all
+	.size	debug_exit_work, . - debug_exit_work
 
 	.set	rsr_int0,	SYSREG_RSR_INT0
 	.set	rsr_int1,	SYSREG_RSR_INT1
@@ -675,7 +692,11 @@ irq_level\level:
 	andl	r1, _TIF_WORK_MASK, COH
 	brne	irq_exit_work
 
-1:	popm	r8-r9
+1:
+#ifdef CONFIG_TRACE_IRQFLAGS
+	rcall	trace_hardirqs_on
+#endif
+	popm	r8-r9
 	mtsr	rar_int\level, r8
 	mtsr	rsr_int\level, r9
 	ldmts	sp++,r0-lr
@@ -748,3 +769,53 @@ cpu_idle_enable_int_and_exit:
 	IRQ_LEVEL 1
 	IRQ_LEVEL 2
 	IRQ_LEVEL 3
+
+	.section .kprobes.text, "ax", @progbits
+	.type	enter_monitor_mode, @function
+enter_monitor_mode:
+	/*
+	 * We need to enter monitor mode to do a single step. The
+	 * monitor code will alter the return address so that we
+	 * return directly to the user instead of returning here.
+	 */
+	breakpoint
+	rjmp	breakpoint_failed
+
+	.size	enter_monitor_mode, . - enter_monitor_mode
+
+	.type	debug_trampoline, @function
+	.global	debug_trampoline
+debug_trampoline:
+	/*
+	 * Save the registers on the stack so that the monitor code
+	 * can find them easily.
+	 */
+	sub	sp, 4		/* r12_orig */
+	stmts	--sp, r0-lr
+	get_thread_info	r0
+	ld.w	r8, r0[TI_rar_saved]
+	ld.w	r9, r0[TI_rsr_saved]
+	pushm	r8-r9
+
+	/*
+	 * The monitor code will alter the return address so we don't
+	 * return here.
+	 */
+	breakpoint
+	rjmp	breakpoint_failed
+	.size	debug_trampoline, . - debug_trampoline
+
+	.type breakpoint_failed, @function
+breakpoint_failed:
+	/*
+	 * Something went wrong. Perhaps the debug hardware isn't
+	 * enabled?
+	 */
+	lda.w	r12, msg_breakpoint_failed
+	mov	r11, sp
+	mov	r10, 9		/* SIGKILL */
+	call	die
+1:	rjmp	1b
+
+msg_breakpoint_failed:
+	.asciz	"Failed to enter Debug Mode"

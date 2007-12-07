@@ -55,8 +55,8 @@ void machine_power_off(void)
 
 void machine_restart(char *cmd)
 {
-	__mtdr(DBGREG_DC, DC_DBE);
-	__mtdr(DBGREG_DC, DC_RES);
+	ocd_write(DC, (1 << OCD_DC_DBE_BIT));
+	ocd_write(DC, (1 << OCD_DC_RES_BIT));
 	while (1) ;
 }
 
@@ -287,10 +287,11 @@ void show_regs_log_lvl(struct pt_regs *regs, const char *log_lvl)
 	       regs->sr & SR_N ? 'N' : 'n',
 	       regs->sr & SR_Z ? 'Z' : 'z',
 	       regs->sr & SR_C ? 'C' : 'c');
-	printk("%sMode bits: %c%c%c%c%c%c%c%c%c\n", log_lvl,
+	printk("%sMode bits: %c%c%c%c%c%c%c%c%c%c\n", log_lvl,
 	       regs->sr & SR_H ? 'H' : 'h',
-	       regs->sr & SR_R ? 'R' : 'r',
 	       regs->sr & SR_J ? 'J' : 'j',
+	       regs->sr & SR_DM ? 'M' : 'm',
+	       regs->sr & SR_D ? 'D' : 'd',
 	       regs->sr & SR_EM ? 'E' : 'e',
 	       regs->sr & SR_I3M ? '3' : '.',
 	       regs->sr & SR_I2M ? '2' : '.',

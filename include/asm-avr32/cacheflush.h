@@ -116,15 +116,16 @@ extern void flush_icache_page(struct vm_area_struct *vma, struct page *page);
  * flush with all configurations.
  */
 extern void flush_icache_range(unsigned long start, unsigned long end);
-extern void flush_icache_user_range(struct vm_area_struct *vma,
-				    struct page *page,
-				    unsigned long addr, int len);
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) do {	\
-	memcpy(dst, src, len);					\
-	flush_icache_user_range(vma, page, vaddr, len);		\
-} while(0)
-#define copy_from_user_page(vma, page, vaddr, dst, src, len)	\
-	memcpy(dst, src, len)
+extern void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
+		unsigned long vaddr, void *dst, const void *src,
+		unsigned long len);
+
+static inline void copy_from_user_page(struct vm_area_struct *vma,
+		struct page *page, unsigned long vaddr, void *dst,
+		const void *src, unsigned long len)
+{
+	memcpy(dst, src, len);
+}
 
 #endif /* __ASM_AVR32_CACHEFLUSH_H */
