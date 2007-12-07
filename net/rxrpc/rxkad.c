@@ -1021,6 +1021,7 @@ static int rxkad_verify_response(struct rxrpc_connection *conn,
 
 	abort_code = RXKADINCONSISTENCY;
 	if (version != RXKAD_VERSION)
+		goto protocol_error;
 
 	abort_code = RXKADTICKETLEN;
 	if (ticket_len < 4 || ticket_len > MAXKRB5TICKETLEN)
