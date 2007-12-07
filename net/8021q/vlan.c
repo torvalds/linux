@@ -776,7 +776,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 	case SET_VLAN_NAME_TYPE_CMD:
 		err = -EPERM;
 		if (!capable(CAP_NET_ADMIN))
-			return -EPERM;
+			break;
 		if ((args.u.name_type >= 0) &&
 		    (args.u.name_type < VLAN_NAME_TYPE_HIGHEST)) {
 			vlan_name_type = args.u.name_type;
