@@ -102,7 +102,7 @@ errout:
 
 EXPORT_SYMBOL_GPL(fib_rules_register);
 
-static void cleanup_ops(struct fib_rules_ops *ops)
+void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
 {
 	struct fib_rule *rule, *tmp;
 
@@ -111,6 +111,7 @@ static void cleanup_ops(struct fib_rules_ops *ops)
 		fib_rule_put(rule);
 	}
 }
+EXPORT_SYMBOL_GPL(fib_rules_cleanup_ops);
 
 int fib_rules_unregister(struct fib_rules_ops *ops)
 {
@@ -121,7 +122,7 @@ int fib_rules_unregister(struct fib_rules_ops *ops)
 	list_for_each_entry(o, &rules_ops, list) {
 		if (o == ops) {
 			list_del_rcu(&o->list);
-			cleanup_ops(ops);
+			fib_rules_cleanup_ops(ops);
 			goto out;
 		}
 	}

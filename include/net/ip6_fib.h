@@ -226,7 +226,7 @@ extern void			fib6_gc_cleanup(void);
 
 extern int			fib6_init(void);
 
-extern void			fib6_rules_init(void);
+extern int			fib6_rules_init(void);
 extern void			fib6_rules_cleanup(void);
 
 #endif
