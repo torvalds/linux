@@ -48,6 +48,7 @@
 #define ACPI_BUTTON_HID_SLEEPF		"LNXSLPBN"
 #define ACPI_VIDEO_HID			"LNXVIDEO"
 #define ACPI_BAY_HID			"LNXIOBAY"
+#define ACPI_DOCK_HID			"LNXDOCK"
 
 /* --------------------------------------------------------------------------
                                        PCI
