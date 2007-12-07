@@ -227,7 +227,7 @@ void __init iSeries_pci_final_fixup(void)
 		pdev->sysdata = node;
 		PCI_DN(node)->pcidev = pdev;
 		allocate_device_bars(pdev);
-		iSeries_Device_Information(pdev, num_dev, bus, *sub_bus);
+		iseries_device_information(pdev, num_dev, bus, *sub_bus);
 		iommu_devnode_init_iSeries(pdev, node);
 	}
 	iSeries_activate_IRQs();

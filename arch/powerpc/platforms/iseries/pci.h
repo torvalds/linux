@@ -47,7 +47,7 @@ struct pci_dev;				/* For Forward Reference */
 #define ISERIES_GET_DEVICE_FROM_SUBBUS(subbus)		((subbus >> 5) & 0x7)
 #define ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus)	((subbus >> 2) & 0x7)
 
-extern void	iSeries_Device_Information(struct pci_dev *PciDev, int count,
+extern void	iseries_device_information(struct pci_dev *pdev, int count,
 			u16 bus, HvSubBusNumber subbus);
 #ifdef CONFIG_PCI
 extern void	iSeries_pcibios_init(void);
