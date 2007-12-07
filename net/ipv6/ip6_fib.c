@@ -1464,7 +1464,7 @@ void fib6_run_gc(unsigned long dummy)
 	}
 	gc_args.more = 0;
 
-	ndisc_dst_gc(&gc_args.more);
+	icmp6_dst_gc(&gc_args.more);
 	fib6_clean_all(fib6_age, 0, NULL);
 
 	if (gc_args.more)

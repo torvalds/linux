@@ -904,13 +904,12 @@ static inline unsigned int ipv6_advmss(unsigned int mtu)
 	return mtu;
 }
 
-static struct dst_entry *ndisc_dst_gc_list;
-static DEFINE_SPINLOCK(ndisc_lock);
+static struct dst_entry *icmp6_dst_gc_list;
+static DEFINE_SPINLOCK(icmp6_dst_lock);
 
-struct dst_entry *ndisc_dst_alloc(struct net_device *dev,
+struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 				  struct neighbour *neigh,
-				  struct in6_addr *addr,
-				  int (*output)(struct sk_buff *))
+				  struct in6_addr *addr)
 {
 	struct rt6_info *rt;
 	struct inet6_dev *idev = in6_dev_get(dev);
@@ -937,7 +936,7 @@ struct dst_entry *ndisc_dst_alloc(struct net_device *dev,
 	rt->u.dst.metrics[RTAX_HOPLIMIT-1] = 255;
 	rt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(rt->rt6i_dev);
 	rt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(dst_mtu(&rt->u.dst));
-	rt->u.dst.output  = output;
+	rt->u.dst.output  = ip6_output;
 
 #if 0	/* there's no chance to use these for ndisc */
 	rt->u.dst.flags   = ipv6_addr_type(addr) & IPV6_ADDR_UNICAST
@@ -947,10 +946,10 @@ struct dst_entry *ndisc_dst_alloc(struct net_device *dev,
 	rt->rt6i_dst.plen = 128;
 #endif
 
-	spin_lock_bh(&ndisc_lock);
-	rt->u.dst.next = ndisc_dst_gc_list;
-	ndisc_dst_gc_list = &rt->u.dst;
-	spin_unlock_bh(&ndisc_lock);
+	spin_lock_bh(&icmp6_dst_lock);
+	rt->u.dst.next = icmp6_dst_gc_list;
+	icmp6_dst_gc_list = &rt->u.dst;
+	spin_unlock_bh(&icmp6_dst_lock);
 
 	fib6_force_start_gc();
 
@@ -958,7 +957,7 @@ out:
 	return &rt->u.dst;
 }
 
-int ndisc_dst_gc(int *more)
+int icmp6_dst_gc(int *more)
 {
 	struct dst_entry *dst, *next, **pprev;
 	int freed;
@@ -966,8 +965,8 @@ int ndisc_dst_gc(int *more)
 	next = NULL;
 	freed = 0;
 
-	spin_lock_bh(&ndisc_lock);
-	pprev = &ndisc_dst_gc_list;
+	spin_lock_bh(&icmp6_dst_lock);
+	pprev = &icmp6_dst_gc_list;
 
 	while ((dst = *pprev) != NULL) {
 		if (!atomic_read(&dst->__refcnt)) {
@@ -980,7 +979,7 @@ int ndisc_dst_gc(int *more)
 		}
 	}
 
-	spin_unlock_bh(&ndisc_lock);
+	spin_unlock_bh(&icmp6_dst_lock);
 
 	return freed;
 }

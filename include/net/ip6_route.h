@@ -73,11 +73,11 @@ extern struct rt6_info		*rt6_lookup(struct in6_addr *daddr,
 					    struct in6_addr *saddr,
 					    int oif, int flags);
 
-extern struct dst_entry *ndisc_dst_alloc(struct net_device *dev,
+extern struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 					 struct neighbour *neigh,
-					 struct in6_addr *addr,
-					 int (*output)(struct sk_buff *));
-extern int ndisc_dst_gc(int *more);
+					 struct in6_addr *addr);
+extern int icmp6_dst_gc(int *more);
+
 extern void fib6_force_start_gc(void);
 
 extern struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,

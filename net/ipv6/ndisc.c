@@ -462,7 +462,7 @@ static void __ndisc_send(struct net_device *dev,
 	icmpv6_flow_init(ndisc_socket->sk, &fl, type,
 			 saddr, daddr, dev->ifindex);
 
-	dst = ndisc_dst_alloc(dev, neigh, daddr, ip6_output);
+	dst = icmp6_dst_alloc(dev, neigh, daddr);
 	if (!dst)
 		return;
 
