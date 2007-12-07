@@ -61,15 +61,15 @@ static inline int xfs_highbit64(__uint64_t v)
 /* Get low bit set out of 32-bit argument, -1 if none set */
 static inline int xfs_lowbit32(__uint32_t v)
 {
-	unsigned long	t = v;
-	return (v) ? find_first_bit(&t, 32) : -1;
+	__uint32_t t = v;
+	return (t) ? find_first_bit((unsigned long *)&t, 32) : -1;
 }
 
 /* Get low bit set out of 64-bit argument, -1 if none set */
 static inline int xfs_lowbit64(__uint64_t v)
 {
-	unsigned long	t = v;
-	return (v) ? find_first_bit(&t, 64) : -1;
+	__uint64_t t = v;
+	return (t) ? find_first_bit((unsigned long *)&t, 64) : -1;
 }
 
 /* Return whether bitmap is empty (1 == empty) */
