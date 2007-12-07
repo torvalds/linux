@@ -8,8 +8,8 @@
  * by the Free Software Foundation.
  */
 
-#include <crypto/algapi.h>
 #include <crypto/gf128mul.h>
+#include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/completion.h>
 #include <linux/err.h>
@@ -18,10 +18,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "internal.h"
-
 struct gcm_instance_ctx {
-	struct crypto_spawn ctr;
+	struct crypto_skcipher_spawn ctr;
 };
 
 struct crypto_gcm_ctx {
@@ -386,7 +384,7 @@ static int crypto_gcm_init_tfm(struct crypto_tfm *tfm)
 	unsigned long align;
 	int err;
 
-	ctr = crypto_spawn_ablkcipher(&ictx->ctr);
+	ctr = crypto_spawn_skcipher(&ictx->ctr);
 	err = PTR_ERR(ctr);
 	if (IS_ERR(ctr))
 		return err;
@@ -431,15 +429,22 @@ static struct crypto_instance *crypto_gcm_alloc_common(struct rtattr **tb,
 	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
 		return ERR_PTR(-EINVAL);
 
-	ctr = crypto_alg_mod_lookup(ctr_name, CRYPTO_ALG_TYPE_BLKCIPHER,
-				    CRYPTO_ALG_TYPE_MASK);
+	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
+	if (!inst)
+		return ERR_PTR(-ENOMEM);
 
-	if (IS_ERR(ctr))
-		return ERR_PTR(PTR_ERR(ctr));
+	ctx = crypto_instance_ctx(inst);
+	crypto_set_skcipher_spawn(&ctx->ctr, inst);
+	err = crypto_grab_skcipher(&ctx->ctr, ctr_name, 0,
+				   crypto_requires_sync(algt->type,
+							algt->mask));
+	if (err)
+		goto err_free_inst;
+
+	ctr = crypto_skcipher_spawn_alg(&ctx->ctr);
 
 	/* We only support 16-byte blocks. */
-	if ((ctr->cra_type == &crypto_blkcipher_type ?
-	     ctr->cra_blkcipher.ivsize : ctr->cra_ablkcipher.ivsize) != 16)
+	if (ctr->cra_ablkcipher.ivsize != 16)
 		goto out_put_ctr;
 
 	/* Not a stream cipher? */
@@ -447,25 +452,16 @@ static struct crypto_instance *crypto_gcm_alloc_common(struct rtattr **tb,
 	if (ctr->cra_blocksize != 1)
 		goto out_put_ctr;
 
-	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
-	err = -ENOMEM;
-	if (!inst)
-		goto out_put_ctr;
-
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
 		     "gcm_base(%s)", ctr->cra_driver_name) >=
 	    CRYPTO_MAX_ALG_NAME)
-		goto err_free_inst;
-
-	ctx = crypto_instance_ctx(inst);
-	err = crypto_init_spawn(&ctx->ctr, ctr, inst, CRYPTO_ALG_TYPE_MASK);
-	if (err)
-		goto err_free_inst;
+		goto out_put_ctr;
 
 	memcpy(inst->alg.cra_name, full_name, CRYPTO_MAX_ALG_NAME);
 
-	inst->alg.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC;
+	inst->alg.cra_flags = CRYPTO_ALG_TYPE_AEAD;
+	inst->alg.cra_flags |= ctr->cra_flags & CRYPTO_ALG_ASYNC;
 	inst->alg.cra_priority = ctr->cra_priority;
 	inst->alg.cra_blocksize = 1;
 	inst->alg.cra_alignmask = ctr->cra_alignmask | (__alignof__(u64) - 1);
@@ -480,11 +476,12 @@ static struct crypto_instance *crypto_gcm_alloc_common(struct rtattr **tb,
 	inst->alg.cra_aead.decrypt = crypto_gcm_decrypt;
 
 out:
-	crypto_mod_put(ctr);
 	return inst;
+
+out_put_ctr:
+	crypto_drop_skcipher(&ctx->ctr);
 err_free_inst:
 	kfree(inst);
-out_put_ctr:
 	inst = ERR_PTR(err);
 	goto out;
 }
@@ -516,7 +513,7 @@ static void crypto_gcm_free(struct crypto_instance *inst)
 {
 	struct gcm_instance_ctx *ctx = crypto_instance_ctx(inst);
 
-	crypto_drop_spawn(&ctx->ctr);
+	crypto_drop_skcipher(&ctx->ctr);
 	kfree(inst);
 }
 
