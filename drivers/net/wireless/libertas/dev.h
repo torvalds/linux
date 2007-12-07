@@ -366,9 +366,8 @@ struct lbs_adapter {
 	struct cmd_ds_802_11_get_log logmsg;
 
 	u32 monitormode;
+	int last_scanned_channel;
 	u8 fw_ready;
-
-	u8 last_scanned_channel;
 };
 
 #endif
