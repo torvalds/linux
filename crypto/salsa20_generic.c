@@ -143,7 +143,6 @@ static void salsa20_encrypt_bytes(struct salsa20_ctx *ctx, u8 *dst,
 				  const u8 *src, unsigned int bytes)
 {
 	u8 buf[64];
-	int i;
 
 	if (dst != src)
 		memcpy(dst, src, bytes);
@@ -156,15 +155,11 @@ static void salsa20_encrypt_bytes(struct salsa20_ctx *ctx, u8 *dst,
 			ctx->input[9] = PLUSONE(ctx->input[9]);
 
 		if (bytes <= 64) {
-			for (i = 0; i < bytes/4; ++i)
-				((u32*)dst)[i] ^= ((u32*)buf)[i];
-			for (i = bytes - bytes % 4; i < bytes; ++i)
-				dst[i] ^= buf[i];
+			crypto_xor(dst, buf, bytes);
 			return;
 		}
 
-		for (i = 0; i < 64/4; ++i)
-			((u32*)dst)[i] ^= ((u32*)buf)[i];
+		crypto_xor(dst, buf, 64);
 		bytes -= 64;
 		dst += 64;
 	}
@@ -192,13 +187,30 @@ static int encrypt(struct blkcipher_desc *desc,
 	int err;
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
-	err = blkcipher_walk_virt(desc, &walk);
+	err = blkcipher_walk_virt_block(desc, &walk, 64);
 
 	salsa20_ivsetup(ctx, walk.iv);
-	salsa20_encrypt_bytes(ctx, walk.dst.virt.addr,
-			      walk.src.virt.addr, nbytes);
 
-	err = blkcipher_walk_done(desc, &walk, 0);
+	if (likely(walk.nbytes == nbytes))
+	{
+		salsa20_encrypt_bytes(ctx, walk.dst.virt.addr,
+				      walk.src.virt.addr, nbytes);
+		return blkcipher_walk_done(desc, &walk, 0);
+	}
+
+	while (walk.nbytes >= 64) {
+		salsa20_encrypt_bytes(ctx, walk.dst.virt.addr,
+				      walk.src.virt.addr,
+				      walk.nbytes - (walk.nbytes % 64));
+		err = blkcipher_walk_done(desc, &walk, walk.nbytes % 64);
+	}
+
+	if (walk.nbytes) {
+		salsa20_encrypt_bytes(ctx, walk.dst.virt.addr,
+				      walk.src.virt.addr, walk.nbytes);
+		err = blkcipher_walk_done(desc, &walk, 0);
+	}
+
 	return err;
 }
 
