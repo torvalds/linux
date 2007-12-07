@@ -1659,7 +1659,8 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
 	wake_up_interruptible(&ptempnode->cmdwait_q);
 	ptempnode->wait_option = 0;
 	ptempnode->pdata_buf = NULL;
-	ptempnode->pdata_size = 0;
+	ptempnode->pdata_size = NULL;
+	ptempnode->callback = NULL;
 
 	if (ptempnode->bufvirtualaddr != NULL)
 		memset(ptempnode->bufvirtualaddr, 0, MRVDRV_SIZE_OF_CMD_BUFFER);
@@ -1687,7 +1688,8 @@ void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 
 	ptempnode->wait_option = wait_option;
 	ptempnode->pdata_buf = pdata_buf;
-	ptempnode->pdata_size = 0;
+	ptempnode->pdata_size = NULL;
+	ptempnode->callback = NULL;
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }
@@ -2012,10 +2014,26 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
  *  @return 	   	-1 in case of a higher level error, otherwise
  *                      the result code from the firmware
  */
-int lbs_cmd(struct lbs_private *priv,
-	u16 command,
-	void *cmd, int cmd_size,
-	void *rsp, int *rsp_size)
+
+static int lbs_cmd_callback(uint16_t respcmd, struct cmd_ds_command *resp, struct lbs_private *priv)
+{ 
+	struct cmd_ds_gen *r = (struct cmd_ds_gen *)resp;
+	struct lbs_adapter *adapter = priv->adapter;
+	u16 sz = cpu_to_le16(resp->size) - S_DS_GEN;
+
+	if (sz > *adapter->cur_cmd->pdata_size) {
+		lbs_pr_err("response 0x%04x doesn't fit into buffer (%d > %d)\n",
+			   respcmd, sz, *adapter->cur_cmd->pdata_size);
+		sz = *adapter->cur_cmd->pdata_size;
+	}
+	memcpy(adapter->cur_cmd->pdata_buf, r->cmdresp, sz);
+	*adapter->cur_cmd->pdata_size = sz;
+
+	return 0;
+}
+
+int lbs_cmd(struct lbs_private *priv, u16 command, void *cmd, int cmd_size,
+	    void *rsp, int *rsp_size)
 {
 	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmdnode;
@@ -2053,6 +2071,7 @@ int lbs_cmd(struct lbs_private *priv,
 	cmdnode->wait_option = CMD_OPTION_WAITFORRSP;
 	cmdnode->pdata_buf = rsp;
 	cmdnode->pdata_size = rsp_size;
+	cmdnode->callback = lbs_cmd_callback;
 
 	/* Set sequence number, clean result, move to buffer */
 	adapter->seqnum++;

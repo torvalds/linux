@@ -72,6 +72,7 @@ struct cmd_ctrl_node {
 	/* command response */
 	void *pdata_buf;
 	int *pdata_size;
+	int (*callback)(uint16_t respcmd, struct cmd_ds_command *resp, struct lbs_private *priv);
 	/* command data */
 	u8 *bufvirtualaddr;
 	/* wait queue */

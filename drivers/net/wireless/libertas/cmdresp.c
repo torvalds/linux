@@ -880,22 +880,15 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		goto done;
 	}
 
-	if (adapter->cur_cmd->pdata_size) {
-		struct cmd_ds_gen *r = (struct cmd_ds_gen *)resp;
-		u16 sz = cpu_to_le16(resp->size) - S_DS_GEN;
-		if (sz > *adapter->cur_cmd->pdata_size) {
-			lbs_pr_err("response 0x%04x doesn't fit into "
-				"buffer (%d > %d)\n", respcmd,
-				sz, *adapter->cur_cmd->pdata_size);
-			sz = *adapter->cur_cmd->pdata_size;
-		}
-		memcpy(adapter->cur_cmd->pdata_buf, r->cmdresp, sz);
-		*adapter->cur_cmd->pdata_size = sz;
-	} else {
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+
+	if (adapter->cur_cmd && adapter->cur_cmd->callback)
+		ret = adapter->cur_cmd->callback(respcmd, resp, priv);
+	else
 		ret = handle_cmd_response(respcmd, resp, priv);
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-	}
+
+	spin_lock_irqsave(&adapter->driver_lock, flags);
+
 	if (adapter->cur_cmd) {
 		/* Clean up and Put current command back to cmdfreeq */
 		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
