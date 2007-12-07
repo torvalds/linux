@@ -488,7 +488,12 @@ unsigned long long cpu_clock(int cpu)
 
 	local_irq_save(flags);
 	rq = cpu_rq(cpu);
-	update_rq_clock(rq);
+	/*
+	 * Only call sched_clock() if the scheduler has already been
+	 * initialized (some code might call cpu_clock() very early):
+	 */
+	if (rq->idle)
+		update_rq_clock(rq);
 	now = rq->clock;
 	local_irq_restore(flags);
 
