@@ -1478,8 +1478,11 @@ int __init fib6_init(void)
 	int ret;
 	fib6_node_kmem = kmem_cache_create("fib6_nodes",
 					   sizeof(struct fib6_node),
-					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+					   0, SLAB_HWCACHE_ALIGN,
 					   NULL);
+	if (!fib6_node_kmem)
+		return -ENOMEM;
+
 	fib6_tables_init();
 
 	ret = __rtnl_register(PF_INET6, RTM_GETROUTE, NULL, inet6_dump_fib);
