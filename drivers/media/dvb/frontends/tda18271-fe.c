@@ -584,7 +584,10 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 			       __FUNCTION__);
 			return -EINVAL;
 		}
+#if 0
+		/* userspace request is already center adjusted */
 		freq += 1750000; /* Adjust to center (+1.75MHZ) */
+#endif
 		bw = 6000000;
 	} else if (fe->ops.info.type == FE_OFDM) {
 		switch (params->u.ofdm.bandwidth) {
