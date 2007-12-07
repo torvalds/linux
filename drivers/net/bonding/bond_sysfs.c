@@ -455,14 +455,11 @@ static ssize_t bonding_show_xmit_hash(struct device *d,
 				      struct device_attribute *attr,
 				      char *buf)
 {
-	int count;
+	int count = 0;
 	struct bonding *bond = to_bond(d);
 
-	if ((bond->params.mode != BOND_MODE_XOR) &&
-	    (bond->params.mode != BOND_MODE_8023AD)) {
-		// Not Applicable
-		count = sprintf(buf, "NA\n");
-	} else {
+	if ((bond->params.mode == BOND_MODE_XOR) ||
+	    (bond->params.mode == BOND_MODE_8023AD)) {
 		count = sprintf(buf, "%s %d\n",
 			xmit_hashtype_tbl[bond->params.xmit_policy].modename,
 			bond->params.xmit_policy);
@@ -1079,8 +1076,6 @@ static ssize_t bonding_show_primary(struct device *d,
 
 	if (bond->primary_slave)
 		count = sprintf(buf, "%s\n", bond->primary_slave->dev->name);
-	else
-		count = sprintf(buf, "\n");
 
 	return count;
 }
@@ -1186,7 +1181,7 @@ static ssize_t bonding_show_active_slave(struct device *d,
 {
 	struct slave *curr;
 	struct bonding *bond = to_bond(d);
-	int count;
+	int count = 0;
 
 	read_lock(&bond->curr_slave_lock);
 	curr = bond->curr_active_slave;
@@ -1194,8 +1189,6 @@ static ssize_t bonding_show_active_slave(struct device *d,
 
 	if (USES_PRIMARY(bond->params.mode) && curr)
 		count = sprintf(buf, "%s\n", curr->dev->name);
-	else
-		count = sprintf(buf, "\n");
 	return count;
 }
 
@@ -1309,8 +1302,6 @@ static ssize_t bonding_show_ad_aggregator(struct device *d,
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.aggregator_id);
 	}
-	else
-		count = sprintf(buf, "\n");
 
 	return count;
 }
@@ -1331,8 +1322,6 @@ static ssize_t bonding_show_ad_num_ports(struct device *d,
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0: ad_info.ports);
 	}
-	else
-		count = sprintf(buf, "\n");
 
 	return count;
 }
@@ -1353,8 +1342,6 @@ static ssize_t bonding_show_ad_actor_key(struct device *d,
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.actor_key);
 	}
-	else
-		count = sprintf(buf, "\n");
 
 	return count;
 }
@@ -1375,8 +1362,6 @@ static ssize_t bonding_show_ad_partner_key(struct device *d,
 		struct ad_info ad_info;
 		count = sprintf(buf, "%d\n", (bond_3ad_get_active_agg_info(bond, &ad_info)) ?  0 : ad_info.partner_key);
 	}
-	else
-		count = sprintf(buf, "\n");
 
 	return count;
 }
@@ -1401,8 +1386,6 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 					print_mac(mac, ad_info.partner_system));
 		}
 	}
-	else
-		count = sprintf(buf, "\n");
 
 	return count;
 }
