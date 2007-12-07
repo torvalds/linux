@@ -1654,7 +1654,7 @@ void xfrm_replay_advance(struct xfrm_state *x, __be32 net_seq)
 }
 EXPORT_SYMBOL(xfrm_replay_advance);
 
-static struct list_head xfrm_km_list = LIST_HEAD_INIT(xfrm_km_list);
+static LIST_HEAD(xfrm_km_list);
 static DEFINE_RWLOCK(xfrm_km_lock);
 
 void km_policy_notify(struct xfrm_policy *xp, int dir, struct km_event *c)
