@@ -472,7 +472,7 @@ int crypto_check_attr_type(struct rtattr **tb, u32 type)
 }
 EXPORT_SYMBOL_GPL(crypto_check_attr_type);
 
-struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
+const char *crypto_attr_alg_name(struct rtattr *rta)
 {
 	struct crypto_attr_alg *alga;
 
@@ -486,7 +486,21 @@ struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
 	alga = RTA_DATA(rta);
 	alga->name[CRYPTO_MAX_ALG_NAME - 1] = 0;
 
-	return crypto_alg_mod_lookup(alga->name, type, mask);
+	return alga->name;
+}
+EXPORT_SYMBOL_GPL(crypto_attr_alg_name);
+
+struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask)
+{
+	const char *name;
+	int err;
+
+	name = crypto_attr_alg_name(rta);
+	err = PTR_ERR(name);
+	if (IS_ERR(name))
+		return ERR_PTR(err);
+
+	return crypto_alg_mod_lookup(name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_attr_alg);
 

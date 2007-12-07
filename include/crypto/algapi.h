@@ -113,6 +113,7 @@ struct crypto_tfm *crypto_spawn_tfm(struct crypto_spawn *spawn, u32 type,
 
 struct crypto_attr_type *crypto_get_attr_type(struct rtattr **tb);
 int crypto_check_attr_type(struct rtattr **tb, u32 type);
+const char *crypto_attr_alg_name(struct rtattr *rta);
 struct crypto_alg *crypto_attr_alg(struct rtattr *rta, u32 type, u32 mask);
 int crypto_attr_u32(struct rtattr *rta, u32 *num);
 struct crypto_instance *crypto_alloc_instance(const char *name,
