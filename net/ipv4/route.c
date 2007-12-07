@@ -1512,8 +1512,9 @@ static void ipv4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 {
 	struct rtable *rt = (struct rtable *) dst;
 	struct in_device *idev = rt->idev;
-	if (dev != init_net.loopback_dev && idev && idev->dev == dev) {
-		struct in_device *loopback_idev = in_dev_get(init_net.loopback_dev);
+	if (dev != dev->nd_net->loopback_dev && idev && idev->dev == dev) {
+		struct in_device *loopback_idev =
+			in_dev_get(dev->nd_net->loopback_dev);
 		if (loopback_idev) {
 			rt->idev = loopback_idev;
 			in_dev_put(idev);
