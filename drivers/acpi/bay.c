@@ -46,6 +46,12 @@ MODULE_LICENSE("GPL");
 	printk(KERN_DEBUG PREFIX "%s: %s\n", prefix, s); }
 static void bay_notify(acpi_handle handle, u32 event, void *data);
 
+static const struct acpi_device_id bay_device_ids[] = {
+	{"LNXIOBAY", 0},
+	{"", 0},
+};
+MODULE_DEVICE_TABLE(acpi, bay_device_ids);
+
 struct bay {
 	acpi_handle handle;
 	char *name;
