@@ -43,8 +43,6 @@
 #include <linux/dmi.h>
 
 
-#ifdef CONFIG_ACPI
-
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
 	ACPI_IRQ_MODEL_IOAPIC,
@@ -116,19 +114,11 @@ int acpi_unmap_lsapic(int cpu);
 int acpi_register_ioapic(acpi_handle handle, u64 phys_addr, u32 gsi_base);
 int acpi_unregister_ioapic(acpi_handle handle, u32 gsi_base);
 
-extern int acpi_mp_config;
-
 extern struct acpi_mcfg_allocation *pci_mmcfg_config;
 extern int pci_mmcfg_config_num;
 
 extern int sbf_port;
 extern unsigned long acpi_realmode_flags;
-
-#else	/* !CONFIG_ACPI */
-
-#define acpi_mp_config	0
-
-#endif 	/* !CONFIG_ACPI */
 
 int acpi_register_gsi (u32 gsi, int triggering, int polarity);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
@@ -144,8 +134,6 @@ extern int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity);
  * are freed.
  */
 void acpi_unregister_gsi (u32 gsi);
-
-#ifdef CONFIG_ACPI
 
 struct acpi_prt_entry {
 	struct list_head	node;
@@ -178,8 +166,6 @@ struct acpi_pci_driver {
 
 int acpi_pci_register_driver(struct acpi_pci_driver *driver);
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
-
-#endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI_EC
 
