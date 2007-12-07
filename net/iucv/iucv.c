@@ -1492,7 +1492,7 @@ static void iucv_tasklet_fn(unsigned long ignored)
 		[0x08] = iucv_message_pending,
 		[0x09] = iucv_message_pending,
 	};
-	struct list_head task_queue = LIST_HEAD_INIT(task_queue);
+	LIST_HEAD(task_queue);
 	struct iucv_irq_list *p, *n;
 
 	/* Serialize tasklet, iucv_path_sever and iucv_path_connect. */
@@ -1526,7 +1526,7 @@ static void iucv_tasklet_fn(unsigned long ignored)
 static void iucv_work_fn(struct work_struct *work)
 {
 	typedef void iucv_irq_fn(struct iucv_irq_data *);
-	struct list_head work_queue = LIST_HEAD_INIT(work_queue);
+	LIST_HEAD(work_queue);
 	struct iucv_irq_list *p, *n;
 
 	/* Serialize tasklet, iucv_path_sever and iucv_path_connect. */
