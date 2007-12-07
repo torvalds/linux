@@ -662,6 +662,7 @@ static struct tda1004x_config hauppauge_hvr_1110_config = {
 	.if_freq       = TDA10046_FREQ_045,
 	.i2c_gate      = 0x4b,
 	.tuner_address = 0x61,
+	.tuner_config  = 1,
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
