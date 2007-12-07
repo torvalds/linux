@@ -83,10 +83,12 @@ ifneq ($(strip $(obj-y) $(obj-m) $(obj-n) $(obj-) $(lib-target)),)
 builtin-target := $(obj)/built-in.o
 endif
 
+modorder-target := $(obj)/modules.order
+
 # We keep a list of all modules in $(MODVERDIR)
 
 __build: $(if $(KBUILD_BUILTIN),$(builtin-target) $(lib-target) $(extra-y)) \
-	 $(if $(KBUILD_MODULES),$(obj-m)) \
+	 $(if $(KBUILD_MODULES),$(obj-m) $(modorder-target)) \
 	 $(subdir-ym) $(always)
 	@:
 
@@ -274,6 +276,19 @@ $(builtin-target): $(obj-y) FORCE
 
 targets += $(builtin-target)
 endif # builtin-target
+
+#
+# Rule to create modules.order file
+#
+# Create commands to either record .ko file or cat modules.order from
+# a subdirectory
+modorder-cmds =						\
+	$(foreach m, $(modorder),			\
+		$(if $(filter %/modules.order, $m),	\
+			cat $m;, echo kernel/$m;))
+
+$(modorder-target): $(subdir-ym) FORCE
+	$(Q)(cat /dev/null; $(modorder-cmds)) > $@
 
 #
 # Rule to compile a set of .o files into one .a file
