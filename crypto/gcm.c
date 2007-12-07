@@ -10,13 +10,14 @@
 
 #include <crypto/algapi.h>
 #include <crypto/gf128mul.h>
+#include <crypto/scatterwalk.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "scatterwalk.h"
+#include "internal.h"
 
 struct gcm_instance_ctx {
 	struct crypto_spawn ctr;

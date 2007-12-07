@@ -13,15 +13,14 @@
  * any later version.
  *
  */
+
+#include <crypto/scatterwalk.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/scatterlist.h>
-
-#include "internal.h"
-#include "scatterwalk.h"
 
 static inline void memcpy_dir(void *buf, void *sgdata, size_t nbytes, int out)
 {

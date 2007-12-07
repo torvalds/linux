@@ -14,6 +14,7 @@
  *
  */
 
+#include <crypto/scatterwalk.h>
 #include <linux/crypto.h>
 #include <linux/errno.h>
 #include <linux/hardirq.h>
@@ -25,7 +26,6 @@
 #include <linux/string.h>
 
 #include "internal.h"
-#include "scatterwalk.h"
 
 enum {
 	BLKCIPHER_WALK_PHYS = 1 << 0,

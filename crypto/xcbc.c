@@ -19,6 +19,7 @@
  * 	Kazunori Miyazawa <miyazawa@linux-ipv6.org>
  */
 
+#include <crypto/scatterwalk.h>
 #include <linux/crypto.h>
 #include <linux/err.h>
 #include <linux/hardirq.h>
@@ -27,7 +28,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
-#include "internal.h"
 
 static u_int32_t ks[12] = {0x01010101, 0x01010101, 0x01010101, 0x01010101,
 			   0x02020202, 0x02020202, 0x02020202, 0x02020202,
