@@ -382,7 +382,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 	}
 
 	/* handle input mappings for quirky devices */
-	ret = hidinput_mapping_quirks(usage, input, bit, &max);
+	ret = hidinput_mapping_quirks(usage, input, &bit, &max);
 	if (ret)
 		goto mapped;
 
