@@ -36,10 +36,6 @@ MODULE_DESCRIPTION("i2c device driver for m52790 A/V switch");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0x90 >> 1, I2C_CLIENT_END };
-
-
-I2C_CLIENT_INSMOD;
 
 struct m52790_state {
 	u16 input;

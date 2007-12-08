@@ -69,10 +69,6 @@ module_param(test_image, int, 0644);
 MODULE_PARM_DESC(debug, "debug level (0-2)");
 MODULE_PARM_DESC(test_image, "test_image (0-1)");
 
-static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
-
-
-I2C_CLIENT_INSMOD;
 
 /*
  * SAA7127 registers

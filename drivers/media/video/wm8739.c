@@ -37,14 +37,11 @@ MODULE_AUTHOR("T. Adachi, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
 static int debug;
-static unsigned short normal_i2c[] = { 0x34 >> 1, 0x36 >> 1, I2C_CLIENT_END };
 
 module_param(debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-
-I2C_CLIENT_INSMOD;
 
 /* ------------------------------------------------------------------------ */
 

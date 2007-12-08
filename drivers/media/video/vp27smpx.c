@@ -36,10 +36,6 @@ MODULE_DESCRIPTION("vp27smpx driver");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static unsigned short normal_i2c[] = { 0xb6 >> 1, I2C_CLIENT_END };
-
-
-I2C_CLIENT_INSMOD;
 
 /* ----------------------------------------------------------------------- */
 

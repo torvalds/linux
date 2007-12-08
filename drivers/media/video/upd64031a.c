@@ -49,10 +49,6 @@ module_param(debug, int, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
-static unsigned short normal_i2c[] = { 0x24 >> 1, 0x26 >> 1, I2C_CLIENT_END };
-
-
-I2C_CLIENT_INSMOD;
 
 enum {
 	R00 = 0, R01, R02, R03, R04,
