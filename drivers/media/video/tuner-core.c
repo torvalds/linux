@@ -78,23 +78,17 @@ MODULE_LICENSE("GPL");
 
 /* ---------------------------------------------------------------------- */
 
-static void fe_set_freq(struct dvb_frontend *fe, unsigned int freq)
+static void fe_set_params(struct dvb_frontend *fe,
+			  struct analog_parameters *params)
 {
 	struct dvb_tuner_ops *fe_tuner_ops = &fe->ops.tuner_ops;
 	struct tuner *t = fe->analog_demod_priv;
-
-	struct analog_parameters params = {
-		.frequency = freq,
-		.mode      = t->mode,
-		.audmode   = t->audmode,
-		.std       = t->std
-	};
 
 	if (NULL == fe_tuner_ops->set_analog_params) {
 		tuner_warn("Tuner frontend module has no way to set freq\n");
 		return;
 	}
-	fe_tuner_ops->set_analog_params(fe, &params);
+	fe_tuner_ops->set_analog_params(fe, params);
 }
 
 static void fe_release(struct dvb_frontend *fe)
@@ -136,8 +130,7 @@ static int fe_has_signal(struct dvb_frontend *fe)
 static void tuner_status(struct dvb_frontend *fe);
 
 static struct analog_tuner_ops tuner_core_ops = {
-	.set_tv_freq    = fe_set_freq,
-	.set_radio_freq = fe_set_freq,
+	.set_params     = fe_set_params,
 	.standby        = fe_standby,
 	.release        = fe_release,
 	.has_signal     = fe_has_signal,
@@ -150,11 +143,17 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 	struct tuner *t = i2c_get_clientdata(c);
 	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 
+	struct analog_parameters params = {
+		.mode      = t->mode,
+		.audmode   = t->audmode,
+		.std       = t->std
+	};
+
 	if (t->type == UNSET) {
 		tuner_warn ("tuner type not set\n");
 		return;
 	}
-	if ((NULL == ops) || (NULL == ops->set_tv_freq)) {
+	if ((NULL == ops) || (NULL == ops->set_params)) {
 		tuner_warn ("Tuner has no way to set tv freq\n");
 		return;
 	}
@@ -169,7 +168,9 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 		else
 			freq = tv_range[1] * 16;
 	}
-	ops->set_tv_freq(&t->fe, freq);
+	params.frequency = freq;
+
+	ops->set_params(&t->fe, &params);
 }
 
 static void set_radio_freq(struct i2c_client *c, unsigned int freq)
@@ -177,11 +178,17 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 	struct tuner *t = i2c_get_clientdata(c);
 	struct analog_tuner_ops *ops = t->fe.ops.analog_demod_ops;
 
+	struct analog_parameters params = {
+		.mode      = t->mode,
+		.audmode   = t->audmode,
+		.std       = t->std
+	};
+
 	if (t->type == UNSET) {
 		tuner_warn ("tuner type not set\n");
 		return;
 	}
-	if ((NULL == ops) || (NULL == ops->set_radio_freq)) {
+	if ((NULL == ops) || (NULL == ops->set_params)) {
 		tuner_warn ("tuner has no way to set radio frequency\n");
 		return;
 	}
@@ -196,8 +203,9 @@ static void set_radio_freq(struct i2c_client *c, unsigned int freq)
 		else
 			freq = radio_range[1] * 16000;
 	}
+	params.frequency = freq;
 
-	ops->set_radio_freq(&t->fe, freq);
+	ops->set_params(&t->fe, &params);
 }
 
 static void set_freq(struct i2c_client *c, unsigned long freq)
@@ -359,8 +367,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 	ops = t->fe.ops.analog_demod_ops;
 
-	if (((NULL == ops) ||
-	     ((NULL == ops->set_tv_freq) && (NULL == ops->set_radio_freq))) &&
+	if (((NULL == ops) || (NULL == ops->set_params)) &&
 	    (fe_tuner_ops->set_analog_params)) {
 		strlcpy(t->i2c->name, fe_tuner_ops->info.name,
 			sizeof(t->i2c->name));

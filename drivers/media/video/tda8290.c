@@ -110,31 +110,32 @@ static int tda8295_i2c_bridge(struct dvb_frontend *fe, int close)
 
 /*---------------------------------------------------------------------*/
 
-static void set_audio(struct dvb_frontend *fe)
+static void set_audio(struct dvb_frontend *fe,
+		      struct analog_parameters *params)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 	struct tuner *t = priv->t;
 	char* mode;
 
-	if (t->std & V4L2_STD_MN) {
+	if (params->std & V4L2_STD_MN) {
 		priv->tda8290_easy_mode = 0x01;
 		mode = "MN";
-	} else if (t->std & V4L2_STD_B) {
+	} else if (params->std & V4L2_STD_B) {
 		priv->tda8290_easy_mode = 0x02;
 		mode = "B";
-	} else if (t->std & V4L2_STD_GH) {
+	} else if (params->std & V4L2_STD_GH) {
 		priv->tda8290_easy_mode = 0x04;
 		mode = "GH";
-	} else if (t->std & V4L2_STD_PAL_I) {
+	} else if (params->std & V4L2_STD_PAL_I) {
 		priv->tda8290_easy_mode = 0x08;
 		mode = "I";
-	} else if (t->std & V4L2_STD_DK) {
+	} else if (params->std & V4L2_STD_DK) {
 		priv->tda8290_easy_mode = 0x10;
 		mode = "DK";
-	} else if (t->std & V4L2_STD_SECAM_L) {
+	} else if (params->std & V4L2_STD_SECAM_L) {
 		priv->tda8290_easy_mode = 0x20;
 		mode = "L";
-	} else if (t->std & V4L2_STD_SECAM_LC) {
+	} else if (params->std & V4L2_STD_SECAM_LC) {
 		priv->tda8290_easy_mode = 0x40;
 		mode = "LC";
 	} else {
@@ -145,7 +146,8 @@ static void set_audio(struct dvb_frontend *fe)
 	tuner_dbg("setting tda829x to system %s\n", mode);
 }
 
-static void tda8290_set_freq(struct dvb_frontend *fe, unsigned int freq)
+static void tda8290_set_params(struct dvb_frontend *fe,
+			       struct analog_parameters *params)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 	struct tuner *t = priv->t;
@@ -172,14 +174,7 @@ static void tda8290_set_freq(struct dvb_frontend *fe, unsigned int freq)
 		      pll_stat;
 	int i;
 
-	struct analog_parameters params = {
-		.frequency = freq,
-		.mode      = t->mode,
-		.audmode   = t->audmode,
-		.std       = t->std
-	};
-
-	set_audio(fe);
+	set_audio(fe, params);
 
 	tuner_dbg("tda827xa config is 0x%02x\n", t->config);
 	tuner_i2c_xfer_send(&priv->i2c_props, easy_mode, 2);
@@ -200,7 +195,7 @@ static void tda8290_set_freq(struct dvb_frontend *fe, unsigned int freq)
 	tda8290_i2c_bridge(fe, 1);
 
 	if (fe->ops.tuner_ops.set_analog_params)
-		fe->ops.tuner_ops.set_analog_params(fe, &params);
+		fe->ops.tuner_ops.set_analog_params(fe, params);
 
 	for (i = 0; i < 3; i++) {
 		tuner_i2c_xfer_send(&priv->i2c_props, &addr_pll_stat, 1);
@@ -363,23 +358,17 @@ static int tda8295_has_signal(struct dvb_frontend *fe)
 
 /*---------------------------------------------------------------------*/
 
-static void tda8295_set_freq(struct dvb_frontend *fe, unsigned int freq)
+static void tda8295_set_params(struct dvb_frontend *fe,
+			       struct analog_parameters *params)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
 	struct tuner *t = priv->t;
 
 	unsigned char blanking_mode[]     = { 0x1d, 0x00 };
 
-	struct analog_parameters params = {
-		.frequency = freq,
-		.mode      = t->mode,
-		.audmode   = t->audmode,
-		.std       = t->std
-	};
+	set_audio(fe, params);
 
-	set_audio(fe);
-
-	tuner_dbg("%s: freq = %d\n", __FUNCTION__, freq);
+	tuner_dbg("%s: freq = %d\n", __FUNCTION__, params->frequency);
 
 	tda8295_power(fe, 1);
 	tda8295_agc1_out(fe, 1);
@@ -396,7 +385,7 @@ static void tda8295_set_freq(struct dvb_frontend *fe, unsigned int freq)
 	tda8295_i2c_bridge(fe, 1);
 
 	if (fe->ops.tuner_ops.set_analog_params)
-		fe->ops.tuner_ops.set_analog_params(fe, &params);
+		fe->ops.tuner_ops.set_analog_params(fe, params);
 
 	if (priv->cfg.agcf)
 		priv->cfg.agcf(fe);
@@ -673,8 +662,7 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 }
 
 static struct analog_tuner_ops tda8290_tuner_ops = {
-	.set_tv_freq    = tda8290_set_freq,
-	.set_radio_freq = tda8290_set_freq,
+	.set_params     = tda8290_set_params,
 	.has_signal     = tda8290_has_signal,
 	.standby        = tda8290_standby,
 	.release        = tda829x_release,
@@ -682,8 +670,7 @@ static struct analog_tuner_ops tda8290_tuner_ops = {
 };
 
 static struct analog_tuner_ops tda8295_tuner_ops = {
-	.set_tv_freq    = tda8295_set_freq,
-	.set_radio_freq = tda8295_set_freq,
+	.set_params     = tda8295_set_params,
 	.has_signal     = tda8295_has_signal,
 	.standby        = tda8295_standby,
 	.release        = tda829x_release,

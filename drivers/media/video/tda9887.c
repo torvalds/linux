@@ -622,7 +622,8 @@ static void tda9887_standby(struct dvb_frontend *fe)
 	tda9887_configure(fe);
 }
 
-static void tda9887_set_freq(struct dvb_frontend *fe, unsigned int freq)
+static void tda9887_set_params(struct dvb_frontend *fe,
+			       struct analog_parameters *params)
 {
 	tda9887_configure(fe);
 }
@@ -634,8 +635,7 @@ static void tda9887_release(struct dvb_frontend *fe)
 }
 
 static struct analog_tuner_ops tda9887_tuner_ops = {
-	.set_tv_freq    = tda9887_set_freq,
-	.set_radio_freq = tda9887_set_freq,
+	.set_params     = tda9887_set_params,
 	.standby        = tda9887_standby,
 	.tuner_status   = tda9887_tuner_status,
 	.get_afc        = tda9887_get_afc,
