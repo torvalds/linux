@@ -54,12 +54,6 @@
 #define ACPI_BATTERY_DIR_NAME		"BAT%i"
 #define ACPI_AC_DIR_NAME		"AC0"
 
-enum acpi_sbs_device_addr {
-	ACPI_SBS_CHARGER = 0x9,
-	ACPI_SBS_MANAGER = 0xa,
-	ACPI_SBS_BATTERY = 0xb,
-};
-
 #define ACPI_SBS_NOTIFY_STATUS		0x80
 #define ACPI_SBS_NOTIFY_INFO		0x81
 
