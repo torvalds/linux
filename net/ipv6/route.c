@@ -2526,11 +2526,10 @@ int __init ip6_route_init(void)
 	if (ret)
 		goto out_proc_init;
 
-#ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	ret = fib6_rules_init();
 	if (ret)
 		goto xfrm6_init;
-#endif
+
 	ret = -ENOBUFS;
 	if (__rtnl_register(PF_INET6, RTM_NEWROUTE, inet6_rtm_newroute, NULL) ||
 	    __rtnl_register(PF_INET6, RTM_DELROUTE, inet6_rtm_delroute, NULL) ||
@@ -2542,10 +2541,8 @@ out:
 	return ret;
 
 fib6_rules_init:
-#ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	fib6_rules_cleanup();
 xfrm6_init:
-#endif
 	xfrm6_fini();
 out_proc_init:
 	ipv6_route_proc_fini(&init_net);
@@ -2559,9 +2556,7 @@ out_kmem_cache:
 
 void ip6_route_cleanup(void)
 {
-#ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	fib6_rules_cleanup();
-#endif
 	ipv6_route_proc_fini(&init_net);
 	xfrm6_fini();
 	rt6_ifdown(NULL);
