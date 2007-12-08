@@ -2358,6 +2358,40 @@ static const struct file_operations rt6_stats_seq_fops = {
 	.llseek	 = seq_lseek,
 	.release = single_release,
 };
+
+static int ipv6_route_proc_init(struct net *net)
+{
+	int ret = -ENOMEM;
+	if (!proc_net_fops_create(net, "ipv6_route",
+				  0, &ipv6_route_proc_fops))
+		goto out;
+
+	if (!proc_net_fops_create(net, "rt6_stats",
+				  S_IRUGO, &rt6_stats_seq_fops))
+		goto out_ipv6_route;
+
+	ret = 0;
+out:
+	return ret;
+out_ipv6_route:
+	proc_net_remove(net, "ipv6_route");
+	goto out;
+}
+
+static void ipv6_route_proc_fini(struct net *net)
+{
+	proc_net_remove(net, "ipv6_route");
+	proc_net_remove(net, "rt6_stats");
+}
+#else
+static inline int ipv6_route_proc_init(struct net *net)
+{
+	return 0;
+}
+static inline void ipv6_route_proc_fini(struct net *net)
+{
+	return ;
+}
 #endif	/* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SYSCTL
@@ -2484,21 +2518,14 @@ int __init ip6_route_init(void)
 	if (ret)
 		goto out_kmem_cache;
 
-#ifdef CONFIG_PROC_FS
-	ret = -ENOMEM;
-	if (!proc_net_fops_create(&init_net, "ipv6_route",
-				  0, &ipv6_route_proc_fops))
+	ret = ipv6_route_proc_init(&init_net);
+	if (ret)
 		goto out_fib6_init;
-
-	if (!proc_net_fops_create(&init_net, "rt6_stats",
-				  S_IRUGO, &rt6_stats_seq_fops))
-		goto out_proc_ipv6_route;
-#endif
 
 #ifdef CONFIG_XFRM
 	ret = xfrm6_init();
 	if (ret)
-		goto out_proc_rt6_stats;
+		goto out_proc_init;
 #endif
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	ret = fib6_rules_init();
@@ -2522,14 +2549,10 @@ xfrm6_init:
 #endif
 #ifdef CONFIG_XFRM
 	xfrm6_fini();
-out_proc_rt6_stats:
 #endif
-#ifdef CONFIG_PROC_FS
-	proc_net_remove(&init_net, "rt6_stats");
-out_proc_ipv6_route:
-	proc_net_remove(&init_net, "ipv6_route");
+out_proc_init:
+	ipv6_route_proc_fini(&init_net);
 out_fib6_init:
-#endif
 	rt6_ifdown(NULL);
 	fib6_gc_cleanup();
 out_kmem_cache:
@@ -2542,8 +2565,7 @@ void ip6_route_cleanup(void)
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 	fib6_rules_cleanup();
 #endif
-	proc_net_remove(&init_net, "ipv6_route");
-	proc_net_remove(&init_net, "rt6_stats");
+	ipv6_route_proc_fini(&init_net);
 #ifdef CONFIG_XFRM
 	xfrm6_fini();
 #endif
