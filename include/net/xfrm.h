@@ -842,7 +842,6 @@ xfrm_state_addr_cmp(struct xfrm_tmpl *tmpl, struct xfrm_state *x, unsigned short
 }
 
 #ifdef CONFIG_XFRM
-
 extern int __xfrm_policy_check(struct sock *, int dir, struct sk_buff *skb, unsigned short family);
 
 static inline int xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb, unsigned short family)
@@ -1066,12 +1065,23 @@ struct xfrm6_tunnel {
 
 extern void xfrm_init(void);
 extern void xfrm4_init(void);
-extern int xfrm6_init(void);
-extern void xfrm6_fini(void);
 extern void xfrm_state_init(void);
 extern void xfrm4_state_init(void);
+#ifdef CONFIG_XFRM
+extern int xfrm6_init(void);
+extern void xfrm6_fini(void);
 extern int xfrm6_state_init(void);
 extern void xfrm6_state_fini(void);
+#else
+static inline int xfrm6_init(void)
+{
+	return 0;
+}
+static inline void xfrm6_fini(void)
+{
+	;
+}
+#endif
 
 extern int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*), void *);
 extern struct xfrm_state *xfrm_state_alloc(void);
