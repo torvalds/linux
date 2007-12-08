@@ -152,11 +152,11 @@ done:
 		netif_stop_queue(priv->dev);
 		if (priv->mesh_dev)
 			netif_stop_queue(priv->mesh_dev);
-		/* freeze any packets already in our queues */
-		priv->adapter->TxLockFlag = 1;
+
+		/* Keep the skb around for when we get feedback */
+		priv->adapter->currenttxskb = skb;
 	} else {
 		dev_kfree_skb_any(skb);
-		priv->adapter->currenttxskb = NULL;
 	}
 
 	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
@@ -227,8 +227,6 @@ int lbs_process_tx(struct lbs_private *priv, struct sk_buff *skb)
 		return ret;
 	}
 
-	priv->adapter->currenttxskb = skb;
-
 	ret = SendSinglePacket(priv, skb);
 done:
 	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
@@ -272,7 +270,6 @@ void lbs_send_tx_feedback(struct lbs_private *priv)
 	    (1 + adapter->txretrycount - try_count) : 0;
 	lbs_upload_rx_packet(priv, adapter->currenttxskb);
 	adapter->currenttxskb = NULL;
-	priv->adapter->TxLockFlag = 0;
 
 	if (adapter->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);

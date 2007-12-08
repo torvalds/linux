@@ -285,7 +285,6 @@ struct lbs_adapter {
 
 	/** Tx-related variables (for single packet tx) */
 	struct sk_buff *currenttxskb;
-	u16 TxLockFlag;
 
 	/** NIC Operation characteristics */
 	u16 currentpacketfilter;

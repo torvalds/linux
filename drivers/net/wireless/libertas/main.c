@@ -290,8 +290,14 @@ static ssize_t lbs_rtap_set(struct device *dev,
 			return strlen(buf);
 		adapter->monitormode = LBS_MONITOR_OFF;
 		lbs_remove_rtap(priv);
-		netif_wake_queue(priv->dev);
-		netif_wake_queue(priv->mesh_dev);
+
+		if (adapter->currenttxskb) {
+			dev_kfree_skb_any(adapter->currenttxskb);
+			adapter->currenttxskb = NULL;
+		}
+
+		/* Wake queues, command thread, etc. */
+		lbs_host_to_card_done(priv);
 	}
 
 	lbs_prepare_and_send_command(priv,
@@ -521,7 +527,15 @@ static int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lbs_deb_enter(LBS_DEB_TX);
 
-	if (priv->dnld_sent || priv->adapter->TxLockFlag) {
+	/* We could return NETDEV_TX_BUSY here, but I'd actually 
+	   like to get the point where we can BUG() */
+	if (priv->dnld_sent) {
+		lbs_pr_err("%s while dnld_sent\n", __func__);
+		priv->stats.tx_dropped++;
+		goto done;
+	}
+	if (priv->adapter->currenttxskb) {
+		lbs_pr_err("%s while TX skb pending\n", __func__);
 		priv->stats.tx_dropped++;
 		goto done;
 	}
@@ -623,6 +637,11 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 	/* Wake main thread if commands are pending */
 	if (!adapter->cur_cmd)
 		wake_up_interruptible(&priv->waitq);
+
+	/* Don't wake netif queues if we're in monitor mode and
+	   a TX packet is already pending. */
+	if (priv->adapter->currenttxskb)
+		return;
 
 	if (priv->dev && adapter->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);
