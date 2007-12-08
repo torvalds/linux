@@ -141,6 +141,7 @@ struct fib_table {
 	struct hlist_node tb_hlist;
 	u32		tb_id;
 	unsigned	tb_stamp;
+	int		tb_default;
 	int		(*tb_lookup)(struct fib_table *tb, const struct flowi *flp, struct fib_result *res);
 	int		(*tb_insert)(struct fib_table *, struct fib_config *);
 	int		(*tb_delete)(struct fib_table *, struct fib_config *);

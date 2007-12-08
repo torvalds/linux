@@ -272,8 +272,6 @@ out:
 	return err;
 }
 
-static int fn_hash_last_dflt=-1;
-
 static void
 fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib_result *res)
 {
@@ -314,9 +312,9 @@ fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 				if (next_fi != res->fi)
 					break;
 			} else if (!fib_detect_death(fi, order, &last_resort,
-						     &last_idx, fn_hash_last_dflt)) {
+						&last_idx, tb->tb_default)) {
 				fib_result_assign(res, fi);
-				fn_hash_last_dflt = order;
+				tb->tb_default = order;
 				goto out;
 			}
 			fi = next_fi;
@@ -325,19 +323,20 @@ fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 	}
 
 	if (order <= 0 || fi == NULL) {
-		fn_hash_last_dflt = -1;
+		tb->tb_default = -1;
 		goto out;
 	}
 
-	if (!fib_detect_death(fi, order, &last_resort, &last_idx, fn_hash_last_dflt)) {
+	if (!fib_detect_death(fi, order, &last_resort, &last_idx,
+				tb->tb_default)) {
 		fib_result_assign(res, fi);
-		fn_hash_last_dflt = order;
+		tb->tb_default = order;
 		goto out;
 	}
 
 	if (last_idx >= 0)
 		fib_result_assign(res, last_resort);
-	fn_hash_last_dflt = last_idx;
+	tb->tb_default = last_idx;
 out:
 	read_unlock(&fib_hash_lock);
 }
@@ -773,6 +772,7 @@ struct fib_table * __init fib_hash_init(u32 id)
 		return NULL;
 
 	tb->tb_id = id;
+	tb->tb_default = -1;
 	tb->tb_lookup = fn_hash_lookup;
 	tb->tb_insert = fn_hash_insert;
 	tb->tb_delete = fn_hash_delete;

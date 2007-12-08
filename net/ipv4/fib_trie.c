@@ -1782,8 +1782,6 @@ static int fn_trie_flush(struct fib_table *tb)
 	return found;
 }
 
-static int trie_last_dflt = -1;
-
 static void
 fn_trie_select_default(struct fib_table *tb, const struct flowi *flp, struct fib_result *res)
 {
@@ -1830,28 +1828,29 @@ fn_trie_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 			if (next_fi != res->fi)
 				break;
 		} else if (!fib_detect_death(fi, order, &last_resort,
-					     &last_idx, trie_last_dflt)) {
+					     &last_idx, tb->tb_default)) {
 			fib_result_assign(res, fi);
-			trie_last_dflt = order;
+			tb->tb_default = order;
 			goto out;
 		}
 		fi = next_fi;
 		order++;
 	}
 	if (order <= 0 || fi == NULL) {
-		trie_last_dflt = -1;
+		tb->tb_default = -1;
 		goto out;
 	}
 
-	if (!fib_detect_death(fi, order, &last_resort, &last_idx, trie_last_dflt)) {
+	if (!fib_detect_death(fi, order, &last_resort, &last_idx,
+				tb->tb_default)) {
 		fib_result_assign(res, fi);
-		trie_last_dflt = order;
+		tb->tb_default = order;
 		goto out;
 	}
 	if (last_idx >= 0)
 		fib_result_assign(res, last_resort);
-	trie_last_dflt = last_idx;
- out:;
+	tb->tb_default = last_idx;
+out:
 	rcu_read_unlock();
 }
 
@@ -1978,6 +1977,7 @@ struct fib_table * __init fib_hash_init(u32 id)
 		return NULL;
 
 	tb->tb_id = id;
+	tb->tb_default = -1;
 	tb->tb_lookup = fn_trie_lookup;
 	tb->tb_insert = fn_trie_insert;
 	tb->tb_delete = fn_trie_delete;
