@@ -1009,10 +1009,9 @@ void lbs_queue_cmd(struct lbs_adapter *adapter,
 
 	spin_lock_irqsave(&adapter->driver_lock, flags);
 
-	if (addtail) {
+	if (addtail)
 		list_add_tail(&cmdnode->list, &adapter->cmdpendingq);
-		adapter->nr_cmd_pending++;
-	} else
+	else
 		list_add(&cmdnode->list, &adapter->cmdpendingq);
 
 	spin_unlock_irqrestore(&adapter->driver_lock, flags);
@@ -1078,7 +1077,6 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 		spin_lock_irqsave(&adapter->driver_lock, flags);
 		adapter->cur_cmd_retcode = ret;
 		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->nr_cmd_pending--;
 		adapter->cur_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		goto done;

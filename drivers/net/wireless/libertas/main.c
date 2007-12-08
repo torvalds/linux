@@ -929,14 +929,13 @@ static int lbs_thread(void *data)
 		/* Wake-up command waiters which can't sleep in
 		 * lbs_prepare_and_send_command
 		 */
-		if (!adapter->nr_cmd_pending)
+		if (!list_empty(&adapter->cmdpendingq))
 			wake_up_all(&adapter->cmd_pending);
 
 		lbs_tx_runqueue(priv);
 	}
 
 	del_timer(&adapter->command_timer);
-	adapter->nr_cmd_pending = 0;
 	wake_up_all(&adapter->cmd_pending);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
@@ -1105,7 +1104,6 @@ static int lbs_init_adapter(struct lbs_private *priv)
 
 	spin_lock_init(&adapter->driver_lock);
 	init_waitqueue_head(&adapter->cmd_pending);
-	adapter->nr_cmd_pending = 0;
 
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {

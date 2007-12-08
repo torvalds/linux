@@ -791,7 +791,6 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		lbs_deb_host("invalid response!\n");
 		adapter->cur_cmd_retcode = -1;
 		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->nr_cmd_pending--;
 		adapter->cur_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 		ret = -1;
@@ -848,7 +847,6 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		}
 
 		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->nr_cmd_pending--;
 		adapter->cur_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
@@ -872,7 +870,6 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		}
 
 		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->nr_cmd_pending--;
 		adapter->cur_cmd = NULL;
 		spin_unlock_irqrestore(&adapter->driver_lock, flags);
 
@@ -892,8 +889,6 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	if (adapter->cur_cmd) {
 		/* Clean up and Put current command back to cmdfreeq */
 		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->nr_cmd_pending--;
-		WARN_ON(adapter->nr_cmd_pending > 128);
 		adapter->cur_cmd = NULL;
 	}
 	spin_unlock_irqrestore(&adapter->driver_lock, flags);

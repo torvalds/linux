@@ -231,7 +231,6 @@ struct lbs_adapter {
 	struct list_head cmdpendingq;
 
 	wait_queue_head_t cmd_pending;
-	u8 nr_cmd_pending;
 	/* command related variables protected by adapter->driver_lock */
 
 	/** Async and Sync Event variables */
