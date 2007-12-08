@@ -188,7 +188,8 @@ void swsusp_show_speed(struct timeval *start, struct timeval *stop,
 		centisecs = 1;	/* avoid div-by-zero */
 	k = nr_pages * (PAGE_SIZE / 1024);
 	kps = (k * 100) / centisecs;
-	printk("%s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n", msg, k,
+	printk(KERN_INFO "PM: %s %d kbytes in %d.%02d seconds (%d.%02d MB/s)\n",
+			msg, k,
 			centisecs / 100, centisecs % 100,
 			kps / 1000, (kps % 1000) / 10);
 }
@@ -219,7 +220,7 @@ int swsusp_shrink_memory(void)
 	char *p = "-\\|/";
 	struct timeval start, stop;
 
-	printk("Shrinking memory...  ");
+	printk(KERN_INFO "PM: Shrinking memory...  ");
 	do_gettimeofday(&start);
 	do {
 		long size, highmem_size;

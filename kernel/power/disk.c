@@ -191,8 +191,8 @@ int create_image(int platform_mode)
 	 */
 	error = device_power_down(PMSG_FREEZE);
 	if (error) {
-		printk(KERN_ERR "Some devices failed to power down, "
-			KERN_ERR "aborting suspend\n");
+		printk(KERN_ERR "PM: Some devices failed to power down, "
+			"aborting hibernation\n");
 		goto Enable_irqs;
 	}
 
@@ -203,7 +203,8 @@ int create_image(int platform_mode)
 	save_processor_state();
 	error = swsusp_arch_suspend();
 	if (error)
-		printk(KERN_ERR "Error %d while creating the image\n", error);
+		printk(KERN_ERR "PM: Error %d creating hibernation image\n",
+			error);
 	/* Restore control flow magically appears here */
 	restore_processor_state();
 	if (!in_suspend)
@@ -289,7 +290,7 @@ static int resume_target_kernel(void)
 	local_irq_disable();
 	error = device_power_down(PMSG_PRETHAW);
 	if (error) {
-		printk(KERN_ERR "Some devices failed to power down, "
+		printk(KERN_ERR "PM: Some devices failed to power down, "
 			"aborting resume\n");
 		goto Enable_irqs;
 	}
@@ -438,7 +439,7 @@ static void power_down(void)
 	 * Valid image is on the disk, if we continue we risk serious data
 	 * corruption after resume.
 	 */
-	printk(KERN_CRIT "Please power me down manually\n");
+	printk(KERN_CRIT "PM: Please power down manually\n");
 	while(1);
 }
 
@@ -484,7 +485,7 @@ int hibernate(void)
 	if (error)
 		goto Exit;
 
-	printk("Syncing filesystems ... ");
+	printk(KERN_INFO "PM: Syncing filesystems ... ");
 	sys_sync();
 	printk("done.\n");
 
@@ -560,10 +561,11 @@ static int software_resume(void)
 			return -ENOENT;
 		}
 		swsusp_resume_device = name_to_dev_t(resume_file);
-		pr_debug("swsusp: Resume From Partition %s\n", resume_file);
+		pr_debug("PM: Resume from partition %s\n", resume_file);
 	} else {
-		pr_debug("swsusp: Resume From Partition %d:%d\n",
-			 MAJOR(swsusp_resume_device), MINOR(swsusp_resume_device));
+		pr_debug("PM: Resume from partition %d:%d\n",
+				MAJOR(swsusp_resume_device),
+				MINOR(swsusp_resume_device));
 	}
 
 	if (noresume) {
@@ -575,7 +577,7 @@ static int software_resume(void)
 		return 0;
 	}
 
-	pr_debug("PM: Checking swsusp image.\n");
+	pr_debug("PM: Checking hibernation image.\n");
 	error = swsusp_check();
 	if (error)
 		goto Unlock;
@@ -601,7 +603,7 @@ static int software_resume(void)
 		goto Done;
 	}
 
-	pr_debug("PM: Reading swsusp image.\n");
+	pr_debug("PM: Reading hibernation image.\n");
 
 	error = swsusp_read(&flags);
 	if (!error)
@@ -728,7 +730,7 @@ static ssize_t disk_store(struct kobject *kobj, struct kobj_attribute *attr,
 		error = -EINVAL;
 
 	if (!error)
-		pr_debug("PM: suspend-to-disk mode set to '%s'\n",
+		pr_debug("PM: Hibernation mode set to '%s'\n",
 			 hibernation_modes[mode]);
 	mutex_unlock(&pm_mutex);
 	return error ? error : n;
@@ -760,7 +762,7 @@ static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
 	mutex_lock(&pm_mutex);
 	swsusp_resume_device = res;
 	mutex_unlock(&pm_mutex);
-	printk("Attempting manual resume\n");
+	printk(KERN_INFO "PM: Starting manual resume from disk\n");
 	noresume = 0;
 	software_resume();
 	ret = n;
