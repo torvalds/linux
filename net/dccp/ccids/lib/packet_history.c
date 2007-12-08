@@ -114,6 +114,11 @@ u32 tfrc_tx_hist_rtt(struct tfrc_tx_hist_entry *head, const u64 seqno,
 EXPORT_SYMBOL_GPL(tfrc_tx_hist_rtt);
 
 
+/*
+ * 	Receiver History Routines
+ */
+static struct kmem_cache *tfrc_rx_hist_slab;
+
 /**
  * tfrc_rx_hist_index - index to reach n-th entry after loss_start
  */
@@ -130,11 +135,6 @@ static inline struct tfrc_rx_hist_entry *
 {
 	return h->ring[tfrc_rx_hist_index(h, h->loss_count)];
 }
-
-/*
- * 	Receiver History Routines
- */
-static struct kmem_cache *tfrc_rx_hist_slab;
 
 void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 			     const struct sk_buff *skb,
