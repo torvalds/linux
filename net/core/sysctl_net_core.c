@@ -151,18 +151,58 @@ static struct ctl_table net_core_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static __initdata struct ctl_path net_core_path[] = {
+static __net_initdata struct ctl_path net_core_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "core", .ctl_name = NET_CORE, },
 	{ },
 };
 
+static __net_init int sysctl_core_net_init(struct net *net)
+{
+	struct ctl_table *tbl, *tmp;
+
+	tbl = net_core_table;
+	if (net != &init_net) {
+		tbl = kmemdup(tbl, sizeof(net_core_table), GFP_KERNEL);
+		if (tbl == NULL)
+			goto err_dup;
+
+		for (tmp = tbl; tmp->procname; tmp++)
+			tmp->mode &= ~0222;
+	}
+
+	net->sysctl_core_hdr = register_net_sysctl_table(net,
+			net_core_path, tbl);
+	if (net->sysctl_core_hdr == NULL)
+		goto err_reg;
+
+	return 0;
+
+err_reg:
+	if (tbl != net_core_table)
+		kfree(tbl);
+err_dup:
+	return -ENOMEM;
+}
+
+static __net_exit void sysctl_core_net_exit(struct net *net)
+{
+	struct ctl_table *tbl;
+
+	tbl = net->sysctl_core_hdr->ctl_table_arg;
+	unregister_net_sysctl_table(net->sysctl_core_hdr);
+	BUG_ON(tbl == net_core_table);
+	kfree(tbl);
+}
+
+static __net_initdata struct pernet_operations sysctl_core_ops = {
+	.init = sysctl_core_net_init,
+	.exit = sysctl_core_net_exit,
+};
+
 static __init int sysctl_core_init(void)
 {
-	struct ctl_table_header *hdr;
-
-	hdr = register_sysctl_paths(net_core_path, net_core_table);
-	return hdr == NULL ? -ENOMEM : 0;
+	return register_pernet_subsys(&sysctl_core_ops);
 }
 
 __initcall(sysctl_core_init);

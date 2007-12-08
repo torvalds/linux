@@ -37,6 +37,9 @@ struct net {
 
 	struct sock 		*rtnl;			/* rtnetlink socket */
 
+	/* core sysctls */
+	struct ctl_table_header	*sysctl_core_hdr;
+
 	/* List of all packet sockets. */
 	rwlock_t		packet_sklist_lock;
 	struct hlist_head	packet_sklist;
