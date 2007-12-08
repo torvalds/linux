@@ -229,7 +229,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	/* Delay 200 ms to waiting for the FW ready */
 	if_usb_submit_rx_urb(cardp);
 	msleep_interruptible(200);
-	priv->adapter->fw_ready = 1;
+	priv->fw_ready = 1;
 
 	if (lbs_start_card(priv))
 		goto err_start_card;
@@ -270,9 +270,8 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	cardp->surprise_removed = 1;
 
 	if (priv) {
-		struct lbs_adapter *adapter = priv->adapter;
 
-		adapter->surpriseremoved = 1;
+		priv->surpriseremoved = 1;
 		lbs_stop_card(priv);
 		lbs_remove_mesh(priv);
 		lbs_remove_card(priv);
@@ -609,14 +608,14 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 	if (!in_interrupt())
 		BUG();
 
-	spin_lock(&priv->adapter->driver_lock);
+	spin_lock(&priv->driver_lock);
 	/* take care of cur_cmd = NULL case by reading the
 	 * data to clear the interrupt */
-	if (!priv->adapter->cur_cmd) {
+	if (!priv->cur_cmd) {
 		cmdbuf = priv->upld_buf;
-		priv->adapter->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
+		priv->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
 	} else
-		cmdbuf = priv->adapter->cur_cmd->bufvirtualaddr;
+		cmdbuf = priv->cur_cmd->bufvirtualaddr;
 
 	cardp->usb_int_cause |= MRVDRV_CMD_UPLD_RDY;
 	priv->upld_len = (recvlength - MESSAGE_HEADER_LEN);
@@ -625,7 +624,7 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 
 	kfree_skb(skb);
 	lbs_interrupt(priv->dev);
-	spin_unlock(&priv->adapter->driver_lock);
+	spin_unlock(&priv->driver_lock);
 
 	lbs_deb_usbd(&cardp->udev->dev,
 		    "Wake up main thread to handle cmd response\n");
@@ -685,20 +684,20 @@ static void if_usb_receive(struct urb *urb)
 
 	case CMD_TYPE_INDICATION:
 		/* Event cause handling */
-		spin_lock(&priv->adapter->driver_lock);
+		spin_lock(&priv->driver_lock);
 		cardp->usb_event_cause = le32_to_cpu(*(__le32 *) (recvbuff + MESSAGE_HEADER_LEN));
 		lbs_deb_usbd(&cardp->udev->dev,"**EVENT** 0x%X\n",
 			    cardp->usb_event_cause);
 		if (cardp->usb_event_cause & 0xffff0000) {
 			lbs_send_tx_feedback(priv);
-			spin_unlock(&priv->adapter->driver_lock);
+			spin_unlock(&priv->driver_lock);
 			break;
 		}
 		cardp->usb_event_cause <<= 3;
 		cardp->usb_int_cause |= MRVDRV_CARDEVENT;
 		kfree_skb(skb);
 		lbs_interrupt(priv->dev);
-		spin_unlock(&priv->adapter->driver_lock);
+		spin_unlock(&priv->driver_lock);
 		goto rx_exit;
 	default:
 		lbs_deb_usbd(&cardp->udev->dev, "Unknown command type 0x%X\n",
@@ -750,7 +749,7 @@ static int if_usb_host_to_card(struct lbs_private *priv,
 	                    nb + MESSAGE_HEADER_LEN);
 }
 
-/* called with adapter->driver_lock held */
+/* called with priv->driver_lock held */
 static int if_usb_get_int_status(struct lbs_private *priv, u8 *ireg)
 {
 	struct usb_card_rec *cardp = priv->card;
@@ -767,7 +766,7 @@ static int if_usb_read_event_cause(struct lbs_private *priv)
 {
 	struct usb_card_rec *cardp = priv->card;
 
-	priv->adapter->eventcause = cardp->usb_event_cause;
+	priv->eventcause = cardp->usb_event_cause;
 	/* Re-submit rx urb here to avoid event lost issue */
 	if_usb_submit_rx_urb(cardp);
 	return 0;
@@ -942,7 +941,7 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	lbs_deb_enter(LBS_DEB_USB);
 
-	if (priv->adapter->psstate != PS_STATE_FULL_POWER)
+	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
 
 	if (priv->mesh_dev && !priv->mesh_autostart_enabled) {

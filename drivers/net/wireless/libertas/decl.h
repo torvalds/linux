@@ -12,7 +12,6 @@
 
 /** Function Prototype Declaration */
 struct lbs_private;
-struct lbs_adapter;
 struct sk_buff;
 struct net_device;
 struct cmd_ctrl_node;
@@ -32,7 +31,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	u16 cmd_action,
 	u16 wait_option, u32 cmd_oid, void *pdata_buf);
 
-void lbs_queue_cmd(struct lbs_adapter *adapter,
+void lbs_queue_cmd(struct lbs_private *priv,
 	struct cmd_ctrl_node *cmdnode,
 	u8 addtail);
 
@@ -43,7 +42,7 @@ void lbs_interrupt(struct net_device *);
 int lbs_set_radio_control(struct lbs_private *priv);
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);
-void lbs_get_fwversion(struct lbs_adapter *adapter,
+void lbs_get_fwversion(struct lbs_private *priv,
 	char *fwversion,
 	int maxlen);
 
@@ -66,7 +65,7 @@ void lbs_ps_wakeup(struct lbs_private *priv, int wait_option);
 void lbs_tx_runqueue(struct lbs_private *priv);
 
 struct chan_freq_power *lbs_find_cfp_by_band_and_channel(
-	struct lbs_adapter *adapter,
+	struct lbs_private *priv,
 	u8 band,
 	u16 channel);
 

@@ -50,7 +50,7 @@ static int lbs_cmd_hw_spec(struct lbs_private *priv, struct cmd_ds_command *cmd)
 
 	cmd->command = cpu_to_le16(CMD_GET_HW_SPEC);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_get_hw_spec) + S_DS_GEN);
-	memcpy(hwspec->permanentaddr, priv->adapter->current_addr, ETH_ALEN);
+	memcpy(hwspec->permanentaddr, priv->current_addr, ETH_ALEN);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -123,7 +123,6 @@ static int lbs_cmd_802_11_sleep_params(struct lbs_private *priv,
 					struct cmd_ds_command *cmd,
 					u16 cmd_action)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_sleep_params *sp = &cmd->params.sleep_params;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -133,17 +132,17 @@ static int lbs_cmd_802_11_sleep_params(struct lbs_private *priv,
 	cmd->command = cpu_to_le16(CMD_802_11_SLEEP_PARAMS);
 
 	if (cmd_action == CMD_ACT_GET) {
-		memset(&adapter->sp, 0, sizeof(struct sleep_params));
+		memset(&priv->sp, 0, sizeof(struct sleep_params));
 		memset(sp, 0, sizeof(struct cmd_ds_802_11_sleep_params));
 		sp->action = cpu_to_le16(cmd_action);
 	} else if (cmd_action == CMD_ACT_SET) {
 		sp->action = cpu_to_le16(cmd_action);
-		sp->error = cpu_to_le16(adapter->sp.sp_error);
-		sp->offset = cpu_to_le16(adapter->sp.sp_offset);
-		sp->stabletime = cpu_to_le16(adapter->sp.sp_stabletime);
-		sp->calcontrol = (u8) adapter->sp.sp_calcontrol;
-		sp->externalsleepclk = (u8) adapter->sp.sp_extsleepclk;
-		sp->reserved = cpu_to_le16(adapter->sp.sp_reserved);
+		sp->error = cpu_to_le16(priv->sp.sp_error);
+		sp->offset = cpu_to_le16(priv->sp.sp_offset);
+		sp->stabletime = cpu_to_le16(priv->sp.sp_stabletime);
+		sp->calcontrol = (u8) priv->sp.sp_calcontrol;
+		sp->externalsleepclk = (u8) priv->sp.sp_extsleepclk;
+		sp->reserved = cpu_to_le16(priv->sp.sp_reserved);
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -156,7 +155,6 @@ static int lbs_cmd_802_11_set_wep(struct lbs_private *priv,
                                    void * pdata_buf)
 {
 	struct cmd_ds_802_11_set_wep *wep = &cmd->params.wep;
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	struct assoc_request * assoc_req = pdata_buf;
 
@@ -212,9 +210,9 @@ static int lbs_cmd_802_11_set_wep(struct lbs_private *priv,
 		wep->action = cpu_to_le16(CMD_ACT_REMOVE);
 
 		/* default tx key index */
-		wep->keyindex = cpu_to_le16((u16)(adapter->wep_tx_keyidx &
+		wep->keyindex = cpu_to_le16((u16)(priv->wep_tx_keyidx &
 						  (u32)CMD_WEP_KEY_INDEX_MASK));
-		lbs_deb_cmd("SET_WEP: remove key %d\n", adapter->wep_tx_keyidx);
+		lbs_deb_cmd("SET_WEP: remove key %d\n", priv->wep_tx_keyidx);
 	}
 
 	ret = 0;
@@ -415,7 +413,6 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 				    int cmd_oid, void *pdata_buf)
 {
 	struct cmd_ds_802_11_snmp_mib *pSNMPMIB = &cmd->params.smib;
-	struct lbs_adapter *adapter = priv->adapter;
 	u8 ucTemp;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -507,7 +504,7 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 			pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
 			pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
 			*((__le16 *)(pSNMPMIB->value)) =
-			    cpu_to_le16((u16) adapter->txretrycount);
+			    cpu_to_le16((u16) priv->txretrycount);
 		}
 
 		break;
@@ -534,7 +531,6 @@ static int lbs_cmd_802_11_radio_control(struct lbs_private *priv,
 					 struct cmd_ds_command *cmd,
 					 int cmd_action)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_radio_control *pradiocontrol = &cmd->params.radio;
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -546,7 +542,7 @@ static int lbs_cmd_802_11_radio_control(struct lbs_private *priv,
 
 	pradiocontrol->action = cpu_to_le16(cmd_action);
 
-	switch (adapter->preamble) {
+	switch (priv->preamble) {
 	case CMD_TYPE_SHORT_PREAMBLE:
 		pradiocontrol->control = cpu_to_le16(SET_SHORT_PREAMBLE);
 		break;
@@ -561,7 +557,7 @@ static int lbs_cmd_802_11_radio_control(struct lbs_private *priv,
 		break;
 	}
 
-	if (adapter->radioon)
+	if (priv->radioon)
 		pradiocontrol->control |= cpu_to_le16(TURN_ON_RF);
 	else
 		pradiocontrol->control &= cpu_to_le16(~TURN_ON_RF);
@@ -640,7 +636,6 @@ static int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 {
 	struct cmd_ds_802_11_rate_adapt_rateset
 	*rateadapt = &cmd->params.rateset;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->size =
@@ -649,8 +644,8 @@ static int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 	cmd->command = cpu_to_le16(CMD_802_11_RATE_ADAPT_RATESET);
 
 	rateadapt->action = cpu_to_le16(cmd_action);
-	rateadapt->enablehwauto = cpu_to_le16(adapter->enablehwauto);
-	rateadapt->bitmap = cpu_to_le16(adapter->ratebitmap);
+	rateadapt->enablehwauto = cpu_to_le16(priv->enablehwauto);
+	rateadapt->bitmap = cpu_to_le16(priv->ratebitmap);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -661,7 +656,6 @@ static int lbs_cmd_802_11_data_rate(struct lbs_private *priv,
 				     u16 cmd_action)
 {
 	struct cmd_ds_802_11_data_rate *pdatarate = &cmd->params.drate;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -672,9 +666,9 @@ static int lbs_cmd_802_11_data_rate(struct lbs_private *priv,
 	pdatarate->action = cpu_to_le16(cmd_action);
 
 	if (cmd_action == CMD_ACT_SET_TX_FIX_RATE) {
-		pdatarate->rates[0] = lbs_data_rate_to_fw_index(adapter->cur_rate);
+		pdatarate->rates[0] = lbs_data_rate_to_fw_index(priv->cur_rate);
 		lbs_deb_cmd("DATA_RATE: set fixed 0x%02X\n",
-		       adapter->cur_rate);
+		       priv->cur_rate);
 	} else if (cmd_action == CMD_ACT_SET_TX_AUTO) {
 		lbs_deb_cmd("DATA_RATE: setting auto\n");
 	}
@@ -688,7 +682,6 @@ static int lbs_cmd_mac_multicast_adr(struct lbs_private *priv,
 				      u16 cmd_action)
 {
 	struct cmd_ds_mac_multicast_adr *pMCastAdr = &cmd->params.madr;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_multicast_adr) +
@@ -698,9 +691,9 @@ static int lbs_cmd_mac_multicast_adr(struct lbs_private *priv,
 	lbs_deb_cmd("MULTICAST_ADR: setting %d addresses\n", pMCastAdr->nr_of_adrs);
 	pMCastAdr->action = cpu_to_le16(cmd_action);
 	pMCastAdr->nr_of_adrs =
-	    cpu_to_le16((u16) adapter->nr_of_multicastmacaddr);
-	memcpy(pMCastAdr->maclist, adapter->multicastlist,
-	       adapter->nr_of_multicastmacaddr * ETH_ALEN);
+	    cpu_to_le16((u16) priv->nr_of_multicastmacaddr);
+	memcpy(pMCastAdr->maclist, priv->multicastlist,
+	       priv->nr_of_multicastmacaddr * ETH_ALEN);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -730,7 +723,6 @@ static int lbs_cmd_802_11_rf_channel(struct lbs_private *priv,
 static int lbs_cmd_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *cmd)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->command = cpu_to_le16(CMD_802_11_RSSI);
@@ -738,12 +730,12 @@ static int lbs_cmd_802_11_rssi(struct lbs_private *priv,
 	cmd->params.rssi.N = cpu_to_le16(DEFAULT_BCN_AVG_FACTOR);
 
 	/* reset Beacon SNR/NF/RSSI values */
-	adapter->SNR[TYPE_BEACON][TYPE_NOAVG] = 0;
-	adapter->SNR[TYPE_BEACON][TYPE_AVG] = 0;
-	adapter->NF[TYPE_BEACON][TYPE_NOAVG] = 0;
-	adapter->NF[TYPE_BEACON][TYPE_AVG] = 0;
-	adapter->RSSI[TYPE_BEACON][TYPE_NOAVG] = 0;
-	adapter->RSSI[TYPE_BEACON][TYPE_AVG] = 0;
+	priv->SNR[TYPE_BEACON][TYPE_NOAVG] = 0;
+	priv->SNR[TYPE_BEACON][TYPE_AVG] = 0;
+	priv->NF[TYPE_BEACON][TYPE_NOAVG] = 0;
+	priv->NF[TYPE_BEACON][TYPE_AVG] = 0;
+	priv->RSSI[TYPE_BEACON][TYPE_NOAVG] = 0;
+	priv->RSSI[TYPE_BEACON][TYPE_AVG] = 0;
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -828,7 +820,6 @@ static int lbs_cmd_802_11_mac_address(struct lbs_private *priv,
 				       struct cmd_ds_command *cmd,
 				       u16 cmd_action)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->command = cpu_to_le16(CMD_802_11_MAC_ADDRESS);
@@ -840,8 +831,8 @@ static int lbs_cmd_802_11_mac_address(struct lbs_private *priv,
 
 	if (cmd_action == CMD_ACT_SET) {
 		memcpy(cmd->params.macadd.macadd,
-		       adapter->current_addr, ETH_ALEN);
-		lbs_deb_hex(LBS_DEB_CMD, "SET_CMD: MAC addr", adapter->current_addr, 6);
+		       priv->current_addr, ETH_ALEN);
+		lbs_deb_hex(LBS_DEB_CMD, "SET_CMD: MAC addr", priv->current_addr, 6);
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -958,7 +949,6 @@ static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
 {
 	struct cmd_ds_802_11_beacon_control
 		*bcn_ctrl = &cmd->params.bcn_ctrl;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	cmd->size =
@@ -967,8 +957,8 @@ static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
 	cmd->command = cpu_to_le16(CMD_802_11_BEACON_CTRL);
 
 	bcn_ctrl->action = cpu_to_le16(cmd_action);
-	bcn_ctrl->beacon_enable = cpu_to_le16(adapter->beacon_enable);
-	bcn_ctrl->beacon_period = cpu_to_le16(adapter->beacon_period);
+	bcn_ctrl->beacon_enable = cpu_to_le16(priv->beacon_enable);
+	bcn_ctrl->beacon_period = cpu_to_le16(priv->beacon_period);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -978,7 +968,7 @@ static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
  * Note: NEVER use lbs_queue_cmd() with addtail==0 other than for
  * the command timer, because it does not account for queued commands.
  */
-void lbs_queue_cmd(struct lbs_adapter *adapter,
+void lbs_queue_cmd(struct lbs_private *priv,
 	struct cmd_ctrl_node *cmdnode,
 	u8 addtail)
 {
@@ -1002,19 +992,19 @@ void lbs_queue_cmd(struct lbs_adapter *adapter,
 	if (le16_to_cpu(cmdptr->command) == CMD_802_11_PS_MODE) {
 		struct cmd_ds_802_11_ps_mode *psm = &cmdptr->params.psmode;
 		if (psm->action == cpu_to_le16(CMD_SUBCMD_EXIT_PS)) {
-			if (adapter->psstate != PS_STATE_FULL_POWER)
+			if (priv->psstate != PS_STATE_FULL_POWER)
 				addtail = 0;
 		}
 	}
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (addtail)
-		list_add_tail(&cmdnode->list, &adapter->cmdpendingq);
+		list_add_tail(&cmdnode->list, &priv->cmdpendingq);
 	else
-		list_add(&cmdnode->list, &adapter->cmdpendingq);
+		list_add(&cmdnode->list, &priv->cmdpendingq);
 
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbs_deb_host("QUEUE_CMD: inserted command 0x%04x into cmdpendingq\n",
 	       le16_to_cpu(((struct cmd_ds_gen*)cmdnode->bufvirtualaddr)->command));
@@ -1035,31 +1025,30 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 {
 	unsigned long flags;
 	struct cmd_ds_command *cmdptr;
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = -1;
 	u16 cmdsize;
 	u16 command;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!adapter || !cmdnode) {
-		lbs_deb_host("DNLD_CMD: adapter or cmdmode is NULL\n");
+	if (!priv || !cmdnode) {
+		lbs_deb_host("DNLD_CMD: priv or cmdmode is NULL\n");
 		goto done;
 	}
 
 	cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 	if (!cmdptr || !cmdptr->size) {
 		lbs_deb_host("DNLD_CMD: cmdptr is NULL or zero\n");
 		__lbs_cleanup_and_insert_cmd(priv, cmdnode);
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		goto done;
 	}
 
-	adapter->cur_cmd = cmdnode;
-	adapter->cur_cmd_retcode = 0;
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	priv->cur_cmd = cmdnode;
+	priv->cur_cmd_retcode = 0;
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	cmdsize = le16_to_cpu(cmdptr->size);
 	command = le16_to_cpu(cmdptr->command);
@@ -1074,11 +1063,11 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 
 	if (ret != 0) {
 		lbs_deb_host("DNLD_CMD: hw_host_to_card failed\n");
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		adapter->cur_cmd_retcode = ret;
-		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->cur_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		priv->cur_cmd_retcode = ret;
+		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
+		priv->cur_cmd = NULL;
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		goto done;
 	}
 
@@ -1087,9 +1076,9 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 	/* Setup the timer after transmit command */
 	if (command == CMD_802_11_SCAN || command == CMD_802_11_AUTHENTICATE
 	    || command == CMD_802_11_ASSOCIATE)
-		mod_timer(&adapter->command_timer, jiffies + (10*HZ));
+		mod_timer(&priv->command_timer, jiffies + (10*HZ));
 	else
-		mod_timer(&adapter->command_timer, jiffies + (5*HZ));
+		mod_timer(&priv->command_timer, jiffies + (5*HZ));
 
 	ret = 0;
 
@@ -1107,7 +1096,7 @@ static int lbs_cmd_mac_control(struct lbs_private *priv,
 
 	cmd->command = cpu_to_le16(CMD_MAC_CONTROL);
 	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mac_control) + S_DS_GEN);
-	mac->action = cpu_to_le16(priv->adapter->currentpacketfilter);
+	mac->action = cpu_to_le16(priv->currentpacketfilter);
 
 	lbs_deb_cmd("MAC_CONTROL: action 0x%x, size %d\n",
 		    le16_to_cpu(mac->action), le16_to_cpu(cmd->size));
@@ -1118,18 +1107,17 @@ static int lbs_cmd_mac_control(struct lbs_private *priv,
 
 /**
  *  This function inserts command node to cmdfreeq
- *  after cleans it. Requires adapter->driver_lock held.
+ *  after cleans it. Requires priv->driver_lock held.
  */
 void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 	struct cmd_ctrl_node *ptempcmd)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 
 	if (!ptempcmd)
 		return;
 
 	cleanup_cmdnode(ptempcmd);
-	list_add_tail(&ptempcmd->list, &adapter->cmdfreeq);
+	list_add_tail(&ptempcmd->list, &priv->cmdfreeq);
 }
 
 static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
@@ -1137,9 +1125,9 @@ static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->adapter->driver_lock, flags);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 	__lbs_cleanup_and_insert_cmd(priv, ptempcmd);
-	spin_unlock_irqrestore(&priv->adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
 int lbs_set_radio_control(struct lbs_private *priv)
@@ -1154,7 +1142,7 @@ int lbs_set_radio_control(struct lbs_private *priv)
 				    CMD_OPTION_WAITFORRSP, 0, NULL);
 
 	lbs_deb_cmd("RADIO_SET: radio %d, preamble %d\n",
-	       priv->adapter->radioon, priv->adapter->preamble);
+	       priv->radioon, priv->preamble);
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
@@ -1191,20 +1179,19 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 			  u16 wait_option, u32 cmd_oid, void *pdata_buf)
 {
 	int ret = 0;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmdnode;
 	struct cmd_ds_command *cmdptr;
 	unsigned long flags;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!adapter) {
-		lbs_deb_host("PREP_CMD: adapter is NULL\n");
+	if (!priv) {
+		lbs_deb_host("PREP_CMD: priv is NULL\n");
 		ret = -1;
 		goto done;
 	}
 
-	if (adapter->surpriseremoved) {
+	if (priv->surpriseremoved) {
 		lbs_deb_host("PREP_CMD: card removed\n");
 		ret = -1;
 		goto done;
@@ -1235,8 +1222,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	}
 
 	/* Set sequence number, command and INT option */
-	adapter->seqnum++;
-	cmdptr->seqnum = cpu_to_le16(adapter->seqnum);
+	priv->seqnum++;
+	cmdptr->seqnum = cpu_to_le16(priv->seqnum);
 
 	cmdptr->command = cpu_to_le16(cmd_no);
 	cmdptr->result = 0;
@@ -1482,7 +1469,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	cmdnode->cmdwaitqwoken = 0;
 
-	lbs_queue_cmd(adapter, cmdnode, 1);
+	lbs_queue_cmd(priv, cmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	if (wait_option & CMD_OPTION_WAITFORRSP) {
@@ -1492,14 +1479,14 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 					 cmdnode->cmdwaitqwoken);
 	}
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
-	if (adapter->cur_cmd_retcode) {
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	if (priv->cur_cmd_retcode) {
 		lbs_deb_host("PREP_CMD: command failed with return code %d\n",
-		       adapter->cur_cmd_retcode);
-		adapter->cur_cmd_retcode = 0;
+		       priv->cur_cmd_retcode);
+		priv->cur_cmd_retcode = 0;
 		ret = -1;
 	}
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
@@ -1521,7 +1508,6 @@ int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 	u32 i;
 	struct cmd_ctrl_node *tempcmd_array;
 	u8 *ptempvirtualaddr;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -1533,7 +1519,7 @@ int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 		ret = -1;
 		goto done;
 	}
-	adapter->cmd_array = tempcmd_array;
+	priv->cmd_array = tempcmd_array;
 
 	/* Allocate and initialize command buffers */
 	ulbufsize = MRVDRV_SIZE_OF_CMD_BUFFER;
@@ -1571,17 +1557,16 @@ int lbs_free_cmd_buffer(struct lbs_private *priv)
 	u32 ulbufsize; /* Someone needs to die for this. Slowly and painfully */
 	unsigned int i;
 	struct cmd_ctrl_node *tempcmd_array;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
 	/* need to check if cmd array is allocated or not */
-	if (adapter->cmd_array == NULL) {
+	if (priv->cmd_array == NULL) {
 		lbs_deb_host("FREE_CMD_BUF: cmd_array is NULL\n");
 		goto done;
 	}
 
-	tempcmd_array = adapter->cmd_array;
+	tempcmd_array = priv->cmd_array;
 
 	/* Release shared memory buffers */
 	ulbufsize = MRVDRV_SIZE_OF_CMD_BUFFER;
@@ -1593,9 +1578,9 @@ int lbs_free_cmd_buffer(struct lbs_private *priv)
 	}
 
 	/* Release cmd_ctrl_node */
-	if (adapter->cmd_array) {
-		kfree(adapter->cmd_array);
-		adapter->cmd_array = NULL;
+	if (priv->cmd_array) {
+		kfree(priv->cmd_array);
+		priv->cmd_array = NULL;
 	}
 
 done:
@@ -1613,18 +1598,17 @@ done:
 struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 {
 	struct cmd_ctrl_node *tempnode;
-	struct lbs_adapter *adapter = priv->adapter;
 	unsigned long flags;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!adapter)
+	if (!priv)
 		return NULL;
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 
-	if (!list_empty(&adapter->cmdfreeq)) {
-		tempnode = list_first_entry(&adapter->cmdfreeq,
+	if (!list_empty(&priv->cmdfreeq)) {
+		tempnode = list_first_entry(&priv->cmdfreeq,
 					    struct cmd_ctrl_node, list);
 		list_del(&tempnode->list);
 	} else {
@@ -1632,7 +1616,7 @@ struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 		tempnode = NULL;
 	}
 
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (tempnode)
 		cleanup_cmdnode(tempnode);
@@ -1700,7 +1684,6 @@ void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
  */
 int lbs_execute_next_command(struct lbs_private *priv)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmdnode = NULL;
 	struct cmd_ds_command *cmdptr;
 	unsigned long flags;
@@ -1711,40 +1694,40 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	// data packet is received
 	lbs_deb_enter(LBS_DEB_THREAD);
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 
-	if (adapter->cur_cmd) {
+	if (priv->cur_cmd) {
 		lbs_pr_alert( "EXEC_NEXT_CMD: already processing command!\n");
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		ret = -1;
 		goto done;
 	}
 
-	if (!list_empty(&adapter->cmdpendingq)) {
-		cmdnode = list_first_entry(&adapter->cmdpendingq,
+	if (!list_empty(&priv->cmdpendingq)) {
+		cmdnode = list_first_entry(&priv->cmdpendingq,
 					   struct cmd_ctrl_node, list);
 	}
 
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (cmdnode) {
 		cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
 
 		if (is_command_allowed_in_ps(cmdptr->command)) {
-			if ((adapter->psstate == PS_STATE_SLEEP) ||
-			    (adapter->psstate == PS_STATE_PRE_SLEEP)) {
+			if ((priv->psstate == PS_STATE_SLEEP) ||
+			    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 				lbs_deb_host(
 				       "EXEC_NEXT_CMD: cannot send cmd 0x%04x in psstate %d\n",
 				       le16_to_cpu(cmdptr->command),
-				       adapter->psstate);
+				       priv->psstate);
 				ret = -1;
 				goto done;
 			}
 			lbs_deb_host("EXEC_NEXT_CMD: OK to send command "
 			       "0x%04x in psstate %d\n",
 				    le16_to_cpu(cmdptr->command),
-				    adapter->psstate);
-		} else if (adapter->psstate != PS_STATE_FULL_POWER) {
+				    priv->psstate);
+		} else if (priv->psstate != PS_STATE_FULL_POWER) {
 			/*
 			 * 1. Non-PS command:
 			 * Queue it. set needtowakeup to TRUE if current state
@@ -1760,12 +1743,12 @@ int lbs_execute_next_command(struct lbs_private *priv)
 			    cpu_to_le16(CMD_802_11_PS_MODE)) {
 				/*  Prepare to send Exit PS,
 				 *  this non PS command will be sent later */
-				if ((adapter->psstate == PS_STATE_SLEEP)
-				    || (adapter->psstate == PS_STATE_PRE_SLEEP)
+				if ((priv->psstate == PS_STATE_SLEEP)
+				    || (priv->psstate == PS_STATE_PRE_SLEEP)
 				    ) {
 					/* w/ new scheme, it will not reach here.
 					   since it is blocked in main_thread. */
-					adapter->needtowakeup = 1;
+					priv->needtowakeup = 1;
 				} else
 					lbs_ps_wakeup(priv, 0);
 
@@ -1793,13 +1776,13 @@ int lbs_execute_next_command(struct lbs_private *priv)
 					goto done;
 				}
 
-				if ((adapter->psstate == PS_STATE_SLEEP) ||
-				    (adapter->psstate == PS_STATE_PRE_SLEEP)) {
+				if ((priv->psstate == PS_STATE_SLEEP) ||
+				    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore EXIT_PS cmd in sleep\n");
 					list_del(&cmdnode->list);
 					lbs_cleanup_and_insert_cmd(priv, cmdnode);
-					adapter->needtowakeup = 1;
+					priv->needtowakeup = 1;
 
 					ret = 0;
 					goto done;
@@ -1818,15 +1801,15 @@ int lbs_execute_next_command(struct lbs_private *priv)
 		 * check if in power save mode, if yes, put the device back
 		 * to PS mode
 		 */
-		if ((adapter->psmode != LBS802_11POWERMODECAM) &&
-		    (adapter->psstate == PS_STATE_FULL_POWER) &&
-		    ((adapter->connect_status == LBS_CONNECTED) ||
-		    (adapter->mesh_connect_status == LBS_CONNECTED))) {
-			if (adapter->secinfo.WPAenabled ||
-			    adapter->secinfo.WPA2enabled) {
+		if ((priv->psmode != LBS802_11POWERMODECAM) &&
+		    (priv->psstate == PS_STATE_FULL_POWER) &&
+		    ((priv->connect_status == LBS_CONNECTED) ||
+		    (priv->mesh_connect_status == LBS_CONNECTED))) {
+			if (priv->secinfo.WPAenabled ||
+			    priv->secinfo.WPA2enabled) {
 				/* check for valid WPA group keys */
-				if (adapter->wpa_mcast_key.len ||
-				    adapter->wpa_unicast_key.len) {
+				if (priv->wpa_mcast_key.len ||
+				    priv->wpa_unicast_key.len) {
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: WPA enabled and GTK_SET"
 					       " go back to PS_SLEEP");
@@ -1874,7 +1857,6 @@ void lbs_send_iwevcustom_event(struct lbs_private *priv, s8 *str)
 static int sendconfirmsleep(struct lbs_private *priv, u8 *cmdptr, u16 size)
 {
 	unsigned long flags;
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_HOST);
@@ -1887,24 +1869,24 @@ static int sendconfirmsleep(struct lbs_private *priv, u8 *cmdptr, u16 size)
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, cmdptr, size);
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
-	if (adapter->intcounter || adapter->currenttxskb)
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	if (priv->intcounter || priv->currenttxskb)
 		lbs_deb_host("SEND_SLEEPC_CMD: intcounter %d, currenttxskb %p\n",
-		       adapter->intcounter, adapter->currenttxskb);
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		       priv->intcounter, priv->currenttxskb);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (ret) {
 		lbs_pr_alert(
 		       "SEND_SLEEPC_CMD: Host to Card failed for Confirm Sleep\n");
 	} else {
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		if (!adapter->intcounter) {
-			adapter->psstate = PS_STATE_SLEEP;
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		if (!priv->intcounter) {
+			priv->psstate = PS_STATE_SLEEP;
 		} else {
 			lbs_deb_host("SEND_SLEEPC_CMD: after sent, intcounter %d\n",
-			       adapter->intcounter);
+			       priv->intcounter);
 		}
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		lbs_deb_host("SEND_SLEEPC_CMD: sent confirm sleep\n");
 	}
@@ -1961,7 +1943,6 @@ void lbs_ps_wakeup(struct lbs_private *priv, int wait_option)
 void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 {
 	unsigned long flags =0;
-	struct lbs_adapter *adapter = priv->adapter;
 	u8 allowed = 1;
 
 	lbs_deb_enter(LBS_DEB_HOST);
@@ -1971,20 +1952,20 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 		lbs_deb_host("dnld_sent was set");
 	}
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
-	if (adapter->cur_cmd) {
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	if (priv->cur_cmd) {
 		allowed = 0;
 		lbs_deb_host("cur_cmd was set");
 	}
-	if (adapter->intcounter > 0) {
+	if (priv->intcounter > 0) {
 		allowed = 0;
-		lbs_deb_host("intcounter %d", adapter->intcounter);
+		lbs_deb_host("intcounter %d", priv->intcounter);
 	}
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (allowed) {
 		lbs_deb_host("sending lbs_ps_confirm_sleep\n");
-		sendconfirmsleep(priv, (u8 *) & adapter->lbs_ps_confirm_sleep,
+		sendconfirmsleep(priv, (u8 *) & priv->lbs_ps_confirm_sleep,
 				 sizeof(struct PS_CMD_ConfirmSleep));
 	} else {
 		lbs_deb_host("sleep confirm has been delayed\n");
@@ -2014,7 +1995,6 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
 	    int (*callback)(uint16_t, struct cmd_ds_command *, struct lbs_private *))
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmdnode;
 	struct cmd_ds_gen *cmdptr;
 	unsigned long flags;
@@ -2022,13 +2002,13 @@ int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!adapter) {
-		lbs_deb_host("PREP_CMD: adapter is NULL\n");
+	if (!priv) {
+		lbs_deb_host("PREP_CMD: priv is NULL\n");
 		ret = -1;
 		goto done;
 	}
 
-	if (adapter->surpriseremoved) {
+	if (priv->surpriseremoved) {
 		lbs_deb_host("PREP_CMD: card removed\n");
 		ret = -1;
 		goto done;
@@ -2050,10 +2030,10 @@ int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
 	cmdnode->callback = callback;
 
 	/* Set sequence number, clean result, move to buffer */
-	adapter->seqnum++;
+	priv->seqnum++;
 	cmdptr->command = cpu_to_le16(command);
 	cmdptr->size    = cpu_to_le16(cmd_size + S_DS_GEN);
-	cmdptr->seqnum = cpu_to_le16(adapter->seqnum);
+	cmdptr->seqnum = cpu_to_le16(priv->seqnum);
 	cmdptr->result = 0;
 	memcpy(cmdptr->cmdresp, cmd, cmd_size);
 
@@ -2063,20 +2043,20 @@ int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
 	 * because the caller of lbs_cmd() sets up all of *cmd for us. */
 
 	cmdnode->cmdwaitqwoken = 0;
-	lbs_queue_cmd(adapter, cmdnode, 1);
+	lbs_queue_cmd(priv, cmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
 	might_sleep();
 	wait_event_interruptible(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
-	if (adapter->cur_cmd_retcode) {
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	if (priv->cur_cmd_retcode) {
 		lbs_deb_host("PREP_CMD: command failed with return code %d\n",
-		       adapter->cur_cmd_retcode);
-		adapter->cur_cmd_retcode = 0;
+		       priv->cur_cmd_retcode);
+		priv->cur_cmd_retcode = 0;
 		ret = -1;
 	}
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);

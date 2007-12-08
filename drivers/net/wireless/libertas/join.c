@@ -30,13 +30,13 @@
  * NOTE: Setting the MSB of the basic rates need to be taken
  *   care, either before or after calling this function
  *
- *  @param adapter     A pointer to struct lbs_adapter structure
+ *  @param priv     A pointer to struct lbs_private structure
  *  @param rate1       the buffer which keeps input and output
  *  @param rate1_size  the size of rate1 buffer; new size of buffer on return
  *
  *  @return            0 or -1
  */
-static int get_common_rates(struct lbs_adapter *adapter,
+static int get_common_rates(struct lbs_private *priv,
 	u8 *rates,
 	u16 *rates_size)
 {
@@ -57,15 +57,15 @@ static int get_common_rates(struct lbs_adapter *adapter,
 	lbs_deb_hex(LBS_DEB_JOIN, "AP rates    ", rates, *rates_size);
 	lbs_deb_hex(LBS_DEB_JOIN, "card rates  ", card_rates, num_card_rates);
 	lbs_deb_hex(LBS_DEB_JOIN, "common rates", tmp, tmp_size);
-	lbs_deb_join("TX data rate 0x%02x\n", adapter->cur_rate);
+	lbs_deb_join("TX data rate 0x%02x\n", priv->cur_rate);
 
-	if (!adapter->auto_rate) {
+	if (!priv->auto_rate) {
 		for (i = 0; i < tmp_size; i++) {
-			if (tmp[i] == adapter->cur_rate)
+			if (tmp[i] == priv->cur_rate)
 				goto done;
 		}
 		lbs_pr_alert("Previously set fixed data rate %#x isn't "
-		       "compatible with the network.\n", adapter->cur_rate);
+		       "compatible with the network.\n", priv->cur_rate);
 		ret = -1;
 		goto done;
 	}
@@ -125,7 +125,6 @@ void lbs_unset_basic_rate_flags(u8 *rates, size_t len)
  */
 int lbs_associate(struct lbs_private *priv, struct assoc_request *assoc_req)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -138,11 +137,11 @@ int lbs_associate(struct lbs_private *priv, struct assoc_request *assoc_req)
 		goto done;
 
 	/* set preamble to firmware */
-	if (   (adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
+	if (   (priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 	    && (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
-		adapter->preamble = CMD_TYPE_SHORT_PREAMBLE;
+		priv->preamble = CMD_TYPE_SHORT_PREAMBLE;
 	else
-		adapter->preamble = CMD_TYPE_LONG_PREAMBLE;
+		priv->preamble = CMD_TYPE_LONG_PREAMBLE;
 
 	lbs_set_radio_control(priv);
 
@@ -164,17 +163,16 @@ done:
 int lbs_start_adhoc_network(struct lbs_private *priv,
 	struct assoc_request *assoc_req)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
-	adapter->adhoccreate = 1;
+	priv->adhoccreate = 1;
 
-	if (adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
+	if (priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
 		lbs_deb_join("AdhocStart: Short preamble\n");
-		adapter->preamble = CMD_TYPE_SHORT_PREAMBLE;
+		priv->preamble = CMD_TYPE_SHORT_PREAMBLE;
 	} else {
 		lbs_deb_join("AdhocStart: Long preamble\n");
-		adapter->preamble = CMD_TYPE_LONG_PREAMBLE;
+		priv->preamble = CMD_TYPE_LONG_PREAMBLE;
 	}
 
 	lbs_set_radio_control(priv);
@@ -200,26 +198,25 @@ int lbs_start_adhoc_network(struct lbs_private *priv,
 int lbs_join_adhoc_network(struct lbs_private *priv,
 	struct assoc_request *assoc_req)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct bss_descriptor * bss = &assoc_req->bss;
 	int ret = 0;
 
 	lbs_deb_join("%s: Current SSID '%s', ssid length %u\n",
 	             __func__,
-	             escape_essid(adapter->curbssparams.ssid,
-	                          adapter->curbssparams.ssid_len),
-	             adapter->curbssparams.ssid_len);
+	             escape_essid(priv->curbssparams.ssid,
+	                          priv->curbssparams.ssid_len),
+	             priv->curbssparams.ssid_len);
 	lbs_deb_join("%s: requested ssid '%s', ssid length %u\n",
 	             __func__, escape_essid(bss->ssid, bss->ssid_len),
 	             bss->ssid_len);
 
 	/* check if the requested SSID is already joined */
-	if (   adapter->curbssparams.ssid_len
-	    && !lbs_ssid_cmp(adapter->curbssparams.ssid,
-	                          adapter->curbssparams.ssid_len,
+	if (   priv->curbssparams.ssid_len
+	    && !lbs_ssid_cmp(priv->curbssparams.ssid,
+	                          priv->curbssparams.ssid_len,
 	                          bss->ssid, bss->ssid_len)
-	    && (adapter->mode == IW_MODE_ADHOC)
-	    && (adapter->connect_status == LBS_CONNECTED)) {
+	    && (priv->mode == IW_MODE_ADHOC)
+	    && (priv->connect_status == LBS_CONNECTED)) {
 		union iwreq_data wrqu;
 
 		lbs_deb_join("ADHOC_J_CMD: New ad-hoc SSID is the same as "
@@ -229,7 +226,7 @@ int lbs_join_adhoc_network(struct lbs_private *priv,
 		 * request really was successful, even if just a null-op.
 		 */
 		memset(&wrqu, 0, sizeof(wrqu));
-		memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid,
+		memcpy(wrqu.ap_addr.sa_data, priv->curbssparams.bssid,
 		       ETH_ALEN);
 		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
@@ -239,12 +236,12 @@ int lbs_join_adhoc_network(struct lbs_private *priv,
 	/* Use shortpreamble only when both creator and card supports
 	   short preamble */
 	if (   !(bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
-	    || !(adapter->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
+	    || !(priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
 		lbs_deb_join("AdhocJoin: Long preamble\n");
-		adapter->preamble = CMD_TYPE_LONG_PREAMBLE;
+		priv->preamble = CMD_TYPE_LONG_PREAMBLE;
 	} else {
 		lbs_deb_join("AdhocJoin: Short preamble\n");
-		adapter->preamble = CMD_TYPE_SHORT_PREAMBLE;
+		priv->preamble = CMD_TYPE_SHORT_PREAMBLE;
 	}
 
 	lbs_set_radio_control(priv);
@@ -252,7 +249,7 @@ int lbs_join_adhoc_network(struct lbs_private *priv,
 	lbs_deb_join("AdhocJoin: channel = %d\n", assoc_req->channel);
 	lbs_deb_join("AdhocJoin: band = %c\n", assoc_req->band);
 
-	adapter->adhoccreate = 0;
+	priv->adhoccreate = 0;
 
 	ret = lbs_prepare_and_send_command(priv, CMD_802_11_AD_HOC_JOIN,
 				    0, CMD_OPTION_WAITFORRSP,
@@ -293,7 +290,6 @@ int lbs_cmd_80211_authenticate(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd,
 				 void *pdata_buf)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_authenticate *pauthenticate = &cmd->params.auth;
 	int ret = -1;
 	u8 *bssid = pdata_buf;
@@ -306,7 +302,7 @@ int lbs_cmd_80211_authenticate(struct lbs_private *priv,
 	                        + S_DS_GEN);
 
 	/* translate auth mode to 802.11 defined wire value */
-	switch (adapter->secinfo.auth_mode) {
+	switch (priv->secinfo.auth_mode) {
 	case IW_AUTH_ALG_OPEN_SYSTEM:
 		pauthenticate->authtype = 0x00;
 		break;
@@ -318,7 +314,7 @@ int lbs_cmd_80211_authenticate(struct lbs_private *priv,
 		break;
 	default:
 		lbs_deb_join("AUTH_CMD: invalid auth alg 0x%X\n",
-		             adapter->secinfo.auth_mode);
+		             priv->secinfo.auth_mode);
 		goto out;
 	}
 
@@ -336,7 +332,6 @@ out:
 int lbs_cmd_80211_deauthenticate(struct lbs_private *priv,
 				   struct cmd_ds_command *cmd)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_deauthenticate *dauth = &cmd->params.deauth;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
@@ -346,7 +341,7 @@ int lbs_cmd_80211_deauthenticate(struct lbs_private *priv,
 			     S_DS_GEN);
 
 	/* set AP MAC address */
-	memmove(dauth->macaddr, adapter->curbssparams.bssid, ETH_ALEN);
+	memmove(dauth->macaddr, priv->curbssparams.bssid, ETH_ALEN);
 
 	/* Reason code 3 = Station is leaving */
 #define REASON_CODE_STA_LEAVING 3
@@ -359,7 +354,6 @@ int lbs_cmd_80211_deauthenticate(struct lbs_private *priv,
 int lbs_cmd_80211_associate(struct lbs_private *priv,
 			      struct cmd_ds_command *cmd, void *pdata_buf)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_associate *passo = &cmd->params.associate;
 	int ret = 0;
 	struct assoc_request * assoc_req = pdata_buf;
@@ -376,7 +370,7 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 
 	pos = (u8 *) passo;
 
-	if (!adapter) {
+	if (!priv) {
 		ret = -1;
 		goto done;
 	}
@@ -420,7 +414,7 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	rates->header.type = cpu_to_le16(TLV_TYPE_RATES);
 	memcpy(&rates->rates, &bss->rates, MAX_RATES);
 	tmplen = MAX_RATES;
-	if (get_common_rates(adapter, rates->rates, &tmplen)) {
+	if (get_common_rates(priv, rates->rates, &tmplen)) {
 		ret = -1;
 		goto done;
 	}
@@ -429,8 +423,8 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	lbs_deb_assoc("ASSOC_CMD: num rates %u\n", tmplen);
 
 	/* Copy the infra. association rates into Current BSS state structure */
-	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));
-	memcpy(&adapter->curbssparams.rates, &rates->rates, tmplen);
+	memset(&priv->curbssparams.rates, 0, sizeof(priv->curbssparams.rates));
+	memcpy(&priv->curbssparams.rates, &rates->rates, tmplen);
 
 	/* Set MSB on basic rates as the firmware requires, but _after_
 	 * copying to current bss rates.
@@ -450,7 +444,7 @@ int lbs_cmd_80211_associate(struct lbs_private *priv,
 	}
 
 	/* update curbssparams */
-	adapter->curbssparams.channel = bss->phyparamset.dsparamset.currentchan;
+	priv->curbssparams.channel = bss->phyparamset.dsparamset.currentchan;
 
 	if (lbs_parse_dnld_countryinfo_11d(priv, bss)) {
 		ret = -1;
@@ -474,7 +468,6 @@ done:
 int lbs_cmd_80211_ad_hoc_start(struct lbs_private *priv,
 				 struct cmd_ds_command *cmd, void *pdata_buf)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_ad_hoc_start *adhs = &cmd->params.ads;
 	int ret = 0;
 	int cmdappendsize = 0;
@@ -484,7 +477,7 @@ int lbs_cmd_80211_ad_hoc_start(struct lbs_private *priv,
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
-	if (!adapter) {
+	if (!priv) {
 		ret = -1;
 		goto done;
 	}
@@ -494,7 +487,7 @@ int lbs_cmd_80211_ad_hoc_start(struct lbs_private *priv,
 	/*
 	 * Fill in the parameters for 2 data structures:
 	 *   1. cmd_ds_802_11_ad_hoc_start command
-	 *   2. adapter->scantable[i]
+	 *   2. priv->scantable[i]
 	 *
 	 * Driver will fill up SSID, bsstype,IBSS param, Physical Param,
 	 *   probe delay, and cap info.
@@ -512,10 +505,10 @@ int lbs_cmd_80211_ad_hoc_start(struct lbs_private *priv,
 
 	/* set the BSS type */
 	adhs->bsstype = CMD_BSS_TYPE_IBSS;
-	adapter->mode = IW_MODE_ADHOC;
-	if (adapter->beacon_period == 0)
-		adapter->beacon_period = MRVDRV_BEACON_INTERVAL;
-	adhs->beaconperiod = cpu_to_le16(adapter->beacon_period);
+	priv->mode = IW_MODE_ADHOC;
+	if (priv->beacon_period == 0)
+		priv->beacon_period = MRVDRV_BEACON_INTERVAL;
+	adhs->beaconperiod = cpu_to_le16(priv->beacon_period);
 
 	/* set Physical param set */
 #define DS_PARA_IE_ID   3
@@ -557,8 +550,8 @@ int lbs_cmd_80211_ad_hoc_start(struct lbs_private *priv,
 	memcpy(adhs->rates, lbs_bg_rates, ratesize);
 
 	/* Copy the ad-hoc creating rates into Current BSS state structure */
-	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));
-	memcpy(&adapter->curbssparams.rates, &adhs->rates, ratesize);
+	memset(&priv->curbssparams.rates, 0, sizeof(priv->curbssparams.rates));
+	memcpy(&priv->curbssparams.rates, &adhs->rates, ratesize);
 
 	/* Set MSB on basic rates as the firmware requires, but _after_
 	 * copying to current bss rates.
@@ -597,7 +590,6 @@ int lbs_cmd_80211_ad_hoc_stop(struct lbs_private *priv,
 int lbs_cmd_80211_ad_hoc_join(struct lbs_private *priv,
 				struct cmd_ds_command *cmd, void *pdata_buf)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_ad_hoc_join *join_cmd = &cmd->params.adj;
 	struct assoc_request * assoc_req = pdata_buf;
 	struct bss_descriptor *bss = &assoc_req->bss;
@@ -638,21 +630,21 @@ int lbs_cmd_80211_ad_hoc_join(struct lbs_private *priv,
 	/* probedelay */
 	join_cmd->probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
 
-	adapter->curbssparams.channel = bss->channel;
+	priv->curbssparams.channel = bss->channel;
 
 	/* Copy Data rates from the rates recorded in scan response */
 	memset(join_cmd->bss.rates, 0, sizeof(join_cmd->bss.rates));
 	ratesize = min_t(u16, sizeof(join_cmd->bss.rates), MAX_RATES);
 	memcpy(join_cmd->bss.rates, bss->rates, ratesize);
-	if (get_common_rates(adapter, join_cmd->bss.rates, &ratesize)) {
+	if (get_common_rates(priv, join_cmd->bss.rates, &ratesize)) {
 		lbs_deb_join("ADHOC_J_CMD: get_common_rates returns error.\n");
 		ret = -1;
 		goto done;
 	}
 
 	/* Copy the ad-hoc creating rates into Current BSS state structure */
-	memset(&adapter->curbssparams.rates, 0, sizeof(adapter->curbssparams.rates));
-	memcpy(&adapter->curbssparams.rates, join_cmd->bss.rates, ratesize);
+	memset(&priv->curbssparams.rates, 0, sizeof(priv->curbssparams.rates));
+	memcpy(&priv->curbssparams.rates, join_cmd->bss.rates, ratesize);
 
 	/* Set MSB on basic rates as the firmware requires, but _after_
 	 * copying to current bss rates.
@@ -668,7 +660,7 @@ int lbs_cmd_80211_ad_hoc_join(struct lbs_private *priv,
 		join_cmd->bss.capability = cpu_to_le16(tmp);
 	}
 
-	if (adapter->psmode == LBS802_11POWERMODEMAX_PSP) {
+	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
 		/* wake up first */
 		__le32 Localpsmode;
 
@@ -700,7 +692,6 @@ done:
 int lbs_ret_80211_associate(struct lbs_private *priv,
 			      struct cmd_ds_command *resp)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	union iwreq_data wrqu;
 	struct ieeetypes_assocrsp *passocrsp;
@@ -709,12 +700,12 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	if (!adapter->in_progress_assoc_req) {
+	if (!priv->in_progress_assoc_req) {
 		lbs_deb_assoc("ASSOC_RESP: no in-progress assoc request\n");
 		ret = -1;
 		goto done;
 	}
-	bss = &adapter->in_progress_assoc_req->bss;
+	bss = &priv->in_progress_assoc_req->bss;
 
 	passocrsp = (struct ieeetypes_assocrsp *) & resp->params;
 
@@ -771,29 +762,29 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 		le16_to_cpu(resp->size) - S_DS_GEN);
 
 	/* Send a Media Connected event, according to the Spec */
-	adapter->connect_status = LBS_CONNECTED;
+	priv->connect_status = LBS_CONNECTED;
 
 	/* Update current SSID and BSSID */
-	memcpy(&adapter->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
-	adapter->curbssparams.ssid_len = bss->ssid_len;
-	memcpy(adapter->curbssparams.bssid, bss->bssid, ETH_ALEN);
+	memcpy(&priv->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
+	priv->curbssparams.ssid_len = bss->ssid_len;
+	memcpy(priv->curbssparams.bssid, bss->bssid, ETH_ALEN);
 
 	lbs_deb_assoc("ASSOC_RESP: currentpacketfilter is 0x%x\n",
-		adapter->currentpacketfilter);
+		priv->currentpacketfilter);
 
-	adapter->SNR[TYPE_RXPD][TYPE_AVG] = 0;
-	adapter->NF[TYPE_RXPD][TYPE_AVG] = 0;
+	priv->SNR[TYPE_RXPD][TYPE_AVG] = 0;
+	priv->NF[TYPE_RXPD][TYPE_AVG] = 0;
 
-	memset(adapter->rawSNR, 0x00, sizeof(adapter->rawSNR));
-	memset(adapter->rawNF, 0x00, sizeof(adapter->rawNF));
-	adapter->nextSNRNF = 0;
-	adapter->numSNRNF = 0;
+	memset(priv->rawSNR, 0x00, sizeof(priv->rawSNR));
+	memset(priv->rawNF, 0x00, sizeof(priv->rawNF));
+	priv->nextSNRNF = 0;
+	priv->numSNRNF = 0;
 
 	netif_carrier_on(priv->dev);
 	netif_wake_queue(priv->dev);
 
 
-	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);
+	memcpy(wrqu.ap_addr.sa_data, priv->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
@@ -816,7 +807,6 @@ int lbs_ret_80211_disassociate(struct lbs_private *priv,
 int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,
 				 struct cmd_ds_command *resp)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	u16 command = le16_to_cpu(resp->command);
 	u16 result = le16_to_cpu(resp->result);
@@ -833,19 +823,19 @@ int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,
 	lbs_deb_join("ADHOC_RESP: command = %x\n", command);
 	lbs_deb_join("ADHOC_RESP: result = %x\n", result);
 
-	if (!adapter->in_progress_assoc_req) {
+	if (!priv->in_progress_assoc_req) {
 		lbs_deb_join("ADHOC_RESP: no in-progress association request\n");
 		ret = -1;
 		goto done;
 	}
-	bss = &adapter->in_progress_assoc_req->bss;
+	bss = &priv->in_progress_assoc_req->bss;
 
 	/*
 	 * Join result code 0 --> SUCCESS
 	 */
 	if (result) {
 		lbs_deb_join("ADHOC_RESP: failed\n");
-		if (adapter->connect_status == LBS_CONNECTED) {
+		if (priv->connect_status == LBS_CONNECTED) {
 			lbs_mac_event_disconnected(priv);
 		}
 		ret = -1;
@@ -860,7 +850,7 @@ int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,
 	             escape_essid(bss->ssid, bss->ssid_len));
 
 	/* Send a Media Connected event, according to the Spec */
-	adapter->connect_status = LBS_CONNECTED;
+	priv->connect_status = LBS_CONNECTED;
 
 	if (command == CMD_RET(CMD_802_11_AD_HOC_START)) {
 		/* Update the created network descriptor with the new BSSID */
@@ -868,22 +858,22 @@ int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,
 	}
 
 	/* Set the BSSID from the joined/started descriptor */
-	memcpy(&adapter->curbssparams.bssid, bss->bssid, ETH_ALEN);
+	memcpy(&priv->curbssparams.bssid, bss->bssid, ETH_ALEN);
 
 	/* Set the new SSID to current SSID */
-	memcpy(&adapter->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
-	adapter->curbssparams.ssid_len = bss->ssid_len;
+	memcpy(&priv->curbssparams.ssid, &bss->ssid, IW_ESSID_MAX_SIZE);
+	priv->curbssparams.ssid_len = bss->ssid_len;
 
 	netif_carrier_on(priv->dev);
 	netif_wake_queue(priv->dev);
 
 	memset(&wrqu, 0, sizeof(wrqu));
-	memcpy(wrqu.ap_addr.sa_data, adapter->curbssparams.bssid, ETH_ALEN);
+	memcpy(wrqu.ap_addr.sa_data, priv->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	lbs_deb_join("ADHOC_RESP: - Joined/Started Ad Hoc\n");
-	lbs_deb_join("ADHOC_RESP: channel = %d\n", adapter->curbssparams.channel);
+	lbs_deb_join("ADHOC_RESP: channel = %d\n", priv->curbssparams.channel);
 	lbs_deb_join("ADHOC_RESP: BSSID = %s\n",
 		     print_mac(mac, padhocresult->bssid));
 

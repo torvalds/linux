@@ -1,7 +1,7 @@
 /**
   * This file contains definitions and data structures specific
   * to Marvell 802.11 NIC. It contains the Device Information
-  * structure struct lbs_adapter.
+  * structure struct lbs_private..
   */
 #ifndef _LBS_DEV_H_
 #define _LBS_DEV_H_
@@ -109,7 +109,6 @@ struct lbs_private {
 	char name[DEV_NAME_LEN];
 
 	void *card;
-	struct lbs_adapter *adapter;
 	struct net_device *dev;
 
 	struct net_device_stats stats;
@@ -156,54 +155,10 @@ struct lbs_private {
 	int (*hw_host_to_card) (struct lbs_private *priv, u8 type, u8 *payload, u16 nb);
 	int (*hw_get_int_status) (struct lbs_private *priv, u8 *);
 	int (*hw_read_event_cause) (struct lbs_private *);
-};
 
-/** Association request
- *
- * Encapsulates all the options that describe a specific assocation request
- * or configuration of the wireless card's radio, mode, and security settings.
- */
-struct assoc_request {
-#define ASSOC_FLAG_SSID			1
-#define ASSOC_FLAG_CHANNEL		2
-#define ASSOC_FLAG_BAND			3
-#define ASSOC_FLAG_MODE			4
-#define ASSOC_FLAG_BSSID		5
-#define ASSOC_FLAG_WEP_KEYS		6
-#define ASSOC_FLAG_WEP_TX_KEYIDX	7
-#define ASSOC_FLAG_WPA_MCAST_KEY	8
-#define ASSOC_FLAG_WPA_UCAST_KEY	9
-#define ASSOC_FLAG_SECINFO		10
-#define ASSOC_FLAG_WPA_IE		11
-	unsigned long flags;
+	/* was struct lbs_adapter from here... */
 
-	u8 ssid[IW_ESSID_MAX_SIZE + 1];
-	u8 ssid_len;
-	u8 channel;
-	u8 band;
-	u8 mode;
-	u8 bssid[ETH_ALEN];
-
-	/** WEP keys */
-	struct enc_key wep_keys[4];
-	u16 wep_tx_keyidx;
-
-	/** WPA keys */
-	struct enc_key wpa_mcast_key;
-	struct enc_key wpa_unicast_key;
-
-	struct lbs_802_11_security secinfo;
-
-	/** WPA Information Elements*/
-	u8 wpa_ie[MAX_WPA_IE_LEN];
-	u8 wpa_ie_len;
-
-	/* BSS to associate with for infrastructure of Ad-Hoc join */
-	struct bss_descriptor bss;
-};
-
-/** Wlan adapter data structure*/
-struct lbs_adapter {
+	/** Wlan adapter data structure*/
 	/** STATUS variables */
 	u8 fwreleasenumber[4];
 	u32 fwcapinfo;
@@ -229,7 +184,7 @@ struct lbs_adapter {
 	struct list_head cmdpendingq;
 
 	wait_queue_head_t cmd_pending;
-	/* command related variables protected by adapter->driver_lock */
+	/* command related variables protected by priv->driver_lock */
 
 	/** Async and Sync Event variables */
 	u32 intcounter;
@@ -364,6 +319,50 @@ struct lbs_adapter {
 	u32 monitormode;
 	int last_scanned_channel;
 	u8 fw_ready;
+};
+
+/** Association request
+ *
+ * Encapsulates all the options that describe a specific assocation request
+ * or configuration of the wireless card's radio, mode, and security settings.
+ */
+struct assoc_request {
+#define ASSOC_FLAG_SSID			1
+#define ASSOC_FLAG_CHANNEL		2
+#define ASSOC_FLAG_BAND			3
+#define ASSOC_FLAG_MODE			4
+#define ASSOC_FLAG_BSSID		5
+#define ASSOC_FLAG_WEP_KEYS		6
+#define ASSOC_FLAG_WEP_TX_KEYIDX	7
+#define ASSOC_FLAG_WPA_MCAST_KEY	8
+#define ASSOC_FLAG_WPA_UCAST_KEY	9
+#define ASSOC_FLAG_SECINFO		10
+#define ASSOC_FLAG_WPA_IE		11
+	unsigned long flags;
+
+	u8 ssid[IW_ESSID_MAX_SIZE + 1];
+	u8 ssid_len;
+	u8 channel;
+	u8 band;
+	u8 mode;
+	u8 bssid[ETH_ALEN];
+
+	/** WEP keys */
+	struct enc_key wep_keys[4];
+	u16 wep_tx_keyidx;
+
+	/** WPA keys */
+	struct enc_key wpa_mcast_key;
+	struct enc_key wpa_unicast_key;
+
+	struct lbs_802_11_security secinfo;
+
+	/** WPA Information Elements*/
+	u8 wpa_ie[MAX_WPA_IE_LEN];
+	u8 wpa_ie_len;
+
+	/* BSS to associate with for infrastructure of Ad-Hoc join */
+	struct bss_descriptor bss;
 };
 
 #endif

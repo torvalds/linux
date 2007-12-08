@@ -25,7 +25,7 @@ static void lbs_ethtool_get_drvinfo(struct net_device *dev,
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
 	char fwver[32];
 
-	lbs_get_fwversion(priv->adapter, fwver, sizeof(fwver) - 1);
+	lbs_get_fwversion(priv, fwver, sizeof(fwver) - 1);
 
 	strcpy(info->driver, "libertas");
 	strcpy(info->version, lbs_driver_version);
@@ -46,7 +46,6 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
                                   struct ethtool_eeprom *eeprom, u8 * bytes)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_ioctl_regrdwr regctrl;
 	char *ptr;
 	int ret;
@@ -60,10 +59,10 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
 
 //      mutex_lock(&priv->mutex);
 
-	adapter->prdeeprom = kmalloc(eeprom->len+sizeof(regctrl), GFP_KERNEL);
-	if (!adapter->prdeeprom)
+	priv->prdeeprom = kmalloc(eeprom->len+sizeof(regctrl), GFP_KERNEL);
+	if (!priv->prdeeprom)
 		return -ENOMEM;
-	memcpy(adapter->prdeeprom, &regctrl, sizeof(regctrl));
+	memcpy(priv->prdeeprom, &regctrl, sizeof(regctrl));
 
 	/* +14 is for action, offset, and NOB in
 	 * response */
@@ -77,14 +76,14 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
 				    &regctrl);
 
 	if (ret) {
-		if (adapter->prdeeprom)
-			kfree(adapter->prdeeprom);
+		if (priv->prdeeprom)
+			kfree(priv->prdeeprom);
 		goto done;
 	}
 
 	mdelay(10);
 
-	ptr = (char *)adapter->prdeeprom;
+	ptr = (char *)priv->prdeeprom;
 
 	/* skip the command header, but include the "value" u32 variable */
 	ptr = ptr + sizeof(struct lbs_ioctl_regrdwr) - 4;
@@ -94,8 +93,8 @@ static int lbs_ethtool_get_eeprom(struct net_device *dev,
 	 */
 	memcpy(bytes, ptr, eeprom->len);
 
-	if (adapter->prdeeprom)
-		kfree(adapter->prdeeprom);
+	if (priv->prdeeprom)
+		kfree(priv->prdeeprom);
 //	mutex_unlock(&priv->mutex);
 
 	ret = 0;

@@ -45,9 +45,9 @@ static ssize_t lbs_dev_info(struct file *file, char __user *userbuf,
 	ssize_t res;
 
 	pos += snprintf(buf+pos, len-pos, "state = %s\n",
-				szStates[priv->adapter->connect_status]);
+				szStates[priv->connect_status]);
 	pos += snprintf(buf+pos, len-pos, "region_code = %02x\n",
-				(u32) priv->adapter->regioncode);
+				(u32) priv->regioncode);
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 
@@ -70,8 +70,8 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 	pos += snprintf(buf+pos, len-pos,
 		"# | ch  | rssi |       bssid       |   cap    | Qual | SSID \n");
 
-	mutex_lock(&priv->adapter->lock);
-	list_for_each_entry (iter_bss, &priv->adapter->network_list, list) {
+	mutex_lock(&priv->lock);
+	list_for_each_entry (iter_bss, &priv->network_list, list) {
 		u16 ibss = (iter_bss->capability & WLAN_CAPABILITY_IBSS);
 		u16 privacy = (iter_bss->capability & WLAN_CAPABILITY_PRIVACY);
 		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
@@ -90,7 +90,7 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 
 		numscansdone++;
 	}
-	mutex_unlock(&priv->adapter->lock);
+	mutex_unlock(&priv->lock);
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 
@@ -118,12 +118,12 @@ static ssize_t lbs_sleepparams_write(struct file *file,
 		res = -EFAULT;
 		goto out_unlock;
 	}
-	priv->adapter->sp.sp_error = p1;
-	priv->adapter->sp.sp_offset = p2;
-	priv->adapter->sp.sp_stabletime = p3;
-	priv->adapter->sp.sp_calcontrol = p4;
-	priv->adapter->sp.sp_extsleepclk = p5;
-	priv->adapter->sp.sp_reserved = p6;
+	priv->sp.sp_error = p1;
+	priv->sp.sp_offset = p2;
+	priv->sp.sp_stabletime = p3;
+	priv->sp.sp_calcontrol = p4;
+	priv->sp.sp_extsleepclk = p5;
+	priv->sp.sp_reserved = p6;
 
 	res = lbs_prepare_and_send_command(priv,
 				CMD_802_11_SLEEP_PARAMS,
@@ -144,7 +144,6 @@ static ssize_t lbs_sleepparams_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	struct lbs_adapter *adapter = priv->adapter;
 	ssize_t res;
 	size_t pos = 0;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
@@ -159,10 +158,10 @@ static ssize_t lbs_sleepparams_read(struct file *file, char __user *userbuf,
 		goto out_unlock;
 	}
 
-	pos += snprintf(buf, len, "%d %d %d %d %d %d\n", adapter->sp.sp_error,
-			adapter->sp.sp_offset, adapter->sp.sp_stabletime,
-			adapter->sp.sp_calcontrol, adapter->sp.sp_extsleepclk,
-			adapter->sp.sp_reserved);
+	pos += snprintf(buf, len, "%d %d %d %d %d %d\n", priv->sp.sp_error,
+			priv->sp.sp_offset, priv->sp.sp_stabletime,
+			priv->sp.sp_calcontrol, priv->sp.sp_extsleepclk,
+			priv->sp.sp_reserved);
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 
@@ -321,11 +320,11 @@ static ssize_t lbs_setuserscan(struct file *file,
 	lbs_parse_type(buf, count, scan_cfg);
 
 	lbs_scan_networks(priv, scan_cfg, 1);
-	wait_event_interruptible(priv->adapter->cmd_pending,
-				 priv->adapter->surpriseremoved || 
-				 (!priv->adapter->cur_cmd && list_empty(&priv->adapter->cmdpendingq)));
+	wait_event_interruptible(priv->cmd_pending,
+				 priv->surpriseremoved || 
+				 (!priv->cur_cmd && list_empty(&priv->cmdpendingq)));
 
-	if (priv->adapter->surpriseremoved)
+	if (priv->surpriseremoved)
 		goto out_scan_cfg;
 
 	memset(&wrqu, 0x00, sizeof(union iwreq_data));
@@ -620,7 +619,6 @@ static ssize_t lbs_rdmac_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
@@ -635,7 +633,7 @@ static ssize_t lbs_rdmac_read(struct file *file, char __user *userbuf,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 	pos += snprintf(buf+pos, len-pos, "MAC[0x%x] = 0x%08x\n",
-				priv->mac_offset, adapter->offsetvalue.value);
+				priv->mac_offset, priv->offsetvalue.value);
 
 	ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	free_page(addr);
@@ -703,7 +701,6 @@ static ssize_t lbs_rdbbp_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
@@ -718,7 +715,7 @@ static ssize_t lbs_rdbbp_read(struct file *file, char __user *userbuf,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 	pos += snprintf(buf+pos, len-pos, "BBP[0x%x] = 0x%08x\n",
-				priv->bbp_offset, adapter->offsetvalue.value);
+				priv->bbp_offset, priv->offsetvalue.value);
 
 	ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	free_page(addr);
@@ -787,7 +784,6 @@ static ssize_t lbs_rdrf_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_offset_value offval;
 	ssize_t pos = 0;
 	int ret;
@@ -802,7 +798,7 @@ static ssize_t lbs_rdrf_read(struct file *file, char __user *userbuf,
 				CMD_OPTION_WAITFORRSP, 0, &offval);
 	mdelay(10);
 	pos += snprintf(buf+pos, len-pos, "RF[0x%x] = 0x%08x\n",
-				priv->rf_offset, adapter->offsetvalue.value);
+				priv->rf_offset, priv->offsetvalue.value);
 
 	ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 	free_page(addr);
@@ -1009,8 +1005,8 @@ void lbs_debugfs_remove_one(struct lbs_private *priv)
 
 #ifdef PROC_DEBUG
 
-#define item_size(n)	(FIELD_SIZEOF(struct lbs_adapter, n))
-#define item_addr(n)	(offsetof(struct lbs_adapter, n))
+#define item_size(n)	(FIELD_SIZEOF(struct lbs_private, n))
+#define item_addr(n)	(offsetof(struct lbs_private, n))
 
 
 struct debug_data {
@@ -1019,7 +1015,7 @@ struct debug_data {
 	size_t addr;
 };
 
-/* To debug any member of struct lbs_adapter, simply add one line here.
+/* To debug any member of struct lbs_private, simply add one line here.
  */
 static struct debug_data items[] = {
 	{"intcounter", item_size(intcounter), item_addr(intcounter)},
@@ -1158,7 +1154,7 @@ static void lbs_debug_init(struct lbs_private *priv, struct net_device *dev)
 		return;
 
 	for (i = 0; i < num_of_items; i++)
-		items[i].addr += (size_t) priv->adapter;
+		items[i].addr += (size_t) priv;
 
 	priv->debugfs_debug = debugfs_create_file("debug", 0644,
 						  priv->debugfs_dir, &items[0],

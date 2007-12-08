@@ -255,7 +255,7 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 
 	} else if (int_cause == 0xffff) {
 		/* Read in junk, the card has probably been removed */
-		card->priv->adapter->surpriseremoved = 1;
+		card->priv->surpriseremoved = 1;
 
 	} else {
 		if (int_cause & IF_CS_H_IC_TX_OVER)
@@ -644,7 +644,6 @@ static int if_cs_host_to_card(struct lbs_private *priv,
 static int if_cs_get_int_status(struct lbs_private *priv, u8 *ireg)
 {
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
-	/* struct lbs_adapter *adapter = priv->adapter; */
 	int ret = 0;
 	u16 int_cause;
 	u8 *cmdbuf;
@@ -652,7 +651,7 @@ static int if_cs_get_int_status(struct lbs_private *priv, u8 *ireg)
 
 	lbs_deb_enter(LBS_DEB_CS);
 
-	if (priv->adapter->surpriseremoved)
+	if (priv->surpriseremoved)
 		goto out;
 
 	int_cause = if_cs_read16(card, IF_CS_C_INT_CAUSE) & IF_CS_C_IC_MASK;
@@ -678,22 +677,22 @@ sbi_get_int_status_exit:
 
 	/* Card has a command result for us */
 	if (*ireg & IF_CS_C_S_CMD_UPLD_RDY) {
-		spin_lock(&priv->adapter->driver_lock);
-		if (!priv->adapter->cur_cmd) {
+		spin_lock(&priv->driver_lock);
+		if (!priv->cur_cmd) {
 			cmdbuf = priv->upld_buf;
-			priv->adapter->hisregcpy &= ~IF_CS_C_S_RX_UPLD_RDY;
+			priv->hisregcpy &= ~IF_CS_C_S_RX_UPLD_RDY;
 		} else {
-			cmdbuf = priv->adapter->cur_cmd->bufvirtualaddr;
+			cmdbuf = priv->cur_cmd->bufvirtualaddr;
 		}
 
 		ret = if_cs_receive_cmdres(priv, cmdbuf, &priv->upld_len);
-		spin_unlock(&priv->adapter->driver_lock);
+		spin_unlock(&priv->driver_lock);
 		if (ret < 0)
 			lbs_pr_err("could not receive cmd from card\n");
 	}
 
 out:
-	lbs_deb_leave_args(LBS_DEB_CS, "ret %d, ireg 0x%x, hisregcpy 0x%x", ret, *ireg, priv->adapter->hisregcpy);
+	lbs_deb_leave_args(LBS_DEB_CS, "ret %d, ireg 0x%x, hisregcpy 0x%x", ret, *ireg, priv->hisregcpy);
 	return ret;
 }
 
@@ -702,7 +701,7 @@ static int if_cs_read_event_cause(struct lbs_private *priv)
 {
 	lbs_deb_enter(LBS_DEB_CS);
 
-	priv->adapter->eventcause = (if_cs_read16(priv->card, IF_CS_C_STATUS) & IF_CS_C_S_STATUS_MASK) >> 5;
+	priv->eventcause = (if_cs_read16(priv->card, IF_CS_C_STATUS) & IF_CS_C_S_STATUS_MASK) >> 5;
 	if_cs_write16(priv->card, IF_CS_H_INT_CAUSE, IF_CS_H_IC_HOST_EVENT);
 
 	return 0;
@@ -869,7 +868,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	priv->hw_get_int_status   = if_cs_get_int_status;
 	priv->hw_read_event_cause = if_cs_read_event_cause;
 
-	priv->adapter->fw_ready = 1;
+	priv->fw_ready = 1;
 
 	/* Now actually get the IRQ */
 	ret = request_irq(p_dev->irq.AssignedIRQ, if_cs_interrupt,

@@ -25,10 +25,9 @@
  */
 void lbs_mac_event_disconnected(struct lbs_private *priv)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	union iwreq_data wrqu;
 
-	if (adapter->connect_status != LBS_CONNECTED)
+	if (priv->connect_status != LBS_CONNECTED)
 		return;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
@@ -45,31 +44,31 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	/* Free Tx and Rx packets */
-	kfree_skb(priv->adapter->currenttxskb);
-	priv->adapter->currenttxskb = NULL;
+	kfree_skb(priv->currenttxskb);
+	priv->currenttxskb = NULL;
 
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);
 	netif_carrier_off(priv->dev);
 
 	/* reset SNR/NF/RSSI values */
-	memset(adapter->SNR, 0x00, sizeof(adapter->SNR));
-	memset(adapter->NF, 0x00, sizeof(adapter->NF));
-	memset(adapter->RSSI, 0x00, sizeof(adapter->RSSI));
-	memset(adapter->rawSNR, 0x00, sizeof(adapter->rawSNR));
-	memset(adapter->rawNF, 0x00, sizeof(adapter->rawNF));
-	adapter->nextSNRNF = 0;
-	adapter->numSNRNF = 0;
-	adapter->connect_status = LBS_DISCONNECTED;
+	memset(priv->SNR, 0x00, sizeof(priv->SNR));
+	memset(priv->NF, 0x00, sizeof(priv->NF));
+	memset(priv->RSSI, 0x00, sizeof(priv->RSSI));
+	memset(priv->rawSNR, 0x00, sizeof(priv->rawSNR));
+	memset(priv->rawNF, 0x00, sizeof(priv->rawNF));
+	priv->nextSNRNF = 0;
+	priv->numSNRNF = 0;
+	priv->connect_status = LBS_DISCONNECTED;
 
 	/* Clear out associated SSID and BSSID since connection is
 	 * no longer valid.
 	 */
-	memset(&adapter->curbssparams.bssid, 0, ETH_ALEN);
-	memset(&adapter->curbssparams.ssid, 0, IW_ESSID_MAX_SIZE);
-	adapter->curbssparams.ssid_len = 0;
+	memset(&priv->curbssparams.bssid, 0, ETH_ALEN);
+	memset(&priv->curbssparams.ssid, 0, IW_ESSID_MAX_SIZE);
+	priv->curbssparams.ssid_len = 0;
 
-	if (adapter->psstate != PS_STATE_FULL_POWER) {
+	if (priv->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */
 		lbs_deb_cmd("disconnected, so exit PS mode\n");
 		lbs_ps_wakeup(priv, 0);
@@ -107,7 +106,6 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 			       u16 type, struct cmd_ds_command *resp)
 {
 	int ret = 0;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -116,8 +114,8 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 		{
 			struct cmd_ds_mac_reg_access *reg = &resp->params.macreg;
 
-			adapter->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			adapter->offsetvalue.value = le32_to_cpu(reg->value);
+			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
+			priv->offsetvalue.value = le32_to_cpu(reg->value);
 			break;
 		}
 
@@ -125,8 +123,8 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 		{
 			struct cmd_ds_bbp_reg_access *reg = &resp->params.bbpreg;
 
-			adapter->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			adapter->offsetvalue.value = reg->value;
+			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
+			priv->offsetvalue.value = reg->value;
 			break;
 		}
 
@@ -134,8 +132,8 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 		{
 			struct cmd_ds_rf_reg_access *reg = &resp->params.rfreg;
 
-			adapter->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
-			adapter->offsetvalue.value = reg->value;
+			priv->offsetvalue.offset = (u32)le16_to_cpu(reg->offset);
+			priv->offsetvalue.value = reg->value;
 			break;
 		}
 
@@ -152,19 +150,18 @@ static int lbs_ret_get_hw_spec(struct lbs_private *priv,
 {
 	u32 i;
 	struct cmd_ds_get_hw_spec *hwspec = &resp->params.hwspec;
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	adapter->fwcapinfo = le32_to_cpu(hwspec->fwcapinfo);
+	priv->fwcapinfo = le32_to_cpu(hwspec->fwcapinfo);
 
-	memcpy(adapter->fwreleasenumber, hwspec->fwreleasenumber, 4);
+	memcpy(priv->fwreleasenumber, hwspec->fwreleasenumber, 4);
 
 	lbs_deb_cmd("GET_HW_SPEC: firmware release %u.%u.%up%u\n",
-		    adapter->fwreleasenumber[2], adapter->fwreleasenumber[1],
-		    adapter->fwreleasenumber[0], adapter->fwreleasenumber[3]);
+		    priv->fwreleasenumber[2], priv->fwreleasenumber[1],
+		    priv->fwreleasenumber[0], priv->fwreleasenumber[3]);
 	lbs_deb_cmd("GET_HW_SPEC: MAC addr %s\n",
 		    print_mac(mac, hwspec->permanentaddr));
 	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
@@ -174,29 +171,29 @@ static int lbs_ret_get_hw_spec(struct lbs_private *priv,
 	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
 	 * returns non-zero high 8 bits here.
 	 */
-	adapter->regioncode = le16_to_cpu(hwspec->regioncode) & 0xFF;
+	priv->regioncode = le16_to_cpu(hwspec->regioncode) & 0xFF;
 
 	for (i = 0; i < MRVDRV_MAX_REGION_CODE; i++) {
 		/* use the region code to search for the index */
-		if (adapter->regioncode == lbs_region_code_to_index[i]) {
+		if (priv->regioncode == lbs_region_code_to_index[i]) {
 			break;
 		}
 	}
 
 	/* if it's unidentified region code, use the default (USA) */
 	if (i >= MRVDRV_MAX_REGION_CODE) {
-		adapter->regioncode = 0x10;
+		priv->regioncode = 0x10;
 		lbs_pr_info("unidentified region code; using the default (USA)\n");
 	}
 
-	if (adapter->current_addr[0] == 0xff)
-		memmove(adapter->current_addr, hwspec->permanentaddr, ETH_ALEN);
+	if (priv->current_addr[0] == 0xff)
+		memmove(priv->current_addr, hwspec->permanentaddr, ETH_ALEN);
 
-	memcpy(priv->dev->dev_addr, adapter->current_addr, ETH_ALEN);
+	memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
 	if (priv->mesh_dev)
-		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);
+		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
 
-	if (lbs_set_regiontable(priv, adapter->regioncode, 0)) {
+	if (lbs_set_regiontable(priv, priv->regioncode, 0)) {
 		ret = -1;
 		goto done;
 	}
@@ -215,7 +212,6 @@ static int lbs_ret_802_11_sleep_params(struct lbs_private *priv,
 					struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_sleep_params *sp = &resp->params.sleep_params;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -224,12 +220,12 @@ static int lbs_ret_802_11_sleep_params(struct lbs_private *priv,
 		    le16_to_cpu(sp->offset), le16_to_cpu(sp->stabletime),
 		    sp->calcontrol, sp->externalsleepclk);
 
-	adapter->sp.sp_error = le16_to_cpu(sp->error);
-	adapter->sp.sp_offset = le16_to_cpu(sp->offset);
-	adapter->sp.sp_stabletime = le16_to_cpu(sp->stabletime);
-	adapter->sp.sp_calcontrol = sp->calcontrol;
-	adapter->sp.sp_extsleepclk = sp->externalsleepclk;
-	adapter->sp.sp_reserved = le16_to_cpu(sp->reserved);
+	priv->sp.sp_error = le16_to_cpu(sp->error);
+	priv->sp.sp_offset = le16_to_cpu(sp->offset);
+	priv->sp.sp_stabletime = le16_to_cpu(sp->stabletime);
+	priv->sp.sp_calcontrol = sp->calcontrol;
+	priv->sp.sp_extsleepclk = sp->externalsleepclk;
+	priv->sp.sp_reserved = le16_to_cpu(sp->reserved);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
@@ -239,13 +235,12 @@ static int lbs_ret_802_11_stat(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
 	lbs_deb_enter(LBS_DEB_CMD);
-/*	currently adapter->wlan802_11Stat is unused
+/*	currently priv->wlan802_11Stat is unused
 
 	struct cmd_ds_802_11_get_stat *p11Stat = &resp->params.gstat;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	// TODO Convert it to Big endian befor copy
-	memcpy(&adapter->wlan802_11Stat,
+	memcpy(&priv->wlan802_11Stat,
 	       p11Stat, sizeof(struct cmd_ds_802_11_get_stat));
 */
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -268,22 +263,22 @@ static int lbs_ret_802_11_snmp_mib(struct lbs_private *priv,
 	if (querytype == CMD_ACT_GET) {
 		switch (oid) {
 		case FRAGTHRESH_I:
-			priv->adapter->fragthsd =
+			priv->fragthsd =
 				le16_to_cpu(*((__le16 *)(smib->value)));
 			lbs_deb_cmd("SNMP_RESP: frag threshold %u\n",
-				    priv->adapter->fragthsd);
+				    priv->fragthsd);
 			break;
 		case RTSTHRESH_I:
-			priv->adapter->rtsthsd =
+			priv->rtsthsd =
 				le16_to_cpu(*((__le16 *)(smib->value)));
 			lbs_deb_cmd("SNMP_RESP: rts threshold %u\n",
-				    priv->adapter->rtsthsd);
+				    priv->rtsthsd);
 			break;
 		case SHORT_RETRYLIM_I:
-			priv->adapter->txretrycount =
+			priv->txretrycount =
 				le16_to_cpu(*((__le16 *)(smib->value)));
 			lbs_deb_cmd("SNMP_RESP: tx retry count %u\n",
-				    priv->adapter->rtsthsd);
+				    priv->rtsthsd);
 			break;
 		default:
 			break;
@@ -299,7 +294,6 @@ static int lbs_ret_802_11_key_material(struct lbs_private *priv,
 {
 	struct cmd_ds_802_11_key_material *pkeymaterial =
 	    &resp->params.keymaterial;
-	struct lbs_adapter *adapter = priv->adapter;
 	u16 action = le16_to_cpu(pkeymaterial->action);
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -327,9 +321,9 @@ static int lbs_ret_802_11_key_material(struct lbs_private *priv,
 				break;
 
 			if (key_flags & KEY_INFO_WPA_UNICAST)
-				pkey = &adapter->wpa_unicast_key;
+				pkey = &priv->wpa_unicast_key;
 			else if (key_flags & KEY_INFO_WPA_MCAST)
-				pkey = &adapter->wpa_mcast_key;
+				pkey = &priv->wpa_mcast_key;
 			else
 				break;
 
@@ -354,11 +348,10 @@ static int lbs_ret_802_11_mac_address(struct lbs_private *priv,
 				       struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_mac_address *macadd = &resp->params.macadd;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	memcpy(adapter->current_addr, macadd->macadd, ETH_ALEN);
+	memcpy(priv->current_addr, macadd->macadd, ETH_ALEN);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 	return 0;
@@ -368,13 +361,12 @@ static int lbs_ret_802_11_rf_tx_power(struct lbs_private *priv,
 				       struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rf_tx_power *rtp = &resp->params.txp;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	adapter->txpowerlevel = le16_to_cpu(rtp->currentlevel);
+	priv->txpowerlevel = le16_to_cpu(rtp->currentlevel);
 
-	lbs_deb_cmd("TX power currently %d\n", adapter->txpowerlevel);
+	lbs_deb_cmd("TX power currently %d\n", priv->txpowerlevel);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -384,13 +376,12 @@ static int lbs_ret_802_11_rate_adapt_rateset(struct lbs_private *priv,
 					      struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rate_adapt_rateset *rates = &resp->params.rateset;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (rates->action == CMD_ACT_GET) {
-		adapter->enablehwauto = le16_to_cpu(rates->enablehwauto);
-		adapter->ratebitmap = le16_to_cpu(rates->bitmap);
+		priv->enablehwauto = le16_to_cpu(rates->enablehwauto);
+		priv->ratebitmap = le16_to_cpu(rates->bitmap);
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -401,7 +392,6 @@ static int lbs_ret_802_11_data_rate(struct lbs_private *priv,
 				     struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_data_rate *pdatarate = &resp->params.drate;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -411,8 +401,8 @@ static int lbs_ret_802_11_data_rate(struct lbs_private *priv,
 	/* FIXME: get actual rates FW can do if this command actually returns
 	 * all data rates supported.
 	 */
-	adapter->cur_rate = lbs_fw_index_to_data_rate(pdatarate->rates[0]);
-	lbs_deb_cmd("DATA_RATE: current rate 0x%02x\n", adapter->cur_rate);
+	priv->cur_rate = lbs_fw_index_to_data_rate(pdatarate->rates[0]);
+	lbs_deb_cmd("DATA_RATE: current rate 0x%02x\n", priv->cur_rate);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -422,19 +412,18 @@ static int lbs_ret_802_11_rf_channel(struct lbs_private *priv,
 				      struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rf_channel *rfchannel = &resp->params.rfchannel;
-	struct lbs_adapter *adapter = priv->adapter;
 	u16 action = le16_to_cpu(rfchannel->action);
 	u16 newchannel = le16_to_cpu(rfchannel->currentchannel);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (action == CMD_OPT_802_11_RF_CHANNEL_GET
-	    && adapter->curbssparams.channel != newchannel) {
+	    && priv->curbssparams.channel != newchannel) {
 		lbs_deb_cmd("channel switch from %d to %d\n",
-		       adapter->curbssparams.channel, newchannel);
+		       priv->curbssparams.channel, newchannel);
 
 		/* Update the channel again */
-		adapter->curbssparams.channel = newchannel;
+		priv->curbssparams.channel = newchannel;
 	}
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -445,28 +434,27 @@ static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_rssi_rsp *rssirsp = &resp->params.rssirsp;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	/* store the non average value */
-	adapter->SNR[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->SNR);
-	adapter->NF[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->noisefloor);
+	priv->SNR[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->SNR);
+	priv->NF[TYPE_BEACON][TYPE_NOAVG] = le16_to_cpu(rssirsp->noisefloor);
 
-	adapter->SNR[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgSNR);
-	adapter->NF[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgnoisefloor);
+	priv->SNR[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgSNR);
+	priv->NF[TYPE_BEACON][TYPE_AVG] = le16_to_cpu(rssirsp->avgnoisefloor);
 
-	adapter->RSSI[TYPE_BEACON][TYPE_NOAVG] =
-	    CAL_RSSI(adapter->SNR[TYPE_BEACON][TYPE_NOAVG],
-		     adapter->NF[TYPE_BEACON][TYPE_NOAVG]);
+	priv->RSSI[TYPE_BEACON][TYPE_NOAVG] =
+	    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_NOAVG],
+		     priv->NF[TYPE_BEACON][TYPE_NOAVG]);
 
-	adapter->RSSI[TYPE_BEACON][TYPE_AVG] =
-	    CAL_RSSI(adapter->SNR[TYPE_BEACON][TYPE_AVG] / AVG_SCALE,
-		     adapter->NF[TYPE_BEACON][TYPE_AVG] / AVG_SCALE);
+	priv->RSSI[TYPE_BEACON][TYPE_AVG] =
+	    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_AVG] / AVG_SCALE,
+		     priv->NF[TYPE_BEACON][TYPE_AVG] / AVG_SCALE);
 
 	lbs_deb_cmd("RSSI: beacon %d, avg %d\n",
-	       adapter->RSSI[TYPE_BEACON][TYPE_NOAVG],
-	       adapter->RSSI[TYPE_BEACON][TYPE_AVG]);
+	       priv->RSSI[TYPE_BEACON][TYPE_NOAVG],
+	       priv->RSSI[TYPE_BEACON][TYPE_AVG]);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -475,9 +463,8 @@ static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 static int lbs_ret_802_11_eeprom_access(struct lbs_private *priv,
 				  struct cmd_ds_command *resp)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_ioctl_regrdwr *pbuf;
-	pbuf = (struct lbs_ioctl_regrdwr *) adapter->prdeeprom;
+	pbuf = (struct lbs_ioctl_regrdwr *) priv->prdeeprom;
 
 	lbs_deb_enter_args(LBS_DEB_CMD, "len %d",
 	       le16_to_cpu(resp->params.rdeeprom.bytecount));
@@ -502,12 +489,11 @@ static int lbs_ret_get_log(struct lbs_private *priv,
 			    struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_get_log *logmessage = &resp->params.glog;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	/* Stored little-endian */
-	memcpy(&adapter->logmsg, logmessage, sizeof(struct cmd_ds_802_11_get_log));
+	memcpy(&priv->logmsg, logmessage, sizeof(struct cmd_ds_802_11_get_log));
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
@@ -517,8 +503,7 @@ static int lbs_ret_802_11_enable_rsn(struct lbs_private *priv,
                                           struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_enable_rsn *enable_rsn = &resp->params.enbrsn;
-	struct lbs_adapter *adapter = priv->adapter;
-	u32 * pdata_buf = adapter->cur_cmd->pdata_buf;
+	u32 * pdata_buf = priv->cur_cmd->pdata_buf;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -536,13 +521,12 @@ static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
 {
 	struct cmd_ds_802_11_beacon_control *bcn_ctrl =
 	    &resp->params.bcn_ctrl;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (bcn_ctrl->action == CMD_ACT_GET) {
-		adapter->beacon_enable = (u8) le16_to_cpu(bcn_ctrl->beacon_enable);
-		adapter->beacon_period = le16_to_cpu(bcn_ctrl->beacon_period);
+		priv->beacon_enable = (u8) le16_to_cpu(bcn_ctrl->beacon_enable);
+		priv->beacon_period = le16_to_cpu(bcn_ctrl->beacon_period);
 	}
 
 	lbs_deb_enter(LBS_DEB_CMD);
@@ -552,11 +536,10 @@ static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
 static int lbs_ret_802_11_subscribe_event(struct lbs_private *priv,
 	struct cmd_ds_command *resp)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_subscribe_event *cmd_event =
 		&resp->params.subscribe_event;
 	struct cmd_ds_802_11_subscribe_event *dst_event =
-		adapter->cur_cmd->pdata_buf;
+		priv->cur_cmd->pdata_buf;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -575,7 +558,6 @@ static inline int handle_cmd_response(u16 respcmd,
 {
 	int ret = 0;
 	unsigned long flags;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -628,10 +610,10 @@ static inline int handle_cmd_response(u16 respcmd,
 
 	case CMD_RET(CMD_802_11_SET_AFC):
 	case CMD_RET(CMD_802_11_GET_AFC):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf, &resp->params.afc,
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		memmove(priv->cur_cmd->pdata_buf, &resp->params.afc,
 			sizeof(struct cmd_ds_802_11_afc));
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		break;
 
@@ -686,59 +668,59 @@ static inline int handle_cmd_response(u16 respcmd,
 		ret = lbs_ret_802_11_sleep_params(priv, resp);
 		break;
 	case CMD_RET(CMD_802_11_INACTIVITY_TIMEOUT):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		*((u16 *) adapter->cur_cmd->pdata_buf) =
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		*((u16 *) priv->cur_cmd->pdata_buf) =
 		    le16_to_cpu(resp->params.inactivity_timeout.timeout);
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 
 	case CMD_RET(CMD_802_11_TPC_CFG):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf, &resp->params.tpccfg,
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		memmove(priv->cur_cmd->pdata_buf, &resp->params.tpccfg,
 			sizeof(struct cmd_ds_802_11_tpc_cfg));
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_802_11_LED_GPIO_CTRL):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf, &resp->params.ledgpio,
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		memmove(priv->cur_cmd->pdata_buf, &resp->params.ledgpio,
 			sizeof(struct cmd_ds_802_11_led_ctrl));
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_802_11_SUBSCRIBE_EVENT):
 		ret = lbs_ret_802_11_subscribe_event(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_PWR_CFG):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memmove(adapter->cur_cmd->pdata_buf, &resp->params.pwrcfg,
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		memmove(priv->cur_cmd->pdata_buf, &resp->params.pwrcfg,
 			sizeof(struct cmd_ds_802_11_pwr_cfg));
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		break;
 
 	case CMD_RET(CMD_GET_TSF):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		memcpy(priv->adapter->cur_cmd->pdata_buf,
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		memcpy(priv->cur_cmd->pdata_buf,
 		       &resp->params.gettsf.tsfvalue, sizeof(u64));
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_BT_ACCESS):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		if (adapter->cur_cmd->pdata_buf)
-			memcpy(adapter->cur_cmd->pdata_buf,
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		if (priv->cur_cmd->pdata_buf)
+			memcpy(priv->cur_cmd->pdata_buf,
 			       &resp->params.bt.addr1, 2 * ETH_ALEN);
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_FWT_ACCESS):
-		spin_lock_irqsave(&adapter->driver_lock, flags);
-		if (adapter->cur_cmd->pdata_buf)
-			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.fwt,
+		spin_lock_irqsave(&priv->driver_lock, flags);
+		if (priv->cur_cmd->pdata_buf)
+			memcpy(priv->cur_cmd->pdata_buf, &resp->params.fwt,
 			       sizeof(resp->params.fwt));
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_MESH_ACCESS):
-		if (adapter->cur_cmd->pdata_buf)
-			memcpy(adapter->cur_cmd->pdata_buf, &resp->params.mesh,
+		if (priv->cur_cmd->pdata_buf)
+			memcpy(priv->cur_cmd->pdata_buf, &resp->params.mesh,
 			       sizeof(resp->params.mesh));
 		break;
 	case CMD_RET(CMD_802_11_BEACON_CTRL):
@@ -758,7 +740,6 @@ int lbs_process_rx_command(struct lbs_private *priv)
 {
 	u16 respcmd;
 	struct cmd_ds_command *resp;
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	ulong flags;
 	u16 result;
@@ -766,39 +747,39 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	lbs_deb_enter(LBS_DEB_HOST);
 
 	/* Now we got response from FW, cancel the command timer */
-	del_timer(&adapter->command_timer);
+	del_timer(&priv->command_timer);
 
-	mutex_lock(&adapter->lock);
-	spin_lock_irqsave(&adapter->driver_lock, flags);
+	mutex_lock(&priv->lock);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 
-	if (!adapter->cur_cmd) {
+	if (!priv->cur_cmd) {
 		lbs_deb_host("CMD_RESP: cur_cmd is NULL\n");
 		ret = -1;
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		goto done;
 	}
-	resp = (struct cmd_ds_command *)(adapter->cur_cmd->bufvirtualaddr);
+	resp = (struct cmd_ds_command *)(priv->cur_cmd->bufvirtualaddr);
 
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
 	lbs_deb_host("CMD_RESP: response 0x%04x, size %d, jiffies %lu\n",
 		respcmd, priv->upld_len, jiffies);
-	lbs_deb_hex(LBS_DEB_HOST, "CMD_RESP", adapter->cur_cmd->bufvirtualaddr,
+	lbs_deb_hex(LBS_DEB_HOST, "CMD_RESP", priv->cur_cmd->bufvirtualaddr,
 		    priv->upld_len);
 
 	if (!(respcmd & 0x8000)) {
 		lbs_deb_host("invalid response!\n");
-		adapter->cur_cmd_retcode = -1;
-		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->cur_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		priv->cur_cmd_retcode = -1;
+		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
+		priv->cur_cmd = NULL;
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		ret = -1;
 		goto done;
 	}
 
 	/* Store the response code to cur_cmd_retcode. */
-	adapter->cur_cmd_retcode = result;
+	priv->cur_cmd_retcode = result;
 
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
 		struct cmd_ds_802_11_ps_mode *psmode = &resp->params.psmode;
@@ -816,15 +797,15 @@ int lbs_process_rx_command(struct lbs_private *priv)
 			 * ad-hoc mode. It takes place in
 			 * lbs_execute_next_command().
 			 */
-			if (adapter->mode == IW_MODE_ADHOC &&
+			if (priv->mode == IW_MODE_ADHOC &&
 			    action == CMD_SUBCMD_ENTER_PS)
-				adapter->psmode = LBS802_11POWERMODECAM;
+				priv->psmode = LBS802_11POWERMODECAM;
 		} else if (action == CMD_SUBCMD_ENTER_PS) {
-			adapter->needtowakeup = 0;
-			adapter->psstate = PS_STATE_AWAKE;
+			priv->needtowakeup = 0;
+			priv->psstate = PS_STATE_AWAKE;
 
 			lbs_deb_host("CMD_RESP: ENTER_PS command response\n");
-			if (adapter->connect_status != LBS_CONNECTED) {
+			if (priv->connect_status != LBS_CONNECTED) {
 				/*
 				 * When Deauth Event received before Enter_PS command
 				 * response, We need to wake up the firmware.
@@ -832,23 +813,23 @@ int lbs_process_rx_command(struct lbs_private *priv)
 				lbs_deb_host(
 				       "disconnected, invoking lbs_ps_wakeup\n");
 
-				spin_unlock_irqrestore(&adapter->driver_lock, flags);
-				mutex_unlock(&adapter->lock);
+				spin_unlock_irqrestore(&priv->driver_lock, flags);
+				mutex_unlock(&priv->lock);
 				lbs_ps_wakeup(priv, 0);
-				mutex_lock(&adapter->lock);
-				spin_lock_irqsave(&adapter->driver_lock, flags);
+				mutex_lock(&priv->lock);
+				spin_lock_irqsave(&priv->driver_lock, flags);
 			}
 		} else if (action == CMD_SUBCMD_EXIT_PS) {
-			adapter->needtowakeup = 0;
-			adapter->psstate = PS_STATE_FULL_POWER;
+			priv->needtowakeup = 0;
+			priv->psstate = PS_STATE_FULL_POWER;
 			lbs_deb_host("CMD_RESP: EXIT_PS command response\n");
 		} else {
 			lbs_deb_host("CMD_RESP: PS action 0x%X\n", action);
 		}
 
-		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->cur_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
+		priv->cur_cmd = NULL;
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		ret = 0;
 		goto done;
@@ -869,32 +850,32 @@ int lbs_process_rx_command(struct lbs_private *priv)
 
 		}
 
-		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->cur_cmd = NULL;
-		spin_unlock_irqrestore(&adapter->driver_lock, flags);
+		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
+		priv->cur_cmd = NULL;
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		ret = -1;
 		goto done;
 	}
 
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	if (adapter->cur_cmd && adapter->cur_cmd->callback)
-		ret = adapter->cur_cmd->callback(respcmd, resp, priv);
+	if (priv->cur_cmd && priv->cur_cmd->callback)
+		ret = priv->cur_cmd->callback(respcmd, resp, priv);
 	else
 		ret = handle_cmd_response(respcmd, resp, priv);
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
+	spin_lock_irqsave(&priv->driver_lock, flags);
 
-	if (adapter->cur_cmd) {
+	if (priv->cur_cmd) {
 		/* Clean up and Put current command back to cmdfreeq */
-		__lbs_cleanup_and_insert_cmd(priv, adapter->cur_cmd);
-		adapter->cur_cmd = NULL;
+		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
+		priv->cur_cmd = NULL;
 	}
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 done:
-	mutex_unlock(&adapter->lock);
+	mutex_unlock(&priv->lock);
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
 	return ret;
 }
@@ -902,14 +883,13 @@ done:
 int lbs_process_event(struct lbs_private *priv)
 {
 	int ret = 0;
-	struct lbs_adapter *adapter = priv->adapter;
 	u32 eventcause;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	spin_lock_irq(&adapter->driver_lock);
-	eventcause = adapter->eventcause >> SBI_EVENT_CAUSE_SHIFT;
-	spin_unlock_irq(&adapter->driver_lock);
+	spin_lock_irq(&priv->driver_lock);
+	eventcause = priv->eventcause >> SBI_EVENT_CAUSE_SHIFT;
+	spin_unlock_irq(&priv->driver_lock);
 
 	lbs_deb_cmd("event cause %d\n", eventcause);
 
@@ -937,14 +917,14 @@ int lbs_process_event(struct lbs_private *priv)
 		lbs_deb_cmd("EVENT: sleep\n");
 
 		/* handle unexpected PS SLEEP event */
-		if (adapter->psstate == PS_STATE_FULL_POWER) {
+		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
 			       "EVENT: in FULL POWER mode, ignoreing PS_SLEEP\n");
 			break;
 		}
-		adapter->psstate = PS_STATE_PRE_SLEEP;
+		priv->psstate = PS_STATE_PRE_SLEEP;
 
-		lbs_ps_confirm_sleep(priv, (u16) adapter->psmode);
+		lbs_ps_confirm_sleep(priv, (u16) priv->psmode);
 
 		break;
 
@@ -952,19 +932,19 @@ int lbs_process_event(struct lbs_private *priv)
 		lbs_deb_cmd("EVENT: awake\n");
 
 		/* handle unexpected PS AWAKE event */
-		if (adapter->psstate == PS_STATE_FULL_POWER) {
+		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(
 			       "EVENT: In FULL POWER mode - ignore PS AWAKE\n");
 			break;
 		}
 
-		adapter->psstate = PS_STATE_AWAKE;
+		priv->psstate = PS_STATE_AWAKE;
 
-		if (adapter->needtowakeup) {
+		if (priv->needtowakeup) {
 			/*
 			 * wait for the command processing to finish
 			 * before resuming sending
-			 * adapter->needtowakeup will be set to FALSE
+			 * priv->needtowakeup will be set to FALSE
 			 * in lbs_ps_wakeup()
 			 */
 			lbs_deb_cmd("waking up ...\n");
@@ -1012,12 +992,12 @@ int lbs_process_event(struct lbs_private *priv)
 			break;
 		}
 		lbs_pr_info("EVENT: MESH_AUTO_STARTED\n");
-		adapter->mesh_connect_status = LBS_CONNECTED;
+		priv->mesh_connect_status = LBS_CONNECTED;
 		if (priv->mesh_open == 1) {
 			netif_wake_queue(priv->mesh_dev);
 			netif_carrier_on(priv->mesh_dev);
 		}
-		adapter->mode = IW_MODE_ADHOC;
+		priv->mode = IW_MODE_ADHOC;
 		schedule_work(&priv->sync_channel);
 		break;
 
@@ -1026,9 +1006,9 @@ int lbs_process_event(struct lbs_private *priv)
 		break;
 	}
 
-	spin_lock_irq(&adapter->driver_lock);
-	adapter->eventcause = 0;
-	spin_unlock_irq(&adapter->driver_lock);
+	spin_lock_irq(&priv->driver_lock);
+	priv->eventcause = 0;
+	spin_unlock_irq(&priv->driver_lock);
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;

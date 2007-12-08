@@ -134,9 +134,9 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 
 	lbs_deb_enter(LBS_DEB_SDIO);
 
-	spin_lock_irqsave(&card->priv->adapter->driver_lock, flags);
+	spin_lock_irqsave(&card->priv->driver_lock, flags);
 
-	if (!card->priv->adapter->cur_cmd) {
+	if (!card->priv->cur_cmd) {
 		lbs_deb_sdio("discarding spurious response\n");
 		ret = 0;
 		goto out;
@@ -149,7 +149,7 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 		goto out;
 	}
 
-	memcpy(card->priv->adapter->cur_cmd->bufvirtualaddr, buffer, size);
+	memcpy(card->priv->cur_cmd->bufvirtualaddr, buffer, size);
 	card->priv->upld_len = size;
 
 	card->int_cause |= MRVDRV_CMD_UPLD_RDY;
@@ -159,7 +159,7 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 	ret = 0;
 
 out:
-	spin_unlock_irqrestore(&card->priv->adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&card->priv->driver_lock, flags);
 
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 
@@ -231,14 +231,14 @@ static int if_sdio_handle_event(struct if_sdio_card *card,
 		event <<= SBI_EVENT_CAUSE_SHIFT;
 	}
 
-	spin_lock_irqsave(&card->priv->adapter->driver_lock, flags);
+	spin_lock_irqsave(&card->priv->driver_lock, flags);
 
 	card->event = event;
 	card->int_cause |= MRVDRV_CARDEVENT;
 
 	lbs_interrupt(card->priv->dev);
 
-	spin_unlock_irqrestore(&card->priv->adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&card->priv->driver_lock, flags);
 
 	ret = 0;
 
@@ -800,7 +800,7 @@ static int if_sdio_read_event_cause(struct lbs_private *priv)
 
 	card = priv->card;
 
-	priv->adapter->eventcause = card->event;
+	priv->eventcause = card->event;
 
 	lbs_deb_leave(LBS_DEB_SDIO);
 
@@ -962,7 +962,7 @@ static int if_sdio_probe(struct sdio_func *func,
 	priv->hw_get_int_status = if_sdio_get_int_status;
 	priv->hw_read_event_cause = if_sdio_read_event_cause;
 
-	priv->adapter->fw_ready = 1;
+	priv->fw_ready = 1;
 
 	/*
 	 * Enable interrupts now that everything is set up
@@ -985,7 +985,7 @@ out:
 err_activate_card:
 	flush_scheduled_work();
 	free_netdev(priv->dev);
-	kfree(priv->adapter);
+	kfree(priv);
 reclaim:
 	sdio_claim_host(func);
 release_int:
@@ -1015,7 +1015,7 @@ static void if_sdio_remove(struct sdio_func *func)
 
 	card = sdio_get_drvdata(func);
 
-	card->priv->adapter->surpriseremoved = 1;
+	card->priv->surpriseremoved = 1;
 
 	lbs_deb_sdio("call remove card\n");
 	lbs_stop_card(card->priv);

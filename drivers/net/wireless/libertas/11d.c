@@ -432,8 +432,8 @@ u8 lbs_get_scan_type_11d(u8 chan,
 
 void lbs_init_11d(struct lbs_private *priv)
 {
-	priv->adapter->enable11d = 0;
-	memset(&(priv->adapter->parsed_region_chan), 0,
+	priv->enable11d = 0;
+	memset(&(priv->parsed_region_chan), 0,
 	       sizeof(struct parsed_region_chan_11d));
 	return;
 }
@@ -447,7 +447,7 @@ static int set_domain_info_11d(struct lbs_private *priv)
 {
 	int ret;
 
-	if (!priv->adapter->enable11d) {
+	if (!priv->enable11d) {
 		lbs_deb_11d("dnld domain Info with 11d disabled\n");
 		return 0;
 	}
@@ -469,22 +469,21 @@ static int set_domain_info_11d(struct lbs_private *priv)
 */
 int lbs_set_universaltable(struct lbs_private *priv, u8 band)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	u16 size = sizeof(struct chan_freq_power);
 	u16 i = 0;
 
-	memset(adapter->universal_channel, 0,
-	       sizeof(adapter->universal_channel));
+	memset(priv->universal_channel, 0,
+	       sizeof(priv->universal_channel));
 
-	adapter->universal_channel[i].nrcfp =
+	priv->universal_channel[i].nrcfp =
 	    sizeof(channel_freq_power_UN_BG) / size;
 	lbs_deb_11d("BG-band nrcfp %d\n",
-	       adapter->universal_channel[i].nrcfp);
+	       priv->universal_channel[i].nrcfp);
 
-	adapter->universal_channel[i].CFP = channel_freq_power_UN_BG;
-	adapter->universal_channel[i].valid = 1;
-	adapter->universal_channel[i].region = UNIVERSAL_REGION_CODE;
-	adapter->universal_channel[i].band = band;
+	priv->universal_channel[i].CFP = channel_freq_power_UN_BG;
+	priv->universal_channel[i].valid = 1;
+	priv->universal_channel[i].region = UNIVERSAL_REGION_CODE;
+	priv->universal_channel[i].band = band;
 	i++;
 
 	return 0;
@@ -505,8 +504,7 @@ int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
 	struct cmd_ds_802_11d_domain_info *pdomaininfo =
 	    &cmd->params.domaininfo;
 	struct mrvlietypes_domainparamset *domain = &pdomaininfo->domain;
-	struct lbs_adapter *adapter = priv->adapter;
-	u8 nr_subband = adapter->domainreg.nr_subband;
+	u8 nr_subband = priv->domainreg.nr_subband;
 
 	lbs_deb_enter(LBS_DEB_11D);
 
@@ -523,7 +521,7 @@ int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
 	}
 
 	domain->header.type = cpu_to_le16(TLV_TYPE_DOMAIN);
-	memcpy(domain->countrycode, adapter->domainreg.countrycode,
+	memcpy(domain->countrycode, priv->domainreg.countrycode,
 	       sizeof(domain->countrycode));
 
 	domain->header.len =
@@ -531,7 +529,7 @@ int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
 			     sizeof(domain->countrycode));
 
 	if (nr_subband) {
-		memcpy(domain->subband, adapter->domainreg.subband,
+		memcpy(domain->subband, priv->domainreg.subband,
 		       nr_subband * sizeof(struct ieeetypes_subbandset));
 
 		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
@@ -605,24 +603,23 @@ int lbs_parse_dnld_countryinfo_11d(struct lbs_private *priv,
                                         struct bss_descriptor * bss)
 {
 	int ret;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_11D);
-	if (priv->adapter->enable11d) {
-		memset(&adapter->parsed_region_chan, 0,
+	if (priv->enable11d) {
+		memset(&priv->parsed_region_chan, 0,
 		       sizeof(struct parsed_region_chan_11d));
 		ret = parse_domain_info_11d(&bss->countryinfo, 0,
-					       &adapter->parsed_region_chan);
+					       &priv->parsed_region_chan);
 
 		if (ret == -1) {
 			lbs_deb_11d("error parsing domain_info from AP\n");
 			goto done;
 		}
 
-		memset(&adapter->domainreg, 0,
+		memset(&priv->domainreg, 0,
 		       sizeof(struct lbs_802_11d_domain_reg));
-		generate_domain_info_11d(&adapter->parsed_region_chan,
-				      &adapter->domainreg);
+		generate_domain_info_11d(&priv->parsed_region_chan,
+				      &priv->domainreg);
 
 		ret = set_domain_info_11d(priv);
 
@@ -646,18 +643,17 @@ done:
 int lbs_create_dnld_countryinfo_11d(struct lbs_private *priv)
 {
 	int ret;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct region_channel *region_chan;
 	u8 j;
 
 	lbs_deb_enter(LBS_DEB_11D);
-	lbs_deb_11d("curbssparams.band %d\n", adapter->curbssparams.band);
+	lbs_deb_11d("curbssparams.band %d\n", priv->curbssparams.band);
 
-	if (priv->adapter->enable11d) {
+	if (priv->enable11d) {
 		/* update parsed_region_chan_11; dnld domaininf to FW */
 
-		for (j = 0; j < ARRAY_SIZE(adapter->region_channel); j++) {
-			region_chan = &adapter->region_channel[j];
+		for (j = 0; j < ARRAY_SIZE(priv->region_channel); j++) {
+			region_chan = &priv->region_channel[j];
 
 			lbs_deb_11d("%d region_chan->band %d\n", j,
 			       region_chan->band);
@@ -665,28 +661,28 @@ int lbs_create_dnld_countryinfo_11d(struct lbs_private *priv)
 			if (!region_chan || !region_chan->valid
 			    || !region_chan->CFP)
 				continue;
-			if (region_chan->band != adapter->curbssparams.band)
+			if (region_chan->band != priv->curbssparams.band)
 				continue;
 			break;
 		}
 
-		if (j >= ARRAY_SIZE(adapter->region_channel)) {
+		if (j >= ARRAY_SIZE(priv->region_channel)) {
 			lbs_deb_11d("region_chan not found, band %d\n",
-			       adapter->curbssparams.band);
+			       priv->curbssparams.band);
 			ret = -1;
 			goto done;
 		}
 
-		memset(&adapter->parsed_region_chan, 0,
+		memset(&priv->parsed_region_chan, 0,
 		       sizeof(struct parsed_region_chan_11d));
 		lbs_generate_parsed_region_chan_11d(region_chan,
-						     &adapter->
+						     &priv->
 						     parsed_region_chan);
 
-		memset(&adapter->domainreg, 0,
+		memset(&priv->domainreg, 0,
 		       sizeof(struct lbs_802_11d_domain_reg));
-		generate_domain_info_11d(&adapter->parsed_region_chan,
-					 &adapter->domainreg);
+		generate_domain_info_11d(&priv->parsed_region_chan,
+					 &priv->domainreg);
 
 		ret = set_domain_info_11d(priv);
 

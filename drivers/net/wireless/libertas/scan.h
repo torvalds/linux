@@ -10,8 +10,6 @@
 #include <net/ieee80211.h>
 #include "hostcmd.h"
 
-struct lbs_adapter;
-
 /**
  *  @brief Maximum number of channels that can be sent in a setuserscan ioctl
  *
@@ -168,11 +166,11 @@ struct bss_descriptor {
 
 int lbs_ssid_cmp(u8 *ssid1, u8 ssid1_len, u8 *ssid2, u8 ssid2_len);
 
-struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_private *priv,
 		u8 *ssid, u8 ssid_len, u8 *bssid, u8 mode,
 		int channel);
 
-struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_private *priv,
 	u8 *bssid, u8 mode);
 
 int lbs_find_best_network_ssid(struct lbs_private *priv, u8 *out_ssid,

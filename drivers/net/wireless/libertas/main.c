@@ -257,8 +257,7 @@ static ssize_t lbs_rtap_get(struct device *dev,
 		struct device_attribute *attr, char * buf)
 {
 	struct lbs_private *priv = to_net_dev(dev)->priv;
-	struct lbs_adapter *adapter = priv->adapter;
-	return snprintf(buf, 5, "0x%X\n", adapter->monitormode);
+	return snprintf(buf, 5, "0x%X\n", priv->monitormode);
 }
 
 /**
@@ -269,31 +268,30 @@ static ssize_t lbs_rtap_set(struct device *dev,
 {
 	int monitor_mode;
 	struct lbs_private *priv = to_net_dev(dev)->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	sscanf(buf, "%x", &monitor_mode);
 	if (monitor_mode != LBS_MONITOR_OFF) {
-		if(adapter->monitormode == monitor_mode)
+		if(priv->monitormode == monitor_mode)
 			return strlen(buf);
-		if (adapter->monitormode == LBS_MONITOR_OFF) {
-			if (adapter->mode == IW_MODE_INFRA)
+		if (priv->monitormode == LBS_MONITOR_OFF) {
+			if (priv->mode == IW_MODE_INFRA)
 				lbs_send_deauthentication(priv);
-			else if (adapter->mode == IW_MODE_ADHOC)
+			else if (priv->mode == IW_MODE_ADHOC)
 				lbs_stop_adhoc_network(priv);
 			lbs_add_rtap(priv);
 		}
-		adapter->monitormode = monitor_mode;
+		priv->monitormode = monitor_mode;
 	}
 
 	else {
-		if (adapter->monitormode == LBS_MONITOR_OFF)
+		if (priv->monitormode == LBS_MONITOR_OFF)
 			return strlen(buf);
-		adapter->monitormode = LBS_MONITOR_OFF;
+		priv->monitormode = LBS_MONITOR_OFF;
 		lbs_remove_rtap(priv);
 
-		if (adapter->currenttxskb) {
-			dev_kfree_skb_any(adapter->currenttxskb);
-			adapter->currenttxskb = NULL;
+		if (priv->currenttxskb) {
+			dev_kfree_skb_any(priv->currenttxskb);
+			priv->currenttxskb = NULL;
 		}
 
 		/* Wake queues, command thread, etc. */
@@ -302,7 +300,7 @@ static ssize_t lbs_rtap_set(struct device *dev,
 
 	lbs_prepare_and_send_command(priv,
 			CMD_802_11_MONITOR_MODE, CMD_ACT_SET,
-			CMD_OPTION_WAITFORRSP, 0, &adapter->monitormode);
+			CMD_OPTION_WAITFORRSP, 0, &priv->monitormode);
 	return strlen(buf);
 }
 
@@ -382,14 +380,13 @@ static struct attribute_group lbs_mesh_attr_group = {
 static int pre_open_check(struct net_device *dev)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 	int i = 0;
 
-	while (!adapter->fw_ready && i < 20) {
+	while (!priv->fw_ready && i < 20) {
 		i++;
 		msleep_interruptible(100);
 	}
-	if (!adapter->fw_ready) {
+	if (!priv->fw_ready) {
 		lbs_pr_err("firmware not ready\n");
 		return -1;
 	}
@@ -406,19 +403,18 @@ static int pre_open_check(struct net_device *dev)
 static int lbs_dev_open(struct net_device *dev)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_NET);
 
 	priv->open = 1;
 
-	if (adapter->connect_status == LBS_CONNECTED)
+	if (priv->connect_status == LBS_CONNECTED)
 		netif_carrier_on(priv->dev);
 	else
 		netif_carrier_off(priv->dev);
 
 	if (priv->mesh_dev) {
-		if (adapter->mesh_connect_status == LBS_CONNECTED)
+		if (priv->mesh_connect_status == LBS_CONNECTED)
 			netif_carrier_on(priv->mesh_dev);
 		else
 			netif_carrier_off(priv->mesh_dev);
@@ -442,7 +438,7 @@ static int lbs_mesh_open(struct net_device *dev)
 	priv->mesh_open = 1 ;
 	netif_wake_queue(priv->mesh_dev);
 
-	priv->adapter->mesh_connect_status = LBS_CONNECTED;
+	priv->mesh_connect_status = LBS_CONNECTED;
 
 	netif_carrier_on(priv->mesh_dev);
 	netif_wake_queue(priv->mesh_dev);
@@ -534,7 +530,7 @@ static int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->stats.tx_dropped++;
 		goto done;
 	}
-	if (priv->adapter->currenttxskb) {
+	if (priv->currenttxskb) {
 		lbs_pr_err("%s while TX skb pending\n", __func__);
 		priv->stats.tx_dropped++;
 		goto done;
@@ -562,7 +558,7 @@ static int lbs_mesh_pre_start_xmit(struct sk_buff *skb,
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_MESH);
-	if (priv->adapter->monitormode != LBS_MONITOR_OFF) {
+	if (priv->monitormode != LBS_MONITOR_OFF) {
 		netif_stop_queue(dev);
 		return -EOPNOTSUPP;
 	}
@@ -585,7 +581,7 @@ static int lbs_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lbs_deb_enter(LBS_DEB_TX);
 
-	if (priv->adapter->monitormode != LBS_MONITOR_OFF) {
+	if (priv->monitormode != LBS_MONITOR_OFF) {
 		netif_stop_queue(dev);
 		return -EOPNOTSUPP;
 	}
@@ -608,20 +604,20 @@ static void lbs_tx_timeout(struct net_device *dev)
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 	dev->trans_start = jiffies;
 
-	if (priv->adapter->currenttxskb) {
-		if (priv->adapter->monitormode != LBS_MONITOR_OFF) {
+	if (priv->currenttxskb) {
+		if (priv->monitormode != LBS_MONITOR_OFF) {
 			/* If we are here, we have not received feedback from
 			   the previous packet.  Assume TX_FAIL and move on. */
-			priv->adapter->eventcause = 0x01000000;
+			priv->eventcause = 0x01000000;
 			lbs_send_tx_feedback(priv);
 		} else
 			wake_up_interruptible(&priv->waitq);
 	} else if (dev == priv->dev) {
-		if (priv->adapter->connect_status == LBS_CONNECTED)
+		if (priv->connect_status == LBS_CONNECTED)
 			netif_wake_queue(priv->dev);
 
 	} else if (dev == priv->mesh_dev) {
-		if (priv->adapter->mesh_connect_status == LBS_CONNECTED)
+		if (priv->mesh_connect_status == LBS_CONNECTED)
 			netif_wake_queue(priv->mesh_dev);
 	}
 
@@ -630,23 +626,22 @@ static void lbs_tx_timeout(struct net_device *dev)
 
 void lbs_host_to_card_done(struct lbs_private *priv)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 
 	/* Wake main thread if commands are pending */
-	if (!adapter->cur_cmd)
+	if (!priv->cur_cmd)
 		wake_up_interruptible(&priv->waitq);
 
 	/* Don't wake netif queues if we're in monitor mode and
 	   a TX packet is already pending. */
-	if (priv->adapter->currenttxskb)
+	if (priv->currenttxskb)
 		return;
 
-	if (priv->dev && adapter->connect_status == LBS_CONNECTED)
+	if (priv->dev && priv->connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->dev);
 
-	if (priv->mesh_dev && adapter->mesh_connect_status == LBS_CONNECTED)
+	if (priv->mesh_dev && priv->mesh_connect_status == LBS_CONNECTED)
 		netif_wake_queue(priv->mesh_dev);
 }
 EXPORT_SYMBOL_GPL(lbs_host_to_card_done);
@@ -668,7 +663,6 @@ static int lbs_set_mac_address(struct net_device *dev, void *addr)
 {
 	int ret = 0;
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct sockaddr *phwaddr = addr;
 
 	lbs_deb_enter(LBS_DEB_NET);
@@ -676,13 +670,13 @@ static int lbs_set_mac_address(struct net_device *dev, void *addr)
 	/* In case it was called from the mesh device */
 	dev = priv->dev ;
 
-	memset(adapter->current_addr, 0, ETH_ALEN);
+	memset(priv->current_addr, 0, ETH_ALEN);
 
 	/* dev->dev_addr is 8 bytes */
 	lbs_deb_hex(LBS_DEB_NET, "dev->dev_addr", dev->dev_addr, ETH_ALEN);
 
 	lbs_deb_hex(LBS_DEB_NET, "addr", phwaddr->sa_data, ETH_ALEN);
-	memcpy(adapter->current_addr, phwaddr->sa_data, ETH_ALEN);
+	memcpy(priv->current_addr, phwaddr->sa_data, ETH_ALEN);
 
 	ret = lbs_prepare_and_send_command(priv, CMD_802_11_MAC_ADDRESS,
 				    CMD_ACT_SET,
@@ -694,24 +688,24 @@ static int lbs_set_mac_address(struct net_device *dev, void *addr)
 		goto done;
 	}
 
-	lbs_deb_hex(LBS_DEB_NET, "adapter->macaddr", adapter->current_addr, ETH_ALEN);
-	memcpy(dev->dev_addr, adapter->current_addr, ETH_ALEN);
+	lbs_deb_hex(LBS_DEB_NET, "priv->macaddr", priv->current_addr, ETH_ALEN);
+	memcpy(dev->dev_addr, priv->current_addr, ETH_ALEN);
 	if (priv->mesh_dev)
-		memcpy(priv->mesh_dev->dev_addr, adapter->current_addr, ETH_ALEN);
+		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_NET, "ret %d", ret);
 	return ret;
 }
 
-static int lbs_copy_multicast_address(struct lbs_adapter *adapter,
+static int lbs_copy_multicast_address(struct lbs_private *priv,
 				     struct net_device *dev)
 {
 	int i = 0;
 	struct dev_mc_list *mcptr = dev->mc_list;
 
 	for (i = 0; i < dev->mc_count; i++) {
-		memcpy(&adapter->multicastlist[i], mcptr->dmi_addr, ETH_ALEN);
+		memcpy(&priv->multicastlist[i], mcptr->dmi_addr, ETH_ALEN);
 		mcptr = mcptr->next;
 	}
 
@@ -722,50 +716,49 @@ static int lbs_copy_multicast_address(struct lbs_adapter *adapter,
 static void lbs_set_multicast_list(struct net_device *dev)
 {
 	struct lbs_private *priv = dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 	int oldpacketfilter;
 	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_NET);
 
-	oldpacketfilter = adapter->currentpacketfilter;
+	oldpacketfilter = priv->currentpacketfilter;
 
 	if (dev->flags & IFF_PROMISC) {
 		lbs_deb_net("enable promiscuous mode\n");
-		adapter->currentpacketfilter |=
+		priv->currentpacketfilter |=
 		    CMD_ACT_MAC_PROMISCUOUS_ENABLE;
-		adapter->currentpacketfilter &=
+		priv->currentpacketfilter &=
 		    ~(CMD_ACT_MAC_ALL_MULTICAST_ENABLE |
 		      CMD_ACT_MAC_MULTICAST_ENABLE);
 	} else {
 		/* Multicast */
-		adapter->currentpacketfilter &=
+		priv->currentpacketfilter &=
 		    ~CMD_ACT_MAC_PROMISCUOUS_ENABLE;
 
 		if (dev->flags & IFF_ALLMULTI || dev->mc_count >
 		    MRVDRV_MAX_MULTICAST_LIST_SIZE) {
 			lbs_deb_net( "enabling all multicast\n");
-			adapter->currentpacketfilter |=
+			priv->currentpacketfilter |=
 			    CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
-			adapter->currentpacketfilter &=
+			priv->currentpacketfilter &=
 			    ~CMD_ACT_MAC_MULTICAST_ENABLE;
 		} else {
-			adapter->currentpacketfilter &=
+			priv->currentpacketfilter &=
 			    ~CMD_ACT_MAC_ALL_MULTICAST_ENABLE;
 
 			if (!dev->mc_count) {
 				lbs_deb_net("no multicast addresses, "
 				       "disabling multicast\n");
-				adapter->currentpacketfilter &=
+				priv->currentpacketfilter &=
 				    ~CMD_ACT_MAC_MULTICAST_ENABLE;
 			} else {
 				int i;
 
-				adapter->currentpacketfilter |=
+				priv->currentpacketfilter |=
 				    CMD_ACT_MAC_MULTICAST_ENABLE;
 
-				adapter->nr_of_multicastmacaddr =
-				    lbs_copy_multicast_address(adapter, dev);
+				priv->nr_of_multicastmacaddr =
+				    lbs_copy_multicast_address(priv, dev);
 
 				lbs_deb_net("multicast addresses: %d\n",
 				       dev->mc_count);
@@ -773,7 +766,7 @@ static void lbs_set_multicast_list(struct net_device *dev)
 				for (i = 0; i < dev->mc_count; i++) {
 					lbs_deb_net("Multicast address %d:%s\n",
 					       i, print_mac(mac,
-					       adapter->multicastlist[i]));
+					       priv->multicastlist[i]));
 				}
 				/* send multicast addresses to firmware */
 				lbs_prepare_and_send_command(priv,
@@ -784,7 +777,7 @@ static void lbs_set_multicast_list(struct net_device *dev)
 		}
 	}
 
-	if (adapter->currentpacketfilter != oldpacketfilter) {
+	if (priv->currentpacketfilter != oldpacketfilter) {
 		lbs_set_mac_packet_filter(priv);
 	}
 
@@ -803,7 +796,6 @@ static int lbs_thread(void *data)
 {
 	struct net_device *dev = data;
 	struct lbs_private *priv = dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 	wait_queue_t wait;
 	u8 ireg = 0;
 
@@ -815,99 +807,99 @@ static int lbs_thread(void *data)
 
 	for (;;) {
 		lbs_deb_thread( "main-thread 111: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-				adapter->intcounter, adapter->currenttxskb, priv->dnld_sent);
+				priv->intcounter, priv->currenttxskb, priv->dnld_sent);
 
 		add_wait_queue(&priv->waitq, &wait);
 		set_current_state(TASK_INTERRUPTIBLE);
-		spin_lock_irq(&adapter->driver_lock);
+		spin_lock_irq(&priv->driver_lock);
 
-		if ((adapter->psstate == PS_STATE_SLEEP) ||
-		    (!adapter->intcounter && (priv->dnld_sent || adapter->cur_cmd || list_empty(&adapter->cmdpendingq)))) {
+		if ((priv->psstate == PS_STATE_SLEEP) ||
+		    (!priv->intcounter && (priv->dnld_sent || priv->cur_cmd || list_empty(&priv->cmdpendingq)))) {
 			lbs_deb_thread("main-thread sleeping... Conn=%d IntC=%d PS_mode=%d PS_State=%d\n",
-				       adapter->connect_status, adapter->intcounter,
-				       adapter->psmode, adapter->psstate);
-			spin_unlock_irq(&adapter->driver_lock);
+				       priv->connect_status, priv->intcounter,
+				       priv->psmode, priv->psstate);
+			spin_unlock_irq(&priv->driver_lock);
 			schedule();
 		} else
-			spin_unlock_irq(&adapter->driver_lock);
+			spin_unlock_irq(&priv->driver_lock);
 
 		lbs_deb_thread("main-thread 222 (waking up): intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-			       adapter->intcounter, adapter->currenttxskb, priv->dnld_sent);
+			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&priv->waitq, &wait);
 		try_to_freeze();
 
 		lbs_deb_thread("main-thread 333: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-			       adapter->intcounter, adapter->currenttxskb, priv->dnld_sent);
+			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
 
-		if (kthread_should_stop() || adapter->surpriseremoved) {
+		if (kthread_should_stop() || priv->surpriseremoved) {
 			lbs_deb_thread("main-thread: break from main thread: surpriseremoved=0x%x\n",
-				       adapter->surpriseremoved);
+				       priv->surpriseremoved);
 			break;
 		}
 
 
-		spin_lock_irq(&adapter->driver_lock);
+		spin_lock_irq(&priv->driver_lock);
 
-		if (adapter->intcounter) {
+		if (priv->intcounter) {
 			u8 int_status;
 
-			adapter->intcounter = 0;
+			priv->intcounter = 0;
 			int_status = priv->hw_get_int_status(priv, &ireg);
 
 			if (int_status) {
 				lbs_deb_thread("main-thread: reading HOST_INT_STATUS_REG failed\n");
-				spin_unlock_irq(&adapter->driver_lock);
+				spin_unlock_irq(&priv->driver_lock);
 				continue;
 			}
-			adapter->hisregcpy |= ireg;
+			priv->hisregcpy |= ireg;
 		}
 
 		lbs_deb_thread("main-thread 444: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
-			       adapter->intcounter, adapter->currenttxskb, priv->dnld_sent);
+			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
 
 		/* command response? */
-		if (adapter->hisregcpy & MRVDRV_CMD_UPLD_RDY) {
+		if (priv->hisregcpy & MRVDRV_CMD_UPLD_RDY) {
 			lbs_deb_thread("main-thread: cmd response ready\n");
 
-			adapter->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
-			spin_unlock_irq(&adapter->driver_lock);
+			priv->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
+			spin_unlock_irq(&priv->driver_lock);
 			lbs_process_rx_command(priv);
-			spin_lock_irq(&adapter->driver_lock);
+			spin_lock_irq(&priv->driver_lock);
 		}
 
 		/* Any Card Event */
-		if (adapter->hisregcpy & MRVDRV_CARDEVENT) {
+		if (priv->hisregcpy & MRVDRV_CARDEVENT) {
 			lbs_deb_thread("main-thread: Card Event Activity\n");
 
-			adapter->hisregcpy &= ~MRVDRV_CARDEVENT;
+			priv->hisregcpy &= ~MRVDRV_CARDEVENT;
 
 			if (priv->hw_read_event_cause(priv)) {
 				lbs_pr_alert("main-thread: hw_read_event_cause failed\n");
-				spin_unlock_irq(&adapter->driver_lock);
+				spin_unlock_irq(&priv->driver_lock);
 				continue;
 			}
-			spin_unlock_irq(&adapter->driver_lock);
+			spin_unlock_irq(&priv->driver_lock);
 			lbs_process_event(priv);
 		} else
-			spin_unlock_irq(&adapter->driver_lock);
+			spin_unlock_irq(&priv->driver_lock);
 
 		/* Check if we need to confirm Sleep Request received previously */
-		if (adapter->psstate == PS_STATE_PRE_SLEEP &&
-		    !priv->dnld_sent && !adapter->cur_cmd) {
-			if (adapter->connect_status == LBS_CONNECTED) {
+		if (priv->psstate == PS_STATE_PRE_SLEEP &&
+		    !priv->dnld_sent && !priv->cur_cmd) {
+			if (priv->connect_status == LBS_CONNECTED) {
 				lbs_deb_thread("main_thread: PRE_SLEEP--intcounter=%d currenttxskb=%p dnld_sent=%d cur_cmd=%p, confirm now\n",
-					       adapter->intcounter, adapter->currenttxskb, priv->dnld_sent, adapter->cur_cmd);
+					       priv->intcounter, priv->currenttxskb, priv->dnld_sent, priv->cur_cmd);
 
-				lbs_ps_confirm_sleep(priv, (u16) adapter->psmode);
+				lbs_ps_confirm_sleep(priv, (u16) priv->psmode);
 			} else {
 				/* workaround for firmware sending
 				 * deauth/linkloss event immediately
 				 * after sleep request; remove this
 				 * after firmware fixes it
 				 */
-				adapter->psstate = PS_STATE_AWAKE;
+				priv->psstate = PS_STATE_AWAKE;
 				lbs_pr_alert("main-thread: ignore PS_SleepConfirm in non-connected state\n");
 			}
 		}
@@ -915,25 +907,25 @@ static int lbs_thread(void *data)
 		/* The PS state is changed during processing of Sleep Request
 		 * event above
 		 */
-		if ((priv->adapter->psstate == PS_STATE_SLEEP) ||
-		    (priv->adapter->psstate == PS_STATE_PRE_SLEEP))
+		if ((priv->psstate == PS_STATE_SLEEP) ||
+		    (priv->psstate == PS_STATE_PRE_SLEEP))
 			continue;
 
 		/* Execute the next command */
-		if (!priv->dnld_sent && !priv->adapter->cur_cmd)
+		if (!priv->dnld_sent && !priv->cur_cmd)
 			lbs_execute_next_command(priv);
 
 		/* Wake-up command waiters which can't sleep in
 		 * lbs_prepare_and_send_command
 		 */
-		if (!list_empty(&adapter->cmdpendingq))
-			wake_up_all(&adapter->cmd_pending);
+		if (!list_empty(&priv->cmdpendingq))
+			wake_up_all(&priv->cmd_pending);
 
 		lbs_tx_runqueue(priv);
 	}
 
-	del_timer(&adapter->command_timer);
-	wake_up_all(&adapter->cmd_pending);
+	del_timer(&priv->command_timer);
+	wake_up_all(&priv->cmd_pending);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
@@ -950,7 +942,6 @@ static int lbs_thread(void *data)
 static int lbs_setup_firmware(struct lbs_private *priv)
 {
 	int ret = -1;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_mesh_access mesh_access;
 
 	lbs_deb_enter(LBS_DEB_FW);
@@ -958,7 +949,7 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 	/*
 	 * Read MAC address from HW
 	 */
-	memset(adapter->current_addr, 0xff, ETH_ALEN);
+	memset(priv->current_addr, 0xff, ETH_ALEN);
 
 	ret = lbs_prepare_and_send_command(priv, CMD_GET_HW_SPEC,
 				    0, CMD_OPTION_WAITFORRSP, 0, NULL);
@@ -1008,12 +999,11 @@ done:
 static void command_timer_fn(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *ptempnode;
 	struct cmd_ds_command *cmd;
 	unsigned long flags;
 
-	ptempnode = adapter->cur_cmd;
+	ptempnode = priv->cur_cmd;
 	if (ptempnode == NULL) {
 		lbs_deb_fw("ptempnode empty\n");
 		return;
@@ -1027,15 +1017,15 @@ static void command_timer_fn(unsigned long data)
 
 	lbs_deb_fw("command_timer_fn fired, cmd %x\n", cmd->command);
 
-	if (!adapter->fw_ready)
+	if (!priv->fw_ready)
 		return;
 
-	spin_lock_irqsave(&adapter->driver_lock, flags);
-	adapter->cur_cmd = NULL;
-	spin_unlock_irqrestore(&adapter->driver_lock, flags);
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	priv->cur_cmd = NULL;
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbs_deb_fw("re-sending same command because of timeout\n");
-	lbs_queue_cmd(adapter, ptempnode, 0);
+	lbs_queue_cmd(priv, ptempnode, 0);
 
 	wake_up_interruptible(&priv->waitq);
 
@@ -1044,63 +1034,62 @@ static void command_timer_fn(unsigned long data)
 
 static int lbs_init_adapter(struct lbs_private *priv)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	size_t bufsize;
 	int i, ret = 0;
 
 	/* Allocate buffer to store the BSSID list */
 	bufsize = MAX_NETWORK_COUNT * sizeof(struct bss_descriptor);
-	adapter->networks = kzalloc(bufsize, GFP_KERNEL);
-	if (!adapter->networks) {
+	priv->networks = kzalloc(bufsize, GFP_KERNEL);
+	if (!priv->networks) {
 		lbs_pr_err("Out of memory allocating beacons\n");
 		ret = -1;
 		goto out;
 	}
 
 	/* Initialize scan result lists */
-	INIT_LIST_HEAD(&adapter->network_free_list);
-	INIT_LIST_HEAD(&adapter->network_list);
+	INIT_LIST_HEAD(&priv->network_free_list);
+	INIT_LIST_HEAD(&priv->network_list);
 	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
-		list_add_tail(&adapter->networks[i].list,
-			      &adapter->network_free_list);
+		list_add_tail(&priv->networks[i].list,
+			      &priv->network_free_list);
 	}
 
-	adapter->lbs_ps_confirm_sleep.seqnum = cpu_to_le16(++adapter->seqnum);
-	adapter->lbs_ps_confirm_sleep.command =
+	priv->lbs_ps_confirm_sleep.seqnum = cpu_to_le16(++priv->seqnum);
+	priv->lbs_ps_confirm_sleep.command =
 	    cpu_to_le16(CMD_802_11_PS_MODE);
-	adapter->lbs_ps_confirm_sleep.size =
+	priv->lbs_ps_confirm_sleep.size =
 	    cpu_to_le16(sizeof(struct PS_CMD_ConfirmSleep));
-	adapter->lbs_ps_confirm_sleep.action =
+	priv->lbs_ps_confirm_sleep.action =
 	    cpu_to_le16(CMD_SUBCMD_SLEEP_CONFIRMED);
 
-	memset(adapter->current_addr, 0xff, ETH_ALEN);
+	memset(priv->current_addr, 0xff, ETH_ALEN);
 
-	adapter->connect_status = LBS_DISCONNECTED;
-	adapter->mesh_connect_status = LBS_DISCONNECTED;
-	adapter->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
-	adapter->mode = IW_MODE_INFRA;
-	adapter->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
-	adapter->currentpacketfilter = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
-	adapter->radioon = RADIO_ON;
-	adapter->auto_rate = 1;
-	adapter->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
-	adapter->psmode = LBS802_11POWERMODECAM;
-	adapter->psstate = PS_STATE_FULL_POWER;
+	priv->connect_status = LBS_DISCONNECTED;
+	priv->mesh_connect_status = LBS_DISCONNECTED;
+	priv->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
+	priv->mode = IW_MODE_INFRA;
+	priv->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
+	priv->currentpacketfilter = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
+	priv->radioon = RADIO_ON;
+	priv->auto_rate = 1;
+	priv->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
+	priv->psmode = LBS802_11POWERMODECAM;
+	priv->psstate = PS_STATE_FULL_POWER;
 
-	mutex_init(&adapter->lock);
+	mutex_init(&priv->lock);
 
-	memset(&adapter->tx_queue_ps, 0, NR_TX_QUEUE*sizeof(struct sk_buff*));
-	adapter->tx_queue_idx = 0;
-	spin_lock_init(&adapter->txqueue_lock);
+	memset(&priv->tx_queue_ps, 0, NR_TX_QUEUE*sizeof(struct sk_buff*));
+	priv->tx_queue_idx = 0;
+	spin_lock_init(&priv->txqueue_lock);
 
-	setup_timer(&adapter->command_timer, command_timer_fn,
+	setup_timer(&priv->command_timer, command_timer_fn,
 	            (unsigned long)priv);
 
-	INIT_LIST_HEAD(&adapter->cmdfreeq);
-	INIT_LIST_HEAD(&adapter->cmdpendingq);
+	INIT_LIST_HEAD(&priv->cmdfreeq);
+	INIT_LIST_HEAD(&priv->cmdpendingq);
 
-	spin_lock_init(&adapter->driver_lock);
-	init_waitqueue_head(&adapter->cmd_pending);
+	spin_lock_init(&priv->driver_lock);
+	init_waitqueue_head(&priv->cmd_pending);
 
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {
@@ -1114,27 +1103,15 @@ out:
 
 static void lbs_free_adapter(struct lbs_private *priv)
 {
-	struct lbs_adapter *adapter = priv->adapter;
-
-	if (!adapter) {
-		lbs_deb_fw("why double free adapter?\n");
-		return;
-	}
-
 	lbs_deb_fw("free command buffer\n");
 	lbs_free_cmd_buffer(priv);
 
 	lbs_deb_fw("free command_timer\n");
-	del_timer(&adapter->command_timer);
+	del_timer(&priv->command_timer);
 
 	lbs_deb_fw("free scan results table\n");
-	kfree(adapter->networks);
-	adapter->networks = NULL;
-
-	/* Free the adapter object itself */
-	lbs_deb_fw("free adapter\n");
-	kfree(adapter);
-	priv->adapter = NULL;
+	kfree(priv->networks);
+	priv->networks = NULL;
 }
 
 /**
@@ -1158,13 +1135,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 		goto done;
 	}
 	priv = dev->priv;
-
-	/* allocate buffer for struct lbs_adapter */
-	priv->adapter = kzalloc(sizeof(struct lbs_adapter), GFP_KERNEL);
-	if (!priv->adapter) {
-		lbs_pr_err("allocate buffer for struct lbs_adapter failed\n");
-		goto err_kzalloc;
-	}
 
 	if (lbs_init_adapter(priv)) {
 		lbs_pr_err("failed to initialize adapter structure.\n");
@@ -1212,8 +1182,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 
 err_init_adapter:
 	lbs_free_adapter(priv);
-
-err_kzalloc:
 	free_netdev(dev);
 	priv = NULL;
 
@@ -1226,7 +1194,6 @@ EXPORT_SYMBOL_GPL(lbs_add_card);
 
 int lbs_remove_card(struct lbs_private *priv)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct net_device *dev = priv->dev;
 	union iwreq_data wrqu;
 
@@ -1241,8 +1208,8 @@ int lbs_remove_card(struct lbs_private *priv)
 	cancel_delayed_work(&priv->assoc_work);
 	destroy_workqueue(priv->work_thread);
 
-	if (adapter->psmode == LBS802_11POWERMODEMAX_PSP) {
-		adapter->psmode = LBS802_11POWERMODECAM;
+	if (priv->psmode == LBS802_11POWERMODEMAX_PSP) {
+		priv->psmode = LBS802_11POWERMODECAM;
 		lbs_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
 	}
 
@@ -1251,7 +1218,7 @@ int lbs_remove_card(struct lbs_private *priv)
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
 	/* Stop the thread servicing the interrupts */
-	adapter->surpriseremoved = 1;
+	priv->surpriseremoved = 1;
 	kthread_stop(priv->main_thread);
 
 	lbs_free_adapter(priv);
@@ -1315,12 +1282,12 @@ int lbs_stop_card(struct lbs_private *priv)
 	lbs_debugfs_remove_one(priv);
 
 	/* Flush pending command nodes */
-	spin_lock_irqsave(&priv->adapter->driver_lock, flags);
-	list_for_each_entry(cmdnode, &priv->adapter->cmdpendingq, list) {
+	spin_lock_irqsave(&priv->driver_lock, flags);
+	list_for_each_entry(cmdnode, &priv->cmdpendingq, list) {
 		cmdnode->cmdwaitqwoken = 1;
 		wake_up_interruptible(&cmdnode->cmdwait_q);
 	}
-	spin_unlock_irqrestore(&priv->adapter->driver_lock, flags);
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	unregister_netdev(dev);
 
@@ -1452,7 +1419,6 @@ struct chan_freq_power *lbs_get_region_cfp_table(u8 region, u8 band, int *cfp_no
 
 int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 	int i = 0;
 
@@ -1461,22 +1427,22 @@ int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band)
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
-	memset(adapter->region_channel, 0, sizeof(adapter->region_channel));
+	memset(priv->region_channel, 0, sizeof(priv->region_channel));
 
 	{
 		cfp = lbs_get_region_cfp_table(region, band, &cfp_no);
 		if (cfp != NULL) {
-			adapter->region_channel[i].nrcfp = cfp_no;
-			adapter->region_channel[i].CFP = cfp;
+			priv->region_channel[i].nrcfp = cfp_no;
+			priv->region_channel[i].CFP = cfp;
 		} else {
 			lbs_deb_main("wrong region code %#x in band B/G\n",
 			       region);
 			ret = -1;
 			goto out;
 		}
-		adapter->region_channel[i].valid = 1;
-		adapter->region_channel[i].region = region;
-		adapter->region_channel[i].band = band;
+		priv->region_channel[i].valid = 1;
+		priv->region_channel[i].region = region;
+		priv->region_channel[i].band = band;
 		i++;
 	}
 out:
@@ -1499,12 +1465,12 @@ void lbs_interrupt(struct net_device *dev)
 	lbs_deb_enter(LBS_DEB_THREAD);
 
 	lbs_deb_thread("lbs_interrupt: intcounter=%d\n",
-	       priv->adapter->intcounter);
+	       priv->intcounter);
 
-	priv->adapter->intcounter++;
+	priv->intcounter++;
 
-	if (priv->adapter->psstate == PS_STATE_SLEEP) {
-		priv->adapter->psstate = PS_STATE_AWAKE;
+	if (priv->psstate == PS_STATE_SLEEP) {
+		priv->psstate = PS_STATE_AWAKE;
 		netif_wake_queue(dev);
 		if (priv->mesh_dev)
 			netif_wake_queue(priv->mesh_dev);

@@ -48,12 +48,11 @@ static u8 lbs_getavgsnr(struct lbs_private *priv)
 {
 	u8 i;
 	u16 temp = 0;
-	struct lbs_adapter *adapter = priv->adapter;
-	if (adapter->numSNRNF == 0)
+	if (priv->numSNRNF == 0)
 		return 0;
-	for (i = 0; i < adapter->numSNRNF; i++)
-		temp += adapter->rawSNR[i];
-	return (u8) (temp / adapter->numSNRNF);
+	for (i = 0; i < priv->numSNRNF; i++)
+		temp += priv->rawSNR[i];
+	return (u8) (temp / priv->numSNRNF);
 
 }
 
@@ -67,12 +66,11 @@ static u8 lbs_getavgnf(struct lbs_private *priv)
 {
 	u8 i;
 	u16 temp = 0;
-	struct lbs_adapter *adapter = priv->adapter;
-	if (adapter->numSNRNF == 0)
+	if (priv->numSNRNF == 0)
 		return 0;
-	for (i = 0; i < adapter->numSNRNF; i++)
-		temp += adapter->rawNF[i];
-	return (u8) (temp / adapter->numSNRNF);
+	for (i = 0; i < priv->numSNRNF; i++)
+		temp += priv->rawNF[i];
+	return (u8) (temp / priv->numSNRNF);
 
 }
 
@@ -85,14 +83,13 @@ static u8 lbs_getavgnf(struct lbs_private *priv)
  */
 static void lbs_save_rawSNRNF(struct lbs_private *priv, struct rxpd *p_rx_pd)
 {
-	struct lbs_adapter *adapter = priv->adapter;
-	if (adapter->numSNRNF < DEFAULT_DATA_AVG_FACTOR)
-		adapter->numSNRNF++;
-	adapter->rawSNR[adapter->nextSNRNF] = p_rx_pd->snr;
-	adapter->rawNF[adapter->nextSNRNF] = p_rx_pd->nf;
-	adapter->nextSNRNF++;
-	if (adapter->nextSNRNF >= DEFAULT_DATA_AVG_FACTOR)
-		adapter->nextSNRNF = 0;
+	if (priv->numSNRNF < DEFAULT_DATA_AVG_FACTOR)
+		priv->numSNRNF++;
+	priv->rawSNR[priv->nextSNRNF] = p_rx_pd->snr;
+	priv->rawNF[priv->nextSNRNF] = p_rx_pd->nf;
+	priv->nextSNRNF++;
+	if (priv->nextSNRNF >= DEFAULT_DATA_AVG_FACTOR)
+		priv->nextSNRNF = 0;
 	return;
 }
 
@@ -105,32 +102,31 @@ static void lbs_save_rawSNRNF(struct lbs_private *priv, struct rxpd *p_rx_pd)
  */
 static void lbs_compute_rssi(struct lbs_private *priv, struct rxpd *p_rx_pd)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_RX);
 
 	lbs_deb_rx("rxpd: SNR %d, NF %d\n", p_rx_pd->snr, p_rx_pd->nf);
 	lbs_deb_rx("before computing SNR: SNR-avg = %d, NF-avg = %d\n",
-	       adapter->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
-	       adapter->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
+	       priv->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
+	       priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
 
-	adapter->SNR[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->snr;
-	adapter->NF[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->nf;
+	priv->SNR[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->snr;
+	priv->NF[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->nf;
 	lbs_save_rawSNRNF(priv, p_rx_pd);
 
-	adapter->SNR[TYPE_RXPD][TYPE_AVG] = lbs_getavgsnr(priv) * AVG_SCALE;
-	adapter->NF[TYPE_RXPD][TYPE_AVG] = lbs_getavgnf(priv) * AVG_SCALE;
+	priv->SNR[TYPE_RXPD][TYPE_AVG] = lbs_getavgsnr(priv) * AVG_SCALE;
+	priv->NF[TYPE_RXPD][TYPE_AVG] = lbs_getavgnf(priv) * AVG_SCALE;
 	lbs_deb_rx("after computing SNR: SNR-avg = %d, NF-avg = %d\n",
-	       adapter->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
-	       adapter->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
+	       priv->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
+	       priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
 
-	adapter->RSSI[TYPE_RXPD][TYPE_NOAVG] =
-	    CAL_RSSI(adapter->SNR[TYPE_RXPD][TYPE_NOAVG],
-		     adapter->NF[TYPE_RXPD][TYPE_NOAVG]);
+	priv->RSSI[TYPE_RXPD][TYPE_NOAVG] =
+	    CAL_RSSI(priv->SNR[TYPE_RXPD][TYPE_NOAVG],
+		     priv->NF[TYPE_RXPD][TYPE_NOAVG]);
 
-	adapter->RSSI[TYPE_RXPD][TYPE_AVG] =
-	    CAL_RSSI(adapter->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
-		     adapter->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
+	priv->RSSI[TYPE_RXPD][TYPE_AVG] =
+	    CAL_RSSI(priv->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
+		     priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
 
 	lbs_deb_leave(LBS_DEB_RX);
 }
@@ -139,7 +135,7 @@ void lbs_upload_rx_packet(struct lbs_private *priv, struct sk_buff *skb)
 {
 	lbs_deb_rx("skb->data %p\n", skb->data);
 
-	if (priv->adapter->monitormode != LBS_MONITOR_OFF) {
+	if (priv->monitormode != LBS_MONITOR_OFF) {
 		skb->protocol = eth_type_trans(skb, priv->rtap_net_dev);
 	} else {
 		if (priv->mesh_dev && IS_MESH_FRAME(skb))
@@ -161,7 +157,6 @@ void lbs_upload_rx_packet(struct lbs_private *priv, struct sk_buff *skb)
  */
 int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	struct rxpackethdr *p_rx_pkt;
@@ -174,7 +169,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	lbs_deb_enter(LBS_DEB_RX);
 
-	if (priv->adapter->monitormode != LBS_MONITOR_OFF)
+	if (priv->monitormode != LBS_MONITOR_OFF)
 		return process_rxed_802_11_packet(priv, skb);
 
 	p_rx_pkt = (struct rxpackethdr *) skb->data;
@@ -258,8 +253,8 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	/* Take the data rate from the rxpd structure
 	 * only if the rate is auto
 	 */
-	if (adapter->auto_rate)
-		adapter->cur_rate = lbs_fw_index_to_data_rate(p_rx_pd->rx_rate);
+	if (priv->auto_rate)
+		priv->cur_rate = lbs_fw_index_to_data_rate(p_rx_pd->rx_rate);
 
 	lbs_compute_rssi(priv, p_rx_pd);
 
@@ -327,7 +322,6 @@ static u8 convert_mv_rate_to_radiotap(u8 rate)
 static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = 0;
 
 	struct rx80211packethdr *p_rx_pkt;
@@ -361,7 +355,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	       skb->len, sizeof(struct rxpd), skb->len - sizeof(struct rxpd));
 
 	/* create the exported radio header */
-	if (priv->adapter->monitormode == LBS_MONITOR_OFF) {
+	if (priv->monitormode == LBS_MONITOR_OFF) {
 		/* no radio header */
 		/* chop the rxpd */
 		skb_pull(skb, sizeof(struct rxpd));
@@ -410,8 +404,8 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	/* Take the data rate from the rxpd structure
 	 * only if the rate is auto
 	 */
-	if (adapter->auto_rate)
-		adapter->cur_rate = lbs_fw_index_to_data_rate(prxpd->rx_rate);
+	if (priv->auto_rate)
+		priv->cur_rate = lbs_fw_index_to_data_rate(prxpd->rx_rate);
 
 	lbs_compute_rssi(priv, prxpd);
 

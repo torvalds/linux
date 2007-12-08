@@ -190,13 +190,13 @@ static inline int is_same_network(struct bss_descriptor *src,
  *    0       0        0       0     !=NONE     1      0    0   yes Dynamic WEP
  *
  *
- *  @param adapter A pointer to struct lbs_adapter
+ *  @param priv A pointer to struct lbs_private
  *  @param index   Index in scantable to check against current driver settings
  *  @param mode    Network mode: Infrastructure or IBSS
  *
  *  @return        Index in scantable, or error code if negative
  */
-static int is_network_compatible(struct lbs_adapter *adapter,
+static int is_network_compatible(struct lbs_private *priv,
 		struct bss_descriptor * bss, u8 mode)
 {
 	int matched = 0;
@@ -206,31 +206,31 @@ static int is_network_compatible(struct lbs_adapter *adapter,
 	if (bss->mode != mode)
 		goto done;
 
-	if ((matched = match_bss_no_security(&adapter->secinfo, bss))) {
+	if ((matched = match_bss_no_security(&priv->secinfo, bss))) {
 		goto done;
-	} else if ((matched = match_bss_static_wep(&adapter->secinfo, bss))) {
+	} else if ((matched = match_bss_static_wep(&priv->secinfo, bss))) {
 		goto done;
-	} else if ((matched = match_bss_wpa(&adapter->secinfo, bss))) {
+	} else if ((matched = match_bss_wpa(&priv->secinfo, bss))) {
 		lbs_deb_scan(
 		       "is_network_compatible() WPA: wpa_ie 0x%x "
 		       "wpa2_ie 0x%x WEP %s WPA %s WPA2 %s "
 		       "privacy 0x%x\n", bss->wpa_ie[0], bss->rsn_ie[0],
-		       adapter->secinfo.wep_enabled ? "e" : "d",
-		       adapter->secinfo.WPAenabled ? "e" : "d",
-		       adapter->secinfo.WPA2enabled ? "e" : "d",
+		       priv->secinfo.wep_enabled ? "e" : "d",
+		       priv->secinfo.WPAenabled ? "e" : "d",
+		       priv->secinfo.WPA2enabled ? "e" : "d",
 		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
-	} else if ((matched = match_bss_wpa2(&adapter->secinfo, bss))) {
+	} else if ((matched = match_bss_wpa2(&priv->secinfo, bss))) {
 		lbs_deb_scan(
 		       "is_network_compatible() WPA2: wpa_ie 0x%x "
 		       "wpa2_ie 0x%x WEP %s WPA %s WPA2 %s "
 		       "privacy 0x%x\n", bss->wpa_ie[0], bss->rsn_ie[0],
-		       adapter->secinfo.wep_enabled ? "e" : "d",
-		       adapter->secinfo.WPAenabled ? "e" : "d",
-		       adapter->secinfo.WPA2enabled ? "e" : "d",
+		       priv->secinfo.wep_enabled ? "e" : "d",
+		       priv->secinfo.WPAenabled ? "e" : "d",
+		       priv->secinfo.WPA2enabled ? "e" : "d",
 		       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 		goto done;
-	} else if ((matched = match_bss_dynamic_wep(&adapter->secinfo, bss))) {
+	} else if ((matched = match_bss_dynamic_wep(&priv->secinfo, bss))) {
 		lbs_deb_scan(
 		       "is_network_compatible() dynamic WEP: "
 		       "wpa_ie 0x%x wpa2_ie 0x%x privacy 0x%x\n",
@@ -244,9 +244,9 @@ static int is_network_compatible(struct lbs_adapter *adapter,
 	       "is_network_compatible() FAILED: wpa_ie 0x%x "
 	       "wpa2_ie 0x%x WEP %s WPA %s WPA2 %s privacy 0x%x\n",
 	       bss->wpa_ie[0], bss->rsn_ie[0],
-	       adapter->secinfo.wep_enabled ? "e" : "d",
-	       adapter->secinfo.WPAenabled ? "e" : "d",
-	       adapter->secinfo.WPA2enabled ? "e" : "d",
+	       priv->secinfo.wep_enabled ? "e" : "d",
+	       priv->secinfo.WPAenabled ? "e" : "d",
+	       priv->secinfo.WPA2enabled ? "e" : "d",
 	       (bss->capability & WLAN_CAPABILITY_PRIVACY));
 
 done:
@@ -298,7 +298,6 @@ static int lbs_scan_create_channel_list(struct lbs_private *priv,
 					  u8 filteredscan)
 {
 
-	struct lbs_adapter *adapter = priv->adapter;
 	struct region_channel *scanregion;
 	struct chan_freq_power *cfp;
 	int rgnidx;
@@ -314,22 +313,22 @@ static int lbs_scan_create_channel_list(struct lbs_private *priv,
 	 */
 	scantype = CMD_SCAN_TYPE_ACTIVE;
 
-	for (rgnidx = 0; rgnidx < ARRAY_SIZE(adapter->region_channel); rgnidx++) {
-		if (priv->adapter->enable11d &&
-		    (adapter->connect_status != LBS_CONNECTED) &&
-		    (adapter->mesh_connect_status != LBS_CONNECTED)) {
+	for (rgnidx = 0; rgnidx < ARRAY_SIZE(priv->region_channel); rgnidx++) {
+		if (priv->enable11d &&
+		    (priv->connect_status != LBS_CONNECTED) &&
+		    (priv->mesh_connect_status != LBS_CONNECTED)) {
 			/* Scan all the supported chan for the first scan */
-			if (!adapter->universal_channel[rgnidx].valid)
+			if (!priv->universal_channel[rgnidx].valid)
 				continue;
-			scanregion = &adapter->universal_channel[rgnidx];
+			scanregion = &priv->universal_channel[rgnidx];
 
 			/* clear the parsed_region_chan for the first scan */
-			memset(&adapter->parsed_region_chan, 0x00,
-			       sizeof(adapter->parsed_region_chan));
+			memset(&priv->parsed_region_chan, 0x00,
+			       sizeof(priv->parsed_region_chan));
 		} else {
-			if (!adapter->region_channel[rgnidx].valid)
+			if (!priv->region_channel[rgnidx].valid)
 				continue;
-			scanregion = &adapter->region_channel[rgnidx];
+			scanregion = &priv->region_channel[rgnidx];
 		}
 
 		for (nextchan = 0;
@@ -337,10 +336,10 @@ static int lbs_scan_create_channel_list(struct lbs_private *priv,
 
 			cfp = scanregion->CFP + nextchan;
 
-			if (priv->adapter->enable11d) {
+			if (priv->enable11d) {
 				scantype =
 				    lbs_get_scan_type_11d(cfp->channel,
-							   &adapter->
+							   &priv->
 							   parsed_region_chan);
 			}
 
@@ -540,7 +539,6 @@ int lbs_scan_networks(struct lbs_private *priv,
 	const struct lbs_ioctl_user_scan_cfg *user_cfg,
                        int full_scan)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = -ENOMEM;
 	struct chanscanparamset *chan_list;
 	struct chanscanparamset *curr_chans;
@@ -598,12 +596,12 @@ int lbs_scan_networks(struct lbs_private *priv,
 
 	/* Prepare to continue an interrupted scan */
 	lbs_deb_scan("chan_count %d, last_scanned_channel %d\n",
-		chan_count, adapter->last_scanned_channel);
+		chan_count, priv->last_scanned_channel);
 	curr_chans = chan_list;
 	/* advance channel list by already-scanned-channels */
-	if (adapter->last_scanned_channel > 0) {
-		curr_chans += adapter->last_scanned_channel;
-		chan_count -= adapter->last_scanned_channel;
+	if (priv->last_scanned_channel > 0) {
+		curr_chans += priv->last_scanned_channel;
+		chan_count -= priv->last_scanned_channel;
 	}
 
 	/* Send scan command(s)
@@ -627,12 +625,12 @@ int lbs_scan_networks(struct lbs_private *priv,
 		/* somehow schedule the next part of the scan */
 		if (chan_count &&
 		    !full_scan &&
-		    !priv->adapter->surpriseremoved) {
+		    !priv->surpriseremoved) {
 			/* -1 marks just that we're currently scanning */
-			if (adapter->last_scanned_channel < 0)
-				adapter->last_scanned_channel = to_scan;
+			if (priv->last_scanned_channel < 0)
+				priv->last_scanned_channel = to_scan;
 			else
-				adapter->last_scanned_channel += to_scan;
+				priv->last_scanned_channel += to_scan;
 			cancel_delayed_work(&priv->scan_work);
 			queue_delayed_work(priv->work_thread, &priv->scan_work,
 				msecs_to_jiffies(300));
@@ -646,24 +644,24 @@ int lbs_scan_networks(struct lbs_private *priv,
 
 #ifdef CONFIG_LIBERTAS_DEBUG
 	/* Dump the scan table */
-	mutex_lock(&adapter->lock);
+	mutex_lock(&priv->lock);
 	lbs_deb_scan("scan table:\n");
-	list_for_each_entry(iter, &adapter->network_list, list)
+	list_for_each_entry(iter, &priv->network_list, list)
 		lbs_deb_scan("%02d: BSSID %s, RSSI %d, SSID '%s'\n",
 		       i++, print_mac(mac, iter->bssid), (s32) iter->rssi,
 		       escape_essid(iter->ssid, iter->ssid_len));
-	mutex_unlock(&adapter->lock);
+	mutex_unlock(&priv->lock);
 #endif
 
 out2:
-	adapter->last_scanned_channel = 0;
+	priv->last_scanned_channel = 0;
 
 out:
-	if (adapter->connect_status == LBS_CONNECTED) {
+	if (priv->connect_status == LBS_CONNECTED) {
 		netif_carrier_on(priv->dev);
 		netif_wake_queue(priv->dev);
 	}
-	if (priv->mesh_dev && (adapter->mesh_connect_status == LBS_CONNECTED)) {
+	if (priv->mesh_dev && (priv->mesh_connect_status == LBS_CONNECTED)) {
 		netif_carrier_on(priv->mesh_dev);
 		netif_wake_queue(priv->mesh_dev);
 	}
@@ -931,13 +929,13 @@ done:
  *
  *  Used in association code
  *
- *  @param adapter  A pointer to struct lbs_adapter
+ *  @param priv  A pointer to struct lbs_private
  *  @param bssid    BSSID to find in the scan list
  *  @param mode     Network mode: Infrastructure or IBSS
  *
  *  @return         index in BSSID list, or error return code (< 0)
  */
-struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_private *priv,
 		u8 * bssid, u8 mode)
 {
 	struct bss_descriptor * iter_bss;
@@ -955,14 +953,14 @@ struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_adapter *adapter,
 	 *   continue past a matched bssid that is not compatible in case there
 	 *   is an AP with multiple SSIDs assigned to the same BSSID
 	 */
-	mutex_lock(&adapter->lock);
-	list_for_each_entry (iter_bss, &adapter->network_list, list) {
+	mutex_lock(&priv->lock);
+	list_for_each_entry (iter_bss, &priv->network_list, list) {
 		if (compare_ether_addr(iter_bss->bssid, bssid))
 			continue; /* bssid doesn't match */
 		switch (mode) {
 		case IW_MODE_INFRA:
 		case IW_MODE_ADHOC:
-			if (!is_network_compatible(adapter, iter_bss, mode))
+			if (!is_network_compatible(priv, iter_bss, mode))
 				break;
 			found_bss = iter_bss;
 			break;
@@ -971,7 +969,7 @@ struct bss_descriptor *lbs_find_bssid_in_list(struct lbs_adapter *adapter,
 			break;
 		}
 	}
-	mutex_unlock(&adapter->lock);
+	mutex_unlock(&priv->lock);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_SCAN, "found_bss %p", found_bss);
@@ -983,14 +981,14 @@ out:
  *
  *  Used in association code
  *
- *  @param adapter  A pointer to struct lbs_adapter
+ *  @param priv  A pointer to struct lbs_private
  *  @param ssid     SSID to find in the list
  *  @param bssid    BSSID to qualify the SSID selection (if provided)
  *  @param mode     Network mode: Infrastructure or IBSS
  *
  *  @return         index in BSSID list
  */
-struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_adapter *adapter,
+struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_private *priv,
 		   u8 *ssid, u8 ssid_len, u8 * bssid, u8 mode,
 		   int channel)
 {
@@ -1001,9 +999,9 @@ struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_adapter *adapter,
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
-	mutex_lock(&adapter->lock);
+	mutex_lock(&priv->lock);
 
-	list_for_each_entry (iter_bss, &adapter->network_list, list) {
+	list_for_each_entry (iter_bss, &priv->network_list, list) {
 		if (   !tmp_oldest
 		    || (iter_bss->last_scanned < tmp_oldest->last_scanned))
 			tmp_oldest = iter_bss;
@@ -1019,7 +1017,7 @@ struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_adapter *adapter,
 		switch (mode) {
 		case IW_MODE_INFRA:
 		case IW_MODE_ADHOC:
-			if (!is_network_compatible(adapter, iter_bss, mode))
+			if (!is_network_compatible(priv, iter_bss, mode))
 				break;
 
 			if (bssid) {
@@ -1044,7 +1042,7 @@ struct bss_descriptor *lbs_find_ssid_in_list(struct lbs_adapter *adapter,
 	}
 
 out:
-	mutex_unlock(&adapter->lock);
+	mutex_unlock(&priv->lock);
 	lbs_deb_leave_args(LBS_DEB_SCAN, "found_bss %p", found_bss);
 	return found_bss;
 }
@@ -1055,12 +1053,12 @@ out:
  *  Search the scan table for the best SSID that also matches the current
  *   adapter network preference (infrastructure or adhoc)
  *
- *  @param adapter  A pointer to struct lbs_adapter
+ *  @param priv  A pointer to struct lbs_private
  *
  *  @return         index in BSSID list
  */
 static struct bss_descriptor *lbs_find_best_ssid_in_list(
-	struct lbs_adapter *adapter,
+	struct lbs_private *priv,
 	u8 mode)
 {
 	u8 bestrssi = 0;
@@ -1069,13 +1067,13 @@ static struct bss_descriptor *lbs_find_best_ssid_in_list(
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
-	mutex_lock(&adapter->lock);
+	mutex_lock(&priv->lock);
 
-	list_for_each_entry (iter_bss, &adapter->network_list, list) {
+	list_for_each_entry (iter_bss, &priv->network_list, list) {
 		switch (mode) {
 		case IW_MODE_INFRA:
 		case IW_MODE_ADHOC:
-			if (!is_network_compatible(adapter, iter_bss, mode))
+			if (!is_network_compatible(priv, iter_bss, mode))
 				break;
 			if (SCAN_RSSI(iter_bss->rssi) <= bestrssi)
 				break;
@@ -1092,7 +1090,7 @@ static struct bss_descriptor *lbs_find_best_ssid_in_list(
 		}
 	}
 
-	mutex_unlock(&adapter->lock);
+	mutex_unlock(&priv->lock);
 	lbs_deb_leave_args(LBS_DEB_SCAN, "best_bss %p", best_bss);
 	return best_bss;
 }
@@ -1110,17 +1108,16 @@ static struct bss_descriptor *lbs_find_best_ssid_in_list(
 int lbs_find_best_network_ssid(struct lbs_private *priv,
 		u8 *out_ssid, u8 *out_ssid_len, u8 preferred_mode, u8 *out_mode)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	int ret = -1;
 	struct bss_descriptor * found;
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
 	lbs_scan_networks(priv, NULL, 1);
-	if (adapter->surpriseremoved)
+	if (priv->surpriseremoved)
 		goto out;
 
-	found = lbs_find_best_ssid_in_list(adapter, preferred_mode);
+	found = lbs_find_best_ssid_in_list(priv, preferred_mode);
 	if (found && (found->ssid_len > 0)) {
 		memcpy(out_ssid, &found->ssid, IW_ESSID_MAX_SIZE);
 		*out_ssid_len = found->ssid_len;
@@ -1150,7 +1147,6 @@ out:
 int lbs_send_specific_ssid_scan(struct lbs_private *priv,
 			u8 *ssid, u8 ssid_len, u8 clear_ssid)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct lbs_ioctl_user_scan_cfg scancfg;
 	int ret = 0;
 
@@ -1166,7 +1162,7 @@ int lbs_send_specific_ssid_scan(struct lbs_private *priv,
 	scancfg.clear_ssid = clear_ssid;
 
 	lbs_scan_networks(priv, &scancfg, 1);
-	if (adapter->surpriseremoved) {
+	if (priv->surpriseremoved) {
 		ret = -1;
 		goto out;
 	}
@@ -1192,7 +1188,6 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 					char *start, char *stop,
 					struct bss_descriptor *bss)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct chan_freq_power *cfp;
 	char *current_val;	/* For rates */
 	struct iw_event iwe;	/* Temporary buffer */
@@ -1204,7 +1199,7 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
-	cfp = lbs_find_cfp_by_band_and_channel(adapter, 0, bss->channel);
+	cfp = lbs_find_cfp_by_band_and_channel(priv, 0, bss->channel);
 	if (!cfp) {
 		lbs_deb_scan("Invalid channel number %d\n", bss->channel);
 		start = NULL;
@@ -1247,25 +1242,25 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 	if (iwe.u.qual.qual > 100)
 		iwe.u.qual.qual = 100;
 
-	if (adapter->NF[TYPE_BEACON][TYPE_NOAVG] == 0) {
+	if (priv->NF[TYPE_BEACON][TYPE_NOAVG] == 0) {
 		iwe.u.qual.noise = MRVDRV_NF_DEFAULT_SCAN_VALUE;
 	} else {
 		iwe.u.qual.noise =
-		    CAL_NF(adapter->NF[TYPE_BEACON][TYPE_NOAVG]);
+		    CAL_NF(priv->NF[TYPE_BEACON][TYPE_NOAVG]);
 	}
 
 	/* Locally created ad-hoc BSSs won't have beacons if this is the
 	 * only station in the adhoc network; so get signal strength
 	 * from receive statistics.
 	 */
-	if ((adapter->mode == IW_MODE_ADHOC)
-	    && adapter->adhoccreate
-	    && !lbs_ssid_cmp(adapter->curbssparams.ssid,
-	                          adapter->curbssparams.ssid_len,
+	if ((priv->mode == IW_MODE_ADHOC)
+	    && priv->adhoccreate
+	    && !lbs_ssid_cmp(priv->curbssparams.ssid,
+	                          priv->curbssparams.ssid_len,
 	                          bss->ssid, bss->ssid_len)) {
 		int snr, nf;
-		snr = adapter->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
-		nf = adapter->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
+		snr = priv->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
+		nf = priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
 		iwe.u.qual.level = CAL_RSSI(snr, nf);
 	}
 	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
@@ -1294,10 +1289,10 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 					 stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	if ((bss->mode == IW_MODE_ADHOC)
-	    && !lbs_ssid_cmp(adapter->curbssparams.ssid,
-	                          adapter->curbssparams.ssid_len,
+	    && !lbs_ssid_cmp(priv->curbssparams.ssid,
+	                          priv->curbssparams.ssid_len,
 	                          bss->ssid, bss->ssid_len)
-	    && adapter->adhoccreate) {
+	    && priv->adhoccreate) {
 		iwe.u.bitrate.value = 22 * 500000;
 		current_val = iwe_stream_add_value(start, current_val,
 					 stop, &iwe, IW_EV_PARAM_LEN);
@@ -1356,7 +1351,6 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *wrqu, char *extra)
 {
 	struct lbs_private *priv = dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 
 	lbs_deb_enter(LBS_DEB_SCAN);
 
@@ -1380,9 +1374,9 @@ int lbs_set_scan(struct net_device *dev, struct iw_request_info *info,
 		queue_delayed_work(priv->work_thread, &priv->scan_work,
 			msecs_to_jiffies(50));
 	/* set marker that currently a scan is taking place */
-	adapter->last_scanned_channel = -1;
+	priv->last_scanned_channel = -1;
 
-	if (adapter->surpriseremoved)
+	if (priv->surpriseremoved)
 		return -EIO;
 
 	lbs_deb_leave(LBS_DEB_SCAN);
@@ -1405,7 +1399,6 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 {
 #define SCAN_ITEM_SIZE 128
 	struct lbs_private *priv = dev->priv;
-	struct lbs_adapter *adapter = priv->adapter;
 	int err = 0;
 	char *ev = extra;
 	char *stop = ev + dwrq->length;
@@ -1415,17 +1408,17 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_enter(LBS_DEB_SCAN);
 
 	/* iwlist should wait until the current scan is finished */
-	if (adapter->last_scanned_channel)
+	if (priv->last_scanned_channel)
 		return -EAGAIN;
 
 	/* Update RSSI if current BSS is a locally created ad-hoc BSS */
-	if ((adapter->mode == IW_MODE_ADHOC) && adapter->adhoccreate) {
+	if ((priv->mode == IW_MODE_ADHOC) && priv->adhoccreate) {
 		lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
 					CMD_OPTION_WAITFORRSP, 0, NULL);
 	}
 
-	mutex_lock(&adapter->lock);
-	list_for_each_entry_safe (iter_bss, safe, &adapter->network_list, list) {
+	mutex_lock(&priv->lock);
+	list_for_each_entry_safe (iter_bss, safe, &priv->network_list, list) {
 		char * next_ev;
 		unsigned long stale_time;
 
@@ -1442,7 +1435,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 		stale_time = iter_bss->last_scanned + DEFAULT_MAX_SCAN_AGE;
 		if (time_after(jiffies, stale_time)) {
 			list_move_tail (&iter_bss->list,
-			                &adapter->network_free_list);
+			                &priv->network_free_list);
 			clear_bss_descriptor(iter_bss);
 			continue;
 		}
@@ -1453,7 +1446,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 			continue;
 		ev = next_ev;
 	}
-	mutex_unlock(&adapter->lock);
+	mutex_unlock(&priv->lock);
 
 	dwrq->length = (ev - extra);
 	dwrq->flags = 0;
@@ -1538,7 +1531,6 @@ int lbs_cmd_80211_scan(struct lbs_private *priv,
  */
 int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 {
-	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ds_802_11_scan_rsp *pscan;
 	struct bss_descriptor * iter_bss;
 	struct bss_descriptor * safe;
@@ -1552,11 +1544,11 @@ int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 	lbs_deb_enter(LBS_DEB_SCAN);
 
 	/* Prune old entries from scan table */
-	list_for_each_entry_safe (iter_bss, safe, &adapter->network_list, list) {
+	list_for_each_entry_safe (iter_bss, safe, &priv->network_list, list) {
 		unsigned long stale_time = iter_bss->last_scanned + DEFAULT_MAX_SCAN_AGE;
 		if (time_before(jiffies, stale_time))
 			continue;
-		list_move_tail (&iter_bss->list, &adapter->network_free_list);
+		list_move_tail (&iter_bss->list, &priv->network_free_list);
 		clear_bss_descriptor(iter_bss);
 	}
 
@@ -1609,7 +1601,7 @@ int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 		}
 
 		/* Try to find this bss in the scan table */
-		list_for_each_entry (iter_bss, &adapter->network_list, list) {
+		list_for_each_entry (iter_bss, &priv->network_list, list) {
 			if (is_same_network(iter_bss, &new)) {
 				found = iter_bss;
 				break;
@@ -1623,16 +1615,16 @@ int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 		if (found) {
 			/* found, clear it */
 			clear_bss_descriptor(found);
-		} else if (!list_empty(&adapter->network_free_list)) {
+		} else if (!list_empty(&priv->network_free_list)) {
 			/* Pull one from the free list */
-			found = list_entry(adapter->network_free_list.next,
+			found = list_entry(priv->network_free_list.next,
 					   struct bss_descriptor, list);
-			list_move_tail(&found->list, &adapter->network_list);
+			list_move_tail(&found->list, &priv->network_list);
 		} else if (oldest) {
 			/* If there are no more slots, expire the oldest */
 			found = oldest;
 			clear_bss_descriptor(found);
-			list_move_tail(&found->list, &adapter->network_list);
+			list_move_tail(&found->list, &priv->network_list);
 		} else {
 			continue;
 		}
