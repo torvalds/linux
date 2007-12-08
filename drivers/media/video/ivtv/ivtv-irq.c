@@ -204,7 +204,7 @@ static int stream_enc_dma_append(struct ivtv_stream *s, u32 data[CX2341X_MBOX_MA
 		s->sg_pending[idx].dst = buf->dma_handle;
 		s->sg_pending[idx].src = offset;
 		s->sg_pending[idx].size = s->buf_size;
-		buf->bytesused = (size < s->buf_size) ? size : s->buf_size;
+		buf->bytesused = min(size, s->buf_size);
 		buf->dma_xfer_cnt = s->dma_xfer_cnt;
 
 		s->q_predma.bytesused += buf->bytesused;
@@ -736,7 +736,7 @@ static void ivtv_irq_dec_data_req(struct ivtv *itv)
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_YUV];
 	}
 	else {
-		itv->dma_data_req_size = data[2] >= 0x10000 ? 0x10000 : data[2];
+		itv->dma_data_req_size = min_t(u32, data[2], 0x10000);
 		itv->dma_data_req_offset = data[1];
 		s = &itv->streams[IVTV_DEC_STREAM_TYPE_MPG];
 	}

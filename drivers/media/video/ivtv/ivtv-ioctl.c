@@ -698,7 +698,7 @@ static int ivtv_debug_ioctls(struct file *filp, unsigned int cmd, void *arg)
 			ivtv_reset_ir_gpio(itv);
 		}
 		if (val & 0x02) {
-			itv->video_dec_func(itv, cmd, 0);
+			itv->video_dec_func(itv, cmd, NULL);
 		}
 		break;
 	}

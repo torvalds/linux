@@ -983,7 +983,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	}
 
 	itv = kzalloc(sizeof(struct ivtv), GFP_ATOMIC);
-	if (itv == 0) {
+	if (itv == NULL) {
 		spin_unlock(&ivtv_cards_lock);
 		return -ENOMEM;
 	}

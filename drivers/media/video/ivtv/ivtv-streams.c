@@ -572,10 +572,10 @@ int ivtv_start_v4l2_encode_stream(struct ivtv_stream *s)
 		clear_bit(IVTV_F_I_EOS, &itv->i_flags);
 
 		/* Initialize Digitizer for Capture */
-		itv->video_dec_func(itv, VIDIOC_STREAMOFF, 0);
+		itv->video_dec_func(itv, VIDIOC_STREAMOFF, NULL);
 		ivtv_msleep_timeout(300, 1);
 		ivtv_vapi(itv, CX2341X_ENC_INITIALIZE_INPUT, 0);
-		itv->video_dec_func(itv, VIDIOC_STREAMON, 0);
+		itv->video_dec_func(itv, VIDIOC_STREAMON, NULL);
 	}
 
 	/* begin_capture */
