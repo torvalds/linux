@@ -151,11 +151,6 @@ void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_add_packet);
 
-static inline void tfrc_rx_hist_entry_delete(struct tfrc_rx_hist_entry *entry)
-{
-	kmem_cache_free(tfrc_rx_hist_slab, entry);
-}
-
 /**
  * tfrc_rx_hist_entry - return the n-th history entry after loss_start
  */
