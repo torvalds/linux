@@ -601,31 +601,24 @@ static void lbs_tx_timeout(struct net_device *dev)
 
 	lbs_pr_err("tx watch dog timeout\n");
 
-	priv->dnld_sent = DNLD_RES_RECEIVED;
 	dev->trans_start = jiffies;
 
 	if (priv->currenttxskb) {
-		if (priv->monitormode != LBS_MONITOR_OFF) {
-			/* If we are here, we have not received feedback from
-			   the previous packet.  Assume TX_FAIL and move on. */
-			priv->eventcause = 0x01000000;
-			lbs_send_tx_feedback(priv);
-		} else
-			wake_up_interruptible(&priv->waitq);
-	} else if (dev == priv->dev) {
-		if (priv->connect_status == LBS_CONNECTED)
-			netif_wake_queue(priv->dev);
-
-	} else if (dev == priv->mesh_dev) {
-		if (priv->mesh_connect_status == LBS_CONNECTED)
-			netif_wake_queue(priv->mesh_dev);
+		priv->eventcause = 0x01000000;
+		lbs_send_tx_feedback(priv);
 	}
+	/* XX: Shouldn't we also call into the hw-specific driver
+	   to kick it somehow? */
+	lbs_host_to_card_done(priv);
 
 	lbs_deb_leave(LBS_DEB_TX);
 }
 
 void lbs_host_to_card_done(struct lbs_private *priv)
 {
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 
@@ -634,15 +627,16 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 		wake_up_interruptible(&priv->waitq);
 
 	/* Don't wake netif queues if we're in monitor mode and
-	   a TX packet is already pending. */
-	if (priv->currenttxskb)
-		return;
+	   a TX packet is already pending, or if there are commands
+	   queued to be sent. */
+	if (!priv->currenttxskb && list_empty(&priv->cmdpendingq)) {
+		if (priv->dev && priv->connect_status == LBS_CONNECTED)
+			netif_wake_queue(priv->dev);
 
-	if (priv->dev && priv->connect_status == LBS_CONNECTED)
-		netif_wake_queue(priv->dev);
-
-	if (priv->mesh_dev && priv->mesh_connect_status == LBS_CONNECTED)
-		netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_dev && priv->mesh_connect_status == LBS_CONNECTED)
+			netif_wake_queue(priv->mesh_dev);
+	}
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 EXPORT_SYMBOL_GPL(lbs_host_to_card_done);
 
