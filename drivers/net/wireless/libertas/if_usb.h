@@ -70,7 +70,7 @@ struct usb_card_rec {
 
 	u8 rx_urb_recall;
 
-	u8 bootcmdresp;
+	s8 bootcmdresp;
 };
 
 /** fwheader */

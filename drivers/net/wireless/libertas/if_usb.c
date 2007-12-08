@@ -374,20 +374,23 @@ static int if_prog_firmware(struct usb_card_rec *cardp)
 
 static int if_usb_reset_device(struct usb_card_rec *cardp)
 {
+	struct cmd_ds_command *cmd = (void *)&cardp->bulk_out_buffer[4];
 	int ret;
-	struct lbs_private *priv = cardp->priv;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
-	/* Try a USB port reset first, if that fails send the reset
-	 * command to the firmware.
-	 */
+	*(__le32 *)cardp->bulk_out_buffer = cpu_to_le32(CMD_TYPE_REQUEST);
+
+	cmd->command = cpu_to_le16(CMD_802_11_RESET);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_reset) + S_DS_GEN);
+	cmd->result = cpu_to_le16(0);
+	cmd->seqnum = cpu_to_le16(0x5a5a);
+	cmd->params.reset.action = cpu_to_le16(CMD_ACT_HALT);
+	usb_tx_block(cardp, cardp->bulk_out_buffer, 4 + S_DS_GEN + sizeof(struct cmd_ds_802_11_reset));
+
+	msleep(10);
 	ret = usb_reset_device(cardp->udev);
-	if (!ret && priv) {
-		msleep(10);
-		ret = lbs_reset_device(priv);
-		msleep(10);
-	}
+	msleep(10);
 
 	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 
@@ -508,9 +511,15 @@ static void if_usb_receive_fwload(struct urb *urb)
 			return;
 		}
 		if (bootcmdresp.u32magicnumber != cpu_to_le32(BOOT_CMD_MAGIC_NUMBER)) {
-			lbs_pr_info(
-				"boot cmd response wrong magic number (0x%x)\n",
-				le32_to_cpu(bootcmdresp.u32magicnumber));
+			if (bootcmdresp.u32magicnumber == cpu_to_le32(CMD_TYPE_REQUEST) ||
+			    bootcmdresp.u32magicnumber == cpu_to_le32(CMD_TYPE_DATA) ||
+			    bootcmdresp.u32magicnumber == cpu_to_le32(CMD_TYPE_INDICATION)) {
+				lbs_pr_info("Firmware already seems alive; resetting\n");
+				cardp->bootcmdresp = -1;
+			} else {
+				lbs_pr_info("boot cmd response wrong magic number (0x%x)\n",
+					    le32_to_cpu(bootcmdresp.u32magicnumber));
+			}
 		} else if (bootcmdresp.u8cmd_tag != BOOT_CMD_FW_BY_USB) {
 			lbs_pr_info(
 				"boot cmd response cmd_tag error (%d)\n",
@@ -883,7 +892,7 @@ restart:
 		} while (cardp->bootcmdresp == 0 && j < 10);
 	} while (cardp->bootcmdresp == 0 && i < 5);
 
-	if (cardp->bootcmdresp == 0) {
+	if (cardp->bootcmdresp <= 0) {
 		if (--reset_count >= 0) {
 			if_usb_reset_device(cardp);
 			goto restart;
