@@ -1365,17 +1365,17 @@ asmlinkage long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
  *	ready for listening.
  */
 
-int sysctl_somaxconn __read_mostly = SOMAXCONN;
-
 asmlinkage long sys_listen(int fd, int backlog)
 {
 	struct socket *sock;
 	int err, fput_needed;
+	int somaxconn;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock) {
-		if ((unsigned)backlog > sysctl_somaxconn)
-			backlog = sysctl_somaxconn;
+		somaxconn = sock->sk->sk_net->sysctl_somaxconn;
+		if ((unsigned)backlog > somaxconn)
+			backlog = somaxconn;
 
 		err = security_socket_listen(sock, backlog);
 		if (!err)

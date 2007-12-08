@@ -39,6 +39,7 @@ struct net {
 
 	/* core sysctls */
 	struct ctl_table_header	*sysctl_core_hdr;
+	int			sysctl_somaxconn;
 
 	/* List of all packet sockets. */
 	rwlock_t		packet_sklist_lock;

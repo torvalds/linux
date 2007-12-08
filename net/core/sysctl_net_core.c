@@ -127,7 +127,7 @@ static struct ctl_table net_core_table[] = {
 	{
 		.ctl_name	= NET_CORE_SOMAXCONN,
 		.procname	= "somaxconn",
-		.data		= &sysctl_somaxconn,
+		.data		= &init_net.sysctl_somaxconn,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -160,6 +160,8 @@ static __net_initdata struct ctl_path net_core_path[] = {
 static __net_init int sysctl_core_net_init(struct net *net)
 {
 	struct ctl_table *tbl, *tmp;
+
+	net->sysctl_somaxconn = SOMAXCONN;
 
 	tbl = net_core_table;
 	if (net != &init_net) {
