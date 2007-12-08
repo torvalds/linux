@@ -222,6 +222,7 @@ static int smbus_alarm(void *context)
 	if (!status.fields.alarm)
 		return 0;
 	mutex_lock(&hc->lock);
+	status.fields.alarm = 0;
 	smb_hc_write(hc, ACPI_SMB_STATUS, status.raw);
 	if (hc->callback)
 		acpi_os_execute(OSL_GPE_HANDLER, acpi_smbus_callback, hc);
