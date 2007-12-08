@@ -38,35 +38,6 @@ config VIDEO_PVRUSB2_ONAIR_USB2
 
 	  If you are in doubt, say Y.
 
-config VIDEO_PVRUSB2_29XXX
-	bool "Hauppauge WinTV-PVR USB2 support for 29xxx model series"
-	depends on VIDEO_PVRUSB2 && EXPERIMENTAL
-	select VIDEO_SAA711X
-	select VIDEO_MSP3400
-	---help---
-	  This option enables support for WinTV-PVR USB2 devices whose
-	  model number is of the form "29xxx" (leading prefix of "29"
-	  followed by 3 digits).
-	  To see if you may need this option, examine the white
-	  sticker on the underside of your device.
-
-	  If you are in doubt, say Y.
-
-config VIDEO_PVRUSB2_24XXX
-	bool "Hauppauge WinTV-PVR USB2 support for 24xxx model series"
-	depends on VIDEO_PVRUSB2 && EXPERIMENTAL
-	select VIDEO_CX25840
-	select VIDEO_WM8775
-	---help---
-	  This option enables inclusion of additional logic to operate
-	  newer WinTV-PVR USB2 devices whose model number is of the
-	  form "24xxx" (leading prefix of "24" followed by 3 digits).
-	  To see if you may need this option, examine the white
-	  sticker on the underside of your device.  Enabling this
-	  option will not harm support for older devices.
-
-	  If you are in doubt, say Y.
-
 config VIDEO_PVRUSB2_SYSFS
 	bool "pvrusb2 sysfs support (EXPERIMENTAL)"
 	default y
