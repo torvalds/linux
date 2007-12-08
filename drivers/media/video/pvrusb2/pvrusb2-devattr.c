@@ -104,6 +104,7 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.shortname = "gv2",
 		.client_modules.lst = pvr2_client_gotview_2,
 		.client_modules.cnt = ARRAY_SIZE(pvr2_client_gotview_2),
+		.flag_has_cx25840 = !0,
 		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_GOTVIEW,
 	},
