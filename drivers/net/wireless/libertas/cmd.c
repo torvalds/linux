@@ -1657,7 +1657,6 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
 	wake_up_interruptible(&ptempnode->cmdwait_q);
 	ptempnode->wait_option = 0;
 	ptempnode->pdata_buf = NULL;
-	ptempnode->pdata_size = NULL;
 	ptempnode->callback = NULL;
 
 	if (ptempnode->bufvirtualaddr != NULL)
@@ -1686,7 +1685,6 @@ void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 
 	ptempnode->wait_option = wait_option;
 	ptempnode->pdata_buf = pdata_buf;
-	ptempnode->pdata_size = NULL;
 	ptempnode->callback = NULL;
 
 	lbs_deb_leave(LBS_DEB_HOST);
@@ -2013,25 +2011,8 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
  *                      the result code from the firmware
  */
 
-static int lbs_cmd_callback(uint16_t respcmd, struct cmd_ds_command *resp, struct lbs_private *priv)
-{ 
-	struct cmd_ds_gen *r = (struct cmd_ds_gen *)resp;
-	struct lbs_adapter *adapter = priv->adapter;
-	u16 sz = le16_to_cpu(resp->size) - S_DS_GEN;
-
-	if (sz > *adapter->cur_cmd->pdata_size) {
-		lbs_pr_err("response 0x%04x doesn't fit into buffer (%d > %d)\n",
-			   respcmd, sz, *adapter->cur_cmd->pdata_size);
-		sz = *adapter->cur_cmd->pdata_size;
-	}
-	memcpy(adapter->cur_cmd->pdata_buf, r->cmdresp, sz);
-	*adapter->cur_cmd->pdata_size = sz;
-
-	return 0;
-}
-
-int lbs_cmd(struct lbs_private *priv, u16 command, void *cmd, int cmd_size,
-	    void *rsp, int *rsp_size)
+int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
+	    int (*callback)(uint16_t, struct cmd_ds_command *, struct lbs_private *))
 {
 	struct lbs_adapter *adapter = priv->adapter;
 	struct cmd_ctrl_node *cmdnode;
@@ -2040,9 +2021,8 @@ int lbs_cmd(struct lbs_private *priv, u16 command, void *cmd, int cmd_size,
 	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_HOST);
-	lbs_deb_host("rsp at %p, rsp_size at %p\n", rsp, rsp_size);
 
-	if (!adapter || !rsp_size) {
+	if (!adapter) {
 		lbs_deb_host("PREP_CMD: adapter is NULL\n");
 		ret = -1;
 		goto done;
@@ -2067,9 +2047,7 @@ int lbs_cmd(struct lbs_private *priv, u16 command, void *cmd, int cmd_size,
 
 	cmdptr = (struct cmd_ds_gen *)cmdnode->bufvirtualaddr;
 	cmdnode->wait_option = CMD_OPTION_WAITFORRSP;
-	cmdnode->pdata_buf = rsp;
-	cmdnode->pdata_size = rsp_size;
-	cmdnode->callback = lbs_cmd_callback;
+	cmdnode->callback = callback;
 
 	/* Set sequence number, clean result, move to buffer */
 	adapter->seqnum++;

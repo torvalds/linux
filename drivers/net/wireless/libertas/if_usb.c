@@ -104,15 +104,12 @@ static void if_usb_free(struct usb_card_rec *cardp)
 static void if_usb_set_boot2_ver(struct lbs_private *priv)
 {
 	struct cmd_ds_set_boot2_ver b2_cmd;
-	int rsp_len = sizeof(b2_cmd);
 
 	b2_cmd.action = 0;
 	b2_cmd.version = priv->boot2_version;
 
-	if (lbs_cmd(priv, CMD_SET_BOOT2_VER, &b2_cmd, sizeof(b2_cmd),
-		    &b2_cmd, &rsp_len)) {
+	if (lbs_cmd(priv, CMD_SET_BOOT2_VER, &b2_cmd, sizeof(b2_cmd), NULL))
 		lbs_deb_usb("Setting boot2 version failed\n");
-	}
 }
 
 
