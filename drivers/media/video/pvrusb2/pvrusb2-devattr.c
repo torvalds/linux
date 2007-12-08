@@ -37,13 +37,34 @@ pvr2_device_desc structures.
 #define PVR2_HDW_TYPE_29XXX 0
 #define PVR2_HDW_TYPE_24XXX 1
 #define PVR2_HDW_TYPE_GOTVIEW_2 2
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
+#define PVR2_HDW_TYPE_ONAIR_CREATOR 3
+#endif
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
+#define PVR2_HDW_TYPE_ONAIR_USB2 4
+#endif
 
 struct usb_device_id pvr2_device_table[] = {
 	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
 	[PVR2_HDW_TYPE_24XXX] = { USB_DEVICE(0x2040, 0x2400) },
 	[PVR2_HDW_TYPE_GOTVIEW_2] = { USB_DEVICE(0x1164, 0x0622) },
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
+	[PVR2_HDW_TYPE_ONAIR_CREATOR] = { USB_DEVICE(0x11ba, 0x1003) },
+#endif
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
+	[PVR2_HDW_TYPE_ONAIR_USB2] = { USB_DEVICE(0x11ba, 0x1001) },
+#endif
 	{ }
 };
+#if defined(CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR) || defined(CONFIG_VIDEO_PVRUSB2_ONAIR_USB2)
+
+/* Names of other client modules to request for Creator model hardware */
+static const char *pvr2_client_onair[] = {
+	"saa7115",
+	"tuner",
+	"cs53l32a",
+};
+#endif
 
 /* Names of other client modules to request for 24xxx model hardware */
 static const char *pvr2_client_24xxx[] = {
@@ -108,6 +129,26 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_GOTVIEW,
 	},
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
+	[PVR2_HDW_TYPE_ONAIR_CREATOR] = {
+		.description = "OnAir Creator Hybrid USB tuner",
+		.shortname = "oac",
+		.client_modules.lst = pvr2_client_onair,
+		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair),
+		.default_tuner_type = TUNER_LG_TDVS_H06XF,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+	},
+#endif
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
+	[PVR2_HDW_TYPE_ONAIR_USB2] = {
+		.description = "OnAir USB2 Hybrid USB tuner",
+		.shortname = "oa2",
+		.client_modules.lst = pvr2_client_onair,
+		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair),
+		.default_tuner_type = TUNER_PHILIPS_ATSC,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+	},
+#endif
 };
 
 const unsigned int pvr2_device_count = ARRAY_SIZE(pvr2_device_descriptions);
