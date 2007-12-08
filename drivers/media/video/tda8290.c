@@ -587,7 +587,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 	if (data == 0x83) {
 		priv->ver |= TDA18271;
-		tda18271_attach(&t->fe, priv->tda827x_addr,
+		tda18271_attach(fe, priv->tda827x_addr,
 				priv->i2c_props.adap);
 	} else {
 		if ((data & 0x3c) == 0)
@@ -595,14 +595,14 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 		else
 			priv->ver |= TDA8275A;
 
-		tda827x_attach(&t->fe, priv->tda827x_addr,
+		tda827x_attach(fe, priv->tda827x_addr,
 			       priv->i2c_props.adap, &priv->cfg);
 	}
-	if (t->fe.ops.tuner_ops.init)
-		t->fe.ops.tuner_ops.init(&t->fe);
+	if (fe->ops.tuner_ops.init)
+		fe->ops.tuner_ops.init(fe);
 
-	if (t->fe.ops.tuner_ops.sleep)
-		t->fe.ops.tuner_ops.sleep(&t->fe);
+	if (fe->ops.tuner_ops.sleep)
+		fe->ops.tuner_ops.sleep(fe);
 
 	ops->i2c_gate_ctrl(fe, 0);
 
