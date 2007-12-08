@@ -104,9 +104,7 @@ struct pvr2_device_desc {
 	char flag_has_hauppauge_custom_ir;
 };
 
-extern const struct pvr2_device_desc pvr2_device_descriptions[];
 extern struct usb_device_id pvr2_device_table[];
-extern const unsigned int pvr2_device_count;
 
 #endif /* __PVRUSB2_HDW_INTERNAL_H */
 

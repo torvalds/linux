@@ -33,71 +33,22 @@ pvr2_device_desc structures.
 #include <linux/i2c.h>
 #include <media/tuner.h>
 
-/* Known major hardware variants, keyed from device ID */
-#define PVR2_HDW_TYPE_29XXX 0
-#define PVR2_HDW_TYPE_24XXX 1
-#define PVR2_HDW_TYPE_GOTVIEW_2 2
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
-#define PVR2_HDW_TYPE_ONAIR_CREATOR 3
-#endif
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
-#define PVR2_HDW_TYPE_ONAIR_USB2 4
-#endif
 
-struct usb_device_id pvr2_device_table[] = {
-	[PVR2_HDW_TYPE_29XXX] = { USB_DEVICE(0x2040, 0x2900) },
-	[PVR2_HDW_TYPE_24XXX] = { USB_DEVICE(0x2040, 0x2400) },
-	[PVR2_HDW_TYPE_GOTVIEW_2] = { USB_DEVICE(0x1164, 0x0622) },
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
-	[PVR2_HDW_TYPE_ONAIR_CREATOR] = { USB_DEVICE(0x11ba, 0x1003) },
-#endif
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
-	[PVR2_HDW_TYPE_ONAIR_USB2] = { USB_DEVICE(0x11ba, 0x1001) },
-#endif
-	{ }
-};
-#if defined(CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR) || defined(CONFIG_VIDEO_PVRUSB2_ONAIR_USB2)
 
-/* Names of other client modules to request for Creator model hardware */
-static const char *pvr2_client_onair[] = {
-	"saa7115",
-	"tuner",
-	"cs53l32a",
-};
-#endif
+/*------------------------------------------------------------------------*/
+/* Hauppauge PVR-USB2 Model 29xxx */
 
-/* Names of other client modules to request for 24xxx model hardware */
-static const char *pvr2_client_24xxx[] = {
-	"cx25840",
-	"tuner",
-	"wm8775",
-};
-
-/* Names of other client modules to request for 29xxx model hardware */
 static const char *pvr2_client_29xxx[] = {
 	"msp3400",
 	"saa7115",
 	"tuner",
 };
 
-// Names of other client modules to request for Gotview 2 model hardware
-static const char *pvr2_client_gotview_2[] = {
-	"cx25840",
-	"tuner",
-};
-
-/* Firmware file name(s) for 29xxx devices */
 static const char *pvr2_fw1_names_29xxx[] = {
 		"v4l-pvrusb2-29xxx-01.fw",
 };
 
-/* Firmware file name(s) for 24xxx devices */
-static const char *pvr2_fw1_names_24xxx[] = {
-		"v4l-pvrusb2-24xxx-01.fw",
-};
-
-const struct pvr2_device_desc pvr2_device_descriptions[] = {
-	[PVR2_HDW_TYPE_29XXX] = {
+static const struct pvr2_device_desc pvr2_device_29xxx = {
 		.description = "WinTV PVR USB2 Model Category 29xxxx",
 		.shortname = "29xxx",
 		.client_modules.lst = pvr2_client_29xxx,
@@ -106,8 +57,24 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.fx2_firmware.cnt = ARRAY_SIZE(pvr2_fw1_names_29xxx),
 		.flag_has_hauppauge_rom = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
-	},
-	[PVR2_HDW_TYPE_24XXX] = {
+};
+
+
+
+/*------------------------------------------------------------------------*/
+/* Hauppauge PVR-USB2 Model 24xxx */
+
+static const char *pvr2_client_24xxx[] = {
+	"cx25840",
+	"tuner",
+	"wm8775",
+};
+
+static const char *pvr2_fw1_names_24xxx[] = {
+		"v4l-pvrusb2-24xxx-01.fw",
+};
+
+static const struct pvr2_device_desc pvr2_device_24xxx = {
 		.description = "WinTV PVR USB2 Model Category 24xxxx",
 		.shortname = "24xxx",
 		.client_modules.lst = pvr2_client_24xxx,
@@ -119,8 +86,19 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.flag_has_hauppauge_rom = !0,
 		.flag_has_hauppauge_custom_ir = !0,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
-	},
-	[PVR2_HDW_TYPE_GOTVIEW_2] = {
+};
+
+
+
+/*------------------------------------------------------------------------*/
+/* GOTVIEW USB2.0 DVD2 */
+
+static const char *pvr2_client_gotview_2[] = {
+	"cx25840",
+	"tuner",
+};
+
+static const struct pvr2_device_desc pvr2_device_gotview_2 = {
 		.description = "Gotview USB 2.0 DVD 2",
 		.shortname = "gv2",
 		.client_modules.lst = pvr2_client_gotview_2,
@@ -128,30 +106,73 @@ const struct pvr2_device_desc pvr2_device_descriptions[] = {
 		.flag_has_cx25840 = !0,
 		.default_tuner_type = TUNER_PHILIPS_FM1216ME_MK3,
 		.signal_routing_scheme = PVR2_ROUTING_SCHEME_GOTVIEW,
-	},
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
-	[PVR2_HDW_TYPE_ONAIR_CREATOR] = {
-		.description = "OnAir Creator Hybrid USB tuner",
-		.shortname = "oac",
-		.client_modules.lst = pvr2_client_onair,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair),
-		.default_tuner_type = TUNER_LG_TDVS_H06XF,
-		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
-	},
-#endif
-#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
-	[PVR2_HDW_TYPE_ONAIR_USB2] = {
-		.description = "OnAir USB2 Hybrid USB tuner",
-		.shortname = "oa2",
-		.client_modules.lst = pvr2_client_onair,
-		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair),
-		.default_tuner_type = TUNER_PHILIPS_ATSC,
-		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
-	},
-#endif
 };
 
-const unsigned int pvr2_device_count = ARRAY_SIZE(pvr2_device_descriptions);
+
+
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
+/*------------------------------------------------------------------------*/
+/* OnAir Creator */
+
+static const char *pvr2_client_onair_creator[] = {
+	"saa7115",
+	"tuner",
+	"cs53l32a",
+};
+
+static const struct pvr2_device_desc pvr2_device_onair_creator = {
+		.description = "OnAir Creator Hybrid USB tuner",
+		.shortname = "oac",
+		.client_modules.lst = pvr2_client_onair_creator,
+		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair_creator),
+		.default_tuner_type = TUNER_LG_TDVS_H06XF,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+};
+#endif
+
+
+
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
+/*------------------------------------------------------------------------*/
+/* OnAir USB 2.0 */
+
+static const char *pvr2_client_onair_usb2[] = {
+	"saa7115",
+	"tuner",
+	"cs53l32a",
+};
+
+static const struct pvr2_device_desc pvr2_device_onair_usb2 = {
+		.description = "OnAir USB2 Hybrid USB tuner",
+		.shortname = "oa2",
+		.client_modules.lst = pvr2_client_onair_usb2,
+		.client_modules.cnt = ARRAY_SIZE(pvr2_client_onair_usb2),
+		.default_tuner_type = TUNER_PHILIPS_ATSC,
+		.signal_routing_scheme = PVR2_ROUTING_SCHEME_HAUPPAUGE,
+};
+#endif
+
+
+
+/*------------------------------------------------------------------------*/
+
+struct usb_device_id pvr2_device_table[] = {
+	{ USB_DEVICE(0x2040, 0x2900),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_29xxx},
+	{ USB_DEVICE(0x2040, 0x2400),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_24xxx},
+	{ USB_DEVICE(0x1164, 0x0622),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_gotview_2},
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_CREATOR
+	{ USB_DEVICE(0x11ba, 0x1003),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_onair_creator},
+#endif
+#ifdef CONFIG_VIDEO_PVRUSB2_ONAIR_USB2
+	{ USB_DEVICE(0x11ba, 0x1001),
+	  .driver_info = (kernel_ulong_t)&pvr2_device_onair_usb2},
+#endif
+	{ }
+};
 
 MODULE_DEVICE_TABLE(usb, pvr2_device_table);
 

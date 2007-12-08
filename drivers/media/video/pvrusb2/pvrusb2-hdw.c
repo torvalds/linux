@@ -1813,7 +1813,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 {
 	unsigned int idx,cnt1,cnt2;
 	struct pvr2_hdw *hdw;
-	unsigned int hdw_type;
 	int valid_std_mask;
 	struct pvr2_ctrl *cptr;
 	const struct pvr2_device_desc *hdw_desc;
@@ -1821,13 +1820,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	struct v4l2_queryctrl qctrl;
 	struct pvr2_ctl_info *ciptr;
 
-	hdw_type = devid - pvr2_device_table;
-	if (hdw_type >= pvr2_device_count) {
-		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Bogus device type of %u reported",hdw_type);
-		return NULL;
-	}
-	hdw_desc = pvr2_device_descriptions + hdw_type;
+	hdw_desc = (const struct pvr2_device_desc *)(devid->driver_info);
 
 	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
