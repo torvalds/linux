@@ -315,10 +315,7 @@ fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 					break;
 			} else if (!fib_detect_death(fi, order, &last_resort,
 						     &last_idx, fn_hash_last_dflt)) {
-				if (res->fi)
-					fib_info_put(res->fi);
-				res->fi = fi;
-				atomic_inc(&fi->fib_clntref);
+				fib_result_assign(res, fi);
 				fn_hash_last_dflt = order;
 				goto out;
 			}
@@ -333,21 +330,13 @@ fn_hash_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 	}
 
 	if (!fib_detect_death(fi, order, &last_resort, &last_idx, fn_hash_last_dflt)) {
-		if (res->fi)
-			fib_info_put(res->fi);
-		res->fi = fi;
-		atomic_inc(&fi->fib_clntref);
+		fib_result_assign(res, fi);
 		fn_hash_last_dflt = order;
 		goto out;
 	}
 
-	if (last_idx >= 0) {
-		if (res->fi)
-			fib_info_put(res->fi);
-		res->fi = last_resort;
-		if (last_resort)
-			atomic_inc(&last_resort->fib_clntref);
-	}
+	if (last_idx >= 0)
+		fib_result_assign(res, last_resort);
 	fn_hash_last_dflt = last_idx;
 out:
 	read_unlock(&fib_hash_lock);
