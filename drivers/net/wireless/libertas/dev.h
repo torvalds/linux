@@ -143,8 +143,6 @@ struct lbs_private {
 	   all other bits reserved 0 */
 	u8 dnld_sent;
 
-	struct device *hotplug_device;
-
 	/** thread to service interrupts */
 	struct task_struct *main_thread;
 	wait_queue_head_t waitq;

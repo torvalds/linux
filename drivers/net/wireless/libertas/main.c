@@ -256,8 +256,7 @@ void lbs_remove_rtap(struct lbs_private *priv);
 static ssize_t lbs_rtap_get(struct device *dev,
 		struct device_attribute *attr, char * buf)
 {
-	struct lbs_private *priv = (struct lbs_private *)
-		(to_net_dev(dev))->priv;
+	struct lbs_private *priv = to_net_dev(dev)->priv;
 	struct lbs_adapter *adapter = priv->adapter;
 	return snprintf(buf, 5, "0x%X\n", adapter->monitormode);
 }
@@ -269,8 +268,7 @@ static ssize_t lbs_rtap_set(struct device *dev,
 		struct device_attribute *attr, const char * buf, size_t count)
 {
 	int monitor_mode;
-	struct lbs_private *priv = (struct lbs_private *)
-		(to_net_dev(dev))->priv;
+	struct lbs_private *priv = to_net_dev(dev)->priv;
 	struct lbs_adapter *adapter = priv->adapter;
 
 	sscanf(buf, "%x", &monitor_mode);
@@ -1158,7 +1156,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	priv->card = card;
 	priv->mesh_open = 0;
 	priv->infra_open = 0;
-	priv->hotplug_device = dmdev;
 
 	/* Setup the OS Interface to our functions */
 	dev->open = lbs_open;
@@ -1178,15 +1175,13 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	SET_NETDEV_DEV(dev, dmdev);
 
 	priv->rtap_net_dev = NULL;
-	if (device_create_file(dmdev, &dev_attr_lbs_rtap))
-		goto err_init_adapter;
 
 	lbs_deb_thread("Starting main thread...\n");
 	init_waitqueue_head(&priv->waitq);
 	priv->main_thread = kthread_run(lbs_thread, dev, "lbs_main");
 	if (IS_ERR(priv->main_thread)) {
 		lbs_deb_thread("Error creating main thread.\n");
-		goto err_kthread_run;
+		goto err_init_adapter;
 	}
 
 	priv->work_thread = create_singlethread_workqueue("lbs_worker");
@@ -1195,9 +1190,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	INIT_WORK(&priv->sync_channel, lbs_sync_channel);
 
 	goto done;
-
-err_kthread_run:
-	device_remove_file(dmdev, &dev_attr_lbs_rtap);
 
 err_init_adapter:
 	lbs_free_adapter(priv);
@@ -1224,7 +1216,7 @@ int lbs_remove_card(struct lbs_private *priv)
 	lbs_remove_rtap(priv);
 
 	dev = priv->dev;
-	device_remove_file(priv->hotplug_device, &dev_attr_lbs_rtap);
+	device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
 
 	cancel_delayed_work(&priv->scan_work);
 	cancel_delayed_work(&priv->assoc_work);
@@ -1273,6 +1265,8 @@ int lbs_start_card(struct lbs_private *priv)
 		lbs_pr_err("cannot register ethX device\n");
 		goto done;
 	}
+	if (device_create_file(&dev->dev, &dev_attr_lbs_rtap))
+		lbs_pr_err("cannot register lbs_rtap attribute\n");
 
 	lbs_debugfs_init_one(priv, dev);
 
