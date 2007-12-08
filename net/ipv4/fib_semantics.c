@@ -346,7 +346,7 @@ struct fib_alias *fib_find_alias(struct list_head *fah, u8 tos, u32 prio)
 }
 
 int fib_detect_death(struct fib_info *fi, int order,
-		     struct fib_info **last_resort, int *last_idx, int *dflt)
+		     struct fib_info **last_resort, int *last_idx, int dflt)
 {
 	struct neighbour *n;
 	int state = NUD_NONE;
@@ -358,10 +358,10 @@ int fib_detect_death(struct fib_info *fi, int order,
 	}
 	if (state==NUD_REACHABLE)
 		return 0;
-	if ((state&NUD_VALID) && order != *dflt)
+	if ((state&NUD_VALID) && order != dflt)
 		return 0;
 	if ((state&NUD_VALID) ||
-	    (*last_idx<0 && order > *dflt)) {
+	    (*last_idx<0 && order > dflt)) {
 		*last_resort = fi;
 		*last_idx = order;
 	}

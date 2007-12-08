@@ -1830,7 +1830,7 @@ fn_trie_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 			if (next_fi != res->fi)
 				break;
 		} else if (!fib_detect_death(fi, order, &last_resort,
-					     &last_idx, &trie_last_dflt)) {
+					     &last_idx, trie_last_dflt)) {
 			if (res->fi)
 				fib_info_put(res->fi);
 			res->fi = fi;
@@ -1846,7 +1846,7 @@ fn_trie_select_default(struct fib_table *tb, const struct flowi *flp, struct fib
 		goto out;
 	}
 
-	if (!fib_detect_death(fi, order, &last_resort, &last_idx, &trie_last_dflt)) {
+	if (!fib_detect_death(fi, order, &last_resort, &last_idx, trie_last_dflt)) {
 		if (res->fi)
 			fib_info_put(res->fi);
 		res->fi = fi;
