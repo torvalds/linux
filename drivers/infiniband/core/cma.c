@@ -1122,8 +1122,10 @@ static int cma_req_handler(struct ib_cm_id *cm_id, struct ib_cm_event *ib_event)
 	cm_id->cm_handler = cma_ib_handler;
 
 	ret = conn_id->id.event_handler(&conn_id->id, &event);
-	if (!ret)
+	if (!ret) {
+		cma_enable_remove(conn_id);
 		goto out;
+	}
 
 	/* Destroy the CM ID by returning a non-zero value. */
 	conn_id->cm_id.ib = NULL;
