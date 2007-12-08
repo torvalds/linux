@@ -400,6 +400,7 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 
 	itv->v4l2_cap = itv->card->v4l2_capabilities;
 	itv->card_name = itv->card->name;
+	itv->card_i2c = itv->card->i2c;
 
 	/* If this is a PVR500 then it should be possible to detect whether it is the
 	   first or second unit by looking at the subsystem device ID: is bit 4 is
@@ -417,7 +418,14 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 	   This detection is needed since the eeprom reports incorrectly that a radio is
 	   present on the second unit. */
 	if (tv.model / 1000 == 23) {
+		static const struct ivtv_card_tuner_i2c ivtv_i2c_radio = {
+			.radio = { 0x60, I2C_CLIENT_END },
+			.demod = { 0x43, I2C_CLIENT_END },
+			.tv = { 0x61, I2C_CLIENT_END },
+		};
+
 		itv->card_name = "WinTV PVR 500";
+		itv->card_i2c = &ivtv_i2c_radio;
 		if (pci_slot == 8 || pci_slot == 9) {
 			int is_first = (pci_slot & 1) == 0;
 
@@ -635,6 +643,7 @@ done:
 	}
 	itv->v4l2_cap = itv->card->v4l2_capabilities;
 	itv->card_name = itv->card->name;
+	itv->card_i2c = itv->card->i2c;
 }
 
 /* Precondition: the ivtv structure has been memset to 0. Only
@@ -816,79 +825,66 @@ static int ivtv_setup_pci(struct ivtv *itv, struct pci_dev *dev,
 	return 0;
 }
 
-static void ivtv_request_module(struct ivtv *itv, const char *name)
+static u32 ivtv_request_module(struct ivtv *itv, u32 hw,
+		const char *name, u32 id)
 {
+	if ((hw & id) == 0)
+		return hw;
 	if (request_module(name) != 0) {
 		IVTV_ERR("Failed to load module %s\n", name);
-	} else {
-		IVTV_DEBUG_INFO("Loaded module %s\n", name);
+		return hw & ~id;
 	}
+	IVTV_DEBUG_INFO("Loaded module %s\n", name);
+	return hw;
 }
 
 static void ivtv_load_and_init_modules(struct ivtv *itv)
 {
 	u32 hw = itv->card->hw_all;
-	int i;
+	unsigned i;
 
 	/* load modules */
-#ifndef CONFIG_VIDEO_TUNER
-	if (hw & IVTV_HW_TUNER) {
-		if (itv->options.tuner == TUNER_XC2028) {
-			IVTV_INFO("Xceive tuner not yet supported, only composite and S-Video inputs will be available\n");
-			itv->tunerid = 1;
-		}
-		else {
-			ivtv_request_module(itv, "tuner");
-		}
+	if ((hw & IVTV_HW_TUNER) && itv->options.tuner == TUNER_XC2028) {
+		IVTV_INFO("Xceive tuner not yet supported, only composite\n");
+		IVTV_INFO("and S-Video inputs will be available\n");
+		hw &= ~IVTV_HW_TUNER;
 	}
+#ifndef CONFIG_VIDEO_TUNER
+	hw = ivtv_request_module(itv, hw, "tuner", IVTV_HW_TUNER);
 #endif
 #ifndef CONFIG_VIDEO_CX25840
-	if (hw & IVTV_HW_CX25840)
-		ivtv_request_module(itv, "cx25840");
+	hw = ivtv_request_module(itv, hw, "cx25840", IVTV_HW_CX25840);
 #endif
 #ifndef CONFIG_VIDEO_SAA711X
-	if (hw & IVTV_HW_SAA711X)
-		ivtv_request_module(itv, "saa7115");
+	hw = ivtv_request_module(itv, hw, "saa7115", IVTV_HW_SAA711X);
 #endif
 #ifndef CONFIG_VIDEO_SAA7127
-	if (hw & IVTV_HW_SAA7127)
-		ivtv_request_module(itv, "saa7127");
+	hw = ivtv_request_module(itv, hw, "saa7127", IVTV_HW_SAA7127);
 #endif
-	if (hw & IVTV_HW_SAA717X)
-		ivtv_request_module(itv, "saa717x");
+	hw = ivtv_request_module(itv, hw, "saa717x", IVTV_HW_SAA717X);
 #ifndef CONFIG_VIDEO_UPD64031A
-	if (hw & IVTV_HW_UPD64031A)
-		ivtv_request_module(itv, "upd64031a");
+	hw = ivtv_request_module(itv, hw, "upd64031a", IVTV_HW_UPD64031A);
 #endif
 #ifndef CONFIG_VIDEO_UPD64083
-	if (hw & IVTV_HW_UPD6408X)
-		ivtv_request_module(itv, "upd64083");
+	hw = ivtv_request_module(itv, hw, "upd64083", IVTV_HW_UPD6408X);
 #endif
 #ifndef CONFIG_VIDEO_MSP3400
-	if (hw & IVTV_HW_MSP34XX)
-		ivtv_request_module(itv, "msp3400");
+	hw = ivtv_request_module(itv, hw, "msp3400", IVTV_HW_MSP34XX);
 #endif
 #ifndef CONFIG_VIDEO_VP27SMPX
-	if (hw & IVTV_HW_VP27SMPX)
-		ivtv_request_module(itv, "vp27smpx");
+	hw = ivtv_request_module(itv, hw, "vp27smpx", IVTV_HW_VP27SMPX);
 #endif
-	if (hw & IVTV_HW_TVAUDIO)
-		ivtv_request_module(itv, "tvaudio");
 #ifndef CONFIG_VIDEO_WM8775
-	if (hw & IVTV_HW_WM8775)
-		ivtv_request_module(itv, "wm8775");
+	hw = ivtv_request_module(itv, hw, "wm8775", IVTV_HW_WM8775);
 #endif
 #ifndef CONFIG_VIDEO_WM8739
-	if (hw & IVTV_HW_WM8739)
-		ivtv_request_module(itv, "wm8739");
+	hw = ivtv_request_module(itv, hw, "wm8739", IVTV_HW_WM8739);
 #endif
 #ifndef CONFIG_VIDEO_CS53L32A
-	if (hw & IVTV_HW_CS53L32A)
-		ivtv_request_module(itv, "cs53l32a");
+	hw = ivtv_request_module(itv, hw, "cs53l32a", IVTV_HW_CS53L32A);
 #endif
 #ifndef CONFIG_VIDEO_M52790
-	if (hw & IVTV_HW_M52790)
-		ivtv_request_module(itv, "m52790");
+	hw = ivtv_request_module(itv, hw, "m52790", IVTV_HW_M52790);
 #endif
 
 	/* check which i2c devices are actually found */
@@ -897,11 +893,12 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 
 		if (!(device & hw))
 			continue;
-		if (device == IVTV_HW_GPIO) {
-			/* GPIO is always available */
-			itv->hw_flags |= IVTV_HW_GPIO;
+		if (device == IVTV_HW_GPIO || device == IVTV_HW_TVEEPROM) {
+			/* GPIO and TVEEPROM do not use i2c probing */
+			itv->hw_flags |= device;
 			continue;
 		}
+		ivtv_i2c_register(itv, i);
 		if (ivtv_i2c_hw_addr(itv, device) > 0)
 			itv->hw_flags |= device;
 	}
@@ -1075,9 +1072,6 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	IVTV_DEBUG_INFO("Active card count: %d.\n", ivtv_cards_active);
 
 	if (itv->card->hw_all & IVTV_HW_TVEEPROM) {
-#ifdef CONFIG_VIDEO_TVEEPROM_MODULE
-		ivtv_request_module(itv, "tveeprom");
-#endif
 		/* Based on the model number the cardtype may be changed.
 		   The PCI IDs are not always reliable. */
 		ivtv_process_eeprom(itv);
@@ -1150,7 +1144,7 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 	if (itv->options.radio > 0)
 		itv->v4l2_cap |= V4L2_CAP_RADIO;
 
-	if (itv->options.tuner > -1 && itv->tunerid == 0) {
+	if (itv->options.tuner > -1) {
 		struct tuner_setup setup;
 
 		setup.addr = ADDR_UNSET;

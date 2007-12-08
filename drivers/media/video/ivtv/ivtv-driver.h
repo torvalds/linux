@@ -590,13 +590,13 @@ struct ivtv {
 	struct pci_dev *dev;		/* PCI device */
 	const struct ivtv_card *card;	/* card information */
 	const char *card_name;          /* full name of the card */
+	const struct ivtv_card_tuner_i2c *card_i2c; /* i2c addresses to probe for tuner */
 	u8 has_cx23415;			/* 1 if it is a cx23415 based card, 0 for cx23416 */
 	u8 pvr150_workaround;           /* 1 if the cx25840 needs to workaround a PVR150 bug */
 	u8 nof_inputs;			/* number of video inputs */
 	u8 nof_audio_inputs;		/* number of audio inputs */
 	u32 v4l2_cap;			/* V4L2 capabilities of card */
 	u32 hw_flags; 			/* hardware description of the board */
-	int tunerid;			/* userspace tuner ID for experimental Xceive tuner support */
 	v4l2_std_id tuner_std;		/* the norm of the card's tuner (fixed) */
 					/* controlling video decoder function */
 	int (*video_dec_func)(struct ivtv *, unsigned int, void *);
