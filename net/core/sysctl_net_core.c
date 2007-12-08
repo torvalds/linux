@@ -167,8 +167,13 @@ static __net_init int sysctl_core_net_init(struct net *net)
 		if (tbl == NULL)
 			goto err_dup;
 
-		for (tmp = tbl; tmp->procname; tmp++)
-			tmp->mode &= ~0222;
+		for (tmp = tbl; tmp->procname; tmp++) {
+			if (tmp->data >= (void *)&init_net &&
+					tmp->data < (void *)(&init_net + 1))
+				tmp->data += (char *)net - (char *)&init_net;
+			else
+				tmp->mode &= ~0222;
+		}
 	}
 
 	net->sysctl_core_hdr = register_net_sysctl_table(net,
