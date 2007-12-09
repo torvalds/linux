@@ -85,7 +85,8 @@ static int dbg = 1;
 #define PT_PAGE_SIZE_MASK (1ULL << 7)
 #define PT_PAT_MASK (1ULL << 7)
 #define PT_GLOBAL_MASK (1ULL << 8)
-#define PT64_NX_MASK (1ULL << 63)
+#define PT64_NX_SHIFT 63
+#define PT64_NX_MASK (1ULL << PT64_NX_SHIFT)
 
 #define PT_PAT_SHIFT 7
 #define PT_DIR_PAT_SHIFT 12
@@ -152,6 +153,11 @@ static int dbg = 1;
 #define PT_PAGE_TABLE_LEVEL 1
 
 #define RMAP_EXT 4
+
+#define ACC_EXEC_MASK    1
+#define ACC_WRITE_MASK   PT_WRITABLE_MASK
+#define ACC_USER_MASK    PT_USER_MASK
+#define ACC_ALL          (ACC_EXEC_MASK | ACC_WRITE_MASK | ACC_USER_MASK)
 
 struct kvm_rmap_desc {
 	u64 *shadow_ptes[RMAP_EXT];
@@ -921,7 +927,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, struct page *page)
 				>> PAGE_SHIFT;
 			new_table = kvm_mmu_get_page(vcpu, pseudo_gfn,
 						     v, level - 1,
-						     1, 3, &table[index]);
+						     1, ACC_ALL, &table[index]);
 			if (!new_table) {
 				pgprintk("nonpaging_map: ENOMEM\n");
 				kvm_release_page_clean(page);
@@ -988,7 +994,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 
 		ASSERT(!VALID_PAGE(root));
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
-				      PT64_ROOT_LEVEL, 0, 0, NULL);
+				      PT64_ROOT_LEVEL, 0, ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->mmu.root_hpa = root;
@@ -1009,7 +1015,7 @@ static void mmu_alloc_roots(struct kvm_vcpu *vcpu)
 			root_gfn = 0;
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 				      PT32_ROOT_LEVEL, !is_paging(vcpu),
-				      0, NULL);
+				      ACC_ALL, NULL);
 		root = __pa(sp->spt);
 		++sp->root_count;
 		vcpu->mmu.pae_root[i] = root | PT_PRESENT_MASK;
