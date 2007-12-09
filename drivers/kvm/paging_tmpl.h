@@ -255,6 +255,8 @@ static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t gpte,
 	spte |= gpte & PT64_NX_MASK;
 	if (!dirty)
 		pte_access &= ~ACC_WRITE_MASK;
+	if (!(pte_access & ACC_EXEC_MASK))
+		spte |= PT64_NX_MASK;
 
 	page = gfn_to_page(vcpu->kvm, gfn);
 
