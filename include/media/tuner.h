@@ -24,8 +24,6 @@
 
 #include <linux/videodev2.h>
 
-extern int tuner_debug;
-
 #define ADDR_UNSET (255)
 
 #define TUNER_TEMIC_PAL			0        /* 4002 FH5 (3X 7756, 9483) */

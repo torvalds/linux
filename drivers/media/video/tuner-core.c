@@ -52,7 +52,34 @@ static unsigned int no_autodetect = 0;
 static unsigned int show_i2c = 0;
 
 /* insmod options used at runtime => read/write */
-int tuner_debug = 0;
+static int tuner_debug;
+
+#define tuner_warn(fmt, arg...) do {			\
+	printk(KERN_WARNING "%s %d-%04x: " fmt, PREFIX, \
+	       i2c_adapter_id(t->i2c->adapter),		\
+	       t->i2c->addr, ##arg);			\
+	 } while (0)
+
+#define tuner_info(fmt, arg...) do {			\
+	printk(KERN_INFO "%s %d-%04x: " fmt, PREFIX,	\
+	       i2c_adapter_id(t->i2c->adapter),		\
+	       t->i2c->addr, ##arg);			\
+	 } while (0)
+
+#define tuner_err(fmt, arg...) do {			\
+	printk(KERN_ERR "%s %d-%04x: " fmt, PREFIX,	\
+	       i2c_adapter_id(t->i2c->adapter),		\
+	       t->i2c->addr, ##arg);			\
+	 } while (0)
+
+#define tuner_dbg(fmt, arg...) do {				\
+	if (tuner_debug)					\
+		printk(KERN_DEBUG "%s %d-%04x: " fmt, PREFIX,	\
+		       i2c_adapter_id(t->i2c->adapter),		\
+		       t->i2c->addr, ##arg);			\
+	 } while (0)
+
+/* ------------------------------------------------------------------------ */
 
 static unsigned int tv_range[2] = { 44, 958 };
 static unsigned int radio_range[2] = { 65, 108 };
@@ -261,6 +288,15 @@ static void attach_simple_tuner(struct tuner *t)
 	simple_tuner_attach(&t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
 }
 
+static void attach_tda829x(struct tuner *t)
+{
+	struct tda829x_config cfg = {
+		.lna_cfg        = &t->config,
+		.tuner_callback = t->tuner_callback,
+	};
+	tda829x_attach(&t->fe, t->i2c->adapter, t->i2c->addr, &cfg);
+}
+
 static void set_type(struct i2c_client *c, unsigned int type,
 		     unsigned int new_mode_mask, unsigned int new_config,
 		     int (*tuner_callback) (void *dev, int command,int arg))
@@ -303,7 +339,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	case TUNER_PHILIPS_TDA8290:
 	{
-		tda829x_attach(t);
+		attach_tda829x(t);
 		break;
 	}
 	case TUNER_TEA5767:
@@ -1045,7 +1081,8 @@ static int tuner_probe(struct i2c_client *client)
 		case 0x4b:
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
-			if (tda829x_probe(t) == 0) {
+			if (tda829x_probe(t->i2c->adapter,
+					  t->i2c->addr) == 0) {
 				tuner_dbg("tda829x detected\n");
 			} else {
 				/* Default is being tda9887 */

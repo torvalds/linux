@@ -24,12 +24,9 @@
 
 #include <linux/videodev2.h>
 #include <linux/i2c.h>
-#include "tuner-i2c.h"
 #include "dvb_frontend.h"
 
 extern unsigned const int tuner_count;
-
-struct tuner;
 
 struct analog_tuner_ops {
 	void (*set_params)(struct dvb_frontend *fe,
@@ -68,29 +65,5 @@ struct tuner {
 	unsigned int config;
 	int (*tuner_callback) (void *dev, int command,int arg);
 };
-
-/* ------------------------------------------------------------------------ */
-
-#define tuner_warn(fmt, arg...) do {					\
-	printk(KERN_WARNING "%s %d-%04x: " fmt, PREFIX, 		\
-	       i2c_adapter_id(t->i2c->adapter), t->i2c->addr, ##arg);	\
-	 } while (0)
-
-#define tuner_info(fmt, arg...) do {					\
-	printk(KERN_INFO "%s %d-%04x: " fmt, PREFIX,			\
-	       i2c_adapter_id(t->i2c->adapter), t->i2c->addr , ##arg);	\
-	 } while (0)
-
-#define tuner_err(fmt, arg...) do {					\
-	printk(KERN_ERR "%s %d-%04x: " fmt, PREFIX,			\
-	       i2c_adapter_id(t->i2c->adapter), t->i2c->addr , ##arg);	\
-	 } while (0)
-
-#define tuner_dbg(fmt, arg...) do {					       \
-	extern int tuner_debug;						       \
-	if (tuner_debug)						       \
-		printk(KERN_DEBUG "%s %d-%04x: " fmt, PREFIX,		       \
-		       i2c_adapter_id(t->i2c->adapter), t->i2c->addr , ##arg); \
-	 } while (0)
 
 #endif /* __TUNER_DRIVER_H__ */
