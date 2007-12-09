@@ -56,8 +56,9 @@ static u32 convert_radiotap_rate_to_mv(u8 rate)
  *  @param skb     A pointer to skb which includes TX packet
  *  @return 	   0 or -1
  */
-static int lbs_process_tx(struct lbs_private *priv, struct sk_buff *skb)
+int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	struct lbs_private *priv = dev->priv;
 	int ret = -1;
 	struct txpd localtxpd;
 	struct txpd *plocaltxpd = &localtxpd;
@@ -70,9 +71,18 @@ static int lbs_process_tx(struct lbs_private *priv, struct sk_buff *skb)
 
 	lbs_deb_hex(LBS_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
 
+	netif_stop_queue(priv->dev);
+	if (priv->mesh_dev)
+		netif_stop_queue(priv->mesh_dev);
+
 	if (priv->dnld_sent) {
 		lbs_pr_alert( "TX error: dnld_sent = %d, not sending\n",
 		       priv->dnld_sent);
+		goto done;
+	}
+
+	if (priv->currenttxskb) {
+		lbs_pr_err("%s while TX skb pending\n", __func__);
 		goto done;
 	}
 
@@ -154,6 +164,8 @@ done_tx:
 	if (!ret) {
 		priv->stats.tx_packets++;
 		priv->stats.tx_bytes += skb->len;
+
+ 		dev->trans_start = jiffies;
 	} else {
 		priv->stats.tx_dropped++;
 		priv->stats.tx_errors++;
@@ -174,37 +186,6 @@ done_tx:
 		dev_kfree_skb_any(skb);
 	}
 
-done:
-	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
-	return ret;
-}
-
-int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	int ret = 0;
-	struct lbs_private *priv = dev->priv;
-
-	lbs_deb_enter(LBS_DEB_TX);
-
-	/* We could return NETDEV_TX_BUSY here, but I'd actually 
-	   like to get the point where we can BUG() */
-	if (priv->dnld_sent) {
-		lbs_pr_err("%s while dnld_sent\n", __func__);
-		priv->stats.tx_dropped++;
-		goto done;
-	}
-	if (priv->currenttxskb) {
-		lbs_pr_err("%s while TX skb pending\n", __func__);
-		priv->stats.tx_dropped++;
-		goto done;
-	}
-
-	netif_stop_queue(priv->dev);
-	if (priv->mesh_dev)
-		netif_stop_queue(priv->mesh_dev);
-
-	if (lbs_process_tx(priv, skb) == 0)
-		dev->trans_start = jiffies;
 done:
 	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
