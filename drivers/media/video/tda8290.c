@@ -704,7 +704,7 @@ int tda829x_attach(struct tuner *t)
 	}
 
 	if (tda829x_find_tuner(fe) < 0)
-		return -EINVAL;
+		goto fail;
 
 	if (priv->ver & TDA8290) {
 		tda8290_init_tuner(fe);
@@ -717,6 +717,11 @@ int tda829x_attach(struct tuner *t)
 	t->mode = V4L2_TUNER_ANALOG_TV;
 
 	return 0;
+
+fail:
+	tda829x_release(fe);
+	fe->ops.analog_demod_ops = NULL;
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(tda829x_attach);
 
