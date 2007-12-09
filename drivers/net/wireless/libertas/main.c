@@ -515,52 +515,6 @@ static int lbs_close(struct net_device *dev)
 		return 0;
 }
 
-/**
- * @brief Mark mesh packets and handover them to lbs_hard_start_xmit
- *
- */
-static int lbs_mesh_pre_start_xmit(struct sk_buff *skb,
-		struct net_device *dev)
-{
-	struct lbs_private *priv = dev->priv;
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_MESH);
-	if (priv->monitormode != LBS_MONITOR_OFF) {
-		netif_stop_queue(dev);
-		return -EOPNOTSUPP;
-	}
-
-	SET_MESH_FRAME(skb);
-
-	ret = lbs_hard_start_xmit(skb, priv->mesh_dev);
-	lbs_deb_leave_args(LBS_DEB_MESH, "ret %d", ret);
-	return ret;
-}
-
-/**
- * @brief Mark non-mesh packets and handover them to lbs_hard_start_xmit
- *
- */
-static int lbs_pre_start_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	struct lbs_private *priv = dev->priv;
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_TX);
-
-	if (priv->monitormode != LBS_MONITOR_OFF) {
-		netif_stop_queue(dev);
-		return -EOPNOTSUPP;
-	}
-
-	UNSET_MESH_FRAME(skb);
-
-	ret = lbs_hard_start_xmit(skb, dev);
-	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
-	return ret;
-}
-
 static void lbs_tx_timeout(struct net_device *dev)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv;
@@ -1104,7 +1058,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 
 	/* Setup the OS Interface to our functions */
 	dev->open = lbs_open;
-	dev->hard_start_xmit = lbs_pre_start_xmit;
+	dev->hard_start_xmit = lbs_hard_start_xmit;
 	dev->stop = lbs_close;
 	dev->set_mac_address = lbs_set_mac_address;
 	dev->tx_timeout = lbs_tx_timeout;
@@ -1276,7 +1230,7 @@ int lbs_add_mesh(struct lbs_private *priv, struct device *dev)
 	priv->mesh_dev = mesh_dev;
 
 	mesh_dev->open = lbs_mesh_open;
-	mesh_dev->hard_start_xmit = lbs_mesh_pre_start_xmit;
+	mesh_dev->hard_start_xmit = lbs_hard_start_xmit;
 	mesh_dev->stop = lbs_mesh_close;
 	mesh_dev->get_stats = lbs_get_stats;
 	mesh_dev->set_mac_address = lbs_set_mac_address;
