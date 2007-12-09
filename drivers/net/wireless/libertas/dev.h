@@ -197,11 +197,6 @@ struct lbs_private {
 	/** Timers */
 	struct timer_list command_timer;
 
-	/* TX queue used in PS mode */
-	spinlock_t txqueue_lock;
-	struct sk_buff *tx_queue_ps[NR_TX_QUEUE];
-	unsigned int tx_queue_idx;
-
 	u8 hisregcpy;
 
 	/** current ssid/bssid related parameters*/

@@ -914,8 +914,6 @@ static int lbs_thread(void *data)
 		 */
 		if (!list_empty(&priv->cmdpendingq))
 			wake_up_all(&priv->cmd_pending);
-
-		lbs_tx_runqueue(priv);
 	}
 
 	del_timer(&priv->command_timer);
@@ -1071,10 +1069,6 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->psstate = PS_STATE_FULL_POWER;
 
 	mutex_init(&priv->lock);
-
-	memset(&priv->tx_queue_ps, 0, NR_TX_QUEUE*sizeof(struct sk_buff*));
-	priv->tx_queue_idx = 0;
-	spin_lock_init(&priv->txqueue_lock);
 
 	setup_timer(&priv->command_timer, command_timer_fn,
 	            (unsigned long)priv);

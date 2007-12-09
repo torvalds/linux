@@ -164,41 +164,6 @@ done:
 }
 
 
-void lbs_tx_runqueue(struct lbs_private *priv)
-{
-	int i;
-
-	spin_lock(&priv->txqueue_lock);
-	for (i = 0; i < priv->tx_queue_idx; i++) {
-		struct sk_buff *skb = priv->tx_queue_ps[i];
-		spin_unlock(&priv->txqueue_lock);
-		SendSinglePacket(priv, skb);
-		spin_lock(&priv->txqueue_lock);
-	}
-	priv->tx_queue_idx = 0;
-	spin_unlock(&priv->txqueue_lock);
-}
-
-static void lbs_tx_queue(struct lbs_private *priv, struct sk_buff *skb)
-{
-
-	spin_lock(&priv->txqueue_lock);
-
-	WARN_ON(priv->tx_queue_idx >= NR_TX_QUEUE);
-	priv->tx_queue_ps[priv->tx_queue_idx++] = skb;
-	if (priv->tx_queue_idx == NR_TX_QUEUE) {
-		netif_stop_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_stop_queue(priv->mesh_dev);
-	} else {
-		netif_start_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_start_queue(priv->mesh_dev);
-	}
-
-	spin_unlock(&priv->txqueue_lock);
-}
-
 /**
  *  @brief This function checks the conditions and sends packet to IF
  *  layer if everything is ok.
@@ -221,8 +186,9 @@ int lbs_process_tx(struct lbs_private *priv, struct sk_buff *skb)
 
 	if ((priv->psstate == PS_STATE_SLEEP) ||
 	    (priv->psstate == PS_STATE_PRE_SLEEP)) {
-		lbs_tx_queue(priv, skb);
-		return ret;
+		lbs_pr_alert("TX error: packet xmit in %ssleep mode\n",
+			     priv->psstate == PS_STATE_SLEEP?"":"pre-");
+		goto done;
 	}
 
 	ret = SendSinglePacket(priv, skb);
