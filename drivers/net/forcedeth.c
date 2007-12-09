@@ -712,8 +712,8 @@ static const struct nv_ethtool_str nv_etests_str[] = {
 };
 
 struct register_test {
-	__le32 reg;
-	__le32 mask;
+	__u32 reg;
+	__u32 mask;
 };
 
 static const struct register_test nv_registers_test[] = {
@@ -929,6 +929,16 @@ static int reg_delay(struct net_device *dev, int offset, u32 mask, u32 target,
 #define NV_SETUP_RX_RING 0x01
 #define NV_SETUP_TX_RING 0x02
 
+static inline u32 dma_low(dma_addr_t addr)
+{
+	return addr;
+}
+
+static inline u32 dma_high(dma_addr_t addr)
+{
+	return addr>>31>>1;	/* 0 if 32bit, shift down by 32 if 64bit */
+}
+
 static void setup_hw_rings(struct net_device *dev, int rxtx_flags)
 {
 	struct fe_priv *np = get_nvpriv(dev);
@@ -936,19 +946,19 @@ static void setup_hw_rings(struct net_device *dev, int rxtx_flags)
 
 	if (np->desc_ver == DESC_VER_1 || np->desc_ver == DESC_VER_2) {
 		if (rxtx_flags & NV_SETUP_RX_RING) {
-			writel((u32) cpu_to_le64(np->ring_addr), base + NvRegRxRingPhysAddr);
+			writel(dma_low(np->ring_addr), base + NvRegRxRingPhysAddr);
 		}
 		if (rxtx_flags & NV_SETUP_TX_RING) {
-			writel((u32) cpu_to_le64(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
+			writel(dma_low(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc)), base + NvRegTxRingPhysAddr);
 		}
 	} else {
 		if (rxtx_flags & NV_SETUP_RX_RING) {
-			writel((u32) cpu_to_le64(np->ring_addr), base + NvRegRxRingPhysAddr);
-			writel((u32) (cpu_to_le64(np->ring_addr) >> 32), base + NvRegRxRingPhysAddrHigh);
+			writel(dma_low(np->ring_addr), base + NvRegRxRingPhysAddr);
+			writel(dma_high(np->ring_addr), base + NvRegRxRingPhysAddrHigh);
 		}
 		if (rxtx_flags & NV_SETUP_TX_RING) {
-			writel((u32) cpu_to_le64(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
-			writel((u32) (cpu_to_le64(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc_ex)) >> 32), base + NvRegTxRingPhysAddrHigh);
+			writel(dma_low(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddr);
+			writel(dma_high(np->ring_addr + np->rx_ring_size*sizeof(struct ring_desc_ex)), base + NvRegTxRingPhysAddrHigh);
 		}
 	}
 }
@@ -1571,8 +1581,8 @@ static int nv_alloc_rx_optimized(struct net_device *dev)
 							     skb_tailroom(skb),
 							     PCI_DMA_FROMDEVICE);
 			np->put_rx_ctx->dma_len = skb_tailroom(skb);
-			np->put_rx.ex->bufhigh = cpu_to_le64(np->put_rx_ctx->dma) >> 32;
-			np->put_rx.ex->buflow = cpu_to_le64(np->put_rx_ctx->dma) & 0x0FFFFFFFF;
+			np->put_rx.ex->bufhigh = cpu_to_le32(dma_high(np->put_rx_ctx->dma));
+			np->put_rx.ex->buflow = cpu_to_le32(dma_low(np->put_rx_ctx->dma));
 			wmb();
 			np->put_rx.ex->flaglen = cpu_to_le32(np->rx_buf_sz | NV_RX2_AVAIL);
 			if (unlikely(np->put_rx.ex++ == np->last_rx.ex))
@@ -1937,8 +1947,8 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 		np->put_tx_ctx->dma = pci_map_single(np->pci_dev, skb->data + offset, bcnt,
 						PCI_DMA_TODEVICE);
 		np->put_tx_ctx->dma_len = bcnt;
-		put_tx->bufhigh = cpu_to_le64(np->put_tx_ctx->dma) >> 32;
-		put_tx->buflow = cpu_to_le64(np->put_tx_ctx->dma) & 0x0FFFFFFFF;
+		put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));
+		put_tx->buflow = cpu_to_le32(dma_low(np->put_tx_ctx->dma));
 		put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
 		tx_flags = NV_TX2_VALID;
@@ -1963,8 +1973,8 @@ static int nv_start_xmit_optimized(struct sk_buff *skb, struct net_device *dev)
 			np->put_tx_ctx->dma = pci_map_page(np->pci_dev, frag->page, frag->page_offset+offset, bcnt,
 							   PCI_DMA_TODEVICE);
 			np->put_tx_ctx->dma_len = bcnt;
-			put_tx->bufhigh = cpu_to_le64(np->put_tx_ctx->dma) >> 32;
-			put_tx->buflow = cpu_to_le64(np->put_tx_ctx->dma) & 0x0FFFFFFFF;
+			put_tx->bufhigh = cpu_to_le32(dma_high(np->put_tx_ctx->dma));
+			put_tx->buflow = cpu_to_le32(dma_low(np->put_tx_ctx->dma));
 			put_tx->flaglen = cpu_to_le32((bcnt-1) | tx_flags);
 
 			offset += bcnt;
@@ -2680,8 +2690,8 @@ static void nv_set_multicast(struct net_device *dev)
 				walk = dev->mc_list;
 				while (walk != NULL) {
 					u32 a, b;
-					a = le32_to_cpu(*(u32 *) walk->dmi_addr);
-					b = le16_to_cpu(*(u16 *) (&walk->dmi_addr[4]));
+					a = le32_to_cpu(*(__le32 *) walk->dmi_addr);
+					b = le16_to_cpu(*(__le16 *) (&walk->dmi_addr[4]));
 					alwaysOn[0] &= a;
 					alwaysOff[0] &= ~a;
 					alwaysOn[1] &= b;
@@ -4539,8 +4549,8 @@ static int nv_loopback_test(struct net_device *dev)
 		np->tx_ring.orig[0].buf = cpu_to_le32(test_dma_addr);
 		np->tx_ring.orig[0].flaglen = cpu_to_le32((pkt_len-1) | np->tx_flags | tx_flags_extra);
 	} else {
-		np->tx_ring.ex[0].bufhigh = cpu_to_le64(test_dma_addr) >> 32;
-		np->tx_ring.ex[0].buflow = cpu_to_le64(test_dma_addr) & 0x0FFFFFFFF;
+		np->tx_ring.ex[0].bufhigh = cpu_to_le32(dma_high(test_dma_addr));
+		np->tx_ring.ex[0].buflow = cpu_to_le32(dma_low(test_dma_addr));
 		np->tx_ring.ex[0].flaglen = cpu_to_le32((pkt_len-1) | np->tx_flags | tx_flags_extra);
 	}
 	writel(NVREG_TXRXCTL_KICK|np->txrxctl_bits, get_hwbase(dev) + NvRegTxRxControl);
