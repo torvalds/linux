@@ -102,6 +102,18 @@ static bool FNAME(cmpxchg_gpte)(struct kvm *kvm,
 	return (ret != orig_pte);
 }
 
+static unsigned FNAME(gpte_access)(struct kvm_vcpu *vcpu, pt_element_t gpte)
+{
+	unsigned access;
+
+	access = (gpte & (PT_WRITABLE_MASK | PT_USER_MASK)) | ACC_EXEC_MASK;
+#if PTTYPE == 64
+	if (is_nx(vcpu))
+		access &= ~(gpte >> PT64_NX_SHIFT);
+#endif
+	return access;
+}
+
 /*
  * Fetch a guest pte for a guest virtual address
  */
@@ -166,13 +178,7 @@ walk:
 			pte |= PT_ACCESSED_MASK;
 		}
 
-		pte_access = pte & (PT_WRITABLE_MASK | PT_USER_MASK);
-		pte_access |= ACC_EXEC_MASK;
-#if PTTYPE == 64
-		if (is_nx(vcpu))
-			pte_access &= ~(pte >> PT64_NX_SHIFT);
-#endif
-		pte_access &= pt_access;
+		pte_access = pt_access & FNAME(gpte_access)(vcpu, pte);
 
 		if (walker->level == PT_PAGE_TABLE_LEVEL) {
 			walker->gfn = gpte_to_gfn(pte);
