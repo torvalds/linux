@@ -547,12 +547,18 @@ struct b43_phy {
 
 	u16 initval;		//FIXME rename?
 
-	/* OFDM address read/write caching for hardware auto-increment. */
-	u16 ofdm_addr;
-	u8 ofdm_valid; /* 0: invalid, 1: read, 2: write */
-
 	/* PHY TX errors counter. */
 	atomic_t txerr_cnt;
+
+	/* The device does address auto increment for the OFDM tables.
+	 * We cache the previously used address here and omit the address
+	 * write on the next table access, if possible. */
+	u16 ofdmtab_addr; /* The address currently set in hardware. */
+	enum { /* The last data flow direction. */
+		B43_OFDMTAB_DIRECTION_UNKNOWN = 0,
+		B43_OFDMTAB_DIRECTION_READ,
+		B43_OFDMTAB_DIRECTION_WRITE,
+	} ofdmtab_addr_direction;
 };
 
 /* Data structures for DMA transmission, per 80211 core. */

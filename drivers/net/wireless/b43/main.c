@@ -2264,12 +2264,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 	b43_write16(dev, B43_MMIO_POWERUP_DELAY,
 		    dev->dev->bus->chipco.fast_pwrup_delay);
 
-	/* OFDM address caching. */
-	phy->ofdm_valid = 0;
-
-	/* PHY TX errors counter. */
-	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
-
 	err = 0;
 	b43dbg(dev->wl, "Chip initialized\n");
 out:
@@ -3195,6 +3189,12 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 	phy->channel = 0xFF;
 
 	phy->hardware_power_control = !!modparam_hwpctl;
+
+	/* PHY TX errors counter. */
+	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
+
+	/* OFDM-table address caching. */
+	phy->ofdmtab_addr_direction = B43_OFDMTAB_DIRECTION_UNKNOWN;
 }
 
 static void setup_struct_wldev_for_init(struct b43_wldev *dev)
