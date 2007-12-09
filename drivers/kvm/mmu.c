@@ -966,40 +966,23 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
-static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, struct page *page)
+static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 {
 	int level = PT32E_ROOT_LEVEL;
 	hpa_t table_addr = vcpu->mmu.root_hpa;
+	int pt_write = 0;
 
 	for (; ; level--) {
 		u32 index = PT64_INDEX(v, level);
 		u64 *table;
-		u64 pte;
 
 		ASSERT(VALID_PAGE(table_addr));
 		table = __va(table_addr);
 
 		if (level == 1) {
-			int was_rmapped;
-
-			pte = table[index];
-			was_rmapped = is_rmap_pte(pte);
-			if (is_shadow_present_pte(pte) && is_writeble_pte(pte)) {
-				kvm_release_page_clean(page);
-				return 0;
-			}
-			mark_page_dirty(vcpu->kvm, v >> PAGE_SHIFT);
-			page_header_update_slot(vcpu->kvm, table,
-						v >> PAGE_SHIFT);
-			table[index] = page_to_phys(page)
-				| PT_PRESENT_MASK | PT_WRITABLE_MASK
-				| PT_USER_MASK;
-			if (!was_rmapped)
-				rmap_add(vcpu, &table[index], v >> PAGE_SHIFT);
-			else
-				kvm_release_page_clean(page);
-
-			return 0;
+			mmu_set_spte(vcpu, &table[index], ACC_ALL, ACC_ALL,
+				     0, write, 1, &pt_write, gfn);
+			return pt_write || is_io_pte(table[index]);
 		}
 
 		if (table[index] == shadow_trap_nonpresent_pte) {
@@ -1013,7 +996,6 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, struct page *page)
 						     1, ACC_ALL, &table[index]);
 			if (!new_table) {
 				pgprintk("nonpaging_map: ENOMEM\n");
-				kvm_release_page_clean(page);
 				return -ENOMEM;
 			}
 
@@ -1114,9 +1096,10 @@ static gpa_t nonpaging_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t vaddr)
 static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 				u32 error_code)
 {
-	struct page *page;
+	gfn_t gfn;
 	int r;
 
+	pgprintk("%s: gva %lx error %x\n", __FUNCTION__, gva, error_code);
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		return r;
@@ -1124,14 +1107,10 @@ static int nonpaging_page_fault(struct kvm_vcpu *vcpu, gva_t gva,
 	ASSERT(vcpu);
 	ASSERT(VALID_PAGE(vcpu->mmu.root_hpa));
 
-	page = gfn_to_page(vcpu->kvm, gva >> PAGE_SHIFT);
+	gfn = gva >> PAGE_SHIFT;
 
-	if (is_error_page(page)) {
-		kvm_release_page_clean(page);
-		return 1;
-	}
-
-	return nonpaging_map(vcpu, gva & PAGE_MASK, page);
+	return nonpaging_map(vcpu, gva & PAGE_MASK,
+			     error_code & PFERR_WRITE_MASK, gfn);
 }
 
 static void nonpaging_free(struct kvm_vcpu *vcpu)
