@@ -235,14 +235,12 @@ err:
 	return 0;
 }
 
-static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t gpte,
-			   u64 *shadow_pte, unsigned pt_access,
-			   unsigned pte_access,
-			   int user_fault, int write_fault,
+static void FNAME(set_pte)(struct kvm_vcpu *vcpu, u64 *shadow_pte,
+			   unsigned pt_access, unsigned pte_access,
+			   int user_fault, int write_fault, int dirty,
 			   int *ptwrite, struct guest_walker *walker,
 			   gfn_t gfn)
 {
-	int dirty = gpte & PT_DIRTY_MASK;
 	u64 spte;
 	int was_rmapped = is_rmap_pte(*shadow_pte);
 	struct page *page;
@@ -338,8 +336,8 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 		return;
 	pgprintk("%s: gpte %llx spte %p\n", __FUNCTION__, (u64)gpte, spte);
 	pte_access = page->role.access & FNAME(gpte_access)(vcpu, gpte);
-	FNAME(set_pte)(vcpu, gpte, spte, page->role.access, pte_access,
-		       0, 0, NULL, NULL, gpte_to_gfn(gpte));
+	FNAME(set_pte)(vcpu, spte, page->role.access, pte_access, 0, 0,
+		       gpte & PT_DIRTY_MASK, NULL, NULL, gpte_to_gfn(gpte));
 }
 
 /*
@@ -402,9 +400,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		*shadow_ent = shadow_pte;
 	}
 
-	FNAME(set_pte)(vcpu, walker->pte, shadow_ent,
-		       access, walker->pte_access & access,
-		       user_fault, write_fault,
+	FNAME(set_pte)(vcpu, shadow_ent, access, walker->pte_access & access,
+		       user_fault, write_fault, walker->pte & PT_DIRTY_MASK,
 		       ptwrite, walker, walker->gfn);
 
 	return shadow_ent;
