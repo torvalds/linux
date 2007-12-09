@@ -258,7 +258,6 @@ static void FNAME(set_pte)(struct kvm_vcpu *vcpu, pt_element_t gpte,
 	 * demand paging).
 	 */
 	spte = PT_PRESENT_MASK | PT_DIRTY_MASK;
-	spte |= gpte & PT64_NX_MASK;
 	if (!dirty)
 		pte_access &= ~ACC_WRITE_MASK;
 	if (!(pte_access & ACC_EXEC_MASK))
