@@ -879,6 +879,89 @@ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 	return gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
 }
 
+static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
+			 unsigned pt_access, unsigned pte_access,
+			 int user_fault, int write_fault, int dirty,
+			 int *ptwrite, gfn_t gfn)
+{
+	u64 spte;
+	int was_rmapped = is_rmap_pte(*shadow_pte);
+	struct page *page;
+
+	pgprintk("%s: spte %llx gpte %llx access %x write_fault %d"
+		 " user_fault %d gfn %lx\n",
+		 __FUNCTION__, *shadow_pte, (u64)gpte, pt_access,
+		 write_fault, user_fault, gfn);
+
+	/*
+	 * We don't set the accessed bit, since we sometimes want to see
+	 * whether the guest actually used the pte (in order to detect
+	 * demand paging).
+	 */
+	spte = PT_PRESENT_MASK | PT_DIRTY_MASK;
+	if (!dirty)
+		pte_access &= ~ACC_WRITE_MASK;
+	if (!(pte_access & ACC_EXEC_MASK))
+		spte |= PT64_NX_MASK;
+
+	page = gfn_to_page(vcpu->kvm, gfn);
+
+	spte |= PT_PRESENT_MASK;
+	if (pte_access & ACC_USER_MASK)
+		spte |= PT_USER_MASK;
+
+	if (is_error_page(page)) {
+		set_shadow_pte(shadow_pte,
+			       shadow_trap_nonpresent_pte | PT_SHADOW_IO_MARK);
+		kvm_release_page_clean(page);
+		return;
+	}
+
+	spte |= page_to_phys(page);
+
+	if ((pte_access & ACC_WRITE_MASK)
+	    || (write_fault && !is_write_protection(vcpu) && !user_fault)) {
+		struct kvm_mmu_page *shadow;
+
+		spte |= PT_WRITABLE_MASK;
+		if (user_fault) {
+			mmu_unshadow(vcpu->kvm, gfn);
+			goto unshadowed;
+		}
+
+		shadow = kvm_mmu_lookup_page(vcpu->kvm, gfn);
+		if (shadow) {
+			pgprintk("%s: found shadow page for %lx, marking ro\n",
+				 __FUNCTION__, gfn);
+			pte_access &= ~ACC_WRITE_MASK;
+			if (is_writeble_pte(spte)) {
+				spte &= ~PT_WRITABLE_MASK;
+				kvm_x86_ops->tlb_flush(vcpu);
+			}
+			if (write_fault)
+				*ptwrite = 1;
+		}
+	}
+
+unshadowed:
+
+	if (pte_access & ACC_WRITE_MASK)
+		mark_page_dirty(vcpu->kvm, gfn);
+
+	pgprintk("%s: setting spte %llx\n", __FUNCTION__, spte);
+	set_shadow_pte(shadow_pte, spte);
+	page_header_update_slot(vcpu->kvm, shadow_pte, gfn);
+	if (!was_rmapped) {
+		rmap_add(vcpu, shadow_pte, gfn);
+		if (!is_rmap_pte(*shadow_pte))
+			kvm_release_page_clean(page);
+	}
+	else
+		kvm_release_page_clean(page);
+	if (!ptwrite || !*ptwrite)
+		vcpu->last_pte_updated = shadow_pte;
+}
+
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
