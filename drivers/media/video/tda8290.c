@@ -636,6 +636,9 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 }
 
 static struct analog_tuner_ops tda8290_tuner_ops = {
+	.info		= {
+		.name	= "TDA8290",
+	},
 	.set_params     = tda8290_set_params,
 	.has_signal     = tda8290_has_signal,
 	.standby        = tda8290_standby,
@@ -644,6 +647,9 @@ static struct analog_tuner_ops tda8290_tuner_ops = {
 };
 
 static struct analog_tuner_ops tda8295_tuner_ops = {
+	.info		= {
+		.name	= "TDA8295",
+	},
 	.set_params     = tda8295_set_params,
 	.has_signal     = tda8295_has_signal,
 	.standby        = tda8295_standby,

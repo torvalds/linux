@@ -410,6 +410,9 @@ static void set_type(struct i2c_client *c, unsigned int type,
 
 		t->fe.ops.analog_demod_ops = &tuner_core_ops;
 		t->fe.analog_demod_priv = t;
+	} else {
+		strlcpy(t->i2c->name, ops->info.name,
+			sizeof(t->i2c->name));
 	}
 
 	tuner_dbg("type set to %s\n", t->i2c->name);

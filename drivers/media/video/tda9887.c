@@ -636,6 +636,9 @@ static void tda9887_release(struct dvb_frontend *fe)
 }
 
 static struct analog_tuner_ops tda9887_tuner_ops = {
+	.info		= {
+		.name	= "TDA9887",
+	},
 	.set_params     = tda9887_set_params,
 	.standby        = tda9887_standby,
 	.tuner_status   = tda9887_tuner_status,

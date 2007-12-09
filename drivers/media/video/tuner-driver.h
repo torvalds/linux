@@ -28,7 +28,14 @@
 
 extern unsigned const int tuner_count;
 
+struct analog_demod_info {
+	char name[128];
+};
+
 struct analog_tuner_ops {
+
+	struct analog_demod_info info;
+
 	void (*set_params)(struct dvb_frontend *fe,
 			   struct analog_parameters *params);
 	int  (*has_signal)(struct dvb_frontend *fe);
