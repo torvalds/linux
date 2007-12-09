@@ -888,9 +888,9 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	int was_rmapped = is_rmap_pte(*shadow_pte);
 	struct page *page;
 
-	pgprintk("%s: spte %llx gpte %llx access %x write_fault %d"
+	pgprintk("%s: spte %llx access %x write_fault %d"
 		 " user_fault %d gfn %lx\n",
-		 __FUNCTION__, *shadow_pte, (u64)gpte, pt_access,
+		 __FUNCTION__, *shadow_pte, pt_access,
 		 write_fault, user_fault, gfn);
 
 	/*
