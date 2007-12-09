@@ -1138,11 +1138,11 @@ register_client:
 
 	/* Sets a default mode */
 	if (t->mode_mask & T_ANALOG_TV) {
-		t->mode = T_ANALOG_TV;
+		t->mode = V4L2_TUNER_ANALOG_TV;
 	} else  if (t->mode_mask & T_RADIO) {
-		t->mode = T_RADIO;
+		t->mode = V4L2_TUNER_RADIO;
 	} else {
-		t->mode = T_DIGITAL_TV;
+		t->mode = V4L2_TUNER_DIGITAL_TV;
 	}
 	set_type(client, t->type, t->mode_mask, t->config, t->tuner_callback);
 	list_add_tail(&t->list, &tuner_list);
