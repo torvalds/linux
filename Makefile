@@ -118,9 +118,6 @@ saved-output := $(KBUILD_OUTPUT)
 KBUILD_OUTPUT := $(shell cd $(KBUILD_OUTPUT) && /bin/pwd)
 $(if $(KBUILD_OUTPUT),, \
      $(error output directory "$(saved-output)" does not exist))
-# Check that OUTPUT directory is not the same as where we have kernel src
-$(if $(filter-out $(KBUILD_OUTPUT),$(shell /bin/pwd)),, \
-     $(error Output directory (O=...) specifies kernel src dir))
 
 PHONY += $(MAKECMDGOALS) sub-make
 
