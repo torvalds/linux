@@ -321,8 +321,7 @@ static ssize_t lbs_setuserscan(struct file *file,
 
 	lbs_scan_networks(priv, scan_cfg, 1);
 	wait_event_interruptible(priv->cmd_pending,
-				 priv->surpriseremoved || 
-				 (!priv->cur_cmd && list_empty(&priv->cmdpendingq)));
+				 priv->surpriseremoved || !priv->last_scanned_channel);
 
 	if (priv->surpriseremoved)
 		goto out_scan_cfg;
