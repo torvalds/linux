@@ -327,6 +327,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 			      int offset_in_pte)
 {
 	pt_element_t gpte;
+	unsigned pte_access;
 
 	gpte = *(const pt_element_t *)pte;
 	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
@@ -337,7 +338,8 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	if (bytes < sizeof(pt_element_t))
 		return;
 	pgprintk("%s: gpte %llx spte %p\n", __FUNCTION__, (u64)gpte, spte);
-	FNAME(set_pte)(vcpu, gpte, spte, ACC_ALL, ACC_ALL,
+	pte_access = page->role.access & FNAME(gpte_access)(vcpu, gpte);
+	FNAME(set_pte)(vcpu, gpte, spte, page->role.access, pte_access,
 		       0, 0, NULL, NULL, gpte_to_gfn(gpte));
 }
 

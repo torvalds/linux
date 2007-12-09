@@ -55,7 +55,7 @@ struct kvm_pte_chain {
  *   bits 4:7 - page table level for this shadow (1-4)
  *   bits 8:9 - page table quadrant for 2-level guests
  *   bit   16 - "metaphysical" - gfn is not a real page (huge page/real mode)
- *   bits 17:19 - "access" - the user, writable, and nx bits of a huge page pde
+ *   bits 17:19 - common access permissions for all ptes in this shadow page
  */
 union kvm_mmu_page_role {
 	unsigned word;
@@ -65,7 +65,7 @@ union kvm_mmu_page_role {
 		unsigned quadrant : 2;
 		unsigned pad_for_nice_hex_output : 6;
 		unsigned metaphysical : 1;
-		unsigned hugepage_access : 3;
+		unsigned access : 3;
 	};
 };
 

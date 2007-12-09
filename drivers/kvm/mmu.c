@@ -680,7 +680,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 					     gva_t gaddr,
 					     unsigned level,
 					     int metaphysical,
-					     unsigned hugepage_access,
+					     unsigned access,
 					     u64 *parent_pte)
 {
 	union kvm_mmu_page_role role;
@@ -694,7 +694,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	role.glevels = vcpu->mmu.root_level;
 	role.level = level;
 	role.metaphysical = metaphysical;
-	role.hugepage_access = hugepage_access;
+	role.access = access;
 	if (vcpu->mmu.root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
