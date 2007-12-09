@@ -10,7 +10,6 @@
 #include <linux/wireless.h>
 #include <linux/ethtool.h>
 #include <linux/debugfs.h>
-#include <net/ieee80211.h>
 
 #include "defs.h"
 #include "scan.h"
@@ -114,7 +113,6 @@ struct lbs_private {
 	struct net_device_stats stats;
 	struct net_device *mesh_dev; /* Virtual device */
 	struct net_device *rtap_net_dev;
-	struct ieee80211_device *ieee;
 
 	struct iw_statistics wstats;
 	struct lbs_mesh_stats mstats;

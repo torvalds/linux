@@ -1448,7 +1448,7 @@ static int lbs_rtap_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static struct net_device_stats *lbs_rtap_get_stats(struct net_device *dev)
 {
 	struct lbs_private *priv = dev->priv;
-	return &priv->ieee->stats;
+	return &priv->stats;
 }
 
 
@@ -1457,42 +1457,36 @@ void lbs_remove_rtap(struct lbs_private *priv)
 	if (priv->rtap_net_dev == NULL)
 		return;
 	unregister_netdev(priv->rtap_net_dev);
-	free_ieee80211(priv->rtap_net_dev);
+	free_netdev(priv->rtap_net_dev);
 	priv->rtap_net_dev = NULL;
 }
 
 int lbs_add_rtap(struct lbs_private *priv)
 {
 	int rc = 0;
+	struct net_device *rtap_dev;
 
 	if (priv->rtap_net_dev)
 		return -EPERM;
 
-	priv->rtap_net_dev = alloc_ieee80211(0);
-	if (priv->rtap_net_dev == NULL)
+	rtap_dev = alloc_netdev(0, "rtap%d", ether_setup);
+	if (rtap_dev == NULL)
 		return -ENOMEM;
 
+	rtap_dev->type = ARPHRD_IEEE80211_RADIOTAP;
+	rtap_dev->open = lbs_rtap_open;
+	rtap_dev->stop = lbs_rtap_stop;
+	rtap_dev->get_stats = lbs_rtap_get_stats;
+	rtap_dev->hard_start_xmit = lbs_rtap_hard_start_xmit;
+	rtap_dev->set_multicast_list = lbs_set_multicast_list;
+	rtap_dev->priv = priv;
 
-	priv->ieee = netdev_priv(priv->rtap_net_dev);
-
-	strcpy(priv->rtap_net_dev->name, "rtap%d");
-
-	priv->rtap_net_dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	priv->rtap_net_dev->open = lbs_rtap_open;
-	priv->rtap_net_dev->stop = lbs_rtap_stop;
-	priv->rtap_net_dev->get_stats = lbs_rtap_get_stats;
-	priv->rtap_net_dev->hard_start_xmit = lbs_rtap_hard_start_xmit;
-	priv->rtap_net_dev->set_multicast_list = lbs_set_multicast_list;
-	priv->rtap_net_dev->priv = priv;
-
-	priv->ieee->iw_mode = IW_MODE_MONITOR;
-
-	rc = register_netdev(priv->rtap_net_dev);
+	rc = register_netdev(rtap_dev);
 	if (rc) {
-		free_ieee80211(priv->rtap_net_dev);
-		priv->rtap_net_dev = NULL;
+		free_netdev(rtap_dev);
 		return rc;
 	}
+	priv->rtap_net_dev = rtap_dev;
 
 	return 0;
 }
