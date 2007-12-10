@@ -20,8 +20,7 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
-struct tda829x_config
-{
+struct tda829x_config {
 	unsigned int *lna_cfg;
 	int (*tuner_callback) (void *dev, int command, int arg);
 };
