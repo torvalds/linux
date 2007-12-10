@@ -26,6 +26,7 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
+#include <asm/elf.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
@@ -77,6 +78,8 @@ unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
 unsigned long memory_end = 0;
 EXPORT_SYMBOL(memory_end);
+
+int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;
 
 static int __init early_parse_mem(char *p)
 {

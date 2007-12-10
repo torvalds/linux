@@ -161,12 +161,25 @@ extern void __kernel_vsyscall;
 #define VDSO_BASE		((unsigned long)current->mm->context.vdso)
 #define VDSO_SYM(x)		(VDSO_BASE + (unsigned long)(x))
 
+#define VSYSCALL_AUX_ENT					\
+	if (vdso_enabled)					\
+		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE);
+#else
+#define VSYSCALL_AUX_ENT
+#endif /* CONFIG_VSYSCALL */
+
+extern int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;
+
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 #define ARCH_DLINFO						\
 do {								\
-	if (vdso_enabled)					\
-		NEW_AUX_ENT(AT_SYSINFO_EHDR, VDSO_BASE);	\
+	/* Optional vsyscall entry */				\
+	VSYSCALL_AUX_ENT					\
+								\
+	/* Cache desc */					\
+	NEW_AUX_ENT(AT_L1I_CACHESHAPE, l1i_cache_shape);	\
+	NEW_AUX_ENT(AT_L1D_CACHESHAPE, l1d_cache_shape);	\
+	NEW_AUX_ENT(AT_L2_CACHESHAPE, l2_cache_shape);		\
 } while (0)
-#endif /* CONFIG_VSYSCALL */
 
 #endif /* __ASM_SH_ELF_H */

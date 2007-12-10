@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/log2.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -20,6 +21,7 @@
 #include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <asm/cache.h>
+#include <asm/elf.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #ifdef CONFIG_SUPERH32
@@ -151,6 +153,27 @@ static void __uses_jump_to_uncached cache_init(void)
 #define cache_init()	do { } while (0)
 #endif
 
+#define CSHAPE(totalsize, linesize, assoc) \
+	((totalsize & ~0xff) | (linesize << 4) | assoc)
+
+#define CACHE_DESC_SHAPE(desc)	\
+	CSHAPE((desc).way_size * (desc).ways, ilog2((desc).linesz), (desc).ways)
+
+static void detect_cache_shape(void)
+{
+	l1d_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.dcache);
+
+	if (current_cpu_data.dcache.flags & SH_CACHE_COMBINED)
+		l1i_cache_shape = l1d_cache_shape;
+	else
+		l1i_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.icache);
+
+	if (current_cpu_data.flags & CPU_HAS_L2_CACHE)
+		l2_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.scache);
+	else
+		l2_cache_shape = -1; /* No S-cache */
+}
+
 #ifdef CONFIG_SH_DSP
 static void __init release_dsp(void)
 {
@@ -237,10 +260,14 @@ asmlinkage void __cpuinit sh_cpu_init(void)
 	/* Init the cache */
 	cache_init();
 
-	if (raw_smp_processor_id() == 0)
+	if (raw_smp_processor_id() == 0) {
 		shm_align_mask = max_t(unsigned long,
 				       current_cpu_data.dcache.way_size - 1,
 				       PAGE_SIZE - 1);
+
+		/* Boot CPU sets the cache shape */
+		detect_cache_shape();
+	}
 
 	/* Disable the FPU */
 	if (fpu_disabled) {
