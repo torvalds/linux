@@ -21,7 +21,8 @@ struct nfs_client {
 #define NFS_CS_CALLBACK		1		/* - callback started */
 #define NFS_CS_IDMAP		2		/* - idmap started */
 #define NFS_CS_RENEWD		3		/* - renewd started */
-	struct sockaddr_in	cl_addr;	/* server identifier */
+	struct sockaddr_storage	cl_addr;	/* server identifier */
+	size_t			cl_addrlen;
 	char *			cl_hostname;	/* hostname of server */
 	struct list_head	cl_share_link;	/* link in global client list */
 	struct list_head	cl_superblocks;	/* List of nfs_server structs */

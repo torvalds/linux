@@ -98,6 +98,7 @@ struct rpc_program		nfsacl_program = {
 struct nfs_client_initdata {
 	const char *hostname;
 	const struct sockaddr_in *addr;
+	size_t addrlen;
 	const struct nfs_rpc_ops *rpc_ops;
 };
 
@@ -125,7 +126,8 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	atomic_set(&clp->cl_count, 1);
 	clp->cl_cons_state = NFS_CS_INITING;
 
-	memcpy(&clp->cl_addr, cl_init->addr, sizeof(clp->cl_addr));
+	memcpy(&clp->cl_addr, cl_init->addr, cl_init->addrlen);
+	clp->cl_addrlen = cl_init->addrlen;
 
 	if (cl_init->hostname) {
 		clp->cl_hostname = kstrdup(cl_init->hostname, GFP_KERNEL);
@@ -425,7 +427,7 @@ static int nfs_create_rpc_client(struct nfs_client *clp, int proto,
 	struct rpc_create_args args = {
 		.protocol	= proto,
 		.address	= (struct sockaddr *)&clp->cl_addr,
-		.addrsize	= sizeof(clp->cl_addr),
+		.addrsize	= clp->cl_addrlen,
 		.timeout	= &timeparms,
 		.servername	= clp->cl_hostname,
 		.program	= &nfs_program,
@@ -585,6 +587,7 @@ static int nfs_init_server(struct nfs_server *server,
 	struct nfs_client_initdata cl_init = {
 		.hostname = data->nfs_server.hostname,
 		.addr = &data->nfs_server.address,
+		.addrlen = sizeof(data->nfs_server.address),
 		.rpc_ops = &nfs_v2_clientops,
 	};
 	struct nfs_client *clp;
@@ -938,6 +941,7 @@ static int nfs4_set_client(struct nfs_server *server,
 	struct nfs_client_initdata cl_init = {
 		.hostname = hostname,
 		.addr = addr,
+		.addrlen = sizeof(*addr),
 		.rpc_ops = &nfs_v4_clientops,
 	};
 	struct nfs_client *clp;
