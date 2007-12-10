@@ -44,7 +44,7 @@ static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 	struct crypto_authenc_key_param *param;
 	int err = -EINVAL;
 
-	if (keylen < sizeof(*rta))
+	if (!RTA_OK(rta, keylen))
 		goto badkey;
 	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
 		goto badkey;
