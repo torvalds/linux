@@ -649,15 +649,18 @@ static int nfs_verify_server_address(struct sockaddr *addr)
  * to punt the mount.
  */
 static void nfs_parse_server_address(char *value,
-				     struct sockaddr *sap)
+				     struct sockaddr *sap,
+				     size_t *len)
 {
 	struct sockaddr_in *ap = (void *)sap;
 
 	ap->sin_family = AF_INET;
+	*len = sizeof(*ap);
 	if (in4_pton(value, -1, (u8 *)&ap->sin_addr.s_addr, '\0', NULL))
 		return;
 
 	sap->sa_family = AF_UNSPEC;
+	*len = 0;
 }
 
 /*
@@ -984,7 +987,8 @@ static int nfs_parse_mount_options(char *raw,
 			if (string == NULL)
 				goto out_nomem;
 			nfs_parse_server_address(string, (struct sockaddr *)
-						 &mnt->nfs_server.address);
+						 &mnt->nfs_server.address,
+						 &mnt->nfs_server.addrlen);
 			kfree(string);
 			break;
 		case Opt_clientaddr:
@@ -1004,7 +1008,8 @@ static int nfs_parse_mount_options(char *raw,
 			if (string == NULL)
 				goto out_nomem;
 			nfs_parse_server_address(string, (struct sockaddr *)
-						 &mnt->mount_server.address);
+						 &mnt->mount_server.address,
+						 &mnt->mount_server.addrlen);
 			kfree(string);
 			break;
 
@@ -1049,9 +1054,9 @@ out_unknown:
 static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 			 struct nfs_fh *root_fh)
 {
-	struct sockaddr_in sin;
-	int status;
+	struct sockaddr *sap = (struct sockaddr *)&args->mount_server.address;
 	char *hostname;
+	int status;
 
 	if (args->mount_server.version == 0) {
 		if (args->flags & NFS_MOUNT_VER3)
@@ -1068,21 +1073,23 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	/*
 	 * Construct the mount server's address.
 	 */
-	if (args->mount_server.address.sin_addr.s_addr != INADDR_ANY)
-		sin = args->mount_server.address;
-	else
-		sin = args->nfs_server.address;
+	if (args->mount_server.address.ss_family == AF_UNSPEC) {
+		memcpy(sap, &args->nfs_server.address,
+		       args->nfs_server.addrlen);
+		args->mount_server.addrlen = args->nfs_server.addrlen;
+	}
+
 	/*
 	 * autobind will be used if mount_server.port == 0
 	 */
-	nfs_set_port((struct sockaddr *)&sin, args->mount_server.port);
+	nfs_set_port(sap, args->mount_server.port);
 
 	/*
 	 * Now ask the mount server to map our export path
 	 * to a file handle.
 	 */
-	status = nfs_mount((struct sockaddr *) &sin,
-			   sizeof(sin),
+	status = nfs_mount(sap,
+			   args->mount_server.addrlen,
 			   hostname,
 			   args->nfs_server.export_path,
 			   args->mount_server.version,
@@ -1165,9 +1172,6 @@ static int nfs_validate_mount_data(void *options,
 			memset(mntfh->data + mntfh->size, 0,
 			       sizeof(mntfh->data) - mntfh->size);
 
-		if (!nfs_verify_server_address((struct sockaddr *) &data->addr))
-			goto out_no_address;
-
 		/*
 		 * Translate to nfs_parsed_mount_data, which nfs_fill_super
 		 * can deal with.
@@ -1182,7 +1186,14 @@ static int nfs_validate_mount_data(void *options,
 		args->acregmax		= data->acregmax;
 		args->acdirmin		= data->acdirmin;
 		args->acdirmax		= data->acdirmax;
-		args->nfs_server.address = data->addr;
+
+		memcpy(&args->nfs_server.address, &data->addr,
+		       sizeof(data->addr));
+		args->nfs_server.addrlen = sizeof(data->addr);
+		if (!nfs_verify_server_address((struct sockaddr *)
+						&args->nfs_server.address))
+			goto out_no_address;
+
 		if (!(data->flags & NFS_MOUNT_TCP))
 			args->nfs_server.protocol = XPRT_TRANSPORT_UDP;
 		/* N.B. caller will free nfs_server.hostname in all cases */
@@ -1655,6 +1666,7 @@ static int nfs4_validate_mount_data(void *options,
 				    struct nfs_parsed_mount_data *args,
 				    const char *dev_name)
 {
+	struct sockaddr_in *ap;
 	struct nfs4_mount_data *data = (struct nfs4_mount_data *)options;
 	char *c;
 
@@ -1675,11 +1687,13 @@ static int nfs4_validate_mount_data(void *options,
 
 	switch (data->version) {
 	case 1:
-		if (data->host_addrlen != sizeof(args->nfs_server.address))
+		ap = (struct sockaddr_in *)&args->nfs_server.address;
+		if (data->host_addrlen > sizeof(args->nfs_server.address))
 			goto out_no_address;
-		if (copy_from_user(&args->nfs_server.address,
-				   data->host_addr,
-				   sizeof(args->nfs_server.address)))
+		if (data->host_addrlen == 0)
+			goto out_no_address;
+		args->nfs_server.addrlen = data->host_addrlen;
+		if (copy_from_user(ap, data->host_addr, data->host_addrlen))
 			return -EFAULT;
 		if (!nfs_verify_server_address((struct sockaddr *)
 						&args->nfs_server.address))

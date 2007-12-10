@@ -581,7 +581,7 @@ static int nfs_init_server(struct nfs_server *server,
 	struct nfs_client_initdata cl_init = {
 		.hostname = data->nfs_server.hostname,
 		.addr = (const struct sockaddr *)&data->nfs_server.address,
-		.addrlen = sizeof(data->nfs_server.address),
+		.addrlen = data->nfs_server.addrlen,
 		.rpc_ops = &nfs_v2_clientops,
 	};
 	struct nfs_client *clp;
@@ -1018,7 +1018,7 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 	error = nfs4_set_client(server,
 			data->nfs_server.hostname,
 			(struct sockaddr *)&data->nfs_server.address,
-			sizeof(data->nfs_server.address),
+			data->nfs_server.addrlen,
 			data->client_address,
 			data->auth_flavors[0],
 			data->nfs_server.protocol,
