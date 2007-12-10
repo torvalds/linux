@@ -21,7 +21,8 @@ struct nfs_clone_mount {
 	struct nfs_fattr *fattr;
 	char *hostname;
 	char *mnt_path;
-	struct sockaddr_in *addr;
+	struct sockaddr *addr;
+	size_t addrlen;
 	rpc_authflavor_t authflavor;
 };
 

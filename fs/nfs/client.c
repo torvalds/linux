@@ -1094,8 +1094,8 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	/* Get a client representation.
 	 * Note: NFSv4 always uses TCP, */
 	error = nfs4_set_client(server, data->hostname,
-				(struct sockaddr *)data->addr,
-				sizeof(*data->addr),
+				data->addr,
+				data->addrlen,
 				parent_client->cl_ipaddr,
 				data->authflavor,
 				parent_server->client->cl_xprt->prot,
