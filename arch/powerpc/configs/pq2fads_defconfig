@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc4
-# Thu Dec  6 16:49:09 2007
+# Linux kernel version: 2.6.24-rc5
+# Thu Dec 13 22:39:18 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -548,7 +548,7 @@ CONFIG_MII=y
 CONFIG_FS_ENET=y
 # CONFIG_FS_ENET_HAS_SCC is not set
 CONFIG_FS_ENET_HAS_FCC=y
-# CONFIG_FS_ENET_MDIO_FCC is not set
+CONFIG_FS_ENET_MDIO_FCC=y
 CONFIG_NETDEV_1000=y
 # CONFIG_ACENIC is not set
 # CONFIG_DL2K is not set
