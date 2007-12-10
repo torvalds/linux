@@ -77,6 +77,11 @@ static unsigned int crypto_aead_ctxsize(struct crypto_alg *alg, u32 type,
 	return alg->cra_ctxsize;
 }
 
+static int no_givdecrypt(struct aead_givcrypt_request *req)
+{
+	return -ENOSYS;
+}
+
 static int crypto_init_aead_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 {
 	struct aead_alg *alg = &tfm->__crt_alg->cra_aead;
@@ -88,6 +93,8 @@ static int crypto_init_aead_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 	crt->setkey = setkey;
 	crt->encrypt = alg->encrypt;
 	crt->decrypt = alg->decrypt;
+	crt->givencrypt = alg->givencrypt;
+	crt->givdecrypt = alg->givdecrypt ?: no_givdecrypt;
 	crt->ivsize = alg->ivsize;
 	crt->authsize = alg->maxauthsize;
 

@@ -106,6 +106,7 @@ struct crypto_blkcipher;
 struct crypto_hash;
 struct crypto_tfm;
 struct crypto_type;
+struct aead_givcrypt_request;
 struct skcipher_givcrypt_request;
 
 typedef void (*crypto_completion_t)(struct crypto_async_request *req, int err);
@@ -202,6 +203,8 @@ struct aead_alg {
 	int (*setauthsize)(struct crypto_aead *tfm, unsigned int authsize);
 	int (*encrypt)(struct aead_request *req);
 	int (*decrypt)(struct aead_request *req);
+	int (*givencrypt)(struct aead_givcrypt_request *req);
+	int (*givdecrypt)(struct aead_givcrypt_request *req);
 
 	unsigned int ivsize;
 	unsigned int maxauthsize;
@@ -348,6 +351,8 @@ struct aead_tfm {
 	              unsigned int keylen);
 	int (*encrypt)(struct aead_request *req);
 	int (*decrypt)(struct aead_request *req);
+	int (*givencrypt)(struct aead_givcrypt_request *req);
+	int (*givdecrypt)(struct aead_givcrypt_request *req);
 	unsigned int ivsize;
 	unsigned int authsize;
 	unsigned int reqsize;
