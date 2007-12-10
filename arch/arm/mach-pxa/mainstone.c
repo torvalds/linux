@@ -131,9 +131,13 @@ static struct sys_device mainstone_irq_device = {
 
 static int __init mainstone_irq_device_init(void)
 {
-	int ret = sysdev_class_register(&mainstone_irq_sysclass);
-	if (ret == 0)
-		ret = sysdev_register(&mainstone_irq_device);
+	int ret = -ENODEV;
+
+	if (machine_is_mainstone()) {
+		ret = sysdev_class_register(&mainstone_irq_sysclass);
+		if (ret == 0)
+			ret = sysdev_register(&mainstone_irq_device);
+	}
 	return ret;
 }
 

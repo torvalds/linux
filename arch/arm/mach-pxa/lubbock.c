@@ -136,9 +136,13 @@ static struct sys_device lubbock_irq_device = {
 
 static int __init lubbock_irq_device_init(void)
 {
-	int ret = sysdev_class_register(&lubbock_irq_sysclass);
-	if (ret == 0)
-		ret = sysdev_register(&lubbock_irq_device);
+	int ret = -ENODEV;
+
+	if (machine_is_lubbock()) {
+		ret = sysdev_class_register(&lubbock_irq_sysclass);
+		if (ret == 0)
+			ret = sysdev_register(&lubbock_irq_device);
+	}
 	return ret;
 }
 
