@@ -23,10 +23,6 @@ void lbs_send_tx_feedback(struct lbs_private *priv);
 
 int lbs_free_cmd_buffer(struct lbs_private *priv);
 
-int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size, 
-	    int (*callback)(struct lbs_private *, unsigned long, struct cmd_ds_command *),
-	    unsigned long callback_arg);
-
 int lbs_prepare_and_send_command(struct lbs_private *priv,
 	u16 cmd_no,
 	u16 cmd_action,

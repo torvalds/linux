@@ -1994,9 +1994,9 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
  *                      the result code from the firmware
  */
 
-int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
-	    int (*callback)(struct lbs_private *, unsigned long, struct cmd_ds_command *),
-	    unsigned long callback_arg)
+int __lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
+	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_ds_command *),
+	      unsigned long callback_arg)
 {
 	struct cmd_ctrl_node *cmdnode;
 	struct cmd_ds_gen *cmdptr;
@@ -2066,6 +2066,6 @@ done:
 	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(lbs_cmd);
+EXPORT_SYMBOL_GPL(__lbs_cmd);
 
 

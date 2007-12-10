@@ -13,6 +13,7 @@
 #include "decl.h"
 #include "defs.h"
 #include "dev.h"
+#include "cmd.h"
 #include "if_usb.h"
 
 #define MESSAGE_HEADER_LEN	4
@@ -108,7 +109,7 @@ static void if_usb_set_boot2_ver(struct lbs_private *priv)
 	b2_cmd.action = 0;
 	b2_cmd.version = priv->boot2_version;
 
-	if (lbs_cmd(priv, CMD_SET_BOOT2_VER, &b2_cmd, sizeof(b2_cmd), NULL, 0))
+	if (lbs_cmd(priv, CMD_SET_BOOT2_VER, b2_cmd, NULL, 0))
 		lbs_deb_usb("Setting boot2 version failed\n");
 }
 
