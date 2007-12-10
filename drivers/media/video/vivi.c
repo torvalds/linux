@@ -170,7 +170,7 @@ struct vivi_dev {
 	int                        users;
 
 	/* various device info */
-	struct video_device        vfd;
+	struct video_device        *vfd;
 
 	struct vivi_dmaqueue       vidq;
 
@@ -986,7 +986,7 @@ static int vivi_open(struct inode *inode, struct file *file)
 	printk(KERN_DEBUG "vivi: open called (minor=%d)\n",minor);
 
 	list_for_each_entry(dev, &vivi_devlist, vivi_devlist)
-		if (dev->vfd.minor == minor)
+		if (dev->vfd->minor == minor)
 			goto found;
 	return -ENODEV;
 found:
@@ -1067,7 +1067,7 @@ vivi_poll(struct file *file, struct poll_table_struct *wait)
 	return videobuf_poll_stream(file, q, wait);
 }
 
-static int vivi_release(struct inode *inode, struct file *file)
+static int vivi_close(struct inode *inode, struct file *file)
 {
 	struct vivi_fh         *fh = file->private_data;
 	struct vivi_dev *dev       = fh->dev;
@@ -1084,6 +1084,18 @@ static int vivi_release(struct inode *inode, struct file *file)
 	dev->users--;
 
 	printk(KERN_DEBUG "vivi: close called (minor=%d, users=%d)\n",minor,dev->users);
+
+	return 0;
+}
+
+static int vivi_release(struct vivi_dev *dev)
+{
+	if (-1 != dev->vfd->minor)
+		video_unregister_device(dev->vfd);
+	else
+		video_device_release(dev->vfd);
+
+	dev->vfd = NULL;
 
 	return 0;
 }
@@ -1109,7 +1121,7 @@ vivi_mmap(struct file *file, struct vm_area_struct * vma)
 static const struct file_operations vivi_fops = {
 	.owner		= THIS_MODULE,
 	.open           = vivi_open,
-	.release        = vivi_release,
+	.release        = vivi_close,
 	.read           = vivi_read,
 	.poll		= vivi_poll,
 	.ioctl          = video_ioctl2, /* V4L2 ioctl handler */
@@ -1117,12 +1129,12 @@ static const struct file_operations vivi_fops = {
 	.llseek         = no_llseek,
 };
 
-static struct video_device vivi = {
+static struct video_device vivi_template = {
 	.name		= "vivi",
 	.type		= VID_TYPE_CAPTURE,
 	.fops           = &vivi_fops,
 	.minor		= -1,
-//	.release	= video_device_release,
+	.release	= video_device_release,
 
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_fmt_cap  = vidioc_enum_fmt_cap,
@@ -1156,6 +1168,7 @@ static int __init vivi_init(void)
 {
 	int ret;
 	struct vivi_dev *dev;
+	struct video_device *vfd;
 
 	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
 	if (NULL == dev)
@@ -1174,7 +1187,18 @@ static int __init vivi_init(void)
 	dev->vidq.timeout.data     = (unsigned long)dev;
 	init_timer(&dev->vidq.timeout);
 
-	ret = video_register_device(&vivi, VFL_TYPE_GRABBER, video_nr);
+	vfd = video_device_alloc();
+	if (NULL == vfd)
+		return -ENOMEM;
+
+	*vfd = vivi_template;
+
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
+	snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
+		 vivi_template.name, vfd->minor);
+
+	dev->vfd = vfd;
+
 	printk(KERN_INFO "Video Technology Magazine Virtual Video Capture Board (Load status: %d)\n", ret);
 	return ret;
 }
@@ -1188,9 +1212,9 @@ static void __exit vivi_exit(void)
 		list = vivi_devlist.next;
 		list_del(list);
 		h = list_entry(list, struct vivi_dev, vivi_devlist);
+		vivi_release(h);
 		kfree (h);
 	}
-	video_unregister_device(&vivi);
 }
 
 module_init(vivi_init);
