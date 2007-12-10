@@ -652,12 +652,23 @@ static void nfs_parse_server_address(char *value,
 				     struct sockaddr *sap,
 				     size_t *len)
 {
-	struct sockaddr_in *ap = (void *)sap;
+	if (strchr(value, ':')) {
+		struct sockaddr_in6 *ap = (struct sockaddr_in6 *)sap;
+		u8 *addr = (u8 *)&ap->sin6_addr.in6_u;
 
-	ap->sin_family = AF_INET;
-	*len = sizeof(*ap);
-	if (in4_pton(value, -1, (u8 *)&ap->sin_addr.s_addr, '\0', NULL))
-		return;
+		ap->sin6_family = AF_INET6;
+		*len = sizeof(*ap);
+		if (in6_pton(value, -1, addr, '\0', NULL))
+			return;
+	} else {
+		struct sockaddr_in *ap = (struct sockaddr_in *)sap;
+		u8 *addr = (u8 *)&ap->sin_addr.s_addr;
+
+		ap->sin_family = AF_INET;
+		*len = sizeof(*ap);
+		if (in4_pton(value, -1, addr, '\0', NULL))
+			return;
+	}
 
 	sap->sa_family = AF_UNSPEC;
 	*len = 0;
