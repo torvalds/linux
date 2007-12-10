@@ -11,8 +11,8 @@ lib-y := __divsi3.o __udivsi3.o __modsi3.o __umodsi3.o			\
 	flush.o ip_fast_csum.o do_csum.o				\
 	memset.o strlen.o xor.o
 
-lib-$(CONFIG_ITANIUM)	+= copy_page.o copy_user.o memcpy.o
-lib-$(CONFIG_MCKINLEY)	+= copy_page_mck.o memcpy_mck.o
+obj-$(CONFIG_ITANIUM)	+= copy_page.o copy_user.o memcpy.o
+obj-$(CONFIG_MCKINLEY)	+= copy_page_mck.o memcpy_mck.o
 lib-$(CONFIG_PERFMON)	+= carta_random.o
 
 AFLAGS___divdi3.o	=
