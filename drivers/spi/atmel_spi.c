@@ -195,8 +195,8 @@ static void atmel_spi_next_xfer(struct spi_master *master,
 		xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
 		xfer->rx_buf, xfer->rx_dma, spi_readl(as, IMR));
 
-	spi_writel(as, TCR, len);
 	spi_writel(as, RCR, len);
+	spi_writel(as, TCR, len);
 	spi_writel(as, PTCR, SPI_BIT(TXTEN) | SPI_BIT(RXTEN));
 }
 
