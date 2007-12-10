@@ -2651,10 +2651,8 @@ static struct snd_kcontrol_new snd_cmipci_extra_mixer_switches[] __devinitdata =
 };
 
 /* card control switches */
-static struct snd_kcontrol_new snd_cmipci_control_switches[] __devinitdata = {
-	// DEFINE_CARD_SWITCH("Joystick", joystick), /* now module option */
-	DEFINE_CARD_SWITCH("Modem", modem),
-};
+static struct snd_kcontrol_new snd_cmipci_modem_switch __devinitdata =
+DEFINE_CARD_SWITCH("Modem", modem);
 
 
 static int __devinit snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_device)
@@ -2735,9 +2733,9 @@ static int __devinit snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_devic
 	}
 
 	/* card switches */
-	sw = snd_cmipci_control_switches;
-	for (idx = 0; idx < ARRAY_SIZE(snd_cmipci_control_switches); idx++, sw++) {
-		err = snd_ctl_add(cm->card, snd_ctl_new1(sw, cm));
+	if (cm->chip_version < 39) {
+		err = snd_ctl_add(cm->card,
+				  snd_ctl_new1(&snd_cmipci_modem_switch, cm));
 		if (err < 0)
 			return err;
 	}
