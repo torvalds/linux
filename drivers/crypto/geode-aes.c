@@ -190,7 +190,7 @@ static int fallback_blk_dec(struct blkcipher_desc *desc,
 	tfm = desc->tfm;
 	desc->tfm = op->fallback.blk;
 
-	ret = crypto_blkcipher_decrypt(desc, dst, src, nbytes);
+	ret = crypto_blkcipher_decrypt_iv(desc, dst, src, nbytes);
 
 	desc->tfm = tfm;
 	return ret;
@@ -206,7 +206,7 @@ static int fallback_blk_enc(struct blkcipher_desc *desc,
 	tfm = desc->tfm;
 	desc->tfm = op->fallback.blk;
 
-	ret = crypto_blkcipher_encrypt(desc, dst, src, nbytes);
+	ret = crypto_blkcipher_encrypt_iv(desc, dst, src, nbytes);
 
 	desc->tfm = tfm;
 	return ret;
