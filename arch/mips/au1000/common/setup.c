@@ -137,12 +137,11 @@ phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 
 #ifdef CONFIG_PCI
 	{
-		u32 start, end;
+		u32 start = (u32)Au1500_PCI_MEM_START;
+		u32 end   = (u32)Au1500_PCI_MEM_END;
 
-		start = (u32)Au1500_PCI_MEM_START;
-		end = (u32)Au1500_PCI_MEM_END;
-		/* check for pci memory window */
-		if ((phys_addr >= start) && ((phys_addr + size) < end))
+		/* Check for PCI memory window */
+		if (phys_addr >= start && (phys_addr + size - 1) <= end)
 			return (phys_t)
 			       ((phys_addr - start) + Au1500_PCI_MEM_START);
 	}
