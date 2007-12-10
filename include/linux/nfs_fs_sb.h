@@ -64,7 +64,7 @@ struct nfs_client {
 	/* Our own IP address, as a null-terminated string.
 	 * This is used to generate the clientid, and the callback address.
 	 */
-	char			cl_ipaddr[16];
+	char			cl_ipaddr[48];
 	unsigned char		cl_id_uniquifier;
 #endif
 };
