@@ -788,10 +788,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 
 		memcpy(mgid.raw, mclist->dmi_addr + 4, sizeof mgid);
 
-		/* Add in the P_Key */
-		mgid.raw[4] = (priv->pkey >> 8) & 0xff;
-		mgid.raw[5] = priv->pkey & 0xff;
-
 		mcast = __ipoib_mcast_find(dev, &mgid);
 		if (!mcast || test_bit(IPOIB_MCAST_FLAG_SENDONLY, &mcast->flags)) {
 			struct ipoib_mcast *nmcast;
