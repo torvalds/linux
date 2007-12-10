@@ -524,7 +524,7 @@ static void __exit pxa_ssp_exit(void)
 	platform_driver_unregister(&pxa27x_ssp_driver);
 }
 
-module_init(pxa_ssp_init);
+arch_initcall(pxa_ssp_init);
 module_exit(pxa_ssp_exit);
 
 EXPORT_SYMBOL(ssp_write_word);
