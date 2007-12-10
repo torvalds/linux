@@ -257,10 +257,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 
 #define	MAX_LEDS			8
 
-#define IS_MESH_FRAME(x) (x->cb[6])
-#define SET_MESH_FRAME(x) (x->cb[6]=1)
-#define UNSET_MESH_FRAME(x) (x->cb[6]=0)
-
 /** Global Variable Declaration */
 extern const char lbs_driver_version[];
 extern u16 lbs_region_code_to_index[MRVDRV_MAX_REGION_CODE];
