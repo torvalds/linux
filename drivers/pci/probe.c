@@ -743,46 +743,22 @@ static int pci_setup_device(struct pci_dev * dev)
 		 */
 		if (class == PCI_CLASS_STORAGE_IDE) {
 			u8 progif;
-			struct pci_bus_region region;
-
 			pci_read_config_byte(dev, PCI_CLASS_PROG, &progif);
 			if ((progif & 1) == 0) {
-				struct resource resource = {
-					.start = 0x1F0,
-					.end = 0x1F7,
-					.flags = LEGACY_IO_RESOURCE,
-				};
-
-				pcibios_resource_to_bus(dev, &region, &resource);
-				dev->resource[0].start = region.start;
-				dev->resource[0].end = region.end;
-				dev->resource[0].flags = resource.flags;
-				resource.start = 0x3F6;
-				resource.end = 0x3F6;
-				resource.flags = LEGACY_IO_RESOURCE;
-				pcibios_resource_to_bus(dev, &region, &resource);
-				dev->resource[1].start = region.start;
-				dev->resource[1].end = region.end;
-				dev->resource[1].flags = resource.flags;
+				dev->resource[0].start = 0x1F0;
+				dev->resource[0].end = 0x1F7;
+				dev->resource[0].flags = LEGACY_IO_RESOURCE;
+				dev->resource[1].start = 0x3F6;
+				dev->resource[1].end = 0x3F6;
+				dev->resource[1].flags = LEGACY_IO_RESOURCE;
 			}
 			if ((progif & 4) == 0) {
-				struct resource resource = {
-					.start = 0x170,
-					.end = 0x177,
-					.flags = LEGACY_IO_RESOURCE,
-				};
-
-				pcibios_resource_to_bus(dev, &region, &resource);
-				dev->resource[2].start = region.start;
-				dev->resource[2].end = region.end;
-				dev->resource[2].flags = resource.flags;
-				resource.start = 0x376;
-				resource.end = 0x376;
-				resource.flags = LEGACY_IO_RESOURCE;
-				pcibios_resource_to_bus(dev, &region, &resource);
-				dev->resource[3].start = region.start;
-				dev->resource[3].end = region.end;
-				dev->resource[3].flags = resource.flags;
+				dev->resource[2].start = 0x170;
+				dev->resource[2].end = 0x177;
+				dev->resource[2].flags = LEGACY_IO_RESOURCE;
+				dev->resource[3].start = 0x376;
+				dev->resource[3].end = 0x376;
+				dev->resource[3].flags = LEGACY_IO_RESOURCE;
 			}
 		}
 		break;
