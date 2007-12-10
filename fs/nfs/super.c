@@ -641,6 +641,26 @@ static int nfs_verify_server_address(struct sockaddr *addr)
 }
 
 /*
+ * Parse string addresses passed in via a mount option,
+ * and construct a sockaddr based on the result.
+ *
+ * If address parsing fails, set the sockaddr's address
+ * family to AF_UNSPEC to force nfs_verify_server_address()
+ * to punt the mount.
+ */
+static void nfs_parse_server_address(char *value,
+				     struct sockaddr *sap)
+{
+	struct sockaddr_in *ap = (void *)sap;
+
+	ap->sin_family = AF_INET;
+	if (in4_pton(value, -1, (u8 *)&ap->sin_addr.s_addr, '\0', NULL))
+		return;
+
+	sap->sa_family = AF_UNSPEC;
+}
+
+/*
  * Error-check and convert a string of mount options from user space into
  * a data structure
  */
@@ -963,9 +983,8 @@ static int nfs_parse_mount_options(char *raw,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-			mnt->nfs_server.address.sin_family = AF_INET;
-			mnt->nfs_server.address.sin_addr.s_addr =
-							in_aton(string);
+			nfs_parse_server_address(string, (struct sockaddr *)
+						 &mnt->nfs_server.address);
 			kfree(string);
 			break;
 		case Opt_clientaddr:
@@ -984,9 +1003,8 @@ static int nfs_parse_mount_options(char *raw,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-			mnt->mount_server.address.sin_family = AF_INET;
-			mnt->mount_server.address.sin_addr.s_addr =
-							in_aton(string);
+			nfs_parse_server_address(string, (struct sockaddr *)
+						 &mnt->mount_server.address);
 			kfree(string);
 			break;
 
