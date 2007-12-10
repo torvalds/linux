@@ -105,7 +105,7 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	p802x_hdr = skb->data;
 	pkt_len = skb->len;
 
-	if (priv->monitormode != LBS_MONITOR_OFF) {
+	if (dev == priv->rtap_net_dev) {
 		struct tx_radiotap_hdr *rtap_hdr = (void *)skb->data;
 
 		/* set txpd fields from the radiotap header */
