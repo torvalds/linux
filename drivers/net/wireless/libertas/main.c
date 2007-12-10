@@ -1473,6 +1473,7 @@ int lbs_add_rtap(struct lbs_private *priv)
 	if (rtap_dev == NULL)
 		return -ENOMEM;
 
+	memcpy(rtap_dev->dev_addr, priv->current_addr, ETH_ALEN);
 	rtap_dev->type = ARPHRD_IEEE80211_RADIOTAP;
 	rtap_dev->open = lbs_rtap_open;
 	rtap_dev->stop = lbs_rtap_stop;
