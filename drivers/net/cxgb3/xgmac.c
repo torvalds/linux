@@ -106,6 +106,7 @@ int t3_mac_reset(struct cmac *mac)
 	t3_set_reg_field(adap, A_XGM_RXFIFO_CFG + oft,
 			 F_RXSTRFRWRD | F_DISERRFRAMES,
 			 uses_xaui(adap) ? 0 : F_RXSTRFRWRD);
+	t3_set_reg_field(adap, A_XGM_TXFIFO_CFG + oft, 0, F_UNDERUNFIX);
 
 	if (uses_xaui(adap)) {
 		if (adap->params.rev == 0) {
@@ -124,7 +125,11 @@ int t3_mac_reset(struct cmac *mac)
 			xaui_serdes_reset(mac);
 	}
 
-	val = F_MAC_RESET_;
+	t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + oft,
+			 V_RXMAXFRAMERSIZE(M_RXMAXFRAMERSIZE),
+			 V_RXMAXFRAMERSIZE(MAX_FRAME_SIZE) | F_RXENFRAMER);
+	val = F_MAC_RESET_ | F_XGMAC_STOP_EN;
+
 	if (is_10G(adap))
 		val |= F_PCS_RESET_;
 	else if (uses_xaui(adap))
@@ -313,8 +318,9 @@ static int rx_fifo_hwm(int mtu)
 
 int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 {
-	int hwm, lwm;
-	unsigned int thres, v;
+	int hwm, lwm, divisor;
+	int ipg;
+	unsigned int thres, v, reg;
 	struct adapter *adap = mac->adapter;
 
 	/*
@@ -335,27 +341,32 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 	hwm = min(hwm, MAC_RXFIFO_SIZE - 8192);
 	lwm = min(3 * (int)mtu, MAC_RXFIFO_SIZE / 4);
 
-	if (adap->params.rev == T3_REV_B2 &&
+	if (adap->params.rev >= T3_REV_B2 &&
 	    (t3_read_reg(adap, A_XGM_RX_CTRL + mac->offset) & F_RXEN)) {
 		disable_exact_filters(mac);
 		v = t3_read_reg(adap, A_XGM_RX_CFG + mac->offset);
 		t3_set_reg_field(adap, A_XGM_RX_CFG + mac->offset,
 				 F_ENHASHMCAST | F_COPYALLFRAMES, F_DISBCAST);
 
-		/* drain rx FIFO */
-		if (t3_wait_op_done(adap,
-				    A_XGM_RX_MAX_PKT_SIZE_ERR_CNT +
-				    mac->offset,
-				    1 << 31, 1, 20, 5)) {
+		reg = adap->params.rev == T3_REV_B2 ?
+			A_XGM_RX_MAX_PKT_SIZE_ERR_CNT : A_XGM_RXFIFO_CFG;
+
+		/* drain RX FIFO */
+		if (t3_wait_op_done(adap, reg + mac->offset,
+				    F_RXFIFO_EMPTY, 1, 20, 5)) {
 			t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
 			enable_exact_filters(mac);
 			return -EIO;
 		}
-		t3_write_reg(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset, mtu);
+		t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset,
+				 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),
+				 V_RXMAXPKTSIZE(mtu));
 		t3_write_reg(adap, A_XGM_RX_CFG + mac->offset, v);
 		enable_exact_filters(mac);
 	} else
-		t3_write_reg(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset, mtu);
+		t3_set_reg_field(adap, A_XGM_RX_MAX_PKT_SIZE + mac->offset,
+				 V_RXMAXPKTSIZE(M_RXMAXPKTSIZE),
+				 V_RXMAXPKTSIZE(mtu));
 
 	/*
 	 * Adjust the PAUSE frame watermarks.  We always set the LWM, and the
@@ -379,13 +390,16 @@ int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu)
 		thres /= 10;
 	thres = mtu > thres ? (mtu - thres + 7) / 8 : 0;
 	thres = max(thres, 8U);	/* need at least 8 */
+	ipg = (adap->params.rev == T3_REV_C) ? 0 : 1;
 	t3_set_reg_field(adap, A_XGM_TXFIFO_CFG + mac->offset,
 			 V_TXFIFOTHRESH(M_TXFIFOTHRESH) | V_TXIPG(M_TXIPG),
-			 V_TXFIFOTHRESH(thres) | V_TXIPG(1));
+			 V_TXFIFOTHRESH(thres) | V_TXIPG(ipg));
 
-	if (adap->params.rev > 0)
+	if (adap->params.rev > 0) {
+		divisor = (adap->params.rev == T3_REV_C) ? 64 : 8;
 		t3_write_reg(adap, A_XGM_PAUSE_TIMER + mac->offset,
-			     (hwm - lwm) * 4 / 8);
+			     (hwm - lwm) * 4 / divisor);
+	}
 	t3_write_reg(adap, A_XGM_TX_PAUSE_QUANTA + mac->offset,
 		     MAC_RXFIFO_SIZE * 4 * 8 / 512);
 	return 0;
@@ -522,7 +536,7 @@ int t3b2_mac_watchdog_task(struct cmac *mac)
 		goto rxcheck;
 	}
 
-	if ((tx_tcnt != mac->tx_tcnt) && (mac->tx_xcnt == 0))  {
+	if ((tx_tcnt != mac->tx_tcnt) && (mac->tx_xcnt == 0)) {
 		if (mac->toggle_cnt > 4) {
 			status = 2;
 			goto out;

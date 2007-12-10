@@ -1489,6 +1489,8 @@ static int __devinit bfin_atapi_probe(struct platform_device *pdev)
 	int board_idx = 0;
 	struct resource *res;
 	struct ata_host *host;
+	unsigned int fsclk = get_sclk();
+	int udma_mode = 5;
 	const struct ata_port_info *ppi[] =
 		{ &bfin_port_info[board_idx], NULL };
 
@@ -1506,6 +1508,11 @@ static int __devinit bfin_atapi_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL)
 		return -EINVAL;
+
+	while (bfin_port_info[board_idx].udma_mask>0 && udma_fsclk[udma_mode] > fsclk) {
+		udma_mode--;
+		bfin_port_info[board_idx].udma_mask >>= 1;
+	}
 
 	/*
 	 * Now that that's out of the way, wire up the port..

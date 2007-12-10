@@ -74,7 +74,7 @@ irqreturn_t pb1200_cascade_handler( int irq, void *dev_id)
 	bcsr->int_status = bisr;
 	for( ; bisr; bisr &= (bisr-1) )
 	{
-		extirq_nr = PB1200_INT_BEGIN + ffs(bisr);
+		extirq_nr = PB1200_INT_BEGIN + __ffs(bisr);
 		/* Ack and dispatch IRQ */
 		do_IRQ(extirq_nr);
 	}

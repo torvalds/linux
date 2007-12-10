@@ -531,6 +531,11 @@ static void acpi_processor_idle(void)
 
 	case ACPI_STATE_C3:
 		/*
+		 * Must be done before busmaster disable as we might
+		 * need to access HPET !
+		 */
+		acpi_state_timer_broadcast(pr, cx, 1);
+		/*
 		 * disable bus master
 		 * bm_check implies we need ARB_DIS
 		 * !bm_check implies we need cache flush
@@ -557,7 +562,6 @@ static void acpi_processor_idle(void)
 		/* Get start time (ticks) */
 		t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 		/* Invoke C3 */
-		acpi_state_timer_broadcast(pr, cx, 1);
 		/* Tell the scheduler that we are going deep-idle: */
 		sched_clock_idle_sleep_event();
 		acpi_cstate_enter(cx);
@@ -1401,9 +1405,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	if (acpi_idle_suspend)
 		return(acpi_idle_enter_c1(dev, state));
 
-	if (pr->flags.bm_check)
-		acpi_idle_update_bm_rld(pr, cx);
-
 	local_irq_disable();
 	current_thread_info()->status &= ~TS_POLLING;
 	/*
@@ -1418,13 +1419,21 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		return 0;
 	}
 
+	/*
+	 * Must be done before busmaster disable as we might need to
+	 * access HPET !
+	 */
+	acpi_state_timer_broadcast(pr, cx, 1);
+
+	if (pr->flags.bm_check)
+		acpi_idle_update_bm_rld(pr, cx);
+
 	if (cx->type == ACPI_STATE_C3)
 		ACPI_FLUSH_CPU_CACHE();
 
 	t1 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 	/* Tell the scheduler that we are going deep-idle: */
 	sched_clock_idle_sleep_event();
-	acpi_state_timer_broadcast(pr, cx, 1);
 	acpi_idle_do_entry(cx);
 	t2 = inl(acpi_gbl_FADT.xpm_timer_block.address);
 

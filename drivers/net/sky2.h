@@ -2128,4 +2128,25 @@ static inline void gma_set_addr(struct sky2_hw *hw, unsigned port, unsigned reg,
 	gma_write16(hw, port, reg+4,(u16) addr[2] | ((u16) addr[3] << 8));
 	gma_write16(hw, port, reg+8,(u16) addr[4] | ((u16) addr[5] << 8));
 }
+
+/* PCI config space access */
+static inline u32 sky2_pci_read32(const struct sky2_hw *hw, unsigned reg)
+{
+	return sky2_read32(hw, Y2_CFG_SPC + reg);
+}
+
+static inline u16 sky2_pci_read16(const struct sky2_hw *hw, unsigned reg)
+{
+	return sky2_read16(hw, Y2_CFG_SPC + reg);
+}
+
+static inline void sky2_pci_write32(struct sky2_hw *hw, unsigned reg, u32 val)
+{
+	sky2_write32(hw, Y2_CFG_SPC + reg, val);
+}
+
+static inline void sky2_pci_write16(struct sky2_hw *hw, unsigned reg, u16 val)
+{
+	sky2_write16(hw, Y2_CFG_SPC + reg, val);
+}
 #endif

@@ -35,10 +35,6 @@ wakeup_code:
 	wakeup_code_start = .
 	.code16
 
- 	movw	$0xb800, %ax
-	movw	%ax,%fs
-	movw	$0x0e00 + 'L', %fs:(0x10)
-
 	cli
 	cld
 

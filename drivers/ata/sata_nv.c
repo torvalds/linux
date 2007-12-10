@@ -791,11 +791,13 @@ static int nv_adma_check_atapi_dma(struct ata_queued_cmd *qc)
 
 static void nv_adma_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
-	/* Since commands where a result TF is requested are not
-	   executed in ADMA mode, the only time this function will be called
-	   in ADMA mode will be if a command fails. In this case we
-	   don't care about going into register mode with ADMA commands
-	   pending, as the commands will all shortly be aborted anyway. */
+	/* Other than when internal or pass-through commands are executed,
+	   the only time this function will be called in ADMA mode will be
+	   if a command fails. In the failure case we don't care about going
+	   into register mode with ADMA commands pending, as the commands will
+	   all shortly be aborted anyway. We assume that NCQ commands are not
+	   issued via passthrough, which is the only way that switching into
+	   ADMA mode could abort outstanding commands. */
 	nv_adma_register_mode(ap);
 
 	ata_tf_read(ap, tf);
@@ -1359,11 +1361,9 @@ static int nv_adma_use_reg_mode(struct ata_queued_cmd *qc)
 	struct nv_adma_port_priv *pp = qc->ap->private_data;
 
 	/* ADMA engine can only be used for non-ATAPI DMA commands,
-	   or interrupt-driven no-data commands, where a result taskfile
-	   is not required. */
+	   or interrupt-driven no-data commands. */
 	if ((pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) ||
-	   (qc->tf.flags & ATA_TFLAG_POLLING) ||
-	   (qc->flags & ATA_QCFLAG_RESULT_TF))
+	   (qc->tf.flags & ATA_TFLAG_POLLING))
 		return 1;
 
 	if ((qc->flags & ATA_QCFLAG_DMAMAP) ||
@@ -1381,6 +1381,8 @@ static void nv_adma_qc_prep(struct ata_queued_cmd *qc)
 		       NV_CPB_CTL_IEN;
 
 	if (nv_adma_use_reg_mode(qc)) {
+		BUG_ON(!(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) &&
+			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
 		ata_qc_prep(qc);
 		return;
@@ -1425,9 +1427,21 @@ static unsigned int nv_adma_qc_issue(struct ata_queued_cmd *qc)
 
 	VPRINTK("ENTER\n");
 
+	/* We can't handle result taskfile with NCQ commands, since
+	   retrieving the taskfile switches us out of ADMA mode and would abort
+	   existing commands. */
+	if (unlikely(qc->tf.protocol == ATA_PROT_NCQ &&
+		     (qc->flags & ATA_QCFLAG_RESULT_TF))) {
+		ata_dev_printk(qc->dev, KERN_ERR,
+			"NCQ w/ RESULT_TF not allowed\n");
+		return AC_ERR_SYSTEM;
+	}
+
 	if (nv_adma_use_reg_mode(qc)) {
 		/* use ATA register mode */
 		VPRINTK("using ATA register mode: 0x%lx\n", qc->flags);
+		BUG_ON(!(pp->flags & NV_ADMA_ATAPI_SETUP_COMPLETE) &&
+			(qc->flags & ATA_QCFLAG_DMAMAP));
 		nv_adma_register_mode(qc->ap);
 		return ata_qc_issue_prot(qc);
 	} else

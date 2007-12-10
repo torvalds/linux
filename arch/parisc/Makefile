@@ -70,7 +70,7 @@ kernel-y			:= mm/ kernel/ math-emu/ kernel/init_task.o
 kernel-$(CONFIG_HPUX)		+= hpux/
 
 core-y	+= $(addprefix arch/parisc/, $(kernel-y))
-libs-y	+= arch/parisc/lib/
+libs-y	+= arch/parisc/lib/ `$(CC) -print-libgcc-file-name`
 
 drivers-$(CONFIG_OPROFILE)		+= arch/parisc/oprofile/
 

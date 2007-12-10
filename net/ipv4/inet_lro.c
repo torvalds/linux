@@ -401,10 +401,11 @@ static struct sk_buff *lro_gen_skb(struct net_lro_mgr *lro_mgr,
 	int data_len = len;
 	int hdr_len = min(len, hlen);
 
-	skb = netdev_alloc_skb(lro_mgr->dev, hlen);
+	skb = netdev_alloc_skb(lro_mgr->dev, hlen + lro_mgr->frag_align_pad);
 	if (!skb)
 		return NULL;
 
+	skb_reserve(skb, lro_mgr->frag_align_pad);
 	skb->len = len;
 	skb->data_len = len - hdr_len;
 	skb->truesize += true_size;

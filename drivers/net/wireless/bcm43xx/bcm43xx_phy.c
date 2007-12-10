@@ -2149,7 +2149,7 @@ int bcm43xx_phy_init_tssi2dbm_table(struct bcm43xx_private *bcm)
 		}
 		dyn_tssi2dbm = kmalloc(64, GFP_KERNEL);
 		if (dyn_tssi2dbm == NULL) {
-			printk(KERN_ERR PFX "Could not allocate memory"
+			printk(KERN_ERR PFX "Could not allocate memory "
 					    "for tssi2dbm table\n");
 			return -ENOMEM;
 		}

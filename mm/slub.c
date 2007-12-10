@@ -2558,8 +2558,12 @@ size_t ksize(const void *object)
 	if (unlikely(object == ZERO_SIZE_PTR))
 		return 0;
 
-	page = get_object_page(object);
+	page = virt_to_head_page(object);
 	BUG_ON(!page);
+
+	if (unlikely(!PageSlab(page)))
+		return PAGE_SIZE << compound_order(page);
+
 	s = page->slab;
 	BUG_ON(!s);
 

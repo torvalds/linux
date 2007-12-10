@@ -193,6 +193,12 @@ default_entry:
 	jb 10b
 	movl %edi,(init_pg_tables_end - __PAGE_OFFSET)
 
+	/* Do an early initialization of the fixmap area */
+	movl $(swapper_pg_dir - __PAGE_OFFSET), %edx
+	movl $(swapper_pg_pmd - __PAGE_OFFSET), %eax
+	addl $0x007, %eax			/* 0x007 = PRESENT+RW+USER */
+	movl %eax, 4092(%edx)
+
 	xorl %ebx,%ebx				/* This is the boot CPU (BSP) */
 	jmp 3f
 /*
@@ -207,12 +213,6 @@ default_entry:
 #ifndef CONFIG_HOTPLUG_CPU
 .section .init.text,"ax",@progbits
 #endif
-
-	/* Do an early initialization of the fixmap area */
-	movl $(swapper_pg_dir - __PAGE_OFFSET), %edx
-	movl $(swapper_pg_pmd - __PAGE_OFFSET), %eax
-	addl $0x007, %eax			/* 0x007 = PRESENT+RW+USER */
-	movl %eax, 4092(%edx)
 
 #ifdef CONFIG_SMP
 ENTRY(startup_32_smp)

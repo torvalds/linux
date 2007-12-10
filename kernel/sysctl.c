@@ -1588,6 +1588,10 @@ struct ctl_table_header *register_sysctl_table(struct ctl_table * table)
 void unregister_sysctl_table(struct ctl_table_header * header)
 {
 	might_sleep();
+
+	if (header == NULL)
+		return;
+
 	spin_lock(&sysctl_lock);
 	start_unregistering(header);
 	spin_unlock(&sysctl_lock);

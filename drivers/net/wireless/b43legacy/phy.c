@@ -2020,7 +2020,7 @@ int b43legacy_phy_init_tssi2dbm_table(struct b43legacy_wldev *dev)
 			phy->idle_tssi = 62;
 		dyn_tssi2dbm = kmalloc(64, GFP_KERNEL);
 		if (dyn_tssi2dbm == NULL) {
-			b43legacyerr(dev->wl, "Could not allocate memory"
+			b43legacyerr(dev->wl, "Could not allocate memory "
 			       "for tssi2dbm table\n");
 			return -ENOMEM;
 		}

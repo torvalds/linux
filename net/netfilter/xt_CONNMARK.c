@@ -86,11 +86,6 @@ checkentry(const char *tablename,
 {
 	const struct xt_connmark_target_info *matchinfo = targinfo;
 
-	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%d\n", target->family);
-		return false;
-	}
 	if (matchinfo->mode == XT_CONNMARK_RESTORE) {
 		if (strcmp(tablename, "mangle") != 0) {
 			printk(KERN_WARNING "CONNMARK: restore can only be "
@@ -101,6 +96,11 @@ checkentry(const char *tablename,
 	}
 	if (matchinfo->mark > 0xffffffff || matchinfo->mask > 0xffffffff) {
 		printk(KERN_WARNING "CONNMARK: Only supports 32bit mark\n");
+		return false;
+	}
+	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", target->family);
 		return false;
 	}
 	return true;

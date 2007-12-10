@@ -1344,6 +1344,7 @@ restart:
 	xfrm_nr += pols[0]->xfrm_nr;
 
 	switch (policy->action) {
+	default:
 	case XFRM_POLICY_BLOCK:
 		/* Prohibit the flow */
 		err = -EPERM;

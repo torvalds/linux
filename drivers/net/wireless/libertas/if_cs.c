@@ -170,7 +170,8 @@ static int if_cs_poll_while_fw_download(struct if_cs_card *card, uint addr, u8 r
 #define IF_CS_H_IC_TX_OVER		0x0001
 #define IF_CS_H_IC_RX_OVER		0x0002
 #define IF_CS_H_IC_DNLD_OVER		0x0004
-#define IF_CS_H_IC_HOST_EVENT		0x0008
+#define IF_CS_H_IC_POWER_DOWN		0x0008
+#define IF_CS_H_IC_HOST_EVENT		0x0010
 #define IF_CS_H_IC_MASK			0x001f
 
 #define IF_CS_H_INT_MASK		0x00000004

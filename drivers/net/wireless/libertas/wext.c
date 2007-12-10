@@ -1528,7 +1528,7 @@ static int wlan_set_encodeext(struct net_device *dev,
 			&& (ext->key_len != KEY_LEN_WPA_TKIP))
 		    || ((alg == IW_ENCODE_ALG_CCMP)
 		        && (ext->key_len != KEY_LEN_WPA_AES))) {
-				lbs_deb_wext("invalid size %d for key of alg"
+				lbs_deb_wext("invalid size %d for key of alg "
 				       "type %d\n",
 				       ext->key_len,
 				       alg);

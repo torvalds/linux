@@ -1022,6 +1022,10 @@ void __init sun4v_pci_init(struct device_node *dp, char *model_name)
 	}
 
 	prop = of_find_property(dp, "reg", NULL);
+	if (!prop) {
+		prom_printf("SUN4V_PCI: Could not find config registers\n");
+		prom_halt();
+	}
 	regs = prop->value;
 
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;

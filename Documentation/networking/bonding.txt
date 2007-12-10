@@ -554,6 +554,30 @@ xmit_hash_policy
 
 		This algorithm is 802.3ad compliant.
 
+	layer2+3
+
+		This policy uses a combination of layer2 and layer3
+		protocol information to generate the hash.
+
+		Uses XOR of hardware MAC addresses and IP addresses to
+		generate the hash.  The formula is
+
+		(((source IP XOR dest IP) AND 0xffff) XOR
+			( source MAC XOR destination MAC ))
+				modulo slave count
+
+		This algorithm will place all traffic to a particular
+		network peer on the same slave.  For non-IP traffic,
+		the formula is the same as for the layer2 transmit
+		hash policy.
+
+		This policy is intended to provide a more balanced
+		distribution of traffic than layer2 alone, especially
+		in environments where a layer3 gateway device is
+		required to reach most destinations.
+
+		This algorithm is 802.3ad complient.
+
 	layer3+4
 
 		This policy uses upper layer protocol information,
@@ -589,8 +613,9 @@ xmit_hash_policy
 		or may not tolerate this noncompliance.
 
 	The default value is layer2.  This option was added in bonding
-version 2.6.3.  In earlier versions of bonding, this parameter does
-not exist, and the layer2 policy is the only policy.
+	version 2.6.3.  In earlier versions of bonding, this parameter
+	does not exist, and the layer2 policy is the only policy.  The
+	layer2+3 value was added for bonding version 3.2.2.
 
 
 3. Configuring Bonding Devices

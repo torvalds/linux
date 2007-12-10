@@ -1566,7 +1566,7 @@ static void b43_release_firmware(struct b43_wldev *dev)
 static void b43_print_fw_helptext(struct b43_wl *wl)
 {
 	b43err(wl, "You must go to "
-	       "http://linuxwireless.org/en/users/Drivers/bcm43xx#devicefirmware "
+	       "http://linuxwireless.org/en/users/Drivers/b43#devicefirmware "
 	       "and download the correct firmware (version 4).\n");
 }
 

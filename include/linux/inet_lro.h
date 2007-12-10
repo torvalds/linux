@@ -91,6 +91,9 @@ struct net_lro_mgr {
 	int max_desc; /* Max number of LRO descriptors  */
 	int max_aggr; /* Max number of LRO packets to be aggregated */
 
+	int frag_align_pad; /* Padding required to properly align layer 3
+			     * headers in generated skb when using frags */
+
 	struct net_lro_desc *lro_arr; /* Array of LRO descriptors */
 
 	/*

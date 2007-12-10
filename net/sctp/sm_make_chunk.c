@@ -77,6 +77,8 @@ static int sctp_process_param(struct sctp_association *asoc,
 			      union sctp_params param,
 			      const union sctp_addr *peer_addr,
 			      gfp_t gfp);
+static void *sctp_addto_param(struct sctp_chunk *chunk, int len,
+			      const void *data);
 
 /* What was the inbound interface for this chunk? */
 int sctp_chunk_iif(const struct sctp_chunk *chunk)
@@ -207,11 +209,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 
 	chunksize = sizeof(init) + addrs_len + SCTP_SAT_LEN(num_types);
 	chunksize += sizeof(ecap_param);
-	if (sctp_prsctp_enable) {
-		chunksize += sizeof(prsctp_param);
-		extensions[num_ext] = SCTP_CID_FWD_TSN;
-		num_ext += 1;
-	}
+
 	/* ADDIP: Section 4.2.7:
 	 *  An implementation supporting this extension [ADDIP] MUST list
 	 *  the ASCONF,the ASCONF-ACK, and the AUTH  chunks in its INIT and
@@ -243,7 +241,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 		if (auth_chunks->length)
 			chunksize += ntohs(auth_chunks->length);
 		else
-			auth_hmacs = NULL;
+			auth_chunks = NULL;
 
 		extensions[num_ext] = SCTP_CID_AUTH;
 		num_ext += 1;
@@ -297,7 +295,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 			    htons(sizeof(sctp_supported_ext_param_t) + num_ext);
 		sctp_addto_chunk(retval, sizeof(sctp_supported_ext_param_t),
 				&ext_param);
-		sctp_addto_chunk(retval, num_ext, extensions);
+		sctp_addto_param(retval, num_ext, extensions);
 	}
 
 	if (sctp_prsctp_enable)
@@ -371,20 +369,12 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	if (asoc->peer.ecn_capable)
 		chunksize += sizeof(ecap_param);
 
-	/* Tell peer that we'll do PR-SCTP only if peer advertised.  */
-	if (asoc->peer.prsctp_capable) {
-		chunksize += sizeof(prsctp_param);
-		extensions[num_ext] = SCTP_CID_FWD_TSN;
-		num_ext += 1;
-	}
-
 	if (sctp_addip_enable) {
 		extensions[num_ext] = SCTP_CID_ASCONF;
 		extensions[num_ext+1] = SCTP_CID_ASCONF_ACK;
 		num_ext += 2;
 	}
 
-	chunksize += sizeof(ext_param) + num_ext;
 	chunksize += sizeof(aiparam);
 
 	if (asoc->peer.auth_capable) {
@@ -407,6 +397,9 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 		num_ext += 1;
 	}
 
+	if (num_ext)
+		chunksize += sizeof(sctp_supported_ext_param_t) + num_ext;
+
 	/* Now allocate and fill out the chunk.  */
 	retval = sctp_make_chunk(asoc, SCTP_CID_INIT_ACK, 0, chunksize);
 	if (!retval)
@@ -428,7 +421,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 			    htons(sizeof(sctp_supported_ext_param_t) + num_ext);
 		sctp_addto_chunk(retval, sizeof(sctp_supported_ext_param_t),
 				 &ext_param);
-		sctp_addto_chunk(retval, num_ext, extensions);
+		sctp_addto_param(retval, num_ext, extensions);
 	}
 	if (asoc->peer.prsctp_capable)
 		sctp_addto_chunk(retval, sizeof(prsctp_param), &prsctp_param);

@@ -44,7 +44,7 @@ int __init br_fdb_init(void)
 	return 0;
 }
 
-void __exit br_fdb_fini(void)
+void br_fdb_fini(void)
 {
 	kmem_cache_destroy(br_fdb_cache);
 }

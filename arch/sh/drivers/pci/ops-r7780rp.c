@@ -40,8 +40,8 @@ int __init pcibios_map_platform_irq(struct pci_dev *pdev, u8 slot, u8 pin)
 
 static struct resource sh7780_io_resource = {
 	.name	= "SH7780_IO",
-	.start	= 0x2000,
-	.end	= 0x2000 + SH7780_PCI_IO_SIZE - 1,
+	.start	= SH7780_PCI_IO_BASE,
+	.end	= SH7780_PCI_IO_BASE + SH7780_PCI_IO_SIZE - 1,
 	.flags	= IORESOURCE_IO
 };
 

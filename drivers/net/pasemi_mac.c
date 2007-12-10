@@ -586,7 +586,7 @@ static int pasemi_mac_clean_rx(struct pasemi_mac *mac, int limit)
 			/* CRC error flagged */
 			mac->netdev->stats.rx_errors++;
 			mac->netdev->stats.rx_crc_errors++;
-			dev_kfree_skb_irq(skb);
+			/* No need to free skb, it'll be reused */
 			goto next;
 		}
 
@@ -1362,7 +1362,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	netif_napi_add(dev, &mac->napi, pasemi_mac_poll, 64);
 
-	dev->features = NETIF_F_HW_CSUM | NETIF_F_LLTX | NETIF_F_SG;
+	dev->features = NETIF_F_IP_CSUM | NETIF_F_LLTX | NETIF_F_SG;
 
 	/* These should come out of the device tree eventually */
 	mac->dma_txch = index;

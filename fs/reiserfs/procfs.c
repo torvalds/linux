@@ -420,12 +420,6 @@ static void *r_start(struct seq_file *m, loff_t * pos)
 		return NULL;
 
 	up_write(&s->s_umount);
-
-	if (de->deleted) {
-		deactivate_super(s);
-		return NULL;
-	}
-
 	return s;
 }
 

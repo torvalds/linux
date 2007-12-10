@@ -30,20 +30,22 @@ static struct pt_regs *get_user_regs(struct task_struct *tsk)
 
 static void ptrace_single_step(struct task_struct *tsk)
 {
-	pr_debug("ptrace_single_step: pid=%u, SR=0x%08lx\n",
-		 tsk->pid, tsk->thread.cpu_context.sr);
-	if (!(tsk->thread.cpu_context.sr & SR_D)) {
-		/*
-		 * Set a breakpoint at the current pc to force the
-		 * process into debug mode.  The syscall/exception
-		 * exit code will set a breakpoint at the return
-		 * address when this flag is set.
-		 */
-		pr_debug("ptrace_single_step: Setting TIF_BREAKPOINT\n");
-		set_tsk_thread_flag(tsk, TIF_BREAKPOINT);
-	}
+	pr_debug("ptrace_single_step: pid=%u, PC=0x%08lx, SR=0x%08lx\n",
+		 tsk->pid, task_pt_regs(tsk)->pc, task_pt_regs(tsk)->sr);
 
-	/* The monitor code will do the actual step for us */
+	/*
+	 * We can't schedule in Debug mode, so when TIF_BREAKPOINT is
+	 * set, the system call or exception handler will do a
+	 * breakpoint to enter monitor mode before returning to
+	 * userspace.
+	 *
+	 * The monitor code will then notice that TIF_SINGLE_STEP is
+	 * set and return to userspace with single stepping enabled.
+	 * The CPU will then enter monitor mode again after exactly
+	 * one instruction has been executed, and the monitor code
+	 * will then send a SIGTRAP to the process.
+	 */
+	set_tsk_thread_flag(tsk, TIF_BREAKPOINT);
 	set_tsk_thread_flag(tsk, TIF_SINGLE_STEP);
 }
 
@@ -55,23 +57,7 @@ static void ptrace_single_step(struct task_struct *tsk)
 void ptrace_disable(struct task_struct *child)
 {
 	clear_tsk_thread_flag(child, TIF_SINGLE_STEP);
-}
-
-/*
- * Handle hitting a breakpoint
- */
-static void ptrace_break(struct task_struct *tsk, struct pt_regs *regs)
-{
-	siginfo_t info;
-
-	info.si_signo = SIGTRAP;
-	info.si_errno = 0;
-	info.si_code  = TRAP_BRKPT;
-	info.si_addr  = (void __user *)instruction_pointer(regs);
-
-	pr_debug("ptrace_break: Sending SIGTRAP to PID %u (pc = 0x%p)\n",
-		 tsk->pid, info.si_addr);
-	force_sig_info(SIGTRAP, &info, tsk);
+	clear_tsk_thread_flag(child, TIF_BREAKPOINT);
 }
 
 /*
@@ -84,9 +70,6 @@ static int ptrace_read_user(struct task_struct *tsk, unsigned long offset,
 	unsigned long *regs;
 	unsigned long value;
 
-	pr_debug("ptrace_read_user(%p, %#lx, %p)\n",
-		 tsk, offset, data);
-
 	if (offset & 3 || offset >= sizeof(struct user)) {
 		printk("ptrace_read_user: invalid offset 0x%08lx\n", offset);
 		return -EIO;
@@ -97,6 +80,9 @@ static int ptrace_read_user(struct task_struct *tsk, unsigned long offset,
 	value = 0;
 	if (offset < sizeof(struct pt_regs))
 		value = regs[offset / sizeof(regs[0])];
+
+	pr_debug("ptrace_read_user(%s[%u], %#lx, %p) -> %#lx\n",
+		 tsk->comm, tsk->pid, offset, data, value);
 
 	return put_user(value, data);
 }
@@ -111,8 +97,11 @@ static int ptrace_write_user(struct task_struct *tsk, unsigned long offset,
 {
 	unsigned long *regs;
 
+	pr_debug("ptrace_write_user(%s[%u], %#lx, %#lx)\n",
+			tsk->comm, tsk->pid, offset, value);
+
 	if (offset & 3 || offset >= sizeof(struct user)) {
-		printk("ptrace_write_user: invalid offset 0x%08lx\n", offset);
+		pr_debug("  invalid offset 0x%08lx\n", offset);
 		return -EIO;
 	}
 
@@ -155,11 +144,9 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	int ret;
 
-	pr_debug("arch_ptrace(%ld, %d, %#lx, %#lx)\n",
-		 request, child->pid, addr, data);
-
 	pr_debug("ptrace: Enabling monitor mode...\n");
-	__mtdr(DBGREG_DC, __mfdr(DBGREG_DC) | DC_MM | DC_DBE);
+	ocd_write(DC, ocd_read(DC) | (1 << OCD_DC_MM_BIT)
+			| (1 << OCD_DC_DBE_BIT));
 
 	switch (request) {
 	/* Read the word at location addr in the child process */
@@ -240,19 +227,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		break;
 	}
 
-	pr_debug("sys_ptrace returning %d (DC = 0x%08lx)\n", ret, __mfdr(DBGREG_DC));
 	return ret;
 }
 
 asmlinkage void syscall_trace(void)
 {
-	pr_debug("syscall_trace called\n");
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 	if (!(current->ptrace & PT_PTRACED))
 		return;
 
-	pr_debug("syscall_trace: notifying parent\n");
 	/* The 0x80 provides a way for the tracing parent to
 	 * distinguish between a syscall stop and SIGTRAP delivery */
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
@@ -271,86 +255,143 @@ asmlinkage void syscall_trace(void)
 	}
 }
 
-asmlinkage void do_debug_priv(struct pt_regs *regs)
-{
-	unsigned long dc, ds;
-	unsigned long die_val;
-
-	ds = __mfdr(DBGREG_DS);
-
-	pr_debug("do_debug_priv: pc = %08lx, ds = %08lx\n", regs->pc, ds);
-
-	if (ds & DS_SSS)
-		die_val = DIE_SSTEP;
-	else
-		die_val = DIE_BREAKPOINT;
-
-	if (notify_die(die_val, "ptrace", regs, 0, 0, SIGTRAP) == NOTIFY_STOP)
-		return;
-
-	if (likely(ds & DS_SSS)) {
-		extern void itlb_miss(void);
-		extern void tlb_miss_common(void);
-		struct thread_info *ti;
-
-		dc = __mfdr(DBGREG_DC);
-		dc &= ~DC_SS;
-		__mtdr(DBGREG_DC, dc);
-
-		ti = current_thread_info();
-		set_ti_thread_flag(ti, TIF_BREAKPOINT);
-
-		/* The TLB miss handlers don't check thread flags */
-		if ((regs->pc >= (unsigned long)&itlb_miss)
-		    && (regs->pc <= (unsigned long)&tlb_miss_common)) {
-			__mtdr(DBGREG_BWA2A, sysreg_read(RAR_EX));
-			__mtdr(DBGREG_BWC2A, 0x40000001 | (get_asid() << 1));
-		}
-
-		/*
-		 * If we're running in supervisor mode, the breakpoint
-		 * will take us where we want directly, no need to
-		 * single step.
-		 */
-		if ((regs->sr & MODE_MASK) != MODE_SUPERVISOR)
-			set_ti_thread_flag(ti, TIF_SINGLE_STEP);
-	} else {
-		panic("Unable to handle debug trap at pc = %08lx\n",
-		      regs->pc);
-	}
-}
-
 /*
- * Handle breakpoints, single steps and other debuggy things. To keep
- * things simple initially, we run with interrupts and exceptions
- * disabled all the time.
+ * debug_trampoline() is an assembly stub which will store all user
+ * registers on the stack and execute a breakpoint instruction.
+ *
+ * If we single-step into an exception handler which runs with
+ * interrupts disabled the whole time so it doesn't have to check for
+ * pending work, its return address will be modified so that it ends
+ * up returning to debug_trampoline.
+ *
+ * If the exception handler decides to store the user context and
+ * enable interrupts after all, it will restore the original return
+ * address and status register value. Before it returns, it will
+ * notice that TIF_BREAKPOINT is set and execute a breakpoint
+ * instruction.
  */
-asmlinkage void do_debug(struct pt_regs *regs)
+extern void debug_trampoline(void);
+
+asmlinkage struct pt_regs *do_debug(struct pt_regs *regs)
 {
-	unsigned long dc, ds;
+	struct thread_info	*ti;
+	unsigned long		trampoline_addr;
+	u32			status;
+	u32			ctrl;
+	int			code;
 
-	ds = __mfdr(DBGREG_DS);
-	pr_debug("do_debug: pc = %08lx, ds = %08lx\n", regs->pc, ds);
+	status = ocd_read(DS);
+	ti = current_thread_info();
+	code = TRAP_BRKPT;
 
-	if (test_thread_flag(TIF_BREAKPOINT)) {
-		pr_debug("TIF_BREAKPOINT set\n");
-		/* We're taking care of it */
-		clear_thread_flag(TIF_BREAKPOINT);
-		__mtdr(DBGREG_BWC2A, 0);
-	}
+	pr_debug("do_debug: status=0x%08x PC=0x%08lx SR=0x%08lx tif=0x%08lx\n",
+			status, regs->pc, regs->sr, ti->flags);
 
-	if (test_thread_flag(TIF_SINGLE_STEP)) {
-		pr_debug("TIF_SINGLE_STEP set, ds = 0x%08lx\n", ds);
-		if (ds & DS_SSS) {
-			dc = __mfdr(DBGREG_DC);
-			dc &= ~DC_SS;
-			__mtdr(DBGREG_DC, dc);
+	if (!user_mode(regs)) {
+		unsigned long	die_val = DIE_BREAKPOINT;
 
-			clear_thread_flag(TIF_SINGLE_STEP);
-			ptrace_break(current, regs);
+		if (status & (1 << OCD_DS_SSS_BIT))
+			die_val = DIE_SSTEP;
+
+		if (notify_die(die_val, "ptrace", regs, 0, 0, SIGTRAP)
+				== NOTIFY_STOP)
+			return regs;
+
+		if ((status & (1 << OCD_DS_SWB_BIT))
+				&& test_and_clear_ti_thread_flag(
+					ti, TIF_BREAKPOINT)) {
+			/*
+			 * Explicit breakpoint from trampoline or
+			 * exception/syscall/interrupt handler.
+			 *
+			 * The real saved regs are on the stack right
+			 * after the ones we saved on entry.
+			 */
+			regs++;
+			pr_debug("  -> TIF_BREAKPOINT done, adjusted regs:"
+					"PC=0x%08lx SR=0x%08lx\n",
+					regs->pc, regs->sr);
+			BUG_ON(!user_mode(regs));
+
+			if (test_thread_flag(TIF_SINGLE_STEP)) {
+				pr_debug("Going to do single step...\n");
+				return regs;
+			}
+
+			/*
+			 * No TIF_SINGLE_STEP means we're done
+			 * stepping over a syscall. Do the trap now.
+			 */
+			code = TRAP_TRACE;
+		} else if ((status & (1 << OCD_DS_SSS_BIT))
+				&& test_ti_thread_flag(ti, TIF_SINGLE_STEP)) {
+
+			pr_debug("Stepped into something, "
+					"setting TIF_BREAKPOINT...\n");
+			set_ti_thread_flag(ti, TIF_BREAKPOINT);
+
+			/*
+			 * We stepped into an exception, interrupt or
+			 * syscall handler. Some exception handlers
+			 * don't check for pending work, so we need to
+			 * set up a trampoline just in case.
+			 *
+			 * The exception entry code will undo the
+			 * trampoline stuff if it does a full context
+			 * save (which also means that it'll check for
+			 * pending work later.)
+			 */
+			if ((regs->sr & MODE_MASK) == MODE_EXCEPTION) {
+				trampoline_addr
+					= (unsigned long)&debug_trampoline;
+
+				pr_debug("Setting up trampoline...\n");
+				ti->rar_saved = sysreg_read(RAR_EX);
+				ti->rsr_saved = sysreg_read(RSR_EX);
+				sysreg_write(RAR_EX, trampoline_addr);
+				sysreg_write(RSR_EX, (MODE_EXCEPTION
+							| SR_EM | SR_GM));
+				BUG_ON(ti->rsr_saved & MODE_MASK);
+			}
+
+			/*
+			 * If we stepped into a system call, we
+			 * shouldn't do a single step after we return
+			 * since the return address is right after the
+			 * "scall" instruction we were told to step
+			 * over.
+			 */
+			if ((regs->sr & MODE_MASK) == MODE_SUPERVISOR) {
+				pr_debug("Supervisor; no single step\n");
+				clear_ti_thread_flag(ti, TIF_SINGLE_STEP);
+			}
+
+			ctrl = ocd_read(DC);
+			ctrl &= ~(1 << OCD_DC_SS_BIT);
+			ocd_write(DC, ctrl);
+
+			return regs;
+		} else {
+			printk(KERN_ERR "Unexpected OCD_DS value: 0x%08x\n",
+					status);
+			printk(KERN_ERR "Thread flags: 0x%08lx\n", ti->flags);
+			die("Unhandled debug trap in kernel mode",
+					regs, SIGTRAP);
 		}
-	} else {
-		/* regular breakpoint */
-		ptrace_break(current, regs);
+	} else if (status & (1 << OCD_DS_SSS_BIT)) {
+		/* Single step in user mode */
+		code = TRAP_TRACE;
+
+		ctrl = ocd_read(DC);
+		ctrl &= ~(1 << OCD_DC_SS_BIT);
+		ocd_write(DC, ctrl);
 	}
+
+	pr_debug("Sending SIGTRAP: code=%d PC=0x%08lx SR=0x%08lx\n",
+			code, regs->pc, regs->sr);
+
+	clear_thread_flag(TIF_SINGLE_STEP);
+	_exception(SIGTRAP, regs, code, instruction_pointer(regs));
+
+	return regs;
 }

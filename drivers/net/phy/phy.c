@@ -406,6 +406,9 @@ int phy_mii_ioctl(struct phy_device *phydev,
 				&& phydev->drv->config_init)
 			phydev->drv->config_init(phydev);
 		break;
+
+	default:
+		return -ENOTTY;
 	}
 
 	return 0;

@@ -22,6 +22,7 @@
 #include <asm/nmi.h>
 #include <asm/hw_irq.h>
 #include <asm/apic.h>
+#include <asm/hpet.h>
 #include <linux/kdebug.h>
 #include <asm/smp.h>
 
@@ -139,6 +140,9 @@ void machine_crash_shutdown(struct pt_regs *regs)
 	lapic_shutdown();
 #if defined(CONFIG_X86_IO_APIC)
 	disable_IO_APIC();
+#endif
+#ifdef CONFIG_HPET_TIMER
+	hpet_disable();
 #endif
 	crash_save_cpu(regs, safe_smp_processor_id());
 }

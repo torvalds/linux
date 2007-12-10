@@ -497,7 +497,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index) {}
 static void __cpuinit cache_remove_shared_cpu_map(unsigned int cpu, int index) {}
 #endif
 
-static void free_cache_attributes(unsigned int cpu)
+static void __cpuinit free_cache_attributes(unsigned int cpu)
 {
 	int i;
 

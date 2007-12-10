@@ -829,6 +829,9 @@ unsigned long do_mmap_pgoff(struct file *file,
 	void *result;
 	int ret;
 
+	if (!(flags & MAP_FIXED))
+		addr = round_hint_to_min(addr);
+
 	/* decide whether we should attempt the mapping, and if so what sort of
 	 * mapping */
 	ret = validate_mmap_request(file, addr, len, prot, flags, pgoff,

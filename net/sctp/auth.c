@@ -54,11 +54,13 @@ static struct sctp_hmac sctp_hmac_list[SCTP_AUTH_NUM_HMACS] = {
 		/* id 2 is reserved as well */
 		.hmac_id = SCTP_AUTH_HMAC_ID_RESERVED_2,
 	},
+#if defined (CONFIG_CRYPTO_SHA256) || defined (CONFIG_CRYPTO_SHA256_MODULE)
 	{
 		.hmac_id = SCTP_AUTH_HMAC_ID_SHA256,
 		.hmac_name="hmac(sha256)",
 		.hmac_len = SCTP_SHA256_SIG_SIZE,
 	}
+#endif
 };
 
 
@@ -631,7 +633,7 @@ static int __sctp_auth_cid(sctp_cid_t chunk, struct sctp_chunks_param *param)
 	int found = 0;
 	int i;
 
-	if (!param)
+	if (!param || param->param_hdr.length == 0)
 		return 0;
 
 	len = ntohs(param->param_hdr.length) - sizeof(sctp_paramhdr_t);

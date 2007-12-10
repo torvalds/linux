@@ -245,6 +245,7 @@
 				device_type = "rgmii-interface";
 				compatible = "ibm,rgmii-440epx", "ibm,rgmii";
 				reg = <ef601000 8>;
+				has-mdio;
 			};
 
 			EMAC0: ethernet@ef600e00 {
@@ -273,6 +274,8 @@
 				zmii-channel = <0>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <0>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
 			};
 
 			EMAC1: ethernet@ef600f00 {
@@ -301,6 +304,8 @@
 				zmii-channel = <1>;
 				rgmii-device = <&RGMII0>;
 				rgmii-channel = <1>;
+				has-inverted-stacr-oc;
+				has-new-stacr-staopc;
 			};
 		};
 	};

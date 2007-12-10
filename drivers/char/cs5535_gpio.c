@@ -104,6 +104,11 @@ static ssize_t cs5535_gpio_write(struct file *file, const char __user *data,
 		for (j = 0; j < ARRAY_SIZE(rm); j++) {
 			if (c == rm[j].on) {
 				outl(m1, base + rm[j].wr_offset);
+				/* If enabling output, turn off AUX 1 and AUX 2 */
+				if (c == 'O') {
+					outl(m0, base + 0x10);
+					outl(m0, base + 0x14);
+				}
 				break;
 			} else if (c == rm[j].off) {
 				outl(m0, base + rm[j].wr_offset);

@@ -32,21 +32,21 @@
 #define IN_PROGRESS_PAD_RECV		0x4
 
 /* xmit state machine */
-#define XMSTATE_IDLE			0x0
-#define XMSTATE_CMD_HDR_INIT		0x1
-#define XMSTATE_CMD_HDR_XMIT		0x2
-#define XMSTATE_IMM_HDR			0x4
-#define XMSTATE_IMM_DATA		0x8
-#define XMSTATE_UNS_INIT		0x10
-#define XMSTATE_UNS_HDR			0x20
-#define XMSTATE_UNS_DATA		0x40
-#define XMSTATE_SOL_HDR			0x80
-#define XMSTATE_SOL_DATA		0x100
-#define XMSTATE_W_PAD			0x200
-#define XMSTATE_W_RESEND_PAD		0x400
-#define XMSTATE_W_RESEND_DATA_DIGEST	0x800
-#define XMSTATE_IMM_HDR_INIT		0x1000
-#define XMSTATE_SOL_HDR_INIT		0x2000
+#define XMSTATE_VALUE_IDLE			0
+#define XMSTATE_BIT_CMD_HDR_INIT		0
+#define XMSTATE_BIT_CMD_HDR_XMIT		1
+#define XMSTATE_BIT_IMM_HDR			2
+#define XMSTATE_BIT_IMM_DATA			3
+#define XMSTATE_BIT_UNS_INIT			4
+#define XMSTATE_BIT_UNS_HDR			5
+#define XMSTATE_BIT_UNS_DATA			6
+#define XMSTATE_BIT_SOL_HDR			7
+#define XMSTATE_BIT_SOL_DATA			8
+#define XMSTATE_BIT_W_PAD			9
+#define XMSTATE_BIT_W_RESEND_PAD		10
+#define XMSTATE_BIT_W_RESEND_DATA_DIGEST	11
+#define XMSTATE_BIT_IMM_HDR_INIT		12
+#define XMSTATE_BIT_SOL_HDR_INIT		13
 
 #define ISCSI_PAD_LEN			4
 #define ISCSI_SG_TABLESIZE		SG_ALL
@@ -122,7 +122,7 @@ struct iscsi_data_task {
 struct iscsi_tcp_mgmt_task {
 	struct iscsi_hdr	hdr;
 	char			hdrext[sizeof(__u32)]; /* Header-Digest */
-	int			xmstate;	/* mgmt xmit progress */
+	unsigned long		xmstate;	/* mgmt xmit progress */
 	struct iscsi_buf	headbuf;	/* header buffer */
 	struct iscsi_buf	sendbuf;	/* in progress buffer */
 	int			sent;
@@ -150,7 +150,7 @@ struct iscsi_tcp_cmd_task {
 	int			pad_count;		/* padded bytes */
 	struct iscsi_buf	headbuf;		/* header buf (xmit) */
 	struct iscsi_buf	sendbuf;		/* in progress buffer*/
-	int			xmstate;		/* xmit xtate machine */
+	unsigned long		xmstate;		/* xmit xtate machine */
 	int			sent;
 	struct scatterlist	*sg;			/* per-cmd SG list  */
 	struct scatterlist	*bad_sg;		/* assert statement */

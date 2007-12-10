@@ -2281,13 +2281,11 @@ static void gem_reset_task(struct work_struct *work)
 
 	mutex_lock(&gp->pm_mutex);
 
-	napi_disable(&gp->napi);
+	if (gp->opened)
+		napi_disable(&gp->napi);
 
 	spin_lock_irq(&gp->lock);
 	spin_lock(&gp->tx_lock);
-
-	if (gp->running == 0)
-		goto not_running;
 
 	if (gp->running) {
 		netif_stop_queue(gp->dev);
@@ -2298,13 +2296,14 @@ static void gem_reset_task(struct work_struct *work)
 			gem_set_link_modes(gp);
 		netif_wake_queue(gp->dev);
 	}
- not_running:
+
 	gp->reset_task_pending = 0;
 
 	spin_unlock(&gp->tx_lock);
 	spin_unlock_irq(&gp->lock);
 
-	napi_enable(&gp->napi);
+	if (gp->opened)
+		napi_enable(&gp->napi);
 
 	mutex_unlock(&gp->pm_mutex);
 }

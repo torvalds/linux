@@ -314,7 +314,7 @@ __xip_file_write(struct file *filp, const char __user *buf,
 		fault_in_pages_readable(buf, bytes);
 		kaddr = kmap_atomic(page, KM_USER0);
 		copied = bytes -
-			__copy_from_user_inatomic_nocache(kaddr, buf, bytes);
+			__copy_from_user_inatomic_nocache(kaddr + offset, buf, bytes);
 		kunmap_atomic(kaddr, KM_USER0);
 		flush_dcache_page(page);
 

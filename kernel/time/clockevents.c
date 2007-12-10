@@ -78,6 +78,11 @@ int clockevents_program_event(struct clock_event_device *dev, ktime_t expires,
 	unsigned long long clc;
 	int64_t delta;
 
+	if (unlikely(expires.tv64 < 0)) {
+		WARN_ON_ONCE(1);
+		return -ETIME;
+	}
+
 	delta = ktime_to_ns(ktime_sub(expires, now));
 
 	if (delta <= 0)

@@ -17,6 +17,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/apic.h>
+#include <asm/hpet.h>
 #include <asm/gart.h>
 
 /*
@@ -113,6 +114,9 @@ void machine_shutdown(void)
 
 	disable_IO_APIC();
 
+#ifdef CONFIG_HPET_TIMER
+	hpet_disable();
+#endif
 	local_irq_restore(flags);
 
 	pci_iommu_shutdown();

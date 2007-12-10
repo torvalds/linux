@@ -3003,17 +3003,13 @@ static int tcp_process_frto(struct sock *sk, int flag)
 	}
 
 	if (tp->frto_counter == 1) {
-		/* Sending of the next skb must be allowed or no F-RTO */
-		if (!tcp_send_head(sk) ||
-		    after(TCP_SKB_CB(tcp_send_head(sk))->end_seq,
-				     tp->snd_una + tp->snd_wnd)) {
-			tcp_enter_frto_loss(sk, (tp->frto_counter == 1 ? 2 : 3),
-					    flag);
-			return 1;
-		}
-
+		/* tcp_may_send_now needs to see updated state */
 		tp->snd_cwnd = tcp_packets_in_flight(tp) + 2;
 		tp->frto_counter = 2;
+
+		if (!tcp_may_send_now(sk))
+			tcp_enter_frto_loss(sk, 2, flag);
+
 		return 1;
 	} else {
 		switch (sysctl_tcp_frto_response) {
@@ -3069,6 +3065,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	}
 
 	prior_fackets = tp->fackets_out;
+	prior_in_flight = tcp_packets_in_flight(tp);
 
 	if (!(flag&FLAG_SLOWPATH) && after(ack, prior_snd_una)) {
 		/* Window is constant, pure forward advance.
@@ -3107,8 +3104,6 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	prior_packets = tp->packets_out;
 	if (!prior_packets)
 		goto no_queue;
-
-	prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* See if we can take anything off of the retransmit queue. */
 	flag |= tcp_clean_rtx_queue(sk, &seq_rtt, prior_fackets);

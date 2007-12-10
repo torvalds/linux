@@ -451,6 +451,7 @@ static int reprobe_subchannel(struct subchannel_id schid, void *data)
 		break;
 	case -ENXIO:
 	case -ENOMEM:
+	case -EIO:
 		/* These should abort looping */
 		break;
 	default:

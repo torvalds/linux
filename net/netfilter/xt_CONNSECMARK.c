@@ -90,11 +90,6 @@ static bool checkentry(const char *tablename, const void *entry,
 {
 	const struct xt_connsecmark_target_info *info = targinfo;
 
-	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%d\n", target->family);
-		return false;
-	}
 	switch (info->mode) {
 	case CONNSECMARK_SAVE:
 	case CONNSECMARK_RESTORE:
@@ -105,6 +100,11 @@ static bool checkentry(const char *tablename, const void *entry,
 		return false;
 	}
 
+	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
+		printk(KERN_WARNING "can't load conntrack support for "
+				    "proto=%d\n", target->family);
+		return false;
+	}
 	return true;
 }
 

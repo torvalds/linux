@@ -1340,7 +1340,9 @@ static int amd8111e_close(struct net_device * dev)
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	netif_stop_queue(dev);
 
+#ifdef CONFIG_AMD8111E_NAPI
 	napi_disable(&lp->napi);
+#endif
 
 	spin_lock_irq(&lp->lock);
 
@@ -1372,7 +1374,9 @@ static int amd8111e_open(struct net_device * dev )
 					 dev->name, dev))
 		return -EAGAIN;
 
+#ifdef CONFIG_AMD8111E_NAPI
 	napi_enable(&lp->napi);
+#endif
 
 	spin_lock_irq(&lp->lock);
 
@@ -1380,7 +1384,9 @@ static int amd8111e_open(struct net_device * dev )
 
 	if(amd8111e_restart(dev)){
 		spin_unlock_irq(&lp->lock);
+#ifdef CONFIG_AMD8111E_NAPI
 		napi_disable(&lp->napi);
+#endif
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		return -ENOMEM;

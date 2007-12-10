@@ -472,10 +472,10 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	if (rc)
 		goto unregister_dev;
 
-	add_disk(dev_info->gd);
-
 	blk_queue_make_request(dev_info->dcssblk_queue, dcssblk_make_request);
 	blk_queue_hardsect_size(dev_info->dcssblk_queue, 4096);
+
+	add_disk(dev_info->gd);
 
 	switch (dev_info->segment_type) {
 		case SEG_TYPE_SR:

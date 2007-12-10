@@ -1419,7 +1419,7 @@ static void b43legacy_release_firmware(struct b43legacy_wldev *dev)
 static void b43legacy_print_fw_helptext(struct b43legacy_wl *wl)
 {
 	b43legacyerr(wl, "You must go to http://linuxwireless.org/en/users/"
-		     "Drivers/bcm43xx#devicefirmware "
+		     "Drivers/b43#devicefirmware "
 		     "and download the correct firmware (version 3).\n");
 }
 
