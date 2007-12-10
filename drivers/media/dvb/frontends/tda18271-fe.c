@@ -31,14 +31,16 @@ MODULE_PARM_DESC(debug, "set debug level (info=1, map=2, reg=4 (or-able))");
 
 /*---------------------------------------------------------------------*/
 
-#define TDA18271_ANALOG  0
-#define TDA18271_DIGITAL 1
+enum tda18271_mode {
+	TDA18271_ANALOG,
+	TDA18271_DIGITAL,
+};
 
 struct tda18271_priv {
 	u8 i2c_addr;
 	struct i2c_adapter *i2c_adap;
 	unsigned char tda18271_regs[TDA18271_NUM_REGS];
-	int mode;
+	enum tda18271_mode mode;
 
 	u32 frequency;
 	u32 bandwidth;
