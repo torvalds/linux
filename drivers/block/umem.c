@@ -484,7 +484,8 @@ static void process_page(unsigned long data)
 		page->idx++;
 		if (page->idx >= bio->bi_vcnt) {
 			page->bio = bio->bi_next;
-			page->idx = page->bio->bi_idx;
+			if (page->bio)
+				page->idx = page->bio->bi_idx;
 		}
 
 		pci_unmap_page(card->dev, desc->data_dma_handle,
