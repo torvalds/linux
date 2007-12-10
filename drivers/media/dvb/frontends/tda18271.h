@@ -24,13 +24,21 @@
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 
+enum tda18271_i2c_gate {
+	TDA18271_GATE_AUTO = 0,
+	TDA18271_GATE_ANALOG,
+	TDA18271_GATE_DIGITAL,
+};
+
 #if defined(CONFIG_DVB_TDA18271) || (defined(CONFIG_DVB_TDA18271_MODULE) && defined(MODULE))
 extern struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
-					    struct i2c_adapter *i2c);
+					    struct i2c_adapter *i2c,
+					    enum tda18271_i2c_gate gate);
 #else
 static inline struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe,
 						   u8 addr,
-						   struct i2c_adapter *i2c)
+						   struct i2c_adapter *i2c,
+						   enum tda18271_i2c_gate gate);
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;

@@ -40,7 +40,9 @@ struct tda18271_priv {
 	u8 i2c_addr;
 	struct i2c_adapter *i2c_adap;
 	unsigned char tda18271_regs[TDA18271_NUM_REGS];
+
 	enum tda18271_mode mode;
+	enum tda18271_i2c_gate gate;
 
 	u32 frequency;
 	u32 bandwidth;
@@ -50,16 +52,38 @@ static int tda18271_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	struct analog_tuner_ops *ops = fe->ops.analog_demod_ops;
+	enum tda18271_i2c_gate gate;
 	int ret = 0;
 
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
+	switch (priv->gate) {
+	case TDA18271_GATE_DIGITAL:
+	case TDA18271_GATE_ANALOG:
+		gate = priv->gate;
+		break;
+	case TDA18271_GATE_AUTO:
+	default:
+		switch (priv->mode) {
+		case TDA18271_DIGITAL:
+			gate = TDA18271_GATE_DIGITAL;
+			break;
+		case TDA18271_ANALOG:
+		default:
+			gate = TDA18271_GATE_ANALOG;
+			break;
+		}
+	}
+
+	switch (gate) {
+	case TDA18271_GATE_ANALOG:
 		if (ops && ops->i2c_gate_ctrl)
 			ret = ops->i2c_gate_ctrl(fe, enable);
 		break;
-	case TDA18271_DIGITAL:
+	case TDA18271_GATE_DIGITAL:
 		if (fe->ops.i2c_gate_ctrl)
 			ret = fe->ops.i2c_gate_ctrl(fe, enable);
+		break;
+	default:
+		ret = -EINVAL;
 		break;
 	}
 
@@ -713,7 +737,8 @@ static struct dvb_tuner_ops tda18271_tuner_ops = {
 };
 
 struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
-				     struct i2c_adapter *i2c)
+				     struct i2c_adapter *i2c,
+				     enum tda18271_i2c_gate gate)
 {
 	struct tda18271_priv *priv = NULL;
 
@@ -724,6 +749,7 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 
 	priv->i2c_addr = addr;
 	priv->i2c_adap = i2c;
+	priv->gate = gate;
 
 	memcpy(&fe->ops.tuner_ops, &tda18271_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));

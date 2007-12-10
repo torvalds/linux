@@ -574,7 +574,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	if (data == 0x83) {
 		priv->ver |= TDA18271;
 		tda18271_attach(fe, priv->tda827x_addr,
-				priv->i2c_props.adap);
+				priv->i2c_props.adap,
+				TDA18271_GATE_ANALOG);
 	} else {
 		if ((data & 0x3c) == 0)
 			priv->ver |= TDA8275;
