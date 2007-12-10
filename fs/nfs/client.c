@@ -97,7 +97,7 @@ struct rpc_program		nfsacl_program = {
 
 struct nfs_client_initdata {
 	const char *hostname;
-	const struct sockaddr_in *addr;
+	const struct sockaddr *addr;
 	size_t addrlen;
 	const struct nfs_rpc_ops *rpc_ops;
 };
@@ -308,9 +308,8 @@ static struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_in
 	struct nfs_client *clp, *new = NULL;
 	int error;
 
-	dprintk("--> nfs_get_client(%s,"NIPQUAD_FMT":%d,%u)\n",
-		cl_init->hostname ?: "", NIPQUAD(cl_init->addr->sin_addr),
-		cl_init->addr->sin_port, cl_init->rpc_ops->version);
+	dprintk("--> nfs_get_client(%s,v%u)\n",
+		cl_init->hostname ?: "", cl_init->rpc_ops->version);
 
 	/* see if the client already exists */
 	do {
@@ -581,7 +580,7 @@ static int nfs_init_server(struct nfs_server *server,
 {
 	struct nfs_client_initdata cl_init = {
 		.hostname = data->nfs_server.hostname,
-		.addr = &data->nfs_server.address,
+		.addr = (const struct sockaddr *)&data->nfs_server.address,
 		.addrlen = sizeof(data->nfs_server.address),
 		.rpc_ops = &nfs_v2_clientops,
 	};
@@ -935,7 +934,7 @@ static int nfs4_set_client(struct nfs_server *server,
 {
 	struct nfs_client_initdata cl_init = {
 		.hostname = hostname,
-		.addr = addr,
+		.addr = (const struct sockaddr *)addr,
 		.addrlen = sizeof(*addr),
 		.rpc_ops = &nfs_v4_clientops,
 	};
