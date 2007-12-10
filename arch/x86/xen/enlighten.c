@@ -1131,7 +1131,7 @@ asmlinkage void __init xen_start_kernel(void)
 	if (!xen_start_info)
 		return;
 
-	BUG_ON(memcmp(xen_start_info->magic, "xen-3.0", 7) != 0);
+	BUG_ON(memcmp(xen_start_info->magic, "xen-3", 5) != 0);
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
