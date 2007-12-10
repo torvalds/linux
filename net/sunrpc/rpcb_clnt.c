@@ -55,45 +55,6 @@ enum {
 #define RPCB_HIGHPROC_4		RPCBPROC_GETSTAT
 
 /*
- * r_addr
- *
- * Quoting RFC 3530, section 2.2:
- *
- * For TCP over IPv4 and for UDP over IPv4, the format of r_addr is the
- * US-ASCII string:
- *
- *	h1.h2.h3.h4.p1.p2
- *
- * The prefix, "h1.h2.h3.h4", is the standard textual form for
- * representing an IPv4 address, which is always four octets long.
- * Assuming big-endian ordering, h1, h2, h3, and h4, are respectively,
- * the first through fourth octets each converted to ASCII-decimal.
- * Assuming big-endian ordering, p1 and p2 are, respectively, the first
- * and second octets each converted to ASCII-decimal.  For example, if a
- * host, in big-endian order, has an address of 0x0A010307 and there is
- * a service listening on, in big endian order, port 0x020F (decimal
- * 527), then the complete universal address is "10.1.3.7.2.15".
- *
- * ...
- *
- * For TCP over IPv6 and for UDP over IPv6, the format of r_addr is the
- * US-ASCII string:
- *
- *	x1:x2:x3:x4:x5:x6:x7:x8.p1.p2
- *
- * The suffix "p1.p2" is the service port, and is computed the same way
- * as with universal addresses for TCP and UDP over IPv4.  The prefix,
- * "x1:x2:x3:x4:x5:x6:x7:x8", is the standard textual form for
- * representing an IPv6 address as defined in Section 2.2 of [RFC2373].
- * Additionally, the two alternative forms specified in Section 2.2 of
- * [RFC2373] are also acceptable.
- *
- * XXX: Currently this implementation does not explicitly convert the
- *      stored address to US-ASCII on non-ASCII systems.
- */
-#define RPCB_MAXADDRLEN		(128u)
-
-/*
  * r_owner
  *
  * The "owner" is allowed to unset a service in the rpcbind database.
@@ -113,7 +74,7 @@ struct rpcbind_args {
 	u32			r_prot;
 	unsigned short		r_port;
 	char *			r_netid;
-	char			r_addr[RPCB_MAXADDRLEN];
+	char			r_addr[RPCBIND_MAXUADDRLEN];
 	char *			r_owner;
 };
 
@@ -526,7 +487,7 @@ static int rpcb_decode_getaddr(struct rpc_rqst *req, __be32 *p,
 	 * Simple sanity check.  The smallest possible universal
 	 * address is an IPv4 address string containing 11 bytes.
 	 */
-	if (addr_len < 11 || addr_len > RPCB_MAXADDRLEN)
+	if (addr_len < 11 || addr_len > RPCBIND_MAXUADDRLEN)
 		goto out_err;
 
 	/*
@@ -577,7 +538,7 @@ out_err:
 #define RPCB_boolean_sz		(1u)
 
 #define RPCB_netid_sz		(1+XDR_QUADLEN(RPCBIND_MAXNETIDLEN))
-#define RPCB_addr_sz		(1+XDR_QUADLEN(RPCB_MAXADDRLEN))
+#define RPCB_addr_sz		(1+XDR_QUADLEN(RPCBIND_MAXUADDRLEN))
 #define RPCB_ownerstring_sz	(1+XDR_QUADLEN(RPCB_MAXOWNERLEN))
 
 #define RPCB_mappingargs_sz	RPCB_program_sz+RPCB_version_sz+	\

@@ -152,5 +152,44 @@ typedef __be32	rpc_fraghdr;
  */
 #define RPCBIND_MAXNETIDLEN	(4u)
 
+/*
+ * Universal addresses are introduced in RFC 1833 and further spelled
+ * out in RFC 3530.  RPCBIND_MAXUADDRLEN defines a maximum byte length
+ * of a universal address for use in allocating buffers and character
+ * arrays.
+ *
+ * Quoting RFC 3530, section 2.2:
+ *
+ * For TCP over IPv4 and for UDP over IPv4, the format of r_addr is the
+ * US-ASCII string:
+ *
+ *	h1.h2.h3.h4.p1.p2
+ *
+ * The prefix, "h1.h2.h3.h4", is the standard textual form for
+ * representing an IPv4 address, which is always four octets long.
+ * Assuming big-endian ordering, h1, h2, h3, and h4, are respectively,
+ * the first through fourth octets each converted to ASCII-decimal.
+ * Assuming big-endian ordering, p1 and p2 are, respectively, the first
+ * and second octets each converted to ASCII-decimal.  For example, if a
+ * host, in big-endian order, has an address of 0x0A010307 and there is
+ * a service listening on, in big endian order, port 0x020F (decimal
+ * 527), then the complete universal address is "10.1.3.7.2.15".
+ *
+ * ...
+ *
+ * For TCP over IPv6 and for UDP over IPv6, the format of r_addr is the
+ * US-ASCII string:
+ *
+ *	x1:x2:x3:x4:x5:x6:x7:x8.p1.p2
+ *
+ * The suffix "p1.p2" is the service port, and is computed the same way
+ * as with universal addresses for TCP and UDP over IPv4.  The prefix,
+ * "x1:x2:x3:x4:x5:x6:x7:x8", is the standard textual form for
+ * representing an IPv6 address as defined in Section 2.2 of [RFC2373].
+ * Additionally, the two alternative forms specified in Section 2.2 of
+ * [RFC2373] are also acceptable.
+ */
+#define RPCBIND_MAXUADDRLEN	(56u)
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_MSGPROT_H_ */
