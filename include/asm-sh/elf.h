@@ -63,11 +63,6 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef struct user_fpu_struct elf_fpregset_t;
 
 /*
- * This is used to ensure we don't load something for the wrong architecture.
- */
-#define elf_check_arch(x) ( (x)->e_machine == EM_SH )
-
-/*
  * These are used to set parameters in the core dumps.
  */
 #define ELF_CLASS	ELFCLASS32
@@ -77,6 +72,12 @@ typedef struct user_fpu_struct elf_fpregset_t;
 #define ELF_DATA	ELFDATA2MSB
 #endif
 #define ELF_ARCH	EM_SH
+
+#ifdef __KERNEL__
+/*
+ * This is used to ensure we don't load something for the wrong architecture.
+ */
+#define elf_check_arch(x) ( (x)->e_machine == EM_SH )
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
@@ -106,7 +107,7 @@ typedef struct user_fpu_struct elf_fpregset_t;
    For the moment, we have only optimizations for the Intel generations,
    but that could change... */
 
-#define ELF_PLATFORM  (NULL)
+#define ELF_PLATFORM	(utsname()->machine)
 
 #ifdef __SH5__
 #define ELF_PLAT_INIT(_r, load_addr) \
@@ -182,4 +183,5 @@ do {								\
 	NEW_AUX_ENT(AT_L2_CACHESHAPE, l2_cache_shape);		\
 } while (0)
 
+#endif /* __KERNEL__ */
 #endif /* __ASM_SH_ELF_H */
