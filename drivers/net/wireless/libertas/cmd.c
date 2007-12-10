@@ -19,26 +19,20 @@ void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 		    u16 wait_option, void *pdata_buf);
 
 
-static u16 commands_allowed_in_ps[] = {
-	CMD_802_11_RSSI,
-};
-
 /**
- *  @brief This function checks if the commans is allowed
- *  in PS mode not.
+ *  @brief Checks whether a command is allowed in Power Save mode
  *
  *  @param command the command ID
- *  @return 	   TRUE or FALSE
+ *  @return 	   1 if allowed, 0 if not allowed
  */
-static u8 is_command_allowed_in_ps(__le16 command)
+static u8 is_command_allowed_in_ps(u16 cmd)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(commands_allowed_in_ps); i++) {
-		if (command == cpu_to_le16(commands_allowed_in_ps[i]))
-			return 1;
+	switch (cmd) {
+	case CMD_802_11_RSSI:
+		return 1;
+	default:
+		break;
 	}
-
 	return 0;
 }
 
@@ -1715,7 +1709,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	if (cmdnode) {
 		cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
 
-		if (is_command_allowed_in_ps(cmdptr->command)) {
+		if (is_command_allowed_in_ps(le16_to_cpu(cmdptr->command))) {
 			if ((priv->psstate == PS_STATE_SLEEP) ||
 			    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 				lbs_deb_host(
