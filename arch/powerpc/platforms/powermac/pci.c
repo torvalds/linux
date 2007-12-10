@@ -1243,15 +1243,22 @@ void pmac_pci_fixup_pciata(struct pci_dev* dev)
  good:
 	pci_read_config_byte(dev, PCI_CLASS_PROG, &progif);
 	if ((progif & 5) != 5) {
-		printk(KERN_INFO "Forcing PCI IDE into native mode: %s\n",
+		printk(KERN_INFO "PCI: %s Forcing PCI IDE into native mode\n",
 		       pci_name(dev));
 		(void) pci_write_config_byte(dev, PCI_CLASS_PROG, progif|5);
 		if (pci_read_config_byte(dev, PCI_CLASS_PROG, &progif) ||
 		    (progif & 5) != 5)
 			printk(KERN_ERR "Rewrite of PROGIF failed !\n");
+		else {
+			/* Clear IO BARs, they will be reassigned */
+			pci_write_config_dword(dev, PCI_BASE_ADDRESS_0, 0);
+			pci_write_config_dword(dev, PCI_BASE_ADDRESS_1, 0);
+			pci_write_config_dword(dev, PCI_BASE_ADDRESS_2, 0);
+			pci_write_config_dword(dev, PCI_BASE_ADDRESS_3, 0);
+		}
 	}
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pmac_pci_fixup_pciata);
+DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, pmac_pci_fixup_pciata);
 #endif
 
 /*
