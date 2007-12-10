@@ -234,13 +234,10 @@ static int fallback_blk_dec(struct blkcipher_desc *desc,
 	struct crypto_blkcipher *tfm;
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 
-	memcpy(crypto_blkcipher_crt(sctx->fallback.blk)->iv, desc->info,
-		AES_BLOCK_SIZE);
-
 	tfm = desc->tfm;
 	desc->tfm = sctx->fallback.blk;
 
-	ret = crypto_blkcipher_decrypt(desc, dst, src, nbytes);
+	ret = crypto_blkcipher_decrypt_iv(desc, dst, src, nbytes);
 
 	desc->tfm = tfm;
 	return ret;
@@ -254,13 +251,10 @@ static int fallback_blk_enc(struct blkcipher_desc *desc,
 	struct crypto_blkcipher *tfm;
 	struct s390_aes_ctx *sctx = crypto_blkcipher_ctx(desc->tfm);
 
-	memcpy(crypto_blkcipher_crt(sctx->fallback.blk)->iv, desc->info,
-		AES_BLOCK_SIZE);
-
 	tfm = desc->tfm;
 	desc->tfm = sctx->fallback.blk;
 
-	ret = crypto_blkcipher_encrypt(desc, dst, src, nbytes);
+	ret = crypto_blkcipher_encrypt_iv(desc, dst, src, nbytes);
 
 	desc->tfm = tfm;
 	return ret;
