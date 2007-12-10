@@ -89,7 +89,6 @@ typedef struct user_fpu_struct elf_fpregset_t;
 
 #define ELF_ET_DYN_BASE         (2 * TASK_SIZE / 3)
 
-
 #define ELF_CORE_COPY_REGS(_dest,_regs)				\
 	memcpy((char *) &_dest, (char *) _regs,			\
 	       sizeof(struct pt_regs));
@@ -139,7 +138,6 @@ typedef struct user_fpu_struct elf_fpregset_t;
        _r->sr = SR_FD; } while (0)
 #endif
 
-#ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2) set_personality(PER_LINUX_32BIT)
 struct task_struct;
 extern int dump_task_regs (struct task_struct *, elf_gregset_t *);
@@ -147,7 +145,6 @@ extern int dump_task_fpu (struct task_struct *, elf_fpregset_t *);
 
 #define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs) dump_task_fpu(tsk, elf_fpregs)
-#endif
 
 #ifdef CONFIG_VSYSCALL
 /* vDSO has arch_setup_additional_pages */
