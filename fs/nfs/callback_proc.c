@@ -12,7 +12,9 @@
 #include "delegation.h"
 #include "internal.h"
 
+#ifdef NFS_DEBUG
 #define NFSDBG_FACILITY NFSDBG_CALLBACK
+#endif
  
 __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res)
 {
@@ -20,12 +22,16 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *
 	struct nfs_delegation *delegation;
 	struct nfs_inode *nfsi;
 	struct inode *inode;
-	
+
 	res->bitmap[0] = res->bitmap[1] = 0;
 	res->status = htonl(NFS4ERR_BADHANDLE);
 	clp = nfs_find_client(args->addr, 4);
 	if (clp == NULL)
 		goto out;
+
+	dprintk("NFS: GETATTR callback request from %s\n",
+		rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
+
 	inode = nfs_delegation_find_inode(clp, &args->fh);
 	if (inode == NULL)
 		goto out_putclient;
@@ -65,6 +71,10 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 	clp = nfs_find_client(args->addr, 4);
 	if (clp == NULL)
 		goto out;
+
+	dprintk("NFS: RECALL callback request from %s\n",
+		rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_ADDR));
+
 	inode = nfs_delegation_find_inode(clp, &args->fh);
 	if (inode == NULL)
 		goto out_putclient;
