@@ -600,6 +600,25 @@ static void nfs_umount_begin(struct vfsmount *vfsmnt, int flags)
 }
 
 /*
+ * Set the port number in an address.  Be agnostic about the address family.
+ */
+static void nfs_set_port(struct sockaddr *sap, unsigned short port)
+{
+	switch (sap->sa_family) {
+	case AF_INET: {
+		struct sockaddr_in *ap = (struct sockaddr_in *)sap;
+		ap->sin_port = htons(port);
+		break;
+	}
+	case AF_INET6: {
+		struct sockaddr_in6 *ap = (struct sockaddr_in6 *)sap;
+		ap->sin6_port = htons(port);
+		break;
+	}
+	}
+}
+
+/*
  * Sanity-check a server address provided by the mount command.
  *
  * Address family must be initialized, and address must not be
@@ -629,6 +648,7 @@ static int nfs_parse_mount_options(char *raw,
 				   struct nfs_parsed_mount_data *mnt)
 {
 	char *p, *string;
+	unsigned short port = 0;
 
 	if (!raw) {
 		dfprintk(MOUNT, "NFS: mount options string was NULL.\n");
@@ -731,7 +751,7 @@ static int nfs_parse_mount_options(char *raw,
 				return 0;
 			if (option < 0 || option > 65535)
 				return 0;
-			mnt->nfs_server.address.sin_port = htons(option);
+			port = option;
 			break;
 		case Opt_rsize:
 			if (match_int(args, &mnt->rsize))
@@ -973,6 +993,8 @@ static int nfs_parse_mount_options(char *raw,
 		}
 	}
 
+	nfs_set_port((struct sockaddr *)&mnt->nfs_server.address, port);
+
 	return 1;
 
 out_nomem:
@@ -1023,7 +1045,7 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	/*
 	 * autobind will be used if mount_server.port == 0
 	 */
-	sin.sin_port = htons(args->mount_server.port);
+	nfs_set_port((struct sockaddr *)&sin, args->mount_server.port);
 
 	/*
 	 * Now ask the mount server to map our export path
