@@ -927,15 +927,17 @@ error:
  * Set up an NFS4 client
  */
 static int nfs4_set_client(struct nfs_server *server,
-		const char *hostname, const struct sockaddr_in *addr,
+		const char *hostname,
+		const struct sockaddr *addr,
+		const size_t addrlen,
 		const char *ip_addr,
 		rpc_authflavor_t authflavour,
 		int proto, int timeo, int retrans)
 {
 	struct nfs_client_initdata cl_init = {
 		.hostname = hostname,
-		.addr = (const struct sockaddr *)addr,
-		.addrlen = sizeof(*addr),
+		.addr = addr,
+		.addrlen = addrlen,
 		.rpc_ops = &nfs_v4_clientops,
 	};
 	struct nfs_client *clp;
@@ -1015,7 +1017,8 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 	/* Get a client record */
 	error = nfs4_set_client(server,
 			data->nfs_server.hostname,
-			&data->nfs_server.address,
+			(struct sockaddr *)&data->nfs_server.address,
+			sizeof(data->nfs_server.address),
 			data->client_address,
 			data->auth_flavors[0],
 			data->nfs_server.protocol,
@@ -1090,12 +1093,14 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 
 	/* Get a client representation.
 	 * Note: NFSv4 always uses TCP, */
-	error = nfs4_set_client(server, data->hostname, data->addr,
-			parent_client->cl_ipaddr,
-			data->authflavor,
-			parent_server->client->cl_xprt->prot,
-			parent_client->retrans_timeo,
-			parent_client->retrans_count);
+	error = nfs4_set_client(server, data->hostname,
+				(struct sockaddr *)data->addr,
+				sizeof(*data->addr),
+				parent_client->cl_ipaddr,
+				data->authflavor,
+				parent_server->client->cl_xprt->prot,
+				parent_client->retrans_timeo,
+				parent_client->retrans_count);
 	if (error < 0)
 		goto error;
 
