@@ -54,7 +54,7 @@
 
 #define DRV_NAME	"bfin-spi"
 #define DRV_AUTHOR	"Bryan Wu, Luke Yang"
-#define DRV_DESC	"Blackfin BF5xx on-chip SPI Contoller Driver"
+#define DRV_DESC	"Blackfin BF5xx on-chip SPI Controller Driver"
 #define DRV_VERSION	"1.0"
 
 MODULE_AUTHOR(DRV_AUTHOR);
