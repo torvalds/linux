@@ -410,30 +410,32 @@ static ssize_t lbs_threshold_read(
 	char *buf = (char *)addr;
 	u8 value;
 	u8 freq;
+	int events = 0;
 
-	struct cmd_ds_802_11_subscribe_event *events = kzalloc(
+	struct cmd_ds_802_11_subscribe_event *subscribed = kzalloc(
 		sizeof(struct cmd_ds_802_11_subscribe_event),
 		GFP_KERNEL);
 	struct mrvlietypes_thresholds *got;
 
 	res = lbs_prepare_and_send_command(priv,
 			CMD_802_11_SUBSCRIBE_EVENT, CMD_ACT_GET,
-			CMD_OPTION_WAITFORRSP, 0, events);
+			CMD_OPTION_WAITFORRSP, 0, subscribed);
 	if (res) {
-		kfree(events);
+		kfree(subscribed);
 		return res;
 	}
 
-	got = lbs_tlv_find(tlv_type, events->tlv, sizeof(events->tlv));
+	got = lbs_tlv_find(tlv_type, subscribed->tlv, sizeof(subscribed->tlv));
 	if (got) {
 		value = got->value;
 		freq  = got->freq;
+		events = le16_to_cpu(subscribed->events);
 	}
-	kfree(events);
+	kfree(subscribed);
 
 	if (got)
 		pos += snprintf(buf, len, "%d %d %d\n", value, freq,
-			!!(le16_to_cpu(events->events) & event_mask));
+			!!(events & event_mask));
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 
