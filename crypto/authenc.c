@@ -333,7 +333,7 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	inst->alg.cra_alignmask = auth->cra_alignmask | enc->cra_alignmask;
 	inst->alg.cra_type = &crypto_aead_type;
 
-	inst->alg.cra_aead.ivsize = enc->cra_blkcipher.ivsize;
+	inst->alg.cra_aead.ivsize = enc->cra_ablkcipher.ivsize;
 	inst->alg.cra_aead.maxauthsize = auth->cra_type == &crypto_hash_type ?
 					 auth->cra_hash.digestsize :
 					 auth->cra_digest.dia_digestsize;
