@@ -874,7 +874,7 @@ static int ti1250_override(struct yenta_socket *socket)
  */
 
 #ifdef CONFIG_YENTA_ENE_TUNE
-/**
+/*
  * set/clear various test bits:
  * Defaults to clear the bit.
  * - mask (u8) defines what bits to change
