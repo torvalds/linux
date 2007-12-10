@@ -2106,7 +2106,7 @@ static int ixgbe_tso(struct ixgbe_adapter *adapter,
 		l4len = tcp_hdrlen(skb);
 		*hdr_len += l4len;
 
-		if (skb->protocol == ntohs(ETH_P_IP)) {
+		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
 			iph->tot_len = 0;
 			iph->check = 0;
@@ -2147,7 +2147,7 @@ static int ixgbe_tso(struct ixgbe_adapter *adapter,
 		type_tucmd_mlhl |= (IXGBE_TXD_CMD_DEXT |
 				    IXGBE_ADVTXD_DTYP_CTXT);
 
-		if (skb->protocol == ntohs(ETH_P_IP))
+		if (skb->protocol == htons(ETH_P_IP))
 			type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
 		type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
 		context_desc->type_tucmd_mlhl = cpu_to_le32(type_tucmd_mlhl);
@@ -2202,7 +2202,7 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 				    IXGBE_ADVTXD_DTYP_CTXT);
 
 		if (skb->ip_summed == CHECKSUM_PARTIAL) {
-			if (skb->protocol == ntohs(ETH_P_IP))
+			if (skb->protocol == htons(ETH_P_IP))
 				type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_IPV4;
 
 			if (skb->sk->sk_protocol == IPPROTO_TCP)
@@ -2402,7 +2402,7 @@ static int ixgbe_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags |= (vlan_tx_tag_get(skb) << IXGBE_TX_FLAGS_VLAN_SHIFT);
 	}
 
-	if (skb->protocol == ntohs(ETH_P_IP))
+	if (skb->protocol == htons(ETH_P_IP))
 		tx_flags |= IXGBE_TX_FLAGS_IPV4;
 	first = tx_ring->next_to_use;
 	tso = ixgbe_tso(adapter, tx_ring, skb, tx_flags, &hdr_len);
