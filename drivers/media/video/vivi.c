@@ -178,6 +178,8 @@ struct vivi_dev {
 	/* Several counters */
 	int                        h,m,s,us,jiffies;
 	char                       timestr[13];
+
+	int			   mv_count;	/* Controls bars movement */
 };
 
 struct vivi_fh {
@@ -327,14 +329,12 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 	struct timeval ts;
 	char *tmpbuf = kmalloc(wmax*2,GFP_KERNEL);
 	void *vbuf=videobuf_to_vmalloc (&buf->vb);
-	/* FIXME: move to dev struct */
-	static int mv_count=0;
 
 	if (!tmpbuf)
 		return;
 
 	for (h=0;h<hmax;h++) {
-		gen_line(tmpbuf,0,wmax,hmax,h,mv_count,
+		gen_line(tmpbuf, 0, wmax, hmax, h, dev->mv_count,
 			 dev->timestr);
 		/* FIXME: replacing to __copy_to_user */
 		if (copy_to_user(vbuf+pos,tmpbuf,wmax*2)!=0)
@@ -342,7 +342,7 @@ static void vivi_fillbuff(struct vivi_dev *dev,struct vivi_buffer *buf)
 		pos += wmax*2;
 	}
 
-	mv_count++;
+	dev->mv_count++;
 
 	kfree(tmpbuf);
 
