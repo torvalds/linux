@@ -309,8 +309,8 @@ struct pci_raw_ops {
 extern struct pci_raw_ops *raw_pci_ops;
 
 struct pci_bus_region {
-	unsigned long start;
-	unsigned long end;
+	resource_size_t start;
+	resource_size_t end;
 };
 
 struct pci_dynids {
