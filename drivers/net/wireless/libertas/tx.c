@@ -161,7 +161,9 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			/* Keep the skb around for when we get feedback */
 			priv->currenttxskb = skb;
-		}
+		} else
+			dev_kfree_skb_any(skb);
+		
 	}
 	
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
