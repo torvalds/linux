@@ -378,6 +378,7 @@ struct hipz_query_hca {
 #define HCA_CAP_UD_LL_QP              EHCA_BMASK_IBM(16, 16)
 #define HCA_CAP_RESIZE_MR             EHCA_BMASK_IBM(17, 17)
 #define HCA_CAP_MINI_QP               EHCA_BMASK_IBM(18, 18)
+#define HCA_CAP_H_ALLOC_RES_SYNC      EHCA_BMASK_IBM(19, 19)
 
 /* query port response block */
 struct hipz_query_port {
