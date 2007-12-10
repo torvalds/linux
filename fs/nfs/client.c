@@ -1279,10 +1279,10 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
 	/* display one transport per line on subsequent lines */
 	clp = list_entry(v, struct nfs_client, cl_share_link);
 
-	seq_printf(m, "v%u %02x%02x%02x%02x %4hx %3d %s\n",
+	seq_printf(m, "v%u %s %s %3d %s\n",
 		   clp->rpc_ops->version,
-		   NIPQUAD(clp->cl_addr.sin_addr),
-		   ntohs(clp->cl_addr.sin_port),
+		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_ADDR),
+		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_PORT),
 		   atomic_read(&clp->cl_count),
 		   clp->cl_hostname);
 
@@ -1358,10 +1358,10 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 		 (unsigned long long) server->fsid.major,
 		 (unsigned long long) server->fsid.minor);
 
-	seq_printf(m, "v%u %02x%02x%02x%02x %4hx %-7s %-17s\n",
+	seq_printf(m, "v%u %s %s %-7s %-17s\n",
 		   clp->rpc_ops->version,
-		   NIPQUAD(clp->cl_addr.sin_addr),
-		   ntohs(clp->cl_addr.sin_port),
+		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_ADDR),
+		   rpc_peeraddr2str(clp->cl_rpcclient, RPC_DISPLAY_HEX_PORT),
 		   dev,
 		   fsid);
 

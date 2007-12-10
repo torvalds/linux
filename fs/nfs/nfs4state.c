@@ -758,8 +758,9 @@ static void nfs4_recover_state(struct nfs_client *clp)
 
 	__module_get(THIS_MODULE);
 	atomic_inc(&clp->cl_count);
-	task = kthread_run(reclaimer, clp, "%u.%u.%u.%u-reclaim",
-			NIPQUAD(clp->cl_addr.sin_addr));
+	task = kthread_run(reclaimer, clp, "%s-reclaim",
+				rpc_peeraddr2str(clp->cl_rpcclient,
+							RPC_DISPLAY_ADDR));
 	if (!IS_ERR(task))
 		return;
 	nfs4_clear_recover_bit(clp);
@@ -970,8 +971,8 @@ out:
 	module_put_and_exit(0);
 	return 0;
 out_error:
-	printk(KERN_WARNING "Error: state recovery failed on NFSv4 server %u.%u.%u.%u with error %d\n",
-				NIPQUAD(clp->cl_addr.sin_addr), -status);
+	printk(KERN_WARNING "Error: state recovery failed on NFSv4 server %s"
+			" with error %d\n", clp->cl_hostname, -status);
 	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
 	goto out;
 }
