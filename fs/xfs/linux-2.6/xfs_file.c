@@ -218,6 +218,15 @@ xfs_vm_fault(
 }
 #endif /* CONFIG_XFS_DMAPI */
 
+/*
+ * Unfortunately we can't just use the clean and simple readdir implementation
+ * below, because nfs might call back into ->lookup from the filldir callback
+ * and that will deadlock the low-level btree code.
+ *
+ * Hopefully we'll find a better workaround that allows to use the optimal
+ * version at least for local readdirs for 2.6.25.
+ */
+#if 0
 STATIC int
 xfs_file_readdir(
 	struct file	*filp,
@@ -249,6 +258,121 @@ xfs_file_readdir(
 		return -error;
 	return 0;
 }
+#else
+
+struct hack_dirent {
+	int		namlen;
+	loff_t		offset;
+	u64		ino;
+	unsigned int	d_type;
+	char		name[];
+};
+
+struct hack_callback {
+	char		*dirent;
+	size_t		len;
+	size_t		used;
+};
+
+STATIC int
+xfs_hack_filldir(
+	void		*__buf,
+	const char	*name,
+	int		namlen,
+	loff_t		offset,
+	u64		ino,
+	unsigned int	d_type)
+{
+	struct hack_callback *buf = __buf;
+	struct hack_dirent *de = (struct hack_dirent *)(buf->dirent + buf->used);
+
+	if (buf->used + sizeof(struct hack_dirent) + namlen > buf->len)
+		return -EINVAL;
+
+	de->namlen = namlen;
+	de->offset = offset;
+	de->ino = ino;
+	de->d_type = d_type;
+	memcpy(de->name, name, namlen);
+	buf->used += sizeof(struct hack_dirent) + namlen;
+	return 0;
+}
+
+STATIC int
+xfs_file_readdir(
+	struct file	*filp,
+	void		*dirent,
+	filldir_t	filldir)
+{
+	struct inode	*inode = filp->f_path.dentry->d_inode;
+	xfs_inode_t	*ip = XFS_I(inode);
+	struct hack_callback buf;
+	struct hack_dirent *de;
+	int		error;
+	loff_t		size;
+	int		eof = 0;
+	xfs_off_t       start_offset, curr_offset, offset;
+
+	/*
+	 * Try fairly hard to get memory
+	 */
+	buf.len = PAGE_CACHE_SIZE;
+	do {
+		buf.dirent = kmalloc(buf.len, GFP_KERNEL);
+		if (buf.dirent)
+			break;
+		buf.len >>= 1;
+	} while (buf.len >= 1024);
+
+	if (!buf.dirent)
+		return -ENOMEM;
+
+	curr_offset = filp->f_pos;
+	if (curr_offset == 0x7fffffff)
+		offset = 0xffffffff;
+	else
+		offset = filp->f_pos;
+
+	while (!eof) {
+		int reclen;
+		start_offset = offset;
+
+		buf.used = 0;
+		error = -xfs_readdir(ip, &buf, buf.len, &offset,
+				     xfs_hack_filldir);
+		if (error || offset == start_offset) {
+			size = 0;
+			break;
+		}
+
+		size = buf.used;
+		de = (struct hack_dirent *)buf.dirent;
+		while (size > 0) {
+			if (filldir(dirent, de->name, de->namlen,
+					curr_offset & 0x7fffffff,
+					de->ino, de->d_type)) {
+				goto done;
+			}
+
+			reclen = sizeof(struct hack_dirent) + de->namlen;
+			size -= reclen;
+			curr_offset = de->offset /* & 0x7fffffff */;
+			de = (struct hack_dirent *)((char *)de + reclen);
+		}
+	}
+
+ done:
+ 	if (!error) {
+		if (size == 0)
+			filp->f_pos = offset & 0x7fffffff;
+		else if (de)
+			filp->f_pos = curr_offset;
+	}
+
+	kfree(buf.dirent);
+	return error;
+}
+#endif
 
 STATIC int
 xfs_file_mmap(

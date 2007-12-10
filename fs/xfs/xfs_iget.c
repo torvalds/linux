@@ -267,7 +267,7 @@ finish_inode:
 	icl = NULL;
 	if (radix_tree_gang_lookup(&pag->pag_ici_root, (void**)&iq,
 							first_index, 1)) {
-		if ((iq->i_ino & mask) == first_index)
+		if ((XFS_INO_TO_AGINO(mp, iq->i_ino) & mask) == first_index)
 			icl = iq->i_cluster;
 	}
 
