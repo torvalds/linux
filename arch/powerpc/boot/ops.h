@@ -79,7 +79,6 @@ struct loader_info {
 extern struct loader_info loader_info;
 
 void start(void);
-int ft_init(void *dt_blob, unsigned int max_size, unsigned int max_find_device);
 void fdt_init(void *blob);
 int serial_console_init(void);
 int ns16550_console_init(void *devp, struct serial_console_data *scdp);

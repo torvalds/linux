@@ -47,7 +47,7 @@ $(addprefix $(obj)/,$(zlib) gunzip_util.o main.o): \
 	$(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
 
 src-libfdt := fdt.c fdt_ro.c fdt_wip.c fdt_sw.c fdt_rw.c fdt_strerror.c
-src-wlib := string.S crt0.S stdio.c main.c flatdevtree.c flatdevtree_misc.c \
+src-wlib := string.S crt0.S stdio.c main.c \
 		$(addprefix libfdt/,$(src-libfdt)) libfdt-wrapper.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
 		gunzip_util.c elf_util.c $(zlib) devtree.c oflib.c ofconsole.c \
