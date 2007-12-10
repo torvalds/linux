@@ -91,7 +91,7 @@ config PS3_SYS_MANAGER
 	depends on PPC_PS3
 	tristate "PS3 System Manager driver" if PS3_ADVANCED
 	select PS3_VUART
-	default m
+	default y
 	help
 	  Include support for the PS3 System Manager.
 
