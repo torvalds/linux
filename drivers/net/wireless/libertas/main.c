@@ -367,34 +367,6 @@ static struct attribute_group lbs_mesh_attr_group = {
 };
 
 /**
- *  @brief Check if the device can be open and wait if necessary.
- *
- *  @param dev     A pointer to net_device structure
- *  @return 	   0
- *
- * For USB adapter, on some systems the device open handler will be
- * called before FW ready. Use the following flag check and wait
- * function to work around the issue.
- *
- */
-static int pre_open_check(struct net_device *dev)
-{
-	struct lbs_private *priv = (struct lbs_private *) dev->priv;
-	int i = 0;
-
-	while (!priv->fw_ready && i < 20) {
-		i++;
-		msleep_interruptible(100);
-	}
-	if (!priv->fw_ready) {
-		lbs_pr_err("firmware not ready\n");
-		return -1;
-	}
-
-	return 0;
-}
-
-/**
  *  @brief This function opens the device
  *
  *  @param dev     A pointer to net_device structure
@@ -433,8 +405,6 @@ static int lbs_mesh_open(struct net_device *dev)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv ;
 
-	if (pre_open_check(dev) == -1)
-		return -1;
 	priv->mesh_open = 1 ;
 	netif_wake_queue(priv->mesh_dev);
 
@@ -457,8 +427,6 @@ static int lbs_open(struct net_device *dev)
 {
 	struct lbs_private *priv = (struct lbs_private *) dev->priv ;
 
-	if(pre_open_check(dev) == -1)
-		return -1;
 	priv->infra_open = 1 ;
 	netif_wake_queue(priv->dev);
 	if (priv->open == 0)
