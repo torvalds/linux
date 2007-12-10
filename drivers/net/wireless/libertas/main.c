@@ -1408,23 +1408,22 @@ out:
  *  @param dev     A pointer to net_device structure
  *  @return 	   n/a
  */
-void lbs_interrupt(struct net_device *dev)
+void lbs_interrupt(struct lbs_private *priv)
 {
-	struct lbs_private *priv = dev->priv;
-
 	lbs_deb_enter(LBS_DEB_THREAD);
 
-	lbs_deb_thread("lbs_interrupt: intcounter=%d\n",
-	       priv->intcounter);
+	lbs_deb_thread("lbs_interrupt: intcounter=%d\n", priv->intcounter);
+
+	if (spin_trylock(&priv->driver_lock)) {
+		spin_unlock(&priv->driver_lock);
+		printk(KERN_CRIT "%s called without driver_lock held\n", __func__);
+		WARN_ON(1);
+	}
 
 	priv->intcounter++;
 
-	if (priv->psstate == PS_STATE_SLEEP) {
+	if (priv->psstate == PS_STATE_SLEEP)
 		priv->psstate = PS_STATE_AWAKE;
-		netif_wake_queue(dev);
-		if (priv->mesh_dev)
-			netif_wake_queue(priv->mesh_dev);
-	}
 
 	wake_up_interruptible(&priv->waitq);
 

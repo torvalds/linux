@@ -632,7 +632,7 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 	       priv->upld_len);
 
 	kfree_skb(skb);
-	lbs_interrupt(priv->dev);
+	lbs_interrupt(priv);
 	spin_unlock(&priv->driver_lock);
 
 	lbs_deb_usbd(&cardp->udev->dev,
@@ -705,7 +705,7 @@ static void if_usb_receive(struct urb *urb)
 		cardp->usb_event_cause <<= 3;
 		cardp->usb_int_cause |= MRVDRV_CARDEVENT;
 		kfree_skb(skb);
-		lbs_interrupt(priv->dev);
+		lbs_interrupt(priv);
 		spin_unlock(&priv->driver_lock);
 		goto rx_exit;
 	default:

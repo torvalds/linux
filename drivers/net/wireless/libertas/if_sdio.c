@@ -154,7 +154,7 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 
 	card->int_cause |= MRVDRV_CMD_UPLD_RDY;
 
-	lbs_interrupt(card->priv->dev);
+	lbs_interrupt(card->priv);
 
 	ret = 0;
 
@@ -236,7 +236,7 @@ static int if_sdio_handle_event(struct if_sdio_card *card,
 	card->event = event;
 	card->int_cause |= MRVDRV_CARDEVENT;
 
-	lbs_interrupt(card->priv->dev);
+	lbs_interrupt(card->priv);
 
 	spin_unlock_irqrestore(&card->priv->driver_lock, flags);
 

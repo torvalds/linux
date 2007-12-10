@@ -39,7 +39,7 @@ void lbs_queue_cmd(struct lbs_private *priv,
 int lbs_allocate_cmd_buffer(struct lbs_private *priv);
 int lbs_execute_next_command(struct lbs_private *priv);
 int lbs_process_event(struct lbs_private *priv);
-void lbs_interrupt(struct net_device *);
+void lbs_interrupt(struct lbs_private *priv);
 int lbs_set_radio_control(struct lbs_private *priv);
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);

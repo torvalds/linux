@@ -264,8 +264,9 @@ static irqreturn_t if_cs_interrupt(int irq, void *data)
 		/* clear interrupt */
 		if_cs_write16(card, IF_CS_C_INT_CAUSE, int_cause & IF_CS_C_IC_MASK);
 	}
-
-	lbs_interrupt(card->priv->dev);
+	spin_lock(&card->priv->driver_lock);
+	lbs_interrupt(card->priv);
+	spin_unlock(&card->priv->driver_lock);
 
 	return IRQ_HANDLED;
 }
