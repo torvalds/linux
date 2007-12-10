@@ -29,7 +29,7 @@
 extern unsigned const int tuner_count;
 
 struct analog_demod_info {
-	char name[128];
+	char *name;
 };
 
 struct analog_tuner_ops {
