@@ -59,6 +59,7 @@
 static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
 static struct video_device vivi;	/* Video device */
 static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
+static int n_devs = 1;			/* Number of virtual devices */
 
 /* supported controls */
 static struct v4l2_queryctrl vivi_qctrl[] = {
@@ -1079,7 +1080,7 @@ static int vivi_close(struct inode *inode, struct file *file)
 	videobuf_stop(&fh->vb_vidq);
 	videobuf_mmap_free(&fh->vb_vidq);
 
-	kfree (fh);
+	kfree(fh);
 
 	dev->users--;
 
@@ -1088,14 +1089,23 @@ static int vivi_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int vivi_release(struct vivi_dev *dev)
+static int vivi_release(void)
 {
-	if (-1 != dev->vfd->minor)
-		video_unregister_device(dev->vfd);
-	else
-		video_device_release(dev->vfd);
+	struct vivi_dev *dev;
+	struct list_head *list;
 
-	dev->vfd = NULL;
+	while (!list_empty(&vivi_devlist)) {
+		list = vivi_devlist.next;
+		list_del(list);
+		dev = list_entry(list, struct vivi_dev, vivi_devlist);
+
+		if (-1 != dev->vfd->minor)
+			video_unregister_device(dev->vfd);
+		else
+			video_device_release(dev->vfd);
+
+		kfree(dev);
+	}
 
 	return 0;
 }
@@ -1166,55 +1176,60 @@ static struct video_device vivi_template = {
 
 static int __init vivi_init(void)
 {
-	int ret;
+	int ret = -ENOMEM, i;
 	struct vivi_dev *dev;
 	struct video_device *vfd;
 
-	dev = kzalloc(sizeof(*dev),GFP_KERNEL);
-	if (NULL == dev)
-		return -ENOMEM;
-	list_add_tail(&dev->vivi_devlist,&vivi_devlist);
+	for (i = 0; i < n_devs; i++) {
+		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		if (NULL == dev)
+			break;
 
-	/* init video dma queues */
-	INIT_LIST_HEAD(&dev->vidq.active);
-	INIT_LIST_HEAD(&dev->vidq.queued);
-	init_waitqueue_head(&dev->vidq.wq);
+		list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
-	/* initialize locks */
-	mutex_init(&dev->lock);
+		/* init video dma queues */
+		INIT_LIST_HEAD(&dev->vidq.active);
+		INIT_LIST_HEAD(&dev->vidq.queued);
+		init_waitqueue_head(&dev->vidq.wq);
 
-	dev->vidq.timeout.function = vivi_vid_timeout;
-	dev->vidq.timeout.data     = (unsigned long)dev;
-	init_timer(&dev->vidq.timeout);
+		/* initialize locks */
+		mutex_init(&dev->lock);
 
-	vfd = video_device_alloc();
-	if (NULL == vfd)
-		return -ENOMEM;
+		dev->vidq.timeout.function = vivi_vid_timeout;
+		dev->vidq.timeout.data     = (unsigned long)dev;
+		init_timer(&dev->vidq.timeout);
 
-	*vfd = vivi_template;
+		vfd = video_device_alloc();
+		if (NULL == vfd)
+			break;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
-	snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
-		 vivi_template.name, vfd->minor);
+		*vfd = vivi_template;
 
-	dev->vfd = vfd;
+		ret = video_register_device(vfd, VFL_TYPE_GRABBER, video_nr);
+		if (ret < 0)
+			break;
 
-	printk(KERN_INFO "Video Technology Magazine Virtual Video Capture Board (Load status: %d)\n", ret);
+		snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
+			 vivi_template.name, vfd->minor);
+
+		if (video_nr >= 0)
+			video_nr++;
+
+		dev->vfd = vfd;
+	}
+
+	if (ret < 0) {
+		vivi_release();
+		printk(KERN_INFO "Error %d while loading vivi driver\n", ret);
+	} else
+		printk(KERN_INFO "Video Technology Magazine Virtual Video "
+				 "Capture Board successfully loaded.\n");
 	return ret;
 }
 
 static void __exit vivi_exit(void)
 {
-	struct vivi_dev *h;
-	struct list_head *list;
-
-	while (!list_empty(&vivi_devlist)) {
-		list = vivi_devlist.next;
-		list_del(list);
-		h = list_entry(list, struct vivi_dev, vivi_devlist);
-		vivi_release(h);
-		kfree (h);
-	}
+	vivi_release();
 }
 
 module_init(vivi_init);
@@ -1225,10 +1240,13 @@ MODULE_AUTHOR("Mauro Carvalho Chehab, Ted Walther and John Sokol");
 MODULE_LICENSE("Dual BSD/GPL");
 
 module_param(video_nr, int, 0);
+MODULE_PARM_DESC(video_nr, "video iminor start number");
 
-module_param_named(debug,vivi.debug, int, 0644);
-MODULE_PARM_DESC(debug,"activates debug info");
+module_param(n_devs, int, 0);
+MODULE_PARM_DESC(n_devs, "number of video devices to create");
 
-module_param(vid_limit,int,0644);
-MODULE_PARM_DESC(vid_limit,"capture memory limit in megabytes");
+module_param_named(debug, vivi.debug, int, 0644);
+MODULE_PARM_DESC(debug, "activates debug info");
 
+module_param(vid_limit, int, 0644);
+MODULE_PARM_DESC(vid_limit, "capture memory limit in megabytes");
