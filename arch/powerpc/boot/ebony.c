@@ -146,6 +146,6 @@ void ebony_init(void *mac0, void *mac1)
 	platform_ops.exit = ibm44x_dbcr_reset;
 	ebony_mac0 = mac0;
 	ebony_mac1 = mac1;
-	ft_init(_dtb_start, _dtb_end - _dtb_start, 32);
+	fdt_init(_dtb_start);
 	serial_console_init();
 }

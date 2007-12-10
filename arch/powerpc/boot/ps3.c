@@ -131,7 +131,7 @@ void platform_init(void)
 	printf("\n-- PS3 bootwrapper --\n");
 
 	simple_alloc_init(_end, heapsize, 32, 64);
-	ft_init(_dtb_start, 0, 4);
+	fdt_init(_dtb_start);
 
 	chosen = finddevice("/chosen");
 

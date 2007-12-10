@@ -42,6 +42,6 @@ void bamboo_init(void *mac0, void *mac1)
 	platform_ops.exit = ibm44x_dbcr_reset;
 	bamboo_mac0 = mac0;
 	bamboo_mac1 = mac1;
-	ft_init(_dtb_start, 0, 32);
+	fdt_init(_dtb_start);
 	serial_console_init();
 }

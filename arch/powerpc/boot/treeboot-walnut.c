@@ -128,6 +128,6 @@ void platform_init(void)
 	simple_alloc_init(_end, avail_ram, 32, 32);
 	platform_ops.fixups = walnut_fixups;
 	platform_ops.exit = ibm40x_dbcr_reset;
-	ft_init(_dtb_start, _dtb_end - _dtb_start, 32);
+	fdt_init(_dtb_start);
 	serial_console_init();
 }
