@@ -1153,7 +1153,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_GET_STATUS:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (tmp > NUM_ENDPOINTS || (tmp && !ep->desc))
+		if (tmp >= NUM_ENDPOINTS || (tmp && !ep->desc))
 			goto stall;
 
 		if (tmp) {
@@ -1176,7 +1176,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_SET_FEATURE:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (w_value != USB_ENDPOINT_HALT || tmp > NUM_ENDPOINTS)
+		if (w_value != USB_ENDPOINT_HALT || tmp >= NUM_ENDPOINTS)
 			goto stall;
 		if (!ep->desc || ep->is_iso)
 			goto stall;
@@ -1195,7 +1195,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_CLEAR_FEATURE:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (w_value != USB_ENDPOINT_HALT || tmp > NUM_ENDPOINTS)
+		if (w_value != USB_ENDPOINT_HALT || tmp >= NUM_ENDPOINTS)
 			goto stall;
 		if (tmp == 0)
 			goto succeed;
