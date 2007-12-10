@@ -389,9 +389,9 @@ static int if_usb_reset_device(struct usb_card_rec *cardp)
 	cmd->params.reset.action = cpu_to_le16(CMD_ACT_HALT);
 	usb_tx_block(cardp, cardp->bulk_out_buffer, 4 + S_DS_GEN + sizeof(struct cmd_ds_802_11_reset));
 
-	msleep(10);
+	msleep(100);
 	ret = usb_reset_device(cardp->udev);
-	msleep(10);
+	msleep(100);
 
 	lbs_deb_leave_args(LBS_DEB_USB, "ret %d", ret);
 
@@ -500,7 +500,7 @@ static void if_usb_receive_fwload(struct urb *urb)
 		return;
 	}
 
-	if (cardp->bootcmdresp == 0) {
+	if (cardp->bootcmdresp <= 0) {
 		memcpy (&bootcmdresp, skb->data + IPFIELD_ALIGN_OFFSET,
 			sizeof(bootcmdresp));
 		if (le16_to_cpu(cardp->udev->descriptor.bcdDevice) < 0x3106) {
