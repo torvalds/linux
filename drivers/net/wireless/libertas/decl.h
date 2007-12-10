@@ -46,8 +46,6 @@ void lbs_get_fwversion(struct lbs_private *priv,
 	char *fwversion,
 	int maxlen);
 
-void lbs_upload_rx_packet(struct lbs_private *priv, struct sk_buff *skb);
-
 /** The proc fs interface */
 int lbs_process_rx_command(struct lbs_private *priv);
 void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,

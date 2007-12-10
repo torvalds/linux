@@ -2,6 +2,7 @@
   * This file contains the handling of TX in wlan driver.
   */
 #include <linux/netdevice.h>
+#include <linux/etherdevice.h>
 
 #include "hostcmd.h"
 #include "radiotap.h"
@@ -203,7 +204,12 @@ void lbs_send_tx_feedback(struct lbs_private *priv)
 	try_count = (status >> 16) & 0xff;
 	radiotap_hdr->data_retries = (try_count) ?
 	    (1 + priv->txretrycount - try_count) : 0;
-	lbs_upload_rx_packet(priv, priv->currenttxskb);
+
+
+	priv->currenttxskb->protocol = eth_type_trans(priv->currenttxskb,
+						      priv->rtap_net_dev);
+	netif_rx(priv->currenttxskb);
+
 	priv->currenttxskb = NULL;
 
 	if (priv->connect_status == LBS_CONNECTED)
