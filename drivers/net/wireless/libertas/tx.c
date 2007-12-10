@@ -67,39 +67,45 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	lbs_deb_enter(LBS_DEB_TX);
 
-	ret = NETDEV_TX_BUSY;
+	ret = NETDEV_TX_OK;
 
-	if (priv->dnld_sent) {
-		lbs_pr_alert( "TX error: dnld_sent = %d, not sending\n",
-		       priv->dnld_sent);
-		goto done;
-	}
-
-	if (priv->currenttxskb) {
-		lbs_pr_err("%s while TX skb pending\n", __func__);
-		goto done;
-	}
-
-	if ((priv->psstate == PS_STATE_SLEEP) ||
-	    (priv->psstate == PS_STATE_PRE_SLEEP)) {
-		lbs_pr_alert("TX error: packet xmit in %ssleep mode\n",
-			     priv->psstate == PS_STATE_SLEEP?"":"pre-");
-		goto done;
-	}
+	/* We need to protect against the queues being restarted before
+	   we get round to stopping them */
+	spin_lock_irqsave(&priv->driver_lock, flags);
 
 	if (priv->surpriseremoved)
-		goto drop;
+		goto free;
 
 	if (!skb->len || (skb->len > MRVDRV_ETH_TX_PACKET_BUFFER_SIZE)) {
 		lbs_deb_tx("tx err: skb length %d 0 or > %zd\n",
 		       skb->len, MRVDRV_ETH_TX_PACKET_BUFFER_SIZE);
 		/* We'll never manage to send this one; drop it and return 'OK' */
-		goto drop;
+
+		priv->stats.tx_dropped++;
+		priv->stats.tx_errors++;
+		goto free;
 	}
+
+
+	netif_stop_queue(priv->dev);
+	if (priv->mesh_dev)
+		netif_stop_queue(priv->mesh_dev);
+
+	if (priv->tx_pending_len) {
+		/* This can happen if packets come in on the mesh and eth 
+		   device simultaneously -- there's no mutual exclusion on 
+		   hard_start_xmit() calls between devices. */
+		lbs_deb_tx("Packet on %s while busy\n", dev->name);
+		ret = NETDEV_TX_BUSY;
+		goto unlock;
+	}
+
+	priv->tx_pending_len = -1;
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbs_deb_hex(LBS_DEB_TX, "TX Data", skb->data, min_t(unsigned int, skb->len, 100));
 
-	txpd = (void *)priv->tmptxbuf;
+	txpd = (void *)priv->tx_pending_buf;
 	memset(txpd, 0, sizeof(struct txpd));
 
 	p802x_hdr = skb->data;
@@ -134,54 +140,31 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	memcpy(&txpd[1], p802x_hdr, le16_to_cpu(txpd->tx_packet_length));
 
-	/* We need to protect against the queues being restarted before
-	   we get round to stopping them */
 	spin_lock_irqsave(&priv->driver_lock, flags);
+	priv->tx_pending_len = pkt_len + sizeof(struct txpd);
 
-	ret = priv->hw_host_to_card(priv, MVMS_DAT, priv->tmptxbuf,
-				    pkt_len + sizeof(struct txpd));
+	lbs_deb_tx("%s lined up packet\n", __func__);
 
-	if (!ret) {
-		lbs_deb_tx("%s succeeds\n", __func__);
+	priv->stats.tx_packets++;
+	priv->stats.tx_bytes += skb->len;
 
-		/* Stop processing outgoing pkts before submitting */
-		netif_stop_queue(priv->dev);
-		if (priv->mesh_dev)
-			netif_stop_queue(priv->mesh_dev);
+	dev->trans_start = jiffies;
 
-		priv->stats.tx_packets++;
-		priv->stats.tx_bytes += skb->len;
+	if (priv->monitormode != LBS_MONITOR_OFF) {
+		/* Keep the skb to echo it back once Tx feedback is
+		   received from FW */
+		skb_orphan(skb);
 
-		dev->trans_start = jiffies;
-
-		if (priv->monitormode != LBS_MONITOR_OFF) {
-			/* Keep the skb to echo it back once Tx feedback is
-			   received from FW */
-			skb_orphan(skb);
-
-			/* Keep the skb around for when we get feedback */
-			priv->currenttxskb = skb;
-		} else
-			dev_kfree_skb_any(skb);
-		
-	}
-	
-	spin_unlock_irqrestore(&priv->driver_lock, flags);
-
-	if (ret) {
-		lbs_deb_tx("tx err: hw_host_to_card returned 0x%X\n", ret);
-drop:
-		priv->stats.tx_dropped++;
-		priv->stats.tx_errors++;
-
+		/* Keep the skb around for when we get feedback */
+		priv->currenttxskb = skb;
+	} else {
+ free:
 		dev_kfree_skb_any(skb);
 	}
+ unlock:
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
+	wake_up(&priv->waitq);
 
-	/* Even if we dropped the packet, return OK. Otherwise the
-	   packet gets requeued. */
-	ret = NETDEV_TX_OK;
-
-done:
 	lbs_deb_leave_args(LBS_DEB_TX, "ret %d", ret);
 	return ret;
 }

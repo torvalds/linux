@@ -164,7 +164,10 @@ struct lbs_private {
 
 	struct mutex lock;
 
-	u8 tmptxbuf[LBS_UPLD_SIZE];
+	/* TX packet ready to be sent... */
+	int tx_pending_len;		/* -1 while building packet */
+
+	u8 tx_pending_buf[LBS_UPLD_SIZE];
 	/* protected by hard_start_xmit serialization */
 
 	/** command-related variables */

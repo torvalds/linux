@@ -739,6 +739,8 @@ static int lbs_thread(void *data)
 			shouldsleep = 0;	/* Interrupt pending. Deal with it now */
 		else if (priv->dnld_sent)
 			shouldsleep = 1;	/* Something is en route to the device already */
+		else if (priv->tx_pending_len > 0)
+			shouldsleep = 0;	/* We've a packet to send */
 		else if (priv->cur_cmd)
 			shouldsleep = 1;	/* Can't send a command; one already running */
 		else if (!list_empty(&priv->cmdpendingq))
@@ -852,6 +854,28 @@ static int lbs_thread(void *data)
 		 */
 		if (!list_empty(&priv->cmdpendingq))
 			wake_up_all(&priv->cmd_pending);
+
+		spin_lock_irq(&priv->driver_lock);
+		if (!priv->dnld_sent && priv->tx_pending_len > 0) {
+			int ret = priv->hw_host_to_card(priv, MVMS_DAT,
+							priv->tx_pending_buf,
+							priv->tx_pending_len);
+			if (ret) {
+				lbs_deb_tx("host_to_card failed %d\n", ret);
+				priv->dnld_sent = DNLD_RES_RECEIVED;
+			}
+			priv->tx_pending_len = 0;
+			if (!priv->currenttxskb) {
+				/* We can wake the queues immediately if we aren't
+				   waiting for TX feedback */
+				if (priv->connect_status == LBS_CONNECTED)
+					netif_wake_queue(priv->dev);
+				if (priv->mesh_dev &&
+				    priv->mesh_connect_status == LBS_CONNECTED)
+					netif_wake_queue(priv->mesh_dev);
+			}
+		}
+		spin_unlock_irq(&priv->driver_lock);
 	}
 
 	del_timer(&priv->command_timer);
