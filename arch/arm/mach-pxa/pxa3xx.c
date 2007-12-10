@@ -189,6 +189,11 @@ static struct clk pxa3xx_clks[] = {
 
 	PXA3xx_CKEN("I2CCLK", I2C,  32842000, 0, &pxa_device_i2c.dev),
 	PXA3xx_CKEN("UDCCLK", UDC,  48000000, 5, &pxa_device_udc.dev),
+
+	PXA3xx_CKEN("SSPCLK", SSP1, 13000000, 0, &pxa27x_device_ssp1.dev),
+	PXA3xx_CKEN("SSPCLK", SSP2, 13000000, 0, &pxa27x_device_ssp2.dev),
+	PXA3xx_CKEN("SSPCLK", SSP3, 13000000, 0, &pxa27x_device_ssp3.dev),
+	PXA3xx_CKEN("SSPCLK", SSP4, 13000000, 0, &pxa3xx_device_ssp4.dev),
 };
 
 void __init pxa3xx_init_irq(void)
@@ -215,6 +220,10 @@ static struct platform_device *devices[] __initdata = {
 	&pxa_device_stuart,
 	&pxa_device_i2s,
 	&pxa_device_rtc,
+	&pxa27x_device_ssp1,
+	&pxa27x_device_ssp2,
+	&pxa27x_device_ssp3,
+	&pxa3xx_device_ssp4,
 };
 
 static int __init pxa3xx_init(void)

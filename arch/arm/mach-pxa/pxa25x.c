@@ -120,12 +120,15 @@ static struct clk pxa25x_clks[] = {
 	INIT_CKEN("UDCCLK", USB, 47923000, 5, &pxa_device_udc.dev),
 	INIT_CKEN("MMCCLK", MMC, 19169000, 0, &pxa_device_mci.dev),
 	INIT_CKEN("I2CCLK", I2C, 31949000, 0, &pxa_device_i2c.dev),
+
+	INIT_CKEN("SSPCLK",  SSP, 3686400, 0, &pxa25x_device_ssp.dev),
+	INIT_CKEN("SSPCLK", NSSP, 3686400, 0, &pxa25x_device_nssp.dev),
+	INIT_CKEN("SSPCLK", ASSP, 3686400, 0, &pxa25x_device_assp.dev),
+
 	/*
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
 	INIT_CKEN("PWMCLK",  PWM0, 3686400,  0, NULL),
-	INIT_CKEN("SSPCLK",  SSP,  3686400,  0, NULL),
 	INIT_CKEN("I2SCLK",  I2S,  14745600, 0, NULL),
-	INIT_CKEN("NSSPCLK", NSSP, 3686400,  0, NULL),
 	*/
 	INIT_CKEN("FICPCLK", FICP, 47923000, 0, NULL),
 };
@@ -293,6 +296,9 @@ static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa_device_stuart,
 	&pxa_device_i2s,
 	&pxa_device_rtc,
+	&pxa25x_device_ssp,
+	&pxa25x_device_nssp,
+	&pxa25x_device_assp,
 };
 
 static int __init pxa25x_init(void)
