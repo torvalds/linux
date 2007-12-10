@@ -11,6 +11,8 @@
 #include <linux/list.h>
 #include <linux/ioport.h>
 
+struct device_node;
+
 /*
  * Structure of a PCI controller (host bridge)
  */
@@ -20,7 +22,7 @@ struct pci_controller {
 #ifdef CONFIG_PPC64
 	int node;
 #endif
-	void *arch_data;
+	struct device_node *dn;
 	struct list_head list_node;
 	struct device *parent;
 
@@ -132,7 +134,6 @@ extern void __init update_bridge_resource(struct pci_dev *dev,
  * by device_node->data.
  */
 struct iommu_table;
-struct device_node;
 
 struct pci_dn {
 	int	busno;			/* pci bus number */

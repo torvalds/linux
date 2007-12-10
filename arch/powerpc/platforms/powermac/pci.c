@@ -319,7 +319,7 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 	if (bus->self)
 		busdn = pci_device_to_OF_node(bus->self);
 	else
-		busdn = hose->arch_data;
+		busdn = hose->dn;
 	for (dn = busdn->child; dn; dn = dn->sibling)
 		if (PCI_DN(dn) && PCI_DN(dn)->devfn == devfn)
 			break;
@@ -778,7 +778,7 @@ static void __init setup_u4_pcie(struct pci_controller* hose)
 
 static void __init setup_u3_ht(struct pci_controller* hose)
 {
-	struct device_node *np = (struct device_node *)hose->arch_data;
+	struct device_node *np = hose->dn;
 	struct pci_controller *other = NULL;
 	int i, cur;
 
@@ -1032,7 +1032,7 @@ void __init pmac_pci_init(void)
 	 * future though
 	 */
 	if (u3_agp) {
-		struct device_node *np = u3_agp->arch_data;
+		struct device_node *np = u3_agp->dn;
 		PCI_DN(np)->busno = 0xf0;
 		for (np = np->child; np; np = np->sibling)
 			PCI_DN(np)->busno = 0xf0;

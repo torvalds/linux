@@ -480,7 +480,7 @@ static struct of_device_id celleb_phb_match[] __initdata = {
 
 int __init celleb_setup_phb(struct pci_controller *phb)
 {
-	struct device_node *dev = phb->arch_data;
+	struct device_node *dev = phb->dn;
 	const struct of_device_id *match;
 	int (*setup_func)(struct device_node *, struct pci_controller *);
 

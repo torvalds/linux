@@ -62,7 +62,7 @@ struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 	phb->global_number = global_phb_number++;
 	list_add_tail(&phb->list_node, &hose_list);
 	spin_unlock(&hose_spinlock);
-	phb->arch_data = dev;
+	phb->dn = dev;
 	phb->is_dynamic = mem_init_done;
 #ifdef CONFIG_PPC64
 	if (dev) {
@@ -137,7 +137,7 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
 	while(node) {
 		struct pci_controller *hose, *tmp;
 		list_for_each_entry_safe(hose, tmp, &hose_list, list_node)
-			if (hose->arch_data == node)
+			if (hose->dn == node)
 				return hose;
 		node = node->parent;
 	}

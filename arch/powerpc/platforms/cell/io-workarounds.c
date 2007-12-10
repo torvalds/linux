@@ -238,7 +238,7 @@ static void __init spider_pci_setup_chip(struct spider_pci_bus *bus)
 static void __init spider_pci_add_one(struct pci_controller *phb)
 {
 	struct spider_pci_bus *bus = &spider_pci_busses[spider_pci_count];
-	struct device_node *np = phb->arch_data;
+	struct device_node *np = phb->dn;
 	struct resource rsrc;
 	void __iomem *regs;
 
@@ -317,7 +317,7 @@ static int __init spider_pci_workaround_init(void)
 	 * update this code to cope with dynamically added busses
 	 */
 	list_for_each_entry(phb, &hose_list, list_node) {
-		struct device_node *np = phb->arch_data;
+		struct device_node *np = phb->dn;
 		const char *model = of_get_property(np, "model", NULL);
 
 		/* If no model property or name isn't exactly "pci", skip */

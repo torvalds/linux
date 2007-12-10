@@ -260,7 +260,7 @@ static int phb_set_bus_ranges(struct device_node *dev,
 
 int __devinit rtas_setup_phb(struct pci_controller *phb)
 {
-	struct device_node *dev = phb->arch_data;
+	struct device_node *dev = phb->dn;
 
 	if (is_python(dev))
 		python_countermeasures(dev);

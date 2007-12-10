@@ -662,8 +662,8 @@ pcibios_make_OF_bus_map(void)
 
 	/* For each hose, we begin searching bridges */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
-		struct device_node* node;	
-		node = (struct device_node *)hose->arch_data;
+		struct device_node* node = hose->dn;
+
 		if (!node)
 			continue;
 		make_one_node_map(node, hose->first_busno);
@@ -742,7 +742,7 @@ static struct device_node *scan_OF_for_pci_bus(struct pci_bus *bus)
 		struct pci_controller *hose = pci_bus_to_host(bus);
 		if (hose == NULL)
 			return NULL;
-		return of_node_get(hose->arch_data);
+		return of_node_get(hose->dn);
 	}
 
 	/* not a root bus, we need to get our parent */
@@ -812,9 +812,9 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 		return -ENODEV;
 	/* Make sure it's really a PCI device */
 	hose = pci_find_hose_for_OF_device(node);
-	if (!hose || !hose->arch_data)
+	if (!hose || !hose->dn)
 		return -ENODEV;
-	if (!scan_OF_pci_childs(((struct device_node*)hose->arch_data)->child,
+	if (!scan_OF_pci_childs(hose->dn->child,
 			find_OF_pci_device_filter, (void *)node))
 		return -ENODEV;
 	reg = of_get_property(node, "reg", NULL);

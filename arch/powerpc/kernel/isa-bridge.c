@@ -145,7 +145,7 @@ void __init isa_bridge_find_early(struct pci_controller *hose)
 	for_each_node_by_type(np, "isa") {
 		/* Look for our hose being a parent */
 		for (parent = of_get_parent(np); parent;) {
-			if (parent == hose->arch_data) {
+			if (parent == hose->dn) {
 				of_node_put(parent);
 				break;
 			}

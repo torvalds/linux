@@ -123,7 +123,7 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 	struct device_node* node;
 	struct resource rsrc;
 
-	node = (struct device_node *)hose->arch_data;
+	node = hose->dn;
 	of_address_to_resource(node, 0, &rsrc);
 
 	if ((rsrc.start & 0xfffff) == primary_phb_addr) {

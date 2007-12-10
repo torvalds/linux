@@ -558,7 +558,7 @@ void __init maple_pci_init(void)
 	 * safe assumptions hopefully.
 	 */
 	if (u3_agp) {
-		struct device_node *np = u3_agp->arch_data;
+		struct device_node *np = u3_agp->dn;
 		PCI_DN(np)->busno = 0xf0;
 		for (np = np->child; np; np = np->sibling)
 			PCI_DN(np)->busno = 0xf0;

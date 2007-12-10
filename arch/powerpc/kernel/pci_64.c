@@ -458,7 +458,7 @@ EXPORT_SYMBOL(of_scan_pci_bridge);
 void __devinit scan_phb(struct pci_controller *hose)
 {
 	struct pci_bus *bus;
-	struct device_node *node = hose->arch_data;
+	struct device_node *node = hose->dn;
 	int i, mode;
 	struct resource *res;
 
@@ -705,8 +705,7 @@ int pcibios_unmap_io_space(struct pci_bus *bus)
 	if (hose->io_base_alloc == 0)
 		return 0;
 
-	DBG("IO unmapping for PHB %s\n",
-	    ((struct device_node *)hose->arch_data)->full_name);
+	DBG("IO unmapping for PHB %s\n", hose->dn->full_name);
 	DBG("  alloc=0x%p\n", hose->io_base_alloc);
 
 	/* This is a PHB, we fully unmap the IO area */
@@ -765,8 +764,7 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 	hose->io_base_virt = (void __iomem *)(area->addr +
 					      hose->io_base_phys - phys_page);
 
-	DBG("IO mapping for PHB %s\n",
-	    ((struct device_node *)hose->arch_data)->full_name);
+	DBG("IO mapping for PHB %s\n", hose->dn->full_name);
 	DBG("  phys=0x%016lx, virt=0x%p (alloc=0x%p)\n",
 	    hose->io_base_phys, hose->io_base_virt, hose->io_base_alloc);
 	DBG("  size=0x%016lx (alloc=0x%016lx)\n",

@@ -59,7 +59,7 @@ static void __init pq2_pci_add_bridge(struct device_node *np)
 	if (!hose)
 		return;
 
-	hose->arch_data = np;
+	hose->dn = np;
 
 	setup_indirect_pci(hose, r.start + 0x100, r.start + 0x104, 0);
 	pci_process_bridge_OF_ranges(hose, np, 1);

@@ -133,7 +133,7 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
  */
 void __devinit pci_devs_phb_init_dynamic(struct pci_controller *phb)
 {
-	struct device_node * dn = (struct device_node *) phb->arch_data;
+	struct device_node *dn = phb->dn;
 	struct pci_dn *pdn;
 
 	/* PHB nodes themselves must not match */

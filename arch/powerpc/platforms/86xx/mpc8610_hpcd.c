@@ -124,7 +124,7 @@ static void __devinit quirk_uli5229(struct pci_dev *dev)
 static void __devinit final_uli5288(struct pci_dev *dev)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	struct device_node *hosenode = hose ? hose->arch_data : NULL;
+	struct device_node *hosenode = hose ? hose->dn : NULL;
 	struct of_irq oirq;
 	int virq, pin = 2;
 	u32 laddr[3];
