@@ -99,7 +99,6 @@ struct lbs_mesh_stats {
 
 /** Private structure for the MV device */
 struct lbs_private {
-	int open;
 	int mesh_open;
 	int infra_open;
 	int mesh_autostart_enabled;
