@@ -59,22 +59,6 @@ static void gfs2_page_add_databufs(struct gfs2_inode *ip, struct page *page,
 }
 
 /**
- * gfs2_get_block - Fills in a buffer head with details about a block
- * @inode: The inode
- * @lblock: The block number to look up
- * @bh_result: The buffer head to return the result in
- * @create: Non-zero if we may add block to the file
- *
- * Returns: errno
- */
-
-int gfs2_get_block(struct inode *inode, sector_t lblock,
-	           struct buffer_head *bh_result, int create)
-{
-	return gfs2_block_map(inode, lblock, create, bh_result);
-}
-
-/**
  * gfs2_get_block_noalloc - Fills in a buffer head with details about a block
  * @inode: The inode
  * @lblock: The block number to look up
@@ -89,7 +73,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 {
 	int error;
 
-	error = gfs2_block_map(inode, lblock, 0, bh_result);
+	error = gfs2_block_map(inode, lblock, bh_result, 0);
 	if (error)
 		return error;
 	if (!buffer_mapped(bh_result))
@@ -100,7 +84,7 @@ static int gfs2_get_block_noalloc(struct inode *inode, sector_t lblock,
 static int gfs2_get_block_direct(struct inode *inode, sector_t lblock,
 				 struct buffer_head *bh_result, int create)
 {
-	return gfs2_block_map(inode, lblock, 0, bh_result);
+	return gfs2_block_map(inode, lblock, bh_result, 0);
 }
 
 /**
@@ -504,7 +488,7 @@ static int __gfs2_readpage(void *file, struct page *page)
 		error = stuffed_readpage(ip, page);
 		unlock_page(page);
 	} else {
-		error = mpage_readpage(page, gfs2_get_block);
+		error = mpage_readpage(page, gfs2_block_map);
 	}
 
 	if (unlikely(test_bit(SDF_SHUTDOWN, &sdp->sd_flags)))
@@ -598,7 +582,7 @@ int gfs2_internal_read(struct gfs2_inode *ip, struct file_ra_state *ra_state,
  *    Any I/O we ignore at this time will be done via readpage later.
  * 2. We don't handle stuffed files here we let readpage do the honours.
  * 3. mpage_readpages() does most of the heavy lifting in the common case.
- * 4. gfs2_get_block() is relied upon to set BH_Boundary in the right places.
+ * 4. gfs2_block_map() is relied upon to set BH_Boundary in the right places.
  */
 
 static int gfs2_readpages(struct file *file, struct address_space *mapping,
@@ -615,7 +599,7 @@ static int gfs2_readpages(struct file *file, struct address_space *mapping,
 	if (unlikely(ret))
 		goto out_uninit;
 	if (!gfs2_is_stuffed(ip))
-		ret = mpage_readpages(mapping, pages, nr_pages, gfs2_get_block);
+		ret = mpage_readpages(mapping, pages, nr_pages, gfs2_block_map);
 	gfs2_glock_dq(&gh);
 out_uninit:
 	gfs2_holder_uninit(&gh);
@@ -710,7 +694,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 	}
 
 prepare_write:
-	error = block_prepare_write(page, from, to, gfs2_get_block);
+	error = block_prepare_write(page, from, to, gfs2_block_map);
 out:
 	if (error == 0)
 		return 0;
@@ -923,7 +907,7 @@ static sector_t gfs2_bmap(struct address_space *mapping, sector_t lblock)
 		return 0;
 
 	if (!gfs2_is_stuffed(ip))
-		dblock = generic_block_bmap(mapping, lblock, gfs2_get_block);
+		dblock = generic_block_bmap(mapping, lblock, gfs2_block_map);
 
 	gfs2_glock_dq_uninit(&i_gh);
 

@@ -344,7 +344,7 @@ static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 	struct buffer_head bh_map = { .b_state = 0, .b_blocknr = 0 };
 
 	bh_map.b_size = 1 << inode->i_blkbits;
-	error = gfs2_block_map(inode, lbn, 0, &bh_map);
+	error = gfs2_block_map(inode, lbn, &bh_map, 0);
 	if (error || !bh_map.b_blocknr)
 		printk(KERN_INFO "error=%d, dbn=%llu lbn=%u", error,
 		       (unsigned long long)bh_map.b_blocknr, lbn);

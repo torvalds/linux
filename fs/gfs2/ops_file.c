@@ -323,7 +323,7 @@ static int gfs2_allocate_page_backing(struct page *page)
 	do {
 		bh.b_state = 0;
 		bh.b_size = size;
-		gfs2_block_map(inode, lblock, 1, &bh);
+		gfs2_block_map(inode, lblock, &bh, 1);
 		if (!buffer_mapped(&bh))
 			return -EIO;
 		size -= bh.b_size;

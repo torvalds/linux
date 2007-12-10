@@ -452,8 +452,8 @@ static inline void bmap_unlock(struct inode *inode, int create)
  * Returns: errno
  */
 
-int gfs2_block_map(struct inode *inode, u64 lblock, int create,
-		   struct buffer_head *bh_map)
+int gfs2_block_map(struct inode *inode, sector_t lblock,
+		   struct buffer_head *bh_map, int create)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -559,7 +559,7 @@ int gfs2_extent_map(struct inode *inode, u64 lblock, int *new, u64 *dblock, unsi
 	BUG_ON(!new);
 
 	bh.b_size = 1 << (inode->i_blkbits + 5);
-	ret = gfs2_block_map(inode, lblock, create, &bh);
+	ret = gfs2_block_map(inode, lblock, &bh, create);
 	*extlen = bh.b_size >> inode->i_blkbits;
 	*dblock = bh.b_blocknr;
 	if (buffer_new(&bh))
@@ -909,7 +909,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping)
 	err = 0;
 
 	if (!buffer_mapped(bh)) {
-		gfs2_get_block(inode, iblock, bh, 0);
+		gfs2_block_map(inode, iblock, bh, 0);
 		/* unmapped? It's a hole - nothing to do */
 		if (!buffer_mapped(bh))
 			goto unlock;

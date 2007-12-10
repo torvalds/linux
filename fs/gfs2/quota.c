@@ -276,7 +276,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 	offset = qd->qd_slot % sdp->sd_qc_per_block;;
 
 	bh_map.b_size = 1 << ip->i_inode.i_blkbits;
-	error = gfs2_block_map(&ip->i_inode, block, 0, &bh_map);
+	error = gfs2_block_map(&ip->i_inode, block, &bh_map, 0);
 	if (error)
 		goto fail;
 	error = gfs2_meta_read(ip->i_gl, bh_map.b_blocknr, DIO_WAIT, &bh);
@@ -645,7 +645,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	}
 
 	if (!buffer_mapped(bh)) {
-		gfs2_get_block(inode, iblock, bh, 1);
+		gfs2_block_map(inode, iblock, bh, 1);
 		if (!buffer_mapped(bh))
 			goto unlock;
 	}

@@ -14,8 +14,6 @@
 #include <linux/buffer_head.h>
 #include <linux/mm.h>
 
-extern int gfs2_get_block(struct inode *inode, sector_t lblock,
-			  struct buffer_head *bh_result, int create);
 extern int gfs2_releasepage(struct page *page, gfp_t gfp_mask);
 extern int gfs2_internal_read(struct gfs2_inode *ip,
 			      struct file_ra_state *ra_state,

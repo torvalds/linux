@@ -391,7 +391,7 @@ static int clean_journal(struct gfs2_jdesc *jd, struct gfs2_log_header_host *hea
 	lblock = head->lh_blkno;
 	gfs2_replay_incr_blk(sdp, &lblock);
 	bh_map.b_size = 1 << ip->i_inode.i_blkbits;
-	error = gfs2_block_map(&ip->i_inode, lblock, 0, &bh_map);
+	error = gfs2_block_map(&ip->i_inode, lblock, &bh_map, 0);
 	if (error)
 		return error;
 	if (!bh_map.b_blocknr) {
