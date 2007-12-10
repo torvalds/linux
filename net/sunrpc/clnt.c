@@ -30,6 +30,7 @@
 #include <linux/smp_lock.h>
 #include <linux/utsname.h>
 #include <linux/workqueue.h>
+#include <linux/in6.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
@@ -247,7 +248,7 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.addrlen = args->addrsize,
 		.timeout = args->timeout
 	};
-	char servername[20];
+	char servername[48];
 
 	xprt = xprt_create_transport(&xprtargs);
 	if (IS_ERR(xprt))
@@ -258,12 +259,33 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	 * up a string representation of the passed-in address.
 	 */
 	if (args->servername == NULL) {
-		struct sockaddr_in *addr =
-					(struct sockaddr_in *) args->address;
-		snprintf(servername, sizeof(servername), NIPQUAD_FMT,
-			NIPQUAD(addr->sin_addr.s_addr));
+		servername[0] = '\0';
+		switch (args->address->sa_family) {
+		case AF_INET: {
+			struct sockaddr_in *sin =
+					(struct sockaddr_in *)args->address;
+			snprintf(servername, sizeof(servername), NIPQUAD_FMT,
+				 NIPQUAD(sin->sin_addr.s_addr));
+			break;
+		}
+		case AF_INET6: {
+			struct sockaddr_in6 *sin =
+					(struct sockaddr_in6 *)args->address;
+			snprintf(servername, sizeof(servername), NIP6_FMT,
+				 NIP6(sin->sin6_addr));
+			break;
+		}
+		default:
+			/* caller wants default server name, but
+			 * address family isn't recognized. */
+			return ERR_PTR(-EINVAL);
+		}
 		args->servername = servername;
 	}
+
+	xprt = xprt_create_transport(&xprtargs);
+	if (IS_ERR(xprt))
+		return (struct rpc_clnt *)xprt;
 
 	/*
 	 * By default, kernel RPC client connects from a reserved port.
