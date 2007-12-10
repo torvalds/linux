@@ -337,9 +337,10 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	// lbs_deb_hex(LBS_DEB_RX, "RX Data: Before chop rxpd", skb->data, min(skb->len, 100));
 
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
-		lbs_deb_rx("rx err: frame received wit bad length\n");
+		lbs_deb_rx("rx err: frame received with bad length\n");
 		priv->stats.rx_length_errors++;
-		ret = 0;
+		ret = -EINVAL;
+		kfree(skb);
 		goto done;
 	}
 
@@ -381,10 +382,11 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 
 	/* add space for the new radio header */
 	if ((skb_headroom(skb) < sizeof(struct rx_radiotap_hdr)) &&
-	    pskb_expand_head(skb, sizeof(struct rx_radiotap_hdr), 0,
-			     GFP_ATOMIC)) {
-		lbs_pr_alert("%s: couldn't pskb_expand_head\n",
-			     __func__);
+	    pskb_expand_head(skb, sizeof(struct rx_radiotap_hdr), 0, GFP_ATOMIC)) {
+		lbs_pr_alert("%s: couldn't pskb_expand_head\n", __func__);
+		ret = -ENOMEM;
+		kfree_skb(skb);
+		goto done;
 	}
 
 	pradiotap_hdr = (void *)skb_push(skb, sizeof(struct rx_radiotap_hdr));
