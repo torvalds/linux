@@ -552,12 +552,13 @@ static int lbs_ret_802_11_subscribe_event(struct lbs_private *priv,
 	return 0;
 }
 
-static inline int handle_cmd_response(u16 respcmd,
-				      struct cmd_ds_command *resp,
-				      struct lbs_private *priv)
+static inline int handle_cmd_response(struct lbs_private *priv,
+				      unsigned long dummy,
+				      struct cmd_ds_command *resp)
 {
 	int ret = 0;
 	unsigned long flags;
+	uint16_t respcmd = le16_to_cpu(resp->command);
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -861,9 +862,9 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (priv->cur_cmd && priv->cur_cmd->callback)
-		ret = priv->cur_cmd->callback(respcmd, resp, priv);
+		ret = priv->cur_cmd->callback(priv, priv->cur_cmd->callback_arg, resp);
 	else
-		ret = handle_cmd_response(respcmd, resp, priv);
+		ret = handle_cmd_response(priv, 0, resp);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 

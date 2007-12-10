@@ -1642,6 +1642,7 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
 	ptempnode->wait_option = 0;
 	ptempnode->pdata_buf = NULL;
 	ptempnode->callback = NULL;
+	ptempnode->callback_arg = 0;
 
 	if (ptempnode->bufvirtualaddr != NULL)
 		memset(ptempnode->bufvirtualaddr, 0, MRVDRV_SIZE_OF_CMD_BUFFER);
@@ -1670,6 +1671,7 @@ void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 	ptempnode->wait_option = wait_option;
 	ptempnode->pdata_buf = pdata_buf;
 	ptempnode->callback = NULL;
+	ptempnode->callback_arg = 0;
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }
@@ -1993,7 +1995,8 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
  */
 
 int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
-	    int (*callback)(uint16_t, struct cmd_ds_command *, struct lbs_private *))
+	    int (*callback)(struct lbs_private *, unsigned long, struct cmd_ds_command *),
+	    unsigned long callback_arg)
 {
 	struct cmd_ctrl_node *cmdnode;
 	struct cmd_ds_gen *cmdptr;
@@ -2028,6 +2031,7 @@ int lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
 	cmdptr = (struct cmd_ds_gen *)cmdnode->bufvirtualaddr;
 	cmdnode->wait_option = CMD_OPTION_WAITFORRSP;
 	cmdnode->callback = callback;
+	cmdnode->callback_arg = callback_arg;
 
 	/* Set sequence number, clean result, move to buffer */
 	priv->seqnum++;

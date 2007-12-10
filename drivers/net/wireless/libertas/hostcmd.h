@@ -71,7 +71,8 @@ struct cmd_ctrl_node {
 	u16 wait_option;
 	/* command response */
 	void *pdata_buf;
-	int (*callback)(uint16_t respcmd, struct cmd_ds_command *resp, struct lbs_private *priv);
+	int (*callback)(struct lbs_private *priv, unsigned long arg, struct cmd_ds_command *resp);
+	unsigned long callback_arg;
 	/* command data */
 	u8 *bufvirtualaddr;
 	/* wait queue */
