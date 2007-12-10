@@ -242,7 +242,7 @@ static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
  * Find a client by IP address and protocol version
  * - returns NULL if no such client
  */
-struct nfs_client *_nfs_find_client(const struct sockaddr *addr, int nfsversion)
+struct nfs_client *nfs_find_client(const struct sockaddr *addr, u32 nfsversion)
 {
 	struct nfs_client *clp;
 
@@ -270,11 +270,6 @@ struct nfs_client *_nfs_find_client(const struct sockaddr *addr, int nfsversion)
 	}
 	spin_unlock(&nfs_client_lock);
 	return NULL;
-}
-
-struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversion)
-{
-	return _nfs_find_client((const struct sockaddr *)addr, nfsversion);
 }
 
 /*

@@ -25,7 +25,7 @@ __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *
 
 	res->bitmap[0] = res->bitmap[1] = 0;
 	res->status = htonl(NFS4ERR_BADHANDLE);
-	clp = nfs_find_client((struct sockaddr_in *)args->addr, 4);
+	clp = nfs_find_client(args->addr, 4);
 	if (clp == NULL)
 		goto out;
 
@@ -68,7 +68,7 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 	__be32 res;
 	
 	res = htonl(NFS4ERR_BADHANDLE);
-	clp = nfs_find_client((struct sockaddr_in *)args->addr, 4);
+	clp = nfs_find_client(args->addr, 4);
 	if (clp == NULL)
 		goto out;
 
