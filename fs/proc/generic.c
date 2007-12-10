@@ -374,16 +374,9 @@ static int proc_delete_dentry(struct dentry * dentry)
 	return 1;
 }
 
-static int proc_revalidate_dentry(struct dentry *dentry, struct nameidata *nd)
-{
-	d_drop(dentry);
-	return 0;
-}
-
 static struct dentry_operations proc_dentry_operations =
 {
 	.d_delete	= proc_delete_dentry,
-	.d_revalidate	= proc_revalidate_dentry,
 };
 
 /*
