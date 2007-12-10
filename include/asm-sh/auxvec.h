@@ -6,6 +6,12 @@
  * for more of them.
  */
 
+/*
+ * This entry gives some information about the FPU initialization
+ * performed by the kernel.
+ */
+#define AT_FPUCW		18	/* Used FPU control word.  */
+
 #ifdef CONFIG_VSYSCALL
 /*
  * Only define this in the vsyscall case, the entry point to

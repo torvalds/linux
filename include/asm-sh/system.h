@@ -12,7 +12,7 @@
 #include <asm/types.h>
 #include <asm/ptrace.h>
 
-#define AT_VECTOR_SIZE_ARCH 4 /* entries in ARCH_DLINFO */
+#define AT_VECTOR_SIZE_ARCH 5 /* entries in ARCH_DLINFO */
 
 #if defined(CONFIG_CPU_SH4A) || defined(CONFIG_CPU_SH5)
 #define __icbi()			\

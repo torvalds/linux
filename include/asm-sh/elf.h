@@ -169,13 +169,22 @@ extern void __kernel_vsyscall;
 #define VSYSCALL_AUX_ENT
 #endif /* CONFIG_VSYSCALL */
 
+#ifdef CONFIG_SH_FPU
+#define FPU_AUX_ENT	NEW_AUX_ENT(AT_FPUCW, FPSCR_INIT)
+#else
+#define FPU_AUX_ENT
+#endif
+
 extern int l1i_cache_shape, l1d_cache_shape, l2_cache_shape;
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 #define ARCH_DLINFO						\
 do {								\
+	/* Optional FPU initialization */			\
+	FPU_AUX_ENT;						\
+								\
 	/* Optional vsyscall entry */				\
-	VSYSCALL_AUX_ENT					\
+	VSYSCALL_AUX_ENT;					\
 								\
 	/* Cache desc */					\
 	NEW_AUX_ENT(AT_L1I_CACHESHAPE, l1i_cache_shape);	\
