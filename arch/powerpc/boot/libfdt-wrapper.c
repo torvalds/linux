@@ -44,8 +44,8 @@
 
 #define offset_devp(off)	\
 	({ \
-		int offset = (off); \
-		check_err(offset) ? NULL : (void *)(offset+1); \
+		int _offset = (off); \
+		check_err(_offset) ? NULL : (void *)(_offset+1); \
 	})
 
 #define devp_offset(devp)	(((int)(devp))-1)
