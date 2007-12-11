@@ -19,12 +19,17 @@
 
 #include "generic.h"
 
+/* simple interrupt prio table: prio(x) < prio(y) <=> x < y */
+#define irq2prio(i) (i)
+#define prio2irq(p) (p)
+
 static void ns9xxx_mask_irq(unsigned int irq)
 {
 	/* XXX: better use cpp symbols */
-	u32 ic = __raw_readl(SYS_IC(irq / 4));
-	ic &= ~(1 << (7 + 8 * (3 - (irq & 3))));
-	__raw_writel(ic, SYS_IC(irq / 4));
+	int prio = irq2prio(irq);
+	u32 ic = __raw_readl(SYS_IC(prio / 4));
+	ic &= ~(1 << (7 + 8 * (3 - (prio & 3))));
+	__raw_writel(ic, SYS_IC(prio / 4));
 }
 
 static void ns9xxx_ack_irq(unsigned int irq)
@@ -41,9 +46,10 @@ static void ns9xxx_maskack_irq(unsigned int irq)
 static void ns9xxx_unmask_irq(unsigned int irq)
 {
 	/* XXX: better use cpp symbols */
-	u32 ic = __raw_readl(SYS_IC(irq / 4));
-	ic |= 1 << (7 + 8 * (3 - (irq & 3)));
-	__raw_writel(ic, SYS_IC(irq / 4));
+	int prio = irq2prio(irq);
+	u32 ic = __raw_readl(SYS_IC(prio / 4));
+	ic |= 1 << (7 + 8 * (3 - (prio & 3)));
+	__raw_writel(ic, SYS_IC(prio / 4));
 }
 
 static struct irq_chip ns9xxx_chip = {
@@ -96,14 +102,14 @@ void __init ns9xxx_init_irq(void)
 
 	/* disable all IRQs */
 	for (i = 0; i < 8; ++i)
-		__raw_writel((4 * i) << 24 | (4 * i + 1) << 16 |
-				(4 * i + 2) << 8 | (4 * i + 3), SYS_IC(i));
+		__raw_writel(prio2irq(4 * i) << 24 |
+				prio2irq(4 * i + 1) << 16 |
+				prio2irq(4 * i + 2) << 8 |
+				prio2irq(4 * i + 3),
+				SYS_IC(i));
 
-	/* simple interrupt prio table:
-	 * prio(x) < prio(y) <=> x < y
-	 */
 	for (i = 0; i < 32; ++i)
-		__raw_writel(i, SYS_IVA(i));
+		__raw_writel(prio2irq(i), SYS_IVA(i));
 
 	for (i = 0; i <= 31; ++i) {
 		set_irq_chip(i, &ns9xxx_chip);
