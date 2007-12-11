@@ -671,6 +671,8 @@ static int lbs_thread(void *data)
 			shouldsleep = 1;	/* Sleep mode. Nothing we can do till it wakes */
 		else if (priv->intcounter)
 			shouldsleep = 0;	/* Interrupt pending. Deal with it now */
+		else if (!priv->fw_ready)
+			shouldsleep = 1;	/* Firmware not ready. We're waiting for it */
 		else if (priv->dnld_sent)
 			shouldsleep = 1;	/* Something is en route to the device already */
 		else if (priv->tx_pending_len > 0)
@@ -752,6 +754,9 @@ static int lbs_thread(void *data)
 			lbs_process_event(priv);
 		} else
 			spin_unlock_irq(&priv->driver_lock);
+
+		if (!priv->fw_ready)
+			continue;
 
 		/* Check if we need to confirm Sleep Request received previously */
 		if (priv->psstate == PS_STATE_PRE_SLEEP &&
