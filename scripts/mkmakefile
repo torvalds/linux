@@ -11,6 +11,12 @@
 
 
 test ! -r $2/Makefile -o -O $2/Makefile || exit 0
+# Only overwrite automatically generated Makefiles
+# (so we do not overwrite kernel Makefile)
+if ! grep -q Automatically $2/Makefile
+then
+	exit 0
+fi
 echo "  GEN     $2/Makefile"
 
 cat << EOF > $2/Makefile

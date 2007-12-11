@@ -1047,24 +1047,20 @@ xfs_ioc_bulkstat(
 	if ((count = bulkreq.icount) <= 0)
 		return -XFS_ERROR(EINVAL);
 
+	if (bulkreq.ubuffer == NULL)
+		return -XFS_ERROR(EINVAL);
+
 	if (cmd == XFS_IOC_FSINUMBERS)
 		error = xfs_inumbers(mp, &inlast, &count,
 					bulkreq.ubuffer, xfs_inumbers_fmt);
 	else if (cmd == XFS_IOC_FSBULKSTAT_SINGLE)
 		error = xfs_bulkstat_single(mp, &inlast,
 						bulkreq.ubuffer, &done);
-	else {	/* XFS_IOC_FSBULKSTAT */
-		if (count == 1 && inlast != 0) {
-			inlast++;
-			error = xfs_bulkstat_single(mp, &inlast,
-					bulkreq.ubuffer, &done);
-		} else {
-			error = xfs_bulkstat(mp, &inlast, &count,
-				(bulkstat_one_pf)xfs_bulkstat_one, NULL,
-				sizeof(xfs_bstat_t), bulkreq.ubuffer,
-				BULKSTAT_FG_QUICK, &done);
-		}
-	}
+	else	/* XFS_IOC_FSBULKSTAT */
+		error = xfs_bulkstat(mp, &inlast, &count,
+			(bulkstat_one_pf)xfs_bulkstat_one, NULL,
+			sizeof(xfs_bstat_t), bulkreq.ubuffer,
+			BULKSTAT_FG_QUICK, &done);
 
 	if (error)
 		return -error;

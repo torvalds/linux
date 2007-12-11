@@ -30,7 +30,7 @@ SECTIONS
 	 * the dynamic symbol table et al.  If this amount is insufficient,
 	 * ld -shared will barf.  Just increase it here.
 	 */
-	. = GATE_ADDR + 0x500;
+	. = GATE_ADDR + 0x600;
 
 	.data.patch		: {
 		__start_gate_mckinley_e9_patchlist = .;
