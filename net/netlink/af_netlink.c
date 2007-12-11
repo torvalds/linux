@@ -237,13 +237,14 @@ found:
 	return sk;
 }
 
-static inline struct hlist_head *nl_pid_hash_alloc(size_t size)
+static inline struct hlist_head *nl_pid_hash_zalloc(size_t size)
 {
 	if (size <= PAGE_SIZE)
-		return kmalloc(size, GFP_ATOMIC);
+		return kzalloc(size, GFP_ATOMIC);
 	else
 		return (struct hlist_head *)
-			__get_free_pages(GFP_ATOMIC, get_order(size));
+			__get_free_pages(GFP_ATOMIC | __GFP_ZERO,
+					 get_order(size));
 }
 
 static inline void nl_pid_hash_free(struct hlist_head *table, size_t size)
@@ -272,11 +273,10 @@ static int nl_pid_hash_rehash(struct nl_pid_hash *hash, int grow)
 		size *= 2;
 	}
 
-	table = nl_pid_hash_alloc(size);
+	table = nl_pid_hash_zalloc(size);
 	if (!table)
 		return 0;
 
-	memset(table, 0, size);
 	otable = hash->table;
 	hash->table = table;
 	hash->mask = mask;
@@ -1919,7 +1919,7 @@ static int __init netlink_proto_init(void)
 	for (i = 0; i < MAX_LINKS; i++) {
 		struct nl_pid_hash *hash = &nl_table[i].hash;
 
-		hash->table = nl_pid_hash_alloc(1 * sizeof(*hash->table));
+		hash->table = nl_pid_hash_zalloc(1 * sizeof(*hash->table));
 		if (!hash->table) {
 			while (i-- > 0)
 				nl_pid_hash_free(nl_table[i].hash.table,
@@ -1927,7 +1927,6 @@ static int __init netlink_proto_init(void)
 			kfree(nl_table);
 			goto panic;
 		}
-		memset(hash->table, 0, 1 * sizeof(*hash->table));
 		hash->max_shift = order;
 		hash->shift = 0;
 		hash->mask = 0;
