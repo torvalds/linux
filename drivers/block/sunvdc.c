@@ -212,12 +212,9 @@ static void vdc_end_special(struct vdc_port *port, struct vio_disk_desc *desc)
 	vdc_finish(&port->vio, -err, WAITING_FOR_GEN_CMD);
 }
 
-static void vdc_end_request(struct request *req, int uptodate, int num_sectors)
+static void vdc_end_request(struct request *req, int error, int num_sectors)
 {
-	if (end_that_request_first(req, uptodate, num_sectors))
-		return;
-	add_disk_randomness(req->rq_disk);
-	end_that_request_last(req, uptodate);
+	__blk_end_request(req, error, num_sectors << 9);
 }
 
 static void vdc_end_one(struct vdc_port *port, struct vio_dring_state *dr,
@@ -242,7 +239,7 @@ static void vdc_end_one(struct vdc_port *port, struct vio_dring_state *dr,
 
 	rqe->req = NULL;
 
-	vdc_end_request(req, !desc->status, desc->size >> 9);
+	vdc_end_request(req, (desc->status ? -EIO : 0), desc->size >> 9);
 
 	if (blk_queue_stopped(port->disk->queue))
 		blk_start_queue(port->disk->queue);
@@ -456,7 +453,7 @@ static void do_vdc_request(struct request_queue *q)
 
 		blkdev_dequeue_request(req);
 		if (__send_request(req) < 0)
-			vdc_end_request(req, 0, req->hard_nr_sectors);
+			vdc_end_request(req, -EIO, req->hard_nr_sectors);
 	}
 }
 
