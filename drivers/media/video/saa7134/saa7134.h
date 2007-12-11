@@ -566,6 +566,12 @@ struct saa7134_dev {
 
 #define saa_wait(us) { udelay(us); }
 
+#define SAA7134_NORMS	(\
+		V4L2_STD_PAL    | V4L2_STD_PAL_N | \
+		V4L2_STD_PAL_Nc | V4L2_STD_SECAM | \
+		V4L2_STD_NTSC   | V4L2_STD_PAL_M | \
+		V4L2_STD_PAL_60)
+
 /* ----------------------------------------------------------- */
 /* saa7134-core.c                                              */
 
@@ -629,11 +635,12 @@ extern unsigned int video_debug;
 extern struct video_device saa7134_video_template;
 extern struct video_device saa7134_radio_template;
 
+int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c);
+int saa7134_s_ctrl(struct file *file, void *f, struct v4l2_control *c);
+int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c);
+
 int saa7134_videoport_init(struct saa7134_dev *dev);
 void saa7134_set_tvnorm_hw(struct saa7134_dev *dev);
-
-int saa7134_common_ioctl(struct saa7134_dev *dev,
-			 unsigned int cmd, void *arg);
 
 int saa7134_video_init1(struct saa7134_dev *dev);
 int saa7134_video_init2(struct saa7134_dev *dev);

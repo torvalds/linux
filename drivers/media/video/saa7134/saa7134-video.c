@@ -217,12 +217,6 @@ static struct saa7134_format formats[] = {
 		.vbi_v_start_1 = 273,	\
 		.src_timing    = 7
 
-#define SAA7134_NORMS	\
-		V4L2_STD_PAL    | V4L2_STD_PAL_N | \
-		V4L2_STD_PAL_Nc | V4L2_STD_SECAM | \
-		V4L2_STD_NTSC   | V4L2_STD_PAL_M | \
-		V4L2_STD_PAL_60
-
 static struct saa7134_tvnorm tvnorms[] = {
 	{
 		.name          = "PAL", /* autodetect */
@@ -1123,8 +1117,7 @@ static struct videobuf_queue_ops video_qops = {
 
 /* ------------------------------------------------------------------ */
 
-static int saa7134_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *c)
+int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
@@ -1173,8 +1166,7 @@ static int saa7134_g_ctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_s_ctrl(struct file *file, void *f,
-					struct v4l2_control *c)
+int saa7134_s_ctrl(struct file *file, void *f, struct v4l2_control *c)
 {
 	const struct v4l2_queryctrl* ctrl;
 	struct saa7134_fh *fh = f;
@@ -1680,8 +1672,7 @@ static int saa7134_s_fmt_overlay(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_queryctrl(struct file *file, void *priv,
-					struct v4l2_queryctrl *c)
+int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c)
 {
 	const struct v4l2_queryctrl *ctrl;
 
