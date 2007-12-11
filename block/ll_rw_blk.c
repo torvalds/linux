@@ -3825,10 +3825,14 @@ static void complete_request(struct request *rq, int error)
 }
 
 /**
- * blk_end_request - Helper function for drivers to complete the request.
- * @rq:       the request being processed
- * @error:    0 for success, < 0 for error
- * @nr_bytes: number of bytes to complete
+ * blk_end_io - Generic end_io function to complete a request.
+ * @rq:           the request being processed
+ * @error:        0 for success, < 0 for error
+ * @nr_bytes:     number of bytes to complete
+ * @drv_callback: function called between completion of bios in the request
+ *                and completion of the request.
+ *                If the callback returns non 0, this helper returns without
+ *                completion of the request.
  *
  * Description:
  *     Ends I/O on a number of bytes attached to @rq.
@@ -3836,9 +3840,10 @@ static void complete_request(struct request *rq, int error)
  *
  * Return:
  *     0 - we are done with this request
- *     1 - still buffers pending for this request
+ *     1 - this request is not freed yet, it still has pending buffers.
  **/
-int blk_end_request(struct request *rq, int error, int nr_bytes)
+static int blk_end_io(struct request *rq, int error, int nr_bytes,
+		      int (drv_callback)(struct request *))
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
@@ -3855,6 +3860,10 @@ int blk_end_request(struct request *rq, int error, int nr_bytes)
 			return 1;
 	}
 
+	/* Special feature for tricky drivers */
+	if (drv_callback && drv_callback(rq))
+		return 1;
+
 	add_disk_randomness(rq->rq_disk);
 
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -3862,6 +3871,25 @@ int blk_end_request(struct request *rq, int error, int nr_bytes)
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	return 0;
+}
+
+/**
+ * blk_end_request - Helper function for drivers to complete the request.
+ * @rq:       the request being processed
+ * @error:    0 for success, < 0 for error
+ * @nr_bytes: number of bytes to complete
+ *
+ * Description:
+ *     Ends I/O on a number of bytes attached to @rq.
+ *     If @rq has leftover, sets it up for the next range of segments.
+ *
+ * Return:
+ *     0 - we are done with this request
+ *     1 - still buffers pending for this request
+ **/
+int blk_end_request(struct request *rq, int error, int nr_bytes)
+{
+	return blk_end_io(rq, error, nr_bytes, NULL);
 }
 EXPORT_SYMBOL_GPL(blk_end_request);
 
@@ -3900,6 +3928,38 @@ int __blk_end_request(struct request *rq, int error, int nr_bytes)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__blk_end_request);
+
+/**
+ * blk_end_request_callback - Special helper function for tricky drivers
+ * @rq:           the request being processed
+ * @error:        0 for success, < 0 for error
+ * @nr_bytes:     number of bytes to complete
+ * @drv_callback: function called between completion of bios in the request
+ *                and completion of the request.
+ *                If the callback returns non 0, this helper returns without
+ *                completion of the request.
+ *
+ * Description:
+ *     Ends I/O on a number of bytes attached to @rq.
+ *     If @rq has leftover, sets it up for the next range of segments.
+ *
+ *     This special helper function is used only for existing tricky drivers.
+ *     (e.g. cdrom_newpc_intr() of ide-cd)
+ *     This interface will be removed when such drivers are rewritten.
+ *     Don't use this interface in other places anymore.
+ *
+ * Return:
+ *     0 - we are done with this request
+ *     1 - this request is not freed yet.
+ *         this request still has pending buffers or
+ *         the driver doesn't want to finish this request yet.
+ **/
+int blk_end_request_callback(struct request *rq, int error, int nr_bytes,
+			     int (drv_callback)(struct request *))
+{
+	return blk_end_io(rq, error, nr_bytes, drv_callback);
+}
+EXPORT_SYMBOL_GPL(blk_end_request_callback);
 
 static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			    struct bio *bio)

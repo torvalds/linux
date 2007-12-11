@@ -734,6 +734,8 @@ extern void end_that_request_last(struct request *, int);
 extern void end_request(struct request *, int);
 extern void end_queued_request(struct request *, int);
 extern void end_dequeued_request(struct request *, int);
+extern int blk_end_request_callback(struct request *rq, int error, int nr_bytes,
+				    int (drv_callback)(struct request *));
 extern void blk_complete_request(struct request *);
 
 /*
