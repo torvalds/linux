@@ -6685,8 +6685,9 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	} else if (CHIP_NUM(bp) == CHIP_NUM_5706 ||
 		   CHIP_NUM(bp) == CHIP_NUM_5708)
 		bp->phy_flags |= PHY_CRC_FIX_FLAG;
-	else if (CHIP_ID(bp) == CHIP_ID_5709_A0 ||
-		 CHIP_ID(bp) == CHIP_ID_5709_A1)
+	else if (CHIP_NUM(bp) == CHIP_NUM_5709 &&
+		 (CHIP_REV(bp) == CHIP_REV_Ax ||
+		  CHIP_REV(bp) == CHIP_REV_Bx))
 		bp->phy_flags |= PHY_DIS_EARLY_DAC_FLAG;
 
 	if ((CHIP_ID(bp) == CHIP_ID_5708_A0) ||
