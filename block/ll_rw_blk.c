@@ -347,7 +347,6 @@ unsigned blk_ordered_req_seq(struct request *rq)
 void blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 {
 	struct request *rq;
-	int uptodate;
 
 	if (error && !q->orderr)
 		q->orderr = error;
@@ -361,15 +360,11 @@ void blk_ordered_complete_seq(struct request_queue *q, unsigned seq, int error)
 	/*
 	 * Okay, sequence complete.
 	 */
-	uptodate = 1;
-	if (q->orderr)
-		uptodate = q->orderr;
-
 	q->ordseq = 0;
 	rq = q->orig_bar_rq;
 
-	end_that_request_first(rq, uptodate, rq->hard_nr_sectors);
-	end_that_request_last(rq, uptodate);
+	if (__blk_end_request(rq, q->orderr, blk_rq_bytes(rq)))
+		BUG();
 }
 
 static void pre_flush_end_io(struct request *rq, int error)
@@ -486,9 +481,9 @@ int blk_do_ordered(struct request_queue *q, struct request **rqp)
 			 * ORDERED_NONE while this request is on it.
 			 */
 			blkdev_dequeue_request(rq);
-			end_that_request_first(rq, -EOPNOTSUPP,
-					       rq->hard_nr_sectors);
-			end_that_request_last(rq, -EOPNOTSUPP);
+			if (__blk_end_request(rq, -EOPNOTSUPP,
+					      blk_rq_bytes(rq)))
+				BUG();
 			*rqp = NULL;
 			return 0;
 		}
@@ -3713,14 +3708,14 @@ void end_that_request_last(struct request *req, int uptodate)
 EXPORT_SYMBOL(end_that_request_last);
 
 static inline void __end_request(struct request *rq, int uptodate,
-				 unsigned int nr_bytes, int dequeue)
+				 unsigned int nr_bytes)
 {
-	if (!end_that_request_chunk(rq, uptodate, nr_bytes)) {
-		if (dequeue)
-			blkdev_dequeue_request(rq);
-		add_disk_randomness(rq->rq_disk);
-		end_that_request_last(rq, uptodate);
-	}
+	int error = 0;
+
+	if (uptodate <= 0)
+		error = uptodate ? uptodate : -EIO;
+
+	__blk_end_request(rq, error, nr_bytes);
 }
 
 /**
@@ -3763,7 +3758,7 @@ EXPORT_SYMBOL_GPL(blk_rq_cur_bytes);
  **/
 void end_queued_request(struct request *rq, int uptodate)
 {
-	__end_request(rq, uptodate, blk_rq_bytes(rq), 1);
+	__end_request(rq, uptodate, blk_rq_bytes(rq));
 }
 EXPORT_SYMBOL(end_queued_request);
 
@@ -3780,7 +3775,7 @@ EXPORT_SYMBOL(end_queued_request);
  **/
 void end_dequeued_request(struct request *rq, int uptodate)
 {
-	__end_request(rq, uptodate, blk_rq_bytes(rq), 0);
+	__end_request(rq, uptodate, blk_rq_bytes(rq));
 }
 EXPORT_SYMBOL(end_dequeued_request);
 
@@ -3806,7 +3801,7 @@ EXPORT_SYMBOL(end_dequeued_request);
  **/
 void end_request(struct request *req, int uptodate)
 {
-	__end_request(req, uptodate, req->hard_cur_sectors << 9, 1);
+	__end_request(req, uptodate, req->hard_cur_sectors << 9);
 }
 EXPORT_SYMBOL(end_request);
 
