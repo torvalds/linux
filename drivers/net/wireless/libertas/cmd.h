@@ -7,11 +7,11 @@
 #include "dev.h"
 
 #define lbs_cmd(priv, cmdnr, cmd, callback, callback_arg) \
-	__lbs_cmd(priv, cmdnr, (struct cmd_header *) &cmd, sizeof(cmd), \
+	__lbs_cmd(priv, cmdnr, &(cmd).hdr, sizeof(cmd),	  \
 			callback, callback_arg)
 
 #define lbs_cmd_with_response(priv, cmdnr, cmd) \
-	__lbs_cmd(priv, cmdnr, (struct cmd_header *) &cmd, sizeof(cmd), \
+	__lbs_cmd(priv, cmdnr, &(cmd).hdr, sizeof(cmd), \
 		  lbs_cmd_copyback, (unsigned long) &cmd)
  
 int __lbs_cmd(struct lbs_private *priv, uint16_t command,
