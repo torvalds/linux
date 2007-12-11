@@ -831,8 +831,8 @@ int lbs_get_channel(struct lbs_private *priv)
 	if (ret)
 		goto out;
 
-	lbs_deb_cmd("current radio channel is %d\n", cmd.channel);
-	ret = (int) cmd.channel;
+	ret = le16_to_cpu(cmd.channel);
+	lbs_deb_cmd("current radio channel is %d\n", ret);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
@@ -863,8 +863,9 @@ int lbs_set_channel(struct lbs_private *priv, u8 channel)
 	if (ret)
 		goto out;
 
-	priv->curbssparams.channel = cmd.channel;
-	lbs_deb_cmd("channel switch from %d to %d\n", old_channel, cmd.channel);
+	priv->curbssparams.channel = (uint8_t) le16_to_cpu(cmd.channel);
+	lbs_deb_cmd("channel switch from %d to %d\n", old_channel,
+		priv->curbssparams.channel);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
