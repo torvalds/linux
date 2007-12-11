@@ -12,7 +12,6 @@
 #define KVM_X86_H
 
 #include "kvm.h"
-#include "irq.h"
 
 #include <linux/types.h>
 #include <linux/mm.h>

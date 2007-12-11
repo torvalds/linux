@@ -26,6 +26,7 @@
 #include <linux/hrtimer.h>
 #include <asm/kvm.h>
 #include "iodev.h"
+#include "x86.h"
 
 struct kvm;
 struct kvm_vcpu;
@@ -63,8 +64,6 @@ struct kvm_pic {
 struct kvm_pic *kvm_create_pic(struct kvm *kvm);
 void kvm_pic_set_irq(void *opaque, int irq, int level);
 int kvm_pic_read_irq(struct kvm_pic *s);
-int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
-int kvm_cpu_has_interrupt(struct kvm_vcpu *v);
 void kvm_pic_update_irq(struct kvm_pic *s);
 
 #define IOAPIC_NUM_PINS  KVM_IOAPIC_NUM_PINS
@@ -146,6 +145,21 @@ do {									\
 #else
 #define ASSERT(x) do { } while (0)
 #endif
+
+static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
+{
+	return kvm->vpic;
+}
+
+static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
+{
+	return kvm->vioapic;
+}
+
+static inline int irqchip_in_kernel(struct kvm *kvm)
+{
+	return pic_irqchip(kvm) != NULL;
+}
 
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu);

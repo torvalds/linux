@@ -273,21 +273,6 @@ struct kvm {
 	struct kvm_vm_stat stat;
 };
 
-static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
-{
-	return kvm->vpic;
-}
-
-static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
-{
-	return kvm->vioapic;
-}
-
-static inline int irqchip_in_kernel(struct kvm *kvm)
-{
-	return pic_irqchip(kvm) != NULL;
-}
-
 /* The guest did something we don't support. */
 #define pr_unimpl(vcpu, fmt, ...)					\
  do {									\
@@ -416,6 +401,9 @@ void kvm_free_physmem(struct kvm *kvm);
 
 struct  kvm *kvm_arch_create_vm(void);
 void kvm_arch_destroy_vm(struct kvm *kvm);
+
+int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
+int kvm_cpu_has_interrupt(struct kvm_vcpu *v);
 
 static inline void kvm_guest_enter(void)
 {
