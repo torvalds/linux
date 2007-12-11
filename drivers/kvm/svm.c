@@ -1155,7 +1155,20 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 	case MSR_IA32_SYSENTER_ESP:
 		svm->vmcb->save.sysenter_esp = data;
 		break;
+	case MSR_K7_EVNTSEL0:
+	case MSR_K7_EVNTSEL1:
+	case MSR_K7_EVNTSEL2:
+	case MSR_K7_EVNTSEL3:
+		/*
+		 * only support writing 0 to the performance counters for now
+		 * to make Windows happy. Should be replaced by a real
+		 * performance counter emulation later.
+		 */
+		if (data != 0)
+			goto unhandled;
+		break;
 	default:
+	unhandled:
 		return kvm_set_msr_common(vcpu, ecx, data);
 	}
 	return 0;
