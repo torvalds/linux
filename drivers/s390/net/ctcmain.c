@@ -478,14 +478,14 @@ ctc_unpack_skb(struct channel *ch, struct sk_buff *pskb)
 		skb->dev = pskb->dev;
 		skb->protocol = pskb->protocol;
 		pskb->ip_summed = CHECKSUM_UNNECESSARY;
-		netif_rx_ni(skb);
 		/**
-		 * Successful rx; reset logflags
+		 * reset logflags
 		 */
 		ch->logflags = 0;
-		dev->last_rx = jiffies;
 		privptr->stats.rx_packets++;
 		privptr->stats.rx_bytes += skb->len;
+		netif_rx_ni(skb);
+		dev->last_rx = jiffies;
 		if (len > 0) {
 			skb_pull(pskb, header->length);
 			if (skb_tailroom(pskb) < LL_HEADER_LENGTH) {
