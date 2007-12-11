@@ -508,7 +508,7 @@ static inline void alloc_resource(struct pci_dev *dev, int idx)
 	    pci_name(dev), idx, (u64)r->start, (u64)r->end, r->flags);
 	pr = pci_find_parent_resource(dev, r);
 	if (!pr || request_resource(pr, r) < 0) {
-		printk(KERN_ERR "PCI: Cannot allocate resource region %d"
+		printk(KERN_WARNING "PCI: Remapping resource region %d"
 		       " of device %s\n", idx, pci_name(dev));
 		if (pr)
 			DBG("PCI:  parent is %p: %016llx-%016llx (f=%lx)\n",
