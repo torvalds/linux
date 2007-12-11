@@ -175,8 +175,6 @@ static int if_usb_probe(struct usb_interface *intf,
 				       "Rx URB allocation failed\n");
 				goto dealloc;
 			}
-			cardp->rx_urb_recall = 0;
-
 			cardp->bulk_in_size =
 				le16_to_cpu(endpoint->wMaxPacketSize);
 			cardp->bulk_in_endpointAddr =
@@ -231,8 +229,6 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	cardp->priv = priv;
 	cardp->priv->fw_ready = 1;
-
-	cardp->eth_dev = priv->dev;
 
 	priv->hw_host_to_card = if_usb_host_to_card;
 	priv->hw_get_int_status = if_usb_get_int_status;
@@ -978,14 +974,12 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
 
-	netif_device_detach(cardp->eth_dev);
+	netif_device_detach(priv->dev);
 	netif_device_detach(priv->mesh_dev);
 
 	/* Unlink tx & rx urb */
 	usb_kill_urb(cardp->tx_urb);
 	usb_kill_urb(cardp->rx_urb);
-
-	cardp->rx_urb_recall = 1;
 
 	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
@@ -998,11 +992,9 @@ static int if_usb_resume(struct usb_interface *intf)
 
 	lbs_deb_enter(LBS_DEB_USB);
 
-	cardp->rx_urb_recall = 0;
-
 	if_usb_submit_rx_urb(cardp);
 
-	netif_device_attach(cardp->eth_dev);
+	netif_device_attach(priv->dev);
 	netif_device_attach(priv->mesh_dev);
 
 	lbs_deb_leave(LBS_DEB_USB);

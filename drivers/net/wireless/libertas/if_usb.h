@@ -47,7 +47,6 @@ struct read_cb_info {
 
 /** USB card description structure*/
 struct usb_card_rec {
-	struct net_device *eth_dev;
 	struct usb_device *udev;
 	struct urb *rx_urb, *tx_urb;
 	struct lbs_private *priv;
@@ -74,8 +73,6 @@ struct usb_card_rec {
 
 	u32 usb_event_cause;
 	u8 usb_int_cause;
-
-	u8 rx_urb_recall;
 
 	s8 bootcmdresp;
 };
