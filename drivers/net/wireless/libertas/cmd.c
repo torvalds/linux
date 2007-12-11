@@ -1972,6 +1972,34 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 
 
 /**
+ *  @brief Simple callback that copies response back into command
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param extra  	A pointer to the original command structure for which
+ *                      'resp' is a response
+ *  @param resp         A pointer to the command response
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
+			struct cmd_header *resp)
+{
+	struct cmd_header *buf = (void *)extra;
+	uint16_t copy_len;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	copy_len = min(le16_to_cpu(buf->size), le16_to_cpu(resp->size));
+	lbs_deb_cmd("Copying back %u bytes; command response was %u bytes, "
+		    "copy back buffer was %u bytes", copy_len, resp->size,
+		    buf->size);
+	memcpy(buf, resp, copy_len);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return 0;
+}
+
+/**
  *  @brief Simple way to call firmware functions
  *
  *  @param priv    	A pointer to struct lbs_private structure
@@ -1987,7 +2015,6 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
  *  @return 	   	-1 in case of a higher level error, otherwise
  *                      the result code from the firmware
  */
-
 int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	      struct cmd_header *in_cmd, int in_cmd_size,
 	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),

@@ -10,9 +10,16 @@
 	__lbs_cmd(priv, cmdnr, (struct cmd_header *) &cmd, sizeof(cmd), \
 			callback, callback_arg)
 
+#define lbs_cmd_with_response(priv, cmdnr, cmd) \
+	__lbs_cmd(priv, cmdnr, (struct cmd_header *) &cmd, sizeof(cmd), \
+		  lbs_cmd_copyback, (unsigned long) &cmd)
+ 
 int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	      struct cmd_header *in_cmd, int in_cmd_size, 
 	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
 	      unsigned long callback_arg);
+
+int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
+		     struct cmd_header *resp);
 
 #endif /* _LBS_CMD_H */
