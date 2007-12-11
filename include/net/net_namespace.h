@@ -9,6 +9,7 @@
 #include <linux/list.h>
 
 #include <net/netns/unix.h>
+#include <net/netns/packet.h>
 
 struct proc_dir_entry;
 struct net_device;
@@ -43,10 +44,7 @@ struct net {
 	struct ctl_table_header	*sysctl_core_hdr;
 	int			sysctl_somaxconn;
 
-	/* List of all packet sockets. */
-	rwlock_t		packet_sklist_lock;
-	struct hlist_head	packet_sklist;
-
+	struct netns_packet	packet;
 	struct netns_unix	unx;
 };
 

@@ -803,9 +803,9 @@ static int packet_release(struct socket *sock)
 	net = sk->sk_net;
 	po = pkt_sk(sk);
 
-	write_lock_bh(&net->packet_sklist_lock);
+	write_lock_bh(&net->packet.sklist_lock);
 	sk_del_node_init(sk);
-	write_unlock_bh(&net->packet_sklist_lock);
+	write_unlock_bh(&net->packet.sklist_lock);
 
 	/*
 	 *	Unhook packet receive handler.
@@ -1015,9 +1015,9 @@ static int packet_create(struct net *net, struct socket *sock, int protocol)
 		po->running = 1;
 	}
 
-	write_lock_bh(&net->packet_sklist_lock);
-	sk_add_node(sk, &net->packet_sklist);
-	write_unlock_bh(&net->packet_sklist_lock);
+	write_lock_bh(&net->packet.sklist_lock);
+	sk_add_node(sk, &net->packet.sklist);
+	write_unlock_bh(&net->packet.sklist_lock);
 	return(0);
 out:
 	return err;
@@ -1452,8 +1452,8 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 	struct net_device *dev = data;
 	struct net *net = dev->nd_net;
 
-	read_lock(&net->packet_sklist_lock);
-	sk_for_each(sk, node, &net->packet_sklist) {
+	read_lock(&net->packet.sklist_lock);
+	sk_for_each(sk, node, &net->packet.sklist) {
 		struct packet_sock *po = pkt_sk(sk);
 
 		switch (msg) {
@@ -1492,7 +1492,7 @@ static int packet_notifier(struct notifier_block *this, unsigned long msg, void 
 			break;
 		}
 	}
-	read_unlock(&net->packet_sklist_lock);
+	read_unlock(&net->packet.sklist_lock);
 	return NOTIFY_DONE;
 }
 
@@ -1862,7 +1862,7 @@ static inline struct sock *packet_seq_idx(struct net *net, loff_t off)
 	struct sock *s;
 	struct hlist_node *node;
 
-	sk_for_each(s, node, &net->packet_sklist) {
+	sk_for_each(s, node, &net->packet.sklist) {
 		if (!off--)
 			return s;
 	}
@@ -1872,7 +1872,7 @@ static inline struct sock *packet_seq_idx(struct net *net, loff_t off)
 static void *packet_seq_start(struct seq_file *seq, loff_t *pos)
 {
 	struct net *net = seq_file_net(seq);
-	read_lock(&net->packet_sklist_lock);
+	read_lock(&net->packet.sklist_lock);
 	return *pos ? packet_seq_idx(net, *pos - 1) : SEQ_START_TOKEN;
 }
 
@@ -1881,14 +1881,14 @@ static void *packet_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	struct net *net = seq->private;
 	++*pos;
 	return  (v == SEQ_START_TOKEN)
-		? sk_head(&net->packet_sklist)
+		? sk_head(&net->packet.sklist)
 		: sk_next((struct sock*)v) ;
 }
 
 static void packet_seq_stop(struct seq_file *seq, void *v)
 {
 	struct net *net = seq->private;
-	read_unlock(&net->packet_sklist_lock);
+	read_unlock(&net->packet.sklist_lock);
 }
 
 static int packet_seq_show(struct seq_file *seq, void *v)
@@ -1940,8 +1940,8 @@ static const struct file_operations packet_seq_fops = {
 
 static int packet_net_init(struct net *net)
 {
-	rwlock_init(&net->packet_sklist_lock);
-	INIT_HLIST_HEAD(&net->packet_sklist);
+	rwlock_init(&net->packet.sklist_lock);
+	INIT_HLIST_HEAD(&net->packet.sklist);
 
 	if (!proc_net_fops_create(net, "packet", 0, &packet_seq_fops))
 		return -ENOMEM;
