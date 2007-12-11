@@ -50,27 +50,18 @@ static DEFINE_SPINLOCK(hose_spinlock);
 /* XXX kill that some day ... */
 static int global_phb_number;		/* Global phb counter */
 
-/*
- * pci_controller(phb) initialized common variables.
- */
-static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
-{
-	memset(hose, 0, sizeof(struct pci_controller));
 
-	spin_lock(&hose_spinlock);
-	hose->global_number = global_phb_number++;
-	list_add_tail(&hose->list_node, &hose_list);
-	spin_unlock(&hose_spinlock);
-}
-
-struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
+struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
 	struct pci_controller *phb;
 
-	phb = alloc_maybe_bootmem(sizeof(struct pci_controller), GFP_KERNEL);
+	phb = zalloc_maybe_bootmem(sizeof(struct pci_controller), GFP_KERNEL);
 	if (phb == NULL)
 		return NULL;
-	pci_setup_pci_controller(phb);
+	spin_lock(&hose_spinlock);
+	phb->global_number = global_phb_number++;
+	list_add_tail(&phb->list_node, &hose_list);
+	spin_unlock(&hose_spinlock);
 	phb->arch_data = dev;
 	phb->is_dynamic = mem_init_done;
 #ifdef CONFIG_PPC64
