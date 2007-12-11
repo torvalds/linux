@@ -1,8 +1,7 @@
 menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default y
+	def_bool y
 
 source "lib/Kconfig.debug"
 
@@ -120,19 +119,19 @@ config COMPILE_OPTIONS
 	depends on MORE_COMPILE_OPTIONS
 
 config KGDB_NMI
-	bool "Enter KGDB on NMI"
-	default n
+	def_bool n
+	prompt "Enter KGDB on NMI"
 
 config SH_KGDB_CONSOLE
-	bool "Console messages through GDB"
+	def_bool n
+	prompt "Console messages through GDB"
 	depends on !SERIAL_SH_SCI_CONSOLE && SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
-	default n
 
 config KGDB_SYSRQ
-	bool "Allow SysRq 'G' to enter KGDB"
+	def_bool y
+	prompt "Allow SysRq 'G' to enter KGDB"
 	depends on MAGIC_SYSRQ
-	default y
 
 comment "Serial port setup"
 

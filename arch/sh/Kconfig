@@ -21,8 +21,7 @@ config SUPERH64
 	def_bool y if CPU_SH5
 
 config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
+	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
 	bool
@@ -32,24 +31,19 @@ config GENERIC_BUG
 	depends on BUG && SUPERH32
 
 config GENERIC_FIND_NEXT_BIT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
 
 config GENERIC_IRQ_PROBE
-	bool
-	default y
+	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
+	def_bool y
 
 config GENERIC_IOMAP
 	bool
@@ -80,20 +74,16 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 
 config STACKTRACE_SUPPORT
-	bool
-	default y
+	def_bool y
 
 config LOCKDEP_SUPPORT
-	bool
-	default y
+	def_bool y
 
 config ARCH_HAS_ILOG2_U32
-	bool
-	default n
+	def_bool n
 
 config ARCH_HAS_ILOG2_U64
-	bool
-	default n
+	def_bool n
 
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
@@ -530,25 +520,25 @@ source "arch/sh/boards/magicpanelr2/Kconfig"
 menu "Timer and clock configuration"
 
 config SH_TMU
-	bool "TMU timer support"
+	def_bool y
+	prompt "TMU timer support"
 	depends on CPU_SH3 || CPU_SH4
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	default y
 	help
 	  This enables the use of the TMU as the system timer.
 
 config SH_CMT
-	bool "CMT timer support"
+	def_bool y
+	prompt "CMT timer support"
 	depends on CPU_SH2
-	default y
 	help
 	  This enables the use of the CMT as the system timer.
 
 config SH_MTU2
-	bool "MTU2 timer support"
+	def_bool n
+	prompt "MTU2 timer support"
 	depends on CPU_SH2A
-	default n
 	help
 	  This enables the use of the MTU2 as the system timer.
 
@@ -612,9 +602,8 @@ source "arch/sh/drivers/Kconfig"
 endmenu
 
 config ISA_DMA_API
-	bool
+	def_bool y
 	depends on SH_MPC1211
-	default y
 
 menu "Kernel features"
 
