@@ -3432,6 +3432,20 @@ static void blk_recalc_rq_sectors(struct request *rq, int nsect)
 	}
 }
 
+/**
+ * __end_that_request_first - end I/O on a request
+ * @req:      the request being processed
+ * @uptodate: 1 for success, 0 for I/O error, < 0 for specific error
+ * @nr_bytes: number of bytes to complete
+ *
+ * Description:
+ *     Ends I/O on a number of bytes attached to @req, and sets it up
+ *     for the next range of segments (if any) in the cluster.
+ *
+ * Return:
+ *     0 - we are done with this request, call end_that_request_last()
+ *     1 - still buffers pending for this request
+ **/
 static int __end_that_request_first(struct request *req, int uptodate,
 				    int nr_bytes)
 {
@@ -3548,49 +3562,6 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	return 1;
 }
 
-/**
- * end_that_request_first - end I/O on a request
- * @req:      the request being processed
- * @uptodate: 1 for success, 0 for I/O error, < 0 for specific error
- * @nr_sectors: number of sectors to end I/O on
- *
- * Description:
- *     Ends I/O on a number of sectors attached to @req, and sets it up
- *     for the next range of segments (if any) in the cluster.
- *
- * Return:
- *     0 - we are done with this request, call end_that_request_last()
- *     1 - still buffers pending for this request
- **/
-int end_that_request_first(struct request *req, int uptodate, int nr_sectors)
-{
-	return __end_that_request_first(req, uptodate, nr_sectors << 9);
-}
-
-EXPORT_SYMBOL(end_that_request_first);
-
-/**
- * end_that_request_chunk - end I/O on a request
- * @req:      the request being processed
- * @uptodate: 1 for success, 0 for I/O error, < 0 for specific error
- * @nr_bytes: number of bytes to complete
- *
- * Description:
- *     Ends I/O on a number of bytes attached to @req, and sets it up
- *     for the next range of segments (if any). Like end_that_request_first(),
- *     but deals with bytes instead of sectors.
- *
- * Return:
- *     0 - we are done with this request, call end_that_request_last()
- *     1 - still buffers pending for this request
- **/
-int end_that_request_chunk(struct request *req, int uptodate, int nr_bytes)
-{
-	return __end_that_request_first(req, uptodate, nr_bytes);
-}
-
-EXPORT_SYMBOL(end_that_request_chunk);
-
 /*
  * splice the completion data to a local structure and hand off to
  * process_completion_queue() to complete the requests
@@ -3670,7 +3641,7 @@ EXPORT_SYMBOL(blk_complete_request);
 /*
  * queue lock must be held
  */
-void end_that_request_last(struct request *req, int uptodate)
+static void end_that_request_last(struct request *req, int uptodate)
 {
 	struct gendisk *disk = req->rq_disk;
 	int error;
@@ -3704,8 +3675,6 @@ void end_that_request_last(struct request *req, int uptodate)
 	else
 		__blk_put_request(req->q, req);
 }
-
-EXPORT_SYMBOL(end_that_request_last);
 
 static inline void __end_request(struct request *rq, int uptodate,
 				 unsigned int nr_bytes)

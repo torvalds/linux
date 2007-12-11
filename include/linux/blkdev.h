@@ -718,21 +718,18 @@ static inline void blk_run_address_space(struct address_space *mapping)
 }
 
 /*
- * end_request() and friends. Must be called with the request queue spinlock
- * acquired. All functions called within end_request() _must_be_ atomic.
+ * blk_end_request() and friends.
+ * __blk_end_request() and end_request() must be called with
+ * the request queue spinlock acquired.
  *
  * Several drivers define their own end_request and call
- * end_that_request_first() and end_that_request_last()
- * for parts of the original function. This prevents
- * code duplication in drivers.
+ * blk_end_request() for parts of the original function.
+ * This prevents code duplication in drivers.
  */
 extern int blk_end_request(struct request *rq, int error, int nr_bytes);
 extern int __blk_end_request(struct request *rq, int error, int nr_bytes);
 extern int blk_end_bidi_request(struct request *rq, int error, int nr_bytes,
 				int bidi_bytes);
-extern int end_that_request_first(struct request *, int, int);
-extern int end_that_request_chunk(struct request *, int, int);
-extern void end_that_request_last(struct request *, int);
 extern void end_request(struct request *, int);
 extern void end_queued_request(struct request *, int);
 extern void end_dequeued_request(struct request *, int);
