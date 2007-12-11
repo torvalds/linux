@@ -19,6 +19,7 @@
 #include "join.h"
 #include "wext.h"
 #include "assoc.h"
+#include "cmd.h"
 
 
 static inline void lbs_postpone_association_work(struct lbs_private *priv)
@@ -962,8 +963,7 @@ static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
 {
 	struct lbs_private *priv = dev->priv;
-	u32 new_rate;
-	u16 action;
+	u8 new_rate = 0;
 	int ret = -EINVAL;
 	u8 rates[MAX_RATES + 1];
 
@@ -972,7 +972,6 @@ static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 
 	/* Auto rate? */
 	if (vwrq->value == -1) {
-		action = CMD_ACT_SET_TX_AUTO;
 		priv->auto_rate = 1;
 		priv->cur_rate = 0;
 	} else {
@@ -989,12 +988,10 @@ static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 		}
 
 		priv->cur_rate = new_rate;
-		action = CMD_ACT_SET_TX_FIX_RATE;
 		priv->auto_rate = 0;
 	}
 
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_DATA_RATE,
-				    action, CMD_OPTION_WAITFORRSP, 0, NULL);
+	ret = lbs_set_data_rate(priv, new_rate);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);

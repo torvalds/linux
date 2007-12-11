@@ -27,4 +27,7 @@ int lbs_update_hw_spec(struct lbs_private *priv);
 int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 		    struct cmd_ds_mesh_access *cmd);
 
+int lbs_get_data_rate(struct lbs_private *priv);
+int lbs_set_data_rate(struct lbs_private *priv, u8 rate);
+
 #endif /* _LBS_CMD_H */

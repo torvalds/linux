@@ -706,30 +706,86 @@ static int lbs_cmd_802_11_rate_adapt_rateset(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_data_rate(struct lbs_private *priv,
-				     struct cmd_ds_command *cmd,
-				     u16 cmd_action)
+/**
+ *  @brief Get the current data rate
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *
+ *  @return 	   	The data rate on success, error on failure
+ */
+int lbs_get_data_rate(struct lbs_private *priv)
 {
-	struct cmd_ds_802_11_data_rate *pdatarate = &cmd->params.drate;
+	struct cmd_ds_802_11_data_rate cmd;
+	int ret = -1;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_data_rate) +
-			     S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_802_11_DATA_RATE);
-	memset(pdatarate, 0, sizeof(struct cmd_ds_802_11_data_rate));
-	pdatarate->action = cpu_to_le16(cmd_action);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_GET_TX_RATE);
 
-	if (cmd_action == CMD_ACT_SET_TX_FIX_RATE) {
-		pdatarate->rates[0] = lbs_data_rate_to_fw_index(priv->cur_rate);
-		lbs_deb_cmd("DATA_RATE: set fixed 0x%02X\n",
-		       priv->cur_rate);
-	} else if (cmd_action == CMD_ACT_SET_TX_AUTO) {
+	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, cmd);
+	if (ret)
+		goto out;
+
+	lbs_deb_hex(LBS_DEB_CMD, "DATA_RATE_RESP", (u8 *) &cmd, sizeof (cmd));
+
+	ret = (int) lbs_fw_index_to_data_rate(cmd.rates[0]);
+	lbs_deb_cmd("DATA_RATE: current rate 0x%02x\n", ret);
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+/**
+ *  @brief Set the data rate
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param rate  	The desired data rate, or 0 to clear a locked rate
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_set_data_rate(struct lbs_private *priv, u8 rate)
+{
+	struct cmd_ds_802_11_data_rate cmd;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+
+	if (rate > 0) {
+		cmd.action = cpu_to_le16(CMD_ACT_SET_TX_FIX_RATE);
+		cmd.rates[0] = lbs_data_rate_to_fw_index(rate);
+		if (cmd.rates[0] == 0) {
+			lbs_deb_cmd("DATA_RATE: invalid requested rate of"
+			            " 0x%02X\n", rate);
+			ret = 0;
+			goto out;
+		}
+		lbs_deb_cmd("DATA_RATE: set fixed 0x%02X\n", cmd.rates[0]);
+	} else {
+		cmd.action = cpu_to_le16(CMD_ACT_SET_TX_AUTO);
 		lbs_deb_cmd("DATA_RATE: setting auto\n");
 	}
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, cmd);
+	if (ret)
+		goto out;
+
+	lbs_deb_hex(LBS_DEB_CMD, "DATA_RATE_RESP", (u8 *) &cmd, sizeof (cmd));
+
+	/* FIXME: get actual rates FW can do if this command actually returns
+	 * all data rates supported.
+	 */
+	priv->cur_rate = lbs_fw_index_to_data_rate(cmd.rates[0]);
+	lbs_deb_cmd("DATA_RATE: current rate is 0x%02x\n", priv->cur_rate);
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 static int lbs_cmd_mac_multicast_adr(struct lbs_private *priv,
@@ -1348,9 +1404,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_802_11_radio_control(priv, cmdptr, cmd_action);
 		break;
 
-	case CMD_802_11_DATA_RATE:
-		ret = lbs_cmd_802_11_data_rate(priv, cmdptr, cmd_action);
-		break;
 	case CMD_802_11_RATE_ADAPT_RATESET:
 		ret = lbs_cmd_802_11_rate_adapt_rateset(priv,
 							 cmdptr, cmd_action);

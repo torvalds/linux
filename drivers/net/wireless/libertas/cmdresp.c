@@ -325,26 +325,6 @@ static int lbs_ret_802_11_rate_adapt_rateset(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_data_rate(struct lbs_private *priv,
-				     struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_data_rate *pdatarate = &resp->params.drate;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	lbs_deb_hex(LBS_DEB_CMD, "DATA_RATE_RESP", (u8 *) pdatarate,
-		sizeof(struct cmd_ds_802_11_data_rate));
-
-	/* FIXME: get actual rates FW can do if this command actually returns
-	 * all data rates supported.
-	 */
-	priv->cur_rate = lbs_fw_index_to_data_rate(pdatarate->rates[0]);
-	lbs_deb_cmd("DATA_RATE: current rate 0x%02x\n", priv->cur_rate);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_rf_channel(struct lbs_private *priv,
 				      struct cmd_ds_command *resp)
 {
@@ -565,9 +545,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_802_11_enable_rsn(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11_DATA_RATE):
-		ret = lbs_ret_802_11_data_rate(priv, resp);
-		break;
 	case CMD_RET(CMD_802_11_RATE_ADAPT_RATESET):
 		ret = lbs_ret_802_11_rate_adapt_rateset(priv, resp);
 		break;

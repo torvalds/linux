@@ -854,12 +854,8 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 
 	lbs_set_mac_packet_filter(priv);
 
-	/* Get the supported Data rates */
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_DATA_RATE,
-				    CMD_ACT_GET_TX_RATE,
-				    CMD_OPTION_WAITFORRSP, 0, NULL);
-
-	if (ret) {
+	ret = lbs_get_data_rate(priv);
+	if (ret < 0) {
 		ret = -1;
 		goto done;
 	}
