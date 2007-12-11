@@ -96,7 +96,7 @@ typedef unsigned int elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #define ELF_CORE_COPY_REGS(_eregs, _pregs) 				\
-	xtensa_elf_core_copy_regs (&_eregs, _pregs);
+	xtensa_elf_core_copy_regs ((xtensa_gregset_t*)&(_eregs), _pregs);
 
 extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
 
