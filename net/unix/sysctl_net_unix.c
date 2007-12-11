@@ -18,7 +18,7 @@ static ctl_table unix_table[] = {
 	{
 		.ctl_name	= NET_UNIX_MAX_DGRAM_QLEN,
 		.procname	= "max_dgram_qlen",
-		.data		= &init_net.sysctl_unix_max_dgram_qlen,
+		.data		= &init_net.unx.sysctl_max_dgram_qlen,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec
@@ -40,9 +40,9 @@ int unix_sysctl_register(struct net *net)
 	if (table == NULL)
 		goto err_alloc;
 
-	table[0].data = &net->sysctl_unix_max_dgram_qlen;
-	net->unix_ctl = register_net_sysctl_table(net, unix_path, table);
-	if (net->unix_ctl == NULL)
+	table[0].data = &net->unx.sysctl_max_dgram_qlen;
+	net->unx.ctl = register_net_sysctl_table(net, unix_path, table);
+	if (net->unx.ctl == NULL)
 		goto err_reg;
 
 	return 0;
@@ -57,8 +57,8 @@ void unix_sysctl_unregister(struct net *net)
 {
 	struct ctl_table *table;
 
-	table = net->unix_ctl->ctl_table_arg;
-	unregister_sysctl_table(net->unix_ctl);
+	table = net->unx.ctl->ctl_table_arg;
+	unregister_sysctl_table(net->unx.ctl);
 	kfree(table);
 }
 

@@ -8,6 +8,8 @@
 #include <linux/workqueue.h>
 #include <linux/list.h>
 
+#include <net/netns/unix.h>
+
 struct proc_dir_entry;
 struct net_device;
 struct sock;
@@ -45,9 +47,7 @@ struct net {
 	rwlock_t		packet_sklist_lock;
 	struct hlist_head	packet_sklist;
 
-	/* unix sockets */
-	int			sysctl_unix_max_dgram_qlen;
-	struct ctl_table_header	*unix_ctl;
+	struct netns_unix	unx;
 };
 
 #ifdef CONFIG_NET
