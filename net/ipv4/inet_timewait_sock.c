@@ -194,16 +194,14 @@ out:
 
 EXPORT_SYMBOL_GPL(inet_twdr_hangman);
 
-extern void twkill_slots_invalid(void);
-
 void inet_twdr_twkill_work(struct work_struct *work)
 {
 	struct inet_timewait_death_row *twdr =
 		container_of(work, struct inet_timewait_death_row, twkill_work);
 	int i;
 
-	if ((INET_TWDR_TWKILL_SLOTS - 1) > (sizeof(twdr->thread_slots) * 8))
-		twkill_slots_invalid();
+	BUILD_BUG_ON((INET_TWDR_TWKILL_SLOTS - 1) >
+			(sizeof(twdr->thread_slots) * 8));
 
 	while (twdr->thread_slots) {
 		spin_lock_bh(&twdr->death_lock);
