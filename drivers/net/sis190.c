@@ -1381,7 +1381,7 @@ out:
 	return rc;
 }
 
-static void __devexit sis190_mii_remove(struct net_device *dev)
+static void sis190_mii_remove(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
