@@ -2406,14 +2406,6 @@ struct video_device saa7134_video_template =
 	.current_norm			= V4L2_STD_PAL,
 };
 
-struct video_device saa7134_vbi_template =
-{
-	.name          = "saa7134-vbi",
-	.type          = VID_TYPE_TUNER|VID_TYPE_TELETEXT,
-	.fops          = &video_fops,
-	.minor         = -1,
-};
-
 struct video_device saa7134_radio_template =
 {
 	.name			= "saa7134-radio",

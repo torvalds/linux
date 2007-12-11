@@ -1053,7 +1053,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
 	       dev->name,dev->video_dev->minor & 0x1f);
 
-	dev->vbi_dev = vdev_init(dev,&saa7134_vbi_template,"vbi");
+	dev->vbi_dev = vdev_init(dev, &saa7134_video_template, "vbi");
+	dev->vbi_dev->type = VID_TYPE_TUNER | VID_TYPE_TELETEXT;
+
 	err = video_register_device(dev->vbi_dev,VFL_TYPE_VBI,
 				    vbi_nr[dev->nr]);
 	if (err < 0)
