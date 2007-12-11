@@ -55,7 +55,7 @@ static inline unsigned classify_1d(struct sk_buff *skb, struct Qdisc *qd)
 
 	/* check there is a valid IP header present */
 	offset = ieee80211_get_hdrlen_from_skb(skb) + 8 /* LLC + proto */;
-	if (skb->protocol != __constant_htons(ETH_P_IP) ||
+	if (skb->protocol != htons(ETH_P_IP) ||
 	    skb->len < offset + sizeof(*ip))
 		return 0;
 

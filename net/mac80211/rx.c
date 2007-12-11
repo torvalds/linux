@@ -1193,7 +1193,7 @@ ieee80211_deliver_skb(struct ieee80211_txrx_data *rx)
 
 	if (xmit_skb) {
 		/* send to wireless media */
-		xmit_skb->protocol = __constant_htons(ETH_P_802_3);
+		xmit_skb->protocol = htons(ETH_P_802_3);
 		skb_set_network_header(xmit_skb, 0);
 		skb_set_mac_header(xmit_skb, 0);
 		dev_queue_xmit(xmit_skb);
