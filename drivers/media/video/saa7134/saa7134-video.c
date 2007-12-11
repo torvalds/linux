@@ -1123,7 +1123,7 @@ static struct videobuf_queue_ops video_qops = {
 
 /* ------------------------------------------------------------------ */
 
-static int vidioc_g_ctrl(struct file *file, void *priv,
+static int saa7134_g_ctrl(struct file *file, void *priv,
 					struct v4l2_control *c)
 {
 	struct saa7134_fh *fh = priv;
@@ -1173,7 +1173,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_ctrl(struct file *file, void *f,
+static int saa7134_s_ctrl(struct file *file, void *f,
 					struct v4l2_control *c)
 {
 	const struct v4l2_queryctrl* ctrl;
@@ -1507,7 +1507,7 @@ static int video_mmap(struct file *file, struct vm_area_struct * vma)
 
 /* ------------------------------------------------------------------ */
 
-static int vidioc_try_get_set_fmt_vbi(struct file *file, void *priv,
+static int saa7134_try_get_set_fmt_vbi(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1527,7 +1527,7 @@ static int vidioc_try_get_set_fmt_vbi(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int saa7134_g_fmt_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1543,7 +1543,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_overlay(struct file *file, void *priv,
+static int saa7134_g_fmt_overlay(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1557,7 +1557,7 @@ static int vidioc_g_fmt_overlay(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *priv,
+static int saa7134_try_fmt_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1608,7 +1608,7 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_overlay(struct file *file, void *priv,
+static int saa7134_try_fmt_overlay(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1622,13 +1622,13 @@ static int vidioc_try_fmt_overlay(struct file *file, void *priv,
 	return verify_preview(dev, &f->fmt.win);
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int saa7134_s_fmt_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
 	int err;
 
-	err = vidioc_try_fmt_cap(file, priv, f);
+	err = saa7134_try_fmt_cap(file, priv, f);
 	if (0 != err)
 		return err;
 
@@ -1639,7 +1639,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_overlay(struct file *file, void *priv,
+static int saa7134_s_fmt_overlay(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1680,7 +1680,7 @@ static int vidioc_s_fmt_overlay(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_queryctrl(struct file *file, void *priv,
+static int saa7134_queryctrl(struct file *file, void *priv,
 					struct v4l2_queryctrl *c)
 {
 	const struct v4l2_queryctrl *ctrl;
@@ -1695,7 +1695,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_enum_input(struct file *file, void *priv,
+static int saa7134_enum_input(struct file *file, void *priv,
 					struct v4l2_input *i)
 {
 	struct saa7134_fh *fh = priv;
@@ -1729,7 +1729,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+static int saa7134_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
@@ -1738,7 +1738,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+static int saa7134_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
@@ -1758,7 +1758,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_querycap(struct file *file, void  *priv,
+static int saa7134_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
 	struct saa7134_fh *fh = priv;
@@ -1785,7 +1785,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 		return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * id)
+static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
@@ -1847,7 +1847,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * id)
 	return 0;
 }
 
-static int vidioc_cropcap(struct file *file, void *priv,
+static int saa7134_cropcap(struct file *file, void *priv,
 					struct v4l2_cropcap *cap)
 {
 	struct saa7134_fh *fh = priv;
@@ -1871,7 +1871,7 @@ static int vidioc_cropcap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
+static int saa7134_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
 {
 	struct saa7134_fh *fh = f;
 	struct saa7134_dev *dev = fh->dev;
@@ -1883,7 +1883,7 @@ static int vidioc_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
 	return 0;
 }
 
-static int vidioc_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
+static int saa7134_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 {
 	struct saa7134_fh *fh = f;
 	struct saa7134_dev *dev = fh->dev;
@@ -1920,7 +1920,7 @@ static int vidioc_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 	return 0;
 }
 
-static int vidioc_g_tuner(struct file *file, void *priv,
+static int saa7134_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *t)
 {
 	struct saa7134_fh *fh = priv;
@@ -1949,7 +1949,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_tuner(struct file *file, void *priv,
+static int saa7134_s_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *t)
 {
 	struct saa7134_fh *fh = priv;
@@ -1971,7 +1971,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_frequency(struct file *file, void *priv,
+static int saa7134_g_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -1983,7 +1983,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *priv,
+static int saa7134_s_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct saa7134_fh *fh = priv;
@@ -2010,18 +2010,18 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
+static int saa7134_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	strcpy(a->name, "audio");
 	return 0;
 }
 
-static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
+static int saa7134_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	return 0;
 }
 
-static int vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
+static int saa7134_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 {
 	struct saa7134_fh *fh = f;
 	struct saa7134_dev *dev = fh->dev;
@@ -2030,7 +2030,7 @@ static int vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 	return 0;
 }
 
-static int vidioc_s_priority(struct file *file, void *f,
+static int saa7134_s_priority(struct file *file, void *f,
 					enum v4l2_priority prio)
 {
 	struct saa7134_fh *fh = f;
@@ -2039,7 +2039,7 @@ static int vidioc_s_priority(struct file *file, void *f,
 	return v4l2_prio_change(&dev->prio, &fh->prio, prio);
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int saa7134_enum_fmt_cap(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (f->index >= FORMATS)
@@ -2053,7 +2053,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_overlay(struct file *file, void  *priv,
+static int saa7134_enum_fmt_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (saa7134_no_overlay > 0) {
@@ -2072,7 +2072,7 @@ static int vidioc_enum_fmt_overlay(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_vbi(struct file *file, void  *priv,
+static int saa7134_enum_fmt_vbi(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (0 != f->index)
@@ -2084,7 +2084,7 @@ static int vidioc_enum_fmt_vbi(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fbuf(struct file *file, void *f,
+static int saa7134_g_fbuf(struct file *file, void *f,
 				struct v4l2_framebuffer *fb)
 {
 	struct saa7134_fh *fh = f;
@@ -2096,7 +2096,7 @@ static int vidioc_g_fbuf(struct file *file, void *f,
 	return 0;
 }
 
-static int vidioc_s_fbuf(struct file *file, void *f,
+static int saa7134_s_fbuf(struct file *file, void *f,
 					struct v4l2_framebuffer *fb)
 {
 	struct saa7134_fh *fh = f;
@@ -2121,7 +2121,7 @@ static int vidioc_s_fbuf(struct file *file, void *f,
 	return 0;
 }
 
-static int vidioc_overlay(struct file *file, void *f, unsigned int on)
+static int saa7134_overlay(struct file *file, void *f, unsigned int on)
 {
 	struct saa7134_fh *fh = f;
 	struct saa7134_dev *dev = fh->dev;
@@ -2158,34 +2158,34 @@ static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 }
 #endif
 
-static int vidioc_reqbufs(struct file *file, void *priv,
+static int saa7134_reqbufs(struct file *file, void *priv,
 					struct v4l2_requestbuffers *p)
 {
 	struct saa7134_fh *fh = priv;
 	return videobuf_reqbufs(saa7134_queue(fh), p);
 }
 
-static int vidioc_querybuf(struct file *file, void *priv,
+static int saa7134_querybuf(struct file *file, void *priv,
 					struct v4l2_buffer *b)
 {
 	struct saa7134_fh *fh = priv;
 	return videobuf_querybuf(saa7134_queue(fh), b);
 }
 
-static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+static int saa7134_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
 	struct saa7134_fh *fh = priv;
 	return videobuf_qbuf(saa7134_queue(fh), b);
 }
 
-static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+static int saa7134_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
 	struct saa7134_fh *fh = priv;
 	return videobuf_dqbuf(saa7134_queue(fh), b,
 				file->f_flags & O_NONBLOCK);
 }
 
-static int vidioc_streamon(struct file *file, void *priv,
+static int saa7134_streamon(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
 	struct saa7134_fh *fh = priv;
@@ -2198,7 +2198,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 	return videobuf_streamon(saa7134_queue(fh));
 }
 
-static int vidioc_streamoff(struct file *file, void *priv,
+static int saa7134_streamoff(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
 	int err;
@@ -2213,7 +2213,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_parm(struct file *file, void *fh,
+static int saa7134_g_parm(struct file *file, void *fh,
 				struct v4l2_streamparm *parm)
 {
 	return 0;
@@ -2358,50 +2358,50 @@ struct video_device saa7134_video_template =
 					VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.fops				= &video_fops,
 	.minor				= -1,
-	.vidioc_querycap		= vidioc_querycap,
-	.vidioc_enum_fmt_cap		= vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap		= vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap		= vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap		= vidioc_s_fmt_cap,
-	.vidioc_enum_fmt_overlay	= vidioc_enum_fmt_overlay,
-	.vidioc_g_fmt_overlay		= vidioc_g_fmt_overlay,
-	.vidioc_try_fmt_overlay		= vidioc_try_fmt_overlay,
-	.vidioc_s_fmt_overlay		= vidioc_s_fmt_overlay,
-	.vidioc_enum_fmt_vbi		= vidioc_enum_fmt_vbi,
-	.vidioc_g_fmt_vbi		= vidioc_try_get_set_fmt_vbi,
-	.vidioc_try_fmt_vbi		= vidioc_try_get_set_fmt_vbi,
-	.vidioc_s_fmt_vbi		= vidioc_try_get_set_fmt_vbi,
-	.vidioc_g_audio			= vidioc_g_audio,
-	.vidioc_s_audio			= vidioc_s_audio,
-	.vidioc_cropcap			= vidioc_cropcap,
-	.vidioc_reqbufs			= vidioc_reqbufs,
-	.vidioc_querybuf		= vidioc_querybuf,
-	.vidioc_qbuf			= vidioc_qbuf,
-	.vidioc_dqbuf			= vidioc_dqbuf,
-	.vidioc_s_std			= vidioc_s_std,
-	.vidioc_enum_input		= vidioc_enum_input,
-	.vidioc_g_input			= vidioc_g_input,
-	.vidioc_s_input			= vidioc_s_input,
-	.vidioc_queryctrl		= vidioc_queryctrl,
-	.vidioc_g_ctrl			= vidioc_g_ctrl,
-	.vidioc_s_ctrl			= vidioc_s_ctrl,
-	.vidioc_streamon		= vidioc_streamon,
-	.vidioc_streamoff		= vidioc_streamoff,
-	.vidioc_g_tuner			= vidioc_g_tuner,
-	.vidioc_s_tuner			= vidioc_s_tuner,
+	.vidioc_querycap		= saa7134_querycap,
+	.vidioc_enum_fmt_cap		= saa7134_enum_fmt_cap,
+	.vidioc_g_fmt_cap		= saa7134_g_fmt_cap,
+	.vidioc_try_fmt_cap		= saa7134_try_fmt_cap,
+	.vidioc_s_fmt_cap		= saa7134_s_fmt_cap,
+	.vidioc_enum_fmt_overlay	= saa7134_enum_fmt_overlay,
+	.vidioc_g_fmt_overlay		= saa7134_g_fmt_overlay,
+	.vidioc_try_fmt_overlay		= saa7134_try_fmt_overlay,
+	.vidioc_s_fmt_overlay		= saa7134_s_fmt_overlay,
+	.vidioc_enum_fmt_vbi		= saa7134_enum_fmt_vbi,
+	.vidioc_g_fmt_vbi		= saa7134_try_get_set_fmt_vbi,
+	.vidioc_try_fmt_vbi		= saa7134_try_get_set_fmt_vbi,
+	.vidioc_s_fmt_vbi		= saa7134_try_get_set_fmt_vbi,
+	.vidioc_g_audio			= saa7134_g_audio,
+	.vidioc_s_audio			= saa7134_s_audio,
+	.vidioc_cropcap			= saa7134_cropcap,
+	.vidioc_reqbufs			= saa7134_reqbufs,
+	.vidioc_querybuf		= saa7134_querybuf,
+	.vidioc_qbuf			= saa7134_qbuf,
+	.vidioc_dqbuf			= saa7134_dqbuf,
+	.vidioc_s_std			= saa7134_s_std,
+	.vidioc_enum_input		= saa7134_enum_input,
+	.vidioc_g_input			= saa7134_g_input,
+	.vidioc_s_input			= saa7134_s_input,
+	.vidioc_queryctrl		= saa7134_queryctrl,
+	.vidioc_g_ctrl			= saa7134_g_ctrl,
+	.vidioc_s_ctrl			= saa7134_s_ctrl,
+	.vidioc_streamon		= saa7134_streamon,
+	.vidioc_streamoff		= saa7134_streamoff,
+	.vidioc_g_tuner			= saa7134_g_tuner,
+	.vidioc_s_tuner			= saa7134_s_tuner,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf			= vidiocgmbuf,
 #endif
-	.vidioc_g_crop			= vidioc_g_crop,
-	.vidioc_s_crop			= vidioc_s_crop,
-	.vidioc_g_fbuf			= vidioc_g_fbuf,
-	.vidioc_s_fbuf			= vidioc_s_fbuf,
-	.vidioc_overlay			= vidioc_overlay,
-	.vidioc_g_priority		= vidioc_g_priority,
-	.vidioc_s_priority		= vidioc_s_priority,
-	.vidioc_g_parm			= vidioc_g_parm,
-	.vidioc_g_frequency		= vidioc_g_frequency,
-	.vidioc_s_frequency		= vidioc_s_frequency,
+	.vidioc_g_crop			= saa7134_g_crop,
+	.vidioc_s_crop			= saa7134_s_crop,
+	.vidioc_g_fbuf			= saa7134_g_fbuf,
+	.vidioc_s_fbuf			= saa7134_s_fbuf,
+	.vidioc_overlay			= saa7134_overlay,
+	.vidioc_g_priority		= saa7134_g_priority,
+	.vidioc_s_priority		= saa7134_s_priority,
+	.vidioc_g_parm			= saa7134_g_parm,
+	.vidioc_g_frequency		= saa7134_g_frequency,
+	.vidioc_s_frequency		= saa7134_s_frequency,
 	.tvnorms			= SAA7134_NORMS,
 	.current_norm			= V4L2_STD_PAL,
 };
@@ -2416,10 +2416,10 @@ struct video_device saa7134_vbi_template =
 
 struct video_device saa7134_radio_template =
 {
-	.name          = "saa7134-radio",
-	.type          = VID_TYPE_TUNER,
-	.fops          = &radio_fops,
-	.minor         = -1,
+	.name			= "saa7134-radio",
+	.type			= VID_TYPE_TUNER,
+	.fops			= &radio_fops,
+	.minor			= -1,
 	.vidioc_querycap	= radio_querycap,
 	.vidioc_g_tuner		= radio_g_tuner,
 	.vidioc_enum_input	= radio_enum_input,
@@ -2430,10 +2430,10 @@ struct video_device saa7134_radio_template =
 	.vidioc_s_std		= radio_s_std,
 	.vidioc_queryctrl	= radio_queryctrl,
 	.vidioc_g_input		= radio_g_input,
-	.vidioc_g_ctrl		= vidioc_g_ctrl,
-	.vidioc_s_ctrl		= vidioc_s_ctrl,
-	.vidioc_g_frequency	= vidioc_g_frequency,
-	.vidioc_s_frequency	= vidioc_s_frequency,
+	.vidioc_g_ctrl		= saa7134_g_ctrl,
+	.vidioc_s_ctrl		= saa7134_s_ctrl,
+	.vidioc_g_frequency	= saa7134_g_frequency,
+	.vidioc_s_frequency	= saa7134_s_frequency,
 };
 
 int saa7134_video_init1(struct saa7134_dev *dev)
