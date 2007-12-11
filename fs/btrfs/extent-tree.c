@@ -457,6 +457,94 @@ out:
 	return ret;
 }
 
+/*
+ * Back reference rules.  Back refs have three main goals:
+ *
+ * 1) differentiate between all holders of references to an extent so that
+ *    when a reference is dropped we can make sure it was a valid reference
+ *    before freeing the extent.
+ *
+ * 2) Provide enough information to quickly find the holders of an extent
+ *    if we notice a given block is corrupted or bad.
+ *
+ * 3) Make it easy to migrate blocks for FS shrinking or storage pool
+ *    maintenance.  This is actually the same as #2, but with a slightly
+ *    different use case.
+ *
+ * File extents can be referenced by:
+ *
+ * - multiple snapshots, subvolumes, or different generations in one subvol
+ * - different files inside a single subvolume (in theory, not implemented yet)
+ * - different offsets inside a file (bookend extents in file.c)
+ *
+ * The extent ref structure has fields for:
+ *
+ * - Objectid of the subvolume root
+ * - Generation number of the tree holding the reference
+ * - objectid of the file holding the reference
+ * - offset in the file corresponding to the key holding the reference
+ *
+ * When a file extent is allocated the fields are filled in:
+ *     (root_key.objectid, trans->transid, inode objectid, offset in file)
+ *
+ * When a leaf is cow'd new references are added for every file extent found
+ * in the leaf.  It looks the same as the create case, but trans->transid
+ * will be different when the block is cow'd.
+ *
+ *     (root_key.objectid, trans->transid, inode objectid, offset in file)
+ *
+ * When a file extent is removed either during snapshot deletion or file
+ * truncation, the corresponding back reference is found
+ * by searching for:
+ *
+ *     (btrfs_header_owner(leaf), btrfs_header_generation(leaf),
+ *      inode objectid, offset in file)
+ *
+ * Btree extents can be referenced by:
+ *
+ * - Different subvolumes
+ * - Different generations of the same subvolume
+ *
+ * Storing sufficient information for a full reverse mapping of a btree
+ * block would require storing the lowest key of the block in the backref,
+ * and it would require updating that lowest key either before write out or
+ * every time it changed.  Instead, the objectid of the lowest key is stored
+ * along with the level of the tree block.  This provides a hint
+ * about where in the btree the block can be found.  Searches through the
+ * btree only need to look for a pointer to that block, so they stop one
+ * level higher than the level recorded in the backref.
+ *
+ * Some btrees do not do reference counting on their extents.  These
+ * include the extent tree and the tree of tree roots.  Backrefs for these
+ * trees always have a generation of zero.
+ *
+ * When a tree block is created, back references are inserted:
+ *
+ * (root->root_key.objectid, trans->transid or zero, lowest_key_objectid, level)
+ *
+ * When a tree block is cow'd in a reference counted root,
+ * new back references are added for all the blocks it points to.
+ * These are of the form (trans->transid will have increased since creation):
+ *
+ * (root->root_key.objectid, trans->transid, lowest_key_objectid, level)
+ *
+ * Because the lowest_key_objectid and the level are just hints
+ * they are not used when backrefs are deleted.  When a backref is deleted:
+ *
+ * if backref was for a tree root:
+ *     root_objectid = root->root_key.objectid
+ * else
+ *     root_objectid = btrfs_header_owner(parent)
+ *
+ * (root_objectid, btrfs_header_generation(parent) or zero, 0, 0)
+ *
+ * Back Reference Key hashing:
+ *
+ * Back references have four fields, each 64 bits long.  Unfortunately,
+ * This is hashed into a single 64 bit number and placed into the key offset.
+ * The key objectid corresponds to the first byte in the extent, and the
+ * key type is set to BTRFS_EXTENT_REF_KEY
+ */
 int btrfs_insert_extent_backref(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path, u64 bytenr,
@@ -939,10 +1027,13 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 	u64 start;
 	u64 end;
 	struct btrfs_fs_info *info = extent_root->fs_info;
+	struct extent_buffer *eb;
 	struct btrfs_path *path;
 	struct btrfs_key ins;
+	struct btrfs_disk_key first;
 	struct btrfs_extent_item extent_item;
 	int ret;
+	int level;
 	int err = 0;
 
 	btrfs_set_stack_extent_refs(&extent_item, 1);
@@ -961,10 +1052,19 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 					&extent_item, sizeof(extent_item));
 		clear_extent_bits(&info->extent_ins, start, end, EXTENT_LOCKED,
 				  GFP_NOFS);
+		eb = read_tree_block(extent_root, ins.objectid, ins.offset);
+		level = btrfs_header_level(eb);
+		if (level == 0) {
+			btrfs_item_key(eb, &first, 0);
+		} else {
+			btrfs_node_key(eb, &first, 0);
+		}
 		err = btrfs_insert_extent_backref(trans, extent_root, path,
 					  start, extent_root->root_key.objectid,
-					  0, 0, 0);
+					  0, btrfs_disk_key_objectid(&first),
+					  level);
 		BUG_ON(err);
+		free_extent_buffer(eb);
 	}
 	btrfs_free_path(path);
 	return 0;

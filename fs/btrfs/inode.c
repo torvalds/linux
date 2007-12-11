@@ -563,6 +563,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	u64 extent_num_bytes = 0;
 	u64 item_end = 0;
 	u64 root_gen = 0;
+	u64 root_owner = 0;
 	int found_extent;
 	int del_item;
 	int extent_type = -1;
@@ -673,15 +674,8 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 					found_extent = 1;
 					inode->i_blocks -= num_dec;
 				}
-				if (leaf == root->node) {
-					root_gen =
-						btrfs_header_generation(leaf);
-				} else {
-					struct extent_buffer *parent;
-					parent = path->nodes[1];
-					root_gen =
-						btrfs_header_generation(parent);
-				}
+				root_gen = btrfs_header_generation(leaf);
+				root_owner = btrfs_header_owner(leaf);
 			}
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE &&
 			   !del_item) {
@@ -703,7 +697,7 @@ delete:
 		if (found_extent) {
 			ret = btrfs_free_extent(trans, root, extent_start,
 						extent_num_bytes,
-						root->root_key.objectid,
+						root_owner,
 						root_gen, inode->i_ino,
 						found_key.offset, 0);
 			BUG_ON(ret);
