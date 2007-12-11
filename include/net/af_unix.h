@@ -59,7 +59,6 @@ struct unix_sock {
 #define unix_sk(__sk) ((struct unix_sock *)__sk)
 
 #ifdef CONFIG_SYSCTL
-extern int sysctl_unix_max_dgram_qlen;
 extern int unix_sysctl_register(struct net *net);
 extern void unix_sysctl_unregister(struct net *net);
 #else
