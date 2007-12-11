@@ -91,7 +91,7 @@ static int e1000_desc_unused(struct e1000_ring *ring)
 static void e1000_receive_skb(struct e1000_adapter *adapter,
 			      struct net_device *netdev,
 			      struct sk_buff *skb,
-			      u8 status, u16 vlan)
+			      u8 status, __le16 vlan)
 {
 	skb->protocol = eth_type_trans(skb, netdev);
 
@@ -142,8 +142,8 @@ static void e1000_rx_checksum(struct e1000_adapter *adapter, u32 status_err,
 		/* Hardware complements the payload checksum, so we undo it
 		 * and then put the value in host order for further stack use.
 		 */
-		csum = ntohl(csum ^ 0xFFFF);
-		skb->csum = csum;
+		__sum16 sum = (__force __sum16)htons(csum);
+		skb->csum = csum_unfold(~sum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 	adapter->hw_csum_good++;
@@ -248,7 +248,7 @@ static void e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 			ps_page = &buffer_info->ps_pages[j];
 			if (j >= adapter->rx_ps_pages) {
 				/* all unused desc entries get hw null ptr */
-				rx_desc->read.buffer_addr[j+1] = ~0;
+				rx_desc->read.buffer_addr[j+1] = ~cpu_to_le64(0);
 				continue;
 			}
 			if (!ps_page->page) {
@@ -941,7 +941,7 @@ static irqreturn_t e1000_intr(int irq, void *data)
 static int e1000_request_irq(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	void (*handler) = &e1000_intr;
+	irq_handler_t handler = e1000_intr;
 	int irq_flags = IRQF_SHARED;
 	int err;
 
@@ -951,7 +951,7 @@ static int e1000_request_irq(struct e1000_adapter *adapter)
 		 "Unable to allocate MSI interrupt Error: %d\n", err);
 	} else {
 		adapter->flags |= FLAG_MSI_ENABLED;
-		handler = &e1000_intr_msi;
+		handler = e1000_intr_msi;
 		irq_flags = 0;
 	}
 
