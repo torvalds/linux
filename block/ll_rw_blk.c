@@ -3791,6 +3791,102 @@ void end_request(struct request *req, int uptodate)
 }
 EXPORT_SYMBOL(end_request);
 
+static void complete_request(struct request *rq, int error)
+{
+	/*
+	 * REMOVEME: This conversion is transitional and will be removed
+	 *           when old end_that_request_* are unexported.
+	 */
+	int uptodate = 1;
+	if (error)
+		uptodate = (error == -EIO) ? 0 : error;
+
+	if (blk_rq_tagged(rq))
+		blk_queue_end_tag(rq->q, rq);
+
+	if (blk_queued_rq(rq))
+		blkdev_dequeue_request(rq);
+
+	end_that_request_last(rq, uptodate);
+}
+
+/**
+ * blk_end_request - Helper function for drivers to complete the request.
+ * @rq:       the request being processed
+ * @error:    0 for success, < 0 for error
+ * @nr_bytes: number of bytes to complete
+ *
+ * Description:
+ *     Ends I/O on a number of bytes attached to @rq.
+ *     If @rq has leftover, sets it up for the next range of segments.
+ *
+ * Return:
+ *     0 - we are done with this request
+ *     1 - still buffers pending for this request
+ **/
+int blk_end_request(struct request *rq, int error, int nr_bytes)
+{
+	struct request_queue *q = rq->q;
+	unsigned long flags = 0UL;
+	/*
+	 * REMOVEME: This conversion is transitional and will be removed
+	 *           when old end_that_request_* are unexported.
+	 */
+	int uptodate = 1;
+	if (error)
+		uptodate = (error == -EIO) ? 0 : error;
+
+	if (blk_fs_request(rq) || blk_pc_request(rq)) {
+		if (__end_that_request_first(rq, uptodate, nr_bytes))
+			return 1;
+	}
+
+	add_disk_randomness(rq->rq_disk);
+
+	spin_lock_irqsave(q->queue_lock, flags);
+	complete_request(rq, error);
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blk_end_request);
+
+/**
+ * __blk_end_request - Helper function for drivers to complete the request.
+ * @rq:       the request being processed
+ * @error:    0 for success, < 0 for error
+ * @nr_bytes: number of bytes to complete
+ *
+ * Description:
+ *     Must be called with queue lock held unlike blk_end_request().
+ *
+ * Return:
+ *     0 - we are done with this request
+ *     1 - still buffers pending for this request
+ **/
+int __blk_end_request(struct request *rq, int error, int nr_bytes)
+{
+	/*
+	 * REMOVEME: This conversion is transitional and will be removed
+	 *           when old end_that_request_* are unexported.
+	 */
+	int uptodate = 1;
+	if (error)
+		uptodate = (error == -EIO) ? 0 : error;
+
+	if (blk_fs_request(rq) || blk_pc_request(rq)) {
+		if (__end_that_request_first(rq, uptodate, nr_bytes))
+			return 1;
+	}
+
+	add_disk_randomness(rq->rq_disk);
+
+	complete_request(rq, error);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__blk_end_request);
+
 static void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 			    struct bio *bio)
 {
