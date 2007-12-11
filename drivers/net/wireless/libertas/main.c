@@ -254,6 +254,9 @@ static ssize_t lbs_anycast_set(struct device *dev,
 
 static int lbs_add_rtap(struct lbs_private *priv);
 static void lbs_remove_rtap(struct lbs_private *priv);
+static int lbs_add_mesh(struct lbs_private *priv);
+static void lbs_remove_mesh(struct lbs_private *priv);
+  
 
 /**
  * Get function for sysfs attribute rtap
@@ -312,11 +315,53 @@ static ssize_t lbs_rtap_set(struct device *dev,
 }
 
 /**
- * lbs_rtap attribute to be exported per mshX interface
- * through sysfs (/sys/class/net/mshX/libertas-rtap)
+ * lbs_rtap attribute to be exported per ethX interface
+ * through sysfs (/sys/class/net/ethX/lbs_rtap)
  */
-static DEVICE_ATTR(lbs_rtap, 0644, lbs_rtap_get,
-		lbs_rtap_set );
+static DEVICE_ATTR(lbs_rtap, 0644, lbs_rtap_get, lbs_rtap_set );
+
+/**
+ * Get function for sysfs attribute mesh
+ */
+static ssize_t lbs_mesh_get(struct device *dev,
+		struct device_attribute *attr, char * buf)
+{
+	struct lbs_private *priv = to_net_dev(dev)->priv;
+	return snprintf(buf, 5, "0x%X\n", !!priv->mesh_dev);
+}
+
+/**
+ *  Set function for sysfs attribute mesh
+ */
+static ssize_t lbs_mesh_set(struct device *dev,
+		struct device_attribute *attr, const char * buf, size_t count)
+{
+	struct lbs_private *priv = to_net_dev(dev)->priv;
+	int enable;
+	int ret;
+
+	sscanf(buf, "%x", &enable);
+	enable = !!enable;
+	if (enable == !!priv->mesh_dev)
+		return count;
+
+	ret = lbs_mesh_config(priv, enable);
+	if (ret)
+		return ret;
+		
+	if (enable)
+		lbs_add_mesh(priv);
+	else
+		lbs_remove_mesh(priv);
+
+	return count;
+}
+
+/**
+ * lbs_mesh attribute to be exported per ethX interface
+ * through sysfs (/sys/class/net/ethX/lbs_mesh)
+ */
+static DEVICE_ATTR(lbs_mesh, 0644, lbs_mesh_get, lbs_mesh_set);
 
 /**
  * anycast_mask attribute to be exported per mshX interface
@@ -867,7 +912,9 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 		ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
 				      &mesh_access);
 		if (ret) {
-			ret = -1;
+			printk("Mesh autostart set failed\n");
+			ret = 0;
+			//ret = -1;
 			goto done;
 		}
 		priv->mesh_autostart_enabled = 0;
@@ -1059,6 +1106,9 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
 	INIT_WORK(&priv->sync_channel, lbs_sync_channel);
 
+	sprintf(priv->mesh_ssid, "mesh");
+	priv->mesh_ssid_len = 4;
+
 	goto done;
 
 err_init_adapter:
@@ -1080,6 +1130,7 @@ int lbs_remove_card(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_MAIN);
 
+	lbs_remove_mesh(priv);
 	lbs_remove_rtap(priv);
 
 	dev = priv->dev;
@@ -1133,6 +1184,8 @@ int lbs_start_card(struct lbs_private *priv)
 	}
 	if (device_create_file(&dev->dev, &dev_attr_lbs_rtap))
 		lbs_pr_err("cannot register lbs_rtap attribute\n");
+	if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
+		lbs_pr_err("cannot register lbs_mesh attribute\n");
 
 	lbs_debugfs_init_one(priv, dev);
 
@@ -1161,6 +1214,7 @@ int lbs_stop_card(struct lbs_private *priv)
 
 	lbs_debugfs_remove_one(priv);
 	device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
+	device_remove_file(&dev->dev, &dev_attr_lbs_mesh);
 
 	/* Flush pending command nodes */
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -1184,7 +1238,7 @@ EXPORT_SYMBOL_GPL(lbs_stop_card);
  *  @param priv    A pointer to the struct lbs_private structure
  *  @return 	   0 if successful, -X otherwise
  */
-int lbs_add_mesh(struct lbs_private *priv, struct device *dev)
+static int lbs_add_mesh(struct lbs_private *priv)
 {
 	struct net_device *mesh_dev = NULL;
 	int ret = 0;
@@ -1209,7 +1263,7 @@ int lbs_add_mesh(struct lbs_private *priv, struct device *dev)
 	memcpy(mesh_dev->dev_addr, priv->dev->dev_addr,
 			sizeof(priv->dev->dev_addr));
 
-	SET_NETDEV_DEV(priv->mesh_dev, dev);
+	SET_NETDEV_DEV(priv->mesh_dev, priv->dev->dev.parent);
 
 #ifdef	WIRELESS_EXT
 	mesh_dev->wireless_handlers = (struct iw_handler_def *)&mesh_handler_def;
@@ -1242,7 +1296,7 @@ done:
 EXPORT_SYMBOL_GPL(lbs_add_mesh);
 
 
-void lbs_remove_mesh(struct lbs_private *priv)
+static void lbs_remove_mesh(struct lbs_private *priv)
 {
 	struct net_device *mesh_dev;
 
@@ -1252,6 +1306,8 @@ void lbs_remove_mesh(struct lbs_private *priv)
 		goto out;
 
 	mesh_dev = priv->mesh_dev;
+	if (!mesh_dev)
+		goto out;
 
 	netif_stop_queue(mesh_dev);
 	netif_carrier_off(priv->mesh_dev);
@@ -1259,7 +1315,7 @@ void lbs_remove_mesh(struct lbs_private *priv)
 	sysfs_remove_group(&(mesh_dev->dev.kobj), &lbs_mesh_attr_group);
 	unregister_netdev(mesh_dev);
 
-	priv->mesh_dev = NULL ;
+	priv->mesh_dev = NULL;
 	free_netdev(mesh_dev);
 
 out:

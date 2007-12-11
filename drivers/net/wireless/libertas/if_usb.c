@@ -232,9 +232,6 @@ static int if_usb_probe(struct usb_interface *intf,
 	cardp->priv = priv;
 	cardp->priv->fw_ready = 1;
 
-	if (lbs_add_mesh(priv, &udev->dev))
-		goto err_add_mesh;
-
 	cardp->eth_dev = priv->dev;
 
 	priv->hw_host_to_card = if_usb_host_to_card;
@@ -255,8 +252,6 @@ static int if_usb_probe(struct usb_interface *intf,
 	return 0;
 
 err_start_card:
-	lbs_remove_mesh(priv);
-err_add_mesh:
 	lbs_remove_card(priv);
 err_prog_firmware:
 	if_usb_reset_device(cardp);
@@ -286,7 +281,6 @@ static void if_usb_disconnect(struct usb_interface *intf)
 
 		priv->surpriseremoved = 1;
 		lbs_stop_card(priv);
-		lbs_remove_mesh(priv);
 		lbs_remove_card(priv);
 	}
 

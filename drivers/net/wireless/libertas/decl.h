@@ -74,8 +74,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev);
 int lbs_remove_card(struct lbs_private *priv);
 int lbs_start_card(struct lbs_private *priv);
 int lbs_stop_card(struct lbs_private *priv);
-int lbs_add_mesh(struct lbs_private *priv, struct device *dev);
-void lbs_remove_mesh(struct lbs_private *priv);
 int lbs_reset_device(struct lbs_private *priv);
 void lbs_host_to_card_done(struct lbs_private *priv);
 

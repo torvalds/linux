@@ -626,6 +626,18 @@ struct cmd_ds_fwt_access {
 	u8 prec[ETH_ALEN];
 } __attribute__ ((packed));
 
+
+struct cmd_ds_mesh_config {
+	struct cmd_header hdr;
+
+        __le16 action;
+        __le16 channel;
+        __le16 type;
+        __le16 length;
+        u8 data[128];   /* last position reserved */
+} __attribute__ ((packed));
+
+
 struct cmd_ds_mesh_access {
 	struct cmd_header hdr;
 

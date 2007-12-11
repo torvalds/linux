@@ -1093,6 +1093,23 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 }
 EXPORT_SYMBOL_GPL(lbs_mesh_access);
 
+int lbs_mesh_config(struct lbs_private *priv, int enable)
+{
+	struct cmd_ds_mesh_config cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.action = cpu_to_le16(enable);
+	cmd.channel = cpu_to_le16(priv->curbssparams.channel);
+	cmd.type = cpu_to_le16(0x100 + 37);
+	
+	if (enable) {
+		cmd.length = cpu_to_le16(priv->mesh_ssid_len);
+		memcpy(cmd.data, priv->mesh_ssid, priv->mesh_ssid_len);
+	}
+
+	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
+}
+
 static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
 				struct cmd_ds_command *cmd,
 				u16 cmd_action)

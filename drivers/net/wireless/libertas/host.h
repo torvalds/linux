@@ -113,6 +113,7 @@
 #define CMD_802_11_MONITOR_MODE       0x0098
 
 #define CMD_MESH_ACCESS               0x009b
+#define CMD_MESH_CONFIG				0x00a3
 
 #define CMD_SET_BOOT2_VER                 0x00a5
 

@@ -33,4 +33,6 @@ int lbs_set_data_rate(struct lbs_private *priv, u8 rate);
 int lbs_get_channel(struct lbs_private *priv);
 int lbs_set_channel(struct lbs_private *priv, u8 channel);
 
+int lbs_mesh_config(struct lbs_private *priv, int enable);
+
 #endif /* _LBS_CMD_H */
