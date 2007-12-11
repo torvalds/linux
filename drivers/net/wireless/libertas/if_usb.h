@@ -4,6 +4,8 @@
 #include <linux/wait.h>
 #include <linux/timer.h>
 
+struct lbs_private;
+
 /**
   * This file contains definition for USB interface.
   */
@@ -48,7 +50,7 @@ struct usb_card_rec {
 	struct net_device *eth_dev;
 	struct usb_device *udev;
 	struct urb *rx_urb, *tx_urb;
-	void *priv;
+	struct lbs_private *priv;
 	struct read_cb_info rinfo;
 
 	int bulk_in_size;

@@ -1003,7 +1003,7 @@ static int if_usb_resume(struct usb_interface *intf)
 
 	cardp->rx_urb_recall = 0;
 
-	if_usb_submit_rx_urb(cardp->priv);
+	if_usb_submit_rx_urb(cardp);
 
 	netif_device_attach(cardp->eth_dev);
 	netif_device_attach(priv->mesh_dev);
