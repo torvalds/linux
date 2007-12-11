@@ -67,6 +67,8 @@ static unsigned int mpui730_sleep_save[MPUI730_SLEEP_SAVE_SIZE];
 static unsigned int mpui1510_sleep_save[MPUI1510_SLEEP_SAVE_SIZE];
 static unsigned int mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_SIZE];
 
+#ifdef CONFIG_OMAP_32K_TIMER
+
 static unsigned short enable_dyn_sleep = 1;
 
 static ssize_t idle_show(struct kobject *kobj, struct kobj_attribute *attr,
@@ -91,6 +93,8 @@ static ssize_t idle_store(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute sleep_while_idle_attr =
 	__ATTR(sleep_while_idle, 0644, idle_show, idle_store);
 
+#endif
+
 static void (*omap_sram_idle)(void) = NULL;
 static void (*omap_sram_suspend)(unsigned long r0, unsigned long r1) = NULL;
 
@@ -104,9 +108,7 @@ void omap_pm_idle(void)
 {
 	extern __u32 arm_idlect1_mask;
 	__u32 use_idlect1 = arm_idlect1_mask;
-#ifndef CONFIG_OMAP_MPU_TIMER
-	int do_sleep;
-#endif
+	int do_sleep = 0;
 
 	local_irq_disable();
 	local_fiq_disable();
@@ -128,7 +130,6 @@ void omap_pm_idle(void)
 	use_idlect1 = use_idlect1 & ~(1 << 9);
 #else
 
-	do_sleep = 0;
 	while (enable_dyn_sleep) {
 
 #ifdef CONFIG_CBUS_TAHVO_USB
@@ -140,6 +141,8 @@ void omap_pm_idle(void)
 		do_sleep = 1;
 		break;
 	}
+
+#endif
 
 #ifdef CONFIG_OMAP_DM_TIMER
 	use_idlect1 = omap_dm_timer_modify_idlect_mask(use_idlect1);
@@ -168,7 +171,6 @@ void omap_pm_idle(void)
 	}
 	omap_sram_suspend(omap_readl(ARM_IDLECT1),
 			  omap_readl(ARM_IDLECT2));
-#endif
 
 	local_fiq_enable();
 	local_irq_enable();
@@ -661,7 +663,10 @@ static struct platform_suspend_ops omap_pm_ops ={
 
 static int __init omap_pm_init(void)
 {
+
+#ifdef CONFIG_OMAP_32K_TIMER
 	int error;
+#endif
 
 	printk("Power Management for TI OMAP.\n");
 
@@ -719,9 +724,11 @@ static int __init omap_pm_init(void)
 	omap_pm_init_proc();
 #endif
 
+#ifdef CONFIG_OMAP_32K_TIMER
 	error = sysfs_create_file(power_kobj, &sleep_while_idle_attr);
 	if (error)
 		printk(KERN_ERR "sysfs_create_file failed: %d\n", error);
+#endif
 
 	if (cpu_is_omap16xx()) {
 		/* configure LOW_PWR pin */
