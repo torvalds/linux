@@ -272,14 +272,14 @@ module_exit(e1000_exit_module);
 static int e1000_request_irq(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	void (*handler) = &e1000_intr;
+	irq_handler_t handler = e1000_intr;
 	int irq_flags = IRQF_SHARED;
 	int err;
 
 	if (adapter->hw.mac_type >= e1000_82571) {
 		adapter->have_msi = !pci_enable_msi(adapter->pdev);
 		if (adapter->have_msi) {
-			handler = &e1000_intr_msi;
+			handler = e1000_intr_msi;
 			irq_flags = 0;
 		}
 	}
@@ -4092,8 +4092,8 @@ e1000_rx_checksum(struct e1000_adapter *adapter,
 		/* Hardware complements the payload checksum, so we undo it
 		 * and then put the value in host order for further stack use.
 		 */
-		csum = ntohl(csum ^ 0xFFFF);
-		skb->csum = csum;
+		__sum16 sum = (__force __sum16)htons(csum);
+		skb->csum = csum_unfold(~sum);
 		skb->ip_summed = CHECKSUM_COMPLETE;
 	}
 	adapter->hw_csum_good++;
@@ -4621,7 +4621,7 @@ e1000_alloc_rx_buffers_ps(struct e1000_adapter *adapter,
 				rx_desc->read.buffer_addr[j+1] =
 				     cpu_to_le64(ps_page_dma->ps_page_dma[j]);
 			} else
-				rx_desc->read.buffer_addr[j+1] = ~0;
+				rx_desc->read.buffer_addr[j+1] = ~cpu_to_le64(0);
 		}
 
 		skb = netdev_alloc_skb(netdev,
