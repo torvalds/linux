@@ -579,7 +579,7 @@ static void iriap_getvaluebyclass_response(struct iriap_cb *self,
 	fp[n++] = ret_code;
 
 	/* Insert list length (MSB first) */
-	tmp_be16 = __constant_htons(0x0001);
+	tmp_be16 = htons(0x0001);
 	memcpy(fp+n, &tmp_be16, 2);  n += 2;
 
 	/* Insert object identifier ( MSB first) */
