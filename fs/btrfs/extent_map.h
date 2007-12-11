@@ -112,7 +112,7 @@ void free_extent_map(struct extent_map *em);
 int extent_read_full_page(struct extent_map_tree *tree, struct page *page,
 			  get_extent_t *get_extent);
 int __init extent_map_init(void);
-void __exit extent_map_exit(void);
+void extent_map_exit(void);
 
 u64 count_range_bits(struct extent_map_tree *tree,
 		     u64 *start, u64 max_bytes, unsigned long bits);

@@ -666,7 +666,7 @@ void __init btrfs_init_transaction_sys(void)
 	trans_wq = create_workqueue("btrfs");
 }
 
-void __exit btrfs_exit_transaction_sys(void)
+void btrfs_exit_transaction_sys(void)
 {
 	destroy_workqueue(trans_wq);
 }

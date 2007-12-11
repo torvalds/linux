@@ -69,7 +69,7 @@ free_map_cache:
 	return -ENOMEM;
 }
 
-void __exit extent_map_exit(void)
+void extent_map_exit(void)
 {
 	struct extent_state *state;
 
