@@ -219,7 +219,7 @@ extern struct ipv6_txoptions	*fl6_merge_options(struct ipv6_txoptions * opt_spac
 						   struct ipv6_txoptions * fopt);
 extern void			fl6_free_socklist(struct sock *sk);
 extern int			ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen);
-extern void			ip6_flowlabel_init(void);
+extern int			ip6_flowlabel_init(void);
 extern void			ip6_flowlabel_cleanup(void);
 
 static inline void fl6_sock_release(struct ip6_flowlabel *fl)

@@ -692,20 +692,36 @@ static const struct file_operations ip6fl_seq_fops = {
 	.llseek		=	seq_lseek,
 	.release	=	seq_release_private,
 };
-#endif
 
-
-void ip6_flowlabel_init(void)
+static int ip6_flowlabel_proc_init(struct net *net)
 {
-#ifdef CONFIG_PROC_FS
-	proc_net_fops_create(&init_net, "ip6_flowlabel", S_IRUGO, &ip6fl_seq_fops);
+	if (!proc_net_fops_create(net, "ip6_flowlabel", S_IRUGO, &ip6fl_seq_fops))
+		return -ENOMEM;
+	return 0;
+}
+
+static void ip6_flowlabel_proc_fini(struct net *net)
+{
+	proc_net_remove(net, "ip6_flowlabel");
+}
+#else
+static inline int ip6_flowlabel_proc_init(struct net *net)
+{
+	return 0;
+}
+static inline void ip6_flowlabel_proc_fini(struct net *net)
+{
+	return ;
+}
 #endif
+
+int ip6_flowlabel_init(void)
+{
+	return ip6_flowlabel_proc_init(&init_net);
 }
 
 void ip6_flowlabel_cleanup(void)
 {
 	del_timer(&ip6_fl_gc_timer);
-#ifdef CONFIG_PROC_FS
-	proc_net_remove(&init_net, "ip6_flowlabel");
-#endif
+	ip6_flowlabel_proc_fini(&init_net);
 }

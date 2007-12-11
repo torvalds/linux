@@ -851,7 +851,9 @@ static int __init inet6_init(void)
 	err = ip6_route_init();
 	if (err)
 		goto ip6_route_fail;
-	ip6_flowlabel_init();
+	err = ip6_flowlabel_init();
+	if (err)
+		goto ip6_flowlabel_fail;
 	err = addrconf_init();
 	if (err)
 		goto addrconf_fail;
@@ -874,6 +876,7 @@ out:
 
 addrconf_fail:
 	ip6_flowlabel_cleanup();
+ip6_flowlabel_fail:
 	ip6_route_cleanup();
 ip6_route_fail:
 #ifdef CONFIG_PROC_FS
