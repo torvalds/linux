@@ -973,7 +973,7 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 	struct ehci_qh		*qh = ehci->reclaim;
 	struct ehci_qh		*next;
 
-	timer_action_done (ehci, TIMER_IAA_WATCHDOG);
+	iaa_watchdog_done(ehci);
 
 	// qh->hw_next = cpu_to_hc32(qh->qh_dma);
 	qh->qh_state = QH_STATE_IDLE;
@@ -983,7 +983,6 @@ static void end_unlink_async (struct ehci_hcd *ehci)
 	/* other unlink(s) may be pending (in QH_STATE_UNLINK_WAIT) */
 	next = qh->reclaim;
 	ehci->reclaim = next;
-	ehci->reclaim_ready = 0;
 	qh->reclaim = NULL;
 
 	qh_completions (ehci, qh);
@@ -1059,11 +1058,10 @@ static void start_unlink_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		return;
 	}
 
-	ehci->reclaim_ready = 0;
 	cmd |= CMD_IAAD;
 	ehci_writel(ehci, cmd, &ehci->regs->command);
 	(void)ehci_readl(ehci, &ehci->regs->command);
-	timer_action (ehci, TIMER_IAA_WATCHDOG);
+	iaa_watchdog_start(ehci);
 }
 
 /*-------------------------------------------------------------------------*/

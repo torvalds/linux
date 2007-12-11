@@ -786,9 +786,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 	}
 
 	if (ehci->reclaim) {
-		temp = scnprintf (next, size, "reclaim qh %p%s\n",
-				ehci->reclaim,
-				ehci->reclaim_ready ? " ready" : "");
+		temp = scnprintf(next, size, "reclaim qh %p\n", ehci->reclaim);
 		size -= temp;
 		next += temp;
 	}

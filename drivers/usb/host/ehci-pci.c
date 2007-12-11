@@ -305,7 +305,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 	/* emptying the schedule aborts any urbs */
 	spin_lock_irq(&ehci->lock);
 	if (ehci->reclaim)
-		ehci->reclaim_ready = 1;
+		end_unlink_async(ehci);
 	ehci_work(ehci);
 	spin_unlock_irq(&ehci->lock);
 

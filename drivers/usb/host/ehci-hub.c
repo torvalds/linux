@@ -134,7 +134,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	}
 	ehci->command = ehci_readl(ehci, &ehci->regs->command);
 	if (ehci->reclaim)
-		ehci->reclaim_ready = 1;
+		end_unlink_async(ehci);
 	ehci_work(ehci);
 
 	/* Unlike other USB host controller types, EHCI doesn't have
