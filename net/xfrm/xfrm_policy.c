@@ -24,6 +24,7 @@
 #include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/cache.h>
+#include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
 
@@ -50,6 +51,7 @@ static DEFINE_SPINLOCK(xfrm_policy_gc_lock);
 
 static struct xfrm_policy_afinfo *xfrm_policy_get_afinfo(unsigned short family);
 static void xfrm_policy_put_afinfo(struct xfrm_policy_afinfo *afinfo);
+static void xfrm_init_pmtu(struct dst_entry *dst);
 
 static inline int
 __xfrm4_selector_match(struct xfrm_selector *sel, struct flowi *fl)
@@ -85,7 +87,8 @@ int xfrm_selector_match(struct xfrm_selector *sel, struct flowi *fl,
 	return 0;
 }
 
-struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos)
+static inline struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos,
+						int family)
 {
 	xfrm_address_t *saddr = &x->props.saddr;
 	xfrm_address_t *daddr = &x->id.daddr;
@@ -97,7 +100,7 @@ struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos)
 	if (x->type->flags & XFRM_TYPE_REMOTE_COADDR)
 		daddr = x->coaddr;
 
-	afinfo = xfrm_policy_get_afinfo(x->props.family);
+	afinfo = xfrm_policy_get_afinfo(family);
 	if (unlikely(afinfo == NULL))
 		return ERR_PTR(-EAFNOSUPPORT);
 
@@ -105,7 +108,6 @@ struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos)
 	xfrm_policy_put_afinfo(afinfo);
 	return dst;
 }
-EXPORT_SYMBOL(xfrm_dst_lookup);
 
 static inline unsigned long make_jiffies(long secs)
 {
@@ -1234,22 +1236,162 @@ xfrm_find_bundle(struct flowi *fl, struct xfrm_policy *policy, unsigned short fa
 	return x;
 }
 
+static inline int xfrm_get_tos(struct flowi *fl, int family)
+{
+	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	int tos;
+
+	if (!afinfo)
+		return -EINVAL;
+
+	tos = afinfo->get_tos(fl);
+
+	xfrm_policy_put_afinfo(afinfo);
+
+	return tos;
+}
+
+static inline struct xfrm_dst *xfrm_alloc_dst(int family)
+{
+	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
+	struct xfrm_dst *xdst;
+
+	if (!afinfo)
+		return ERR_PTR(-EINVAL);
+
+	xdst = dst_alloc(afinfo->dst_ops) ?: ERR_PTR(-ENOBUFS);
+
+	xfrm_policy_put_afinfo(afinfo);
+
+	return xdst;
+}
+
+static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+{
+	struct xfrm_policy_afinfo *afinfo =
+		xfrm_policy_get_afinfo(xdst->u.dst.ops->family);
+	int err;
+
+	if (!afinfo)
+		return -EINVAL;
+
+	err = afinfo->fill_dst(xdst, dev);
+
+	xfrm_policy_put_afinfo(afinfo);
+
+	return err;
+}
+
 /* Allocate chain of dst_entry's, attach known xfrm's, calculate
  * all the metrics... Shortly, bundle a bundle.
  */
 
-static int
-xfrm_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int nx,
-		   struct flowi *fl, struct dst_entry **dst_p,
-		   unsigned short family)
+static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
+					    struct xfrm_state **xfrm, int nx,
+					    struct flowi *fl,
+					    struct dst_entry *dst)
 {
+	unsigned long now = jiffies;
+	struct net_device *dev;
+	struct dst_entry *dst_prev = NULL;
+	struct dst_entry *dst0 = NULL;
+	int i = 0;
 	int err;
-	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
-	if (unlikely(afinfo == NULL))
-		return -EINVAL;
-	err = afinfo->bundle_create(policy, xfrm, nx, fl, dst_p);
-	xfrm_policy_put_afinfo(afinfo);
-	return err;
+	int header_len = 0;
+	int trailer_len = 0;
+	int tos;
+	int family = policy->selector.family;
+
+	tos = xfrm_get_tos(fl, family);
+	err = tos;
+	if (tos < 0)
+		goto put_states;
+
+	dst_hold(dst);
+
+	for (; i < nx; i++) {
+		struct xfrm_dst *xdst = xfrm_alloc_dst(family);
+		struct dst_entry *dst1 = &xdst->u.dst;
+
+		err = PTR_ERR(xdst);
+		if (IS_ERR(xdst)) {
+			dst_release(dst);
+			goto put_states;
+		}
+
+		if (!dst_prev)
+			dst0 = dst1;
+		else {
+			dst_prev->child = dst_clone(dst1);
+			dst1->flags |= DST_NOHASH;
+		}
+
+		xdst->route = dst;
+		memcpy(&dst1->metrics, &dst->metrics, sizeof(dst->metrics));
+
+		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
+			family = xfrm[i]->props.family;
+			dst = xfrm_dst_lookup(xfrm[i], tos, family);
+			err = PTR_ERR(dst);
+			if (IS_ERR(dst))
+				goto put_states;
+		} else
+			dst_hold(dst);
+
+		dst1->xfrm = xfrm[i];
+		xdst->genid = xfrm[i]->genid;
+
+		dst1->obsolete = -1;
+		dst1->flags |= DST_HOST;
+		dst1->lastuse = now;
+
+		dst1->input = dst_discard;
+		dst1->output = xfrm[i]->outer_mode->afinfo->output;
+
+		dst1->next = dst_prev;
+		dst_prev = dst1;
+
+		header_len += xfrm[i]->props.header_len;
+		trailer_len += xfrm[i]->props.trailer_len;
+	}
+
+	dst_prev->child = dst;
+	dst0->path = dst;
+
+	err = -ENODEV;
+	dev = dst->dev;
+	if (!dev)
+		goto free_dst;
+
+	/* Copy neighbout for reachability confirmation */
+	dst0->neighbour = neigh_clone(dst->neighbour);
+
+	xfrm_init_pmtu(dst_prev);
+
+	for (dst_prev = dst0; dst_prev != dst; dst_prev = dst_prev->child) {
+		struct xfrm_dst *xdst = (struct xfrm_dst *)dst_prev;
+
+		err = xfrm_fill_dst(xdst, dev);
+		if (err)
+			goto free_dst;
+
+		dst_prev->header_len = header_len;
+		dst_prev->trailer_len = trailer_len;
+		header_len -= xdst->u.dst.xfrm->props.header_len;
+		trailer_len -= xdst->u.dst.xfrm->props.trailer_len;
+	}
+
+out:
+	return dst0;
+
+put_states:
+	for (; i < nx; i++)
+		xfrm_state_put(xfrm[i]);
+free_dst:
+	if (dst0)
+		dst_free(dst0);
+	dst0 = ERR_PTR(err);
+	goto out;
 }
 
 static int inline
@@ -1454,15 +1596,10 @@ restart:
 			return 0;
 		}
 
-		dst = dst_orig;
-		err = xfrm_bundle_create(policy, xfrm, nx, fl, &dst, family);
-
-		if (unlikely(err)) {
-			int i;
-			for (i=0; i<nx; i++)
-				xfrm_state_put(xfrm[i]);
+		dst = xfrm_bundle_create(policy, xfrm, nx, fl, dst_orig);
+		err = PTR_ERR(dst);
+		if (IS_ERR(dst))
 			goto error;
-		}
 
 		for (pi = 0; pi < npols; pi++) {
 			read_lock_bh(&pols[pi]->lock);
@@ -1886,7 +2023,7 @@ static int xfrm_flush_bundles(void)
 	return 0;
 }
 
-void xfrm_init_pmtu(struct dst_entry *dst)
+static void xfrm_init_pmtu(struct dst_entry *dst)
 {
 	do {
 		struct xfrm_dst *xdst = (struct xfrm_dst *)dst;
@@ -1906,8 +2043,6 @@ void xfrm_init_pmtu(struct dst_entry *dst)
 		dst->metrics[RTAX_MTU-1] = pmtu;
 	} while ((dst = dst->next));
 }
-
-EXPORT_SYMBOL(xfrm_init_pmtu);
 
 /* Check that the bundle accepts the flow and its components are
  * still valid.

@@ -93,126 +93,33 @@ __xfrm6_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 	return dst;
 }
 
-/* Allocate chain of dst_entry's, attach known xfrm's, calculate
- * all the metrics... Shortly, bundle a bundle.
- */
-
-static int
-__xfrm6_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int nx,
-		      struct flowi *fl, struct dst_entry **dst_p)
+static int xfrm6_get_tos(struct flowi *fl)
 {
-	struct dst_entry *dst, *dst_prev;
-	struct rt6_info *rt0 = (struct rt6_info*)(*dst_p);
-	struct rt6_info *rt  = rt0;
-	int i;
-	int err;
-	int header_len = 0;
-	int trailer_len = 0;
-
-	dst = dst_prev = NULL;
-	dst_hold(&rt->u.dst);
-
-	for (i = 0; i < nx; i++) {
-		struct dst_entry *dst1 = dst_alloc(&xfrm6_dst_ops);
-		struct xfrm_dst *xdst;
-
-		if (unlikely(dst1 == NULL)) {
-			err = -ENOBUFS;
-			dst_release(&rt->u.dst);
-			goto error;
-		}
-
-		if (!dst)
-			dst = dst1;
-		else {
-			dst_prev->child = dst1;
-			dst1->flags |= DST_NOHASH;
-			dst_clone(dst1);
-		}
-
-		xdst = (struct xfrm_dst *)dst1;
-		xdst->route = &rt->u.dst;
-		xdst->genid = xfrm[i]->genid;
-		if (rt->rt6i_node)
-			xdst->route_cookie = rt->rt6i_node->fn_sernum;
-
-		dst1->next = dst_prev;
-		dst_prev = dst1;
-
-		if (xfrm[i]->type->flags & XFRM_TYPE_NON_FRAGMENT)
-			((struct rt6_info *)dst)->nfheader_len +=
-				xfrm[i]->props.header_len;
-		header_len += xfrm[i]->props.header_len;
-		trailer_len += xfrm[i]->props.trailer_len;
-
-		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			dst1 = xfrm_dst_lookup(xfrm[i], 0);
-			err = PTR_ERR(dst1);
-			if (IS_ERR(dst1))
-				goto error;
-
-			rt = (struct rt6_info *)dst1;
-		} else
-			dst_hold(&rt->u.dst);
-	}
-
-	dst_prev->child = &rt->u.dst;
-	dst->path = &rt->u.dst;
-
-	/* Copy neighbour for reachability confirmation */
-	dst->neighbour = neigh_clone(rt->u.dst.neighbour);
-
-	if (rt->rt6i_node)
-		((struct xfrm_dst *)dst)->path_cookie = rt->rt6i_node->fn_sernum;
-
-	*dst_p = dst;
-	dst = dst_prev;
-
-	dst_prev = *dst_p;
-	i = 0;
-	err = -ENODEV;
-	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
-		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
-
-		dst_prev->xfrm = xfrm[i++];
-		dst_prev->dev = rt->u.dst.dev;
-		if (!rt->u.dst.dev)
-			goto error;
-		dev_hold(rt->u.dst.dev);
-
-		x->u.rt6.rt6i_idev = in6_dev_get(rt->u.dst.dev);
-		if (!x->u.rt6.rt6i_idev)
-			goto error;
-
-		dst_prev->obsolete	= -1;
-		dst_prev->flags	       |= DST_HOST;
-		dst_prev->lastuse	= jiffies;
-		dst_prev->header_len	= header_len;
-		dst_prev->trailer_len	= trailer_len;
-		memcpy(&dst_prev->metrics, &x->route->metrics, sizeof(dst_prev->metrics));
-
-		dst_prev->input = dst_discard;
-		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
-		/* Sheit... I remember I did this right. Apparently,
-		 * it was magically lost, so this code needs audit */
-		x->u.rt6.rt6i_flags    = rt0->rt6i_flags&(RTF_ANYCAST|RTF_LOCAL);
-		x->u.rt6.rt6i_metric   = rt0->rt6i_metric;
-		x->u.rt6.rt6i_node     = rt0->rt6i_node;
-		x->u.rt6.rt6i_gateway  = rt0->rt6i_gateway;
-		memcpy(&x->u.rt6.rt6i_gateway, &rt0->rt6i_gateway, sizeof(x->u.rt6.rt6i_gateway));
-		x->u.rt6.rt6i_dst      = rt0->rt6i_dst;
-		x->u.rt6.rt6i_src      = rt0->rt6i_src;
-		header_len -= x->u.dst.xfrm->props.header_len;
-		trailer_len -= x->u.dst.xfrm->props.trailer_len;
-	}
-
-	xfrm_init_pmtu(dst);
 	return 0;
+}
 
-error:
-	if (dst)
-		dst_free(dst);
-	return err;
+static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+{
+	struct rt6_info *rt = (struct rt6_info*)xdst->route;
+
+	xdst->u.dst.dev = dev;
+	dev_hold(dev);
+
+	xdst->u.rt6.rt6i_idev = in6_dev_get(rt->u.dst.dev);
+	if (!xdst->u.rt6.rt6i_idev)
+		return -ENODEV;
+
+	/* Sheit... I remember I did this right. Apparently,
+	 * it was magically lost, so this code needs audit */
+	xdst->u.rt6.rt6i_flags = rt->rt6i_flags & (RTF_ANYCAST |
+						   RTF_LOCAL);
+	xdst->u.rt6.rt6i_metric = rt->rt6i_metric;
+	xdst->u.rt6.rt6i_node = rt->rt6i_node;
+	xdst->u.rt6.rt6i_gateway = rt->rt6i_gateway;
+	xdst->u.rt6.rt6i_dst = rt->rt6i_dst;
+	xdst->u.rt6.rt6i_src = rt->rt6i_src;
+
+	return 0;
 }
 
 static inline void
@@ -355,8 +262,9 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.dst_lookup =		xfrm6_dst_lookup,
 	.get_saddr = 		xfrm6_get_saddr,
 	.find_bundle =		__xfrm6_find_bundle,
-	.bundle_create =	__xfrm6_bundle_create,
 	.decode_session =	_decode_session6,
+	.get_tos =		xfrm6_get_tos,
+	.fill_dst =		xfrm6_fill_dst,
 };
 
 static void __init xfrm6_policy_init(void)

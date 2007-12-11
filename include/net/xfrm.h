@@ -227,6 +227,7 @@ struct km_event
 	u32	event;
 };
 
+struct net_device;
 struct xfrm_type;
 struct xfrm_dst;
 struct xfrm_policy_afinfo {
@@ -237,13 +238,11 @@ struct xfrm_policy_afinfo {
 					       xfrm_address_t *daddr);
 	int			(*get_saddr)(xfrm_address_t *saddr, xfrm_address_t *daddr);
 	struct dst_entry	*(*find_bundle)(struct flowi *fl, struct xfrm_policy *policy);
-	int			(*bundle_create)(struct xfrm_policy *policy, 
-						 struct xfrm_state **xfrm, 
-						 int nx,
-						 struct flowi *fl, 
-						 struct dst_entry **dst_p);
 	void			(*decode_session)(struct sk_buff *skb,
 						  struct flowi *fl);
+	int			(*get_tos)(struct flowi *fl);
+	int			(*fill_dst)(struct xfrm_dst *xdst,
+					    struct net_device *dev);
 };
 
 extern int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo);
@@ -1094,7 +1093,6 @@ static inline int xfrm4_udp_encap_rcv(struct sock *sk, struct sk_buff *skb)
 }
 #endif
 
-extern struct dst_entry *xfrm_dst_lookup(struct xfrm_state *x, int tos);
 struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp);
 extern int xfrm_policy_walk(u8 type, int (*func)(struct xfrm_policy *, int, int, void*), void *);
 int xfrm_policy_insert(int dir, struct xfrm_policy *policy, int excl);
@@ -1113,7 +1111,6 @@ extern int xfrm_policy_flush(u8 type, struct xfrm_audit *audit_info);
 extern int xfrm_sk_policy_insert(struct sock *sk, int dir, struct xfrm_policy *pol);
 extern int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *xdst,
 			  struct flowi *fl, int family, int strict);
-extern void xfrm_init_pmtu(struct dst_entry *dst);
 
 #ifdef CONFIG_XFRM_MIGRATE
 extern int km_migrate(struct xfrm_selector *sel, u8 dir, u8 type,

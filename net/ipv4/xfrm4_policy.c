@@ -79,122 +79,39 @@ __xfrm4_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
 	return dst;
 }
 
-/* Allocate chain of dst_entry's, attach known xfrm's, calculate
- * all the metrics... Shortly, bundle a bundle.
- */
-
-static int
-__xfrm4_bundle_create(struct xfrm_policy *policy, struct xfrm_state **xfrm, int nx,
-		      struct flowi *fl, struct dst_entry **dst_p)
+static int xfrm4_get_tos(struct flowi *fl)
 {
-	struct dst_entry *dst, *dst_prev;
-	struct rtable *rt0 = (struct rtable*)(*dst_p);
-	struct rtable *rt = rt0;
-	int tos = fl->fl4_tos;
-	int i;
-	int err;
-	int header_len = 0;
-	int trailer_len = 0;
+	return fl->fl4_tos;
+}
 
-	dst = dst_prev = NULL;
-	dst_hold(&rt->u.dst);
+static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+{
+	struct rtable *rt = (struct rtable *)xdst->route;
 
-	for (i = 0; i < nx; i++) {
-		struct dst_entry *dst1 = dst_alloc(&xfrm4_dst_ops);
-		struct xfrm_dst *xdst;
+	xdst->u.rt.fl = rt->fl;
 
-		if (unlikely(dst1 == NULL)) {
-			err = -ENOBUFS;
-			dst_release(&rt->u.dst);
-			goto error;
-		}
+	xdst->u.dst.dev = dev;
+	dev_hold(dev);
 
-		if (!dst)
-			dst = dst1;
-		else {
-			dst_prev->child = dst1;
-			dst1->flags |= DST_NOHASH;
-			dst_clone(dst1);
-		}
+	xdst->u.rt.idev = in_dev_get(dev);
+	if (!xdst->u.rt.idev)
+		return -ENODEV;
 
-		xdst = (struct xfrm_dst *)dst1;
-		xdst->route = &rt->u.dst;
-		xdst->genid = xfrm[i]->genid;
+	xdst->u.rt.peer = rt->peer;
+	if (rt->peer)
+		atomic_inc(&rt->peer->refcnt);
 
-		dst1->next = dst_prev;
-		dst_prev = dst1;
+	/* Sheit... I remember I did this right. Apparently,
+	 * it was magically lost, so this code needs audit */
+	xdst->u.rt.rt_flags = rt->rt_flags & (RTCF_BROADCAST | RTCF_MULTICAST |
+					      RTCF_LOCAL);
+	xdst->u.rt.rt_type = rt->rt_type;
+	xdst->u.rt.rt_src = rt->rt_src;
+	xdst->u.rt.rt_dst = rt->rt_dst;
+	xdst->u.rt.rt_gateway = rt->rt_gateway;
+	xdst->u.rt.rt_spec_dst = rt->rt_spec_dst;
 
-		header_len += xfrm[i]->props.header_len;
-		trailer_len += xfrm[i]->props.trailer_len;
-
-		if (xfrm[i]->props.mode != XFRM_MODE_TRANSPORT) {
-			dst1 = xfrm_dst_lookup(xfrm[i], tos);
-			err = PTR_ERR(dst1);
-			if (IS_ERR(dst1))
-				goto error;
-
-			rt = (struct rtable *)dst1;
-		} else
-			dst_hold(&rt->u.dst);
-	}
-
-	dst_prev->child = &rt->u.dst;
-	dst->path = &rt->u.dst;
-
-	/* Copy neighbout for reachability confirmation */
-	dst->neighbour = neigh_clone(rt->u.dst.neighbour);
-
-	*dst_p = dst;
-	dst = dst_prev;
-
-	dst_prev = *dst_p;
-	i = 0;
-	err = -ENODEV;
-	for (; dst_prev != &rt->u.dst; dst_prev = dst_prev->child) {
-		struct xfrm_dst *x = (struct xfrm_dst*)dst_prev;
-		x->u.rt.fl = *fl;
-
-		dst_prev->xfrm = xfrm[i++];
-		dst_prev->dev = rt->u.dst.dev;
-		if (!rt->u.dst.dev)
-			goto error;
-		dev_hold(rt->u.dst.dev);
-
-		x->u.rt.idev = in_dev_get(rt->u.dst.dev);
-		if (!x->u.rt.idev)
-			goto error;
-
-		dst_prev->obsolete	= -1;
-		dst_prev->flags	       |= DST_HOST;
-		dst_prev->lastuse	= jiffies;
-		dst_prev->header_len	= header_len;
-		dst_prev->trailer_len	= trailer_len;
-		memcpy(&dst_prev->metrics, &x->route->metrics, sizeof(dst_prev->metrics));
-
-		dst_prev->input = dst_discard;
-		dst_prev->output = dst_prev->xfrm->outer_mode->afinfo->output;
-		if (rt0->peer)
-			atomic_inc(&rt0->peer->refcnt);
-		x->u.rt.peer = rt0->peer;
-		/* Sheit... I remember I did this right. Apparently,
-		 * it was magically lost, so this code needs audit */
-		x->u.rt.rt_flags = rt0->rt_flags&(RTCF_BROADCAST|RTCF_MULTICAST|RTCF_LOCAL);
-		x->u.rt.rt_type = rt0->rt_type;
-		x->u.rt.rt_src = rt0->rt_src;
-		x->u.rt.rt_dst = rt0->rt_dst;
-		x->u.rt.rt_gateway = rt0->rt_gateway;
-		x->u.rt.rt_spec_dst = rt0->rt_spec_dst;
-		header_len -= x->u.dst.xfrm->props.header_len;
-		trailer_len -= x->u.dst.xfrm->props.trailer_len;
-	}
-
-	xfrm_init_pmtu(dst);
 	return 0;
-
-error:
-	if (dst)
-		dst_free(dst);
-	return err;
 }
 
 static void
@@ -330,8 +247,9 @@ static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
 	.find_bundle = 		__xfrm4_find_bundle,
-	.bundle_create =	__xfrm4_bundle_create,
 	.decode_session =	_decode_session4,
+	.get_tos =		xfrm4_get_tos,
+	.fill_dst =		xfrm4_fill_dst,
 };
 
 static void __init xfrm4_policy_init(void)
