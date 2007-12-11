@@ -110,6 +110,7 @@
  */
 
 DEFINE_SNMP_STAT(struct udp_mib, udp_statistics) __read_mostly;
+EXPORT_SYMBOL(udp_statistics);
 
 struct hlist_head udp_hash[UDP_HTABLE_SIZE];
 DEFINE_RWLOCK(udp_hash_lock);
@@ -969,8 +970,11 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 			int ret;
 
 			ret = (*up->encap_rcv)(sk, skb);
-			if (ret <= 0)
+			if (ret <= 0) {
+				UDP_INC_STATS_BH(UDP_MIB_INDATAGRAMS,
+						 is_udplite);
 				return -ret;
+			}
 		}
 
 		/* FALLTHROUGH -- it's a UDP Packet */

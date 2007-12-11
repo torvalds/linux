@@ -34,6 +34,7 @@
 #include <linux/ipv6.h>
 #include <linux/icmpv6.h>
 #include <linux/init.h>
+#include <linux/module.h>
 #include <linux/skbuff.h>
 #include <asm/uaccess.h>
 
@@ -51,6 +52,7 @@
 #include "udp_impl.h"
 
 DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6) __read_mostly;
+EXPORT_SYMBOL(udp_stats_in6);
 
 static inline int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {

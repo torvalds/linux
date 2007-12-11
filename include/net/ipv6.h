@@ -164,15 +164,6 @@ DECLARE_SNMP_STAT(struct icmpv6msg_mib, icmpv6msg_statistics);
 #define ICMP6MSGIN_INC_STATS_USER(idev, field) \
 	_DEVINC(icmpv6msg, _USER, idev, field)
 
-DECLARE_SNMP_STAT(struct udp_mib, udp_stats_in6);
-DECLARE_SNMP_STAT(struct udp_mib, udplite_stats_in6);
-#define UDP6_INC_STATS_BH(field, is_udplite) 			      do  {  \
-	if (is_udplite) SNMP_INC_STATS_BH(udplite_stats_in6, field);         \
-	else		SNMP_INC_STATS_BH(udp_stats_in6, field);    } while(0)
-#define UDP6_INC_STATS_USER(field, is_udplite)			       do {    \
-	if (is_udplite) SNMP_INC_STATS_USER(udplite_stats_in6, field);         \
-	else		SNMP_INC_STATS_USER(udp_stats_in6, field);    } while(0)
-
 struct ip6_ra_chain
 {
 	struct ip6_ra_chain	*next;

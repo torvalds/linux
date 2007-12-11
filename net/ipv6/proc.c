@@ -27,6 +27,7 @@
 #include <net/ip.h>
 #include <net/sock.h>
 #include <net/tcp.h>
+#include <net/udp.h>
 #include <net/transp_v6.h>
 #include <net/ipv6.h>
 
