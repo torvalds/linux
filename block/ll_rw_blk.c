@@ -3435,7 +3435,7 @@ static void blk_recalc_rq_sectors(struct request *rq, int nsect)
 /**
  * __end_that_request_first - end I/O on a request
  * @req:      the request being processed
- * @uptodate: 1 for success, 0 for I/O error, < 0 for specific error
+ * @error:    0 for success, < 0 for error
  * @nr_bytes: number of bytes to complete
  *
  * Description:
@@ -3446,20 +3446,13 @@ static void blk_recalc_rq_sectors(struct request *rq, int nsect)
  *     0 - we are done with this request, call end_that_request_last()
  *     1 - still buffers pending for this request
  **/
-static int __end_that_request_first(struct request *req, int uptodate,
+static int __end_that_request_first(struct request *req, int error,
 				    int nr_bytes)
 {
-	int total_bytes, bio_nbytes, error, next_idx = 0;
+	int total_bytes, bio_nbytes, next_idx = 0;
 	struct bio *bio;
 
 	blk_add_trace_rq(req->q, req, BLK_TA_COMPLETE);
-
-	/*
-	 * extend uptodate bool to allow < 0 value to be direct io error
-	 */
-	error = 0;
-	if (end_io_error(uptodate))
-		error = !uptodate ? -EIO : uptodate;
 
 	/*
 	 * for a REQ_BLOCK_PC request, we want to carry any eventual
@@ -3468,7 +3461,7 @@ static int __end_that_request_first(struct request *req, int uptodate,
 	if (!blk_pc_request(req))
 		req->errors = 0;
 
-	if (!uptodate) {
+	if (error) {
 		if (blk_fs_request(req) && !(req->cmd_flags & REQ_QUIET))
 			printk("end_request: I/O error, dev %s, sector %llu\n",
 				req->rq_disk ? req->rq_disk->disk_name : "?",
@@ -3641,17 +3634,9 @@ EXPORT_SYMBOL(blk_complete_request);
 /*
  * queue lock must be held
  */
-static void end_that_request_last(struct request *req, int uptodate)
+static void end_that_request_last(struct request *req, int error)
 {
 	struct gendisk *disk = req->rq_disk;
-	int error;
-
-	/*
-	 * extend uptodate bool to allow < 0 value to be direct io error
-	 */
-	error = 0;
-	if (end_io_error(uptodate))
-		error = !uptodate ? -EIO : uptodate;
 
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();
@@ -3776,14 +3761,6 @@ EXPORT_SYMBOL(end_request);
 
 static void complete_request(struct request *rq, int error)
 {
-	/*
-	 * REMOVEME: This conversion is transitional and will be removed
-	 *           when old end_that_request_* are unexported.
-	 */
-	int uptodate = 1;
-	if (error)
-		uptodate = (error == -EIO) ? 0 : error;
-
 	if (blk_rq_tagged(rq))
 		blk_queue_end_tag(rq->q, rq);
 
@@ -3793,7 +3770,7 @@ static void complete_request(struct request *rq, int error)
 	if (blk_bidi_rq(rq) && !rq->end_io)
 		__blk_put_request(rq->next_rq->q, rq->next_rq);
 
-	end_that_request_last(rq, uptodate);
+	end_that_request_last(rq, error);
 }
 
 /**
@@ -3820,21 +3797,14 @@ static int blk_end_io(struct request *rq, int error, int nr_bytes,
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
-	/*
-	 * REMOVEME: This conversion is transitional and will be removed
-	 *           when old end_that_request_* are unexported.
-	 */
-	int uptodate = 1;
-	if (error)
-		uptodate = (error == -EIO) ? 0 : error;
 
 	if (blk_fs_request(rq) || blk_pc_request(rq)) {
-		if (__end_that_request_first(rq, uptodate, nr_bytes))
+		if (__end_that_request_first(rq, error, nr_bytes))
 			return 1;
 
 		/* Bidi request must be completed as a whole */
 		if (blk_bidi_rq(rq) &&
-		    __end_that_request_first(rq->next_rq, uptodate, bidi_bytes))
+		    __end_that_request_first(rq->next_rq, error, bidi_bytes))
 			return 1;
 	}
 
@@ -3886,16 +3856,8 @@ EXPORT_SYMBOL_GPL(blk_end_request);
  **/
 int __blk_end_request(struct request *rq, int error, int nr_bytes)
 {
-	/*
-	 * REMOVEME: This conversion is transitional and will be removed
-	 *           when old end_that_request_* are unexported.
-	 */
-	int uptodate = 1;
-	if (error)
-		uptodate = (error == -EIO) ? 0 : error;
-
 	if (blk_fs_request(rq) || blk_pc_request(rq)) {
-		if (__end_that_request_first(rq, uptodate, nr_bytes))
+		if (__end_that_request_first(rq, error, nr_bytes))
 			return 1;
 	}
 

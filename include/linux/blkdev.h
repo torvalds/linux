@@ -745,14 +745,6 @@ extern void blk_complete_request(struct request *);
 extern unsigned int blk_rq_bytes(struct request *rq);
 extern unsigned int blk_rq_cur_bytes(struct request *rq);
 
-/*
- * end_that_request_first/chunk() takes an uptodate argument. we account
- * any value <= as an io error. 0 means -EIO for compatability reasons,
- * any other < 0 value is the direct error type. An uptodate value of
- * 1 indicates successful io completion
- */
-#define end_io_error(uptodate)	(unlikely((uptodate) <= 0))
-
 static inline void blkdev_dequeue_request(struct request *req)
 {
 	elv_dequeue_request(req->q, req);
