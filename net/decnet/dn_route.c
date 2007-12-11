@@ -1551,7 +1551,7 @@ static int dn_cache_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh, void 
 			kfree_skb(skb);
 			return -ENODEV;
 		}
-		skb->protocol = __constant_htons(ETH_P_DNA_RT);
+		skb->protocol = htons(ETH_P_DNA_RT);
 		skb->dev = dev;
 		cb->src = fl.fld_src;
 		cb->dst = fl.fld_dst;
