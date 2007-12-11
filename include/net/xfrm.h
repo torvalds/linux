@@ -1317,4 +1317,9 @@ static inline void xfrm_states_delete(struct xfrm_state **states, int n)
 }
 #endif
 
+static inline struct xfrm_state *xfrm_input_state(struct sk_buff *skb)
+{
+	return skb->sp->xvec[skb->sp->len - 1];
+}
+
 #endif	/* _NET_XFRM_H */

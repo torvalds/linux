@@ -109,7 +109,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	/* A negative encap_type indicates async resumption. */
 	if (encap_type < 0) {
 		async = 1;
-		x = skb->sp->xvec[skb->sp->len - 1];
+		x = xfrm_input_state(skb);
 		seq = XFRM_SKB_CB(skb)->seq;
 		goto resume;
 	}
