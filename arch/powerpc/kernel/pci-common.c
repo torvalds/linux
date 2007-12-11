@@ -50,6 +50,9 @@ static DEFINE_SPINLOCK(hose_spinlock);
 /* XXX kill that some day ... */
 static int global_phb_number;		/* Global phb counter */
 
+/* ISA Memory physical address */
+resource_size_t isa_mem_base;
+
 
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {

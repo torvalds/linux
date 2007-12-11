@@ -32,7 +32,6 @@
 #endif
 
 unsigned long isa_io_base     = 0;
-unsigned long isa_mem_base    = 0;
 unsigned long pci_dram_offset = 0;
 int pcibios_assign_bus_offset = 1;
 
