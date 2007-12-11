@@ -78,9 +78,7 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	(max(IPV4_DEVCONF_ALL(attr), IN_DEV_CONF_GET((in_dev), attr)))
 
 #define IN_DEV_FORWARD(in_dev)		IN_DEV_CONF_GET((in_dev), FORWARDING)
-#define IN_DEV_MFORWARD(in_dev)		(IPV4_DEVCONF_ALL(MC_FORWARDING) && \
-					 IPV4_DEVCONF((in_dev)->cnf, \
-						      MC_FORWARDING))
+#define IN_DEV_MFORWARD(in_dev)		IN_DEV_ANDCONF((in_dev), MC_FORWARDING)
 #define IN_DEV_RPFILTER(in_dev)		IN_DEV_ANDCONF((in_dev), RP_FILTER)
 #define IN_DEV_SOURCE_ROUTE(in_dev)	IN_DEV_ANDCONF((in_dev), \
 						       ACCEPT_SOURCE_ROUTE)
