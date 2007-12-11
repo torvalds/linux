@@ -369,46 +369,8 @@ static DEVICE_ATTR(lbs_mesh, 0644, lbs_mesh_get, lbs_mesh_set);
  */
 static DEVICE_ATTR(anycast_mask, 0644, lbs_anycast_get, lbs_anycast_set);
 
-static ssize_t lbs_autostart_enabled_get(struct device *dev,
-		struct device_attribute *attr, char * buf)
-{
-	struct lbs_private *priv = to_net_dev(dev)->priv;
-	struct cmd_ds_mesh_access mesh_access;
-	int ret;
-
-	memset(&mesh_access, 0, sizeof(mesh_access));
-
-	ret = lbs_mesh_access(priv, CMD_ACT_MESH_GET_AUTOSTART_ENABLED, &mesh_access);
-	if (ret)
-		return ret;
-	return sprintf(buf, "%d\n", le32_to_cpu(mesh_access.data[0]));
-}
-
-static ssize_t lbs_autostart_enabled_set(struct device *dev,
-		struct device_attribute *attr, const char * buf, size_t count)
-{
-	struct cmd_ds_mesh_access mesh_access;
-	uint32_t datum;
-	struct lbs_private *priv = (to_net_dev(dev))->priv;
-	int ret;
-
-	memset(&mesh_access, 0, sizeof(mesh_access));
-	sscanf(buf, "%d", &datum);
-	mesh_access.data[0] = cpu_to_le32(datum);
-
-	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED, &mesh_access);
-	if (ret == 0)
-		priv->mesh_autostart_enabled = datum ? 1 : 0;
-
-	return strlen(buf);
-}
-
-static DEVICE_ATTR(autostart_enabled, 0644,
-		lbs_autostart_enabled_get, lbs_autostart_enabled_set);
-
 static struct attribute *lbs_mesh_sysfs_entries[] = {
 	&dev_attr_anycast_mask.attr,
-	&dev_attr_autostart_enabled.attr,
 	NULL,
 };
 
@@ -883,7 +845,6 @@ static int lbs_thread(void *data)
 static int lbs_setup_firmware(struct lbs_private *priv)
 {
 	int ret = -1;
-	struct cmd_ds_mesh_access mesh_access;
 
 	lbs_deb_enter(LBS_DEB_FW);
 
@@ -903,21 +864,6 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 	if (ret < 0) {
 		ret = -1;
 		goto done;
-	}
-
-	/* Disable mesh autostart */
-	if (priv->mesh_dev) {
-		memset(&mesh_access, 0, sizeof(mesh_access));
-		mesh_access.data[0] = cpu_to_le32(0);
-		ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
-				      &mesh_access);
-		if (ret) {
-			printk("Mesh autostart set failed\n");
-			ret = 0;
-			//ret = -1;
-			goto done;
-		}
-		priv->mesh_autostart_enabled = 0;
 	}
 
 	ret = 0;

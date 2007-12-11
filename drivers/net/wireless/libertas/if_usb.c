@@ -978,17 +978,6 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
 
-	if (priv->mesh_dev && !priv->mesh_autostart_enabled) {
-		/* Mesh autostart must be activated while sleeping
-		 * On resume it will go back to the current state
-		 */
-		struct cmd_ds_mesh_access mesh_access;
-		memset(&mesh_access, 0, sizeof(mesh_access));
-
-		mesh_access.data[0] = cpu_to_le32(1);
-		lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED, &mesh_access);
-	}
-
 	netif_device_detach(cardp->eth_dev);
 	netif_device_detach(priv->mesh_dev);
 
@@ -1015,16 +1004,6 @@ static int if_usb_resume(struct usb_interface *intf)
 
 	netif_device_attach(cardp->eth_dev);
 	netif_device_attach(priv->mesh_dev);
-
-	if (priv->mesh_dev && !priv->mesh_autostart_enabled) {
-		/* Mesh autostart was activated while sleeping
-		 * Disable it if appropriate
-		 */
-		struct cmd_ds_mesh_access mesh_access;
-		memset(&mesh_access, 0, sizeof(mesh_access));
-		mesh_access.data[0] = cpu_to_le32(0);
-		lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED, &mesh_access);
-	}
 
 	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
