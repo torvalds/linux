@@ -386,11 +386,13 @@ struct cmd_ds_802_11_inactivity_timeout {
 };
 
 struct cmd_ds_802_11_rf_channel {
+	struct cmd_header hdr;
+
 	__le16 action;
-	__le16 currentchannel;
-	__le16 rftype;
-	__le16 reserved;
-	u8 channellist[32];
+	__le16 channel;
+	__le16 rftype;      /* unused */
+	__le16 reserved;    /* unused */
+	u8 channellist[32]; /* unused */
 };
 
 struct cmd_ds_802_11_rssi {

@@ -325,28 +325,6 @@ static int lbs_ret_802_11_rate_adapt_rateset(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_rf_channel(struct lbs_private *priv,
-				      struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_rf_channel *rfchannel = &resp->params.rfchannel;
-	u16 action = le16_to_cpu(rfchannel->action);
-	u16 newchannel = le16_to_cpu(rfchannel->currentchannel);
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	if (action == CMD_OPT_802_11_RF_CHANNEL_GET
-	    && priv->curbssparams.channel != newchannel) {
-		lbs_deb_cmd("channel switch from %d to %d\n",
-		       priv->curbssparams.channel, newchannel);
-
-		/* Update the channel again */
-		priv->curbssparams.channel = newchannel;
-	}
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
@@ -547,9 +525,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_RATE_ADAPT_RATESET):
 		ret = lbs_ret_802_11_rate_adapt_rateset(priv, resp);
-		break;
-	case CMD_RET(CMD_802_11_RF_CHANNEL):
-		ret = lbs_ret_802_11_rf_channel(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_RSSI):

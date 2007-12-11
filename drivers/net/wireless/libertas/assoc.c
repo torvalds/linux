@@ -9,6 +9,7 @@
 #include "decl.h"
 #include "hostcmd.h"
 #include "host.h"
+#include "cmd.h"
 
 
 static const u8 bssid_any[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
@@ -165,11 +166,14 @@ done:
 static int update_channel(struct lbs_private *priv)
 {
 	int ret;
+
 	/* the channel in f/w could be out of sync, get the current channel */
 	lbs_deb_enter(LBS_DEB_ASSOC);
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_RF_CHANNEL,
-				    CMD_OPT_802_11_RF_CHANNEL_GET,
-				    CMD_OPTION_WAITFORRSP, 0, NULL);
+
+	ret = lbs_get_channel(priv);
+	if (ret > 0)
+		priv->curbssparams.channel = (u8) ret;
+
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
@@ -203,17 +207,16 @@ static int assoc_helper_channel(struct lbs_private *priv,
 	lbs_deb_assoc("ASSOC: channel: %d -> %d\n",
 	       priv->curbssparams.channel, assoc_req->channel);
 
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_RF_CHANNEL,
-				CMD_OPT_802_11_RF_CHANNEL_SET,
-				CMD_OPTION_WAITFORRSP, 0, &assoc_req->channel);
-	if (ret < 0) {
+	ret = lbs_set_channel(priv, assoc_req->channel);
+	if (ret < 0)
 		lbs_deb_assoc("ASSOC: channel: error setting channel.");
-	}
 
+	/* FIXME: shouldn't need to grab the channel _again_ after setting
+	 * it since the firmware is supposed to return the new channel, but
+	 * whatever... */
 	ret = update_channel(priv);
-	if (ret < 0) {
+	if (ret < 0)
 		lbs_deb_assoc("ASSOC: channel: error getting channel.");
-	}
 
 	if (assoc_req->channel != priv->curbssparams.channel) {
 		lbs_deb_assoc("ASSOC: channel: failed to update channel to %d",

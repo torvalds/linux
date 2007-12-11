@@ -30,4 +30,7 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 int lbs_get_data_rate(struct lbs_private *priv);
 int lbs_set_data_rate(struct lbs_private *priv, u8 rate);
 
+int lbs_get_channel(struct lbs_private *priv);
+int lbs_set_channel(struct lbs_private *priv, u8 channel);
+
 #endif /* _LBS_CMD_H */

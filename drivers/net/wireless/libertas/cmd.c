@@ -810,25 +810,65 @@ static int lbs_cmd_mac_multicast_adr(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rf_channel(struct lbs_private *priv,
-				      struct cmd_ds_command *cmd,
-				      int option, void *pdata_buf)
+/**
+ *  @brief Get the radio channel
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *
+ *  @return 	   	The channel on success, error on failure
+ */
+int lbs_get_channel(struct lbs_private *priv)
 {
-	struct cmd_ds_802_11_rf_channel *rfchan = &cmd->params.rfchannel;
+	struct cmd_ds_802_11_rf_channel cmd;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_CMD);
-	cmd->command = cpu_to_le16(CMD_802_11_RF_CHANNEL);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_rf_channel) +
-				S_DS_GEN);
 
-	if (option == CMD_OPT_802_11_RF_CHANNEL_SET) {
-		rfchan->currentchannel = cpu_to_le16(*((u16 *) pdata_buf));
-	}
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_GET);
 
-	rfchan->action = cpu_to_le16(option);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_CHANNEL, cmd);
+	if (ret)
+		goto out;
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	lbs_deb_cmd("current radio channel is %d\n", cmd.channel);
+	ret = (int) cmd.channel;
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+/**
+ *  @brief Set the radio channel
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param channel  	The desired channel, or 0 to clear a locked channel
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_set_channel(struct lbs_private *priv, u8 channel)
+{
+	struct cmd_ds_802_11_rf_channel cmd;
+	u8 old_channel = priv->curbssparams.channel;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_SET);
+	cmd.channel = cpu_to_le16(channel);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_CHANNEL, cmd);
+	if (ret)
+		goto out;
+
+	priv->curbssparams.channel = cmd.channel;
+	lbs_deb_cmd("channel switch from %d to %d\n", old_channel, cmd.channel);
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 static int lbs_cmd_802_11_rssi(struct lbs_private *priv,
@@ -1388,11 +1428,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
 		ret = lbs_cmd_reg_access(priv, cmdptr, cmd_action, pdata_buf);
-		break;
-
-	case CMD_802_11_RF_CHANNEL:
-		ret = lbs_cmd_802_11_rf_channel(priv, cmdptr,
-						 cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_RF_TX_POWER:
