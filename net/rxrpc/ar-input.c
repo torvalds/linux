@@ -595,7 +595,7 @@ dead_call:
 	read_unlock_bh(&conn->lock);
 
 	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED &&
-	    sp->hdr.seq == __constant_cpu_to_be32(1)) {
+	    sp->hdr.seq == cpu_to_be32(1)) {
 		_debug("incoming call");
 		skb_queue_tail(&conn->trans->local->accept_queue, skb);
 		rxrpc_queue_work(&conn->trans->local->acceptor);
@@ -774,7 +774,7 @@ cant_route_call:
 	_debug("can't route call");
 	if (sp->hdr.flags & RXRPC_CLIENT_INITIATED &&
 	    sp->hdr.type == RXRPC_PACKET_TYPE_DATA) {
-		if (sp->hdr.seq == __constant_cpu_to_be32(1)) {
+		if (sp->hdr.seq == cpu_to_be32(1)) {
 			_debug("first packet");
 			skb_queue_tail(&local->accept_queue, skb);
 			rxrpc_queue_work(&local->acceptor);

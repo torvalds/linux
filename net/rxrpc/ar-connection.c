@@ -651,7 +651,7 @@ rxrpc_incoming_connection(struct rxrpc_transport *trans,
 
 	candidate->trans = trans;
 	candidate->epoch = hdr->epoch;
-	candidate->cid = hdr->cid & __constant_cpu_to_be32(RXRPC_CIDMASK);
+	candidate->cid = hdr->cid & cpu_to_be32(RXRPC_CIDMASK);
 	candidate->service_id = hdr->serviceId;
 	candidate->security_ix = hdr->securityIndex;
 	candidate->in_clientflag = RXRPC_CLIENT_INITIATED;
