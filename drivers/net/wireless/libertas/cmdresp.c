@@ -861,9 +861,10 @@ int lbs_process_rx_command(struct lbs_private *priv)
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	if (priv->cur_cmd && priv->cur_cmd->callback)
-		ret = priv->cur_cmd->callback(priv, priv->cur_cmd->callback_arg, resp);
-	else
+	if (priv->cur_cmd && priv->cur_cmd->callback) {
+		ret = priv->cur_cmd->callback(priv, priv->cur_cmd->callback_arg,
+				(struct cmd_header *) resp);
+	} else
 		ret = handle_cmd_response(priv, 0, resp);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);

@@ -65,13 +65,20 @@ struct rxpd {
 	u8 reserved[3];
 };
 
+struct cmd_header {
+	__le16 command;
+	__le16 size;
+	__le16 seqnum;
+	__le16 result;
+} __attribute__ ((packed));
+
 struct cmd_ctrl_node {
 	struct list_head list;
 	/* wait for finish or not */
 	u16 wait_option;
 	/* command response */
 	void *pdata_buf;
-	int (*callback)(struct lbs_private *priv, unsigned long arg, struct cmd_ds_command *resp);
+	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *);
 	unsigned long callback_arg;
 	/* command data */
 	u8 *bufvirtualaddr;
@@ -424,6 +431,8 @@ struct cmd_ds_802_11_monitor_mode {
 };
 
 struct cmd_ds_set_boot2_ver {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 version;
 };
@@ -678,7 +687,6 @@ struct cmd_ds_command {
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
 		struct cmd_ds_mesh_access mesh;
-		struct cmd_ds_set_boot2_ver boot2_ver;
 		struct cmd_ds_get_tsf gettsf;
 		struct cmd_ds_802_11_subscribe_event subscribe_event;
 		struct cmd_ds_802_11_beacon_control bcn_ctrl;

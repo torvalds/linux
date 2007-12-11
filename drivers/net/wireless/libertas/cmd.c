@@ -1988,12 +1988,13 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
  *                      the result code from the firmware
  */
 
-int __lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_size,
-	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_ds_command *),
+int __lbs_cmd(struct lbs_private *priv, uint16_t command,
+	      struct cmd_header *in_cmd, int in_cmd_size,
+	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
 	      unsigned long callback_arg)
 {
 	struct cmd_ctrl_node *cmdnode;
-	struct cmd_ds_gen *cmdptr;
+	struct cmd_header *send_cmd;
 	unsigned long flags;
 	int ret = 0;
 
@@ -2012,7 +2013,6 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_siz
 	}
 
 	cmdnode = lbs_get_cmd_ctrl_node(priv);
-
 	if (cmdnode == NULL) {
 		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
 
@@ -2022,18 +2022,20 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command, void *cmd, int cmd_siz
 		goto done;
 	}
 
-	cmdptr = (struct cmd_ds_gen *)cmdnode->bufvirtualaddr;
+	send_cmd = (struct cmd_header *) cmdnode->bufvirtualaddr;
 	cmdnode->wait_option = CMD_OPTION_WAITFORRSP;
 	cmdnode->callback = callback;
 	cmdnode->callback_arg = callback_arg;
 
+	/* Copy the incoming command to the buffer */
+	memcpy(send_cmd, in_cmd, in_cmd_size);
+
 	/* Set sequence number, clean result, move to buffer */
 	priv->seqnum++;
-	cmdptr->command = cpu_to_le16(command);
-	cmdptr->size    = cpu_to_le16(cmd_size + S_DS_GEN);
-	cmdptr->seqnum = cpu_to_le16(priv->seqnum);
-	cmdptr->result = 0;
-	memcpy(cmdptr->cmdresp, cmd, cmd_size);
+	send_cmd->command = cpu_to_le16(command);
+	send_cmd->size    = cpu_to_le16(in_cmd_size);
+	send_cmd->seqnum  = cpu_to_le16(priv->seqnum);
+	send_cmd->result  = 0;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);
 
