@@ -3821,6 +3821,9 @@ static void complete_request(struct request *rq, int error)
 	if (blk_queued_rq(rq))
 		blkdev_dequeue_request(rq);
 
+	if (blk_bidi_rq(rq) && !rq->end_io)
+		__blk_put_request(rq->next_rq->q, rq->next_rq);
+
 	end_that_request_last(rq, uptodate);
 }
 
@@ -3828,14 +3831,15 @@ static void complete_request(struct request *rq, int error)
  * blk_end_io - Generic end_io function to complete a request.
  * @rq:           the request being processed
  * @error:        0 for success, < 0 for error
- * @nr_bytes:     number of bytes to complete
+ * @nr_bytes:     number of bytes to complete @rq
+ * @bidi_bytes:   number of bytes to complete @rq->next_rq
  * @drv_callback: function called between completion of bios in the request
  *                and completion of the request.
  *                If the callback returns non 0, this helper returns without
  *                completion of the request.
  *
  * Description:
- *     Ends I/O on a number of bytes attached to @rq.
+ *     Ends I/O on a number of bytes attached to @rq and @rq->next_rq.
  *     If @rq has leftover, sets it up for the next range of segments.
  *
  * Return:
@@ -3843,7 +3847,7 @@ static void complete_request(struct request *rq, int error)
  *     1 - this request is not freed yet, it still has pending buffers.
  **/
 static int blk_end_io(struct request *rq, int error, int nr_bytes,
-		      int (drv_callback)(struct request *))
+		      int bidi_bytes, int (drv_callback)(struct request *))
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
@@ -3857,6 +3861,11 @@ static int blk_end_io(struct request *rq, int error, int nr_bytes,
 
 	if (blk_fs_request(rq) || blk_pc_request(rq)) {
 		if (__end_that_request_first(rq, uptodate, nr_bytes))
+			return 1;
+
+		/* Bidi request must be completed as a whole */
+		if (blk_bidi_rq(rq) &&
+		    __end_that_request_first(rq->next_rq, uptodate, bidi_bytes))
 			return 1;
 	}
 
@@ -3889,7 +3898,7 @@ static int blk_end_io(struct request *rq, int error, int nr_bytes,
  **/
 int blk_end_request(struct request *rq, int error, int nr_bytes)
 {
-	return blk_end_io(rq, error, nr_bytes, NULL);
+	return blk_end_io(rq, error, nr_bytes, 0, NULL);
 }
 EXPORT_SYMBOL_GPL(blk_end_request);
 
@@ -3930,6 +3939,27 @@ int __blk_end_request(struct request *rq, int error, int nr_bytes)
 EXPORT_SYMBOL_GPL(__blk_end_request);
 
 /**
+ * blk_end_bidi_request - Helper function for drivers to complete bidi request.
+ * @rq:         the bidi request being processed
+ * @error:      0 for success, < 0 for error
+ * @nr_bytes:   number of bytes to complete @rq
+ * @bidi_bytes: number of bytes to complete @rq->next_rq
+ *
+ * Description:
+ *     Ends I/O on a number of bytes attached to @rq and @rq->next_rq.
+ *
+ * Return:
+ *     0 - we are done with this request
+ *     1 - still buffers pending for this request
+ **/
+int blk_end_bidi_request(struct request *rq, int error, int nr_bytes,
+			 int bidi_bytes)
+{
+	return blk_end_io(rq, error, nr_bytes, bidi_bytes, NULL);
+}
+EXPORT_SYMBOL_GPL(blk_end_bidi_request);
+
+/**
  * blk_end_request_callback - Special helper function for tricky drivers
  * @rq:           the request being processed
  * @error:        0 for success, < 0 for error
@@ -3957,7 +3987,7 @@ EXPORT_SYMBOL_GPL(__blk_end_request);
 int blk_end_request_callback(struct request *rq, int error, int nr_bytes,
 			     int (drv_callback)(struct request *))
 {
-	return blk_end_io(rq, error, nr_bytes, drv_callback);
+	return blk_end_io(rq, error, nr_bytes, 0, drv_callback);
 }
 EXPORT_SYMBOL_GPL(blk_end_request_callback);
 
