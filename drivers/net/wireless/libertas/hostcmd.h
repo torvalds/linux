@@ -81,7 +81,7 @@ struct cmd_ctrl_node {
 	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *);
 	unsigned long callback_arg;
 	/* command data */
-	u8 *bufvirtualaddr;
+	struct cmd_header *cmdbuf;
 	/* wait queue */
 	u16 cmdwaitqwoken;
 	wait_queue_head_t cmdwait_q;

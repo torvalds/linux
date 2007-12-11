@@ -639,7 +639,7 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 				      struct lbs_private *priv)
 {
 	u8 *cmdbuf;
-	if (recvlength > MRVDRV_SIZE_OF_CMD_BUFFER) {
+	if (recvlength > LBS_CMD_BUFFER_SIZE) {
 		lbs_deb_usbd(&cardp->udev->dev,
 			    "The receive buffer is too large\n");
 		kfree_skb(skb);
@@ -656,7 +656,7 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 		cmdbuf = priv->upld_buf;
 		priv->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
 	} else
-		cmdbuf = priv->cur_cmd->bufvirtualaddr;
+		cmdbuf = (u8 *) priv->cur_cmd->cmdbuf;
 
 	cardp->usb_int_cause |= MRVDRV_CMD_UPLD_RDY;
 	priv->upld_len = (recvlength - MESSAGE_HEADER_LEN);

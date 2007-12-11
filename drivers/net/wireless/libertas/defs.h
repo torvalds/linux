@@ -132,8 +132,8 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 */
 
 #define MRVDRV_MAX_MULTICAST_LIST_SIZE	32
-#define MRVDRV_NUM_OF_CMD_BUFFER        10
-#define MRVDRV_SIZE_OF_CMD_BUFFER       (2 * 1024)
+#define LBS_NUM_CMD_BUFFERS             10
+#define LBS_CMD_BUFFER_SIZE             (2 * 1024)
 #define MRVDRV_MAX_CHANNEL_SIZE		14
 #define MRVDRV_ASSOCIATION_TIME_OUT	255
 #define MRVDRV_SNAP_HEADER_LEN          8

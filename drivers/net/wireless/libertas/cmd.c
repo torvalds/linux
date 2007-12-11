@@ -1028,24 +1028,18 @@ void lbs_queue_cmd(struct lbs_private *priv,
 	u8 addtail)
 {
 	unsigned long flags;
-	struct cmd_ds_command *cmdptr;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!cmdnode) {
-		lbs_deb_host("QUEUE_CMD: cmdnode is NULL\n");
-		goto done;
-	}
-
-	cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
-	if (!cmdptr) {
-		lbs_deb_host("QUEUE_CMD: cmdptr is NULL\n");
+	if (!cmdnode || !cmdnode->cmdbuf) {
+		lbs_deb_host("QUEUE_CMD: cmdnode or cmdbuf is NULL\n");
 		goto done;
 	}
 
 	/* Exit_PS command needs to be queued in the header always. */
-	if (le16_to_cpu(cmdptr->command) == CMD_802_11_PS_MODE) {
-		struct cmd_ds_802_11_ps_mode *psm = &cmdptr->params.psmode;
+	if (le16_to_cpu(cmdnode->cmdbuf->command) == CMD_802_11_PS_MODE) {
+		struct cmd_ds_802_11_ps_mode *psm = (void *) cmdnode->cmdbuf;
+
 		if (psm->action == cpu_to_le16(CMD_SUBCMD_EXIT_PS)) {
 			if (priv->psstate != PS_STATE_FULL_POWER)
 				addtail = 0;
@@ -1062,7 +1056,7 @@ void lbs_queue_cmd(struct lbs_private *priv,
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbs_deb_host("QUEUE_CMD: inserted command 0x%04x into cmdpendingq\n",
-	       le16_to_cpu(((struct cmd_ds_gen*)cmdnode->bufvirtualaddr)->command));
+	       le16_to_cpu(cmdnode->cmdbuf->command));
 
 done:
 	lbs_deb_leave(LBS_DEB_HOST);
@@ -1079,7 +1073,7 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 				    struct cmd_ctrl_node *cmdnode)
 {
 	unsigned long flags;
-	struct cmd_ds_command *cmdptr;
+	struct cmd_header *cmd;
 	int ret = -1;
 	u16 cmdsize;
 	u16 command;
@@ -1091,10 +1085,10 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 		goto done;
 	}
 
-	cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
+	cmd = cmdnode->cmdbuf;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	if (!cmdptr || !cmdptr->size) {
+	if (!cmd || !cmd->size) {
 		lbs_deb_host("DNLD_CMD: cmdptr is NULL or zero\n");
 		__lbs_cleanup_and_insert_cmd(priv, cmdnode);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -1105,16 +1099,16 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 	priv->cur_cmd_retcode = 0;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	cmdsize = le16_to_cpu(cmdptr->size);
-	command = le16_to_cpu(cmdptr->command);
+	cmdsize = le16_to_cpu(cmd->size);
+	command = le16_to_cpu(cmd->command);
 
 	lbs_deb_host("DNLD_CMD: command 0x%04x, size %d, jiffies %lu\n",
 		    command, cmdsize, jiffies);
-	lbs_deb_hex(LBS_DEB_HOST, "DNLD_CMD", cmdnode->bufvirtualaddr, cmdsize);
+	lbs_deb_hex(LBS_DEB_HOST, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
 	cmdnode->cmdwaitqwoken = 0;
 
-	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmdptr, cmdsize);
+	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) cmd, cmdsize);
 
 	if (ret != 0) {
 		lbs_deb_host("DNLD_CMD: hw_host_to_card failed\n");
@@ -1265,7 +1259,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	lbs_set_cmd_ctrl_node(priv, cmdnode, wait_option, pdata_buf);
 
-	cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
+	cmdptr = (struct cmd_ds_command *)cmdnode->cmdbuf;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", cmd_no);
 
@@ -1556,41 +1550,35 @@ EXPORT_SYMBOL_GPL(lbs_prepare_and_send_command);
 int lbs_allocate_cmd_buffer(struct lbs_private *priv)
 {
 	int ret = 0;
-	u32 ulbufsize;
+	u32 bufsize;
 	u32 i;
-	struct cmd_ctrl_node *tempcmd_array;
-	u8 *ptempvirtualaddr;
+	struct cmd_ctrl_node *cmdarray;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	/* Allocate and initialize cmdCtrlNode */
-	ulbufsize = sizeof(struct cmd_ctrl_node) * MRVDRV_NUM_OF_CMD_BUFFER;
-
-	if (!(tempcmd_array = kzalloc(ulbufsize, GFP_KERNEL))) {
+	/* Allocate and initialize the command array */
+	bufsize = sizeof(struct cmd_ctrl_node) * LBS_NUM_CMD_BUFFERS;
+	if (!(cmdarray = kzalloc(bufsize, GFP_KERNEL))) {
 		lbs_deb_host("ALLOC_CMD_BUF: tempcmd_array is NULL\n");
 		ret = -1;
 		goto done;
 	}
-	priv->cmd_array = tempcmd_array;
+	priv->cmd_array = cmdarray;
 
-	/* Allocate and initialize command buffers */
-	ulbufsize = MRVDRV_SIZE_OF_CMD_BUFFER;
-	for (i = 0; i < MRVDRV_NUM_OF_CMD_BUFFER; i++) {
-		if (!(ptempvirtualaddr = kzalloc(ulbufsize, GFP_KERNEL))) {
+	/* Allocate and initialize each command buffer in the command array */
+	for (i = 0; i < LBS_NUM_CMD_BUFFERS; i++) {
+		cmdarray[i].cmdbuf = kzalloc(LBS_CMD_BUFFER_SIZE, GFP_KERNEL);
+		if (!cmdarray[i].cmdbuf) {
 			lbs_deb_host("ALLOC_CMD_BUF: ptempvirtualaddr is NULL\n");
 			ret = -1;
 			goto done;
 		}
-
-		/* Update command buffer virtual */
-		tempcmd_array[i].bufvirtualaddr = ptempvirtualaddr;
 	}
 
-	for (i = 0; i < MRVDRV_NUM_OF_CMD_BUFFER; i++) {
-		init_waitqueue_head(&tempcmd_array[i].cmdwait_q);
-		lbs_cleanup_and_insert_cmd(priv, &tempcmd_array[i]);
+	for (i = 0; i < LBS_NUM_CMD_BUFFERS; i++) {
+		init_waitqueue_head(&cmdarray[i].cmdwait_q);
+		lbs_cleanup_and_insert_cmd(priv, &cmdarray[i]);
 	}
-
 	ret = 0;
 
 done:
@@ -1606,9 +1594,8 @@ done:
  */
 int lbs_free_cmd_buffer(struct lbs_private *priv)
 {
-	u32 ulbufsize; /* Someone needs to die for this. Slowly and painfully */
+	struct cmd_ctrl_node *cmdarray;
 	unsigned int i;
-	struct cmd_ctrl_node *tempcmd_array;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -1618,14 +1605,13 @@ int lbs_free_cmd_buffer(struct lbs_private *priv)
 		goto done;
 	}
 
-	tempcmd_array = priv->cmd_array;
+	cmdarray = priv->cmd_array;
 
 	/* Release shared memory buffers */
-	ulbufsize = MRVDRV_SIZE_OF_CMD_BUFFER;
-	for (i = 0; i < MRVDRV_NUM_OF_CMD_BUFFER; i++) {
-		if (tempcmd_array[i].bufvirtualaddr) {
-			kfree(tempcmd_array[i].bufvirtualaddr);
-			tempcmd_array[i].bufvirtualaddr = NULL;
+	for (i = 0; i < LBS_NUM_CMD_BUFFERS; i++) {
+		if (cmdarray[i].cmdbuf) {
+			kfree(cmdarray[i].cmdbuf);
+			cmdarray[i].cmdbuf = NULL;
 		}
 	}
 
@@ -1683,21 +1669,21 @@ struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
  *  @param ptempnode	A pointer to cmdCtrlNode structure
  *  @return 		n/a
  */
-static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode)
+static void cleanup_cmdnode(struct cmd_ctrl_node *cmdnode)
 {
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!ptempnode)
+	if (!cmdnode)
 		return;
-	ptempnode->cmdwaitqwoken = 1;
-	wake_up_interruptible(&ptempnode->cmdwait_q);
-	ptempnode->wait_option = 0;
-	ptempnode->pdata_buf = NULL;
-	ptempnode->callback = NULL;
-	ptempnode->callback_arg = 0;
+	cmdnode->cmdwaitqwoken = 1;
+	wake_up_interruptible(&cmdnode->cmdwait_q);
+	cmdnode->wait_option = 0;
+	cmdnode->pdata_buf = NULL;
+	cmdnode->callback = NULL;
+	cmdnode->callback_arg = 0;
 
-	if (ptempnode->bufvirtualaddr != NULL)
-		memset(ptempnode->bufvirtualaddr, 0, MRVDRV_SIZE_OF_CMD_BUFFER);
+	if (cmdnode->cmdbuf != NULL)
+		memset(cmdnode->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }
@@ -1739,7 +1725,7 @@ void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 int lbs_execute_next_command(struct lbs_private *priv)
 {
 	struct cmd_ctrl_node *cmdnode = NULL;
-	struct cmd_ds_command *cmdptr;
+	struct cmd_header *cmd;
 	unsigned long flags;
 	int ret = 0;
 
@@ -1765,22 +1751,21 @@ int lbs_execute_next_command(struct lbs_private *priv)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	if (cmdnode) {
-		cmdptr = (struct cmd_ds_command *)cmdnode->bufvirtualaddr;
+		cmd = cmdnode->cmdbuf;
 
-		if (is_command_allowed_in_ps(le16_to_cpu(cmdptr->command))) {
+		if (is_command_allowed_in_ps(le16_to_cpu(cmd->command))) {
 			if ((priv->psstate == PS_STATE_SLEEP) ||
 			    (priv->psstate == PS_STATE_PRE_SLEEP)) {
 				lbs_deb_host(
 				       "EXEC_NEXT_CMD: cannot send cmd 0x%04x in psstate %d\n",
-				       le16_to_cpu(cmdptr->command),
+				       le16_to_cpu(cmd->command),
 				       priv->psstate);
 				ret = -1;
 				goto done;
 			}
 			lbs_deb_host("EXEC_NEXT_CMD: OK to send command "
-			       "0x%04x in psstate %d\n",
-				    le16_to_cpu(cmdptr->command),
-				    priv->psstate);
+				     "0x%04x in psstate %d\n",
+				     le16_to_cpu(cmd->command), priv->psstate);
 		} else if (priv->psstate != PS_STATE_FULL_POWER) {
 			/*
 			 * 1. Non-PS command:
@@ -1793,8 +1778,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 			 * otherwise send this command down to firmware
 			 * immediately.
 			 */
-			if (cmdptr->command !=
-			    cpu_to_le16(CMD_802_11_PS_MODE)) {
+			if (cmd->command != cpu_to_le16(CMD_802_11_PS_MODE)) {
 				/*  Prepare to send Exit PS,
 				 *  this non PS command will be sent later */
 				if ((priv->psstate == PS_STATE_SLEEP)
@@ -1813,8 +1797,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				 * PS command. Ignore it if it is not Exit_PS.
 				 * otherwise send it down immediately.
 				 */
-				struct cmd_ds_802_11_ps_mode *psm =
-				    &cmdptr->params.psmode;
+				struct cmd_ds_802_11_ps_mode *psm = (void *)cmd;
 
 				lbs_deb_host(
 				       "EXEC_NEXT_CMD: PS cmd, action 0x%02x\n",
@@ -1848,7 +1831,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 		}
 		list_del(&cmdnode->list);
 		lbs_deb_host("EXEC_NEXT_CMD: sending command 0x%04x\n",
-			    le16_to_cpu(cmdptr->command));
+			    le16_to_cpu(cmd->command));
 		DownloadcommandToStation(priv, cmdnode);
 	} else {
 		/*
@@ -2079,7 +2062,6 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	      unsigned long callback_arg)
 {
 	struct cmd_ctrl_node *cmdnode;
-	struct cmd_header *send_cmd;
 	unsigned long flags;
 	int ret = 0;
 
@@ -2107,20 +2089,19 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 		goto done;
 	}
 
-	send_cmd = (struct cmd_header *) cmdnode->bufvirtualaddr;
 	cmdnode->wait_option = CMD_OPTION_WAITFORRSP;
 	cmdnode->callback = callback;
 	cmdnode->callback_arg = callback_arg;
 
 	/* Copy the incoming command to the buffer */
-	memcpy(send_cmd, in_cmd, in_cmd_size);
+	memcpy(cmdnode->cmdbuf, in_cmd, in_cmd_size);
 
 	/* Set sequence number, clean result, move to buffer */
 	priv->seqnum++;
-	send_cmd->command = cpu_to_le16(command);
-	send_cmd->size    = cpu_to_le16(in_cmd_size);
-	send_cmd->seqnum  = cpu_to_le16(priv->seqnum);
-	send_cmd->result  = 0;
+	cmdnode->cmdbuf->command = cpu_to_le16(command);
+	cmdnode->cmdbuf->size    = cpu_to_le16(in_cmd_size);
+	cmdnode->cmdbuf->seqnum  = cpu_to_le16(priv->seqnum);
+	cmdnode->cmdbuf->result  = 0;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", command);
 

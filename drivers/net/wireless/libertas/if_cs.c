@@ -364,7 +364,7 @@ static int if_cs_receive_cmdres(struct lbs_private *priv, u8 *data, u32 *len)
 	}
 
 	*len = if_cs_read16(priv->card, IF_CS_C_CMD_LEN);
-	if ((*len == 0) || (*len > MRVDRV_SIZE_OF_CMD_BUFFER)) {
+	if ((*len == 0) || (*len > LBS_CMD_BUFFER_SIZE)) {
 		lbs_pr_err("card cmd buffer has invalid # of bytes (%d)\n", *len);
 		goto out;
 	}
@@ -683,7 +683,7 @@ sbi_get_int_status_exit:
 			cmdbuf = priv->upld_buf;
 			priv->hisregcpy &= ~IF_CS_C_S_RX_UPLD_RDY;
 		} else {
-			cmdbuf = priv->cur_cmd->bufvirtualaddr;
+			cmdbuf = (u8 *) priv->cur_cmd->cmdbuf;
 		}
 
 		ret = if_cs_receive_cmdres(priv, cmdbuf, &priv->upld_len);

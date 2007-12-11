@@ -890,23 +890,21 @@ done:
 static void command_timer_fn(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
-	struct cmd_ctrl_node *ptempnode;
-	struct cmd_ds_command *cmd;
+	struct cmd_ctrl_node *node;
 	unsigned long flags;
 
-	ptempnode = priv->cur_cmd;
-	if (ptempnode == NULL) {
+	node = priv->cur_cmd;
+	if (node == NULL) {
 		lbs_deb_fw("ptempnode empty\n");
 		return;
 	}
 
-	cmd = (struct cmd_ds_command *)ptempnode->bufvirtualaddr;
-	if (!cmd) {
+	if (!node->cmdbuf) {
 		lbs_deb_fw("cmd is NULL\n");
 		return;
 	}
 
-	lbs_deb_fw("command_timer_fn fired, cmd %x\n", cmd->command);
+	lbs_deb_fw("command_timer_fn fired, cmd %x\n", node->cmdbuf->command);
 
 	if (!priv->fw_ready)
 		return;
@@ -916,7 +914,7 @@ static void command_timer_fn(unsigned long data)
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbs_deb_fw("re-sending same command because of timeout\n");
-	lbs_queue_cmd(priv, ptempnode, 0);
+	lbs_queue_cmd(priv, node, 0);
 
 	wake_up_interruptible(&priv->waitq);
 

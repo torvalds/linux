@@ -142,14 +142,14 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 		goto out;
 	}
 
-	if (size > MRVDRV_SIZE_OF_CMD_BUFFER) {
+	if (size > LBS_CMD_BUFFER_SIZE) {
 		lbs_deb_sdio("response packet too large (%d bytes)\n",
 			(int)size);
 		ret = -E2BIG;
 		goto out;
 	}
 
-	memcpy(card->priv->cur_cmd->bufvirtualaddr, buffer, size);
+	memcpy(card->priv->cur_cmd->cmdbuf, buffer, size);
 	card->priv->upld_len = size;
 
 	card->int_cause |= MRVDRV_CMD_UPLD_RDY;

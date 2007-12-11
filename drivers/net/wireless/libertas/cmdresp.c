@@ -491,8 +491,9 @@ static int lbs_ret_802_11_subscribe_event(struct lbs_private *priv,
 
 static inline int handle_cmd_response(struct lbs_private *priv,
 				      unsigned long dummy,
-				      struct cmd_ds_command *resp)
+				      struct cmd_header *cmd_response)
 {
+	struct cmd_ds_command *resp = (struct cmd_ds_command *) cmd_response;
 	int ret = 0;
 	unsigned long flags;
 	uint16_t respcmd = le16_to_cpu(resp->command);
@@ -673,7 +674,7 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 int lbs_process_rx_command(struct lbs_private *priv)
 {
 	u16 respcmd;
-	struct cmd_ds_command *resp;
+	struct cmd_header *resp;
 	int ret = 0;
 	ulong flags;
 	u16 result;
@@ -692,15 +693,14 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		goto done;
 	}
-	resp = (struct cmd_ds_command *)(priv->cur_cmd->bufvirtualaddr);
+	resp = priv->cur_cmd->cmdbuf;
 
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
 	lbs_deb_host("CMD_RESP: response 0x%04x, size %d, jiffies %lu\n",
 		respcmd, priv->upld_len, jiffies);
-	lbs_deb_hex(LBS_DEB_HOST, "CMD_RESP", priv->cur_cmd->bufvirtualaddr,
-		    priv->upld_len);
+	lbs_deb_hex(LBS_DEB_HOST, "CMD_RESP", (void *) resp, priv->upld_len);
 
 	if (!(respcmd & 0x8000)) {
 		lbs_deb_host("invalid response!\n");
@@ -716,7 +716,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	priv->cur_cmd_retcode = result;
 
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
-		struct cmd_ds_802_11_ps_mode *psmode = &resp->params.psmode;
+		struct cmd_ds_802_11_ps_mode *psmode = (void *) resp;
 		u16 action = le16_to_cpu(psmode->action);
 
 		lbs_deb_host(
@@ -796,7 +796,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 
 	if (priv->cur_cmd && priv->cur_cmd->callback) {
 		ret = priv->cur_cmd->callback(priv, priv->cur_cmd->callback_arg,
-				(struct cmd_header *) resp);
+				resp);
 	} else
 		ret = handle_cmd_response(priv, 0, resp);
 
