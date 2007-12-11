@@ -304,5 +304,6 @@ enum cmd_mesh_access_opts {
 #define MACREG_INT_CODE_RSSI_HIGH               28
 #define MACREG_INT_CODE_SNR_HIGH                29
 #define MACREG_INT_CODE_MESH_AUTO_STARTED       35
+#define MACREG_INT_CODE_FIRMWARE_READY          48
 
 #endif

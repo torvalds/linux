@@ -230,6 +230,7 @@ static int if_usb_probe(struct usb_interface *intf,
 		goto err_prog_firmware;
 
 	cardp->priv = priv;
+	cardp->priv->fw_ready = 1;
 
 	if (lbs_add_mesh(priv, &udev->dev))
 		goto err_add_mesh;
@@ -241,10 +242,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	priv->hw_read_event_cause = if_usb_read_event_cause;
 	priv->boot2_version = udev->descriptor.bcdDevice;
 
-	/* Delay 200 ms to waiting for the FW ready */
 	if_usb_submit_rx_urb(cardp);
-	msleep_interruptible(200);
-	priv->fw_ready = 1;
 
 	if (lbs_start_card(priv))
 		goto err_start_card;
@@ -514,6 +512,21 @@ static void if_usb_receive_fwload(struct urb *urb)
 		return;
 	}
 
+	if (cardp->fwdnldover) {
+		__le32 *tmp = (__le32 *)(skb->data + IPFIELD_ALIGN_OFFSET);
+
+		if (tmp[0] == cpu_to_le32(CMD_TYPE_INDICATION) &&
+		    tmp[1] == cpu_to_le32(MACREG_INT_CODE_FIRMWARE_READY)) {
+			lbs_pr_info("Firmware ready event received\n");
+			wake_up(&cardp->fw_wq);
+		} else {
+			lbs_deb_usb("Waiting for confirmation; got %x %x\n", le32_to_cpu(tmp[0]),
+				    le32_to_cpu(tmp[1]));
+			if_usb_submit_rx_urb_fwload(cardp);
+		}
+		kfree_skb(skb);
+		return;
+	}
 	if (cardp->bootcmdresp <= 0) {
 		memcpy (&bootcmdresp, skb->data + IPFIELD_ALIGN_OFFSET,
 			sizeof(bootcmdresp));
@@ -529,7 +542,8 @@ static void if_usb_receive_fwload(struct urb *urb)
 			if (bootcmdresp.u32magicnumber == cpu_to_le32(CMD_TYPE_REQUEST) ||
 			    bootcmdresp.u32magicnumber == cpu_to_le32(CMD_TYPE_DATA) ||
 			    bootcmdresp.u32magicnumber == cpu_to_le32(CMD_TYPE_INDICATION)) {
-				lbs_pr_info("Firmware already seems alive; resetting\n");
+				if (!cardp->bootcmdresp)
+					lbs_pr_info("Firmware already seems alive; resetting\n");
 				cardp->bootcmdresp = -1;
 			} else {
 				lbs_pr_info("boot cmd response wrong magic number (0x%x)\n",
@@ -590,8 +604,9 @@ static void if_usb_receive_fwload(struct urb *urb)
 
 	if_usb_send_fw_pkt(cardp);
 
-	if_usb_submit_rx_urb_fwload(cardp);
  exit:
+	if_usb_submit_rx_urb_fwload(cardp);
+
 	kfree(syncfwheader);
 
 	return;
@@ -934,6 +949,7 @@ restart:
 	wait_event_interruptible(cardp->fw_wq, cardp->surprise_removed || cardp->fwdnldover);
 	
 	del_timer_sync(&cardp->fw_timeout);
+	usb_kill_urb(cardp->rx_urb);
 
 	if (!cardp->fwdnldover) {
 		lbs_pr_info("failed to load fw, resetting device!\n");
