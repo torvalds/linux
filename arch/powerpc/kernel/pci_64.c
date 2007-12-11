@@ -581,12 +581,8 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 /* Decide whether to display the domain number in /proc */
 int pci_proc_domain(struct pci_bus *bus)
 {
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		return 0;
-	else {
-		struct pci_controller *hose = pci_bus_to_host(bus);
-		return hose->buid != 0;
-	}
+	struct pci_controller *hose = pci_bus_to_host(bus);
+	return hose->buid != 0;
 }
 
 void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
