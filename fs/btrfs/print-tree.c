@@ -33,6 +33,7 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
+	struct btrfs_extent_ref *ref;
 	u32 type;
 
 	printk("leaf %llu total ptrs %d free space %d\n",
@@ -72,6 +73,15 @@ void btrfs_print_leaf(struct btrfs_root *root, struct extent_buffer *l)
 			ei = btrfs_item_ptr(l, i, struct btrfs_extent_item);
 			printk("\t\textent data refs %u\n",
 				btrfs_extent_refs(l, ei));
+			break;
+		case BTRFS_EXTENT_REF_KEY:
+			ref = btrfs_item_ptr(l, i, struct btrfs_extent_ref);
+			printk("\t\textent back ref root %llu gen %llu "
+			       "owner %llu offset %llu\n",
+			       (unsigned long long)btrfs_ref_root(l, ref),
+			       (unsigned long long)btrfs_ref_generation(l, ref),
+			       (unsigned long long)btrfs_ref_objectid(l, ref),
+			       (unsigned long long)btrfs_ref_offset(l, ref));
 			break;
 
 		case BTRFS_EXTENT_DATA_KEY:

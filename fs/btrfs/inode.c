@@ -93,7 +93,9 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 	if (alloc_hint == EXTENT_MAP_INLINE)
 		goto out;
 
-	ret = btrfs_alloc_extent(trans, root, inode->i_ino, num_bytes, 0,
+	ret = btrfs_alloc_extent(trans, root, num_bytes,
+				 root->root_key.objectid, trans->transid,
+				 inode->i_ino, start, 0,
 				 alloc_hint, (u64)-1, &ins, 1);
 	if (ret) {
 		WARN_ON(1);
@@ -560,6 +562,7 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 	u64 extent_start = 0;
 	u64 extent_num_bytes = 0;
 	u64 item_end = 0;
+	u64 root_gen = 0;
 	int found_extent;
 	int del_item;
 	int extent_type = -1;
@@ -670,6 +673,15 @@ static int btrfs_truncate_in_trans(struct btrfs_trans_handle *trans,
 					found_extent = 1;
 					inode->i_blocks -= num_dec;
 				}
+				if (leaf == root->node) {
+					root_gen =
+						btrfs_header_generation(leaf);
+				} else {
+					struct extent_buffer *parent;
+					parent = path->nodes[1];
+					root_gen =
+						btrfs_header_generation(parent);
+				}
 			}
 		} else if (extent_type == BTRFS_FILE_EXTENT_INLINE &&
 			   !del_item) {
@@ -690,7 +702,10 @@ delete:
 		btrfs_release_path(root, path);
 		if (found_extent) {
 			ret = btrfs_free_extent(trans, root, extent_start,
-						extent_num_bytes, 0);
+						extent_num_bytes,
+						root->root_key.objectid,
+						root_gen, inode->i_ino,
+						found_key.offset, 0);
 			BUG_ON(ret);
 		}
 	}
@@ -1900,7 +1915,14 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
 
-	leaf = btrfs_alloc_free_block(trans, root, root->leafsize, 0, 0);
+	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
+				       0, &objectid);
+	if (ret)
+		goto fail;
+
+	leaf = __btrfs_alloc_free_block(trans, root, root->leafsize,
+					objectid, trans->transid, 0, 0,
+					0, 0);
 	if (IS_ERR(leaf))
 		return PTR_ERR(leaf);
 
@@ -1908,7 +1930,8 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	btrfs_set_header_level(leaf, 0);
 	btrfs_set_header_bytenr(leaf, leaf->start);
 	btrfs_set_header_generation(leaf, trans->transid);
-	btrfs_set_header_owner(leaf, root->root_key.objectid);
+	btrfs_set_header_owner(leaf, objectid);
+
 	write_extent_buffer(leaf, root->fs_info->fsid,
 			    (unsigned long)btrfs_header_fsid(leaf),
 			    BTRFS_FSID_SIZE);
@@ -1932,11 +1955,6 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 
 	free_extent_buffer(leaf);
 	leaf = NULL;
-
-	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
-				       0, &objectid);
-	if (ret)
-		goto fail;
 
 	btrfs_set_root_dirid(&root_item, new_dirid);
 
@@ -2056,7 +2074,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	if (ret)
 		goto fail;
 
-	ret = btrfs_inc_root_ref(trans, root);
+	ret = btrfs_inc_root_ref(trans, root, objectid);
 	if (ret)
 		goto fail;
 fail:

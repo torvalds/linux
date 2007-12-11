@@ -496,7 +496,10 @@ next_slot:
 						   sizeof(old));
 				if (disk_bytenr != 0) {
 					ret = btrfs_inc_extent_ref(trans, root,
-					         disk_bytenr, disk_num_bytes);
+					         disk_bytenr, disk_num_bytes,
+						 root->root_key.objectid,
+						 trans->transid,
+						 key.objectid, end);
 					BUG_ON(ret);
 				}
 			}
@@ -541,6 +544,14 @@ next_slot:
 			u64 disk_bytenr = 0;
 			u64 disk_num_bytes = 0;
 			u64 extent_num_bytes = 0;
+			u64 root_gen;
+
+			if (leaf != root->node) {
+				root_gen =
+					btrfs_header_generation(path->nodes[1]);
+			} else {
+				root_gen = btrfs_header_generation(leaf);
+			}
 			if (found_extent) {
 				disk_bytenr =
 				      btrfs_file_extent_disk_bytenr(leaf,
@@ -562,8 +573,11 @@ next_slot:
 			if (found_extent && disk_bytenr != 0) {
 				inode->i_blocks -= extent_num_bytes >> 9;
 				ret = btrfs_free_extent(trans, root,
-							disk_bytenr,
-							disk_num_bytes, 0);
+						disk_bytenr,
+						disk_num_bytes,
+						root->root_key.objectid,
+						root_gen, inode->i_ino,
+						key.offset, 0);
 			}
 
 			BUG_ON(ret);

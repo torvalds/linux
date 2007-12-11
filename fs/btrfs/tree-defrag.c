@@ -78,6 +78,8 @@ static int defrag_walk_down(struct btrfs_trans_handle *trans,
 			break;
 
 		if (*level == 1) {
+			WARN_ON(btrfs_header_generation(path->nodes[*level]) !=
+							trans->transid);
 			ret = btrfs_realloc_node(trans, root,
 						 path->nodes[*level],
 						 path->slots[*level],
