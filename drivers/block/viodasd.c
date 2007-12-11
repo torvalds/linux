@@ -229,13 +229,10 @@ static struct block_device_operations viodasd_fops = {
 /*
  * End a request
  */
-static void viodasd_end_request(struct request *req, int uptodate,
+static void viodasd_end_request(struct request *req, int error,
 		int num_sectors)
 {
-	if (end_that_request_first(req, uptodate, num_sectors))
-		return;
-	add_disk_randomness(req->rq_disk);
-	end_that_request_last(req, uptodate);
+	__blk_end_request(req, error, num_sectors << 9);
 }
 
 /*
@@ -374,12 +371,12 @@ static void do_viodasd_request(struct request_queue *q)
 		blkdev_dequeue_request(req);
 		/* check that request contains a valid command */
 		if (!blk_fs_request(req)) {
-			viodasd_end_request(req, 0, req->hard_nr_sectors);
+			viodasd_end_request(req, -EIO, req->hard_nr_sectors);
 			continue;
 		}
 		/* Try sending the request */
 		if (send_request(req) != 0)
-			viodasd_end_request(req, 0, req->hard_nr_sectors);
+			viodasd_end_request(req, -EIO, req->hard_nr_sectors);
 	}
 }
 
@@ -591,7 +588,7 @@ static int viodasd_handle_read_write(struct vioblocklpevent *bevent)
 	num_req_outstanding--;
 	spin_unlock_irqrestore(&viodasd_spinlock, irq_flags);
 
-	error = event->xRc != HvLpEvent_Rc_Good;
+	error = (event->xRc == HvLpEvent_Rc_Good) ? 0 : -EIO;
 	if (error) {
 		const struct vio_error_entry *err;
 		err = vio_lookup_rc(viodasd_err_table, bevent->sub_result);
@@ -601,7 +598,7 @@ static int viodasd_handle_read_write(struct vioblocklpevent *bevent)
 	}
 	qlock = req->q->queue_lock;
 	spin_lock_irqsave(qlock, irq_flags);
-	viodasd_end_request(req, !error, num_sect);
+	viodasd_end_request(req, error, num_sect);
 	spin_unlock_irqrestore(qlock, irq_flags);
 
 	/* Finally, try to get more requests off of this device's queue */
