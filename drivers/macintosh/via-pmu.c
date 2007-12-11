@@ -174,7 +174,6 @@ static struct proc_dir_entry *proc_pmu_batt[PMU_MAX_BATTERIES];
 
 int __fake_sleep;
 int asleep;
-BLOCKING_NOTIFIER_HEAD(sleep_notifier_list);
 
 #ifdef CONFIG_ADB
 static int adb_dev_map;
@@ -1719,67 +1718,7 @@ pmu_present(void)
 	return via != 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-
-static LIST_HEAD(sleep_notifiers);
-
-int
-pmu_register_sleep_notifier(struct pmu_sleep_notifier *n)
-{
-	struct list_head *list;
-	struct pmu_sleep_notifier *notifier;
-
-	for (list = sleep_notifiers.next; list != &sleep_notifiers;
-	     list = list->next) {
-		notifier = list_entry(list, struct pmu_sleep_notifier, list);
-		if (n->priority > notifier->priority)
-			break;
-	}
-	__list_add(&n->list, list->prev, list);
-	return 0;
-}
-EXPORT_SYMBOL(pmu_register_sleep_notifier);
-
-int
-pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
-{
-	if (n->list.next == 0)
-		return -ENOENT;
-	list_del(&n->list);
-	n->list.next = NULL;
-	return 0;
-}
-EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
-#endif /* CONFIG_PM_SLEEP */
-
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
-
-/* Sleep is broadcast last-to-first */
-static void broadcast_sleep(int when)
-{
-	struct list_head *list;
-	struct pmu_sleep_notifier *notifier;
-
-	for (list = sleep_notifiers.prev; list != &sleep_notifiers;
-	     list = list->prev) {
-		notifier = list_entry(list, struct pmu_sleep_notifier, list);
-		notifier->notifier_call(notifier, when);
-	}
-}
-
-/* Wake is broadcast first-to-last */
-static void broadcast_wake(void)
-{
-	struct list_head *list;
-	struct pmu_sleep_notifier *notifier;
-
-	for (list = sleep_notifiers.next; list != &sleep_notifiers;
-	     list = list->next) {
-		notifier = list_entry(list, struct pmu_sleep_notifier, list);
-		notifier->notifier_call(notifier, PBOOK_WAKE);
-	}
-}
-
 /*
  * This struct is used to store config register values for
  * PCI devices which may get powered off when we sleep.
@@ -1962,9 +1901,6 @@ pmac_suspend_devices(void)
 
 	pm_prepare_console();
 	
-	/* Notify old-style device drivers */
-	broadcast_sleep(PBOOK_SLEEP_REQUEST);
-
 	/* Sync the disks. */
 	/* XXX It would be nice to have some way to ensure that
 	 * nobody is dirtying any new buffers while we wait. That
@@ -1973,12 +1909,9 @@ pmac_suspend_devices(void)
 	 */
 	sys_sync();
 
-	broadcast_sleep(PBOOK_SLEEP_NOW);
-
 	/* Send suspend call to devices, hold the device core's dpm_sem */
 	ret = device_suspend(PMSG_SUSPEND);
 	if (ret) {
-		broadcast_wake();
 		printk(KERN_ERR "Driver sleep failed\n");
 		return -EBUSY;
 	}
@@ -2019,7 +1952,6 @@ pmac_suspend_devices(void)
 		local_irq_enable();
 		preempt_enable();
 		device_resume();
-		broadcast_wake();
 		printk(KERN_ERR "Driver powerdown failed\n");
 		return -EBUSY;
 	}
@@ -2072,9 +2004,6 @@ pmac_wakeup_devices(void)
 
 	/* Resume devices */
 	device_resume();
-
-	/* Notify old style drivers */
-	broadcast_wake();
 
 	pm_restore_console();
 
