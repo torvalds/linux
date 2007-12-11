@@ -1165,6 +1165,7 @@ int saa7134_g_ctrl(struct file *file, void *priv, struct v4l2_control *c)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7134_g_ctrl);
 
 int saa7134_s_ctrl(struct file *file, void *f, struct v4l2_control *c)
 {
@@ -1278,6 +1279,7 @@ error:
 	mutex_unlock(&dev->lock);
 	return err;
 }
+EXPORT_SYMBOL_GPL(saa7134_s_ctrl);
 
 /* ------------------------------------------------------------------ */
 
@@ -1685,6 +1687,7 @@ int saa7134_queryctrl(struct file *file, void *priv, struct v4l2_queryctrl *c)
 	*c = (NULL != ctrl) ? *ctrl : no_ctrl;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(saa7134_queryctrl);
 
 static int saa7134_enum_input(struct file *file, void *priv,
 					struct v4l2_input *i)
