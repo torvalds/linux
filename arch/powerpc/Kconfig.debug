@@ -151,6 +151,13 @@ config BOOTX_TEXT
 
 config PPC_EARLY_DEBUG
 	bool "Early debugging (dangerous)"
+	help
+	  Say Y to enable some early debugging facilities that may be available
+	  for your processor/board combination. Those facilities are hacks
+	  intended to debug problems early during boot, this should not be
+	  enabled in a production kernel.
+	  Note that enabling this will also cause the kernel default log level
+	  to be pushed to max automatically very early during boot
 
 choice
 	prompt "Early debugging console"

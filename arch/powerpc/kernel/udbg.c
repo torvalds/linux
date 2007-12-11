@@ -57,6 +57,10 @@ void __init udbg_early_init(void)
 #elif defined(CONFIG_PPC_EARLY_DEBUG_CPM)
 	udbg_init_cpm();
 #endif
+
+#ifdef CONFIG_PPC_EARLY_DEBUG
+	console_loglevel = 10;
+#endif
 }
 
 /* udbg library, used by xmon et al */
