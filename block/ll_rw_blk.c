@@ -3638,6 +3638,12 @@ static void end_that_request_last(struct request *req, int error)
 {
 	struct gendisk *disk = req->rq_disk;
 
+	if (blk_rq_tagged(req))
+		blk_queue_end_tag(req->q, req);
+
+	if (blk_queued_rq(req))
+		blkdev_dequeue_request(req);
+
 	if (unlikely(laptop_mode) && blk_fs_request(req))
 		laptop_io_completion();
 
@@ -3655,10 +3661,15 @@ static void end_that_request_last(struct request *req, int error)
 		disk_round_stats(disk);
 		disk->in_flight--;
 	}
+
 	if (req->end_io)
 		req->end_io(req, error);
-	else
+	else {
+		if (blk_bidi_rq(req))
+			__blk_put_request(req->next_rq->q, req->next_rq);
+
 		__blk_put_request(req->q, req);
+	}
 }
 
 static inline void __end_request(struct request *rq, int uptodate,
@@ -3759,20 +3770,6 @@ void end_request(struct request *req, int uptodate)
 }
 EXPORT_SYMBOL(end_request);
 
-static void complete_request(struct request *rq, int error)
-{
-	if (blk_rq_tagged(rq))
-		blk_queue_end_tag(rq->q, rq);
-
-	if (blk_queued_rq(rq))
-		blkdev_dequeue_request(rq);
-
-	if (blk_bidi_rq(rq) && !rq->end_io)
-		__blk_put_request(rq->next_rq->q, rq->next_rq);
-
-	end_that_request_last(rq, error);
-}
-
 /**
  * blk_end_io - Generic end_io function to complete a request.
  * @rq:           the request being processed
@@ -3815,7 +3812,7 @@ static int blk_end_io(struct request *rq, int error, int nr_bytes,
 	add_disk_randomness(rq->rq_disk);
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	complete_request(rq, error);
+	end_that_request_last(rq, error);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 
 	return 0;
@@ -3863,7 +3860,7 @@ int __blk_end_request(struct request *rq, int error, int nr_bytes)
 
 	add_disk_randomness(rq->rq_disk);
 
-	complete_request(rq, error);
+	end_that_request_last(rq, error);
 
 	return 0;
 }
