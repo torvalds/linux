@@ -39,6 +39,7 @@
 
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
+#include <asm/arch/nand.h>
 #include <asm/arch/irda.h>
 #include <asm/arch/usb.h>
 #include <asm/arch/keypad.h>
@@ -140,8 +141,6 @@ static struct platform_device h2_nor_device = {
 	.resource	= &h2_nor_resource,
 };
 
-#if 0	/* REVISIT: Enable when nand_platform_data is applied */
-
 static struct mtd_partition h2_nand_partitions[] = {
 #if 0
 	/* REVISIT:  enable these partitions if you make NAND BOOT
@@ -179,7 +178,7 @@ static struct mtd_partition h2_nand_partitions[] = {
 };
 
 /* dip switches control NAND chip access:  8 bit, 16 bit, or neither */
-static struct nand_platform_data h2_nand_data = {
+static struct omap_nand_platform_data h2_nand_data = {
 	.options	= NAND_SAMSUNG_LP_OPTIONS,
 	.parts		= h2_nand_partitions,
 	.nr_parts	= ARRAY_SIZE(h2_nand_partitions),
@@ -198,7 +197,6 @@ static struct platform_device h2_nand_device = {
 	.num_resources	= 1,
 	.resource	= &h2_nand_resource,
 };
-#endif
 
 static struct resource h2_smc91x_resources[] = {
 	[0] = {
@@ -335,7 +333,7 @@ static struct platform_device h2_mcbsp1_device = {
 
 static struct platform_device *h2_devices[] __initdata = {
 	&h2_nor_device,
-	//&h2_nand_device,
+	&h2_nand_device,
 	&h2_smc91x_device,
 	&h2_irda_device,
 	&h2_kp_device,
@@ -409,15 +407,15 @@ static struct omap_lcd_config h2_lcd_config __initdata = {
 };
 
 static struct omap_board_config_kernel h2_config[] __initdata = {
-	{ OMAP_TAG_USB,           &h2_usb_config },
-	{ OMAP_TAG_MMC,           &h2_mmc_config },
+	{ OMAP_TAG_USB,		&h2_usb_config },
+	{ OMAP_TAG_MMC,		&h2_mmc_config },
 	{ OMAP_TAG_UART,	&h2_uart_config },
 	{ OMAP_TAG_LCD,		&h2_lcd_config },
 };
 
 #define H2_NAND_RB_GPIO_PIN	62
 
-static int h2_nand_dev_ready(struct nand_platform_data *data)
+static int h2_nand_dev_ready(struct omap_nand_platform_data *data)
 {
 	return omap_get_gpio_datain(H2_NAND_RB_GPIO_PIN);
 }
@@ -436,12 +434,10 @@ static void __init h2_init(void)
 	h2_nor_resource.end = h2_nor_resource.start = omap_cs3_phys();
 	h2_nor_resource.end += SZ_32M - 1;
 
-#if 0	/* REVISIT: Enable when nand_platform_data is applied */
 	h2_nand_resource.end = h2_nand_resource.start = OMAP_CS2B_PHYS;
 	h2_nand_resource.end += SZ_4K - 1;
 	if (!(omap_request_gpio(H2_NAND_RB_GPIO_PIN)))
 		h2_nand_data.dev_ready = h2_nand_dev_ready;
-#endif
 
 	omap_cfg_reg(L3_1610_FLASH_CS2B_OE);
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
