@@ -2023,7 +2023,7 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
  *  @return 	   	0 on success, error on failure
  */
 int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
-			struct cmd_header *resp)
+		     struct cmd_header *resp)
 {
 	struct cmd_header *buf = (void *)extra;
 	uint16_t copy_len;
@@ -2032,8 +2032,8 @@ int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 
 	copy_len = min(le16_to_cpu(buf->size), le16_to_cpu(resp->size));
 	lbs_deb_cmd("Copying back %u bytes; command response was %u bytes, "
-		    "copy back buffer was %u bytes", copy_len, resp->size,
-		    buf->size);
+		    "copy back buffer was %u bytes\n", copy_len,
+		    le16_to_cpu(resp->size), le16_to_cpu(buf->size));
 	memcpy(buf, resp, copy_len);
 
 	lbs_deb_leave(LBS_DEB_CMD);
