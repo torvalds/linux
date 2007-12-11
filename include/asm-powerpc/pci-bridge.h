@@ -11,33 +11,44 @@
 #include <linux/list.h>
 #include <linux/ioport.h>
 
-#ifndef CONFIG_PPC64
 /*
  * Structure of a PCI controller (host bridge)
  */
 struct pci_controller {
 	struct pci_bus *bus;
 	char is_dynamic;
+#ifdef CONFIG_PPC64
+	int node;
+#endif
 	void *arch_data;
 	struct list_head list_node;
 	struct device *parent;
 
 	int first_busno;
 	int last_busno;
+#ifndef CONFIG_PPC64
 	int self_busno;
+#endif
 
 	void __iomem *io_base_virt;
+#ifdef CONFIG_PPC64
+	void *io_base_alloc;
+#endif
 	resource_size_t io_base_phys;
 
 	/* Some machines (PReP) have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
 	 */
 	resource_size_t pci_mem_offset;
+#ifdef CONFIG_PPC64
+	unsigned long pci_io_size;
+#endif
 
 	struct pci_ops *ops;
 	volatile unsigned int __iomem *cfg_addr;
 	volatile void __iomem *cfg_data;
 
+#ifndef CONFIG_PPC64
 	/*
 	 * Used for variants of PCI indirect handling and possible quirks:
 	 *  SET_CFG_TYPE - used on 4xx or any PHB that does explicit type0/1
@@ -58,14 +69,23 @@ struct pci_controller {
 #define PPC_INDIRECT_TYPE_NO_PCIE_LINK		0x00000008
 #define PPC_INDIRECT_TYPE_BIG_ENDIAN		0x00000010
 	u32 indirect_type;
-
+#endif	/* !CONFIG_PPC64 */
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
 	 */
 	struct resource	io_resource;
 	struct resource mem_resources[3];
 	int global_number;		/* PCI domain number */
+#ifdef CONFIG_PPC64
+	unsigned long buid;
+	unsigned long dma_window_base_cur;
+	unsigned long dma_window_size;
+
+	void *private_data;
+#endif	/* CONFIG_PPC64 */
 };
+
+#ifndef CONFIG_PPC64
 
 static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 {
@@ -106,47 +126,6 @@ extern void __init update_bridge_resource(struct pci_dev *dev,
 					  struct resource *res);
 
 #else	/* CONFIG_PPC64 */
-
-/*
- * Structure of a PCI controller (host bridge)
- */
-struct pci_controller {
-	struct pci_bus *bus;
-	char is_dynamic;
-	int node;
-	void *arch_data;
-	struct list_head list_node;
-	struct device *parent;
-
-	int first_busno;
-	int last_busno;
-
-	void __iomem *io_base_virt;
-	void *io_base_alloc;
-	resource_size_t io_base_phys;
-
-	/* Some machines have a non 1:1 mapping of
-	 * the PCI memory space in the CPU bus space
-	 */
-	resource_size_t pci_mem_offset;
-	unsigned long pci_io_size;
-
-	struct pci_ops *ops;
-	volatile unsigned int __iomem *cfg_addr;
-	volatile void __iomem *cfg_data;
-
-	/* Currently, we limit ourselves to 1 IO range and 3 mem
-	 * ranges since the common pci_bus structure can't handle more
-	 */
-	struct resource io_resource;
-	struct resource mem_resources[3];
-	int global_number;
-	unsigned long buid;
-	unsigned long dma_window_base_cur;
-	unsigned long dma_window_size;
-
-	void *private_data;
-};
 
 /*
  * PCI stuff, for nodes representing PCI devices, pointed to
