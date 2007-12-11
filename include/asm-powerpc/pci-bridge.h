@@ -37,6 +37,9 @@ struct pci_controller {
 	void *io_base_alloc;
 #endif
 	resource_size_t io_base_phys;
+#ifndef CONFIG_PPC64
+	resource_size_t pci_io_size;
+#endif
 
 	/* Some machines (PReP) have a non 1:1 mapping of
 	 * the PCI memory space in the CPU bus space
