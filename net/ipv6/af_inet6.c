@@ -529,42 +529,6 @@ static struct net_proto_family inet6_family_ops = {
 	.owner	= THIS_MODULE,
 };
 
-/* Same as inet6_dgram_ops, sans udp_poll.  */
-static const struct proto_ops inet6_sockraw_ops = {
-	.family		   = PF_INET6,
-	.owner		   = THIS_MODULE,
-	.release	   = inet6_release,
-	.bind		   = inet6_bind,
-	.connect	   = inet_dgram_connect,	/* ok		*/
-	.socketpair	   = sock_no_socketpair,	/* a do nothing	*/
-	.accept		   = sock_no_accept,		/* a do nothing	*/
-	.getname	   = inet6_getname,
-	.poll		   = datagram_poll,		/* ok		*/
-	.ioctl		   = inet6_ioctl,		/* must change  */
-	.listen		   = sock_no_listen,		/* ok		*/
-	.shutdown	   = inet_shutdown,		/* ok		*/
-	.setsockopt	   = sock_common_setsockopt,	/* ok		*/
-	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
-	.sendmsg	   = inet_sendmsg,		/* ok		*/
-	.recvmsg	   = sock_common_recvmsg,	/* ok		*/
-	.mmap		   = sock_no_mmap,
-	.sendpage	   = sock_no_sendpage,
-#ifdef CONFIG_COMPAT
-	.compat_setsockopt = compat_sock_common_setsockopt,
-	.compat_getsockopt = compat_sock_common_getsockopt,
-#endif
-};
-
-static struct inet_protosw rawv6_protosw = {
-	.type		= SOCK_RAW,
-	.protocol	= IPPROTO_IP,	/* wild card */
-	.prot		= &rawv6_prot,
-	.ops		= &inet6_sockraw_ops,
-	.capability	= CAP_NET_RAW,
-	.no_check	= UDP_CSUM_DEFAULT,
-	.flags		= INET_PROTOSW_REUSE,
-};
-
 int inet6_register_protosw(struct inet_protosw *p)
 {
 	struct list_head *lh;
@@ -771,7 +735,6 @@ static int __init inet6_init(void)
 	__this_module.can_unload = &ipv6_unload;
 #endif
 #endif
-
 	err = proto_register(&tcpv6_prot, 1);
 	if (err)
 		goto out;
@@ -796,14 +759,16 @@ static int __init inet6_init(void)
 	/* We MUST register RAW sockets before we create the ICMP6,
 	 * IGMP6, or NDISC control sockets.
 	 */
-	inet6_register_protosw(&rawv6_protosw);
+	err = rawv6_init();
+	if (err)
+		goto out_unregister_raw_proto;
 
 	/* Register the family here so that the init calls below will
 	 * be able to create sockets. (?? is this dangerous ??)
 	 */
 	err = sock_register(&inet6_family_ops);
 	if (err)
-		goto out_unregister_raw_proto;
+		goto out_sock_register_fail;
 
 	/* Initialise ipv6 mibs */
 	err = init_ipv6_mibs();
@@ -871,15 +836,32 @@ static int __init inet6_init(void)
 		goto ipv6_frag_fail;
 
 	/* Init v6 transport protocols. */
-	udpv6_init();
-	udplitev6_init();
-	tcpv6_init();
+	err = udpv6_init();
+	if (err)
+		goto udpv6_fail;
 
-	ipv6_packet_init();
-	err = 0;
+	err = udplitev6_init();
+	if (err)
+		goto udplitev6_fail;
+
+	err = tcpv6_init();
+	if (err)
+		goto tcpv6_fail;
+
+	err = ipv6_packet_init();
+	if (err)
+		goto ipv6_packet_fail;
 out:
 	return err;
 
+ipv6_packet_fail:
+	tcpv6_exit();
+tcpv6_fail:
+	udplitev6_exit();
+udplitev6_fail:
+	udpv6_exit();
+udpv6_fail:
+	ipv6_frag_exit();
 ipv6_frag_fail:
 	ipv6_exthdrs_exit();
 ipv6_exthdrs_fail:
@@ -920,6 +902,8 @@ icmp_fail:
 out_unregister_sock:
 	sock_unregister(PF_INET6);
 	rtnl_unregister_all(PF_INET6);
+out_sock_register_fail:
+	rawv6_exit();
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
 out_unregister_udplite_proto:
@@ -938,6 +922,10 @@ static void __exit inet6_exit(void)
 	sock_unregister(PF_INET6);
 	/* Disallow any further netlink messages */
 	rtnl_unregister_all(PF_INET6);
+
+	udpv6_exit();
+	udplitev6_exit();
+	tcpv6_exit();
 
 	/* Cleanup code parts. */
 	ipv6_packet_cleanup();
@@ -961,6 +949,7 @@ static void __exit inet6_exit(void)
 	igmp6_cleanup();
 	ndisc_cleanup();
 	icmpv6_cleanup();
+	rawv6_exit();
 #ifdef CONFIG_SYSCTL
 	ipv6_sysctl_unregister();
 #endif

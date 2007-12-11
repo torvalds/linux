@@ -1128,9 +1128,10 @@ int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL(compat_ipv6_getsockopt);
 #endif
 
-void __init ipv6_packet_init(void)
+int __init ipv6_packet_init(void)
 {
 	dev_add_pack(&ipv6_packet_type);
+	return 0;
 }
 
 void ipv6_packet_cleanup(void)
