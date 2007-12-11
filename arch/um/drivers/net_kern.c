@@ -98,10 +98,10 @@ static int uml_net_rx(struct net_device *dev)
 	if (pkt_len > 0) {
 		skb_trim(skb, pkt_len);
 		skb->protocol = (*lp->protocol)(skb);
-		netif_rx(skb);
 
 		lp->stats.rx_bytes += skb->len;
 		lp->stats.rx_packets++;
+		netif_rx(skb);
 		return pkt_len;
 	}
 
