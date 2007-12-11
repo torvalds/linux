@@ -4985,7 +4985,7 @@ static struct pci_driver bttv_pci_driver = {
 #endif
 };
 
-static int bttv_init_module(void)
+static int __init bttv_init_module(void)
 {
 	int ret;
 
@@ -5018,7 +5018,7 @@ static int bttv_init_module(void)
 	return pci_register_driver(&bttv_pci_driver);
 }
 
-static void bttv_cleanup_module(void)
+static void __exit bttv_cleanup_module(void)
 {
 	pci_unregister_driver(&bttv_pci_driver);
 	bus_unregister(&bttv_sub_bus_type);
