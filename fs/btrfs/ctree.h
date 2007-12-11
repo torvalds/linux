@@ -110,7 +110,7 @@ struct btrfs_header {
 #define BTRFS_MAX_LEVEL 8
 #define BTRFS_NODEPTRS_PER_BLOCK(r) (((r)->nodesize - \
 			        sizeof(struct btrfs_header)) / \
-			       (sizeof(struct btrfs_disk_key) + sizeof(u64)))
+			        sizeof(struct btrfs_key_ptr))
 #define __BTRFS_LEAF_DATA_SIZE(bs) ((bs) - sizeof(struct btrfs_header))
 #define BTRFS_LEAF_DATA_SIZE(r) (__BTRFS_LEAF_DATA_SIZE(r->leafsize))
 #define BTRFS_MAX_INLINE_DATA_SIZE(r) (BTRFS_LEAF_DATA_SIZE(r) - \
@@ -168,6 +168,7 @@ struct btrfs_leaf {
 struct btrfs_key_ptr {
 	struct btrfs_disk_key key;
 	__le64 blockptr;
+	__le64 generation;
 } __attribute__ ((__packed__));
 
 struct btrfs_node {
@@ -196,7 +197,13 @@ struct btrfs_path {
  */
 struct btrfs_extent_item {
 	__le32 refs;
-	__le64 owner;
+} __attribute__ ((__packed__));
+
+struct btrfs_extent_ref {
+	__le64 root;
+	__le64 generation;
+	__le64 objectid;
+	__le64 offset;
 } __attribute__ ((__packed__));
 
 struct btrfs_inode_timespec {
@@ -402,12 +409,13 @@ struct btrfs_root {
  * are used, and how many references there are to each block
  */
 #define BTRFS_EXTENT_ITEM_KEY	33
+#define BTRFS_EXTENT_REF_KEY	34
 
 /*
  * block groups give us hints into the extent allocation trees.  Which
  * blocks are free etc etc
  */
-#define BTRFS_BLOCK_GROUP_ITEM_KEY 34
+#define BTRFS_BLOCK_GROUP_ITEM_KEY 50
 
 /*
  * string items are for debugging.  They just store a short string of
@@ -529,15 +537,25 @@ BTRFS_SETGET_FUNCS(timespec_nsec, struct btrfs_inode_timespec, nsec, 32);
 
 /* struct btrfs_extent_item */
 BTRFS_SETGET_FUNCS(extent_refs, struct btrfs_extent_item, refs, 32);
-BTRFS_SETGET_FUNCS(extent_owner, struct btrfs_extent_item, owner, 64);
+
+/* struct btrfs_extent_ref */
+BTRFS_SETGET_FUNCS(ref_root, struct btrfs_extent_ref, root, 64);
+BTRFS_SETGET_FUNCS(ref_generation, struct btrfs_extent_ref, generation, 64);
+BTRFS_SETGET_FUNCS(ref_objectid, struct btrfs_extent_ref, objectid, 64);
+BTRFS_SETGET_FUNCS(ref_offset, struct btrfs_extent_ref, offset, 64);
+
+BTRFS_SETGET_STACK_FUNCS(ref_root, struct btrfs_extent_ref, root, 64);
+BTRFS_SETGET_STACK_FUNCS(ref_generation, struct btrfs_extent_ref,
+			 generation, 64);
+BTRFS_SETGET_STACK_FUNCS(ref_objectid, struct btrfs_extent_ref, objectid, 64);
+BTRFS_SETGET_STACK_FUNCS(ref_offset, struct btrfs_extent_ref, offset, 64);
 
 BTRFS_SETGET_STACK_FUNCS(stack_extent_refs, struct btrfs_extent_item,
 			 refs, 32);
-BTRFS_SETGET_STACK_FUNCS(stack_extent_owner, struct btrfs_extent_item,
-			 owner, 64);
 
 /* struct btrfs_node */
 BTRFS_SETGET_FUNCS(key_blockptr, struct btrfs_key_ptr, blockptr, 64);
+BTRFS_SETGET_FUNCS(key_generation, struct btrfs_key_ptr, generation, 64);
 
 static inline u64 btrfs_node_blockptr(struct extent_buffer *eb, int nr)
 {
@@ -554,6 +572,23 @@ static inline void btrfs_set_node_blockptr(struct extent_buffer *eb,
 	ptr = offsetof(struct btrfs_node, ptrs) +
 		sizeof(struct btrfs_key_ptr) * nr;
 	btrfs_set_key_blockptr(eb, (struct btrfs_key_ptr *)ptr, val);
+}
+
+static inline u64 btrfs_node_ptr_generation(struct extent_buffer *eb, int nr)
+{
+	unsigned long ptr;
+	ptr = offsetof(struct btrfs_node, ptrs) +
+		sizeof(struct btrfs_key_ptr) * nr;
+	return btrfs_key_generation(eb, (struct btrfs_key_ptr *)ptr);
+}
+
+static inline void btrfs_set_node_ptr_generation(struct extent_buffer *eb,
+						 int nr, u64 val)
+{
+	unsigned long ptr;
+	ptr = offsetof(struct btrfs_node, ptrs) +
+		sizeof(struct btrfs_key_ptr) * nr;
+	btrfs_set_key_generation(eb, (struct btrfs_key_ptr *)ptr, val);
 }
 
 static inline unsigned long btrfs_node_key_ptr_offset(int nr)

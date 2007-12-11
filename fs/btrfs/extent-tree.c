@@ -17,6 +17,7 @@
  */
 
 #include <linux/sched.h>
+#include "hash.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "print-tree.h"
@@ -352,9 +353,63 @@ found:
 	return found_group;
 }
 
+static u64 hash_extent_ref(u64 root_objectid, u64 root_generation,
+			   u64 owner, u64 owner_offset)
+{
+	u32 high_crc = ~(u32)0;
+	u32 low_crc = ~(u32)0;
+	__le64 lenum;
+
+	lenum = cpu_to_le64(root_objectid);
+	high_crc = crc32c(high_crc, &lenum, sizeof(lenum));
+	lenum = cpu_to_le64(root_generation);
+	high_crc = crc32c(high_crc, &lenum, sizeof(lenum));
+
+	lenum = cpu_to_le64(owner);
+	low_crc = crc32c(low_crc, &lenum, sizeof(lenum));
+
+	lenum = cpu_to_le64(owner_offset);
+	low_crc = crc32c(low_crc, &lenum, sizeof(lenum));
+
+	return ((u64)high_crc << 32) | (u64)low_crc;
+}
+
+int insert_extent_ref(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				struct btrfs_path *path,
+				u64 bytenr,
+				u64 root_objectid, u64 root_generation,
+				u64 owner, u64 owner_offset)
+{
+	u64 hash;
+	struct btrfs_key key;
+	struct btrfs_extent_ref ref;
+	struct extent_buffer *l;
+	struct btrfs_extent_item *item;
+	int ret;
+
+	btrfs_set_stack_ref_root(&ref, root_objectid);
+	btrfs_set_stack_ref_generation(&ref, root_generation);
+	btrfs_set_stack_ref_objectid(&ref, owner);
+	btrfs_set_stack_ref_offset(&ref, owner_offset);
+
+	ret = btrfs_name_hash(&ref, sizeof(ref), &hash);
+	key.offset = hash;
+	key.objectid = bytenr;
+	key.type = BTRFS_EXTENT_REF_KEY;
+
+	ret = btrfs_insert_empty_item(trans, root, path, &key, sizeof(ref));
+	while (ret == -EEXIST) {
+
+	}
+
+}
+
 int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
-				u64 bytenr, u64 num_bytes)
+				u64 bytenr, u64 num_bytes,
+				u64 root_objectid, u64 root_generation,
+				u64 owner, u64 owner_offset)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -386,9 +441,10 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 
 	btrfs_release_path(root->fs_info->extent_root, path);
-	btrfs_free_path(path);
 	finish_current_insert(trans, root->fs_info->extent_root);
 	del_pending_extents(trans, root->fs_info->extent_root);
+
+	btrfs_free_path(path);
 	return 0;
 }
 

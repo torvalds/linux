@@ -114,6 +114,9 @@ static int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	} else {
 		btrfs_set_node_blockptr(parent, parent_slot,
 					cow->start);
+		WARN_ON(trans->transid == 0);
+		btrfs_set_node_ptr_generation(parent, parent_slot,
+					      trans->transid);
 		btrfs_mark_buffer_dirty(parent);
 		WARN_ON(btrfs_header_generation(parent) != trans->transid);
 		btrfs_free_extent(trans, root, buf->start, buf->len, 1);
@@ -967,6 +970,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 {
 	struct extent_buffer *b;
 	u64 bytenr;
+	u64 ptr_gen;
 	int slot;
 	int ret;
 	int level;
@@ -1031,10 +1035,18 @@ again:
 			if (level == lowest_level)
 				break;
 			bytenr = btrfs_node_blockptr(b, slot);
+			ptr_gen = btrfs_node_ptr_generation(b, slot);
 			if (should_reada)
 				reada_for_search(root, p, level, slot);
 			b = read_tree_block(root, bytenr,
 					    btrfs_level_size(root, level - 1));
+			if (ptr_gen != btrfs_header_generation(b)) {
+				printk("block %llu bad gen wanted %llu "
+				       "found %llu\n",
+			        (unsigned long long)b->start,
+				(unsigned long long)ptr_gen,
+			        (unsigned long long)btrfs_header_generation(b));
+			}
 		} else {
 			p->slots[level] = slot;
 			if (ins_len > 0 && btrfs_leaf_free_space(root, b) <
@@ -1218,6 +1230,8 @@ static int insert_new_root(struct btrfs_trans_handle *trans,
 		btrfs_node_key(lower, &lower_key, 0);
 	btrfs_set_node_key(c, &lower_key, 0);
 	btrfs_set_node_blockptr(c, 0, lower->start);
+	WARN_ON(btrfs_header_generation(lower) == 0);
+	btrfs_set_node_ptr_generation(c, 0, btrfs_header_generation(lower));
 
 	btrfs_mark_buffer_dirty(c);
 
@@ -1261,6 +1275,8 @@ static int insert_ptr(struct btrfs_trans_handle *trans, struct btrfs_root
 	}
 	btrfs_set_node_key(lower, key, slot);
 	btrfs_set_node_blockptr(lower, slot, bytenr);
+	WARN_ON(trans->transid == 0);
+	btrfs_set_node_ptr_generation(lower, slot, trans->transid);
 	btrfs_set_header_nritems(lower, nritems + 1);
 	btrfs_mark_buffer_dirty(lower);
 	return 0;
