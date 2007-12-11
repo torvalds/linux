@@ -709,7 +709,7 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 
 	if (*bytesleft >= sizeof(beaconsize)) {
 		/* Extract & convert beacon size from the command buffer */
-		beaconsize = le16_to_cpu(get_unaligned((u16 *)*pbeaconinfo));
+		beaconsize = le16_to_cpu(get_unaligned((__le16 *)*pbeaconinfo));
 		*bytesleft -= sizeof(beaconsize);
 		*pbeaconinfo += sizeof(beaconsize);
 	}
@@ -823,7 +823,7 @@ static int lbs_process_bss(struct bss_descriptor *bss,
 
 		case MFIE_TYPE_IBSS_SET:
 			pibss = (struct ieeetypes_ibssparamset *) pos;
-			bss->atimwindow = le32_to_cpu(pibss->atimwindow);
+			bss->atimwindow = le16_to_cpu(pibss->atimwindow);
 			memmove(&bss->ssparamset.ibssparamset, pibss,
 				sizeof(struct ieeetypes_ibssparamset));
 			lbs_deb_scan("got IBSS IE\n");
@@ -1562,12 +1562,11 @@ int lbs_ret_80211_scan(struct lbs_private *priv, struct cmd_ds_command *resp)
 		goto done;
 	}
 
-	bytesleft = le16_to_cpu(get_unaligned((u16*)&pscan->bssdescriptsize));
+	bytesleft = le16_to_cpu(pscan->bssdescriptsize);
 	lbs_deb_scan("SCAN_RESP: bssdescriptsize %d\n", bytesleft);
 
-	scanrespsize = le16_to_cpu(get_unaligned((u16*)&resp->size));
-	lbs_deb_scan("SCAN_RESP: scan results %d\n",
-	       pscan->nr_sets);
+	scanrespsize = le16_to_cpu(resp->size);
+	lbs_deb_scan("SCAN_RESP: scan results %d\n", pscan->nr_sets);
 
 	pbssinfo = pscan->bssdesc_and_tlvbuffer;
 
