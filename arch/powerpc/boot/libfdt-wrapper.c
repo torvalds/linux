@@ -48,7 +48,8 @@
 		check_err(_offset) ? NULL : (void *)(_offset+1); \
 	})
 
-#define devp_offset(devp)	(((int)(devp))-1)
+#define devp_offset_find(devp)	(((int)(devp))-1)
+#define devp_offset(devp)	(devp ? ((int)(devp))-1 : 0)
 
 static void *fdt;
 static void *buf; /* = NULL */
@@ -127,8 +128,9 @@ static void *fdt_wrapper_find_node_by_prop_value(const void *prev,
 						 const char *val,
 						 int len)
 {
-	return offset_devp(fdt_node_offset_by_prop_value(fdt, devp_offset(prev),
-							 name, val, len));
+	int offset = fdt_node_offset_by_prop_value(fdt, devp_offset_find(prev),
+	                                           name, val, len);
+	return offset_devp(offset);
 }
 
 static char *fdt_wrapper_get_path(const void *devp, char *buf, int len)
