@@ -2563,7 +2563,6 @@ void tcp_done(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(tcp_done);
 
-extern void __skb_cb_too_small_for_tcp(int, int);
 extern struct tcp_congestion_ops tcp_reno;
 
 static __initdata unsigned long thash_entries;
@@ -2582,9 +2581,7 @@ void __init tcp_init(void)
 	unsigned long limit;
 	int order, i, max_share;
 
-	if (sizeof(struct tcp_skb_cb) > sizeof(skb->cb))
-		__skb_cb_too_small_for_tcp(sizeof(struct tcp_skb_cb),
-					   sizeof(skb->cb));
+	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) > sizeof(skb->cb));
 
 	tcp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("tcp_bind_bucket",
