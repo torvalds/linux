@@ -1089,7 +1089,6 @@ int lbs_remove_card(struct lbs_private *priv)
 	lbs_remove_rtap(priv);
 
 	dev = priv->dev;
-	device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
 
 	cancel_delayed_work(&priv->scan_work);
 	cancel_delayed_work(&priv->assoc_work);
@@ -1167,6 +1166,7 @@ int lbs_stop_card(struct lbs_private *priv)
 	netif_carrier_off(priv->dev);
 
 	lbs_debugfs_remove_one(priv);
+	device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
 
 	/* Flush pending command nodes */
 	spin_lock_irqsave(&priv->driver_lock, flags);
