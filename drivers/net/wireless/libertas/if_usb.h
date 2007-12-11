@@ -1,6 +1,9 @@
 #ifndef _LBS_IF_USB_H
 #define _LBS_IF_USB_H
 
+#include <linux/wait.h>
+#include <linux/timer.h>
+
 /**
   * This file contains definition for USB interface.
   */
@@ -56,6 +59,8 @@ struct usb_card_rec {
 	u8 bulk_out_endpointAddr;
 
 	const struct firmware *fw;
+	struct timer_list fw_timeout;
+	wait_queue_head_t fw_wq;
 	u8 CRC_OK;
 	u32 fwseqnum;
 	u32 lastseqnum;

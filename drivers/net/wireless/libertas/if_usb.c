@@ -113,7 +113,18 @@ static void if_usb_set_boot2_ver(struct lbs_private *priv)
 		lbs_deb_usb("Setting boot2 version failed\n");
 }
 
+void if_usb_fw_timeo(unsigned long priv)
+{
+	struct usb_card_rec *cardp = (void *)priv;
 
+	if (cardp->fwdnldover) {
+		lbs_deb_usb("Download complete, no event. Assuming success\n");
+	} else {
+		lbs_pr_err("Download timed out\n");
+		cardp->surprise_removed = 1;
+	}
+	wake_up(&cardp->fw_wq);
+}
 /**
  *  @brief sets the configuration values
  *  @param ifnum	interface number
@@ -138,6 +149,9 @@ static int if_usb_probe(struct usb_interface *intf,
 		goto error;
 	}
 
+	setup_timer(&cardp->fw_timeout, if_usb_fw_timeo, (unsigned long)cardp);
+	init_waitqueue_head(&cardp->fw_wq);
+								     
 	cardp->udev = udev;
 	iface_desc = intf->cur_altsetting;
 
@@ -296,7 +310,7 @@ static void if_usb_disconnect(struct usb_interface *intf)
  *  @param priv		pointer to struct lbs_private
  *  @return 	   	0
  */
-static int if_prog_firmware(struct usb_card_rec *cardp)
+static int if_usb_send_fw_pkt(struct usb_card_rec *cardp)
 {
 	struct FWData *fwdata;
 	struct fwheader *fwheader;
@@ -566,19 +580,21 @@ static void if_usb_receive_fwload(struct urb *urb)
 
 	kfree_skb(skb);
 
+	/* reschedule timer for 200ms hence */
+	mod_timer(&cardp->fw_timeout, jiffies + (HZ/5));
+
 	if (cardp->fwfinalblk) {
 		cardp->fwdnldover = 1;
 		goto exit;
 	}
 
-	if_prog_firmware(cardp);
+	if_usb_send_fw_pkt(cardp);
 
 	if_usb_submit_rx_urb_fwload(cardp);
-exit:
+ exit:
 	kfree(syncfwheader);
 
 	return;
-
 }
 
 #define MRVDRV_MIN_PKT_LEN	30
@@ -911,15 +927,13 @@ restart:
 	cardp->totalbytes = 0;
 	cardp->fwfinalblk = 0;
 
-	if_prog_firmware(cardp);
+	/* Send the first firmware packet... */
+	if_usb_send_fw_pkt(cardp);
 
-	do {
-		lbs_deb_usbd(&cardp->udev->dev,"Wlan sched timeout\n");
-		i++;
-		msleep_interruptible(100);
-		if (cardp->surprise_removed || i >= 20)
-			break;
-	} while (!cardp->fwdnldover);
+	/* ... and wait for the process to complete */
+	wait_event_interruptible(cardp->fw_wq, cardp->surprise_removed || cardp->fwdnldover);
+	
+	del_timer_sync(&cardp->fw_timeout);
 
 	if (!cardp->fwdnldover) {
 		lbs_pr_info("failed to load fw, resetting device!\n");
