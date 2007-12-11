@@ -11,6 +11,7 @@
 #include "dev.h"
 #include "join.h"
 #include "wext.h"
+#include "cmd.h"
 
 static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode);
 struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
@@ -36,18 +37,78 @@ static u8 is_command_allowed_in_ps(u16 cmd)
 	return 0;
 }
 
-static int lbs_cmd_hw_spec(struct lbs_private *priv, struct cmd_ds_command *cmd)
+/**
+ *  @brief Updates the hardware details like MAC address and regulatory region
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_update_hw_spec(struct lbs_private *priv)
 {
-	struct cmd_ds_get_hw_spec *hwspec = &cmd->params.hwspec;
+	struct cmd_ds_get_hw_spec cmd;
+	int ret = -1;
+	u32 i;
+	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->command = cpu_to_le16(CMD_GET_HW_SPEC);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_get_hw_spec) + S_DS_GEN);
-	memcpy(hwspec->permanentaddr, priv->current_addr, ETH_ALEN);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	memcpy(cmd.permanentaddr, priv->current_addr, ETH_ALEN);
+	ret = lbs_cmd_with_response(priv, CMD_GET_HW_SPEC, cmd);
+	if (ret)
+		goto out;
 
+	priv->fwcapinfo = le32_to_cpu(cmd.fwcapinfo);
+	memcpy(priv->fwreleasenumber, cmd.fwreleasenumber, 4);
+
+	lbs_deb_cmd("GET_HW_SPEC: firmware release %u.%u.%up%u\n",
+		    priv->fwreleasenumber[2], priv->fwreleasenumber[1],
+		    priv->fwreleasenumber[0], priv->fwreleasenumber[3]);
+	lbs_deb_cmd("GET_HW_SPEC: MAC addr %s\n",
+		    print_mac(mac, cmd.permanentaddr));
+	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
+		    cmd.hwifversion, cmd.version);
+
+	/* Clamp region code to 8-bit since FW spec indicates that it should
+	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
+	 * returns non-zero high 8 bits here.
+	 */
+	priv->regioncode = le16_to_cpu(cmd.regioncode) & 0xFF;
+
+	for (i = 0; i < MRVDRV_MAX_REGION_CODE; i++) {
+		/* use the region code to search for the index */
+		if (priv->regioncode == lbs_region_code_to_index[i])
+			break;
+	}
+
+	/* if it's unidentified region code, use the default (USA) */
+	if (i >= MRVDRV_MAX_REGION_CODE) {
+		priv->regioncode = 0x10;
+		lbs_pr_info("unidentified region code; using the default (USA)\n");
+	}
+
+	if (priv->current_addr[0] == 0xff)
+		memmove(priv->current_addr, cmd.permanentaddr, ETH_ALEN);
+
+	memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
+	if (priv->mesh_dev)
+		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
+
+	if (lbs_set_regiontable(priv, priv->regioncode, 0)) {
+		ret = -1;
+		goto out;
+	}
+
+	if (lbs_set_universaltable(priv, 0)) {
+		ret = -1;
+		goto out;
+	}
+
+out:
 	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	return ret;
 }
 
 static int lbs_cmd_802_11_ps_mode(struct lbs_private *priv,
@@ -1223,9 +1284,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	cmdptr->result = 0;
 
 	switch (cmd_no) {
-	case CMD_GET_HW_SPEC:
-		ret = lbs_cmd_hw_spec(priv, cmdptr);
-		break;
 	case CMD_802_11_PS_MODE:
 		ret = lbs_cmd_802_11_ps_mode(priv, cmdptr, cmd_action);
 		break;

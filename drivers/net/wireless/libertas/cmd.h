@@ -22,4 +22,6 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 		     struct cmd_header *resp);
 
+int lbs_update_hw_spec(struct lbs_private *priv);
+
 #endif /* _LBS_CMD_H */

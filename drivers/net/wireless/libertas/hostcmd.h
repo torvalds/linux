@@ -119,6 +119,8 @@ struct cmd_ds_gen {
  * This structure defines the response for the GET_HW_SPEC command
  */
 struct cmd_ds_get_hw_spec {
+	struct cmd_header hdr;
+
 	/* HW Interface version number */
 	__le16 hwifversion;
 	/* HW version number */
@@ -637,7 +639,6 @@ struct cmd_ds_command {
 
 	/* command Body */
 	union {
-		struct cmd_ds_get_hw_spec hwspec;
 		struct cmd_ds_802_11_ps_mode psmode;
 		struct cmd_ds_802_11_scan scan;
 		struct cmd_ds_802_11_scan_rsp scanresp;

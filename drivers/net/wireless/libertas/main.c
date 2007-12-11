@@ -22,6 +22,7 @@
 #include "debugfs.h"
 #include "assoc.h"
 #include "join.h"
+#include "cmd.h"
 
 #define DRIVER_RELEASE_VERSION "323.p0"
 const char lbs_driver_version[] = "COMM-USB8388-" DRIVER_RELEASE_VERSION
@@ -843,10 +844,7 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 	 * Read MAC address from HW
 	 */
 	memset(priv->current_addr, 0xff, ETH_ALEN);
-
-	ret = lbs_prepare_and_send_command(priv, CMD_GET_HW_SPEC,
-				    0, CMD_OPTION_WAITFORRSP, 0, NULL);
-
+	ret = lbs_update_hw_spec(priv);
 	if (ret) {
 		ret = -1;
 		goto done;

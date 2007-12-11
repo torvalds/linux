@@ -145,69 +145,6 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 	return ret;
 }
 
-static int lbs_ret_get_hw_spec(struct lbs_private *priv,
-				struct cmd_ds_command *resp)
-{
-	u32 i;
-	struct cmd_ds_get_hw_spec *hwspec = &resp->params.hwspec;
-	int ret = 0;
-	DECLARE_MAC_BUF(mac);
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	priv->fwcapinfo = le32_to_cpu(hwspec->fwcapinfo);
-
-	memcpy(priv->fwreleasenumber, hwspec->fwreleasenumber, 4);
-
-	lbs_deb_cmd("GET_HW_SPEC: firmware release %u.%u.%up%u\n",
-		    priv->fwreleasenumber[2], priv->fwreleasenumber[1],
-		    priv->fwreleasenumber[0], priv->fwreleasenumber[3]);
-	lbs_deb_cmd("GET_HW_SPEC: MAC addr %s\n",
-		    print_mac(mac, hwspec->permanentaddr));
-	lbs_deb_cmd("GET_HW_SPEC: hardware interface 0x%x, hardware spec 0x%04x\n",
-	       hwspec->hwifversion, hwspec->version);
-
-	/* Clamp region code to 8-bit since FW spec indicates that it should
-	 * only ever be 8-bit, even though the field size is 16-bit.  Some firmware
-	 * returns non-zero high 8 bits here.
-	 */
-	priv->regioncode = le16_to_cpu(hwspec->regioncode) & 0xFF;
-
-	for (i = 0; i < MRVDRV_MAX_REGION_CODE; i++) {
-		/* use the region code to search for the index */
-		if (priv->regioncode == lbs_region_code_to_index[i]) {
-			break;
-		}
-	}
-
-	/* if it's unidentified region code, use the default (USA) */
-	if (i >= MRVDRV_MAX_REGION_CODE) {
-		priv->regioncode = 0x10;
-		lbs_pr_info("unidentified region code; using the default (USA)\n");
-	}
-
-	if (priv->current_addr[0] == 0xff)
-		memmove(priv->current_addr, hwspec->permanentaddr, ETH_ALEN);
-
-	memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
-	if (priv->mesh_dev)
-		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
-
-	if (lbs_set_regiontable(priv, priv->regioncode, 0)) {
-		ret = -1;
-		goto done;
-	}
-
-	if (lbs_set_universaltable(priv, 0)) {
-		ret = -1;
-		goto done;
-	}
-
-done:
-	lbs_deb_enter_args(LBS_DEB_CMD, "ret %d", ret);
-	return ret;
-}
-
 static int lbs_ret_802_11_sleep_params(struct lbs_private *priv,
 					struct cmd_ds_command *resp)
 {
@@ -567,10 +504,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_BBP_REG_ACCESS):
 	case CMD_RET(CMD_RF_REG_ACCESS):
 		ret = lbs_ret_reg_access(priv, respcmd, resp);
-		break;
-
-	case CMD_RET(CMD_GET_HW_SPEC):
-		ret = lbs_ret_get_hw_spec(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_SCAN):
