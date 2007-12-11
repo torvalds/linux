@@ -113,7 +113,7 @@ static void if_usb_set_boot2_ver(struct lbs_private *priv)
 		lbs_deb_usb("Setting boot2 version failed\n");
 }
 
-void if_usb_fw_timeo(unsigned long priv)
+static void if_usb_fw_timeo(unsigned long priv)
 {
 	struct usb_card_rec *cardp = (void *)priv;
 

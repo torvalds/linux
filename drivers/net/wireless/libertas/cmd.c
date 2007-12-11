@@ -14,8 +14,8 @@
 #include "cmd.h"
 
 static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode);
-struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
-void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
+static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
+static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 		    struct cmd_ctrl_node *ptempnode,
 		    u16 wait_option, void *pdata_buf);
 
@@ -1716,7 +1716,7 @@ done:
  *  @param priv		A pointer to struct lbs_private structure
  *  @return cmd_ctrl_node A pointer to cmd_ctrl_node structure or NULL
  */
-struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
+static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 {
 	struct cmd_ctrl_node *tempnode;
 	unsigned long flags;
@@ -1780,9 +1780,9 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *cmdnode)
  *  @param pdata_buf	A pointer to informaion buffer
  *  @return 		0 or -1
  */
-void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
-		    struct cmd_ctrl_node *ptempnode,
-		    u16 wait_option, void *pdata_buf)
+static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
+				  struct cmd_ctrl_node *ptempnode,
+				  u16 wait_option, void *pdata_buf)
 {
 	lbs_deb_enter(LBS_DEB_HOST);
 

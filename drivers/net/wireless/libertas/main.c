@@ -252,8 +252,8 @@ static ssize_t lbs_anycast_set(struct device *dev,
 	return strlen(buf);
 }
 
-int lbs_add_rtap(struct lbs_private *priv);
-void lbs_remove_rtap(struct lbs_private *priv);
+static int lbs_add_rtap(struct lbs_private *priv);
+static void lbs_remove_rtap(struct lbs_private *priv);
 
 /**
  * Get function for sysfs attribute rtap
@@ -1423,7 +1423,7 @@ static struct net_device_stats *lbs_rtap_get_stats(struct net_device *dev)
 }
 
 
-void lbs_remove_rtap(struct lbs_private *priv)
+static void lbs_remove_rtap(struct lbs_private *priv)
 {
 	if (priv->rtap_net_dev == NULL)
 		return;
@@ -1432,7 +1432,7 @@ void lbs_remove_rtap(struct lbs_private *priv)
 	priv->rtap_net_dev = NULL;
 }
 
-int lbs_add_rtap(struct lbs_private *priv)
+static int lbs_add_rtap(struct lbs_private *priv)
 {
 	int rc = 0;
 	struct net_device *rtap_dev;
