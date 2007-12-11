@@ -380,7 +380,7 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 	headerp->rm_xid = rqst->rq_xid;
 	headerp->rm_vers = xdr_one;
 	headerp->rm_credit = htonl(r_xprt->rx_buf.rb_max_requests);
-	headerp->rm_type = __constant_htonl(RDMA_MSG);
+	headerp->rm_type = htonl(RDMA_MSG);
 
 	/*
 	 * Chunks needed for results?
@@ -458,11 +458,11 @@ rpcrdma_marshal_req(struct rpc_rqst *rqst)
 						RPCRDMA_INLINE_PAD_VALUE(rqst));
 
 		if (padlen) {
-			headerp->rm_type = __constant_htonl(RDMA_MSGP);
+			headerp->rm_type = htonl(RDMA_MSGP);
 			headerp->rm_body.rm_padded.rm_align =
 				htonl(RPCRDMA_INLINE_PAD_VALUE(rqst));
 			headerp->rm_body.rm_padded.rm_thresh =
-				__constant_htonl(RPCRDMA_INLINE_PAD_THRESH);
+				htonl(RPCRDMA_INLINE_PAD_THRESH);
 			headerp->rm_body.rm_padded.rm_pempty[0] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[1] = xdr_zero;
 			headerp->rm_body.rm_padded.rm_pempty[2] = xdr_zero;
