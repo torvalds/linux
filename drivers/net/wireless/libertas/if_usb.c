@@ -990,11 +990,9 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 		 */
 		struct cmd_ds_mesh_access mesh_access;
 		memset(&mesh_access, 0, sizeof(mesh_access));
+
 		mesh_access.data[0] = cpu_to_le32(1);
-		lbs_prepare_and_send_command(priv,
-				CMD_MESH_ACCESS,
-				CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
-				CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+		lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED, &mesh_access);
 	}
 
 	netif_device_detach(cardp->eth_dev);
@@ -1031,10 +1029,7 @@ static int if_usb_resume(struct usb_interface *intf)
 		struct cmd_ds_mesh_access mesh_access;
 		memset(&mesh_access, 0, sizeof(mesh_access));
 		mesh_access.data[0] = cpu_to_le32(0);
-		lbs_prepare_and_send_command(priv,
-				CMD_MESH_ACCESS,
-				CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
-				CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+		lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED, &mesh_access);
 	}
 
 	lbs_deb_leave(LBS_DEB_USB);

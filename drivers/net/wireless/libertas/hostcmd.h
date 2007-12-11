@@ -623,6 +623,8 @@ struct cmd_ds_fwt_access {
 } __attribute__ ((packed));
 
 struct cmd_ds_mesh_access {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le32 data[32];	/* last position reserved */
 } __attribute__ ((packed));
@@ -687,7 +689,6 @@ struct cmd_ds_command {
 		struct cmd_tx_rate_query txrate;
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
-		struct cmd_ds_mesh_access mesh;
 		struct cmd_ds_get_tsf gettsf;
 		struct cmd_ds_802_11_subscribe_event subscribe_event;
 		struct cmd_ds_802_11_beacon_control bcn_ctrl;

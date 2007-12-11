@@ -217,13 +217,15 @@ u8 lbs_data_rate_to_fw_index(u32 rate)
 static ssize_t lbs_anycast_get(struct device *dev,
 		struct device_attribute *attr, char * buf)
 {
+	struct lbs_private *priv = to_net_dev(dev)->priv;
 	struct cmd_ds_mesh_access mesh_access;
+	int ret;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
-	lbs_prepare_and_send_command(to_net_dev(dev)->priv,
-			CMD_MESH_ACCESS,
-			CMD_ACT_MESH_GET_ANYCAST,
-			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+
+	ret = lbs_mesh_access(priv, CMD_ACT_MESH_GET_ANYCAST, &mesh_access);
+	if (ret)
+		return ret;
 
 	return snprintf(buf, 12, "0x%X\n", le32_to_cpu(mesh_access.data[0]));
 }
@@ -234,17 +236,19 @@ static ssize_t lbs_anycast_get(struct device *dev,
 static ssize_t lbs_anycast_set(struct device *dev,
 		struct device_attribute *attr, const char * buf, size_t count)
 {
+	struct lbs_private *priv = to_net_dev(dev)->priv;
 	struct cmd_ds_mesh_access mesh_access;
 	uint32_t datum;
+	int ret;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
 	sscanf(buf, "%x", &datum);
 	mesh_access.data[0] = cpu_to_le32(datum);
 
-	lbs_prepare_and_send_command((to_net_dev(dev))->priv,
-			CMD_MESH_ACCESS,
-			CMD_ACT_MESH_SET_ANYCAST,
-			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_ANYCAST, &mesh_access);
+	if (ret)
+		return ret;
+
 	return strlen(buf);
 }
 
@@ -323,14 +327,15 @@ static DEVICE_ATTR(anycast_mask, 0644, lbs_anycast_get, lbs_anycast_set);
 static ssize_t lbs_autostart_enabled_get(struct device *dev,
 		struct device_attribute *attr, char * buf)
 {
+	struct lbs_private *priv = to_net_dev(dev)->priv;
 	struct cmd_ds_mesh_access mesh_access;
+	int ret;
 
 	memset(&mesh_access, 0, sizeof(mesh_access));
-	lbs_prepare_and_send_command(to_net_dev(dev)->priv,
-			CMD_MESH_ACCESS,
-			CMD_ACT_MESH_GET_AUTOSTART_ENABLED,
-			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
 
+	ret = lbs_mesh_access(priv, CMD_ACT_MESH_GET_AUTOSTART_ENABLED, &mesh_access);
+	if (ret)
+		return ret;
 	return sprintf(buf, "%d\n", le32_to_cpu(mesh_access.data[0]));
 }
 
@@ -346,10 +351,7 @@ static ssize_t lbs_autostart_enabled_set(struct device *dev,
 	sscanf(buf, "%d", &datum);
 	mesh_access.data[0] = cpu_to_le32(datum);
 
-	ret = lbs_prepare_and_send_command(priv,
-			CMD_MESH_ACCESS,
-			CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
-			CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+	ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED, &mesh_access);
 	if (ret == 0)
 		priv->mesh_autostart_enabled = datum ? 1 : 0;
 
@@ -866,10 +868,8 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 	if (priv->mesh_dev) {
 		memset(&mesh_access, 0, sizeof(mesh_access));
 		mesh_access.data[0] = cpu_to_le32(0);
-		ret = lbs_prepare_and_send_command(priv,
-				CMD_MESH_ACCESS,
-				CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
-				CMD_OPTION_WAITFORRSP, 0, (void *)&mesh_access);
+		ret = lbs_mesh_access(priv, CMD_ACT_MESH_SET_AUTOSTART_ENABLED,
+				      &mesh_access);
 		if (ret) {
 			ret = -1;
 			goto done;

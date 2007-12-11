@@ -653,11 +653,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 			       sizeof(resp->params.fwt));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
-	case CMD_RET(CMD_MESH_ACCESS):
-		if (priv->cur_cmd->pdata_buf)
-			memcpy(priv->cur_cmd->pdata_buf, &resp->params.mesh,
-			       sizeof(resp->params.mesh));
-		break;
 	case CMD_RET(CMD_802_11_BEACON_CTRL):
 		ret = lbs_ret_802_11_bcn_ctrl(priv, resp);
 		break;

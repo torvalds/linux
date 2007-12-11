@@ -976,27 +976,25 @@ static int lbs_cmd_fwt_access(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_mesh_access(struct lbs_private *priv,
-				struct cmd_ds_command *cmd,
-				u16 cmd_action, void *pdata_buf)
+int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
+		    struct cmd_ds_mesh_access *cmd)
 {
-	struct cmd_ds_mesh_access *mesh_access = &cmd->params.mesh;
+	int ret;
+
 	lbs_deb_enter_args(LBS_DEB_CMD, "action %d", cmd_action);
 
-	cmd->command = cpu_to_le16(CMD_MESH_ACCESS);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_mesh_access) + S_DS_GEN);
-	cmd->result = 0;
+	cmd->hdr.command = cpu_to_le16(CMD_MESH_ACCESS);
+	cmd->hdr.size = cpu_to_le16(sizeof(struct cmd_ds_mesh_access) + S_DS_GEN);
+	cmd->hdr.result = 0;
 
-	if (pdata_buf)
-		memcpy(mesh_access, pdata_buf, sizeof(*mesh_access));
-	else
-		memset(mesh_access, 0, sizeof(*mesh_access));
+	cmd->action = cpu_to_le16(cmd_action);
 
-	mesh_access->action = cpu_to_le16(cmd_action);
+	ret = lbs_cmd_with_response(priv, CMD_MESH_ACCESS, (*cmd));
 
 	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	return ret;
 }
+EXPORT_SYMBOL_GPL(lbs_mesh_access);
 
 static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
 				struct cmd_ds_command *cmd,
@@ -1484,10 +1482,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_FWT_ACCESS:
 		ret = lbs_cmd_fwt_access(priv, cmdptr, cmd_action, pdata_buf);
-		break;
-
-	case CMD_MESH_ACCESS:
-		ret = lbs_cmd_mesh_access(priv, cmdptr, cmd_action, pdata_buf);
 		break;
 
 	case CMD_GET_TSF:
