@@ -2733,6 +2733,10 @@ static int __devinit snd_cmipci_mixer_new(struct cmipci *cm, int pcm_spdif_devic
 	}
 
 	/* card switches */
+	/*
+	 * newer chips don't have the register bits to force modem link
+	 * detection; the bit that was FLINKON now mutes CH1
+	 */
 	if (cm->chip_version < 39) {
 		err = snd_ctl_add(cm->card,
 				  snd_ctl_new1(&snd_cmipci_modem_switch, cm));
