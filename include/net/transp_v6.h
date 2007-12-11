@@ -19,7 +19,8 @@ struct flowi;
 /* extention headers */
 extern int				ipv6_exthdrs_init(void);
 extern void				ipv6_exthdrs_exit(void);
-extern void				ipv6_frag_init(void);
+extern int				ipv6_frag_init(void);
+extern void				ipv6_frag_exit(void);
 
 /* transport protocols */
 extern void				rawv6_init(void);

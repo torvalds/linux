@@ -863,7 +863,9 @@ static int __init inet6_init(void)
 	if (err)
 		goto ipv6_exthdrs_fail;
 
-	ipv6_frag_init();
+	err = ipv6_frag_init();
+	if (err)
+		goto ipv6_frag_fail;
 
 	/* Init v6 transport protocols. */
 	udpv6_init();
@@ -875,6 +877,8 @@ static int __init inet6_init(void)
 out:
 	return err;
 
+ipv6_frag_fail:
+	ipv6_exthdrs_exit();
 ipv6_exthdrs_fail:
 	addrconf_cleanup();
 addrconf_fail:
@@ -934,7 +938,7 @@ static void __exit inet6_exit(void)
 
 	/* Cleanup code parts. */
 	ipv6_packet_cleanup();
-
+	ipv6_frag_exit();
 	ipv6_exthdrs_exit();
 	addrconf_cleanup();
 	ip6_flowlabel_cleanup();

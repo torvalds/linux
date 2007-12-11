@@ -632,11 +632,13 @@ static struct inet6_protocol frag_protocol =
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
-void __init ipv6_frag_init(void)
+int __init ipv6_frag_init(void)
 {
-	if (inet6_add_protocol(&frag_protocol, IPPROTO_FRAGMENT) < 0)
-		printk(KERN_ERR "ipv6_frag_init: Could not register protocol\n");
+	int ret;
 
+	ret = inet6_add_protocol(&frag_protocol, IPPROTO_FRAGMENT);
+	if (ret)
+		goto out;
 	ip6_frags.ctl = &ip6_frags_ctl;
 	ip6_frags.hashfn = ip6_hashfn;
 	ip6_frags.constructor = ip6_frag_init;
@@ -646,4 +648,12 @@ void __init ipv6_frag_init(void)
 	ip6_frags.match = ip6_frag_match;
 	ip6_frags.frag_expire = ip6_frag_expire;
 	inet_frags_init(&ip6_frags);
+out:
+	return ret;
+}
+
+void ipv6_frag_exit(void)
+{
+	inet_frags_fini(&ip6_frags);
+	inet6_del_protocol(&frag_protocol, IPPROTO_FRAGMENT);
 }
