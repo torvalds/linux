@@ -350,6 +350,8 @@ struct ieee80211_tx_control {
  *	the frame.
  * @RX_FLAG_FAILED_PLCP_CRC: Set this flag if the PCLP check failed on
  *	the frame.
+ * @RX_FLAG_TSFT: The timestamp passed in the RX status (@mactime field)
+ *	is valid.
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -359,6 +361,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_IV_STRIPPED	= 1<<4,
 	RX_FLAG_FAILED_FCS_CRC	= 1<<5,
 	RX_FLAG_FAILED_PLCP_CRC = 1<<6,
+	RX_FLAG_TSFT		= 1<<7,
 };
 
 /**

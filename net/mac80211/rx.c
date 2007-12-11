@@ -79,8 +79,9 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_rate *rate;
 	int needed_headroom = 0;
-	struct ieee80211_rtap_hdr {
-		struct ieee80211_radiotap_header hdr;
+	struct ieee80211_radiotap_header *rthdr;
+	__le64 *rttsft = NULL;
+	struct ieee80211_rtap_fixed_data {
 		u8 flags;
 		u8 rate;
 		__le16 chan_freq;
@@ -88,7 +89,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		u8 antsignal;
 		u8 padding_for_rxflags;
 		__le16 rx_flags;
-	} __attribute__ ((packed)) *rthdr;
+	} __attribute__ ((packed)) *rtfixed;
 	struct sk_buff *skb, *skb2;
 	struct net_device *prev_dev = NULL;
 	int present_fcs_len = 0;
@@ -105,7 +106,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	if (status->flag & RX_FLAG_RADIOTAP)
 		rtap_len = ieee80211_get_radiotap_len(origskb->data);
 	else
-		needed_headroom = sizeof(*rthdr);
+		/* room for radiotap header, always present fields and TSFT */
+		needed_headroom = sizeof(*rthdr) + sizeof(*rtfixed) + 8;
 
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
 		present_fcs_len = FCS_LEN;
@@ -133,7 +135,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		 * them allocate enough headroom to start with.
 		 */
 		if (skb_headroom(skb) < needed_headroom &&
-		    pskb_expand_head(skb, sizeof(*rthdr), 0, GFP_ATOMIC)) {
+		    pskb_expand_head(skb, needed_headroom, 0, GFP_ATOMIC)) {
 			dev_kfree_skb(skb);
 			return NULL;
 		}
@@ -152,42 +154,56 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 
 	/* if necessary, prepend radiotap information */
 	if (!(status->flag & RX_FLAG_RADIOTAP)) {
+		rtfixed = (void *) skb_push(skb, sizeof(*rtfixed));
+		rtap_len = sizeof(*rthdr) + sizeof(*rtfixed);
+		if (status->flag & RX_FLAG_TSFT) {
+			rttsft = (void *) skb_push(skb, sizeof(*rttsft));
+			rtap_len += 8;
+		}
 		rthdr = (void *) skb_push(skb, sizeof(*rthdr));
 		memset(rthdr, 0, sizeof(*rthdr));
-		rthdr->hdr.it_len = cpu_to_le16(sizeof(*rthdr));
-		rthdr->hdr.it_present =
+		memset(rtfixed, 0, sizeof(*rtfixed));
+		rthdr->it_present =
 			cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
 				    (1 << IEEE80211_RADIOTAP_RATE) |
 				    (1 << IEEE80211_RADIOTAP_CHANNEL) |
 				    (1 << IEEE80211_RADIOTAP_DB_ANTSIGNAL) |
 				    (1 << IEEE80211_RADIOTAP_RX_FLAGS));
-		rthdr->flags = local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS ?
-			       IEEE80211_RADIOTAP_F_FCS : 0;
+		rtfixed->flags = 0;
+		if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
+			rtfixed->flags |= IEEE80211_RADIOTAP_F_FCS;
+
+		if (rttsft) {
+			*rttsft = cpu_to_le64(status->mactime);
+			rthdr->it_present |=
+				cpu_to_le32(1 << IEEE80211_RADIOTAP_TSFT);
+		}
 
 		/* FIXME: when radiotap gets a 'bad PLCP' flag use it here */
-		rthdr->rx_flags = 0;
+		rtfixed->rx_flags = 0;
 		if (status->flag &
 		    (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
-			rthdr->rx_flags |=
+			rtfixed->rx_flags |=
 				cpu_to_le16(IEEE80211_RADIOTAP_F_RX_BADFCS);
 
 		rate = ieee80211_get_rate(local, status->phymode,
 					  status->rate);
 		if (rate)
-			rthdr->rate = rate->rate / 5;
+			rtfixed->rate = rate->rate / 5;
 
-		rthdr->chan_freq = cpu_to_le16(status->freq);
+		rtfixed->chan_freq = cpu_to_le16(status->freq);
 
 		if (status->phymode == MODE_IEEE80211A)
-			rthdr->chan_flags =
+			rtfixed->chan_flags =
 				cpu_to_le16(IEEE80211_CHAN_OFDM |
 					    IEEE80211_CHAN_5GHZ);
 		else
-			rthdr->chan_flags =
+			rtfixed->chan_flags =
 				cpu_to_le16(IEEE80211_CHAN_DYN |
 					    IEEE80211_CHAN_2GHZ);
 
-		rthdr->antsignal = status->ssi;
+		rtfixed->antsignal = status->ssi;
+		rthdr->it_len = cpu_to_le16(rtap_len);
 	}
 
 	skb_set_mac_header(skb, 0);
