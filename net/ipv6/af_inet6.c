@@ -859,10 +859,11 @@ static int __init inet6_init(void)
 		goto addrconf_fail;
 
 	/* Init v6 extension headers. */
-	ipv6_rthdr_init();
+	err = ipv6_exthdrs_init();
+	if (err)
+		goto ipv6_exthdrs_fail;
+
 	ipv6_frag_init();
-	ipv6_nodata_init();
-	ipv6_destopt_init();
 
 	/* Init v6 transport protocols. */
 	udpv6_init();
@@ -874,6 +875,8 @@ static int __init inet6_init(void)
 out:
 	return err;
 
+ipv6_exthdrs_fail:
+	addrconf_cleanup();
 addrconf_fail:
 	ip6_flowlabel_cleanup();
 ip6_flowlabel_fail:
@@ -932,6 +935,7 @@ static void __exit inet6_exit(void)
 	/* Cleanup code parts. */
 	ipv6_packet_cleanup();
 
+	ipv6_exthdrs_exit();
 	addrconf_cleanup();
 	ip6_flowlabel_cleanup();
 	ip6_route_cleanup();
