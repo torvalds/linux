@@ -3723,13 +3723,32 @@ static inline void __end_request(struct request *rq, int uptodate,
 	}
 }
 
-static unsigned int rq_byte_size(struct request *rq)
+/**
+ * blk_rq_bytes - Returns bytes left to complete in the entire request
+ **/
+unsigned int blk_rq_bytes(struct request *rq)
 {
 	if (blk_fs_request(rq))
 		return rq->hard_nr_sectors << 9;
 
 	return rq->data_len;
 }
+EXPORT_SYMBOL_GPL(blk_rq_bytes);
+
+/**
+ * blk_rq_cur_bytes - Returns bytes left to complete in the current segment
+ **/
+unsigned int blk_rq_cur_bytes(struct request *rq)
+{
+	if (blk_fs_request(rq))
+		return rq->current_nr_sectors << 9;
+
+	if (rq->bio)
+		return rq->bio->bi_size;
+
+	return rq->data_len;
+}
+EXPORT_SYMBOL_GPL(blk_rq_cur_bytes);
 
 /**
  * end_queued_request - end all I/O on a queued request
@@ -3744,7 +3763,7 @@ static unsigned int rq_byte_size(struct request *rq)
  **/
 void end_queued_request(struct request *rq, int uptodate)
 {
-	__end_request(rq, uptodate, rq_byte_size(rq), 1);
+	__end_request(rq, uptodate, blk_rq_bytes(rq), 1);
 }
 EXPORT_SYMBOL(end_queued_request);
 
@@ -3761,7 +3780,7 @@ EXPORT_SYMBOL(end_queued_request);
  **/
 void end_dequeued_request(struct request *rq, int uptodate)
 {
-	__end_request(rq, uptodate, rq_byte_size(rq), 0);
+	__end_request(rq, uptodate, blk_rq_bytes(rq), 0);
 }
 EXPORT_SYMBOL(end_dequeued_request);
 
