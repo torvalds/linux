@@ -829,7 +829,7 @@ void kvm_lapic_set_base(struct kvm_vcpu *vcpu, u64 value)
 
 	/* with FSB delivery interrupt, we can restart APIC functionality */
 	apic_debug("apic base msr is 0x%016" PRIx64 ", and base address is "
-		   "0x%lx.\n", apic->apic_base, apic->base_address);
+		   "0x%lx.\n", apic->vcpu->apic_base, apic->base_address);
 
 }
 
