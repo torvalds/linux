@@ -405,9 +405,9 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 	** # of inputs/outputs ???
 	*/
 
-	int i, j, len, done, beenhere, tag,start;
+	int i, j, len, done, beenhere, tag, start;
 
-	int tuner1 = 0, t_format1 = 0, audioic=-1;
+	int tuner1 = 0, t_format1 = 0, audioic = -1;
 	char *t_name1 = NULL;
 	const char *t_fmt_name1[8] = { " none", "", "", "", "", "", "", "" };
 
@@ -418,17 +418,24 @@ void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
 	memset(tvee, 0, sizeof(*tvee));
 	done = len = beenhere = 0;
 
-	/* Hack for processing eeprom for em28xx and cx 2388x*/
-	if ((eeprom_data[0] == 0x1a) && (eeprom_data[1] == 0xeb) &&
-			(eeprom_data[2] == 0x67) && (eeprom_data[3] == 0x95))
-		start=0xa0; /* Generic em28xx offset */
-	else if (((eeprom_data[0] & 0xe1) == 0x01) &&
-					(eeprom_data[1] == 0x00) &&
-					(eeprom_data[2] == 0x00) &&
-					(eeprom_data[8] == 0x84))
-		start=8; /* Generic cx2388x offset */
+	/* Different eeprom start offsets for em28xx, cx2388x and cx23418 */
+	if (eeprom_data[0] == 0x1a &&
+	    eeprom_data[1] == 0xeb &&
+	    eeprom_data[2] == 0x67 &&
+	    eeprom_data[3] == 0x95)
+		start = 0xa0; /* Generic em28xx offset */
+	else if ((eeprom_data[0] & 0xe1) == 0x01 &&
+		 eeprom_data[1] == 0x00 &&
+		 eeprom_data[2] == 0x00 &&
+		 eeprom_data[8] == 0x84)
+		start = 8; /* Generic cx2388x offset */
+	else if (eeprom_data[1] == 0x70 &&
+		 eeprom_data[2] == 0x00 &&
+		 eeprom_data[4] == 0x74 &&
+		 eeprom_data[8] == 0x84)
+		start = 8; /* Generic cx23418 offset (models 74xxx) */
 	else
-		start=0;
+		start = 0;
 
 	for (i = start; !done && i < 256; i += len) {
 		if (eeprom_data[i] == 0x84) {
