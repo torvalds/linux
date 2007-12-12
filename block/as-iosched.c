@@ -1464,7 +1464,9 @@ static struct elevator_type iosched_as = {
 
 static int __init as_init(void)
 {
-	return elv_register(&iosched_as);
+	elv_register(&iosched_as);
+
+	return 0;
 }
 
 static void __exit as_exit(void)
