@@ -222,7 +222,7 @@ static int lbs_cmd_802_11_set_wep(struct lbs_private *priv,
 		int i;
 
 		if (!assoc_req) {
-			lbs_deb_cmd("Invalid association request!");
+			lbs_deb_cmd("Invalid association request!\n");
 			ret = -1;
 			goto done;
 		}
@@ -2088,17 +2088,17 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv, u16 psmode)
 
 	if (priv->dnld_sent) {
 		allowed = 0;
-		lbs_deb_host("dnld_sent was set");
+		lbs_deb_host("dnld_sent was set\n");
 	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	if (priv->cur_cmd) {
 		allowed = 0;
-		lbs_deb_host("cur_cmd was set");
+		lbs_deb_host("cur_cmd was set\n");
 	}
 	if (priv->intcounter > 0) {
 		allowed = 0;
-		lbs_deb_host("intcounter %d", priv->intcounter);
+		lbs_deb_host("intcounter %d\n", priv->intcounter);
 	}
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 

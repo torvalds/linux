@@ -220,7 +220,7 @@ static int if_usb_probe(struct usb_interface *intf,
 	/* Upload firmware */
 	cardp->rinfo.cardp = cardp;
 	if (if_usb_prog_firmware(cardp)) {
-		lbs_deb_usbd(&udev->dev, "FW upload failed");
+		lbs_deb_usbd(&udev->dev, "FW upload failed\n");
 		goto err_prog_firmware;
 	}
 

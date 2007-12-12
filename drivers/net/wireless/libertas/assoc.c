@@ -198,7 +198,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 
 	ret = update_channel(priv);
 	if (ret < 0) {
-		lbs_deb_assoc("ASSOC: channel: error getting channel.");
+		lbs_deb_assoc("ASSOC: channel: error getting channel.\n");
 	}
 
 	if (assoc_req->channel == priv->curbssparams.channel)
@@ -215,14 +215,14 @@ static int assoc_helper_channel(struct lbs_private *priv,
 
 	ret = lbs_set_channel(priv, assoc_req->channel);
 	if (ret < 0)
-		lbs_deb_assoc("ASSOC: channel: error setting channel.");
+		lbs_deb_assoc("ASSOC: channel: error setting channel.\n");
 
 	/* FIXME: shouldn't need to grab the channel _again_ after setting
 	 * it since the firmware is supposed to return the new channel, but
 	 * whatever... */
 	ret = update_channel(priv);
 	if (ret < 0)
-		lbs_deb_assoc("ASSOC: channel: error getting channel.");
+		lbs_deb_assoc("ASSOC: channel: error getting channel.\n");
 
 	if (assoc_req->channel != priv->curbssparams.channel) {
 		lbs_deb_assoc("ASSOC: channel: failed to update channel to %d\n",
@@ -240,7 +240,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 	}
 
 	/* Must restart/rejoin adhoc networks after channel change */
-	set_bit(ASSOC_FLAG_SSID, &assoc_req->flags);
+ 	set_bit(ASSOC_FLAG_SSID, &assoc_req->flags);
 
  restore_mesh:
 	if (priv->mesh_dev)
@@ -334,7 +334,7 @@ static int assoc_helper_secinfo(struct lbs_private *priv,
 				    CMD_OPTION_WAITFORRSP,
 				    0, &rsn);
 	if (ret) {
-		lbs_deb_assoc("Failed to get RSN status: %d", ret);
+		lbs_deb_assoc("Failed to get RSN status: %d\n", ret);
 		goto out;
 	}
 
