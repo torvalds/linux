@@ -12,6 +12,8 @@
 #include <linux/io.h>
 #include <linux/leds.h>
 
+#include <asm/processor.h>
+
 #include <cobalt.h>
 
 #define RESET_PORT	((void __iomem *)CKSEG1ADDR(0x1c000000))
@@ -34,7 +36,10 @@ void cobalt_machine_halt(void)
 	led_trigger_event(power_off_led_trigger, LED_FULL);
 
 	local_irq_disable();
-	while (1) ;
+	while (1) {
+		if (cpu_wait)
+			cpu_wait();
+	}
 }
 
 void cobalt_machine_restart(char *command)
