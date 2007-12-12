@@ -219,7 +219,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 		lbs_deb_assoc("ASSOC: channel: error getting channel.");
 
 	if (assoc_req->channel != priv->curbssparams.channel) {
-		lbs_deb_assoc("ASSOC: channel: failed to update channel to %d",
+		lbs_deb_assoc("ASSOC: channel: failed to update channel to %d\n",
 		              assoc_req->channel);
 		goto done;
 	}
