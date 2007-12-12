@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -21,6 +21,7 @@
 
 #include "gfs2.h"
 #include "incore.h"
+#include "bmap.h"
 #include "daemon.h"
 #include "glock.h"
 #include "glops.h"
@@ -302,6 +303,68 @@ out:
 	return error;
 }
 
+/**
+ * map_journal_extents - create a reusable "extent" mapping from all logical
+ * blocks to all physical blocks for the given journal.  This will save
+ * us time when writing journal blocks.  Most journals will have only one
+ * extent that maps all their logical blocks.  That's because gfs2.mkfs
+ * arranges the journal blocks sequentially to maximize performance.
+ * So the extent would map the first block for the entire file length.
+ * However, gfs2_jadd can happen while file activity is happening, so
+ * those journals may not be sequential.  Less likely is the case where
+ * the users created their own journals by mounting the metafs and
+ * laying it out.  But it's still possible.  These journals might have
+ * several extents.
+ *
+ * TODO: This should be done in bigger chunks rather than one block at a time,
+ *       but since it's only done at mount time, I'm not worried about the
+ *       time it takes.
+ */
+static int map_journal_extents(struct gfs2_sbd *sdp)
+{
+	struct gfs2_jdesc *jd = sdp->sd_jdesc;
+	unsigned int lb;
+	u64 db, prev_db; /* logical block, disk block, prev disk block */
+	struct gfs2_inode *ip = GFS2_I(jd->jd_inode);
+	struct gfs2_journal_extent *jext = NULL;
+	struct buffer_head bh;
+	int rc = 0;
+
+	INIT_LIST_HEAD(&jd->extent_list);
+	prev_db = 0;
+
+	for (lb = 0; lb < ip->i_di.di_size / sdp->sd_sb.sb_bsize; lb++) {
+		bh.b_state = 0;
+		bh.b_blocknr = 0;
+		bh.b_size = 1 << ip->i_inode.i_blkbits;
+		rc = gfs2_block_map(jd->jd_inode, lb, &bh, 0);
+		db = bh.b_blocknr;
+		if (rc || !db) {
+			printk(KERN_INFO "GFS2 journal mapping error %d: lb="
+			       "%u db=%llu\n", rc, lb, (unsigned long long)db);
+			break;
+		}
+		if (!prev_db || db != prev_db + 1) {
+			jext = kzalloc(sizeof(struct gfs2_journal_extent),
+				       GFP_KERNEL);
+			if (!jext) {
+				printk(KERN_INFO "GFS2 error: out of memory "
+				       "mapping journal extents.\n");
+				rc = -ENOMEM;
+				break;
+			}
+			jext->dblock = db;
+			jext->lblock = lb;
+			jext->blocks = 1;
+			list_add_tail(&jext->extent_list, &jd->extent_list);
+		} else {
+			jext->blocks++;
+		}
+		prev_db = db;
+	}
+	return rc;
+}
+
 static int init_journal(struct gfs2_sbd *sdp, int undo)
 {
 	struct gfs2_holder ji_gh;
@@ -377,6 +440,9 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 			goto fail_jinode_gh;
 		}
 		atomic_set(&sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks);
+
+		/* Map the extents for this journal's blocks */
+		map_journal_extents(sdp);
 	}
 
 	if (sdp->sd_lockstruct.ls_first) {

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -360,8 +360,17 @@ struct gfs2_ail {
 	u64 ai_sync_gen;
 };
 
+struct gfs2_journal_extent {
+	struct list_head extent_list;
+
+	unsigned int lblock; /* First logical block */
+	u64 dblock; /* First disk block */
+	u64 blocks;
+};
+
 struct gfs2_jdesc {
 	struct list_head jd_list;
+	struct list_head extent_list;
 
 	struct inode *jd_inode;
 	unsigned int jd_jid;
