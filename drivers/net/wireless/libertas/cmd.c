@@ -1106,7 +1106,9 @@ int lbs_mesh_config(struct lbs_private *priv, int enable)
 		cmd.length = cpu_to_le16(priv->mesh_ssid_len);
 		memcpy(cmd.data, priv->mesh_ssid, priv->mesh_ssid_len);
 	}
-
+	lbs_deb_cmd("mesh config channel %d SSID %s\n",
+		    priv->curbssparams.channel,
+		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
 	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
 }
 
