@@ -38,7 +38,7 @@ extern struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 static inline struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe,
 						   u8 addr,
 						   struct i2c_adapter *i2c,
-						   enum tda18271_i2c_gate gate);
+						   enum tda18271_i2c_gate gate)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __FUNCTION__);
 	return NULL;
