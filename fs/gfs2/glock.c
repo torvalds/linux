@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -620,26 +620,21 @@ static void run_queue(struct gfs2_glock *gl)
 
 static void gfs2_glmutex_lock(struct gfs2_glock *gl)
 {
-	struct gfs2_holder gh;
-
-	gfs2_holder_init(gl, 0, 0, &gh);
-	if (test_and_set_bit(HIF_WAIT, &gh.gh_iflags))
-		BUG();
-
 	spin_lock(&gl->gl_spin);
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags)) {
+		struct gfs2_holder gh;
+
+		gfs2_holder_init(gl, 0, 0, &gh);
+		set_bit(HIF_WAIT, &gh.gh_iflags);
 		list_add_tail(&gh.gh_list, &gl->gl_waiters1);
+		spin_unlock(&gl->gl_spin);
+		wait_on_holder(&gh);
+		gfs2_holder_uninit(&gh);
 	} else {
 		gl->gl_owner_pid = current->pid;
 		gl->gl_ip = (unsigned long)__builtin_return_address(0);
-		clear_bit(HIF_WAIT, &gh.gh_iflags);
-		smp_mb();
-		wake_up_bit(&gh.gh_iflags, HIF_WAIT);
+		spin_unlock(&gl->gl_spin);
 	}
-	spin_unlock(&gl->gl_spin);
-
-	wait_on_holder(&gh);
-	gfs2_holder_uninit(&gh);
 }
 
 /**
