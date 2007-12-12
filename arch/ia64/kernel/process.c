@@ -163,6 +163,8 @@ void tsk_clear_notify_resume(struct task_struct *tsk)
 	if (tsk->thread.pfm_needs_checking)
 		return;
 #endif
+	if (test_ti_thread_flag(task_thread_info(tsk), TIF_RESTORE_RSE))
+		return;
 	clear_ti_thread_flag(task_thread_info(tsk), TIF_NOTIFY_RESUME);
 }
 
@@ -184,6 +186,10 @@ do_notify_resume_user (sigset_t *unused, struct sigscratch *scr, long in_syscall
 	/* deal with pending signal delivery */
 	if (test_thread_flag(TIF_SIGPENDING)||test_thread_flag(TIF_RESTORE_SIGMASK))
 		ia64_do_signal(scr, in_syscall);
+
+	/* copy user rbs to kernel rbs */
+	if (unlikely(test_thread_flag(TIF_RESTORE_RSE)))
+		ia64_sync_krbs();
 }
 
 static int pal_halt        = 1;
