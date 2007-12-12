@@ -894,8 +894,6 @@ ssize_t nfs_file_direct_write(struct kiocb *iocb, const struct iovec *iov,
 	retval = generic_write_checks(file, &pos, &count, 0);
 	if (retval)
 		goto out;
-	if (!count)
-		goto out;	/* return 0 */
 
 	retval = -EINVAL;
 	if ((ssize_t) count < 0)
