@@ -390,13 +390,11 @@ static void __init of_register_i2c_devices(struct device_node *adap_node,
 static int __init fsl_i2c_of_init(void)
 {
 	struct device_node *np;
-	unsigned int i;
+	unsigned int i = 0;
 	struct platform_device *i2c_dev;
 	int ret;
 
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "i2c", "fsl-i2c")) != NULL;
-	     i++) {
+	for_each_compatible_node(np, NULL, "fsl-i2c") {
 		struct resource r[2];
 		struct fsl_i2c_platform_data i2c_data;
 		const unsigned char *flags = NULL;
@@ -432,7 +430,7 @@ static int __init fsl_i2c_of_init(void)
 		if (ret)
 			goto unreg;
 
-		of_register_i2c_devices(np, i);
+		of_register_i2c_devices(np, i++);
 	}
 
 	return 0;

@@ -59,7 +59,7 @@
 		i2c@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "i2c";
+			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <e 8>;
@@ -75,7 +75,7 @@
 		i2c@3100 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "i2c";
+			cell-index = <1>;
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <f 8>;

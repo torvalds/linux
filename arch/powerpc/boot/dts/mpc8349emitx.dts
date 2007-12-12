@@ -51,7 +51,9 @@
 		};
 
 		i2c@3000 {
-			device_type = "i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
 			compatible = "fsl-i2c";
 			reg = <3000 100>;
 			interrupts = <e 8>;
@@ -60,7 +62,9 @@
 		};
 
 		i2c@3100 {
-			device_type = "i2c";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
 			compatible = "fsl-i2c";
 			reg = <3100 100>;
 			interrupts = <f 8>;
