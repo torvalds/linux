@@ -204,6 +204,12 @@ static int assoc_helper_channel(struct lbs_private *priv,
 	if (assoc_req->channel == priv->curbssparams.channel)
 		goto done;
 
+	if (priv->mesh_dev) {
+		/* Disconnect mesh while associating -- otherwise it
+		   won't let us change channels */
+		lbs_mesh_config(priv, 0);
+	}
+
 	lbs_deb_assoc("ASSOC: channel: %d -> %d\n",
 	       priv->curbssparams.channel, assoc_req->channel);
 
@@ -221,7 +227,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 	if (assoc_req->channel != priv->curbssparams.channel) {
 		lbs_deb_assoc("ASSOC: channel: failed to update channel to %d\n",
 		              assoc_req->channel);
-		goto done;
+		goto restore_mesh;
 	}
 
 	if (   assoc_req->secinfo.wep_enabled
@@ -236,7 +242,11 @@ static int assoc_helper_channel(struct lbs_private *priv,
 	/* Must restart/rejoin adhoc networks after channel change */
 	set_bit(ASSOC_FLAG_SSID, &assoc_req->flags);
 
-done:
+ restore_mesh:
+	if (priv->mesh_dev)
+		lbs_mesh_config(priv, 1);
+
+ done:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
