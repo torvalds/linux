@@ -174,7 +174,6 @@ struct r6040_private {
 	struct net_device *dev;
 	struct mii_if_info mii_if;
 	struct napi_struct napi;
-	struct net_device_stats stats;
 	u16	napi_rx_running;
 	void __iomem *base;
 };
@@ -280,11 +279,11 @@ static struct net_device_stats *r6040_get_stats(struct net_device *dev)
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->stats.rx_crc_errors += ioread8(ioaddr + ME_CNT1);
-	priv->stats.multicast += ioread8(ioaddr + ME_CNT0);
+	dev->stats.rx_crc_errors += ioread8(ioaddr + ME_CNT1);
+	dev->stats.multicast += ioread8(ioaddr + ME_CNT0);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return &priv->stats;
+	return &dev->stats;
 }
 
 /* Stop RDC MAC and Free the allocated resource */
@@ -432,19 +431,24 @@ static int r6040_rx(struct net_device *dev, int limit)
 
 		/* Check for errors */
 		err = ioread16(ioaddr + MLSR);
-		if (err & 0x0400) priv->stats.rx_errors++;
+		if (err & 0x0400)
+			dev->stats.rx_errors++;
 		/* RX FIFO over-run */
-		if (err & 0x8000) priv->stats.rx_fifo_errors++;
+		if (err & 0x8000)
+			dev->stats.rx_fifo_errors++;
 		/* RX descriptor unavailable */
-		if (err & 0x0080) priv->stats.rx_frame_errors++;
+		if (err & 0x0080)
+			dev->stats.rx_frame_errors++;
 		/* Received packet with length over buffer lenght */
-		if (err & 0x0020) priv->stats.rx_over_errors++;
+		if (err & 0x0020)
+			dev->stats.rx_over_errors++;
 		/* Received packet with too long or short */
-		if (err & (0x0010|0x0008)) priv->stats.rx_length_errors++;
+		if (err & (0x0010 | 0x0008))
+			dev->stats.rx_length_errors++;
 		/* Received packet with CRC errors */
 		if (err & 0x0004) {
 			spin_lock(&priv->lock);
-			priv->stats.rx_crc_errors++;
+			dev->stats.rx_crc_errors++;
 			spin_unlock(&priv->lock);
 		}
 
@@ -469,8 +473,8 @@ static int r6040_rx(struct net_device *dev, int limit)
 			/* Send to upper layer */
 			netif_receive_skb(skb_ptr);
 			dev->last_rx = jiffies;
-			priv->dev->stats.rx_packets++;
-			priv->dev->stats.rx_bytes += descptr->len;
+			dev->stats.rx_packets++;
+			dev->stats.rx_bytes += descptr->len;
 			/* To next descriptor */
 			descptr = descptr->vndescp;
 			priv->rx_free_desc--;
@@ -498,8 +502,10 @@ static void r6040_tx(struct net_device *dev)
 		/* Check for errors */
 		err = ioread16(ioaddr + MLSR);
 
-		if (err & 0x0200) priv->stats.rx_fifo_errors++;
-		if (err & (0x2000 | 0x4000)) priv->stats.tx_carrier_errors++;
+		if (err & 0x0200)
+			dev->stats.rx_fifo_errors++;
+		if (err & (0x2000 | 0x4000))
+			dev->stats.tx_carrier_errors++;
 
 		if (descptr->status & 0x8000)
 			break; /* Not complte */
