@@ -251,6 +251,16 @@ struct machdep_calls {
 	 */
 	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC */
+
+#ifdef CONFIG_SUSPEND
+	/* These are called to disable and enable, respectively, IRQs when
+	 * entering a suspend state.  If NULL, then the generic versions
+	 * will be called.  The generic versions disable/enable the
+	 * decrementer along with interrupts.
+	 */
+	void (*suspend_disable_irqs)(void);
+	void (*suspend_enable_irqs)(void);
+#endif
 };
 
 extern void power4_idle(void);
@@ -346,6 +356,9 @@ static inline void log_error(char *buf, unsigned int err_type, int fatal)
 #define machine_device_initcall_sync(mach,fn)	__define_machine_initcall(mach,"6s",fn,6s)
 #define machine_late_initcall(mach,fn)		__define_machine_initcall(mach,"7",fn,7)
 #define machine_late_initcall_sync(mach,fn)	__define_machine_initcall(mach,"7s",fn,7s)
+
+void generic_suspend_disable_irqs(void);
+void generic_suspend_enable_irqs(void);
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_MACHDEP_H */

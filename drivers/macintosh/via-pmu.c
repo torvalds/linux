@@ -197,12 +197,6 @@ static int proc_read_options(char *page, char **start, off_t off,
 static int proc_write_options(struct file *file, const char __user *buffer,
 			unsigned long count, void *data);
 
-#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
-static void powerbook_sleep_init_3400(void);
-#else
-#define powerbook_sleep_init_3400()	do { } while (0)
-#endif
-
 #ifdef CONFIG_ADB
 struct adb_driver via_pmu_driver = {
 	"PMU",
@@ -449,10 +443,6 @@ static int __init via_pmu_start(void)
 	do {
 		pmu_poll();
 	} while (pmu_state != idle);
-
-	/* Do allocations and ioremaps that will be needed for sleep */
-	if (pmu_kind == PMU_OHARE_BASED)
-		powerbook_sleep_init_3400();
 
 	return 0;
 }
@@ -2168,13 +2158,7 @@ pmu_release(struct inode *inode, struct file *file)
 }
 
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
-/*
- * overrides the weak arch_suspend_disable_irqs in kernel/power/main.c
- *
- * XXX: Once Scott Wood's patch is merged, this needs to use the ppc_md
- *	hooks that patch adds!
- */
-void arch_suspend_disable_irqs(void)
+static void pmac_suspend_disable_irqs(void)
 {
 #ifdef CONFIG_PMAC_BACKLIGHT
 	/* Tell backlight code not to muck around with the chip anymore */
@@ -2184,18 +2168,6 @@ void arch_suspend_disable_irqs(void)
 	/* Call platform functions marked "on sleep" */
 	pmac_pfunc_i2c_suspend();
 	pmac_pfunc_base_suspend();
-
-	/* Stop preemption */
-	preempt_disable();
-
-	/* Make sure the decrementer won't interrupt us */
-	asm volatile("mtdec %0" : : "r" (0x7fffffff));
-	/* Make sure any pending DEC interrupt occurring while we did
-	 * the above didn't re-enable the DEC */
-	mb();
-	asm volatile("mtdec %0" : : "r" (0x7fffffff));
-
-	local_irq_disable();
 }
 
 static int powerbook_sleep(suspend_state_t state)
@@ -2244,25 +2216,13 @@ static int powerbook_sleep(suspend_state_t state)
 	return 0;
 }
 
-/*
- * overrides the weak arch_suspend_enable_irqs in kernel/power/main.c
- *
- * XXX: Once Scott Wood's patch is merged, this needs to use the ppc_md
- *	hooks that patch adds!
- */
-void arch_suspend_enable_irqs(void)
+static void pmac_suspend_enable_irqs(void)
 {
 	/* Force a poll of ADB interrupts */
 	adb_int_pending = 1;
 	via_pmu_interrupt(0, NULL);
 
-	/* Restart jiffies & scheduling */
-	wakeup_decrementer();
-
-	/* Re-enable local CPU interrupts */
-	local_irq_enable();
 	mdelay(10);
-	preempt_enable();
 
 	/* Call platform functions marked "on wake" */
 	pmac_pfunc_base_resume();
@@ -2282,6 +2242,10 @@ static struct platform_suspend_ops pmu_pm_ops = {
 
 static int register_pmu_pm_ops(void)
 {
+	if (pmu_kind == PMU_OHARE_BASED)
+		powerbook_sleep_init_3400();
+	ppc_md.suspend_disable_irqs = pmac_suspend_disable_irqs;
+	ppc_md.suspend_enable_irqs = pmac_suspend_enable_irqs;
 	suspend_set_ops(&pmu_pm_ops);
 
 	return 0;
