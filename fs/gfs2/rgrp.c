@@ -133,10 +133,9 @@ static u32 gfs2_bitfit(unsigned char *buffer, unsigned int buflen, u32 goal,
 	u32 blk = goal;
 	unsigned int bit, bitlong;
 	unsigned long *plong, plong55;
-	static int c = 0;
 
 	byte = buffer + (goal / GFS2_NBBY);
-	plong = buffer + (goal / GFS2_NBBY);
+	plong = (unsigned long *)(buffer + (goal / GFS2_NBBY));
 	bit = (goal % GFS2_NBBY) * GFS2_BIT_SIZE;
 	bitlong = bit;
 #if BITS_PER_LONG == 32
@@ -152,10 +151,8 @@ static u32 gfs2_bitfit(unsigned char *buffer, unsigned int buflen, u32 goal,
 			blk += sizeof(unsigned long) * GFS2_NBBY;
 			continue;
 		}
-		if (((*byte >> bit) & GFS2_BIT_MASK) == old_state) {
-			c++;
+		if (((*byte >> bit) & GFS2_BIT_MASK) == old_state)
 			return blk;
-		}
 		bit += GFS2_BIT_SIZE;
 		if (bit >= 8) {
 			bit = 0;
