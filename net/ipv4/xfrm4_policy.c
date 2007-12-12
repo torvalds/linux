@@ -115,7 +115,7 @@ static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
 }
 
 static void
-_decode_session4(struct sk_buff *skb, struct flowi *fl)
+_decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
@@ -131,8 +131,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 			if (pskb_may_pull(skb, xprth + 4 - skb->data)) {
 				__be16 *ports = (__be16 *)xprth;
 
-				fl->fl_ip_sport = ports[0];
-				fl->fl_ip_dport = ports[1];
+				fl->fl_ip_sport = ports[!!reverse];
+				fl->fl_ip_dport = ports[!reverse];
 			}
 			break;
 
@@ -174,8 +174,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl)
 		}
 	}
 	fl->proto = iph->protocol;
-	fl->fl4_dst = iph->daddr;
-	fl->fl4_src = iph->saddr;
+	fl->fl4_dst = reverse ? iph->saddr : iph->daddr;
+	fl->fl4_src = reverse ? iph->daddr : iph->saddr;
 	fl->fl4_tos = iph->tos;
 }
 

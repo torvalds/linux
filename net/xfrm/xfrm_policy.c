@@ -1732,8 +1732,8 @@ xfrm_policy_ok(struct xfrm_tmpl *tmpl, struct sec_path *sp, int start,
 	return start;
 }
 
-int
-xfrm_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family)
+int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
+			  unsigned int family, int reverse)
 {
 	struct xfrm_policy_afinfo *afinfo = xfrm_policy_get_afinfo(family);
 	int err;
@@ -1741,12 +1741,12 @@ xfrm_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family
 	if (unlikely(afinfo == NULL))
 		return -EAFNOSUPPORT;
 
-	afinfo->decode_session(skb, fl);
+	afinfo->decode_session(skb, fl, reverse);
 	err = security_xfrm_decode_session(skb, &fl->secid);
 	xfrm_policy_put_afinfo(afinfo);
 	return err;
 }
-EXPORT_SYMBOL(xfrm_decode_session);
+EXPORT_SYMBOL(__xfrm_decode_session);
 
 static inline int secpath_has_nontransport(struct sec_path *sp, int k, int *idxp)
 {
@@ -1768,11 +1768,16 @@ int __xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb,
 	int npols = 0;
 	int xfrm_nr;
 	int pi;
+	int reverse;
 	struct flowi fl;
-	u8 fl_dir = policy_to_flow_dir(dir);
+	u8 fl_dir;
 	int xerr_idx = -1;
 
-	if (xfrm_decode_session(skb, &fl, family) < 0)
+	reverse = dir & ~XFRM_POLICY_MASK;
+	dir &= XFRM_POLICY_MASK;
+	fl_dir = policy_to_flow_dir(dir);
+
+	if (__xfrm_decode_session(skb, &fl, family, reverse) < 0)
 		return 0;
 	nf_nat_decode_session(skb, &fl, family);
 

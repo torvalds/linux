@@ -239,7 +239,8 @@ struct xfrm_policy_afinfo {
 	int			(*get_saddr)(xfrm_address_t *saddr, xfrm_address_t *daddr);
 	struct dst_entry	*(*find_bundle)(struct flowi *fl, struct xfrm_policy *policy);
 	void			(*decode_session)(struct sk_buff *skb,
-						  struct flowi *fl);
+						  struct flowi *fl,
+						  int reverse);
 	int			(*get_tos)(struct flowi *fl);
 	int			(*fill_dst)(struct xfrm_dst *xdst,
 					    struct net_device *dev);
@@ -844,14 +845,23 @@ xfrm_state_addr_cmp(struct xfrm_tmpl *tmpl, struct xfrm_state *x, unsigned short
 #ifdef CONFIG_XFRM
 extern int __xfrm_policy_check(struct sock *, int dir, struct sk_buff *skb, unsigned short family);
 
-static inline int xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb, unsigned short family)
+static inline int __xfrm_policy_check2(struct sock *sk, int dir,
+				       struct sk_buff *skb,
+				       unsigned int family, int reverse)
 {
+	int ndir = dir | (reverse ? XFRM_POLICY_MASK + 1 : 0);
+
 	if (sk && sk->sk_policy[XFRM_POLICY_IN])
-		return __xfrm_policy_check(sk, dir, skb, family);
+		return __xfrm_policy_check(sk, ndir, skb, family);
 
 	return	(!xfrm_policy_count[dir] && !skb->sp) ||
 		(skb->dst->flags & DST_NOPOLICY) ||
-		__xfrm_policy_check(sk, dir, skb, family);
+		__xfrm_policy_check(sk, ndir, skb, family);
+}
+
+static inline int xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb, unsigned short family)
+{
+	return __xfrm_policy_check2(sk, dir, skb, family, 0);
 }
 
 static inline int xfrm4_policy_check(struct sock *sk, int dir, struct sk_buff *skb)
@@ -864,7 +874,34 @@ static inline int xfrm6_policy_check(struct sock *sk, int dir, struct sk_buff *s
 	return xfrm_policy_check(sk, dir, skb, AF_INET6);
 }
 
-extern int xfrm_decode_session(struct sk_buff *skb, struct flowi *fl, unsigned short family);
+static inline int xfrm4_policy_check_reverse(struct sock *sk, int dir,
+					     struct sk_buff *skb)
+{
+	return __xfrm_policy_check2(sk, dir, skb, AF_INET, 1);
+}
+
+static inline int xfrm6_policy_check_reverse(struct sock *sk, int dir,
+					     struct sk_buff *skb)
+{
+	return __xfrm_policy_check2(sk, dir, skb, AF_INET6, 1);
+}
+
+extern int __xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
+				 unsigned int family, int reverse);
+
+static inline int xfrm_decode_session(struct sk_buff *skb, struct flowi *fl,
+				      unsigned int family)
+{
+	return __xfrm_decode_session(skb, fl, family, 0);
+}
+
+static inline int xfrm_decode_session_reverse(struct sk_buff *skb,
+					      struct flowi *fl,
+					      unsigned int family)
+{
+	return __xfrm_decode_session(skb, fl, family, 1);
+}
+
 extern int __xfrm_route_forward(struct sk_buff *skb, unsigned short family);
 
 static inline int xfrm_route_forward(struct sk_buff *skb, unsigned short family)
@@ -922,6 +959,22 @@ static inline int xfrm4_policy_check(struct sock *sk, int dir, struct sk_buff *s
 	return 1;
 }
 static inline int xfrm_policy_check(struct sock *sk, int dir, struct sk_buff *skb, unsigned short family)
+{
+	return 1;
+}
+static inline int xfrm_decode_session_reverse(struct sk_buff *skb,
+					      struct flowi *fl,
+					      unsigned int family)
+{
+	return -ENOSYS;
+}
+static inline int xfrm4_policy_check_reverse(struct sock *sk, int dir,
+					     struct sk_buff *skb)
+{
+	return 1;
+}
+static inline int xfrm6_policy_check_reverse(struct sock *sk, int dir,
+					     struct sk_buff *skb)
 {
 	return 1;
 }

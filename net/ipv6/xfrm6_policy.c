@@ -123,7 +123,7 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
 }
 
 static inline void
-_decode_session6(struct sk_buff *skb, struct flowi *fl)
+_decode_session6(struct sk_buff *skb, struct flowi *fl, int reverse)
 {
 	u16 offset = skb_network_header_len(skb);
 	struct ipv6hdr *hdr = ipv6_hdr(skb);
@@ -132,8 +132,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 	u8 nexthdr = nh[IP6CB(skb)->nhoff];
 
 	memset(fl, 0, sizeof(struct flowi));
-	ipv6_addr_copy(&fl->fl6_dst, &hdr->daddr);
-	ipv6_addr_copy(&fl->fl6_src, &hdr->saddr);
+	ipv6_addr_copy(&fl->fl6_dst, reverse ? &hdr->saddr : &hdr->daddr);
+	ipv6_addr_copy(&fl->fl6_src, reverse ? &hdr->daddr : &hdr->saddr);
 
 	while (pskb_may_pull(skb, nh + offset + 1 - skb->data)) {
 		nh = skb_network_header(skb);
@@ -156,8 +156,8 @@ _decode_session6(struct sk_buff *skb, struct flowi *fl)
 			if (pskb_may_pull(skb, nh + offset + 4 - skb->data)) {
 				__be16 *ports = (__be16 *)exthdr;
 
-				fl->fl_ip_sport = ports[0];
-				fl->fl_ip_dport = ports[1];
+				fl->fl_ip_sport = ports[!!reverse];
+				fl->fl_ip_dport = ports[!reverse];
 			}
 			fl->proto = nexthdr;
 			return;
