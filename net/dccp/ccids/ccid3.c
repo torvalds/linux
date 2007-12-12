@@ -685,8 +685,6 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 	ktime_t now;
 	s64 delta = 0;
 
-	ccid3_pr_debug("%s(%p) - entry \n", dccp_role(sk), sk);
-
 	if (unlikely(hcrx->ccid3hcrx_state == TFRC_RSTATE_TERM))
 		return;
 
