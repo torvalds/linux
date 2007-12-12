@@ -155,8 +155,7 @@ dynamics_failed:
 			   &power_supply_attrs[psy->properties[j]]);
 statics_failed:
 	while (i--)
-		device_remove_file(psy->dev,
-			   &power_supply_static_attrs[psy->properties[i]]);
+		device_remove_file(psy->dev, &power_supply_static_attrs[i]);
 succeed:
 	return rc;
 }
@@ -166,8 +165,7 @@ void power_supply_remove_attrs(struct power_supply *psy)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(power_supply_static_attrs); i++)
-		device_remove_file(psy->dev,
-			    &power_supply_static_attrs[i]);
+		device_remove_file(psy->dev, &power_supply_static_attrs[i]);
 
 	for (i = 0; i < psy->num_properties; i++)
 		device_remove_file(psy->dev,
