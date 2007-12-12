@@ -2379,6 +2379,27 @@ bnx2_reuse_rx_skb(struct bnx2 *bp, struct sk_buff *skb,
 	prod_bd->rx_bd_haddr_lo = cons_bd->rx_bd_haddr_lo;
 }
 
+static int
+bnx2_rx_skb(struct bnx2 *bp, struct sk_buff *skb, unsigned int len,
+	    dma_addr_t dma_addr, u32 ring_idx)
+{
+	int err;
+	u16 prod = ring_idx & 0xffff;
+
+	err = bnx2_alloc_rx_skb(bp, prod);
+	if (unlikely(err)) {
+		bnx2_reuse_rx_skb(bp, skb, (u16) (ring_idx >> 16), prod);
+		return err;
+	}
+
+	skb_reserve(skb, bp->rx_offset);
+	pci_unmap_single(bp->pdev, dma_addr, bp->rx_buf_use_size,
+			 PCI_DMA_FROMDEVICE);
+
+	skb_put(skb, len);
+	return 0;
+}
+
 static inline u16
 bnx2_get_hw_rx_cons(struct bnx2 *bp)
 {
@@ -2434,7 +2455,8 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 			L2_FHDR_ERRORS_TOO_SHORT |
 			L2_FHDR_ERRORS_GIANT_FRAME)) {
 
-			goto reuse_rx;
+			bnx2_reuse_rx_skb(bp, skb, sw_ring_cons, sw_ring_prod);
+			goto next_rx;
 		}
 
 		/* Since we don't have a jumbo ring, copy small packets
@@ -2444,8 +2466,11 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 			struct sk_buff *new_skb;
 
 			new_skb = netdev_alloc_skb(bp->dev, len + 2);
-			if (new_skb == NULL)
-				goto reuse_rx;
+			if (new_skb == NULL) {
+				bnx2_reuse_rx_skb(bp, skb, sw_ring_cons,
+						  sw_ring_prod);
+				goto next_rx;
+			}
 
 			/* aligned copy */
 			skb_copy_from_linear_data_offset(skb, bp->rx_offset - 2,
@@ -2457,20 +2482,9 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 				sw_ring_cons, sw_ring_prod);
 
 			skb = new_skb;
-		}
-		else if (bnx2_alloc_rx_skb(bp, sw_ring_prod) == 0) {
-			pci_unmap_single(bp->pdev, dma_addr,
-				bp->rx_buf_use_size, PCI_DMA_FROMDEVICE);
-
-			skb_reserve(skb, bp->rx_offset);
-			skb_put(skb, len);
-		}
-		else {
-reuse_rx:
-			bnx2_reuse_rx_skb(bp, skb,
-				sw_ring_cons, sw_ring_prod);
+		} else if (unlikely(bnx2_rx_skb(bp, skb, len, dma_addr,
+				    (sw_ring_cons << 16) | sw_ring_prod)))
 			goto next_rx;
-		}
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
