@@ -259,6 +259,7 @@ struct l2_fhdr {
 		#define L2_FHDR_STATUS_TCP_SEGMENT	(1<<14)
 		#define L2_FHDR_STATUS_UDP_DATAGRAM	(1<<15)
 
+		#define L2_FHDR_STATUS_SPLIT		(1<<16)
 		#define L2_FHDR_ERRORS_BAD_CRC		(1<<17)
 		#define L2_FHDR_ERRORS_PHY_DECODE	(1<<18)
 		#define L2_FHDR_ERRORS_ALIGNMENT	(1<<19)
@@ -6537,6 +6538,7 @@ struct bnx2 {
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */
 	u32			rx_copy_thresh;
+	u32			rx_jumbo_thresh;
 	u32			rx_max_ring_idx;
 	u32			rx_max_pg_ring_idx;
 
