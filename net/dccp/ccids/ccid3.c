@@ -1,6 +1,7 @@
 /*
  *  net/dccp/ccids/ccid3.c
  *
+ *  Copyright (c) 2007   The University of Aberdeen, Scotland, UK
  *  Copyright (c) 2005-7 The University of Waikato, Hamilton, New Zealand.
  *  Copyright (c) 2005-7 Ian McDonald <ian.mcdonald@jandi.co.nz>
  *
@@ -33,11 +34,7 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
-#include "../ccid.h"
 #include "../dccp.h"
-#include "lib/packet_history.h"
-#include "lib/loss_interval.h"
-#include "lib/tfrc.h"
 #include "ccid3.h"
 
 #include <asm/unaligned.h>
@@ -757,6 +754,46 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
+/** ccid3_first_li  -  Implements [RFC 3448, 6.3.1]
+ *
+ * Determine the length of the first loss interval via inverse lookup.
+ * Assume that X_recv can be computed by the throughput equation
+ *		    s
+ *	X_recv = --------
+ *		 R * fval
+ * Find some p such that f(p) = fval; return 1/p (scaled).
+ */
+static u32 ccid3_first_li(struct sock *sk)
+{
+	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
+	u32 x_recv, p, delta;
+	u64 fval;
+
+	if (hcrx->ccid3hcrx_rtt == 0) {
+		DCCP_WARN("No RTT estimate available, using fallback RTT\n");
+		hcrx->ccid3hcrx_rtt = DCCP_FALLBACK_RTT;
+	}
+
+	delta = ktime_to_us(net_timedelta(hcrx->ccid3hcrx_tstamp_last_feedback));
+	x_recv = scaled_div32(hcrx->ccid3hcrx_bytes_recv, delta);
+	if (x_recv == 0) {		/* would also trigger divide-by-zero */
+		DCCP_WARN("X_recv==0\n");
+		if ((x_recv = hcrx->ccid3hcrx_x_recv) == 0) {
+			DCCP_BUG("stored value of X_recv is zero");
+			return ~0U;
+		}
+	}
+
+	fval = scaled_div(hcrx->ccid3hcrx_s, hcrx->ccid3hcrx_rtt);
+	fval = scaled_div32(fval, x_recv);
+	p = tfrc_calc_x_reverse_lookup(fval);
+
+	ccid3_pr_debug("%s(%p), receive rate=%u bytes/s, implied "
+		       "loss rate=%u\n", dccp_role(sk), sk, x_recv, p);
+
+	return p == 0 ? ~0U : scaled_div(1, p);
+}
+
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
@@ -794,6 +831,14 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	/*
 	 * Handle pending losses and otherwise check for new loss
 	 */
+	if (tfrc_rx_hist_loss_pending(&hcrx->ccid3hcrx_hist) &&
+	    tfrc_rx_handle_loss(&hcrx->ccid3hcrx_hist,
+				&hcrx->ccid3hcrx_li_hist,
+				skb, ndp, ccid3_first_li, sk) ) {
+		do_feedback = CCID3_FBACK_PARAM_CHANGE;
+		goto done_receiving;
+	}
+
 	if (tfrc_rx_hist_new_loss_indicated(&hcrx->ccid3hcrx_hist, skb, ndp))
 		goto update_records;
 
@@ -803,7 +848,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(!is_data_packet))
 		goto update_records;
 
-	if (list_empty(&hcrx->ccid3hcrx_li_hist)) {  /* no loss so far: p = 0 */
+	if (!tfrc_lh_is_initialised(&hcrx->ccid3hcrx_li_hist)) {
 		const u32 sample = tfrc_rx_hist_sample_rtt(&hcrx->ccid3hcrx_hist, skb);
 		/*
 		 * Empty loss history: no loss so far, hence p stays 0.
@@ -812,6 +857,13 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		 */
 		if (sample != 0)
 			hcrx->ccid3hcrx_rtt = tfrc_ewma(hcrx->ccid3hcrx_rtt, sample, 9);
+
+	} else if (tfrc_lh_update_i_mean(&hcrx->ccid3hcrx_li_hist, skb)) {
+		/*
+		 * Step (3) of [RFC 3448, 6.1]: Recompute I_mean and, if I_mean
+		 * has decreased (resp. p has increased), send feedback now.
+		 */
+		do_feedback = CCID3_FBACK_PARAM_CHANGE;
 	}
 
 	/*
@@ -823,6 +875,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 update_records:
 	tfrc_rx_hist_add_packet(&hcrx->ccid3hcrx_hist, skb, ndp);
 
+done_receiving:
 	if (do_feedback)
 		ccid3_hc_rx_send_feedback(sk, skb, do_feedback);
 }
@@ -831,10 +884,8 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid_priv(ccid);
 
-	ccid3_pr_debug("entry\n");
-
 	hcrx->ccid3hcrx_state = TFRC_RSTATE_NO_DATA;
-	INIT_LIST_HEAD(&hcrx->ccid3hcrx_li_hist);
+	tfrc_lh_init(&hcrx->ccid3hcrx_li_hist);
 	return tfrc_rx_hist_alloc(&hcrx->ccid3hcrx_hist);
 }
 
@@ -844,11 +895,8 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 	ccid3_hc_rx_set_state(sk, TFRC_RSTATE_TERM);
 
-	/* Empty packet history */
 	tfrc_rx_hist_purge(&hcrx->ccid3hcrx_hist);
-
-	/* Empty loss interval history */
-	dccp_li_hist_purge(&hcrx->ccid3hcrx_li_hist);
+	tfrc_lh_cleanup(&hcrx->ccid3hcrx_li_hist);
 }
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)

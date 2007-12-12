@@ -19,12 +19,12 @@ extern void tfrc_tx_packet_history_exit(void);
 extern int  tfrc_rx_packet_history_init(void);
 extern void tfrc_rx_packet_history_exit(void);
 
-extern int  dccp_li_init(void);
-extern void dccp_li_exit(void);
+extern int  tfrc_li_init(void);
+extern void tfrc_li_exit(void);
 
 static int __init tfrc_module_init(void)
 {
-	int rc = dccp_li_init();
+	int rc = tfrc_li_init();
 
 	if (rc)
 		goto out;
@@ -41,7 +41,7 @@ static int __init tfrc_module_init(void)
 out_free_tx_history:
 	tfrc_tx_packet_history_exit();
 out_free_loss_intervals:
-	dccp_li_exit();
+	tfrc_li_exit();
 out:
 	return rc;
 }
@@ -50,7 +50,7 @@ static void __exit tfrc_module_exit(void)
 {
 	tfrc_rx_packet_history_exit();
 	tfrc_tx_packet_history_exit();
-	dccp_li_exit();
+	tfrc_li_exit();
 }
 
 module_init(tfrc_module_init);

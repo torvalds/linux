@@ -435,18 +435,18 @@ int tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
 }
 EXPORT_SYMBOL_GPL(tfrc_lh_interval_add);
 
-int __init dccp_li_init(void)
+int __init tfrc_li_init(void)
 {
-	dccp_li_cachep = kmem_cache_create("dccp_li_hist",
-					   sizeof(struct dccp_li_hist_entry),
-					   0, SLAB_HWCACHE_ALIGN, NULL);
-	return dccp_li_cachep == NULL ? -ENOBUFS : 0;
+	tfrc_lh_slab = kmem_cache_create("tfrc_li_hist",
+					 sizeof(struct tfrc_loss_interval), 0,
+					 SLAB_HWCACHE_ALIGN, NULL);
+	return tfrc_lh_slab == NULL ? -ENOBUFS : 0;
 }
 
-void dccp_li_exit(void)
+void tfrc_li_exit(void)
 {
-	if (dccp_li_cachep != NULL) {
-		kmem_cache_destroy(dccp_li_cachep);
-		dccp_li_cachep = NULL;
+	if (tfrc_lh_slab != NULL) {
+		kmem_cache_destroy(tfrc_lh_slab);
+		tfrc_lh_slab = NULL;
 	}
 }
