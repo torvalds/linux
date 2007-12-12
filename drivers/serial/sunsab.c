@@ -832,7 +832,6 @@ static struct uart_driver sunsab_reg = {
 };
 
 static struct uart_sunsab_port *sunsab_ports;
-static int num_channels;
 
 #ifdef CONFIG_SERIAL_SUNSAB_CONSOLE
 
@@ -1102,8 +1101,8 @@ static int __init sunsab_init(void)
 {
 	struct device_node *dp;
 	int err;
+	int num_channels = 0;
 
-	num_channels = 0;
 	for_each_node_by_name(dp, "se")
 		num_channels += 2;
 	for_each_node_by_name(dp, "serial") {
@@ -1117,20 +1116,14 @@ static int __init sunsab_init(void)
 		if (!sunsab_ports)
 			return -ENOMEM;
 
-		sunsab_reg.minor = sunserial_current_minor;
-		sunsab_reg.nr = num_channels;
 		sunsab_reg.cons = SUNSAB_CONSOLE();
-
-		err = uart_register_driver(&sunsab_reg);
+		err = sunserial_register_minors(&sunsab_reg, num_channels);
 		if (err) {
 			kfree(sunsab_ports);
 			sunsab_ports = NULL;
 
 			return err;
 		}
-
-		sunsab_reg.tty_driver->name_base = sunsab_reg.minor - 64;
-		sunserial_current_minor += num_channels;
 	}
 
 	return of_register_driver(&sab_driver, &of_bus_type);
@@ -1139,9 +1132,8 @@ static int __init sunsab_init(void)
 static void __exit sunsab_exit(void)
 {
 	of_unregister_driver(&sab_driver);
-	if (num_channels) {
-		sunserial_current_minor -= num_channels;
-		uart_unregister_driver(&sunsab_reg);
+	if (sunsab_reg.nr) {
+		sunserial_unregister_minors(&sunsab_reg, sunsab_reg.nr);
 	}
 
 	kfree(sunsab_ports);

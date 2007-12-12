@@ -23,11 +23,36 @@
 
 #include "suncore.h"
 
-int sunserial_current_minor = 64;
+static int sunserial_current_minor = 64;
 
-EXPORT_SYMBOL(sunserial_current_minor);
+int sunserial_register_minors(struct uart_driver *drv, int count)
+{
+	int err = 0;
 
-int sunserial_console_match(struct console *con, struct device_node *dp,
+	drv->minor = sunserial_current_minor;
+	drv->nr += count;
+	/* Register the driver on the first call */
+	if (drv->nr == count)
+		err = uart_register_driver(drv);
+	if (err == 0) {
+		sunserial_current_minor += count;
+		drv->tty_driver->name_base = drv->minor - 64;
+	}
+	return err;
+}
+EXPORT_SYMBOL(sunserial_register_minors);
+
+void sunserial_unregister_minors(struct uart_driver *drv, int count)
+{
+	drv->nr -= count;
+	sunserial_current_minor -= count;
+
+	if (drv->nr == 0)
+		uart_unregister_driver(drv);
+}
+EXPORT_SYMBOL(sunserial_unregister_minors);
+
+int __init sunserial_console_match(struct console *con, struct device_node *dp,
 			    struct uart_driver *drv, int line)
 {
 	int off;
@@ -132,8 +157,6 @@ sunserial_console_termios(struct console *con)
 
 	con->cflag = cflag;
 }
-
-EXPORT_SYMBOL(sunserial_console_termios);
 
 /* Sun serial MOUSE auto baud rate detection.  */
 static struct mouse_baud_cflag {
