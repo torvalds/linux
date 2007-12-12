@@ -611,7 +611,7 @@ static inline int rx_refill(struct net_device *ndev, gfp_t gfp)
 	return i ? 0 : -ENOMEM;
 }
 
-static void rx_refill_atomic(struct net_device *ndev));
+static void rx_refill_atomic(struct net_device *ndev);
 static void fastcall rx_refill_atomic(struct net_device *ndev)
 {
 	rx_refill(ndev, GFP_ATOMIC);
