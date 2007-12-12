@@ -590,13 +590,13 @@ int lbs_scan_networks(struct lbs_private *priv,
 	netif_stop_queue(priv->dev);
 	netif_carrier_off(priv->dev);
 	if (priv->mesh_dev) {
-			netif_stop_queue(priv->mesh_dev);
-			netif_carrier_off(priv->mesh_dev);
+		netif_stop_queue(priv->mesh_dev);
+		netif_carrier_off(priv->mesh_dev);
 	}
 
 	/* Prepare to continue an interrupted scan */
 	lbs_deb_scan("chan_count %d, last_scanned_channel %d\n",
-		chan_count, priv->last_scanned_channel);
+		     chan_count, priv->last_scanned_channel);
 	curr_chans = chan_list;
 	/* advance channel list by already-scanned-channels */
 	if (priv->last_scanned_channel > 0) {
@@ -659,11 +659,13 @@ out2:
 out:
 	if (priv->connect_status == LBS_CONNECTED) {
 		netif_carrier_on(priv->dev);
-		netif_wake_queue(priv->dev);
+		if (!priv->tx_pending_len)
+			netif_wake_queue(priv->dev);
 	}
 	if (priv->mesh_dev && (priv->mesh_connect_status == LBS_CONNECTED)) {
 		netif_carrier_on(priv->mesh_dev);
-		netif_wake_queue(priv->mesh_dev);
+		if (!priv->tx_pending_len)
+			netif_wake_queue(priv->mesh_dev);
 	}
 	kfree(chan_list);
 

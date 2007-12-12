@@ -43,13 +43,14 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	msleep_interruptible(1000);
 	wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 
-	/* Free Tx and Rx packets */
-	kfree_skb(priv->currenttxskb);
-	priv->currenttxskb = NULL;
-
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);
 	netif_carrier_off(priv->dev);
+
+	/* Free Tx and Rx packets */
+	kfree_skb(priv->currenttxskb);
+	priv->currenttxskb = NULL;
+	priv->tx_pending_len = 0;
 
 	/* reset SNR/NF/RSSI values */
 	memset(priv->SNR, 0x00, sizeof(priv->SNR));
@@ -883,9 +884,10 @@ int lbs_process_event(struct lbs_private *priv)
 		}
 		lbs_pr_info("EVENT: MESH_AUTO_STARTED\n");
 		priv->mesh_connect_status = LBS_CONNECTED;
-		if (priv->mesh_open == 1) {
-			netif_wake_queue(priv->mesh_dev);
+		if (priv->mesh_open) {
 			netif_carrier_on(priv->mesh_dev);
+			if (!priv->tx_pending_len)
+				netif_wake_queue(priv->mesh_dev);
 		}
 		priv->mode = IW_MODE_ADHOC;
 		schedule_work(&priv->sync_channel);

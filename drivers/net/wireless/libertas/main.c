@@ -489,19 +489,9 @@ void lbs_host_to_card_done(struct lbs_private *priv)
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 
 	/* Wake main thread if commands are pending */
-	if (!priv->cur_cmd)
+	if (!priv->cur_cmd || priv->tx_pending_len > 0)
 		wake_up_interruptible(&priv->waitq);
 
-	/* Don't wake netif queues if we're in monitor mode and
-	   a TX packet is already pending, or if there are commands
-	   queued to be sent. */
-	if (!priv->currenttxskb && list_empty(&priv->cmdpendingq)) {
-		if (priv->dev && priv->connect_status == LBS_CONNECTED)
-			netif_wake_queue(priv->dev);
-
-		if (priv->mesh_dev && priv->mesh_connect_status == LBS_CONNECTED)
-			netif_wake_queue(priv->mesh_dev);
-	}
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 EXPORT_SYMBOL_GPL(lbs_host_to_card_done);

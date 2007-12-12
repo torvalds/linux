@@ -781,8 +781,8 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 	priv->numSNRNF = 0;
 
 	netif_carrier_on(priv->dev);
-	netif_wake_queue(priv->dev);
-
+	if (!priv->tx_pending_len)
+		netif_wake_queue(priv->dev);
 
 	memcpy(wrqu.ap_addr.sa_data, priv->curbssparams.bssid, ETH_ALEN);
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
@@ -865,7 +865,8 @@ int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,
 	priv->curbssparams.ssid_len = bss->ssid_len;
 
 	netif_carrier_on(priv->dev);
-	netif_wake_queue(priv->dev);
+	if (!priv->tx_pending_len)
+		netif_wake_queue(priv->dev);
 
 	memset(&wrqu, 0, sizeof(wrqu));
 	memcpy(wrqu.ap_addr.sa_data, priv->curbssparams.bssid, ETH_ALEN);
