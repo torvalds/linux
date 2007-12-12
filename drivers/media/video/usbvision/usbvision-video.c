@@ -1290,6 +1290,7 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 		errCode = usbvision_set_alternate(usbvision);
 		if (errCode < 0) {
 			usbvision->last_error = errCode;
+			mutex_unlock(&usbvision->lock);
 			return -EBUSY;
 		}
 
@@ -1807,6 +1808,7 @@ static int __devinit usbvision_probe(struct usb_interface *intf,
 					      usbvision->num_alt,GFP_KERNEL);
 	if (usbvision->alt_max_pkt_size == NULL) {
 		err("usbvision: out of memory!\n");
+		mutex_unlock(&usbvision->lock);
 		return -ENOMEM;
 	}
 
