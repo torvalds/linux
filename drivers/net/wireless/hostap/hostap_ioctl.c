@@ -1089,6 +1089,9 @@ static int prism2_ioctl_giwrange(struct net_device *dev,
 	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
 		IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 
+	if (local->sta_fw_ver >= PRISM2_FW_VER(1,3,1))
+		range->scan_capa = IW_SCAN_CAPA_ESSID;
+
 	return 0;
 }
 
