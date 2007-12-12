@@ -1291,6 +1291,7 @@ static struct net_protocol udp_protocol = {
 
 static struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
+	.no_policy =	1,
 };
 
 static int __init init_ipv4_mibs(void)

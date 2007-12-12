@@ -63,6 +63,7 @@
 #include <net/ip6_route.h>
 #include <net/addrconf.h>
 #include <net/icmp.h>
+#include <net/xfrm.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -86,7 +87,7 @@ static int icmpv6_rcv(struct sk_buff *skb);
 
 static struct inet6_protocol icmpv6_protocol = {
 	.handler	=	icmpv6_rcv,
-	.flags		=	INET6_PROTO_FINAL,
+	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
 static __inline__ int icmpv6_xmit_lock(void)
@@ -310,8 +311,10 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 	struct ipv6_pinfo *np;
 	struct in6_addr *saddr = NULL;
 	struct dst_entry *dst;
+	struct dst_entry *dst2;
 	struct icmp6hdr tmp_hdr;
 	struct flowi fl;
+	struct flowi fl2;
 	struct icmpv6_msg msg;
 	int iif = 0;
 	int addr_type = 0;
@@ -418,9 +421,42 @@ void icmpv6_send(struct sk_buff *skb, int type, int code, __u32 info,
 		goto out_dst_release;
 	}
 
-	if ((err = xfrm_lookup(&dst, &fl, sk, 0)) < 0)
+	/* No need to clone since we're just using its address. */
+	dst2 = dst;
+
+	err = xfrm_lookup(&dst, &fl, sk, 0);
+	switch (err) {
+	case 0:
+		if (dst != dst2)
+			goto route_done;
+		break;
+	case -EPERM:
+		dst = NULL;
+		break;
+	default:
+		goto out;
+	}
+
+	if (xfrm_decode_session_reverse(skb, &fl2, AF_INET6))
 		goto out;
 
+	if (ip6_dst_lookup(sk, &dst2, &fl))
+		goto out;
+
+	err = xfrm_lookup(&dst2, &fl, sk, XFRM_LOOKUP_ICMP);
+	if (err == -ENOENT) {
+		if (!dst)
+			goto out;
+		goto route_done;
+	}
+
+	dst_release(dst);
+	dst = dst2;
+
+	if (err)
+		goto out;
+
+route_done:
 	if (ipv6_addr_is_multicast(&fl.fl6_dst))
 		hlimit = np->mcast_hops;
 	else
@@ -608,6 +644,22 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	struct icmp6hdr *hdr;
 	int type;
 
+	if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb) &&
+	    skb->sp->xvec[skb->sp->len - 1]->props.flags & XFRM_STATE_ICMP) {
+		int nh;
+
+		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(*orig_hdr)))
+			goto drop_no_count;
+
+		nh = skb_network_offset(skb);
+		skb_set_network_header(skb, sizeof(*hdr));
+
+		if (!xfrm6_policy_check_reverse(NULL, XFRM_POLICY_IN, skb))
+			goto drop_no_count;
+
+		skb_set_network_header(skb, nh);
+	}
+
 	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INMSGS);
 
 	saddr = &ipv6_hdr(skb)->saddr;
@@ -630,8 +682,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 		}
 	}
 
-	if (!pskb_pull(skb, sizeof(struct icmp6hdr)))
-		goto discard_it;
+	__skb_pull(skb, sizeof(*hdr));
 
 	hdr = icmp6_hdr(skb);
 
@@ -717,6 +768,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 
 discard_it:
 	ICMP6_INC_STATS_BH(idev, ICMP6_MIB_INERRORS);
+drop_no_count:
 	kfree_skb(skb);
 	return 0;
 }

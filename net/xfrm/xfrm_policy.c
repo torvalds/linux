@@ -1469,11 +1469,13 @@ restart:
 			goto dropdst;
 	}
 
+	err = -ENOENT;
+
 	if (!policy) {
 		/* To accelerate a bit...  */
 		if ((dst_orig->flags & DST_NOXFRM) ||
 		    !xfrm_policy_count[XFRM_POLICY_OUT])
-			return 0;
+			goto nopol;
 
 		policy = flow_cache_lookup(fl, dst_orig->ops->family,
 					   dir, xfrm_policy_lookup);
@@ -1483,13 +1485,17 @@ restart:
 	}
 
 	if (!policy)
-		return 0;
+		goto nopol;
 
 	family = dst_orig->ops->family;
-	policy->curlft.use_time = get_seconds();
 	pols[0] = policy;
 	npols ++;
 	xfrm_nr += pols[0]->xfrm_nr;
+
+	if ((flags & XFRM_LOOKUP_ICMP) && !(policy->flags & XFRM_POLICY_ICMP))
+		goto error;
+
+	policy->curlft.use_time = get_seconds();
 
 	switch (policy->action) {
 	default:
@@ -1649,6 +1655,11 @@ dropdst:
 	dst_release(dst_orig);
 	*dst_p = NULL;
 	return err;
+
+nopol:
+	if (flags & XFRM_LOOKUP_ICMP)
+		goto dropdst;
+	return 0;
 }
 EXPORT_SYMBOL(__xfrm_lookup);
 

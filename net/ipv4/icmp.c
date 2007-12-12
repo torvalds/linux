@@ -92,6 +92,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <net/checksum.h>
+#include <net/xfrm.h>
 
 /*
  *	Build xmit assembly blocks
@@ -563,11 +564,71 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 				}
 			}
 		};
+		int err;
+		struct rtable *rt2;
+
 		security_skb_classify_flow(skb_in, &fl);
-		if (ip_route_output_key(&rt, &fl))
+		if (__ip_route_output_key(&rt, &fl))
+			goto out_unlock;
+
+		/* No need to clone since we're just using its address. */
+		rt2 = rt;
+
+		err = xfrm_lookup((struct dst_entry **)&rt, &fl, NULL, 0);
+		switch (err) {
+		case 0:
+			if (rt != rt2)
+				goto route_done;
+			break;
+		case -EPERM:
+			rt = NULL;
+			break;
+		default:
+			goto out_unlock;
+		}
+
+		if (xfrm_decode_session_reverse(skb_in, &fl, AF_INET))
+			goto out_unlock;
+
+		if (inet_addr_type(fl.fl4_src) == RTN_LOCAL)
+			err = __ip_route_output_key(&rt2, &fl);
+		else {
+			struct flowi fl2 = {};
+			struct dst_entry *odst;
+
+			fl2.fl4_dst = fl.fl4_src;
+			if (ip_route_output_key(&rt2, &fl2))
+				goto out_unlock;
+
+			/* Ugh! */
+			odst = skb_in->dst;
+			err = ip_route_input(skb_in, fl.fl4_dst, fl.fl4_src,
+					     RT_TOS(tos), rt2->u.dst.dev);
+
+			dst_release(&rt2->u.dst);
+			rt2 = (struct rtable *)skb_in->dst;
+			skb_in->dst = odst;
+		}
+
+		if (err)
+			goto out_unlock;
+
+		err = xfrm_lookup((struct dst_entry **)&rt2, &fl, NULL,
+				  XFRM_LOOKUP_ICMP);
+		if (err == -ENOENT) {
+			if (!rt)
+				goto out_unlock;
+			goto route_done;
+		}
+
+		dst_release(&rt->u.dst);
+		rt = rt2;
+
+		if (err)
 			goto out_unlock;
 	}
 
+route_done:
 	if (!icmpv4_xrlim_allow(rt, type, code))
 		goto ende;
 
@@ -916,6 +977,22 @@ int icmp_rcv(struct sk_buff *skb)
 	struct icmphdr *icmph;
 	struct rtable *rt = (struct rtable *)skb->dst;
 
+	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb) &&
+	    skb->sp->xvec[skb->sp->len - 1]->props.flags & XFRM_STATE_ICMP) {
+		int nh;
+
+		if (!pskb_may_pull(skb, sizeof(*icmph) + sizeof(struct iphdr)))
+			goto drop;
+
+		nh = skb_network_offset(skb);
+		skb_set_network_header(skb, sizeof(*icmph));
+
+		if (!xfrm4_policy_check_reverse(NULL, XFRM_POLICY_IN, skb))
+			goto drop;
+
+		skb_set_network_header(skb, nh);
+	}
+
 	ICMP_INC_STATS_BH(ICMP_MIB_INMSGS);
 
 	switch (skb->ip_summed) {
@@ -929,8 +1006,7 @@ int icmp_rcv(struct sk_buff *skb)
 			goto error;
 	}
 
-	if (!pskb_pull(skb, sizeof(struct icmphdr)))
-		goto error;
+	__skb_pull(skb, sizeof(*icmph));
 
 	icmph = icmp_hdr(skb);
 
