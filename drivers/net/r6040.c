@@ -173,7 +173,6 @@ struct r6040_private {
 	struct net_device *dev;
 	struct mii_if_info mii_if;
 	struct napi_struct napi;
-	u16	napi_rx_running;
 	void __iomem *base;
 };
 
@@ -290,7 +289,7 @@ static void rx_buf_alloc(struct r6040_private *lp, struct net_device *dev)
 
 	descptr = lp->rx_insert_ptr;
 	while (lp->rx_free_desc < RX_DCNT) {
-		descptr->skb_ptr = dev_alloc_skb(MAX_BUF_SIZE);
+		descptr->skb_ptr = netdev_alloc_skb(dev, MAX_BUF_SIZE);
 
 		if (!descptr->skb_ptr)
 			break;
@@ -584,7 +583,7 @@ static void r6040_tx(struct net_device *dev)
 			dev->stats.tx_carrier_errors++;
 
 		if (descptr->status & 0x8000)
-			break; /* Not complte */
+			break; /* Not complete */
 		skb_ptr = descptr->skb_ptr;
 		pci_unmap_single(priv->pdev, descptr->buf,
 			skb_ptr->len, PCI_DMA_TODEVICE);
@@ -627,7 +626,6 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	u16 status;
-	int handled = 1;
 
 	/* Mask off RDC MAC interrupt */
 	iowrite16(MSK_INT, ioaddr + MIER);
@@ -647,7 +645,7 @@ static irqreturn_t r6040_interrupt(int irq, void *dev_id)
 	if (status & 0x10)
 		r6040_tx(dev);
 
-	return IRQ_RETVAL(handled);
+	return IRQ_HANDLED;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
