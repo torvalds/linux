@@ -222,13 +222,14 @@ int gfs2_meta_read(struct gfs2_glock *gl, u64 blkno, int flags,
 		   struct buffer_head **bhp)
 {
 	*bhp = getbuf(gl, blkno, CREATE);
-	if (!buffer_uptodate(*bhp))
+	if (!buffer_uptodate(*bhp)) {
 		ll_rw_block(READ_META, 1, bhp);
-	if (flags & DIO_WAIT) {
-		int error = gfs2_meta_wait(gl->gl_sbd, *bhp);
-		if (error) {
-			brelse(*bhp);
-			return error;
+		if (flags & DIO_WAIT) {
+			int error = gfs2_meta_wait(gl->gl_sbd, *bhp);
+			if (error) {
+				brelse(*bhp);
+				return error;
+			}
 		}
 	}
 
