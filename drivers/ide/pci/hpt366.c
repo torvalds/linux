@@ -1,5 +1,5 @@
 /*
- * linux/drivers/ide/pci/hpt366.c		Version 1.21	Oct 23, 2007
+ * linux/drivers/ide/pci/hpt366.c		Version 1.22	Dec 4, 2007
  *
  * Copyright (C) 1999-2003		Andre Hedrick <andre@linux-ide.org>
  * Portions Copyright (C) 2001	        Sun Microsystems, Inc.
@@ -310,6 +310,8 @@ static u32 twenty_five_base_hpt36x[] = {
 	/* XFER_PIO_0 */	0xc0d08585
 };
 
+#if 0
+/* These are the timing tables from the HighPoint open source drivers... */
 static u32 thirty_three_base_hpt37x[] = {
 	/* XFER_UDMA_6 */	0x12446231,	/* 0x12646231 ?? */
 	/* XFER_UDMA_5 */	0x12446231,
@@ -369,6 +371,73 @@ static u32 sixty_six_base_hpt37x[] = {
 	/* XFER_PIO_1 */	0x0d029d26,
 	/* XFER_PIO_0 */	0x0d029d5e
 };
+#else
+/*
+ * The following are the new timing tables with PIO mode data/taskfile transfer
+ * overclocking fixed...
+ */
+
+/* This table is taken from the HPT370 data manual rev. 1.02 */
+static u32 thirty_three_base_hpt37x[] = {
+	/* XFER_UDMA_6 */	0x16455031,	/* 0x16655031 ?? */
+	/* XFER_UDMA_5 */	0x16455031,
+	/* XFER_UDMA_4 */	0x16455031,
+	/* XFER_UDMA_3 */	0x166d5031,
+	/* XFER_UDMA_2 */	0x16495031,
+	/* XFER_UDMA_1 */	0x164d5033,
+	/* XFER_UDMA_0 */	0x16515097,
+
+	/* XFER_MW_DMA_2 */	0x26515031,
+	/* XFER_MW_DMA_1 */	0x26515033,
+	/* XFER_MW_DMA_0 */	0x26515097,
+
+	/* XFER_PIO_4 */	0x06515021,
+	/* XFER_PIO_3 */	0x06515022,
+	/* XFER_PIO_2 */	0x06515033,
+	/* XFER_PIO_1 */	0x06915065,
+	/* XFER_PIO_0 */	0x06d1508a
+};
+
+static u32 fifty_base_hpt37x[] = {
+	/* XFER_UDMA_6 */	0x1a861842,
+	/* XFER_UDMA_5 */	0x1a861842,
+	/* XFER_UDMA_4 */	0x1aae1842,
+	/* XFER_UDMA_3 */	0x1a8e1842,
+	/* XFER_UDMA_2 */	0x1a0e1842,
+	/* XFER_UDMA_1 */	0x1a161854,
+	/* XFER_UDMA_0 */	0x1a1a18ea,
+
+	/* XFER_MW_DMA_2 */	0x2a821842,
+	/* XFER_MW_DMA_1 */	0x2a821854,
+	/* XFER_MW_DMA_0 */	0x2a8218ea,
+
+	/* XFER_PIO_4 */	0x0a821842,
+	/* XFER_PIO_3 */	0x0a821843,
+	/* XFER_PIO_2 */	0x0a821855,
+	/* XFER_PIO_1 */	0x0ac218a8,
+	/* XFER_PIO_0 */	0x0b02190c
+};
+
+static u32 sixty_six_base_hpt37x[] = {
+	/* XFER_UDMA_6 */	0x1c86fe62,
+	/* XFER_UDMA_5 */	0x1caefe62,	/* 0x1c8afe62 */
+	/* XFER_UDMA_4 */	0x1c8afe62,
+	/* XFER_UDMA_3 */	0x1c8efe62,
+	/* XFER_UDMA_2 */	0x1c92fe62,
+	/* XFER_UDMA_1 */	0x1c9afe62,
+	/* XFER_UDMA_0 */	0x1c82fe62,
+
+	/* XFER_MW_DMA_2 */	0x2c82fe62,
+	/* XFER_MW_DMA_1 */	0x2c82fe66,
+	/* XFER_MW_DMA_0 */	0x2c82ff2e,
+
+	/* XFER_PIO_4 */	0x0c82fe62,
+	/* XFER_PIO_3 */	0x0c82fe84,
+	/* XFER_PIO_2 */	0x0c82fea6,
+	/* XFER_PIO_1 */	0x0d02ff26,
+	/* XFER_PIO_0 */	0x0d42ff7f
+};
+#endif
 
 #define HPT366_DEBUG_DRIVE_INFO		0
 #define HPT371_ALLOW_ATA133_6		1
