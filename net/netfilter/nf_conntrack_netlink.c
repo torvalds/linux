@@ -1024,8 +1024,10 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 	}
 
 	/* setup master conntrack: this is a confirmed expectation */
-	if (master_ct)
+	if (master_ct) {
+		__set_bit(IPS_EXPECTED_BIT, &ct->status);
 		ct->master = master_ct;
+	}
 
 	add_timer(&ct->timeout);
 	nf_conntrack_hash_insert(ct);
