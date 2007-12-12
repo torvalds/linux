@@ -577,7 +577,7 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 	struct acpi_video_device_brightness *br = NULL;
 
 
-	memset(&device->cap, 0, 4);
+	memset(&device->cap, 0, sizeof(device->cap));
 
 	if (ACPI_SUCCESS(acpi_get_handle(device->dev->handle, "_ADR", &h_dummy1))) {
 		device->cap._ADR = 1;
@@ -697,7 +697,7 @@ static void acpi_video_bus_find_cap(struct acpi_video_bus *video)
 {
 	acpi_handle h_dummy1;
 
-	memset(&video->cap, 0, 4);
+	memset(&video->cap, 0, sizeof(video->cap));
 	if (ACPI_SUCCESS(acpi_get_handle(video->device->handle, "_DOS", &h_dummy1))) {
 		video->cap._DOS = 1;
 	}
