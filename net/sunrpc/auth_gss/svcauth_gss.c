@@ -975,6 +975,7 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 	struct kvec *resv = &rqstp->rq_res.head[0];
 	struct xdr_netobj tmpobj;
 	struct rsi *rsip, rsikey;
+	int ret;
 
 	/* Read the verifier; should be NULL: */
 	*authp = rpc_autherr_badverf;
@@ -1014,23 +1015,27 @@ static int svcauth_gss_handle_init(struct svc_rqst *rqstp,
 		/* No upcall result: */
 		return SVC_DROP;
 	case 0:
+		ret = SVC_DROP;
 		/* Got an answer to the upcall; use it: */
 		if (gss_write_init_verf(rqstp, rsip))
-			return SVC_DROP;
+			goto out;
 		if (resv->iov_len + 4 > PAGE_SIZE)
-			return SVC_DROP;
+			goto out;
 		svc_putnl(resv, RPC_SUCCESS);
 		if (svc_safe_putnetobj(resv, &rsip->out_handle))
-			return SVC_DROP;
+			goto out;
 		if (resv->iov_len + 3 * 4 > PAGE_SIZE)
-			return SVC_DROP;
+			goto out;
 		svc_putnl(resv, rsip->major_status);
 		svc_putnl(resv, rsip->minor_status);
 		svc_putnl(resv, GSS_SEQ_WIN);
 		if (svc_safe_putnetobj(resv, &rsip->out_token))
-			return SVC_DROP;
+			goto out;
 	}
-	return SVC_COMPLETE;
+	ret = SVC_COMPLETE;
+out:
+	cache_put(&rsip->h, &rsi_cache);
+	return ret;
 }
 
 /*
