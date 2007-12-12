@@ -1917,6 +1917,54 @@ out:
 	return ret;
 }
 
+static int lbs_mesh_get_essid(struct net_device *dev,
+			      struct iw_request_info *info,
+			      struct iw_point *dwrq, char *extra)
+{
+	struct lbs_private *priv = dev->priv;
+
+	lbs_deb_enter(LBS_DEB_WEXT);
+
+	memcpy(extra, priv->mesh_ssid, priv->mesh_ssid_len);
+
+	dwrq->length = priv->mesh_ssid_len;
+
+	dwrq->flags = 1;	/* active */
+
+	lbs_deb_leave(LBS_DEB_WEXT);
+	return 0;
+}
+
+static int lbs_mesh_set_essid(struct net_device *dev,
+			      struct iw_request_info *info,
+			      struct iw_point *dwrq, char *extra)
+{
+	struct lbs_private *priv = dev->priv;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_WEXT);
+
+	/* Check the size of the string */
+	if (dwrq->length > IW_ESSID_MAX_SIZE) {
+		ret = -E2BIG;
+		goto out;
+	}
+
+	if (!dwrq->flags || !dwrq->length) {
+		ret = -EINVAL;
+		goto out;
+	} else {
+		/* Specific SSID requested */
+		memcpy(priv->mesh_ssid, extra, dwrq->length);
+		priv->mesh_ssid_len = dwrq->length;
+	}
+
+	lbs_mesh_config(priv, 1);
+ out:
+	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
+	return ret;
+}
+
 /**
  *  @brief Connect to the AP or Ad-hoc Network with specific bssid
  *
@@ -2071,8 +2119,8 @@ static const iw_handler mesh_wlan_handler[] = {
 	(iw_handler) NULL,	/* SIOCGIWAPLIST - deprecated */
 	(iw_handler) lbs_set_scan,	/* SIOCSIWSCAN */
 	(iw_handler) lbs_get_scan,	/* SIOCGIWSCAN */
-	(iw_handler) NULL,		/* SIOCSIWESSID */
-	(iw_handler) NULL,		/* SIOCGIWESSID */
+	(iw_handler) lbs_mesh_set_essid,/* SIOCSIWESSID */
+	(iw_handler) lbs_mesh_get_essid,/* SIOCGIWESSID */
 	(iw_handler) NULL,		/* SIOCSIWNICKN */
 	(iw_handler) mesh_get_nick,	/* SIOCGIWNICKN */
 	(iw_handler) NULL,	/* -- hole -- */
