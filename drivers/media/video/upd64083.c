@@ -17,7 +17,8 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
  */
 
 #include <linux/version.h>
@@ -34,7 +35,7 @@ MODULE_DESCRIPTION("uPD64083 driver");
 MODULE_AUTHOR("T. Adachi, Takeru KOMORIYA, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug = 0;
+static int debug;
 module_param(debug, bool, 0644);
 
 MODULE_PARM_DESC(debug, "Debug level (0-1)");
@@ -85,7 +86,7 @@ static void upd64083_write(struct i2c_client *client, u8 reg, u8 val)
 
 	buf[0] = reg;
 	buf[1] = val;
-	v4l_dbg(1, debug, client, "writing reg addr: %02x val: %02x\n", reg, val);
+	v4l_dbg(1, debug, client, "write reg: %02x val: %02x\n", reg, val);
 	if (i2c_master_send(client, buf, 2) != 2)
 		v4l_err(client, "I/O error write 0x%02x/0x%02x\n", reg, val);
 }
@@ -106,7 +107,7 @@ static u8 upd64083_read(struct i2c_client *client, u8 reg)
 
 /* ------------------------------------------------------------------------ */
 
-static int upd64083_command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int upd64083_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct upd64083_state *state = i2c_get_clientdata(client);
 	struct v4l2_routing *route = arg;
@@ -142,20 +143,23 @@ static int upd64083_command(struct i2c_client *client, unsigned int cmd, void *a
 	{
 		struct v4l2_register *reg = arg;
 
-		if (!v4l2_chip_match_i2c_client(client, reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_i2c_client(client,
+				reg->match_type, reg->match_chip))
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (cmd == VIDIOC_DBG_G_REGISTER)
+		if (cmd == VIDIOC_DBG_G_REGISTER) {
 			reg->val = upd64083_read(client, reg->reg & 0xff);
-		else
-			upd64083_write(client, reg->reg & 0xff, reg->val & 0xff);
+			break;
+		}
+		upd64083_write(client, reg->reg & 0xff, reg->val & 0xff);
 		break;
 	}
 #endif
 
 	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_UPD64083, 0);
+		return v4l2_chip_ident_i2c_client(client, arg,
+				V4L2_IDENT_UPD64083, 0);
 
 	default:
 		break;
@@ -176,20 +180,19 @@ static int upd64083_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	state = kmalloc(sizeof(struct upd64083_state), GFP_KERNEL);
-	if (state == NULL) {
+	if (state == NULL)
 		return -ENOMEM;
-	}
 	i2c_set_clientdata(client, state);
 	/* Initially assume that a ghost reduction chip is present */
 	state->mode = 0;  /* YCS mode */
 	state->ext_y_adc = (1 << 5);
 	memcpy(state->regs, upd64083_init, TOT_REGS);
-	for (i = 0; i < TOT_REGS; i++) {
+	for (i = 0; i < TOT_REGS; i++)
 		upd64083_write(client, i, state->regs[i]);
-	}
 	return 0;
 }
 
