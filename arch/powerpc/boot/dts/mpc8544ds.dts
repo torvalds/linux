@@ -15,6 +15,17 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+		pci1 = &pci1;
+		pci2 = &pci2;
+		pci3 = &pci3;
+	};
+
 	cpus {
 		#cpus = <1>;
 		#address-cells = <1>;
@@ -131,7 +142,8 @@
 			phy-connection-type = "rgmii-id";
 		};
 
-		serial@4500 {
+		serial0: serial@4500 {
+			cell-index = <0>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4500 100>;
@@ -140,7 +152,8 @@
 			interrupt-parent = <&mpic>;
 		};
 
-		serial@4600 {
+		serial1: serial@4600 {
+			cell-index = <1>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4600 100>;
@@ -167,7 +180,8 @@
 		};
 	};
 
-	pci@e0008000 {
+	pci0: pci@e0008000 {
+		cell-index = <0>;
 		compatible = "fsl,mpc8540-pci";
 		device_type = "pci";
 		interrupt-map-mask = <f800 0 0 7>;
@@ -198,7 +212,8 @@
 		reg = <e0008000 1000>;
 	};
 
-	pcie@e0009000 {
+	pci1: pcie@e0009000 {
+		cell-index = <1>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -234,7 +249,8 @@
 		};
 	};
 
-	pcie@e000a000 {
+	pci2: pcie@e000a000 {
+		cell-index = <2>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -270,7 +286,8 @@
 		};
 	};
 
-	pcie@e000b000 {
+	pci3: pcie@e000b000 {
+		cell-index = <3>;
 		compatible = "fsl,mpc8548-pcie";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -380,6 +397,5 @@
 				};
 			};
 		};
-
 	};
 };

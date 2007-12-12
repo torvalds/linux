@@ -15,6 +15,14 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -137,7 +145,8 @@
 			phy-handle = < &phy4 >;
 		};
 
-		serial@4500 {
+		serial0: serial@4500 {
+			cell-index = <0>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4500 100>;
@@ -146,7 +155,8 @@
 			interrupt-parent = < &ipic >;
 		};
 
-		serial@4600 {
+		serial1: serial@4600 {
+			cell-index = <1>;
 			device_type = "serial";
 			compatible = "ns16550";
 			reg = <4600 100>;
@@ -184,7 +194,8 @@
 		};
 	};
 
-	pci@e0008500 {
+	pci0: pci@e0008500 {
+		cell-index = <1>;
 		interrupt-map-mask = <f800 0 0 7>;
 		interrupt-map = <
 

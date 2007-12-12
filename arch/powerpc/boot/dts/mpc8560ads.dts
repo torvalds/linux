@@ -16,6 +16,16 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
+	aliases {
+		ethernet0 = &enet0;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
+		serial0 = &serial0;
+		serial1 = &serial1;
+		pci0 = &pci0;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -162,7 +172,7 @@
 				compatible = "fsl,mpc8560-cpm-pic", "fsl,cpm2-pic";
 			};
 
-			serial@91a00 {
+			serial0: serial@91a00 {
 				device_type = "serial";
 				compatible = "fsl,mpc8560-scc-uart",
 				             "fsl,cpm2-scc-uart";
@@ -174,7 +184,7 @@
 				interrupt-parent = <&cpmpic>;
 			};
 
-			serial@91a20 {
+			serial1: serial@91a20 {
 				device_type = "serial";
 				compatible = "fsl,mpc8560-scc-uart",
 				             "fsl,cpm2-scc-uart";
@@ -212,7 +222,8 @@
 		};
 	};
 
-	pci@e0008000 {
+	pci0: pci@e0008000 {
+		cell-index = <0>;
 		#interrupt-cells = <1>;
 		#size-cells = <2>;
 		#address-cells = <3>;
