@@ -61,8 +61,7 @@ cpm2_map_t __iomem *cpm2_immr;
 					   of space for CPM as it is larger
 					   than on PQ2 */
 
-void
-cpm2_reset(void)
+void __init cpm2_reset(void)
 {
 #ifdef CONFIG_PPC_85xx
 	cpm2_immr = ioremap(CPM_MAP_ADDR, CPM_MAP_SIZE);
