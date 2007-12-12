@@ -1565,7 +1565,7 @@ restart:
 				xfrm_pol_put(policy);
 				return -EREMOTE;
 			}
-			if (err == -EAGAIN && flags) {
+			if (err == -EAGAIN && (flags & XFRM_LOOKUP_WAIT)) {
 				DECLARE_WAITQUEUE(wait, current);
 
 				add_wait_queue(&km_waitq, &wait);
