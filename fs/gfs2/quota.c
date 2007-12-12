@@ -1,6 +1,6 @@
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
- * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -273,7 +273,7 @@ static int bh_get(struct gfs2_quota_data *qd)
 	}
 
 	block = qd->qd_slot / sdp->sd_qc_per_block;
-	offset = qd->qd_slot % sdp->sd_qc_per_block;;
+	offset = qd->qd_slot % sdp->sd_qc_per_block;
 
 	bh_map.b_size = 1 << ip->i_inode.i_blkbits;
 	error = gfs2_block_map(&ip->i_inode, block, &bh_map, 0);
@@ -1016,7 +1016,6 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 	struct gfs2_alloc *al = &ip->i_alloc;
 	struct gfs2_quota_data *qd;
 	unsigned int x;
-	unsigned int found = 0;
 
 	if (gfs2_assert_warn(GFS2_SB(&ip->i_inode), change))
 		return;
@@ -1029,7 +1028,6 @@ void gfs2_quota_change(struct gfs2_inode *ip, s64 change,
 		if ((qd->qd_id == uid && test_bit(QDF_USER, &qd->qd_flags)) ||
 		    (qd->qd_id == gid && !test_bit(QDF_USER, &qd->qd_flags))) {
 			do_qc(qd, change);
-			found++;
 		}
 	}
 }
