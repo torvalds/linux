@@ -6,7 +6,6 @@
 
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
-#include <linux/freezer.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
@@ -653,8 +652,6 @@ static int lbs_thread(void *data)
 
 	init_waitqueue_entry(&wait, current);
 
-	set_freezable();
-
 	for (;;) {
 		int shouldsleep;
 
@@ -698,7 +695,6 @@ static int lbs_thread(void *data)
 
 		set_current_state(TASK_RUNNING);
 		remove_wait_queue(&priv->waitq, &wait);
-		try_to_freeze();
 
 		lbs_deb_thread("main-thread 333: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
 			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
