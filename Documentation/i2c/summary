@@ -1,5 +1,3 @@
-This is an explanation of what i2c is, and what is supported in this package.
-
 I2C and SMBus
 =============
 
@@ -33,52 +31,17 @@ When we talk about I2C, we use the following terms:
             Client
 
 An Algorithm driver contains general code that can be used for a whole class
-of I2C adapters. Each specific adapter driver depends on one algorithm
-driver.
+of I2C adapters. Each specific adapter driver either depends on one algorithm
+driver, or includes its own implementation.
 
 A Driver driver (yes, this sounds ridiculous, sorry) contains the general
 code to access some type of device. Each detected device gets its own
 data in the Client structure. Usually, Driver and Client are more closely
 integrated than Algorithm and Adapter.
 
-For a given configuration, you will need a driver for your I2C bus (usually
-a separate Adapter and Algorithm driver), and drivers for your I2C devices
-(usually one driver for each device). There are no I2C device drivers
-in this package. See the lm_sensors project http://www.lm-sensors.nu
-for device drivers.
+For a given configuration, you will need a driver for your I2C bus, and
+drivers for your I2C devices (usually one driver for each device).
 
 At this time, Linux only operates I2C (or SMBus) in master mode; you can't
 use these APIs to make a Linux system behave as a slave/device, either to
 speak a custom protocol or to emulate some other device.
-
-
-Included Bus Drivers
-====================
-Note that only stable drivers are patched into the kernel by 'mkpatch'.
-
-
-Base modules
-------------
-
-i2c-core: The basic I2C code, including the /proc/bus/i2c* interface
-i2c-dev:  The /dev/i2c-* interface
-i2c-proc: The /proc/sys/dev/sensors interface for device (client) drivers
-
-Algorithm drivers
------------------
-
-i2c-algo-bit:    A bit-banging algorithm
-i2c-algo-pcf:    A PCF 8584 style algorithm
-i2c-algo-ibm_ocp: An algorithm for the I2C device in IBM 4xx processors (NOT BUILT BY DEFAULT)
-
-Adapter drivers
----------------
-
-i2c-elektor:     Elektor ISA card (uses i2c-algo-pcf)
-i2c-elv:         ELV parallel port adapter (uses i2c-algo-bit)
-i2c-pcf-epp:     PCF8584 on a EPP parallel port (uses i2c-algo-pcf) (NOT mkpatched)
-i2c-philips-par: Philips style parallel port adapter (uses i2c-algo-bit)
-i2c-adap-ibm_ocp: IBM 4xx processor I2C device (uses i2c-algo-ibm_ocp) (NOT BUILT BY DEFAULT)
-i2c-pport:       Primitive parallel port adapter (uses i2c-algo-bit)
-i2c-velleman:    Velleman K8000 parallel port adapter (uses i2c-algo-bit)
-
