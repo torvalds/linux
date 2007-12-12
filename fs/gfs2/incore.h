@@ -529,7 +529,6 @@ struct gfs2_sbd {
 	/* StatFS stuff */
 
 	spinlock_t sd_statfs_spin;
-	struct mutex sd_statfs_mutex;
 	struct gfs2_statfs_change_host sd_statfs_master;
 	struct gfs2_statfs_change_host sd_statfs_local;
 	unsigned long sd_statfs_sync_time;

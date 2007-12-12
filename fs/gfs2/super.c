@@ -688,9 +688,7 @@ void gfs2_statfs_change(struct gfs2_sbd *sdp, s64 total, s64 free,
 	if (error)
 		return;
 
-	mutex_lock(&sdp->sd_statfs_mutex);
 	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
-	mutex_unlock(&sdp->sd_statfs_mutex);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	l_sc->sc_total += total;
@@ -738,9 +736,7 @@ int gfs2_statfs_sync(struct gfs2_sbd *sdp)
 	if (error)
 		goto out_bh2;
 
-	mutex_lock(&sdp->sd_statfs_mutex);
 	gfs2_trans_add_bh(l_ip->i_gl, l_bh, 1);
-	mutex_unlock(&sdp->sd_statfs_mutex);
 
 	spin_lock(&sdp->sd_statfs_spin);
 	m_sc->sc_total += l_sc->sc_total;
