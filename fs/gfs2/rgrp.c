@@ -126,40 +126,45 @@ static unsigned char gfs2_testbit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
  * Return: the block number (bitmap buffer scope) that was found
  */
 
-static u32 gfs2_bitfit(struct gfs2_rgrpd *rgd, unsigned char *buffer,
-			    unsigned int buflen, u32 goal,
-			    unsigned char old_state)
+static u32 gfs2_bitfit(unsigned char *buffer, unsigned int buflen, u32 goal,
+		       unsigned char old_state)
 {
-	unsigned char *byte, *end, alloc;
+	unsigned char *byte;
 	u32 blk = goal;
-	unsigned int bit;
+	unsigned int bit, bitlong;
+	unsigned long *plong, plong55;
+	static int c = 0;
 
 	byte = buffer + (goal / GFS2_NBBY);
+	plong = buffer + (goal / GFS2_NBBY);
 	bit = (goal % GFS2_NBBY) * GFS2_BIT_SIZE;
-	end = buffer + buflen;
-	alloc = (old_state == GFS2_BLKST_FREE) ? 0x55 : 0;
+	bitlong = bit;
+#if BITS_PER_LONG == 32
+	plong55 = 0x55555555;
+#else
+	plong55 = 0x5555555555555555;
+#endif
+	while (byte < buffer + buflen) {
 
-	while (byte < end) {
-		/* If we're looking for a free block we can eliminate all
-		   bitmap settings with 0x55, which represents four data
-		   blocks in a row.  If we're looking for a data block, we can
-		   eliminate 0x00 which corresponds to four free blocks. */
-		if ((*byte & 0x55) == alloc) {
-			blk += (8 - bit) >> 1;
-
-			bit = 0;
-			byte++;
-
+		if (bitlong == 0 && old_state == 0 && *plong == plong55) {
+			plong++;
+			byte += sizeof(unsigned long);
+			blk += sizeof(unsigned long) * GFS2_NBBY;
 			continue;
 		}
-
-		if (((*byte >> bit) & GFS2_BIT_MASK) == old_state)
+		if (((*byte >> bit) & GFS2_BIT_MASK) == old_state) {
+			c++;
 			return blk;
-
+		}
 		bit += GFS2_BIT_SIZE;
 		if (bit >= 8) {
 			bit = 0;
 			byte++;
+		}
+		bitlong += GFS2_BIT_SIZE;
+		if (bitlong >= sizeof(unsigned long) * 8) {
+			bitlong = 0;
+			plong++;
 		}
 
 		blk++;
@@ -1318,11 +1323,10 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 		/* The GFS2_BLKST_UNLINKED state doesn't apply to the clone
 		   bitmaps, so we must search the originals for that. */
 		if (old_state != GFS2_BLKST_UNLINKED && bi->bi_clone)
-			blk = gfs2_bitfit(rgd, bi->bi_clone + bi->bi_offset,
+			blk = gfs2_bitfit(bi->bi_clone + bi->bi_offset,
 					  bi->bi_len, goal, old_state);
 		else
-			blk = gfs2_bitfit(rgd,
-					  bi->bi_bh->b_data + bi->bi_offset,
+			blk = gfs2_bitfit(bi->bi_bh->b_data + bi->bi_offset,
 					  bi->bi_len, goal, old_state);
 		if (blk != BFITNOENT)
 			break;
