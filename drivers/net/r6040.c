@@ -234,6 +234,38 @@ static void mdio_write(struct net_device *dev, int mii_id, int reg, int val)
 	phy_write(ioaddr, lp->phy_addr, reg, val);
 }
 
+static void r6040_free_txbufs(struct net_device *dev)
+{
+	struct r6040_private *lp = netdev_priv(dev);
+	int i;
+
+	for (i = 0; i < TX_DCNT; i++) {
+		if (lp->tx_insert_ptr->skb_ptr) {
+			pci_unmap_single(lp->pdev, lp->tx_insert_ptr->buf,
+				MAX_BUF_SIZE, PCI_DMA_TODEVICE);
+			dev_kfree_skb(lp->tx_insert_ptr->skb_ptr);
+			lp->rx_insert_ptr->skb_ptr = NULL;
+		}
+		lp->tx_insert_ptr = lp->tx_insert_ptr->vndescp;
+	}
+}
+
+static void r6040_free_rxbufs(struct net_device *dev)
+{
+	struct r6040_private *lp = netdev_priv(dev);
+	int i;
+
+	for (i = 0; i < RX_DCNT; i++) {
+		if (lp->rx_insert_ptr->skb_ptr) {
+			pci_unmap_single(lp->pdev, lp->rx_insert_ptr->buf,
+				MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
+			dev_kfree_skb(lp->rx_insert_ptr->skb_ptr);
+			lp->rx_insert_ptr->skb_ptr = NULL;
+		}
+		lp->rx_insert_ptr = lp->rx_insert_ptr->vndescp;
+	}
+}
+
 static void r6040_tx_timeout(struct net_device *dev)
 {
 	struct r6040_private *priv = netdev_priv(dev);
@@ -245,6 +277,23 @@ static void r6040_tx_timeout(struct net_device *dev)
 	spin_unlock(&priv->lock);
 
 	netif_stop_queue(dev);
+}
+
+static void r6040_init_ring_desc(struct r6040_descriptor *desc_ring,
+				 dma_addr_t desc_dma, int size)
+{
+	struct r6040_descriptor *desc = desc_ring;
+	dma_addr_t mapping = desc_dma;
+
+	while (size-- > 0) {
+		mapping += sizeof(sizeof(*desc));
+		desc->ndesc = cpu_to_le32(mapping);
+		desc->vndescp = desc + 1;
+		desc++;
+	}
+	desc--;
+	desc->ndesc = cpu_to_le32(desc_dma);
+	desc->vndescp = desc_ring;
 }
 
 /* Allocate skb buffer for rx descriptor */
@@ -271,6 +320,35 @@ static void rx_buf_alloc(struct r6040_private *lp, struct net_device *dev)
 	lp->rx_insert_ptr = descptr;
 }
 
+static void r6040_alloc_txbufs(struct net_device *dev)
+{
+	struct r6040_private *lp = netdev_priv(dev);
+	void __iomem *ioaddr = lp->base;
+
+	lp->tx_free_desc = TX_DCNT;
+
+	lp->tx_remove_ptr = lp->tx_insert_ptr = lp->tx_ring;
+	r6040_init_ring_desc(lp->tx_ring, lp->tx_ring_dma, TX_DCNT);
+
+	iowrite16(lp->tx_ring_dma, ioaddr + MTD_SA0);
+	iowrite16(lp->tx_ring_dma >> 16, ioaddr + MTD_SA1);
+}
+
+static void r6040_alloc_rxbufs(struct net_device *dev)
+{
+	struct r6040_private *lp = netdev_priv(dev);
+	void __iomem *ioaddr = lp->base;
+
+	lp->rx_free_desc = 0;
+
+	lp->rx_remove_ptr = lp->rx_insert_ptr = lp->rx_ring;
+	r6040_init_ring_desc(lp->rx_ring, lp->rx_ring_dma, RX_DCNT);
+
+	rx_buf_alloc(lp, dev);
+
+	iowrite16(lp->rx_ring_dma, ioaddr + MRD_SA0);
+	iowrite16(lp->rx_ring_dma >> 16, ioaddr + MRD_SA1);
+}
 
 static struct net_device_stats *r6040_get_stats(struct net_device *dev)
 {
@@ -292,7 +370,6 @@ static void r6040_down(struct net_device *dev)
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	struct pci_dev *pdev = lp->pdev;
-	int i;
 	int limit = 2048;
 	u16 *adrp;
 	u16 cmd;
@@ -312,27 +389,12 @@ static void r6040_down(struct net_device *dev)
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
 	free_irq(dev->irq, dev);
+
 	/* Free RX buffer */
-	for (i = 0; i < RX_DCNT; i++) {
-		if (lp->rx_insert_ptr->skb_ptr) {
-			pci_unmap_single(lp->pdev, lp->rx_insert_ptr->buf,
-				MAX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-			dev_kfree_skb(lp->rx_insert_ptr->skb_ptr);
-			lp->rx_insert_ptr->skb_ptr = NULL;
-		}
-		lp->rx_insert_ptr = lp->rx_insert_ptr->vndescp;
-	}
+	r6040_free_rxbufs(dev);
 
 	/* Free TX buffer */
-	for (i = 0; i < TX_DCNT; i++) {
-		if (lp->tx_insert_ptr->skb_ptr) {
-			pci_unmap_single(lp->pdev, lp->tx_insert_ptr->buf,
-				MAX_BUF_SIZE, PCI_DMA_TODEVICE);
-			dev_kfree_skb(lp->tx_insert_ptr->skb_ptr);
-			lp->rx_insert_ptr->skb_ptr = NULL;
-		}
-		lp->tx_insert_ptr = lp->tx_insert_ptr->vndescp;
-	}
+	r6040_free_txbufs(dev);
 
 	/* Free Descriptor memory */
 	pci_free_consistent(pdev, RX_DESC_SIZE, lp->rx_ring, lp->rx_ring_dma);
@@ -583,53 +645,15 @@ static void r6040_poll_controller(struct net_device *dev)
 }
 #endif
 
-static void r6040_init_ring_desc(struct r6040_descriptor *desc_ring,
-				 dma_addr_t desc_dma, int size)
-{
-	struct r6040_descriptor *desc = desc_ring;
-	dma_addr_t mapping = desc_dma;
-
-	while (size-- > 0) {
-		mapping += sizeof(sizeof(*desc));
-		desc->ndesc = cpu_to_le32(mapping);
-		desc->vndescp = desc + 1;
-		desc++;
-	}
-	desc--;
-	desc->ndesc = cpu_to_le32(desc_dma);
-	desc->vndescp = desc_ring;
-}
-
 /* Init RDC MAC */
 static void r6040_up(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 
-	/* Initialize */
-	lp->tx_free_desc = TX_DCNT;
-	lp->rx_free_desc = 0;
-	/* Init descriptor */
-	lp->tx_remove_ptr = lp->tx_insert_ptr = lp->tx_ring;
-	lp->rx_remove_ptr = lp->rx_insert_ptr = lp->rx_ring;
-	/* Init TX descriptor */
-	r6040_init_ring_desc(lp->tx_ring, lp->tx_ring_dma, TX_DCNT);
-
-	/* Init RX descriptor */
-	r6040_init_ring_desc(lp->rx_ring, lp->rx_ring_dma, RX_DCNT);
-
-	/* Allocate buffer for RX descriptor */
-	rx_buf_alloc(lp, dev);
-
-	/*
-	 * TX and RX descriptor start registers.
-	 * Lower 16-bits to MxD_SA0. Higher 16-bits to MxD_SA1.
-	 */
-	iowrite16(lp->tx_ring_dma, ioaddr + MTD_SA0);
-	iowrite16(lp->tx_ring_dma >> 16, ioaddr + MTD_SA1);
-
-	iowrite16(lp->rx_ring_dma, ioaddr + MRD_SA0);
-	iowrite16(lp->rx_ring_dma >> 16, ioaddr + MRD_SA1);
+	/* Initialise and alloc RX/TX buffers */
+	r6040_alloc_txbufs(dev);
+	r6040_alloc_rxbufs(dev);
 
 	/* Buffer Size Register */
 	iowrite16(MAX_BUF_SIZE, ioaddr + MR_BSR);
