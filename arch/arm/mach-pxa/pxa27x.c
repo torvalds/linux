@@ -374,37 +374,6 @@ void __init pxa27x_init_irq(void)
  * device registration specific to PXA27x.
  */
 
-static u64 pxa27x_dmamask = 0xffffffffUL;
-
-static struct resource pxa27x_ohci_resources[] = {
-	[0] = {
-		.start  = 0x4C000000,
-		.end    = 0x4C00ff6f,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = IRQ_USBH1,
-		.end    = IRQ_USBH1,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device pxa27x_device_ohci = {
-	.name		= "pxa27x-ohci",
-	.id		= -1,
-	.dev		= {
-		.dma_mask = &pxa27x_dmamask,
-		.coherent_dma_mask = 0xffffffff,
-	},
-	.num_resources  = ARRAY_SIZE(pxa27x_ohci_resources),
-	.resource       = pxa27x_ohci_resources,
-};
-
-void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
-{
-	pxa_register_device(&pxa27x_device_ohci, info);
-}
-
 static struct resource i2c_power_resources[] = {
 	{
 		.start	= 0x40f00180,

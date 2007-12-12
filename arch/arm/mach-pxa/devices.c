@@ -395,6 +395,37 @@ struct platform_device pxa25x_device_assp = {
 
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 
+static u64 pxa27x_ohci_dma_mask = DMA_BIT_MASK(32);
+
+static struct resource pxa27x_resource_ohci[] = {
+	[0] = {
+		.start  = 0x4C000000,
+		.end    = 0x4C00ff6f,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_USBH1,
+		.end    = IRQ_USBH1,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa27x_device_ohci = {
+	.name		= "pxa27x-ohci",
+	.id		= -1,
+	.dev		= {
+		.dma_mask = &pxa27x_ohci_dma_mask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources  = ARRAY_SIZE(pxa27x_resource_ohci),
+	.resource       = pxa27x_resource_ohci,
+};
+
+void __init pxa_set_ohci_info(struct pxaohci_platform_data *info)
+{
+	pxa_register_device(&pxa27x_device_ohci, info);
+}
+
 static u64 pxa27x_ssp1_dma_mask = DMA_BIT_MASK(32);
 
 static struct resource pxa27x_resource_ssp1[] = {
