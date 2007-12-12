@@ -335,6 +335,7 @@ struct l2_fhdr {
 #define BNX2_L2CTX_HOST_PG_BDIDX			0x00000044
 #define BNX2_L2CTX_PG_BUF_SIZE				0x00000048
 #define BNX2_L2CTX_RBDC_KEY				0x0000004c
+#define BNX2_L2CTX_RBDC_JUMBO_KEY			 0x3ffe
 #define BNX2_L2CTX_NX_PG_BDHADDR_HI			0x00000050
 #define BNX2_L2CTX_NX_PG_BDHADDR_LO			0x00000054
 
@@ -4450,6 +4451,14 @@ struct l2_fhdr {
 #define BNX2_MQ_MEM_RD_DATA2_VALUE			 (0x3fffffffL<<0)
 #define BNX2_MQ_MEM_RD_DATA2_VALUE_XI			 (0x7fffffffL<<0)
 
+#define BNX2_MQ_MAP_L2_3				0x00003d2c
+#define BNX2_MQ_MAP_L2_3_MQ_OFFSET			 (0xffL<<0)
+#define BNX2_MQ_MAP_L2_3_SZ				 (0x3L<<8)
+#define BNX2_MQ_MAP_L2_3_CTX_OFFSET			 (0x2ffL<<10)
+#define BNX2_MQ_MAP_L2_3_BIN_OFFSET			 (0x7L<<23)
+#define BNX2_MQ_MAP_L2_3_ARM				 (0x3L<<26)
+#define BNX2_MQ_MAP_L2_3_ENA				 (0x1L<<31)
+#define BNX2_MQ_MAP_L2_3_DEFAULT			 0x82004646
 
 /*
  *  tsch_reg definition
@@ -6360,9 +6369,11 @@ struct l2_fhdr {
 #define MAX_TX_DESC_CNT (TX_DESC_CNT - 1)
 
 #define MAX_RX_RINGS	4
+#define MAX_RX_PG_RINGS	16
 #define RX_DESC_CNT  (BCM_PAGE_SIZE / sizeof(struct rx_bd))
 #define MAX_RX_DESC_CNT (RX_DESC_CNT - 1)
 #define MAX_TOTAL_RX_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_RINGS)
+#define MAX_TOTAL_RX_PG_DESC_CNT (MAX_RX_DESC_CNT * MAX_RX_PG_RINGS)
 
 #define NEXT_TX_BD(x) (((x) & (MAX_TX_DESC_CNT - 1)) ==			\
 		(MAX_TX_DESC_CNT - 1)) ?				\
@@ -6375,6 +6386,7 @@ struct l2_fhdr {
 	(x) + 2 : (x) + 1
 
 #define RX_RING_IDX(x) ((x) & bp->rx_max_ring_idx)
+#define RX_PG_RING_IDX(x) ((x) & bp->rx_max_pg_ring_idx)
 
 #define RX_RING(x) (((x) & ~MAX_RX_DESC_CNT) >> (BCM_PAGE_BITS - 4))
 #define RX_IDX(x) ((x) & MAX_RX_DESC_CNT)
@@ -6413,7 +6425,13 @@ struct sw_bd {
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 };
 
+struct sw_pg {
+	struct page		*page;
+	DECLARE_PCI_UNMAP_ADDR(mapping)
+};
+
 #define SW_RXBD_RING_SIZE (sizeof(struct sw_bd) * RX_DESC_CNT)
+#define SW_RXPG_RING_SIZE (sizeof(struct sw_pg) * RX_DESC_CNT)
 #define RXBD_RING_SIZE (sizeof(struct rx_bd) * RX_DESC_CNT)
 #define SW_TXBD_RING_SIZE (sizeof(struct sw_bd) * TX_DESC_CNT)
 #define TXBD_RING_SIZE (sizeof(struct tx_bd) * TX_DESC_CNT)
@@ -6520,15 +6538,21 @@ struct bnx2 {
 	u32			rx_buf_size;		/* with alignment */
 	u32			rx_copy_thresh;
 	u32			rx_max_ring_idx;
+	u32			rx_max_pg_ring_idx;
 
 	u32			rx_prod_bseq;
 	u16			rx_prod;
 	u16			rx_cons;
 
+	u16			rx_pg_prod;
+	u16			rx_pg_cons;
+
 	u32			rx_csum;
 
 	struct sw_bd		*rx_buf_ring;
 	struct rx_bd		*rx_desc_ring[MAX_RX_RINGS];
+	struct sw_pg		*rx_pg_ring;
+	struct rx_bd		*rx_pg_desc_ring[MAX_RX_PG_RINGS];
 
 	/* TX constants */
 	struct tx_bd	*tx_desc_ring;
@@ -6615,6 +6639,10 @@ struct bnx2 {
 	int			rx_max_ring;
 	int			rx_ring_size;
 	dma_addr_t		rx_desc_mapping[MAX_RX_RINGS];
+
+	int			rx_max_pg_ring;
+	int			rx_pg_ring_size;
+	dma_addr_t		rx_pg_desc_mapping[MAX_RX_PG_RINGS];
 
 	u16			tx_quick_cons_trip;
 	u16			tx_quick_cons_trip_int;

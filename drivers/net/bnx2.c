@@ -483,6 +483,16 @@ bnx2_free_mem(struct bnx2 *bp)
 	}
 	vfree(bp->rx_buf_ring);
 	bp->rx_buf_ring = NULL;
+	for (i = 0; i < bp->rx_max_pg_ring; i++) {
+		if (bp->rx_pg_desc_ring[i])
+			pci_free_consistent(bp->pdev, RXBD_RING_SIZE,
+					    bp->rx_pg_desc_ring[i],
+					    bp->rx_pg_desc_mapping[i]);
+		bp->rx_pg_desc_ring[i] = NULL;
+	}
+	if (bp->rx_pg_ring)
+		vfree(bp->rx_pg_ring);
+	bp->rx_pg_ring = NULL;
 }
 
 static int
@@ -510,6 +520,25 @@ bnx2_alloc_mem(struct bnx2 *bp)
 			pci_alloc_consistent(bp->pdev, RXBD_RING_SIZE,
 					     &bp->rx_desc_mapping[i]);
 		if (bp->rx_desc_ring[i] == NULL)
+			goto alloc_mem_err;
+
+	}
+
+	if (bp->rx_pg_ring_size) {
+		bp->rx_pg_ring = vmalloc(SW_RXPG_RING_SIZE *
+					 bp->rx_max_pg_ring);
+		if (bp->rx_pg_ring == NULL)
+			goto alloc_mem_err;
+
+		memset(bp->rx_pg_ring, 0, SW_RXPG_RING_SIZE *
+		       bp->rx_max_pg_ring);
+	}
+
+	for (i = 0; i < bp->rx_max_pg_ring; i++) {
+		bp->rx_pg_desc_ring[i] =
+			pci_alloc_consistent(bp->pdev, RXBD_RING_SIZE,
+					     &bp->rx_pg_desc_mapping[i]);
+		if (bp->rx_pg_desc_ring[i] == NULL)
 			goto alloc_mem_err;
 
 	}
@@ -2192,6 +2221,42 @@ bnx2_set_mac_addr(struct bnx2 *bp)
 		(mac_addr[4] << 8) | mac_addr[5];
 
 	REG_WR(bp, BNX2_EMAC_MAC_MATCH1, val);
+}
+
+static inline int
+bnx2_alloc_rx_page(struct bnx2 *bp, u16 index)
+{
+	dma_addr_t mapping;
+	struct sw_pg *rx_pg = &bp->rx_pg_ring[index];
+	struct rx_bd *rxbd =
+		&bp->rx_pg_desc_ring[RX_RING(index)][RX_IDX(index)];
+	struct page *page = alloc_page(GFP_ATOMIC);
+
+	if (!page)
+		return -ENOMEM;
+	mapping = pci_map_page(bp->pdev, page, 0, PAGE_SIZE,
+			       PCI_DMA_FROMDEVICE);
+	rx_pg->page = page;
+	pci_unmap_addr_set(rx_pg, mapping, mapping);
+	rxbd->rx_bd_haddr_hi = (u64) mapping >> 32;
+	rxbd->rx_bd_haddr_lo = (u64) mapping & 0xffffffff;
+	return 0;
+}
+
+static void
+bnx2_free_rx_page(struct bnx2 *bp, u16 index)
+{
+	struct sw_pg *rx_pg = &bp->rx_pg_ring[index];
+	struct page *page = rx_pg->page;
+
+	if (!page)
+		return;
+
+	pci_unmap_page(bp->pdev, pci_unmap_addr(rx_pg, mapping), PAGE_SIZE,
+		       PCI_DMA_FROMDEVICE);
+
+	__free_page(page);
+	rx_pg->page = NULL;
 }
 
 static inline int
@@ -4213,11 +4278,31 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	bp->rx_prod = 0;
 	bp->rx_cons = 0;
 	bp->rx_prod_bseq = 0;
+	bp->rx_pg_prod = 0;
+	bp->rx_pg_cons = 0;
 
 	bnx2_init_rxbd_rings(bp->rx_desc_ring, bp->rx_desc_mapping,
 			     bp->rx_buf_use_size, bp->rx_max_ring);
 
 	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, 0);
+	if (bp->rx_pg_ring_size) {
+		bnx2_init_rxbd_rings(bp->rx_pg_desc_ring,
+				     bp->rx_pg_desc_mapping,
+				     PAGE_SIZE, bp->rx_max_pg_ring);
+		val = (bp->rx_buf_use_size << 16) | PAGE_SIZE;
+		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, val);
+		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_RBDC_KEY,
+		       BNX2_L2CTX_RBDC_JUMBO_KEY);
+
+		val = (u64) bp->rx_pg_desc_mapping[0] >> 32;
+		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_PG_BDHADDR_HI, val);
+
+		val = (u64) bp->rx_pg_desc_mapping[0] & 0xffffffff;
+		CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_PG_BDHADDR_LO, val);
+
+		if (CHIP_NUM(bp) == CHIP_NUM_5709)
+			REG_WR(bp, BNX2_MQ_MAP_L2_3, BNX2_MQ_MAP_L2_3_DEFAULT);
+	}
 
 	val = BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE;
 	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
@@ -4230,6 +4315,15 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	val = (u64) bp->rx_desc_mapping[0] & 0xffffffff;
 	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_LO, val);
 
+	ring_prod = prod = bp->rx_pg_prod;
+	for (i = 0; i < bp->rx_pg_ring_size; i++) {
+		if (bnx2_alloc_rx_page(bp, ring_prod) < 0)
+			break;
+		prod = NEXT_RX_BD(prod);
+		ring_prod = RX_PG_RING_IDX(prod);
+	}
+	bp->rx_pg_prod = prod;
+
 	ring_prod = prod = bp->rx_prod;
 	for (i = 0; i < bp->rx_ring_size; i++) {
 		if (bnx2_alloc_rx_skb(bp, ring_prod) < 0) {
@@ -4240,6 +4334,7 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	}
 	bp->rx_prod = prod;
 
+	REG_WR16(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_PG_BDIDX, bp->rx_pg_prod);
 	REG_WR16(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_BDIDX, prod);
 
 	REG_WR(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_BSEQ, bp->rx_prod_bseq);
@@ -4273,6 +4368,9 @@ bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
 	rx_size = bp->dev->mtu + ETH_HLEN + bp->rx_offset + 8;
 
 	bp->rx_copy_thresh = RX_COPY_THRESH;
+	bp->rx_pg_ring_size = 0;
+	bp->rx_max_pg_ring = 0;
+	bp->rx_max_pg_ring_idx = 0;
 
 	bp->rx_buf_use_size = rx_size;
 	/* hw alignment */
@@ -4341,6 +4439,8 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 
 		dev_kfree_skb(skb);
 	}
+	for (i = 0; i < bp->rx_max_pg_ring_idx; i++)
+		bnx2_free_rx_page(bp, i);
 }
 
 static void
@@ -5813,11 +5913,11 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 
 	ering->rx_max_pending = MAX_TOTAL_RX_DESC_CNT;
 	ering->rx_mini_max_pending = 0;
-	ering->rx_jumbo_max_pending = 0;
+	ering->rx_jumbo_max_pending = MAX_TOTAL_RX_PG_DESC_CNT;
 
 	ering->rx_pending = bp->rx_ring_size;
 	ering->rx_mini_pending = 0;
-	ering->rx_jumbo_pending = 0;
+	ering->rx_jumbo_pending = bp->rx_pg_ring_size;
 
 	ering->tx_max_pending = MAX_TX_DESC_CNT;
 	ering->tx_pending = bp->tx_ring_size;
