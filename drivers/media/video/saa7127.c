@@ -58,8 +58,8 @@
 #include <media/v4l2-i2c-drv.h>
 #include <media/saa7127.h>
 
-static int debug = 0;
-static int test_image = 0;
+static int debug;
+static int test_image;
 
 MODULE_DESCRIPTION("Philips SAA7127/9 video encoder driver");
 MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
@@ -357,9 +357,10 @@ static int saa7127_set_cc(struct i2c_client *client, struct v4l2_sliced_vbi_data
 	if (enable && (data->field != 0 || data->line != 21))
 		return -EINVAL;
 	if (state->cc_enable != enable) {
-		v4l_dbg(1, debug, client, "Turn CC %s\n", enable ? "on" : "off");
+		v4l_dbg(1, debug, client,
+			"Turn CC %s\n", enable ? "on" : "off");
 		saa7127_write(client, SAA7127_REG_CLOSED_CAPTION,
-				(state->xds_enable << 7) | (enable << 6) | 0x11);
+			(state->xds_enable << 7) | (enable << 6) | 0x11);
 		state->cc_enable = enable;
 	}
 	if (!enable)
@@ -417,7 +418,8 @@ static int saa7127_set_wss(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 
 	saa7127_write(client, 0x26, data->data[0]);
 	saa7127_write(client, 0x27, 0x80 | (data->data[1] & 0x3f));
-	v4l_dbg(1, debug, client, "WSS mode: %s\n", wss_strs[data->data[0] & 0xf]);
+	v4l_dbg(1, debug, client,
+		"WSS mode: %s\n", wss_strs[data->data[0] & 0xf]);
 	state->wss_mode = (data->data[1] & 0x3f) << 8 | data->data[0];
 	return 0;
 }
@@ -504,7 +506,8 @@ static int saa7127_set_output_type(struct i2c_client *client, int output)
 	default:
 		return -EINVAL;
 	}
-	v4l_dbg(1, debug, client, "Selecting %s output type\n", output_strs[output]);
+	v4l_dbg(1, debug, client,
+		"Selecting %s output type\n", output_strs[output]);
 
 	/* Configure Encoder */
 	saa7127_write(client, 0x2d, state->reg_2d);
@@ -566,12 +569,10 @@ static int saa7127_command(struct i2c_client *client,
 	{
 		int rc = 0;
 
-		if (state->input_type != route->input) {
+		if (state->input_type != route->input)
 			rc = saa7127_set_input_type(client, route->input);
-		}
-		if (rc == 0 && state->output_type != route->output) {
+		if (rc == 0 && state->output_type != route->output)
 			rc = saa7127_set_output_type(client, route->output);
-		}
 		return rc;
 	}
 
@@ -617,7 +618,8 @@ static int saa7127_command(struct i2c_client *client,
 	{
 		struct v4l2_register *reg = arg;
 
-		if (!v4l2_chip_match_i2c_client(client, reg->match_type, reg->match_chip))
+		if (!v4l2_chip_match_i2c_client(client,
+					reg->match_type, reg->match_chip))
 			return -EINVAL;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -634,16 +636,16 @@ static int saa7127_command(struct i2c_client *client,
 		struct v4l2_sliced_vbi_data *data = arg;
 
 		switch (data->id) {
-			case V4L2_SLICED_WSS_625:
-				return saa7127_set_wss(client, data);
-			case V4L2_SLICED_VPS:
-				return saa7127_set_vps(client, data);
-			case V4L2_SLICED_CAPTION_525:
-				if (data->field == 0)
-					return saa7127_set_cc(client, data);
-				return saa7127_set_xds(client, data);
-			default:
-				return -EINVAL;
+		case V4L2_SLICED_WSS_625:
+			return saa7127_set_wss(client, data);
+		case V4L2_SLICED_VPS:
+			return saa7127_set_vps(client, data);
+		case V4L2_SLICED_CAPTION_525:
+			if (data->field == 0)
+				return saa7127_set_cc(client, data);
+			return saa7127_set_xds(client, data);
+		default:
+			return -EINVAL;
 		}
 		break;
 	}
@@ -671,7 +673,8 @@ static int saa7127_probe(struct i2c_client *client)
 
 	snprintf(client->name, sizeof(client->name) - 1, "saa7127");
 
-	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n", client->addr << 1);
+	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n",
+			client->addr << 1);
 
 	/* First test register 0: Bits 5-7 are a version ID (should be 0),
 	   and bit 2 should also be 0.
@@ -685,9 +688,8 @@ static int saa7127_probe(struct i2c_client *client)
 	}
 	state = kzalloc(sizeof(struct saa7127_state), GFP_KERNEL);
 
-	if (state == NULL) {
+	if (state == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, state);
 
@@ -701,25 +703,26 @@ static int saa7127_probe(struct i2c_client *client)
 	saa7127_set_wss(client, &vbi);
 	saa7127_set_cc(client, &vbi);
 	saa7127_set_xds(client, &vbi);
-	if (test_image == 1) {
+	if (test_image == 1)
 		/* The Encoder has an internal Colorbar generator */
 		/* This can be used for debugging */
 		saa7127_set_input_type(client, SAA7127_INPUT_TYPE_TEST_IMAGE);
-	} else {
+	else
 		saa7127_set_input_type(client, SAA7127_INPUT_TYPE_NORMAL);
-	}
 	saa7127_set_video_enable(client, 1);
 
 	/* Detect if it's an saa7129 */
 	read_result = saa7127_read(client, SAA7129_REG_FADE_KEY_COL2);
 	saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, 0xaa);
 	if (saa7127_read(client, SAA7129_REG_FADE_KEY_COL2) == 0xaa) {
-		v4l_info(client, "saa7129 found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
+		v4l_info(client, "saa7129 found @ 0x%x (%s)\n",
+				client->addr << 1, client->adapter->name);
 		saa7127_write(client, SAA7129_REG_FADE_KEY_COL2, read_result);
 		saa7127_write_inittab(client, saa7129_init_config_extra);
 		state->ident = V4L2_IDENT_SAA7129;
 	} else {
-		v4l_info(client, "saa7127 found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
+		v4l_info(client, "saa7127 found @ 0x%x (%s)\n",
+				client->addr << 1, client->adapter->name);
 		state->ident = V4L2_IDENT_SAA7127;
 	}
 	return 0;
