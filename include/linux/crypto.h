@@ -206,6 +206,8 @@ struct aead_alg {
 	int (*givencrypt)(struct aead_givcrypt_request *req);
 	int (*givdecrypt)(struct aead_givcrypt_request *req);
 
+	const char *geniv;
+
 	unsigned int ivsize;
 	unsigned int maxauthsize;
 };
@@ -353,6 +355,9 @@ struct aead_tfm {
 	int (*decrypt)(struct aead_request *req);
 	int (*givencrypt)(struct aead_givcrypt_request *req);
 	int (*givdecrypt)(struct aead_givcrypt_request *req);
+
+	struct crypto_aead *base;
+
 	unsigned int ivsize;
 	unsigned int authsize;
 	unsigned int reqsize;
@@ -781,7 +786,9 @@ static inline void crypto_aead_clear_flags(struct crypto_aead *tfm, u32 flags)
 static inline int crypto_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 				     unsigned int keylen)
 {
-	return crypto_aead_crt(tfm)->setkey(tfm, key, keylen);
+	struct aead_tfm *crt = crypto_aead_crt(tfm);
+
+	return crt->setkey(crt->base, key, keylen);
 }
 
 int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize);
@@ -809,7 +816,7 @@ static inline unsigned int crypto_aead_reqsize(struct crypto_aead *tfm)
 static inline void aead_request_set_tfm(struct aead_request *req,
 					struct crypto_aead *tfm)
 {
-	req->base.tfm = crypto_aead_tfm(tfm);
+	req->base.tfm = crypto_aead_tfm(crypto_aead_crt(tfm)->base);
 }
 
 static inline struct aead_request *aead_request_alloc(struct crypto_aead *tfm,
