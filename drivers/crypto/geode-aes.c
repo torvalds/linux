@@ -499,7 +499,7 @@ static struct crypto_alg geode_ecb_alg = {
 	}
 };
 
-static void
+static void __devexit
 geode_aes_remove(struct pci_dev *dev)
 {
 	crypto_unregister_alg(&geode_alg);
@@ -514,7 +514,7 @@ geode_aes_remove(struct pci_dev *dev)
 }
 
 
-static int
+static int __devinit
 geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int ret;
