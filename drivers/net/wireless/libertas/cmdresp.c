@@ -611,7 +611,7 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	default:
 		lbs_deb_host("CMD_RESP: unknown cmd response 0x%04x\n",
-			    resp->command);
+			     le16_to_cpu(resp->command));
 		break;
 	}
 	lbs_deb_leave(LBS_DEB_HOST);
@@ -620,16 +620,13 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 int lbs_process_rx_command(struct lbs_private *priv)
 {
-	u16 respcmd;
+	uint16_t respcmd, curcmd;
 	struct cmd_header *resp;
 	int ret = 0;
-	ulong flags;
-	u16 result;
+	unsigned long flags;
+	uint16_t result;
 
 	lbs_deb_enter(LBS_DEB_HOST);
-
-	/* Now we got response from FW, cancel the command timer */
-	del_timer(&priv->command_timer);
 
 	mutex_lock(&priv->lock);
 	spin_lock_irqsave(&priv->driver_lock, flags);
@@ -640,24 +637,35 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		goto done;
 	}
+
+	curcmd = le16_to_cpu(priv->cur_cmd->cmdbuf->command);
+
 	resp = priv->cur_cmd->cmdbuf;
 
 	respcmd = le16_to_cpu(resp->command);
 	result = le16_to_cpu(resp->result);
 
-	lbs_deb_host("CMD_RESP: response 0x%04x, size %d, jiffies %lu\n",
-		respcmd, priv->upld_len, jiffies);
+	lbs_deb_host("CMD_RESP: response 0x%04x, seq %d, size %d, jiffies %lu\n",
+		     respcmd, le16_to_cpu(resp->seqnum), priv->upld_len, jiffies);
 	lbs_deb_hex(LBS_DEB_HOST, "CMD_RESP", (void *) resp, priv->upld_len);
 
-	if (!(respcmd & 0x8000)) {
-		lbs_deb_host("invalid response!\n");
-		priv->cur_cmd_retcode = -1;
-		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
-		priv->cur_cmd = NULL;
+	if (resp->seqnum != priv->cur_cmd->cmdbuf->seqnum) {
+		lbs_pr_info("Received CMD_RESP with invalid sequence %d (expected %d)\n",
+			    le16_to_cpu(resp->seqnum), le16_to_cpu(priv->cur_cmd->cmdbuf->seqnum));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		ret = -1;
 		goto done;
 	}
+	if (respcmd != CMD_RET(curcmd) &&
+	    respcmd != CMD_802_11_ASSOCIATE && curcmd != CMD_RET_802_11_ASSOCIATE) {
+		lbs_pr_info("Invalid CMD_RESP %x to command %x!\n", respcmd, curcmd);
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
+		ret = -1;
+		goto done;
+	}
+
+	/* Now we got response from FW, cancel the command timer */
+	del_timer(&priv->command_timer);
 
 	/* Store the response code to cur_cmd_retcode. */
 	priv->cur_cmd_retcode = result;

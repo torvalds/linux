@@ -643,6 +643,7 @@ static inline void process_cmdrequest(int recvlength, u8 *recvbuff,
 	/* take care of cur_cmd = NULL case by reading the
 	 * data to clear the interrupt */
 	if (!priv->cur_cmd) {
+		lbs_deb_hex(LBS_DEB_HOST, "Unsolicited CMD_RESP", (void *) recvbuff + MESSAGE_HEADER_LEN, priv->upld_len);
 		cmdbuf = priv->upld_buf;
 		priv->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
 	} else

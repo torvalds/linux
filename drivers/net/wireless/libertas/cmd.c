@@ -1216,8 +1216,8 @@ static int DownloadcommandToStation(struct lbs_private *priv,
 	cmdsize = le16_to_cpu(cmd->size);
 	command = le16_to_cpu(cmd->command);
 
-	lbs_deb_host("DNLD_CMD: command 0x%04x, size %d, jiffies %lu\n",
-		    command, cmdsize, jiffies);
+	lbs_deb_host("DNLD_CMD: command 0x%04x, seq %d, size %d, jiffies %lu\n",
+		     command, le16_to_cpu(cmd->seqnum), cmdsize, jiffies);
 	lbs_deb_hex(LBS_DEB_HOST, "DNLD_CMD", (void *) cmdnode->cmdbuf, cmdsize);
 
 	cmdnode->cmdwaitqwoken = 0;

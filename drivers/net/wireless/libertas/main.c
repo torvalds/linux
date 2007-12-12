@@ -893,7 +893,7 @@ static void command_timer_fn(unsigned long data)
 		return;
 	}
 
-	lbs_deb_fw("command_timer_fn fired, cmd %x\n", node->cmdbuf->command);
+	lbs_pr_info("command %x timed out\n", le16_to_cpu(node->cmdbuf->command));
 
 	if (!priv->fw_ready)
 		return;
