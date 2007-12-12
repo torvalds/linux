@@ -151,23 +151,6 @@ void tfrc_rx_packet_history_exit(void)
 	}
 }
 
-/**
- * tfrc_rx_hist_index - index to reach n-th entry after loss_start
- */
-static inline u8 tfrc_rx_hist_index(const struct tfrc_rx_hist *h, const u8 n)
-{
-	return (h->loss_start + n) & TFRC_NDUPACK;
-}
-
-/**
- * tfrc_rx_hist_last_rcv - entry with highest-received-seqno so far
- */
-static inline struct tfrc_rx_hist_entry *
-			tfrc_rx_hist_last_rcv(const struct tfrc_rx_hist *h)
-{
-	return h->ring[tfrc_rx_hist_index(h, h->loss_count)];
-}
-
 void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 			     const struct sk_buff *skb,
 			     const u32 ndp)
@@ -182,24 +165,6 @@ void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 	entry->tfrchrx_tstamp = ktime_get_real();
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_add_packet);
-
-/**
- * tfrc_rx_hist_entry - return the n-th history entry after loss_start
- */
-static inline struct tfrc_rx_hist_entry *
-		tfrc_rx_hist_entry(const struct tfrc_rx_hist *h, const u8 n)
-{
-	return h->ring[tfrc_rx_hist_index(h, n)];
-}
-
-/**
- * tfrc_rx_hist_loss_prev - entry with highest-received-seqno before loss was detected
- */
-static inline struct tfrc_rx_hist_entry *
-			tfrc_rx_hist_loss_prev(const struct tfrc_rx_hist *h)
-{
-	return h->ring[h->loss_start];
-}
 
 /* has the packet contained in skb been seen before? */
 int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb)
