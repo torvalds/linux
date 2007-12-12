@@ -53,7 +53,7 @@ extern struct kmem_cache *btrfs_path_cachep;
 #define BTRFS_CSUM_SIZE 32
 /* four bytes for CRC32 */
 #define BTRFS_CRC32_SIZE 4
-#define BTRFS_EMPTY_DIR_SIZE 6
+#define BTRFS_EMPTY_DIR_SIZE 0
 
 #define BTRFS_FT_UNKNOWN	0
 #define BTRFS_FT_REG_FILE	1
@@ -204,6 +204,11 @@ struct btrfs_extent_ref {
 	__le64 generation;
 	__le64 objectid;
 	__le64 offset;
+} __attribute__ ((__packed__));
+
+struct btrfs_inode_ref {
+	__le16 name_len;
+	/* name goes here */
 } __attribute__ ((__packed__));
 
 struct btrfs_inode_timespec {
@@ -379,7 +384,8 @@ struct btrfs_root {
  * the FS
  */
 #define BTRFS_INODE_ITEM_KEY		1
-#define BTRFS_XATTR_ITEM_KEY		2
+#define BTRFS_INODE_REF_KEY		2
+#define BTRFS_XATTR_ITEM_KEY		8
 /* reserve 2-15 close to the inode for later flexibility */
 
 /*
@@ -485,6 +491,9 @@ BTRFS_SETGET_STACK_FUNCS(block_group_used, struct btrfs_block_group_item,
 			 used, 64);
 BTRFS_SETGET_FUNCS(disk_block_group_used, struct btrfs_block_group_item,
 			 used, 64);
+
+/* struct btrfs_inode_ref */
+BTRFS_SETGET_FUNCS(inode_ref_name_len, struct btrfs_inode_ref, name_len, 16);
 
 /* struct btrfs_inode_item */
 BTRFS_SETGET_FUNCS(inode_generation, struct btrfs_inode_item, generation, 64);
@@ -1043,6 +1052,14 @@ int btrfs_find_free_objectid(struct btrfs_trans_handle *trans,
 int btrfs_find_highest_inode(struct btrfs_root *fs_root, u64 *objectid);
 
 /* inode-item.c */
+int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
+			   const char *name, int name_len,
+			   u64 inode_objectid, u64 ref_objectid);
+int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
+			   const char *name, int name_len,
+			   u64 inode_objectid, u64 ref_objectid);
 int btrfs_insert_empty_inode(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid);
