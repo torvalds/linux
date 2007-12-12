@@ -310,6 +310,10 @@ struct switch_stack {
   #define arch_ptrace_stop_needed(code, info) \
 	(!test_thread_flag(TIF_RESTORE_RSE))
 
+  extern void ptrace_attach_sync_user_rbs (struct task_struct *);
+  #define arch_ptrace_attach(child) \
+	ptrace_attach_sync_user_rbs(child)
+
 #endif /* !__KERNEL__ */
 
 /* pt_all_user_regs is used for PTRACE_GETREGS PTRACE_SETREGS */
