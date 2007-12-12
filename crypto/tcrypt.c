@@ -266,8 +266,6 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 		return;
 	}
 
-	authsize = crypto_aead_authsize(tfm);
-
 	req = aead_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
 		printk(KERN_INFO "failed to allocate request for %s\n", algo);
@@ -296,6 +294,15 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 				if (!aead_tv[i].fail)
 					goto out;
+			}
+
+			authsize = abs(aead_tv[i].rlen - aead_tv[i].ilen);
+			ret = crypto_aead_setauthsize(tfm, authsize);
+			if (ret) {
+				printk(KERN_INFO
+				       "failed to set authsize = %u\n",
+				       authsize);
+				goto out;
 			}
 
 			sg_init_one(&sg[0], aead_tv[i].input,
@@ -372,6 +379,15 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 				temp += aead_tv[i].tap[k];
 				sg_set_buf(&sg[k], &xbuf[IDX[k]],
 					   aead_tv[i].tap[k]);
+			}
+
+			authsize = abs(aead_tv[i].rlen - aead_tv[i].ilen);
+			ret = crypto_aead_setauthsize(tfm, authsize);
+			if (ret) {
+				printk(KERN_INFO
+				       "failed to set authsize = %u\n",
+				       authsize);
+				goto out;
 			}
 
 			if (enc)
@@ -1201,6 +1217,10 @@ static void do_test(void)
 			  AES_GCM_ENC_TEST_VECTORS);
 		test_aead("gcm(aes)", DECRYPT, aes_gcm_dec_tv_template,
 			  AES_GCM_DEC_TEST_VECTORS);
+		test_aead("ccm(aes)", ENCRYPT, aes_ccm_enc_tv_template,
+			  AES_CCM_ENC_TEST_VECTORS);
+		test_aead("ccm(aes)", DECRYPT, aes_ccm_dec_tv_template,
+			  AES_CCM_DEC_TEST_VECTORS);
 
 		//CAST5
 		test_cipher("ecb(cast5)", ENCRYPT, cast5_enc_tv_template,
@@ -1555,6 +1575,13 @@ static void do_test(void)
 	case 36:
 		test_comp("lzo", lzo_comp_tv_template, lzo_decomp_tv_template,
 			  LZO_COMP_TEST_VECTORS, LZO_DECOMP_TEST_VECTORS);
+		break;
+
+	case 37:
+		test_aead("ccm(aes)", ENCRYPT, aes_ccm_enc_tv_template,
+			  AES_CCM_ENC_TEST_VECTORS);
+		test_aead("ccm(aes)", DECRYPT, aes_ccm_dec_tv_template,
+			  AES_CCM_DEC_TEST_VECTORS);
 		break;
 
 	case 100:
