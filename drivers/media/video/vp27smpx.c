@@ -50,27 +50,26 @@ static void vp27smpx_set_audmode(struct i2c_client *client, u32 audmode)
 	u8 data[3] = { 0x00, 0x00, 0x04 };
 
 	switch (audmode) {
-		case V4L2_TUNER_MODE_MONO:
-		case V4L2_TUNER_MODE_LANG1:
-			break;
-		case V4L2_TUNER_MODE_STEREO:
-		case V4L2_TUNER_MODE_LANG1_LANG2:
-			data[1] = 0x01;
-			break;
-		case V4L2_TUNER_MODE_LANG2:
-			data[1] = 0x02;
-			break;
+	case V4L2_TUNER_MODE_MONO:
+	case V4L2_TUNER_MODE_LANG1:
+		break;
+	case V4L2_TUNER_MODE_STEREO:
+	case V4L2_TUNER_MODE_LANG1_LANG2:
+		data[1] = 0x01;
+		break;
+	case V4L2_TUNER_MODE_LANG2:
+		data[1] = 0x02;
+		break;
 	}
 
-	if (i2c_master_send(client, data, sizeof(data)) != sizeof(data)) {
-		v4l_err(client, "%s: I/O error setting audmode\n", client->name);
-	}
-	else {
+	if (i2c_master_send(client, data, sizeof(data)) != sizeof(data))
+		v4l_err(client, "%s: I/O error setting audmode\n",
+				client->name);
+	else
 		state->audmode = audmode;
-	}
 }
 
-static int vp27smpx_command(struct i2c_client *client, unsigned int cmd, void *arg)
+static int vp27smpx_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
 	struct vp27smpx_state *state = i2c_get_clientdata(client);
 	struct v4l2_tuner *vt = arg;
@@ -99,7 +98,8 @@ static int vp27smpx_command(struct i2c_client *client, unsigned int cmd, void *a
 		break;
 
 	case VIDIOC_G_CHIP_IDENT:
-		return v4l2_chip_ident_i2c_client(client, arg, V4L2_IDENT_VP27SMPX, 0);
+		return v4l2_chip_ident_i2c_client(client, arg,
+				V4L2_IDENT_VP27SMPX, 0);
 
 	case VIDIOC_LOG_STATUS:
 		v4l_info(client, "Audio Mode: %u%s\n", state->audmode,
@@ -131,12 +131,12 @@ static int vp27smpx_probe(struct i2c_client *client)
 
 	snprintf(client->name, sizeof(client->name) - 1, "vp27smpx");
 
-	v4l_info(client, "chip found @ 0x%x (%s)\n", client->addr << 1, client->adapter->name);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
 
 	state = kzalloc(sizeof(struct vp27smpx_state), GFP_KERNEL);
-	if (state == NULL) {
+	if (state == NULL)
 		return -ENOMEM;
-	}
 	state->audmode = V4L2_TUNER_MODE_STEREO;
 	i2c_set_clientdata(client, state);
 
