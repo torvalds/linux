@@ -800,11 +800,17 @@ int set_io_32bit(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1 + (SUPPORT_VLB_SYNC << 1))
 		return -EINVAL;
 
+	if (ide_spin_wait_hwgroup(drive))
+		return -EBUSY;
+
 	drive->io_32bit = arg;
 #ifdef CONFIG_BLK_DEV_DTC2278
 	if (HWIF(drive)->chipset == ide_dtc2278)
 		HWIF(drive)->drives[!drive->select.b.unit].io_32bit = arg;
 #endif /* CONFIG_BLK_DEV_DTC2278 */
+
+	spin_unlock_irq(&ide_lock);
+
 	return 0;
 }
 
