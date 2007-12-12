@@ -123,17 +123,24 @@ static void b43_wa_rssi_lt(struct b43_wldev *dev) /* RSSI lookup table */
 {
 	int i;
 
-	for (i = 0; i < 8; i++)
-		b43_ofdmtab_write16(dev, B43_OFDMTAB_RSSI, i, i + 8);
-	for (i = 8; i < 16; i++)
-		b43_ofdmtab_write16(dev, B43_OFDMTAB_RSSI, i, i - 8);
+	if (0 /* FIXME: For APHY.rev=2 this might be needed */) {
+		for (i = 0; i < 8; i++)
+			b43_ofdmtab_write16(dev, B43_OFDMTAB_RSSI, i, i + 8);
+		for (i = 8; i < 16; i++)
+			b43_ofdmtab_write16(dev, B43_OFDMTAB_RSSI, i, i - 8);
+	} else {
+		for (i = 0; i < 64; i++)
+			b43_ofdmtab_write16(dev, B43_OFDMTAB_RSSI, i, i);
+	}
 }
 
 static void b43_wa_analog(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
+	u16 ofdmrev;
 
-	if (phy->analog > 2) {
+	ofdmrev = b43_phy_read(dev, B43_PHY_VERSION_OFDM) & B43_PHYVER_VERSION;
+	if (ofdmrev > 2) {
 		if (phy->type == B43_PHYTYPE_A)
 			b43_phy_write(dev, B43_PHY_PWRDOWN, 0x1808);
 		else
@@ -306,16 +313,16 @@ static void b43_wa_crs_ed(struct b43_wldev *dev)
 	struct b43_phy *phy = &dev->phy;
 
 	if (phy->rev == 1) {
-		b43_phy_write(dev, B43_PHY_CRSTHRES1, 0x4F19);
+		b43_phy_write(dev, B43_PHY_CRSTHRES1_R1, 0x4F19);
 	} else if (phy->rev == 2) {
-		b43_phy_write(dev, B43_PHY_CRSTHRES1_R1, 0x1861);
-		b43_phy_write(dev, B43_PHY_CRSTHRES2_R1, 0x1861);
+		b43_phy_write(dev, B43_PHY_CRSTHRES1, 0x1861);
+		b43_phy_write(dev, B43_PHY_CRSTHRES2, 0x0271);
 		b43_phy_write(dev, B43_PHY_ANTDWELL,
 				  b43_phy_read(dev, B43_PHY_ANTDWELL)
 				  | 0x0800);
 	} else {
-		b43_phy_write(dev, B43_PHY_CRSTHRES1_R1, 0x0098);
-		b43_phy_write(dev, B43_PHY_CRSTHRES2_R1, 0x0070);
+		b43_phy_write(dev, B43_PHY_CRSTHRES1, 0x0098);
+		b43_phy_write(dev, B43_PHY_CRSTHRES2, 0x0070);
 		b43_phy_write(dev, B43_PHY_OFDM(0xC9), 0x0080);
 		b43_phy_write(dev, B43_PHY_ANTDWELL,
 				  b43_phy_read(dev, B43_PHY_ANTDWELL)
@@ -441,7 +448,7 @@ static void b43_wa_altagc(struct b43_wldev *dev)
 		}
 	}
 	b43_phy_write(dev, B43_PHY_DIVSRCHIDX,
-		(b43_phy_read(dev, B43_PHY_DIVSRCHIDX) & 0x7F7F) | 0x7874);
+		(b43_phy_read(dev, B43_PHY_DIVSRCHIDX) & 0x8080) | 0x7874);
 	b43_phy_write(dev, B43_PHY_OFDM(0x8E), 0x1C00);
 	if (phy->rev == 1) {
 		b43_phy_write(dev, B43_PHY_DIVP1P2GAIN,
@@ -466,6 +473,7 @@ static void b43_wa_altagc(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_PHY_OFDM(0x26),
 			b43_phy_read(dev, B43_PHY_OFDM(0x26)) & ~0x1000);
 	}
+	b43_phy_read(dev, B43_PHY_VERSION_OFDM); /* Dummy read */
 }
 
 static void b43_wa_tr_ltov(struct b43_wldev *dev) /* TR Lookup Table Original Values */

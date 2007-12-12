@@ -403,7 +403,7 @@ void b43_ofdmtab_write16(struct b43_wldev *dev, u16 table,
 
 	addr = table + offset;
 	if ((phy->ofdmtab_addr_direction != B43_OFDMTAB_DIRECTION_WRITE) ||
-	    (addr -1 != phy->ofdmtab_addr)) {
+	    (addr - 1 != phy->ofdmtab_addr)) {
 		/* The hardware has a different address in memory. Update it. */
 		b43_phy_write(dev, B43_PHY_OTABLECTL, addr);
 		phy->ofdmtab_addr_direction = B43_OFDMTAB_DIRECTION_WRITE;
