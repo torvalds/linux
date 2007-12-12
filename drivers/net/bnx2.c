@@ -468,8 +468,7 @@ bnx2_free_mem(struct bnx2 *bp)
 		bp->stats_blk = NULL;
 	}
 	if (bp->tx_desc_ring) {
-		pci_free_consistent(bp->pdev,
-				    sizeof(struct tx_bd) * TX_DESC_CNT,
+		pci_free_consistent(bp->pdev, TXBD_RING_SIZE,
 				    bp->tx_desc_ring, bp->tx_desc_mapping);
 		bp->tx_desc_ring = NULL;
 	}
@@ -477,8 +476,7 @@ bnx2_free_mem(struct bnx2 *bp)
 	bp->tx_buf_ring = NULL;
 	for (i = 0; i < bp->rx_max_ring; i++) {
 		if (bp->rx_desc_ring[i])
-			pci_free_consistent(bp->pdev,
-					    sizeof(struct rx_bd) * RX_DESC_CNT,
+			pci_free_consistent(bp->pdev, RXBD_RING_SIZE,
 					    bp->rx_desc_ring[i],
 					    bp->rx_desc_mapping[i]);
 		bp->rx_desc_ring[i] = NULL;
@@ -492,30 +490,24 @@ bnx2_alloc_mem(struct bnx2 *bp)
 {
 	int i, status_blk_size;
 
-	bp->tx_buf_ring = kzalloc(sizeof(struct sw_bd) * TX_DESC_CNT,
-				  GFP_KERNEL);
+	bp->tx_buf_ring = kzalloc(SW_TXBD_RING_SIZE, GFP_KERNEL);
 	if (bp->tx_buf_ring == NULL)
 		return -ENOMEM;
 
-	bp->tx_desc_ring = pci_alloc_consistent(bp->pdev,
-					        sizeof(struct tx_bd) *
-						TX_DESC_CNT,
+	bp->tx_desc_ring = pci_alloc_consistent(bp->pdev, TXBD_RING_SIZE,
 						&bp->tx_desc_mapping);
 	if (bp->tx_desc_ring == NULL)
 		goto alloc_mem_err;
 
-	bp->rx_buf_ring = vmalloc(sizeof(struct sw_bd) * RX_DESC_CNT *
-				  bp->rx_max_ring);
+	bp->rx_buf_ring = vmalloc(SW_RXBD_RING_SIZE * bp->rx_max_ring);
 	if (bp->rx_buf_ring == NULL)
 		goto alloc_mem_err;
 
-	memset(bp->rx_buf_ring, 0, sizeof(struct sw_bd) * RX_DESC_CNT *
-				   bp->rx_max_ring);
+	memset(bp->rx_buf_ring, 0, SW_RXBD_RING_SIZE * bp->rx_max_ring);
 
 	for (i = 0; i < bp->rx_max_ring; i++) {
 		bp->rx_desc_ring[i] =
-			pci_alloc_consistent(bp->pdev,
-					     sizeof(struct rx_bd) * RX_DESC_CNT,
+			pci_alloc_consistent(bp->pdev, RXBD_RING_SIZE,
 					     &bp->rx_desc_mapping[i]);
 		if (bp->rx_desc_ring[i] == NULL)
 			goto alloc_mem_err;

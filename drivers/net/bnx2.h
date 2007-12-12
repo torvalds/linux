@@ -6408,6 +6408,11 @@ struct sw_bd {
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 };
 
+#define SW_RXBD_RING_SIZE (sizeof(struct sw_bd) * RX_DESC_CNT)
+#define RXBD_RING_SIZE (sizeof(struct rx_bd) * RX_DESC_CNT)
+#define SW_TXBD_RING_SIZE (sizeof(struct sw_bd) * TX_DESC_CNT)
+#define TXBD_RING_SIZE (sizeof(struct tx_bd) * TX_DESC_CNT)
+
 /* Buffered flash (Atmel: AT45DB011B) specific information */
 #define SEEPROM_PAGE_BITS			2
 #define SEEPROM_PHY_PAGE_SIZE			(1 << SEEPROM_PAGE_BITS)
