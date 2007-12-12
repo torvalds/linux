@@ -17,6 +17,9 @@
 #include <linux/types.h>
 #include <asm/div64.h>
 #include "../../dccp.h"
+/* internal includes that this module exports: */
+#include "loss_interval.h"
+#include "packet_history.h"
 
 #ifdef CONFIG_IP_DCCP_TFRC_DEBUG
 extern int tfrc_debug;

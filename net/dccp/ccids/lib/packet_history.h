@@ -36,10 +36,9 @@
 #ifndef _DCCP_PKT_HIST_
 #define _DCCP_PKT_HIST_
 
-#include <linux/ktime.h>
-#include <linux/types.h>
-
-struct sk_buff;
+#include <linux/list.h>
+#include <linux/slab.h>
+#include "tfrc.h"
 
 struct tfrc_tx_hist_entry;
 
@@ -125,6 +124,10 @@ extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 extern int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb);
 extern int tfrc_rx_hist_new_loss_indicated(struct tfrc_rx_hist *h,
 					   const struct sk_buff *skb, u32 ndp);
+struct tfrc_loss_hist;
+extern int  tfrc_rx_handle_loss(struct tfrc_rx_hist *, struct tfrc_loss_hist *,
+				struct sk_buff *skb, u32 ndp,
+				u32 (*first_li)(struct sock *), struct sock *);
 extern u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h,
 				   const struct sk_buff *skb);
 extern int tfrc_rx_hist_alloc(struct tfrc_rx_hist *h);
