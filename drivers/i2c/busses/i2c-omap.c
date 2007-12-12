@@ -203,7 +203,7 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 		while (!(omap_i2c_read_reg(dev, OMAP_I2C_SYSS_REG) &
 			 OMAP_I2C_SYSS_RDONE)) {
 			if (time_after(jiffies, timeout)) {
-				dev_warn(dev->dev, "timeout waiting"
+				dev_warn(dev->dev, "timeout waiting "
 						"for controller reset\n");
 				return -ETIMEDOUT;
 			}
@@ -483,7 +483,7 @@ omap_i2c_isr(int this_irq, void *dev_id)
 					dev->buf_len--;
 				}
 			} else
-				dev_err(dev->dev, "RRDY IRQ while no data"
+				dev_err(dev->dev, "RRDY IRQ while no data "
 						"requested\n");
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_RRDY);
 			continue;
@@ -498,7 +498,7 @@ omap_i2c_isr(int this_irq, void *dev_id)
 					dev->buf_len--;
 				}
 			} else
-				dev_err(dev->dev, "XRDY IRQ while no"
+				dev_err(dev->dev, "XRDY IRQ while no "
 					"data to send\n");
 			omap_i2c_write_reg(dev, OMAP_I2C_DATA_REG, w);
 			omap_i2c_ack_stat(dev, OMAP_I2C_STAT_XRDY);
