@@ -61,7 +61,6 @@
 
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT	(6000 * HZ / 1000)
-#define TIMER_WUT	(jiffies + HZ * 1)/* timer wakeup time : 1 second */
 
 /* RDC MAC I/O Size */
 #define R6040_IO_SIZE	256
@@ -266,19 +265,6 @@ static void r6040_free_rxbufs(struct net_device *dev)
 	}
 }
 
-static void r6040_tx_timeout(struct net_device *dev)
-{
-	struct r6040_private *priv = netdev_priv(dev);
-
-	disable_irq(dev->irq);
-	napi_disable(&priv->napi);
-	spin_lock(&priv->lock);
-	dev->stats.tx_errors++;
-	spin_unlock(&priv->lock);
-
-	netif_stop_queue(dev);
-}
-
 static void r6040_init_ring_desc(struct r6040_descriptor *desc_ring,
 				 dma_addr_t desc_dma, int size)
 {
@@ -348,6 +334,34 @@ static void r6040_alloc_rxbufs(struct net_device *dev)
 
 	iowrite16(lp->rx_ring_dma, ioaddr + MRD_SA0);
 	iowrite16(lp->rx_ring_dma >> 16, ioaddr + MRD_SA1);
+}
+
+static void r6040_tx_timeout(struct net_device *dev)
+{
+	struct r6040_private *priv = netdev_priv(dev);
+	void __iomem *ioaddr = priv->base;
+
+	printk(KERN_WARNING "%s: transmit timed out, status %4.4x, PHY status "
+		"%4.4x\n",
+		dev->name, ioread16(ioaddr + MIER),
+		mdio_read(dev, priv->mii_if.phy_id, MII_BMSR));
+
+	disable_irq(dev->irq);
+	napi_disable(&priv->napi);
+	spin_lock(&priv->lock);
+	/* Clear all descriptors */
+	r6040_free_txbufs(dev);
+	r6040_free_rxbufs(dev);
+	r6040_alloc_txbufs(dev);
+	r6040_alloc_rxbufs(dev);
+
+	/* Reset MAC */
+	iowrite16(MAC_RST, ioaddr + MCR1);
+	spin_unlock(&priv->lock);
+	enable_irq(dev->irq);
+
+	dev->stats.tx_errors++;
+	netif_wake_queue(dev);
 }
 
 static struct net_device_stats *r6040_get_stats(struct net_device *dev)
@@ -719,8 +733,7 @@ static void r6040_timer(unsigned long data)
 	}
 
 	/* Timer active again */
-	lp->timer.expires = TIMER_WUT;
-	add_timer(&lp->timer);
+	mod_timer(&lp->timer, jiffies + round_jiffies(HZ));
 }
 
 /* Read/set MAC address routines */
@@ -776,14 +789,10 @@ static int r6040_open(struct net_device *dev)
 	napi_enable(&lp->napi);
 	netif_start_queue(dev);
 
-	if (lp->switch_sig != ICPLUS_PHY_ID) {
-		/* set and active a timer process */
-		init_timer(&lp->timer);
-		lp->timer.expires = TIMER_WUT;
-		lp->timer.data = (unsigned long)dev;
-		lp->timer.function = &r6040_timer;
-		add_timer(&lp->timer);
-	}
+	/* set and active a timer process */
+	setup_timer(&lp->timer, r6040_timer, (unsigned long) dev);
+	if (lp->switch_sig != ICPLUS_PHY_ID)
+		mod_timer(&lp->timer, jiffies + HZ);
 	return 0;
 }
 
