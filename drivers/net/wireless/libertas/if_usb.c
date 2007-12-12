@@ -242,6 +242,10 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	if_usb_set_boot2_ver(priv);
 
+	/* Set suspend/resume configuration:
+	   wake via GPIO2 after a 20ms delay */
+	lbs_host_sleep_cfg(priv, EHS_WAKE_ON_UNICAST_DATA, 2, 20);
+
 	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);
 
@@ -969,21 +973,24 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usb_card_rec *cardp = usb_get_intfdata(intf);
 	struct lbs_private *priv = cardp->priv;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_USB);
 
 	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
 
-	netif_device_detach(priv->dev);
-	netif_device_detach(priv->mesh_dev);
+	ret = lbs_suspend(priv);
+	if (ret)
+		goto out;
 
 	/* Unlink tx & rx urb */
 	usb_kill_urb(cardp->tx_urb);
 	usb_kill_urb(cardp->rx_urb);
 
+ out:
 	lbs_deb_leave(LBS_DEB_USB);
-	return 0;
+	return ret;
 }
 
 static int if_usb_resume(struct usb_interface *intf)
@@ -995,8 +1002,7 @@ static int if_usb_resume(struct usb_interface *intf)
 
 	if_usb_submit_rx_urb(cardp);
 
-	netif_device_attach(priv->dev);
-	netif_device_attach(priv->mesh_dev);
+	lbs_resume(priv);
 
 	lbs_deb_leave(LBS_DEB_USB);
 	return 0;
