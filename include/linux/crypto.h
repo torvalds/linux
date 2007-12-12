@@ -723,15 +723,7 @@ static inline struct crypto_aead *__crypto_aead_cast(struct crypto_tfm *tfm)
 	return (struct crypto_aead *)tfm;
 }
 
-static inline struct crypto_aead *crypto_alloc_aead(const char *alg_name,
-						    u32 type, u32 mask)
-{
-	type &= ~CRYPTO_ALG_TYPE_MASK;
-	type |= CRYPTO_ALG_TYPE_AEAD;
-	mask |= CRYPTO_ALG_TYPE_MASK;
-
-	return __crypto_aead_cast(crypto_alloc_base(alg_name, type, mask));
-}
+struct crypto_aead *crypto_alloc_aead(const char *alg_name, u32 type, u32 mask);
 
 static inline struct crypto_tfm *crypto_aead_tfm(struct crypto_aead *tfm)
 {

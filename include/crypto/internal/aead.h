@@ -31,6 +31,9 @@ static inline void crypto_set_aead_spawn(
 	crypto_set_spawn(&spawn->base, inst);
 }
 
+int crypto_grab_aead(struct crypto_aead_spawn *spawn, const char *name,
+		     u32 type, u32 mask);
+
 static inline void crypto_drop_aead(struct crypto_aead_spawn *spawn)
 {
 	crypto_drop_spawn(&spawn->base);
