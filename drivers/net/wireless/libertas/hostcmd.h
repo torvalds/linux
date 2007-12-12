@@ -540,6 +540,13 @@ struct MrvlIEtype_keyParamSet {
 	u8 key[32];
 };
 
+struct cmd_ds_host_sleep {
+	struct cmd_header hdr;
+	__le32 criteria;
+	uint8_t gpio;
+	uint8_t gap;
+} __attribute__ ((packed));
+
 struct cmd_ds_802_11_key_material {
 	__le16 action;
 	struct MrvlIEtype_keyParamSet keyParamSet[2];

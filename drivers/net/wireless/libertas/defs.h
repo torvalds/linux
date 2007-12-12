@@ -141,6 +141,13 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define	LBS_UPLD_SIZE			2312
 #define DEV_NAME_LEN			32
 
+/* Wake criteria for HOST_SLEEP_CFG command */
+#define EHS_WAKE_ON_BROADCAST_DATA	0x0001
+#define EHS_WAKE_ON_UNICAST_DATA	0x0002
+#define EHS_WAKE_ON_MAC_EVENT		0x0004
+#define EHS_WAKE_ON_MULTICAST_DATA	0x0008
+#define EHS_REMOVE_WAKEUP		0xFFFFFFFF
+
 /** Misc constants */
 /* This section defines 802.11 specific contants */
 
