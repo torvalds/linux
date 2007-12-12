@@ -14,27 +14,42 @@ module_param(tfrc_debug, bool, 0444);
 MODULE_PARM_DESC(tfrc_debug, "Enable debug messages");
 #endif
 
+extern int  tfrc_tx_packet_history_init(void);
+extern void tfrc_tx_packet_history_exit(void);
+extern int  tfrc_rx_packet_history_init(void);
+extern void tfrc_rx_packet_history_exit(void);
+
 extern int  dccp_li_init(void);
 extern void dccp_li_exit(void);
-extern int packet_history_init(void);
-extern void packet_history_exit(void);
 
 static int __init tfrc_module_init(void)
 {
 	int rc = dccp_li_init();
 
-	if (rc == 0) {
-		rc = packet_history_init();
-		if (rc != 0)
-			dccp_li_exit();
-	}
+	if (rc)
+		goto out;
 
+	rc = tfrc_tx_packet_history_init();
+	if (rc)
+		goto out_free_loss_intervals;
+
+	rc = tfrc_rx_packet_history_init();
+	if (rc)
+		goto out_free_tx_history;
+	return 0;
+
+out_free_tx_history:
+	tfrc_tx_packet_history_exit();
+out_free_loss_intervals:
+	dccp_li_exit();
+out:
 	return rc;
 }
 
 static void __exit tfrc_module_exit(void)
 {
-	packet_history_exit();
+	tfrc_rx_packet_history_exit();
+	tfrc_tx_packet_history_exit();
 	dccp_li_exit();
 }
 

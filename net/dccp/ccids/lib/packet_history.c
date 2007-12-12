@@ -57,6 +57,22 @@ struct tfrc_tx_hist_entry {
  */
 static struct kmem_cache *tfrc_tx_hist_slab;
 
+int __init tfrc_tx_packet_history_init(void)
+{
+	tfrc_tx_hist_slab = kmem_cache_create("tfrc_tx_hist",
+					      sizeof(struct tfrc_tx_hist_entry),
+					      0, SLAB_HWCACHE_ALIGN, NULL);
+	return tfrc_tx_hist_slab == NULL ? -ENOBUFS : 0;
+}
+
+void tfrc_tx_packet_history_exit(void)
+{
+	if (tfrc_tx_hist_slab != NULL) {
+		kmem_cache_destroy(tfrc_tx_hist_slab);
+		tfrc_tx_hist_slab = NULL;
+	}
+}
+
 static struct tfrc_tx_hist_entry *
 	tfrc_tx_hist_find_entry(struct tfrc_tx_hist_entry *head, u64 seqno)
 {
@@ -118,6 +134,22 @@ EXPORT_SYMBOL_GPL(tfrc_tx_hist_rtt);
  * 	Receiver History Routines
  */
 static struct kmem_cache *tfrc_rx_hist_slab;
+
+int __init tfrc_rx_packet_history_init(void)
+{
+	tfrc_rx_hist_slab = kmem_cache_create("tfrc_rxh_cache",
+					      sizeof(struct tfrc_rx_hist_entry),
+					      0, SLAB_HWCACHE_ALIGN, NULL);
+	return tfrc_rx_hist_slab == NULL ? -ENOBUFS : 0;
+}
+
+void tfrc_rx_packet_history_exit(void)
+{
+	if (tfrc_rx_hist_slab != NULL) {
+		kmem_cache_destroy(tfrc_rx_hist_slab);
+		tfrc_rx_hist_slab = NULL;
+	}
+}
 
 /**
  * tfrc_rx_hist_index - index to reach n-th entry after loss_start
@@ -316,39 +348,3 @@ keep_ref_for_next_time:
 	return sample;
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_sample_rtt);
-
-__init int packet_history_init(void)
-{
-	tfrc_tx_hist_slab = kmem_cache_create("tfrc_tx_hist",
-					      sizeof(struct tfrc_tx_hist_entry), 0,
-					      SLAB_HWCACHE_ALIGN, NULL);
-	if (tfrc_tx_hist_slab == NULL)
-		goto out_err;
-
-	tfrc_rx_hist_slab = kmem_cache_create("tfrc_rx_hist",
-					      sizeof(struct tfrc_rx_hist_entry), 0,
-					      SLAB_HWCACHE_ALIGN, NULL);
-	if (tfrc_rx_hist_slab == NULL)
-		goto out_free_tx;
-
-	return 0;
-
-out_free_tx:
-	kmem_cache_destroy(tfrc_tx_hist_slab);
-	tfrc_tx_hist_slab = NULL;
-out_err:
-	return -ENOBUFS;
-}
-
-void packet_history_exit(void)
-{
-	if (tfrc_tx_hist_slab != NULL) {
-		kmem_cache_destroy(tfrc_tx_hist_slab);
-		tfrc_tx_hist_slab = NULL;
-	}
-
-	if (tfrc_rx_hist_slab != NULL) {
-		kmem_cache_destroy(tfrc_rx_hist_slab);
-		tfrc_rx_hist_slab = NULL;
-	}
-}
