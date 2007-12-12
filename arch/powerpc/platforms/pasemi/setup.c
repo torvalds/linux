@@ -223,7 +223,7 @@ static __init void pas_init_IRQ(void)
 
 	mpic = mpic_alloc(mpic_node, openpic_addr,
 			  MPIC_PRIMARY|MPIC_LARGE_VECTORS,
-			  0, 0, " PAS-OPIC  ");
+			  0, 0, "PASEMI-OPIC");
 	BUG_ON(!mpic);
 
 	mpic_assign_isu(mpic, 0, openpic_addr + 0x10000);

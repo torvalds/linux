@@ -841,6 +841,24 @@ int mpic_set_irq_type(unsigned int virq, unsigned int flow_type)
 	return 0;
 }
 
+void mpic_set_vector(unsigned int virq, unsigned int vector)
+{
+	struct mpic *mpic = mpic_from_irq(virq);
+	unsigned int src = mpic_irq_to_hw(virq);
+	unsigned int vecpri;
+
+	DBG("mpic: set_vector(mpic:@%p,virq:%d,src:%d,vector:0x%x)\n",
+	    mpic, virq, src, vector);
+
+	if (src >= mpic->irq_count)
+		return;
+
+	vecpri = mpic_irq_read(src, MPIC_INFO(IRQ_VECTOR_PRI));
+	vecpri = vecpri & ~MPIC_INFO(VECPRI_VECTOR_MASK);
+	vecpri |= vector;
+	mpic_irq_write(src, MPIC_INFO(IRQ_VECTOR_PRI), vecpri);
+}
+
 static struct irq_chip mpic_irq_chip = {
 	.mask		= mpic_mask_irq,
 	.unmask		= mpic_unmask_irq,
@@ -1228,6 +1246,8 @@ void __init mpic_init(struct mpic *mpic)
 		mpic_scan_ht_pics(mpic);
 		mpic_u3msi_init(mpic);
 	}
+
+	mpic_pasemi_msi_init(mpic);
 
 	for (i = 0; i < mpic->num_sources; i++) {
 		/* start with vector = source number, and masked */
