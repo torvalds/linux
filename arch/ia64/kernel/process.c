@@ -157,6 +157,15 @@ show_regs (struct pt_regs *regs)
 		show_stack(NULL, NULL);
 }
 
+void tsk_clear_notify_resume(struct task_struct *tsk)
+{
+#ifdef CONFIG_PERFMON
+	if (tsk->thread.pfm_needs_checking)
+		return;
+#endif
+	clear_ti_thread_flag(task_thread_info(tsk), TIF_NOTIFY_RESUME);
+}
+
 void
 do_notify_resume_user (sigset_t *unused, struct sigscratch *scr, long in_syscall)
 {
