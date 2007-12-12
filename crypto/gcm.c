@@ -43,6 +43,14 @@ struct crypto_gcm_req_priv_ctx {
 	struct ablkcipher_request abreq;
 };
 
+static inline struct crypto_gcm_req_priv_ctx *crypto_gcm_reqctx(
+	struct aead_request *req)
+{
+	unsigned long align = crypto_aead_alignmask(crypto_aead_reqtfm(req));
+
+	return (void *)PTR_ALIGN((u8 *)aead_request_ctx(req), align + 1);
+}
+
 static void crypto_gcm_ghash_init(struct crypto_gcm_ghash_ctx *ctx, u32 flags,
 				  struct gf128mul_4k *gf128)
 {
@@ -224,7 +232,7 @@ static int crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct crypto_gcm_ctx *ctx = crypto_aead_ctx(aead);
-	struct crypto_gcm_req_priv_ctx *pctx = aead_request_ctx(req);
+	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	u32 flags = req->base.tfm->crt_flags;
 	u8 *auth_tag = pctx->auth_tag;
 	u8 *counter = pctx->counter;
@@ -256,7 +264,7 @@ static int crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
 static int crypto_gcm_hash(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct crypto_gcm_req_priv_ctx *pctx = aead_request_ctx(req);
+	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	u8 *auth_tag = pctx->auth_tag;
 	struct crypto_gcm_ghash_ctx *ghash = &pctx->ghash;
 
@@ -281,7 +289,7 @@ static void crypto_gcm_encrypt_done(struct crypto_async_request *areq, int err)
 
 static int crypto_gcm_encrypt(struct aead_request *req)
 {
-	struct crypto_gcm_req_priv_ctx *pctx = aead_request_ctx(req);
+	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	struct ablkcipher_request *abreq = &pctx->abreq;
 	int err = 0;
 
@@ -307,7 +315,7 @@ static void crypto_gcm_decrypt_done(struct crypto_async_request *areq, int err)
 static int crypto_gcm_decrypt(struct aead_request *req)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
-	struct crypto_gcm_req_priv_ctx *pctx = aead_request_ctx(req);
+	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	struct ablkcipher_request *abreq = &pctx->abreq;
 	u8 *auth_tag = pctx->auth_tag;
 	u8 *iauth_tag = pctx->iauth_tag;
@@ -352,8 +360,7 @@ static int crypto_gcm_init_tfm(struct crypto_tfm *tfm)
 	ctx->ctr = ctr;
 	ctx->gf128 = NULL;
 
-	align = max_t(unsigned long, crypto_ablkcipher_alignmask(ctr),
-		      __alignof__(u32) - 1);
+	align = crypto_tfm_alg_alignmask(tfm);
 	align &= ~(crypto_tfm_ctx_alignment() - 1);
 	tfm->crt_aead.reqsize = align +
 				sizeof(struct crypto_gcm_req_priv_ctx) +
@@ -428,7 +435,7 @@ static struct crypto_instance *crypto_gcm_alloc(struct rtattr **tb)
 	inst->alg.cra_flags = CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_ASYNC;
 	inst->alg.cra_priority = ctr->cra_priority;
 	inst->alg.cra_blocksize = 16;
-	inst->alg.cra_alignmask = __alignof__(u32) - 1;
+	inst->alg.cra_alignmask = ctr->cra_alignmask | (__alignof__(u64) - 1);
 	inst->alg.cra_type = &crypto_aead_type;
 	inst->alg.cra_aead.ivsize = 12;
 	inst->alg.cra_aead.maxauthsize = 16;
