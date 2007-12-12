@@ -106,11 +106,10 @@
 		};
 
 		mdio@24520 {
-			device_type = "mdio";
-			compatible = "gianfar";
-			reg = <24520 20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			compatible = "fsl,gianfar-mdio";
+			reg = <24520 20>;
 
 			/* Vitesse 8201 */
 			phy1c: ethernet-phy@1c {
@@ -129,17 +128,12 @@
 			};
 		};
 
-		ethernet@24000 {
+		enet0: ethernet@24000 {
+			cell-index = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			/*
-			 * address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <20 8 21 8 22 8>;
 			interrupt-parent = < &ipic >;
@@ -147,19 +141,12 @@
 			linux,network-index = <0>;
 		};
 
-		ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet1: ethernet@25000 {
+			cell-index = <1>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			/*
-			 * address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <23 8 24 8 25 8>;
 			interrupt-parent = < &ipic >;

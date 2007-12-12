@@ -1223,16 +1223,14 @@ platforms are moved over to use the flattened-device-tree model.
 
   Required properties:
     - reg : Offset and length of the register set for the device
-    - device_type : Should be "mdio"
     - compatible : Should define the compatible device type for the
-      mdio.  Currently, this is most likely to be "gianfar"
+      mdio.  Currently, this is most likely to be "fsl,gianfar-mdio"
 
   Example:
 
 	mdio@24520 {
 		reg = <24520 20>;
-		device_type = "mdio"; 
-		compatible = "gianfar";
+		compatible = "fsl,gianfar-mdio";
 
 		ethernet-phy@0 {
 			......

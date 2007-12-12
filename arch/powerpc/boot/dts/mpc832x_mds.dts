@@ -208,20 +208,15 @@
 			mode = "slave";
 		};
 
-		ucc@2200 {
+		enet0: ucc@2200 {
 			device_type = "network";
 			compatible = "ucc_geth";
 			model = "UCC";
+			cell-index = <3>;
 			device-id = <3>;
 			reg = <2200 200>;
 			interrupts = <22>;
 			interrupt-parent = < &qeic >;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <19>;
 			tx-clock = <1a>;
@@ -229,20 +224,15 @@
 			pio-handle = < &pio3 >;
 		};
 
-		ucc@3200 {
+		enet1: ucc@3200 {
 			device_type = "network";
 			compatible = "ucc_geth";
 			model = "UCC";
+			cell-index = <4>;
 			device-id = <4>;
 			reg = <3200 200>;
 			interrupts = <23>;
 			interrupt-parent = < &qeic >;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock = <17>;
 			tx-clock = <18>;

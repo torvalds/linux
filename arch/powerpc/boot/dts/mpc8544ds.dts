@@ -88,9 +88,9 @@
 		mdio@24520 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "mdio";
-			compatible = "gianfar";
+			compatible = "fsl,gianfar-mdio";
 			reg = <24520 20>;
+
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
 				interrupts = <a 1>;
@@ -105,9 +105,8 @@
 			};
 		};
 
-		ethernet@24000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet0: ethernet@24000 {
+			cell-index = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
@@ -119,9 +118,8 @@
 			phy-connection-type = "rgmii-id";
 		};
 
-		ethernet@26000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		enet1: ethernet@26000 {
+			cell-index = <1>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";

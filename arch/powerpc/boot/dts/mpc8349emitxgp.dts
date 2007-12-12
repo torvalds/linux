@@ -94,11 +94,10 @@
 		};
 
 		mdio@24520 {
-			device_type = "mdio";
-			compatible = "gianfar";
-			reg = <24520 20>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			compatible = "fsl,gianfar-mdio";
+			reg = <24520 20>;
 
 			/* Vitesse 8201 */
 			phy1c: ethernet-phy@1c {
@@ -109,7 +108,8 @@
 			};
 		};
 
-		ethernet@24000 {
+		enet0: ethernet@24000 {
+			cell-index = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";

@@ -93,9 +93,9 @@
 		mdio@24520 {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			device_type = "mdio";
-			compatible = "gianfar";
+			compatible = "fsl,gianfar-mdio";
 			reg = <24520 20>;
+
 			phy0: ethernet-phy@0 {
 				interrupt-parent = <&mpic>;
 				interrupts = <a 1>;
@@ -123,18 +123,11 @@
 		};
 
 		enet0: ethernet@24000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			cell-index = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <24000 1000>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <1d 2 1e 2 22 2>;
 			interrupt-parent = <&mpic>;
@@ -143,18 +136,11 @@
 		};
 
 		enet1: ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			cell-index = <1>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <25000 1000>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <23 2 24 2 28 2>;
 			interrupt-parent = <&mpic>;
@@ -163,18 +149,11 @@
 		};
 		
 		enet2: ethernet@26000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			cell-index = <2>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <26000 1000>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <1F 2 20 2 21 2>;
 			interrupt-parent = <&mpic>;
@@ -183,18 +162,11 @@
 		};
 
 		enet3: ethernet@27000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			cell-index = <3>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
 			reg = <27000 1000>;
-			/*
-			 * mac-address is deprecated and will be removed
-			 * in 2.6.25.  Only recent versions of
-			 * U-Boot support local-mac-address, however.
-			 */
-			mac-address = [ 00 00 00 00 00 00 ];
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			interrupts = <25 2 26 2 27 2>;
 			interrupt-parent = <&mpic>;

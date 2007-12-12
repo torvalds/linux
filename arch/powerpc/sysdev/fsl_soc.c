@@ -132,15 +132,18 @@ EXPORT_SYMBOL(get_baudrate);
 
 static int __init gfar_mdio_of_init(void)
 {
-	struct device_node *np;
-	unsigned int i;
+	struct device_node *np = NULL;
 	struct platform_device *mdio_dev;
 	struct resource res;
 	int ret;
 
-	for (np = NULL, i = 0;
-	     (np = of_find_compatible_node(np, "mdio", "gianfar")) != NULL;
-	     i++) {
+	np = of_find_compatible_node(np, NULL, "fsl,gianfar-mdio");
+
+	/* try the deprecated version */
+	if (!np)
+		np = of_find_compatible_node(np, "mdio", "gianfar");
+
+	if (np) {
 		int k;
 		struct device_node *child = NULL;
 		struct gianfar_mdio_data mdio_data;
@@ -179,11 +182,13 @@ static int __init gfar_mdio_of_init(void)
 			goto unreg;
 	}
 
+	of_node_put(np);
 	return 0;
 
 unreg:
 	platform_device_unregister(mdio_dev);
 err:
+	of_node_put(np);
 	return ret;
 }
 
