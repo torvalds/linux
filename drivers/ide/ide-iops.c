@@ -748,6 +748,9 @@ int ide_driveid_update(ide_drive_t *drive)
 		drive->id->dma_1word = id->dma_1word;
 		/* anything more ? */
 		kfree(id);
+
+		if (drive->using_dma && ide_id_dma_bug(drive))
+			ide_dma_off(drive);
 	}
 
 	return 1;

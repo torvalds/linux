@@ -3049,12 +3049,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
         else 	
         	printk(" drive");
 
-	printk(", %dkB Cache", be16_to_cpu(cap.buffer_size));
-
-	if (drive->using_dma)
-		ide_dma_verbose(drive);
-
-	printk("\n");
+	printk(KERN_CONT ", %dkB Cache\n", be16_to_cpu(cap.buffer_size));
 
 	return nslots;
 }
