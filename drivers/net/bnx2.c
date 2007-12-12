@@ -2117,15 +2117,12 @@ bnx2_init_context(struct bnx2 *bp)
 			vcid_addr += (i << PHY_CTX_SHIFT);
 			pcid_addr += (i << PHY_CTX_SHIFT);
 
-			REG_WR(bp, BNX2_CTX_VIRT_ADDR, 0x00);
+			REG_WR(bp, BNX2_CTX_VIRT_ADDR, vcid_addr);
 			REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
 
 			/* Zero out the context. */
 			for (offset = 0; offset < PHY_CTX_SIZE; offset += 4)
-				CTX_WR(bp, 0x00, offset, 0);
-
-			REG_WR(bp, BNX2_CTX_VIRT_ADDR, vcid_addr);
-			REG_WR(bp, BNX2_CTX_PAGE_TBL, pcid_addr);
+				CTX_WR(bp, vcid_addr, offset, 0);
 		}
 	}
 }
@@ -2459,10 +2456,7 @@ bnx2_rx_int(struct bnx2 *bp, int budget)
 			goto next_rx;
 		}
 
-		/* Since we don't have a jumbo ring, copy small packets
-		 * if mtu > 1500
-		 */
-		if ((bp->dev->mtu > 1500) && (len <= RX_COPY_THRESH)) {
+		if (len <= bp->rx_copy_thresh) {
 			struct sk_buff *new_skb;
 
 			new_skb = netdev_alloc_skb(bp->dev, len + 2);
@@ -4172,50 +4166,57 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 }
 
 static void
-bnx2_init_rx_ring(struct bnx2 *bp)
+bnx2_init_rxbd_rings(struct rx_bd *rx_ring[], dma_addr_t dma[], u32 buf_size,
+		     int num_rings)
 {
-	struct rx_bd *rxbd;
 	int i;
-	u16 prod, ring_prod;
-	u32 val;
+	struct rx_bd *rxbd;
 
-	/* 8 for CRC and VLAN */
-	bp->rx_buf_use_size = bp->dev->mtu + ETH_HLEN + bp->rx_offset + 8;
-	/* hw alignment */
-	bp->rx_buf_size = bp->rx_buf_use_size + BNX2_RX_ALIGN;
-
-	ring_prod = prod = bp->rx_prod = 0;
-	bp->rx_cons = 0;
-	bp->rx_prod_bseq = 0;
-
-	for (i = 0; i < bp->rx_max_ring; i++) {
+	for (i = 0; i < num_rings; i++) {
 		int j;
 
-		rxbd = &bp->rx_desc_ring[i][0];
+		rxbd = &rx_ring[i][0];
 		for (j = 0; j < MAX_RX_DESC_CNT; j++, rxbd++) {
-			rxbd->rx_bd_len = bp->rx_buf_use_size;
+			rxbd->rx_bd_len = buf_size;
 			rxbd->rx_bd_flags = RX_BD_FLAGS_START | RX_BD_FLAGS_END;
 		}
-		if (i == (bp->rx_max_ring - 1))
+		if (i == (num_rings - 1))
 			j = 0;
 		else
 			j = i + 1;
-		rxbd->rx_bd_haddr_hi = (u64) bp->rx_desc_mapping[j] >> 32;
-		rxbd->rx_bd_haddr_lo = (u64) bp->rx_desc_mapping[j] &
-				       0xffffffff;
+		rxbd->rx_bd_haddr_hi = (u64) dma[j] >> 32;
+		rxbd->rx_bd_haddr_lo = (u64) dma[j] & 0xffffffff;
 	}
+}
+
+static void
+bnx2_init_rx_ring(struct bnx2 *bp)
+{
+	int i;
+	u16 prod, ring_prod;
+	u32 val, rx_cid_addr = GET_CID_ADDR(RX_CID);
+
+	bp->rx_prod = 0;
+	bp->rx_cons = 0;
+	bp->rx_prod_bseq = 0;
+
+	bnx2_init_rxbd_rings(bp->rx_desc_ring, bp->rx_desc_mapping,
+			     bp->rx_buf_use_size, bp->rx_max_ring);
+
+	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_PG_BUF_SIZE, 0);
 
 	val = BNX2_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_VALUE;
 	val |= BNX2_L2CTX_CTX_TYPE_SIZE_L2;
 	val |= 0x02 << 8;
-	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_CTX_TYPE, val);
+	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_CTX_TYPE, val);
 
 	val = (u64) bp->rx_desc_mapping[0] >> 32;
-	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_NX_BDHADDR_HI, val);
+	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_HI, val);
 
 	val = (u64) bp->rx_desc_mapping[0] & 0xffffffff;
-	CTX_WR(bp, GET_CID_ADDR(RX_CID), BNX2_L2CTX_NX_BDHADDR_LO, val);
+	CTX_WR(bp, rx_cid_addr, BNX2_L2CTX_NX_BDHADDR_LO, val);
 
+	ring_prod = prod = bp->rx_prod;
 	for (i = 0; i < bp->rx_ring_size; i++) {
 		if (bnx2_alloc_rx_skb(bp, ring_prod) < 0) {
 			break;
@@ -4230,26 +4231,40 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 	REG_WR(bp, MB_RX_CID_ADDR + BNX2_L2CTX_HOST_BSEQ, bp->rx_prod_bseq);
 }
 
-static void
-bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
+static u32 bnx2_find_max_ring(u32 ring_size, u32 max_size)
 {
-	u32 num_rings, max;
+	u32 max, num_rings = 1;
 
-	bp->rx_ring_size = size;
-	num_rings = 1;
-	while (size > MAX_RX_DESC_CNT) {
-		size -= MAX_RX_DESC_CNT;
+	while (ring_size > MAX_RX_DESC_CNT) {
+		ring_size -= MAX_RX_DESC_CNT;
 		num_rings++;
 	}
 	/* round to next power of 2 */
-	max = MAX_RX_RINGS;
+	max = max_size;
 	while ((max & num_rings) == 0)
 		max >>= 1;
 
 	if (num_rings != max)
 		max <<= 1;
 
-	bp->rx_max_ring = max;
+	return max;
+}
+
+static void
+bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
+{
+	u32 rx_size;
+
+	/* 8 for CRC and VLAN */
+	rx_size = bp->dev->mtu + ETH_HLEN + bp->rx_offset + 8;
+
+	bp->rx_copy_thresh = RX_COPY_THRESH;
+
+	bp->rx_buf_use_size = rx_size;
+	/* hw alignment */
+	bp->rx_buf_size = bp->rx_buf_use_size + BNX2_RX_ALIGN;
+	bp->rx_ring_size = size;
+	bp->rx_max_ring = bnx2_find_max_ring(size, MAX_RX_RINGS);
 	bp->rx_max_ring_idx = (bp->rx_max_ring * RX_DESC_CNT) - 1;
 }
 
@@ -5795,16 +5810,8 @@ bnx2_get_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 }
 
 static int
-bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
+bnx2_change_ring_size(struct bnx2 *bp, u32 rx, u32 tx)
 {
-	struct bnx2 *bp = netdev_priv(dev);
-
-	if ((ering->rx_pending > MAX_TOTAL_RX_DESC_CNT) ||
-		(ering->tx_pending > MAX_TX_DESC_CNT) ||
-		(ering->tx_pending <= MAX_SKB_FRAGS)) {
-
-		return -EINVAL;
-	}
 	if (netif_running(bp->dev)) {
 		bnx2_netif_stop(bp);
 		bnx2_reset_chip(bp, BNX2_DRV_MSG_CODE_RESET);
@@ -5812,8 +5819,8 @@ bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 		bnx2_free_mem(bp);
 	}
 
-	bnx2_set_rx_ring_size(bp, ering->rx_pending);
-	bp->tx_ring_size = ering->tx_pending;
+	bnx2_set_rx_ring_size(bp, rx);
+	bp->tx_ring_size = tx;
 
 	if (netif_running(bp->dev)) {
 		int rc;
@@ -5824,8 +5831,23 @@ bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
 		bnx2_init_nic(bp);
 		bnx2_netif_start(bp);
 	}
-
 	return 0;
+}
+
+static int
+bnx2_set_ringparam(struct net_device *dev, struct ethtool_ringparam *ering)
+{
+	struct bnx2 *bp = netdev_priv(dev);
+	int rc;
+
+	if ((ering->rx_pending > MAX_TOTAL_RX_DESC_CNT) ||
+		(ering->tx_pending > MAX_TX_DESC_CNT) ||
+		(ering->tx_pending <= MAX_SKB_FRAGS)) {
+
+		return -EINVAL;
+	}
+	rc = bnx2_change_ring_size(bp, ering->rx_pending, ering->tx_pending);
+	return rc;
 }
 
 static void
@@ -6316,14 +6338,7 @@ bnx2_change_mtu(struct net_device *dev, int new_mtu)
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
-	if (netif_running(dev)) {
-		bnx2_netif_stop(bp);
-
-		bnx2_init_nic(bp);
-
-		bnx2_netif_start(bp);
-	}
-	return 0;
+	return (bnx2_change_ring_size(bp, bp->rx_ring_size, bp->tx_ring_size));
 }
 
 #if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
@@ -6644,12 +6659,12 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->mac_addr[4] = (u8) (reg >> 8);
 	bp->mac_addr[5] = (u8) reg;
 
+	bp->rx_offset = sizeof(struct l2_fhdr) + 2;
+
 	bp->tx_ring_size = MAX_TX_DESC_CNT;
 	bnx2_set_rx_ring_size(bp, 255);
 
 	bp->rx_csum = 1;
-
-	bp->rx_offset = sizeof(struct l2_fhdr) + 2;
 
 	bp->tx_quick_cons_trip_int = 20;
 	bp->tx_quick_cons_trip = 20;

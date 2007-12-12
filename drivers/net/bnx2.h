@@ -332,6 +332,11 @@ struct l2_fhdr {
 #define BNX2_L2CTX_NX_BDHADDR_LO			0x00000014
 #define BNX2_L2CTX_NX_BDIDX				0x00000018
 
+#define BNX2_L2CTX_HOST_PG_BDIDX			0x00000044
+#define BNX2_L2CTX_PG_BUF_SIZE				0x00000048
+#define BNX2_L2CTX_RBDC_KEY				0x0000004c
+#define BNX2_L2CTX_NX_PG_BDHADDR_HI			0x00000050
+#define BNX2_L2CTX_NX_PG_BDHADDR_LO			0x00000054
 
 /*
  *  pci_config_l definition
@@ -6336,7 +6341,7 @@ struct l2_fhdr {
 #define MAX_ETHERNET_PACKET_SIZE	1514
 #define MAX_ETHERNET_JUMBO_PACKET_SIZE	9014
 
-#define RX_COPY_THRESH			92
+#define RX_COPY_THRESH			128
 
 #define BNX2_MISC_ENABLE_DEFAULT	0x7ffffff
 
@@ -6513,6 +6518,7 @@ struct bnx2 {
 	u32			rx_offset;
 	u32			rx_buf_use_size;	/* useable size */
 	u32			rx_buf_size;		/* with alignment */
+	u32			rx_copy_thresh;
 	u32			rx_max_ring_idx;
 
 	u32			rx_prod_bseq;
