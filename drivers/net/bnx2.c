@@ -52,7 +52,7 @@
 #include "bnx2_fw.h"
 #include "bnx2_fw2.h"
 
-#define FW_BUF_SIZE		0x8000
+#define FW_BUF_SIZE		0x10000
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
@@ -2900,20 +2900,34 @@ bnx2_init_cpus(struct bnx2 *bp)
 {
 	struct cpu_reg cpu_reg;
 	struct fw_info *fw;
-	int rc;
-	void *text;
+	int rc, rv2p_len;
+	void *text, *rv2p;
 
 	/* Initialize the RV2P processor. */
 	text = vmalloc(FW_BUF_SIZE);
 	if (!text)
 		return -ENOMEM;
-	rc = zlib_inflate_blob(text, FW_BUF_SIZE, bnx2_rv2p_proc1, sizeof(bnx2_rv2p_proc1));
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		rv2p = bnx2_xi_rv2p_proc1;
+		rv2p_len = sizeof(bnx2_xi_rv2p_proc1);
+	} else {
+		rv2p = bnx2_rv2p_proc1;
+		rv2p_len = sizeof(bnx2_rv2p_proc1);
+	}
+	rc = zlib_inflate_blob(text, FW_BUF_SIZE, rv2p, rv2p_len);
 	if (rc < 0)
 		goto init_cpu_err;
 
 	load_rv2p_fw(bp, text, rc /* == len */, RV2P_PROC1);
 
-	rc = zlib_inflate_blob(text, FW_BUF_SIZE, bnx2_rv2p_proc2, sizeof(bnx2_rv2p_proc2));
+	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+		rv2p = bnx2_xi_rv2p_proc2;
+		rv2p_len = sizeof(bnx2_xi_rv2p_proc2);
+	} else {
+		rv2p = bnx2_rv2p_proc2;
+		rv2p_len = sizeof(bnx2_rv2p_proc2);
+	}
+	rc = zlib_inflate_blob(text, FW_BUF_SIZE, rv2p, rv2p_len);
 	if (rc < 0)
 		goto init_cpu_err;
 
@@ -3029,14 +3043,14 @@ bnx2_init_cpus(struct bnx2 *bp)
 	cpu_reg.spad_base = BNX2_CP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+	if (CHIP_NUM(bp) == CHIP_NUM_5709)
 		fw = &bnx2_cp_fw_09;
+	else
+		fw = &bnx2_cp_fw_06;
 
-		fw->text = text;
-		rc = load_cpu_fw(bp, &cpu_reg, fw);
-		if (rc)
-			goto init_cpu_err;
-	}
+	fw->text = text;
+	rc = load_cpu_fw(bp, &cpu_reg, fw);
+
 init_cpu_err:
 	vfree(text);
 	return rc;
