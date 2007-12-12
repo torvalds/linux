@@ -1,0 +1,9 @@
+config BASLER_EXCITE_PROTOTYPE
+	bool "Support for pre-release units"
+	depends on BASLER_EXCITE
+	default n
+	help
+	  Pre-series (prototype) units are different from later ones in
+	  some ways. Select this option if you have one of these. Please
+	  note that a kernel built with this option selected will not be
+	  able to run on normal units.

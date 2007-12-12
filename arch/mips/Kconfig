@@ -37,16 +37,6 @@ config BASLER_EXCITE
 	  The eXcite is a smart camera platform manufactured by
 	  Basler Vision Technologies AG.
 
-config BASLER_EXCITE_PROTOTYPE
-	bool "Support for pre-release units"
-	depends on BASLER_EXCITE
-	default n
-	help
-	  Pre-series (prototype) units are different from later ones in
-	  some ways. Select this option if you have one of these. Please
-	  note that a kernel built with this option selected will not be
-	  able to run on normal units.
-
 config BCM47XX
 	bool "BCM47XX based boards"
 	select CEVT_R4K
@@ -720,6 +710,7 @@ config WR_PPMC
 endchoice
 
 source "arch/mips/au1000/Kconfig"
+source "arch/mips/basler/excite/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
 source "arch/mips/pmc-sierra/Kconfig"
