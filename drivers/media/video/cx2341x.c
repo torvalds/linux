@@ -775,7 +775,7 @@ void cx2341x_fill_defaults(struct cx2341x_mpeg_params *p)
 EXPORT_SYMBOL(cx2341x_fill_defaults);
 
 static int cx2341x_api(void *priv, cx2341x_mbox_func func,
-		       int cmd, int args, ...)
+		       u32 cmd, int args, ...)
 {
 	u32 data[CX2341X_MBOX_MAX_DATA];
 	va_list vargs;

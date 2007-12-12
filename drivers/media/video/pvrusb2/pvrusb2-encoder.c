@@ -140,7 +140,7 @@ static int pvr2_encoder_read_words(struct pvr2_hdw *hdw,
    cx2341x.ko to write to our encoder (by handing it a pointer to this
    function).  For earlier kernels this doesn't really matter. */
 static int pvr2_encoder_cmd(void *ctxt,
-			    int cmd,
+			    u32 cmd,
 			    int arg_cnt_send,
 			    int arg_cnt_recv,
 			    u32 *argp)

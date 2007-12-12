@@ -307,7 +307,7 @@ static int register_read(struct cx88_core *core, u32 address, u32 *value)
 
 /* ------------------------------------------------------------------ */
 
-static int blackbird_mbox_func(void *priv, int command, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA])
+static int blackbird_mbox_func(void *priv, u32 command, int in, int out, u32 data[CX2341X_MBOX_MAX_DATA])
 {
 	struct cx8802_dev *dev = priv;
 	unsigned long timeout;
