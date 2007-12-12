@@ -469,6 +469,7 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	unsigned int maxlen = bh_map->b_size >> inode->i_blkbits;
 	struct metapath mp;
 	u64 size;
+	struct buffer_head *dibh = NULL;
 
 	BUG_ON(maxlen == 0);
 
@@ -499,6 +500,8 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 	error = gfs2_meta_inode_buffer(ip, &bh);
 	if (error)
 		goto out_fail;
+	dibh = bh;
+	get_bh(dibh);
 
 	for (x = 0; x < end_of_metadata; x++) {
 		lookup_block(ip, bh, x, &mp, create, &new, &dblock);
@@ -517,13 +520,8 @@ int gfs2_block_map(struct inode *inode, sector_t lblock,
 		if (boundary)
 			set_buffer_boundary(bh_map);
 		if (new) {
-			struct buffer_head *dibh;
-			error = gfs2_meta_inode_buffer(ip, &dibh);
-			if (!error) {
-				gfs2_trans_add_bh(ip->i_gl, dibh, 1);
-				gfs2_dinode_out(ip, dibh->b_data);
-				brelse(dibh);
-			}
+			gfs2_trans_add_bh(ip->i_gl, dibh, 1);
+			gfs2_dinode_out(ip, dibh->b_data);
 			set_buffer_new(bh_map);
 			goto out_brelse;
 		}
@@ -544,6 +542,8 @@ out_brelse:
 out_ok:
 	error = 0;
 out_fail:
+	if (dibh)
+		brelse(dibh);
 	bmap_unlock(inode, create);
 	return error;
 }
