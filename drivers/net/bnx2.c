@@ -4493,15 +4493,32 @@ static u32 bnx2_find_max_ring(u32 ring_size, u32 max_size)
 static void
 bnx2_set_rx_ring_size(struct bnx2 *bp, u32 size)
 {
-	u32 rx_size;
+	u32 rx_size, rx_space, jumbo_size;
 
 	/* 8 for CRC and VLAN */
 	rx_size = bp->dev->mtu + ETH_HLEN + bp->rx_offset + 8;
+
+	rx_space = SKB_DATA_ALIGN(rx_size + BNX2_RX_ALIGN) + NET_SKB_PAD +
+		sizeof(struct skb_shared_info);
 
 	bp->rx_copy_thresh = RX_COPY_THRESH;
 	bp->rx_pg_ring_size = 0;
 	bp->rx_max_pg_ring = 0;
 	bp->rx_max_pg_ring_idx = 0;
+	if (rx_space > PAGE_SIZE) {
+		int pages = PAGE_ALIGN(bp->dev->mtu - 40) >> PAGE_SHIFT;
+
+		jumbo_size = size * pages;
+		if (jumbo_size > MAX_TOTAL_RX_PG_DESC_CNT)
+			jumbo_size = MAX_TOTAL_RX_PG_DESC_CNT;
+
+		bp->rx_pg_ring_size = jumbo_size;
+		bp->rx_max_pg_ring = bnx2_find_max_ring(jumbo_size,
+							MAX_RX_PG_RINGS);
+		bp->rx_max_pg_ring_idx = (bp->rx_max_pg_ring * RX_DESC_CNT) - 1;
+		rx_size = RX_COPY_THRESH + bp->rx_offset;
+		bp->rx_copy_thresh = 0;
+	}
 
 	bp->rx_buf_use_size = rx_size;
 	/* hw alignment */
@@ -4881,7 +4898,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	else
 		return -EINVAL;
 
-	pkt_size = 1514;
+	pkt_size = min(bp->dev->mtu + ETH_HLEN, bp->rx_jumbo_thresh - 4);
 	skb = netdev_alloc_skb(bp->dev, pkt_size);
 	if (!skb)
 		return -ENOMEM;
