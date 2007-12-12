@@ -56,7 +56,7 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	memcpy(cmd.permanentaddr, priv->current_addr, ETH_ALEN);
-	ret = lbs_cmd_with_response(priv, CMD_GET_HW_SPEC, cmd);
+	ret = lbs_cmd_with_response(priv, CMD_GET_HW_SPEC, &cmd);
 	if (ret)
 		goto out;
 
@@ -121,7 +121,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 	cmd_config.gpio = gpio;
 	cmd_config.gap = gap;
 
-	ret = lbs_cmd_with_response(priv, CMD_802_11_HOST_SLEEP_CFG, cmd_config);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_HOST_SLEEP_CFG, &cmd_config);
 	if (ret) {
 		lbs_pr_info("HOST_SLEEP_CFG failed %d\n", ret);
 		return ret;
@@ -743,7 +743,7 @@ int lbs_get_data_rate(struct lbs_private *priv)
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_GET_TX_RATE);
 
-	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, cmd);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, &cmd);
 	if (ret)
 		goto out;
 
@@ -790,7 +790,7 @@ int lbs_set_data_rate(struct lbs_private *priv, u8 rate)
 		lbs_deb_cmd("DATA_RATE: setting auto\n");
 	}
 
-	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, cmd);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_DATA_RATE, &cmd);
 	if (ret)
 		goto out;
 
@@ -846,7 +846,7 @@ int lbs_get_channel(struct lbs_private *priv)
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_GET);
 
-	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_CHANNEL, cmd);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_CHANNEL, &cmd);
 	if (ret)
 		goto out;
 
@@ -878,7 +878,7 @@ int lbs_set_channel(struct lbs_private *priv, u8 channel)
 	cmd.action = cpu_to_le16(CMD_OPT_802_11_RF_CHANNEL_SET);
 	cmd.channel = cpu_to_le16(channel);
 
-	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_CHANNEL, cmd);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_CHANNEL, &cmd);
 	if (ret)
 		goto out;
 
@@ -1105,7 +1105,7 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 
 	cmd->action = cpu_to_le16(cmd_action);
 
-	ret = lbs_cmd_with_response(priv, CMD_MESH_ACCESS, (*cmd));
+	ret = lbs_cmd_with_response(priv, CMD_MESH_ACCESS, cmd);
 
 	lbs_deb_leave(LBS_DEB_CMD);
 	return ret;
@@ -1128,7 +1128,7 @@ int lbs_mesh_config(struct lbs_private *priv, int enable)
 	lbs_deb_cmd("mesh config channel %d SSID %s\n",
 		    priv->curbssparams.channel,
 		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
-	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, cmd);
+	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, &cmd);
 }
 
 static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
@@ -2160,6 +2160,7 @@ int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 	lbs_deb_leave(LBS_DEB_CMD);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
 
 /**
  *  @brief Simple way to call firmware functions

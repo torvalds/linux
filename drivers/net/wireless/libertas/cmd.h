@@ -6,13 +6,11 @@
 #include "hostcmd.h"
 #include "dev.h"
 
-#define lbs_cmd(priv, cmdnr, cmd, callback, callback_arg) \
-	__lbs_cmd(priv, cmdnr, &(cmd).hdr, sizeof(cmd),	  \
-			callback, callback_arg)
+#define lbs_cmd(priv, cmdnr, cmd, cb, cb_arg)	\
+	__lbs_cmd(priv, cmdnr, &(cmd)->hdr, sizeof(*(cmd)), cb, cb_arg)
 
-#define lbs_cmd_with_response(priv, cmdnr, cmd) \
-	__lbs_cmd(priv, cmdnr, &(cmd).hdr, sizeof(cmd), \
-		  lbs_cmd_copyback, (unsigned long) &cmd)
+#define lbs_cmd_with_response(priv, cmdnr, cmd)	\
+	lbs_cmd(priv, cmdnr, cmd, lbs_cmd_copyback, (unsigned long) (cmd))
  
 int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	      struct cmd_header *in_cmd, int in_cmd_size, 
