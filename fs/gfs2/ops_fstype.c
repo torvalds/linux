@@ -332,7 +332,7 @@ static int map_journal_extents(struct gfs2_sbd *sdp)
 	INIT_LIST_HEAD(&jd->extent_list);
 	prev_db = 0;
 
-	for (lb = 0; lb < ip->i_di.di_size / sdp->sd_sb.sb_bsize; lb++) {
+	for (lb = 0; lb < ip->i_di.di_size >> sdp->sd_sb.sb_bsize_shift; lb++) {
 		bh.b_state = 0;
 		bh.b_blocknr = 0;
 		bh.b_size = 1 << ip->i_inode.i_blkbits;
