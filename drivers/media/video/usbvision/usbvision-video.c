@@ -1651,7 +1651,6 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev)
 		goto err_exit;
 	}
 	init_waitqueue_head(&usbvision->ctrlUrb_wq);
-	init_MUTEX(&usbvision->ctrlUrbLock);	/* to 1 == available */
 
 	usbvision_init_powerOffTimer(usbvision);
 
