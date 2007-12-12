@@ -35,5 +35,7 @@ int lbs_mesh_config(struct lbs_private *priv, int enable);
 
 int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 		       uint8_t gpio, uint8_t gap);
+int lbs_suspend(struct lbs_private *priv);
+int lbs_resume(struct lbs_private *priv);
 
 #endif /* _LBS_CMD_H */

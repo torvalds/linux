@@ -820,6 +820,53 @@ static int lbs_thread(void *data)
 	return 0;
 }
 
+static int lbs_suspend_callback(struct lbs_private *priv, unsigned long dummy,
+				struct cmd_header *cmd)
+{
+	lbs_deb_fw("HOST_SLEEP_ACTIVATE succeeded\n");
+
+	netif_device_detach(priv->dev);
+	if (priv->mesh_dev)
+		netif_device_detach(priv->mesh_dev);
+
+	priv->fw_ready = 0;
+	return 0;
+}
+
+
+int lbs_suspend(struct lbs_private *priv)
+{
+	struct cmd_header cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	
+	ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_ACTIVATE, &cmd,
+			sizeof(cmd), lbs_suspend_callback, 0);
+	if (ret)
+		lbs_pr_info("HOST_SLEEP_ACTIVATE failed: %d\n", ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(lbs_suspend);
+
+int lbs_resume(struct lbs_private *priv)
+{
+	priv->fw_ready = 1;
+
+	/* Firmware doesn't seem to give us RX packets any more
+	   until we send it some command. Might as well update */
+	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
+				     0, 0, NULL);
+
+	netif_device_attach(priv->dev);
+	if (priv->mesh_dev)
+		netif_device_attach(priv->mesh_dev);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(lbs_resume);
+
 /**
  *  @brief This function downloads firmware image, gets
  *  HW spec from firmware and set basic parameters to
