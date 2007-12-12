@@ -1290,8 +1290,8 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 		errCode = usbvision_set_alternate(usbvision);
 		if (errCode < 0) {
 			usbvision->last_error = errCode;
-			mutex_unlock(&usbvision->lock);
-			return -EBUSY;
+			errCode = -EBUSY;
+			goto out;
 		}
 
 		// If so far no errors then we shall start the radio
@@ -1308,6 +1308,7 @@ static int usbvision_radio_open(struct inode *inode, struct file *file)
 			usbvision->initialized = 0;
 		}
 	}
+out:
 	mutex_unlock(&usbvision->lock);
 	return errCode;
 }
