@@ -919,7 +919,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
-	inp->std = V4L2_STD_NTSC_M;
+	inp->std = V4L2_STD_525_60;
 	strcpy(inp->name, "Camera");
 
 	return (0);
@@ -1172,7 +1172,7 @@ static struct video_device vivi_template = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf          = vidiocgmbuf,
 #endif
-	.tvnorms              = V4L2_STD_NTSC_M,
+	.tvnorms              = V4L2_STD_525_60,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
 /* -----------------------------------------------------------------
