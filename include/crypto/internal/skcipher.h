@@ -88,5 +88,10 @@ static inline void skcipher_givcrypt_complete(
 	ablkcipher_request_complete(&req->creq, err);
 }
 
+static inline u32 ablkcipher_request_flags(struct ablkcipher_request *req)
+{
+	return req->base.flags;
+}
+
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */
 
