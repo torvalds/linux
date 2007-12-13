@@ -248,13 +248,16 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
  */
 static void iscsi_complete_command(struct iscsi_cmd_task *ctask)
 {
-	struct iscsi_session *session = ctask->conn->session;
+	struct iscsi_conn *conn = ctask->conn;
+	struct iscsi_session *session = conn->session;
 	struct scsi_cmnd *sc = ctask->sc;
 
 	ctask->state = ISCSI_TASK_COMPLETED;
 	ctask->sc = NULL;
 	/* SCSI eh reuses commands to verify us */
 	sc->SCp.ptr = NULL;
+	if (conn->ctask == ctask)
+		conn->ctask = NULL;
 	list_del_init(&ctask->running);
 	__kfifo_put(session->cmdpool.queue, (void*)&ctask, sizeof(void*));
 	sc->scsi_done(sc);
