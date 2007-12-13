@@ -407,11 +407,23 @@ struct dccp_opt_pend {
 
 extern void dccp_minisock_init(struct dccp_minisock *dmsk);
 
+/**
+ * struct dccp_request_sock  -  represent DCCP-specific connection request
+ * @dreq_inet_rsk: structure inherited from
+ * @dreq_iss: initial sequence number sent on the Response (RFC 4340, 7.1)
+ * @dreq_isr: initial sequence number received on the Request
+ * @dreq_service: service code present on the Request (there is just one)
+ * The following two fields are analogous to the ones in dccp_sock:
+ * @dreq_timestamp_echo: last received timestamp to echo (13.1)
+ * @dreq_timestamp_echo: the time of receiving the last @dreq_timestamp_echo
+ */
 struct dccp_request_sock {
 	struct inet_request_sock dreq_inet_rsk;
 	__u64			 dreq_iss;
 	__u64			 dreq_isr;
 	__be32			 dreq_service;
+	__u32			 dreq_timestamp_echo;
+	__u32			 dreq_timestamp_time;
 };
 
 static inline struct dccp_request_sock *dccp_rsk(const struct request_sock *req)
@@ -477,8 +489,8 @@ struct dccp_ackvec;
  * @dccps_gar - greatest valid ack number received on a non-Sync; initialized to %dccps_iss
  * @dccps_service - first (passive sock) or unique (active sock) service code
  * @dccps_service_list - second .. last service code on passive socket
- * @dccps_timestamp_time - time of latest TIMESTAMP option
  * @dccps_timestamp_echo - latest timestamp received on a TIMESTAMP option
+ * @dccps_timestamp_time - time of receiving latest @dccps_timestamp_echo
  * @dccps_l_ack_ratio - feature-local Ack Ratio
  * @dccps_r_ack_ratio - feature-remote Ack Ratio
  * @dccps_pcslen - sender   partial checksum coverage (via sockopt)
@@ -514,8 +526,8 @@ struct dccp_sock {
 	__u64				dccps_gar;
 	__be32				dccps_service;
 	struct dccp_service_list	*dccps_service_list;
-	ktime_t				dccps_timestamp_time;
 	__u32				dccps_timestamp_echo;
+	__u32				dccps_timestamp_time;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
 	__u16				dccps_pcslen;

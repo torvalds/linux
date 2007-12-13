@@ -166,16 +166,27 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		case DCCPO_TIMESTAMP:
 			if (len != 4)
 				goto out_invalid_option;
-
+			/*
+			 * RFC 4340 13.1: "The precise time corresponding to
+			 * Timestamp Value zero is not specified". We use
+			 * zero to indicate absence of a meaningful timestamp.
+			 */
 			opt_val = get_unaligned((__be32 *)value);
-			opt_recv->dccpor_timestamp = ntohl(opt_val);
+			if (unlikely(opt_val == 0)) {
+				DCCP_WARN("Timestamp with zero value\n");
+				break;
+			}
 
-			/* FIXME: if dreq != NULL, don't store this on listening socket */
-			dp->dccps_timestamp_echo = opt_recv->dccpor_timestamp;
-			dp->dccps_timestamp_time = ktime_get_real();
-
+			if (dreq != NULL) {
+				dreq->dreq_timestamp_echo = ntohl(opt_val);
+				dreq->dreq_timestamp_time = dccp_timestamp();
+			} else {
+				opt_recv->dccpor_timestamp =
+					dp->dccps_timestamp_echo = ntohl(opt_val);
+				dp->dccps_timestamp_time = dccp_timestamp();
+			}
 			dccp_pr_debug("%s rx opt: TIMESTAMP=%u, ackno=%llu\n",
-				      dccp_role(sk), opt_recv->dccpor_timestamp,
+				      dccp_role(sk), ntohl(opt_val),
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
 			break;
@@ -393,16 +404,24 @@ int dccp_insert_option_timestamp(struct sock *sk, struct sk_buff *skb)
 
 EXPORT_SYMBOL_GPL(dccp_insert_option_timestamp);
 
-static int dccp_insert_option_timestamp_echo(struct sock *sk,
+static int dccp_insert_option_timestamp_echo(struct dccp_sock *dp,
+					     struct dccp_request_sock *dreq,
 					     struct sk_buff *skb)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
 	__be32 tstamp_echo;
-	int len, elapsed_time_len;
 	unsigned char *to;
-	const suseconds_t delta = ktime_us_delta(ktime_get_real(),
-						 dp->dccps_timestamp_time);
-	u32 elapsed_time = delta / 10;
+	u32 elapsed_time, elapsed_time_len, len;
+
+	if (dreq != NULL) {
+		elapsed_time = dccp_timestamp() - dreq->dreq_timestamp_time;
+		tstamp_echo  = htonl(dreq->dreq_timestamp_echo);
+		dreq->dreq_timestamp_echo = 0;
+	} else {
+		elapsed_time = dccp_timestamp() - dp->dccps_timestamp_time;
+		tstamp_echo  = htonl(dp->dccps_timestamp_echo);
+		dp->dccps_timestamp_echo = 0;
+	}
+
 	elapsed_time_len = dccp_elapsed_time_len(elapsed_time);
 	len = 6 + elapsed_time_len;
 
@@ -415,7 +434,6 @@ static int dccp_insert_option_timestamp_echo(struct sock *sk,
 	*to++ = DCCPO_TIMESTAMP_ECHO;
 	*to++ = len;
 
-	tstamp_echo = htonl(dp->dccps_timestamp_echo);
 	memcpy(to, &tstamp_echo, 4);
 	to += 4;
 
@@ -427,8 +445,6 @@ static int dccp_insert_option_timestamp_echo(struct sock *sk,
 		memcpy(to, &var32, 4);
 	}
 
-	dp->dccps_timestamp_echo = 0;
-	dp->dccps_timestamp_time = ktime_set(0, 0);
 	return 0;
 }
 
@@ -537,10 +553,6 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 		    dccp_ackvec_pending(dp->dccps_hc_rx_ackvec) &&
 		    dccp_insert_option_ackvec(sk, skb))
 			return -1;
-
-		if (dp->dccps_timestamp_echo != 0 &&
-		    dccp_insert_option_timestamp_echo(sk, skb))
-			return -1;
 	}
 
 	if (dp->dccps_hc_rx_insert_options) {
@@ -562,6 +574,10 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 	 */
 	if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_REQUEST &&
 	    dccp_insert_option_timestamp(sk, skb))
+		return -1;
+
+	if (dp->dccps_timestamp_echo != 0 &&
+	    dccp_insert_option_timestamp_echo(dp, NULL, skb))
 		return -1;
 
 	/* XXX: insert other options when appropriate */

@@ -117,11 +117,13 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		struct dccp_sock *newdp = dccp_sk(newsk);
 		struct dccp_minisock *newdmsk = dccp_msk(newsk);
 
-		newdp->dccps_role	   = DCCP_ROLE_SERVER;
-		newdp->dccps_hc_rx_ackvec  = NULL;
-		newdp->dccps_service_list  = NULL;
-		newdp->dccps_service	   = dreq->dreq_service;
-		newicsk->icsk_rto	   = DCCP_TIMEOUT_INIT;
+		newdp->dccps_role	    = DCCP_ROLE_SERVER;
+		newdp->dccps_hc_rx_ackvec   = NULL;
+		newdp->dccps_service_list   = NULL;
+		newdp->dccps_service	    = dreq->dreq_service;
+		newdp->dccps_timestamp_echo = dreq->dreq_timestamp_echo;
+		newdp->dccps_timestamp_time = dreq->dreq_timestamp_time;
+		newicsk->icsk_rto	    = DCCP_TIMEOUT_INIT;
 
 		if (dccp_feat_clone(sk, newsk))
 			goto out_free;
@@ -303,9 +305,12 @@ EXPORT_SYMBOL_GPL(dccp_reqsk_send_ack);
 
 void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb)
 {
-	inet_rsk(req)->rmt_port = dccp_hdr(skb)->dccph_sport;
-	inet_rsk(req)->acked	= 0;
-	req->rcv_wnd		= sysctl_dccp_feat_sequence_window;
+	struct dccp_request_sock *dreq = dccp_rsk(req);
+
+	inet_rsk(req)->rmt_port	  = dccp_hdr(skb)->dccph_sport;
+	inet_rsk(req)->acked	  = 0;
+	req->rcv_wnd		  = sysctl_dccp_feat_sequence_window;
+	dreq->dreq_timestamp_echo = 0;
 }
 
 EXPORT_SYMBOL_GPL(dccp_reqsk_init);
