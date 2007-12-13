@@ -1119,12 +1119,10 @@ static int onenand_bbt_wait(struct mtd_info *mtd, int state)
 	interrupt = this->read_word(this->base + ONENAND_REG_INTERRUPT);
 	ctrl = this->read_word(this->base + ONENAND_REG_CTRL_STATUS);
 
+	/* Initial bad block case: 0x2400 or 0x0400 */
 	if (ctrl & ONENAND_CTRL_ERROR) {
 		printk(KERN_DEBUG "onenand_bbt_wait: controller error = 0x%04x\n", ctrl);
-		/* Initial bad block case */
-		if (ctrl & ONENAND_CTRL_LOAD)
-			return ONENAND_BBT_READ_ERROR;
-		return ONENAND_BBT_READ_FATAL_ERROR;
+		return ONENAND_BBT_READ_ERROR;
 	}
 
 	if (interrupt & ONENAND_INT_READ) {
