@@ -1317,11 +1317,11 @@ void __init per_cpu_trap_init(void)
 #endif
 	if (current_cpu_data.isa_level == MIPS_CPU_ISA_IV)
 		status_set |= ST0_XX;
+	if (cpu_has_dsp)
+		status_set |= ST0_MX;
+
 	change_c0_status(ST0_CU|ST0_MX|ST0_RE|ST0_FR|ST0_BEV|ST0_TS|ST0_KX|ST0_SX|ST0_UX,
 			 status_set);
-
-	if (cpu_has_dsp)
-		set_c0_status(ST0_MX);
 
 #ifdef CONFIG_CPU_MIPSR2
 	if (cpu_has_mips_r2) {
