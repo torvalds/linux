@@ -24,7 +24,7 @@
 #include <linux/pci.h>
 #include <linux/of_platform.h>
 
-#include <asm/firmware.h>
+#include <asm/machdep.h>
 
 #include "beat_wrapper.h"
 
@@ -92,7 +92,7 @@ static struct notifier_block celleb_of_bus_notifier = {
 
 static int __init celleb_init_iommu(void)
 {
-	if (!firmware_has_feature(FW_FEATURE_BEAT))
+	if (!machine_is(celleb_beat))
 		return -ENODEV;
 
 	celleb_init_direct_mapping();

@@ -700,8 +700,8 @@ static int __init cell_iommu_init(void)
 {
 	struct device_node *np;
 
-	if ((!machine_is(cell) && !machine_is(celleb)) ||
-	    firmware_has_feature(FW_FEATURE_LPAR))
+	if (!machine_is(cell) &&
+	    !machine_is(celleb_native))
 		return -ENODEV;
 
 	/* If IOMMU is disabled or we have little enough RAM to not need

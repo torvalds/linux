@@ -93,30 +93,43 @@ static void celleb_progress(char *s, unsigned short hex)
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
-static void __init celleb_init_IRQ_native(void)
+static void __init celleb_setup_arch_common(void)
 {
-	iic_init_IRQ();
-	spider_init_IRQ();
+	/* init to some ~sane value until calibrate_delay() runs */
+	loops_per_jiffy = 50000000;
+
+#ifdef CONFIG_DUMMY_CONSOLE
+	conswitchp = &dummy_con;
+#endif
 }
 
+static struct of_device_id celleb_bus_ids[] __initdata = {
+	{ .type = "scc", },
+	{ .type = "ioif", },	/* old style */
+	{},
+};
+
+static int __init celleb_publish_devices(void)
+{
+	if (!machine_is(celleb_beat) &&
+	    !machine_is(celleb_native))
+		return -ENODEV;
+
+	/* Publish OF platform devices for southbridge IOs */
+	of_platform_bus_probe(NULL, celleb_bus_ids, NULL);
+
+	celleb_pci_workaround_init();
+
+	return 0;
+}
+device_initcall(celleb_publish_devices);
+
+
+/*
+ * functions for Celleb-Beat
+ */
 static void __init celleb_setup_arch_beat(void)
 {
-	ppc_md.restart		= beat_restart;
-	ppc_md.power_off	= beat_power_off;
-	ppc_md.halt		= beat_halt;
-	ppc_md.get_rtc_time	= beat_get_rtc_time;
-	ppc_md.set_rtc_time	= beat_set_rtc_time;
-	ppc_md.power_save	= beat_power_save;
-	ppc_md.nvram_size	= beat_nvram_get_size;
-	ppc_md.nvram_read	= beat_nvram_read;
-	ppc_md.nvram_write	= beat_nvram_write;
-	ppc_md.set_dabr		= beat_set_xdabr;
-	ppc_md.init_IRQ		= beatic_init_IRQ;
-	ppc_md.get_irq		= beatic_get_irq;
-#ifdef CONFIG_KEXEC
-	ppc_md.kexec_cpu_down	= beat_kexec_cpu_down;
-#endif
-
 #ifdef CONFIG_SPU_BASE
 	spu_priv1_ops		= &spu_priv1_beat_ops;
 	spu_management_ops	= &spu_management_of_ops;
@@ -125,18 +138,36 @@ static void __init celleb_setup_arch_beat(void)
 #ifdef CONFIG_SMP
 	smp_init_celleb();
 #endif
+
+	celleb_setup_arch_common();
+}
+
+static int __init celleb_probe_beat(void)
+{
+	unsigned long root = of_get_flat_dt_root();
+
+	if (!of_flat_dt_is_compatible(root, "Beat"))
+		return 0;
+
+	powerpc_firmware_features |= FW_FEATURE_CELLEB_ALWAYS
+		| FW_FEATURE_BEAT | FW_FEATURE_LPAR;
+	hpte_init_beat_v3();
+
+	return 1;
+}
+
+
+/*
+ * functions for Celleb-native
+ */
+static void __init celleb_init_IRQ_native(void)
+{
+	iic_init_IRQ();
+	spider_init_IRQ();
 }
 
 static void __init celleb_setup_arch_native(void)
 {
-	ppc_md.restart		= rtas_restart;
-	ppc_md.power_off	= rtas_power_off;
-	ppc_md.halt		= rtas_halt;
-	ppc_md.get_boot_time	= rtas_get_boot_time;
-	ppc_md.get_rtc_time	= rtas_get_rtc_time;
-	ppc_md.set_rtc_time	= rtas_set_rtc_time;
-	ppc_md.init_IRQ		= celleb_init_IRQ_native;
-
 #ifdef CONFIG_SPU_BASE
 	spu_priv1_ops		= &spu_priv1_mmio_ops;
 	spu_management_ops	= &spu_management_of_ops;
@@ -153,71 +184,75 @@ static void __init celleb_setup_arch_native(void)
 #endif
 
 	cbe_pervasive_init();
+
+	/* XXX: nvram initialization should be added */
+
+	celleb_setup_arch_common();
 }
 
-static void __init celleb_setup_arch(void)
-{
-	if (firmware_has_feature(FW_FEATURE_BEAT))
-		celleb_setup_arch_beat();
-	else
-		celleb_setup_arch_native();
-
-	/* init to some ~sane value until calibrate_delay() runs */
-	loops_per_jiffy = 50000000;
-
-#ifdef CONFIG_DUMMY_CONSOLE
-	conswitchp = &dummy_con;
-#endif
-}
-
-static int __init celleb_probe(void)
+static int __init celleb_probe_native(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "Beat")) {
-		powerpc_firmware_features |= FW_FEATURE_CELLEB_ALWAYS
-			| FW_FEATURE_BEAT | FW_FEATURE_LPAR;
-		hpte_init_beat_v3();
-		return 1;
-	}
-	if (of_flat_dt_is_compatible(root, "TOSHIBA,Celleb")) {
-		powerpc_firmware_features |= FW_FEATURE_CELLEB_ALWAYS;
-		hpte_init_native();
-		return 1;
-	}
-
-	return 0;
-}
-
-static struct of_device_id celleb_bus_ids[] __initdata = {
-	{ .type = "scc", },
-	{ .type = "ioif", },	/* old style */
-	{},
-};
-
-static int __init celleb_publish_devices(void)
-{
-	if (!machine_is(celleb))
+	if (of_flat_dt_is_compatible(root, "Beat") ||
+	    !of_flat_dt_is_compatible(root, "TOSHIBA,Celleb"))
 		return 0;
 
-	/* Publish OF platform devices for southbridge IOs */
-	of_platform_bus_probe(NULL, celleb_bus_ids, NULL);
+	powerpc_firmware_features |= FW_FEATURE_CELLEB_ALWAYS;
+	hpte_init_native();
 
-	celleb_pci_workaround_init();
-
-	return 0;
+	return 1;
 }
-device_initcall(celleb_publish_devices);
 
-define_machine(celleb) {
-	.name			= "Cell Reference Set",
-	.probe			= celleb_probe,
-	.setup_arch		= celleb_setup_arch,
+
+/*
+ * machine definitions
+ */
+define_machine(celleb_beat) {
+	.name			= "Cell Reference Set (Beat)",
+	.probe			= celleb_probe_beat,
+	.setup_arch		= celleb_setup_arch_beat,
 	.show_cpuinfo		= celleb_show_cpuinfo,
+	.restart		= beat_restart,
+	.power_off		= beat_power_off,
+	.halt			= beat_halt,
+	.get_rtc_time		= beat_get_rtc_time,
+	.set_rtc_time		= beat_set_rtc_time,
+	.calibrate_decr		= generic_calibrate_decr,
+	.progress		= celleb_progress,
+	.power_save		= beat_power_save,
+	.nvram_size		= beat_nvram_get_size,
+	.nvram_read		= beat_nvram_read,
+	.nvram_write		= beat_nvram_write,
+	.set_dabr		= beat_set_xdabr,
+	.init_IRQ		= beatic_init_IRQ,
+	.get_irq		= beatic_get_irq,
+	.pci_probe_mode 	= celleb_pci_probe_mode,
+	.pci_setup_phb		= celleb_setup_phb,
+#ifdef CONFIG_KEXEC
+	.kexec_cpu_down		= beat_kexec_cpu_down,
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+	.machine_crash_shutdown	= default_machine_crash_shutdown,
+#endif
+};
+
+define_machine(celleb_native) {
+	.name			= "Cell Reference Set (native)",
+	.probe			= celleb_probe_native,
+	.setup_arch		= celleb_setup_arch_native,
+	.show_cpuinfo		= celleb_show_cpuinfo,
+	.restart		= rtas_restart,
+	.power_off		= rtas_power_off,
+	.halt			= rtas_halt,
+	.get_boot_time		= rtas_get_boot_time,
+	.get_rtc_time		= rtas_get_rtc_time,
+	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= celleb_progress,
 	.pci_probe_mode 	= celleb_pci_probe_mode,
 	.pci_setup_phb		= celleb_setup_phb,
+	.init_IRQ		= celleb_init_IRQ_native,
 #ifdef CONFIG_KEXEC
 	.machine_kexec		= default_machine_kexec,
 	.machine_kexec_prepare	= default_machine_kexec_prepare,
