@@ -887,6 +887,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 
 	if (is_on) {
 		clk_on(udc);
+		at91_udp_write(udc, AT91_UDP_ICR, AT91_UDP_RXRSM);
 		at91_udp_write(udc, AT91_UDP_TXVC, 0);
 		if (cpu_is_at91rm9200())
 			at91_set_gpio_value(udc->board.pullup_pin, 1);
@@ -904,6 +905,7 @@ static void pullup(struct at91_udc *udc, int is_on)
 		}
 	} else {
 		stop_activity(udc);
+		at91_udp_write(udc, AT91_UDP_IDR, AT91_UDP_RXRSM);
 		at91_udp_write(udc, AT91_UDP_TXVC, AT91_UDP_TXVC_TXVDIS);
 		if (cpu_is_at91rm9200())
 			at91_set_gpio_value(udc->board.pullup_pin, 0);
