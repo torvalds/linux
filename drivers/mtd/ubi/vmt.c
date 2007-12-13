@@ -70,13 +70,14 @@ static struct device_attribute attr_vol_upd_marker =
 static ssize_t vol_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	int ret;
+	int ret = -ENODEV;
+
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
 
 	spin_lock(&vol->ubi->volumes_lock);
 	if (vol->removed) {
 		spin_unlock(&vol->ubi->volumes_lock);
-		return -ENODEV;
+		return ret;
 	}
 	if (attr == &attr_vol_reserved_ebs)
 		ret = sprintf(buf, "%d\n", vol->reserved_pebs);
