@@ -425,48 +425,57 @@ static void vivi_thread_tick(struct vivi_dmaqueue  *dma_q)
 	spin_unlock(&dev->slock);
 }
 
+#define frames_to_ms(frames)					\
+	((frames * WAKE_NUMERATOR * 1000) / WAKE_DENOMINATOR)
+
 static void vivi_sleep(struct vivi_dmaqueue  *dma_q)
 {
 	struct vivi_dev *dev = container_of(dma_q, struct vivi_dev, vidq);
-	int timeout;
+	int timeout, running_time;
 	DECLARE_WAITQUEUE(wait, current);
 
 	dprintk(dev, 1, "%s dma_q=0x%08lx\n", __FUNCTION__,
 		(unsigned long)dma_q);
 
 	add_wait_queue(&dma_q->wq, &wait);
-	if (!kthread_should_stop()) {
-		dma_q->frame++;
+	if (kthread_should_stop())
+		goto stop_task;
 
-		/* Calculate time to wake up */
-		timeout = dma_q->ini_jiffies+
-			  msecs_to_jiffies((dma_q->frame*WAKE_NUMERATOR * 1000)
-					   / WAKE_DENOMINATOR) - jiffies;
+	running_time = jiffies - dma_q->ini_jiffies;
+	dma_q->frame++;
 
-		if (timeout <= 0) {
-			int old = dma_q->frame;
-			dma_q->frame = (jiffies_to_msecs(jiffies -
-					dma_q->ini_jiffies) *
-					WAKE_DENOMINATOR) /
-					(WAKE_NUMERATOR * 1000) + 1;
+	/* Calculate time to wake up */
+	timeout = msecs_to_jiffies(frames_to_ms(dma_q->frame)) - running_time;
 
-			timeout = dma_q->ini_jiffies+
-				msecs_to_jiffies((dma_q->frame *
-						  WAKE_NUMERATOR * 1000)
-						  / WAKE_DENOMINATOR) - jiffies;
+	if (timeout > msecs_to_jiffies(frames_to_ms(2)) || timeout <= 0) {
+		int old = dma_q->frame;
+		int nframes;
 
-			dprintk(dev, 1, "underrun, losed %d frames. "
-				   "Now, frame is %d. Waking on %d jiffies\n",
-				   dma_q->frame-old, dma_q->frame, timeout);
-		} else
-			dprintk(dev, 1, "will sleep for %i jiffies\n",
-				timeout);
+		dma_q->frame = (jiffies_to_msecs(running_time) /
+			       frames_to_ms(1)) + 1;
 
-		vivi_thread_tick(dma_q);
+		timeout = msecs_to_jiffies(frames_to_ms(dma_q->frame))
+			  - running_time;
 
-		schedule_timeout_interruptible(timeout);
-	}
+		if (unlikely (timeout <= 0))
+			timeout = 1;
 
+		nframes = (dma_q->frame > old)?
+				  dma_q->frame - old : old - dma_q->frame;
+
+		dprintk(dev, 1, "%ld: %s %d frames. "
+			"Current frame is %d. Will sleep for %d jiffies\n",
+			jiffies,
+			(dma_q->frame > old)? "Underrun, losed" : "Overrun of",
+			nframes, dma_q->frame, timeout);
+	} else
+		dprintk(dev, 1, "will sleep for %d jiffies\n", timeout);
+
+	vivi_thread_tick(dma_q);
+
+	schedule_timeout_interruptible(timeout);
+
+stop_task:
 	remove_wait_queue(&dma_q->wq, &wait);
 	try_to_freeze();
 }
