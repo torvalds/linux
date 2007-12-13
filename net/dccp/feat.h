@@ -14,32 +14,6 @@
 #include <linux/types.h>
 #include "dccp.h"
 
-static inline int dccp_feat_is_valid_length(u8 type, u8 feature, u8 len)
-{
-	/* sec. 6.1: Confirm has at least length 3,
-	 * sec. 6.2: Change  has at least length 4 */
-	if (len < 3)
-		return 1;
-	if (len < 4  && (type == DCCPO_CHANGE_L || type == DCCPO_CHANGE_R))
-		return 1;
-	/* XXX: add per-feature length validation (sec. 6.6.8) */
-	return 0;
-}
-
-static inline int dccp_feat_is_reserved(const u8 feat)
-{
-	return (feat > DCCPF_DATA_CHECKSUM &&
-		feat < DCCPF_MIN_CCID_SPECIFIC) ||
-		feat == DCCPF_RESERVED;
-}
-
-/* feature negotiation knows only these four option types (RFC 4340, sec. 6) */
-static inline int dccp_feat_is_valid_type(const u8 optnum)
-{
-	return optnum >= DCCPO_CHANGE_L && optnum <= DCCPO_CONFIRM_R;
-
-}
-
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern const char *dccp_feat_typename(const u8 type);
 extern const char *dccp_feat_name(const u8 feat);

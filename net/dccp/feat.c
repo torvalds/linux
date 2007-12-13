@@ -24,11 +24,7 @@ int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
 
 	dccp_feat_debug(type, feature, *val);
 
-	if (!dccp_feat_is_valid_type(type)) {
-		DCCP_WARN("option type %d invalid in negotiation\n", type);
-		return 1;
-	}
-	if (!dccp_feat_is_valid_length(type, feature, len)) {
+	if (len > 3) {
 		DCCP_WARN("invalid length %d\n", len);
 		return 1;
 	}
@@ -637,11 +633,11 @@ const char *dccp_feat_name(const u8 feat)
 		[DCCPF_MIN_CSUM_COVER]	= "Min. Csum Coverage",
 		[DCCPF_DATA_CHECKSUM]	= "Send Data Checksum",
 	};
+	if (feat > DCCPF_DATA_CHECKSUM && feat < DCCPF_MIN_CCID_SPECIFIC)
+		return feature_names[DCCPF_RESERVED];
+
 	if (feat >= DCCPF_MIN_CCID_SPECIFIC)
 		return "CCID-specific";
-
-	if (dccp_feat_is_reserved(feat))
-		return feature_names[DCCPF_RESERVED];
 
 	return feature_names[feat];
 }
