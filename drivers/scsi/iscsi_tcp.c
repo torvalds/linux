@@ -641,13 +641,11 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	}
 
 	/* fill-in new R2T associated with the task */
-	spin_lock(&session->lock);
 	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
 
 	if (!ctask->sc || session->state != ISCSI_STATE_LOGGED_IN) {
 		printk(KERN_INFO "iscsi_tcp: dropping R2T itt %d in "
 		       "recovery...\n", ctask->itt);
-		spin_unlock(&session->lock);
 		return 0;
 	}
 
@@ -660,7 +658,6 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		printk(KERN_ERR "iscsi_tcp: invalid R2T with zero data len\n");
 		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
 			    sizeof(void*));
-		spin_unlock(&session->lock);
 		return ISCSI_ERR_DATALEN;
 	}
 
@@ -676,7 +673,6 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		       r2t->data_offset, scsi_bufflen(ctask->sc));
 		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
 			    sizeof(void*));
-		spin_unlock(&session->lock);
 		return ISCSI_ERR_DATALEN;
 	}
 
@@ -690,8 +686,6 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	conn->r2t_pdus_cnt++;
 
 	iscsi_requeue_ctask(ctask);
-	spin_unlock(&session->lock);
-
 	return 0;
 }
 
@@ -764,7 +758,9 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	switch(opcode) {
 	case ISCSI_OP_SCSI_DATA_IN:
 		ctask = session->cmds[itt];
+		spin_lock(&conn->session->lock);
 		rc = iscsi_data_rsp(conn, ctask);
+		spin_unlock(&conn->session->lock);
 		if (rc)
 			return rc;
 		if (tcp_conn->in.datalen) {
@@ -806,9 +802,11 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 		ctask = session->cmds[itt];
 		if (ahslen)
 			rc = ISCSI_ERR_AHSLEN;
-		else if (ctask->sc->sc_data_direction == DMA_TO_DEVICE)
+		else if (ctask->sc->sc_data_direction == DMA_TO_DEVICE) {
+			spin_lock(&session->lock);
 			rc = iscsi_r2t_rsp(conn, ctask);
-		else
+			spin_unlock(&session->lock);
+		} else
 			rc = ISCSI_ERR_PROTO;
 		break;
 	case ISCSI_OP_LOGIN_RSP:
