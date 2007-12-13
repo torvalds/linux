@@ -163,7 +163,7 @@ done:
 }
 
 
-static int update_channel(struct lbs_private *priv)
+int lbs_update_channel(struct lbs_private *priv)
 {
 	int ret;
 
@@ -184,7 +184,7 @@ void lbs_sync_channel(struct work_struct *work)
 		sync_channel);
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
-	if (update_channel(priv) != 0)
+	if (lbs_update_channel(priv))
 		lbs_pr_info("Channel synchronization failed.");
 	lbs_deb_leave(LBS_DEB_ASSOC);
 }
@@ -196,7 +196,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
-	ret = update_channel(priv);
+	ret = lbs_update_channel(priv);
 	if (ret < 0) {
 		lbs_deb_assoc("ASSOC: channel: error getting channel.\n");
 	}
@@ -220,7 +220,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 	/* FIXME: shouldn't need to grab the channel _again_ after setting
 	 * it since the firmware is supposed to return the new channel, but
 	 * whatever... */
-	ret = update_channel(priv);
+	ret = lbs_update_channel(priv);
 	if (ret < 0)
 		lbs_deb_assoc("ASSOC: channel: error getting channel.\n");
 
