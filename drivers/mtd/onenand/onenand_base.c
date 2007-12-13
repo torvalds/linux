@@ -1217,7 +1217,7 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 static int onenand_verify_oob(struct mtd_info *mtd, const u_char *buf, loff_t to)
 {
 	struct onenand_chip *this = mtd->priv;
-	char oobbuf[64];
+	u_char oobbuf[64];
 	int status, i;
 
 	this->command(mtd, ONENAND_CMD_READOOB, to, mtd->oobsize);
