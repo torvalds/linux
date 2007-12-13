@@ -404,16 +404,14 @@ static int btrfs_unlink_trans(struct btrfs_trans_handle *trans,
 	ret = btrfs_delete_one_dir_name(trans, root, path, di);
 
 	dentry->d_inode->i_ctime = dir->i_ctime;
-	if (!S_ISLNK(dentry->d_inode->i_mode)) {
-		ret = btrfs_del_inode_ref(trans, root, name, name_len,
-					  dentry->d_inode->i_ino,
-					  dentry->d_parent->d_inode->i_ino);
-		if (ret) {
-			printk("failed to delete reference to %.*s, "
-			       "inode %lu parent %lu\n", name_len, name,
-			       dentry->d_inode->i_ino,
-			       dentry->d_parent->d_inode->i_ino);
-		}
+	ret = btrfs_del_inode_ref(trans, root, name, name_len,
+				  dentry->d_inode->i_ino,
+				  dentry->d_parent->d_inode->i_ino);
+	if (ret) {
+		printk("failed to delete reference to %.*s, "
+		       "inode %lu parent %lu\n", name_len, name,
+		       dentry->d_inode->i_ino,
+		       dentry->d_parent->d_inode->i_ino);
 	}
 err:
 	btrfs_free_path(path);
@@ -1293,13 +1291,11 @@ static int btrfs_add_link(struct btrfs_trans_handle *trans,
 				    dentry->d_parent->d_inode->i_ino,
 				    &key, btrfs_inode_type(inode));
 	if (ret == 0) {
-		if (!S_ISLNK(inode->i_mode)) {
-			ret = btrfs_insert_inode_ref(trans, root,
-					     dentry->d_name.name,
-					     dentry->d_name.len,
-					     inode->i_ino,
-					     dentry->d_parent->d_inode->i_ino);
-		}
+		ret = btrfs_insert_inode_ref(trans, root,
+				     dentry->d_name.name,
+				     dentry->d_name.len,
+				     inode->i_ino,
+				     dentry->d_parent->d_inode->i_ino);
 		parent_inode = dentry->d_parent->d_inode;
 		parent_inode->i_size += dentry->d_name.len * 2;
 		parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
