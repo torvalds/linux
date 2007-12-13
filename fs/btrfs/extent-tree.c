@@ -702,7 +702,7 @@ int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 	}
 	return btrfs_inc_extent_ref(trans, root, root->node->start,
 				    root->node->len, owner_objectid,
-				    generation, 0, 0);
+				    generation, key_objectid, level);
 }
 
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -746,10 +746,12 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			}
 		} else {
 			bytenr = btrfs_node_blockptr(buf, i);
+			btrfs_node_key_to_cpu(buf, &key, i);
 			ret = btrfs_inc_extent_ref(trans, root, bytenr,
 					   btrfs_level_size(root, level - 1),
 					   root->root_key.objectid,
-					   trans->transid, 0, 0);
+					   trans->transid, key.objectid,
+					   level - 1);
 			if (ret) {
 				faili = i;
 				goto fail;
