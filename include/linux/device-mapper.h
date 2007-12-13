@@ -115,6 +115,7 @@ struct io_restrictions {
 	unsigned short		max_hw_segments;
 	unsigned short		hardsect_size;
 	unsigned int		max_segment_size;
+	unsigned int		max_hw_sectors;
 	unsigned long		seg_boundary_mask;
 	unsigned long		bounce_pfn;
 	unsigned char		no_cluster; /* inverted so that 0 is default */
