@@ -1299,6 +1299,23 @@
 #define EMU_DST_ALICE_I2S2_LEFT		0x0700	/* Alice2 I2S2 Left */
 #define EMU_DST_ALICE_I2S2_RIGHT	0x0701	/* Alice2 I2S2 Right */
 
+/* Additional destinations for 1616(M)/Microdock */
+/* Microdock S/PDIF OUT Left, 1st or 48kHz only */
+#define EMU_DST_MDOCK_SPDIF_LEFT1	0x0112
+/* Microdock S/PDIF OUT Left, 2nd or 96kHz */
+#define EMU_DST_MDOCK_SPDIF_LEFT2	0x0113
+/* Microdock S/PDIF OUT Right, 1st or 48kHz only */
+#define EMU_DST_MDOCK_SPDIF_RIGHT1	0x0116
+/* Microdock S/PDIF OUT Right, 2nd or 96kHz  */
+#define EMU_DST_MDOCK_SPDIF_RIGHT2	0x0117
+/* Microdock S/PDIF ADAT 8 channel out +8 to +f */
+#define EMU_DST_MDOCK_ADAT		0x0118
+
+/* Headphone jack on 1010 cardbus? 44.1/48kHz only? */
+#define EMU_DST_MANA_DAC_LEFT		0x0300
+/* Headphone jack on 1010 cardbus? 44.1/48kHz only? */
+#define EMU_DST_MANA_DAC_RIGHT		0x0301
+
 /************************************************************************************************/
 /* EMU1010m HANA Sources									*/
 /************************************************************************************************/
@@ -1452,6 +1469,19 @@
 #define EMU_SRC_HANA_SPDIF_LEFT2	0x0502	/* Hana SPDIF Left, 2nd or 96kHz */
 #define EMU_SRC_HANA_SPDIF_RIGHT1	0x0501	/* Hana SPDIF Right, 1st or 48kHz only */
 #define EMU_SRC_HANA_SPDIF_RIGHT2	0x0503	/* Hana SPDIF Right, 2nd or 96kHz */
+
+/* Additional inputs for 1616(M)/Microdock */
+/* Microdock S/PDIF Left, 1st or 48kHz only */
+#define EMU_SRC_MDOCK_SPDIF_LEFT1	0x0112
+/* Microdock S/PDIF Left, 2nd or 96kHz */
+#define EMU_SRC_MDOCK_SPDIF_LEFT2	0x0113
+/* Microdock S/PDIF Right, 1st or 48kHz only */
+#define EMU_SRC_MDOCK_SPDIF_RIGHT1	0x0116
+/* Microdock S/PDIF Right, 2nd or 96kHz */
+#define EMU_SRC_MDOCK_SPDIF_RIGHT2	0x0117
+/* Microdock ADAT 8 channel in +8 to +f */
+#define EMU_SRC_MDOCK_ADAT		0x0118
+
 /* 0x600 and 0x700 no used */
 
 /* ------------------- STRUCTURES -------------------- */

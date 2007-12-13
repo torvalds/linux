@@ -1103,79 +1103,114 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 		EMU_DST_HANA_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 3); /* ALICE2 bus 0xb3 */
 #endif
 	/* Default outputs */
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC1_LEFT1, EMU_SRC_ALICE_EMU32A + 0); /* ALICE2 bus 0xa0 */
-	emu->emu1010.output_source[0] = 21;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC1_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-	emu->emu1010.output_source[1] = 22;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC2_LEFT1, EMU_SRC_ALICE_EMU32A + 2);
-	emu->emu1010.output_source[2] = 23;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC2_RIGHT1, EMU_SRC_ALICE_EMU32A + 3);
-	emu->emu1010.output_source[3] = 24;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC3_LEFT1, EMU_SRC_ALICE_EMU32A + 4);
-	emu->emu1010.output_source[4] = 25;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC3_RIGHT1, EMU_SRC_ALICE_EMU32A + 5);
-	emu->emu1010.output_source[5] = 26;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC4_LEFT1, EMU_SRC_ALICE_EMU32A + 6);
-	emu->emu1010.output_source[6] = 27;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_DAC4_RIGHT1, EMU_SRC_ALICE_EMU32A + 7);
-	emu->emu1010.output_source[7] = 28;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_PHONES_LEFT1, EMU_SRC_ALICE_EMU32A + 0); /* ALICE2 bus 0xa0 */
-	emu->emu1010.output_source[8] = 21;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_PHONES_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-	emu->emu1010.output_source[9] = 22;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_SPDIF_LEFT1, EMU_SRC_ALICE_EMU32A + 0); /* ALICE2 bus 0xa0 */
-	emu->emu1010.output_source[10] = 21;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_DOCK_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-	emu->emu1010.output_source[11] = 22;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_SPDIF_LEFT1, EMU_SRC_ALICE_EMU32A + 0); /* ALICE2 bus 0xa0 */
-	emu->emu1010.output_source[12] = 21;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-	emu->emu1010.output_source[13] = 22;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HAMOA_DAC_LEFT1, EMU_SRC_ALICE_EMU32A + 0); /* ALICE2 bus 0xa0 */
-	emu->emu1010.output_source[14] = 21;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HAMOA_DAC_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
-	emu->emu1010.output_source[15] = 22;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT, EMU_SRC_ALICE_EMU32A + 0); /* ALICE2 bus 0xa0 */
-	emu->emu1010.output_source[16] = 21;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT + 1, EMU_SRC_ALICE_EMU32A + 1);
-	emu->emu1010.output_source[17] = 22;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT + 2, EMU_SRC_ALICE_EMU32A + 2);
-	emu->emu1010.output_source[18] = 23;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT + 3, EMU_SRC_ALICE_EMU32A + 3);
-	emu->emu1010.output_source[19] = 24;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT + 4, EMU_SRC_ALICE_EMU32A + 4);
-	emu->emu1010.output_source[20] = 25;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT + 5, EMU_SRC_ALICE_EMU32A + 5);
-	emu->emu1010.output_source[21] = 26;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT + 6, EMU_SRC_ALICE_EMU32A + 6);
-	emu->emu1010.output_source[22] = 27;
-	snd_emu1010_fpga_link_dst_src_write(emu,
-		EMU_DST_HANA_ADAT + 7, EMU_SRC_ALICE_EMU32A + 7);
-	emu->emu1010.output_source[23] = 28;
-
+	if (emu->card_capabilities->emu_model == 3) {
+		/* 1616(M) cardbus default outputs */
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC1_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[0] = 17;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC1_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[1] = 18;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC2_LEFT1, EMU_SRC_ALICE_EMU32A + 2);
+		emu->emu1010.output_source[2] = 19;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC2_RIGHT1, EMU_SRC_ALICE_EMU32A + 3);
+		emu->emu1010.output_source[3] = 20;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC3_LEFT1, EMU_SRC_ALICE_EMU32A + 4);
+		emu->emu1010.output_source[4] = 21;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC3_RIGHT1, EMU_SRC_ALICE_EMU32A + 5);
+		emu->emu1010.output_source[5] = 22;
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_MANA_DAC_LEFT, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[16] = 17;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_MANA_DAC_RIGHT, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[17] = 18;
+	} else {
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC1_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[0] = 21;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC1_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[1] = 22;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC2_LEFT1, EMU_SRC_ALICE_EMU32A + 2);
+		emu->emu1010.output_source[2] = 23;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC2_RIGHT1, EMU_SRC_ALICE_EMU32A + 3);
+		emu->emu1010.output_source[3] = 24;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC3_LEFT1, EMU_SRC_ALICE_EMU32A + 4);
+		emu->emu1010.output_source[4] = 25;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC3_RIGHT1, EMU_SRC_ALICE_EMU32A + 5);
+		emu->emu1010.output_source[5] = 26;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC4_LEFT1, EMU_SRC_ALICE_EMU32A + 6);
+		emu->emu1010.output_source[6] = 27;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_DAC4_RIGHT1, EMU_SRC_ALICE_EMU32A + 7);
+		emu->emu1010.output_source[7] = 28;
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_PHONES_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[8] = 21;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_PHONES_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[9] = 22;
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_SPDIF_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[10] = 21;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_DOCK_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[11] = 22;
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_SPDIF_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[12] = 21;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[13] = 22;
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HAMOA_DAC_LEFT1, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[14] = 21;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HAMOA_DAC_RIGHT1, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[15] = 22;
+		/* ALICE2 bus 0xa0 */
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT, EMU_SRC_ALICE_EMU32A + 0);
+		emu->emu1010.output_source[16] = 21;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT + 1, EMU_SRC_ALICE_EMU32A + 1);
+		emu->emu1010.output_source[17] = 22;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT + 2, EMU_SRC_ALICE_EMU32A + 2);
+		emu->emu1010.output_source[18] = 23;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT + 3, EMU_SRC_ALICE_EMU32A + 3);
+		emu->emu1010.output_source[19] = 24;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT + 4, EMU_SRC_ALICE_EMU32A + 4);
+		emu->emu1010.output_source[20] = 25;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT + 5, EMU_SRC_ALICE_EMU32A + 5);
+		emu->emu1010.output_source[21] = 26;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT + 6, EMU_SRC_ALICE_EMU32A + 6);
+		emu->emu1010.output_source[22] = 27;
+		snd_emu1010_fpga_link_dst_src_write(emu,
+			EMU_DST_HANA_ADAT + 7, EMU_SRC_ALICE_EMU32A + 7);
+		emu->emu1010.output_source[23] = 28;
+	}
 	/* TEMP: Select SPDIF in/out */
 	//snd_emu1010_fpga_write(emu, EMU_HANA_OPTICAL_TYPE, 0x0); /* Output spdif */
 
