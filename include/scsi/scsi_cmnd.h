@@ -2,12 +2,12 @@
 #define _SCSI_SCSI_CMND_H
 
 #include <linux/dma-mapping.h>
+#include <linux/blkdev.h>
 #include <linux/list.h>
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
 
-struct request;
 struct Scsi_Host;
 struct scsi_device;
 
@@ -157,5 +157,22 @@ static inline int scsi_get_resid(struct scsi_cmnd *cmd)
 
 #define scsi_for_each_sg(cmd, sg, nseg, __i)			\
 	for_each_sg(scsi_sglist(cmd), sg, nseg, __i)
+
+static inline int scsi_bidi_cmnd(struct scsi_cmnd *cmd)
+{
+	return blk_bidi_rq(cmd->request) &&
+		(cmd->request->next_rq->special != NULL);
+}
+
+static inline struct scsi_data_buffer *scsi_in(struct scsi_cmnd *cmd)
+{
+	return scsi_bidi_cmnd(cmd) ?
+		cmd->request->next_rq->special : &cmd->sdb;
+}
+
+static inline struct scsi_data_buffer *scsi_out(struct scsi_cmnd *cmd)
+{
+	return &cmd->sdb;
+}
 
 #endif /* _SCSI_SCSI_CMND_H */

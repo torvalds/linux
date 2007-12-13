@@ -64,6 +64,8 @@ static struct scsi_host_sg_pool scsi_sg_pools[] = {
 };
 #undef SP
 
+static struct kmem_cache *scsi_bidi_sdb_cache;
+
 static void scsi_run_queue(struct request_queue *q);
 
 /*
@@ -790,8 +792,36 @@ void scsi_release_buffers(struct scsi_cmnd *cmd)
 		scsi_free_sgtable(&cmd->sdb);
 
 	memset(&cmd->sdb, 0, sizeof(cmd->sdb));
+
+	if (scsi_bidi_cmnd(cmd)) {
+		struct scsi_data_buffer *bidi_sdb =
+			cmd->request->next_rq->special;
+		scsi_free_sgtable(bidi_sdb);
+		kmem_cache_free(scsi_bidi_sdb_cache, bidi_sdb);
+		cmd->request->next_rq->special = NULL;
+	}
 }
 EXPORT_SYMBOL(scsi_release_buffers);
+
+/*
+ * Bidi commands Must be complete as a whole, both sides at once.
+ * If part of the bytes were written and lld returned
+ * scsi_in()->resid and/or scsi_out()->resid this information will be left
+ * in req->data_len and req->next_rq->data_len. The upper-layer driver can
+ * decide what to do with this information.
+ */
+void scsi_end_bidi_request(struct scsi_cmnd *cmd)
+{
+	blk_end_bidi_request(cmd->request, 0, scsi_out(cmd)->resid,
+							scsi_in(cmd)->resid);
+	scsi_release_buffers(cmd);
+
+	/*
+	 * This will goose the queue request function at the end, so we don't
+	 * need to worry about launching another command.
+	 */
+	scsi_next_command(cmd);
+}
 
 /*
  * Function:    scsi_io_completion()
@@ -854,9 +884,15 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				req->sense_len = len;
 			}
 		}
+		if (scsi_bidi_cmnd(cmd)) {
+			/* will also release_buffers */
+			scsi_end_bidi_request(cmd);
+			return;
+		}
 		req->data_len = scsi_get_resid(cmd);
 	}
 
+	BUG_ON(blk_bidi_rq(req)); /* bidi not support for !blk_pc_request yet */
 	scsi_release_buffers(cmd);
 
 	/*
@@ -982,28 +1018,16 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	scsi_end_request(cmd, -EIO, this_count, !result);
 }
 
-/*
- * Function:    scsi_init_io()
- *
- * Purpose:     SCSI I/O initialize function.
- *
- * Arguments:   cmd   - Command descriptor we wish to initialize
- *
- * Returns:     0 on success
- *		BLKPREP_DEFER if the failure is retryable
- */
-int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
+static int scsi_init_sgtable(struct request *req, struct scsi_data_buffer *sdb,
+			     gfp_t gfp_mask)
 {
-	struct request     *req = cmd->request;
-	int		   count;
-	struct scsi_data_buffer *sdb = &cmd->sdb;
+	int count;
 
 	/*
 	 * If sg table allocation fails, requeue request later.
 	 */
 	if (unlikely(scsi_alloc_sgtable(sdb, req->nr_phys_segments,
 					gfp_mask))) {
-		scsi_unprep_request(req);
 		return BLKPREP_DEFER;
 	}
 
@@ -1021,6 +1045,50 @@ int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 	BUG_ON(count > sdb->table.nents);
 	sdb->table.nents = count;
 	return BLKPREP_OK;
+}
+
+/*
+ * Function:    scsi_init_io()
+ *
+ * Purpose:     SCSI I/O initialize function.
+ *
+ * Arguments:   cmd   - Command descriptor we wish to initialize
+ *
+ * Returns:     0 on success
+ *		BLKPREP_DEFER if the failure is retryable
+ *		BLKPREP_KILL if the failure is fatal
+ */
+int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
+{
+	int error = scsi_init_sgtable(cmd->request, &cmd->sdb, gfp_mask);
+	if (error)
+		goto err_exit;
+
+	if (blk_bidi_rq(cmd->request)) {
+		struct scsi_data_buffer *bidi_sdb = kmem_cache_zalloc(
+			scsi_bidi_sdb_cache, GFP_ATOMIC);
+		if (!bidi_sdb) {
+			error = BLKPREP_DEFER;
+			goto err_exit;
+		}
+
+		cmd->request->next_rq->special = bidi_sdb;
+		error = scsi_init_sgtable(cmd->request->next_rq, bidi_sdb,
+								    GFP_ATOMIC);
+		if (error)
+			goto err_exit;
+	}
+
+	return BLKPREP_OK ;
+
+err_exit:
+	scsi_release_buffers(cmd);
+	if (error == BLKPREP_KILL)
+		scsi_put_command(cmd);
+	else /* BLKPREP_DEFER */
+		scsi_unprep_request(cmd->request);
+
+	return error;
 }
 EXPORT_SYMBOL(scsi_init_io);
 
@@ -1636,6 +1704,14 @@ int __init scsi_init_queue(void)
 					0, 0, NULL);
 	if (!scsi_io_context_cache) {
 		printk(KERN_ERR "SCSI: can't init scsi io context cache\n");
+		return -ENOMEM;
+	}
+
+	scsi_bidi_sdb_cache = kmem_cache_create("scsi_bidi_sdb",
+					sizeof(struct scsi_data_buffer),
+					0, 0, NULL);
+	if (!scsi_bidi_sdb_cache) {
+		printk(KERN_ERR "SCSI: can't init scsi bidi sdb cache\n");
 		return -ENOMEM;
 	}
 

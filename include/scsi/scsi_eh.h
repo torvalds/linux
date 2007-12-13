@@ -74,6 +74,7 @@ struct scsi_eh_save {
 	unsigned char cmd_len;
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 	struct scsi_data_buffer sdb;
+	struct request *next_rq;
 
 	/* new command support */
 	struct scatterlist sense_sgl;
