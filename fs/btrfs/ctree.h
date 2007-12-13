@@ -37,11 +37,12 @@ extern struct kmem_cache *btrfs_path_cachep;
 
 #define BTRFS_MAGIC "_B2RfS_M"
 
+#define BTRFS_MAX_LEVEL 8
 #define BTRFS_ROOT_TREE_OBJECTID 1ULL
 #define BTRFS_EXTENT_TREE_OBJECTID 2ULL
 #define BTRFS_FS_TREE_OBJECTID 3ULL
 #define BTRFS_ROOT_TREE_DIR_OBJECTID 4ULL
-#define BTRFS_FIRST_FREE_OBJECTID 5ULL
+#define BTRFS_FIRST_FREE_OBJECTID 256ULL
 
 /*
  * we can actually store much bigger names, but lets not confuse the rest
@@ -107,7 +108,6 @@ struct btrfs_header {
 	u8 level;
 } __attribute__ ((__packed__));
 
-#define BTRFS_MAX_LEVEL 8
 #define BTRFS_NODEPTRS_PER_BLOCK(r) (((r)->nodesize - \
 			        sizeof(struct btrfs_header)) / \
 			        sizeof(struct btrfs_key_ptr))

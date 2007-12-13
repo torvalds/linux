@@ -520,13 +520,13 @@ out:
  *
  * When a tree block is created, back references are inserted:
  *
- * (root->root_key.objectid, trans->transid or zero, lowest_key_objectid, level)
+ * (root->root_key.objectid, trans->transid or zero, level, lowest_key_objectid)
  *
  * When a tree block is cow'd in a reference counted root,
  * new back references are added for all the blocks it points to.
  * These are of the form (trans->transid will have increased since creation):
  *
- * (root->root_key.objectid, trans->transid, lowest_key_objectid, level)
+ * (root->root_key.objectid, trans->transid, level, lowest_key_objectid)
  *
  * Because the lowest_key_objectid and the level are just hints
  * they are not used when backrefs are deleted.  When a backref is deleted:
@@ -702,7 +702,7 @@ int btrfs_inc_root_ref(struct btrfs_trans_handle *trans,
 	}
 	return btrfs_inc_extent_ref(trans, root, root->node->start,
 				    root->node->len, owner_objectid,
-				    generation, key_objectid, level);
+				    generation, level, key_objectid);
 }
 
 int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
@@ -750,8 +750,8 @@ int btrfs_inc_ref(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			ret = btrfs_inc_extent_ref(trans, root, bytenr,
 					   btrfs_level_size(root, level - 1),
 					   root->root_key.objectid,
-					   trans->transid, key.objectid,
-					   level - 1);
+					   trans->transid,
+					   level - 1, key.objectid);
 			if (ret) {
 				faili = i;
 				goto fail;
@@ -1063,8 +1063,8 @@ static int finish_current_insert(struct btrfs_trans_handle *trans, struct
 		}
 		err = btrfs_insert_extent_backref(trans, extent_root, path,
 					  start, extent_root->root_key.objectid,
-					  0, btrfs_disk_key_objectid(&first),
-					  level);
+					  0, level,
+					  btrfs_disk_key_objectid(&first));
 		BUG_ON(err);
 		free_extent_buffer(eb);
 	}
@@ -1640,7 +1640,7 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_alloc_extent(trans, root, blocksize,
 				 root_objectid, ref_generation,
-				 first_objectid, level, empty_size, hint,
+				 level, first_objectid, empty_size, hint,
 				 (u64)-1, &ins, 0);
 	if (ret) {
 		BUG_ON(ret > 0);
