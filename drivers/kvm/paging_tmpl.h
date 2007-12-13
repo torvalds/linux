@@ -129,11 +129,11 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 
 	pgprintk("%s: addr %lx\n", __FUNCTION__, addr);
 walk:
-	walker->level = vcpu->mmu.root_level;
-	pte = vcpu->cr3;
+	walker->level = vcpu->arch.mmu.root_level;
+	pte = vcpu->arch.cr3;
 #if PTTYPE == 64
 	if (!is_long_mode(vcpu)) {
-		pte = vcpu->pdptrs[(addr >> 30) & 3];
+		pte = vcpu->arch.pdptrs[(addr >> 30) & 3];
 		if (!is_present_pte(pte))
 			goto not_present;
 		--walker->level;
@@ -275,10 +275,10 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (!is_present_pte(walker->ptes[walker->level - 1]))
 		return NULL;
 
-	shadow_addr = vcpu->mmu.root_hpa;
-	level = vcpu->mmu.shadow_root_level;
+	shadow_addr = vcpu->arch.mmu.root_hpa;
+	level = vcpu->arch.mmu.shadow_root_level;
 	if (level == PT32E_ROOT_LEVEL) {
-		shadow_addr = vcpu->mmu.pae_root[(addr >> 30) & 3];
+		shadow_addr = vcpu->arch.mmu.pae_root[(addr >> 30) & 3];
 		shadow_addr &= PT64_BASE_ADDR_MASK;
 		--level;
 	}
@@ -380,7 +380,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (!r) {
 		pgprintk("%s: guest page fault\n", __FUNCTION__);
 		inject_page_fault(vcpu, addr, walker.error_code);
-		vcpu->last_pt_write_count = 0; /* reset fork detector */
+		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
 		return 0;
 	}
 
@@ -390,7 +390,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		 shadow_pte, *shadow_pte, write_pt);
 
 	if (!write_pt)
-		vcpu->last_pt_write_count = 0; /* reset fork detector */
+		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
 
 	/*
 	 * mmio: emulate if accessible, otherwise its a guest fault.

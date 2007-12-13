@@ -158,7 +158,7 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 	if (dest_mode == 0) {	/* Physical mode. */
 		if (dest == 0xFF) {	/* Broadcast. */
 			for (i = 0; i < KVM_MAX_VCPUS; ++i)
-				if (kvm->vcpus[i] && kvm->vcpus[i]->apic)
+				if (kvm->vcpus[i] && kvm->vcpus[i]->arch.apic)
 					mask |= 1 << i;
 			return mask;
 		}
@@ -166,8 +166,8 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 			vcpu = kvm->vcpus[i];
 			if (!vcpu)
 				continue;
-			if (kvm_apic_match_physical_addr(vcpu->apic, dest)) {
-				if (vcpu->apic)
+			if (kvm_apic_match_physical_addr(vcpu->arch.apic, dest)) {
+				if (vcpu->arch.apic)
 					mask = 1 << i;
 				break;
 			}
@@ -177,8 +177,8 @@ static u32 ioapic_get_delivery_bitmask(struct kvm_ioapic *ioapic, u8 dest,
 			vcpu = kvm->vcpus[i];
 			if (!vcpu)
 				continue;
-			if (vcpu->apic &&
-			    kvm_apic_match_logical_addr(vcpu->apic, dest))
+			if (vcpu->arch.apic &&
+			    kvm_apic_match_logical_addr(vcpu->arch.apic, dest))
 				mask |= 1 << vcpu->vcpu_id;
 		}
 	ioapic_debug("mask %x\n", mask);

@@ -769,8 +769,8 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	/* Shadow copy of register state. Committed on successful emulation. */
 
 	memset(c, 0, sizeof(struct decode_cache));
-	c->eip = ctxt->vcpu->rip;
-	memcpy(c->regs, ctxt->vcpu->regs, sizeof c->regs);
+	c->eip = ctxt->vcpu->arch.rip;
+	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 
 	switch (mode) {
 	case X86EMUL_MODE_REAL:
@@ -1226,7 +1226,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	 * modify them.
 	 */
 
-	memcpy(c->regs, ctxt->vcpu->regs, sizeof c->regs);
+	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 	saved_eip = c->eip;
 
 	if (((c->d & ModRM) && (c->modrm_mod != 3)) || (c->d & MemAbs))
@@ -1235,7 +1235,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	if (c->rep_prefix && (c->d & String)) {
 		/* All REP prefixes have the same first termination condition */
 		if (c->regs[VCPU_REGS_RCX] == 0) {
-			ctxt->vcpu->rip = c->eip;
+			ctxt->vcpu->arch.rip = c->eip;
 			goto done;
 		}
 		/* The second termination condition only applies for REPE
@@ -1249,17 +1249,17 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 				(c->b == 0xae) || (c->b == 0xaf)) {
 			if ((c->rep_prefix == REPE_PREFIX) &&
 				((ctxt->eflags & EFLG_ZF) == 0)) {
-					ctxt->vcpu->rip = c->eip;
+					ctxt->vcpu->arch.rip = c->eip;
 					goto done;
 			}
 			if ((c->rep_prefix == REPNE_PREFIX) &&
 				((ctxt->eflags & EFLG_ZF) == EFLG_ZF)) {
-				ctxt->vcpu->rip = c->eip;
+				ctxt->vcpu->arch.rip = c->eip;
 				goto done;
 			}
 		}
 		c->regs[VCPU_REGS_RCX]--;
-		c->eip = ctxt->vcpu->rip;
+		c->eip = ctxt->vcpu->arch.rip;
 	}
 
 	if (c->src.type == OP_MEM) {
@@ -1628,7 +1628,7 @@ special_insn:
 		c->dst.type = OP_NONE; /* Disable writeback. */
 		break;
 	case 0xf4:              /* hlt */
-		ctxt->vcpu->halt_request = 1;
+		ctxt->vcpu->arch.halt_request = 1;
 		goto done;
 	case 0xf5:	/* cmc */
 		/* complement carry flag from eflags reg */
@@ -1665,8 +1665,8 @@ writeback:
 		goto done;
 
 	/* Commit shadow register state. */
-	memcpy(ctxt->vcpu->regs, c->regs, sizeof c->regs);
-	ctxt->vcpu->rip = c->eip;
+	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
+	ctxt->vcpu->arch.rip = c->eip;
 
 done:
 	if (rc == X86EMUL_UNHANDLEABLE) {
@@ -1783,7 +1783,7 @@ twobyte_insn:
 		rc = kvm_set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data);
 		if (rc) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			c->eip = ctxt->vcpu->rip;
+			c->eip = ctxt->vcpu->arch.rip;
 		}
 		rc = X86EMUL_CONTINUE;
 		c->dst.type = OP_NONE;
@@ -1793,7 +1793,7 @@ twobyte_insn:
 		rc = kvm_get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data);
 		if (rc) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			c->eip = ctxt->vcpu->rip;
+			c->eip = ctxt->vcpu->arch.rip;
 		} else {
 			c->regs[VCPU_REGS_RAX] = (u32)msr_data;
 			c->regs[VCPU_REGS_RDX] = msr_data >> 32;

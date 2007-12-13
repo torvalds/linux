@@ -92,8 +92,7 @@ enum {
 
 #include "x86_emulate.h"
 
-struct kvm_vcpu {
-	KVM_VCPU_COMM;
+struct kvm_vcpu_arch {
 	u64 host_tsc;
 	int interrupt_window_open;
 	unsigned long irq_summary; /* bit vector: 1 per word in irq_pending */
@@ -130,7 +129,6 @@ struct kvm_vcpu {
 	int   last_pt_write_count;
 	u64  *last_pte_updated;
 
-
 	struct i387_fxsave_struct host_fx_image;
 	struct i387_fxsave_struct guest_fx_image;
 
@@ -159,10 +157,15 @@ struct kvm_vcpu {
 
 	int cpuid_nent;
 	struct kvm_cpuid_entry2 cpuid_entries[KVM_MAX_CPUID_ENTRIES];
-
 	/* emulate context */
 
 	struct x86_emulate_ctxt emulate_ctxt;
+};
+
+struct kvm_vcpu {
+	KVM_VCPU_COMM;
+
+	struct kvm_vcpu_arch arch;
 };
 
 struct descriptor_table {
@@ -339,7 +342,7 @@ static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
-	if (likely(vcpu->mmu.root_hpa != INVALID_PAGE))
+	if (likely(vcpu->arch.mmu.root_hpa != INVALID_PAGE))
 		return 0;
 
 	return kvm_mmu_load(vcpu);
@@ -348,7 +351,7 @@ static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 static inline int is_long_mode(struct kvm_vcpu *vcpu)
 {
 #ifdef CONFIG_X86_64
-	return vcpu->shadow_efer & EFER_LME;
+	return vcpu->arch.shadow_efer & EFER_LME;
 #else
 	return 0;
 #endif
@@ -356,17 +359,17 @@ static inline int is_long_mode(struct kvm_vcpu *vcpu)
 
 static inline int is_pae(struct kvm_vcpu *vcpu)
 {
-	return vcpu->cr4 & X86_CR4_PAE;
+	return vcpu->arch.cr4 & X86_CR4_PAE;
 }
 
 static inline int is_pse(struct kvm_vcpu *vcpu)
 {
-	return vcpu->cr4 & X86_CR4_PSE;
+	return vcpu->arch.cr4 & X86_CR4_PSE;
 }
 
 static inline int is_paging(struct kvm_vcpu *vcpu)
 {
-	return vcpu->cr0 & X86_CR0_PG;
+	return vcpu->arch.cr0 & X86_CR0_PG;
 }
 
 int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
@@ -489,8 +492,8 @@ static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
 
 static inline int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
-	return vcpu->mp_state == VCPU_MP_STATE_RUNNABLE
-	       || vcpu->mp_state == VCPU_MP_STATE_SIPI_RECEIVED;
+	return vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE
+	       || vcpu->arch.mp_state == VCPU_MP_STATE_SIPI_RECEIVED;
 }
 
 #endif

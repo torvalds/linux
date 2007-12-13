@@ -670,7 +670,7 @@ static int kvm_vcpu_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (vmf->pgoff == 0)
 		page = virt_to_page(vcpu->run);
 	else if (vmf->pgoff == KVM_PIO_PAGE_OFFSET)
-		page = virt_to_page(vcpu->pio_data);
+		page = virt_to_page(vcpu->arch.pio_data);
 	else
 		return VM_FAULT_SIGBUS;
 	get_page(page);

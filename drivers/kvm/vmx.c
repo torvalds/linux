@@ -247,7 +247,7 @@ static void __vcpu_clear(void *arg)
 		vmcs_clear(vmx->vmcs);
 	if (per_cpu(current_vmcs, cpu) == vmx->vmcs)
 		per_cpu(current_vmcs, cpu) = NULL;
-	rdtscll(vmx->vcpu.host_tsc);
+	rdtscll(vmx->vcpu.arch.host_tsc);
 }
 
 static void vcpu_clear(struct vcpu_vmx *vmx)
@@ -343,7 +343,7 @@ static void update_exception_bitmap(struct kvm_vcpu *vcpu)
 		eb |= 1u << NM_VECTOR;
 	if (vcpu->guest_debug.enabled)
 		eb |= 1u << 1;
-	if (vcpu->rmode.active)
+	if (vcpu->arch.rmode.active)
 		eb = ~0;
 	vmcs_write32(EXCEPTION_BITMAP, eb);
 }
@@ -528,7 +528,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		 * Make sure the time stamp counter is monotonous.
 		 */
 		rdtscll(tsc_this);
-		delta = vcpu->host_tsc - tsc_this;
+		delta = vcpu->arch.host_tsc - tsc_this;
 		vmcs_write64(TSC_OFFSET, vmcs_read64(TSC_OFFSET) + delta);
 	}
 }
@@ -544,7 +544,7 @@ static void vmx_fpu_activate(struct kvm_vcpu *vcpu)
 		return;
 	vcpu->fpu_active = 1;
 	vmcs_clear_bits(GUEST_CR0, X86_CR0_TS);
-	if (vcpu->cr0 & X86_CR0_TS)
+	if (vcpu->arch.cr0 & X86_CR0_TS)
 		vmcs_set_bits(GUEST_CR0, X86_CR0_TS);
 	update_exception_bitmap(vcpu);
 }
@@ -570,7 +570,7 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
-	if (vcpu->rmode.active)
+	if (vcpu->arch.rmode.active)
 		rflags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
 	vmcs_writel(GUEST_RFLAGS, rflags);
 }
@@ -592,7 +592,7 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	if (interruptibility & 3)
 		vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
 			     interruptibility & ~3);
-	vcpu->interrupt_window_open = 1;
+	vcpu->arch.interrupt_window_open = 1;
 }
 
 static void vmx_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
@@ -661,7 +661,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		 * if efer.sce is enabled.
 		 */
 		index = __find_msr_index(vmx, MSR_K6_STAR);
-		if ((index >= 0) && (vmx->vcpu.shadow_efer & EFER_SCE))
+		if ((index >= 0) && (vmx->vcpu.arch.shadow_efer & EFER_SCE))
 			move_msr_up(vmx, index, save_nmsrs++);
 	}
 #endif
@@ -805,12 +805,12 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data)
 
 /*
  * Sync the rsp and rip registers into the vcpu structure.  This allows
- * registers to be accessed by indexing vcpu->regs.
+ * registers to be accessed by indexing vcpu->arch.regs.
  */
 static void vcpu_load_rsp_rip(struct kvm_vcpu *vcpu)
 {
-	vcpu->regs[VCPU_REGS_RSP] = vmcs_readl(GUEST_RSP);
-	vcpu->rip = vmcs_readl(GUEST_RIP);
+	vcpu->arch.regs[VCPU_REGS_RSP] = vmcs_readl(GUEST_RSP);
+	vcpu->arch.rip = vmcs_readl(GUEST_RIP);
 }
 
 /*
@@ -819,8 +819,8 @@ static void vcpu_load_rsp_rip(struct kvm_vcpu *vcpu)
  */
 static void vcpu_put_rsp_rip(struct kvm_vcpu *vcpu)
 {
-	vmcs_writel(GUEST_RSP, vcpu->regs[VCPU_REGS_RSP]);
-	vmcs_writel(GUEST_RIP, vcpu->rip);
+	vmcs_writel(GUEST_RSP, vcpu->arch.regs[VCPU_REGS_RSP]);
+	vmcs_writel(GUEST_RIP, vcpu->arch.rip);
 }
 
 static int set_guest_debug(struct kvm_vcpu *vcpu, struct kvm_debug_guest *dbg)
@@ -1111,15 +1111,15 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 
-	vcpu->rmode.active = 0;
+	vcpu->arch.rmode.active = 0;
 
-	vmcs_writel(GUEST_TR_BASE, vcpu->rmode.tr.base);
-	vmcs_write32(GUEST_TR_LIMIT, vcpu->rmode.tr.limit);
-	vmcs_write32(GUEST_TR_AR_BYTES, vcpu->rmode.tr.ar);
+	vmcs_writel(GUEST_TR_BASE, vcpu->arch.rmode.tr.base);
+	vmcs_write32(GUEST_TR_LIMIT, vcpu->arch.rmode.tr.limit);
+	vmcs_write32(GUEST_TR_AR_BYTES, vcpu->arch.rmode.tr.ar);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
 	flags &= ~(X86_EFLAGS_IOPL | X86_EFLAGS_VM);
-	flags |= (vcpu->rmode.save_iopl << IOPL_SHIFT);
+	flags |= (vcpu->arch.rmode.save_iopl << IOPL_SHIFT);
 	vmcs_writel(GUEST_RFLAGS, flags);
 
 	vmcs_writel(GUEST_CR4, (vmcs_readl(GUEST_CR4) & ~X86_CR4_VME) |
@@ -1127,10 +1127,10 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 
 	update_exception_bitmap(vcpu);
 
-	fix_pmode_dataseg(VCPU_SREG_ES, &vcpu->rmode.es);
-	fix_pmode_dataseg(VCPU_SREG_DS, &vcpu->rmode.ds);
-	fix_pmode_dataseg(VCPU_SREG_GS, &vcpu->rmode.gs);
-	fix_pmode_dataseg(VCPU_SREG_FS, &vcpu->rmode.fs);
+	fix_pmode_dataseg(VCPU_SREG_ES, &vcpu->arch.rmode.es);
+	fix_pmode_dataseg(VCPU_SREG_DS, &vcpu->arch.rmode.ds);
+	fix_pmode_dataseg(VCPU_SREG_GS, &vcpu->arch.rmode.gs);
+	fix_pmode_dataseg(VCPU_SREG_FS, &vcpu->arch.rmode.fs);
 
 	vmcs_write16(GUEST_SS_SELECTOR, 0);
 	vmcs_write32(GUEST_SS_AR_BYTES, 0x93);
@@ -1168,19 +1168,20 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 
-	vcpu->rmode.active = 1;
+	vcpu->arch.rmode.active = 1;
 
-	vcpu->rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
+	vcpu->arch.rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
 	vmcs_writel(GUEST_TR_BASE, rmode_tss_base(vcpu->kvm));
 
-	vcpu->rmode.tr.limit = vmcs_read32(GUEST_TR_LIMIT);
+	vcpu->arch.rmode.tr.limit = vmcs_read32(GUEST_TR_LIMIT);
 	vmcs_write32(GUEST_TR_LIMIT, RMODE_TSS_SIZE - 1);
 
-	vcpu->rmode.tr.ar = vmcs_read32(GUEST_TR_AR_BYTES);
+	vcpu->arch.rmode.tr.ar = vmcs_read32(GUEST_TR_AR_BYTES);
 	vmcs_write32(GUEST_TR_AR_BYTES, 0x008b);
 
 	flags = vmcs_readl(GUEST_RFLAGS);
-	vcpu->rmode.save_iopl = (flags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
+	vcpu->arch.rmode.save_iopl
+		= (flags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
 
 	flags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
 
@@ -1198,10 +1199,10 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 		vmcs_writel(GUEST_CS_BASE, 0xf0000);
 	vmcs_write16(GUEST_CS_SELECTOR, vmcs_readl(GUEST_CS_BASE) >> 4);
 
-	fix_rmode_seg(VCPU_SREG_ES, &vcpu->rmode.es);
-	fix_rmode_seg(VCPU_SREG_DS, &vcpu->rmode.ds);
-	fix_rmode_seg(VCPU_SREG_GS, &vcpu->rmode.gs);
-	fix_rmode_seg(VCPU_SREG_FS, &vcpu->rmode.fs);
+	fix_rmode_seg(VCPU_SREG_ES, &vcpu->arch.rmode.es);
+	fix_rmode_seg(VCPU_SREG_DS, &vcpu->arch.rmode.ds);
+	fix_rmode_seg(VCPU_SREG_GS, &vcpu->arch.rmode.gs);
+	fix_rmode_seg(VCPU_SREG_FS, &vcpu->arch.rmode.fs);
 
 	kvm_mmu_reset_context(vcpu);
 	init_rmode_tss(vcpu->kvm);
@@ -1222,7 +1223,7 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 			     | AR_TYPE_BUSY_64_TSS);
 	}
 
-	vcpu->shadow_efer |= EFER_LMA;
+	vcpu->arch.shadow_efer |= EFER_LMA;
 
 	find_msr_entry(to_vmx(vcpu), MSR_EFER)->data |= EFER_LMA | EFER_LME;
 	vmcs_write32(VM_ENTRY_CONTROLS,
@@ -1232,7 +1233,7 @@ static void enter_lmode(struct kvm_vcpu *vcpu)
 
 static void exit_lmode(struct kvm_vcpu *vcpu)
 {
-	vcpu->shadow_efer &= ~EFER_LMA;
+	vcpu->arch.shadow_efer &= ~EFER_LMA;
 
 	vmcs_write32(VM_ENTRY_CONTROLS,
 		     vmcs_read32(VM_ENTRY_CONTROLS)
@@ -1243,22 +1244,22 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 
 static void vmx_decache_cr4_guest_bits(struct kvm_vcpu *vcpu)
 {
-	vcpu->cr4 &= KVM_GUEST_CR4_MASK;
-	vcpu->cr4 |= vmcs_readl(GUEST_CR4) & ~KVM_GUEST_CR4_MASK;
+	vcpu->arch.cr4 &= KVM_GUEST_CR4_MASK;
+	vcpu->arch.cr4 |= vmcs_readl(GUEST_CR4) & ~KVM_GUEST_CR4_MASK;
 }
 
 static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	vmx_fpu_deactivate(vcpu);
 
-	if (vcpu->rmode.active && (cr0 & X86_CR0_PE))
+	if (vcpu->arch.rmode.active && (cr0 & X86_CR0_PE))
 		enter_pmode(vcpu);
 
-	if (!vcpu->rmode.active && !(cr0 & X86_CR0_PE))
+	if (!vcpu->arch.rmode.active && !(cr0 & X86_CR0_PE))
 		enter_rmode(vcpu);
 
 #ifdef CONFIG_X86_64
-	if (vcpu->shadow_efer & EFER_LME) {
+	if (vcpu->arch.shadow_efer & EFER_LME) {
 		if (!is_paging(vcpu) && (cr0 & X86_CR0_PG))
 			enter_lmode(vcpu);
 		if (is_paging(vcpu) && !(cr0 & X86_CR0_PG))
@@ -1269,7 +1270,7 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	vmcs_writel(CR0_READ_SHADOW, cr0);
 	vmcs_writel(GUEST_CR0,
 		    (cr0 & ~KVM_GUEST_CR0_MASK) | KVM_VM_CR0_ALWAYS_ON);
-	vcpu->cr0 = cr0;
+	vcpu->arch.cr0 = cr0;
 
 	if (!(cr0 & X86_CR0_TS) || !(cr0 & X86_CR0_PE))
 		vmx_fpu_activate(vcpu);
@@ -1278,16 +1279,16 @@ static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	vmcs_writel(GUEST_CR3, cr3);
-	if (vcpu->cr0 & X86_CR0_PE)
+	if (vcpu->arch.cr0 & X86_CR0_PE)
 		vmx_fpu_deactivate(vcpu);
 }
 
 static void vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	vmcs_writel(CR4_READ_SHADOW, cr4);
-	vmcs_writel(GUEST_CR4, cr4 | (vcpu->rmode.active ?
+	vmcs_writel(GUEST_CR4, cr4 | (vcpu->arch.rmode.active ?
 		    KVM_RMODE_VM_CR4_ALWAYS_ON : KVM_PMODE_VM_CR4_ALWAYS_ON));
-	vcpu->cr4 = cr4;
+	vcpu->arch.cr4 = cr4;
 }
 
 #ifdef CONFIG_X86_64
@@ -1297,7 +1298,7 @@ static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct kvm_msr_entry *msr = find_msr_entry(vmx, MSR_EFER);
 
-	vcpu->shadow_efer = efer;
+	vcpu->arch.shadow_efer = efer;
 	if (efer & EFER_LMA) {
 		vmcs_write32(VM_ENTRY_CONTROLS,
 				     vmcs_read32(VM_ENTRY_CONTROLS) |
@@ -1374,17 +1375,17 @@ static void vmx_set_segment(struct kvm_vcpu *vcpu,
 	struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
 	u32 ar;
 
-	if (vcpu->rmode.active && seg == VCPU_SREG_TR) {
-		vcpu->rmode.tr.selector = var->selector;
-		vcpu->rmode.tr.base = var->base;
-		vcpu->rmode.tr.limit = var->limit;
-		vcpu->rmode.tr.ar = vmx_segment_access_rights(var);
+	if (vcpu->arch.rmode.active && seg == VCPU_SREG_TR) {
+		vcpu->arch.rmode.tr.selector = var->selector;
+		vcpu->arch.rmode.tr.base = var->base;
+		vcpu->arch.rmode.tr.limit = var->limit;
+		vcpu->arch.rmode.tr.ar = vmx_segment_access_rights(var);
 		return;
 	}
 	vmcs_writel(sf->base, var->base);
 	vmcs_write32(sf->limit, var->limit);
 	vmcs_write16(sf->selector, var->selector);
-	if (vcpu->rmode.active && var->s) {
+	if (vcpu->arch.rmode.active && var->s) {
 		/*
 		 * Hack real-mode segments into vm86 compatibility.
 		 */
@@ -1613,9 +1614,9 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	vmx->vcpu.rmode.active = 0;
+	vmx->vcpu.arch.rmode.active = 0;
 
-	vmx->vcpu.regs[VCPU_REGS_RDX] = get_rdx_init_val();
+	vmx->vcpu.arch.regs[VCPU_REGS_RDX] = get_rdx_init_val();
 	set_cr8(&vmx->vcpu, 0);
 	msr = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
 	if (vmx->vcpu.vcpu_id == 0)
@@ -1632,8 +1633,8 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write16(GUEST_CS_SELECTOR, 0xf000);
 		vmcs_writel(GUEST_CS_BASE, 0x000f0000);
 	} else {
-		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.sipi_vector << 8);
-		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.sipi_vector << 12);
+		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.arch.sipi_vector << 8);
+		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.arch.sipi_vector << 12);
 	}
 	vmcs_write32(GUEST_CS_LIMIT, 0xffff);
 	vmcs_write32(GUEST_CS_AR_BYTES, 0x9b);
@@ -1691,7 +1692,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, 0);
 		if (vm_need_tpr_shadow(vmx->vcpu.kvm))
 			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR,
-				     page_to_phys(vmx->vcpu.apic->regs_page));
+				page_to_phys(vmx->vcpu.arch.apic->regs_page));
 		vmcs_write32(TPR_THRESHOLD, 0);
 	}
 
@@ -1699,8 +1700,8 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write64(APIC_ACCESS_ADDR,
 			     page_to_phys(vmx->vcpu.kvm->apic_access_page));
 
-	vmx->vcpu.cr0 = 0x60000010;
-	vmx_set_cr0(&vmx->vcpu, vmx->vcpu.cr0); /* enter rmode */
+	vmx->vcpu.arch.cr0 = 0x60000010;
+	vmx_set_cr0(&vmx->vcpu, vmx->vcpu.arch.cr0); /* enter rmode */
 	vmx_set_cr4(&vmx->vcpu, 0);
 #ifdef CONFIG_X86_64
 	vmx_set_efer(&vmx->vcpu, 0);
@@ -1718,7 +1719,7 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (vcpu->rmode.active) {
+	if (vcpu->arch.rmode.active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = irq;
 		vmx->rmode.irq.rip = vmcs_readl(GUEST_RIP);
@@ -1734,13 +1735,13 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 
 static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
 {
-	int word_index = __ffs(vcpu->irq_summary);
-	int bit_index = __ffs(vcpu->irq_pending[word_index]);
+	int word_index = __ffs(vcpu->arch.irq_summary);
+	int bit_index = __ffs(vcpu->arch.irq_pending[word_index]);
 	int irq = word_index * BITS_PER_LONG + bit_index;
 
-	clear_bit(bit_index, &vcpu->irq_pending[word_index]);
-	if (!vcpu->irq_pending[word_index])
-		clear_bit(word_index, &vcpu->irq_summary);
+	clear_bit(bit_index, &vcpu->arch.irq_pending[word_index]);
+	if (!vcpu->arch.irq_pending[word_index])
+		clear_bit(word_index, &vcpu->arch.irq_summary);
 	vmx_inject_irq(vcpu, irq);
 }
 
@@ -1750,12 +1751,12 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 {
 	u32 cpu_based_vm_exec_control;
 
-	vcpu->interrupt_window_open =
+	vcpu->arch.interrupt_window_open =
 		((vmcs_readl(GUEST_RFLAGS) & X86_EFLAGS_IF) &&
 		 (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0);
 
-	if (vcpu->interrupt_window_open &&
-	    vcpu->irq_summary &&
+	if (vcpu->arch.interrupt_window_open &&
+	    vcpu->arch.irq_summary &&
 	    !(vmcs_read32(VM_ENTRY_INTR_INFO_FIELD) & INTR_INFO_VALID_MASK))
 		/*
 		 * If interrupts enabled, and not blocked by sti or mov ss. Good.
@@ -1763,8 +1764,8 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 		kvm_do_inject_irq(vcpu);
 
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
-	if (!vcpu->interrupt_window_open &&
-	    (vcpu->irq_summary || kvm_run->request_interrupt_window))
+	if (!vcpu->arch.interrupt_window_open &&
+	    (vcpu->arch.irq_summary || kvm_run->request_interrupt_window))
 		/*
 		 * Interrupts blocked.  Wait for unblock.
 		 */
@@ -1812,7 +1813,7 @@ static void kvm_guest_debug_pre(struct kvm_vcpu *vcpu)
 static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 				  int vec, u32 err_code)
 {
-	if (!vcpu->rmode.active)
+	if (!vcpu->arch.rmode.active)
 		return 0;
 
 	/*
@@ -1843,8 +1844,8 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (!irqchip_in_kernel(vcpu->kvm) && is_external_interrupt(vect_info)) {
 		int irq = vect_info & VECTORING_INFO_VECTOR_MASK;
-		set_bit(irq, vcpu->irq_pending);
-		set_bit(irq / BITS_PER_LONG, &vcpu->irq_summary);
+		set_bit(irq, vcpu->arch.irq_pending);
+		set_bit(irq / BITS_PER_LONG, &vcpu->arch.irq_summary);
 	}
 
 	if ((intr_info & INTR_INFO_INTR_TYPE_MASK) == 0x200) /* nmi */
@@ -1871,11 +1872,11 @@ static int handle_exception(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		return kvm_mmu_page_fault(vcpu, cr2, error_code);
 	}
 
-	if (vcpu->rmode.active &&
+	if (vcpu->arch.rmode.active &&
 	    handle_rmode_exception(vcpu, intr_info & INTR_INFO_VECTOR_MASK,
 								error_code)) {
-		if (vcpu->halt_request) {
-			vcpu->halt_request = 0;
+		if (vcpu->arch.halt_request) {
+			vcpu->arch.halt_request = 0;
 			return kvm_emulate_halt(vcpu);
 		}
 		return 1;
@@ -1956,22 +1957,22 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		switch (cr) {
 		case 0:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr0(vcpu, vcpu->regs[reg]);
+			set_cr0(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 3:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr3(vcpu, vcpu->regs[reg]);
+			set_cr3(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 4:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr4(vcpu, vcpu->regs[reg]);
+			set_cr4(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 8:
 			vcpu_load_rsp_rip(vcpu);
-			set_cr8(vcpu, vcpu->regs[reg]);
+			set_cr8(vcpu, vcpu->arch.regs[reg]);
 			skip_emulated_instruction(vcpu);
 			if (irqchip_in_kernel(vcpu->kvm))
 				return 1;
@@ -1982,8 +1983,8 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	case 2: /* clts */
 		vcpu_load_rsp_rip(vcpu);
 		vmx_fpu_deactivate(vcpu);
-		vcpu->cr0 &= ~X86_CR0_TS;
-		vmcs_writel(CR0_READ_SHADOW, vcpu->cr0);
+		vcpu->arch.cr0 &= ~X86_CR0_TS;
+		vmcs_writel(CR0_READ_SHADOW, vcpu->arch.cr0);
 		vmx_fpu_activate(vcpu);
 		skip_emulated_instruction(vcpu);
 		return 1;
@@ -1991,13 +1992,13 @@ static int handle_cr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		switch (cr) {
 		case 3:
 			vcpu_load_rsp_rip(vcpu);
-			vcpu->regs[reg] = vcpu->cr3;
+			vcpu->arch.regs[reg] = vcpu->arch.cr3;
 			vcpu_put_rsp_rip(vcpu);
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 8:
 			vcpu_load_rsp_rip(vcpu);
-			vcpu->regs[reg] = get_cr8(vcpu);
+			vcpu->arch.regs[reg] = get_cr8(vcpu);
 			vcpu_put_rsp_rip(vcpu);
 			skip_emulated_instruction(vcpu);
 			return 1;
@@ -2043,7 +2044,7 @@ static int handle_dr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		default:
 			val = 0;
 		}
-		vcpu->regs[reg] = val;
+		vcpu->arch.regs[reg] = val;
 	} else {
 		/* mov to dr */
 	}
@@ -2060,7 +2061,7 @@ static int handle_cpuid(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 static int handle_rdmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	u32 ecx = vcpu->regs[VCPU_REGS_RCX];
+	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
 	u64 data;
 
 	if (vmx_get_msr(vcpu, ecx, &data)) {
@@ -2069,17 +2070,17 @@ static int handle_rdmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	/* FIXME: handling of bits 32:63 of rax, rdx */
-	vcpu->regs[VCPU_REGS_RAX] = data & -1u;
-	vcpu->regs[VCPU_REGS_RDX] = (data >> 32) & -1u;
+	vcpu->arch.regs[VCPU_REGS_RAX] = data & -1u;
+	vcpu->arch.regs[VCPU_REGS_RDX] = (data >> 32) & -1u;
 	skip_emulated_instruction(vcpu);
 	return 1;
 }
 
 static int handle_wrmsr(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
-	u32 ecx = vcpu->regs[VCPU_REGS_RCX];
-	u64 data = (vcpu->regs[VCPU_REGS_RAX] & -1u)
-		| ((u64)(vcpu->regs[VCPU_REGS_RDX] & -1u) << 32);
+	u32 ecx = vcpu->arch.regs[VCPU_REGS_RCX];
+	u64 data = (vcpu->arch.regs[VCPU_REGS_RAX] & -1u)
+		| ((u64)(vcpu->arch.regs[VCPU_REGS_RDX] & -1u) << 32);
 
 	if (vmx_set_msr(vcpu, ecx, data) != 0) {
 		kvm_inject_gp(vcpu, 0);
@@ -2110,7 +2111,7 @@ static int handle_interrupt_window(struct kvm_vcpu *vcpu,
 	 * possible
 	 */
 	if (kvm_run->request_interrupt_window &&
-	    !vcpu->irq_summary) {
+	    !vcpu->arch.irq_summary) {
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		++vcpu->stat.irq_window_exits;
 		return 0;
@@ -2270,7 +2271,7 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 	if (unlikely(idtv_info_field & INTR_INFO_VALID_MASK)) {
 		if ((idtv_info_field & VECTORING_INFO_TYPE_MASK)
 		    == INTR_TYPE_EXT_INTR
-		    && vcpu->rmode.active) {
+		    && vcpu->arch.rmode.active) {
 			u8 vect = idtv_info_field & VECTORING_INFO_VECTOR_MASK;
 
 			vmx_inject_irq(vcpu, vect);
@@ -2424,24 +2425,24 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	      : : "c"(vmx), "d"((unsigned long)HOST_RSP),
 		[launched]"i"(offsetof(struct vcpu_vmx, launched)),
 		[fail]"i"(offsetof(struct vcpu_vmx, fail)),
-		[rax]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_RAX])),
-		[rbx]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_RBX])),
-		[rcx]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_RCX])),
-		[rdx]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_RDX])),
-		[rsi]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_RSI])),
-		[rdi]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_RDI])),
-		[rbp]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_RBP])),
+		[rax]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RAX])),
+		[rbx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBX])),
+		[rcx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RCX])),
+		[rdx]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RDX])),
+		[rsi]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RSI])),
+		[rdi]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RDI])),
+		[rbp]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_RBP])),
 #ifdef CONFIG_X86_64
-		[r8]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R8])),
-		[r9]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R9])),
-		[r10]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R10])),
-		[r11]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R11])),
-		[r12]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R12])),
-		[r13]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R13])),
-		[r14]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R14])),
-		[r15]"i"(offsetof(struct vcpu_vmx, vcpu.regs[VCPU_REGS_R15])),
+		[r8]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R8])),
+		[r9]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R9])),
+		[r10]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R10])),
+		[r11]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R11])),
+		[r12]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R12])),
+		[r13]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R13])),
+		[r14]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R14])),
+		[r15]"i"(offsetof(struct vcpu_vmx, vcpu.arch.regs[VCPU_REGS_R15])),
 #endif
-		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.cr2))
+		[cr2]"i"(offsetof(struct vcpu_vmx, vcpu.arch.cr2))
 	      : "cc", "memory"
 #ifdef CONFIG_X86_64
 		, "rbx", "rdi", "rsi"
@@ -2455,7 +2456,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (vmx->rmode.irq.pending)
 		fixup_rmode_irq(vmx);
 
-	vcpu->interrupt_window_open =
+	vcpu->arch.interrupt_window_open =
 		(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0;
 
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
