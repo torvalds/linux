@@ -1197,7 +1197,7 @@ int dn_route_output_sock(struct dst_entry **pprt, struct flowi *fl, struct sock 
 	err = __dn_route_output_key(pprt, fl, flags & MSG_TRYHARD);
 	if (err == 0 && fl->proto) {
 		err = xfrm_lookup(pprt, fl, sk, (flags & MSG_DONTWAIT) ?
-						XFRM_LOOKUP_WAIT : 0);
+						0 : XFRM_LOOKUP_WAIT);
 	}
 	return err;
 }
