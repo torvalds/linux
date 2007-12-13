@@ -609,7 +609,8 @@ static int __ip6_ins_rt(struct rt6_info *rt, struct nl_info *info)
 
 int ip6_ins_rt(struct rt6_info *rt)
 {
-	return __ip6_ins_rt(rt, NULL);
+	struct nl_info info = {};
+	return __ip6_ins_rt(rt, &info);
 }
 
 static struct rt6_info *rt6_alloc_cow(struct rt6_info *ort, struct in6_addr *daddr,
@@ -1266,7 +1267,8 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 
 int ip6_del_rt(struct rt6_info *rt)
 {
-	return __ip6_del_rt(rt, NULL);
+	struct nl_info info = {};
+	return __ip6_del_rt(rt, &info);
 }
 
 static int ip6_route_del(struct fib6_config *cfg)
@@ -2243,29 +2245,26 @@ errout:
 void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 {
 	struct sk_buff *skb;
-	u32 pid = 0, seq = 0;
-	struct nlmsghdr *nlh = NULL;
-	int err = -ENOBUFS;
+	u32 seq;
+	int err;
 
-	if (info) {
-		pid = info->pid;
-		nlh = info->nlh;
-		if (nlh)
-			seq = nlh->nlmsg_seq;
-	}
+	err = -ENOBUFS;
+	seq = info->nlh != NULL ? info->nlh->nlmsg_seq : 0;
 
 	skb = nlmsg_new(rt6_nlmsg_size(), gfp_any());
 	if (skb == NULL)
 		goto errout;
 
-	err = rt6_fill_node(skb, rt, NULL, NULL, 0, event, pid, seq, 0, 0);
+	err = rt6_fill_node(skb, rt, NULL, NULL, 0,
+				event, info->pid, seq, 0, 0);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */
 		WARN_ON(err == -EMSGSIZE);
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, &init_net, pid, RTNLGRP_IPV6_ROUTE, nlh, gfp_any());
+	err = rtnl_notify(skb, &init_net, info->pid,
+				RTNLGRP_IPV6_ROUTE, info->nlh, gfp_any());
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(&init_net, RTNLGRP_IPV6_ROUTE, err);
