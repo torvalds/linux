@@ -323,6 +323,7 @@ struct snd_pcm_runtime {
 
 	/* -- timer -- */
 	unsigned int timer_resolution;	/* timer resolution */
+	int tstamp_type;		/* timestamp type */
 
 	/* -- DMA -- */           
 	unsigned char *dma_area;	/* DMA area */
@@ -951,6 +952,15 @@ static inline void snd_pcm_set_runtime_buffer(struct snd_pcm_substream *substrea
 void snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream);
 void snd_pcm_timer_init(struct snd_pcm_substream *substream);
 void snd_pcm_timer_done(struct snd_pcm_substream *substream);
+
+static inline void snd_pcm_gettime(struct snd_pcm_runtime *runtime,
+				   struct timespec *tv)
+{
+	if (runtime->tstamp_type == SNDRV_PCM_TSTAMP_TYPE_MONOTONIC)
+		do_posix_clock_monotonic_gettime(tv);
+	else
+		getnstimeofday(tv);
+}
 
 /*
  *  Memory

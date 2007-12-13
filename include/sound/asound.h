@@ -138,7 +138,7 @@ enum {
  *                                                                           *
  *****************************************************************************/
 
-#define SNDRV_PCM_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 8)
+#define SNDRV_PCM_VERSION		SNDRV_PROTOCOL_VERSION(2, 0, 9)
 
 typedef unsigned long snd_pcm_uframes_t;
 typedef signed long snd_pcm_sframes_t;
@@ -435,9 +435,15 @@ struct snd_xfern {
 };
 
 enum {
+	SNDRV_PCM_TSTAMP_TYPE_GETTIMEOFDAY = 0,	/* gettimeofday equivalent */
+	SNDRV_PCM_TSTAMP_TYPE_MONOTONIC,	/* posix_clock_monotonic equivalent */
+	SNDRV_PCM_TSTAMP_TYPE_LAST = SNDRV_PCM_TSTAMP_TYPE_MONOTONIC,
+};
+
+enum {
 	SNDRV_PCM_IOCTL_PVERSION = _IOR('A', 0x00, int),
 	SNDRV_PCM_IOCTL_INFO = _IOR('A', 0x01, struct snd_pcm_info),
-	SNDRV_PCM_IOCTL_TSTAMP = _IOW('A', 0x02, int),
+	SNDRV_PCM_IOCTL_TTSTAMP = _IOW('A', 0x03, int),
 	SNDRV_PCM_IOCTL_HW_REFINE = _IOWR('A', 0x10, struct snd_pcm_hw_params),
 	SNDRV_PCM_IOCTL_HW_PARAMS = _IOWR('A', 0x11, struct snd_pcm_hw_params),
 	SNDRV_PCM_IOCTL_HW_FREE = _IO('A', 0x12),

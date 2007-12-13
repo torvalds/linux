@@ -188,7 +188,7 @@ static inline int snd_pcm_update_hw_ptr_interrupt(struct snd_pcm_substream *subs
 	snd_pcm_sframes_t delta;
 
 	if (runtime->tstamp_mode == SNDRV_PCM_TSTAMP_MMAP)
-		getnstimeofday((struct timespec *)&runtime->status->tstamp);
+		snd_pcm_gettime(runtime, (struct timespec *)&runtime->status->tstamp);
 	pos = snd_pcm_update_hw_ptr_pos(substream, runtime);
 	if (pos == SNDRV_PCM_POS_XRUN) {
 		xrun(substream);
