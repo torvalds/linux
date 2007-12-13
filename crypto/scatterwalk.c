@@ -105,6 +105,9 @@ void scatterwalk_map_and_copy(void *buf, struct scatterlist *sg,
 	struct scatter_walk walk;
 	unsigned int offset = 0;
 
+	if (!nbytes)
+		return;
+
 	for (;;) {
 		scatterwalk_start(&walk, sg);
 
