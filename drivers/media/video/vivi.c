@@ -163,6 +163,7 @@ struct vivi_dev {
 	struct list_head           vivi_devlist;
 
 	struct mutex               lock;
+	spinlock_t                 slock;
 
 	int                        users;
 
@@ -388,6 +389,7 @@ static void vivi_thread_tick(struct vivi_dmaqueue  *dma_q)
 
 	int bc;
 
+	spin_lock(&dev->slock);
 	/* Announces videobuf that all went ok */
 	for (bc = 0;; bc++) {
 		if (list_empty(&dma_q->active)) {
@@ -401,6 +403,7 @@ static void vivi_thread_tick(struct vivi_dmaqueue  *dma_q)
 		/* Nobody is waiting something to be done, just return */
 		if (!waitqueue_active(&buf->vb.done)) {
 			mod_timer(&dma_q->timeout, jiffies+BUFFER_TIMEOUT);
+			spin_unlock(&dev->slock);
 			return;
 		}
 
@@ -419,6 +422,7 @@ static void vivi_thread_tick(struct vivi_dmaqueue  *dma_q)
 	if (bc != 1)
 		dprintk(dev, 1, "%s: %d buffers handled (should be 1)\n",
 			__FUNCTION__, bc);
+	spin_unlock(&dev->slock);
 }
 
 static void vivi_sleep(struct vivi_dmaqueue  *dma_q)
@@ -591,6 +595,8 @@ static void vivi_vid_timeout(unsigned long data)
 	struct vivi_dmaqueue *vidq = &dev->vidq;
 	struct vivi_buffer   *buf;
 
+	spin_lock(&dev->slock);
+
 	while (!list_empty(&vidq->active)) {
 		buf = list_entry(vidq->active.next,
 				 struct vivi_buffer, vb.queue);
@@ -599,8 +605,9 @@ static void vivi_vid_timeout(unsigned long data)
 		wake_up(&buf->vb.done);
 		printk(KERN_INFO "vivi/0: [%p/%d] timeout\n", buf, buf->vb.i);
 	}
-
 	restart_video_queue(vidq);
+
+	spin_unlock(&dev->slock);
 }
 
 /* ------------------------------------------------------------------
@@ -1064,7 +1071,7 @@ found:
 			dev->h, dev->m, dev->s, (dev->us + 500) / 1000);
 
 	videobuf_queue_vmalloc_init(&fh->vb_vidq, &vivi_video_qops,
-			NULL, NULL, fh->type, V4L2_FIELD_INTERLACED,
+			NULL, &dev->slock, fh->type, V4L2_FIELD_INTERLACED,
 			sizeof(struct vivi_buffer), fh);
 
 	return 0;
@@ -1224,6 +1231,7 @@ static int __init vivi_init(void)
 
 		/* initialize locks */
 		mutex_init(&dev->lock);
+		spin_lock_init(&dev->slock);
 
 		dev->vidq.timeout.function = vivi_vid_timeout;
 		dev->vidq.timeout.data     = (unsigned long)dev;
