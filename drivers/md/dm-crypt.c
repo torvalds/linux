@@ -511,6 +511,9 @@ static void crypt_endio(struct bio *clone, int error)
 	struct crypt_config *cc = io->target->private;
 	unsigned read_io = bio_data_dir(clone) == READ;
 
+	if (unlikely(!bio_flagged(clone, BIO_UPTODATE) && !error))
+		error = -EIO;
+
 	/*
 	 * free the processed pages
 	 */
@@ -519,10 +522,8 @@ static void crypt_endio(struct bio *clone, int error)
 		goto out;
 	}
 
-	if (unlikely(!bio_flagged(clone, BIO_UPTODATE))) {
-		error = -EIO;
+	if (unlikely(error))
 		goto out;
-	}
 
 	bio_put(clone);
 	kcryptd_queue_crypt(io);
