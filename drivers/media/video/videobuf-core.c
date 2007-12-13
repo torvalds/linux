@@ -812,7 +812,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 }
 
 /* Locking: Caller holds q->lock */
-int __videobuf_read_start(struct videobuf_queue *q)
+static int __videobuf_read_start(struct videobuf_queue *q)
 {
 	enum v4l2_field field;
 	unsigned long flags = 0;
