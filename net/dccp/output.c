@@ -574,7 +574,18 @@ void dccp_send_close(struct sock *sk, const int active)
 		dccp_write_xmit(sk, 1);
 		dccp_skb_entail(sk, skb);
 		dccp_transmit_skb(sk, skb_clone(skb, prio));
-		/* FIXME do we need a retransmit timer here? */
+		/*
+		 * Retransmission timer for active-close: RFC 4340, 8.3 requires
+		 * to retransmit the Close/CloseReq until the CLOSING/CLOSEREQ
+		 * state can be left. The initial timeout is 2 RTTs.
+		 * Since RTT measurement is done by the CCIDs, there is no easy
+		 * way to get an RTT sample. The fallback RTT from RFC 4340, 3.4
+		 * is too low (200ms); we use a high value to avoid unnecessary
+		 * retransmissions when the link RTT is > 0.2 seconds.
+		 * FIXME: Let main module sample RTTs and use that instead.
+		 */
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+					  DCCP_TIMEOUT_INIT, DCCP_RTO_MAX);
 	} else
 		dccp_transmit_skb(sk, skb);
 }
