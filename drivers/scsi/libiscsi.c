@@ -1079,17 +1079,19 @@ int iscsi_eh_host_reset(struct scsi_cmnd *sc)
 	struct iscsi_session *session = iscsi_hostdata(host->hostdata);
 	struct iscsi_conn *conn = session->leadconn;
 
+	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_TERMINATE) {
 failed:
 		debug_scsi("failing host reset: session terminated "
 			   "[CID %d age %d]\n", conn->id, session->age);
 		spin_unlock_bh(&session->lock);
+		mutex_unlock(&session->eh_mutex);
 		return FAILED;
 	}
 
 	spin_unlock_bh(&session->lock);
-
+	mutex_unlock(&session->eh_mutex);
 	/*
 	 * we drop the lock here but the leadconn cannot be destoyed while
 	 * we are in the scsi eh
@@ -1104,13 +1106,14 @@ failed:
 	if (signal_pending(current))
 		flush_signals(current);
 
+	mutex_lock(&session->eh_mutex);
 	spin_lock_bh(&session->lock);
 	if (session->state == ISCSI_STATE_LOGGED_IN)
 		printk(KERN_INFO "iscsi: host reset succeeded\n");
 	else
 		goto failed;
 	spin_unlock_bh(&session->lock);
-
+	mutex_unlock(&session->eh_mutex);
 	return SUCCESS;
 }
 EXPORT_SYMBOL_GPL(iscsi_eh_host_reset);
