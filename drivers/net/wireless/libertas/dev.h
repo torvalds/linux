@@ -153,6 +153,11 @@ struct lbs_private {
 	int (*hw_get_int_status) (struct lbs_private *priv, u8 *);
 	int (*hw_read_event_cause) (struct lbs_private *);
 
+	/* Wake On LAN */
+	uint32_t wol_criteria;
+	uint8_t wol_gpio;
+	uint8_t wol_gap;
+
 	/* was struct lbs_adapter from here... */
 
 	/** Wlan adapter data structure*/

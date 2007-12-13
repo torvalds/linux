@@ -242,9 +242,9 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	if_usb_set_boot2_ver(priv);
 
-	/* Set suspend/resume configuration:
-	   wake via GPIO2 after a 20ms delay */
-	lbs_host_sleep_cfg(priv, EHS_WAKE_ON_UNICAST_DATA, 2, 20);
+	priv->wol_gpio = 2; /* Wake via GPIO2... */
+	priv->wol_gap = 20; /* ... after 20ms    */
+	lbs_host_sleep_cfg(priv, EHS_WAKE_ON_UNICAST_DATA);
 
 	usb_get_dev(udev);
 	usb_set_intfdata(intf, cardp);

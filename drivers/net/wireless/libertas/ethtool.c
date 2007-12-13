@@ -8,6 +8,8 @@
 #include "dev.h"
 #include "join.h"
 #include "wext.h"
+#include "cmd.h"
+
 static const char * mesh_stat_strings[]= {
 			"drop_duplicate_bcast",
 			"drop_ttl_zero",
@@ -172,6 +174,49 @@ static void lbs_ethtool_get_strings(struct net_device *dev,
 	lbs_deb_enter(LBS_DEB_ETHTOOL);
 }
 
+static void lbs_ethtool_get_wol(struct net_device *dev,
+				struct ethtool_wolinfo *wol)
+{
+	struct lbs_private *priv = dev->priv;
+
+	if (priv->wol_criteria == 0xffffffff) {
+		/* Interface driver didn't configure wake */
+		wol->supported = wol->wolopts = 0;
+		return;
+	}
+
+	wol->supported = WAKE_UCAST|WAKE_MCAST|WAKE_BCAST|WAKE_PHY;
+
+	if (priv->wol_criteria & EHS_WAKE_ON_UNICAST_DATA)
+		wol->wolopts |= WAKE_UCAST;
+	if (priv->wol_criteria & EHS_WAKE_ON_MULTICAST_DATA)
+		wol->wolopts |= WAKE_MCAST;
+	if (priv->wol_criteria & EHS_WAKE_ON_BROADCAST_DATA)
+		wol->wolopts |= WAKE_BCAST;
+	if (priv->wol_criteria & EHS_WAKE_ON_MAC_EVENT)
+		wol->wolopts |= WAKE_PHY;
+}
+
+static int lbs_ethtool_set_wol(struct net_device *dev,
+			       struct ethtool_wolinfo *wol)
+{
+	struct lbs_private *priv = dev->priv;
+	uint32_t criteria = 0;
+
+	if (priv->wol_criteria == 0xffffffff && wol->wolopts)
+		return -EOPNOTSUPP;
+
+	if (wol->wolopts & ~(WAKE_UCAST|WAKE_MCAST|WAKE_BCAST|WAKE_PHY))
+		return -EOPNOTSUPP;
+
+	if (wol->wolopts & WAKE_UCAST) criteria |= EHS_WAKE_ON_UNICAST_DATA;
+	if (wol->wolopts & WAKE_MCAST) criteria |= EHS_WAKE_ON_MULTICAST_DATA;
+	if (wol->wolopts & WAKE_BCAST) criteria |= EHS_WAKE_ON_BROADCAST_DATA;
+	if (wol->wolopts & WAKE_PHY)   criteria |= EHS_WAKE_ON_MAC_EVENT;
+
+	return lbs_host_sleep_cfg(priv, criteria);
+}
+
 struct ethtool_ops lbs_ethtool_ops = {
 	.get_drvinfo = lbs_ethtool_get_drvinfo,
 	.get_eeprom =  lbs_ethtool_get_eeprom,
@@ -179,5 +224,7 @@ struct ethtool_ops lbs_ethtool_ops = {
 	.get_sset_count = lbs_ethtool_get_sset_count,
 	.get_ethtool_stats = lbs_ethtool_get_stats,
 	.get_strings = lbs_ethtool_get_strings,
+	.get_wol = lbs_ethtool_get_wol,
+	.set_wol = lbs_ethtool_set_wol,
 };
 

@@ -111,21 +111,23 @@ out:
 	return ret;
 }
 
-int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
-		       uint8_t gpio, uint8_t gap)
+int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria)
 {
 	struct cmd_ds_host_sleep cmd_config;
 	int ret;
 
 	cmd_config.criteria = cpu_to_le32(criteria);
-	cmd_config.gpio = gpio;
-	cmd_config.gap = gap;
+	cmd_config.gpio = priv->wol_gpio;
+	cmd_config.gap = priv->wol_gap;
 
 	ret = lbs_cmd_with_response(priv, CMD_802_11_HOST_SLEEP_CFG, &cmd_config);
-	if (ret) {
+	if (!ret) {
+		lbs_deb_cmd("Set WOL criteria to %x\n", criteria);
+		priv->wol_criteria = criteria;
+	} else {
 		lbs_pr_info("HOST_SLEEP_CFG failed %d\n", ret);
-		return ret;
 	}
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_host_sleep_cfg);

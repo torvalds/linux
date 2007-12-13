@@ -839,6 +839,11 @@ int lbs_suspend(struct lbs_private *priv)
 	struct cmd_header cmd;
 	int ret;
 
+	if (priv->wol_criteria == 0xffffffff) {
+		lbs_pr_info("Suspend attempt without configuring wake params!\n");
+		return -EINVAL;
+	}
+
 	memset(&cmd, 0, sizeof(cmd));
 	
 	ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_ACTIVATE, &cmd,
@@ -1087,6 +1092,9 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 
 	sprintf(priv->mesh_ssid, "mesh");
 	priv->mesh_ssid_len = 4;
+
+	priv->wol_criteria = 0xffffffff;
+	priv->wol_gpio = 0xff;
 
 	goto done;
 
