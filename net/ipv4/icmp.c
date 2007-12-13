@@ -977,7 +977,7 @@ int icmp_rcv(struct sk_buff *skb)
 	struct icmphdr *icmph;
 	struct rtable *rt = (struct rtable *)skb->dst;
 
-	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb) &&
+	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb) && skb->sp &&
 	    skb->sp->xvec[skb->sp->len - 1]->props.flags & XFRM_STATE_ICMP) {
 		int nh;
 

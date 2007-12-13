@@ -644,7 +644,7 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	struct icmp6hdr *hdr;
 	int type;
 
-	if (xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb) &&
+	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb) && skb->sp &&
 	    skb->sp->xvec[skb->sp->len - 1]->props.flags & XFRM_STATE_ICMP) {
 		int nh;
 
