@@ -1099,7 +1099,6 @@ prep_pib_init(void)
 				pci_write_config_byte(dev, 0x43, reg);
 			}
 		}
-		pci_dev_put(dev);
 	}
 
 	if ((dev = pci_get_device(PCI_VENDOR_ID_WINBOND,
