@@ -355,28 +355,26 @@ static int s5h1409_softreset(struct dvb_frontend* fe)
 static int s5h1409_set_if_freq(struct dvb_frontend* fe, int KHz)
 {
 	struct s5h1409_state* state = fe->demodulator_priv;
-	int ret = 0;
 
 	dprintk("%s(%d KHz)\n", __FUNCTION__, KHz);
 
-	if( (KHz == 44000) || (KHz == 5380) ) {
-		s5h1409_writereg(state, 0x87, 0x01be);
-		s5h1409_writereg(state, 0x88, 0x0436);
-		s5h1409_writereg(state, 0x89, 0x054d);
-	} else
-	if (KHz == 4000) {
+	switch (KHz) {
+	case 4000:
 		s5h1409_writereg(state, 0x87, 0x014b);
 		s5h1409_writereg(state, 0x88, 0x0cb5);
 		s5h1409_writereg(state, 0x89, 0x03e2);
-	} else {
-		printk("%s() Invalid arg = %d KHz\n", __FUNCTION__, KHz);
-		ret = -1;
+		break;
+	case 5380:
+	case 44000:
+	default:
+		s5h1409_writereg(state, 0x87, 0x01be);
+		s5h1409_writereg(state, 0x88, 0x0436);
+		s5h1409_writereg(state, 0x89, 0x054d);
+		break;
 	}
+	state->if_freq = KHz;
 
-	if (0 == ret)
-		state->if_freq = KHz;
-
-	return ret;
+	return 0;
 }
 
 static int s5h1409_set_spectralinversion(struct dvb_frontend* fe, int inverted)
