@@ -507,22 +507,20 @@ iscsi_data_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	}
 
 	if (rhdr->flags & ISCSI_FLAG_DATA_STATUS) {
+		sc->result = (DID_OK << 16) | rhdr->cmd_status;
 		conn->exp_statsn = be32_to_cpu(rhdr->statsn) + 1;
-		if (rhdr->flags & ISCSI_FLAG_DATA_UNDERFLOW) {
+		if (rhdr->flags & (ISCSI_FLAG_DATA_UNDERFLOW |
+		                   ISCSI_FLAG_DATA_OVERFLOW)) {
 			int res_count = be32_to_cpu(rhdr->residual_count);
 
 			if (res_count > 0 &&
-			    res_count <= scsi_bufflen(sc)) {
+			    (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW ||
+			     res_count <= scsi_bufflen(sc)))
 				scsi_set_resid(sc, res_count);
-				sc->result = (DID_OK << 16) | rhdr->cmd_status;
-			} else
+			else
 				sc->result = (DID_BAD_TARGET << 16) |
 					rhdr->cmd_status;
-		} else if (rhdr->flags & ISCSI_FLAG_DATA_OVERFLOW) {
-			scsi_set_resid(sc, be32_to_cpu(rhdr->residual_count));
-			sc->result = (DID_OK << 16) | rhdr->cmd_status;
-		} else
-			sc->result = (DID_OK << 16) | rhdr->cmd_status;
+		}
 	}
 
 	conn->datain_pdus_cnt++;

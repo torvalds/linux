@@ -291,17 +291,19 @@ invalid_datalen:
 			   min_t(uint16_t, senselen, SCSI_SENSE_BUFFERSIZE));
 	}
 
-	if (rhdr->flags & ISCSI_FLAG_CMD_UNDERFLOW) {
+	if (rhdr->flags & (ISCSI_FLAG_CMD_UNDERFLOW |
+	                   ISCSI_FLAG_CMD_OVERFLOW)) {
 		int res_count = be32_to_cpu(rhdr->residual_count);
 
-		if (res_count > 0 && res_count <= scsi_bufflen(sc))
+		if (res_count > 0 &&
+		    (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW ||
+		     res_count <= scsi_bufflen(sc)))
 			scsi_set_resid(sc, res_count);
 		else
 			sc->result = (DID_BAD_TARGET << 16) | rhdr->cmd_status;
-	} else if (rhdr->flags & ISCSI_FLAG_CMD_BIDI_UNDERFLOW)
+	} else if (rhdr->flags & (ISCSI_FLAG_CMD_BIDI_UNDERFLOW |
+	                          ISCSI_FLAG_CMD_BIDI_OVERFLOW))
 		sc->result = (DID_BAD_TARGET << 16) | rhdr->cmd_status;
-	else if (rhdr->flags & ISCSI_FLAG_CMD_OVERFLOW)
-		scsi_set_resid(sc, be32_to_cpu(rhdr->residual_count));
 
 out:
 	debug_scsi("done [sc %lx res %d itt 0x%x]\n",
