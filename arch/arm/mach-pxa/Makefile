@@ -30,6 +30,7 @@ ifeq ($(CONFIG_MACH_ZYLONITE),y)
   obj-$(CONFIG_CPU_PXA300)	+= zylonite_pxa300.o
   obj-$(CONFIG_CPU_PXA320)	+= zylonite_pxa320.o
 endif
+obj-$(CONFIG_MACH_LITTLETON)	+= littleton.o
 
 obj-$(CONFIG_MACH_ARMCORE)      += cm-x270.o
 
