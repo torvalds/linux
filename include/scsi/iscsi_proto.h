@@ -21,6 +21,8 @@
 #ifndef ISCSI_PROTO_H
 #define ISCSI_PROTO_H
 
+#include <linux/types.h>
+
 #define ISCSI_DRAFT20_VERSION	0x00
 
 /* default iSCSI listen port for incoming connections */

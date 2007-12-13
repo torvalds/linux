@@ -1662,7 +1662,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	struct iscsi_session *session = iscsi_hostdata(shost->hostdata);
 	struct module *owner = cls_session->transport->owner;
 
-	iscsi_unblock_session(cls_session);
+	iscsi_remove_session(cls_session);
 	scsi_remove_host(shost);
 
 	iscsi_pool_free(&session->mgmtpool);
@@ -1677,7 +1677,7 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	kfree(session->hwaddress);
 	kfree(session->initiatorname);
 
-	iscsi_destroy_session(cls_session);
+	iscsi_free_session(cls_session);
 	scsi_host_put(shost);
 	module_put(owner);
 }

@@ -49,12 +49,15 @@ enum iscsi_uevent_e {
 
 	ISCSI_UEVENT_TGT_DSCVR		= UEVENT_BASE + 15,
 	ISCSI_UEVENT_SET_HOST_PARAM	= UEVENT_BASE + 16,
+	ISCSI_UEVENT_UNBIND_SESSION	= UEVENT_BASE + 17,
 
 	/* up events */
 	ISCSI_KEVENT_RECV_PDU		= KEVENT_BASE + 1,
 	ISCSI_KEVENT_CONN_ERROR		= KEVENT_BASE + 2,
 	ISCSI_KEVENT_IF_ERROR		= KEVENT_BASE + 3,
 	ISCSI_KEVENT_DESTROY_SESSION	= KEVENT_BASE + 4,
+	ISCSI_KEVENT_UNBIND_SESSION	= KEVENT_BASE + 5,
+	ISCSI_KEVENT_CREATE_SESSION	= KEVENT_BASE + 6,
 };
 
 enum iscsi_tgt_dscvr {
@@ -156,6 +159,10 @@ struct iscsi_uevent {
 			uint32_t	sid;
 			uint32_t	cid;
 		} c_conn_ret;
+		struct msg_unbind_session {
+			uint32_t	sid;
+			uint32_t	host_no;
+		} unbind_session;
 		struct msg_recv_req {
 			uint32_t	sid;
 			uint32_t	cid;
