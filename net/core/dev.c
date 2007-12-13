@@ -3971,6 +3971,8 @@ void synchronize_net(void)
 
 void unregister_netdevice(struct net_device *dev)
 {
+	ASSERT_RTNL();
+
 	rollback_registered(dev);
 	/* Finish processing unregister after unlock */
 	net_set_todo(dev);
