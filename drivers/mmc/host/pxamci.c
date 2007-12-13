@@ -375,14 +375,23 @@ static void pxamci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (host->clkrt == CLKRT_OFF)
 			clk_enable(host->clk);
 
-		/*
-		 * clk might result in a lower divisor than we
-		 * desire.  check for that condition and adjust
-		 * as appropriate.
-		 */
-		if (rate / clk > ios->clock)
-			clk <<= 1;
-		host->clkrt = fls(clk) - 1;
+		if (ios->clock == 26000000) {
+			/* to support 26MHz on pxa300/pxa310 */
+			host->clkrt = 7;
+		} else {
+			/* to handle (19.5MHz, 26MHz) */
+			if (!clk)
+				clk = 1;
+
+			/*
+			 * clk might result in a lower divisor than we
+			 * desire.  check for that condition and adjust
+			 * as appropriate.
+			 */
+			if (rate / clk > ios->clock)
+				clk <<= 1;
+			host->clkrt = fls(clk) - 1;
+		}
 
 		/*
 		 * we write clkrt on the next command
@@ -519,7 +528,8 @@ static int pxamci_probe(struct platform_device *pdev)
 	 * Calculate minimum clock rate, rounding up.
 	 */
 	mmc->f_min = (host->clkrate + 63) / 64;
-	mmc->f_max = host->clkrate;
+	mmc->f_max = (cpu_is_pxa300() || cpu_is_pxa310()) ? 26000000
+							  : host->clkrate;
 
 	mmc->ocr_avail = host->pdata ?
 			 host->pdata->ocr_mask :
@@ -529,6 +539,9 @@ static int pxamci_probe(struct platform_device *pdev)
 	if (!cpu_is_pxa21x() && !cpu_is_pxa25x()) {
 		mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ;
 		host->cmdat |= CMDAT_SDIO_INT_EN;
+		if (cpu_is_pxa300() || cpu_is_pxa310())
+			mmc->caps |= MMC_CAP_MMC_HIGHSPEED |
+				     MMC_CAP_SD_HIGHSPEED;
 	}
 
 	host->sg_cpu = dma_alloc_coherent(&pdev->dev, PAGE_SIZE, &host->sg_dma, GFP_KERNEL);
