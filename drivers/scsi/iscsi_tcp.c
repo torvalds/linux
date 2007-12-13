@@ -1349,9 +1349,7 @@ iscsi_tcp_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 		struct iscsi_session *session = conn->session;
 
 		spin_lock_bh(&session->lock);
-		list_del(&conn->mtask->running);
-		__kfifo_put(session->mgmtpool.queue, (void*)&conn->mtask,
-			    sizeof(void*));
+		iscsi_free_mgmt_task(conn, mtask);
 		spin_unlock_bh(&session->lock);
 	}
 	return 0;

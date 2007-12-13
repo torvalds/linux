@@ -621,9 +621,7 @@ void iser_snd_completion(struct iser_desc *tx_desc)
 			struct iscsi_session *session = conn->session;
 
 			spin_lock(&conn->session->lock);
-			list_del(&mtask->running);
-			__kfifo_put(session->mgmtpool.queue, (void*)&mtask,
-				    sizeof(void*));
+			iscsi_free_mgmt_task(conn, mtask);
 			spin_unlock(&session->lock);
 		}
 	}

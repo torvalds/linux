@@ -176,6 +176,7 @@ struct iscsi_cls_conn {
 #define ISCSI_STATE_TERMINATE		4
 #define ISCSI_STATE_IN_RECOVERY		5
 #define ISCSI_STATE_RECOVERY_FAILED	6
+#define ISCSI_STATE_LOGGING_OUT		7
 
 struct iscsi_cls_session {
 	struct list_head sess_list;		/* item in session_list */

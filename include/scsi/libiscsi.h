@@ -346,6 +346,8 @@ extern int __iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 extern int iscsi_verify_itt(struct iscsi_conn *, struct iscsi_hdr *,
 			    uint32_t *);
 extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);
+extern void iscsi_free_mgmt_task(struct iscsi_conn *conn,
+				 struct iscsi_mgmt_task *mtask);
 
 /*
  * generic helpers
