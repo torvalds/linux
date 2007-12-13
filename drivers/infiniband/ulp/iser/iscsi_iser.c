@@ -400,6 +400,7 @@ iscsi_iser_session_create(struct iscsi_transport *iscsit,
 		ctask      = session->cmds[i];
 		iser_ctask = ctask->dd_data;
 		ctask->hdr = (struct iscsi_cmd *)&iser_ctask->desc.iscsi_header;
+		ctask->hdr_max = sizeof(iser_ctask->desc.iscsi_header);
 	}
 
 	for (i = 0; i < session->mgmtpool_max; i++) {

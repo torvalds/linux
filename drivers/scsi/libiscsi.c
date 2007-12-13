@@ -1570,7 +1570,6 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 		if (cmd_task_size)
 			ctask->dd_data = &ctask[1];
 		ctask->itt = cmd_i;
-		ctask->hdr_max = sizeof(struct iscsi_cmd);
 		INIT_LIST_HEAD(&ctask->running);
 	}
 
