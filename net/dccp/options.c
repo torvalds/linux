@@ -537,6 +537,18 @@ static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
+/* The length of all options needs to be a multiple of 4 (5.8) */
+static void dccp_insert_option_padding(struct sk_buff *skb)
+{
+	int padding = DCCP_SKB_CB(skb)->dccpd_opt_len % 4;
+
+	if (padding != 0) {
+		padding = 4 - padding;
+		memset(skb_push(skb, padding), 0, padding);
+		DCCP_SKB_CB(skb)->dccpd_opt_len += padding;
+	}
+}
+
 int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
@@ -580,18 +592,18 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 	    dccp_insert_option_timestamp_echo(dp, NULL, skb))
 		return -1;
 
-	/* XXX: insert other options when appropriate */
+	dccp_insert_option_padding(skb);
+	return 0;
+}
 
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len != 0) {
-		/* The length of all options has to be a multiple of 4 */
-		int padding = DCCP_SKB_CB(skb)->dccpd_opt_len % 4;
+int dccp_insert_options_rsk(struct dccp_request_sock *dreq, struct sk_buff *skb)
+{
+	DCCP_SKB_CB(skb)->dccpd_opt_len = 0;
 
-		if (padding != 0) {
-			padding = 4 - padding;
-			memset(skb_push(skb, padding), 0, padding);
-			DCCP_SKB_CB(skb)->dccpd_opt_len += padding;
-		}
-	}
+	if (dreq->dreq_timestamp_echo != 0 &&
+	    dccp_insert_option_timestamp_echo(NULL, dreq, skb))
+		return -1;
 
+	dccp_insert_option_padding(skb);
 	return 0;
 }

@@ -428,6 +428,7 @@ static inline int dccp_ack_pending(const struct sock *sk)
 }
 
 extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
+extern int dccp_insert_options_rsk(struct dccp_request_sock*, struct sk_buff*);
 extern int dccp_insert_option_elapsed_time(struct sock *sk,
 					    struct sk_buff *skb,
 					    u32 elapsed_time);

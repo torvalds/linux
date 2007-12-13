@@ -303,7 +303,7 @@ struct sk_buff *dccp_make_response(struct sock *sk, struct dst_entry *dst,
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_RESPONSE;
 	DCCP_SKB_CB(skb)->dccpd_seq  = dreq->dreq_iss;
 
-	if (dccp_insert_options(sk, skb)) {
+	if (dccp_insert_options_rsk(dreq, skb)) {
 		kfree_skb(skb);
 		return NULL;
 	}
