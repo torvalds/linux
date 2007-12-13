@@ -96,7 +96,7 @@ out_udplitev6_protocol:
 	goto out;
 }
 
-void __exit udplitev6_exit(void)
+void udplitev6_exit(void)
 {
 	inet6_unregister_protosw(&udplite6_protosw);
 	inet6_del_protocol(&udplitev6_protocol, IPPROTO_UDPLITE);

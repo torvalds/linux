@@ -2193,7 +2193,7 @@ out_tcpv6_protosw:
 	goto out;
 }
 
-void __exit tcpv6_exit(void)
+void tcpv6_exit(void)
 {
 	sock_release(tcp6_socket);
 	inet6_unregister_protosw(&tcpv6_protosw);

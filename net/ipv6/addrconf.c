@@ -4223,7 +4223,7 @@ errout:
 	return err;
 }
 
-void __exit addrconf_cleanup(void)
+void addrconf_cleanup(void)
 {
 	struct net_device *dev;
 	struct inet6_ifaddr *ifa;
