@@ -332,6 +332,8 @@ static int dm_hash_rename(const char *old, const char *new)
 		dm_table_put(table);
 	}
 
+	dm_kobject_uevent(hc->md);
+
 	dm_put(hc->md);
 	up_write(&_hash_lock);
 	kfree(old_name);
