@@ -1250,7 +1250,7 @@ MODULE_PARM_DESC(video_nr, "video iminor start number");
 module_param(n_devs, int, 0);
 MODULE_PARM_DESC(n_devs, "number of video devices to create");
 
-module_param_named(debug, vivi.debug, int, 0644);
+module_param_named(debug, vivi_template.debug, int, 0444);
 MODULE_PARM_DESC(debug, "activates debug info");
 
 module_param(vid_limit, int, 0644);
