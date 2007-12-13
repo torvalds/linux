@@ -299,10 +299,10 @@ static inline void check_tnode(const struct tnode *tn)
 	WARN_ON(tn && tn->pos+tn->bits > 32);
 }
 
-static int halve_threshold = 25;
-static int inflate_threshold = 50;
-static int halve_threshold_root = 8;
-static int inflate_threshold_root = 15;
+static const int halve_threshold = 25;
+static const int inflate_threshold = 50;
+static const int halve_threshold_root = 8;
+static const int inflate_threshold_root = 15;
 
 
 static void __alias_free_mem(struct rcu_head *head)
