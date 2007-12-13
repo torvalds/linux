@@ -24,13 +24,6 @@
 
 #include <scsi/libiscsi.h>
 
-/* Socket's Receive state machine */
-#define IN_PROGRESS_WAIT_HEADER		0x0
-#define IN_PROGRESS_HEADER_GATHER	0x1
-#define IN_PROGRESS_DATA_RECV		0x2
-#define IN_PROGRESS_DDIGEST_RECV	0x3
-#define IN_PROGRESS_PAD_RECV		0x4
-
 /* xmit state machine */
 #define XMSTATE_IDLE			0x0
 #define XMSTATE_CMD_HDR_INIT		0x1
@@ -54,41 +47,64 @@
 
 struct crypto_hash;
 struct socket;
+struct iscsi_tcp_conn;
+struct iscsi_chunk;
+
+typedef int iscsi_chunk_done_fn_t(struct iscsi_tcp_conn *,
+				  struct iscsi_chunk *);
+
+struct iscsi_chunk {
+	unsigned char		*data;
+	unsigned int		size;
+	unsigned int		copied;
+	unsigned int		total_size;
+	unsigned int		total_copied;
+
+	struct hash_desc	*hash;
+	unsigned char		recv_digest[ISCSI_DIGEST_SIZE];
+	unsigned char		digest[ISCSI_DIGEST_SIZE];
+	unsigned int		digest_len;
+
+	struct scatterlist	*sg;
+	void			*sg_mapped;
+	unsigned int		sg_offset;
+	unsigned int		sg_index;
+	unsigned int		sg_count;
+
+	iscsi_chunk_done_fn_t	*done;
+};
 
 /* Socket connection recieve helper */
 struct iscsi_tcp_recv {
 	struct iscsi_hdr	*hdr;
-	struct sk_buff		*skb;
-	int			offset;
-	int			len;
-	int			hdr_offset;
-	int			copy;
-	int			copied;
-	int			padding;
-	struct iscsi_cmd_task	*ctask;		/* current cmd in progress */
+	struct iscsi_chunk	chunk;
+
+	/* Allocate buffer for BHS + AHS */
+	uint32_t		hdr_buf[64];
 
 	/* copied and flipped values */
 	int			datalen;
-	int			datadgst;
-	char			zero_copy_hdr;
+};
+
+/* Socket connection send helper */
+struct iscsi_tcp_send {
+	struct iscsi_hdr	*hdr;
+	struct iscsi_chunk	chunk;
+	struct iscsi_chunk	data_chunk;
+
+	/* Allocate buffer for BHS + AHS */
+	uint32_t		hdr_buf[64];
 };
 
 struct iscsi_tcp_conn {
 	struct iscsi_conn	*iscsi_conn;
 	struct socket		*sock;
-	struct iscsi_hdr	hdr;		/* header placeholder */
-	char			hdrext[4*sizeof(__u16) +
-				    sizeof(__u32)];
-	int			data_copied;
 	int			stop_stage;	/* conn_stop() flag: *
 						 * stop to recover,  *
 						 * stop to terminate */
-	/* iSCSI connection-wide sequencing */
-	int			hdr_size;	/* PDU header size */
-
 	/* control data */
 	struct iscsi_tcp_recv	in;		/* TCP receive context */
-	int			in_progress;	/* connection state machine */
+	struct iscsi_tcp_send	out;		/* TCP send context */
 
 	/* old values for socket callbacks */
 	void			(*old_data_ready)(struct sock *, int);

@@ -77,6 +77,10 @@ enum {
 
 #define ISCSI_ADDRESS_BUF_LEN		64
 
+enum {
+	ISCSI_DIGEST_SIZE = sizeof(__u32),
+};
+
 struct iscsi_mgmt_task {
 	/*
 	 * Becuae LLDs allocate their hdr differently, this is a pointer to
