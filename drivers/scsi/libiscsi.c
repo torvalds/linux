@@ -1010,8 +1010,9 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	sc->SCp.ptr = NULL;
 
 	host = sc->device->host;
-	session = iscsi_hostdata(host->hostdata);
+	spin_unlock(host->host_lock);
 
+	session = iscsi_hostdata(host->hostdata);
 	spin_lock(&session->lock);
 
 	/*
@@ -1077,11 +1078,13 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 	spin_unlock(&session->lock);
 
 	scsi_queue_work(host, &conn->xmitwork);
+	spin_lock(host->host_lock);
 	return 0;
 
 reject:
 	spin_unlock(&session->lock);
 	debug_scsi("cmd 0x%x rejected (%d)\n", sc->cmnd[0], reason);
+	spin_lock(host->host_lock);
 	return SCSI_MLQUEUE_HOST_BUSY;
 
 fault:
@@ -1091,6 +1094,7 @@ fault:
 	sc->result = (DID_NO_CONNECT << 16);
 	scsi_set_resid(sc, scsi_bufflen(sc));
 	sc->scsi_done(sc);
+	spin_lock(host->host_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(iscsi_queuecommand);
