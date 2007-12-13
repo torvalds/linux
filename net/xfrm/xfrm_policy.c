@@ -1469,8 +1469,6 @@ restart:
 			goto dropdst;
 	}
 
-	err = -ENOENT;
-
 	if (!policy) {
 		/* To accelerate a bit...  */
 		if ((dst_orig->flags & DST_NOXFRM) ||
@@ -1492,6 +1490,7 @@ restart:
 	npols ++;
 	xfrm_nr += pols[0]->xfrm_nr;
 
+	err = -ENOENT;
 	if ((flags & XFRM_LOOKUP_ICMP) && !(policy->flags & XFRM_POLICY_ICMP))
 		goto error;
 
@@ -1657,6 +1656,7 @@ dropdst:
 	return err;
 
 nopol:
+	err = -ENOENT;
 	if (flags & XFRM_LOOKUP_ICMP)
 		goto dropdst;
 	return 0;
