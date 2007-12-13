@@ -341,7 +341,7 @@ config ISCSI_TCP
 	 The userspace component needed to initialize the driver, documentation,
 	 and sample configuration files can be found here:
 
-	 http://linux-iscsi.sf.net
+	 http://open-iscsi.org
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
