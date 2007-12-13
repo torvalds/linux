@@ -415,10 +415,11 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-	if (dccp_parse_options(sk, skb))
-		goto drop_and_free;
-
 	dccp_reqsk_init(req, skb);
+
+	dreq = dccp_rsk(req);
+	if (dccp_parse_options(sk, dreq, skb))
+		goto drop_and_free;
 
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
@@ -449,7 +450,6 @@ static int dccp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	 *   In fact we defer setting S.GSR, S.SWL, S.SWH to
 	 *   dccp_create_openreq_child.
 	 */
-	dreq = dccp_rsk(req);
 	dreq->dreq_isr	   = dcb->dccpd_seq;
 	dreq->dreq_iss	   = dccp_v6_init_sequence(skb);
 	dreq->dreq_service = service;

@@ -407,8 +407,6 @@ struct dccp_opt_pend {
 
 extern void dccp_minisock_init(struct dccp_minisock *dmsk);
 
-extern int dccp_parse_options(struct sock *sk, struct sk_buff *skb);
-
 struct dccp_request_sock {
 	struct inet_request_sock dreq_inet_rsk;
 	__u64			 dreq_iss;
@@ -422,6 +420,9 @@ static inline struct dccp_request_sock *dccp_rsk(const struct request_sock *req)
 }
 
 extern struct inet_timewait_death_row dccp_death_row;
+
+extern int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
+			      struct sk_buff *skb);
 
 struct dccp_options_received {
 	u32	dccpor_ndp; /* only 24 bits */

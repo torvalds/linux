@@ -46,7 +46,13 @@ static u32 dccp_decode_value_var(const unsigned char *bf, const u8 len)
 	return value;
 }
 
-int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
+/**
+ * dccp_parse_options  -  Parse DCCP options present in @skb
+ * @sk: client|server|listening dccp socket (when @dreq != NULL)
+ * @dreq: request socket to use during connection setup, or NULL
+ */
+int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
+		       struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	const struct dccp_hdr *dh = dccp_hdr(skb);
@@ -91,6 +97,20 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			if (opt_ptr > opt_end)
 				goto out_invalid_option;
 		}
+
+		/*
+		 * CCID-Specific Options (from RFC 4340, sec. 10.3):
+		 *
+		 * Option numbers 128 through 191 are for options sent from the
+		 * HC-Sender to the HC-Receiver; option numbers 192 through 255
+		 * are for options sent from the HC-Receiver to	the HC-Sender.
+		 *
+		 * CCID-specific options are ignored during connection setup, as
+		 * negotiation may still be in progress (see RFC 4340, 10.3).
+		 *
+		 */
+		if (dreq != NULL && opt >= 128)
+			goto ignore_option;
 
 		switch (opt) {
 		case DCCPO_PADDING:
@@ -150,6 +170,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			opt_val = get_unaligned((__be32 *)value);
 			opt_recv->dccpor_timestamp = ntohl(opt_val);
 
+			/* FIXME: if dreq != NULL, don't store this on listening socket */
 			dp->dccps_timestamp_echo = opt_recv->dccpor_timestamp;
 			dp->dccps_timestamp_time = ktime_get_real();
 
@@ -213,15 +234,6 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 			dccp_pr_debug("%s rx opt: ELAPSED_TIME=%d\n",
 				      dccp_role(sk), elapsed_time);
 			break;
-			/*
-			 * From RFC 4340, sec. 10.3:
-			 *
-			 *	Option numbers 128 through 191 are for
-			 *	options sent from the HC-Sender to the
-			 *	HC-Receiver; option numbers 192 through 255
-			 *	are for options sent from the HC-Receiver to
-			 *	the HC-Sender.
-			 */
 		case 128 ... 191: {
 			const u16 idx = value - options;
 
@@ -245,7 +257,7 @@ int dccp_parse_options(struct sock *sk, struct sk_buff *skb)
 				  "implemented, ignoring", sk, opt, len);
 			break;
 		}
-
+ignore_option:
 		if (opt != DCCPO_MANDATORY)
 			mandatory = 0;
 	}

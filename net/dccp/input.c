@@ -369,7 +369,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	if (dccp_check_seqno(sk, skb))
 		goto discard;
 
-	if (dccp_parse_options(sk, skb))
+	if (dccp_parse_options(sk, NULL, skb))
 		goto discard;
 
 	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
@@ -427,7 +427,7 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 			goto out_invalid_packet;
 		}
 
-		if (dccp_parse_options(sk, skb))
+		if (dccp_parse_options(sk, NULL, skb))
 			goto out_invalid_packet;
 
 		/* Obtain usec RTT sample from SYN exchange (used by CCID 3) */
@@ -609,7 +609,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		/*
 		 * Step 8: Process options and mark acknowledgeable
 		 */
-		if (dccp_parse_options(sk, skb))
+		if (dccp_parse_options(sk, NULL, skb))
 			goto discard;
 
 		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
