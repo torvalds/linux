@@ -755,11 +755,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 	opcode = hdr->opcode & ISCSI_OPCODE_MASK;
 	/* verify itt (itt encoding: age+cid+itt) */
 	rc = iscsi_verify_itt(conn, hdr, &itt);
-	if (rc == ISCSI_ERR_NO_SCSI_CMD) {
-		/* XXX: what does this do? */
-		tcp_conn->in.datalen = 0; /* force drop */
-		return 0;
-	} else if (rc)
+	if (rc)
 		return rc;
 
 	debug_tcp("opcode 0x%x ahslen %d datalen %d\n",
