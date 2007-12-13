@@ -144,7 +144,8 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 		break;
 	}
 
-	value = (bw * (u64)10 * (1 << 23) / 7 * 125 + adc_clock / 2);
+	value = (u64)10 * (1 << 23) / 7 * 125;
+	value = (bw * value) + adc_clock / 2;
 	do_div(value, adc_clock);
 	*nominal_rate = value;
 
