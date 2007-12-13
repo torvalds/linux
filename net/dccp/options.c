@@ -132,6 +132,8 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		case DCCPO_CHANGE_L:
 			/* fall through */
 		case DCCPO_CHANGE_R:
+			if (pkt_type == DCCP_PKT_DATA)
+				break;
 			if (len < 2)
 				goto out_invalid_option;
 			rc = dccp_feat_change_recv(sk, opt, *value, value + 1,
@@ -148,7 +150,9 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		case DCCPO_CONFIRM_L:
 			/* fall through */
 		case DCCPO_CONFIRM_R:
-			if (len < 2)
+			if (pkt_type == DCCP_PKT_DATA)
+				break;
+			if (len < 2)	/* FIXME this disallows empty confirm */
 				goto out_invalid_option;
 			if (dccp_feat_confirm_recv(sk, opt, *value,
 						   value + 1, len - 1))
