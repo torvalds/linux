@@ -94,7 +94,6 @@ extern struct machdep_calls pmac_md;
 #define DEFAULT_ROOT_DEVICE Root_SDA1	/* sda1 - slightly silly choice */
 
 #ifdef CONFIG_PPC64
-#include <asm/udbg.h>
 int sccdbg;
 #endif
 
