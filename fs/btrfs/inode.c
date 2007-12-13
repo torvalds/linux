@@ -857,7 +857,7 @@ static int btrfs_inode_by_name(struct inode *dir, struct dentry *dentry,
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
 
-	if (namelen == 1 && strcmp(name, "..") == 0) {
+	if (namelen == 2 && strcmp(name, "..") == 0) {
 		struct btrfs_key key;
 		struct extent_buffer *leaf;
 		u32 nritems;
