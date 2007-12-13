@@ -55,7 +55,7 @@
 #define __IPATH_PKTDBG      0x80	/* print packet data */
 /* print process startup (init)/exit messages */
 #define __IPATH_PROCDBG     0x100
-/* print mmap/nopage stuff, not using VDBG any more */
+/* print mmap/fault stuff, not using VDBG any more */
 #define __IPATH_MMDBG       0x200
 #define __IPATH_ERRPKTDBG   0x400
 #define __IPATH_USER_SEND   0x1000	/* use user mode send */
@@ -81,7 +81,7 @@
 #define __IPATH_VERBDBG   0x0	/* very verbose debug */
 #define __IPATH_PKTDBG    0x0	/* print packet data */
 #define __IPATH_PROCDBG   0x0	/* process startup (init)/exit messages */
-/* print mmap/nopage stuff, not using VDBG any more */
+/* print mmap/fault stuff, not using VDBG any more */
 #define __IPATH_MMDBG     0x0
 #define __IPATH_EPKTDBG   0x0	/* print ethernet packet data */
 #define __IPATH_IPATHDBG  0x0	/* Ethernet (IPATH) table dump on */

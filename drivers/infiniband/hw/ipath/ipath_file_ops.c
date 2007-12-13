@@ -1120,33 +1120,24 @@ bail:
 }
 
 /*
- * ipath_file_vma_nopage - handle a VMA page fault.
+ * ipath_file_vma_fault - handle a VMA page fault.
  */
-static struct page *ipath_file_vma_nopage(struct vm_area_struct *vma,
-					  unsigned long address, int *type)
+static int ipath_file_vma_fault(struct vm_area_struct *vma,
+					struct vm_fault *vmf)
 {
-	unsigned long offset = address - vma->vm_start;
-	struct page *page = NOPAGE_SIGBUS;
-	void *pageptr;
+	struct page *page;
 
-	/*
-	 * Convert the vmalloc address into a struct page.
-	 */
-	pageptr = (void *)(offset + (vma->vm_pgoff << PAGE_SHIFT));
-	page = vmalloc_to_page(pageptr);
+	page = vmalloc_to_page((void *)(vmf->pgoff << PAGE_SHIFT));
 	if (!page)
-		goto out;
-
-	/* Increment the reference count. */
+		return VM_FAULT_SIGBUS;
 	get_page(page);
-	if (type)
-		*type = VM_FAULT_MINOR;
-out:
-	return page;
+	vmf->page = page;
+
+	return 0;
 }
 
 static struct vm_operations_struct ipath_file_vm_ops = {
-	.nopage = ipath_file_vma_nopage,
+	.fault = ipath_file_vma_fault,
 };
 
 static int mmap_kvaddr(struct vm_area_struct *vma, u64 pgaddr,
