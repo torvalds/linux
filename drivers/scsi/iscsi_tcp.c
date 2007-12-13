@@ -113,7 +113,7 @@ iscsi_hdr_digest(struct iscsi_conn *conn, struct iscsi_buf *buf,
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 
 	crypto_hash_digest(&tcp_conn->tx_hash, &buf->sg, buf->sg.length, crc);
-	buf->sg.length += sizeof(u32);
+	buf->sg.length += ISCSI_DIGEST_SIZE;
 }
 
 /*
@@ -220,6 +220,7 @@ static inline int
 iscsi_tcp_chunk_done(struct iscsi_chunk *chunk)
 {
 	static unsigned char padbuf[ISCSI_PAD_LEN];
+	unsigned int pad;
 
 	if (chunk->copied < chunk->size) {
 		iscsi_tcp_chunk_map(chunk);
@@ -243,10 +244,8 @@ iscsi_tcp_chunk_done(struct iscsi_chunk *chunk)
 	}
 
 	/* Do we need to handle padding? */
-	if (chunk->total_copied & (ISCSI_PAD_LEN-1)) {
-		unsigned int pad;
-
-		pad = ISCSI_PAD_LEN - (chunk->total_copied & (ISCSI_PAD_LEN-1));
+	pad = iscsi_padding(chunk->total_copied);
+	if (pad != 0) {
 		debug_tcp("consume %d pad bytes\n", pad);
 		chunk->total_size += pad;
 		chunk->size = pad;
@@ -1385,11 +1384,11 @@ iscsi_send_cmd_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		}
 
 		iscsi_buf_init_iov(&tcp_ctask->headbuf, (char*)ctask->hdr,
-				  sizeof(struct iscsi_hdr));
+				  ctask->hdr_len);
 
 		if (conn->hdrdgst_en)
 			iscsi_hdr_digest(conn, &tcp_ctask->headbuf,
-					 (u8*)tcp_ctask->hdrext);
+					 iscsi_next_hdr(ctask));
 		tcp_ctask->xmstate &= ~XMSTATE_CMD_HDR_INIT;
 		tcp_ctask->xmstate |= XMSTATE_CMD_HDR_XMIT;
 	}
@@ -2176,7 +2175,8 @@ iscsi_tcp_session_create(struct iscsi_transport *iscsit,
 		struct iscsi_cmd_task *ctask = session->cmds[cmd_i];
 		struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 
-		ctask->hdr = &tcp_ctask->hdr;
+		ctask->hdr = &tcp_ctask->hdr.cmd_hdr;
+		ctask->hdr_max = sizeof(tcp_ctask->hdr) - ISCSI_DIGEST_SIZE;
 	}
 
 	for (cmd_i = 0; cmd_i < session->mgmtpool_max; cmd_i++) {

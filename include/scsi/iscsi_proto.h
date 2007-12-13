@@ -27,7 +27,7 @@
 #define ISCSI_LISTEN_PORT	3260
 
 /* Padding word length */
-#define PAD_WORD_LEN		4
+#define ISCSI_PAD_LEN		4
 
 /*
  * useful common(control and data pathes) macro
@@ -145,6 +145,14 @@ struct iscsi_rlength_ahdr {
 	uint8_t ahstype;
 	uint8_t reserved;
 	__be32 read_length;
+};
+
+/* Extended CDB AHS */
+struct iscsi_ecdb_ahdr {
+	__be16 ahslength;	/* CDB length - 15, including reserved byte */
+	uint8_t ahstype;
+	uint8_t reserved;
+	uint8_t ecdb[260 - 16];	/* 4-byte aligned extended CDB spillover */
 };
 
 /* SCSI Response Header */

@@ -37,6 +37,9 @@
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/libiscsi.h>
 
+static void fail_command(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
+			 int err);
+
 struct iscsi_session *
 class_to_transport_session(struct iscsi_cls_session *cls_session)
 {
@@ -122,6 +125,20 @@ void iscsi_prep_unsolicit_data_pdu(struct iscsi_cmd_task *ctask,
 }
 EXPORT_SYMBOL_GPL(iscsi_prep_unsolicit_data_pdu);
 
+static int iscsi_add_hdr(struct iscsi_cmd_task *ctask, unsigned len)
+{
+	unsigned exp_len = ctask->hdr_len + len;
+
+	if (exp_len > ctask->hdr_max) {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	WARN_ON(len & (ISCSI_PAD_LEN - 1)); /* caller must pad the AHS */
+	ctask->hdr_len = exp_len;
+	return 0;
+}
+
 /**
  * iscsi_prep_scsi_cmd_pdu - prep iscsi scsi cmd pdu
  * @ctask: iscsi cmd task
@@ -129,13 +146,19 @@ EXPORT_SYMBOL_GPL(iscsi_prep_unsolicit_data_pdu);
  * Prep basic iSCSI PDU fields for a scsi cmd pdu. The LLD should set
  * fields like dlength or final based on how much data it sends
  */
-static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
+static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_conn *conn = ctask->conn;
 	struct iscsi_session *session = conn->session;
 	struct iscsi_cmd *hdr = ctask->hdr;
 	struct scsi_cmnd *sc = ctask->sc;
+	unsigned hdrlength;
+	int rc;
 
+	ctask->hdr_len = 0;
+	rc = iscsi_add_hdr(ctask, sizeof(*hdr));
+	if (rc)
+		return rc;
         hdr->opcode = ISCSI_OP_SCSI_CMD;
         hdr->flags = ISCSI_ATTR_SIMPLE;
         int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
@@ -199,6 +222,15 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 			hdr->flags |= ISCSI_FLAG_CMD_READ;
 	}
 
+	/* calculate size of additional header segments (AHSs) */
+	hdrlength = ctask->hdr_len - sizeof(*hdr);
+
+	WARN_ON(hdrlength & (ISCSI_PAD_LEN-1));
+	hdrlength /= ISCSI_PAD_LEN;
+
+	WARN_ON(hdrlength >= 256);
+	hdr->hlength = hdrlength & 0xFF;
+
 	conn->scsicmd_pdus_cnt++;
 
         debug_scsi("iscsi prep [%s cid %d sc %p cdb 0x%x itt 0x%x len %d "
@@ -206,6 +238,7 @@ static void iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
                 sc->sc_data_direction == DMA_TO_DEVICE ? "write" : "read",
 		conn->id, sc, sc->cmnd[0], ctask->itt, scsi_bufflen(sc),
                 session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
+	return 0;
 }
 
 /**
@@ -744,7 +777,10 @@ check_mgmt:
 
 		conn->ctask = list_entry(conn->xmitqueue.next,
 					 struct iscsi_cmd_task, running);
-		iscsi_prep_scsi_cmd_pdu(conn->ctask);
+		if (iscsi_prep_scsi_cmd_pdu(conn->ctask)) {
+			fail_command(conn, conn->ctask, DID_ABORT << 16);
+			continue;
+		}
 		conn->session->tt->init_cmd_task(conn->ctask);
 		conn->ctask->state = ISCSI_TASK_RUNNING;
 		list_move_tail(conn->xmitqueue.next, &conn->run_list);
@@ -1534,6 +1570,7 @@ iscsi_session_setup(struct iscsi_transport *iscsit,
 		if (cmd_task_size)
 			ctask->dd_data = &ctask[1];
 		ctask->itt = cmd_i;
+		ctask->hdr_max = sizeof(struct iscsi_cmd);
 		INIT_LIST_HEAD(&ctask->running);
 	}
 

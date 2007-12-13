@@ -41,7 +41,6 @@
 #define XMSTATE_IMM_HDR_INIT		0x1000
 #define XMSTATE_SOL_HDR_INIT		0x2000
 
-#define ISCSI_PAD_LEN			4
 #define ISCSI_SG_TABLESIZE		SG_ALL
 #define ISCSI_TCP_MAX_CMD_LEN		16
 
@@ -130,14 +129,14 @@ struct iscsi_buf {
 
 struct iscsi_data_task {
 	struct iscsi_data	hdr;			/* PDU */
-	char			hdrext[sizeof(__u32)];	/* Header-Digest */
+	char			hdrext[ISCSI_DIGEST_SIZE];/* Header-Digest */
 	struct iscsi_buf	digestbuf;		/* digest buffer */
 	uint32_t		digest;			/* data digest */
 };
 
 struct iscsi_tcp_mgmt_task {
 	struct iscsi_hdr	hdr;
-	char			hdrext[sizeof(__u32)]; /* Header-Digest */
+	char			hdrext[ISCSI_DIGEST_SIZE]; /* Header-Digest */
 	int			xmstate;	/* mgmt xmit progress */
 	struct iscsi_buf	headbuf;	/* header buffer */
 	struct iscsi_buf	sendbuf;	/* in progress buffer */
@@ -159,9 +158,11 @@ struct iscsi_r2t_info {
 };
 
 struct iscsi_tcp_cmd_task {
-	struct iscsi_cmd	hdr;
-	char			hdrext[4*sizeof(__u16)+	/* AHS */
-				    sizeof(__u32)];	/* HeaderDigest */
+	struct iscsi_hdr_buff {
+		struct iscsi_cmd	cmd_hdr;
+		char			hdrextbuf[ISCSI_MAX_AHS_SIZE +
+		                                  ISCSI_DIGEST_SIZE];
+	} hdr;
 	char			pad[ISCSI_PAD_LEN];
 	int			pad_count;		/* padded bytes */
 	struct iscsi_buf	headbuf;		/* header buf (xmit) */

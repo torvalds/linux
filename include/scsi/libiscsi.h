@@ -78,6 +78,9 @@ enum {
 #define ISCSI_ADDRESS_BUF_LEN		64
 
 enum {
+	/* this is the maximum possible storage for AHSs */
+	ISCSI_MAX_AHS_SIZE = sizeof(struct iscsi_ecdb_ahdr) +
+				sizeof(struct iscsi_rlength_ahdr),
 	ISCSI_DIGEST_SIZE = sizeof(__u32),
 };
 
@@ -102,10 +105,13 @@ enum {
 
 struct iscsi_cmd_task {
 	/*
-	 * Becuae LLDs allocate their hdr differently, this is a pointer to
-	 * that storage. It must be setup at session creation time.
+	 * Because LLDs allocate their hdr differently, this is a pointer
+	 * and length to that storage. It must be setup at session
+	 * creation time.
 	 */
 	struct iscsi_cmd	*hdr;
+	unsigned short		hdr_max;
+	unsigned short		hdr_len;	/* accumulated size of hdr used */
 	int			itt;		/* this ITT */
 
 	uint32_t		unsol_datasn;
@@ -123,6 +129,11 @@ struct iscsi_cmd_task {
 	struct list_head	running;	/* running cmd list */
 	void			*dd_data;	/* driver/transport data */
 };
+
+static inline void* iscsi_next_hdr(struct iscsi_cmd_task *ctask)
+{
+	return (void*)ctask->hdr + ctask->hdr_len;
+}
 
 struct iscsi_conn {
 	struct iscsi_cls_conn	*cls_conn;	/* ptr to class connection */
@@ -341,5 +352,23 @@ extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);
  */
 extern void iscsi_pool_free(struct iscsi_queue *, void **);
 extern int iscsi_pool_init(struct iscsi_queue *, int, void ***, int);
+
+/*
+ * inline functions to deal with padding.
+ */
+static inline unsigned int
+iscsi_padded(unsigned int len)
+{
+	return (len + ISCSI_PAD_LEN - 1) & ~(ISCSI_PAD_LEN - 1);
+}
+
+static inline unsigned int
+iscsi_padding(unsigned int len)
+{
+	len &= (ISCSI_PAD_LEN - 1);
+	if (len)
+		len = ISCSI_PAD_LEN - len;
+	return len;
+}
 
 #endif
