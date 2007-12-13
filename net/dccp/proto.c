@@ -551,6 +551,12 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 						     (struct dccp_so_feat __user *)
 						     optval);
 		break;
+	case DCCP_SOCKOPT_SERVER_TIMEWAIT:
+		if (dp->dccps_role != DCCP_ROLE_SERVER)
+			err = -EOPNOTSUPP;
+		else
+			dp->dccps_server_timewait = (val != 0);
+		break;
 	case DCCP_SOCKOPT_SEND_CSCOV:	/* sender side, RFC 4340, sec. 9.2 */
 		if (val < 0 || val > 15)
 			err = -EINVAL;
@@ -651,6 +657,10 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 					       (__be32 __user *)optval, optlen);
 	case DCCP_SOCKOPT_GET_CUR_MPS:
 		val = dp->dccps_mss_cache;
+		len = sizeof(val);
+		break;
+	case DCCP_SOCKOPT_SERVER_TIMEWAIT:
+		val = dp->dccps_server_timewait;
 		len = sizeof(val);
 		break;
 	case DCCP_SOCKOPT_SEND_CSCOV:
@@ -918,7 +928,8 @@ static void dccp_terminate_connection(struct sock *sk)
 	case DCCP_OPEN:
 		dccp_send_close(sk, 1);
 
-		if (dccp_sk(sk)->dccps_role == DCCP_ROLE_SERVER)
+		if (dccp_sk(sk)->dccps_role == DCCP_ROLE_SERVER &&
+		    !dccp_sk(sk)->dccps_server_timewait)
 			next_state = DCCP_ACTIVE_CLOSEREQ;
 		else
 			next_state = DCCP_CLOSING;

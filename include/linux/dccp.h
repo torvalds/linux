@@ -205,6 +205,7 @@ struct dccp_so_feat {
 #define DCCP_SOCKOPT_CHANGE_L		3
 #define DCCP_SOCKOPT_CHANGE_R		4
 #define DCCP_SOCKOPT_GET_CUR_MPS	5
+#define DCCP_SOCKOPT_SERVER_TIMEWAIT	6
 #define DCCP_SOCKOPT_SEND_CSCOV		10
 #define DCCP_SOCKOPT_RECV_CSCOV		11
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
@@ -492,6 +493,7 @@ struct dccp_ackvec;
  * @dccps_role - role of this sock, one of %dccp_role
  * @dccps_hc_rx_insert_options - receiver wants to add options when acking
  * @dccps_hc_tx_insert_options - sender wants to add options when sending
+ * @dccps_server_timewait - server holds timewait state on close (RFC 4340, 8.3)
  * @dccps_xmit_timer - timer for when CCID is not ready to send
  * @dccps_syn_rtt - RTT sample from Request/Response exchange (in usecs)
  */
@@ -528,6 +530,7 @@ struct dccp_sock {
 	enum dccp_role			dccps_role:2;
 	__u8				dccps_hc_rx_insert_options:1;
 	__u8				dccps_hc_tx_insert_options:1;
+	__u8				dccps_server_timewait:1;
 	struct timer_list		dccps_xmit_timer;
 };
 
