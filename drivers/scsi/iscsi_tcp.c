@@ -658,6 +658,8 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	r2t->data_length = be32_to_cpu(rhdr->data_length);
 	if (r2t->data_length == 0) {
 		printk(KERN_ERR "iscsi_tcp: invalid R2T with zero data len\n");
+		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
+			    sizeof(void*));
 		spin_unlock(&session->lock);
 		return ISCSI_ERR_DATALEN;
 	}
@@ -669,10 +671,12 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	r2t->data_offset = be32_to_cpu(rhdr->data_offset);
 	if (r2t->data_offset + r2t->data_length > scsi_bufflen(ctask->sc)) {
-		spin_unlock(&session->lock);
 		printk(KERN_ERR "iscsi_tcp: invalid R2T with data len %u at "
 		       "offset %u and total length %d\n", r2t->data_length,
 		       r2t->data_offset, scsi_bufflen(ctask->sc));
+		__kfifo_put(tcp_ctask->r2tpool.queue, (void*)&r2t,
+			    sizeof(void*));
+		spin_unlock(&session->lock);
 		return ISCSI_ERR_DATALEN;
 	}
 
