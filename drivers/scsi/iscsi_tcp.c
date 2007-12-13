@@ -197,7 +197,7 @@ iscsi_tcp_cleanup_ctask(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	if (unlikely(!sc))
 		return;
 
-	tcp_ctask->xmstate = XMSTATE_VALUE_IDLE;
+	tcp_ctask->xmstate = XMSTATE_IDLE;
 	tcp_ctask->r2t = NULL;
 }
 
@@ -369,8 +369,7 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	spin_lock(&session->lock);
 	iscsi_update_cmdsn(session, (struct iscsi_nopin*)rhdr);
 
-	if (!ctask->sc || ctask->mtask ||
-	     session->state != ISCSI_STATE_LOGGED_IN) {
+	if (!ctask->sc || session->state != ISCSI_STATE_LOGGED_IN) {
 		printk(KERN_INFO "iscsi_tcp: dropping R2T itt %d in "
 		       "recovery...\n", ctask->itt);
 		spin_unlock(&session->lock);
@@ -409,11 +408,10 @@ iscsi_r2t_rsp(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 
 	tcp_ctask->exp_datasn = r2tsn + 1;
 	__kfifo_put(tcp_ctask->r2tqueue, (void*)&r2t, sizeof(void*));
-	set_bit(XMSTATE_BIT_SOL_HDR_INIT, &tcp_ctask->xmstate);
-	list_move_tail(&ctask->running, &conn->xmitqueue);
-
-	scsi_queue_work(session->host, &conn->xmitwork);
+	tcp_ctask->xmstate |= XMSTATE_SOL_HDR_INIT;
 	conn->r2t_pdus_cnt++;
+
+	iscsi_requeue_ctask(ctask);
 	spin_unlock(&session->lock);
 
 	return 0;
@@ -1254,7 +1252,7 @@ static void iscsi_set_padding(struct iscsi_tcp_cmd_task *tcp_ctask,
 
 	tcp_ctask->pad_count = ISCSI_PAD_LEN - tcp_ctask->pad_count;
 	debug_scsi("write padding %d bytes\n", tcp_ctask->pad_count);
-	set_bit(XMSTATE_BIT_W_PAD, &tcp_ctask->xmstate);
+	tcp_ctask->xmstate |= XMSTATE_W_PAD;
 }
 
 /**
@@ -1269,7 +1267,7 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 
 	BUG_ON(__kfifo_len(tcp_ctask->r2tqueue));
-	tcp_ctask->xmstate = 1 << XMSTATE_BIT_CMD_HDR_INIT;
+	tcp_ctask->xmstate = XMSTATE_CMD_HDR_INIT;
 }
 
 /**
@@ -1283,10 +1281,10 @@ iscsi_tcp_cmd_init(struct iscsi_cmd_task *ctask)
  *	xmit.
  *
  *	Management xmit state machine consists of these states:
- *		XMSTATE_BIT_IMM_HDR_INIT - calculate digest of PDU Header
- *		XMSTATE_BIT_IMM_HDR      - PDU Header xmit in progress
- *		XMSTATE_BIT_IMM_DATA     - PDU Data xmit in progress
- *		XMSTATE_VALUE_IDLE       - management PDU is done
+ *		XMSTATE_IMM_HDR_INIT	- calculate digest of PDU Header
+ *		XMSTATE_IMM_HDR 	- PDU Header xmit in progress
+ *		XMSTATE_IMM_DATA 	- PDU Data xmit in progress
+ *		XMSTATE_IDLE		- management PDU is done
  **/
 static int
 iscsi_tcp_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
@@ -1297,12 +1295,12 @@ iscsi_tcp_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 	debug_scsi("mtask deq [cid %d state %x itt 0x%x]\n",
 		conn->id, tcp_mtask->xmstate, mtask->itt);
 
-	if (test_bit(XMSTATE_BIT_IMM_HDR_INIT, &tcp_mtask->xmstate)) {
+	if (tcp_mtask->xmstate & XMSTATE_IMM_HDR_INIT) {
 		iscsi_buf_init_iov(&tcp_mtask->headbuf, (char*)mtask->hdr,
 				   sizeof(struct iscsi_hdr));
 
 		if (mtask->data_count) {
-			set_bit(XMSTATE_BIT_IMM_DATA, &tcp_mtask->xmstate);
+			tcp_mtask->xmstate |= XMSTATE_IMM_DATA;
 			iscsi_buf_init_iov(&tcp_mtask->sendbuf,
 					   (char*)mtask->data,
 					   mtask->data_count);
@@ -1315,20 +1313,21 @@ iscsi_tcp_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 					(u8*)tcp_mtask->hdrext);
 
 		tcp_mtask->sent = 0;
-		clear_bit(XMSTATE_BIT_IMM_HDR_INIT, &tcp_mtask->xmstate);
-		set_bit(XMSTATE_BIT_IMM_HDR, &tcp_mtask->xmstate);
+		tcp_mtask->xmstate &= ~XMSTATE_IMM_HDR_INIT;
+		tcp_mtask->xmstate |= XMSTATE_IMM_HDR;
 	}
 
-	if (test_bit(XMSTATE_BIT_IMM_HDR, &tcp_mtask->xmstate)) {
+	if (tcp_mtask->xmstate & XMSTATE_IMM_HDR) {
 		rc = iscsi_sendhdr(conn, &tcp_mtask->headbuf,
 				   mtask->data_count);
 		if (rc)
 			return rc;
-		clear_bit(XMSTATE_BIT_IMM_HDR, &tcp_mtask->xmstate);
+		tcp_mtask->xmstate &= ~XMSTATE_IMM_HDR;
 	}
 
-	if (test_and_clear_bit(XMSTATE_BIT_IMM_DATA, &tcp_mtask->xmstate)) {
+	if (tcp_mtask->xmstate & XMSTATE_IMM_DATA) {
 		BUG_ON(!mtask->data_count);
+		tcp_mtask->xmstate &= ~XMSTATE_IMM_DATA;
 		/* FIXME: implement.
 		 * Virtual buffer could be spreaded across multiple pages...
 		 */
@@ -1338,13 +1337,13 @@ iscsi_tcp_mtask_xmit(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 			rc = iscsi_sendpage(conn, &tcp_mtask->sendbuf,
 					&mtask->data_count, &tcp_mtask->sent);
 			if (rc) {
-				set_bit(XMSTATE_BIT_IMM_DATA, &tcp_mtask->xmstate);
+				tcp_mtask->xmstate |= XMSTATE_IMM_DATA;
 				return rc;
 			}
 		} while (mtask->data_count);
 	}
 
-	BUG_ON(tcp_mtask->xmstate != XMSTATE_VALUE_IDLE);
+	BUG_ON(tcp_mtask->xmstate != XMSTATE_IDLE);
 	if (mtask->hdr->itt == RESERVED_ITT) {
 		struct iscsi_session *session = conn->session;
 
@@ -1364,7 +1363,7 @@ iscsi_send_cmd_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	int rc = 0;
 
-	if (test_bit(XMSTATE_BIT_CMD_HDR_INIT, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_CMD_HDR_INIT) {
 		tcp_ctask->sent = 0;
 		tcp_ctask->sg_count = 0;
 		tcp_ctask->exp_datasn = 0;
@@ -1389,21 +1388,21 @@ iscsi_send_cmd_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 		if (conn->hdrdgst_en)
 			iscsi_hdr_digest(conn, &tcp_ctask->headbuf,
 					 (u8*)tcp_ctask->hdrext);
-		clear_bit(XMSTATE_BIT_CMD_HDR_INIT, &tcp_ctask->xmstate);
-		set_bit(XMSTATE_BIT_CMD_HDR_XMIT, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_CMD_HDR_INIT;
+		tcp_ctask->xmstate |= XMSTATE_CMD_HDR_XMIT;
 	}
 
-	if (test_bit(XMSTATE_BIT_CMD_HDR_XMIT, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_CMD_HDR_XMIT) {
 		rc = iscsi_sendhdr(conn, &tcp_ctask->headbuf, ctask->imm_count);
 		if (rc)
 			return rc;
-		clear_bit(XMSTATE_BIT_CMD_HDR_XMIT, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_CMD_HDR_XMIT;
 
 		if (sc->sc_data_direction != DMA_TO_DEVICE)
 			return 0;
 
 		if (ctask->imm_count) {
-			set_bit(XMSTATE_BIT_IMM_DATA, &tcp_ctask->xmstate);
+			tcp_ctask->xmstate |= XMSTATE_IMM_DATA;
 			iscsi_set_padding(tcp_ctask, ctask->imm_count);
 
 			if (ctask->conn->datadgst_en) {
@@ -1413,10 +1412,9 @@ iscsi_send_cmd_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 			}
 		}
 
-		if (ctask->unsol_count) {
-			set_bit(XMSTATE_BIT_UNS_HDR, &tcp_ctask->xmstate);
-			set_bit(XMSTATE_BIT_UNS_INIT, &tcp_ctask->xmstate);
-		}
+		if (ctask->unsol_count)
+			tcp_ctask->xmstate |=
+					XMSTATE_UNS_HDR | XMSTATE_UNS_INIT;
 	}
 	return rc;
 }
@@ -1428,25 +1426,25 @@ iscsi_send_padding(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	int sent = 0, rc;
 
-	if (test_bit(XMSTATE_BIT_W_PAD, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_W_PAD) {
 		iscsi_buf_init_iov(&tcp_ctask->sendbuf, (char*)&tcp_ctask->pad,
 				   tcp_ctask->pad_count);
 		if (conn->datadgst_en)
 			crypto_hash_update(&tcp_conn->tx_hash,
 					   &tcp_ctask->sendbuf.sg,
 					   tcp_ctask->sendbuf.sg.length);
-	} else if (!test_bit(XMSTATE_BIT_W_RESEND_PAD, &tcp_ctask->xmstate))
+	} else if (!(tcp_ctask->xmstate & XMSTATE_W_RESEND_PAD))
 		return 0;
 
-	clear_bit(XMSTATE_BIT_W_PAD, &tcp_ctask->xmstate);
-	clear_bit(XMSTATE_BIT_W_RESEND_PAD, &tcp_ctask->xmstate);
+	tcp_ctask->xmstate &= ~XMSTATE_W_PAD;
+	tcp_ctask->xmstate &= ~XMSTATE_W_RESEND_PAD;
 	debug_scsi("sending %d pad bytes for itt 0x%x\n",
 		   tcp_ctask->pad_count, ctask->itt);
 	rc = iscsi_sendpage(conn, &tcp_ctask->sendbuf, &tcp_ctask->pad_count,
 			   &sent);
 	if (rc) {
 		debug_scsi("padding send failed %d\n", rc);
-		set_bit(XMSTATE_BIT_W_RESEND_PAD, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate |= XMSTATE_W_RESEND_PAD;
 	}
 	return rc;
 }
@@ -1465,11 +1463,11 @@ iscsi_send_digest(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	tcp_ctask = ctask->dd_data;
 	tcp_conn = conn->dd_data;
 
-	if (!test_bit(XMSTATE_BIT_W_RESEND_DATA_DIGEST, &tcp_ctask->xmstate)) {
+	if (!(tcp_ctask->xmstate & XMSTATE_W_RESEND_DATA_DIGEST)) {
 		crypto_hash_final(&tcp_conn->tx_hash, (u8*)digest);
 		iscsi_buf_init_iov(buf, (char*)digest, 4);
 	}
-	clear_bit(XMSTATE_BIT_W_RESEND_DATA_DIGEST, &tcp_ctask->xmstate);
+	tcp_ctask->xmstate &= ~XMSTATE_W_RESEND_DATA_DIGEST;
 
 	rc = iscsi_sendpage(conn, buf, &tcp_ctask->digest_count, &sent);
 	if (!rc)
@@ -1478,7 +1476,7 @@ iscsi_send_digest(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask,
 	else {
 		debug_scsi("sending digest 0x%x failed for itt 0x%x!\n",
 			  *digest, ctask->itt);
-		set_bit(XMSTATE_BIT_W_RESEND_DATA_DIGEST, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate |= XMSTATE_W_RESEND_DATA_DIGEST;
 	}
 	return rc;
 }
@@ -1526,8 +1524,8 @@ iscsi_send_unsol_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	struct iscsi_data_task *dtask;
 	int rc;
 
-	set_bit(XMSTATE_BIT_UNS_DATA, &tcp_ctask->xmstate);
-	if (test_bit(XMSTATE_BIT_UNS_INIT, &tcp_ctask->xmstate)) {
+	tcp_ctask->xmstate |= XMSTATE_UNS_DATA;
+	if (tcp_ctask->xmstate & XMSTATE_UNS_INIT) {
 		dtask = &tcp_ctask->unsol_dtask;
 
 		iscsi_prep_unsolicit_data_pdu(ctask, &dtask->hdr);
@@ -1537,14 +1535,14 @@ iscsi_send_unsol_hdr(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 			iscsi_hdr_digest(conn, &tcp_ctask->headbuf,
 					(u8*)dtask->hdrext);
 
-		clear_bit(XMSTATE_BIT_UNS_INIT, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_UNS_INIT;
 		iscsi_set_padding(tcp_ctask, ctask->data_count);
 	}
 
 	rc = iscsi_sendhdr(conn, &tcp_ctask->headbuf, ctask->data_count);
 	if (rc) {
-		clear_bit(XMSTATE_BIT_UNS_DATA, &tcp_ctask->xmstate);
-		set_bit(XMSTATE_BIT_UNS_HDR, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_UNS_DATA;
+		tcp_ctask->xmstate |= XMSTATE_UNS_HDR;
 		return rc;
 	}
 
@@ -1565,15 +1563,16 @@ iscsi_send_unsol_pdu(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 	int rc;
 
-	if (test_and_clear_bit(XMSTATE_BIT_UNS_HDR, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_UNS_HDR) {
 		BUG_ON(!ctask->unsol_count);
+		tcp_ctask->xmstate &= ~XMSTATE_UNS_HDR;
 send_hdr:
 		rc = iscsi_send_unsol_hdr(conn, ctask);
 		if (rc)
 			return rc;
 	}
 
-	if (test_bit(XMSTATE_BIT_UNS_DATA, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_UNS_DATA) {
 		struct iscsi_data_task *dtask = &tcp_ctask->unsol_dtask;
 		int start = tcp_ctask->sent;
 
@@ -1583,14 +1582,14 @@ send_hdr:
 		ctask->unsol_count -= tcp_ctask->sent - start;
 		if (rc)
 			return rc;
-		clear_bit(XMSTATE_BIT_UNS_DATA, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_UNS_DATA;
 		/*
 		 * Done with the Data-Out. Next, check if we need
 		 * to send another unsolicited Data-Out.
 		 */
 		if (ctask->unsol_count) {
 			debug_scsi("sending more uns\n");
-			set_bit(XMSTATE_BIT_UNS_INIT, &tcp_ctask->xmstate);
+			tcp_ctask->xmstate |= XMSTATE_UNS_INIT;
 			goto send_hdr;
 		}
 	}
@@ -1606,7 +1605,7 @@ static int iscsi_send_sol_pdu(struct iscsi_conn *conn,
 	struct iscsi_data_task *dtask;
 	int left, rc;
 
-	if (test_bit(XMSTATE_BIT_SOL_HDR_INIT, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_SOL_HDR_INIT) {
 		if (!tcp_ctask->r2t) {
 			spin_lock_bh(&session->lock);
 			__kfifo_get(tcp_ctask->r2tqueue, (void*)&tcp_ctask->r2t,
@@ -1620,19 +1619,19 @@ send_hdr:
 		if (conn->hdrdgst_en)
 			iscsi_hdr_digest(conn, &r2t->headbuf,
 					(u8*)dtask->hdrext);
-		clear_bit(XMSTATE_BIT_SOL_HDR_INIT, &tcp_ctask->xmstate);
-		set_bit(XMSTATE_BIT_SOL_HDR, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR_INIT;
+		tcp_ctask->xmstate |= XMSTATE_SOL_HDR;
 	}
 
-	if (test_bit(XMSTATE_BIT_SOL_HDR, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_SOL_HDR) {
 		r2t = tcp_ctask->r2t;
 		dtask = &r2t->dtask;
 
 		rc = iscsi_sendhdr(conn, &r2t->headbuf, r2t->data_count);
 		if (rc)
 			return rc;
-		clear_bit(XMSTATE_BIT_SOL_HDR, &tcp_ctask->xmstate);
-		set_bit(XMSTATE_BIT_SOL_DATA, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_SOL_HDR;
+		tcp_ctask->xmstate |= XMSTATE_SOL_DATA;
 
 		if (conn->datadgst_en) {
 			iscsi_data_digest_init(conn->dd_data, tcp_ctask);
@@ -1645,7 +1644,7 @@ send_hdr:
 			r2t->sent);
 	}
 
-	if (test_bit(XMSTATE_BIT_SOL_DATA, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_SOL_DATA) {
 		r2t = tcp_ctask->r2t;
 		dtask = &r2t->dtask;
 
@@ -1654,7 +1653,7 @@ send_hdr:
 				     &dtask->digestbuf, &dtask->digest);
 		if (rc)
 			return rc;
-		clear_bit(XMSTATE_BIT_SOL_DATA, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_SOL_DATA;
 
 		/*
 		 * Done with this Data-Out. Next, check if we have
@@ -1699,32 +1698,32 @@ send_hdr:
  *	xmit stages.
  *
  *iscsi_send_cmd_hdr()
- *	XMSTATE_BIT_CMD_HDR_INIT - prepare Header and Data buffers Calculate
- *	                           Header Digest
- *	XMSTATE_BIT_CMD_HDR_XMIT - Transmit header in progress
+ *	XMSTATE_CMD_HDR_INIT - prepare Header and Data buffers Calculate
+ *	                       Header Digest
+ *	XMSTATE_CMD_HDR_XMIT - Transmit header in progress
  *
  *iscsi_send_padding
- *	XMSTATE_BIT_W_PAD        - Prepare and send pading
- *	XMSTATE_BIT_W_RESEND_PAD - retry send pading
+ *	XMSTATE_W_PAD        - Prepare and send pading
+ *	XMSTATE_W_RESEND_PAD - retry send pading
  *
  *iscsi_send_digest
- *	XMSTATE_BIT_W_RESEND_DATA_DIGEST - Finalize and send Data Digest
- *	XMSTATE_BIT_W_RESEND_DATA_DIGEST - retry sending digest
+ *	XMSTATE_W_RESEND_DATA_DIGEST - Finalize and send Data Digest
+ *	XMSTATE_W_RESEND_DATA_DIGEST - retry sending digest
  *
  *iscsi_send_unsol_hdr
- *	XMSTATE_BIT_UNS_INIT     - prepare un-solicit data header and digest
- *	XMSTATE_BIT_UNS_HDR      - send un-solicit header
+ *	XMSTATE_UNS_INIT     - prepare un-solicit data header and digest
+ *	XMSTATE_UNS_HDR      - send un-solicit header
  *
  *iscsi_send_unsol_pdu
- *	XMSTATE_BIT_UNS_DATA     - send un-solicit data in progress
+ *	XMSTATE_UNS_DATA     - send un-solicit data in progress
  *
  *iscsi_send_sol_pdu
- *	XMSTATE_BIT_SOL_HDR_INIT - solicit data header and digest initialize
- *	XMSTATE_BIT_SOL_HDR      - send solicit header
- *	XMSTATE_BIT_SOL_DATA     - send solicit data
+ *	XMSTATE_SOL_HDR_INIT - solicit data header and digest initialize
+ *	XMSTATE_SOL_HDR      - send solicit header
+ *	XMSTATE_SOL_DATA     - send solicit data
  *
  *iscsi_tcp_ctask_xmit
- *	XMSTATE_BIT_IMM_DATA     - xmit managment data (??)
+ *	XMSTATE_IMM_DATA     - xmit managment data (??)
  **/
 static int
 iscsi_tcp_ctask_xmit(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
@@ -1741,13 +1740,13 @@ iscsi_tcp_ctask_xmit(struct iscsi_conn *conn, struct iscsi_cmd_task *ctask)
 	if (ctask->sc->sc_data_direction != DMA_TO_DEVICE)
 		return 0;
 
-	if (test_bit(XMSTATE_BIT_IMM_DATA, &tcp_ctask->xmstate)) {
+	if (tcp_ctask->xmstate & XMSTATE_IMM_DATA) {
 		rc = iscsi_send_data(ctask, &tcp_ctask->sendbuf, &tcp_ctask->sg,
 				     &tcp_ctask->sent, &ctask->imm_count,
 				     &tcp_ctask->immbuf, &tcp_ctask->immdigest);
 		if (rc)
 			return rc;
-		clear_bit(XMSTATE_BIT_IMM_DATA, &tcp_ctask->xmstate);
+		tcp_ctask->xmstate &= ~XMSTATE_IMM_DATA;
 	}
 
 	rc = iscsi_send_unsol_pdu(conn, ctask);
@@ -1980,7 +1979,7 @@ static void
 iscsi_tcp_mgmt_init(struct iscsi_conn *conn, struct iscsi_mgmt_task *mtask)
 {
 	struct iscsi_tcp_mgmt_task *tcp_mtask = mtask->dd_data;
-	tcp_mtask->xmstate = 1 << XMSTATE_BIT_IMM_HDR_INIT;
+	tcp_mtask->xmstate = XMSTATE_IMM_HDR_INIT;
 }
 
 static int
@@ -2226,6 +2225,7 @@ static struct scsi_host_template iscsi_sht = {
 	.max_sectors		= 0xFFFF,
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
+	.eh_device_reset_handler= iscsi_eh_device_reset,
 	.eh_host_reset_handler	= iscsi_eh_host_reset,
 	.use_clustering         = DISABLE_CLUSTERING,
 	.slave_configure        = iscsi_tcp_slave_configure,
@@ -2257,7 +2257,8 @@ static struct iscsi_transport iscsi_tcp_transport = {
 				  ISCSI_PERSISTENT_ADDRESS |
 				  ISCSI_TARGET_NAME | ISCSI_TPGT |
 				  ISCSI_USERNAME | ISCSI_PASSWORD |
-				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN,
+				  ISCSI_USERNAME_IN | ISCSI_PASSWORD_IN |
+				  ISCSI_FAST_ABORT,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME |
 				  ISCSI_HOST_NETDEV_NAME,

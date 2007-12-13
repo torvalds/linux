@@ -236,6 +236,7 @@ enum iscsi_param {
 	ISCSI_PARAM_PASSWORD,
 	ISCSI_PARAM_PASSWORD_IN,
 
+	ISCSI_PARAM_FAST_ABORT,
 	/* must always be last */
 	ISCSI_PARAM_MAX,
 };
@@ -266,6 +267,7 @@ enum iscsi_param {
 #define ISCSI_USERNAME_IN		(1 << ISCSI_PARAM_USERNAME_IN)
 #define ISCSI_PASSWORD			(1 << ISCSI_PARAM_PASSWORD)
 #define ISCSI_PASSWORD_IN		(1 << ISCSI_PARAM_PASSWORD_IN)
+#define ISCSI_FAST_ABORT		(1 << ISCSI_PARAM_FAST_ABORT)
 
 /* iSCSI HBA params */
 enum iscsi_host_param {

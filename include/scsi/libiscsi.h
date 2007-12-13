@@ -57,11 +57,14 @@ struct iscsi_nopin;
 #define ISCSI_MAX_CMD_PER_LUN		128
 
 /* Task Mgmt states */
-#define TMABORT_INITIAL			0x0
-#define TMABORT_SUCCESS			0x1
-#define TMABORT_FAILED			0x2
-#define TMABORT_TIMEDOUT		0x3
-#define TMABORT_NOT_FOUND		0x4
+enum {
+	TMF_INITIAL,
+	TMF_QUEUED,
+	TMF_SUCCESS,
+	TMF_FAILED,
+	TMF_TIMEDOUT,
+	TMF_NOT_FOUND,
+};
 
 /* Connection suspend "bit" */
 #define ISCSI_SUSPEND_BIT		1
@@ -91,7 +94,6 @@ enum {
 	ISCSI_TASK_COMPLETED,
 	ISCSI_TASK_PENDING,
 	ISCSI_TASK_RUNNING,
-	ISCSI_TASK_ABORTING,
 };
 
 struct iscsi_cmd_task {
@@ -110,7 +112,6 @@ struct iscsi_cmd_task {
 	unsigned		data_count;	/* remaining Data-Out */
 	struct scsi_cmnd	*sc;		/* associated SCSI cmd*/
 	struct iscsi_conn	*conn;		/* used connection    */
-	struct iscsi_mgmt_task	*mtask;		/* tmf mtask in progr */
 
 	/* state set/tested under session->lock */
 	int			state;
@@ -152,10 +153,11 @@ struct iscsi_conn {
 	struct iscsi_cmd_task	*ctask;		/* xmit ctask in progress */
 
 	/* xmit */
-	struct kfifo		*mgmtqueue;	/* mgmt (control) xmit queue */
+	struct list_head	mgmtqueue;	/* mgmt (control) xmit queue */
 	struct list_head	mgmt_run_list;	/* list of control tasks */
 	struct list_head	xmitqueue;	/* data-path cmd queue */
 	struct list_head	run_list;	/* list of cmds in progress */
+	struct list_head	requeue;	/* tasks needing another run */
 	struct work_struct	xmitwork;	/* per-conn. xmit workqueue */
 	unsigned long		suspend_tx;	/* suspend Tx */
 	unsigned long		suspend_rx;	/* suspend Rx */
@@ -163,8 +165,8 @@ struct iscsi_conn {
 	/* abort */
 	wait_queue_head_t	ehwait;		/* used in eh_abort() */
 	struct iscsi_tm		tmhdr;
-	struct timer_list	tmabort_timer;
-	int			tmabort_state;	/* see TMABORT_INITIAL, etc.*/
+	struct timer_list	tmf_timer;
+	int			tmf_state;	/* see TMF_INITIAL, etc.*/
 
 	/* negotiated params */
 	unsigned		max_recv_dlength; /* initiator_max_recv_dsl*/
@@ -231,6 +233,7 @@ struct iscsi_session {
 	int			pdu_inorder_en;
 	int			dataseq_inorder_en;
 	int			erl;
+	int			fast_abort;
 	int			tpgt;
 	char			*username;
 	char			*username_in;
@@ -268,6 +271,7 @@ struct iscsi_session {
 extern int iscsi_change_queue_depth(struct scsi_device *sdev, int depth);
 extern int iscsi_eh_abort(struct scsi_cmnd *sc);
 extern int iscsi_eh_host_reset(struct scsi_cmnd *sc);
+extern int iscsi_eh_device_reset(struct scsi_cmnd *sc);
 extern int iscsi_queuecommand(struct scsi_cmnd *sc,
 			      void (*done)(struct scsi_cmnd *));
 
@@ -326,6 +330,7 @@ extern int __iscsi_complete_pdu(struct iscsi_conn *, struct iscsi_hdr *,
 				char *, int);
 extern int iscsi_verify_itt(struct iscsi_conn *, struct iscsi_hdr *,
 			    uint32_t *);
+extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);
 
 /*
  * generic helpers

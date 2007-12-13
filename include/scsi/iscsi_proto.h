@@ -600,6 +600,8 @@ struct iscsi_reject {
 #define ISCSI_MIN_MAX_BURST_LEN			512
 #define ISCSI_MAX_MAX_BURST_LEN			16777215
 
+#define ISCSI_DEF_TIME2WAIT			2
+
 /************************* RFC 3720 End *****************************/
 
 #endif /* ISCSI_PROTO_H */

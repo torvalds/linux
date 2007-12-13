@@ -220,12 +220,6 @@ iscsi_iser_ctask_xmit(struct iscsi_conn *conn,
 	debug_scsi("ctask deq [cid %d itt 0x%x]\n",
 		   conn->id, ctask->itt);
 
-	/*
-	 * serialize with TMF AbortTask
-	 */
-	if (ctask->mtask)
-		return error;
-
 	/* Send the cmd PDU */
 	if (!iser_ctask->command_sent) {
 		error = iser_send_command(conn, ctask);
