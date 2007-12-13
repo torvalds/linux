@@ -2084,6 +2084,8 @@ static struct hda_verb ad1988_6stack_init_verbs[] = {
 	{0x17, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
 	{0x3c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
 	{0x34, AC_VERB_SET_CONNECT_SEL, 0x0},
+	/* Analog CD Input */
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 
 	{ }
 };
