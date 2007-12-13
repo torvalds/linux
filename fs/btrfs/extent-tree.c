@@ -1319,6 +1319,12 @@ static int find_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	total_needed += empty_size;
 	path = btrfs_alloc_path();
 check_failed:
+	if (!block_group) {
+		block_group = btrfs_lookup_block_group(info, search_start);
+		if (!block_group)
+			block_group = btrfs_lookup_block_group(info,
+						       orig_search_start);
+	}
 	search_start = find_search_start(root, &block_group, search_start,
 					 total_needed, data, full_scan);
 	search_start = stripe_align(root, search_start);
