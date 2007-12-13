@@ -148,6 +148,12 @@ struct iscsi_conn {
 	 * conn_stop() flag: stop to recover, stop to terminate
 	 */
         int			stop_stage;
+	struct timer_list	transport_timer;
+	unsigned long		last_recv;
+	unsigned long		last_ping;
+	int			ping_timeout;
+	int			recv_timeout;
+	struct iscsi_mgmt_task	*ping_mtask;
 
 	/* iSCSI connection-wide sequencing */
 	uint32_t		exp_statsn;
@@ -238,6 +244,8 @@ struct iscsi_session {
 	uint32_t		queued_cmdsn;
 
 	/* configuration */
+	int			abort_timeout;
+	int			lu_reset_timeout;
 	int			initial_r2t_en;
 	unsigned		max_r2t;
 	int			imm_data_en;
