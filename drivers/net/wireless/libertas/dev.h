@@ -206,6 +206,8 @@ struct lbs_private {
 
 	/** current ssid/bssid related parameters*/
 	struct current_bss_params curbssparams;
+
+	uint16_t mesh_tlv;
 	u8 mesh_ssid[IW_ESSID_MAX_SIZE + 1];
 	u8 mesh_ssid_len;
 

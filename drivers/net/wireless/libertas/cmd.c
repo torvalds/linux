@@ -1121,14 +1121,14 @@ int lbs_mesh_config(struct lbs_private *priv, int enable)
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.action = cpu_to_le16(enable);
 	cmd.channel = cpu_to_le16(priv->curbssparams.channel);
-	cmd.type = cpu_to_le16(0x100 + 37);
+	cmd.type = cpu_to_le16(priv->mesh_tlv);
 	
 	if (enable) {
 		cmd.length = cpu_to_le16(priv->mesh_ssid_len);
 		memcpy(cmd.data, priv->mesh_ssid, priv->mesh_ssid_len);
 	}
-	lbs_deb_cmd("mesh config channel %d SSID %s\n",
-		    priv->curbssparams.channel,
+	lbs_deb_cmd("mesh config enable %d TLV %x channel %d SSID %s\n",
+		    enable, priv->mesh_tlv, priv->curbssparams.channel,
 		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
 	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, &cmd);
 }
