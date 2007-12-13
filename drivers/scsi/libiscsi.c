@@ -1413,59 +1413,64 @@ done:
 }
 EXPORT_SYMBOL_GPL(iscsi_eh_device_reset);
 
+/*
+ * Pre-allocate a pool of @max items of @item_size. By default, the pool
+ * should be accessed via kfifo_{get,put} on q->queue.
+ * Optionally, the caller can obtain the array of object pointers
+ * by passing in a non-NULL @items pointer
+ */
 int
-iscsi_pool_init(struct iscsi_queue *q, int max, void ***items, int item_size)
+iscsi_pool_init(struct iscsi_pool *q, int max, void ***items, int item_size)
 {
-	int i;
+	int i, num_arrays = 1;
 
-	*items = kmalloc(max * sizeof(void*), GFP_KERNEL);
-	if (*items == NULL)
-		return -ENOMEM;
+	memset(q, 0, sizeof(*q));
 
 	q->max = max;
-	q->pool = kmalloc(max * sizeof(void*), GFP_KERNEL);
-	if (q->pool == NULL) {
-		kfree(*items);
-		return -ENOMEM;
-	}
+
+	/* If the user passed an items pointer, he wants a copy of
+	 * the array. */
+	if (items)
+		num_arrays++;
+	q->pool = kzalloc(num_arrays * max * sizeof(void*), GFP_KERNEL);
+	if (q->pool == NULL)
+		goto enomem;
 
 	q->queue = kfifo_init((void*)q->pool, max * sizeof(void*),
 			      GFP_KERNEL, NULL);
-	if (q->queue == ERR_PTR(-ENOMEM)) {
-		kfree(q->pool);
-		kfree(*items);
-		return -ENOMEM;
-	}
+	if (q->queue == ERR_PTR(-ENOMEM))
+		goto enomem;
 
 	for (i = 0; i < max; i++) {
-		q->pool[i] = kmalloc(item_size, GFP_KERNEL);
+		q->pool[i] = kzalloc(item_size, GFP_KERNEL);
 		if (q->pool[i] == NULL) {
-			int j;
-
-			for (j = 0; j < i; j++)
-				kfree(q->pool[j]);
-
-			kfifo_free(q->queue);
-			kfree(q->pool);
-			kfree(*items);
-			return -ENOMEM;
+			q->max = i;
+			goto enomem;
 		}
-		memset(q->pool[i], 0, item_size);
-		(*items)[i] = q->pool[i];
 		__kfifo_put(q->queue, (void*)&q->pool[i], sizeof(void*));
 	}
+
+	if (items) {
+		*items = q->pool + max;
+		memcpy(*items, q->pool, max * sizeof(void *));
+	}
+
 	return 0;
+
+enomem:
+	iscsi_pool_free(q);
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_init);
 
-void iscsi_pool_free(struct iscsi_queue *q, void **items)
+void iscsi_pool_free(struct iscsi_pool *q)
 {
 	int i;
 
 	for (i = 0; i < q->max; i++)
-		kfree(items[i]);
-	kfree(q->pool);
-	kfree(items);
+		kfree(q->pool[i]);
+	if (q->pool)
+		kfree(q->pool);
 }
 EXPORT_SYMBOL_GPL(iscsi_pool_free);
 
@@ -1610,9 +1615,9 @@ module_put:
 cls_session_fail:
 	scsi_remove_host(shost);
 add_host_fail:
-	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
+	iscsi_pool_free(&session->mgmtpool);
 mgmtpool_alloc_fail:
-	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
+	iscsi_pool_free(&session->cmdpool);
 cmdpool_alloc_fail:
 	scsi_host_put(shost);
 	return NULL;
@@ -1635,8 +1640,8 @@ void iscsi_session_teardown(struct iscsi_cls_session *cls_session)
 	iscsi_unblock_session(cls_session);
 	scsi_remove_host(shost);
 
-	iscsi_pool_free(&session->mgmtpool, (void**)session->mgmt_cmds);
-	iscsi_pool_free(&session->cmdpool, (void**)session->cmds);
+	iscsi_pool_free(&session->mgmtpool);
+	iscsi_pool_free(&session->cmdpool);
 
 	kfree(session->password);
 	kfree(session->password_in);

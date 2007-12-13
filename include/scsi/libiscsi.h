@@ -215,7 +215,7 @@ struct iscsi_conn {
 	uint32_t		eh_abort_cnt;
 };
 
-struct iscsi_queue {
+struct iscsi_pool {
 	struct kfifo		*queue;		/* FIFO Queue */
 	void			**pool;		/* Pool of elements */
 	int			max;		/* Max number of elements */
@@ -274,10 +274,10 @@ struct iscsi_session {
 
 	int			cmds_max;	/* size of cmds array */
 	struct iscsi_cmd_task	**cmds;		/* Original Cmds arr */
-	struct iscsi_queue	cmdpool;	/* PDU's pool */
+	struct iscsi_pool	cmdpool;	/* PDU's pool */
 	int			mgmtpool_max;	/* size of mgmt array */
 	struct iscsi_mgmt_task	**mgmt_cmds;	/* Original mgmt arr */
-	struct iscsi_queue	mgmtpool;	/* Mgmt PDU's pool */
+	struct iscsi_pool	mgmtpool;	/* Mgmt PDU's pool */
 };
 
 /*
@@ -350,8 +350,8 @@ extern void iscsi_requeue_ctask(struct iscsi_cmd_task *ctask);
 /*
  * generic helpers
  */
-extern void iscsi_pool_free(struct iscsi_queue *, void **);
-extern int iscsi_pool_init(struct iscsi_queue *, int, void ***, int);
+extern void iscsi_pool_free(struct iscsi_pool *);
+extern int iscsi_pool_init(struct iscsi_pool *, int, void ***, int);
 
 /*
  * inline functions to deal with padding.

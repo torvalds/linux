@@ -175,9 +175,8 @@ struct iscsi_tcp_cmd_task {
 	uint32_t		exp_datasn;		/* expected target's R2TSN/DataSN */
 	int			data_offset;
 	struct iscsi_r2t_info	*r2t;			/* in progress R2T    */
-	struct iscsi_queue	r2tpool;
+	struct iscsi_pool	r2tpool;
 	struct kfifo		*r2tqueue;
-	struct iscsi_r2t_info	**r2ts;
 	int			digest_count;
 	uint32_t		immdigest;		/* for imm data */
 	struct iscsi_buf	immbuf;			/* for imm data digest */

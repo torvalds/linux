@@ -1998,8 +1998,7 @@ iscsi_r2tpool_alloc(struct iscsi_session *session)
 		 */
 
 		/* R2T pool */
-		if (iscsi_pool_init(&tcp_ctask->r2tpool, session->max_r2t * 4,
-				    (void***)&tcp_ctask->r2ts,
+		if (iscsi_pool_init(&tcp_ctask->r2tpool, session->max_r2t * 4, NULL,
 				    sizeof(struct iscsi_r2t_info))) {
 			goto r2t_alloc_fail;
 		}
@@ -2008,8 +2007,7 @@ iscsi_r2tpool_alloc(struct iscsi_session *session)
 		tcp_ctask->r2tqueue = kfifo_alloc(
 		      session->max_r2t * 4 * sizeof(void*), GFP_KERNEL, NULL);
 		if (tcp_ctask->r2tqueue == ERR_PTR(-ENOMEM)) {
-			iscsi_pool_free(&tcp_ctask->r2tpool,
-					(void**)tcp_ctask->r2ts);
+			iscsi_pool_free(&tcp_ctask->r2tpool);
 			goto r2t_alloc_fail;
 		}
 	}
@@ -2022,8 +2020,7 @@ r2t_alloc_fail:
 		struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 
 		kfifo_free(tcp_ctask->r2tqueue);
-		iscsi_pool_free(&tcp_ctask->r2tpool,
-				(void**)tcp_ctask->r2ts);
+		iscsi_pool_free(&tcp_ctask->r2tpool);
 	}
 	return -ENOMEM;
 }
@@ -2038,8 +2035,7 @@ iscsi_r2tpool_free(struct iscsi_session *session)
 		struct iscsi_tcp_cmd_task *tcp_ctask = ctask->dd_data;
 
 		kfifo_free(tcp_ctask->r2tqueue);
-		iscsi_pool_free(&tcp_ctask->r2tpool,
-				(void**)tcp_ctask->r2ts);
+		iscsi_pool_free(&tcp_ctask->r2tpool);
 	}
 }
 
