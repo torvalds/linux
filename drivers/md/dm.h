@@ -112,6 +112,11 @@ int dm_table_resume_targets(struct dm_table *t);
 int dm_table_any_congested(struct dm_table *t, int bdi_bits);
 void dm_table_unplug_all(struct dm_table *t);
 
+/*
+ * To check the return value from dm_table_find_target().
+ */
+#define dm_target_is_valid(t) ((t)->table)
+
 /*-----------------------------------------------------------------
  * A registry of target types.
  *---------------------------------------------------------------*/
