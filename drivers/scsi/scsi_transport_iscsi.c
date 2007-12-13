@@ -50,6 +50,7 @@ struct iscsi_internal {
 };
 
 static atomic_t iscsi_session_nr; /* sysfs session id for next new session */
+static struct workqueue_struct *iscsi_eh_timer_workq;
 
 /*
  * list of registered transports and lock that must
@@ -252,7 +253,7 @@ static void session_recovery_timedout(struct work_struct *work)
 void iscsi_unblock_session(struct iscsi_cls_session *session)
 {
 	if (!cancel_delayed_work(&session->recovery_work))
-		flush_scheduled_work();
+		flush_workqueue(iscsi_eh_timer_workq);
 	scsi_target_unblock(&session->dev);
 }
 EXPORT_SYMBOL_GPL(iscsi_unblock_session);
@@ -260,8 +261,8 @@ EXPORT_SYMBOL_GPL(iscsi_unblock_session);
 void iscsi_block_session(struct iscsi_cls_session *session)
 {
 	scsi_target_block(&session->dev);
-	schedule_delayed_work(&session->recovery_work,
-			     session->recovery_tmo * HZ);
+	queue_delayed_work(iscsi_eh_timer_workq, &session->recovery_work,
+			   session->recovery_tmo * HZ);
 }
 EXPORT_SYMBOL_GPL(iscsi_block_session);
 
@@ -357,7 +358,7 @@ void iscsi_remove_session(struct iscsi_cls_session *session)
 	struct iscsi_host *ihost = shost->shost_data;
 
 	if (!cancel_delayed_work(&session->recovery_work))
-		flush_scheduled_work();
+		flush_workqueue(iscsi_eh_timer_workq);
 
 	mutex_lock(&ihost->mutex);
 	list_del(&session->host_list);
@@ -1521,8 +1522,14 @@ static __init int iscsi_transport_init(void)
 		goto unregister_session_class;
 	}
 
+	iscsi_eh_timer_workq = create_singlethread_workqueue("iscsi_eh");
+	if (!iscsi_eh_timer_workq)
+		goto release_nls;
+
 	return 0;
 
+release_nls:
+	sock_release(nls->sk_socket);
 unregister_session_class:
 	transport_class_unregister(&iscsi_session_class);
 unregister_conn_class:
@@ -1536,6 +1543,7 @@ unregister_transport_class:
 
 static void __exit iscsi_transport_exit(void)
 {
+	destroy_workqueue(iscsi_eh_timer_workq);
 	sock_release(nls->sk_socket);
 	transport_class_unregister(&iscsi_connection_class);
 	transport_class_unregister(&iscsi_session_class);
