@@ -98,6 +98,7 @@ static struct crypto_alg digest_null = {
 	.cra_list		=       LIST_HEAD_INIT(digest_null.cra_list),	
 	.cra_u			=	{ .digest = {
 	.dia_digestsize		=	NULL_DIGEST_SIZE,
+	.dia_setkey   		=	null_setkey,
 	.dia_init   		=	null_init,
 	.dia_update 		=	null_update,
 	.dia_final  		=	null_final } }
