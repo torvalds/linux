@@ -644,9 +644,12 @@ static int icmpv6_rcv(struct sk_buff *skb)
 	struct icmp6hdr *hdr;
 	int type;
 
-	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb) && skb->sp &&
-	    skb->sp->xvec[skb->sp->len - 1]->props.flags & XFRM_STATE_ICMP) {
+	if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 		int nh;
+
+		if (!(skb->sp && skb->sp->xvec[skb->sp->len - 1]->props.flags &
+				 XFRM_STATE_ICMP))
+			goto drop_no_count;
 
 		if (!pskb_may_pull(skb, sizeof(*hdr) + sizeof(*orig_hdr)))
 			goto drop_no_count;
