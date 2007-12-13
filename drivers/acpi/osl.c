@@ -211,7 +211,8 @@ acpi_physical_address __init acpi_os_get_root_pointer(void)
 		return acpi_find_rsdp();
 }
 
-void __iomem *acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
+void __iomem *__init_refok
+acpi_os_map_memory(acpi_physical_address phys, acpi_size size)
 {
 	if (phys > ULONG_MAX) {
 		printk(KERN_ERR PREFIX "Cannot map memory that high\n");
