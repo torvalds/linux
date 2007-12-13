@@ -2263,7 +2263,8 @@ static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 	if (intr_info_field & INTR_INFO_VALID_MASK) {
 		if (idtv_info_field & INTR_INFO_VALID_MASK) {
 			/* TODO: fault when IDT_Vectoring */
-			printk(KERN_ERR "Fault when IDT_Vectoring\n");
+			if (printk_ratelimit())
+				printk(KERN_ERR "Fault when IDT_Vectoring\n");
 		}
 		if (has_ext_irq)
 			enable_irq_window(vcpu);
