@@ -39,8 +39,8 @@ struct s5h1409_config
 #define S5H1409_GPIO_ON  1
 	u8 gpio;
 
-	/* IF Freq in KHz */
-	u16 if_freq;
+	/* IF Freq for QAM in KHz, VSB is hardcoded to 5380 */
+	u16 qam_if;
 
 	/* Spectral Inversion */
 #define S5H1409_INVERSION_OFF 0
