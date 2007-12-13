@@ -156,20 +156,19 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 	rc = iscsi_add_hdr(ctask, sizeof(*hdr));
 	if (rc)
 		return rc;
-        hdr->opcode = ISCSI_OP_SCSI_CMD;
-        hdr->flags = ISCSI_ATTR_SIMPLE;
-        int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
-        hdr->itt = build_itt(ctask->itt, conn->id, session->age);
-        hdr->data_length = cpu_to_be32(scsi_bufflen(sc));
-        hdr->cmdsn = cpu_to_be32(session->cmdsn);
-        session->cmdsn++;
-        hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
-        memcpy(hdr->cdb, sc->cmnd, sc->cmd_len);
+	hdr->opcode = ISCSI_OP_SCSI_CMD;
+	hdr->flags = ISCSI_ATTR_SIMPLE;
+	int_to_scsilun(sc->device->lun, (struct scsi_lun *)hdr->lun);
+	hdr->itt = build_itt(ctask->itt, conn->id, session->age);
+	hdr->data_length = cpu_to_be32(scsi_bufflen(sc));
+	hdr->cmdsn = cpu_to_be32(session->cmdsn);
+	session->cmdsn++;
+	hdr->exp_statsn = cpu_to_be32(conn->exp_statsn);
+	memcpy(hdr->cdb, sc->cmnd, sc->cmd_len);
 	if (sc->cmd_len < MAX_COMMAND_SIZE)
 		memset(&hdr->cdb[sc->cmd_len], 0,
 			MAX_COMMAND_SIZE - sc->cmd_len);
 
-	ctask->data_count = 0;
 	ctask->imm_count = 0;
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		hdr->flags |= ISCSI_FLAG_CMD_WRITE;
@@ -198,9 +197,9 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 			else
 				ctask->imm_count = min(scsi_bufflen(sc),
 							conn->max_xmit_dlength);
-			hton24(ctask->hdr->dlength, ctask->imm_count);
+			hton24(hdr->dlength, ctask->imm_count);
 		} else
-			zero_data(ctask->hdr->dlength);
+			zero_data(hdr->dlength);
 
 		if (!session->initial_r2t_en) {
 			ctask->unsol_count = min((session->first_burst),
@@ -210,7 +209,7 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 
 		if (!ctask->unsol_count)
 			/* No unsolicit Data-Out's */
-			ctask->hdr->flags |= ISCSI_FLAG_CMD_FINAL;
+			hdr->flags |= ISCSI_FLAG_CMD_FINAL;
 	} else {
 		hdr->flags |= ISCSI_FLAG_CMD_FINAL;
 		zero_data(hdr->dlength);
@@ -228,13 +227,15 @@ static int iscsi_prep_scsi_cmd_pdu(struct iscsi_cmd_task *ctask)
 	WARN_ON(hdrlength >= 256);
 	hdr->hlength = hdrlength & 0xFF;
 
-	conn->scsicmd_pdus_cnt++;
+	if (conn->session->tt->init_cmd_task(conn->ctask))
+		return EIO;
 
-        debug_scsi("iscsi prep [%s cid %d sc %p cdb 0x%x itt 0x%x len %d "
+	conn->scsicmd_pdus_cnt++;
+	debug_scsi("iscsi prep [%s cid %d sc %p cdb 0x%x itt 0x%x len %d "
 		"cmdsn %d win %d]\n",
-                sc->sc_data_direction == DMA_TO_DEVICE ? "write" : "read",
+		sc->sc_data_direction == DMA_TO_DEVICE ? "write" : "read",
 		conn->id, sc, sc->cmnd[0], ctask->itt, scsi_bufflen(sc),
-                session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
+		session->cmdsn, session->max_cmdsn - session->exp_cmdsn + 1);
 	return 0;
 }
 
@@ -927,7 +928,7 @@ check_mgmt:
 			fail_command(conn, conn->ctask, DID_ABORT << 16);
 			continue;
 		}
-		conn->session->tt->init_cmd_task(conn->ctask);
+
 		conn->ctask->state = ISCSI_TASK_RUNNING;
 		list_move_tail(conn->xmitqueue.next, &conn->run_list);
 		rc = iscsi_xmit_ctask(conn);

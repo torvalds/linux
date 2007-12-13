@@ -129,7 +129,7 @@ error:
  * iscsi_iser_cmd_init - Initialize iSCSI SCSI_READ or SCSI_WRITE commands
  *
  **/
-static void
+static int
 iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 {
 	struct iscsi_iser_conn     *iser_conn  = ctask->conn->dd_data;
@@ -138,6 +138,7 @@ iscsi_iser_cmd_init(struct iscsi_cmd_task *ctask)
 	iser_ctask->command_sent = 0;
 	iser_ctask->iser_conn    = iser_conn;
 	iser_ctask_rdma_init(iser_ctask);
+	return 0;
 }
 
 /**

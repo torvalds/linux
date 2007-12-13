@@ -24,35 +24,18 @@
 
 #include <scsi/libiscsi.h>
 
-/* xmit state machine */
-#define XMSTATE_IDLE			0x0
-#define XMSTATE_CMD_HDR_INIT		0x1
-#define XMSTATE_CMD_HDR_XMIT		0x2
-#define XMSTATE_IMM_HDR			0x4
-#define XMSTATE_IMM_DATA		0x8
-#define XMSTATE_UNS_INIT		0x10
-#define XMSTATE_UNS_HDR			0x20
-#define XMSTATE_UNS_DATA		0x40
-#define XMSTATE_SOL_HDR			0x80
-#define XMSTATE_SOL_DATA		0x100
-#define XMSTATE_W_PAD			0x200
-#define XMSTATE_W_RESEND_PAD		0x400
-#define XMSTATE_W_RESEND_DATA_DIGEST	0x800
-#define XMSTATE_IMM_HDR_INIT		0x1000
-#define XMSTATE_SOL_HDR_INIT		0x2000
-
 #define ISCSI_SG_TABLESIZE		SG_ALL
 #define ISCSI_TCP_MAX_CMD_LEN		16
 
 struct crypto_hash;
 struct socket;
 struct iscsi_tcp_conn;
-struct iscsi_chunk;
+struct iscsi_segment;
 
-typedef int iscsi_chunk_done_fn_t(struct iscsi_tcp_conn *,
-				  struct iscsi_chunk *);
+typedef int iscsi_segment_done_fn_t(struct iscsi_tcp_conn *,
+				    struct iscsi_segment *);
 
-struct iscsi_chunk {
+struct iscsi_segment {
 	unsigned char		*data;
 	unsigned int		size;
 	unsigned int		copied;
@@ -67,16 +50,14 @@ struct iscsi_chunk {
 	struct scatterlist	*sg;
 	void			*sg_mapped;
 	unsigned int		sg_offset;
-	unsigned int		sg_index;
-	unsigned int		sg_count;
 
-	iscsi_chunk_done_fn_t	*done;
+	iscsi_segment_done_fn_t	*done;
 };
 
 /* Socket connection recieve helper */
 struct iscsi_tcp_recv {
 	struct iscsi_hdr	*hdr;
-	struct iscsi_chunk	chunk;
+	struct iscsi_segment	segment;
 
 	/* Allocate buffer for BHS + AHS */
 	uint32_t		hdr_buf[64];
@@ -88,11 +69,8 @@ struct iscsi_tcp_recv {
 /* Socket connection send helper */
 struct iscsi_tcp_send {
 	struct iscsi_hdr	*hdr;
-	struct iscsi_chunk	chunk;
-	struct iscsi_chunk	data_chunk;
-
-	/* Allocate buffer for BHS + AHS */
-	uint32_t		hdr_buf[64];
+	struct iscsi_segment	segment;
+	struct iscsi_segment	data_segment;
 };
 
 struct iscsi_tcp_conn {
@@ -118,29 +96,19 @@ struct iscsi_tcp_conn {
 	uint32_t		sendpage_failures_cnt;
 	uint32_t		discontiguous_hdr_cnt;
 
-	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
-};
+	int			error;
 
-struct iscsi_buf {
-	struct scatterlist	sg;
-	unsigned int		sent;
-	char			use_sendmsg;
+	ssize_t (*sendpage)(struct socket *, struct page *, int, size_t, int);
 };
 
 struct iscsi_data_task {
 	struct iscsi_data	hdr;			/* PDU */
 	char			hdrext[ISCSI_DIGEST_SIZE];/* Header-Digest */
-	struct iscsi_buf	digestbuf;		/* digest buffer */
-	uint32_t		digest;			/* data digest */
 };
 
 struct iscsi_tcp_mgmt_task {
 	struct iscsi_hdr	hdr;
 	char			hdrext[ISCSI_DIGEST_SIZE]; /* Header-Digest */
-	int			xmstate;	/* mgmt xmit progress */
-	struct iscsi_buf	headbuf;	/* header buffer */
-	struct iscsi_buf	sendbuf;	/* in progress buffer */
-	int			sent;
 };
 
 struct iscsi_r2t_info {
@@ -148,13 +116,10 @@ struct iscsi_r2t_info {
 	__be32			exp_statsn;	/* copied from R2T */
 	uint32_t		data_length;	/* copied from R2T */
 	uint32_t		data_offset;	/* copied from R2T */
-	struct iscsi_buf	headbuf;	/* Data-Out Header Buffer */
-	struct iscsi_buf	sendbuf;	/* Data-Out in progress buffer*/
 	int			sent;		/* R2T sequence progress */
 	int			data_count;	/* DATA-Out payload progress */
-	struct scatterlist	*sg;		/* per-R2T SG list */
 	int			solicit_datasn;
-	struct iscsi_data_task   dtask;        /* which data task */
+	struct iscsi_data_task	dtask;		/* Data-Out header buf */
 };
 
 struct iscsi_tcp_cmd_task {
@@ -163,24 +128,14 @@ struct iscsi_tcp_cmd_task {
 		char			hdrextbuf[ISCSI_MAX_AHS_SIZE +
 		                                  ISCSI_DIGEST_SIZE];
 	} hdr;
-	char			pad[ISCSI_PAD_LEN];
-	int			pad_count;		/* padded bytes */
-	struct iscsi_buf	headbuf;		/* header buf (xmit) */
-	struct iscsi_buf	sendbuf;		/* in progress buffer*/
-	int			xmstate;		/* xmit xtate machine */
+
 	int			sent;
-	struct scatterlist	*sg;			/* per-cmd SG list  */
-	struct scatterlist	*bad_sg;		/* assert statement */
-	int			sg_count;		/* SG's to process  */
-	uint32_t		exp_datasn;		/* expected target's R2TSN/DataSN */
+	uint32_t		exp_datasn;	/* expected target's R2TSN/DataSN */
 	int			data_offset;
-	struct iscsi_r2t_info	*r2t;			/* in progress R2T    */
+	struct iscsi_r2t_info	*r2t;		/* in progress R2T    */
 	struct iscsi_pool	r2tpool;
 	struct kfifo		*r2tqueue;
-	int			digest_count;
-	uint32_t		immdigest;		/* for imm data */
-	struct iscsi_buf	immbuf;			/* for imm data digest */
-	struct iscsi_data_task	unsol_dtask;	/* unsol data task */
+	struct iscsi_data_task	unsol_dtask;	/* Data-Out header buf */
 };
 
 #endif /* ISCSI_H */
