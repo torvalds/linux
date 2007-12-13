@@ -205,13 +205,14 @@ static int assoc_helper_channel(struct lbs_private *priv,
 		goto done;
 
 	if (priv->mesh_dev) {
-		/* Disconnect mesh while associating -- otherwise it
-		   won't let us change channels */
-		lbs_mesh_config(priv, 0);
+		/* Change mesh channel first; 21.p21 firmware won't let
+		   you change channel otherwise (even though it'll return
+		   an error to this */
+		lbs_mesh_config(priv, 0, assoc_req->channel);
 	}
 
 	lbs_deb_assoc("ASSOC: channel: %d -> %d\n",
-	       priv->curbssparams.channel, assoc_req->channel);
+		      priv->curbssparams.channel, assoc_req->channel);
 
 	ret = lbs_set_channel(priv, assoc_req->channel);
 	if (ret < 0)
@@ -244,7 +245,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 
  restore_mesh:
 	if (priv->mesh_dev)
-		lbs_mesh_config(priv, 1);
+		lbs_mesh_config(priv, 1, priv->curbssparams.channel);
 
  done:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);

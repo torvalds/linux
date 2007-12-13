@@ -344,7 +344,7 @@ static ssize_t lbs_mesh_set(struct device *dev,
 	if (enable == !!priv->mesh_dev)
 		return count;
 
-	ret = lbs_mesh_config(priv, enable);
+	ret = lbs_mesh_config(priv, enable, priv->curbssparams.channel);
 	if (ret)
 		return ret;
 		
@@ -1187,9 +1187,9 @@ int lbs_start_card(struct lbs_private *priv)
 
 	lbs_update_channel(priv);
 	priv->mesh_tlv = 0x100 + 291;
-	if (lbs_mesh_config(priv, 1)) {
+	if (lbs_mesh_config(priv, 1, priv->curbssparams.channel)) {
 		priv->mesh_tlv = 0x100 + 37;
-		if (lbs_mesh_config(priv, 1))
+		if (lbs_mesh_config(priv, 1, priv->curbssparams.channel))
 			priv->mesh_tlv = 0;
 	}
 	if (priv->mesh_tlv) {

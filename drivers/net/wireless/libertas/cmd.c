@@ -1114,13 +1114,13 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 }
 EXPORT_SYMBOL_GPL(lbs_mesh_access);
 
-int lbs_mesh_config(struct lbs_private *priv, int enable)
+int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan)
 {
 	struct cmd_ds_mesh_config cmd;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.action = cpu_to_le16(enable);
-	cmd.channel = cpu_to_le16(priv->curbssparams.channel);
+	cmd.channel = cpu_to_le16(chan);
 	cmd.type = cpu_to_le16(priv->mesh_tlv);
 	
 	if (enable) {
@@ -1128,7 +1128,7 @@ int lbs_mesh_config(struct lbs_private *priv, int enable)
 		memcpy(cmd.data, priv->mesh_ssid, priv->mesh_ssid_len);
 	}
 	lbs_deb_cmd("mesh config enable %d TLV %x channel %d SSID %s\n",
-		    enable, priv->mesh_tlv, priv->curbssparams.channel,
+		    enable, priv->mesh_tlv, chan,
 		    escape_essid(priv->mesh_ssid, priv->mesh_ssid_len));
 	return lbs_cmd_with_response(priv, CMD_MESH_CONFIG, &cmd);
 }
