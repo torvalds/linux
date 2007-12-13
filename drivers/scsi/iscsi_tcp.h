@@ -24,9 +24,6 @@
 
 #include <scsi/libiscsi.h>
 
-#define ISCSI_SG_TABLESIZE		SG_ALL
-#define ISCSI_TCP_MAX_CMD_LEN		16
-
 struct crypto_hash;
 struct socket;
 struct iscsi_tcp_conn;
