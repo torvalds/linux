@@ -11,6 +11,11 @@ struct request;
 struct Scsi_Host;
 struct scsi_device;
 
+struct scsi_data_buffer {
+	struct sg_table table;
+	unsigned length;
+	int resid;
+};
 
 /* embedded in scsi_cmnd */
 struct scsi_pointer {
@@ -61,15 +66,11 @@ struct scsi_cmnd {
 	/* These elements define the operation we are about to perform */
 #define MAX_COMMAND_SIZE	16
 	unsigned char cmnd[MAX_COMMAND_SIZE];
-	unsigned request_bufflen;	/* Actual request size */
 
 	struct timer_list eh_timeout;	/* Used to time out the command. */
-	void *request_buffer;		/* Actual requested buffer */
 
 	/* These elements define the operation we ultimately want to perform */
-	struct sg_table sg_table;
-	unsigned short use_sg;	/* Number of pieces of scatter-gather */
-
+	struct scsi_data_buffer sdb;
 	unsigned underflow;	/* Return error if less than
 				   this amount is transferred */
 
@@ -78,10 +79,6 @@ struct scsi_cmnd {
 				   (ie, between disconnect / 
 				   reconnects.   Probably == sector
 				   size */
-
-	int resid;		/* Number of bytes requested to be
-				   transferred less actual number
-				   transferred (0 if not supported) */
 
 	struct request *request;	/* The command we are
 				   	   working on */
@@ -133,18 +130,29 @@ extern void scsi_release_buffers(struct scsi_cmnd *cmd);
 extern int scsi_dma_map(struct scsi_cmnd *cmd);
 extern void scsi_dma_unmap(struct scsi_cmnd *cmd);
 
-#define scsi_sg_count(cmd) ((cmd)->use_sg)
-#define scsi_sglist(cmd) ((cmd)->sg_table.sgl)
-#define scsi_bufflen(cmd) ((cmd)->request_bufflen)
+static inline unsigned scsi_sg_count(struct scsi_cmnd *cmd)
+{
+	return cmd->sdb.table.nents;
+}
+
+static inline struct scatterlist *scsi_sglist(struct scsi_cmnd *cmd)
+{
+	return cmd->sdb.table.sgl;
+}
+
+static inline unsigned scsi_bufflen(struct scsi_cmnd *cmd)
+{
+	return cmd->sdb.length;
+}
 
 static inline void scsi_set_resid(struct scsi_cmnd *cmd, int resid)
 {
-	cmd->resid = resid;
+	cmd->sdb.resid = resid;
 }
 
 static inline int scsi_get_resid(struct scsi_cmnd *cmd)
 {
-	return cmd->resid;
+	return cmd->sdb.resid;
 }
 
 #define scsi_for_each_sg(cmd, sg, nseg, __i)			\

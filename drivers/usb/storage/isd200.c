@@ -415,14 +415,14 @@ static void isd200_set_srb(struct isd200_info *info,
 		sg_init_one(&info->sg, buff, bufflen);
 
 	srb->sc_data_direction = dir;
-	srb->request_buffer = buff ? &info->sg : NULL;
-	srb->request_bufflen = bufflen;
-	srb->use_sg = buff ? 1 : 0;
+	srb->sdb.table.sgl = buff ? &info->sg : NULL;
+	srb->sdb.length = bufflen;
+	srb->sdb.table.nents = buff ? 1 : 0;
 }
 
 static void isd200_srb_set_bufflen(struct scsi_cmnd *srb, unsigned bufflen)
 {
-	srb->request_bufflen = bufflen;
+	srb->sdb.length = bufflen;
 }
 
 

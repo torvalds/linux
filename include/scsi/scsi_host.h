@@ -136,9 +136,9 @@ struct scsi_host_template {
 	 * the done callback is invoked.
 	 *
 	 * This is called to inform the LLD to transfer
-	 * cmd->request_bufflen bytes. The cmd->use_sg speciefies the
+	 * scsi_bufflen(cmd) bytes. scsi_sg_count(cmd) speciefies the
 	 * number of scatterlist entried in the command and
-	 * cmd->request_buffer contains the scatterlist.
+	 * scsi_sglist(cmd) returns the scatterlist.
 	 *
 	 * return values: see queuecommand
 	 *
