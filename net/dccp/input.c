@@ -22,14 +22,25 @@
 /* rate-limit for syncs in reply to sequence-invalid packets; RFC 4340, 7.5.4 */
 int sysctl_dccp_sync_ratelimit	__read_mostly = HZ / 8;
 
-static void dccp_fin(struct sock *sk, struct sk_buff *skb)
+static void dccp_enqueue_skb(struct sock *sk, struct sk_buff *skb)
 {
-	sk->sk_shutdown |= RCV_SHUTDOWN;
-	sock_set_flag(sk, SOCK_DONE);
 	__skb_pull(skb, dccp_hdr(skb)->dccph_doff * 4);
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
 	skb_set_owner_r(skb, sk);
 	sk->sk_data_ready(sk, 0);
+}
+
+static void dccp_fin(struct sock *sk, struct sk_buff *skb)
+{
+	/*
+	 * On receiving Close/CloseReq, both RD/WR shutdown are performed.
+	 * RFC 4340, 8.3 says that we MAY send further Data/DataAcks after
+	 * receiving the closing segment, but there is no guarantee that such
+	 * data will be processed at all.
+	 */
+	sk->sk_shutdown = SHUTDOWN_MASK;
+	sock_set_flag(sk, SOCK_DONE);
+	dccp_enqueue_skb(sk, skb);
 }
 
 static int dccp_rcv_close(struct sock *sk, struct sk_buff *skb)
@@ -282,10 +293,7 @@ static int __dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		 * - sk_shutdown == RCV_SHUTDOWN, use Code 1, "Not Listening"
 		 * - sk_receive_queue is full, use Code 2, "Receive Buffer"
 		 */
-		__skb_pull(skb, dh->dccph_doff * 4);
-		__skb_queue_tail(&sk->sk_receive_queue, skb);
-		skb_set_owner_r(skb, sk);
-		sk->sk_data_ready(sk, 0);
+		dccp_enqueue_skb(sk, skb);
 		return 0;
 	case DCCP_PKT_ACK:
 		goto discard;
