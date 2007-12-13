@@ -1774,12 +1774,12 @@ iscsi_conn_set_param(struct iscsi_cls_conn *cls_conn, enum iscsi_param param,
 		break;
 	case ISCSI_PARAM_MAX_R2T:
 		sscanf(buf, "%d", &value);
-		if (session->max_r2t == roundup_pow_of_two(value))
+		if (value <= 0 || !is_power_of_2(value))
+			return -EINVAL;
+		if (session->max_r2t == value)
 			break;
 		iscsi_r2tpool_free(session);
 		iscsi_set_param(cls_conn, param, buf, buflen);
-		if (session->max_r2t & (session->max_r2t - 1))
-			session->max_r2t = roundup_pow_of_two(session->max_r2t);
 		if (iscsi_r2tpool_alloc(session))
 			return -ENOMEM;
 		break;
