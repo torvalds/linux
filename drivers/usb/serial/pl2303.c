@@ -312,6 +312,28 @@ static unsigned int pl2303_buf_get(struct pl2303_buf *pb, char *buf,
 	return count;
 }
 
+static int pl2303_vendor_read(__u16 value, __u16 index,
+		struct usb_serial *serial, unsigned char *buf)
+{
+	int res = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
+			VENDOR_READ_REQUEST, VENDOR_READ_REQUEST_TYPE,
+			value, index, buf, 1, 100);
+	dbg("0x%x:0x%x:0x%x:0x%x  %d - %x", VENDOR_READ_REQUEST_TYPE,
+			VENDOR_READ_REQUEST, value, index, res, buf[0]);
+	return res;
+}
+
+static int pl2303_vendor_write(__u16 value, __u16 index,
+		struct usb_serial *serial)
+{
+	int res = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
+			VENDOR_WRITE_REQUEST, VENDOR_WRITE_REQUEST_TYPE,
+			value, index, NULL, 0, 100);
+	dbg("0x%x:0x%x:0x%x:0x%x  %d", VENDOR_WRITE_REQUEST_TYPE,
+			VENDOR_WRITE_REQUEST, value, index, res);
+	return res;
+}
+
 static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_private *priv;
@@ -584,24 +606,12 @@ static void pl2303_set_termios(struct usb_serial_port *port,
 	     buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
 
 	if (cflag & CRTSCTS) {
-		__u16 index;
 		if (priv->type == HX)
-			index = 0x61;
+			pl2303_vendor_write(0x0, 0x61, serial);
 		else
-			index = 0x41;
-		i = usb_control_msg(serial->dev,
-				    usb_sndctrlpipe(serial->dev, 0),
-				    VENDOR_WRITE_REQUEST,
-				    VENDOR_WRITE_REQUEST_TYPE,
-				    0x0, index, NULL, 0, 100);
-		dbg("0x40:0x1:0x0:0x%x  %d", index, i);
+			pl2303_vendor_write(0x0, 0x41, serial);
 	} else {
-		i = usb_control_msg(serial->dev,
-				    usb_sndctrlpipe(serial->dev, 0),
-				    VENDOR_WRITE_REQUEST,
-				    VENDOR_WRITE_REQUEST_TYPE,
-				    0x0, 0x0, NULL, 0, 100);
-		dbg ("0x40:0x1:0x0:0x0  %d", i);
+		pl2303_vendor_write(0x0, 0x0, serial);
 	}
 
 	/* FIXME: Need to read back resulting baud rate */
@@ -694,35 +704,25 @@ static int pl2303_open(struct usb_serial_port *port, struct file *filp)
 	if (buf==NULL)
 		return -ENOMEM;
 
-#define FISH(a,b,c,d)								\
-	result=usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev,0),	\
-			       b, a, c, d, buf, 1, 100);			\
-	dbg("0x%x:0x%x:0x%x:0x%x  %d - %x",a,b,c,d,result,buf[0]);
-
-#define SOUP(a,b,c,d)								\
-	result=usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev,0),	\
-			       b, a, c, d, NULL, 0, 100);			\
-	dbg("0x%x:0x%x:0x%x:0x%x  %d",a,b,c,d,result);
-
-	FISH (VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, 0x8484, 0);
-	SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 0x0404, 0);
-	FISH (VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, 0x8484, 0);
-	FISH (VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, 0x8383, 0);
-	FISH (VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, 0x8484, 0);
-	SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 0x0404, 1);
-	FISH (VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, 0x8484, 0);
-	FISH (VENDOR_READ_REQUEST_TYPE, VENDOR_READ_REQUEST, 0x8383, 0);
-	SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 0, 1);
-	SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 1, 0);
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_write(0x0404, 0, serial);
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_read(0x8383, 0, serial, buf);
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_write(0x0404, 1, serial);
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_read(0x8383, 0, serial, buf);
+	pl2303_vendor_write(0, 1, serial);
+	pl2303_vendor_write(1, 0, serial);
 
 	if (priv->type == HX) {
 		/* HX chip */
-		SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 2, 0x44);
+		pl2303_vendor_write(2, 0x44, serial);
 		/* reset upstream data pipes */
-          	SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 8, 0);
-        	SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 9, 0);
+		pl2303_vendor_write(8, 0, serial);
+		pl2303_vendor_write(9, 0, serial);
 	} else {
-		SOUP (VENDOR_WRITE_REQUEST_TYPE, VENDOR_WRITE_REQUEST, 2, 0x24);
+		pl2303_vendor_write(2, 0x24, serial);
 	}
 
 	kfree(buf);
