@@ -933,6 +933,9 @@ static struct attribute *it87_attributes_opt[] = {
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm2.dev_attr.attr,
 	&sensor_dev_attr_pwm3.dev_attr.attr,
+	&dev_attr_pwm1_freq.attr,
+	&dev_attr_pwm2_freq.attr,
+	&dev_attr_pwm3_freq.attr,
 
 	&dev_attr_vrm.attr,
 	&dev_attr_cpu0_vid.attr,
