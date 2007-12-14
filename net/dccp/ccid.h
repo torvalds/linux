@@ -27,6 +27,7 @@ struct tcp_info;
  *  struct ccid_operations  -  Interface to Congestion-Control Infrastructure
  *
  *  @ccid_id: numerical CCID ID (up to %CCID_MAX, cf. table 5 in RFC 4340, 10.)
+ *  @ccid_ccmps: the CCMPS including network/transport headers (0 when disabled)
  *  @ccid_name: alphabetical identifier string for @ccid_id
  *  @ccid_owner: module which implements/owns this CCID
  *  @ccid_hc_{r,t}x_slab: memory pool for the receiver/sender half-connection
@@ -45,6 +46,7 @@ struct tcp_info;
  */
 struct ccid_operations {
 	unsigned char		ccid_id;
+	__u32			ccid_ccmps;
 	const char		*ccid_name;
 	struct module		*ccid_owner;
 	struct kmem_cache	*ccid_hc_rx_slab,

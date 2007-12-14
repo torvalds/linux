@@ -133,15 +133,31 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 	return -ENOBUFS;
 }
 
+/**
+ * dccp_determine_ccmps  -  Find out about CCID-specfic packet-size limits
+ * We only consider the HC-sender CCID for setting the CCMPS (RFC 4340, 14.),
+ * since the RX CCID is restricted to feedback packets (Acks), which are small
+ * in comparison with the data traffic. A value of 0 means "no current CCMPS".
+ */
+static u32 dccp_determine_ccmps(const struct dccp_sock *dp)
+{
+	const struct ccid *tx_ccid = dp->dccps_hc_tx_ccid;
+
+	if (tx_ccid == NULL || tx_ccid->ccid_ops == NULL)
+		return 0;
+	return tx_ccid->ccid_ops->ccid_ccmps;
+}
+
 unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	int mss_now = (pmtu - icsk->icsk_af_ops->net_header_len -
-		       sizeof(struct dccp_hdr) - sizeof(struct dccp_hdr_ext));
+	u32 ccmps = dccp_determine_ccmps(dp);
+	int cur_mps = ccmps ? min(pmtu, ccmps) : pmtu;
 
-	/* Now subtract optional transport overhead */
-	mss_now -= icsk->icsk_ext_hdr_len;
+	/* Account for header lengths and IPv4/v6 option overhead */
+	cur_mps -= (icsk->icsk_af_ops->net_header_len + icsk->icsk_ext_hdr_len +
+		    sizeof(struct dccp_hdr) + sizeof(struct dccp_hdr_ext));
 
 	/*
 	 * FIXME: this should come from the CCID infrastructure, where, say,
@@ -151,13 +167,13 @@ unsigned int dccp_sync_mss(struct sock *sk, u32 pmtu)
 	 * make it a multiple of 4
 	 */
 
-	mss_now -= ((5 + 6 + 10 + 6 + 6 + 6 + 3) / 4) * 4;
+	cur_mps -= ((5 + 6 + 10 + 6 + 6 + 6 + 3) / 4) * 4;
 
 	/* And store cached results */
 	icsk->icsk_pmtu_cookie = pmtu;
-	dp->dccps_mss_cache = mss_now;
+	dp->dccps_mss_cache = cur_mps;
 
-	return mss_now;
+	return cur_mps;
 }
 
 EXPORT_SYMBOL_GPL(dccp_sync_mss);
