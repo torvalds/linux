@@ -219,7 +219,11 @@ static u64 read_purr(void)
  */
 static u64 read_spurr(u64 purr)
 {
-	if (cpu_has_feature(CPU_FTR_SPURR))
+	/*
+	 * cpus without PURR won't have a SPURR
+	 * We already know the former when we use this, so tell gcc
+	 */
+	if (cpu_has_feature(CPU_FTR_PURR) && cpu_has_feature(CPU_FTR_SPURR))
 		return mfspr(SPRN_SPURR);
 	return purr;
 }
@@ -230,29 +234,30 @@ static u64 read_spurr(u64 purr)
  */
 void account_system_vtime(struct task_struct *tsk)
 {
-	u64 now, nowscaled, delta, deltascaled;
+	u64 now, nowscaled, delta, deltascaled, sys_time;
 	unsigned long flags;
 
 	local_irq_save(flags);
 	now = read_purr();
-	delta = now - get_paca()->startpurr;
-	get_paca()->startpurr = now;
 	nowscaled = read_spurr(now);
+	delta = now - get_paca()->startpurr;
 	deltascaled = nowscaled - get_paca()->startspurr;
+	get_paca()->startpurr = now;
 	get_paca()->startspurr = nowscaled;
 	if (!in_interrupt()) {
 		/* deltascaled includes both user and system time.
 		 * Hence scale it based on the purr ratio to estimate
 		 * the system time */
+		sys_time = get_paca()->system_time;
 		if (get_paca()->user_time)
-			deltascaled = deltascaled * get_paca()->system_time /
-			     (get_paca()->system_time + get_paca()->user_time);
-		delta += get_paca()->system_time;
+			deltascaled = deltascaled * sys_time /
+			     (sys_time + get_paca()->user_time);
+		delta += sys_time;
 		get_paca()->system_time = 0;
 	}
 	account_system_time(tsk, 0, delta);
-	get_paca()->purrdelta = delta;
 	account_system_time_scaled(tsk, deltascaled);
+	get_paca()->purrdelta = delta;
 	get_paca()->spurrdelta = deltascaled;
 	local_irq_restore(flags);
 }
