@@ -573,10 +573,10 @@ config SCSI_ARCMSR_AER
 source "drivers/scsi/megaraid/Kconfig.megaraid"
 
 config SCSI_HPTIOP
-	tristate "HighPoint RocketRAID 3xxx Controller support"
+	tristate "HighPoint RocketRAID 3xxx/4xxx Controller support"
 	depends on SCSI && PCI
 	help
-	  This option enables support for HighPoint RocketRAID 3xxx
+	  This option enables support for HighPoint RocketRAID 3xxx/4xxx
 	  controllers.
 
 	  To compile this driver as a module, choose M here; the module
