@@ -529,7 +529,7 @@ static int nfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 	seq_printf(m, ",namelen=%d", nfss->namelen);
 
 #ifdef CONFIG_NFS_V4
-	if (nfss->nfs_client->cl_nfsversion == 4) {
+	if (nfss->nfs_client->rpc_ops->version == 4) {
 		seq_printf(m, "\n\tnfsv4:\t");
 		seq_printf(m, "bm0=0x%x", nfss->attr_bitmask[0]);
 		seq_printf(m, ",bm1=0x%x", nfss->attr_bitmask[1]);

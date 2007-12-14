@@ -96,7 +96,7 @@ struct rpc_program		nfsacl_program = {
 struct nfs_client_initdata {
 	const char *hostname;
 	const struct sockaddr_in *addr;
-	int version;
+	const struct nfs_rpc_ops *rpc_ops;
 };
 
 /*
@@ -112,7 +112,9 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	if ((clp = kzalloc(sizeof(*clp), GFP_KERNEL)) == NULL)
 		goto error_0;
 
-	if (cl_init->version == 4) {
+	clp->rpc_ops = cl_init->rpc_ops;
+
+	if (cl_init->rpc_ops->version == 4) {
 		if (nfs_callback_up() < 0)
 			goto error_2;
 		__set_bit(NFS_CS_CALLBACK, &clp->cl_res_state);
@@ -121,7 +123,6 @@ static struct nfs_client *nfs_alloc_client(const struct nfs_client_initdata *cl_
 	atomic_set(&clp->cl_count, 1);
 	clp->cl_cons_state = NFS_CS_INITING;
 
-	clp->cl_nfsversion = cl_init->version;
 	memcpy(&clp->cl_addr, cl_init->addr, sizeof(clp->cl_addr));
 
 	if (cl_init->hostname) {
@@ -170,7 +171,7 @@ static void nfs4_shutdown_client(struct nfs_client *clp)
  */
 static void nfs_free_client(struct nfs_client *clp)
 {
-	dprintk("--> nfs_free_client(%d)\n", clp->cl_nfsversion);
+	dprintk("--> nfs_free_client(%u)\n", clp->rpc_ops->version);
 
 	nfs4_shutdown_client(clp);
 
@@ -222,7 +223,7 @@ struct nfs_client *nfs_find_client(const struct sockaddr_in *addr, int nfsversio
 			continue;
 
 		/* Different NFS versions cannot share the same nfs_client */
-		if (clp->cl_nfsversion != nfsversion)
+		if (clp->rpc_ops->version != nfsversion)
 			continue;
 
 		/* Match only the IP address, not the port number */
@@ -251,7 +252,7 @@ static struct nfs_client *nfs_match_client(const struct nfs_client_initdata *dat
 			continue;
 
 		/* Different NFS versions cannot share the same nfs_client */
-		if (clp->cl_nfsversion != data->version)
+		if (clp->rpc_ops != data->rpc_ops)
 			continue;
 
 		/* Match the full socket address */
@@ -273,9 +274,9 @@ static struct nfs_client *nfs_get_client(const struct nfs_client_initdata *cl_in
 	struct nfs_client *clp, *new = NULL;
 	int error;
 
-	dprintk("--> nfs_get_client(%s,"NIPQUAD_FMT":%d,%d)\n",
+	dprintk("--> nfs_get_client(%s,"NIPQUAD_FMT":%d,%u)\n",
 		cl_init->hostname ?: "", NIPQUAD(cl_init->addr->sin_addr),
-		cl_init->addr->sin_port, cl_init->version);
+		cl_init->addr->sin_port, cl_init->rpc_ops->version);
 
 	/* see if the client already exists */
 	do {
@@ -430,7 +431,7 @@ static int nfs_start_lockd(struct nfs_server *server)
 {
 	int error = 0;
 
-	if (server->nfs_client->cl_nfsversion > 3)
+	if (server->nfs_client->rpc_ops->version > 3)
 		goto out;
 	if (server->flags & NFS_MOUNT_NONLM)
 		goto out;
@@ -450,7 +451,7 @@ out:
 #ifdef CONFIG_NFS_V3_ACL
 static void nfs_init_server_aclclient(struct nfs_server *server)
 {
-	if (server->nfs_client->cl_nfsversion != 3)
+	if (server->nfs_client->rpc_ops->version != 3)
 		goto out_noacl;
 	if (server->flags & NFS_MOUNT_NOACL)
 		goto out_noacl;
@@ -521,12 +522,6 @@ static int nfs_init_client(struct nfs_client *clp,
 		return 0;
 	}
 
-	/* Check NFS protocol revision and initialize RPC op vector */
-	clp->rpc_ops = &nfs_v2_clientops;
-#ifdef CONFIG_NFS_V3
-	if (clp->cl_nfsversion == 3)
-		clp->rpc_ops = &nfs_v3_clientops;
-#endif
 	/*
 	 * Create a client RPC handle for doing FSSTAT with UNIX auth only
 	 * - RFC 2623, sec 2.3.2
@@ -553,7 +548,7 @@ static int nfs_init_server(struct nfs_server *server,
 	struct nfs_client_initdata cl_init = {
 		.hostname = data->nfs_server.hostname,
 		.addr = &data->nfs_server.address,
-		.version = 2,
+		.rpc_ops = &nfs_v2_clientops,
 	};
 	struct nfs_client *clp;
 	int error;
@@ -562,7 +557,7 @@ static int nfs_init_server(struct nfs_server *server,
 
 #ifdef CONFIG_NFS_V3
 	if (data->flags & NFS_MOUNT_VER3)
-		cl_init.version = 3;
+		cl_init.rpc_ops = &nfs_v3_clientops;
 #endif
 
 	/* Allocate or find a client reference we can use */
@@ -906,7 +901,7 @@ static int nfs4_set_client(struct nfs_server *server,
 	struct nfs_client_initdata cl_init = {
 		.hostname = hostname,
 		.addr = addr,
-		.version = 4,
+		.rpc_ops = &nfs_v4_clientops,
 	};
 	struct nfs_client *clp;
 	int error;
@@ -1284,8 +1279,8 @@ static int nfs_server_list_show(struct seq_file *m, void *v)
 	/* display one transport per line on subsequent lines */
 	clp = list_entry(v, struct nfs_client, cl_share_link);
 
-	seq_printf(m, "v%d %02x%02x%02x%02x %4hx %3d %s\n",
-		   clp->cl_nfsversion,
+	seq_printf(m, "v%u %02x%02x%02x%02x %4hx %3d %s\n",
+		   clp->rpc_ops->version,
 		   NIPQUAD(clp->cl_addr.sin_addr),
 		   ntohs(clp->cl_addr.sin_port),
 		   atomic_read(&clp->cl_count),
@@ -1363,8 +1358,8 @@ static int nfs_volume_list_show(struct seq_file *m, void *v)
 		 (unsigned long long) server->fsid.major,
 		 (unsigned long long) server->fsid.minor);
 
-	seq_printf(m, "v%d %02x%02x%02x%02x %4hx %-7s %-17s\n",
-		   clp->cl_nfsversion,
+	seq_printf(m, "v%u %02x%02x%02x%02x %4hx %-7s %-17s\n",
+		   clp->rpc_ops->version,
 		   NIPQUAD(clp->cl_addr.sin_addr),
 		   ntohs(clp->cl_addr.sin_port),
 		   dev,
