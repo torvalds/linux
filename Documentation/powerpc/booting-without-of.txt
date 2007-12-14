@@ -2091,8 +2091,7 @@ platforms are moved over to use the flattened-device-tree model.
 
    Example:
 	localbus@f0010100 {
-		compatible = "fsl,mpc8272ads-localbus",
-		             "fsl,mpc8272-localbus",
+		compatible = "fsl,mpc8272-localbus",
 		             "fsl,pq2-localbus";
 		#address-cells = <2>;
 		#size-cells = <1>;
