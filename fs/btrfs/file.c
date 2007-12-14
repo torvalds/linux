@@ -861,6 +861,7 @@ struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.aio_read       = generic_file_aio_read,
+	.splice_read	= generic_file_splice_read,
 	.write		= btrfs_file_write,
 	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,

@@ -1893,8 +1893,19 @@ static void btrfs_truncate(struct inode *inode)
 int btrfs_commit_write(struct file *file, struct page *page,
 		       unsigned from, unsigned to)
 {
-	return extent_commit_write(&BTRFS_I(page->mapping->host)->extent_tree,
-				   page->mapping->host, page, from, to);
+	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
+	struct inode *inode = page->mapping->host;
+
+	btrfs_cow_one_page(inode, page, PAGE_CACHE_SIZE);
+
+	set_page_extent_mapped(page);
+	set_page_dirty(page);
+
+	if (pos > inode->i_size) {
+		i_size_write(inode, pos);
+		mark_inode_dirty(inode);
+	}
+	return 0;
 }
 
 static int create_subvol(struct btrfs_root *root, char *name, int namelen)
