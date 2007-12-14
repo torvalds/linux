@@ -746,7 +746,7 @@ static struct scatterlist *scsi_sg_alloc(unsigned int nents, gfp_t gfp_mask)
 	return mempool_alloc(sgp->pool, gfp_mask);
 }
 
-int scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
+static int scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 {
 	int ret;
 
@@ -762,14 +762,10 @@ int scsi_alloc_sgtable(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 	return ret;
 }
 
-EXPORT_SYMBOL(scsi_alloc_sgtable);
-
-void scsi_free_sgtable(struct scsi_cmnd *cmd)
+static void scsi_free_sgtable(struct scsi_cmnd *cmd)
 {
 	__sg_free_table(&cmd->sg_table, SCSI_MAX_SG_SEGMENTS, scsi_sg_free);
 }
-
-EXPORT_SYMBOL(scsi_free_sgtable);
 
 /*
  * Function:    scsi_release_buffers()
@@ -788,7 +784,7 @@ EXPORT_SYMBOL(scsi_free_sgtable);
  *		the scatter-gather table, and potentially any bounce
  *		buffers.
  */
-static void scsi_release_buffers(struct scsi_cmnd *cmd)
+void scsi_release_buffers(struct scsi_cmnd *cmd)
 {
 	if (cmd->use_sg)
 		scsi_free_sgtable(cmd);
@@ -800,6 +796,7 @@ static void scsi_release_buffers(struct scsi_cmnd *cmd)
 	cmd->request_buffer = NULL;
 	cmd->request_bufflen = 0;
 }
+EXPORT_SYMBOL(scsi_release_buffers);
 
 /*
  * Function:    scsi_io_completion()
@@ -1001,7 +998,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
  * Returns:     0 on success
  *		BLKPREP_DEFER if the failure is retryable
  */
-static int scsi_init_io(struct scsi_cmnd *cmd)
+int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 {
 	struct request     *req = cmd->request;
 	int		   count;
@@ -1016,7 +1013,7 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	/*
 	 * If sg table allocation fails, requeue request later.
 	 */
-	if (unlikely(scsi_alloc_sgtable(cmd, GFP_ATOMIC))) {
+	if (unlikely(scsi_alloc_sgtable(cmd, gfp_mask))) {
 		scsi_unprep_request(req);
 		return BLKPREP_DEFER;
 	}
@@ -1036,6 +1033,7 @@ static int scsi_init_io(struct scsi_cmnd *cmd)
 	cmd->use_sg = count;
 	return BLKPREP_OK;
 }
+EXPORT_SYMBOL(scsi_init_io);
 
 static struct scsi_cmnd *scsi_get_cmd_from_req(struct scsi_device *sdev,
 		struct request *req)
@@ -1081,7 +1079,7 @@ int scsi_setup_blk_pc_cmnd(struct scsi_device *sdev, struct request *req)
 
 		BUG_ON(!req->nr_phys_segments);
 
-		ret = scsi_init_io(cmd);
+		ret = scsi_init_io(cmd, GFP_ATOMIC);
 		if (unlikely(ret))
 			return ret;
 	} else {
@@ -1132,7 +1130,7 @@ int scsi_setup_fs_cmnd(struct scsi_device *sdev, struct request *req)
 	if (unlikely(!cmd))
 		return BLKPREP_DEFER;
 
-	return scsi_init_io(cmd);
+	return scsi_init_io(cmd, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(scsi_setup_fs_cmnd);
 
