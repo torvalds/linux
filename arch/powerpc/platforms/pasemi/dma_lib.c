@@ -485,3 +485,4 @@ out:
 	spin_unlock(&init_lock);
 	return err;
 }
+EXPORT_SYMBOL(pasemi_dma_init);
