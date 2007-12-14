@@ -98,4 +98,6 @@ int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table
 int snd_seq_client_notify_subscription(int client, int port,
 				       struct snd_seq_port_subscribe *info, int evtype);
 
+extern int seq_client_load[15];
+
 #endif

@@ -27,13 +27,6 @@
 #include "seq_queue.h"
 #include "seq_info.h"
 
-extern int seq_default_timer_class;
-extern int seq_default_timer_sclass;
-extern int seq_default_timer_card;
-extern int seq_default_timer_device;
-extern int seq_default_timer_subdevice;
-extern int seq_default_timer_resolution;
-
 /* allowed sequencer timer frequencies, in Hz */
 #define MIN_FREQUENCY		10
 #define MAX_FREQUENCY		6250

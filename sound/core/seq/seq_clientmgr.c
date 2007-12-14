@@ -130,8 +130,6 @@ static struct snd_seq_client *clientptr(int clientid)
 	return clienttab[clientid];
 }
 
-extern int seq_client_load[];
-
 struct snd_seq_client *snd_seq_client_use_ptr(int clientid)
 {
 	unsigned long flags;
