@@ -343,7 +343,7 @@ static u64 log_bmap(struct gfs2_sbd *sdp, unsigned int lbn)
 
 	list_for_each_entry(je, &sdp->sd_jdesc->extent_list, extent_list) {
 		if (lbn >= je->lblock && lbn < je->lblock + je->blocks)
-			return je->dblock + lbn;
+			return je->dblock + lbn - je->lblock;
 	}
 
 	return -1;
