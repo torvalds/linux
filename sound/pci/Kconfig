@@ -802,6 +802,16 @@ config SND_RME9652
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-rme9652.
 
+config SND_SIS7019
+	tristate "SiS 7019 Audio Accelerator"
+	depends on SND && X86 && !X86_64
+	select SND_AC97_CODEC
+	help
+	  Say Y here to include support for the SiS 7019 Audio Accelerator.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-sis7019.
+
 config SND_SONICVIBES
 	tristate "S3 SonicVibes"
 	depends on SND
