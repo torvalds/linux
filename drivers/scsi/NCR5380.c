@@ -1157,16 +1157,17 @@ static void NCR5380_main(struct work_struct *work)
  *	Locks: takes the needed instance locks
  */
 
-static irqreturn_t NCR5380_intr(int irq, void *dev_id) 
+static irqreturn_t NCR5380_intr(int dummy, void *dev_id)
 {
 	NCR5380_local_declare();
-	struct Scsi_Host *instance = (struct Scsi_Host *)dev_id;
+	struct Scsi_Host *instance = dev_id;
 	struct NCR5380_hostdata *hostdata = (struct NCR5380_hostdata *) instance->hostdata;
 	int done;
 	unsigned char basr;
 	unsigned long flags;
 
-	dprintk(NDEBUG_INTR, ("scsi : NCR5380 irq %d triggered\n", irq));
+	dprintk(NDEBUG_INTR, ("scsi : NCR5380 irq %d triggered\n",
+		instance->irq));
 
 	do {
 		done = 1;
