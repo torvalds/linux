@@ -21,6 +21,7 @@
 #include "irq.h"
 #include "vmx.h"
 #include "segment_descriptor.h"
+#include "mmu.h"
 
 #include <linux/module.h>
 #include <linux/kernel.h>

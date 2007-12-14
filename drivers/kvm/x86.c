@@ -19,6 +19,7 @@
 #include "x86_emulate.h"
 #include "segment_descriptor.h"
 #include "irq.h"
+#include "mmu.h"
 
 #include <linux/kvm.h>
 #include <linux/fs.h>
@@ -3138,4 +3139,10 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 	kvm_flush_remote_tlbs(kvm);
 
 	return 0;
+}
+
+int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE
+	       || vcpu->arch.mp_state == VCPU_MP_STATE_SIPI_RECEIVED;
 }

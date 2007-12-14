@@ -334,44 +334,6 @@ int kvm_fix_hypercall(struct kvm_vcpu *vcpu);
 
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t gva, u32 error_code);
 
-static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
-{
-	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
-		__kvm_mmu_free_some_pages(vcpu);
-}
-
-static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
-{
-	if (likely(vcpu->arch.mmu.root_hpa != INVALID_PAGE))
-		return 0;
-
-	return kvm_mmu_load(vcpu);
-}
-
-static inline int is_long_mode(struct kvm_vcpu *vcpu)
-{
-#ifdef CONFIG_X86_64
-	return vcpu->arch.shadow_efer & EFER_LME;
-#else
-	return 0;
-#endif
-}
-
-static inline int is_pae(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.cr4 & X86_CR4_PAE;
-}
-
-static inline int is_pse(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.cr4 & X86_CR4_PSE;
-}
-
-static inline int is_paging(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.cr0 & X86_CR0_PG;
-}
-
 int load_pdptrs(struct kvm_vcpu *vcpu, unsigned long cr3);
 int complete_pio(struct kvm_vcpu *vcpu);
 
@@ -489,11 +451,5 @@ static inline void kvm_inject_gp(struct kvm_vcpu *vcpu, u32 error_code)
 #define TSS_IOPB_SIZE (65536 / 8)
 #define TSS_REDIRECTION_SIZE (256 / 8)
 #define RMODE_TSS_SIZE (TSS_BASE_SIZE + TSS_REDIRECTION_SIZE + TSS_IOPB_SIZE + 1)
-
-static inline int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
-{
-	return vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE
-	       || vcpu->arch.mp_state == VCPU_MP_STATE_SIPI_RECEIVED;
-}
 
 #endif

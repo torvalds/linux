@@ -17,6 +17,7 @@
 #include "kvm_svm.h"
 #include "x86_emulate.h"
 #include "irq.h"
+#include "mmu.h"
 
 #include <linux/module.h>
 #include <linux/kernel.h>
