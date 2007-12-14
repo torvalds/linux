@@ -45,6 +45,8 @@ static boolean_t ixgb_link_reset(struct ixgb_hw *hw);
 
 static void ixgb_optics_reset(struct ixgb_hw *hw);
 
+static void ixgb_optics_reset_bcm(struct ixgb_hw *hw);
+
 static ixgb_phy_type ixgb_identify_phy(struct ixgb_hw *hw);
 
 static void ixgb_clear_hw_cntrs(struct ixgb_hw *hw);
@@ -90,9 +92,19 @@ static uint32_t ixgb_mac_reset(struct ixgb_hw *hw)
 	ASSERT(!(ctrl_reg & IXGB_CTRL0_RST));
 #endif
 
-	if (hw->phy_type == ixgb_phy_type_txn17401) {
-		ixgb_optics_reset(hw);
+	if (hw->subsystem_vendor_id == SUN_SUBVENDOR_ID) {
+		ctrl_reg =  /* Enable interrupt from XFP and SerDes */
+			   IXGB_CTRL1_GPI0_EN |
+			   IXGB_CTRL1_SDP6_DIR |
+			   IXGB_CTRL1_SDP7_DIR |
+			   IXGB_CTRL1_SDP6 |
+			   IXGB_CTRL1_SDP7;
+		IXGB_WRITE_REG(hw, CTRL1, ctrl_reg);
+		ixgb_optics_reset_bcm(hw);
 	}
+
+	if (hw->phy_type == ixgb_phy_type_txn17401)
+		ixgb_optics_reset(hw);
 
 	return ctrl_reg;
 }
@@ -252,6 +264,10 @@ ixgb_identify_phy(struct ixgb_hw *hw)
 		phy_type = ixgb_phy_type_unknown;
 		break;
 	}
+
+	/* update phy type for sun specific board */
+	if (hw->subsystem_vendor_id == SUN_SUBVENDOR_ID)
+		phy_type = ixgb_phy_type_bcm;
 
 	return (phy_type);
 }
@@ -1222,6 +1238,68 @@ ixgb_optics_reset(struct ixgb_hw *hw)
 						IXGB_PHY_ADDRESS,
 						MDIO_PMA_PMD_DID);
 	}
+
+	return;
+}
+
+/******************************************************************************
+ * Resets the 10GbE optics module for Sun variant NIC.
+ *
+ * hw - Struct containing variables accessed by shared code
+ *****************************************************************************/
+
+#define   IXGB_BCM8704_USER_PMD_TX_CTRL_REG         0xC803
+#define   IXGB_BCM8704_USER_PMD_TX_CTRL_REG_VAL     0x0164
+#define   IXGB_BCM8704_USER_CTRL_REG                0xC800
+#define   IXGB_BCM8704_USER_CTRL_REG_VAL            0x7FBF
+#define   IXGB_BCM8704_USER_DEV3_ADDR               0x0003
+#define   IXGB_SUN_PHY_ADDRESS                      0x0000
+#define   IXGB_SUN_PHY_RESET_DELAY                     305
+
+static void
+ixgb_optics_reset_bcm(struct ixgb_hw *hw)
+{
+	u32 ctrl = IXGB_READ_REG(hw, CTRL0);
+	ctrl &= ~IXGB_CTRL0_SDP2;
+	ctrl |= IXGB_CTRL0_SDP3;
+	IXGB_WRITE_REG(hw, CTRL0, ctrl);
+
+	/* SerDes needs extra delay */
+	msleep(IXGB_SUN_PHY_RESET_DELAY);
+
+	/* Broadcom 7408L configuration */
+	/* Reference clock config */
+	ixgb_write_phy_reg(hw,
+			   IXGB_BCM8704_USER_PMD_TX_CTRL_REG,
+			   IXGB_SUN_PHY_ADDRESS,
+			   IXGB_BCM8704_USER_DEV3_ADDR,
+			   IXGB_BCM8704_USER_PMD_TX_CTRL_REG_VAL);
+	/*  we must read the registers twice */
+	ixgb_read_phy_reg(hw,
+			  IXGB_BCM8704_USER_PMD_TX_CTRL_REG,
+			  IXGB_SUN_PHY_ADDRESS,
+			  IXGB_BCM8704_USER_DEV3_ADDR);
+	ixgb_read_phy_reg(hw,
+			  IXGB_BCM8704_USER_PMD_TX_CTRL_REG,
+			  IXGB_SUN_PHY_ADDRESS,
+			  IXGB_BCM8704_USER_DEV3_ADDR);
+
+	ixgb_write_phy_reg(hw,
+			   IXGB_BCM8704_USER_CTRL_REG,
+			   IXGB_SUN_PHY_ADDRESS,
+			   IXGB_BCM8704_USER_DEV3_ADDR,
+			   IXGB_BCM8704_USER_CTRL_REG_VAL);
+	ixgb_read_phy_reg(hw,
+			  IXGB_BCM8704_USER_CTRL_REG,
+			  IXGB_SUN_PHY_ADDRESS,
+			  IXGB_BCM8704_USER_DEV3_ADDR);
+	ixgb_read_phy_reg(hw,
+			  IXGB_BCM8704_USER_CTRL_REG,
+			  IXGB_SUN_PHY_ADDRESS,
+			  IXGB_BCM8704_USER_DEV3_ADDR);
+
+	/* SerDes needs extra delay */
+	msleep(IXGB_SUN_PHY_RESET_DELAY);
 
 	return;
 }

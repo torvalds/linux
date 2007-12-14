@@ -44,7 +44,8 @@ typedef enum {
 	ixgb_phy_type_g6005,	/* 850nm, MM fiber, XPAK transceiver */
 	ixgb_phy_type_g6104,	/* 1310nm, SM fiber, XPAK transceiver */
 	ixgb_phy_type_txn17201,	/* 850nm, MM fiber, XPAK transceiver */
-	ixgb_phy_type_txn17401	/* 1310nm, SM fiber, XENPAK transceiver */
+	ixgb_phy_type_txn17401,	/* 1310nm, SM fiber, XENPAK transceiver */
+	ixgb_phy_type_bcm	/* SUN specific board */
 } ixgb_phy_type;
 
 /* XPAK transceiver vendors, for the SR adapters */
