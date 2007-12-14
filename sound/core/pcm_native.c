@@ -1395,10 +1395,10 @@ static int snd_pcm_do_drain_init(struct snd_pcm_substream *substream, int state)
 	} else {
 		/* stop running stream */
 		if (runtime->status->state == SNDRV_PCM_STATE_RUNNING) {
-			int state = snd_pcm_capture_avail(runtime) > 0 ?
+			int new_state = snd_pcm_capture_avail(runtime) > 0 ?
 				SNDRV_PCM_STATE_DRAINING : SNDRV_PCM_STATE_SETUP;
-			snd_pcm_do_stop(substream, state);
-			snd_pcm_post_stop(substream, state);
+			snd_pcm_do_stop(substream, new_state);
+			snd_pcm_post_stop(substream, new_state);
 		}
 	}
 	return 0;
