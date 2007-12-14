@@ -95,7 +95,7 @@ module_param(bm_history, uint, 0644);
 static int acpi_processor_set_power_policy(struct acpi_processor *pr);
 
 #else	/* CONFIG_CPU_IDLE */
-static unsigned int latency_factor __read_mostly = 6;
+static unsigned int latency_factor __read_mostly = 2;
 module_param(latency_factor, uint, 0644);
 #endif
 
