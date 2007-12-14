@@ -124,8 +124,6 @@ struct kvm {
 	struct file *filp;
 	struct kvm_io_bus mmio_bus;
 	struct kvm_io_bus pio_bus;
-	struct kvm_pic *vpic;
-	struct kvm_ioapic *vioapic;
 	int round_robin_prev_vcpu;
 	unsigned int tss_addr;
 	struct page *apic_access_page;

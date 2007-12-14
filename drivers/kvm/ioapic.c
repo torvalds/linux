@@ -271,7 +271,7 @@ static int get_eoi_gsi(struct kvm_ioapic *ioapic, int vector)
 
 void kvm_ioapic_update_eoi(struct kvm *kvm, int vector)
 {
-	struct kvm_ioapic *ioapic = kvm->vioapic;
+	struct kvm_ioapic *ioapic = kvm->arch.vioapic;
 	union ioapic_redir_entry *ent;
 	int gsi;
 
@@ -390,7 +390,7 @@ int kvm_ioapic_init(struct kvm *kvm)
 	ioapic = kzalloc(sizeof(struct kvm_ioapic), GFP_KERNEL);
 	if (!ioapic)
 		return -ENOMEM;
-	kvm->vioapic = ioapic;
+	kvm->arch.vioapic = ioapic;
 	kvm_ioapic_reset(ioapic);
 	ioapic->dev.read = ioapic_mmio_read;
 	ioapic->dev.write = ioapic_mmio_write;

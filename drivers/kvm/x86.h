@@ -275,6 +275,8 @@ struct kvm_arch{
 	 * Hash table of struct kvm_mmu_page.
 	 */
 	struct list_head active_mmu_pages;
+	struct kvm_pic *vpic;
+	struct kvm_ioapic *vioapic;
 };
 
 struct kvm_vcpu_stat {

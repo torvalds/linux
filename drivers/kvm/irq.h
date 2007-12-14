@@ -148,12 +148,12 @@ do {									\
 
 static inline struct kvm_pic *pic_irqchip(struct kvm *kvm)
 {
-	return kvm->vpic;
+	return kvm->arch.vpic;
 }
 
 static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 {
-	return kvm->vioapic;
+	return kvm->arch.vioapic;
 }
 
 static inline int irqchip_in_kernel(struct kvm *kvm)

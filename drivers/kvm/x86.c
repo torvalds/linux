@@ -1386,12 +1386,12 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 	case KVM_CREATE_IRQCHIP:
 		r = -ENOMEM;
-		kvm->vpic = kvm_create_pic(kvm);
-		if (kvm->vpic) {
+		kvm->arch.vpic = kvm_create_pic(kvm);
+		if (kvm->arch.vpic) {
 			r = kvm_ioapic_init(kvm);
 			if (r) {
-				kfree(kvm->vpic);
-				kvm->vpic = NULL;
+				kfree(kvm->arch.vpic);
+				kvm->arch.vpic = NULL;
 				goto out;
 			}
 		} else
@@ -1409,7 +1409,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 				kvm_pic_set_irq(pic_irqchip(kvm),
 					irq_event.irq,
 					irq_event.level);
-			kvm_ioapic_set_irq(kvm->vioapic,
+			kvm_ioapic_set_irq(kvm->arch.vioapic,
 					irq_event.irq,
 					irq_event.level);
 			mutex_unlock(&kvm->lock);
@@ -3084,8 +3084,8 @@ static void kvm_free_vcpus(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
-	kfree(kvm->vpic);
-	kfree(kvm->vioapic);
+	kfree(kvm->arch.vpic);
+	kfree(kvm->arch.vioapic);
 	kvm_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
 	kfree(kvm);
