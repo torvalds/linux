@@ -532,6 +532,7 @@ config CRYPTO_AUTHENC
 	tristate "Authenc support"
 	select CRYPTO_AEAD
 	select CRYPTO_MANAGER
+	select CRYPTO_HASH
 	help
 	  Authenc: Combined mode wrapper for IPsec.
 	  This is required for IPSec.
