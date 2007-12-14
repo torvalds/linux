@@ -112,8 +112,8 @@ common_invalid:
 #define SPFIX(code...)
 #endif
 
-	.macro	svc_entry
-	sub	sp, sp, #S_FRAME_SIZE
+	.macro	svc_entry, stack_hole=0
+	sub	sp, sp, #(S_FRAME_SIZE + \stack_hole)
  SPFIX(	tst	sp, #4		)
  SPFIX(	bicne	sp, sp, #4	)
 	stmib	sp, {r1 - r12}
@@ -121,7 +121,7 @@ common_invalid:
 	ldmia	r0, {r1 - r3}
 	add	r5, sp, #S_SP		@ here for interlock avoidance
 	mov	r4, #-1			@  ""  ""      ""       ""
-	add	r0, sp, #S_FRAME_SIZE   @  ""  ""      ""       ""
+	add	r0, sp, #(S_FRAME_SIZE + \stack_hole)
  SPFIX(	addne	r0, r0, #4	)
 	str	r1, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
@@ -242,7 +242,14 @@ svc_preempt:
 
 	.align	5
 __und_svc:
+#ifdef CONFIG_KPROBES
+	@ If a kprobe is about to simulate a "stmdb sp..." instruction,
+	@ it obviously needs free stack space which then will belong to
+	@ the saved context.
+	svc_entry 64
+#else
 	svc_entry
+#endif
 
 	@
 	@ call emulation code, which returns using r9 if it has emulated
