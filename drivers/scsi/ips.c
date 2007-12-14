@@ -389,17 +389,17 @@ static struct  pci_device_id  ips_pci_table[] = {
 MODULE_DEVICE_TABLE( pci, ips_pci_table );
 
 static char ips_hot_plug_name[] = "ips";
-   
+
 static int __devinit  ips_insert_device(struct pci_dev *pci_dev, const struct pci_device_id *ent);
 static void __devexit ips_remove_device(struct pci_dev *pci_dev);
-   
+
 static struct pci_driver ips_pci_driver = {
 	.name		= ips_hot_plug_name,
 	.id_table	= ips_pci_table,
 	.probe		= ips_insert_device,
 	.remove		= __devexit_p(ips_remove_device),
 };
-           
+
 
 /*
  * Necessary forward function protoypes
@@ -587,7 +587,7 @@ static void
 ips_setup_funclist(ips_ha_t * ha)
 {
 
-	/*                                
+	/*
 	 * Setup Functions
 	 */
 	if (IPS_IS_MORPHEUS(ha) || IPS_IS_MARCO(ha)) {
@@ -2081,7 +2081,7 @@ ips_host_info(ips_ha_t * ha, char *ptr, off_t offset, int len)
     /* That keeps everything happy for "text" operations on the proc file.                    */
 
 	if (le32_to_cpu(ha->nvram->signature) == IPS_NVRAM_P5_SIG) {
-        if (ha->nvram->bios_low[3] == 0) { 
+	if (ha->nvram->bios_low[3] == 0) {
             copy_info(&info,
 			          "\tBIOS Version                      : %c%c%c%c%c%c%c\n",
 			          ha->nvram->bios_high[0], ha->nvram->bios_high[1],
@@ -2780,10 +2780,11 @@ ips_next(ips_ha_t * ha, int intr)
 		scb->dcdb.cmd_attribute =
 		    ips_command_direction[scb->scsi_cmd->cmnd[0]];
 
-        /* Allow a WRITE BUFFER Command to Have no Data */
-        /* This is Used by Tape Flash Utilites          */
-        if ((scb->scsi_cmd->cmnd[0] == WRITE_BUFFER) && (scb->data_len == 0)) 
-            scb->dcdb.cmd_attribute = 0;                  
+		/* Allow a WRITE BUFFER Command to Have no Data */
+		/* This is Used by Tape Flash Utilites          */
+		if ((scb->scsi_cmd->cmnd[0] == WRITE_BUFFER) &&
+				(scb->data_len == 0))
+			scb->dcdb.cmd_attribute = 0;
 
 		if (!(scb->dcdb.cmd_attribute & 0x3))
 			scb->dcdb.transfer_length = 0;
@@ -3404,7 +3405,7 @@ ips_map_status(ips_ha_t * ha, ips_scb_t * scb, ips_stat_t * sp)
 
 				/* Restrict access to physical DASD */
 				if (scb->scsi_cmd->cmnd[0] == INQUIRY) {
-				    ips_scmd_buf_read(scb->scsi_cmd, 
+				    ips_scmd_buf_read(scb->scsi_cmd,
                                       &inquiryData, sizeof (inquiryData));
  				    if ((inquiryData.DeviceType & 0x1f) == TYPE_DISK) {
 				        errcode = DID_TIME_OUT;
@@ -4090,10 +4091,10 @@ ips_chkstatus(ips_ha_t * ha, IPS_STATUS * pstatus)
 			scb->scsi_cmd->result = errcode << 16;
 		} else {	/* bus == 0 */
 			/* restrict access to physical drives */
-			if (scb->scsi_cmd->cmnd[0] == INQUIRY) { 
-			    ips_scmd_buf_read(scb->scsi_cmd, 
+			if (scb->scsi_cmd->cmnd[0] == INQUIRY) {
+			    ips_scmd_buf_read(scb->scsi_cmd,
                                   &inquiryData, sizeof (inquiryData));
-			    if ((inquiryData.DeviceType & 0x1f) == TYPE_DISK) 
+			    if ((inquiryData.DeviceType & 0x1f) == TYPE_DISK)
 			        scb->scsi_cmd->result = DID_TIME_OUT << 16;
 			}
 		}		/* else */
@@ -4661,8 +4662,8 @@ ips_isinit_morpheus(ips_ha_t * ha)
 	uint32_t bits;
 
 	METHOD_TRACE("ips_is_init_morpheus", 1);
-   
-	if (ips_isintr_morpheus(ha)) 
+
+	if (ips_isintr_morpheus(ha))
 	    ips_flush_and_reset(ha);
 
 	post = readl(ha->mem_ptr + IPS_REG_I960_MSG0);
@@ -4686,7 +4687,7 @@ ips_isinit_morpheus(ips_ha_t * ha)
 /*   state ( was trying to INIT and an interrupt was already pending ) ...  */
 /*                                                                          */
 /****************************************************************************/
-static void 
+static void
 ips_flush_and_reset(ips_ha_t *ha)
 {
 	ips_scb_t *scb;
@@ -4718,9 +4719,9 @@ ips_flush_and_reset(ips_ha_t *ha)
 	    if (ret == IPS_SUCCESS) {
 	        time = 60 * IPS_ONE_SEC;	              /* Max Wait time is 60 seconds */
 	        done = 0;
-	            
+
 	        while ((time > 0) && (!done)) {
-	           done = ips_poll_for_flush_complete(ha); 	   
+		   done = ips_poll_for_flush_complete(ha);
 	           /* This may look evil, but it's only done during extremely rare start-up conditions ! */
 	           udelay(1000);
 	           time--;
@@ -4749,17 +4750,17 @@ static int
 ips_poll_for_flush_complete(ips_ha_t * ha)
 {
 	IPS_STATUS cstatus;
-    
+
 	while (TRUE) {
 	    cstatus.value = (*ha->func.statupd) (ha);
 
 	    if (cstatus.value == 0xffffffff)      /* If No Interrupt to process */
 			break;
-            
+
 	    /* Success is when we see the Flush Command ID */
-	    if (cstatus.fields.command_id == IPS_MAX_CMDS ) 
+	    if (cstatus.fields.command_id == IPS_MAX_CMDS)
 	        return 1;
-	 }	
+	 }
 
 	return 0;
 }
@@ -5920,7 +5921,7 @@ ips_read_config(ips_ha_t * ha, int intr)
 
 		return (0);
 	}
-	
+
 	memcpy(ha->conf, ha->ioctl_data, sizeof(*ha->conf));
 	return (1);
 }
@@ -5959,7 +5960,7 @@ ips_readwrite_page5(ips_ha_t * ha, int write, int intr)
 	scb->cmd.nvram.buffer_addr = ha->ioctl_busaddr;
 	if (write)
 		memcpy(ha->ioctl_data, ha->nvram, sizeof(*ha->nvram));
-	
+
 	/* issue the command */
 	if (((ret =
 	      ips_send_wait(ha, scb, ips_cmd_timeout, intr)) == IPS_FAILURE)

@@ -92,7 +92,7 @@
    #ifndef min
       #define min(x,y) ((x) < (y) ? x : y)
    #endif
-   
+
    #ifndef __iomem       /* For clean compiles in earlier kernels without __iomem annotations */
       #define __iomem
    #endif
@@ -171,7 +171,7 @@
    #define IPS_CMD_DOWNLOAD             0x20
    #define IPS_CMD_RW_BIOSFW            0x22
    #define IPS_CMD_GET_VERSION_INFO     0xC6
-   #define IPS_CMD_RESET_CHANNEL        0x1A  
+   #define IPS_CMD_RESET_CHANNEL        0x1A
 
    /*
     * Adapter Equates
@@ -458,7 +458,7 @@ typedef struct {
    uint32_t reserved3;
    uint32_t buffer_addr;
    uint32_t reserved4;
-} IPS_IOCTL_CMD, *PIPS_IOCTL_CMD; 
+} IPS_IOCTL_CMD, *PIPS_IOCTL_CMD;
 
 typedef struct {
    uint8_t  op_code;
@@ -552,7 +552,7 @@ typedef struct {
    uint32_t cccr;
 } IPS_NVRAM_CMD, *PIPS_NVRAM_CMD;
 
-typedef struct 
+typedef struct
 {
     uint8_t  op_code;
     uint8_t  command_id;
@@ -650,7 +650,7 @@ typedef struct {
    uint8_t   device_address;
    uint8_t   cmd_attribute;
    uint8_t   cdb_length;
-   uint8_t   reserved_for_LUN; 	 
+   uint8_t   reserved_for_LUN;
    uint32_t  transfer_length;
    uint32_t  buffer_pointer;
    uint16_t  sg_count;
@@ -790,7 +790,7 @@ typedef struct {
                                              /* SubSystem Parameter[4]      */
 #define  IPS_GET_VERSION_SUPPORT 0x00018000  /* Mask for Versioning Support */
 
-typedef struct 
+typedef struct
 {
    uint32_t  revision;
    uint8_t   bootBlkVersion[32];
