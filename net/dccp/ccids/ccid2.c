@@ -770,7 +770,7 @@ static void ccid2_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 static struct ccid_operations ccid2 = {
 	.ccid_id		= DCCPC_CCID2,
-	.ccid_name		= "ccid2",
+	.ccid_name		= "TCP-like",
 	.ccid_owner		= THIS_MODULE,
 	.ccid_hc_tx_obj_size	= sizeof(struct ccid2_hc_tx_sock),
 	.ccid_hc_tx_init	= ccid2_hc_tx_init,
