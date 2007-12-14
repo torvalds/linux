@@ -70,6 +70,19 @@ static inline struct crypto_ablkcipher *skcipher_geniv_cipher(
 	return crypto_ablkcipher_crt(geniv)->base;
 }
 
+static inline int skcipher_enqueue_givcrypt(
+	struct crypto_queue *queue, struct skcipher_givcrypt_request *request)
+{
+	return ablkcipher_enqueue_request(queue, &request->creq);
+}
+
+static inline struct skcipher_givcrypt_request *skcipher_dequeue_givcrypt(
+	struct crypto_queue *queue)
+{
+	return container_of(ablkcipher_dequeue_request(queue),
+			    struct skcipher_givcrypt_request, creq);
+}
+
 static inline void *skcipher_givcrypt_reqctx(
 	struct skcipher_givcrypt_request *req)
 {
