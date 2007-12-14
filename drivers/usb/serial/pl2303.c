@@ -99,7 +99,10 @@ static struct usb_driver pl2303_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.suspend =      usb_serial_suspend,
+	.resume =       usb_serial_resume,
 	.no_dynamic_id = 	1,
+	.supports_autosuspend =	1,
 };
 
 #define SET_LINE_REQUEST_TYPE		0x21
