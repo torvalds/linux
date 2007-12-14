@@ -2238,9 +2238,9 @@ static int snd_via82xx_free(struct via82xx *chip)
 	for (i = 0; i < chip->num_devs; i++)
 		snd_via82xx_channel_reset(chip, &chip->devs[i]);
 	synchronize_irq(chip->irq);
-      __end_hw:
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
+ __end_hw:
 	release_and_free_resource(chip->mpu_res);
 	pci_release_regions(chip->pci);
 
