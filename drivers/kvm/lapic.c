@@ -404,7 +404,7 @@ static struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 	int next;
 	struct kvm_lapic *apic = NULL;
 
-	last = kvm->round_robin_prev_vcpu;
+	last = kvm->arch.round_robin_prev_vcpu;
 	next = last;
 
 	do {
@@ -417,7 +417,7 @@ static struct kvm_lapic *kvm_apic_round_robin(struct kvm *kvm, u8 vector,
 			break;
 		apic = NULL;
 	} while (next != last);
-	kvm->round_robin_prev_vcpu = next;
+	kvm->arch.round_robin_prev_vcpu = next;
 
 	if (!apic)
 		printk(KERN_DEBUG "vcpu not ready for apic_round_robin\n");

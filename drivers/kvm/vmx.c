@@ -1143,12 +1143,12 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 
 static gva_t rmode_tss_base(struct kvm *kvm)
 {
-	if (!kvm->tss_addr) {
+	if (!kvm->arch.tss_addr) {
 		gfn_t base_gfn = kvm->memslots[0].base_gfn +
 				 kvm->memslots[0].npages - 3;
 		return base_gfn << PAGE_SHIFT;
 	}
-	return kvm->tss_addr;
+	return kvm->arch.tss_addr;
 }
 
 static void fix_rmode_seg(int seg, struct kvm_save_segment *save)
@@ -1473,7 +1473,7 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	int r = 0;
 
 	mutex_lock(&kvm->lock);
-	if (kvm->apic_access_page)
+	if (kvm->arch.apic_access_page)
 		goto out;
 	kvm_userspace_mem.slot = APIC_ACCESS_PAGE_PRIVATE_MEMSLOT;
 	kvm_userspace_mem.flags = 0;
@@ -1482,7 +1482,7 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	r = __kvm_set_memory_region(kvm, &kvm_userspace_mem, 0);
 	if (r)
 		goto out;
-	kvm->apic_access_page = gfn_to_page(kvm, 0xfee00);
+	kvm->arch.apic_access_page = gfn_to_page(kvm, 0xfee00);
 out:
 	mutex_unlock(&kvm->lock);
 	return r;
@@ -1699,7 +1699,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	if (vm_need_virtualize_apic_accesses(vmx->vcpu.kvm))
 		vmcs_write64(APIC_ACCESS_ADDR,
-			     page_to_phys(vmx->vcpu.kvm->apic_access_page));
+			     page_to_phys(vmx->vcpu.kvm->arch.apic_access_page));
 
 	vmx->vcpu.arch.cr0 = 0x60000010;
 	vmx_set_cr0(&vmx->vcpu, vmx->vcpu.arch.cr0); /* enter rmode */
@@ -1789,7 +1789,7 @@ static int vmx_set_tss_addr(struct kvm *kvm, unsigned int addr)
 	ret = kvm_set_memory_region(kvm, &tss_mem, 0);
 	if (ret)
 		return ret;
-	kvm->tss_addr = addr;
+	kvm->arch.tss_addr = addr;
 	return 0;
 }
 
