@@ -1497,14 +1497,18 @@ void snd_pcm_tick_prepare(struct snd_pcm_substream *substream)
 		avail = snd_pcm_capture_avail(runtime);
 	}
 	if (avail < runtime->control->avail_min) {
-		snd_pcm_sframes_t n = runtime->control->avail_min - avail;
-		if (n > 0 && frames > (snd_pcm_uframes_t)n)
-			frames = n;
+		snd_pcm_sframes_t to_avail_min =
+			runtime->control->avail_min - avail;
+		if (to_avail_min > 0 &&
+		    frames > (snd_pcm_uframes_t)to_avail_min)
+			frames = to_avail_min;
 	}
 	if (avail < runtime->buffer_size) {
-		snd_pcm_sframes_t n = runtime->buffer_size - avail;
-		if (n > 0 && frames > (snd_pcm_uframes_t)n)
-			frames = n;
+		snd_pcm_sframes_t to_buffer_size =
+			runtime->buffer_size - avail;
+		if (to_buffer_size > 0 &&
+		    frames > (snd_pcm_uframes_t)to_buffer_size)
+			frames = to_buffer_size;
 	}
 	if (frames == ULONG_MAX) {
 		snd_pcm_tick_set(substream, 0);
