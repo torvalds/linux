@@ -60,14 +60,14 @@
     */
    #define IPS_HA(x)                   ((ips_ha_t *) x->hostdata)
    #define IPS_COMMAND_ID(ha, scb)     (int) (scb - ha->scbs)
-   #define IPS_IS_TROMBONE(ha)         (((ha->device_id == IPS_DEVICEID_COPPERHEAD) && \
-                                         (ha->revision_id >= IPS_REVID_TROMBONE32) && \
-                                         (ha->revision_id <= IPS_REVID_TROMBONE64)) ? 1 : 0)
-   #define IPS_IS_CLARINET(ha)         (((ha->device_id == IPS_DEVICEID_COPPERHEAD) && \
-                                         (ha->revision_id >= IPS_REVID_CLARINETP1) && \
-                                         (ha->revision_id <= IPS_REVID_CLARINETP3)) ? 1 : 0)
-   #define IPS_IS_MORPHEUS(ha)         (ha->device_id == IPS_DEVICEID_MORPHEUS)
-   #define IPS_IS_MARCO(ha)            (ha->device_id == IPS_DEVICEID_MARCO)
+   #define IPS_IS_TROMBONE(ha)         (((ha->pcidev->device == IPS_DEVICEID_COPPERHEAD) && \
+                                         (ha->pcidev->revision >= IPS_REVID_TROMBONE32) && \
+                                         (ha->pcidev->revision <= IPS_REVID_TROMBONE64)) ? 1 : 0)
+   #define IPS_IS_CLARINET(ha)         (((ha->pcidev->device == IPS_DEVICEID_COPPERHEAD) && \
+                                         (ha->pcidev->revision >= IPS_REVID_CLARINETP1) && \
+                                         (ha->pcidev->revision <= IPS_REVID_CLARINETP3)) ? 1 : 0)
+   #define IPS_IS_MORPHEUS(ha)         (ha->pcidev->device == IPS_DEVICEID_MORPHEUS)
+   #define IPS_IS_MARCO(ha)            (ha->pcidev->device == IPS_DEVICEID_MARCO)
    #define IPS_USE_I2O_DELIVER(ha)     ((IPS_IS_MORPHEUS(ha) || \
                                          (IPS_IS_TROMBONE(ha) && \
                                           (ips_force_i2o))) ? 1 : 0)
@@ -1034,7 +1034,6 @@ typedef struct ips_ha {
    uint8_t            ha_id[IPS_MAX_CHANNELS+1];
    uint32_t           dcdb_active[IPS_MAX_CHANNELS];
    uint32_t           io_addr;            /* Base I/O address           */
-   uint8_t            irq;                /* IRQ for adapter            */
    uint8_t            ntargets;           /* Number of targets          */
    uint8_t            nbus;               /* Number of buses            */
    uint8_t            nlun;               /* Number of Luns             */
@@ -1066,10 +1065,7 @@ typedef struct ips_ha {
    int                ioctl_reset;        /* IOCTL Requested Reset Flag */
    uint16_t           reset_count;        /* number of resets           */
    time_t             last_ffdc;          /* last time we sent ffdc info*/
-   uint8_t            revision_id;        /* Revision level             */
-   uint16_t           device_id;          /* PCI device ID              */
    uint8_t            slot_num;           /* PCI Slot Number            */
-   uint16_t           subdevice_id;       /* Subsystem device ID        */
    int                ioctl_len;          /* size of ioctl buffer       */
    dma_addr_t         ioctl_busaddr;      /* dma address of ioctl buffer*/
    uint8_t            bios_version[8];    /* BIOS Revision              */
