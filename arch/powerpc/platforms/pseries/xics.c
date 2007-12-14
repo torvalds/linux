@@ -87,19 +87,25 @@ static int ibm_int_off;
 /* Direct HW low level accessors */
 
 
-static inline unsigned int direct_xirr_info_get(int n_cpu)
+static inline unsigned int direct_xirr_info_get(void)
 {
-	return in_be32(&xics_per_cpu[n_cpu]->xirr.word);
+	int cpu = smp_processor_id();
+
+	return in_be32(&xics_per_cpu[cpu]->xirr.word);
 }
 
-static inline void direct_xirr_info_set(int n_cpu, int value)
+static inline void direct_xirr_info_set(int value)
 {
-	out_be32(&xics_per_cpu[n_cpu]->xirr.word, value);
+	int cpu = smp_processor_id();
+
+	out_be32(&xics_per_cpu[cpu]->xirr.word, value);
 }
 
-static inline void direct_cppr_info(int n_cpu, u8 value)
+static inline void direct_cppr_info(u8 value)
 {
-	out_8(&xics_per_cpu[n_cpu]->xirr.bytes[0], value);
+	int cpu = smp_processor_id();
+
+	out_8(&xics_per_cpu[cpu]->xirr.bytes[0], value);
 }
 
 static inline void direct_qirr_info(int n_cpu, u8 value)
@@ -111,7 +117,7 @@ static inline void direct_qirr_info(int n_cpu, u8 value)
 /* LPAR low level accessors */
 
 
-static inline unsigned int lpar_xirr_info_get(int n_cpu)
+static inline unsigned int lpar_xirr_info_get(void)
 {
 	unsigned long lpar_rc;
 	unsigned long return_value;
@@ -122,7 +128,7 @@ static inline unsigned int lpar_xirr_info_get(int n_cpu)
 	return (unsigned int)return_value;
 }
 
-static inline void lpar_xirr_info_set(int n_cpu, int value)
+static inline void lpar_xirr_info_set(int value)
 {
 	unsigned long lpar_rc;
 	unsigned long val64 = value & 0xffffffff;
@@ -133,7 +139,7 @@ static inline void lpar_xirr_info_set(int n_cpu, int value)
 		      val64);
 }
 
-static inline void lpar_cppr_info(int n_cpu, u8 value)
+static inline void lpar_cppr_info(u8 value)
 {
 	unsigned long lpar_rc;
 
@@ -275,21 +281,19 @@ static unsigned int xics_startup(unsigned int virq)
 
 static void xics_eoi_direct(unsigned int virq)
 {
-	int cpu = smp_processor_id();
 	unsigned int irq = (unsigned int)irq_map[virq].hwirq;
 
 	iosync();
-	direct_xirr_info_set(cpu, (0xff << 24) | irq);
+	direct_xirr_info_set((0xff << 24) | irq);
 }
 
 
 static void xics_eoi_lpar(unsigned int virq)
 {
-	int cpu = smp_processor_id();
 	unsigned int irq = (unsigned int)irq_map[virq].hwirq;
 
 	iosync();
-	lpar_xirr_info_set(cpu, (0xff << 24) | irq);
+	lpar_xirr_info_set((0xff << 24) | irq);
 }
 
 static inline unsigned int xics_remap_irq(unsigned int vec)
@@ -312,16 +316,12 @@ static inline unsigned int xics_remap_irq(unsigned int vec)
 
 static unsigned int xics_get_irq_direct(void)
 {
-	unsigned int cpu = smp_processor_id();
-
-	return xics_remap_irq(direct_xirr_info_get(cpu));
+	return xics_remap_irq(direct_xirr_info_get());
 }
 
 static unsigned int xics_get_irq_lpar(void)
 {
-	unsigned int cpu = smp_processor_id();
-
-	return xics_remap_irq(lpar_xirr_info_get(cpu));
+	return xics_remap_irq(lpar_xirr_info_get());
 }
 
 #ifdef CONFIG_SMP
@@ -387,12 +387,12 @@ void xics_cause_IPI(int cpu)
 
 #endif /* CONFIG_SMP */
 
-static void xics_set_cpu_priority(int cpu, unsigned char cppr)
+static void xics_set_cpu_priority(unsigned char cppr)
 {
 	if (firmware_has_feature(FW_FEATURE_LPAR))
-		lpar_cppr_info(cpu, cppr);
+		lpar_cppr_info(cppr);
 	else
-		direct_cppr_info(cpu, cppr);
+		direct_cppr_info(cppr);
 	iosync();
 }
 
@@ -440,9 +440,7 @@ static void xics_set_affinity(unsigned int virq, cpumask_t cpumask)
 
 void xics_setup_cpu(void)
 {
-	int cpu = smp_processor_id();
-
-	xics_set_cpu_priority(cpu, 0xff);
+	xics_set_cpu_priority(0xff);
 
 	/*
 	 * Put the calling processor into the GIQ.  This is really only
@@ -783,7 +781,7 @@ void xics_teardown_cpu(int secondary)
 	unsigned int ipi;
 	struct irq_desc *desc;
 
-	xics_set_cpu_priority(cpu, 0);
+	xics_set_cpu_priority(0);
 
 	/*
 	 * Clear IPI
@@ -824,10 +822,11 @@ void xics_teardown_cpu(int secondary)
 void xics_migrate_irqs_away(void)
 {
 	int status;
-	unsigned int irq, virq, cpu = smp_processor_id();
+	int cpu = smp_processor_id(), hw_cpu = hard_smp_processor_id();
+	unsigned int irq, virq;
 
 	/* Reject any interrupt that was queued to us... */
-	xics_set_cpu_priority(cpu, 0);
+	xics_set_cpu_priority(0);
 
 	/* remove ourselves from the global interrupt queue */
 	status = rtas_set_indicator_fast(GLOBAL_INTERRUPT_QUEUE,
@@ -835,7 +834,7 @@ void xics_migrate_irqs_away(void)
 	WARN_ON(status < 0);
 
 	/* Allow IPIs again... */
-	xics_set_cpu_priority(cpu, DEFAULT_PRIORITY);
+	xics_set_cpu_priority(DEFAULT_PRIORITY);
 
 	for_each_irq(virq) {
 		struct irq_desc *desc;
@@ -874,7 +873,7 @@ void xics_migrate_irqs_away(void)
 		 * The irq has to be migrated only in the single cpu
 		 * case.
 		 */
-		if (xics_status[0] != get_hard_smp_processor_id(cpu))
+		if (xics_status[0] != hw_cpu)
 			goto unlock;
 
 		printk(KERN_WARNING "IRQ %u affinity broken off cpu %u\n",
