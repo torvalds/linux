@@ -2891,10 +2891,12 @@ int nfs4_proc_setclientid(struct nfs_client *clp, u32 program, unsigned short po
 
 	for(;;) {
 		setclientid.sc_name_len = scnprintf(setclientid.sc_name,
-				sizeof(setclientid.sc_name), "%s/%s %s %u",
+				sizeof(setclientid.sc_name), "%s/%s %s %s %u",
 				clp->cl_ipaddr,
 				rpc_peeraddr2str(clp->cl_rpcclient,
 							RPC_DISPLAY_ADDR),
+				rpc_peeraddr2str(clp->cl_rpcclient,
+							RPC_DISPLAY_PROTO),
 				cred->cr_ops->cr_name,
 				clp->cl_id_uniquifier);
 		setclientid.sc_netid_len = scnprintf(setclientid.sc_netid,
