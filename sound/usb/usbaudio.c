@@ -2077,6 +2077,8 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 static int usb_audio_probe(struct usb_interface *intf,
 			   const struct usb_device_id *id);
 static void usb_audio_disconnect(struct usb_interface *intf);
+static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message);
+static int usb_audio_resume(struct usb_interface *intf);
 
 static struct usb_device_id usb_audio_ids [] = {
 #include "usbquirks.h"
@@ -2092,6 +2094,8 @@ static struct usb_driver usb_audio_driver = {
 	.name =		"snd-usb-audio",
 	.probe =	usb_audio_probe,
 	.disconnect =	usb_audio_disconnect,
+	.suspend =	usb_audio_suspend,
+	.resume =	usb_audio_resume,
 	.id_table =	usb_audio_ids,
 };
 
@@ -3654,6 +3658,43 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 				 dev_get_drvdata(&intf->dev));
 }
 
+static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct snd_usb_audio *chip = dev_get_drvdata(&intf->dev);
+	struct list_head *p;
+	struct snd_usb_stream *as;
+
+	if (chip == (void *)-1L)
+		return 0;
+
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D3hot);
+	if (!chip->num_suspended_intf++) {
+		list_for_each(p, &chip->pcm_list) {
+			as = list_entry(p, struct snd_usb_stream, list);
+			snd_pcm_suspend_all(as->pcm);
+		}
+	}
+
+	return 0;
+}
+
+static int usb_audio_resume(struct usb_interface *intf)
+{
+	struct snd_usb_audio *chip = dev_get_drvdata(&intf->dev);
+
+	if (chip == (void *)-1L)
+		return 0;
+	if (--chip->num_suspended_intf)
+		return 0;
+	/*
+	 * ALSA leaves material resumption to user space
+	 * we just notify
+	 */
+
+	snd_power_change_state(chip->card, SNDRV_CTL_POWER_D0);
+
+	return 0;
+}
 
 static int __init snd_usb_audio_init(void)
 {
