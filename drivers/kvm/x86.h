@@ -11,8 +11,6 @@
 #ifndef KVM_X86_H
 #define KVM_X86_H
 
-#include "kvm.h"
-
 #include <linux/types.h>
 #include <linux/mm.h>
 
@@ -20,6 +18,8 @@
 #include <linux/kvm_para.h>
 
 #include <asm/desc.h>
+
+#include "types.h"
 
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
@@ -54,8 +54,18 @@
 
 #define IOPL_SHIFT 12
 
+#define KVM_PERMILLE_MMU_PAGES 20
+#define KVM_MIN_ALLOC_MMU_PAGES 64
+#define KVM_NUM_MMU_PAGES 1024
+#define KVM_MIN_FREE_MMU_PAGES 5
+#define KVM_REFILL_PAGES 25
+#define KVM_MAX_CPUID_ENTRIES 40
+
 extern spinlock_t kvm_lock;
 extern struct list_head vm_list;
+
+struct kvm_vcpu;
+struct kvm;
 
 enum {
 	VCPU_REGS_RAX = 0,
@@ -91,6 +101,89 @@ enum {
 };
 
 #include "x86_emulate.h"
+
+#define KVM_NR_MEM_OBJS 40
+
+/*
+ * We don't want allocation failures within the mmu code, so we preallocate
+ * enough memory for a single page fault in a cache.
+ */
+struct kvm_mmu_memory_cache {
+	int nobjs;
+	void *objects[KVM_NR_MEM_OBJS];
+};
+
+#define NR_PTE_CHAIN_ENTRIES 5
+
+struct kvm_pte_chain {
+	u64 *parent_ptes[NR_PTE_CHAIN_ENTRIES];
+	struct hlist_node link;
+};
+
+/*
+ * kvm_mmu_page_role, below, is defined as:
+ *
+ *   bits 0:3 - total guest paging levels (2-4, or zero for real mode)
+ *   bits 4:7 - page table level for this shadow (1-4)
+ *   bits 8:9 - page table quadrant for 2-level guests
+ *   bit   16 - "metaphysical" - gfn is not a real page (huge page/real mode)
+ *   bits 17:19 - common access permissions for all ptes in this shadow page
+ */
+union kvm_mmu_page_role {
+	unsigned word;
+	struct {
+		unsigned glevels : 4;
+		unsigned level : 4;
+		unsigned quadrant : 2;
+		unsigned pad_for_nice_hex_output : 6;
+		unsigned metaphysical : 1;
+		unsigned access : 3;
+	};
+};
+
+struct kvm_mmu_page {
+	struct list_head link;
+	struct hlist_node hash_link;
+
+	/*
+	 * The following two entries are used to key the shadow page in the
+	 * hash table.
+	 */
+	gfn_t gfn;
+	union kvm_mmu_page_role role;
+
+	u64 *spt;
+	/* hold the gfn of each spte inside spt */
+	gfn_t *gfns;
+	unsigned long slot_bitmap; /* One bit set per slot which has memory
+				    * in this shadow page.
+				    */
+	int multimapped;         /* More than one parent_pte? */
+	int root_count;          /* Currently serving as active root */
+	union {
+		u64 *parent_pte;               /* !multimapped */
+		struct hlist_head parent_ptes; /* multimapped, kvm_pte_chain */
+	};
+};
+
+/*
+ * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
+ * 32-bit).  The kvm_mmu structure abstracts the details of the current mmu
+ * mode.
+ */
+struct kvm_mmu {
+	void (*new_cr3)(struct kvm_vcpu *vcpu);
+	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
+	void (*free)(struct kvm_vcpu *vcpu);
+	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva);
+	void (*prefetch_page)(struct kvm_vcpu *vcpu,
+			      struct kvm_mmu_page *page);
+	hpa_t root_hpa;
+	int root_level;
+	int shadow_root_level;
+
+	u64 *pae_root;
+};
 
 struct kvm_vcpu_arch {
 	u64 host_tsc;
@@ -162,11 +255,6 @@ struct kvm_vcpu_arch {
 	struct x86_emulate_ctxt emulate_ctxt;
 };
 
-struct kvm_vcpu {
-	KVM_VCPU_COMM;
-
-	struct kvm_vcpu_arch arch;
-};
 
 struct descriptor_table {
 	u16 limit;

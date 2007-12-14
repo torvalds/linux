@@ -22,17 +22,13 @@
 
 #include "types.h"
 
+#include "x86.h"
+
 #define KVM_MAX_VCPUS 4
 #define KVM_ALIAS_SLOTS 4
 #define KVM_MEMORY_SLOTS 8
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
-#define KVM_PERMILLE_MMU_PAGES 20
-#define KVM_MIN_ALLOC_MMU_PAGES 64
-#define KVM_NUM_MMU_PAGES 1024
-#define KVM_MIN_FREE_MMU_PAGES 5
-#define KVM_REFILL_PAGES 25
-#define KVM_MAX_CPUID_ENTRIES 40
 
 #define KVM_PIO_PAGE_OFFSET 1
 
@@ -41,109 +37,14 @@
  */
 #define KVM_REQ_TLB_FLUSH          0
 
-#define NR_PTE_CHAIN_ENTRIES 5
-
-struct kvm_pte_chain {
-	u64 *parent_ptes[NR_PTE_CHAIN_ENTRIES];
-	struct hlist_node link;
-};
-
-/*
- * kvm_mmu_page_role, below, is defined as:
- *
- *   bits 0:3 - total guest paging levels (2-4, or zero for real mode)
- *   bits 4:7 - page table level for this shadow (1-4)
- *   bits 8:9 - page table quadrant for 2-level guests
- *   bit   16 - "metaphysical" - gfn is not a real page (huge page/real mode)
- *   bits 17:19 - common access permissions for all ptes in this shadow page
- */
-union kvm_mmu_page_role {
-	unsigned word;
-	struct {
-		unsigned glevels : 4;
-		unsigned level : 4;
-		unsigned quadrant : 2;
-		unsigned pad_for_nice_hex_output : 6;
-		unsigned metaphysical : 1;
-		unsigned access : 3;
-	};
-};
-
-struct kvm_mmu_page {
-	struct list_head link;
-	struct hlist_node hash_link;
-
-	/*
-	 * The following two entries are used to key the shadow page in the
-	 * hash table.
-	 */
-	gfn_t gfn;
-	union kvm_mmu_page_role role;
-
-	u64 *spt;
-	/* hold the gfn of each spte inside spt */
-	gfn_t *gfns;
-	unsigned long slot_bitmap; /* One bit set per slot which has memory
-				    * in this shadow page.
-				    */
-	int multimapped;         /* More than one parent_pte? */
-	int root_count;          /* Currently serving as active root */
-	union {
-		u64 *parent_pte;               /* !multimapped */
-		struct hlist_head parent_ptes; /* multimapped, kvm_pte_chain */
-	};
-};
 
 struct kvm_vcpu;
 extern struct kmem_cache *kvm_vcpu_cache;
-
-/*
- * x86 supports 3 paging modes (4-level 64-bit, 3-level 64-bit, and 2-level
- * 32-bit).  The kvm_mmu structure abstracts the details of the current mmu
- * mode.
- */
-struct kvm_mmu {
-	void (*new_cr3)(struct kvm_vcpu *vcpu);
-	int (*page_fault)(struct kvm_vcpu *vcpu, gva_t gva, u32 err);
-	void (*free)(struct kvm_vcpu *vcpu);
-	gpa_t (*gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t gva);
-	void (*prefetch_page)(struct kvm_vcpu *vcpu,
-			      struct kvm_mmu_page *page);
-	hpa_t root_hpa;
-	int root_level;
-	int shadow_root_level;
-
-	u64 *pae_root;
-};
-
-#define KVM_NR_MEM_OBJS 40
-
-/*
- * We don't want allocation failures within the mmu code, so we preallocate
- * enough memory for a single page fault in a cache.
- */
-struct kvm_mmu_memory_cache {
-	int nobjs;
-	void *objects[KVM_NR_MEM_OBJS];
-};
 
 struct kvm_guest_debug {
 	int enabled;
 	unsigned long bp[4];
 	int singlestep;
-};
-
-struct kvm_pio_request {
-	unsigned long count;
-	int cur_count;
-	struct page *guest_pages[2];
-	unsigned guest_page_offset;
-	int in;
-	int port;
-	int size;
-	int string;
-	int down;
-	int rep;
 };
 
 struct kvm_vcpu_stat {
@@ -217,6 +118,12 @@ void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 	sigset_t sigset;				\
 	struct kvm_vcpu_stat stat;			\
 	KVM_VCPU_MMIO
+
+struct kvm_vcpu {
+	KVM_VCPU_COMM;
+
+	struct kvm_vcpu_arch arch;
+};
 
 struct kvm_mem_alias {
 	gfn_t base_gfn;
@@ -440,9 +347,5 @@ struct kvm_stats_debugfs_item {
 	struct dentry *dentry;
 };
 extern struct kvm_stats_debugfs_item debugfs_entries[];
-
-#if defined(CONFIG_X86)
-#include "x86.h"
-#endif
 
 #endif

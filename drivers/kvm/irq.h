@@ -26,7 +26,7 @@
 #include <linux/hrtimer.h>
 #include <asm/kvm.h>
 #include "iodev.h"
-#include "x86.h"
+#include "kvm.h"
 
 struct kvm;
 struct kvm_vcpu;
