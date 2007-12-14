@@ -5,7 +5,7 @@
 
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {
-	if (unlikely(vcpu->kvm->n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
+	if (unlikely(vcpu->kvm->arch.n_free_mmu_pages < KVM_MIN_FREE_MMU_PAGES))
 		__kvm_mmu_free_some_pages(vcpu);
 }
 

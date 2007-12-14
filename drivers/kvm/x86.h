@@ -266,6 +266,15 @@ struct kvm_mem_alias {
 struct kvm_arch{
 	int naliases;
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
+
+	unsigned int n_free_mmu_pages;
+	unsigned int n_requested_mmu_pages;
+	unsigned int n_alloc_mmu_pages;
+	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
+	/*
+	 * Hash table of struct kvm_mmu_page.
+	 */
+	struct list_head active_mmu_pages;
 };
 
 struct kvm_vcpu_stat {

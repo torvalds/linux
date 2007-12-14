@@ -553,7 +553,7 @@ static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	__free_page(virt_to_page(sp->spt));
 	__free_page(virt_to_page(sp->gfns));
 	kfree(sp);
-	++kvm->n_free_mmu_pages;
+	++kvm->arch.n_free_mmu_pages;
 }
 
 static unsigned kvm_page_table_hashfn(gfn_t gfn)
@@ -566,19 +566,19 @@ static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
 {
 	struct kvm_mmu_page *sp;
 
-	if (!vcpu->kvm->n_free_mmu_pages)
+	if (!vcpu->kvm->arch.n_free_mmu_pages)
 		return NULL;
 
 	sp = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_header_cache, sizeof *sp);
 	sp->spt = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache, PAGE_SIZE);
 	sp->gfns = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache, PAGE_SIZE);
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
-	list_add(&sp->link, &vcpu->kvm->active_mmu_pages);
+	list_add(&sp->link, &vcpu->kvm->arch.active_mmu_pages);
 	ASSERT(is_empty_shadow_page(sp->spt));
 	sp->slot_bitmap = 0;
 	sp->multimapped = 0;
 	sp->parent_pte = parent_pte;
-	--vcpu->kvm->n_free_mmu_pages;
+	--vcpu->kvm->arch.n_free_mmu_pages;
 	return sp;
 }
 
@@ -666,7 +666,7 @@ static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
 
 	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
 	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
-	bucket = &kvm->mmu_page_hash[index];
+	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
 		if (sp->gfn == gfn && !sp->role.metaphysical) {
 			pgprintk("%s: found role %x\n",
@@ -705,7 +705,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	pgprintk("%s: looking gfn %lx role %x\n", __FUNCTION__,
 		 gfn, role.word);
 	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
-	bucket = &vcpu->kvm->mmu_page_hash[index];
+	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry(sp, node, bucket, hash_link)
 		if (sp->gfn == gfn && sp->role.word == role.word) {
 			mmu_page_add_parent_pte(vcpu, sp, parent_pte);
@@ -796,7 +796,7 @@ static void kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 		hlist_del(&sp->hash_link);
 		kvm_mmu_free_page(kvm, sp);
 	} else
-		list_move(&sp->link, &kvm->active_mmu_pages);
+		list_move(&sp->link, &kvm->arch.active_mmu_pages);
 	kvm_mmu_reset_last_pte_updated(kvm);
 }
 
@@ -812,26 +812,26 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 	 * change the value
 	 */
 
-	if ((kvm->n_alloc_mmu_pages - kvm->n_free_mmu_pages) >
+	if ((kvm->arch.n_alloc_mmu_pages - kvm->arch.n_free_mmu_pages) >
 	    kvm_nr_mmu_pages) {
-		int n_used_mmu_pages = kvm->n_alloc_mmu_pages
-				       - kvm->n_free_mmu_pages;
+		int n_used_mmu_pages = kvm->arch.n_alloc_mmu_pages
+				       - kvm->arch.n_free_mmu_pages;
 
 		while (n_used_mmu_pages > kvm_nr_mmu_pages) {
 			struct kvm_mmu_page *page;
 
-			page = container_of(kvm->active_mmu_pages.prev,
+			page = container_of(kvm->arch.active_mmu_pages.prev,
 					    struct kvm_mmu_page, link);
 			kvm_mmu_zap_page(kvm, page);
 			n_used_mmu_pages--;
 		}
-		kvm->n_free_mmu_pages = 0;
+		kvm->arch.n_free_mmu_pages = 0;
 	}
 	else
-		kvm->n_free_mmu_pages += kvm_nr_mmu_pages
-					 - kvm->n_alloc_mmu_pages;
+		kvm->arch.n_free_mmu_pages += kvm_nr_mmu_pages
+					 - kvm->arch.n_alloc_mmu_pages;
 
-	kvm->n_alloc_mmu_pages = kvm_nr_mmu_pages;
+	kvm->arch.n_alloc_mmu_pages = kvm_nr_mmu_pages;
 }
 
 static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
@@ -845,7 +845,7 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	pgprintk("%s: looking for gfn %lx\n", __FUNCTION__, gfn);
 	r = 0;
 	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
-	bucket = &kvm->mmu_page_hash[index];
+	bucket = &kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link)
 		if (sp->gfn == gfn && !sp->role.metaphysical) {
 			pgprintk("%s: gfn %lx role %x\n", __FUNCTION__, gfn,
@@ -1362,7 +1362,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		vcpu->arch.last_pte_updated = NULL;
 	}
 	index = kvm_page_table_hashfn(gfn) % KVM_NUM_MMU_PAGES;
-	bucket = &vcpu->kvm->mmu_page_hash[index];
+	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link) {
 		if (sp->gfn != gfn || sp->role.metaphysical)
 			continue;
@@ -1428,10 +1428,10 @@ int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 
 void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {
-	while (vcpu->kvm->n_free_mmu_pages < KVM_REFILL_PAGES) {
+	while (vcpu->kvm->arch.n_free_mmu_pages < KVM_REFILL_PAGES) {
 		struct kvm_mmu_page *sp;
 
-		sp = container_of(vcpu->kvm->active_mmu_pages.prev,
+		sp = container_of(vcpu->kvm->arch.active_mmu_pages.prev,
 				  struct kvm_mmu_page, link);
 		kvm_mmu_zap_page(vcpu->kvm, sp);
 		++vcpu->kvm->stat.mmu_recycled;
@@ -1482,8 +1482,8 @@ static void free_mmu_pages(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu_page *sp;
 
-	while (!list_empty(&vcpu->kvm->active_mmu_pages)) {
-		sp = container_of(vcpu->kvm->active_mmu_pages.next,
+	while (!list_empty(&vcpu->kvm->arch.active_mmu_pages)) {
+		sp = container_of(vcpu->kvm->arch.active_mmu_pages.next,
 				  struct kvm_mmu_page, link);
 		kvm_mmu_zap_page(vcpu->kvm, sp);
 	}
@@ -1497,10 +1497,12 @@ static int alloc_mmu_pages(struct kvm_vcpu *vcpu)
 
 	ASSERT(vcpu);
 
-	if (vcpu->kvm->n_requested_mmu_pages)
-		vcpu->kvm->n_free_mmu_pages = vcpu->kvm->n_requested_mmu_pages;
+	if (vcpu->kvm->arch.n_requested_mmu_pages)
+		vcpu->kvm->arch.n_free_mmu_pages =
+					vcpu->kvm->arch.n_requested_mmu_pages;
 	else
-		vcpu->kvm->n_free_mmu_pages = vcpu->kvm->n_alloc_mmu_pages;
+		vcpu->kvm->arch.n_free_mmu_pages =
+					vcpu->kvm->arch.n_alloc_mmu_pages;
 	/*
 	 * When emulating 32-bit mode, cr3 is only 32 bits even on x86_64.
 	 * Therefore we need to allocate shadow page tables in the first
@@ -1549,7 +1551,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 {
 	struct kvm_mmu_page *sp;
 
-	list_for_each_entry(sp, &kvm->active_mmu_pages, link) {
+	list_for_each_entry(sp, &kvm->arch.active_mmu_pages, link) {
 		int i;
 		u64 *pt;
 
@@ -1568,7 +1570,7 @@ void kvm_mmu_zap_all(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 
-	list_for_each_entry_safe(sp, node, &kvm->active_mmu_pages, link)
+	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link)
 		kvm_mmu_zap_page(kvm, sp);
 
 	kvm_flush_remote_tlbs(kvm);
@@ -1738,7 +1740,7 @@ static int count_writable_mappings(struct kvm_vcpu *vcpu)
 	struct kvm_mmu_page *sp;
 	int i;
 
-	list_for_each_entry(sp, &vcpu->kvm->active_mmu_pages, link) {
+	list_for_each_entry(sp, &vcpu->kvm->arch.active_mmu_pages, link) {
 		u64 *pt = sp->spt;
 
 		if (sp->role.level != PT_PAGE_TABLE_LEVEL)
@@ -1774,7 +1776,7 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 	unsigned long *rmapp;
 	gfn_t gfn;
 
-	list_for_each_entry(sp, &vcpu->kvm->active_mmu_pages, link) {
+	list_for_each_entry(sp, &vcpu->kvm->arch.active_mmu_pages, link) {
 		if (sp->role.metaphysical)
 			continue;
 

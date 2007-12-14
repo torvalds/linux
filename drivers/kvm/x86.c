@@ -1175,7 +1175,7 @@ static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 	mutex_lock(&kvm->lock);
 
 	kvm_mmu_change_mmu_pages(kvm, kvm_nr_mmu_pages);
-	kvm->n_requested_mmu_pages = kvm_nr_mmu_pages;
+	kvm->arch.n_requested_mmu_pages = kvm_nr_mmu_pages;
 
 	mutex_unlock(&kvm->lock);
 	return 0;
@@ -1183,7 +1183,7 @@ static int kvm_vm_ioctl_set_nr_mmu_pages(struct kvm *kvm,
 
 static int kvm_vm_ioctl_get_nr_mmu_pages(struct kvm *kvm)
 {
-	return kvm->n_alloc_mmu_pages;
+	return kvm->arch.n_alloc_mmu_pages;
 }
 
 gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
@@ -3051,7 +3051,7 @@ struct  kvm *kvm_arch_create_vm(void)
 	if (!kvm)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&kvm->active_mmu_pages);
+	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
 
 	return kvm;
 }
@@ -3130,7 +3130,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 		}
 	}
 
-	if (!kvm->n_requested_mmu_pages) {
+	if (!kvm->arch.n_requested_mmu_pages) {
 		unsigned int nr_mmu_pages = kvm_mmu_calculate_mmu_pages(kvm);
 		kvm_mmu_change_mmu_pages(kvm, nr_mmu_pages);
 	}

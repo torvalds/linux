@@ -119,14 +119,6 @@ struct kvm {
 	int nmemslots;
 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
 					KVM_PRIVATE_MEM_SLOTS];
-	/*
-	 * Hash table of struct kvm_mmu_page.
-	 */
-	struct list_head active_mmu_pages;
-	unsigned int n_free_mmu_pages;
-	unsigned int n_requested_mmu_pages;
-	unsigned int n_alloc_mmu_pages;
-	struct hlist_head mmu_page_hash[KVM_NUM_MMU_PAGES];
 	struct kvm_vcpu *vcpus[KVM_MAX_VCPUS];
 	struct list_head vm_list;
 	struct file *filp;
