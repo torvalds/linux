@@ -23,6 +23,7 @@
 #include <asm/uic.h>
 #include <asm/pci-bridge.h>
 
+#include "44x.h"
 
 static struct of_device_id sequoia_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
