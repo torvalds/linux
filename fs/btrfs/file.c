@@ -481,8 +481,9 @@ next_slot:
 			search_start = (extent_end + mask) & ~mask;
 		} else
 			search_start = extent_end;
-		if (end < extent_end && start > key.offset && found_inline) {
+		if (end <= extent_end && start >= key.offset && found_inline) {
 			*hint_byte = EXTENT_MAP_INLINE;
+			continue;
 		}
 		if (end < extent_end && end >= key.offset) {
 			if (found_extent) {
