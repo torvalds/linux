@@ -259,6 +259,16 @@ static struct resource pxamci_resources[] = {
 		.end	= IRQ_MMC,
 		.flags	= IORESOURCE_IRQ,
 	},
+	[2] = {
+		.start	= 21,
+		.end	= 21,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= 22,
+		.end	= 22,
+		.flags	= IORESOURCE_DMA,
+	},
 };
 
 static u64 pxamci_dmamask = 0xffffffffUL;

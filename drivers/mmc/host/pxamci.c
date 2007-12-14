@@ -65,6 +65,8 @@ struct pxamci_host {
 	unsigned int		dma_len;
 
 	unsigned int		dma_dir;
+	unsigned int		dma_drcmrrx;
+	unsigned int		dma_drcmrtx;
 };
 
 static void pxamci_stop_clock(struct pxamci_host *host)
@@ -131,13 +133,13 @@ static void pxamci_setup_data(struct pxamci_host *host, struct mmc_data *data)
 	if (data->flags & MMC_DATA_READ) {
 		host->dma_dir = DMA_FROM_DEVICE;
 		dcmd = DCMD_INCTRGADDR | DCMD_FLOWTRG;
-		DRCMRTXMMC = 0;
-		DRCMRRXMMC = host->dma | DRCMR_MAPVLD;
+		DRCMR(host->dma_drcmrtx) = 0;
+		DRCMR(host->dma_drcmrrx) = host->dma | DRCMR_MAPVLD;
 	} else {
 		host->dma_dir = DMA_TO_DEVICE;
 		dcmd = DCMD_INCSRCADDR | DCMD_FLOWSRC;
-		DRCMRRXMMC = 0;
-		DRCMRTXMMC = host->dma | DRCMR_MAPVLD;
+		DRCMR(host->dma_drcmrrx) = 0;
+		DRCMR(host->dma_drcmrtx) = host->dma | DRCMR_MAPVLD;
 	}
 
 	dcmd |= DCMD_BURST32 | DCMD_WIDTH1;
@@ -468,7 +470,7 @@ static int pxamci_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct pxamci_host *host = NULL;
-	struct resource *r;
+	struct resource *r, *dmarx, *dmatx;
 	int ret, irq;
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -583,6 +585,20 @@ static int pxamci_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mmc);
 
+	dmarx = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (!dmarx) {
+		ret = -ENXIO;
+		goto out;
+	}
+	host->dma_drcmrrx = dmarx->start;
+
+	dmatx = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (!dmatx) {
+		ret = -ENXIO;
+		goto out;
+	}
+	host->dma_drcmrtx = dmatx->start;
+
 	if (host->pdata && host->pdata->init)
 		host->pdata->init(&pdev->dev, pxamci_detect_irq, mmc);
 
@@ -626,8 +642,8 @@ static int pxamci_remove(struct platform_device *pdev)
 		       END_CMD_RES|PRG_DONE|DATA_TRAN_DONE,
 		       host->base + MMC_I_MASK);
 
-		DRCMRRXMMC = 0;
-		DRCMRTXMMC = 0;
+		DRCMR(host->dma_drcmrrx) = 0;
+		DRCMR(host->dma_drcmrtx) = 0;
 
 		free_irq(host->irq, host);
 		pxa_free_dma(host->dma);
