@@ -283,6 +283,16 @@ struct kvm_arch{
 	struct page *apic_access_page;
 };
 
+struct kvm_vm_stat {
+	u32 mmu_shadow_zapped;
+	u32 mmu_pte_write;
+	u32 mmu_pte_updated;
+	u32 mmu_pde_zapped;
+	u32 mmu_flooded;
+	u32 mmu_recycled;
+	u32 remote_tlb_flush;
+};
+
 struct kvm_vcpu_stat {
 	u32 pf_fixed;
 	u32 pf_guest;
