@@ -338,7 +338,12 @@ static int pl2303_startup(struct usb_serial *serial)
 {
 	struct pl2303_private *priv;
 	enum pl2303_type type = type_0;
+	unsigned char *buf;
 	int i;
+
+	buf = kmalloc(10, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
 
 	if (serial->dev->descriptor.bDeviceClass == 0x02)
 		type = type_0;
@@ -364,9 +369,27 @@ static int pl2303_startup(struct usb_serial *serial)
 		priv->type = type;
 		usb_set_serial_port_data(serial->port[i], priv);
 	}
+
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_write(0x0404, 0, serial);
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_read(0x8383, 0, serial, buf);
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_write(0x0404, 1, serial);
+	pl2303_vendor_read(0x8484, 0, serial, buf);
+	pl2303_vendor_read(0x8383, 0, serial, buf);
+	pl2303_vendor_write(0, 1, serial);
+	pl2303_vendor_write(1, 0, serial);
+	if (type == HX)
+		pl2303_vendor_write(2, 0x44, serial);
+	else
+		pl2303_vendor_write(2, 0x24, serial);
+
+	kfree(buf);
 	return 0;
 
 cleanup:
+	kfree(buf);
 	for (--i; i>=0; --i) {
 		priv = usb_get_serial_port_data(serial->port[i]);
 		pl2303_buf_free(priv->buf);
@@ -690,7 +713,6 @@ static int pl2303_open(struct usb_serial_port *port, struct file *filp)
 	struct ktermios tmp_termios;
 	struct usb_serial *serial = port->serial;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
-	unsigned char *buf;
 	int result;
 
 	dbg("%s -  port %d", __FUNCTION__, port->number);
@@ -698,34 +720,11 @@ static int pl2303_open(struct usb_serial_port *port, struct file *filp)
 	if (priv->type != HX) {
 		usb_clear_halt(serial->dev, port->write_urb->pipe);
 		usb_clear_halt(serial->dev, port->read_urb->pipe);
-	}
-
-	buf = kmalloc(10, GFP_KERNEL);
-	if (buf==NULL)
-		return -ENOMEM;
-
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_write(0x0404, 0, serial);
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_read(0x8383, 0, serial, buf);
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_write(0x0404, 1, serial);
-	pl2303_vendor_read(0x8484, 0, serial, buf);
-	pl2303_vendor_read(0x8383, 0, serial, buf);
-	pl2303_vendor_write(0, 1, serial);
-	pl2303_vendor_write(1, 0, serial);
-
-	if (priv->type == HX) {
-		/* HX chip */
-		pl2303_vendor_write(2, 0x44, serial);
+	} else {
 		/* reset upstream data pipes */
 		pl2303_vendor_write(8, 0, serial);
 		pl2303_vendor_write(9, 0, serial);
-	} else {
-		pl2303_vendor_write(2, 0x24, serial);
 	}
-
-	kfree(buf);
 
 	/* Setup termios */
 	if (port->tty) {
