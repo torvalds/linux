@@ -278,15 +278,10 @@ static void if_usb_disconnect(struct usb_interface *intf)
 	cardp->surprise_removed = 1;
 
 	if (priv) {
-
 		priv->surpriseremoved = 1;
 		lbs_stop_card(priv);
 		lbs_remove_card(priv);
 	}
-
-	/* this is (apparently?) necessary for future usage of the device */
-	lbs_prepare_and_send_command(priv, CMD_802_11_RESET, CMD_ACT_HALT,
-			0, 0, NULL);
 
 	/* Unlink and free urb */
 	if_usb_free(cardp);
