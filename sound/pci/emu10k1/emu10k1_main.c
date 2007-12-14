@@ -707,7 +707,8 @@ static int snd_emu1010_load_firmware(struct snd_emu10k1 * emu, const char * file
 	return 0;
 }
 
-int emu1010_firmware_thread(void *data) {
+static int emu1010_firmware_thread(void *data)
+{
 	struct snd_emu10k1 * emu = data;
 	int tmp,tmp2;
 	int reg;
@@ -1090,10 +1091,12 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	snd_emu1010_fpga_write(emu, EMU_HANA_SPDIF_MODE, 0x10 ); /* SPDIF Format spdif  (or 0x11 for aes/ebu) */
 
 	/* Start Micro/Audio Dock firmware loader thread */
-	emu->emu1010.firmware_thread = kthread_create(&emu1010_firmware_thread,
-                                   emu,
-                                   "emu1010_firmware");
-	wake_up_process(emu->emu1010.firmware_thread);
+	if (!emu->emu1010.firmware_thread) {
+		emu->emu1010.firmware_thread =
+			kthread_create(emu1010_firmware_thread, emu,
+				       "emu1010_firmware");
+		wake_up_process(emu->emu1010.firmware_thread);
+	}
 
 #if 0
 	snd_emu1010_fpga_link_dst_src_write(emu,
@@ -1257,7 +1260,7 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 		/* Disable 48Volt power to Audio Dock */
 		snd_emu1010_fpga_write(emu,  EMU_HANA_DOCK_PWR,  0 );
 	}
-	if (emu->card_capabilities->emu_model)
+	if (emu->emu1010.firmware_thread)
 		kthread_stop(emu->emu1010.firmware_thread);
 	if (emu->memhdr)
 		snd_util_memhdr_free(emu->memhdr);
