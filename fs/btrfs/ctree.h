@@ -321,6 +321,7 @@ struct btrfs_fs_info {
 
 	u64 generation;
 	u64 last_trans_committed;
+	unsigned long mount_opt;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block super_copy;
 	struct extent_buffer *sb_buffer;
@@ -428,6 +429,13 @@ struct btrfs_root {
  * data in the FS
  */
 #define BTRFS_STRING_ITEM_KEY	253
+
+#define BTRFS_MOUNT_NODATASUM		0x1
+
+#define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
+#define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
+#define btrfs_test_opt(root, opt)	((root)->fs_info->mount_opt & \
+					 BTRFS_MOUNT_##opt)
 
 /* some macros to generate set/get funcs for the struct fields.  This
  * assumes there is a lefoo_to_cpu for every type, so lets make a simple
@@ -906,12 +914,6 @@ static inline u32 btrfs_level_size(struct btrfs_root *root, int level) {
 	((unsigned long)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset_nr(leaf, slot)))
 
-/* mount option defines and helpers */
-#define BTRFS_MOUNT_SUBVOL		0x000001
-#define btrfs_clear_opt(o, opt)		o &= ~BTRFS_MOUNT_##opt
-#define btrfs_set_opt(o, opt)		o |= BTRFS_MOUNT_##opt
-#define btrfs_test_opt(sb, opt)		(BTRFS_SB(sb)->s_mount_opt & \
-					 BTRFS_MOUNT_##opt)
 /* extent-tree.c */
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);

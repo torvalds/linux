@@ -116,9 +116,12 @@ int btrfs_writepage_io_hook(struct page *page, u64 start, u64 end)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	char *kaddr;
-	int ret;
+	int ret = 0;
 	u64 page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 	size_t offset = start - page_start;
+
+	if (btrfs_test_opt(root, NODATASUM))
+		return 0;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
@@ -142,6 +145,9 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 	struct btrfs_csum_item *item;
 	struct btrfs_path *path = NULL;
 	u32 csum;
+
+	if (btrfs_test_opt(root, NODATASUM))
+		return 0;
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	path = btrfs_alloc_path();
@@ -175,6 +181,9 @@ int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u32 csum = ~(u32)0;
 	unsigned long flags;
+
+	if (btrfs_test_opt(root, NODATASUM))
+		return 0;
 
 	ret = get_state_private(em_tree, start, &private);
 	local_irq_save(flags);

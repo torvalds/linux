@@ -568,6 +568,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->tree_root = tree_root;
 	fs_info->extent_root = extent_root;
 	fs_info->sb = sb;
+	fs_info->mount_opt = 0;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;

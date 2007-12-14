@@ -61,11 +61,12 @@ static void btrfs_put_super (struct super_block * sb)
 }
 
 enum {
-	Opt_subvol, Opt_err,
+	Opt_subvol, Opt_nodatasum, Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_subvol, "subvol=%s"},
+	{Opt_nodatasum, "nodatasum"},
 	{Opt_err, NULL}
 };
 
@@ -74,7 +75,12 @@ static int parse_options (char * options,
 			  char **subvol_name)
 {
 	char * p;
+	struct btrfs_fs_info *info = NULL;
 	substring_t args[MAX_OPT_ARGS];
+
+	if (root)
+		info = root->fs_info;
+
 	if (!options)
 		return 1;
 
@@ -86,7 +92,12 @@ static int parse_options (char * options,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_subvol:
-			*subvol_name = match_strdup(&args[0]);
+			if (subvol_name)
+				*subvol_name = match_strdup(&args[0]);
+			break;
+		case Opt_nodatasum:
+			if (root)
+				btrfs_set_opt(info->mount_opt, NODATASUM);
 			break;
 		default:
 			return 0;
@@ -142,6 +153,8 @@ static int btrfs_fill_super(struct super_block * sb, void * data, int silent)
 		err = -ENOMEM;
 		goto fail_close;
 	}
+
+	parse_options((char *)data, tree_root, NULL);
 
 	/* this does the super kobj at the same time */
 	err = btrfs_sysfs_add_super(tree_root->fs_info);
