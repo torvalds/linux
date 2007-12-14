@@ -76,7 +76,7 @@
 
 
 
-#if	 SMC_USE_PXA_DMA
+#ifdef SMC_USE_PXA_DMA
 #define SMC_USE_DMA
 
 /*
