@@ -1099,7 +1099,8 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	free_irq(aac->pdev->irq, aac);
 	kfree(aac->fsa_dev);
 	aac->fsa_dev = NULL;
-	if (aac_get_driver_ident(index)->quirks & AAC_QUIRK_31BIT) {
+	quirks = aac_get_driver_ident(index)->quirks;
+	if (quirks & AAC_QUIRK_31BIT) {
 		if (((retval = pci_set_dma_mask(aac->pdev, DMA_31BIT_MASK))) ||
 		  ((retval = pci_set_consistent_dma_mask(aac->pdev, DMA_31BIT_MASK))))
 			goto out;
@@ -1110,7 +1111,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 	}
 	if ((retval = (*(aac_get_driver_ident(index)->init))(aac)))
 		goto out;
-	if (aac_get_driver_ident(index)->quirks & AAC_QUIRK_31BIT)
+	if (quirks & AAC_QUIRK_31BIT)
 		if ((retval = pci_set_dma_mask(aac->pdev, DMA_32BIT_MASK)))
 			goto out;
 	if (jafo) {
@@ -1121,7 +1122,6 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced)
 		}
 	}
 	(void)aac_get_adapter_info(aac);
-	quirks = aac_get_driver_ident(index)->quirks;
 	if ((quirks & AAC_QUIRK_34SG) && (host->sg_tablesize > 34)) {
  		host->sg_tablesize = 34;
  		host->max_sectors = (host->sg_tablesize * 8) + 112;

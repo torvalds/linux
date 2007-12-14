@@ -1190,6 +1190,15 @@ static int aac_scsi_32(struct fib * fib, struct scsi_cmnd * cmd)
 				  (fib_callback) aac_srb_callback, (void *) cmd);
 }
 
+static int aac_scsi_32_64(struct fib * fib, struct scsi_cmnd * cmd)
+{
+	if ((sizeof(dma_addr_t) > 4) &&
+	 (num_physpages > (0xFFFFFFFFULL >> PAGE_SHIFT)) &&
+	 (fib->dev->adapter_info.options & AAC_OPT_SGMAP_HOST64))
+		return FAILED;
+	return aac_scsi_32(fib, cmd);
+}
+
 int aac_get_adapter_info(struct aac_dev* dev)
 {
 	struct fib* fibptr;
@@ -1267,6 +1276,8 @@ int aac_get_adapter_info(struct aac_dev* dev)
 			 1, 1,
 			 NULL, NULL);
 
+	/* reasoned default */
+	dev->maximum_num_physicals = 16;
 	if (rcode >= 0 && le32_to_cpu(bus_info->Status) == ST_OK) {
 		dev->maximum_num_physicals = le32_to_cpu(bus_info->TargetsPerBus);
 		dev->maximum_num_channels = le32_to_cpu(bus_info->BusCount);
@@ -1377,7 +1388,9 @@ int aac_get_adapter_info(struct aac_dev* dev)
 	 * interface.
 	 */
 	dev->a_ops.adapter_scsi = (dev->dac_support)
-				? aac_scsi_64
+	  ? ((aac_get_driver_ident(dev->cardtype)->quirks & AAC_QUIRK_SCSI_32)
+				? aac_scsi_32_64
+				: aac_scsi_64)
 				: aac_scsi_32;
 	if (dev->raw_io_interface) {
 		dev->a_ops.adapter_bounds = (dev->raw_io_64)

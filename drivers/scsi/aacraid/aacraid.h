@@ -521,6 +521,12 @@ struct aac_driver_ident
 #define AAC_QUIRK_17SG	0x0010
 
 /*
+ *	Some adapter firmware does not support 64 bit scsi passthrough
+ * commands.
+ */
+#define AAC_QUIRK_SCSI_32	0x0020
+
+/*
  *	The adapter interface specs all queues to be located in the same
  *	physically contigous block. The host structure that defines the
  *	commuication queues will assume they are each a separate physically
