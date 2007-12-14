@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
+#include <linux/mutex.h>
 
 #include <linux/usb.h>
 
@@ -64,7 +65,7 @@ struct usbtest_dev {
 	int			in_iso_pipe;
 	int			out_iso_pipe;
 	struct usb_endpoint_descriptor	*iso_in, *iso_out;
-	struct semaphore	sem;
+	struct mutex		lock;
 
 #define TBUF_SIZE	256
 	u8			*buf;
@@ -1559,11 +1560,11 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			|| param->sglen < 0 || param->vary < 0)
 		return -EINVAL;
 
-	if (down_interruptible (&dev->sem))
+	if (mutex_lock_interruptible(&dev->lock))
 		return -ERESTARTSYS;
 
 	if (intf->dev.power.power_state.event != PM_EVENT_ON) {
-		up (&dev->sem);
+		mutex_unlock(&dev->lock);
 		return -EHOSTUNREACH;
 	}
 
@@ -1575,7 +1576,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 	    	int	res;
 
 		if (intf->altsetting->desc.bInterfaceNumber) {
-			up (&dev->sem);
+			mutex_unlock(&dev->lock);
 			return -ENODEV;
 		}
 		res = set_altsetting (dev, dev->info->alt);
@@ -1583,7 +1584,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 			dev_err (&intf->dev,
 					"set altsetting to %d failed, %d\n",
 					dev->info->alt, res);
-			up (&dev->sem);
+			mutex_unlock(&dev->lock);
 			return res;
 		}
 	}
@@ -1856,7 +1857,7 @@ usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 		param->duration.tv_usec += 1000 * 1000;
 		param->duration.tv_sec -= 1;
 	}
-	up (&dev->sem);
+	mutex_unlock(&dev->lock);
 	return retval;
 }
 
@@ -1906,7 +1907,7 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 		return -ENOMEM;
 	info = (struct usbtest_info *) id->driver_info;
 	dev->info = info;
-	init_MUTEX (&dev->sem);
+	mutex_init(&dev->lock);
 
 	dev->intf = intf;
 
@@ -1991,7 +1992,7 @@ static void usbtest_disconnect (struct usb_interface *intf)
 {
 	struct usbtest_dev	*dev = usb_get_intfdata (intf);
 
-	down (&dev->sem);
+	mutex_lock(&dev->lock);
 
 	usb_set_intfdata (intf, NULL);
 	dev_dbg (&intf->dev, "disconnect\n");
