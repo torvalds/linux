@@ -190,19 +190,3 @@ void spu_release_saved(struct spu_context *ctx)
 	spu_release(ctx);
 }
 
-void spu_set_profile_private_kref(struct spu_context *ctx,
-				  struct kref *prof_info_kref,
-				  void ( * prof_info_release) (struct kref *kref))
-{
-	ctx->prof_priv_kref = prof_info_kref;
-	ctx->prof_priv_release = prof_info_release;
-}
-EXPORT_SYMBOL_GPL(spu_set_profile_private_kref);
-
-void *spu_get_profile_private_kref(struct spu_context *ctx)
-{
-	return ctx->prof_priv_kref;
-}
-EXPORT_SYMBOL_GPL(spu_get_profile_private_kref);
-
-

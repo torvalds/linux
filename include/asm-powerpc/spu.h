@@ -246,6 +246,7 @@ struct spufs_calls {
 						__u32 __user *ustatus);
 	int (*coredump_extra_notes_size)(void);
 	int (*coredump_extra_notes_write)(struct file *file, loff_t *foffset);
+	void (*notify_spus_active)(void);
 	struct module *owner;
 };
 
@@ -297,6 +298,9 @@ void spu_remove_sysdev_attr_group(struct attribute_group *attrs);
 struct notifier_block;
 int spu_switch_event_register(struct notifier_block * n);
 int spu_switch_event_unregister(struct notifier_block * n);
+
+extern void notify_spus_active(void);
+extern void do_notify_spus_active(void);
 
 /*
  * This defines the Local Store, Problem Area and Privlege Area of an SPU.

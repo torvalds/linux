@@ -88,3 +88,8 @@ config CBE_CPUFREQ_PMI
 	  but also at lower core voltage.
 
 endmenu
+
+config OPROFILE_CELL
+	def_bool y
+	depends on PPC_CELL_NATIVE && (OPROFILE = m || OPROFILE = y)
+
