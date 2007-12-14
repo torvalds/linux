@@ -51,9 +51,6 @@
 #include <linux/seq_file.h>
 #include "udp_impl.h"
 
-DEFINE_SNMP_STAT(struct udp_mib, udp_stats_in6) __read_mostly;
-EXPORT_SYMBOL(udp_stats_in6);
-
 static inline int udp_v6_get_port(struct sock *sk, unsigned short snum)
 {
 	return udp_get_port(sk, snum, ipv6_rcv_saddr_equal);
