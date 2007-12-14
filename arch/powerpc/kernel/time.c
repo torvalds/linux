@@ -327,7 +327,7 @@ void calculate_steal_time(void)
 
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
-	pme = &per_cpu(cpu_purr_data, smp_processor_id());
+	pme = &__get_cpu_var(cpu_purr_data);
 	if (!pme->initialized)
 		return;		/* this can happen in early boot */
 	tb = mftb();
@@ -352,7 +352,7 @@ static void snapshot_purr(void)
 	if (!cpu_has_feature(CPU_FTR_PURR))
 		return;
 	local_irq_save(flags);
-	pme = &per_cpu(cpu_purr_data, smp_processor_id());
+	pme = &__get_cpu_var(cpu_purr_data);
 	pme->tb = mftb();
 	pme->purr = mfspr(SPRN_PURR);
 	pme->initialized = 1;
