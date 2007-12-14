@@ -868,7 +868,7 @@ config KEXEC
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX )
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
 
 menu "CPU Frequency scaling"
 
@@ -903,6 +903,12 @@ config CPU_FREQ_IMX
 	  This enables the CPUfreq driver for i.MX CPUs.
 
 	  If in doubt, say N.
+
+config CPU_FREQ_PXA
+	bool
+	depends on CPU_FREQ && ARCH_PXA && PXA25x
+	default y
+	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
 endmenu
 
