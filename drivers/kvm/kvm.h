@@ -25,7 +25,6 @@
 #include "x86.h"
 
 #define KVM_MAX_VCPUS 4
-#define KVM_ALIAS_SLOTS 4
 #define KVM_MEMORY_SLOTS 8
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
@@ -94,12 +93,6 @@ struct kvm_vcpu {
 	struct kvm_vcpu_arch arch;
 };
 
-struct kvm_mem_alias {
-	gfn_t base_gfn;
-	unsigned long npages;
-	gfn_t target_gfn;
-};
-
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
@@ -123,8 +116,6 @@ struct kvm_vm_stat {
 struct kvm {
 	struct mutex lock; /* protects everything except vcpus */
 	struct mm_struct *mm; /* userspace tied to this vm */
-	int naliases;
-	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
 	int nmemslots;
 	struct kvm_memory_slot memslots[KVM_MEMORY_SLOTS +
 					KVM_PRIVATE_MEM_SLOTS];
@@ -147,6 +138,7 @@ struct kvm {
 	unsigned int tss_addr;
 	struct page *apic_access_page;
 	struct kvm_vm_stat stat;
+	struct kvm_arch arch;
 };
 
 /* The guest did something we don't support. */

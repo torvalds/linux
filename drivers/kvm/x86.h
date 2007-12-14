@@ -54,6 +54,8 @@
 
 #define IOPL_SHIFT 12
 
+#define KVM_ALIAS_SLOTS 4
+
 #define KVM_PERMILLE_MMU_PAGES 20
 #define KVM_MIN_ALLOC_MMU_PAGES 64
 #define KVM_NUM_MMU_PAGES 1024
@@ -253,6 +255,17 @@ struct kvm_vcpu_arch {
 	/* emulate context */
 
 	struct x86_emulate_ctxt emulate_ctxt;
+};
+
+struct kvm_mem_alias {
+	gfn_t base_gfn;
+	unsigned long npages;
+	gfn_t target_gfn;
+};
+
+struct kvm_arch{
+	int naliases;
+	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
 };
 
 struct kvm_vcpu_stat {

@@ -1191,8 +1191,8 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 	int i;
 	struct kvm_mem_alias *alias;
 
-	for (i = 0; i < kvm->naliases; ++i) {
-		alias = &kvm->aliases[i];
+	for (i = 0; i < kvm->arch.naliases; ++i) {
+		alias = &kvm->arch.aliases[i];
 		if (gfn >= alias->base_gfn
 		    && gfn < alias->base_gfn + alias->npages)
 			return alias->target_gfn + gfn - alias->base_gfn;
@@ -1228,15 +1228,15 @@ static int kvm_vm_ioctl_set_memory_alias(struct kvm *kvm,
 
 	mutex_lock(&kvm->lock);
 
-	p = &kvm->aliases[alias->slot];
+	p = &kvm->arch.aliases[alias->slot];
 	p->base_gfn = alias->guest_phys_addr >> PAGE_SHIFT;
 	p->npages = alias->memory_size >> PAGE_SHIFT;
 	p->target_gfn = alias->target_phys_addr >> PAGE_SHIFT;
 
 	for (n = KVM_ALIAS_SLOTS; n > 0; --n)
-		if (kvm->aliases[n - 1].npages)
+		if (kvm->arch.aliases[n - 1].npages)
 			break;
-	kvm->naliases = n;
+	kvm->arch.naliases = n;
 
 	kvm_mmu_zap_all(kvm);
 
