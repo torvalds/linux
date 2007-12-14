@@ -117,7 +117,6 @@ static struct clock_event_device decrementer_clockevent = {
 };
 
 static DEFINE_PER_CPU(struct clock_event_device, decrementers);
-void init_decrementer_clockevent(void);
 static DEFINE_PER_CPU(u64, decrementer_next_tb);
 
 #ifdef CONFIG_PPC_ISERIES
@@ -836,7 +835,7 @@ static void register_decrementer_clockevent(int cpu)
 	clockevents_register_device(dec);
 }
 
-void init_decrementer_clockevent(void)
+static void __init init_decrementer_clockevent(void)
 {
 	int cpu = smp_processor_id();
 
