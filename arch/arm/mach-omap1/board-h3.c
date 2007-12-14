@@ -388,18 +388,18 @@ static struct omap_mcbsp_reg_cfg mcbsp_regs = {
 	.srgr2 = GSYNC | CLKSP | FSGM | FPER(31),
 
 	.pcr0  = CLKRM | SCLKME | FSXP | FSRP | CLKXP | CLKRP,
-	//.pcr0 = CLKXP | CLKRP,        /* mcbsp: slave */
+	/*.pcr0 = CLKXP | CLKRP,*/        /* mcbsp: slave */
 };
 
 static struct omap_alsa_codec_config alsa_config = {
 	.name                   = "H3 TSC2101",
 	.mcbsp_regs_alsa        = &mcbsp_regs,
-	.codec_configure_dev    = NULL, // tsc2101_configure,
-	.codec_set_samplerate   = NULL, // tsc2101_set_samplerate,
-	.codec_clock_setup      = NULL, // tsc2101_clock_setup,
-	.codec_clock_on         = NULL, // tsc2101_clock_on,
-	.codec_clock_off        = NULL, // tsc2101_clock_off,
-	.get_default_samplerate = NULL, // tsc2101_get_default_samplerate,
+	.codec_configure_dev    = NULL, /* tsc2101_configure, */
+	.codec_set_samplerate   = NULL, /* tsc2101_set_samplerate, */
+	.codec_clock_setup      = NULL, /* tsc2101_clock_setup, */
+	.codec_clock_on         = NULL, /* tsc2101_clock_on, */
+	.codec_clock_off        = NULL, /* tsc2101_clock_off, */
+	.get_default_samplerate = NULL, /* tsc2101_get_default_samplerate, */
 };
 
 static struct platform_device h3_mcbsp1_device = {

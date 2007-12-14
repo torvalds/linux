@@ -82,7 +82,7 @@ static void mistral_setled(void)
 		red = 1;
 	else if (hw_led_state & IDLE_LED)
 		green = 1;
-	// else both sides are disabled
+	/* else both sides are disabled */
 
 	omap_set_gpio_dataout(GPIO_LED_GREEN, green);
 	omap_set_gpio_dataout(GPIO_LED_RED, red);
@@ -112,7 +112,7 @@ void osk_leds_event(led_event_t evt)
 	case led_stop:
 		led_state &= ~LED_STATE_ENABLED;
 		hw_led_state = 0;
-		// NOTE:  work may still be pending!!
+		/* NOTE:  work may still be pending!! */
 		break;
 
 	case led_claim:

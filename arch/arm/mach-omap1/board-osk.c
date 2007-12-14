@@ -160,12 +160,12 @@ static struct omap_mcbsp_reg_cfg mcbsp_regs = {
 static struct omap_alsa_codec_config alsa_config = {
 	.name			= "OSK AIC23",
 	.mcbsp_regs_alsa	= &mcbsp_regs,
-	.codec_configure_dev	= NULL, // aic23_configure,
-	.codec_set_samplerate	= NULL, // aic23_set_samplerate,
-	.codec_clock_setup	= NULL, // aic23_clock_setup,
-	.codec_clock_on		= NULL, // aic23_clock_on,
-	.codec_clock_off	= NULL, // aic23_clock_off,
-	.get_default_samplerate	= NULL, // aic23_get_default_samplerate,
+	.codec_configure_dev	= NULL, /* aic23_configure, */
+	.codec_set_samplerate	= NULL, /* aic23_set_samplerate, */
+	.codec_clock_setup	= NULL, /* aic23_clock_setup, */
+	.codec_clock_on		= NULL, /* aic23_clock_on, */
+	.codec_clock_off	= NULL, /* aic23_clock_off, */
+	.get_default_samplerate	= NULL, /* aic23_get_default_samplerate, */
 };
 
 static struct platform_device osk5912_mcbsp1_device = {
@@ -392,7 +392,7 @@ static void __init osk_mistral_init(void)
 	omap_cfg_reg(W13_1610_CCP_CLKM);
 	omap_cfg_reg(Y12_1610_CCP_CLKP);
 	/* CCP_DATAM CONFLICTS WITH UART1.TX (and serial console) */
-	// omap_cfg_reg(Y14_1610_CCP_DATAM);
+	/* omap_cfg_reg(Y14_1610_CCP_DATAM); */
 	omap_cfg_reg(W14_1610_CCP_DATAP);
 
 	/* CAM_PWDN */
@@ -404,8 +404,8 @@ static void __init osk_mistral_init(void)
 		pr_debug("OSK+Mistral: CAM_PWDN is awol\n");
 
 
-	// omap_cfg_reg(P19_1610_GPIO6);	// BUSY
-	omap_cfg_reg(P20_1610_GPIO4);	// PENIRQ
+	/* omap_cfg_reg(P19_1610_GPIO6); */	/* BUSY */
+	omap_cfg_reg(P20_1610_GPIO4);	/* PENIRQ */
 	set_irq_type(OMAP_GPIO_IRQ(4), IRQT_FALLING);
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));

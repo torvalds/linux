@@ -135,21 +135,21 @@ static void __init ams_delta_init_irq(void)
 }
 
 static struct map_desc ams_delta_io_desc[] __initdata = {
-	// AMS_DELTA_LATCH1
+	/* AMS_DELTA_LATCH1 */
 	{
 		.virtual	= AMS_DELTA_LATCH1_VIRT,
 		.pfn		= __phys_to_pfn(AMS_DELTA_LATCH1_PHYS),
 		.length		= 0x01000000,
 		.type		= MT_DEVICE
 	},
-	// AMS_DELTA_LATCH2
+	/* AMS_DELTA_LATCH2 */
 	{
 		.virtual	= AMS_DELTA_LATCH2_VIRT,
 		.pfn		= __phys_to_pfn(AMS_DELTA_LATCH2_PHYS),
 		.length		= 0x01000000,
 		.type		= MT_DEVICE
 	},
-	// AMS_DELTA_MODEM
+	/* AMS_DELTA_MODEM */
 	{
 		.virtual	= AMS_DELTA_MODEM_VIRT,
 		.pfn		= __phys_to_pfn(AMS_DELTA_MODEM_PHYS),

@@ -309,18 +309,18 @@ static struct omap_mcbsp_reg_cfg mcbsp_regs = {
 	.srgr2 = GSYNC | CLKSP | FSGM | FPER(31),
 
 	.pcr0  = CLKXM | CLKRM | FSXP | FSRP | CLKXP | CLKRP,
-	//.pcr0 = CLKXP | CLKRP,        /* mcbsp: slave */
+	/*.pcr0 = CLKXP | CLKRP,*/        /* mcbsp: slave */
 };
 
 static struct omap_alsa_codec_config alsa_config = {
 	.name                   = "H2 TSC2101",
 	.mcbsp_regs_alsa        = &mcbsp_regs,
-	.codec_configure_dev    = NULL, // tsc2101_configure,
-	.codec_set_samplerate   = NULL, // tsc2101_set_samplerate,
-	.codec_clock_setup      = NULL, // tsc2101_clock_setup,
-	.codec_clock_on         = NULL, // tsc2101_clock_on,
-	.codec_clock_off        = NULL, // tsc2101_clock_off,
-	.get_default_samplerate = NULL, // tsc2101_get_default_samplerate,
+	.codec_configure_dev    = NULL, /* tsc2101_configure, */
+	.codec_set_samplerate   = NULL, /* tsc2101_set_samplerate, */
+	.codec_clock_setup      = NULL, /* tsc2101_clock_setup, */
+	.codec_clock_on         = NULL, /* tsc2101_clock_on, */
+	.codec_clock_off        = NULL, /* tsc2101_clock_off, */
+	.get_default_samplerate = NULL, /* tsc2101_get_default_samplerate, */
 };
 
 static struct platform_device h2_mcbsp1_device = {
@@ -378,11 +378,11 @@ static struct omap_usb_config h2_usb_config __initdata = {
 	.otg		= 2,
 
 #ifdef	CONFIG_USB_GADGET_OMAP
-	.hmc_mode	= 19,	// 0:host(off) 1:dev|otg 2:disabled
-	// .hmc_mode	= 21,	// 0:host(off) 1:dev(loopback) 2:host(loopback)
+	.hmc_mode	= 19,	/* 0:host(off) 1:dev|otg 2:disabled */
+	/* .hmc_mode	= 21,*/	/* 0:host(off) 1:dev(loopback) 2:host(loopback) */
 #elif	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	/* needs OTG cable, or NONSTANDARD (B-to-MiniB) */
-	.hmc_mode	= 20,	// 1:dev|otg(off) 1:host 2:disabled
+	.hmc_mode	= 20,	/* 1:dev|otg(off) 1:host 2:disabled */
 #endif
 
 	.pins[1]	= 3,
@@ -443,7 +443,7 @@ static void __init h2_init(void)
 	omap_cfg_reg(M8_1610_FLASH_CS2B_WE);
 
 	/* MMC:  card detect and WP */
-	// omap_cfg_reg(U19_ARMIO1);		/* CD */
+	/* omap_cfg_reg(U19_ARMIO1); */		/* CD */
 	omap_cfg_reg(BALLOUT_V8_ARMIO3);	/* WP */
 
 	/* Irda */
