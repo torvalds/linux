@@ -1266,6 +1266,10 @@ void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int
 		__set_bit(code, dev->ffbit);
 		break;
 
+	case EV_PWR:
+		/* do nothing */
+		break;
+
 	default:
 		printk(KERN_ERR
 			"input_set_capability: unknown type %u (code %u)\n",
