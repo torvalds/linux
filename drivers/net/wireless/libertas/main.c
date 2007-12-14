@@ -662,8 +662,10 @@ static int lbs_thread(void *data)
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_lock_irq(&priv->driver_lock);
 
-		if (priv->surpriseremoved)
+		if (kthread_should_stop())
 			shouldsleep = 0;	/* Bye */
+		else if (priv->surpriseremoved)
+			shouldsleep = 1;	/* We need to wait until we're _told_ to die */
 		else if (priv->psstate == PS_STATE_SLEEP)
 			shouldsleep = 1;	/* Sleep mode. Nothing we can do till it wakes */
 		else if (priv->intcounter)
@@ -699,12 +701,15 @@ static int lbs_thread(void *data)
 		lbs_deb_thread("main-thread 333: intcounter=%d currenttxskb=%p dnld_sent=%d\n",
 			       priv->intcounter, priv->currenttxskb, priv->dnld_sent);
 
-		if (kthread_should_stop() || priv->surpriseremoved) {
-			lbs_deb_thread("main-thread: break from main thread: surpriseremoved=0x%x\n",
-				       priv->surpriseremoved);
+		if (kthread_should_stop()) {
+			lbs_deb_thread("main-thread: break from main thread\n");
 			break;
 		}
 
+		if (priv->surpriseremoved) {
+			lbs_deb_thread("adapter removed; waiting to die...\n");
+			continue;
+		}
 
 		spin_lock_irq(&priv->driver_lock);
 
