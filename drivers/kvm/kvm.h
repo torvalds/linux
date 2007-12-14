@@ -87,40 +87,31 @@ struct kvm_io_device *kvm_io_bus_find_dev(struct kvm_io_bus *bus, gpa_t addr);
 void kvm_io_bus_register_dev(struct kvm_io_bus *bus,
 			     struct kvm_io_device *dev);
 
-#ifdef CONFIG_HAS_IOMEM
-#define KVM_VCPU_MMIO 			\
-	int mmio_needed;		\
-	int mmio_read_completed;	\
-	int mmio_is_write;		\
-	int mmio_size;			\
-	unsigned char mmio_data[8];	\
-	gpa_t mmio_phys_addr;
-
-#else
-#define KVM_VCPU_MMIO
-
-#endif
-
-#define KVM_VCPU_COMM 					\
-	struct kvm *kvm; 				\
-	struct preempt_notifier preempt_notifier;	\
-	int vcpu_id;					\
-	struct mutex mutex;				\
-	int   cpu;					\
-	struct kvm_run *run;				\
-	int guest_mode;					\
-	unsigned long requests;				\
-	struct kvm_guest_debug guest_debug;		\
-	int fpu_active; 				\
-	int guest_fpu_loaded;				\
-	wait_queue_head_t wq;				\
-	int sigset_active;				\
-	sigset_t sigset;				\
-	struct kvm_vcpu_stat stat;			\
-	KVM_VCPU_MMIO
-
 struct kvm_vcpu {
-	KVM_VCPU_COMM;
+	struct kvm *kvm;
+	struct preempt_notifier preempt_notifier;
+	int vcpu_id;
+	struct mutex mutex;
+	int   cpu;
+	struct kvm_run *run;
+	int guest_mode;
+	unsigned long requests;
+	struct kvm_guest_debug guest_debug;
+	int fpu_active;
+	int guest_fpu_loaded;
+	wait_queue_head_t wq;
+	int sigset_active;
+	sigset_t sigset;
+	struct kvm_vcpu_stat stat;
+
+#ifdef CONFIG_HAS_IOMEM
+	int mmio_needed;
+	int mmio_read_completed;
+	int mmio_is_write;
+	int mmio_size;
+	unsigned char mmio_data[8];
+	gpa_t mmio_phys_addr;
+#endif
 
 	struct kvm_vcpu_arch arch;
 };
