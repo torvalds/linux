@@ -7210,17 +7210,13 @@ static void ata_port_detach(struct ata_port *ap)
 
 	ata_port_wait_eh(ap);
 
-	/* EH is now guaranteed to see UNLOADING, so no new device
-	 * will be attached.  Disable all existing devices.
+	/* EH is now guaranteed to see UNLOADING - EH context belongs
+	 * to us.  Disable all existing devices.
 	 */
-	spin_lock_irqsave(ap->lock, flags);
-
 	ata_port_for_each_link(link, ap) {
 		ata_link_for_each_dev(dev, link)
 			ata_dev_disable(dev);
 	}
-
-	spin_unlock_irqrestore(ap->lock, flags);
 
 	/* Final freeze & EH.  All in-flight commands are aborted.  EH
 	 * will be skipped and retrials will be terminated with bad
