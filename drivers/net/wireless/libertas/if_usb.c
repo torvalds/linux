@@ -106,6 +106,7 @@ static void if_usb_set_boot2_ver(struct lbs_private *priv)
 {
 	struct cmd_ds_set_boot2_ver b2_cmd;
 
+	b2_cmd.hdr.size = cpu_to_le16(sizeof(b2_cmd));
 	b2_cmd.action = 0;
 	b2_cmd.version = priv->boot2_version;
 

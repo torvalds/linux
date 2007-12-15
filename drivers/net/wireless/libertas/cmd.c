@@ -115,6 +115,7 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria)
 	struct cmd_ds_host_sleep cmd_config;
 	int ret;
 
+	cmd_config.hdr.size = cpu_to_le16(sizeof(cmd_config));
 	cmd_config.criteria = cpu_to_le32(criteria);
 	cmd_config.gpio = priv->wol_gpio;
 	cmd_config.gap = priv->wol_gap;
@@ -1101,7 +1102,7 @@ int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
 	lbs_deb_enter_args(LBS_DEB_CMD, "action %d", cmd_action);
 
 	cmd->hdr.command = cpu_to_le16(CMD_MESH_ACCESS);
-	cmd->hdr.size = cpu_to_le16(sizeof(struct cmd_ds_mesh_access) + S_DS_GEN);
+	cmd->hdr.size = cpu_to_le16(sizeof(*cmd));
 	cmd->hdr.result = 0;
 
 	cmd->action = cpu_to_le16(cmd_action);
@@ -1121,6 +1122,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan)
 	cmd.action = cpu_to_le16(enable);
 	cmd.channel = cpu_to_le16(chan);
 	cmd.type = cpu_to_le16(priv->mesh_tlv);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
 	if (enable) {
 		cmd.length = cpu_to_le16(priv->mesh_ssid_len);

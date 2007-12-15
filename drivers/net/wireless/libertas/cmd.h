@@ -9,6 +9,10 @@
 #define lbs_cmd(priv, cmdnr, cmd, cb, cb_arg)	\
 	__lbs_cmd(priv, cmdnr, &(cmd)->hdr, sizeof(*(cmd)), cb, cb_arg)
 
+
+/* lbs_cmd_with_response() infers the size of the command to be _sent_
+   and requires that the caller sets cmd->size to the (LE) size of
+   the _response_ buffer. */
 #define lbs_cmd_with_response(priv, cmdnr, cmd)	\
 	lbs_cmd(priv, cmdnr, cmd, lbs_cmd_copyback, (unsigned long) (cmd))
 
