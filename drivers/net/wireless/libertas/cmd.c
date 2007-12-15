@@ -17,7 +17,7 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode);
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
 static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 		    struct cmd_ctrl_node *ptempnode,
-		    u16 wait_option, void *pdata_buf);
+		    void *pdata_buf);
 
 
 /**
@@ -1392,7 +1392,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		goto done;
 	}
 
-	lbs_set_cmd_ctrl_node(priv, cmdnode, wait_option, pdata_buf);
+	lbs_set_cmd_ctrl_node(priv, cmdnode, pdata_buf);
 
 	cmdptr = (struct cmd_ds_command *)cmdnode->cmdbuf;
 
@@ -1554,7 +1554,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_INACTIVITY_TIMEOUT:
 		ret = lbs_cmd_802_11_inactivity_timeout(priv, cmdptr,
 							 cmd_action, pdata_buf);
-		lbs_set_cmd_ctrl_node(priv, cmdnode, 0, pdata_buf);
+		lbs_set_cmd_ctrl_node(priv, cmdnode, pdata_buf);
 		break;
 
 	case CMD_802_11_TPC_CFG:
@@ -1800,7 +1800,6 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *cmdnode)
 		return;
 	cmdnode->cmdwaitqwoken = 1;
 	wake_up_interruptible(&cmdnode->cmdwait_q);
-	cmdnode->wait_option = 0;
 	cmdnode->pdata_buf = NULL;
 	cmdnode->callback = NULL;
 	cmdnode->callback_arg = 0;
@@ -1816,20 +1815,18 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *cmdnode)
  *
  *  @param priv		A pointer to struct lbs_private structure
  *  @param ptempnode	A pointer to cmd_ctrl_node structure
- *  @param wait_option	wait option: wait response or not
  *  @param pdata_buf	A pointer to informaion buffer
  *  @return 		0 or -1
  */
 static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 				  struct cmd_ctrl_node *ptempnode,
-				  u16 wait_option, void *pdata_buf)
+				  void *pdata_buf)
 {
 	lbs_deb_enter(LBS_DEB_HOST);
 
 	if (!ptempnode)
 		return;
 
-	ptempnode->wait_option = wait_option;
 	ptempnode->pdata_buf = pdata_buf;
 	ptempnode->callback = NULL;
 	ptempnode->callback_arg = 0;
@@ -2213,7 +2210,6 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 		goto done;
 	}
 
-	cmdnode->wait_option = CMD_OPTION_WAITFORRSP;
 	cmdnode->callback = callback;
 	cmdnode->callback_arg = callback_arg;
 
