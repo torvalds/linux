@@ -1310,7 +1310,8 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	cmd->cmdwaitqwoken = 1;
 	wake_up_interruptible(&cmd->cmdwait_q);
 
-	__lbs_cleanup_and_insert_cmd(priv, cmd);
+	if (!cmd->callback)
+		__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
 }
 
@@ -2219,6 +2220,7 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 		priv->cur_cmd_retcode = 0;
 		ret = -1;
 	}
+	__lbs_cleanup_and_insert_cmd(priv, cmdnode);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 done:
