@@ -2139,42 +2139,18 @@ int lbs_cmd_copyback(struct lbs_private *priv, unsigned long extra,
 }
 EXPORT_SYMBOL_GPL(lbs_cmd_copyback);
 
-/**
- *  @brief Simple way to call firmware functions
- *
- *  @param priv    	A pointer to struct lbs_private structure
- *  @param psmode  	one of the many CMD_802_11_xxxx
- *  @param cmd          pointer to the parameters structure for above command
- *                      (this should not include the command, size, sequence
- *                      and result fields from struct cmd_ds_gen)
- *  @param cmd_size     size structure pointed to by cmd
- *  @param rsp          pointer to an area where the result should be placed
- *  @param rsp_size     pointer to the size of the rsp area. If the firmware
- *                      returns fewer bytes, then this *rsp_size will be
- *                      changed to the actual size.
- *  @return 	   	-1 in case of a higher level error, otherwise
- *                      the result code from the firmware
- */
-int __lbs_cmd(struct lbs_private *priv, uint16_t command,
-	      struct cmd_header *in_cmd, int in_cmd_size,
-	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
-	      unsigned long callback_arg)
+struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command,
+				      struct cmd_header *in_cmd, int in_cmd_size,
+				      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
+				      unsigned long callback_arg)
 {
 	struct cmd_ctrl_node *cmdnode;
-	unsigned long flags;
-	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!priv) {
-		lbs_deb_host("PREP_CMD: priv is NULL\n");
-		ret = -1;
-		goto done;
-	}
-
 	if (priv->surpriseremoved) {
 		lbs_deb_host("PREP_CMD: card removed\n");
-		ret = -1;
+		cmdnode = ERR_PTR(-ENOENT);
 		goto done;
 	}
 
@@ -2184,7 +2160,7 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 
 		/* Wake up main thread to execute next command */
 		wake_up_interruptible(&priv->waitq);
-		ret = -1;
+		cmdnode = ERR_PTR(-ENOBUFS);
 		goto done;
 	}
 
@@ -2210,6 +2186,29 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	lbs_queue_cmd(priv, cmdnode, 1);
 	wake_up_interruptible(&priv->waitq);
 
+ done:
+	lbs_deb_leave_args(LBS_DEB_HOST, "ret %p", cmdnode);
+	return cmdnode;
+}
+
+int __lbs_cmd(struct lbs_private *priv, uint16_t command,
+	      struct cmd_header *in_cmd, int in_cmd_size,
+	      int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
+	      unsigned long callback_arg)
+{
+	struct cmd_ctrl_node *cmdnode;
+	unsigned long flags;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_HOST);
+
+	cmdnode = __lbs_cmd_async(priv, command, in_cmd, in_cmd_size,
+				  callback, callback_arg);
+	if (IS_ERR(cmdnode)) {
+		ret = PTR_ERR(cmdnode);
+		goto done;
+	}
+
 	might_sleep();
 	wait_event_interruptible(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
 
@@ -2218,6 +2217,7 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	if (ret)
 		lbs_pr_info("PREP_CMD: command 0x%04x failed: %d\n",
 			    command, ret);
+
 	__lbs_cleanup_and_insert_cmd(priv, cmdnode);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
