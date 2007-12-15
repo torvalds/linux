@@ -1230,9 +1230,7 @@ static int lbs_submit_command(struct lbs_private *priv,
 	if (ret) {
 		lbs_pr_info("DNLD_CMD: hw_host_to_card failed: %d\n", ret);
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		priv->cur_cmd_retcode = ret;
-		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
-		priv->cur_cmd = NULL;
+		lbs_complete_command(priv, priv->cur_cmd, ret);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		goto done;
 	}
@@ -1275,8 +1273,8 @@ static int lbs_cmd_mac_control(struct lbs_private *priv,
  *  This function inserts command node to cmdfreeq
  *  after cleans it. Requires priv->driver_lock held.
  */
-void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
-	struct cmd_ctrl_node *ptempcmd)
+static void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
+					 struct cmd_ctrl_node *ptempcmd)
 {
 
 	if (!ptempcmd)
@@ -1294,6 +1292,15 @@ static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	__lbs_cleanup_and_insert_cmd(priv, ptempcmd);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
+}
+
+void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			  int result)
+{
+	if (cmd == priv->cur_cmd)
+		priv->cur_cmd_retcode = result;
+	__lbs_cleanup_and_insert_cmd(priv, cmd);
+	priv->cur_cmd = NULL;
 }
 
 int lbs_set_radio_control(struct lbs_private *priv)
@@ -1901,7 +1908,9 @@ int lbs_execute_next_command(struct lbs_private *priv)
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore ENTER_PS cmd\n");
 					list_del(&cmdnode->list);
-					lbs_cleanup_and_insert_cmd(priv, cmdnode);
+					spin_lock_irqsave(&priv->driver_lock, flags);
+					lbs_complete_command(priv, cmdnode, 0);
+					spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 					ret = 0;
 					goto done;
@@ -1912,7 +1921,9 @@ int lbs_execute_next_command(struct lbs_private *priv)
 					lbs_deb_host(
 					       "EXEC_NEXT_CMD: ignore EXIT_PS cmd in sleep\n");
 					list_del(&cmdnode->list);
-					lbs_cleanup_and_insert_cmd(priv, cmdnode);
+					spin_lock_irqsave(&priv->driver_lock, flags);
+					lbs_complete_command(priv, cmdnode, 0);
+					spin_unlock_irqrestore(&priv->driver_lock, flags);
 					priv->needtowakeup = 1;
 
 					ret = 0;

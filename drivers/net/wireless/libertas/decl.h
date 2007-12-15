@@ -45,9 +45,8 @@ void lbs_get_fwversion(struct lbs_private *priv,
 
 /** The proc fs interface */
 int lbs_process_rx_command(struct lbs_private *priv);
-void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
-	struct cmd_ctrl_node *ptempcmd);
-
+void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
+			  int result);
 int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int lbs_set_regiontable(struct lbs_private *priv, u8 region, u8 band);
 

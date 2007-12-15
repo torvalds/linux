@@ -717,8 +717,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 			lbs_deb_host("CMD_RESP: PS action 0x%X\n", action);
 		}
 
-		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
-		priv->cur_cmd = NULL;
+		lbs_complete_command(priv, priv->cur_cmd, result);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		ret = 0;
@@ -739,9 +738,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 			break;
 
 		}
-
-		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
-		priv->cur_cmd = NULL;
+		lbs_complete_command(priv, priv->cur_cmd, result);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 		ret = -1;
@@ -760,8 +757,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 
 	if (priv->cur_cmd) {
 		/* Clean up and Put current command back to cmdfreeq */
-		__lbs_cleanup_and_insert_cmd(priv, priv->cur_cmd);
-		priv->cur_cmd = NULL;
+		lbs_complete_command(priv, priv->cur_cmd, result);
 	}
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
