@@ -1122,7 +1122,7 @@ int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan)
 	cmd.action = cpu_to_le16(enable);
 	cmd.channel = cpu_to_le16(chan);
 	cmd.type = cpu_to_le16(priv->mesh_tlv);
-	
+
 	if (enable) {
 		cmd.length = cpu_to_le16(priv->mesh_ssid_len);
 		memcpy(cmd.data, priv->mesh_ssid, priv->mesh_ssid_len);

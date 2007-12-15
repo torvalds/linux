@@ -255,7 +255,7 @@ static int lbs_add_rtap(struct lbs_private *priv);
 static void lbs_remove_rtap(struct lbs_private *priv);
 static int lbs_add_mesh(struct lbs_private *priv);
 static void lbs_remove_mesh(struct lbs_private *priv);
-  
+
 
 /**
  * Get function for sysfs attribute rtap
@@ -347,7 +347,7 @@ static ssize_t lbs_mesh_set(struct device *dev,
 	ret = lbs_mesh_config(priv, enable, priv->curbssparams.channel);
 	if (ret)
 		return ret;
-		
+
 	if (enable)
 		lbs_add_mesh(priv);
 	else
@@ -401,7 +401,7 @@ static int lbs_dev_open(struct net_device *dev)
 		netif_carrier_on(dev);
 	} else {
 		priv->infra_open = 1;
-		
+
 		if (priv->connect_status == LBS_CONNECTED)
 			netif_carrier_on(dev);
 		else
@@ -433,7 +433,7 @@ static int lbs_mesh_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
-	
+
 	spin_unlock_irq(&priv->driver_lock);
 	return 0;
 }
@@ -453,7 +453,7 @@ static int lbs_eth_stop(struct net_device *dev)
 	priv->infra_open = 0;
 
 	netif_stop_queue(dev);
-	
+
 	spin_unlock_irq(&priv->driver_lock);
 	return 0;
 }
@@ -850,7 +850,7 @@ int lbs_suspend(struct lbs_private *priv)
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
-	
+
 	ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_ACTIVATE, &cmd,
 			sizeof(cmd), lbs_suspend_callback, 0);
 	if (ret)
@@ -1180,7 +1180,7 @@ int lbs_start_card(struct lbs_private *priv)
 	/* Enable mesh, if supported, and work out which TLV it uses.
 	   0x100 + 291 is an unofficial value used in 5.110.20.pXX
 	   0x100 + 37 is the official value used in 5.110.21.pXX
-	   but we check them in that order because 20.pXX doesn't 
+	   but we check them in that order because 20.pXX doesn't
 	   give an error -- it just silently fails. */
 
 	/* 5.110.20.pXX firmware will fail the command if the channel

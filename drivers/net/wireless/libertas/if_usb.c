@@ -152,7 +152,7 @@ static int if_usb_probe(struct usb_interface *intf,
 
 	setup_timer(&cardp->fw_timeout, if_usb_fw_timeo, (unsigned long)cardp);
 	init_waitqueue_head(&cardp->fw_wq);
-								     
+
 	cardp->udev = udev;
 	iface_desc = intf->cur_altsetting;
 
@@ -871,7 +871,7 @@ restart:
 
 	/* ... and wait for the process to complete */
 	wait_event_interruptible(cardp->fw_wq, cardp->surprise_removed || cardp->fwdnldover);
-	
+
 	del_timer_sync(&cardp->fw_timeout);
 	usb_kill_urb(cardp->rx_urb);
 

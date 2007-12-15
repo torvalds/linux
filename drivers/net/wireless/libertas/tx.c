@@ -93,8 +93,8 @@ int lbs_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(priv->mesh_dev);
 
 	if (priv->tx_pending_len) {
-		/* This can happen if packets come in on the mesh and eth 
-		   device simultaneously -- there's no mutual exclusion on 
+		/* This can happen if packets come in on the mesh and eth
+		   device simultaneously -- there's no mutual exclusion on
 		   hard_start_xmit() calls between devices. */
 		lbs_deb_tx("Packet on %s while busy\n", dev->name);
 		ret = NETDEV_TX_BUSY;

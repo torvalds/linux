@@ -296,7 +296,7 @@ static ssize_t lbs_setuserscan(struct file *file,
 
 	if (!buf)
 		return -ENOMEM;
-		
+
 	buf_size = min(count, len - 1);
 	if (copy_from_user(buf, userbuf, buf_size)) {
 		res = -EFAULT;

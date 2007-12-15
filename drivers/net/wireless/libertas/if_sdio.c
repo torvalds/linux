@@ -19,7 +19,7 @@
  * current block size.
  *
  * As SDIO is still new to the kernel, it is unfortunately common with
- * bugs in the host controllers related to that. One such bug is that 
+ * bugs in the host controllers related to that. One such bug is that
  * controllers cannot do transfers that aren't a multiple of 4 bytes.
  * If you don't have time to fix the host controller driver, you can
  * work around the problem by modifying if_sdio_host_to_card() and
