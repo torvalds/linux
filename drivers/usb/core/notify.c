@@ -33,7 +33,7 @@ EXPORT_SYMBOL_GPL(usb_register_notify);
  * usb_unregister_notify - unregister a notifier callback
  * @nb: pointer to the notifier block for the callback events.
  *
- * usb_register_notifier() must have been previously called for this function
+ * usb_register_notify() must have been previously called for this function
  * to work properly.
  */
 void usb_unregister_notify(struct notifier_block *nb)
