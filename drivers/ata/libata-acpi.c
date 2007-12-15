@@ -94,6 +94,9 @@ static void ata_acpi_associate_ide_port(struct ata_port *ap)
 
 		dev->acpi_handle = acpi_get_child(ap->acpi_handle, i);
 	}
+
+	if (ata_acpi_gtm(ap, &ap->__acpi_init_gtm) == 0)
+		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
 }
 
 static void ata_acpi_handle_hotplug(struct ata_port *ap, struct kobject *kobj,
@@ -199,7 +202,18 @@ void ata_acpi_associate(struct ata_host *host)
  */
 void ata_acpi_dissociate(struct ata_host *host)
 {
-	/* nada */
+	int i;
+
+	/* Restore initial _GTM values so that driver which attaches
+	 * afterward can use them too.
+	 */
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+		const struct ata_acpi_gtm *gtm = ata_acpi_init_gtm(ap);
+
+		if (ap->acpi_handle && gtm)
+			ata_acpi_stm(ap, gtm);
+	}
 }
 
 /**
@@ -409,22 +423,21 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 
 int ata_acpi_cbl_80wire(struct ata_port *ap)
 {
-	struct ata_acpi_gtm gtm;
+	const struct ata_acpi_gtm *gtm = ata_acpi_init_gtm(ap);
 	int valid = 0;
 
-	/* No _GTM data, no information */
-	if (ata_acpi_gtm(ap, &gtm) < 0)
+	if (!gtm)
 		return 0;
 
 	/* Split timing, DMA enabled */
-	if ((gtm.flags & 0x11) == 0x11 && gtm.drive[0].dma < 55)
+	if ((gtm->flags & 0x11) == 0x11 && gtm->drive[0].dma < 55)
 		valid |= 1;
-	if ((gtm.flags & 0x14) == 0x14 && gtm.drive[1].dma < 55)
+	if ((gtm->flags & 0x14) == 0x14 && gtm->drive[1].dma < 55)
 		valid |= 2;
 	/* Shared timing, DMA enabled */
-	if ((gtm.flags & 0x11) == 0x01 && gtm.drive[0].dma < 55)
+	if ((gtm->flags & 0x11) == 0x01 && gtm->drive[0].dma < 55)
 		valid |= 1;
-	if ((gtm.flags & 0x14) == 0x04 && gtm.drive[0].dma < 55)
+	if ((gtm->flags & 0x14) == 0x04 && gtm->drive[0].dma < 55)
 		valid |= 2;
 
 	/* Drive check */
@@ -612,27 +625,8 @@ static int ata_acpi_push_id(struct ata_device *dev)
  */
 int ata_acpi_on_suspend(struct ata_port *ap)
 {
-	unsigned long flags;
-	int rc;
-
-	/* proceed iff per-port acpi_handle is valid */
-	if (!ap->acpi_handle)
-		return 0;
-	BUG_ON(ap->flags & ATA_FLAG_ACPI_SATA);
-
-	/* store timing parameters */
-	rc = ata_acpi_gtm(ap, &ap->acpi_gtm);
-
-	spin_lock_irqsave(ap->lock, flags);
-	if (rc == 0)
-		ap->pflags |= ATA_PFLAG_GTM_VALID;
-	else
-		ap->pflags &= ~ATA_PFLAG_GTM_VALID;
-	spin_unlock_irqrestore(ap->lock, flags);
-
-	if (rc == -ENOENT)
-		rc = 0;
-	return rc;
+	/* nada */
+	return 0;
 }
 
 /**
@@ -647,14 +641,12 @@ int ata_acpi_on_suspend(struct ata_port *ap)
  */
 void ata_acpi_on_resume(struct ata_port *ap)
 {
+	const struct ata_acpi_gtm *gtm = ata_acpi_init_gtm(ap);
 	struct ata_device *dev;
 
-	if (ap->acpi_handle && (ap->pflags & ATA_PFLAG_GTM_VALID)) {
-		BUG_ON(ap->flags & ATA_FLAG_ACPI_SATA);
-
-		/* restore timing parameters */
-		ata_acpi_stm(ap, &ap->acpi_gtm);
-	}
+	/* restore timing parameters */
+	if (ap->acpi_handle && gtm)
+		ata_acpi_stm(ap, gtm);
 
 	/* schedule _GTF */
 	ata_link_for_each_dev(dev, &ap->link)
