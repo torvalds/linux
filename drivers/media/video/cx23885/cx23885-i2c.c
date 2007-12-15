@@ -37,8 +37,10 @@ static unsigned int i2c_scan = 0;
 module_param(i2c_scan, int, 0444);
 MODULE_PARM_DESC(i2c_scan, "scan i2c bus at insmod time");
 
-#define dprintk(level,fmt, arg...)	if (i2c_debug >= level) \
-	printk(KERN_DEBUG "%s: " fmt, dev->name , ## arg)
+#define dprintk(level, fmt, arg...)	do { \
+	if (i2c_debug >= level) \
+		printk(KERN_DEBUG "%s: " fmt, dev->name , ## arg); \
+	} while (0)
 
 #define I2C_WAIT_DELAY 32
 #define I2C_WAIT_RETRY 64
@@ -77,14 +79,18 @@ static int i2c_wait_done(struct i2c_adapter *i2c_adap)
 }
 
 static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
-			 const struct i2c_msg *msg, int last)
+			 const struct i2c_msg *msg, int joined_rlen)
 {
 	struct cx23885_i2c *bus = i2c_adap->algo_data;
 	struct cx23885_dev *dev = bus->dev;
 	u32 wdata, addr, ctrl;
 	int retval, cnt;
 
-	dprintk(1, "%s(msg->len=%d, last=%d)\n", __FUNCTION__, msg->len, last);
+	if (joined_rlen)
+		dprintk(1, "%s(msg->wlen=%d, nextmsg->rlen=%d)\n", __FUNCTION__,
+			msg->len, joined_rlen);
+	else
+		dprintk(1, "%s(msg->len=%d)\n", __FUNCTION__, msg->len);
 
 	/* Deal with i2c probe functions with zero payload */
 	if (msg->len == 0) {
@@ -107,6 +113,8 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 	if (msg->len > 1)
 		ctrl |= I2C_NOSTOP | I2C_EXTEND;
+	else if (joined_rlen)
+		ctrl |= I2C_NOSTOP;
 
 	cx_write(bus->reg_addr, addr);
 	cx_write(bus->reg_wdata, wdata);
@@ -130,6 +138,8 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 
 		if (cnt < msg->len - 1)
 			ctrl |= I2C_NOSTOP | I2C_EXTEND;
+		else if (joined_rlen)
+			ctrl |= I2C_NOSTOP;
 
 		cx_write(bus->reg_addr, addr);
 		cx_write(bus->reg_wdata, wdata);
@@ -151,19 +161,22 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
  eio:
 	retval = -EIO;
  err:
-	printk(" ERR: %d\n", retval);
+	if (i2c_debug)
+		printk(" ERR: %d\n", retval);
 	return retval;
 }
 
 static int i2c_readbytes(struct i2c_adapter *i2c_adap,
-			 const struct i2c_msg *msg, int last)
+			 const struct i2c_msg *msg, int joined)
 {
 	struct cx23885_i2c *bus = i2c_adap->algo_data;
 	struct cx23885_dev *dev = bus->dev;
 	u32 ctrl, cnt;
 	int retval;
 
-	dprintk(1, "%s(msg->len=%d, last=%d)\n", __FUNCTION__, msg->len, last);
+
+	if (i2c_debug && !joined)
+		dprintk(1, "%s(msg->len=%d)\n", __FUNCTION__, msg->len);
 
 	/* Deal with i2c probe functions with zero payload */
 	if (msg->len == 0) {
@@ -179,8 +192,12 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		return 0;
 	}
 
-	if (i2c_debug)
-		printk(" <R %02x", (msg->addr << 1) + 1);
+	if (i2c_debug) {
+		if (joined)
+			printk(" R");
+		else
+			printk(" <R %02x", (msg->addr << 1) + 1);
+	}
 
 	for(cnt = 0; cnt < msg->len; cnt++) {
 
@@ -209,7 +226,8 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
  eio:
 	retval = -EIO;
  err:
-	printk(" ERR: %d\n", retval);
+	if (i2c_debug)
+		printk(" ERR: %d\n", retval);
 	return retval;
 }
 
@@ -227,15 +245,22 @@ static int i2c_xfer(struct i2c_adapter *i2c_adap,
 			__FUNCTION__, num, msgs[i].addr, msgs[i].len);
 		if (msgs[i].flags & I2C_M_RD) {
 			/* read */
-			retval = i2c_readbytes(i2c_adap, &msgs[i], i+1 == num);
+			retval = i2c_readbytes(i2c_adap, &msgs[i], 0);
+		} else if (i + 1 < num && (msgs[i + 1].flags & I2C_M_RD) &&
+			   msgs[i].addr == msgs[i + 1].addr) {
+			/* write then read from same address */
+			retval = i2c_sendbytes(i2c_adap, &msgs[i],
+					       msgs[i + 1].len);
 			if (retval < 0)
 				goto err;
+			i++;
+			retval = i2c_readbytes(i2c_adap, &msgs[i], 1);
 		} else {
 			/* write */
-			retval = i2c_sendbytes(i2c_adap, &msgs[i], i+1 == num);
-			if (retval < 0)
-				goto err;
+			retval = i2c_sendbytes(i2c_adap, &msgs[i], 0);
 		}
+		if (retval < 0)
+			goto err;
 	}
 	return num;
 
