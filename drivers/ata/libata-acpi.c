@@ -188,6 +188,21 @@ void ata_acpi_associate(struct ata_host *host)
 }
 
 /**
+ * ata_acpi_dissociate - dissociate ATA host from ACPI objects
+ * @host: target ATA host
+ *
+ * This function is called during driver detach after the whole host
+ * is shut down.
+ *
+ * LOCKING:
+ * EH context.
+ */
+void ata_acpi_dissociate(struct ata_host *host)
+{
+	/* nada */
+}
+
+/**
  * ata_acpi_gtm - execute _GTM
  * @ap: target ATA port
  * @gtm: out parameter for _GTM result
@@ -715,4 +730,17 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
 	}
 	dev->flags |= ATA_DFLAG_ACPI_FAILED;
 	return rc;
+}
+
+/**
+ * ata_acpi_on_disable - ATA ACPI hook called when a device is disabled
+ * @dev: target ATA device
+ *
+ * This function is called when @dev is about to be disabled.
+ *
+ * LOCKING:
+ * EH context.
+ */
+void ata_acpi_on_disable(struct ata_device *dev)
+{
 }
