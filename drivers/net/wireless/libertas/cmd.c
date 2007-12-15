@@ -1761,9 +1761,6 @@ static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	if (tempnode)
-		cleanup_cmdnode(tempnode);
-
 	lbs_deb_leave(LBS_DEB_HOST);
 	return tempnode;
 }
