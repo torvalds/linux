@@ -41,6 +41,12 @@ static int is_pci_dev(struct device *dev)
 	return (dev->bus == &pci_bus_type);
 }
 
+static void ata_acpi_clear_gtf(struct ata_device *dev)
+{
+	kfree(dev->gtf_cache);
+	dev->gtf_cache = NULL;
+}
+
 /**
  * ata_acpi_associate_sata_port - associate SATA port with ACPI objects
  * @ap: target SATA port
@@ -327,7 +333,6 @@ EXPORT_SYMBOL_GPL(ata_acpi_stm);
  * ata_dev_get_GTF - get the drive bootup default taskfile settings
  * @dev: target ATA device
  * @gtf: output parameter for buffer containing _GTF taskfile arrays
- * @ptr_to_free: pointer which should be freed
  *
  * This applies to both PATA and SATA drives.
  *
@@ -344,14 +349,19 @@ EXPORT_SYMBOL_GPL(ata_acpi_stm);
  * Number of taskfiles on success, 0 if _GTF doesn't exist or doesn't
  * contain valid data.
  */
-static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
-			   void **ptr_to_free)
+static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf)
 {
 	struct ata_port *ap = dev->link->ap;
 	acpi_status status;
 	struct acpi_buffer output;
 	union acpi_object *out_obj;
 	int rc = 0;
+
+	/* if _GTF is cached, use the cached value */
+	if (dev->gtf_cache) {
+		out_obj = dev->gtf_cache;
+		goto done;
+	}
 
 	/* set up output buffer */
 	output.length = ACPI_ALLOCATE_BUFFER;
@@ -363,6 +373,7 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 
 	/* _GTF has no input parameters */
 	status = acpi_evaluate_object(dev->acpi_handle, "_GTF", NULL, &output);
+	out_obj = dev->gtf_cache = output.pointer;
 
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND) {
@@ -383,7 +394,6 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 		goto out_free;
 	}
 
-	out_obj = output.pointer;
 	if (out_obj->type != ACPI_TYPE_BUFFER) {
 		ata_dev_printk(dev, KERN_WARNING,
 			       "_GTF unexpected object type 0x%x\n",
@@ -398,18 +408,19 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf,
 		goto out_free;
 	}
 
-	*ptr_to_free = out_obj;
-	*gtf = (void *)out_obj->buffer.pointer;
+ done:
 	rc = out_obj->buffer.length / REGS_PER_GTF;
-
-	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "%s: returning "
-			"gtf=%p, gtf_count=%d, ptr_to_free=%p\n",
-			__FUNCTION__, *gtf, rc, *ptr_to_free);
+	if (gtf) {
+		*gtf = (void *)out_obj->buffer.pointer;
+		if (ata_msg_probe(ap))
+			ata_dev_printk(dev, KERN_DEBUG,
+				       "%s: returning gtf=%p, gtf_count=%d\n",
+				       __FUNCTION__, *gtf, rc);
+	}
 	return rc;
 
  out_free:
-	kfree(output.pointer);
+	ata_acpi_clear_gtf(dev);
 	return rc;
 }
 
@@ -533,11 +544,10 @@ static int taskfile_load_raw(struct ata_device *dev,
 static int ata_acpi_exec_tfs(struct ata_device *dev)
 {
 	struct ata_acpi_gtf *gtf = NULL;
-	void *ptr_to_free = NULL;
 	int gtf_count, i, rc;
 
 	/* get taskfiles */
-	gtf_count = ata_dev_get_GTF(dev, &gtf, &ptr_to_free);
+	gtf_count = ata_dev_get_GTF(dev, &gtf);
 
 	/* execute them */
 	for (i = 0, rc = 0; i < gtf_count; i++) {
@@ -551,7 +561,7 @@ static int ata_acpi_exec_tfs(struct ata_device *dev)
 			rc = tmp;
 	}
 
-	kfree(ptr_to_free);
+	ata_acpi_clear_gtf(dev);
 
 	if (rc == 0)
 		return gtf_count;
@@ -644,13 +654,31 @@ void ata_acpi_on_resume(struct ata_port *ap)
 	const struct ata_acpi_gtm *gtm = ata_acpi_init_gtm(ap);
 	struct ata_device *dev;
 
-	/* restore timing parameters */
-	if (ap->acpi_handle && gtm)
+	if (ap->acpi_handle && gtm) {
+		/* _GTM valid */
+
+		/* restore timing parameters */
 		ata_acpi_stm(ap, gtm);
 
-	/* schedule _GTF */
-	ata_link_for_each_dev(dev, &ap->link)
-		dev->flags |= ATA_DFLAG_ACPI_PENDING;
+		/* _GTF should immediately follow _STM so that it can
+		 * use values set by _STM.  Cache _GTF result and
+		 * schedule _GTF.
+		 */
+		ata_link_for_each_dev(dev, &ap->link) {
+			ata_acpi_clear_gtf(dev);
+			if (ata_dev_get_GTF(dev, NULL) >= 0)
+				dev->flags |= ATA_DFLAG_ACPI_PENDING;
+		}
+	} else {
+		/* SATA _GTF needs to be evaulated after _SDD and
+		 * there's no reason to evaluate IDE _GTF early
+		 * without _STM.  Clear cache and schedule _GTF.
+		 */
+		ata_link_for_each_dev(dev, &ap->link) {
+			ata_acpi_clear_gtf(dev);
+			dev->flags |= ATA_DFLAG_ACPI_PENDING;
+		}
+	}
 }
 
 /**
@@ -735,4 +763,5 @@ int ata_acpi_on_devcfg(struct ata_device *dev)
  */
 void ata_acpi_on_disable(struct ata_device *dev)
 {
+	ata_acpi_clear_gtf(dev);
 }
