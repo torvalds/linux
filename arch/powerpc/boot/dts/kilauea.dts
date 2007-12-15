@@ -284,8 +284,8 @@
 			/* Inbound 2GB range starting at 0 */
 			dma-ranges = <42000000 0 0 0 0 80000000>;
 
-			/* This drives busses 0x00 to 0x0f */
-			bus-range = <00 0f>;
+			/* This drives busses 0x00 to 0x3f */
+			bus-range = <00 3f>;
 
 			/* Legacy interrupts (note the weird polarity, the bridge seems
 			 * to invert PCIe legacy interrupts).
@@ -325,8 +325,8 @@
 			/* Inbound 2GB range starting at 0 */
 			dma-ranges = <42000000 0 0 0 0 80000000>;
 
-			/* This drives busses 0x10 to 0x1f */
-			bus-range = <10 1f>;
+			/* This drives busses 0x40 to 0x7f */
+			bus-range = <40 7f>;
 
 			/* Legacy interrupts (note the weird polarity, the bridge seems
 			 * to invert PCIe legacy interrupts).
