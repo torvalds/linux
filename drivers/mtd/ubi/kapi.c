@@ -46,7 +46,7 @@ int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 	di->leb_size = ubi->leb_size;
 	di->min_io_size = ubi->min_io_size;
 	di->ro_mode = ubi->ro_mode;
-	di->cdev = MKDEV(ubi->major, 0);
+	di->cdev = ubi->cdev.dev;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ubi_get_device_info);
@@ -73,7 +73,7 @@ void ubi_get_volume_info(struct ubi_volume_desc *desc,
 	vi->usable_leb_size = vol->usable_leb_size;
 	vi->name_len = vol->name_len;
 	vi->name = vol->name;
-	vi->cdev = MKDEV(ubi->major, vi->vol_id + 1);
+	vi->cdev = vol->cdev.dev;
 }
 EXPORT_SYMBOL_GPL(ubi_get_volume_info);
 

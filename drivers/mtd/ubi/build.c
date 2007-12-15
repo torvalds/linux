@@ -150,7 +150,7 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
 	int err;
 
 	ubi->dev.release = dev_release;
-	ubi->dev.devt = MKDEV(ubi->major, 0);
+	ubi->dev.devt = ubi->cdev.dev;
 	ubi->dev.class = ubi_class;
 	sprintf(&ubi->dev.bus_id[0], UBI_NAME_STR"%d", ubi->ubi_num);
 	err = device_register(&ubi->dev);
@@ -278,12 +278,11 @@ static int uif_init(struct ubi_device *ubi)
 		return err;
 	}
 
+	ubi_assert(MINOR(dev) == 0);
 	cdev_init(&ubi->cdev, &ubi_cdev_operations);
-	ubi->major = MAJOR(dev);
-	dbg_msg("%s major is %u", ubi->ubi_name, ubi->major);
+	dbg_msg("%s major is %u", ubi->ubi_name, MAJOR(dev));
 	ubi->cdev.owner = THIS_MODULE;
 
-	dev = MKDEV(ubi->major, 0);
 	err = cdev_add(&ubi->cdev, dev, 1);
 	if (err) {
 		ubi_err("cannot add character device %s", ubi->ubi_name);
@@ -309,8 +308,7 @@ out_volumes:
 out_cdev:
 	cdev_del(&ubi->cdev);
 out_unreg:
-	unregister_chrdev_region(MKDEV(ubi->major, 0),
-				 ubi->vtbl_slots + 1);
+	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
 	return err;
 }
 
@@ -323,7 +321,7 @@ static void uif_close(struct ubi_device *ubi)
 	kill_volumes(ubi);
 	ubi_sysfs_close(ubi);
 	cdev_del(&ubi->cdev);
-	unregister_chrdev_region(MKDEV(ubi->major, 0), ubi->vtbl_slots + 1);
+	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
 }
 
 /**

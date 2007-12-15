@@ -192,6 +192,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	struct ubi_volume *vol;
 	struct ubi_vtbl_record vtbl_rec;
 	uint64_t bytes;
+	dev_t dev;
 
 	if (ubi->ro_mode)
 		return -EROFS;
@@ -301,7 +302,8 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	/* Register character device for the volume */
 	cdev_init(&vol->cdev, &ubi_vol_cdev_operations);
 	vol->cdev.owner = THIS_MODULE;
-	err = cdev_add(&vol->cdev, MKDEV(ubi->major, vol_id + 1), 1);
+	dev = MKDEV(MAJOR(ubi->cdev.dev), vol_id + 1);
+	err = cdev_add(&vol->cdev, dev, 1);
 	if (err) {
 		ubi_err("cannot add character device for volume %d", vol_id);
 		goto out_mapping;
@@ -313,7 +315,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	vol->dev.release = vol_release;
 	vol->dev.parent = &ubi->dev;
-	vol->dev.devt = MKDEV(ubi->major, vol->vol_id + 1);
+	vol->dev.devt = dev;
 	vol->dev.class = ubi_class;
 	sprintf(&vol->dev.bus_id[0], "%s_%d", ubi->ubi_name, vol->vol_id);
 	err = device_register(&vol->dev);
@@ -576,6 +578,7 @@ out_free:
 int ubi_add_volume(struct ubi_device *ubi, int vol_id)
 {
 	int err;
+	dev_t dev;
 	struct ubi_volume *vol = ubi->volumes[vol_id];
 
 	dbg_msg("add volume %d", vol_id);
@@ -585,7 +588,8 @@ int ubi_add_volume(struct ubi_device *ubi, int vol_id)
 	/* Register character device for the volume */
 	cdev_init(&vol->cdev, &ubi_vol_cdev_operations);
 	vol->cdev.owner = THIS_MODULE;
-	err = cdev_add(&vol->cdev, MKDEV(ubi->major, vol->vol_id + 1), 1);
+	dev = MKDEV(MAJOR(ubi->cdev.dev), vol->vol_id + 1);
+	err = cdev_add(&vol->cdev, dev, 1);
 	if (err) {
 		ubi_err("cannot add character device for volume %d", vol_id);
 		return err;
@@ -597,7 +601,7 @@ int ubi_add_volume(struct ubi_device *ubi, int vol_id)
 
 	vol->dev.release = vol_release;
 	vol->dev.parent = &ubi->dev;
-	vol->dev.devt = MKDEV(ubi->major, vol->vol_id + 1);
+	vol->dev.devt = dev;
 	vol->dev.class = ubi_class;
 	sprintf(&vol->dev.bus_id[0], "%s_%d", ubi->ubi_name, vol->vol_id);
 	err = device_register(&vol->dev);

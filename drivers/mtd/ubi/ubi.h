@@ -204,7 +204,6 @@ struct ubi_wl_entry;
  * @cdev: character device object to create character device
  * @ubi_num: UBI device number
  * @ubi_name: UBI device name
- * @major: character device major number
  * @vol_count: number of volumes in this UBI device
  * @volumes: volumes of this UBI device
  * @volumes_lock: protects @volumes, @rsvd_pebs, @avail_pebs, beb_rsvd_pebs,
@@ -287,7 +286,6 @@ struct ubi_device {
 	struct device dev;
 	int ubi_num;
 	char ubi_name[sizeof(UBI_NAME_STR)+5];
-	int major;
 	int vol_count;
 	struct ubi_volume *volumes[UBI_MAX_VOLUMES+UBI_INT_VOL_COUNT];
 	spinlock_t volumes_lock;
