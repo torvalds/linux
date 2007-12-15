@@ -30,6 +30,12 @@ config MACH_DNS323
 	  Say 'Y' here if you want your kernel to support the
 	  D-Link DNS-323 platform.
 
+config MACH_TS209
+	bool "QNAP TS-109/TS-209"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  QNAP TS-109/TS-209 platform.
+
 endmenu
 
 endif
