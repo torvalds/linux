@@ -1173,6 +1173,7 @@ void lbs_queue_cmd(struct lbs_private *priv,
 		lbs_deb_host("DNLD_CMD: cmd size is zero\n");
 		goto done;
 	}
+	cmdnode->result = 0;
 
 	/* Exit_PS command needs to be queued in the header always. */
 	if (le16_to_cpu(cmdnode->cmdbuf->command) == CMD_802_11_PS_MODE) {
@@ -1306,6 +1307,7 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	if (cmd == priv->cur_cmd)
 		priv->cur_cmd_retcode = result;
 
+	cmd->result = result;
 	cmd->cmdwaitqwoken = 1;
 	wake_up_interruptible(&cmd->cmdwait_q);
 
@@ -2212,12 +2214,10 @@ int __lbs_cmd(struct lbs_private *priv, uint16_t command,
 	wait_event_interruptible(cmdnode->cmdwait_q, cmdnode->cmdwaitqwoken);
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	if (priv->cur_cmd_retcode) {
-		lbs_deb_host("PREP_CMD: command failed with return code %d\n",
-		       priv->cur_cmd_retcode);
-		priv->cur_cmd_retcode = 0;
-		ret = -1;
-	}
+	ret = cmdnode->result;
+	if (ret)
+		lbs_pr_info("PREP_CMD: command 0x%04x failed: %d\n",
+			    command, ret);
 	__lbs_cleanup_and_insert_cmd(priv, cmdnode);
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
