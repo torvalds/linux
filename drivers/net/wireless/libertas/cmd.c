@@ -1166,8 +1166,8 @@ void lbs_queue_cmd(struct lbs_private *priv,
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!cmdnode || !cmdnode->cmdbuf) {
-		lbs_deb_host("QUEUE_CMD: cmdnode or cmdbuf is NULL\n");
+	if (!cmdnode) {
+		lbs_deb_host("QUEUE_CMD: cmdnode is NULL\n");
 		goto done;
 	}
 	if (!cmdnode->cmdbuf->size) {
@@ -1195,7 +1195,7 @@ void lbs_queue_cmd(struct lbs_private *priv,
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	lbs_deb_host("QUEUE_CMD: inserted command 0x%04x into cmdpendingq\n",
-	       le16_to_cpu(cmdnode->cmdbuf->command));
+		     le16_to_cpu(cmdnode->cmdbuf->command));
 
 done:
 	lbs_deb_leave(LBS_DEB_HOST);
@@ -1379,13 +1379,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	cmdptr = (struct cmd_ds_command *)cmdnode->cmdbuf;
 
 	lbs_deb_host("PREP_CMD: command 0x%04x\n", cmd_no);
-
-	if (!cmdptr) {
-		lbs_deb_host("PREP_CMD: cmdptr is NULL\n");
-		lbs_cleanup_and_insert_cmd(priv, cmdnode);
-		ret = -1;
-		goto done;
-	}
 
 	/* Set sequence number, command and INT option */
 	priv->seqnum++;
@@ -1786,8 +1779,7 @@ static void cleanup_cmdnode(struct cmd_ctrl_node *cmdnode)
 	cmdnode->callback = NULL;
 	cmdnode->callback_arg = 0;
 
-	if (cmdnode->cmdbuf != NULL)
-		memset(cmdnode->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
+	memset(cmdnode->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }
