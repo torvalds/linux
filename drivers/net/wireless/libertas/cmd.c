@@ -13,7 +13,6 @@
 #include "wext.h"
 #include "cmd.h"
 
-static void cleanup_cmdnode(struct cmd_ctrl_node *ptempnode);
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
 static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 		    struct cmd_ctrl_node *ptempnode,
@@ -1274,14 +1273,22 @@ static int lbs_cmd_mac_control(struct lbs_private *priv,
  *  after cleans it. Requires priv->driver_lock held.
  */
 static void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
-					 struct cmd_ctrl_node *ptempcmd)
+					 struct cmd_ctrl_node *cmdnode)
 {
+	lbs_deb_enter(LBS_DEB_HOST);
 
-	if (!ptempcmd)
-		return;
+	if (!cmdnode)
+		goto out;
 
-	cleanup_cmdnode(ptempcmd);
-	list_add_tail(&ptempcmd->list, &priv->cmdfreeq);
+	cmdnode->pdata_buf = NULL;
+	cmdnode->callback = NULL;
+	cmdnode->callback_arg = 0;
+
+	memset(cmdnode->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
+
+	list_add_tail(&cmdnode->list, &priv->cmdfreeq);
+ out:
+	lbs_deb_leave(LBS_DEB_HOST);
 }
 
 static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
@@ -1299,6 +1306,10 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 {
 	if (cmd == priv->cur_cmd)
 		priv->cur_cmd_retcode = result;
+
+	cmd->cmdwaitqwoken = 1;
+	wake_up_interruptible(&cmd->cmdwait_q);
+
 	__lbs_cleanup_and_insert_cmd(priv, cmd);
 	priv->cur_cmd = NULL;
 }
@@ -1771,22 +1782,6 @@ static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv)
  *  @param ptempnode	A pointer to cmdCtrlNode structure
  *  @return 		n/a
  */
-static void cleanup_cmdnode(struct cmd_ctrl_node *cmdnode)
-{
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	if (!cmdnode)
-		return;
-	cmdnode->cmdwaitqwoken = 1;
-	wake_up_interruptible(&cmdnode->cmdwait_q);
-	cmdnode->pdata_buf = NULL;
-	cmdnode->callback = NULL;
-	cmdnode->callback_arg = 0;
-
-	memset(cmdnode->cmdbuf, 0, LBS_CMD_BUFFER_SIZE);
-
-	lbs_deb_leave(LBS_DEB_HOST);
-}
 
 /**
  *  @brief This function initializes the command node.
