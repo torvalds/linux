@@ -15,6 +15,13 @@
 	compatible = "amcc,kilauea";
 	dcr-parent = <&/cpus/cpu@0>;
 
+	aliases {
+		ethernet0 = &EMAC0;
+		ethernet1 = &EMAC1;
+		serial0 = &UART0;
+		serial1 = &UART1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

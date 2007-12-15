@@ -16,6 +16,12 @@
 	compatible = "ibm,walnut";
 	dcr-parent = <&/cpus/cpu@0>;
 
+	aliases {
+		ethernet0 = &EMAC;
+		serial0 = &UART0;
+		serial1 = &UART1;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

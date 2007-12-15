@@ -19,6 +19,13 @@
 	compatible = "amcc,katmai";
 	dcr-parent = <&/cpus/cpu@0>;
 
+	aliases {
+		ethernet0 = &EMAC0;
+		serial0 = &UART0;
+		serial1 = &UART1;
+		serial2 = &UART2;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

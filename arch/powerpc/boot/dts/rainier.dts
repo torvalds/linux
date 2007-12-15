@@ -19,6 +19,15 @@
 	compatible = "amcc,rainier";
 	dcr-parent = <&/cpus/cpu@0>;
 
+	aliases {
+		ethernet0 = &EMAC0;
+		ethernet1 = &EMAC1;
+		serial0 = &UART0;
+		serial1 = &UART1;
+		serial2 = &UART2;
+		serial3 = &UART3;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -93,7 +102,7 @@
 		#size-cells = <1>;
 		ranges;
 		clock-frequency = <0>; /* Filled in by zImage */
-		
+
 		SDRAM0: sdram {
 			compatible = "ibm,sdram-440grx", "ibm,sdram-44x-ddr2denali";
 			dcr-reg = <010 2>;
