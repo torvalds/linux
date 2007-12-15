@@ -466,7 +466,7 @@ int ata_acpi_cbl_80wire(struct ata_port *ap)
 EXPORT_SYMBOL_GPL(ata_acpi_cbl_80wire);
 
 /**
- * taskfile_load_raw - send taskfile registers to host controller
+ * ata_acpi_run_tf - send taskfile registers to host controller
  * @dev: target ATA device
  * @gtf: raw ATA taskfile register set (0x1f1 - 0x1f7)
  *
@@ -485,14 +485,17 @@ EXPORT_SYMBOL_GPL(ata_acpi_cbl_80wire);
  * EH context.
  *
  * RETURNS:
- * 0 on success, -errno on failure.
+ * 1 if command is executed successfully.  0 if ignored or rejected,
+ * -errno on other errors.
  */
-static int taskfile_load_raw(struct ata_device *dev,
-			      const struct ata_acpi_gtf *gtf)
+static int ata_acpi_run_tf(struct ata_device *dev,
+			   const struct ata_acpi_gtf *gtf)
 {
-	struct ata_port *ap = dev->link->ap;
 	struct ata_taskfile tf, rtf;
 	unsigned int err_mask;
+	const char *level;
+	char msg[60];
+	int rc;
 
 	if ((gtf->tf[0] == 0) && (gtf->tf[1] == 0) && (gtf->tf[2] == 0)
 	    && (gtf->tf[3] == 0) && (gtf->tf[4] == 0) && (gtf->tf[5] == 0)
@@ -512,24 +515,39 @@ static int taskfile_load_raw(struct ata_device *dev,
 	tf.device  = gtf->tf[5];	/* 0x1f6 */
 	tf.command = gtf->tf[6];	/* 0x1f7 */
 
-	if (ata_msg_probe(ap))
-		ata_dev_printk(dev, KERN_DEBUG, "executing ACPI cmd "
-			       "%02x/%02x:%02x:%02x:%02x:%02x:%02x\n",
-			       tf.command, tf.feature, tf.nsect,
-			       tf.lbal, tf.lbam, tf.lbah, tf.device);
-
 	rtf = tf;
 	err_mask = ata_exec_internal(dev, &rtf, NULL, DMA_NONE, NULL, 0, 0);
-	if (err_mask) {
-		ata_dev_printk(dev, KERN_ERR,
-			"ACPI cmd %02x/%02x:%02x:%02x:%02x:%02x:%02x failed "
-			"(Emask=0x%x Stat=0x%02x Err=0x%02x)\n",
-			tf.command, tf.feature, tf.nsect, tf.lbal, tf.lbam,
-			tf.lbah, tf.device, err_mask, rtf.command, rtf.feature);
-		return -EIO;
+
+	switch (err_mask) {
+	case 0:
+		level = KERN_DEBUG;
+		snprintf(msg, sizeof(msg), "succeeded");
+		rc = 1;
+		break;
+
+	case AC_ERR_DEV:
+		level = KERN_INFO;
+		snprintf(msg, sizeof(msg),
+			 "rejected by device (Stat=0x%02x Err=0x%02x)",
+			 rtf.command, rtf.feature);
+		rc = 0;
+		break;
+
+	default:
+		level = KERN_ERR;
+		snprintf(msg, sizeof(msg),
+			 "failed (Emask=0x%x Stat=0x%02x Err=0x%02x)",
+			 err_mask, rtf.command, rtf.feature);
+		rc = -EIO;
+		break;
 	}
 
-	return 0;
+	ata_dev_printk(dev, level,
+		       "ACPI cmd %02x/%02x:%02x:%02x:%02x:%02x:%02x %s\n",
+		       tf.command, tf.feature, tf.nsect, tf.lbal,
+		       tf.lbam, tf.lbah, tf.device, msg);
+
+	return rc;
 }
 
 /**
@@ -558,22 +576,19 @@ static int ata_acpi_exec_tfs(struct ata_device *dev, int *nr_executed)
 	gtf_count = rc;
 
 	/* execute them */
-	for (i = 0, rc = 0; i < gtf_count; i++) {
-		int tmp;
-
-		/* ACPI errors are eventually ignored.  Run till the
-		 * end even after errors.
-		 */
-		tmp = taskfile_load_raw(dev, gtf++);
-		if (!rc)
-			rc = tmp;
-
-		(*nr_executed)++;
+	for (i = 0; i < gtf_count; i++) {
+		rc = ata_acpi_run_tf(dev, gtf++);
+		if (rc < 0)
+			break;
+		if (rc)
+			(*nr_executed)++;
 	}
 
 	ata_acpi_clear_gtf(dev);
 
-	return rc;
+	if (rc < 0)
+		return rc;
+	return 0;
 }
 
 /**
