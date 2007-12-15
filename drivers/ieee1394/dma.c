@@ -231,28 +231,20 @@ void dma_region_sync_for_device(struct dma_region *dma, unsigned long offset,
 
 #ifdef CONFIG_MMU
 
-/* fault() handler for mmap access */
-
 static int dma_region_pagefault(struct vm_area_struct *vma,
-					struct vm_fault *vmf)
+				struct vm_fault *vmf)
 {
-	unsigned long kernel_virt_addr;
-
 	struct dma_region *dma = (struct dma_region *)vma->vm_private_data;
 
 	if (!dma->kvirt)
-		goto error;
+		return VM_FAULT_SIGBUS;
 
 	if (vmf->pgoff >= dma->n_pages)
-		goto error;
+		return VM_FAULT_SIGBUS;
 
-	kernel_virt_addr = (unsigned long)dma->kvirt + (vmf->pgoff << PAGE_SHIFT);
-	vmf->page = vmalloc_to_page((void *)kernel_virt_addr);
+	vmf->page = vmalloc_to_page(dma->kvirt + (vmf->pgoff << PAGE_SHIFT));
 	get_page(vmf->page);
 	return 0;
-
-      error:
-	return VM_FAULT_SIGBUS;
 }
 
 static struct vm_operations_struct dma_region_vm_ops = {
