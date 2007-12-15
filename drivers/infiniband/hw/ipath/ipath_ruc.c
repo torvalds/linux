@@ -98,11 +98,15 @@ void ipath_insert_rnr_queue(struct ipath_qp *qp)
 		while (qp->s_rnr_timeout >= nqp->s_rnr_timeout) {
 			qp->s_rnr_timeout -= nqp->s_rnr_timeout;
 			l = l->next;
-			if (l->next == &dev->rnrwait)
+			if (l->next == &dev->rnrwait) {
+				nqp = NULL;
 				break;
+			}
 			nqp = list_entry(l->next, struct ipath_qp,
 					 timerwait);
 		}
+		if (nqp)
+			nqp->s_rnr_timeout -= qp->s_rnr_timeout;
 		list_add(&qp->timerwait, l);
 	}
 	spin_unlock_irqrestore(&dev->pending_lock, flags);
