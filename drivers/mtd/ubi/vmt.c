@@ -71,7 +71,6 @@ static ssize_t vol_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	int ret = -ENODEV;
-
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
 
 	spin_lock(&vol->ubi->volumes_lock);
@@ -79,6 +78,7 @@ static ssize_t vol_attribute_show(struct device *dev,
 		spin_unlock(&vol->ubi->volumes_lock);
 		return ret;
 	}
+
 	if (attr == &attr_vol_reserved_ebs)
 		ret = sprintf(buf, "%d\n", vol->reserved_pebs);
 	else if (attr == &attr_vol_type) {
@@ -95,9 +95,9 @@ static ssize_t vol_attribute_show(struct device *dev,
 		ret = sprintf(buf, "%d\n", vol->corrupted);
 	else if (attr == &attr_vol_alignment)
 		ret = sprintf(buf, "%d\n", vol->alignment);
-	else if (attr == &attr_vol_usable_eb_size) {
+	else if (attr == &attr_vol_usable_eb_size)
 		ret = sprintf(buf, "%d\n", vol->usable_leb_size);
-	} else if (attr == &attr_vol_data_bytes)
+	else if (attr == &attr_vol_data_bytes)
 		ret = sprintf(buf, "%lld\n", vol->used_bytes);
 	else if (attr == &attr_vol_upd_marker)
 		ret = sprintf(buf, "%d\n", vol->upd_marker);
@@ -111,6 +111,7 @@ static ssize_t vol_attribute_show(struct device *dev,
 static void vol_release(struct device *dev)
 {
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
+
 	ubi_assert(vol->removed);
 	kfree(vol);
 }
