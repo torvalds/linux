@@ -1280,7 +1280,6 @@ static void __lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 	if (!cmdnode)
 		goto out;
 
-	cmdnode->pdata_buf = NULL;
 	cmdnode->callback = NULL;
 	cmdnode->callback_arg = 0;
 
@@ -1801,9 +1800,8 @@ static void lbs_set_cmd_ctrl_node(struct lbs_private *priv,
 	if (!ptempnode)
 		return;
 
-	ptempnode->pdata_buf = pdata_buf;
 	ptempnode->callback = NULL;
-	ptempnode->callback_arg = 0;
+	ptempnode->callback_arg = (unsigned long)pdata_buf;
 
 	lbs_deb_leave(LBS_DEB_HOST);
 }

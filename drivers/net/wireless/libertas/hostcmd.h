@@ -75,7 +75,6 @@ struct cmd_header {
 struct cmd_ctrl_node {
 	struct list_head list;
 	/* command response */
-	void *pdata_buf;
 	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *);
 	unsigned long callback_arg;
 	/* command data */

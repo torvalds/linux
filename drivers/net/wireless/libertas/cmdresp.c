@@ -399,13 +399,13 @@ static int lbs_ret_802_11_enable_rsn(struct lbs_private *priv,
                                           struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11_enable_rsn *enable_rsn = &resp->params.enbrsn;
-	u32 * pdata_buf = priv->cur_cmd->pdata_buf;
+	uint32_t * pdata_buf = (uint32_t *)priv->cur_cmd->callback_arg;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	if (enable_rsn->action == cpu_to_le16(CMD_ACT_GET)) {
 		if (pdata_buf)
-			*pdata_buf = (u32) le16_to_cpu(enable_rsn->enable);
+			*pdata_buf = (uint32_t) le16_to_cpu(enable_rsn->enable);
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -435,7 +435,7 @@ static int lbs_ret_802_11_subscribe_event(struct lbs_private *priv,
 	struct cmd_ds_802_11_subscribe_event *cmd_event =
 		&resp->params.subscribe_event;
 	struct cmd_ds_802_11_subscribe_event *dst_event =
-		priv->cur_cmd->pdata_buf;
+		(void *)priv->cur_cmd->callback_arg;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -505,7 +505,7 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_802_11_SET_AFC):
 	case CMD_RET(CMD_802_11_GET_AFC):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove(priv->cur_cmd->pdata_buf, &resp->params.afc,
+		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.afc,
 			sizeof(struct cmd_ds_802_11_afc));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
@@ -557,20 +557,20 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		break;
 	case CMD_RET(CMD_802_11_INACTIVITY_TIMEOUT):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		*((u16 *) priv->cur_cmd->pdata_buf) =
+		*((uint16_t *) priv->cur_cmd->callback_arg) =
 		    le16_to_cpu(resp->params.inactivity_timeout.timeout);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 
 	case CMD_RET(CMD_802_11_TPC_CFG):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove(priv->cur_cmd->pdata_buf, &resp->params.tpccfg,
+		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.tpccfg,
 			sizeof(struct cmd_ds_802_11_tpc_cfg));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_802_11_LED_GPIO_CTRL):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove(priv->cur_cmd->pdata_buf, &resp->params.ledgpio,
+		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.ledgpio,
 			sizeof(struct cmd_ds_802_11_led_ctrl));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
@@ -580,7 +580,7 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_PWR_CFG):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		memmove(priv->cur_cmd->pdata_buf, &resp->params.pwrcfg,
+		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.pwrcfg,
 			sizeof(struct cmd_ds_802_11_pwr_cfg));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 
@@ -588,21 +588,21 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_GET_TSF):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		memcpy(priv->cur_cmd->pdata_buf,
+		memcpy((void *)priv->cur_cmd->callback_arg,
 		       &resp->params.gettsf.tsfvalue, sizeof(u64));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_BT_ACCESS):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (priv->cur_cmd->pdata_buf)
-			memcpy(priv->cur_cmd->pdata_buf,
+		if (priv->cur_cmd->callback_arg)
+			memcpy((void *)priv->cur_cmd->callback_arg,
 			       &resp->params.bt.addr1, 2 * ETH_ALEN);
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
 	case CMD_RET(CMD_FWT_ACCESS):
 		spin_lock_irqsave(&priv->driver_lock, flags);
-		if (priv->cur_cmd->pdata_buf)
-			memcpy(priv->cur_cmd->pdata_buf, &resp->params.fwt,
+		if (priv->cur_cmd->callback_arg)
+			memcpy((void *)priv->cur_cmd->callback_arg, &resp->params.fwt,
 			       sizeof(resp->params.fwt));
 		spin_unlock_irqrestore(&priv->driver_lock, flags);
 		break;
