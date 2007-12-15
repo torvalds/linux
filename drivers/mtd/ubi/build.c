@@ -211,7 +211,8 @@ out_eraseblock_size:
 out_unregister:
 	device_unregister(&ubi->dev);
 out:
-	ubi_err("failed to initialize sysfs for %s", ubi->ubi_name);
+	ubi_err("failed to initialize sysfs for %s, error %d",
+		ubi->ubi_name, err);
 	return err;
 }
 
@@ -285,7 +286,7 @@ static int uif_init(struct ubi_device *ubi)
 
 	err = cdev_add(&ubi->cdev, dev, 1);
 	if (err) {
-		ubi_err("cannot add character device %s", ubi->ubi_name);
+		ubi_err("cannot add character device");
 		goto out_unreg;
 	}
 
@@ -296,8 +297,10 @@ static int uif_init(struct ubi_device *ubi)
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		if (ubi->volumes[i]) {
 			err = ubi_add_volume(ubi, i);
-			if (err)
+			if (err) {
+				ubi_err("cannot add volume %d", i);
 				goto out_volumes;
+			}
 		}
 
 	return 0;
@@ -309,6 +312,7 @@ out_cdev:
 	cdev_del(&ubi->cdev);
 out_unreg:
 	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
+	ubi_err("cannot initialize UBI %s, error %d", ubi->ubi_name, err);
 	return err;
 }
 
@@ -422,7 +426,8 @@ static int io_init(struct ubi_device *ubi)
 
 	/* Make sure minimal I/O unit is power of 2 */
 	if (!is_power_of_2(ubi->min_io_size)) {
-		ubi_err("bad min. I/O unit");
+		ubi_err("min. I/O unit (%d) is not power of 2",
+			ubi->min_io_size);
 		return -EINVAL;
 	}
 

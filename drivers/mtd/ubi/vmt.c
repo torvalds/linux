@@ -305,7 +305,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	dev = MKDEV(MAJOR(ubi->cdev.dev), vol_id + 1);
 	err = cdev_add(&vol->cdev, dev, 1);
 	if (err) {
-		ubi_err("cannot add character device for volume %d", vol_id);
+		ubi_err("cannot add character device");
 		goto out_mapping;
 	}
 
@@ -319,8 +319,10 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	vol->dev.class = ubi_class;
 	sprintf(&vol->dev.bus_id[0], "%s_%d", ubi->ubi_name, vol->vol_id);
 	err = device_register(&vol->dev);
-	if (err)
+	if (err) {
+		ubi_err("cannot register device");
 		goto out_gluebi;
+	}
 
 	err = volume_sysfs_init(ubi, vol);
 	if (err)
@@ -364,6 +366,7 @@ out_acc:
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
 	kfree(vol);
+	ubi_err("cannot create volume %d, error %d", vol_id, err);
 	return err;
 
 	/*
@@ -380,6 +383,7 @@ out_sysfs:
 	ubi->volumes[vol_id] = NULL;
 	spin_unlock(&ubi->volumes_lock);
 	volume_sysfs_close(vol);
+	ubi_err("cannot create volume %d, error %d", vol_id, err);
 	return err;
 }
 
@@ -591,7 +595,8 @@ int ubi_add_volume(struct ubi_device *ubi, int vol_id)
 	dev = MKDEV(MAJOR(ubi->cdev.dev), vol->vol_id + 1);
 	err = cdev_add(&vol->cdev, dev, 1);
 	if (err) {
-		ubi_err("cannot add character device for volume %d", vol_id);
+		ubi_err("cannot add character device for volume %d, error %d",
+			vol_id, err);
 		return err;
 	}
 

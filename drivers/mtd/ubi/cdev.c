@@ -377,7 +377,8 @@ static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
 
 	err = ubi_more_update_data(ubi, vol->vol_id, buf, count);
 	if (err < 0) {
-		ubi_err("cannot write %zd bytes of update data", count);
+		ubi_err("cannot write %zd bytes of update data, error %d",
+			count, err);
 		return err;
 	}
 
