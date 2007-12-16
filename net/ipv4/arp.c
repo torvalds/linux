@@ -952,7 +952,7 @@ out_of_mem:
  *	Set (create) an ARP cache entry.
  */
 
-static int arp_req_set_proxy(struct net_device *dev, int on)
+static int arp_req_set_proxy(struct net *net, struct net_device *dev, int on)
 {
 	if (dev == NULL) {
 		IPV4_DEVCONF_ALL(PROXY_ARP) = on;
@@ -965,7 +965,8 @@ static int arp_req_set_proxy(struct net_device *dev, int on)
 	return -ENXIO;
 }
 
-static int arp_req_set_public(struct arpreq *r, struct net_device *dev)
+static int arp_req_set_public(struct net *net, struct arpreq *r,
+		struct net_device *dev)
 {
 	__be32 ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	__be32 mask = ((struct sockaddr_in *)&r->arp_netmask)->sin_addr.s_addr;
@@ -984,17 +985,18 @@ static int arp_req_set_public(struct arpreq *r, struct net_device *dev)
 		return 0;
 	}
 
-	return arp_req_set_proxy(dev, 1);
+	return arp_req_set_proxy(net, dev, 1);
 }
 
-static int arp_req_set(struct arpreq *r, struct net_device * dev)
+static int arp_req_set(struct net *net, struct arpreq *r,
+		struct net_device * dev)
 {
 	__be32 ip;
 	struct neighbour *neigh;
 	int err;
 
 	if (r->arp_flags & ATF_PUBL)
-		return arp_req_set_public(r, dev);
+		return arp_req_set_public(net, r, dev);
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (r->arp_flags & ATF_PERM)
@@ -1080,7 +1082,8 @@ static int arp_req_get(struct arpreq *r, struct net_device *dev)
 	return err;
 }
 
-static int arp_req_delete_public(struct arpreq *r, struct net_device *dev)
+static int arp_req_delete_public(struct net *net, struct arpreq *r,
+		struct net_device *dev)
 {
 	__be32 ip = ((struct sockaddr_in *) &r->arp_pa)->sin_addr.s_addr;
 	__be32 mask = ((struct sockaddr_in *)&r->arp_netmask)->sin_addr.s_addr;
@@ -1091,17 +1094,18 @@ static int arp_req_delete_public(struct arpreq *r, struct net_device *dev)
 	if (mask)
 		return -EINVAL;
 
-	return arp_req_set_proxy(dev, 0);
+	return arp_req_set_proxy(net, dev, 0);
 }
 
-static int arp_req_delete(struct arpreq *r, struct net_device * dev)
+static int arp_req_delete(struct net *net, struct arpreq *r,
+		struct net_device * dev)
 {
 	int err;
 	__be32 ip;
 	struct neighbour *neigh;
 
 	if (r->arp_flags & ATF_PUBL)
-		return arp_req_delete_public(r, dev);
+		return arp_req_delete_public(net, r, dev);
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (dev == NULL) {
@@ -1131,7 +1135,7 @@ static int arp_req_delete(struct arpreq *r, struct net_device * dev)
  *	Handle an ARP layer I/O control request.
  */
 
-int arp_ioctl(unsigned int cmd, void __user *arg)
+int arp_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 {
 	int err;
 	struct arpreq r;
@@ -1179,10 +1183,10 @@ int arp_ioctl(unsigned int cmd, void __user *arg)
 
 	switch (cmd) {
 	case SIOCDARP:
-		err = arp_req_delete(&r, dev);
+		err = arp_req_delete(net, &r, dev);
 		break;
 	case SIOCSARP:
-		err = arp_req_set(&r, dev);
+		err = arp_req_set(net, &r, dev);
 		break;
 	case SIOCGARP:
 		err = arp_req_get(&r, dev);
