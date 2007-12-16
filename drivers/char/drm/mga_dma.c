@@ -998,7 +998,7 @@ static int mga_do_cleanup_dma(struct drm_device *dev, int full_cleanup)
 		}
 	}
 
-	return 0;
+	return err;
 }
 
 int mga_dma_init(struct drm_device *dev, void *data,
