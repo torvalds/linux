@@ -154,6 +154,19 @@ static int fe_has_signal(struct dvb_frontend *fe)
 	return strength;
 }
 
+static int fe_set_config(struct dvb_frontend *fe, void *priv_cfg)
+{
+	struct dvb_tuner_ops *fe_tuner_ops = &fe->ops.tuner_ops;
+	struct tuner *t = fe->analog_demod_priv;
+
+	if (fe_tuner_ops->set_config)
+		return fe_tuner_ops->set_config(fe, priv_cfg);
+
+	tuner_warn("Tuner frontend module has no way to set config\n");
+
+	return 0;
+}
+
 static void tuner_status(struct dvb_frontend *fe);
 
 static struct analog_tuner_ops tuner_core_ops = {
@@ -161,6 +174,7 @@ static struct analog_tuner_ops tuner_core_ops = {
 	.standby        = fe_standby,
 	.release        = fe_release,
 	.has_signal     = fe_has_signal,
+	.set_config     = fe_set_config,
 	.tuner_status   = tuner_status
 };
 

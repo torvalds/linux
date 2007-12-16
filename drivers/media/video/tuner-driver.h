@@ -45,6 +45,9 @@ struct analog_tuner_ops {
 	void (*standby)(struct dvb_frontend *fe);
 	void (*release)(struct dvb_frontend *fe);
 	int  (*i2c_gate_ctrl)(struct dvb_frontend *fe, int enable);
+
+	/** This is to allow setting tuner-specific configuration */
+	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
 };
 
 struct tuner {
