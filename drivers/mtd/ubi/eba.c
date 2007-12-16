@@ -31,7 +31,7 @@
  * logical eraseblock it is locked for reading or writing. The per-logical
  * eraseblock locking is implemented by means of the lock tree. The lock tree
  * is an RB-tree which refers all the currently locked logical eraseblocks. The
- * lock tree elements are &struct ltree_entry objects. They are indexed by
+ * lock tree elements are &struct ubi_ltree_entry objects. They are indexed by
  * (@vol_id, @lnum) pairs.
  *
  * EBA also maintains the global sequence counter which is incremented each
@@ -48,29 +48,6 @@
 
 /* Number of physical eraseblocks reserved for atomic LEB change operation */
 #define EBA_RESERVED_PEBS 1
-
-/**
- * struct ltree_entry - an entry in the lock tree.
- * @rb: links RB-tree nodes
- * @vol_id: volume ID of the locked logical eraseblock
- * @lnum: locked logical eraseblock number
- * @users: how many tasks are using this logical eraseblock or wait for it
- * @mutex: read/write mutex to implement read/write access serialization to
- * the (@vol_id, @lnum) logical eraseblock
- *
- * When a logical eraseblock is being locked - corresponding &struct ltree_entry
- * object is inserted to the lock tree (@ubi->ltree).
- */
-struct ltree_entry {
-	struct rb_node rb;
-	int vol_id;
-	int lnum;
-	int users;
-	struct rw_semaphore mutex;
-};
-
-/* Slab cache for lock-tree entries */
-static struct kmem_cache *ltree_slab;
 
 /**
  * next_sqnum - get next sequence number.
@@ -112,20 +89,20 @@ static int ubi_get_compat(const struct ubi_device *ubi, int vol_id)
  * @vol_id: volume ID
  * @lnum: logical eraseblock number
  *
- * This function returns a pointer to the corresponding &struct ltree_entry
+ * This function returns a pointer to the corresponding &struct ubi_ltree_entry
  * object if the logical eraseblock is locked and %NULL if it is not.
  * @ubi->ltree_lock has to be locked.
  */
-static struct ltree_entry *ltree_lookup(struct ubi_device *ubi, int vol_id,
-					int lnum)
+static struct ubi_ltree_entry *ltree_lookup(struct ubi_device *ubi, int vol_id,
+					    int lnum)
 {
 	struct rb_node *p;
 
 	p = ubi->ltree.rb_node;
 	while (p) {
-		struct ltree_entry *le;
+		struct ubi_ltree_entry *le;
 
-		le = rb_entry(p, struct ltree_entry, rb);
+		le = rb_entry(p, struct ubi_ltree_entry, rb);
 
 		if (vol_id < le->vol_id)
 			p = p->rb_left;
@@ -155,12 +132,12 @@ static struct ltree_entry *ltree_lookup(struct ubi_device *ubi, int vol_id,
  * Returns pointer to the lock tree entry or %-ENOMEM if memory allocation
  * failed.
  */
-static struct ltree_entry *ltree_add_entry(struct ubi_device *ubi, int vol_id,
-					   int lnum)
+static struct ubi_ltree_entry *ltree_add_entry(struct ubi_device *ubi,
+					       int vol_id, int lnum)
 {
-	struct ltree_entry *le, *le1, *le_free;
+	struct ubi_ltree_entry *le, *le1, *le_free;
 
-	le = kmem_cache_alloc(ltree_slab, GFP_NOFS);
+	le = kmem_cache_alloc(ubi_ltree_slab, GFP_NOFS);
 	if (!le)
 		return ERR_PTR(-ENOMEM);
 
@@ -189,7 +166,7 @@ static struct ltree_entry *ltree_add_entry(struct ubi_device *ubi, int vol_id,
 		p = &ubi->ltree.rb_node;
 		while (*p) {
 			parent = *p;
-			le1 = rb_entry(parent, struct ltree_entry, rb);
+			le1 = rb_entry(parent, struct ubi_ltree_entry, rb);
 
 			if (vol_id < le1->vol_id)
 				p = &(*p)->rb_left;
@@ -211,7 +188,7 @@ static struct ltree_entry *ltree_add_entry(struct ubi_device *ubi, int vol_id,
 	spin_unlock(&ubi->ltree_lock);
 
 	if (le_free)
-		kmem_cache_free(ltree_slab, le_free);
+		kmem_cache_free(ubi_ltree_slab, le_free);
 
 	return le;
 }
@@ -227,7 +204,7 @@ static struct ltree_entry *ltree_add_entry(struct ubi_device *ubi, int vol_id,
  */
 static int leb_read_lock(struct ubi_device *ubi, int vol_id, int lnum)
 {
-	struct ltree_entry *le;
+	struct ubi_ltree_entry *le;
 
 	le = ltree_add_entry(ubi, vol_id, lnum);
 	if (IS_ERR(le))
@@ -245,7 +222,7 @@ static int leb_read_lock(struct ubi_device *ubi, int vol_id, int lnum)
 static void leb_read_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 {
 	int free = 0;
-	struct ltree_entry *le;
+	struct ubi_ltree_entry *le;
 
 	spin_lock(&ubi->ltree_lock);
 	le = ltree_lookup(ubi, vol_id, lnum);
@@ -259,7 +236,7 @@ static void leb_read_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 
 	up_read(&le->mutex);
 	if (free)
-		kmem_cache_free(ltree_slab, le);
+		kmem_cache_free(ubi_ltree_slab, le);
 }
 
 /**
@@ -273,7 +250,7 @@ static void leb_read_unlock(struct ubi_device *ubi, int vol_id, int lnum)
  */
 static int leb_write_lock(struct ubi_device *ubi, int vol_id, int lnum)
 {
-	struct ltree_entry *le;
+	struct ubi_ltree_entry *le;
 
 	le = ltree_add_entry(ubi, vol_id, lnum);
 	if (IS_ERR(le))
@@ -291,7 +268,7 @@ static int leb_write_lock(struct ubi_device *ubi, int vol_id, int lnum)
 static void leb_write_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 {
 	int free;
-	struct ltree_entry *le;
+	struct ubi_ltree_entry *le;
 
 	spin_lock(&ubi->ltree_lock);
 	le = ltree_lookup(ubi, vol_id, lnum);
@@ -306,7 +283,7 @@ static void leb_write_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 
 	up_write(&le->mutex);
 	if (free)
-		kmem_cache_free(ltree_slab, le);
+		kmem_cache_free(ubi_ltree_slab, le);
 }
 
 /**
@@ -931,20 +908,6 @@ write_error:
 }
 
 /**
- * ltree_entry_ctor - lock tree entries slab cache constructor.
- * @obj: the lock-tree entry to construct
- * @cache: the lock tree entry slab cache
- * @flags: constructor flags
- */
-static void ltree_entry_ctor(struct kmem_cache *cache, void *obj)
-{
-	struct ltree_entry *le = obj;
-
-	le->users = 0;
-	init_rwsem(&le->mutex);
-}
-
-/**
  * ubi_eba_copy_leb - copy logical eraseblock.
  * @ubi: UBI device description object
  * @from: physical eraseblock number from where to copy
@@ -1128,14 +1091,6 @@ int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	mutex_init(&ubi->alc_mutex);
 	ubi->ltree = RB_ROOT;
 
-	if (ubi_devices_cnt == 0) {
-		ltree_slab = kmem_cache_create("ubi_ltree_slab",
-					       sizeof(struct ltree_entry), 0,
-					       0, &ltree_entry_ctor);
-		if (!ltree_slab)
-			return -ENOMEM;
-	}
-
 	ubi->global_sqnum = si->max_sqnum + 1;
 	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
 
@@ -1205,8 +1160,6 @@ out_free:
 			continue;
 		kfree(ubi->volumes[i]->eba_tbl);
 	}
-	if (ubi_devices_cnt == 0)
-		kmem_cache_destroy(ltree_slab);
 	return err;
 }
 
@@ -1225,6 +1178,4 @@ void ubi_eba_close(const struct ubi_device *ubi)
 			continue;
 		kfree(ubi->volumes[i]->eba_tbl);
 	}
-	if (ubi_devices_cnt == 1)
-		kmem_cache_destroy(ltree_slab);
 }

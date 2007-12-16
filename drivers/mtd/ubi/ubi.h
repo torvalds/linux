@@ -97,6 +97,28 @@ enum {
 extern int ubi_devices_cnt;
 extern struct ubi_device *ubi_devices[];
 
+/**
+ * struct ubi_ltree_entry - an entry in the lock tree.
+ * @rb: links RB-tree nodes
+ * @vol_id: volume ID of the locked logical eraseblock
+ * @lnum: locked logical eraseblock number
+ * @users: how many tasks are using this logical eraseblock or wait for it
+ * @mutex: read/write mutex to implement read/write access serialization to
+ *         the (@vol_id, @lnum) logical eraseblock
+ *
+ * This data structure is used in the EBA unit to implement per-LEB locking.
+ * When a logical eraseblock is being locked - corresponding
+ * &struct ubi_ltree_entry object is inserted to the lock tree (@ubi->ltree).
+ * See EBA unit for details.
+ */
+struct ubi_ltree_entry {
+	struct rb_node rb;
+	int vol_id;
+	int lnum;
+	int users;
+	struct rw_semaphore mutex;
+};
+
 struct ubi_volume_desc;
 
 /**
@@ -359,6 +381,7 @@ struct ubi_device {
 #endif
 };
 
+extern struct kmem_cache *ubi_ltree_slab;
 extern struct file_operations ubi_cdev_operations;
 extern struct file_operations ubi_vol_cdev_operations;
 extern struct class *ubi_class;

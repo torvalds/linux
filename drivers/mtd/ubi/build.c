@@ -67,6 +67,9 @@ struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
 struct class *ubi_class;
 
+/* Slab cache for lock-tree entries */
+struct kmem_cache *ubi_ltree_slab;
+
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
 static ssize_t ubi_version_show(struct class *class, char *buf)
 {
@@ -687,6 +690,20 @@ static void detach_mtd_dev(struct ubi_device *ubi)
 	ubi_msg("mtd%d is detached from ubi%d", mtd_num, ubi_num);
 }
 
+/**
+ * ltree_entry_ctor - lock tree entries slab cache constructor.
+ * @obj: the lock-tree entry to construct
+ * @cache: the lock tree entry slab cache
+ * @flags: constructor flags
+ */
+static void ltree_entry_ctor(struct kmem_cache *cache, void *obj)
+{
+	struct ubi_ltree_entry *le = obj;
+
+	le->users = 0;
+	init_rwsem(&le->mutex);
+}
+
 static int __init ubi_init(void)
 {
 	int err, i, k;
@@ -709,6 +726,12 @@ static int __init ubi_init(void)
 	if (err)
 		goto out_class;
 
+	ubi_ltree_slab = kmem_cache_create("ubi_ltree_slab",
+					   sizeof(struct ubi_ltree_entry), 0,
+					   0, &ltree_entry_ctor);
+	if (!ubi_ltree_slab)
+		goto out_version;
+
 	/* Attach MTD devices */
 	for (i = 0; i < mtd_devs; i++) {
 		struct mtd_dev_param *p = &mtd_dev_param[i];
@@ -724,6 +747,8 @@ static int __init ubi_init(void)
 out_detach:
 	for (k = 0; k < i; k++)
 		detach_mtd_dev(ubi_devices[k]);
+	kmem_cache_destroy(ubi_ltree_slab);
+out_version:
 	class_remove_file(ubi_class, &ubi_version);
 out_class:
 	class_destroy(ubi_class);
@@ -737,6 +762,7 @@ static void __exit ubi_exit(void)
 
 	for (i = 0; i < n; i++)
 		detach_mtd_dev(ubi_devices[i]);
+	kmem_cache_destroy(ubi_ltree_slab);
 	class_remove_file(ubi_class, &ubi_version);
 	class_destroy(ubi_class);
 }
