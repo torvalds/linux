@@ -177,8 +177,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 			BUG();
 
 		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
-			x->stats.integrity_failed++;
-			ret = -EINVAL;
+			ret = -EBADMSG;
 			goto out;
 		}
 	}

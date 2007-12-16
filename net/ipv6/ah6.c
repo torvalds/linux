@@ -379,10 +379,9 @@ static int ah6_input(struct xfrm_state *x, struct sk_buff *skb)
 		err = ah_mac_digest(ahp, skb, ah->auth_data);
 		if (err)
 			goto free_out;
-		err = -EINVAL;
 		if (memcmp(ahp->work_icv, auth_data, ahp->icv_trunc_len)) {
 			LIMIT_NETDEBUG(KERN_WARNING "ipsec ah authentication error\n");
-			x->stats.integrity_failed++;
+			err = -EBADMSG;
 			goto free_out;
 		}
 	}

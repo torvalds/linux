@@ -147,8 +147,11 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 			goto drop_unlock;
 
 		nexthdr = x->type->input(x, skb);
-		if (nexthdr <= 0)
+		if (nexthdr <= 0) {
+			if (nexthdr == -EBADMSG)
+				x->stats.integrity_failed++;
 			goto drop_unlock;
+		}
 
 		skb_network_header(skb)[nhoff] = nexthdr;
 

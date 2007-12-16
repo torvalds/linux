@@ -163,7 +163,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	u8 nexthdr[2];
 	struct scatterlist *sg;
 	int padlen;
-	int err;
+	int err = -EINVAL;
 
 	if (!pskb_may_pull(skb, sizeof(*esph)))
 		goto out;
@@ -183,13 +183,14 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 			BUG();
 
 		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
-			x->stats.integrity_failed++;
+			err = -EBADMSG;
 			goto out;
 		}
 	}
 
-	if ((nfrags = skb_cow_data(skb, 0, &trailer)) < 0)
+	if ((err = skb_cow_data(skb, 0, &trailer)) < 0)
 		goto out;
+	nfrags = err;
 
 	skb->ip_summed = CHECKSUM_NONE;
 
@@ -202,6 +203,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	sg = &esp->sgbuf[0];
 
 	if (unlikely(nfrags > ESP_NUM_FAST_SG)) {
+		err = -ENOMEM;
 		sg = kmalloc(sizeof(struct scatterlist)*nfrags, GFP_ATOMIC);
 		if (!sg)
 			goto out;
@@ -214,11 +216,12 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	if (unlikely(sg != &esp->sgbuf[0]))
 		kfree(sg);
 	if (unlikely(err))
-		return err;
+		goto out;
 
 	if (skb_copy_bits(skb, skb->len-alen-2, nexthdr, 2))
 		BUG();
 
+	err = -EINVAL;
 	padlen = nexthdr[0];
 	if (padlen+2 >= elen)
 		goto out;
@@ -276,7 +279,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 	return nexthdr[1];
 
 out:
-	return -EINVAL;
+	return err;
 }
 
 static u32 esp4_get_mtu(struct xfrm_state *x, int mtu)

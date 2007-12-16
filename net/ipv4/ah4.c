@@ -177,9 +177,8 @@ static int ah_input(struct xfrm_state *x, struct sk_buff *skb)
 		err = ah_mac_digest(ahp, skb, ah->auth_data);
 		if (err)
 			goto out;
-		err = -EINVAL;
 		if (memcmp(ahp->work_icv, auth_data, ahp->icv_trunc_len)) {
-			x->stats.integrity_failed++;
+			err = -EBADMSG;
 			goto out;
 		}
 	}
