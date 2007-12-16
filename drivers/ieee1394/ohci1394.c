@@ -2126,10 +2126,14 @@ static void ohci_schedule_iso_tasklets(struct ti_ohci *ohci,
 	list_for_each_entry(t, &ohci->iso_tasklet_list, link) {
 		mask = 1 << t->context;
 
-		if (t->type == OHCI_ISO_TRANSMIT && tx_event & mask)
-			tasklet_schedule(&t->tasklet);
-		else if (rx_event & mask)
-			tasklet_schedule(&t->tasklet);
+		if (t->type == OHCI_ISO_TRANSMIT) {
+			if (tx_event & mask)
+				tasklet_schedule(&t->tasklet);
+		} else {
+			/* OHCI_ISO_RECEIVE or OHCI_ISO_MULTICHANNEL_RECEIVE */
+			if (rx_event & mask)
+				tasklet_schedule(&t->tasklet);
+		}
 	}
 
 	spin_unlock_irqrestore(&ohci->iso_tasklet_list_lock, flags);
