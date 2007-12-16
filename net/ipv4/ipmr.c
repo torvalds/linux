@@ -749,7 +749,7 @@ static int ipmr_mfc_add(struct mfcctl *mfc, int mrtsock)
 		return 0;
 	}
 
-	if (!MULTICAST(mfc->mfcc_mcastgrp.s_addr))
+	if (!ipv4_is_multicast(mfc->mfcc_mcastgrp.s_addr))
 		return -EINVAL;
 
 	c=ipmr_cache_alloc();
@@ -1461,7 +1461,7 @@ int pim_rcv_v1(struct sk_buff * skb)
 	   b. packet is not a NULL-REGISTER
 	   c. packet is not truncated
 	 */
-	if (!MULTICAST(encap->daddr) ||
+	if (!ipv4_is_multicast(encap->daddr) ||
 	    encap->tot_len == 0 ||
 	    ntohs(encap->tot_len) + sizeof(*pim) > skb->len)
 		goto drop;
@@ -1517,7 +1517,7 @@ static int pim_rcv(struct sk_buff * skb)
 	/* check if the inner packet is destined to mcast group */
 	encap = (struct iphdr *)(skb_transport_header(skb) +
 				 sizeof(struct pimreghdr));
-	if (!MULTICAST(encap->daddr) ||
+	if (!ipv4_is_multicast(encap->daddr) ||
 	    encap->tot_len == 0 ||
 	    ntohs(encap->tot_len) + sizeof(*pim) > skb->len)
 		goto drop;

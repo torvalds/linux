@@ -167,9 +167,9 @@ static inline unsigned __inet_dev_addr_type(const struct net_device *dev,
 	unsigned ret = RTN_BROADCAST;
 	struct fib_table *local_table;
 
-	if (ZERONET(addr) || BADCLASS(addr))
+	if (ipv4_is_zeronet(addr) || ipv4_is_badclass(addr))
 		return RTN_BROADCAST;
-	if (MULTICAST(addr))
+	if (ipv4_is_multicast(addr))
 		return RTN_MULTICAST;
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
@@ -710,7 +710,7 @@ void fib_add_ifaddr(struct in_ifaddr *ifa)
 	if (ifa->ifa_broadcast && ifa->ifa_broadcast != htonl(0xFFFFFFFF))
 		fib_magic(RTM_NEWROUTE, RTN_BROADCAST, ifa->ifa_broadcast, 32, prim);
 
-	if (!ZERONET(prefix) && !(ifa->ifa_flags&IFA_F_SECONDARY) &&
+	if (!ipv4_is_zeronet(prefix) && !(ifa->ifa_flags&IFA_F_SECONDARY) &&
 	    (prefix != addr || ifa->ifa_prefixlen < 32)) {
 		fib_magic(RTM_NEWROUTE, dev->flags&IFF_LOOPBACK ? RTN_LOCAL :
 			  RTN_UNICAST, prefix, ifa->ifa_prefixlen, prim);
