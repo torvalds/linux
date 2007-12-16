@@ -860,7 +860,7 @@ static int arp_process(struct sk_buff *skb)
 
 	n = __neigh_lookup(&arp_tbl, &sip, dev, 0);
 
-	if (IPV4_DEVCONF_ALL(ARP_ACCEPT)) {
+	if (IPV4_DEVCONF_ALL(dev->nd_net, ARP_ACCEPT)) {
 		/* Unsolicited ARP is not accepted by default.
 		   It is possible, that this option should be enabled for some
 		   devices (strip is candidate)
@@ -955,7 +955,7 @@ out_of_mem:
 static int arp_req_set_proxy(struct net *net, struct net_device *dev, int on)
 {
 	if (dev == NULL) {
-		IPV4_DEVCONF_ALL(PROXY_ARP) = on;
+		IPV4_DEVCONF_ALL(net, PROXY_ARP) = on;
 		return 0;
 	}
 	if (__in_dev_get_rtnl(dev)) {

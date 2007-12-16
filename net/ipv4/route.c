@@ -2619,7 +2619,7 @@ static int rt_fill_info(struct sk_buff *skb, u32 pid, u32 seq, int event,
 		__be32 dst = rt->rt_dst;
 
 		if (MULTICAST(dst) && !LOCAL_MCAST(dst) &&
-		    IPV4_DEVCONF_ALL(MC_FORWARDING)) {
+		    IPV4_DEVCONF_ALL(&init_net, MC_FORWARDING)) {
 			int err = ipmr_get_route(skb, r, nowait);
 			if (err <= 0) {
 				if (!nowait) {

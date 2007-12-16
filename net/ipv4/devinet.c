@@ -1258,9 +1258,9 @@ static void devinet_copy_dflt_conf(struct net *net, int i)
 static void inet_forward_change(struct net *net)
 {
 	struct net_device *dev;
-	int on = IPV4_DEVCONF_ALL(FORWARDING);
+	int on = IPV4_DEVCONF_ALL(net, FORWARDING);
 
-	IPV4_DEVCONF_ALL(ACCEPT_REDIRECTS) = !on;
+	IPV4_DEVCONF_ALL(net, ACCEPT_REDIRECTS) = !on;
 	IPV4_DEVCONF_DFLT(net, FORWARDING) = on;
 
 	read_lock(&dev_base_lock);
@@ -1360,7 +1360,7 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 	if (write && *valp != val) {
 		struct net *net = ctl->extra2;
 
-		if (valp == &IPV4_DEVCONF_ALL(FORWARDING))
+		if (valp == &IPV4_DEVCONF_ALL(net, FORWARDING))
 			inet_forward_change(net);
 		else if (valp != &IPV4_DEVCONF_DFLT(net, FORWARDING))
 			rt_cache_flush(0);

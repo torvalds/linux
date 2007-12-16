@@ -44,7 +44,8 @@ struct in_device
 };
 
 #define IPV4_DEVCONF(cnf, attr) ((cnf).data[NET_IPV4_CONF_ ## attr - 1])
-#define IPV4_DEVCONF_ALL(attr) IPV4_DEVCONF(ipv4_devconf, attr)
+#define IPV4_DEVCONF_ALL(net, attr) \
+	IPV4_DEVCONF((*(net)->ipv4.devconf_all), attr)
 
 static inline int ipv4_devconf_get(struct in_device *in_dev, int index)
 {
@@ -71,11 +72,14 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 	ipv4_devconf_set((in_dev), NET_IPV4_CONF_ ## attr, (val))
 
 #define IN_DEV_ANDCONF(in_dev, attr) \
-	(IPV4_DEVCONF_ALL(attr) && IN_DEV_CONF_GET((in_dev), attr))
+	(IPV4_DEVCONF_ALL(in_dev->dev->nd_net, attr) && \
+	 IN_DEV_CONF_GET((in_dev), attr))
 #define IN_DEV_ORCONF(in_dev, attr) \
-	(IPV4_DEVCONF_ALL(attr) || IN_DEV_CONF_GET((in_dev), attr))
+	(IPV4_DEVCONF_ALL(in_dev->dev->nd_net, attr) || \
+	 IN_DEV_CONF_GET((in_dev), attr))
 #define IN_DEV_MAXCONF(in_dev, attr) \
-	(max(IPV4_DEVCONF_ALL(attr), IN_DEV_CONF_GET((in_dev), attr)))
+	(max(IPV4_DEVCONF_ALL(in_dev->dev->nd_net, attr), \
+	     IN_DEV_CONF_GET((in_dev), attr)))
 
 #define IN_DEV_FORWARD(in_dev)		IN_DEV_CONF_GET((in_dev), FORWARDING)
 #define IN_DEV_MFORWARD(in_dev)		IN_DEV_ANDCONF((in_dev), MC_FORWARDING)
