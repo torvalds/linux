@@ -1878,7 +1878,7 @@ static void *packet_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void *packet_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct net *net = seq->private;
+	struct net *net = seq_file_net(seq);
 	++*pos;
 	return  (v == SEQ_START_TOKEN)
 		? sk_head(&net->packet.sklist)
@@ -1887,7 +1887,7 @@ static void *packet_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void packet_seq_stop(struct seq_file *seq, void *v)
 {
-	struct net *net = seq->private;
+	struct net *net = seq_file_net(seq);
 	read_unlock(&net->packet.sklist_lock);
 }
 
