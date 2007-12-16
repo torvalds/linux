@@ -18,10 +18,9 @@
  */
 
 #include "vmx.h"
-#include "kvm.h"
-#include "x86.h"
 #include "mmu.h"
 
+#include <linux/kvm_host.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/mm.h>

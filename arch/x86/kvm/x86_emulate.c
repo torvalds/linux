@@ -25,12 +25,11 @@
 #include <public/xen.h>
 #define DPRINTF(_f, _a ...) printf(_f , ## _a)
 #else
-#include "kvm.h"
-#include "x86.h"
+#include <linux/kvm_host.h>
 #define DPRINTF(x...) do {} while (0)
 #endif
-#include "x86_emulate.h"
 #include <linux/module.h>
+#include <asm/kvm_x86_emulate.h>
 
 /*
  * Opcode effective-address decode tables.

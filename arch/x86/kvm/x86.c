@@ -14,9 +14,7 @@
  *
  */
 
-#include "kvm.h"
-#include "x86.h"
-#include "x86_emulate.h"
+#include <linux/kvm_host.h>
 #include "segment_descriptor.h"
 #include "irq.h"
 #include "mmu.h"

@@ -17,9 +17,7 @@
  * the COPYING file in the top-level directory.
  */
 
-#include "kvm.h"
-#include "x86.h"
-
+#include <linux/kvm_host.h>
 #include <linux/kvm.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>

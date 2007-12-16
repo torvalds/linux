@@ -15,14 +15,12 @@
  *
  */
 
-#include "kvm.h"
-#include "x86.h"
-#include "x86_emulate.h"
 #include "irq.h"
 #include "vmx.h"
 #include "segment_descriptor.h"
 #include "mmu.h"
 
+#include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>

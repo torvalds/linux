@@ -24,9 +24,8 @@
 
 #include <linux/mm_types.h>
 #include <linux/hrtimer.h>
-#include <asm/kvm.h>
+#include <linux/kvm_host.h>
 #include "iodev.h"
-#include "kvm.h"
 
 struct kvm;
 struct kvm_vcpu;

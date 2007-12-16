@@ -1,7 +1,7 @@
 #ifndef __KVM_X86_MMU_H
 #define __KVM_X86_MMU_H
 
-#include "kvm.h"
+#include <linux/kvm_host.h>
 
 static inline void kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {

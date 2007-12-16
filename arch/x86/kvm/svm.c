@@ -13,9 +13,9 @@
  * the COPYING file in the top-level directory.
  *
  */
-#include "x86.h"
+#include <linux/kvm_host.h>
+
 #include "kvm_svm.h"
-#include "x86_emulate.h"
 #include "irq.h"
 #include "mmu.h"
 

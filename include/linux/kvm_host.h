@@ -1,5 +1,5 @@
-#ifndef __KVM_H
-#define __KVM_H
+#ifndef __KVM_HOST_H
+#define __KVM_HOST_H
 
 /*
  * This work is licensed under the terms of the GNU GPL, version 2.  See
@@ -20,9 +20,9 @@
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
 
-#include "types.h"
+#include <linux/kvm_types.h>
 
-#include "x86.h"
+#include <asm/kvm_host.h>
 
 #define KVM_MAX_VCPUS 4
 #define KVM_MEMORY_SLOTS 8

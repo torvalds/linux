@@ -8,18 +8,17 @@
  *
  */
 
-#ifndef KVM_X86_H
-#define KVM_X86_H
+#ifndef ASM_KVM_HOST_H
+#define ASM_KVM_HOST_H
 
 #include <linux/types.h>
 #include <linux/mm.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
+#include <linux/kvm_types.h>
 
 #include <asm/desc.h>
-
-#include "types.h"
 
 #define CR3_PAE_RESERVED_BITS ((X86_CR3_PWT | X86_CR3_PCD) - 1)
 #define CR3_NONPAE_RESERVED_BITS ((PAGE_SIZE-1) & ~(X86_CR3_PWT | X86_CR3_PCD))
@@ -102,7 +101,7 @@ enum {
 	VCPU_SREG_LDTR,
 };
 
-#include "x86_emulate.h"
+#include <asm/kvm_x86_emulate.h>
 
 #define KVM_NR_MEM_OBJS 40
 

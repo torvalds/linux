@@ -20,9 +20,8 @@
  */
 
 #include <linux/module.h>
+#include <linux/kvm_host.h>
 
-#include "kvm.h"
-#include "x86.h"
 #include "irq.h"
 
 /*

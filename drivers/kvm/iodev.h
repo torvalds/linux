@@ -16,7 +16,7 @@
 #ifndef __KVM_IODEV_H__
 #define __KVM_IODEV_H__
 
-#include "types.h"
+#include <linux/kvm_types.h>
 
 struct kvm_io_device {
 	void (*read)(struct kvm_io_device *this,
