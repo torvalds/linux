@@ -25,14 +25,14 @@ static int tda9887_debug;
 module_param_named(debug, tda9887_debug, int, 0644);
 
 #define tda9887_info(fmt, arg...) do {\
-	printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c->name, \
-			i2c_adapter_id(priv->t->i2c->adapter), \
-			priv->t->i2c->addr, ##arg); } while (0)
+	printk(KERN_INFO "tda9887 %d-%04x: " fmt, \
+			i2c_adapter_id(priv->i2c_props.adap), \
+			priv->i2c_props.addr, ##arg); } while (0)
 #define tda9887_dbg(fmt, arg...) do {\
 	if (tda9887_debug) \
-		printk(KERN_INFO "%s %d-%04x: " fmt, priv->t->i2c->name, \
-			i2c_adapter_id(priv->t->i2c->adapter), \
-			priv->t->i2c->addr, ##arg); } while (0)
+		printk(KERN_INFO "tda9887 %d-%04x: " fmt, \
+			i2c_adapter_id(priv->i2c_props.adap), \
+			priv->i2c_props.addr, ##arg); } while (0)
 
 struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
