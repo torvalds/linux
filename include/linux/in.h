@@ -272,12 +272,6 @@ static inline bool ipv4_is_zeronet(__be32 addr)
 	return (addr & htonl(0xff000000)) == htonl(0x00000000);
 }
 
-#define LOOPBACK(x)		ipv4_is_loopback(x)
-#define MULTICAST(x)		ipv4_is_multicast(x)
-#define BADCLASS(x)		ipv4_is_badclass(x)
-#define ZERONET(x)		ipv4_is_zeronet(x)
-#define LOCAL_MCAST(x)		ipv4_is_local_multicast(x)
-
 /* Special-Use IPv4 Addresses (RFC3330) */
 
 static inline bool ipv4_is_private_10(__be32 addr)
@@ -315,13 +309,5 @@ static inline bool ipv4_is_test_198(__be32 addr)
 	return (addr & htonl(0xfffe0000)) == htonl(0xc6120000);
 }
 #endif
-
-#define PRIVATE_10(x)		ipv4_is_private_10(x)
-#define LINKLOCAL_169(x)	ipv4_is_linklocal_169(x)
-#define PRIVATE_172(x)		ipv4_is_private_172(x)
-#define TEST_192(x)		ipv4_is_test_192(x)
-#define ANYCAST_6TO4(x)		ipv4_is_anycast_6to4(x)
-#define PRIVATE_192(x)		ipv4_is_private_192(x)
-#define TEST_198(x)		ipv4_is_test_198(x)
 
 #endif	/* _LINUX_IN_H */
