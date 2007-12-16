@@ -20,6 +20,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
+#include <linux/serial_reg.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
@@ -239,6 +240,32 @@ static struct platform_device *qnap_ts209_devices[] __initdata = {
 	&qnap_ts209_button_device,
 };
 
+/*
+ * QNAP TS-[12]09 specific power off method via UART1-attached PIC
+ */
+
+#define UART1_REG(x)  (UART1_BASE + ((UART_##x) << 2))
+
+static void qnap_ts209_power_off(void)
+{
+	/* 19200 baud divisor */
+	const unsigned divisor = ((ORION_TCLK + (8 * 19200)) / (16 * 19200));
+
+	pr_info("%s: triggering power-off...\n", __func__);
+
+	/* hijack uart1 and reset into sane state (19200,8n1) */
+	orion_write(UART1_REG(LCR), 0x83);
+	orion_write(UART1_REG(DLL), divisor & 0xff);
+	orion_write(UART1_REG(DLM), (divisor >> 8) & 0xff);
+	orion_write(UART1_REG(LCR), 0x03);
+	orion_write(UART1_REG(IER), 0x00);
+	orion_write(UART1_REG(FCR), 0x00);
+	orion_write(UART1_REG(MCR), 0x00);
+
+	/* send the power-off command 'A' to PIC */
+	orion_write(UART1_REG(TX), 'A');
+}
+
 static void __init qnap_ts209_init(void)
 {
 	/*
@@ -286,6 +313,9 @@ static void __init qnap_ts209_init(void)
 	orion_write(MPP_8_15_CTRL, 0x55550000);
 	orion_write(MPP_16_19_CTRL, 0x5500);
 	orion_gpio_set_valid_pins(0x3cc0fff);
+
+	/* register ts209 specific power-off method */
+	pm_power_off = qnap_ts209_power_off;
 
 	platform_add_devices(qnap_ts209_devices,
 				ARRAY_SIZE(qnap_ts209_devices));
