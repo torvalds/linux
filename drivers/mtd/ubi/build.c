@@ -58,9 +58,6 @@ static int mtd_devs = 0;
 /* MTD devices specification parameters */
 static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 
-/* Number of UBI devices in system */
-int ubi_devices_cnt;
-
 /* All UBI devices in system */
 struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
 
@@ -566,26 +563,39 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 	}
 
 	/* Check if we already have the same MTD device attached */
-	for (i = 0; i < ubi_devices_cnt; i++)
-		if (ubi_devices[i]->mtd->index == mtd->index) {
+	for (i = 0; i < UBI_MAX_DEVICES; i++)
+		ubi = ubi_devices[i];
+		if (ubi && ubi->mtd->index == mtd->index) {
 			ubi_err("mtd%d is already attached to ubi%d",
 				mtd->index, i);
 			err = -EINVAL;
 			goto out_mtd;
 		}
 
-	ubi = ubi_devices[ubi_devices_cnt] = kzalloc(sizeof(struct ubi_device),
-						     GFP_KERNEL);
+	ubi = kzalloc(sizeof(struct ubi_device), GFP_KERNEL);
 	if (!ubi) {
 		err = -ENOMEM;
 		goto out_mtd;
 	}
 
-	ubi->ubi_num = ubi_devices_cnt;
 	ubi->mtd = mtd;
 
+	/* Search for an empty slot in the @ubi_devices array */
+	ubi->ubi_num = -1;
+	for (i = 0; i < UBI_MAX_DEVICES; i++)
+		if (!ubi_devices[i]) {
+			ubi->ubi_num = i;
+			break;
+		}
+
+	if (ubi->ubi_num == -1) {
+		ubi_err("only %d UBI devices may be created", UBI_MAX_DEVICES);
+		err = -ENFILE;
+		goto out_free;
+	}
+
 	dbg_msg("attaching mtd%d to ubi%d: VID header offset %d data offset %d",
-		ubi->mtd->index, ubi_devices_cnt, vid_hdr_offset, data_offset);
+		ubi->mtd->index, ubi->ubi_num, vid_hdr_offset, data_offset);
 
 	ubi->vid_hdr_offset = vid_hdr_offset;
 	ubi->leb_start = data_offset;
@@ -619,7 +629,7 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 	if (err)
 		goto out_detach;
 
-	ubi_msg("attached mtd%d to ubi%d", ubi->mtd->index, ubi_devices_cnt);
+	ubi_msg("attached mtd%d to ubi%d", ubi->mtd->index, ubi->ubi_num);
 	ubi_msg("MTD device name:            \"%s\"", ubi->mtd->name);
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
 	ubi_msg("physical eraseblock size:   %d bytes (%d KiB)",
@@ -648,7 +658,7 @@ static int attach_mtd_dev(const char *mtd_dev, int vid_hdr_offset,
 		wake_up_process(ubi->bgt_thread);
 	}
 
-	ubi_devices_cnt += 1;
+	ubi_devices[ubi->ubi_num] = ubi;
 	return 0;
 
 out_detach:
@@ -664,7 +674,6 @@ out_free:
 	kfree(ubi);
 out_mtd:
 	put_mtd_device(mtd);
-	ubi_devices[ubi_devices_cnt] = NULL;
 	return err;
 }
 
@@ -689,8 +698,6 @@ static void detach_mtd_dev(struct ubi_device *ubi)
 #endif
 	kfree(ubi_devices[ubi_num]);
 	ubi_devices[ubi_num] = NULL;
-	ubi_devices_cnt -= 1;
-	ubi_assert(ubi_devices_cnt >= 0);
 	ubi_msg("mtd%d is detached from ubi%d", mtd_num, ubi_num);
 }
 
@@ -770,10 +777,11 @@ module_init(ubi_init);
 
 static void __exit ubi_exit(void)
 {
-	int i, n = ubi_devices_cnt;
+	int i;
 
-	for (i = 0; i < n; i++)
-		detach_mtd_dev(ubi_devices[i]);
+	for (i = 0; i < UBI_MAX_DEVICES; i++)
+		if (ubi_devices[i])
+			detach_mtd_dev(ubi_devices[i]);
 	kmem_cache_destroy(ubi_wl_entry_slab);
 	kmem_cache_destroy(ubi_ltree_slab);
 	class_remove_file(ubi_class, &ubi_version);

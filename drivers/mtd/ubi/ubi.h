@@ -94,9 +94,6 @@ enum {
 	UBI_IO_BITFLIPS
 };
 
-extern int ubi_devices_cnt;
-extern struct ubi_device *ubi_devices[];
-
 /**
  * struct ubi_wl_entry - wear-leveling entry.
  * @rb: link in the corresponding RB-tree
@@ -401,6 +398,7 @@ extern struct kmem_cache *ubi_ltree_slab;
 extern struct kmem_cache *ubi_wl_entry_slab;
 extern struct file_operations ubi_cdev_operations;
 extern struct file_operations ubi_vol_cdev_operations;
+extern struct ubi_device *ubi_devices[];
 extern struct class *ubi_class;
 
 /* vtbl.c */

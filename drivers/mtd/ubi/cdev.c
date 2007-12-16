@@ -60,7 +60,7 @@ static struct ubi_device *major_to_device(int major)
 {
 	int i;
 
-	for (i = 0; i < ubi_devices_cnt; i++)
+	for (i = 0; i < UBI_MAX_DEVICES; i++)
 		if (ubi_devices[i] && MAJOR(ubi_devices[i]->cdev.dev) == major)
 			return ubi_devices[i];
 	BUG();
