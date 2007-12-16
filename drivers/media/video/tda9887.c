@@ -39,8 +39,9 @@ struct tda9887_priv {
 
 	unsigned char 	   data[4];
 	unsigned int       config;
-
-	struct tuner *t;
+	unsigned int       mode;
+	unsigned int       audmode;
+	v4l2_std_id        std;
 };
 
 /* ---------------------------------------------------------------------- */
@@ -402,19 +403,18 @@ static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
 static int tda9887_set_tvnorm(struct dvb_frontend *fe)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
-	struct tuner *t = priv->t;
 	struct tvnorm *norm = NULL;
 	char *buf = priv->data;
 	int i;
 
-	if (t->mode == V4L2_TUNER_RADIO) {
-		if (t->audmode == V4L2_TUNER_MODE_MONO)
+	if (priv->mode == V4L2_TUNER_RADIO) {
+		if (priv->audmode == V4L2_TUNER_MODE_MONO)
 			norm = &radio_mono;
 		else
 			norm = &radio_stereo;
 	} else {
 		for (i = 0; i < ARRAY_SIZE(tvnorms); i++) {
-			if (tvnorms[i].std & t->std) {
+			if (tvnorms[i].std & priv->std) {
 				norm = tvnorms+i;
 				break;
 			}
@@ -477,7 +477,6 @@ static int tda9887_set_insmod(struct dvb_frontend *fe)
 static int tda9887_do_config(struct dvb_frontend *fe)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
-	struct tuner *t = priv->t;
 	char *buf = priv->data;
 
 	if (priv->config & TDA9887_PORT1_ACTIVE)
@@ -515,12 +514,12 @@ static int tda9887_do_config(struct dvb_frontend *fe)
 		buf[2] |= (priv->config >> 8) & cTopMask;
 	}
 	if ((priv->config & TDA9887_INTERCARRIER_NTSC) &&
-	    (t->std & V4L2_STD_NTSC))
+	    (priv->std & V4L2_STD_NTSC))
 		buf[1] &= ~cQSS;
 	if (priv->config & TDA9887_GATING_18)
 		buf[3] &= ~cGating_36;
 
-	if (t->mode == V4L2_TUNER_RADIO) {
+	if (priv->mode == V4L2_TUNER_RADIO) {
 		if (priv->config & TDA9887_RIF_41_3) {
 			buf[3] &= ~cVideoIFMask;
 			buf[3] |= cRadioIF_41_30;
@@ -550,7 +549,6 @@ static int tda9887_status(struct dvb_frontend *fe)
 static void tda9887_configure(struct dvb_frontend *fe)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
-	struct tuner *t = priv->t;
 	int rc;
 
 	memset(priv->data,0,sizeof(priv->data));
@@ -575,9 +573,8 @@ static void tda9887_configure(struct dvb_frontend *fe)
 	tda9887_do_config(fe);
 	tda9887_set_insmod(fe);
 
-	if (t->mode == T_STANDBY) {
+	if (priv->mode == T_STANDBY)
 		priv->data[1] |= cForcedMuteAudioON;
-	}
 
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
 		priv->data[1],priv->data[2],priv->data[3]);
@@ -622,12 +619,21 @@ static int tda9887_get_afc(struct dvb_frontend *fe)
 
 static void tda9887_standby(struct dvb_frontend *fe)
 {
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+
+	priv->mode = T_STANDBY;
+
 	tda9887_configure(fe);
 }
 
 static void tda9887_set_params(struct dvb_frontend *fe,
 			       struct analog_parameters *params)
 {
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+
+	priv->mode    = params->mode;
+	priv->audmode = params->audmode;
+	priv->std     = params->std;
 	tda9887_configure(fe);
 }
 
@@ -670,7 +676,6 @@ int tda9887_attach(struct tuner *t)
 
 	priv->i2c_props.addr = t->i2c->addr;
 	priv->i2c_props.adap = t->i2c->adapter;
-	priv->t = t;
 
 	strlcpy(t->i2c->name, "tda9887", sizeof(t->i2c->name));
 
