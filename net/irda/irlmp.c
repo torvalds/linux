@@ -353,6 +353,7 @@ void irlmp_unregister_link(__u32 saddr)
 		/* Final cleanup */
 		del_timer(&link->idle_timer);
 		link->magic = 0;
+		hashbin_delete(link->lsaps, (FREE_FUNC) __irlmp_close_lsap);
 		kfree(link);
 	}
 }
