@@ -845,6 +845,9 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	char *pbuf = &buf[0];
 	char *tokens[3] = {NULL, NULL, NULL};
 
+	if (!val)
+		return -EINVAL;
+
 	if (mtd_devs == UBI_MAX_DEVICES) {
 		printk("UBI error: too many parameters, max. is %d\n",
 		       UBI_MAX_DEVICES);
