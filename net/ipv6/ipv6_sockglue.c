@@ -1046,7 +1046,7 @@ static int do_ipv6_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	default:
-		return -EINVAL;
+		return -ENOPROTOOPT;
 	}
 	len = min_t(unsigned int, sizeof(int), len);
 	if(put_user(len, optlen))
@@ -1069,9 +1069,8 @@ int ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
-	/* we need to exclude all possible EINVALs except default case */
-	if (err == -EINVAL && optname != IPV6_ADDRFORM &&
-			optname != MCAST_MSFILTER) {
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IPV6_2292PKTOPTIONS) {
 		int len;
 
 		if (get_user(len, optlen))
@@ -1108,9 +1107,8 @@ int compat_ipv6_getsockopt(struct sock *sk, int level, int optname,
 
 	err = do_ipv6_getsockopt(sk, level, optname, optval, optlen);
 #ifdef CONFIG_NETFILTER
-	/* we need to exclude all possible EINVALs except default case */
-	if (err == -EINVAL && optname != IPV6_ADDRFORM &&
-			optname != MCAST_MSFILTER) {
+	/* we need to exclude all possible ENOPROTOOPTs except default case */
+	if (err == -ENOPROTOOPT && optname != IPV6_2292PKTOPTIONS) {
 		int len;
 
 		if (get_user(len, optlen))
