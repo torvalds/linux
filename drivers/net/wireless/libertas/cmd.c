@@ -1155,15 +1155,11 @@ static int lbs_cmd_bcn_ctrl(struct lbs_private * priv,
 	return 0;
 }
 
-/*
- * Note: NEVER use lbs_queue_cmd() with addtail==0 other than for
- * the command timer, because it does not account for queued commands.
- */
-void lbs_queue_cmd(struct lbs_private *priv,
-	struct cmd_ctrl_node *cmdnode,
-	u8 addtail)
+static void lbs_queue_cmd(struct lbs_private *priv,
+			  struct cmd_ctrl_node *cmdnode)
 {
 	unsigned long flags;
+	int addtail = 1;
 
 	lbs_deb_enter(LBS_DEB_HOST);
 
@@ -1635,7 +1631,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	cmdnode->cmdwaitqwoken = 0;
 
-	lbs_queue_cmd(priv, cmdnode, 1);
+	lbs_queue_cmd(priv, cmdnode);
 	wake_up_interruptible(&priv->waitq);
 
 	if (wait_option & CMD_OPTION_WAITFORRSP) {
@@ -2185,7 +2181,7 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv, uint16_t command
 	 * because the caller of lbs_cmd() sets up all of *cmd for us. */
 
 	cmdnode->cmdwaitqwoken = 0;
-	lbs_queue_cmd(priv, cmdnode, 1);
+	lbs_queue_cmd(priv, cmdnode);
 	wake_up_interruptible(&priv->waitq);
 
  done:

@@ -28,10 +28,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	u16 cmd_action,
 	u16 wait_option, u32 cmd_oid, void *pdata_buf);
 
-void lbs_queue_cmd(struct lbs_private *priv,
-	struct cmd_ctrl_node *cmdnode,
-	u8 addtail);
-
 int lbs_allocate_cmd_buffer(struct lbs_private *priv);
 int lbs_execute_next_command(struct lbs_private *priv);
 int lbs_process_event(struct lbs_private *priv);
