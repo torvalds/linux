@@ -10,6 +10,7 @@
 
 #include <net/netns/unix.h>
 #include <net/netns/packet.h>
+#include <net/netns/ipv4.h>
 
 struct proc_dir_entry;
 struct net_device;
@@ -46,6 +47,7 @@ struct net {
 
 	struct netns_packet	packet;
 	struct netns_unix	unx;
+	struct netns_ipv4	ipv4;
 };
 
 #ifdef CONFIG_NET
