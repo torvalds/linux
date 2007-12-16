@@ -970,7 +970,10 @@ static int xc2028_set_params(struct dvb_frontend *fe,
 		break;
 	case FE_ATSC:
 		bw = BANDWIDTH_6_MHZ;
+		/* The only ATSC firmware (at least on v2.7) is D2633,
+		   so overrides ctrl->d2633 */
 		type |= ATSC| D2633;
+		type &= ~D2620;
 		break;
 	/* DVB-S is not supported */
 	default:
