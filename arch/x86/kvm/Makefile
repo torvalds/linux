@@ -2,9 +2,9 @@
 # Makefile for Kernel-based Virtual Machine module
 #
 
-common-objs = $(addprefix ../../../drivers/kvm/, kvm_main.o)
+common-objs = $(addprefix ../../../virt/kvm/, kvm_main.o)
 
-EXTRA_CFLAGS += -I drivers/kvm
+EXTRA_CFLAGS += -I virt/kvm
 
 kvm-objs := $(common-objs) x86.o mmu.o x86_emulate.o i8259.o irq.o lapic.o \
 	ioapic.o
