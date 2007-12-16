@@ -670,6 +670,8 @@ static int lbs_thread(void *data)
 			shouldsleep = 1;	/* Sleep mode. Nothing we can do till it wakes */
 		else if (priv->intcounter)
 			shouldsleep = 0;	/* Interrupt pending. Deal with it now */
+		else if (priv->cmd_timed_out)
+			shouldsleep = 0;	/* Command timed out. Recover */
 		else if (!priv->fw_ready)
 			shouldsleep = 1;	/* Firmware not ready. We're waiting for it */
 		else if (priv->dnld_sent)
@@ -739,6 +741,26 @@ static int lbs_thread(void *data)
 			lbs_process_rx_command(priv);
 			spin_lock_irq(&priv->driver_lock);
 		}
+
+		if (priv->cmd_timed_out && priv->cur_cmd) {
+			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
+
+			if (++priv->nr_retries > 10) {
+				lbs_pr_info("Excessive timeouts submitting command %x\n",
+					    le16_to_cpu(cmdnode->cmdbuf->command));
+				lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
+				priv->nr_retries = 0;
+			} else {
+				priv->cur_cmd = NULL;
+				lbs_pr_info("requeueing command %x due to timeout (#%d)\n",
+					    le16_to_cpu(cmdnode->cmdbuf->command), priv->nr_retries);
+
+				/* Stick it back at the _top_ of the pending queue
+				   for immediate resubmission */
+				list_add(&cmdnode->list, &priv->cmdpendingq);
+			}
+		}
+		priv->cmd_timed_out = 0;
 
 		/* Any Card Event */
 		if (priv->hisregcpy & MRVDRV_CARDEVENT) {
@@ -922,35 +944,21 @@ done:
 static void command_timer_fn(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
-	struct cmd_ctrl_node *node;
 	unsigned long flags;
 
-	node = priv->cur_cmd;
-	if (node == NULL) {
-		lbs_deb_fw("ptempnode empty\n");
-		return;
-	}
-
-	if (!node->cmdbuf) {
-		lbs_deb_fw("cmd is NULL\n");
-		return;
-	}
-
-	lbs_pr_info("command %x timed out\n", le16_to_cpu(node->cmdbuf->command));
-
-	if (!priv->fw_ready)
-		return;
-
 	spin_lock_irqsave(&priv->driver_lock, flags);
-	priv->cur_cmd = NULL;
-	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
-	lbs_deb_fw("re-sending same command because of timeout\n");
-	lbs_queue_cmd(priv, node, 0);
+	if (!priv->cur_cmd) {
+		lbs_pr_info("Command timer expired; no pending command\n");
+		goto out;
+	}
 
+	lbs_pr_info("Command %x timed out\n", le16_to_cpu(priv->cur_cmd->cmdbuf->command));
+
+	priv->cmd_timed_out = 1;
 	wake_up_interruptible(&priv->waitq);
-
-	return;
+ out:
+	spin_unlock_irqrestore(&priv->driver_lock, flags);
 }
 
 static int lbs_init_adapter(struct lbs_private *priv)
