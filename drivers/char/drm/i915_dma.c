@@ -778,7 +778,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	base = drm_get_resource_start(dev, mmio_bar);
 	size = drm_get_resource_len(dev, mmio_bar);
 
-	ret = drm_addmap(dev, base, size, _DRM_REGISTERS, _DRM_KERNEL,
+	ret = drm_addmap(dev, base, size, _DRM_REGISTERS,
+			 _DRM_KERNEL | _DRM_DRIVER,
 			 &dev_priv->mmio_map);
 	return ret;
 }
