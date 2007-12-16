@@ -249,7 +249,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		if (off + len >= vol->usable_leb_size)
 			len = vol->usable_leb_size - off;
 
-		err = ubi_eba_read_leb(ubi, vol_id, lnum, tbuf, off, len, 0);
+		err = ubi_eba_read_leb(ubi, vol, lnum, tbuf, off, len, 0);
 		if (err)
 			break;
 
@@ -339,7 +339,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 			break;
 		}
 
-		err = ubi_eba_write_leb(ubi, vol_id, lnum, tbuf, off, len,
+		err = ubi_eba_write_leb(ubi, vol, lnum, tbuf, off, len,
 					UBI_UNKNOWN);
 		if (err)
 			break;
@@ -484,7 +484,7 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 		}
 
 		dbg_msg("erase LEB %d:%d", vol->vol_id, lnum);
-		err = ubi_eba_unmap_leb(ubi, vol->vol_id, lnum);
+		err = ubi_eba_unmap_leb(ubi, vol, lnum);
 		if (err)
 			break;
 

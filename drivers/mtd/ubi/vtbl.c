@@ -86,8 +86,10 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 {
 	int i, err;
 	uint32_t crc;
+	struct ubi_volume *layout_vol;
 
 	ubi_assert(idx >= 0 && idx < ubi->vtbl_slots);
+	layout_vol = ubi->volumes[vol_id2idx(UBI_LAYOUT_VOL_ID)];
 
 	if (!vtbl_rec)
 		vtbl_rec = &empty_vtbl_record;
@@ -99,12 +101,12 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 	mutex_lock(&ubi->vtbl_mutex);
 	memcpy(&ubi->vtbl[idx], vtbl_rec, sizeof(struct ubi_vtbl_record));
 	for (i = 0; i < UBI_LAYOUT_VOLUME_EBS; i++) {
-		err = ubi_eba_unmap_leb(ubi, UBI_LAYOUT_VOL_ID, i);
+		err = ubi_eba_unmap_leb(ubi, layout_vol, i);
 		if (err) {
 			mutex_unlock(&ubi->vtbl_mutex);
 			return err;
 		}
-		err = ubi_eba_write_leb(ubi, UBI_LAYOUT_VOL_ID, i, ubi->vtbl, 0,
+		err = ubi_eba_write_leb(ubi, layout_vol, i, ubi->vtbl, 0,
 					ubi->vtbl_size, UBI_LONGTERM);
 		if (err) {
 			mutex_unlock(&ubi->vtbl_mutex);

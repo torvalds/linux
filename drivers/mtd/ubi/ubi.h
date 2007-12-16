@@ -410,8 +410,8 @@ int ubi_read_volume_table(struct ubi_device *ubi, struct ubi_scan_info *si);
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req);
 int ubi_remove_volume(struct ubi_volume_desc *desc);
 int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs);
-int ubi_add_volume(struct ubi_device *ubi, int vol_id);
-void ubi_free_volume(struct ubi_device *ubi, int vol_id);
+int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol);
+void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol);
 
 /* upd.c */
 int ubi_start_update(struct ubi_device *ubi, int vol_id, long long bytes);
@@ -435,16 +435,17 @@ void ubi_gluebi_updated(struct ubi_volume *vol);
 #endif
 
 /* eba.c */
-int ubi_eba_unmap_leb(struct ubi_device *ubi, int vol_id, int lnum);
-int ubi_eba_read_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
-		     int offset, int len, int check);
-int ubi_eba_write_leb(struct ubi_device *ubi, int vol_id, int lnum,
+int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
+		      int lnum);
+int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
+		     void *buf, int offset, int len, int check);
+int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		      const void *buf, int offset, int len, int dtype);
-int ubi_eba_write_leb_st(struct ubi_device *ubi, int vol_id, int lnum,
-			 const void *buf, int len, int dtype,
+int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
+			 int lnum, const void *buf, int len, int dtype,
 			 int used_ebs);
-int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
-			      const void *buf, int len, int dtype);
+int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
+			      int lnum, const void *buf, int len, int dtype);
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		     struct ubi_vid_hdr *vid_hdr);
 int ubi_eba_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si);

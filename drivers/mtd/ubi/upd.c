@@ -136,7 +136,7 @@ int ubi_start_update(struct ubi_device *ubi, int vol_id, long long bytes)
 
 	/* Before updating - wipe out the volume */
 	for (i = 0; i < vol->reserved_pebs; i++) {
-		err = ubi_eba_unmap_leb(ubi, vol_id, i);
+		err = ubi_eba_unmap_leb(ubi, vol, i);
 		if (err)
 			return err;
 	}
@@ -209,8 +209,7 @@ static int write_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
 		if (len != l)
 			dbg_msg("skip last %d bytes (0xFF)", len - l);
 
-		err = ubi_eba_write_leb(ubi, vol_id, lnum, buf, 0, l,
-					UBI_UNKNOWN);
+		err = ubi_eba_write_leb(ubi, vol, lnum, buf, 0, l, UBI_UNKNOWN);
 	} else {
 		/*
 		 * When writing static volume, and this is the last logical
@@ -222,7 +221,7 @@ static int write_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
 		 * contain zeros, not random trash.
 		 */
 		memset(buf + len, 0, vol->usable_leb_size - len);
-		err = ubi_eba_write_leb_st(ubi, vol_id, lnum, buf, len,
+		err = ubi_eba_write_leb_st(ubi, vol, lnum, buf, len,
 					   UBI_UNKNOWN, used_ebs);
 	}
 

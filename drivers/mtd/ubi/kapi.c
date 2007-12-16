@@ -332,7 +332,7 @@ int ubi_leb_read(struct ubi_volume_desc *desc, int lnum, char *buf, int offset,
 	if (len == 0)
 		return 0;
 
-	err = ubi_eba_read_leb(ubi, vol_id, lnum, buf, offset, len, check);
+	err = ubi_eba_read_leb(ubi, vol, lnum, buf, offset, len, check);
 	if (err && err == -EBADMSG && vol->vol_type == UBI_STATIC_VOLUME) {
 		ubi_warn("mark volume %d as corrupted", vol_id);
 		vol->corrupted = 1;
@@ -399,7 +399,7 @@ int ubi_leb_write(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	if (len == 0)
 		return 0;
 
-	return ubi_eba_write_leb(ubi, vol_id, lnum, buf, offset, len, dtype);
+	return ubi_eba_write_leb(ubi, vol, lnum, buf, offset, len, dtype);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_write);
 
@@ -448,7 +448,7 @@ int ubi_leb_change(struct ubi_volume_desc *desc, int lnum, const void *buf,
 	if (len == 0)
 		return 0;
 
-	return ubi_eba_atomic_leb_change(ubi, vol_id, lnum, buf, len, dtype);
+	return ubi_eba_atomic_leb_change(ubi, vol, lnum, buf, len, dtype);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_change);
 
@@ -481,7 +481,7 @@ int ubi_leb_erase(struct ubi_volume_desc *desc, int lnum)
 	if (vol->upd_marker)
 		return -EBADF;
 
-	err = ubi_eba_unmap_leb(ubi, vol_id, lnum);
+	err = ubi_eba_unmap_leb(ubi, vol, lnum);
 	if (err)
 		return err;
 
@@ -542,7 +542,7 @@ int ubi_leb_unmap(struct ubi_volume_desc *desc, int lnum)
 	if (vol->upd_marker)
 		return -EBADF;
 
-	return ubi_eba_unmap_leb(ubi, vol_id, lnum);
+	return ubi_eba_unmap_leb(ubi, vol, lnum);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_unmap);
 
@@ -587,7 +587,7 @@ int ubi_leb_map(struct ubi_volume_desc *desc, int lnum, int dtype)
 	if (vol->eba_tbl[lnum] >= 0)
 		return -EBADMSG;
 
-	return ubi_eba_write_leb(ubi, vol_id, lnum, NULL, 0, 0, dtype);
+	return ubi_eba_write_leb(ubi, vol, lnum, NULL, 0, 0, dtype);
 }
 EXPORT_SYMBOL_GPL(ubi_leb_map);
 

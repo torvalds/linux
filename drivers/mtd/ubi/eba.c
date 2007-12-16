@@ -289,17 +289,17 @@ static void leb_write_unlock(struct ubi_device *ubi, int vol_id, int lnum)
 /**
  * ubi_eba_unmap_leb - un-map logical eraseblock.
  * @ubi: UBI device description object
- * @vol_id: volume ID
+ * @vol: volume description object
  * @lnum: logical eraseblock number
  *
  * This function un-maps logical eraseblock @lnum and schedules corresponding
  * physical eraseblock for erasure. Returns zero in case of success and a
  * negative error code in case of failure.
  */
-int ubi_eba_unmap_leb(struct ubi_device *ubi, int vol_id, int lnum)
+int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
+		      int lnum)
 {
-	int idx = vol_id2idx(ubi, vol_id), err, pnum;
-	struct ubi_volume *vol = ubi->volumes[idx];
+	int err, pnum, vol_id = vol->vol_id;
 
 	if (ubi->ro_mode)
 		return -EROFS;
@@ -326,7 +326,7 @@ out_unlock:
 /**
  * ubi_eba_read_leb - read data.
  * @ubi: UBI device description object
- * @vol_id: volume ID
+ * @vol: volume description object
  * @lnum: logical eraseblock number
  * @buf: buffer to store the read data
  * @offset: offset from where to read
@@ -342,12 +342,11 @@ out_unlock:
  * returned for any volume type if an ECC error was detected by the MTD device
  * driver. Other negative error cored may be returned in case of other errors.
  */
-int ubi_eba_read_leb(struct ubi_device *ubi, int vol_id, int lnum, void *buf,
-		     int offset, int len, int check)
+int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
+		     void *buf, int offset, int len, int check)
 {
-	int err, pnum, scrub = 0, idx = vol_id2idx(ubi, vol_id);
+	int err, pnum, scrub = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
-	struct ubi_volume *vol = ubi->volumes[idx];
 	uint32_t uninitialized_var(crc);
 
 	err = leb_read_lock(ubi, vol_id, lnum);
@@ -555,7 +554,7 @@ write_error:
 /**
  * ubi_eba_write_leb - write data to dynamic volume.
  * @ubi: UBI device description object
- * @vol_id: volume ID
+ * @vol: volume description object
  * @lnum: logical eraseblock number
  * @buf: the data to write
  * @offset: offset within the logical eraseblock where to write
@@ -563,15 +562,14 @@ write_error:
  * @dtype: data type
  *
  * This function writes data to logical eraseblock @lnum of a dynamic volume
- * @vol_id. Returns zero in case of success and a negative error code in case
+ * @vol. Returns zero in case of success and a negative error code in case
  * of failure. In case of error, it is possible that something was still
  * written to the flash media, but may be some garbage.
  */
-int ubi_eba_write_leb(struct ubi_device *ubi, int vol_id, int lnum,
+int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 		      const void *buf, int offset, int len, int dtype)
 {
-	int idx = vol_id2idx(ubi, vol_id), err, pnum, tries = 0;
-	struct ubi_volume *vol = ubi->volumes[idx];
+	int err, pnum, tries = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
 
 	if (ubi->ro_mode)
@@ -590,7 +588,8 @@ int ubi_eba_write_leb(struct ubi_device *ubi, int vol_id, int lnum,
 		if (err) {
 			ubi_warn("failed to write data to PEB %d", pnum);
 			if (err == -EIO && ubi->bad_allowed)
-				err = recover_peb(ubi, pnum, vol_id, lnum, buf, offset, len);
+				err = recover_peb(ubi, pnum, vol_id, lnum, buf,
+						  offset, len);
 			if (err)
 				ubi_ro_mode(ubi);
 		}
@@ -678,7 +677,7 @@ write_error:
 /**
  * ubi_eba_write_leb_st - write data to static volume.
  * @ubi: UBI device description object
- * @vol_id: volume ID
+ * @vol: volume description object
  * @lnum: logical eraseblock number
  * @buf: data to write
  * @len: how many bytes to write
@@ -686,7 +685,7 @@ write_error:
  * @used_ebs: how many logical eraseblocks will this volume contain
  *
  * This function writes data to logical eraseblock @lnum of static volume
- * @vol_id. The @used_ebs argument should contain total number of logical
+ * @vol. The @used_ebs argument should contain total number of logical
  * eraseblock in this static volume.
  *
  * When writing to the last logical eraseblock, the @len argument doesn't have
@@ -698,12 +697,11 @@ write_error:
  * volumes. This function returns zero in case of success and a negative error
  * code in case of failure.
  */
-int ubi_eba_write_leb_st(struct ubi_device *ubi, int vol_id, int lnum,
-			 const void *buf, int len, int dtype, int used_ebs)
+int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
+			 int lnum, const void *buf, int len, int dtype,
+			 int used_ebs)
 {
-	int err, pnum, tries = 0, data_size = len;
-	int idx = vol_id2idx(ubi, vol_id);
-	struct ubi_volume *vol = ubi->volumes[idx];
+	int err, pnum, tries = 0, data_size = len, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t crc;
 
@@ -799,7 +797,7 @@ write_error:
 /*
  * ubi_eba_atomic_leb_change - change logical eraseblock atomically.
  * @ubi: UBI device description object
- * @vol_id: volume ID
+ * @vol: volume escription object
  * @lnum: logical eraseblock number
  * @buf: data to write
  * @len: how many bytes to write
@@ -814,11 +812,10 @@ write_error:
  * UBI reserves one LEB for the "atomic LEB change" operation, so only one
  * LEB change may be done at a time. This is ensured by @ubi->alc_mutex.
  */
-int ubi_eba_atomic_leb_change(struct ubi_device *ubi, int vol_id, int lnum,
-			      const void *buf, int len, int dtype)
+int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
+			      int lnum, const void *buf, int len, int dtype)
 {
-	int err, pnum, tries = 0, idx = vol_id2idx(ubi, vol_id);
-	struct ubi_volume *vol = ubi->volumes[idx];
+	int err, pnum, tries = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t crc;
 

@@ -417,7 +417,7 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 		return err;
 
 	for (i = 0; i < vol->reserved_pebs; i++) {
-		err = ubi_eba_unmap_leb(ubi, vol_id, i);
+		err = ubi_eba_unmap_leb(ubi, vol, i);
 		if (err)
 			return err;
 	}
@@ -524,7 +524,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 
 	if (pebs < 0) {
 		for (i = 0; i < -pebs; i++) {
-			err = ubi_eba_unmap_leb(ubi, vol_id, reserved_pebs + i);
+			err = ubi_eba_unmap_leb(ubi, vol, reserved_pebs + i);
 			if (err)
 				goto out_acc;
 		}
@@ -573,17 +573,16 @@ out_free:
 /**
  * ubi_add_volume - add volume.
  * @ubi: UBI device description object
- * @vol_id: volume ID
+ * @vol: volume description object
  *
  * This function adds an existin volume and initializes all its data
  * structures. Returnes zero in case of success and a negative error code in
  * case of failure.
  */
-int ubi_add_volume(struct ubi_device *ubi, int vol_id)
+int ubi_add_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 {
-	int err;
+	int err, vol_id = vol->vol_id;
 	dev_t dev;
-	struct ubi_volume *vol = ubi->volumes[vol_id];
 
 	dbg_msg("add volume %d", vol_id);
 	ubi_dbg_dump_vol_info(vol);
@@ -634,22 +633,21 @@ out_cdev:
 /**
  * ubi_free_volume - free volume.
  * @ubi: UBI device description object
- * @vol_id: volume ID
+ * @vol: volume description object
  *
- * This function frees all resources for volume @vol_id but does not remove it.
+ * This function frees all resources for volume @vol but does not remove it.
  * Used only when the UBI device is detached.
  */
-void ubi_free_volume(struct ubi_device *ubi, int vol_id)
+void ubi_free_volume(struct ubi_device *ubi, struct ubi_volume *vol)
 {
 	int err;
-	struct ubi_volume *vol = ubi->volumes[vol_id];
 
-	dbg_msg("free volume %d", vol_id);
+	dbg_msg("free volume %d", vol->vol_id);
 	ubi_assert(vol);
 
 	vol->removed = 1;
 	err = ubi_destroy_gluebi(vol);
-	ubi->volumes[vol_id] = NULL;
+	ubi->volumes[vol->vol_id] = NULL;
 	cdev_del(&vol->cdev);
 	volume_sysfs_close(vol);
 }

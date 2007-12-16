@@ -249,7 +249,7 @@ static void kill_volumes(struct ubi_device *ubi)
 
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		if (ubi->volumes[i])
-			ubi_free_volume(ubi, i);
+			ubi_free_volume(ubi, ubi->volumes[i]);
 }
 
 /**
@@ -300,7 +300,7 @@ static int uif_init(struct ubi_device *ubi)
 
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		if (ubi->volumes[i]) {
-			err = ubi_add_volume(ubi, i);
+			err = ubi_add_volume(ubi, ubi->volumes[i]);
 			if (err) {
 				ubi_err("cannot add volume %d", i);
 				goto out_volumes;
