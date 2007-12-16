@@ -28,6 +28,11 @@
  *
  * Major and minor numbers are assigned dynamically to both UBI and volume
  * character devices.
+ *
+ * Well, there is the third kind of character devices - the UBI control
+ * character device, which allows to manipulate by UBI devices - create and
+ * delete them. In other words, it is used for attaching and detaching MTD
+ * devices.
  */
 
 #include <linux/module.h>
@@ -692,6 +697,11 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 
 	return err;
 }
+
+/* UBI control character device operations */
+struct file_operations ubi_ctrl_cdev_operations = {
+	.owner = THIS_MODULE,
+};
 
 /* UBI character device operations */
 struct file_operations ubi_cdev_operations = {

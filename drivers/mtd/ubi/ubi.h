@@ -235,7 +235,7 @@ struct ubi_wl_entry;
 
 /**
  * struct ubi_device - UBI device description structure
- * @dev: class device object to use the the Linux device model
+ * @dev: UBI device object to use the the Linux device model
  * @cdev: character device object to create character device
  * @ubi_num: UBI device number
  * @ubi_name: UBI device name
@@ -398,6 +398,7 @@ struct ubi_device {
 
 extern struct kmem_cache *ubi_ltree_slab;
 extern struct kmem_cache *ubi_wl_entry_slab;
+extern struct file_operations ubi_ctrl_cdev_operations;
 extern struct file_operations ubi_cdev_operations;
 extern struct file_operations ubi_vol_cdev_operations;
 extern struct ubi_device *ubi_devices[];

@@ -21,11 +21,16 @@
  */
 
 /*
- * This file includes UBI initialization and building of UBI devices. At the
- * moment UBI devices may only be added while UBI is initialized, but dynamic
- * device add/remove functionality is planned. Also, at the moment we only
- * attach UBI devices by scanning, which will become a bottleneck when flashes
- * reach certain large size. Then one may improve UBI and add other methods.
+ * This file includes UBI initialization and building of UBI devices.
+ *
+ * When UBI is initialized, it attaches all the MTD devices specified as the
+ * module load parameters or the kernel boot parameters. If MTD devices were
+ * specified, UBI does not attach any MTD device, but it is possible to do
+ * later using the "UBI control device".
+ *
+ * At the moment we only attach UBI devices by scanning, which will become a
+ * bottleneck when flashes reach certain large size. Then one may improve UBI
+ * and add other methods, although it does not seem to be easy to do.
  */
 
 #include <linux/err.h>
@@ -33,6 +38,7 @@
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
 #include <linux/stat.h>
+#include <linux/miscdevice.h>
 #include <linux/log2.h>
 #include "ubi.h"
 
@@ -70,6 +76,12 @@ struct kmem_cache *ubi_ltree_slab;
 /* Slab cache for wear-leveling entries */
 struct kmem_cache *ubi_wl_entry_slab;
 
+/* UBI control character device */
+static struct miscdevice ubi_ctrl_cdev = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "ubi_ctrl",
+	.fops = &ubi_ctrl_cdev_operations,
+};
 
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
 static ssize_t ubi_version_show(struct class *class, char *buf)
@@ -701,19 +713,31 @@ static int __init ubi_init(void)
 		return -EINVAL;
 	}
 
+	/* Create base sysfs directory and sysfs files */
 	ubi_class = class_create(THIS_MODULE, UBI_NAME_STR);
-	if (IS_ERR(ubi_class))
-		return PTR_ERR(ubi_class);
+	if (IS_ERR(ubi_class)) {
+		err = PTR_ERR(ubi_class);
+		printk(KERN_ERR "UBI error: cannot create UBI class\n");
+		goto out;
+	}
 
 	err = class_create_file(ubi_class, &ubi_version);
-	if (err)
+	if (err) {
+		printk(KERN_ERR "UBI error: cannot create sysfs file\n");
 		goto out_class;
+	}
+
+	err = misc_register(&ubi_ctrl_cdev);
+	if (err) {
+		printk(KERN_ERR "UBI error: cannot register device\n");
+		goto out_version;
+	}
 
 	ubi_ltree_slab = kmem_cache_create("ubi_ltree_slab",
 					   sizeof(struct ubi_ltree_entry), 0,
 					   0, &ltree_entry_ctor);
 	if (!ubi_ltree_slab)
-		goto out_version;
+		goto out_dev_unreg;
 
 	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
 						sizeof(struct ubi_wl_entry),
@@ -727,8 +751,11 @@ static int __init ubi_init(void)
 
 		cond_resched();
 		err = attach_mtd_dev(p->name, p->vid_hdr_offs, p->data_offs);
-		if (err)
+		if (err) {
+			printk(KERN_ERR "UBI error: cannot attach %s\n",
+			       p->name);
 			goto out_detach;
+		}
 	}
 
 	return 0;
@@ -739,10 +766,14 @@ out_detach:
 	kmem_cache_destroy(ubi_wl_entry_slab);
 out_ltree:
 	kmem_cache_destroy(ubi_ltree_slab);
+out_dev_unreg:
+	misc_deregister(&ubi_ctrl_cdev);
 out_version:
 	class_remove_file(ubi_class, &ubi_version);
 out_class:
 	class_destroy(ubi_class);
+out:
+	printk(KERN_ERR "UBI error: cannot initialize UBI, error %d\n", err);
 	return err;
 }
 module_init(ubi_init);
@@ -756,6 +787,7 @@ static void __exit ubi_exit(void)
 			detach_mtd_dev(ubi_devices[i]);
 	kmem_cache_destroy(ubi_wl_entry_slab);
 	kmem_cache_destroy(ubi_ltree_slab);
+	misc_deregister(&ubi_ctrl_cdev);
 	class_remove_file(ubi_class, &ubi_version);
 	class_destroy(ubi_class);
 }
