@@ -151,9 +151,7 @@ struct sbp2_target {
 };
 
 #define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
-#define SBP2_MAX_SECTORS		255	/* Max sectors supported */
 #define SBP2_ORB_TIMEOUT		2000	/* Timeout in ms */
-
 #define SBP2_ORB_NULL			0x80000000
 
 #define SBP2_DIRECTION_TO_MEDIA		0x0
