@@ -165,6 +165,9 @@ static void b43legacy_map_led(struct b43legacy_wldev *dev,
 		b43legacy_register_led(dev, &dev->led_radio, name,
 				 b43legacy_rfkill_led_name(dev),
 				 led_index, activelow);
+		/* Sync the RF-kill LED state with the switch state. */
+		if (dev->radio_hw_enable)
+			b43legacy_led_turn_on(dev, led_index, activelow);
 		break;
 	case B43legacy_LED_WEIRD:
 	case B43legacy_LED_ASSOC:
@@ -234,4 +237,5 @@ void b43legacy_leds_exit(struct b43legacy_wldev *dev)
 	b43legacy_unregister_led(&dev->led_tx);
 	b43legacy_unregister_led(&dev->led_rx);
 	b43legacy_unregister_led(&dev->led_assoc);
+	b43legacy_unregister_led(&dev->led_radio);
 }

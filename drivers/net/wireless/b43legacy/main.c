@@ -1995,7 +1995,6 @@ static void b43legacy_mgmtframe_txantenna(struct b43legacy_wldev *dev,
 static void b43legacy_chip_exit(struct b43legacy_wldev *dev)
 {
 	b43legacy_radio_turn_off(dev, 1);
-	b43legacy_leds_exit(dev);
 	b43legacy_gpio_cleanup(dev);
 	/* firmware is released later */
 }
@@ -2025,11 +2024,10 @@ static int b43legacy_chip_init(struct b43legacy_wldev *dev)
 	err = b43legacy_gpio_init(dev);
 	if (err)
 		goto out; /* firmware is released later */
-	b43legacy_leds_init(dev);
 
 	err = b43legacy_upload_initvals(dev);
 	if (err)
-		goto err_leds_exit;
+		goto err_gpio_clean;
 	b43legacy_radio_turn_on(dev);
 
 	b43legacy_write16(dev, 0x03E6, 0x0000);
@@ -2111,8 +2109,7 @@ out:
 
 err_radio_off:
 	b43legacy_radio_turn_off(dev, 1);
-err_leds_exit:
-	b43legacy_leds_exit(dev);
+err_gpio_clean:
 	b43legacy_gpio_cleanup(dev);
 	goto out;
 }
@@ -2969,10 +2966,7 @@ static void b43legacy_wireless_core_exit(struct b43legacy_wldev *dev)
 	cancel_work_sync(&dev->restart_work);
 	mutex_lock(&wl->mutex);
 
-	mutex_unlock(&dev->wl->mutex);
-	b43legacy_rfkill_exit(dev);
-	mutex_lock(&dev->wl->mutex);
-
+	b43legacy_leds_exit(dev);
 	b43legacy_rng_exit(dev->wl);
 	b43legacy_pio_free(dev);
 	b43legacy_dma_free(dev);
@@ -3138,11 +3132,11 @@ static int b43legacy_wireless_core_init(struct b43legacy_wldev *dev)
 	memset(wl->mac_addr, 0, ETH_ALEN);
 	b43legacy_upload_card_macaddress(dev);
 	b43legacy_security_init(dev);
-	b43legacy_rfkill_init(dev);
 	b43legacy_rng_init(wl);
 
 	b43legacy_set_status(dev, B43legacy_STAT_INITIALIZED);
 
+	b43legacy_leds_init(dev);
 out:
 	return err;
 
@@ -3231,6 +3225,10 @@ static int b43legacy_op_start(struct ieee80211_hw *hw)
 	int did_init = 0;
 	int err = 0;
 
+	/* First register RFkill.
+	 * LEDs that are registered later depend on it. */
+	b43legacy_rfkill_init(dev);
+
 	mutex_lock(&wl->mutex);
 
 	if (b43legacy_status(dev) < B43legacy_STAT_INITIALIZED) {
@@ -3259,6 +3257,8 @@ static void b43legacy_op_stop(struct ieee80211_hw *hw)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	struct b43legacy_wldev *dev = wl->current_dev;
+
+	b43legacy_rfkill_exit(dev);
 
 	mutex_lock(&wl->mutex);
 	if (b43legacy_status(dev) >= B43legacy_STAT_STARTED)
