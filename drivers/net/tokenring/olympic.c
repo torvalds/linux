@@ -357,7 +357,7 @@ static int __devinit olympic_init(struct net_device *dev)
 
 	if(!(readl(olympic_mmio+BCTL) & BCTL_MODE_INDICATOR)) { 
 		t=jiffies;
-		while (!readl(olympic_mmio+CLKCTL) & CLKCTL_PAUSE) { 
+		while (!(readl(olympic_mmio+CLKCTL) & CLKCTL_PAUSE)) {
 			schedule() ; 
 			if(time_after(jiffies, t + 2*HZ)) {
 				printk(KERN_ERR "IBM Cardbus tokenring adapter not responsing.\n") ; 
@@ -671,7 +671,7 @@ static int olympic_open(struct net_device *dev)
 
 	writel(BMCTL_TX1_DIS,olympic_mmio+BMCTL_RWM); /* Yes, this enables TX channel 1 */
 	for(i=0;i<OLYMPIC_TX_RING_SIZE;i++) 
-		olympic_priv->olympic_tx_ring[i].buffer=0xdeadbeef;
+		olympic_priv->olympic_tx_ring[i].buffer=cpu_to_le32(0xdeadbeef);
 
 	olympic_priv->free_tx_ring_entries=OLYMPIC_TX_RING_SIZE;
 	olympic_priv->tx_ring_dma_addr = pci_map_single(olympic_priv->pdev,olympic_priv->olympic_tx_ring,
@@ -897,7 +897,7 @@ static void olympic_freemem(struct net_device *dev)
 			dev_kfree_skb_irq(olympic_priv->rx_ring_skb[olympic_priv->rx_status_last_received]);
 			olympic_priv->rx_ring_skb[olympic_priv->rx_status_last_received] = NULL;
 		}
-		if (olympic_priv->olympic_rx_ring[olympic_priv->rx_status_last_received].buffer != 0xdeadbeef) {
+		if (olympic_priv->olympic_rx_ring[olympic_priv->rx_status_last_received].buffer != cpu_to_le32(0xdeadbeef)) {
 			pci_unmap_single(olympic_priv->pdev, 
 			le32_to_cpu(olympic_priv->olympic_rx_ring[olympic_priv->rx_status_last_received].buffer),
 			olympic_priv->pkt_buf_sz, PCI_DMA_FROMDEVICE);
@@ -983,7 +983,7 @@ static irqreturn_t olympic_interrupt(int irq, void *dev_id)
 					le32_to_cpu(olympic_priv->olympic_tx_ring[olympic_priv->tx_ring_last_status].buffer), 
 					olympic_priv->tx_ring_skb[olympic_priv->tx_ring_last_status]->len,PCI_DMA_TODEVICE);
 				dev_kfree_skb_irq(olympic_priv->tx_ring_skb[olympic_priv->tx_ring_last_status]);
-				olympic_priv->olympic_tx_ring[olympic_priv->tx_ring_last_status].buffer=0xdeadbeef;
+				olympic_priv->olympic_tx_ring[olympic_priv->tx_ring_last_status].buffer=cpu_to_le32(0xdeadbeef);
 				olympic_priv->olympic_tx_status_ring[olympic_priv->tx_ring_last_status].status=0;
 			}
 			netif_wake_queue(dev);
@@ -1432,7 +1432,7 @@ static void olympic_arb_cmd(struct net_device *dev)
 			buffer_len = swab16(readw(buf_ptr+offsetof(struct mac_receive_buffer,buffer_length))); 
 			memcpy_fromio(skb_put(mac_frame, buffer_len), frame_data , buffer_len ) ;
 			next_ptr=readw(buf_ptr+offsetof(struct mac_receive_buffer,next)); 
-		} while (next_ptr && (buf_ptr=olympic_priv->olympic_lap + ntohs(next_ptr)));
+		} while (next_ptr && (buf_ptr=olympic_priv->olympic_lap + swab16(next_ptr)));
 
 		mac_frame->protocol = tr_type_trans(mac_frame, dev);
 
