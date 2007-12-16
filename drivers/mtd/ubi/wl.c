@@ -117,21 +117,6 @@
 #define WL_MAX_FAILURES 32
 
 /**
- * struct ubi_wl_entry - wear-leveling entry.
- * @rb: link in the corresponding RB-tree
- * @ec: erase counter
- * @pnum: physical eraseblock number
- *
- * Each physical eraseblock has a corresponding &struct wl_entry object which
- * may be kept in different RB-trees.
- */
-struct ubi_wl_entry {
-	struct rb_node rb;
-	int ec;
-	int pnum;
-};
-
-/**
  * struct ubi_wl_prot_entry - PEB protection entry.
  * @rb_pnum: link in the @wl->prot.pnum RB-tree
  * @rb_aec: link in the @wl->prot.aec RB-tree
@@ -215,9 +200,6 @@ static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
 #define paranoid_check_ec(ubi, pnum, ec) 0
 #define paranoid_check_in_wl_tree(e, root)
 #endif
-
-/* Slab cache for wear-leveling entries */
-static struct kmem_cache *wl_entries_slab;
 
 /**
  * wl_tree_add - add a wear-leveling entry to a WL RB-tree.
@@ -878,14 +860,14 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		dbg_wl("PEB %d was put meanwhile, erase", e2->pnum);
 		err = schedule_erase(ubi, e2, 0);
 		if (err) {
-			kmem_cache_free(wl_entries_slab, e2);
+			kmem_cache_free(ubi_wl_entry_slab, e2);
 			ubi_ro_mode(ubi);
 		}
 	}
 
 	err = schedule_erase(ubi, e1, 0);
 	if (err) {
-		kmem_cache_free(wl_entries_slab, e1);
+		kmem_cache_free(ubi_wl_entry_slab, e1);
 		ubi_ro_mode(ubi);
 	}
 
@@ -920,14 +902,14 @@ error:
 		dbg_wl("PEB %d was put meanwhile, erase", e1->pnum);
 		err = schedule_erase(ubi, e1, 0);
 		if (err) {
-			kmem_cache_free(wl_entries_slab, e1);
+			kmem_cache_free(ubi_wl_entry_slab, e1);
 			ubi_ro_mode(ubi);
 		}
 	}
 
 	err = schedule_erase(ubi, e2, 0);
 	if (err) {
-		kmem_cache_free(wl_entries_slab, e2);
+		kmem_cache_free(ubi_wl_entry_slab, e2);
 		ubi_ro_mode(ubi);
 	}
 
@@ -1020,7 +1002,7 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 	if (cancel) {
 		dbg_wl("cancel erasure of PEB %d EC %d", pnum, e->ec);
 		kfree(wl_wrk);
-		kmem_cache_free(wl_entries_slab, e);
+		kmem_cache_free(ubi_wl_entry_slab, e);
 		return 0;
 	}
 
@@ -1049,7 +1031,7 @@ static int erase_worker(struct ubi_device *ubi, struct ubi_work *wl_wrk,
 
 	ubi_err("failed to erase PEB %d, error %d", pnum, err);
 	kfree(wl_wrk);
-	kmem_cache_free(wl_entries_slab, e);
+	kmem_cache_free(ubi_wl_entry_slab, e);
 
 	if (err == -EINTR || err == -ENOMEM || err == -EAGAIN ||
 	    err == -EBUSY) {
@@ -1294,7 +1276,7 @@ static void tree_destroy(struct rb_root *root)
 					rb->rb_right = NULL;
 			}
 
-			kmem_cache_free(wl_entries_slab, e);
+			kmem_cache_free(ubi_wl_entry_slab, e);
 		}
 	}
 }
@@ -1407,14 +1389,6 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		return err;
 	}
 
-	if (ubi_devices_cnt == 0) {
-		wl_entries_slab = kmem_cache_create("ubi_wl_entry_slab",
-						    sizeof(struct ubi_wl_entry),
-						    0, 0, NULL);
-		if (!wl_entries_slab)
-			return -ENOMEM;
-	}
-
 	err = -ENOMEM;
 	ubi->lookuptbl = kzalloc(ubi->peb_count * sizeof(void *), GFP_KERNEL);
 	if (!ubi->lookuptbl)
@@ -1423,7 +1397,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	list_for_each_entry_safe(seb, tmp, &si->erase, u.list) {
 		cond_resched();
 
-		e = kmem_cache_alloc(wl_entries_slab, GFP_KERNEL);
+		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e)
 			goto out_free;
 
@@ -1431,7 +1405,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		e->ec = seb->ec;
 		ubi->lookuptbl[e->pnum] = e;
 		if (schedule_erase(ubi, e, 0)) {
-			kmem_cache_free(wl_entries_slab, e);
+			kmem_cache_free(ubi_wl_entry_slab, e);
 			goto out_free;
 		}
 	}
@@ -1439,7 +1413,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	list_for_each_entry(seb, &si->free, u.list) {
 		cond_resched();
 
-		e = kmem_cache_alloc(wl_entries_slab, GFP_KERNEL);
+		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e)
 			goto out_free;
 
@@ -1453,7 +1427,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	list_for_each_entry(seb, &si->corr, u.list) {
 		cond_resched();
 
-		e = kmem_cache_alloc(wl_entries_slab, GFP_KERNEL);
+		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e)
 			goto out_free;
 
@@ -1461,7 +1435,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		e->ec = seb->ec;
 		ubi->lookuptbl[e->pnum] = e;
 		if (schedule_erase(ubi, e, 0)) {
-			kmem_cache_free(wl_entries_slab, e);
+			kmem_cache_free(ubi_wl_entry_slab, e);
 			goto out_free;
 		}
 	}
@@ -1470,7 +1444,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 		ubi_rb_for_each_entry(rb2, seb, &sv->root, u.rb) {
 			cond_resched();
 
-			e = kmem_cache_alloc(wl_entries_slab, GFP_KERNEL);
+			e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 			if (!e)
 				goto out_free;
 
@@ -1510,8 +1484,6 @@ out_free:
 	tree_destroy(&ubi->free);
 	tree_destroy(&ubi->scrub);
 	kfree(ubi->lookuptbl);
-	if (ubi_devices_cnt == 0)
-		kmem_cache_destroy(wl_entries_slab);
 	return err;
 }
 
@@ -1541,7 +1513,7 @@ static void protection_trees_destroy(struct ubi_device *ubi)
 					rb->rb_right = NULL;
 			}
 
-			kmem_cache_free(wl_entries_slab, pe->e);
+			kmem_cache_free(ubi_wl_entry_slab, pe->e);
 			kfree(pe);
 		}
 	}
@@ -1565,8 +1537,6 @@ void ubi_wl_close(struct ubi_device *ubi)
 	tree_destroy(&ubi->free);
 	tree_destroy(&ubi->scrub);
 	kfree(ubi->lookuptbl);
-	if (ubi_devices_cnt == 1)
-		kmem_cache_destroy(wl_entries_slab);
 }
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID

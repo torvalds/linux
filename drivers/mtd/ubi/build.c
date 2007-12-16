@@ -70,6 +70,10 @@ struct class *ubi_class;
 /* Slab cache for lock-tree entries */
 struct kmem_cache *ubi_ltree_slab;
 
+/* Slab cache for wear-leveling entries */
+struct kmem_cache *ubi_wl_entry_slab;
+
+
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
 static ssize_t ubi_version_show(struct class *class, char *buf)
 {
@@ -732,6 +736,12 @@ static int __init ubi_init(void)
 	if (!ubi_ltree_slab)
 		goto out_version;
 
+	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
+						sizeof(struct ubi_wl_entry),
+						0, 0, NULL);
+	if (!ubi_wl_entry_slab)
+		goto out_ltree;
+
 	/* Attach MTD devices */
 	for (i = 0; i < mtd_devs; i++) {
 		struct mtd_dev_param *p = &mtd_dev_param[i];
@@ -747,6 +757,8 @@ static int __init ubi_init(void)
 out_detach:
 	for (k = 0; k < i; k++)
 		detach_mtd_dev(ubi_devices[k]);
+	kmem_cache_destroy(ubi_wl_entry_slab);
+out_ltree:
 	kmem_cache_destroy(ubi_ltree_slab);
 out_version:
 	class_remove_file(ubi_class, &ubi_version);
@@ -762,6 +774,7 @@ static void __exit ubi_exit(void)
 
 	for (i = 0; i < n; i++)
 		detach_mtd_dev(ubi_devices[i]);
+	kmem_cache_destroy(ubi_wl_entry_slab);
 	kmem_cache_destroy(ubi_ltree_slab);
 	class_remove_file(ubi_class, &ubi_version);
 	class_destroy(ubi_class);

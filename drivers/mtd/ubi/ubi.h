@@ -98,6 +98,22 @@ extern int ubi_devices_cnt;
 extern struct ubi_device *ubi_devices[];
 
 /**
+ * struct ubi_wl_entry - wear-leveling entry.
+ * @rb: link in the corresponding RB-tree
+ * @ec: erase counter
+ * @pnum: physical eraseblock number
+ *
+ * This data structure is used in the WL unit. Each physical eraseblock has a
+ * corresponding &struct wl_entry object which may be kept in different
+ * RB-trees. See WL unit for details.
+ */
+struct ubi_wl_entry {
+	struct rb_node rb;
+	int ec;
+	int pnum;
+};
+
+/**
  * struct ubi_ltree_entry - an entry in the lock tree.
  * @rb: links RB-tree nodes
  * @vol_id: volume ID of the locked logical eraseblock
@@ -382,6 +398,7 @@ struct ubi_device {
 };
 
 extern struct kmem_cache *ubi_ltree_slab;
+extern struct kmem_cache *ubi_wl_entry_slab;
 extern struct file_operations ubi_cdev_operations;
 extern struct file_operations ubi_vol_cdev_operations;
 extern struct class *ubi_class;
