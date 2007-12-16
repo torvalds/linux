@@ -83,7 +83,8 @@ static struct ipv4_devconf ipv4_devconf_dflt = {
 	},
 };
 
-#define IPV4_DEVCONF_DFLT(attr) IPV4_DEVCONF(ipv4_devconf_dflt, attr)
+#define IPV4_DEVCONF_DFLT(net, attr) \
+	IPV4_DEVCONF((*net->ipv4.devconf_dflt), attr)
 
 static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_LOCAL]     	= { .type = NLA_U32 },
@@ -164,7 +165,8 @@ static struct in_device *inetdev_init(struct net_device *dev)
 	if (!in_dev)
 		goto out;
 	INIT_RCU_HEAD(&in_dev->rcu_head);
-	memcpy(&in_dev->cnf, &ipv4_devconf_dflt, sizeof(in_dev->cnf));
+	memcpy(&in_dev->cnf, dev->nd_net->ipv4.devconf_dflt,
+			sizeof(in_dev->cnf));
 	in_dev->cnf.sysctl = NULL;
 	in_dev->dev = dev;
 	if ((in_dev->arp_parms = neigh_parms_alloc(dev, &arp_tbl)) == NULL)
@@ -1247,7 +1249,7 @@ static void devinet_copy_dflt_conf(struct net *net, int i)
 		rcu_read_lock();
 		in_dev = __in_dev_get_rcu(dev);
 		if (in_dev && !test_bit(i, in_dev->cnf.state))
-			in_dev->cnf.data[i] = ipv4_devconf_dflt.data[i];
+			in_dev->cnf.data[i] = net->ipv4.devconf_dflt->data[i];
 		rcu_read_unlock();
 	}
 	read_unlock(&dev_base_lock);
@@ -1259,7 +1261,7 @@ static void inet_forward_change(struct net *net)
 	int on = IPV4_DEVCONF_ALL(FORWARDING);
 
 	IPV4_DEVCONF_ALL(ACCEPT_REDIRECTS) = !on;
-	IPV4_DEVCONF_DFLT(FORWARDING) = on;
+	IPV4_DEVCONF_DFLT(net, FORWARDING) = on;
 
 	read_lock(&dev_base_lock);
 	for_each_netdev(net, dev) {
@@ -1288,7 +1290,7 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 
 		set_bit(i, cnf->state);
 
-		if (cnf == &ipv4_devconf_dflt)
+		if (cnf == net->ipv4.devconf_dflt)
 			devinet_copy_dflt_conf(net, i);
 	}
 
@@ -1341,7 +1343,7 @@ static int devinet_conf_sysctl(ctl_table *table, int __user *name, int nlen,
 
 	set_bit(i, cnf->state);
 
-	if (cnf == &ipv4_devconf_dflt)
+	if (cnf == net->ipv4.devconf_dflt)
 		devinet_copy_dflt_conf(net, i);
 
 	return 1;
@@ -1360,7 +1362,7 @@ static int devinet_sysctl_forward(ctl_table *ctl, int write,
 
 		if (valp == &IPV4_DEVCONF_ALL(FORWARDING))
 			inet_forward_change(net);
-		else if (valp != &IPV4_DEVCONF_DFLT(FORWARDING))
+		else if (valp != &IPV4_DEVCONF_DFLT(net, FORWARDING))
 			rt_cache_flush(0);
 	}
 
