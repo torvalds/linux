@@ -302,9 +302,11 @@
  * Always write the address first before setting the ownership
  * bits to avoid races with the hardware scanning the ring.
  */
+typedef u32 __bitwise__ hme32;
+
 struct happy_meal_rxd {
-	u32 rx_flags;
-	u32 rx_addr;
+	hme32 rx_flags;
+	hme32 rx_addr;
 };
 
 #define RXFLAG_OWN         0x80000000 /* 1 = hardware, 0 = software */
@@ -313,8 +315,8 @@ struct happy_meal_rxd {
 #define RXFLAG_CSUM        0x0000ffff /* HW computed checksum       */
 
 struct happy_meal_txd {
-	u32 tx_flags;
-	u32 tx_addr;
+	hme32 tx_flags;
+	hme32 tx_addr;
 };
 
 #define TXFLAG_OWN         0x80000000 /* 1 = hardware, 0 = software */
@@ -400,7 +402,7 @@ struct happy_meal {
 	struct hmeal_init_block  *happy_block;	/* RX and TX descriptors (CPU addr)  */
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
-	u32 (*read_desc32)(u32 *);
+	u32 (*read_desc32)(hme32 *);
 	void (*write_txd)(struct happy_meal_txd *, u32, u32);
 	void (*write_rxd)(struct happy_meal_rxd *, u32, u32);
 	u32 (*dma_map)(void *, void *, long, int);
