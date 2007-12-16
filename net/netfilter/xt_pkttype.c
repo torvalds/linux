@@ -31,7 +31,7 @@ pkttype_mt(const struct sk_buff *skb, const struct net_device *in,
 	const struct xt_pkttype_info *info = matchinfo;
 
 	if (skb->pkt_type == PACKET_LOOPBACK)
-		type = MULTICAST(ip_hdr(skb)->daddr)
+		type = ipv4_is_multicast(ip_hdr(skb)->daddr)
 			? PACKET_MULTICAST
 			: PACKET_BROADCAST;
 	else
