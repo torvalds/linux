@@ -38,6 +38,7 @@ struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
 
 	unsigned char 	   data[4];
+	unsigned int       config;
 
 	struct tuner *t;
 };
@@ -473,31 +474,31 @@ static int tda9887_set_insmod(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int tda9887_set_config(struct dvb_frontend *fe)
+static int tda9887_do_config(struct dvb_frontend *fe)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
 	struct tuner *t = priv->t;
 	char *buf = priv->data;
 
-	if (t->tda9887_config & TDA9887_PORT1_ACTIVE)
+	if (priv->config & TDA9887_PORT1_ACTIVE)
 		buf[1] &= ~cOutputPort1Inactive;
-	if (t->tda9887_config & TDA9887_PORT1_INACTIVE)
+	if (priv->config & TDA9887_PORT1_INACTIVE)
 		buf[1] |= cOutputPort1Inactive;
-	if (t->tda9887_config & TDA9887_PORT2_ACTIVE)
+	if (priv->config & TDA9887_PORT2_ACTIVE)
 		buf[1] &= ~cOutputPort2Inactive;
-	if (t->tda9887_config & TDA9887_PORT2_INACTIVE)
+	if (priv->config & TDA9887_PORT2_INACTIVE)
 		buf[1] |= cOutputPort2Inactive;
 
-	if (t->tda9887_config & TDA9887_QSS)
+	if (priv->config & TDA9887_QSS)
 		buf[1] |= cQSS;
-	if (t->tda9887_config & TDA9887_INTERCARRIER)
+	if (priv->config & TDA9887_INTERCARRIER)
 		buf[1] &= ~cQSS;
 
-	if (t->tda9887_config & TDA9887_AUTOMUTE)
+	if (priv->config & TDA9887_AUTOMUTE)
 		buf[1] |= cAutoMuteFmActive;
-	if (t->tda9887_config & TDA9887_DEEMPHASIS_MASK) {
+	if (priv->config & TDA9887_DEEMPHASIS_MASK) {
 		buf[2] &= ~0x60;
-		switch (t->tda9887_config & TDA9887_DEEMPHASIS_MASK) {
+		switch (priv->config & TDA9887_DEEMPHASIS_MASK) {
 		case TDA9887_DEEMPHASIS_NONE:
 			buf[2] |= cDeemphasisOFF;
 			break;
@@ -509,21 +510,22 @@ static int tda9887_set_config(struct dvb_frontend *fe)
 			break;
 		}
 	}
-	if (t->tda9887_config & TDA9887_TOP_SET) {
+	if (priv->config & TDA9887_TOP_SET) {
 		buf[2] &= ~cTopMask;
-		buf[2] |= (t->tda9887_config >> 8) & cTopMask;
+		buf[2] |= (priv->config >> 8) & cTopMask;
 	}
-	if ((t->tda9887_config & TDA9887_INTERCARRIER_NTSC) && (t->std & V4L2_STD_NTSC))
+	if ((priv->config & TDA9887_INTERCARRIER_NTSC) &&
+	    (t->std & V4L2_STD_NTSC))
 		buf[1] &= ~cQSS;
-	if (t->tda9887_config & TDA9887_GATING_18)
+	if (priv->config & TDA9887_GATING_18)
 		buf[3] &= ~cGating_36;
 
 	if (t->mode == V4L2_TUNER_RADIO) {
-		if (t->tda9887_config & TDA9887_RIF_41_3) {
+		if (priv->config & TDA9887_RIF_41_3) {
 			buf[3] &= ~cVideoIFMask;
 			buf[3] |= cRadioIF_41_30;
 		}
-		if (t->tda9887_config & TDA9887_GAIN_NORMAL)
+		if (priv->config & TDA9887_GAIN_NORMAL)
 			buf[3] &= ~cTunerGainLow;
 	}
 
@@ -570,7 +572,7 @@ static void tda9887_configure(struct dvb_frontend *fe)
 	priv->data[1] |= cOutputPort1Inactive;
 	priv->data[1] |= cOutputPort2Inactive;
 
-	tda9887_set_config(fe);
+	tda9887_do_config(fe);
 	tda9887_set_insmod(fe);
 
 	if (t->mode == T_STANDBY) {
@@ -629,6 +631,16 @@ static void tda9887_set_params(struct dvb_frontend *fe,
 	tda9887_configure(fe);
 }
 
+static int tda9887_set_config(struct dvb_frontend *fe, void *priv_cfg)
+{
+	struct tda9887_priv *priv = fe->analog_demod_priv;
+
+	priv->config = *(unsigned int *)priv_cfg;
+	tda9887_configure(fe);
+
+	return 0;
+}
+
 static void tda9887_release(struct dvb_frontend *fe)
 {
 	kfree(fe->analog_demod_priv);
@@ -644,6 +656,7 @@ static struct analog_tuner_ops tda9887_tuner_ops = {
 	.tuner_status   = tda9887_tuner_status,
 	.get_afc        = tda9887_get_afc,
 	.release        = tda9887_release,
+	.set_config     = tda9887_set_config,
 };
 
 int tda9887_attach(struct tuner *t)

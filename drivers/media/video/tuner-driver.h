@@ -69,9 +69,6 @@ struct tuner {
 
 	struct dvb_frontend fe;
 
-	/* used by tda9887 */
-	unsigned int       tda9887_config;
-
 	unsigned int config;
 	int (*tuner_callback) (void *dev, int command,int arg);
 };
