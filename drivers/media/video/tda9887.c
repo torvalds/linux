@@ -9,6 +9,7 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
+#include "tuner-driver.h"
 #include "tuner-i2c.h"
 #include "tda9887.h"
 
@@ -665,26 +666,25 @@ static struct analog_tuner_ops tda9887_tuner_ops = {
 	.set_config     = tda9887_set_config,
 };
 
-int tda9887_attach(struct tuner *t)
+struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
+				    struct i2c_adapter *i2c_adap,
+				    u8 i2c_addr)
 {
 	struct tda9887_priv *priv = NULL;
 
 	priv = kzalloc(sizeof(struct tda9887_priv), GFP_KERNEL);
 	if (priv == NULL)
-		return -ENOMEM;
-	t->fe.analog_demod_priv = priv;
+		return NULL;
+	fe->analog_demod_priv = priv;
 
-	priv->i2c_props.addr = t->i2c->addr;
-	priv->i2c_props.adap = t->i2c->adapter;
+	priv->i2c_props.addr = i2c_addr;
+	priv->i2c_props.adap = i2c_adap;
 
-	strlcpy(t->i2c->name, "tda9887", sizeof(t->i2c->name));
+	tda9887_info("tda988[5/6/7] found\n");
 
-	tda9887_info("tda988[5/6/7] found @ 0x%x (%s)\n", t->i2c->addr,
-		     t->i2c->driver->driver.name);
+	fe->ops.analog_demod_ops = &tda9887_tuner_ops;
 
-	t->fe.ops.analog_demod_ops = &tda9887_tuner_ops;
-
-	return 0;
+	return fe;
 }
 EXPORT_SYMBOL_GPL(tda9887_attach);
 

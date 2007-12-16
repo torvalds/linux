@@ -408,7 +408,7 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		break;
 	}
 	case TUNER_TDA9887:
-		tda9887_attach(t);
+		tda9887_attach(&t->fe, t->i2c->adapter, t->i2c->addr);
 		break;
 	default:
 		attach_simple_tuner(t);
