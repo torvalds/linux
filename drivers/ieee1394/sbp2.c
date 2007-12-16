@@ -51,6 +51,7 @@
  * Grep for inline FIXME comments below.
  */
 
+#include <linux/blkdev.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -127,17 +128,21 @@ MODULE_PARM_DESC(serialize_io, "Serialize requests coming from SCSI drivers "
 		 "(default = Y, faster but buggy = N)");
 
 /*
- * Bump up max_sectors if you'd like to support very large sized
- * transfers. Please note that some older sbp2 bridge chips are broken for
- * transfers greater or equal to 128KB.  Default is a value of 255
- * sectors, or just under 128KB (at 512 byte sector size). I can note that
- * the Oxsemi sbp2 chipsets have no problems supporting very large
- * transfer sizes.
+ * Adjust max_sectors if you'd like to influence how many sectors each SCSI
+ * command can transfer at most. Please note that some older SBP-2 bridge
+ * chips are broken for transfers greater or equal to 128KB, therefore
+ * max_sectors used to be a safe 255 sectors for many years. We now have a
+ * default of 0 here which means that we let the SCSI stack choose a limit.
+ *
+ * The SBP2_WORKAROUND_128K_MAX_TRANS flag, if set either in the workarounds
+ * module parameter or in the sbp2_workarounds_table[], will override the
+ * value of max_sectors. We should use sbp2_workarounds_table[] to cover any
+ * bridge chip which becomes known to need the 255 sectors limit.
  */
-static int sbp2_max_sectors = SBP2_MAX_SECTORS;
+static int sbp2_max_sectors;
 module_param_named(max_sectors, sbp2_max_sectors, int, 0444);
 MODULE_PARM_DESC(max_sectors, "Change max sectors per I/O supported "
-		 "(default = " __stringify(SBP2_MAX_SECTORS) ")");
+		 "(default = 0 = use SCSI stack's default)");
 
 /*
  * Exclusive login to sbp2 device? In most cases, the sbp2 driver should
@@ -1985,6 +1990,8 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 		sdev->skip_ms_page_8 = 1;
 	if (lu->workarounds & SBP2_WORKAROUND_FIX_CAPACITY)
 		sdev->fix_capacity = 1;
+	if (lu->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
+		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
 	return 0;
 }
 
@@ -2091,9 +2098,6 @@ static int sbp2_module_init(void)
 		sbp2_shost_template.cmd_per_lun = 1;
 	}
 
-	if (sbp2_default_workarounds & SBP2_WORKAROUND_128K_MAX_TRANS &&
-	    (sbp2_max_sectors * 512) > (128 * 1024))
-		sbp2_max_sectors = 128 * 1024 / 512;
 	sbp2_shost_template.max_sectors = sbp2_max_sectors;
 
 	hpsb_register_highlevel(&sbp2_highlevel);
