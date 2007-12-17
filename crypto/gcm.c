@@ -9,6 +9,7 @@
  */
 
 #include <crypto/gf128mul.h>
+#include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/completion.h>
@@ -25,6 +26,11 @@ struct gcm_instance_ctx {
 struct crypto_gcm_ctx {
 	struct crypto_ablkcipher *ctr;
 	struct gf128mul_4k *gf128;
+};
+
+struct crypto_rfc4106_ctx {
+	struct crypto_aead *child;
+	u8 nonce[4];
 };
 
 struct crypto_gcm_ghash_ctx {
@@ -238,6 +244,25 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 out:
 	kfree(data);
 	return err;
+}
+
+static int crypto_gcm_setauthsize(struct crypto_aead *tfm,
+				  unsigned int authsize)
+{
+	switch (authsize) {
+	case 4:
+	case 8:
+	case 12:
+	case 13:
+	case 14:
+	case 15:
+	case 16:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static void crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
@@ -472,6 +497,7 @@ static struct crypto_instance *crypto_gcm_alloc_common(struct rtattr **tb,
 	inst->alg.cra_init = crypto_gcm_init_tfm;
 	inst->alg.cra_exit = crypto_gcm_exit_tfm;
 	inst->alg.cra_aead.setkey = crypto_gcm_setkey;
+	inst->alg.cra_aead.setauthsize = crypto_gcm_setauthsize;
 	inst->alg.cra_aead.encrypt = crypto_gcm_encrypt;
 	inst->alg.cra_aead.decrypt = crypto_gcm_decrypt;
 
@@ -549,6 +575,211 @@ static struct crypto_template crypto_gcm_base_tmpl = {
 	.module = THIS_MODULE,
 };
 
+static int crypto_rfc4106_setkey(struct crypto_aead *parent, const u8 *key,
+				 unsigned int keylen)
+{
+	struct crypto_rfc4106_ctx *ctx = crypto_aead_ctx(parent);
+	struct crypto_aead *child = ctx->child;
+	int err;
+
+	if (keylen < 4)
+		return -EINVAL;
+
+	keylen -= 4;
+	memcpy(ctx->nonce, key + keylen, 4);
+
+	crypto_aead_clear_flags(child, CRYPTO_TFM_REQ_MASK);
+	crypto_aead_set_flags(child, crypto_aead_get_flags(parent) &
+				     CRYPTO_TFM_REQ_MASK);
+	err = crypto_aead_setkey(child, key, keylen);
+	crypto_aead_set_flags(parent, crypto_aead_get_flags(child) &
+				      CRYPTO_TFM_RES_MASK);
+
+	return err;
+}
+
+static int crypto_rfc4106_setauthsize(struct crypto_aead *parent,
+				      unsigned int authsize)
+{
+	struct crypto_rfc4106_ctx *ctx = crypto_aead_ctx(parent);
+
+	switch (authsize) {
+	case 8:
+	case 12:
+	case 16:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return crypto_aead_setauthsize(ctx->child, authsize);
+}
+
+static struct aead_request *crypto_rfc4106_crypt(struct aead_request *req)
+{
+	struct aead_request *subreq = aead_request_ctx(req);
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_rfc4106_ctx *ctx = crypto_aead_ctx(aead);
+	struct crypto_aead *child = ctx->child;
+	u8 *iv = PTR_ALIGN((u8 *)(subreq + 1) + crypto_aead_reqsize(child),
+			   crypto_aead_alignmask(child) + 1);
+
+	memcpy(iv, ctx->nonce, 4);
+	memcpy(iv + 4, req->iv, 8);
+
+	aead_request_set_tfm(subreq, child);
+	aead_request_set_callback(subreq, req->base.flags, req->base.complete,
+				  req->base.data);
+	aead_request_set_crypt(subreq, req->src, req->dst, req->cryptlen, iv);
+	aead_request_set_assoc(subreq, req->assoc, req->assoclen);
+
+	return subreq;
+}
+
+static int crypto_rfc4106_encrypt(struct aead_request *req)
+{
+	req = crypto_rfc4106_crypt(req);
+
+	return crypto_aead_encrypt(req);
+}
+
+static int crypto_rfc4106_decrypt(struct aead_request *req)
+{
+	req = crypto_rfc4106_crypt(req);
+
+	return crypto_aead_decrypt(req);
+}
+
+static int crypto_rfc4106_init_tfm(struct crypto_tfm *tfm)
+{
+	struct crypto_instance *inst = (void *)tfm->__crt_alg;
+	struct crypto_aead_spawn *spawn = crypto_instance_ctx(inst);
+	struct crypto_rfc4106_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct crypto_aead *aead;
+	unsigned long align;
+
+	aead = crypto_spawn_aead(spawn);
+	if (IS_ERR(aead))
+		return PTR_ERR(aead);
+
+	ctx->child = aead;
+
+	align = crypto_aead_alignmask(aead);
+	align &= ~(crypto_tfm_ctx_alignment() - 1);
+	tfm->crt_aead.reqsize = sizeof(struct aead_request) +
+				ALIGN(crypto_aead_reqsize(aead),
+				      crypto_tfm_ctx_alignment()) +
+				align + 16;
+
+	return 0;
+}
+
+static void crypto_rfc4106_exit_tfm(struct crypto_tfm *tfm)
+{
+	struct crypto_rfc4106_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	crypto_free_aead(ctx->child);
+}
+
+static struct crypto_instance *crypto_rfc4106_alloc(struct rtattr **tb)
+{
+	struct crypto_attr_type *algt;
+	struct crypto_instance *inst;
+	struct crypto_aead_spawn *spawn;
+	struct crypto_alg *alg;
+	const char *ccm_name;
+	int err;
+
+	algt = crypto_get_attr_type(tb);
+	err = PTR_ERR(algt);
+	if (IS_ERR(algt))
+		return ERR_PTR(err);
+
+	if ((algt->type ^ CRYPTO_ALG_TYPE_AEAD) & algt->mask)
+		return ERR_PTR(-EINVAL);
+
+	ccm_name = crypto_attr_alg_name(tb[1]);
+	err = PTR_ERR(ccm_name);
+	if (IS_ERR(ccm_name))
+		return ERR_PTR(err);
+
+	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
+	if (!inst)
+		return ERR_PTR(-ENOMEM);
+
+	spawn = crypto_instance_ctx(inst);
+	crypto_set_aead_spawn(spawn, inst);
+	err = crypto_grab_aead(spawn, ccm_name, 0,
+			       crypto_requires_sync(algt->type, algt->mask));
+	if (err)
+		goto out_free_inst;
+
+	alg = crypto_aead_spawn_alg(spawn);
+
+	err = -EINVAL;
+
+	/* We only support 16-byte blocks. */
+	if (alg->cra_aead.ivsize != 16)
+		goto out_drop_alg;
+
+	/* Not a stream cipher? */
+	if (alg->cra_blocksize != 1)
+		goto out_drop_alg;
+
+	err = -ENAMETOOLONG;
+	if (snprintf(inst->alg.cra_name, CRYPTO_MAX_ALG_NAME,
+		     "rfc4106(%s)", alg->cra_name) >= CRYPTO_MAX_ALG_NAME ||
+	    snprintf(inst->alg.cra_driver_name, CRYPTO_MAX_ALG_NAME,
+		     "rfc4106(%s)", alg->cra_driver_name) >=
+	    CRYPTO_MAX_ALG_NAME)
+		goto out_drop_alg;
+
+	inst->alg.cra_flags = CRYPTO_ALG_TYPE_AEAD;
+	inst->alg.cra_flags |= alg->cra_flags & CRYPTO_ALG_ASYNC;
+	inst->alg.cra_priority = alg->cra_priority;
+	inst->alg.cra_blocksize = 1;
+	inst->alg.cra_alignmask = alg->cra_alignmask;
+	inst->alg.cra_type = &crypto_nivaead_type;
+
+	inst->alg.cra_aead.ivsize = 8;
+	inst->alg.cra_aead.maxauthsize = 16;
+
+	inst->alg.cra_ctxsize = sizeof(struct crypto_rfc4106_ctx);
+
+	inst->alg.cra_init = crypto_rfc4106_init_tfm;
+	inst->alg.cra_exit = crypto_rfc4106_exit_tfm;
+
+	inst->alg.cra_aead.setkey = crypto_rfc4106_setkey;
+	inst->alg.cra_aead.setauthsize = crypto_rfc4106_setauthsize;
+	inst->alg.cra_aead.encrypt = crypto_rfc4106_encrypt;
+	inst->alg.cra_aead.decrypt = crypto_rfc4106_decrypt;
+
+	inst->alg.cra_aead.geniv = "seqiv";
+
+out:
+	return inst;
+
+out_drop_alg:
+	crypto_drop_aead(spawn);
+out_free_inst:
+	kfree(inst);
+	inst = ERR_PTR(err);
+	goto out;
+}
+
+static void crypto_rfc4106_free(struct crypto_instance *inst)
+{
+	crypto_drop_spawn(crypto_instance_ctx(inst));
+	kfree(inst);
+}
+
+static struct crypto_template crypto_rfc4106_tmpl = {
+	.name = "rfc4106",
+	.alloc = crypto_rfc4106_alloc,
+	.free = crypto_rfc4106_free,
+	.module = THIS_MODULE,
+};
+
 static int __init crypto_gcm_module_init(void)
 {
 	int err;
@@ -561,9 +792,15 @@ static int __init crypto_gcm_module_init(void)
 	if (err)
 		goto out_undo_base;
 
+	err = crypto_register_template(&crypto_rfc4106_tmpl);
+	if (err)
+		goto out_undo_gcm;
+
 out:
 	return err;
 
+out_undo_gcm:
+	crypto_unregister_template(&crypto_gcm_tmpl);
 out_undo_base:
 	crypto_unregister_template(&crypto_gcm_base_tmpl);
 	goto out;
@@ -571,6 +808,7 @@ out_undo_base:
 
 static void __exit crypto_gcm_module_exit(void)
 {
+	crypto_unregister_template(&crypto_rfc4106_tmpl);
 	crypto_unregister_template(&crypto_gcm_tmpl);
 	crypto_unregister_template(&crypto_gcm_base_tmpl);
 }
@@ -582,3 +820,4 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Galois/Counter Mode");
 MODULE_AUTHOR("Mikko Herranen <mh1@iki.fi>");
 MODULE_ALIAS("gcm_base");
+MODULE_ALIAS("rfc4106");
