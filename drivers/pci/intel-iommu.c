@@ -1781,7 +1781,7 @@ __intel_alloc_iova(struct device *dev, struct dmar_domain *domain,
 		/*
 		 * First try to allocate an io virtual address in
 		 * DMA_32BIT_MASK and if that fails then try allocating
-		 * from higer range
+		 * from higher range
 		 */
 		iova = iommu_alloc_iova(domain, size, DMA_32BIT_MASK);
 		if (!iova)
