@@ -513,6 +513,7 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 {
 	unsigned long *rmapp;
 	u64 *spte;
+	int write_protected = 0;
 
 	gfn = unalias_gfn(kvm, gfn);
 	rmapp = gfn_to_rmap(kvm, gfn);
@@ -522,11 +523,14 @@ static void rmap_write_protect(struct kvm *kvm, u64 gfn)
 		BUG_ON(!spte);
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
-		if (is_writeble_pte(*spte))
+		if (is_writeble_pte(*spte)) {
 			set_shadow_pte(spte, *spte & ~PT_WRITABLE_MASK);
-		kvm_flush_remote_tlbs(kvm);
+			write_protected = 1;
+		}
 		spte = rmap_next(kvm, rmapp, spte);
 	}
+	if (write_protected)
+		kvm_flush_remote_tlbs(kvm);
 }
 
 #ifdef MMU_DEBUG
