@@ -453,12 +453,12 @@ static inline int pgd_bad(pgd_t pgd)	 { return 0; }
 
 static inline int pud_present(pud_t pud)
 {
-	return pud_val(pud) & _REGION_ENTRY_ORIGIN;
+	return (pud_val(pud) & _REGION_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pud_none(pud_t pud)
 {
-	return pud_val(pud) & _REGION_ENTRY_INV;
+	return (pud_val(pud) & _REGION_ENTRY_INV) != 0UL;
 }
 
 static inline int pud_bad(pud_t pud)
@@ -471,12 +471,12 @@ static inline int pud_bad(pud_t pud)
 
 static inline int pmd_present(pmd_t pmd)
 {
-	return pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_ORIGIN) != 0UL;
 }
 
 static inline int pmd_none(pmd_t pmd)
 {
-	return pmd_val(pmd) & _SEGMENT_ENTRY_INV;
+	return (pmd_val(pmd) & _SEGMENT_ENTRY_INV) != 0UL;
 }
 
 static inline int pmd_bad(pmd_t pmd)
