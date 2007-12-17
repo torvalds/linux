@@ -144,6 +144,8 @@ extern void update_mmu_cache(struct vm_area_struct * vma,
 			     unsigned long address, pte_t pte);
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
+extern void page_table_range_init(unsigned long start, unsigned long end,
+				  pgd_t *pgd);
 
 #include <asm-generic/pgtable.h>
 
