@@ -107,7 +107,7 @@ static struct vsb_snr_tab {
 	u16	val;
 	u16	data;
 } vsb_snr_tab[] = {
-	{ 1023, 770, },
+	{  924, 300, },
 	{  923, 300, },
 	{  918, 295, },
 	{  915, 290, },
@@ -154,6 +154,7 @@ static struct qam64_snr_tab {
 	u16	val;
 	u16	data;
 } qam64_snr_tab[] = {
+	{    1,   0, },
 	{   12, 300, },
 	{   15, 290, },
 	{   18, 280, },
@@ -217,6 +218,7 @@ static struct qam64_snr_tab {
 	{   95, 202, },
 	{   96, 201, },
 	{  104, 200, },
+	{  255,   0, },
 };
 
 /* QAM256 SNR lookup table */
@@ -224,6 +226,7 @@ static struct qam256_snr_tab {
 	u16	val;
 	u16	data;
 } qam256_snr_tab[] = {
+	{    1,   0, },
 	{   12, 400, },
 	{   13, 390, },
 	{   15, 380, },
@@ -292,6 +295,7 @@ static struct qam256_snr_tab {
 	{  105, 262, },
 	{  106, 261, },
 	{  110, 260, },
+	{  255,   0, },
 };
 
 /* 8 bit registers, 16 bit values */
@@ -670,14 +674,15 @@ static int s5h1409_read_snr(struct dvb_frontend* fe, u16* snr)
 	u16 reg;
 	dprintk("%s()\n", __FUNCTION__);
 
-	reg = s5h1409_readreg(state, 0xf1) & 0x1ff;
-
 	switch(state->current_modulation) {
 	case QAM_64:
+		reg = s5h1409_readreg(state, 0xf0) & 0xff;
 		return s5h1409_qam64_lookup_snr(fe, snr, reg);
 	case QAM_256:
+		reg = s5h1409_readreg(state, 0xf0) & 0xff;
 		return s5h1409_qam256_lookup_snr(fe, snr, reg);
 	case VSB_8:
+		reg = s5h1409_readreg(state, 0xf1) & 0x3ff;
 		return s5h1409_vsb_lookup_snr(fe, snr, reg);
 	default:
 		break;

@@ -909,7 +909,7 @@ ssize_t videobuf_read_stream(struct videobuf_queue *q,
 	if (q->streaming)
 		goto done;
 	if (!q->reading) {
-		retval = videobuf_read_start(q);
+		retval = __videobuf_read_start(q);
 		if (retval < 0)
 			goto done;
 	}
@@ -982,7 +982,7 @@ unsigned int videobuf_poll_stream(struct file *file,
 					 struct videobuf_buffer, stream);
 	} else {
 		if (!q->reading)
-			videobuf_read_start(q);
+			__videobuf_read_start(q);
 		if (!q->reading) {
 			rc = POLLERR;
 		} else if (NULL == q->read_buf) {
