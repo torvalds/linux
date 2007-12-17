@@ -589,8 +589,6 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 				      struct if_usb_card *cardp,
 				      struct lbs_private *priv)
 {
-	uint8_t *cmdbuf;
-
 	if (recvlength > LBS_CMD_BUFFER_SIZE) {
 		lbs_deb_usbd(&cardp->udev->dev,
 			     "The receive buffer is too large\n");
@@ -602,19 +600,9 @@ static inline void process_cmdrequest(int recvlength, uint8_t *recvbuff,
 		BUG();
 
 	spin_lock(&priv->driver_lock);
-	/* take care of cur_cmd = NULL case by reading the
-	 * data to clear the interrupt */
-	if (!priv->cur_cmd) {
-		lbs_deb_hex(LBS_DEB_HOST, "Unsolicited CMD_RESP",
-			    (void *) recvbuff + MESSAGE_HEADER_LEN, priv->upld_len);
-		cmdbuf = priv->upld_buf;
-		priv->hisregcpy &= ~MRVDRV_CMD_UPLD_RDY;
-	} else
-		cmdbuf = (uint8_t *) priv->cur_cmd->cmdbuf;
-
 	cardp->usb_int_cause |= MRVDRV_CMD_UPLD_RDY;
 	priv->upld_len = (recvlength - MESSAGE_HEADER_LEN);
-	memcpy(cmdbuf, recvbuff + MESSAGE_HEADER_LEN, priv->upld_len);
+	memcpy(priv->upld_buf, recvbuff + MESSAGE_HEADER_LEN, priv->upld_len);
 
 	kfree_skb(skb);
 	lbs_interrupt(priv);

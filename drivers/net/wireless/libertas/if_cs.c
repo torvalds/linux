@@ -647,7 +647,6 @@ static int if_cs_get_int_status(struct lbs_private *priv, u8 *ireg)
 	struct if_cs_card *card = (struct if_cs_card *)priv->card;
 	int ret = 0;
 	u16 int_cause;
-	u8 *cmdbuf;
 	*ireg = 0;
 
 	lbs_deb_enter(LBS_DEB_CS);
@@ -679,14 +678,7 @@ sbi_get_int_status_exit:
 	/* Card has a command result for us */
 	if (*ireg & IF_CS_C_S_CMD_UPLD_RDY) {
 		spin_lock(&priv->driver_lock);
-		if (!priv->cur_cmd) {
-			cmdbuf = priv->upld_buf;
-			priv->hisregcpy &= ~IF_CS_C_S_RX_UPLD_RDY;
-		} else {
-			cmdbuf = (u8 *) priv->cur_cmd->cmdbuf;
-		}
-
-		ret = if_cs_receive_cmdres(priv, cmdbuf, &priv->upld_len);
+		ret = if_cs_receive_cmdres(priv, priv->upld_buf, &priv->upld_len);
 		spin_unlock(&priv->driver_lock);
 		if (ret < 0)
 			lbs_pr_err("could not receive cmd from card\n");

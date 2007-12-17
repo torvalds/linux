@@ -136,12 +136,6 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 
 	spin_lock_irqsave(&card->priv->driver_lock, flags);
 
-	if (!card->priv->cur_cmd) {
-		lbs_deb_sdio("discarding spurious response\n");
-		ret = 0;
-		goto out;
-	}
-
 	if (size > LBS_CMD_BUFFER_SIZE) {
 		lbs_deb_sdio("response packet too large (%d bytes)\n",
 			(int)size);
@@ -149,7 +143,7 @@ static int if_sdio_handle_cmd(struct if_sdio_card *card,
 		goto out;
 	}
 
-	memcpy(card->priv->cur_cmd->cmdbuf, buffer, size);
+	memcpy(card->priv->upld_buf, buffer, size);
 	card->priv->upld_len = size;
 
 	card->int_cause |= MRVDRV_CMD_UPLD_RDY;
