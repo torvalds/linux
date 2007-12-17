@@ -665,6 +665,16 @@ int lbs_process_rx_command(struct lbs_private *priv)
 		goto done;
 	}
 
+	if (resp->result == cpu_to_le16(0x0004)) {
+		/* 0x0004 means -EAGAIN. Drop the response, let it time out
+		   and be resubmitted */
+		lbs_pr_info("Firmware returns DEFER to command %x. Will let it time out...\n",
+			    le16_to_cpu(resp->command));
+		spin_unlock_irqrestore(&priv->driver_lock, flags);
+		ret = -1;
+		goto done;
+	}
+
 	/* Now we got response from FW, cancel the command timer */
 	del_timer(&priv->command_timer);
 	priv->cmd_timed_out = 0;
