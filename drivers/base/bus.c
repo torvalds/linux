@@ -643,15 +643,12 @@ int bus_add_driver(struct device_driver *drv)
 	if (!priv)
 		return -ENOMEM;
 
-	error = kobject_set_name(&priv->kobj, "%s", drv->name);
-	if (error)
-		goto out_put_bus;
-	priv->kobj.kset = bus->p->drivers_kset;
-	priv->kobj.ktype = &driver_ktype;
 	klist_init(&priv->klist_devices, NULL, NULL);
 	priv->driver = drv;
 	drv->p = priv;
-	error = kobject_register(&priv->kobj);
+	priv->kobj.kset = bus->p->drivers_kset;
+	error = kobject_init_and_add(&priv->kobj, &driver_ktype, NULL,
+				     "%s", drv->name);
 	if (error)
 		goto out_put_bus;
 
@@ -681,6 +678,7 @@ int bus_add_driver(struct device_driver *drv)
 			__FUNCTION__, drv->name);
 	}
 
+	kobject_uevent(&priv->kobj, KOBJ_ADD);
 	return error;
 out_unregister:
 	kobject_unregister(&priv->kobj);
