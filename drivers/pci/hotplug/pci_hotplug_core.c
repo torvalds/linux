@@ -630,19 +630,19 @@ int pci_hp_register (struct hotplug_slot *slot)
 		return -EINVAL;
 	}
 
-	kobject_set_name(&slot->kobj, "%s", slot->name);
-	slot->kobj.kset = pci_hotplug_slots_kset;
-	slot->kobj.ktype = &hotplug_slot_ktype;
-
 	/* this can fail if we have already registered a slot with the same name */
-	if (kobject_register(&slot->kobj)) {
-		err("Unable to register kobject");
+	slot->kobj.kset = pci_hotplug_slots_kset;
+	result = kobject_init_and_add(&slot->kobj, &hotplug_slot_ktype, NULL,
+				      "%s", slot->name);
+	if (result) {
+		err("Unable to register kobject '%s'", slot->name);
 		return -EINVAL;
 	}
-		
+
 	list_add (&slot->slot_list, &pci_hotplug_slot_list);
 
 	result = fs_add_slot (slot);
+	kobject_uevent(&slot->kobj, KOBJ_ADD);
 	dbg ("Added slot %s to the list\n", slot->name);
 	return result;
 }
