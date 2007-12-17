@@ -283,7 +283,7 @@
 #define ESR_IMCB	0x20000000	/* Instr. Machine Check - Bus error */
 #define ESR_IMCT	0x10000000	/* Instr. Machine Check - Timeout */
 #define ESR_PIL		0x08000000	/* Program Exception - Illegal */
-#define ESR_PPR		0x04000000	/* Program Exception - Priveleged */
+#define ESR_PPR		0x04000000	/* Program Exception - Privileged */
 #define ESR_PTR		0x02000000	/* Program Exception - Trap */
 #define ESR_FP		0x01000000	/* Floating Point Operation */
 #define ESR_DST		0x00800000	/* Storage Exception - Data miss */
