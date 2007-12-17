@@ -185,7 +185,7 @@ void platform_notify_map(const struct platform_notify_dev_map *map,
  */
 
 /*
-   Here we'll replace .name pointers with fixed-lenght strings
+   Here we'll replace .name pointers with fixed-length strings
    Hereby, this should be called *before* any func stuff triggeded.
  */
 void ppc_sys_device_initfunc(void)
