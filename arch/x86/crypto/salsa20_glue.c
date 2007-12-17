@@ -8,6 +8,8 @@
  * and to remove extraneous comments and functions that are not needed.
  * - i586 version, renamed as salsa20-i586-asm_32.S
  *   available from <http://cr.yp.to/snuffle/salsa20/x86-pm/salsa20.s>
+ * - x86-64 version, renamed as salsa20-x86_64-asm_64.S
+ *   available from <http://cr.yp.to/snuffle/salsa20/amd64-3/salsa20.s>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
