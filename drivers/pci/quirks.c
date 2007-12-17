@@ -1415,9 +1415,10 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETMOS, PCI_ANY_ID, quirk_netmos);
 
 static void __devinit quirk_e100_interrupt(struct pci_dev *dev)
 {
-	u16 command;
+	u16 command, pmcsr;
 	u8 __iomem *csr;
 	u8 cmd_hi;
+	int pm;
 
 	switch (dev->device) {
 	/* PCI IDs taken from drivers/net/e100.c */
@@ -1450,6 +1451,17 @@ static void __devinit quirk_e100_interrupt(struct pci_dev *dev)
 
 	if (!(command & PCI_COMMAND_MEMORY) || !pci_resource_start(dev, 0))
 		return;
+
+	/*
+	 * Check that the device is in the D0 power state. If it's not,
+	 * there is no point to look any further.
+	 */
+	pm = pci_find_capability(dev, PCI_CAP_ID_PM);
+	if (pm) {
+		pci_read_config_word(dev, pm + PCI_PM_CTRL, &pmcsr);
+		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_D0)
+			return;
+	}
 
 	/* Convert from PCI bus to resource space.  */
 	csr = ioremap(pci_resource_start(dev, 0), 8);
