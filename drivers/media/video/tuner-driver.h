@@ -50,27 +50,4 @@ struct analog_tuner_ops {
 	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
 };
 
-struct tuner {
-	/* device */
-	struct i2c_client *i2c;
-	struct list_head list;  /* list of tuners */
-
-	unsigned int type;	/* chip type */
-
-	unsigned int mode;
-	unsigned int mode_mask;	/* Combination of allowable modes */
-
-	unsigned int tv_freq;	/* keep track of the current settings */
-	unsigned int radio_freq;
-	unsigned int audmode;
-	v4l2_std_id  std;
-
-	int          using_v4l2;
-
-	struct dvb_frontend fe;
-
-	unsigned int config;
-	int (*tuner_callback) (void *dev, int command,int arg);
-};
-
 #endif /* __TUNER_DRIVER_H__ */

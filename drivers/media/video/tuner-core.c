@@ -33,6 +33,27 @@
 
 #define PREFIX t->i2c->driver->driver.name
 
+struct tuner {
+	/* device */
+	struct dvb_frontend fe;
+	struct i2c_client   *i2c;
+	struct list_head    list;
+	unsigned int        using_v4l2:1;
+
+	/* keep track of the current settings */
+	v4l2_std_id         std;
+	unsigned int        tv_freq;
+	unsigned int        radio_freq;
+	unsigned int        audmode;
+
+	unsigned int        mode;
+	unsigned int        mode_mask; /* Combination of allowable modes */
+
+	unsigned int        type; /* chip type id */
+	unsigned int        config;
+	int (*tuner_callback) (void *dev, int command, int arg);
+};
+
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
 #if defined(CONFIG_TUNER_TEA5761) || (defined(CONFIG_TUNER_TEA5761_MODULE) && defined(MODULE))
