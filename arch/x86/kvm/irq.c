@@ -63,26 +63,6 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v)
 }
 EXPORT_SYMBOL_GPL(kvm_cpu_get_interrupt);
 
-static void vcpu_kick_intr(void *info)
-{
-#ifdef DEBUG
-	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)info;
-	printk(KERN_DEBUG "vcpu_kick_intr %p \n", vcpu);
-#endif
-}
-
-void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
-{
-	int ipi_pcpu = vcpu->cpu;
-
-	if (waitqueue_active(&vcpu->wq)) {
-		wake_up_interruptible(&vcpu->wq);
-		++vcpu->stat.halt_wakeup;
-	}
-	if (vcpu->guest_mode)
-		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0, 0);
-}
-
 void kvm_inject_pending_timer_irqs(struct kvm_vcpu *vcpu)
 {
 	kvm_inject_apic_timer_irqs(vcpu);

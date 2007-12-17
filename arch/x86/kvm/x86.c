@@ -3144,3 +3144,23 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 	return vcpu->arch.mp_state == VCPU_MP_STATE_RUNNABLE
 	       || vcpu->arch.mp_state == VCPU_MP_STATE_SIPI_RECEIVED;
 }
+
+static void vcpu_kick_intr(void *info)
+{
+#ifdef DEBUG
+	struct kvm_vcpu *vcpu = (struct kvm_vcpu *)info;
+	printk(KERN_DEBUG "vcpu_kick_intr %p \n", vcpu);
+#endif
+}
+
+void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	int ipi_pcpu = vcpu->cpu;
+
+	if (waitqueue_active(&vcpu->wq)) {
+		wake_up_interruptible(&vcpu->wq);
+		++vcpu->stat.halt_wakeup;
+	}
+	if (vcpu->guest_mode)
+		smp_call_function_single(ipi_pcpu, vcpu_kick_intr, vcpu, 0, 0);
+}
