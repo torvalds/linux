@@ -3054,6 +3054,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	int partitioned = (MAJOR(dev) != MD_MAJOR);
 	int shift = partitioned ? MdpMinorShift : 0;
 	int unit = MINOR(dev) >> shift;
+	int error;
 
 	if (!mddev)
 		return NULL;
@@ -3082,12 +3083,13 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	add_disk(disk);
 	mddev->gendisk = disk;
 	mutex_unlock(&disks_mutex);
-	mddev->kobj.parent = &disk->kobj;
-	kobject_set_name(&mddev->kobj, "%s", "md");
-	mddev->kobj.ktype = &md_ktype;
-	if (kobject_register(&mddev->kobj))
+	error = kobject_init_and_add(&mddev->kobj, &md_ktype, &disk->kobj,
+				     "%s", "md");
+	if (error)
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
 		       disk->disk_name);
+	else
+		kobject_uevent(&mddev->kobj, KOBJ_ADD);
 	return NULL;
 }
 
