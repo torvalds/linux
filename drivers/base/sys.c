@@ -224,20 +224,15 @@ int sysdev_register(struct sys_device * sysdev)
 	if (!cls)
 		return -EINVAL;
 
+	pr_debug("Registering sys device '%s'\n", kobject_name(&sysdev->kobj));
+
 	/* Make sure the kset is set */
 	sysdev->kobj.kset = &cls->kset;
 
-	/* But make sure we point to the right type for sysfs translation */
-	sysdev->kobj.ktype = &ktype_sysdev;
-	error = kobject_set_name(&sysdev->kobj, "%s%d",
-			 kobject_name(&cls->kset.kobj), sysdev->id);
-	if (error)
-		return error;
-
-	pr_debug("Registering sys device '%s'\n", kobject_name(&sysdev->kobj));
-
 	/* Register the object */
-	error = kobject_register(&sysdev->kobj);
+	error = kobject_init_and_add(&sysdev->kobj, &ktype_sysdev, NULL,
+				     "%s%d", kobject_name(&cls->kset.kobj),
+				     sysdev->id);
 
 	if (!error) {
 		struct sysdev_driver * drv;
@@ -254,6 +249,7 @@ int sysdev_register(struct sys_device * sysdev)
 		}
 		mutex_unlock(&sysdev_drivers_lock);
 	}
+	kobject_uevent(&sysdev->kobj, KOBJ_ADD);
 	return error;
 }
 
