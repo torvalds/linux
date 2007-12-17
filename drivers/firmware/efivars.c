@@ -617,16 +617,16 @@ efivar_create_sysfs_entry(unsigned long variable_name_size,
 	*(short_name + strlen(short_name)) = '-';
 	efi_guid_unparse(vendor_guid, short_name + strlen(short_name));
 
-	kobject_set_name(&new_efivar->kobj, "%s", short_name);
 	new_efivar->kobj.kset = vars_kset;
-	new_efivar->kobj.ktype = &efivar_ktype;
-	i = kobject_register(&new_efivar->kobj);
+	i = kobject_init_and_add(&new_efivar->kobj, &efivar_ktype, NULL,
+				 "%s", short_name);
 	if (i) {
 		kfree(short_name);
 		kfree(new_efivar);
 		return 1;
 	}
 
+	kobject_uevent(&new_efivar->kobj, KOBJ_ADD);
 	kfree(short_name);
 	short_name = NULL;
 
