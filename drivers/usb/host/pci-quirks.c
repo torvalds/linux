@@ -190,9 +190,8 @@ static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 			msleep(10);
 		}
 		if (wait_time <= 0)
-			printk(KERN_WARNING "%s %s: BIOS handoff "
-					"failed (BIOS bug ?) %08x\n",
-					pdev->dev.bus_id, "OHCI",
+			dev_warn(&pdev->dev, "OHCI: BIOS handoff failed"
+					" (BIOS bug?) %08x\n",
 					readl(base + OHCI_CONTROL));
 
 		/* reset controller, preserving RWC */
@@ -243,8 +242,7 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 		switch (cap & 0xff) {
 		case 1:			/* BIOS/SMM/... handoff support */
 			if ((cap & EHCI_USBLEGSUP_BIOS)) {
-				pr_debug("%s %s: BIOS handoff\n",
-						pdev->dev.bus_id, "EHCI");
+				dev_dbg(&pdev->dev, "EHCI: BIOS handoff\n");
 
 #if 0
 /* aleksey_gorelov@phoenix.com reports that some systems need SMI forced on,
@@ -285,9 +283,8 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 				/* well, possibly buggy BIOS... try to shut
 				 * it down, and hope nothing goes too wrong
 				 */
-				printk(KERN_WARNING "%s %s: BIOS handoff "
-						"failed (BIOS bug ?) %08x\n",
-					pdev->dev.bus_id, "EHCI", cap);
+				dev_warn(&pdev->dev, "EHCI: BIOS handoff failed"
+						" (BIOS bug?) %08x\n", cap);
 				pci_write_config_byte(pdev, offset + 2, 0);
 			}
 
@@ -306,17 +303,14 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 			cap = 0;
 			/* FALLTHROUGH */
 		default:
-			printk(KERN_WARNING "%s %s: unrecognized "
-					"capability %02x\n",
-					pdev->dev.bus_id, "EHCI",
-					cap & 0xff);
+			dev_warn(&pdev->dev, "EHCI: unrecognized capability "
+					"%02x\n", cap & 0xff);
 			break;
 		}
 		offset = (cap >> 8) & 0xff;
 	}
 	if (!count)
-		printk(KERN_DEBUG "%s %s: capability loop?\n",
-				pdev->dev.bus_id, "EHCI");
+		dev_printk(KERN_DEBUG, &pdev->dev, "EHCI: capability loop?\n");
 
 	/*
 	 * halt EHCI & disable its interrupts in any case
