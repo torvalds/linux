@@ -2028,6 +2028,7 @@ void
 xfrm_audit_state_add(struct xfrm_state *x, int result, u32 auid, u32 sid)
 {
 	struct audit_buffer *audit_buf;
+	u32 spi;
 	extern int audit_enabled;
 
 	if (audit_enabled == 0)
@@ -2037,8 +2038,8 @@ xfrm_audit_state_add(struct xfrm_state *x, int result, u32 auid, u32 sid)
 		return;
 	audit_log_format(audit_buf, " op=SAD-add res=%u",result);
 	xfrm_audit_common_stateinfo(x, audit_buf);
-	audit_log_format(audit_buf, " spi=%lu(0x%lx)",
-			 (unsigned long)x->id.spi, (unsigned long)x->id.spi);
+	spi = ntohl(x->id.spi);
+	audit_log_format(audit_buf, " spi=%u(0x%x)", spi, spi);
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_add);
@@ -2047,6 +2048,7 @@ void
 xfrm_audit_state_delete(struct xfrm_state *x, int result, u32 auid, u32 sid)
 {
 	struct audit_buffer *audit_buf;
+	u32 spi;
 	extern int audit_enabled;
 
 	if (audit_enabled == 0)
@@ -2056,8 +2058,8 @@ xfrm_audit_state_delete(struct xfrm_state *x, int result, u32 auid, u32 sid)
 		return;
 	audit_log_format(audit_buf, " op=SAD-delete res=%u",result);
 	xfrm_audit_common_stateinfo(x, audit_buf);
-	audit_log_format(audit_buf, " spi=%lu(0x%lx)",
-			 (unsigned long)x->id.spi, (unsigned long)x->id.spi);
+	spi = ntohl(x->id.spi);
+	audit_log_format(audit_buf, " spi=%u(0x%x)", spi, spi);
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_delete);

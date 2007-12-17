@@ -92,8 +92,14 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
   autoconfiguration.
 
   The <autoconf> parameter can appear alone as the value to the `ip'
-  parameter (without all the ':' characters before) in which case auto-
-  configuration is used.
+  parameter (without all the ':' characters before).  If the value is
+  "ip=off" or "ip=none", no autoconfiguration will take place, otherwise
+  autoconfiguration will take place.  The most common way to use this
+  is "ip=dhcp".
+
+  Note that "ip=off" is not the same thing as "ip=::::::off", because in
+  the latter autoconfiguration will take place if any of DHCP, BOOTP or RARP
+  are compiled in the kernel.
 
   <client-ip>	IP address of the client.
 
@@ -142,7 +148,7 @@ ip=<client-ip>:<server-ip>:<gw-ip>:<netmask>:<hostname>:<device>:<autoconf>
 		into the kernel will be used, regardless of the value of
 		this option.
 
-                  off or none: don't use autoconfiguration (default)
+                  off or none: don't use autoconfiguration
 		  on or any:   use any protocol available in the kernel
 		  dhcp:        use DHCP
 		  bootp:       use BOOTP

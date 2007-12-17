@@ -53,6 +53,7 @@ static struct sctp_ulpevent * sctp_ulpq_reasm(struct sctp_ulpq *ulpq,
 					      struct sctp_ulpevent *);
 static struct sctp_ulpevent * sctp_ulpq_order(struct sctp_ulpq *,
 					      struct sctp_ulpevent *);
+static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq);
 
 /* 1st Level Abstractions */
 
@@ -190,6 +191,7 @@ static void sctp_ulpq_set_pd(struct sctp_ulpq *ulpq)
 static int sctp_ulpq_clear_pd(struct sctp_ulpq *ulpq)
 {
 	ulpq->pd_mode = 0;
+	sctp_ulpq_reasm_drain(ulpq);
 	return sctp_clear_pd(ulpq->asoc->base.sk, ulpq->asoc);
 }
 
@@ -698,6 +700,37 @@ void sctp_ulpq_reasm_flushtsn(struct sctp_ulpq *ulpq, __u32 fwd_tsn)
 			break;
 	}
 }
+
+/*
+ * Drain the reassembly queue.  If we just cleared parted delivery, it
+ * is possible that the reassembly queue will contain already reassembled
+ * messages.  Retrieve any such messages and give them to the user.
+ */
+static void sctp_ulpq_reasm_drain(struct sctp_ulpq *ulpq)
+{
+	struct sctp_ulpevent *event = NULL;
+	struct sk_buff_head temp;
+
+	if (skb_queue_empty(&ulpq->reasm))
+		return;
+
+	while ((event = sctp_ulpq_retrieve_reassembled(ulpq)) != NULL) {
+		/* Do ordering if needed.  */
+		if ((event) && (event->msg_flags & MSG_EOR)){
+			skb_queue_head_init(&temp);
+			__skb_queue_tail(&temp, sctp_event2skb(event));
+
+			event = sctp_ulpq_order(ulpq, event);
+		}
+
+		/* Send event to the ULP.  'event' is the
+		 * sctp_ulpevent for  very first SKB on the  temp' list.
+		 */
+		if (event)
+			sctp_ulpq_tail_event(ulpq, event);
+	}
+}
+
 
 /* Helper function to gather skbs that have possibly become
  * ordered by an an incoming chunk.

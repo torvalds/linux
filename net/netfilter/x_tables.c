@@ -377,7 +377,9 @@ int xt_compat_match_to_user(struct xt_entry_match *m, void __user **dstptr,
 	u_int16_t msize = m->u.user.match_size - off;
 
 	if (copy_to_user(cm, m, sizeof(*cm)) ||
-	    put_user(msize, &cm->u.user.match_size))
+	    put_user(msize, &cm->u.user.match_size) ||
+	    copy_to_user(cm->u.user.name, m->u.kernel.match->name,
+			 strlen(m->u.kernel.match->name) + 1))
 		return -EFAULT;
 
 	if (match->compat_to_user) {
@@ -468,7 +470,9 @@ int xt_compat_target_to_user(struct xt_entry_target *t, void __user **dstptr,
 	u_int16_t tsize = t->u.user.target_size - off;
 
 	if (copy_to_user(ct, t, sizeof(*ct)) ||
-	    put_user(tsize, &ct->u.user.target_size))
+	    put_user(tsize, &ct->u.user.target_size) ||
+	    copy_to_user(ct->u.user.name, t->u.kernel.target->name,
+			 strlen(t->u.kernel.target->name) + 1))
 		return -EFAULT;
 
 	if (target->compat_to_user) {
