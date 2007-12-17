@@ -110,17 +110,18 @@ static struct pktcdvd_kobj* pkt_kobj_create(struct pktcdvd_device *pd,
 					struct kobj_type* ktype)
 {
 	struct pktcdvd_kobj *p;
+	int error;
+
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return NULL;
-	kobject_set_name(&p->kobj, "%s", name);
-	p->kobj.parent = parent;
-	p->kobj.ktype = ktype;
 	p->pd = pd;
-	if (kobject_register(&p->kobj) != 0) {
+	error = kobject_init_and_add(&p->kobj, ktype, parent, "%s", name);
+	if (error) {
 		kobject_put(&p->kobj);
 		return NULL;
 	}
+	kobject_uevent(&p->kobj, KOBJ_ADD);
 	return p;
 }
 /*
