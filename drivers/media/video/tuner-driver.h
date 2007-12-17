@@ -22,8 +22,6 @@
 #ifndef __TUNER_DRIVER_H__
 #define __TUNER_DRIVER_H__
 
-#include <linux/videodev2.h>
-#include <linux/i2c.h>
 #include "dvb_frontend.h"
 
 extern unsigned const int tuner_count;
