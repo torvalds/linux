@@ -678,7 +678,7 @@ int lbs_process_rx_command(struct lbs_private *priv)
 	priv->cur_cmd_retcode = result;
 
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
-		struct cmd_ds_802_11_ps_mode *psmode = (void *) resp;
+		struct cmd_ds_802_11_ps_mode *psmode = (void *) &resp[1];
 		u16 action = le16_to_cpu(psmode->action);
 
 		lbs_deb_host(

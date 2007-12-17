@@ -1175,7 +1175,7 @@ static void lbs_queue_cmd(struct lbs_private *priv,
 
 	/* Exit_PS command needs to be queued in the header always. */
 	if (le16_to_cpu(cmdnode->cmdbuf->command) == CMD_802_11_PS_MODE) {
-		struct cmd_ds_802_11_ps_mode *psm = (void *) cmdnode->cmdbuf;
+		struct cmd_ds_802_11_ps_mode *psm = (void *) &cmdnode->cmdbuf[1];
 
 		if (psm->action == cpu_to_le16(CMD_SUBCMD_EXIT_PS)) {
 			if (priv->psstate != PS_STATE_FULL_POWER)
@@ -1889,7 +1889,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				 * PS command. Ignore it if it is not Exit_PS.
 				 * otherwise send it down immediately.
 				 */
-				struct cmd_ds_802_11_ps_mode *psm = (void *)cmd;
+				struct cmd_ds_802_11_ps_mode *psm = (void *)&cmd[1];
 
 				lbs_deb_host(
 				       "EXEC_NEXT_CMD: PS cmd, action 0x%02x\n",
