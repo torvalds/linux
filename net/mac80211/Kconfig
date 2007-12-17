@@ -51,6 +51,16 @@ config MAC80211_DEBUG
 	  If you are not trying to debug or develop the ieee80211
 	  subsystem, you most likely want to say N here.
 
+config MAC80211_HT_DEBUG
+       bool "Enable HT debugging output"
+       depends on MAC80211_DEBUG
+       ---help---
+       This option enables 802.11n High Throughput features
+       debug tracing output.
+
+       If you are not trying to debug of develop the ieee80211
+       subsystem, you most likely want to say N here.
+
 config MAC80211_VERBOSE_DEBUG
 	bool "Verbose debugging output"
 	depends on MAC80211_DEBUG
