@@ -112,7 +112,6 @@ static void vol_release(struct device *dev)
 {
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
 
-	ubi_assert(vol->removed);
 	kfree(vol);
 }
 
@@ -154,9 +153,7 @@ static int volume_sysfs_init(struct ubi_device *ubi, struct ubi_volume *vol)
 	if (err)
 		return err;
 	err = device_create_file(&vol->dev, &attr_vol_upd_marker);
-	if (err)
-		return err;
-	return 0;
+	return err;
 }
 
 /**
@@ -188,7 +185,7 @@ static void volume_sysfs_close(struct ubi_volume *vol)
  */
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 {
-	int i, err, vol_id = req->vol_id;
+	int i, err, vol_id = req->vol_id, dont_free = 0;
 	struct ubi_volume *vol;
 	struct ubi_vtbl_record vtbl_rec;
 	uint64_t bytes;
@@ -317,6 +314,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	vol->dev.parent = &ubi->dev;
 	vol->dev.devt = dev;
 	vol->dev.class = ubi_class;
+
 	sprintf(&vol->dev.bus_id[0], "%s_%d", ubi->ubi_name, vol->vol_id);
 	err = device_register(&vol->dev);
 	if (err) {
@@ -353,8 +351,20 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	mutex_unlock(&ubi->volumes_mutex);
 	return 0;
 
+out_sysfs:
+	/*
+	 * We have degistered our device, we should not free the volume*
+	 * description object in this function in case of an error - it is
+	 * freed by the release function.
+	 *
+	 * Get device reference to prevent the release function from being
+	 * called just after sysfs has been closed.
+	 */
+	dont_free = 1;
+	get_device(&vol->dev);
+	volume_sysfs_close(vol);
 out_gluebi:
-	err = ubi_destroy_gluebi(vol);
+	ubi_destroy_gluebi(vol);
 out_cdev:
 	cdev_del(&vol->cdev);
 out_mapping:
@@ -367,25 +377,10 @@ out_acc:
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
 	mutex_unlock(&ubi->volumes_mutex);
-	kfree(vol);
-	ubi_err("cannot create volume %d, error %d", vol_id, err);
-	return err;
-
-	/*
-	 * We are registered, so @vol is destroyed in the release function and
-	 * we have to de-initialize differently.
-	 */
-out_sysfs:
-	err = ubi_destroy_gluebi(vol);
-	cdev_del(&vol->cdev);
-	kfree(vol->eba_tbl);
-	spin_lock(&ubi->volumes_lock);
-	ubi->rsvd_pebs -= vol->reserved_pebs;
-	ubi->avail_pebs += vol->reserved_pebs;
-	ubi->volumes[vol_id] = NULL;
-	spin_unlock(&ubi->volumes_lock);
-	mutex_unlock(&ubi->volumes_mutex);
-	volume_sysfs_close(vol);
+	if (dont_free)
+		put_device(&vol->dev);
+	else
+		kfree(vol);
 	ubi_err("cannot create volume %d, error %d", vol_id, err);
 	return err;
 }
