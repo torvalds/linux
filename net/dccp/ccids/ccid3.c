@@ -429,40 +429,46 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	if (pinv == ~0U || pinv == 0)	       /* see RFC 4342, 8.5   */
 		hctx->ccid3hctx_p = 0;
 	else				       /* can not exceed 100% */
-		hctx->ccid3hctx_p = 1000000 / pinv;
+		hctx->ccid3hctx_p = scaled_div(1, pinv);
 	/*
 	 * Validate new RTT sample and update moving average
 	 */
 	r_sample = dccp_sample_rtt(sk, r_sample);
 	hctx->ccid3hctx_rtt = tfrc_ewma(hctx->ccid3hctx_rtt, r_sample, 9);
-
+	/*
+	 * Update allowed sending rate X as per draft rfc3448bis-00, 4.2/3
+	 */
 	if (hctx->ccid3hctx_state == TFRC_SSTATE_NO_FBACK) {
-		/*
-		 * Larger Initial Windows [RFC 4342, sec. 5]
-		 */
-		hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
-		hctx->ccid3hctx_t_ld = now;
-
-		ccid3_update_send_interval(hctx);
-
-		ccid3_pr_debug("%s(%p), s=%u, MSS=%u, "
-			       "R_sample=%uus, X=%u\n", dccp_role(sk),
-			       sk, hctx->ccid3hctx_s,
-			       dccp_sk(sk)->dccps_mss_cache, r_sample,
-			       (unsigned)(hctx->ccid3hctx_x >> 6));
-
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_FBACK);
-	} else {
 
-		/* Update sending rate (step 4 of [RFC 3448, 4.3]) */
-		if (hctx->ccid3hctx_p > 0)
-			hctx->ccid3hctx_x_calc =
+		if (hctx->ccid3hctx_t_rto == 0) {
+			/*
+			 * Initial feedback packet: Larger Initial Windows (4.2)
+			 */
+			hctx->ccid3hctx_x    = rfc3390_initial_rate(sk);
+			hctx->ccid3hctx_t_ld = now;
+
+			ccid3_update_send_interval(hctx);
+
+			goto done_computing_x;
+		} else if (hctx->ccid3hctx_p == 0) {
+			/*
+			 * First feedback after nofeedback timer expiry (4.3)
+			 */
+			goto done_computing_x;
+		}
+	}
+
+	/* Update sending rate (step 4 of [RFC 3448, 4.3]) */
+	if (hctx->ccid3hctx_p > 0)
+		hctx->ccid3hctx_x_calc =
 				tfrc_calc_x(hctx->ccid3hctx_s,
 					    hctx->ccid3hctx_rtt,
 					    hctx->ccid3hctx_p);
-		ccid3_hc_tx_update_x(sk, &now);
+	ccid3_hc_tx_update_x(sk, &now);
 
-		ccid3_pr_debug("%s(%p), RTT=%uus (sample=%uus), s=%u, "
+done_computing_x:
+	ccid3_pr_debug("%s(%p), RTT=%uus (sample=%uus), s=%u, "
 			       "p=%u, X_calc=%u, X_recv=%u, X=%u\n",
 			       dccp_role(sk),
 			       sk, hctx->ccid3hctx_rtt, r_sample,
@@ -470,7 +476,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			       hctx->ccid3hctx_x_calc,
 			       (unsigned)(hctx->ccid3hctx_x_recv >> 6),
 			       (unsigned)(hctx->ccid3hctx_x >> 6));
-	}
 
 	/* unschedule no feedback timer */
 	sk_stop_timer(sk, &hctx->ccid3hctx_no_feedback_timer);
