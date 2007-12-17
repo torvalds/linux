@@ -201,8 +201,8 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	if (!vol)
 		return -ENOMEM;
 
+	mutex_lock(&ubi->volumes_mutex);
 	spin_lock(&ubi->volumes_lock);
-
 	if (vol_id == UBI_VOL_NUM_AUTO) {
 		/* Find unused volume ID */
 		dbg_msg("search for vacant volume ID");
@@ -350,6 +350,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	spin_unlock(&ubi->volumes_lock);
 
 	paranoid_check_volumes(ubi);
+	mutex_unlock(&ubi->volumes_mutex);
 	return 0;
 
 out_gluebi:
@@ -365,6 +366,7 @@ out_acc:
 	ubi->volumes[vol_id] = NULL;
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
+	mutex_unlock(&ubi->volumes_mutex);
 	kfree(vol);
 	ubi_err("cannot create volume %d, error %d", vol_id, err);
 	return err;
@@ -382,6 +384,7 @@ out_sysfs:
 	ubi->avail_pebs += vol->reserved_pebs;
 	ubi->volumes[vol_id] = NULL;
 	spin_unlock(&ubi->volumes_lock);
+	mutex_unlock(&ubi->volumes_mutex);
 	volume_sysfs_close(vol);
 	ubi_err("cannot create volume %d, error %d", vol_id, err);
 	return err;
@@ -408,18 +411,19 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	if (ubi->ro_mode)
 		return -EROFS;
 
+	mutex_lock(&ubi->volumes_mutex);
 	err = ubi_destroy_gluebi(vol);
 	if (err)
-		return err;
+		goto out;
 
 	err = ubi_change_vtbl_record(ubi, vol_id, NULL);
 	if (err)
-		return err;
+		goto out;
 
 	for (i = 0; i < vol->reserved_pebs; i++) {
 		err = ubi_eba_unmap_leb(ubi, vol, i);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	spin_lock(&ubi->volumes_lock);
@@ -449,8 +453,13 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	spin_unlock(&ubi->volumes_lock);
 
 	paranoid_check_volumes(ubi);
+	mutex_unlock(&ubi->volumes_mutex);
 	module_put(THIS_MODULE);
 	return 0;
+
+out:
+	mutex_unlock(&ubi->volumes_mutex);
+	return err;
 }
 
 /**
@@ -496,6 +505,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 		new_mapping[i] = UBI_LEB_UNMAPPED;
 
 	/* Reserve physical eraseblocks */
+	mutex_lock(&ubi->volumes_mutex);
 	pebs = reserved_pebs - vol->reserved_pebs;
 	if (pebs > 0) {
 		spin_lock(&ubi->volumes_lock);
@@ -556,6 +566,7 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	}
 
 	paranoid_check_volumes(ubi);
+	mutex_unlock(&ubi->volumes_mutex);
 	return 0;
 
 out_acc:
@@ -567,6 +578,7 @@ out_acc:
 	}
 out_free:
 	kfree(new_mapping);
+	mutex_unlock(&ubi->volumes_mutex);
 	return err;
 }
 
@@ -829,9 +841,7 @@ static void paranoid_check_volumes(struct ubi_device *ubi)
 {
 	int i;
 
-	mutex_lock(&ubi->vtbl_mutex);
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		paranoid_check_volume(ubi, i);
-	mutex_unlock(&ubi->vtbl_mutex);
 }
 #endif

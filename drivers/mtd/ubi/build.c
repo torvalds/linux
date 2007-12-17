@@ -264,7 +264,7 @@ static int uif_init(struct ubi_device *ubi)
 	int i, err;
 	dev_t dev;
 
-	mutex_init(&ubi->vtbl_mutex);
+	mutex_init(&ubi->volumes_mutex);
 	spin_lock_init(&ubi->volumes_lock);
 
 	sprintf(ubi->ubi_name, UBI_NAME_STR "%d", ubi->ubi_num);

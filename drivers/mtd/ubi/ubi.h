@@ -255,7 +255,8 @@ struct ubi_wl_entry;
  * @vtbl_slots: how many slots are available in the volume table
  * @vtbl_size: size of the volume table in bytes
  * @vtbl: in-RAM volume table copy
- * @vtbl_mutex: protects on-flash volume table
+ * @volumes_mutex: protects on-flash volume table and serializes volume
+ *                 changes, like creation, deletion, update, resize
  *
  * @max_ec: current highest erase counter value
  * @mean_ec: current mean erase counter value
@@ -333,7 +334,7 @@ struct ubi_device {
 	int vtbl_slots;
 	int vtbl_size;
 	struct ubi_vtbl_record *vtbl;
-	struct mutex vtbl_mutex;
+	struct mutex volumes_mutex;
 
 	int max_ec;
 	int mean_ec;
