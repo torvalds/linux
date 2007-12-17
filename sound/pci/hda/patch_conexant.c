@@ -826,6 +826,17 @@ static int patch_cxt5045(struct hda_codec *codec)
 		spec->init_verbs[0] = cxt5045_test_init_verbs;
 #endif	
 	}
+
+	/*
+	 * Fix max PCM level to 0 dB
+	 * (originall it has 0x2b steps with 0dB offset 0x14)
+	 */
+	snd_hda_override_amp_caps(codec, 0x17, HDA_INPUT,
+				  (0x14 << AC_AMPCAP_OFFSET_SHIFT) |
+				  (0x14 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+				  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+				  (1 << AC_AMPCAP_MUTE_SHIFT));
+
 	return 0;
 }
 
