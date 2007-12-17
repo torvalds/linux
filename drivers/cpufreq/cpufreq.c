@@ -828,11 +828,8 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	memcpy(&new_policy, policy, sizeof(struct cpufreq_policy));
 
 	/* prepare interface data */
-	policy->kobj.parent = &sys_dev->kobj;
-	policy->kobj.ktype = &ktype_cpufreq;
-	kobject_set_name(&policy->kobj, "cpufreq");
-
-	ret = kobject_register(&policy->kobj);
+	ret = kobject_init_and_add(&policy->kobj, &ktype_cpufreq, &sys_dev->kobj,
+				   "cpufreq");
 	if (ret) {
 		unlock_policy_rwsem_write(cpu);
 		goto err_out_driver_exit;
@@ -902,6 +899,7 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		goto err_out_unregister;
 	}
 
+	kobject_uevent(&policy->kobj, KOBJ_ADD);
 	module_put(cpufreq_driver->owner);
 	dprintk("initialization complete\n");
 	cpufreq_debug_enable_ratelimit();
