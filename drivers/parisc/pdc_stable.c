@@ -991,13 +991,12 @@ pdcs_register_pathentries(void)
 		if (err < 0)
 			continue;
 
-		if ((err = kobject_set_name(&entry->kobj, "%s", entry->name)))
-			return err;
 		entry->kobj.kset = paths_kset;
-		entry->kobj.ktype = &ktype_pdcspath;
-		if ((err = kobject_register(&entry->kobj)))
+		err = kobject_init_and_add(&entry->kobj, &ktype_pdcspath, NULL,
+					   "%s", entry->name);
+		if (err)
 			return err;
-		
+
 		/* kobject is now registered */
 		write_lock(&entry->rw_lock);
 		entry->ready = 2;
@@ -1009,6 +1008,7 @@ pdcs_register_pathentries(void)
 		}
 
 		write_unlock(&entry->rw_lock);
+		kobject_uevent(&entry->kobj, KOBJ_ADD);
 	}
 	
 	return 0;
