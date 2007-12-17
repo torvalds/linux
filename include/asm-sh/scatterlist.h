@@ -1,7 +1,6 @@
 #ifndef __ASM_SH_SCATTERLIST_H
 #define __ASM_SH_SCATTERLIST_H
 
-#include <asm/pgtable.h>
 #include <asm/types.h>
 
 struct scatterlist {
