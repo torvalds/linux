@@ -142,7 +142,7 @@ ohci_hcd_ppc_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	ohci_hcd_init(ohci);
 
-	rv = usb_add_hcd(hcd, irq, 0);
+	rv = usb_add_hcd(hcd, irq, IRQF_DISABLED);
 	if (rv == 0)
 		return 0;
 

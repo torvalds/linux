@@ -160,7 +160,7 @@ static int ssb_ohci_attach(struct ssb_device *dev)
 	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs)
 		goto err_put_hcd;
-	err = usb_add_hcd(hcd, dev->irq, IRQF_SHARED);
+	err = usb_add_hcd(hcd, dev->irq, IRQF_DISABLED | IRQF_SHARED);
 	if (err)
 		goto err_iounmap;
 
