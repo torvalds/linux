@@ -245,6 +245,7 @@ struct ubi_wl_entry;
  *                @beb_rsvd_level, @bad_peb_count, @good_peb_count, @vol_count,
  *                @vol->readers, @vol->writers, @vol->exclusive,
  *                @vol->ref_count, @vol->mapping and @vol->eba_tbl.
+ * @ref_count: count of references on the UBI device
  *
  * @rsvd_pebs: count of reserved physical eraseblocks
  * @avail_pebs: count of available physical eraseblocks
@@ -325,6 +326,7 @@ struct ubi_device {
 	int vol_count;
 	struct ubi_volume *volumes[UBI_MAX_VOLUMES+UBI_INT_VOL_COUNT];
 	spinlock_t volumes_lock;
+	int ref_count;
 
 	int rsvd_pebs;
 	int avail_pebs;
@@ -401,7 +403,6 @@ extern struct kmem_cache *ubi_wl_entry_slab;
 extern struct file_operations ubi_ctrl_cdev_operations;
 extern struct file_operations ubi_cdev_operations;
 extern struct file_operations ubi_vol_cdev_operations;
-extern struct ubi_device *ubi_devices[];
 extern struct class *ubi_class;
 
 /* vtbl.c */
@@ -478,6 +479,12 @@ int ubi_io_read_vid_hdr(struct ubi_device *ubi, int pnum,
 			struct ubi_vid_hdr *vid_hdr, int verbose);
 int ubi_io_write_vid_hdr(struct ubi_device *ubi, int pnum,
 			 struct ubi_vid_hdr *vid_hdr);
+
+/* build.c */
+struct ubi_device *ubi_get_device(int ubi_num);
+void ubi_put_device(struct ubi_device *ubi);
+struct ubi_device *ubi_get_by_major(int major);
+int ubi_major2num(int major);
 
 /*
  * ubi_rb_for_each_entry - walk an RB-tree.

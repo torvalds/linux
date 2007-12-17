@@ -339,6 +339,7 @@ int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 {
 	int err, pnum, vol_id = vol->vol_id;
 
+	ubi_assert(ubi->ref_count > 0);
 	ubi_assert(vol->ref_count > 0);
 
 	if (ubi->ro_mode)
@@ -389,6 +390,7 @@ int ubi_eba_read_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t uninitialized_var(crc);
 
+	ubi_assert(ubi->ref_count > 0);
 	ubi_assert(vol->ref_count > 0);
 
 	err = leb_read_lock(ubi, vol_id, lnum);
@@ -614,6 +616,7 @@ int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	int err, pnum, tries = 0, vol_id = vol->vol_id;
 	struct ubi_vid_hdr *vid_hdr;
 
+	ubi_assert(ubi->ref_count > 0);
 	ubi_assert(vol->ref_count > 0);
 
 	if (ubi->ro_mode)
@@ -749,6 +752,7 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t crc;
 
+	ubi_assert(ubi->ref_count > 0);
 	ubi_assert(vol->ref_count > 0);
 
 	if (ubi->ro_mode)
@@ -865,6 +869,7 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 	struct ubi_vid_hdr *vid_hdr;
 	uint32_t crc;
 
+	ubi_assert(ubi->ref_count > 0);
 	ubi_assert(vol->ref_count > 0);
 
 	if (ubi->ro_mode)

@@ -30,23 +30,27 @@
  * @ubi_num: UBI device number
  * @di: the information is stored here
  *
- * This function returns %0 in case of success and a %-ENODEV if there is no
- * such UBI device.
+ * This function returns %0 in case of success, %-EINVAL if the UBI device
+ * number is invalid, and %-ENODEV if there is no such UBI device.
  */
 int ubi_get_device_info(int ubi_num, struct ubi_device_info *di)
 {
-	const struct ubi_device *ubi;
+	struct ubi_device *ubi;
 
-	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES ||
-	    !ubi_devices[ubi_num])
+	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
+		return -EINVAL;
+
+	ubi = ubi_get_device(ubi_num);
+	if (!ubi)
 		return -ENODEV;
 
-	ubi = ubi_devices[ubi_num];
 	di->ubi_num = ubi->ubi_num;
 	di->leb_size = ubi->leb_size;
 	di->min_io_size = ubi->min_io_size;
 	di->ro_mode = ubi->ro_mode;
 	di->cdev = ubi->cdev.dev;
+
+	ubi_put_device(ubi);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ubi_get_device_info);
@@ -111,16 +115,23 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 	    mode != UBI_EXCLUSIVE)
 		return ERR_PTR(-EINVAL);
 
-	ubi = ubi_devices[ubi_num];
+	/*
+	 * First of all, we have to get the UBI device to prevent its removal.
+	 */
+	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
 		return ERR_PTR(-ENODEV);
 
-	if (vol_id < 0 || vol_id >= ubi->vtbl_slots)
-		return ERR_PTR(-EINVAL);
+	if (vol_id < 0 || vol_id >= ubi->vtbl_slots) {
+		err = -EINVAL;
+		goto out_put_ubi;
+	}
 
 	desc = kmalloc(sizeof(struct ubi_volume_desc), GFP_KERNEL);
-	if (!desc)
-		return ERR_PTR(-ENOMEM);
+	if (!desc) {
+		err = -ENOMEM;
+		goto out_put_ubi;
+	}
 
 	err = -ENODEV;
 	if (!try_module_get(THIS_MODULE))
@@ -188,6 +199,8 @@ out_unlock:
 	module_put(THIS_MODULE);
 out_free:
 	kfree(desc);
+out_put_ubi:
+	ubi_put_device(ubi);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume);
@@ -205,6 +218,7 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 {
 	int i, vol_id = -1, len;
 	struct ubi_device *ubi;
+	struct ubi_volume_desc *ret;
 
 	dbg_msg("open volume %s, mode %d", name, mode);
 
@@ -218,7 +232,7 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
 		return ERR_PTR(-EINVAL);
 
-	ubi = ubi_devices[ubi_num];
+	ubi = ubi_get_device(ubi_num);
 	if (!ubi)
 		return ERR_PTR(-ENODEV);
 
@@ -234,10 +248,17 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	}
 	spin_unlock(&ubi->volumes_lock);
 
-	if (vol_id < 0)
-		return ERR_PTR(-ENODEV);
+	if (vol_id >= 0)
+		ret = ubi_open_volume(ubi_num, vol_id, mode);
+	else
+		ret = ERR_PTR(-ENODEV);
 
-	return ubi_open_volume(ubi_num, vol_id, mode);
+	/*
+	 * We should put the UBI device even in case of success, because
+	 * 'ubi_open_volume()' took a reference as well.
+	 */
+	ubi_put_device(ubi);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 
@@ -248,10 +269,11 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 void ubi_close_volume(struct ubi_volume_desc *desc)
 {
 	struct ubi_volume *vol = desc->vol;
+	struct ubi_device *ubi = vol->ubi;
 
 	dbg_msg("close volume %d, mode %d", vol->vol_id, desc->mode);
 
-	spin_lock(&vol->ubi->volumes_lock);
+	spin_lock(&ubi->volumes_lock);
 	switch (desc->mode) {
 	case UBI_READONLY:
 		vol->readers -= 1;
@@ -263,10 +285,11 @@ void ubi_close_volume(struct ubi_volume_desc *desc)
 		vol->exclusive = 0;
 	}
 	vol->ref_count -= 1;
-	spin_unlock(&vol->ubi->volumes_lock);
+	spin_unlock(&ubi->volumes_lock);
 
-	put_device(&vol->dev);
 	kfree(desc);
+	put_device(&vol->dev);
+	ubi_put_device(ubi);
 	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(ubi_close_volume);

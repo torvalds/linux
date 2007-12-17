@@ -71,11 +71,16 @@ static ssize_t vol_attribute_show(struct device *dev,
 {
 	int ret;
 	struct ubi_volume *vol = container_of(dev, struct ubi_volume, dev);
-	struct ubi_device *ubi = vol->ubi;
+	struct ubi_device *ubi;
+
+	ubi = ubi_get_device(vol->ubi->ubi_num);
+	if (!ubi)
+		return -ENODEV;
 
 	spin_lock(&ubi->volumes_lock);
 	if (!ubi->volumes[vol->vol_id]) {
 		spin_unlock(&ubi->volumes_lock);
+		ubi_put_device(ubi);
 		return -ENODEV;
 	}
 	/* Take a reference to prevent volume removal */
@@ -108,10 +113,12 @@ static ssize_t vol_attribute_show(struct device *dev,
 		/* This must be a bug */
 		ret = -EINVAL;
 
+	/* We've done the operation, drop volume and UBI device references */
 	spin_lock(&ubi->volumes_lock);
 	vol->ref_count -= 1;
 	ubi_assert(vol->ref_count >= 0);
 	spin_unlock(&ubi->volumes_lock);
+	ubi_put_device(ubi);
 	return ret;
 }
 
@@ -260,6 +267,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	}
 	ubi->avail_pebs -= vol->reserved_pebs;
 	ubi->rsvd_pebs += vol->reserved_pebs;
+	spin_unlock(&ubi->volumes_lock);
 
 	vol->vol_id    = vol_id;
 	vol->alignment = req->alignment;
@@ -267,9 +275,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	vol->vol_type  = req->vol_type;
 	vol->name_len  = req->name_len;
 	memcpy(vol->name, req->name, vol->name_len + 1);
-	vol->exclusive = 1;
 	vol->ubi = ubi;
-	spin_unlock(&ubi->volumes_lock);
 
 	/*
 	 * Finish all pending erases because there may be some LEBs belonging
@@ -350,8 +356,6 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 		goto out_sysfs;
 
 	spin_lock(&ubi->volumes_lock);
-	ubi->vol_count += 1;
-	vol->exclusive = 0;
 	ubi->volumes[vol_id] = vol;
 	spin_unlock(&ubi->volumes_lock);
 

@@ -64,9 +64,6 @@ static int mtd_devs = 0;
 /* MTD devices specification parameters */
 static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
 
-/* All UBI devices in system */
-struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
-
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
 struct class *ubi_class;
 
@@ -82,6 +79,12 @@ static struct miscdevice ubi_ctrl_cdev = {
 	.name = "ubi_ctrl",
 	.fops = &ubi_ctrl_cdev_operations,
 };
+
+/* All UBI devices in system */
+static struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
+
+/* Protects @ubi_devices and @ubi->ref_count */
+static DEFINE_SPINLOCK(ubi_devices_lock);
 
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
 static ssize_t ubi_version_show(struct class *class, char *buf)
@@ -118,37 +121,145 @@ static struct device_attribute dev_min_io_size =
 static struct device_attribute dev_bgt_enabled =
 	__ATTR(bgt_enabled, S_IRUGO, dev_attribute_show, NULL);
 
+/**
+ * ubi_get_device - get UBI device.
+ * @ubi_num: UBI device number
+ *
+ * This function returns UBI device description object for UBI device number
+ * @ubi_num, or %NULL if the device does not exist. This function increases the
+ * device reference count to prevent removal of the device. In other words, the
+ * device cannot be removed if its reference count is not zero.
+ */
+struct ubi_device *ubi_get_device(int ubi_num)
+{
+	struct ubi_device *ubi;
+
+	spin_lock(&ubi_devices_lock);
+	ubi = ubi_devices[ubi_num];
+	if (ubi) {
+		ubi_assert(ubi->ref_count >= 0);
+		ubi->ref_count += 1;
+		get_device(&ubi->dev);
+	}
+	spin_unlock(&ubi_devices_lock);
+
+	return ubi;
+}
+
+/**
+ * ubi_put_device - drop an UBI device reference.
+ * @ubi: UBI device description object
+ */
+void ubi_put_device(struct ubi_device *ubi)
+{
+	spin_lock(&ubi_devices_lock);
+	ubi->ref_count -= 1;
+	put_device(&ubi->dev);
+	spin_unlock(&ubi_devices_lock);
+}
+
+/**
+ * ubi_get_by_major - get UBI device description object by character device
+ *                    major number.
+ * @major: major number
+ *
+ * This function is similar to 'ubi_get_device()', but it searches the device
+ * by its major number.
+ */
+struct ubi_device *ubi_get_by_major(int major)
+{
+	int i;
+	struct ubi_device *ubi;
+
+	spin_lock(&ubi_devices_lock);
+	for (i = 0; i < UBI_MAX_DEVICES; i++) {
+		ubi = ubi_devices[i];
+		if (ubi && MAJOR(ubi->cdev.dev) == major) {
+			ubi_assert(ubi->ref_count >= 0);
+			ubi->ref_count += 1;
+			get_device(&ubi->dev);
+			spin_unlock(&ubi_devices_lock);
+			return ubi;
+		}
+	}
+	spin_unlock(&ubi_devices_lock);
+
+	return NULL;
+}
+
+/**
+ * ubi_major2num - get UBI device number by character device major number.
+ * @major: major number
+ *
+ * This function searches UBI device number object by its major number. If UBI
+ * device was not found, this function returns -ENODEV, othewise the UBI device
+ * number is returned.
+ */
+int ubi_major2num(int major)
+{
+	int i, ubi_num = -ENODEV;
+
+	spin_lock(&ubi_devices_lock);
+	for (i = 0; i < UBI_MAX_DEVICES; i++) {
+		struct ubi_device *ubi = ubi_devices[i];
+
+		if (ubi && MAJOR(ubi->cdev.dev) == major) {
+			ubi_num = ubi->ubi_num;
+			break;
+		}
+	}
+	spin_unlock(&ubi_devices_lock);
+
+	return ubi_num;
+}
+
 /* "Show" method for files in '/<sysfs>/class/ubi/ubiX/' */
 static ssize_t dev_attribute_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
-	const struct ubi_device *ubi;
+	ssize_t ret;
+	struct ubi_device *ubi;
 
+	/*
+	 * The below code looks weird, but it actually makes sense. We get the
+	 * UBI device reference from the contained 'struct ubi_device'. But it
+	 * is unclear if the device was removed or not yet. Indeed, if the
+	 * device was removed before we increased its reference count,
+	 * 'ubi_get_device()' will return -ENODEV and we fail.
+	 *
+	 * Remember, 'struct ubi_device' is freed in the release function, so
+	 * we still can use 'ubi->ubi_num'.
+	 */
 	ubi = container_of(dev, struct ubi_device, dev);
+	ubi = ubi_get_device(ubi->ubi_num);
+	if (!ubi)
+		return -ENODEV;
+
 	if (attr == &dev_eraseblock_size)
-		return sprintf(buf, "%d\n", ubi->leb_size);
+		ret = sprintf(buf, "%d\n", ubi->leb_size);
 	else if (attr == &dev_avail_eraseblocks)
-		return sprintf(buf, "%d\n", ubi->avail_pebs);
+		ret = sprintf(buf, "%d\n", ubi->avail_pebs);
 	else if (attr == &dev_total_eraseblocks)
-		return sprintf(buf, "%d\n", ubi->good_peb_count);
+		ret = sprintf(buf, "%d\n", ubi->good_peb_count);
 	else if (attr == &dev_volumes_count)
-		return sprintf(buf, "%d\n", ubi->vol_count);
+		ret = sprintf(buf, "%d\n", ubi->vol_count);
 	else if (attr == &dev_max_ec)
-		return sprintf(buf, "%d\n", ubi->max_ec);
+		ret = sprintf(buf, "%d\n", ubi->max_ec);
 	else if (attr == &dev_reserved_for_bad)
-		return sprintf(buf, "%d\n", ubi->beb_rsvd_pebs);
+		ret = sprintf(buf, "%d\n", ubi->beb_rsvd_pebs);
 	else if (attr == &dev_bad_peb_count)
-		return sprintf(buf, "%d\n", ubi->bad_peb_count);
+		ret = sprintf(buf, "%d\n", ubi->bad_peb_count);
 	else if (attr == &dev_max_vol_count)
-		return sprintf(buf, "%d\n", ubi->vtbl_slots);
+		ret = sprintf(buf, "%d\n", ubi->vtbl_slots);
 	else if (attr == &dev_min_io_size)
-		return sprintf(buf, "%d\n", ubi->min_io_size);
+		ret = sprintf(buf, "%d\n", ubi->min_io_size);
 	else if (attr == &dev_bgt_enabled)
-		return sprintf(buf, "%d\n", ubi->thread_enabled);
+		ret = sprintf(buf, "%d\n", ubi->thread_enabled);
 	else
 		BUG();
 
-	return 0;
+	ubi_put_device(ubi);
+	return ret;
 }
 
 /* Fake "release" method for UBI devices */
@@ -670,6 +781,7 @@ static void detach_mtd_dev(struct ubi_device *ubi)
 	int ubi_num = ubi->ubi_num, mtd_num = ubi->mtd->index;
 
 	dbg_msg("detaching mtd%d from ubi%d", ubi->mtd->index, ubi_num);
+	ubi_assert(ubi->ref_count == 0);
 	uif_close(ubi);
 	ubi_eba_close(ubi);
 	ubi_wl_close(ubi);

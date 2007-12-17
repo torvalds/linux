@@ -56,23 +56,6 @@
 #endif
 
 /**
- * major_to_device - get UBI device object by character device major number.
- * @major: major number
- *
- * This function returns a pointer to the UBI device object.
- */
-static struct ubi_device *major_to_device(int major)
-{
-	int i;
-
-	for (i = 0; i < UBI_MAX_DEVICES; i++)
-		if (ubi_devices[i] && MAJOR(ubi_devices[i]->cdev.dev) == major)
-			return ubi_devices[i];
-	BUG();
-	return NULL;
-}
-
-/**
  * get_exclusive - get exclusive access to an UBI volume.
  * @desc: volume descriptor
  *
@@ -129,9 +112,11 @@ static void revoke_exclusive(struct ubi_volume_desc *desc, int mode)
 static int vol_cdev_open(struct inode *inode, struct file *file)
 {
 	struct ubi_volume_desc *desc;
-	const struct ubi_device *ubi = major_to_device(imajor(inode));
-	int vol_id = iminor(inode) - 1;
-	int mode;
+	int vol_id = iminor(inode) - 1, mode, ubi_num;
+
+	ubi_num = ubi_major2num(imajor(inode));
+	if (ubi_num < 0)
+		return ubi_num;
 
 	if (file->f_mode & FMODE_WRITE)
 		mode = UBI_READWRITE;
@@ -140,7 +125,7 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 
 	dbg_msg("open volume %d, mode %d", vol_id, mode);
 
-	desc = ubi_open_volume(ubi->ubi_num, vol_id, mode);
+	desc = ubi_open_volume(ubi_num, vol_id, mode);
 	if (IS_ERR(desc))
 		return PTR_ERR(desc);
 
@@ -586,9 +571,9 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
-	ubi = major_to_device(imajor(inode));
-	if (IS_ERR(ubi))
-		return PTR_ERR(ubi);
+	ubi = ubi_get_by_major(imajor(inode));
+	if (!ubi)
+		return -ENODEV;
 
 	switch (cmd) {
 	/* Create volume command */
@@ -695,6 +680,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
+	ubi_put_device(ubi);
 	return err;
 }
 
