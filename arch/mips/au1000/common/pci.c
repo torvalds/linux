@@ -39,15 +39,15 @@
 
 /* TBD */
 static struct resource pci_io_resource = {
-	.start	= (resource_size_t)PCI_IO_START,
-	.end	= (resource_size_t)PCI_IO_END,
+	.start	= PCI_IO_START,
+	.end	= PCI_IO_END,
 	.name	= "PCI IO space",
 	.flags	= IORESOURCE_IO
 };
 
 static struct resource pci_mem_resource = {
-	.start	= (resource_size_t)PCI_MEM_START,
-	.end	= (resource_size_t)PCI_MEM_END,
+	.start	= PCI_MEM_START,
+	.end	= PCI_MEM_END,
 	.name	= "PCI memory space",
 	.flags	= IORESOURCE_MEM
 };

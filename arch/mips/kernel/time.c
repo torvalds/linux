@@ -109,10 +109,6 @@ void __cpuinit clockevent_set_clock(struct clock_event_device *cd,
 	cd->mult = (u32) temp;
 }
 
-void __init __weak plat_time_init(void)
-{
-}
-
 /*
  * This function exists in order to cause an error due to a duplicate
  * definition if platform code should have its own implementation.  The hook
