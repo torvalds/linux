@@ -22,18 +22,11 @@
    Used as part of several tuners
 */
 
-static int tda9887_debug;
-module_param_named(debug, tda9887_debug, int, 0644);
+static int debug;
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable verbose debug messages");
 
-#define tda9887_info(fmt, arg...) do {\
-	printk(KERN_INFO "tda9887 %d-%04x: " fmt, \
-			i2c_adapter_id(priv->i2c_props.adap), \
-			priv->i2c_props.addr, ##arg); } while (0)
-#define tda9887_dbg(fmt, arg...) do {\
-	if (tda9887_debug) \
-		printk(KERN_INFO "tda9887 %d-%04x: " fmt, \
-			i2c_adapter_id(priv->i2c_props.adap), \
-			priv->i2c_props.addr, ##arg); } while (0)
+#define PREFIX "tda9887"
 
 struct tda9887_priv {
 	struct tuner_i2c_props i2c_props;
@@ -295,12 +288,12 @@ static void dump_read_message(struct dvb_frontend *fe, unsigned char *buf)
 		"+ 37.5 kHz",
 		"+ 12.5 kHz",
 	};
-	tda9887_info("read: 0x%2x\n", buf[0]);
-	tda9887_info("  after power on : %s\n", (buf[0] & 0x01) ? "yes" : "no");
-	tda9887_info("  afc            : %s\n", afc[(buf[0] >> 1) & 0x0f]);
-	tda9887_info("  fmif level     : %s\n", (buf[0] & 0x20) ? "high" : "low");
-	tda9887_info("  afc window     : %s\n", (buf[0] & 0x40) ? "in" : "out");
-	tda9887_info("  vfi level      : %s\n", (buf[0] & 0x80) ? "high" : "low");
+	tuner_info("read: 0x%2x\n", buf[0]);
+	tuner_info("  after power on : %s\n", (buf[0] & 0x01) ? "yes" : "no");
+	tuner_info("  afc            : %s\n", afc[(buf[0] >> 1) & 0x0f]);
+	tuner_info("  fmif level     : %s\n", (buf[0] & 0x20) ? "high" : "low");
+	tuner_info("  afc window     : %s\n", (buf[0] & 0x40) ? "in" : "out");
+	tuner_info("  vfi level      : %s\n", (buf[0] & 0x80) ? "high" : "low");
 }
 
 static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
@@ -345,58 +338,60 @@ static void dump_write_message(struct dvb_frontend *fe, unsigned char *buf)
 		"44 MHz",
 	};
 
-	tda9887_info("write: byte B 0x%02x\n",buf[1]);
-	tda9887_info("  B0   video mode      : %s\n",
-	       (buf[1] & 0x01) ? "video trap" : "sound trap");
-	tda9887_info("  B1   auto mute fm    : %s\n",
-	       (buf[1] & 0x02) ? "yes" : "no");
-	tda9887_info("  B2   carrier mode    : %s\n",
-	       (buf[1] & 0x04) ? "QSS" : "Intercarrier");
-	tda9887_info("  B3-4 tv sound/radio  : %s\n",
-	       sound[(buf[1] & 0x18) >> 3]);
-	tda9887_info("  B5   force mute audio: %s\n",
-	       (buf[1] & 0x20) ? "yes" : "no");
-	tda9887_info("  B6   output port 1   : %s\n",
-	       (buf[1] & 0x40) ? "high (inactive)" : "low (active)");
-	tda9887_info("  B7   output port 2   : %s\n",
-	       (buf[1] & 0x80) ? "high (inactive)" : "low (active)");
+	tuner_info("write: byte B 0x%02x\n", buf[1]);
+	tuner_info("  B0   video mode      : %s\n",
+		   (buf[1] & 0x01) ? "video trap" : "sound trap");
+	tuner_info("  B1   auto mute fm    : %s\n",
+		   (buf[1] & 0x02) ? "yes" : "no");
+	tuner_info("  B2   carrier mode    : %s\n",
+		   (buf[1] & 0x04) ? "QSS" : "Intercarrier");
+	tuner_info("  B3-4 tv sound/radio  : %s\n",
+		   sound[(buf[1] & 0x18) >> 3]);
+	tuner_info("  B5   force mute audio: %s\n",
+		   (buf[1] & 0x20) ? "yes" : "no");
+	tuner_info("  B6   output port 1   : %s\n",
+		   (buf[1] & 0x40) ? "high (inactive)" : "low (active)");
+	tuner_info("  B7   output port 2   : %s\n",
+		   (buf[1] & 0x80) ? "high (inactive)" : "low (active)");
 
-	tda9887_info("write: byte C 0x%02x\n",buf[2]);
-	tda9887_info("  C0-4 top adjustment  : %s dB\n", adjust[buf[2] & 0x1f]);
-	tda9887_info("  C5-6 de-emphasis     : %s\n", deemph[(buf[2] & 0x60) >> 5]);
-	tda9887_info("  C7   audio gain      : %s\n",
-	       (buf[2] & 0x80) ? "-6" : "0");
+	tuner_info("write: byte C 0x%02x\n", buf[2]);
+	tuner_info("  C0-4 top adjustment  : %s dB\n",
+		   adjust[buf[2] & 0x1f]);
+	tuner_info("  C5-6 de-emphasis     : %s\n",
+		   deemph[(buf[2] & 0x60) >> 5]);
+	tuner_info("  C7   audio gain      : %s\n",
+		   (buf[2] & 0x80) ? "-6" : "0");
 
-	tda9887_info("write: byte E 0x%02x\n",buf[3]);
-	tda9887_info("  E0-1 sound carrier   : %s\n",
-	       carrier[(buf[3] & 0x03)]);
-	tda9887_info("  E6   l pll gating   : %s\n",
-	       (buf[3] & 0x40) ? "36" : "13");
+	tuner_info("write: byte E 0x%02x\n", buf[3]);
+	tuner_info("  E0-1 sound carrier   : %s\n",
+		   carrier[(buf[3] & 0x03)]);
+	tuner_info("  E6   l pll gating   : %s\n",
+		   (buf[3] & 0x40) ? "36" : "13");
 
 	if (buf[1] & 0x08) {
 		/* radio */
-		tda9887_info("  E2-4 video if        : %s\n",
-		       rif[(buf[3] & 0x0c) >> 2]);
-		tda9887_info("  E7   vif agc output  : %s\n",
-		       (buf[3] & 0x80)
-		       ? ((buf[3] & 0x10) ? "fm-agc radio" : "sif-agc radio")
-		       : "fm radio carrier afc");
+		tuner_info("  E2-4 video if        : %s\n",
+			   rif[(buf[3] & 0x0c) >> 2]);
+		tuner_info("  E7   vif agc output  : %s\n",
+			   (buf[3] & 0x80)
+			   ? ((buf[3] & 0x10) ? "fm-agc radio" :
+						"sif-agc radio")
+			   : "fm radio carrier afc");
 	} else {
 		/* video */
-		tda9887_info("  E2-4 video if        : %s\n",
-		       vif[(buf[3] & 0x1c) >> 2]);
-		tda9887_info("  E5   tuner gain      : %s\n",
-		       (buf[3] & 0x80)
-		       ? ((buf[3] & 0x20) ? "external" : "normal")
-		       : ((buf[3] & 0x20) ? "minimum"  : "normal"));
-		tda9887_info("  E7   vif agc output  : %s\n",
-		       (buf[3] & 0x80)
-		       ? ((buf[3] & 0x20)
-			  ? "pin3 port, pin22 vif agc out"
-			  : "pin22 port, pin3 vif acg ext in")
-		       : "pin3+pin22 port");
+		tuner_info("  E2-4 video if        : %s\n",
+			   vif[(buf[3] & 0x1c) >> 2]);
+		tuner_info("  E5   tuner gain      : %s\n",
+			   (buf[3] & 0x80)
+			   ? ((buf[3] & 0x20) ? "external" : "normal")
+			   : ((buf[3] & 0x20) ? "minimum"  : "normal"));
+		tuner_info("  E7   vif agc output  : %s\n",
+			   (buf[3] & 0x80) ? ((buf[3] & 0x20)
+				? "pin3 port, pin22 vif agc out"
+				: "pin22 port, pin3 vif acg ext in")
+				: "pin3+pin22 port");
 	}
-	tda9887_info("--\n");
+	tuner_info("--\n");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -422,11 +417,11 @@ static int tda9887_set_tvnorm(struct dvb_frontend *fe)
 		}
 	}
 	if (NULL == norm) {
-		tda9887_dbg("Unsupported tvnorm entry - audio muted\n");
+		tuner_dbg("Unsupported tvnorm entry - audio muted\n");
 		return -1;
 	}
 
-	tda9887_dbg("configure for: %s\n",norm->name);
+	tuner_dbg("configure for: %s\n", norm->name);
 	buf[1] = norm->b;
 	buf[2] = norm->c;
 	buf[3] = norm->e;
@@ -542,7 +537,7 @@ static int tda9887_status(struct dvb_frontend *fe)
 
 	memset(buf,0,sizeof(buf));
 	if (1 != (rc = tuner_i2c_xfer_recv(&priv->i2c_props,buf,1)))
-		tda9887_info("i2c i/o error: rc == %d (should be 1)\n",rc);
+		tuner_info("i2c i/o error: rc == %d (should be 1)\n", rc);
 	dump_read_message(fe, buf);
 	return 0;
 }
@@ -577,15 +572,15 @@ static void tda9887_configure(struct dvb_frontend *fe)
 	if (priv->mode == T_STANDBY)
 		priv->data[1] |= cForcedMuteAudioON;
 
-	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
-		priv->data[1],priv->data[2],priv->data[3]);
-	if (tda9887_debug > 1)
+	tuner_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
+		  priv->data[1], priv->data[2], priv->data[3]);
+	if (debug > 1)
 		dump_write_message(fe, priv->data);
 
 	if (4 != (rc = tuner_i2c_xfer_send(&priv->i2c_props,priv->data,4)))
-		tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
+		tuner_info("i2c i/o error: rc == %d (should be 4)\n", rc);
 
-	if (tda9887_debug > 2) {
+	if (debug > 2) {
 		msleep_interruptible(1000);
 		tda9887_status(fe);
 	}
@@ -596,8 +591,8 @@ static void tda9887_configure(struct dvb_frontend *fe)
 static void tda9887_tuner_status(struct dvb_frontend *fe)
 {
 	struct tda9887_priv *priv = fe->analog_demod_priv;
-	tda9887_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n",
-		     priv->data[1], priv->data[2], priv->data[3]);
+	tuner_info("Data bytes: b=0x%02x c=0x%02x e=0x%02x\n",
+		   priv->data[1], priv->data[2], priv->data[3]);
 }
 
 static int tda9887_get_afc(struct dvb_frontend *fe)
@@ -680,7 +675,7 @@ struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
 
-	tda9887_info("tda988[5/6/7] found\n");
+	tuner_info("tda988[5/6/7] found\n");
 
 	fe->ops.analog_demod_ops = &tda9887_tuner_ops;
 
