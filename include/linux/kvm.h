@@ -53,6 +53,8 @@ struct kvm_irqchip {
 		char dummy[512];  /* reserving space */
 #ifdef CONFIG_X86
 		struct kvm_pic_state pic;
+#endif
+#if defined(CONFIG_X86) || defined(CONFIG_IA64)
 		struct kvm_ioapic_state ioapic;
 #endif
 	} chip;
