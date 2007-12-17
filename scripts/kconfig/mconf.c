@@ -8,17 +8,13 @@
  * i18n, 2005, Arnaldo Carvalho de Melo <acme@conectiva.com.br>
  */
 
-#include <sys/ioctl.h>
-#include <sys/wait.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <termios.h>
 #include <unistd.h>
 #include <locale.h>
 
@@ -275,8 +271,6 @@ search_help[] = N_(
 	"\n");
 
 static int indent;
-static struct termios ios_org;
-static int rows = 0, cols = 0;
 static struct menu *current_menu;
 static int child_count;
 static int single_menu_mode;
@@ -289,41 +283,6 @@ static void conf_save(void);
 static void show_textbox(const char *title, const char *text, int r, int c);
 static void show_helptext(const char *title, const char *text);
 static void show_help(struct menu *menu);
-
-static void init_wsize(void)
-{
-	struct winsize ws;
-	char *env;
-
-	if (!ioctl(STDIN_FILENO, TIOCGWINSZ, &ws)) {
-		rows = ws.ws_row;
-		cols = ws.ws_col;
-	}
-
-	if (!rows) {
-		env = getenv("LINES");
-		if (env)
-			rows = atoi(env);
-		if (!rows)
-			rows = 24;
-	}
-	if (!cols) {
-		env = getenv("COLUMNS");
-		if (env)
-			cols = atoi(env);
-		if (!cols)
-			cols = 80;
-	}
-
-	if (rows < 19 || cols < 80) {
-		fprintf(stderr, N_("Your display is too small to run Menuconfig!\n"));
-		fprintf(stderr, N_("It must be at least 19 lines by 80 columns.\n"));
-		exit(1);
-	}
-
-	rows -= 4;
-	cols -= 5;
-}
 
 static void get_prompt_str(struct gstr *r, struct property *prop)
 {
@@ -900,13 +859,9 @@ static void conf_save(void)
 	}
 }
 
-static void conf_cleanup(void)
-{
-	tcsetattr(1, TCSAFLUSH, &ios_org);
-}
-
 int main(int ac, char **av)
 {
+	int saved_x, saved_y;
 	char *mode;
 	int res;
 
@@ -923,11 +878,13 @@ int main(int ac, char **av)
 			single_menu_mode = 1;
 	}
 
-	tcgetattr(1, &ios_org);
-	atexit(conf_cleanup);
-	init_wsize();
-	reset_dialog();
-	init_dialog(NULL);
+	getyx(stdscr, saved_y, saved_x);
+	if (init_dialog(NULL)) {
+		fprintf(stderr, N_("Your display is too small to run Menuconfig!\n"));
+		fprintf(stderr, N_("It must be at least 19 lines by 80 columns.\n"));
+		return 1;
+	}
+
 	set_config_filename(conf_get_configname());
 	do {
 		conf(&rootmenu);
@@ -941,7 +898,7 @@ int main(int ac, char **av)
 		else
 			res = -1;
 	} while (res == KEY_ESC);
-	end_dialog();
+	end_dialog(saved_x, saved_y);
 
 	switch (res) {
 	case 0:
