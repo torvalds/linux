@@ -797,7 +797,7 @@ write_error:
 /*
  * ubi_eba_atomic_leb_change - change logical eraseblock atomically.
  * @ubi: UBI device description object
- * @vol: volume escription object
+ * @vol: volume description object
  * @lnum: logical eraseblock number
  * @buf: data to write
  * @len: how many bytes to write
@@ -955,6 +955,12 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	/*
 	 * We may race with volume deletion/re-size, so we have to hold
 	 * @ubi->volumes_lock.
+	 *
+	 * Note, it is not a problem if we race with volume deletion or re-size
+	 * here. If the volume is deleted or re-sized while we are moving an
+	 * eraseblock which belongs to this volume, we'll end up with finding
+	 * out that this LEB was unmapped at the end (see WL), and drop this
+	 * PEB.
 	 */
 	spin_lock(&ubi->volumes_lock);
 	vol = ubi->volumes[idx];
