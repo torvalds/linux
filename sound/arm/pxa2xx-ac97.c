@@ -352,6 +352,7 @@ static int __devinit pxa2xx_ac97_probe(struct platform_device *dev)
 	snprintf(card->longname, sizeof(card->longname),
 		 "%s (%s)", dev->dev.driver->name, card->mixername);
 
+	snd_card_set_dev(card, &dev->dev);
 	ret = snd_card_register(card);
 	if (ret == 0) {
 		platform_set_drvdata(dev, card);

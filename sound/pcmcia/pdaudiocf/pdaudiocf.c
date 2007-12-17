@@ -129,6 +129,8 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 		return -ENODEV;
 	}
 
+	snd_card_set_dev(card, &handle_to_dev(link));
+
 	pdacf->index = i;
 	card_list[i] = card;
 
