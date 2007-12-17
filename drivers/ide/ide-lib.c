@@ -29,41 +29,44 @@
  *	Add common non I/O op stuff here. Make sure it has proper
  *	kernel-doc function headers or your patch will be rejected
  */
- 
+
+static const char *udma_str[] =
+	 { "UDMA/16", "UDMA/25",  "UDMA/33",  "UDMA/44",
+	   "UDMA/66", "UDMA/100", "UDMA/133", "UDMA7" };
+static const char *mwdma_str[] =
+	{ "MWDMA0", "MWDMA1", "MWDMA2" };
+static const char *swdma_str[] =
+	{ "SWDMA0", "SWDMA1", "SWDMA2" };
+static const char *pio_str[] =
+	{ "PIO0", "PIO1", "PIO2", "PIO3", "PIO4", "PIO5" };
 
 /**
  *	ide_xfer_verbose	-	return IDE mode names
- *	@xfer_rate: rate to name
+ *	@mode: transfer mode
  *
  *	Returns a constant string giving the name of the mode
  *	requested.
  */
 
-char *ide_xfer_verbose (u8 xfer_rate)
+const char *ide_xfer_verbose(u8 mode)
 {
-        switch(xfer_rate) {
-                case XFER_UDMA_7:	return("UDMA 7");
-                case XFER_UDMA_6:	return("UDMA 6");
-                case XFER_UDMA_5:	return("UDMA 5");
-                case XFER_UDMA_4:	return("UDMA 4");
-                case XFER_UDMA_3:	return("UDMA 3");
-                case XFER_UDMA_2:	return("UDMA 2");
-                case XFER_UDMA_1:	return("UDMA 1");
-                case XFER_UDMA_0:	return("UDMA 0");
-                case XFER_MW_DMA_2:	return("MW DMA 2");
-                case XFER_MW_DMA_1:	return("MW DMA 1");
-                case XFER_MW_DMA_0:	return("MW DMA 0");
-                case XFER_SW_DMA_2:	return("SW DMA 2");
-                case XFER_SW_DMA_1:	return("SW DMA 1");
-                case XFER_SW_DMA_0:	return("SW DMA 0");
-                case XFER_PIO_4:	return("PIO 4");
-                case XFER_PIO_3:	return("PIO 3");
-                case XFER_PIO_2:	return("PIO 2");
-                case XFER_PIO_1:	return("PIO 1");
-                case XFER_PIO_0:	return("PIO 0");
-                case XFER_PIO_SLOW:	return("PIO SLOW");
-                default:		return("XFER ERROR");
-        }
+	const char *s;
+	u8 i = mode & 0xf;
+
+	if (mode >= XFER_UDMA_0 && mode <= XFER_UDMA_7)
+		s = udma_str[i];
+	else if (mode >= XFER_MW_DMA_0 && mode <= XFER_MW_DMA_2)
+		s = mwdma_str[i];
+	else if (mode >= XFER_SW_DMA_0 && mode <= XFER_SW_DMA_2)
+		s = swdma_str[i];
+	else if (mode >= XFER_PIO_0 && mode <= XFER_PIO_5)
+		s = pio_str[i & 0x7];
+	else if (mode == XFER_PIO_SLOW)
+		s = "PIO SLOW";
+	else
+		s = "XFER ERROR";
+
+	return s;
 }
 
 EXPORT_SYMBOL(ide_xfer_verbose);

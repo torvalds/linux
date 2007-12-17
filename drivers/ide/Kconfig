@@ -390,7 +390,7 @@ config IDEPCI_PCIBUS_ORDER
 
 # TODO: split it on per host driver config options (or module parameters)
 config BLK_DEV_OFFBOARD
-	bool "Boot off-board chipsets first support"
+	bool "Boot off-board chipsets first support (DEPRECATED)"
 	depends on BLK_DEV_IDEPCI && (BLK_DEV_AEC62XX || BLK_DEV_GENERIC || BLK_DEV_HPT34X || BLK_DEV_HPT366 || BLK_DEV_PDC202XX_NEW || BLK_DEV_PDC202XX_OLD || BLK_DEV_TC86C001)
 	help
 	  Normally, IDE controllers built into the motherboard (on-board
@@ -409,6 +409,10 @@ config BLK_DEV_OFFBOARD
 
 	  Note that, if you do this, the order of the hd* devices will be
 	  rearranged which may require modification of fstab and other files.
+
+	  Please also note that this method of assuring stable naming of
+	  IDE devices is unreliable and use other means for achieving it
+	  (i.e. udev).
 
 	  If in doubt, say N.
 

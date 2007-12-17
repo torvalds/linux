@@ -1650,31 +1650,6 @@ static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
 	return 1;
 }
 
-static void post_transform_command(struct request *req)
-{
-	u8 *c = req->cmd;
-	char *ibuf;
-
-	if (!blk_pc_request(req))
-		return;
-
-	if (req->bio)
-		ibuf = bio_data(req->bio);
-	else
-		ibuf = req->data;
-
-	if (!ibuf)
-		return;
-
-	/*
-	 * set ansi-revision and response data as atapi
-	 */
-	if (c[0] == GPCMD_INQUIRY) {
-		ibuf[2] |= 2;
-		ibuf[3] = (ibuf[3] & 0xf0) | 2;
-	}
-}
-
 typedef void (xfer_func_t)(ide_drive_t *, void *, u32);
 
 /*
@@ -1810,9 +1785,6 @@ static ide_startstop_t cdrom_newpc_intr(ide_drive_t *drive)
 	return ide_started;
 
 end_request:
-	if (!rq->data_len)
-		post_transform_command(rq);
-
 	spin_lock_irqsave(&ide_lock, flags);
 	blkdev_dequeue_request(rq);
 	end_that_request_last(rq, 1);
@@ -3049,12 +3021,7 @@ int ide_cdrom_probe_capabilities (ide_drive_t *drive)
         else 	
         	printk(" drive");
 
-	printk(", %dkB Cache", be16_to_cpu(cap.buffer_size));
-
-	if (drive->using_dma)
-		ide_dma_verbose(drive);
-
-	printk("\n");
+	printk(KERN_CONT ", %dkB Cache\n", be16_to_cpu(cap.buffer_size));
 
 	return nslots;
 }

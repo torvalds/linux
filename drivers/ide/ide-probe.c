@@ -13,22 +13,8 @@
  *
  * This is the IDE probe module, as evolved from hd.c and ide.c.
  *
- * Version 1.00		move drive probing code from ide.c to ide-probe.c
- * Version 1.01		fix compilation problem for m68k
- * Version 1.02		increase WAIT_PIDENTIFY to avoid CD-ROM locking at boot
- *			 by Andrea Arcangeli
- * Version 1.03		fix for (hwif->chipset == ide_4drives)
- * Version 1.04		fixed buggy treatments of known flash memory cards
- *
- * Version 1.05		fix for (hwif->chipset == ide_pdc4030)
- *			added ide6/7/8/9
- *			allowed for secondary flash card to be detectable
- *			 with new flag : drive->ata_flash : 1;
- * Version 1.06		stream line request queue and prep for cascade project.
- * Version 1.07		max_sect <= 255; slower disks would get behind and
- * 			then fall over when they get to 256.	Paul G.
- * Version 1.10		Update set for new IDE. drive->id is now always
- *			valid after probe time even with noprobe
+ * -- increase WAIT_PIDENTIFY to avoid CD-ROM locking at boot
+ *	 by Andrea Arcangeli
  */
 
 #include <linux/module.h>
@@ -667,7 +653,8 @@ static int wait_hwif_ready(ide_hwif_t *hwif)
 		/* Ignore disks that we will not probe for later. */
 		if (!drive->noprobe || drive->present) {
 			SELECT_DRIVE(drive);
-			hwif->OUTB(8, hwif->io_ports[IDE_CONTROL_OFFSET]);
+			if (IDE_CONTROL_REG)
+				hwif->OUTB(drive->ctl, IDE_CONTROL_REG);
 			mdelay(2);
 			rc = ide_wait_not_busy(hwif, 35000);
 			if (rc)

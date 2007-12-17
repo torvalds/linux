@@ -800,11 +800,17 @@ int set_io_32bit(ide_drive_t *drive, int arg)
 	if (arg < 0 || arg > 1 + (SUPPORT_VLB_SYNC << 1))
 		return -EINVAL;
 
+	if (ide_spin_wait_hwgroup(drive))
+		return -EBUSY;
+
 	drive->io_32bit = arg;
 #ifdef CONFIG_BLK_DEV_DTC2278
 	if (HWIF(drive)->chipset == ide_dtc2278)
 		HWIF(drive)->drives[!drive->select.b.unit].io_32bit = arg;
 #endif /* CONFIG_BLK_DEV_DTC2278 */
+
+	spin_unlock_irq(&ide_lock);
+
 	return 0;
 }
 
@@ -1670,10 +1676,34 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 	return sprintf(buf, "ide:m-%s\n", media_string(drive));
 }
 
+static ssize_t model_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "%s\n", drive->id->model);
+}
+
+static ssize_t firmware_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "%s\n", drive->id->fw_rev);
+}
+
+static ssize_t serial_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	ide_drive_t *drive = to_ide_device(dev);
+	return sprintf(buf, "%s\n", drive->id->serial_no);
+}
+
 static struct device_attribute ide_dev_attrs[] = {
 	__ATTR_RO(media),
 	__ATTR_RO(drivename),
 	__ATTR_RO(modalias),
+	__ATTR_RO(model),
+	__ATTR_RO(firmware),
+	__ATTR(serial, 0400, serial_show, NULL),
 	__ATTR_NULL
 };
 

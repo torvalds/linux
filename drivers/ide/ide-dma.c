@@ -611,12 +611,6 @@ static int __ide_dma_test_irq(ide_drive_t *drive)
 	ide_hwif_t *hwif	= HWIF(drive);
 	u8 dma_stat		= hwif->INB(hwif->dma_status);
 
-#if 0  /* do not set unless you know what you are doing */
-	if (dma_stat & 4) {
-		u8 stat = hwif->INB(IDE_STATUS_REG);
-		hwif->OUTB(hwif->dma_status, dma_stat & 0xE4);
-	}
-#endif
 	/* return 1 if INTR asserted */
 	if ((dma_stat & 4) == 4)
 		return 1;
@@ -753,10 +747,12 @@ u8 ide_find_dma_mode(ide_drive_t *drive, u8 req_mode)
 			mode = XFER_MW_DMA_1;
 	}
 
-	printk(KERN_DEBUG "%s: %s mode selected\n", drive->name,
+	mode = min(mode, req_mode);
+
+	printk(KERN_INFO "%s: %s mode selected\n", drive->name,
 			  mode ? ide_xfer_verbose(mode) : "no DMA");
 
-	return min(mode, req_mode);
+	return mode;
 }
 
 EXPORT_SYMBOL_GPL(ide_find_dma_mode);
@@ -770,6 +766,9 @@ static int ide_tune_dma(ide_drive_t *drive)
 
 	/* consult the list of known "bad" drives */
 	if (__ide_dma_bad_drive(drive))
+		return 0;
+
+	if (ide_id_dma_bug(drive))
 		return 0;
 
 	if (drive->hwif->host_flags & IDE_HFLAG_TRUST_BIOS_FOR_DMA)
@@ -806,57 +805,22 @@ static int ide_dma_check(ide_drive_t *drive)
 	return vdma ? 0 : -1;
 }
 
-void ide_dma_verbose(ide_drive_t *drive)
+int ide_id_dma_bug(ide_drive_t *drive)
 {
-	struct hd_driveid *id	= drive->id;
-	ide_hwif_t *hwif	= HWIF(drive);
+	struct hd_driveid *id = drive->id;
 
 	if (id->field_valid & 4) {
 		if ((id->dma_ultra >> 8) && (id->dma_mword >> 8))
-			goto bug_dma_off;
-		if (id->dma_ultra & ((id->dma_ultra >> 8) & hwif->ultra_mask)) {
-			if (((id->dma_ultra >> 11) & 0x1F) &&
-			    eighty_ninty_three(drive)) {
-				if ((id->dma_ultra >> 15) & 1) {
-					printk(", UDMA(mode 7)");
-				} else if ((id->dma_ultra >> 14) & 1) {
-					printk(", UDMA(133)");
-				} else if ((id->dma_ultra >> 13) & 1) {
-					printk(", UDMA(100)");
-				} else if ((id->dma_ultra >> 12) & 1) {
-					printk(", UDMA(66)");
-				} else if ((id->dma_ultra >> 11) & 1) {
-					printk(", UDMA(44)");
-				} else
-					goto mode_two;
-			} else {
-		mode_two:
-				if ((id->dma_ultra >> 10) & 1) {
-					printk(", UDMA(33)");
-				} else if ((id->dma_ultra >> 9) & 1) {
-					printk(", UDMA(25)");
-				} else if ((id->dma_ultra >> 8) & 1) {
-					printk(", UDMA(16)");
-				}
-			}
-		} else {
-			printk(", (U)DMA");	/* Can be BIOS-enabled! */
-		}
+			goto err_out;
 	} else if (id->field_valid & 2) {
 		if ((id->dma_mword >> 8) && (id->dma_1word >> 8))
-			goto bug_dma_off;
-		printk(", DMA");
-	} else if (id->field_valid & 1) {
-		goto bug_dma_off;
+			goto err_out;
 	}
-	return;
-bug_dma_off:
-	printk(", BUG DMA OFF");
-	hwif->dma_off_quietly(drive);
-	return;
+	return 0;
+err_out:
+	printk(KERN_ERR "%s: bad DMA info in identify block\n", drive->name);
+	return 1;
 }
-
-EXPORT_SYMBOL(ide_dma_verbose);
 
 int ide_set_dma(ide_drive_t *drive)
 {
