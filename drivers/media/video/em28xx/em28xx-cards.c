@@ -329,7 +329,7 @@ struct em28xx_board em28xx_boards[] = {
 		} },
 	},
 	[EM2820_BOARD_PINNACLE_DVC_90] = {
-		.name         = "Pinnacle Dazzle DVC 90",
+		.name         = "Pinnacle Dazzle DVC 90/DVC 100",
 		.vchannels    = 3,
 		.has_tuner    = 0,
 		.decoder      = EM28XX_SAA7113,
@@ -415,6 +415,8 @@ struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0x2040, 0x4200),
 			.driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
 	{ USB_DEVICE(0x2304, 0x0207),
+			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
+	{ USB_DEVICE(0x2304, 0x021a),
 			.driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ USB_DEVICE(0x2040, 0x6500),
 			.driver_info = EM2880_BOARD_HAUPPAUGE_WINTV_HVR_900 },
