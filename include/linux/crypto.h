@@ -34,6 +34,7 @@
 #define CRYPTO_ALG_TYPE_HASH		0x00000003
 #define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
 #define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
+#define CRYPTO_ALG_TYPE_GIVCIPHER	0x00000006
 #define CRYPTO_ALG_TYPE_COMPRESS	0x00000008
 #define CRYPTO_ALG_TYPE_AEAD		0x00000009
 
@@ -99,6 +100,7 @@ struct crypto_blkcipher;
 struct crypto_hash;
 struct crypto_tfm;
 struct crypto_type;
+struct skcipher_givcrypt_request;
 
 typedef void (*crypto_completion_t)(struct crypto_async_request *req, int err);
 
@@ -178,6 +180,8 @@ struct ablkcipher_alg {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
+	int (*givencrypt)(struct skcipher_givcrypt_request *req);
+	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -320,6 +324,9 @@ struct ablkcipher_tfm {
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
+	int (*givencrypt)(struct skcipher_givcrypt_request *req);
+	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
+
 	unsigned int ivsize;
 	unsigned int reqsize;
 };

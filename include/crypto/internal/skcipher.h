@@ -14,10 +14,13 @@
 #define _CRYPTO_INTERNAL_SKCIPHER_H
 
 #include <crypto/algapi.h>
+#include <crypto/skcipher.h>
 
 struct crypto_skcipher_spawn {
 	struct crypto_spawn base;
 };
+
+extern const struct crypto_type crypto_givcipher_type;
 
 static inline void crypto_set_skcipher_spawn(
 	struct crypto_skcipher_spawn *spawn, struct crypto_instance *inst)
@@ -45,6 +48,12 @@ static inline struct crypto_ablkcipher *crypto_spawn_skcipher(
 	return __crypto_ablkcipher_cast(
 		crypto_spawn_tfm(&spawn->base, crypto_skcipher_type(0),
 				 crypto_skcipher_mask(0)));
+}
+
+static inline void *skcipher_givcrypt_reqctx(
+	struct skcipher_givcrypt_request *req)
+{
+	return ablkcipher_request_ctx(&req->creq);
 }
 
 #endif	/* _CRYPTO_INTERNAL_SKCIPHER_H */

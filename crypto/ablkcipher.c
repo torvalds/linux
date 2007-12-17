@@ -107,6 +107,52 @@ const struct crypto_type crypto_ablkcipher_type = {
 };
 EXPORT_SYMBOL_GPL(crypto_ablkcipher_type);
 
+static int no_givdecrypt(struct skcipher_givcrypt_request *req)
+{
+	return -ENOSYS;
+}
+
+static int crypto_init_givcipher_ops(struct crypto_tfm *tfm, u32 type,
+				      u32 mask)
+{
+	struct ablkcipher_alg *alg = &tfm->__crt_alg->cra_ablkcipher;
+	struct ablkcipher_tfm *crt = &tfm->crt_ablkcipher;
+
+	if (alg->ivsize > PAGE_SIZE / 8)
+		return -EINVAL;
+
+	crt->setkey = setkey;
+	crt->encrypt = alg->encrypt;
+	crt->decrypt = alg->decrypt;
+	crt->givencrypt = alg->givencrypt;
+	crt->givdecrypt = alg->givdecrypt ?: no_givdecrypt;
+	crt->ivsize = alg->ivsize;
+
+	return 0;
+}
+
+static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
+	__attribute__ ((unused));
+static void crypto_givcipher_show(struct seq_file *m, struct crypto_alg *alg)
+{
+	struct ablkcipher_alg *ablkcipher = &alg->cra_ablkcipher;
+
+	seq_printf(m, "type         : givcipher\n");
+	seq_printf(m, "blocksize    : %u\n", alg->cra_blocksize);
+	seq_printf(m, "min keysize  : %u\n", ablkcipher->min_keysize);
+	seq_printf(m, "max keysize  : %u\n", ablkcipher->max_keysize);
+	seq_printf(m, "ivsize       : %u\n", ablkcipher->ivsize);
+}
+
+const struct crypto_type crypto_givcipher_type = {
+	.ctxsize = crypto_ablkcipher_ctxsize,
+	.init = crypto_init_givcipher_ops,
+#ifdef CONFIG_PROC_FS
+	.show = crypto_givcipher_show,
+#endif
+};
+EXPORT_SYMBOL_GPL(crypto_givcipher_type);
+
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn, const char *name,
 			 u32 type, u32 mask)
 {
