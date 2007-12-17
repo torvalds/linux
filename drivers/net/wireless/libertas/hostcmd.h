@@ -439,6 +439,20 @@ struct cmd_ds_set_boot2_ver {
 	__le16 version;
 };
 
+struct cmd_ds_802_11_fw_wake_method {
+	struct cmd_header hdr;
+
+	__le16 action;
+	__le16 method;
+};
+
+struct cmd_ds_802_11_sleep_period {
+	struct cmd_header hdr;
+
+	__le16 action;
+	__le16 period;
+};
+
 struct cmd_ds_802_11_ps_mode {
 	__le16 action;
 	__le16 nullpktinterval;
