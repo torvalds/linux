@@ -153,12 +153,6 @@ static inline u64 max48(const u64 seq1, const u64 seq2)
 	return after48(seq1, seq2) ? seq1 : seq2;
 }
 
-/* is seq1 next seqno after seq2 */
-static inline int follows48(const u64 seq1, const u64 seq2)
-{
-	return dccp_delta_seqno(seq2, seq1) == 1;
-}
-
 enum {
 	DCCP_MIB_NUM = 0,
 	DCCP_MIB_ACTIVEOPENS,			/* ActiveOpens */
