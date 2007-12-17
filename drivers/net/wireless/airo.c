@@ -510,12 +510,12 @@ typedef struct {
 
 /* These structures are from the Aironet's PC4500 Developers Manual */
 typedef struct {
-	u16 len;
+	__le16 len;
 	u8 ssid[32];
 } Ssid;
 
 typedef struct {
-	u16 len;
+	__le16 len;
 	Ssid ssids[3];
 } SsidRid;
 
@@ -1789,28 +1789,16 @@ static int writeWepKeyRid(struct airo_info*ai, WepKeyRid *pwkr, int perm, int lo
 	return rc;
 }
 
-static int readSsidRid(struct airo_info*ai, SsidRid *ssidr) {
-	int i;
-	int rc = PC4500_readrid(ai, RID_SSID, ssidr, sizeof(*ssidr), 1);
-
-	ssidr->len = le16_to_cpu(ssidr->len);
-	for(i = 0; i < 3; i++) {
-		ssidr->ssids[i].len = le16_to_cpu(ssidr->ssids[i].len);
-	}
-	return rc;
+static int readSsidRid(struct airo_info*ai, SsidRid *ssidr)
+{
+	return PC4500_readrid(ai, RID_SSID, ssidr, sizeof(*ssidr), 1);
 }
-static int writeSsidRid(struct airo_info*ai, SsidRid *pssidr, int lock) {
-	int rc;
-	int i;
-	SsidRid ssidr = *pssidr;
 
-	ssidr.len = cpu_to_le16(ssidr.len);
-	for(i = 0; i < 3; i++) {
-		ssidr.ssids[i].len = cpu_to_le16(ssidr.ssids[i].len);
-	}
-	rc = PC4500_writerid(ai, RID_SSID, &ssidr, sizeof(ssidr), lock);
-	return rc;
+static int writeSsidRid(struct airo_info*ai, SsidRid *pssidr, int lock)
+{
+	return PC4500_writerid(ai, RID_SSID, pssidr, sizeof(*pssidr), lock);
 }
+
 static int readConfigRid(struct airo_info*ai, int lock) {
 	int rc;
 	u16 *s;
@@ -3886,13 +3874,13 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	if ( ssids[0] ) {
 		int i;
 		for( i = 0; i < 3 && ssids[i]; i++ ) {
-			mySsid.ssids[i].len = strlen(ssids[i]);
-			if ( mySsid.ssids[i].len > 32 )
-				mySsid.ssids[i].len = 32;
-			memcpy(mySsid.ssids[i].ssid, ssids[i],
-			       mySsid.ssids[i].len);
+			size_t len = strlen(ssids[i]);
+			if (len > 32)
+				len = 32;
+			mySsid.ssids[i].len = cpu_to_le16(len);
+			memcpy(mySsid.ssids[i].ssid, ssids[i], len);
 		}
-		mySsid.len = sizeof(mySsid);
+		mySsid.len = cpu_to_le16(sizeof(mySsid));
 	}
 
 	status = writeConfigRid(ai, lock);
@@ -5123,34 +5111,38 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 	return 0;
 }
 
-static void proc_SSID_on_close( struct inode *inode, struct file *file ) {
+static void proc_SSID_on_close(struct inode *inode, struct file *file)
+{
 	struct proc_data *data = (struct proc_data *)file->private_data;
 	struct proc_dir_entry *dp = PDE(inode);
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = dev->priv;
 	SsidRid SSID_rid;
 	int i;
-	int offset = 0;
+	char *p = data->wbuffer;
+	char *end = p + data->writelen;
 
-	if ( !data->writelen ) return;
+	if (!data->writelen)
+		return;
 
-	memset( &SSID_rid, 0, sizeof( SSID_rid ) );
+	*end = '\n'; /* sentinel; we have space for it */
 
-	for( i = 0; i < 3; i++ ) {
-		int j;
-		for( j = 0; j+offset < data->writelen && j < 32 &&
-			     data->wbuffer[offset+j] != '\n'; j++ ) {
-			SSID_rid.ssids[i].ssid[j] = data->wbuffer[offset+j];
-		}
-		if ( j == 0 ) break;
-		SSID_rid.ssids[i].len = j;
-		offset += j;
-		while( data->wbuffer[offset] != '\n' &&
-		       offset < data->writelen ) offset++;
-		offset++;
+	memset(&SSID_rid, 0, sizeof(SSID_rid));
+
+	for (i = 0; i < 3 && p < end; i++) {
+		int j = 0;
+		/* copy up to 32 characters from this line */
+		while (*p != '\n' && j < 32)
+			SSID_rid.ssids[i].ssid[j++] = *p++;
+		if (j == 0)
+			break;
+		SSID_rid.ssids[i].len = cpu_to_le16(j);
+		/* skip to the beginning of the next line */
+		while (*p++ != '\n')
+			;
 	}
 	if (i)
-		SSID_rid.len = sizeof(SSID_rid);
+		SSID_rid.len = cpu_to_le16(sizeof(SSID_rid));
 	disable_MAC(ai, 1);
 	writeSsidRid(ai, &SSID_rid, 1);
 	enable_MAC(ai, 1);
@@ -5345,7 +5337,8 @@ static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	return 0;
 }
 
-static int proc_SSID_open( struct inode *inode, struct file *file ) {
+static int proc_SSID_open(struct inode *inode, struct file *file)
+{
 	struct proc_data *data;
 	struct proc_dir_entry *dp = PDE(inode);
 	struct net_device *dev = dp->data;
@@ -5363,7 +5356,8 @@ static int proc_SSID_open( struct inode *inode, struct file *file ) {
 	}
 	data->writelen = 0;
 	data->maxwritelen = 33*3;
-	if ((data->wbuffer = kzalloc( 33*3, GFP_KERNEL )) == NULL) {
+	/* allocate maxwritelen + 1; we'll want a sentinel */
+	if ((data->wbuffer = kzalloc(33*3 + 1, GFP_KERNEL)) == NULL) {
 		kfree (data->rbuffer);
 		kfree (file->private_data);
 		return -ENOMEM;
@@ -5372,14 +5366,15 @@ static int proc_SSID_open( struct inode *inode, struct file *file ) {
 
 	readSsidRid(ai, &SSID_rid);
 	ptr = data->rbuffer;
-	for( i = 0; i < 3; i++ ) {
+	for (i = 0; i < 3; i++) {
 		int j;
-		if ( !SSID_rid.ssids[i].len ) break;
-		for( j = 0; j < 32 &&
-			     j < SSID_rid.ssids[i].len &&
-			     SSID_rid.ssids[i].ssid[j]; j++ ) {
+		size_t len = le16_to_cpu(SSID_rid.ssids[i].len);
+		if (!len)
+			break;
+		if (len > 32)
+			len = 32;
+		for (j = 0; j < len && SSID_rid.ssids[i].ssid[j]; j++)
 			*ptr++ = SSID_rid.ssids[i].ssid[j];
-		}
 		*ptr++ = '\n';
 	}
 	*ptr = '\0';
@@ -5895,9 +5890,9 @@ static int airo_set_essid(struct net_device *dev,
 		memset(SSID_rid.ssids[index].ssid, 0,
 		       sizeof(SSID_rid.ssids[index].ssid));
 		memcpy(SSID_rid.ssids[index].ssid, extra, dwrq->length);
-		SSID_rid.ssids[index].len = dwrq->length;
+		SSID_rid.ssids[index].len = cpu_to_le16(dwrq->length);
 	}
-	SSID_rid.len = sizeof(SSID_rid);
+	SSID_rid.len = cpu_to_le16(sizeof(SSID_rid));
 	/* Write it to the card */
 	disable_MAC(local, 1);
 	writeSsidRid(local, &SSID_rid, 1);
