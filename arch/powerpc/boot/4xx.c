@@ -122,7 +122,7 @@ void ibm4xx_denali_fixup_memsize(void)
 	else
 		dpath = 4; /* 32 bits */
 
-	/* get adress pins (rows) */
+	/* get address pins (rows) */
 	val = mfdcr_sdram0(DDR0_42);
 
 	row = DDR_GET_VAL(val, DDR_APIN, DDR_APIN_SHIFT);
