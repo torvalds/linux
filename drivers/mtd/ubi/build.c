@@ -159,64 +159,36 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
 	sprintf(&ubi->dev.bus_id[0], UBI_NAME_STR"%d", ubi->ubi_num);
 	err = device_register(&ubi->dev);
 	if (err)
-		goto out;
+		return err;
 
 	err = device_create_file(&ubi->dev, &dev_eraseblock_size);
 	if (err)
-		goto out_unregister;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_avail_eraseblocks);
 	if (err)
-		goto out_eraseblock_size;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_total_eraseblocks);
 	if (err)
-		goto out_avail_eraseblocks;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_volumes_count);
 	if (err)
-		goto out_total_eraseblocks;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_max_ec);
 	if (err)
-		goto out_volumes_count;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_reserved_for_bad);
 	if (err)
-		goto out_volumes_max_ec;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_bad_peb_count);
 	if (err)
-		goto out_reserved_for_bad;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_max_vol_count);
 	if (err)
-		goto out_bad_peb_count;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_min_io_size);
 	if (err)
-		goto out_max_vol_count;
+		return err;
 	err = device_create_file(&ubi->dev, &dev_bgt_enabled);
-	if (err)
-		goto out_min_io_size;
-
-	return 0;
-
-out_min_io_size:
-	device_remove_file(&ubi->dev, &dev_min_io_size);
-out_max_vol_count:
-	device_remove_file(&ubi->dev, &dev_max_vol_count);
-out_bad_peb_count:
-	device_remove_file(&ubi->dev, &dev_bad_peb_count);
-out_reserved_for_bad:
-	device_remove_file(&ubi->dev, &dev_reserved_for_bad);
-out_volumes_max_ec:
-	device_remove_file(&ubi->dev, &dev_max_ec);
-out_volumes_count:
-	device_remove_file(&ubi->dev, &dev_volumes_count);
-out_total_eraseblocks:
-	device_remove_file(&ubi->dev, &dev_total_eraseblocks);
-out_avail_eraseblocks:
-	device_remove_file(&ubi->dev, &dev_avail_eraseblocks);
-out_eraseblock_size:
-	device_remove_file(&ubi->dev, &dev_eraseblock_size);
-out_unregister:
-	device_unregister(&ubi->dev);
-out:
-	ubi_err("failed to initialize sysfs for %s, error %d",
-		ubi->ubi_name, err);
 	return err;
 }
 
@@ -296,7 +268,7 @@ static int uif_init(struct ubi_device *ubi)
 
 	err = ubi_sysfs_init(ubi);
 	if (err)
-		goto out_cdev;
+		goto out_sysfs;
 
 	for (i = 0; i < ubi->vtbl_slots; i++)
 		if (ubi->volumes[i]) {
@@ -311,8 +283,8 @@ static int uif_init(struct ubi_device *ubi)
 
 out_volumes:
 	kill_volumes(ubi);
+out_sysfs:
 	ubi_sysfs_close(ubi);
-out_cdev:
 	cdev_del(&ubi->cdev);
 out_unreg:
 	unregister_chrdev_region(ubi->cdev.dev, ubi->vtbl_slots + 1);
