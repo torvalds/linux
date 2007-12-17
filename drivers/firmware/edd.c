@@ -721,13 +721,13 @@ edd_device_register(struct edd_device *edev, int i)
 	if (!edev)
 		return 1;
 	edd_dev_set_info(edev, i);
-	kobject_set_name(&edev->kobj, "int13_dev%02x",
-			 0x80 + i);
 	edev->kobj.kset = edd_kset;
-	edev->kobj.ktype = &edd_ktype;
-	error = kobject_register(&edev->kobj);
-	if (!error)
+	error = kobject_init_and_add(&edev->kobj, &edd_ktype, NULL,
+				     "int13_dev%02x", 0x80 + i);
+	if (!error) {
 		edd_populate_dir(edev);
+		kobject_uevent(&edev->kobj, KOBJ_ADD);
+	}
 	return error;
 }
 
