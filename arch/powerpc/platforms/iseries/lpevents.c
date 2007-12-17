@@ -121,6 +121,7 @@ void process_hvlpevents(void)
 {
 	struct HvLpEvent * event;
 
+ restart:
 	/* If we have recursed, just return */
 	if (!spin_trylock(&hvlpevent_queue.hq_lock))
 		return;
@@ -146,8 +147,20 @@ void process_hvlpevents(void)
 			if (event->xType < HvLpEvent_Type_NumTypes &&
 					lpEventHandler[event->xType])
 				lpEventHandler[event->xType](event);
-			else
-				printk(KERN_INFO "Unexpected Lp Event type=%d\n", event->xType );
+			else {
+				u8 type = event->xType;
+
+				/*
+				 * Don't printk in the spinlock as printk
+				 * may require ack events form the HV to send
+				 * any characters there.
+				 */
+				hvlpevent_clear_valid(event);
+				spin_unlock(&hvlpevent_queue.hq_lock);
+				printk(KERN_INFO
+					"Unexpected Lp Event type=%d\n", type);
+				goto restart;
+			}
 
 			hvlpevent_clear_valid(event);
 		} else if (hvlpevent_queue.hq_overflow_pending)
