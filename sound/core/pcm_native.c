@@ -2546,6 +2546,8 @@ static int snd_pcm_common_ioctl1(struct file *file,
 		return put_user(SNDRV_PCM_VERSION, (int __user *)arg) ? -EFAULT : 0;
 	case SNDRV_PCM_IOCTL_INFO:
 		return snd_pcm_info_user(substream, arg);
+	case SNDRV_PCM_IOCTL_TSTAMP:	/* just for compatibility */
+		return 0;
 	case SNDRV_PCM_IOCTL_TTSTAMP:
 		return snd_pcm_tstamp(substream, arg);
 	case SNDRV_PCM_IOCTL_HW_REFINE:

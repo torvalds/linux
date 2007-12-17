@@ -443,6 +443,7 @@ enum {
 enum {
 	SNDRV_PCM_IOCTL_PVERSION = _IOR('A', 0x00, int),
 	SNDRV_PCM_IOCTL_INFO = _IOR('A', 0x01, struct snd_pcm_info),
+	SNDRV_PCM_IOCTL_TSTAMP = _IOW('A', 0x02, int),
 	SNDRV_PCM_IOCTL_TTSTAMP = _IOW('A', 0x03, int),
 	SNDRV_PCM_IOCTL_HW_REFINE = _IOWR('A', 0x10, struct snd_pcm_hw_params),
 	SNDRV_PCM_IOCTL_HW_PARAMS = _IOWR('A', 0x11, struct snd_pcm_hw_params),
