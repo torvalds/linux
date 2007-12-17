@@ -773,6 +773,30 @@ done:
 	return ret;
 }
 
+static int lbs_send_confirmwake(struct lbs_private *priv)
+{
+	struct cmd_header *cmd = &priv->lbs_ps_confirm_wake;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_HOST);
+
+	cmd->command = cpu_to_le16(CMD_802_11_WAKEUP_CONFIRM);
+	cmd->size = cpu_to_le16(sizeof(*cmd));
+	cmd->seqnum = cpu_to_le16(++priv->seqnum);
+	cmd->result = 0;
+
+	lbs_deb_host("SEND_WAKEC_CMD: before download\n");
+
+	lbs_deb_hex(LBS_DEB_HOST, "wake confirm command", (void *)cmd, sizeof(*cmd));
+
+	ret = priv->hw_host_to_card(priv, MVMS_CMD, (void *)cmd, sizeof(*cmd));
+	if (ret)
+		lbs_pr_alert("SEND_WAKEC_CMD: Host to Card failed for Confirm Wake\n");
+
+	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
+	return ret;
+}
+
 int lbs_process_event(struct lbs_private *priv)
 {
 	int ret = 0;
@@ -821,9 +845,13 @@ int lbs_process_event(struct lbs_private *priv)
 
 		break;
 
+	case MACREG_INT_CODE_HOST_AWAKE:
+		lbs_deb_cmd("EVENT: HOST_AWAKE\n");
+		lbs_send_confirmwake(priv);
+		break;
+
 	case MACREG_INT_CODE_PS_AWAKE:
 		lbs_deb_cmd("EVENT: awake\n");
-
 		/* handle unexpected PS AWAKE event */
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			lbs_deb_cmd(

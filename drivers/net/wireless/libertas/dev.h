@@ -263,6 +263,7 @@ struct lbs_private {
 	u8 needtowakeup;
 
 	struct PS_CMD_ConfirmSleep lbs_ps_confirm_sleep;
+	struct cmd_header lbs_ps_confirm_wake;
 
 	struct assoc_request * pending_assoc_req;
 	struct assoc_request * in_progress_assoc_req;
