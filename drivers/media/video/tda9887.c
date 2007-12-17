@@ -674,6 +674,7 @@ struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 
 	priv->i2c_props.addr = i2c_addr;
 	priv->i2c_props.adap = i2c_adap;
+	priv->mode = T_STANDBY;
 
 	tuner_info("tda988[5/6/7] found\n");
 
