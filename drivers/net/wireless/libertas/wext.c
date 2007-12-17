@@ -734,6 +734,13 @@ static int lbs_set_power(struct net_device *dev, struct iw_request_info *info,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
+	if (!priv->ps_supported) {
+		if (vwrq->disabled)
+			return 0;
+		else
+			return -EINVAL;
+	}
+
 	/* PS is currently supported only in Infrastructure mode
 	 * Remove this check if it is to be supported in IBSS mode also
 	 */

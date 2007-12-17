@@ -209,6 +209,11 @@
 #define	CMD_TYPE_MAX_PSP		0x0001
 #define CMD_TYPE_FAST_PSP		0x0002
 
+/* Options for CMD_802_11_FW_WAKE_METHOD */
+#define CMD_WAKE_METHOD_UNCHANGED	0x0000
+#define CMD_WAKE_METHOD_COMMAND_INT	0x0001
+#define CMD_WAKE_METHOD_GPIO		0x0002
+
 /* Define action or option for CMD_BT_ACCESS */
 enum cmd_bt_access_opts {
 	/* The bt commands start at 5 instead of 1 because the old dft commands
