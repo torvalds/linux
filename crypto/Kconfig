@@ -568,6 +568,7 @@ config CRYPTO_TEST
 	tristate "Testing module"
 	depends on m
 	select CRYPTO_ALGAPI
+	select CRYPTO_AEAD
 	help
 	  Quick & dirty crypto test module.
 
