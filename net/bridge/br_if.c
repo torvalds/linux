@@ -133,7 +133,7 @@ static void del_nbp(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	struct net_device *dev = p->dev;
 
-	sysfs_remove_link(&br->ifobj, dev->name);
+	sysfs_remove_link(br->ifobj, dev->name);
 
 	dev_set_promiscuity(dev, -1);
 

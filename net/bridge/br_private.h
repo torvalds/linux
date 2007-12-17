@@ -124,7 +124,7 @@ struct net_bridge
 	struct timer_list		tcn_timer;
 	struct timer_list		topology_change_timer;
 	struct timer_list		gc_timer;
-	struct kobject			ifobj;
+	struct kobject			*ifobj;
 };
 
 extern struct notifier_block br_device_notifier;
