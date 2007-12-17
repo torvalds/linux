@@ -189,7 +189,8 @@ static void volume_sysfs_close(struct ubi_volume *vol)
  * This function creates volume described by @req. If @req->vol_id id
  * %UBI_VOL_NUM_AUTO, this function automatically assign ID to the new volume
  * and saves it in @req->vol_id. Returns zero in case of success and a negative
- * error code in case of failure.
+ * error code in case of failure. Note, the caller has to have the
+ * @ubi->volumes_mutex locked.
  */
 int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 {
@@ -206,7 +207,6 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	if (!vol)
 		return -ENOMEM;
 
-	mutex_lock(&ubi->volumes_mutex);
 	spin_lock(&ubi->volumes_lock);
 	if (vol_id == UBI_VOL_NUM_AUTO) {
 		/* Find unused volume ID */
@@ -356,7 +356,6 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 	spin_unlock(&ubi->volumes_lock);
 
 	paranoid_check_volumes(ubi);
-	mutex_unlock(&ubi->volumes_mutex);
 	return 0;
 
 out_sysfs:
@@ -383,7 +382,6 @@ out_acc:
 	ubi->avail_pebs += vol->reserved_pebs;
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
-	mutex_unlock(&ubi->volumes_mutex);
 	if (dont_free)
 		put_device(&vol->dev);
 	else
@@ -398,7 +396,8 @@ out_unlock:
  *
  * This function removes volume described by @desc. The volume has to be opened
  * in "exclusive" mode. Returns zero in case of success and a negative error
- * code in case of failure.
+ * code in case of failure. The caller has to have the @ubi->volumes_mutex
+ * locked.
  */
 int ubi_remove_volume(struct ubi_volume_desc *desc)
 {
@@ -413,7 +412,6 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	if (ubi->ro_mode)
 		return -EROFS;
 
-	mutex_lock(&ubi->volumes_mutex);
 	spin_lock(&ubi->volumes_lock);
 	if (vol->ref_count > 1) {
 		/*
@@ -461,7 +459,6 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	spin_unlock(&ubi->volumes_lock);
 
 	paranoid_check_volumes(ubi);
-	mutex_unlock(&ubi->volumes_mutex);
 	return 0;
 
 out_err:
@@ -470,7 +467,6 @@ out_err:
 	ubi->volumes[vol_id] = vol;
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
-	mutex_unlock(&ubi->volumes_mutex);
 	return err;
 }
 
@@ -479,8 +475,9 @@ out_unlock:
  * @desc: volume descriptor
  * @reserved_pebs: new size in physical eraseblocks
  *
- * This function returns zero in case of success, and a negative error code in
- * case of failure.
+ * This function re-sizes the volume and returns zero in case of success, and a
+ * negative error code in case of failure. The caller has to have the
+ * @ubi->volumes_mutex locked.
  */
 int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 {
@@ -516,7 +513,6 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	for (i = 0; i < reserved_pebs; i++)
 		new_mapping[i] = UBI_LEB_UNMAPPED;
 
-	mutex_lock(&ubi->volumes_mutex);
 	spin_lock(&ubi->volumes_lock);
 	if (vol->ref_count > 1) {
 		spin_unlock(&ubi->volumes_lock);
@@ -587,7 +583,6 @@ int ubi_resize_volume(struct ubi_volume_desc *desc, int reserved_pebs)
 	}
 
 	paranoid_check_volumes(ubi);
-	mutex_unlock(&ubi->volumes_mutex);
 	return 0;
 
 out_acc:
@@ -599,7 +594,6 @@ out_acc:
 	}
 out_free:
 	kfree(new_mapping);
-	mutex_unlock(&ubi->volumes_mutex);
 	return err;
 }
 

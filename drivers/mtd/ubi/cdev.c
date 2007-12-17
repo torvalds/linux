@@ -605,7 +605,9 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 
 		req.name[req.name_len] = '\0';
 
+		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_create_volume(ubi, &req);
+		mutex_unlock(&ubi->volumes_mutex);
 		if (err)
 			break;
 
@@ -634,11 +636,14 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
+		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_remove_volume(desc);
+		mutex_unlock(&ubi->volumes_mutex);
+
 		/*
-		 * The volume is deleted, and the 'struct ubi_volume' object
-		 * will be freed when 'ubi_close_volume()' will call
-		 * 'put_device()'.
+		 * The volume is deleted (unless an error occurred), and the
+		 * 'struct ubi_volume' object will be freed when
+		 * 'ubi_close_volume()' will call 'put_device()'.
 		 */
 		ubi_close_volume(desc);
 		break;
@@ -673,7 +678,9 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		pebs = !!do_div(tmp, desc->vol->usable_leb_size);
 		pebs += tmp;
 
+		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_resize_volume(desc, pebs);
+		mutex_unlock(&ubi->volumes_mutex);
 		ubi_close_volume(desc);
 		break;
 	}
