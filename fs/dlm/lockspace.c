@@ -168,23 +168,6 @@ static struct kobj_type dlm_ktype = {
 
 static struct kset *dlm_kset;
 
-static int kobject_setup(struct dlm_ls *ls)
-{
-	char lsname[DLM_LOCKSPACE_LEN];
-	int error;
-
-	memset(lsname, 0, DLM_LOCKSPACE_LEN);
-	snprintf(lsname, DLM_LOCKSPACE_LEN, "%s", ls->ls_name);
-
-	error = kobject_set_name(&ls->ls_kobj, "%s", lsname);
-	if (error)
-		return error;
-
-	ls->ls_kobj.kset = dlm_kset;
-	ls->ls_kobj.ktype = &dlm_ktype;
-	return 0;
-}
-
 static int do_uevent(struct dlm_ls *ls, int in)
 {
 	int error;
@@ -545,13 +528,12 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		goto out_delist;
 	}
 
-	error = kobject_setup(ls);
+	ls->ls_kobj.kset = dlm_kset;
+	error = kobject_init_and_add(&ls->ls_kobj, &dlm_ktype, NULL,
+				     "%s", ls->ls_name);
 	if (error)
 		goto out_stop;
-
-	error = kobject_register(&ls->ls_kobj);
-	if (error)
-		goto out_stop;
+	kobject_uevent(&ls->ls_kobj, KOBJ_ADD);
 
 	/* let kobject handle freeing of ls if there's an error */
 	do_unreg = 1;

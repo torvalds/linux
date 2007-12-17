@@ -494,13 +494,8 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	int error;
 
 	sdp->sd_kobj.kset = gfs2_kset;
-	sdp->sd_kobj.ktype = &gfs2_ktype;
-
-	error = kobject_set_name(&sdp->sd_kobj, "%s", sdp->sd_table_name);
-	if (error)
-		goto fail;
-
-	error = kobject_register(&sdp->sd_kobj);
+	error = kobject_init_and_add(&sdp->sd_kobj, &gfs2_ktype, NULL,
+				     "%s", sdp->sd_table_name);
 	if (error)
 		goto fail;
 
@@ -520,6 +515,7 @@ int gfs2_sys_fs_add(struct gfs2_sbd *sdp)
 	if (error)
 		goto fail_args;
 
+	kobject_uevent(&sdp->sd_kobj, KOBJ_ADD);
 	return 0;
 
 fail_args:

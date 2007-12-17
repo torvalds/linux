@@ -195,19 +195,12 @@ int gdlm_kobject_setup(struct gdlm_ls *ls, struct kobject *fskobj)
 {
 	int error;
 
-	error = kobject_set_name(&ls->kobj, "%s", "lock_module");
-	if (error) {
-		log_error("can't set kobj name %d", error);
-		return error;
-	}
-
 	ls->kobj.kset = gdlm_kset;
-	ls->kobj.ktype = &gdlm_ktype;
-	ls->kobj.parent = fskobj;
-
-	error = kobject_register(&ls->kobj);
+	error = kobject_init_and_add(&ls->kobj, &gdlm_ktype, fskobj,
+				     "lock_module");
 	if (error)
 		log_error("can't register kobj %d", error);
+	kobject_uevent(&ls->kobj, KOBJ_ADD);
 
 	return error;
 }
