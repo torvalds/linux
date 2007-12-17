@@ -2000,7 +2000,6 @@ static int sendconfirmsleep(struct lbs_private *priv, u8 *cmdptr, u16 size)
 	lbs_deb_hex(LBS_DEB_HOST, "sleep confirm command", cmdptr, size);
 
 	ret = priv->hw_host_to_card(priv, MVMS_CMD, cmdptr, size);
-	priv->dnld_sent = DNLD_RES_RECEIVED;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	if (priv->intcounter || priv->currenttxskb)
