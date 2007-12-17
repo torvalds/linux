@@ -234,7 +234,7 @@ enum {
 
 /* Volume knobs capabilities */
 #define AC_KNBCAP_NUM_STEPS		(0x7f<<0)
-#define AC_KNBCAP_DELTA			(1<<8)
+#define AC_KNBCAP_DELTA			(1<<7)
 
 /*
  * Control Parameters
