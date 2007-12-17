@@ -140,10 +140,10 @@ struct ubi_volume_desc;
  * @cdev: character device object to create character device
  * @ubi: reference to the UBI device description object
  * @vol_id: volume ID
+ * @ref_count: volume reference count
  * @readers: number of users holding this volume in read-only mode
  * @writers: number of users holding this volume in read-write mode
  * @exclusive: whether somebody holds this volume in exclusive mode
- * @removed: if the volume was removed
  * @checked: if this static volume was checked
  *
  * @reserved_pebs: how many physical eraseblocks are reserved for this volume
@@ -156,7 +156,7 @@ struct ubi_volume_desc;
  * @corrupted: non-zero if the volume is corrupted (static volumes only)
  * @alignment: volume alignment
  * @data_pad: how many bytes are not used at the end of physical eraseblocks to
- * satisfy the requested alignment
+ *            satisfy the requested alignment
  * @name_len: volume name length
  * @name: volume name
  *
@@ -185,10 +185,10 @@ struct ubi_volume {
 	struct cdev cdev;
 	struct ubi_device *ubi;
 	int vol_id;
+	int ref_count;
 	int readers;
 	int writers;
 	int exclusive;
-	int removed;
 	int checked;
 
 	int reserved_pebs;
@@ -242,9 +242,9 @@ struct ubi_wl_entry;
  * @vol_count: number of volumes in this UBI device
  * @volumes: volumes of this UBI device
  * @volumes_lock: protects @volumes, @rsvd_pebs, @avail_pebs, beb_rsvd_pebs,
- * @beb_rsvd_level, @bad_peb_count, @good_peb_count, @vol_count, @vol->readers,
- * @vol->writers, @vol->exclusive, @vol->removed, @vol->mapping and
- * @vol->eba_tbl.
+ *                @beb_rsvd_level, @bad_peb_count, @good_peb_count, @vol_count,
+ *                @vol->readers, @vol->writers, @vol->exclusive,
+ *                @vol->ref_count, @vol->mapping and @vol->eba_tbl.
  *
  * @rsvd_pebs: count of reserved physical eraseblocks
  * @avail_pebs: count of available physical eraseblocks
@@ -273,11 +273,11 @@ struct ubi_wl_entry;
  * @prot.pnum: protection tree indexed by physical eraseblock numbers
  * @prot.aec: protection tree indexed by absolute erase counter value
  * @wl_lock: protects the @used, @free, @prot, @lookuptbl, @abs_ec, @move_from,
- * @move_to, @move_to_put @erase_pending, @wl_scheduled, and @works
- * fields
+ *           @move_to, @move_to_put @erase_pending, @wl_scheduled, and @works
+ *           fields
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
  * @lookuptbl: a table to quickly find a &struct ubi_wl_entry object for any
- * physical eraseblock
+ *             physical eraseblock
  * @abs_ec: absolute erase counter
  * @move_from: physical eraseblock from where the data is being moved
  * @move_to: physical eraseblock where the data is being moved to
@@ -308,13 +308,13 @@ struct ubi_wl_entry;
  * @hdrs_min_io_size
  * @vid_hdr_shift: contains @vid_hdr_offset - @vid_hdr_aloffset
  * @bad_allowed: whether the MTD device admits of bad physical eraseblocks or
- * not
+ *               not
  * @mtd: MTD device descriptor
  *
  * @peb_buf1: a buffer of PEB size used for different purposes
  * @peb_buf2: another buffer of PEB size used for different purposes
  * @buf_mutex: proptects @peb_buf1 and @peb_buf2
- * @dbg_peb_buf:  buffer of PEB size used for debugging
+ * @dbg_peb_buf: buffer of PEB size used for debugging
  * @dbg_buf_mutex: proptects @dbg_peb_buf
  */
 struct ubi_device {

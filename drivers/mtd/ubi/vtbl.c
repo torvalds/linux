@@ -565,6 +565,7 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 		vol->last_eb_bytes = sv->last_data_size;
 	}
 
+	/* And add the layout volume */
 	vol = kzalloc(sizeof(struct ubi_volume), GFP_KERNEL);
 	if (!vol)
 		return -ENOMEM;
@@ -580,6 +581,7 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 	vol->used_bytes =
 		(long long)vol->used_ebs * (ubi->leb_size - vol->data_pad);
 	vol->vol_id = UBI_LAYOUT_VOL_ID;
+	vol->ref_count = 1;
 
 	ubi_assert(!ubi->volumes[i]);
 	ubi->volumes[vol_id2idx(ubi, vol->vol_id)] = vol;
