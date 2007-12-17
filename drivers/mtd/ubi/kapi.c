@@ -104,37 +104,32 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 
 	dbg_msg("open device %d volume %d, mode %d", ubi_num, vol_id, mode);
 
-	err = -ENODEV;
-	if (ubi_num < 0)
-		return ERR_PTR(err);
+	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
+		return ERR_PTR(-EINVAL);
 
-	ubi = ubi_devices[ubi_num];
-
-	if (!try_module_get(THIS_MODULE))
-		return ERR_PTR(err);
-
-	if (ubi_num >= UBI_MAX_DEVICES || !ubi)
-		goto out_put;
-
-	err = -EINVAL;
-	if (vol_id < 0 || vol_id >= ubi->vtbl_slots)
-		goto out_put;
 	if (mode != UBI_READONLY && mode != UBI_READWRITE &&
 	    mode != UBI_EXCLUSIVE)
-		goto out_put;
+		return ERR_PTR(-EINVAL);
+
+	ubi = ubi_devices[ubi_num];
+	if (!ubi)
+		return ERR_PTR(-ENODEV);
+
+	if (vol_id < 0 || vol_id >= ubi->vtbl_slots)
+		return ERR_PTR(-EINVAL);
 
 	desc = kmalloc(sizeof(struct ubi_volume_desc), GFP_KERNEL);
-	if (!desc) {
-		err = -ENOMEM;
-		goto out_put;
-	}
+	if (!desc)
+		return ERR_PTR(-ENOMEM);
+
+	err = -ENODEV;
+	if (!try_module_get(THIS_MODULE))
+		goto out_free;
 
 	spin_lock(&ubi->volumes_lock);
 	vol = ubi->volumes[vol_id];
-	if (!vol) {
-		err = -ENODEV;
+	if (!vol)
 		goto out_unlock;
-	}
 
 	err = -EBUSY;
 	switch (mode) {
@@ -184,13 +179,14 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		vol->checked = 1;
 	}
 	mutex_unlock(&ubi->volumes_mutex);
+
 	return desc;
 
 out_unlock:
 	spin_unlock(&ubi->volumes_lock);
-	kfree(desc);
-out_put:
 	module_put(THIS_MODULE);
+out_free:
+	kfree(desc);
 	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume);
@@ -207,7 +203,6 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 					   int mode)
 {
 	int i, vol_id = -1, len;
-	struct ubi_volume_desc *ret;
 	struct ubi_device *ubi;
 
 	dbg_msg("open volume %s, mode %d", name, mode);
@@ -219,14 +214,12 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	if (len > UBI_VOL_NAME_MAX)
 		return ERR_PTR(-EINVAL);
 
-	ret = ERR_PTR(-ENODEV);
-	if (!try_module_get(THIS_MODULE))
-		return ret;
-
-	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES || !ubi_devices[ubi_num])
-		goto out_put;
+	if (ubi_num < 0 || ubi_num >= UBI_MAX_DEVICES)
+		return ERR_PTR(-EINVAL);
 
 	ubi = ubi_devices[ubi_num];
+	if (!ubi)
+		return ERR_PTR(-ENODEV);
 
 	spin_lock(&ubi->volumes_lock);
 	/* Walk all volumes of this UBI device */
@@ -241,13 +234,9 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 	spin_unlock(&ubi->volumes_lock);
 
 	if (vol_id < 0)
-		goto out_put;
+		return ERR_PTR(-ENODEV);
 
-	ret = ubi_open_volume(ubi_num, vol_id, mode);
-
-out_put:
-	module_put(THIS_MODULE);
-	return ret;
+	return ubi_open_volume(ubi_num, vol_id, mode);
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 
