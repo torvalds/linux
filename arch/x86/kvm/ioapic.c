@@ -36,7 +36,10 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/current.h>
-#include "irq.h"
+
+#include "ioapic.h"
+#include "lapic.h"
+
 #if 0
 #define ioapic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg)
 #else
