@@ -1356,7 +1356,7 @@ static void tree_destroy(struct rb_root *root)
  * ubi_thread - UBI background thread.
  * @u: the UBI device description object pointer
  */
-static int ubi_thread(void *u)
+int ubi_thread(void *u)
 {
 	int failures = 0;
 	struct ubi_device *ubi = u;
@@ -1454,18 +1454,10 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 
 	sprintf(ubi->bgt_name, UBI_BGT_NAME_PATTERN, ubi->ubi_num);
 
-	ubi->bgt_thread = kthread_create(ubi_thread, ubi, ubi->bgt_name);
-	if (IS_ERR(ubi->bgt_thread)) {
-		err = PTR_ERR(ubi->bgt_thread);
-		ubi_err("cannot spawn \"%s\", error %d", ubi->bgt_name,
-			err);
-		return err;
-	}
-
 	err = -ENOMEM;
 	ubi->lookuptbl = kzalloc(ubi->peb_count * sizeof(void *), GFP_KERNEL);
 	if (!ubi->lookuptbl)
-		goto out_free;
+		return err;
 
 	list_for_each_entry_safe(seb, tmp, &si->erase, u.list) {
 		cond_resched();
@@ -1598,10 +1590,6 @@ static void protection_trees_destroy(struct ubi_device *ubi)
  */
 void ubi_wl_close(struct ubi_device *ubi)
 {
-	dbg_wl("disable \"%s\"", ubi->bgt_name);
-	if (ubi->bgt_thread)
-		kthread_stop(ubi->bgt_thread);
-
 	dbg_wl("close the UBI wear-leveling unit");
 
 	cancel_pending(ubi);
