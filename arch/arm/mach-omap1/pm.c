@@ -95,7 +95,6 @@ static struct kobj_attribute sleep_while_idle_attr =
 
 #endif
 
-static void (*omap_sram_idle)(void) = NULL;
 static void (*omap_sram_suspend)(unsigned long r0, unsigned long r1) = NULL;
 
 /*
@@ -676,23 +675,17 @@ static int __init omap_pm_init(void)
 	 * memory the MPU can see when it wakes up.
 	 */
 	if (cpu_is_omap730()) {
-		omap_sram_idle = omap_sram_push(omap730_idle_loop_suspend,
-						omap730_idle_loop_suspend_sz);
 		omap_sram_suspend = omap_sram_push(omap730_cpu_suspend,
 						   omap730_cpu_suspend_sz);
 	} else if (cpu_is_omap15xx()) {
-		omap_sram_idle = omap_sram_push(omap1510_idle_loop_suspend,
-						omap1510_idle_loop_suspend_sz);
 		omap_sram_suspend = omap_sram_push(omap1510_cpu_suspend,
 						   omap1510_cpu_suspend_sz);
 	} else if (cpu_is_omap16xx()) {
-		omap_sram_idle = omap_sram_push(omap1610_idle_loop_suspend,
-						omap1610_idle_loop_suspend_sz);
 		omap_sram_suspend = omap_sram_push(omap1610_cpu_suspend,
 						   omap1610_cpu_suspend_sz);
 	}
 
-	if (omap_sram_idle == NULL || omap_sram_suspend == NULL) {
+	if (omap_sram_suspend == NULL) {
 		printk(KERN_ERR "PM not initialized: Missing SRAM support\n");
 		return -ENODEV;
 	}
