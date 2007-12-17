@@ -1028,7 +1028,7 @@ omap_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 				/* STATUS for zero length DATA stages is
 				 * always an IN ... even for IN transfers,
-				 * a wierd case which seem to stall OMAP.
+				 * a weird case which seem to stall OMAP.
 				 */
 				UDC_EP_NUM_REG = (UDC_EP_SEL|UDC_EP_DIR);
 				UDC_CTRL_REG = UDC_CLR_EP;

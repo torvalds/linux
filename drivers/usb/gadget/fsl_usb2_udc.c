@@ -1896,7 +1896,7 @@ static int fsl_proc_read(char *page, char **start, off_t off, int count,
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	/* ------basic driver infomation ---- */
+	/* ------basic driver information ---- */
 	t = scnprintf(next, size,
 			DRIVER_DESC "\n"
 			"%s version: %s\n"

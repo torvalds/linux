@@ -53,7 +53,7 @@
 #define     AT91_UDP_RXRSM	(1 <<  9)	/* USB Resume Interrupt Status */
 #define     AT91_UDP_EXTRSM	(1 << 10)	/* External Resume Interrupt Status [AT91RM9200 only] */
 #define     AT91_UDP_SOFINT	(1 << 11)	/* Start of Frame Interrupt Status */
-#define     AT91_UDP_ENDBUSRES	(1 << 12)	/* End of Bus Reset Interrpt Status */
+#define     AT91_UDP_ENDBUSRES	(1 << 12)	/* End of Bus Reset Interrupt Status */
 #define     AT91_UDP_WAKEUP	(1 << 13)	/* USB Wakeup Interrupt Status [AT91RM9200 only] */
 
 #define AT91_UDP_ICR		0x20		/* Interrupt Clear Register */

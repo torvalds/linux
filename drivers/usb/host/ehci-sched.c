@@ -211,7 +211,7 @@ static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
  * low/fullspeed transfer can "carry over" from one uframe to the next,
  * since the TT just performs downstream transfers in sequence.
  *
- * For example two seperate 100 usec transfers can start in the same uframe,
+ * For example two separate 100 usec transfers can start in the same uframe,
  * and the second one would "carry over" 75 usecs into the next uframe.
  */
 static void

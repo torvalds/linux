@@ -323,7 +323,7 @@ sisusb_bulkin_msg(struct sisusb_usb_data *sisusb, unsigned int pipe, void *data,
 			usb_kill_urb(urb);
 			retval = -ETIMEDOUT;
 		} else {
-			/* URB completed within timout */
+			/* URB completed within timeout */
 			retval = urb->status;
 			readbytes = urb->actual_length;
 		}

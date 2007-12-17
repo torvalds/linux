@@ -25,7 +25,7 @@
 
 #include "ehci-fsl.h"
 
-/* FIXME: Power Managment is un-ported so temporarily disable it */
+/* FIXME: Power Management is un-ported so temporarily disable it */
 #undef CONFIG_PM
 
 /* PCI-based HCs are common, but plenty of non-PCI HCs are used too */

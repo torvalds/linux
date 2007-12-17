@@ -915,7 +915,7 @@ next_desc:
 	}
 	
 	if (data_interface_num != call_interface_num)
-		dev_dbg(&intf->dev,"Seperate call control interface. That is not fully supported.\n");
+		dev_dbg(&intf->dev,"Separate call control interface. That is not fully supported.\n");
 
 skip_normal_probe:
 

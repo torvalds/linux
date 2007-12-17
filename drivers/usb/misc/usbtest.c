@@ -1312,7 +1312,7 @@ static int ctrl_out (struct usbtest_dev *dev,
 		len += vary;
 
 		/* [real world] the "zero bytes IN" case isn't really used.
-		 * hardware can easily trip up in this wierd case, since its
+		 * hardware can easily trip up in this weird case, since its
 		 * status stage is IN, not OUT like other ep0in transfers.
 		 */
 		if (len > length)

@@ -405,7 +405,7 @@
 
 struct r8a66597_pipe_info {
 	u16 pipenum;
-	u16 address;	/* R8A66597 HCD usb addres */
+	u16 address;	/* R8A66597 HCD usb address */
 	u16 epnum;
 	u16 maxpacket;
 	u16 type;

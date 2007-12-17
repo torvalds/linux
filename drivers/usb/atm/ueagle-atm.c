@@ -999,7 +999,7 @@ static void __uea_load_page_e4(struct uea_softc *sc, u8 pageno, int boot)
 		bi.dwAddress = swab32(blockidx->PageAddress);
 
 		uea_dbg(INS_TO_USBDEV(sc),
-		       "sending block %u for DSP page %u size %u adress %x\n",
+		       "sending block %u for DSP page %u size %u address %x\n",
 		       blockno, pageno, blocksize, le32_to_cpu(blockidx->PageAddress));
 
 		/* send block info through the IDMA pipe */
