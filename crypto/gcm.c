@@ -160,7 +160,7 @@ static void crypto_gcm_ghash_final_xor(struct crypto_gcm_ghash_ctx *ctx,
 
 static inline void crypto_gcm_set_counter(u8 *counterblock, u32 value)
 {
-	*((u32 *)&counterblock[12]) = cpu_to_be32(value);
+	*((u32 *)&counterblock[12]) = cpu_to_be32(value + 1);
 }
 
 static int crypto_gcm_encrypt_counter(struct crypto_aead *aead, u8 *block,
@@ -400,9 +400,8 @@ static struct crypto_instance *crypto_gcm_alloc(struct rtattr **tb)
 		return inst;
 
 	inst = ERR_PTR(ENAMETOOLONG);
-	if (snprintf(
-		    ctr_name, CRYPTO_MAX_ALG_NAME,
-		    "ctr(%s,0,16,4)", cipher->cra_name) >= CRYPTO_MAX_ALG_NAME)
+	if (snprintf(ctr_name, CRYPTO_MAX_ALG_NAME, "ctr(%s)",
+		     cipher->cra_name) >= CRYPTO_MAX_ALG_NAME)
 		return inst;
 
 	ctr = crypto_alg_mod_lookup(ctr_name, CRYPTO_ALG_TYPE_BLKCIPHER,
