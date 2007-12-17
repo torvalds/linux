@@ -11,6 +11,7 @@
 #include <crypto/algapi.h>
 #include <crypto/gf128mul.h>
 #include <crypto/scatterwalk.h>
+#include <linux/completion.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -38,9 +39,15 @@ struct crypto_gcm_ghash_ctx {
 struct crypto_gcm_req_priv_ctx {
 	u8 auth_tag[16];
 	u8 iauth_tag[16];
-	u8 counter[16];
+	struct scatterlist src[2];
+	struct scatterlist dst[2];
 	struct crypto_gcm_ghash_ctx ghash;
 	struct ablkcipher_request abreq;
+};
+
+struct crypto_gcm_setkey_result {
+	int err;
+	struct completion completion;
 };
 
 static inline struct crypto_gcm_req_priv_ctx *crypto_gcm_reqctx(
@@ -158,33 +165,15 @@ static void crypto_gcm_ghash_final_xor(struct crypto_gcm_ghash_ctx *ctx,
 	crypto_xor(dst, buf, 16);
 }
 
-static inline void crypto_gcm_set_counter(u8 *counterblock, u32 value)
+static void crypto_gcm_setkey_done(struct crypto_async_request *req, int err)
 {
-	*((u32 *)&counterblock[12]) = cpu_to_be32(value + 1);
-}
+	struct crypto_gcm_setkey_result *result = req->data;
 
-static int crypto_gcm_encrypt_counter(struct crypto_aead *aead, u8 *block,
-				       u32 value, const u8 *iv)
-{
-	struct crypto_gcm_ctx *ctx = crypto_aead_ctx(aead);
-	struct crypto_ablkcipher *ctr = ctx->ctr;
-	struct ablkcipher_request req;
-	struct scatterlist sg;
-	u8 counterblock[16];
+	if (err == -EINPROGRESS)
+		return;
 
-	if (iv == NULL)
-		memset(counterblock, 0, 12);
-	else
-		memcpy(counterblock, iv, 12);
-
-	crypto_gcm_set_counter(counterblock, value);
-
-	sg_init_one(&sg, block, 16);
-	ablkcipher_request_set_tfm(&req, ctr);
-	ablkcipher_request_set_crypt(&req, &sg, &sg, 16, counterblock);
-	ablkcipher_request_set_callback(&req, 0, NULL, NULL);
-	memset(block, 0, 16);
-	return crypto_ablkcipher_encrypt(&req);
+	result->err = err;
+	complete(&result->completion);
 }
 
 static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
@@ -192,10 +181,16 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 {
 	struct crypto_gcm_ctx *ctx = crypto_aead_ctx(aead);
 	struct crypto_ablkcipher *ctr = ctx->ctr;
-	int alignmask = crypto_ablkcipher_alignmask(ctr);
-	u8 alignbuf[16+alignmask];
-	u8 *hash = (u8 *)ALIGN((unsigned long)alignbuf, alignmask+1);
-	int err = 0;
+	struct {
+		be128 hash;
+		u8 iv[8];
+
+		struct crypto_gcm_setkey_result result;
+
+		struct scatterlist sg[1];
+		struct ablkcipher_request req;
+	} *data;
+	int err;
 
 	crypto_ablkcipher_clear_flags(ctr, CRYPTO_TFM_REQ_MASK);
 	crypto_ablkcipher_set_flags(ctr, crypto_aead_get_flags(aead) &
@@ -203,62 +198,86 @@ static int crypto_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 
 	err = crypto_ablkcipher_setkey(ctr, key, keylen);
 	if (err)
-		goto out;
+		return err;
 
 	crypto_aead_set_flags(aead, crypto_ablkcipher_get_flags(ctr) &
 				       CRYPTO_TFM_RES_MASK);
 
-	err = crypto_gcm_encrypt_counter(aead, hash, -1, NULL);
+	data = kzalloc(sizeof(*data) + crypto_ablkcipher_reqsize(ctr),
+		       GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	init_completion(&data->result.completion);
+	sg_init_one(data->sg, &data->hash, sizeof(data->hash));
+	ablkcipher_request_set_tfm(&data->req, ctr);
+	ablkcipher_request_set_callback(&data->req, CRYPTO_TFM_REQ_MAY_SLEEP |
+						    CRYPTO_TFM_REQ_MAY_BACKLOG,
+					crypto_gcm_setkey_done,
+					&data->result);
+	ablkcipher_request_set_crypt(&data->req, data->sg, data->sg,
+				     sizeof(data->hash), data->iv);
+
+	err = crypto_ablkcipher_encrypt(&data->req);
+	if (err == -EINPROGRESS || err == -EBUSY) {
+		err = wait_for_completion_interruptible(
+			&data->result.completion);
+		if (!err)
+			err = data->result.err;
+	}
+
 	if (err)
 		goto out;
 
 	if (ctx->gf128 != NULL)
 		gf128mul_free_4k(ctx->gf128);
 
-	ctx->gf128 = gf128mul_init_4k_lle((be128 *)hash);
+	ctx->gf128 = gf128mul_init_4k_lle(&data->hash);
 
 	if (ctx->gf128 == NULL)
 		err = -ENOMEM;
 
- out:
+out:
+	kfree(data);
 	return err;
 }
 
-static int crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
-				 struct aead_request *req,
-				 unsigned int cryptlen,
-				 void (*done)(struct crypto_async_request *,
-					      int))
+static void crypto_gcm_init_crypt(struct ablkcipher_request *ablk_req,
+				  struct aead_request *req,
+				  unsigned int cryptlen)
 {
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct crypto_gcm_ctx *ctx = crypto_aead_ctx(aead);
 	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	u32 flags = req->base.tfm->crt_flags;
-	u8 *auth_tag = pctx->auth_tag;
-	u8 *counter = pctx->counter;
 	struct crypto_gcm_ghash_ctx *ghash = &pctx->ghash;
-	int err = 0;
+	struct scatterlist *dst;
+	__be32 counter = cpu_to_be32(1);
+
+	memset(pctx->auth_tag, 0, sizeof(pctx->auth_tag));
+	memcpy(req->iv + 12, &counter, 4);
+
+	sg_init_table(pctx->src, 2);
+	sg_set_buf(pctx->src, pctx->auth_tag, sizeof(pctx->auth_tag));
+	scatterwalk_sg_chain(pctx->src, 2, req->src);
+
+	dst = pctx->src;
+	if (req->src != req->dst) {
+		sg_init_table(pctx->dst, 2);
+		sg_set_buf(pctx->dst, pctx->auth_tag, sizeof(pctx->auth_tag));
+		scatterwalk_sg_chain(pctx->dst, 2, req->dst);
+		dst = pctx->dst;
+	}
 
 	ablkcipher_request_set_tfm(ablk_req, ctx->ctr);
-	ablkcipher_request_set_callback(ablk_req, aead_request_flags(req),
-					done, req);
-	ablkcipher_request_set_crypt(ablk_req, req->src, req->dst,
-				     cryptlen, counter);
-
-	err = crypto_gcm_encrypt_counter(aead, auth_tag, 0, req->iv);
-	if (err)
-		goto out;
-
-	memcpy(counter, req->iv, 12);
-	crypto_gcm_set_counter(counter, 1);
+	ablkcipher_request_set_crypt(ablk_req, pctx->src, dst,
+				     cryptlen + sizeof(pctx->auth_tag),
+				     req->iv);
 
 	crypto_gcm_ghash_init(ghash, flags, ctx->gf128);
 
 	crypto_gcm_ghash_update_sg(ghash, req->assoc, req->assoclen);
 	crypto_gcm_ghash_flush(ghash);
-
- out:
-	return err;
 }
 
 static int crypto_gcm_hash(struct aead_request *req)
@@ -291,25 +310,44 @@ static int crypto_gcm_encrypt(struct aead_request *req)
 {
 	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	struct ablkcipher_request *abreq = &pctx->abreq;
-	int err = 0;
+	int err;
 
-	err = crypto_gcm_init_crypt(abreq, req, req->cryptlen,
-				    crypto_gcm_encrypt_done);
+	crypto_gcm_init_crypt(abreq, req, req->cryptlen);
+	ablkcipher_request_set_callback(abreq, aead_request_flags(req),
+					crypto_gcm_encrypt_done, req);
+
+	err = crypto_ablkcipher_encrypt(abreq);
 	if (err)
 		return err;
-
-	if (req->cryptlen) {
-		err = crypto_ablkcipher_encrypt(abreq);
-		if (err)
-			return err;
-	}
 
 	return crypto_gcm_hash(req);
 }
 
+static int crypto_gcm_verify(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
+	struct crypto_gcm_ghash_ctx *ghash = &pctx->ghash;
+	u8 *auth_tag = pctx->auth_tag;
+	u8 *iauth_tag = pctx->iauth_tag;
+	unsigned int authsize = crypto_aead_authsize(aead);
+	unsigned int cryptlen = req->cryptlen - authsize;
+
+	crypto_gcm_ghash_final_xor(ghash, req->assoclen, cryptlen, auth_tag);
+
+	authsize = crypto_aead_authsize(aead);
+	scatterwalk_map_and_copy(iauth_tag, req->src, cryptlen, authsize, 0);
+	return memcmp(iauth_tag, auth_tag, authsize) ? -EBADMSG : 0;
+}
+
 static void crypto_gcm_decrypt_done(struct crypto_async_request *areq, int err)
 {
-	aead_request_complete(areq->data, err);
+	struct aead_request *req = areq->data;
+
+	if (!err)
+		err = crypto_gcm_verify(req);
+
+	aead_request_complete(req, err);
 }
 
 static int crypto_gcm_decrypt(struct aead_request *req)
@@ -317,8 +355,6 @@ static int crypto_gcm_decrypt(struct aead_request *req)
 	struct crypto_aead *aead = crypto_aead_reqtfm(req);
 	struct crypto_gcm_req_priv_ctx *pctx = crypto_gcm_reqctx(req);
 	struct ablkcipher_request *abreq = &pctx->abreq;
-	u8 *auth_tag = pctx->auth_tag;
-	u8 *iauth_tag = pctx->iauth_tag;
 	struct crypto_gcm_ghash_ctx *ghash = &pctx->ghash;
 	unsigned int cryptlen = req->cryptlen;
 	unsigned int authsize = crypto_aead_authsize(aead);
@@ -328,19 +364,17 @@ static int crypto_gcm_decrypt(struct aead_request *req)
 		return -EINVAL;
 	cryptlen -= authsize;
 
-	err = crypto_gcm_init_crypt(abreq, req, cryptlen,
-				    crypto_gcm_decrypt_done);
+	crypto_gcm_init_crypt(abreq, req, cryptlen);
+	ablkcipher_request_set_callback(abreq, aead_request_flags(req),
+					crypto_gcm_decrypt_done, req);
+
+	crypto_gcm_ghash_update_sg(ghash, req->src, cryptlen);
+
+	err = crypto_ablkcipher_decrypt(abreq);
 	if (err)
 		return err;
 
-	crypto_gcm_ghash_update_sg(ghash, req->src, cryptlen);
-	crypto_gcm_ghash_final_xor(ghash, req->assoclen, cryptlen, auth_tag);
-
-	scatterwalk_map_and_copy(iauth_tag, req->src, cryptlen, authsize, 0);
-	if (memcmp(iauth_tag, auth_tag, authsize))
-		return -EBADMSG;
-
-	return crypto_ablkcipher_decrypt(abreq);
+	return crypto_gcm_verify(req);
 }
 
 static int crypto_gcm_init_tfm(struct crypto_tfm *tfm)
@@ -436,7 +470,7 @@ static struct crypto_instance *crypto_gcm_alloc(struct rtattr **tb)
 	inst->alg.cra_blocksize = 16;
 	inst->alg.cra_alignmask = ctr->cra_alignmask | (__alignof__(u64) - 1);
 	inst->alg.cra_type = &crypto_aead_type;
-	inst->alg.cra_aead.ivsize = 12;
+	inst->alg.cra_aead.ivsize = 16;
 	inst->alg.cra_aead.maxauthsize = 16;
 	inst->alg.cra_ctxsize = sizeof(struct crypto_gcm_ctx);
 	inst->alg.cra_init = crypto_gcm_init_tfm;
