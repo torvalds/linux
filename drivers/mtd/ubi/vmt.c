@@ -435,7 +435,6 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	vol->eba_tbl = NULL;
 	cdev_del(&vol->cdev);
 	volume_sysfs_close(vol);
-	kfree(desc);
 
 	spin_lock(&ubi->volumes_lock);
 	ubi->rsvd_pebs -= reserved_pebs;
@@ -453,10 +452,6 @@ int ubi_remove_volume(struct ubi_volume_desc *desc)
 	spin_unlock(&ubi->volumes_lock);
 
 	paranoid_check_volumes(ubi);
-	mutex_unlock(&ubi->volumes_mutex);
-	module_put(THIS_MODULE);
-	return 0;
-
 out:
 	mutex_unlock(&ubi->volumes_mutex);
 	return err;

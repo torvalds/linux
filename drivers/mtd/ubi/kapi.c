@@ -156,6 +156,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		vol->exclusive = 1;
 		break;
 	}
+	get_device(&vol->dev);
 	spin_unlock(&ubi->volumes_lock);
 
 	desc->vol = vol;
@@ -274,6 +275,7 @@ void ubi_close_volume(struct ubi_volume_desc *desc)
 	spin_unlock(&vol->ubi->volumes_lock);
 
 	kfree(desc);
+	put_device(&vol->dev);
 	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(ubi_close_volume);

@@ -635,9 +635,12 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		}
 
 		err = ubi_remove_volume(desc);
-		if (err)
-			ubi_close_volume(desc);
-
+		/*
+		 * The volume is deleted, and the 'struct ubi_volume' object
+		 * will be freed when 'ubi_close_volume()' will call
+		 * 'put_device()'.
+		 */
+		ubi_close_volume(desc);
 		break;
 	}
 
