@@ -421,7 +421,7 @@ int cx88_video_mux(struct cx88_core *core, unsigned int input)
 
 			route.input = INPUT(input).audioroute;
 			cx88_call_i2c_clients(core,
-				VIDIOC_INT_S_AUDIO_ROUTING,&route);
+				VIDIOC_INT_S_AUDIO_ROUTING, &route);
 
 		}
 

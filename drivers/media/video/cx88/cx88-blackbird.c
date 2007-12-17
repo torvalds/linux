@@ -594,13 +594,11 @@ static int blackbird_start_codec(struct file *file, void *priv)
 	int lastchange = -1;
 	int lastval = 0;
 
-	for (i=0; (i < 10) && (i < (lastchange + 4)); i++)
-	{
+	for (i = 0; (i < 10) && (i < (lastchange + 4)); i++) {
 		reg = cx_read(AUD_STATUS);
 
-		dprintk(1,"AUD_STATUS:%dL: 0x%x\n", i, reg);
-		if ((reg & 0x0F) != lastval)
-		{
+		dprintk(1, "AUD_STATUS:%dL: 0x%x\n", i, reg);
+		if ((reg & 0x0F) != lastval) {
 			lastval = reg & 0x0F;
 			lastchange = i;
 		}
@@ -610,7 +608,7 @@ static int blackbird_start_codec(struct file *file, void *priv)
 	/* unmute audio source */
 	cx_clear(AUD_VOL_CTL, (1 << 6));
 
-	blackbird_api_cmd(dev, CX2341X_ENC_REFRESH_INPUT, 0,0);
+	blackbird_api_cmd(dev, CX2341X_ENC_REFRESH_INPUT, 0, 0);
 
 	/* initialize the video input */
 	blackbird_api_cmd(dev, CX2341X_ENC_INITIALIZE_INPUT, 0, 0);
