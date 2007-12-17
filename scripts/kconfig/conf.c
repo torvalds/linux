@@ -495,12 +495,12 @@ static void check_conf(struct menu *menu)
 
 int main(int ac, char **av)
 {
-	int i = 1;
+	int opt;
 	const char *name;
 	struct stat tmpstat;
 
-	if (ac > i && av[i][0] == '-') {
-		switch (av[i++][1]) {
+	while ((opt = getopt(ac, av, "osdD:nmyrh")) != -1) {
+		switch (opt) {
 		case 'o':
 			input_mode = ask_new;
 			break;
@@ -513,12 +513,7 @@ int main(int ac, char **av)
 			break;
 		case 'D':
 			input_mode = set_default;
-			defconfig_file = av[i++];
-			if (!defconfig_file) {
-				printf(_("%s: No default config file specified\n"),
-					av[0]);
-				exit(1);
-			}
+			defconfig_file = optarg;
 			break;
 		case 'n':
 			input_mode = set_no;
@@ -534,16 +529,19 @@ int main(int ac, char **av)
 			srandom(time(NULL));
 			break;
 		case 'h':
-		case '?':
-			fprintf(stderr, "See README for usage info\n");
+			printf("See README for usage info\n");
 			exit(0);
+			break;
+		default:
+			fprintf(stderr, "See README for usage info\n");
+			exit(1);
 		}
 	}
-  	name = av[i];
-	if (!name) {
+	if (ac == optind) {
 		printf(_("%s: Kconfig file missing\n"), av[0]);
 		exit(1);
 	}
+	name = av[optind];
 	conf_parse(name);
 	//zconfdump(stdout);
 	switch (input_mode) {
