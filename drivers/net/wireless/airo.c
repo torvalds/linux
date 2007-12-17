@@ -38,6 +38,7 @@
 #include <linux/crypto.h>
 #include <asm/io.h>
 #include <asm/system.h>
+#include <asm/unaligned.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -811,7 +812,7 @@ typedef struct {
 } MICRid;
 
 typedef struct {
-	u16 typelen;
+	__be16 typelen;
 
 	union {
 	    u8 snap[8];
@@ -823,8 +824,8 @@ typedef struct {
 		u8 fieldtype[2];
 	    } llc;
 	} u;
-	u32 mic;
-	u32 seq;
+	__be32 mic;
+	__be32 seq;
 } MICBuffer;
 
 typedef struct {
@@ -943,7 +944,7 @@ typedef struct {
 	int position;	// current position (byte offset) in message
 	union {
 		u8  d8[4];
-		u32 d32;
+		__be32 d32;
 	} part;	// saves partial message word across update() calls
 } emmh32_context;
 
@@ -1635,7 +1636,7 @@ static void emmh32_setseed(emmh32_context *context, u8 *pkey, int keylen,
 		crypto_cipher_encrypt_one(tfm, plain, plain);
 		cipher = plain;
 		for (j = 0; (j < 16) && (i < ARRAY_SIZE(context->coeff)); ) {
-			context->coeff[i++] = ntohl(*(u32 *)&cipher[j]);
+			context->coeff[i++] = ntohl(*(__be32 *)&cipher[j]);
 			j += 4;
 		}
 	}
@@ -1668,12 +1669,12 @@ static void emmh32_update(emmh32_context *context, u8 *pOctets, int len)
 			context->position++;
 			len--;
 		} while (byte_position < 4);
-		MIC_ACCUM(htonl(context->part.d32));
+		MIC_ACCUM(ntohl(context->part.d32));
 	}
 
 	/* deal with full 32-bit words */
 	while (len >= 4) {
-		MIC_ACCUM(htonl(*(u32 *)pOctets));
+		MIC_ACCUM(ntohl(*(__be32 *)pOctets));
 		context->position += 4;
 		pOctets += 4;
 		len -= 4;
@@ -1706,7 +1707,7 @@ static void emmh32_final(emmh32_context *context, u8 digest[4])
 	byte_position = context->position & 3;
 	if (byte_position) {
 		/* have a partial word in part to deal with */
-		val = htonl(context->part.d32);
+		val = ntohl(context->part.d32);
 		MIC_ACCUM(val & mask32[byte_position]);	/* zero empty bytes */
 	}
 
@@ -2026,7 +2027,8 @@ static int mpi_send_packet (struct net_device *dev)
 {
 	struct sk_buff *skb;
 	unsigned char *buffer;
-	s16 len, *payloadLen;
+	s16 len;
+	__le16 *payloadLen;
 	struct airo_info *ai = dev->priv;
 	u8 *sendbuf;
 
@@ -2059,7 +2061,7 @@ static int mpi_send_packet (struct net_device *dev)
 	memcpy((char *)ai->txfids[0].virtual_host_addr,
 		(char *)&wifictlhdr8023, sizeof(wifictlhdr8023));
 
-	payloadLen = (s16 *)(ai->txfids[0].virtual_host_addr +
+	payloadLen = (__le16 *)(ai->txfids[0].virtual_host_addr +
 		sizeof(wifictlhdr8023));
 	sendbuf = ai->txfids[0].virtual_host_addr +
 		sizeof(wifictlhdr8023) + 2 ;
@@ -2069,7 +2071,7 @@ static int mpi_send_packet (struct net_device *dev)
 	 * we don't need to account for it in the length
 	 */
 	if (test_bit(FLAG_MIC_CAPABLE, &ai->flags) && ai->micstats.enabled &&
-		(ntohs(((u16 *)buffer)[6]) != 0x888E)) {
+		(ntohs(((__be16 *)buffer)[6]) != 0x888E)) {
 		MICBuffer pMic;
 
 		if (encapsulate(ai, (etherHead *)buffer, &pMic, len - sizeof(etherHead)) != SUCCESS)
@@ -2104,7 +2106,7 @@ static int mpi_send_packet (struct net_device *dev)
 
 static void get_tx_error(struct airo_info *ai, s32 fid)
 {
-	u16 status;
+	__le16 status;
 
 	if (fid < 0)
 		status = ((WifiCtlHdr *)ai->txfids[0].virtual_host_addr)->ctlhdr.status;
@@ -3300,11 +3302,11 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 			u16 fc, len, hdrlen = 0;
 #pragma pack(1)
 			struct {
-				u16 status, len;
+				__le16 status, len;
 				u8 rssi[2];
 				u8 rate;
 				u8 freq;
-				u16 tmp[4];
+				__le16 tmp[4];
 			} hdr;
 #pragma pack()
 			u16 gap;
@@ -3681,11 +3683,11 @@ void mpi_receive_802_11 (struct airo_info *ai)
 	__le16 fc;
 #pragma pack(1)
 	struct {
-		u16 status, len;
+		__le16 status, len;
 		u8 rssi[2];
 		u8 rate;
 		u8 freq;
-		u16 tmp[4];
+		__le16 tmp[4];
 	} hdr;
 #pragma pack()
 	u16 gap;
@@ -3721,9 +3723,8 @@ void mpi_receive_802_11 (struct airo_info *ai)
 	ptr += hdrlen;
 	if (hdrlen == 24)
 		ptr += 6;
-	memcpy ((char *)&gap, ptr, sizeof(gap));
-	ptr += sizeof(gap);
-	gap = le16_to_cpu(gap);
+	gap = le16_to_cpu(get_unaligned((__le16 *)ptr));
+	ptr += sizeof(__le16);
 	if (gap) {
 		if (gap <= 8)
 			ptr += gap;
@@ -4151,7 +4152,7 @@ static int PC4500_readrid(struct airo_info *ai, u16 rid, void *pBuf, int len, in
 		// read the rid length field
 		bap_read(ai, pBuf, 2, BAP1);
 		// length for remaining part of rid
-		len = min(len, (int)le16_to_cpu(*(u16*)pBuf)) - 2;
+		len = min(len, (int)le16_to_cpu(*(__le16*)pBuf)) - 2;
 
 		if ( len <= 2 ) {
 			airo_print_err(ai->dev->name,
@@ -4177,7 +4178,7 @@ static int PC4500_writerid(struct airo_info *ai, u16 rid,
 	u16 status;
 	int rc = SUCCESS;
 
-	*(u16*)pBuf = cpu_to_le16((u16)len);
+	*(__le16*)pBuf = cpu_to_le16((u16)len);
 
 	if (lock) {
 		if (down_interruptible(&ai->sem))
@@ -4251,7 +4252,7 @@ static u16 transmit_allocate(struct airo_info *ai, int lenPayload, int raw)
 	Cmd cmd;
 	Resp rsp;
 	u16 txFid;
-	u16 txControl;
+	__le16 txControl;
 
 	cmd.cmd = CMD_ALLOCATETX;
 	cmd.parm0 = lenPayload;
@@ -4305,7 +4306,7 @@ done:
    Make sure the BAP1 spinlock is held when this is called. */
 static int transmit_802_3_packet(struct airo_info *ai, int len, char *pPacket)
 {
-	u16 payloadLen;
+	__le16 payloadLen;
 	Cmd cmd;
 	Resp rsp;
 	int miclen = 0;
@@ -4321,7 +4322,7 @@ static int transmit_802_3_packet(struct airo_info *ai, int len, char *pPacket)
 	len -= ETH_ALEN * 2;
 
 	if (test_bit(FLAG_MIC_CAPABLE, &ai->flags) && ai->micstats.enabled && 
-	    (ntohs(((u16 *)pPacket)[6]) != 0x888E)) {
+	    (ntohs(((__be16 *)pPacket)[6]) != 0x888E)) {
 		if (encapsulate(ai,(etherHead *)pPacket,&pMic,len) != SUCCESS)
 			return ERROR;
 		miclen = sizeof(pMic);
@@ -4348,7 +4349,7 @@ static int transmit_802_3_packet(struct airo_info *ai, int len, char *pPacket)
 
 static int transmit_802_11_packet(struct airo_info *ai, int len, char *pPacket)
 {
-	u16 fc, payloadLen;
+	__le16 fc, payloadLen;
 	Cmd cmd;
 	Resp rsp;
 	int hdrlen;
