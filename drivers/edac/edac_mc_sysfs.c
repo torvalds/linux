@@ -380,13 +380,6 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	/* generate ..../edac/mc/mc<id>/csrow<index>   */
 	memset(&csrow->kobj, 0, sizeof(csrow->kobj));
 	csrow->mci = mci;	/* include container up link */
-	csrow->kobj.parent = kobj_mci;
-	csrow->kobj.ktype = &ktype_csrow;
-
-	/* name this instance of csrow<id> */
-	err = kobject_set_name(&csrow->kobj, "csrow%d", index);
-	if (err)
-		goto err_out;
 
 	/* bump the mci instance's kobject's ref count */
 	kobj = kobject_get(&mci->edac_mci_kobj);
@@ -396,7 +389,8 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	}
 
 	/* Instanstiate the csrow object */
-	err = kobject_register(&csrow->kobj);
+	err = kobject_init_and_add(&csrow->kobj, &ktype_csrow, kobj_mci,
+				   "csrow%d", index);
 	if (err)
 		goto err_release_top_kobj;
 
@@ -416,7 +410,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 			goto err_out;
 		}
 	}
-
+	kobject_uevent(&csrow->kobj, KOBJ_ADD);
 	return 0;
 
 	/* error unwind stack */
@@ -764,15 +758,6 @@ int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci)
 	/* Init the mci's kobject */
 	memset(kobj_mci, 0, sizeof(*kobj_mci));
 
-	/* this instance become part of the mc_kset */
-	kobj_mci->kset = &mc_kset;
-	kobj_mci->ktype = &ktype_mci;
-
-	/* set the name of the mc<id> object */
-	err = kobject_set_name(kobj_mci, "mc%d", mci->mc_idx);
-	if (err)
-		goto fail_out;
-
 	/* Record which module 'owns' this control structure
 	 * and bump the ref count of the module
 	 */
@@ -784,13 +769,18 @@ int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci)
 		goto fail_out;
 	}
 
+	/* this instance become part of the mc_kset */
+	kobj_mci->kset = &mc_kset;
+
 	/* register the mc<id> kobject to the mc_kset */
-	err = kobject_register(kobj_mci);
+	err = kobject_init_and_add(kobj_mci, &ktype_mci, NULL,
+				   "mc%d", mci->mc_idx);
 	if (err) {
 		debugf1("%s()Failed to register '.../edac/mc%d'\n",
 			__func__, mci->mc_idx);
 		goto kobj_reg_fail;
 	}
+	kobject_uevent(kobj_mci, KOBJ_ADD);
 
 	/* At this point, to 'free' the control struct,
 	 * edac_mc_unregister_sysfs_main_kobj() must be used
