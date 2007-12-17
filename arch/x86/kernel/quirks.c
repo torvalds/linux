@@ -30,8 +30,8 @@ static void __devinit quirk_intel_irqbalance(struct pci_dev *dev)
 	raw_pci_ops->read(0, 0, 0x40, 0x4c, 2, &word);
 
 	if (!(word & (1 << 13))) {
-		printk(KERN_INFO "Intel E7520/7320/7525 detected. "
-			"Disabling irq balancing and affinity\n");
+		dev_info(&dev->dev, "Intel E7520/7320/7525 detected; "
+			"disabling irq balancing and affinity\n");
 #ifdef CONFIG_IRQBALANCE
 		irqbalance_disable("");
 #endif
@@ -104,14 +104,16 @@ static void ich_force_enable_hpet(struct pci_dev *dev)
 	pci_read_config_dword(dev, 0xF0, &rcba);
 	rcba &= 0xFFFFC000;
 	if (rcba == 0) {
-		printk(KERN_DEBUG "RCBA disabled. Cannot force enable HPET\n");
+		dev_printk(KERN_DEBUG, &dev->dev, "RCBA disabled; "
+			"cannot force enable HPET\n");
 		return;
 	}
 
 	/* use bits 31:14, 16 kB aligned */
 	rcba_base = ioremap_nocache(rcba, 0x4000);
 	if (rcba_base == NULL) {
-		printk(KERN_DEBUG "ioremap failed. Cannot force enable HPET\n");
+		dev_printk(KERN_DEBUG, &dev->dev, "ioremap failed; "
+			"cannot force enable HPET\n");
 		return;
 	}
 
@@ -122,8 +124,8 @@ static void ich_force_enable_hpet(struct pci_dev *dev)
 		/* HPET is enabled in HPTC. Just not reported by BIOS */
 		val = val & 0x3;
 		force_hpet_address = 0xFED00000 | (val << 12);
-		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
-			       force_hpet_address);
+		dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at "
+			"0x%lx\n", force_hpet_address);
 		iounmap(rcba_base);
 		return;
 	}
@@ -142,11 +144,12 @@ static void ich_force_enable_hpet(struct pci_dev *dev)
 	if (err) {
 		force_hpet_address = 0;
 		iounmap(rcba_base);
-		printk(KERN_DEBUG "Failed to force enable HPET\n");
+		dev_printk(KERN_DEBUG, &dev->dev,
+			"Failed to force enable HPET\n");
 	} else {
 		force_hpet_resume_type = ICH_FORCE_HPET_RESUME;
-		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
-			       force_hpet_address);
+		dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at "
+			"0x%lx\n", force_hpet_address);
 	}
 }
 
@@ -208,8 +211,8 @@ static void old_ich_force_enable_hpet(struct pci_dev *dev)
 	if (val & 0x4) {
 		val &= 0x3;
 		force_hpet_address = 0xFED00000 | (val << 12);
-		printk(KERN_DEBUG "HPET at base address 0x%lx\n",
-			       force_hpet_address);
+		dev_printk(KERN_DEBUG, &dev->dev, "HPET at 0x%lx\n",
+			force_hpet_address);
 		return;
 	}
 
@@ -229,14 +232,14 @@ static void old_ich_force_enable_hpet(struct pci_dev *dev)
 		/* HPET is enabled in HPTC. Just not reported by BIOS */
 		val &= 0x3;
 		force_hpet_address = 0xFED00000 | (val << 12);
-		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
-			       force_hpet_address);
+		dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at "
+			"0x%lx\n", force_hpet_address);
 		cached_dev = dev;
 		force_hpet_resume_type = OLD_ICH_FORCE_HPET_RESUME;
 		return;
 	}
 
-	printk(KERN_DEBUG "Failed to force enable HPET\n");
+	dev_printk(KERN_DEBUG, &dev->dev, "Failed to force enable HPET\n");
 }
 
 /*
@@ -294,8 +297,8 @@ static void vt8237_force_enable_hpet(struct pci_dev *dev)
 	 */
 	if (val & 0x80) {
 		force_hpet_address = (val & ~0x3ff);
-		printk(KERN_DEBUG "HPET at base address 0x%lx\n",
-			       force_hpet_address);
+		dev_printk(KERN_DEBUG, &dev->dev, "HPET at 0x%lx\n",
+			force_hpet_address);
 		return;
 	}
 
@@ -309,14 +312,14 @@ static void vt8237_force_enable_hpet(struct pci_dev *dev)
 	pci_read_config_dword(dev, 0x68, &val);
 	if (val & 0x80) {
 		force_hpet_address = (val & ~0x3ff);
-		printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
-			       force_hpet_address);
+		dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at "
+			"0x%lx\n", force_hpet_address);
 		cached_dev = dev;
 		force_hpet_resume_type = VT8237_FORCE_HPET_RESUME;
 		return;
 	}
 
-	printk(KERN_DEBUG "Failed to force enable HPET\n");
+	dev_printk(KERN_DEBUG, &dev->dev, "Failed to force enable HPET\n");
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8235,
@@ -344,7 +347,7 @@ static void nvidia_force_enable_hpet(struct pci_dev *dev)
 	pci_read_config_dword(dev, 0x44, &val);
 	force_hpet_address = val & 0xfffffffe;
 	force_hpet_resume_type = NVIDIA_FORCE_HPET_RESUME;
-	printk(KERN_DEBUG "Force enabled HPET at base address 0x%lx\n",
+	dev_printk(KERN_DEBUG, &dev->dev, "Force enabled HPET at 0x%lx\n",
 		force_hpet_address);
 	cached_dev = dev;
 	return;
