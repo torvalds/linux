@@ -160,9 +160,9 @@ static void pxa2xx_ac97_cold_reset(struct snd_ac97 *ac97)
 	gsr_bits = 0;
 #ifdef CONFIG_PXA27x
 	/* PXA27x Developers Manual section 13.5.2.2.1 */
-	pxa_set_cken(31, 1);
+	pxa_set_cken(CKEN_AC97CONF, 1);
 	udelay(5);
-	pxa_set_cken(31, 0);
+	pxa_set_cken(CKEN_AC97CONF, 0);
 	GCR = GCR_COLD_RST;
 	udelay(50);
 #else
