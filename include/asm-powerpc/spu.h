@@ -304,7 +304,7 @@ int spu_switch_event_register(struct notifier_block * n);
 int spu_switch_event_unregister(struct notifier_block * n);
 
 /*
- * This defines the Local Store, Problem Area and Privlege Area of an SPU.
+ * This defines the Local Store, Problem Area and Privilege Area of an SPU.
  */
 
 union mfc_tag_size_class_cmd {

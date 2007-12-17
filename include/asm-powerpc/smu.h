@@ -22,7 +22,7 @@
  * Partition info commands
  *
  * These commands are used to retrieve the sdb-partition-XX datas from
- * the SMU. The lenght is always 2. First byte is the subcommand code
+ * the SMU. The length is always 2. First byte is the subcommand code
  * and second byte is the partition ID.
  *
  * The reply is 6 bytes:
@@ -176,9 +176,9 @@
  * data length is that of the string.
  *
  * The VSLEW command can be used to get or set the voltage slewing.
- *  - lenght 5 (only "VSLEW") : it returns "DONE" and 3 bytes of
+ *  - length 5 (only "VSLEW") : it returns "DONE" and 3 bytes of
  *    reply at data offset 6, 7 and 8.
- *  - lenght 8 ("VSLEWxyz") has 3 additional bytes appended, and is
+ *  - length 8 ("VSLEWxyz") has 3 additional bytes appended, and is
  *    used to set the voltage slewing point. The SMU replies with "DONE"
  * I yet have to figure out their exact meaning of those 3 bytes in
  * both cases. They seem to be:
@@ -688,13 +688,13 @@ struct smu_user_cmd_hdr
 
 	__u8		cmd;			/* SMU command byte */
 	__u8		pad[3];			/* padding */
-	__u32		data_len;		/* Lenght of data following */
+	__u32		data_len;		/* Length of data following */
 };
 
 struct smu_user_reply_hdr
 {
 	__u32		status;			/* Command status */
-	__u32		reply_len;		/* Lenght of data follwing */
+	__u32		reply_len;		/* Length of data follwing */
 };
 
 #endif /*  _SMU_H */

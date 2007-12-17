@@ -78,7 +78,7 @@ extern int HvLpEvent_openPath(HvLpEvent_Type eventType, HvLpIndex lpIndex);
 
 /*
  * Close an Lp Event Path for a type and partition
- * returns 0 on sucess
+ * returns 0 on success
  */
 extern int HvLpEvent_closePath(HvLpEvent_Type eventType, HvLpIndex lpIndex);
 

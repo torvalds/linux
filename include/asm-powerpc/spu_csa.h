@@ -194,7 +194,7 @@ struct spu_priv1_collapsed {
 };
 
 /*
- * struct spu_priv2_collapsed - condensed priviliged 2 area, w/o pads.
+ * struct spu_priv2_collapsed - condensed privileged 2 area, w/o pads.
  */
 struct spu_priv2_collapsed {
 	u64 slb_index_W;
