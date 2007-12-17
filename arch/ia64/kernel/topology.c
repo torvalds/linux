@@ -354,17 +354,16 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 	if (unlikely(retval < 0))
 		return retval;
 
-	all_cpu_cache_info[cpu].kobj.parent = &sys_dev->kobj;
-	kobject_set_name(&all_cpu_cache_info[cpu].kobj, "%s", "cache");
-	all_cpu_cache_info[cpu].kobj.ktype = &cache_ktype_percpu_entry;
-	retval = kobject_register(&all_cpu_cache_info[cpu].kobj);
+	retval = kobject_init_and_add(&all_cpu_cache_info[cpu].kobj,
+				      &cache_ktype_percpu_entry, &sys_dev->kobj,
+				      "%s", "cache");
 
 	for (i = 0; i < all_cpu_cache_info[cpu].num_cache_leaves; i++) {
 		this_object = LEAF_KOBJECT_PTR(cpu,i);
-		this_object->kobj.parent = &all_cpu_cache_info[cpu].kobj;
-		kobject_set_name(&(this_object->kobj), "index%1lu", i);
-		this_object->kobj.ktype = &cache_ktype;
-		retval = kobject_register(&(this_object->kobj));
+		retval = kobject_init_and_add(&(this_object->kobj),
+					      &cache_ktype,
+					      &all_cpu_cache_info[cpu].kobj,
+					      "index%1lu", i);
 		if (unlikely(retval)) {
 			for (j = 0; j < i; j++) {
 				kobject_unregister(
@@ -374,7 +373,9 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 			cpu_cache_sysfs_exit(cpu);
 			break;
 		}
+		kobject_uevent(&(this_object->kobj), KOBJ_ADD);
 	}
+	kobject_uevent(&all_cpu_cache_info[cpu].kobj, KOBJ_ADD);
 	return retval;
 }
 
