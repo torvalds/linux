@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include <linux/kallsyms.h>
 #include "pci.h"
 
 /* The Mellanox Tavor device gives false positive parity errors
@@ -1500,7 +1501,11 @@ static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_f
 	while (f < end) {
 		if ((f->vendor == dev->vendor || f->vendor == (u16) PCI_ANY_ID) &&
  		    (f->device == dev->device || f->device == (u16) PCI_ANY_ID)) {
-			pr_debug("PCI: Calling quirk %p for %s\n", f->hook, pci_name(dev));
+#ifdef DEBUG
+			dev_dbg(&dev->dev, "calling quirk 0x%p", f->hook);
+			print_fn_descriptor_symbol(": %s()\n",
+				(unsigned long) f->hook);
+#endif
 			f->hook(dev);
 		}
 		f++;
