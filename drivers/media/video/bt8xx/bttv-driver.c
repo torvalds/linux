@@ -4404,14 +4404,17 @@ static int __init bttv_init_module(void)
 		printk(KERN_WARNING "bttv: bus_register error: %d\n", ret);
 		return ret;
 	}
-	return pci_register_driver(&bttv_pci_driver);
+	ret = pci_register_driver(&bttv_pci_driver);
+	if (ret < 0)
+		bus_unregister(&bttv_sub_bus_type);
+
+	return ret;
 }
 
 static void __exit bttv_cleanup_module(void)
 {
 	pci_unregister_driver(&bttv_pci_driver);
 	bus_unregister(&bttv_sub_bus_type);
-	return;
 }
 
 module_init(bttv_init_module);
