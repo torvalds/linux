@@ -891,6 +891,7 @@ void dccp_close(struct sock *sk, long timeout)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
+	u32 data_was_unread = 0;
 	int state;
 
 	lock_sock(sk);
@@ -913,12 +914,17 @@ void dccp_close(struct sock *sk, long timeout)
 	 * descriptor close, not protocol-sourced closes, because the
 	  *reader process may not have drained the data yet!
 	 */
-	/* FIXME: check for unread data */
 	while ((skb = __skb_dequeue(&sk->sk_receive_queue)) != NULL) {
+		data_was_unread += skb->len;
 		__kfree_skb(skb);
 	}
 
-	if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime) {
+	if (data_was_unread) {
+		/* Unread data was tossed, send an appropriate Reset Code */
+		DCCP_WARN("DCCP: ABORT -- %u bytes unread\n", data_was_unread);
+		dccp_send_reset(sk, DCCP_RESET_CODE_ABORTED);
+		dccp_set_state(sk, DCCP_CLOSED);
+	} else if (sock_flag(sk, SOCK_LINGER) && !sk->sk_lingertime) {
 		/* Check zero linger _after_ checking for unread data. */
 		sk->sk_prot->disconnect(sk, 0);
 	} else if (dccp_close_state(sk)) {
