@@ -1026,7 +1026,7 @@ struct ib_device {
 
 	struct module               *owner;
 	struct class_device          class_dev;
-	struct kobject               ports_parent;
+	struct kobject               *ports_parent;
 	struct list_head             port_list;
 
 	enum {
