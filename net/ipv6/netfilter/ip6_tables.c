@@ -31,9 +31,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("IPv6 packet filter");
 
-#define IPV6_HDR_LEN	(sizeof(struct ipv6hdr))
-#define IPV6_OPTHDR_LEN	(sizeof(struct ipv6_opt_hdr))
-
 /*#define DEBUG_IP_FIREWALL*/
 /*#define DEBUG_ALLOW_ALL*/ /* Useful for remote debugging */
 /*#define DEBUG_IP_FIREWALL_USER*/
@@ -75,12 +72,6 @@ do {								\
    the counters or update the rules.
 
    Hence the start of any table is given by get_table() below.  */
-
-#if 0
-#define down(x) do { printk("DOWN:%u:" #x "\n", __LINE__); down(x); } while(0)
-#define down_interruptible(x) ({ int __r; printk("DOWNi:%u:" #x "\n", __LINE__); __r = down_interruptible(x); if (__r != 0) printk("ABORT-DOWNi:%u\n", __LINE__); __r; })
-#define up(x) do { printk("UP:%u:" #x "\n", __LINE__); up(x); } while(0)
-#endif
 
 /* Check for an extension */
 int
@@ -399,9 +390,8 @@ ip6t_do_table(struct sk_buff *skb,
 				goto no_match;
 
 			ADD_COUNTER(e->counters,
-				    ntohs(ipv6_hdr(skb)->payload_len)
-				    + IPV6_HDR_LEN,
-				    1);
+				    ntohs(ipv6_hdr(skb)->payload_len) +
+				    sizeof(struct ipv6hdr), 1);
 
 			t = ip6t_get_target(e);
 			IP_NF_ASSERT(t->u.kernel.target);
@@ -656,8 +646,6 @@ err:
 	module_put(m->u.kernel.match->me);
 	return ret;
 }
-
-static struct xt_target ip6t_standard_target;
 
 static inline int
 check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
