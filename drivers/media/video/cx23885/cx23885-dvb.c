@@ -35,6 +35,8 @@
 #include "lgdt330x.h"
 #include "xc5000.h"
 #include "dvb-pll.h"
+#include "tuner-xc2028.h"
+#include "tuner-xc2028-types.h"
 
 static unsigned int debug = 0;
 
@@ -126,6 +128,14 @@ static struct s5h1409_config hauppauge_hvr1800lp_config = {
 	.status_mode   = S5H1409_DEMODLOCKING
 };
 
+static struct s5h1409_config hauppauge_hvr1500_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_OFF,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING
+};
+
 static struct mt2131_config hauppauge_generic_tunerconfig = {
 	0x61
 };
@@ -151,6 +161,36 @@ static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.request_firmware = cx23885_request_firmware,
 	.tuner_reset      = hauppauge_hvr1500q_tuner_reset
 };
+
+static int cx23885_hvr1500_xc3028_callback(void *ptr, int command, int arg)
+{
+	struct cx23885_tsport *port = ptr;
+	struct cx23885_dev *dev = port->dev;
+
+	switch (command) {
+	case XC2028_TUNER_RESET:
+		/* Send the tuner in then out of reset */
+		/* GPIO-2 xc3028 tuner */
+		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __FUNCTION__, arg);
+
+		cx_set(GP0_IO, 0x00040000);
+		cx_clear(GP0_IO, 0x00000004);
+		msleep(5);
+
+		cx_set(GP0_IO, 0x00040004);
+		msleep(5);
+		break;
+	case XC2028_RESET_CLK:
+		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __FUNCTION__, arg);
+		break;
+	default:
+		dprintk(1, "%s: unknown command %d, arg %d\n", __FUNCTION__,
+			command, arg);
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static int dvb_register(struct cx23885_tsport *port)
 {
@@ -204,6 +244,31 @@ static int dvb_register(struct cx23885_tsport *port)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
 				&hauppauge_hvr1500q_tunerconfig);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1500:
+		i2c_bus = &dev->i2c_bus[1];
+		port->dvb.frontend = dvb_attach(s5h1409_attach,
+						&hauppauge_hvr1500_config,
+						&dev->i2c_bus[0].i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			struct dvb_frontend *fe;
+			struct xc2028_config cfg = {
+				.i2c_adap  = &i2c_bus->i2c_adap,
+				.i2c_addr  = 0x61,
+				.video_dev = port,
+				.callback  = cx23885_hvr1500_xc3028_callback,
+			};
+			static struct xc2028_ctrl ctl = {
+				.fname       = "xc3028-v27.fw",
+				.max_len     = 64,
+				.scode_table = OREN538,
+			};
+
+			fe = dvb_attach(xc2028_attach,
+					port->dvb.frontend, &cfg);
+			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
+				fe->ops.tuner_ops.set_config(fe, &ctl);
 		}
 		break;
 	default:
