@@ -315,9 +315,9 @@ $unaligned:
 
 	extql	t2, a1, t2	# e0    :
 	cmpbge	zero, t1, t8	# .. e1 : is there a zero?
-	andnot	t2, t6, t12	# e0    : dest mask for a single word copy
+	andnot	t2, t6, t2	# e0    : dest mask for a single word copy
 	or	t8, t10, t5	# .. e1 : test for end-of-count too
-	cmpbge	zero, t12, t3	# e0    :
+	cmpbge	zero, t2, t3	# e0    :
 	cmoveq	a2, t5, t8	# .. e1 :
 	andnot	t8, t3, t8	# e0    :
 	beq	t8, $u_head	# .. e1 (zdb)
@@ -330,14 +330,14 @@ $unaligned:
 	ldq_u	t0, 0(a0)	# e0    :
 	negq	t8, t6		# .. e1 : build bitmask of bytes <= zero
 	mskqh	t1, t4, t1	# e0    :
-	and	t6, t8, t2	# .. e1 :
-	subq	t2, 1, t6	# e0    :
-	or	t6, t2, t8	# e1    :
+	and	t6, t8, t12	# .. e1 :
+	subq	t12, 1, t6	# e0    :
+	or	t6, t12, t8	# e1    :
 
-	zapnot	t12, t8, t12	# e0    : prepare source word; mirror changes
+	zapnot	t2, t8, t2	# e0    : prepare source word; mirror changes
 	zapnot	t1, t8, t1	# .. e1 : to source validity mask
 
-	andnot	t0, t12, t0	# e0    : zero place for source to reside
+	andnot	t0, t2, t0	# e0    : zero place for source to reside
 	or	t0, t1, t0	# e1    : and put it there
 	stq_u	t0, 0(a0)	# e0    :
 	ret	(t9)		# .. e1 :
