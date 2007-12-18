@@ -32,6 +32,7 @@ static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
 static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
 unsigned long hugepages_treat_as_movable;
 int hugetlb_dynamic_pool;
+unsigned long nr_overcommit_huge_pages;
 static int hugetlb_next_nid;
 
 /*
@@ -227,22 +228,62 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
 						unsigned long address)
 {
 	struct page *page;
+	unsigned int nid;
 
 	/* Check if the dynamic pool is enabled */
 	if (!hugetlb_dynamic_pool)
 		return NULL;
 
+	/*
+	 * Assume we will successfully allocate the surplus page to
+	 * prevent racing processes from causing the surplus to exceed
+	 * overcommit
+	 *
+	 * This however introduces a different race, where a process B
+	 * tries to grow the static hugepage pool while alloc_pages() is
+	 * called by process A. B will only examine the per-node
+	 * counters in determining if surplus huge pages can be
+	 * converted to normal huge pages in adjust_pool_surplus(). A
+	 * won't be able to increment the per-node counter, until the
+	 * lock is dropped by B, but B doesn't drop hugetlb_lock until
+	 * no more huge pages can be converted from surplus to normal
+	 * state (and doesn't try to convert again). Thus, we have a
+	 * case where a surplus huge page exists, the pool is grown, and
+	 * the surplus huge page still exists after, even though it
+	 * should just have been converted to a normal huge page. This
+	 * does not leak memory, though, as the hugepage will be freed
+	 * once it is out of use. It also does not allow the counters to
+	 * go out of whack in adjust_pool_surplus() as we don't modify
+	 * the node values until we've gotten the hugepage and only the
+	 * per-node value is checked there.
+	 */
+	spin_lock(&hugetlb_lock);
+	if (surplus_huge_pages >= nr_overcommit_huge_pages) {
+		spin_unlock(&hugetlb_lock);
+		return NULL;
+	} else {
+		nr_huge_pages++;
+		surplus_huge_pages++;
+	}
+	spin_unlock(&hugetlb_lock);
+
 	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|__GFP_NOWARN,
 					HUGETLB_PAGE_ORDER);
+
+	spin_lock(&hugetlb_lock);
 	if (page) {
+		nid = page_to_nid(page);
 		set_compound_page_dtor(page, free_huge_page);
-		spin_lock(&hugetlb_lock);
-		nr_huge_pages++;
-		nr_huge_pages_node[page_to_nid(page)]++;
-		surplus_huge_pages++;
-		surplus_huge_pages_node[page_to_nid(page)]++;
-		spin_unlock(&hugetlb_lock);
+		/*
+		 * We incremented the global counters already
+		 */
+		nr_huge_pages_node[nid]++;
+		surplus_huge_pages_node[nid]++;
+	} else {
+		nr_huge_pages--;
+		surplus_huge_pages--;
 	}
+	spin_unlock(&hugetlb_lock);
 
 	return page;
 }
@@ -481,6 +522,12 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	 * Increase the pool size
 	 * First take pages out of surplus state.  Then make up the
 	 * remaining difference by allocating fresh huge pages.
+	 *
+	 * We might race with alloc_buddy_huge_page() here and be unable
+	 * to convert a surplus huge page to a normal huge page. That is
+	 * not critical, though, it just means the overall size of the
+	 * pool might be one hugepage larger than it needs to be, but
+	 * within all the constraints specified by the sysctls.
 	 */
 	spin_lock(&hugetlb_lock);
 	while (surplus_huge_pages && count > persistent_huge_pages) {
@@ -509,6 +556,14 @@ static unsigned long set_max_huge_pages(unsigned long count)
 	 * to keep enough around to satisfy reservations).  Then place
 	 * pages into surplus state as needed so the pool will shrink
 	 * to the desired size as pages become free.
+	 *
+	 * By placing pages into the surplus state independent of the
+	 * overcommit value, we are allowing the surplus pool size to
+	 * exceed overcommit. There are few sane options here. Since
+	 * alloc_buddy_huge_page() is checking the global counter,
+	 * though, we'll note that we're not allowed to exceed surplus
+	 * and won't grow the pool anywhere else. Not until one of the
+	 * sysctls are changed, or the surplus pages go out of use.
 	 */
 	min_count = resv_huge_pages + nr_huge_pages - free_huge_pages;
 	min_count = max(count, min_count);
