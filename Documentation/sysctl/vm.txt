@@ -34,6 +34,8 @@ Currently, these files are in /proc/sys/vm:
 - oom_kill_allocating_task
 - mmap_min_address
 - numa_zonelist_order
+- nr_hugepages
+- nr_overcommit_hugepages
 
 ==============================================================
 
@@ -305,3 +307,20 @@ will select "node" order in following case.
 
 Otherwise, "zone" order will be selected. Default order is recommended unless
 this is causing problems for your system/application.
+
+==============================================================
+
+nr_hugepages
+
+Change the minimum size of the hugepage pool.
+
+See Documentation/vm/hugetlbpage.txt
+
+==============================================================
+
+nr_overcommit_hugepages
+
+Change the maximum size of the hugepage pool. The maximum is
+nr_hugepages + nr_overcommit_hugepages.
+
+See Documentation/vm/hugetlbpage.txt
