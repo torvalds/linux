@@ -1082,17 +1082,29 @@ static int get_info(void __user *user, int *len)
 }
 
 static int
-get_entries(const struct ip6t_get_entries *entries,
-	    struct ip6t_get_entries __user *uptr)
+get_entries(struct ip6t_get_entries __user *uptr, int *len)
 {
 	int ret;
+	struct ip6t_get_entries get;
 	struct xt_table *t;
 
-	t = xt_find_table_lock(AF_INET6, entries->name);
+	if (*len < sizeof(get)) {
+		duprintf("get_entries: %u < %u\n", *len, sizeof(get));
+		return -EINVAL;
+	}
+	if (copy_from_user(&get, uptr, sizeof(get)) != 0)
+		return -EFAULT;
+	if (*len != sizeof(struct ip6t_get_entries) + get.size) {
+		duprintf("get_entries: %u != %u\n", *len,
+			 sizeof(struct ip6t_get_entries) + get.size);
+		return -EINVAL;
+	}
+
+	t = xt_find_table_lock(AF_INET6, get.name);
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		duprintf("t->private->number = %u\n", private->number);
-		if (entries->size == private->size)
+		if (get.size == private->size)
 			ret = copy_entries_to_user(private->size,
 						   t, uptr->entrytable);
 		else {
@@ -1322,22 +1334,9 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		ret = get_info(user, len);
 		break;
 
-	case IP6T_SO_GET_ENTRIES: {
-		struct ip6t_get_entries get;
-
-		if (*len < sizeof(get)) {
-			duprintf("get_entries: %u < %u\n", *len, sizeof(get));
-			ret = -EINVAL;
-		} else if (copy_from_user(&get, user, sizeof(get)) != 0) {
-			ret = -EFAULT;
-		} else if (*len != sizeof(struct ip6t_get_entries) + get.size) {
-			duprintf("get_entries: %u != %u\n", *len,
-				 sizeof(struct ip6t_get_entries) + get.size);
-			ret = -EINVAL;
-		} else
-			ret = get_entries(&get, user);
+	case IP6T_SO_GET_ENTRIES:
+		ret = get_entries(user, len);
 		break;
-	}
 
 	case IP6T_SO_GET_REVISION_MATCH:
 	case IP6T_SO_GET_REVISION_TARGET: {
