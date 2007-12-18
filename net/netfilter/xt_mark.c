@@ -94,6 +94,11 @@ static struct xt_match mark_mt_reg[] __read_mostly = {
 		.checkentry	= mark_mt_check,
 		.match		= mark_mt,
 		.matchsize	= sizeof(struct xt_mark_info),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_mark_info),
+		.compat_from_user = mark_mt_compat_from_user,
+		.compat_to_user	= mark_mt_compat_to_user,
+#endif
 		.me		= THIS_MODULE,
 	},
 };

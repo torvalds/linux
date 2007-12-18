@@ -126,6 +126,11 @@ static struct xt_match connmark_mt_reg[] __read_mostly = {
 		.match		= connmark_mt,
 		.destroy	= connmark_mt_destroy,
 		.matchsize	= sizeof(struct xt_connmark_info),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_connmark_info),
+		.compat_from_user = connmark_mt_compat_from_user,
+		.compat_to_user	= connmark_mt_compat_to_user,
+#endif
 		.me		= THIS_MODULE
 	},
 };

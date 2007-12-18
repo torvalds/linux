@@ -160,6 +160,11 @@ static struct xt_target connmark_tg_reg[] __read_mostly = {
 		.destroy	= connmark_tg_destroy,
 		.target		= connmark_tg,
 		.targetsize	= sizeof(struct xt_connmark_target_info),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_connmark_target_info),
+		.compat_from_user = connmark_tg_compat_from_user,
+		.compat_to_user	= connmark_tg_compat_to_user,
+#endif
 		.me		= THIS_MODULE
 	},
 };
