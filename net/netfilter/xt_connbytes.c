@@ -111,7 +111,7 @@ connbytes_mt_check(const char *tablename, const void *ip,
 
 	if (nf_ct_l3proto_try_module_get(match->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%d\n", match->family);
+				    "proto=%u\n", match->family);
 		return false;
 	}
 

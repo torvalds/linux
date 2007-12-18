@@ -106,7 +106,7 @@ connsecmark_tg_check(const char *tablename, const void *entry,
 
 	if (nf_ct_l3proto_try_module_get(target->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%d\n", target->family);
+				    "proto=%u\n", target->family);
 		return false;
 	}
 	return true;
