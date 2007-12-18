@@ -42,18 +42,18 @@ static int nf_nat_vmalloced;
 static struct hlist_head *bysource;
 
 #define MAX_IP_NAT_PROTO 256
-static struct nf_nat_protocol *nf_nat_protos[MAX_IP_NAT_PROTO];
+static const struct nf_nat_protocol *nf_nat_protos[MAX_IP_NAT_PROTO];
 
-static inline struct nf_nat_protocol *
+static inline const struct nf_nat_protocol *
 __nf_nat_proto_find(u_int8_t protonum)
 {
 	return rcu_dereference(nf_nat_protos[protonum]);
 }
 
-struct nf_nat_protocol *
+const struct nf_nat_protocol *
 nf_nat_proto_find_get(u_int8_t protonum)
 {
-	struct nf_nat_protocol *p;
+	const struct nf_nat_protocol *p;
 
 	rcu_read_lock();
 	p = __nf_nat_proto_find(protonum);
@@ -66,7 +66,7 @@ nf_nat_proto_find_get(u_int8_t protonum)
 EXPORT_SYMBOL_GPL(nf_nat_proto_find_get);
 
 void
-nf_nat_proto_put(struct nf_nat_protocol *p)
+nf_nat_proto_put(const struct nf_nat_protocol *p)
 {
 	module_put(p->me);
 }
@@ -105,7 +105,7 @@ static int
 in_range(const struct nf_conntrack_tuple *tuple,
 	 const struct nf_nat_range *range)
 {
-	struct nf_nat_protocol *proto;
+	const struct nf_nat_protocol *proto;
 	int ret = 0;
 
 	/* If we are supposed to map IPs, then we must be in the
@@ -226,7 +226,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 struct nf_conn *ct,
 		 enum nf_nat_manip_type maniptype)
 {
-	struct nf_nat_protocol *proto;
+	const struct nf_nat_protocol *proto;
 
 	/* 1) If this srcip/proto/src-proto-part is currently mapped,
 	   and that same mapping gives a unique tuple within the given
@@ -355,7 +355,7 @@ manip_pkt(u_int16_t proto,
 	  enum nf_nat_manip_type maniptype)
 {
 	struct iphdr *iph;
-	struct nf_nat_protocol *p;
+	const struct nf_nat_protocol *p;
 
 	if (!skb_make_writable(skb, iphdroff + sizeof(*iph)))
 		return 0;
@@ -515,7 +515,7 @@ int nf_nat_icmp_reply_translation(struct nf_conn *ct,
 EXPORT_SYMBOL_GPL(nf_nat_icmp_reply_translation);
 
 /* Protocol registration. */
-int nf_nat_protocol_register(struct nf_nat_protocol *proto)
+int nf_nat_protocol_register(const struct nf_nat_protocol *proto)
 {
 	int ret = 0;
 
@@ -532,7 +532,7 @@ int nf_nat_protocol_register(struct nf_nat_protocol *proto)
 EXPORT_SYMBOL(nf_nat_protocol_register);
 
 /* Noone stores the protocol anywhere; simply delete it. */
-void nf_nat_protocol_unregister(struct nf_nat_protocol *proto)
+void nf_nat_protocol_unregister(const struct nf_nat_protocol *proto)
 {
 	write_lock_bh(&nf_nat_lock);
 	rcu_assign_pointer(nf_nat_protos[proto->protonum],

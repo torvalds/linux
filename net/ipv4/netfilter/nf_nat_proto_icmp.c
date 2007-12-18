@@ -71,7 +71,7 @@ icmp_manip_pkt(struct sk_buff *skb,
 	return 1;
 }
 
-struct nf_nat_protocol nf_nat_protocol_icmp = {
+const struct nf_nat_protocol nf_nat_protocol_icmp = {
 	.name			= "ICMP",
 	.protonum		= IPPROTO_ICMP,
 	.me			= THIS_MODULE,

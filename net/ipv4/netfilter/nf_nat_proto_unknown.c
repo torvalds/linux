@@ -45,7 +45,7 @@ unknown_manip_pkt(struct sk_buff *skb,
 	return 1;
 }
 
-struct nf_nat_protocol nf_nat_unknown_protocol = {
+const struct nf_nat_protocol nf_nat_unknown_protocol = {
 	.name			= "unknown",
 	/* .me isn't set: getting a ref to this cannot fail. */
 	.manip_pkt		= unknown_manip_pkt,

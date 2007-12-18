@@ -137,7 +137,7 @@ tcp_manip_pkt(struct sk_buff *skb,
 	return 1;
 }
 
-struct nf_nat_protocol nf_nat_protocol_tcp = {
+const struct nf_nat_protocol nf_nat_protocol_tcp = {
 	.name			= "TCP",
 	.protonum		= IPPROTO_TCP,
 	.me			= THIS_MODULE,

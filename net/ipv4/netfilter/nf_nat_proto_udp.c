@@ -127,7 +127,7 @@ udp_manip_pkt(struct sk_buff *skb,
 	return 1;
 }
 
-struct nf_nat_protocol nf_nat_protocol_udp = {
+const struct nf_nat_protocol nf_nat_protocol_udp = {
 	.name			= "UDP",
 	.protonum		= IPPROTO_UDP,
 	.me			= THIS_MODULE,
