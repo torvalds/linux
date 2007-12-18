@@ -19,6 +19,7 @@
 #ifndef __BTRFS__
 #define __BTRFS__
 
+#include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/fs.h>
@@ -334,7 +335,11 @@ struct btrfs_fs_info {
 	struct list_head trans_list;
 	struct list_head hashers;
 	struct list_head dead_roots;
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	struct work_struct trans_work;
+#else
 	struct delayed_work trans_work;
+#endif
 	struct kobject super_kobj;
 	struct completion kobj_unregister;
 	int do_barriers;
@@ -915,6 +920,14 @@ static inline u32 btrfs_level_size(struct btrfs_root *root, int level) {
 #define btrfs_item_ptr_offset(leaf, slot) \
 	((unsigned long)(btrfs_leaf_data(leaf) + \
 	btrfs_item_offset_nr(leaf, slot)))
+
+static inline struct dentry *fdentry(struct file *file) {
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	return file->f_dentry;
+#else
+	return file->f_path.dentry;
+#endif
+}
 
 /* extent-tree.c */
 u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,

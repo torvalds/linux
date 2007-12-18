@@ -1585,8 +1585,18 @@ extent_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 
 static int submit_one_bio(int rw, struct bio *bio)
 {
+	u64 maxsector;
 	int ret = 0;
+
 	bio_get(bio);
+
+        maxsector = bio->bi_bdev->bd_inode->i_size >> 9;
+	if (maxsector < bio->bi_sector) {
+		printk("sector too large max %Lu got %llu\n", maxsector,
+			(unsigned long long)bio->bi_sector);
+		WARN_ON(1);
+	}
+
 	submit_bio(rw, bio);
 	if (bio_flagged(bio, BIO_EOPNOTSUPP))
 		ret = -EOPNOTSUPP;
@@ -1678,8 +1688,12 @@ static int __extent_read_full_page(struct extent_map_tree *tree,
 
 	while (cur <= end) {
 		if (cur >= last_byte) {
+			char *userpage;
 			iosize = PAGE_CACHE_SIZE - page_offset;
-			zero_user_page(page, page_offset, iosize, KM_USER0);
+			userpage = kmap_atomic(page, KM_USER0);
+			memset(userpage + page_offset, 0, iosize);
+			flush_dcache_page(page);
+			kunmap_atomic(userpage, KM_USER0);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    GFP_NOFS);
 			unlock_extent(tree, cur, cur + iosize - 1, GFP_NOFS);
@@ -1707,7 +1721,12 @@ static int __extent_read_full_page(struct extent_map_tree *tree,
 
 		/* we've found a hole, just zero and go on */
 		if (block_start == EXTENT_MAP_HOLE) {
-			zero_user_page(page, page_offset, iosize, KM_USER0);
+			char *userpage;
+			userpage = kmap_atomic(page, KM_USER0);
+			memset(userpage + page_offset, 0, iosize);
+			flush_dcache_page(page);
+			kunmap_atomic(userpage, KM_USER0);
+
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    GFP_NOFS);
 			unlock_extent(tree, cur, cur + iosize - 1, GFP_NOFS);
@@ -1804,9 +1823,14 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	}
 
 	if (page->index == end_index) {
+		char *userpage;
+
 		size_t offset = i_size & (PAGE_CACHE_SIZE - 1);
-		zero_user_page(page, offset,
-			       PAGE_CACHE_SIZE - offset, KM_USER0);
+
+		userpage = kmap_atomic(page, KM_USER0);
+		memset(userpage + offset, 0, PAGE_CACHE_SIZE - offset);
+		flush_dcache_page(page);
+		kunmap_atomic(userpage, KM_USER0);
 	}
 
 	set_page_extent_mapped(page);
@@ -1921,6 +1945,129 @@ done:
 	return 0;
 }
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+
+/* Taken directly from 2.6.23 for 2.6.18 back port */
+typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
+                                void *data);
+
+/**
+ * write_cache_pages - walk the list of dirty pages of the given address space
+ * and write all of them.
+ * @mapping: address space structure to write
+ * @wbc: subtract the number of written pages from *@wbc->nr_to_write
+ * @writepage: function called for each page
+ * @data: data passed to writepage function
+ *
+ * If a page is already under I/O, write_cache_pages() skips it, even
+ * if it's dirty.  This is desirable behaviour for memory-cleaning writeback,
+ * but it is INCORRECT for data-integrity system calls such as fsync().  fsync()
+ * and msync() need to guarantee that all the data which was dirty at the time
+ * the call was made get new I/O started against them.  If wbc->sync_mode is
+ * WB_SYNC_ALL then we were called for data integrity and we must wait for
+ * existing IO to complete.
+ */
+static int write_cache_pages(struct address_space *mapping,
+		      struct writeback_control *wbc, writepage_t writepage,
+		      void *data)
+{
+	struct backing_dev_info *bdi = mapping->backing_dev_info;
+	int ret = 0;
+	int done = 0;
+	struct pagevec pvec;
+	int nr_pages;
+	pgoff_t index;
+	pgoff_t end;		/* Inclusive */
+	int scanned = 0;
+	int range_whole = 0;
+
+	if (wbc->nonblocking && bdi_write_congested(bdi)) {
+		wbc->encountered_congestion = 1;
+		return 0;
+	}
+
+	pagevec_init(&pvec, 0);
+	if (wbc->range_cyclic) {
+		index = mapping->writeback_index; /* Start from prev offset */
+		end = -1;
+	} else {
+		index = wbc->range_start >> PAGE_CACHE_SHIFT;
+		end = wbc->range_end >> PAGE_CACHE_SHIFT;
+		if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX)
+			range_whole = 1;
+		scanned = 1;
+	}
+retry:
+	while (!done && (index <= end) &&
+	       (nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+					      PAGECACHE_TAG_DIRTY,
+					      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1))) {
+		unsigned i;
+
+		scanned = 1;
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			/*
+			 * At this point we hold neither mapping->tree_lock nor
+			 * lock on the page itself: the page may be truncated or
+			 * invalidated (changing page->mapping to NULL), or even
+			 * swizzled back from swapper_space to tmpfs file
+			 * mapping
+			 */
+			lock_page(page);
+
+			if (unlikely(page->mapping != mapping)) {
+				unlock_page(page);
+				continue;
+			}
+
+			if (!wbc->range_cyclic && page->index > end) {
+				done = 1;
+				unlock_page(page);
+				continue;
+			}
+
+			if (wbc->sync_mode != WB_SYNC_NONE)
+				wait_on_page_writeback(page);
+
+			if (PageWriteback(page) ||
+			    !clear_page_dirty_for_io(page)) {
+				unlock_page(page);
+				continue;
+			}
+
+			ret = (*writepage)(page, wbc, data);
+
+			if (unlikely(ret == AOP_WRITEPAGE_ACTIVATE)) {
+				unlock_page(page);
+				ret = 0;
+			}
+			if (ret || (--(wbc->nr_to_write) <= 0))
+				done = 1;
+			if (wbc->nonblocking && bdi_write_congested(bdi)) {
+				wbc->encountered_congestion = 1;
+				done = 1;
+			}
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+	}
+	if (!scanned && !done) {
+		/*
+		 * We hit the last page and there is more work to be done: wrap
+		 * back to the start of the file
+		 */
+		scanned = 1;
+		index = 0;
+		goto retry;
+	}
+	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
+		mapping->writeback_index = index;
+	return ret;
+}
+#endif
+
 int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 			  get_extent_t *get_extent,
 			  struct writeback_control *wbc)
@@ -1945,18 +2092,20 @@ int extent_write_full_page(struct extent_map_tree *tree, struct page *page,
 	ret = __extent_writepage(page, wbc, &epd);
 
 	write_cache_pages(mapping, &wbc_writepages, __extent_writepage, &epd);
-	if (epd.bio)
+	if (epd.bio) {
 		submit_one_bio(WRITE, epd.bio);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(extent_write_full_page);
+
 
 int extent_writepages(struct extent_map_tree *tree,
 		      struct address_space *mapping,
 		      get_extent_t *get_extent,
 		      struct writeback_control *wbc)
 {
-	int ret;
+	int ret = 0;
 	struct extent_page_data epd = {
 		.bio = NULL,
 		.tree = tree,
@@ -1964,8 +2113,9 @@ int extent_writepages(struct extent_map_tree *tree,
 	};
 
 	ret = write_cache_pages(mapping, wbc, __extent_writepage, &epd);
-	if (epd.bio)
+	if (epd.bio) {
 		submit_one_bio(WRITE, epd.bio);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(extent_writepages);
@@ -2106,7 +2256,9 @@ int extent_prepare_write(struct extent_map_tree *tree,
 			flush_dcache_page(page);
 			kunmap_atomic(kaddr, KM_USER0);
 		}
-		if (!isnew && !PageUptodate(page) &&
+		if ((em->block_start != EXTENT_MAP_HOLE &&
+		     em->block_start != EXTENT_MAP_INLINE) && 
+		    !isnew && !PageUptodate(page) &&
 		    (block_off_end > to || block_off_start < from) &&
 		    !test_range_bit(tree, block_start, cur_end,
 				    EXTENT_UPTODATE, 1)) {

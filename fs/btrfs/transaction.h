@@ -73,7 +73,12 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+void btrfs_transaction_cleaner(void *p);
+#else
 void btrfs_transaction_cleaner(struct work_struct *work);
+#endif
+
 void btrfs_transaction_flush_work(struct btrfs_root *root);
 void btrfs_transaction_queue_work(struct btrfs_root *root, int delay);
 void btrfs_init_transaction_sys(void);

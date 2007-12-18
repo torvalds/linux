@@ -231,7 +231,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 {
 	int err = 0;
 	int i;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = fdentry(file)->d_inode;
 	struct extent_map *em;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	u64 hint_byte;
@@ -652,7 +652,7 @@ static int prepare_pages(struct btrfs_root *root,
 {
 	int i;
 	unsigned long index = pos >> PAGE_CACHE_SHIFT;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = fdentry(file)->d_inode;
 	int err = 0;
 	u64 start_pos;
 
@@ -666,7 +666,11 @@ static int prepare_pages(struct btrfs_root *root,
 			err = -ENOMEM;
 			BUG_ON(1);
 		}
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+		ClearPageDirty(pages[i]);
+#else
 		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
+#endif
 		wait_on_page_writeback(pages[i]);
 		set_page_extent_mapped(pages[i]);
 		WARN_ON(!PageLocked(pages[i]));
@@ -682,7 +686,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	ssize_t num_written = 0;
 	ssize_t err = 0;
 	int ret = 0;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct page **pages = NULL;
 	int nrptrs;
@@ -707,7 +711,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		goto out;
 	if (count == 0)
 		goto out;
-	err = remove_suid(file->f_path.dentry);
+	err = remove_suid(fdentry(file));
 	if (err)
 		goto out;
 	file_update_time(file);
@@ -862,6 +866,9 @@ struct file_operations btrfs_file_operations = {
 	.read		= do_sync_read,
 	.aio_read       = generic_file_aio_read,
 	.splice_read	= generic_file_splice_read,
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	.sendfile	= generic_file_sendfile,
+#endif
 	.write		= btrfs_file_write,
 	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,

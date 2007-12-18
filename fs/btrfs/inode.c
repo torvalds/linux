@@ -532,7 +532,11 @@ err:
 		dir->i_size -= name_len * 2;
 		dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 		btrfs_update_inode(trans, root, dir);
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+		dentry->d_inode->i_nlink--;
+#else
 		drop_nlink(dentry->d_inode);
+#endif
 		ret = btrfs_update_inode(trans, root, dentry->d_inode);
 		dir->i_sb->s_dirt = 1;
 	}
@@ -1139,7 +1143,7 @@ static unsigned char btrfs_filetype_table[] = {
 
 static int btrfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = filp->f_dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_item *item;
 	struct btrfs_dir_item *di;
@@ -1554,7 +1558,11 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	if (inode->i_nlink == 0)
 		return -ENOENT;
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	inode->i_nlink++;
+#else
 	inc_nlink(inode);
+#endif
 	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
 
@@ -1825,6 +1833,9 @@ insert:
 	if (ret == -EEXIST) {
 		free_extent_map(em);
 		em = NULL;
+		if (0 && failed_insert == 1) {
+			btrfs_drop_extent_cache(inode, start, end);
+		}
 		failed_insert++;
 		if (failed_insert > 5) {
 			printk("failing to insert %Lu %Lu\n", start, end);
@@ -1942,7 +1953,7 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
  */
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 {
-	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
+	struct inode *inode = fdentry(vma->vm_file)->d_inode;
 	unsigned long end;
 	loff_t size;
 	int ret = -EINVAL;
@@ -2243,7 +2254,7 @@ static unsigned long force_ra(struct address_space *mapping,
 }
 
 int btrfs_defrag_file(struct file *file) {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = fdentry(file)->d_inode;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct page *page;
 	unsigned long last_index;
@@ -2329,7 +2340,7 @@ static int btrfs_ioctl_snap_create(struct btrfs_root *root, void __user *arg)
 
 static int btrfs_ioctl_defrag(struct file *file)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
 	switch (inode->i_mode & S_IFMT) {
@@ -2350,7 +2361,7 @@ static int btrfs_ioctl_defrag(struct file *file)
 long btrfs_ioctl(struct file *file, unsigned int
 		cmd, unsigned long arg)
 {
-	struct btrfs_root *root = BTRFS_I(file->f_path.dentry->d_inode)->root;
+	struct btrfs_root *root = BTRFS_I(fdentry(file)->d_inode)->root;
 
 	switch (cmd) {
 	case BTRFS_IOC_SNAP_CREATE:

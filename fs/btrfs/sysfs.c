@@ -189,12 +189,29 @@ static struct kset btrfs_kset;
 int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
 {
 	int error;
+	char *name;
+	char c;
+	int len = strlen(fs->sb->s_id) + 1;
+	int i;
+
+	name = kmalloc(len, GFP_NOFS);
+	if (!name) {
+		error = -ENOMEM;
+		goto fail;
+	}
+
+	for (i = 0; i < len; i++) {
+		c = fs->sb->s_id[i];
+		if (c == '/' || c == '\\')
+			c = '!';
+		name[i] = c;
+	}
+	name[len] = '\0';
 
 	fs->super_kobj.kset = &btrfs_kset;
 	fs->super_kobj.ktype = &btrfs_super_ktype;
 
-	error = kobject_set_name(&fs->super_kobj, "%s",
-				 fs->sb->s_id);
+	error = kobject_set_name(&fs->super_kobj, "%s", name);
 	if (error)
 		goto fail;
 
@@ -202,9 +219,11 @@ int btrfs_sysfs_add_super(struct btrfs_fs_info *fs)
 	if (error)
 		goto fail;
 
+	kfree(name);
 	return 0;
 
 fail:
+	kfree(name);
 	printk(KERN_ERR "btrfs: sysfs creation for super failed\n");
 	return error;
 }

@@ -35,6 +35,7 @@
 #include <linux/compat.h>
 #include <linux/parser.h>
 #include <linux/ctype.h>
+#include <linux/namei.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"

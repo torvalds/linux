@@ -614,12 +614,20 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 	}
 	return 0;
 }
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+void btrfs_transaction_cleaner(void *p)
+#else
 void btrfs_transaction_cleaner(struct work_struct *work)
+#endif
 {
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+	struct btrfs_fs_info *fs_info = p;
+#else
 	struct btrfs_fs_info *fs_info = container_of(work,
 						     struct btrfs_fs_info,
 						     trans_work.work);
 
+#endif
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_transaction *cur;
 	struct btrfs_trans_handle *trans;
