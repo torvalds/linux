@@ -101,7 +101,7 @@ void os_kill_process(int pid, int reap_child)
 {
 	kill(pid, SIGKILL);
 	if (reap_child)
-		CATCH_EINTR(waitpid(pid, NULL, 0));
+		CATCH_EINTR(waitpid(pid, NULL, __WALL));
 }
 
 /* This is here uniquely to have access to the userspace errno, i.e. the one
@@ -130,7 +130,7 @@ void os_kill_ptraced_process(int pid, int reap_child)
 	ptrace(PTRACE_KILL, pid);
 	ptrace(PTRACE_CONT, pid);
 	if (reap_child)
-		CATCH_EINTR(waitpid(pid, NULL, 0));
+		CATCH_EINTR(waitpid(pid, NULL, __WALL));
 }
 
 /* Don't use the glibc version, which caches the result in TLS. It misses some

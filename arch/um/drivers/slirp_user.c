@@ -79,7 +79,7 @@ out:
 static void slirp_close(int fd, void *data)
 {
 	struct slirp_data *pri = data;
-	int status,err;
+	int err;
 
 	close(fd);
 	close(pri->slave);
@@ -98,18 +98,9 @@ static void slirp_close(int fd, void *data)
 		       "(%d)\n", pri->pid, errno);
 	}
 #endif
-
-	CATCH_EINTR(err = waitpid(pri->pid, &status, WNOHANG));
-	if (err < 0) {
-		printk(UM_KERN_ERR "slirp_close: waitpid returned %d\n", errno);
+	err = helper_wait(pri->pid, 1, "slirp_close");
+	if (err < 0)
 		return;
-	}
-
-	if (err == 0) {
-		printk(UM_KERN_ERR "slirp_close: process %d has not exited\n",
-		       pri->pid);
-		return;
-	}
 
 	pri->pid = -1;
 }

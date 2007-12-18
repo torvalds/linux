@@ -107,7 +107,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 		       "errno = %d\n", errno);
 		return err;
 	}
-	CATCH_EINTR(waitpid(pid, NULL, 0));
+	helper_wait(pid, 0, "tuntap_open_tramp");
 
 	cmsg = CMSG_FIRSTHDR(&msg);
 	if (cmsg == NULL) {

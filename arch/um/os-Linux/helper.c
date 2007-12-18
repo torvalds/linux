@@ -76,7 +76,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 	data.fd = fds[1];
 	data.buf = __cant_sleep() ? kmalloc(PATH_MAX, UM_GFP_ATOMIC) :
 					kmalloc(PATH_MAX, UM_GFP_KERNEL);
-	pid = clone(helper_child, (void *) sp, CLONE_VM | SIGCHLD, &data);
+	pid = clone(helper_child, (void *) sp, CLONE_VM, &data);
 	if (pid < 0) {
 		ret = -errno;
 		printk("run_helper : clone failed, errno = %d\n", errno);
@@ -101,7 +101,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv)
 			ret = n;
 			kill(pid, SIGKILL);
 		}
-		CATCH_EINTR(waitpid(pid, NULL, 0));
+		CATCH_EINTR(waitpid(pid, NULL, __WCLONE));
 	}
 
 out_free2:
@@ -126,7 +126,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 		return -ENOMEM;
 
 	sp = stack + UM_KERN_PAGE_SIZE - sizeof(void *);
-	pid = clone(proc, (void *) sp, flags | SIGCHLD, arg);
+	pid = clone(proc, (void *) sp, flags, arg);
 	if (pid < 0) {
 		err = -errno;
 		printk("run_helper_thread : clone failed, errno = %d\n",
@@ -134,7 +134,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 		return err;
 	}
 	if (stack_out == NULL) {
-		CATCH_EINTR(pid = waitpid(pid, &status, 0));
+		CATCH_EINTR(pid = waitpid(pid, &status, __WCLONE));
 		if (pid < 0) {
 			err = -errno;
 			printk("run_helper_thread - wait failed, errno = %d\n",
@@ -150,14 +150,30 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	return pid;
 }
 
-int helper_wait(int pid)
+int helper_wait(int pid, int nohang, char *pname)
 {
-	int ret;
+	int ret, status;
+	int wflags = __WCLONE;
 
-	CATCH_EINTR(ret = waitpid(pid, NULL, WNOHANG));
+	if (nohang)
+		wflags |= WNOHANG;
+
+	if (!pname)
+		pname = "helper_wait";
+
+	CATCH_EINTR(ret = waitpid(pid, &status, wflags));
 	if (ret < 0) {
-		ret = -errno;
-		printk("helper_wait : waitpid failed, errno = %d\n", errno);
-	}
-	return ret;
+		printk(UM_KERN_ERR "%s : waitpid process %d failed, "
+		       "errno = %d\n", pname, pid, errno);
+		return -errno;
+	} else if (nohang && ret == 0) {
+		printk(UM_KERN_ERR "%s : process %d has not exited\n",
+		       pname, pid);
+		return -ECHILD;
+	} else if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+		printk(UM_KERN_ERR "%s : process %d didn't exit with "
+		       "status 0\n", pname, pid);
+		return -ECHILD;
+	} else
+		return 0;
 }
