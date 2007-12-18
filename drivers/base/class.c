@@ -586,8 +586,8 @@ int class_device_add(struct class_device *class_dev)
 	else
 		class_dev->kobj.parent = &parent_class->subsys.kobj;
 
-	error = kobject_add_ng(&class_dev->kobj, class_dev->kobj.parent,
-			       "%s", class_dev->class_id);
+	error = kobject_add(&class_dev->kobj, class_dev->kobj.parent,
+			    "%s", class_dev->class_id);
 	if (error)
 		goto out2;
 

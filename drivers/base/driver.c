@@ -144,7 +144,7 @@ int driver_add_kobj(struct device_driver *drv, struct kobject *kobj,
 	if (!name)
 		return -ENOMEM;
 
-	return kobject_add_ng(kobj, &drv->p->kobj, "%s", name);
+	return kobject_add(kobj, &drv->p->kobj, "%s", name);
 }
 EXPORT_SYMBOL_GPL(driver_add_kobj);
 

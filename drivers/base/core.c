@@ -602,7 +602,7 @@ static struct kobject *get_device_parent(struct device *dev,
 		if (!k)
 			return NULL;
 		k->kset = &dev->class->class_dirs;
-		retval = kobject_add_ng(k, parent_kobj, "%s", dev->class->name);
+		retval = kobject_add(k, parent_kobj, "%s", dev->class->name);
 		if (retval < 0) {
 			kobject_put(k);
 			return NULL;
@@ -776,7 +776,7 @@ static void device_remove_class_symlinks(struct device *dev)
  *	This is part 2 of device_register(), though may be called
  *	separately _iff_ device_initialize() has been called separately.
  *
- *	This adds it to the kobject hierarchy via kobject_add_ng(), adds it
+ *	This adds it to the kobject hierarchy via kobject_add(), adds it
  *	to the global and sibling lists for the device, then
  *	adds it to the other relevant subsystems of the driver model.
  */
@@ -807,7 +807,7 @@ int device_add(struct device *dev)
 		goto Error;
 
 	/* first, register with generic layer. */
-	error = kobject_add_ng(&dev->kobj, dev->kobj.parent, "%s", dev->bus_id);
+	error = kobject_add(&dev->kobj, dev->kobj.parent, "%s", dev->bus_id);
 	if (error)
 		goto Error;
 

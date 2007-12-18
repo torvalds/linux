@@ -80,9 +80,9 @@ static inline const char * kobject_name(const struct kobject * kobj)
 
 extern void kobject_init(struct kobject *);
 extern void kobject_init_ng(struct kobject *kobj, struct kobj_type *ktype);
-extern int __must_check kobject_add_ng(struct kobject *kobj,
-				       struct kobject *parent,
-				       const char *fmt, ...);
+extern int __must_check kobject_add(struct kobject *kobj,
+				    struct kobject *parent,
+				    const char *fmt, ...);
 extern int __must_check kobject_init_and_add(struct kobject *kobj,
 					     struct kobj_type *ktype,
 					     struct kobject *parent,

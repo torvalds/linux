@@ -929,7 +929,7 @@ int elv_register_queue(struct request_queue *q)
 	elevator_t *e = q->elevator;
 	int error;
 
-	error = kobject_add_ng(&e->kobj, &q->kobj, "%s", "iosched");
+	error = kobject_add(&e->kobj, &q->kobj, "%s", "iosched");
 	if (!error) {
 		struct elv_fs_entry *attr = e->elevator_type->elevator_attrs;
 		if (attr) {

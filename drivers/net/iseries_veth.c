@@ -1084,7 +1084,7 @@ static struct net_device * __init veth_probe_one(int vlan,
 	}
 
 	kobject_init_ng(&port->kobject, &veth_port_ktype);
-	if (0 != kobject_add_ng(&port->kobject, &dev->dev.kobj, "veth_port"))
+	if (0 != kobject_add(&port->kobject, &dev->dev.kobj, "veth_port"))
 		veth_error("Failed adding port for %s to sysfs.\n", dev->name);
 
 	veth_info("%s attached to iSeries vlan %d (LPAR map = 0x%.4X)\n",

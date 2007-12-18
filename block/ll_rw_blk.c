@@ -4180,8 +4180,8 @@ int blk_register_queue(struct gendisk *disk)
 	if (!q || !q->request_fn)
 		return -ENXIO;
 
-	ret = kobject_add_ng(&q->kobj, kobject_get(&disk->dev.kobj),
-			     "%s", "queue");
+	ret = kobject_add(&q->kobj, kobject_get(&disk->dev.kobj),
+			  "%s", "queue");
 	if (ret < 0)
 		return ret;
 

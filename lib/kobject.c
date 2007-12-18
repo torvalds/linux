@@ -350,7 +350,7 @@ static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
 }
 
 /**
- * kobject_add_ng - the main kobject add function
+ * kobject_add - the main kobject add function
  * @kobj: the kobject to add
  * @parent: pointer to the parent of the kobject.
  * @fmt: format to name the kobject with.
@@ -381,8 +381,8 @@ static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
  * kobject_uevent() with the UEVENT_ADD parameter to ensure that
  * userspace is properly notified of this kobject's creation.
  */
-int kobject_add_ng(struct kobject *kobj, struct kobject *parent,
-		   const char *fmt, ...)
+int kobject_add(struct kobject *kobj, struct kobject *parent,
+		const char *fmt, ...)
 {
 	va_list args;
 	int retval;
@@ -396,7 +396,7 @@ int kobject_add_ng(struct kobject *kobj, struct kobject *parent,
 
 	return retval;
 }
-EXPORT_SYMBOL(kobject_add_ng);
+EXPORT_SYMBOL(kobject_add);
 
 /**
  * kobject_init_and_add - initialize a kobject structure and add it to the kobject hierarchy
@@ -406,8 +406,8 @@ EXPORT_SYMBOL(kobject_add_ng);
  * @fmt: the name of the kobject.
  *
  * This function combines the call to kobject_init_ng() and
- * kobject_add_ng().  The same type of error handling after a call to
- * kobject_add_ng() and kobject lifetime rules are the same here.
+ * kobject_add().  The same type of error handling after a call to
+ * kobject_add() and kobject lifetime rules are the same here.
  */
 int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
 			 struct kobject *parent, const char *fmt, ...)
@@ -677,7 +677,7 @@ struct kobject *kobject_create_and_add(const char *name, struct kobject *parent)
 	if (!kobj)
 		return NULL;
 
-	retval = kobject_add_ng(kobj, parent, "%s", name);
+	retval = kobject_add(kobj, parent, "%s", name);
 	if (retval) {
 		printk(KERN_WARNING "%s: kobject_add error: %d\n",
 		       __FUNCTION__, retval);
