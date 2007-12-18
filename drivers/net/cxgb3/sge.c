@@ -2443,6 +2443,15 @@ irq_handler_t t3_intr_handler(struct adapter *adap, int polling)
 	return t3_intr;
 }
 
+#define SGE_PARERR (F_CPPARITYERROR | F_OCPARITYERROR | F_RCPARITYERROR | \
+		    F_IRPARITYERROR | V_ITPARITYERROR(M_ITPARITYERROR) | \
+		    V_FLPARITYERROR(M_FLPARITYERROR) | F_LODRBPARITYERROR | \
+		    F_HIDRBPARITYERROR | F_LORCQPARITYERROR | \
+		    F_HIRCQPARITYERROR)
+#define SGE_FRAMINGERR (F_UC_REQ_FRAMINGERROR | F_R_REQ_FRAMINGERROR)
+#define SGE_FATALERR (SGE_PARERR | SGE_FRAMINGERR | F_RSPQCREDITOVERFOW | \
+		      F_RSPQDISABLED)
+
 /**
  *	t3_sge_err_intr_handler - SGE async event interrupt handler
  *	@adapter: the adapter
@@ -2452,6 +2461,13 @@ irq_handler_t t3_intr_handler(struct adapter *adap, int polling)
 void t3_sge_err_intr_handler(struct adapter *adapter)
 {
 	unsigned int v, status = t3_read_reg(adapter, A_SG_INT_CAUSE);
+
+	if (status & SGE_PARERR)
+		CH_ALERT(adapter, "SGE parity error (0x%x)\n",
+			 status & SGE_PARERR);
+	if (status & SGE_FRAMINGERR)
+		CH_ALERT(adapter, "SGE framing error (0x%x)\n",
+			 status & SGE_FRAMINGERR);
 
 	if (status & F_RSPQCREDITOVERFOW)
 		CH_ALERT(adapter, "SGE response queue credit overflow\n");
@@ -2469,7 +2485,7 @@ void t3_sge_err_intr_handler(struct adapter *adapter)
 			 status & F_HIPIODRBDROPERR ? "high" : "lo");
 
 	t3_write_reg(adapter, A_SG_INT_CAUSE, status);
-	if (status & (F_RSPQCREDITOVERFOW | F_RSPQDISABLED))
+	if (status &  SGE_FATALERR)
 		t3_fatal_err(adapter);
 }
 
@@ -2781,7 +2797,7 @@ void t3_sge_init(struct adapter *adap, struct sge_params *p)
 	unsigned int ctrl, ups = ffs(pci_resource_len(adap->pdev, 2) >> 12);
 
 	ctrl = F_DROPPKT | V_PKTSHIFT(2) | F_FLMODE | F_AVOIDCQOVFL |
-	    F_CQCRDTCTRL |
+	    F_CQCRDTCTRL | F_CONGMODE | F_TNLFLMODE | F_FATLPERREN |
 	    V_HOSTPAGESIZE(PAGE_SHIFT - 11) | F_BIGENDIANINGRESS |
 	    V_USERSPACESIZE(ups ? ups - 1 : 0) | F_ISCSICOALESCING;
 #if SGE_NUM_GENBITS == 1
@@ -2790,7 +2806,6 @@ void t3_sge_init(struct adapter *adap, struct sge_params *p)
 	if (adap->params.rev > 0) {
 		if (!(adap->flags & (USING_MSIX | USING_MSI)))
 			ctrl |= F_ONEINTMULTQ | F_OPTONEINTMULTQ;
-		ctrl |= F_CQCRDTCTRL | F_AVOIDCQOVFL;
 	}
 	t3_write_reg(adap, A_SG_CONTROL, ctrl);
 	t3_write_reg(adap, A_SG_EGR_RCQ_DRB_THRSH, V_HIRCQDRBTHRSH(512) |
@@ -2798,7 +2813,8 @@ void t3_sge_init(struct adapter *adap, struct sge_params *p)
 	t3_write_reg(adap, A_SG_TIMER_TICK, core_ticks_per_usec(adap) / 10);
 	t3_write_reg(adap, A_SG_CMDQ_CREDIT_TH, V_THRESHOLD(32) |
 		     V_TIMEOUT(200 * core_ticks_per_usec(adap)));
-	t3_write_reg(adap, A_SG_HI_DRB_HI_THRSH, 1000);
+	t3_write_reg(adap, A_SG_HI_DRB_HI_THRSH,
+		     adap->params.rev < T3_REV_C ? 1000 : 500);
 	t3_write_reg(adap, A_SG_HI_DRB_LO_THRSH, 256);
 	t3_write_reg(adap, A_SG_LO_DRB_HI_THRSH, 1000);
 	t3_write_reg(adap, A_SG_LO_DRB_LO_THRSH, 256);
