@@ -83,6 +83,8 @@ static int __meminit sparse_index_init(unsigned long section_nr, int nid)
 		return -EEXIST;
 
 	section = sparse_index_alloc(nid);
+	if (!section)
+		return -ENOMEM;
 	/*
 	 * This lock keeps two different sections from
 	 * reallocating for the same index
