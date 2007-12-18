@@ -135,13 +135,16 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len)
 {
 	u16 fc;
 
-	if (len < 24)
+	 /* drop ACK/CTS frames and incorrect hdr len (ctrl) */
+	if (len < 16)
 		return NULL;
 
 	fc = le16_to_cpu(hdr->frame_control);
 
 	switch (fc & IEEE80211_FCTL_FTYPE) {
 	case IEEE80211_FTYPE_DATA:
+		if (len < 24) /* drop incorrect hdr len (data) */
+			return NULL;
 		switch (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
 		case IEEE80211_FCTL_TODS:
 			return hdr->addr1;
@@ -154,6 +157,8 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len)
 		}
 		break;
 	case IEEE80211_FTYPE_MGMT:
+		if (len < 24) /* drop incorrect hdr len (mgmt) */
+			return NULL;
 		return hdr->addr3;
 	case IEEE80211_FTYPE_CTL:
 		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)
