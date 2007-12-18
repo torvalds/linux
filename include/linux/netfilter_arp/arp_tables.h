@@ -281,5 +281,36 @@ extern unsigned int arpt_do_table(struct sk_buff *skb,
 				  struct arpt_table *table);
 
 #define ARPT_ALIGN(s) XT_ALIGN(s)
+
+#ifdef CONFIG_COMPAT
+#include <net/compat.h>
+
+struct compat_arpt_entry
+{
+	struct arpt_arp arp;
+	u_int16_t target_offset;
+	u_int16_t next_offset;
+	compat_uint_t comefrom;
+	struct compat_xt_counters counters;
+	unsigned char elems[0];
+};
+
+static inline struct arpt_entry_target *
+compat_arpt_get_target(struct compat_arpt_entry *e)
+{
+	return (void *)e + e->target_offset;
+}
+
+#define COMPAT_ARPT_ALIGN(s)	COMPAT_XT_ALIGN(s)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_ARPT_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct compat_arpt_entry, entries, size, fn, ## args)
+
+#define COMPAT_ARPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
+	XT_ENTRY_ITERATE_CONTINUE(struct compat_arpt_entry, entries, size, n, \
+				  fn, ## args)
+
+#endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/
 #endif /* _ARPTABLES_H */
