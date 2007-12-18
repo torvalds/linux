@@ -4,6 +4,7 @@
 
 menu "DECnet: Netfilter Configuration"
 	depends on DECNET && NETFILTER && EXPERIMENTAL
+	depends on NETFILTER_ADVANCED
 
 config DECNET_NF_GRABULATOR
 	tristate "Routing message grabulator (for userland routing daemon)"
