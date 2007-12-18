@@ -263,14 +263,13 @@ out:
 	return 0;
 }
 
+/* This function must zero any hole we create */
 static int ecryptfs_prepare_write(struct file *file, struct page *page,
 				  unsigned from, unsigned to)
 {
 	int rc = 0;
+	loff_t prev_page_end_size;
 
-	if (from == 0 && to == PAGE_CACHE_SIZE)
-		goto out;	/* If we are writing a full page, it will be
-				   up to date. */
 	if (!PageUptodate(page)) {
 		rc = ecryptfs_read_lower_page_segment(page, page->index, 0,
 						      PAGE_CACHE_SIZE,
@@ -283,22 +282,32 @@ static int ecryptfs_prepare_write(struct file *file, struct page *page,
 		} else
 			SetPageUptodate(page);
 	}
-	if (page->index != 0) {
-		loff_t end_of_prev_pg_pos =
-			(((loff_t)page->index << PAGE_CACHE_SHIFT) - 1);
 
-		if (end_of_prev_pg_pos > i_size_read(page->mapping->host)) {
+	prev_page_end_size = ((loff_t)page->index << PAGE_CACHE_SHIFT);
+
+	/*
+	 * If creating a page or more of holes, zero them out via truncate.
+	 * Note, this will increase i_size.
+	 */
+	if (page->index != 0) {
+		if (prev_page_end_size > i_size_read(page->mapping->host)) {
 			rc = ecryptfs_truncate(file->f_path.dentry,
-					       end_of_prev_pg_pos);
+					       prev_page_end_size);
 			if (rc) {
 				printk(KERN_ERR "Error on attempt to "
 				       "truncate to (higher) offset [%lld];"
-				       " rc = [%d]\n", end_of_prev_pg_pos, rc);
+				       " rc = [%d]\n", prev_page_end_size, rc);
 				goto out;
 			}
 		}
-		if (end_of_prev_pg_pos + 1 > i_size_read(page->mapping->host))
-			zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
+	}
+	/*
+	 * Writing to a new page, and creating a small hole from start of page?
+	 * Zero it out.
+	 */
+	if ((i_size_read(page->mapping->host) == prev_page_end_size) &&
+	    (from != 0)) {
+		zero_user_page(page, 0, PAGE_CACHE_SIZE, KM_USER0);
 	}
 out:
 	return rc;
