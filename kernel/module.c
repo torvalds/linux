@@ -1217,18 +1217,16 @@ int mod_sysfs_init(struct module *mod)
 		err = -EINVAL;
 		goto out;
 	}
-	memset(&mod->mkobj.kobj, 0, sizeof(mod->mkobj.kobj));
-	err = kobject_set_name(&mod->mkobj.kobj, "%s", mod->name);
-	if (err)
-		goto out;
-	mod->mkobj.kobj.kset = module_kset;
-	mod->mkobj.kobj.ktype = &module_ktype;
 	mod->mkobj.mod = mod;
 
-	kobject_init(&mod->mkobj.kobj);
+	memset(&mod->mkobj.kobj, 0, sizeof(mod->mkobj.kobj));
+	mod->mkobj.kobj.kset = module_kset;
+	err = kobject_init_and_add(&mod->mkobj.kobj, &module_ktype, NULL,
+				   "%s", mod->name);
+	if (err)
+		kobject_put(&mod->mkobj.kobj);
 
 	/* delay uevent until full sysfs population */
-	err = kobject_add(&mod->mkobj.kobj);
 out:
 	return err;
 }
