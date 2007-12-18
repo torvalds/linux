@@ -139,6 +139,7 @@ struct sigmatel_spec {
 	hda_nid_t *dmic_nids;
 	unsigned int num_dmics;
 	hda_nid_t *dmux_nids;
+	unsigned int num_dmuxes;
 	hda_nid_t dig_in_nid;
 
 	/* pin widgets */
@@ -244,6 +245,10 @@ static hda_nid_t stac925x_dmic_nids[STAC925X_NUM_DMICS + 1] = {
 	0x15, 0
 };
 
+static hda_nid_t stac925x_dmux_nids[1] = {
+	0x14,
+};
+
 static hda_nid_t stac922x_adc_nids[2] = {
         0x06, 0x07,
 };
@@ -278,7 +283,7 @@ static hda_nid_t stac9205_mux_nids[2] = {
 };
 
 static hda_nid_t stac9205_dmux_nids[1] = {
-		0x1d,
+	0x1d,
 };
 
 #define STAC9205_NUM_DMICS	2
@@ -596,16 +601,6 @@ static struct hda_verb stac9205_core_init[] = {
 	{}
 };
 
-#define STAC_DIGITAL_INPUT_SOURCE(cnt) \
-	{ \
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
-		.name = "Digital Input Source", \
-		.count = cnt, \
-		.info = stac92xx_dmux_enum_info, \
-		.get = stac92xx_dmux_enum_get, \
-		.put = stac92xx_dmux_enum_put,\
-	}
-
 #define STAC_INPUT_SOURCE(cnt) \
 	{ \
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
@@ -638,7 +633,6 @@ static struct snd_kcontrol_new stac9200_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd73xx_6ch_mixer[] = {
-	STAC_DIGITAL_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 3),
 
 	/* hardware gain controls */
@@ -669,7 +663,6 @@ static struct snd_kcontrol_new stac92hd73xx_6ch_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd73xx_8ch_mixer[] = {
-	STAC_DIGITAL_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 4),
 
 	/* hardware gain controls */
@@ -700,7 +693,6 @@ static struct snd_kcontrol_new stac92hd73xx_8ch_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd73xx_10ch_mixer[] = {
-	STAC_DIGITAL_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A1, 5),
 
 	/* hardware gain controls */
@@ -731,7 +723,6 @@ static struct snd_kcontrol_new stac92hd73xx_10ch_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
-	STAC_DIGITAL_INPUT_SOURCE(1),
 	STAC_INPUT_SOURCE(2),
 
 	/* hardware gain controls */
@@ -752,7 +743,6 @@ static struct snd_kcontrol_new stac92hd71bxx_analog_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac92hd71bxx_mixer[] = {
-	STAC_DIGITAL_INPUT_SOURCE(1),
 	STAC_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFA0, 0x7A0, 2),
 
@@ -779,7 +769,6 @@ static struct snd_kcontrol_new stac925x_mixer[] = {
 };
 
 static struct snd_kcontrol_new stac9205_mixer[] = {
-	STAC_DIGITAL_INPUT_SOURCE(1),
 	STAC_INPUT_SOURCE(2),
 	STAC_ANALOG_LOOPBACK(0xFE0, 0x7E0, 1),
 
@@ -809,7 +798,6 @@ static struct snd_kcontrol_new stac922x_mixer[] = {
 
 
 static struct snd_kcontrol_new stac927x_mixer[] = {
-	STAC_DIGITAL_INPUT_SOURCE(1),
 	STAC_INPUT_SOURCE(3),
 	STAC_ANALOG_LOOPBACK(0xFEB, 0x7EB, 1),
 
@@ -827,6 +815,15 @@ static struct snd_kcontrol_new stac927x_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new stac_dmux_mixer = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "Digital Input Source",
+	/* count set later */
+	.info = stac92xx_dmux_enum_info,
+	.get = stac92xx_dmux_enum_get,
+	.put = stac92xx_dmux_enum_put,
+};
+
 static int stac92xx_build_controls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -839,6 +836,13 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 
 	for (i = 0; i < spec->num_mixers; i++) {
 		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
+		if (err < 0)
+			return err;
+	}
+	if (spec->num_dmuxes > 0) {
+		stac_dmux_mixer.count = spec->num_dmuxes;
+		err = snd_ctl_add(codec->bus->card,
+				  snd_ctl_new1(&stac_dmux_mixer, codec));
 		if (err < 0)
 			return err;
 	}
@@ -2967,6 +2971,8 @@ static int patch_stac925x(struct hda_codec *codec)
 	case 0x83847637: /* STAC9251D */
 		spec->num_dmics = STAC925X_NUM_DMICS;
 		spec->dmic_nids = stac925x_dmic_nids;
+		spec->num_dmuxes = ARRAY_SIZE(stac925x_dmux_nids);
+		spec->dmux_nids = stac925x_dmux_nids;
 		break;
 	default:
 		spec->num_dmics = 0;
@@ -3075,6 +3081,7 @@ again:
 	spec->num_muxes = ARRAY_SIZE(stac92hd73xx_mux_nids);
 	spec->num_adcs = ARRAY_SIZE(stac92hd73xx_adc_nids);
 	spec->num_dmics = STAC92HD73XX_NUM_DMICS;
+	spec->num_dmuxes = ARRAY_SIZE(stac92hd73xx_dmux_nids);
 	spec->dinput_mux = &stac92hd73xx_dmux;
 	/* GPIO0 High = Enable EAPD */
 	spec->gpio_mask = spec->gpio_data = 0x000001;
@@ -3160,6 +3167,7 @@ again:
 	spec->num_muxes = ARRAY_SIZE(stac92hd71bxx_mux_nids);
 	spec->num_adcs = ARRAY_SIZE(stac92hd71bxx_adc_nids);
 	spec->num_dmics = STAC92HD71BXX_NUM_DMICS;
+	spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
 
 	spec->multiout.num_dacs = 2;
 	spec->multiout.hp_nid = 0x11;
@@ -3345,6 +3353,7 @@ static int patch_stac927x(struct hda_codec *codec)
 		spec->init = d965_core_init;
 		spec->mixer = stac927x_mixer;
 		spec->dmux_nids = stac927x_dmux_nids;
+		spec->num_dmuxes = ARRAY_SIZE(stac927x_dmux_nids);
 		break;
 	default:
 		/* GPIO0 High = Enable EAPD */
@@ -3415,6 +3424,7 @@ static int patch_stac9205(struct hda_codec *codec)
 	spec->dmic_nids = stac9205_dmic_nids;
 	spec->num_dmics = STAC9205_NUM_DMICS;
 	spec->dmux_nids = stac9205_dmux_nids;
+	spec->num_dmuxes = ARRAY_SIZE(stac9205_dmux_nids);
 
 	spec->init = stac9205_core_init;
 	spec->mixer = stac9205_mixer;
