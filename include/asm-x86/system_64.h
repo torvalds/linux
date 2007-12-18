@@ -7,6 +7,13 @@
 
 #ifdef __KERNEL__
 
+/* entries in ARCH_DLINFO: */
+#ifdef CONFIG_IA32_EMULATION
+# define AT_VECTOR_SIZE_ARCH 2
+#else
+# define AT_VECTOR_SIZE_ARCH 1
+#endif
+
 #define __SAVE(reg,offset) "movq %%" #reg ",(14-" #offset ")*8(%%rsp)\n\t"
 #define __RESTORE(reg,offset) "movq (14-" #offset ")*8(%%rsp),%%" #reg "\n\t"
 

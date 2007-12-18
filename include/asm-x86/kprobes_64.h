@@ -66,7 +66,7 @@ struct kprobe_ctlblk {
 	unsigned long kprobe_status;
 	unsigned long kprobe_old_rflags;
 	unsigned long kprobe_saved_rflags;
-	long *jprobe_saved_rsp;
+	unsigned long *jprobe_saved_rsp;
 	struct pt_regs jprobe_saved_regs;
 	kprobe_opcode_t jprobes_stack[MAX_STACK_SIZE];
 	struct prev_kprobe prev_kprobe;
