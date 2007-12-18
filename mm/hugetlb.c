@@ -31,7 +31,6 @@ static unsigned int free_huge_pages_node[MAX_NUMNODES];
 static unsigned int surplus_huge_pages_node[MAX_NUMNODES];
 static gfp_t htlb_alloc_mask = GFP_HIGHUSER;
 unsigned long hugepages_treat_as_movable;
-int hugetlb_dynamic_pool;
 unsigned long nr_overcommit_huge_pages;
 static int hugetlb_next_nid;
 
@@ -229,10 +228,6 @@ static struct page *alloc_buddy_huge_page(struct vm_area_struct *vma,
 {
 	struct page *page;
 	unsigned int nid;
-
-	/* Check if the dynamic pool is enabled */
-	if (!hugetlb_dynamic_pool)
-		return NULL;
 
 	/*
 	 * Assume we will successfully allocate the surplus page to
