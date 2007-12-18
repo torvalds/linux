@@ -47,6 +47,7 @@ enum nfulnl_attr_type {
 	NFULA_UID,			/* user id of socket */
 	NFULA_SEQ,			/* instance-local sequence number */
 	NFULA_SEQ_GLOBAL,		/* global sequence number */
+	NFULA_GID,			/* group id of socket */
 
 	__NFULA_MAX
 };

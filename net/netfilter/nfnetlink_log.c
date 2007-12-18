@@ -467,9 +467,11 @@ __build_packet_message(struct nfulnl_instance *inst,
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file) {
 			__be32 uid = htonl(skb->sk->sk_socket->file->f_uid);
+			__be32 gid = htons(skb->sk->sk_socket->file->f_gid);
 			/* need to unlock here since NLA_PUT may goto */
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 			NLA_PUT_BE32(inst->skb, NFULA_UID, uid);
+			NLA_PUT_BE32(inst->skb, NFULA_GID, gid);
 		} else
 			read_unlock_bh(&skb->sk->sk_callback_lock);
 	}
@@ -564,6 +566,7 @@ nfulnl_log_packet(unsigned int pf,
 #endif
 		+ nla_total_size(sizeof(u_int32_t))	/* mark */
 		+ nla_total_size(sizeof(u_int32_t))	/* uid */
+		+ nla_total_size(sizeof(u_int32_t))	/* gid */
 		+ nla_total_size(plen)			/* prefix */
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_hw))
 		+ nla_total_size(sizeof(struct nfulnl_msg_packet_timestamp));
