@@ -523,8 +523,7 @@ static void klist_children_put(struct klist_node *n)
 void device_initialize(struct device *dev)
 {
 	dev->kobj.kset = devices_kset;
-	dev->kobj.ktype = &device_ktype;
-	kobject_init(&dev->kobj);
+	kobject_init_ng(&dev->kobj, &device_ktype);
 	klist_init(&dev->klist_children, klist_children_get,
 		   klist_children_put);
 	INIT_LIST_HEAD(&dev->dma_pools);
@@ -729,7 +728,7 @@ static void device_remove_class_symlinks(struct device *dev)
  *	This is part 2 of device_register(), though may be called
  *	separately _iff_ device_initialize() has been called separately.
  *
- *	This adds it to the kobject hierarchy via kobject_add(), adds it
+ *	This adds it to the kobject hierarchy via kobject_add_ng(), adds it
  *	to the global and sibling lists for the device, then
  *	adds it to the other relevant subsystems of the driver model.
  */
@@ -760,8 +759,7 @@ int device_add(struct device *dev)
 		goto Error;
 
 	/* first, register with generic layer. */
-	kobject_set_name(&dev->kobj, "%s", dev->bus_id);
-	error = kobject_add(&dev->kobj);
+	error = kobject_add_ng(&dev->kobj, dev->kobj.parent, "%s", dev->bus_id);
 	if (error)
 		goto Error;
 
