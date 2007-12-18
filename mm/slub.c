@@ -4025,13 +4025,12 @@ static int sysfs_slab_add(struct kmem_cache *s)
 		name = create_unique_id(s);
 	}
 
-	kobject_set_name(&s->kobj, name);
 	s->kobj.kset = slab_kset;
-	s->kobj.ktype = &slab_ktype;
-	kobject_init(&s->kobj);
-	err = kobject_add(&s->kobj);
-	if (err)
+	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, name);
+	if (err) {
+		kobject_put(&s->kobj);
 		return err;
+	}
 
 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
 	if (err)
