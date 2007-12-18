@@ -289,6 +289,7 @@ struct kvm_vm_stat {
 	u32 mmu_pde_zapped;
 	u32 mmu_flooded;
 	u32 mmu_recycled;
+	u32 mmu_cache_miss;
 	u32 remote_tlb_flush;
 };
 
