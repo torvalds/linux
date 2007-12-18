@@ -217,21 +217,8 @@ static __inline__ struct arpt_entry_target *arpt_get_target(struct arpt_entry *e
 }
 
 /* fn returns 0 to continue iteration */
-#define ARPT_ENTRY_ITERATE(entries, size, fn, args...)		\
-({								\
-	unsigned int __i;					\
-	int __ret = 0;						\
-	struct arpt_entry *__entry;				\
-								\
-	for (__i = 0; __i < (size); __i += __entry->next_offset) { \
-		__entry = (void *)(entries) + __i;		\
-								\
-		__ret = fn(__entry , ## args);			\
-		if (__ret != 0)					\
-			break;					\
-	}							\
-	__ret;							\
-})
+#define ARPT_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct arpt_entry, entries, size, fn, ## args)
 
 /*
  *	Main firewall chains definitions and global var's definitions.
