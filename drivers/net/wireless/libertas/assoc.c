@@ -258,7 +258,7 @@ static int assoc_helper_channel(struct lbs_private *priv,
 
 
 static int assoc_helper_wep_keys(struct lbs_private *priv,
-                                 struct assoc_request * assoc_req)
+				 struct assoc_request *assoc_req)
 {
 	int i;
 	int ret = 0;
@@ -266,22 +266,11 @@ static int assoc_helper_wep_keys(struct lbs_private *priv,
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	/* Set or remove WEP keys */
-	if (   assoc_req->wep_keys[0].len
-	    || assoc_req->wep_keys[1].len
-	    || assoc_req->wep_keys[2].len
-	    || assoc_req->wep_keys[3].len) {
-		ret = lbs_prepare_and_send_command(priv,
-					    CMD_802_11_SET_WEP,
-					    CMD_ACT_ADD,
-					    CMD_OPTION_WAITFORRSP,
-					    0, assoc_req);
-	} else {
-		ret = lbs_prepare_and_send_command(priv,
-					    CMD_802_11_SET_WEP,
-					    CMD_ACT_REMOVE,
-					    CMD_OPTION_WAITFORRSP,
-					    0, NULL);
-	}
+	if (assoc_req->wep_keys[0].len || assoc_req->wep_keys[1].len ||
+	    assoc_req->wep_keys[2].len || assoc_req->wep_keys[3].len)
+		ret = lbs_cmd_802_11_set_wep(priv, CMD_ACT_ADD, assoc_req);
+	else
+		ret = lbs_cmd_802_11_set_wep(priv, CMD_ACT_REMOVE, assoc_req);
 
 	if (ret)
 		goto out;
@@ -291,6 +280,7 @@ static int assoc_helper_wep_keys(struct lbs_private *priv,
 		priv->currentpacketfilter |= CMD_ACT_MAC_WEP_ENABLE;
 	else
 		priv->currentpacketfilter &= ~CMD_ACT_MAC_WEP_ENABLE;
+
 	ret = lbs_set_mac_packet_filter(priv);
 	if (ret)
 		goto out;
@@ -300,7 +290,7 @@ static int assoc_helper_wep_keys(struct lbs_private *priv,
 	/* Copy WEP keys into priv wep key fields */
 	for (i = 0; i < 4; i++) {
 		memcpy(&priv->wep_keys[i], &assoc_req->wep_keys[i],
-			sizeof(struct enc_key));
+		       sizeof(struct enc_key));
 	}
 	priv->wep_tx_keyidx = assoc_req->wep_tx_keyidx;
 

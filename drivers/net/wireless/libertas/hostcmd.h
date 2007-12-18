@@ -256,6 +256,8 @@ struct cmd_ds_802_11_ad_hoc_result {
 };
 
 struct cmd_ds_802_11_set_wep {
+	struct cmd_header hdr;
+
 	/* ACT_ADD, ACT_REMOVE or ACT_ENABLE */
 	__le16 action;
 
@@ -263,8 +265,8 @@ struct cmd_ds_802_11_set_wep {
 	__le16 keyindex;
 
 	/* 40, 128bit or TXWEP */
-	u8 keytype[4];
-	u8 keymaterial[4][16];
+	uint8_t keytype[4];
+	uint8_t keymaterial[4][16];
 };
 
 struct cmd_ds_802_3_get_stat {
@@ -688,7 +690,6 @@ struct cmd_ds_command {
 		struct cmd_ds_mac_control macctrl;
 		struct cmd_ds_802_11_associate associate;
 		struct cmd_ds_802_11_deauthenticate deauth;
-		struct cmd_ds_802_11_set_wep wep;
 		struct cmd_ds_802_11_ad_hoc_start ads;
 		struct cmd_ds_802_11_reset reset;
 		struct cmd_ds_802_11_ad_hoc_result result;

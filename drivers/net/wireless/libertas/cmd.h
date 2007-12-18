@@ -51,5 +51,7 @@ int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
 				      uint16_t cmd_action, uint16_t *timeout);
 int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
 				struct sleep_params *sp);
+int lbs_cmd_802_11_set_wep(struct lbs_private *priv, uint16_t cmd_action,
+			   struct assoc_request *assoc);
 
 #endif /* _LBS_CMD_H */
