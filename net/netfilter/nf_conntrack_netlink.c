@@ -254,6 +254,55 @@ nla_put_failure:
 #define ctnetlink_dump_mark(a, b) (0)
 #endif
 
+#ifdef CONFIG_NF_NAT_NEEDED
+static inline int
+dump_nat_seq_adj(struct sk_buff *skb, const struct nf_nat_seq *natseq, int type)
+{
+	__be32 tmp;
+	struct nlattr *nest_parms;
+
+	nest_parms = nla_nest_start(skb, type | NLA_F_NESTED);
+	if (!nest_parms)
+		goto nla_put_failure;
+
+	tmp = htonl(natseq->correction_pos);
+	NLA_PUT(skb, CTA_NAT_SEQ_CORRECTION_POS, sizeof(tmp), &tmp);
+	tmp = htonl(natseq->offset_before);
+	NLA_PUT(skb, CTA_NAT_SEQ_OFFSET_BEFORE, sizeof(tmp), &tmp);
+	tmp = htonl(natseq->offset_after);
+	NLA_PUT(skb, CTA_NAT_SEQ_OFFSET_AFTER, sizeof(tmp), &tmp);
+
+	nla_nest_end(skb, nest_parms);
+
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
+static inline int
+ctnetlink_dump_nat_seq_adj(struct sk_buff *skb, const struct nf_conn *ct)
+{
+	struct nf_nat_seq *natseq;
+	struct nf_conn_nat *nat = nfct_nat(ct);
+
+	if (!(ct->status & IPS_SEQ_ADJUST) || !nat)
+		return 0;
+
+	natseq = &nat->seq[IP_CT_DIR_ORIGINAL];
+	if (dump_nat_seq_adj(skb, natseq, CTA_NAT_SEQ_ADJ_ORIG) == -1)
+		return -1;
+
+	natseq = &nat->seq[IP_CT_DIR_REPLY];
+	if (dump_nat_seq_adj(skb, natseq, CTA_NAT_SEQ_ADJ_REPLY) == -1)
+		return -1;
+
+	return 0;
+}
+#else
+#define ctnetlink_dump_nat_seq_adj(a, b) (0)
+#endif
+
 static inline int
 ctnetlink_dump_id(struct sk_buff *skb, const struct nf_conn *ct)
 {
@@ -321,7 +370,8 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||
-	    ctnetlink_dump_use(skb, ct) < 0)
+	    ctnetlink_dump_use(skb, ct) < 0 ||
+	    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
 		goto nla_put_failure;
 
 	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
@@ -423,6 +473,10 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		if (events & IPCT_COUNTER_FILLING &&
 		    (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
 		     ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0))
+			goto nla_put_failure;
+
+		if (events & IPCT_NATSEQADJ &&
+		    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
 			goto nla_put_failure;
 	}
 
@@ -935,6 +989,66 @@ ctnetlink_change_protoinfo(struct nf_conn *ct, struct nlattr *cda[])
 	return err;
 }
 
+#ifdef CONFIG_NF_NAT_NEEDED
+static inline int
+change_nat_seq_adj(struct nf_nat_seq *natseq, struct nlattr *attr)
+{
+	struct nlattr *cda[CTA_NAT_SEQ_MAX+1];
+
+	nla_parse_nested(cda, CTA_NAT_SEQ_MAX, attr, NULL);
+
+	if (!cda[CTA_NAT_SEQ_CORRECTION_POS])
+		return -EINVAL;
+
+	natseq->correction_pos =
+		ntohl(*(__be32 *)nla_data(cda[CTA_NAT_SEQ_CORRECTION_POS]));
+
+	if (!cda[CTA_NAT_SEQ_OFFSET_BEFORE])
+		return -EINVAL;
+
+	natseq->offset_before =
+		ntohl(*(__be32 *)nla_data(cda[CTA_NAT_SEQ_OFFSET_BEFORE]));
+
+	if (!cda[CTA_NAT_SEQ_OFFSET_AFTER])
+		return -EINVAL;
+
+	natseq->offset_after =
+		ntohl(*(__be32 *)nla_data(cda[CTA_NAT_SEQ_OFFSET_AFTER]));
+
+	return 0;
+}
+
+static int
+ctnetlink_change_nat_seq_adj(struct nf_conn *ct, struct nlattr *cda[])
+{
+	int ret = 0;
+	struct nf_conn_nat *nat = nfct_nat(ct);
+
+	if (!nat)
+		return 0;
+
+	if (cda[CTA_NAT_SEQ_ADJ_ORIG]) {
+		ret = change_nat_seq_adj(&nat->seq[IP_CT_DIR_ORIGINAL],
+					 cda[CTA_NAT_SEQ_ADJ_ORIG]);
+		if (ret < 0)
+			return ret;
+
+		ct->status |= IPS_SEQ_ADJUST;
+	}
+
+	if (cda[CTA_NAT_SEQ_ADJ_REPLY]) {
+		ret = change_nat_seq_adj(&nat->seq[IP_CT_DIR_REPLY],
+					 cda[CTA_NAT_SEQ_ADJ_REPLY]);
+		if (ret < 0)
+			return ret;
+
+		ct->status |= IPS_SEQ_ADJUST;
+	}
+
+	return 0;
+}
+#endif
+
 static int
 ctnetlink_change_conntrack(struct nf_conn *ct, struct nlattr *cda[])
 {
@@ -967,6 +1081,14 @@ ctnetlink_change_conntrack(struct nf_conn *ct, struct nlattr *cda[])
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
 		ct->mark = ntohl(*(__be32 *)nla_data(cda[CTA_MARK]));
+#endif
+
+#ifdef CONFIG_NF_NAT_NEEDED
+	if (cda[CTA_NAT_SEQ_ADJ_ORIG] || cda[CTA_NAT_SEQ_ADJ_REPLY]) {
+		err = ctnetlink_change_nat_seq_adj(ct, cda);
+		if (err < 0)
+			return err;
+	}
 #endif
 
 	return 0;
