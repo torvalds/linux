@@ -181,13 +181,12 @@ static int uids_user_create(struct user_struct *up)
 	int error;
 
 	memset(kobj, 0, sizeof(struct kobject));
-	kobj->ktype = &uids_ktype;
 	kobj->kset = uids_kset;
-	kobject_init(kobj);
-	kobject_set_name(&up->kobj, "%d", up->uid);
-	error = kobject_add(kobj);
-	if (error)
+	error = kobject_init_and_add(kobj, &uids_ktype, NULL, "%d", up->uid);
+	if (error) {
+		kobject_put(kobj);
 		goto done;
+	}
 
 	kobject_uevent(kobj, KOBJ_ADD);
 done:
