@@ -109,6 +109,16 @@ config VIDEO_MSP3400
 	  To compile this driver as a module, choose M here: the
 	  module will be called msp3400.
 
+config VIDEO_CS5345
+	tristate "Cirrus Logic CS5345 audio ADC"
+	depends on VIDEO_V4L2 && I2C && EXPERIMENTAL
+	---help---
+	  Support for the Cirrus Logic CS5345 24-bit, 192 kHz
+	  stereo A/D converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cs5345.
+
 config VIDEO_CS53L32A
 	tristate "Cirrus Logic CS53L32A audio ADC"
 	depends on VIDEO_V4L2 && I2C

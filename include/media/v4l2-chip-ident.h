@@ -68,6 +68,9 @@ enum {
 	/* module vp27smpx: just ident 2700 */
 	V4L2_IDENT_VP27SMPX = 2700,
 
+	/* module cs5345: just ident 5345 */
+	V4L2_IDENT_CS5345 = 5345,
+
 	/* module wm8739: just ident 8739 */
 	V4L2_IDENT_WM8739 = 8739,
 
