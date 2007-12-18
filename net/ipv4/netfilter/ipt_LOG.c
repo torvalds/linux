@@ -465,7 +465,7 @@ static struct xt_target log_tg_reg __read_mostly = {
 	.me		= THIS_MODULE,
 };
 
-static struct nf_logger ipt_log_logger ={
+static const struct nf_logger ipt_log_logger ={
 	.name		= "ipt_LOG",
 	.logfn		= &ipt_log_packet,
 	.me		= THIS_MODULE,

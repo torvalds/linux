@@ -43,8 +43,8 @@ struct nf_logger {
 };
 
 /* Function to register/unregister log function. */
-int nf_log_register(int pf, struct nf_logger *logger);
-void nf_log_unregister(struct nf_logger *logger);
+int nf_log_register(int pf, const struct nf_logger *logger);
+void nf_log_unregister(const struct nf_logger *logger);
 void nf_log_unregister_pf(int pf);
 
 /* Calls the registered backend logging function */
@@ -53,7 +53,7 @@ void nf_log_packet(int pf,
 		   const struct sk_buff *skb,
 		   const struct net_device *in,
 		   const struct net_device *out,
-		   struct nf_loginfo *li,
+		   const struct nf_loginfo *li,
 		   const char *fmt, ...);
 
 #endif /* _NF_LOG_H */

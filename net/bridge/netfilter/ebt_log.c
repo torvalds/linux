@@ -183,7 +183,7 @@ static struct ebt_watcher log =
 	.me		= THIS_MODULE,
 };
 
-static struct nf_logger ebt_log_logger = {
+static const struct nf_logger ebt_log_logger = {
 	.name 		= "ebt_log",
 	.logfn		= &ebt_log_packet,
 	.me		= THIS_MODULE,
