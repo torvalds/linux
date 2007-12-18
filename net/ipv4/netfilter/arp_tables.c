@@ -804,7 +804,8 @@ static int do_replace(void __user *user, unsigned int len)
 		goto free_newinfo;
 	}
 
-	counters = vmalloc(tmp.num_counters * sizeof(struct xt_counters));
+	counters = vmalloc_node(tmp.num_counters * sizeof(struct xt_counters),
+				numa_node_id());
 	if (!counters) {
 		ret = -ENOMEM;
 		goto free_newinfo;
@@ -902,7 +903,7 @@ static int do_add_counters(void __user *user, unsigned int len)
 	if (len != sizeof(tmp) + tmp.num_counters*sizeof(struct xt_counters))
 		return -EINVAL;
 
-	paddc = vmalloc(len);
+	paddc = vmalloc_node(len, numa_node_id());
 	if (!paddc)
 		return -ENOMEM;
 
