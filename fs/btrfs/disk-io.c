@@ -765,8 +765,18 @@ int close_ctree(struct btrfs_root *root)
 
 	btrfs_free_block_groups(root->fs_info);
 	del_fs_roots(fs_info);
+
+	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
+
+	extent_map_tree_empty_lru(&fs_info->free_space_cache);
+	extent_map_tree_empty_lru(&fs_info->block_group_cache);
+	extent_map_tree_empty_lru(&fs_info->pinned_extents);
+	extent_map_tree_empty_lru(&fs_info->pending_del);
+	extent_map_tree_empty_lru(&fs_info->extent_ins);
 	extent_map_tree_empty_lru(&BTRFS_I(fs_info->btree_inode)->extent_tree);
+
 	truncate_inode_pages(fs_info->btree_inode->i_mapping, 0);
+
 	iput(fs_info->btree_inode);
 #if 0
 	while(!list_empty(&fs_info->hashers)) {
