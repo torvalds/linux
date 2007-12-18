@@ -456,13 +456,13 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	 * and seq id (byte 2)
 	 */
 	switch (qc->tf.protocol) {
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		if (!(qc->tf.flags & ATA_TFLAG_WRITE))
 			buf32[0] = cpu_to_le32(PDC_PKT_READ);
 		else
 			buf32[0] = 0;
 		break;
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		buf32[0] = cpu_to_le32(PDC_PKT_NODATA);
 		break;
 	default:
@@ -489,7 +489,7 @@ static void pdc_atapi_pkt(struct ata_queued_cmd *qc)
 	buf[19] = qc->tf.lbal;
 
 	/* set feature and byte counter registers */
-	if (qc->tf.protocol != ATA_PROT_ATAPI_DMA)
+	if (qc->tf.protocol != ATAPI_PROT_DMA)
 		feature = PDC_FEATURE_ATAPI_PIO;
 	else
 		feature = PDC_FEATURE_ATAPI_DMA;
@@ -619,14 +619,14 @@ static void pdc_qc_prep(struct ata_queued_cmd *qc)
 		pdc_pkt_footer(&qc->tf, pp->pkt, i);
 		break;
 
-	case ATA_PROT_ATAPI:
+	case ATAPI_PROT_PIO:
 		pdc_fill_sg(qc);
 		break;
 
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		pdc_fill_sg(qc);
 		/*FALLTHROUGH*/
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		pdc_atapi_pkt(qc);
 		break;
 
@@ -746,8 +746,8 @@ static inline unsigned int pdc_host_intr(struct ata_port *ap,
 	switch (qc->tf.protocol) {
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
-	case ATA_PROT_ATAPI_DMA:
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_DMA:
+	case ATAPI_PROT_NODATA:
 		qc->err_mask |= ac_err_mask(ata_wait_idle(ap));
 		ata_qc_complete(qc);
 		handled = 1;
@@ -892,7 +892,7 @@ static inline void pdc_packet_start(struct ata_queued_cmd *qc)
 static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 {
 	switch (qc->tf.protocol) {
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
 			break;
 		/*FALLTHROUGH*/
@@ -900,7 +900,7 @@ static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
 			break;
 		/*FALLTHROUGH*/
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 	case ATA_PROT_DMA:
 		pdc_packet_start(qc);
 		return 0;
@@ -914,16 +914,14 @@ static unsigned int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 
 static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
-	WARN_ON(tf->protocol == ATA_PROT_DMA ||
-		tf->protocol == ATA_PROT_ATAPI_DMA);
+	WARN_ON(tf->protocol == ATA_PROT_DMA || tf->protocol == ATAPI_PROT_DMA);
 	ata_tf_load(ap, tf);
 }
 
 static void pdc_exec_command_mmio(struct ata_port *ap,
 				  const struct ata_taskfile *tf)
 {
-	WARN_ON(tf->protocol == ATA_PROT_DMA ||
-		tf->protocol == ATA_PROT_ATAPI_DMA);
+	WARN_ON(tf->protocol == ATA_PROT_DMA || tf->protocol == ATAPI_PROT_DMA);
 	ata_exec_command(ap, tf);
 }
 

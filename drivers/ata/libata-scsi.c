@@ -2354,10 +2354,10 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	qc->tf.command = ATA_CMD_PACKET;
 
 	if (ata_pio_use_silly(ap)) {
-		qc->tf.protocol = ATA_PROT_ATAPI_DMA;
+		qc->tf.protocol = ATAPI_PROT_DMA;
 		qc->tf.feature |= ATAPI_PKT_DMA;
 	} else {
-		qc->tf.protocol = ATA_PROT_ATAPI;
+		qc->tf.protocol = ATAPI_PROT_PIO;
 		qc->tf.lbam = SCSI_SENSE_BUFFERSIZE;
 		qc->tf.lbah = 0;
 	}
@@ -2528,12 +2528,12 @@ static unsigned int atapi_xlat(struct ata_queued_cmd *qc)
 	if (using_pio || nodata) {
 		/* no data, or PIO data xfer */
 		if (nodata)
-			qc->tf.protocol = ATA_PROT_ATAPI_NODATA;
+			qc->tf.protocol = ATAPI_PROT_NODATA;
 		else
-			qc->tf.protocol = ATA_PROT_ATAPI;
+			qc->tf.protocol = ATAPI_PROT_PIO;
 	} else {
 		/* DMA data xfer */
-		qc->tf.protocol = ATA_PROT_ATAPI_DMA;
+		qc->tf.protocol = ATAPI_PROT_DMA;
 		qc->tf.feature |= ATAPI_PKT_DMA;
 
 		if (atapi_dmadir && (scmd->sc_data_direction != DMA_TO_DEVICE))

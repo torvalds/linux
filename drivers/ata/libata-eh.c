@@ -1299,10 +1299,10 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 
 	/* is it pointless to prefer PIO for "safety reasons"? */
 	if (ap->flags & ATA_FLAG_PIO_DMA) {
-		tf.protocol = ATA_PROT_ATAPI_DMA;
+		tf.protocol = ATAPI_PROT_DMA;
 		tf.feature |= ATAPI_PKT_DMA;
 	} else {
-		tf.protocol = ATA_PROT_ATAPI;
+		tf.protocol = ATAPI_PROT_PIO;
 		tf.lbam = SCSI_SENSE_BUFFERSIZE;
 		tf.lbah = 0;
 	}
@@ -1979,8 +1979,8 @@ static void ata_eh_link_report(struct ata_link *link)
 				[ATA_PROT_PIO]		= "pio",
 				[ATA_PROT_DMA]		= "dma",
 				[ATA_PROT_NCQ]		= "ncq",
-				[ATA_PROT_ATAPI]	= "pio",
-				[ATA_PROT_ATAPI_DMA]	= "dma",
+				[ATAPI_PROT_PIO]	= "pio",
+				[ATAPI_PROT_DMA]	= "dma",
 			};
 
 			snprintf(data_buf, sizeof(data_buf), " %s %u %s",

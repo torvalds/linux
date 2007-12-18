@@ -4678,8 +4678,8 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
  */
 static int atapi_qc_may_overflow(struct ata_queued_cmd *qc)
 {
-	if (qc->tf.protocol != ATA_PROT_ATAPI &&
-	    qc->tf.protocol != ATA_PROT_ATAPI_DMA)
+	if (qc->tf.protocol != ATAPI_PROT_PIO &&
+	    qc->tf.protocol != ATAPI_PROT_DMA)
 		return 0;
 
 	if (qc->tf.flags & ATA_TFLAG_WRITE)
@@ -5161,13 +5161,13 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 	ata_altstatus(ap); /* flush */
 
 	switch (qc->tf.protocol) {
-	case ATA_PROT_ATAPI:
+	case ATAPI_PROT_PIO:
 		ap->hsm_task_state = HSM_ST;
 		break;
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		ap->hsm_task_state = HSM_ST_LAST;
 		break;
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		ap->hsm_task_state = HSM_ST_LAST;
 		/* initiate bmdma */
 		ap->ops->bmdma_start(qc);
@@ -5518,7 +5518,7 @@ fsm_start:
 
 	case HSM_ST:
 		/* complete command or read/write the data register */
-		if (qc->tf.protocol == ATA_PROT_ATAPI) {
+		if (qc->tf.protocol == ATAPI_PROT_PIO) {
 			/* ATAPI PIO protocol */
 			if ((status & ATA_DRQ) == 0) {
 				/* No more data to transfer or device error.
@@ -6073,11 +6073,11 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		switch (qc->tf.protocol) {
 		case ATA_PROT_PIO:
 		case ATA_PROT_NODATA:
-		case ATA_PROT_ATAPI:
-		case ATA_PROT_ATAPI_NODATA:
+		case ATAPI_PROT_PIO:
+		case ATAPI_PROT_NODATA:
 			qc->tf.flags |= ATA_TFLAG_POLLING;
 			break;
-		case ATA_PROT_ATAPI_DMA:
+		case ATAPI_PROT_DMA:
 			if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
 				/* see ata_dma_blacklisted() */
 				BUG();
@@ -6141,8 +6141,8 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		break;
 
-	case ATA_PROT_ATAPI:
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_PIO:
+	case ATAPI_PROT_NODATA:
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
 			ata_qc_set_polling(qc);
 
@@ -6156,7 +6156,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			ata_port_queue_task(ap, ata_pio_task, qc, 0);
 		break;
 
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		WARN_ON(qc->tf.flags & ATA_TFLAG_POLLING);
 
 		ap->ops->tf_load(ap, &qc->tf);	 /* load tf registers */
@@ -6217,7 +6217,7 @@ inline unsigned int ata_host_intr(struct ata_port *ap,
 		break;
 	case HSM_ST_LAST:
 		if (qc->tf.protocol == ATA_PROT_DMA ||
-		    qc->tf.protocol == ATA_PROT_ATAPI_DMA) {
+		    qc->tf.protocol == ATAPI_PROT_DMA) {
 			/* check status of DMA engine */
 			host_stat = ap->ops->bmdma_status(ap);
 			VPRINTK("ata%u: host_stat 0x%X\n",
@@ -6259,7 +6259,7 @@ inline unsigned int ata_host_intr(struct ata_port *ap,
 	ata_hsm_move(ap, qc, status, 0);
 
 	if (unlikely(qc->err_mask) && (qc->tf.protocol == ATA_PROT_DMA ||
-				       qc->tf.protocol == ATA_PROT_ATAPI_DMA))
+				       qc->tf.protocol == ATAPI_PROT_DMA))
 		ata_ehi_push_desc(ehi, "BMDMA stat 0x%x", host_stat);
 
 	return 1;	/* irq handled */

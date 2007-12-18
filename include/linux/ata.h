@@ -341,9 +341,9 @@ enum ata_tf_protocols {
 	ATA_PROT_PIO,		/* PIO data xfer */
 	ATA_PROT_DMA,		/* DMA */
 	ATA_PROT_NCQ,		/* NCQ */
-	ATA_PROT_ATAPI,		/* packet command, PIO data xfer*/
-	ATA_PROT_ATAPI_NODATA,	/* packet command, no data */
-	ATA_PROT_ATAPI_DMA,	/* packet command with special DMA sauce */
+	ATAPI_PROT_NODATA,	/* packet command, no data */
+	ATAPI_PROT_PIO,		/* packet command, PIO data xfer*/
+	ATAPI_PROT_DMA,		/* packet command with special DMA sauce */
 };
 
 enum ata_ioctls {
@@ -395,11 +395,11 @@ static inline unsigned int ata_prot_flags(u8 prot)
 		return ATA_PROT_FLAG_DMA;
 	case ATA_PROT_NCQ:
 		return ATA_PROT_FLAG_DMA | ATA_PROT_FLAG_NCQ;
-	case ATA_PROT_ATAPI_NODATA:
+	case ATAPI_PROT_NODATA:
 		return ATA_PROT_FLAG_ATAPI;
-	case ATA_PROT_ATAPI:
+	case ATAPI_PROT_PIO:
 		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_PIO;
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		return ATA_PROT_FLAG_ATAPI | ATA_PROT_FLAG_DMA;
 	}
 	return 0;

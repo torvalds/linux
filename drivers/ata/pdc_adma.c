@@ -455,7 +455,7 @@ static unsigned int adma_qc_issue(struct ata_queued_cmd *qc)
 		adma_packet_start(qc);
 		return 0;
 
-	case ATA_PROT_ATAPI_DMA:
+	case ATAPI_PROT_DMA:
 		BUG();
 		break;
 

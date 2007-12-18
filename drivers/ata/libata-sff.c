@@ -417,7 +417,7 @@ void ata_bmdma_drive_eh(struct ata_port *ap, ata_prereset_fn_t prereset,
 	ap->hsm_task_state = HSM_ST_IDLE;
 
 	if (qc && (qc->tf.protocol == ATA_PROT_DMA ||
-		   qc->tf.protocol == ATA_PROT_ATAPI_DMA)) {
+		   qc->tf.protocol == ATAPI_PROT_DMA)) {
 		u8 host_stat;
 
 		host_stat = ap->ops->bmdma_status(ap);
