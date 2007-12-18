@@ -431,6 +431,7 @@ struct btrfs_root {
 #define BTRFS_STRING_ITEM_KEY	253
 
 #define BTRFS_MOUNT_NODATASUM		0x1
+#define BTRFS_MOUNT_NODATACOW		0x2
 
 #define btrfs_clear_opt(o, opt)		((o) &= ~BTRFS_MOUNT_##opt)
 #define btrfs_set_opt(o, opt)		((o) |= BTRFS_MOUNT_##opt)
@@ -915,6 +916,9 @@ static inline u32 btrfs_level_size(struct btrfs_root *root, int level) {
 	btrfs_item_offset_nr(leaf, slot)))
 
 /* extent-tree.c */
+u32 btrfs_count_snapshots_in_path(struct btrfs_root *root,
+				  struct btrfs_path *count_path,
+				  u64 first_extent);
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);
 int btrfs_copy_pinned(struct btrfs_root *root, struct extent_map_tree *copy);
@@ -974,6 +978,10 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
 		    struct extent_buffer **cow_ret);
+int btrfs_copy_root(struct btrfs_trans_handle *trans,
+		      struct btrfs_root *root,
+		      struct extent_buffer *buf,
+		      struct extent_buffer **cow_ret, u64 new_root_objectid);
 int btrfs_extend_item(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, struct btrfs_path *path, u32 data_size);
 int btrfs_truncate_item(struct btrfs_trans_handle *trans,

@@ -61,12 +61,13 @@ static void btrfs_put_super (struct super_block * sb)
 }
 
 enum {
-	Opt_subvol, Opt_nodatasum, Opt_err,
+	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_subvol, "subvol=%s"},
 	{Opt_nodatasum, "nodatasum"},
+	{Opt_nodatacow, "nodatacow"},
 	{Opt_err, NULL}
 };
 
@@ -78,11 +79,19 @@ static int parse_options (char * options,
 	struct btrfs_fs_info *info = NULL;
 	substring_t args[MAX_OPT_ARGS];
 
-	if (root)
-		info = root->fs_info;
-
 	if (!options)
 		return 1;
+
+	/*
+	 * strsep changes the string, duplicate it because parse_options
+	 * gets called twice
+	 */
+	options = kstrdup(options, GFP_NOFS);
+	if (!options)
+		return -ENOMEM;
+
+	if (root)
+		info = root->fs_info;
 
 	while ((p = strsep (&options, ",")) != NULL) {
 		int token;
@@ -92,17 +101,28 @@ static int parse_options (char * options,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_subvol:
-			if (subvol_name)
+			if (subvol_name) {
 				*subvol_name = match_strdup(&args[0]);
+			}
 			break;
 		case Opt_nodatasum:
-			if (root)
+			if (info) {
+				printk("btrfs: setting nodatacsum\n");
 				btrfs_set_opt(info->mount_opt, NODATASUM);
+			}
+			break;
+		case Opt_nodatacow:
+			if (info) {
+				printk("btrfs: setting nodatacow\n");
+				btrfs_set_opt(info->mount_opt, NODATACOW);
+				btrfs_set_opt(info->mount_opt, NODATASUM);
+			}
 			break;
 		default:
-			return 0;
+			break;
 		}
 	}
+	kfree(options);
 	return 1;
 }
 

@@ -70,7 +70,58 @@ void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 	memset(p, 0, sizeof(*p));
 }
 
-static int __btrfs_cow_block(struct btrfs_trans_handle *trans,
+int btrfs_copy_root(struct btrfs_trans_handle *trans,
+		      struct btrfs_root *root,
+		      struct extent_buffer *buf,
+		      struct extent_buffer **cow_ret, u64 new_root_objectid)
+{
+	struct extent_buffer *cow;
+	u32 nritems;
+	int ret = 0;
+	int level;
+	struct btrfs_key first_key;
+	struct btrfs_root new_root;
+
+	memcpy(&new_root, root, sizeof(new_root));
+	new_root.root_key.objectid = new_root_objectid;
+
+	WARN_ON(root->ref_cows && trans->transid !=
+		root->fs_info->running_transaction->transid);
+	WARN_ON(root->ref_cows && trans->transid != root->last_trans);
+
+	level = btrfs_header_level(buf);
+	nritems = btrfs_header_nritems(buf);
+	if (nritems) {
+		if (level == 0)
+			btrfs_item_key_to_cpu(buf, &first_key, 0);
+		else
+			btrfs_node_key_to_cpu(buf, &first_key, 0);
+	} else {
+		first_key.objectid = 0;
+	}
+	cow = __btrfs_alloc_free_block(trans, &new_root, buf->len,
+				       new_root_objectid,
+				       trans->transid, first_key.objectid,
+				       level, buf->start, 0);
+	if (IS_ERR(cow))
+		return PTR_ERR(cow);
+
+	copy_extent_buffer(cow, buf, 0, 0, cow->len);
+	btrfs_set_header_bytenr(cow, cow->start);
+	btrfs_set_header_generation(cow, trans->transid);
+	btrfs_set_header_owner(cow, new_root_objectid);
+
+	WARN_ON(btrfs_header_generation(buf) > trans->transid);
+	ret = btrfs_inc_ref(trans, &new_root, buf);
+	if (ret)
+		return ret;
+
+	btrfs_mark_buffer_dirty(cow);
+	*cow_ret = cow;
+	return 0;
+}
+
+int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct extent_buffer *buf,
 			     struct extent_buffer *parent, int parent_slot,

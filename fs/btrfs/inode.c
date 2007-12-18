@@ -72,21 +72,22 @@ static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFLNK >> S_SHIFT]	= BTRFS_FT_SYMLINK,
 };
 
-static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
+static int cow_file_range(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
-	struct btrfs_key ins;
 	u64 alloc_hint = 0;
 	u64 num_bytes;
-	int ret;
 	u64 blocksize = root->sectorsize;
+	struct btrfs_key ins;
+	int ret;
 
-	mutex_lock(&root->fs_info->fs_mutex);
 	trans = btrfs_start_transaction(root, 1);
-	btrfs_set_trans_block_group(trans, inode);
 	BUG_ON(!trans);
+	btrfs_set_trans_block_group(trans, inode);
+
 	num_bytes = (end - start + blocksize) & ~(blocksize - 1);
+	num_bytes = max(blocksize,  num_bytes);
 	ret = btrfs_drop_extents(trans, root, inode,
 				 start, start + num_bytes, start, &alloc_hint);
 
@@ -106,6 +107,101 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 				       ins.offset);
 out:
 	btrfs_end_transaction(trans, root);
+	return ret;
+}
+
+static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
+{
+	u64 extent_start;
+	u64 extent_end;
+	u64 bytenr;
+	u64 cow_end;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct extent_buffer *leaf;
+	int found_type;
+	struct btrfs_path *path;
+	struct btrfs_file_extent_item *item;
+	int ret;
+	int err;
+	struct btrfs_key found_key;
+
+	path = btrfs_alloc_path();
+	BUG_ON(!path);
+again:
+	ret = btrfs_lookup_file_extent(NULL, root, path,
+				       inode->i_ino, start, 0);
+	if (ret < 0) {
+		btrfs_free_path(path);
+		return ret;
+	}
+
+	cow_end = end;
+	if (ret != 0) {
+		if (path->slots[0] == 0)
+			goto not_found;
+		path->slots[0]--;
+	}
+
+	leaf = path->nodes[0];
+	item = btrfs_item_ptr(leaf, path->slots[0],
+			      struct btrfs_file_extent_item);
+
+	/* are we inside the extent that was found? */
+	btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+	found_type = btrfs_key_type(&found_key);
+	if (found_key.objectid != inode->i_ino ||
+	    found_type != BTRFS_EXTENT_DATA_KEY) {
+		goto not_found;
+	}
+
+	found_type = btrfs_file_extent_type(leaf, item);
+	extent_start = found_key.offset;
+	if (found_type == BTRFS_FILE_EXTENT_REG) {
+		extent_end = extent_start +
+		       btrfs_file_extent_num_bytes(leaf, item);
+		err = 0;
+
+		if (start < extent_start || start >= extent_end)
+			goto not_found;
+
+		cow_end = min(end, extent_end - 1);
+		bytenr = btrfs_file_extent_disk_bytenr(leaf, item);
+		if (bytenr == 0)
+			goto not_found;
+
+		bytenr += btrfs_file_extent_offset(leaf, item);
+		if (btrfs_count_snapshots_in_path(root, path, bytenr) != 1) {
+			goto not_found;
+		}
+
+		start = extent_end;
+	} else if (found_type == BTRFS_FILE_EXTENT_INLINE) {
+		goto not_found;
+	}
+loop:
+	if (start > end) {
+		btrfs_free_path(path);
+		return 0;
+	}
+	btrfs_release_path(root, path);
+	goto again;
+
+not_found:
+	cow_file_range(inode, start, cow_end);
+	start = cow_end + 1;
+	goto loop;
+}
+
+static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
+{
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	int ret;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	if (btrfs_test_opt(root, NODATACOW))
+		ret = run_delalloc_nocow(inode, start, end);
+	else
+		ret = cow_file_range(inode, start, end);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
@@ -1907,9 +2003,6 @@ int btrfs_commit_write(struct file *file, struct page *page,
 
 	btrfs_cow_one_page(inode, page, PAGE_CACHE_SIZE);
 
-	set_page_extent_mapped(page);
-	set_page_dirty(page);
-
 	if (pos > inode->i_size) {
 		i_size_write(inode, pos);
 		mark_inode_dirty(inode);
@@ -2078,13 +2171,18 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	key.objectid = objectid;
 	key.offset = 1;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+
 	extent_buffer_get(root->node);
 	btrfs_cow_block(trans, root, root->node, NULL, 0, &tmp);
 	free_extent_buffer(tmp);
-	btrfs_set_root_bytenr(&new_root_item, root->node->start);
-	btrfs_set_root_level(&new_root_item, btrfs_header_level(root->node));
+
+	btrfs_copy_root(trans, root, root->node, &tmp, objectid);
+
+	btrfs_set_root_bytenr(&new_root_item, tmp->start);
+	btrfs_set_root_level(&new_root_item, btrfs_header_level(tmp));
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				&new_root_item);
+	free_extent_buffer(tmp);
 	if (ret)
 		goto fail;
 
@@ -2104,10 +2202,6 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 			     name, namelen, objectid,
 			     root->fs_info->sb->s_root->d_inode->i_ino);
 
-	if (ret)
-		goto fail;
-
-	ret = btrfs_inc_root_ref(trans, root, objectid);
 	if (ret)
 		goto fail;
 fail:
