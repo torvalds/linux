@@ -118,20 +118,29 @@ xfs_nfs_get_inode(
 	u64			ino,
 	u32			generation)
  {
-	xfs_fid_t		xfid;
-	bhv_vnode_t		*vp;
+ 	xfs_mount_t		*mp = XFS_M(sb);
+	xfs_inode_t		*ip;
 	int			error;
 
-	xfid.fid_len = sizeof(xfs_fid_t) - sizeof(xfid.fid_len);
-	xfid.fid_pad = 0;
-	xfid.fid_ino = ino;
-	xfid.fid_gen = generation;
+	/*
+	 * NFS can sometimes send requests for ino 0.  Fail them gracefully.
+	 */
+	if (ino == 0)
+		return ERR_PTR(-ESTALE);
 
-	error = xfs_vget(XFS_M(sb), &vp, &xfid);
+	error = xfs_iget(mp, NULL, ino, 0, XFS_ILOCK_SHARED, &ip, 0);
 	if (error)
 		return ERR_PTR(-error);
+	if (!ip)
+		return ERR_PTR(-EIO);
 
-	return vp ? vn_to_inode(vp) : NULL;
+	if (!ip->i_d.di_mode || ip->i_d.di_gen != generation) {
+		xfs_iput_new(ip, XFS_ILOCK_SHARED);
+		return ERR_PTR(-ENOENT);
+	}
+
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	return ip->i_vnode;
 }
 
 STATIC struct dentry *

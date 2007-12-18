@@ -15,7 +15,6 @@ int xfs_mntupdate(struct xfs_mount *mp, int *flags,
 		struct xfs_mount_args *args);
 int xfs_root(struct xfs_mount *mp, bhv_vnode_t **vpp);
 int xfs_sync(struct xfs_mount *mp, int flags);
-int xfs_vget(struct xfs_mount *mp, bhv_vnode_t **vpp, struct xfs_fid *xfid);
 void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 		int lnnum);
 void xfs_attr_quiesce(struct xfs_mount *mp);

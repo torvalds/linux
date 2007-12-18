@@ -3457,27 +3457,6 @@ std_return:
 	goto std_return;
 }
 
-
-int
-xfs_fid2(
-	xfs_inode_t	*ip,
-	xfs_fid_t	*xfid)
-{
-	xfs_itrace_entry(ip);
-
-	xfid->fid_len = sizeof(xfs_fid_t) - sizeof(xfid->fid_len);
-	xfid->fid_pad = 0;
-	/*
-	 * use memcpy because the inode is a long long and there's no
-	 * assurance that xfid->fid_ino is properly aligned.
-	 */
-	memcpy(&xfid->fid_ino, &ip->i_ino, sizeof(xfid->fid_ino));
-	xfid->fid_gen = ip->i_d.di_gen;
-
-	return 0;
-}
-
-
 int
 xfs_rwlock(
 	xfs_inode_t	*ip,
