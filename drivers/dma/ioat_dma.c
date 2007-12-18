@@ -1363,7 +1363,7 @@ err_completion_pool:
 err_dma_pool:
 	kfree(device);
 err_kzalloc:
-	dev_err(&device->pdev->dev,
+	dev_err(&pdev->dev,
 		"Intel(R) I/OAT DMA Engine initialization failed\n");
 	return NULL;
 }
