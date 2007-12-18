@@ -1,0 +1,25 @@
+# Makefile.dtc
+#
+# This is not a complete Makefile of itself.  Instead, it is designed to
+# be easily embeddable into other systems of Makefiles.
+#
+DTC_SRCS = dtc.c flattree.c fstree.c data.c livetree.c treesource.c srcpos.c \
+	checks.c
+DTC_EXTRA = dtc.h srcpos.h
+DTC_LEXFILES = dtc-lexer.l
+DTC_BISONFILES = dtc-parser.y
+
+DTC_LEX_SRCS = $(DTC_LEXFILES:%.l=%.lex.c)
+DTC_BISON_SRCS = $(DTC_BISONFILES:%.y=%.tab.c)
+DTC_BISON_INCLUDES = $(DTC_BISONFILES:%.y=%.tab.h)
+
+DTC_GEN_SRCS = $(DTC_LEX_SRCS) $(DTC_BISON_SRCS)
+DTC_GEN_ALL = $(DTC_GEN_SRCS) $(DTC_BISON_INCLUDES)
+DTC_OBJS = $(DTC_SRCS:%.c=%.o) $(DTC_GEN_SRCS:%.c=%.o)
+
+DTC_CLEANFILES = $(DTC_GEN_ALL)
+
+# We assume the containing Makefile system can do auto-dependencies for most
+# things, but we supply the dependencies on generated header files explicitly
+
+$(addprefix $(DTC_objdir)/,$(DTC_GEN_SRCS:%.c=%.o)): $(addprefix $(DTC_objdir)/,$(DTC_BISON_INCLUDES))
