@@ -621,18 +621,19 @@ static int io_init(struct ubi_device *ubi)
 /**
  * ubi_attach_mtd_dev - attach an MTD device.
  * @mtd_dev: MTD device description object
+ * @ubi_num: number to assign to the new UBI device
  * @vid_hdr_offset: VID header offset
  *
- * This function attaches an MTD device to UBI. It first treats @mtd_dev as the
- * MTD device name, and tries to open it by this name. If it is unable to open,
- * it tries to convert @mtd_dev to an integer and open the MTD device by its
- * number. Returns new UBI device's number in case of success and a negative
- * error code in case of failure.
+ * This function attaches MTD device @mtd_dev to UBI and assign @ubi_num number
+ * to the newly created UBI device, unless @ubi_num is %UBI_DEV_NUM_AUTO, in
+ * which case this function finds a vacant device nubert and assings it
+ * automatically. Returns the new UBI device number in case of success and a
+ * negative error code in case of failure.
  *
  * Note, the invocations of this function has to be serialized by the
  * @ubi_devices_mutex.
  */
-int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset)
+int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 {
 	struct ubi_device *ubi;
 	int i, err;
@@ -643,22 +644,47 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset)
 	 * Note, this function assumes that UBI devices creations and deletions
 	 * are serialized, so it does not take the &ubi_devices_lock.
 	 */
-	for (i = 0; i < UBI_MAX_DEVICES; i++)
+	for (i = 0; i < UBI_MAX_DEVICES; i++) {
 		ubi = ubi_devices[i];
 		if (ubi && mtd->index == ubi->mtd->index) {
-			ubi_err("mtd%d is already attached to ubi%d",
+			dbg_err("mtd%d is already attached to ubi%d",
 				mtd->index, i);
-			return -EINVAL;
+			return -EEXIST;
 		}
+	}
 
-	/* Search for an empty slot in the @ubi_devices array */
-	for (i = 0; i < UBI_MAX_DEVICES; i++)
-		if (!ubi_devices[i])
-			break;
+	/*
+	 * Make sure this MTD device is not emulated on top of an UBI volume
+	 * already. Well, generally this recursion works fine, but there are
+	 * different problems like the UBI module takes a reference to itself
+	 * by attaching (and thus, opening) the emulated MTD device. This
+	 * results in inability to unload the module. And in general it makes
+	 * no sense to attach emulated MTD devices, so we prohibit this.
+	 */
+	if (mtd->type == MTD_UBIVOLUME) {
+		ubi_err("refuse attaching mtd%d - it is already emulated on "
+			"top of UBI", mtd->index);
+		return -EINVAL;
+	}
 
-	if (i == UBI_MAX_DEVICES) {
-		ubi_err("only %d UBI devices may be created", UBI_MAX_DEVICES);
-		return -ENFILE;
+	if (ubi_num == UBI_DEV_NUM_AUTO) {
+		/* Search for an empty slot in the @ubi_devices array */
+		for (ubi_num = 0; ubi_num < UBI_MAX_DEVICES; ubi_num++)
+			if (!ubi_devices[ubi_num])
+				break;
+		if (ubi_num == UBI_MAX_DEVICES) {
+			dbg_err("only %d UBI devices may be created", UBI_MAX_DEVICES);
+			return -ENFILE;
+		}
+	} else {
+		if (ubi_num >= UBI_MAX_DEVICES)
+			return -EINVAL;
+
+		/* Make sure ubi_num is not busy */
+		if (ubi_devices[ubi_num]) {
+			dbg_err("ubi%d already exists", ubi_num);
+			return -EEXIST;
+		}
 	}
 
 	ubi = kzalloc(sizeof(struct ubi_device), GFP_KERNEL);
@@ -666,11 +692,11 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset)
 		return -ENOMEM;
 
 	ubi->mtd = mtd;
-	ubi->ubi_num = i;
+	ubi->ubi_num = ubi_num;
 	ubi->vid_hdr_offset = vid_hdr_offset;
 
 	dbg_msg("attaching mtd%d to ubi%d: VID header offset %d",
-		mtd->index, ubi->ubi_num, vid_hdr_offset);
+		mtd->index, ubi_num, vid_hdr_offset);
 
 	err = io_init(ubi);
 	if (err)
@@ -710,7 +736,7 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset)
 		goto out_uif;
 	}
 
-	ubi_msg("attached mtd%d to ubi%d", mtd->index, ubi->ubi_num);
+	ubi_msg("attached mtd%d to ubi%d", mtd->index, ubi_num);
 	ubi_msg("MTD device name:            \"%s\"", mtd->name);
 	ubi_msg("MTD device size:            %llu MiB", ubi->flash_size >> 20);
 	ubi_msg("physical eraseblock size:   %d bytes (%d KiB)",
@@ -739,8 +765,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset)
 		wake_up_process(ubi->bgt_thread);
 	}
 
-	ubi_devices[ubi->ubi_num] = ubi;
-	return ubi->ubi_num;
+	ubi_devices[ubi_num] = ubi;
+	return ubi_num;
 
 out_uif:
 	uif_close(ubi);
@@ -781,23 +807,24 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 	spin_lock(&ubi_devices_lock);
 	ubi = ubi_devices[ubi_num];
 	if (!ubi) {
-		spin_lock(&ubi_devices_lock);
+		spin_unlock(&ubi_devices_lock);
 		return -EINVAL;
 	}
 
 	if (ubi->ref_count) {
 		if (!anyway) {
-			spin_lock(&ubi_devices_lock);
+			spin_unlock(&ubi_devices_lock);
 			return -EBUSY;
 		}
 		/* This may only happen if there is a bug */
 		ubi_err("%s reference count %d, destroy anyway",
 			ubi->ubi_name, ubi->ref_count);
 	}
-	ubi_devices[ubi->ubi_num] = NULL;
+	ubi_devices[ubi_num] = NULL;
 	spin_unlock(&ubi_devices_lock);
 
-	dbg_msg("detaching mtd%d from ubi%d", ubi->mtd->index, ubi->ubi_num);
+	ubi_assert(ubi_num == ubi->ubi_num);
+	dbg_msg("detaching mtd%d from ubi%d", ubi->mtd->index, ubi_num);
 
 	/*
 	 * Before freeing anything, we have to stop the background thread to
@@ -935,7 +962,8 @@ static int __init ubi_init(void)
 		}
 
 		mutex_lock(&ubi_devices_mutex);
-		err = ubi_attach_mtd_dev(mtd, p->vid_hdr_offs);
+		err = ubi_attach_mtd_dev(mtd, UBI_DEV_NUM_AUTO,
+					 p->vid_hdr_offs);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
 			put_mtd_device(mtd);

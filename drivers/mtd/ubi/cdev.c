@@ -44,17 +44,6 @@
 #include <asm/div64.h>
 #include "ubi.h"
 
-/*
- * Maximum sequence numbers of UBI and volume character device IOCTLs (direct
- * logical eraseblock erase is a debug-only feature).
- */
-#define UBI_CDEV_IOC_MAX_SEQ 2
-#ifndef CONFIG_MTD_UBI_DEBUG_USERSPACE_IO
-#define VOL_CDEV_IOC_MAX_SEQ 1
-#else
-#define VOL_CDEV_IOC_MAX_SEQ 2
-#endif
-
 /**
  * get_exclusive - get exclusive access to an UBI volume.
  * @desc: volume descriptor
@@ -582,8 +571,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_mkvol_req req;
 
 		dbg_msg("create volume");
-		err = copy_from_user(&req, argp,
-				       sizeof(struct ubi_mkvol_req));
+		err = copy_from_user(&req, argp, sizeof(struct ubi_mkvol_req));
 		if (err) {
 			err = -EFAULT;
 			break;
@@ -647,8 +635,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_rsvol_req req;
 
 		dbg_msg("re-size volume");
-		err = copy_from_user(&req, argp,
-				       sizeof(struct ubi_rsvol_req));
+		err = copy_from_user(&req, argp, sizeof(struct ubi_rsvol_req));
 		if (err) {
 			err = -EFAULT;
 			break;
@@ -684,8 +671,86 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	return err;
 }
 
+static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
+			   unsigned int cmd, unsigned long arg)
+{
+	int err = 0;
+	void __user *argp = (void __user *)arg;
+
+	if (!capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	switch (cmd) {
+	/* Attach an MTD device command */
+	case UBI_IOCATT:
+	{
+		struct ubi_attach_req req;
+		struct mtd_info *mtd;
+
+		dbg_msg("attach MTD device");
+		err = copy_from_user(&req, argp, sizeof(struct ubi_attach_req));
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+
+		if (req.mtd_num < 0 ||
+		    (req.ubi_num < 0 && req.ubi_num != UBI_DEV_NUM_AUTO)) {
+			err = -EINVAL;
+			break;
+		}
+
+		mtd = get_mtd_device(NULL, req.mtd_num);
+		if (IS_ERR(mtd)) {
+			err = PTR_ERR(mtd);
+			break;
+		}
+
+		/*
+		 * Note, further request verification is done by
+		 * 'ubi_attach_mtd_dev()'.
+		 */
+		mutex_lock(&ubi_devices_mutex);
+		err = ubi_attach_mtd_dev(mtd, req.ubi_num, req.vid_hdr_offset);
+		mutex_unlock(&ubi_devices_mutex);
+		if (err < 0)
+			put_mtd_device(mtd);
+		else
+			/* @err contains UBI device number */
+			err = put_user(err, (__user int32_t *)argp);
+
+		break;
+	}
+
+	/* Detach an MTD device command */
+	case UBI_IOCDET:
+	{
+		int ubi_num;
+
+		dbg_msg("dettach MTD device");
+		err = get_user(ubi_num, (__user int32_t *)argp);
+		if (err) {
+			err = -EFAULT;
+			break;
+		}
+
+		mutex_lock(&ubi_devices_mutex);
+		err = ubi_detach_mtd_dev(ubi_num, 0);
+		mutex_unlock(&ubi_devices_mutex);
+		break;
+	}
+
+	default:
+		err = -ENOTTY;
+		break;
+	}
+
+	return err;
+}
+
 /* UBI control character device operations */
 struct file_operations ubi_ctrl_cdev_operations = {
+	.ioctl = ctrl_cdev_ioctl,
 	.owner = THIS_MODULE,
 };
 
