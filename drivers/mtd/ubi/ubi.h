@@ -275,13 +275,13 @@ struct ubi_wl_entry;
  * @wl_lock: protects the @used, @free, @prot, @lookuptbl, @abs_ec, @move_from,
  *           @move_to, @move_to_put @erase_pending, @wl_scheduled, and @works
  *           fields
+ * @move_mutex: serializes eraseblock moves
  * @wl_scheduled: non-zero if the wear-leveling was scheduled
  * @lookuptbl: a table to quickly find a &struct ubi_wl_entry object for any
  *             physical eraseblock
  * @abs_ec: absolute erase counter
  * @move_from: physical eraseblock from where the data is being moved
  * @move_to: physical eraseblock where the data is being moved to
- * @move_from_put: if the "from" PEB was put
  * @move_to_put: if the "to" PEB was put
  * @works: list of pending works
  * @works_count: count of pending works
@@ -354,12 +354,12 @@ struct ubi_device {
 		struct rb_root aec;
 	} prot;
 	spinlock_t wl_lock;
+	struct mutex move_mutex;
 	int wl_scheduled;
 	struct ubi_wl_entry **lookuptbl;
 	unsigned long long abs_ec;
 	struct ubi_wl_entry *move_from;
 	struct ubi_wl_entry *move_to;
-	int move_from_put;
 	int move_to_put;
 	struct list_head works;
 	int works_count;
@@ -561,8 +561,10 @@ static inline int ubi_io_write_data(struct ubi_device *ubi, const void *buf,
  */
 static inline void ubi_ro_mode(struct ubi_device *ubi)
 {
-	ubi->ro_mode = 1;
-	ubi_warn("switch to read-only mode");
+	if (!ubi->ro_mode) {
+		ubi->ro_mode = 1;
+		ubi_warn("switch to read-only mode");
+	}
 }
 
 /**

@@ -260,6 +260,44 @@ static int leb_write_lock(struct ubi_device *ubi, int vol_id, int lnum)
 }
 
 /**
+ * leb_write_lock - lock logical eraseblock for writing.
+ * @ubi: UBI device description object
+ * @vol_id: volume ID
+ * @lnum: logical eraseblock number
+ *
+ * This function locks a logical eraseblock for writing if there is no
+ * contention and does nothing if there is contention. Returns %0 in case of
+ * success, %1 in case of contention, and and a negative error code in case of
+ * failure.
+ */
+static int leb_write_trylock(struct ubi_device *ubi, int vol_id, int lnum)
+{
+	int free;
+	struct ubi_ltree_entry *le;
+
+	le = ltree_add_entry(ubi, vol_id, lnum);
+	if (IS_ERR(le))
+		return PTR_ERR(le);
+	if (down_write_trylock(&le->mutex))
+		return 0;
+
+	/* Contention, cancel */
+	spin_lock(&ubi->ltree_lock);
+	le->users -= 1;
+	ubi_assert(le->users >= 0);
+	if (le->users == 0) {
+		rb_erase(&le->rb, &ubi->ltree);
+		free = 1;
+	} else
+		free = 0;
+	spin_unlock(&ubi->ltree_lock);
+	if (free)
+		kmem_cache_free(ubi_ltree_slab, le);
+
+	return 1;
+}
+
+/**
  * leb_write_unlock - unlock logical eraseblock.
  * @ubi: UBI device description object
  * @vol_id: volume ID
@@ -923,14 +961,16 @@ write_error:
  *
  * This function copies logical eraseblock from physical eraseblock @from to
  * physical eraseblock @to. The @vid_hdr buffer may be changed by this
- * function. Returns zero in case of success, %UBI_IO_BITFLIPS if the operation
- * was canceled because bit-flips were detected at the target PEB, and a
- * negative error code in case of failure.
+ * function. Returns:
+ *   o %0  in case of success;
+ *   o %1 if the operation was canceled and should be tried later (e.g.,
+ *     because a bit-flip was detected at the target PEB);
+ *   o %2 if the volume is being deleted and this LEB should not be moved.
  */
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		     struct ubi_vid_hdr *vid_hdr)
 {
-	int err, vol_id, lnum, data_size, aldata_size, pnum, idx;
+	int err, vol_id, lnum, data_size, aldata_size, idx;
 	struct ubi_volume *vol;
 	uint32_t crc;
 
@@ -946,57 +986,67 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		data_size = aldata_size =
 			    ubi->leb_size - be32_to_cpu(vid_hdr->data_pad);
 
-	/*
-	 * We do not want anybody to write to this logical eraseblock while we
-	 * are moving it, so we lock it.
-	 */
-	err = leb_write_lock(ubi, vol_id, lnum);
-	if (err)
-		return err;
-
-	mutex_lock(&ubi->buf_mutex);
-
-	/*
-	 * But the logical eraseblock might have been put by this time.
-	 * Cancel if it is true.
-	 */
 	idx = vol_id2idx(ubi, vol_id);
-
-	/*
-	 * We may race with volume deletion/re-size, so we have to hold
-	 * @ubi->volumes_lock.
-	 *
-	 * Note, it is not a problem if we race with volume deletion or re-size
-	 * here. If the volume is deleted or re-sized while we are moving an
-	 * eraseblock which belongs to this volume, we'll end up with finding
-	 * out that this LEB was unmapped at the end (see WL), and drop this
-	 * PEB.
-	 */
 	spin_lock(&ubi->volumes_lock);
+	/*
+	 * Note, we may race with volume deletion, which means that the volume
+	 * this logical eraseblock belongs to might be being deleted. Since the
+	 * volume deletion unmaps all the volume's logical eraseblocks, it will
+	 * be locked in 'ubi_wl_put_peb()' and wait for the WL worker to finish.
+	 */
 	vol = ubi->volumes[idx];
 	if (!vol) {
-		dbg_eba("volume %d was removed meanwhile", vol_id);
+		/* No need to do further work, cancel */
+		dbg_eba("volume %d is being removed, cancel", vol_id);
 		spin_unlock(&ubi->volumes_lock);
-		goto out_unlock;
-	}
-
-	pnum = vol->eba_tbl[lnum];
-	if (pnum != from) {
-		dbg_eba("LEB %d:%d is no longer mapped to PEB %d, mapped to "
-			"PEB %d, cancel", vol_id, lnum, from, pnum);
-		spin_unlock(&ubi->volumes_lock);
-		goto out_unlock;
+		return 2;
 	}
 	spin_unlock(&ubi->volumes_lock);
 
-	/* OK, now the LEB is locked and we can safely start moving it */
+	/*
+	 * We do not want anybody to write to this logical eraseblock while we
+	 * are moving it, so lock it.
+	 *
+	 * Note, we are using non-waiting locking here, because we cannot sleep
+	 * on the LEB, since it may cause deadlocks. Indeed, imagine a task is
+	 * unmapping the LEB which is mapped to the PEB we are going to move
+	 * (@from). This task locks the LEB and goes sleep in the
+	 * 'ubi_wl_put_peb()' function on the @ubi->move_mutex. In turn, we are
+	 * holding @ubi->move_mutex and go sleep on the LEB lock. So, if the
+	 * LEB is already locked, we just do not move it and return %1.
+	 */
+	err = leb_write_trylock(ubi, vol_id, lnum);
+	if (err) {
+		dbg_eba("contention on LEB %d:%d, cancel", vol_id, lnum);
+		return err;
+	}
 
+	/*
+	 * The LEB might have been put meanwhile, and the task which put it is
+	 * probably waiting on @ubi->move_mutex. No need to continue the work,
+	 * cancel it.
+	 */
+	if (vol->eba_tbl[lnum] != from) {
+		dbg_eba("LEB %d:%d is no longer mapped to PEB %d, mapped to "
+			"PEB %d, cancel", vol_id, lnum, from,
+			vol->eba_tbl[lnum]);
+		err = 1;
+		goto out_unlock_leb;
+	}
+
+	/*
+	 * OK, now the LEB is locked and we can safely start moving iy. Since
+	 * this function utilizes thie @ubi->peb1_buf buffer which is shared
+	 * with some other functions, so lock the buffer by taking the
+	 * @ubi->buf_mutex.
+	 */
+	mutex_lock(&ubi->buf_mutex);
 	dbg_eba("read %d bytes of data", aldata_size);
 	err = ubi_io_read_data(ubi, ubi->peb_buf1, from, 0, aldata_size);
 	if (err && err != UBI_IO_BITFLIPS) {
 		ubi_warn("error %d while reading data from PEB %d",
 			 err, from);
-		goto out_unlock;
+		goto out_unlock_buf;
 	}
 
 	/*
@@ -1032,7 +1082,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 
 	err = ubi_io_write_vid_hdr(ubi, to, vid_hdr);
 	if (err)
-		goto out_unlock;
+		goto out_unlock_buf;
 
 	cond_resched();
 
@@ -1041,13 +1091,15 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	if (err) {
 		if (err != UBI_IO_BITFLIPS)
 			ubi_warn("cannot read VID header back from PEB %d", to);
-		goto out_unlock;
+		else
+			err = 1;
+		goto out_unlock_buf;
 	}
 
 	if (data_size > 0) {
 		err = ubi_io_write_data(ubi, ubi->peb_buf1, to, 0, aldata_size);
 		if (err)
-			goto out_unlock;
+			goto out_unlock_buf;
 
 		cond_resched();
 
@@ -1061,7 +1113,9 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 			if (err != UBI_IO_BITFLIPS)
 				ubi_warn("cannot read data back from PEB %d",
 					 to);
-			goto out_unlock;
+			else
+				err = 1;
+			goto out_unlock_buf;
 		}
 
 		cond_resched();
@@ -1069,15 +1123,16 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		if (memcmp(ubi->peb_buf1, ubi->peb_buf2, aldata_size)) {
 			ubi_warn("read data back from PEB %d - it is different",
 				 to);
-			goto out_unlock;
+			goto out_unlock_buf;
 		}
 	}
 
 	ubi_assert(vol->eba_tbl[lnum] == from);
 	vol->eba_tbl[lnum] = to;
 
-out_unlock:
+out_unlock_buf:
 	mutex_unlock(&ubi->buf_mutex);
+out_unlock_leb:
 	leb_write_unlock(ubi, vol_id, lnum);
 	return err;
 }
