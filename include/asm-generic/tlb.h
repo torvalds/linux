@@ -14,6 +14,7 @@
 #define _ASM_GENERIC__TLB_H
 
 #include <linux/swap.h>
+#include <linux/quicklist.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
@@ -85,6 +86,9 @@ tlb_flush_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 static inline void
 tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
+#ifdef CONFIG_QUICKLIST
+	tlb->need_flush += &__get_cpu_var(quicklist)[0].nr_pages != 0;
+#endif
 	tlb_flush_mmu(tlb, start, end);
 
 	/* keep the page table cache within bounds */
