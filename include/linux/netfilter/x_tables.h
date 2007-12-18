@@ -424,6 +424,10 @@ struct compat_xt_counters_info
 extern void xt_compat_lock(int af);
 extern void xt_compat_unlock(int af);
 
+extern int xt_compat_add_offset(int af, unsigned int offset, short delta);
+extern void xt_compat_flush_offsets(int af);
+extern short xt_compat_calc_jump(int af, unsigned int offset);
+
 extern int xt_compat_match_offset(struct xt_match *match);
 extern int xt_compat_match_from_user(struct xt_entry_match *m,
 				     void **dstptr, int *size);

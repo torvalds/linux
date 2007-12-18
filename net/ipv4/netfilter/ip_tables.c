@@ -1014,63 +1014,12 @@ copy_entries_to_user(unsigned int total_size,
 }
 
 #ifdef CONFIG_COMPAT
-struct compat_delta {
-	struct compat_delta *next;
-	unsigned int offset;
-	short delta;
-};
-
-static struct compat_delta *compat_offsets;
-
-static int compat_add_offset(unsigned int offset, short delta)
-{
-	struct compat_delta *tmp;
-
-	tmp = kmalloc(sizeof(struct compat_delta), GFP_KERNEL);
-	if (!tmp)
-		return -ENOMEM;
-	tmp->offset = offset;
-	tmp->delta = delta;
-	if (compat_offsets) {
-		tmp->next = compat_offsets->next;
-		compat_offsets->next = tmp;
-	} else {
-		compat_offsets = tmp;
-		tmp->next = NULL;
-	}
-	return 0;
-}
-
-static void compat_flush_offsets(void)
-{
-	struct compat_delta *tmp, *next;
-
-	if (compat_offsets) {
-		for (tmp = compat_offsets; tmp; tmp = next) {
-			next = tmp->next;
-			kfree(tmp);
-		}
-		compat_offsets = NULL;
-	}
-}
-
-static short compat_calc_jump(unsigned int offset)
-{
-	struct compat_delta *tmp;
-	short delta;
-
-	for (tmp = compat_offsets, delta = 0; tmp; tmp = tmp->next)
-		if (tmp->offset < offset)
-			delta += tmp->delta;
-	return delta;
-}
-
 static void compat_standard_from_user(void *dst, void *src)
 {
 	int v = *(compat_int_t *)src;
 
 	if (v > 0)
-		v += compat_calc_jump(v);
+		v += xt_compat_calc_jump(AF_INET, v);
 	memcpy(dst, &v, sizeof(v));
 }
 
@@ -1079,7 +1028,7 @@ static int compat_standard_to_user(void __user *dst, void *src)
 	compat_int_t cv = *(int *)src;
 
 	if (cv > 0)
-		cv -= compat_calc_jump(cv);
+		cv -= xt_compat_calc_jump(AF_INET, cv);
 	return copy_to_user(dst, &cv, sizeof(cv)) ? -EFAULT : 0;
 }
 
@@ -1104,7 +1053,7 @@ static int compat_calc_entry(struct ipt_entry *e,
 	t = ipt_get_target(e);
 	off += xt_compat_target_offset(t->u.kernel.target);
 	newinfo->size -= off;
-	ret = compat_add_offset(entry_offset, off);
+	ret = xt_compat_add_offset(AF_INET, entry_offset, off);
 	if (ret)
 		return ret;
 
@@ -1167,7 +1116,7 @@ static int get_info(void __user *user, int *len, int compat)
 		if (compat) {
 			struct xt_table_info tmp;
 			ret = compat_table_info(private, &tmp);
-			compat_flush_offsets();
+			xt_compat_flush_offsets(AF_INET);
 			private = &tmp;
 		}
 #endif
@@ -1631,7 +1580,7 @@ check_compat_entry_size_and_hooks(struct compat_ipt_entry *e,
 
 	off += xt_compat_target_offset(target);
 	*size += off;
-	ret = compat_add_offset(entry_offset, off);
+	ret = xt_compat_add_offset(AF_INET, entry_offset, off);
 	if (ret)
 		goto out;
 
@@ -1797,7 +1746,7 @@ translate_compat_table(const char *name,
 	ret = COMPAT_IPT_ENTRY_ITERATE(entry0, total_size,
 				       compat_copy_entry_from_user, &pos, &size,
 				       name, newinfo, entry1);
-	compat_flush_offsets();
+	xt_compat_flush_offsets(AF_INET);
 	xt_compat_unlock(AF_INET);
 	if (ret)
 		goto free_newinfo;
@@ -1834,7 +1783,7 @@ out:
 	COMPAT_IPT_ENTRY_ITERATE(entry0, total_size, compat_release_entry, &j);
 	return ret;
 out_unlock:
-	compat_flush_offsets();
+	xt_compat_flush_offsets(AF_INET);
 	xt_compat_unlock(AF_INET);
 	goto out;
 }
@@ -1997,7 +1946,7 @@ compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
 				 get.size);
 			ret = -EINVAL;
 		}
-		compat_flush_offsets();
+		xt_compat_flush_offsets(AF_INET);
 		module_put(t->me);
 		xt_table_unlock(t);
 	} else
