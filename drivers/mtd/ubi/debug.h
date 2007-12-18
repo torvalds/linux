@@ -39,8 +39,9 @@
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG
 /* Generic debugging message */
-#define dbg_msg(fmt, ...) \
-	printk(KERN_DEBUG "UBI DBG: %s: " fmt "\n", __FUNCTION__, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)                                    \
+	printk(KERN_DEBUG "UBI DBG (pid %d): %s: " fmt "\n", \
+	       current->pid, __FUNCTION__, ##__VA_ARGS__)
 
 #define ubi_dbg_dump_stack() dump_stack()
 
@@ -76,36 +77,28 @@ void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_EBA
 /* Messages from the eraseblock association unit */
-#define dbg_eba(fmt, ...) \
-	printk(KERN_DEBUG "UBI DBG eba: %s: " fmt "\n", __FUNCTION__, \
-	       ##__VA_ARGS__)
+#define dbg_eba(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
 #else
 #define dbg_eba(fmt, ...) ({})
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_WL
 /* Messages from the wear-leveling unit */
-#define dbg_wl(fmt, ...) \
-	printk(KERN_DEBUG "UBI DBG wl: %s: " fmt "\n", __FUNCTION__, \
-	       ##__VA_ARGS__)
+#define dbg_wl(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
 #else
 #define dbg_wl(fmt, ...) ({})
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_IO
 /* Messages from the input/output unit */
-#define dbg_io(fmt, ...) \
-	printk(KERN_DEBUG "UBI DBG io: %s: " fmt "\n", __FUNCTION__, \
-	       ##__VA_ARGS__)
+#define dbg_io(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
 #else
 #define dbg_io(fmt, ...) ({})
 #endif
 
 #ifdef CONFIG_MTD_UBI_DEBUG_MSG_BLD
 /* Initialization and build messages */
-#define dbg_bld(fmt, ...) \
-	printk(KERN_DEBUG "UBI DBG bld: %s: " fmt "\n", __FUNCTION__, \
-	       ##__VA_ARGS__)
+#define dbg_bld(fmt, ...) dbg_msg(fmt, ##__VA_ARGS__)
 #else
 #define dbg_bld(fmt, ...) ({})
 #endif
