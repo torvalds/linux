@@ -569,6 +569,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	int pos, i = 0;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
+	int found = 0;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
 	if (pos <= 0)
@@ -577,6 +578,8 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
 	if (!save_state)
 		save_state = kzalloc(sizeof(*save_state) + sizeof(u16) * 4, GFP_KERNEL);
+	else
+		found = 1;
 	if (!save_state) {
 		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
@@ -588,7 +591,8 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
 	save_state->cap_nr = PCI_CAP_ID_EXP;
-	pci_add_saved_cap(dev, save_state);
+	if (!found)
+		pci_add_saved_cap(dev, save_state);
 	return 0;
 }
 
@@ -616,6 +620,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	int pos, i = 0;
 	struct pci_cap_saved_state *save_state;
 	u16 *cap;
+	int found = 0;
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (pos <= 0)
@@ -624,6 +629,8 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
 	if (!save_state)
 		save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
+	else
+		found = 1;
 	if (!save_state) {
 		dev_err(&dev->dev, "Out of memory in pci_save_pcie_state\n");
 		return -ENOMEM;
@@ -632,7 +639,8 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 
 	pci_read_config_word(dev, pos + PCI_X_CMD, &cap[i++]);
 	save_state->cap_nr = PCI_CAP_ID_PCIX;
-	pci_add_saved_cap(dev, save_state);
+	if (!found)
+		pci_add_saved_cap(dev, save_state);
 	return 0;
 }
 
