@@ -6,6 +6,7 @@
 #include <linux/netfilter.h>
 #include <linux/seq_file.h>
 #include <net/protocol.h>
+#include <net/netfilter/nf_log.h>
 
 #include "nf_internals.h"
 

@@ -18,6 +18,7 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_log.h>
 
 static unsigned long nf_ct_icmp_timeout __read_mostly = 30*HZ;
 

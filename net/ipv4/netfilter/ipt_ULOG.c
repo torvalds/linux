@@ -43,6 +43,7 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_ipv4/ipt_ULOG.h>
+#include <net/netfilter/nf_log.h>
 #include <net/sock.h>
 #include <linux/bitops.h>
 #include <asm/unaligned.h>

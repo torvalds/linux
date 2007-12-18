@@ -24,6 +24,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_log.h>
 
 /* Protects conntrack->proto.tcp */
 static DEFINE_RWLOCK(tcp_lock);

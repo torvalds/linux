@@ -22,6 +22,7 @@
 #include <linux/netfilter_ipv6.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_log.h>
 
 static unsigned int nf_ct_udplite_timeout __read_mostly = 30*HZ;
 static unsigned int nf_ct_udplite_timeout_stream __read_mostly = 180*HZ;

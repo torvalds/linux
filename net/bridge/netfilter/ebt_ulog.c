@@ -38,6 +38,7 @@
 #include <linux/netdevice.h>
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_ulog.h>
+#include <net/netfilter/nf_log.h>
 #include <net/sock.h>
 #include "../br_private.h"
 

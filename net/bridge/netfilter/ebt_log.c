@@ -17,6 +17,7 @@
 #include <linux/in.h>
 #include <linux/if_arp.h>
 #include <linux/spinlock.h>
+#include <net/netfilter/nf_log.h>
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
