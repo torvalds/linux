@@ -1037,6 +1037,50 @@ copy_entries_to_user(unsigned int total_size,
 	return ret;
 }
 
+static int get_info(void __user *user, int *len)
+{
+	char name[IP6T_TABLE_MAXNAMELEN];
+	struct xt_table *t;
+	int ret;
+
+	if (*len != sizeof(struct ip6t_getinfo)) {
+		duprintf("length %u != %u\n", *len,
+			 sizeof(struct ip6t_getinfo));
+		return -EINVAL;
+	}
+
+	if (copy_from_user(name, user, sizeof(name)) != 0)
+		return -EFAULT;
+
+	name[IP6T_TABLE_MAXNAMELEN-1] = '\0';
+
+	t = try_then_request_module(xt_find_table_lock(AF_INET6, name),
+				    "ip6table_%s", name);
+	if (t && !IS_ERR(t)) {
+		struct ip6t_getinfo info;
+		struct xt_table_info *private = t->private;
+
+		info.valid_hooks = t->valid_hooks;
+		memcpy(info.hook_entry, private->hook_entry,
+		       sizeof(info.hook_entry));
+		memcpy(info.underflow, private->underflow,
+		       sizeof(info.underflow));
+		info.num_entries = private->number;
+		info.size = private->size;
+		memcpy(info.name, name, sizeof(info.name));
+
+		if (copy_to_user(user, &info, *len) != 0)
+			ret = -EFAULT;
+		else
+			ret = 0;
+
+		xt_table_unlock(t);
+		module_put(t->me);
+	} else
+		ret = t ? PTR_ERR(t) : -ENOENT;
+	return ret;
+}
+
 static int
 get_entries(const struct ip6t_get_entries *entries,
 	    struct ip6t_get_entries __user *uptr)
@@ -1274,48 +1318,9 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		return -EPERM;
 
 	switch (cmd) {
-	case IP6T_SO_GET_INFO: {
-		char name[IP6T_TABLE_MAXNAMELEN];
-		struct xt_table *t;
-
-		if (*len != sizeof(struct ip6t_getinfo)) {
-			duprintf("length %u != %u\n", *len,
-				 sizeof(struct ip6t_getinfo));
-			ret = -EINVAL;
-			break;
-		}
-
-		if (copy_from_user(name, user, sizeof(name)) != 0) {
-			ret = -EFAULT;
-			break;
-		}
-		name[IP6T_TABLE_MAXNAMELEN-1] = '\0';
-
-		t = try_then_request_module(xt_find_table_lock(AF_INET6, name),
-					    "ip6table_%s", name);
-		if (t && !IS_ERR(t)) {
-			struct ip6t_getinfo info;
-			struct xt_table_info *private = t->private;
-
-			info.valid_hooks = t->valid_hooks;
-			memcpy(info.hook_entry, private->hook_entry,
-			       sizeof(info.hook_entry));
-			memcpy(info.underflow, private->underflow,
-			       sizeof(info.underflow));
-			info.num_entries = private->number;
-			info.size = private->size;
-			memcpy(info.name, name, sizeof(info.name));
-
-			if (copy_to_user(user, &info, *len) != 0)
-				ret = -EFAULT;
-			else
-				ret = 0;
-			xt_table_unlock(t);
-			module_put(t->me);
-		} else
-			ret = t ? PTR_ERR(t) : -ENOENT;
-	}
-	break;
+	case IP6T_SO_GET_INFO:
+		ret = get_info(user, len);
+		break;
 
 	case IP6T_SO_GET_ENTRIES: {
 		struct ip6t_get_entries get;
