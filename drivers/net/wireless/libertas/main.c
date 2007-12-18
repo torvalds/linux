@@ -1435,11 +1435,6 @@ void lbs_interrupt(struct lbs_private *priv)
 
 	lbs_deb_thread("lbs_interrupt: intcounter=%d\n", priv->intcounter);
 
-	if (!spin_is_locked(&priv->driver_lock)) {
-		printk(KERN_CRIT "%s called without driver_lock held\n", __func__);
-		WARN_ON(1);
-	}
-
 	priv->intcounter++;
 
 	if (priv->psstate == PS_STATE_SLEEP)
