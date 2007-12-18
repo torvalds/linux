@@ -716,10 +716,8 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 
 	if ((addr > (u8 *) jprobe_return) && (addr < (u8 *) jprobe_return_end)) {
-		if ((long *)regs->rsp != kcb->jprobe_saved_rsp) {
-			struct pt_regs *saved_regs =
-			    container_of(kcb->jprobe_saved_rsp,
-					    struct pt_regs, rsp);
+		if ((unsigned long *)regs->rsp != kcb->jprobe_saved_rsp) {
+			struct pt_regs *saved_regs = &kcb->jprobe_saved_regs;
 			printk("current rsp %p does not match saved rsp %p\n",
 			       (long *)regs->rsp, kcb->jprobe_saved_rsp);
 			printk("Saved registers for jprobe %p\n", jp);
