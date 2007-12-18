@@ -156,6 +156,8 @@ struct cmd_ds_802_11_reset {
 };
 
 struct cmd_ds_802_11_subscribe_event {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 events;
 
@@ -164,7 +166,7 @@ struct cmd_ds_802_11_subscribe_event {
 	 * 40 bytes. However, future firmware might add additional TLVs, so I
 	 * bump this up a bit.
 	 */
-	u8 tlv[128];
+	uint8_t tlv[128];
 };
 
 /*
@@ -728,7 +730,6 @@ struct cmd_ds_command {
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
 		struct cmd_ds_get_tsf gettsf;
-		struct cmd_ds_802_11_subscribe_event subscribe_event;
 		struct cmd_ds_802_11_beacon_control bcn_ctrl;
 	} params;
 } __attribute__ ((packed));

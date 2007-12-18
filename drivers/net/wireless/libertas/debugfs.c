@@ -347,20 +347,19 @@ static ssize_t lbs_setuserscan(struct file *file,
  * and returns a pointer to the first data byte of the TLV, or to NULL
  * if the TLV hasn't been found.
  */
-static void *lbs_tlv_find(u16 tlv_type, const u8 *tlv, u16 size)
+static void *lbs_tlv_find(uint16_t tlv_type, const uint8_t *tlv, uint16_t size)
 {
-	__le16 le_type = cpu_to_le16(tlv_type);
-	ssize_t pos = 0;
 	struct mrvlietypesheader *tlv_h;
+	uint16_t length;
+	ssize_t pos = 0;
+
 	while (pos < size) {
-		u16 length;
 		tlv_h = (struct mrvlietypesheader *) tlv;
-		if (tlv_h->type == le_type)
-			return tlv_h;
-		if (tlv_h->len == 0)
+		if (!tlv_h->len)
 			return NULL;
-		length = le16_to_cpu(tlv_h->len) +
-			sizeof(struct mrvlietypesheader);
+		if (tlv_h->type == cpu_to_le16(tlv_type))
+			return tlv_h;
+		length = le16_to_cpu(tlv_h->len) + sizeof(*tlv_h);
 		pos += length;
 		tlv += length;
 	}
@@ -368,100 +367,100 @@ static void *lbs_tlv_find(u16 tlv_type, const u8 *tlv, u16 size)
 }
 
 
-/*
- * This just gets the bitmap of currently subscribed events. Used when
- * adding an additonal event subscription.
- */
-static u16 lbs_get_events_bitmap(struct lbs_private *priv)
+static ssize_t lbs_threshold_read(uint16_t tlv_type, uint16_t event_mask,
+				  struct file *file, char __user *userbuf,
+				  size_t count, loff_t *ppos)
 {
-	ssize_t res;
-
-	struct cmd_ds_802_11_subscribe_event *events = kzalloc(
-		sizeof(struct cmd_ds_802_11_subscribe_event),
-		GFP_KERNEL);
-
-	res = lbs_prepare_and_send_command(priv,
-			CMD_802_11_SUBSCRIBE_EVENT, CMD_ACT_GET,
-			CMD_OPTION_WAITFORRSP, 0, events);
-
-	if (res) {
-		kfree(events);
-		return 0;
-	}
-	return le16_to_cpu(events->events);
-}
-
-
-static ssize_t lbs_threshold_read(
-	u16 tlv_type, u16 event_mask,
-	struct file *file, char __user *userbuf,
-	size_t count, loff_t *ppos)
-{
+	struct cmd_ds_802_11_subscribe_event *subscribed;
+	struct mrvlietypes_thresholds *got;
 	struct lbs_private *priv = file->private_data;
-	ssize_t res = 0;
+	ssize_t ret = 0;
 	size_t pos = 0;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
+	char *buf;
 	u8 value;
 	u8 freq;
 	int events = 0;
 
-	struct cmd_ds_802_11_subscribe_event *subscribed = kzalloc(
-		sizeof(struct cmd_ds_802_11_subscribe_event),
-		GFP_KERNEL);
-	struct mrvlietypes_thresholds *got;
+	buf = (char *)get_zeroed_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
-	res = lbs_prepare_and_send_command(priv,
-			CMD_802_11_SUBSCRIBE_EVENT, CMD_ACT_GET,
-			CMD_OPTION_WAITFORRSP, 0, subscribed);
-	if (res) {
-		kfree(subscribed);
-		return res;
+	subscribed = kzalloc(sizeof(*subscribed), GFP_KERNEL);
+	if (!subscribed) {
+		ret = -ENOMEM;
+		goto out_page;
 	}
+
+	subscribed->hdr.size = cpu_to_le16(sizeof(*subscribed));
+	subscribed->action = cpu_to_le16(CMD_ACT_GET);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SUBSCRIBE_EVENT, subscribed);
+	if (ret)
+		goto out_cmd;
 
 	got = lbs_tlv_find(tlv_type, subscribed->tlv, sizeof(subscribed->tlv));
 	if (got) {
 		value = got->value;
 		freq  = got->freq;
 		events = le16_to_cpu(subscribed->events);
+
+		pos += snprintf(buf, len, "%d %d %d\n", value, freq,
+				!!(events & event_mask));
 	}
+
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
+
+ out_cmd:
 	kfree(subscribed);
 
-	if (got)
-		pos += snprintf(buf, len, "%d %d %d\n", value, freq,
-			!!(events & event_mask));
-
-	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
-
-	free_page(addr);
-	return res;
+ out_page:
+	free_page((unsigned long)buf);
+	return ret;
 }
 
 
-static ssize_t lbs_threshold_write(
-	u16 tlv_type, u16 event_mask,
-	struct file *file,
-	const char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_threshold_write(uint16_t tlv_type, uint16_t event_mask,
+				   struct file *file,
+				   const char __user *userbuf, size_t count,
+				   loff_t *ppos)
 {
-	struct lbs_private *priv = file->private_data;
-	ssize_t res, buf_size;
-	int value, freq, curr_mask, new_mask;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
 	struct cmd_ds_802_11_subscribe_event *events;
+	struct mrvlietypes_thresholds *tlv;
+	struct lbs_private *priv = file->private_data;
+	ssize_t buf_size;
+	int value, freq, new_mask;
+	uint16_t curr_mask;
+	char *buf;
+	int ret;
+
+	buf = (char *)get_zeroed_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	buf_size = min(count, len - 1);
 	if (copy_from_user(buf, userbuf, buf_size)) {
-		res = -EFAULT;
-		goto out_unlock;
+		ret = -EFAULT;
+		goto out_page;
 	}
-	res = sscanf(buf, "%d %d %d", &value, &freq, &new_mask);
-	if (res != 3) {
-		res = -EFAULT;
-		goto out_unlock;
+	ret = sscanf(buf, "%d %d %d", &value, &freq, &new_mask);
+	if (ret != 3) {
+		ret = -EINVAL;
+		goto out_page;
 	}
-	curr_mask = lbs_get_events_bitmap(priv);
+	events = kzalloc(sizeof(*events), GFP_KERNEL);
+	if (!events) {
+		ret = -ENOMEM;
+		goto out_page;
+	}
+
+	events->hdr.size = cpu_to_le16(sizeof(*events));
+	events->action = cpu_to_le16(CMD_ACT_GET);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SUBSCRIBE_EVENT, events);
+	if (ret)
+		goto out_events;
+
+	curr_mask = le16_to_cpu(events->events);
 
 	if (new_mask)
 		new_mask = curr_mask | event_mask;
@@ -469,144 +468,125 @@ static ssize_t lbs_threshold_write(
 		new_mask = curr_mask & ~event_mask;
 
 	/* Now everything is set and we can send stuff down to the firmware */
-	events = kzalloc(
-		sizeof(struct cmd_ds_802_11_subscribe_event),
-		GFP_KERNEL);
-	if (events) {
-		struct mrvlietypes_thresholds *tlv =
-			(struct mrvlietypes_thresholds *) events->tlv;
-		events->action = cpu_to_le16(CMD_ACT_SET);
-		events->events = cpu_to_le16(new_mask);
-		tlv->header.type = cpu_to_le16(tlv_type);
-		tlv->header.len = cpu_to_le16(
-			sizeof(struct mrvlietypes_thresholds) -
-			sizeof(struct mrvlietypesheader));
-		tlv->value = value;
-		if (tlv_type != TLV_TYPE_BCNMISS)
-			tlv->freq = freq;
-		lbs_prepare_and_send_command(priv,
-			CMD_802_11_SUBSCRIBE_EVENT, CMD_ACT_SET,
-			CMD_OPTION_WAITFORRSP, 0, events);
-		kfree(events);
-	}
 
-	res = count;
-out_unlock:
-	free_page(addr);
-	return res;
+	tlv = (void *)events->tlv;
+
+	events->action = cpu_to_le16(CMD_ACT_SET);
+	events->events = cpu_to_le16(new_mask);
+	tlv->header.type = cpu_to_le16(tlv_type);
+	tlv->header.len = cpu_to_le16(sizeof(*tlv) - sizeof(tlv->header));
+	tlv->value = value;
+	if (tlv_type != TLV_TYPE_BCNMISS)
+		tlv->freq = freq;
+
+	/* The command header, the event mask, and the one TLV */
+	events->hdr.size = cpu_to_le16(sizeof(events->hdr) + 2 + sizeof(*tlv));
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SUBSCRIBE_EVENT, events);
+
+	if (!ret)
+		ret = count;
+ out_events:
+	kfree(events);
+ out_page:
+	free_page((unsigned long)buf);
+	return ret;
 }
 
 
-static ssize_t lbs_lowrssi_read(
-	struct file *file, char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_lowrssi_read(struct file *file, char __user *userbuf,
+				size_t count, loff_t *ppos)
 {
 	return lbs_threshold_read(TLV_TYPE_RSSI_LOW, CMD_SUBSCRIBE_RSSI_LOW,
-		file, userbuf, count, ppos);
+				  file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_lowrssi_write(
-	struct file *file, const char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_lowrssi_write(struct file *file, const char __user *userbuf,
+				 size_t count, loff_t *ppos)
 {
 	return lbs_threshold_write(TLV_TYPE_RSSI_LOW, CMD_SUBSCRIBE_RSSI_LOW,
-		file, userbuf, count, ppos);
+				   file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_lowsnr_read(
-	struct file *file, char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_lowsnr_read(struct file *file, char __user *userbuf,
+			       size_t count, loff_t *ppos)
 {
 	return lbs_threshold_read(TLV_TYPE_SNR_LOW, CMD_SUBSCRIBE_SNR_LOW,
-		file, userbuf, count, ppos);
+				  file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_lowsnr_write(
-	struct file *file, const char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_lowsnr_write(struct file *file, const char __user *userbuf,
+				size_t count, loff_t *ppos)
 {
 	return lbs_threshold_write(TLV_TYPE_SNR_LOW, CMD_SUBSCRIBE_SNR_LOW,
-		file, userbuf, count, ppos);
+				   file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_failcount_read(
-	struct file *file, char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_failcount_read(struct file *file, char __user *userbuf,
+				  size_t count, loff_t *ppos)
 {
 	return lbs_threshold_read(TLV_TYPE_FAILCOUNT, CMD_SUBSCRIBE_FAILCOUNT,
-		file, userbuf, count, ppos);
+				  file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_failcount_write(
-	struct file *file, const char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_failcount_write(struct file *file, const char __user *userbuf,
+				   size_t count, loff_t *ppos)
 {
 	return lbs_threshold_write(TLV_TYPE_FAILCOUNT, CMD_SUBSCRIBE_FAILCOUNT,
-		file, userbuf, count, ppos);
+				   file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_highrssi_read(
-	struct file *file, char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_highrssi_read(struct file *file, char __user *userbuf,
+				 size_t count, loff_t *ppos)
 {
 	return lbs_threshold_read(TLV_TYPE_RSSI_HIGH, CMD_SUBSCRIBE_RSSI_HIGH,
-		file, userbuf, count, ppos);
+				  file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_highrssi_write(
-	struct file *file, const char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_highrssi_write(struct file *file, const char __user *userbuf,
+				  size_t count, loff_t *ppos)
 {
 	return lbs_threshold_write(TLV_TYPE_RSSI_HIGH, CMD_SUBSCRIBE_RSSI_HIGH,
-		file, userbuf, count, ppos);
+				   file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_highsnr_read(
-	struct file *file, char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_highsnr_read(struct file *file, char __user *userbuf,
+				size_t count, loff_t *ppos)
 {
 	return lbs_threshold_read(TLV_TYPE_SNR_HIGH, CMD_SUBSCRIBE_SNR_HIGH,
-		file, userbuf, count, ppos);
+				  file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_highsnr_write(
-	struct file *file, const char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_highsnr_write(struct file *file, const char __user *userbuf,
+				 size_t count, loff_t *ppos)
 {
 	return lbs_threshold_write(TLV_TYPE_SNR_HIGH, CMD_SUBSCRIBE_SNR_HIGH,
-		file, userbuf, count, ppos);
+				   file, userbuf, count, ppos);
 }
 
-static ssize_t lbs_bcnmiss_read(
-	struct file *file, char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_bcnmiss_read(struct file *file, char __user *userbuf,
+				size_t count, loff_t *ppos)
 {
 	return lbs_threshold_read(TLV_TYPE_BCNMISS, CMD_SUBSCRIBE_BCNMISS,
-		file, userbuf, count, ppos);
+				  file, userbuf, count, ppos);
 }
 
 
-static ssize_t lbs_bcnmiss_write(
-	struct file *file, const char __user *userbuf,
-	size_t count, loff_t *ppos)
+static ssize_t lbs_bcnmiss_write(struct file *file, const char __user *userbuf,
+				 size_t count, loff_t *ppos)
 {
 	return lbs_threshold_write(TLV_TYPE_BCNMISS, CMD_SUBSCRIBE_BCNMISS,
-		file, userbuf, count, ppos);
+				   file, userbuf, count, ppos);
 }
-
-
-
-
-
 
 
 

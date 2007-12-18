@@ -327,53 +327,6 @@ int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-
-static ssize_t lbs_tlv_size(const u8 *tlv, u16 size)
-{
-	ssize_t pos = 0;
-	struct mrvlietypesheader *tlv_h;
-	while (pos < size) {
-		u16 length;
-		tlv_h = (struct mrvlietypesheader *) tlv;
-		if (tlv_h->len == 0)
-			return pos;
-		length = le16_to_cpu(tlv_h->len) +
-			sizeof(struct mrvlietypesheader);
-		pos += length;
-		tlv += length;
-	}
-	return pos;
-}
-
-
-static void lbs_cmd_802_11_subscribe_event(struct lbs_private *priv,
-	struct cmd_ds_command *cmd, u16 cmd_action,
-	void *pdata_buf)
-{
-	struct cmd_ds_802_11_subscribe_event *events =
-		(struct cmd_ds_802_11_subscribe_event *) pdata_buf;
-
-	/* pdata_buf points to a struct cmd_ds_802_11_subscribe_event and room
-	 * for various Marvell TLVs */
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd->size = cpu_to_le16(sizeof(*events)
-			- sizeof(events->tlv)
-			+ S_DS_GEN);
-	cmd->params.subscribe_event.action = cpu_to_le16(cmd_action);
-	if (cmd_action == CMD_ACT_GET) {
-		cmd->params.subscribe_event.events = 0;
-	} else {
-		ssize_t sz = lbs_tlv_size(events->tlv, sizeof(events->tlv));
-		cmd->size = cpu_to_le16(le16_to_cpu(cmd->size) + sz);
-		cmd->params.subscribe_event.events = events->events;
-		memcpy(cmd->params.subscribe_event.tlv, events->tlv, sz);
-	}
-
-	lbs_deb_leave(LBS_DEB_CMD);
-}
-
 static void set_one_wpa_key(struct MrvlIEtype_keyParamSet * pkeyparamset,
                             struct enc_key * pkey)
 {
@@ -1545,10 +1498,7 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 			ret = 0;
 			break;
 		}
-	case CMD_802_11_SUBSCRIBE_EVENT:
-		lbs_cmd_802_11_subscribe_event(priv, cmdptr,
-			cmd_action, pdata_buf);
-		break;
+
 	case CMD_802_11_PWR_CFG:
 		cmdptr->command = cpu_to_le16(CMD_802_11_PWR_CFG);
 		cmdptr->size =
