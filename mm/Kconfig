@@ -112,18 +112,17 @@ config SPARSEMEM_EXTREME
 	def_bool y
 	depends on SPARSEMEM && !SPARSEMEM_STATIC
 
-#
-# SPARSEMEM_VMEMMAP uses a virtually mapped mem_map to optimise pfn_to_page
-# and page_to_pfn.  The most efficient option where kernel virtual space is
-# not under pressure.
-#
 config SPARSEMEM_VMEMMAP_ENABLE
 	def_bool n
 
 config SPARSEMEM_VMEMMAP
-	bool
-	depends on SPARSEMEM
-	default y if (SPARSEMEM_VMEMMAP_ENABLE)
+	bool "Sparse Memory virtual memmap"
+	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
+	default y
+	help
+	 SPARSEMEM_VMEMMAP uses a virtually mapped memmap to optimise
+	 pfn_to_page and page_to_pfn operations.  This is the most
+	 efficient option when sufficient kernel resources are available.
 
 # eventually, we can have this option just 'select SPARSEMEM'
 config MEMORY_HOTPLUG
