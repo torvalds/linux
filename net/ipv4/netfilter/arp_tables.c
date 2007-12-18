@@ -435,12 +435,9 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 	return 1;
 }
 
-static inline int check_entry(struct arpt_entry *e, const char *name, unsigned int size,
-			      unsigned int *i)
+static inline int check_entry(struct arpt_entry *e, const char *name)
 {
 	struct arpt_entry_target *t;
-	struct arpt_target *target;
-	int ret;
 
 	if (!arp_checkentry(&e->arp)) {
 		duprintf("arp_tables: arp check failed %p %s.\n", e, name);
@@ -454,29 +451,56 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	if (e->target_offset + t->u.target_size > e->next_offset)
 		return -EINVAL;
 
-	target = try_then_request_module(xt_find_target(NF_ARP, t->u.user.name,
-							t->u.user.revision),
-					 "arpt_%s", t->u.user.name);
-	if (IS_ERR(target) || !target) {
-		duprintf("check_entry: `%s' not found\n", t->u.user.name);
-		ret = target ? PTR_ERR(target) : -ENOENT;
-		goto out;
-	}
-	t->u.kernel.target = target;
+	return 0;
+}
+
+static inline int check_target(struct arpt_entry *e, const char *name)
+{
+	struct arpt_entry_target *t;
+	struct arpt_target *target;
+	int ret;
+
+	t = arpt_get_target(e);
+	target = t->u.kernel.target;
 
 	ret = xt_check_target(target, NF_ARP, t->u.target_size - sizeof(*t),
 			      name, e->comefrom, 0, 0);
-	if (ret)
-		goto err;
-
-	if (t->u.kernel.target->checkentry
+	if (!ret && t->u.kernel.target->checkentry
 	    && !t->u.kernel.target->checkentry(name, e, target, t->data,
 					       e->comefrom)) {
 		duprintf("arp_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		ret = -EINVAL;
-		goto err;
 	}
+	return ret;
+}
+
+static inline int
+find_check_entry(struct arpt_entry *e, const char *name, unsigned int size,
+		 unsigned int *i)
+{
+	struct arpt_entry_target *t;
+	struct arpt_target *target;
+	int ret;
+
+	ret = check_entry(e, name);
+	if (ret)
+		return ret;
+
+	t = arpt_get_target(e);
+	target = try_then_request_module(xt_find_target(NF_ARP, t->u.user.name,
+							t->u.user.revision),
+					 "arpt_%s", t->u.user.name);
+	if (IS_ERR(target) || !target) {
+		duprintf("find_check_entry: `%s' not found\n", t->u.user.name);
+		ret = target ? PTR_ERR(target) : -ENOENT;
+		goto out;
+	}
+	t->u.kernel.target = target;
+
+	ret = check_target(e, name);
+	if (ret)
+		goto err;
 
 	(*i)++;
 	return 0;
@@ -611,7 +635,7 @@ static int translate_table(const char *name,
 	/* Finally, each sanity check must pass */
 	i = 0;
 	ret = ARPT_ENTRY_ITERATE(entry0, newinfo->size,
-				 check_entry, name, size, &i);
+				 find_check_entry, name, size, &i);
 
 	if (ret != 0) {
 		ARPT_ENTRY_ITERATE(entry0, newinfo->size,
