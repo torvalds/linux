@@ -1559,7 +1559,7 @@ compat_release_match(struct ipt_entry_match *m, unsigned int *i)
 }
 
 static inline int
-compat_release_entry(struct ipt_entry *e, unsigned int *i)
+compat_release_entry(struct compat_ipt_entry *e, unsigned int *i)
 {
 	struct ipt_entry_target *t;
 
@@ -1567,14 +1567,14 @@ compat_release_entry(struct ipt_entry *e, unsigned int *i)
 		return 1;
 
 	/* Cleanup all matches */
-	IPT_MATCH_ITERATE(e, compat_release_match, NULL);
-	t = ipt_get_target(e);
+	COMPAT_IPT_MATCH_ITERATE(e, compat_release_match, NULL);
+	t = compat_ipt_get_target(e);
 	module_put(t->u.kernel.target->me);
 	return 0;
 }
 
 static inline int
-check_compat_entry_size_and_hooks(struct ipt_entry *e,
+check_compat_entry_size_and_hooks(struct compat_ipt_entry *e,
 				  struct xt_table_info *newinfo,
 				  unsigned int *size,
 				  unsigned char *base,
@@ -1603,19 +1603,20 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 		return -EINVAL;
 	}
 
-	ret = check_entry(e, name);
+	/* For purposes of check_entry casting the compat entry is fine */
+	ret = check_entry((struct ipt_entry *)e, name);
 	if (ret)
 		return ret;
 
 	off = sizeof(struct ipt_entry) - sizeof(struct compat_ipt_entry);
 	entry_offset = (void *)e - (void *)base;
 	j = 0;
-	ret = IPT_MATCH_ITERATE(e, compat_find_calc_match, name, &e->ip,
-				e->comefrom, &off, &j);
+	ret = COMPAT_IPT_MATCH_ITERATE(e, compat_find_calc_match, name,
+				       &e->ip, e->comefrom, &off, &j);
 	if (ret != 0)
 		goto release_matches;
 
-	t = ipt_get_target(e);
+	t = compat_ipt_get_target(e);
 	target = try_then_request_module(xt_find_target(AF_INET,
 							t->u.user.name,
 							t->u.user.revision),
@@ -1643,7 +1644,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 	}
 
 	/* Clear counters and comefrom */
-	e->counters = ((struct ipt_counters) { 0, 0 });
+	memset(&e->counters, 0, sizeof(e->counters));
 	e->comefrom = 0;
 
 	(*i)++;
@@ -1657,7 +1658,7 @@ release_matches:
 }
 
 static int
-compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
+compat_copy_entry_from_user(struct compat_ipt_entry *e, void **dstptr,
 			    unsigned int *size, const char *name,
 			    struct xt_table_info *newinfo, unsigned char *base)
 {
@@ -1671,15 +1672,17 @@ compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	origsize = *size;
 	de = (struct ipt_entry *)*dstptr;
 	memcpy(de, e, sizeof(struct ipt_entry));
+	memcpy(&de->counters, &e->counters, sizeof(e->counters));
 
-	*dstptr += sizeof(struct compat_ipt_entry);
+	*dstptr += sizeof(struct ipt_entry);
 	*size += sizeof(struct ipt_entry) - sizeof(struct compat_ipt_entry);
 
-	ret = IPT_MATCH_ITERATE(e, xt_compat_match_from_user, dstptr, size);
+	ret = COMPAT_IPT_MATCH_ITERATE(e, xt_compat_match_from_user,
+				       dstptr, size);
 	if (ret)
 		return ret;
 	de->target_offset = e->target_offset - (origsize - *size);
-	t = ipt_get_target(e);
+	t = compat_ipt_get_target(e);
 	target = t->u.kernel.target;
 	xt_compat_target_from_user(t, dstptr, size);
 
@@ -1746,11 +1749,11 @@ translate_compat_table(const char *name,
 	j = 0;
 	xt_compat_lock(AF_INET);
 	/* Walk through entries, checking offsets. */
-	ret = IPT_ENTRY_ITERATE(entry0, total_size,
-				check_compat_entry_size_and_hooks,
-				info, &size, entry0,
-				entry0 + total_size,
-				hook_entries, underflows, &j, name);
+	ret = COMPAT_IPT_ENTRY_ITERATE(entry0, total_size,
+				       check_compat_entry_size_and_hooks,
+				       info, &size, entry0,
+				       entry0 + total_size,
+				       hook_entries, underflows, &j, name);
 	if (ret != 0)
 		goto out_unlock;
 
@@ -1791,9 +1794,9 @@ translate_compat_table(const char *name,
 	entry1 = newinfo->entries[raw_smp_processor_id()];
 	pos = entry1;
 	size = total_size;
-	ret = IPT_ENTRY_ITERATE(entry0, total_size,
-				compat_copy_entry_from_user, &pos, &size,
-				name, newinfo, entry1);
+	ret = COMPAT_IPT_ENTRY_ITERATE(entry0, total_size,
+				       compat_copy_entry_from_user, &pos, &size,
+				       name, newinfo, entry1);
 	compat_flush_offsets();
 	xt_compat_unlock(AF_INET);
 	if (ret)
@@ -1808,8 +1811,8 @@ translate_compat_table(const char *name,
 				name, &i);
 	if (ret) {
 		j -= i;
-		IPT_ENTRY_ITERATE_CONTINUE(entry1, newinfo->size, i,
-					   compat_release_entry, &j);
+		COMPAT_IPT_ENTRY_ITERATE_CONTINUE(entry0, newinfo->size, i,
+						  compat_release_entry, &j);
 		IPT_ENTRY_ITERATE(entry1, newinfo->size, cleanup_entry, &i);
 		xt_free_table_info(newinfo);
 		return ret;
@@ -1828,7 +1831,7 @@ translate_compat_table(const char *name,
 free_newinfo:
 	xt_free_table_info(newinfo);
 out:
-	IPT_ENTRY_ITERATE(entry0, total_size, compat_release_entry, &j);
+	COMPAT_IPT_ENTRY_ITERATE(entry0, total_size, compat_release_entry, &j);
 	return ret;
 out_unlock:
 	compat_flush_offsets();

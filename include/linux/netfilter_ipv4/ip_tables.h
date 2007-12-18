@@ -236,11 +236,6 @@ ipt_get_target(struct ipt_entry *e)
 #define IPT_ENTRY_ITERATE(entries, size, fn, args...) \
 	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
 
-/* fn returns 0 to continue iteration */
-#define IPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
-	XT_ENTRY_ITERATE_CONTINUE(struct ipt_entry, entries, size, n, fn, \
-				  ## args)
-
 /*
  *	Main firewall chains definitions and global var's definitions.
  */
@@ -316,7 +311,27 @@ struct compat_ipt_entry
 	unsigned char elems[0];
 };
 
+/* Helper functions */
+static inline struct ipt_entry_target *
+compat_ipt_get_target(struct compat_ipt_entry *e)
+{
+	return (void *)e + e->target_offset;
+}
+
 #define COMPAT_IPT_ALIGN(s) 	COMPAT_XT_ALIGN(s)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IPT_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct compat_ipt_entry, e, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IPT_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct compat_ipt_entry, entries, size, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
+	XT_ENTRY_ITERATE_CONTINUE(struct compat_ipt_entry, entries, size, n, \
+				  fn, ## args)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/
