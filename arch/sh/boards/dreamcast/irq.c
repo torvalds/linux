@@ -136,7 +136,7 @@ int systemasic_irq_demux(int irq)
         emr = EMR_BASE + (level << 4) + (level << 2);
         esr = ESR_BASE + (level << 2);
 
-        /* Mask the ESR to filter any spurious, unwanted interrtupts */
+        /* Mask the ESR to filter any spurious, unwanted interrupts */
         status = inl(esr);
         status &= inl(emr);
 
