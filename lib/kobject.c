@@ -124,11 +124,7 @@ char *kobject_get_path(struct kobject *kobj, gfp_t gfp_mask)
 }
 EXPORT_SYMBOL_GPL(kobject_get_path);
 
-/**
- *	kobject_init - initialize object.
- *	@kobj:	object in question.
- */
-void kobject_init(struct kobject * kobj)
+static void kobject_init_internal(struct kobject * kobj)
 {
 	if (!kobj)
 		return;
@@ -232,7 +228,7 @@ int kobject_register(struct kobject * kobj)
 {
 	int error = -EINVAL;
 	if (kobj) {
-		kobject_init(kobj);
+		kobject_init_internal(kobj);
 		error = kobject_add(kobj);
 		if (!error)
 			kobject_uevent(kobj, KOBJ_ADD);
@@ -695,7 +691,7 @@ EXPORT_SYMBOL_GPL(kobject_create_and_add);
 
 void kset_init(struct kset * k)
 {
-	kobject_init(&k->kobj);
+	kobject_init_internal(&k->kobj);
 	INIT_LIST_HEAD(&k->list);
 	spin_lock_init(&k->list_lock);
 }
@@ -887,7 +883,6 @@ struct kset *kset_create_and_add(const char *name,
 }
 EXPORT_SYMBOL_GPL(kset_create_and_add);
 
-EXPORT_SYMBOL(kobject_init);
 EXPORT_SYMBOL(kobject_register);
 EXPORT_SYMBOL(kobject_unregister);
 EXPORT_SYMBOL(kobject_get);
