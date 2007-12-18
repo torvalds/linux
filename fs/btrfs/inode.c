@@ -2302,40 +2302,64 @@ out_unlock:
 
 static int btrfs_ioctl_snap_create(struct btrfs_root *root, void __user *arg)
 {
-	struct btrfs_ioctl_vol_args vol_args;
+	struct btrfs_ioctl_vol_args *vol_args;
 	struct btrfs_dir_item *di;
 	struct btrfs_path *path;
-	int namelen;
 	u64 root_dirid;
+	int namelen;
+	int ret;
 
-	if (copy_from_user(&vol_args, arg, sizeof(vol_args)))
-		return -EFAULT;
+	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
 
-	namelen = strlen(vol_args.name);
-	if (namelen > BTRFS_VOL_NAME_MAX)
-		return -EINVAL;
-	if (strchr(vol_args.name, '/'))
-		return -EINVAL;
+	if (!vol_args)
+		return -ENOMEM;
+
+	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	namelen = strlen(vol_args->name);
+	if (namelen > BTRFS_VOL_NAME_MAX) {
+		ret = -EINVAL;
+		goto out;
+	}
+	if (strchr(vol_args->name, '/')) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	root_dirid = root->fs_info->sb->s_root->d_inode->i_ino,
 	mutex_lock(&root->fs_info->fs_mutex);
 	di = btrfs_lookup_dir_item(NULL, root->fs_info->tree_root,
 			    path, root_dirid,
-			    vol_args.name, namelen, 0);
+			    vol_args->name, namelen, 0);
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_free_path(path);
-	if (di && !IS_ERR(di))
-		return -EEXIST;
-	if (IS_ERR(di))
-		return PTR_ERR(di);
+
+	if (di && !IS_ERR(di)) {
+		ret = -EEXIST;
+		goto out;
+	}
+
+	if (IS_ERR(di)) {
+		ret = PTR_ERR(di);
+		goto out;
+	}
 
 	if (root == root->fs_info->tree_root)
-		return create_subvol(root, vol_args.name, namelen);
-	return create_snapshot(root, vol_args.name, namelen);
+		ret = create_subvol(root, vol_args->name, namelen);
+	else
+		ret = create_snapshot(root, vol_args->name, namelen);
+out:
+	kfree(vol_args);
+	return ret;
 }
 
 static int btrfs_ioctl_defrag(struct file *file)
