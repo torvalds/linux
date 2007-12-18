@@ -206,9 +206,6 @@ int compat_nf_setsockopt(struct sock *sk, int pf, int optval,
 int compat_nf_getsockopt(struct sock *sk, int pf, int optval,
 		char __user *opt, int *len);
 
-/* FIXME: Before cache is ever used, this must be implemented for real. */
-extern void nf_invalidate_cache(int pf);
-
 /* Call this before modifying an existing packet: ensures it is
    modifiable and linear to the point you care about (writable_len).
    Returns true or false. */
