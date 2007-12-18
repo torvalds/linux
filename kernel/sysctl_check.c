@@ -428,7 +428,7 @@ static struct trans_ctl_table trans_net_netrom_table[] = {
 	{}
 };
 
-static struct trans_ctl_table trans_net_ax25_table[] = {
+static struct trans_ctl_table trans_net_ax25_param_table[] = {
 	{ NET_AX25_IP_DEFAULT_MODE,	"ip_default_mode" },
 	{ NET_AX25_DEFAULT_MODE,	"ax25_default_mode" },
 	{ NET_AX25_BACKOFF_TYPE,	"backoff_type" },
@@ -443,6 +443,11 @@ static struct trans_ctl_table trans_net_ax25_table[] = {
 	{ NET_AX25_PACLEN,		"maximum_packet_length" },
 	{ NET_AX25_PROTOCOL,		"protocol" },
 	{ NET_AX25_DAMA_SLAVE_TIMEOUT,	"dama_slave_timeout" },
+	{}
+};
+
+static struct trans_ctl_table trans_net_ax25_table[] = {
+	{ 0, NULL, trans_net_ax25_param_table },
 	{}
 };
 
