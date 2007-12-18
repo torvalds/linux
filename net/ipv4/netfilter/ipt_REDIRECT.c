@@ -87,7 +87,7 @@ redirect_tg(struct sk_buff *skb, const struct net_device *in,
 		  mr->range[0].min, mr->range[0].max });
 
 	/* Hand modified range to generic setup. */
-	return nf_nat_setup_info(ct, &newrange, hooknum);
+	return nf_nat_setup_info(ct, &newrange, IP_NAT_MANIP_DST);
 }
 
 static struct xt_target redirect_tg_reg __read_mostly = {

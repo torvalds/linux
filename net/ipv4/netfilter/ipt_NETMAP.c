@@ -70,7 +70,7 @@ netmap_tg(struct sk_buff *skb, const struct net_device *in,
 		  mr->range[0].min, mr->range[0].max });
 
 	/* Hand modified range to generic setup. */
-	return nf_nat_setup_info(ct, &newrange, hooknum);
+	return nf_nat_setup_info(ct, &newrange, HOOK2MANIP(hooknum));
 }
 
 static struct xt_target netmap_tg_reg __read_mostly = {

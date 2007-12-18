@@ -277,12 +277,11 @@ out:
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
 		  const struct nf_nat_range *range,
-		  unsigned int hooknum)
+		  enum nf_nat_manip_type maniptype)
 {
 	struct nf_conntrack_tuple curr_tuple, new_tuple;
 	struct nf_conn_nat *nat;
 	int have_to_hash = !(ct->status & IPS_NAT_DONE_MASK);
-	enum nf_nat_manip_type maniptype = HOOK2MANIP(hooknum);
 
 	/* nat helper or nfctnetlink also setup binding */
 	nat = nfct_nat(ct);
@@ -294,10 +293,8 @@ nf_nat_setup_info(struct nf_conn *ct,
 		}
 	}
 
-	NF_CT_ASSERT(hooknum == NF_INET_PRE_ROUTING ||
-		     hooknum == NF_INET_POST_ROUTING ||
-		     hooknum == NF_INET_LOCAL_IN ||
-		     hooknum == NF_INET_LOCAL_OUT);
+	NF_CT_ASSERT(maniptype == IP_NAT_MANIP_SRC ||
+		     maniptype == IP_NAT_MANIP_DST);
 	BUG_ON(nf_nat_initialized(ct, maniptype));
 
 	/* What we've got will look like inverse of reply. Normally

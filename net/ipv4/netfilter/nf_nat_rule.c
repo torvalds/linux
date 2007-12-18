@@ -87,7 +87,7 @@ static unsigned int ipt_snat_target(struct sk_buff *skb,
 			    ctinfo == IP_CT_RELATED + IP_CT_IS_REPLY));
 	NF_CT_ASSERT(out);
 
-	return nf_nat_setup_info(ct, &mr->range[0], hooknum);
+	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_SRC);
 }
 
 /* Before 2.6.11 we did implicit source NAT if required. Warn about change. */
@@ -133,7 +133,7 @@ static unsigned int ipt_dnat_target(struct sk_buff *skb,
 		warn_if_extra_mangle(ip_hdr(skb)->daddr,
 				     mr->range[0].min_ip);
 
-	return nf_nat_setup_info(ct, &mr->range[0], hooknum);
+	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_DST);
 }
 
 static bool ipt_snat_checkentry(const char *tablename,
@@ -184,7 +184,7 @@ alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 
 	pr_debug("Allocating NULL binding for %p (%u.%u.%u.%u)\n",
 		 ct, NIPQUAD(ip));
-	return nf_nat_setup_info(ct, &range, hooknum);
+	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
 }
 
 unsigned int
@@ -203,7 +203,7 @@ alloc_null_binding_confirmed(struct nf_conn *ct, unsigned int hooknum)
 
 	pr_debug("Allocating NULL binding for confirmed %p (%u.%u.%u.%u)\n",
 		 ct, NIPQUAD(ip));
-	return nf_nat_setup_info(ct, &range, hooknum);
+	return nf_nat_setup_info(ct, &range, HOOK2MANIP(hooknum));
 }
 
 int nf_nat_rule_find(struct sk_buff *skb,

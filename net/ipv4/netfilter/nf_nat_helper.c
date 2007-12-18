@@ -433,15 +433,13 @@ void nf_nat_follow_master(struct nf_conn *ct,
 	range.flags = IP_NAT_RANGE_MAP_IPS;
 	range.min_ip = range.max_ip
 		= ct->master->tuplehash[!exp->dir].tuple.dst.u3.ip;
-	/* hook doesn't matter, but it has to do source manip */
-	nf_nat_setup_info(ct, &range, NF_INET_POST_ROUTING);
+	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_SRC);
 
 	/* For DST manip, map port here to where it's expected. */
 	range.flags = (IP_NAT_RANGE_MAP_IPS | IP_NAT_RANGE_PROTO_SPECIFIED);
 	range.min = range.max = exp->saved_proto;
 	range.min_ip = range.max_ip
 		= ct->master->tuplehash[!exp->dir].tuple.src.u3.ip;
-	/* hook doesn't matter, but it has to do destination manip */
-	nf_nat_setup_info(ct, &range, NF_INET_PRE_ROUTING);
+	nf_nat_setup_info(ct, &range, IP_NAT_MANIP_DST);
 }
 EXPORT_SYMBOL(nf_nat_follow_master);

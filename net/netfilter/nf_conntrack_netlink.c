@@ -918,19 +918,17 @@ ctnetlink_change_status(struct nf_conn *ct, struct nlattr *cda[])
 			if (nfnetlink_parse_nat(cda[CTA_NAT_DST], ct,
 						&range) < 0)
 				return -EINVAL;
-			if (nf_nat_initialized(ct,
-					       HOOK2MANIP(NF_INET_PRE_ROUTING)))
+			if (nf_nat_initialized(ct, IP_NAT_MANIP_DST))
 				return -EEXIST;
-			nf_nat_setup_info(ct, &range, NF_INET_PRE_ROUTING);
+			nf_nat_setup_info(ct, &range, IP_NAT_MANIP_DST);
 		}
 		if (cda[CTA_NAT_SRC]) {
 			if (nfnetlink_parse_nat(cda[CTA_NAT_SRC], ct,
 						&range) < 0)
 				return -EINVAL;
-			if (nf_nat_initialized(ct,
-					       HOOK2MANIP(NF_INET_POST_ROUTING)))
+			if (nf_nat_initialized(ct, IP_NAT_MANIP_SRC))
 				return -EEXIST;
-			nf_nat_setup_info(ct, &range, NF_INET_POST_ROUTING);
+			nf_nat_setup_info(ct, &range, IP_NAT_MANIP_SRC);
 		}
 #endif
 	}
