@@ -371,8 +371,8 @@ ip6t_do_table(struct sk_buff *skb,
 	 * match it. */
 
 	read_lock_bh(&table->lock);
-	private = table->private;
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
+	private = table->private;
 	table_base = (void *)private->entries[smp_processor_id()];
 	e = get_entry(table_base, private->hook_entry[hook]);
 
@@ -496,9 +496,7 @@ mark_source_chains(struct xt_table_info *newinfo,
 	   to 0 as we leave), and comefrom to save source hook bitmask */
 	for (hook = 0; hook < NF_INET_NUMHOOKS; hook++) {
 		unsigned int pos = newinfo->hook_entry[hook];
-		struct ip6t_entry *e
-			= (struct ip6t_entry *)(entry0 + pos);
-		int visited = e->comefrom & (1 << hook);
+		struct ip6t_entry *e = (struct ip6t_entry *)(entry0 + pos);
 
 		if (!(valid_hooks & (1 << hook)))
 			continue;
@@ -509,14 +507,14 @@ mark_source_chains(struct xt_table_info *newinfo,
 		for (;;) {
 			struct ip6t_standard_target *t
 				= (void *)ip6t_get_target(e);
+			int visited = e->comefrom & (1 << hook);
 
 			if (e->comefrom & (1 << NF_INET_NUMHOOKS)) {
 				printk("iptables: loop hook %u pos %u %08X.\n",
 				       hook, pos, e->comefrom);
 				return 0;
 			}
-			e->comefrom
-				|= ((1 << hook) | (1 << NF_INET_NUMHOOKS));
+			e->comefrom |= ((1 << hook) | (1 << NF_INET_NUMHOOKS));
 
 			/* Unconditional return/END. */
 			if ((e->target_offset == sizeof(struct ip6t_entry)
@@ -663,7 +661,7 @@ find_check_match(struct ip6t_entry_match *m,
 	int ret;
 
 	match = try_then_request_module(xt_find_match(AF_INET6, m->u.user.name,
-					m->u.user.revision),
+						      m->u.user.revision),
 					"ip6t_%s", m->u.user.name);
 	if (IS_ERR(match) || !match) {
 		duprintf("find_check_match: `%s' not found\n", m->u.user.name);
@@ -885,7 +883,7 @@ translate_table(const char *name,
 			memcpy(newinfo->entries[i], entry0, newinfo->size);
 	}
 
-	return 0;
+	return ret;
 }
 
 /* Gets counters. */
@@ -984,7 +982,10 @@ copy_entries_to_user(unsigned int total_size,
 	if (IS_ERR(counters))
 		return PTR_ERR(counters);
 
-	/* choose the copy that is on ourc node/cpu */
+	/* choose the copy that is on our node/cpu, ...
+	 * This choice is lazy (because current thread is
+	 * allowed to migrate to another cpu)
+	 */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
 	if (copy_to_user(userptr, loc_cpu_entry, total_size) != 0) {
 		ret = -EFAULT;
@@ -1199,7 +1200,7 @@ get_entries(struct ip6t_get_entries __user *uptr, int *len)
 						   t, uptr->entrytable);
 		else {
 			duprintf("get_entries: I've got %u not %u!\n",
-				 private->size, entries->size);
+				 private->size, get.size);
 			ret = -EINVAL;
 		}
 		module_put(t->me);
@@ -1361,8 +1362,8 @@ do_add_counters(void __user *user, unsigned int len, int compat)
 	char *name;
 	int size;
 	void *ptmp;
-	struct xt_table_info *private;
 	struct xt_table *t;
+	struct xt_table_info *private;
 	int ret = 0;
 	void *loc_cpu_entry;
 #ifdef CONFIG_COMPAT
@@ -1829,7 +1830,7 @@ compat_do_replace(void __user *user, unsigned int len)
 	if (!newinfo)
 		return -ENOMEM;
 
-	/* choose the copy that is our node/cpu */
+	/* choose the copy that is on our node/cpu */
 	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
 	if (copy_from_user(loc_cpu_entry, user + sizeof(tmp),
 			   tmp.size) != 0) {
@@ -1950,16 +1951,14 @@ compat_get_entries(struct compat_ip6t_get_entries __user *uptr, int *len)
 	if (t && !IS_ERR(t)) {
 		struct xt_table_info *private = t->private;
 		struct xt_table_info info;
-		duprintf("t->private->number = %u\n",
-			 private->number);
+		duprintf("t->private->number = %u\n", private->number);
 		ret = compat_table_info(private, &info);
 		if (!ret && get.size == info.size) {
 			ret = compat_copy_entries_to_user(private->size,
 							  t, uptr->entrytable);
 		} else if (!ret) {
 			duprintf("compat_get_entries: I've got %u not %u!\n",
-				 private->size,
-				 get.size);
+				 private->size, get.size);
 			ret = -EINVAL;
 		}
 		xt_compat_flush_offsets(AF_INET6);
@@ -2072,8 +2071,7 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 	return ret;
 }
 
-int ip6t_register_table(struct xt_table *table,
-			const struct ip6t_replace *repl)
+int ip6t_register_table(struct xt_table *table, const struct ip6t_replace *repl)
 {
 	int ret;
 	struct xt_table_info *newinfo;
@@ -2085,7 +2083,7 @@ int ip6t_register_table(struct xt_table *table,
 	if (!newinfo)
 		return -ENOMEM;
 
-	/* choose the copy on our node/cpu */
+	/* choose the copy on our node/cpu, but dont care about preemption */
 	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
@@ -2141,17 +2139,18 @@ icmp6_match(const struct sk_buff *skb,
 	   unsigned int protoff,
 	   bool *hotdrop)
 {
-	struct icmp6hdr _icmp, *ic;
+	struct icmp6hdr _icmph, *ic;
 	const struct ip6t_icmp *icmpinfo = matchinfo;
 
 	/* Must not be a fragment. */
 	if (offset)
 		return false;
 
-	ic = skb_header_pointer(skb, protoff, sizeof(_icmp), &_icmp);
+	ic = skb_header_pointer(skb, protoff, sizeof(_icmph), &_icmph);
 	if (ic == NULL) {
 		/* We've been asked to examine this packet, and we
-		   can't.  Hence, no choice but to drop. */
+		 * can't.  Hence, no choice but to drop.
+		 */
 		duprintf("Dropping evil ICMP tinygram.\n");
 		*hotdrop = true;
 		return false;
@@ -2216,7 +2215,7 @@ static struct nf_sockopt_ops ip6t_sockopts = {
 
 static struct xt_match icmp6_matchstruct __read_mostly = {
 	.name		= "icmp6",
-	.match		= &icmp6_match,
+	.match		= icmp6_match,
 	.matchsize	= sizeof(struct ip6t_icmp),
 	.checkentry	= icmp6_checkentry,
 	.proto		= IPPROTO_ICMPV6,
@@ -2265,6 +2264,7 @@ err1:
 static void __exit ip6_tables_fini(void)
 {
 	nf_unregister_sockopt(&ip6t_sockopts);
+
 	xt_unregister_match(&icmp6_matchstruct);
 	xt_unregister_target(&ip6t_error_target);
 	xt_unregister_target(&ip6t_standard_target);
