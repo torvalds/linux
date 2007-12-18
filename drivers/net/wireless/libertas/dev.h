@@ -77,12 +77,12 @@ struct current_bss_params {
 
 /** sleep_params */
 struct sleep_params {
-	u16 sp_error;
-	u16 sp_offset;
-	u16 sp_stabletime;
-	u8 sp_calcontrol;
-	u8 sp_extsleepclk;
-	u16 sp_reserved;
+	uint16_t sp_error;
+	uint16_t sp_offset;
+	uint16_t sp_stabletime;
+	uint8_t  sp_calcontrol;
+	uint8_t  sp_extsleepclk;
+	uint16_t sp_reserved;
 };
 
 /* Mesh statistics */
@@ -299,9 +299,6 @@ struct lbs_private {
 	/** data rate stuff */
 	u8 cur_rate;
 	u8 auto_rate;
-
-	/** sleep_params */
-	struct sleep_params sp;
 
 	/** RF calibration data */
 

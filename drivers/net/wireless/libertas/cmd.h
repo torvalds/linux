@@ -49,5 +49,7 @@ int lbs_resume(struct lbs_private *priv);
 
 int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
 				      uint16_t cmd_action, uint16_t *timeout);
+int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
+				struct sleep_params *sp);
 
 #endif /* _LBS_CMD_H */

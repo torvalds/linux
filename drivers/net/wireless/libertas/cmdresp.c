@@ -146,29 +146,6 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 	return ret;
 }
 
-static int lbs_ret_802_11_sleep_params(struct lbs_private *priv,
-					struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_sleep_params *sp = &resp->params.sleep_params;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	lbs_deb_cmd("error 0x%x, offset 0x%x, stabletime 0x%x, calcontrol 0x%x "
-		    "extsleepclk 0x%x\n", le16_to_cpu(sp->error),
-		    le16_to_cpu(sp->offset), le16_to_cpu(sp->stabletime),
-		    sp->calcontrol, sp->externalsleepclk);
-
-	priv->sp.sp_error = le16_to_cpu(sp->error);
-	priv->sp.sp_offset = le16_to_cpu(sp->offset);
-	priv->sp.sp_stabletime = le16_to_cpu(sp->stabletime);
-	priv->sp.sp_calcontrol = sp->calcontrol;
-	priv->sp.sp_extsleepclk = sp->externalsleepclk;
-	priv->sp.sp_reserved = le16_to_cpu(sp->reserved);
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_stat(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
@@ -551,9 +528,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_802_11d_domain_info(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11_SLEEP_PARAMS):
-		ret = lbs_ret_802_11_sleep_params(priv, resp);
-		break;
 	case CMD_RET(CMD_802_11_TPC_CFG):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.tpccfg,

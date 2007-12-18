@@ -198,33 +198,45 @@ int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_sleep_params(struct lbs_private *priv,
-					struct cmd_ds_command *cmd,
-					u16 cmd_action)
+int lbs_cmd_802_11_sleep_params(struct lbs_private *priv, uint16_t cmd_action,
+				struct sleep_params *sp)
 {
-	struct cmd_ds_802_11_sleep_params *sp = &cmd->params.sleep_params;
+	struct cmd_ds_802_11_sleep_params cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->size = cpu_to_le16((sizeof(struct cmd_ds_802_11_sleep_params)) +
-				S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_802_11_SLEEP_PARAMS);
-
 	if (cmd_action == CMD_ACT_GET) {
-		memset(&priv->sp, 0, sizeof(struct sleep_params));
-		memset(sp, 0, sizeof(struct cmd_ds_802_11_sleep_params));
-		sp->action = cpu_to_le16(cmd_action);
-	} else if (cmd_action == CMD_ACT_SET) {
-		sp->action = cpu_to_le16(cmd_action);
-		sp->error = cpu_to_le16(priv->sp.sp_error);
-		sp->offset = cpu_to_le16(priv->sp.sp_offset);
-		sp->stabletime = cpu_to_le16(priv->sp.sp_stabletime);
-		sp->calcontrol = (u8) priv->sp.sp_calcontrol;
-		sp->externalsleepclk = (u8) priv->sp.sp_extsleepclk;
-		sp->reserved = cpu_to_le16(priv->sp.sp_reserved);
+		memset(&cmd, 0, sizeof(cmd));
+	} else {
+		cmd.error = cpu_to_le16(sp->sp_error);
+		cmd.offset = cpu_to_le16(sp->sp_offset);
+		cmd.stabletime = cpu_to_le16(sp->sp_stabletime);
+		cmd.calcontrol = sp->sp_calcontrol;
+		cmd.externalsleepclk = sp->sp_extsleepclk;
+		cmd.reserved = cpu_to_le16(sp->sp_reserved);
+	}
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(cmd_action);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SLEEP_PARAMS, &cmd);
+
+	if (!ret) {
+		lbs_deb_cmd("error 0x%x, offset 0x%x, stabletime 0x%x, "
+			    "calcontrol 0x%x extsleepclk 0x%x\n",
+			    le16_to_cpu(cmd.error), le16_to_cpu(cmd.offset),
+			    le16_to_cpu(cmd.stabletime), cmd.calcontrol,
+			    cmd.externalsleepclk);
+
+		sp->sp_error = le16_to_cpu(cmd.error);
+		sp->sp_offset = le16_to_cpu(cmd.offset);
+		sp->sp_stabletime = le16_to_cpu(cmd.stabletime);
+		sp->sp_calcontrol = cmd.calcontrol;
+		sp->sp_extsleepclk = cmd.externalsleepclk;
+		sp->sp_reserved = le16_to_cpu(cmd.reserved);
 	}
 
-	lbs_deb_leave(LBS_DEB_CMD);
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return 0;
 }
 
@@ -1518,10 +1530,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11D_DOMAIN_INFO:
 		ret = lbs_cmd_802_11d_domain_info(priv, cmdptr,
 						   cmd_no, cmd_action);
-		break;
-
-	case CMD_802_11_SLEEP_PARAMS:
-		ret = lbs_cmd_802_11_sleep_params(priv, cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_TPC_CFG:

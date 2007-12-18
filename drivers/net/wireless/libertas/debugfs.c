@@ -10,6 +10,7 @@
 #include "decl.h"
 #include "host.h"
 #include "debugfs.h"
+#include "cmd.h"
 
 static struct dentry *lbs_dir;
 static char *szStates[] = {
@@ -103,71 +104,64 @@ static ssize_t lbs_sleepparams_write(struct file *file,
 				loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	ssize_t buf_size, res;
+	ssize_t buf_size, ret;
+	struct sleep_params sp;
 	int p1, p2, p3, p4, p5, p6;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
 	buf_size = min(count, len - 1);
 	if (copy_from_user(buf, user_buf, buf_size)) {
-		res = -EFAULT;
+		ret = -EFAULT;
 		goto out_unlock;
 	}
-	res = sscanf(buf, "%d %d %d %d %d %d", &p1, &p2, &p3, &p4, &p5, &p6);
-	if (res != 6) {
-		res = -EFAULT;
+	ret = sscanf(buf, "%d %d %d %d %d %d", &p1, &p2, &p3, &p4, &p5, &p6);
+	if (ret != 6) {
+		ret = -EINVAL;
 		goto out_unlock;
 	}
-	priv->sp.sp_error = p1;
-	priv->sp.sp_offset = p2;
-	priv->sp.sp_stabletime = p3;
-	priv->sp.sp_calcontrol = p4;
-	priv->sp.sp_extsleepclk = p5;
-	priv->sp.sp_reserved = p6;
+	sp.sp_error = p1;
+	sp.sp_offset = p2;
+	sp.sp_stabletime = p3;
+	sp.sp_calcontrol = p4;
+	sp.sp_extsleepclk = p5;
+	sp.sp_reserved = p6;
 
-	res = lbs_prepare_and_send_command(priv,
-				CMD_802_11_SLEEP_PARAMS,
-				CMD_ACT_SET,
-				CMD_OPTION_WAITFORRSP, 0, NULL);
-
-	if (!res)
-		res = count;
-	else
-		res = -EINVAL;
+	ret = lbs_cmd_802_11_sleep_params(priv, CMD_ACT_SET, &sp);
+	if (!ret)
+		ret = count;
+	else if (ret > 0)
+		ret = -EINVAL;
 
 out_unlock:
 	free_page(addr);
-	return res;
+	return ret;
 }
 
 static ssize_t lbs_sleepparams_read(struct file *file, char __user *userbuf,
 				  size_t count, loff_t *ppos)
 {
 	struct lbs_private *priv = file->private_data;
-	ssize_t res;
+	ssize_t ret;
 	size_t pos = 0;
+	struct sleep_params sp;
 	unsigned long addr = get_zeroed_page(GFP_KERNEL);
 	char *buf = (char *)addr;
 
-	res = lbs_prepare_and_send_command(priv,
-				CMD_802_11_SLEEP_PARAMS,
-				CMD_ACT_GET,
-				CMD_OPTION_WAITFORRSP, 0, NULL);
-	if (res) {
-		res = -EFAULT;
+	ret = lbs_cmd_802_11_sleep_params(priv, CMD_ACT_GET, &sp);
+	if (ret)
 		goto out_unlock;
-	}
 
-	pos += snprintf(buf, len, "%d %d %d %d %d %d\n", priv->sp.sp_error,
-			priv->sp.sp_offset, priv->sp.sp_stabletime,
-			priv->sp.sp_calcontrol, priv->sp.sp_extsleepclk,
-			priv->sp.sp_reserved);
+	pos += snprintf(buf, len, "%d %d %d %d %d %d\n", sp.sp_error,
+			sp.sp_offset, sp.sp_stabletime,
+			sp.sp_calcontrol, sp.sp_extsleepclk,
+			sp.sp_reserved);
 
-	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
+	ret = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 
 out_unlock:
 	free_page(addr);
-	return res;
+	return ret;
 }
 
 static ssize_t lbs_extscan(struct file *file, const char __user *userbuf,

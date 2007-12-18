@@ -355,6 +355,8 @@ struct cmd_ds_802_11_beacon_control {
 };
 
 struct cmd_ds_802_11_sleep_params {
+	struct cmd_header hdr;
+
 	/* ACT_GET/ACT_SET */
 	__le16 action;
 
@@ -368,10 +370,10 @@ struct cmd_ds_802_11_sleep_params {
 	__le16 stabletime;
 
 	/* control periodic calibration */
-	u8 calcontrol;
+	uint8_t calcontrol;
 
 	/* control the use of external sleep clock */
-	u8 externalsleepclk;
+	uint8_t externalsleepclk;
 
 	/* reserved field, should be set to zero */
 	__le16 reserved;
@@ -715,7 +717,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11d_domain_info domaininfo;
 		struct cmd_ds_802_11d_domain_info domaininforesp;
 
-		struct cmd_ds_802_11_sleep_params sleep_params;
 		struct cmd_ds_802_11_tpc_cfg tpccfg;
 		struct cmd_ds_802_11_pwr_cfg pwrcfg;
 		struct cmd_ds_802_11_afc afc;
