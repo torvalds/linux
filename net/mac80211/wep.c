@@ -349,16 +349,6 @@ static int wep_encrypt_skb(struct ieee80211_txrx_data *tx, struct sk_buff *skb)
 ieee80211_txrx_result
 ieee80211_crypto_wep_encrypt(struct ieee80211_txrx_data *tx)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) tx->skb->data;
-	u16 fc;
-
-	fc = le16_to_cpu(hdr->frame_control);
-
-	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA &&
-	     ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_MGMT ||
-	      (fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_AUTH)))
-		return TXRX_CONTINUE;
-
 	tx->u.tx.control->iv_len = WEP_IV_LEN;
 	tx->u.tx.control->icv_len = WEP_ICV_LEN;
 	ieee80211_tx_set_iswep(tx);

@@ -438,11 +438,7 @@ static ieee80211_txrx_result
 ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 {
 	struct ieee80211_key *key;
-	const struct ieee80211_hdr *hdr;
-	u16 fc;
-
-	hdr = (const struct ieee80211_hdr *) tx->skb->data;
-	fc = le16_to_cpu(hdr->frame_control);
+	u16 fc = tx->fc;
 
 	if (unlikely(tx->u.tx.control->flags & IEEE80211_TXCTL_DO_NOT_ENCRYPT))
 		tx->key = NULL;
@@ -455,15 +451,33 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 		 !(tx->flags & IEEE80211_TXRXD_TX_INJECTED)) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
 		return TXRX_DROP;
-	} else {
+	} else
 		tx->key = NULL;
-		tx->u.tx.control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
-	}
 
 	if (tx->key) {
+		u16 ftype, stype;
+
 		tx->key->tx_rx_count++;
 		/* TODO: add threshold stuff again */
+
+		switch (tx->key->conf.alg) {
+		case ALG_WEP:
+			ftype = fc & IEEE80211_FCTL_FTYPE;
+			stype = fc & IEEE80211_FCTL_STYPE;
+
+			if (ftype == IEEE80211_FTYPE_MGMT &&
+			    stype == IEEE80211_STYPE_AUTH)
+				break;
+		case ALG_TKIP:
+		case ALG_CCMP:
+			if (!WLAN_FC_DATA_PRESENT(fc))
+				tx->key = NULL;
+			break;
+		}
 	}
+
+	if (!tx->key || !(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
+		tx->u.tx.control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
 
 	return TXRX_CONTINUE;
 }
@@ -705,15 +719,6 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 			}
 		}
 	}
-
-	/*
-	 * Tell hardware to not encrypt when we had sw crypto.
-	 * Because we use the same flag to internally indicate that
-	 * no (software) encryption should be done, we have to set it
-	 * after all crypto handlers.
-	 */
-	if (tx->key && !(tx->key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE))
-		tx->u.tx.control->flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
 
 	return TXRX_CONTINUE;
 }
