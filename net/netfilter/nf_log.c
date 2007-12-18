@@ -91,7 +91,6 @@ void nf_log_packet(int pf,
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
 		va_end(args);
-		/* We must read logging before nf_logfn[pf] */
 		logger->logfn(pf, hooknum, skb, in, out, loginfo, prefix);
 	} else if (net_ratelimit()) {
 		printk(KERN_WARNING "nf_log_packet: can\'t log since "
