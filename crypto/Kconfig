@@ -494,7 +494,6 @@ config CRYPTO_SALSA20_586
 	depends on (X86 || UML_X86) && !64BIT
 	depends on EXPERIMENTAL
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_SALSA20
 	help
 	  Salsa20 stream cipher algorithm.
 
@@ -509,7 +508,6 @@ config CRYPTO_SALSA20_X86_64
 	depends on (X86 || UML_X86) && 64BIT
 	depends on EXPERIMENTAL
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_SALSA20
 	help
 	  Salsa20 stream cipher algorithm.
 
