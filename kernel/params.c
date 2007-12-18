@@ -561,11 +561,9 @@ static void __init kernel_param_sysfs_setup(const char *name,
 
 	mk->mod = THIS_MODULE;
 	mk->kobj.kset = module_kset;
-	mk->kobj.ktype = &module_ktype;
-	kobject_set_name(&mk->kobj, name);
-	kobject_init(&mk->kobj);
-	ret = kobject_add(&mk->kobj);
+	ret = kobject_init_and_add(&mk->kobj, &module_ktype, NULL, "%s", name);
 	if (ret) {
+		kobject_put(&mk->kobj);
 		printk(KERN_ERR "Module '%s' failed to be added to sysfs, "
 		      "error number %d\n", name, ret);
 		printk(KERN_ERR	"The system will be unstable now.\n");
