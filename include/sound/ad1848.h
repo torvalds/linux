@@ -48,7 +48,7 @@
 #define AD1848_IFACE_CTRL	0x09	/* interface control - bits 7-2 MCE */
 #define AD1848_PIN_CTRL		0x0a	/* pin control */
 #define AD1848_TEST_INIT	0x0b	/* test and initialization */
-#define AD1848_MISC_INFO	0x0c	/* miscellaneaous information */
+#define AD1848_MISC_INFO	0x0c	/* miscellaneous information */
 #define AD1848_LOOPBACK		0x0d	/* loopback control */
 #define AD1848_DATA_UPR_CNT	0x0e	/* playback/capture upper base count */
 #define AD1848_DATA_LWR_CNT	0x0f	/* playback/capture lower base count */

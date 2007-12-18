@@ -22,7 +22,7 @@
 #define SND_SOC_NOPM	-1
 
 /*
- * SoC dynamic audio power managment
+ * SoC dynamic audio power management
  *
  * We can have upto 4 power domains
  * 	1. Codec domain - VREF, VMID
