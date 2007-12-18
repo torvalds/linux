@@ -435,23 +435,6 @@ static int mark_source_chains(struct xt_table_info *newinfo,
 	return 1;
 }
 
-static inline int standard_check(const struct arpt_entry_target *t,
-				 unsigned int max_offset)
-{
-	/* Check standard info. */
-	if (t->u.target_size
-	    != ARPT_ALIGN(sizeof(struct arpt_standard_target))) {
-		duprintf("arpt_standard_check: target size %u != %Zu\n",
-			 t->u.target_size,
-			 ARPT_ALIGN(sizeof(struct arpt_standard_target)));
-		return 0;
-	}
-
-	return 1;
-}
-
-static struct arpt_target arpt_standard_target;
-
 static inline int check_entry(struct arpt_entry *e, const char *name, unsigned int size,
 			      unsigned int *i)
 {
@@ -486,14 +469,9 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	if (ret)
 		goto err;
 
-	if (t->u.kernel.target == &arpt_standard_target) {
-		if (!standard_check(t, size)) {
-			ret = -EINVAL;
-			goto err;
-		}
-	} else if (t->u.kernel.target->checkentry
-		   && !t->u.kernel.target->checkentry(name, e, target, t->data,
-						      e->comefrom)) {
+	if (t->u.kernel.target->checkentry
+	    && !t->u.kernel.target->checkentry(name, e, target, t->data,
+					       e->comefrom)) {
 		duprintf("arp_tables: check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		ret = -EINVAL;
