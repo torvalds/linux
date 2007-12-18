@@ -546,8 +546,7 @@ static struct class_device_attribute class_uevent_attr =
 void class_device_initialize(struct class_device *class_dev)
 {
 	class_dev->kobj.kset = &class_obj_subsys;
-	class_dev->kobj.ktype = &class_device_ktype;
-	kobject_init(&class_dev->kobj);
+	kobject_init_ng(&class_dev->kobj, &class_device_ktype);
 	INIT_LIST_HEAD(&class_dev->node);
 }
 
@@ -575,16 +574,13 @@ int class_device_add(struct class_device *class_dev)
 		 class_dev->class_id);
 
 	/* first, register with generic layer. */
-	error = kobject_set_name(&class_dev->kobj, "%s", class_dev->class_id);
-	if (error)
-		goto out2;
-
 	if (parent_class_dev)
 		class_dev->kobj.parent = &parent_class_dev->kobj;
 	else
 		class_dev->kobj.parent = &parent_class->subsys.kobj;
 
-	error = kobject_add(&class_dev->kobj);
+	error = kobject_add_ng(&class_dev->kobj, class_dev->kobj.parent,
+			       "%s", class_dev->class_id);
 	if (error)
 		goto out2;
 
