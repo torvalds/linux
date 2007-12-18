@@ -20,6 +20,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CONNSECMARK.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_ecache.h>
 
 #define PFX "CONNSECMARK: "
 
@@ -40,8 +41,10 @@ static void secmark_save(const struct sk_buff *skb)
 		enum ip_conntrack_info ctinfo;
 
 		ct = nf_ct_get(skb, &ctinfo);
-		if (ct && !ct->secmark)
+		if (ct && !ct->secmark) {
 			ct->secmark = skb->secmark;
+			nf_conntrack_event_cache(IPCT_SECMARK, skb);
+		}
 	}
 }
 

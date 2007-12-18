@@ -254,6 +254,22 @@ nla_put_failure:
 #define ctnetlink_dump_mark(a, b) (0)
 #endif
 
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+static inline int
+ctnetlink_dump_secmark(struct sk_buff *skb, const struct nf_conn *ct)
+{
+	__be32 mark = htonl(ct->secmark);
+
+	NLA_PUT(skb, CTA_SECMARK, sizeof(u_int32_t), &mark);
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+#else
+#define ctnetlink_dump_secmark(a, b) (0)
+#endif
+
 #define master_tuple(ct) &(ct->master->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
 
 static inline int
@@ -392,6 +408,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	    ctnetlink_dump_protoinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_helpinfo(skb, ct) < 0 ||
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
+	    ctnetlink_dump_secmark(skb, ct) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||
 	    ctnetlink_dump_use(skb, ct) < 0 ||
 	    ctnetlink_dump_master(skb, ct) < 0 ||
@@ -491,6 +508,11 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 #ifdef CONFIG_NF_CONNTRACK_MARK
 		if ((events & IPCT_MARK || ct->mark)
 		    && ctnetlink_dump_mark(skb, ct) < 0)
+			goto nla_put_failure;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_SECMARK
+		if ((events & IPCT_SECMARK || ct->secmark)
+		    && ctnetlink_dump_secmark(skb, ct) < 0)
 			goto nla_put_failure;
 #endif
 

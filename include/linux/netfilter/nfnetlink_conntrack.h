@@ -39,6 +39,7 @@ enum ctattr_type {
 	CTA_TUPLE_MASTER,
 	CTA_NAT_SEQ_ADJ_ORIG,
 	CTA_NAT_SEQ_ADJ_REPLY,
+	CTA_SECMARK,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)
