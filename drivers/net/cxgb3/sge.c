@@ -1364,7 +1364,12 @@ static void restart_ctrlq(unsigned long data)
  */
 int t3_mgmt_tx(struct adapter *adap, struct sk_buff *skb)
 {
-	return ctrl_xmit(adap, &adap->sge.qs[0].txq[TXQ_CTRL], skb);
+	int ret; 
+	local_bh_disable();
+	ret = ctrl_xmit(adap, &adap->sge.qs[0].txq[TXQ_CTRL], skb);
+	local_bh_enable();
+
+	return ret;
 }
 
 /**

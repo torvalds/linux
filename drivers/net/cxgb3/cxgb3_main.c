@@ -2408,9 +2408,7 @@ void t3_fatal_err(struct adapter *adapter)
 static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
 					     pci_channel_state_t state)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adapter = pi->adapter;
+	struct adapter *adapter = pci_get_drvdata(pdev);
 	int i;
 
 	/* Stop all ports */
@@ -2444,9 +2442,7 @@ static pci_ers_result_t t3_io_error_detected(struct pci_dev *pdev,
  */
 static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adapter = pi->adapter;
+	struct adapter *adapter = pci_get_drvdata(pdev);
 
 	if (pci_enable_device(pdev)) {
 		dev_err(&pdev->dev,
@@ -2469,9 +2465,7 @@ static pci_ers_result_t t3_io_slot_reset(struct pci_dev *pdev)
  */
 static void t3_io_resume(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct port_info *pi = netdev_priv(dev);
-	struct adapter *adapter = pi->adapter;
+	struct adapter *adapter = pci_get_drvdata(pdev);
 	int i;
 
 	/* Restart the ports */
@@ -2491,7 +2485,7 @@ static void t3_io_resume(struct pci_dev *pdev)
 
 	if (is_offload(adapter)) {
 		__set_bit(OFFLOAD_DEVMAP_BIT, &adapter->registered_device_map);
-		if (offload_open(dev))
+		if (offload_open(adapter->port[0]))
 			printk(KERN_WARNING
 			       "Could not bring back offload capabilities\n");
 	}
