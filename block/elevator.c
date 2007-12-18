@@ -960,7 +960,7 @@ void elv_unregister_queue(struct request_queue *q)
 		__elv_unregister_queue(q->elevator);
 }
 
-int elv_register(struct elevator_type *e)
+void elv_register(struct elevator_type *e)
 {
 	char *def = "";
 
@@ -975,7 +975,6 @@ int elv_register(struct elevator_type *e)
 				def = " (default)";
 
 	printk(KERN_INFO "io scheduler %s registered%s\n", e->elevator_name, def);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(elv_register);
 
