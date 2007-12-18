@@ -620,7 +620,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	if (pos <= 0)
 		return 0;
 
-	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
+	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_PCIX);
 	if (!save_state)
 		save_state = kzalloc(sizeof(*save_state) + sizeof(u16), GFP_KERNEL);
 	if (!save_state) {
