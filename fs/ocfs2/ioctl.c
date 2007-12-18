@@ -119,6 +119,7 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 	int new_clusters;
 	int status;
 	struct ocfs2_space_resv sr;
+	struct ocfs2_new_group_input input;
 
 	switch (cmd) {
 	case OCFS2_IOC_GETFLAGS:
@@ -147,6 +148,12 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 			return -EFAULT;
 
 		return ocfs2_group_extend(inode, new_clusters);
+	case OCFS2_IOC_GROUP_ADD:
+	case OCFS2_IOC_GROUP_ADD64:
+		if (copy_from_user(&input, (int __user *) arg, sizeof(input)))
+			return -EFAULT;
+
+		return ocfs2_group_add(inode, &input);
 	default:
 		return -ENOTTY;
 	}
@@ -170,6 +177,8 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case OCFS2_IOC_UNRESVSP:
 	case OCFS2_IOC_UNRESVSP64:
 	case OCFS2_IOC_GROUP_EXTEND:
+	case OCFS2_IOC_GROUP_ADD:
+	case OCFS2_IOC_GROUP_ADD64:
 		break;
 	default:
 		return -ENOIOCTLCMD;
