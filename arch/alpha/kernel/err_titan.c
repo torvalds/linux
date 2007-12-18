@@ -564,7 +564,7 @@ static struct el_subpacket_handler titan_subpacket_handler =
 	SUBPACKET_HANDLER_INIT(EL_CLASS__REGATTA_FAMILY, 
 			       el_process_regatta_subpacket);
 
-void
+void __init
 titan_register_error_handlers(void)
 {
 	size_t i;
