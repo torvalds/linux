@@ -1479,12 +1479,6 @@ struct compat_ipt_replace {
 	struct compat_ipt_entry	entries[0];
 };
 
-static inline int compat_copy_match_to_user(struct ipt_entry_match *m,
-		void __user **dstptr, compat_uint_t *size)
-{
-	return xt_compat_match_to_user(m, dstptr, size);
-}
-
 static int
 compat_copy_entry_to_user(struct ipt_entry *e, void __user **dstptr,
 			  compat_uint_t *size, struct xt_counters *counters,
@@ -1506,7 +1500,7 @@ compat_copy_entry_to_user(struct ipt_entry *e, void __user **dstptr,
 		goto out;
 
 	*dstptr += sizeof(struct compat_ipt_entry);
-	ret = IPT_MATCH_ITERATE(e, compat_copy_match_to_user, dstptr, size);
+	ret = IPT_MATCH_ITERATE(e, xt_compat_match_to_user, dstptr, size);
 	target_offset = e->target_offset - (origsize - *size);
 	if (ret)
 		goto out;
