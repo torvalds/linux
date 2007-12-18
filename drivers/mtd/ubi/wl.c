@@ -793,7 +793,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 		e1 = rb_entry(rb_first(&ubi->scrub), struct ubi_wl_entry, rb);
 		e2 = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF);
 		paranoid_check_in_wl_tree(e1, &ubi->scrub);
-	rb_erase(&e1->rb, &ubi->scrub);
+		rb_erase(&e1->rb, &ubi->scrub);
 		dbg_wl("scrub PEB %d to PEB %d", e1->pnum, e2->pnum);
 	}
 
@@ -1139,8 +1139,11 @@ int ubi_wl_put_peb(struct ubi_device *ubi, int pnum, int torture)
 		/*
 		 * User is putting the physical eraseblock which was selected
 		 * as the target the data is moved to. It may happen if the EBA
-		 * unit already re-mapped the LEB but the WL unit did has not
-		 * put the PEB to the "used" tree.
+		 * unit already re-mapped the LEB in 'ubi_eba_copy_leb()' but
+		 * the WL unit has not put the PEB to the "used" tree yet, but
+		 * it is about to do this. So we just set a flag which will
+		 * tell the WL worker that the PEB is not needed anymore and
+		 * should be sheduled for erasure.
 		 */
 		dbg_wl("PEB %d is the target of data moving", pnum);
 		ubi_assert(!ubi->move_to_put);
