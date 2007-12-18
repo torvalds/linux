@@ -33,16 +33,17 @@
 
 static DEFINE_RWLOCK(nf_nat_lock);
 
-static struct nf_conntrack_l3proto *l3proto = NULL;
+static struct nf_conntrack_l3proto *l3proto __read_mostly;
 
 /* Calculated at init based on memory size */
-static unsigned int nf_nat_htable_size;
+static unsigned int nf_nat_htable_size __read_mostly;
 static int nf_nat_vmalloced;
 
-static struct hlist_head *bysource;
+static struct hlist_head *bysource __read_mostly;
 
 #define MAX_IP_NAT_PROTO 256
-static const struct nf_nat_protocol *nf_nat_protos[MAX_IP_NAT_PROTO];
+static const struct nf_nat_protocol *nf_nat_protos[MAX_IP_NAT_PROTO]
+						__read_mostly;
 
 static inline const struct nf_nat_protocol *
 __nf_nat_proto_find(u_int8_t protonum)
