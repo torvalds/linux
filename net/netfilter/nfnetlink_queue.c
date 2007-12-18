@@ -740,7 +740,7 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		case NFQNL_CFG_CMD_PF_UNBIND:
 			break;
 		default:
-			ret = -EINVAL;
+			ret = -ENOTSUPP;
 			break;
 		}
 	}

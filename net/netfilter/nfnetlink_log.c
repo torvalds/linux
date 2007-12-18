@@ -798,7 +798,7 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			nf_log_unregister_pf(pf);
 			break;
 		default:
-			ret = -EINVAL;
+			ret = -ENOTSUPP;
 			break;
 		}
 	}
