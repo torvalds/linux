@@ -1154,7 +1154,7 @@ static int get_info(void __user *user, int *len, int compat)
 		       sizeof(info.underflow));
 		info.num_entries = private->number;
 		info.size = private->size;
-		memcpy(info.name, name, sizeof(info.name));
+		strcpy(info.name, name);
 
 		if (copy_to_user(user, &info, *len) != 0)
 			ret = -EFAULT;
