@@ -280,6 +280,6 @@ extern unsigned int arpt_do_table(struct sk_buff *skb,
 				  const struct net_device *out,
 				  struct arpt_table *table);
 
-#define ARPT_ALIGN(s) (((s) + (__alignof__(struct arpt_entry)-1)) & ~(__alignof__(struct arpt_entry)-1))
+#define ARPT_ALIGN(s) XT_ALIGN(s)
 #endif /*__KERNEL__*/
 #endif /* _ARPTABLES_H */
