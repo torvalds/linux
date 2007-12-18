@@ -1091,8 +1091,8 @@ static int get_info(void __user *user, int *len, int compat)
 	int ret;
 
 	if (*len != sizeof(struct ipt_getinfo)) {
-		duprintf("length %u != %u\n", *len,
-			(unsigned int)sizeof(struct ipt_getinfo));
+		duprintf("length %u != %zu\n", *len,
+			 sizeof(struct ipt_getinfo));
 		return -EINVAL;
 	}
 
@@ -1151,16 +1151,14 @@ get_entries(struct ipt_get_entries __user *uptr, int *len)
 	struct xt_table *t;
 
 	if (*len < sizeof(get)) {
-		duprintf("get_entries: %u < %d\n", *len,
-				(unsigned int)sizeof(get));
+		duprintf("get_entries: %u < %zu\n", *len, sizeof(get));
 		return -EINVAL;
 	}
 	if (copy_from_user(&get, uptr, sizeof(get)) != 0)
 		return -EFAULT;
 	if (*len != sizeof(struct ipt_get_entries) + get.size) {
-		duprintf("get_entries: %u != %u\n", *len,
-				(unsigned int)(sizeof(struct ipt_get_entries) +
-				get.size));
+		duprintf("get_entries: %u != %zu\n",
+			 *len, sizeof(get) + get.size);
 		return -EINVAL;
 	}
 
@@ -1911,8 +1909,7 @@ compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
 	struct xt_table *t;
 
 	if (*len < sizeof(get)) {
-		duprintf("compat_get_entries: %u < %u\n",
-			 *len, (unsigned int)sizeof(get));
+		duprintf("compat_get_entries: %u < %zu\n", *len, sizeof(get));
 		return -EINVAL;
 	}
 
@@ -1920,9 +1917,8 @@ compat_get_entries(struct compat_ipt_get_entries __user *uptr, int *len)
 		return -EFAULT;
 
 	if (*len != sizeof(struct compat_ipt_get_entries) + get.size) {
-		duprintf("compat_get_entries: %u != %u\n", *len,
-			 (unsigned int)(sizeof(struct compat_ipt_get_entries) +
-			 get.size));
+		duprintf("compat_get_entries: %u != %zu\n",
+			 *len, sizeof(get) + get.size);
 		return -EINVAL;
 	}
 
