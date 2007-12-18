@@ -20,6 +20,7 @@
 
 #include "ocfs2_fs.h"
 #include "ioctl.h"
+#include "resize.h"
 
 #include <linux/ext2_fs.h>
 
@@ -115,6 +116,7 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 	unsigned int cmd, unsigned long arg)
 {
 	unsigned int flags;
+	int new_clusters;
 	int status;
 	struct ocfs2_space_resv sr;
 
@@ -140,6 +142,11 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 			return -EFAULT;
 
 		return ocfs2_change_file_space(filp, cmd, &sr);
+	case OCFS2_IOC_GROUP_EXTEND:
+		if (get_user(new_clusters, (int __user *)arg))
+			return -EFAULT;
+
+		return ocfs2_group_extend(inode, new_clusters);
 	default:
 		return -ENOTTY;
 	}
@@ -162,6 +169,7 @@ long ocfs2_compat_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case OCFS2_IOC_RESVSP64:
 	case OCFS2_IOC_UNRESVSP:
 	case OCFS2_IOC_UNRESVSP64:
+	case OCFS2_IOC_GROUP_EXTEND:
 		break;
 	default:
 		return -ENOIOCTLCMD;

@@ -101,8 +101,6 @@ static inline int ocfs2_block_group_reasonably_empty(struct ocfs2_group_desc *bg
 static inline u32 ocfs2_desc_bitmap_to_cluster_off(struct inode *inode,
 						   u64 bg_blkno,
 						   u16 bg_bit_off);
-static inline u64 ocfs2_which_cluster_group(struct inode *inode,
-					    u32 cluster);
 static inline void ocfs2_block_to_cluster_group(struct inode *inode,
 						u64 data_blkno,
 						u64 *bg_blkno,
@@ -131,9 +129,9 @@ static u32 ocfs2_bits_per_group(struct ocfs2_chain_list *cl)
 }
 
 /* somewhat more expensive than our other checks, so use sparingly. */
-static int ocfs2_check_group_descriptor(struct super_block *sb,
-					struct ocfs2_dinode *di,
-					struct ocfs2_group_desc *gd)
+int ocfs2_check_group_descriptor(struct super_block *sb,
+				 struct ocfs2_dinode *di,
+				 struct ocfs2_group_desc *gd)
 {
 	unsigned int max_bits;
 
@@ -1443,8 +1441,7 @@ static inline u32 ocfs2_desc_bitmap_to_cluster_off(struct inode *inode,
 
 /* given a cluster offset, calculate which block group it belongs to
  * and return that block offset. */
-static inline u64 ocfs2_which_cluster_group(struct inode *inode,
-					    u32 cluster)
+u64 ocfs2_which_cluster_group(struct inode *inode, u32 cluster)
 {
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	u32 group_no;

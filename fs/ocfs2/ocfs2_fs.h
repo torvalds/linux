@@ -231,6 +231,8 @@ struct ocfs2_space_resv {
 #define OCFS2_IOC_RESVSP64	_IOW ('X', 42, struct ocfs2_space_resv)
 #define OCFS2_IOC_UNRESVSP64	_IOW ('X', 43, struct ocfs2_space_resv)
 
+#define OCFS2_IOC_GROUP_EXTEND	_IOW('o', 1, int)
+
 /*
  * Journal Flags (ocfs2_dinode.id1.journal1.i_flags)
  */

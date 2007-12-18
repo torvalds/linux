@@ -21,6 +21,7 @@ ocfs2-objs := \
 	localalloc.o 		\
 	mmap.o 			\
 	namei.o 		\
+	resize.o		\
 	slot_map.o 		\
 	suballoc.o 		\
 	super.o 		\
