@@ -873,7 +873,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	 */
 	if (new_mode == T_ANALOG_TV) {
 		rc = send_seq(priv, {0x00, 0x00});
-	} else {
+	} else if (!(priv->cur_fw.type & ATSC)) {
 		offset = 2750000;
 		/*
 		 * We must adjust the offset by 500kHz in two cases in order
