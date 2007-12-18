@@ -384,7 +384,7 @@ parport_device_sysctl_template = {
 		{
 			.procname 	= "timeslice",
 			.data		= NULL,
-			.maxlen		= sizeof(int),
+			.maxlen		= sizeof(unsigned long),
 			.mode		= 0644,
 			.proc_handler	= &proc_doulongvec_ms_jiffies_minmax,
 			.extra1		= (void*) &parport_min_timeslice_value,
