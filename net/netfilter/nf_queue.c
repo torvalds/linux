@@ -119,7 +119,7 @@ static int __nf_queue(struct sk_buff *skb,
 	struct net_device *physindev;
 	struct net_device *physoutdev;
 #endif
-	struct nf_afinfo *afinfo;
+	const struct nf_afinfo *afinfo;
 	const struct nf_queue_handler *qh;
 
 	/* QUEUE == DROP if noone is waiting, to be safe. */
@@ -233,7 +233,7 @@ void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	struct sk_buff *skb = entry->skb;
 	struct list_head *elem = &entry->elem->list;
-	struct nf_afinfo *afinfo;
+	const struct nf_afinfo *afinfo;
 
 	rcu_read_lock();
 

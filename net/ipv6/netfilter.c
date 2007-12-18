@@ -124,7 +124,7 @@ __sum16 nf_ip6_checksum(struct sk_buff *skb, unsigned int hook,
 
 EXPORT_SYMBOL(nf_ip6_checksum);
 
-static struct nf_afinfo nf_ip6_afinfo = {
+static const struct nf_afinfo nf_ip6_afinfo = {
 	.family		= AF_INET6,
 	.checksum	= nf_ip6_checksum,
 	.route		= nf_ip6_route,

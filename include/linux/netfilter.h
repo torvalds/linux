@@ -226,8 +226,8 @@ struct nf_afinfo {
 	int		route_key_size;
 };
 
-extern struct nf_afinfo *nf_afinfo[];
-static inline struct nf_afinfo *nf_get_afinfo(unsigned short family)
+extern const struct nf_afinfo *nf_afinfo[NPROTO];
+static inline const struct nf_afinfo *nf_get_afinfo(unsigned short family)
 {
 	return rcu_dereference(nf_afinfo[family]);
 }
@@ -236,7 +236,7 @@ static inline __sum16
 nf_checksum(struct sk_buff *skb, unsigned int hook, unsigned int dataoff,
 	    u_int8_t protocol, unsigned short family)
 {
-	struct nf_afinfo *afinfo;
+	const struct nf_afinfo *afinfo;
 	__sum16 csum = 0;
 
 	rcu_read_lock();
@@ -247,8 +247,8 @@ nf_checksum(struct sk_buff *skb, unsigned int hook, unsigned int dataoff,
 	return csum;
 }
 
-extern int nf_register_afinfo(struct nf_afinfo *afinfo);
-extern void nf_unregister_afinfo(struct nf_afinfo *afinfo);
+extern int nf_register_afinfo(const struct nf_afinfo *afinfo);
+extern void nf_unregister_afinfo(const struct nf_afinfo *afinfo);
 
 #include <net/flow.h>
 extern void (*ip_nat_decode_session)(struct sk_buff *, struct flowi *);

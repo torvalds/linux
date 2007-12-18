@@ -190,7 +190,7 @@ static int nf_ip_route(struct dst_entry **dst, struct flowi *fl)
 	return ip_route_output_key((struct rtable **)dst, fl);
 }
 
-static struct nf_afinfo nf_ip_afinfo = {
+static const struct nf_afinfo nf_ip_afinfo = {
 	.family		= AF_INET,
 	.checksum	= nf_ip_checksum,
 	.route		= nf_ip_route,

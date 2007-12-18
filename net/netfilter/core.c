@@ -26,10 +26,10 @@
 
 static DEFINE_MUTEX(afinfo_mutex);
 
-struct nf_afinfo *nf_afinfo[NPROTO] __read_mostly;
+const struct nf_afinfo *nf_afinfo[NPROTO] __read_mostly;
 EXPORT_SYMBOL(nf_afinfo);
 
-int nf_register_afinfo(struct nf_afinfo *afinfo)
+int nf_register_afinfo(const struct nf_afinfo *afinfo)
 {
 	int err;
 
@@ -42,7 +42,7 @@ int nf_register_afinfo(struct nf_afinfo *afinfo)
 }
 EXPORT_SYMBOL_GPL(nf_register_afinfo);
 
-void nf_unregister_afinfo(struct nf_afinfo *afinfo)
+void nf_unregister_afinfo(const struct nf_afinfo *afinfo)
 {
 	mutex_lock(&afinfo_mutex);
 	rcu_assign_pointer(nf_afinfo[afinfo->family], NULL);

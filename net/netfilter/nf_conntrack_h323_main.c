@@ -708,7 +708,7 @@ static int callforward_do_filter(union nf_conntrack_address *src,
 				 union nf_conntrack_address *dst,
 				 int family)
 {
-	struct nf_afinfo *afinfo;
+	const struct nf_afinfo *afinfo;
 	struct flowi fl1, fl2;
 	int ret = 0;
 
