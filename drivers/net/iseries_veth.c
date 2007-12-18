@@ -844,7 +844,7 @@ static int veth_init_connection(u8 rlp)
 
 	/* This gets us 1 reference, which is held on behalf of the driver
 	 * infrastructure. It's released at module unload. */
-	kobject_init_ng(&cnx->kobject, &veth_lpar_connection_ktype);
+	kobject_init(&cnx->kobject, &veth_lpar_connection_ktype);
 
 	msgs = kcalloc(VETH_NUMBUFFERS, sizeof(struct veth_msg), GFP_KERNEL);
 	if (! msgs) {
@@ -1083,7 +1083,7 @@ static struct net_device * __init veth_probe_one(int vlan,
 		return NULL;
 	}
 
-	kobject_init_ng(&port->kobject, &veth_port_ktype);
+	kobject_init(&port->kobject, &veth_port_ktype);
 	if (0 != kobject_add(&port->kobject, &dev->dev.kobj, "veth_port"))
 		veth_error("Failed adding port for %s to sysfs.\n", dev->name);
 

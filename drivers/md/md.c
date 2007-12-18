@@ -2033,7 +2033,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	if (err)
 		goto abort_free;
 
-	kobject_init_ng(&rdev->kobj, &rdev_ktype);
+	kobject_init(&rdev->kobj, &rdev_ktype);
 
 	rdev->desc_nr = -1;
 	rdev->saved_raid_disk = -1;

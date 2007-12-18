@@ -287,7 +287,7 @@ int kobject_set_name(struct kobject *kobj, const char *fmt, ...)
 EXPORT_SYMBOL(kobject_set_name);
 
 /**
- * kobject_init_ng - initialize a kobject structure
+ * kobject_init - initialize a kobject structure
  * @kobj: pointer to the kobject to initialize
  * @ktype: pointer to the ktype for this kobject.
  *
@@ -298,7 +298,7 @@ EXPORT_SYMBOL(kobject_set_name);
  * to kobject_put(), not by a call to kfree directly to ensure that all of
  * the memory is cleaned up properly.
  */
-void kobject_init_ng(struct kobject *kobj, struct kobj_type *ktype)
+void kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 {
 	char *err_str;
 
@@ -326,7 +326,7 @@ error:
 	printk(KERN_ERR "kobject: %s\n", err_str);
 	dump_stack();
 }
-EXPORT_SYMBOL(kobject_init_ng);
+EXPORT_SYMBOL(kobject_init);
 
 static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
 			    const char *fmt, va_list vargs)
@@ -401,7 +401,7 @@ EXPORT_SYMBOL(kobject_add);
  * @parent: pointer to the parent of this kobject.
  * @fmt: the name of the kobject.
  *
- * This function combines the call to kobject_init_ng() and
+ * This function combines the call to kobject_init() and
  * kobject_add().  The same type of error handling after a call to
  * kobject_add() and kobject lifetime rules are the same here.
  */
@@ -411,7 +411,7 @@ int kobject_init_and_add(struct kobject *kobj, struct kobj_type *ktype,
 	va_list args;
 	int retval;
 
-	kobject_init_ng(kobj, ktype);
+	kobject_init(kobj, ktype);
 
 	va_start(args, fmt);
 	retval = kobject_add_varg(kobj, parent, fmt, args);
@@ -636,7 +636,7 @@ static struct kobj_type dynamic_kobj_ktype = {
  *
  * If the kobject was not able to be created, NULL will be returned.
  * The kobject structure returned from here must be cleaned up with a
- * call to kobject_put() and not kfree(), as kobject_init_ng() has
+ * call to kobject_put() and not kfree(), as kobject_init() has
  * already been called on this structure.
  */
 struct kobject *kobject_create(void)
@@ -647,7 +647,7 @@ struct kobject *kobject_create(void)
 	if (!kobj)
 		return NULL;
 
-	kobject_init_ng(kobj, &dynamic_kobj_ktype);
+	kobject_init(kobj, &dynamic_kobj_ktype);
 	return kobj;
 }
 

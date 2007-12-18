@@ -525,7 +525,7 @@ static void klist_children_put(struct klist_node *n)
 void device_initialize(struct device *dev)
 {
 	dev->kobj.kset = devices_kset;
-	kobject_init_ng(&dev->kobj, &device_ktype);
+	kobject_init(&dev->kobj, &device_ktype);
 	klist_init(&dev->klist_children, klist_children_get,
 		   klist_children_put);
 	INIT_LIST_HEAD(&dev->dma_pools);

@@ -553,7 +553,7 @@ static struct class_device_attribute class_uevent_attr =
 void class_device_initialize(struct class_device *class_dev)
 {
 	class_dev->kobj.kset = &class_obj_subsys;
-	kobject_init_ng(&class_dev->kobj, &class_device_ktype);
+	kobject_init(&class_dev->kobj, &class_device_ktype);
 	INIT_LIST_HEAD(&class_dev->node);
 }
 

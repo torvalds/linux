@@ -169,7 +169,7 @@ static int uio_dev_add_attributes(struct uio_device *idev)
 		map = kzalloc(sizeof(*map), GFP_KERNEL);
 		if (!map)
 			goto err;
-		kobject_init_ng(&map->kobj, &map_attr_type);
+		kobject_init(&map->kobj, &map_attr_type);
 		map->mem = mem;
 		mem->map = map;
 		ret = kobject_add(&map->kobj, idev->map_dir, "map%d", mi);

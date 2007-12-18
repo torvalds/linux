@@ -185,7 +185,7 @@ static elevator_t *elevator_alloc(struct request_queue *q,
 
 	eq->ops = &e->ops;
 	eq->elevator_type = e;
-	kobject_init_ng(&eq->kobj, &elv_ktype);
+	kobject_init(&eq->kobj, &elv_ktype);
 	mutex_init(&eq->sysfs_lock);
 
 	eq->hash = kmalloc_node(sizeof(struct hlist_head) * ELV_HASH_ENTRIES,

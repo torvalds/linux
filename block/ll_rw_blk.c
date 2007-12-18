@@ -1862,7 +1862,7 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 
 	init_timer(&q->unplug_timer);
 
-	kobject_init_ng(&q->kobj, &queue_ktype);
+	kobject_init(&q->kobj, &queue_ktype);
 
 	mutex_init(&q->sysfs_lock);
 
