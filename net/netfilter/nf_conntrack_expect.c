@@ -226,8 +226,8 @@ struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
 
 void nf_ct_expect_init(struct nf_conntrack_expect *exp, int family,
-		       union nf_conntrack_address *saddr,
-		       union nf_conntrack_address *daddr,
+		       union nf_inet_addr *saddr,
+		       union nf_inet_addr *daddr,
 		       u_int8_t proto, __be16 *src, __be16 *dst)
 {
 	int len;

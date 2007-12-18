@@ -53,10 +53,10 @@ static inline unsigned int connlimit_iphash(__be32 addr)
 }
 
 static inline unsigned int
-connlimit_iphash6(const union nf_conntrack_address *addr,
-                  const union nf_conntrack_address *mask)
+connlimit_iphash6(const union nf_inet_addr *addr,
+                  const union nf_inet_addr *mask)
 {
-	union nf_conntrack_address res;
+	union nf_inet_addr res;
 	unsigned int i;
 
 	if (unlikely(!connlimit_rnd_inited)) {
@@ -81,14 +81,14 @@ static inline bool already_closed(const struct nf_conn *conn)
 }
 
 static inline unsigned int
-same_source_net(const union nf_conntrack_address *addr,
-		const union nf_conntrack_address *mask,
-		const union nf_conntrack_address *u3, unsigned int family)
+same_source_net(const union nf_inet_addr *addr,
+		const union nf_inet_addr *mask,
+		const union nf_inet_addr *u3, unsigned int family)
 {
 	if (family == AF_INET) {
 		return (addr->ip & mask->ip) == (u3->ip & mask->ip);
 	} else {
-		union nf_conntrack_address lh, rh;
+		union nf_inet_addr lh, rh;
 		unsigned int i;
 
 		for (i = 0; i < ARRAY_SIZE(addr->ip6); ++i) {
@@ -102,8 +102,8 @@ same_source_net(const union nf_conntrack_address *addr,
 
 static int count_them(struct xt_connlimit_data *data,
 		      const struct nf_conntrack_tuple *tuple,
-		      const union nf_conntrack_address *addr,
-		      const union nf_conntrack_address *mask,
+		      const union nf_inet_addr *addr,
+		      const union nf_inet_addr *mask,
 		      const struct xt_match *match)
 {
 	struct nf_conntrack_tuple_hash *found;
@@ -185,7 +185,7 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
              bool *hotdrop)
 {
 	const struct xt_connlimit_info *info = matchinfo;
-	union nf_conntrack_address addr, mask;
+	union nf_inet_addr addr, mask;
 	struct nf_conntrack_tuple tuple;
 	const struct nf_conntrack_tuple *tuple_ptr = &tuple;
 	enum ip_conntrack_info ctinfo;

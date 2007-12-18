@@ -76,7 +76,7 @@ static int set_addr(struct sk_buff *skb,
 static int set_h225_addr(struct sk_buff *skb,
 			 unsigned char **data, int dataoff,
 			 TransportAddress *taddr,
-			 union nf_conntrack_address *addr, __be16 port)
+			 union nf_inet_addr *addr, __be16 port)
 {
 	return set_addr(skb, data, dataoff, taddr->ipAddress.ip,
 			addr->ip, port);
@@ -86,7 +86,7 @@ static int set_h225_addr(struct sk_buff *skb,
 static int set_h245_addr(struct sk_buff *skb,
 			 unsigned char **data, int dataoff,
 			 H245_TransportAddress *taddr,
-			 union nf_conntrack_address *addr, __be16 port)
+			 union nf_inet_addr *addr, __be16 port)
 {
 	return set_addr(skb, data, dataoff,
 			taddr->unicastAddress.iPAddress.network,
@@ -103,7 +103,7 @@ static int set_sig_addr(struct sk_buff *skb, struct nf_conn *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
 	__be16 port;
-	union nf_conntrack_address addr;
+	union nf_inet_addr addr;
 
 	for (i = 0; i < count; i++) {
 		if (get_h225_addr(ct, *data, &taddr[i], &addr, &port)) {
@@ -155,7 +155,7 @@ static int set_ras_addr(struct sk_buff *skb, struct nf_conn *ct,
 	int dir = CTINFO2DIR(ctinfo);
 	int i;
 	__be16 port;
-	union nf_conntrack_address addr;
+	union nf_inet_addr addr;
 
 	for (i = 0; i < count; i++) {
 		if (get_h225_addr(ct, *data, &taddr[i], &addr, &port) &&
@@ -408,7 +408,7 @@ static int nat_q931(struct sk_buff *skb, struct nf_conn *ct,
 	struct nf_ct_h323_master *info = &nfct_help(ct)->help.ct_h323_info;
 	int dir = CTINFO2DIR(ctinfo);
 	u_int16_t nated_port = ntohs(port);
-	union nf_conntrack_address addr;
+	union nf_inet_addr addr;
 
 	/* Set expectations for NAT */
 	exp->saved_proto.tcp.port = exp->tuple.dst.u.tcp.port;

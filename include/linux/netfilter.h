@@ -48,6 +48,12 @@ enum nf_inet_hooks {
 	NF_INET_NUMHOOKS
 };
 
+union nf_inet_addr {
+	u_int32_t	all[4];
+	__be32		ip;
+	__be32		ip6[4];
+};
+
 #ifdef __KERNEL__
 #ifdef CONFIG_NETFILTER
 
