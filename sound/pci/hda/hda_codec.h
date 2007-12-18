@@ -418,7 +418,7 @@ struct hda_bus_ops {
 	/* free the private data */
 	void (*private_free)(struct hda_bus *);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-	/* notify power-up/down from codec to contoller */
+	/* notify power-up/down from codec to controller */
 	void (*pm_notify)(struct hda_codec *codec);
 #endif
 };
