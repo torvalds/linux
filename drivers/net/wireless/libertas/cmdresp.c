@@ -516,7 +516,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_802_11_SET_WEP):
 	case CMD_RET(CMD_802_11_RESET):
 	case CMD_RET(CMD_802_11_AUTHENTICATE):
-	case CMD_RET(CMD_802_11_RADIO_CONTROL):
 	case CMD_RET(CMD_802_11_BEACON_STOP):
 		break;
 

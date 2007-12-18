@@ -603,45 +603,6 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_radio_control(struct lbs_private *priv,
-					 struct cmd_ds_command *cmd,
-					 int cmd_action)
-{
-	struct cmd_ds_802_11_radio_control *pradiocontrol = &cmd->params.radio;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd->size =
-	    cpu_to_le16((sizeof(struct cmd_ds_802_11_radio_control)) +
-			     S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_802_11_RADIO_CONTROL);
-
-	pradiocontrol->action = cpu_to_le16(cmd_action);
-
-	switch (priv->preamble) {
-	case CMD_TYPE_SHORT_PREAMBLE:
-		pradiocontrol->control = cpu_to_le16(SET_SHORT_PREAMBLE);
-		break;
-
-	case CMD_TYPE_LONG_PREAMBLE:
-		pradiocontrol->control = cpu_to_le16(SET_LONG_PREAMBLE);
-		break;
-
-	case CMD_TYPE_AUTO_PREAMBLE:
-	default:
-		pradiocontrol->control = cpu_to_le16(SET_AUTO_PREAMBLE);
-		break;
-	}
-
-	if (priv->radioon)
-		pradiocontrol->control |= cpu_to_le16(TURN_ON_RF);
-	else
-		pradiocontrol->control &= cpu_to_le16(~TURN_ON_RF);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_cmd_802_11_rf_tx_power(struct lbs_private *priv,
 				       struct cmd_ds_command *cmd,
 				       u16 cmd_action, void *pdata_buf)
@@ -1315,16 +1276,37 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 int lbs_set_radio_control(struct lbs_private *priv)
 {
 	int ret = 0;
+	struct cmd_ds_802_11_radio_control cmd;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_RADIO_CONTROL,
-				    CMD_ACT_SET,
-				    CMD_OPTION_WAITFORRSP, 0, NULL);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
 
-	lbs_deb_cmd("RADIO_SET: radio %d, preamble %d\n",
-	       priv->radioon, priv->preamble);
+	switch (priv->preamble) {
+	case CMD_TYPE_SHORT_PREAMBLE:
+		cmd.control = cpu_to_le16(SET_SHORT_PREAMBLE);
+		break;
+
+	case CMD_TYPE_LONG_PREAMBLE:
+		cmd.control = cpu_to_le16(SET_LONG_PREAMBLE);
+		break;
+
+	case CMD_TYPE_AUTO_PREAMBLE:
+	default:
+		cmd.control = cpu_to_le16(SET_AUTO_PREAMBLE);
+		break;
+	}
+
+	if (priv->radioon)
+		cmd.control |= cpu_to_le16(TURN_ON_RF);
+	else
+		cmd.control &= cpu_to_le16(~TURN_ON_RF);
+
+	lbs_deb_cmd("RADIO_SET: radio %d, preamble %d\n", priv->radioon,
+		    priv->preamble);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RADIO_CONTROL, &cmd);
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
@@ -1465,10 +1447,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_RF_TX_POWER:
 		ret = lbs_cmd_802_11_rf_tx_power(priv, cmdptr,
 						  cmd_action, pdata_buf);
-		break;
-
-	case CMD_802_11_RADIO_CONTROL:
-		ret = lbs_cmd_802_11_radio_control(priv, cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_RATE_ADAPT_RATESET:

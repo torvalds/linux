@@ -342,6 +342,8 @@ struct cmd_ds_rf_reg_access {
 };
 
 struct cmd_ds_802_11_radio_control {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 control;
 };
@@ -697,8 +699,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_rate_adapt_rateset rateset;
 		struct cmd_ds_mac_multicast_adr madr;
 		struct cmd_ds_802_11_ad_hoc_join adj;
-		struct cmd_ds_802_11_radio_control radio;
-		struct cmd_ds_802_11_rf_channel rfchannel;
 		struct cmd_ds_802_11_rssi rssi;
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_802_11_disassociate dassociate;
