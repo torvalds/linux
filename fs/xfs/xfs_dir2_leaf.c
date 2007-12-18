@@ -1091,7 +1091,7 @@ xfs_dir2_leaf_getdents(
 		 * Won't fit.  Return to caller.
 		 */
 		if (filldir(dirent, dep->name, dep->namelen,
-			    xfs_dir2_byte_to_dataptr(mp, curoff + length),
+			    xfs_dir2_byte_to_dataptr(mp, curoff),
 			    ino, DT_UNKNOWN))
 			break;
 
