@@ -27,12 +27,12 @@
 
 #define pcibios_assign_all_busses()	1
 
+/* Register locations and bits */
+#include "ixp4xx-regs.h"
+
 #ifndef __ASSEMBLER__
 #include <asm/arch/cpu.h>
 #endif
-
-/* Register locations and bits */
-#include "ixp4xx-regs.h"
 
 /* Platform helper functions and definitions */
 #include "platform.h"

@@ -13,7 +13,7 @@
 #ifndef _ARCH_UNCOMPRESS_H_
 #define _ARCH_UNCOMPRESS_H_
 
-#include <asm/hardware.h>
+#include "ixp4xx-regs.h"
 #include <asm/mach-types.h>
 #include <linux/serial_reg.h>
 

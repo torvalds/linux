@@ -62,6 +62,7 @@ extern int root_mountflags;
 extern void _stext, _text, _etext, __data_start, _edata, _end;
 
 unsigned int processor_id;
+EXPORT_SYMBOL(processor_id);
 unsigned int __machine_arch_type;
 EXPORT_SYMBOL(__machine_arch_type);
 
