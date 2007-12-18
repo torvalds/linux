@@ -322,6 +322,7 @@ struct btrfs_fs_info {
 	u64 generation;
 	u64 last_trans_committed;
 	unsigned long mount_opt;
+	u64 max_extent;
 	struct btrfs_transaction *running_transaction;
 	struct btrfs_super_block super_copy;
 	struct extent_buffer *sb_buffer;

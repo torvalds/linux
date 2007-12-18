@@ -34,6 +34,7 @@
 #include <linux/statfs.h>
 #include <linux/compat.h>
 #include <linux/parser.h>
+#include <linux/ctype.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -61,15 +62,41 @@ static void btrfs_put_super (struct super_block * sb)
 }
 
 enum {
-	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_err,
+	Opt_subvol, Opt_nodatasum, Opt_nodatacow, Opt_max_extent, Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_subvol, "subvol=%s"},
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
+	{Opt_max_extent, "max_extent=%s"},
 	{Opt_err, NULL}
 };
+
+static unsigned long parse_size(char *str)
+{
+	unsigned long res;
+	int mult = 1;
+	char *end;
+	char last;
+
+	res = simple_strtoul(str, &end, 10);
+
+	last = end[0];
+	if (isalpha(last)) {
+		last = tolower(last);
+		switch (last) {
+		case 'g':
+			mult *= 1024;
+		case 'm':
+			mult *= 1024;
+		case 'k':
+			mult *= 1024;
+		}
+		res = res * mult;
+	}
+	return res;
+}
 
 static int parse_options (char * options,
 			  struct btrfs_root *root,
@@ -116,6 +143,21 @@ static int parse_options (char * options,
 				printk("btrfs: setting nodatacow\n");
 				btrfs_set_opt(info->mount_opt, NODATACOW);
 				btrfs_set_opt(info->mount_opt, NODATASUM);
+			}
+			break;
+		case Opt_max_extent:
+			if (info) {
+				char *num = match_strdup(&args[0]);
+				if (num) {
+					info->max_extent = parse_size(num);
+					kfree(num);
+
+					info->max_extent = max_t(u64,
+							 info->max_extent,
+							 root->sectorsize);
+					printk("btrfs: max_extent at %Lu\n",
+					       info->max_extent);
+				}
 			}
 			break;
 		default:
@@ -329,6 +371,8 @@ static int btrfs_get_sb(struct file_system_type *fs_type,
 	ret = btrfs_get_sb_bdev(fs_type, flags, dev_name, data,
 			btrfs_fill_super, mnt,
 			subvol_name ? subvol_name : "default");
+	if (subvol_name)
+		kfree(subvol_name);
 	return ret;
 }
 

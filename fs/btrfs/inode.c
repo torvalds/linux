@@ -78,6 +78,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	struct btrfs_trans_handle *trans;
 	u64 alloc_hint = 0;
 	u64 num_bytes;
+	u64 cur_alloc_size;
 	u64 blocksize = root->sectorsize;
 	struct btrfs_key ins;
 	int ret;
@@ -94,17 +95,24 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 	if (alloc_hint == EXTENT_MAP_INLINE)
 		goto out;
 
-	ret = btrfs_alloc_extent(trans, root, num_bytes,
-				 root->root_key.objectid, trans->transid,
-				 inode->i_ino, start, 0,
-				 alloc_hint, (u64)-1, &ins, 1);
-	if (ret) {
-		WARN_ON(1);
-		goto out;
+	while(num_bytes > 0) {
+		cur_alloc_size = min(num_bytes, root->fs_info->max_extent);
+		ret = btrfs_alloc_extent(trans, root, cur_alloc_size,
+					 root->root_key.objectid,
+					 trans->transid,
+					 inode->i_ino, start, 0,
+					 alloc_hint, (u64)-1, &ins, 1);
+		if (ret) {
+			WARN_ON(1);
+			goto out;
+		}
+		ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
+					       start, ins.objectid, ins.offset,
+					       ins.offset);
+		num_bytes -= cur_alloc_size;
+		alloc_hint = ins.objectid + ins.offset;
+		start += cur_alloc_size;
 	}
-	ret = btrfs_insert_file_extent(trans, root, inode->i_ino,
-				       start, ins.objectid, ins.offset,
-				       ins.offset);
 out:
 	btrfs_end_transaction(trans, root);
 	return ret;
