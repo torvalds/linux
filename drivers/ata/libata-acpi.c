@@ -490,38 +490,29 @@ EXPORT_SYMBOL_GPL(ata_acpi_gtm_xfermask);
 /**
  * ata_acpi_cbl_80wire		-	Check for 80 wire cable
  * @ap: Port to check
+ * @gtm: GTM data to use
  *
- * Return 1 if the ACPI mode data for this port indicates the BIOS selected
- * an 80wire mode.
+ * Return 1 if the @gtm indicates the BIOS selected an 80wire mode.
  */
-
-int ata_acpi_cbl_80wire(struct ata_port *ap)
+int ata_acpi_cbl_80wire(struct ata_port *ap, const struct ata_acpi_gtm *gtm)
 {
-	const struct ata_acpi_gtm *gtm = ata_acpi_init_gtm(ap);
-	int valid = 0;
+	struct ata_device *dev;
 
-	if (!gtm)
-		return 0;
+	ata_link_for_each_dev(dev, &ap->link) {
+		unsigned long xfer_mask, udma_mask;
 
-	/* Split timing, DMA enabled */
-	if ((gtm->flags & 0x11) == 0x11 && gtm->drive[0].dma < 55)
-		valid |= 1;
-	if ((gtm->flags & 0x14) == 0x14 && gtm->drive[1].dma < 55)
-		valid |= 2;
-	/* Shared timing, DMA enabled */
-	if ((gtm->flags & 0x11) == 0x01 && gtm->drive[0].dma < 55)
-		valid |= 1;
-	if ((gtm->flags & 0x14) == 0x04 && gtm->drive[0].dma < 55)
-		valid |= 2;
+		if (!ata_dev_enabled(dev))
+			continue;
 
-	/* Drive check */
-	if ((valid & 1) && ata_dev_enabled(&ap->link.device[0]))
-		return 1;
-	if ((valid & 2) && ata_dev_enabled(&ap->link.device[1]))
-		return 1;
+		xfer_mask = ata_acpi_gtm_xfermask(dev, gtm);
+		ata_unpack_xfermask(xfer_mask, NULL, NULL, &udma_mask);
+
+		if (udma_mask & ~ATA_UDMA_MASK_40C)
+			return 1;
+	}
+
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(ata_acpi_cbl_80wire);
 
 static void ata_acpi_gtf_to_tf(struct ata_device *dev,
