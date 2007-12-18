@@ -1356,7 +1356,10 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 			  const struct nf_conntrack_expect *exp)
 {
 	struct nf_conn *master = exp->master;
-	__be32 timeout = htonl((exp->timeout.expires - jiffies) / HZ);
+	long timeout = (exp->timeout.expires - jiffies) / HZ;
+
+	if (timeout < 0)
+		timeout = 0;
 
 	if (ctnetlink_exp_dump_tuple(skb, &exp->tuple, CTA_EXPECT_TUPLE) < 0)
 		goto nla_put_failure;
@@ -1367,7 +1370,7 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 				 CTA_EXPECT_MASTER) < 0)
 		goto nla_put_failure;
 
-	NLA_PUT_BE32(skb, CTA_EXPECT_TIMEOUT, timeout);
+	NLA_PUT_BE32(skb, CTA_EXPECT_TIMEOUT, htonl(timeout));
 	NLA_PUT_BE32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp));
 
 	return 0;
