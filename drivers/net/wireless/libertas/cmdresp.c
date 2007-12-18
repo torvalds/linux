@@ -554,13 +554,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_802_11_SLEEP_PARAMS):
 		ret = lbs_ret_802_11_sleep_params(priv, resp);
 		break;
-	case CMD_RET(CMD_802_11_INACTIVITY_TIMEOUT):
-		spin_lock_irqsave(&priv->driver_lock, flags);
-		*((uint16_t *) priv->cur_cmd->callback_arg) =
-		    le16_to_cpu(resp->params.inactivity_timeout.timeout);
-		spin_unlock_irqrestore(&priv->driver_lock, flags);
-		break;
-
 	case CMD_RET(CMD_802_11_TPC_CFG):
 		spin_lock_irqsave(&priv->driver_lock, flags);
 		memmove((void *)priv->cur_cmd->callback_arg, &resp->params.tpccfg,

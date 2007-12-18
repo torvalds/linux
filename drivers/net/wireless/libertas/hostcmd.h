@@ -378,6 +378,8 @@ struct cmd_ds_802_11_sleep_params {
 };
 
 struct cmd_ds_802_11_inactivity_timeout {
+	struct cmd_header hdr;
+
 	/* ACT_GET/ACT_SET */
 	__le16 action;
 
@@ -714,7 +716,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11d_domain_info domaininforesp;
 
 		struct cmd_ds_802_11_sleep_params sleep_params;
-		struct cmd_ds_802_11_inactivity_timeout inactivity_timeout;
 		struct cmd_ds_802_11_tpc_cfg tpccfg;
 		struct cmd_ds_802_11_pwr_cfg pwrcfg;
 		struct cmd_ds_802_11_afc afc;

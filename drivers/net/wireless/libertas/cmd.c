@@ -171,27 +171,30 @@ static int lbs_cmd_802_11_ps_mode(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
-					      struct cmd_ds_command *cmd,
-					      u16 cmd_action, void *pdata_buf)
+int lbs_cmd_802_11_inactivity_timeout(struct lbs_private *priv,
+				      uint16_t cmd_action, uint16_t *timeout)
 {
-	u16 *timeout = pdata_buf;
+	struct cmd_ds_802_11_inactivity_timeout cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->command = cpu_to_le16(CMD_802_11_INACTIVITY_TIMEOUT);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_inactivity_timeout)
-			     + S_DS_GEN);
+	cmd.hdr.command = cpu_to_le16(CMD_802_11_INACTIVITY_TIMEOUT);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 
-	cmd->params.inactivity_timeout.action = cpu_to_le16(cmd_action);
+	cmd.action = cpu_to_le16(cmd_action);
 
-	if (cmd_action)
-		cmd->params.inactivity_timeout.timeout = cpu_to_le16(*timeout);
+	if (cmd_action == CMD_ACT_SET)
+		cmd.timeout = cpu_to_le16(*timeout);
 	else
-		cmd->params.inactivity_timeout.timeout = 0;
+		cmd.timeout = 0;
 
-	lbs_deb_leave(LBS_DEB_CMD);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_INACTIVITY_TIMEOUT, &cmd);
+
+	if (!ret)
+		*timeout = le16_to_cpu(cmd.timeout);
+
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return 0;
 }
 
@@ -1519,11 +1522,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_802_11_SLEEP_PARAMS:
 		ret = lbs_cmd_802_11_sleep_params(priv, cmdptr, cmd_action);
-		break;
-	case CMD_802_11_INACTIVITY_TIMEOUT:
-		ret = lbs_cmd_802_11_inactivity_timeout(priv, cmdptr,
-							 cmd_action, pdata_buf);
-		lbs_set_cmd_ctrl_node(priv, cmdnode, pdata_buf);
 		break;
 
 	case CMD_802_11_TPC_CFG:
