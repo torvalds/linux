@@ -94,6 +94,28 @@ mark_tg_check(const char *tablename, const void *entry,
 }
 
 #ifdef CONFIG_COMPAT
+struct compat_xt_mark_target_info {
+	compat_ulong_t	mark;
+};
+
+static void mark_tg_compat_from_user(void *dst, void *src)
+{
+	const struct compat_xt_mark_target_info *cm = src;
+	struct xt_mark_target_info m = {
+		.mark	= cm->mark,
+	};
+	memcpy(dst, &m, sizeof(m));
+}
+
+static int mark_tg_compat_to_user(void __user *dst, void *src)
+{
+	const struct xt_mark_target_info *m = src;
+	struct compat_xt_mark_target_info cm = {
+		.mark	= m->mark,
+	};
+	return copy_to_user(dst, &cm, sizeof(cm)) ? -EFAULT : 0;
+}
+
 struct compat_xt_mark_target_info_v1 {
 	compat_ulong_t	mark;
 	u_int8_t	mode;
@@ -101,7 +123,7 @@ struct compat_xt_mark_target_info_v1 {
 	u_int16_t	__pad2;
 };
 
-static void mark_tg_compat_from_user(void *dst, void *src)
+static void mark_tg_compat_from_user_v1(void *dst, void *src)
 {
 	const struct compat_xt_mark_target_info_v1 *cm = src;
 	struct xt_mark_target_info_v1 m = {
@@ -111,7 +133,7 @@ static void mark_tg_compat_from_user(void *dst, void *src)
 	memcpy(dst, &m, sizeof(m));
 }
 
-static int mark_tg_compat_to_user(void __user *dst, void *src)
+static int mark_tg_compat_to_user_v1(void __user *dst, void *src)
 {
 	const struct xt_mark_target_info_v1 *m = src;
 	struct compat_xt_mark_target_info_v1 cm = {
@@ -130,6 +152,11 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.checkentry	= mark_tg_check_v0,
 		.target		= mark_tg_v0,
 		.targetsize	= sizeof(struct xt_mark_target_info),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_mark_target_info),
+		.compat_from_user = mark_tg_compat_from_user,
+		.compat_to_user	= mark_tg_compat_to_user,
+#endif
 		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
@@ -142,8 +169,8 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.targetsize	= sizeof(struct xt_mark_target_info_v1),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_mark_target_info_v1),
-		.compat_from_user = mark_tg_compat_from_user,
-		.compat_to_user	= mark_tg_compat_to_user,
+		.compat_from_user = mark_tg_compat_from_user_v1,
+		.compat_to_user	= mark_tg_compat_to_user_v1,
 #endif
 		.table		= "mangle",
 		.me		= THIS_MODULE,
@@ -155,6 +182,11 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.checkentry	= mark_tg_check_v0,
 		.target		= mark_tg_v0,
 		.targetsize	= sizeof(struct xt_mark_target_info),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_mark_target_info),
+		.compat_from_user = mark_tg_compat_from_user,
+		.compat_to_user	= mark_tg_compat_to_user,
+#endif
 		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
@@ -167,8 +199,8 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.targetsize	= sizeof(struct xt_mark_target_info_v1),
 #ifdef CONFIG_COMPAT
 		.compatsize	= sizeof(struct compat_xt_mark_target_info_v1),
-		.compat_from_user = mark_tg_compat_from_user,
-		.compat_to_user	= mark_tg_compat_to_user,
+		.compat_from_user = mark_tg_compat_from_user_v1,
+		.compat_to_user	= mark_tg_compat_to_user_v1,
 #endif
 		.table		= "mangle",
 		.me		= THIS_MODULE,
