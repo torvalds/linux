@@ -300,30 +300,31 @@ done:
 	return ret;
 }
 
-static int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv,
-				      struct cmd_ds_command *cmd,
-				      u16 cmd_action,
-				      void * pdata_buf)
+int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
+			      uint16_t *enable)
 {
-	struct cmd_ds_802_11_enable_rsn *penableRSN = &cmd->params.enbrsn;
-	u32 * enable = pdata_buf;
+	struct cmd_ds_802_11_enable_rsn cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->command = cpu_to_le16(CMD_802_11_ENABLE_RSN);
-	cmd->size = cpu_to_le16(sizeof(*penableRSN) + S_DS_GEN);
-	penableRSN->action = cpu_to_le16(cmd_action);
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(cmd_action);
 
 	if (cmd_action == CMD_ACT_SET) {
 		if (*enable)
-			penableRSN->enable = cpu_to_le16(CMD_ENABLE_RSN);
+			cmd.enable = cpu_to_le16(CMD_ENABLE_RSN);
 		else
-			penableRSN->enable = cpu_to_le16(CMD_DISABLE_RSN);
+			cmd.enable = cpu_to_le16(CMD_DISABLE_RSN);
 		lbs_deb_cmd("ENABLE_RSN: %d\n", *enable);
 	}
 
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	ret = lbs_cmd_with_response(priv, CMD_802_11_ENABLE_RSN, &cmd);
+	if (!ret && cmd_action == CMD_ACT_GET)
+		*enable = le16_to_cpu(cmd.enable);
+
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 
@@ -1471,11 +1472,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_802_11_AD_HOC_STOP:
 		ret = lbs_cmd_80211_ad_hoc_stop(priv, cmdptr);
-		break;
-
-	case CMD_802_11_ENABLE_RSN:
-		ret = lbs_cmd_802_11_enable_rsn(priv, cmdptr, cmd_action,
-				pdata_buf);
 		break;
 
 	case CMD_802_11_KEY_MATERIAL:

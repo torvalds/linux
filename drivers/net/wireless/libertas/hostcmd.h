@@ -536,6 +536,8 @@ struct cmd_ds_802_11_ad_hoc_join {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_enable_rsn {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 enable;
 } __attribute__ ((packed));
@@ -708,7 +710,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_802_11_disassociate dassociate;
 		struct cmd_ds_802_11_mac_address macadd;
-		struct cmd_ds_802_11_enable_rsn enbrsn;
 		struct cmd_ds_802_11_key_material keymaterial;
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;

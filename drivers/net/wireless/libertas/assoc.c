@@ -305,8 +305,8 @@ static int assoc_helper_secinfo(struct lbs_private *priv,
                                 struct assoc_request * assoc_req)
 {
 	int ret = 0;
-	u32 do_wpa;
-	u32 rsn = 0;
+	uint16_t do_wpa;
+	uint16_t rsn = 0;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
@@ -323,28 +323,19 @@ static int assoc_helper_secinfo(struct lbs_private *priv,
 	 */
 
 	/* Get RSN enabled/disabled */
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_ENABLE_RSN,
-				    CMD_ACT_GET,
-				    CMD_OPTION_WAITFORRSP,
-				    0, &rsn);
+	ret = lbs_cmd_802_11_enable_rsn(priv, CMD_ACT_GET, &rsn);
 	if (ret) {
 		lbs_deb_assoc("Failed to get RSN status: %d\n", ret);
 		goto out;
 	}
 
 	/* Don't re-enable RSN if it's already enabled */
-	do_wpa = (assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled);
+	do_wpa = assoc_req->secinfo.WPAenabled || assoc_req->secinfo.WPA2enabled;
 	if (do_wpa == rsn)
 		goto out;
 
 	/* Set RSN enabled/disabled */
-	rsn = do_wpa;
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_ENABLE_RSN,
-				    CMD_ACT_SET,
-				    CMD_OPTION_WAITFORRSP,
-				    0, &rsn);
+	ret = lbs_cmd_802_11_enable_rsn(priv, CMD_ACT_SET, &do_wpa);
 
 out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);

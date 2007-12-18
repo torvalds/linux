@@ -372,23 +372,6 @@ static int lbs_ret_get_log(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_enable_rsn(struct lbs_private *priv,
-                                          struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_enable_rsn *enable_rsn = &resp->params.enbrsn;
-	uint32_t * pdata_buf = (uint32_t *)priv->cur_cmd->callback_arg;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	if (enable_rsn->action == cpu_to_le16(CMD_ACT_GET)) {
-		if (pdata_buf)
-			*pdata_buf = (uint32_t) le16_to_cpu(enable_rsn->enable);
-	}
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_bcn_ctrl(struct lbs_private * priv,
 					struct cmd_ds_command *resp)
 {
@@ -493,10 +476,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 	case CMD_RET(CMD_802_11_RESET):
 	case CMD_RET(CMD_802_11_AUTHENTICATE):
 	case CMD_RET(CMD_802_11_BEACON_STOP):
-		break;
-
-	case CMD_RET(CMD_802_11_ENABLE_RSN):
-		ret = lbs_ret_802_11_enable_rsn(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_RATE_ADAPT_RATESET):
