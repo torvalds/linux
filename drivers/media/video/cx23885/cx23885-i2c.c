@@ -332,7 +332,7 @@ static char *i2c_devs[128] = {
 	[ 0x84 >> 1 ] = "tda8295",
 	[ 0xa0 >> 1 ] = "eeprom",
 	[ 0xc0 >> 1 ] = "tuner/mt2131/tda8275",
-	[ 0xc2 >> 1 ] = "tuner/mt2131/tda8275",
+	[ 0xc2 >> 1 ] = "tuner/mt2131/tda8275/xc5000",
 };
 
 static void do_i2c_scan(char *name, struct i2c_client *c)

@@ -33,6 +33,7 @@
 #include "s5h1409.h"
 #include "mt2131.h"
 #include "lgdt330x.h"
+#include "xc5000.h"
 #include "dvb-pll.h"
 
 static unsigned int debug = 0;
@@ -74,6 +75,32 @@ static void dvb_buf_release(struct videobuf_queue *q,
 	cx23885_free_buffer(q, (struct cx23885_buffer*)vb);
 }
 
+static int cx23885_request_firmware(struct dvb_frontend *fe,
+	const struct firmware **fw, char *name)
+{
+	struct cx23885_tsport *port = fe->dvb->priv;
+	struct cx23885_dev *dev = port->dev;
+
+	dprintk(1, "%s(?,?,%s)\n", __FUNCTION__, name);
+
+	return request_firmware(fw, name, &dev->pci->dev);
+}
+
+static int hauppauge_hvr1500q_tuner_reset(struct dvb_frontend *fe)
+{
+	struct cx23885_tsport *port = fe->dvb->priv;
+	struct cx23885_dev *dev = port->dev;
+
+	dprintk(1, "%s()\n", __FUNCTION__);
+
+	/* Drive the tuner into reset back back */
+	cx_clear(GP0_IO, 0x00000004);
+	mdelay(200);
+	cx_set(GP0_IO, 0x00000004);
+
+	return 0;
+}
+
 static struct videobuf_queue_ops dvb_qops = {
 	.buf_setup    = dvb_buf_setup,
 	.buf_prepare  = dvb_buf_prepare,
@@ -107,6 +134,22 @@ static struct lgdt330x_config fusionhdtv_5_express = {
 	.demod_address = 0x0e,
 	.demod_chip = LGDT3303,
 	.serial_mpeg = 0x40,
+};
+
+static struct s5h1409_config hauppauge_hvr1500q_config = {
+	.demod_address = 0x32 >> 1,
+	.output_mode   = S5H1409_SERIAL_OUTPUT,
+	.gpio          = S5H1409_GPIO_ON,
+	.qam_if        = 44000,
+	.inversion     = S5H1409_INVERSION_OFF,
+	.status_mode   = S5H1409_DEMODLOCKING
+};
+
+static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
+	.i2c_address  = 0x61,
+	.if_frequency = 4570000,
+	.request_firmware = cx23885_request_firmware,
+	.tuner_reset = hauppauge_hvr1500q_tuner_reset
 };
 
 static int dvb_register(struct cx23885_tsport *port)
@@ -150,6 +193,17 @@ static int dvb_register(struct cx23885_tsport *port)
 		if (port->dvb.frontend != NULL) {
 			dvb_attach(dvb_pll_attach, port->dvb.frontend, 0x61,
 				   &i2c_bus->i2c_adap, DVB_PLL_LG_TDVS_H06XF);
+		}
+		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
+		i2c_bus = &dev->i2c_bus[1];
+		port->dvb.frontend = dvb_attach(s5h1409_attach,
+						&hauppauge_hvr1500q_config,
+						&dev->i2c_bus[0].i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			dvb_attach(xc5000_attach, port->dvb.frontend,
+				&i2c_bus->i2c_adap,
+				&hauppauge_hvr1500q_tunerconfig);
 		}
 		break;
 	default:

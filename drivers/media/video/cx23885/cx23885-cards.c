@@ -113,6 +113,11 @@ struct cx23885_board cx23885_boards[] = {
 		.name		= "DViCO FusionHDTV5 Express",
 		.portb		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_HAUPPAUGE_HVR1500Q] = {
+		.name		= "Hauppauge WinTV-HVR1500Q",
+		.portc		= CX23885_MPEG_DVB,
+	},
+
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -144,6 +149,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd500,
 		.card      = CX23885_BOARD_DVICO_FUSIONHDTV_5_EXP,
+	},{
+		.subvendor = 0x0070,
+		.subdevice = 0x7797,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1500Q,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -204,6 +213,11 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		/* GPIO-0 cx24227 demodulator reset */
 		cx_set(GP0_IO, 0x00010001); /* Bring the part out of reset */
 		break;
+	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
+		/* GPIO-0 cx24227 demodulator reset */
+		/* GPIO-2 xc5000 tuner reset */
+		cx_set(GP0_IO, 0x00050005); /* Bring the part out of reset */
+		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		/* GPIO-0 656_CLK */
 		/* GPIO-1 656_D0 */
@@ -221,6 +235,7 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 {
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 		/* FIXME: Implement me */
 		break;
@@ -244,6 +259,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 		if (dev->i2c_bus[0].i2c_rc == 0)
@@ -258,6 +274,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 		ts1->src_sel_val   = CX23885_SRC_SEL_PARALLEL_MPEG_VIDEO;
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 	default:
