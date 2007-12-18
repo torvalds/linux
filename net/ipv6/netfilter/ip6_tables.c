@@ -943,17 +943,11 @@ get_counters(const struct xt_table_info *t,
 	}
 }
 
-static int
-copy_entries_to_user(unsigned int total_size,
-		     struct xt_table *table,
-		     void __user *userptr)
+static inline struct xt_counters *alloc_counters(struct xt_table *table)
 {
-	unsigned int off, num, countersize;
-	struct ip6t_entry *e;
+	unsigned int countersize;
 	struct xt_counters *counters;
 	struct xt_table_info *private = table->private;
-	int ret = 0;
-	void *loc_cpu_entry;
 
 	/* We need atomic snapshot of counters: rest doesn't change
 	   (other than comefrom, which userspace doesn't care
@@ -962,12 +956,31 @@ copy_entries_to_user(unsigned int total_size,
 	counters = vmalloc_node(countersize, numa_node_id());
 
 	if (counters == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	/* First, sum counters... */
 	write_lock_bh(&table->lock);
 	get_counters(private, counters);
 	write_unlock_bh(&table->lock);
+
+	return counters;
+}
+
+static int
+copy_entries_to_user(unsigned int total_size,
+		     struct xt_table *table,
+		     void __user *userptr)
+{
+	unsigned int off, num;
+	struct ip6t_entry *e;
+	struct xt_counters *counters;
+	struct xt_table_info *private = table->private;
+	int ret = 0;
+	void *loc_cpu_entry;
+
+	counters = alloc_counters(table);
+	if (IS_ERR(counters))
+		return PTR_ERR(counters);
 
 	/* choose the copy that is on ourc node/cpu */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
