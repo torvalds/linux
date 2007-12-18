@@ -941,6 +941,7 @@ extern int ata_timing_compute(struct ata_device *, unsigned short,
 extern void ata_timing_merge(const struct ata_timing *,
 			     const struct ata_timing *, struct ata_timing *,
 			     unsigned int);
+extern u8 ata_timing_cycle2mode(unsigned int xfer_shift, int cycle);
 
 enum {
 	ATA_TIMING_SETUP	= (1 << 0),
@@ -961,10 +962,6 @@ enum {
 
 /* libata-acpi.c */
 #ifdef CONFIG_ATA_ACPI
-extern const unsigned int ata_acpi_pio_cycle[7];
-extern const unsigned int ata_acpi_mwdma_cycle[5];
-extern const unsigned int ata_acpi_udma_cycle[7];
-
 static inline const struct ata_acpi_gtm *ata_acpi_init_gtm(struct ata_port *ap)
 {
 	if (ap->pflags & ATA_PFLAG_INIT_GTM_VALID)

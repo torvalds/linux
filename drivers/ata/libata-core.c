@@ -2903,6 +2903,57 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 }
 
 /**
+ *	ata_timing_cycle2mode - find xfer mode for the specified cycle duration
+ *	@xfer_shift: ATA_SHIFT_* value for transfer type to examine.
+ *	@cycle: cycle duration in ns
+ *
+ *	Return matching xfer mode for @cycle.  The returned mode is of
+ *	the transfer type specified by @xfer_shift.  If @cycle is too
+ *	slow for @xfer_shift, 0xff is returned.  If @cycle is faster
+ *	than the fastest known mode, the fasted mode is returned.
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	Matching xfer_mode, 0xff if no match found.
+ */
+u8 ata_timing_cycle2mode(unsigned int xfer_shift, int cycle)
+{
+	u8 base_mode = 0xff, last_mode = 0xff;
+	const struct ata_xfer_ent *ent;
+	const struct ata_timing *t;
+
+	for (ent = ata_xfer_tbl; ent->shift >= 0; ent++)
+		if (ent->shift == xfer_shift)
+			base_mode = ent->base;
+
+	for (t = ata_timing_find_mode(base_mode);
+	     t && ata_xfer_mode2shift(t->mode) == xfer_shift; t++) {
+		unsigned short this_cycle;
+
+		switch (xfer_shift) {
+		case ATA_SHIFT_PIO:
+		case ATA_SHIFT_MWDMA:
+			this_cycle = t->cycle;
+			break;
+		case ATA_SHIFT_UDMA:
+			this_cycle = t->udma;
+			break;
+		default:
+			return 0xff;
+		}
+
+		if (cycle > this_cycle)
+			break;
+
+		last_mode = t->mode;
+	}
+
+	return last_mode;
+}
+
+/**
  *	ata_down_xfermask_limit - adjust dev xfer masks downward
  *	@dev: Device to adjust xfer masks
  *	@sel: ATA_DNXFER_* selector
@@ -7630,6 +7681,7 @@ EXPORT_SYMBOL_GPL(ata_pio_need_iordy);
 EXPORT_SYMBOL_GPL(ata_timing_find_mode);
 EXPORT_SYMBOL_GPL(ata_timing_compute);
 EXPORT_SYMBOL_GPL(ata_timing_merge);
+EXPORT_SYMBOL_GPL(ata_timing_cycle2mode);
 
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL_GPL(pci_test_config_bits);

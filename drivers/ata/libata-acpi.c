@@ -441,22 +441,6 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf)
 	return rc;
 }
 
-/* Welcome to ACPI, bring a bucket */
-const unsigned int ata_acpi_pio_cycle[7] = {
-	600, 383, 240, 180, 120, 100, 80
-};
-EXPORT_SYMBOL_GPL(ata_acpi_pio_cycle);
-
-const unsigned int ata_acpi_mwdma_cycle[5] = {
-	480, 150, 120, 100, 80
-};
-EXPORT_SYMBOL_GPL(ata_acpi_mwdma_cycle);
-
-const unsigned int ata_acpi_udma_cycle[7] = {
-	120, 80, 60, 45, 30, 20, 15
-};
-EXPORT_SYMBOL_GPL(ata_acpi_udma_cycle);
-
 /**
  * ata_acpi_gtm_xfermode - determine xfermode from GTM parameter
  * @dev: target device
@@ -473,49 +457,33 @@ EXPORT_SYMBOL_GPL(ata_acpi_udma_cycle);
 unsigned long ata_acpi_gtm_xfermask(struct ata_device *dev,
 				    const struct ata_acpi_gtm *gtm)
 {
-	unsigned long pio_mask = 0, mwdma_mask = 0, udma_mask = 0;
-	int unit, i;
-	u32 t;
+	unsigned long xfer_mask = 0;
+	unsigned int type;
+	int unit;
+	u8 mode;
 
 	/* we always use the 0 slot for crap hardware */
 	unit = dev->devno;
 	if (!(gtm->flags & 0x10))
 		unit = 0;
 
-	/* Values larger than the longest cycle results in 0 mask
-	 * while values equal to smaller than the shortest cycle
-	 * results in mask which includes all supported modes.
-	 * Disabled transfer method has the value of 0xffffffff which
-	 * will always result in 0 mask.
-	 */
-
-	/* start by scanning for PIO modes */
-	t = gtm->drive[unit].pio;
-	for (i = 0; i < ARRAY_SIZE(ata_acpi_pio_cycle); i++)
-		if (t > ata_acpi_pio_cycle[i])
-			break;
-	pio_mask = (1 << i) - 1;
+	/* PIO */
+	mode = ata_timing_cycle2mode(ATA_SHIFT_PIO, gtm->drive[unit].pio);
+	xfer_mask |= ata_xfer_mode2mask(mode);
 
 	/* See if we have MWDMA or UDMA data. We don't bother with
 	 * MWDMA if UDMA is available as this means the BIOS set UDMA
 	 * and our error changedown if it works is UDMA to PIO anyway.
 	 */
-	t = gtm->drive[unit].dma;
-	if (!(gtm->flags & (1 << (2 * unit)))) {
-		/* MWDMA */
-		for (i = 0; i < ARRAY_SIZE(ata_acpi_mwdma_cycle); i++)
-			if (t > ata_acpi_mwdma_cycle[i])
-				break;
-		mwdma_mask = (1 << i) - 1;
-	} else {
-		/* UDMA */
-		for (i = 0; i < ARRAY_SIZE(ata_acpi_udma_cycle); i++)
-			if (t > ata_acpi_udma_cycle[i])
-				break;
-		udma_mask = (1 << i) - 1;
-	}
+	if (!(gtm->flags & (1 << (2 * unit))))
+		type = ATA_SHIFT_MWDMA;
+	else
+		type = ATA_SHIFT_UDMA;
 
-	return ata_pack_xfermask(pio_mask, mwdma_mask, udma_mask);
+	mode = ata_timing_cycle2mode(type, gtm->drive[unit].dma);
+	xfer_mask |= ata_xfer_mode2mask(mode);
+
+	return xfer_mask;
 }
 EXPORT_SYMBOL_GPL(ata_acpi_gtm_xfermask);
 

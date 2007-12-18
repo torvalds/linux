@@ -133,13 +133,14 @@ static void pacpi_set_piomode(struct ata_port *ap, struct ata_device *adev)
 {
 	int unit = adev->devno;
 	struct pata_acpi *acpi = ap->private_data;
+	const struct ata_timing *t;
 
 	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
 	/* Now stuff the nS values into the structure */
-	acpi->gtm.drive[unit].pio =
-		ata_acpi_pio_cycle[adev->pio_mode - XFER_PIO_0];
+	t = ata_timing_find_mode(adev->pio_mode);
+	acpi->gtm.drive[unit].pio = t->cycle;
 	ata_acpi_stm(ap, &acpi->gtm);
 	/* See what mode we actually got */
 	ata_acpi_gtm(ap, &acpi->gtm);
@@ -155,18 +156,18 @@ static void pacpi_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 {
 	int unit = adev->devno;
 	struct pata_acpi *acpi = ap->private_data;
+	const struct ata_timing *t;
 
 	if (!(acpi->gtm.flags & 0x10))
 		unit = 0;
 
 	/* Now stuff the nS values into the structure */
+	t = ata_timing_find_mode(adev->dma_mode);
 	if (adev->dma_mode >= XFER_UDMA_0) {
-		acpi->gtm.drive[unit].dma =
-			ata_acpi_udma_cycle[adev->dma_mode - XFER_UDMA_0];
+		acpi->gtm.drive[unit].dma = t->udma;
 		acpi->gtm.flags |= (1 << (2 * unit));
 	} else {
-		acpi->gtm.drive[unit].dma =
-			ata_acpi_mwdma_cycle[adev->dma_mode - XFER_MW_DMA_0];
+		acpi->gtm.drive[unit].dma = t->cycle;
 		acpi->gtm.flags &= ~(1 << (2 * unit));
 	}
 	ata_acpi_stm(ap, &acpi->gtm);
