@@ -89,16 +89,21 @@ instance_lookup(u_int16_t queue_num)
 static struct nfqnl_instance *
 instance_create(u_int16_t queue_num, int pid)
 {
-	struct nfqnl_instance *inst = NULL;
+	struct nfqnl_instance *inst;
 	unsigned int h;
+	int err;
 
 	spin_lock(&instances_lock);
-	if (instance_lookup(queue_num))
+	if (instance_lookup(queue_num)) {
+		err = -EEXIST;
 		goto out_unlock;
+	}
 
 	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
-	if (!inst)
+	if (!inst) {
+		err = -ENOMEM;
 		goto out_unlock;
+	}
 
 	inst->queue_num = queue_num;
 	inst->peer_pid = pid;
@@ -109,8 +114,10 @@ instance_create(u_int16_t queue_num, int pid)
 	INIT_LIST_HEAD(&inst->queue_list);
 	INIT_RCU_HEAD(&inst->rcu);
 
-	if (!try_module_get(THIS_MODULE))
+	if (!try_module_get(THIS_MODULE)) {
+		err = -EAGAIN;
 		goto out_free;
+	}
 
 	h = instance_hashfn(queue_num);
 	hlist_add_head_rcu(&inst->hlist, &instance_table[h]);
@@ -123,7 +130,7 @@ out_free:
 	kfree(inst);
 out_unlock:
 	spin_unlock(&instances_lock);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void nfqnl_flush(struct nfqnl_instance *queue, nfqnl_cmpfn cmpfn,
@@ -724,8 +731,8 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 				goto err_out_unlock;
 			}
 			queue = instance_create(queue_num, NETLINK_CB(skb).pid);
-			if (!queue) {
-				ret = -EINVAL;
+			if (IS_ERR(queue)) {
+				ret = PTR_ERR(queue);
 				goto err_out_unlock;
 			}
 			break;

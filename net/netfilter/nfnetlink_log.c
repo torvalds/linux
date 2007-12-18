@@ -128,19 +128,23 @@ static struct nfulnl_instance *
 instance_create(u_int16_t group_num, int pid)
 {
 	struct nfulnl_instance *inst;
+	int err;
 
 	write_lock_bh(&instances_lock);
 	if (__instance_lookup(group_num)) {
-		inst = NULL;
+		err = -EEXIST;
 		goto out_unlock;
 	}
 
 	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
-	if (!inst)
+	if (!inst) {
+		err = -ENOMEM;
 		goto out_unlock;
+	}
 
 	if (!try_module_get(THIS_MODULE)) {
 		kfree(inst);
+		err = -EAGAIN;
 		goto out_unlock;
 	}
 
@@ -169,7 +173,7 @@ instance_create(u_int16_t group_num, int pid)
 
 out_unlock:
 	write_unlock_bh(&instances_lock);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 static void __nfulnl_flush(struct nfulnl_instance *inst);
@@ -731,8 +735,8 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 			inst = instance_create(group_num,
 					       NETLINK_CB(skb).pid);
-			if (!inst) {
-				ret = -EINVAL;
+			if (IS_ERR(inst)) {
+				ret = PTR_ERR(inst);
 				goto out;
 			}
 			break;
