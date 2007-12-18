@@ -55,3 +55,7 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 				  pgd_t *pgd_base)
 {
 }
+
+void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
+{
+}
