@@ -1264,8 +1264,8 @@ static unsigned int atapi_eh_request_sense(struct ata_queued_cmd *qc)
 		tf.feature |= ATAPI_PKT_DMA;
 	} else {
 		tf.protocol = ATA_PROT_ATAPI;
-		tf.lbam = (8 * 1024) & 0xff;
-		tf.lbah = (8 * 1024) >> 8;
+		tf.lbam = SCSI_SENSE_BUFFERSIZE;
+		tf.lbah = 0;
 	}
 
 	return ata_exec_internal(dev, &tf, cdb, DMA_FROM_DEVICE,

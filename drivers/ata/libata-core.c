@@ -64,6 +64,7 @@
 #include <linux/libata.h>
 #include <asm/semaphore.h>
 #include <asm/byteorder.h>
+#include <linux/cdrom.h>
 
 #include "libata.h"
 
@@ -622,6 +623,7 @@ void ata_dev_disable(struct ata_device *dev)
 	if (ata_dev_enabled(dev)) {
 		if (ata_msg_drv(dev->link->ap))
 			ata_dev_printk(dev, KERN_WARNING, "disabled\n");
+		ata_acpi_on_disable(dev);
 		ata_down_xfermask_limit(dev, ATA_DNXFER_FORCE_PIO0 |
 					     ATA_DNXFER_QUIET);
 		dev->class++;
@@ -3923,6 +3925,7 @@ void ata_std_postreset(struct ata_link *link, unsigned int *classes)
 	/* clear SError */
 	if (sata_scr_read(link, SCR_ERROR, &serror) == 0)
 		sata_scr_write(link, SCR_ERROR, serror);
+	link->eh_info.serror = 0;
 
 	/* is double-select really necessary? */
 	if (classes[0] != ATA_DEV_NONE)
@@ -4149,6 +4152,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "HITACHI HDS7250SASUN500G*", NULL,    ATA_HORKAGE_NONCQ },
 	{ "HITACHI HDS7225SBSUN250G*", NULL,    ATA_HORKAGE_NONCQ },
 	{ "ST380817AS",		"3.42",		ATA_HORKAGE_NONCQ },
+	{ "ST3160023AS",	"3.42",		ATA_HORKAGE_NONCQ },
 
 	/* Blacklist entries taken from Silicon Image 3124/3132
 	   Windows driver .inf file - also several Linux problem reports */
@@ -4649,6 +4653,43 @@ int ata_check_atapi_dma(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	atapi_qc_may_overflow - Check whether data transfer may overflow
+ *	@qc: ATA command in question
+ *
+ *	ATAPI commands which transfer variable length data to host
+ *	might overflow due to application error or hardare bug.  This
+ *	function checks whether overflow should be drained and ignored
+ *	for @qc.
+ *
+ *	LOCKING:
+ *	None.
+ *
+ *	RETURNS:
+ *	1 if @qc may overflow; otherwise, 0.
+ */
+static int atapi_qc_may_overflow(struct ata_queued_cmd *qc)
+{
+	if (qc->tf.protocol != ATA_PROT_ATAPI &&
+	    qc->tf.protocol != ATA_PROT_ATAPI_DMA)
+		return 0;
+
+	if (qc->tf.flags & ATA_TFLAG_WRITE)
+		return 0;
+
+	switch (qc->cdb[0]) {
+	case READ_10:
+	case READ_12:
+	case WRITE_10:
+	case WRITE_12:
+	case GPCMD_READ_CD:
+	case GPCMD_READ_CD_MSF:
+		return 0;
+	}
+
+	return 1;
+}
+
+/**
  *	ata_std_qc_defer - Check whether a qc needs to be deferred
  *	@qc: ATA command in question
  *
@@ -5136,23 +5177,19 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
  *	Inherited from caller.
  *
  */
-
-static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
+static int __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 {
 	int do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
-	struct scatterlist *sg = qc->__sg;
-	struct scatterlist *lsg = sg_last(qc->__sg, qc->n_elem);
 	struct ata_port *ap = qc->ap;
+	struct ata_eh_info *ehi = &qc->dev->link->eh_info;
+	struct scatterlist *sg;
 	struct page *page;
 	unsigned char *buf;
 	unsigned int offset, count;
-	int no_more_sg = 0;
-
-	if (qc->curbytes + bytes >= qc->nbytes)
-		ap->hsm_task_state = HSM_ST_LAST;
 
 next_sg:
-	if (unlikely(no_more_sg)) {
+	sg = qc->cursg;
+	if (unlikely(!sg)) {
 		/*
 		 * The end of qc->sg is reached and the device expects
 		 * more data to transfer. In order not to overrun qc->sg
@@ -5161,21 +5198,28 @@ next_sg:
 		 *    - for write case, padding zero data to the device
 		 */
 		u16 pad_buf[1] = { 0 };
-		unsigned int words = bytes >> 1;
 		unsigned int i;
 
-		if (words) /* warning if bytes > 1 */
-			ata_dev_printk(qc->dev, KERN_WARNING,
-				       "%u bytes trailing data\n", bytes);
+		if (bytes > qc->curbytes - qc->nbytes + ATAPI_MAX_DRAIN) {
+			ata_ehi_push_desc(ehi, "too much trailing data "
+					  "buf=%u cur=%u bytes=%u",
+					  qc->nbytes, qc->curbytes, bytes);
+			return -1;
+		}
 
-		for (i = 0; i < words; i++)
+		 /* overflow is exptected for misc ATAPI commands */
+		if (bytes && !atapi_qc_may_overflow(qc))
+			ata_dev_printk(qc->dev, KERN_WARNING, "ATAPI %u bytes "
+				       "trailing data (cdb=%02x nbytes=%u)\n",
+				       bytes, qc->cdb[0], qc->nbytes);
+
+		for (i = 0; i < (bytes + 1) / 2; i++)
 			ap->ops->data_xfer(qc->dev, (unsigned char *)pad_buf, 2, do_write);
 
-		ap->hsm_task_state = HSM_ST_LAST;
-		return;
-	}
+		qc->curbytes += bytes;
 
-	sg = qc->cursg;
+		return 0;
+	}
 
 	page = sg_page(sg);
 	offset = sg->offset + qc->cursg_ofs;
@@ -5210,19 +5254,20 @@ next_sg:
 	}
 
 	bytes -= count;
+	if ((count & 1) && bytes)
+		bytes--;
 	qc->curbytes += count;
 	qc->cursg_ofs += count;
 
 	if (qc->cursg_ofs == sg->length) {
-		if (qc->cursg == lsg)
-			no_more_sg = 1;
-
 		qc->cursg = sg_next(qc->cursg);
 		qc->cursg_ofs = 0;
 	}
 
 	if (bytes)
 		goto next_sg;
+
+	return 0;
 }
 
 /**
@@ -5265,7 +5310,8 @@ static void atapi_pio_bytes(struct ata_queued_cmd *qc)
 
 	VPRINTK("ata%u: xfering %d bytes\n", ap->print_id, bytes);
 
-	__atapi_pio_bytes(qc, bytes);
+	if (__atapi_pio_bytes(qc, bytes))
+		goto err_out;
 	ata_altstatus(ap); /* flush */
 
 	return;
@@ -7208,17 +7254,13 @@ static void ata_port_detach(struct ata_port *ap)
 
 	ata_port_wait_eh(ap);
 
-	/* EH is now guaranteed to see UNLOADING, so no new device
-	 * will be attached.  Disable all existing devices.
+	/* EH is now guaranteed to see UNLOADING - EH context belongs
+	 * to us.  Disable all existing devices.
 	 */
-	spin_lock_irqsave(ap->lock, flags);
-
 	ata_port_for_each_link(link, ap) {
 		ata_link_for_each_dev(dev, link)
 			ata_dev_disable(dev);
 	}
-
-	spin_unlock_irqrestore(ap->lock, flags);
 
 	/* Final freeze & EH.  All in-flight commands are aborted.  EH
 	 * will be skipped and retrials will be terminated with bad
@@ -7251,6 +7293,9 @@ void ata_host_detach(struct ata_host *host)
 
 	for (i = 0; i < host->n_ports; i++)
 		ata_port_detach(host->ports[i]);
+
+	/* the host is dead now, dissociate ACPI */
+	ata_acpi_dissociate(host);
 }
 
 /**
