@@ -753,9 +753,15 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 	UDEBUG("entering for msg %u\n", NFNL_MSG_TYPE(nlh->nlmsg_type));
 
 	inst = instance_lookup_get(group_num);
+	if (inst && inst->peer_pid != NETLINK_CB(skb).pid) {
+		ret = -EPERM;
+		goto out_put;
+	}
+
 	if (nfula[NFULA_CFG_CMD]) {
 		u_int8_t pf = nfmsg->nfgen_family;
 		struct nfulnl_msg_config_cmd *cmd;
+
 		cmd = nla_data(nfula[NFULA_CFG_CMD]);
 		UDEBUG("found CFG_CMD for\n");
 
@@ -779,11 +785,6 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 				goto out;
 			}
 
-			if (inst->peer_pid != NETLINK_CB(skb).pid) {
-				ret = -EPERM;
-				goto out_put;
-			}
-
 			instance_destroy(inst);
 			goto out;
 		case NFULNL_CFG_CMD_PF_BIND:
@@ -800,29 +801,16 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 			ret = -EINVAL;
 			break;
 		}
-
-		if (!inst)
-			goto out;
-	} else {
-		if (!inst) {
-			UDEBUG("no config command, and no instance for "
-				"group=%u pid=%u =>ENOENT\n",
-				group_num, NETLINK_CB(skb).pid);
-			ret = -ENOENT;
-			goto out;
-		}
-
-		if (inst->peer_pid != NETLINK_CB(skb).pid) {
-			UDEBUG("no config command, and wrong pid\n");
-			ret = -EPERM;
-			goto out_put;
-		}
 	}
 
 	if (nfula[NFULA_CFG_MODE]) {
 		struct nfulnl_msg_config_mode *params;
 		params = nla_data(nfula[NFULA_CFG_MODE]);
 
+		if (!inst) {
+			ret = -ENODEV;
+			goto out;
+		}
 		nfulnl_set_mode(inst, params->copy_mode,
 				ntohl(params->copy_range));
 	}
@@ -831,6 +819,10 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		__be32 timeout =
 			*(__be32 *)nla_data(nfula[NFULA_CFG_TIMEOUT]);
 
+		if (!inst) {
+			ret = -ENODEV;
+			goto out;
+		}
 		nfulnl_set_timeout(inst, ntohl(timeout));
 	}
 
@@ -838,6 +830,10 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		__be32 nlbufsiz =
 			*(__be32 *)nla_data(nfula[NFULA_CFG_NLBUFSIZ]);
 
+		if (!inst) {
+			ret = -ENODEV;
+			goto out;
+		}
 		nfulnl_set_nlbufsiz(inst, ntohl(nlbufsiz));
 	}
 
@@ -845,12 +841,21 @@ nfulnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 		__be32 qthresh =
 			*(__be32 *)nla_data(nfula[NFULA_CFG_QTHRESH]);
 
+		if (!inst) {
+			ret = -ENODEV;
+			goto out;
+		}
 		nfulnl_set_qthresh(inst, ntohl(qthresh));
 	}
 
 	if (nfula[NFULA_CFG_FLAGS]) {
 		__be16 flags =
 			*(__be16 *)nla_data(nfula[NFULA_CFG_FLAGS]);
+
+		if (!inst) {
+			ret = -ENODEV;
+			goto out;
+		}
 		nfulnl_set_flags(inst, ntohs(flags));
 	}
 
