@@ -144,7 +144,7 @@ void kobject_init(struct kobject * kobj)
  *	Remove the kobject from the kset list and decrement
  *	its parent's refcount.
  *	This is separated out, so we can use it in both 
- *	kobject_del() and kobject_add() on error.
+ *	kobject_del() and kobject_add_internal() on error.
  */
 
 static void unlink(struct kobject * kobj)
@@ -161,12 +161,7 @@ static void unlink(struct kobject * kobj)
 	kobject_put(parent);
 }
 
-/**
- *	kobject_add - add an object to the hierarchy.
- *	@kobj:	object.
- */
-
-int kobject_add(struct kobject * kobj)
+static int kobject_add_internal(struct kobject *kobj)
 {
 	int error = 0;
 	struct kobject * parent;
@@ -215,13 +210,13 @@ int kobject_add(struct kobject * kobj)
 
 		/* be noisy on error issues */
 		if (error == -EEXIST)
-			printk(KERN_ERR "kobject_add failed for %s with "
+			printk(KERN_ERR "%s failed for %s with "
 			       "-EEXIST, don't try to register things with "
 			       "the same name in the same directory.\n",
-			       kobject_name(kobj));
+			       __FUNCTION__, kobject_name(kobj));
 		else
-			printk(KERN_ERR "kobject_add failed for %s (%d)\n",
-			       kobject_name(kobj), error);
+			printk(KERN_ERR "%s failed for %s (%d)\n",
+			       __FUNCTION__, kobject_name(kobj), error);
 		dump_stack();
 	}
 
@@ -351,7 +346,7 @@ static int kobject_add_varg(struct kobject *kobj, struct kobject *parent,
 		return retval;
 	}
 	kobj->parent = parent;
-	return kobject_add(kobj);
+	return kobject_add_internal(kobj);
 }
 
 /**
@@ -742,7 +737,7 @@ struct sysfs_ops kobj_sysfs_ops = {
 
 int kset_add(struct kset * k)
 {
-	return kobject_add(&k->kobj);
+	return kobject_add_internal(&k->kobj);
 }
 
 
@@ -897,7 +892,6 @@ EXPORT_SYMBOL(kobject_register);
 EXPORT_SYMBOL(kobject_unregister);
 EXPORT_SYMBOL(kobject_get);
 EXPORT_SYMBOL(kobject_put);
-EXPORT_SYMBOL(kobject_add);
 EXPORT_SYMBOL(kobject_del);
 
 EXPORT_SYMBOL(kset_register);
