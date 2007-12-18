@@ -326,5 +326,40 @@ extern int ip6_masked_addrcmp(const struct in6_addr *addr1,
 
 #define IP6T_ALIGN(s) (((s) + (__alignof__(struct ip6t_entry)-1)) & ~(__alignof__(struct ip6t_entry)-1))
 
+#ifdef CONFIG_COMPAT
+#include <net/compat.h>
+
+struct compat_ip6t_entry
+{
+	struct ip6t_ip6 ipv6;
+	compat_uint_t nfcache;
+	u_int16_t target_offset;
+	u_int16_t next_offset;
+	compat_uint_t comefrom;
+	struct compat_xt_counters counters;
+	unsigned char elems[0];
+};
+
+static inline struct ip6t_entry_target *
+compat_ip6t_get_target(struct compat_ip6t_entry *e)
+{
+	return (void *)e + e->target_offset;
+}
+
+#define COMPAT_IP6T_ALIGN(s)	COMPAT_XT_ALIGN(s)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IP6T_MATCH_ITERATE(e, fn, args...) \
+	XT_MATCH_ITERATE(struct compat_ip6t_entry, e, fn, ## args)
+
+/* fn returns 0 to continue iteration */
+#define COMPAT_IP6T_ENTRY_ITERATE(entries, size, fn, args...) \
+	XT_ENTRY_ITERATE(struct compat_ip6t_entry, entries, size, fn, ## args)
+
+#define COMPAT_IP6T_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
+	XT_ENTRY_ITERATE_CONTINUE(struct compat_ip6t_entry, entries, size, n, \
+				  fn, ## args)
+
+#endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/
 #endif /* _IP6_TABLES_H */
