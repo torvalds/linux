@@ -25,6 +25,8 @@
 #include "rfkill.h"
 #include "b43.h"
 
+#include <linux/kmod.h>
+
 
 /* Returns TRUE, if the radio is enabled in hardware. */
 static bool b43_is_hw_radio_enabled(struct b43_wldev *dev)
@@ -50,7 +52,10 @@ static void b43_rfkill_poll(struct input_polled_dev *poll_dev)
 	bool report_change = 0;
 
 	mutex_lock(&wl->mutex);
-	B43_WARN_ON(b43_status(dev) < B43_STAT_INITIALIZED);
+	if (unlikely(b43_status(dev) < B43_STAT_INITIALIZED)) {
+		mutex_unlock(&wl->mutex);
+		return;
+	}
 	enabled = b43_is_hw_radio_enabled(dev);
 	if (unlikely(enabled != dev->radio_hw_enable)) {
 		dev->radio_hw_enable = enabled;
@@ -60,8 +65,12 @@ static void b43_rfkill_poll(struct input_polled_dev *poll_dev)
 	}
 	mutex_unlock(&wl->mutex);
 
-	if (unlikely(report_change))
-		input_report_key(poll_dev->input, KEY_WLAN, enabled);
+	/* send the radio switch event to the system - note both a key press
+	 * and a release are required */
+	if (unlikely(report_change)) {
+		input_report_key(poll_dev->input, KEY_WLAN, 1);
+		input_report_key(poll_dev->input, KEY_WLAN, 0);
+	}
 }
 
 /* Called when the RFKILL toggled in software. */
@@ -69,13 +78,15 @@ static int b43_rfkill_soft_toggle(void *data, enum rfkill_state state)
 {
 	struct b43_wldev *dev = data;
 	struct b43_wl *wl = dev->wl;
-	int err = 0;
+	int err = -EBUSY;
 
 	if (!wl->rfkill.registered)
 		return 0;
 
 	mutex_lock(&wl->mutex);
-	B43_WARN_ON(b43_status(dev) < B43_STAT_INITIALIZED);
+	if (b43_status(dev) < B43_STAT_INITIALIZED)
+		goto out_unlock;
+	err = 0;
 	switch (state) {
 	case RFKILL_STATE_ON:
 		if (!dev->radio_hw_enable) {
@@ -133,9 +144,25 @@ void b43_rfkill_init(struct b43_wldev *dev)
 	rfk->poll_dev->poll = b43_rfkill_poll;
 	rfk->poll_dev->poll_interval = 1000; /* msecs */
 
+	rfk->poll_dev->input->name = rfk->name;
+	rfk->poll_dev->input->id.bustype = BUS_HOST;
+	rfk->poll_dev->input->id.vendor = dev->dev->bus->boardinfo.vendor;
+	rfk->poll_dev->input->evbit[0] = BIT(EV_KEY);
+	set_bit(KEY_WLAN, rfk->poll_dev->input->keybit);
+
 	err = rfkill_register(rfk->rfkill);
 	if (err)
 		goto err_free_polldev;
+
+#ifdef CONFIG_RFKILL_INPUT_MODULE
+	/* B43 RF-kill isn't useful without the rfkill-input subsystem.
+	 * Try to load the module. */
+	err = request_module("rfkill-input");
+	if (err)
+		b43warn(wl, "Failed to load the rfkill-input module. "
+			"The built-in radio LED will not work.\n");
+#endif /* CONFIG_RFKILL_INPUT */
+
 	err = input_register_polled_device(rfk->poll_dev);
 	if (err)
 		goto err_unreg_rfk;

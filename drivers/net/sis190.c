@@ -474,7 +474,7 @@ static inline void sis190_map_to_asic(struct RxDesc *desc, dma_addr_t mapping,
 static inline void sis190_make_unusable_by_asic(struct RxDesc *desc)
 {
 	desc->PSize = 0x0;
-	desc->addr = 0xdeadbeef;
+	desc->addr = cpu_to_le32(0xdeadbeef);
 	desc->size &= cpu_to_le32(RingEnd);
 	wmb();
 	desc->status = 0x0;
@@ -580,7 +580,7 @@ static int sis190_rx_interrupt(struct net_device *dev,
 		struct RxDesc *desc = tp->RxDescRing + entry;
 		u32 status;
 
-		if (desc->status & OWNbit)
+		if (le32_to_cpu(desc->status) & OWNbit)
 			break;
 
 		status = le32_to_cpu(desc->PSize);
@@ -1381,7 +1381,7 @@ out:
 	return rc;
 }
 
-static void __devexit sis190_mii_remove(struct net_device *dev)
+static void sis190_mii_remove(struct net_device *dev)
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
@@ -1538,9 +1538,9 @@ static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
 
 	/* Get MAC address from EEPROM */
 	for (i = 0; i < MAC_ADDR_LEN / 2; i++) {
-		__le16 w = sis190_read_eeprom(ioaddr, EEPROMMACAddr + i);
+		u16 w = sis190_read_eeprom(ioaddr, EEPROMMACAddr + i);
 
-		((u16 *)dev->dev_addr)[i] = le16_to_cpu(w);
+		((__le16 *)dev->dev_addr)[i] = cpu_to_le16(w);
 	}
 
 	sis190_set_rgmii(tp, sis190_read_eeprom(ioaddr, EEPROMInfo));

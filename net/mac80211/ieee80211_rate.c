@@ -33,6 +33,7 @@ int ieee80211_rate_control_register(struct rate_control_ops *ops)
 		if (!strcmp(alg->ops->name, ops->name)) {
 			/* don't register an algorithm twice */
 			WARN_ON(1);
+			mutex_unlock(&rate_ctrl_mutex);
 			return -EALREADY;
 		}
 	}
