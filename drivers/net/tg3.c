@@ -10251,8 +10251,7 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 		phy_addr = offset & ~pagemask;
 
 		for (j = 0; j < pagesize; j += 4) {
-			/* Almost certainly should be tg3_nvram_read_le */
-			if ((ret = tg3_nvram_read(tp, phy_addr + j,
+			if ((ret = tg3_nvram_read_le(tp, phy_addr + j,
 						(__le32 *) (tmp + j))))
 				break;
 		}
