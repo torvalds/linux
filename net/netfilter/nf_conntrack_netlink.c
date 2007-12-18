@@ -254,6 +254,29 @@ nla_put_failure:
 #define ctnetlink_dump_mark(a, b) (0)
 #endif
 
+#define master_tuple(ct) &(ct->master->tuplehash[IP_CT_DIR_ORIGINAL].tuple)
+
+static inline int
+ctnetlink_dump_master(struct sk_buff *skb, const struct nf_conn *ct)
+{
+	struct nlattr *nest_parms;
+
+	if (!(ct->status & IPS_EXPECTED))
+		return 0;
+
+	nest_parms = nla_nest_start(skb, CTA_TUPLE_MASTER | NLA_F_NESTED);
+	if (!nest_parms)
+		goto nla_put_failure;
+	if (ctnetlink_dump_tuples(skb, master_tuple(ct)) < 0)
+		goto nla_put_failure;
+	nla_nest_end(skb, nest_parms);
+
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
 #ifdef CONFIG_NF_NAT_NEEDED
 static inline int
 dump_nat_seq_adj(struct sk_buff *skb, const struct nf_nat_seq *natseq, int type)
@@ -371,6 +394,7 @@ ctnetlink_fill_info(struct sk_buff *skb, u32 pid, u32 seq,
 	    ctnetlink_dump_mark(skb, ct) < 0 ||
 	    ctnetlink_dump_id(skb, ct) < 0 ||
 	    ctnetlink_dump_use(skb, ct) < 0 ||
+	    ctnetlink_dump_master(skb, ct) < 0 ||
 	    ctnetlink_dump_nat_seq_adj(skb, ct) < 0)
 		goto nla_put_failure;
 
@@ -473,6 +497,10 @@ static int ctnetlink_conntrack_event(struct notifier_block *this,
 		if (events & IPCT_COUNTER_FILLING &&
 		    (ctnetlink_dump_counters(skb, ct, IP_CT_DIR_ORIGINAL) < 0 ||
 		     ctnetlink_dump_counters(skb, ct, IP_CT_DIR_REPLY) < 0))
+			goto nla_put_failure;
+
+		if (events & IPCT_RELATED &&
+		    ctnetlink_dump_master(skb, ct) < 0)
 			goto nla_put_failure;
 
 		if (events & IPCT_NATSEQADJ &&
