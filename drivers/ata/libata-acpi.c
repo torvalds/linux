@@ -441,6 +441,84 @@ static int ata_dev_get_GTF(struct ata_device *dev, struct ata_acpi_gtf **gtf)
 	return rc;
 }
 
+/* Welcome to ACPI, bring a bucket */
+const unsigned int ata_acpi_pio_cycle[7] = {
+	600, 383, 240, 180, 120, 100, 80
+};
+EXPORT_SYMBOL_GPL(ata_acpi_pio_cycle);
+
+const unsigned int ata_acpi_mwdma_cycle[5] = {
+	480, 150, 120, 100, 80
+};
+EXPORT_SYMBOL_GPL(ata_acpi_mwdma_cycle);
+
+const unsigned int ata_acpi_udma_cycle[7] = {
+	120, 80, 60, 45, 30, 20, 15
+};
+EXPORT_SYMBOL_GPL(ata_acpi_udma_cycle);
+
+/**
+ * ata_acpi_gtm_xfermode - determine xfermode from GTM parameter
+ * @dev: target device
+ * @gtm: GTM parameter to use
+ *
+ * Determine xfermask for @dev from @gtm.
+ *
+ * LOCKING:
+ * None.
+ *
+ * RETURNS:
+ * Determined xfermask.
+ */
+unsigned long ata_acpi_gtm_xfermask(struct ata_device *dev,
+				    const struct ata_acpi_gtm *gtm)
+{
+	int unit, i;
+	u32 t;
+	unsigned long mask = (0x7f << ATA_SHIFT_UDMA) | (0x7 << ATA_SHIFT_MWDMA) | (0x1F << ATA_SHIFT_PIO);
+
+	/* we always use the 0 slot for crap hardware */
+	unit = dev->devno;
+	if (!(gtm->flags & 0x10))
+		unit = 0;
+
+	/* start by scanning for PIO modes */
+	for (i = 0; i < 7; i++) {
+		t = gtm->drive[unit].pio;
+		if (t <= ata_acpi_pio_cycle[i]) {
+			mask |= (2 << (ATA_SHIFT_PIO + i)) - 1;
+			break;
+		}
+	}
+
+	/* See if we have MWDMA or UDMA data. We don't bother with
+	 * MWDMA if UDMA is available as this means the BIOS set UDMA
+	 * and our error changedown if it works is UDMA to PIO anyway.
+	 */
+	if (gtm->flags & (1 << (2 * unit))) {
+		/* MWDMA */
+		for (i = 0; i < 5; i++) {
+			t = gtm->drive[unit].dma;
+			if (t <= ata_acpi_mwdma_cycle[i]) {
+				mask |= (2 << (ATA_SHIFT_MWDMA + i)) - 1;
+				break;
+			}
+		}
+	} else {
+		/* UDMA */
+		for (i = 0; i < 7; i++) {
+			t = gtm->drive[unit].dma;
+			if (t <= ata_acpi_udma_cycle[i]) {
+				mask |= (2 << (ATA_SHIFT_UDMA + i)) - 1;
+				break;
+			}
+		}
+	}
+
+	return mask;
+}
+EXPORT_SYMBOL_GPL(ata_acpi_gtm_xfermask);
+
 /**
  * ata_acpi_cbl_80wire		-	Check for 80 wire cable
  * @ap: Port to check
