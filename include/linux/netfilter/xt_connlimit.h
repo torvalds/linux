@@ -5,8 +5,13 @@ struct xt_connlimit_data;
 
 struct xt_connlimit_info {
 	union {
-		__be32 v4_mask;
-		__be32 v6_mask[4];
+		union nf_inet_addr mask;
+#ifndef __KERNEL__
+		union {
+			__be32 v4_mask;
+			__be32 v6_mask[4];
+		};
+#endif
 	};
 	unsigned int limit, inverse;
 

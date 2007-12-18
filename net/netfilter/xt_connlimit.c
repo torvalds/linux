@@ -185,7 +185,7 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
              bool *hotdrop)
 {
 	const struct xt_connlimit_info *info = matchinfo;
-	union nf_inet_addr addr, mask;
+	union nf_inet_addr addr;
 	struct nf_conntrack_tuple tuple;
 	const struct nf_conntrack_tuple *tuple_ptr = &tuple;
 	enum ip_conntrack_info ctinfo;
@@ -202,15 +202,14 @@ connlimit_mt(const struct sk_buff *skb, const struct net_device *in,
 	if (match->family == AF_INET6) {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 		memcpy(&addr.ip6, &iph->saddr, sizeof(iph->saddr));
-		memcpy(&mask.ip6, info->v6_mask, sizeof(info->v6_mask));
 	} else {
 		const struct iphdr *iph = ip_hdr(skb);
 		addr.ip = iph->saddr;
-		mask.ip = info->v4_mask;
 	}
 
 	spin_lock_bh(&info->data->lock);
-	connections = count_them(info->data, tuple_ptr, &addr, &mask, match);
+	connections = count_them(info->data, tuple_ptr, &addr,
+	                         &info->mask, match);
 	spin_unlock_bh(&info->data->lock);
 
 	if (connections < 0) {
