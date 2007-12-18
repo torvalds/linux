@@ -251,10 +251,18 @@ static int do_work(struct ubi_device *ubi)
 
 	cond_resched();
 
+	/*
+	 * @ubi->work_sem is used to synchronize with the workers. Workers take
+	 * it in read mode, so many of them may be doing works at a time. But
+	 * the queue flush code has to be sure the whole queue of works is
+	 * done, and it takes the mutex in write mode.
+	 */
+	down_read(&ubi->work_sem);
 	spin_lock(&ubi->wl_lock);
 
 	if (list_empty(&ubi->works)) {
 		spin_unlock(&ubi->wl_lock);
+		up_read(&ubi->work_sem);
 		return 0;
 	}
 
@@ -275,6 +283,7 @@ static int do_work(struct ubi_device *ubi)
 	ubi->works_count -= 1;
 	ubi_assert(ubi->works_count >= 0);
 	spin_unlock(&ubi->wl_lock);
+	up_read(&ubi->work_sem);
 	return err;
 }
 
@@ -1173,7 +1182,7 @@ retry:
 		 * the WL unit has not put the PEB to the "used" tree yet, but
 		 * it is about to do this. So we just set a flag which will
 		 * tell the WL worker that the PEB is not needed anymore and
-		 * should be sheduled for erasure.
+		 * should be scheduled for erasure.
 		 */
 		dbg_wl("PEB %d is the target of data moving", pnum);
 		ubi_assert(!ubi->move_to_put);
@@ -1280,17 +1289,32 @@ retry:
  */
 int ubi_wl_flush(struct ubi_device *ubi)
 {
-	int err, pending_count;
-
-	pending_count = ubi->works_count;
-
-	dbg_wl("flush (%d pending works)", pending_count);
+	int err;
 
 	/*
 	 * Erase while the pending works queue is not empty, but not more then
 	 * the number of currently pending works.
 	 */
-	while (pending_count-- > 0) {
+	dbg_wl("flush (%d pending works)", ubi->works_count);
+	while (ubi->works_count) {
+		err = do_work(ubi);
+		if (err)
+			return err;
+	}
+
+	/*
+	 * Make sure all the works which have been done in parallel are
+	 * finished.
+	 */
+	down_write(&ubi->work_sem);
+	up_write(&ubi->work_sem);
+
+	/*
+	 * And in case last was the WL worker and it cancelled the LEB
+	 * movement, flush again.
+	 */
+	while (ubi->works_count) {
+		dbg_wl("flush more (%d pending works)", ubi->works_count);
 		err = do_work(ubi);
 		if (err)
 			return err;
@@ -1426,6 +1450,7 @@ int ubi_wl_init_scan(struct ubi_device *ubi, struct ubi_scan_info *si)
 	ubi->prot.pnum = ubi->prot.aec = RB_ROOT;
 	spin_lock_init(&ubi->wl_lock);
 	mutex_init(&ubi->move_mutex);
+	init_rwsem(&ubi->work_sem);
 	ubi->max_ec = si->max_ec;
 	INIT_LIST_HEAD(&ubi->works);
 

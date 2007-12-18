@@ -355,6 +355,7 @@ struct ubi_device {
 	} prot;
 	spinlock_t wl_lock;
 	struct mutex move_mutex;
+	struct rw_semaphore work_sem;
 	int wl_scheduled;
 	struct ubi_wl_entry **lookuptbl;
 	unsigned long long abs_ec;
