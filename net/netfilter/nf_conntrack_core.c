@@ -81,7 +81,7 @@ static u_int32_t __hash_conntrack(const struct nf_conntrack_tuple *tuple,
 		   ((__force __u16)tuple->src.u.all << 16) |
 		    (__force __u16)tuple->dst.u.all);
 
-	return jhash_2words(a, b, rnd) % size;
+	return ((u64)jhash_2words(a, b, rnd) * size) >> 32;
 }
 
 static inline u_int32_t hash_conntrack(const struct nf_conntrack_tuple *tuple)

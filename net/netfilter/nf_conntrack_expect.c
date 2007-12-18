@@ -73,15 +73,17 @@ static void nf_ct_expectation_timed_out(unsigned long ul_expect)
 
 static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple)
 {
+	unsigned int hash;
+
 	if (unlikely(!nf_ct_expect_hash_rnd_initted)) {
 		get_random_bytes(&nf_ct_expect_hash_rnd, 4);
 		nf_ct_expect_hash_rnd_initted = 1;
 	}
 
-	return jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
+	hash = jhash2(tuple->dst.u3.all, ARRAY_SIZE(tuple->dst.u3.all),
 		      (((tuple->dst.protonum ^ tuple->src.l3num) << 16) |
-		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hash_rnd) %
-	       nf_ct_expect_hsize;
+		       (__force __u16)tuple->dst.u.all) ^ nf_ct_expect_hash_rnd);
+	return ((u64)hash * nf_ct_expect_hsize) >> 32;
 }
 
 struct nf_conntrack_expect *
