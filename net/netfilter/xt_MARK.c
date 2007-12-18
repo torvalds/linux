@@ -158,6 +158,21 @@ static struct xt_target mark_tg_reg[] __read_mostly = {
 		.table		= "mangle",
 		.me		= THIS_MODULE,
 	},
+	{
+		.name		= "MARK",
+		.family		= AF_INET6,
+		.revision	= 1,
+		.checkentry	= mark_tg_check,
+		.target		= mark_tg,
+		.targetsize	= sizeof(struct xt_mark_target_info_v1),
+#ifdef CONFIG_COMPAT
+		.compatsize	= sizeof(struct compat_xt_mark_target_info_v1),
+		.compat_from_user = mark_tg_compat_from_user,
+		.compat_to_user	= mark_tg_compat_to_user,
+#endif
+		.table		= "mangle",
+		.me		= THIS_MODULE,
+	},
 };
 
 static int __init mark_tg_init(void)
