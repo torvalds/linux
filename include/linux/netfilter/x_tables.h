@@ -382,8 +382,8 @@ extern void xt_compat_lock(int af);
 extern void xt_compat_unlock(int af);
 
 extern int xt_compat_match_offset(struct xt_match *match);
-extern void xt_compat_match_from_user(struct xt_entry_match *m,
-				      void **dstptr, int *size);
+extern int xt_compat_match_from_user(struct xt_entry_match *m,
+				     void **dstptr, int *size);
 extern int xt_compat_match_to_user(struct xt_entry_match *m,
 				   void __user **dstptr, int *size);
 

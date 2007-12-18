@@ -1654,16 +1654,6 @@ release_matches:
 	return ret;
 }
 
-static inline int
-compat_copy_match_from_user(struct ipt_entry_match *m,
-			    void **dstptr, compat_uint_t *size,
-			    const char *name, const struct ipt_ip *ip,
-			    unsigned int hookmask)
-{
-	xt_compat_match_from_user(m, dstptr, size);
-	return 0;
-}
-
 static int
 compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 			    unsigned int *size, const char *name,
@@ -1681,8 +1671,7 @@ compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	memcpy(de, e, sizeof(struct ipt_entry));
 
 	*dstptr += sizeof(struct compat_ipt_entry);
-	ret = IPT_MATCH_ITERATE(e, compat_copy_match_from_user, dstptr, size,
-				name, &de->ip, de->comefrom);
+	ret = IPT_MATCH_ITERATE(e, xt_compat_match_from_user, dstptr, size);
 	if (ret)
 		return ret;
 	de->target_offset = e->target_offset - (origsize - *size);
