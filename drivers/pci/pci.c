@@ -587,6 +587,7 @@ static int pci_save_pcie_state(struct pci_dev *dev)
 	pci_read_config_word(dev, pos + PCI_EXP_LNKCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_SLTCTL, &cap[i++]);
 	pci_read_config_word(dev, pos + PCI_EXP_RTCTL, &cap[i++]);
+	save_state->cap_nr = PCI_CAP_ID_EXP;
 	pci_add_saved_cap(dev, save_state);
 	return 0;
 }
@@ -630,6 +631,7 @@ static int pci_save_pcix_state(struct pci_dev *dev)
 	cap = (u16 *)&save_state->data[0];
 
 	pci_read_config_word(dev, pos + PCI_X_CMD, &cap[i++]);
+	save_state->cap_nr = PCI_CAP_ID_PCIX;
 	pci_add_saved_cap(dev, save_state);
 	return 0;
 }
