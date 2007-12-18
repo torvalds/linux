@@ -324,7 +324,7 @@ extern int ip6_masked_addrcmp(const struct in6_addr *addr1,
 			      const struct in6_addr *mask,
 			      const struct in6_addr *addr2);
 
-#define IP6T_ALIGN(s) (((s) + (__alignof__(struct ip6t_entry)-1)) & ~(__alignof__(struct ip6t_entry)-1))
+#define IP6T_ALIGN(s) XT_ALIGN(s)
 
 #ifdef CONFIG_COMPAT
 #include <net/compat.h>
