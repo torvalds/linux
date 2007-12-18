@@ -1098,7 +1098,7 @@ static int compat_calc_entry(struct ipt_entry *e,
 	unsigned int entry_offset;
 	int off, i, ret;
 
-	off = 0;
+	off = sizeof(struct ipt_entry) - sizeof(struct compat_ipt_entry);
 	entry_offset = (void *)e - base;
 	IPT_MATCH_ITERATE(e, compat_calc_match, &off);
 	t = ipt_get_target(e);
@@ -1501,6 +1501,8 @@ compat_copy_entry_to_user(struct ipt_entry *e, void __user **dstptr,
 		goto out;
 
 	*dstptr += sizeof(struct compat_ipt_entry);
+	*size -= sizeof(struct ipt_entry) - sizeof(struct compat_ipt_entry);
+
 	ret = IPT_MATCH_ITERATE(e, xt_compat_match_to_user, dstptr, size);
 	target_offset = e->target_offset - (origsize - *size);
 	if (ret)
@@ -1605,7 +1607,7 @@ check_compat_entry_size_and_hooks(struct ipt_entry *e,
 	if (ret)
 		return ret;
 
-	off = 0;
+	off = sizeof(struct ipt_entry) - sizeof(struct compat_ipt_entry);
 	entry_offset = (void *)e - (void *)base;
 	j = 0;
 	ret = IPT_MATCH_ITERATE(e, compat_find_calc_match, name, &e->ip,
@@ -1671,6 +1673,8 @@ compat_copy_entry_from_user(struct ipt_entry *e, void **dstptr,
 	memcpy(de, e, sizeof(struct ipt_entry));
 
 	*dstptr += sizeof(struct compat_ipt_entry);
+	*size += sizeof(struct ipt_entry) - sizeof(struct compat_ipt_entry);
+
 	ret = IPT_MATCH_ITERATE(e, xt_compat_match_from_user, dstptr, size);
 	if (ret)
 		return ret;
