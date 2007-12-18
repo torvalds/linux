@@ -1383,16 +1383,13 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 			return -EBUSY;
 	}
 	bdevname(rdev->bdev,b);
-	if (kobject_set_name(&rdev->kobj, "dev-%s", b) < 0)
-		return -ENOMEM;
-	while ( (s=strchr(rdev->kobj.k_name, '/')) != NULL)
+	while ( (s=strchr(b, '/')) != NULL)
 		*s = '!';
-			
+
 	rdev->mddev = mddev;
 	printk(KERN_INFO "md: bind<%s>\n", b);
 
-	rdev->kobj.parent = &mddev->kobj;
-	if ((err = kobject_add(&rdev->kobj)))
+	if ((err = kobject_add_ng(&rdev->kobj, &mddev->kobj, "dev-%s", b)))
 		goto fail;
 
 	if (rdev->bdev->bd_part)
@@ -2036,9 +2033,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	if (err)
 		goto abort_free;
 
-	rdev->kobj.parent = NULL;
-	rdev->kobj.ktype = &rdev_ktype;
-	kobject_init(&rdev->kobj);
+	kobject_init_ng(&rdev->kobj, &rdev_ktype);
 
 	rdev->desc_nr = -1;
 	rdev->saved_raid_disk = -1;
