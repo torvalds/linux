@@ -1070,6 +1070,7 @@ u64 find_lock_delalloc_range(struct extent_map_tree *tree,
 search_again:
 	node = tree_search(&tree->state, cur_start);
 	if (!node || IS_ERR(node)) {
+		*end = (u64)-1;
 		goto out;
 	}
 
@@ -1079,6 +1080,8 @@ search_again:
 			goto out;
 		}
 		if (!(state->state & EXTENT_DELALLOC)) {
+			if (!found)
+				*end = state->end;
 			goto out;
 		}
 		if (!found) {
@@ -1841,8 +1844,10 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		nr_delalloc = find_lock_delalloc_range(tree, &delalloc_start,
 						       &delalloc_end,
 						       128 * 1024 * 1024);
-		if (nr_delalloc <= 0)
-			break;
+		if (nr_delalloc == 0) {
+			delalloc_start = delalloc_end + 1;
+			continue;
+		}
 		tree->ops->fill_delalloc(inode, delalloc_start,
 					 delalloc_end);
 		clear_extent_bit(tree, delalloc_start,
