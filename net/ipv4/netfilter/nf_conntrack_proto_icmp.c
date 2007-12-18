@@ -234,12 +234,9 @@ icmp_error(struct sk_buff *skb, unsigned int dataoff,
 static int icmp_tuple_to_nlattr(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *t)
 {
-	NLA_PUT(skb, CTA_PROTO_ICMP_ID, sizeof(u_int16_t),
-		&t->src.u.icmp.id);
-	NLA_PUT(skb, CTA_PROTO_ICMP_TYPE, sizeof(u_int8_t),
-		&t->dst.u.icmp.type);
-	NLA_PUT(skb, CTA_PROTO_ICMP_CODE, sizeof(u_int8_t),
-		&t->dst.u.icmp.code);
+	NLA_PUT_BE16(skb, CTA_PROTO_ICMP_ID, t->src.u.icmp.id);
+	NLA_PUT_U8(skb, CTA_PROTO_ICMP_TYPE, t->dst.u.icmp.type);
+	NLA_PUT_U8(skb, CTA_PROTO_ICMP_CODE, t->dst.u.icmp.code);
 
 	return 0;
 
@@ -261,12 +258,9 @@ static int icmp_nlattr_to_tuple(struct nlattr *tb[],
 	    || !tb[CTA_PROTO_ICMP_ID])
 		return -EINVAL;
 
-	tuple->dst.u.icmp.type =
-			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMP_TYPE]);
-	tuple->dst.u.icmp.code =
-			*(u_int8_t *)nla_data(tb[CTA_PROTO_ICMP_CODE]);
-	tuple->src.u.icmp.id =
-			*(__be16 *)nla_data(tb[CTA_PROTO_ICMP_ID]);
+	tuple->dst.u.icmp.type = nla_get_u8(tb[CTA_PROTO_ICMP_TYPE]);
+	tuple->dst.u.icmp.code = nla_get_u8(tb[CTA_PROTO_ICMP_CODE]);
+	tuple->src.u.icmp.id = nla_get_be16(tb[CTA_PROTO_ICMP_ID]);
 
 	if (tuple->dst.u.icmp.type >= sizeof(invmap)
 	    || !invmap[tuple->dst.u.icmp.type])

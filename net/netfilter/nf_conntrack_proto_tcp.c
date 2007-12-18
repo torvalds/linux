@@ -1072,14 +1072,13 @@ static int tcp_to_nlattr(struct sk_buff *skb, struct nlattr *nla,
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	NLA_PUT(skb, CTA_PROTOINFO_TCP_STATE, sizeof(u_int8_t),
-		&ct->proto.tcp.state);
+	NLA_PUT_U8(skb, CTA_PROTOINFO_TCP_STATE, ct->proto.tcp.state);
 
-	NLA_PUT(skb, CTA_PROTOINFO_TCP_WSCALE_ORIGINAL, sizeof(u_int8_t),
-		&ct->proto.tcp.seen[0].td_scale);
+	NLA_PUT_U8(skb, CTA_PROTOINFO_TCP_WSCALE_ORIGINAL,
+		   ct->proto.tcp.seen[0].td_scale);
 
-	NLA_PUT(skb, CTA_PROTOINFO_TCP_WSCALE_REPLY, sizeof(u_int8_t),
-		&ct->proto.tcp.seen[1].td_scale);
+	NLA_PUT_U8(skb, CTA_PROTOINFO_TCP_WSCALE_REPLY,
+		   ct->proto.tcp.seen[1].td_scale);
 
 	tmp.flags = ct->proto.tcp.seen[0].flags;
 	NLA_PUT(skb, CTA_PROTOINFO_TCP_FLAGS_ORIGINAL,
@@ -1126,8 +1125,7 @@ static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 		return -EINVAL;
 
 	write_lock_bh(&tcp_lock);
-	ct->proto.tcp.state =
-		*(u_int8_t *)nla_data(tb[CTA_PROTOINFO_TCP_STATE]);
+	ct->proto.tcp.state = nla_get_u8(tb[CTA_PROTOINFO_TCP_STATE]);
 
 	if (tb[CTA_PROTOINFO_TCP_FLAGS_ORIGINAL]) {
 		struct nf_ct_tcp_flags *attr =
@@ -1147,10 +1145,10 @@ static int nlattr_to_tcp(struct nlattr *cda[], struct nf_conn *ct)
 	    tb[CTA_PROTOINFO_TCP_WSCALE_REPLY] &&
 	    ct->proto.tcp.seen[0].flags & IP_CT_TCP_FLAG_WINDOW_SCALE &&
 	    ct->proto.tcp.seen[1].flags & IP_CT_TCP_FLAG_WINDOW_SCALE) {
-		ct->proto.tcp.seen[0].td_scale = *(u_int8_t *)
-			nla_data(tb[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL]);
-		ct->proto.tcp.seen[1].td_scale = *(u_int8_t *)
-			nla_data(tb[CTA_PROTOINFO_TCP_WSCALE_REPLY]);
+		ct->proto.tcp.seen[0].td_scale =
+			nla_get_u8(tb[CTA_PROTOINFO_TCP_WSCALE_ORIGINAL]);
+		ct->proto.tcp.seen[1].td_scale =
+			nla_get_u8(tb[CTA_PROTOINFO_TCP_WSCALE_REPLY]);
 	}
 	write_unlock_bh(&tcp_lock);
 

@@ -547,10 +547,8 @@ int
 nf_nat_port_range_to_nlattr(struct sk_buff *skb,
 			    const struct nf_nat_range *range)
 {
-	NLA_PUT(skb, CTA_PROTONAT_PORT_MIN, sizeof(__be16),
-		&range->min.tcp.port);
-	NLA_PUT(skb, CTA_PROTONAT_PORT_MAX, sizeof(__be16),
-		&range->max.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MIN, range->min.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTONAT_PORT_MAX, range->max.tcp.port);
 
 	return 0;
 
@@ -568,8 +566,7 @@ nf_nat_port_nlattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
 
 	if (tb[CTA_PROTONAT_PORT_MIN]) {
 		ret = 1;
-		range->min.tcp.port =
-			*(__be16 *)nla_data(tb[CTA_PROTONAT_PORT_MIN]);
+		range->min.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
 	}
 
 	if (!tb[CTA_PROTONAT_PORT_MAX]) {
@@ -577,8 +574,7 @@ nf_nat_port_nlattr_to_range(struct nlattr *tb[], struct nf_nat_range *range)
 			range->max.tcp.port = range->min.tcp.port;
 	} else {
 		ret = 1;
-		range->max.tcp.port =
-			*(__be16 *)nla_data(tb[CTA_PROTONAT_PORT_MAX]);
+		range->max.tcp.port = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
 	}
 
 	return ret;

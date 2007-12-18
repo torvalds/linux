@@ -831,10 +831,8 @@ EXPORT_SYMBOL_GPL(__nf_ct_refresh_acct);
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple)
 {
-	NLA_PUT(skb, CTA_PROTO_SRC_PORT, sizeof(u_int16_t),
-		&tuple->src.u.tcp.port);
-	NLA_PUT(skb, CTA_PROTO_DST_PORT, sizeof(u_int16_t),
-		&tuple->dst.u.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTO_SRC_PORT, tuple->src.u.tcp.port);
+	NLA_PUT_BE16(skb, CTA_PROTO_DST_PORT, tuple->dst.u.tcp.port);
 	return 0;
 
 nla_put_failure:
@@ -854,8 +852,8 @@ int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
 	if (!tb[CTA_PROTO_SRC_PORT] || !tb[CTA_PROTO_DST_PORT])
 		return -EINVAL;
 
-	t->src.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_SRC_PORT]);
-	t->dst.u.tcp.port = *(__be16 *)nla_data(tb[CTA_PROTO_DST_PORT]);
+	t->src.u.tcp.port = nla_get_be16(tb[CTA_PROTO_SRC_PORT]);
+	t->dst.u.tcp.port = nla_get_be16(tb[CTA_PROTO_DST_PORT]);
 
 	return 0;
 }

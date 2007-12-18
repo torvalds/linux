@@ -59,7 +59,7 @@ ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 	nest_parms = nla_nest_start(skb, CTA_TUPLE_PROTO | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
-	NLA_PUT(skb, CTA_PROTO_NUM, sizeof(u_int8_t), &tuple->dst.protonum);
+	NLA_PUT_U8(skb, CTA_PROTO_NUM, tuple->dst.protonum);
 
 	if (likely(l4proto->tuple_to_nlattr))
 		ret = l4proto->tuple_to_nlattr(skb, tuple);
@@ -120,8 +120,7 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 static inline int
 ctnetlink_dump_status(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	__be32 status = htonl((u_int32_t) ct->status);
-	NLA_PUT(skb, CTA_STATUS, sizeof(status), &status);
+	NLA_PUT_BE32(skb, CTA_STATUS, htonl(ct->status));
 	return 0;
 
 nla_put_failure:
@@ -131,15 +130,12 @@ nla_put_failure:
 static inline int
 ctnetlink_dump_timeout(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	long timeout_l = ct->timeout.expires - jiffies;
-	__be32 timeout;
+	long timeout = (ct->timeout.expires - jiffies) / HZ;
 
-	if (timeout_l < 0)
+	if (timeout < 0)
 		timeout = 0;
-	else
-		timeout = htonl(timeout_l / HZ);
 
-	NLA_PUT(skb, CTA_TIMEOUT, sizeof(timeout), &timeout);
+	NLA_PUT_BE32(skb, CTA_TIMEOUT, htonl(timeout));
 	return 0;
 
 nla_put_failure:
@@ -193,7 +189,7 @@ ctnetlink_dump_helpinfo(struct sk_buff *skb, const struct nf_conn *ct)
 	nest_helper = nla_nest_start(skb, CTA_HELP | NLA_F_NESTED);
 	if (!nest_helper)
 		goto nla_put_failure;
-	NLA_PUT(skb, CTA_HELP_NAME, strlen(helper->name), helper->name);
+	NLA_PUT_STRING(skb, CTA_HELP_NAME, helper->name);
 
 	if (helper->to_nlattr)
 		helper->to_nlattr(skb, ct);
@@ -215,17 +211,15 @@ ctnetlink_dump_counters(struct sk_buff *skb, const struct nf_conn *ct,
 {
 	enum ctattr_type type = dir ? CTA_COUNTERS_REPLY: CTA_COUNTERS_ORIG;
 	struct nlattr *nest_count;
-	__be32 tmp;
 
 	nest_count = nla_nest_start(skb, type | NLA_F_NESTED);
 	if (!nest_count)
 		goto nla_put_failure;
 
-	tmp = htonl(ct->counters[dir].packets);
-	NLA_PUT(skb, CTA_COUNTERS32_PACKETS, sizeof(u_int32_t), &tmp);
-
-	tmp = htonl(ct->counters[dir].bytes);
-	NLA_PUT(skb, CTA_COUNTERS32_BYTES, sizeof(u_int32_t), &tmp);
+	NLA_PUT_BE32(skb, CTA_COUNTERS32_PACKETS,
+		     htonl(ct->counters[dir].packets));
+	NLA_PUT_BE32(skb, CTA_COUNTERS32_BYTES,
+		     htonl(ct->counters[dir].bytes));
 
 	nla_nest_end(skb, nest_count);
 
@@ -242,9 +236,7 @@ nla_put_failure:
 static inline int
 ctnetlink_dump_mark(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	__be32 mark = htonl(ct->mark);
-
-	NLA_PUT(skb, CTA_MARK, sizeof(u_int32_t), &mark);
+	NLA_PUT_BE32(skb, CTA_MARK, htonl(ct->mark));
 	return 0;
 
 nla_put_failure:
@@ -258,9 +250,7 @@ nla_put_failure:
 static inline int
 ctnetlink_dump_secmark(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	__be32 mark = htonl(ct->secmark);
-
-	NLA_PUT(skb, CTA_SECMARK, sizeof(u_int32_t), &mark);
+	NLA_PUT_BE32(skb, CTA_SECMARK, htonl(ct->secmark));
 	return 0;
 
 nla_put_failure:
@@ -297,19 +287,18 @@ nla_put_failure:
 static inline int
 dump_nat_seq_adj(struct sk_buff *skb, const struct nf_nat_seq *natseq, int type)
 {
-	__be32 tmp;
 	struct nlattr *nest_parms;
 
 	nest_parms = nla_nest_start(skb, type | NLA_F_NESTED);
 	if (!nest_parms)
 		goto nla_put_failure;
 
-	tmp = htonl(natseq->correction_pos);
-	NLA_PUT(skb, CTA_NAT_SEQ_CORRECTION_POS, sizeof(tmp), &tmp);
-	tmp = htonl(natseq->offset_before);
-	NLA_PUT(skb, CTA_NAT_SEQ_OFFSET_BEFORE, sizeof(tmp), &tmp);
-	tmp = htonl(natseq->offset_after);
-	NLA_PUT(skb, CTA_NAT_SEQ_OFFSET_AFTER, sizeof(tmp), &tmp);
+	NLA_PUT_BE32(skb, CTA_NAT_SEQ_CORRECTION_POS,
+		     htonl(natseq->correction_pos));
+	NLA_PUT_BE32(skb, CTA_NAT_SEQ_OFFSET_BEFORE,
+		     htonl(natseq->offset_before));
+	NLA_PUT_BE32(skb, CTA_NAT_SEQ_OFFSET_AFTER,
+		     htonl(natseq->offset_after));
 
 	nla_nest_end(skb, nest_parms);
 
@@ -345,8 +334,7 @@ ctnetlink_dump_nat_seq_adj(struct sk_buff *skb, const struct nf_conn *ct)
 static inline int
 ctnetlink_dump_id(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	__be32 id = htonl((unsigned long)ct);
-	NLA_PUT(skb, CTA_ID, sizeof(u_int32_t), &id);
+	NLA_PUT_BE32(skb, CTA_ID, htonl((unsigned long)ct));
 	return 0;
 
 nla_put_failure:
@@ -356,9 +344,7 @@ nla_put_failure:
 static inline int
 ctnetlink_dump_use(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	__be32 use = htonl(atomic_read(&ct->ct_general.use));
-
-	NLA_PUT(skb, CTA_USE, sizeof(u_int32_t), &use);
+	NLA_PUT_BE32(skb, CTA_USE, htonl(atomic_read(&ct->ct_general.use)));
 	return 0;
 
 nla_put_failure:
@@ -646,7 +632,7 @@ ctnetlink_parse_tuple_proto(struct nlattr *attr,
 
 	if (!tb[CTA_PROTO_NUM])
 		return -EINVAL;
-	tuple->dst.protonum = *(u_int8_t *)nla_data(tb[CTA_PROTO_NUM]);
+	tuple->dst.protonum = nla_get_u8(tb[CTA_PROTO_NUM]);
 
 	l4proto = nf_ct_l4proto_find_get(tuple->src.l3num, tuple->dst.protonum);
 
@@ -751,12 +737,12 @@ nfnetlink_parse_nat(struct nlattr *nat,
 		return err;
 
 	if (tb[CTA_NAT_MINIP])
-		range->min_ip = *(__be32 *)nla_data(tb[CTA_NAT_MINIP]);
+		range->min_ip = nla_get_be32(tb[CTA_NAT_MINIP]);
 
 	if (!tb[CTA_NAT_MAXIP])
 		range->max_ip = range->min_ip;
 	else
-		range->max_ip = *(__be32 *)nla_data(tb[CTA_NAT_MAXIP]);
+		range->max_ip = nla_get_be32(tb[CTA_NAT_MAXIP]);
 
 	if (range->min_ip)
 		range->flags |= IP_NAT_RANGE_MAP_IPS;
@@ -826,7 +812,7 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	ct = nf_ct_tuplehash_to_ctrack(h);
 
 	if (cda[CTA_ID]) {
-		u_int32_t id = ntohl(*(__be32 *)nla_data(cda[CTA_ID]));
+		u_int32_t id = ntohl(nla_get_be32(cda[CTA_ID]));
 		if (id != (u32)(unsigned long)ct) {
 			nf_ct_put(ct);
 			return -ENOENT;
@@ -906,7 +892,7 @@ static inline int
 ctnetlink_change_status(struct nf_conn *ct, struct nlattr *cda[])
 {
 	unsigned long d;
-	unsigned int status = ntohl(*(__be32 *)nla_data(cda[CTA_STATUS]));
+	unsigned int status = ntohl(nla_get_be32(cda[CTA_STATUS]));
 	d = ct->status ^ status;
 
 	if (d & (IPS_EXPECTED|IPS_CONFIRMED|IPS_DYING))
@@ -1008,7 +994,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nlattr *cda[])
 static inline int
 ctnetlink_change_timeout(struct nf_conn *ct, struct nlattr *cda[])
 {
-	u_int32_t timeout = ntohl(*(__be32 *)nla_data(cda[CTA_TIMEOUT]));
+	u_int32_t timeout = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
 	if (!del_timer(&ct->timeout))
 		return -ETIME;
@@ -1051,19 +1037,19 @@ change_nat_seq_adj(struct nf_nat_seq *natseq, struct nlattr *attr)
 		return -EINVAL;
 
 	natseq->correction_pos =
-		ntohl(*(__be32 *)nla_data(cda[CTA_NAT_SEQ_CORRECTION_POS]));
+		ntohl(nla_get_be32(cda[CTA_NAT_SEQ_CORRECTION_POS]));
 
 	if (!cda[CTA_NAT_SEQ_OFFSET_BEFORE])
 		return -EINVAL;
 
 	natseq->offset_before =
-		ntohl(*(__be32 *)nla_data(cda[CTA_NAT_SEQ_OFFSET_BEFORE]));
+		ntohl(nla_get_be32(cda[CTA_NAT_SEQ_OFFSET_BEFORE]));
 
 	if (!cda[CTA_NAT_SEQ_OFFSET_AFTER])
 		return -EINVAL;
 
 	natseq->offset_after =
-		ntohl(*(__be32 *)nla_data(cda[CTA_NAT_SEQ_OFFSET_AFTER]));
+		ntohl(nla_get_be32(cda[CTA_NAT_SEQ_OFFSET_AFTER]));
 
 	return 0;
 }
@@ -1130,7 +1116,7 @@ ctnetlink_change_conntrack(struct nf_conn *ct, struct nlattr *cda[])
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
-		ct->mark = ntohl(*(__be32 *)nla_data(cda[CTA_MARK]));
+		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
 #endif
 
 #ifdef CONFIG_NF_NAT_NEEDED
@@ -1161,7 +1147,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 
 	if (!cda[CTA_TIMEOUT])
 		goto err;
-	ct->timeout.expires = ntohl(*(__be32 *)nla_data(cda[CTA_TIMEOUT]));
+	ct->timeout.expires = ntohl(nla_get_be32(cda[CTA_TIMEOUT]));
 
 	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
 	ct->status |= IPS_CONFIRMED;
@@ -1180,7 +1166,7 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)
 	if (cda[CTA_MARK])
-		ct->mark = ntohl(*(__be32 *)nla_data(cda[CTA_MARK]));
+		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
 #endif
 
 	helper = nf_ct_helper_find_get(rtuple);
@@ -1371,7 +1357,6 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 {
 	struct nf_conn *master = exp->master;
 	__be32 timeout = htonl((exp->timeout.expires - jiffies) / HZ);
-	__be32 id = htonl((unsigned long)exp);
 
 	if (ctnetlink_exp_dump_tuple(skb, &exp->tuple, CTA_EXPECT_TUPLE) < 0)
 		goto nla_put_failure;
@@ -1382,8 +1367,8 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 				 CTA_EXPECT_MASTER) < 0)
 		goto nla_put_failure;
 
-	NLA_PUT(skb, CTA_EXPECT_TIMEOUT, sizeof(timeout), &timeout);
-	NLA_PUT(skb, CTA_EXPECT_ID, sizeof(u_int32_t), &id);
+	NLA_PUT_BE32(skb, CTA_EXPECT_TIMEOUT, timeout);
+	NLA_PUT_BE32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp));
 
 	return 0;
 
@@ -1556,7 +1541,7 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 		return -ENOENT;
 
 	if (cda[CTA_EXPECT_ID]) {
-		__be32 id = *(__be32 *)nla_data(cda[CTA_EXPECT_ID]);
+		__be32 id = nla_get_be32(cda[CTA_EXPECT_ID]);
 		if (ntohl(id) != (u32)(unsigned long)exp) {
 			nf_ct_expect_put(exp);
 			return -ENOENT;
@@ -1610,7 +1595,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 			return -ENOENT;
 
 		if (cda[CTA_EXPECT_ID]) {
-			__be32 id = *(__be32 *)nla_data(cda[CTA_EXPECT_ID]);
+			__be32 id = nla_get_be32(cda[CTA_EXPECT_ID]);
 			if (ntohl(id) != (u32)(unsigned long)exp) {
 				nf_ct_expect_put(exp);
 				return -ENOENT;
