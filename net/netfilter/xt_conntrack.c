@@ -32,7 +32,7 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 
 	ct = nf_ct_get(skb, &ctinfo);
 
-#define FWINV(bool,invflg) ((bool) ^ !!(sinfo->invflags & invflg))
+#define FWINV(bool, invflg) ((bool) ^ !!(sinfo->invflags & (invflg)))
 
 	if (ct == &nf_conntrack_untracked)
 		statebit = XT_CONNTRACK_STATE_UNTRACKED;
@@ -108,6 +108,7 @@ conntrack_mt(const struct sk_buff *skb, const struct net_device *in,
 			return false;
 	}
 	return true;
+#undef FWINV
 }
 
 static bool

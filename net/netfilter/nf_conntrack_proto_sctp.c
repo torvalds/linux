@@ -186,10 +186,10 @@ static int sctp_print_conntrack(struct seq_file *s,
 }
 
 #define for_each_sctp_chunk(skb, sch, _sch, offset, dataoff, count)	\
-for (offset = dataoff + sizeof(sctp_sctphdr_t), count = 0;		\
-	offset < skb->len &&						\
-	(sch = skb_header_pointer(skb, offset, sizeof(_sch), &_sch));	\
-	offset += (ntohs(sch->length) + 3) & ~3, count++)
+for ((offset) = (dataoff) + sizeof(sctp_sctphdr_t), (count) = 0;	\
+	(offset) < (skb)->len &&					\
+	((sch) = skb_header_pointer((skb), (offset), sizeof(_sch), &(_sch)));	\
+	(offset) += (ntohs((sch)->length) + 3) & ~3, (count)++)
 
 /* Some validity checks to make sure the chunks are fine */
 static int do_basic_checks(struct nf_conn *conntrack,

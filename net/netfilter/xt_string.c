@@ -37,7 +37,7 @@ string_mt(const struct sk_buff *skb, const struct net_device *in,
 			     != UINT_MAX) ^ conf->invert;
 }
 
-#define STRING_TEXT_PRIV(m) ((struct xt_string_info *) m)
+#define STRING_TEXT_PRIV(m) ((struct xt_string_info *)(m))
 
 static bool
 string_mt_check(const char *tablename, const void *ip,

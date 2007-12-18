@@ -60,7 +60,7 @@ MODULE_ALIAS("ip_nat_snmp_basic");
 
 #define SNMP_PORT 161
 #define SNMP_TRAP_PORT 162
-#define NOCT1(n) (*(u8 *)n)
+#define NOCT1(n) (*(u8 *)(n))
 
 static int debug;
 static DEFINE_SPINLOCK(snmp_lock);

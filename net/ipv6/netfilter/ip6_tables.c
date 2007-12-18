@@ -102,7 +102,7 @@ ip6_packet_match(const struct sk_buff *skb,
 	unsigned long ret;
 	const struct ipv6hdr *ipv6 = ipv6_hdr(skb);
 
-#define FWINV(bool,invflg) ((bool) ^ !!(ip6info->invflags & invflg))
+#define FWINV(bool, invflg) ((bool) ^ !!(ip6info->invflags & (invflg)))
 
 	if (FWINV(ipv6_masked_addr_cmp(&ipv6->saddr, &ip6info->smsk,
 				       &ip6info->src), IP6T_INV_SRCIP)

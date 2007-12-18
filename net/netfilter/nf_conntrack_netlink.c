@@ -534,7 +534,7 @@ static int ctnetlink_done(struct netlink_callback *cb)
 	return 0;
 }
 
-#define L3PROTO(ct) ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num
+#define L3PROTO(ct) (ct)->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num
 
 static int
 ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)

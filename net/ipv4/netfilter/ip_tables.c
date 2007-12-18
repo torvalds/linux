@@ -85,7 +85,7 @@ ip_packet_match(const struct iphdr *ip,
 	size_t i;
 	unsigned long ret;
 
-#define FWINV(bool,invflg) ((bool) ^ !!(ipinfo->invflags & invflg))
+#define FWINV(bool, invflg) ((bool) ^ !!(ipinfo->invflags & (invflg)))
 
 	if (FWINV((ip->saddr&ipinfo->smsk.s_addr) != ipinfo->src.s_addr,
 		  IPT_INV_SRCIP)
@@ -216,6 +216,7 @@ unconditional(const struct ipt_ip *ip)
 			return 0;
 
 	return 1;
+#undef FWINV
 }
 
 #if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \

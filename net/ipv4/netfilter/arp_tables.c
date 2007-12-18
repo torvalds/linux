@@ -84,7 +84,7 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	__be32 src_ipaddr, tgt_ipaddr;
 	int i, ret;
 
-#define FWINV(bool,invflg) ((bool) ^ !!(arpinfo->invflags & invflg))
+#define FWINV(bool, invflg) ((bool) ^ !!(arpinfo->invflags & (invflg)))
 
 	if (FWINV((arphdr->ar_op & arpinfo->arpop_mask) != arpinfo->arpop,
 		  ARPT_INV_ARPOP)) {
@@ -180,6 +180,7 @@ static inline int arp_packet_match(const struct arphdr *arphdr,
 	}
 
 	return 1;
+#undef FWINV
 }
 
 static inline int arp_checkentry(const struct arpt_arp *arp)
