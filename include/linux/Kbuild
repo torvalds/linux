@@ -145,7 +145,6 @@ header-y += sound.h
 header-y += taskstats.h
 header-y += telephony.h
 header-y += termios.h
-header-y += ticable.h
 header-y += times.h
 header-y += tiocl.h
 header-y += tipc.h
