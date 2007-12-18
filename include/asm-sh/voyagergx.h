@@ -213,7 +213,7 @@
 /* ----- Power mode 1 clock register -------------------------- */
 #define POWER_MODE1_CLOCK		(0x00004C + VOYAGER_BASE)
 
-/* ----- Power mode controll register ------------------------- */
+/* ----- Power mode control register ------------------------- */
 #define POWER_MODE_CTRL			(0x000054 + VOYAGER_BASE)
 
 /* ----- Miscellaneous Timing register ------------------------ */

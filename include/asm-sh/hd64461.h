@@ -46,10 +46,10 @@
 /* CPU Data Bus Control Register */
 #define	HD64461_SCPUCR		(CONFIG_HD64461_IOBASE + 0x04)
 
-/* Base Adress Register */
+/* Base Address Register */
 #define	HD64461_LCDCBAR		(CONFIG_HD64461_IOBASE + 0x1000)
 
-/* Line increment adress */
+/* Line increment address */
 #define	HD64461_LCDCLOR		(CONFIG_HD64461_IOBASE + 0x1002)
 
 /* Controls LCD controller */
@@ -80,9 +80,9 @@
 #define	HD64461_LDR3		(CONFIG_HD64461_IOBASE + 0x101e)
 
 /* Palette Registers */
-#define	HD64461_CPTWAR		(CONFIG_HD64461_IOBASE + 0x1030)	/* Color Palette Write Adress Register */
+#define	HD64461_CPTWAR		(CONFIG_HD64461_IOBASE + 0x1030)	/* Color Palette Write Address Register */
 #define	HD64461_CPTWDR		(CONFIG_HD64461_IOBASE + 0x1032)	/* Color Palette Write Data Register */
-#define	HD64461_CPTRAR		(CONFIG_HD64461_IOBASE + 0x1034)	/* Color Palette Read Adress Register */
+#define	HD64461_CPTRAR		(CONFIG_HD64461_IOBASE + 0x1034)	/* Color Palette Read Address Register */
 #define	HD64461_CPTRDR		(CONFIG_HD64461_IOBASE + 0x1036)	/* Color Palette Read Data Register */
 
 #define	HD64461_GRDOR		(CONFIG_HD64461_IOBASE + 0x1040)	/* Display Resolution Offset Register */
@@ -97,8 +97,8 @@
 #define	HD64461_GRCFGR_COLORDEPTH8	0x01	/* Sets Colordepth 8 for Accelerator */
 
 /* Line Drawing Registers */
-#define	HD64461_LNSARH		(CONFIG_HD64461_IOBASE + 0x1046)	/* Line Start Adress Register (H) */
-#define	HD64461_LNSARL		(CONFIG_HD64461_IOBASE + 0x1048)	/* Line Start Adress Register (L) */
+#define	HD64461_LNSARH		(CONFIG_HD64461_IOBASE + 0x1046)	/* Line Start Address Register (H) */
+#define	HD64461_LNSARL		(CONFIG_HD64461_IOBASE + 0x1048)	/* Line Start Address Register (L) */
 #define	HD64461_LNAXLR		(CONFIG_HD64461_IOBASE + 0x104a)	/* Axis Pixel Length Register */
 #define	HD64461_LNDGR		(CONFIG_HD64461_IOBASE + 0x104c)	/* Diagonal Register */
 #define	HD64461_LNAXR		(CONFIG_HD64461_IOBASE + 0x104e)	/* Axial Register */
@@ -106,16 +106,16 @@
 #define	HD64461_LNMDR		(CONFIG_HD64461_IOBASE + 0x1052)	/* Line Mode Register */
 
 /* BitBLT Registers */
-#define	HD64461_BBTSSARH	(CONFIG_HD64461_IOBASE + 0x1054)	/* Source Start Adress Register (H) */
-#define	HD64461_BBTSSARL	(CONFIG_HD64461_IOBASE + 0x1056)	/* Source Start Adress Register (L) */
-#define	HD64461_BBTDSARH	(CONFIG_HD64461_IOBASE + 0x1058)	/* Destination Start Adress Register (H) */
-#define	HD64461_BBTDSARL	(CONFIG_HD64461_IOBASE + 0x105a)	/* Destination Start Adress Register (L) */
+#define	HD64461_BBTSSARH	(CONFIG_HD64461_IOBASE + 0x1054)	/* Source Start Address Register (H) */
+#define	HD64461_BBTSSARL	(CONFIG_HD64461_IOBASE + 0x1056)	/* Source Start Address Register (L) */
+#define	HD64461_BBTDSARH	(CONFIG_HD64461_IOBASE + 0x1058)	/* Destination Start Address Register (H) */
+#define	HD64461_BBTDSARL	(CONFIG_HD64461_IOBASE + 0x105a)	/* Destination Start Address Register (L) */
 #define	HD64461_BBTDWR		(CONFIG_HD64461_IOBASE + 0x105c)	/* Destination Block Width Register */
 #define	HD64461_BBTDHR		(CONFIG_HD64461_IOBASE + 0x105e)	/* Destination Block Height Register */
-#define	HD64461_BBTPARH		(CONFIG_HD64461_IOBASE + 0x1060)	/* Pattern Start Adress Register (H) */
-#define	HD64461_BBTPARL		(CONFIG_HD64461_IOBASE + 0x1062)	/* Pattern Start Adress Register (L) */
-#define	HD64461_BBTMARH		(CONFIG_HD64461_IOBASE + 0x1064)	/* Mask Start Adress Register (H) */
-#define	HD64461_BBTMARL		(CONFIG_HD64461_IOBASE + 0x1066)	/* Mask Start Adress Register (L) */
+#define	HD64461_BBTPARH		(CONFIG_HD64461_IOBASE + 0x1060)	/* Pattern Start Address Register (H) */
+#define	HD64461_BBTPARL		(CONFIG_HD64461_IOBASE + 0x1062)	/* Pattern Start Address Register (L) */
+#define	HD64461_BBTMARH		(CONFIG_HD64461_IOBASE + 0x1064)	/* Mask Start Address Register (H) */
+#define	HD64461_BBTMARL		(CONFIG_HD64461_IOBASE + 0x1066)	/* Mask Start Address Register (L) */
 #define	HD64461_BBTROPR		(CONFIG_HD64461_IOBASE + 0x1068)	/* ROP Register */
 #define	HD64461_BBTMDR		(CONFIG_HD64461_IOBASE + 0x106a)	/* BitBLT Mode Register */
 
