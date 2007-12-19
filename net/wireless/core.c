@@ -184,6 +184,9 @@ struct wiphy *wiphy_new(struct cfg80211_ops *ops, int sizeof_priv)
 	struct cfg80211_registered_device *drv;
 	int alloc_size;
 
+	WARN_ON(!ops->add_key && ops->del_key);
+	WARN_ON(ops->add_key && !ops->del_key);
+
 	alloc_size = sizeof(*drv) + sizeof_priv;
 
 	drv = kzalloc(alloc_size, GFP_KERNEL);

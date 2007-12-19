@@ -37,6 +37,16 @@
  *	userspace to request deletion of a virtual interface, then requires
  *	attribute %NL80211_ATTR_IFINDEX.
  *
+ * @NL80211_CMD_GET_KEY: Get sequence counter information for a key specified
+ *	by %NL80211_ATTR_KEY_IDX and/or %NL80211_ATTR_MAC.
+ * @NL80211_CMD_SET_KEY: Set key attributes %NL80211_ATTR_KEY_DEFAULT or
+ *	%NL80211_ATTR_KEY_THRESHOLD.
+ * @NL80211_CMD_NEW_KEY: add a key with given %NL80211_ATTR_KEY_DATA,
+ *	%NL80211_ATTR_KEY_IDX, %NL80211_ATTR_MAC and %NL80211_ATTR_KEY_CIPHER
+ *	attributes.
+ * @NL80211_CMD_DEL_KEY: delete a key identified by %NL80211_ATTR_KEY_IDX
+ *	or %NL80211_ATTR_MAC.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -53,6 +63,11 @@ enum nl80211_commands {
 	NL80211_CMD_SET_INTERFACE,
 	NL80211_CMD_NEW_INTERFACE,
 	NL80211_CMD_DEL_INTERFACE,
+
+	NL80211_CMD_GET_KEY,
+	NL80211_CMD_SET_KEY,
+	NL80211_CMD_NEW_KEY,
+	NL80211_CMD_DEL_KEY,
 
 	/* add commands here */
 
@@ -75,6 +90,17 @@ enum nl80211_commands {
  * @NL80211_ATTR_IFNAME: network interface name
  * @NL80211_ATTR_IFTYPE: type of virtual interface, see &enum nl80211_iftype
  *
+ * @NL80211_ATTR_MAC: MAC address (various uses)
+ *
+ * @NL80211_ATTR_KEY_DATA: (temporal) key data; for TKIP this consists of
+ *	16 bytes encryption key followed by 8 bytes each for TX and RX MIC
+ *	keys
+ * @NL80211_ATTR_KEY_IDX: key ID (u8, 0-3)
+ * @NL80211_ATTR_KEY_CIPHER: key cipher suite (u32, as defined by IEEE 802.11
+ *	section 7.3.2.25.1, e.g. 0x000FAC04)
+ * @NL80211_ATTR_KEY_SEQ: transmit key sequence number (IV/PN) for TKIP and
+ *	CCMP keys, each six bytes in little endian
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -88,6 +114,14 @@ enum nl80211_attrs {
 	NL80211_ATTR_IFINDEX,
 	NL80211_ATTR_IFNAME,
 	NL80211_ATTR_IFTYPE,
+
+	NL80211_ATTR_MAC,
+
+	NL80211_ATTR_KEY_DATA,
+	NL80211_ATTR_KEY_IDX,
+	NL80211_ATTR_KEY_CIPHER,
+	NL80211_ATTR_KEY_SEQ,
+	NL80211_ATTR_KEY_DEFAULT,
 
 	/* add attributes here, update the policy in nl80211.c */
 

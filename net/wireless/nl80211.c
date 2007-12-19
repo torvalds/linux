@@ -61,6 +61,14 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_IFTYPE] = { .type = NLA_U32 },
 	[NL80211_ATTR_IFINDEX] = { .type = NLA_U32 },
 	[NL80211_ATTR_IFNAME] = { .type = NLA_NUL_STRING, .len = IFNAMSIZ-1 },
+
+	[NL80211_ATTR_MAC] = { .type = NLA_BINARY, .len = ETH_ALEN },
+
+	[NL80211_ATTR_KEY_DATA] = { .type = NLA_BINARY,
+				    .len = WLAN_MAX_KEY_LEN },
+	[NL80211_ATTR_KEY_IDX] = { .type = NLA_U8 },
+	[NL80211_ATTR_KEY_CIPHER] = { .type = NLA_U32 },
+	[NL80211_ATTR_KEY_DEFAULT] = { .type = NLA_FLAG },
 };
 
 /* message building helper */
@@ -335,6 +343,263 @@ static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+struct get_key_cookie {
+	struct sk_buff *msg;
+	int error;
+};
+
+static void get_key_callback(void *c, struct key_params *params)
+{
+	struct get_key_cookie *cookie = c;
+
+	if (params->key)
+		NLA_PUT(cookie->msg, NL80211_ATTR_KEY_DATA,
+			params->key_len, params->key);
+
+	if (params->seq)
+		NLA_PUT(cookie->msg, NL80211_ATTR_KEY_SEQ,
+			params->seq_len, params->seq);
+
+	if (params->cipher)
+		NLA_PUT_U32(cookie->msg, NL80211_ATTR_KEY_CIPHER,
+			    params->cipher);
+
+	return;
+ nla_put_failure:
+	cookie->error = 1;
+}
+
+static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	u8 key_idx = 0;
+	u8 *mac_addr = NULL;
+	struct get_key_cookie cookie = {
+		.error = 0,
+	};
+	void *hdr;
+	struct sk_buff *msg;
+
+	if (info->attrs[NL80211_ATTR_KEY_IDX])
+		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
+
+	if (key_idx > 3)
+		return -EINVAL;
+
+	if (info->attrs[NL80211_ATTR_MAC])
+		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->get_key) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	hdr = nl80211hdr_put(msg, info->snd_pid, info->snd_seq, 0,
+			     NL80211_CMD_NEW_KEY);
+
+	if (IS_ERR(hdr)) {
+		err = PTR_ERR(hdr);
+		goto out;
+	}
+
+	cookie.msg = msg;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
+	NLA_PUT_U8(msg, NL80211_ATTR_KEY_IDX, key_idx);
+	if (mac_addr)
+		NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr);
+
+	rtnl_lock();
+	err = drv->ops->get_key(&drv->wiphy, dev, key_idx, mac_addr,
+				&cookie, get_key_callback);
+	rtnl_unlock();
+
+	if (err)
+		goto out;
+
+	if (cookie.error)
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	err = genlmsg_unicast(msg, info->snd_pid);
+	goto out;
+
+ nla_put_failure:
+	err = -ENOBUFS;
+	nlmsg_free(msg);
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+static int nl80211_set_key(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	u8 key_idx;
+
+	if (!info->attrs[NL80211_ATTR_KEY_IDX])
+		return -EINVAL;
+
+	key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
+
+	if (key_idx > 3)
+		return -EINVAL;
+
+	/* currently only support setting default key */
+	if (!info->attrs[NL80211_ATTR_KEY_DEFAULT])
+		return -EINVAL;
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->set_default_key) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->set_default_key(&drv->wiphy, dev, key_idx);
+	rtnl_unlock();
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+static int nl80211_new_key(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	struct key_params params;
+	u8 key_idx = 0;
+	u8 *mac_addr = NULL;
+
+	memset(&params, 0, sizeof(params));
+
+	if (!info->attrs[NL80211_ATTR_KEY_CIPHER])
+		return -EINVAL;
+
+	if (info->attrs[NL80211_ATTR_KEY_DATA]) {
+		params.key = nla_data(info->attrs[NL80211_ATTR_KEY_DATA]);
+		params.key_len = nla_len(info->attrs[NL80211_ATTR_KEY_DATA]);
+	}
+
+	if (info->attrs[NL80211_ATTR_KEY_IDX])
+		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
+
+	params.cipher = nla_get_u32(info->attrs[NL80211_ATTR_KEY_CIPHER]);
+
+	if (info->attrs[NL80211_ATTR_MAC])
+		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	if (key_idx > 3)
+		return -EINVAL;
+
+	/*
+	 * Disallow pairwise keys with non-zero index unless it's WEP
+	 * (because current deployments use pairwise WEP keys with
+	 * non-zero indizes but 802.11i clearly specifies to use zero)
+	 */
+	if (mac_addr && key_idx &&
+	    params.cipher != WLAN_CIPHER_SUITE_WEP40 &&
+	    params.cipher != WLAN_CIPHER_SUITE_WEP104)
+		return -EINVAL;
+
+	/* TODO: add definitions for the lengths to linux/ieee80211.h */
+	switch (params.cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		if (params.key_len != 5)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_TKIP:
+		if (params.key_len != 32)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_CCMP:
+		if (params.key_len != 16)
+			return -EINVAL;
+		break;
+	case WLAN_CIPHER_SUITE_WEP104:
+		if (params.key_len != 13)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->add_key) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->add_key(&drv->wiphy, dev, key_idx, mac_addr, &params);
+	rtnl_unlock();
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	u8 key_idx = 0;
+	u8 *mac_addr = NULL;
+
+	if (info->attrs[NL80211_ATTR_KEY_IDX])
+		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
+
+	if (key_idx > 3)
+		return -EINVAL;
+
+	if (info->attrs[NL80211_ATTR_MAC])
+		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->del_key) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->del_key(&drv->wiphy, dev, key_idx, mac_addr);
+	rtnl_unlock();
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -371,6 +636,30 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_DEL_INTERFACE,
 		.doit = nl80211_del_interface,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_GET_KEY,
+		.doit = nl80211_get_key,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_KEY,
+		.doit = nl80211_set_key,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_NEW_KEY,
+		.doit = nl80211_new_key,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_DEL_KEY,
+		.doit = nl80211_del_key,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},

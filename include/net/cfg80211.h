@@ -49,6 +49,26 @@ extern int ieee80211_radiotap_iterator_next(
    struct ieee80211_radiotap_iterator *iterator);
 
 
+ /**
+ * struct key_params - key information
+ *
+ * Information about a key
+ *
+ * @key: key material
+ * @key_len: length of key material
+ * @cipher: cipher suite selector
+ * @seq: sequence counter (IV/PN) for TKIP and CCMP keys, only used
+ *	with the get_key() callback, must be in little endian,
+ *	length given by @seq_len.
+ */
+struct key_params {
+	u8 *key;
+	u8 *seq;
+	int key_len;
+	int seq_len;
+	u32 cipher;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -71,6 +91,18 @@ struct wiphy;
  *
  * @change_virtual_intf: change type of virtual interface
  *
+ * @add_key: add a key with the given parameters. @mac_addr will be %NULL
+ *	when adding a group key.
+ *
+ * @get_key: get information about the key with the given parameters.
+ *	@mac_addr will be %NULL when requesting information for a group
+ *	key. All pointers given to the @callback function need not be valid
+ *	after it returns.
+ *
+ * @del_key: remove a key given the @mac_addr (%NULL for a group key)
+ *	and @key_index
+ *
+ * @set_default_key: set the default key on an interface
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -78,6 +110,18 @@ struct cfg80211_ops {
 	int	(*del_virtual_intf)(struct wiphy *wiphy, int ifindex);
 	int	(*change_virtual_intf)(struct wiphy *wiphy, int ifindex,
 				       enum nl80211_iftype type);
+
+	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
+			   u8 key_index, u8 *mac_addr,
+			   struct key_params *params);
+	int	(*get_key)(struct wiphy *wiphy, struct net_device *netdev,
+			   u8 key_index, u8 *mac_addr, void *cookie,
+			   void (*callback)(void *cookie, struct key_params*));
+	int	(*del_key)(struct wiphy *wiphy, struct net_device *netdev,
+			   u8 key_index, u8 *mac_addr);
+	int	(*set_default_key)(struct wiphy *wiphy,
+				   struct net_device *netdev,
+				   u8 key_index);
 };
 
 #endif /* __NET_CFG80211_H */
