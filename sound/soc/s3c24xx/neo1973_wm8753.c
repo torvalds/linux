@@ -30,13 +30,15 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware/scoop.h>
-#include <asm/arch/regs-iis.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/hardware.h>
 #include <asm/arch/audio.h>
 #include <asm/io.h>
 #include <asm/arch/spi-gpio.h>
+
+#include <asm/plat-s3c24xx/regs-iis.h>
+
 #include "../codecs/wm8753.h"
 #include "lm4857.h"
 #include "s3c24xx-pcm.h"
