@@ -1212,7 +1212,7 @@ err_fb_dealloc:
 err_framebuffer_release:
 	framebuffer_release(info);
 err_free_irq:
-	free_irq(ps3fb.irq_no, dev);
+	free_irq(ps3fb.irq_no, &dev->core);
 	ps3_irq_plug_destroy(ps3fb.irq_no);
 err_iounmap_dinfo:
 	iounmap((u8 __iomem *)ps3fb.dinfo);
@@ -1247,7 +1247,7 @@ static int ps3fb_shutdown(struct ps3_system_bus_device *dev)
 		kthread_stop(task);
 	}
 	if (ps3fb.irq_no) {
-		free_irq(ps3fb.irq_no, dev);
+		free_irq(ps3fb.irq_no, &dev->core);
 		ps3_irq_plug_destroy(ps3fb.irq_no);
 	}
 	iounmap((u8 __iomem *)ps3fb.dinfo);
