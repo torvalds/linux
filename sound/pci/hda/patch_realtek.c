@@ -12335,18 +12335,6 @@ static struct snd_kcontrol_new alc662_base_mixer[] = {
 	HDA_CODEC_MUTE("Mic Playback Switch", 0xb, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0xb, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0xb, 0x01, HDA_INPUT),
-
-	/* Capture mixer control */
-	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Capture Source",
-		.count = 1,
-		.info = alc_mux_enum_info,
-		.get = alc_mux_enum_get,
-		.put = alc_mux_enum_put,
-	},
 	{ } /* end */
 };
 
@@ -12364,17 +12352,6 @@ static struct snd_kcontrol_new alc662_3ST_2ch_mixer[] = {
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
 	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = alc662_mux_enum_info,
-		.get = alc662_mux_enum_get,
-		.put = alc662_mux_enum_put,
-	},
 	{ } /* end */
 };
 
@@ -12398,17 +12375,6 @@ static struct snd_kcontrol_new alc662_3ST_6ch_mixer[] = {
 	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
 	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = alc662_mux_enum_info,
-		.get = alc662_mux_enum_get,
-		.put = alc662_mux_enum_put,
-	},
 	{ } /* end */
 };
 
@@ -12422,17 +12388,6 @@ static struct snd_kcontrol_new alc662_lenovo_101e_mixer[] = {
 	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
 	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		/* .name = "Capture Source", */
-		.name = "Input Source",
-		.count = 1,
-		.info = alc662_mux_enum_info,
-		.get = alc662_mux_enum_get,
-		.put = alc662_mux_enum_put,
-	},
 	{ } /* end */
 };
 
@@ -12598,9 +12553,9 @@ static struct snd_kcontrol_new alc662_capture_mixer[] = {
 		/* .name = "Capture Source", */
 		.name = "Input Source",
 		.count = 1,
-		.info = alc882_mux_enum_info,
-		.get = alc882_mux_enum_get,
-		.put = alc882_mux_enum_put,
+		.info = alc662_mux_enum_info,
+		.get = alc662_mux_enum_get,
+		.put = alc662_mux_enum_put,
 	},
 	{ } /* end */
 };
