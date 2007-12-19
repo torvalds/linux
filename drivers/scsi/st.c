@@ -3611,6 +3611,7 @@ static struct st_buffer *
 
 	tb->dma = need_dma;
 	tb->buffer_size = got;
+	sg_init_table(tb->sg, max_sg);
 
 	return tb;
 }
