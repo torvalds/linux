@@ -123,7 +123,7 @@ struct ath5k_softc {
 	unsigned int		curmode;	/* current phy mode */
 	struct ieee80211_channel *curchan;	/* current h/w channel */
 
-	int 			iface_id;	/* add/remove_interface id */
+	struct ieee80211_vif *vif;
 
 	struct {
 		u8	rxflags;	/* radiotap rx flags */

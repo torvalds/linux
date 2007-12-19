@@ -372,7 +372,7 @@ struct interface {
 	 * to us by the 80211 stack, and is used to request
 	 * new beacons.
 	 */
-	int id;
+	struct ieee80211_vif *id;
 
 	/*
 	 * Current working type (IEEE80211_IF_TYPE_*).
@@ -929,7 +929,8 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 				struct ieee80211_if_init_conf *conf);
 int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
-int rt2x00mac_config_interface(struct ieee80211_hw *hw, int if_id,
+int rt2x00mac_config_interface(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
 			       struct ieee80211_if_conf *conf);
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);

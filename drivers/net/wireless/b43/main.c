@@ -1169,7 +1169,7 @@ static void b43_write_probe_resp_plcp(struct b43_wldev *dev,
 	plcp.data = 0;
 	b43_generate_plcp_hdr(&plcp, size + FCS_LEN, rate);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
-					       dev->wl->if_id, size,
+					       dev->wl->vif, size,
 					       B43_RATE_TO_BASE100KBPS(rate));
 	/* Write PLCP in two parts and timing for packet transfer */
 	tmp = le32_to_cpu(plcp.data);
@@ -1226,7 +1226,7 @@ static u8 *b43_generate_probe_resp(struct b43_wldev *dev,
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_RESP);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
-					       dev->wl->if_id, *dest_size,
+					       dev->wl->vif, *dest_size,
 					       B43_RATE_TO_BASE100KBPS(rate));
 	hdr->duration_id = dur;
 
@@ -2928,7 +2928,7 @@ static void b43_op_configure_filter(struct ieee80211_hw *hw,
 }
 
 static int b43_op_config_interface(struct ieee80211_hw *hw,
-				   int if_id,
+				   struct ieee80211_vif *vif,
 				   struct ieee80211_if_conf *conf)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
@@ -2939,7 +2939,7 @@ static int b43_op_config_interface(struct ieee80211_hw *hw,
 		return -ENODEV;
 	mutex_lock(&wl->mutex);
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	B43_WARN_ON(wl->if_id != if_id);
+	B43_WARN_ON(wl->vif != vif);
 	if (conf->bssid)
 		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 	else
@@ -3445,7 +3445,7 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 
 	dev = wl->current_dev;
 	wl->operating = 1;
-	wl->if_id = conf->if_id;
+	wl->vif = conf->vif;
 	wl->if_type = conf->type;
 	memcpy(wl->mac_addr, conf->mac_addr, ETH_ALEN);
 
@@ -3473,7 +3473,8 @@ static void b43_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 
 	B43_WARN_ON(!wl->operating);
-	B43_WARN_ON(wl->if_id != conf->if_id);
+	B43_WARN_ON(wl->vif != conf->vif);
+	wl->vif = NULL;
 
 	wl->operating = 0;
 

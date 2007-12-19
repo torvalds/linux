@@ -976,7 +976,7 @@ static void b43legacy_write_probe_resp_plcp(struct b43legacy_wldev *dev,
 	plcp.data = 0;
 	b43legacy_generate_plcp_hdr(&plcp, size + FCS_LEN, rate);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
-					       dev->wl->if_id,
+					       dev->wl->vif,
 					       size,
 					       B43legacy_RATE_TO_100KBPS(rate));
 	/* Write PLCP in two parts and timing for packet transfer */
@@ -1042,7 +1042,7 @@ static u8 *b43legacy_generate_probe_resp(struct b43legacy_wldev *dev,
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_RESP);
 	dur = ieee80211_generic_frame_duration(dev->wl->hw,
-					       dev->wl->if_id,
+					       dev->wl->vif,
 					       *dest_size,
 					       B43legacy_RATE_TO_100KBPS(rate));
 	hdr->duration_id = dur;
@@ -2647,7 +2647,7 @@ static void b43legacy_op_configure_filter(struct ieee80211_hw *hw,
 }
 
 static int b43legacy_op_config_interface(struct ieee80211_hw *hw,
-					 int if_id,
+					 struct ieee80211_vif *vif,
 					 struct ieee80211_if_conf *conf)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
@@ -2658,7 +2658,7 @@ static int b43legacy_op_config_interface(struct ieee80211_hw *hw,
 		return -ENODEV;
 	mutex_lock(&wl->mutex);
 	spin_lock_irqsave(&wl->irq_lock, flags);
-	B43legacy_WARN_ON(wl->if_id != if_id);
+	B43legacy_WARN_ON(wl->vif != vif);
 	if (conf->bssid)
 		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 	else
@@ -3177,7 +3177,7 @@ static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
 
 	dev = wl->current_dev;
 	wl->operating = 1;
-	wl->if_id = conf->if_id;
+	wl->vif = conf->vif;
 	wl->if_type = conf->type;
 	memcpy(wl->mac_addr, conf->mac_addr, ETH_ALEN);
 
@@ -3205,7 +3205,8 @@ static void b43legacy_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 
 	B43legacy_WARN_ON(!wl->operating);
-	B43legacy_WARN_ON(wl->if_id != conf->if_id);
+	B43legacy_WARN_ON(wl->vif != conf->vif);
+	wl->vif = NULL;
 
 	wl->operating = 0;
 

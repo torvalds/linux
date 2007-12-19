@@ -1212,7 +1212,7 @@ struct iwl4965_priv {
 	u32 timestamp1;
 	u16 beacon_int;
 	struct iwl4965_driver_hw_info hw_setting;
-	int interface_id;
+	struct ieee80211_vif *vif;
 
 	/* Current association information needed to configure the
 	 * hardware */

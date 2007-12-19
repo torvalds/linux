@@ -236,7 +236,8 @@ static int rtl8180_tx(struct ieee80211_hw *dev, struct sk_buff *skb,
 		kmemdup(control, sizeof(*control), GFP_ATOMIC);
 
 	if (control->flags & IEEE80211_TXCTL_USE_RTS_CTS)
-		rts_duration = ieee80211_rts_duration(dev, priv->if_id, skb->len, control);
+		rts_duration = ieee80211_rts_duration(dev, priv->vif, skb->len,
+						      control);
 
 	if (!priv->r8185) {
 		unsigned int remainder;
@@ -638,6 +639,8 @@ static int rtl8180_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
+	priv->vif = conf->vif;
+
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	rtl818x_iowrite32(priv, (__le32 __iomem *)&priv->map->MAC[0],
 			  cpu_to_le32(*(u32 *)conf->mac_addr));
@@ -653,6 +656,7 @@ static void rtl8180_remove_interface(struct ieee80211_hw *dev,
 {
 	struct rtl8180_priv *priv = dev->priv;
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->vif = NULL;
 }
 
 static int rtl8180_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
@@ -664,13 +668,12 @@ static int rtl8180_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	return 0;
 }
 
-static int rtl8180_config_interface(struct ieee80211_hw *dev, int if_id,
+static int rtl8180_config_interface(struct ieee80211_hw *dev,
+				    struct ieee80211_vif *vif,
 				    struct ieee80211_if_conf *conf)
 {
 	struct rtl8180_priv *priv = dev->priv;
 	int i;
-
-	priv->if_id = if_id;
 
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl818x_iowrite8(priv, &priv->map->BSSID[i], conf->bssid[i]);

@@ -177,9 +177,16 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	list_add(&sta->list, &local->sta_list);
 	local->num_sta++;
 	sta_info_hash_add(local, sta);
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(local_to_hw(local), dev->ifindex,
-					STA_NOTIFY_ADD, addr);
+	if (local->ops->sta_notify) {
+		struct ieee80211_sub_if_data *sdata;
+
+		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+		if (sdata->type == IEEE80211_IF_TYPE_VLAN)
+			sdata = sdata->u.vlan.ap;
+
+		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
+				       STA_NOTIFY_ADD, addr);
+	}
 	write_unlock_bh(&local->sta_lock);
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -247,9 +254,17 @@ void sta_info_free(struct sta_info *sta)
 	ieee80211_key_free(sta->key);
 	sta->key = NULL;
 
-	if (local->ops->sta_notify)
-		local->ops->sta_notify(local_to_hw(local), sta->dev->ifindex,
-					STA_NOTIFY_REMOVE, sta->addr);
+	if (local->ops->sta_notify) {
+		struct ieee80211_sub_if_data *sdata;
+
+		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
+
+		if (sdata->type == IEEE80211_IF_TYPE_VLAN)
+			sdata = sdata->u.vlan.ap;
+
+		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
+				       STA_NOTIFY_REMOVE, sta->addr);
+	}
 
 	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);

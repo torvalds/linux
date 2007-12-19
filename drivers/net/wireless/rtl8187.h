@@ -65,8 +65,8 @@ struct rtl8187_priv {
 	/* common between rtl818x drivers */
 	struct rtl818x_csr *map;
 	const struct rtl818x_rf_ops *rf;
+	struct ieee80211_vif *vif;
 	int mode;
-	int if_id;
 
 	/* rtl8187 specific */
 	struct ieee80211_channel channels[14];

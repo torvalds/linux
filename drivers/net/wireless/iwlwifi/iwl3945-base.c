@@ -2767,8 +2767,8 @@ static int iwl3945_tx_skb(struct iwl3945_priv *priv,
 		goto drop_unlock;
 	}
 
-	if (!priv->interface_id) {
-		IWL_DEBUG_DROP("Dropping - !priv->interface_id\n");
+	if (!priv->vif) {
+		IWL_DEBUG_DROP("Dropping - !priv->vif\n");
 		goto drop_unlock;
 	}
 
@@ -3549,7 +3549,7 @@ static void iwl3945_bg_beacon_update(struct work_struct *work)
 	struct sk_buff *beacon;
 
 	/* Pull updated AP beacon from mac80211. will fail if not in AP mode */
-	beacon = ieee80211_beacon_get(priv->hw, priv->interface_id, NULL);
+	beacon = ieee80211_beacon_get(priv->hw, priv->vif, NULL);
 
 	if (!beacon) {
 		IWL_ERROR("update beacon failed\n");
@@ -6780,7 +6780,7 @@ static void iwl3945_bg_post_associate(struct work_struct *data)
 
 	mutex_lock(&priv->mutex);
 
-	if (!priv->interface_id || !priv->is_open) {
+	if (!priv->vif || !priv->is_open) {
 		mutex_unlock(&priv->mutex);
 		return;
 	}
@@ -6981,15 +6981,15 @@ static int iwl3945_mac_add_interface(struct ieee80211_hw *hw,
 	unsigned long flags;
 	DECLARE_MAC_BUF(mac);
 
-	IWL_DEBUG_MAC80211("enter: id %d, type %d\n", conf->if_id, conf->type);
+	IWL_DEBUG_MAC80211("enter: type %d\n", conf->type);
 
-	if (priv->interface_id) {
-		IWL_DEBUG_MAC80211("leave - interface_id != 0\n");
+	if (priv->vif) {
+		IWL_DEBUG_MAC80211("leave - vif != NULL\n");
 		return -EOPNOTSUPP;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->interface_id = conf->if_id;
+	priv->vif = conf->vif;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -7157,7 +7157,8 @@ static void iwl3945_config_ap(struct iwl3945_priv *priv)
 	 * clear sta table, add BCAST sta... */
 }
 
-static int iwl3945_mac_config_interface(struct ieee80211_hw *hw, int if_id,
+static int iwl3945_mac_config_interface(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
 				    struct ieee80211_if_conf *conf)
 {
 	struct iwl3945_priv *priv = hw->priv;
@@ -7179,7 +7180,6 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 
 	mutex_lock(&priv->mutex);
 
-	IWL_DEBUG_MAC80211("enter: interface id %d\n", if_id);
 	if (conf->bssid)
 		IWL_DEBUG_MAC80211("bssid: %s\n",
 				   print_mac(mac, conf->bssid));
@@ -7196,8 +7196,8 @@ static int iwl3945_mac_config_interface(struct ieee80211_hw *hw, int if_id,
 		return 0;
 	}
 
-	if (priv->interface_id != if_id) {
-		IWL_DEBUG_MAC80211("leave - interface_id != if_id\n");
+	if (priv->vif != vif) {
+		IWL_DEBUG_MAC80211("leave - priv->vif != vif\n");
 		mutex_unlock(&priv->mutex);
 		return 0;
 	}
@@ -7295,8 +7295,8 @@ static void iwl3945_mac_remove_interface(struct ieee80211_hw *hw,
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		iwl3945_commit_rxon(priv);
 	}
-	if (priv->interface_id == conf->if_id) {
-		priv->interface_id = 0;
+	if (priv->vif == conf->vif) {
+		priv->vif = NULL;
 		memset(priv->bssid, 0, ETH_ALEN);
 		memset(priv->essid, 0, IW_ESSID_MAX_SIZE);
 		priv->essid_len = 0;

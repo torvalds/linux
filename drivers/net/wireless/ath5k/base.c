@@ -178,7 +178,8 @@ static void ath5k_remove_interface(struct ieee80211_hw *hw,
 		struct ieee80211_if_init_conf *conf);
 static int ath5k_config(struct ieee80211_hw *hw,
 		struct ieee80211_conf *conf);
-static int ath5k_config_interface(struct ieee80211_hw *hw, int if_id,
+static int ath5k_config_interface(struct ieee80211_hw *hw,
+		struct ieee80211_vif *vif,
 		struct ieee80211_if_conf *conf);
 static void ath5k_configure_filter(struct ieee80211_hw *hw,
 		unsigned int changed_flags,
@@ -2498,12 +2499,12 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&sc->lock);
-	if (sc->iface_id) {
+	if (sc->vif) {
 		ret = 0;
 		goto end;
 	}
 
-	sc->iface_id = conf->if_id;
+	sc->vif = conf->vif;
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_STA:
@@ -2528,10 +2529,10 @@ ath5k_remove_interface(struct ieee80211_hw *hw,
 	struct ath5k_softc *sc = hw->priv;
 
 	mutex_lock(&sc->lock);
-	if (sc->iface_id != conf->if_id)
+	if (sc->vif != conf->vif)
 		goto end;
 
-	sc->iface_id = 0;
+	sc->vif = NULL;
 end:
 	mutex_unlock(&sc->lock);
 }
@@ -2549,7 +2550,7 @@ ath5k_config(struct ieee80211_hw *hw,
 }
 
 static int
-ath5k_config_interface(struct ieee80211_hw *hw, int if_id,
+ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			struct ieee80211_if_conf *conf)
 {
 	struct ath5k_softc *sc = hw->priv;
@@ -2560,7 +2561,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, int if_id,
 	 * be set to mac80211's value at ath5k_config(). */
 	sc->bintval = 1000 * 1000 / 1024;
 	mutex_lock(&sc->lock);
-	if (sc->iface_id != if_id) {
+	if (sc->vif != vif) {
 		ret = -EIO;
 		goto unlock;
 	}

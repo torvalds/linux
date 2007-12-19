@@ -387,7 +387,15 @@ struct ieee80211_sub_if_data {
 		struct dentry *default_key;
 	} debugfs;
 #endif
+	/* must be last, dynamically sized area in this! */
+	struct ieee80211_vif vif;
 };
+
+static inline
+struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
+{
+	return container_of(p, struct ieee80211_sub_if_data, vif);
+}
 
 #define IEEE80211_DEV_TO_SUB_IF(dev) netdev_priv(dev)
 

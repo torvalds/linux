@@ -854,7 +854,8 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	return ret;
 }
 
-static int p54_config_interface(struct ieee80211_hw *dev, int if_id,
+static int p54_config_interface(struct ieee80211_hw *dev,
+				struct ieee80211_vif *vif,
 				struct ieee80211_if_conf *conf)
 {
 	struct p54_common *priv = dev->priv;

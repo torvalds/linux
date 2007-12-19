@@ -223,7 +223,7 @@ static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
 	} else {
 		int fbrate_base100kbps = B43legacy_RATE_TO_100KBPS(rate_fb);
 		txhdr->dur_fb = ieee80211_generic_frame_duration(dev->wl->hw,
-							 dev->wl->if_id,
+							 txctl->vif,
 							 fragment_len,
 							 fbrate_base100kbps);
 	}
@@ -312,7 +312,7 @@ static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
 
 		if (txctl->flags & IEEE80211_TXCTL_USE_CTS_PROTECT) {
 			ieee80211_ctstoself_get(dev->wl->hw,
-						dev->wl->if_id,
+						txctl->vif,
 						fragment_data,
 						fragment_len, txctl,
 						(struct ieee80211_cts *)
@@ -321,7 +321,7 @@ static void generate_txhdr_fw3(struct b43legacy_wldev *dev,
 			len = sizeof(struct ieee80211_cts);
 		} else {
 			ieee80211_rts_get(dev->wl->hw,
-					  dev->wl->if_id,
+					  txctl->vif,
 					  fragment_data, fragment_len, txctl,
 					  (struct ieee80211_rts *)
 					  (txhdr->rts_frame));

@@ -181,7 +181,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	    is_interface_present(intf))
 		return -ENOBUFS;
 
-	intf->id = conf->if_id;
+	intf->id = conf->vif;
 	intf->type = conf->type;
 	if (conf->type == IEEE80211_IF_TYPE_AP)
 		memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
@@ -265,7 +265,8 @@ int rt2x00mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_config);
 
-int rt2x00mac_config_interface(struct ieee80211_hw *hw, int if_id,
+int rt2x00mac_config_interface(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
 			       struct ieee80211_if_conf *conf)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;

@@ -243,7 +243,7 @@ static int ieee80211_open(struct net_device *dev)
 		sdata->u.sta.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 		/* fall through */
 	default:
-		conf.if_id = dev->ifindex;
+		conf.vif = &sdata->vif;
 		conf.type = sdata->type;
 		conf.mac_addr = dev->dev_addr;
 		res = local->ops->add_interface(local_to_hw(local), &conf);
@@ -378,7 +378,7 @@ static int ieee80211_stop(struct net_device *dev)
 		sdata->u.sta.extra_ie_len = 0;
 		/* fall through */
 	default:
-		conf.if_id = dev->ifindex;
+		conf.vif = &sdata->vif;
 		conf.type = sdata->type;
 		conf.mac_addr = dev->dev_addr;
 		/* disable all keys for as long as this netdev is down */
@@ -515,7 +515,7 @@ static int __ieee80211_if_config(struct net_device *dev,
 		conf.beacon_control = control;
 	}
 	return local->ops->config_interface(local_to_hw(local),
-					   dev->ifindex, &conf);
+					    &sdata->vif, &conf);
 }
 
 int ieee80211_if_config(struct net_device *dev)
@@ -527,11 +527,13 @@ int ieee80211_if_config_beacon(struct net_device *dev)
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_tx_control control;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sk_buff *skb;
 
 	if (!(local->hw.flags & IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE))
 		return 0;
-	skb = ieee80211_beacon_get(local_to_hw(local), dev->ifindex, &control);
+	skb = ieee80211_beacon_get(local_to_hw(local), &sdata->vif,
+				   &control);
 	if (!skb)
 		return -ENOMEM;
 	return __ieee80211_if_config(dev, skb, &control);
@@ -736,7 +738,7 @@ static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 	struct ieee80211_tx_packet_data *pkt_data;
 
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
-	pkt_data->ifindex = control->ifindex;
+	pkt_data->ifindex = vif_to_sdata(control->vif)->dev->ifindex;
 	pkt_data->flags = 0;
 	if (control->flags & IEEE80211_TXCTL_REQ_TX_STATUS)
 		pkt_data->flags |= IEEE80211_TXPD_REQ_TX_STATUS;

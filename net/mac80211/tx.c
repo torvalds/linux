@@ -999,9 +999,7 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	return TXRX_CONTINUE;
 }
 
-/* Device in tx->dev has a reference added; use dev_put(tx->dev) when
- * finished with it.
- *
+/*
  * NB: @tx is uninitialised when passed in here
  */
 static int ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
@@ -1022,6 +1020,7 @@ static int ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 		return -ENODEV;
 	/* initialises tx with control */
 	__ieee80211_tx_prepare(tx, skb, dev, control);
+	dev_put(dev);
 	return 0;
 }
 
@@ -1252,7 +1251,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 		}
 	}
 
-	control.ifindex = odev->ifindex;
+	control.vif = &osdata->vif;
 	control.type = osdata->type;
 	if (pkt_data->flags & IEEE80211_TXPD_REQ_TX_STATUS)
 		control.flags |= IEEE80211_TXCTL_REQ_TX_STATUS;
@@ -1691,7 +1690,8 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 	read_unlock_bh(&local->sta_lock);
 }
 
-struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
+struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
 				     struct ieee80211_tx_control *control)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1703,19 +1703,16 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
 	u8 *b_head, *b_tail;
 	int bh_len, bt_len;
 
-	bdev = dev_get_by_index(&init_net, if_id);
-	if (bdev) {
-		sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
-		ap = &sdata->u.ap;
-		dev_put(bdev);
-	}
+	sdata = vif_to_sdata(vif);
+	bdev = sdata->dev;
+	ap = &sdata->u.ap;
 
 	if (!ap || sdata->type != IEEE80211_IF_TYPE_AP ||
 	    !ap->beacon_head) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit())
-			printk(KERN_DEBUG "no beacon data avail for idx=%d "
-			       "(%s)\n", if_id, bdev ? bdev->name : "N/A");
+			printk(KERN_DEBUG "no beacon data avail for %s\n",
+			       bdev->name);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 		return NULL;
 	}
@@ -1771,7 +1768,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw, int if_id,
 }
 EXPORT_SYMBOL(ieee80211_beacon_get);
 
-void ieee80211_rts_get(struct ieee80211_hw *hw, int if_id,
+void ieee80211_rts_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       const void *frame, size_t frame_len,
 		       const struct ieee80211_tx_control *frame_txctl,
 		       struct ieee80211_rts *rts)
@@ -1781,13 +1778,14 @@ void ieee80211_rts_get(struct ieee80211_hw *hw, int if_id,
 
 	fctl = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_RTS;
 	rts->frame_control = cpu_to_le16(fctl);
-	rts->duration = ieee80211_rts_duration(hw, if_id, frame_len, frame_txctl);
+	rts->duration = ieee80211_rts_duration(hw, vif, frame_len,
+					       frame_txctl);
 	memcpy(rts->ra, hdr->addr1, sizeof(rts->ra));
 	memcpy(rts->ta, hdr->addr2, sizeof(rts->ta));
 }
 EXPORT_SYMBOL(ieee80211_rts_get);
 
-void ieee80211_ctstoself_get(struct ieee80211_hw *hw, int if_id,
+void ieee80211_ctstoself_get(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			     const void *frame, size_t frame_len,
 			     const struct ieee80211_tx_control *frame_txctl,
 			     struct ieee80211_cts *cts)
@@ -1797,13 +1795,15 @@ void ieee80211_ctstoself_get(struct ieee80211_hw *hw, int if_id,
 
 	fctl = IEEE80211_FTYPE_CTL | IEEE80211_STYPE_CTS;
 	cts->frame_control = cpu_to_le16(fctl);
-	cts->duration = ieee80211_ctstoself_duration(hw, if_id, frame_len, frame_txctl);
+	cts->duration = ieee80211_ctstoself_duration(hw, vif,
+						     frame_len, frame_txctl);
 	memcpy(cts->ra, hdr->addr1, sizeof(cts->ra));
 }
 EXPORT_SYMBOL(ieee80211_ctstoself_get);
 
 struct sk_buff *
-ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
+ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
+			  struct ieee80211_vif *vif,
 			  struct ieee80211_tx_control *control)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -1816,12 +1816,9 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_ap *bss = NULL;
 
-	bdev = dev_get_by_index(&init_net, if_id);
-	if (bdev) {
-		sdata = IEEE80211_DEV_TO_SUB_IF(bdev);
-		bss = &sdata->u.ap;
-		dev_put(bdev);
-	}
+	sdata = vif_to_sdata(vif);
+	bdev = sdata->dev;
+
 	if (!bss || sdata->type != IEEE80211_IF_TYPE_AP || !bss->beacon_head)
 		return NULL;
 
@@ -1857,7 +1854,6 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw, int if_id,
 		if (res == TXRX_DROP || res == TXRX_QUEUED)
 			break;
 	}
-	dev_put(tx.dev);
 	skb = tx.skb; /* handlers are allowed to change skb */
 
 	if (res == TXRX_DROP) {

@@ -533,7 +533,7 @@ static inline void ath5k_hw_write_rate_duration(struct ath5k_hw *ah,
 		 * ieee80211_duration() for a brief description of
 		 * what rate we should choose to TX ACKs. */
 		tx_time = ieee80211_generic_frame_duration(sc->hw,
-			sc->iface_id, 10, control_rate->rate_kbps/100);
+			sc->vif, 10, control_rate->rate_kbps/100);
 
 		ath5k_hw_reg_write(ah, tx_time, reg);
 

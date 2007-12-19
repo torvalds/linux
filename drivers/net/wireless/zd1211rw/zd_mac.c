@@ -733,7 +733,8 @@ static int zd_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	return zd_chip_set_channel(&mac->chip, conf->channel);
 }
 
-static int zd_op_config_interface(struct ieee80211_hw *hw, int if_id,
+static int zd_op_config_interface(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
 				   struct ieee80211_if_conf *conf)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);

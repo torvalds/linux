@@ -1312,7 +1312,8 @@ static int adm8211_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	return 0;
 }
 
-static int adm8211_config_interface(struct ieee80211_hw *dev, int if_id,
+static int adm8211_config_interface(struct ieee80211_hw *dev,
+				    struct ieee80211_vif *vif,
 				    struct ieee80211_if_conf *conf)
 {
 	struct adm8211_priv *priv = dev->priv;
