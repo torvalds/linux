@@ -75,6 +75,7 @@
 #include <linux/workqueue.h>
 #include <linux/cpumask.h>
 #include <linux/kdebug.h>
+#include <linux/cpu.h>
 
 #include <asm/delay.h>
 #include <asm/machvec.h>
@@ -1813,6 +1814,36 @@ ia64_mca_cpu_init(void *cpu_data)
 							      PAGE_KERNEL));
 }
 
+static void __cpuinit ia64_mca_cmc_vector_adjust(void *dummy)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	if (!cmc_polling_enabled)
+		ia64_mca_cmc_vector_enable(NULL);
+	local_irq_restore(flags);
+}
+
+static int __cpuinit mca_cpu_callback(struct notifier_block *nfb,
+				      unsigned long action,
+				      void *hcpu)
+{
+	int hotcpu = (unsigned long) hcpu;
+
+	switch (action) {
+	case CPU_ONLINE:
+	case CPU_ONLINE_FROZEN:
+		smp_call_function_single(hotcpu, ia64_mca_cmc_vector_adjust,
+					 NULL, 1, 0);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mca_cpu_notifier __cpuinitdata = {
+	.notifier_call = mca_cpu_callback
+};
+
 /*
  * ia64_mca_init
  *
@@ -1995,6 +2026,8 @@ ia64_mca_late_init(void)
 {
 	if (!mca_init)
 		return 0;
+
+	register_hotcpu_notifier(&mca_cpu_notifier);
 
 	/* Setup the CMCI/P vector and handler */
 	init_timer(&cmc_poll_timer);

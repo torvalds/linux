@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2007 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 #include <linux/types.h>
@@ -148,7 +148,11 @@ int shub2_bte_error_handler(unsigned long _nodepda)
 	for (i = 0; i < BTES_PER_NODE; i++) {
 		bte = &err_nodepda->bte_if[i];
 		status = BTE_LNSTAT_LOAD(bte);
-		if ((status & IBLS_ERROR) || !(status & IBLS_BUSY))
+		if (status & IBLS_ERROR) {
+			bte->bh_error = BTE_SHUB2_ERROR(status);
+			continue;
+		}
+		if (!(status & IBLS_BUSY))
 			continue;
 		mod_timer(recovery_timer, jiffies + (HZ * 5));
 		BTE_PRINTK(("eh:%p:%d Marked Giving up\n", err_nodepda,

@@ -41,7 +41,7 @@
  *	} else
  *		do desired mmr access
  *
- * According to hw, we can use reads instead of writes to the above addres
+ * According to hw, we can use reads instead of writes to the above address
  *
  * Note this WAR can only to be used for accessing internal MMR's in the
  * TIOCE Coretalk Address Range 0x0 - 0x07ff_ffff.  This includes the
