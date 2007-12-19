@@ -144,12 +144,18 @@ int ocfs2_ioctl(struct inode * inode, struct file * filp,
 
 		return ocfs2_change_file_space(filp, cmd, &sr);
 	case OCFS2_IOC_GROUP_EXTEND:
+		if (!capable(CAP_SYS_RESOURCE))
+			return -EPERM;
+
 		if (get_user(new_clusters, (int __user *)arg))
 			return -EFAULT;
 
 		return ocfs2_group_extend(inode, new_clusters);
 	case OCFS2_IOC_GROUP_ADD:
 	case OCFS2_IOC_GROUP_ADD64:
+		if (!capable(CAP_SYS_RESOURCE))
+			return -EPERM;
+
 		if (copy_from_user(&input, (int __user *) arg, sizeof(input)))
 			return -EFAULT;
 
