@@ -749,39 +749,39 @@ typedef struct {
 
 /* Only present on firmware >= 5.30.17 */
 typedef struct {
-  u16 unknown[4];
+  __le16 unknown[4];
   u8 fixed[12]; /* WLAN management frame */
   u8 iep[624];
 } BSSListRidExtra;
 
 typedef struct {
-  u16 len;
-  u16 index; /* First is 0 and 0xffff means end of list */
+  __le16 len;
+  __le16 index; /* First is 0 and 0xffff means end of list */
 #define RADIO_FH 1 /* Frequency hopping radio type */
 #define RADIO_DS 2 /* Direct sequence radio type */
 #define RADIO_TMA 4 /* Proprietary radio used in old cards (2500) */
-  u16 radioType;
+  __le16 radioType;
   u8 bssid[ETH_ALEN]; /* Mac address of the BSS */
   u8 zero;
   u8 ssidLen;
   u8 ssid[32];
-  u16 dBm;
-#define CAP_ESS (1<<0)
-#define CAP_IBSS (1<<1)
-#define CAP_PRIVACY (1<<4)
-#define CAP_SHORTHDR (1<<5)
-  u16 cap;
-  u16 beaconInterval;
+  __le16 dBm;
+#define CAP_ESS cpu_to_le16(1<<0)
+#define CAP_IBSS cpu_to_le16(1<<1)
+#define CAP_PRIVACY cpu_to_le16(1<<4)
+#define CAP_SHORTHDR cpu_to_le16(1<<5)
+  __le16 cap;
+  __le16 beaconInterval;
   u8 rates[8]; /* Same as rates for config rid */
   struct { /* For frequency hopping only */
-    u16 dwell;
+    __le16 dwell;
     u8 hopSet;
     u8 hopPattern;
     u8 hopIndex;
     u8 fill;
   } fh;
-  u16 dsChannel;
-  u16 atimWindow;
+  __le16 dsChannel;
+  __le16 atimWindow;
 
   /* Only present on firmware >= 5.30.17 */
   BSSListRidExtra extra;
@@ -1728,8 +1728,8 @@ static void emmh32_final(emmh32_context *context, u8 digest[4])
 }
 
 static int readBSSListRid(struct airo_info *ai, int first,
-		      BSSListRid *list) {
-	int rc;
+		      BSSListRid *list)
+{
 	Cmd cmd;
 	Resp rsp;
 
@@ -1746,19 +1746,8 @@ static int readBSSListRid(struct airo_info *ai, int first,
 		schedule_timeout_uninterruptible(3 * HZ);
 		ai->list_bss_task = NULL;
 	}
-	rc = PC4500_readrid(ai, first ? ai->bssListFirst : ai->bssListNext,
+	return PC4500_readrid(ai, first ? ai->bssListFirst : ai->bssListNext,
 			    list, ai->bssListRidLen, 1);
-
-	list->len = le16_to_cpu(list->len);
-	list->index = le16_to_cpu(list->index);
-	list->radioType = le16_to_cpu(list->radioType);
-	list->cap = le16_to_cpu(list->cap);
-	list->beaconInterval = le16_to_cpu(list->beaconInterval);
-	list->fh.dwell = le16_to_cpu(list->fh.dwell);
-	list->dsChannel = le16_to_cpu(list->dsChannel);
-	list->atimWindow = le16_to_cpu(list->atimWindow);
-	list->dBm = le16_to_cpu(list->dBm);
-	return rc;
 }
 
 static int readWepKeyRid(struct airo_info*ai, WepKeyRid *wkr, int temp, int lock) {
@@ -3028,14 +3017,14 @@ static void airo_process_scan_results (struct airo_info *ai) {
 
 	/* Try to read the first entry of the scan result */
 	rc = PC4500_readrid(ai, ai->bssListFirst, &bss, ai->bssListRidLen, 0);
-	if((rc) || (bss.index == 0xffff)) {
+	if((rc) || (bss.index == cpu_to_le16(0xffff))) {
 		/* No scan results */
 		goto out;
 	}
 
 	/* Read and parse all entries */
 	tmp_net = NULL;
-	while((!rc) && (bss.index != 0xffff)) {
+	while((!rc) && (bss.index != cpu_to_le16(0xffff))) {
 		/* Grab a network off the free list */
 		if (!list_empty(&ai->network_free_list)) {
 			tmp_net = list_entry(ai->network_free_list.next,
@@ -5472,14 +5461,14 @@ static int proc_BSSList_open( struct inode *inode, struct file *file ) {
            Since it is a rare condition, we'll just live with it, otherwise
            we have to add a spin lock... */
 	rc = readBSSListRid(ai, doLoseSync, &BSSList_rid);
-	while(rc == 0 && BSSList_rid.index != 0xffff) {
+	while(rc == 0 && BSSList_rid.index != cpu_to_le16(0xffff)) {
 		ptr += sprintf(ptr, "%s %*s rssi = %d",
 			       print_mac(mac, BSSList_rid.bssid),
 				(int)BSSList_rid.ssidLen,
 				BSSList_rid.ssid,
-				(int)BSSList_rid.dBm);
+				le16_to_cpu(BSSList_rid.dBm));
 		ptr += sprintf(ptr, " channel = %d %s %s %s %s\n",
-				(int)BSSList_rid.dsChannel,
+				le16_to_cpu(BSSList_rid.dsChannel),
 				BSSList_rid.cap & CAP_ESS ? "ESS" : "",
 				BSSList_rid.cap & CAP_IBSS ? "adhoc" : "",
 				BSSList_rid.cap & CAP_PRIVACY ? "wep" : "",
@@ -7096,26 +7085,28 @@ static int airo_get_aplist(struct net_device *dev,
 	int loseSync = capable(CAP_NET_ADMIN) ? 1: -1;
 
 	for (i = 0; i < IW_MAX_AP; i++) {
+		u16 dBm;
 		if (readBSSListRid(local, loseSync, &BSSList))
 			break;
 		loseSync = 0;
 		memcpy(address[i].sa_data, BSSList.bssid, ETH_ALEN);
 		address[i].sa_family = ARPHRD_ETHER;
+		dBm = le16_to_cpu(BSSList.dBm);
 		if (local->rssi) {
-			qual[i].level = 0x100 - BSSList.dBm;
-			qual[i].qual = airo_dbm_to_pct( local->rssi, BSSList.dBm );
+			qual[i].level = 0x100 - dBm;
+			qual[i].qual = airo_dbm_to_pct(local->rssi, dBm);
 			qual[i].updated = IW_QUAL_QUAL_UPDATED
 					| IW_QUAL_LEVEL_UPDATED
 					| IW_QUAL_DBM;
 		} else {
-			qual[i].level = (BSSList.dBm + 321) / 2;
+			qual[i].level = (dBm + 321) / 2;
 			qual[i].qual = 0;
 			qual[i].updated = IW_QUAL_QUAL_INVALID
 					| IW_QUAL_LEVEL_UPDATED
 					| IW_QUAL_DBM;
 		}
 		qual[i].noise = local->wstats.qual.noise;
-		if (BSSList.index == 0xffff)
+		if (BSSList.index == cpu_to_le16(0xffff))
 			break;
 	}
 	if (!i) {
@@ -7206,7 +7197,7 @@ static inline char *airo_translate_scan(struct net_device *dev,
 {
 	struct airo_info *ai = dev->priv;
 	struct iw_event		iwe;		/* Temporary buffer */
-	u16			capabilities;
+	__le16			capabilities;
 	char *			current_val;	/* For rates */
 	int			i;
 	char *		buf;
@@ -7230,7 +7221,7 @@ static inline char *airo_translate_scan(struct net_device *dev,
 
 	/* Add mode */
 	iwe.cmd = SIOCGIWMODE;
-	capabilities = le16_to_cpu(bss->cap);
+	capabilities = bss->cap;
 	if(capabilities & (CAP_ESS | CAP_IBSS)) {
 		if(capabilities & CAP_ESS)
 			iwe.u.mode = IW_MODE_MASTER;
