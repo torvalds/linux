@@ -259,7 +259,6 @@ static int do_work(struct ubi_device *ubi)
 	 */
 	down_read(&ubi->work_sem);
 	spin_lock(&ubi->wl_lock);
-
 	if (list_empty(&ubi->works)) {
 		spin_unlock(&ubi->wl_lock);
 		up_read(&ubi->work_sem);
@@ -268,6 +267,8 @@ static int do_work(struct ubi_device *ubi)
 
 	wrk = list_entry(ubi->works.next, struct ubi_work, list);
 	list_del(&wrk->list);
+	ubi->works_count -= 1;
+	ubi_assert(ubi->works_count >= 0);
 	spin_unlock(&ubi->wl_lock);
 
 	/*
@@ -278,12 +279,8 @@ static int do_work(struct ubi_device *ubi)
 	err = wrk->func(ubi, wrk, 0);
 	if (err)
 		ubi_err("work failed with error code %d", err);
-
-	spin_lock(&ubi->wl_lock);
-	ubi->works_count -= 1;
-	ubi_assert(ubi->works_count >= 0);
-	spin_unlock(&ubi->wl_lock);
 	up_read(&ubi->work_sem);
+
 	return err;
 }
 

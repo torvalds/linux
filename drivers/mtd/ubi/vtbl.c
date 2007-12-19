@@ -115,9 +115,8 @@ int ubi_change_vtbl_record(struct ubi_device *ubi, int idx,
 }
 
 /**
- * vol_til_check - check if volume table is not corrupted and contains sensible
- * data.
- *
+ * vtbl_check - check if volume table is not corrupted and contains sensible
+ *              data.
  * @ubi: UBI device description object
  * @vtbl: volume table
  *
