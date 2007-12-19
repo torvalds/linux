@@ -1994,10 +1994,10 @@ static void ieee80211_rx_mgmt_probe_req(struct net_device *dev,
 	ieee80211_sta_tx(dev, skb, 0);
 }
 
-void ieee80211_rx_mgmt_action(struct net_device *dev,
-			     struct ieee80211_if_sta *ifsta,
-			     struct ieee80211_mgmt *mgmt,
-			     size_t len)
+static void ieee80211_rx_mgmt_action(struct net_device *dev,
+				     struct ieee80211_if_sta *ifsta,
+				     struct ieee80211_mgmt *mgmt,
+				     size_t len)
 {
 	if (len < IEEE80211_MIN_ACTION_SIZE)
 		return;
