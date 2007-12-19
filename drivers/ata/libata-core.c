@@ -1480,7 +1480,7 @@ unsigned long ata_id_xfermask(const u16 *id)
 }
 
 /**
- *	ata_port_queue_task - Queue port_task
+ *	ata_pio_queue_task - Queue port_task
  *	@ap: The ata_port to queue port_task for
  *	@fn: workqueue function to be scheduled
  *	@data: data for @fn to use
@@ -1492,16 +1492,15 @@ unsigned long ata_id_xfermask(const u16 *id)
  *	one task is active at any given time.
  *
  *	libata core layer takes care of synchronization between
- *	port_task and EH.  ata_port_queue_task() may be ignored for EH
+ *	port_task and EH.  ata_pio_queue_task() may be ignored for EH
  *	synchronization.
  *
  *	LOCKING:
  *	Inherited from caller.
  */
-void ata_port_queue_task(struct ata_port *ap, work_func_t fn, void *data,
-			 unsigned long delay)
+static void ata_pio_queue_task(struct ata_port *ap, void *data,
+			       unsigned long delay)
 {
-	PREPARE_DELAYED_WORK(&ap->port_task, fn);
 	ap->port_task_data = data;
 
 	/* may fail if ata_port_flush_task() in progress */
@@ -5618,7 +5617,7 @@ fsm_start:
 		msleep(2);
 		status = ata_busy_wait(ap, ATA_BUSY, 10);
 		if (status & ATA_BUSY) {
-			ata_port_queue_task(ap, ata_pio_task, qc, ATA_SHORT_PAUSE);
+			ata_pio_queue_task(ap, qc, ATA_SHORT_PAUSE);
 			return;
 		}
 	}
@@ -6041,7 +6040,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			ata_port_queue_task(ap, ata_pio_task, qc, 0);
+			ata_pio_queue_task(ap, qc, 0);
 
 		break;
 
@@ -6063,7 +6062,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_WRITE) {
 			/* PIO data out protocol */
 			ap->hsm_task_state = HSM_ST_FIRST;
-			ata_port_queue_task(ap, ata_pio_task, qc, 0);
+			ata_pio_queue_task(ap, qc, 0);
 
 			/* always send first data block using
 			 * the ata_pio_task() codepath.
@@ -6073,7 +6072,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 			ap->hsm_task_state = HSM_ST;
 
 			if (qc->tf.flags & ATA_TFLAG_POLLING)
-				ata_port_queue_task(ap, ata_pio_task, qc, 0);
+				ata_pio_queue_task(ap, qc, 0);
 
 			/* if polling, ata_pio_task() handles the rest.
 			 * otherwise, interrupt handler takes over from here.
@@ -6094,7 +6093,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			ata_port_queue_task(ap, ata_pio_task, qc, 0);
+			ata_pio_queue_task(ap, qc, 0);
 		break;
 
 	case ATAPI_PROT_DMA:
@@ -6106,7 +6105,7 @@ unsigned int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		/* send cdb by polling if no cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			ata_port_queue_task(ap, ata_pio_task, qc, 0);
+			ata_pio_queue_task(ap, qc, 0);
 		break;
 
 	default:
@@ -6722,7 +6721,7 @@ struct ata_port *ata_port_alloc(struct ata_host *host)
 	ap->msg_enable = ATA_MSG_DRV | ATA_MSG_ERR | ATA_MSG_WARN;
 #endif
 
-	INIT_DELAYED_WORK(&ap->port_task, NULL);
+	INIT_DELAYED_WORK(&ap->port_task, ata_pio_task);
 	INIT_DELAYED_WORK(&ap->hotplug_task, ata_scsi_hotplug);
 	INIT_WORK(&ap->scsi_rescan_task, ata_scsi_dev_rescan);
 	INIT_LIST_HEAD(&ap->eh_done_q);
@@ -7599,7 +7598,6 @@ EXPORT_SYMBOL_GPL(ata_wait_register);
 EXPORT_SYMBOL_GPL(ata_busy_sleep);
 EXPORT_SYMBOL_GPL(ata_wait_after_reset);
 EXPORT_SYMBOL_GPL(ata_wait_ready);
-EXPORT_SYMBOL_GPL(ata_port_queue_task);
 EXPORT_SYMBOL_GPL(ata_scsi_ioctl);
 EXPORT_SYMBOL_GPL(ata_scsi_queuecmd);
 EXPORT_SYMBOL_GPL(ata_scsi_slave_config);
