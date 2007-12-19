@@ -930,13 +930,18 @@ static int srp_post_recv(struct srp_target_port *target)
  * req_lim and tx_head.  Lock cannot be dropped between call here and
  * call to __srp_post_send().
  */
-static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target)
+static struct srp_iu *__srp_get_tx_iu(struct srp_target_port *target,
+					enum srp_request_type req_type)
 {
+	s32 min = (req_type == SRP_REQ_TASK_MGMT) ? 1 : 2;
+
 	if (target->tx_head - target->tx_tail >= SRP_SQ_SIZE)
 		return NULL;
 
-	if (unlikely(target->req_lim < 1))
+	if (target->req_lim < min) {
 		++target->zero_req_lim;
+		return NULL;
+	}
 
 	return target->tx_ring[target->tx_head & SRP_SQ_SIZE];
 }
@@ -993,7 +998,7 @@ static int srp_queuecommand(struct scsi_cmnd *scmnd,
 		return 0;
 	}
 
-	iu = __srp_get_tx_iu(target);
+	iu = __srp_get_tx_iu(target, SRP_REQ_NORMAL);
 	if (!iu)
 		goto err;
 
@@ -1283,7 +1288,7 @@ static int srp_send_tsk_mgmt(struct srp_target_port *target,
 
 	init_completion(&req->done);
 
-	iu = __srp_get_tx_iu(target);
+	iu = __srp_get_tx_iu(target, SRP_REQ_TASK_MGMT);
 	if (!iu)
 		goto out;
 
