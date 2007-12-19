@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -99,6 +100,9 @@ unsigned long at32ap7000_osc_rates[3] = {
 	[2] = 12000000,
 };
 
+static struct clk osc0;
+static struct clk osc1;
+
 static unsigned long osc_get_rate(struct clk *clk)
 {
 	return at32ap7000_osc_rates[clk->index];
@@ -107,9 +111,6 @@ static unsigned long osc_get_rate(struct clk *clk)
 static unsigned long pll_get_rate(struct clk *clk, unsigned long control)
 {
 	unsigned long div, mul, rate;
-
-	if (!(control & PM_BIT(PLLEN)))
-		return 0;
 
 	div = PM_BFEXT(PLLDIV, control) + 1;
 	mul = PM_BFEXT(PLLMUL, control) + 1;
@@ -121,6 +122,71 @@ static unsigned long pll_get_rate(struct clk *clk, unsigned long control)
 	return rate;
 }
 
+static long pll_set_rate(struct clk *clk, unsigned long rate,
+			 u32 *pll_ctrl)
+{
+	unsigned long mul;
+	unsigned long mul_best_fit = 0;
+	unsigned long div;
+	unsigned long div_min;
+	unsigned long div_max;
+	unsigned long div_best_fit = 0;
+	unsigned long base;
+	unsigned long pll_in;
+	unsigned long actual = 0;
+	unsigned long rate_error;
+	unsigned long rate_error_prev = ~0UL;
+	u32 ctrl;
+
+	/* Rate must be between 80 MHz and 200 Mhz. */
+	if (rate < 80000000UL || rate > 200000000UL)
+		return -EINVAL;
+
+	ctrl = PM_BF(PLLOPT, 4);
+	base = clk->parent->get_rate(clk->parent);
+
+	/* PLL input frequency must be between 6 MHz and 32 MHz. */
+	div_min = DIV_ROUND_UP(base, 32000000UL);
+	div_max = base / 6000000UL;
+
+	if (div_max < div_min)
+		return -EINVAL;
+
+	for (div = div_min; div <= div_max; div++) {
+		pll_in = (base + div / 2) / div;
+		mul = (rate + pll_in / 2) / pll_in;
+
+		if (mul == 0)
+			continue;
+
+		actual = pll_in * mul;
+		rate_error = abs(actual - rate);
+
+		if (rate_error < rate_error_prev) {
+			mul_best_fit = mul;
+			div_best_fit = div;
+			rate_error_prev = rate_error;
+		}
+
+		if (rate_error == 0)
+			break;
+	}
+
+	if (div_best_fit == 0)
+		return -EINVAL;
+
+	ctrl |= PM_BF(PLLMUL, mul_best_fit - 1);
+	ctrl |= PM_BF(PLLDIV, div_best_fit - 1);
+	ctrl |= PM_BF(PLLCOUNT, 16);
+
+	if (clk->parent == &osc1)
+		ctrl |= PM_BIT(PLLOSC);
+
+	*pll_ctrl = ctrl;
+
+	return actual;
+}
+
 static unsigned long pll0_get_rate(struct clk *clk)
 {
 	u32 control;
@@ -130,6 +196,41 @@ static unsigned long pll0_get_rate(struct clk *clk)
 	return pll_get_rate(clk, control);
 }
 
+static void pll1_mode(struct clk *clk, int enabled)
+{
+	unsigned long timeout;
+	u32 status;
+	u32 ctrl;
+
+	ctrl = pm_readl(PLL1);
+
+	if (enabled) {
+		if (!PM_BFEXT(PLLMUL, ctrl) && !PM_BFEXT(PLLDIV, ctrl)) {
+			pr_debug("clk %s: failed to enable, rate not set\n",
+					clk->name);
+			return;
+		}
+
+		ctrl |= PM_BIT(PLLEN);
+		pm_writel(PLL1, ctrl);
+
+		/* Wait for PLL lock. */
+		for (timeout = 10000; timeout; timeout--) {
+			status = pm_readl(ISR);
+			if (status & PM_BIT(LOCK1))
+				break;
+			udelay(10);
+		}
+
+		if (!(status & PM_BIT(LOCK1)))
+			printk(KERN_ERR "clk %s: timeout waiting for lock\n",
+					clk->name);
+	} else {
+		ctrl &= ~PM_BIT(PLLEN);
+		pm_writel(PLL1, ctrl);
+	}
+}
+
 static unsigned long pll1_get_rate(struct clk *clk)
 {
 	u32 control;
@@ -137,6 +238,49 @@ static unsigned long pll1_get_rate(struct clk *clk)
 	control = pm_readl(PLL1);
 
 	return pll_get_rate(clk, control);
+}
+
+static long pll1_set_rate(struct clk *clk, unsigned long rate, int apply)
+{
+	u32 ctrl = 0;
+	unsigned long actual_rate;
+
+	actual_rate = pll_set_rate(clk, rate, &ctrl);
+
+	if (apply) {
+		if (actual_rate != rate)
+			return -EINVAL;
+		if (clk->users > 0)
+			return -EBUSY;
+		pr_debug(KERN_INFO "clk %s: new rate %lu (actual rate %lu)\n",
+				clk->name, rate, actual_rate);
+		pm_writel(PLL1, ctrl);
+	}
+
+	return actual_rate;
+}
+
+static int pll1_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 ctrl;
+
+	if (clk->users > 0)
+		return -EBUSY;
+
+	ctrl = pm_readl(PLL1);
+	WARN_ON(ctrl & PM_BIT(PLLEN));
+
+	if (parent == &osc0)
+		ctrl &= ~PM_BIT(PLLOSC);
+	else if (parent == &osc1)
+		ctrl |= PM_BIT(PLLOSC);
+	else
+		return -EINVAL;
+
+	pm_writel(PLL1, ctrl);
+	clk->parent = parent;
+
+	return 0;
 }
 
 /*
@@ -167,7 +311,10 @@ static struct clk pll0 = {
 };
 static struct clk pll1 = {
 	.name		= "pll1",
+	.mode		= pll1_mode,
 	.get_rate	= pll1_get_rate,
+	.set_rate	= pll1_set_rate,
+	.set_parent	= pll1_set_parent,
 	.parent		= &osc0,
 };
 
