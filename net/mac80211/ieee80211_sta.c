@@ -1371,20 +1371,6 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 		return;
 	}
 
-	/* it probably doesn't, but if the frame includes an ERP value then
-	 * update our stored copy */
-	if (elems.erp_info && elems.erp_info_len >= 1) {
-		struct ieee80211_sta_bss *bss
-			= ieee80211_rx_bss_get(dev, ifsta->bssid,
-					       local->hw.conf.channel,
-					       ifsta->ssid, ifsta->ssid_len);
-		if (bss) {
-			bss->erp_value = elems.erp_info[0];
-			bss->has_erp_value = 1;
-			ieee80211_rx_bss_put(dev, bss);
-		}
-	}
-
 	printk(KERN_DEBUG "%s: associated\n", dev->name);
 	ifsta->aid = aid;
 	ifsta->ap_capab = capab_info;
