@@ -261,18 +261,6 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 		return TXRX_CONTINUE;
 	}
 
-	if (unlikely(/* !injected && */ tx->sdata->ieee802_1x &&
-		     !(sta_flags & WLAN_STA_AUTHORIZED))) {
-#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
-		DECLARE_MAC_BUF(mac);
-		printk(KERN_DEBUG "%s: dropped frame to %s"
-		       " (unauthorized port)\n", tx->dev->name,
-		       print_mac(mac, hdr->addr1));
-#endif
-		I802_DEBUG_INC(tx->local->tx_handlers_drop_unauth_port);
-		return TXRX_DROP;
-	}
-
 	return TXRX_CONTINUE;
 }
 
@@ -449,8 +437,7 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 	else if ((key = rcu_dereference(tx->sdata->default_key)))
 		tx->key = key;
 	else if (tx->sdata->drop_unencrypted &&
-		 !(tx->sdata->eapol &&
-		   ieee80211_is_eapol(tx->skb, ieee80211_get_hdrlen(fc)))) {
+		 !ieee80211_is_eapol(tx->skb, ieee80211_get_hdrlen(fc))) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
 		return TXRX_DROP;
 	} else {
@@ -1346,6 +1333,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	int encaps_len, skip_header_bytes;
 	int nh_pos, h_pos;
 	struct sta_info *sta;
+	u32 sta_flags = 0;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(skb->len < ETH_HLEN)) {
@@ -1361,7 +1349,6 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	/* convert Ethernet header to proper 802.11 header (based on
 	 * operation mode) */
 	ethertype = (skb->data[12] << 8) | skb->data[13];
-	/* TODO: handling for 802.1x authorized/unauthorized port */
 	fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA;
 
 	switch (sdata->type) {
@@ -1403,14 +1390,40 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 		goto fail;
 	}
 
-	/* receiver is QoS enabled, use a QoS type frame */
 	sta = sta_info_get(local, hdr.addr1);
 	if (sta) {
-		if (sta->flags & WLAN_STA_WME) {
-			fc |= IEEE80211_STYPE_QOS_DATA;
-			hdrlen += 2;
-		}
+		sta_flags = sta->flags;
 		sta_info_put(sta);
+	}
+
+	/* receiver is QoS enabled, use a QoS type frame */
+	if (sta_flags & WLAN_STA_WME) {
+		fc |= IEEE80211_STYPE_QOS_DATA;
+		hdrlen += 2;
+	}
+
+	/*
+	 * If port access control is enabled, drop frames to unauthorised
+	 * stations unless they are EAPOL frames from the local station.
+	 */
+	if (unlikely(sdata->ieee802_1x_pac &&
+		     !(sta_flags & WLAN_STA_AUTHORIZED) &&
+		     !(ethertype == ETH_P_PAE &&
+		       compare_ether_addr(dev->dev_addr,
+					  skb->data + ETH_ALEN) == 0))) {
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+		DECLARE_MAC_BUF(mac);
+
+		if (net_ratelimit())
+			printk(KERN_DEBUG "%s: dropped frame to %s"
+			       " (unauthorized port)\n", dev->name,
+			       print_mac(mac, hdr.addr1));
+#endif
+
+		I802_DEBUG_INC(local->tx_handlers_drop_unauth_port);
+
+		ret = 0;
+		goto fail;
 	}
 
 	hdr.frame_control = cpu_to_le16(fc);

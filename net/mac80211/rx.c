@@ -208,7 +208,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		rthdr->it_len = cpu_to_le16(rtap_len);
 	}
 
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	skb->pkt_type = PACKET_OTHERHOST;
 	skb->protocol = htons(ETH_P_802_2);
@@ -404,18 +404,6 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 		I802_DEBUG_INC(rx->local->rx_handlers_drop_short);
 		return TXRX_DROP;
 	}
-
-	if (!(rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
-		rx->skb->pkt_type = PACKET_OTHERHOST;
-	else if (compare_ether_addr(rx->dev->dev_addr, hdr->addr1) == 0)
-		rx->skb->pkt_type = PACKET_HOST;
-	else if (is_multicast_ether_addr(hdr->addr1)) {
-		if (is_broadcast_ether_addr(hdr->addr1))
-			rx->skb->pkt_type = PACKET_BROADCAST;
-		else
-			rx->skb->pkt_type = PACKET_MULTICAST;
-	} else
-		rx->skb->pkt_type = PACKET_OTHERHOST;
 
 	/* Drop disallowed frame classes based on STA auth/assoc state;
 	 * IEEE 802.11, Chap 5.5.
@@ -990,18 +978,10 @@ ieee80211_rx_h_remove_qos_control(struct ieee80211_txrx_data *rx)
 }
 
 static int
-ieee80211_drop_802_1x_pae(struct ieee80211_txrx_data *rx, int hdrlen)
+ieee80211_802_1x_port_control(struct ieee80211_txrx_data *rx)
 {
-	if (rx->sdata->eapol && ieee80211_is_eapol(rx->skb, hdrlen) &&
-	    rx->sdata->type != IEEE80211_IF_TYPE_STA &&
-	    (rx->flags & IEEE80211_TXRXD_RXRA_MATCH))
-		return 0;
-
-	if (unlikely(rx->sdata->ieee802_1x &&
-		     (rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
-		     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_NULLFUNC &&
-		     (!rx->sta || !(rx->sta->flags & WLAN_STA_AUTHORIZED)) &&
-		     !ieee80211_is_eapol(rx->skb, hdrlen))) {
+	if (unlikely(rx->sdata->ieee802_1x_pac &&
+		     (!rx->sta || !(rx->sta->flags & WLAN_STA_AUTHORIZED)))) {
 #ifdef CONFIG_MAC80211_DEBUG
 		printk(KERN_DEBUG "%s: dropped frame "
 		       "(unauthorized port)\n", rx->dev->name);
@@ -1013,7 +993,7 @@ ieee80211_drop_802_1x_pae(struct ieee80211_txrx_data *rx, int hdrlen)
 }
 
 static int
-ieee80211_drop_unencrypted(struct ieee80211_txrx_data *rx, int hdrlen)
+ieee80211_drop_unencrypted(struct ieee80211_txrx_data *rx)
 {
 	/*
 	 * Pass through unencrypted frames if the hardware has
@@ -1026,9 +1006,7 @@ ieee80211_drop_unencrypted(struct ieee80211_txrx_data *rx, int hdrlen)
 	if (unlikely(!(rx->fc & IEEE80211_FCTL_PROTECTED) &&
 		     (rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
 		     (rx->fc & IEEE80211_FCTL_STYPE) != IEEE80211_STYPE_NULLFUNC &&
-		     (rx->key || rx->sdata->drop_unencrypted) &&
-		     (rx->sdata->eapol == 0 ||
-		      !ieee80211_is_eapol(rx->skb, hdrlen)))) {
+		     (rx->key || rx->sdata->drop_unencrypted))) {
 		if (net_ratelimit())
 			printk(KERN_DEBUG "%s: RX non-WEP frame, but expected "
 			       "encryption\n", rx->dev->name);
@@ -1156,6 +1134,7 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 	} else {
 		struct ethhdr *ehdr;
 		__be16 len;
+
 		skb_pull(skb, hdrlen);
 		len = htons(skb->len);
 		ehdr = (struct ethhdr *) skb_push(skb, sizeof(struct ethhdr));
@@ -1166,6 +1145,34 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 	return 0;
 }
 
+/*
+ * requires that rx->skb is a frame with ethernet header
+ */
+static bool ieee80211_frame_allowed(struct ieee80211_txrx_data *rx)
+{
+	static const u8 pae_group_addr[ETH_ALEN]
+		= { 0x01, 0x80, 0xC2, 0x00, 0x00, 0x03 };
+	struct ethhdr *ehdr = (struct ethhdr *) rx->skb->data;
+
+	/*
+	 * Allow EAPOL frames to us/the PAE group address regardless
+	 * of whether the frame was encrypted or not.
+	 */
+	if (ehdr->h_proto == htons(ETH_P_PAE) &&
+	    (compare_ether_addr(ehdr->h_dest, rx->dev->dev_addr) == 0 ||
+	     compare_ether_addr(ehdr->h_dest, pae_group_addr) == 0))
+		return true;
+
+	if (ieee80211_802_1x_port_control(rx) ||
+	    ieee80211_drop_unencrypted(rx))
+		return false;
+
+	return true;
+}
+
+/*
+ * requires that rx->skb is a frame with ethernet header
+ */
 static void
 ieee80211_deliver_skb(struct ieee80211_txrx_data *rx)
 {
@@ -1173,31 +1180,32 @@ ieee80211_deliver_skb(struct ieee80211_txrx_data *rx)
 	struct ieee80211_local *local = rx->local;
 	struct sk_buff *skb, *xmit_skb;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ethhdr *ehdr = (struct ethhdr *) rx->skb->data;
+	struct sta_info *dsta;
 
 	skb = rx->skb;
 	xmit_skb = NULL;
 
-	if (local->bridge_packets && (sdata->type == IEEE80211_IF_TYPE_AP
-	    || sdata->type == IEEE80211_IF_TYPE_VLAN) &&
+	if (local->bridge_packets && (sdata->type == IEEE80211_IF_TYPE_AP ||
+				      sdata->type == IEEE80211_IF_TYPE_VLAN) &&
 	    (rx->flags & IEEE80211_TXRXD_RXRA_MATCH)) {
-		if (is_multicast_ether_addr(skb->data)) {
-			/* send multicast frames both to higher layers in
-			 * local net stack and back to the wireless media */
+		if (is_multicast_ether_addr(ehdr->h_dest)) {
+			/*
+			 * send multicast frames both to higher layers in
+			 * local net stack and back to the wireless medium
+			 */
 			xmit_skb = skb_copy(skb, GFP_ATOMIC);
 			if (!xmit_skb && net_ratelimit())
 				printk(KERN_DEBUG "%s: failed to clone "
 				       "multicast frame\n", dev->name);
 		} else {
-			struct sta_info *dsta;
 			dsta = sta_info_get(local, skb->data);
-			if (dsta && !dsta->dev) {
-				if (net_ratelimit())
-					printk(KERN_DEBUG "Station with null "
-					       "dev structure!\n");
-			} else if (dsta && dsta->dev == dev) {
-				/* Destination station is associated to this
-				 * AP, so send the frame directly to it and
-				 * do not pass the frame to local net stack.
+			if (dsta && dsta->dev == dev) {
+				/*
+				 * The destination station is associated to
+				 * this AP (in this VLAN), so send the frame
+				 * directly to it and do not pass it to local
+				 * net stack.
 				 */
 				xmit_skb = skb;
 				skb = NULL;
@@ -1217,8 +1225,8 @@ ieee80211_deliver_skb(struct ieee80211_txrx_data *rx)
 	if (xmit_skb) {
 		/* send to wireless media */
 		xmit_skb->protocol = htons(ETH_P_802_3);
-		skb_set_network_header(xmit_skb, 0);
-		skb_set_mac_header(xmit_skb, 0);
+		skb_reset_network_header(xmit_skb);
+		skb_reset_mac_header(xmit_skb);
 		dev_queue_xmit(xmit_skb);
 	}
 }
@@ -1303,38 +1311,36 @@ ieee80211_rx_h_amsdu(struct ieee80211_txrx_data *rx)
 			}
 		}
 
-		skb_set_network_header(frame, 0);
+		skb_reset_network_header(frame);
 		frame->dev = dev;
 		frame->priority = skb->priority;
 		rx->skb = frame;
-
-		if ((ieee80211_drop_802_1x_pae(rx, 0)) ||
-		    (ieee80211_drop_unencrypted(rx, 0))) {
-			if (skb == frame) /* last frame */
-				return TXRX_DROP;
-			dev_kfree_skb(frame);
-			continue;
-		}
 
 		payload = frame->data;
 		ethertype = (payload[6] << 8) | payload[7];
 
 		if (likely((compare_ether_addr(payload, rfc1042_header) == 0 &&
-			ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
-			compare_ether_addr(payload,
-					   bridge_tunnel_header) == 0)) {
+			    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
+			   compare_ether_addr(payload,
+					      bridge_tunnel_header) == 0)) {
 			/* remove RFC1042 or Bridge-Tunnel
 			 * encapsulation and replace EtherType */
 			skb_pull(frame, 6);
 			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
 			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
 		} else {
-			memcpy(skb_push(frame, sizeof(__be16)), &len,
-				sizeof(__be16));
+			memcpy(skb_push(frame, sizeof(__be16)),
+			       &len, sizeof(__be16));
 			memcpy(skb_push(frame, ETH_ALEN), src, ETH_ALEN);
 			memcpy(skb_push(frame, ETH_ALEN), dst, ETH_ALEN);
 		}
 
+		if (!ieee80211_frame_allowed(rx)) {
+			if (skb == frame) /* last frame */
+				return TXRX_DROP;
+			dev_kfree_skb(frame);
+			continue;
+		}
 
 		ieee80211_deliver_skb(rx);
 	}
@@ -1347,7 +1353,7 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 {
 	struct net_device *dev = rx->dev;
 	u16 fc;
-	int err, hdrlen;
+	int err;
 
 	fc = rx->fc;
 	if (unlikely((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA))
@@ -1356,14 +1362,11 @@ ieee80211_rx_h_data(struct ieee80211_txrx_data *rx)
 	if (unlikely(!WLAN_FC_DATA_PRESENT(fc)))
 		return TXRX_DROP;
 
-	hdrlen = ieee80211_get_hdrlen(fc);
-
-	if ((ieee80211_drop_802_1x_pae(rx, hdrlen)) ||
-	    (ieee80211_drop_unencrypted(rx, hdrlen)))
-		return TXRX_DROP;
-
 	err = ieee80211_data_to_8023(rx);
 	if (unlikely(err))
+		return TXRX_DROP;
+
+	if (!ieee80211_frame_allowed(rx))
 		return TXRX_DROP;
 
 	rx->skb->dev = dev;

@@ -22,7 +22,6 @@ void ieee80211_if_sdata_init(struct ieee80211_sub_if_data *sdata)
 
 	/* Default values for sub-interface parameters */
 	sdata->drop_unencrypted = 0;
-	sdata->eapol = 1;
 	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
 		skb_queue_head_init(&sdata->fragments[i].skb_list);
 
