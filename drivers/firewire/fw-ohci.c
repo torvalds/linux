@@ -1461,24 +1461,24 @@ static int handle_ir_packet_per_buffer(struct context *context,
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
-	struct descriptor *pd = d + 1;
+	struct descriptor *pd;
 	__le32 *ir_header;
-	size_t header_length;
-	void *p, *end;
-	int i, z;
+	void *p;
+	int i;
 
-	if (pd->res_count == pd->req_count)
+	for (pd = d; pd <= last; pd++) {
+		if (pd->transfer_status)
+			break;
+	}
+	if (pd > last)
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
 
-	header_length = le16_to_cpu(d->req_count);
-
 	i   = ctx->header_length;
-	z   = le32_to_cpu(pd->branch_address) & 0xf;
-	p   = d + z;
-	end = p + header_length;
+	p   = last + 1;
 
-	while (p < end && i + ctx->base.header_size <= PAGE_SIZE) {
+	if (ctx->base.header_size > 0 &&
+			i + ctx->base.header_size <= PAGE_SIZE) {
 		/*
 		 * The iso header is byteswapped to little endian by
 		 * the controller, but the remaining header quadlets
@@ -1487,21 +1487,17 @@ static int handle_ir_packet_per_buffer(struct context *context,
 		 */
 		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
 		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
-		i += ctx->base.header_size;
-		p += ctx->base.header_size + 4;
+		ctx->header_length += ctx->base.header_size;
 	}
 
-	ctx->header_length = i;
-
-	if (le16_to_cpu(pd->control) & DESCRIPTOR_IRQ_ALWAYS) {
-		ir_header = (__le32 *) (d + z);
+	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
+		ir_header = (__le32 *) p;
 		ctx->base.callback(&ctx->base,
 				   le32_to_cpu(ir_header[0]) & 0xffff,
 				   ctx->header_length, ctx->header,
 				   ctx->base.callback_data);
 		ctx->header_length = 0;
 	}
-
 
 	return 1;
 }
@@ -1853,66 +1849,69 @@ ohci_queue_iso_receive_packet_per_buffer(struct fw_iso_context *base,
 {
 	struct iso_context *ctx = container_of(base, struct iso_context, base);
 	struct descriptor *d = NULL, *pd = NULL;
-	struct fw_iso_packet *p;
+	struct fw_iso_packet *p = packet;
 	dma_addr_t d_bus, page_bus;
 	u32 z, header_z, rest;
-	int i, page, offset, packet_count, header_size;
-
-	if (packet->skip) {
-		d = context_get_descriptors(&ctx->context, 1, &d_bus);
-		if (d == NULL)
-			return -ENOMEM;
-
-		d->control = cpu_to_le16(DESCRIPTOR_STATUS |
-					 DESCRIPTOR_INPUT_LAST |
-					 DESCRIPTOR_BRANCH_ALWAYS |
-					 DESCRIPTOR_WAIT);
-		context_append(&ctx->context, d, 1, 0);
-	}
-
-	/* one descriptor for header, one for payload */
-	/* FIXME: handle cases where we need multiple desc. for payload */
-	z = 2;
-	p = packet;
+	int i, j, length;
+	int page, offset, packet_count, header_size, payload_per_buffer;
 
 	/*
 	 * The OHCI controller puts the status word in the
 	 * buffer too, so we need 4 extra bytes per packet.
 	 */
 	packet_count = p->header_length / ctx->base.header_size;
-	header_size  = packet_count * (ctx->base.header_size + 4);
+	header_size  = ctx->base.header_size + 4;
 
 	/* Get header size in number of descriptors. */
 	header_z = DIV_ROUND_UP(header_size, sizeof(*d));
 	page     = payload >> PAGE_SHIFT;
 	offset   = payload & ~PAGE_MASK;
-	rest     = p->payload_length;
+	payload_per_buffer = p->payload_length / packet_count;
 
 	for (i = 0; i < packet_count; i++) {
 		/* d points to the header descriptor */
+		z = DIV_ROUND_UP(payload_per_buffer + offset, PAGE_SIZE) + 1;
 		d = context_get_descriptors(&ctx->context,
-					    z + header_z, &d_bus);
+				z + header_z, &d_bus);
 		if (d == NULL)
 			return -ENOMEM;
 
-		d->control      = cpu_to_le16(DESCRIPTOR_INPUT_MORE);
+		d->control      = cpu_to_le16(DESCRIPTOR_STATUS |
+					      DESCRIPTOR_INPUT_MORE);
+		if (p->skip && i == 0)
+			d->control |= cpu_to_le16(DESCRIPTOR_WAIT);
 		d->req_count    = cpu_to_le16(header_size);
 		d->res_count    = d->req_count;
+		d->transfer_status = 0;
 		d->data_address = cpu_to_le32(d_bus + (z * sizeof(*d)));
 
-		/* pd points to the payload descriptor */
-		pd = d + 1;
+		rest = payload_per_buffer;
+		for (j = 1; j < z; j++) {
+			pd = d + j;
+			pd->control = cpu_to_le16(DESCRIPTOR_STATUS |
+						  DESCRIPTOR_INPUT_MORE);
+
+			if (offset + rest < PAGE_SIZE)
+				length = rest;
+			else
+				length = PAGE_SIZE - offset;
+			pd->req_count = cpu_to_le16(length);
+			pd->res_count = pd->req_count;
+			pd->transfer_status = 0;
+
+			page_bus = page_private(buffer->pages[page]);
+			pd->data_address = cpu_to_le32(page_bus + offset);
+
+			offset = (offset + length) & ~PAGE_MASK;
+			rest -= length;
+			if (offset == 0)
+				page++;
+		}
 		pd->control = cpu_to_le16(DESCRIPTOR_STATUS |
 					  DESCRIPTOR_INPUT_LAST |
 					  DESCRIPTOR_BRANCH_ALWAYS);
-		if (p->interrupt)
+		if (p->interrupt && i == packet_count - 1)
 			pd->control |= cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS);
-
-		pd->req_count = cpu_to_le16(rest);
-		pd->res_count = pd->req_count;
-
-		page_bus = page_private(buffer->pages[page]);
-		pd->data_address = cpu_to_le32(page_bus + offset);
 
 		context_append(&ctx->context, d, z, header_z);
 	}
