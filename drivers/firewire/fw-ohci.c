@@ -125,6 +125,7 @@ struct context {
 struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
+	int excess_bytes;
 	void *header;
 	size_t header_length;
 };
@@ -1408,9 +1409,13 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 	void *p, *end;
 	int i;
 
-	if (db->first_res_count > 0 && db->second_res_count > 0)
-		/* This descriptor isn't done yet, stop iteration. */
-		return 0;
+	if (db->first_res_count > 0 && db->second_res_count > 0) {
+		if (ctx->excess_bytes <= le16_to_cpu(db->second_req_count)) {
+			/* This descriptor isn't done yet, stop iteration. */
+			return 0;
+		}
+		ctx->excess_bytes -= le16_to_cpu(db->second_req_count);
+	}
 
 	header_length = le16_to_cpu(db->first_req_count) -
 		le16_to_cpu(db->first_res_count);
@@ -1429,10 +1434,14 @@ static int handle_ir_dualbuffer_packet(struct context *context,
 		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
 		memcpy(ctx->header + i + 4, p + 8, ctx->base.header_size - 4);
 		i += ctx->base.header_size;
+		ctx->excess_bytes +=
+			(le32_to_cpu(*(u32 *)(p + 4)) >> 16) & 0xffff;
 		p += ctx->base.header_size + 4;
 	}
-
 	ctx->header_length = i;
+
+	ctx->excess_bytes -= le16_to_cpu(db->second_req_count) -
+		le16_to_cpu(db->second_res_count);
 
 	if (le16_to_cpu(db->control) & DESCRIPTOR_IRQ_ALWAYS) {
 		ir_header = (__le32 *) (db + 1);
@@ -1775,19 +1784,6 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	 * packet, retransmit or terminate..
 	 */
 
-	if (packet->skip) {
-		d = context_get_descriptors(&ctx->context, 2, &d_bus);
-		if (d == NULL)
-			return -ENOMEM;
-
-		db = (struct db_descriptor *) d;
-		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
-					  DESCRIPTOR_BRANCH_ALWAYS |
-					  DESCRIPTOR_WAIT);
-		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
-		context_append(&ctx->context, d, 2, 0);
-	}
-
 	p = packet;
 	z = 2;
 
@@ -1815,11 +1811,18 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		db->control = cpu_to_le16(DESCRIPTOR_STATUS |
 					  DESCRIPTOR_BRANCH_ALWAYS);
 		db->first_size = cpu_to_le16(ctx->base.header_size + 4);
-		db->first_req_count = cpu_to_le16(header_size);
+		if (p->skip && rest == p->payload_length) {
+			db->control |= cpu_to_le16(DESCRIPTOR_WAIT);
+			db->first_req_count = db->first_size;
+		} else {
+			db->first_req_count = cpu_to_le16(header_size);
+		}
 		db->first_res_count = db->first_req_count;
 		db->first_buffer = cpu_to_le32(d_bus + sizeof(*db));
 
-		if (offset + rest < PAGE_SIZE)
+		if (p->skip && rest == p->payload_length)
+			length = 4;
+		else if (offset + rest < PAGE_SIZE)
 			length = rest;
 		else
 			length = PAGE_SIZE - offset;
@@ -1835,7 +1838,8 @@ ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 		context_append(&ctx->context, d, z, header_z);
 		offset = (offset + length) & ~PAGE_MASK;
 		rest -= length;
-		page++;
+		if (offset == 0)
+			page++;
 	}
 
 	return 0;
