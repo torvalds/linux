@@ -40,10 +40,6 @@ const unsigned char rfc1042_header[] =
 const unsigned char bridge_tunnel_header[] =
 	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8 };
 
-/* No encapsulation header if EtherType < 0x600 (=length) */
-static const unsigned char eapol_header[] =
-	{ 0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x88, 0x8e };
-
 
 static int rate_list_match(const int *rate_list, int rate)
 {
@@ -222,19 +218,6 @@ int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
 	return hdrlen;
 }
 EXPORT_SYMBOL(ieee80211_get_hdrlen_from_skb);
-
-int ieee80211_is_eapol(const struct sk_buff *skb, int hdrlen)
-{
-	if (unlikely(skb->len < 10))
-		return 0;
-
-	if (unlikely(skb->len >= hdrlen + sizeof(eapol_header) &&
-		     memcmp(skb->data + hdrlen, eapol_header,
-			    sizeof(eapol_header)) == 0))
-		return 1;
-
-	return 0;
-}
 
 void ieee80211_tx_set_iswep(struct ieee80211_txrx_data *tx)
 {

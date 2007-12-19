@@ -437,7 +437,8 @@ ieee80211_tx_h_select_key(struct ieee80211_txrx_data *tx)
 	else if ((key = rcu_dereference(tx->sdata->default_key)))
 		tx->key = key;
 	else if (tx->sdata->drop_unencrypted &&
-		 !ieee80211_is_eapol(tx->skb, ieee80211_get_hdrlen(fc))) {
+		 !(tx->u.tx.control->flags & IEEE80211_TXCTL_EAPOL_FRAME) &&
+		 !(tx->flags & IEEE80211_TXRXD_TX_INJECTED)) {
 		I802_DEBUG_INC(tx->local->tx_handlers_drop_unencrypted);
 		return TXRX_DROP;
 	} else {
@@ -1241,6 +1242,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 		control.flags |= IEEE80211_TXCTL_DO_NOT_ENCRYPT;
 	if (pkt_data->flags & IEEE80211_TXPD_REQUEUE)
 		control.flags |= IEEE80211_TXCTL_REQUEUE;
+	if (pkt_data->flags & IEEE80211_TXPD_EAPOL_FRAME)
+		control.flags |= IEEE80211_TXCTL_EAPOL_FRAME;
 	control.queue = pkt_data->queue;
 
 	ret = ieee80211_tx(odev, skb, &control);
@@ -1514,6 +1517,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	pkt_data = (struct ieee80211_tx_packet_data *)skb->cb;
 	memset(pkt_data, 0, sizeof(struct ieee80211_tx_packet_data));
 	pkt_data->ifindex = dev->ifindex;
+	if (ethertype == ETH_P_PAE)
+		pkt_data->flags |= IEEE80211_TXPD_EAPOL_FRAME;
 
 	skb->dev = local->mdev;
 	dev->stats.tx_packets++;

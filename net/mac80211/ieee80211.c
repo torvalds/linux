@@ -732,6 +732,8 @@ static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 		pkt_data->flags |= IEEE80211_TXPD_DO_NOT_ENCRYPT;
 	if (control->flags & IEEE80211_TXCTL_REQUEUE)
 		pkt_data->flags |= IEEE80211_TXPD_REQUEUE;
+	if (control->flags & IEEE80211_TXCTL_EAPOL_FRAME)
+		pkt_data->flags |= IEEE80211_TXPD_EAPOL_FRAME;
 	pkt_data->queue = control->queue;
 
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);

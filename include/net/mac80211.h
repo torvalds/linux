@@ -307,6 +307,7 @@ struct ieee80211_tx_control {
 						  * using the through
 						  * set_retry_limit configured
 						  * long retry value */
+#define IEEE80211_TXCTL_EAPOL_FRAME	(1<<11) /* internal to mac80211 */
 	u32 flags;			       /* tx control flags defined
 						* above */
 	u8 key_idx;		/* keyidx from hw->set_key(), undefined if
