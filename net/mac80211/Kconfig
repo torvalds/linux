@@ -25,6 +25,18 @@ config MAC80211_RCSIMPLE
 	  Say Y unless you know you will have another algorithm
 	  available.
 
+config MAC80211_RCPID
+	bool "'PID' rate control algorithm" if EMBEDDED
+	default y
+	depends on MAC80211
+	help
+	  This option enables a TX rate control algorithm for
+	  mac80211 that uses a PID controller to select the TX
+	  rate.
+
+	  Say Y unless you're sure you want to use a different
+	  rate control algorithm.
+
 config MAC80211_LEDS
 	bool "Enable LED triggers"
 	depends on MAC80211 && LEDS_TRIGGERS
