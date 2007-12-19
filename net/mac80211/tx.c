@@ -1628,7 +1628,8 @@ void ieee80211_tx_pending(unsigned long data)
 
 static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 				     struct ieee80211_if_ap *bss,
-				     struct sk_buff *skb)
+				     struct sk_buff *skb,
+				     struct beacon_data *beacon)
 {
 	u8 *pos, *tim;
 	int aid0 = 0;
@@ -1644,7 +1645,7 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 					  IEEE80211_MAX_AID+1);
 
 	if (bss->dtim_count == 0)
-		bss->dtim_count = bss->dtim_period - 1;
+		bss->dtim_count = beacon->dtim_period - 1;
 	else
 		bss->dtim_count--;
 
@@ -1652,7 +1653,7 @@ static void ieee80211_beacon_add_tim(struct ieee80211_local *local,
 	*pos++ = WLAN_EID_TIM;
 	*pos++ = 4;
 	*pos++ = bss->dtim_count;
-	*pos++ = bss->dtim_period;
+	*pos++ = beacon->dtim_period;
 
 	if (bss->dtim_count == 0 && !skb_queue_empty(&bss->ps_bc_buf))
 		aid0 = 1;
@@ -1700,44 +1701,43 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct ieee80211_sub_if_data *sdata = NULL;
 	struct ieee80211_if_ap *ap = NULL;
 	struct rate_selection rsel;
-	u8 *b_head, *b_tail;
-	int bh_len, bt_len;
+	struct beacon_data *beacon;
+
+	rcu_read_lock();
 
 	sdata = vif_to_sdata(vif);
 	bdev = sdata->dev;
 	ap = &sdata->u.ap;
 
-	if (!ap || sdata->vif.type != IEEE80211_IF_TYPE_AP ||
-	    !ap->beacon_head) {
+	beacon = rcu_dereference(ap->beacon);
+
+	if (!ap || sdata->vif.type != IEEE80211_IF_TYPE_AP || !beacon) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "no beacon data avail for %s\n",
 			       bdev->name);
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
-		return NULL;
+		skb = NULL;
+		goto out;
 	}
 
-	/* Assume we are generating the normal beacon locally */
-	b_head = ap->beacon_head;
-	b_tail = ap->beacon_tail;
-	bh_len = ap->beacon_head_len;
-	bt_len = ap->beacon_tail_len;
-
-	skb = dev_alloc_skb(local->tx_headroom +
-		bh_len + bt_len + 256 /* maximum TIM len */);
+	/* headroom, head length, tail length and maximum TIM length */
+	skb = dev_alloc_skb(local->tx_headroom + beacon->head_len +
+			    beacon->tail_len + 256);
 	if (!skb)
-		return NULL;
+		goto out;
 
 	skb_reserve(skb, local->tx_headroom);
-	memcpy(skb_put(skb, bh_len), b_head, bh_len);
+	memcpy(skb_put(skb, beacon->head_len), beacon->head,
+	       beacon->head_len);
 
 	ieee80211_include_sequence(sdata, (struct ieee80211_hdr *)skb->data);
 
-	ieee80211_beacon_add_tim(local, ap, skb);
+	ieee80211_beacon_add_tim(local, ap, skb, beacon);
 
-	if (b_tail) {
-		memcpy(skb_put(skb, bt_len), b_tail, bt_len);
-	}
+	if (beacon->tail)
+		memcpy(skb_put(skb, beacon->tail_len), beacon->tail,
+		       beacon->tail_len);
 
 	if (control) {
 		rate_control_get_rate(local->mdev, local->oper_hw_mode, skb,
@@ -1749,7 +1749,8 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 				       wiphy_name(local->hw.wiphy));
 			}
 			dev_kfree_skb(skb);
-			return NULL;
+			skb = NULL;
+			goto out;
 		}
 
 		control->tx_rate =
@@ -1764,6 +1765,9 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	}
 
 	ap->num_beacons++;
+
+ out:
+	rcu_read_unlock();
 	return skb;
 }
 EXPORT_SYMBOL(ieee80211_beacon_get);
@@ -1815,13 +1819,24 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	struct net_device *bdev;
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_ap *bss = NULL;
+	struct beacon_data *beacon;
 
 	sdata = vif_to_sdata(vif);
 	bdev = sdata->dev;
 
-	if (!bss || sdata->vif.type != IEEE80211_IF_TYPE_AP ||
-	    !bss->beacon_head)
+
+	if (!bss)
 		return NULL;
+
+	rcu_read_lock();
+	beacon = rcu_dereference(bss->beacon);
+
+	if (sdata->vif.type != IEEE80211_IF_TYPE_AP || !beacon ||
+	    !beacon->head) {
+		rcu_read_unlock();
+		return NULL;
+	}
+	rcu_read_unlock();
 
 	if (bss->dtim_count != 0)
 		return NULL; /* send buffered bc/mc only after DTIM beacon */

@@ -10,6 +10,7 @@
 #include <linux/nl80211.h>
 #include <linux/rtnetlink.h>
 #include <net/net_namespace.h>
+#include <linux/rcupdate.h>
 #include <net/cfg80211.h>
 #include "ieee80211_i.h"
 #include "cfg.h"
@@ -294,6 +295,158 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+/*
+ * This handles both adding a beacon and setting new beacon info
+ */
+static int ieee80211_config_beacon(struct ieee80211_sub_if_data *sdata,
+				   struct beacon_parameters *params)
+{
+	struct beacon_data *new, *old;
+	int new_head_len, new_tail_len;
+	int size;
+	int err = -EINVAL;
+
+	old = sdata->u.ap.beacon;
+
+	/* head must not be zero-length */
+	if (params->head && !params->head_len)
+		return -EINVAL;
+
+	/*
+	 * This is a kludge. beacon interval should really be part
+	 * of the beacon information.
+	 */
+	if (params->interval) {
+		sdata->local->hw.conf.beacon_int = params->interval;
+		if (ieee80211_hw_config(sdata->local))
+			return -EINVAL;
+		/*
+		 * We updated some parameter so if below bails out
+		 * it's not an error.
+		 */
+		err = 0;
+	}
+
+	/* Need to have a beacon head if we don't have one yet */
+	if (!params->head && !old)
+		return err;
+
+	/* sorry, no way to start beaconing without dtim period */
+	if (!params->dtim_period && !old)
+		return err;
+
+	/* new or old head? */
+	if (params->head)
+		new_head_len = params->head_len;
+	else
+		new_head_len = old->head_len;
+
+	/* new or old tail? */
+	if (params->tail || !old)
+		/* params->tail_len will be zero for !params->tail */
+		new_tail_len = params->tail_len;
+	else
+		new_tail_len = old->tail_len;
+
+	size = sizeof(*new) + new_head_len + new_tail_len;
+
+	new = kzalloc(size, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	/* start filling the new info now */
+
+	/* new or old dtim period? */
+	if (params->dtim_period)
+		new->dtim_period = params->dtim_period;
+	else
+		new->dtim_period = old->dtim_period;
+
+	/*
+	 * pointers go into the block we allocated,
+	 * memory is | beacon_data | head | tail |
+	 */
+	new->head = ((u8 *) new) + sizeof(*new);
+	new->tail = new->head + new_head_len;
+	new->head_len = new_head_len;
+	new->tail_len = new_tail_len;
+
+	/* copy in head */
+	if (params->head)
+		memcpy(new->head, params->head, new_head_len);
+	else
+		memcpy(new->head, old->head, new_head_len);
+
+	/* copy in optional tail */
+	if (params->tail)
+		memcpy(new->tail, params->tail, new_tail_len);
+	else
+		if (old)
+			memcpy(new->tail, old->tail, new_tail_len);
+
+	rcu_assign_pointer(sdata->u.ap.beacon, new);
+
+	synchronize_rcu();
+
+	kfree(old);
+
+	return ieee80211_if_config_beacon(sdata->dev);
+}
+
+static int ieee80211_add_beacon(struct wiphy *wiphy, struct net_device *dev,
+				struct beacon_parameters *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct beacon_data *old;
+
+	if (sdata->vif.type != IEEE80211_IF_TYPE_AP)
+		return -EINVAL;
+
+	old = sdata->u.ap.beacon;
+
+	if (old)
+		return -EALREADY;
+
+	return ieee80211_config_beacon(sdata, params);
+}
+
+static int ieee80211_set_beacon(struct wiphy *wiphy, struct net_device *dev,
+				struct beacon_parameters *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct beacon_data *old;
+
+	if (sdata->vif.type != IEEE80211_IF_TYPE_AP)
+		return -EINVAL;
+
+	old = sdata->u.ap.beacon;
+
+	if (!old)
+		return -ENOENT;
+
+	return ieee80211_config_beacon(sdata, params);
+}
+
+static int ieee80211_del_beacon(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct beacon_data *old;
+
+	if (sdata->vif.type != IEEE80211_IF_TYPE_AP)
+		return -EINVAL;
+
+	old = sdata->u.ap.beacon;
+
+	if (!old)
+		return -ENOENT;
+
+	rcu_assign_pointer(sdata->u.ap.beacon, NULL);
+	synchronize_rcu();
+	kfree(old);
+
+	return ieee80211_if_config_beacon(dev);
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -302,5 +455,8 @@ struct cfg80211_ops mac80211_config_ops = {
 	.del_key = ieee80211_del_key,
 	.get_key = ieee80211_get_key,
 	.set_default_key = ieee80211_config_default_key,
+	.add_beacon = ieee80211_add_beacon,
+	.set_beacon = ieee80211_set_beacon,
+	.del_beacon = ieee80211_del_beacon,
 	.get_station = ieee80211_get_station,
 };

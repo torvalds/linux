@@ -190,9 +190,14 @@ typedef ieee80211_txrx_result (*ieee80211_tx_handler)
 typedef ieee80211_txrx_result (*ieee80211_rx_handler)
 (struct ieee80211_txrx_data *rx);
 
+struct beacon_data {
+	u8 *head, *tail;
+	int head_len, tail_len;
+	int dtim_period;
+};
+
 struct ieee80211_if_ap {
-	u8 *beacon_head, *beacon_tail;
-	int beacon_head_len, beacon_tail_len;
+	struct beacon_data *beacon;
 
 	struct list_head vlans;
 
@@ -205,7 +210,7 @@ struct ieee80211_if_ap {
 	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	struct sk_buff_head ps_bc_buf;
-	int dtim_period, dtim_count;
+	int dtim_count;
 	int force_unicast_rateidx; /* forced TX rateidx for unicast frames */
 	int max_ratectrl_rateidx; /* max TX rateidx for rate control */
 	int num_beacons; /* number of TXed beacon frames for this BSS */
@@ -360,14 +365,11 @@ struct ieee80211_sub_if_data {
 			struct dentry *drop_unencrypted;
 			struct dentry *ieee802_1x_pac;
 			struct dentry *num_sta_ps;
-			struct dentry *dtim_period;
 			struct dentry *dtim_count;
 			struct dentry *num_beacons;
 			struct dentry *force_unicast_rateidx;
 			struct dentry *max_ratectrl_rateidx;
 			struct dentry *num_buffered_multicast;
-			struct dentry *beacon_head_len;
-			struct dentry *beacon_tail_len;
 		} ap;
 		struct {
 			struct dentry *channel_use;

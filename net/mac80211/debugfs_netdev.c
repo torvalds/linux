@@ -124,7 +124,6 @@ __IEEE80211_IF_FILE(flags);
 
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
-IEEE80211_IF_FILE(dtim_period, u.ap.dtim_period, DEC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
 IEEE80211_IF_FILE(num_beacons, u.ap.num_beacons, DEC);
 IEEE80211_IF_FILE(force_unicast_rateidx, u.ap.force_unicast_rateidx, DEC);
@@ -137,26 +136,6 @@ static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 			 skb_queue_len(&sdata->u.ap.ps_bc_buf));
 }
 __IEEE80211_IF_FILE(num_buffered_multicast);
-
-static ssize_t ieee80211_if_fmt_beacon_head_len(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	if (sdata->u.ap.beacon_head)
-		return scnprintf(buf, buflen, "%d\n",
-				 sdata->u.ap.beacon_head_len);
-	return scnprintf(buf, buflen, "\n");
-}
-__IEEE80211_IF_FILE(beacon_head_len);
-
-static ssize_t ieee80211_if_fmt_beacon_tail_len(
-	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
-{
-	if (sdata->u.ap.beacon_tail)
-		return scnprintf(buf, buflen, "%d\n",
-				 sdata->u.ap.beacon_tail_len);
-	return scnprintf(buf, buflen, "\n");
-}
-__IEEE80211_IF_FILE(beacon_tail_len);
 
 /* WDS attributes */
 IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
@@ -192,14 +171,11 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(drop_unencrypted, ap);
 	DEBUGFS_ADD(ieee802_1x_pac, ap);
 	DEBUGFS_ADD(num_sta_ps, ap);
-	DEBUGFS_ADD(dtim_period, ap);
 	DEBUGFS_ADD(dtim_count, ap);
 	DEBUGFS_ADD(num_beacons, ap);
 	DEBUGFS_ADD(force_unicast_rateidx, ap);
 	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
 	DEBUGFS_ADD(num_buffered_multicast, ap);
-	DEBUGFS_ADD(beacon_head_len, ap);
-	DEBUGFS_ADD(beacon_tail_len, ap);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
@@ -281,14 +257,11 @@ static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(drop_unencrypted, ap);
 	DEBUGFS_DEL(ieee802_1x_pac, ap);
 	DEBUGFS_DEL(num_sta_ps, ap);
-	DEBUGFS_DEL(dtim_period, ap);
 	DEBUGFS_DEL(dtim_count, ap);
 	DEBUGFS_DEL(num_beacons, ap);
 	DEBUGFS_DEL(force_unicast_rateidx, ap);
 	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
 	DEBUGFS_DEL(num_buffered_multicast, ap);
-	DEBUGFS_DEL(beacon_head_len, ap);
-	DEBUGFS_DEL(beacon_tail_len, ap);
 }
 
 static void del_wds_files(struct ieee80211_sub_if_data *sdata)

@@ -126,7 +126,6 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 		sdata->u.vlan.ap = NULL;
 		break;
 	case IEEE80211_IF_TYPE_AP:
-		sdata->u.ap.dtim_period = 2;
 		sdata->u.ap.force_unicast_rateidx = -1;
 		sdata->u.ap.max_ratectrl_rateidx = -1;
 		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
@@ -207,8 +206,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 			}
 		}
 
-		kfree(sdata->u.ap.beacon_head);
-		kfree(sdata->u.ap.beacon_tail);
+		kfree(sdata->u.ap.beacon);
 
 		while ((skb = skb_dequeue(&sdata->u.ap.ps_bc_buf))) {
 			local->total_ps_buffered--;

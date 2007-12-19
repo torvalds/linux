@@ -321,10 +321,17 @@ static int ieee80211_stop(struct net_device *dev)
 
 	dev_mc_unsync(local->mdev, dev);
 
-	/* down all dependent devices, that is VLANs */
+	/* APs need special treatment */
 	if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmp;
+		struct beacon_data *old_beacon = sdata->u.ap.beacon;
 
+		/* remove beacon */
+		rcu_assign_pointer(sdata->u.ap.beacon, NULL);
+		synchronize_rcu();
+		kfree(old_beacon);
+
+		/* down all dependent devices, that is VLANs */
 		list_for_each_entry_safe(vlan, tmp, &sdata->u.ap.vlans,
 					 u.vlan.list)
 			dev_close(vlan->dev);
