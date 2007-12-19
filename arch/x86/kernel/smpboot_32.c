@@ -60,7 +60,7 @@
 #include <asm/mtrr.h>
 
 /* Set if we find a B stepping CPU */
-static int __devinitdata smp_b_stepping;
+static int __cpuinitdata smp_b_stepping;
 
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
@@ -745,8 +745,8 @@ static inline int alloc_cpu_id(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static struct task_struct * __devinitdata cpu_idle_tasks[NR_CPUS];
-static inline struct task_struct * alloc_idle_task(int cpu)
+static struct task_struct * __cpuinitdata cpu_idle_tasks[NR_CPUS];
+static inline struct task_struct * __cpuinit alloc_idle_task(int cpu)
 {
 	struct task_struct *idle;
 
