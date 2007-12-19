@@ -626,7 +626,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 
 	mlog(0, "extend inode %llu, i_size = %lld, di->i_clusters = %u, "
 	     "clusters_to_add = %u, extents_to_split = %u\n",
-	     (unsigned long long)OCFS2_I(inode)->ip_blkno, i_size_read(inode),
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno, (long long)i_size_read(inode),
 	     le32_to_cpu(di->i_clusters), clusters_to_add, extents_to_split);
 
 	num_free_extents = ocfs2_num_free_extents(osb, inode, di);
@@ -807,7 +807,7 @@ restarted_transaction:
 	     le32_to_cpu(fe->i_clusters),
 	     (unsigned long long)le64_to_cpu(fe->i_size));
 	mlog(0, "inode: ip_clusters=%u, i_size=%lld\n",
-	     OCFS2_I(inode)->ip_clusters, i_size_read(inode));
+	     OCFS2_I(inode)->ip_clusters, (long long)i_size_read(inode));
 
 leave:
 	if (handle) {
