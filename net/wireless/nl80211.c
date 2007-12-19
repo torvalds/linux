@@ -750,9 +750,89 @@ static int parse_station_flags(struct nlattr *nla, u32 *staflags)
 	return 0;
 }
 
+static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
+				int flags, struct net_device *dev,
+				u8 *mac_addr, struct station_stats *stats)
+{
+	void *hdr;
+	struct nlattr *statsattr;
+
+	hdr = nl80211hdr_put(msg, pid, seq, flags, NL80211_CMD_NEW_STATION);
+	if (!hdr)
+		return -1;
+
+	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
+	NLA_PUT(msg, NL80211_ATTR_MAC, ETH_ALEN, mac_addr);
+
+	statsattr = nla_nest_start(msg, NL80211_ATTR_STA_STATS);
+	if (!statsattr)
+		goto nla_put_failure;
+	if (stats->filled & STATION_STAT_INACTIVE_TIME)
+		NLA_PUT_U32(msg, NL80211_STA_STAT_INACTIVE_TIME,
+			    stats->inactive_time);
+	if (stats->filled & STATION_STAT_RX_BYTES)
+		NLA_PUT_U32(msg, NL80211_STA_STAT_RX_BYTES,
+			    stats->rx_bytes);
+	if (stats->filled & STATION_STAT_TX_BYTES)
+		NLA_PUT_U32(msg, NL80211_STA_STAT_TX_BYTES,
+			    stats->tx_bytes);
+
+	nla_nest_end(msg, statsattr);
+
+	return genlmsg_end(msg, hdr);
+
+ nla_put_failure:
+	return genlmsg_cancel(msg, hdr);
+}
+
+
 static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 {
-	return -EOPNOTSUPP;
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	struct station_stats stats;
+	struct sk_buff *msg;
+	u8 *mac_addr = NULL;
+
+	memset(&stats, 0, sizeof(stats));
+
+	if (!info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->get_station) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->get_station(&drv->wiphy, dev, mac_addr, &stats);
+	rtnl_unlock();
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!msg)
+		goto out;
+
+	if (nl80211_send_station(msg, info->snd_pid, info->snd_seq, 0,
+				 dev, mac_addr, &stats) < 0)
+		goto out_free;
+
+	err = genlmsg_unicast(msg, info->snd_pid);
+	goto out;
+
+ out_free:
+	nlmsg_free(msg);
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
 }
 
 /*

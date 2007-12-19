@@ -157,6 +157,9 @@ enum nl80211_commands {
  *	restriction (at most %NL80211_MAX_SUPP_RATES).
  * @NL80211_ATTR_STA_VLAN: interface index of VLAN interface to move station
  *	to, or the AP interface the station was originally added to to.
+ * @NL80211_ATTR_STA_STATS: statistics for a station, part of station info
+ *	given for %NL80211_CMD_GET_STATION, nested attribute containing
+ *	info as possible, see &enum nl80211_sta_stats.
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -190,6 +193,7 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_LISTEN_INTERVAL,
 	NL80211_ATTR_STA_SUPPORTED_RATES,
 	NL80211_ATTR_STA_VLAN,
+	NL80211_ATTR_STA_STATS,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -250,6 +254,30 @@ enum nl80211_sta_flags {
 	/* keep last */
 	__NL80211_STA_FLAG_AFTER_LAST,
 	NL80211_STA_FLAG_MAX = __NL80211_STA_FLAG_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_sta_stats - station statistics
+ *
+ * These attribute types are used with %NL80211_ATTR_STA_STATS
+ * when getting information about a station.
+ *
+ * @__NL80211_STA_STAT_INVALID: attribute number 0 is reserved
+ * @NL80211_STA_STAT_INACTIVE_TIME: time since last activity (u32, msecs)
+ * @NL80211_STA_STAT_RX_BYTES: total received bytes (u32, from this station)
+ * @NL80211_STA_STAT_TX_BYTES: total transmitted bytes (u32, to this station)
+ * @__NL80211_STA_STAT_AFTER_LAST: internal
+ * @NL80211_STA_STAT_MAX: highest possible station stats attribute
+ */
+enum nl80211_sta_stats {
+	__NL80211_STA_STAT_INVALID,
+	NL80211_STA_STAT_INACTIVE_TIME,
+	NL80211_STA_STAT_RX_BYTES,
+	NL80211_STA_STAT_TX_BYTES,
+
+	/* keep last */
+	__NL80211_STA_STAT_AFTER_LAST,
+	NL80211_STA_STAT_MAX = __NL80211_STA_STAT_AFTER_LAST - 1
 };
 
 #endif /* __LINUX_NL80211_H */

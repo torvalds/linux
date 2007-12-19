@@ -130,6 +130,39 @@ struct station_parameters {
 	u8 supported_rates_len;
 };
 
+/**
+ * enum station_stats_flags - station statistics flags
+ *
+ * Used by the driver to indicate which info in &struct station_stats
+ * it has filled in during get_station().
+ *
+ * @STATION_STAT_INACTIVE_TIME: @inactive_time filled
+ * @STATION_STAT_RX_BYTES: @rx_bytes filled
+ * @STATION_STAT_TX_BYTES: @tx_bytes filled
+ */
+enum station_stats_flags {
+	STATION_STAT_INACTIVE_TIME	= 1<<0,
+	STATION_STAT_RX_BYTES		= 1<<1,
+	STATION_STAT_TX_BYTES		= 1<<2,
+};
+
+/**
+ * struct station_stats - station statistics
+ *
+ * Station information filled by driver for get_station().
+ *
+ * @filled: bitflag of flags from &enum station_stats_flags
+ * @inactive_time: time since last station activity (tx/rx) in milliseconds
+ * @rx_bytes: bytes received from this station
+ * @tx_bytes: bytes transmitted to this station
+ */
+struct station_stats {
+	u32 filled;
+	u32 inactive_time;
+	u32 rx_bytes;
+	u32 tx_bytes;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -210,6 +243,8 @@ struct cfg80211_ops {
 			       u8 *mac);
 	int	(*change_station)(struct wiphy *wiphy, struct net_device *dev,
 				  u8 *mac, struct station_parameters *params);
+	int	(*get_station)(struct wiphy *wiphy, struct net_device *dev,
+			       u8 *mac, struct station_stats *stats);
 };
 
 #endif /* __NET_CFG80211_H */
