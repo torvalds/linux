@@ -66,7 +66,7 @@ int ieee80211_if_add(struct net_device *dev, const char *name,
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
 	ndev->ieee80211_ptr = &sdata->wdev;
 	sdata->wdev.wiphy = local->hw.wiphy;
-	sdata->type = IEEE80211_IF_TYPE_AP;
+	sdata->vif.type = IEEE80211_IF_TYPE_AP;
 	sdata->dev = ndev;
 	sdata->local = local;
 	ieee80211_if_sdata_init(sdata);
@@ -98,7 +98,7 @@ fail:
 void ieee80211_if_set_type(struct net_device *dev, int type)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	int oldtype = sdata->type;
+	int oldtype = sdata->vif.type;
 
 	/*
 	 * We need to call this function on the master interface
@@ -116,7 +116,7 @@ void ieee80211_if_set_type(struct net_device *dev, int type)
 
 	/* most have no BSS pointer */
 	sdata->bss = NULL;
-	sdata->type = type;
+	sdata->vif.type = type;
 
 	switch (type) {
 	case IEEE80211_IF_TYPE_WDS:
@@ -181,7 +181,7 @@ void ieee80211_if_reinit(struct net_device *dev)
 
 	ieee80211_if_sdata_deinit(sdata);
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_INVALID:
 		/* cannot happen */
 		WARN_ON(1);
@@ -279,7 +279,7 @@ int ieee80211_if_remove(struct net_device *dev, const char *name, int id)
 	ASSERT_RTNL();
 
 	list_for_each_entry_safe(sdata, n, &local->interfaces, list) {
-		if ((sdata->type == id || id == -1) &&
+		if ((sdata->vif.type == id || id == -1) &&
 		    strcmp(name, sdata->dev->name) == 0 &&
 		    sdata->dev != local->mdev) {
 			list_del_rcu(&sdata->list);

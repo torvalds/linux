@@ -471,7 +471,7 @@ static void ieee80211_set_associated(struct net_device *dev,
 		ifsta->flags |= IEEE80211_STA_ASSOCIATED;
 
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-		if (sdata->type != IEEE80211_IF_TYPE_STA)
+		if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 			return;
 
 		bss = ieee80211_rx_bss_get(dev, ifsta->bssid,
@@ -1025,7 +1025,7 @@ static void ieee80211_send_addba_resp(struct net_device *dev, u8 *da, u16 tid,
 	memset(mgmt, 0, 24);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
-	if (sdata->type == IEEE80211_IF_TYPE_AP)
+	if (sdata->vif.type == IEEE80211_IF_TYPE_AP)
 		memcpy(mgmt->bssid, dev->dev_addr, ETH_ALEN);
 	else
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
@@ -1184,7 +1184,7 @@ void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
 	memset(mgmt, 0, 24);
 	memcpy(mgmt->da, da, ETH_ALEN);
 	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
-	if (sdata->type == IEEE80211_IF_TYPE_AP)
+	if (sdata->vif.type == IEEE80211_IF_TYPE_AP)
 		memcpy(mgmt->bssid, dev->dev_addr, ETH_ALEN);
 	else
 		memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
@@ -1329,7 +1329,7 @@ static void ieee80211_rx_mgmt_auth(struct net_device *dev,
 	DECLARE_MAC_BUF(mac);
 
 	if (ifsta->state != IEEE80211_AUTHENTICATE &&
-	    sdata->type != IEEE80211_IF_TYPE_IBSS) {
+	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS) {
 		printk(KERN_DEBUG "%s: authentication frame received from "
 		       "%s, but not in authenticate state - ignored\n",
 		       dev->name, print_mac(mac, mgmt->sa));
@@ -1343,7 +1343,7 @@ static void ieee80211_rx_mgmt_auth(struct net_device *dev,
 		return;
 	}
 
-	if (sdata->type != IEEE80211_IF_TYPE_IBSS &&
+	if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
 	    memcmp(ifsta->bssid, mgmt->sa, ETH_ALEN) != 0) {
 		printk(KERN_DEBUG "%s: authentication frame received from "
 		       "unknown AP (SA=%s BSSID=%s) - "
@@ -1352,7 +1352,7 @@ static void ieee80211_rx_mgmt_auth(struct net_device *dev,
 		return;
 	}
 
-	if (sdata->type != IEEE80211_IF_TYPE_IBSS &&
+	if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
 	    memcmp(ifsta->bssid, mgmt->bssid, ETH_ALEN) != 0) {
 		printk(KERN_DEBUG "%s: authentication frame received from "
 		       "unknown BSSID (SA=%s BSSID=%s) - "
@@ -1370,7 +1370,7 @@ static void ieee80211_rx_mgmt_auth(struct net_device *dev,
 	       dev->name, print_mac(mac, mgmt->sa), auth_alg,
 	       auth_transaction, status_code);
 
-	if (sdata->type == IEEE80211_IF_TYPE_IBSS) {
+	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		/* IEEE 802.11 standard does not require authentication in IBSS
 		 * networks and most implementations do not seem to use it.
 		 * However, try to reply to authentication attempts if someone
@@ -1849,7 +1849,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 
 	timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
 
-	if (sdata->type == IEEE80211_IF_TYPE_IBSS && beacon &&
+	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && beacon &&
 	    memcmp(mgmt->bssid, sdata->u.sta.bssid, ETH_ALEN) == 0) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 		static unsigned long last_tsf_debug = 0;
@@ -1874,7 +1874,7 @@ static void ieee80211_rx_bss_info(struct net_device *dev,
 
 	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
 
-	if (sdata->type == IEEE80211_IF_TYPE_IBSS && elems.supp_rates &&
+	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && elems.supp_rates &&
 	    memcmp(mgmt->bssid, sdata->u.sta.bssid, ETH_ALEN) == 0 &&
 	    (sta = sta_info_get(local, mgmt->sa))) {
 		struct ieee80211_hw_mode *mode;
@@ -2103,7 +2103,7 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 	ieee80211_rx_bss_info(dev, mgmt, len, rx_status, 1);
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (sdata->type != IEEE80211_IF_TYPE_STA)
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 		return;
 	ifsta = &sdata->u.sta;
 
@@ -2163,7 +2163,7 @@ static void ieee80211_rx_mgmt_probe_req(struct net_device *dev,
 	DECLARE_MAC_BUF(mac3);
 #endif
 
-	if (sdata->type != IEEE80211_IF_TYPE_IBSS ||
+	if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS ||
 	    ifsta->state != IEEE80211_IBSS_JOINED ||
 	    len < 24 + 2 || !ifsta->probe_resp)
 		return;
@@ -2474,10 +2474,10 @@ void ieee80211_sta_work(struct work_struct *work)
 	if (local->sta_sw_scanning || local->sta_hw_scanning)
 		return;
 
-	if (sdata->type != IEEE80211_IF_TYPE_STA &&
-	    sdata->type != IEEE80211_IF_TYPE_IBSS) {
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA &&
+	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS) {
 		printk(KERN_DEBUG "%s: ieee80211_sta_work: non-STA interface "
-		       "(type=%d)\n", dev->name, sdata->type);
+		       "(type=%d)\n", dev->name, sdata->vif.type);
 		return;
 	}
 	ifsta = &sdata->u.sta;
@@ -2572,7 +2572,7 @@ void ieee80211_sta_req_auth(struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (sdata->type != IEEE80211_IF_TYPE_STA)
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 		return;
 
 	if ((ifsta->flags & (IEEE80211_STA_BSSID_SET |
@@ -3039,7 +3039,7 @@ int ieee80211_sta_set_ssid(struct net_device *dev, char *ssid, size_t len)
 		ifsta->flags |= IEEE80211_STA_SSID_SET;
 	else
 		ifsta->flags &= ~IEEE80211_STA_SSID_SET;
-	if (sdata->type == IEEE80211_IF_TYPE_IBSS &&
+	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
 	    !(ifsta->flags & IEEE80211_STA_BSSID_SET)) {
 		ifsta->ibss_join_req = jiffies;
 		ifsta->state = IEEE80211_IBSS_SEARCH;
@@ -3157,7 +3157,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 		if (sdata->dev == local->mdev)
 			continue;
 
-		if (sdata->type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED)
 				ieee80211_send_nullfunc(local, sdata, 0);
 			ieee80211_sta_timer((unsigned long)sdata);
@@ -3169,7 +3169,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
 done:
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (sdata->type == IEEE80211_IF_TYPE_IBSS) {
+	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
 		    (!ifsta->state == IEEE80211_IBSS_JOINED &&
@@ -3204,7 +3204,7 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 		skip = !(local->enabled_modes & (1 << mode->mode));
 		chan = &mode->channels[local->scan_channel_idx];
 		if (!(chan->flag & IEEE80211_CHAN_W_SCAN) ||
-		    (sdata->type == IEEE80211_IF_TYPE_IBSS &&
+		    (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
 		     !(chan->flag & IEEE80211_CHAN_W_IBSS)) ||
 		    (local->hw_modes & local->enabled_modes &
 		     (1 << MODE_IEEE80211G) && mode->mode == MODE_IEEE80211B))
@@ -3312,7 +3312,7 @@ static int ieee80211_sta_start_scan(struct net_device *dev,
 			continue;
 
 		netif_stop_queue(sdata->dev);
-		if (sdata->type == IEEE80211_IF_TYPE_STA &&
+		if (sdata->vif.type == IEEE80211_IF_TYPE_STA &&
 		    (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED))
 			ieee80211_send_nullfunc(local, sdata, 1);
 	}
@@ -3353,7 +3353,7 @@ int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len)
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
-	if (sdata->type != IEEE80211_IF_TYPE_STA)
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 		return ieee80211_sta_start_scan(dev, ssid, ssid_len);
 
 	if (local->sta_sw_scanning || local->sta_hw_scanning) {
@@ -3576,8 +3576,8 @@ int ieee80211_sta_deauthenticate(struct net_device *dev, u16 reason)
 	printk(KERN_DEBUG "%s: deauthenticate(reason=%d)\n",
 	       dev->name, reason);
 
-	if (sdata->type != IEEE80211_IF_TYPE_STA &&
-	    sdata->type != IEEE80211_IF_TYPE_IBSS)
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA &&
+	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
 		return -EINVAL;
 
 	ieee80211_send_deauth(dev, ifsta, reason);
@@ -3594,7 +3594,7 @@ int ieee80211_sta_disassociate(struct net_device *dev, u16 reason)
 	printk(KERN_DEBUG "%s: disassociate(reason=%d)\n",
 	       dev->name, reason);
 
-	if (sdata->type != IEEE80211_IF_TYPE_STA)
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 		return -EINVAL;
 
 	if (!(ifsta->flags & IEEE80211_STA_ASSOCIATED))

@@ -91,7 +91,7 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-        if (sdata->type == IEEE80211_IF_TYPE_VLAN)
+	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
 		return -EOPNOTSUPP;
 
 	ieee80211_if_reinit(dev);

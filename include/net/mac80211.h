@@ -535,10 +535,12 @@ enum ieee80211_if_types {
  * Data in this structure is continually present for driver
  * use during the life of a virtual interface.
  *
+ * @type: type of this virtual interface
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  */
 struct ieee80211_vif {
+	enum ieee80211_if_types type;
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };

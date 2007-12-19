@@ -471,7 +471,7 @@ void ieee80211_iterate_active_interfaces(
 	rcu_read_lock();
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		switch (sdata->type) {
+		switch (sdata->vif.type) {
 		case IEEE80211_IF_TYPE_INVALID:
 		case IEEE80211_IF_TYPE_MNTR:
 		case IEEE80211_IF_TYPE_VLAN:

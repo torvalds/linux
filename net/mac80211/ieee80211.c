@@ -177,21 +177,21 @@ static int ieee80211_open(struct net_device *dev)
 			/*
 			 * check whether it may have the same address
 			 */
-			if (!identical_mac_addr_allowed(sdata->type,
-							nsdata->type))
+			if (!identical_mac_addr_allowed(sdata->vif.type,
+							nsdata->vif.type))
 				return -ENOTUNIQ;
 
 			/*
 			 * can only add VLANs to enabled APs
 			 */
-			if (sdata->type == IEEE80211_IF_TYPE_VLAN &&
-			    nsdata->type == IEEE80211_IF_TYPE_AP &&
+			if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN &&
+			    nsdata->vif.type == IEEE80211_IF_TYPE_AP &&
 			    netif_running(nsdata->dev))
 				sdata->u.vlan.ap = nsdata;
 		}
 	}
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_WDS:
 		if (is_zero_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
@@ -222,7 +222,7 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
 	}
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_VLAN:
 		list_add(&sdata->u.vlan.list, &sdata->u.vlan.ap->u.ap.vlans);
 		/* no need to tell driver */
@@ -244,7 +244,7 @@ static int ieee80211_open(struct net_device *dev)
 		/* fall through */
 	default:
 		conf.vif = &sdata->vif;
-		conf.type = sdata->type;
+		conf.type = sdata->vif.type;
 		conf.mac_addr = dev->dev_addr;
 		res = local->ops->add_interface(local_to_hw(local), &conf);
 		if (res && !local->open_count && local->ops->stop)
@@ -256,7 +256,7 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_reset_erp_info(dev);
 		ieee80211_enable_keys(sdata);
 
-		if (sdata->type == IEEE80211_IF_TYPE_STA &&
+		if (sdata->vif.type == IEEE80211_IF_TYPE_STA &&
 		    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
 			netif_carrier_off(dev);
 		else
@@ -322,7 +322,7 @@ static int ieee80211_stop(struct net_device *dev)
 	dev_mc_unsync(local->mdev, dev);
 
 	/* down all dependent devices, that is VLANs */
-	if (sdata->type == IEEE80211_IF_TYPE_AP) {
+	if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmp;
 
 		list_for_each_entry_safe(vlan, tmp, &sdata->u.ap.vlans,
@@ -333,7 +333,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 	local->open_count--;
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_VLAN:
 		list_del(&sdata->u.vlan.list);
 		sdata->u.vlan.ap = NULL;
@@ -379,7 +379,7 @@ static int ieee80211_stop(struct net_device *dev)
 		/* fall through */
 	default:
 		conf.vif = &sdata->vif;
-		conf.type = sdata->type;
+		conf.type = sdata->vif.type;
 		conf.mac_addr = dev->dev_addr;
 		/* disable all keys for as long as this netdev is down */
 		ieee80211_disable_keys(sdata);
@@ -502,13 +502,13 @@ static int __ieee80211_if_config(struct net_device *dev,
 		return 0;
 
 	memset(&conf, 0, sizeof(conf));
-	conf.type = sdata->type;
-	if (sdata->type == IEEE80211_IF_TYPE_STA ||
-	    sdata->type == IEEE80211_IF_TYPE_IBSS) {
+	conf.type = sdata->vif.type;
+	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
+	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
-	} else if (sdata->type == IEEE80211_IF_TYPE_AP) {
+	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
 		conf.ssid = sdata->u.ap.ssid;
 		conf.ssid_len = sdata->u.ap.ssid_len;
 		conf.beacon = beacon;
@@ -703,7 +703,7 @@ static void ieee80211_tasklet_handler(unsigned long data)
 		case IEEE80211_RX_MSG:
 			/* status is in skb->cb */
 			memcpy(&rx_status, skb->cb, sizeof(rx_status));
-			/* Clear skb->type in order to not confuse kernel
+			/* Clear skb->pkt_type in order to not confuse kernel
 			 * netstack. */
 			skb->pkt_type = 0;
 			__ieee80211_rx(local_to_hw(local), skb, &rx_status);
@@ -962,7 +962,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 		if (!monitors || !skb)
 			goto out;
 
-		if (sdata->type == IEEE80211_IF_TYPE_MNTR) {
+		if (sdata->vif.type == IEEE80211_IF_TYPE_MNTR) {
 			if (!netif_running(sdata->dev))
 				continue;
 			monitors--;
@@ -1084,7 +1084,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	mdev->header_ops = &ieee80211_header_ops;
 	mdev->set_multicast_list = ieee80211_master_set_multicast_list;
 
-	sdata->type = IEEE80211_IF_TYPE_AP;
+	sdata->vif.type = IEEE80211_IF_TYPE_AP;
 	sdata->dev = mdev;
 	sdata->local = local;
 	sdata->u.ap.force_unicast_rateidx = -1;

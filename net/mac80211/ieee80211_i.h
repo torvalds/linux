@@ -294,7 +294,6 @@ struct ieee80211_if_sta {
 #define IEEE80211_SDATA_USERSPACE_MLME	BIT(4)
 struct ieee80211_sub_if_data {
 	struct list_head list;
-	enum ieee80211_if_types type;
 
 	struct wireless_dev wdev;
 

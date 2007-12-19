@@ -237,7 +237,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 
 	if (likely(tx->flags & IEEE80211_TXRXD_TXUNICAST)) {
 		if (unlikely(!(sta_flags & WLAN_STA_ASSOC) &&
-			     tx->sdata->type != IEEE80211_IF_TYPE_IBSS &&
+			     tx->sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
 			     (tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA)) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 			DECLARE_MAC_BUF(mac);
@@ -251,7 +251,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_txrx_data *tx)
 	} else {
 		if (unlikely((tx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA &&
 			     tx->local->num_sta == 0 &&
-			     tx->sdata->type != IEEE80211_IF_TYPE_IBSS)) {
+			     tx->sdata->vif.type != IEEE80211_IF_TYPE_IBSS)) {
 			/*
 			 * No associated STAs - no need to send multicast
 			 * frames.
@@ -294,7 +294,7 @@ static void purge_old_ps_buffers(struct ieee80211_local *local)
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		struct ieee80211_if_ap *ap;
 		if (sdata->dev == local->mdev ||
-		    sdata->type != IEEE80211_IF_TYPE_AP)
+		    sdata->vif.type != IEEE80211_IF_TYPE_AP)
 			continue;
 		ap = &sdata->u.ap;
 		skb = skb_dequeue(&ap->ps_bc_buf);
@@ -949,7 +949,7 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 
 	/* process and remove the injection radiotap header */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (unlikely(sdata->type == IEEE80211_IF_TYPE_MNTR)) {
+	if (unlikely(sdata->vif.type == IEEE80211_IF_TYPE_MNTR)) {
 		if (__ieee80211_parse_tx_radiotap(tx, skb) == TXRX_DROP)
 			return TXRX_DROP;
 
@@ -1252,7 +1252,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 	}
 
 	control.vif = &osdata->vif;
-	control.type = osdata->type;
+	control.type = osdata->vif.type;
 	if (pkt_data->flags & IEEE80211_TXPD_REQ_TX_STATUS)
 		control.flags |= IEEE80211_TXCTL_REQ_TX_STATUS;
 	if (pkt_data->flags & IEEE80211_TXPD_DO_NOT_ENCRYPT)
@@ -1371,7 +1371,7 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	ethertype = (skb->data[12] << 8) | skb->data[13];
 	fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA;
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_AP:
 	case IEEE80211_IF_TYPE_VLAN:
 		fc |= IEEE80211_FCTL_FROMDS;
@@ -1707,7 +1707,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	bdev = sdata->dev;
 	ap = &sdata->u.ap;
 
-	if (!ap || sdata->type != IEEE80211_IF_TYPE_AP ||
+	if (!ap || sdata->vif.type != IEEE80211_IF_TYPE_AP ||
 	    !ap->beacon_head) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 		if (net_ratelimit())
@@ -1819,7 +1819,8 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	sdata = vif_to_sdata(vif);
 	bdev = sdata->dev;
 
-	if (!bss || sdata->type != IEEE80211_IF_TYPE_AP || !bss->beacon_head)
+	if (!bss || sdata->vif.type != IEEE80211_IF_TYPE_AP ||
+	    !bss->beacon_head)
 		return NULL;
 
 	if (bss->dtim_count != 0)

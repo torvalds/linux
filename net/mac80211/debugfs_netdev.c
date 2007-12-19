@@ -226,7 +226,7 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	if (!sdata->debugfsdir)
 		return;
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		add_sta_files(sdata);
@@ -353,7 +353,7 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	del_files(sdata, sdata->type);
+	del_files(sdata, sdata->vif.type);
 	debugfs_remove(sdata->debugfsdir);
 	sdata->debugfsdir = NULL;
 }

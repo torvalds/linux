@@ -223,7 +223,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		if (!netif_running(sdata->dev))
 			continue;
 
-		if (sdata->type != IEEE80211_IF_TYPE_MNTR)
+		if (sdata->vif.type != IEEE80211_IF_TYPE_MNTR)
 			continue;
 
 		if (prev_dev) {
@@ -419,7 +419,7 @@ ieee80211_rx_h_check(struct ieee80211_txrx_data *rx)
 	if (unlikely(((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA ||
 		      ((rx->fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL &&
 		       (rx->fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)) &&
-		     rx->sdata->type != IEEE80211_IF_TYPE_IBSS &&
+		     rx->sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
 		     (!rx->sta || !(rx->sta->flags & WLAN_STA_ASSOC)))) {
 		if ((!(rx->fc & IEEE80211_FCTL_FROMDS) &&
 		     !(rx->fc & IEEE80211_FCTL_TODS) &&
@@ -639,14 +639,14 @@ ieee80211_rx_h_sta_process(struct ieee80211_txrx_data *rx)
 	/* Update last_rx only for IBSS packets which are for the current
 	 * BSSID to avoid keeping the current IBSS network alive in cases where
 	 * other STAs are using different BSSID. */
-	if (rx->sdata->type == IEEE80211_IF_TYPE_IBSS) {
+	if (rx->sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
 						IEEE80211_IF_TYPE_IBSS);
 		if (compare_ether_addr(bssid, rx->sdata->u.sta.bssid) == 0)
 			sta->last_rx = jiffies;
 	} else
 	if (!is_multicast_ether_addr(hdr->addr1) ||
-	    rx->sdata->type == IEEE80211_IF_TYPE_STA) {
+	    rx->sdata->vif.type == IEEE80211_IF_TYPE_STA) {
 		/* Update last_rx only for unicast frames in order to prevent
 		 * the Probe Request frames (the only broadcast frames from a
 		 * STA in infrastructure mode) from keeping a connection alive.
@@ -901,8 +901,8 @@ ieee80211_rx_h_ps_poll(struct ieee80211_txrx_data *rx)
 		   !(rx->flags & IEEE80211_TXRXD_RXRA_MATCH)))
 		return TXRX_CONTINUE;
 
-	if ((sdata->type != IEEE80211_IF_TYPE_AP) &&
-	    (sdata->type != IEEE80211_IF_TYPE_VLAN))
+	if ((sdata->vif.type != IEEE80211_IF_TYPE_AP) &&
+	    (sdata->vif.type != IEEE80211_IF_TYPE_VLAN))
 		return TXRX_DROP;
 
 	skb = skb_dequeue(&rx->sta->tx_filtered);
@@ -1058,8 +1058,8 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 		memcpy(dst, hdr->addr3, ETH_ALEN);
 		memcpy(src, hdr->addr2, ETH_ALEN);
 
-		if (unlikely(sdata->type != IEEE80211_IF_TYPE_AP &&
-			     sdata->type != IEEE80211_IF_TYPE_VLAN)) {
+		if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_AP &&
+			     sdata->vif.type != IEEE80211_IF_TYPE_VLAN)) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: dropped ToDS frame "
 				       "(BSSID=%s SA=%s DA=%s)\n",
@@ -1075,7 +1075,7 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 		memcpy(dst, hdr->addr3, ETH_ALEN);
 		memcpy(src, hdr->addr4, ETH_ALEN);
 
-		if (unlikely(sdata->type != IEEE80211_IF_TYPE_WDS)) {
+		if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_WDS)) {
 			if (net_ratelimit())
 				printk(KERN_DEBUG "%s: dropped FromDS&ToDS "
 				       "frame (RA=%s TA=%s DA=%s SA=%s)\n",
@@ -1092,7 +1092,7 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 		memcpy(dst, hdr->addr1, ETH_ALEN);
 		memcpy(src, hdr->addr3, ETH_ALEN);
 
-		if (sdata->type != IEEE80211_IF_TYPE_STA ||
+		if (sdata->vif.type != IEEE80211_IF_TYPE_STA ||
 		    (is_multicast_ether_addr(dst) &&
 		     !compare_ether_addr(src, dev->dev_addr)))
 			return -1;
@@ -1102,7 +1102,7 @@ ieee80211_data_to_8023(struct ieee80211_txrx_data *rx)
 		memcpy(dst, hdr->addr1, ETH_ALEN);
 		memcpy(src, hdr->addr2, ETH_ALEN);
 
-		if (sdata->type != IEEE80211_IF_TYPE_IBSS) {
+		if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS) {
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "%s: dropped IBSS frame "
 				       "(DA=%s SA=%s BSSID=%s)\n",
@@ -1190,8 +1190,8 @@ ieee80211_deliver_skb(struct ieee80211_txrx_data *rx)
 	skb = rx->skb;
 	xmit_skb = NULL;
 
-	if (local->bridge_packets && (sdata->type == IEEE80211_IF_TYPE_AP ||
-				      sdata->type == IEEE80211_IF_TYPE_VLAN) &&
+	if (local->bridge_packets && (sdata->vif.type == IEEE80211_IF_TYPE_AP ||
+				      sdata->vif.type == IEEE80211_IF_TYPE_VLAN) &&
 	    (rx->flags & IEEE80211_TXRXD_RXRA_MATCH)) {
 		if (is_multicast_ether_addr(ehdr->h_dest)) {
 			/*
@@ -1435,8 +1435,8 @@ ieee80211_rx_h_mgmt(struct ieee80211_txrx_data *rx)
 		return TXRX_DROP;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
-	if ((sdata->type == IEEE80211_IF_TYPE_STA ||
-	     sdata->type == IEEE80211_IF_TYPE_IBSS) &&
+	if ((sdata->vif.type == IEEE80211_IF_TYPE_STA ||
+	     sdata->vif.type == IEEE80211_IF_TYPE_IBSS) &&
 	    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
 		ieee80211_sta_rx_mgmt(rx->dev, rx->skb, rx->u.rx.status);
 	else
@@ -1528,7 +1528,7 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 		goto ignore;
 	}
 
-	if (rx->sdata->type == IEEE80211_IF_TYPE_AP && keyidx) {
+	if (rx->sdata->vif.type == IEEE80211_IF_TYPE_AP && keyidx) {
 		/*
 		 * APs with pairwise keys should never receive Michael MIC
 		 * errors for non-zero keyidx because these are reserved for
@@ -1590,7 +1590,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 {
 	int multicast = is_multicast_ether_addr(hdr->addr1);
 
-	switch (sdata->type) {
+	switch (sdata->vif.type) {
 	case IEEE80211_IF_TYPE_STA:
 		if (!bssid)
 			return 0;
@@ -1738,10 +1738,10 @@ void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw, struct sk_buff *skb,
 		if (!netif_running(sdata->dev))
 			continue;
 
-		if (sdata->type == IEEE80211_IF_TYPE_MNTR)
+		if (sdata->vif.type == IEEE80211_IF_TYPE_MNTR)
 			continue;
 
-		bssid = ieee80211_get_bssid(hdr, skb->len, sdata->type);
+		bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);
 		rx.flags |= IEEE80211_TXRXD_RXRA_MATCH;
 		prepares = prepare_for_handlers(sdata, bssid, &rx, hdr);
 		/* prepare_for_handlers can change sta */

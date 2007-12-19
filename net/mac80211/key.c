@@ -49,8 +49,8 @@ static const u8 *get_mac_for_key(struct ieee80211_key *key)
 	 * address to indicate a transmit-only key.
 	 */
 	if (key->conf.alg != ALG_WEP &&
-	    (key->sdata->type == IEEE80211_IF_TYPE_AP ||
-	     key->sdata->type == IEEE80211_IF_TYPE_VLAN))
+	    (key->sdata->vif.type == IEEE80211_IF_TYPE_AP ||
+	     key->sdata->vif.type == IEEE80211_IF_TYPE_VLAN))
 		addr = zero_addr;
 
 	if (key->sta)
@@ -172,7 +172,7 @@ struct ieee80211_key *ieee80211_key_alloc(struct ieee80211_sub_if_data *sdata,
 		if (sta->flags & WLAN_STA_WME)
 			key->conf.flags |= IEEE80211_KEY_FLAG_WMM_STA;
 	} else {
-		if (sdata->type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
 			struct sta_info *ap;
 
 			/* same here, the AP could be using QoS */

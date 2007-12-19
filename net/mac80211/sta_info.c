@@ -181,7 +181,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 		struct ieee80211_sub_if_data *sdata;
 
 		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-		if (sdata->type == IEEE80211_IF_TYPE_VLAN)
+		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
 			sdata = sdata->u.vlan.ap;
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
@@ -259,7 +259,7 @@ void sta_info_free(struct sta_info *sta)
 
 		sdata = IEEE80211_DEV_TO_SUB_IF(sta->dev);
 
-		if (sdata->type == IEEE80211_IF_TYPE_VLAN)
+		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
 			sdata = sdata->u.vlan.ap;
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
