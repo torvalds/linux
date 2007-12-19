@@ -217,7 +217,7 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 			   struct buffer_head *di_bh)
 {
 	void *kaddr;
-	unsigned int size;
+	loff_t size;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	if (!(le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_DATA_FL)) {
@@ -231,8 +231,9 @@ int ocfs2_read_inline_data(struct inode *inode, struct page *page,
 	if (size > PAGE_CACHE_SIZE ||
 	    size > ocfs2_max_inline_data(inode->i_sb)) {
 		ocfs2_error(inode->i_sb,
-			    "Inode %llu has with inline data has bad size: %u",
-			    (unsigned long long)OCFS2_I(inode)->ip_blkno, size);
+			    "Inode %llu has with inline data has bad size: %Lu",
+			    (unsigned long long)OCFS2_I(inode)->ip_blkno,
+			    (unsigned long long)size);
 		return -EROFS;
 	}
 
