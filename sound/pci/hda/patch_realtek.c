@@ -572,7 +572,7 @@ static int alc_spdif_ctrl_get(struct snd_kcontrol *kcontrol,
 	unsigned char mask = (kcontrol->private_value >> 16) & 0xff;
 	long *valp = ucontrol->value.integer.value;
 	unsigned int val = snd_hda_codec_read(codec, nid, 0,
-					      AC_VERB_GET_DIGI_CONVERT, 0x00);
+					      AC_VERB_GET_DIGI_CONVERT_1, 0x00);
 
 	*valp = (val & mask) != 0;
 	return 0;
@@ -586,7 +586,7 @@ static int alc_spdif_ctrl_put(struct snd_kcontrol *kcontrol,
 	unsigned char mask = (kcontrol->private_value >> 16) & 0xff;
 	long val = *ucontrol->value.integer.value;
 	unsigned int ctrl_data = snd_hda_codec_read(codec, nid, 0,
-						    AC_VERB_GET_DIGI_CONVERT,
+						    AC_VERB_GET_DIGI_CONVERT_1,
 						    0x00);
 
 	/* Set/unset the masked control bit(s) as needed */

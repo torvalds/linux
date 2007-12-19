@@ -1435,7 +1435,8 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec, hda_nid_t nid)
 			return err;
 	}
 	codec->spdif_ctls =
-		snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT, 0);
+		snd_hda_codec_read(codec, nid, 0,
+				   AC_VERB_GET_DIGI_CONVERT_1, 0);
 	codec->spdif_status = convert_to_spdif_status(codec->spdif_ctls);
 	return 0;
 }
@@ -1482,7 +1483,7 @@ static int snd_hda_spdif_in_status_get(struct snd_kcontrol *kcontrol,
 	unsigned short val;
 	unsigned int sbits;
 
-	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT, 0);
+	val = snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT_1, 0);
 	sbits = convert_to_spdif_status(val);
 	ucontrol->value.iec958.status[0] = sbits;
 	ucontrol->value.iec958.status[1] = sbits >> 8;
@@ -1533,7 +1534,8 @@ int snd_hda_create_spdif_in_ctls(struct hda_codec *codec, hda_nid_t nid)
 			return err;
 	}
 	codec->spdif_in_enable =
-		snd_hda_codec_read(codec, nid, 0, AC_VERB_GET_DIGI_CONVERT, 0) &
+		snd_hda_codec_read(codec, nid, 0,
+				   AC_VERB_GET_DIGI_CONVERT_1, 0) &
 		AC_DIG1_ENABLE;
 	return 0;
 }

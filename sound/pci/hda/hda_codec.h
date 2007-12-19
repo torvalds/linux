@@ -77,12 +77,14 @@ enum {
 #define AC_VERB_GET_PIN_SENSE			0x0f09
 #define AC_VERB_GET_BEEP_CONTROL		0x0f0a
 #define AC_VERB_GET_EAPD_BTLENABLE		0x0f0c
-#define AC_VERB_GET_DIGI_CONVERT		0x0f0d
+#define AC_VERB_GET_DIGI_CONVERT_1		0x0f0d
+#define AC_VERB_GET_DIGI_CONVERT_2		0x0f0e
 #define AC_VERB_GET_VOLUME_KNOB_CONTROL		0x0f0f
 /* f10-f1a: GPIO */
 #define AC_VERB_GET_GPIO_DATA			0x0f15
 #define AC_VERB_GET_GPIO_MASK			0x0f16
 #define AC_VERB_GET_GPIO_DIRECTION		0x0f17
+#define AC_VERB_GET_GPIO_UNSOLICITED_RSP_MASK	0x0f19
 #define AC_VERB_GET_CONFIG_DEFAULT		0x0f1c
 /* f20: AFG/MFG */
 #define AC_VERB_GET_SUBSYSTEM_ID		0x0f20
@@ -110,6 +112,7 @@ enum {
 #define AC_VERB_SET_GPIO_DATA			0x715
 #define AC_VERB_SET_GPIO_MASK			0x716
 #define AC_VERB_SET_GPIO_DIRECTION		0x717
+#define AC_VERB_SET_GPIO_UNSOLICITED_RSP_MASK	0x719
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_0	0x71c
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_1	0x71d
 #define AC_VERB_SET_CONFIG_DEFAULT_BYTES_2	0x71e
@@ -190,6 +193,10 @@ enum {
 #define AC_PINCAP_OUT			(1<<4)	/* output capable */
 #define AC_PINCAP_IN			(1<<5)	/* input capable */
 #define AC_PINCAP_BALANCE		(1<<6)	/* balanced I/O capable */
+/* Note: This LR_SWAP pincap is defined in the Realtek ALC883 specification,
+ *       but is marked reserved in the Intel HDA specification.
+ */
+#define AC_PINCAP_LR_SWAP		(1<<7)	/* L/R swap */
 #define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
