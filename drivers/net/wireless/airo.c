@@ -1101,11 +1101,11 @@ static void enable_interrupts(struct airo_info*);
 static void disable_interrupts(struct airo_info*);
 static u16 issuecommand(struct airo_info*, Cmd *pCmd, Resp *pRsp);
 static int bap_setup(struct airo_info*, u16 rid, u16 offset, int whichbap);
-static int aux_bap_read(struct airo_info*, u16 *pu16Dst, int bytelen,
+static int aux_bap_read(struct airo_info*, __le16 *pu16Dst, int bytelen,
 			int whichbap);
-static int fast_bap_read(struct airo_info*, u16 *pu16Dst, int bytelen,
+static int fast_bap_read(struct airo_info*, __le16 *pu16Dst, int bytelen,
 			 int whichbap);
-static int bap_write(struct airo_info*, const u16 *pu16Src, int bytelen,
+static int bap_write(struct airo_info*, const __le16 *pu16Src, int bytelen,
 		     int whichbap);
 static int PC4500_accessrid(struct airo_info*, u16 rid, u16 accmd);
 static int PC4500_readrid(struct airo_info*, u16 rid, void *pBuf, int len, int lock);
@@ -1188,7 +1188,7 @@ struct airo_info {
 #define JOB_WSTATS	8
 #define JOB_SCAN_RESULTS  9
 	unsigned long jobs;
-	int (*bap_read)(struct airo_info*, u16 *pu16Dst, int bytelen,
+	int (*bap_read)(struct airo_info*, __le16 *pu16Dst, int bytelen,
 			int whichbap);
 	unsigned short *flash;
 	tdsRssiEntry *rssi;
@@ -1236,8 +1236,9 @@ struct airo_info {
 	BSSListElement *networks;
 };
 
-static inline int bap_read(struct airo_info *ai, u16 *pu16Dst, int bytelen,
-			   int whichbap) {
+static inline int bap_read(struct airo_info *ai, __le16 *pu16Dst, int bytelen,
+			   int whichbap)
+{
 	return ai->bap_read(ai, pu16Dst, bytelen, whichbap);
 }
 
@@ -2125,7 +2126,7 @@ static void get_tx_error(struct airo_info *ai, s32 fid)
 		/* Faster to skip over useless data than to do
 		 * another bap_setup(). We are at offset 0x6 and
 		 * need to go to 0x18 and read 6 bytes - Jean II */
-		bap_read(ai, (u16 *) junk, 0x18, BAP0);
+		bap_read(ai, (__le16 *) junk, 0x18, BAP0);
 
 		/* Copy 802.11 dest address.
 		 * We use the 802.11 header because the frame may
@@ -3287,7 +3288,8 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 		/* Check to see if there is something to receive */
 		if ( status & EV_RX  ) {
 			struct sk_buff *skb = NULL;
-			u16 fc, len, hdrlen = 0;
+			__le16 fc, v;
+			u16 len, hdrlen = 0;
 #pragma pack(1)
 			struct {
 				__le16 status, len;
@@ -3298,8 +3300,8 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 			} hdr;
 #pragma pack()
 			u16 gap;
-			u16 tmpbuf[4];
-			u16 *buffer;
+			__le16 tmpbuf[4];
+			__le16 *buffer;
 
 			if (test_bit(FLAG_MPI,&apriv->flags)) {
 				if (test_bit(FLAG_802_11, &apriv->flags))
@@ -3315,7 +3317,7 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 			/* Get the packet length */
 			if (test_bit(FLAG_802_11, &apriv->flags)) {
 				bap_setup (apriv, fid, 4, BAP0);
-				bap_read (apriv, (u16*)&hdr, sizeof(hdr), BAP0);
+				bap_read (apriv, (__le16*)&hdr, sizeof(hdr), BAP0);
 				/* Bad CRC. Ignore packet */
 				if (le16_to_cpu(hdr.status) & 2)
 					hdr.len = 0;
@@ -3323,7 +3325,7 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 					hdr.len = 0;
 			} else {
 				bap_setup (apriv, fid, 0x36, BAP0);
-				bap_read (apriv, (u16*)&hdr.len, 2, BAP0);
+				bap_read (apriv, &hdr.len, 2, BAP0);
 			}
 			len = le16_to_cpu(hdr.len);
 
@@ -3346,15 +3348,15 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 				goto badrx;
 			}
 			skb_reserve(skb, 2); /* This way the IP header is aligned */
-			buffer = (u16*)skb_put (skb, len + hdrlen);
+			buffer = (__le16*)skb_put (skb, len + hdrlen);
 			if (test_bit(FLAG_802_11, &apriv->flags)) {
 				buffer[0] = fc;
 				bap_read (apriv, buffer + 1, hdrlen - 2, BAP0);
 				if (hdrlen == 24)
 					bap_read (apriv, tmpbuf, 6, BAP0);
 
-				bap_read (apriv, &gap, sizeof(gap), BAP0);
-				gap = le16_to_cpu(gap);
+				bap_read (apriv, &v, sizeof(v), BAP0);
+				gap = le16_to_cpu(v);
 				if (gap) {
 					if (gap <= 8) {
 						bap_read (apriv, tmpbuf, gap, BAP0);
@@ -3368,7 +3370,7 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 				MICBuffer micbuf;
 				bap_read (apriv, buffer, ETH_ALEN*2, BAP0);
 				if (apriv->micstats.enabled) {
-					bap_read (apriv,(u16*)&micbuf,sizeof(micbuf),BAP0);
+					bap_read (apriv,(__le16*)&micbuf,sizeof(micbuf),BAP0);
 					if (ntohs(micbuf.typelen) > 0x05DC)
 						bap_setup (apriv, fid, 0x44, BAP0);
 					else {
@@ -3396,7 +3398,7 @@ badrx:
 				if (!test_bit(FLAG_802_11, &apriv->flags)) {
 					sa = (char*)buffer + 6;
 					bap_setup (apriv, fid, 8, BAP0);
-					bap_read (apriv, (u16*)hdr.rssi, 2, BAP0);
+					bap_read (apriv, (__le16*)hdr.rssi, 2, BAP0);
 				} else
 					sa = (char*)buffer + 10;
 				wstats.qual = hdr.rssi[0];
@@ -4015,7 +4017,7 @@ static u16 aux_setup(struct airo_info *ai, u16 page,
 }
 
 /* requires call to bap_setup() first */
-static int aux_bap_read(struct airo_info *ai, u16 *pu16Dst,
+static int aux_bap_read(struct airo_info *ai, __le16 *pu16Dst,
 			int bytelen, int whichbap)
 {
 	u16 len;
@@ -4052,7 +4054,7 @@ static int aux_bap_read(struct airo_info *ai, u16 *pu16Dst,
 
 
 /* requires call to bap_setup() first */
-static int fast_bap_read(struct airo_info *ai, u16 *pu16Dst,
+static int fast_bap_read(struct airo_info *ai, __le16 *pu16Dst,
 			 int bytelen, int whichbap)
 {
 	bytelen = (bytelen + 1) & (~1); // round up to even value
@@ -4064,7 +4066,7 @@ static int fast_bap_read(struct airo_info *ai, u16 *pu16Dst,
 }
 
 /* requires call to bap_setup() first */
-static int bap_write(struct airo_info *ai, const u16 *pu16Src,
+static int bap_write(struct airo_info *ai, const __le16 *pu16Src,
 		     int bytelen, int whichbap)
 {
 	bytelen = (bytelen + 1) & (~1); // round up to even value
@@ -4150,7 +4152,7 @@ static int PC4500_readrid(struct airo_info *ai, u16 rid, void *pBuf, int len, in
 	                goto done;
 		}
 		// read remainder of the rid
-		rc = bap_read(ai, ((u16*)pBuf)+1, len, BAP1);
+		rc = bap_read(ai, ((__le16*)pBuf)+1, len, BAP1);
 	}
 done:
 	if (lock)
@@ -4322,10 +4324,10 @@ static int transmit_802_3_packet(struct airo_info *ai, int len, char *pPacket)
 	 * we have to subtract the 12 bytes for the addresses off */
 	payloadLen = cpu_to_le16(len + miclen);
 	bap_write(ai, &payloadLen, sizeof(payloadLen),BAP1);
-	bap_write(ai, (const u16*)pPacket, sizeof(etherHead), BAP1);
+	bap_write(ai, (__le16*)pPacket, sizeof(etherHead), BAP1);
 	if (miclen)
-		bap_write(ai, (const u16*)&pMic, miclen, BAP1);
-	bap_write(ai, (const u16*)(pPacket + sizeof(etherHead)), len, BAP1);
+		bap_write(ai, (__le16*)&pMic, miclen, BAP1);
+	bap_write(ai, (__le16*)(pPacket + sizeof(etherHead)), len, BAP1);
 	// issue the transmit command
 	memset( &cmd, 0, sizeof( cmd ) );
 	cmd.cmd = CMD_TRANSMIT;
@@ -4362,10 +4364,10 @@ static int transmit_802_11_packet(struct airo_info *ai, int len, char *pPacket)
 	payloadLen = cpu_to_le16(len-hdrlen);
 	bap_write(ai, &payloadLen, sizeof(payloadLen),BAP1);
 	if (bap_setup(ai, txFid, 0x0014, BAP1) != SUCCESS) return ERROR;
-	bap_write(ai, (const u16*)pPacket, hdrlen, BAP1);
-	bap_write(ai, (u16 *)(tail + (hdrlen - 10)), 38 - hdrlen, BAP1);
+	bap_write(ai, (__le16 *)pPacket, hdrlen, BAP1);
+	bap_write(ai, (__le16 *)(tail + (hdrlen - 10)), 38 - hdrlen, BAP1);
 
-	bap_write(ai, (const u16*)(pPacket + hdrlen), len - hdrlen, BAP1);
+	bap_write(ai, (__le16 *)(pPacket + hdrlen), len - hdrlen, BAP1);
 	// issue the transmit command
 	memset( &cmd, 0, sizeof( cmd ) );
 	cmd.cmd = CMD_TRANSMIT;
