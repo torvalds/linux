@@ -6,13 +6,15 @@
 #include "hostcmd.h"
 #include "dev.h"
 
-#define lbs_cmd(priv, cmdnr, cmd, cb, cb_arg)	\
-	__lbs_cmd(priv, cmdnr, &(cmd)->hdr, sizeof(*(cmd)), cb, cb_arg)
+/* lbs_cmd() infers the size of the buffer to copy data back into, from
+   the size of the target of the pointer. Since the command to be sent 
+   may often be smaller, that size is set in cmd->size by the caller.*/
+#define lbs_cmd(priv, cmdnr, cmd, cb, cb_arg)	({		\
+	uint16_t __sz = le16_to_cpu((cmd)->hdr.size);		\
+	(cmd)->hdr.size = cpu_to_le16(sizeof(*(cmd)));		\
+	__lbs_cmd(priv, cmdnr, &(cmd)->hdr, __sz, cb, cb_arg);	\
+})
 
-
-/* lbs_cmd_with_response() infers the size of the command to be _sent_
-   and requires that the caller sets cmd->size to the (LE) size of
-   the _response_ buffer. */
 #define lbs_cmd_with_response(priv, cmdnr, cmd)	\
 	lbs_cmd(priv, cmdnr, cmd, lbs_cmd_copyback, (unsigned long) (cmd))
 
