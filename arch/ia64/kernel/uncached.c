@@ -118,7 +118,7 @@ static int uncached_add_chunk(struct uncached_pool *uc_pool, int nid)
 	for (i = 0; i < (IA64_GRANULE_SIZE / PAGE_SIZE); i++)
 		SetPageUncached(&page[i]);
 
-	flush_tlb_kernel_range(uc_addr, uc_adddr + IA64_GRANULE_SIZE);
+	flush_tlb_kernel_range(uc_addr, uc_addr + IA64_GRANULE_SIZE);
 
 	status = ia64_pal_prefetch_visibility(PAL_VISIBILITY_PHYSICAL);
 	if (status == PAL_VISIBILITY_OK_REMOTE_NEEDED) {
