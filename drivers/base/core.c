@@ -576,8 +576,8 @@ static struct kobject *get_device_parent(struct device *dev,
 
 		/*
 		 * If we have no parent, we live in "virtual".
-		 * Class-devices with a bus-device as parent, live
-		 * in a class-directory to prevent namespace collisions.
+		 * Class-devices with a non class-device as parent, live
+		 * in a "glue" directory to prevent namespace collisions.
 		 */
 		if (parent == NULL)
 			parent_kobj = virtual_device_parent(dev);
@@ -607,8 +607,7 @@ static struct kobject *get_device_parent(struct device *dev,
 			kobject_put(k);
 			return NULL;
 		}
-		/* Do not emit a uevent, as it's not needed for this
-		 * "class glue" directory. */
+		/* do not emit an uevent for this simple "glue" directory */
 		return k;
 	}
 
@@ -619,30 +618,13 @@ static struct kobject *get_device_parent(struct device *dev,
 
 static void cleanup_device_parent(struct device *dev)
 {
-	struct device *d;
-	int other = 0;
+	struct kobject *glue_dir = dev->kobj.parent;
 
-	if (!dev->class)
+	/* see if we live in a "glue" directory */
+	if (!dev->class || glue_dir->kset != &dev->class->class_dirs)
 		return;
 
-	/* see if we live in a parent class directory */
-	if (dev->kobj.parent->kset != &dev->class->class_dirs)
-		return;
-
-	/* if we are the last child of our class, delete the directory */
-	down(&dev->class->sem);
-	list_for_each_entry(d, &dev->class->devices, node) {
-		if (d == dev)
-			continue;
-		if (d->kobj.parent == dev->kobj.parent) {
-			other = 1;
-			break;
-		}
-	}
-	if (!other)
-		kobject_del(dev->kobj.parent);
-	kobject_put(dev->kobj.parent);
-	up(&dev->class->sem);
+	kobject_put(glue_dir);
 }
 #endif
 
