@@ -33,16 +33,6 @@ static int xfrm_state_check_space(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static int xfrm_state_check(struct xfrm_state *x, struct sk_buff *skb)
-{
-	int err = xfrm_state_check_expire(x);
-	if (err < 0)
-		goto err;
-	err = xfrm_state_check_space(x, skb);
-err:
-	return err;
-}
-
 static int xfrm_output_one(struct sk_buff *skb, int err)
 {
 	struct dst_entry *dst = skb->dst;
@@ -52,12 +42,16 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		goto resume;
 
 	do {
+		err = xfrm_state_check_space(x, skb);
+		if (err)
+			goto error_nolock;
+
 		err = x->outer_mode->output(x, skb);
 		if (err)
-			goto error;
+			goto error_nolock;
 
 		spin_lock_bh(&x->lock);
-		err = xfrm_state_check(x, skb);
+		err = xfrm_state_check_expire(x);
 		if (err)
 			goto error;
 
