@@ -4365,14 +4365,10 @@ static int transmit_802_11_packet(struct airo_info *ai, int len, char *pPacket)
 	Cmd cmd;
 	Resp rsp;
 	int hdrlen;
-	struct {
-		u8 addr4[ETH_ALEN];
-		u16 gaplen;
-		u8 gap[6];
-	} gap;
+	static u8 tail[(30-10) + 2 + 6] = {[30-10] = 6};
+	/* padding of header to full size + le16 gaplen (6) + gaplen bytes */
 	u16 txFid = len;
 	len >>= 16;
-	gap.gaplen = 6;
 
 	fc = le16_to_cpu(*(const u16*)pPacket);
 	switch (fc & 0xc) {
@@ -4405,8 +4401,7 @@ static int transmit_802_11_packet(struct airo_info *ai, int len, char *pPacket)
 	bap_write(ai, &payloadLen, sizeof(payloadLen),BAP1);
 	if (bap_setup(ai, txFid, 0x0014, BAP1) != SUCCESS) return ERROR;
 	bap_write(ai, (const u16*)pPacket, hdrlen, BAP1);
-	bap_write(ai, hdrlen == 30 ?
-		(const u16*)&gap.gaplen : (const u16*)&gap, 38 - hdrlen, BAP1);
+	bap_write(ai, (u16 *)(tail + (hdrlen - 10)), 38 - hdrlen, BAP1);
 
 	bap_write(ai, (const u16*)(pPacket + hdrlen), len - hdrlen, BAP1);
 	// issue the transmit command
