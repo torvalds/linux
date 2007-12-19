@@ -202,6 +202,12 @@ static int proc_read_options(char *page, char **start, off_t off,
 static int proc_write_options(struct file *file, const char __user *buffer,
 			unsigned long count, void *data);
 
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
+static void powerbook_sleep_init_3400(void);
+#else
+#define powerbook_sleep_init_3400()	do { } while (0)
+#endif
+
 #ifdef CONFIG_ADB
 struct adb_driver via_pmu_driver = {
 	"PMU",
@@ -448,6 +454,10 @@ static int __init via_pmu_start(void)
 	do {
 		pmu_poll();
 	} while (pmu_state != idle);
+
+	/* Do allocations and ioremaps that will be needed for sleep */
+	if (pmu_kind == PMU_OHARE_BASED)
+		powerbook_sleep_init_3400();
 
 	return 0;
 }
@@ -1719,108 +1729,6 @@ pmu_present(void)
 }
 
 #if defined(CONFIG_PM_SLEEP) && defined(CONFIG_PPC32)
-/*
- * This struct is used to store config register values for
- * PCI devices which may get powered off when we sleep.
- */
-static struct pci_save {
-	u16	command;
-	u16	cache_lat;
-	u16	intr;
-	u32	rom_address;
-} *pbook_pci_saves;
-static int pbook_npci_saves;
-
-static void
-pbook_alloc_pci_save(void)
-{
-	int npci;
-	struct pci_dev *pd = NULL;
-
-	npci = 0;
-	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
-		++npci;
-	}
-	if (npci == 0)
-		return;
-	pbook_pci_saves = (struct pci_save *)
-		kmalloc(npci * sizeof(struct pci_save), GFP_KERNEL);
-	pbook_npci_saves = npci;
-}
-
-static void
-pbook_free_pci_save(void)
-{
-	if (pbook_pci_saves == NULL)
-		return;
-	kfree(pbook_pci_saves);
-	pbook_pci_saves = NULL;
-	pbook_npci_saves = 0;
-}
-
-static void
-pbook_pci_save(void)
-{
-	struct pci_save *ps = pbook_pci_saves;
-	struct pci_dev *pd = NULL;
-	int npci = pbook_npci_saves;
-	
-	if (ps == NULL)
-		return;
-
-	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
-		if (npci-- == 0) {
-			pci_dev_put(pd);
-			return;
-		}
-		pci_read_config_word(pd, PCI_COMMAND, &ps->command);
-		pci_read_config_word(pd, PCI_CACHE_LINE_SIZE, &ps->cache_lat);
-		pci_read_config_word(pd, PCI_INTERRUPT_LINE, &ps->intr);
-		pci_read_config_dword(pd, PCI_ROM_ADDRESS, &ps->rom_address);
-		++ps;
-	}
-}
-
-/* For this to work, we must take care of a few things: If gmac was enabled
- * during boot, it will be in the pci dev list. If it's disabled at this point
- * (and it will probably be), then you can't access it's config space.
- */
-static void
-pbook_pci_restore(void)
-{
-	u16 cmd;
-	struct pci_save *ps = pbook_pci_saves - 1;
-	struct pci_dev *pd = NULL;
-	int npci = pbook_npci_saves;
-	int j;
-
-	while ((pd = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pd)) != NULL) {
-		if (npci-- == 0)
-			return;
-		ps++;
-		if (ps->command == 0)
-			continue;
-		pci_read_config_word(pd, PCI_COMMAND, &cmd);
-		if ((ps->command & ~cmd) == 0)
-			continue;
-		switch (pd->hdr_type) {
-		case PCI_HEADER_TYPE_NORMAL:
-			for (j = 0; j < 6; ++j)
-				pci_write_config_dword(pd,
-					PCI_BASE_ADDRESS_0 + j*4,
-					pd->resource[j].start);
-			pci_write_config_dword(pd, PCI_ROM_ADDRESS,
-				ps->rom_address);
-			pci_write_config_word(pd, PCI_CACHE_LINE_SIZE,
-				ps->cache_lat);
-			pci_write_config_word(pd, PCI_INTERRUPT_LINE,
-				ps->intr);
-			pci_write_config_word(pd, PCI_COMMAND, ps->command);
-			break;
-		}
-	}
-}
-
 #ifdef DEBUG_SLEEP
 /* N.B. This doesn't work on the 3400 */
 void 
@@ -2200,36 +2108,33 @@ powerbook_sleep_Core99(void)
 #define PB3400_MEM_CTRL		0xf8000000
 #define PB3400_MEM_CTRL_SLEEP	0x70
 
-static int
-powerbook_sleep_3400(void)
+static void __iomem *pb3400_mem_ctrl;
+
+static void powerbook_sleep_init_3400(void)
+{
+	/* map in the memory controller registers */
+	pb3400_mem_ctrl = ioremap(PB3400_MEM_CTRL, 0x100);
+	if (pb3400_mem_ctrl == NULL)
+		printk(KERN_WARNING "ioremap failed: sleep won't be possible");
+}
+
+static int powerbook_sleep_3400(void)
 {
 	int ret, i, x;
 	unsigned int hid0;
-	unsigned long p;
+	unsigned long msr;
 	struct adb_request sleep_req;
-	void __iomem *mem_ctrl;
 	unsigned int __iomem *mem_ctrl_sleep;
 
-	/* first map in the memory controller registers */
-	mem_ctrl = ioremap(PB3400_MEM_CTRL, 0x100);
-	if (mem_ctrl == NULL) {
-		printk("powerbook_sleep_3400: ioremap failed\n");
+	if (pb3400_mem_ctrl == NULL)
 		return -ENOMEM;
-	}
-	mem_ctrl_sleep = mem_ctrl + PB3400_MEM_CTRL_SLEEP;
-
-	/* Allocate room for PCI save */
-	pbook_alloc_pci_save();
+	mem_ctrl_sleep = pb3400_mem_ctrl + PB3400_MEM_CTRL_SLEEP;
 
 	ret = pmac_suspend_devices();
 	if (ret) {
-		pbook_free_pci_save();
 		printk(KERN_ERR "Sleep rejected by devices\n");
 		return ret;
 	}
-
-	/* Save the state of PCI config space for some slots */
-	pbook_pci_save();
 
 	/* Set the memory controller to keep the memory refreshed
 	   while we're asleep */
@@ -2244,36 +2149,31 @@ powerbook_sleep_3400(void)
 
 	/* Ask the PMU to put us to sleep */
 	pmu_request(&sleep_req, NULL, 5, PMU_SLEEP, 'M', 'A', 'T', 'T');
-	while (!sleep_req.complete)
-		mb();
+	pmu_wait_complete(&sleep_req);
+	pmu_unlock();
 
-	pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,1);
+	pmac_call_feature(PMAC_FTR_SLEEP_STATE, NULL, 0, 1);
 
-	/* displacement-flush the L2 cache - necessary? */
-	for (p = KERNELBASE; p < KERNELBASE + 0x100000; p += 0x1000)
-		i = *(volatile int *)p;
 	asleep = 1;
 
 	/* Put the CPU into sleep mode */
 	hid0 = mfspr(SPRN_HID0);
 	hid0 = (hid0 & ~(HID0_NAP | HID0_DOZE)) | HID0_SLEEP;
 	mtspr(SPRN_HID0, hid0);
-	mtmsr(mfmsr() | MSR_POW | MSR_EE);
-	udelay(10);
+	local_irq_enable();
+	msr = mfmsr() | MSR_POW;
+	while (asleep) {
+		mb();
+		mtmsr(msr);
+		isync();
+	}
+	local_irq_disable();
 
 	/* OK, we're awake again, start restoring things */
 	out_be32(mem_ctrl_sleep, 0x3f);
-	pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,0);
-	pbook_pci_restore();
-	pmu_unlock();
-
-	/* wait for the PMU interrupt sequence to complete */
-	while (asleep)
-		mb();
+	pmac_call_feature(PMAC_FTR_SLEEP_STATE, NULL, 0, 0);
 
 	pmac_wakeup_devices();
-	pbook_free_pci_save();
-	iounmap(mem_ctrl);
 
 	return 0;
 }
