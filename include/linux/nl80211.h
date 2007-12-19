@@ -47,6 +47,15 @@
  * @NL80211_CMD_DEL_KEY: delete a key identified by %NL80211_ATTR_KEY_IDX
  *	or %NL80211_ATTR_MAC.
  *
+ * @NL80211_CMD_GET_BEACON: retrieve beacon information (returned in a
+ *	%NL80222_CMD_NEW_BEACON message)
+ * @NL80211_CMD_SET_BEACON: set the beacon on an access point interface
+ *	using the %NL80211_ATTR_BEACON_INTERVAL, %NL80211_ATTR_DTIM_PERIOD,
+ *	%NL80211_BEACON_HEAD and %NL80211_BEACON_TAIL attributes.
+ * @NL80211_CMD_NEW_BEACON: add a new beacon to an access point interface,
+ *	parameters are like for %NL80211_CMD_SET_BEACON.
+ * @NL80211_CMD_DEL_BEACON: remove the beacon, stop sending it
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -68,6 +77,11 @@ enum nl80211_commands {
 	NL80211_CMD_SET_KEY,
 	NL80211_CMD_NEW_KEY,
 	NL80211_CMD_DEL_KEY,
+
+	NL80211_CMD_GET_BEACON,
+	NL80211_CMD_SET_BEACON,
+	NL80211_CMD_NEW_BEACON,
+	NL80211_CMD_DEL_BEACON,
 
 	/* add commands here */
 
@@ -101,6 +115,11 @@ enum nl80211_commands {
  * @NL80211_ATTR_KEY_SEQ: transmit key sequence number (IV/PN) for TKIP and
  *	CCMP keys, each six bytes in little endian
  *
+ * @NL80211_ATTR_BEACON_INTERVAL: beacon interval in TU
+ * @NL80211_ATTR_DTIM_PERIOD: DTIM period for beaconing
+ * @NL80211_ATTR_BEACON_HEAD: portion of the beacon before the TIM IE
+ * @NL80211_ATTR_BEACON_TAIL: portion of the beacon after the TIM IE
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -122,6 +141,11 @@ enum nl80211_attrs {
 	NL80211_ATTR_KEY_CIPHER,
 	NL80211_ATTR_KEY_SEQ,
 	NL80211_ATTR_KEY_DEFAULT,
+
+	NL80211_ATTR_BEACON_INTERVAL,
+	NL80211_ATTR_DTIM_PERIOD,
+	NL80211_ATTR_BEACON_HEAD,
+	NL80211_ATTR_BEACON_TAIL,
 
 	/* add attributes here, update the policy in nl80211.c */
 

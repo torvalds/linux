@@ -69,6 +69,13 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_KEY_IDX] = { .type = NLA_U8 },
 	[NL80211_ATTR_KEY_CIPHER] = { .type = NLA_U32 },
 	[NL80211_ATTR_KEY_DEFAULT] = { .type = NLA_FLAG },
+
+	[NL80211_ATTR_BEACON_INTERVAL] = { .type = NLA_U32 },
+	[NL80211_ATTR_DTIM_PERIOD] = { .type = NLA_U32 },
+	[NL80211_ATTR_BEACON_HEAD] = { .type = NLA_BINARY,
+				       .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_BEACON_TAIL] = { .type = NLA_BINARY,
+				       .len = IEEE80211_MAX_DATA_LEN },
 };
 
 /* message building helper */
@@ -600,6 +607,114 @@ static int nl80211_del_key(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int nl80211_addset_beacon(struct sk_buff *skb, struct genl_info *info)
+{
+        int (*call)(struct wiphy *wiphy, struct net_device *dev,
+		    struct beacon_parameters *info);
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	struct beacon_parameters params;
+	int haveinfo = 0;
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	switch (info->genlhdr->cmd) {
+	case NL80211_CMD_NEW_BEACON:
+		/* these are required for NEW_BEACON */
+		if (!info->attrs[NL80211_ATTR_BEACON_INTERVAL] ||
+		    !info->attrs[NL80211_ATTR_DTIM_PERIOD] ||
+		    !info->attrs[NL80211_ATTR_BEACON_HEAD]) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		call = drv->ops->add_beacon;
+		break;
+	case NL80211_CMD_SET_BEACON:
+		call = drv->ops->set_beacon;
+		break;
+	default:
+		WARN_ON(1);
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (!call) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	memset(&params, 0, sizeof(params));
+
+	if (info->attrs[NL80211_ATTR_BEACON_INTERVAL]) {
+		params.interval =
+		    nla_get_u32(info->attrs[NL80211_ATTR_BEACON_INTERVAL]);
+		haveinfo = 1;
+	}
+
+	if (info->attrs[NL80211_ATTR_DTIM_PERIOD]) {
+		params.dtim_period =
+		    nla_get_u32(info->attrs[NL80211_ATTR_DTIM_PERIOD]);
+		haveinfo = 1;
+	}
+
+	if (info->attrs[NL80211_ATTR_BEACON_HEAD]) {
+		params.head = nla_data(info->attrs[NL80211_ATTR_BEACON_HEAD]);
+		params.head_len =
+		    nla_len(info->attrs[NL80211_ATTR_BEACON_HEAD]);
+		haveinfo = 1;
+	}
+
+	if (info->attrs[NL80211_ATTR_BEACON_TAIL]) {
+		params.tail = nla_data(info->attrs[NL80211_ATTR_BEACON_TAIL]);
+		params.tail_len =
+		    nla_len(info->attrs[NL80211_ATTR_BEACON_TAIL]);
+		haveinfo = 1;
+	}
+
+	if (!haveinfo) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = call(&drv->wiphy, dev, &params);
+	rtnl_unlock();
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->del_beacon) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->del_beacon(&drv->wiphy, dev);
+	rtnl_unlock();
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -662,6 +777,24 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_del_key,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_BEACON,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.doit = nl80211_addset_beacon,
+	},
+	{
+		.cmd = NL80211_CMD_NEW_BEACON,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.doit = nl80211_addset_beacon,
+	},
+	{
+		.cmd = NL80211_CMD_DEL_BEACON,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+		.doit = nl80211_del_beacon,
 	},
 };
 

@@ -69,6 +69,26 @@ struct key_params {
 	u32 cipher;
 };
 
+/**
+ * struct beacon_parameters - beacon parameters
+ *
+ * Used to configure the beacon for an interface.
+ *
+ * @head: head portion of beacon (before TIM IE)
+ *     or %NULL if not changed
+ * @tail: tail portion of beacon (after TIM IE)
+ *     or %NULL if not changed
+ * @interval: beacon interval or zero if not changed
+ * @dtim_period: DTIM period or zero if not changed
+ * @head_len: length of @head
+ * @tail_len: length of @tail
+ */
+struct beacon_parameters {
+	u8 *head, *tail;
+	int interval, dtim_period;
+	int head_len, tail_len;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -103,6 +123,13 @@ struct wiphy;
  *	and @key_index
  *
  * @set_default_key: set the default key on an interface
+ *
+ * @add_beacon: Add a beacon with given parameters, @head, @interval
+ *	and @dtim_period will be valid, @tail is optional.
+ * @set_beacon: Change the beacon parameters for an access point mode
+ *	interface. This should reject the call when no beacon has been
+ *	configured.
+ * @del_beacon: Remove beacon configuration and stop sending the beacon.
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -122,6 +149,12 @@ struct cfg80211_ops {
 	int	(*set_default_key)(struct wiphy *wiphy,
 				   struct net_device *netdev,
 				   u8 key_index);
+
+	int	(*add_beacon)(struct wiphy *wiphy, struct net_device *dev,
+			      struct beacon_parameters *info);
+	int	(*set_beacon)(struct wiphy *wiphy, struct net_device *dev,
+			      struct beacon_parameters *info);
+	int	(*del_beacon)(struct wiphy *wiphy, struct net_device *dev);
 };
 
 #endif /* __NET_CFG80211_H */
