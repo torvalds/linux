@@ -308,6 +308,8 @@ struct ieee80211_tx_control {
 						  * set_retry_limit configured
 						  * long retry value */
 #define IEEE80211_TXCTL_EAPOL_FRAME	(1<<11) /* internal to mac80211 */
+#define IEEE80211_TXCTL_SEND_AFTER_DTIM	(1<<12) /* send this frame after DTIM
+						 * beacon */
 	u32 flags;			       /* tx control flags defined
 						* above */
 	u8 key_idx;		/* keyidx from hw->set_key(), undefined if
