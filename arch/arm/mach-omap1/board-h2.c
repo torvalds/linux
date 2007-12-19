@@ -37,6 +37,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
+#include <asm/arch/gpio-switch.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
 #include <asm/arch/nand.h>
@@ -46,8 +47,6 @@
 #include <asm/arch/common.h>
 #include <asm/arch/mcbsp.h>
 #include <asm/arch/omap-alsa.h>
-
-extern int omap_gpio_init(void);
 
 static int h2_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
@@ -341,22 +340,6 @@ static struct platform_device *h2_devices[] __initdata = {
 	&h2_mcbsp1_device,
 };
 
-#ifdef CONFIG_I2C_BOARDINFO
-static struct i2c_board_info __initdata h2_i2c_board_info[] = {
-	{
-		I2C_BOARD_INFO("tps65010", 0x48),
-		.type		= "tps65010",
-		.irq		= OMAP_GPIO_IRQ(58),
-	},
-	/* TODO when driver support is ready:
-	 *  - isp1301 OTG transceiver
-	 *  - optional ov9640 camera sensor at 0x30
-	 *  - pcf9754 for aGPS control
-	 *  - ... etc
-	 */
-};
-#endif
-
 static void __init h2_init_smc91x(void)
 {
 	if ((omap_request_gpio(0)) < 0) {
@@ -364,6 +347,14 @@ static void __init h2_init_smc91x(void)
 		return;
 	}
 }
+
+static struct i2c_board_info __initdata h2_i2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("isp1301_omap", 0x2d),
+		.type		= "isp1301_omap",
+		.irq		= OMAP_GPIO_IRQ(2),
+	},
+};
 
 static void __init h2_init_irq(void)
 {
@@ -461,33 +452,12 @@ static void __init h2_init(void)
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
 	h2_mmc_init();
-
-	/* irq for tps65010 chip */
-	omap_cfg_reg(W4_GPIO58);
-	if (gpio_request(58, "tps65010") == 0)
-		gpio_direction_input(58);
 }
 
 static void __init h2_map_io(void)
 {
 	omap1_map_common_io();
 }
-
-#ifdef CONFIG_TPS65010
-static int __init h2_tps_init(void)
-{
-	if (!machine_is_omap_h2())
-		return 0;
-
-	/* gpio3 for SD, gpio4 for VDD_DSP */
-	/* FIXME send power to DSP iff it's configured */
-
-	/* Enable LOW_PWR */
-	tps65010_set_low_pwr(ON);
-	return 0;
-}
-fs_initcall(h2_tps_init);
-#endif
 
 MACHINE_START(OMAP_H2, "TI-H2")
 	/* Maintainer: Imre Deak <imre.deak@nokia.com> */

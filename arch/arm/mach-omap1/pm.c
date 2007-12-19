@@ -57,7 +57,6 @@
 #include <asm/arch/pm.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/dma.h>
-#include <asm/arch/dsp_common.h>
 #include <asm/arch/dmtimer.h>
 
 static unsigned int arm_sleep_save[ARM_SLEEP_SAVE_SIZE];

@@ -189,7 +189,7 @@ static struct omap_mmc_config nokia770_mmc_config __initdata = {
 	},
 };
 
-static struct omap_board_config_kernel nokia770_config[] = {
+static struct omap_board_config_kernel nokia770_config[] __initdata = {
 	{ OMAP_TAG_USB,		NULL },
 	{ OMAP_TAG_MMC,		&nokia770_mmc_config },
 };

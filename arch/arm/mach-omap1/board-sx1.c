@@ -268,21 +268,6 @@ static struct omap_mcbsp_reg_cfg mcbsp1_regs = {
 						/* PCR0 =0f0f */
 };
 
-/* TODO: PCM interface - McBSP2 */
-static struct omap_mcbsp_reg_cfg mcbsp2_regs = {
-	.spcr2	= FRST | GRST | XRST | XINTM(3),	/* SPCR2=F1 */
-	.spcr1	= RINTM(3) | RRST,	/* SPCR1=30 */
-	.rcr2	= 0,	/* RCR2 =00 */
-	.rcr1	= RFRLEN1(1) | RWDLEN1(OMAP_MCBSP_WORD_16), /* RCR1 = 140 */
-	.xcr2	= 0,	/* XCR2 = 0 */
-	.xcr1	= XFRLEN1(1) | XWDLEN1(OMAP_MCBSP_WORD_16), /* XCR1 = 140 */
-	.srgr1	= FWID(15) | CLKGDV(12),	/* SRGR1=0f0c */
-	.srgr2	= FSGM | FPER(31),	/* SRGR2=101f */
-	.pcr0	= FSXM | FSRM | CLKXM | CLKRM | FSXP | FSRP | CLKXP | CLKRP,
-						/* PCR0=0f0f */
-	/* mcbsp: slave */
-};
-
 static struct omap_alsa_codec_config sx1_alsa_config = {
 	.name			= "SX1 EGold",
 	.mcbsp_regs_alsa	= &mcbsp1_regs,
@@ -395,11 +380,8 @@ static struct omap_usb_config sx1_usb_config __initdata = {
 
 static struct omap_mmc_config sx1_mmc_config __initdata = {
 	.mmc [0] = {
-		.enabled 	= 1,
+		.enabled	= 1,
 		.wire4		= 0,
-		.wp_pin		= -1,
-		.power_pin	= -1, /* power is in Sofia */
-		.switch_pin	= OMAP_MPUIO(3),
 	},
 };
 
@@ -428,13 +410,15 @@ static struct omap_uart_config sx1_uart_config __initdata = {
 	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
 };
 
-static struct omap_board_config_kernel sx1_config[] = {
+static struct omap_board_config_kernel sx1_config[] __initdata = {
 	{ OMAP_TAG_USB,	&sx1_usb_config },
 	{ OMAP_TAG_MMC,	&sx1_mmc_config },
 	{ OMAP_TAG_LCD,	&sx1_lcd_config },
 	{ OMAP_TAG_UART,	&sx1_uart_config },
 };
+
 /*-----------------------------------------*/
+
 static void __init omap_sx1_init(void)
 {
 	platform_add_devices(sx1_devices, ARRAY_SIZE(sx1_devices));

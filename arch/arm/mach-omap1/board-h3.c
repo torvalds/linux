@@ -51,8 +51,6 @@
 #include <asm/arch/mcbsp.h>
 #include <asm/arch/omap-alsa.h>
 
-extern int omap_gpio_init(void);
-
 static int h3_keymap[] = {
 	KEY(0, 0, KEY_LEFT),
 	KEY(0, 1, KEY_RIGHT),
@@ -452,24 +450,11 @@ static struct omap_lcd_config h3_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel h3_config[] = {
+static struct omap_board_config_kernel h3_config[] __initdata = {
 	{ OMAP_TAG_USB,		&h3_usb_config },
 	{ OMAP_TAG_MMC,		&h3_mmc_config },
 	{ OMAP_TAG_UART,	&h3_uart_config },
 	{ OMAP_TAG_LCD,		&h3_lcd_config },
-};
-
-static struct i2c_board_info __initdata h3_i2c_board_info[] = {
-	{
-		I2C_BOARD_INFO("tps65010", 0x48),
-		.type		= "tps65013",
-		/* .irq		= OMAP_GPIO_IRQ(??), */
-	},
-	/* TODO when driver support is ready:
-	 *  - isp1301 OTG transceiver
-	 *  - optional ov9640 camera sensor at 0x30
-	 *  - ...
-	 */
 };
 
 static struct omap_gpio_switch h3_gpio_switches[] __initdata = {
@@ -514,6 +499,8 @@ static void __init h3_init(void)
 	omap_cfg_reg(V2_1710_GPIO10);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	spi_register_board_info(h3_spi_board_info,
+				ARRAY_SIZE(h3_spi_board_info));
 	omap_board_config = h3_config;
 	omap_board_config_size = ARRAY_SIZE(h3_config);
 	omap_serial_init();
@@ -543,23 +530,6 @@ static void __init h3_map_io(void)
 {
 	omap1_map_common_io();
 }
-
-#ifdef CONFIG_TPS65010
-static int __init h3_tps_init(void)
-{
-	if (!machine_is_omap_h3())
-		return 0;
-
-	/* gpio4 for SD, gpio3 for VDD_DSP */
-	/* FIXME send power to DSP iff it's configured */
-
-	/* Enable LOW_PWR */
-	tps65013_set_low_pwr(ON);
-
-	return 0;
-}
-fs_initcall(h3_tps_init);
-#endif
 
 MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	/* Maintainer: Texas Instruments, Inc. */

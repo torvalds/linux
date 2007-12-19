@@ -253,7 +253,7 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 };
 #endif
 
-static struct omap_board_config_kernel osk_config[] = {
+static struct omap_board_config_kernel osk_config[] __initdata = {
 	{ OMAP_TAG_USB,           &osk_usb_config },
 	{ OMAP_TAG_UART,		&osk_uart_config },
 #ifdef	CONFIG_OMAP_OSK_MISTRAL

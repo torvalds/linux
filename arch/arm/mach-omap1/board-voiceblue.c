@@ -34,9 +34,6 @@
 #include <asm/arch/tc.h>
 #include <asm/arch/usb.h>
 
-extern void omap_init_time(void);
-extern int omap_gpio_init(void);
-
 static struct plat_serial8250_port voiceblue_ports[] = {
 	{
 		.mapbase	= (unsigned long)(OMAP_CS1_PHYS + 0x40000),

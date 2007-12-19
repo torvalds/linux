@@ -216,7 +216,7 @@ static struct omap_lcd_config perseus2_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel perseus2_config[] = {
+static struct omap_board_config_kernel perseus2_config[] __initdata = {
 	{ OMAP_TAG_UART,	&perseus2_uart_config },
 	{ OMAP_TAG_LCD,		&perseus2_lcd_config },
 };

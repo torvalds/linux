@@ -285,7 +285,7 @@ static struct omap_uart_config palmz71_uart_config __initdata = {
 	.enabled_uarts = (1 << 0) | (1 << 1) | (0 << 2),
 };
 
-static struct omap_board_config_kernel palmz71_config[] = {
+static struct omap_board_config_kernel palmz71_config[] __initdata = {
 	{OMAP_TAG_USB,	&palmz71_usb_config},
 	{OMAP_TAG_MMC,	&palmz71_mmc_config},
 	{OMAP_TAG_LCD,	&palmz71_lcd_config},
