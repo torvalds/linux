@@ -1,7 +1,7 @@
 /*
  * mac80211 configuration hooks for cfg80211
  *
- * Copyright 2006	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006, 2007	Johannes Berg <johannes@sipsolutions.net>
  *
  * This file is GPLv2 as found in COPYING.
  */
@@ -175,6 +175,88 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int ieee80211_get_key(struct wiphy *wiphy, struct net_device *dev,
+			     u8 key_idx, u8 *mac_addr, void *cookie,
+			     void (*callback)(void *cookie,
+					      struct key_params *params))
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct sta_info *sta = NULL;
+	u8 seq[6] = {0};
+	struct key_params params;
+	struct ieee80211_key *key;
+	u32 iv32;
+	u16 iv16;
+	int err = -ENOENT;
+
+	if (mac_addr) {
+		sta = sta_info_get(sdata->local, mac_addr);
+		if (!sta)
+			goto out;
+
+		key = sta->key;
+	} else
+		key = sdata->keys[key_idx];
+
+	if (!key)
+		goto out;
+
+	memset(&params, 0, sizeof(params));
+
+	switch (key->conf.alg) {
+	case ALG_TKIP:
+		params.cipher = WLAN_CIPHER_SUITE_TKIP;
+
+		iv32 = key->u.tkip.iv32;
+		iv16 = key->u.tkip.iv16;
+
+		if (key->flags & KEY_FLAG_UPLOADED_TO_HARDWARE &&
+		    sdata->local->ops->get_tkip_seq)
+			sdata->local->ops->get_tkip_seq(
+				local_to_hw(sdata->local),
+				key->conf.hw_key_idx,
+				&iv32, &iv16);
+
+		seq[0] = iv16 & 0xff;
+		seq[1] = (iv16 >> 8) & 0xff;
+		seq[2] = iv32 & 0xff;
+		seq[3] = (iv32 >> 8) & 0xff;
+		seq[4] = (iv32 >> 16) & 0xff;
+		seq[5] = (iv32 >> 24) & 0xff;
+		params.seq = seq;
+		params.seq_len = 6;
+		break;
+	case ALG_CCMP:
+		params.cipher = WLAN_CIPHER_SUITE_CCMP;
+		seq[0] = key->u.ccmp.tx_pn[5];
+		seq[1] = key->u.ccmp.tx_pn[4];
+		seq[2] = key->u.ccmp.tx_pn[3];
+		seq[3] = key->u.ccmp.tx_pn[2];
+		seq[4] = key->u.ccmp.tx_pn[1];
+		seq[5] = key->u.ccmp.tx_pn[0];
+		params.seq = seq;
+		params.seq_len = 6;
+		break;
+	case ALG_WEP:
+		if (key->conf.keylen == 5)
+			params.cipher = WLAN_CIPHER_SUITE_WEP40;
+		else
+			params.cipher = WLAN_CIPHER_SUITE_WEP104;
+		break;
+	}
+
+	params.key = key->conf.key;
+	params.key_len = key->conf.keylen;
+
+	callback(cookie, &params);
+	err = 0;
+
+ out:
+	if (sta)
+		sta_info_put(sta);
+	return err;
+}
+
 static int ieee80211_config_default_key(struct wiphy *wiphy,
 					struct net_device *dev,
 					u8 key_idx)
@@ -193,5 +275,6 @@ struct cfg80211_ops mac80211_config_ops = {
 	.change_virtual_intf = ieee80211_change_iface,
 	.add_key = ieee80211_add_key,
 	.del_key = ieee80211_del_key,
+	.get_key = ieee80211_get_key,
 	.set_default_key = ieee80211_config_default_key,
 };
