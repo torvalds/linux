@@ -50,13 +50,11 @@
  * struct mtd_dev_param - MTD device parameter description data structure.
  * @name: MTD device name or number string
  * @vid_hdr_offs: VID header offset
- * @data_offs: data offset
  */
 struct mtd_dev_param
 {
 	char name[MTD_PARAM_LEN_MAX];
 	int vid_hdr_offs;
-	int data_offs;
 };
 
 /* Numbers of elements set in the @mtd_dev_param array */
@@ -512,7 +510,7 @@ static int io_init(struct ubi_device *ubi)
 		return -EINVAL;
 	}
 
-	if (ubi->vid_hdr_offset < 0 || ubi->leb_start < ubi->vid_hdr_offset)
+	if (ubi->vid_hdr_offset < 0)
 		return -EINVAL;
 
 	/*
@@ -562,10 +560,8 @@ static int io_init(struct ubi_device *ubi)
 	}
 
 	/* Similar for the data offset */
-	if (ubi->leb_start == 0) {
-		ubi->leb_start = ubi->vid_hdr_offset + ubi->vid_hdr_alsize;
-		ubi->leb_start = ALIGN(ubi->leb_start, ubi->min_io_size);
-	}
+	ubi->leb_start = ubi->vid_hdr_offset + ubi->vid_hdr_alsize;
+	ubi->leb_start = ALIGN(ubi->leb_start, ubi->min_io_size);
 
 	dbg_msg("vid_hdr_offset   %d", ubi->vid_hdr_offset);
 	dbg_msg("vid_hdr_aloffset %d", ubi->vid_hdr_aloffset);
@@ -626,7 +622,6 @@ static int io_init(struct ubi_device *ubi)
  * ubi_attach_mtd_dev - attach an MTD device.
  * @mtd_dev: MTD device description object
  * @vid_hdr_offset: VID header offset
- * @data_offset: data offset
  *
  * This function attaches an MTD device to UBI. It first treats @mtd_dev as the
  * MTD device name, and tries to open it by this name. If it is unable to open,
@@ -637,8 +632,7 @@ static int io_init(struct ubi_device *ubi)
  * Note, the invocations of this function has to be serialized by the
  * @ubi_devices_mutex.
  */
-int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset,
-		       int data_offset)
+int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset)
 {
 	struct ubi_device *ubi;
 	int i, err;
@@ -674,10 +668,9 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int vid_hdr_offset,
 	ubi->mtd = mtd;
 	ubi->ubi_num = i;
 	ubi->vid_hdr_offset = vid_hdr_offset;
-	ubi->leb_start = data_offset;
 
-	dbg_msg("attaching mtd%d to ubi%d: VID header offset %d data offset %d",
-		mtd->index, ubi->ubi_num, vid_hdr_offset, data_offset);
+	dbg_msg("attaching mtd%d to ubi%d: VID header offset %d",
+		mtd->index, ubi->ubi_num, vid_hdr_offset);
 
 	err = io_init(ubi);
 	if (err)
@@ -942,7 +935,7 @@ static int __init ubi_init(void)
 		}
 
 		mutex_lock(&ubi_devices_mutex);
-		err = ubi_attach_mtd_dev(mtd, p->vid_hdr_offs, p->data_offs);
+		err = ubi_attach_mtd_dev(mtd, p->vid_hdr_offs);
 		mutex_unlock(&ubi_devices_mutex);
 		if (err < 0) {
 			put_mtd_device(mtd);
@@ -1094,13 +1087,9 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 
 	if (tokens[1])
 		p->vid_hdr_offs = bytes_str_to_int(tokens[1]);
-	if (tokens[2])
-		p->data_offs = bytes_str_to_int(tokens[2]);
 
 	if (p->vid_hdr_offs < 0)
 		return p->vid_hdr_offs;
-	if (p->data_offs < 0)
-		return p->data_offs;
 
 	mtd_devs += 1;
 	return 0;
@@ -1108,16 +1097,15 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 
 module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 000);
 MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: "
-		      "mtd=<name|num>[,<vid_hdr_offs>,<data_offs>]. "
+		      "mtd=<name|num>[,<vid_hdr_offs>].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
-		      "MTD devices may be specified by their number or name. "
-		      "Optional \"vid_hdr_offs\" and \"data_offs\" parameters "
-		      "specify UBI VID header position and data starting "
-		      "position to be used by UBI.\n"
-		      "Example: mtd=content,1984,2048 mtd=4 - attach MTD device"
-		      "with name content using VID header offset 1984 and data "
-		      "start 2048, and MTD device number 4 using default "
-		      "offsets");
+		      "MTD devices may be specified by their number or name.\n"
+		      "Optional \"vid_hdr_offs\" parameter specifies UBI VID "
+		      "header position and data starting position to be used "
+		      "by UBI.\n"
+		      "Example: mtd=content,1984 mtd=4 - attach MTD device"
+		      "with name \"content\" using VID header offset 1984, and "
+		      "MTD device number 4 with default VID header offset.");
 
 MODULE_VERSION(__stringify(UBI_VERSION));
 MODULE_DESCRIPTION("UBI - Unsorted Block Images");
