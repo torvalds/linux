@@ -76,6 +76,12 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 				       .len = IEEE80211_MAX_DATA_LEN },
 	[NL80211_ATTR_BEACON_TAIL] = { .type = NLA_BINARY,
 				       .len = IEEE80211_MAX_DATA_LEN },
+	[NL80211_ATTR_STA_AID] = { .type = NLA_U16 },
+	[NL80211_ATTR_STA_FLAGS] = { .type = NLA_NESTED },
+	[NL80211_ATTR_STA_LISTEN_INTERVAL] = { .type = NLA_U16 },
+	[NL80211_ATTR_STA_SUPPORTED_RATES] = { .type = NLA_BINARY,
+					       .len = NL80211_MAX_SUPP_RATES },
+	[NL80211_ATTR_STA_VLAN] = { .type = NLA_U32 },
 };
 
 /* message building helper */
@@ -715,6 +721,210 @@ static int nl80211_del_beacon(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static const struct nla_policy sta_flags_policy[NL80211_STA_FLAG_MAX + 1] = {
+	[NL80211_STA_FLAG_AUTHORIZED] = { .type = NLA_FLAG },
+	[NL80211_STA_FLAG_SHORT_PREAMBLE] = { .type = NLA_FLAG },
+	[NL80211_STA_FLAG_WME] = { .type = NLA_FLAG },
+};
+
+static int parse_station_flags(struct nlattr *nla, u32 *staflags)
+{
+	struct nlattr *flags[NL80211_STA_FLAG_MAX + 1];
+	int flag;
+
+	*staflags = 0;
+
+	if (!nla)
+		return 0;
+
+	if (nla_parse_nested(flags, NL80211_STA_FLAG_MAX,
+			     nla, sta_flags_policy))
+		return -EINVAL;
+
+	*staflags = STATION_FLAG_CHANGED;
+
+	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++)
+		if (flags[flag])
+			*staflags |= (1<<flag);
+
+	return 0;
+}
+
+static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
+{
+	return -EOPNOTSUPP;
+}
+
+/*
+ * Get vlan interface making sure it is on the right wiphy.
+ */
+static int get_vlan(struct nlattr *vlanattr,
+		    struct cfg80211_registered_device *rdev,
+		    struct net_device **vlan)
+{
+	*vlan = NULL;
+
+	if (vlanattr) {
+		*vlan = dev_get_by_index(&init_net, nla_get_u32(vlanattr));
+		if (!*vlan)
+			return -ENODEV;
+		if (!(*vlan)->ieee80211_ptr)
+			return -EINVAL;
+		if ((*vlan)->ieee80211_ptr->wiphy != &rdev->wiphy)
+			return -EINVAL;
+	}
+	return 0;
+}
+
+static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	struct station_parameters params;
+	u8 *mac_addr = NULL;
+
+	memset(&params, 0, sizeof(params));
+
+	params.listen_interval = -1;
+
+	if (info->attrs[NL80211_ATTR_STA_AID])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	if (info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]) {
+		params.supported_rates =
+			nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
+		params.supported_rates_len =
+			nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
+	}
+
+	if (info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL])
+		params.listen_interval =
+		    nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
+
+	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
+				&params.station_flags))
+		return -EINVAL;
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
+	if (err)
+		goto out;
+
+	if (!drv->ops->change_station) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->change_station(&drv->wiphy, dev, mac_addr, &params);
+	rtnl_unlock();
+
+ out:
+	if (params.vlan)
+		dev_put(params.vlan);
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	struct station_parameters params;
+	u8 *mac_addr = NULL;
+
+	memset(&params, 0, sizeof(params));
+
+	if (!info->attrs[NL80211_ATTR_MAC])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_STA_AID])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES])
+		return -EINVAL;
+
+	mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	params.supported_rates =
+		nla_data(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
+	params.supported_rates_len =
+		nla_len(info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES]);
+	params.listen_interval =
+		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
+	params.listen_interval = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
+
+	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
+				&params.station_flags))
+		return -EINVAL;
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	err = get_vlan(info->attrs[NL80211_ATTR_STA_VLAN], drv, &params.vlan);
+	if (err)
+		goto out;
+
+	if (!drv->ops->add_station) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->add_station(&drv->wiphy, dev, mac_addr, &params);
+	rtnl_unlock();
+
+ out:
+	if (params.vlan)
+		dev_put(params.vlan);
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
+static int nl80211_del_station(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	u8 *mac_addr = NULL;
+
+	if (info->attrs[NL80211_ATTR_MAC])
+		mac_addr = nla_data(info->attrs[NL80211_ATTR_MAC]);
+
+	err = get_drv_dev_by_info_ifindex(info, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->del_station) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->del_station(&drv->wiphy, dev, mac_addr);
+	rtnl_unlock();
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -795,6 +1005,31 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.doit = nl80211_del_beacon,
+	},
+	{
+		.cmd = NL80211_CMD_GET_STATION,
+		.doit = nl80211_get_station,
+		/* TODO: implement dumpit */
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_STATION,
+		.doit = nl80211_set_station,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_NEW_STATION,
+		.doit = nl80211_new_station,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_DEL_STATION,
+		.doit = nl80211_del_station,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
 	},
 };
 

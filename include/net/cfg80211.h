@@ -89,6 +89,47 @@ struct beacon_parameters {
 	int head_len, tail_len;
 };
 
+/**
+ * enum station_flags - station flags
+ *
+ * Station capability flags. Note that these must be the bits
+ * according to the nl80211 flags.
+ *
+ * @STATION_FLAG_CHANGED: station flags were changed
+ * @STATION_FLAG_AUTHORIZED: station is authorized to send frames (802.1X)
+ * @STATION_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
+ *	with short preambles
+ * @STATION_FLAG_WME: station is WME/QoS capable
+ */
+enum station_flags {
+	STATION_FLAG_CHANGED		= 1<<0,
+	STATION_FLAG_AUTHORIZED		= 1<<NL80211_STA_FLAG_AUTHORIZED,
+	STATION_FLAG_SHORT_PREAMBLE	= 1<<NL80211_STA_FLAG_SHORT_PREAMBLE,
+	STATION_FLAG_WME		= 1<<NL80211_STA_FLAG_WME,
+};
+
+/**
+ * struct station_parameters - station parameters
+ *
+ * Used to change and create a new station.
+ *
+ * @vlan: vlan interface station should belong to
+ * @supported_rates: supported rates in IEEE 802.11 format
+ *	(or NULL for no change)
+ * @supported_rates_len: number of supported rates
+ * @station_flags: station flags (see &enum station_flags)
+ * @listen_interval: listen interval or -1 for no change
+ * @aid: AID or zero for no change
+ */
+struct station_parameters {
+	u8 *supported_rates;
+	struct net_device *vlan;
+	u32 station_flags;
+	int listen_interval;
+	u16 aid;
+	u8 supported_rates_len;
+};
+
 /* from net/wireless.h */
 struct wiphy;
 
@@ -130,6 +171,12 @@ struct wiphy;
  *	interface. This should reject the call when no beacon has been
  *	configured.
  * @del_beacon: Remove beacon configuration and stop sending the beacon.
+ *
+ * @add_station: Add a new station.
+ *
+ * @del_station: Remove a station; @mac may be NULL to remove all stations.
+ *
+ * @change_station: Modify a given station.
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -155,6 +202,14 @@ struct cfg80211_ops {
 	int	(*set_beacon)(struct wiphy *wiphy, struct net_device *dev,
 			      struct beacon_parameters *info);
 	int	(*del_beacon)(struct wiphy *wiphy, struct net_device *dev);
+
+
+	int	(*add_station)(struct wiphy *wiphy, struct net_device *dev,
+			       u8 *mac, struct station_parameters *params);
+	int	(*del_station)(struct wiphy *wiphy, struct net_device *dev,
+			       u8 *mac);
+	int	(*change_station)(struct wiphy *wiphy, struct net_device *dev,
+				  u8 *mac, struct station_parameters *params);
 };
 
 #endif /* __NET_CFG80211_H */

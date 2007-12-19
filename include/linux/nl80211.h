@@ -7,6 +7,18 @@
  */
 
 /**
+ * DOC: Station handling
+ *
+ * Stations are added per interface, but a special case exists with VLAN
+ * interfaces. When a station is bound to an AP interface, it may be moved
+ * into a VLAN identified by a VLAN interface index (%NL80211_ATTR_STA_VLAN).
+ * The station is still assumed to belong to the AP interface it was added
+ * to.
+ *
+ * TODO: need more info?
+ */
+
+/**
  * enum nl80211_commands - supported nl80211 commands
  *
  * @NL80211_CMD_UNSPEC: unspecified command to catch errors
@@ -56,6 +68,16 @@
  *	parameters are like for %NL80211_CMD_SET_BEACON.
  * @NL80211_CMD_DEL_BEACON: remove the beacon, stop sending it
  *
+ * @NL80211_CMD_GET_STATION: Get station attributes for station identified by
+ *	%NL80211_ATTR_MAC on the interface identified by %NL80211_ATTR_IFINDEX.
+ * @NL80211_CMD_SET_STATION: Set station attributes for station identified by
+ *	%NL80211_ATTR_MAC on the interface identified by %NL80211_ATTR_IFINDEX.
+ * @NL80211_CMD_NEW_STATION: Add a station with given attributes to the
+ *	the interface identified by %NL80211_ATTR_IFINDEX.
+ * @NL80211_CMD_DEL_STATION: Remove a station identified by %NL80211_ATTR_MAC
+ *	or, if no MAC address given, all stations, on the interface identified
+ *	by %NL80211_ATTR_IFINDEX.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -82,6 +104,11 @@ enum nl80211_commands {
 	NL80211_CMD_SET_BEACON,
 	NL80211_CMD_NEW_BEACON,
 	NL80211_CMD_DEL_BEACON,
+
+	NL80211_CMD_GET_STATION,
+	NL80211_CMD_SET_STATION,
+	NL80211_CMD_NEW_STATION,
+	NL80211_CMD_DEL_STATION,
 
 	/* add commands here */
 
@@ -120,6 +147,17 @@ enum nl80211_commands {
  * @NL80211_ATTR_BEACON_HEAD: portion of the beacon before the TIM IE
  * @NL80211_ATTR_BEACON_TAIL: portion of the beacon after the TIM IE
  *
+ * @NL80211_ATTR_STA_AID: Association ID for the station (u16)
+ * @NL80211_ATTR_STA_FLAGS: flags, nested element with NLA_FLAG attributes of
+ *	&enum nl80211_sta_flags.
+ * @NL80211_ATTR_STA_LISTEN_INTERVAL: listen interval as defined by
+ *	IEEE 802.11 7.3.1.6 (u16).
+ * @NL80211_ATTR_STA_SUPPORTED_RATES: supported rates, array of supported
+ *	rates as defined by IEEE 802.11 7.3.2.2 but without the length
+ *	restriction (at most %NL80211_MAX_SUPP_RATES).
+ * @NL80211_ATTR_STA_VLAN: interface index of VLAN interface to move station
+ *	to, or the AP interface the station was originally added to to.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -147,11 +185,19 @@ enum nl80211_attrs {
 	NL80211_ATTR_BEACON_HEAD,
 	NL80211_ATTR_BEACON_TAIL,
 
+	NL80211_ATTR_STA_AID,
+	NL80211_ATTR_STA_FLAGS,
+	NL80211_ATTR_STA_LISTEN_INTERVAL,
+	NL80211_ATTR_STA_SUPPORTED_RATES,
+	NL80211_ATTR_STA_VLAN,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
 };
+
+#define NL80211_MAX_SUPP_RATES	32
 
 /**
  * enum nl80211_iftype - (virtual) interface types
@@ -182,6 +228,28 @@ enum nl80211_iftype {
 	/* keep last */
 	__NL80211_IFTYPE_AFTER_LAST,
 	NL80211_IFTYPE_MAX = __NL80211_IFTYPE_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_sta_flags - station flags
+ *
+ * Station flags. When a station is added to an AP interface, it is
+ * assumed to be already associated (and hence authenticated.)
+ *
+ * @NL80211_STA_FLAG_AUTHORIZED: station is authorized (802.1X)
+ * @NL80211_STA_FLAG_SHORT_PREAMBLE: station is capable of receiving frames
+ *	with short barker preamble
+ * @NL80211_STA_FLAG_WME: station is WME/QoS capable
+ */
+enum nl80211_sta_flags {
+	__NL80211_STA_FLAG_INVALID,
+	NL80211_STA_FLAG_AUTHORIZED,
+	NL80211_STA_FLAG_SHORT_PREAMBLE,
+	NL80211_STA_FLAG_WME,
+
+	/* keep last */
+	__NL80211_STA_FLAG_AFTER_LAST,
+	NL80211_STA_FLAG_MAX = __NL80211_STA_FLAG_AFTER_LAST - 1
 };
 
 #endif /* __LINUX_NL80211_H */
