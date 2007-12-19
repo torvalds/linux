@@ -220,23 +220,6 @@ static int kobject_add_internal(struct kobject *kobj)
 }
 
 /**
- *	kobject_register - initialize and add an object.
- *	@kobj:	object in question.
- */
-
-int kobject_register(struct kobject * kobj)
-{
-	int error = -EINVAL;
-	if (kobj) {
-		kobject_init_internal(kobj);
-		error = kobject_add(kobj);
-		if (!error)
-			kobject_uevent(kobj, KOBJ_ADD);
-	}
-	return error;
-}
-
-/**
  * kobject_set_name_vargs - Set the name of an kobject
  * @kobj: struct kobject to set the name of
  * @fmt: format string used to build the name
@@ -883,7 +866,6 @@ struct kset *kset_create_and_add(const char *name,
 }
 EXPORT_SYMBOL_GPL(kset_create_and_add);
 
-EXPORT_SYMBOL(kobject_register);
 EXPORT_SYMBOL(kobject_unregister);
 EXPORT_SYMBOL(kobject_get);
 EXPORT_SYMBOL(kobject_put);
