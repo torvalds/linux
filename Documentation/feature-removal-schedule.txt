@@ -314,3 +314,11 @@ Why:	No in-kernel drivers will depend on it any longer.
 Who:	John W. Linville <linville@tuxdriver.com>
 
 ---------------------------
+
+What:	rc80211-simple rate control algorithm for mac80211
+When:	2.6.26
+Files:	net/mac80211/rc80211-simple.c
+Why:	This algorithm was provided for reference but always exhibited bad
+	responsiveness and performance and has some serious flaws. It has been
+	replaced by rc80211-pid.
+Who:	Stefano Brivio <stefano.brivio@polimi.it>

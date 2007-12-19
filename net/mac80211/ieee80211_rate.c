@@ -21,6 +21,11 @@ struct rate_control_alg {
 static LIST_HEAD(rate_ctrl_algs);
 static DEFINE_MUTEX(rate_ctrl_mutex);
 
+static char *ieee80211_default_rc_algo = CONFIG_MAC80211_RC_DEFAULT;
+module_param(ieee80211_default_rc_algo, charp, 0644);
+MODULE_PARM_DESC(ieee80211_default_rc_algo,
+		 "Default rate control algorithm for mac80211 to use");
+
 int ieee80211_rate_control_register(struct rate_control_ops *ops)
 {
 	struct rate_control_alg *alg;
@@ -89,21 +94,27 @@ ieee80211_try_rate_control_ops_get(const char *name)
 	return ops;
 }
 
-/* Get the rate control algorithm. If `name' is NULL, get the first
- * available algorithm. */
+/* Get the rate control algorithm. */
 static struct rate_control_ops *
 ieee80211_rate_control_ops_get(const char *name)
 {
 	struct rate_control_ops *ops;
+	const char *alg_name;
 
 	if (!name)
-		name = "simple";
+		alg_name = ieee80211_default_rc_algo;
+	else
+		alg_name = name;
 
-	ops = ieee80211_try_rate_control_ops_get(name);
+	ops = ieee80211_try_rate_control_ops_get(alg_name);
 	if (!ops) {
-		request_module("rc80211_%s", name);
-		ops = ieee80211_try_rate_control_ops_get(name);
+		request_module("rc80211_%s", alg_name);
+		ops = ieee80211_try_rate_control_ops_get(alg_name);
 	}
+	if (!ops && name)
+		/* try default if specific alg requested but not found */
+		ops = ieee80211_try_rate_control_ops_get(ieee80211_default_rc_algo);
+
 	return ops;
 }
 
@@ -244,3 +255,4 @@ void rate_control_deinitialize(struct ieee80211_local *local)
 	local->rate_ctrl = NULL;
 	rate_control_put(ref);
 }
+

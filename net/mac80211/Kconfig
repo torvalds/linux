@@ -13,29 +13,75 @@ config MAC80211
 	This option enables the hardware independent IEEE 802.11
 	networking stack.
 
-config MAC80211_RCSIMPLE
-	bool "'simple' rate control algorithm" if EMBEDDED
+config MAC80211_RC_DEFAULT_CHOICE
+	bool "Choose default rate control algorithm" if EMBEDDED
 	default y
 	depends on MAC80211
-	help
-	  This option allows you to turn off the 'simple' rate
-	  control algorithm in mac80211. If you do turn it off,
-	  you absolutely need another rate control algorithm.
+	---help---
+	  This options enables selection of a default rate control
+	  algorithm to be built into the mac80211 module.  Alternate
+	  rate control algorithms might be built into the mac80211
+	  module as well.
 
-	  Say Y unless you know you will have another algorithm
-	  available.
+choice
+	prompt "Default rate control algorithm"
+	default MAC80211_RC_DEFAULT_PID
+	depends on MAC80211 && MAC80211_RC_DEFAULT_CHOICE
+	---help---
+	  This option selects the default rate control algorithm
+	  mac80211 will use. Note that this default can still be
+	  overriden through the ieee80211_default_rc_algo module
+	  parameter.
 
-config MAC80211_RCPID
-	bool "'PID' rate control algorithm" if EMBEDDED
+config MAC80211_RC_DEFAULT_PID
+	bool "PID controller based rate control algorithm"
+	select MAC80211_RC_PID
+	---help---
+	  Select the PID controller based rate control as the
+	  default rate control algorithm. You should choose
+	  this unless you know what you are doing.
+
+config MAC80211_RC_DEFAULT_SIMPLE
+	bool "Simple rate control algorithm"
+	select MAC80211_RC_SIMPLE
+	---help---
+	  Select the simple rate control as the default rate
+	  control algorithm. Note that this is a non-responsive,
+	  dumb algorithm. You should choose the PID rate control
+	  instead.
+
+endchoice
+
+config MAC80211_RC_DEFAULT
+	string
+	depends on MAC80211
+	default "pid" if MAC80211_RC_DEFAULT_PID
+	default "simple" if MAC80211_RC_DEFAULT_SIMPLE
+	default ""
+
+config MAC80211_RC_PID
+	bool "PID controller based rate control algorithm"
 	default y
 	depends on MAC80211
-	help
+	---help---
 	  This option enables a TX rate control algorithm for
 	  mac80211 that uses a PID controller to select the TX
 	  rate.
 
-	  Say Y unless you're sure you want to use a different
-	  rate control algorithm.
+	  Say Y or M unless you're sure you want to use a
+	  different rate control algorithm.
+
+config MAC80211_RC_SIMPLE
+	bool "Simple rate control algorithm (DEPRECATED)"
+	default n
+	depends on MAC80211
+	---help---
+	  This option enables a very simple, non-responsive TX
+	  rate control algorithm. This algorithm is deprecated
+	  and will be removed from the kernel in near future.
+	  It has been replaced by the PID algorithm.
+
+	  Say N unless you know what you are doing.
 
 config MAC80211_LEDS
 	bool "Enable LED triggers"
