@@ -1067,19 +1067,19 @@ done:
 
 	/* on error, disable any endpoints  */
 	if (result < 0) {
-		if (!subset_active(dev))
+		if (!subset_active(dev) && dev->status_ep)
 			(void) usb_ep_disable (dev->status_ep);
 		dev->status = NULL;
 		(void) usb_ep_disable (dev->in_ep);
 		(void) usb_ep_disable (dev->out_ep);
 		dev->in = NULL;
 		dev->out = NULL;
-	} else
+	}
 
 	/* activate non-CDC configs right away
 	 * this isn't strictly according to the RNDIS spec
 	 */
-	if (!cdc_active (dev)) {
+	else if (!cdc_active (dev)) {
 		netif_carrier_on (dev->net);
 		if (netif_running (dev->net)) {
 			spin_unlock (&dev->lock);
