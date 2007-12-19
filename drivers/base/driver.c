@@ -124,6 +124,30 @@ void driver_remove_file(struct device_driver * drv, struct driver_attribute * at
 
 
 /**
+ * driver_add_kobj - add a kobject below the specified driver
+ *
+ * You really don't want to do this, this is only here due to one looney
+ * iseries driver, go poke those developers if you are annoyed about
+ * this...
+ */
+int driver_add_kobj(struct device_driver *drv, struct kobject *kobj,
+		    const char *fmt, ...)
+{
+	va_list args;
+	char *name;
+
+	va_start(args, fmt);
+	name = kvasprintf(GFP_KERNEL, fmt, args);
+	va_end(args);
+
+	if (!name)
+		return -ENOMEM;
+
+	return kobject_add_ng(kobj, &drv->kobj, "%s", name);
+}
+EXPORT_SYMBOL_GPL(driver_add_kobj);
+
+/**
  *	get_driver - increment driver reference count.
  *	@drv:	driver.
  */

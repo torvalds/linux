@@ -1705,7 +1705,7 @@ static int __init veth_module_init(void)
 
 		kobj = &veth_cnx[i]->kobject;
 		/* If the add failes, complain but otherwise continue */
-		if (0 != kobject_add_ng(kobj, &veth_driver.driver.kobj,
+		if (0 != driver_add_kobj(&veth_driver.driver, kobj,
 					"cnx%.2d", veth_cnx[i]->remote_lp))
 			veth_error("cnx %d: Failed adding to sysfs.\n", i);
 	}
