@@ -16,6 +16,8 @@
 #include <net/mac80211.h>
 #include "ieee80211_rate.h"
 
+#include "rc80211_pid.h"
+
 
 /* This is an implementation of a TX rate control algorithm that uses a PID
  * controller. Given a target failed frames rate, the controller decides about
@@ -61,121 +63,6 @@
  * RC_PID_ARITH_SHIFT.
  */
 
-/* Sampling period for measuring percentage of failed frames. */
-#define RC_PID_INTERVAL (HZ / 8)
-
-/* Exponential averaging smoothness (used for I part of PID controller) */
-#define RC_PID_SMOOTHING_SHIFT 3
-#define RC_PID_SMOOTHING (1 << RC_PID_SMOOTHING_SHIFT)
-
-/* Sharpening factor (used for D part of PID controller) */
-#define RC_PID_SHARPENING_FACTOR 0
-#define RC_PID_SHARPENING_DURATION 0
-
-/* Fixed point arithmetic shifting amount. */
-#define RC_PID_ARITH_SHIFT 8
-
-/* Fixed point arithmetic factor. */
-#define RC_PID_ARITH_FACTOR (1 << RC_PID_ARITH_SHIFT)
-
-/* Proportional PID component coefficient. */
-#define RC_PID_COEFF_P 15
-/* Integral PID component coefficient. */
-#define RC_PID_COEFF_I 9
-/* Derivative PID component coefficient. */
-#define RC_PID_COEFF_D 15
-
-/* Target failed frames rate for the PID controller. NB: This effectively gives
- * maximum failed frames percentage we're willing to accept. If the wireless
- * link quality is good, the controller will fail to adjust failed frames
- * percentage to the target. This is intentional.
- */
-#define RC_PID_TARGET_PF (11 << RC_PID_ARITH_SHIFT)
-
-/* Rate behaviour normalization quantity over time. */
-#define RC_PID_NORM_OFFSET 3
-
-/* Push high rates right after loading. */
-#define RC_PID_FAST_START 0
-
-/* Arithmetic right shift for positive and negative values for ISO C. */
-#define RC_PID_DO_ARITH_RIGHT_SHIFT(x, y) \
-	(x) < 0 ? -((-(x)) >> (y)) : (x) >> (y)
-
-struct rc_pid_sta_info {
-	unsigned long last_change;
-	unsigned long last_sample;
-
-	u32 tx_num_failed;
-	u32 tx_num_xmit;
-
-	/* Average failed frames percentage error (i.e. actual vs. target
-	 * percentage), scaled by RC_PID_SMOOTHING. This value is computed
-	 * using using an exponential weighted average technique:
-	 *
-	 *           (RC_PID_SMOOTHING - 1) * err_avg_old + err
-	 * err_avg = ------------------------------------------
-	 *                       RC_PID_SMOOTHING
-	 *
-	 * where err_avg is the new approximation, err_avg_old the previous one
-	 * and err is the error w.r.t. to the current failed frames percentage
-	 * sample. Note that the bigger RC_PID_SMOOTHING the more weight is
-	 * given to the previous estimate, resulting in smoother behavior (i.e.
-	 * corresponding to a longer integration window).
-	 *
-	 * For computation, we actually don't use the above formula, but this
-	 * one:
-	 *
-	 * err_avg_scaled = err_avg_old_scaled - err_avg_old + err
-	 *
-	 * where:
-	 * 	err_avg_scaled = err * RC_PID_SMOOTHING
-	 * 	err_avg_old_scaled = err_avg_old * RC_PID_SMOOTHING
-	 *
-	 * This avoids floating point numbers and the per_failed_old value can
-	 * easily be obtained by shifting per_failed_old_scaled right by
-	 * RC_PID_SMOOTHING_SHIFT.
-	 */
-	s32 err_avg_sc;
-
-	/* Last framed failes percentage sample. */
-	u32 last_pf;
-
-	/* Sharpening needed. */
-	u8 sharp_cnt;
-};
-
-/* Algorithm parameters. We keep them on a per-algorithm approach, so they can
- * be tuned individually for each interface.
- */
-struct rc_pid_rateinfo {
-
-	/* Map sorted rates to rates in ieee80211_hw_mode. */
-	int index;
-
-	/* Map rates in ieee80211_hw_mode to sorted rates. */
-	int rev_index;
-
-	/* Comparison with the lowest rate. */
-	int diff;
-};
-
-struct rc_pid_info {
-
-	/* The failed frames percentage target. */
-	u32 target;
-
-	/* P, I and D coefficients. */
-	s32 coeff_p;
-	s32 coeff_i;
-	s32 coeff_d;
-
-	/* Rates information. */
-	struct rc_pid_rateinfo *rinfo;
-
-	/* Index of the last used rate. */
-	int oldrate;
-};
 
 /* Shift the adjustment so that we won't switch to a lower rate if it exhibited
  * a worse failed frames behaviour and we'll choose the highest rate whose
@@ -243,6 +130,12 @@ static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
 
 		newidx += back;
 	}
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	rate_control_pid_event_rate_change(
+		&((struct rc_pid_sta_info *)sta->rate_ctrl_priv)->events,
+		newidx, mode->rates[newidx].rate);
+#endif
 }
 
 /* Normalize the failed frames per-rate differences. */
@@ -324,6 +217,11 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 	if (spinfo->sharp_cnt)
 			spinfo->sharp_cnt--;
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+	rate_control_pid_event_pf_sample(&spinfo->events, pf, err_prop, err_int,
+					 err_der);
+#endif
+
 	/* Compute the controller output. */
 	adj = (err_prop * pinfo->coeff_p + err_int * pinfo->coeff_i
 	      + err_der * pinfo->coeff_d);
@@ -356,6 +254,10 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 
 	spinfo = sta->rate_ctrl_priv;
 	spinfo->tx_num_xmit++;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	rate_control_pid_event_tx_status(&spinfo->events, status);
+#endif
 
 	/* We count frames that totally failed to be transmitted as two bad
 	 * frames, those that made it out but had some retries as one good and
@@ -415,6 +317,12 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 	sta_info_put(sta);
 
 	sel->rate = &mode->rates[rateidx];
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	rate_control_pid_event_tx_rate(
+		&((struct rc_pid_sta_info *) sta->rate_ctrl_priv)->events,
+		rateidx, mode->rates[rateidx].rate);
+#endif
 }
 
 static void rate_control_pid_rate_init(void *priv, void *priv_sta,
@@ -502,6 +410,13 @@ static void *rate_control_pid_alloc_sta(void *priv, gfp_t gfp)
 	struct rc_pid_sta_info *spinfo;
 
 	spinfo = kzalloc(sizeof(*spinfo), gfp);
+	if (spinfo == NULL)
+		return NULL;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	spin_lock_init(&spinfo->events.lock);
+	init_waitqueue_head(&spinfo->events.waitqueue);
+#endif
 
 	return spinfo;
 }
@@ -522,4 +437,8 @@ struct rate_control_ops mac80211_rcpid = {
 	.free = rate_control_pid_free,
 	.alloc_sta = rate_control_pid_alloc_sta,
 	.free_sta = rate_control_pid_free_sta,
+#ifdef CONFIG_MAC80211_DEBUGFS
+	.add_sta_debugfs = rate_control_pid_add_sta_debugfs,
+	.remove_sta_debugfs = rate_control_pid_remove_sta_debugfs,
+#endif
 };
