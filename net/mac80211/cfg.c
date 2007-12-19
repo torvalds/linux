@@ -269,6 +269,31 @@ static int ieee80211_config_default_key(struct wiphy *wiphy,
 	return 0;
 }
 
+static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+				 u8 *mac, struct station_stats *stats)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct sta_info *sta;
+
+	sta = sta_info_get(local, mac);
+	if (!sta)
+		return -ENOENT;
+
+	/* XXX: verify sta->dev == dev */
+
+	stats->filled = STATION_STAT_INACTIVE_TIME |
+			STATION_STAT_RX_BYTES |
+			STATION_STAT_TX_BYTES;
+
+	stats->inactive_time = jiffies_to_msecs(jiffies - sta->last_rx);
+	stats->rx_bytes = sta->rx_bytes;
+	stats->tx_bytes = sta->tx_bytes;
+
+	sta_info_put(sta);
+
+	return 0;
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -277,4 +302,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.del_key = ieee80211_del_key,
 	.get_key = ieee80211_get_key,
 	.set_default_key = ieee80211_config_default_key,
+	.get_station = ieee80211_get_station,
 };
