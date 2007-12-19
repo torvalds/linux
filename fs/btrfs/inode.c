@@ -177,7 +177,6 @@ again:
 		if (bytenr == 0)
 			goto not_found;
 
-		bytenr += btrfs_file_extent_offset(leaf, item);
 		if (btrfs_count_snapshots_in_path(root, path, bytenr) != 1) {
 			goto not_found;
 		}
