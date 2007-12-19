@@ -432,10 +432,9 @@ static __cpuinit int allocate_threshold_blocks(unsigned int cpu,
 	else
 		per_cpu(threshold_banks, cpu)[bank]->blocks = b;
 
-	kobject_set_name(&b->kobj, "misc%i", block);
-	b->kobj.parent = per_cpu(threshold_banks, cpu)[bank]->kobj;
-	b->kobj.ktype = &threshold_ktype;
-	err = kobject_register(&b->kobj);
+	err = kobject_init_and_add(&b->kobj, &threshold_ktype,
+				   per_cpu(threshold_banks, cpu)[bank]->kobj,
+				   "misc%i", block);
 	if (err)
 		goto out_free;
 recurse:
@@ -450,6 +449,8 @@ recurse:
 	err = allocate_threshold_blocks(cpu, bank, ++block, address);
 	if (err)
 		goto out_free;
+
+	kobject_uevent(&b->kobj, KOBJ_ADD);
 
 	return err;
 
