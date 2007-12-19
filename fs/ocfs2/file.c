@@ -2233,6 +2233,7 @@ const struct inode_operations ocfs2_special_file_iops = {
 };
 
 const struct file_operations ocfs2_fops = {
+	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
 	.write		= do_sync_write,
 	.mmap		= ocfs2_mmap,
@@ -2251,6 +2252,7 @@ const struct file_operations ocfs2_fops = {
 };
 
 const struct file_operations ocfs2_dops = {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
