@@ -499,7 +499,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		vcpu->arch.ia32_misc_enable_msr = data;
 		break;
 	default:
-		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x\n", msr);
+		pr_unimpl(vcpu, "unhandled wrmsr: 0x%x data %llx\n", msr, data);
 		return 1;
 	}
 	return 0;
