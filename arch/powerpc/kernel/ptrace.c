@@ -272,30 +272,68 @@ static int set_vrregs(struct task_struct *task, unsigned long __user *data)
  * }
  */
 
+static int evr_active(struct task_struct *target,
+		      const struct user_regset *regset)
+{
+	flush_spe_to_thread(target);
+	return target->thread.used_spe ? regset->n : 0;
+}
+
+static int evr_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	int ret;
+
+	flush_spe_to_thread(target);
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.evr,
+				  0, sizeof(target->thread.evr));
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
+		     offsetof(struct thread_struct, spefscr));
+
+	if (!ret)
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					  &target->thread.acc,
+					  sizeof(target->thread.evr), -1);
+
+	return ret;
+}
+
+static int evr_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+
+	flush_spe_to_thread(target);
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 &target->thread.evr,
+				 0, sizeof(target->thread.evr));
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, acc) + sizeof(u64) !=
+		     offsetof(struct thread_struct, spefscr));
+
+	if (!ret)
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					 &target->thread.acc,
+					 sizeof(target->thread.evr), -1);
+
+	return ret;
+}
+
 /*
  * Get contents of SPE register state in task TASK.
  */
-static int get_evrregs(unsigned long *data, struct task_struct *task)
+static int get_evrregs(unsigned long __user *data, struct task_struct *task)
 {
-	int i;
-
-	if (!access_ok(VERIFY_WRITE, data, 35 * sizeof(unsigned long)))
+	if (!access_ok(VERIFY_WRITE, data, 35 * sizeof(u32)))
 		return -EFAULT;
 
-	/* copy SPEFSCR */
-	if (__put_user(task->thread.spefscr, &data[34]))
-		return -EFAULT;
-
-	/* copy SPE registers EVR[0] .. EVR[31] */
-	for (i = 0; i < 32; i++, data++)
-		if (__put_user(task->thread.evr[i], data))
-			return -EFAULT;
-
-	/* copy ACC */
-	if (__put_user64(task->thread.acc, (unsigned long long *)data))
-		return -EFAULT;
-
-	return 0;
+	return evr_get(task, NULL, 0, 35 * sizeof(u32), NULL, data);
 }
 
 /*
@@ -303,24 +341,10 @@ static int get_evrregs(unsigned long *data, struct task_struct *task)
  */
 static int set_evrregs(struct task_struct *task, unsigned long *data)
 {
-	int i;
-
-	if (!access_ok(VERIFY_READ, data, 35 * sizeof(unsigned long)))
+	if (!access_ok(VERIFY_READ, data, 35 * sizeof(u32)))
 		return -EFAULT;
 
-	/* copy SPEFSCR */
-	if (__get_user(task->thread.spefscr, &data[34]))
-		return -EFAULT;
-
-	/* copy SPE registers EVR[0] .. EVR[31] */
-	for (i = 0; i < 32; i++, data++)
-		if (__get_user(task->thread.evr[i], data))
-			return -EFAULT;
-	/* copy ACC */
-	if (__get_user64(task->thread.acc, (unsigned long long*)data))
-		return -EFAULT;
-
-	return 0;
+	return evr_set(task, NULL, 0, 35 * sizeof(u32), NULL, data);
 }
 #endif /* CONFIG_SPE */
 
