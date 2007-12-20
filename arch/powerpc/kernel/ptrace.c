@@ -701,12 +701,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret = -EPERM;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		ret = generic_ptrace_peekdata(child, addr, data);
-		break;
-
 	/* read the word at location addr in the USER area. */
 	case PTRACE_PEEKUSR: {
 		unsigned long index, tmp;
@@ -733,12 +727,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
 	}
-
-	/* If I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		ret = generic_ptrace_pokedata(child, addr, data);
-		break;
 
 	/* write the word at location addr in the USER area */
 	case PTRACE_POKEUSR: {
