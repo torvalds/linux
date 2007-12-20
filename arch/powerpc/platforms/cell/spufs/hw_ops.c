@@ -206,6 +206,11 @@ static char *spu_hw_get_ls(struct spu_context *ctx)
 	return ctx->spu->local_store;
 }
 
+static void spu_hw_privcntl_write(struct spu_context *ctx, u64 val)
+{
+	out_be64(&ctx->spu->priv2->spu_privcntl_RW, val);
+}
+
 static u32 spu_hw_runcntl_read(struct spu_context *ctx)
 {
 	return in_be32(&ctx->spu->problem->spu_runcntl_RW);
@@ -215,7 +220,8 @@ static void spu_hw_runcntl_write(struct spu_context *ctx, u32 val)
 {
 	spin_lock_irq(&ctx->spu->register_lock);
 	if (val & SPU_RUNCNTL_ISOLATE)
-		out_be64(&ctx->spu->priv2->spu_privcntl_RW, 4LL);
+		spu_hw_privcntl_write(ctx,
+			SPU_PRIVCNT_LOAD_REQUEST_ENABLE_MASK);
 	out_be32(&ctx->spu->problem->spu_runcntl_RW, val);
 	spin_unlock_irq(&ctx->spu->register_lock);
 }
@@ -328,6 +334,7 @@ struct spu_context_ops spu_hw_ops = {
 	.npc_write = spu_hw_npc_write,
 	.status_read = spu_hw_status_read,
 	.get_ls = spu_hw_get_ls,
+	.privcntl_write = spu_hw_privcntl_write,
 	.runcntl_read = spu_hw_runcntl_read,
 	.runcntl_write = spu_hw_runcntl_write,
 	.runcntl_stop = spu_hw_runcntl_stop,

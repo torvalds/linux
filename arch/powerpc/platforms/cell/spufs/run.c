@@ -128,10 +128,11 @@ out:
 
 static int spu_run_init(struct spu_context *ctx, u32 *npc)
 {
+	unsigned long runcntl;
+
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
-		unsigned long runcntl;
 
 		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
 			int ret = spu_setup_isolated(ctx);
@@ -145,15 +146,20 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 			(SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
 		if (runcntl == 0)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
-		ctx->ops->runcntl_write(ctx, runcntl);
 	} else {
-		unsigned long mode = SPU_PRIVCNTL_MODE_NORMAL;
-		ctx->ops->npc_write(ctx, *npc);
+		unsigned long privcntl;
+
 		if (test_thread_flag(TIF_SINGLESTEP))
-			mode = SPU_PRIVCNTL_MODE_SINGLE_STEP;
-		out_be64(&ctx->spu->priv2->spu_privcntl_RW, mode);
-		ctx->ops->runcntl_write(ctx, SPU_RUNCNTL_RUNNABLE);
+			privcntl = SPU_PRIVCNTL_MODE_SINGLE_STEP;
+		else
+			privcntl = SPU_PRIVCNTL_MODE_NORMAL;
+		runcntl = SPU_RUNCNTL_RUNNABLE;
+
+		ctx->ops->npc_write(ctx, *npc);
+		ctx->ops->privcntl_write(ctx, privcntl);
 	}
+
+	ctx->ops->runcntl_write(ctx, runcntl);
 
 	spuctx_switch_state(ctx, SPU_UTIL_USER);
 
