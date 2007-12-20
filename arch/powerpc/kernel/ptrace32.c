@@ -24,6 +24,7 @@
 #include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/signal.h>
@@ -46,43 +47,21 @@
 static long compat_ptrace_old(struct task_struct *child, long request,
 			      long addr, long data)
 {
-	int ret = -EPERM;
+	switch (request) {
+	case PPC_PTRACE_GETREGS:	/* Get GPRs 0 - 31. */
+		return copy_regset_to_user(child,
+					   task_user_regset_view(current), 0,
+					   0, 32 * sizeof(compat_long_t),
+					   compat_ptr(data));
 
-	switch(request) {
-	case PPC_PTRACE_GETREGS: { /* Get GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned int __user *tmp = (unsigned int __user *)addr;
-
-		CHECK_FULL_REGS(child->thread.regs);
-		for (i = 0; i < 32; i++) {
-			ret = put_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
+	case PPC_PTRACE_SETREGS:	/* Set GPRs 0 - 31. */
+		return copy_regset_from_user(child,
+					     task_user_regset_view(current), 0,
+					     0, 32 * sizeof(compat_long_t),
+					     compat_ptr(data));
 	}
 
-	case PPC_PTRACE_SETREGS: { /* Set GPRs 0 - 31. */
-		int i;
-		unsigned long *reg = &((unsigned long *)child->thread.regs)[0];
-		unsigned int __user *tmp = (unsigned int __user *)addr;
-
-		CHECK_FULL_REGS(child->thread.regs);
-		for (i = 0; i < 32; i++) {
-			ret = get_user(*reg, tmp);
-			if (ret)
-				break;
-			reg++;
-			tmp++;
-		}
-		break;
-	}
-
-	}
-	return ret;
+	return -EPERM;
 }
 
 long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
@@ -291,42 +270,17 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		break;
 	}
 
-	case PTRACE_GETREGS: { /* Get all pt_regs from the child. */
-		int ui;
-	  	if (!access_ok(VERIFY_WRITE, (void __user *)data,
-			       PT_REGS_COUNT * sizeof(int))) {
-			ret = -EIO;
-			break;
-		}
-		CHECK_FULL_REGS(child->thread.regs);
-		ret = 0;
-		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
-			ret |= __put_user(ptrace_get_reg(child, ui),
-					  (unsigned int __user *) data);
-			data += sizeof(int);
-		}
-		break;
-	}
+	case PTRACE_GETREGS:	/* Get all pt_regs from the child. */
+		return copy_regset_to_user(
+			child, task_user_regset_view(current), 0,
+			0, PT_REGS_COUNT * sizeof(compat_long_t),
+			compat_ptr(data));
 
-	case PTRACE_SETREGS: { /* Set all gp regs in the child. */
-		unsigned long tmp;
-		int ui;
-	  	if (!access_ok(VERIFY_READ, (void __user *)data,
-			       PT_REGS_COUNT * sizeof(int))) {
-			ret = -EIO;
-			break;
-		}
-		CHECK_FULL_REGS(child->thread.regs);
-		ret = 0;
-		for (ui = 0; ui < PT_REGS_COUNT; ui ++) {
-			ret = __get_user(tmp, (unsigned int __user *) data);
-			if (ret)
-				break;
-			ptrace_put_reg(child, ui, tmp);
-			data += sizeof(int);
-		}
-		break;
-	}
+	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
+		return copy_regset_from_user(
+			child, task_user_regset_view(current), 0,
+			0, PT_REGS_COUNT * sizeof(compat_long_t),
+			compat_ptr(data));
 
 	case PTRACE_GETFPREGS:
 	case PTRACE_SETFPREGS:
