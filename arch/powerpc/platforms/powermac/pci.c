@@ -1041,8 +1041,8 @@ void __init pmac_pci_init(void)
 	}
 	/* pmac_check_ht_link(); */
 
-	/* Tell pci.c to not use the common resource allocation mechanism */
-	pci_probe_only = 1;
+	/* We can allocate missing resources if any */
+	pci_probe_only = 0;
 
 #else /* CONFIG_PPC64 */
 	init_p2pbridge();
