@@ -1123,6 +1123,20 @@ zfcp_reqlist_find(struct zfcp_adapter *adapter, unsigned long req_id)
 	return NULL;
 }
 
+static inline struct zfcp_fsf_req *
+zfcp_reqlist_find_safe(struct zfcp_adapter *adapter, struct zfcp_fsf_req *req)
+{
+	struct zfcp_fsf_req *request;
+	unsigned int idx;
+
+	for (idx = 0; idx < REQUEST_LIST_SIZE; idx++) {
+		list_for_each_entry(request, &adapter->req_list[idx], list)
+			if (request == req)
+				return request;
+	}
+	return NULL;
+}
+
 /*
  *  functions needed for reference/usage counting
  */

@@ -846,7 +846,8 @@ zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *erp_action)
 	if (erp_action->fsf_req) {
 		/* take lock to ensure that request is not deleted meanwhile */
 		spin_lock(&adapter->req_list_lock);
-		if (zfcp_reqlist_find(adapter, erp_action->fsf_req->req_id)) {
+		if (zfcp_reqlist_find_safe(adapter, erp_action->fsf_req) &&
+		    erp_action->fsf_req->erp_action == erp_action) {
 			/* fsf_req still exists */
 			debug_text_event(adapter->erp_dbf, 3, "a_ca_req");
 			debug_event(adapter->erp_dbf, 3, &erp_action->fsf_req,
