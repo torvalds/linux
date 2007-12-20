@@ -35,9 +35,9 @@
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <linux/firmware.h>
-#include <net/mac80211.h>
-
 #include <linux/etherdevice.h>
+#include <asm/unaligned.h>
+#include <net/mac80211.h>
 
 #include "iwl-3945.h"
 #include "iwl-helpers.h"
@@ -238,10 +238,102 @@ void iwl3945_hw_rx_statistics(struct iwl3945_priv *priv, struct iwl3945_rx_mem_b
 	priv->last_statistics_time = jiffies;
 }
 
+void iwl3945_add_radiotap(struct iwl3945_priv *priv, struct sk_buff *skb,
+			  struct iwl3945_rx_frame_hdr *rx_hdr,
+			  struct ieee80211_rx_status *stats)
+{
+	/* First cache any information we need before we overwrite
+	 * the information provided in the skb from the hardware */
+	s8 signal = stats->ssi;
+	s8 noise = 0;
+	int rate = stats->rate;
+	u64 tsf = stats->mactime;
+	__le16 phy_flags_hw = rx_hdr->phy_flags;
+
+	struct iwl3945_rt_rx_hdr {
+		struct ieee80211_radiotap_header rt_hdr;
+		__le64 rt_tsf;		/* TSF */
+		u8 rt_flags;		/* radiotap packet flags */
+		u8 rt_rate;		/* rate in 500kb/s */
+		__le16 rt_channelMHz;	/* channel in MHz */
+		__le16 rt_chbitmask;	/* channel bitfield */
+		s8 rt_dbmsignal;	/* signal in dBm, kluged to signed */
+		s8 rt_dbmnoise;
+		u8 rt_antenna;		/* antenna number */
+	} __attribute__ ((packed)) *iwl3945_rt;
+
+	if (skb_headroom(skb) < sizeof(*iwl3945_rt)) {
+		if (net_ratelimit())
+			printk(KERN_ERR "not enough headroom [%d] for "
+			       "radiotap head [%d]\n",
+			       skb_headroom(skb), sizeof(*iwl3945_rt));
+		return;
+	}
+
+	/* put radiotap header in front of 802.11 header and data */
+	iwl3945_rt = (void *)skb_push(skb, sizeof(*iwl3945_rt));
+
+	/* initialise radiotap header */
+	iwl3945_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
+	iwl3945_rt->rt_hdr.it_pad = 0;
+
+	/* total header + data */
+	put_unaligned(cpu_to_le16(sizeof(*iwl3945_rt)),
+		      &iwl3945_rt->rt_hdr.it_len);
+
+	/* Indicate all the fields we add to the radiotap header */
+	put_unaligned(cpu_to_le32((1 << IEEE80211_RADIOTAP_TSFT) |
+				  (1 << IEEE80211_RADIOTAP_FLAGS) |
+				  (1 << IEEE80211_RADIOTAP_RATE) |
+				  (1 << IEEE80211_RADIOTAP_CHANNEL) |
+				  (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
+				  (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |
+				  (1 << IEEE80211_RADIOTAP_ANTENNA)),
+		      &iwl3945_rt->rt_hdr.it_present);
+
+	/* Zero the flags, we'll add to them as we go */
+	iwl3945_rt->rt_flags = 0;
+
+	put_unaligned(cpu_to_le64(tsf), &iwl3945_rt->rt_tsf);
+
+	iwl3945_rt->rt_dbmsignal = signal;
+	iwl3945_rt->rt_dbmnoise = noise;
+
+	/* Convert the channel frequency and set the flags */
+	put_unaligned(cpu_to_le16(stats->freq), &iwl3945_rt->rt_channelMHz);
+	if (!(phy_flags_hw & RX_RES_PHY_FLAGS_BAND_24_MSK))
+		put_unaligned(cpu_to_le16(IEEE80211_CHAN_OFDM |
+					  IEEE80211_CHAN_5GHZ),
+			      &iwl3945_rt->rt_chbitmask);
+	else if (phy_flags_hw & RX_RES_PHY_FLAGS_MOD_CCK_MSK)
+		put_unaligned(cpu_to_le16(IEEE80211_CHAN_CCK |
+					  IEEE80211_CHAN_2GHZ),
+			      &iwl3945_rt->rt_chbitmask);
+	else	/* 802.11g */
+		put_unaligned(cpu_to_le16(IEEE80211_CHAN_OFDM |
+					  IEEE80211_CHAN_2GHZ),
+			      &iwl3945_rt->rt_chbitmask);
+
+	rate = iwl3945_rate_index_from_plcp(rate);
+	if (rate == -1)
+		iwl3945_rt->rt_rate = 0;
+	else
+		iwl3945_rt->rt_rate = iwl3945_rates[rate].ieee;
+
+	/* antenna number */
+	iwl3945_rt->rt_antenna =
+		le16_to_cpu(phy_flags_hw & RX_RES_PHY_FLAGS_ANTENNA_MSK) >> 4;
+
+	/* set the preamble flag if we have it */
+	if (phy_flags_hw & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
+		iwl3945_rt->rt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+
+	stats->flag |= RX_FLAG_RADIOTAP;
+}
+
 static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
 				   struct iwl3945_rx_mem_buffer *rxb,
-				   struct ieee80211_rx_status *stats,
-				   u16 phy_flags)
+				   struct ieee80211_rx_status *stats)
 {
 	struct ieee80211_hdr *hdr;
 	struct iwl3945_rx_packet *pkt = (struct iwl3945_rx_packet *)rxb->skb->data;
@@ -261,15 +353,6 @@ static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
 		    ("Dropping packet while interface is not open.\n");
 		return;
 	}
-	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
-		if (iwl3945_param_hwcrypto)
-			iwl3945_set_decrypted_flag(priv, rxb->skb,
-					       le32_to_cpu(rx_end->status),
-					       stats);
-		iwl3945_handle_data_packet_monitor(priv, rxb, IWL_RX_DATA(pkt),
-					       len, stats, phy_flags);
-		return;
-	}
 
 	skb_reserve(rxb->skb, (void *)rx_hdr->payload - (void *)pkt);
 	/* Set the size of the skb to the size of the frame */
@@ -280,6 +363,9 @@ static void iwl3945_handle_data_packet(struct iwl3945_priv *priv, int is_data,
 	if (iwl3945_param_hwcrypto)
 		iwl3945_set_decrypted_flag(priv, rxb->skb,
 				       le32_to_cpu(rx_end->status), stats);
+
+	if (priv->add_radiotap)
+		iwl3945_add_radiotap(priv, rxb->skb, rx_hdr, stats);
 
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
 	rxb->skb = NULL;
@@ -295,7 +381,6 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	struct iwl3945_rx_frame_hdr *rx_hdr = IWL_RX_HDR(pkt);
 	struct iwl3945_rx_frame_end *rx_end = IWL_RX_END(pkt);
 	struct ieee80211_hdr *header;
-	u16 phy_flags = le16_to_cpu(rx_hdr->phy_flags);
 	u16 rx_stats_sig_avg = le16_to_cpu(rx_stats->sig_avg);
 	u16 rx_stats_noise_diff = le16_to_cpu(rx_stats->noise_diff);
 	struct ieee80211_rx_status stats = {
@@ -325,7 +410,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 	}
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
-		iwl3945_handle_data_packet(priv, 1, rxb, &stats, phy_flags);
+		iwl3945_handle_data_packet(priv, 1, rxb, &stats);
 		return;
 	}
 
@@ -479,7 +564,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 			}
 		}
 
-		iwl3945_handle_data_packet(priv, 0, rxb, &stats, phy_flags);
+		iwl3945_handle_data_packet(priv, 0, rxb, &stats);
 		break;
 
 	case IEEE80211_FTYPE_CTL:
@@ -496,8 +581,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 				       print_mac(mac2, header->addr2),
 				       print_mac(mac3, header->addr3));
 		else
-			iwl3945_handle_data_packet(priv, 1, rxb, &stats,
-						   phy_flags);
+			iwl3945_handle_data_packet(priv, 1, rxb, &stats);
 		break;
 	}
 	}

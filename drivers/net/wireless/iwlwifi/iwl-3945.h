@@ -91,29 +91,6 @@ struct iwl3945_rx_mem_buffer {
 	struct list_head list;
 };
 
-struct iwl3945_rt_rx_hdr {
-	struct ieee80211_radiotap_header rt_hdr;
-	__le64 rt_tsf;		/* TSF */
-	u8 rt_flags;		/* radiotap packet flags */
-	u8 rt_rate;		/* rate in 500kb/s */
-	__le16 rt_channelMHz;	/* channel in MHz */
-	__le16 rt_chbitmask;	/* channel bitfield */
-	s8 rt_dbmsignal;	/* signal in dBm, kluged to signed */
-	s8 rt_dbmnoise;
-	u8 rt_antenna;		/* antenna number */
-	u8 payload[0];		/* payload... */
-} __attribute__ ((packed));
-
-struct iwl3945_rt_tx_hdr {
-	struct ieee80211_radiotap_header rt_hdr;
-	u8 rt_rate;		/* rate in 500kb/s */
-	__le16 rt_channel;	/* channel in mHz */
-	__le16 rt_chbitmask;	/* channel bitfield */
-	s8 rt_dbmsignal;	/* signal in dBm, kluged to signed */
-	u8 rt_antenna;		/* antenna number */
-	u8 payload[0];		/* payload... */
-} __attribute__ ((packed));
-
 /*
  * Generic queue structure
  *
@@ -531,7 +508,7 @@ struct iwl3945_ibss_seq {
 };
 
 /**
- * struct iwl4965_driver_hw_info
+ * struct iwl3945_driver_hw_info
  * @max_txq_num: Max # Tx queues supported
  * @ac_queue_count: # Tx queues for EDCA Access Categories (AC)
  * @tx_cmd_len: Size of Tx command (but not including frame itself)
@@ -725,6 +702,7 @@ struct iwl3945_priv {
 
 	u8 phymode;
 	int alloc_rxb_skb;
+	bool add_radiotap;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl3945_priv *priv,
 				       struct iwl3945_rx_mem_buffer *rxb);
@@ -978,6 +956,16 @@ static inline int is_channel_passive(const struct iwl3945_channel_info *ch)
 static inline int is_channel_ibss(const struct iwl3945_channel_info *ch)
 {
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
+}
+
+static inline int iwl3945_rate_index_from_plcp(int plcp)
+{
+	int i;
+
+	for (i = 0; i < IWL_RATE_COUNT; i++)
+		if (iwl3945_rates[i].plcp == plcp)
+			return i;
+	return -1;
 }
 
 extern const struct iwl3945_channel_info *iwl3945_get_channel_info(

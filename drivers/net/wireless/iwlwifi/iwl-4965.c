@@ -36,6 +36,7 @@
 #include <linux/wireless.h>
 #include <net/mac80211.h>
 #include <linux/etherdevice.h>
+#include <asm/unaligned.h>
 
 #include "iwl-4965.h"
 #include "iwl-helpers.h"
@@ -3588,6 +3589,111 @@ void iwl4965_hw_rx_statistics(struct iwl4965_priv *priv, struct iwl4965_rx_mem_b
 		queue_work(priv->workqueue, &priv->txpower_work);
 }
 
+static void iwl4965_add_radiotap(struct iwl4965_priv *priv,
+				 struct sk_buff *skb,
+				 struct iwl4965_rx_phy_res *rx_start,
+				 struct ieee80211_rx_status *stats,
+				 u32 ampdu_status)
+{
+	s8 signal = stats->ssi;
+	s8 noise = 0;
+	int rate = stats->rate;
+	u64 tsf = stats->mactime;
+	__le16 phy_flags_hw = rx_start->phy_flags;
+	struct iwl4965_rt_rx_hdr {
+		struct ieee80211_radiotap_header rt_hdr;
+		__le64 rt_tsf;		/* TSF */
+		u8 rt_flags;		/* radiotap packet flags */
+		u8 rt_rate;		/* rate in 500kb/s */
+		__le16 rt_channelMHz;	/* channel in MHz */
+		__le16 rt_chbitmask;	/* channel bitfield */
+		s8 rt_dbmsignal;	/* signal in dBm, kluged to signed */
+		s8 rt_dbmnoise;
+		u8 rt_antenna;		/* antenna number */
+	} __attribute__ ((packed)) *iwl4965_rt;
+
+	/* TODO: We won't have enough headroom for HT frames. Fix it later. */
+	if (skb_headroom(skb) < sizeof(*iwl4965_rt)) {
+		if (net_ratelimit())
+			printk(KERN_ERR "not enough headroom [%d] for "
+			       "radiotap head [%d]\n",
+			       skb_headroom(skb), sizeof(*iwl4965_rt));
+		return;
+	}
+
+	/* put radiotap header in front of 802.11 header and data */
+	iwl4965_rt = (void *)skb_push(skb, sizeof(*iwl4965_rt));
+
+	/* initialise radiotap header */
+	iwl4965_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
+	iwl4965_rt->rt_hdr.it_pad = 0;
+
+	/* total header + data */
+	put_unaligned(cpu_to_le16(sizeof(*iwl4965_rt)),
+		      &iwl4965_rt->rt_hdr.it_len);
+
+	/* Indicate all the fields we add to the radiotap header */
+	put_unaligned(cpu_to_le32((1 << IEEE80211_RADIOTAP_TSFT) |
+				  (1 << IEEE80211_RADIOTAP_FLAGS) |
+				  (1 << IEEE80211_RADIOTAP_RATE) |
+				  (1 << IEEE80211_RADIOTAP_CHANNEL) |
+				  (1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
+				  (1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |
+				  (1 << IEEE80211_RADIOTAP_ANTENNA)),
+		      &iwl4965_rt->rt_hdr.it_present);
+
+	/* Zero the flags, we'll add to them as we go */
+	iwl4965_rt->rt_flags = 0;
+
+	put_unaligned(cpu_to_le64(tsf), &iwl4965_rt->rt_tsf);
+
+	iwl4965_rt->rt_dbmsignal = signal;
+	iwl4965_rt->rt_dbmnoise = noise;
+
+	/* Convert the channel frequency and set the flags */
+	put_unaligned(cpu_to_le16(stats->freq), &iwl4965_rt->rt_channelMHz);
+	if (!(phy_flags_hw & RX_RES_PHY_FLAGS_BAND_24_MSK))
+		put_unaligned(cpu_to_le16(IEEE80211_CHAN_OFDM |
+					  IEEE80211_CHAN_5GHZ),
+			      &iwl4965_rt->rt_chbitmask);
+	else if (phy_flags_hw & RX_RES_PHY_FLAGS_MOD_CCK_MSK)
+		put_unaligned(cpu_to_le16(IEEE80211_CHAN_CCK |
+					  IEEE80211_CHAN_2GHZ),
+			      &iwl4965_rt->rt_chbitmask);
+	else	/* 802.11g */
+		put_unaligned(cpu_to_le16(IEEE80211_CHAN_OFDM |
+					  IEEE80211_CHAN_2GHZ),
+			      &iwl4965_rt->rt_chbitmask);
+
+	rate = iwl4965_rate_index_from_plcp(rate);
+	if (rate == -1)
+		iwl4965_rt->rt_rate = 0;
+	else
+		iwl4965_rt->rt_rate = iwl4965_rates[rate].ieee;
+
+	/*
+	 * "antenna number"
+	 *
+	 * It seems that the antenna field in the phy flags value
+	 * is actually a bitfield. This is undefined by radiotap,
+	 * it wants an actual antenna number but I always get "7"
+	 * for most legacy frames I receive indicating that the
+	 * same frame was received on all three RX chains.
+	 *
+	 * I think this field should be removed in favour of a
+	 * new 802.11n radiotap field "RX chains" that is defined
+	 * as a bitmask.
+	 */
+	iwl4965_rt->rt_antenna =
+		le16_to_cpu(phy_flags_hw & RX_RES_PHY_FLAGS_ANTENNA_MSK) >> 4;
+
+	/* set the preamble flag if appropriate */
+	if (phy_flags_hw & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
+		iwl4965_rt->rt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
+
+	stats->flag |= RX_FLAG_RADIOTAP;
+}
+
 static void iwl4965_handle_data_packet(struct iwl4965_priv *priv, int is_data,
 				       int include_phy,
 				       struct iwl4965_rx_mem_buffer *rxb,
@@ -3630,8 +3736,7 @@ static void iwl4965_handle_data_packet(struct iwl4965_priv *priv, int is_data,
 		rx_end = (__le32 *) (((u8 *) hdr) + len);
 	}
 	if (len > priv->hw_setting.max_pkt_size || len < 16) {
-		IWL_WARNING("byte count out of range [16,4K]"
-			       " : %d\n", len);
+		IWL_WARNING("byte count out of range [16,4K] : %d\n", len);
 		return;
 	}
 
@@ -3649,19 +3754,14 @@ static void iwl4965_handle_data_packet(struct iwl4965_priv *priv, int is_data,
 		return;
 	}
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
-		if (iwl4965_param_hwcrypto)
-			iwl4965_set_decrypted_flag(priv, rxb->skb,
-					       ampdu_status, stats);
-		iwl4965_handle_data_packet_monitor(priv, rxb, hdr, len, stats, 0);
-		return;
-	}
-
 	stats->flag = 0;
 	hdr = (struct ieee80211_hdr *)rxb->skb->data;
 
 	if (iwl4965_param_hwcrypto)
 		iwl4965_set_decrypted_flag(priv, rxb->skb, ampdu_status, stats);
+
+	if (priv->add_radiotap)
+		iwl4965_add_radiotap(priv, rxb->skb, rx_start, stats, ampdu_status);
 
 	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
 	priv->alloc_rxb_skb--;

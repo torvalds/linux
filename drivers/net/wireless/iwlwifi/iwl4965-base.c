@@ -41,7 +41,6 @@
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
 
-#include <net/ieee80211_radiotap.h>
 #include <net/mac80211.h>
 
 #include <asm/div64.h>
@@ -3245,93 +3244,6 @@ void iwl4965_set_decrypted_flag(struct iwl4965_priv *priv, struct sk_buff *skb,
 	default:
 		break;
 	}
-}
-
-void iwl4965_handle_data_packet_monitor(struct iwl4965_priv *priv,
-				    struct iwl4965_rx_mem_buffer *rxb,
-				    void *data, short len,
-				    struct ieee80211_rx_status *stats,
-				    u16 phy_flags)
-{
-	struct iwl4965_rt_rx_hdr *iwl4965_rt;
-
-	/* First cache any information we need before we overwrite
-	 * the information provided in the skb from the hardware */
-	s8 signal = stats->ssi;
-	s8 noise = 0;
-	int rate = stats->rate;
-	u64 tsf = stats->mactime;
-	__le16 phy_flags_hw = cpu_to_le16(phy_flags);
-
-	/* We received data from the HW, so stop the watchdog */
-	if (len > priv->hw_setting.rx_buf_size - sizeof(*iwl4965_rt)) {
-		IWL_DEBUG_DROP("Dropping too large packet in monitor\n");
-		return;
-	}
-
-	/* copy the frame data to write after where the radiotap header goes */
-	iwl4965_rt = (void *)rxb->skb->data;
-	memmove(iwl4965_rt->payload, data, len);
-
-	iwl4965_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
-	iwl4965_rt->rt_hdr.it_pad = 0; /* always good to zero */
-
-	/* total header + data */
-	iwl4965_rt->rt_hdr.it_len = cpu_to_le16(sizeof(*iwl4965_rt));
-
-	/* Set the size of the skb to the size of the frame */
-	skb_put(rxb->skb, sizeof(*iwl4965_rt) + len);
-
-	/* Big bitfield of all the fields we provide in radiotap */
-	iwl4965_rt->rt_hdr.it_present =
-	    cpu_to_le32((1 << IEEE80211_RADIOTAP_TSFT) |
-			(1 << IEEE80211_RADIOTAP_FLAGS) |
-			(1 << IEEE80211_RADIOTAP_RATE) |
-			(1 << IEEE80211_RADIOTAP_CHANNEL) |
-			(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL) |
-			(1 << IEEE80211_RADIOTAP_DBM_ANTNOISE) |
-			(1 << IEEE80211_RADIOTAP_ANTENNA));
-
-	/* Zero the flags, we'll add to them as we go */
-	iwl4965_rt->rt_flags = 0;
-
-	iwl4965_rt->rt_tsf = cpu_to_le64(tsf);
-
-	/* Convert to dBm */
-	iwl4965_rt->rt_dbmsignal = signal;
-	iwl4965_rt->rt_dbmnoise = noise;
-
-	/* Convert the channel frequency and set the flags */
-	iwl4965_rt->rt_channelMHz = cpu_to_le16(stats->freq);
-	if (!(phy_flags_hw & RX_RES_PHY_FLAGS_BAND_24_MSK))
-		iwl4965_rt->rt_chbitmask =
-		    cpu_to_le16((IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ));
-	else if (phy_flags_hw & RX_RES_PHY_FLAGS_MOD_CCK_MSK)
-		iwl4965_rt->rt_chbitmask =
-		    cpu_to_le16((IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ));
-	else	/* 802.11g */
-		iwl4965_rt->rt_chbitmask =
-		    cpu_to_le16((IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ));
-
-	rate = iwl4965_rate_index_from_plcp(rate);
-	if (rate == -1)
-		iwl4965_rt->rt_rate = 0;
-	else
-		iwl4965_rt->rt_rate = iwl4965_rates[rate].ieee;
-
-	/* antenna number */
-	iwl4965_rt->rt_antenna =
-		le16_to_cpu(phy_flags_hw & RX_RES_PHY_FLAGS_ANTENNA_MSK) >> 4;
-
-	/* set the preamble flag if we have it */
-	if (phy_flags_hw & RX_RES_PHY_FLAGS_SHORT_PREAMBLE_MSK)
-		iwl4965_rt->rt_flags |= IEEE80211_RADIOTAP_F_SHORTPRE;
-
-	IWL_DEBUG_RX("Rx packet of %d bytes.\n", rxb->skb->len);
-
-	stats->flag |= RX_FLAG_RADIOTAP;
-	ieee80211_rx_irqsafe(priv->hw, rxb->skb, stats);
-	rxb->skb = NULL;
 }
 
 
@@ -7555,6 +7467,8 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	mutex_lock(&priv->mutex);
 	IWL_DEBUG_MAC80211("enter to channel %d\n", conf->channel);
+
+	priv->add_radiotap = !!(conf->flags & IEEE80211_CONF_RADIOTAP);
 
 	if (!iwl4965_is_ready(priv)) {
 		IWL_DEBUG_MAC80211("leave - not ready\n");

@@ -91,29 +91,6 @@ struct iwl4965_rx_mem_buffer {
 	struct list_head list;
 };
 
-struct iwl4965_rt_rx_hdr {
-	struct ieee80211_radiotap_header rt_hdr;
-	__le64 rt_tsf;		/* TSF */
-	u8 rt_flags;		/* radiotap packet flags */
-	u8 rt_rate;		/* rate in 500kb/s */
-	__le16 rt_channelMHz;	/* channel in MHz */
-	__le16 rt_chbitmask;	/* channel bitfield */
-	s8 rt_dbmsignal;	/* signal in dBm, kluged to signed */
-	s8 rt_dbmnoise;
-	u8 rt_antenna;		/* antenna number */
-	u8 payload[0];		/* payload... */
-} __attribute__ ((packed));
-
-struct iwl4965_rt_tx_hdr {
-	struct ieee80211_radiotap_header rt_hdr;
-	u8 rt_rate;		/* rate in 500kb/s */
-	__le16 rt_channel;	/* channel in mHz */
-	__le16 rt_chbitmask;	/* channel bitfield */
-	s8 rt_dbmsignal;	/* signal in dBm, kluged to signed */
-	u8 rt_antenna;		/* antenna number */
-	u8 payload[0];		/* payload... */
-} __attribute__ ((packed));
-
 /*
  * Generic queue structure
  *
@@ -1054,6 +1031,7 @@ struct iwl4965_priv {
 
 	u8 phymode;
 	int alloc_rxb_skb;
+	bool add_radiotap;
 
 	void (*rx_handlers[REPLY_MAX])(struct iwl4965_priv *priv,
 				       struct iwl4965_rx_mem_buffer *rxb);
