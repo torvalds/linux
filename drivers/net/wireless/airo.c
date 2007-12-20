@@ -718,32 +718,32 @@ typedef struct {
 } APListRid;
 
 typedef struct {
-	u16 len;
+	__le16 len;
 	char oui[3];
 	char zero;
-	u16 prodNum;
+	__le16 prodNum;
 	char manName[32];
 	char prodName[16];
 	char prodVer[8];
 	char factoryAddr[ETH_ALEN];
 	char aironetAddr[ETH_ALEN];
-	u16 radioType;
-	u16 country;
+	__le16 radioType;
+	__le16 country;
 	char callid[ETH_ALEN];
 	char supportedRates[8];
 	char rxDiversity;
 	char txDiversity;
-	u16 txPowerLevels[8];
-	u16 hardVer;
-	u16 hardCap;
-	u16 tempRange;
-	u16 softVer;
-	u16 softSubVer;
-	u16 interfaceVer;
-	u16 softCap;
-	u16 bootBlockVer;
-	u16 requiredHard;
-	u16 extSoftCap;
+	__le16 txPowerLevels[8];
+	__le16 hardVer;
+	__le16 hardCap;
+	__le16 tempRange;
+	__le16 softVer;
+	__le16 softSubVer;
+	__le16 interfaceVer;
+	__le16 softCap;
+	__le16 bootBlockVer;
+	__le16 requiredHard;
+	__le16 extSoftCap;
 } CapabilityRid;
 
 
@@ -1877,17 +1877,10 @@ static int writeAPListRid(struct airo_info*ai, APListRid *aplr, int lock) {
 	rc = PC4500_writerid(ai, RID_APLIST, aplr, sizeof(*aplr), lock);
 	return rc;
 }
-static int readCapabilityRid(struct airo_info*ai, CapabilityRid *capr, int lock) {
-	int rc = PC4500_readrid(ai, RID_CAPABILITIES, capr, sizeof(*capr), lock);
-	u16 *s;
 
-	capr->len = le16_to_cpu(capr->len);
-	capr->prodNum = le16_to_cpu(capr->prodNum);
-	capr->radioType = le16_to_cpu(capr->radioType);
-	capr->country = le16_to_cpu(capr->country);
-	for(s = &capr->txPowerLevels[0]; s <= &capr->requiredHard; s++)
-		*s = le16_to_cpu(*s);
-	return rc;
+static int readCapabilityRid(struct airo_info *ai, CapabilityRid *capr, int lock)
+{
+	return PC4500_readrid(ai, RID_CAPABILITIES, capr, sizeof(*capr), lock);
 }
 
 static int readStatsRid(struct airo_info*ai, StatsRid *sr, int rid, int lock)
@@ -2773,8 +2766,9 @@ static int airo_test_wpa_capable(struct airo_info *ai)
 	if (status != SUCCESS) return 0;
 
 	/* Only firmware versions 5.30.17 or better can do WPA */
-	if ((cap_rid.softVer > 0x530)
-	  || ((cap_rid.softVer == 0x530) && (cap_rid.softSubVer >= 17))) {
+	if (le16_to_cpu(cap_rid.softVer) > 0x530
+	  || (le16_to_cpu(cap_rid.softVer) == 0x530
+	      && le16_to_cpu(cap_rid.softSubVer) >= 17)) {
 		airo_print_info("", "WPA is supported.");
 		return 1;
 	}
@@ -3809,7 +3803,7 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 		else {
 			kfree(ai->rssi);
 			ai->rssi = NULL;
-			if (cap_rid.softCap & 8)
+			if (cap_rid.softCap & cpu_to_le16(8))
 				ai->config.rmode |= RXMODE_NORMALIZED_RSSI;
 			else
 				airo_print_warn(ai->dev->name, "unknown received signal "
@@ -3819,9 +3813,9 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 		ai->config.authType = AUTH_OPEN;
 		ai->config.modulation = MOD_CCK;
 
-		if ((cap_rid.len>=sizeof(cap_rid)) &&
+		if (le16_to_cpu(cap_rid.len) >= sizeof(cap_rid) &&
 		    (cap_rid.extSoftCap & cpu_to_le16(1)) &&
-		    (micsetup(ai) == SUCCESS)) {
+		    micsetup(ai) == SUCCESS) {
 			ai->config.opmode |= MODE_MIC;
 			set_bit(FLAG_MIC_CAPABLE, &ai->flags);
 		}
@@ -4717,12 +4711,12 @@ static int proc_status_open( struct inode *inode, struct file *file ) {
 		 cap_rid.prodName,
 		 cap_rid.manName,
 		 cap_rid.prodVer,
-		 cap_rid.radioType,
-		 cap_rid.country,
-		 cap_rid.hardVer,
-		 (int)cap_rid.softVer,
-		 (int)cap_rid.softSubVer,
-		 (int)cap_rid.bootBlockVer );
+		 le16_to_cpu(cap_rid.radioType),
+		 le16_to_cpu(cap_rid.country),
+		 le16_to_cpu(cap_rid.hardVer),
+		 le16_to_cpu(cap_rid.softVer),
+		 le16_to_cpu(cap_rid.softSubVer),
+		 le16_to_cpu(cap_rid.bootBlockVer));
 	data->readlen = strlen( data->rbuffer );
 	return 0;
 }
@@ -5734,20 +5728,24 @@ static int airo_get_quality (StatusRid *status_rid, CapabilityRid *cap_rid)
 {
 	int quality = 0;
 
-	if ((status_rid->mode & 0x3f) == 0x3f && (cap_rid->hardCap & 8)) {
-		if (memcmp(cap_rid->prodName, "350", 3))
-			if (status_rid->signalQuality > 0x20)
-				quality = 0;
-			else
-				quality = 0x20 - status_rid->signalQuality;
+	if ((status_rid->mode & 0x3f) != 0x3f)
+		return 0;
+
+	if (!(cap_rid->hardCap & cpu_to_le16(8)))
+		return 0;
+
+	if (memcmp(cap_rid->prodName, "350", 3))
+		if (status_rid->signalQuality > 0x20)
+			quality = 0;
 		else
-			if (status_rid->signalQuality > 0xb0)
-				quality = 0;
-			else if (status_rid->signalQuality < 0x10)
-				quality = 0xa0;
-			else
-				quality = 0xb0 - status_rid->signalQuality;
-	}
+			quality = 0x20 - status_rid->signalQuality;
+	else
+		if (status_rid->signalQuality > 0xb0)
+			quality = 0;
+		else if (status_rid->signalQuality < 0x10)
+			quality = 0xa0;
+		else
+			quality = 0xb0 - status_rid->signalQuality;
 	return quality;
 }
 
@@ -6289,6 +6287,13 @@ static int airo_get_mode(struct net_device *dev,
 	return 0;
 }
 
+static inline int valid_index(CapabilityRid *p, int index)
+{
+	if (index < 0)
+		return 0;
+	return index < (p->softCap & cpu_to_le16(0x80) ? 4 : 1);
+}
+
 /*------------------------------------------------------------------*/
 /*
  * Wireless Handler : set Encryption Key
@@ -6306,7 +6311,7 @@ static int airo_set_encode(struct net_device *dev,
 	/* Is WEP supported ? */
 	readCapabilityRid(local, &cap_rid, 1);
 	/* Older firmware doesn't support this...
-	if(!(cap_rid.softCap & 2)) {
+	if(!(cap_rid.softCap & cpu_to_le16(2))) {
 		return -EOPNOTSUPP;
 	} */
 	readConfigRid(local, 1);
@@ -6326,7 +6331,7 @@ static int airo_set_encode(struct net_device *dev,
 			return -EINVAL;
 		}
 		/* Check the index (none -> use current) */
-		if ((index < 0) || (index >= ((cap_rid.softCap & 0x80) ? 4:1)))
+		if (!valid_index(&cap_rid, index))
 			index = current_index;
 		/* Set the length */
 		if (dwrq->length > MIN_KEY_SIZE)
@@ -6356,7 +6361,7 @@ static int airo_set_encode(struct net_device *dev,
 	} else {
 		/* Do we want to just set the transmit key index ? */
 		int index = (dwrq->flags & IW_ENCODE_INDEX) - 1;
-		if ((index >= 0) && (index < ((cap_rid.softCap & 0x80)?4:1))) {
+		if (valid_index(&cap_rid, index)) {
 			set_wep_key(local, index, NULL, 0, perm, 1);
 		} else
 			/* Don't complain if only change the mode */
@@ -6391,7 +6396,7 @@ static int airo_get_encode(struct net_device *dev,
 
 	/* Is it supported ? */
 	readCapabilityRid(local, &cap_rid, 1);
-	if(!(cap_rid.softCap & 2)) {
+	if(!(cap_rid.softCap & cpu_to_le16(2))) {
 		return -EOPNOTSUPP;
 	}
 	readConfigRid(local, 1);
@@ -6413,7 +6418,7 @@ static int airo_get_encode(struct net_device *dev,
 	memset(extra, 0, 16);
 
 	/* Which key do we want ? -1 -> tx index */
-	if ((index < 0) || (index >= ((cap_rid.softCap & 0x80) ? 4 : 1)))
+	if (!valid_index(&cap_rid, index))
 		index = get_wep_key(local, 0xffff);
 	dwrq->flags |= index + 1;
 	/* Copy the key to the user buffer */
@@ -6445,7 +6450,7 @@ static int airo_set_encodeext(struct net_device *dev,
 	/* Is WEP supported ? */
 	readCapabilityRid(local, &cap_rid, 1);
 	/* Older firmware doesn't support this...
-	if(!(cap_rid.softCap & 2)) {
+	if(!(cap_rid.softCap & cpu_to_le16(2))) {
 		return -EOPNOTSUPP;
 	} */
 	readConfigRid(local, 1);
@@ -6453,7 +6458,7 @@ static int airo_set_encodeext(struct net_device *dev,
 	/* Determine and validate the key index */
 	idx = encoding->flags & IW_ENCODE_INDEX;
 	if (idx) {
-		if (idx < 1 || idx > ((cap_rid.softCap & 0x80) ? 4:1))
+		if (!valid_index(&cap_rid, idx - 1))
 			return -EINVAL;
 		idx--;
 	} else
@@ -6527,7 +6532,7 @@ static int airo_get_encodeext(struct net_device *dev,
 
 	/* Is it supported ? */
 	readCapabilityRid(local, &cap_rid, 1);
-	if(!(cap_rid.softCap & 2)) {
+	if(!(cap_rid.softCap & cpu_to_le16(2))) {
 		return -EOPNOTSUPP;
 	}
 	readConfigRid(local, 1);
@@ -6538,7 +6543,7 @@ static int airo_get_encodeext(struct net_device *dev,
 
 	idx = encoding->flags & IW_ENCODE_INDEX;
 	if (idx) {
-		if (idx < 1 || idx > ((cap_rid.softCap & 0x80) ? 4:1))
+		if (!valid_index(&cap_rid, idx - 1))
 			return -EINVAL;
 		idx--;
 	} else
@@ -6716,7 +6721,7 @@ static int airo_set_txpow(struct net_device *dev,
 	}
 	clear_bit (FLAG_RADIO_OFF, &local->flags);
 	for (i = 0; cap_rid.txPowerLevels[i] && (i < 8); i++)
-		if ((vwrq->value==cap_rid.txPowerLevels[i])) {
+		if (vwrq->value == le16_to_cpu(cap_rid.txPowerLevels[i])) {
 			readConfigRid(local, 1);
 			local->config.txPower = vwrq->value;
 			set_bit (FLAG_COMMIT, &local->flags);
@@ -6888,16 +6893,17 @@ static int airo_get_range(struct net_device *dev,
 	range->min_frag = 256;
 	range->max_frag = AIRO_DEF_MTU;
 
-	if(cap_rid.softCap & 2) {
+	if(cap_rid.softCap & cpu_to_le16(2)) {
 		// WEP: RC4 40 bits
 		range->encoding_size[0] = 5;
 		// RC4 ~128 bits
-		if (cap_rid.softCap & 0x100) {
+		if (cap_rid.softCap & cpu_to_le16(0x100)) {
 			range->encoding_size[1] = 13;
 			range->num_encoding_sizes = 2;
 		} else
 			range->num_encoding_sizes = 1;
-		range->max_encoding_tokens = (cap_rid.softCap & 0x80) ? 4 : 1;
+		range->max_encoding_tokens =
+			cap_rid.softCap & cpu_to_le16(0x80) ? 4 : 1;
 	} else {
 		range->num_encoding_sizes = 0;
 		range->max_encoding_tokens = 0;
@@ -6912,7 +6918,7 @@ static int airo_get_range(struct net_device *dev,
 
 	/* Transmit Power - values are in mW */
 	for(i = 0 ; i < 8 ; i++) {
-		range->txpower[i] = cap_rid.txPowerLevels[i];
+		range->txpower[i] = le16_to_cpu(cap_rid.txPowerLevels[i]);
 		if(range->txpower[i] == 0)
 			break;
 	}
