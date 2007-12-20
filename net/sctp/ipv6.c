@@ -330,7 +330,7 @@ static void sctp_v6_get_saddr(struct sctp_association *asoc,
 	list_for_each_entry_rcu(laddr, &bp->address_list, list) {
 		if (!laddr->valid)
 			continue;
-		if ((laddr->use_as_src) &&
+		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (laddr->a.sa.sa_family == AF_INET6) &&
 		    (scope <= sctp_scope(&laddr->a))) {
 			bmatchlen = sctp_v6_addr_match_len(daddr, &laddr->a);

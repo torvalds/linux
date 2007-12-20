@@ -760,12 +760,18 @@ void sctp_init_addrs(struct sctp_chunk *, union sctp_addr *,
 		     union sctp_addr *);
 const union sctp_addr *sctp_source(const struct sctp_chunk *chunk);
 
+enum {
+	SCTP_ADDR_NEW,		/* new address added to assoc/ep */
+	SCTP_ADDR_SRC,		/* address can be used as source */
+	SCTP_ADDR_DEL,		/* address about to be deleted */
+};
+
 /* This is a structure for holding either an IPv6 or an IPv4 address.  */
 struct sctp_sockaddr_entry {
 	struct list_head list;
 	struct rcu_head	rcu;
 	union sctp_addr a;
-	__u8 use_as_src;
+	__u8 state;
 	__u8 valid;
 };
 
@@ -1190,7 +1196,7 @@ int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
 			gfp_t gfp);
 int sctp_add_bind_addr(struct sctp_bind_addr *, union sctp_addr *,
-		       __u8 use_as_src, gfp_t gfp);
+		       __u8 addr_state, gfp_t gfp);
 int sctp_del_bind_addr(struct sctp_bind_addr *, union sctp_addr *);
 int sctp_bind_addr_match(struct sctp_bind_addr *, const union sctp_addr *,
 			 struct sctp_sock *);

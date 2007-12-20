@@ -1692,8 +1692,8 @@ no_hmac:
 
 	/* Also, add the destination address. */
 	if (list_empty(&retval->base.bind_addr.address_list)) {
-		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest, 1,
-				GFP_ATOMIC);
+		sctp_add_bind_addr(&retval->base.bind_addr, &chunk->dest,
+				SCTP_ADDR_SRC, GFP_ATOMIC);
 	}
 
 	retval->next_tsn = retval->c.initial_tsn;
@@ -3016,7 +3016,7 @@ static int sctp_asconf_param_success(struct sctp_association *asoc,
 		local_bh_disable();
 		list_for_each_entry(saddr, &bp->address_list, list) {
 			if (sctp_cmp_addr_exact(&saddr->a, &addr))
-				saddr->use_as_src = 1;
+				saddr->state = SCTP_ADDR_SRC;
 		}
 		local_bh_enable();
 		break;

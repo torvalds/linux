@@ -390,7 +390,7 @@ SCTP_STATIC int sctp_do_bind(struct sock *sk, union sctp_addr *addr, int len)
 	/* Add the address to the bind address list.
 	 * Use GFP_ATOMIC since BHs will be disabled.
 	 */
-	ret = sctp_add_bind_addr(bp, addr, 1, GFP_ATOMIC);
+	ret = sctp_add_bind_addr(bp, addr, SCTP_ADDR_SRC, GFP_ATOMIC);
 
 	/* Copy back into socket for getsockname() use. */
 	if (!ret) {
@@ -585,8 +585,8 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 			addr = (union sctp_addr *)addr_buf;
 			af = sctp_get_af_specific(addr->v4.sin_family);
 			memcpy(&saveaddr, addr, af->sockaddr_len);
-			retval = sctp_add_bind_addr(bp, &saveaddr, 0,
-						    GFP_ATOMIC);
+			retval = sctp_add_bind_addr(bp, &saveaddr,
+						    SCTP_ADDR_NEW, GFP_ATOMIC);
 			addr_buf += af->sockaddr_len;
 		}
 	}
@@ -777,7 +777,7 @@ static int sctp_send_asconf_del_ip(struct sock		*sk,
 			af = sctp_get_af_specific(laddr->v4.sin_family);
 			list_for_each_entry(saddr, &bp->address_list, list) {
 				if (sctp_cmp_addr_exact(&saddr->a, laddr))
-					saddr->use_as_src = 0;
+					saddr->state = SCTP_ADDR_DEL;
 			}
 			addr_buf += af->sockaddr_len;
 		}

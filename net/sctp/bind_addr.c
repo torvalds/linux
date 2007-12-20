@@ -171,7 +171,7 @@ void sctp_bind_addr_free(struct sctp_bind_addr *bp)
 
 /* Add an address to the bind address list in the SCTP_bind_addr structure. */
 int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
-		       __u8 use_as_src, gfp_t gfp)
+		       __u8 addr_state, gfp_t gfp)
 {
 	struct sctp_sockaddr_entry *addr;
 
@@ -188,7 +188,7 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	if (!addr->a.v4.sin_port)
 		addr->a.v4.sin_port = htons(bp->port);
 
-	addr->use_as_src = use_as_src;
+	addr->state = addr_state;
 	addr->valid = 1;
 
 	INIT_LIST_HEAD(&addr->list);
@@ -312,7 +312,7 @@ int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw_addr_list,
 		}
 
 		af->from_addr_param(&addr, rawaddr, htons(port), 0);
-		retval = sctp_add_bind_addr(bp, &addr, 1, gfp);
+		retval = sctp_add_bind_addr(bp, &addr, SCTP_ADDR_SRC, gfp);
 		if (retval) {
 			/* Can't finish building the list, clean up. */
 			sctp_bind_addr_clean(bp);
@@ -411,7 +411,8 @@ static int sctp_copy_one_addr(struct sctp_bind_addr *dest,
 		    (((AF_INET6 == addr->sa.sa_family) &&
 		      (flags & SCTP_ADDR6_ALLOWED) &&
 		      (flags & SCTP_ADDR6_PEERSUPP))))
-			error = sctp_add_bind_addr(dest, addr, 1, gfp);
+			error = sctp_add_bind_addr(dest, addr, SCTP_ADDR_SRC,
+						    gfp);
 	}
 
 	return error;
