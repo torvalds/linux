@@ -85,32 +85,12 @@ static long compat_ptrace_old(struct task_struct *child, long request,
 	return ret;
 }
 
-long compat_sys_ptrace(int request, int pid, unsigned long addr,
-		       unsigned long data)
+long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	struct task_struct *child;
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
 	int ret;
-
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out;
-	}
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 	/*
@@ -375,9 +355,6 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		ret = compat_ptrace_request(child, request, addr, data);
 		break;
 	}
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+
 	return ret;
 }
