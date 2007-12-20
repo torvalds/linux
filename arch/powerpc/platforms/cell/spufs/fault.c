@@ -53,9 +53,10 @@ static void spufs_handle_event(struct spu_context *ctx,
 		info.si_code = BUS_OBJERR;
 		break;
 	case SPE_EVENT_SPE_DATA_STORAGE:
-		info.si_signo = SIGBUS;
+		info.si_signo = SIGSEGV;
 		info.si_addr = (void __user *)ea;
-		info.si_code = BUS_ADRERR;
+		info.si_code = SEGV_ACCERR;
+		ctx->ops->restart_dma(ctx);
 		break;
 	case SPE_EVENT_DMA_ALIGNMENT:
 		info.si_signo = SIGBUS;

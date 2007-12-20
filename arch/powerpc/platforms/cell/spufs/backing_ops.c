@@ -373,7 +373,7 @@ static int spu_backing_send_mfc_command(struct spu_context *ctx,
 
 static void spu_backing_restart_dma(struct spu_context *ctx)
 {
-	/* nothing to do here */
+	ctx->csa.priv2.mfc_control_RW |= MFC_CNTL_RESTART_DMA_COMMAND;
 }
 
 struct spu_context_ops spu_backing_ops = {
