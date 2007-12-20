@@ -301,7 +301,7 @@ struct sctp_sock {
 	/* The default SACK delay timeout for new associations. */
 	__u32 sackdelay;
 
-	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
 
 	struct sctp_initmsg initmsg;
@@ -955,7 +955,7 @@ struct sctp_transport {
 	/* PMTU	      : The current known path MTU.  */
 	__u32 pathmtu;
 
-	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
 
 	/* The number of times INIT has been sent on this transport. */
@@ -1638,7 +1638,7 @@ struct sctp_association {
 	 */
 	__u32 pathmtu;
 
-	/* Flags controling Heartbeat, SACK delay, and Path MTU Discovery. */
+	/* Flags controlling Heartbeat, SACK delay, and Path MTU Discovery. */
 	__u32 param_flags;
 
 	/* SACK delay timeout */
