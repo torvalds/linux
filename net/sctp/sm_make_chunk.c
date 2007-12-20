@@ -1969,6 +1969,11 @@ static sctp_ierror_t sctp_verify_param(const struct sctp_association *asoc,
 	case SCTP_PARAM_SUPPORTED_EXT:
 		break;
 
+	case SCTP_PARAM_SET_PRIMARY:
+		if (sctp_addip_enable)
+			break;
+		goto fallthrough;
+
 	case SCTP_PARAM_HOST_NAME_ADDRESS:
 		/* Tell the peer, we won't support this param.  */
 		sctp_process_hn_param(asoc, param, chunk, err_chunk);
@@ -2286,6 +2291,8 @@ static int sctp_process_param(struct sctp_association *asoc,
 	sctp_scope_t scope;
 	time_t stale;
 	struct sctp_af *af;
+	union sctp_addr_param *addr_param;
+	struct sctp_transport *t;
 
 	/* We maintain all INIT parameters in network byte order all the
 	 * time.  This allows us to not worry about whether the parameters
@@ -2374,6 +2381,26 @@ static int sctp_process_param(struct sctp_association *asoc,
 
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
 		asoc->peer.adaptation_ind = param.aind->adaptation_ind;
+		break;
+
+	case SCTP_PARAM_SET_PRIMARY:
+		addr_param = param.v + sizeof(sctp_addip_param_t);
+
+		af = sctp_get_af_specific(param_type2af(param.p->type));
+		af->from_addr_param(&addr, addr_param,
+				    htons(asoc->peer.port), 0);
+
+		/* if the address is invalid, we can't process it.
+		 * XXX: see spec for what to do.
+		 */
+		if (!af->addr_valid(&addr, NULL, NULL))
+			break;
+
+		t = sctp_assoc_lookup_paddr(asoc, &addr);
+		if (!t)
+			break;
+
+		sctp_assoc_set_primary(asoc, t);
 		break;
 
 	case SCTP_PARAM_SUPPORTED_EXT:
