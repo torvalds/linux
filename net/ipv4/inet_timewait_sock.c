@@ -48,6 +48,21 @@ static void __inet_twsk_kill(struct inet_timewait_sock *tw,
 	inet_twsk_put(tw);
 }
 
+void inet_twsk_put(struct inet_timewait_sock *tw)
+{
+	if (atomic_dec_and_test(&tw->tw_refcnt)) {
+		struct module *owner = tw->tw_prot->owner;
+		twsk_destructor((struct sock *)tw);
+#ifdef SOCK_REFCNT_DEBUG
+		printk(KERN_DEBUG "%s timewait_sock %p released\n",
+		       tw->tw_prot->name, tw);
+#endif
+		kmem_cache_free(tw->tw_prot->twsk_prot->twsk_slab, tw);
+		module_put(owner);
+	}
+}
+EXPORT_SYMBOL_GPL(inet_twsk_put);
+
 /*
  * Enter the time wait state. This is called with locally disabled BH.
  * Essentially we whip up a timewait bucket, copy the relevant info into it
