@@ -713,7 +713,7 @@ typedef struct {
 
 
 typedef struct {
-	u16 len;
+	__le16 len;
 	u8 ap[4][ETH_ALEN];
 } APListRid;
 
@@ -1866,16 +1866,15 @@ static int readStatusRid(struct airo_info*ai, StatusRid *statr, int lock) {
 	statr->assocStatus = le16_to_cpu(statr->assocStatus);
 	return rc;
 }
-static int readAPListRid(struct airo_info*ai, APListRid *aplr) {
-	int rc =  PC4500_readrid(ai, RID_APLIST, aplr, sizeof(*aplr), 1);
-	aplr->len = le16_to_cpu(aplr->len);
-	return rc;
+
+static int readAPListRid(struct airo_info *ai, APListRid *aplr)
+{
+	return PC4500_readrid(ai, RID_APLIST, aplr, sizeof(*aplr), 1);
 }
-static int writeAPListRid(struct airo_info*ai, APListRid *aplr, int lock) {
-	int rc;
-	aplr->len = cpu_to_le16(aplr->len);
-	rc = PC4500_writerid(ai, RID_APLIST, aplr, sizeof(*aplr), lock);
-	return rc;
+
+static int writeAPListRid(struct airo_info *ai, APListRid *aplr, int lock)
+{
+	return PC4500_writerid(ai, RID_APLIST, aplr, sizeof(*aplr), lock);
 }
 
 static int readCapabilityRid(struct airo_info *ai, CapabilityRid *capr, int lock)
@@ -5145,7 +5144,7 @@ static void proc_APList_on_close( struct inode *inode, struct file *file ) {
 	if ( !data->writelen ) return;
 
 	memset( &APList_rid, 0, sizeof(APList_rid) );
-	APList_rid.len = sizeof(APList_rid);
+	APList_rid.len = cpu_to_le16(sizeof(APList_rid));
 
 	for( i = 0; i < 4 && data->writelen >= (i+1)*6*3; i++ ) {
 		int j;
@@ -5943,7 +5942,7 @@ static int airo_set_wap(struct net_device *dev,
 		up(&local->sem);
 	} else {
 		memset(&APList_rid, 0, sizeof(APList_rid));
-		APList_rid.len = sizeof(APList_rid);
+		APList_rid.len = cpu_to_le16(sizeof(APList_rid));
 		memcpy(APList_rid.ap[0], awrq->sa_data, ETH_ALEN);
 		disable_MAC(local, 1);
 		writeAPListRid(local, &APList_rid, 1);
