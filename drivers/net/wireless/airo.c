@@ -706,9 +706,9 @@ typedef struct {
 } StatusRid;
 
 typedef struct {
-	u16 len;
-	u16 spacer;
-	u32 vals[100];
+	__le16 len;
+	__le16 spacer;
+	__le32 vals[100];
 } StatsRid;
 
 
@@ -1889,13 +1889,10 @@ static int readCapabilityRid(struct airo_info*ai, CapabilityRid *capr, int lock)
 		*s = le16_to_cpu(*s);
 	return rc;
 }
-static int readStatsRid(struct airo_info*ai, StatsRid *sr, int rid, int lock) {
-	int rc = PC4500_readrid(ai, rid, sr, sizeof(*sr), lock);
-	u32 *i;
 
-	sr->len = le16_to_cpu(sr->len);
-	for(i = &sr->vals[0]; i <= &sr->vals[99]; i++) *i = le32_to_cpu(*i);
-	return rc;
+static int readStatsRid(struct airo_info*ai, StatsRid *sr, int rid, int lock)
+{
+	return PC4500_readrid(ai, rid, sr, sizeof(*sr), lock);
 }
 
 static void try_auto_wep(struct airo_info *ai)
@@ -2260,9 +2257,10 @@ static int airo_start_xmit11(struct sk_buff *skb, struct net_device *dev) {
 	return 0;
 }
 
-static void airo_read_stats(struct airo_info *ai) {
+static void airo_read_stats(struct airo_info *ai)
+{
 	StatsRid stats_rid;
-	u32 *vals = stats_rid.vals;
+	__le32 *vals = stats_rid.vals;
 
 	clear_bit(JOB_STATS, &ai->jobs);
 	if (ai->power.event) {
@@ -2272,20 +2270,23 @@ static void airo_read_stats(struct airo_info *ai) {
 	readStatsRid(ai, &stats_rid, RID_STATS, 0);
 	up(&ai->sem);
 
-	ai->stats.rx_packets = vals[43] + vals[44] + vals[45];
-	ai->stats.tx_packets = vals[39] + vals[40] + vals[41];
-	ai->stats.rx_bytes = vals[92];
-	ai->stats.tx_bytes = vals[91];
-	ai->stats.rx_errors = vals[0] + vals[2] + vals[3] + vals[4];
-	ai->stats.tx_errors = vals[42] + ai->stats.tx_fifo_errors;
-	ai->stats.multicast = vals[43];
-	ai->stats.collisions = vals[89];
+	ai->stats.rx_packets = le32_to_cpu(vals[43]) + le32_to_cpu(vals[44]) +
+			       le32_to_cpu(vals[45]);
+	ai->stats.tx_packets = le32_to_cpu(vals[39]) + le32_to_cpu(vals[40]) +
+			       le32_to_cpu(vals[41]);
+	ai->stats.rx_bytes = le32_to_cpu(vals[92]);
+	ai->stats.tx_bytes = le32_to_cpu(vals[91]);
+	ai->stats.rx_errors = le32_to_cpu(vals[0]) + le32_to_cpu(vals[2]) +
+			      le32_to_cpu(vals[3]) + le32_to_cpu(vals[4]);
+	ai->stats.tx_errors = le32_to_cpu(vals[42]) + ai->stats.tx_fifo_errors;
+	ai->stats.multicast = le32_to_cpu(vals[43]);
+	ai->stats.collisions = le32_to_cpu(vals[89]);
 
 	/* detailed rx_errors: */
-	ai->stats.rx_length_errors = vals[3];
-	ai->stats.rx_crc_errors = vals[4];
-	ai->stats.rx_frame_errors = vals[2];
-	ai->stats.rx_fifo_errors = vals[0];
+	ai->stats.rx_length_errors = le32_to_cpu(vals[3]);
+	ai->stats.rx_crc_errors = le32_to_cpu(vals[4]);
+	ai->stats.rx_frame_errors = le32_to_cpu(vals[2]);
+	ai->stats.rx_fifo_errors = le32_to_cpu(vals[0]);
 }
 
 static struct net_device_stats *airo_get_stats(struct net_device *dev)
@@ -4741,14 +4742,16 @@ static int proc_stats_open( struct inode *inode, struct file *file ) {
 
 static int proc_stats_rid_open( struct inode *inode,
 				struct file *file,
-				u16 rid ) {
+				u16 rid )
+{
 	struct proc_data *data;
 	struct proc_dir_entry *dp = PDE(inode);
 	struct net_device *dev = dp->data;
 	struct airo_info *apriv = dev->priv;
 	StatsRid stats;
 	int i, j;
-	u32 *vals = stats.vals;
+	__le32 *vals = stats.vals;
+	int len = le16_to_cpu(stats.len);
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -4761,17 +4764,17 @@ static int proc_stats_rid_open( struct inode *inode,
 	readStatsRid(apriv, &stats, rid, 1);
 
         j = 0;
-	for(i=0; statsLabels[i]!=(char *)-1 &&
-		    i*4<stats.len; i++){
+	for(i=0; statsLabels[i]!=(char *)-1 && i*4<len; i++) {
 		if (!statsLabels[i]) continue;
 		if (j+strlen(statsLabels[i])+16>4096) {
 			airo_print_warn(apriv->dev->name,
 			       "Potentially disasterous buffer overflow averted!");
 			break;
 		}
-		j+=sprintf(data->rbuffer+j, "%s: %u\n", statsLabels[i], vals[i]);
+		j+=sprintf(data->rbuffer+j, "%s: %u\n", statsLabels[i],
+				le32_to_cpu(vals[i]));
 	}
-	if (i*4>=stats.len){
+	if (i*4 >= len) {
 		airo_print_warn(apriv->dev->name, "Got a short rid");
 	}
 	data->readlen = j;
@@ -7624,7 +7627,7 @@ static void airo_read_wireless_stats(struct airo_info *local)
 	StatusRid status_rid;
 	StatsRid stats_rid;
 	CapabilityRid cap_rid;
-	u32 *vals = stats_rid.vals;
+	__le32 *vals = stats_rid.vals;
 
 	/* Get stats out of the card */
 	clear_bit(JOB_WSTATS, &local->jobs);
@@ -7659,12 +7662,15 @@ static void airo_read_wireless_stats(struct airo_info *local)
 
 	/* Packets discarded in the wireless adapter due to wireless
 	 * specific problems */
-	local->wstats.discard.nwid = vals[56] + vals[57] + vals[58];/* SSID Mismatch */
-	local->wstats.discard.code = vals[6];/* RxWepErr */
-	local->wstats.discard.fragment = vals[30];
-	local->wstats.discard.retries = vals[10];
-	local->wstats.discard.misc = vals[1] + vals[32];
-	local->wstats.miss.beacon = vals[34];
+	local->wstats.discard.nwid = le32_to_cpu(vals[56]) +
+				     le32_to_cpu(vals[57]) +
+				     le32_to_cpu(vals[58]); /* SSID Mismatch */
+	local->wstats.discard.code = le32_to_cpu(vals[6]);/* RxWepErr */
+	local->wstats.discard.fragment = le32_to_cpu(vals[30]);
+	local->wstats.discard.retries = le32_to_cpu(vals[10]);
+	local->wstats.discard.misc = le32_to_cpu(vals[1]) +
+				     le32_to_cpu(vals[32]);
+	local->wstats.miss.beacon = le32_to_cpu(vals[34]);
 }
 
 static struct iw_statistics *airo_get_wireless_stats(struct net_device *dev)
