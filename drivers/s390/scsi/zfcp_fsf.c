@@ -1668,6 +1668,12 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
                 goto failed_req;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&els->port->status))) {
+		ret = -EBUSY;
+		goto port_blocked;
+	}
+
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
         if (zfcp_use_one_sbal(els->req, els->req_count,
                               els->resp, els->resp_count)){
@@ -1749,6 +1755,7 @@ zfcp_fsf_send_els(struct zfcp_send_els *els)
 		       "0x%06x)\n", zfcp_get_busid_by_adapter(adapter), d_id);
 	goto out;
 
+ port_blocked:
  failed_send:
 	zfcp_fsf_req_free(fsf_req);
 

@@ -456,7 +456,7 @@ zfcp_test_link(struct zfcp_port *port)
 
 	zfcp_port_get(port);
 	retval = zfcp_erp_adisc(port);
-	if (retval != 0) {
+	if (retval != 0 && retval != -EBUSY) {
 		zfcp_port_put(port);
 		ZFCP_LOG_NORMAL("reopen needed for port 0x%016Lx "
 				"on adapter %s\n ", port->wwpn,
