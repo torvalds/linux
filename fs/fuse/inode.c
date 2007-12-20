@@ -810,15 +810,15 @@ static int fuse_sysfs_init(void)
 	return 0;
 
  out_fuse_unregister:
-	kobject_unregister(fuse_kobj);
+	kobject_put(fuse_kobj);
  out_err:
 	return err;
 }
 
 static void fuse_sysfs_cleanup(void)
 {
-	kobject_unregister(connections_kobj);
-	kobject_unregister(fuse_kobj);
+	kobject_put(connections_kobj);
+	kobject_put(fuse_kobj);
 }
 
 static int __init fuse_init(void)

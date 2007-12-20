@@ -438,7 +438,7 @@ static int __init debugfs_init(void)
 
 	retval = register_filesystem(&debug_fs_type);
 	if (retval)
-		kobject_unregister(debug_kobj);
+		kobject_put(debug_kobj);
 	return retval;
 }
 
@@ -446,7 +446,7 @@ static void __exit debugfs_exit(void)
 {
 	simple_release_fs(&debugfs_mount, &debugfs_mount_count);
 	unregister_filesystem(&debug_fs_type);
-	kobject_unregister(debug_kobj);
+	kobject_put(debug_kobj);
 }
 
 core_initcall(debugfs_init);

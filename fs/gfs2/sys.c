@@ -525,7 +525,7 @@ fail_counters:
 fail_lockstruct:
 	sysfs_remove_group(&sdp->sd_kobj, &lockstruct_group);
 fail_reg:
-	kobject_unregister(&sdp->sd_kobj);
+	kobject_put(&sdp->sd_kobj);
 fail:
 	fs_err(sdp, "error %d adding sysfs files", error);
 	return error;
@@ -537,7 +537,7 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	sysfs_remove_group(&sdp->sd_kobj, &args_group);
 	sysfs_remove_group(&sdp->sd_kobj, &counters_group);
 	sysfs_remove_group(&sdp->sd_kobj, &lockstruct_group);
-	kobject_unregister(&sdp->sd_kobj);
+	kobject_put(&sdp->sd_kobj);
 }
 
 int gfs2_sys_init(void)

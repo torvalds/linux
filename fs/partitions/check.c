@@ -314,7 +314,7 @@ void delete_partition(struct gendisk *disk, int part)
 	p->nr_sects = 0;
 	p->ios[0] = p->ios[1] = 0;
 	p->sectors[0] = p->sectors[1] = 0;
-	kobject_unregister(p->holder_dir);
+	kobject_put(p->holder_dir);
 	device_del(&p->dev);
 	put_device(&p->dev);
 }
@@ -505,8 +505,8 @@ void del_gendisk(struct gendisk *disk)
 	disk_stat_set_all(disk, 0);
 	disk->stamp = 0;
 
-	kobject_unregister(disk->holder_dir);
-	kobject_unregister(disk->slave_dir);
+	kobject_put(disk->holder_dir);
+	kobject_put(disk->slave_dir);
 	disk->driverfs_dev = NULL;
 #ifndef CONFIG_SYSFS_DEPRECATED
 	sysfs_remove_link(block_depr, disk->dev.bus_id);

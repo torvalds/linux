@@ -579,7 +579,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	kfree(ls->ls_rsbtbl);
  out_lsfree:
 	if (do_unreg)
-		kobject_unregister(&ls->ls_kobj);
+		kobject_put(&ls->ls_kobj);
 	else
 		kfree(ls);
  out:
@@ -728,7 +728,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	dlm_clear_members(ls);
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);
-	kobject_unregister(&ls->ls_kobj);
+	kobject_put(&ls->ls_kobj);
 	/* The ls structure will be freed when the kobject is done with */
 
 	mutex_lock(&ls_lock);

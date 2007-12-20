@@ -207,7 +207,7 @@ int gdlm_kobject_setup(struct gdlm_ls *ls, struct kobject *fskobj)
 
 void gdlm_kobject_release(struct gdlm_ls *ls)
 {
-	kobject_unregister(&ls->kobj);
+	kobject_put(&ls->kobj);
 }
 
 int gdlm_sysfs_init(void)

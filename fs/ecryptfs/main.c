@@ -767,7 +767,7 @@ static int do_sysfs_registration(void)
 	if (rc) {
 		printk(KERN_ERR
 		       "Unable to create ecryptfs version attributes\n");
-		kobject_unregister(ecryptfs_kobj);
+		kobject_put(ecryptfs_kobj);
 	}
 out:
 	return rc;
@@ -776,7 +776,7 @@ out:
 static void do_sysfs_unregistration(void)
 {
 	sysfs_remove_group(ecryptfs_kobj, &attr_group);
-	kobject_unregister(ecryptfs_kobj);
+	kobject_put(ecryptfs_kobj);
 }
 
 static int __init ecryptfs_init(void)
