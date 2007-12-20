@@ -83,6 +83,7 @@ static u32 mpic_infos[][MPIC_IDX_END] = {
 		MPIC_CPU_WHOAMI,
 		MPIC_CPU_INTACK,
 		MPIC_CPU_EOI,
+		MPIC_CPU_MCACK,
 
 		MPIC_IRQ_BASE,
 		MPIC_IRQ_STRIDE,
@@ -121,6 +122,7 @@ static u32 mpic_infos[][MPIC_IDX_END] = {
 		TSI108_CPU_WHOAMI,
 		TSI108_CPU_INTACK,
 		TSI108_CPU_EOI,
+		TSI108_CPU_MCACK,
 
 		TSI108_IRQ_BASE,
 		TSI108_IRQ_STRIDE,
@@ -1126,6 +1128,11 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 			mb();
 	}
 
+	if (flags & MPIC_ENABLE_MCK)
+		mpic_write(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0),
+			   mpic_read(mpic->gregs, MPIC_INFO(GREG_GLOBAL_CONF_0))
+			   | MPIC_GREG_GCONF_MCK);
+
 	/* Read feature register, calculate num CPUs and, for non-ISU
 	 * MPICs, num sources as well. On ISU MPICs, sources are counted
 	 * as ISUs are added
@@ -1438,13 +1445,13 @@ void mpic_send_ipi(unsigned int ipi_no, unsigned int cpu_mask)
 		       mpic_physmask(cpu_mask & cpus_addr(cpu_online_map)[0]));
 }
 
-unsigned int mpic_get_one_irq(struct mpic *mpic)
+static unsigned int _mpic_get_one_irq(struct mpic *mpic, int reg)
 {
 	u32 src;
 
-	src = mpic_cpu_read(MPIC_INFO(CPU_INTACK)) & MPIC_INFO(VECPRI_VECTOR_MASK);
+	src = mpic_cpu_read(reg) & MPIC_INFO(VECPRI_VECTOR_MASK);
 #ifdef DEBUG_LOW
-	DBG("%s: get_one_irq(): %d\n", mpic->name, src);
+	DBG("%s: get_one_irq(reg 0x%x): %d\n", mpic->name, reg, src);
 #endif
 	if (unlikely(src == mpic->spurious_vec)) {
 		if (mpic->flags & MPIC_SPV_EOI)
@@ -1462,6 +1469,11 @@ unsigned int mpic_get_one_irq(struct mpic *mpic)
 	return irq_linear_revmap(mpic->irqhost, src);
 }
 
+unsigned int mpic_get_one_irq(struct mpic *mpic)
+{
+	return _mpic_get_one_irq(mpic, MPIC_INFO(CPU_INTACK));
+}
+
 unsigned int mpic_get_irq(void)
 {
 	struct mpic *mpic = mpic_primary;
@@ -1471,6 +1483,14 @@ unsigned int mpic_get_irq(void)
 	return mpic_get_one_irq(mpic);
 }
 
+unsigned int mpic_get_mcirq(void)
+{
+	struct mpic *mpic = mpic_primary;
+
+	BUG_ON(mpic == NULL);
+
+	return _mpic_get_one_irq(mpic, MPIC_INFO(CPU_MCACK));
+}
 
 #ifdef CONFIG_SMP
 void mpic_request_ipis(void)

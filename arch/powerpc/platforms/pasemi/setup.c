@@ -61,6 +61,7 @@ struct mce_regs {
 
 static struct mce_regs mce_regs[MAX_MCE_REGS];
 static int num_mce_regs;
+static int nmi_virq = NO_IRQ;
 
 
 static void pas_restart(char *cmd)
@@ -189,6 +190,8 @@ static __init void pas_init_IRQ(void)
 	unsigned long openpic_addr;
 	const unsigned int *opprop;
 	int naddr, opplen;
+	int mpic_flags;
+	const unsigned int *nmiprop;
 	struct mpic *mpic;
 
 	mpic_node = NULL;
@@ -221,13 +224,26 @@ static __init void pas_init_IRQ(void)
 	openpic_addr = of_read_number(opprop, naddr);
 	printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 
+	mpic_flags = MPIC_PRIMARY | MPIC_LARGE_VECTORS;
+
+	nmiprop = of_get_property(mpic_node, "nmi-source", NULL);
+	if (nmiprop)
+		mpic_flags |= MPIC_ENABLE_MCK;
+
 	mpic = mpic_alloc(mpic_node, openpic_addr,
-			  MPIC_PRIMARY|MPIC_LARGE_VECTORS,
-			  0, 0, "PASEMI-OPIC");
+			  mpic_flags, 0, 0, "PASEMI-OPIC");
 	BUG_ON(!mpic);
 
 	mpic_assign_isu(mpic, 0, openpic_addr + 0x10000);
 	mpic_init(mpic);
+	/* The NMI/MCK source needs to be prio 15 */
+	if (nmiprop) {
+		nmi_virq = irq_create_mapping(NULL, *nmiprop);
+		mpic_irq_set_priority(nmi_virq, 15);
+		set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
+		mpic_unmask_irq(nmi_virq);
+	}
+
 	of_node_put(mpic_node);
 	of_node_put(root);
 }
@@ -247,6 +263,14 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 
 	srr0 = regs->nip;
 	srr1 = regs->msr;
+
+	if (mpic_get_mcirq() == nmi_virq) {
+		printk(KERN_ERR "NMI delivered\n");
+		debugger(regs);
+		mpic_end_irq(nmi_virq);
+		goto out;
+	}
+
 	dsisr = mfspr(SPRN_DSISR);
 	printk(KERN_ERR "Machine Check on CPU %d\n", cpu);
 	printk(KERN_ERR "SRR0  0x%016lx SRR1 0x%016lx\n", srr0, srr1);
@@ -310,7 +334,7 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 		}
 	}
 
-
+out:
 	/* SRR1[62] is from MSR[62] if recoverable, so pass that back */
 	return !!(srr1 & 0x2);
 }
