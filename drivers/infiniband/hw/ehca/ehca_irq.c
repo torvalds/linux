@@ -62,6 +62,7 @@
 #define NEQE_PORT_NUMBER       EHCA_BMASK_IBM( 8, 15)
 #define NEQE_PORT_AVAILABILITY EHCA_BMASK_IBM(16, 16)
 #define NEQE_DISRUPTIVE        EHCA_BMASK_IBM(16, 16)
+#define NEQE_SPECIFIC_EVENT    EHCA_BMASK_IBM(16, 23)
 
 #define ERROR_DATA_LENGTH      EHCA_BMASK_IBM(52, 63)
 #define ERROR_DATA_TYPE        EHCA_BMASK_IBM( 0,  7)
@@ -354,6 +355,7 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 {
 	u8 ec   = EHCA_BMASK_GET(NEQE_EVENT_CODE, eqe);
 	u8 port = EHCA_BMASK_GET(NEQE_PORT_NUMBER, eqe);
+	u8 spec_event;
 
 	switch (ec) {
 	case 0x30: /* port availability change */
@@ -393,6 +395,16 @@ static void parse_ec(struct ehca_shca *shca, u64 eqe)
 		break;
 	case 0x33:  /* trace stopped */
 		ehca_err(&shca->ib_device, "Traced stopped.");
+		break;
+	case 0x34: /* util async event */
+		spec_event = EHCA_BMASK_GET(NEQE_SPECIFIC_EVENT, eqe);
+		if (spec_event == 0x80) /* client reregister required */
+			dispatch_port_event(shca, port,
+					    IB_EVENT_CLIENT_REREGISTER,
+					    "client reregister req.");
+		else
+			ehca_warn(&shca->ib_device, "Unknown util async "
+				  "event %x on port %x", spec_event, port);
 		break;
 	default:
 		ehca_err(&shca->ib_device, "Unknown event code: %x on %s.",
