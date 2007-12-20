@@ -29,8 +29,9 @@ struct i2c_adapter;
 
 struct xc5000_config {
 	u8  i2c_address;
-	u32 if_frequency;
-	int (*request_firmware)(struct dvb_frontend* fe, const struct firmware **fw, char* name);
+	u32 if_khz;
+	int (*request_firmware)(struct dvb_frontend *fe,
+		const struct firmware **fw, char *name);
 	int (*tuner_reset)(struct dvb_frontend* fe);
 };
 

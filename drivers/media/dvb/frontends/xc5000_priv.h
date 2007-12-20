@@ -26,11 +26,10 @@ struct xc5000_priv {
 	struct xc5000_config *cfg;
 	struct i2c_adapter   *i2c;
 
-	u32 frequency;
+	u32 freq_hz;
 	u32 bandwidth;
 	u8  video_standard;
 	u8  rf_mode;
-
 	u8  fwloaded;
 };
 

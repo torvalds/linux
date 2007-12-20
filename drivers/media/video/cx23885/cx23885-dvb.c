@@ -146,10 +146,10 @@ static struct s5h1409_config hauppauge_hvr1500q_config = {
 };
 
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
-	.i2c_address  = 0x61,
-	.if_frequency = 4570000,
+	.i2c_address      = 0x61,
+	.if_khz           = 5380,
 	.request_firmware = cx23885_request_firmware,
-	.tuner_reset = hauppauge_hvr1500q_tuner_reset
+	.tuner_reset      = hauppauge_hvr1500q_tuner_reset
 };
 
 static int dvb_register(struct cx23885_tsport *port)

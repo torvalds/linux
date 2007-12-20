@@ -117,8 +117,8 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 */
 typedef struct {
 	char *Name;
-	unsigned short AudioMode;
-	unsigned short VideoMode;
+	u16 AudioMode;
+	u16 VideoMode;
 } XC_TV_STANDARD;
 
 /* Tuner standards */
@@ -154,29 +154,27 @@ static int  xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len);
 static int  xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len);
 static void xc5000_TunerReset(struct dvb_frontend *fe);
 
-int xc_send_i2c_data(struct xc5000_priv *priv,
-	unsigned char *bytes_to_send, int nb_bytes_to_send)
+static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 {
-	return xc5000_writeregs(priv, bytes_to_send, nb_bytes_to_send)
+	return xc5000_writeregs(priv, buf, len)
 		? XC_RESULT_I2C_WRITE_FAILURE : XC_RESULT_SUCCESS;
 }
 
-int xc_read_i2c_data(struct xc5000_priv *priv, unsigned char *bytes_received,
-	int nb_bytes_to_receive)
+static int xc_read_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 {
-	return xc5000_readregs(priv, bytes_received, nb_bytes_to_receive)
+	return xc5000_readregs(priv, buf, len)
 		? XC_RESULT_I2C_READ_FAILURE : XC_RESULT_SUCCESS;
 }
 
-int xc_reset(struct dvb_frontend *fe)
+static int xc_reset(struct dvb_frontend *fe)
 {
 	xc5000_TunerReset(fe);
 	return XC_RESULT_SUCCESS;
 }
 
-void xc_wait(int wait_ms)
+static void xc_wait(int wait_ms)
 {
-	msleep( wait_ms );
+	msleep(wait_ms);
 }
 
 static void xc5000_TunerReset(struct dvb_frontend *fe)
@@ -186,7 +184,7 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 
 	dprintk(1, "%s()\n", __FUNCTION__);
 
-	if(priv->cfg->tuner_reset) {
+	if (priv->cfg->tuner_reset) {
 		ret = priv->cfg->tuner_reset(fe);
 		if (ret)
 			printk(KERN_ERR "xc5000: reset failed\n");
@@ -194,10 +192,9 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 		printk(KERN_ERR "xc5000: no tuner reset function, fatal\n");
 }
 
-int xc_write_reg(struct xc5000_priv *priv, unsigned short int regAddr,
-	unsigned short int i2cData)
+static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 {
-	unsigned char buf[4];
+	u8 buf[4];
 	int WatchDogTimer = 5;
 	int result;
 
@@ -206,7 +203,7 @@ int xc_write_reg(struct xc5000_priv *priv, unsigned short int regAddr,
 	buf[2] = (i2cData >> 8) & 0xFF;
 	buf[3] = i2cData & 0xFF;
 	result = xc_send_i2c_data(priv, buf, 4);
-	if ( result == XC_RESULT_SUCCESS) {
+	if (result == XC_RESULT_SUCCESS) {
 		/* wait for busy flag to clear */
 		while ((WatchDogTimer > 0) && (result == XC_RESULT_SUCCESS)) {
 			buf[0] = 0;
@@ -233,43 +230,42 @@ int xc_write_reg(struct xc5000_priv *priv, unsigned short int regAddr,
 	return result;
 }
 
-int xc_read_reg(struct xc5000_priv *priv, unsigned short int regAddr,
-	unsigned short int *i2cData)
+static int xc_read_reg(struct xc5000_priv *priv, u16 regAddr, u16 *i2cData)
 {
-	unsigned char buf[2];
+	u8 buf[2];
 	int result;
 
 	buf[0] = (regAddr >> 8) & 0xFF;
 	buf[1] = regAddr & 0xFF;
 	result = xc_send_i2c_data(priv, buf, 2);
-	if (result!=XC_RESULT_SUCCESS)
+	if (result != XC_RESULT_SUCCESS)
 		return result;
 
 	result = xc_read_i2c_data(priv, buf, 2);
-	if (result!=XC_RESULT_SUCCESS)
+	if (result != XC_RESULT_SUCCESS)
 		return result;
 
 	*i2cData = buf[0] * 256 + buf[1];
 	return result;
 }
 
-int xc_load_i2c_sequence(struct dvb_frontend *fe, unsigned char i2c_sequence[])
+static int xc_load_i2c_sequence(struct dvb_frontend *fe, u8 i2c_sequence[])
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 
 	int i, nbytes_to_send, result;
 	unsigned int len, pos, index;
-	unsigned char buf[XC_MAX_I2C_WRITE_LENGTH];
+	u8 buf[XC_MAX_I2C_WRITE_LENGTH];
 
 	index=0;
 	while ((i2c_sequence[index]!=0xFF) || (i2c_sequence[index+1]!=0xFF)) {
 
 		len = i2c_sequence[index]* 256 + i2c_sequence[index+1];
-		if (len==0x0000) {
+		if (len == 0x0000) {
 			/* RESET command */
 			result = xc_reset(fe);
 			index += 2;
-			if (result!=XC_RESULT_SUCCESS)
+			if (result != XC_RESULT_SUCCESS)
 				return result;
 		} else if (len & 0x8000) {
 			/* WAIT command */
@@ -294,7 +290,7 @@ int xc_load_i2c_sequence(struct dvb_frontend *fe, unsigned char i2c_sequence[])
 				}
 				result = xc_send_i2c_data(priv, buf, nbytes_to_send);
 
-				if (result!=XC_RESULT_SUCCESS)
+				if (result != XC_RESULT_SUCCESS)
 					return result;
 
 				pos += nbytes_to_send - 2;
@@ -305,14 +301,14 @@ int xc_load_i2c_sequence(struct dvb_frontend *fe, unsigned char i2c_sequence[])
 	return XC_RESULT_SUCCESS;
 }
 
-int xc_initialize(struct xc5000_priv *priv)
+static int xc_initialize(struct xc5000_priv *priv)
 {
 	dprintk(1, "%s()\n", __FUNCTION__);
 	return xc_write_reg(priv, XREG_INIT, 0);
 }
 
-int xc_SetTVStandard(struct xc5000_priv *priv, unsigned short int VideoMode,
-	unsigned short int AudioMode)
+static int xc_SetTVStandard(struct xc5000_priv *priv,
+	u16 VideoMode, u16 AudioMode)
 {
 	int ret;
 	dprintk(1, "%s(%d,%d)\n", __FUNCTION__, VideoMode, AudioMode);
@@ -327,17 +323,17 @@ int xc_SetTVStandard(struct xc5000_priv *priv, unsigned short int VideoMode,
 	return ret;
 }
 
-int xc_shutdown(struct xc5000_priv *priv)
+static int xc_shutdown(struct xc5000_priv *priv)
 {
 	return xc_write_reg(priv, XREG_POWER_DOWN, 0);
 }
 
-int xc_SetSignalSource(struct xc5000_priv *priv, unsigned short int rf_mode)
+static int xc_SetSignalSource(struct xc5000_priv *priv, u16 rf_mode)
 {
 	dprintk(1, "%s(%d) Source = %s\n", __FUNCTION__, rf_mode,
 		rf_mode == XC_RF_MODE_AIR ? "ANTENNA" : "CABLE");
 
-	if( (rf_mode != XC_RF_MODE_AIR) && (rf_mode != XC_RF_MODE_CABLE) )
+	if ((rf_mode != XC_RF_MODE_AIR) && (rf_mode != XC_RF_MODE_CABLE))
 	{
 		rf_mode = XC_RF_MODE_CABLE;
 		printk(KERN_ERR
@@ -347,52 +343,43 @@ int xc_SetSignalSource(struct xc5000_priv *priv, unsigned short int rf_mode)
 	return xc_write_reg(priv, XREG_SIGNALSOURCE, rf_mode);
 }
 
-int xc_set_RF_frequency(struct xc5000_priv *priv, long frequency_in_hz)
+static const struct dvb_tuner_ops xc5000_tuner_ops;
+
+static int xc_set_RF_frequency(struct xc5000_priv *priv, u32 freq_hz)
 {
-	unsigned int frequency_code = (unsigned int)(frequency_in_hz / 15625);
+	u16 freq_code;
 
-	if ((frequency_in_hz>1023000000) || (frequency_in_hz<1000000))
-		return XC_RESULT_OUT_OF_RANGE;
-
-	return xc_write_reg(priv, XREG_RF_FREQ ,frequency_code);
-}
-
-int xc_FineTune_RF_frequency(struct xc5000_priv *priv, long frequency_in_hz)
-{
-	unsigned int frequency_code = (unsigned int)(frequency_in_hz / 15625);
-	if ((frequency_in_hz>1023000000) || (frequency_in_hz<1000000))
-		return XC_RESULT_OUT_OF_RANGE;
-
-	return xc_write_reg(priv, XREG_FINERFFREQ ,frequency_code);
-}
-
-int xc_set_IF_frequency(struct xc5000_priv *priv, u32 freq_hz)
-{
-	u32 freq_code = (freq_hz * 1024)/1000000;
 	dprintk(1, "%s(%d)\n", __FUNCTION__, freq_hz);
 
-	printk(KERN_ERR "FIXME - Hardcoded IF, FIXME\n");
-	freq_code = 0x1585;
+	if ((freq_hz > xc5000_tuner_ops.info.frequency_max) ||
+		(freq_hz < xc5000_tuner_ops.info.frequency_min))
+		return XC_RESULT_OUT_OF_RANGE;
 
-	return xc_write_reg(priv, XREG_IF_OUT ,freq_code);
+	freq_code = (u16)(freq_hz / 15625);
+
+	return xc_write_reg(priv, XREG_RF_FREQ, freq_code);
 }
 
-int xc_set_Xtal_frequency(struct xc5000_priv *priv, long xtalFreqInKHz)
+
+static int xc_set_IF_frequency(struct xc5000_priv *priv, u32 freq_khz)
 {
-	unsigned int xtalRatio = (32000 * 0x8000)/xtalFreqInKHz;
-	return xc_write_reg(priv, XREG_XTALFREQ ,xtalRatio);
+	u32 freq_code = (freq_khz * 1024)/1000;
+	dprintk(1, "%s(freq_khz = %d) freq_code = 0x%x\n",
+		__FUNCTION__, freq_khz, freq_code);
+
+	return xc_write_reg(priv, XREG_IF_OUT, freq_code);
 }
 
-int xc_get_ADC_Envelope(struct xc5000_priv *priv,
-	unsigned short int *adc_envelope)
+
+static int xc_get_ADC_Envelope(struct xc5000_priv *priv, u16 *adc_envelope)
 {
 	return xc_read_reg(priv, XREG_ADC_ENV, adc_envelope);
 }
 
-int xc_get_frequency_error(struct xc5000_priv *priv, u32 *frequency_error_hz)
+static int xc_get_frequency_error(struct xc5000_priv *priv, u32 *freq_error_hz)
 {
 	int result;
-	unsigned short int regData;
+	u16 regData;
 	u32 tmp;
 
 	result = xc_read_reg(priv, XREG_FREQ_ERROR, &regData);
@@ -400,45 +387,37 @@ int xc_get_frequency_error(struct xc5000_priv *priv, u32 *frequency_error_hz)
 		return result;
 
 	tmp = (u32)regData;
-	(*frequency_error_hz) = (tmp * 15625) / 1000;
+	(*freq_error_hz) = (tmp * 15625) / 1000;
 	return result;
 }
 
-int xc_get_lock_status(struct xc5000_priv *priv,
-	unsigned short int *lock_status)
+static int xc_get_lock_status(struct xc5000_priv *priv, u16 *lock_status)
 {
 	return xc_read_reg(priv, XREG_LOCK, lock_status);
 }
 
-int xc_get_version(struct xc5000_priv *priv,
-	unsigned char* hw_majorversion,
-	unsigned char* hw_minorversion,
-	unsigned char* fw_majorversion,
-	unsigned char* fw_minorversion)
+static int xc_get_version(struct xc5000_priv *priv,
+	u8 *hw_majorversion, u8 *hw_minorversion,
+	u8 *fw_majorversion, u8 *fw_minorversion)
 {
-	unsigned short int data;
+	u16 data;
 	int result;
 
 	result = xc_read_reg(priv, XREG_VERSION, &data);
 	if (result)
 		return result;
 
-	(*hw_majorversion) = (data>>12) & 0x0F;
-	(*hw_minorversion) = (data>>8) & 0x0F;
-	(*fw_majorversion) = (data>>4) & 0x0F;
-	(*fw_minorversion) = (data) & 0x0F;
+	(*hw_majorversion) = (data >> 12) & 0x0F;
+	(*hw_minorversion) = (data >>  8) & 0x0F;
+	(*fw_majorversion) = (data >>  4) & 0x0F;
+	(*fw_minorversion) = data & 0x0F;
 
 	return 0;
 }
 
-int xc_get_product_id(struct xc5000_priv *priv, unsigned short int *product_id)
+static int xc_get_hsync_freq(struct xc5000_priv *priv, u32 *hsync_freq_hz)
 {
-	return xc_read_reg(priv, XREG_PRODUCT_ID, product_id);
-}
-
-int xc_get_hsync_freq(struct xc5000_priv *priv, int *hsync_freq_hz)
-{
-	unsigned short int regData;
+	u16 regData;
 	int result;
 
 	result = xc_read_reg(priv, XREG_HSYNC_FREQ, &regData);
@@ -449,26 +428,24 @@ int xc_get_hsync_freq(struct xc5000_priv *priv, int *hsync_freq_hz)
 	return result;
 }
 
-int xc_get_frame_lines(struct xc5000_priv *priv,
-	unsigned short int *frame_lines)
+static int xc_get_frame_lines(struct xc5000_priv *priv, u16 *frame_lines)
 {
 	return xc_read_reg(priv, XREG_FRAME_LINES, frame_lines);
 }
 
-int xc_get_quality(struct xc5000_priv *priv, unsigned short int *quality)
+static int xc_get_quality(struct xc5000_priv *priv, u16 *quality)
 {
 	return xc_read_reg(priv, XREG_QUALITY, quality);
 }
 
-unsigned short int WaitForLock(struct xc5000_priv *priv)
+static u16 WaitForLock(struct xc5000_priv *priv)
 {
-	unsigned short int lockState = 0;
+	u16 lockState = 0;
 	int watchDogCount = 40;
-	while ((lockState == 0) && (watchDogCount > 0))
-	{
+
+	while ((lockState == 0) && (watchDogCount > 0)) {
 		xc_get_lock_status(priv, &lockState);
-		if (lockState != 1)
-		{
+		if (lockState != 1) {
 			xc_wait(5);
 			watchDogCount--;
 		}
@@ -476,16 +453,16 @@ unsigned short int WaitForLock(struct xc5000_priv *priv)
 	return lockState;
 }
 
-int xc_tune_channel(struct xc5000_priv *priv, u32 freq)
+static int xc_tune_channel(struct xc5000_priv *priv, u32 freq_hz)
 {
 	int found = 0;
 
-	dprintk(1, "%s(%d)\n", __FUNCTION__, freq);
+	dprintk(1, "%s(%d)\n", __FUNCTION__, freq_hz);
 
-	if (xc_set_RF_frequency(priv, freq) != XC_RESULT_SUCCESS)
+	if (xc_set_RF_frequency(priv, freq_hz) != XC_RESULT_SUCCESS)
 		return 0;
 
-	if (WaitForLock(priv)== 1)
+	if (WaitForLock(priv) == 1)
 		found = 1;
 
 	return found;
@@ -542,14 +519,14 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 	const struct firmware *fw;
 	int ret;
 
-	/* request the firmware, this will block until someone uploads it */
-	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
-		XC5000_DEFAULT_FIRMWARE);
-
-	if(!priv->cfg->request_firmware) {
+	if (!priv->cfg->request_firmware) {
 		printk(KERN_ERR "xc5000: no firmware callback, fatal\n");
 		return -EIO;
 	}
+
+	/* request the firmware, this will block and timeout */
+	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
+		XC5000_DEFAULT_FIRMWARE);
 
 	ret = priv->cfg->request_firmware(fe, &fw, XC5000_DEFAULT_FIRMWARE);
 	if (ret) {
@@ -560,7 +537,7 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 		ret = XC_RESULT_SUCCESS;
 	}
 
-	if(fw->size != XC5000_DEFAULT_FIRMWARE_SIZE) {
+	if (fw->size != XC5000_DEFAULT_FIRMWARE_SIZE) {
 		printk(KERN_ERR "xc5000: firmware incorrect size\n");
 		ret = XC_RESULT_RESET_FAILURE;
 	} else {
@@ -572,89 +549,110 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 	return ret;
 }
 
-void xc_debug_dump(struct xc5000_priv *priv)
+static void xc_debug_dump(struct xc5000_priv *priv)
 {
-	unsigned short	adc_envelope;
-	u32		frequency_error_hz;
-	unsigned short	lock_status;
-	unsigned char	hw_majorversion, hw_minorversion = 0;
-	unsigned char	fw_majorversion, fw_minorversion = 0;
-	int          	hsync_freq_hz;
-	unsigned short	frame_lines;
-	unsigned short	quality;
+	u16 adc_envelope;
+	u32 freq_error_hz = 0;
+	u16 lock_status;
+	u32 hsync_freq_hz = 0;
+	u16 frame_lines;
+	u16 quality;
+	u8 hw_majorversion = 0, hw_minorversion = 0;
+	u8 fw_majorversion = 0, fw_minorversion = 0;
 
 	/* Wait for stats to stabilize.
 	 * Frame Lines needs two frame times after initial lock
 	 * before it is valid.
 	 */
-	xc_wait( 100 );
+	xc_wait(100);
 
-	xc_get_ADC_Envelope(priv,  &adc_envelope );
-	dprintk(1, "*** ADC envelope (0-1023) = %u\n", adc_envelope);
+	xc_get_ADC_Envelope(priv,  &adc_envelope);
+	dprintk(1, "*** ADC envelope (0-1023) = %d\n", adc_envelope);
 
-	xc_get_frequency_error(priv,  &frequency_error_hz );
-	dprintk(1, "*** Frequency error = %d Hz\n", frequency_error_hz);
+	xc_get_frequency_error(priv, &freq_error_hz);
+	dprintk(1, "*** Frequency error = %d Hz\n", freq_error_hz);
 
-	xc_get_lock_status(priv,  &lock_status );
-	dprintk(1, "*** Lock status (0-Wait, 1-Locked, 2-No-signal) = %u\n",
+	xc_get_lock_status(priv,  &lock_status);
+	dprintk(1, "*** Lock status (0-Wait, 1-Locked, 2-No-signal) = %d\n",
 		lock_status);
 
 	xc_get_version(priv,  &hw_majorversion, &hw_minorversion,
-		&fw_majorversion, &fw_minorversion );
+		&fw_majorversion, &fw_minorversion);
 	dprintk(1, "*** HW: V%02x.%02x, FW: V%02x.%02x\n",
 		hw_majorversion, hw_minorversion,
 		fw_majorversion, fw_minorversion);
 
-	xc_get_hsync_freq(priv,  &hsync_freq_hz );
-	dprintk(1, "*** Horizontal sync frequency = %u Hz\n", hsync_freq_hz);
+	xc_get_hsync_freq(priv,  &hsync_freq_hz);
+	dprintk(1, "*** Horizontal sync frequency = %d Hz\n", hsync_freq_hz);
 
-	xc_get_frame_lines(priv,  &frame_lines );
-	dprintk(1, "*** Frame lines = %u\n", frame_lines);
+	xc_get_frame_lines(priv,  &frame_lines);
+	dprintk(1, "*** Frame lines = %d\n", frame_lines);
 
-	xc_get_quality(priv,  &quality );
-	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %u\n", quality);
+	xc_get_quality(priv,  &quality);
+	dprintk(1, "*** Quality (0:<8dB, 7:>56dB) = %d\n", quality);
 }
 
 static int xc5000_set_params(struct dvb_frontend *fe,
 	struct dvb_frontend_parameters *params)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
+	int ret;
 
-	dprintk(1, "%s() frequency=%d\n", __FUNCTION__, params->frequency);
+	dprintk(1, "%s() frequency=%d (Hz)\n", __FUNCTION__, params->frequency);
 
-	priv->frequency = params->frequency - 1750000;
-	priv->bandwidth = 6;
-	priv->video_standard = DTV6;
 
 	switch(params->u.vsb.modulation) {
 	case VSB_8:
 	case VSB_16:
 		dprintk(1, "%s() VSB modulation\n", __FUNCTION__);
 		priv->rf_mode = XC_RF_MODE_AIR;
+		priv->freq_hz = params->frequency - 1750000;
+		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->video_standard = DTV6;
 		break;
 	case QAM_64:
 	case QAM_256:
 	case QAM_AUTO:
 		dprintk(1, "%s() QAM modulation\n", __FUNCTION__);
 		priv->rf_mode = XC_RF_MODE_CABLE;
+		priv->freq_hz = params->frequency - 1750000;
+		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->video_standard = DTV6;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	dprintk(1, "%s() frequency=%d (compensated)\n",
-		__FUNCTION__, priv->frequency);
+		__FUNCTION__, priv->freq_hz);
 
-	/* FIXME: check result codes */
-	xc_SetSignalSource(priv, priv->rf_mode);
+	ret = xc_SetSignalSource(priv, priv->rf_mode);
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR
+			"xc5000: xc_SetSignalSource(%d) failed\n",
+			priv->rf_mode);
+		return -EREMOTEIO;
+	}
 
-	xc_SetTVStandard(priv,
+	ret = xc_SetTVStandard(priv,
 		XC5000_Standard[priv->video_standard].VideoMode,
 		XC5000_Standard[priv->video_standard].AudioMode);
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");
+		return -EREMOTEIO;
+	}
 
-	xc_set_IF_frequency(priv, priv->cfg->if_frequency);
-	xc_tune_channel(priv, priv->frequency);
-	xc_debug_dump(priv);
+	ret = xc_set_IF_frequency(priv, priv->cfg->if_khz);
+	if (ret != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR "xc5000: xc_Set_IF_frequency(%d) failed\n",
+			priv->cfg->if_khz);
+		return -EIO;
+	}
+
+	xc_tune_channel(priv, priv->freq_hz);
+
+	if (debug)
+		xc_debug_dump(priv);
 
 	return 0;
 }
@@ -663,7 +661,7 @@ static int xc5000_get_frequency(struct dvb_frontend *fe, u32 *freq)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	dprintk(1, "%s()\n", __FUNCTION__);
-	*freq = priv->frequency;
+	*freq = priv->freq_hz;
 	return 0;
 }
 
@@ -678,7 +676,7 @@ static int xc5000_get_bandwidth(struct dvb_frontend *fe, u32 *bw)
 static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
-	unsigned short int lock_status = 0;
+	u16 lock_status = 0;
 
 	xc_get_lock_status(priv, &lock_status);
 
@@ -689,15 +687,15 @@ static int xc5000_get_status(struct dvb_frontend *fe, u32 *status)
 	return 0;
 }
 
-int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
+static int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	int ret;
 
-	if(priv->fwloaded == 0) {
+	if (priv->fwloaded == 0) {
 		ret = xc5000_fwupload(fe);
-		if( ret != XC_RESULT_SUCCESS )
-			return -EREMOTEIO;
+		if (ret != XC_RESULT_SUCCESS)
+			return ret;
 
 		priv->fwloaded = 1;
 	}
@@ -718,13 +716,26 @@ int xc_load_fw_and_init_tuner(struct dvb_frontend *fe)
 	return ret;
 }
 
+static int xc5000_sleep(struct dvb_frontend *fe)
+{
+	struct xc5000_priv *priv = fe->tuner_priv;
+	dprintk(1, "%s()\n", __FUNCTION__);
+
+	return xc_shutdown(priv);
+}
+
 static int xc5000_init(struct dvb_frontend *fe)
 {
 	struct xc5000_priv *priv = fe->tuner_priv;
 	dprintk(1, "%s()\n", __FUNCTION__);
 
-	xc_load_fw_and_init_tuner(fe);
-	xc_debug_dump(priv);
+	if (xc_load_fw_and_init_tuner(fe) != XC_RESULT_SUCCESS) {
+		printk(KERN_ERR "xc5000: Unable to initialise tuner\n");
+		return -EREMOTEIO;
+	}
+
+	if (debug)
+		xc_debug_dump(priv);
 
 	return 0;
 }
@@ -747,6 +758,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 
 	.release       = xc5000_release,
 	.init          = xc5000_init,
+	.sleep         = xc5000_sleep,
 
 	.set_params    = xc5000_set_params,
 	.get_frequency = xc5000_get_frequency,
@@ -768,7 +780,7 @@ struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
 		return NULL;
 
 	priv->cfg = cfg;
-	priv->bandwidth = 6000000; /* 6MHz */
+	priv->bandwidth = BANDWIDTH_6_MHZ;
 	priv->i2c = i2c;
 	priv->fwloaded = 0;
 
@@ -777,7 +789,7 @@ struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
 		return NULL;
 	}
 
-	if ( (id != 0x2000) && (id != 0x1388) ) {
+	if ((id != 0x2000) && (id != 0x1388)) {
 		printk(KERN_ERR
 			"xc5000: Device not found at addr 0x%02x (0x%x)\n",
 			cfg->i2c_address, id);
@@ -798,5 +810,5 @@ struct dvb_frontend * xc5000_attach(struct dvb_frontend *fe,
 EXPORT_SYMBOL(xc5000_attach);
 
 MODULE_AUTHOR("Steven Toth");
-MODULE_DESCRIPTION("Xceive XC5000 silicon tuner driver");
+MODULE_DESCRIPTION("Xceive xc5000 silicon tuner driver");
 MODULE_LICENSE("GPL");
