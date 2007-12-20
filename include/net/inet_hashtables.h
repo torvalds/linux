@@ -264,37 +264,14 @@ static inline void inet_listen_unlock(struct inet_hashinfo *hashinfo)
 		wake_up(&hashinfo->lhash_wait);
 }
 
-static inline void __inet_hash(struct inet_hashinfo *hashinfo,
-			       struct sock *sk, const int listen_possible)
-{
-	struct hlist_head *list;
-	rwlock_t *lock;
-
-	BUG_TRAP(sk_unhashed(sk));
-	if (listen_possible && sk->sk_state == TCP_LISTEN) {
-		list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
-		lock = &hashinfo->lhash_lock;
-		inet_listen_wlock(hashinfo);
-	} else {
-		struct inet_ehash_bucket *head;
-		sk->sk_hash = inet_sk_ehashfn(sk);
-		head = inet_ehash_bucket(hashinfo, sk->sk_hash);
-		list = &head->chain;
-		lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
-		write_lock(lock);
-	}
-	__sk_add_node(sk, list);
-	sock_prot_inc_use(sk->sk_prot);
-	write_unlock(lock);
-	if (listen_possible && sk->sk_state == TCP_LISTEN)
-		wake_up(&hashinfo->lhash_wait);
-}
+extern void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk);
+extern void __inet_hash_nolisten(struct inet_hashinfo *hinfo, struct sock *sk);
 
 static inline void inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
 {
 	if (sk->sk_state != TCP_CLOSE) {
 		local_bh_disable();
-		__inet_hash(hashinfo, sk, 1);
+		__inet_hash(hashinfo, sk);
 		local_bh_enable();
 	}
 }

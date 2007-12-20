@@ -267,6 +267,48 @@ static inline u32 inet_sk_port_offset(const struct sock *sk)
 					  inet->dport);
 }
 
+void __inet_hash_nolisten(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	struct hlist_head *list;
+	rwlock_t *lock;
+	struct inet_ehash_bucket *head;
+
+	BUG_TRAP(sk_unhashed(sk));
+
+	sk->sk_hash = inet_sk_ehashfn(sk);
+	head = inet_ehash_bucket(hashinfo, sk->sk_hash);
+	list = &head->chain;
+	lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
+
+	write_lock(lock);
+	__sk_add_node(sk, list);
+	sock_prot_inc_use(sk->sk_prot);
+	write_unlock(lock);
+}
+EXPORT_SYMBOL_GPL(__inet_hash_nolisten);
+
+void __inet_hash(struct inet_hashinfo *hashinfo, struct sock *sk)
+{
+	struct hlist_head *list;
+	rwlock_t *lock;
+
+	if (sk->sk_state != TCP_LISTEN) {
+		__inet_hash_nolisten(hashinfo, sk);
+		return;
+	}
+
+	BUG_TRAP(sk_unhashed(sk));
+	list = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+	lock = &hashinfo->lhash_lock;
+
+	inet_listen_wlock(hashinfo);
+	__sk_add_node(sk, list);
+	sock_prot_inc_use(sk->sk_prot);
+	write_unlock(lock);
+	wake_up(&hashinfo->lhash_wait);
+}
+EXPORT_SYMBOL_GPL(__inet_hash);
+
 /*
  * Bind a port for a connect operation and hash it.
  */
@@ -334,7 +376,7 @@ ok:
 		inet_bind_hash(sk, tb, port);
 		if (sk_unhashed(sk)) {
 			inet_sk(sk)->sport = htons(port);
-			__inet_hash(hinfo, sk, 0);
+			__inet_hash_nolisten(hinfo, sk);
 		}
 		spin_unlock(&head->lock);
 
@@ -351,7 +393,7 @@ ok:
 	tb  = inet_csk(sk)->icsk_bind_hash;
 	spin_lock_bh(&head->lock);
 	if (sk_head(&tb->owners) == sk && !sk->sk_bind_node.next) {
-		__inet_hash(hinfo, sk, 0);
+		__inet_hash_nolisten(hinfo, sk);
 		spin_unlock_bh(&head->lock);
 		return 0;
 	} else {

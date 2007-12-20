@@ -1478,7 +1478,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
-	__inet_hash(&tcp_hashinfo, newsk, 0);
+	__inet_hash_nolisten(&tcp_hashinfo, newsk);
 	__inet_inherit_port(&tcp_hashinfo, sk, newsk);
 
 	return newsk;
