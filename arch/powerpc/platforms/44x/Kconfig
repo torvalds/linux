@@ -49,6 +49,7 @@ config RAINIER
 	depends on 44x
 	default n
 	select 440GRX
+	select PCI
 	help
 	  This option enables support for the AMCC PPC440GRX evaluation board.
 

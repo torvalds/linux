@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc1
-# Tue Oct 30 18:19:49 2007
+# Linux kernel version: 2.6.24-rc4
+# Thu Dec 20 08:43:57 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -68,6 +68,7 @@ CONFIG_POSIX_MQUEUE=y
 # CONFIG_BSD_PROCESS_ACCT is not set
 # CONFIG_TASKSTATS is not set
 # CONFIG_USER_NS is not set
+# CONFIG_PID_NS is not set
 # CONFIG_AUDIT is not set
 # CONFIG_IKCONFIG is not set
 CONFIG_LOG_BUF_SHIFT=14
@@ -129,6 +130,7 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_CFQ is not set
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
+# CONFIG_PPC4xx_PCI_EXPRESS is not set
 
 #
 # Platform support
@@ -141,9 +143,10 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 # CONFIG_BAMBOO is not set
 # CONFIG_EBONY is not set
 # CONFIG_SEQUOIA is not set
+# CONFIG_TAISHAN is not set
+# CONFIG_KATMAI is not set
 CONFIG_RAINIER=y
 CONFIG_440GRX=y
-CONFIG_440A=y
 # CONFIG_MPIC is not set
 # CONFIG_MPIC_WEIRD is not set
 # CONFIG_PPC_I8259 is not set
@@ -211,6 +214,7 @@ CONFIG_PCI_SYSCALL=y
 # CONFIG_PCIEPORTBUS is not set
 CONFIG_ARCH_SUPPORTS_MSI=y
 # CONFIG_PCI_MSI is not set
+CONFIG_PCI_LEGACY=y
 # CONFIG_PCI_DEBUG is not set
 # CONFIG_PCCARD is not set
 # CONFIG_HOTPLUG_PCI is not set
@@ -814,6 +818,7 @@ CONFIG_PPC_EARLY_DEBUG=y
 # CONFIG_PPC_EARLY_DEBUG_PAS_REALMODE is not set
 # CONFIG_PPC_EARLY_DEBUG_BEAT is not set
 CONFIG_PPC_EARLY_DEBUG_44x=y
+# CONFIG_PPC_EARLY_DEBUG_40x is not set
 # CONFIG_PPC_EARLY_DEBUG_CPM is not set
 CONFIG_PPC_EARLY_DEBUG_44x_PHYSLOW=0xef600300
 CONFIG_PPC_EARLY_DEBUG_44x_PHYSHIGH=0x1
