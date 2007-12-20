@@ -922,17 +922,6 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 	struct pci_controller* hose;
 	long result = -EOPNOTSUPP;
 
-	/* Argh ! Please forgive me for that hack, but that's the
-	 * simplest way to get existing XFree to not lockup on some
-	 * G5 machines... So when something asks for bus 0 io base
-	 * (bus 0 is HT root), we return the AGP one instead.
-	 */
-#ifdef CONFIG_PPC_PMAC
-	if (machine_is(powermac) && machine_is_compatible("MacRISC4"))
-		if (bus == 0)
-			bus = 0xf0;
-#endif /* CONFIG_PPC_PMAC */
-
 	hose = pci_bus_to_hose(bus);
 	if (!hose)
 		return -ENODEV;
