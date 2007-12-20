@@ -1116,6 +1116,10 @@ zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 		goto out;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&unit->status)))
+		goto unit_blocked;
+
 	sbale = zfcp_qdio_sbale_req(fsf_req, fsf_req->sbal_curr, 0);
         sbale[0].flags |= SBAL_FLAGS0_TYPE_READ;
         sbale[1].flags |= SBAL_FLAGS_LAST_ENTRY;
@@ -1131,22 +1135,13 @@ zfcp_fsf_abort_fcp_command(unsigned long old_req_id,
 
 	zfcp_fsf_start_timer(fsf_req, ZFCP_SCSI_ER_TIMEOUT);
 	retval = zfcp_fsf_req_send(fsf_req);
-	if (retval) {
-		ZFCP_LOG_INFO("error: Failed to send abort command request "
-			      "on adapter %s, port 0x%016Lx, unit 0x%016Lx\n",
-			      zfcp_get_busid_by_adapter(adapter),
-			      unit->port->wwpn, unit->fcp_lun);
+	if (!retval)
+		goto out;
+
+ unit_blocked:
 		zfcp_fsf_req_free(fsf_req);
 		fsf_req = NULL;
-		goto out;
-	}
 
-	ZFCP_LOG_DEBUG("Abort FCP Command request initiated "
-		       "(adapter%s, port d_id=0x%06x, "
-		       "unit x%016Lx, old_req_id=0x%lx)\n",
-		       zfcp_get_busid_by_adapter(adapter),
-		       unit->port->d_id,
-		       unit->fcp_lun, old_req_id);
  out:
 	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
 	return fsf_req;
