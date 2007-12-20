@@ -562,22 +562,6 @@ static void rs_tx_status(void *priv_rate,
 	return;
 }
 
-static struct ieee80211_rate *iwl_get_lowest_rate(struct ieee80211_local
-						  *local)
-{
-	struct ieee80211_hw_mode *mode = local->oper_hw_mode;
-	int i;
-
-	for (i = 0; i < mode->num_rates; i++) {
-		struct ieee80211_rate *rate = &mode->rates[i];
-
-		if (rate->flags & IEEE80211_RATE_SUPPORTED)
-			return rate;
-	}
-
-	return &mode->rates[0];
-}
-
 static u16 iwl_get_adjacent_rate(struct iwl_rate_scale_priv *rs_priv,
 				 u8 index, u16 rate_mask, int phymode)
 {
@@ -656,10 +640,9 @@ static u16 iwl_get_adjacent_rate(struct iwl_rate_scale_priv *rs_priv,
  * rate table and must reference the driver allocated rate table
  *
  */
-static struct ieee80211_rate *rs_get_rate(void *priv_rate,
-					  struct net_device *dev,
-					  struct sk_buff *skb,
-					  struct rate_control_extra *extra)
+static void rs_get_rate(void *priv_rate, struct net_device *dev,
+			struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			struct rate_selection *sel)
 {
 	u8 low = IWL_RATE_INVALID;
 	u8 high = IWL_RATE_INVALID;
@@ -676,32 +659,19 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct sta_info *sta;
-	u16 fc, rate_mask;
+	u16 rate_mask;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_RATE("enter\n");
 
-	memset(extra, 0, sizeof(*extra));
-
-	fc = le16_to_cpu(hdr->frame_control);
-	if (((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA) ||
-	    (is_multicast_ether_addr(hdr->addr1))) {
-		/* Send management frames and broadcast/multicast data using
-		 * lowest rate. */
-		/* TODO: this could probably be improved.. */
-		IWL_DEBUG_RATE("leave: lowest rate (not data or is "
-			       "multicast)\n");
-
-		return iwl_get_lowest_rate(local);
-	}
-
 	sta = sta_info_get(local, hdr->addr1);
 	if (!sta || !sta->rate_ctrl_priv) {
 		IWL_DEBUG_RATE("leave: No STA priv data to update!\n");
+		sel->rate = rate_lowest(local, local->oper_hw_mode, sta);
 		if (sta)
 			sta_info_put(sta);
-		return NULL;
+		return;
 	}
 
 	rate_mask = sta->supp_rates;
@@ -846,7 +816,7 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 
 	IWL_DEBUG_RATE("leave: %d\n", index);
 
-	return &priv->ieee_rates[index];
+	sel->rate = &priv->ieee_rates[index];
 }
 
 static struct rate_control_ops rs_ops = {

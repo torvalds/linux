@@ -859,10 +859,8 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
 			sta_info_put(sta);
 			return;
 		}
-	} else {
-		/* FIXME: STUPID to call this with both local and local->mdev */
-		rate_control_tx_status(local, local->mdev, skb, status);
-	}
+	} else
+		rate_control_tx_status(local->mdev, skb, status);
 
 	ieee80211_led_tx(local, 0);
 

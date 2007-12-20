@@ -1693,55 +1693,27 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	return;
 }
 
-static struct ieee80211_rate *rs_get_lowest_rate(struct ieee80211_local
-						 *local)
-{
-	struct ieee80211_hw_mode *mode = local->oper_hw_mode;
-	int i;
-
-	for (i = 0; i < mode->num_rates; i++) {
-		struct ieee80211_rate *rate = &mode->rates[i];
-
-		if (rate->flags & IEEE80211_RATE_SUPPORTED)
-			return rate;
-	}
-
-	return &mode->rates[0];
-}
-
-static struct ieee80211_rate *rs_get_rate(void *priv_rate,
-					       struct net_device *dev,
-					       struct sk_buff *skb,
-					       struct rate_control_extra
-					       *extra)
+static void rs_get_rate(void *priv_rate, struct net_device *dev,
+			struct ieee80211_hw_mode *mode, struct sk_buff *skb,
+			struct rate_selection *sel)
 {
 
 	int i;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct sta_info *sta;
-	u16 fc;
 	struct iwl_priv *priv = (struct iwl_priv *)priv_rate;
 	struct iwl_rate_scale_priv *lq;
 
 	IWL_DEBUG_RATE_LIMIT("rate scale calculate new rate for skb\n");
 
-	memset(extra, 0, sizeof(*extra));
-
-	fc = le16_to_cpu(hdr->frame_control);
-	if (!ieee80211_is_data(fc) || is_multicast_ether_addr(hdr->addr1)) {
-		/* Send management frames and broadcast/multicast data using
-		 * lowest rate. */
-		/* TODO: this could probably be improved.. */
-		return rs_get_lowest_rate(local);
-	}
-
 	sta = sta_info_get(local, hdr->addr1);
 
 	if (!sta || !sta->rate_ctrl_priv) {
+		sel->rate = rate_lowest(local, local->oper_hw_mode, sta);
 		if (sta)
 			sta_info_put(sta);
-		return rs_get_lowest_rate(local);
+		return;
 	}
 
 	lq = (struct iwl_rate_scale_priv *)sta->rate_ctrl_priv;
@@ -1768,11 +1740,13 @@ static struct ieee80211_rate *rs_get_rate(void *priv_rate,
 	}
 
  done:
+	if ((i < 0) || (i > IWL_RATE_COUNT)) {
+		sel->rate = rate_lowest(local, local->oper_hw_mode, sta);
+		return;
+	}
 	sta_info_put(sta);
-	if ((i < 0) || (i > IWL_RATE_COUNT))
-		return rs_get_lowest_rate(local);
 
-	return &priv->ieee_rates[i];
+	sel->rate = &priv->ieee_rates[i];
 }
 
 static void *rs_alloc_sta(void *priv, gfp_t gfp)
