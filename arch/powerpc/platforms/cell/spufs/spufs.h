@@ -71,6 +71,7 @@ struct spu_context {
 	wait_queue_head_t wbox_wq;
 	wait_queue_head_t stop_wq;
 	wait_queue_head_t mfc_wq;
+	wait_queue_head_t run_wq;
 	struct fasync_struct *ibox_fasync;
 	struct fasync_struct *wbox_fasync;
 	struct fasync_struct *mfc_fasync;

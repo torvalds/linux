@@ -236,21 +236,31 @@ static unsigned long spufs_ps_nopfn(struct vm_area_struct *vma,
 {
 	struct spu_context *ctx = vma->vm_file->private_data;
 	unsigned long area, offset = address - vma->vm_start;
-	int ret;
 
 	offset += vma->vm_pgoff << PAGE_SHIFT;
 	if (offset >= ps_size)
 		return NOPFN_SIGBUS;
 
-	/* error here usually means a signal.. we might want to test
-	 * the error code more precisely though
+	/*
+	 * We have to wait for context to be loaded before we have
+	 * pages to hand out to the user, but we don't want to wait
+	 * with the mmap_sem held.
+	 * It is possible to drop the mmap_sem here, but then we need
+	 * to return NOPFN_REFAULT because the mappings may have
+	 * hanged.
 	 */
-	ret = spu_acquire_runnable(ctx, 0);
-	if (ret)
-		return NOPFN_REFAULT;
+	spu_acquire(ctx);
+	if (ctx->state == SPU_STATE_SAVED) {
+		up_read(&current->mm->mmap_sem);
+		spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
+		down_read(&current->mm->mmap_sem);
+		goto out;
+	}
 
 	area = ctx->spu->problem_phys + ps_offs;
 	vm_insert_pfn(vma, address, (area + offset) >> PAGE_SHIFT);
+
+out:
 	spu_release(ctx);
 
 	return NOPFN_REFAULT;
@@ -1505,7 +1515,8 @@ static ssize_t spufs_mfc_write(struct file *file, const char __user *buffer,
 	if (ret)
 		goto out;
 
-	ret = spu_acquire_runnable(ctx, 0);
+	spu_acquire(ctx);
+	ret = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
 	if (ret)
 		goto out;
 

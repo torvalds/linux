@@ -52,6 +52,7 @@ struct spu_context *alloc_spu_context(struct spu_gang *gang)
 	init_waitqueue_head(&ctx->wbox_wq);
 	init_waitqueue_head(&ctx->stop_wq);
 	init_waitqueue_head(&ctx->mfc_wq);
+	init_waitqueue_head(&ctx->run_wq);
 	ctx->state = SPU_STATE_SAVED;
 	ctx->ops = &spu_backing_ops;
 	ctx->owner = get_task_mm(current);

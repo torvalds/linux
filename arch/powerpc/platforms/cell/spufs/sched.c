@@ -682,6 +682,7 @@ int spu_activate(struct spu_context *ctx, unsigned long flags)
 			spu_bind_context(spu, ctx);
 			cbe_spu_info[node].nr_active++;
 			mutex_unlock(&cbe_spu_info[node].list_mutex);
+			wake_up_all(&ctx->run_wq);
 			return 0;
 		}
 
