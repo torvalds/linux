@@ -314,10 +314,13 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 
 	/* We only allow config cycles to devices that are in OF device-tree
 	 * as we are apparently having some weird things going on with some
-	 * revs of K2 on recent G5s
+	 * revs of K2 on recent G5s, except for the host bridge itself, which
+	 * is missing from the tree but we know we can probe.
 	 */
 	if (bus->self)
 		busdn = pci_device_to_OF_node(bus->self);
+	else if (devfn == 0)
+		return 0;
 	else
 		busdn = hose->dn;
 	for (dn = busdn->child; dn; dn = dn->sibling)
@@ -344,14 +347,15 @@ static int u3_ht_skip_device(struct pci_controller *hose,
 		+ (((unsigned int)bus) << 16) \
 		+ 0x01000000UL)
 
-static volatile void __iomem *u3_ht_cfg_access(struct pci_controller* hose,
-					     u8 bus, u8 devfn, u8 offset)
+static void __iomem *u3_ht_cfg_access(struct pci_controller *hose, u8 bus,
+				      u8 devfn, u8 offset, int *swap)
 {
+	*swap = 1;
 	if (bus == hose->first_busno) {
-		/* For now, we don't self probe U3 HT bridge */
-		if (PCI_SLOT(devfn) == 0)
-			return NULL;
-		return hose->cfg_data + U3_HT_CFA0(devfn, offset);
+		if (devfn != 0)
+			return hose->cfg_data + U3_HT_CFA0(devfn, offset);
+		*swap = 0;
+		return ((void __iomem *)hose->cfg_addr) + (offset << 2);
 	} else
 		return hose->cfg_data + U3_HT_CFA1(bus, devfn, offset);
 }
@@ -360,14 +364,15 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 				    int offset, int len, u32 *val)
 {
 	struct pci_controller *hose;
-	volatile void __iomem *addr;
+	void __iomem *addr;
+	int swap;
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if (offset >= 0x100)
 		return  PCIBIOS_BAD_REGISTER_NUMBER;
-	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
+	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset, &swap);
 	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
@@ -397,10 +402,10 @@ static int u3_ht_read_config(struct pci_bus *bus, unsigned int devfn,
 		*val = in_8(addr);
 		break;
 	case 2:
-		*val = in_le16(addr);
+		*val = swap ? in_le16(addr) : in_be16(addr);
 		break;
 	default:
-		*val = in_le32(addr);
+		*val = swap ? in_le32(addr) : in_be32(addr);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -410,14 +415,15 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 				     int offset, int len, u32 val)
 {
 	struct pci_controller *hose;
-	volatile void __iomem *addr;
+	void __iomem *addr;
+	int swap;
 
 	hose = pci_bus_to_host(bus);
 	if (hose == NULL)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 	if (offset >= 0x100)
 		return  PCIBIOS_BAD_REGISTER_NUMBER;
-	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset);
+	addr = u3_ht_cfg_access(hose, bus->number, devfn, offset, &swap);
 	if (!addr)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
@@ -439,10 +445,10 @@ static int u3_ht_write_config(struct pci_bus *bus, unsigned int devfn,
 		out_8(addr, val);
 		break;
 	case 2:
-		out_le16(addr, val);
+		swap ? out_le16(addr, val) : out_be16(addr, val);
 		break;
 	default:
-		out_le32((u32 __iomem *)addr, val);
+		swap ? out_le32(addr, val) : out_be32(addr, val);
 		break;
 	}
 	return PCIBIOS_SUCCESSFUL;
@@ -780,16 +786,26 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 {
 	struct device_node *np = hose->dn;
 	struct pci_controller *other = NULL;
+	struct resource cfg_res, self_res;
 	int i, cur;
 
 
 	hose->ops = &u3_ht_pci_ops;
 
-	/* We hard code the address because of the different size of
-	 * the reg address cell, we shall fix that by killing struct
-	 * reg_property and using some accessor functions instead
+	/* Get base addresses from OF tree
 	 */
-	hose->cfg_data = ioremap(0xf2000000, 0x02000000);
+	if (of_address_to_resource(np, 0, &cfg_res) ||
+	    of_address_to_resource(np, 1, &self_res)) {
+		printk(KERN_ERR "PCI: Failed to get U3/U4 HT resources !\n");
+		return;
+	}
+
+	/* Map external cfg space access into cfg_data and self registers
+	 * into cfg_addr
+	 */
+	hose->cfg_data = ioremap(cfg_res.start, 0x02000000);
+	hose->cfg_addr = ioremap(self_res.start,
+				 self_res.end - self_res.start + 1);
 
 	/*
 	 * /ht node doesn't expose a "ranges" property, so we "remove"
