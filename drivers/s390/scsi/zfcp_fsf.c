@@ -1164,8 +1164,8 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 {
 	int retval = -EINVAL;
 	struct zfcp_unit *unit;
-	unsigned char status_qual =
-	    new_fsf_req->qtcb->header.fsf_status_qual.word[0];
+	union fsf_status_qual *fsf_stat_qual =
+		&new_fsf_req->qtcb->header.fsf_status_qual;
 
 	if (new_fsf_req->status & ZFCP_STATUS_FSFREQ_ERROR) {
 		/* do not set ZFCP_STATUS_FSFREQ_ABORTSUCCEEDED */
@@ -1178,7 +1178,7 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 	switch (new_fsf_req->qtcb->header.fsf_status) {
 
 	case FSF_PORT_HANDLE_NOT_VALID:
-		if (status_qual >> 4 != status_qual % 0xf) {
+		if (fsf_stat_qual->word[0] != fsf_stat_qual->word[1]) {
 			debug_text_event(new_fsf_req->adapter->erp_dbf, 3,
 					 "fsf_s_phand_nv0");
 			/*
@@ -1207,8 +1207,7 @@ zfcp_fsf_abort_fcp_command_handler(struct zfcp_fsf_req *new_fsf_req)
 		break;
 
 	case FSF_LUN_HANDLE_NOT_VALID:
-		if (status_qual >> 4 != status_qual % 0xf) {
-			/* 2 */
+		if (fsf_stat_qual->word[0] != fsf_stat_qual->word[1]) {
 			debug_text_event(new_fsf_req->adapter->erp_dbf, 3,
 					 "fsf_s_lhand_nv0");
 			/*
