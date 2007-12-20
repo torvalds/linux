@@ -741,29 +741,6 @@ int pci_reenable_device(struct pci_dev *dev)
 	return 0;
 }
 
-/**
- * pci_enable_device_bars - Initialize some of a device for use
- * @dev: PCI device to be initialized
- * @bars: bitmask of BAR's that must be configured
- *
- *  Initialize device before it's used by a driver. Ask low-level code
- *  to enable selected I/O and memory resources. Wake up the device if it
- *  was suspended. Beware, this function can fail.
- */
-int
-pci_enable_device_bars(struct pci_dev *dev, int bars)
-{
-	int err;
-
-	if (atomic_add_return(1, &dev->enable_cnt) > 1)
-		return 0;		/* already enabled */
-
-	err = do_pci_enable_device(dev, bars);
-	if (err < 0)
-		atomic_dec(&dev->enable_cnt);
-	return err;
-}
-
 static int __pci_enable_device_flags(struct pci_dev *dev,
 				     resource_size_t flags)
 {
@@ -1695,7 +1672,6 @@ early_param("pci", pci_setup);
 device_initcall(pci_init);
 
 EXPORT_SYMBOL(pci_reenable_device);
-EXPORT_SYMBOL(pci_enable_device_bars);
 EXPORT_SYMBOL(pci_enable_device_io);
 EXPORT_SYMBOL(pci_enable_device_mem);
 EXPORT_SYMBOL(pci_enable_device);
