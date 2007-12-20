@@ -23,6 +23,7 @@
 
 #include <linux/cache.h>
 #include <linux/snmp.h>
+#include <linux/smp.h>
 
 /*
  * Mibs are stored in array of unsigned long.
@@ -135,14 +136,26 @@ struct linux_mib {
 #define SNMP_INC_STATS_BH(mib, field) 	\
 	(per_cpu_ptr(mib[0], raw_smp_processor_id())->mibs[field]++)
 #define SNMP_INC_STATS_USER(mib, field) \
-	(per_cpu_ptr(mib[1], raw_smp_processor_id())->mibs[field]++)
+	do { \
+		per_cpu_ptr(mib[1], get_cpu())->mibs[field]++; \
+		put_cpu(); \
+	} while (0)
 #define SNMP_INC_STATS(mib, field) 	\
-	(per_cpu_ptr(mib[!in_softirq()], raw_smp_processor_id())->mibs[field]++)
+	do { \
+		per_cpu_ptr(mib[!in_softirq()], get_cpu())->mibs[field]++; \
+		put_cpu(); \
+	} while (0)
 #define SNMP_DEC_STATS(mib, field) 	\
-	(per_cpu_ptr(mib[!in_softirq()], raw_smp_processor_id())->mibs[field]--)
+	do { \
+		per_cpu_ptr(mib[!in_softirq()], get_cpu())->mibs[field]--; \
+		put_cpu(); \
+	} while (0)
 #define SNMP_ADD_STATS_BH(mib, field, addend) 	\
 	(per_cpu_ptr(mib[0], raw_smp_processor_id())->mibs[field] += addend)
 #define SNMP_ADD_STATS_USER(mib, field, addend) 	\
-	(per_cpu_ptr(mib[1], raw_smp_processor_id())->mibs[field] += addend)
+	do { \
+		per_cpu_ptr(mib[1], get_cpu())->mibs[field] += addend; \
+		put_cpu(); \
+	} while (0)
 
 #endif
