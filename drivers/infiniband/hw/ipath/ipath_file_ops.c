@@ -742,7 +742,8 @@ static int ipath_manage_rcvq(struct ipath_portdata *pd, unsigned subport,
 		 * updated and correct itself, even in the face of software
 		 * bugs.
 		 */
-		*(volatile u64 *)pd->port_rcvhdrtail_kvaddr = 0;
+		if (pd->port_rcvhdrtail_kvaddr)
+			ipath_clear_rcvhdrtail(pd);
 		set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
 			&dd->ipath_rcvctrl);
 	} else
@@ -1391,7 +1392,10 @@ static unsigned int ipath_poll_next(struct ipath_portdata *pd,
 	pollflag = ipath_poll_hdrqfull(pd);
 
 	head = ipath_read_ureg32(dd, ur_rcvhdrhead, pd->port_port);
-	tail = *(volatile u64 *)pd->port_rcvhdrtail_kvaddr;
+	if (pd->port_rcvhdrtail_kvaddr)
+		tail = ipath_get_rcvhdrtail(pd);
+	else
+		tail = ipath_read_ureg32(dd, ur_rcvhdrtail, pd->port_port);
 
 	if (head != tail)
 		pollflag |= POLLIN | POLLRDNORM;
@@ -1932,7 +1936,8 @@ static int ipath_do_user_init(struct file *fp,
 	 * We explictly set the in-memory copy to 0 beforehand, so we don't
 	 * have to wait to be sure the DMA update has happened.
 	 */
-	*(volatile u64 *)pd->port_rcvhdrtail_kvaddr = 0ULL;
+	if (pd->port_rcvhdrtail_kvaddr)
+		ipath_clear_rcvhdrtail(pd);
 	set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
 		&dd->ipath_rcvctrl);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,

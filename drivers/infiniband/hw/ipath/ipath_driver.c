@@ -1104,13 +1104,14 @@ static void ipath_rcv_hdrerr(struct ipath_devdata *dd,
 
 /*
  * ipath_kreceive - receive a packet
- * @dd: the infinipath device
+ * @pd: the infinipath port
  *
  * called from interrupt handler for errors or receive interrupt
  */
-void ipath_kreceive(struct ipath_devdata *dd)
+void ipath_kreceive(struct ipath_portdata *pd)
 {
 	u64 *rc;
+	struct ipath_devdata *dd = pd->port_dd;
 	void *ebuf;
 	const u32 rsize = dd->ipath_rcvhdrentsize;	/* words */
 	const u32 maxcnt = dd->ipath_rcvhdrcnt * rsize;	/* words */
@@ -1125,8 +1126,8 @@ void ipath_kreceive(struct ipath_devdata *dd)
 		goto bail;
 	}
 
-	l = dd->ipath_port0head;
-	hdrqtail = (u32) le64_to_cpu(*dd->ipath_hdrqtailptr);
+	l = pd->port_head;
+	hdrqtail = ipath_get_rcvhdrtail(pd);
 	if (l == hdrqtail)
 		goto bail;
 
@@ -1135,7 +1136,7 @@ reloop:
 		u32 qp;
 		u8 *bthbytes;
 
-		rc = (u64 *) (dd->ipath_pd[0]->port_rcvhdrq + (l << 2));
+		rc = (u64 *) (pd->port_rcvhdrq + (l << 2));
 		hdr = (struct ipath_message_header *)&rc[1];
 		/*
 		 * could make a network order version of IPATH_KD_QP, and
@@ -1245,7 +1246,7 @@ reloop:
 		 * earlier packets, we "almost" guarantee we have covered
 		 * that case.
 		 */
-		u32 hqtail = (u32)le64_to_cpu(*dd->ipath_hdrqtailptr);
+		u32 hqtail = ipath_get_rcvhdrtail(pd);
 		if (hqtail != hdrqtail) {
 			hdrqtail = hqtail;
 			reloop = 1; /* loop 1 extra time at most */
@@ -1255,7 +1256,7 @@ reloop:
 
 	pkttot += i;
 
-	dd->ipath_port0head = l;
+	pd->port_head = l;
 
 	if (pkttot > ipath_stats.sps_maxpkts_call)
 		ipath_stats.sps_maxpkts_call = pkttot;
@@ -1605,7 +1606,8 @@ int ipath_create_rcvhdrq(struct ipath_devdata *dd,
 
 	/* clear for security and sanity on each use */
 	memset(pd->port_rcvhdrq, 0, pd->port_rcvhdrq_size);
-	memset(pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
+	if (pd->port_rcvhdrtail_kvaddr)
+		memset(pd->port_rcvhdrtail_kvaddr, 0, PAGE_SIZE);
 
 	/*
 	 * tell chip each time we init it, even if we are re-using previous

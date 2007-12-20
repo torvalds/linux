@@ -133,15 +133,16 @@ bail:
 static void ipath_qcheck(struct ipath_devdata *dd)
 {
 	static u64 last_tot_hdrqfull;
+	struct ipath_portdata *pd = dd->ipath_pd[0];
 	size_t blen = 0;
 	char buf[128];
 
 	*buf = 0;
-	if (dd->ipath_pd[0]->port_hdrqfull != dd->ipath_p0_hdrqfull) {
+	if (pd->port_hdrqfull != dd->ipath_p0_hdrqfull) {
 		blen = snprintf(buf, sizeof buf, "port 0 hdrqfull %u",
-				dd->ipath_pd[0]->port_hdrqfull -
+				pd->port_hdrqfull -
 				dd->ipath_p0_hdrqfull);
-		dd->ipath_p0_hdrqfull = dd->ipath_pd[0]->port_hdrqfull;
+		dd->ipath_p0_hdrqfull = pd->port_hdrqfull;
 	}
 	if (ipath_stats.sps_etidfull != dd->ipath_last_tidfull) {
 		blen += snprintf(buf + blen, sizeof buf - blen,
@@ -173,7 +174,7 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 	if (blen)
 		ipath_dbg("%s\n", buf);
 
-	if (dd->ipath_port0head != (u32)
+	if (pd->port_head != (u32)
 	    le64_to_cpu(*dd->ipath_hdrqtailptr)) {
 		if (dd->ipath_lastport0rcv_cnt ==
 		    ipath_stats.sps_port0pkts) {
@@ -181,7 +182,7 @@ static void ipath_qcheck(struct ipath_devdata *dd)
 				   "port0 hd=%llx tl=%x; port0pkts %llx\n",
 				   (unsigned long long)
 				   le64_to_cpu(*dd->ipath_hdrqtailptr),
-				   dd->ipath_port0head,
+				   pd->port_head,
 				   (unsigned long long)
 				   ipath_stats.sps_port0pkts);
 		}

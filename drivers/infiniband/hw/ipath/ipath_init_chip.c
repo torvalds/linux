@@ -526,12 +526,11 @@ static void enable_chip(struct ipath_devdata *dd,
 	 */
 	val = ipath_read_ureg32(dd, ur_rcvegrindextail, 0);
 	(void)ipath_write_ureg(dd, ur_rcvegrindexhead, val, 0);
-	dd->ipath_port0head = ipath_read_ureg32(dd, ur_rcvhdrtail, 0);
 
 	/* Initialize so we interrupt on next packet received */
 	(void)ipath_write_ureg(dd, ur_rcvhdrhead,
 			       dd->ipath_rhdrhead_intr_off |
-			       dd->ipath_port0head, 0);
+			       dd->ipath_pd[0]->port_head, 0);
 
 	/*
 	 * by now pioavail updates to memory should have occurred, so
@@ -693,7 +692,7 @@ done:
  */
 int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 {
-	int ret = 0, i;
+	int ret = 0;
 	u32 val32, kpiobufs;
 	u32 piobufs, uports;
 	u64 val;
@@ -750,7 +749,7 @@ int ipath_init_chip(struct ipath_devdata *dd, int reinit)
 		kpiobufs = ipath_kpiobufs;
 
 	if (kpiobufs + (uports * IPATH_MIN_USER_PORT_BUFCNT) > piobufs) {
-		i = (int) piobufs -
+		int i = (int) piobufs -
 			(int) (uports * IPATH_MIN_USER_PORT_BUFCNT);
 		if (i < 0)
 			i = 0;

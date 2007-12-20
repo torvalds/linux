@@ -683,7 +683,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		for (i = 0; i < dd->ipath_cfgports; i++) {
 			struct ipath_portdata *pd = dd->ipath_pd[i];
 			if (i == 0) {
-				hd = dd->ipath_port0head;
+				hd = pd->port_head;
 				tl = (u32) le64_to_cpu(
 					*dd->ipath_hdrqtailptr);
 			} else if (pd && pd->port_cnt &&
@@ -712,6 +712,8 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		}
 	}
 	if (errs & INFINIPATH_E_RRCVEGRFULL) {
+		struct ipath_portdata *pd = dd->ipath_pd[0];
+
 		/*
 		 * since this is of less importance and not likely to
 		 * happen without also getting hdrfull, only count
@@ -719,7 +721,7 @@ static int handle_errors(struct ipath_devdata *dd, ipath_err_t errs)
 		 * vs user)
 		 */
 		ipath_stats.sps_etidfull++;
-		if (dd->ipath_port0head !=
+		if (pd->port_head !=
 		    (u32) le64_to_cpu(*dd->ipath_hdrqtailptr))
 			chkerrpkts = 1;
 	}
@@ -1173,7 +1175,7 @@ irqreturn_t ipath_intr(int irq, void *data)
 	 * for receive are at the bottom.
 	 */
 	if (chk0rcv) {
-		ipath_kreceive(dd);
+		ipath_kreceive(dd->ipath_pd[0]);
 		istat &= ~port0rbits;
 	}
 

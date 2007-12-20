@@ -167,6 +167,8 @@ struct ipath_portdata {
 	u32 active_slaves;
 	/* Type of packets or conditions we want to poll for */
 	u16 poll_type;
+	/* port rcvhdrq head offset */
+	u32 port_head;
 };
 
 struct sk_buff;
@@ -314,8 +316,6 @@ struct ipath_devdata {
 	 * supports, less gives more pio bufs/port, etc.
 	 */
 	u32 ipath_cfgports;
-	/* port0 rcvhdrq head offset */
-	u32 ipath_port0head;
 	/* count of port 0 hdrqfull errors */
 	u32 ipath_p0_hdrqfull;
 
@@ -690,7 +690,7 @@ void ipath_free_pddata(struct ipath_devdata *, struct ipath_portdata *);
 
 int ipath_parse_ushort(const char *str, unsigned short *valp);
 
-void ipath_kreceive(struct ipath_devdata *);
+void ipath_kreceive(struct ipath_portdata *);
 int ipath_setrcvhdrsize(struct ipath_devdata *, unsigned);
 int ipath_reset_device(int);
 void ipath_get_faststats(unsigned long);
@@ -926,6 +926,17 @@ static inline u32 ipath_read_creg32(const struct ipath_devdata *dd,
 	return readl(regno + (u64 __iomem *)
 		     (dd->ipath_cregbase +
 		      (char __iomem *)dd->ipath_kregbase));
+}
+
+static inline void ipath_clear_rcvhdrtail(const struct ipath_portdata *pd)
+{
+	*((u64 *) pd->port_rcvhdrtail_kvaddr) = 0ULL;
+}
+
+static inline u32 ipath_get_rcvhdrtail(const struct ipath_portdata *pd)
+{
+	return (u32) le64_to_cpu(*((volatile __le64 *)
+				pd->port_rcvhdrtail_kvaddr));
 }
 
 /*
