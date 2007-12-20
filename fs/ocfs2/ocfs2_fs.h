@@ -270,6 +270,14 @@ struct ocfs2_new_group_input {
 /* Journal limits (in bytes) */
 #define OCFS2_MIN_JOURNAL_SIZE		(4 * 1024 * 1024)
 
+/*
+ * Default local alloc size (in megabytes)
+ *
+ * The value chosen should be such that most allocations, including new
+ * block groups, use local alloc.
+ */
+#define OCFS2_DEFAULT_LOCAL_ALLOC_SIZE	8
+
 struct ocfs2_system_inode_info {
 	char	*si_name;
 	int	si_iflags;

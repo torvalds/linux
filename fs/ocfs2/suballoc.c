@@ -1516,8 +1516,9 @@ int __ocfs2_claim_clusters(struct ocfs2_super *osb,
 		if (min_clusters > (osb->bitmap_cpg - 1)) {
 			/* The only paths asking for contiguousness
 			 * should know about this already. */
-			mlog(ML_ERROR, "minimum allocation requested exceeds "
-				       "group bitmap size!");
+			mlog(ML_ERROR, "minimum allocation requested %u exceeds "
+			     "group bitmap size %u!\n", min_clusters,
+			     osb->bitmap_cpg);
 			status = -ENOSPC;
 			goto bail;
 		}

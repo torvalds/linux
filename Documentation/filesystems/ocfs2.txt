@@ -72,3 +72,6 @@ commit=nrsec	(*)	Ocfs2 can be told to sync all its data and metadata
 			it at the default (5 seconds).
 			Setting it to very large values will improve
 			performance.
+localalloc=8(*)		Allows custom localalloc size in MB. If the value is too
+			large, the fs will silently revert it to the default.
+			Localalloc is not enabled for local mounts.
