@@ -1058,8 +1058,7 @@ void __init pmac_pci_init(void)
 #endif
 }
 
-int
-pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
+int pmac_pci_enable_device_hook(struct pci_dev *dev)
 {
 	struct device_node* node;
 	int updatecfg = 0;
@@ -1101,26 +1100,25 @@ pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
 		updatecfg = 1;
 	}
 
+	/*
+	 * Fixup various header fields on 32 bits. We don't do that on
+	 * 64 bits as some of these have strange values behind the HT
+	 * bridge and we must not, for example, enable MWI or set the
+	 * cache line size on them.
+	 */
+#ifdef CONFIG_PPC32
 	if (updatecfg) {
 		u16 cmd;
 
-		/*
-		 * Make sure PCI is correctly configured
-		 *
-		 * We use old pci_bios versions of the function since, by
-		 * default, gmac is not powered up, and so will be absent
-		 * from the kernel initial PCI lookup.
-		 *
-		 * Should be replaced by 2.4 new PCI mechanisms and really
-		 * register the device.
-		 */
 		pci_read_config_word(dev, PCI_COMMAND, &cmd);
 		cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER
 			| PCI_COMMAND_INVALIDATE;
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 16);
+
 		pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
 				      L1_CACHE_BYTES >> 2);
+#endif
 	}
 
 	return 0;

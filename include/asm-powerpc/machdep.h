@@ -204,12 +204,6 @@ struct machdep_calls {
 	/*
 	 * optional PCI "hooks"
 	 */
-
-	/* Called when pci_enable_device() is called (initial=0) or
-	 * when a device with no assigned resource is found (initial=1).
-	 * Returns 0 to allow assignment/enabling of the device. */
-	int  (*pcibios_enable_device_hook)(struct pci_dev *, int initial);
-
 	/* Called in indirect_* to avoid touching devices */
 	int (*pci_exclude_device)(struct pci_controller *, unsigned char, unsigned char);
 
@@ -224,6 +218,10 @@ struct machdep_calls {
 
 	/* Called for each PCI bus in the system when it's probed */
 	void (*pcibios_fixup_bus)(struct pci_bus *);
+
+	/* Called when pci_enable_device() is called. Returns 0 to
+	 * allow assignment/enabling of the device. */
+	int  (*pcibios_enable_device_hook)(struct pci_dev *);
 
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
