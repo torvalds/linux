@@ -3847,7 +3847,8 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 		ai->config.authType = AUTH_OPEN;
 		ai->config.modulation = MOD_CCK;
 
-		if ((cap_rid.len>=sizeof(cap_rid)) && (cap_rid.extSoftCap&1) &&
+		if ((cap_rid.len>=sizeof(cap_rid)) &&
+		    (cap_rid.extSoftCap & cpu_to_le16(1)) &&
 		    (micsetup(ai) == SUCCESS)) {
 			ai->config.opmode |= MODE_MIC;
 			set_bit(FLAG_MIC_CAPABLE, &ai->flags);
