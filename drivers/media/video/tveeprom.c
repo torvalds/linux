@@ -260,6 +260,8 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,        		"TCL M09WPP_4N_E"},
 	{ TUNER_ABSENT,        		"MaxLinear MXL5005_v2"},
 	{ TUNER_PHILIPS_TDA8290, 	"Philips 18271_8295"},
+	/* 150-159 */
+	{ TUNER_ABSENT,        "Xceive XC5000"},
 };
 
 static struct HAUPPAUGE_AUDIOIC
