@@ -636,14 +636,56 @@ static int hpc_power_on_slot(struct slot * slot)
 	return retval;
 }
 
+static inline int pcie_mask_bad_dllp(struct controller *ctrl)
+{
+	struct pci_dev *dev = ctrl->pci_dev;
+	int pos;
+	u32 reg;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (!pos)
+		return 0;
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &reg);
+	if (reg & PCI_ERR_COR_BAD_DLLP)
+		return 0;
+	reg |= PCI_ERR_COR_BAD_DLLP;
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg);
+	return 1;
+}
+
+static inline void pcie_unmask_bad_dllp(struct controller *ctrl)
+{
+	struct pci_dev *dev = ctrl->pci_dev;
+	u32 reg;
+	int pos;
+
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (!pos)
+		return;
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &reg);
+	if (!(reg & PCI_ERR_COR_BAD_DLLP))
+		return;
+	reg &= ~PCI_ERR_COR_BAD_DLLP;
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg);
+}
+
 static int hpc_power_off_slot(struct slot * slot)
 {
 	struct controller *ctrl = slot->ctrl;
 	u16 slot_cmd;
 	u16 cmd_mask;
 	int retval = 0;
+	int changed;
 
 	dbg("%s: slot->hp_slot %x\n", __FUNCTION__, slot->hp_slot);
+
+	/*
+	 * Set Bad DLLP Mask bit in Correctable Error Mask
+	 * Register. This is the workaround against Bad DLLP error
+	 * that sometimes happens during turning power off the slot
+	 * which conforms to PCI Express 1.0a spec.
+	 */
+	changed = pcie_mask_bad_dllp(ctrl);
 
 	slot_cmd = POWER_OFF;
 	cmd_mask = PWR_CTRL;
@@ -680,6 +722,9 @@ static int hpc_power_off_slot(struct slot * slot)
 	 * removed from the slot/adapter.
 	 */
 	msleep(1000);
+
+	if (changed)
+		pcie_unmask_bad_dllp(ctrl);
 
 	return retval;
 }
