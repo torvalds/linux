@@ -501,10 +501,10 @@ typedef struct {
 /* This structure came from an email sent to me from an engineer at
    aironet for inclusion into this driver */
 typedef struct {
-	u16 len;
-	u16 kindex;
+	__le16 len;
+	__le16 kindex;
 	u8 mac[ETH_ALEN];
-	u16 klen;
+	__le16 klen;
 	u8 key[16];
 } WepKeyRid;
 
@@ -1750,31 +1750,22 @@ static int readBSSListRid(struct airo_info *ai, int first,
 			    list, ai->bssListRidLen, 1);
 }
 
-static int readWepKeyRid(struct airo_info*ai, WepKeyRid *wkr, int temp, int lock) {
-	int rc = PC4500_readrid(ai, temp ? RID_WEP_TEMP : RID_WEP_PERM,
+static int readWepKeyRid(struct airo_info *ai, WepKeyRid *wkr, int temp, int lock)
+{
+	return PC4500_readrid(ai, temp ? RID_WEP_TEMP : RID_WEP_PERM,
 				wkr, sizeof(*wkr), lock);
-
-	wkr->len = le16_to_cpu(wkr->len);
-	wkr->kindex = le16_to_cpu(wkr->kindex);
-	wkr->klen = le16_to_cpu(wkr->klen);
-	return rc;
 }
-/* In the writeXXXRid routines we copy the rids so that we don't screwup
- * the originals when we endian them... */
-static int writeWepKeyRid(struct airo_info*ai, WepKeyRid *pwkr, int perm, int lock) {
-	int rc;
-	WepKeyRid wkr = *pwkr;
 
-	wkr.len = cpu_to_le16(wkr.len);
-	wkr.kindex = cpu_to_le16(wkr.kindex);
-	wkr.klen = cpu_to_le16(wkr.klen);
-	rc = PC4500_writerid(ai, RID_WEP_TEMP, &wkr, sizeof(wkr), lock);
-	if (rc!=SUCCESS) airo_print_err(ai->dev->name, "WEP_TEMP set %x", rc);
+static int writeWepKeyRid(struct airo_info *ai, WepKeyRid *wkr, int perm, int lock)
+{
+	int rc;
+	rc = PC4500_writerid(ai, RID_WEP_TEMP, wkr, sizeof(*wkr), lock);
+	if (rc!=SUCCESS)
+		airo_print_err(ai->dev->name, "WEP_TEMP set %x", rc);
 	if (perm) {
-		rc = PC4500_writerid(ai, RID_WEP_PERM, &wkr, sizeof(wkr), lock);
-		if (rc!=SUCCESS) {
+		rc = PC4500_writerid(ai, RID_WEP_PERM, wkr, sizeof(*wkr), lock);
+		if (rc!=SUCCESS)
 			airo_print_err(ai->dev->name, "WEP_PERM set %x", rc);
-		}
 	}
 	return rc;
 }
@@ -3755,7 +3746,7 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	int status;
 	int i;
 	SsidRid mySsid;
-	u16 lastindex;
+	__le16 lastindex;
 	WepKeyRid wkr;
 	int rc;
 
@@ -3891,7 +3882,7 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	rc = readWepKeyRid(ai, &wkr, 1, lock);
 	if (rc == SUCCESS) do {
 		lastindex = wkr.kindex;
-		if (wkr.kindex == 0xffff) {
+		if (wkr.kindex == cpu_to_le16(0xffff)) {
 			ai->defindex = wkr.mac[0];
 		}
 		rc = readWepKeyRid(ai, &wkr, 0, lock);
@@ -5197,39 +5188,40 @@ static int do_writerid( struct airo_info *ai, u16 rid, const void *rid_data,
 static int get_wep_key(struct airo_info *ai, u16 index) {
 	WepKeyRid wkr;
 	int rc;
-	u16 lastindex;
+	__le16 lastindex;
 
 	rc = readWepKeyRid(ai, &wkr, 1, 1);
 	if (rc == SUCCESS) do {
 		lastindex = wkr.kindex;
-		if (wkr.kindex == index) {
+		if (wkr.kindex == cpu_to_le16(index)) {
 			if (index == 0xffff) {
 				return wkr.mac[0];
 			}
-			return wkr.klen;
+			return le16_to_cpu(wkr.klen);
 		}
 		readWepKeyRid(ai, &wkr, 0, 1);
-	} while(lastindex != wkr.kindex);
+	} while (lastindex != wkr.kindex);
 	return -1;
 }
 
 static int set_wep_key(struct airo_info *ai, u16 index,
-		       const char *key, u16 keylen, int perm, int lock ) {
+		       const char *key, u16 keylen, int perm, int lock )
+{
 	static const unsigned char macaddr[ETH_ALEN] = { 0x01, 0, 0, 0, 0, 0 };
 	WepKeyRid wkr;
 
 	memset(&wkr, 0, sizeof(wkr));
 	if (keylen == 0) {
 // We are selecting which key to use
-		wkr.len = sizeof(wkr);
-		wkr.kindex = 0xffff;
+		wkr.len = cpu_to_le16(sizeof(wkr));
+		wkr.kindex = cpu_to_le16(0xffff);
 		wkr.mac[0] = (char)index;
 		if (perm) ai->defindex = (char)index;
 	} else {
 // We are actually setting the key
-		wkr.len = sizeof(wkr);
-		wkr.kindex = index;
-		wkr.klen = keylen;
+		wkr.len = cpu_to_le16(sizeof(wkr));
+		wkr.kindex = cpu_to_le16(index);
+		wkr.klen = cpu_to_le16(keylen);
 		memcpy( wkr.key, key, keylen );
 		memcpy( wkr.mac, macaddr, ETH_ALEN );
 	}
@@ -5281,14 +5273,15 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	set_wep_key(ai, index, key, i/3, 1, 1);
 }
 
-static int proc_wepkey_open( struct inode *inode, struct file *file ) {
+static int proc_wepkey_open( struct inode *inode, struct file *file )
+{
 	struct proc_data *data;
 	struct proc_dir_entry *dp = PDE(inode);
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = dev->priv;
 	char *ptr;
 	WepKeyRid wkr;
-	u16 lastindex;
+	__le16 lastindex;
 	int j=0;
 	int rc;
 
@@ -5314,12 +5307,13 @@ static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	rc = readWepKeyRid(ai, &wkr, 1, 1);
 	if (rc == SUCCESS) do {
 		lastindex = wkr.kindex;
-		if (wkr.kindex == 0xffff) {
+		if (wkr.kindex == cpu_to_le16(0xffff)) {
 			j += sprintf(ptr+j, "Tx key = %d\n",
 				     (int)wkr.mac[0]);
 		} else {
 			j += sprintf(ptr+j, "Key %d set with length = %d\n",
-				     (int)wkr.kindex, (int)wkr.klen);
+				     le16_to_cpu(wkr.kindex),
+				     le16_to_cpu(wkr.klen));
 		}
 		readWepKeyRid(ai, &wkr, 0, 1);
 	} while((lastindex != wkr.kindex) && (j < 180-30));
