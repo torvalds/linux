@@ -27,6 +27,7 @@
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/signal.h>
+#include <linux/compat.h>
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
@@ -112,20 +113,6 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		goto out_tsk;
 
 	switch (request) {
-	/* when I and D space are separate, these will need to be fixed. */
-	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
-	case PTRACE_PEEKDATA: {
-		unsigned int tmp;
-		int copied;
-
-		copied = access_process_vm(child, addr, &tmp, sizeof(tmp), 0);
-		ret = -EIO;
-		if (copied != sizeof(tmp))
-			break;
-		ret = put_user(tmp, (u32 __user *)data);
-		break;
-	}
-
 	/*
 	 * Read 4 bytes of the other process' storage
 	 *  data is a pointer specifying where the user wants the
@@ -222,19 +209,6 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		} 
 		reg32bits = ((u32*)&tmp)[part];
 		ret = put_user(reg32bits, (u32 __user *)data);
-		break;
-	}
-
-	/* If I and D space are separate, this will have to be fixed. */
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA: {
-		unsigned int tmp;
-		tmp = data;
-		ret = 0;
-		if (access_process_vm(child, addr, &tmp, sizeof(tmp), 1)
-				== sizeof(tmp))
-			break;
-		ret = -EIO;
 		break;
 	}
 
@@ -337,10 +311,6 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		break;
 	}
 
-	case PTRACE_GETEVENTMSG:
-		ret = put_user(child->ptrace_message, (unsigned int __user *) data);
-		break;
-
 	case PTRACE_GETREGS: { /* Get all pt_regs from the child. */
 		int ui;
 	  	if (!access_ok(VERIFY_WRITE, (void __user *)data,
@@ -402,7 +372,7 @@ long compat_sys_ptrace(int request, int pid, unsigned long addr,
 		break;
 
 	default:
-		ret = ptrace_request(child, request, addr, data);
+		ret = compat_ptrace_request(child, request, addr, data);
 		break;
 	}
 out_tsk:
