@@ -3593,6 +3593,12 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
 		goto failed_req_create;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&unit->status))) {
+		retval = -EBUSY;
+		goto unit_blocked;
+	}
+
 	zfcp_unit_get(unit);
 	fsf_req->unit = unit;
 
@@ -3733,6 +3739,7 @@ zfcp_fsf_send_fcp_command_task(struct zfcp_adapter *adapter,
  send_failed:
  no_fit:
  failed_scsi_cmnd:
+ unit_blocked:
 	zfcp_unit_put(unit);
 	zfcp_fsf_req_free(fsf_req);
 	fsf_req = NULL;

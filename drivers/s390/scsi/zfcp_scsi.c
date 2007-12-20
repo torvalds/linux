@@ -258,8 +258,9 @@ zfcp_scsi_command_async(struct zfcp_adapter *adapter, struct zfcp_unit *unit,
 		goto out;
 	}
 
-	if (unlikely(
-	     !atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED, &unit->status))) {
+	tmp = zfcp_fsf_send_fcp_command_task(adapter, unit, scpnt, use_timer,
+					     ZFCP_REQ_AUTO_CLEANUP);
+	if (unlikely(tmp == -EBUSY)) {
 		ZFCP_LOG_DEBUG("adapter %s not ready or unit 0x%016Lx "
 			       "on port 0x%016Lx in recovery\n",
 			       zfcp_get_busid_by_unit(unit),
@@ -267,9 +268,6 @@ zfcp_scsi_command_async(struct zfcp_adapter *adapter, struct zfcp_unit *unit,
 		zfcp_scsi_command_fail(scpnt, DID_NO_CONNECT);
 		goto out;
 	}
-
-	tmp = zfcp_fsf_send_fcp_command_task(adapter, unit, scpnt, use_timer,
-					     ZFCP_REQ_AUTO_CLEANUP);
 
 	if (unlikely(tmp < 0)) {
 		ZFCP_LOG_DEBUG("error: initiation of Send FCP Cmnd failed\n");
