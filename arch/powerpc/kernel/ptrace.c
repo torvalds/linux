@@ -60,20 +60,38 @@
 #define PT_MAX_PUT_REG	PT_CCR
 #endif
 
+static unsigned long get_user_msr(struct task_struct *task)
+{
+	return task->thread.regs->msr | task->thread.fpexc_mode;
+}
+
+static int set_user_msr(struct task_struct *task, unsigned long msr)
+{
+	task->thread.regs->msr &= ~MSR_DEBUGCHANGE;
+	task->thread.regs->msr |= msr & MSR_DEBUGCHANGE;
+	return 0;
+}
+
+/*
+ * We prevent mucking around with the reserved area of trap
+ * which are used internally by the kernel.
+ */
+static int set_user_trap(struct task_struct *task, unsigned long trap)
+{
+	task->thread.regs->trap = trap & 0xfff0;
+	return 0;
+}
+
 /*
  * Get contents of register REGNO in task TASK.
  */
 unsigned long ptrace_get_reg(struct task_struct *task, int regno)
 {
-	unsigned long tmp = 0;
-
 	if (task->thread.regs == NULL)
 		return -EIO;
 
-	if (regno == PT_MSR) {
-		tmp = ((unsigned long *)task->thread.regs)[PT_MSR];
-		return tmp | task->thread.fpexc_mode;
-	}
+	if (regno == PT_MSR)
+		return get_user_msr(task);
 
 	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long)))
 		return ((unsigned long *)task->thread.regs)[regno];
@@ -89,15 +107,12 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 	if (task->thread.regs == NULL)
 		return -EIO;
 
-	if (regno <= PT_MAX_PUT_REG || regno == PT_TRAP) {
-		if (regno == PT_MSR)
-			data = (data & MSR_DEBUGCHANGE)
-				| (task->thread.regs->msr & ~MSR_DEBUGCHANGE);
-		/* We prevent mucking around with the reserved area of trap
-		 * which are used internally by the kernel
-		 */
-		if (regno == PT_TRAP)
-			data &= 0xfff0;
+	if (regno == PT_MSR)
+		return set_user_msr(task, data);
+	if (regno == PT_TRAP)
+		return set_user_trap(task, data);
+
+	if (regno <= PT_MAX_PUT_REG) {
 		((unsigned long *)task->thread.regs)[regno] = data;
 		return 0;
 	}
