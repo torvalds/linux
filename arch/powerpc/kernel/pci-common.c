@@ -1147,7 +1147,10 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 		r = &dev->resource[idx];
 		if (!(r->flags & (IORESOURCE_IO | IORESOURCE_MEM)))
 			continue;
-		if (r->flags & IORESOURCE_UNSET) {
+		if ((idx == PCI_ROM_RESOURCE) &&
+				(!(r->flags & IORESOURCE_ROM_ENABLE)))
+			continue;
+		if (r->parent == NULL) {
 			printk(KERN_ERR "PCI: Device %s not available because"
 			       " of resource collisions\n", pci_name(dev));
 			return -EINVAL;
