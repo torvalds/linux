@@ -132,27 +132,6 @@ int spu_64k_pages_available(void)
 }
 EXPORT_SYMBOL_GPL(spu_64k_pages_available);
 
-static int __spu_trap_invalid_dma(struct spu *spu)
-{
-	pr_debug("%s\n", __FUNCTION__);
-	spu->dma_callback(spu, SPE_EVENT_INVALID_DMA);
-	return 0;
-}
-
-static int __spu_trap_dma_align(struct spu *spu)
-{
-	pr_debug("%s\n", __FUNCTION__);
-	spu->dma_callback(spu, SPE_EVENT_DMA_ALIGNMENT);
-	return 0;
-}
-
-static int __spu_trap_error(struct spu *spu)
-{
-	pr_debug("%s\n", __FUNCTION__);
-	spu->dma_callback(spu, SPE_EVENT_SPE_ERROR);
-	return 0;
-}
-
 static void spu_restart_dma(struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
@@ -252,10 +231,12 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 		return 1;
 	}
 
+	spu->class_0_pending = 0;
 	spu->dar = ea;
 	spu->dsisr = dsisr;
-	mb();
+
 	spu->stop_callback(spu);
+
 	return 0;
 }
 
@@ -335,12 +316,13 @@ spu_irq_class_0(int irq, void *data)
 
 	spu = data;
 
-	mask = spu_int_mask_get(spu, 0);
-	stat = spu_int_stat_get(spu, 0);
-	stat &= mask;
-
 	spin_lock(&spu->register_lock);
+	mask = spu_int_mask_get(spu, 0);
+	stat = spu_int_stat_get(spu, 0) & mask;
+
 	spu->class_0_pending |= stat;
+	spu->dsisr = spu_mfc_dsisr_get(spu);
+	spu->dar = spu_mfc_dar_get(spu);
 	spin_unlock(&spu->register_lock);
 
 	spu->stop_callback(spu);
@@ -349,31 +331,6 @@ spu_irq_class_0(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
-
-int
-spu_irq_class_0_bottom(struct spu *spu)
-{
-	unsigned long flags;
-	unsigned long stat;
-
-	spin_lock_irqsave(&spu->register_lock, flags);
-	stat = spu->class_0_pending;
-	spu->class_0_pending = 0;
-
-	if (stat & CLASS0_DMA_ALIGNMENT_INTR)
-		__spu_trap_dma_align(spu);
-
-	if (stat & CLASS0_INVALID_DMA_COMMAND_INTR)
-		__spu_trap_invalid_dma(spu);
-
-	if (stat & CLASS0_SPU_ERROR_INTR)
-		__spu_trap_error(spu);
-
-	spin_unlock_irqrestore(&spu->register_lock, flags);
-
-	return (stat & CLASS0_INTR_MASK) ? -EIO : 0;
-}
-EXPORT_SYMBOL_GPL(spu_irq_class_0_bottom);
 
 static irqreturn_t
 spu_irq_class_1(int irq, void *data)

@@ -28,46 +28,69 @@
 
 #include "spufs.h"
 
-static void spufs_handle_dma_error(struct spu_context *ctx,
+/**
+ * Handle an SPE event, depending on context SPU_CREATE_EVENTS_ENABLED flag.
+ *
+ * If the context was created with events, we just set the return event.
+ * Otherwise, send an appropriate signal to the process.
+ */
+static void spufs_handle_event(struct spu_context *ctx,
 				unsigned long ea, int type)
 {
+	siginfo_t info;
+
 	if (ctx->flags & SPU_CREATE_EVENTS_ENABLED) {
 		ctx->event_return |= type;
 		wake_up_all(&ctx->stop_wq);
-	} else {
-		siginfo_t info;
-		memset(&info, 0, sizeof(info));
-
-		switch (type) {
-		case SPE_EVENT_INVALID_DMA:
-			info.si_signo = SIGBUS;
-			info.si_code = BUS_OBJERR;
-			break;
-		case SPE_EVENT_SPE_DATA_STORAGE:
-			info.si_signo = SIGBUS;
-			info.si_addr = (void __user *)ea;
-			info.si_code = BUS_ADRERR;
-			break;
-		case SPE_EVENT_DMA_ALIGNMENT:
-			info.si_signo = SIGBUS;
-			/* DAR isn't set for an alignment fault :( */
-			info.si_code = BUS_ADRALN;
-			break;
-		case SPE_EVENT_SPE_ERROR:
-			info.si_signo = SIGILL;
-			info.si_addr = (void __user *)(unsigned long)
-				ctx->ops->npc_read(ctx) - 4;
-			info.si_code = ILL_ILLOPC;
-			break;
-		}
-		if (info.si_signo)
-			force_sig_info(info.si_signo, &info, current);
+		return;
 	}
+
+	memset(&info, 0, sizeof(info));
+
+	switch (type) {
+	case SPE_EVENT_INVALID_DMA:
+		info.si_signo = SIGBUS;
+		info.si_code = BUS_OBJERR;
+		break;
+	case SPE_EVENT_SPE_DATA_STORAGE:
+		info.si_signo = SIGBUS;
+		info.si_addr = (void __user *)ea;
+		info.si_code = BUS_ADRERR;
+		break;
+	case SPE_EVENT_DMA_ALIGNMENT:
+		info.si_signo = SIGBUS;
+		/* DAR isn't set for an alignment fault :( */
+		info.si_code = BUS_ADRALN;
+		break;
+	case SPE_EVENT_SPE_ERROR:
+		info.si_signo = SIGILL;
+		info.si_addr = (void __user *)(unsigned long)
+			ctx->ops->npc_read(ctx) - 4;
+		info.si_code = ILL_ILLOPC;
+		break;
+	}
+
+	if (info.si_signo)
+		force_sig_info(info.si_signo, &info, current);
 }
 
-void spufs_dma_callback(struct spu *spu, int type)
+int spufs_handle_class0(struct spu_context *ctx)
 {
-	spufs_handle_dma_error(spu->ctx, spu->dar, type);
+	unsigned long stat = ctx->csa.class_0_pending & CLASS0_INTR_MASK;
+
+	if (likely(!stat))
+		return 0;
+
+	if (stat & CLASS0_DMA_ALIGNMENT_INTR)
+		spufs_handle_event(ctx, ctx->csa.dar, SPE_EVENT_DMA_ALIGNMENT);
+
+	if (stat & CLASS0_INVALID_DMA_COMMAND_INTR)
+		spufs_handle_event(ctx, ctx->csa.dar, SPE_EVENT_INVALID_DMA);
+
+	if (stat & CLASS0_SPU_ERROR_INTR)
+		spufs_handle_event(ctx, ctx->csa.dar, SPE_EVENT_SPE_ERROR);
+
+	return -EIO;
 }
 
 /*
@@ -95,16 +118,8 @@ int spufs_handle_class1(struct spu_context *ctx)
 	 * in time, we can still expect to get the same fault
 	 * the immediately after the context restore.
 	 */
-	if (ctx->state == SPU_STATE_RUNNABLE) {
-		ea = ctx->spu->dar;
-		dsisr = ctx->spu->dsisr;
-		ctx->spu->dar= ctx->spu->dsisr = 0;
-	} else {
-		ea = ctx->csa.priv1.mfc_dar_RW;
-		dsisr = ctx->csa.priv1.mfc_dsisr_RW;
-		ctx->csa.priv1.mfc_dar_RW = 0;
-		ctx->csa.priv1.mfc_dsisr_RW = 0;
-	}
+	ea = ctx->csa.dar;
+	dsisr = ctx->csa.dsisr;
 
 	if (!(dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED)))
 		return 0;
@@ -132,6 +147,14 @@ int spufs_handle_class1(struct spu_context *ctx)
 		ret = spu_handle_mm_fault(current->mm, ea, dsisr, &flt);
 
 	spu_acquire(ctx);
+
+	/*
+	 * Clear dsisr under ctxt lock after handling the fault, so that
+	 * time slicing will not preempt the context while the page fault
+	 * handler is running. Context switch code removes mappings.
+	 */
+	ctx->csa.dar = ctx->csa.dsisr = 0;
+
 	/*
 	 * If we handled the fault successfully and are in runnable
 	 * state, restart the DMA.
@@ -152,7 +175,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 		if (ctx->spu)
 			ctx->ops->restart_dma(ctx);
 	} else
-		spufs_handle_dma_error(ctx, ea, SPE_EVENT_SPE_DATA_STORAGE);
+		spufs_handle_event(ctx, ea, SPE_EVENT_SPE_DATA_STORAGE);
 
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 	return ret;

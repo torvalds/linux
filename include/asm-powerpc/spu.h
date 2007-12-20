@@ -146,7 +146,6 @@ struct spu {
 	void (* ibox_callback)(struct spu *spu);
 	void (* stop_callback)(struct spu *spu);
 	void (* mfc_callback)(struct spu *spu);
-	void (* dma_callback)(struct spu *spu, int type);
 
 	char irq_c0[8];
 	char irq_c1[8];
@@ -197,8 +196,6 @@ struct cbe_spu_info {
 extern struct cbe_spu_info cbe_spu_info[];
 
 void spu_init_channels(struct spu *spu);
-int spu_irq_class_0_bottom(struct spu *spu);
-int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
 
 void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,

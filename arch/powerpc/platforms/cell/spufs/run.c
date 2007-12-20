@@ -15,7 +15,30 @@ void spufs_stop_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
-	wake_up_all(&ctx->stop_wq);
+	/*
+	 * It should be impossible to preempt a context while an exception
+	 * is being processed, since the context switch code is specially
+	 * coded to deal with interrupts ... But, just in case, sanity check
+	 * the context pointer.  It is OK to return doing nothing since
+	 * the exception will be regenerated when the context is resumed.
+	 */
+	if (ctx) {
+		/* Copy exception arguments into module specific structure */
+		ctx->csa.class_0_pending = spu->class_0_pending;
+		ctx->csa.dsisr = spu->dsisr;
+		ctx->csa.dar = spu->dar;
+
+		/* ensure that the exception status has hit memory before a
+		 * thread waiting on the context's stop queue is woken */
+		smp_wmb();
+
+		wake_up_all(&ctx->stop_wq);
+	}
+
+	/* Clear callback arguments from spu structure */
+	spu->class_0_pending = 0;
+	spu->dsisr = 0;
+	spu->dar = 0;
 }
 
 static inline int spu_stopped(struct spu_context *ctx, u32 *stat)
@@ -29,9 +52,9 @@ static inline int spu_stopped(struct spu_context *ctx, u32 *stat)
 	if (ctx->state != SPU_STATE_RUNNABLE ||
 	    test_bit(SPU_SCHED_NOTIFY_ACTIVE, &ctx->sched_flags))
 		return 1;
-	pte_fault = spu->dsisr &
+	pte_fault = ctx->csa.dsisr &
 	    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED);
-	return (!(*stat & SPU_STATUS_RUNNING) || pte_fault || spu->class_0_pending) ?
+	return (!(*stat & SPU_STATUS_RUNNING) || pte_fault || ctx->csa.class_0_pending) ?
 		1 : 0;
 }
 
@@ -287,18 +310,6 @@ static int spu_process_callback(struct spu_context *ctx)
 	return ret;
 }
 
-static inline int spu_process_events(struct spu_context *ctx)
-{
-	struct spu *spu = ctx->spu;
-	int ret = 0;
-
-	if (spu->class_0_pending)
-		ret = spu_irq_class_0_bottom(spu);
-	if (!ret && signal_pending(current))
-		ret = -ERESTARTSYS;
-	return ret;
-}
-
 long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 {
 	int ret;
@@ -364,13 +375,20 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 		if (ret)
 			break;
 
+		ret = spufs_handle_class0(ctx);
+		if (ret)
+			break;
+
 		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
 			ret = spu_reacquire_runnable(ctx, npc, &status);
 			if (ret)
 				goto out2;
 			continue;
 		}
-		ret = spu_process_events(ctx);
+
+		if (signal_pending(current))
+			ret = -ERESTARTSYS;
+
 
 	} while (!ret && !(status & (SPU_STATUS_STOPPED_BY_STOP |
 				      SPU_STATUS_STOPPED_BY_HALT |

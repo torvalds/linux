@@ -222,6 +222,7 @@ void spu_gang_add_ctx(struct spu_gang *gang, struct spu_context *ctx);
 
 /* fault handling */
 int spufs_handle_class1(struct spu_context *ctx);
+int spufs_handle_class0(struct spu_context *ctx);
 
 /* affinity */
 struct spu *affinity_check(struct spu_context *ctx);
