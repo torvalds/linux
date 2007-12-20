@@ -58,6 +58,7 @@ static unsigned long spu_avenrun[3];
 static struct spu_prio_array *spu_prio;
 static struct task_struct *spusched_task;
 static struct timer_list spusched_timer;
+static struct timer_list spuloadavg_timer;
 
 /*
  * Priority of a normal, non-rt, non-niced'd process (aka nice level 0).
@@ -922,35 +923,31 @@ static unsigned long count_active_contexts(void)
 }
 
 /**
- * spu_calc_load - given tick count, update the avenrun load estimates.
- * @tick:	tick count
+ * spu_calc_load - update the avenrun load estimates.
  *
  * No locking against reading these values from userspace, as for
  * the CPU loadavg code.
  */
-static void spu_calc_load(unsigned long ticks)
+static void spu_calc_load(void)
 {
 	unsigned long active_tasks; /* fixed-point */
-	static int count = LOAD_FREQ;
 
-	count -= ticks;
-
-	if (unlikely(count < 0)) {
-		active_tasks = count_active_contexts() * FIXED_1;
-		do {
-			CALC_LOAD(spu_avenrun[0], EXP_1, active_tasks);
-			CALC_LOAD(spu_avenrun[1], EXP_5, active_tasks);
-			CALC_LOAD(spu_avenrun[2], EXP_15, active_tasks);
-			count += LOAD_FREQ;
-		} while (count < 0);
-	}
+	active_tasks = count_active_contexts() * FIXED_1;
+	CALC_LOAD(spu_avenrun[0], EXP_1, active_tasks);
+	CALC_LOAD(spu_avenrun[1], EXP_5, active_tasks);
+	CALC_LOAD(spu_avenrun[2], EXP_15, active_tasks);
 }
 
 static void spusched_wake(unsigned long data)
 {
 	mod_timer(&spusched_timer, jiffies + SPUSCHED_TICK);
 	wake_up_process(spusched_task);
-	spu_calc_load(SPUSCHED_TICK);
+}
+
+static void spuloadavg_wake(unsigned long data)
+{
+	mod_timer(&spuloadavg_timer, jiffies + LOAD_FREQ);
+	spu_calc_load();
 }
 
 static int spusched_thread(void *unused)
@@ -1068,12 +1065,15 @@ int __init spu_sched_init(void)
 	spin_lock_init(&spu_prio->runq_lock);
 
 	setup_timer(&spusched_timer, spusched_wake, 0);
+	setup_timer(&spuloadavg_timer, spuloadavg_wake, 0);
 
 	spusched_task = kthread_run(spusched_thread, NULL, "spusched");
 	if (IS_ERR(spusched_task)) {
 		err = PTR_ERR(spusched_task);
 		goto out_free_spu_prio;
 	}
+
+	mod_timer(&spuloadavg_timer, 0);
 
 	entry = create_proc_entry("spu_loadavg", 0, NULL);
 	if (!entry)
@@ -1100,6 +1100,7 @@ void spu_sched_exit(void)
 	remove_proc_entry("spu_loadavg", NULL);
 
 	del_timer_sync(&spusched_timer);
+	del_timer_sync(&spuloadavg_timer);
 	kthread_stop(spusched_task);
 
 	for (node = 0; node < MAX_NUMNODES; node++) {
