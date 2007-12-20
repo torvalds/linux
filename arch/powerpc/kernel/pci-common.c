@@ -190,6 +190,20 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 	struct of_irq oirq;
 	unsigned int virq;
 
+	/* The current device-tree that iSeries generates from the HV
+	 * PCI informations doesn't contain proper interrupt routing,
+	 * and all the fallback would do is print out crap, so we
+	 * don't attempt to resolve the interrupts here at all, some
+	 * iSeries specific fixup does it.
+	 *
+	 * In the long run, we will hopefully fix the generated device-tree
+	 * instead.
+	 */
+#ifdef CONFIG_PPC_ISERIES
+	if (firmware_has_feature(FW_FEATURE_ISERIES))
+		return -1;
+#endif
+
 	DBG("Try to map irq for %s...\n", pci_name(pci_dev));
 
 #ifdef DEBUG
@@ -946,7 +960,7 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 			    || res->start > res->end)
 				continue;
 			if (bus->parent == NULL)
-				pr = (res->flags & IORESOURCE_IO)?
+				pr = (res->flags & IORESOURCE_IO) ?
 					&ioport_resource : &iomem_resource;
 			else {
 				/* Don't bother with non-root busses when

@@ -20,6 +20,9 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
+
+#undef DEBUG
+
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/string.h>
@@ -58,6 +61,7 @@ static int limit_pci_retries = 1;	/* Set Retry Error on. */
 #define IOMM_TABLE_MAX_ENTRIES	1024
 #define IOMM_TABLE_ENTRY_SIZE	0x0000000000400000UL
 #define BASE_IO_MEMORY		0xE000000000000000UL
+#define END_IO_MEMORY		0xEFFFFFFFFFFFFFFFUL
 
 static unsigned long max_io_memory = BASE_IO_MEMORY;
 static long current_iomm_table_entry;
@@ -68,7 +72,6 @@ static long current_iomm_table_entry;
 static struct device_node *iomm_table[IOMM_TABLE_MAX_ENTRIES];
 static u8 iobar_table[IOMM_TABLE_MAX_ENTRIES];
 
-static const char pci_io_text[] = "iSeries PCI I/O";
 static DEFINE_SPINLOCK(iomm_table_lock);
 
 /*
@@ -279,8 +282,8 @@ out_free:
  * PCI: Bus  0, Device 26, Vendor 0x12AE  Frame  1, Card  C10  Ethernet
  * controller
  */
-static void __init iseries_device_information(struct pci_dev *pdev, int count,
-		u16 bus, HvSubBusNumber subbus)
+static void __init iseries_device_information(struct pci_dev *pdev,
+					      u16 bus, HvSubBusNumber subbus)
 {
 	u8 frame = 0;
 	char card[4];
@@ -290,10 +293,9 @@ static void __init iseries_device_information(struct pci_dev *pdev, int count,
 			ISERIES_GET_FUNCTION_FROM_SUBBUS(subbus));
 
 	if (iseries_get_location_code(bus, agent, &frame, card)) {
-		printk("%d. PCI: Bus%3d, Device%3d, Vendor %04X Frame%3d, "
-			"Card %4s  0x%04X\n", count, bus,
-			PCI_SLOT(pdev->devfn), pdev->vendor, frame,
-			card, (int)(pdev->class >> 8));
+		printk(KERN_INFO "PCI: %s, Vendor %04X Frame%3d, "
+		       "Card %4s  0x%04X\n", pci_name(pdev), pdev->vendor,
+		       frame, card, (int)(pdev->class >> 8));
 	}
 }
 
@@ -323,7 +325,6 @@ static void __init iomm_table_allocate_entry(struct pci_dev *dev, int bar_num)
 	 * Set Resource values.
 	 */
 	spin_lock(&iomm_table_lock);
-	bar_res->name = pci_io_text;
 	bar_res->start = BASE_IO_MEMORY +
 		IOMM_TABLE_ENTRY_SIZE * current_iomm_table_entry;
 	bar_res->end = bar_res->start + bar_size - 1;
@@ -393,61 +394,63 @@ static struct device_node *find_device_node(int bus, int devfn)
 }
 
 /*
+ * iSeries_pcibios_fixup_resources
+ *
+ * Fixes up all resources for devices
+ */
+void __init iSeries_pcibios_fixup_resources(struct pci_dev *pdev)
+{
+	const u32 *agent;
+	const u32 *sub_bus;
+	unsigned char bus = pdev->bus->number;
+	struct device_node *node;
+	int i;
+
+	node = find_device_node(bus, pdev->devfn);
+	pr_debug("PCI: iSeries %s, pdev %p, node %p\n",
+		 pci_name(pdev), pdev, node);
+	if (!node) {
+		printk("PCI: %s disabled, device tree entry not found !\n",
+		       pci_name(pdev));
+		for (i = 0; i <= PCI_ROM_RESOURCE; i++)
+			pdev->resource[i].flags = 0;
+		return;
+	}
+	sub_bus = of_get_property(node, "linux,subbus", NULL);
+	agent = of_get_property(node, "linux,agent-id", NULL);
+	if (agent && sub_bus) {
+		u8 irq = iSeries_allocate_IRQ(bus, 0, *sub_bus);
+		int err;
+
+		err = HvCallXm_connectBusUnit(bus, *sub_bus, *agent, irq);
+		if (err)
+			pci_log_error("Connect Bus Unit",
+				      bus, *sub_bus, *agent, err);
+		else {
+			err = HvCallPci_configStore8(bus, *sub_bus,
+					*agent, PCI_INTERRUPT_LINE, irq);
+			if (err)
+				pci_log_error("PciCfgStore Irq Failed!",
+						bus, *sub_bus, *agent, err);
+			else
+				pdev->irq = irq;
+		}
+	}
+
+	pdev->sysdata = node;
+	PCI_DN(node)->pcidev = pdev;
+	allocate_device_bars(pdev);
+	iseries_device_information(pdev, bus, *sub_bus);
+	iommu_devnode_init_iSeries(pdev, node);
+}
+
+/*
  * iSeries_pci_final_fixup(void)
  */
 void __init iSeries_pci_final_fixup(void)
 {
-	struct pci_dev *pdev = NULL;
-	struct device_node *node;
-	int num_dev = 0;
-
 	/* Fix up at the device node and pci_dev relationship */
 	mf_display_src(0xC9000100);
-
-	printk("pcibios_final_fixup\n");
-	for_each_pci_dev(pdev) {
-		const u32 *agent;
-		const u32 *sub_bus;
-		unsigned char bus = pdev->bus->number;
-
-		node = find_device_node(bus, pdev->devfn);
-		printk("pci dev %p (%x.%x), node %p\n", pdev, bus,
-			pdev->devfn, node);
-		if (!node) {
-			printk("PCI: Device Tree not found for 0x%016lX\n",
-					(unsigned long)pdev);
-			continue;
-		}
-
-		agent = of_get_property(node, "linux,agent-id", NULL);
-		sub_bus = of_get_property(node, "linux,subbus", NULL);
-		if (agent && sub_bus) {
-			u8 irq = iSeries_allocate_IRQ(bus, 0, *sub_bus);
-			int err;
-
-			err = HvCallXm_connectBusUnit(bus, *sub_bus,
-					*agent, irq);
-			if (err)
-				pci_log_error("Connect Bus Unit",
-					bus, *sub_bus, *agent, err);
-			else {
-				err = HvCallPci_configStore8(bus, *sub_bus,
-					*agent, PCI_INTERRUPT_LINE, irq);
-				if (err)
-					pci_log_error("PciCfgStore Irq Failed!",
-						bus, *sub_bus, *agent, err);
-				else
-					pdev->irq = irq;
-			}
-		}
-
-		num_dev++;
-		pdev->sysdata = node;
-		PCI_DN(node)->pcidev = pdev;
-		allocate_device_bars(pdev);
-		iseries_device_information(pdev, num_dev, bus, *sub_bus);
-		iommu_devnode_init_iSeries(pdev, node);
-	}
 	iSeries_activate_IRQs();
 	mf_display_src(0xC9000200);
 }
@@ -894,10 +897,18 @@ void __init iSeries_pcibios_init(void)
 		/* All legacy iSeries PHBs are in domain zero */
 		phb->global_number = 0;
 
-		phb->pci_mem_offset = bus;
 		phb->first_busno = bus;
 		phb->last_busno = bus;
 		phb->ops = &iSeries_pci_ops;
+		phb->io_base_virt = (void __iomem *)_IO_BASE;
+		phb->io_resource.flags = IORESOURCE_IO;
+		phb->io_resource.start = BASE_IO_MEMORY;
+		phb->io_resource.end = END_IO_MEMORY;
+		phb->io_resource.name = "iSeries PCI IO";
+		phb->mem_resources[0].flags = IORESOURCE_MEM;
+		phb->mem_resources[0].start = BASE_IO_MEMORY;
+		phb->mem_resources[0].end = END_IO_MEMORY;
+		phb->mem_resources[0].name = "Series PCI MEM";
 	}
 
 	of_node_put(root);
