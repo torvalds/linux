@@ -7332,8 +7332,8 @@ static void iwl4965_bg_scan_completed(struct work_struct *work)
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if (priv->cache_conf)
-		iwl4965_mac_config(priv->hw, priv->cache_conf);
+	if (test_bit(STATUS_CONF_PENDING, &priv->status))
+		iwl4965_mac_config(priv->hw, ieee80211_get_hw_conf(priv->hw));
 
 	ieee80211_scan_completed(priv->hw);
 
@@ -7476,27 +7476,12 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		goto out;
 	}
 
-	/* TODO: Figure out how to get ieee80211_local->sta_scanning w/ only
-	 * what is exposed through include/ declarations */
 	if (unlikely(!iwl4965_param_disable_hw_scan &&
 		     test_bit(STATUS_SCANNING, &priv->status))) {
-
-		if (unlikely(priv->cache_conf))
-			IWL_DEBUG_MAC80211("leave - still scanning\n");
-		else {
-			/* Cache the configuration now so that we can
-			 * replay it after the hardware scan is finished. */
-			priv->cache_conf = kmalloc(sizeof(*conf), GFP_KERNEL);
-			if (priv->cache_conf) {
-				memcpy(priv->cache_conf, conf, sizeof(*conf));
-				IWL_DEBUG_MAC80211("leave - scanning\n");
-			} else {
-				IWL_DEBUG_MAC80211("leave - no memory\n");
-				ret = -ENOMEM;
-			}
-		}
+		IWL_DEBUG_MAC80211("leave - scanning\n");
+		set_bit(STATUS_CONF_PENDING, &priv->status);
 		mutex_unlock(&priv->mutex);
-		return ret;
+		return 0;
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -7564,12 +7549,9 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 
 	IWL_DEBUG_MAC80211("leave\n");
 
-out:
-	if (priv->cache_conf) {
-		kfree(priv->cache_conf);
-		priv->cache_conf = NULL;
-	}
 	mutex_unlock(&priv->mutex);
+out:
+	clear_bit(STATUS_CONF_PENDING, &priv->status);
 	return ret;
 }
 

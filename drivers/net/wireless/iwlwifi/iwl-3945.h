@@ -406,6 +406,7 @@ struct iwl3945_rx_queue {
 #define STATUS_SCAN_HW		14
 #define STATUS_POWER_PMI	15
 #define STATUS_FW_ERROR		16
+#define STATUS_CONF_PENDING	17
 
 #define MAX_TID_COUNT        9
 
@@ -694,7 +695,6 @@ struct iwl3945_priv {
 	struct ieee80211_hw *hw;
 	struct ieee80211_channel *ieee_channels;
 	struct ieee80211_rate *ieee_rates;
-	struct ieee80211_conf *cache_conf;
 
 	/* temporary frame storage list */
 	struct list_head free_frames;
