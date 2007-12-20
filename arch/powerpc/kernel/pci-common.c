@@ -225,10 +225,11 @@ int pci_read_irq_line(struct pci_dev *pci_dev)
 		if (pin == 0)
 			return -1;
 		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_LINE, &line) ||
-		    line == 0xff) {
+		    line == 0xff || line == 0) {
 			return -1;
 		}
-		DBG(" -> no map ! Using irq line %d from PCI config\n", line);
+		DBG(" -> no map ! Using line %d (pin %d) from PCI config\n",
+		    line, pin);
 
 		virq = irq_create_mapping(NULL, line);
 		if (virq != NO_IRQ)
