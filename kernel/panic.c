@@ -19,6 +19,7 @@
 #include <linux/nmi.h>
 #include <linux/kexec.h>
 #include <linux/debug_locks.h>
+#include <linux/random.h>
 
 int panic_on_oops;
 int tainted;
@@ -266,12 +267,29 @@ void oops_enter(void)
 }
 
 /*
+ * 64-bit random ID for oopses:
+ */
+static u64 oops_id;
+
+static int init_oops_id(void)
+{
+	if (!oops_id)
+		get_random_bytes(&oops_id, sizeof(oops_id));
+
+	return 0;
+}
+late_initcall(init_oops_id);
+
+/*
  * Called when the architecture exits its oops handler, after printing
  * everything.
  */
 void oops_exit(void)
 {
 	do_oops_enter_exit();
+	init_oops_id();
+	printk(KERN_WARNING "---[ end trace %016llx ]---\n",
+		(unsigned long long)oops_id);
 }
 
 #ifdef CONFIG_CC_STACKPROTECTOR
