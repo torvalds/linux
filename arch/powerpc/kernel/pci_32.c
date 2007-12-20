@@ -145,38 +145,6 @@ pcibios_fixup_resources(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID,		PCI_ANY_ID,			pcibios_fixup_resources);
 
-void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			struct resource *res)
-{
-	resource_size_t offset = 0, mask = (resource_size_t)-1;
-	struct pci_controller *hose = dev->sysdata;
-
-	if (hose && res->flags & IORESOURCE_IO) {
-		offset = (unsigned long)hose->io_base_virt - isa_io_base;
-		mask = 0xffffffffu;
-	} else if (hose && res->flags & IORESOURCE_MEM)
-		offset = hose->pci_mem_offset;
-	region->start = (res->start - offset) & mask;
-	region->end = (res->end - offset) & mask;
-}
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-
-void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			     struct pci_bus_region *region)
-{
-	resource_size_t offset = 0, mask = (resource_size_t)-1;
-	struct pci_controller *hose = dev->sysdata;
-
-	if (hose && res->flags & IORESOURCE_IO) {
-		offset = (unsigned long)hose->io_base_virt - isa_io_base;
-		mask = 0xffffffffu;
-	} else if (hose && res->flags & IORESOURCE_MEM)
-		offset = hose->pci_mem_offset;
-	res->start = (region->start + offset) & mask;
-	res->end = (region->end + offset) & mask;
-}
-EXPORT_SYMBOL(pcibios_bus_to_resource);
-
 static int skip_isa_ioresource_align(struct pci_dev *dev)
 {
 	if ((ppc_pci_flags & PPC_PCI_CAN_SKIP_ISA_ALIGN) &&
