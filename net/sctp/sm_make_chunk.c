@@ -1836,6 +1836,39 @@ static int sctp_process_hn_param(const struct sctp_association *asoc,
 	return 0;
 }
 
+static int sctp_verify_ext_param(union sctp_params param)
+{
+	__u16 num_ext = ntohs(param.p->length) - sizeof(sctp_paramhdr_t);
+	int have_auth = 0;
+	int have_asconf = 0;
+	int i;
+
+	for (i = 0; i < num_ext; i++) {
+		switch (param.ext->chunks[i]) {
+		    case SCTP_CID_AUTH:
+			    have_auth = 1;
+			    break;
+		    case SCTP_CID_ASCONF:
+		    case SCTP_CID_ASCONF_ACK:
+			    have_asconf = 1;
+			    break;
+		}
+	}
+
+	/* ADD-IP Security: The draft requires us to ABORT or ignore the
+	 * INIT/INIT-ACK if ADD-IP is listed, but AUTH is not.  Do this
+	 * only if ADD-IP is turned on and we are not backward-compatible
+	 * mode.
+	 */
+	if (sctp_addip_noauth)
+		return 1;
+
+	if (sctp_addip_enable && !have_auth && have_asconf)
+		return 0;
+
+	return 1;
+}
+
 static void sctp_process_ext_param(struct sctp_association *asoc,
 				    union sctp_params param)
 {
@@ -1966,7 +1999,11 @@ static sctp_ierror_t sctp_verify_param(const struct sctp_association *asoc,
 	case SCTP_PARAM_UNRECOGNIZED_PARAMETERS:
 	case SCTP_PARAM_ECN_CAPABLE:
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
+		break;
+
 	case SCTP_PARAM_SUPPORTED_EXT:
+		if (!sctp_verify_ext_param(param))
+			return SCTP_IERROR_ABORT;
 		break;
 
 	case SCTP_PARAM_SET_PRIMARY:
@@ -2139,10 +2176,11 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 					!asoc->peer.peer_hmacs))
 		asoc->peer.auth_capable = 0;
 
-
-	/* If the peer claims support for ADD-IP without support
-	 * for AUTH, disable support for ADD-IP.
-	 * Do this only if backward compatible mode is turned off.
+	/* In a non-backward compatible mode, if the peer claims
+	 * support for ADD-IP but not AUTH,  the ADD-IP spec states
+	 * that we MUST ABORT the association. Section 6.  The section
+	 * also give us an option to silently ignore the packet, which
+	 * is what we'll do here.
 	 */
 	if (!sctp_addip_noauth &&
 	     (asoc->peer.asconf_capable && !asoc->peer.auth_capable)) {
@@ -2150,6 +2188,7 @@ int sctp_process_init(struct sctp_association *asoc, sctp_cid_t cid,
 						  SCTP_PARAM_DEL_IP |
 						  SCTP_PARAM_SET_PRIMARY);
 		asoc->peer.asconf_capable = 0;
+		goto clean_up;
 	}
 
 	/* Walk list of transports, removing transports in the UNKNOWN state. */
