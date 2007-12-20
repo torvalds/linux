@@ -7239,6 +7239,7 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	char *			current_val;	/* For rates */
 	int			i;
 	char *		buf;
+	u16 dBm;
 
 	/* First entry *MUST* be the AP MAC address */
 	iwe.cmd = SIOCGIWAP;
@@ -7277,16 +7278,18 @@ static inline char *airo_translate_scan(struct net_device *dev,
 	iwe.u.freq.e = 1;
 	current_ev = iwe_stream_add_event(current_ev, end_buf, &iwe, IW_EV_FREQ_LEN);
 
+	dBm = le16_to_cpu(bss->dBm);
+
 	/* Add quality statistics */
 	iwe.cmd = IWEVQUAL;
 	if (ai->rssi) {
-		iwe.u.qual.level = 0x100 - bss->dBm;
-		iwe.u.qual.qual = airo_dbm_to_pct( ai->rssi, bss->dBm );
+		iwe.u.qual.level = 0x100 - dBm;
+		iwe.u.qual.qual = airo_dbm_to_pct(ai->rssi, dBm);
 		iwe.u.qual.updated = IW_QUAL_QUAL_UPDATED
 				| IW_QUAL_LEVEL_UPDATED
 				| IW_QUAL_DBM;
 	} else {
-		iwe.u.qual.level = (bss->dBm + 321) / 2;
+		iwe.u.qual.level = (dBm + 321) / 2;
 		iwe.u.qual.qual = 0;
 		iwe.u.qual.updated = IW_QUAL_QUAL_INVALID
 				| IW_QUAL_LEVEL_UPDATED
