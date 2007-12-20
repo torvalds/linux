@@ -41,9 +41,6 @@
 
 unsigned long pci_probe_only = 1;
 
-static void fixup_resource(struct resource *res, struct pci_dev *dev);
-static void do_bus_setup(struct pci_bus *bus);
-
 /* pci_io_base -- the base address from which io bars are offsets.
  * This is the lowest I/O base address (so bar values are always positive),
  * and it *must* be the start of ISA space if an ISA bus exists because
@@ -239,7 +236,6 @@ static void pci_parse_of_addrs(struct device_node *node, struct pci_dev *dev)
 		res->end = base + size - 1;
 		res->flags = flags;
 		res->name = pci_name(dev);
-		fixup_resource(res, dev);
 	}
 }
 
@@ -308,7 +304,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 EXPORT_SYMBOL(of_create_pci_dev);
 
 void __devinit of_scan_bus(struct device_node *node,
-				  struct pci_bus *bus)
+			   struct pci_bus *bus)
 {
 	struct device_node *child = NULL;
 	const u32 *reg;
@@ -317,6 +313,7 @@ void __devinit of_scan_bus(struct device_node *node,
 
 	DBG("of_scan_bus(%s) bus no %d... \n", node->full_name, bus->number);
 
+	/* Scan direct children */
 	while ((child = of_get_next_child(node, child)) != NULL) {
 		DBG("  * %s\n", child->full_name);
 		reg = of_get_property(child, "reg", &reglen);
@@ -328,19 +325,26 @@ void __devinit of_scan_bus(struct device_node *node,
 		dev = of_create_pci_dev(child, bus, devfn);
 		if (!dev)
 			continue;
-		DBG("dev header type: %x\n", dev->hdr_type);
-
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
-			of_scan_pci_bridge(child, dev);
+		DBG("    dev header type: %x\n", dev->hdr_type);
 	}
 
-	do_bus_setup(bus);
+	/* Ally all fixups */
+	pcibios_fixup_of_probed_bus(bus);
+
+	/* Now scan child busses */
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
+		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS) {
+			struct device_node *child = pci_device_to_OF_node(dev);
+			if (dev)
+				of_scan_pci_bridge(child, dev);
+		}
+	}
 }
 EXPORT_SYMBOL(of_scan_bus);
 
 void __devinit of_scan_pci_bridge(struct device_node *node,
-			 	struct pci_dev *dev)
+				  struct pci_dev *dev)
 {
 	struct pci_bus *bus;
 	const u32 *busrange, *ranges;
@@ -410,7 +414,6 @@ void __devinit of_scan_pci_bridge(struct device_node *node,
 		res->start = of_read_number(&ranges[1], 2);
 		res->end = res->start + size - 1;
 		res->flags = flags;
-		fixup_resource(res, dev);
 	}
 	sprintf(bus->name, "PCI Bus %04x:%02x", pci_domain_nr(bus),
 		bus->number);
@@ -659,51 +662,13 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 }
 EXPORT_SYMBOL_GPL(pcibios_map_io_space);
 
-static void __devinit fixup_resource(struct resource *res, struct pci_dev *dev)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	unsigned long offset;
-
-	if (res->flags & IORESOURCE_IO) {
-		offset = (unsigned long)hose->io_base_virt - _IO_BASE;
-		res->start += offset;
-		res->end += offset;
-	} else if (res->flags & IORESOURCE_MEM) {
-		res->start += hose->pci_mem_offset;
-		res->end += hose->pci_mem_offset;
-	}
-}
-
-void __devinit pcibios_fixup_device_resources(struct pci_dev *dev,
-					      struct pci_bus *bus)
-{
-	/* Update device resources.  */
-	int i;
-
-	DBG("%s: Fixup resources:\n", pci_name(dev));
-	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-		struct resource *res = &dev->resource[i];
-		if (!res->flags)
-			continue;
-
-		DBG("  0x%02x < %08lx:0x%016lx...0x%016lx\n",
-		    i, res->flags, res->start, res->end);
-
-		fixup_resource(res, dev);
-
-		DBG("       > %08lx:0x%016lx...0x%016lx\n",
-		    res->flags, res->start, res->end);
-	}
-}
-EXPORT_SYMBOL(pcibios_fixup_device_resources);
-
 void __devinit pcibios_setup_new_device(struct pci_dev *dev)
 {
 	struct dev_archdata *sd = &dev->dev.archdata;
 
 	sd->of_node = pci_device_to_OF_node(dev);
 
-	DBG("PCI device %s OF node: %s\n", pci_name(dev),
+	DBG("PCI: device %s OF node: %s\n", pci_name(dev),
 	    sd->of_node ? sd->of_node->full_name : "<none>");
 
 	sd->dma_ops = pci_dma_ops;
@@ -717,7 +682,7 @@ void __devinit pcibios_setup_new_device(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pcibios_setup_new_device);
 
-static void __devinit do_bus_setup(struct pci_bus *bus)
+void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 
@@ -726,42 +691,7 @@ static void __devinit do_bus_setup(struct pci_bus *bus)
 
 	list_for_each_entry(dev, &bus->devices, bus_list)
 		pcibios_setup_new_device(dev);
-
-	/* Read default IRQs and fixup if necessary */
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		pci_read_irq_line(dev);
-		if (ppc_md.pci_irq_fixup)
-			ppc_md.pci_irq_fixup(dev);
-	}
 }
-
-void __devinit pcibios_fixup_bus(struct pci_bus *bus)
-{
-	struct pci_dev *dev = bus->self;
-	struct device_node *np;
-
-	np = pci_bus_to_OF_node(bus);
-
-	DBG("pcibios_fixup_bus(%s)\n", np ? np->full_name : "<???>");
-
-	if (dev && pci_probe_only &&
-	    (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
-		/* This is a subordinate bridge */
-
-		pci_read_bridge_bases(bus);
-		pcibios_fixup_device_resources(dev, bus);
-	}
-
-	do_bus_setup(bus);
-
-	if (!pci_probe_only)
-		return;
-
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		if ((dev->class >> 8) != PCI_CLASS_BRIDGE_PCI)
-			pcibios_fixup_device_resources(dev, bus);
-}
-EXPORT_SYMBOL(pcibios_fixup_bus);
 
 unsigned long pci_address_to_pio(phys_addr_t address)
 {

@@ -691,3 +691,133 @@ void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 	res->end = (region->end + offset) & mask;
 }
 EXPORT_SYMBOL(pcibios_bus_to_resource);
+
+/* Fixup a bus resource into a linux resource */
+static void __devinit fixup_resource(struct resource *res, struct pci_dev *dev)
+{
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	resource_size_t offset = 0, mask = (resource_size_t)-1;
+
+	if (res->flags & IORESOURCE_IO) {
+		offset = (unsigned long)hose->io_base_virt - _IO_BASE;
+		mask = 0xffffffffu;
+	} else if (res->flags & IORESOURCE_MEM)
+		offset = hose->pci_mem_offset;
+
+	res->start = (res->start + offset) & mask;
+	res->end = (res->end + offset) & mask;
+
+	pr_debug("PCI:%s            %016llx-%016llx\n",
+		 pci_name(dev),
+		 (unsigned long long)res->start,
+		 (unsigned long long)res->end);
+}
+
+
+/* This header fixup will do the resource fixup for all devices as they are
+ * probed, but not for bridge ranges
+ */
+static void __devinit pcibios_fixup_resources(struct pci_dev *dev)
+{
+	struct pci_controller *hose = pci_bus_to_host(dev->bus);
+	int i;
+
+	if (!hose) {
+		printk(KERN_ERR "No host bridge for PCI dev %s !\n",
+		       pci_name(dev));
+		return;
+	}
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
+		struct resource *res = dev->resource + i;
+		if (!res->flags)
+			continue;
+		if (res->end == 0xffffffff) {
+			pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] is unassigned\n",
+				 pci_name(dev), i,
+				 (unsigned long long)res->start,
+				 (unsigned long long)res->end,
+				 (unsigned int)res->flags);
+			res->end -= res->start;
+			res->start = 0;
+			res->flags |= IORESOURCE_UNSET;
+			continue;
+		}
+
+		pr_debug("PCI:%s Resource %d %016llx-%016llx [%x] fixup...\n",
+			 pci_name(dev), i,
+			 (unsigned long long)res->start,\
+			 (unsigned long long)res->end,
+			 (unsigned int)res->flags);
+
+		fixup_resource(res, dev);
+	}
+
+	/* Call machine specific resource fixup */
+	if (ppc_md.pcibios_fixup_resources)
+		ppc_md.pcibios_fixup_resources(dev);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_resources);
+
+static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
+{
+	struct pci_dev *dev = bus->self;
+
+	pr_debug("PCI: Fixup bus %d (%s)\n", bus->number, dev ? pci_name(dev) : "PHB");
+
+	/* Fixup PCI<->PCI bridges. Host bridges are handled separately, for
+	 * now differently between 32 and 64 bits.
+	 */
+	if (dev != NULL) {
+		struct resource *res;
+		int i;
+
+		for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
+			if ((res = bus->resource[i]) == NULL)
+				continue;
+			if (!res->flags || bus->self->transparent)
+				continue;
+
+			pr_debug("PCI:%s Bus rsrc %d %016llx-%016llx [%x] fixup...\n",
+				 pci_name(dev), i,
+				 (unsigned long long)res->start,\
+				 (unsigned long long)res->end,
+				 (unsigned int)res->flags);
+
+			fixup_resource(res, dev);
+		}
+	}
+
+	/* Additional setup that is different between 32 and 64 bits for now */
+	pcibios_do_bus_setup(bus);
+
+	/* Platform specific bus fixups */
+	if (ppc_md.pcibios_fixup_bus)
+		ppc_md.pcibios_fixup_bus(bus);
+
+	/* Read default IRQs and fixup if necessary */
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		pci_read_irq_line(dev);
+		if (ppc_md.pci_irq_fixup)
+			ppc_md.pci_irq_fixup(dev);
+	}
+}
+
+void __devinit pcibios_fixup_bus(struct pci_bus *bus)
+{
+	/* When called from the generic PCI probe, read PCI<->PCI bridge
+	 * bases before proceeding
+	 */
+	if (bus->self != NULL)
+		pci_read_bridge_bases(bus);
+	__pcibios_fixup_bus(bus);
+}
+EXPORT_SYMBOL(pcibios_fixup_bus);
+
+/* When building a bus from the OF tree rather than probing, we need a
+ * slightly different version of the fixup which doesn't read the
+ * bridge bases using config space accesses
+ */
+void __devinit pcibios_fixup_of_probed_bus(struct pci_bus *bus)
+{
+	__pcibios_fixup_bus(bus);
+}

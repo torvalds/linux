@@ -40,7 +40,6 @@ unsigned int ppc_pci_flags;
 
 void pcibios_make_OF_bus_map(void);
 
-static void pcibios_fixup_resources(struct pci_dev* dev);
 static void fixup_broken_pcnet32(struct pci_dev* dev);
 static int reparent_resources(struct resource *parent, struct resource *res);
 static void fixup_cpc710_pci64(struct pci_dev* dev);
@@ -97,53 +96,6 @@ fixup_cpc710_pci64(struct pci_dev* dev)
 	dev->resource[1].flags = 0;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixup_cpc710_pci64);
-
-static void
-pcibios_fixup_resources(struct pci_dev *dev)
-{
-	struct pci_controller* hose = (struct pci_controller *)dev->sysdata;
-	int i;
-	resource_size_t offset, mask;
-
-	if (!hose) {
-		printk(KERN_ERR "No hose for PCI dev %s!\n", pci_name(dev));
-		return;
-	}
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		struct resource *res = dev->resource + i;
-		if (!res->flags)
-			continue;
-		if (res->end == 0xffffffff) {
-			DBG("PCI:%s Resource %d [%016llx-%016llx] is unassigned\n",
-			    pci_name(dev), i, (u64)res->start, (u64)res->end);
-			res->end -= res->start;
-			res->start = 0;
-			res->flags |= IORESOURCE_UNSET;
-			continue;
-		}
-		offset = 0;
-		mask = (resource_size_t)-1;
-		if (res->flags & IORESOURCE_MEM) {
-			offset = hose->pci_mem_offset;
-		} else if (res->flags & IORESOURCE_IO) {
-			offset = (unsigned long) hose->io_base_virt
-				- isa_io_base;
-			mask = 0xffffffffu;
-		}
-		if (offset != 0) {
-			res->start = (res->start + offset) & mask;
-			res->end = (res->end + offset) & mask;
-			DBG("PCI: Fixup res %d (0x%lx) of dev %s: %llx -> %llx\n",
-			    i, res->flags, pci_name(dev),
-			    (u64)res->start - offset, (u64)res->start);
-		}
-	}
-
-	/* Call machine specific resource fixup */
-	if (ppc_md.pcibios_fixup_resources)
-		ppc_md.pcibios_fixup_resources(dev);
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID,		PCI_ANY_ID,			pcibios_fixup_resources);
 
 static int skip_isa_ioresource_align(struct pci_dev *dev)
 {
@@ -757,14 +709,14 @@ pcibios_init(void)
 
 subsys_initcall(pcibios_init);
 
-void pcibios_fixup_bus(struct pci_bus *bus)
+void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
 {
 	struct pci_controller *hose = (struct pci_controller *) bus->sysdata;
 	unsigned long io_offset;
 	struct resource *res;
-	struct pci_dev *dev;
 	int i;
 
+	/* Hookup PHB resources */
 	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
 	if (bus->parent == NULL) {
 		/* This is a host bridge - fill in its resources */
@@ -795,37 +747,6 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 			}
 			bus->resource[i+1] = res;
 		}
-	} else {
-		/* This is a subordinate bridge */
-		pci_read_bridge_bases(bus);
-
-		for (i = 0; i < 4; ++i) {
-			if ((res = bus->resource[i]) == NULL)
-				continue;
-			if (!res->flags || bus->self->transparent)
-				continue;
-			if (io_offset && (res->flags & IORESOURCE_IO)) {
-				res->start = (res->start + io_offset) &
-					0xffffffffu;
-				res->end = (res->end + io_offset) &
-					0xffffffffu;
-			} else if (hose->pci_mem_offset
-				   && (res->flags & IORESOURCE_MEM)) {
-				res->start += hose->pci_mem_offset;
-				res->end += hose->pci_mem_offset;
-			}
-		}
-	}
-
-	/* Platform specific bus fixups */
-	if (ppc_md.pcibios_fixup_bus)
-		ppc_md.pcibios_fixup_bus(bus);
-
-	/* Read default IRQs and fixup if necessary */
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		pci_read_irq_line(dev);
-		if (ppc_md.pci_irq_fixup)
-			ppc_md.pci_irq_fixup(dev);
 	}
 }
 

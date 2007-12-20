@@ -155,7 +155,7 @@ static void dlpar_pci_add_bus(struct device_node *dn)
 	    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
 		of_scan_pci_bridge(dn, dev);
 
-	pcibios_fixup_new_pci_devices(dev->subordinate,0);
+	pcibios_fixup_new_pci_devices(dev->subordinate);
 
 	/* Claim new bus resources */
 	pcibios_claim_one_bus(dev->bus);

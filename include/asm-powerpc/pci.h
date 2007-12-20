@@ -196,9 +196,6 @@ static inline struct resource *pcibios_select_root(struct pci_dev *pdev,
 	return root;
 }
 
-extern void pcibios_fixup_device_resources(struct pci_dev *dev,
-			struct pci_bus *bus);
-
 extern void pcibios_setup_new_device(struct pci_dev *dev);
 
 extern void pcibios_claim_one_bus(struct pci_bus *b);
@@ -225,6 +222,9 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 extern void pci_resource_to_user(const struct pci_dev *dev, int bar,
 				 const struct resource *rsrc,
 				 resource_size_t *start, resource_size_t *end);
+
+extern void pcibios_do_bus_setup(struct pci_bus *bus);
+extern void pcibios_fixup_of_probed_bus(struct pci_bus *bus);
 
 #endif	/* __KERNEL__ */
 #endif /* __ASM_POWERPC_PCI_H */

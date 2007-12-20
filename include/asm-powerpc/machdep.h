@@ -205,13 +205,6 @@ struct machdep_calls {
 	 * optional PCI "hooks"
 	 */
 
-	/* Called after PPC generic resource fixup to perform
-	   machine specific fixups */
-	void (*pcibios_fixup_resources)(struct pci_dev *);
-
-	/* Called for each PCI bus in the system when it's probed */
-	void (*pcibios_fixup_bus)(struct pci_bus *);
-
 	/* Called when pci_enable_device() is called (initial=0) or
 	 * when a device with no assigned resource is found (initial=1).
 	 * Returns 0 to allow assignment/enabling of the device. */
@@ -224,6 +217,13 @@ struct machdep_calls {
 	void (*pcibios_after_init)(void);
 
 #endif /* CONFIG_PPC32 */
+
+	/* Called after PPC generic resource fixup to perform
+	   machine specific fixups */
+	void (*pcibios_fixup_resources)(struct pci_dev *);
+
+	/* Called for each PCI bus in the system when it's probed */
+	void (*pcibios_fixup_bus)(struct pci_bus *);
 
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
