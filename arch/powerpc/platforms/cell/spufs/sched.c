@@ -626,10 +626,10 @@ static struct spu *find_victim(struct spu_context *ctx)
 			}
 
 			spu = victim->spu;
-			if (!spu) {
+			if (!spu || victim->prio <= ctx->prio) {
 				/*
 				 * This race can happen because we've dropped
-				 * the active list mutex.  No a problem, just
+				 * the active list mutex.  Not a problem, just
 				 * restart the search.
 				 */
 				mutex_unlock(&victim->state_mutex);
