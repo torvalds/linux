@@ -28,6 +28,8 @@
 #include <asm/spu_csa.h>
 #include <asm/mmu.h>
 
+#include "spufs.h"
+
 static int spu_alloc_lscsa_std(struct spu_state *csa)
 {
 	struct spu_lscsa *lscsa;

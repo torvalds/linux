@@ -283,6 +283,8 @@ void spu_remove_sysdev_attr(struct sysdev_attribute *attr);
 int spu_add_sysdev_attr_group(struct attribute_group *attrs);
 void spu_remove_sysdev_attr_group(struct attribute_group *attrs);
 
+int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
+		unsigned long dsisr, unsigned *flt);
 
 /*
  * Notifier blocks:

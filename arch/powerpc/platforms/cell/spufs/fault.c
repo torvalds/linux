@@ -28,75 +28,6 @@
 
 #include "spufs.h"
 
-/*
- * This ought to be kept in sync with the powerpc specific do_page_fault
- * function. Currently, there are a few corner cases that we haven't had
- * to handle fortunately.
- */
-static int spu_handle_mm_fault(struct mm_struct *mm, unsigned long ea,
-		unsigned long dsisr, unsigned *flt)
-{
-	struct vm_area_struct *vma;
-	unsigned long is_write;
-	int ret;
-
-#if 0
-	if (!IS_VALID_EA(ea)) {
-		return -EFAULT;
-	}
-#endif /* XXX */
-	if (mm == NULL) {
-		return -EFAULT;
-	}
-	if (mm->pgd == NULL) {
-		return -EFAULT;
-	}
-
-	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, ea);
-	if (!vma)
-		goto bad_area;
-	if (vma->vm_start <= ea)
-		goto good_area;
-	if (!(vma->vm_flags & VM_GROWSDOWN))
-		goto bad_area;
-	if (expand_stack(vma, ea))
-		goto bad_area;
-good_area:
-	is_write = dsisr & MFC_DSISR_ACCESS_PUT;
-	if (is_write) {
-		if (!(vma->vm_flags & VM_WRITE))
-			goto bad_area;
-	} else {
-		if (dsisr & MFC_DSISR_ACCESS_DENIED)
-			goto bad_area;
-		if (!(vma->vm_flags & (VM_READ | VM_EXEC)))
-			goto bad_area;
-	}
-	ret = 0;
-	*flt = handle_mm_fault(mm, vma, ea, is_write);
-	if (unlikely(*flt & VM_FAULT_ERROR)) {
-		if (*flt & VM_FAULT_OOM) {
-			ret = -ENOMEM;
-			goto bad_area;
-		} else if (*flt & VM_FAULT_SIGBUS) {
-			ret = -EFAULT;
-			goto bad_area;
-		}
-		BUG();
-	}
-	if (*flt & VM_FAULT_MAJOR)
-		current->maj_flt++;
-	else
-		current->min_flt++;
-	up_read(&mm->mmap_sem);
-	return ret;
-
-bad_area:
-	up_read(&mm->mmap_sem);
-	return -EFAULT;
-}
-
 static void spufs_handle_dma_error(struct spu_context *ctx,
 				unsigned long ea, int type)
 {
@@ -138,7 +69,6 @@ void spufs_dma_callback(struct spu *spu, int type)
 {
 	spufs_handle_dma_error(spu->ctx, spu->dar, type);
 }
-EXPORT_SYMBOL_GPL(spufs_dma_callback);
 
 /*
  * bottom half handler for page faults, we can't do this from
@@ -227,4 +157,3 @@ int spufs_handle_class1(struct spu_context *ctx)
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(spufs_handle_class1);

@@ -48,6 +48,8 @@
 #include <asm/spu_csa.h>
 #include <asm/mmu_context.h>
 
+#include "spufs.h"
+
 #include "spu_save_dump.h"
 #include "spu_restore_dump.h"
 
@@ -2187,10 +2189,8 @@ int spu_init_csa(struct spu_state *csa)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(spu_init_csa);
 
 void spu_fini_csa(struct spu_state *csa)
 {
 	spu_free_lscsa(csa);
 }
-EXPORT_SYMBOL_GPL(spu_fini_csa);

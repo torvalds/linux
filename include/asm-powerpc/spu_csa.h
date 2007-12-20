@@ -259,15 +259,6 @@ struct spu_state {
 	spinlock_t register_lock;
 };
 
-extern int spu_init_csa(struct spu_state *csa);
-extern void spu_fini_csa(struct spu_state *csa);
-extern int spu_save(struct spu_state *prev, struct spu *spu);
-extern int spu_restore(struct spu_state *new, struct spu *spu);
-extern int spu_switch(struct spu_state *prev, struct spu_state *new,
-		      struct spu *spu);
-extern int spu_alloc_lscsa(struct spu_state *csa);
-extern void spu_free_lscsa(struct spu_state *csa);
-
 #endif /* !__SPU__ */
 #endif /* __KERNEL__ */
 #endif /* !__ASSEMBLY__ */

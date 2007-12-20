@@ -892,6 +892,38 @@ static int spusched_thread(void *unused)
 	return 0;
 }
 
+void spuctx_switch_state(struct spu_context *ctx,
+		enum spu_utilization_state new_state)
+{
+	unsigned long long curtime;
+	signed long long delta;
+	struct timespec ts;
+	struct spu *spu;
+	enum spu_utilization_state old_state;
+
+	ktime_get_ts(&ts);
+	curtime = timespec_to_ns(&ts);
+	delta = curtime - ctx->stats.tstamp;
+
+	WARN_ON(!mutex_is_locked(&ctx->state_mutex));
+	WARN_ON(delta < 0);
+
+	spu = ctx->spu;
+	old_state = ctx->stats.util_state;
+	ctx->stats.util_state = new_state;
+	ctx->stats.tstamp = curtime;
+
+	/*
+	 * Update the physical SPU utilization statistics.
+	 */
+	if (spu) {
+		ctx->stats.times[old_state] += delta;
+		spu->stats.times[old_state] += delta;
+		spu->stats.util_state = new_state;
+		spu->stats.tstamp = curtime;
+	}
+}
+
 #define LOAD_INT(x) ((x) >> FSHIFT)
 #define LOAD_FRAC(x) LOAD_INT(((x) & (FIXED_1-1)) * 100)
 

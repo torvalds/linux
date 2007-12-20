@@ -307,41 +307,16 @@ struct spufs_coredump_reader {
 extern struct spufs_coredump_reader spufs_coredump_read[];
 extern int spufs_coredump_num_notes;
 
-/*
- * This function is a little bit too large for an inline, but
- * as fault.c is built into the kernel we can't move it out of
- * line.
- */
-static inline void spuctx_switch_state(struct spu_context *ctx,
-		enum spu_utilization_state new_state)
-{
-	unsigned long long curtime;
-	signed long long delta;
-	struct timespec ts;
-	struct spu *spu;
-	enum spu_utilization_state old_state;
+extern int spu_init_csa(struct spu_state *csa);
+extern void spu_fini_csa(struct spu_state *csa);
+extern int spu_save(struct spu_state *prev, struct spu *spu);
+extern int spu_restore(struct spu_state *new, struct spu *spu);
+extern int spu_switch(struct spu_state *prev, struct spu_state *new,
+		      struct spu *spu);
+extern int spu_alloc_lscsa(struct spu_state *csa);
+extern void spu_free_lscsa(struct spu_state *csa);
 
-	ktime_get_ts(&ts);
-	curtime = timespec_to_ns(&ts);
-	delta = curtime - ctx->stats.tstamp;
-
-	WARN_ON(!mutex_is_locked(&ctx->state_mutex));
-	WARN_ON(delta < 0);
-
-	spu = ctx->spu;
-	old_state = ctx->stats.util_state;
-	ctx->stats.util_state = new_state;
-	ctx->stats.tstamp = curtime;
-
-	/*
-	 * Update the physical SPU utilization statistics.
-	 */
-	if (spu) {
-		ctx->stats.times[old_state] += delta;
-		spu->stats.times[old_state] += delta;
-		spu->stats.util_state = new_state;
-		spu->stats.tstamp = curtime;
-	}
-}
+extern void spuctx_switch_state(struct spu_context *ctx,
+		enum spu_utilization_state new_state);
 
 #endif
