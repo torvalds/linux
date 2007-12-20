@@ -2,6 +2,8 @@
 # Makefile for the linux kernel.
 #
 
+CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
+
 ifeq ($(CONFIG_PPC64),y)
 CFLAGS_prom_init.o	+= -mno-minimal-toc
 endif
