@@ -194,6 +194,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	{
 	case 76601: /* WinTV-HVR1800lp (PCIe, Retail, No IR, Dual channel ATSC and MPEG2 HW Encoder */
 	case 77001: /* WinTV-HVR1500 (Express Card, Retail, No IR, ATSC and Basic analog */
+	case 77041: /* WinTV-HVR1500Q (Express Card, Retail, No IR, ATSC/QAM and Basic analog */
 	case 78501: /* WinTV-HVR1800 (PCIe, Retail, IR, Dual channel ATSC and MPEG2 HW Encoder */
 	case 78521: /* WinTV-HVR1800 (PCIe, Retail, IR, Dual channel ATSC and MPEG2 HW Encoder */
 		break;
