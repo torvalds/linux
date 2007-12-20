@@ -3774,6 +3774,10 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 		goto out;
 	}
 
+	if (unlikely(!atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
+			&unit->status)))
+		goto unit_blocked;
+
 	/*
 	 * Used to decide on proper handler in the return path,
 	 * could be either zfcp_fsf_send_fcp_command_task_handler or
@@ -3807,25 +3811,13 @@ zfcp_fsf_send_fcp_command_task_management(struct zfcp_adapter *adapter,
 
 	zfcp_fsf_start_timer(fsf_req, ZFCP_SCSI_ER_TIMEOUT);
 	retval = zfcp_fsf_req_send(fsf_req);
-	if (retval) {
-		ZFCP_LOG_INFO("error: Could not send an FCP-command (task "
-			      "management) on adapter %s, port 0x%016Lx for "
-			      "unit LUN 0x%016Lx\n",
-			      zfcp_get_busid_by_adapter(adapter),
-			      unit->port->wwpn,
-			      unit->fcp_lun);
-		zfcp_fsf_req_free(fsf_req);
-		fsf_req = NULL;
+	if (!retval)
 		goto out;
-	}
 
-	ZFCP_LOG_TRACE("Send FCP Command (task management function) initiated "
-		       "(adapter %s, port 0x%016Lx, unit 0x%016Lx, "
-		       "tm_flags=0x%x)\n",
-		       zfcp_get_busid_by_adapter(adapter),
-		       unit->port->wwpn,
-		       unit->fcp_lun,
-		       tm_flags);
+ unit_blocked:
+	zfcp_fsf_req_free(fsf_req);
+	fsf_req = NULL;
+
  out:
 	write_unlock_irqrestore(&adapter->request_queue.queue_lock, lock_flags);
 	return fsf_req;
