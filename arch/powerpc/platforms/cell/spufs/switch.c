@@ -740,9 +740,9 @@ static inline void enable_interrupts(struct spu_state *csa, struct spu *spu)
 	 *     (translation) interrupts.
 	 */
 	spin_lock_irq(&spu->register_lock);
-	spu_int_stat_clear(spu, 0, ~0ul);
-	spu_int_stat_clear(spu, 1, ~0ul);
-	spu_int_stat_clear(spu, 2, ~0ul);
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 1, CLASS1_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	spu_int_mask_set(spu, 0, 0ul);
 	spu_int_mask_set(spu, 1, class1_mask);
 	spu_int_mask_set(spu, 2, 0ul);
@@ -899,8 +899,8 @@ static inline void wait_tag_complete(struct spu_state *csa, struct spu *spu)
 	POLL_WHILE_FALSE(in_be32(&prob->dma_tagstatus_R) & mask);
 
 	local_irq_save(flags);
-	spu_int_stat_clear(spu, 0, ~(0ul));
-	spu_int_stat_clear(spu, 2, ~(0ul));
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	local_irq_restore(flags);
 }
 
@@ -918,8 +918,8 @@ static inline void wait_spu_stopped(struct spu_state *csa, struct spu *spu)
 	POLL_WHILE_TRUE(in_be32(&prob->spu_status_R) & SPU_STATUS_RUNNING);
 
 	local_irq_save(flags);
-	spu_int_stat_clear(spu, 0, ~(0ul));
-	spu_int_stat_clear(spu, 2, ~(0ul));
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	local_irq_restore(flags);
 }
 
@@ -1395,9 +1395,9 @@ static inline void clear_interrupts(struct spu_state *csa, struct spu *spu)
 	spu_int_mask_set(spu, 0, 0ul);
 	spu_int_mask_set(spu, 1, 0ul);
 	spu_int_mask_set(spu, 2, 0ul);
-	spu_int_stat_clear(spu, 0, ~0ul);
-	spu_int_stat_clear(spu, 1, ~0ul);
-	spu_int_stat_clear(spu, 2, ~0ul);
+	spu_int_stat_clear(spu, 0, CLASS0_INTR_MASK);
+	spu_int_stat_clear(spu, 1, CLASS1_INTR_MASK);
+	spu_int_stat_clear(spu, 2, CLASS2_INTR_MASK);
 	spin_unlock_irq(&spu->register_lock);
 }
 
