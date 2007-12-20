@@ -776,6 +776,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pcibios_fixup_resources);
 
 static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 {
+	struct pci_controller *hose = pci_bus_to_host(bus);
 	struct pci_dev *dev = bus->self;
 
 	pr_debug("PCI: Fixup bus %d (%s)\n", bus->number, dev ? pci_name(dev) : "PHB");
@@ -792,6 +793,27 @@ static void __devinit __pcibios_fixup_bus(struct pci_bus *bus)
 				continue;
 			if (!res->flags || bus->self->transparent)
 				continue;
+
+			/* On PowerMac, Apple leaves bridge windows open over
+			 * an inaccessible region of memory space (0...fffff)
+			 * which is somewhat bogus, but that's what they think
+			 * means disabled...
+			 *
+			 * We clear those to force them to be reallocated later
+			 *
+			 * We detect such regions by the fact that the base is
+			 * equal to the pci_mem_offset of the host bridge and
+			 * their size is smaller than 1M.
+			 */
+			if (res->start == hose->pci_mem_offset &&
+			    res->end < 0x100000) {
+				printk(KERN_INFO
+				       "PCI: Closing bogus Apple Firmware"
+				       " region %d on bus 0x%02x\n",
+				       i, bus->number);
+				res->flags = 0;
+				continue;
+			}
 
 			pr_debug("PCI:%s Bus rsrc %d %016llx-%016llx [%x] fixup...\n",
 				 pci_name(dev), i,
