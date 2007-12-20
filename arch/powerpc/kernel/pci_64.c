@@ -91,85 +91,6 @@ static void fixup_broken_pcnet32(struct pci_dev* dev)
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TRIDENT, PCI_ANY_ID, fixup_broken_pcnet32);
 
 
-/*
- * We need to avoid collisions with `mirrored' VGA ports
- * and other strange ISA hardware, so we always want the
- * addresses to be allocated in the 0x000-0x0ff region
- * modulo 0x400.
- *
- * Why? Because some silly external IO cards only decode
- * the low 10 bits of the IO address. The 0x00-0xff region
- * is reserved for motherboard devices that decode all 16
- * bits, so it's ok to allocate at, say, 0x2800-0x28ff,
- * but we want to try to avoid allocating at 0x2900-0x2bff
- * which might have be mirrored at 0x0100-0x03ff..
- */
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
-{
-	struct pci_dev *dev = data;
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-	resource_size_t start = res->start;
-	unsigned long alignto;
-
-	if (res->flags & IORESOURCE_IO) {
-	        unsigned long offset = (unsigned long)hose->io_base_virt -
-					_IO_BASE;
-		/* Make sure we start at our min on all hoses */
-		if (start - offset < PCIBIOS_MIN_IO)
-			start = PCIBIOS_MIN_IO + offset;
-
-		/*
-		 * Put everything into 0x00-0xff region modulo 0x400
-		 */
-		if (start & 0x300)
-			start = (start + 0x3ff) & ~0x3ff;
-
-	} else if (res->flags & IORESOURCE_MEM) {
-		/* Make sure we start at our min on all hoses */
-		if (start - hose->pci_mem_offset < PCIBIOS_MIN_MEM)
-			start = PCIBIOS_MIN_MEM + hose->pci_mem_offset;
-
-		/* Align to multiple of size of minimum base.  */
-		alignto = max(0x1000UL, align);
-		start = ALIGN(start, alignto);
-	}
-
-	res->start = start;
-}
-
-void __devinit pcibios_claim_one_bus(struct pci_bus *b)
-{
-	struct pci_dev *dev;
-	struct pci_bus *child_bus;
-
-	list_for_each_entry(dev, &b->devices, bus_list) {
-		int i;
-
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *r = &dev->resource[i];
-
-			if (r->parent || !r->start || !r->flags)
-				continue;
-			pci_claim_resource(dev, i);
-		}
-	}
-
-	list_for_each_entry(child_bus, &b->children, node)
-		pcibios_claim_one_bus(child_bus);
-}
-#ifdef CONFIG_HOTPLUG
-EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
-#endif
-
-static void __init pcibios_claim_of_setup(void)
-{
-	struct pci_bus *b;
-
-	list_for_each_entry(b, &pci_root_buses, node)
-		pcibios_claim_one_bus(b);
-}
-
 static u32 get_int_prop(struct device_node *np, const char *name, u32 def)
 {
 	const u32 *prop;
@@ -440,6 +361,7 @@ void __devinit scan_phb(struct pci_controller *hose)
 
 	DBG("Scanning PHB %s\n", node ? node->full_name : "<NO NAME>");
 
+	/* Create an empty bus for the toplevel */
 	bus = pci_create_bus(hose->parent, hose->first_busno, hose->ops, node);
 	if (bus == NULL) {
 		printk(KERN_ERR "Failed to create bus for PCI domain %04x\n",
@@ -449,26 +371,16 @@ void __devinit scan_phb(struct pci_controller *hose)
 	bus->secondary = hose->first_busno;
 	hose->bus = bus;
 
+	/* Get some IO space for the new PHB */
 	pcibios_map_io_space(bus);
 
+	/* Wire up PHB bus resources */
 	bus->resource[0] = res = &hose->io_resource;
-	if (res->flags && request_resource(&ioport_resource, res)) {
-		printk(KERN_ERR "Failed to request PCI IO region "
-		       "on PCI domain %04x\n", hose->global_number);
-		DBG("res->start = 0x%016lx, res->end = 0x%016lx\n",
-		    res->start, res->end);
-	}
+	for (i = 0; i < 3; ++i)
+		bus->resource[i+1] = &hose->mem_resources[i];
 
-	for (i = 0; i < 3; ++i) {
-		res = &hose->mem_resources[i];
-		bus->resource[i+1] = res;
-		if (res->flags && request_resource(&iomem_resource, res))
-			printk(KERN_ERR "Failed to request PCI memory region "
-			       "on PCI domain %04x\n", hose->global_number);
-	}
-
+	/* Get probe mode and perform scan */
 	mode = PCI_PROBE_NORMAL;
-
 	if (node && ppc_md.pci_probe_mode)
 		mode = ppc_md.pci_probe_mode(bus);
 	DBG("    probe mode: %d\n", mode);
@@ -485,12 +397,15 @@ static int __init pcibios_init(void)
 {
 	struct pci_controller *hose, *tmp;
 
+	printk(KERN_INFO "PCI: Probing PCI hardware\n");
+
 	/* For now, override phys_mem_access_prot. If we need it,
 	 * later, we may move that initialization to each ppc_md
 	 */
 	ppc_md.phys_mem_access_prot = pci_phys_mem_access_prot;
 
-	printk(KERN_DEBUG "PCI: Probing PCI hardware\n");
+	if (pci_probe_only)
+		ppc_pci_flags |= PPC_PCI_PROBE_ONLY;
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
@@ -498,17 +413,8 @@ static int __init pcibios_init(void)
 		pci_bus_add_devices(hose->bus);
 	}
 
-	if (pci_probe_only)
-		pcibios_claim_of_setup();
-	else
-		/* FIXME: `else' will be removed when
-		   pci_assign_unassigned_resources() is able to work
-		   correctly with [partially] allocated PCI tree. */
-		pci_assign_unassigned_resources();
-
-	/* Call machine dependent final fixup */
-	if (ppc_md.pcibios_fixup)
-		ppc_md.pcibios_fixup();
+	/* Call common code to handle resource allocation */
+	pcibios_resource_survey();
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware done\n");
 

@@ -53,6 +53,8 @@ static int global_phb_number;		/* Global phb counter */
 /* ISA Memory physical address */
 resource_size_t isa_mem_base;
 
+/* Default PCI flags is 0 */
+unsigned int ppc_pci_flags;
 
 struct pci_controller *pcibios_alloc_controller(struct device_node *dev)
 {
@@ -821,3 +823,293 @@ void __devinit pcibios_fixup_of_probed_bus(struct pci_bus *bus)
 {
 	__pcibios_fixup_bus(bus);
 }
+
+static int skip_isa_ioresource_align(struct pci_dev *dev)
+{
+	if ((ppc_pci_flags & PPC_PCI_CAN_SKIP_ISA_ALIGN) &&
+	    !(dev->bus->bridge_ctl & PCI_BRIDGE_CTL_ISA))
+		return 1;
+	return 0;
+}
+
+/*
+ * We need to avoid collisions with `mirrored' VGA ports
+ * and other strange ISA hardware, so we always want the
+ * addresses to be allocated in the 0x000-0x0ff region
+ * modulo 0x400.
+ *
+ * Why? Because some silly external IO cards only decode
+ * the low 10 bits of the IO address. The 0x00-0xff region
+ * is reserved for motherboard devices that decode all 16
+ * bits, so it's ok to allocate at, say, 0x2800-0x28ff,
+ * but we want to try to avoid allocating at 0x2900-0x2bff
+ * which might have be mirrored at 0x0100-0x03ff..
+ */
+void pcibios_align_resource(void *data, struct resource *res,
+				resource_size_t size, resource_size_t align)
+{
+	struct pci_dev *dev = data;
+
+	if (res->flags & IORESOURCE_IO) {
+		resource_size_t start = res->start;
+
+		if (skip_isa_ioresource_align(dev))
+			return;
+		if (start & 0x300) {
+			start = (start + 0x3ff) & ~0x3ff;
+			res->start = start;
+		}
+	}
+}
+EXPORT_SYMBOL(pcibios_align_resource);
+
+/*
+ * Reparent resource children of pr that conflict with res
+ * under res, and make res replace those children.
+ */
+static int __init reparent_resources(struct resource *parent,
+				     struct resource *res)
+{
+	struct resource *p, **pp;
+	struct resource **firstpp = NULL;
+
+	for (pp = &parent->child; (p = *pp) != NULL; pp = &p->sibling) {
+		if (p->end < res->start)
+			continue;
+		if (res->end < p->start)
+			break;
+		if (p->start < res->start || p->end > res->end)
+			return -1;	/* not completely contained */
+		if (firstpp == NULL)
+			firstpp = pp;
+	}
+	if (firstpp == NULL)
+		return -1;	/* didn't find any conflicting entries? */
+	res->parent = parent;
+	res->child = *firstpp;
+	res->sibling = *pp;
+	*firstpp = res;
+	*pp = NULL;
+	for (p = res->child; p != NULL; p = p->sibling) {
+		p->parent = res;
+		DBG(KERN_INFO "PCI: reparented %s [%llx..%llx] under %s\n",
+		    p->name,
+		    (unsigned long long)p->start,
+		    (unsigned long long)p->end, res->name);
+	}
+	return 0;
+}
+
+/*
+ *  Handle resources of PCI devices.  If the world were perfect, we could
+ *  just allocate all the resource regions and do nothing more.  It isn't.
+ *  On the other hand, we cannot just re-allocate all devices, as it would
+ *  require us to know lots of host bridge internals.  So we attempt to
+ *  keep as much of the original configuration as possible, but tweak it
+ *  when it's found to be wrong.
+ *
+ *  Known BIOS problems we have to work around:
+ *	- I/O or memory regions not configured
+ *	- regions configured, but not enabled in the command register
+ *	- bogus I/O addresses above 64K used
+ *	- expansion ROMs left enabled (this may sound harmless, but given
+ *	  the fact the PCI specs explicitly allow address decoders to be
+ *	  shared between expansion ROMs and other resource regions, it's
+ *	  at least dangerous)
+ *
+ *  Our solution:
+ *	(1) Allocate resources for all buses behind PCI-to-PCI bridges.
+ *	    This gives us fixed barriers on where we can allocate.
+ *	(2) Allocate resources for all enabled devices.  If there is
+ *	    a collision, just mark the resource as unallocated. Also
+ *	    disable expansion ROMs during this step.
+ *	(3) Try to allocate resources for disabled devices.  If the
+ *	    resources were assigned correctly, everything goes well,
+ *	    if they weren't, they won't disturb allocation of other
+ *	    resources.
+ *	(4) Assign new addresses to resources which were either
+ *	    not configured at all or misconfigured.  If explicitly
+ *	    requested by the user, configure expansion ROM address
+ *	    as well.
+ */
+
+static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
+{
+	struct pci_bus *bus;
+	int i;
+	struct resource *res, *pr;
+
+	/* Depth-First Search on bus tree */
+	list_for_each_entry(bus, bus_list, node) {
+		for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
+			if ((res = bus->resource[i]) == NULL || !res->flags
+			    || res->start > res->end)
+				continue;
+			if (bus->parent == NULL)
+				pr = (res->flags & IORESOURCE_IO)?
+					&ioport_resource : &iomem_resource;
+			else {
+				/* Don't bother with non-root busses when
+				 * re-assigning all resources. We clear the
+				 * resource flags as if they were colliding
+				 * and as such ensure proper re-allocation
+				 * later.
+				 */
+				if (ppc_pci_flags & PPC_PCI_REASSIGN_ALL_RSRC)
+					goto clear_resource;
+				pr = pci_find_parent_resource(bus->self, res);
+				if (pr == res) {
+					/* this happens when the generic PCI
+					 * code (wrongly) decides that this
+					 * bridge is transparent  -- paulus
+					 */
+					continue;
+				}
+			}
+
+			DBG("PCI: %s (bus %d) bridge rsrc %d: %016llx-%016llx "
+			    "[0x%x], parent %p (%s)\n",
+			    bus->self ? pci_name(bus->self) : "PHB",
+			    bus->number, i,
+			    (unsigned long long)res->start,
+			    (unsigned long long)res->end,
+			    (unsigned int)res->flags,
+			    pr, (pr && pr->name) ? pr->name : "nil");
+
+			if (pr && !(pr->flags & IORESOURCE_UNSET)) {
+				if (request_resource(pr, res) == 0)
+					continue;
+				/*
+				 * Must be a conflict with an existing entry.
+				 * Move that entry (or entries) under the
+				 * bridge resource and try again.
+				 */
+				if (reparent_resources(pr, res) == 0)
+					continue;
+			}
+			printk(KERN_WARNING
+			       "PCI: Cannot allocate resource region "
+			       "%d of PCI bridge %d, will remap\n",
+			       i, bus->number);
+clear_resource:
+			res->flags = 0;
+		}
+		pcibios_allocate_bus_resources(&bus->children);
+	}
+}
+
+static inline void __devinit alloc_resource(struct pci_dev *dev, int idx)
+{
+	struct resource *pr, *r = &dev->resource[idx];
+
+	DBG("PCI: Allocating %s: Resource %d: %016llx..%016llx [%x]\n",
+	    pci_name(dev), idx,
+	    (unsigned long long)r->start,
+	    (unsigned long long)r->end,
+	    (unsigned int)r->flags);
+
+	pr = pci_find_parent_resource(dev, r);
+	if (!pr || (pr->flags & IORESOURCE_UNSET) ||
+	    request_resource(pr, r) < 0) {
+		printk(KERN_WARNING "PCI: Cannot allocate resource region %d"
+		       " of device %s, will remap\n", idx, pci_name(dev));
+		if (pr)
+			DBG("PCI:  parent is %p: %016llx-%016llx [%x]\n", pr,
+			    (unsigned long long)pr->start,
+			    (unsigned long long)pr->end,
+			    (unsigned int)pr->flags);
+		/* We'll assign a new address later */
+		r->flags |= IORESOURCE_UNSET;
+		r->end -= r->start;
+		r->start = 0;
+	}
+}
+
+static void __init pcibios_allocate_resources(int pass)
+{
+	struct pci_dev *dev = NULL;
+	int idx, disabled;
+	u16 command;
+	struct resource *r;
+
+	for_each_pci_dev(dev) {
+		pci_read_config_word(dev, PCI_COMMAND, &command);
+		for (idx = 0; idx < 6; idx++) {
+			r = &dev->resource[idx];
+			if (r->parent)		/* Already allocated */
+				continue;
+			if (!r->flags || (r->flags & IORESOURCE_UNSET))
+				continue;	/* Not assigned at all */
+			if (r->flags & IORESOURCE_IO)
+				disabled = !(command & PCI_COMMAND_IO);
+			else
+				disabled = !(command & PCI_COMMAND_MEMORY);
+			if (pass == disabled)
+				alloc_resource(dev, idx);
+		}
+		if (pass)
+			continue;
+		r = &dev->resource[PCI_ROM_RESOURCE];
+		if (r->flags & IORESOURCE_ROM_ENABLE) {
+			/* Turn the ROM off, leave the resource region,
+			 * but keep it unregistered.
+			 */
+			u32 reg;
+			DBG("PCI: Switching off ROM of %s\n", pci_name(dev));
+			r->flags &= ~IORESOURCE_ROM_ENABLE;
+			pci_read_config_dword(dev, dev->rom_base_reg, &reg);
+			pci_write_config_dword(dev, dev->rom_base_reg,
+					       reg & ~PCI_ROM_ADDRESS_ENABLE);
+		}
+	}
+}
+
+void __init pcibios_resource_survey(void)
+{
+	/* Allocate and assign resources. If we re-assign everything, then
+	 * we skip the allocate phase
+	 */
+	pcibios_allocate_bus_resources(&pci_root_buses);
+
+	if (!(ppc_pci_flags & PPC_PCI_REASSIGN_ALL_RSRC)) {
+		pcibios_allocate_resources(0);
+		pcibios_allocate_resources(1);
+	}
+
+	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
+		DBG("PCI: Assigning unassigned resouces...\n");
+		pci_assign_unassigned_resources();
+	}
+
+	/* Call machine dependent fixup */
+	if (ppc_md.pcibios_fixup)
+		ppc_md.pcibios_fixup();
+}
+
+#ifdef CONFIG_HOTPLUG
+/* This is used by the pSeries hotplug driver to allocate resource
+ * of newly plugged busses. We can try to consolidate with the
+ * rest of the code later, for now, keep it as-is
+ */
+void __devinit pcibios_claim_one_bus(struct pci_bus *bus)
+{
+	struct pci_dev *dev;
+	struct pci_bus *child_bus;
+
+	list_for_each_entry(dev, &bus->devices, bus_list) {
+		int i;
+
+		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
+			struct resource *r = &dev->resource[i];
+
+			if (r->parent || !r->start || !r->flags)
+				continue;
+			pci_claim_resource(dev, i);
+		}
+	}
+
+	list_for_each_entry(child_bus, &bus->children, node)
+		pcibios_claim_one_bus(child_bus);
+}
+EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
+#endif /* CONFIG_HOTPLUG */

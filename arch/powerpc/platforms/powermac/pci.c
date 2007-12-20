@@ -994,9 +994,8 @@ void __init pmac_pci_init(void)
 	struct device_node *np, *root;
 	struct device_node *ht = NULL;
 
-#ifdef CONFIG_PPC32
 	ppc_pci_flags = PPC_PCI_CAN_SKIP_ISA_ALIGN;
-#endif
+
 	root = of_find_node_by_path("/");
 	if (root == NULL) {
 		printk(KERN_CRIT "pmac_pci_init: can't find root "

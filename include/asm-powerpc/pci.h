@@ -36,14 +36,10 @@ struct pci_dev;
 
 /*
  * Set this to 1 if you want the kernel to re-assign all PCI
- * bus numbers
+ * bus numbers (don't do that on ppc64 yet !)
  */
-#ifdef CONFIG_PPC64
-#define pcibios_assign_all_busses()	0
-#else
 #define pcibios_assign_all_busses()    	(ppc_pci_flags & \
 					 PPC_PCI_REASSIGN_ALL_BUS)
-#endif
 #define pcibios_scan_all_fns(a, b)	0
 
 static inline void pcibios_set_master(struct pci_dev *dev)
@@ -199,6 +195,8 @@ static inline struct resource *pcibios_select_root(struct pci_dev *pdev,
 extern void pcibios_setup_new_device(struct pci_dev *dev);
 
 extern void pcibios_claim_one_bus(struct pci_bus *b);
+
+extern void pcibios_resource_survey(void);
 
 extern struct pci_controller *init_phb_dynamic(struct device_node *dn);
 
