@@ -610,8 +610,7 @@ static int whiteheat_open (struct usb_serial_port *port, struct file *filp)
 	if (retval)
 		goto exit;
 
-	if (port->tty)
-		port->tty->low_latency = 1;
+	port->tty->low_latency = 1;
 
 	/* send an open port command */
 	retval = firm_open(port);
