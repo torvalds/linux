@@ -714,7 +714,7 @@ err_put:
 			sysfs_remove_group(p, &pma_group);
 			sysfs_remove_group(p, &port->pkey_group);
 			sysfs_remove_group(p, &port->gid_group);
-			kobject_unregister(p);
+			kobject_put(p);
 		}
 	}
 
@@ -738,10 +738,10 @@ void ib_device_unregister_sysfs(struct ib_device *device)
 		sysfs_remove_group(p, &pma_group);
 		sysfs_remove_group(p, &port->pkey_group);
 		sysfs_remove_group(p, &port->gid_group);
-		kobject_unregister(p);
+		kobject_put(p);
 	}
 
-	kobject_unregister(device->ports_parent);
+	kobject_put(device->ports_parent);
 	class_device_unregister(&device->class_dev);
 }
 

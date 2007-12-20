@@ -671,7 +671,7 @@ int pci_hp_deregister (struct hotplug_slot *slot)
 
 	fs_remove_slot (slot);
 	dbg ("Removed slot %s from the list\n", slot->name);
-	kobject_unregister(&slot->kobj);
+	kobject_put(&slot->kobj);
 	return 0;
 }
 

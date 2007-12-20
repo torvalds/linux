@@ -114,12 +114,12 @@ int dlpar_sysfs_init(void)
 
 	error = sysfs_create_group(dlpar_kobj, &dlpar_attr_group);
 	if (error)
-		kobject_unregister(dlpar_kobj);
+		kobject_put(dlpar_kobj);
 	return error;
 }
 
 void dlpar_sysfs_exit(void)
 {
 	sysfs_remove_group(dlpar_kobj, &dlpar_attr_group);
-	kobject_unregister(dlpar_kobj);
+	kobject_put(dlpar_kobj);
 }

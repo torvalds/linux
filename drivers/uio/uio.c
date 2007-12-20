@@ -186,9 +186,9 @@ err:
 	for (mi--; mi>=0; mi--) {
 		mem = &idev->info->mem[mi];
 		map = mem->map;
-		kobject_unregister(&map->kobj);
+		kobject_put(&map->kobj);
 	}
-	kobject_unregister(idev->map_dir);
+	kobject_put(idev->map_dir);
 	sysfs_remove_group(&idev->dev->kobj, &uio_attr_grp);
 err_group:
 	dev_err(idev->dev, "error creating sysfs files (%d)\n", ret);
@@ -203,9 +203,9 @@ static void uio_dev_del_attributes(struct uio_device *idev)
 		mem = &idev->info->mem[mi];
 		if (mem->size == 0)
 			break;
-		kobject_unregister(&mem->map->kobj);
+		kobject_put(&mem->map->kobj);
 	}
-	kobject_unregister(idev->map_dir);
+	kobject_put(idev->map_dir);
 	sysfs_remove_group(&idev->dev->kobj, &uio_attr_grp);
 }
 

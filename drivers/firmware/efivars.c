@@ -397,7 +397,7 @@ static struct kobj_type efivar_ktype = {
 static inline void
 efivar_unregister(struct efivar_entry *var)
 {
-	kobject_unregister(&var->kobj);
+	kobject_put(&var->kobj);
 }
 
 
@@ -732,7 +732,7 @@ efivars_init(void)
 	kset_unregister(vars_kset);
 
 out_firmware_unregister:
-	kobject_unregister(efi_kobj);
+	kobject_put(efi_kobj);
 
 out_free:
 	kfree(variable_name);
@@ -753,7 +753,7 @@ efivars_exit(void)
 	}
 
 	kset_unregister(vars_kset);
-	kobject_unregister(efi_kobj);
+	kobject_put(efi_kobj);
 }
 
 module_init(efivars_init);

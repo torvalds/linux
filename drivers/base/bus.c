@@ -681,7 +681,7 @@ int bus_add_driver(struct device_driver *drv)
 	kobject_uevent(&priv->kobj, KOBJ_ADD);
 	return error;
 out_unregister:
-	kobject_unregister(&priv->kobj);
+	kobject_put(&priv->kobj);
 out_put_bus:
 	bus_put(bus);
 	return error;
@@ -708,7 +708,7 @@ void bus_remove_driver(struct device_driver * drv)
 	pr_debug("bus: '%s': remove driver %s\n", drv->bus->name, drv->name);
 	driver_detach(drv);
 	module_remove_driver(drv);
-	kobject_unregister(&drv->p->kobj);
+	kobject_put(&drv->p->kobj);
 	bus_put(drv->bus);
 }
 

@@ -277,7 +277,7 @@ static struct kobj_type ktype_state_cpuidle = {
 
 static void inline cpuidle_free_state_kobj(struct cpuidle_device *device, int i)
 {
-	kobject_unregister(&device->kobjs[i]->kobj);
+	kobject_put(&device->kobjs[i]->kobj);
 	wait_for_completion(&device->kobjs[i]->kobj_unregister);
 	kfree(device->kobjs[i]);
 	device->kobjs[i] = NULL;
@@ -358,5 +358,5 @@ void cpuidle_remove_sysfs(struct sys_device *sysdev)
 	struct cpuidle_device *dev;
 
 	dev = per_cpu(cpuidle_devices, cpu);
-	kobject_unregister(&dev->kobj);
+	kobject_put(&dev->kobj);
 }

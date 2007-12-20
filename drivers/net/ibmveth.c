@@ -1236,7 +1236,7 @@ static int __devexit ibmveth_remove(struct vio_dev *dev)
 	int i;
 
 	for(i = 0; i<IbmVethNumBufferPools; i++)
-		kobject_unregister(&adapter->rx_buff_pool[i].kobj);
+		kobject_put(&adapter->rx_buff_pool[i].kobj);
 
 	unregister_netdev(netdev);
 

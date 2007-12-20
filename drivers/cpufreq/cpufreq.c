@@ -913,7 +913,7 @@ err_out_unregister:
 		cpufreq_cpu_data[j] = NULL;
 	spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 
-	kobject_unregister(&policy->kobj);
+	kobject_put(&policy->kobj);
 	wait_for_completion(&policy->kobj_unregister);
 
 err_out_driver_exit:
@@ -1029,8 +1029,6 @@ static int __cpufreq_remove_dev (struct sys_device * sys_dev)
 		__cpufreq_governor(data, CPUFREQ_GOV_STOP);
 
 	unlock_policy_rwsem_write(cpu);
-
-	kobject_unregister(&data->kobj);
 
 	kobject_put(&data->kobj);
 

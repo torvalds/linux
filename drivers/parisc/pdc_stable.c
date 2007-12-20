@@ -1026,7 +1026,7 @@ pdcs_unregister_pathentries(void)
 	for (i = 0; (entry = pdcspath_entries[i]); i++) {
 		read_lock(&entry->rw_lock);
 		if (entry->ready >= 2)
-			kobject_unregister(&entry->kobj);
+			kobject_put(&entry->kobj);
 		read_unlock(&entry->rw_lock);
 	}
 }
@@ -1086,7 +1086,7 @@ fail_pdcsreg:
 	kset_unregister(paths_kset);
 	
 fail_ksetreg:
-	kobject_unregister(stable_kobj);
+	kobject_put(stable_kobj);
 	
 fail_firmreg:
 	printk(KERN_INFO PDCS_PREFIX " bailing out\n");
@@ -1098,7 +1098,7 @@ pdc_stable_exit(void)
 {
 	pdcs_unregister_pathentries();
 	kset_unregister(paths_kset);
-	kobject_unregister(stable_kobj);
+	kobject_put(stable_kobj);
 }
 
 

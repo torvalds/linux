@@ -205,7 +205,7 @@ void edac_pci_unregister_sysfs_instance_kobj(struct edac_pci_ctl_info *pci)
 	 * function release the main reference count and then
 	 * kfree the memory
 	 */
-	kobject_unregister(&pci->kobj);
+	kobject_put(&pci->kobj);
 }
 
 /***************************** EDAC PCI sysfs root **********************/
@@ -411,9 +411,9 @@ static void edac_pci_main_kobj_teardown(void)
 	 * main kobj
 	 */
 	if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0) {
-		debugf0("%s() called kobject_unregister on main kobj\n",
+		debugf0("%s() called kobject_put on main kobj\n",
 			__func__);
-		kobject_unregister(&edac_pci_top_main_kobj);
+		kobject_put(&edac_pci_top_main_kobj);
 	}
 }
 

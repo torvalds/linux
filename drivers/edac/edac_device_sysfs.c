@@ -303,7 +303,7 @@ void edac_device_unregister_sysfs_main_kobj(
 	 *   a) module_put() this module
 	 *   b) 'kfree' the memory
 	 */
-	kobject_unregister(&edac_dev->kobj);
+	kobject_put(&edac_dev->kobj);
 }
 
 /* edac_dev -> instance information */
@@ -574,7 +574,7 @@ static int edac_device_create_block(struct edac_device_ctl_info *edac_dev,
 
 	/* Error unwind stack */
 err_on_attrib:
-	kobject_unregister(&block->kobj);
+	kobject_put(&block->kobj);
 
 err_out:
 	return err;
@@ -605,7 +605,7 @@ static void edac_device_delete_block(struct edac_device_ctl_info *edac_dev,
 	/* unregister this block's kobject, SEE:
 	 *	edac_device_ctrl_block_release() callback operation
 	 */
-	kobject_unregister(&block->kobj);
+	kobject_put(&block->kobj);
 }
 
 /* instance ctor/dtor code */
@@ -672,7 +672,7 @@ static int edac_device_create_instance(struct edac_device_ctl_info *edac_dev,
 
 	/* error unwind stack */
 err_release_instance_kobj:
-	kobject_unregister(&instance->kobj);
+	kobject_put(&instance->kobj);
 
 err_out:
 	return err;
@@ -697,7 +697,7 @@ static void edac_device_delete_instance(struct edac_device_ctl_info *edac_dev,
 	/* unregister this instance's kobject, SEE:
 	 *	edac_device_ctrl_instance_release() for callback operation
 	 */
-	kobject_unregister(&instance->kobj);
+	kobject_put(&instance->kobj);
 }
 
 /*

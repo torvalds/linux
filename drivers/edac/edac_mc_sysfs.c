@@ -395,7 +395,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 		goto err_release_top_kobj;
 
 	/* At this point, to release a csrow kobj, one must
-	 * call the kobject_unregister and allow that tear down
+	 * call the kobject_put and allow that tear down
 	 * to work the releasing
 	 */
 
@@ -406,7 +406,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 		err = edac_create_channel_files(&csrow->kobj, chan);
 		if (err) {
 			/* special case the unregister here */
-			kobject_unregister(&csrow->kobj);
+			kobject_put(&csrow->kobj);
 			goto err_out;
 		}
 	}
@@ -808,7 +808,7 @@ fail_out:
 void edac_mc_unregister_sysfs_main_kobj(struct mem_ctl_info *mci)
 {
 	/* delete the kobj from the mc_kset */
-	kobject_unregister(&mci->edac_mci_kobj);
+	kobject_put(&mci->edac_mci_kobj);
 }
 
 #define EDAC_DEVICE_SYMLINK	"device"
@@ -923,7 +923,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 fail1:
 	for (i--; i >= 0; i--) {
 		if (csrow->nr_pages > 0) {
-			kobject_unregister(&mci->csrows[i].kobj);
+			kobject_put(&mci->csrows[i].kobj);
 		}
 	}
 
@@ -950,7 +950,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 	for (i = 0; i < mci->nr_csrows; i++) {
 		if (mci->csrows[i].nr_pages > 0) {
 			debugf0("%s()  unreg csrow-%d\n", __func__, i);
-			kobject_unregister(&mci->csrows[i].kobj);
+			kobject_put(&mci->csrows[i].kobj);
 		}
 	}
 
@@ -967,7 +967,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 	debugf0("%s()  unregister this mci kobj\n", __func__);
 
 	/* unregister this instance's kobject */
-	kobject_unregister(&mci->edac_mci_kobj);
+	kobject_put(&mci->edac_mci_kobj);
 }
 
 

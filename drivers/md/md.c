@@ -231,7 +231,7 @@ static void mddev_put(mddev_t *mddev)
 		list_del(&mddev->all_mddevs);
 		spin_unlock(&all_mddevs_lock);
 		blk_cleanup_queue(mddev->queue);
-		kobject_unregister(&mddev->kobj);
+		kobject_put(&mddev->kobj);
 	} else
 		spin_unlock(&all_mddevs_lock);
 }

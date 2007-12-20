@@ -693,7 +693,7 @@ edd_create_symlink_to_pcidev(struct edd_device *edev)
 static inline void
 edd_device_unregister(struct edd_device *edev)
 {
-	kobject_unregister(&edev->kobj);
+	kobject_put(&edev->kobj);
 }
 
 static void edd_populate_dir(struct edd_device * edev)

@@ -264,7 +264,7 @@ void sysdev_unregister(struct sys_device * sysdev)
 	}
 	mutex_unlock(&sysdev_drivers_lock);
 
-	kobject_unregister(&sysdev->kobj);
+	kobject_put(&sysdev->kobj);
 }
 
 
