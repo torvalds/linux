@@ -98,9 +98,6 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 #define get_pci_dma_ops()	NULL
 #endif
 
-/* Decide whether to display the domain number in /proc */
-extern int pci_proc_domain(struct pci_bus *bus);
-
 #else /* 32-bit */
 
 #ifdef CONFIG_PCI
@@ -112,16 +109,13 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 	*strategy_parameter = ~0UL;
 }
 #endif
-
-/* Set the name of the bus as it appears in /proc/bus/pci */
-static inline int pci_proc_domain(struct pci_bus *bus)
-{
-	return 0;
-}
-
 #endif /* CONFIG_PPC64 */
 
 extern int pci_domain_nr(struct pci_bus *bus);
+
+/* Decide whether to display the domain number in /proc */
+extern int pci_proc_domain(struct pci_bus *bus);
+
 
 struct vm_area_struct;
 /* Map a range of PCI memory or I/O space for a device into user space */

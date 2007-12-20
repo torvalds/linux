@@ -639,3 +639,19 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 		hose->mem_resources[memno-1] = tmp;
 	}
 }
+
+/* Decide whether to display the domain number in /proc */
+int pci_proc_domain(struct pci_bus *bus)
+{
+	struct pci_controller *hose = pci_bus_to_host(bus);
+#ifdef CONFIG_PPC64
+	return hose->buid != 0;
+#else
+	if (!(ppc_pci_flags & PPC_PCI_ENABLE_PROC_DOMAINS))
+		return 0;
+	if (ppc_pci_flags & PPC_PCI_COMPAT_DOMAIN_0)
+		return hose->global_number != 0;
+	return 1;
+#endif
+}
+

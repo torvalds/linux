@@ -30,6 +30,11 @@ enum {
 	 * ISA forwarding enabled
 	 */
 	PPC_PCI_CAN_SKIP_ISA_ALIGN	= 0x00000008,
+
+	/* Enable domain numbers in /proc */
+	PPC_PCI_ENABLE_PROC_DOMAINS	= 0x00000010,
+	/* ... except for domain 0 */
+	PPC_PCI_COMPAT_DOMAIN_0		= 0x00000020,
 };
 
 
