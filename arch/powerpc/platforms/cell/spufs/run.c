@@ -152,23 +152,41 @@ out:
 static int spu_run_init(struct spu_context *ctx, u32 *npc)
 {
 	unsigned long runcntl;
+	int ret;
 
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
 	if (ctx->flags & SPU_CREATE_ISOLATE) {
+		/*
+		 * Force activation of spu.  Isolated state assumes that
+		 * special loader context is loaded and running on spu.
+		 */
+		if (ctx->state == SPU_STATE_SAVED) {
+			spu_set_timeslice(ctx);
 
-		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
-			int ret = spu_setup_isolated(ctx);
+			ret = spu_activate(ctx, 0);
 			if (ret)
 				return ret;
 		}
 
-		/* if userspace has set the runcntrl register (eg, to issue an
-		 * isolated exit), we need to re-set it here */
+		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
+			ret = spu_setup_isolated(ctx);
+			if (ret)
+				return ret;
+		}
+
+		/*
+		 * If userspace has set the runcntrl register (eg, to
+		 * issue an isolated exit), we need to re-set it here
+		 */
 		runcntl = ctx->ops->runcntl_read(ctx) &
 			(SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
 		if (runcntl == 0)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
+
+		spuctx_switch_state(ctx, SPU_UTIL_USER);
+		ctx->ops->runcntl_write(ctx, runcntl);
+
 	} else {
 		unsigned long privcntl;
 
@@ -180,11 +198,17 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 
 		ctx->ops->npc_write(ctx, *npc);
 		ctx->ops->privcntl_write(ctx, privcntl);
+
+		if (ctx->state == SPU_STATE_SAVED) {
+			spu_set_timeslice(ctx);
+			ret = spu_activate(ctx, 0);
+			if (ret)
+				return ret;
+		}
+
+		spuctx_switch_state(ctx, SPU_UTIL_USER);
+		ctx->ops->runcntl_write(ctx, runcntl);
 	}
-
-	ctx->ops->runcntl_write(ctx, runcntl);
-
-	spuctx_switch_state(ctx, SPU_UTIL_USER);
 
 	return 0;
 }
@@ -323,25 +347,8 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 	ctx->event_return = 0;
 
 	spu_acquire(ctx);
-	if (ctx->state == SPU_STATE_SAVED) {
-		__spu_update_sched_info(ctx);
-		spu_set_timeslice(ctx);
 
-		ret = spu_activate(ctx, 0);
-		if (ret) {
-			spu_release(ctx);
-			goto out;
-		}
-	} else {
-		/*
-		 * We have to update the scheduling priority under active_mutex
-		 * to protect against find_victim().
-		 *
-		 * No need to update the timeslice ASAP, it will get updated
-		 * once the current one has expired.
-		 */
-		spu_update_sched_info(ctx);
-	}
+	spu_update_sched_info(ctx);
 
 	ret = spu_run_init(ctx, npc);
 	if (ret) {

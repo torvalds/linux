@@ -105,6 +105,12 @@ void spu_set_timeslice(struct spu_context *ctx)
 void __spu_update_sched_info(struct spu_context *ctx)
 {
 	/*
+	 * assert that the context is not on the runqueue, so it is safe
+	 * to change its scheduling parameters.
+	 */
+	BUG_ON(!list_empty(&ctx->rq));
+
+	/*
 	 * 32-Bit assignments are atomic on powerpc, and we don't care about
 	 * memory ordering here because retrieving the controlling thread is
 	 * per definition racy.
@@ -124,23 +130,28 @@ void __spu_update_sched_info(struct spu_context *ctx)
 	ctx->policy = current->policy;
 
 	/*
-	 * A lot of places that don't hold list_mutex poke into
-	 * cpus_allowed, including grab_runnable_context which
-	 * already holds the runq_lock.  So abuse runq_lock
-	 * to protect this field as well.
+	 * TO DO: the context may be loaded, so we may need to activate
+	 * it again on a different node. But it shouldn't hurt anything
+	 * to update its parameters, because we know that the scheduler
+	 * is not actively looking at this field, since it is not on the
+	 * runqueue. The context will be rescheduled on the proper node
+	 * if it is timesliced or preempted.
 	 */
-	spin_lock(&spu_prio->runq_lock);
 	ctx->cpus_allowed = current->cpus_allowed;
-	spin_unlock(&spu_prio->runq_lock);
 }
 
 void spu_update_sched_info(struct spu_context *ctx)
 {
-	int node = ctx->spu->node;
+	int node;
 
-	mutex_lock(&cbe_spu_info[node].list_mutex);
-	__spu_update_sched_info(ctx);
-	mutex_unlock(&cbe_spu_info[node].list_mutex);
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		node = ctx->spu->node;
+		mutex_lock(&cbe_spu_info[node].list_mutex);
+		__spu_update_sched_info(ctx);
+		mutex_unlock(&cbe_spu_info[node].list_mutex);
+	} else {
+		__spu_update_sched_info(ctx);
+	}
 }
 
 static int __node_allowed(struct spu_context *ctx, int node)
@@ -604,6 +615,10 @@ static struct spu *find_victim(struct spu_context *ctx)
 			 * higher priority contexts before lower priority
 			 * ones, so this is safe until we introduce
 			 * priority inheritance schemes.
+			 *
+			 * XXX if the highest priority context is locked,
+			 * this can loop a long time.  Might be better to
+			 * look at another context or give up after X retries.
 			 */
 			if (!mutex_trylock(&victim->state_mutex)) {
 				victim = NULL;
