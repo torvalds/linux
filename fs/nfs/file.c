@@ -349,7 +349,9 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	unlock_page(page);
 	page_cache_release(page);
 
-	return status < 0 ? status : copied;
+	if (status < 0)
+		return status;
+	return copied;
 }
 
 static void nfs_invalidate_page(struct page *page, unsigned long offset)
