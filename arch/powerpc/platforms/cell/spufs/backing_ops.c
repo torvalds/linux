@@ -106,7 +106,7 @@ static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
 		if (stat & 0xff0000)
 			ret |= POLLIN | POLLRDNORM;
 		else {
-			ctx->csa.priv1.int_stat_class0_RW &= ~0x1;
+			ctx->csa.priv1.int_stat_class2_RW &= ~0x1;
 			ctx->csa.priv1.int_mask_class2_RW |= 0x1;
 		}
 	}
@@ -114,7 +114,7 @@ static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
 		if (stat & 0x00ff00)
 			ret = POLLOUT | POLLWRNORM;
 		else {
-			ctx->csa.priv1.int_stat_class0_RW &= ~0x10;
+			ctx->csa.priv1.int_stat_class2_RW &= ~0x10;
 			ctx->csa.priv1.int_mask_class2_RW |= 0x10;
 		}
 	}
