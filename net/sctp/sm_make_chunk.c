@@ -1275,6 +1275,9 @@ nodata:
 /* Release the memory occupied by a chunk.  */
 static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 {
+	BUG_ON(!list_empty(&chunk->list));
+	list_del_init(&chunk->transmitted_list);
+
 	/* Free the chunk skb data and the SCTP_chunk stub itself. */
 	dev_kfree_skb(chunk->skb);
 
@@ -1285,9 +1288,6 @@ static void sctp_chunk_destroy(struct sctp_chunk *chunk)
 /* Possibly, free the chunk.  */
 void sctp_chunk_free(struct sctp_chunk *chunk)
 {
-	BUG_ON(!list_empty(&chunk->list));
-	list_del_init(&chunk->transmitted_list);
-
 	/* Release our reference on the message tracker. */
 	if (chunk->msg)
 		sctp_datamsg_put(chunk->msg);
@@ -2980,11 +2980,9 @@ done:
 	 * after freeing the reference to old asconf ack if any.
 	 */
 	if (asconf_ack) {
-		if (asoc->addip_last_asconf_ack)
-			sctp_chunk_free(asoc->addip_last_asconf_ack);
-
 		sctp_chunk_hold(asconf_ack);
-		asoc->addip_last_asconf_ack = asconf_ack;
+		list_add_tail(&asconf_ack->transmitted_list,
+			      &asoc->asconf_ack_list);
 	}
 
 	return asconf_ack;

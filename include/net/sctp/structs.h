@@ -744,6 +744,7 @@ struct sctp_chunk {
 	__u8 tsn_missing_report; /* Data chunk missing counter. */
 	__u8 data_accepted; 	/* At least 1 chunk in this packet accepted */
 	__u8 auth;		/* IN: was auth'ed | OUT: needs auth */
+	__u8 has_asconf;	/* IN: have seen an asconf before */
 };
 
 void sctp_chunk_hold(struct sctp_chunk *);
@@ -1785,20 +1786,16 @@ struct sctp_association {
 	 */
 	struct sctp_chunk *addip_last_asconf;
 
-	/* ADDIP Section 4.2 Upon reception of an ASCONF Chunk.
+	/* ADDIP Section 5.2 Upon reception of an ASCONF Chunk.
 	 *
-	 * IMPLEMENTATION NOTE: As an optimization a receiver may wish
-	 * to save the last ASCONF-ACK for some predetermined period
-	 * of time and instead of re-processing the ASCONF (with the
-	 * same serial number) it may just re-transmit the
-	 * ASCONF-ACK. It may wish to use the arrival of a new serial
-	 * number to discard the previously saved ASCONF-ACK or any
-	 * other means it may choose to expire the saved ASCONF-ACK.
+	 * This is needed to implement itmes E1 - E4 of the updated
+	 * spec.  Here is the justification:
 	 *
-	 * [This is our saved ASCONF-ACK.  We invalidate it when a new
-	 * ASCONF serial number arrives.]
+	 * Since the peer may bundle multiple ASCONF chunks toward us,
+	 * we now need the ability to cache multiple ACKs.  The section
+	 * describes in detail how they are cached and cleaned up.
 	 */
-	struct sctp_chunk *addip_last_asconf_ack;
+	struct list_head asconf_ack_list;
 
 	/* These ASCONF chunks are waiting to be sent.
 	 *
@@ -1947,6 +1944,11 @@ int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
 					 gfp_t gfp);
 int sctp_assoc_set_id(struct sctp_association *, gfp_t);
+void sctp_assoc_clean_asconf_ack_cache(const struct sctp_association *asoc);
+struct sctp_chunk *sctp_assoc_lookup_asconf_ack(
+					const struct sctp_association *asoc,
+					__be32 serial);
+
 
 int sctp_cmp_addr_exact(const union sctp_addr *ss1,
 			const union sctp_addr *ss2);
