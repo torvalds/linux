@@ -243,9 +243,13 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 	u8 bctl = 0;
 	u8 presence = 0;
 	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
+	u16 command;
 
 	dbg("%s: bus/dev = %x/%x\n", __FUNCTION__, p_slot->bus,
 				p_slot->device);
+	ret = p_slot->hpc_ops->get_adapter_status(p_slot, &presence);
+	if (ret)
+		presence = 0;
 
 	for (j = 0; j < 8; j++) {
 		struct pci_dev* temp = pci_get_slot(parent,
@@ -258,21 +262,26 @@ int pciehp_unconfigure_device(struct slot *p_slot)
 			pci_dev_put(temp);
 			continue;
 		}
-		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-			ret = p_slot->hpc_ops->get_adapter_status(p_slot,
-								&presence);
-			if (!ret && presence) {
-				pci_read_config_byte(temp, PCI_BRIDGE_CONTROL,
-					&bctl);
-				if (bctl & PCI_BRIDGE_CTL_VGA) {
-					err("Cannot remove display device %s\n",
-						pci_name(temp));
-					pci_dev_put(temp);
-					continue;
-				}
+		if (temp->hdr_type == PCI_HEADER_TYPE_BRIDGE && presence) {
+			pci_read_config_byte(temp, PCI_BRIDGE_CONTROL, &bctl);
+			if (bctl & PCI_BRIDGE_CTL_VGA) {
+				err("Cannot remove display device %s\n",
+				    pci_name(temp));
+				pci_dev_put(temp);
+				continue;
 			}
 		}
 		pci_remove_bus_device(temp);
+		/*
+		 * Ensure that no new Requests will be generated from
+		 * the device.
+		 */
+		if (presence) {
+			pci_read_config_word(temp, PCI_COMMAND, &command);
+			command &= ~(PCI_COMMAND_MASTER | PCI_COMMAND_SERR);
+			command |= PCI_COMMAND_INTX_DISABLE;
+			pci_write_config_word(temp, PCI_COMMAND, command);
+		}
 		pci_dev_put(temp);
 	}
 	/*
