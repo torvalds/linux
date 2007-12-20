@@ -3177,6 +3177,21 @@ static int airo_thread(void *data) {
 	return 0;
 }
 
+static int header_len(__le16 ctl)
+{
+	u16 fc = le16_to_cpu(ctl);
+	switch (fc & 0xc) {
+	case 4:
+		if ((fc & 0xe0) == 0xc0)
+			return 10;	/* one-address control packet */
+		return 16;	/* two-address control packet */
+	case 8:
+		if ((fc & 0x300) == 0x300)
+			return 30;	/* WDS packet */
+	}
+	return 24;
+}
+
 static irqreturn_t airo_interrupt(int irq, void *dev_id)
 {
 	struct net_device *dev = dev_id;
@@ -3330,23 +3345,8 @@ static irqreturn_t airo_interrupt(int irq, void *dev_id)
 				goto badrx;
 
 			if (test_bit(FLAG_802_11, &apriv->flags)) {
-				bap_read (apriv, (u16*)&fc, sizeof(fc), BAP0);
-				fc = le16_to_cpu(fc);
-				switch (fc & 0xc) {
-					case 4:
-						if ((fc & 0xe0) == 0xc0)
-							hdrlen = 10;
-						else
-							hdrlen = 16;
-						break;
-					case 8:
-						if ((fc&0x300)==0x300){
-							hdrlen = 30;
-							break;
-						}
-					default:
-						hdrlen = 24;
-				}
+				bap_read (apriv, &fc, sizeof(fc), BAP0);
+				hdrlen = header_len(fc);
 			} else
 				hdrlen = ETH_ALEN * 2;
 
@@ -3677,7 +3677,8 @@ void mpi_receive_802_11 (struct airo_info *ai)
 {
 	RxFid rxd;
 	struct sk_buff *skb = NULL;
-	u16 fc, len, hdrlen = 0;
+	u16 len, hdrlen = 0;
+	__le16 fc;
 #pragma pack(1)
 	struct {
 		u16 status, len;
@@ -3707,23 +3708,8 @@ void mpi_receive_802_11 (struct airo_info *ai)
 	if (len == 0)
 		goto badrx;
 
-	memcpy ((char *)&fc, ptr, sizeof(fc));
-	fc = le16_to_cpu(fc);
-	switch (fc & 0xc) {
-		case 4:
-			if ((fc & 0xe0) == 0xc0)
-				hdrlen = 10;
-			else
-				hdrlen = 16;
-			break;
-		case 8:
-			if ((fc&0x300)==0x300){
-				hdrlen = 30;
-				break;
-			}
-		default:
-			hdrlen = 24;
-	}
+	fc = get_unaligned((__le16 *)ptr);
+	hdrlen = header_len(fc);
 
 	skb = dev_alloc_skb( len + hdrlen + 2 );
 	if ( !skb ) {
@@ -4370,22 +4356,8 @@ static int transmit_802_11_packet(struct airo_info *ai, int len, char *pPacket)
 	u16 txFid = len;
 	len >>= 16;
 
-	fc = le16_to_cpu(*(const u16*)pPacket);
-	switch (fc & 0xc) {
-		case 4:
-			if ((fc & 0xe0) == 0xc0)
-				hdrlen = 10;
-			else
-				hdrlen = 16;
-			break;
-		case 8:
-			if ((fc&0x300)==0x300){
-				hdrlen = 30;
-				break;
-			}
-		default:
-			hdrlen = 24;
-	}
+	fc = *(__le16*)pPacket;
+	hdrlen = header_len(fc);
 
 	if (len < hdrlen) {
 		airo_print_warn(ai->dev->name, "Short packet %d", len);
