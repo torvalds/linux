@@ -144,7 +144,7 @@ void irlap_send_snrm_frame(struct irlap_cb *self, struct qos_info *qos)
 	frame->control = SNRM_CMD | PF_BIT;
 
 	/*
-	 *  If we are establishing a connection then insert QoS paramerters
+	 *  If we are establishing a connection then insert QoS parameters
 	 */
 	if (qos) {
 		skb_put(tx_skb, 9); /* 25 left */
