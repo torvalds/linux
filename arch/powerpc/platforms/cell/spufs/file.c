@@ -2026,13 +2026,13 @@ static const struct file_operations spufs_caps_fops = {
 static ssize_t __spufs_mbox_info_read(struct spu_context *ctx,
 			char __user *buf, size_t len, loff_t *pos)
 {
-	u32 mbox_stat;
 	u32 data;
 
-	mbox_stat = ctx->csa.prob.mb_stat_R;
-	if (mbox_stat & 0x0000ff) {
-		data = ctx->csa.prob.pu_mb_R;
-	}
+	/* EOF if there's no entry in the mbox */
+	if (!(ctx->csa.prob.mb_stat_R & 0x0000ff))
+		return 0;
+
+	data = ctx->csa.prob.pu_mb_R;
 
 	return simple_read_from_buffer(buf, len, pos, &data, sizeof data);
 }
@@ -2066,13 +2066,13 @@ static const struct file_operations spufs_mbox_info_fops = {
 static ssize_t __spufs_ibox_info_read(struct spu_context *ctx,
 				char __user *buf, size_t len, loff_t *pos)
 {
-	u32 ibox_stat;
 	u32 data;
 
-	ibox_stat = ctx->csa.prob.mb_stat_R;
-	if (ibox_stat & 0xff0000) {
-		data = ctx->csa.priv2.puint_mb_R;
-	}
+	/* EOF if there's no entry in the ibox */
+	if (!(ctx->csa.prob.mb_stat_R & 0xff0000))
+		return 0;
+
+	data = ctx->csa.priv2.puint_mb_R;
 
 	return simple_read_from_buffer(buf, len, pos, &data, sizeof data);
 }
