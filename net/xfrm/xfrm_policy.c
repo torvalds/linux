@@ -2162,7 +2162,7 @@ xfrm_audit_policy_add(struct xfrm_policy *xp, int result, u32 auid, u32 sid)
 
 	if (audit_enabled == 0)
 		return;
-	audit_buf = xfrm_audit_start(sid, auid);
+	audit_buf = xfrm_audit_start(auid, sid);
 	if (audit_buf == NULL)
 		return;
 	audit_log_format(audit_buf, " op=SPD-add res=%u", result);
@@ -2179,7 +2179,7 @@ xfrm_audit_policy_delete(struct xfrm_policy *xp, int result, u32 auid, u32 sid)
 
 	if (audit_enabled == 0)
 		return;
-	audit_buf = xfrm_audit_start(sid, auid);
+	audit_buf = xfrm_audit_start(auid, sid);
 	if (audit_buf == NULL)
 		return;
 	audit_log_format(audit_buf, " op=SPD-delete res=%u", result);
