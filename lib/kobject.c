@@ -533,22 +533,6 @@ void kobject_del(struct kobject * kobj)
 }
 
 /**
- *	kobject_unregister - remove object from hierarchy and decrement refcount.
- *	@kobj:	object going away.
- */
-
-void kobject_unregister(struct kobject * kobj)
-{
-	if (!kobj)
-		return;
-	pr_debug("kobject: '%s' (%p): %s\n",
-		 kobject_name(kobj), kobj, __FUNCTION__);
-	kobject_uevent(kobj, KOBJ_REMOVE);
-	kobject_del(kobj);
-	kobject_put(kobj);
-}
-
-/**
  *	kobject_get - increment refcount for object.
  *	@kobj:	object.
  */
@@ -877,7 +861,6 @@ struct kset *kset_create_and_add(const char *name,
 }
 EXPORT_SYMBOL_GPL(kset_create_and_add);
 
-EXPORT_SYMBOL(kobject_unregister);
 EXPORT_SYMBOL(kobject_get);
 EXPORT_SYMBOL(kobject_put);
 EXPORT_SYMBOL(kobject_del);
