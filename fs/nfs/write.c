@@ -939,7 +939,7 @@ static int nfs_flush_one(struct inode *inode, struct list_head *head, unsigned i
 static void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
 				  struct inode *inode, int ioflags)
 {
-	int wsize = NFS_SERVER(inode)->wsize;
+	size_t wsize = NFS_SERVER(inode)->wsize;
 
 	if (wsize < PAGE_CACHE_SIZE)
 		nfs_pageio_init(pgio, inode, nfs_flush_multi, wsize, ioflags);
