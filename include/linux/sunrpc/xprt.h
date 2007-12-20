@@ -203,11 +203,6 @@ struct xprt_class {
 };
 
 /*
- * Transport operations used by ULPs
- */
-void			xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr);
-
-/*
  * Generic internal transport functions
  */
 struct rpc_xprt		*xprt_create_transport(struct xprt_create *args);

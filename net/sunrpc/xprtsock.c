@@ -1895,6 +1895,13 @@ static struct rpc_xprt *xs_setup_xprt(struct xprt_create *args,
 	return xprt;
 }
 
+static const struct rpc_timeout xs_udp_default_timeout = {
+	.to_initval = 5 * HZ,
+	.to_maxval = 30 * HZ,
+	.to_increment = 5 * HZ,
+	.to_retries = 5,
+};
+
 /**
  * xs_setup_udp - Set up transport to use a UDP socket
  * @args: rpc transport creation arguments
@@ -1905,6 +1912,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
+	const struct rpc_timeout *timeo = &xs_udp_default_timeout;
 
 	xprt = xs_setup_xprt(args, xprt_udp_slot_table_entries);
 	if (IS_ERR(xprt))
@@ -1923,10 +1931,9 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 
 	xprt->ops = &xs_udp_ops;
 
-	if (args->timeout)
-		xprt->timeout = *args->timeout;
-	else
-		xprt_set_timeout(&xprt->timeout, 5, 5 * HZ);
+	if (args->timeout != NULL)
+		timeo = args->timeout;
+	memcpy(&xprt->timeout, timeo, sizeof(xprt->timeout));
 
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -1961,6 +1968,12 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 	return ERR_PTR(-EINVAL);
 }
 
+static const struct rpc_timeout xs_tcp_default_timeout = {
+	.to_initval = 60 * HZ,
+	.to_maxval = 60 * HZ,
+	.to_retries = 2,
+};
+
 /**
  * xs_setup_tcp - Set up transport to use a TCP socket
  * @args: rpc transport creation arguments
@@ -1971,6 +1984,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
+	const struct rpc_timeout *timeo = &xs_tcp_default_timeout;
 
 	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
@@ -1988,10 +2002,9 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 
 	xprt->ops = &xs_tcp_ops;
 
-	if (args->timeout)
-		xprt->timeout = *args->timeout;
-	else
-		xprt_set_timeout(&xprt->timeout, 2, 60 * HZ);
+	if (args->timeout != NULL)
+		timeo = args->timeout;
+	memcpy(&xprt->timeout, timeo, sizeof(xprt->timeout));
 
 	switch (addr->sa_family) {
 	case AF_INET:

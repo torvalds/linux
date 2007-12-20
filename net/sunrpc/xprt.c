@@ -978,23 +978,6 @@ void xprt_release(struct rpc_task *task)
 }
 
 /**
- * xprt_set_timeout - set constant RPC timeout
- * @to: RPC timeout parameters to set up
- * @retr: number of retries
- * @incr: amount of increase after each retry
- *
- */
-void xprt_set_timeout(struct rpc_timeout *to, unsigned int retr, unsigned long incr)
-{
-	to->to_initval   =
-	to->to_increment = incr;
-	to->to_maxval    = to->to_initval + (incr * retr);
-	to->to_retries   = retr;
-	to->to_exponential = 0;
-}
-EXPORT_SYMBOL_GPL(xprt_set_timeout);
-
-/**
  * xprt_create_transport - create an RPC transport
  * @args: rpc transport creation arguments
  *
