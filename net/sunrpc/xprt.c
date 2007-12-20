@@ -501,9 +501,10 @@ EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_def);
 void xprt_set_retrans_timeout_rtt(struct rpc_task *task)
 {
 	int timer = task->tk_msg.rpc_proc->p_timer;
-	struct rpc_rtt *rtt = task->tk_client->cl_rtt;
+	struct rpc_clnt *clnt = task->tk_client;
+	struct rpc_rtt *rtt = clnt->cl_rtt;
 	struct rpc_rqst *req = task->tk_rqstp;
-	unsigned long max_timeout = req->rq_xprt->timeout.to_maxval;
+	unsigned long max_timeout = clnt->cl_timeout->to_maxval;
 
 	task->tk_timeout = rpc_calc_rto(rtt, timer);
 	task->tk_timeout <<= rpc_ntimeo(rtt, timer) + req->rq_retries;
@@ -514,7 +515,7 @@ EXPORT_SYMBOL_GPL(xprt_set_retrans_timeout_rtt);
 
 static void xprt_reset_majortimeo(struct rpc_rqst *req)
 {
-	struct rpc_timeout *to = &req->rq_xprt->timeout;
+	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
 
 	req->rq_majortimeo = req->rq_timeout;
 	if (to->to_exponential)
@@ -534,7 +535,7 @@ static void xprt_reset_majortimeo(struct rpc_rqst *req)
 int xprt_adjust_timeout(struct rpc_rqst *req)
 {
 	struct rpc_xprt *xprt = req->rq_xprt;
-	struct rpc_timeout *to = &xprt->timeout;
+	const struct rpc_timeout *to = req->rq_task->tk_client->cl_timeout;
 	int status = 0;
 
 	if (time_before(jiffies, req->rq_majortimeo)) {
@@ -928,7 +929,7 @@ static void xprt_request_init(struct rpc_task *task, struct rpc_xprt *xprt)
 {
 	struct rpc_rqst	*req = task->tk_rqstp;
 
-	req->rq_timeout = xprt->timeout.to_initval;
+	req->rq_timeout = task->tk_client->cl_timeout->to_initval;
 	req->rq_task	= task;
 	req->rq_xprt    = xprt;
 	req->rq_buffer  = NULL;

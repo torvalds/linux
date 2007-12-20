@@ -188,8 +188,15 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	if (!xprt_bound(clnt->cl_xprt))
 		clnt->cl_autobind = 1;
 
+	clnt->cl_timeout = xprt->timeout;
+	if (args->timeout != NULL) {
+		memcpy(&clnt->cl_timeout_default, args->timeout,
+				sizeof(clnt->cl_timeout_default));
+		clnt->cl_timeout = &clnt->cl_timeout_default;
+	}
+
 	clnt->cl_rtt = &clnt->cl_rtt_default;
-	rpc_init_rtt(&clnt->cl_rtt_default, xprt->timeout.to_initval);
+	rpc_init_rtt(&clnt->cl_rtt_default, clnt->cl_timeout->to_initval);
 
 	kref_init(&clnt->cl_kref);
 
@@ -251,7 +258,6 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.srcaddr = args->saddress,
 		.dstaddr = args->address,
 		.addrlen = args->addrsize,
-		.timeout = args->timeout
 	};
 	char servername[48];
 
@@ -348,7 +354,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	new->cl_autobind = 0;
 	INIT_LIST_HEAD(&new->cl_tasks);
 	spin_lock_init(&new->cl_lock);
-	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_xprt->timeout.to_initval);
+	rpc_init_rtt(&new->cl_rtt_default, clnt->cl_timeout->to_initval);
 	new->cl_metrics = rpc_alloc_iostats(clnt);
 	if (new->cl_metrics == NULL)
 		goto out_no_stats;

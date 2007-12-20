@@ -120,7 +120,7 @@ struct rpc_xprt {
 	struct kref		kref;		/* Reference count */
 	struct rpc_xprt_ops *	ops;		/* transport methods */
 
-	struct rpc_timeout	timeout;	/* timeout parms */
+	const struct rpc_timeout *timeout;	/* timeout parms */
 	struct sockaddr_storage	addr;		/* server address */
 	size_t			addrlen;	/* size of server address */
 	int			prot;		/* IP protocol */
@@ -191,7 +191,6 @@ struct xprt_create {
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
-	struct rpc_timeout *	timeout;	/* optional timeout parameters */
 };
 
 struct xprt_class {

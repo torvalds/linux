@@ -1912,7 +1912,6 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
-	const struct rpc_timeout *timeo = &xs_udp_default_timeout;
 
 	xprt = xs_setup_xprt(args, xprt_udp_slot_table_entries);
 	if (IS_ERR(xprt))
@@ -1931,9 +1930,7 @@ static struct rpc_xprt *xs_setup_udp(struct xprt_create *args)
 
 	xprt->ops = &xs_udp_ops;
 
-	if (args->timeout != NULL)
-		timeo = args->timeout;
-	memcpy(&xprt->timeout, timeo, sizeof(xprt->timeout));
+	xprt->timeout = &xs_udp_default_timeout;
 
 	switch (addr->sa_family) {
 	case AF_INET:
@@ -1984,7 +1981,6 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	struct sockaddr *addr = args->dstaddr;
 	struct rpc_xprt *xprt;
 	struct sock_xprt *transport;
-	const struct rpc_timeout *timeo = &xs_tcp_default_timeout;
 
 	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
@@ -2001,10 +1997,7 @@ static struct rpc_xprt *xs_setup_tcp(struct xprt_create *args)
 	xprt->idle_timeout = XS_IDLE_DISC_TO;
 
 	xprt->ops = &xs_tcp_ops;
-
-	if (args->timeout != NULL)
-		timeo = args->timeout;
-	memcpy(&xprt->timeout, timeo, sizeof(xprt->timeout));
+	xprt->timeout = &xs_tcp_default_timeout;
 
 	switch (addr->sa_family) {
 	case AF_INET:
