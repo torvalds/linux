@@ -34,6 +34,7 @@
 #include <linux/linux_logo.h>
 #include <asm/spu.h>
 #include <asm/spu_priv1.h>
+#include <asm/spu_csa.h>
 #include <asm/xmon.h>
 #include <asm/prom.h>
 
@@ -45,6 +46,13 @@ EXPORT_SYMBOL_GPL(spu_priv1_ops);
 
 struct cbe_spu_info cbe_spu_info[MAX_NUMNODES];
 EXPORT_SYMBOL_GPL(cbe_spu_info);
+
+/*
+ * The spufs fault-handling code needs to call force_sig_info to raise signals
+ * on DMA errors. Export it here to avoid general kernel-wide access to this
+ * function
+ */
+EXPORT_SYMBOL_GPL(force_sig_info);
 
 /*
  * Protects cbe_spu_info and spu->number.
@@ -65,6 +73,10 @@ static DEFINE_SPINLOCK(spu_lock);
 static LIST_HEAD(spu_full_list);
 static DEFINE_SPINLOCK(spu_full_list_lock);
 static DEFINE_MUTEX(spu_full_list_mutex);
+
+struct spu_slb {
+	u64 esid, vsid;
+};
 
 void spu_invalidate_slbs(struct spu *spu)
 {
@@ -114,6 +126,12 @@ void spu_associate_mm(struct spu *spu, struct mm_struct *mm)
 }
 EXPORT_SYMBOL_GPL(spu_associate_mm);
 
+int spu_64k_pages_available(void)
+{
+	return mmu_psize_defs[MMU_PAGE_64K].shift != 0;
+}
+EXPORT_SYMBOL_GPL(spu_64k_pages_available);
+
 static int __spu_trap_invalid_dma(struct spu *spu)
 {
 	pr_debug("%s\n", __FUNCTION__);
@@ -143,11 +161,22 @@ static void spu_restart_dma(struct spu *spu)
 		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
 }
 
-static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
+static inline void spu_load_slb(struct spu *spu, int slbe, struct spu_slb *slb)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
+
+	pr_debug("%s: adding SLB[%d] 0x%016lx 0x%016lx\n",
+			__func__, slbe, slb->vsid, slb->esid);
+
+	out_be64(&priv2->slb_index_W, slbe);
+	out_be64(&priv2->slb_vsid_RW, slb->vsid);
+	out_be64(&priv2->slb_esid_RW, slb->esid);
+}
+
+static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
+{
 	struct mm_struct *mm = spu->mm;
-	u64 esid, vsid, llp;
+	struct spu_slb slb;
 	int psize;
 
 	pr_debug("%s\n", __FUNCTION__);
@@ -159,7 +188,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 		printk("%s: invalid access during switch!\n", __func__);
 		return 1;
 	}
-	esid = (ea & ESID_MASK) | SLB_ESID_V;
+	slb.esid = (ea & ESID_MASK) | SLB_ESID_V;
 
 	switch(REGION_ID(ea)) {
 	case USER_REGION_ID:
@@ -168,21 +197,21 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 #else
 		psize = mm->context.user_psize;
 #endif
-		vsid = (get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
-				SLB_VSID_USER;
+		slb.vsid = (get_vsid(mm->context.id, ea, MMU_SEGSIZE_256M)
+				<< SLB_VSID_SHIFT) | SLB_VSID_USER;
 		break;
 	case VMALLOC_REGION_ID:
 		if (ea < VMALLOC_END)
 			psize = mmu_vmalloc_psize;
 		else
 			psize = mmu_io_psize;
-		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
-			SLB_VSID_KERNEL;
+		slb.vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M)
+				<< SLB_VSID_SHIFT) | SLB_VSID_KERNEL;
 		break;
 	case KERNEL_REGION_ID:
 		psize = mmu_linear_psize;
-		vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
-			SLB_VSID_KERNEL;
+		slb.vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M)
+				<< SLB_VSID_SHIFT) | SLB_VSID_KERNEL;
 		break;
 	default:
 		/* Future: support kernel segments so that drivers
@@ -191,11 +220,9 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 		pr_debug("invalid region access at %016lx\n", ea);
 		return 1;
 	}
-	llp = mmu_psize_defs[psize].sllp;
+	slb.vsid |= mmu_psize_defs[psize].sllp;
 
-	out_be64(&priv2->slb_index_W, spu->slb_replace);
-	out_be64(&priv2->slb_vsid_RW, vsid | llp);
-	out_be64(&priv2->slb_esid_RW, esid);
+	spu_load_slb(spu, spu->slb_replace, &slb);
 
 	spu->slb_replace++;
 	if (spu->slb_replace >= 8)
@@ -231,6 +258,74 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 	spu->stop_callback(spu);
 	return 0;
 }
+
+static void __spu_kernel_slb(void *addr, struct spu_slb *slb)
+{
+	unsigned long ea = (unsigned long)addr;
+	u64 llp;
+
+	if (REGION_ID(ea) == KERNEL_REGION_ID)
+		llp = mmu_psize_defs[mmu_linear_psize].sllp;
+	else
+		llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+
+	slb->vsid = (get_kernel_vsid(ea, MMU_SEGSIZE_256M) << SLB_VSID_SHIFT) |
+		SLB_VSID_KERNEL | llp;
+	slb->esid = (ea & ESID_MASK) | SLB_ESID_V;
+}
+
+/**
+ * Given an array of @nr_slbs SLB entries, @slbs, return non-zero if the
+ * address @new_addr is present.
+ */
+static inline int __slb_present(struct spu_slb *slbs, int nr_slbs,
+		void *new_addr)
+{
+	unsigned long ea = (unsigned long)new_addr;
+	int i;
+
+	for (i = 0; i < nr_slbs; i++)
+		if (!((slbs[i].esid ^ ea) & ESID_MASK))
+			return 1;
+
+	return 0;
+}
+
+/**
+ * Setup the SPU kernel SLBs, in preparation for a context save/restore. We
+ * need to map both the context save area, and the save/restore code.
+ *
+ * Because the lscsa and code may cross segment boundaires, we check to see
+ * if mappings are required for the start and end of each range. We currently
+ * assume that the mappings are smaller that one segment - if not, something
+ * is seriously wrong.
+ */
+void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
+		void *code, int code_size)
+{
+	struct spu_slb slbs[4];
+	int i, nr_slbs = 0;
+	/* start and end addresses of both mappings */
+	void *addrs[] = {
+		lscsa, (void *)lscsa + sizeof(*lscsa) - 1,
+		code, code + code_size - 1
+	};
+
+	/* check the set of addresses, and create a new entry in the slbs array
+	 * if there isn't already a SLB for that address */
+	for (i = 0; i < ARRAY_SIZE(addrs); i++) {
+		if (__slb_present(slbs, nr_slbs, addrs[i]))
+			continue;
+
+		__spu_kernel_slb(addrs[i], &slbs[nr_slbs]);
+		nr_slbs++;
+	}
+
+	/* Add the set of SLBs */
+	for (i = 0; i < nr_slbs; i++)
+		spu_load_slb(spu, i, &slbs[i]);
+}
+EXPORT_SYMBOL_GPL(spu_setup_kernel_slbs);
 
 static irqreturn_t
 spu_irq_class_0(int irq, void *data)
@@ -479,13 +574,27 @@ EXPORT_SYMBOL_GPL(spu_add_sysdev_attr);
 int spu_add_sysdev_attr_group(struct attribute_group *attrs)
 {
 	struct spu *spu;
+	int rc = 0;
 
 	mutex_lock(&spu_full_list_mutex);
-	list_for_each_entry(spu, &spu_full_list, full_list)
-		sysfs_create_group(&spu->sysdev.kobj, attrs);
+	list_for_each_entry(spu, &spu_full_list, full_list) {
+		rc = sysfs_create_group(&spu->sysdev.kobj, attrs);
+
+		/* we're in trouble here, but try unwinding anyway */
+		if (rc) {
+			printk(KERN_ERR "%s: can't create sysfs group '%s'\n",
+					__func__, attrs->name);
+
+			list_for_each_entry_continue_reverse(spu,
+					&spu_full_list, full_list)
+				sysfs_remove_group(&spu->sysdev.kobj, attrs);
+			break;
+		}
+	}
+
 	mutex_unlock(&spu_full_list_mutex);
 
-	return 0;
+	return rc;
 }
 EXPORT_SYMBOL_GPL(spu_add_sysdev_attr_group);
 

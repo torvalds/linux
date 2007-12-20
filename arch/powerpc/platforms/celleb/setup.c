@@ -40,6 +40,7 @@
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/console.h>
+#include <linux/of_platform.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -52,7 +53,6 @@
 #include <asm/time.h>
 #include <asm/spu_priv1.h>
 #include <asm/firmware.h>
-#include <asm/of_platform.h>
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>
 

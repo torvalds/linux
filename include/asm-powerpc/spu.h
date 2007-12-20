@@ -104,6 +104,7 @@
 
 struct spu_context;
 struct spu_runqueue;
+struct spu_lscsa;
 struct device_node;
 
 enum spu_utilization_state {
@@ -200,6 +201,9 @@ int spu_irq_class_0_bottom(struct spu *spu);
 int spu_irq_class_1_bottom(struct spu *spu);
 void spu_irq_setaffinity(struct spu *spu, int cpu);
 
+void spu_setup_kernel_slbs(struct spu *spu, struct spu_lscsa *lscsa,
+		void *code, int code_size);
+
 #ifdef CONFIG_KEXEC
 void crash_register_spus(struct list_head *list);
 #else
@@ -210,6 +214,7 @@ static inline void crash_register_spus(struct list_head *list)
 
 extern void spu_invalidate_slbs(struct spu *spu);
 extern void spu_associate_mm(struct spu *spu, struct mm_struct *mm);
+int spu_64k_pages_available(void);
 
 /* Calls from the memory management to the SPU */
 struct mm_struct;

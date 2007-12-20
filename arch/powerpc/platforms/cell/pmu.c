@@ -213,7 +213,7 @@ u32 cbe_read_pm(u32 cpu, enum pm_reg_name reg)
 		break;
 
 	case pm_interval:
-		READ_SHADOW_REG(val, pm_interval);
+		READ_MMIO_UPPER32(val, pm_interval);
 		break;
 
 	case pm_start_stop:

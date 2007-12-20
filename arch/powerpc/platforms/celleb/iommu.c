@@ -22,8 +22,8 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <linux/of_platform.h>
 
-#include <asm/of_platform.h>
 #include <asm/firmware.h>
 
 #include "beat_wrapper.h"
