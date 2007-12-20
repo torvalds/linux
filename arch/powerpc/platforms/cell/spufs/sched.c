@@ -105,15 +105,15 @@ void spu_set_timeslice(struct spu_context *ctx)
 void __spu_update_sched_info(struct spu_context *ctx)
 {
 	/*
-	 * 32-Bit assignment are atomic on powerpc, and we don't care about
-	 * memory ordering here because retriving the controlling thread is
-	 * per defintion racy.
+	 * 32-Bit assignments are atomic on powerpc, and we don't care about
+	 * memory ordering here because retrieving the controlling thread is
+	 * per definition racy.
 	 */
 	ctx->tid = current->pid;
 
 	/*
 	 * We do our own priority calculations, so we normally want
-	 * ->static_prio to start with. Unfortunately thies field
+	 * ->static_prio to start with. Unfortunately this field
 	 * contains junk for threads with a realtime scheduling
 	 * policy so we have to look at ->prio in this case.
 	 */
@@ -127,7 +127,7 @@ void __spu_update_sched_info(struct spu_context *ctx)
 	 * A lot of places that don't hold list_mutex poke into
 	 * cpus_allowed, including grab_runnable_context which
 	 * already holds the runq_lock.  So abuse runq_lock
-	 * to protect this field aswell.
+	 * to protect this field as well.
 	 */
 	spin_lock(&spu_prio->runq_lock);
 	ctx->cpus_allowed = current->cpus_allowed;
@@ -182,7 +182,7 @@ static void notify_spus_active(void)
 	 * Wake up the active spu_contexts.
 	 *
 	 * When the awakened processes see their "notify_active" flag is set,
-	 * they will call spu_switch_notify();
+	 * they will call spu_switch_notify().
 	 */
 	for_each_online_node(node) {
 		struct spu *spu;
@@ -579,7 +579,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 	/*
 	 * Look for a possible preemption candidate on the local node first.
 	 * If there is no candidate look at the other nodes.  This isn't
-	 * exactly fair, but so far the whole spu schedule tries to keep
+	 * exactly fair, but so far the whole spu scheduler tries to keep
 	 * a strong node affinity.  We might want to fine-tune this in
 	 * the future.
 	 */
@@ -905,7 +905,7 @@ static int show_spu_loadavg(struct seq_file *s, void *private)
 
 	/*
 	 * Note that last_pid doesn't really make much sense for the
-	 * SPU loadavg (it even seems very odd on the CPU side..),
+	 * SPU loadavg (it even seems very odd on the CPU side...),
 	 * but we include it here to have a 100% compatible interface.
 	 */
 	seq_printf(s, "%d.%02d %d.%02d %d.%02d %ld/%d %d\n",
