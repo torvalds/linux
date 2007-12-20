@@ -29,8 +29,6 @@ struct nfs_client {
 
 	struct rpc_clnt *	cl_rpcclient;
 	const struct nfs_rpc_ops *rpc_ops;	/* NFS protocol vector */
-	unsigned long		retrans_timeo;	/* retransmit timeout */
-	unsigned int		retrans_count;	/* number of retransmit tries */
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
