@@ -134,37 +134,6 @@ void spu_unmap_mappings(struct spu_context *ctx)
 }
 
 /**
- * spu_acquire_runnable - lock spu contex and make sure it is in runnable state
- * @ctx:	spu contex to lock
- *
- * Note:
- *	Returns 0 and with the context locked on success
- *	Returns negative error and with the context _unlocked_ on failure.
- */
-int spu_acquire_runnable(struct spu_context *ctx, unsigned long flags)
-{
-	int ret = -EINVAL;
-
-	spu_acquire(ctx);
-	if (ctx->state == SPU_STATE_SAVED) {
-		/*
-		 * Context is about to be freed, so we can't acquire it anymore.
-		 */
-		if (!ctx->owner)
-			goto out_unlock;
-		ret = spu_activate(ctx, flags);
-		if (ret)
-			goto out_unlock;
-	}
-
-	return 0;
-
- out_unlock:
-	spu_release(ctx);
-	return ret;
-}
-
-/**
  * spu_acquire_saved - lock spu contex and make sure it is in saved state
  * @ctx:	spu contex to lock
  */

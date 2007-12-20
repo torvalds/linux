@@ -572,6 +572,9 @@ void spufs_ibox_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
 
+	if (!ctx)
+		return;
+
 	wake_up_all(&ctx->ibox_wq);
 	kill_fasync(&ctx->ibox_fasync, SIGIO, POLLIN);
 }
@@ -707,6 +710,9 @@ static int spufs_wbox_fasync(int fd, struct file *file, int on)
 void spufs_wbox_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
+
+	if (!ctx)
+		return;
 
 	wake_up_all(&ctx->wbox_wq);
 	kill_fasync(&ctx->wbox_fasync, SIGIO, POLLOUT);
@@ -1338,6 +1344,9 @@ spufs_mfc_release(struct inode *inode, struct file *file)
 void spufs_mfc_callback(struct spu *spu)
 {
 	struct spu_context *ctx = spu->ctx;
+
+	if (!ctx)
+		return;
 
 	wake_up_all(&ctx->mfc_wq);
 

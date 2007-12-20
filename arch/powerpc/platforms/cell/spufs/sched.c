@@ -146,6 +146,10 @@ void spu_update_sched_info(struct spu_context *ctx)
 
 	if (ctx->state == SPU_STATE_RUNNABLE) {
 		node = ctx->spu->node;
+
+		/*
+		 * Take list_mutex to sync with find_victim().
+		 */
 		mutex_lock(&cbe_spu_info[node].list_mutex);
 		__spu_update_sched_info(ctx);
 		mutex_unlock(&cbe_spu_info[node].list_mutex);
@@ -487,6 +491,13 @@ static void __spu_add_to_rq(struct spu_context *ctx)
 	}
 }
 
+static void spu_add_to_rq(struct spu_context *ctx)
+{
+	spin_lock(&spu_prio->runq_lock);
+	__spu_add_to_rq(ctx);
+	spin_unlock(&spu_prio->runq_lock);
+}
+
 static void __spu_del_from_rq(struct spu_context *ctx)
 {
 	int prio = ctx->prio;
@@ -501,9 +512,23 @@ static void __spu_del_from_rq(struct spu_context *ctx)
 	}
 }
 
+void spu_del_from_rq(struct spu_context *ctx)
+{
+	spin_lock(&spu_prio->runq_lock);
+	__spu_del_from_rq(ctx);
+	spin_unlock(&spu_prio->runq_lock);
+}
+
 static void spu_prio_wait(struct spu_context *ctx)
 {
 	DEFINE_WAIT(wait);
+
+	/*
+	 * The caller must explicitly wait for a context to be loaded
+	 * if the nosched flag is set.  If NOSCHED is not set, the caller
+	 * queues the context and waits for an spu event or error.
+	 */
+	BUG_ON(!(ctx->flags & SPU_CREATE_NOSCHED));
 
 	spin_lock(&spu_prio->runq_lock);
 	prepare_to_wait_exclusive(&ctx->stop_wq, &wait, TASK_INTERRUPTIBLE);
@@ -604,6 +629,7 @@ static struct spu *find_victim(struct spu_context *ctx)
 			struct spu_context *tmp = spu->ctx;
 
 			if (tmp && tmp->prio > ctx->prio &&
+			    !(tmp->flags & SPU_CREATE_NOSCHED) &&
 			    (!victim || tmp->prio > victim->prio))
 				victim = spu->ctx;
 		}
@@ -644,18 +670,57 @@ static struct spu *find_victim(struct spu_context *ctx)
 
 			victim->stats.invol_ctx_switch++;
 			spu->stats.invol_ctx_switch++;
+			spu_add_to_rq(victim);
+
 			mutex_unlock(&victim->state_mutex);
-			/*
-			 * We need to break out of the wait loop in spu_run
-			 * manually to ensure this context gets put on the
-			 * runqueue again ASAP.
-			 */
-			wake_up(&victim->stop_wq);
+
 			return spu;
 		}
 	}
 
 	return NULL;
+}
+
+static void __spu_schedule(struct spu *spu, struct spu_context *ctx)
+{
+	int node = spu->node;
+	int success = 0;
+
+	spu_set_timeslice(ctx);
+
+	mutex_lock(&cbe_spu_info[node].list_mutex);
+	if (spu->ctx == NULL) {
+		spu_bind_context(spu, ctx);
+		cbe_spu_info[node].nr_active++;
+		spu->alloc_state = SPU_USED;
+		success = 1;
+	}
+	mutex_unlock(&cbe_spu_info[node].list_mutex);
+
+	if (success)
+		wake_up_all(&ctx->run_wq);
+	else
+		spu_add_to_rq(ctx);
+}
+
+static void spu_schedule(struct spu *spu, struct spu_context *ctx)
+{
+	spu_acquire(ctx);
+	__spu_schedule(spu, ctx);
+	spu_release(ctx);
+}
+
+static void spu_unschedule(struct spu *spu, struct spu_context *ctx)
+{
+	int node = spu->node;
+
+	mutex_lock(&cbe_spu_info[node].list_mutex);
+	cbe_spu_info[node].nr_active--;
+	spu->alloc_state = SPU_FREE;
+	spu_unbind_context(spu, ctx);
+	ctx->stats.invol_ctx_switch++;
+	spu->stats.invol_ctx_switch++;
+	mutex_unlock(&cbe_spu_info[node].list_mutex);
 }
 
 /**
@@ -669,40 +734,47 @@ static struct spu *find_victim(struct spu_context *ctx)
  */
 int spu_activate(struct spu_context *ctx, unsigned long flags)
 {
-	do {
-		struct spu *spu;
+	struct spu *spu;
 
-		/*
-		 * If there are multiple threads waiting for a single context
-		 * only one actually binds the context while the others will
-		 * only be able to acquire the state_mutex once the context
-		 * already is in runnable state.
-		 */
-		if (ctx->spu)
-			return 0;
+	/*
+	 * If there are multiple threads waiting for a single context
+	 * only one actually binds the context while the others will
+	 * only be able to acquire the state_mutex once the context
+	 * already is in runnable state.
+	 */
+	if (ctx->spu)
+		return 0;
 
-		spu = spu_get_idle(ctx);
-		/*
-		 * If this is a realtime thread we try to get it running by
-		 * preempting a lower priority thread.
-		 */
-		if (!spu && rt_prio(ctx->prio))
-			spu = find_victim(ctx);
-		if (spu) {
-			int node = spu->node;
+spu_activate_top:
+	if (signal_pending(current))
+		return -ERESTARTSYS;
 
-			mutex_lock(&cbe_spu_info[node].list_mutex);
-			spu_bind_context(spu, ctx);
-			cbe_spu_info[node].nr_active++;
-			mutex_unlock(&cbe_spu_info[node].list_mutex);
-			wake_up_all(&ctx->run_wq);
-			return 0;
-		}
+	spu = spu_get_idle(ctx);
+	/*
+	 * If this is a realtime thread we try to get it running by
+	 * preempting a lower priority thread.
+	 */
+	if (!spu && rt_prio(ctx->prio))
+		spu = find_victim(ctx);
+	if (spu) {
+		unsigned long runcntl;
 
+		runcntl = ctx->ops->runcntl_read(ctx);
+		__spu_schedule(spu, ctx);
+		if (runcntl & SPU_RUNCNTL_RUNNABLE)
+			spuctx_switch_state(ctx, SPU_UTIL_USER);
+
+		return 0;
+	}
+
+	if (ctx->flags & SPU_CREATE_NOSCHED) {
 		spu_prio_wait(ctx);
-	} while (!signal_pending(current));
+		goto spu_activate_top;
+	}
 
-	return -ERESTARTSYS;
+	spu_add_to_rq(ctx);
+
+	return 0;
 }
 
 /**
@@ -744,21 +816,17 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 	if (spu) {
 		new = grab_runnable_context(max_prio, spu->node);
 		if (new || force) {
-			int node = spu->node;
-
-			mutex_lock(&cbe_spu_info[node].list_mutex);
-			spu_unbind_context(spu, ctx);
-			spu->alloc_state = SPU_FREE;
-			cbe_spu_info[node].nr_active--;
-			mutex_unlock(&cbe_spu_info[node].list_mutex);
-
-			ctx->stats.vol_ctx_switch++;
-			spu->stats.vol_ctx_switch++;
-
-			if (new)
-				wake_up(&new->stop_wq);
+			spu_unschedule(spu, ctx);
+			if (new) {
+				if (new->flags & SPU_CREATE_NOSCHED)
+					wake_up(&new->stop_wq);
+				else {
+					spu_release(ctx);
+					spu_schedule(spu, new);
+					spu_acquire(ctx);
+				}
+			}
 		}
-
 	}
 
 	return new != NULL;
@@ -795,43 +863,37 @@ void spu_yield(struct spu_context *ctx)
 
 static noinline void spusched_tick(struct spu_context *ctx)
 {
+	struct spu_context *new = NULL;
+	struct spu *spu = NULL;
+	u32 status;
+
+	spu_acquire(ctx);
+
+	if (ctx->state != SPU_STATE_RUNNABLE)
+		goto out;
+	if (spu_stopped(ctx, &status))
+		goto out;
 	if (ctx->flags & SPU_CREATE_NOSCHED)
-		return;
+		goto out;
 	if (ctx->policy == SCHED_FIFO)
-		return;
+		goto out;
 
 	if (--ctx->time_slice)
-		return;
+		goto out;
 
-	/*
-	 * Unfortunately list_mutex ranks outside of state_mutex, so
-	 * we have to trylock here.  If we fail give the context another
-	 * tick and try again.
-	 */
-	if (mutex_trylock(&ctx->state_mutex)) {
-		struct spu *spu = ctx->spu;
-		struct spu_context *new;
-
-		new = grab_runnable_context(ctx->prio + 1, spu->node);
-		if (new) {
-			spu_unbind_context(spu, ctx);
-			ctx->stats.invol_ctx_switch++;
-			spu->stats.invol_ctx_switch++;
-			spu->alloc_state = SPU_FREE;
-			cbe_spu_info[spu->node].nr_active--;
-			wake_up(&new->stop_wq);
-			/*
-			 * We need to break out of the wait loop in
-			 * spu_run manually to ensure this context
-			 * gets put on the runqueue again ASAP.
-			 */
-			wake_up(&ctx->stop_wq);
-		}
-		spu_set_timeslice(ctx);
-		mutex_unlock(&ctx->state_mutex);
+	spu = ctx->spu;
+	new = grab_runnable_context(ctx->prio + 1, spu->node);
+	if (new) {
+		spu_unschedule(spu, ctx);
+		spu_add_to_rq(ctx);
 	} else {
 		ctx->time_slice++;
 	}
+out:
+	spu_release(ctx);
+
+	if (new)
+		spu_schedule(spu, new);
 }
 
 /**
@@ -895,11 +957,20 @@ static int spusched_thread(void *unused)
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		for (node = 0; node < MAX_NUMNODES; node++) {
-			mutex_lock(&cbe_spu_info[node].list_mutex);
-			list_for_each_entry(spu, &cbe_spu_info[node].spus, cbe_list)
-				if (spu->ctx)
-					spusched_tick(spu->ctx);
-			mutex_unlock(&cbe_spu_info[node].list_mutex);
+			struct mutex *mtx = &cbe_spu_info[node].list_mutex;
+
+			mutex_lock(mtx);
+			list_for_each_entry(spu, &cbe_spu_info[node].spus,
+					cbe_list) {
+				struct spu_context *ctx = spu->ctx;
+
+				if (ctx) {
+					mutex_unlock(mtx);
+					spusched_tick(ctx);
+					mutex_lock(mtx);
+				}
+			}
+			mutex_unlock(mtx);
 		}
 	}
 

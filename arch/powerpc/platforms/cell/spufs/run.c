@@ -41,21 +41,29 @@ void spufs_stop_callback(struct spu *spu)
 	spu->dar = 0;
 }
 
-static inline int spu_stopped(struct spu_context *ctx, u32 *stat)
+int spu_stopped(struct spu_context *ctx, u32 *stat)
 {
-	struct spu *spu;
-	u64 pte_fault;
+	u64 dsisr;
+	u32 stopped;
 
 	*stat = ctx->ops->status_read(ctx);
 
-	spu = ctx->spu;
-	if (ctx->state != SPU_STATE_RUNNABLE ||
-	    test_bit(SPU_SCHED_NOTIFY_ACTIVE, &ctx->sched_flags))
+	if (test_bit(SPU_SCHED_NOTIFY_ACTIVE, &ctx->sched_flags))
 		return 1;
-	pte_fault = ctx->csa.dsisr &
-	    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED);
-	return (!(*stat & SPU_STATUS_RUNNING) || pte_fault || ctx->csa.class_0_pending) ?
-		1 : 0;
+
+	stopped = SPU_STATUS_INVALID_INSTR | SPU_STATUS_SINGLE_STEP |
+		SPU_STATUS_STOPPED_BY_HALT | SPU_STATUS_STOPPED_BY_STOP;
+	if (*stat & stopped)
+		return 1;
+
+	dsisr = ctx->csa.dsisr;
+	if (dsisr & (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED))
+		return 1;
+
+	if (ctx->csa.class_0_pending)
+		return 1;
+
+	return 0;
 }
 
 static int spu_setup_isolated(struct spu_context *ctx)
@@ -151,24 +159,27 @@ out:
 
 static int spu_run_init(struct spu_context *ctx, u32 *npc)
 {
-	unsigned long runcntl;
+	unsigned long runcntl = SPU_RUNCNTL_RUNNABLE;
 	int ret;
 
 	spuctx_switch_state(ctx, SPU_UTIL_SYSTEM);
 
-	if (ctx->flags & SPU_CREATE_ISOLATE) {
-		/*
-		 * Force activation of spu.  Isolated state assumes that
-		 * special loader context is loaded and running on spu.
-		 */
+	/*
+	 * NOSCHED is synchronous scheduling with respect to the caller.
+	 * The caller waits for the context to be loaded.
+	 */
+	if (ctx->flags & SPU_CREATE_NOSCHED) {
 		if (ctx->state == SPU_STATE_SAVED) {
-			spu_set_timeslice(ctx);
-
 			ret = spu_activate(ctx, 0);
 			if (ret)
 				return ret;
 		}
+	}
 
+	/*
+	 * Apply special setup as required.
+	 */
+	if (ctx->flags & SPU_CREATE_ISOLATE) {
 		if (!(ctx->ops->status_read(ctx) & SPU_STATUS_ISOLATED_STATE)) {
 			ret = spu_setup_isolated(ctx);
 			if (ret)
@@ -183,10 +194,11 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 			(SPU_RUNCNTL_RUNNABLE | SPU_RUNCNTL_ISOLATE);
 		if (runcntl == 0)
 			runcntl = SPU_RUNCNTL_RUNNABLE;
+	}
 
+	if (ctx->flags & SPU_CREATE_NOSCHED) {
 		spuctx_switch_state(ctx, SPU_UTIL_USER);
 		ctx->ops->runcntl_write(ctx, runcntl);
-
 	} else {
 		unsigned long privcntl;
 
@@ -194,20 +206,18 @@ static int spu_run_init(struct spu_context *ctx, u32 *npc)
 			privcntl = SPU_PRIVCNTL_MODE_SINGLE_STEP;
 		else
 			privcntl = SPU_PRIVCNTL_MODE_NORMAL;
-		runcntl = SPU_RUNCNTL_RUNNABLE;
 
 		ctx->ops->npc_write(ctx, *npc);
 		ctx->ops->privcntl_write(ctx, privcntl);
+		ctx->ops->runcntl_write(ctx, runcntl);
 
 		if (ctx->state == SPU_STATE_SAVED) {
-			spu_set_timeslice(ctx);
 			ret = spu_activate(ctx, 0);
 			if (ret)
 				return ret;
+		} else {
+			spuctx_switch_state(ctx, SPU_UTIL_USER);
 		}
-
-		spuctx_switch_state(ctx, SPU_UTIL_USER);
-		ctx->ops->runcntl_write(ctx, runcntl);
 	}
 
 	return 0;
@@ -217,6 +227,8 @@ static int spu_run_fini(struct spu_context *ctx, u32 *npc,
 			       u32 *status)
 {
 	int ret = 0;
+
+	spu_del_from_rq(ctx);
 
 	*status = ctx->ops->status_read(ctx);
 	*npc = ctx->ops->npc_read(ctx);
@@ -228,26 +240,6 @@ static int spu_run_fini(struct spu_context *ctx, u32 *npc,
 		ret = -ERESTARTSYS;
 
 	return ret;
-}
-
-static int spu_reacquire_runnable(struct spu_context *ctx, u32 *npc,
-				         u32 *status)
-{
-	int ret;
-
-	ret = spu_run_fini(ctx, npc, status);
-	if (ret)
-		return ret;
-
-	if (*status & (SPU_STATUS_STOPPED_BY_STOP | SPU_STATUS_STOPPED_BY_HALT))
-		return *status;
-
-	ret = spu_acquire_runnable(ctx, 0);
-	if (ret)
-		return ret;
-
-	spuctx_switch_state(ctx, SPU_UTIL_USER);
-	return 0;
 }
 
 /*
@@ -386,17 +378,8 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 		if (ret)
 			break;
 
-		if (unlikely(ctx->state != SPU_STATE_RUNNABLE)) {
-			ret = spu_reacquire_runnable(ctx, npc, &status);
-			if (ret)
-				goto out2;
-			continue;
-		}
-
 		if (signal_pending(current))
 			ret = -ERESTARTSYS;
-
-
 	} while (!ret && !(status & (SPU_STATUS_STOPPED_BY_STOP |
 				      SPU_STATUS_STOPPED_BY_HALT |
 				       SPU_STATUS_SINGLE_STEP)));
@@ -411,7 +394,6 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 	ret = spu_run_fini(ctx, npc, &status);
 	spu_yield(ctx);
 
-out2:
 	if ((ret == 0) ||
 	    ((ret == -ERESTARTSYS) &&
 	     ((status & SPU_STATUS_STOPPED_BY_HALT) ||
