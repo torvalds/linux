@@ -139,19 +139,20 @@ static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
 }
 
 /* Normalize the failed frames per-rate differences. */
-static void rate_control_pid_normalize(struct rc_pid_rateinfo *r, int l)
+static void rate_control_pid_normalize(struct rc_pid_info *pinfo, int l)
 {
-	int i;
+	int i, norm_offset = pinfo->norm_offset;
+	struct rc_pid_rateinfo *r = pinfo->rinfo;
 
-	if (r[0].diff > RC_PID_NORM_OFFSET)
-		r[0].diff -= RC_PID_NORM_OFFSET;
-	else if (r[0].diff < -RC_PID_NORM_OFFSET)
-		r[0].diff += RC_PID_NORM_OFFSET;
+	if (r[0].diff > norm_offset)
+		r[0].diff -= norm_offset;
+	else if (r[0].diff < -norm_offset)
+		r[0].diff += norm_offset;
 	for (i = 0; i < l - 1; i++)
-		if (r[i + 1].diff > r[i].diff + RC_PID_NORM_OFFSET)
-			r[i + 1].diff -= RC_PID_NORM_OFFSET;
+		if (r[i + 1].diff > r[i].diff + norm_offset)
+			r[i + 1].diff -= norm_offset;
 		else if (r[i + 1].diff <= r[i].diff)
-			r[i + 1].diff += RC_PID_NORM_OFFSET;
+			r[i + 1].diff += norm_offset;
 }
 
 static void rate_control_pid_sample(struct rc_pid_info *pinfo,
@@ -163,18 +164,22 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 	struct ieee80211_hw_mode *mode;
 	u32 pf;
 	s32 err_avg;
-	s32 err_prop;
-	s32 err_int;
-	s32 err_der;
+	u32 err_prop;
+	u32 err_int;
+	u32 err_der;
 	int adj, i, j, tmp;
+	unsigned long period;
 
 	mode = local->oper_hw_mode;
 	spinfo = sta->rate_ctrl_priv;
 
 	/* In case nothing happened during the previous control interval, turn
 	 * the sharpening factor on. */
-	if (jiffies - spinfo->last_sample > 2 * RC_PID_INTERVAL)
-		spinfo->sharp_cnt = RC_PID_SHARPENING_DURATION;
+	period = (HZ * pinfo->sampling_period + 500) / 1000;
+	if (!period)
+		period = 1;
+	if (jiffies - spinfo->last_sample > 2 * period)
+		spinfo->sharp_cnt = pinfo->sharpen_duration;
 
 	spinfo->last_sample = jiffies;
 
@@ -202,17 +207,17 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 		rinfo[j].diff = rinfo[i].diff + tmp;
 		pinfo->oldrate = sta->txrate;
 	}
-	rate_control_pid_normalize(rinfo, mode->num_rates);
+	rate_control_pid_normalize(pinfo, mode->num_rates);
 
 	/* Compute the proportional, integral and derivative errors. */
-	err_prop = RC_PID_TARGET_PF - pf;
+	err_prop = pinfo->target - pf;
 
-	err_avg = spinfo->err_avg_sc >> RC_PID_SMOOTHING_SHIFT;
+	err_avg = spinfo->err_avg_sc >> pinfo->smoothing_shift;
 	spinfo->err_avg_sc = spinfo->err_avg_sc - err_avg + err_prop;
-	err_int = spinfo->err_avg_sc >> RC_PID_SMOOTHING_SHIFT;
+	err_int = spinfo->err_avg_sc >> pinfo->smoothing_shift;
 
-	err_der = pf - spinfo->last_pf
-		  * (1 + RC_PID_SHARPENING_FACTOR * spinfo->sharp_cnt);
+	err_der = (pf - spinfo->last_pf) *
+		  (1 + pinfo->sharpen_factor * spinfo->sharp_cnt);
 	spinfo->last_pf = pf;
 	if (spinfo->sharp_cnt)
 			spinfo->sharp_cnt--;
@@ -241,6 +246,7 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	struct rc_pid_info *pinfo = priv;
 	struct sta_info *sta;
 	struct rc_pid_sta_info *spinfo;
+	unsigned long period;
 
 	sta = sta_info_get(local, hdr->addr1);
 
@@ -285,7 +291,10 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	sta->tx_num_mpdu_fail += status->retry_count;
 
 	/* Update PID controller state. */
-	if (time_after(jiffies, spinfo->last_sample + RC_PID_INTERVAL))
+	period = (HZ * pinfo->sampling_period + 500) / 1000;
+	if (!period)
+		period = 1;
+	if (time_after(jiffies, spinfo->last_sample + period))
 		rate_control_pid_sample(pinfo, local, sta);
 
 	sta_info_put(sta);
@@ -343,6 +352,9 @@ static void *rate_control_pid_alloc(struct ieee80211_local *local)
 	struct ieee80211_hw_mode *mode;
 	int i, j, tmp;
 	bool s;
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct rc_pid_debugfs_entries *de;
+#endif
 
 	pinfo = kmalloc(sizeof(*pinfo), GFP_ATOMIC);
 	if (!pinfo)
@@ -363,10 +375,10 @@ static void *rate_control_pid_alloc(struct ieee80211_local *local)
 	for (i = 0; i < mode->num_rates; i++) {
 		rinfo[i].index = i;
 		rinfo[i].rev_index = i;
-		if (RC_PID_FAST_START)
+		if (pinfo->fast_start)
 			rinfo[i].diff = 0;
 		else
-			rinfo[i].diff = i * RC_PID_NORM_OFFSET;
+			rinfo[i].diff = i * pinfo->norm_offset;
 	}
 	for (i = 1; i < mode->num_rates; i++) {
 		s = 0;
@@ -385,11 +397,49 @@ static void *rate_control_pid_alloc(struct ieee80211_local *local)
 	}
 
 	pinfo->target = RC_PID_TARGET_PF;
+	pinfo->sampling_period = RC_PID_INTERVAL;
 	pinfo->coeff_p = RC_PID_COEFF_P;
 	pinfo->coeff_i = RC_PID_COEFF_I;
 	pinfo->coeff_d = RC_PID_COEFF_D;
+	pinfo->smoothing_shift = RC_PID_SMOOTHING_SHIFT;
+	pinfo->sharpen_factor = RC_PID_SHARPENING_FACTOR;
+	pinfo->sharpen_duration = RC_PID_SHARPENING_DURATION;
+	pinfo->norm_offset = RC_PID_NORM_OFFSET;
+	pinfo->fast_start = RC_PID_FAST_START;
 	pinfo->rinfo = rinfo;
 	pinfo->oldrate = 0;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	de = &pinfo->dentries;
+	de->dir = debugfs_create_dir("rc80211_pid",
+				     local->hw.wiphy->debugfsdir);
+	de->target = debugfs_create_u32("target_pf", S_IRUSR | S_IWUSR,
+					de->dir, &pinfo->target);
+	de->sampling_period = debugfs_create_u32("sampling_period",
+						 S_IRUSR | S_IWUSR, de->dir,
+						 &pinfo->sampling_period);
+	de->coeff_p = debugfs_create_u32("coeff_p", S_IRUSR | S_IWUSR,
+					 de->dir, &pinfo->coeff_p);
+	de->coeff_i = debugfs_create_u32("coeff_i", S_IRUSR | S_IWUSR,
+					 de->dir, &pinfo->coeff_i);
+	de->coeff_d = debugfs_create_u32("coeff_d", S_IRUSR | S_IWUSR,
+					 de->dir, &pinfo->coeff_d);
+	de->smoothing_shift = debugfs_create_u32("smoothing_shift",
+						 S_IRUSR | S_IWUSR, de->dir,
+						 &pinfo->smoothing_shift);
+	de->sharpen_factor = debugfs_create_u32("sharpen_factor",
+					       S_IRUSR | S_IWUSR, de->dir,
+					       &pinfo->sharpen_factor);
+	de->sharpen_duration = debugfs_create_u32("sharpen_duration",
+						  S_IRUSR | S_IWUSR, de->dir,
+						  &pinfo->sharpen_duration);
+	de->norm_offset = debugfs_create_u32("norm_offset",
+					     S_IRUSR | S_IWUSR, de->dir,
+					     &pinfo->norm_offset);
+	de->fast_start = debugfs_create_bool("fast_start",
+					     S_IRUSR | S_IWUSR, de->dir,
+					     &pinfo->fast_start);
+#endif
 
 	return pinfo;
 }
@@ -397,6 +447,22 @@ static void *rate_control_pid_alloc(struct ieee80211_local *local)
 static void rate_control_pid_free(void *priv)
 {
 	struct rc_pid_info *pinfo = priv;
+#ifdef CONFIG_MAC80211_DEBUGFS
+	struct rc_pid_debugfs_entries *de = &pinfo->dentries;
+
+	debugfs_remove(de->fast_start);
+	debugfs_remove(de->norm_offset);
+	debugfs_remove(de->sharpen_duration);
+	debugfs_remove(de->sharpen_factor);
+	debugfs_remove(de->smoothing_shift);
+	debugfs_remove(de->coeff_d);
+	debugfs_remove(de->coeff_i);
+	debugfs_remove(de->coeff_p);
+	debugfs_remove(de->sampling_period);
+	debugfs_remove(de->target);
+	debugfs_remove(de->dir);
+#endif
+
 	kfree(pinfo->rinfo);
 	kfree(pinfo);
 }

@@ -119,6 +119,20 @@ struct rc_pid_events_file_info {
 	unsigned int next_entry;
 };
 
+struct rc_pid_debugfs_entries {
+	struct dentry *dir;
+	struct dentry *target;
+	struct dentry *sampling_period;
+	struct dentry *coeff_p;
+	struct dentry *coeff_i;
+	struct dentry *coeff_d;
+	struct dentry *smoothing_shift;
+	struct dentry *sharpen_factor;
+	struct dentry *sharpen_duration;
+	struct dentry *norm_offset;
+	struct dentry *fast_start;
+};
+
 void rate_control_pid_event_tx_status(struct rc_pid_event_buffer *buf,
 					     struct ieee80211_tx_status *stat);
 
@@ -222,8 +236,8 @@ struct rc_pid_info {
 	/* Exponential averaging shift. */
 	unsigned int smoothing_shift;
 
-	/* Sharpening shift and duration. */
-	unsigned int sharpen_shift;
+	/* Sharpening factor and duration. */
+	unsigned int sharpen_factor;
 	unsigned int sharpen_duration;
 
 	/* Normalization offset. */
@@ -237,6 +251,11 @@ struct rc_pid_info {
 
 	/* Index of the last used rate. */
 	int oldrate;
+
+#ifdef CONFIG_MAC80211_DEBUGFS
+	/* Debugfs entries created for the parameters above. */
+	struct rc_pid_debugfs_entries dentries;
+#endif
 };
 
 #endif /* RC80211_PID_H */
