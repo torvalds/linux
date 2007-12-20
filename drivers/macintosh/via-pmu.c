@@ -2796,7 +2796,7 @@ static int pmu_sys_resume(struct sys_device *sysdev)
 #endif /* CONFIG_PM_SLEEP && CONFIG_PPC32 */
 
 static struct sysdev_class pmu_sysclass = {
-	set_kset_name("pmu"),
+	.name = "pmu",
 };
 
 static struct sys_device device_pmu = {

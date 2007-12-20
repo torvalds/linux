@@ -196,7 +196,7 @@ void __init s3c2412_init_clocks(int xtal)
 */
 
 struct sysdev_class s3c2412_sysclass = {
-	set_kset_name("s3c2412-core"),
+	.name = "s3c2412-core",
 };
 
 static int __init s3c2412_core_init(void)

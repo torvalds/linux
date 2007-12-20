@@ -370,7 +370,7 @@ static int i8259A_shutdown(struct sys_device *dev)
 }
 
 static struct sysdev_class i8259_sysdev_class = {
-	set_kset_name("i8259"),
+	.name = "i8259",
 	.suspend = i8259A_suspend,
 	.resume = i8259A_resume,
 	.shutdown = i8259A_shutdown,

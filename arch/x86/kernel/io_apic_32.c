@@ -2401,7 +2401,7 @@ static int ioapic_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class ioapic_sysdev_class = {
-	set_kset_name("ioapic"),
+	.name = "ioapic",
 	.suspend = ioapic_suspend,
 	.resume = ioapic_resume,
 };

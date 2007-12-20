@@ -165,7 +165,7 @@ static int kobject_add_internal(struct kobject *kobj)
 	if (!kobj)
 		return -ENOENT;
 
-	if (!kobj->k_name || !kobj->k_name[0]) {
+	if (!kobj->name || !kobj->name[0]) {
 		pr_debug("kobject: (%p): attempted to be registered with empty "
 			 "name!\n", kobj);
 		WARN_ON(1);
@@ -228,13 +228,11 @@ static int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 	if (!name)
 		return -ENOMEM;
 
-
 	/* Free the old name, if necessary. */
-	kfree(kobj->k_name);
+	kfree(kobj->name);
 
 	/* Now, set the new name */
-	kobj->k_name = name;
-	kobj->state_name_set = 1;
+	kobj->name = name;
 
 	return 0;
 }
@@ -295,7 +293,6 @@ void kobject_init(struct kobject *kobj, struct kobj_type *ktype)
 	kref_init(&kobj->kref);
 	INIT_LIST_HEAD(&kobj->entry);
 	kobj->ktype = ktype;
-	kobj->state_name_set = 0;
 	kobj->state_in_sysfs = 0;
 	kobj->state_add_uevent_sent = 0;
 	kobj->state_remove_uevent_sent = 0;
@@ -551,8 +548,7 @@ struct kobject * kobject_get(struct kobject * kobj)
 static void kobject_cleanup(struct kobject *kobj)
 {
 	struct kobj_type *t = get_ktype(kobj);
-	const char *name = kobj->k_name;
-	int name_set = kobj->state_name_set;
+	const char *name = kobj->name;
 
 	pr_debug("kobject: '%s' (%p): %s\n",
 		 kobject_name(kobj), kobj, __FUNCTION__);
@@ -583,7 +579,7 @@ static void kobject_cleanup(struct kobject *kobj)
 	}
 
 	/* free name if we allocated it */
-	if (name_set && name) {
+	if (name) {
 		pr_debug("kobject: '%s': free name\n", name);
 		kfree(name);
 	}

@@ -211,7 +211,7 @@ static int lapic_nmi_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class nmi_sysclass = {
-	set_kset_name("lapic_nmi"),
+	.name		= "lapic_nmi",
 	.resume		= lapic_nmi_resume,
 	.suspend	= lapic_nmi_suspend,
 };

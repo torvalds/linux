@@ -335,9 +335,9 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 
 /* sysfs resume/suspend bits for timekeeping */
 static struct sysdev_class timekeeping_sysclass = {
+	.name		= "timekeeping",
 	.resume		= timekeeping_resume,
 	.suspend	= timekeeping_suspend,
-	set_kset_name("timekeeping"),
 };
 
 static struct sys_device device_timer = {

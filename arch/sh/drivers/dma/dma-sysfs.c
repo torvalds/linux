@@ -19,7 +19,7 @@
 #include <asm/dma.h>
 
 static struct sysdev_class dma_sysclass = {
-	set_kset_name("dma"),
+	.name = "dma",
 };
 EXPORT_SYMBOL(dma_sysclass);
 

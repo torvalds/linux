@@ -174,7 +174,7 @@ int timer_resume(struct sys_device *dev)
 #endif
 
 static struct sysdev_class timer_sysclass = {
-	set_kset_name("timer"),
+	.name	 = "timer",
 	.suspend = timer_suspend,
 	.resume	 = timer_resume,
 };

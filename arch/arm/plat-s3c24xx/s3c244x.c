@@ -151,13 +151,13 @@ static int s3c244x_resume(struct sys_device *dev)
 /* Since the S3C2442 and S3C2440 share  items, put both sysclasses here */
 
 struct sysdev_class s3c2440_sysclass = {
-	set_kset_name("s3c2440-core"),
+	.name		= "s3c2440-core",
 	.suspend	= s3c244x_suspend,
 	.resume		= s3c244x_resume
 };
 
 struct sysdev_class s3c2442_sysclass = {
-	set_kset_name("s3c2442-core"),
+	.name		= "s3c2442-core",
 	.suspend	= s3c244x_suspend,
 	.resume		= s3c244x_resume
 };

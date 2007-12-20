@@ -126,7 +126,7 @@ static int lubbock_irq_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class lubbock_irq_sysclass = {
-	set_kset_name("cpld_irq"),
+	.name = "cpld_irq",
 	.resume = lubbock_irq_resume,
 };
 

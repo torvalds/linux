@@ -1455,7 +1455,7 @@ static int omap_gpio_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class omap_gpio_sysclass = {
-	set_kset_name("gpio"),
+	.name		= "gpio",
 	.suspend	= omap_gpio_suspend,
 	.resume		= omap_gpio_resume,
 };

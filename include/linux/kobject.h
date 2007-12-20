@@ -61,7 +61,7 @@ enum kobject_action {
 };
 
 struct kobject {
-	const char		* k_name;
+	const char		*name;
 	struct kref		kref;
 	struct list_head	entry;
 	struct kobject		* parent;
@@ -69,7 +69,6 @@ struct kobject {
 	struct kobj_type	* ktype;
 	struct sysfs_dirent	* sd;
 	unsigned int state_initialized:1;
-	unsigned int state_name_set:1;
 	unsigned int state_in_sysfs:1;
 	unsigned int state_add_uevent_sent:1;
 	unsigned int state_remove_uevent_sent:1;
@@ -80,7 +79,7 @@ extern int kobject_set_name(struct kobject *, const char *, ...)
 
 static inline const char * kobject_name(const struct kobject * kobj)
 {
-	return kobj->k_name;
+	return kobj->name;
 }
 
 extern void kobject_init(struct kobject *kobj, struct kobj_type *ktype);
@@ -188,14 +187,6 @@ static inline struct kobj_type *get_ktype(struct kobject *kobj)
 }
 
 extern struct kobject * kset_find_obj(struct kset *, const char *);
-
-
-/*
- * Use this when initializing an embedded kset with no other 
- * fields to initialize.
- */
-#define set_kset_name(str)	.kset = { .kobj = { .k_name = str } }
-
 
 /* The global /sys/kernel/ kobject for people to chain off of */
 extern struct kobject *kernel_kobj;

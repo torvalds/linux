@@ -214,7 +214,7 @@ void __init time_init(void)
 }
 
 static struct sysdev_class timer_class = {
-	set_kset_name("timer"),
+	.name = "timer",
 };
 
 static struct sys_device timer_device = {

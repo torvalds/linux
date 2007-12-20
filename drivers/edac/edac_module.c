@@ -31,7 +31,7 @@ struct workqueue_struct *edac_workqueue;
  *	need to export to other files in this modules
  */
 static struct sysdev_class edac_class = {
-	set_kset_name("edac"),
+	.name = "edac",
 };
 static int edac_class_valid;
 

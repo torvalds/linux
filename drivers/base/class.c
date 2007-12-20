@@ -466,7 +466,6 @@ static struct kset_uevent_ops class_uevent_ops = {
  * entirely soon.
  */
 static struct kset class_obj_subsys = {
-	.kobj = { .k_name = "class_obj", },
 	.uevent_ops = &class_uevent_ops,
 };
 
@@ -872,6 +871,7 @@ int __init classes_init(void)
 	/* ick, this is ugly, the things we go through to keep from showing up
 	 * in sysfs... */
 	kset_init(&class_obj_subsys);
+	kobject_set_name(&class_obj_subsys.kobj, "class_obj");
 	if (!class_obj_subsys.kobj.parent)
 		class_obj_subsys.kobj.parent = &class_obj_subsys.kobj;
 	return 0;

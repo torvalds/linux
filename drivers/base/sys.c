@@ -136,6 +136,7 @@ int sysdev_class_register(struct sysdev_class * cls)
 	cls->kset.kobj.parent = &system_kset->kobj;
 	cls->kset.kobj.ktype = &ktype_sysdev_class;
 	cls->kset.kobj.kset = system_kset;
+	kobject_set_name(&cls->kset.kobj, cls->name);
 	return kset_register(&cls->kset);
 }
 

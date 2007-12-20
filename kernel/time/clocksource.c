@@ -441,7 +441,7 @@ static SYSDEV_ATTR(available_clocksource, 0600,
 		   sysfs_show_available_clocksources, NULL);
 
 static struct sysdev_class clocksource_sysclass = {
-	set_kset_name("clocksource"),
+	.name = "clocksource",
 };
 
 static struct sys_device device_clocksource = {
