@@ -106,16 +106,20 @@ static unsigned int spu_backing_mbox_stat_poll(struct spu_context *ctx,
 		if (stat & 0xff0000)
 			ret |= POLLIN | POLLRDNORM;
 		else {
-			ctx->csa.priv1.int_stat_class2_RW &= ~0x1;
-			ctx->csa.priv1.int_mask_class2_RW |= 0x1;
+			ctx->csa.priv1.int_stat_class2_RW &=
+				~CLASS2_MAILBOX_INTR;
+			ctx->csa.priv1.int_mask_class2_RW |=
+				CLASS2_ENABLE_MAILBOX_INTR;
 		}
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
 		if (stat & 0x00ff00)
 			ret = POLLOUT | POLLWRNORM;
 		else {
-			ctx->csa.priv1.int_stat_class2_RW &= ~0x10;
-			ctx->csa.priv1.int_mask_class2_RW |= 0x10;
+			ctx->csa.priv1.int_stat_class2_RW &=
+				~CLASS2_MAILBOX_THRESHOLD_INTR;
+			ctx->csa.priv1.int_mask_class2_RW |=
+				CLASS2_ENABLE_MAILBOX_THRESHOLD_INTR;
 		}
 	}
 	spin_unlock_irq(&ctx->csa.register_lock);
@@ -139,7 +143,7 @@ static int spu_backing_ibox_read(struct spu_context *ctx, u32 * data)
 		ret = 4;
 	} else {
 		/* make sure we get woken up by the interrupt */
-		ctx->csa.priv1.int_mask_class2_RW |= 0x1UL;
+		ctx->csa.priv1.int_mask_class2_RW |= CLASS2_ENABLE_MAILBOX_INTR;
 		ret = 0;
 	}
 	spin_unlock(&ctx->csa.register_lock);
@@ -169,7 +173,8 @@ static int spu_backing_wbox_write(struct spu_context *ctx, u32 data)
 	} else {
 		/* make sure we get woken up by the interrupt when space
 		   becomes available */
-		ctx->csa.priv1.int_mask_class2_RW |= 0x10;
+		ctx->csa.priv1.int_mask_class2_RW |=
+			CLASS2_ENABLE_MAILBOX_THRESHOLD_INTR;
 		ret = 0;
 	}
 	spin_unlock(&ctx->csa.register_lock);

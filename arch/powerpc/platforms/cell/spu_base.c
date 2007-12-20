@@ -360,18 +360,18 @@ spu_irq_class_0_bottom(struct spu *spu)
 	stat = spu->class_0_pending;
 	spu->class_0_pending = 0;
 
-	if (stat & 1) /* invalid DMA alignment */
+	if (stat & CLASS0_DMA_ALIGNMENT_INTR)
 		__spu_trap_dma_align(spu);
 
-	if (stat & 2) /* invalid MFC DMA */
+	if (stat & CLASS0_INVALID_DMA_COMMAND_INTR)
 		__spu_trap_invalid_dma(spu);
 
-	if (stat & 4) /* error on SPU */
+	if (stat & CLASS0_SPU_ERROR_INTR)
 		__spu_trap_error(spu);
 
 	spin_unlock_irqrestore(&spu->register_lock, flags);
 
-	return (stat & 0x7) ? -EIO : 0;
+	return (stat & CLASS0_INTR_MASK) ? -EIO : 0;
 }
 EXPORT_SYMBOL_GPL(spu_irq_class_0_bottom);
 
@@ -389,24 +389,23 @@ spu_irq_class_1(int irq, void *data)
 	stat  = spu_int_stat_get(spu, 1) & mask;
 	dar   = spu_mfc_dar_get(spu);
 	dsisr = spu_mfc_dsisr_get(spu);
-	if (stat & 2) /* mapping fault */
+	if (stat & CLASS1_STORAGE_FAULT_INTR)
 		spu_mfc_dsisr_set(spu, 0ul);
 	spu_int_stat_clear(spu, 1, stat);
 	spin_unlock(&spu->register_lock);
 	pr_debug("%s: %lx %lx %lx %lx\n", __FUNCTION__, mask, stat,
 			dar, dsisr);
 
-	if (stat & 1) /* segment fault */
+	if (stat & CLASS1_SEGMENT_FAULT_INTR)
 		__spu_trap_data_seg(spu, dar);
 
-	if (stat & 2) { /* mapping fault */
+	if (stat & CLASS1_STORAGE_FAULT_INTR)
 		__spu_trap_data_map(spu, dar, dsisr);
-	}
 
-	if (stat & 4) /* ls compare & suspend on get */
+	if (stat & CLASS1_LS_COMPARE_SUSPEND_ON_GET_INTR)
 		;
 
-	if (stat & 8) /* ls compare & suspend on put */
+	if (stat & CLASS1_LS_COMPARE_SUSPEND_ON_PUT_INTR)
 		;
 
 	return stat ? IRQ_HANDLED : IRQ_NONE;
@@ -418,6 +417,8 @@ spu_irq_class_2(int irq, void *data)
 	struct spu *spu;
 	unsigned long stat;
 	unsigned long mask;
+	const int mailbox_intrs =
+		CLASS2_MAILBOX_THRESHOLD_INTR | CLASS2_MAILBOX_INTR;
 
 	spu = data;
 	spin_lock(&spu->register_lock);
@@ -425,31 +426,30 @@ spu_irq_class_2(int irq, void *data)
 	mask = spu_int_mask_get(spu, 2);
 	/* ignore interrupts we're not waiting for */
 	stat &= mask;
-	/*
-	 * mailbox interrupts (0x1 and 0x10) are level triggered.
-	 * mask them now before acknowledging.
-	 */
-	if (stat & 0x11)
-		spu_int_mask_and(spu, 2, ~(stat & 0x11));
+
+	/* mailbox interrupts are level triggered. mask them now before
+	 * acknowledging */
+	if (stat & mailbox_intrs)
+		spu_int_mask_and(spu, 2, ~(stat & mailbox_intrs));
 	/* acknowledge all interrupts before the callbacks */
 	spu_int_stat_clear(spu, 2, stat);
 	spin_unlock(&spu->register_lock);
 
 	pr_debug("class 2 interrupt %d, %lx, %lx\n", irq, stat, mask);
 
-	if (stat & 1)  /* PPC core mailbox */
+	if (stat & CLASS2_MAILBOX_INTR)
 		spu->ibox_callback(spu);
 
-	if (stat & 2) /* SPU stop-and-signal */
+	if (stat & CLASS2_SPU_STOP_INTR)
 		spu->stop_callback(spu);
 
-	if (stat & 4) /* SPU halted */
+	if (stat & CLASS2_SPU_HALT_INTR)
 		spu->stop_callback(spu);
 
-	if (stat & 8) /* DMA tag group complete */
+	if (stat & CLASS2_SPU_DMA_TAG_GROUP_COMPLETE_INTR)
 		spu->mfc_callback(spu);
 
-	if (stat & 0x10) /* SPU mailbox threshold */
+	if (stat & CLASS2_MAILBOX_THRESHOLD_INTR)
 		spu->wbox_callback(spu);
 
 	spu->stats.class2_intr++;

@@ -76,16 +76,18 @@ static unsigned int spu_hw_mbox_stat_poll(struct spu_context *ctx,
 		if (stat & 0xff0000)
 			ret |= POLLIN | POLLRDNORM;
 		else {
-			spu_int_stat_clear(spu, 2, 0x1);
-			spu_int_mask_or(spu, 2, 0x1);
+			spu_int_stat_clear(spu, 2, CLASS2_MAILBOX_INTR);
+			spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		}
 	}
 	if (events & (POLLOUT | POLLWRNORM)) {
 		if (stat & 0x00ff00)
 			ret = POLLOUT | POLLWRNORM;
 		else {
-			spu_int_stat_clear(spu, 2, 0x10);
-			spu_int_mask_or(spu, 2, 0x10);
+			spu_int_stat_clear(spu, 2,
+					CLASS2_MAILBOX_THRESHOLD_INTR);
+			spu_int_mask_or(spu, 2,
+					CLASS2_ENABLE_MAILBOX_THRESHOLD_INTR);
 		}
 	}
 	spin_unlock_irq(&spu->register_lock);
@@ -106,7 +108,7 @@ static int spu_hw_ibox_read(struct spu_context *ctx, u32 * data)
 		ret = 4;
 	} else {
 		/* make sure we get woken up by the interrupt */
-		spu_int_mask_or(spu, 2, 0x1);
+		spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_INTR);
 		ret = 0;
 	}
 	spin_unlock_irq(&spu->register_lock);
@@ -127,7 +129,7 @@ static int spu_hw_wbox_write(struct spu_context *ctx, u32 data)
 	} else {
 		/* make sure we get woken up by the interrupt when space
 		   becomes available */
-		spu_int_mask_or(spu, 2, 0x10);
+		spu_int_mask_or(spu, 2, CLASS2_ENABLE_MAILBOX_THRESHOLD_INTR);
 		ret = 0;
 	}
 	spin_unlock_irq(&spu->register_lock);
