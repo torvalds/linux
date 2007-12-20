@@ -1564,7 +1564,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	char pci_info[30];
 	char fw_str[30];
 	struct scsi_host_template *sht;
-	int bars;
+	int bars, mem_only = 0;
 
 	bars = pci_select_bars(pdev, IORESOURCE_MEM | IORESOURCE_IO);
 	sht = &qla2x00_driver_template;
@@ -1575,10 +1575,16 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	    pdev->device == PCI_DEVICE_ID_QLOGIC_ISP2532) {
 		bars = pci_select_bars(pdev, IORESOURCE_MEM);
 		sht = &qla24xx_driver_template;
+		mem_only = 1;
 	}
 
-	if (pci_enable_device_bars(pdev, bars))
-		goto probe_out;
+	if (mem_only) {
+		if (pci_enable_device_mem(pdev))
+			goto probe_out;
+	} else {
+		if (pci_enable_device(pdev))
+			goto probe_out;
+	}
 
 	if (pci_find_aer_capability(pdev))
 		if (pci_enable_pcie_error_reporting(pdev))
@@ -1601,6 +1607,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	sprintf(ha->host_str, "%s_%ld", QLA2XXX_DRIVER_NAME, ha->host_no);
 	ha->parent = NULL;
 	ha->bars = bars;
+	ha->mem_only = mem_only;
 
 	/* Set ISP-type information. */
 	qla2x00_set_isp_flags(ha);
@@ -2875,8 +2882,14 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 {
 	pci_ers_result_t ret = PCI_ERS_RESULT_DISCONNECT;
 	scsi_qla_host_t *ha = pci_get_drvdata(pdev);
+	int rc;
 
-	if (pci_enable_device_bars(pdev, ha->bars)) {
+	if (ha->mem_only)
+		rc = pci_enable_device_mem(pdev);
+	else
+		rc = pci_enable_device(pdev);
+
+	if (rc) {
 		qla_printk(KERN_WARNING, ha,
 		    "Can't re-enable PCI device after reset.\n");
 

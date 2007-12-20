@@ -492,7 +492,7 @@ static __init int scx200_create_pci(const char *text, struct pci_dev *pdev,
 	iface->pdev = pdev;
 	iface->bar = bar;
 
-	rc = pci_enable_device_bars(iface->pdev, 1 << iface->bar);
+	rc = pci_enable_device_io(iface->pdev);
 	if (rc)
 		goto errout_free;
 
