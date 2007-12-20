@@ -1058,6 +1058,7 @@ void __init pmac_pci_init(void)
 #endif
 }
 
+#ifdef CONFIG_PPC32
 int pmac_pci_enable_device_hook(struct pci_dev *dev)
 {
 	struct device_node* node;
@@ -1106,7 +1107,6 @@ int pmac_pci_enable_device_hook(struct pci_dev *dev)
 	 * bridge and we must not, for example, enable MWI or set the
 	 * cache line size on them.
 	 */
-#ifdef CONFIG_PPC32
 	if (updatecfg) {
 		u16 cmd;
 
@@ -1118,11 +1118,22 @@ int pmac_pci_enable_device_hook(struct pci_dev *dev)
 
 		pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE,
 				      L1_CACHE_BYTES >> 2);
-#endif
 	}
 
 	return 0;
 }
+
+void __devinit pmac_pci_fixup_ohci(struct pci_dev *dev)
+{
+	struct device_node *node = pci_device_to_OF_node(dev);
+
+	/* We don't want to assign resources to USB controllers
+	 * absent from the OF tree (iBook second controller)
+	 */
+	if (dev->class == PCI_CLASS_SERIAL_USB_OHCI && !node)
+		dev->resource[0].flags = 0;
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_APPLE, PCI_ANY_ID, pmac_pci_fixup_ohci);
 
 /* We power down some devices after they have been probed. They'll
  * be powered back on later on
@@ -1171,7 +1182,6 @@ void __init pmac_pcibios_after_init(void)
 	of_node_put(nd);
 }
 
-#ifdef CONFIG_PPC32
 void pmac_pci_fixup_cardbus(struct pci_dev* dev)
 {
 	if (!machine_is(powermac))
@@ -1259,7 +1269,7 @@ void pmac_pci_fixup_pciata(struct pci_dev* dev)
 	}
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, pmac_pci_fixup_pciata);
-#endif
+#endif /* CONFIG_PPC32 */
 
 /*
  * Disable second function on K2-SATA, it's broken
