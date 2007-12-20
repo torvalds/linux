@@ -612,8 +612,7 @@ const char *nlmdbg_cookie2a(const struct nlm_cookie *cookie)
 	 * called with BKL held.
 	 */
 	static char buf[2*NLM_MAXCOOKIELEN+1];
-	int i;
-	int len = sizeof(buf);
+	unsigned int i, len = sizeof(buf);
 	char *p = buf;
 
 	len--;	/* allow for trailing \0 */
