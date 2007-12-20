@@ -664,7 +664,7 @@ struct kobject *kobject_create(void)
  *
  * This function creates a kset structure dynamically and registers it
  * with sysfs.  When you are finished with this structure, call
- * kobject_unregister() and the structure will be dynamically freed when
+ * kobject_put() and the structure will be dynamically freed when
  * it is no longer being used.
  *
  * If the kobject was not able to be created, NULL will be returned.
@@ -761,7 +761,7 @@ void kset_unregister(struct kset * k)
 {
 	if (!k)
 		return;
-	kobject_unregister(&k->kobj);
+	kobject_put(&k->kobj);
 }
 
 

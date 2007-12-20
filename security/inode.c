@@ -327,7 +327,7 @@ static int __init securityfs_init(void)
 
 	retval = register_filesystem(&fs_type);
 	if (retval)
-		kobject_unregister(security_kobj);
+		kobject_put(security_kobj);
 	return retval;
 }
 

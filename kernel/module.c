@@ -1257,9 +1257,8 @@ int mod_sysfs_setup(struct module *mod,
 out_unreg_param:
 	module_param_sysfs_remove(mod);
 out_unreg_holders:
-	kobject_unregister(mod->holders_dir);
+	kobject_put(mod->holders_dir);
 out_unreg:
-	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
 	return err;
 }
@@ -1269,9 +1268,9 @@ static void mod_kobject_remove(struct module *mod)
 {
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
-	kobject_unregister(mod->mkobj.drivers_dir);
-	kobject_unregister(mod->holders_dir);
-	kobject_unregister(&mod->mkobj.kobj);
+	kobject_put(mod->mkobj.drivers_dir);
+	kobject_put(mod->holders_dir);
+	kobject_put(&mod->mkobj.kobj);
 }
 
 /*

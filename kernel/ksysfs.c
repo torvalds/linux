@@ -154,7 +154,7 @@ notes_exit:
 group_exit:
 	sysfs_remove_group(kernel_kobj, &kernel_attr_group);
 kset_exit:
-	kobject_unregister(kernel_kobj);
+	kobject_put(kernel_kobj);
 exit:
 	return error;
 }
