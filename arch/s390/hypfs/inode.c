@@ -517,7 +517,7 @@ static int __init hypfs_init(void)
 	return 0;
 
 fail_filesystem:
-	kobject_unregister(s390_kobj);
+	kobject_put(s390_kobj);
 fail_sysfs:
 	if (!MACHINE_IS_VM)
 		hypfs_diag_exit();
@@ -531,7 +531,7 @@ static void __exit hypfs_exit(void)
 	if (!MACHINE_IS_VM)
 		hypfs_diag_exit();
 	unregister_filesystem(&hypfs_type);
-	kobject_unregister(s390_kobj);
+	kobject_put(s390_kobj);
 }
 
 module_init(hypfs_init)

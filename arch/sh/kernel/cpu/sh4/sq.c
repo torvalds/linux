@@ -360,7 +360,7 @@ static int __devexit sq_sysdev_remove(struct sys_device *sysdev)
 	unsigned int cpu = sysdev->id;
 	struct kobject *kobj = sq_kobject[cpu];
 
-	kobject_unregister(kobj);
+	kobject_put(kobj);
 	return 0;
 }
 

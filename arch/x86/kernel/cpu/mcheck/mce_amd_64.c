@@ -456,7 +456,7 @@ recurse:
 
 out_free:
 	if (b) {
-		kobject_unregister(&b->kobj);
+		kobject_put(&b->kobj);
 		kfree(b);
 	}
 	return err;
@@ -581,7 +581,7 @@ static void deallocate_threshold_block(unsigned int cpu,
 		return;
 
 	list_for_each_entry_safe(pos, tmp, &head->blocks->miscj, miscj) {
-		kobject_unregister(&pos->kobj);
+		kobject_put(&pos->kobj);
 		list_del(&pos->miscj);
 		kfree(pos);
 	}
@@ -627,7 +627,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 	deallocate_threshold_block(cpu, bank);
 
 free_out:
-	kobject_unregister(b->kobj);
+	kobject_put(b->kobj);
 	kfree(b);
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }

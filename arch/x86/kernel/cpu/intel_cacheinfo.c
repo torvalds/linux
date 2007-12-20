@@ -749,10 +749,9 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 					      "index%1lu", i);
 		if (unlikely(retval)) {
 			for (j = 0; j < i; j++) {
-				kobject_unregister(
-					&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
+				kobject_put(&(INDEX_KOBJECT_PTR(cpu,j)->kobj));
 			}
-			kobject_unregister(cache_kobject[cpu]);
+			kobject_put(cache_kobject[cpu]);
 			cpuid4_cache_sysfs_exit(cpu);
 			break;
 		}
@@ -777,8 +776,8 @@ static void __cpuinit cache_remove_dev(struct sys_device * sys_dev)
 	cpu_clear(cpu, cache_dev_map);
 
 	for (i = 0; i < num_cache_leaves; i++)
-		kobject_unregister(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
-	kobject_unregister(cache_kobject[cpu]);
+		kobject_put(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
+	kobject_put(cache_kobject[cpu]);
 	cpuid4_cache_sysfs_exit(cpu);
 }
 
