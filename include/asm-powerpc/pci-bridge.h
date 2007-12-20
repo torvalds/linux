@@ -13,6 +13,26 @@
 
 struct device_node;
 
+extern unsigned int ppc_pci_flags;
+enum {
+	/* Force re-assigning all resources (ignore firmware
+	 * setup completely)
+	 */
+	PPC_PCI_REASSIGN_ALL_RSRC	= 0x00000001,
+
+	/* Re-assign all bus numbers */
+	PPC_PCI_REASSIGN_ALL_BUS	= 0x00000002,
+
+	/* Do not try to assign, just use existing setup */
+	PPC_PCI_PROBE_ONLY		= 0x00000004,
+
+	/* Don't bother with ISA alignment unless the bridge has
+	 * ISA forwarding enabled
+	 */
+	PPC_PCI_CAN_SKIP_ISA_ALIGN	= 0x00000008,
+};
+
+
 /*
  * Structure of a PCI controller (host bridge)
  */

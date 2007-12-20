@@ -35,6 +35,9 @@ unsigned long isa_io_base     = 0;
 unsigned long pci_dram_offset = 0;
 int pcibios_assign_bus_offset = 1;
 
+/* Default PCI flags is 0 */
+unsigned int ppc_pci_flags;
+
 void pcibios_make_OF_bus_map(void);
 
 static void pcibios_fixup_resources(struct pci_dev* dev);
@@ -48,7 +51,7 @@ static u8* pci_to_OF_bus_map;
 /* By default, we don't re-assign bus numbers. We do this only on
  * some pmacs
  */
-int pci_assign_all_buses;
+static int pci_assign_all_buses;
 
 LIST_HEAD(hose_list);
 
@@ -174,6 +177,14 @@ void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
 }
 EXPORT_SYMBOL(pcibios_bus_to_resource);
 
+static int skip_isa_ioresource_align(struct pci_dev *dev)
+{
+	if ((ppc_pci_flags & PPC_PCI_CAN_SKIP_ISA_ALIGN) &&
+	    !(dev->bus->bridge_ctl & PCI_BRIDGE_CTL_ISA))
+		return 1;
+	return 0;
+}
+
 /*
  * We need to avoid collisions with `mirrored' VGA ports
  * and other strange ISA hardware, so we always want the
@@ -195,6 +206,8 @@ void pcibios_align_resource(void *data, struct resource *res,
 	if (res->flags & IORESOURCE_IO) {
 		resource_size_t start = res->start;
 
+		if (skip_isa_ioresource_align(dev))
+			return;
 		if (start & 0x300) {
 			start = (start + 0x3ff) & ~0x3ff;
 			res->start = start;
@@ -251,8 +264,13 @@ pcibios_allocate_bus_resources(struct list_head *bus_list)
 				continue;
 			if (bus->parent == NULL)
 				pr = (res->flags & IORESOURCE_IO)?
-					&ioport_resource: &iomem_resource;
+					&ioport_resource : &iomem_resource;
 			else {
+				/* Don't bother with non-root busses when
+				 * re-assigning all resources.
+				 */
+				if (ppc_pci_flags & PPC_PCI_REASSIGN_ALL_RSRC)
+					continue;
 				pr = pci_find_parent_resource(bus->self, res);
 				if (pr == res) {
 					/* this happens when the generic PCI
@@ -720,6 +738,9 @@ pcibios_init(void)
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
+	if (ppc_pci_flags & PPC_PCI_REASSIGN_ALL_BUS)
+		pci_assign_all_buses = 1;
+
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
 		if (pci_assign_all_buses)
@@ -746,13 +767,18 @@ pcibios_init(void)
 	if (ppc_md.pcibios_fixup)
 		ppc_md.pcibios_fixup();
 
-	/* Allocate and assign resources */
+	/* Allocate and assign resources. If we re-assign everything, then
+	 * we skip the allocate phase
+	 */
 	pcibios_allocate_bus_resources(&pci_root_buses);
-	pcibios_allocate_resources(0);
-	pcibios_allocate_resources(1);
-
-	DBG("PCI: Assigning unassigned resouces...\n");
-	pci_assign_unassigned_resources();
+	if (!(ppc_pci_flags & PPC_PCI_REASSIGN_ALL_RSRC)) {
+		pcibios_allocate_resources(0);
+		pcibios_allocate_resources(1);
+	}
+	if (!(ppc_pci_flags & PPC_PCI_PROBE_ONLY)) {
+		DBG("PCI: Assigning unassigned resouces...\n");
+		pci_assign_unassigned_resources();
+	}
 
 	/* Call machine dependent post-init code */
 	if (ppc_md.pcibios_after_init)

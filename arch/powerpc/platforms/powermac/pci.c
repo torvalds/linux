@@ -725,7 +725,7 @@ static void __init setup_bandit(struct pci_controller *hose,
 static int __init setup_uninorth(struct pci_controller *hose,
 				 struct resource *addr)
 {
-	pci_assign_all_buses = 1;
+	ppc_pci_flags |= PPC_PCI_REASSIGN_ALL_BUS;
 	has_uninorth = 1;
 	hose->ops = &macrisc_pci_ops;
 	hose->cfg_addr = ioremap(addr->start + 0x800000, 0x1000);
@@ -994,6 +994,9 @@ void __init pmac_pci_init(void)
 	struct device_node *np, *root;
 	struct device_node *ht = NULL;
 
+#ifdef CONFIG_PPC32
+	ppc_pci_flags = PPC_PCI_CAN_SKIP_ISA_ALIGN;
+#endif
 	root = of_find_node_by_path("/");
 	if (root == NULL) {
 		printk(KERN_CRIT "pmac_pci_init: can't find root "
@@ -1051,7 +1054,7 @@ void __init pmac_pci_init(void)
 	 * some offset between bus number and domains for now when we
 	 * assign all busses should help for now
 	 */
-	if (pci_assign_all_buses)
+	if (ppc_pci_flags & PPC_PCI_REASSIGN_ALL_BUS)
 		pcibios_assign_bus_offset = 0x10;
 #endif
 }
