@@ -106,7 +106,17 @@ int put_spu_context(struct spu_context *ctx)
 void spu_forget(struct spu_context *ctx)
 {
 	struct mm_struct *mm;
-	spu_acquire_saved(ctx);
+
+	/*
+	 * This is basically an open-coded spu_acquire_saved, except that
+	 * we don't acquire the state mutex interruptible.
+	 */
+	mutex_lock(&ctx->state_mutex);
+	if (ctx->state != SPU_STATE_SAVED) {
+		set_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags);
+		spu_deactivate(ctx);
+	}
+
 	mm = ctx->owner;
 	ctx->owner = NULL;
 	mmput(mm);
@@ -137,13 +147,20 @@ void spu_unmap_mappings(struct spu_context *ctx)
  * spu_acquire_saved - lock spu contex and make sure it is in saved state
  * @ctx:	spu contex to lock
  */
-void spu_acquire_saved(struct spu_context *ctx)
+int spu_acquire_saved(struct spu_context *ctx)
 {
-	spu_acquire(ctx);
+	int ret;
+
+	ret = spu_acquire(ctx);
+	if (ret)
+		return ret;
+
 	if (ctx->state != SPU_STATE_SAVED) {
 		set_bit(SPU_SCHED_WAS_ACTIVE, &ctx->sched_flags);
 		spu_deactivate(ctx);
 	}
+
+	return 0;
 }
 
 /**

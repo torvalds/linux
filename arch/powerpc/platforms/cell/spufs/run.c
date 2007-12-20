@@ -292,7 +292,7 @@ static int spu_process_callback(struct spu_context *ctx)
 	u32 ls_pointer, npc;
 	void __iomem *ls;
 	long spu_ret;
-	int ret;
+	int ret, ret2;
 
 	/* get syscall block from local store */
 	npc = ctx->ops->npc_read(ctx) & ~3;
@@ -314,9 +314,11 @@ static int spu_process_callback(struct spu_context *ctx)
 		if (spu_ret <= -ERESTARTSYS) {
 			ret = spu_handle_restartsys(ctx, &spu_ret, &npc);
 		}
-		spu_acquire(ctx);
+		ret2 = spu_acquire(ctx);
 		if (ret == -ERESTARTSYS)
 			return ret;
+		if (ret2)
+			return -EINTR;
 	}
 
 	/* write result, jump over indirect pointer */
@@ -338,7 +340,9 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 	spu_enable_spu(ctx);
 	ctx->event_return = 0;
 
-	spu_acquire(ctx);
+	ret = spu_acquire(ctx);
+	if (ret)
+		goto out_unlock;
 
 	spu_update_sched_info(ctx);
 
@@ -414,6 +418,7 @@ long spufs_run_spu(struct spu_context *ctx, u32 *npc, u32 *event)
 
 out:
 	*event = ctx->event_return;
+out_unlock:
 	mutex_unlock(&ctx->run_mutex);
 	return ret;
 }

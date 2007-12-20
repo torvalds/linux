@@ -229,9 +229,9 @@ struct spu *affinity_check(struct spu_context *ctx);
 
 /* context management */
 extern atomic_t nr_spu_contexts;
-static inline void spu_acquire(struct spu_context *ctx)
+static inline int __must_check spu_acquire(struct spu_context *ctx)
 {
-	mutex_lock(&ctx->state_mutex);
+	return mutex_lock_interruptible(&ctx->state_mutex);
 }
 
 static inline void spu_release(struct spu_context *ctx)
@@ -246,7 +246,7 @@ int put_spu_context(struct spu_context *ctx);
 void spu_unmap_mappings(struct spu_context *ctx);
 
 void spu_forget(struct spu_context *ctx);
-void spu_acquire_saved(struct spu_context *ctx);
+int __must_check spu_acquire_saved(struct spu_context *ctx);
 void spu_release_saved(struct spu_context *ctx);
 
 int spu_stopped(struct spu_context *ctx, u32 * stat);
@@ -284,7 +284,9 @@ extern char *isolated_loader;
 		}							\
 		spu_release(ctx);					\
 		schedule();						\
-		spu_acquire(ctx);					\
+		__ret = spu_acquire(ctx);				\
+		if (__ret)						\
+			break;						\
 	}								\
 	finish_wait(&(wq), &__wait);					\
 	__ret;								\

@@ -705,7 +705,9 @@ static void __spu_schedule(struct spu *spu, struct spu_context *ctx)
 
 static void spu_schedule(struct spu *spu, struct spu_context *ctx)
 {
-	spu_acquire(ctx);
+	/* not a candidate for interruptible because it's called either
+	   from the scheduler thread or from spu_deactivate */
+	mutex_lock(&ctx->state_mutex);
 	__spu_schedule(spu, ctx);
 	spu_release(ctx);
 }
@@ -823,7 +825,9 @@ static int __spu_deactivate(struct spu_context *ctx, int force, int max_prio)
 				else {
 					spu_release(ctx);
 					spu_schedule(spu, new);
-					spu_acquire(ctx);
+					/* this one can't easily be made
+					   interruptible */
+					mutex_lock(&ctx->state_mutex);
 				}
 			}
 		}
@@ -867,7 +871,8 @@ static noinline void spusched_tick(struct spu_context *ctx)
 	struct spu *spu = NULL;
 	u32 status;
 
-	spu_acquire(ctx);
+	if (spu_acquire(ctx))
+		BUG();	/* a kernel thread never has signals pending */
 
 	if (ctx->state != SPU_STATE_RUNNABLE)
 		goto out;
