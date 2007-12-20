@@ -387,12 +387,16 @@ static void nfs_init_timeout_values(struct rpc_timeout *to, int proto,
 	switch (proto) {
 	case XPRT_TRANSPORT_TCP:
 	case XPRT_TRANSPORT_RDMA:
-		if (!to->to_initval)
+		if (to->to_initval == 0)
 			to->to_initval = 60 * HZ;
 		if (to->to_initval > NFS_MAX_TCP_TIMEOUT)
 			to->to_initval = NFS_MAX_TCP_TIMEOUT;
 		to->to_increment = to->to_initval;
 		to->to_maxval = to->to_initval + (to->to_increment * to->to_retries);
+		if (to->to_maxval > NFS_MAX_TCP_TIMEOUT)
+			to->to_maxval = NFS_MAX_TCP_TIMEOUT;
+		if (to->to_maxval < to->to_initval)
+			to->to_maxval = to->to_initval;
 		to->to_exponential = 0;
 		break;
 	case XPRT_TRANSPORT_UDP:
