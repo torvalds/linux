@@ -730,6 +730,23 @@ struct sctp_transport *sctp_assoc_lookup_paddr(
 	return NULL;
 }
 
+/* Remove all transports except a give one */
+void sctp_assoc_del_nonprimary_peers(struct sctp_association *asoc,
+				     struct sctp_transport *primary)
+{
+	struct sctp_transport	*temp;
+	struct sctp_transport	*t;
+
+	list_for_each_entry_safe(t, temp, &asoc->peer.transport_addr_list,
+				 transports) {
+		/* if the current transport is not the primary one, delete it */
+		if (t != primary)
+			sctp_assoc_rm_peer(asoc, t);
+	}
+
+	return;
+}
+
 /* Engage in transport control operations.
  * Mark the transport up or down and send a notification to the user.
  * Select and update the new active and retran paths.
