@@ -26,7 +26,7 @@ static inline void ipip_ecn_decapsulate(struct sk_buff *skb)
  *
  * The top IP header will be constructed per RFC 2401.
  */
-static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
+static int xfrm4_mode_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb->dst;
 	struct iphdr *top_iph;
@@ -63,7 +63,7 @@ static int xfrm4_tunnel_output(struct xfrm_state *x, struct sk_buff *skb)
 	return 0;
 }
 
-static int xfrm4_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
+static int xfrm4_mode_tunnel_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	const unsigned char *old_mac;
 	int err = -EINVAL;
@@ -94,21 +94,21 @@ out:
 }
 
 static struct xfrm_mode xfrm4_tunnel_mode = {
-	.input2 = xfrm4_tunnel_input,
+	.input2 = xfrm4_mode_tunnel_input,
 	.input = xfrm_prepare_input,
-	.output2 = xfrm4_tunnel_output,
+	.output2 = xfrm4_mode_tunnel_output,
 	.output = xfrm4_prepare_output,
 	.owner = THIS_MODULE,
 	.encap = XFRM_MODE_TUNNEL,
 	.flags = XFRM_MODE_FLAG_TUNNEL,
 };
 
-static int __init xfrm4_tunnel_init(void)
+static int __init xfrm4_mode_tunnel_init(void)
 {
 	return xfrm_register_mode(&xfrm4_tunnel_mode, AF_INET);
 }
 
-static void __exit xfrm4_tunnel_exit(void)
+static void __exit xfrm4_mode_tunnel_exit(void)
 {
 	int err;
 
@@ -116,7 +116,7 @@ static void __exit xfrm4_tunnel_exit(void)
 	BUG_ON(err);
 }
 
-module_init(xfrm4_tunnel_init);
-module_exit(xfrm4_tunnel_exit);
+module_init(xfrm4_mode_tunnel_init);
+module_exit(xfrm4_mode_tunnel_exit);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_XFRM_MODE(AF_INET, XFRM_MODE_TUNNEL);
