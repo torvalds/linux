@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
+#include <linux/regset.h>
 #include <linux/user.h>
 #include <linux/security.h>
 #include <linux/signal.h>
@@ -103,24 +104,48 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 }
 
 
+static int fpr_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	flush_fp_to_thread(target);
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
+		     offsetof(struct thread_struct, fpr[32]));
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.fpr, 0, -1);
+}
+
+static int fpr_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	flush_fp_to_thread(target);
+
+	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
+		     offsetof(struct thread_struct, fpr[32]));
+
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpr, 0, -1);
+}
+
 static int get_fpregs(void __user *data, struct task_struct *task,
 		      int has_fpscr)
 {
 	unsigned int count = has_fpscr ? 33 : 32;
-
-	if (copy_to_user(data, task->thread.fpr, count * sizeof(double)))
+	if (!access_ok(VERIFY_WRITE, data, count * sizeof(double)))
 		return -EFAULT;
-	return 0;
+	return fpr_get(task, NULL, 0, count * sizeof(double), NULL, data);
 }
 
 static int set_fpregs(void __user *data, struct task_struct *task,
 		      int has_fpscr)
 {
 	unsigned int count = has_fpscr ? 33 : 32;
-
-	if (copy_from_user(task->thread.fpr, data, count * sizeof(double)))
+	if (!access_ok(VERIFY_READ, data, count * sizeof(double)))
 		return -EFAULT;
-	return 0;
+	return fpr_set(task, NULL, 0, count * sizeof(double), NULL, data);
 }
 
 
