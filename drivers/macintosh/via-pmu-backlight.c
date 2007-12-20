@@ -22,7 +22,7 @@ static u8 bl_curve[FB_BACKLIGHT_LEVELS];
 
 static void pmu_backlight_init_curve(u8 off, u8 min, u8 max)
 {
-	unsigned int i, flat, count, range = (max - min);
+	int i, flat, count, range = (max - min);
 
 	bl_curve[0] = off;
 
@@ -68,17 +68,11 @@ static int pmu_backlight_get_level_brightness(int level)
 	return pmulevel;
 }
 
-static int pmu_backlight_update_status(struct backlight_device *bd)
+static int __pmu_backlight_update_status(struct backlight_device *bd)
 {
 	struct adb_request req;
-	unsigned long flags;
 	int level = bd->props.brightness;
 
-	spin_lock_irqsave(&pmu_backlight_lock, flags);
-
-	/* Don't update brightness when sleeping */
-	if (sleeping)
-		goto out;
 
 	if (bd->props.power != FB_BLANK_UNBLANK ||
 	    bd->props.fb_blank != FB_BLANK_UNBLANK)
@@ -99,11 +93,22 @@ static int pmu_backlight_update_status(struct backlight_device *bd)
 		pmu_wait_complete(&req);
 	}
 
-out:
-	spin_unlock_irqrestore(&pmu_backlight_lock, flags);
-
 	return 0;
 }
+
+static int pmu_backlight_update_status(struct backlight_device *bd)
+{
+	unsigned long flags;
+	int rc = 0;
+
+	spin_lock_irqsave(&pmu_backlight_lock, flags);
+	/* Don't update brightness when sleeping */
+	if (!sleeping)
+		rc = __pmu_backlight_update_status(bd);
+	spin_unlock_irqrestore(&pmu_backlight_lock, flags);
+	return rc;
+}
+
 
 static int pmu_backlight_get_brightness(struct backlight_device *bd)
 {
@@ -123,6 +128,16 @@ void pmu_backlight_set_sleep(int sleep)
 
 	spin_lock_irqsave(&pmu_backlight_lock, flags);
 	sleeping = sleep;
+	if (pmac_backlight) {
+		if (sleep) {
+			struct adb_request req;
+
+			pmu_request(&req, NULL, 2, PMU_POWER_CTRL,
+				    PMU_POW_BACKLIGHT | PMU_POW_OFF);
+			pmu_wait_complete(&req);
+		} else
+			__pmu_backlight_update_status(pmac_backlight);
+	}
 	spin_unlock_irqrestore(&pmu_backlight_lock, flags);
 }
 #endif /* CONFIG_PM */
@@ -148,8 +163,8 @@ void __init pmu_backlight_init()
 
 	bd = backlight_device_register(name, NULL, NULL, &pmu_backlight_data);
 	if (IS_ERR(bd)) {
-		printk("pmubl: Backlight registration failed\n");
-		goto error;
+		printk(KERN_ERR "PMU Backlight registration failed\n");
+		return;
 	}
 	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	pmu_backlight_init_curve(0x7F, 0x46, 0x0E);
@@ -171,10 +186,5 @@ void __init pmu_backlight_init()
 	bd->props.power = FB_BLANK_UNBLANK;
 	backlight_update_status(bd);
 
-	printk("pmubl: Backlight initialized (%s)\n", name);
-
-	return;
-
-error:
-	return;
+	printk(KERN_INFO "PMU Backlight initialized (%s)\n", name);
 }

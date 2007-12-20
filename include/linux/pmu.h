@@ -159,6 +159,8 @@ extern void pmu_unlock(void);
 extern int pmu_present(void);
 extern int pmu_get_model(void);
 
+extern void pmu_backlight_set_sleep(int sleep);
+
 #define PMU_MAX_BATTERIES	2
 
 /* values for pmu_power_flags */

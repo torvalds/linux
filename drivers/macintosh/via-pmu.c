@@ -1748,8 +1748,6 @@ restore_via_state(void)
 	out_8(&via[IER], IER_SET | SR_INT | CB1_INT);
 }
 
-extern void pmu_backlight_set_sleep(int sleep);
-
 #define	GRACKLE_PM	(1<<7)
 #define GRACKLE_DOZE	(1<<5)
 #define	GRACKLE_NAP	(1<<4)
@@ -2160,11 +2158,6 @@ pmu_release(struct inode *inode, struct file *file)
 #if defined(CONFIG_SUSPEND) && defined(CONFIG_PPC32)
 static void pmac_suspend_disable_irqs(void)
 {
-#ifdef CONFIG_PMAC_BACKLIGHT
-	/* Tell backlight code not to muck around with the chip anymore */
-	pmu_backlight_set_sleep(1);
-#endif
-
 	/* Call platform functions marked "on sleep" */
 	pmac_pfunc_i2c_suspend();
 	pmac_pfunc_base_suspend();
@@ -2207,11 +2200,6 @@ static int powerbook_sleep(suspend_state_t state)
 		return error;
 
 	mdelay(100);
-
-#ifdef CONFIG_PMAC_BACKLIGHT
-	/* Tell backlight code it can use the chip again */
-	pmu_backlight_set_sleep(0);
-#endif
 
 	return 0;
 }
@@ -2457,10 +2445,15 @@ static int pmu_sys_suspend(struct sys_device *sysdev, pm_message_t state)
 	if (state.event != PM_EVENT_SUSPEND || pmu_sys_suspended)
 		return 0;
 
-	/* Suspend PMU event interrupts */
+	/* Suspend PMU event interrupts */\
 	pmu_suspend();
-
 	pmu_sys_suspended = 1;
+
+#ifdef CONFIG_PMAC_BACKLIGHT
+	/* Tell backlight code not to muck around with the chip anymore */
+	pmu_backlight_set_sleep(1);
+#endif
+
 	return 0;
 }
 
@@ -2475,9 +2468,12 @@ static int pmu_sys_resume(struct sys_device *sysdev)
 	pmu_request(&req, NULL, 2, PMU_SYSTEM_READY, 2);
 	pmu_wait_complete(&req);
 
+#ifdef CONFIG_PMAC_BACKLIGHT
+	/* Tell backlight code it can use the chip again */
+	pmu_backlight_set_sleep(0);
+#endif
 	/* Resume PMU event interrupts */
 	pmu_resume();
-
 	pmu_sys_suspended = 0;
 
 	return 0;
