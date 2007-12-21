@@ -1852,7 +1852,7 @@ static int prism2_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	tx_control = local->tx_control;
 	if (meta->tx_cb_idx) {
 		tx_control |= HFA384X_TX_CTRL_TX_OK;
-		txdesc.sw_support = cpu_to_le16(meta->tx_cb_idx);
+		txdesc.sw_support = cpu_to_le32(meta->tx_cb_idx);
 	}
 	txdesc.tx_control = cpu_to_le16(tx_control);
 	txdesc.tx_rate = meta->rate;
@@ -2190,7 +2190,7 @@ static void hostap_tx_callback(local_info_t *local,
 		return;
 	}
 
-	sw_support = le16_to_cpu(txdesc->sw_support);
+	sw_support = le32_to_cpu(txdesc->sw_support);
 
 	spin_lock(&local->lock);
 	cb = local->tx_callback;
