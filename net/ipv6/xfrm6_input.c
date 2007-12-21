@@ -63,9 +63,25 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 	struct xfrm_state *x = NULL;
 	int wildcard = 0;
 	xfrm_address_t *xany;
-	struct xfrm_state *xfrm_vec_one = NULL;
 	int nh = 0;
 	int i = 0;
+
+	/* Allocate new secpath or COW existing one. */
+	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
+		struct sec_path *sp;
+
+		sp = secpath_dup(skb->sp);
+		if (!sp) {
+			goto drop;
+		}
+		if (skb->sp)
+			secpath_put(skb->sp);
+		skb->sp = sp;
+	}
+
+	if (1 + skb->sp->len == XFRM_MAX_DEPTH) {
+		goto drop;
+	}
 
 	xany = (xfrm_address_t *)&in6addr_any;
 
@@ -119,47 +135,35 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 			continue;
 		}
 
+		spin_unlock(&x->lock);
+
 		nh = x->type->input(x, skb);
 		if (nh <= 0) {
-			spin_unlock(&x->lock);
 			xfrm_state_put(x);
 			x = NULL;
 			continue;
 		}
 
-		x->curlft.bytes += skb->len;
-		x->curlft.packets++;
-
-		spin_unlock(&x->lock);
-
-		xfrm_vec_one = x;
+		/* Found a state */
 		break;
 	}
 
-	if (!xfrm_vec_one)
+	if (!x) {
 		goto drop;
-
-	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || atomic_read(&skb->sp->refcnt) != 1) {
-		struct sec_path *sp;
-		sp = secpath_dup(skb->sp);
-		if (!sp)
-			goto drop;
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
 	}
 
-	if (1 + skb->sp->len > XFRM_MAX_DEPTH)
-		goto drop;
+	skb->sp->xvec[skb->sp->len++] = x;
 
-	skb->sp->xvec[skb->sp->len] = xfrm_vec_one;
-	skb->sp->len ++;
+	spin_lock(&x->lock);
+
+	x->curlft.bytes += skb->len;
+	x->curlft.packets++;
+
+	spin_unlock(&x->lock);
 
 	return 1;
+
 drop:
-	if (xfrm_vec_one)
-		xfrm_state_put(xfrm_vec_one);
 	return -1;
 }
 
