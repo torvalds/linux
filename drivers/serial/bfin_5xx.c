@@ -411,6 +411,10 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 	set_dma_x_count(uart->tx_dma_channel, uart->tx_count);
 	set_dma_x_modify(uart->tx_dma_channel, 1);
 	enable_dma(uart->tx_dma_channel);
+
+	xmit->tail = (xmit->tail + uart->tx_count) & (UART_XMIT_SIZE - 1);
+	uart->port.icount.tx += uart->tx_count;
+
 #ifdef CONFIG_BF54x
 	UART_SET_IER(uart, ETBEI);
 #else
@@ -502,9 +506,6 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 		ier &= ~ETBEI;
 		UART_PUT_IER(uart, ier);
 #endif
-		xmit->tail = (xmit->tail+uart->tx_count) &(UART_XMIT_SIZE -1);
-		uart->port.icount.tx+=uart->tx_count;
-
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 			uart_write_wakeup(&uart->port);
 
