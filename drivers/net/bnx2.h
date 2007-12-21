@@ -6503,6 +6503,14 @@ struct bnx2_irq {
 	char		name[16];
 };
 
+struct bnx2_napi {
+	struct napi_struct	napi		____cacheline_aligned;
+	struct bnx2		*bp;
+	struct status_block	*status_blk;
+	u32 			last_status_idx;
+	u32			int_num;
+};
+
 struct bnx2 {
 	/* Fields used in the tx and intr/napi performance paths are grouped */
 	/* together in the beginning of the structure. */
@@ -6511,12 +6519,7 @@ struct bnx2 {
 	struct net_device	*dev;
 	struct pci_dev		*pdev;
 
-	struct napi_struct	napi;
-
 	atomic_t		intr_sem;
-
-	struct status_block	*status_blk;
-	u32 			last_status_idx;
 
 	u32			flags;
 #define PCIX_FLAG			0x00000001
@@ -6538,6 +6541,8 @@ struct bnx2 {
 
 	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
 	u16		hw_tx_cons;
+
+	struct bnx2_napi	bnx2_napi;
 
 #ifdef BCM_VLAN
 	struct			vlan_group *vlgrp;
@@ -6672,6 +6677,7 @@ struct bnx2 {
 
 	u32			stats_ticks;
 
+	struct status_block	*status_blk;
 	dma_addr_t		status_blk_mapping;
 
 	struct statistics_block	*stats_blk;

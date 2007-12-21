@@ -407,12 +407,14 @@ bnx2_disable_int(struct bnx2 *bp)
 static void
 bnx2_enable_int(struct bnx2 *bp)
 {
-	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
-	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
-	       BNX2_PCICFG_INT_ACK_CMD_MASK_INT | bp->last_status_idx);
+	struct bnx2_napi *bnapi = &bp->bnx2_napi;
 
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
-	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | bp->last_status_idx);
+	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
+	       BNX2_PCICFG_INT_ACK_CMD_MASK_INT | bnapi->last_status_idx);
+
+	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
+	       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID | bnapi->last_status_idx);
 
 	REG_WR(bp, BNX2_HC_COMMAND, bp->hc_cmd | BNX2_HC_COMMAND_COAL_NOW);
 }
@@ -426,11 +428,23 @@ bnx2_disable_int_sync(struct bnx2 *bp)
 }
 
 static void
+bnx2_napi_disable(struct bnx2 *bp)
+{
+	napi_disable(&bp->bnx2_napi.napi);
+}
+
+static void
+bnx2_napi_enable(struct bnx2 *bp)
+{
+	napi_enable(&bp->bnx2_napi.napi);
+}
+
+static void
 bnx2_netif_stop(struct bnx2 *bp)
 {
 	bnx2_disable_int_sync(bp);
 	if (netif_running(bp->dev)) {
-		napi_disable(&bp->napi);
+		bnx2_napi_disable(bp);
 		netif_tx_disable(bp->dev);
 		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
 	}
@@ -442,7 +456,7 @@ bnx2_netif_start(struct bnx2 *bp)
 	if (atomic_dec_and_test(&bp->intr_sem)) {
 		if (netif_running(bp->dev)) {
 			netif_wake_queue(bp->dev);
-			napi_enable(&bp->napi);
+			bnx2_napi_enable(bp);
 			bnx2_enable_int(bp);
 		}
 	}
@@ -554,6 +568,8 @@ bnx2_alloc_mem(struct bnx2 *bp)
 		goto alloc_mem_err;
 
 	memset(bp->status_blk, 0, bp->status_stats_size);
+
+	bp->bnx2_napi.status_blk = bp->status_blk;
 
 	bp->stats_blk = (void *) ((unsigned long) bp->status_blk +
 				  status_blk_size);
@@ -2291,9 +2307,9 @@ bnx2_alloc_rx_skb(struct bnx2 *bp, u16 index)
 }
 
 static int
-bnx2_phy_event_is_set(struct bnx2 *bp, u32 event)
+bnx2_phy_event_is_set(struct bnx2 *bp, struct bnx2_napi *bnapi, u32 event)
 {
-	struct status_block *sblk = bp->status_blk;
+	struct status_block *sblk = bnapi->status_blk;
 	u32 new_link_state, old_link_state;
 	int is_set = 1;
 
@@ -2311,24 +2327,24 @@ bnx2_phy_event_is_set(struct bnx2 *bp, u32 event)
 }
 
 static void
-bnx2_phy_int(struct bnx2 *bp)
+bnx2_phy_int(struct bnx2 *bp, struct bnx2_napi *bnapi)
 {
-	if (bnx2_phy_event_is_set(bp, STATUS_ATTN_BITS_LINK_STATE)) {
+	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_LINK_STATE)) {
 		spin_lock(&bp->phy_lock);
 		bnx2_set_link(bp);
 		spin_unlock(&bp->phy_lock);
 	}
-	if (bnx2_phy_event_is_set(bp, STATUS_ATTN_BITS_TIMER_ABORT))
+	if (bnx2_phy_event_is_set(bp, bnapi, STATUS_ATTN_BITS_TIMER_ABORT))
 		bnx2_set_remote_link(bp);
 
 }
 
 static inline u16
-bnx2_get_hw_tx_cons(struct bnx2 *bp)
+bnx2_get_hw_tx_cons(struct bnx2_napi *bnapi)
 {
 	u16 cons;
 
-	cons = bp->status_blk->status_tx_quick_consumer_index0;
+	cons = bnapi->status_blk->status_tx_quick_consumer_index0;
 
 	if (unlikely((cons & MAX_TX_DESC_CNT) == MAX_TX_DESC_CNT))
 		cons++;
@@ -2336,12 +2352,12 @@ bnx2_get_hw_tx_cons(struct bnx2 *bp)
 }
 
 static void
-bnx2_tx_int(struct bnx2 *bp)
+bnx2_tx_int(struct bnx2 *bp, struct bnx2_napi *bnapi)
 {
 	u16 hw_cons, sw_cons, sw_ring_cons;
 	int tx_free_bd = 0;
 
-	hw_cons = bnx2_get_hw_tx_cons(bp);
+	hw_cons = bnx2_get_hw_tx_cons(bnapi);
 	sw_cons = bp->tx_cons;
 
 	while (sw_cons != hw_cons) {
@@ -2393,7 +2409,7 @@ bnx2_tx_int(struct bnx2 *bp)
 
 		dev_kfree_skb(skb);
 
-		hw_cons = bnx2_get_hw_tx_cons(bp);
+		hw_cons = bnx2_get_hw_tx_cons(bnapi);
 	}
 
 	bp->hw_tx_cons = hw_cons;
@@ -2584,9 +2600,9 @@ bnx2_rx_skb(struct bnx2 *bp, struct sk_buff *skb, unsigned int len,
 }
 
 static inline u16
-bnx2_get_hw_rx_cons(struct bnx2 *bp)
+bnx2_get_hw_rx_cons(struct bnx2_napi *bnapi)
 {
-	u16 cons = bp->status_blk->status_rx_quick_consumer_index0;
+	u16 cons = bnapi->status_blk->status_rx_quick_consumer_index0;
 
 	if (unlikely((cons & MAX_RX_DESC_CNT) == MAX_RX_DESC_CNT))
 		cons++;
@@ -2594,13 +2610,13 @@ bnx2_get_hw_rx_cons(struct bnx2 *bp)
 }
 
 static int
-bnx2_rx_int(struct bnx2 *bp, int budget)
+bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 {
 	u16 hw_cons, sw_cons, sw_ring_cons, sw_prod, sw_ring_prod;
 	struct l2_fhdr *rx_hdr;
 	int rx_pkt = 0, pg_ring_used = 0;
 
-	hw_cons = bnx2_get_hw_rx_cons(bp);
+	hw_cons = bnx2_get_hw_rx_cons(bnapi);
 	sw_cons = bp->rx_cons;
 	sw_prod = bp->rx_prod;
 
@@ -2717,7 +2733,7 @@ next_rx:
 
 		/* Refresh hw_cons to see if there is new work */
 		if (sw_cons == hw_cons) {
-			hw_cons = bnx2_get_hw_rx_cons(bp);
+			hw_cons = bnx2_get_hw_rx_cons(bnapi);
 			rmb();
 		}
 	}
@@ -2746,8 +2762,9 @@ bnx2_msi(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct bnx2 *bp = netdev_priv(dev);
+	struct bnx2_napi *bnapi = &bp->bnx2_napi;
 
-	prefetch(bp->status_blk);
+	prefetch(bnapi->status_blk);
 	REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 		BNX2_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM |
 		BNX2_PCICFG_INT_ACK_CMD_MASK_INT);
@@ -2756,7 +2773,7 @@ bnx2_msi(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(dev, &bp->napi);
+	netif_rx_schedule(dev, &bnapi->napi);
 
 	return IRQ_HANDLED;
 }
@@ -2766,14 +2783,15 @@ bnx2_msi_1shot(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct bnx2 *bp = netdev_priv(dev);
+	struct bnx2_napi *bnapi = &bp->bnx2_napi;
 
-	prefetch(bp->status_blk);
+	prefetch(bnapi->status_blk);
 
 	/* Return here if interrupt is disabled. */
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	netif_rx_schedule(dev, &bp->napi);
+	netif_rx_schedule(dev, &bnapi->napi);
 
 	return IRQ_HANDLED;
 }
@@ -2783,7 +2801,8 @@ bnx2_interrupt(int irq, void *dev_instance)
 {
 	struct net_device *dev = dev_instance;
 	struct bnx2 *bp = netdev_priv(dev);
-	struct status_block *sblk = bp->status_blk;
+	struct bnx2_napi *bnapi = &bp->bnx2_napi;
+	struct status_block *sblk = bnapi->status_blk;
 
 	/* When using INTx, it is possible for the interrupt to arrive
 	 * at the CPU before the status block posted prior to the
@@ -2791,7 +2810,7 @@ bnx2_interrupt(int irq, void *dev_instance)
 	 * When using MSI, the MSI message will always complete after
 	 * the status block write.
 	 */
-	if ((sblk->status_idx == bp->last_status_idx) &&
+	if ((sblk->status_idx == bnapi->last_status_idx) &&
 	    (REG_RD(bp, BNX2_PCICFG_MISC_STATUS) &
 	     BNX2_PCICFG_MISC_STATUS_INTA_VALUE))
 		return IRQ_NONE;
@@ -2809,9 +2828,9 @@ bnx2_interrupt(int irq, void *dev_instance)
 	if (unlikely(atomic_read(&bp->intr_sem) != 0))
 		return IRQ_HANDLED;
 
-	if (netif_rx_schedule_prep(dev, &bp->napi)) {
-		bp->last_status_idx = sblk->status_idx;
-		__netif_rx_schedule(dev, &bp->napi);
+	if (netif_rx_schedule_prep(dev, &bnapi->napi)) {
+		bnapi->last_status_idx = sblk->status_idx;
+		__netif_rx_schedule(dev, &bnapi->napi);
 	}
 
 	return IRQ_HANDLED;
@@ -2821,12 +2840,13 @@ bnx2_interrupt(int irq, void *dev_instance)
 				 STATUS_ATTN_BITS_TIMER_ABORT)
 
 static inline int
-bnx2_has_work(struct bnx2 *bp)
+bnx2_has_work(struct bnx2_napi *bnapi)
 {
+	struct bnx2 *bp = bnapi->bp;
 	struct status_block *sblk = bp->status_blk;
 
-	if ((bnx2_get_hw_rx_cons(bp) != bp->rx_cons) ||
-	    (bnx2_get_hw_tx_cons(bp) != bp->hw_tx_cons))
+	if ((bnx2_get_hw_rx_cons(bnapi) != bp->rx_cons) ||
+	    (bnx2_get_hw_tx_cons(bnapi) != bp->hw_tx_cons))
 		return 1;
 
 	if ((sblk->status_attn_bits & STATUS_ATTN_EVENTS) !=
@@ -2836,16 +2856,17 @@ bnx2_has_work(struct bnx2 *bp)
 	return 0;
 }
 
-static int bnx2_poll_work(struct bnx2 *bp, int work_done, int budget)
+static int bnx2_poll_work(struct bnx2 *bp, struct bnx2_napi *bnapi,
+			  int work_done, int budget)
 {
-	struct status_block *sblk = bp->status_blk;
+	struct status_block *sblk = bnapi->status_blk;
 	u32 status_attn_bits = sblk->status_attn_bits;
 	u32 status_attn_bits_ack = sblk->status_attn_bits_ack;
 
 	if ((status_attn_bits & STATUS_ATTN_EVENTS) !=
 	    (status_attn_bits_ack & STATUS_ATTN_EVENTS)) {
 
-		bnx2_phy_int(bp);
+		bnx2_phy_int(bp, bnapi);
 
 		/* This is needed to take care of transient status
 		 * during link changes.
@@ -2855,49 +2876,50 @@ static int bnx2_poll_work(struct bnx2 *bp, int work_done, int budget)
 		REG_RD(bp, BNX2_HC_COMMAND);
 	}
 
-	if (bnx2_get_hw_tx_cons(bp) != bp->hw_tx_cons)
-		bnx2_tx_int(bp);
+	if (bnx2_get_hw_tx_cons(bnapi) != bp->hw_tx_cons)
+		bnx2_tx_int(bp, bnapi);
 
-	if (bnx2_get_hw_rx_cons(bp) != bp->rx_cons)
-		work_done += bnx2_rx_int(bp, budget - work_done);
+	if (bnx2_get_hw_rx_cons(bnapi) != bp->rx_cons)
+		work_done += bnx2_rx_int(bp, bnapi, budget - work_done);
 
 	return work_done;
 }
 
 static int bnx2_poll(struct napi_struct *napi, int budget)
 {
-	struct bnx2 *bp = container_of(napi, struct bnx2, napi);
+	struct bnx2_napi *bnapi = container_of(napi, struct bnx2_napi, napi);
+	struct bnx2 *bp = bnapi->bp;
 	int work_done = 0;
-	struct status_block *sblk = bp->status_blk;
+	struct status_block *sblk = bnapi->status_blk;
 
 	while (1) {
-		work_done = bnx2_poll_work(bp, work_done, budget);
+		work_done = bnx2_poll_work(bp, bnapi, work_done, budget);
 
 		if (unlikely(work_done >= budget))
 			break;
 
-		/* bp->last_status_idx is used below to tell the hw how
+		/* bnapi->last_status_idx is used below to tell the hw how
 		 * much work has been processed, so we must read it before
 		 * checking for more work.
 		 */
-		bp->last_status_idx = sblk->status_idx;
+		bnapi->last_status_idx = sblk->status_idx;
 		rmb();
-		if (likely(!bnx2_has_work(bp))) {
+		if (likely(!bnx2_has_work(bnapi))) {
 			netif_rx_complete(bp->dev, napi);
 			if (likely(bp->flags & USING_MSI_FLAG)) {
 				REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 				       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
-				       bp->last_status_idx);
+				       bnapi->last_status_idx);
 				break;
 			}
 			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 			       BNX2_PCICFG_INT_ACK_CMD_MASK_INT |
-			       bp->last_status_idx);
+			       bnapi->last_status_idx);
 
 			REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 			       BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
-			       bp->last_status_idx);
+			       bnapi->last_status_idx);
 			break;
 		}
 	}
@@ -4247,7 +4269,7 @@ bnx2_init_chip(struct bnx2 *bp)
 		val |= BNX2_EMAC_RX_MTU_SIZE_JUMBO_ENA;
 	REG_WR(bp, BNX2_EMAC_RX_MTU_SIZE, val);
 
-	bp->last_status_idx = 0;
+	bp->bnx2_napi.last_status_idx = 0;
 	bp->rx_mode = BNX2_EMAC_RX_MODE_SORT_MODE;
 
 	/* Set up how to generate a link change interrupt. */
@@ -4887,6 +4909,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	struct sw_bd *rx_buf;
 	struct l2_fhdr *rx_hdr;
 	int ret = -ENODEV;
+	struct bnx2_napi *bnapi = &bp->bnx2_napi;
 
 	if (loopback_mode == BNX2_MAC_LOOPBACK) {
 		bp->loopback = MAC_LOOPBACK;
@@ -4921,7 +4944,7 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	REG_RD(bp, BNX2_HC_COMMAND);
 
 	udelay(5);
-	rx_start_idx = bnx2_get_hw_rx_cons(bp);
+	rx_start_idx = bnx2_get_hw_rx_cons(bnapi);
 
 	num_pkts = 0;
 
@@ -4951,10 +4974,10 @@ bnx2_run_loopback(struct bnx2 *bp, int loopback_mode)
 	pci_unmap_single(bp->pdev, map, pkt_size, PCI_DMA_TODEVICE);
 	dev_kfree_skb(skb);
 
-	if (bnx2_get_hw_tx_cons(bp) != bp->tx_prod)
+	if (bnx2_get_hw_tx_cons(bnapi) != bp->tx_prod)
 		goto loopback_test_done;
 
-	rx_idx = bnx2_get_hw_rx_cons(bp);
+	rx_idx = bnx2_get_hw_rx_cons(bnapi);
 	if (rx_idx != rx_start_idx + num_pkts) {
 		goto loopback_test_done;
 	}
@@ -5295,11 +5318,11 @@ bnx2_open(struct net_device *dev)
 		return rc;
 
 	bnx2_setup_int_mode(bp, disable_msi);
-	napi_enable(&bp->napi);
+	bnx2_napi_enable(bp);
 	rc = bnx2_request_irq(bp);
 
 	if (rc) {
-		napi_disable(&bp->napi);
+		bnx2_napi_disable(bp);
 		bnx2_free_mem(bp);
 		return rc;
 	}
@@ -5307,7 +5330,7 @@ bnx2_open(struct net_device *dev)
 	rc = bnx2_init_nic(bp);
 
 	if (rc) {
-		napi_disable(&bp->napi);
+		bnx2_napi_disable(bp);
 		bnx2_free_irq(bp);
 		bnx2_free_skbs(bp);
 		bnx2_free_mem(bp);
@@ -5342,7 +5365,7 @@ bnx2_open(struct net_device *dev)
 				rc = bnx2_request_irq(bp);
 
 			if (rc) {
-				napi_disable(&bp->napi);
+				bnx2_napi_disable(bp);
 				bnx2_free_skbs(bp);
 				bnx2_free_mem(bp);
 				del_timer_sync(&bp->timer);
@@ -5557,7 +5580,7 @@ bnx2_close(struct net_device *dev)
 		msleep(1);
 
 	bnx2_disable_int_sync(bp);
-	napi_disable(&bp->napi);
+	bnx2_napi_disable(bp);
 	del_timer_sync(&bp->timer);
 	if (bp->flags & NO_WOL_FLAG)
 		reset_code = BNX2_DRV_MSG_CODE_UNLOAD_LNK_DN;
@@ -7083,6 +7106,15 @@ bnx2_bus_string(struct bnx2 *bp, char *str)
 }
 
 static int __devinit
+bnx2_init_napi(struct bnx2 *bp)
+{
+	struct bnx2_napi *bnapi = &bp->bnx2_napi;
+
+	bnapi->bp = bp;
+	netif_napi_add(bp->dev, &bnapi->napi, bnx2_poll, 64);
+}
+
+static int __devinit
 bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed = 0;
@@ -7123,7 +7155,7 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->ethtool_ops = &bnx2_ethtool_ops;
 
 	bp = netdev_priv(dev);
-	netif_napi_add(dev, &bp->napi, bnx2_poll, 64);
+	bnx2_init_napi(bp);
 
 #if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
 	dev->poll_controller = poll_bnx2;
