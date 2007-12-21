@@ -1956,7 +1956,7 @@ static int btrfs_prepare_write(struct file *file, struct page *page,
 
 	mutex_lock(&root->fs_info->fs_mutex);
 	err = btrfs_check_free_space(root, PAGE_CACHE_SIZE, 0);
-	mutex_lock(&root->fs_info->fs_mutex);
+	mutex_unlock(&root->fs_info->fs_mutex);
 	if (err)
 		return -ENOSPC;
 

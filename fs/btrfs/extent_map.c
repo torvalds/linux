@@ -2270,7 +2270,7 @@ int extent_prepare_write(struct extent_map_tree *tree,
 			kunmap_atomic(kaddr, KM_USER0);
 		}
 		if ((em->block_start != EXTENT_MAP_HOLE &&
-		     em->block_start != EXTENT_MAP_INLINE) && 
+		     em->block_start != EXTENT_MAP_INLINE) &&
 		    !isnew && !PageUptodate(page) &&
 		    (block_off_end > to || block_off_start < from) &&
 		    !test_range_bit(tree, block_start, cur_end,
@@ -2279,7 +2279,7 @@ int extent_prepare_write(struct extent_map_tree *tree,
 			u64 extent_offset = block_start - em->start;
 			size_t iosize;
 			sector = (em->block_start + extent_offset) >> 9;
-			iosize = (cur_end - block_start + blocksize - 1) &
+			iosize = (cur_end - block_start + blocksize) &
 				~((u64)blocksize - 1);
 			/*
 			 * we've already got the extent locked, but we
