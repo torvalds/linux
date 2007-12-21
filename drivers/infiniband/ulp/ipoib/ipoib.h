@@ -238,6 +238,8 @@ struct ipoib_cm_dev_priv {
 	struct ib_sge		rx_sge[IPOIB_CM_RX_SG];
 	struct ib_recv_wr       rx_wr;
 	int			nonsrq_conn_qp;
+	int			max_cm_mtu;
+	int			num_frags;
 };
 
 /*
@@ -503,6 +505,12 @@ static inline int ipoib_cm_has_srq(struct net_device *dev)
 	return !!priv->cm.srq;
 }
 
+static inline unsigned int ipoib_cm_max_mtu(struct net_device *dev)
+{
+	struct ipoib_dev_priv *priv = netdev_priv(dev);
+	return priv->cm.max_cm_mtu;
+}
+
 void ipoib_cm_send(struct net_device *dev, struct sk_buff *skb, struct ipoib_cm_tx *tx);
 int ipoib_cm_dev_open(struct net_device *dev);
 void ipoib_cm_dev_stop(struct net_device *dev);
@@ -548,6 +556,11 @@ static inline void ipoib_cm_set(struct ipoib_neigh *neigh, struct ipoib_cm_tx *t
 }
 
 static inline int ipoib_cm_has_srq(struct net_device *dev)
+{
+	return 0;
+}
+
+static inline unsigned int ipoib_cm_max_mtu(struct net_device *dev)
 {
 	return 0;
 }

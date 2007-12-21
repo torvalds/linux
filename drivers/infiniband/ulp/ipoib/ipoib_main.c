@@ -182,17 +182,20 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
 	/* dev->mtu > 2K ==> connected mode */
-	if (ipoib_cm_admin_enabled(dev) && new_mtu <= IPOIB_CM_MTU) {
+	if (ipoib_cm_admin_enabled(dev)) {
+		if (new_mtu > ipoib_cm_max_mtu(dev))
+			return -EINVAL;
+
 		if (new_mtu > priv->mcast_mtu)
 			ipoib_warn(priv, "mtu > %d will cause multicast packet drops.\n",
 				   priv->mcast_mtu);
+
 		dev->mtu = new_mtu;
 		return 0;
 	}
 
-	if (new_mtu > IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN) {
+	if (new_mtu > IPOIB_PACKET_SIZE - IPOIB_ENCAP_LEN)
 		return -EINVAL;
-	}
 
 	priv->admin_mtu = new_mtu;
 

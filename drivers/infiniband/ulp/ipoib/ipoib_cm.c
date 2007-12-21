@@ -96,13 +96,13 @@ static int ipoib_cm_post_receive_srq(struct net_device *dev, int id)
 
 	priv->cm.rx_wr.wr_id = id | IPOIB_OP_CM | IPOIB_OP_RECV;
 
-	for (i = 0; i < IPOIB_CM_RX_SG; ++i)
+	for (i = 0; i < priv->cm.num_frags; ++i)
 		priv->cm.rx_sge[i].addr = priv->cm.srq_ring[id].mapping[i];
 
 	ret = ib_post_srq_recv(priv->cm.srq, &priv->cm.rx_wr, &bad_wr);
 	if (unlikely(ret)) {
 		ipoib_warn(priv, "post srq failed for buf %d (%d)\n", id, ret);
-		ipoib_cm_dma_unmap_rx(priv, IPOIB_CM_RX_SG - 1,
+		ipoib_cm_dma_unmap_rx(priv, priv->cm.num_frags - 1,
 				      priv->cm.srq_ring[id].mapping);
 		dev_kfree_skb_any(priv->cm.srq_ring[id].skb);
 		priv->cm.srq_ring[id].skb = NULL;
@@ -1399,13 +1399,13 @@ int ipoib_cm_add_mode_attr(struct net_device *dev)
 	return device_create_file(&dev->dev, &dev_attr_mode);
 }
 
-static void ipoib_cm_create_srq(struct net_device *dev)
+static void ipoib_cm_create_srq(struct net_device *dev, int max_sge)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_srq_init_attr srq_init_attr = {
 		.attr = {
 			.max_wr  = ipoib_recvq_size,
-			.max_sge = IPOIB_CM_RX_SG
+			.max_sge = max_sge
 		}
 	};
 
@@ -1431,7 +1431,8 @@ static void ipoib_cm_create_srq(struct net_device *dev)
 int ipoib_cm_dev_init(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
-	int i;
+	int i, ret;
+	struct ib_device_attr attr;
 
 	INIT_LIST_HEAD(&priv->cm.passive_ids);
 	INIT_LIST_HEAD(&priv->cm.reap_list);
@@ -1448,22 +1449,40 @@ int ipoib_cm_dev_init(struct net_device *dev)
 
 	skb_queue_head_init(&priv->cm.skb_queue);
 
-	for (i = 0; i < IPOIB_CM_RX_SG; ++i)
+	ret = ib_query_device(priv->ca, &attr);
+	if (ret) {
+		printk(KERN_WARNING "ib_query_device() failed with %d\n", ret);
+		return ret;
+	}
+
+	ipoib_dbg(priv, "max_srq_sge=%d\n", attr.max_srq_sge);
+
+	attr.max_srq_sge = min_t(int, IPOIB_CM_RX_SG, attr.max_srq_sge);
+	ipoib_cm_create_srq(dev, attr.max_srq_sge);
+	if (ipoib_cm_has_srq(dev)) {
+		priv->cm.max_cm_mtu = attr.max_srq_sge * PAGE_SIZE - 0x10;
+		priv->cm.num_frags  = attr.max_srq_sge;
+		ipoib_dbg(priv, "max_cm_mtu = 0x%x, num_frags=%d\n",
+			  priv->cm.max_cm_mtu, priv->cm.num_frags);
+	} else {
+		priv->cm.max_cm_mtu = IPOIB_CM_MTU;
+		priv->cm.num_frags  = IPOIB_CM_RX_SG;
+	}
+
+	for (i = 0; i < priv->cm.num_frags; ++i)
 		priv->cm.rx_sge[i].lkey	= priv->mr->lkey;
 
 	priv->cm.rx_sge[0].length = IPOIB_CM_HEAD_SIZE;
-	for (i = 1; i < IPOIB_CM_RX_SG; ++i)
+	for (i = 1; i < priv->cm.num_frags; ++i)
 		priv->cm.rx_sge[i].length = PAGE_SIZE;
 	priv->cm.rx_wr.next = NULL;
 	priv->cm.rx_wr.sg_list = priv->cm.rx_sge;
-	priv->cm.rx_wr.num_sge = IPOIB_CM_RX_SG;
-
-	ipoib_cm_create_srq(dev);
+	priv->cm.rx_wr.num_sge = priv->cm.num_frags;
 
 	if (ipoib_cm_has_srq(dev)) {
 		for (i = 0; i < ipoib_recvq_size; ++i) {
 			if (!ipoib_cm_alloc_rx_skb(dev, priv->cm.srq_ring, i,
-						   IPOIB_CM_RX_SG - 1,
+						   priv->cm.num_frags - 1,
 						   priv->cm.srq_ring[i].mapping)) {
 				ipoib_warn(priv, "failed to allocate "
 					   "receive buffer %d\n", i);
