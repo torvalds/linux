@@ -7865,9 +7865,9 @@ static int writerids(struct net_device *dev, aironet_ioctl *comp) {
 		ConfigRid *cfg = (ConfigRid *)iobuf;
 
 		if (test_bit(FLAG_MIC_CAPABLE, &ai->flags))
-			cfg->opmode |= MODE_MIC;
+			cfg->opmode |= cpu_to_le16(MODE_MIC);
 
-		if ((cfg->opmode & 0xFF) == MODE_STA_IBSS)
+		if ((le16_to_cpu(cfg->opmode) & 0xFF) == MODE_STA_IBSS)
 			set_bit (FLAG_ADHOC, &ai->flags);
 		else
 			clear_bit (FLAG_ADHOC, &ai->flags);
