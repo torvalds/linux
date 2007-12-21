@@ -125,7 +125,7 @@ static void tcp_mtu_probing(struct inet_connection_sock *icsk, struct sock *sk)
 			struct tcp_sock *tp = tcp_sk(sk);
 			int mss;
 
-			mss = tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low)/2;
+			mss = tcp_mtu_to_mss(sk, icsk->icsk_mtup.search_low) >> 1;
 			mss = min(sysctl_tcp_base_mss, mss);
 			mss = max(mss, 68 - tp->tcp_header_len);
 			icsk->icsk_mtup.search_low = tcp_mss_to_mtu(sk, mss);
