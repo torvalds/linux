@@ -157,15 +157,10 @@ static void tosa_udc_command(int cmd)
 	}
 }
 
-static int tosa_udc_is_connected(void)
-{
-	return ((GPLR(TOSA_GPIO_USB_IN) & GPIO_bit(TOSA_GPIO_USB_IN)) == 0);
-}
-
-
 static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	.udc_command		= tosa_udc_command,
-	.udc_is_connected	= tosa_udc_is_connected,
+	.gpio_vbus		= TOSA_GPIO_USB_IN,
+	.gpio_vbus_inverted	= 1,
 };
 
 /*
