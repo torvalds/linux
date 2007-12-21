@@ -14,20 +14,14 @@
 #	help
 #	  This option enables support for the CPCI405 board.
 
-#config EP405
-#	bool "EP405/EP405PC"
-#	depends on 40x
-#	default n
-#	select 405GP
-#	help
-#	  This option enables support for the EP405/EP405PC boards.
-
-#config EP405PC
-#	bool "EP405PC Support"
-#	depends on EP405
-#	default y
-#	help
-#	  This option enables support for the extra features of the EP405PC board.
+config EP405
+	bool "EP405/EP405PC"
+	depends on 40x
+	default n
+	select 405GP
+	select PCI
+	help
+	  This option enables support for the EP405/EP405PC boards.
 
 config KILAUEA
 	bool "Kilauea"
