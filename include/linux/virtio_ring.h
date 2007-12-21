@@ -89,7 +89,7 @@ struct vring {
  * };
  */
 static inline void vring_init(struct vring *vr, unsigned int num, void *p,
-			      unsigned int pagesize)
+			      unsigned long pagesize)
 {
 	vr->num = num;
 	vr->desc = p;
@@ -98,7 +98,7 @@ static inline void vring_init(struct vring *vr, unsigned int num, void *p,
 			    & ~(pagesize - 1));
 }
 
-static inline unsigned vring_size(unsigned int num, unsigned int pagesize)
+static inline unsigned vring_size(unsigned int num, unsigned long pagesize)
 {
 	return ((sizeof(struct vring_desc) * num + sizeof(__u16) * (2 + num)
 		 + pagesize - 1) & ~(pagesize - 1))
