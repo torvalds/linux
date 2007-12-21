@@ -1627,7 +1627,7 @@ u32 __tcp_select_window(struct sock *sk)
 	if (mss > full_space)
 		mss = full_space;
 
-	if (free_space < full_space/2) {
+	if (free_space < (full_space >> 1)) {
 		icsk->icsk_ack.quick = 0;
 
 		if (tcp_memory_pressure)
@@ -1666,7 +1666,7 @@ u32 __tcp_select_window(struct sock *sk)
 		if (window <= free_space - mss || window > free_space)
 			window = (free_space/mss)*mss;
 		else if (mss == full_space &&
-			 free_space > window + full_space/2)
+			 free_space > window + (full_space >> 1))
 			window = free_space;
 	}
 
