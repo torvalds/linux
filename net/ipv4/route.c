@@ -851,14 +851,14 @@ static int rt_garbage_collect(void)
 			equilibrium = ipv4_dst_ops.gc_thresh;
 		goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;
 		if (goal > 0) {
-			equilibrium += min_t(unsigned int, goal / 2, rt_hash_mask + 1);
+			equilibrium += min_t(unsigned int, goal >> 1, rt_hash_mask + 1);
 			goal = atomic_read(&ipv4_dst_ops.entries) - equilibrium;
 		}
 	} else {
 		/* We are in dangerous area. Try to reduce cache really
 		 * aggressively.
 		 */
-		goal = max_t(unsigned int, goal / 2, rt_hash_mask + 1);
+		goal = max_t(unsigned int, goal >> 1, rt_hash_mask + 1);
 		equilibrium = atomic_read(&ipv4_dst_ops.entries) - goal;
 	}
 
