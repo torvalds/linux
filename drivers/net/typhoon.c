@@ -977,12 +977,12 @@ typhoon_do_get_stats(struct typhoon *tp)
 	 * ethtool_ops->get_{strings,stats}()
 	 */
 	stats->tx_packets = le32_to_cpu(s->txPackets);
-	stats->tx_bytes = le32_to_cpu(s->txBytes);
+	stats->tx_bytes = le64_to_cpu(s->txBytes);
 	stats->tx_errors = le32_to_cpu(s->txCarrierLost);
 	stats->tx_carrier_errors = le32_to_cpu(s->txCarrierLost);
 	stats->collisions = le32_to_cpu(s->txMultipleCollisions);
 	stats->rx_packets = le32_to_cpu(s->rxPacketsGood);
-	stats->rx_bytes = le32_to_cpu(s->rxBytesGood);
+	stats->rx_bytes = le64_to_cpu(s->rxBytesGood);
 	stats->rx_fifo_errors = le32_to_cpu(s->rxFifoOverruns);
 	stats->rx_errors = le32_to_cpu(s->rxFifoOverruns) +
 			le32_to_cpu(s->BadSSD) + le32_to_cpu(s->rxCrcErrors);
