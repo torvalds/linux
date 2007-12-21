@@ -1157,7 +1157,7 @@ typhoon_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	}
 
 	INIT_COMMAND_NO_RESPONSE(&xp_cmd, TYPHOON_CMD_XCVR_SELECT);
-	xp_cmd.parm1 = cpu_to_le16(xcvr);
+	xp_cmd.parm1 = xcvr;
 	err = typhoon_issue_command(tp, 1, &xp_cmd, 0, NULL);
 	if(err < 0)
 		goto out;
