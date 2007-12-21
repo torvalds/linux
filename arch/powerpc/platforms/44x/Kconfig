@@ -34,6 +34,16 @@ config TAISHAN
 	  This option enables support for the AMCC PPC440GX "Taishan"
 	  evaluation board.
 
+config KATMAI
+	bool "Katmai"
+	depends on 44x
+	default n
+	select 440SPe
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC PPC440SPe evaluation board.
+
 #config LUAN
 #	bool "Luan"
 #	depends on 44x
@@ -76,6 +86,10 @@ config 440GX
         select IBM_NEW_EMAC_TAH  #test only
 
 config 440SP
+	bool
+
+config 440SPe
+        select IBM_NEW_EMAC_EMAC4
 	bool
 
 # 44x errata/workaround config symbols, selected by the CPU models above
