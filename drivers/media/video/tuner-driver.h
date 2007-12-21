@@ -24,8 +24,6 @@
 
 #include "dvb_frontend.h"
 
-extern unsigned const int tuner_count;
-
 struct analog_demod_info {
 	char *name;
 };
