@@ -520,121 +520,124 @@ typedef struct {
 } SsidRid;
 
 typedef struct {
-        u16 len;
-        u16 modulation;
-#define MOD_DEFAULT 0
-#define MOD_CCK 1
-#define MOD_MOK 2
+        __le16 len;
+        __le16 modulation;
+#define MOD_DEFAULT cpu_to_le16(0)
+#define MOD_CCK cpu_to_le16(1)
+#define MOD_MOK cpu_to_le16(2)
 } ModulationRid;
 
 typedef struct {
-	u16 len; /* sizeof(ConfigRid) */
-	u16 opmode; /* operating mode */
-#define MODE_STA_IBSS 0
-#define MODE_STA_ESS 1
-#define MODE_AP 2
-#define MODE_AP_RPTR 3
-#define MODE_ETHERNET_HOST (0<<8) /* rx payloads converted */
-#define MODE_LLC_HOST (1<<8) /* rx payloads left as is */
-#define MODE_AIRONET_EXTEND (1<<9) /* enable Aironet extenstions */
-#define MODE_AP_INTERFACE (1<<10) /* enable ap interface extensions */
-#define MODE_ANTENNA_ALIGN (1<<11) /* enable antenna alignment */
-#define MODE_ETHER_LLC (1<<12) /* enable ethernet LLC */
-#define MODE_LEAF_NODE (1<<13) /* enable leaf node bridge */
-#define MODE_CF_POLLABLE (1<<14) /* enable CF pollable */
-#define MODE_MIC (1<<15) /* enable MIC */
-	u16 rmode; /* receive mode */
-#define RXMODE_BC_MC_ADDR 0
-#define RXMODE_BC_ADDR 1 /* ignore multicasts */
-#define RXMODE_ADDR 2 /* ignore multicast and broadcast */
-#define RXMODE_RFMON 3 /* wireless monitor mode */
-#define RXMODE_RFMON_ANYBSS 4
-#define RXMODE_LANMON 5 /* lan style monitor -- data packets only */
-#define RXMODE_DISABLE_802_3_HEADER (1<<8) /* disables 802.3 header on rx */
-#define RXMODE_NORMALIZED_RSSI (1<<9) /* return normalized RSSI */
-	u16 fragThresh;
-	u16 rtsThres;
+	__le16 len; /* sizeof(ConfigRid) */
+	__le16 opmode; /* operating mode */
+#define MODE_STA_IBSS cpu_to_le16(0)
+#define MODE_STA_ESS cpu_to_le16(1)
+#define MODE_AP cpu_to_le16(2)
+#define MODE_AP_RPTR cpu_to_le16(3)
+#define MODE_CFG_MASK cpu_to_le16(0xff)
+#define MODE_ETHERNET_HOST cpu_to_le16(0<<8) /* rx payloads converted */
+#define MODE_LLC_HOST cpu_to_le16(1<<8) /* rx payloads left as is */
+#define MODE_AIRONET_EXTEND cpu_to_le16(1<<9) /* enable Aironet extenstions */
+#define MODE_AP_INTERFACE cpu_to_le16(1<<10) /* enable ap interface extensions */
+#define MODE_ANTENNA_ALIGN cpu_to_le16(1<<11) /* enable antenna alignment */
+#define MODE_ETHER_LLC cpu_to_le16(1<<12) /* enable ethernet LLC */
+#define MODE_LEAF_NODE cpu_to_le16(1<<13) /* enable leaf node bridge */
+#define MODE_CF_POLLABLE cpu_to_le16(1<<14) /* enable CF pollable */
+#define MODE_MIC cpu_to_le16(1<<15) /* enable MIC */
+	__le16 rmode; /* receive mode */
+#define RXMODE_BC_MC_ADDR cpu_to_le16(0)
+#define RXMODE_BC_ADDR cpu_to_le16(1) /* ignore multicasts */
+#define RXMODE_ADDR cpu_to_le16(2) /* ignore multicast and broadcast */
+#define RXMODE_RFMON cpu_to_le16(3) /* wireless monitor mode */
+#define RXMODE_RFMON_ANYBSS cpu_to_le16(4)
+#define RXMODE_LANMON cpu_to_le16(5) /* lan style monitor -- data packets only */
+#define RXMODE_MASK cpu_to_le16(255)
+#define RXMODE_DISABLE_802_3_HEADER cpu_to_le16(1<<8) /* disables 802.3 header on rx */
+#define RXMODE_FULL_MASK (RXMODE_MASK | RXMODE_DISABLE_802_3_HEADER)
+#define RXMODE_NORMALIZED_RSSI cpu_to_le16(1<<9) /* return normalized RSSI */
+	__le16 fragThresh;
+	__le16 rtsThres;
 	u8 macAddr[ETH_ALEN];
 	u8 rates[8];
-	u16 shortRetryLimit;
-	u16 longRetryLimit;
-	u16 txLifetime; /* in kusec */
-	u16 rxLifetime; /* in kusec */
-	u16 stationary;
-	u16 ordering;
-	u16 u16deviceType; /* for overriding device type */
-	u16 cfpRate;
-	u16 cfpDuration;
-	u16 _reserved1[3];
+	__le16 shortRetryLimit;
+	__le16 longRetryLimit;
+	__le16 txLifetime; /* in kusec */
+	__le16 rxLifetime; /* in kusec */
+	__le16 stationary;
+	__le16 ordering;
+	__le16 u16deviceType; /* for overriding device type */
+	__le16 cfpRate;
+	__le16 cfpDuration;
+	__le16 _reserved1[3];
 	/*---------- Scanning/Associating ----------*/
-	u16 scanMode;
-#define SCANMODE_ACTIVE 0
-#define SCANMODE_PASSIVE 1
-#define SCANMODE_AIROSCAN 2
-	u16 probeDelay; /* in kusec */
-	u16 probeEnergyTimeout; /* in kusec */
-        u16 probeResponseTimeout;
-	u16 beaconListenTimeout;
-	u16 joinNetTimeout;
-	u16 authTimeout;
-	u16 authType;
-#define AUTH_OPEN 0x1
-#define AUTH_ENCRYPT 0x101
-#define AUTH_SHAREDKEY 0x102
-#define AUTH_ALLOW_UNENCRYPTED 0x200
-	u16 associationTimeout;
-	u16 specifiedApTimeout;
-	u16 offlineScanInterval;
-	u16 offlineScanDuration;
-	u16 linkLossDelay;
-	u16 maxBeaconLostTime;
-	u16 refreshInterval;
-#define DISABLE_REFRESH 0xFFFF
-	u16 _reserved1a[1];
+	__le16 scanMode;
+#define SCANMODE_ACTIVE cpu_to_le16(0)
+#define SCANMODE_PASSIVE cpu_to_le16(1)
+#define SCANMODE_AIROSCAN cpu_to_le16(2)
+	__le16 probeDelay; /* in kusec */
+	__le16 probeEnergyTimeout; /* in kusec */
+        __le16 probeResponseTimeout;
+	__le16 beaconListenTimeout;
+	__le16 joinNetTimeout;
+	__le16 authTimeout;
+	__le16 authType;
+#define AUTH_OPEN cpu_to_le16(0x1)
+#define AUTH_ENCRYPT cpu_to_le16(0x101)
+#define AUTH_SHAREDKEY cpu_to_le16(0x102)
+#define AUTH_ALLOW_UNENCRYPTED cpu_to_le16(0x200)
+	__le16 associationTimeout;
+	__le16 specifiedApTimeout;
+	__le16 offlineScanInterval;
+	__le16 offlineScanDuration;
+	__le16 linkLossDelay;
+	__le16 maxBeaconLostTime;
+	__le16 refreshInterval;
+#define DISABLE_REFRESH cpu_to_le16(0xFFFF)
+	__le16 _reserved1a[1];
 	/*---------- Power save operation ----------*/
-	u16 powerSaveMode;
-#define POWERSAVE_CAM 0
-#define POWERSAVE_PSP 1
-#define POWERSAVE_PSPCAM 2
-	u16 sleepForDtims;
-	u16 listenInterval;
-	u16 fastListenInterval;
-	u16 listenDecay;
-	u16 fastListenDelay;
-	u16 _reserved2[2];
+	__le16 powerSaveMode;
+#define POWERSAVE_CAM cpu_to_le16(0)
+#define POWERSAVE_PSP cpu_to_le16(1)
+#define POWERSAVE_PSPCAM cpu_to_le16(2)
+	__le16 sleepForDtims;
+	__le16 listenInterval;
+	__le16 fastListenInterval;
+	__le16 listenDecay;
+	__le16 fastListenDelay;
+	__le16 _reserved2[2];
 	/*---------- Ap/Ibss config items ----------*/
-	u16 beaconPeriod;
-	u16 atimDuration;
-	u16 hopPeriod;
-	u16 channelSet;
-	u16 channel;
-	u16 dtimPeriod;
-	u16 bridgeDistance;
-	u16 radioID;
+	__le16 beaconPeriod;
+	__le16 atimDuration;
+	__le16 hopPeriod;
+	__le16 channelSet;
+	__le16 channel;
+	__le16 dtimPeriod;
+	__le16 bridgeDistance;
+	__le16 radioID;
 	/*---------- Radio configuration ----------*/
-	u16 radioType;
-#define RADIOTYPE_DEFAULT 0
-#define RADIOTYPE_802_11 1
-#define RADIOTYPE_LEGACY 2
+	__le16 radioType;
+#define RADIOTYPE_DEFAULT cpu_to_le16(0)
+#define RADIOTYPE_802_11 cpu_to_le16(1)
+#define RADIOTYPE_LEGACY cpu_to_le16(2)
 	u8 rxDiversity;
 	u8 txDiversity;
-	u16 txPower;
+	__le16 txPower;
 #define TXPOWER_DEFAULT 0
-	u16 rssiThreshold;
+	__le16 rssiThreshold;
 #define RSSI_DEFAULT 0
-        u16 modulation;
-#define PREAMBLE_AUTO 0
-#define PREAMBLE_LONG 1
-#define PREAMBLE_SHORT 2
-	u16 preamble;
-	u16 homeProduct;
-	u16 radioSpecific;
+        __le16 modulation;
+#define PREAMBLE_AUTO cpu_to_le16(0)
+#define PREAMBLE_LONG cpu_to_le16(1)
+#define PREAMBLE_SHORT cpu_to_le16(2)
+	__le16 preamble;
+	__le16 homeProduct;
+	__le16 radioSpecific;
 	/*---------- Aironet Extensions ----------*/
 	u8 nodeName[16];
-	u16 arlThreshold;
-	u16 arlDecay;
-	u16 arlDelay;
-	u16 _reserved4[1];
+	__le16 arlThreshold;
+	__le16 arlDecay;
+	__le16 arlDelay;
+	__le16 _reserved4[1];
 	/*---------- Aironet Extensions ----------*/
 	u8 magicAction;
 #define MAGIC_ACTION_STSCHG 1
@@ -644,7 +647,7 @@ typedef struct {
 #define MAGIC_SWITCH_TO_PSP (0<<10)
 #define MAGIC_STAY_IN_CAM (1<<10)
 	u8 magicControl;
-	u16 autoWake;
+	__le16 autoWake;
 } ConfigRid;
 
 typedef struct {
@@ -1780,9 +1783,9 @@ static int writeSsidRid(struct airo_info*ai, SsidRid *pssidr, int lock)
 	return PC4500_writerid(ai, RID_SSID, pssidr, sizeof(*pssidr), lock);
 }
 
-static int readConfigRid(struct airo_info*ai, int lock) {
+static int readConfigRid(struct airo_info *ai, int lock)
+{
 	int rc;
-	u16 *s;
 	ConfigRid cfg;
 
 	if (ai->config.len)
@@ -1792,24 +1795,12 @@ static int readConfigRid(struct airo_info*ai, int lock) {
 	if (rc != SUCCESS)
 		return rc;
 
-	for(s = &cfg.len; s <= &cfg.rtsThres; s++) *s = le16_to_cpu(*s);
-
-	for(s = &cfg.shortRetryLimit; s <= &cfg.radioType; s++)
-		*s = le16_to_cpu(*s);
-
-	for(s = &cfg.txPower; s <= &cfg.radioSpecific; s++)
-		*s = le16_to_cpu(*s);
-
-	for(s = &cfg.arlThreshold; s <= &cfg._reserved4[0]; s++)
-		*s = cpu_to_le16(*s);
-
-	for(s = &cfg.autoWake; s <= &cfg.autoWake; s++)
-		*s = cpu_to_le16(*s);
-
 	ai->config = cfg;
 	return SUCCESS;
 }
-static inline void checkThrottle(struct airo_info *ai) {
+
+static inline void checkThrottle(struct airo_info *ai)
+{
 	int i;
 /* Old hardware had a limit on encryption speed */
 	if (ai->config.authType != AUTH_OPEN && maxencrypt) {
@@ -1820,8 +1811,9 @@ static inline void checkThrottle(struct airo_info *ai) {
 		}
 	}
 }
-static int writeConfigRid(struct airo_info*ai, int lock) {
-	u16 *s;
+
+static int writeConfigRid(struct airo_info *ai, int lock)
+{
 	ConfigRid cfgr;
 
 	if (!test_bit (FLAG_COMMIT, &ai->flags))
@@ -1832,24 +1824,10 @@ static int writeConfigRid(struct airo_info*ai, int lock) {
 	checkThrottle(ai);
 	cfgr = ai->config;
 
-	if ((cfgr.opmode & 0xFF) == MODE_STA_IBSS)
+	if ((cfgr.opmode & MODE_CFG_MASK) == MODE_STA_IBSS)
 		set_bit(FLAG_ADHOC, &ai->flags);
 	else
 		clear_bit(FLAG_ADHOC, &ai->flags);
-
-	for(s = &cfgr.len; s <= &cfgr.rtsThres; s++) *s = cpu_to_le16(*s);
-
-	for(s = &cfgr.shortRetryLimit; s <= &cfgr.radioType; s++)
-		*s = cpu_to_le16(*s);
-
-	for(s = &cfgr.txPower; s <= &cfgr.radioSpecific; s++)
-		*s = cpu_to_le16(*s);
-
-	for(s = &cfgr.arlThreshold; s <= &cfgr._reserved4[0]; s++)
-		*s = cpu_to_le16(*s);
-
-	for(s = &cfgr.autoWake; s <= &cfgr.autoWake; s++)
-		*s = cpu_to_le16(*s);
 
 	return PC4500_writerid( ai, RID_CONFIG, &cfgr, sizeof(cfgr), lock);
 }
@@ -4788,7 +4766,14 @@ static int airo_config_commit(struct net_device *dev,
 			      struct iw_request_info *info, void *zwrq,
 			      char *extra);
 
-static void proc_config_on_close( struct inode *inode, struct file *file ) {
+static inline int sniffing_mode(struct airo_info *ai)
+{
+	return le16_to_cpu(ai->config.rmode & RXMODE_MASK) >=
+		le16_to_cpu(RXMODE_RFMON);
+}
+
+static void proc_config_on_close(struct inode *inode, struct file *file)
+{
 	struct proc_data *data = file->private_data;
 	struct proc_dir_entry *dp = PDE(inode);
 	struct net_device *dev = dp->data;
@@ -4805,16 +4790,16 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 /*** Mode processing */
 		if ( !strncmp( line, "Mode: ", 6 ) ) {
 			line += 6;
-			if ((ai->config.rmode & 0xff) >= RXMODE_RFMON)
-					set_bit (FLAG_RESET, &ai->flags);
-			ai->config.rmode &= 0xfe00;
+			if (sniffing_mode(ai))
+				set_bit (FLAG_RESET, &ai->flags);
+			ai->config.rmode &= ~RXMODE_FULL_MASK;
 			clear_bit (FLAG_802_11, &ai->flags);
-			ai->config.opmode &= 0xFF00;
+			ai->config.opmode &= ~MODE_CFG_MASK;
 			ai->config.scanMode = SCANMODE_ACTIVE;
 			if ( line[0] == 'a' ) {
-				ai->config.opmode |= 0;
+				ai->config.opmode |= MODE_STA_IBSS;
 			} else {
-				ai->config.opmode |= 1;
+				ai->config.opmode |= MODE_STA_ESS;
 				if ( line[0] == 'r' ) {
 					ai->config.rmode |= RXMODE_RFMON | RXMODE_DISABLE_802_3_HEADER;
 					ai->config.scanMode = SCANMODE_PASSIVE;
@@ -4880,7 +4865,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			line += 9;
 			v = get_dec_u16(line, &i, i+3);
 			if ( v != -1 ) {
-				ai->config.channelSet = (u16)v;
+				ai->config.channelSet = cpu_to_le16(v);
 				set_bit (FLAG_COMMIT, &ai->flags);
 			}
 		} else if ( !strncmp( line, "XmitPower: ", 11 ) ) {
@@ -4888,20 +4873,20 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			line += 11;
 			v = get_dec_u16(line, &i, i+3);
 			if ( v != -1 ) {
-				ai->config.txPower = (u16)v;
+				ai->config.txPower = cpu_to_le16(v);
 				set_bit (FLAG_COMMIT, &ai->flags);
 			}
 		} else if ( !strncmp( line, "WEP: ", 5 ) ) {
 			line += 5;
 			switch( line[0] ) {
 			case 's':
-				ai->config.authType = (u16)AUTH_SHAREDKEY;
+				ai->config.authType = AUTH_SHAREDKEY;
 				break;
 			case 'e':
-				ai->config.authType = (u16)AUTH_ENCRYPT;
+				ai->config.authType = AUTH_ENCRYPT;
 				break;
 			default:
-				ai->config.authType = (u16)AUTH_OPEN;
+				ai->config.authType = AUTH_OPEN;
 				break;
 			}
 			set_bit (FLAG_COMMIT, &ai->flags);
@@ -4911,7 +4896,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			line += 16;
 			v = get_dec_u16(line, &i, 3);
 			v = (v<0) ? 0 : ((v>255) ? 255 : v);
-			ai->config.longRetryLimit = (u16)v;
+			ai->config.longRetryLimit = cpu_to_le16(v);
 			set_bit (FLAG_COMMIT, &ai->flags);
 		} else if ( !strncmp( line, "ShortRetryLimit: ", 17 ) ) {
 			int v, i = 0;
@@ -4919,7 +4904,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			line += 17;
 			v = get_dec_u16(line, &i, 3);
 			v = (v<0) ? 0 : ((v>255) ? 255 : v);
-			ai->config.shortRetryLimit = (u16)v;
+			ai->config.shortRetryLimit = cpu_to_le16(v);
 			set_bit (FLAG_COMMIT, &ai->flags);
 		} else if ( !strncmp( line, "RTSThreshold: ", 14 ) ) {
 			int v, i = 0;
@@ -4927,7 +4912,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			line += 14;
 			v = get_dec_u16(line, &i, 4);
 			v = (v<0) ? 0 : ((v>AIRO_DEF_MTU) ? AIRO_DEF_MTU : v);
-			ai->config.rtsThres = (u16)v;
+			ai->config.rtsThres = cpu_to_le16(v);
 			set_bit (FLAG_COMMIT, &ai->flags);
 		} else if ( !strncmp( line, "TXMSDULifetime: ", 16 ) ) {
 			int v, i = 0;
@@ -4935,7 +4920,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			line += 16;
 			v = get_dec_u16(line, &i, 5);
 			v = (v<0) ? 0 : v;
-			ai->config.txLifetime = (u16)v;
+			ai->config.txLifetime = cpu_to_le16(v);
 			set_bit (FLAG_COMMIT, &ai->flags);
 		} else if ( !strncmp( line, "RXMSDULifetime: ", 16 ) ) {
 			int v, i = 0;
@@ -4943,7 +4928,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			line += 16;
 			v = get_dec_u16(line, &i, 5);
 			v = (v<0) ? 0 : v;
-			ai->config.rxLifetime = (u16)v;
+			ai->config.rxLifetime = cpu_to_le16(v);
 			set_bit (FLAG_COMMIT, &ai->flags);
 		} else if ( !strncmp( line, "TXDiversity: ", 13 ) ) {
 			ai->config.txDiversity =
@@ -4962,7 +4947,7 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 			v = get_dec_u16(line, &i, 4);
 			v = (v<256) ? 256 : ((v>AIRO_DEF_MTU) ? AIRO_DEF_MTU : v);
 			v = v & 0xfffe; /* Make sure its even */
-			ai->config.fragThresh = (u16)v;
+			ai->config.fragThresh = cpu_to_le16(v);
 			set_bit (FLAG_COMMIT, &ai->flags);
 		} else if (!strncmp(line, "Modulation: ", 12)) {
 			line += 12;
@@ -4989,8 +4974,9 @@ static void proc_config_on_close( struct inode *inode, struct file *file ) {
 	airo_config_commit(dev, NULL, NULL, NULL);
 }
 
-static char *get_rmode(u16 mode) {
-        switch(mode&0xff) {
+static char *get_rmode(__le16 mode)
+{
+        switch(mode & RXMODE_MASK) {
         case RXMODE_RFMON:  return "rfmon";
         case RXMODE_RFMON_ANYBSS:  return "yna (any) bss rfmon";
         case RXMODE_LANMON:  return "lanmon";
@@ -4998,12 +4984,14 @@ static char *get_rmode(u16 mode) {
         return "ESS";
 }
 
-static int proc_config_open( struct inode *inode, struct file *file ) {
+static int proc_config_open(struct inode *inode, struct file *file)
+{
 	struct proc_data *data;
 	struct proc_dir_entry *dp = PDE(inode);
 	struct net_device *dev = dp->data;
 	struct airo_info *ai = dev->priv;
 	int i;
+	__le16 mode;
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
@@ -5022,6 +5010,7 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 
 	readConfigRid(ai, 1);
 
+	mode = ai->config.opmode & MODE_CFG_MASK;
 	i = sprintf( data->rbuffer,
 		     "Mode: %s\n"
 		     "Radio: %s\n"
@@ -5030,15 +5019,16 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 		     "DataRates: %d %d %d %d %d %d %d %d\n"
 		     "Channel: %d\n"
 		     "XmitPower: %d\n",
-		     (ai->config.opmode & 0xFF) == 0 ? "adhoc" :
-		     (ai->config.opmode & 0xFF) == 1 ? get_rmode(ai->config.rmode):
-		     (ai->config.opmode & 0xFF) == 2 ? "AP" :
-		     (ai->config.opmode & 0xFF) == 3 ? "AP RPTR" : "Error",
+		     mode == MODE_STA_IBSS ? "adhoc" :
+		     mode == MODE_STA_ESS ? get_rmode(ai->config.rmode):
+		     mode == MODE_AP ? "AP" :
+		     mode == MODE_AP_RPTR ? "AP RPTR" : "Error",
 		     test_bit(FLAG_RADIO_OFF, &ai->flags) ? "off" : "on",
 		     ai->config.nodeName,
-		     ai->config.powerSaveMode == 0 ? "CAM" :
-		     ai->config.powerSaveMode == 1 ? "PSP" :
-		     ai->config.powerSaveMode == 2 ? "PSPCAM" : "Error",
+		     ai->config.powerSaveMode == POWERSAVE_CAM ? "CAM" :
+		     ai->config.powerSaveMode == POWERSAVE_PSP ? "PSP" :
+		     ai->config.powerSaveMode == POWERSAVE_PSPCAM ? "PSPCAM" :
+		     "Error",
 		     (int)ai->config.rates[0],
 		     (int)ai->config.rates[1],
 		     (int)ai->config.rates[2],
@@ -5047,8 +5037,8 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 		     (int)ai->config.rates[5],
 		     (int)ai->config.rates[6],
 		     (int)ai->config.rates[7],
-		     (int)ai->config.channelSet,
-		     (int)ai->config.txPower
+		     le16_to_cpu(ai->config.channelSet),
+		     le16_to_cpu(ai->config.txPower)
 		);
 	sprintf( data->rbuffer + i,
 		 "LongRetryLimit: %d\n"
@@ -5062,19 +5052,19 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 		 "WEP: %s\n"
 		 "Modulation: %s\n"
 		 "Preamble: %s\n",
-		 (int)ai->config.longRetryLimit,
-		 (int)ai->config.shortRetryLimit,
-		 (int)ai->config.rtsThres,
-		 (int)ai->config.txLifetime,
-		 (int)ai->config.rxLifetime,
+		 le16_to_cpu(ai->config.longRetryLimit),
+		 le16_to_cpu(ai->config.shortRetryLimit),
+		 le16_to_cpu(ai->config.rtsThres),
+		 le16_to_cpu(ai->config.txLifetime),
+		 le16_to_cpu(ai->config.rxLifetime),
 		 ai->config.txDiversity == 1 ? "left" :
 		 ai->config.txDiversity == 2 ? "right" : "both",
 		 ai->config.rxDiversity == 1 ? "left" :
 		 ai->config.rxDiversity == 2 ? "right" : "both",
-		 (int)ai->config.fragThresh,
+		 le16_to_cpu(ai->config.fragThresh),
 		 ai->config.authType == AUTH_ENCRYPT ? "encrypt" :
 		 ai->config.authType == AUTH_SHAREDKEY ? "shared" : "open",
-		 ai->config.modulation == 0 ? "default" :
+		 ai->config.modulation == MOD_DEFAULT ? "default" :
 		 ai->config.modulation == MOD_CCK ? "cck" :
 		 ai->config.modulation == MOD_MOK ? "mok" : "error",
 		 ai->config.preamble == PREAMBLE_AUTO ? "auto" :
@@ -5800,7 +5790,7 @@ static int airo_set_freq(struct net_device *dev,
 		} else {
 			readConfigRid(local, 1);
 			/* Yes ! We can set it !!! */
-			local->config.channelSet = (u16) channel;
+			local->config.channelSet = cpu_to_le16(channel);
 			set_bit (FLAG_COMMIT, &local->flags);
 		}
 	}
@@ -5821,8 +5811,8 @@ static int airo_get_freq(struct net_device *dev,
 	int ch;
 
 	readConfigRid(local, 1);
-	if ((local->config.opmode & 0xFF) == MODE_STA_ESS)
-		status_rid.channel = cpu_to_le16(local->config.channelSet);
+	if ((local->config.opmode & MODE_CFG_MASK) == MODE_STA_ESS)
+		status_rid.channel = local->config.channelSet;
 	else
 		readStatusRid(local, &status_rid, 1);
 
@@ -6122,7 +6112,7 @@ static int airo_set_rts(struct net_device *dev,
 		return -EINVAL;
 	}
 	readConfigRid(local, 1);
-	local->config.rtsThres = rthr;
+	local->config.rtsThres = cpu_to_le16(rthr);
 	set_bit (FLAG_COMMIT, &local->flags);
 
 	return -EINPROGRESS;		/* Call commit handler */
@@ -6140,7 +6130,7 @@ static int airo_get_rts(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 
 	readConfigRid(local, 1);
-	vwrq->value = local->config.rtsThres;
+	vwrq->value = le16_to_cpu(local->config.rtsThres);
 	vwrq->disabled = (vwrq->value >= AIRO_DEF_MTU);
 	vwrq->fixed = 1;
 
@@ -6166,7 +6156,7 @@ static int airo_set_frag(struct net_device *dev,
 	}
 	fthr &= ~0x1;	/* Get an even value - is it really needed ??? */
 	readConfigRid(local, 1);
-	local->config.fragThresh = (u16)fthr;
+	local->config.fragThresh = cpu_to_le16(fthr);
 	set_bit (FLAG_COMMIT, &local->flags);
 
 	return -EINPROGRESS;		/* Call commit handler */
@@ -6184,7 +6174,7 @@ static int airo_get_frag(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 
 	readConfigRid(local, 1);
-	vwrq->value = local->config.fragThresh;
+	vwrq->value = le16_to_cpu(local->config.fragThresh);
 	vwrq->disabled = (vwrq->value >= AIRO_DEF_MTU);
 	vwrq->fixed = 1;
 
@@ -6204,42 +6194,42 @@ static int airo_set_mode(struct net_device *dev,
 	int reset = 0;
 
 	readConfigRid(local, 1);
-	if ((local->config.rmode & 0xff) >= RXMODE_RFMON)
+	if (sniffing_mode(local))
 		reset = 1;
 
 	switch(*uwrq) {
 		case IW_MODE_ADHOC:
-			local->config.opmode &= 0xFF00;
+			local->config.opmode &= ~MODE_CFG_MASK;
 			local->config.opmode |= MODE_STA_IBSS;
-			local->config.rmode &= 0xfe00;
+			local->config.rmode &= ~RXMODE_FULL_MASK;
 			local->config.scanMode = SCANMODE_ACTIVE;
 			clear_bit (FLAG_802_11, &local->flags);
 			break;
 		case IW_MODE_INFRA:
-			local->config.opmode &= 0xFF00;
+			local->config.opmode &= ~MODE_CFG_MASK;
 			local->config.opmode |= MODE_STA_ESS;
-			local->config.rmode &= 0xfe00;
+			local->config.rmode &= ~RXMODE_FULL_MASK;
 			local->config.scanMode = SCANMODE_ACTIVE;
 			clear_bit (FLAG_802_11, &local->flags);
 			break;
 		case IW_MODE_MASTER:
-			local->config.opmode &= 0xFF00;
+			local->config.opmode &= ~MODE_CFG_MASK;
 			local->config.opmode |= MODE_AP;
-			local->config.rmode &= 0xfe00;
+			local->config.rmode &= ~RXMODE_FULL_MASK;
 			local->config.scanMode = SCANMODE_ACTIVE;
 			clear_bit (FLAG_802_11, &local->flags);
 			break;
 		case IW_MODE_REPEAT:
-			local->config.opmode &= 0xFF00;
+			local->config.opmode &= ~MODE_CFG_MASK;
 			local->config.opmode |= MODE_AP_RPTR;
-			local->config.rmode &= 0xfe00;
+			local->config.rmode &= ~RXMODE_FULL_MASK;
 			local->config.scanMode = SCANMODE_ACTIVE;
 			clear_bit (FLAG_802_11, &local->flags);
 			break;
 		case IW_MODE_MONITOR:
-			local->config.opmode &= 0xFF00;
+			local->config.opmode &= ~MODE_CFG_MASK;
 			local->config.opmode |= MODE_STA_ESS;
-			local->config.rmode &= 0xfe00;
+			local->config.rmode &= ~RXMODE_FULL_MASK;
 			local->config.rmode |= RXMODE_RFMON | RXMODE_DISABLE_802_3_HEADER;
 			local->config.scanMode = SCANMODE_PASSIVE;
 			set_bit (FLAG_802_11, &local->flags);
@@ -6267,7 +6257,7 @@ static int airo_get_mode(struct net_device *dev,
 
 	readConfigRid(local, 1);
 	/* If not managed, assume it's ad-hoc */
-	switch (local->config.opmode & 0xFF) {
+	switch (local->config.opmode & MODE_CFG_MASK) {
 		case MODE_STA_ESS:
 			*uwrq = IW_MODE_INFRA;
 			break;
@@ -6303,7 +6293,7 @@ static int airo_set_encode(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 	CapabilityRid cap_rid;		/* Card capability info */
 	int perm = ( dwrq->flags & IW_ENCODE_TEMP ? 0 : 1 );
-	u16 currentAuthType = local->config.authType;
+	__le16 currentAuthType = local->config.authType;
 
 	/* Is WEP supported ? */
 	readCapabilityRid(local, &cap_rid, 1);
@@ -6440,7 +6430,7 @@ static int airo_set_encodeext(struct net_device *dev,
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	CapabilityRid cap_rid;		/* Card capability info */
 	int perm = ( encoding->flags & IW_ENCODE_TEMP ? 0 : 1 );
-	u16 currentAuthType = local->config.authType;
+	__le16 currentAuthType = local->config.authType;
 	int idx, key_len, alg = ext->alg, set_key = 1;
 	wep_key_t key;
 
@@ -6586,7 +6576,7 @@ static int airo_set_auth(struct net_device *dev,
 {
 	struct airo_info *local = dev->priv;
 	struct iw_param *param = &wrqu->param;
-	u16 currentAuthType = local->config.authType;
+	__le16 currentAuthType = local->config.authType;
 
 	switch (param->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_WPA_VERSION:
@@ -6654,7 +6644,7 @@ static int airo_get_auth(struct net_device *dev,
 {
 	struct airo_info *local = dev->priv;
 	struct iw_param *param = &wrqu->param;
-	u16 currentAuthType = local->config.authType;
+	__le16 currentAuthType = local->config.authType;
 
 	switch (param->flags & IW_AUTH_INDEX) {
 	case IW_AUTH_DROP_UNENCRYPTED:
@@ -6705,6 +6695,7 @@ static int airo_set_txpow(struct net_device *dev,
 	CapabilityRid cap_rid;		/* Card capability info */
 	int i;
 	int rc = -EINVAL;
+	__le16 v = cpu_to_le16(vwrq->value);
 
 	readCapabilityRid(local, &cap_rid, 1);
 
@@ -6718,9 +6709,9 @@ static int airo_set_txpow(struct net_device *dev,
 	}
 	clear_bit (FLAG_RADIO_OFF, &local->flags);
 	for (i = 0; cap_rid.txPowerLevels[i] && (i < 8); i++)
-		if (vwrq->value == le16_to_cpu(cap_rid.txPowerLevels[i])) {
+		if (v == cap_rid.txPowerLevels[i]) {
 			readConfigRid(local, 1);
-			local->config.txPower = vwrq->value;
+			local->config.txPower = v;
 			set_bit (FLAG_COMMIT, &local->flags);
 			rc = -EINPROGRESS;	/* Call commit handler */
 			break;
@@ -6740,7 +6731,7 @@ static int airo_get_txpow(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 
 	readConfigRid(local, 1);
-	vwrq->value = local->config.txPower;
+	vwrq->value = le16_to_cpu(local->config.txPower);
 	vwrq->fixed = 1;	/* No power control */
 	vwrq->disabled = test_bit(FLAG_RADIO_OFF, &local->flags);
 	vwrq->flags = IW_TXPOW_MWATT;
@@ -6765,20 +6756,21 @@ static int airo_set_retry(struct net_device *dev,
 	}
 	readConfigRid(local, 1);
 	if(vwrq->flags & IW_RETRY_LIMIT) {
+		__le16 v = cpu_to_le16(vwrq->value);
 		if(vwrq->flags & IW_RETRY_LONG)
-			local->config.longRetryLimit = vwrq->value;
+			local->config.longRetryLimit = v;
 		else if (vwrq->flags & IW_RETRY_SHORT)
-			local->config.shortRetryLimit = vwrq->value;
+			local->config.shortRetryLimit = v;
 		else {
 			/* No modifier : set both */
-			local->config.longRetryLimit = vwrq->value;
-			local->config.shortRetryLimit = vwrq->value;
+			local->config.longRetryLimit = v;
+			local->config.shortRetryLimit = v;
 		}
 		set_bit (FLAG_COMMIT, &local->flags);
 		rc = -EINPROGRESS;		/* Call commit handler */
 	}
 	if(vwrq->flags & IW_RETRY_LIFETIME) {
-		local->config.txLifetime = vwrq->value / 1024;
+		local->config.txLifetime = cpu_to_le16(vwrq->value / 1024);
 		set_bit (FLAG_COMMIT, &local->flags);
 		rc = -EINPROGRESS;		/* Call commit handler */
 	}
@@ -6802,14 +6794,14 @@ static int airo_get_retry(struct net_device *dev,
 	/* Note : by default, display the min retry number */
 	if((vwrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME) {
 		vwrq->flags = IW_RETRY_LIFETIME;
-		vwrq->value = (int)local->config.txLifetime * 1024;
+		vwrq->value = le16_to_cpu(local->config.txLifetime) * 1024;
 	} else if((vwrq->flags & IW_RETRY_LONG)) {
 		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
-		vwrq->value = (int)local->config.longRetryLimit;
+		vwrq->value = le16_to_cpu(local->config.longRetryLimit);
 	} else {
 		vwrq->flags = IW_RETRY_LIMIT;
-		vwrq->value = (int)local->config.shortRetryLimit;
-		if((int)local->config.shortRetryLimit != (int)local->config.longRetryLimit)
+		vwrq->value = le16_to_cpu(local->config.shortRetryLimit);
+		if(local->config.shortRetryLimit != local->config.longRetryLimit)
 			vwrq->flags |= IW_RETRY_SHORT;
 	}
 
@@ -6954,38 +6946,37 @@ static int airo_set_power(struct net_device *dev,
 
 	readConfigRid(local, 1);
 	if (vwrq->disabled) {
-		if ((local->config.rmode & 0xFF) >= RXMODE_RFMON) {
+		if (sniffing_mode(local))
 			return -EINVAL;
-		}
 		local->config.powerSaveMode = POWERSAVE_CAM;
-		local->config.rmode &= 0xFF00;
+		local->config.rmode &= ~RXMODE_MASK;
 		local->config.rmode |= RXMODE_BC_MC_ADDR;
 		set_bit (FLAG_COMMIT, &local->flags);
 		return -EINPROGRESS;		/* Call commit handler */
 	}
 	if ((vwrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
-		local->config.fastListenDelay = (vwrq->value + 500) / 1024;
+		local->config.fastListenDelay = cpu_to_le16((vwrq->value + 500) / 1024);
 		local->config.powerSaveMode = POWERSAVE_PSPCAM;
 		set_bit (FLAG_COMMIT, &local->flags);
 	} else if ((vwrq->flags & IW_POWER_TYPE) == IW_POWER_PERIOD) {
-		local->config.fastListenInterval = local->config.listenInterval = (vwrq->value + 500) / 1024;
+		local->config.fastListenInterval =
+		local->config.listenInterval =
+			cpu_to_le16((vwrq->value + 500) / 1024);
 		local->config.powerSaveMode = POWERSAVE_PSPCAM;
 		set_bit (FLAG_COMMIT, &local->flags);
 	}
 	switch (vwrq->flags & IW_POWER_MODE) {
 		case IW_POWER_UNICAST_R:
-			if ((local->config.rmode & 0xFF) >= RXMODE_RFMON) {
+			if (sniffing_mode(local))
 				return -EINVAL;
-			}
-			local->config.rmode &= 0xFF00;
+			local->config.rmode &= ~RXMODE_MASK;
 			local->config.rmode |= RXMODE_ADDR;
 			set_bit (FLAG_COMMIT, &local->flags);
 			break;
 		case IW_POWER_ALL_R:
-			if ((local->config.rmode & 0xFF) >= RXMODE_RFMON) {
+			if (sniffing_mode(local))
 				return -EINVAL;
-			}
-			local->config.rmode &= 0xFF00;
+			local->config.rmode &= ~RXMODE_MASK;
 			local->config.rmode |= RXMODE_BC_MC_ADDR;
 			set_bit (FLAG_COMMIT, &local->flags);
 		case IW_POWER_ON:
@@ -7009,20 +7000,20 @@ static int airo_get_power(struct net_device *dev,
 			  char *extra)
 {
 	struct airo_info *local = dev->priv;
-	int mode;
+	__le16 mode;
 
 	readConfigRid(local, 1);
 	mode = local->config.powerSaveMode;
 	if ((vwrq->disabled = (mode == POWERSAVE_CAM)))
 		return 0;
 	if ((vwrq->flags & IW_POWER_TYPE) == IW_POWER_TIMEOUT) {
-		vwrq->value = (int)local->config.fastListenDelay * 1024;
+		vwrq->value = le16_to_cpu(local->config.fastListenDelay) * 1024;
 		vwrq->flags = IW_POWER_TIMEOUT;
 	} else {
-		vwrq->value = (int)local->config.fastListenInterval * 1024;
+		vwrq->value = le16_to_cpu(local->config.fastListenInterval) * 1024;
 		vwrq->flags = IW_POWER_PERIOD;
 	}
-	if ((local->config.rmode & 0xFF) == RXMODE_ADDR)
+	if ((local->config.rmode & RXMODE_MASK) == RXMODE_ADDR)
 		vwrq->flags |= IW_POWER_UNICAST_R;
 	else
 		vwrq->flags |= IW_POWER_ALL_R;
@@ -7042,7 +7033,8 @@ static int airo_set_sens(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 
 	readConfigRid(local, 1);
-	local->config.rssiThreshold = vwrq->disabled ? RSSI_DEFAULT : vwrq->value;
+	local->config.rssiThreshold =
+		cpu_to_le16(vwrq->disabled ? RSSI_DEFAULT : vwrq->value);
 	set_bit (FLAG_COMMIT, &local->flags);
 
 	return -EINPROGRESS;		/* Call commit handler */
@@ -7060,7 +7052,7 @@ static int airo_get_sens(struct net_device *dev,
 	struct airo_info *local = dev->priv;
 
 	readConfigRid(local, 1);
-	vwrq->value = local->config.rssiThreshold;
+	vwrq->value = le16_to_cpu(local->config.rssiThreshold);
 	vwrq->disabled = (vwrq->value == 0);
 	vwrq->fixed = 1;
 
@@ -7861,9 +7853,9 @@ static int writerids(struct net_device *dev, aironet_ioctl *comp) {
 		ConfigRid *cfg = (ConfigRid *)iobuf;
 
 		if (test_bit(FLAG_MIC_CAPABLE, &ai->flags))
-			cfg->opmode |= cpu_to_le16(MODE_MIC);
+			cfg->opmode |= MODE_MIC;
 
-		if ((le16_to_cpu(cfg->opmode) & 0xFF) == MODE_STA_IBSS)
+		if ((cfg->opmode & MODE_CFG_MASK) == MODE_STA_IBSS)
 			set_bit (FLAG_ADHOC, &ai->flags);
 		else
 			clear_bit (FLAG_ADHOC, &ai->flags);
