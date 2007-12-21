@@ -267,7 +267,7 @@
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			compatible = "ibm,plb-pciex-440speB", "ibm,plb-pciex";
+			compatible = "ibm,plb-pciex-440spe", "ibm,plb-pciex";
 			primary;
 			port = <0>; /* port number */
 			reg = <d 00000000 20000000	/* Config space access */
@@ -308,7 +308,7 @@
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			compatible = "ibm,plb-pciex-440speB", "ibm,plb-pciex";
+			compatible = "ibm,plb-pciex-440spe", "ibm,plb-pciex";
 			primary;
 			port = <1>; /* port number */
 			reg = <d 20000000 20000000	/* Config space access */
@@ -349,7 +349,7 @@
 			#interrupt-cells = <1>;
 			#size-cells = <2>;
 			#address-cells = <3>;
-			compatible = "ibm,plb-pciex-440speB", "ibm,plb-pciex";
+			compatible = "ibm,plb-pciex-440spe", "ibm,plb-pciex";
 			primary;
 			port = <2>; /* port number */
 			reg = <d 40000000 20000000	/* Config space access */

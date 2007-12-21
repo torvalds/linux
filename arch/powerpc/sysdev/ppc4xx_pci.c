@@ -49,6 +49,15 @@ extern unsigned long total_memory;
 #define RES_TO_U32_HIGH(val)	(0)
 #endif
 
+static inline int ppc440spe_revA(void)
+{
+	/* Catch both 440SPe variants, with and without RAID6 support */
+        if ((mfspr(SPRN_PVR) & 0xffefffff) == 0x53421890)
+                return 1;
+        else
+                return 0;
+}
+
 static void fixup_ppc4xx_pci_bridge(struct pci_dev *dev)
 {
 	struct pci_controller *hose;
@@ -516,8 +525,7 @@ static void __init ppc4xx_probe_pcix_bridge(struct device_node *np)
  *
  * We support 3 parts currently based on the compatible property:
  *
- * ibm,plb-pciex-440speA
- * ibm,plb-pciex-440speB
+ * ibm,plb-pciex-440spe
  * ibm,plb-pciex-405ex
  *
  * Anything else will be rejected for now as they are all subtly
@@ -688,7 +696,7 @@ static int ppc440spe_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
 
 	mtdcri(SDR0, port->sdr_base + PESDRn_DLPSET, val);
 	mtdcri(SDR0, port->sdr_base + PESDRn_UTLSET1, 0x20222222);
-	if (of_device_is_compatible(port->node, "ibm,plb-pciex-440speA"))
+	if (ppc440spe_revA())
 		mtdcri(SDR0, port->sdr_base + PESDRn_UTLSET2, 0x11000000);
 	mtdcri(SDR0, port->sdr_base + PESDRn_440SPE_HSSL0SET1, 0x35000000);
 	mtdcri(SDR0, port->sdr_base + PESDRn_440SPE_HSSL1SET1, 0x35000000);
@@ -766,7 +774,6 @@ static struct ppc4xx_pciex_hwops ppc440speB_pcie_hwops __initdata =
 	.port_init_hw	= ppc440speB_pciex_init_port_hw,
 	.setup_utl	= ppc440speB_pciex_init_utl,
 };
-
 
 #endif /* CONFIG_44x */
 
@@ -881,10 +888,12 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 		return 0;
 
 #ifdef CONFIG_44x
-	if (of_device_is_compatible(np, "ibm,plb-pciex-440speA"))
-		ppc4xx_pciex_hwops = &ppc440speA_pcie_hwops;
-	else if (of_device_is_compatible(np, "ibm,plb-pciex-440speB"))
-		ppc4xx_pciex_hwops = &ppc440speB_pcie_hwops;
+	if (of_device_is_compatible(np, "ibm,plb-pciex-440spe")) {
+		if (ppc440spe_revA())
+			ppc4xx_pciex_hwops = &ppc440speA_pcie_hwops;
+		else
+			ppc4xx_pciex_hwops = &ppc440speB_pcie_hwops;
+	}
 #endif /* CONFIG_44x    */
 #ifdef CONFIG_40x
 	if (of_device_is_compatible(np, "ibm,plb-pciex-405ex"))
