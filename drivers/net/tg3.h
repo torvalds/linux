@@ -2103,13 +2103,18 @@ struct tg3_link_config {
 	u16				speed;
 	u8				duplex;
 	u8				autoneg;
+	u8				flowctrl;
+#define TG3_FLOW_CTRL_TX		0x01
+#define TG3_FLOW_CTRL_RX		0x02
 
 	/* Describes what we actually have. */
-	u16				active_speed;
+	u8				active_flowctrl;
+
 	u8				active_duplex;
 #define SPEED_INVALID		0xffff
 #define DUPLEX_INVALID		0xff
 #define AUTONEG_INVALID		0xff
+	u16				active_speed;
 
 	/* When we go in and out of low power mode we need
 	 * to swap with this state.
@@ -2337,8 +2342,6 @@ struct tg3 {
 #define TG3_FLAG_EEPROM_WRITE_PROT	0x00001000
 #define TG3_FLAG_NVRAM			0x00002000
 #define TG3_FLAG_NVRAM_BUFFERED		0x00004000
-#define TG3_FLAG_RX_PAUSE		0x00008000
-#define TG3_FLAG_TX_PAUSE		0x00010000
 #define TG3_FLAG_PCIX_MODE		0x00020000
 #define TG3_FLAG_PCI_HIGH_SPEED		0x00040000
 #define TG3_FLAG_PCI_32BIT		0x00080000
