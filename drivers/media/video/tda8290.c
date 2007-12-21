@@ -512,16 +512,16 @@ static void tda829x_release(struct dvb_frontend *fe)
 static int tda829x_find_tuner(struct dvb_frontend *fe)
 {
 	struct tda8290_priv *priv = fe->analog_demod_priv;
-	struct analog_tuner_ops *ops = fe->ops.analog_demod_ops;
+	struct analog_demod_ops *analog_ops = &fe->ops.analog_ops;
 	int i, ret, tuners_found;
 	u32 tuner_addrs;
 	u8 data;
 	struct i2c_msg msg = { .flags = I2C_M_RD, .buf = &data, .len = 1 };
 
-	if (NULL == ops)
+	if (NULL == analog_ops->i2c_gate_ctrl)
 		return -EINVAL;
 
-	ops->i2c_gate_ctrl(fe, 1);
+	analog_ops->i2c_gate_ctrl(fe, 1);
 
 	/* probe for tuner chip */
 	tuners_found = 0;
@@ -539,7 +539,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	   give a response now
 	 */
 
-	ops->i2c_gate_ctrl(fe, 0);
+	analog_ops->i2c_gate_ctrl(fe, 0);
 
 	if (tuners_found > 1)
 		for (i = 0; i < tuners_found; i++) {
@@ -562,7 +562,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	priv->tda827x_addr = tuner_addrs;
 	msg.addr = tuner_addrs;
 
-	ops->i2c_gate_ctrl(fe, 1);
+	analog_ops->i2c_gate_ctrl(fe, 1);
 	ret = i2c_transfer(priv->i2c_props.adap, &msg, 1);
 
 	if (ret != 1) {
@@ -590,7 +590,7 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.sleep)
 		fe->ops.tuner_ops.sleep(fe);
 
-	ops->i2c_gate_ctrl(fe, 0);
+	analog_ops->i2c_gate_ctrl(fe, 0);
 
 	return 0;
 }
@@ -635,7 +635,7 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 	return -ENODEV;
 }
 
-static struct analog_tuner_ops tda8290_tuner_ops = {
+static struct analog_demod_ops tda8290_ops = {
 	.info		= {
 		.name	= "TDA8290",
 	},
@@ -646,7 +646,7 @@ static struct analog_tuner_ops tda8290_tuner_ops = {
 	.i2c_gate_ctrl  = tda8290_i2c_bridge,
 };
 
-static struct analog_tuner_ops tda8295_tuner_ops = {
+static struct analog_demod_ops tda8295_ops = {
 	.info		= {
 		.name	= "TDA8295",
 	},
@@ -678,12 +678,14 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 
 	if (tda8290_probe(&priv->i2c_props) == 0) {
 		priv->ver = TDA8290;
-		fe->ops.analog_demod_ops = &tda8290_tuner_ops;
+		memcpy(&fe->ops.analog_ops, &tda8290_ops,
+		       sizeof(struct analog_demod_ops));
 	}
 
 	if (tda8295_probe(&priv->i2c_props) == 0) {
 		priv->ver = TDA8295;
-		fe->ops.analog_demod_ops = &tda8295_tuner_ops;
+		memcpy(&fe->ops.analog_ops, &tda8295_ops,
+		       sizeof(struct analog_demod_ops));
 	}
 
 	if (tda829x_find_tuner(fe) < 0)
@@ -723,7 +725,6 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 
 fail:
 	tda829x_release(fe);
-	fe->ops.analog_demod_ops = NULL;
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(tda829x_attach);

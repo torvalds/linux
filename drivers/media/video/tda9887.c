@@ -648,7 +648,7 @@ static void tda9887_release(struct dvb_frontend *fe)
 	fe->analog_demod_priv = NULL;
 }
 
-static struct analog_tuner_ops tda9887_tuner_ops = {
+static struct analog_demod_ops tda9887_ops = {
 	.info		= {
 		.name	= "TDA9887",
 	},
@@ -677,7 +677,8 @@ struct dvb_frontend *tda9887_attach(struct dvb_frontend *fe,
 
 	tuner_info("tda988[5/6/7] found\n");
 
-	fe->ops.analog_demod_ops = &tda9887_tuner_ops;
+	memcpy(&fe->ops.analog_ops, &tda9887_ops,
+	       sizeof(struct analog_demod_ops));
 
 	return fe;
 }

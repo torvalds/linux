@@ -105,7 +105,7 @@ struct analog_demod_info {
 	char *name;
 };
 
-struct analog_tuner_ops {
+struct analog_demod_ops {
 
 	struct analog_demod_info info;
 
@@ -168,7 +168,7 @@ struct dvb_frontend_ops {
 	int (*ts_bus_ctrl)(struct dvb_frontend* fe, int acquire);
 
 	struct dvb_tuner_ops tuner_ops;
-	struct analog_tuner_ops *analog_demod_ops;
+	struct analog_demod_ops analog_ops;
 };
 
 #define MAX_EVENT 8

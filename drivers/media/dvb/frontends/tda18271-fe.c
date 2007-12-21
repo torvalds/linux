@@ -50,7 +50,6 @@ struct tda18271_priv {
 static int tda18271_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
-	struct analog_tuner_ops *ops = fe->ops.analog_demod_ops;
 	enum tda18271_i2c_gate gate;
 	int ret = 0;
 
@@ -74,8 +73,8 @@ static int tda18271_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 	switch (gate) {
 	case TDA18271_GATE_ANALOG:
-		if (ops && ops->i2c_gate_ctrl)
-			ret = ops->i2c_gate_ctrl(fe, enable);
+		if (fe->ops.analog_ops.i2c_gate_ctrl)
+			ret = fe->ops.analog_ops.i2c_gate_ctrl(fe, enable);
 		break;
 	case TDA18271_GATE_DIGITAL:
 		if (fe->ops.i2c_gate_ctrl)
