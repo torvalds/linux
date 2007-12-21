@@ -445,7 +445,7 @@ static inline int sk_acceptq_is_full(struct sock *sk)
  */
 static inline int sk_stream_min_wspace(struct sock *sk)
 {
-	return sk->sk_wmem_queued / 2;
+	return sk->sk_wmem_queued >> 1;
 }
 
 static inline int sk_stream_wspace(struct sock *sk)
@@ -1187,7 +1187,7 @@ static inline void sk_wake_async(struct sock *sk, int how, int band)
 static inline void sk_stream_moderate_sndbuf(struct sock *sk)
 {
 	if (!(sk->sk_userlocks & SOCK_SNDBUF_LOCK)) {
-		sk->sk_sndbuf = min(sk->sk_sndbuf, sk->sk_wmem_queued / 2);
+		sk->sk_sndbuf = min(sk->sk_sndbuf, sk->sk_wmem_queued >> 1);
 		sk->sk_sndbuf = max(sk->sk_sndbuf, SOCK_MIN_SNDBUF);
 	}
 }
@@ -1211,7 +1211,7 @@ static inline struct page *sk_stream_alloc_page(struct sock *sk)
  */
 static inline int sock_writeable(const struct sock *sk) 
 {
-	return atomic_read(&sk->sk_wmem_alloc) < (sk->sk_sndbuf / 2);
+	return atomic_read(&sk->sk_wmem_alloc) < (sk->sk_sndbuf >> 1);
 }
 
 static inline gfp_t gfp_any(void)
