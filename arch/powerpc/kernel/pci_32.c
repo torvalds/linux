@@ -13,6 +13,7 @@
 #include <linux/bootmem.h>
 #include <linux/irq.h>
 #include <linux/list.h>
+#include <linux/of.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -171,7 +172,7 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 	} else
 		pci_to_OF_bus_map[pci_bus] = bus_range[0];
 
-	for (node=node->child; node != 0;node = node->sibling) {
+	for_each_child_of_node(node, node) {
 		struct pci_dev* dev;
 		const unsigned int *class_code, *reg;
 	
@@ -240,15 +241,18 @@ pcibios_make_OF_bus_map(void)
 typedef int (*pci_OF_scan_iterator)(struct device_node* node, void* data);
 
 static struct device_node*
-scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* data)
+scan_OF_pci_childs(struct device_node *parent, pci_OF_scan_iterator filter, void* data)
 {
+	struct device_node *node;
 	struct device_node* sub_node;
 
-	for (; node != 0;node = node->sibling) {
+	for_each_child_of_node(parent, node) {
 		const unsigned int *class_code;
 	
-		if (filter(node, data))
+		if (filter(node, data)) {
+			of_node_put(node);
 			return node;
+		}
 
 		/* For PCI<->PCI bridges or CardBus bridges, we go down
 		 * Note: some OFs create a parent node "multifunc-device" as
@@ -260,9 +264,11 @@ scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* 
 			(*class_code >> 8) != PCI_CLASS_BRIDGE_CARDBUS)) &&
 			strcmp(node->name, "multifunc-device"))
 			continue;
-		sub_node = scan_OF_pci_childs(node->child, filter, data);
-		if (sub_node)
+		sub_node = scan_OF_pci_childs(node, filter, data);
+		if (sub_node) {
+			of_node_put(node);
 			return sub_node;
+		}
 	}
 	return NULL;
 }
@@ -366,7 +372,7 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	hose = pci_find_hose_for_OF_device(node);
 	if (!hose || !hose->dn)
 		return -ENODEV;
-	if (!scan_OF_pci_childs(hose->dn->child,
+	if (!scan_OF_pci_childs(hose->dn,
 			find_OF_pci_device_filter, (void *)node))
 		return -ENODEV;
 	reg = of_get_property(node, "reg", NULL);
