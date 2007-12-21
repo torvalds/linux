@@ -32,6 +32,16 @@ config KILAUEA
 	help
 	  This option enables support for the AMCC PPC405EX evaluation board.
 
+config MAKALU
+	bool "Makalu"
+	depends on 40x
+	default n
+	select 405EX
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC PPC405EX board.
+
 #config REDWOOD_5
 #	bool "Redwood-5"
 #	depends on 40x
