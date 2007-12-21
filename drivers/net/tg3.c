@@ -2683,7 +2683,7 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 	sg_dig_ctrl = tr32(SG_DIG_CTRL);
 
 	if (tp->link_config.autoneg != AUTONEG_ENABLE) {
-		if (sg_dig_ctrl & (1 << 31)) {
+		if (sg_dig_ctrl & SG_DIG_USING_HW_AUTONEG) {
 			if (workaround) {
 				u32 val = serdes_cfg;
 
@@ -2693,7 +2693,8 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 					val |= 0x4010000;
 				tw32_f(MAC_SERDES_CFG, val);
 			}
-			tw32_f(SG_DIG_CTRL, 0x01388400);
+
+			tw32_f(SG_DIG_CTRL, SG_DIG_COMMON_SETUP);
 		}
 		if (mac_status & MAC_STATUS_PCS_SYNCED) {
 			tg3_setup_flow_control(tp, 0, 0);
@@ -2703,13 +2704,13 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 	}
 
 	/* Want auto-negotiation.  */
-	expected_sg_dig_ctrl = 0x81388400;
+	expected_sg_dig_ctrl = SG_DIG_USING_HW_AUTONEG | SG_DIG_COMMON_SETUP;
 
 	/* Pause capability */
-	expected_sg_dig_ctrl |= (1 << 11);
+	expected_sg_dig_ctrl |= SG_DIG_PAUSE_CAP;
 
 	/* Asymettric pause */
-	expected_sg_dig_ctrl |= (1 << 12);
+	expected_sg_dig_ctrl |= SG_DIG_ASYM_PAUSE;
 
 	if (sg_dig_ctrl != expected_sg_dig_ctrl) {
 		if ((tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT) &&
@@ -2724,7 +2725,7 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 restart_autoneg:
 		if (workaround)
 			tw32_f(MAC_SERDES_CFG, serdes_cfg | 0xc011000);
-		tw32_f(SG_DIG_CTRL, expected_sg_dig_ctrl | (1 << 30));
+		tw32_f(SG_DIG_CTRL, expected_sg_dig_ctrl | SG_DIG_SOFT_RESET);
 		udelay(5);
 		tw32_f(SG_DIG_CTRL, expected_sg_dig_ctrl);
 
@@ -2735,22 +2736,22 @@ restart_autoneg:
 		sg_dig_status = tr32(SG_DIG_STATUS);
 		mac_status = tr32(MAC_STATUS);
 
-		if ((sg_dig_status & (1 << 1)) &&
+		if ((sg_dig_status & SG_DIG_AUTONEG_COMPLETE) &&
 		    (mac_status & MAC_STATUS_PCS_SYNCED)) {
 			u32 local_adv, remote_adv;
 
 			local_adv = ADVERTISE_PAUSE_CAP;
 			remote_adv = 0;
-			if (sg_dig_status & (1 << 19))
+			if (sg_dig_status & SG_DIG_PARTNER_PAUSE_CAPABLE)
 				remote_adv |= LPA_PAUSE_CAP;
-			if (sg_dig_status & (1 << 20))
+			if (sg_dig_status & SG_DIG_PARTNER_ASYM_PAUSE)
 				remote_adv |= LPA_PAUSE_ASYM;
 
 			tg3_setup_flow_control(tp, local_adv, remote_adv);
 			current_link_up = 1;
 			tp->serdes_counter = 0;
 			tp->tg3_flags2 &= ~TG3_FLG2_PARALLEL_DETECT;
-		} else if (!(sg_dig_status & (1 << 1))) {
+		} else if (!(sg_dig_status & SG_DIG_AUTONEG_COMPLETE)) {
 			if (tp->serdes_counter)
 				tp->serdes_counter--;
 			else {
@@ -2765,7 +2766,7 @@ restart_autoneg:
 					tw32_f(MAC_SERDES_CFG, val);
 				}
 
-				tw32_f(SG_DIG_CTRL, 0x01388400);
+				tw32_f(SG_DIG_CTRL, SG_DIG_COMMON_SETUP);
 				udelay(40);
 
 				/* Link parallel detection - link is up */
