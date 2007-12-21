@@ -3,6 +3,7 @@ config BAMBOO
 	depends on 44x
 	default n
 	select 440EP
+	select PCI
 	help
 	  This option enables support for the IBM PPC440EP evaluation board.
 
