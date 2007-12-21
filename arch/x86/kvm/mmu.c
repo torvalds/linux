@@ -974,7 +974,7 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 {
 }
 
-static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
+static int __nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 {
 	int level = PT32E_ROOT_LEVEL;
 	hpa_t table_addr = vcpu->arch.mmu.root_hpa;
@@ -1015,6 +1015,17 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	}
 }
 
+static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
+{
+	int r;
+
+	mutex_lock(&vcpu->kvm->lock);
+	r = __nonpaging_map(vcpu, v, write, gfn);
+	mutex_unlock(&vcpu->kvm->lock);
+	return r;
+}
+
+
 static void nonpaging_prefetch_page(struct kvm_vcpu *vcpu,
 				    struct kvm_mmu_page *sp)
 {
@@ -1031,6 +1042,7 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return;
+	mutex_lock(&vcpu->kvm->lock);
 #ifdef CONFIG_X86_64
 	if (vcpu->arch.mmu.shadow_root_level == PT64_ROOT_LEVEL) {
 		hpa_t root = vcpu->arch.mmu.root_hpa;
@@ -1038,6 +1050,7 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 		sp = page_header(root);
 		--sp->root_count;
 		vcpu->arch.mmu.root_hpa = INVALID_PAGE;
+		mutex_unlock(&vcpu->kvm->lock);
 		return;
 	}
 #endif
@@ -1051,6 +1064,7 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu)
 		}
 		vcpu->arch.mmu.pae_root[i] = INVALID_PAGE;
 	}
+	mutex_unlock(&vcpu->kvm->lock);
 	vcpu->arch.mmu.root_hpa = INVALID_PAGE;
 }
 
@@ -1250,15 +1264,15 @@ int kvm_mmu_load(struct kvm_vcpu *vcpu)
 {
 	int r;
 
-	mutex_lock(&vcpu->kvm->lock);
 	r = mmu_topup_memory_caches(vcpu);
 	if (r)
 		goto out;
+	mutex_lock(&vcpu->kvm->lock);
 	mmu_alloc_roots(vcpu);
+	mutex_unlock(&vcpu->kvm->lock);
 	kvm_x86_ops->set_cr3(vcpu, vcpu->arch.mmu.root_hpa);
 	kvm_mmu_flush_tlb(vcpu);
 out:
-	mutex_unlock(&vcpu->kvm->lock);
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_load);
@@ -1353,6 +1367,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int npte;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __FUNCTION__, gpa, bytes);
+	mutex_lock(&vcpu->kvm->lock);
 	++vcpu->kvm->stat.mmu_pte_write;
 	kvm_mmu_audit(vcpu, "pre pte write");
 	if (gfn == vcpu->arch.last_pt_write_gfn
@@ -1421,17 +1436,27 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		}
 	}
 	kvm_mmu_audit(vcpu, "post pte write");
+	mutex_unlock(&vcpu->kvm->lock);
 }
 
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva)
 {
-	gpa_t gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
+	gpa_t gpa;
+	int r;
 
-	return kvm_mmu_unprotect_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	down_read(&current->mm->mmap_sem);
+	gpa = vcpu->arch.mmu.gva_to_gpa(vcpu, gva);
+	up_read(&current->mm->mmap_sem);
+
+	mutex_lock(&vcpu->kvm->lock);
+	r = kvm_mmu_unprotect_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	mutex_unlock(&vcpu->kvm->lock);
+	return r;
 }
 
 void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 {
+	mutex_lock(&vcpu->kvm->lock);
 	while (vcpu->kvm->arch.n_free_mmu_pages < KVM_REFILL_PAGES) {
 		struct kvm_mmu_page *sp;
 
@@ -1440,6 +1465,7 @@ void __kvm_mmu_free_some_pages(struct kvm_vcpu *vcpu)
 		kvm_mmu_zap_page(vcpu->kvm, sp);
 		++vcpu->kvm->stat.mmu_recycled;
 	}
+	mutex_unlock(&vcpu->kvm->lock);
 }
 
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
@@ -1447,7 +1473,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
 	int r;
 	enum emulation_result er;
 
-	mutex_lock(&vcpu->kvm->lock);
 	r = vcpu->arch.mmu.page_fault(vcpu, cr2, error_code);
 	if (r < 0)
 		goto out;
@@ -1462,7 +1487,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
 		goto out;
 
 	er = emulate_instruction(vcpu, vcpu->run, cr2, error_code, 0);
-	mutex_unlock(&vcpu->kvm->lock);
 
 	switch (er) {
 	case EMULATE_DONE:
@@ -1477,7 +1501,6 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u32 error_code)
 		BUG();
 	}
 out:
-	mutex_unlock(&vcpu->kvm->lock);
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_page_fault);
@@ -1574,8 +1597,10 @@ void kvm_mmu_zap_all(struct kvm *kvm)
 {
 	struct kvm_mmu_page *sp, *node;
 
+	mutex_lock(&kvm->lock);
 	list_for_each_entry_safe(sp, node, &kvm->arch.active_mmu_pages, link)
 		kvm_mmu_zap_page(kvm, sp);
+	mutex_unlock(&kvm->lock);
 
 	kvm_flush_remote_tlbs(kvm);
 }

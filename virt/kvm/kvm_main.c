@@ -227,7 +227,7 @@ static int kvm_vm_release(struct inode *inode, struct file *filp)
  *
  * Discontiguous memory is allowed, mostly for framebuffers.
  *
- * Must be called holding kvm->lock.
+ * Must be called holding mmap_sem for write.
  */
 int __kvm_set_memory_region(struct kvm *kvm,
 			    struct kvm_userspace_memory_region *mem,
@@ -338,9 +338,9 @@ int kvm_set_memory_region(struct kvm *kvm,
 {
 	int r;
 
-	mutex_lock(&kvm->lock);
+	down_write(&current->mm->mmap_sem);
 	r = __kvm_set_memory_region(kvm, mem, user_alloc);
-	mutex_unlock(&kvm->lock);
+	up_write(&current->mm->mmap_sem);
 	return r;
 }
 EXPORT_SYMBOL_GPL(kvm_set_memory_region);
@@ -456,7 +456,7 @@ static unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 /*
  * Requires current->mm->mmap_sem to be held
  */
-static struct page *__gfn_to_page(struct kvm *kvm, gfn_t gfn)
+struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
 {
 	struct page *page[1];
 	unsigned long addr;
@@ -479,17 +479,6 @@ static struct page *__gfn_to_page(struct kvm *kvm, gfn_t gfn)
 	}
 
 	return page[0];
-}
-
-struct page *gfn_to_page(struct kvm *kvm, gfn_t gfn)
-{
-	struct page *page;
-
-	down_read(&current->mm->mmap_sem);
-	page = __gfn_to_page(kvm, gfn);
-	up_read(&current->mm->mmap_sem);
-
-	return page;
 }
 
 EXPORT_SYMBOL_GPL(gfn_to_page);
@@ -977,8 +966,7 @@ static int kvm_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	if (!kvm_is_visible_gfn(kvm, vmf->pgoff))
 		return VM_FAULT_SIGBUS;
-	/* current->mm->mmap_sem is already held so call lockless version */
-	page = __gfn_to_page(kvm, vmf->pgoff);
+	page = gfn_to_page(kvm, vmf->pgoff);
 	if (is_error_page(page)) {
 		kvm_release_page_clean(page);
 		return VM_FAULT_SIGBUS;

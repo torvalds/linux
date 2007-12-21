@@ -368,11 +368,13 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (r)
 		return r;
 
+	down_read(&current->mm->mmap_sem);
 	/*
 	 * Look up the shadow pte for the faulting address.
 	 */
 	r = FNAME(walk_addr)(&walker, vcpu, addr, write_fault, user_fault,
 			     fetch_fault);
+	up_read(&current->mm->mmap_sem);
 
 	/*
 	 * The page is not mapped by the guest.  Let the guest handle it.
@@ -384,6 +386,7 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		return 0;
 	}
 
+	mutex_lock(&vcpu->kvm->lock);
 	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
 				  &write_pt);
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __FUNCTION__,
@@ -395,11 +398,14 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	/*
 	 * mmio: emulate if accessible, otherwise its a guest fault.
 	 */
-	if (shadow_pte && is_io_pte(*shadow_pte))
+	if (shadow_pte && is_io_pte(*shadow_pte)) {
+		mutex_unlock(&vcpu->kvm->lock);
 		return 1;
+	}
 
 	++vcpu->stat.pf_fixed;
 	kvm_mmu_audit(vcpu, "post page fault (fixed)");
+	mutex_unlock(&vcpu->kvm->lock);
 
 	return write_pt;
 }

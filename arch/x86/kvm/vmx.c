@@ -1432,27 +1432,34 @@ static int init_rmode_tss(struct kvm *kvm)
 {
 	gfn_t fn = rmode_tss_base(kvm) >> PAGE_SHIFT;
 	u16 data = 0;
+	int ret = 0;
 	int r;
 
+	down_read(&current->mm->mmap_sem);
 	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
 	if (r < 0)
-		return 0;
+		goto out;
 	data = TSS_BASE_SIZE + TSS_REDIRECTION_SIZE;
 	r = kvm_write_guest_page(kvm, fn++, &data, 0x66, sizeof(u16));
 	if (r < 0)
-		return 0;
+		goto out;
 	r = kvm_clear_guest_page(kvm, fn++, 0, PAGE_SIZE);
 	if (r < 0)
-		return 0;
+		goto out;
 	r = kvm_clear_guest_page(kvm, fn, 0, PAGE_SIZE);
 	if (r < 0)
-		return 0;
+		goto out;
 	data = ~0;
-	r = kvm_write_guest_page(kvm, fn, &data, RMODE_TSS_SIZE - 2 * PAGE_SIZE - 1,
-			sizeof(u8));
+	r = kvm_write_guest_page(kvm, fn, &data,
+				 RMODE_TSS_SIZE - 2 * PAGE_SIZE - 1,
+				 sizeof(u8));
 	if (r < 0)
-		return 0;
-	return 1;
+		goto out;
+
+	ret = 1;
+out:
+	up_read(&current->mm->mmap_sem);
+	return ret;
 }
 
 static void seg_setup(int seg)
@@ -1471,6 +1478,7 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	int r = 0;
 
 	mutex_lock(&kvm->lock);
+	down_write(&current->mm->mmap_sem);
 	if (kvm->arch.apic_access_page)
 		goto out;
 	kvm_userspace_mem.slot = APIC_ACCESS_PAGE_PRIVATE_MEMSLOT;
@@ -1482,6 +1490,7 @@ static int alloc_apic_access_page(struct kvm *kvm)
 		goto out;
 	kvm->arch.apic_access_page = gfn_to_page(kvm, 0xfee00);
 out:
+	up_write(&current->mm->mmap_sem);
 	mutex_unlock(&kvm->lock);
 	return r;
 }
