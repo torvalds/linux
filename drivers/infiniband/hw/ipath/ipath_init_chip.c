@@ -508,9 +508,9 @@ static void enable_chip(struct ipath_devdata *dd,
 	 * enable port 0 receive, and receive interrupt.  other ports
 	 * done as user opens and inits them.
 	 */
-	dd->ipath_rcvctrl = INFINIPATH_R_TAILUPD |
-		(1ULL << INFINIPATH_R_PORTENABLE_SHIFT) |
-		(1ULL << INFINIPATH_R_INTRAVAIL_SHIFT);
+	dd->ipath_rcvctrl = (1ULL << dd->ipath_r_tailupd_shift) |
+		(1ULL << dd->ipath_r_portenable_shift) |
+		(1ULL << dd->ipath_r_intravail_shift);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 

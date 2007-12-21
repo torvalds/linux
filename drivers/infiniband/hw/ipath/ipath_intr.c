@@ -975,7 +975,7 @@ static void handle_urcv(struct ipath_devdata *dd, u32 istat)
 		if (portr & (1 << i) && pd && pd->port_cnt) {
 			if (test_and_clear_bit(IPATH_PORT_WAITING_RCV,
 					       &pd->port_flag)) {
-				clear_bit(i + INFINIPATH_R_INTRAVAIL_SHIFT,
+				clear_bit(i + dd->ipath_r_intravail_shift,
 					  &dd->ipath_rcvctrl);
 				wake_up_interruptible(&pd->port_wait);
 				rcvdint = 1;

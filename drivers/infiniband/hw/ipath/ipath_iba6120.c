@@ -296,6 +296,9 @@ static const struct ipath_cregs ipath_pe_cregs = {
 #define IPATH_GPIO_SCL (1ULL << \
 	(_IPATH_GPIO_SCL_NUM+INFINIPATH_EXTC_GPIOOE_SHIFT))
 
+#define INFINIPATH_R_INTRAVAIL_SHIFT 16
+#define INFINIPATH_R_TAILUPD_SHIFT 31
+
 /* 6120 specific hardware errors... */
 static const struct ipath_hwerror_msgs ipath_6120_hwerror_msgs[] = {
 	INFINIPATH_HWE_MSG(PCIEPOISONEDTLP, "PCIe Poisoned TLP"),
@@ -915,6 +918,12 @@ static void ipath_init_pe_variables(struct ipath_devdata *dd)
 	dd->ipath_gpio_scl_num = _IPATH_GPIO_SCL_NUM;
 	dd->ipath_gpio_sda = IPATH_GPIO_SDA;
 	dd->ipath_gpio_scl = IPATH_GPIO_SCL;
+
+	/* Fill in shifts for RcvCtrl. */
+	dd->ipath_r_portenable_shift = INFINIPATH_R_PORTENABLE_SHIFT;
+	dd->ipath_r_intravail_shift = INFINIPATH_R_INTRAVAIL_SHIFT;
+	dd->ipath_r_tailupd_shift = INFINIPATH_R_TAILUPD_SHIFT;
+	dd->ipath_r_portcfg_shift = 0; /* Not on IBA6120 */
 
 	/* variables for sanity checking interrupt and errors */
 	dd->ipath_hwe_bitsextant =

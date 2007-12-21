@@ -82,8 +82,7 @@
 
 /* kr_rcvctrl bits */
 #define INFINIPATH_R_PORTENABLE_SHIFT 0
-#define INFINIPATH_R_INTRAVAIL_SHIFT 16
-#define INFINIPATH_R_TAILUPD   0x80000000
+#define INFINIPATH_R_QPMAP_ENABLE (1ULL << 38)
 
 /* kr_intstatus, kr_intclear, kr_intmask bits */
 #define INFINIPATH_I_RCVURG_SHIFT 0

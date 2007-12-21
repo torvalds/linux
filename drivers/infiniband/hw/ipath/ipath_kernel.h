@@ -550,6 +550,12 @@ struct ipath_devdata {
 	u8 ipath_minrev;
 	/* board rev, from ipath_revision */
 	u8 ipath_boardrev;
+
+	u8 ipath_r_portenable_shift;
+	u8 ipath_r_intravail_shift;
+	u8 ipath_r_tailupd_shift;
+	u8 ipath_r_portcfg_shift;
+
 	/* unit # of this chip, if present */
 	int ipath_unit;
 	/* saved for restore after reset */

@@ -296,6 +296,12 @@ static const struct ipath_cregs ipath_ht_cregs = {
 #define INFINIPATH_RT_BUFSIZE_MASK 0x3FFFULL
 #define INFINIPATH_RT_BUFSIZE_SHIFT 48
 
+#define INFINIPATH_R_INTRAVAIL_SHIFT 16
+#define INFINIPATH_R_TAILUPD_SHIFT 31
+
+/* kr_xgxsconfig bits */
+#define INFINIPATH_XGXS_RESET          0x7ULL
+
 /*
  * masks and bits that are different in different chips, or present only
  * in one
@@ -1078,6 +1084,12 @@ static void ipath_init_ht_variables(struct ipath_devdata *dd)
 	dd->ipath_gpio_scl_num = _IPATH_GPIO_SCL_NUM;
 	dd->ipath_gpio_sda = IPATH_GPIO_SDA;
 	dd->ipath_gpio_scl = IPATH_GPIO_SCL;
+
+	/* Fill in shifts for RcvCtrl. */
+	dd->ipath_r_portenable_shift = INFINIPATH_R_PORTENABLE_SHIFT;
+	dd->ipath_r_intravail_shift = INFINIPATH_R_INTRAVAIL_SHIFT;
+	dd->ipath_r_tailupd_shift = INFINIPATH_R_TAILUPD_SHIFT;
+	dd->ipath_r_portcfg_shift = 0; /* Not on IBA6110 */
 
 	dd->ipath_i_bitsextant =
 		(INFINIPATH_I_RCVURG_MASK << INFINIPATH_I_RCVURG_SHIFT) |

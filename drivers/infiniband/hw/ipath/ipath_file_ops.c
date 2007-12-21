@@ -744,10 +744,10 @@ static int ipath_manage_rcvq(struct ipath_portdata *pd, unsigned subport,
 		 */
 		if (pd->port_rcvhdrtail_kvaddr)
 			ipath_clear_rcvhdrtail(pd);
-		set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
+		set_bit(dd->ipath_r_portenable_shift + pd->port_port,
 			&dd->ipath_rcvctrl);
 	} else
-		clear_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
+		clear_bit(dd->ipath_r_portenable_shift + pd->port_port,
 			  &dd->ipath_rcvctrl);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
@@ -1405,7 +1405,7 @@ static unsigned int ipath_poll_next(struct ipath_portdata *pd,
 		/* flush waiting flag so we don't miss an event */
 		wmb();
 
-		set_bit(pd->port_port + INFINIPATH_R_INTRAVAIL_SHIFT,
+		set_bit(pd->port_port + dd->ipath_r_intravail_shift,
 			&dd->ipath_rcvctrl);
 
 		ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
@@ -1938,10 +1938,11 @@ static int ipath_do_user_init(struct file *fp,
 	 */
 	if (pd->port_rcvhdrtail_kvaddr)
 		ipath_clear_rcvhdrtail(pd);
-	set_bit(INFINIPATH_R_PORTENABLE_SHIFT + pd->port_port,
+	set_bit(dd->ipath_r_portenable_shift + pd->port_port,
 		&dd->ipath_rcvctrl);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
-			 dd->ipath_rcvctrl & ~INFINIPATH_R_TAILUPD);
+			dd->ipath_rcvctrl &
+			~(1ULL << dd->ipath_r_tailupd_shift));
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_rcvctrl,
 			 dd->ipath_rcvctrl);
 	/* Notify any waiting slaves */
@@ -2050,9 +2051,9 @@ static int ipath_close(struct inode *in, struct file *fp)
 	if (dd->ipath_kregbase) {
 		int i;
 		/* atomically clear receive enable port and intr avail. */
-		clear_bit(INFINIPATH_R_PORTENABLE_SHIFT + port,
+		clear_bit(dd->ipath_r_portenable_shift + port,
 			  &dd->ipath_rcvctrl);
-		clear_bit(pd->port_port + INFINIPATH_R_INTRAVAIL_SHIFT,
+		clear_bit(pd->port_port + dd->ipath_r_intravail_shift,
 			  &dd->ipath_rcvctrl);
 		ipath_write_kreg( dd, dd->ipath_kregs->kr_rcvctrl,
 			dd->ipath_rcvctrl);
