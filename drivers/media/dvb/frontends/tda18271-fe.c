@@ -406,7 +406,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	tda18271_write_regs(fe, R_EB20, 1);
 
 	/* set CAL mode to RF tracking filter calibration */
-	regs[R_EB4]  |= 0x03;
+	regs[R_EP4]  |= 0x03;
 
 	/* calculate CAL PLL */
 
