@@ -6529,6 +6529,9 @@ struct flash_spec {
 
 #define BNX2_MAX_MSIX_HW_VEC	9
 #define BNX2_MAX_MSIX_VEC	1
+#define BNX2_BASE_VEC		0
+#define BNX2_TX_VEC		1
+#define BNX2_TX_INT_NUM	(BNX2_TX_VEC << BNX2_PCICFG_INT_ACK_CMD_INT_NUM_SHIFT)
 
 struct bnx2_irq {
 	irq_handler_t	handler;
@@ -6541,6 +6544,7 @@ struct bnx2_napi {
 	struct napi_struct	napi		____cacheline_aligned;
 	struct bnx2		*bp;
 	struct status_block	*status_blk;
+	struct status_block_msix	*status_blk_msix;
 	u32 			last_status_idx;
 	u32			int_num;
 
@@ -6583,6 +6587,7 @@ struct bnx2 {
 
 	u32		tx_prod_bseq __attribute__((aligned(L1_CACHE_BYTES)));
 	u16		tx_prod;
+	u8		tx_vec;
 	u32		tx_bidx_addr;
 	u32		tx_bseq_addr;
 
