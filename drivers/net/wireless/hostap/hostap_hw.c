@@ -2448,18 +2448,16 @@ static void prism2_info(local_info_t *local)
 		goto out;
 	}
 
-	le16_to_cpus(&info.len);
-	le16_to_cpus(&info.type);
-	left = (info.len - 1) * 2;
+	left = (le16_to_cpu(info.len) - 1) * 2;
 
-	if (info.len & 0x8000 || info.len == 0 || left > 2060) {
+	if (info.len & cpu_to_le16(0x8000) || info.len == 0 || left > 2060) {
 		/* data register seems to give 0x8000 in some error cases even
 		 * though busy bit is not set in offset register;
 		 * in addition, length must be at least 1 due to type field */
 		spin_unlock(&local->baplock);
 		printk(KERN_DEBUG "%s: Received info frame with invalid "
-		       "length 0x%04x (type 0x%04x)\n", dev->name, info.len,
-		       info.type);
+		       "length 0x%04x (type 0x%04x)\n", dev->name,
+		       le16_to_cpu(info.len), le16_to_cpu(info.type));
 		goto out;
 	}
 
@@ -2476,8 +2474,8 @@ static void prism2_info(local_info_t *local)
 	{
 		spin_unlock(&local->baplock);
 		printk(KERN_WARNING "%s: Info frame read failed (fid=0x%04x, "
-		       "len=0x%04x, type=0x%04x\n",
-		       dev->name, fid, info.len, info.type);
+		       "len=0x%04x, type=0x%04x\n", dev->name, fid,
+		       le16_to_cpu(info.len), le16_to_cpu(info.type));
 		dev_kfree_skb(skb);
 		goto out;
 	}
