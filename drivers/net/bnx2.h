@@ -6512,6 +6512,14 @@ struct bnx2_napi {
 
 	u16			tx_cons;
 	u16			hw_tx_cons;
+
+	u32			rx_prod_bseq;
+	u16			rx_prod;
+	u16			rx_cons;
+
+	u16			rx_pg_prod;
+	u16			rx_pg_cons;
+
 };
 
 struct bnx2 {
@@ -6555,13 +6563,6 @@ struct bnx2 {
 	u32			rx_jumbo_thresh;
 	u32			rx_max_ring_idx;
 	u32			rx_max_pg_ring_idx;
-
-	u32			rx_prod_bseq;
-	u16			rx_prod;
-	u16			rx_cons;
-
-	u16			rx_pg_prod;
-	u16			rx_pg_cons;
 
 	u32			rx_csum;
 
