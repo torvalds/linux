@@ -101,6 +101,25 @@
 #define PCIX0_MSGOH		0x10c
 #define PCIX0_IM		0x1f8
 
+/*
+ * 4xx PCI bridge register definitions
+ */
+#define PCIL0_PMM0LA		0x00
+#define PCIL0_PMM0MA		0x04
+#define PCIL0_PMM0PCILA		0x08
+#define PCIL0_PMM0PCIHA		0x0c
+#define PCIL0_PMM1LA		0x10
+#define PCIL0_PMM1MA		0x14
+#define PCIL0_PMM1PCILA		0x18
+#define PCIL0_PMM1PCIHA		0x1c
+#define PCIL0_PMM2LA		0x20
+#define PCIL0_PMM2MA		0x24
+#define PCIL0_PMM2PCILA		0x28
+#define PCIL0_PMM2PCIHA		0x2c
+#define PCIL0_PTM1MS		0x30
+#define PCIL0_PTM1LA		0x34
+#define PCIL0_PTM2MS		0x38
+#define PCIL0_PTM2LA		0x3c
 
 
 #endif /* __PPC4XX_PCI_H__ */
