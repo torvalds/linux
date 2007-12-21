@@ -565,26 +565,33 @@ struct xfrm_audit
 };
 
 #ifdef CONFIG_AUDITSYSCALL
-static inline struct audit_buffer *xfrm_audit_start(u32 auid, u32 secid)
+static inline struct audit_buffer *xfrm_audit_start(const char *op)
 {
 	struct audit_buffer *audit_buf = NULL;
+
+	if (audit_enabled == 0)
+		return NULL;
+	audit_buf = audit_log_start(current->audit_context, GFP_ATOMIC,
+				    AUDIT_MAC_IPSEC_EVENT);
+	if (audit_buf == NULL)
+		return NULL;
+	audit_log_format(audit_buf, "op=%s", op);
+	return audit_buf;
+}
+
+static inline void xfrm_audit_helper_usrinfo(u32 auid, u32 secid,
+					     struct audit_buffer *audit_buf)
+{
 	char *secctx;
 	u32 secctx_len;
 
-	audit_buf = audit_log_start(current->audit_context, GFP_ATOMIC,
-			      AUDIT_MAC_IPSEC_EVENT);
-	if (audit_buf == NULL)
-		return NULL;
-
-	audit_log_format(audit_buf, "auid=%u", auid);
-
+	audit_log_format(audit_buf, " auid=%u", auid);
 	if (secid != 0 &&
 	    security_secid_to_secctx(secid, &secctx, &secctx_len) == 0) {
 		audit_log_format(audit_buf, " subj=%s", secctx);
 		security_release_secctx(secctx, secctx_len);
 	} else
 		audit_log_task_context(audit_buf);
-	return audit_buf;
 }
 
 extern void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
@@ -595,11 +602,22 @@ extern void xfrm_audit_state_add(struct xfrm_state *x, int result,
 				 u32 auid, u32 secid);
 extern void xfrm_audit_state_delete(struct xfrm_state *x, int result,
 				    u32 auid, u32 secid);
+extern void xfrm_audit_state_replay_overflow(struct xfrm_state *x,
+					     struct sk_buff *skb);
+extern void xfrm_audit_state_notfound_simple(struct sk_buff *skb, u16 family);
+extern void xfrm_audit_state_notfound(struct sk_buff *skb, u16 family,
+				      __be32 net_spi, __be32 net_seq);
+extern void xfrm_audit_state_icvfail(struct xfrm_state *x,
+				     struct sk_buff *skb, u8 proto);
 #else
 #define xfrm_audit_policy_add(x, r, a, s)	do { ; } while (0)
 #define xfrm_audit_policy_delete(x, r, a, s)	do { ; } while (0)
 #define xfrm_audit_state_add(x, r, a, s)	do { ; } while (0)
 #define xfrm_audit_state_delete(x, r, a, s)	do { ; } while (0)
+#define xfrm_audit_state_replay_overflow(x, s)	do { ; } while (0)
+#define xfrm_audit_state_notfound_simple(s, f)	do { ; } while (0)
+#define xfrm_audit_state_notfound(s, f, sp, sq)	do { ; } while (0)
+#define xfrm_audit_state_icvfail(x, s, p)	do { ; } while (0)
 #endif /* CONFIG_AUDITSYSCALL */
 
 static inline void xfrm_pol_hold(struct xfrm_policy *policy)
@@ -1214,7 +1232,8 @@ extern int xfrm_state_delete(struct xfrm_state *x);
 extern int xfrm_state_flush(u8 proto, struct xfrm_audit *audit_info);
 extern void xfrm_sad_getinfo(struct xfrmk_sadinfo *si);
 extern void xfrm_spd_getinfo(struct xfrmk_spdinfo *si);
-extern int xfrm_replay_check(struct xfrm_state *x, __be32 seq);
+extern int xfrm_replay_check(struct xfrm_state *x,
+			     struct sk_buff *skb, __be32 seq);
 extern void xfrm_replay_advance(struct xfrm_state *x, __be32 seq);
 extern void xfrm_replay_notify(struct xfrm_state *x, int event);
 extern int xfrm_state_mtu(struct xfrm_state *x, int mtu);

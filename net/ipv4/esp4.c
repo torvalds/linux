@@ -191,6 +191,7 @@ static int esp_input(struct xfrm_state *x, struct sk_buff *skb)
 			BUG();
 
 		if (unlikely(memcmp(esp->auth.work_icv, sum, alen))) {
+			xfrm_audit_state_icvfail(x, skb, IPPROTO_ESP);
 			err = -EBADMSG;
 			goto unlock;
 		}

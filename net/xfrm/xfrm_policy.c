@@ -2407,12 +2407,11 @@ void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
 {
 	struct audit_buffer *audit_buf;
 
-	if (audit_enabled == 0)
-		return;
-	audit_buf = xfrm_audit_start(auid, secid);
+	audit_buf = xfrm_audit_start("SPD-add");
 	if (audit_buf == NULL)
 		return;
-	audit_log_format(audit_buf, " op=SPD-add res=%u", result);
+	xfrm_audit_helper_usrinfo(auid, secid, audit_buf);
+	audit_log_format(audit_buf, " res=%u", result);
 	xfrm_audit_common_policyinfo(xp, audit_buf);
 	audit_log_end(audit_buf);
 }
@@ -2423,12 +2422,11 @@ void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
 {
 	struct audit_buffer *audit_buf;
 
-	if (audit_enabled == 0)
-		return;
-	audit_buf = xfrm_audit_start(auid, secid);
+	audit_buf = xfrm_audit_start("SPD-delete");
 	if (audit_buf == NULL)
 		return;
-	audit_log_format(audit_buf, " op=SPD-delete res=%u", result);
+	xfrm_audit_helper_usrinfo(auid, secid, audit_buf);
+	audit_log_format(audit_buf, " res=%u", result);
 	xfrm_audit_common_policyinfo(xp, audit_buf);
 	audit_log_end(audit_buf);
 }

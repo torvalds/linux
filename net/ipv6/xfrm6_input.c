@@ -152,6 +152,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 
 	if (!x) {
 		XFRM_INC_STATS(LINUX_MIB_XFRMINNOSTATES);
+		xfrm_audit_state_notfound_simple(skb, AF_INET6);
 		goto drop;
 	}
 
