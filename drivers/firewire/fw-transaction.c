@@ -650,7 +650,7 @@ fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 		 HEADER_GET_OFFSET_HIGH(p->header[1]) << 32) | p->header[2];
 	tcode       = HEADER_GET_TCODE(p->header[0]);
 	destination = HEADER_GET_DESTINATION(p->header[0]);
-	source      = HEADER_GET_SOURCE(p->header[0]);
+	source      = HEADER_GET_SOURCE(p->header[1]);
 
 	spin_lock_irqsave(&address_handler_lock, flags);
 	handler = lookup_enclosing_address_handler(&address_handler_list,
