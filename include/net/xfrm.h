@@ -242,6 +242,9 @@ struct xfrm_policy_afinfo {
 						  struct flowi *fl,
 						  int reverse);
 	int			(*get_tos)(struct flowi *fl);
+	int			(*init_path)(struct xfrm_dst *path,
+					     struct dst_entry *dst,
+					     int nfheader_len);
 	int			(*fill_dst)(struct xfrm_dst *xdst,
 					    struct net_device *dev);
 };

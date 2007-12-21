@@ -1266,6 +1266,23 @@ static inline struct xfrm_dst *xfrm_alloc_dst(int family)
 	return xdst;
 }
 
+static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
+				 int nfheader_len)
+{
+	struct xfrm_policy_afinfo *afinfo =
+		xfrm_policy_get_afinfo(dst->ops->family);
+	int err;
+
+	if (!afinfo)
+		return -EINVAL;
+
+	err = afinfo->init_path(path, dst, nfheader_len);
+
+	xfrm_policy_put_afinfo(afinfo);
+
+	return err;
+}
+
 static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
 {
 	struct xfrm_policy_afinfo *afinfo =
@@ -1298,6 +1315,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	int i = 0;
 	int err;
 	int header_len = 0;
+	int nfheader_len = 0;
 	int trailer_len = 0;
 	int tos;
 	int family = policy->selector.family;
@@ -1352,6 +1370,8 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 		dst_prev = dst1;
 
 		header_len += xfrm[i]->props.header_len;
+		if (xfrm[i]->type->flags & XFRM_TYPE_NON_FRAGMENT)
+			nfheader_len += xfrm[i]->props.header_len;
 		trailer_len += xfrm[i]->props.trailer_len;
 	}
 
@@ -1366,6 +1386,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	/* Copy neighbout for reachability confirmation */
 	dst0->neighbour = neigh_clone(dst->neighbour);
 
+	xfrm_init_path((struct xfrm_dst *)dst0, dst, nfheader_len);
 	xfrm_init_pmtu(dst_prev);
 
 	for (dst_prev = dst0; dst_prev != dst; dst_prev = dst_prev->child) {

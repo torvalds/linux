@@ -98,6 +98,20 @@ static int xfrm6_get_tos(struct flowi *fl)
 	return 0;
 }
 
+static int xfrm6_init_path(struct xfrm_dst *path, struct dst_entry *dst,
+			   int nfheader_len)
+{
+	if (dst->ops->family == AF_INET6) {
+		struct rt6_info *rt = (struct rt6_info*)dst;
+		if (rt->rt6i_node)
+			path->path_cookie = rt->rt6i_node->fn_sernum;
+	}
+
+	path->u.rt6.rt6i_nfheader_len = nfheader_len;
+
+	return 0;
+}
+
 static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
 {
 	struct rt6_info *rt = (struct rt6_info*)xdst->route;
@@ -115,6 +129,8 @@ static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
 						   RTF_LOCAL);
 	xdst->u.rt6.rt6i_metric = rt->rt6i_metric;
 	xdst->u.rt6.rt6i_node = rt->rt6i_node;
+	if (rt->rt6i_node)
+		xdst->route_cookie = rt->rt6i_node->fn_sernum;
 	xdst->u.rt6.rt6i_gateway = rt->rt6i_gateway;
 	xdst->u.rt6.rt6i_dst = rt->rt6i_dst;
 	xdst->u.rt6.rt6i_src = rt->rt6i_src;
@@ -266,6 +282,7 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.find_bundle =		__xfrm6_find_bundle,
 	.decode_session =	_decode_session6,
 	.get_tos =		xfrm6_get_tos,
+	.init_path =		xfrm6_init_path,
 	.fill_dst =		xfrm6_fill_dst,
 };
 

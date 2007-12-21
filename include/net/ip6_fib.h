@@ -101,7 +101,7 @@ struct rt6_info
 	atomic_t			rt6i_ref;
 
 	/* more non-fragment space at head required */
-	unsigned short			nfheader_len;
+	unsigned short			rt6i_nfheader_len;
 
 	u8				rt6i_protocol;
 
