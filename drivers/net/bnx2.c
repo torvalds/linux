@@ -7313,7 +7313,7 @@ bnx2_bus_string(struct bnx2 *bp, char *str)
 	return str;
 }
 
-static int __devinit
+static void __devinit
 bnx2_init_napi(struct bnx2 *bp)
 {
 	int i;
