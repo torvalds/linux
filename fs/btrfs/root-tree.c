@@ -179,6 +179,11 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	ret = btrfs_search_slot(trans, root, key, path, -1, 1);
 	if (ret < 0)
 		goto out;
+	if (ret) {
+btrfs_print_leaf(root, path->nodes[0]);
+printk("failed to del %Lu %u %Lu\n", key->objectid, key->type, key->offset);
+
+	}
 	BUG_ON(ret != 0);
 	leaf = path->nodes[0];
 	ri = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_item);

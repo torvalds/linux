@@ -2346,7 +2346,7 @@ fail_unlock:
 	return ret;
 }
 
-static unsigned long force_ra(struct address_space *mapping,
+unsigned long btrfs_force_ra(struct address_space *mapping,
 			      struct file_ra_state *ra, struct file *file,
 			      pgoff_t offset, pgoff_t last_index)
 {
@@ -2372,6 +2372,8 @@ int btrfs_defrag_file(struct file *file) {
 	unsigned long ra_index = 0;
 	u64 page_start;
 	u64 page_end;
+	u64 delalloc_start;
+	u64 existing_delalloc;
 	unsigned long i;
 	int ret;
 
@@ -2385,8 +2387,9 @@ int btrfs_defrag_file(struct file *file) {
 	last_index = inode->i_size >> PAGE_CACHE_SHIFT;
 	for (i = 0; i <= last_index; i++) {
 		if (i == ra_index) {
-			ra_index = force_ra(inode->i_mapping, &file->f_ra,
-					    file, ra_index, last_index);
+			ra_index = btrfs_force_ra(inode->i_mapping,
+						  &file->f_ra,
+						  file, ra_index, last_index);
 		}
 		page = grab_cache_page(inode->i_mapping, i);
 		if (!page)
@@ -2404,8 +2407,19 @@ int btrfs_defrag_file(struct file *file) {
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
 
 		lock_extent(em_tree, page_start, page_end, GFP_NOFS);
+		delalloc_start = page_start;
+		existing_delalloc =
+			count_range_bits(&BTRFS_I(inode)->extent_tree,
+					 &delalloc_start, page_end,
+					 PAGE_CACHE_SIZE, EXTENT_DELALLOC);
 		set_extent_delalloc(em_tree, page_start,
 				    page_end, GFP_NOFS);
+
+		spin_lock(&root->fs_info->delalloc_lock);
+		root->fs_info->delalloc_bytes += PAGE_CACHE_SIZE -
+						 existing_delalloc;
+		spin_unlock(&root->fs_info->delalloc_lock);
+
 		unlock_extent(em_tree, page_start, page_end, GFP_NOFS);
 		set_page_dirty(page);
 		unlock_page(page);
@@ -2416,6 +2430,89 @@ int btrfs_defrag_file(struct file *file) {
 out_unlock:
 	mutex_unlock(&inode->i_mutex);
 	return 0;
+}
+
+static int btrfs_ioctl_resize(struct btrfs_root *root, void __user *arg)
+{
+	u64 new_size;
+	u64 old_size;
+	struct btrfs_ioctl_vol_args *vol_args;
+	struct btrfs_trans_handle *trans;
+	char *sizestr;
+	int ret = 0;
+	int namelen;
+	int mod = 0;
+
+	vol_args = kmalloc(sizeof(*vol_args), GFP_NOFS);
+
+	if (!vol_args)
+		return -ENOMEM;
+
+	if (copy_from_user(vol_args, arg, sizeof(*vol_args))) {
+		ret = -EFAULT;
+		goto out;
+	}
+	namelen = strlen(vol_args->name);
+	if (namelen > BTRFS_VOL_NAME_MAX) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	sizestr = vol_args->name;
+	if (!strcmp(sizestr, "max"))
+		new_size = root->fs_info->sb->s_bdev->bd_inode->i_size;
+	else {
+		if (sizestr[0] == '-') {
+			mod = -1;
+			sizestr++;
+		} else if (sizestr[0] == '+') {
+			mod = 1;
+			sizestr++;
+		}
+		new_size = btrfs_parse_size(sizestr);
+		if (new_size == 0) {
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	old_size = btrfs_super_total_bytes(&root->fs_info->super_copy);
+
+	if (mod < 0) {
+		if (new_size > old_size) {
+			ret = -EINVAL;
+			goto out_unlock;
+		}
+		new_size = old_size - new_size;
+	} else if (mod > 0) {
+		new_size = old_size + new_size;
+	}
+
+	if (new_size < 256 * 1024 * 1024) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+	if (new_size > root->fs_info->sb->s_bdev->bd_inode->i_size) {
+		ret = -EFBIG;
+		goto out_unlock;
+	}
+	new_size = (new_size / root->sectorsize) * root->sectorsize;
+
+printk("new size is %Lu\n", new_size);
+	if (new_size > old_size) {
+		trans = btrfs_start_transaction(root, 1);
+		ret = btrfs_grow_extent_tree(trans, root, new_size);
+		btrfs_commit_transaction(trans, root);
+	} else {
+		ret = btrfs_shrink_extent_tree(root, new_size);
+	}
+
+out_unlock:
+	mutex_unlock(&root->fs_info->fs_mutex);
+out:
+	kfree(vol_args);
+	return ret;
 }
 
 static int btrfs_ioctl_snap_create(struct btrfs_root *root, void __user *arg)
@@ -2510,6 +2607,8 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_snap_create(root, (void __user *)arg);
 	case BTRFS_IOC_DEFRAG:
 		return btrfs_ioctl_defrag(file);
+	case BTRFS_IOC_RESIZE:
+		return btrfs_ioctl_resize(root, (void __user *)arg);
 	}
 
 	return -ENOTTY;

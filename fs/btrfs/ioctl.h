@@ -30,4 +30,6 @@ struct btrfs_ioctl_vol_args {
 				   struct btrfs_ioctl_vol_args)
 #define BTRFS_IOC_DEFRAG _IOW(BTRFS_IOCTL_MAGIC, 2, \
 				   struct btrfs_ioctl_vol_args)
+#define BTRFS_IOC_RESIZE _IOW(BTRFS_IOCTL_MAGIC, 3, \
+				   struct btrfs_ioctl_vol_args)
 #endif

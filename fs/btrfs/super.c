@@ -74,9 +74,9 @@ static match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static unsigned long parse_size(char *str)
+u64 btrfs_parse_size(char *str)
 {
-	unsigned long res;
+	u64 res;
 	int mult = 1;
 	char *end;
 	char last;
@@ -150,7 +150,8 @@ static int parse_options (char * options,
 			if (info) {
 				char *num = match_strdup(&args[0]);
 				if (num) {
-					info->max_extent = parse_size(num);
+					info->max_extent =
+						btrfs_parse_size(num);
 					kfree(num);
 
 					info->max_extent = max_t(u64,

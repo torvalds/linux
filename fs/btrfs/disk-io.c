@@ -471,12 +471,16 @@ insert:
 	return root;
 }
 
-struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
-				      struct btrfs_key *location,
-				      const char *name, int namelen)
+struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
+					      struct btrfs_key *location)
 {
 	struct btrfs_root *root;
 	int ret;
+
+	if (location->objectid == BTRFS_ROOT_TREE_OBJECTID)
+		return fs_info->tree_root;
+	if (location->objectid == BTRFS_EXTENT_TREE_OBJECTID)
+		return fs_info->extent_root;
 
 	root = radix_tree_lookup(&fs_info->fs_roots_radix,
 				 (unsigned long)location->objectid);
@@ -494,6 +498,23 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
+	ret = btrfs_find_dead_roots(fs_info->tree_root,
+				    root->root_key.objectid, root);
+	BUG_ON(ret);
+
+	return root;
+}
+
+struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
+				      struct btrfs_key *location,
+				      const char *name, int namelen)
+{
+	struct btrfs_root *root;
+	int ret;
+
+	root = btrfs_read_fs_root_no_name(fs_info, location);
+	if (!root)
+		return NULL;
 
 	ret = btrfs_set_root_name(root, name, namelen);
 	if (ret) {
@@ -509,11 +530,6 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 		kfree(root);
 		return ERR_PTR(ret);
 	}
-
-	ret = btrfs_find_dead_roots(fs_info->tree_root,
-				    root->root_key.objectid, root);
-	BUG_ON(ret);
-
 	return root;
 }
 #if 0

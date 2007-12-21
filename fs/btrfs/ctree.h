@@ -508,6 +508,8 @@ BTRFS_SETGET_STACK_FUNCS(block_group_used, struct btrfs_block_group_item,
 			 used, 64);
 BTRFS_SETGET_FUNCS(disk_block_group_used, struct btrfs_block_group_item,
 			 used, 64);
+BTRFS_SETGET_FUNCS(disk_block_group_flags, struct btrfs_block_group_item,
+		   flags, 8);
 
 /* struct btrfs_inode_ref */
 BTRFS_SETGET_FUNCS(inode_ref_name_len, struct btrfs_inode_ref, name_len, 16);
@@ -960,6 +962,9 @@ struct extent_buffer *__btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					     int level,
 					     u64 hint,
 					     u64 empty_size);
+int btrfs_grow_extent_tree(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root, u64 new_size);
+int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size);
 int btrfs_insert_extent_backref(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
 				 struct btrfs_path *path, u64 bytenr,
@@ -1117,6 +1122,9 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+unsigned long btrfs_force_ra(struct address_space *mapping,
+			      struct file_ra_state *ra, struct file *file,
+			      pgoff_t offset, pgoff_t last_index);
 int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
 			   int for_del);
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page);
@@ -1162,4 +1170,6 @@ void btrfs_sysfs_del_super(struct btrfs_fs_info *root);
 ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int btrfs_delete_xattrs(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct inode *inode);
+/* super.c */
+u64 btrfs_parse_size(char *str);
 #endif

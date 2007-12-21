@@ -39,6 +39,8 @@ struct btrfs_root *btrfs_read_fs_root(struct btrfs_fs_info *fs_info,
 				      const char *name, int namelen);
 struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
 					       struct btrfs_key *location);
+struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
+					      struct btrfs_key *location);
 int btrfs_insert_dev_radix(struct btrfs_root *root,
 			   struct block_device *bdev,
 			   u64 device_id,
