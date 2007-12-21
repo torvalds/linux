@@ -6494,6 +6494,15 @@ struct flash_spec {
 	u8  *name;
 };
 
+#define BNX2_MAX_MSIX_HW_VEC	9
+#define BNX2_MAX_MSIX_VEC	1
+
+struct bnx2_irq {
+	irq_handler_t	handler;
+	u16		vector;
+	char		name[16];
+};
+
 struct bnx2 {
 	/* Fields used in the tx and intr/napi performance paths are grouped */
 	/* together in the beginning of the structure. */
@@ -6721,6 +6730,9 @@ struct bnx2 {
 	u32			flash_size;
 
 	int			status_stats_size;
+
+	struct bnx2_irq		irq_tbl[BNX2_MAX_MSIX_VEC];
+	int			irq_nvecs;
 };
 
 static u32 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset);

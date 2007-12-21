@@ -5234,18 +5234,15 @@ static int
 bnx2_request_irq(struct bnx2 *bp)
 {
 	struct net_device *dev = bp->dev;
-	int rc = 0;
+	unsigned long flags;
+	struct bnx2_irq *irq = &bp->irq_tbl[0];
+	int rc;
 
-	if (bp->flags & USING_MSI_FLAG) {
-		irq_handler_t	fn = bnx2_msi;
-
-		if (bp->flags & ONE_SHOT_MSI_FLAG)
-			fn = bnx2_msi_1shot;
-
-		rc = request_irq(bp->pdev->irq, fn, 0, dev->name, dev);
-	} else
-		rc = request_irq(bp->pdev->irq, bnx2_interrupt,
-				 IRQF_SHARED, dev->name, dev);
+	if (bp->flags & USING_MSI_FLAG)
+		flags = 0;
+	else
+		flags = IRQF_SHARED;
+	rc = request_irq(irq->vector, irq->handler, flags, dev->name, dev);
 	return rc;
 }
 
@@ -5254,12 +5251,31 @@ bnx2_free_irq(struct bnx2 *bp)
 {
 	struct net_device *dev = bp->dev;
 
+	free_irq(bp->irq_tbl[0].vector, dev);
 	if (bp->flags & USING_MSI_FLAG) {
-		free_irq(bp->pdev->irq, dev);
 		pci_disable_msi(bp->pdev);
 		bp->flags &= ~(USING_MSI_FLAG | ONE_SHOT_MSI_FLAG);
-	} else
-		free_irq(bp->pdev->irq, dev);
+	}
+}
+
+static void
+bnx2_setup_int_mode(struct bnx2 *bp, int dis_msi)
+{
+	bp->irq_tbl[0].handler = bnx2_interrupt;
+	strcpy(bp->irq_tbl[0].name, bp->dev->name);
+
+	if ((bp->flags & MSI_CAP_FLAG) && !dis_msi) {
+		if (pci_enable_msi(bp->pdev) == 0) {
+			bp->flags |= USING_MSI_FLAG;
+			if (CHIP_NUM(bp) == CHIP_NUM_5709) {
+				bp->flags |= ONE_SHOT_MSI_FLAG;
+				bp->irq_tbl[0].handler = bnx2_msi_1shot;
+			} else
+				bp->irq_tbl[0].handler = bnx2_msi;
+		}
+	}
+
+	bp->irq_tbl[0].vector = bp->pdev->irq;
 }
 
 /* Called with rtnl_lock */
@@ -5278,15 +5294,8 @@ bnx2_open(struct net_device *dev)
 	if (rc)
 		return rc;
 
+	bnx2_setup_int_mode(bp, disable_msi);
 	napi_enable(&bp->napi);
-
-	if ((bp->flags & MSI_CAP_FLAG) && !disable_msi) {
-		if (pci_enable_msi(bp->pdev) == 0) {
-			bp->flags |= USING_MSI_FLAG;
-			if (CHIP_NUM(bp) == CHIP_NUM_5709)
-				bp->flags |= ONE_SHOT_MSI_FLAG;
-		}
-	}
 	rc = bnx2_request_irq(bp);
 
 	if (rc) {
@@ -5324,6 +5333,8 @@ bnx2_open(struct net_device *dev)
 
 			bnx2_disable_int(bp);
 			bnx2_free_irq(bp);
+
+			bnx2_setup_int_mode(bp, 1);
 
 			rc = bnx2_init_nic(bp);
 
