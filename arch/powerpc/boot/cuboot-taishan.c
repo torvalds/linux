@@ -34,9 +34,7 @@ static void taishan_fixups(void)
 	   registers */
 	unsigned long sysclk = 33000000;
 
-	/* 440EP Clock logic is all but identical to 440GX
-	   so we just use that code for now at least */
-	ibm440ep_fixup_clocks(sysclk, 6 * 1843200);
+	ibm440gx_fixup_clocks(sysclk, 6 * 1843200, 25000000);
 
 	ibm4xx_sdram_fixup_memsize();
 
