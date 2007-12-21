@@ -24,26 +24,4 @@
 
 #include "dvb_frontend.h"
 
-struct analog_demod_info {
-	char *name;
-};
-
-struct analog_tuner_ops {
-
-	struct analog_demod_info info;
-
-	void (*set_params)(struct dvb_frontend *fe,
-			   struct analog_parameters *params);
-	int  (*has_signal)(struct dvb_frontend *fe);
-	int  (*is_stereo)(struct dvb_frontend *fe);
-	int  (*get_afc)(struct dvb_frontend *fe);
-	void (*tuner_status)(struct dvb_frontend *fe);
-	void (*standby)(struct dvb_frontend *fe);
-	void (*release)(struct dvb_frontend *fe);
-	int  (*i2c_gate_ctrl)(struct dvb_frontend *fe, int enable);
-
-	/** This is to allow setting tuner-specific configuration */
-	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
-};
-
 #endif /* __TUNER_DRIVER_H__ */

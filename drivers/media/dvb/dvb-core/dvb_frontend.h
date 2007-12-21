@@ -62,8 +62,6 @@ struct dvb_tuner_info {
 	u32 bandwidth_step;
 };
 
-struct analog_tuner_ops;
-
 struct analog_parameters {
 	unsigned int frequency;
 	unsigned int mode;
@@ -101,6 +99,28 @@ struct dvb_tuner_ops {
 	 * tuners which require sophisticated tuning loops, controlling each parameter seperately. */
 	int (*set_frequency)(struct dvb_frontend *fe, u32 frequency);
 	int (*set_bandwidth)(struct dvb_frontend *fe, u32 bandwidth);
+};
+
+struct analog_demod_info {
+	char *name;
+};
+
+struct analog_tuner_ops {
+
+	struct analog_demod_info info;
+
+	void (*set_params)(struct dvb_frontend *fe,
+			   struct analog_parameters *params);
+	int  (*has_signal)(struct dvb_frontend *fe);
+	int  (*is_stereo)(struct dvb_frontend *fe);
+	int  (*get_afc)(struct dvb_frontend *fe);
+	void (*tuner_status)(struct dvb_frontend *fe);
+	void (*standby)(struct dvb_frontend *fe);
+	void (*release)(struct dvb_frontend *fe);
+	int  (*i2c_gate_ctrl)(struct dvb_frontend *fe, int enable);
+
+	/** This is to allow setting tuner-specific configuration */
+	int (*set_config)(struct dvb_frontend *fe, void *priv_cfg);
 };
 
 struct dvb_frontend_ops {
