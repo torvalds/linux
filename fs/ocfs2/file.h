@@ -32,6 +32,12 @@ extern const struct inode_operations ocfs2_file_iops;
 extern const struct inode_operations ocfs2_special_file_iops;
 struct ocfs2_alloc_context;
 
+struct ocfs2_file_private {
+	struct file		*fp_file;
+	struct mutex		fp_mutex;
+	struct ocfs2_lock_res	fp_flock;
+};
+
 enum ocfs2_alloc_restarted {
 	RESTART_NONE = 0,
 	RESTART_TRANS,

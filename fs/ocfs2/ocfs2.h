@@ -101,6 +101,7 @@ enum ocfs2_unlock_action {
 					       * about to be
 					       * dropped. */
 #define OCFS2_LOCK_QUEUED        (0x00000100) /* queued for downconvert */
+#define OCFS2_LOCK_NOCACHE       (0x00000200) /* don't use a holder count */
 
 struct ocfs2_lock_res_ops;
 

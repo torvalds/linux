@@ -66,6 +66,9 @@ void ocfs2_inode_lock_res_init(struct ocfs2_lock_res *res,
 			       struct inode *inode);
 void ocfs2_dentry_lock_res_init(struct ocfs2_dentry_lock *dl,
 				u64 parent, struct inode *inode);
+struct ocfs2_file_private;
+void ocfs2_file_lock_res_init(struct ocfs2_lock_res *lockres,
+			      struct ocfs2_file_private *fp);
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res);
 int ocfs2_create_new_inode_locks(struct inode *inode);
 int ocfs2_drop_inode_locks(struct inode *inode);
@@ -98,6 +101,8 @@ int ocfs2_rename_lock(struct ocfs2_super *osb);
 void ocfs2_rename_unlock(struct ocfs2_super *osb);
 int ocfs2_dentry_lock(struct dentry *dentry, int ex);
 void ocfs2_dentry_unlock(struct dentry *dentry, int ex);
+int ocfs2_file_lock(struct file *file, int ex, int trylock);
+void ocfs2_file_unlock(struct file *file);
 
 void ocfs2_mark_lockres_freeing(struct ocfs2_lock_res *lockres);
 void ocfs2_simple_drop_lockres(struct ocfs2_super *osb,
