@@ -166,6 +166,7 @@ config PPC_OF_PLATFORM_PCI
 
 source "init/Kconfig"
 
+source "arch/powerpc/sysdev/Kconfig"
 source "arch/powerpc/platforms/Kconfig"
 
 menu "Kernel options"
