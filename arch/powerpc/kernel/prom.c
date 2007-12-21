@@ -614,6 +614,29 @@ static struct feature_property {
 #endif /* CONFIG_PPC64 */
 };
 
+#if defined(CONFIG_44x) && defined(CONFIG_PPC_FPU)
+static inline void identical_pvr_fixup(unsigned long node)
+{
+	unsigned int pvr;
+	char *model = of_get_flat_dt_prop(node, "model", NULL);
+
+	/*
+	 * Since 440GR(x)/440EP(x) processors have the same pvr,
+	 * we check the node path and set bit 28 in the cur_cpu_spec
+	 * pvr for EP(x) processor version. This bit is always 0 in
+	 * the "real" pvr. Then we call identify_cpu again with
+	 * the new logical pvr to enable FPU support.
+	 */
+	if (model && strstr(model, "440EP")) {
+		pvr = cur_cpu_spec->pvr_value | 0x8;
+		identify_cpu(0, pvr);
+		DBG("Using logical pvr %x for %s\n", pvr, model);
+	}
+}
+#else
+#define identical_pvr_fixup(node) do { } while(0)
+#endif
+
 static void __init check_cpu_feature_properties(unsigned long node)
 {
 	unsigned long i;
@@ -711,18 +734,8 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		prop = of_get_flat_dt_prop(node, "cpu-version", NULL);
 		if (prop && (*prop & 0xff000000) == 0x0f000000)
 			identify_cpu(0, *prop);
-#if defined(CONFIG_44x) && defined(CONFIG_PPC_FPU)
-		/*
-		 * Since 440GR(x)/440EP(x) processors have the same pvr,
-		 * we check the node path and set bit 28 in the cur_cpu_spec
-		 * pvr for EP(x) processor version. This bit is always 0 in
-		 * the "real" pvr. Then we call identify_cpu again with
-		 * the new logical pvr to enable FPU support.
-		 */
-		if (strstr(uname, "440EP")) {
-			identify_cpu(0, cur_cpu_spec->pvr_value | 0x8);
-		}
-#endif
+
+		identical_pvr_fixup(node);
 	}
 
 	check_cpu_feature_properties(node);
