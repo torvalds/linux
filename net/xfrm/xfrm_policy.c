@@ -27,10 +27,18 @@
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
+#ifdef CONFIG_XFRM_STATISTICS
+#include <net/snmp.h>
+#endif
 
 #include "xfrm_hash.h"
 
 int sysctl_xfrm_larval_drop __read_mostly;
+
+#ifdef CONFIG_XFRM_STATISTICS
+DEFINE_SNMP_STAT(struct linux_xfrm_mib, xfrm_statistics) __read_mostly;
+EXPORT_SYMBOL(xfrm_statistics);
+#endif
 
 DEFINE_MUTEX(xfrm_cfg_mutex);
 EXPORT_SYMBOL(xfrm_cfg_mutex);
@@ -2258,6 +2266,16 @@ static struct notifier_block xfrm_dev_notifier = {
 	0
 };
 
+#ifdef CONFIG_XFRM_STATISTICS
+static int __init xfrm_statistics_init(void)
+{
+	if (snmp_mib_init((void **)xfrm_statistics,
+			  sizeof(struct linux_xfrm_mib)) < 0)
+		return -ENOMEM;
+	return 0;
+}
+#endif
+
 static void __init xfrm_policy_init(void)
 {
 	unsigned int hmask, sz;
@@ -2294,9 +2312,15 @@ static void __init xfrm_policy_init(void)
 
 void __init xfrm_init(void)
 {
+#ifdef CONFIG_XFRM_STATISTICS
+	xfrm_statistics_init();
+#endif
 	xfrm_state_init();
 	xfrm_policy_init();
 	xfrm_input_init();
+#ifdef CONFIG_XFRM_STATISTICS
+	xfrm_proc_init();
+#endif
 }
 
 #ifdef CONFIG_AUDITSYSCALL

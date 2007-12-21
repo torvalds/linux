@@ -118,6 +118,11 @@ struct linux_mib {
 	unsigned long	mibs[LINUX_MIB_MAX];
 };
 
+/* Linux Xfrm */
+#define LINUX_MIB_XFRMMAX	__LINUX_MIB_XFRMMAX
+struct linux_xfrm_mib {
+	unsigned long	mibs[LINUX_MIB_XFRMMAX];
+};
 
 /* 
  * FIXME: On x86 and some other CPUs the split into user and softirq parts

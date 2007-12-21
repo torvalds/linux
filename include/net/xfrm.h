@@ -19,6 +19,9 @@
 #include <net/route.h>
 #include <net/ipv6.h>
 #include <net/ip6_fib.h>
+#ifdef CONFIG_XFRM_STATISTICS
+#include <net/snmp.h>
+#endif
 
 #define XFRM_PROTO_ESP		50
 #define XFRM_PROTO_AH		51
@@ -33,6 +36,17 @@
 	MODULE_ALIAS("xfrm-mode-" __stringify(family) "-" __stringify(encap))
 #define MODULE_ALIAS_XFRM_TYPE(family, proto) \
 	MODULE_ALIAS("xfrm-type-" __stringify(family) "-" __stringify(proto))
+
+#ifdef CONFIG_XFRM_STATISTICS
+DECLARE_SNMP_STAT(struct linux_xfrm_mib, xfrm_statistics);
+#define XFRM_INC_STATS(field)		SNMP_INC_STATS(xfrm_statistics, field)
+#define XFRM_INC_STATS_BH(field)	SNMP_INC_STATS_BH(xfrm_statistics, field)
+#define XFRM_INC_STATS_USER(field) 	SNMP_INC_STATS_USER(xfrm_statistics, field)
+#else
+#define XFRM_INC_STATS(field)
+#define XFRM_INC_STATS_BH(field)
+#define XFRM_INC_STATS_USER(field)
+#endif
 
 extern struct sock *xfrm_nl;
 extern u32 sysctl_xfrm_aevent_etime;
@@ -1137,6 +1151,10 @@ static inline void xfrm6_fini(void)
 {
 	;
 }
+#endif
+
+#ifdef CONFIG_XFRM_STATISTICS
+extern int xfrm_proc_init(void);
 #endif
 
 extern int xfrm_state_walk(u8 proto, int (*func)(struct xfrm_state *, int, void*), void *);
