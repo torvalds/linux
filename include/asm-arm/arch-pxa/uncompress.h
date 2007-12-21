@@ -12,10 +12,7 @@
 #include <linux/serial_reg.h>
 #include <asm/arch/pxa-regs.h>
 
-#define FFUART		((volatile unsigned long *)0x40100000)
-#define BTUART		((volatile unsigned long *)0x40200000)
-#define STUART		((volatile unsigned long *)0x40700000)
-#define HWUART		((volatile unsigned long *)0x41600000)
+#define __REG(x)	((volatile unsigned long *)x)
 
 #define UART		FFUART
 
