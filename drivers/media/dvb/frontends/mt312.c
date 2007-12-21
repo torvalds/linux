@@ -183,7 +183,7 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 
 		monitor = (buf[0] << 8) | buf[1];
 
-		dprintk(KERN_DEBUG "sr(auto) = %u\n",
+		dprintk("sr(auto) = %u\n",
 		       mt312_div(monitor * 15625, 4));
 	} else {
 		if ((ret = mt312_writereg(state, MON_CTRL, 0x05)) < 0)
@@ -200,9 +200,9 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 
 		sym_rat_op = (buf[0] << 8) | buf[1];
 
-		dprintk(KERN_DEBUG "sym_rat_op=%d dec_ratio=%d\n",
+		dprintk("sym_rat_op=%d dec_ratio=%d\n",
 		       sym_rat_op, dec_ratio);
-		dprintk(KERN_DEBUG "*sr(manual) = %lu\n",
+		dprintk("*sr(manual) = %lu\n",
 		       (((MT312_PLL_CLK * 8192) / (sym_rat_op + 8192)) *
 			2) - dec_ratio);
 	}
@@ -383,7 +383,7 @@ static int mt312_read_status(struct dvb_frontend *fe, fe_status_t *s)
 	if ((ret = mt312_read(state, QPSK_STAT_H, status, sizeof(status))) < 0)
 		return ret;
 
-	dprintk(KERN_DEBUG "QPSK_STAT_H: 0x%02x, QPSK_STAT_L: 0x%02x,"
+	dprintk("QPSK_STAT_H: 0x%02x, QPSK_STAT_L: 0x%02x,"
 		" FEC_STATUS: 0x%02x\n", status[0], status[1], status[2]);
 
 	if (status[0] & 0xc0)
@@ -431,7 +431,7 @@ static int mt312_read_signal_strength(struct dvb_frontend *fe,
 
 	*signal_strength = agc;
 
-	dprintk(KERN_DEBUG "agc=%08x err_db=%hd\n", agc, err_db);
+	dprintk("agc=%08x err_db=%hd\n", agc, err_db);
 
 	return 0;
 }
