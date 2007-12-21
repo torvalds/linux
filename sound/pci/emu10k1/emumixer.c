@@ -2026,7 +2026,7 @@ int __devinit snd_emu10k1_mixer(struct snd_emu10k1 *emu,
 		if (err < 0)
 			return err;
 
-	} else {
+	} else if (emu->card_capabilities->emu_model) {
 		/* all other e-mu cards for now */
 		int i;
 
