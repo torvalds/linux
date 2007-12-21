@@ -387,7 +387,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	 */
 	r = FNAME(walk_addr)(&walker, vcpu, addr, write_fault, user_fault,
 			     fetch_fault);
-	up_read(&current->mm->mmap_sem);
 
 	/*
 	 * The page is not mapped by the guest.  Let the guest handle it.
@@ -396,12 +395,13 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		pgprintk("%s: guest page fault\n", __FUNCTION__);
 		inject_page_fault(vcpu, addr, walker.error_code);
 		vcpu->arch.last_pt_write_count = 0; /* reset fork detector */
+		up_read(&current->mm->mmap_sem);
 		return 0;
 	}
 
 	page = gfn_to_page(vcpu->kvm, walker.gfn);
 
-	mutex_lock(&vcpu->kvm->lock);
+	spin_lock(&vcpu->kvm->mmu_lock);
 	shadow_pte = FNAME(fetch)(vcpu, addr, &walker, user_fault, write_fault,
 				  &write_pt, page);
 	pgprintk("%s: shadow pte %p %llx ptwrite %d\n", __FUNCTION__,
@@ -414,13 +414,15 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 	 * mmio: emulate if accessible, otherwise its a guest fault.
 	 */
 	if (shadow_pte && is_io_pte(*shadow_pte)) {
-		mutex_unlock(&vcpu->kvm->lock);
+		spin_unlock(&vcpu->kvm->mmu_lock);
+		up_read(&current->mm->mmap_sem);
 		return 1;
 	}
 
 	++vcpu->stat.pf_fixed;
 	kvm_mmu_audit(vcpu, "post page fault (fixed)");
-	mutex_unlock(&vcpu->kvm->lock);
+	spin_unlock(&vcpu->kvm->mmu_lock);
+	up_read(&current->mm->mmap_sem);
 
 	return write_pt;
 }

@@ -165,6 +165,7 @@ static struct kvm *kvm_create_vm(void)
 
 	kvm->mm = current->mm;
 	atomic_inc(&kvm->mm->mm_count);
+	spin_lock_init(&kvm->mmu_lock);
 	kvm_io_bus_init(&kvm->pio_bus);
 	mutex_init(&kvm->lock);
 	kvm_io_bus_init(&kvm->mmio_bus);
@@ -552,9 +553,7 @@ int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,
 	addr = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(addr))
 		return -EFAULT;
-	pagefault_disable();
 	r = __copy_from_user_inatomic(data, (void __user *)addr + offset, len);
-	pagefault_enable();
 	if (r)
 		return -EFAULT;
 	return 0;
