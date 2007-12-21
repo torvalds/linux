@@ -1642,6 +1642,14 @@ struct snd_emu10k1_midi {
 	void (*interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 };
 
+enum {
+	EMU_MODEL_SB,
+	EMU_MODEL_EMU1010,
+	EMU_MODEL_EMU1010B,
+	EMU_MODEL_EMU1616,
+	EMU_MODEL_EMU0404,
+};
+
 struct snd_emu_chip_details {
 	u32 vendor;
 	u32 device;

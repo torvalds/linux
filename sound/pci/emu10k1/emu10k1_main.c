@@ -725,15 +725,18 @@ int emu1010_firmware_thread(void *data) {
 			/* Return to Audio Dock programming mode */
 			snd_printk(KERN_INFO "emu1010: Loading Audio Dock Firmware\n");
 			snd_emu1010_fpga_write(emu,  EMU_HANA_FPGA_CONFIG, EMU_HANA_FPGA_CONFIG_AUDIODOCK );
-			if (emu->card_capabilities->emu_model == 1) {
+			if (emu->card_capabilities->emu_model ==
+			    EMU_MODEL_EMU1010) {
 				if ((err = snd_emu1010_load_firmware(emu, DOCK_FILENAME)) != 0) {
 					continue;
 				}
-			} else if (emu->card_capabilities->emu_model == 2) {
+			} else if (emu->card_capabilities->emu_model ==
+				   EMU_MODEL_EMU1010B) {
 				if ((err = snd_emu1010_load_firmware(emu, MICRO_DOCK_FILENAME)) != 0) {
 					continue;
 				}
-			} else if (emu->card_capabilities->emu_model == 3) {
+			} else if (emu->card_capabilities->emu_model ==
+				   EMU_MODEL_EMU1616) {
 				if ((err = snd_emu1010_load_firmware(emu, MICRO_DOCK_FILENAME)) != 0) {
 					continue;
 				}
@@ -845,16 +848,16 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 	}
 	snd_printk(KERN_INFO "emu1010: EMU_HANA_ID=0x%x\n",reg);
 	switch (emu->card_capabilities->emu_model) {
-	case 1:
+	case EMU_MODEL_EMU1010:
 		filename = HANA_FILENAME;
 		break;
-	case 2:
+	case EMU_MODEL_EMU1010B:
 		filename = EMU1010B_FILENAME;
 		break;
-	case 3:
+	case EMU_MODEL_EMU1616:
 		filename = EMU1010_NOTEBOOK_FILENAME;
 		break;
-	case 4:
+	case EMU_MODEL_EMU0404:
 		filename = EMU0404_FILENAME;
 		break;
 	default:
@@ -1103,7 +1106,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 * emu)
 		EMU_DST_HANA_SPDIF_RIGHT1, EMU_SRC_ALICE_EMU32A + 3); /* ALICE2 bus 0xb3 */
 #endif
 	/* Default outputs */
-	if (emu->card_capabilities->emu_model == 3) {
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1616) {
 		/* 1616(M) cardbus default outputs */
 		/* ALICE2 bus 0xa0 */
 		snd_emu1010_fpga_link_dst_src_write(emu,
@@ -1250,7 +1253,7 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 		}
 		snd_emu10k1_free_efx(emu);
        	}
-	if (emu->card_capabilities->emu_model == 1) {
+	if (emu->card_capabilities->emu_model == EMU_MODEL_EMU1010) {
 		/* Disable 48Volt power to Audio Dock */
 		snd_emu1010_fpga_write(emu,  EMU_HANA_DOCK_PWR,  0 );
 	}
@@ -1394,7 +1397,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .spk71 = 1,
-	 .emu_model = 4} , /* EMU 0404 */
+	 .emu_model = EMU_MODEL_EMU0404} , /* EMU 0404 */
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x42011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 Notebook [MAEM8950]", 
@@ -1403,7 +1406,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .ca_cardbus_chip = 1,
 	 .spk71 = 1 ,
-	 .emu_model = 3} ,
+	 .emu_model = EMU_MODEL_EMU1616},
 	/* Tested by James@superbug.co.uk 4th Nov 2007. */
 	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40041102,
 	 .driver = "Audigy2", .name = "E-mu 1010b PCI [MAEM????]", 
@@ -1411,7 +1414,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
-	 .emu_model = 2} ,
+	 .emu_model = EMU_MODEL_EMU1010B},
 	/* Tested by James@superbug.co.uk 8th July 2005. */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
 	 .driver = "Audigy2", .name = "E-mu 1010 [4001]",
@@ -1419,7 +1422,7 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .emu10k2_chip = 1,
 	 .ca0102_chip = 1,
 	 .spk71 = 1,
-	 .emu_model = 1} , /* Emu 1010 */
+	 .emu_model = EMU_MODEL_EMU1010} , /* Emu 1010 */
 	/* Audigy4 (Not PRO) SB0610 */
 	{.vendor = 0x1102, .device = 0x0008, 
 	 .driver = "Audigy2", .name = "Audigy 2 Value [Unknown]", 
