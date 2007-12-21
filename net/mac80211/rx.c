@@ -1746,6 +1746,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 				       prev->dev->name);
 			continue;
 		}
+		rx.fc = le16_to_cpu(hdr->frame_control);
 		rx.skb = skb_new;
 		rx.dev = prev->dev;
 		rx.sdata = prev;
@@ -1754,6 +1755,7 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 		prev = sdata;
 	}
 	if (prev) {
+		rx.fc = le16_to_cpu(hdr->frame_control);
 		rx.skb = skb;
 		rx.dev = prev->dev;
 		rx.sdata = prev;
