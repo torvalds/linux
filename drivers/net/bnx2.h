@@ -6509,6 +6509,9 @@ struct bnx2_napi {
 	struct status_block	*status_blk;
 	u32 			last_status_idx;
 	u32			int_num;
+
+	u16			tx_cons;
+	u16			hw_tx_cons;
 };
 
 struct bnx2 {
@@ -6538,9 +6541,6 @@ struct bnx2 {
 	u16		tx_prod;
 	u32		tx_bidx_addr;
 	u32		tx_bseq_addr;
-
-	u16		tx_cons __attribute__((aligned(L1_CACHE_BYTES)));
-	u16		hw_tx_cons;
 
 	struct bnx2_napi	bnx2_napi;
 
