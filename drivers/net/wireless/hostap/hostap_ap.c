@@ -258,7 +258,7 @@ static void ap_handle_timer(unsigned long data)
 				 sta->addr, ap->tx_callback_poll);
 	} else {
 		int deauth = sta->timeout_next == STA_DEAUTH;
-		u16 resp;
+		__le16 resp;
 		PDEBUG(DEBUG_AP, "%s: sending %s info to STA %s"
 		       "(last=%lu, jiffies=%lu)\n",
 		       local->dev->name,
@@ -300,13 +300,13 @@ void hostap_deauth_all_stas(struct net_device *dev, struct ap_data *ap,
 			    int resend)
 {
 	u8 addr[ETH_ALEN];
-	u16 resp;
+	__le16 resp;
 	int i;
 
 	PDEBUG(DEBUG_AP, "%s: Deauthenticate all stations\n", dev->name);
 	memset(addr, 0xff, ETH_ALEN);
 
-	resp = __constant_cpu_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
+	resp = cpu_to_le16(WLAN_REASON_PREV_AUTH_NOT_VALID);
 
 	/* deauth message sent; try to resend it few times; the message is
 	 * broadcast, so it may be delayed until next DTIM; there is not much
@@ -462,7 +462,7 @@ void ap_control_flush_macs(struct mac_restrictions *mac_restrictions)
 int ap_control_kick_mac(struct ap_data *ap, struct net_device *dev, u8 *mac)
 {
 	struct sta_info *sta;
-	u16 resp;
+	__le16 resp;
 
 	spin_lock_bh(&ap->sta_table_lock);
 	sta = ap_get_sta(ap, mac);
@@ -628,7 +628,8 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 	struct ap_data *ap = data;
 	struct net_device *dev = ap->local->dev;
 	struct ieee80211_hdr_4addr *hdr;
-	u16 fc, *pos, auth_alg, auth_transaction, status;
+	u16 fc, auth_alg, auth_transaction, status;
+	__le16 *pos;
 	struct sta_info *sta = NULL;
 	char *txt = NULL;
 	DECLARE_MAC_BUF(mac);
@@ -649,7 +650,7 @@ static void hostap_ap_tx_cb_auth(struct sk_buff *skb, int ok, void *data)
 		return;
 	}
 
-	pos = (u16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
+	pos = (__le16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
 	auth_alg = le16_to_cpu(*pos++);
 	auth_transaction = le16_to_cpu(*pos++);
 	status = le16_to_cpu(*pos++);
@@ -698,7 +699,8 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 	struct ap_data *ap = data;
 	struct net_device *dev = ap->local->dev;
 	struct ieee80211_hdr_4addr *hdr;
-	u16 fc, *pos, status;
+	u16 fc, status;
+	__le16 *pos;
 	struct sta_info *sta = NULL;
 	char *txt = NULL;
 	DECLARE_MAC_BUF(mac);
@@ -736,7 +738,7 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 		goto done;
 	}
 
-	pos = (u16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
+	pos = (__le16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
 	pos++;
 	status = le16_to_cpu(*pos++);
 	if (status == WLAN_STATUS_SUCCESS) {
@@ -1298,7 +1300,8 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 	struct ap_data *ap = local->ap;
 	char body[8 + WLAN_AUTH_CHALLENGE_LEN], *challenge = NULL;
 	int len, olen;
-	u16 auth_alg, auth_transaction, status_code, *pos;
+	u16 auth_alg, auth_transaction, status_code;
+	__le16 *pos;
 	u16 resp = WLAN_STATUS_SUCCESS, fc;
 	struct sta_info *sta = NULL;
 	struct ieee80211_crypt_data *crypt;
@@ -1332,7 +1335,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 		crypt = local->crypt[idx];
 	}
 
-	pos = (u16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
+	pos = (__le16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
 	auth_alg = __le16_to_cpu(*pos);
 	pos++;
 	auth_transaction = __le16_to_cpu(*pos);
@@ -1465,7 +1468,7 @@ static void handle_authen(local_info_t *local, struct sk_buff *skb,
 	}
 
  fail:
-	pos = (u16 *) body;
+	pos = (__le16 *) body;
 	*pos = cpu_to_le16(auth_alg);
 	pos++;
 	*pos = cpu_to_le16(auth_transaction + 1);
@@ -1510,7 +1513,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char body[12], *p, *lpos;
 	int len, left;
-	u16 *pos;
+	__le16 *pos;
 	u16 resp = WLAN_STATUS_SUCCESS;
 	struct sta_info *sta = NULL;
 	int send_deauth = 0;
@@ -1540,7 +1543,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 	atomic_inc(&sta->users);
 	spin_unlock_bh(&local->ap->sta_table_lock);
 
-	pos = (u16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
+	pos = (__le16 *) (skb->data + IEEE80211_MGMT_HDR_LEN);
 	sta->capability = __le16_to_cpu(*pos);
 	pos++; left -= 2;
 	sta->listen_interval = __le16_to_cpu(*pos);
@@ -1636,25 +1639,24 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 	}
 
  fail:
-	pos = (u16 *) body;
+	pos = (__le16 *) body;
 
 	if (send_deauth) {
-		*pos = __constant_cpu_to_le16(
-			WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH);
+		*pos = cpu_to_le16(WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH);
 		pos++;
 	} else {
 		/* FIX: CF-Pollable and CF-PollReq should be set to match the
 		 * values in beacons/probe responses */
 		/* FIX: how about privacy and WEP? */
 		/* capability */
-		*pos = __constant_cpu_to_le16(WLAN_CAPABILITY_ESS);
+		*pos = cpu_to_le16(WLAN_CAPABILITY_ESS);
 		pos++;
 
 		/* status_code */
-		*pos = __cpu_to_le16(resp);
+		*pos = cpu_to_le16(resp);
 		pos++;
 
-		*pos = __cpu_to_le16((sta && sta->aid > 0 ? sta->aid : 0) |
+		*pos = cpu_to_le16((sta && sta->aid > 0 ? sta->aid : 0) |
 				     BIT(14) | BIT(15)); /* AID */
 		pos++;
 
@@ -1681,7 +1683,7 @@ static void handle_assoc(local_info_t *local, struct sk_buff *skb,
 				0x96 : 0x16;
 			(*lpos)++;
 		}
-		pos = (u16 *) p;
+		pos = (__le16 *) p;
 	}
 
 	prism2_send_mgmt(dev, IEEE80211_FTYPE_MGMT |
@@ -1718,7 +1720,8 @@ static void handle_deauth(local_info_t *local, struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char *body = (char *) (skb->data + IEEE80211_MGMT_HDR_LEN);
 	int len;
-	u16 reason_code, *pos;
+	u16 reason_code;
+	__le16 *pos;
 	struct sta_info *sta = NULL;
 	DECLARE_MAC_BUF(mac);
 
@@ -1729,8 +1732,8 @@ static void handle_deauth(local_info_t *local, struct sk_buff *skb,
 		return;
 	}
 
-	pos = (u16 *) body;
-	reason_code = __le16_to_cpu(*pos);
+	pos = (__le16 *) body;
+	reason_code = le16_to_cpu(*pos);
 
 	PDEBUG(DEBUG_AP, "%s: deauthentication: %s len=%d, "
 	       "reason_code=%d\n", dev->name, print_mac(mac, hdr->addr2), len,
@@ -1760,7 +1763,8 @@ static void handle_disassoc(local_info_t *local, struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char *body = skb->data + IEEE80211_MGMT_HDR_LEN;
 	int len;
-	u16 reason_code, *pos;
+	u16 reason_code;
+	__le16 *pos;
 	struct sta_info *sta = NULL;
 	DECLARE_MAC_BUF(mac);
 
@@ -1771,8 +1775,8 @@ static void handle_disassoc(local_info_t *local, struct sk_buff *skb,
 		return;
 	}
 
-	pos = (u16 *) body;
-	reason_code = __le16_to_cpu(*pos);
+	pos = (__le16 *) body;
+	reason_code = le16_to_cpu(*pos);
 
 	PDEBUG(DEBUG_AP, "%s: disassociation: %s len=%d, "
 	       "reason_code=%d\n", dev->name, print_mac(mac, hdr->addr2), len,
@@ -1817,7 +1821,7 @@ static void ap_handle_dropped_data(local_info_t *local,
 {
 	struct net_device *dev = local->dev;
 	struct sta_info *sta;
-	u16 reason;
+	__le16 reason;
 
 	spin_lock_bh(&local->ap->sta_table_lock);
 	sta = ap_get_sta(local->ap, hdr->addr2);
@@ -1831,8 +1835,7 @@ static void ap_handle_dropped_data(local_info_t *local,
 		return;
 	}
 
-	reason = __constant_cpu_to_le16(
-		WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
+	reason = cpu_to_le16(WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA);
 	prism2_send_mgmt(dev, IEEE80211_FTYPE_MGMT |
 			 ((sta == NULL || !(sta->flags & WLAN_STA_ASSOC)) ?
 			  IEEE80211_STYPE_DEAUTH : IEEE80211_STYPE_DISASSOC),
@@ -1892,7 +1895,7 @@ static void handle_pspoll(local_info_t *local,
 		return;
 	}
 
-	aid = __le16_to_cpu(hdr->duration_id);
+	aid = le16_to_cpu(hdr->duration_id);
 	if ((aid & (BIT(15) | BIT(14))) != (BIT(15) | BIT(14))) {
 		PDEBUG(DEBUG_PS, "   PSPOLL and AID[15:14] not set\n");
 		return;
@@ -1998,7 +2001,8 @@ static void handle_beacon(local_info_t *local, struct sk_buff *skb,
 	struct ieee80211_hdr_4addr *hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	char *body = skb->data + IEEE80211_MGMT_HDR_LEN;
 	int len, left;
-	u16 *pos, beacon_int, capability;
+	u16 beacon_int, capability;
+	__le16 *pos;
 	char *ssid = NULL;
 	unsigned char *supp_rates = NULL;
 	int ssid_len = 0, supp_rates_len = 0;
@@ -2013,16 +2017,16 @@ static void handle_beacon(local_info_t *local, struct sk_buff *skb,
 		return;
 	}
 
-	pos = (u16 *) body;
+	pos = (__le16 *) body;
 	left = len;
 
 	/* Timestamp (8 octets) */
 	pos += 4; left -= 8;
 	/* Beacon interval (2 octets) */
-	beacon_int = __le16_to_cpu(*pos);
+	beacon_int = le16_to_cpu(*pos);
 	pos++; left -= 2;
 	/* Capability information (2 octets) */
-	capability = __le16_to_cpu(*pos);
+	capability = le16_to_cpu(*pos);
 	pos++; left -= 2;
 
 	if (local->ap->ap_policy != AP_OTHER_AP_EVEN_IBSS &&

@@ -303,7 +303,7 @@ static void prism2_info_hostscanresults(local_info_t *local,
 	int i, result_size, copy_len, new_count;
 	struct hfa384x_hostscan_result *results, *prev;
 	unsigned long flags;
-	u16 *pos;
+	__le16 *pos;
 	u8 *ptr;
 
 	wake_up_interruptible(&local->hostscan_wq);
@@ -314,7 +314,7 @@ static void prism2_info_hostscanresults(local_info_t *local,
 		return;
 	}
 
-	pos = (u16 *) buf;
+	pos = (__le16 *) buf;
 	copy_len = result_size = le16_to_cpu(*pos);
 	if (result_size == 0) {
 		printk(KERN_DEBUG "%s: invalid result_size (0) in "

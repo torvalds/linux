@@ -296,7 +296,7 @@ int hostap_tx_callback_unregister(local_info_t *local, u16 idx)
 int hostap_set_word(struct net_device *dev, int rid, u16 val)
 {
 	struct hostap_interface *iface;
-	u16 tmp = cpu_to_le16(val);
+	__le16 tmp = cpu_to_le16(val);
 	iface = netdev_priv(dev);
 	return iface->local->func->set_rid(dev, rid, &tmp, 2);
 }
@@ -1095,15 +1095,15 @@ int prism2_sta_deauth(local_info_t *local, u16 reason)
 {
 	union iwreq_data wrqu;
 	int ret;
+	__le16 val = cpu_to_le16(reason);
 
 	if (local->iw_mode != IW_MODE_INFRA ||
 	    memcmp(local->bssid, "\x00\x00\x00\x00\x00\x00", ETH_ALEN) == 0 ||
 	    memcmp(local->bssid, "\x44\x44\x44\x44\x44\x44", ETH_ALEN) == 0)
 		return 0;
 
-	reason = cpu_to_le16(reason);
 	ret = prism2_sta_send_mgmt(local, local->bssid, IEEE80211_STYPE_DEAUTH,
-				   (u8 *) &reason, 2);
+				   (u8 *) &val, 2);
 	memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
 	wireless_send_event(local->dev, SIOCGIWAP, &wrqu, NULL);
 	return ret;

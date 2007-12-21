@@ -1075,7 +1075,7 @@ static int prism2_setup_rids(struct net_device *dev)
 {
 	struct hostap_interface *iface;
 	local_info_t *local;
-	u16 tmp;
+	__le16 tmp;
 	int ret = 0;
 
 	iface = netdev_priv(dev);
@@ -1084,11 +1084,11 @@ static int prism2_setup_rids(struct net_device *dev)
 	hostap_set_word(dev, HFA384X_RID_TICKTIME, 2000);
 
 	if (!local->fw_ap) {
-		tmp = hostap_get_porttype(local);
-		ret = hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE, tmp);
+		u16 tmp1 = hostap_get_porttype(local);
+		ret = hostap_set_word(dev, HFA384X_RID_CNFPORTTYPE, tmp1);
 		if (ret) {
 			printk("%s: Port type setting to %d failed\n",
-			       dev->name, tmp);
+			       dev->name, tmp1);
 			goto fail;
 		}
 	}
@@ -1117,7 +1117,7 @@ static int prism2_setup_rids(struct net_device *dev)
 		ret = -EINVAL;
 		goto fail;
 	}
-	local->channel_mask = __le16_to_cpu(tmp);
+	local->channel_mask = le16_to_cpu(tmp);
 
 	if (local->channel < 1 || local->channel > 14 ||
 	    !(local->channel_mask & (1 << (local->channel - 1)))) {
