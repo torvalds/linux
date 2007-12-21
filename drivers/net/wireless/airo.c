@@ -648,30 +648,30 @@ typedef struct {
 } ConfigRid;
 
 typedef struct {
-	u16 len;
+	__le16 len;
 	u8 mac[ETH_ALEN];
-	u16 mode;
-	u16 errorCode;
-	u16 sigQuality;
-	u16 SSIDlen;
+	__le16 mode;
+	__le16 errorCode;
+	__le16 sigQuality;
+	__le16 SSIDlen;
 	char SSID[32];
 	char apName[16];
 	u8 bssid[4][ETH_ALEN];
-	u16 beaconPeriod;
-	u16 dimPeriod;
-	u16 atimDuration;
-	u16 hopPeriod;
-	u16 channelSet;
-	u16 channel;
-	u16 hopsToBackbone;
-	u16 apTotalLoad;
-	u16 generatedLoad;
-	u16 accumulatedArl;
-	u16 signalQuality;
-	u16 currentXmitRate;
-	u16 apDevExtensions;
-	u16 normalizedSignalStrength;
-	u16 shortPreamble;
+	__le16 beaconPeriod;
+	__le16 dimPeriod;
+	__le16 atimDuration;
+	__le16 hopPeriod;
+	__le16 channelSet;
+	__le16 channel;
+	__le16 hopsToBackbone;
+	__le16 apTotalLoad;
+	__le16 generatedLoad;
+	__le16 accumulatedArl;
+	__le16 signalQuality;
+	__le16 currentXmitRate;
+	__le16 apDevExtensions;
+	__le16 normalizedSignalStrength;
+	__le16 shortPreamble;
 	u8 apIP[4];
 	u8 noisePercent; /* Noise percent in last second */
 	u8 noisedBm; /* Noise dBm in last second */
@@ -679,9 +679,9 @@ typedef struct {
 	u8 noiseAvedBm; /* Noise dBm in last minute */
 	u8 noiseMaxPercent; /* Highest noise percent in last minute */
 	u8 noiseMaxdBm; /* Highest noise dbm in last minute */
-	u16 load;
+	__le16 load;
 	u8 carrier[4];
-	u16 assocStatus;
+	__le16 assocStatus;
 #define STAT_NOPACKETS 0
 #define STAT_NOCARRIERSET 10
 #define STAT_GOTCARRIERSET 11
@@ -1853,18 +1853,10 @@ static int writeConfigRid(struct airo_info*ai, int lock) {
 
 	return PC4500_writerid( ai, RID_CONFIG, &cfgr, sizeof(cfgr), lock);
 }
-static int readStatusRid(struct airo_info*ai, StatusRid *statr, int lock) {
-	int rc = PC4500_readrid(ai, RID_STATUS, statr, sizeof(*statr), lock);
-	u16 *s;
 
-	statr->len = le16_to_cpu(statr->len);
-	for(s = &statr->mode; s <= &statr->SSIDlen; s++) *s = le16_to_cpu(*s);
-
-	for(s = &statr->beaconPeriod; s <= &statr->shortPreamble; s++)
-		*s = le16_to_cpu(*s);
-	statr->load = le16_to_cpu(statr->load);
-	statr->assocStatus = le16_to_cpu(statr->assocStatus);
-	return rc;
+static int readStatusRid(struct airo_info *ai, StatusRid *statr, int lock)
+{
+	return PC4500_readrid(ai, RID_STATUS, statr, sizeof(*statr), lock);
 }
 
 static int readAPListRid(struct airo_info *ai, APListRid *aplr)
@@ -4656,13 +4648,15 @@ static ssize_t proc_write( struct file *file,
 	return len;
 }
 
-static int proc_status_open( struct inode *inode, struct file *file ) {
+static int proc_status_open(struct inode *inode, struct file *file)
+{
 	struct proc_data *data;
 	struct proc_dir_entry *dp = PDE(inode);
 	struct net_device *dev = dp->data;
 	struct airo_info *apriv = dev->priv;
 	CapabilityRid cap_rid;
 	StatusRid status_rid;
+	u16 mode;
 	int i;
 
 	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
@@ -4676,16 +4670,18 @@ static int proc_status_open( struct inode *inode, struct file *file ) {
 	readStatusRid(apriv, &status_rid, 1);
 	readCapabilityRid(apriv, &cap_rid, 1);
 
+	mode = le16_to_cpu(status_rid.mode);
+
         i = sprintf(data->rbuffer, "Status: %s%s%s%s%s%s%s%s%s\n",
-                    status_rid.mode & 1 ? "CFG ": "",
-                    status_rid.mode & 2 ? "ACT ": "",
-                    status_rid.mode & 0x10 ? "SYN ": "",
-                    status_rid.mode & 0x20 ? "LNK ": "",
-                    status_rid.mode & 0x40 ? "LEAP ": "",
-                    status_rid.mode & 0x80 ? "PRIV ": "",
-                    status_rid.mode & 0x100 ? "KEY ": "",
-                    status_rid.mode & 0x200 ? "WEP ": "",
-                    status_rid.mode & 0x8000 ? "ERR ": "");
+                    mode & 1 ? "CFG ": "",
+                    mode & 2 ? "ACT ": "",
+                    mode & 0x10 ? "SYN ": "",
+                    mode & 0x20 ? "LNK ": "",
+                    mode & 0x40 ? "LEAP ": "",
+                    mode & 0x80 ? "PRIV ": "",
+                    mode & 0x100 ? "KEY ": "",
+                    mode & 0x200 ? "WEP ": "",
+                    mode & 0x8000 ? "ERR ": "");
 	sprintf( data->rbuffer+i, "Mode: %x\n"
 		 "Signal Strength: %d\n"
 		 "Signal Quality: %d\n"
@@ -4698,14 +4694,14 @@ static int proc_status_open( struct inode *inode, struct file *file ) {
 		 "Radio type: %x\nCountry: %x\nHardware Version: %x\n"
 		 "Software Version: %x\nSoftware Subversion: %x\n"
 		 "Boot block version: %x\n",
-		 (int)status_rid.mode,
-		 (int)status_rid.normalizedSignalStrength,
-		 (int)status_rid.signalQuality,
-		 (int)status_rid.SSIDlen,
+		 le16_to_cpu(status_rid.mode),
+		 le16_to_cpu(status_rid.normalizedSignalStrength),
+		 le16_to_cpu(status_rid.signalQuality),
+		 le16_to_cpu(status_rid.SSIDlen),
 		 status_rid.SSID,
 		 status_rid.apName,
-		 (int)status_rid.channel,
-		 (int)status_rid.currentXmitRate/2,
+		 le16_to_cpu(status_rid.channel),
+		 le16_to_cpu(status_rid.currentXmitRate) / 2,
 		 version,
 		 cap_rid.prodName,
 		 cap_rid.manName,
@@ -5726,25 +5722,27 @@ static u8 airo_dbm_to_pct (tdsRssiEntry *rssi_rid, u8 dbm)
 static int airo_get_quality (StatusRid *status_rid, CapabilityRid *cap_rid)
 {
 	int quality = 0;
+	u16 sq;
 
-	if ((status_rid->mode & 0x3f) != 0x3f)
+	if ((status_rid->mode & cpu_to_le16(0x3f)) != cpu_to_le16(0x3f))
 		return 0;
 
 	if (!(cap_rid->hardCap & cpu_to_le16(8)))
 		return 0;
 
+	sq = le16_to_cpu(status_rid->signalQuality);
 	if (memcmp(cap_rid->prodName, "350", 3))
-		if (status_rid->signalQuality > 0x20)
+		if (sq > 0x20)
 			quality = 0;
 		else
-			quality = 0x20 - status_rid->signalQuality;
+			quality = 0x20 - sq;
 	else
-		if (status_rid->signalQuality > 0xb0)
+		if (sq > 0xb0)
 			quality = 0;
-		else if (status_rid->signalQuality < 0x10)
+		else if (sq < 0x10)
 			quality = 0xa0;
 		else
-			quality = 0xb0 - status_rid->signalQuality;
+			quality = 0xb0 - sq;
 	return quality;
 }
 
@@ -5824,11 +5822,11 @@ static int airo_get_freq(struct net_device *dev,
 
 	readConfigRid(local, 1);
 	if ((local->config.opmode & 0xFF) == MODE_STA_ESS)
-		status_rid.channel = local->config.channelSet;
+		status_rid.channel = cpu_to_le16(local->config.channelSet);
 	else
 		readStatusRid(local, &status_rid, 1);
 
-	ch = (int)status_rid.channel;
+	ch = le16_to_cpu(status_rid.channel);
 	if((ch > 0) && (ch < 15)) {
 		fwrq->m = frequency_list[ch - 1] * 100000;
 		fwrq->e = 1;
@@ -5904,11 +5902,11 @@ static int airo_get_essid(struct net_device *dev,
 	 * get the relevant SSID from the SSID list... */
 
 	/* Get the current SSID */
-	memcpy(extra, status_rid.SSID, status_rid.SSIDlen);
+	memcpy(extra, status_rid.SSID, le16_to_cpu(status_rid.SSIDlen));
 	/* If none, we may want to get the one that was set */
 
 	/* Push it out ! */
-	dwrq->length = status_rid.SSIDlen;
+	dwrq->length = le16_to_cpu(status_rid.SSIDlen);
 	dwrq->flags = 1; /* active */
 
 	return 0;
@@ -6098,7 +6096,7 @@ static int airo_get_rate(struct net_device *dev,
 
 	readStatusRid(local, &status_rid, 1);
 
-	vwrq->value = status_rid.currentXmitRate * 500000;
+	vwrq->value = le16_to_cpu(status_rid.currentXmitRate) * 500000;
 	/* If more than one rate, set auto */
 	readConfigRid(local, 1);
 	vwrq->fixed = (local->config.rates[1] == 0);
@@ -7646,18 +7644,22 @@ static void airo_read_wireless_stats(struct airo_info *local)
 	up(&local->sem);
 
 	/* The status */
-	local->wstats.status = status_rid.mode;
+	local->wstats.status = le16_to_cpu(status_rid.mode);
 
 	/* Signal quality and co */
 	if (local->rssi) {
-		local->wstats.qual.level = airo_rssi_to_dbm( local->rssi, status_rid.sigQuality );
+		local->wstats.qual.level =
+			airo_rssi_to_dbm(local->rssi,
+					 le16_to_cpu(status_rid.sigQuality));
 		/* normalizedSignalStrength appears to be a percentage */
-		local->wstats.qual.qual = status_rid.normalizedSignalStrength;
+		local->wstats.qual.qual =
+			le16_to_cpu(status_rid.normalizedSignalStrength);
 	} else {
-		local->wstats.qual.level = (status_rid.normalizedSignalStrength + 321) / 2;
+		local->wstats.qual.level =
+			(le16_to_cpu(status_rid.normalizedSignalStrength) + 321) / 2;
 		local->wstats.qual.qual = airo_get_quality(&status_rid, &cap_rid);
 	}
-	if (status_rid.len >= 124) {
+	if (le16_to_cpu(status_rid.len) >= 124) {
 		local->wstats.qual.noise = 0x100 - status_rid.noisedBm;
 		local->wstats.qual.updated = IW_QUAL_ALL_UPDATED | IW_QUAL_DBM;
 	} else {
