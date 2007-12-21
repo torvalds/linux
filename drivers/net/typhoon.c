@@ -1320,7 +1320,7 @@ typhoon_init_interface(struct typhoon *tp)
 	tp->txLoRing.writeRegister = TYPHOON_REG_TX_LO_READY;
 	tp->txHiRing.writeRegister = TYPHOON_REG_TX_HI_READY;
 
-	tp->txlo_dma_addr = iface->txLoAddr;
+	tp->txlo_dma_addr = le32_to_cpu(iface->txLoAddr);
 	tp->card_state = Sleeping;
 	smp_wmb();
 
