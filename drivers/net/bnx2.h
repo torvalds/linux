@@ -154,6 +154,33 @@ struct status_block {
 #endif
 };
 
+/*
+ *  status_block definition
+ */
+struct status_block_msix {
+#if defined(__BIG_ENDIAN)
+	u16 status_tx_quick_consumer_index;
+	u16 status_rx_quick_consumer_index;
+	u16 status_completion_producer_index;
+	u16 status_cmd_consumer_index;
+	u32 status_unused;
+	u16 status_idx;
+	u8 status_unused2;
+	u8 status_blk_num;
+#elif defined(__LITTLE_ENDIAN)
+	u16 status_rx_quick_consumer_index;
+	u16 status_tx_quick_consumer_index;
+	u16 status_cmd_consumer_index;
+	u16 status_completion_producer_index;
+	u32 status_unused;
+	u8 status_blk_num;
+	u8 status_unused2;
+	u16 status_idx;
+#endif
+};
+
+#define BNX2_SBLK_MSIX_ALIGN_SIZE	128
+
 
 /*
  *  statistics_block definition
@@ -413,6 +440,7 @@ struct l2_fhdr {
 #define BNX2_PCICFG_INT_ACK_CMD_USE_INT_HC_PARAM	 (1L<<17)
 #define BNX2_PCICFG_INT_ACK_CMD_MASK_INT		 (1L<<18)
 #define BNX2_PCICFG_INT_ACK_CMD_INTERRUPT_NUM		 (0xfL<<24)
+#define BNX2_PCICFG_INT_ACK_CMD_INT_NUM_SHIFT		 24
 
 #define BNX2_PCICFG_STATUS_BIT_SET_CMD			0x00000088
 #define BNX2_PCICFG_STATUS_BIT_CLEAR_CMD		0x0000008c
@@ -427,6 +455,9 @@ struct l2_fhdr {
 #define BNX2_PCI_GRC_WINDOW_ADDR			0x00000400
 #define BNX2_PCI_GRC_WINDOW_ADDR_VALUE			 (0x1ffL<<13)
 #define BNX2_PCI_GRC_WINDOW_ADDR_SEP_WIN		 (1L<<31)
+
+#define BNX2_PCI_GRC_WINDOW2_BASE		 	 0xc000
+#define BNX2_PCI_GRC_WINDOW3_BASE		 	 0xe000
 
 #define BNX2_PCI_CONFIG_1				0x00000404
 #define BNX2_PCI_CONFIG_1_RESERVED0			 (0xffL<<0)
@@ -700,6 +731,8 @@ struct l2_fhdr {
 #define BNX2_PCI_GRC_WINDOW3_ADDR			0x00000618
 #define BNX2_PCI_GRC_WINDOW3_ADDR_VALUE			 (0x1ffL<<13)
 
+#define BNX2_MSIX_TABLE_ADDR				 0x318000
+#define BNX2_MSIX_PBA_ADDR				 0x31c000
 
 /*
  *  misc_reg definition
@@ -6500,6 +6533,7 @@ struct flash_spec {
 struct bnx2_irq {
 	irq_handler_t	handler;
 	u16		vector;
+	u8		requested;
 	char		name[16];
 };
 
@@ -6535,13 +6569,15 @@ struct bnx2 {
 	u32			flags;
 #define PCIX_FLAG			0x00000001
 #define PCI_32BIT_FLAG			0x00000002
-#define ONE_TDMA_FLAG			0x00000004	/* no longer used */
+#define MSIX_CAP_FLAG			0x00000004
 #define NO_WOL_FLAG			0x00000008
 #define USING_MSI_FLAG			0x00000020
 #define ASF_ENABLE_FLAG			0x00000040
 #define MSI_CAP_FLAG			0x00000080
 #define ONE_SHOT_MSI_FLAG		0x00000100
 #define PCIE_FLAG			0x00000200
+#define USING_MSIX_FLAG			0x00000400
+#define USING_MSI_OR_MSIX_FLAG		(USING_MSI_FLAG | USING_MSIX_FLAG)
 
 	/* Put tx producer and consumer fields in separate cache lines. */
 
@@ -6550,7 +6586,7 @@ struct bnx2 {
 	u32		tx_bidx_addr;
 	u32		tx_bseq_addr;
 
-	struct bnx2_napi	bnx2_napi;
+	struct bnx2_napi	bnx2_napi[BNX2_MAX_MSIX_VEC];
 
 #ifdef BCM_VLAN
 	struct			vlan_group *vlgrp;
