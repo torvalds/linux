@@ -1695,7 +1695,7 @@ static void tg3_setup_flow_control(struct tg3 *tp, u32 local_adv, u32 remote_adv
 	u32 old_tx_mode = tp->tx_mode;
 
 	if (tp->tg3_flags & TG3_FLAG_PAUSE_AUTONEG) {
-		if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)
+		if (tp->tg3_flags2 & (TG3_FLG2_MII_SERDES|TG3_FLG2_HW_AUTONEG))
 			new_tg3_flags = tg3_resolve_flowctrl_1000X(local_adv,
 								   remote_adv);
 		else
@@ -2658,6 +2658,7 @@ static void tg3_init_bcm8002(struct tg3 *tp)
 
 static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 {
+	u16 flowctrl;
 	u32 sg_dig_ctrl, sg_dig_status;
 	u32 serdes_cfg, expected_sg_dig_ctrl;
 	int workaround, port_a;
@@ -2706,11 +2707,11 @@ static int tg3_setup_fiber_hw_autoneg(struct tg3 *tp, u32 mac_status)
 	/* Want auto-negotiation.  */
 	expected_sg_dig_ctrl = SG_DIG_USING_HW_AUTONEG | SG_DIG_COMMON_SETUP;
 
-	/* Pause capability */
-	expected_sg_dig_ctrl |= SG_DIG_PAUSE_CAP;
-
-	/* Asymettric pause */
-	expected_sg_dig_ctrl |= SG_DIG_ASYM_PAUSE;
+	flowctrl = tg3_advert_flowctrl_1000X(tp->link_config.flowctrl);
+	if (flowctrl & ADVERTISE_1000XPAUSE)
+		expected_sg_dig_ctrl |= SG_DIG_PAUSE_CAP;
+	if (flowctrl & ADVERTISE_1000XPSE_ASYM)
+		expected_sg_dig_ctrl |= SG_DIG_ASYM_PAUSE;
 
 	if (sg_dig_ctrl != expected_sg_dig_ctrl) {
 		if ((tp->tg3_flags2 & TG3_FLG2_PARALLEL_DETECT) &&
@@ -2738,14 +2739,17 @@ restart_autoneg:
 
 		if ((sg_dig_status & SG_DIG_AUTONEG_COMPLETE) &&
 		    (mac_status & MAC_STATUS_PCS_SYNCED)) {
-			u32 local_adv, remote_adv;
+			u32 local_adv = 0, remote_adv = 0;
 
-			local_adv = ADVERTISE_PAUSE_CAP;
-			remote_adv = 0;
+			if (sg_dig_ctrl & SG_DIG_PAUSE_CAP)
+				local_adv |= ADVERTISE_1000XPAUSE;
+			if (sg_dig_ctrl & SG_DIG_ASYM_PAUSE)
+				local_adv |= ADVERTISE_1000XPSE_ASYM;
+
 			if (sg_dig_status & SG_DIG_PARTNER_PAUSE_CAPABLE)
-				remote_adv |= LPA_PAUSE_CAP;
+				remote_adv |= LPA_1000XPAUSE;
 			if (sg_dig_status & SG_DIG_PARTNER_ASYM_PAUSE)
-				remote_adv |= LPA_PAUSE_ASYM;
+				remote_adv |= LPA_1000XPAUSE_ASYM;
 
 			tg3_setup_flow_control(tp, local_adv, remote_adv);
 			current_link_up = 1;
