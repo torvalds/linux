@@ -29,7 +29,7 @@
 
 #include "generic.h"
 
-#define MAX_SLOTS	2
+#define MAX_SLOTS	3
 struct platform_mmc_slot zylonite_mmc_slot[MAX_SLOTS];
 
 int gpio_backlight;
@@ -242,6 +242,8 @@ static void __init zylonite_init_mmc(void)
 {
 	pxa_set_mci_info(&zylonite_mci_platform_data);
 	pxa3xx_set_mci2_info(&zylonite_mci2_platform_data);
+	if (cpu_is_pxa310())
+		pxa3xx_set_mci3_info(&zylonite_mci_platform_data);
 }
 #else
 static inline void zylonite_init_mmc(void) {}

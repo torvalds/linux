@@ -133,6 +133,14 @@ static mfp_cfg_t pxa310_mfp_cfg[] __initdata = {
 	/* Ethernet */
 	GPIO2_nCS3,
 	GPIO102_GPIO,
+
+	/* MMC3 */
+	GPIO7_2_MMC3_DAT0,
+	GPIO8_2_MMC3_DAT1,
+	GPIO9_2_MMC3_DAT2,
+	GPIO10_2_MMC3_DAT3,
+	GPIO103_MMC3_CLK,
+	GPIO105_MMC3_CMD,
 };
 
 #define NUM_LCD_DETECT_PINS	7
@@ -205,5 +213,9 @@ void __init zylonite_pxa300_init(void)
 	if (cpu_is_pxa310()) {
 		pxa3xx_mfp_config(ARRAY_AND_SIZE(pxa310_mfp_cfg));
 		gpio_eth_irq = mfp_to_gpio(MFP_PIN_GPIO102);
+
+		/* MMC card detect & write protect for controller 2 */
+		zylonite_mmc_slot[2].gpio_cd = EXT_GPIO(30);
+		zylonite_mmc_slot[2].gpio_wp = EXT_GPIO(31);
 	}
 }

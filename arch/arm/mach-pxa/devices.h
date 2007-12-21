@@ -1,5 +1,6 @@
 extern struct platform_device pxa_device_mci;
 extern struct platform_device pxa3xx_device_mci2;
+extern struct platform_device pxa3xx_device_mci3;
 extern struct platform_device pxa_device_udc;
 extern struct platform_device pxa_device_fb;
 extern struct platform_device pxa_device_ffuart;
