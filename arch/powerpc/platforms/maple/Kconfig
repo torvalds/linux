@@ -1,6 +1,7 @@
 config PPC_MAPLE
 	depends on PPC_MULTIPLATFORM && PPC64
 	bool "Maple 970FX Evaluation Board"
+	select PCI
 	select MPIC
 	select U3_DART
 	select MPIC_U3_HT_IRQS

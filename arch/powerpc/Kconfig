@@ -160,6 +160,7 @@ config PPC_DCR
 
 config PPC_OF_PLATFORM_PCI
 	bool
+	depends on PCI
 	depends on PPC64 # not supported on 32 bits yet
 	default n
 
@@ -417,7 +418,7 @@ endmenu
 
 config ISA_DMA_API
 	bool
-	default y
+	default !PPC_ISERIES || PCI
 
 menu "Bus options"
 

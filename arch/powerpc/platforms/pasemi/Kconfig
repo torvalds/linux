@@ -3,6 +3,7 @@ config PPC_PASEMI
 	bool "PA Semi SoC-based platforms"
 	default n
 	select MPIC
+	select PCI
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select MPIC_BROKEN_REGREAD
