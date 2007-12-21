@@ -238,6 +238,13 @@
 				zmii-device = <&ZMII0>;
 				zmii-channel = <1>;
 			};
+
+			usb@ef601000 {
+				compatible = "ohci-be";
+				reg = <ef601000 80>;
+				interrupts = <8 1 9 1>;
+				interrupt-parent = < &UIC1 >;
+			};
 		};
 
 		PCI0: pci@ec000000 {
