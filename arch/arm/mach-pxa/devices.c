@@ -549,4 +549,44 @@ struct platform_device pxa3xx_device_ssp4 = {
 	.resource	= pxa3xx_resource_ssp4,
 	.num_resources	= ARRAY_SIZE(pxa3xx_resource_ssp4),
 };
+
+static struct resource pxa3xx_resources_mci2[] = {
+	[0] = {
+		.start	= 0x42000000,
+		.end	= 0x42000fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_MMC2,
+		.end	= IRQ_MMC2,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= 93,
+		.end	= 93,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		.start	= 94,
+		.end	= 94,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+struct platform_device pxa3xx_device_mci2 = {
+	.name		= "pxa2xx-mci",
+	.id		= 1,
+	.dev		= {
+		.dma_mask = &pxamci_dmamask,
+		.coherent_dma_mask =	0xffffffff,
+	},
+	.num_resources	= ARRAY_SIZE(pxa3xx_resources_mci2),
+	.resource	= pxa3xx_resources_mci2,
+};
+
+void __init pxa3xx_set_mci2_info(struct pxamci_platform_data *info)
+{
+	pxa_register_device(&pxa3xx_device_mci2, info);
+}
+
 #endif /* CONFIG_PXA3xx */

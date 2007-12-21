@@ -104,6 +104,14 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	GPIO22_MMC1_CLK,
 	GPIO23_MMC1_CMD,/* CMD0 for slot 0 */
 	GPIO31_GPIO,	/* CMD1 default as GPIO for slot 0 */
+
+	/* MMC2 */
+	GPIO24_MMC2_DAT0,
+	GPIO25_MMC2_DAT1,
+	GPIO26_MMC2_DAT2,
+	GPIO27_MMC2_DAT3,
+	GPIO28_MMC2_CLK,
+	GPIO29_MMC2_CMD,
 };
 
 #define NUM_LCD_DETECT_PINS	7

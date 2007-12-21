@@ -233,9 +233,15 @@ static struct pxamci_platform_data zylonite_mci_platform_data = {
 	.get_ro		= zylonite_mci_ro,
 };
 
+static struct pxamci_platform_data zylonite_mci2_platform_data = {
+	.detect_delay	= 20,
+	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+};
+
 static void __init zylonite_init_mmc(void)
 {
 	pxa_set_mci_info(&zylonite_mci_platform_data);
+	pxa3xx_set_mci2_info(&zylonite_mci2_platform_data);
 }
 #else
 static inline void zylonite_init_mmc(void) {}

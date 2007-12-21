@@ -97,6 +97,14 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO7_MMC1_CLK,
 	GPIO8_MMC1_CMD,	/* CMD0 for slot 0 */
 	GPIO15_GPIO,	/* CMD1 default as GPIO for slot 0 */
+
+	/* MMC2 */
+	GPIO9_MMC2_DAT0,
+	GPIO10_MMC2_DAT1,
+	GPIO11_MMC2_DAT2,
+	GPIO12_MMC2_DAT3,
+	GPIO13_MMC2_CLK,
+	GPIO14_MMC2_CMD,
 };
 
 static mfp_cfg_t pxa300_mfp_cfg[] __initdata = {
