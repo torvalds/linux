@@ -1140,7 +1140,8 @@ static const struct dvb_tuner_ops xc2028_dvb_tuner_ops = {
 
 };
 
-void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg)
+struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
+				   struct xc2028_config *cfg)
 {
 	struct xc2028_data *priv;
 	void               *video_dev;

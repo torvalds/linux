@@ -48,14 +48,15 @@ struct xc2028_config {
 #define XC2028_RESET_CLK	1
 
 #if defined(CONFIG_TUNER_XC2028) || (defined(CONFIG_TUNER_XC2028_MODULE) && defined(MODULE))
-void *xc2028_attach(struct dvb_frontend *fe, struct xc2028_config *cfg);
+extern struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
+					  struct xc2028_config *cfg);
 #else
-void *xc2028_attach(struct dvb_frontend *fe,
-				struct xc2028_config *cfg)
+static inline struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
+						 struct xc2028_config *cfg)
 {
 	printk(KERN_INFO "%s: not probed - driver disabled by Kconfig\n",
 	       __FUNCTION__);
-	return -EINVAL;
+	return NULL;
 }
 #endif
 
