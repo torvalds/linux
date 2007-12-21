@@ -73,7 +73,7 @@ struct typhoon_indexes {
 	volatile __le32 txLoCleared;
 	volatile __le32 txHiCleared;
 	volatile __le32 rxLoReady;
-	volatile __u32 rxBuffCleared;	/* AV: really? */
+	volatile __le32 rxBuffCleared;
 	volatile __le32 cmdCleared;
 	volatile __le32 respReady;
 	volatile __le32 rxHiReady;

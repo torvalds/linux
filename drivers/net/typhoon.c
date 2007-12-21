@@ -1596,7 +1596,7 @@ typhoon_recycle_rx_skb(struct typhoon *tp, u32 idx)
 	struct rx_free *r;
 
 	if((ring->lastWrite + sizeof(*r)) % (RXFREE_ENTRIES * sizeof(*r)) ==
-				indexes->rxBuffCleared) {
+				le32_to_cpu(indexes->rxBuffCleared)) {
 		/* no room in ring, just drop the skb
 		 */
 		dev_kfree_skb_any(rxb->skb);
@@ -1627,7 +1627,7 @@ typhoon_alloc_rx_skb(struct typhoon *tp, u32 idx)
 	rxb->skb = NULL;
 
 	if((ring->lastWrite + sizeof(*r)) % (RXFREE_ENTRIES * sizeof(*r)) ==
-				indexes->rxBuffCleared)
+				le32_to_cpu(indexes->rxBuffCleared))
 		return -ENOMEM;
 
 	skb = dev_alloc_skb(PKT_BUF_SZ);
