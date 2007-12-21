@@ -72,6 +72,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 
 		sp = secpath_dup(skb->sp);
 		if (!sp) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINERROR);
 			goto drop;
 		}
 		if (skb->sp)
@@ -80,6 +81,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 	}
 
 	if (1 + skb->sp->len == XFRM_MAX_DEPTH) {
+		XFRM_INC_STATS(LINUX_MIB_XFRMINBUFFERERROR);
 		goto drop;
 	}
 
@@ -149,6 +151,7 @@ int xfrm6_input_addr(struct sk_buff *skb, xfrm_address_t *daddr,
 	}
 
 	if (!x) {
+		XFRM_INC_STATS(LINUX_MIB_XFRMINNOSTATES);
 		goto drop;
 	}
 

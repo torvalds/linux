@@ -69,10 +69,13 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 		err = x->type->output(x, skb);
 
 resume:
-		if (err)
+		if (err) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMOUTSTATEPROTOERROR);
 			goto error_nolock;
+		}
 
 		if (!(skb->dst = dst_pop(dst))) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMOUTERROR);
 			err = -EHOSTUNREACH;
 			goto error_nolock;
 		}
@@ -167,6 +170,7 @@ int xfrm_output(struct sk_buff *skb)
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		err = skb_checksum_help(skb);
 		if (err) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMOUTERROR);
 			kfree_skb(skb);
 			return err;
 		}

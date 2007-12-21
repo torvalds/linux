@@ -119,8 +119,10 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		struct sec_path *sp;
 
 		sp = secpath_dup(skb->sp);
-		if (!sp)
+		if (!sp) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINERROR);
 			goto drop;
+		}
 		if (skb->sp)
 			secpath_put(skb->sp);
 		skb->sp = sp;
@@ -131,31 +133,45 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	family = XFRM_SPI_SKB_CB(skb)->family;
 
 	seq = 0;
-	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0)
+	if (!spi && (err = xfrm_parse_spi(skb, nexthdr, &spi, &seq)) != 0) {
+		XFRM_INC_STATS(LINUX_MIB_XFRMINHDRERROR);
 		goto drop;
+	}
 
 	do {
-		if (skb->sp->len == XFRM_MAX_DEPTH)
+		if (skb->sp->len == XFRM_MAX_DEPTH) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINBUFFERERROR);
 			goto drop;
+		}
 
 		x = xfrm_state_lookup(daddr, spi, nexthdr, family);
-		if (x == NULL)
+		if (x == NULL) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINNOSTATES);
 			goto drop;
+		}
 
 		skb->sp->xvec[skb->sp->len++] = x;
 
 		spin_lock(&x->lock);
-		if (unlikely(x->km.state != XFRM_STATE_VALID))
+		if (unlikely(x->km.state != XFRM_STATE_VALID)) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEINVALID);
 			goto drop_unlock;
+		}
 
-		if ((x->encap ? x->encap->encap_type : 0) != encap_type)
+		if ((x->encap ? x->encap->encap_type : 0) != encap_type) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEINVALID);
 			goto drop_unlock;
+		}
 
-		if (x->props.replay_window && xfrm_replay_check(x, seq))
+		if (x->props.replay_window && xfrm_replay_check(x, seq)) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSEQOUTOFWINDOW);
 			goto drop_unlock;
+		}
 
-		if (xfrm_state_check_expire(x))
+		if (xfrm_state_check_expire(x)) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEEXPIRED);
 			goto drop_unlock;
+		}
 
 		spin_unlock(&x->lock);
 
@@ -171,6 +187,7 @@ resume:
 		if (nexthdr <= 0) {
 			if (nexthdr == -EBADMSG)
 				x->stats.integrity_failed++;
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEPROTOERROR);
 			goto drop_unlock;
 		}
 
@@ -187,8 +204,10 @@ resume:
 
 		XFRM_MODE_SKB_CB(skb)->protocol = nexthdr;
 
-		if (x->inner_mode->input(x, skb))
+		if (x->inner_mode->input(x, skb)) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINSTATEMODEERROR);
 			goto drop;
+		}
 
 		if (x->outer_mode->flags & XFRM_MODE_FLAG_TUNNEL) {
 			decaps = 1;
@@ -203,8 +222,10 @@ resume:
 		family = x->outer_mode->afinfo->family;
 
 		err = xfrm_parse_spi(skb, nexthdr, &spi, &seq);
-		if (err < 0)
+		if (err < 0) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMINHDRERROR);
 			goto drop;
+		}
 	} while (!err);
 
 	nf_reset(skb);
