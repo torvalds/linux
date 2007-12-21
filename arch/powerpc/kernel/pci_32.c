@@ -442,9 +442,10 @@ static int __init pcibios_init(void)
 		hose->last_busno = 0xff;
 		bus = pci_scan_bus_parented(hose->parent, hose->first_busno,
 					    hose->ops, hose);
-		if (bus)
+		if (bus) {
 			pci_bus_add_devices(bus);
-		hose->last_busno = bus->subordinate;
+			hose->last_busno = bus->subordinate;
+		}
 		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
 	}
