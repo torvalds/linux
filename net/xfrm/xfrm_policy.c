@@ -24,6 +24,7 @@
 #include <linux/netfilter.h>
 #include <linux/module.h>
 #include <linux/cache.h>
+#include <linux/audit.h>
 #include <net/dst.h>
 #include <net/xfrm.h>
 #include <net/ip.h>
@@ -2401,15 +2402,14 @@ static inline void xfrm_audit_common_policyinfo(struct xfrm_policy *xp,
 	}
 }
 
-void
-xfrm_audit_policy_add(struct xfrm_policy *xp, int result, u32 auid, u32 sid)
+void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
+			   u32 auid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
-	extern int audit_enabled;
 
 	if (audit_enabled == 0)
 		return;
-	audit_buf = xfrm_audit_start(auid, sid);
+	audit_buf = xfrm_audit_start(auid, secid);
 	if (audit_buf == NULL)
 		return;
 	audit_log_format(audit_buf, " op=SPD-add res=%u", result);
@@ -2418,15 +2418,14 @@ xfrm_audit_policy_add(struct xfrm_policy *xp, int result, u32 auid, u32 sid)
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_policy_add);
 
-void
-xfrm_audit_policy_delete(struct xfrm_policy *xp, int result, u32 auid, u32 sid)
+void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
+			      u32 auid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
-	extern int audit_enabled;
 
 	if (audit_enabled == 0)
 		return;
-	audit_buf = xfrm_audit_start(auid, sid);
+	audit_buf = xfrm_audit_start(auid, secid);
 	if (audit_buf == NULL)
 		return;
 	audit_log_format(audit_buf, " op=SPD-delete res=%u", result);

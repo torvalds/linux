@@ -19,6 +19,7 @@
 #include <linux/ipsec.h>
 #include <linux/module.h>
 #include <linux/cache.h>
+#include <linux/audit.h>
 #include <asm/uaccess.h>
 
 #include "xfrm_hash.h"
@@ -1998,69 +1999,59 @@ void __init xfrm_state_init(void)
 static inline void xfrm_audit_common_stateinfo(struct xfrm_state *x,
 					       struct audit_buffer *audit_buf)
 {
-	if (x->security)
+	struct xfrm_sec_ctx *ctx = x->security;
+	u32 spi = ntohl(x->id.spi);
+
+	if (ctx)
 		audit_log_format(audit_buf, " sec_alg=%u sec_doi=%u sec_obj=%s",
-				 x->security->ctx_alg, x->security->ctx_doi,
-				 x->security->ctx_str);
+				 ctx->ctx_alg, ctx->ctx_doi, ctx->ctx_str);
 
 	switch(x->props.family) {
 	case AF_INET:
-		audit_log_format(audit_buf, " src=%u.%u.%u.%u dst=%u.%u.%u.%u",
+		audit_log_format(audit_buf,
+				 " src=" NIPQUAD_FMT " dst=" NIPQUAD_FMT,
 				 NIPQUAD(x->props.saddr.a4),
 				 NIPQUAD(x->id.daddr.a4));
 		break;
 	case AF_INET6:
-		{
-			struct in6_addr saddr6, daddr6;
-
-			memcpy(&saddr6, x->props.saddr.a6,
-				sizeof(struct in6_addr));
-			memcpy(&daddr6, x->id.daddr.a6,
-				sizeof(struct in6_addr));
-			audit_log_format(audit_buf,
-					 " src=" NIP6_FMT " dst=" NIP6_FMT,
-					 NIP6(saddr6), NIP6(daddr6));
-		}
+		audit_log_format(audit_buf,
+				 " src=" NIP6_FMT " dst=" NIP6_FMT,
+				 NIP6(*(struct in6_addr *)x->props.saddr.a6),
+				 NIP6(*(struct in6_addr *)x->id.daddr.a6));
 		break;
 	}
+
+	audit_log_format(audit_buf, " spi=%u(0x%x)", spi, spi);
 }
 
-void
-xfrm_audit_state_add(struct xfrm_state *x, int result, u32 auid, u32 sid)
+void xfrm_audit_state_add(struct xfrm_state *x, int result,
+			  u32 auid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
-	u32 spi;
-	extern int audit_enabled;
 
 	if (audit_enabled == 0)
 		return;
-	audit_buf = xfrm_audit_start(auid, sid);
+	audit_buf = xfrm_audit_start(auid, secid);
 	if (audit_buf == NULL)
 		return;
-	audit_log_format(audit_buf, " op=SAD-add res=%u",result);
+	audit_log_format(audit_buf, " op=SAD-add res=%u", result);
 	xfrm_audit_common_stateinfo(x, audit_buf);
-	spi = ntohl(x->id.spi);
-	audit_log_format(audit_buf, " spi=%u(0x%x)", spi, spi);
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_add);
 
-void
-xfrm_audit_state_delete(struct xfrm_state *x, int result, u32 auid, u32 sid)
+void xfrm_audit_state_delete(struct xfrm_state *x, int result,
+			     u32 auid, u32 secid)
 {
 	struct audit_buffer *audit_buf;
-	u32 spi;
-	extern int audit_enabled;
 
 	if (audit_enabled == 0)
 		return;
-	audit_buf = xfrm_audit_start(auid, sid);
+	audit_buf = xfrm_audit_start(auid, secid);
 	if (audit_buf == NULL)
 		return;
-	audit_log_format(audit_buf, " op=SAD-delete res=%u",result);
+	audit_log_format(audit_buf, " op=SAD-delete res=%u", result);
 	xfrm_audit_common_stateinfo(x, audit_buf);
-	spi = ntohl(x->id.spi);
-	audit_log_format(audit_buf, " spi=%u(0x%x)", spi, spi);
 	audit_log_end(audit_buf);
 }
 EXPORT_SYMBOL_GPL(xfrm_audit_state_delete);

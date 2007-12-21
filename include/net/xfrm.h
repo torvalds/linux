@@ -565,7 +565,7 @@ struct xfrm_audit
 };
 
 #ifdef CONFIG_AUDITSYSCALL
-static inline struct audit_buffer *xfrm_audit_start(u32 auid, u32 sid)
+static inline struct audit_buffer *xfrm_audit_start(u32 auid, u32 secid)
 {
 	struct audit_buffer *audit_buf = NULL;
 	char *secctx;
@@ -578,8 +578,8 @@ static inline struct audit_buffer *xfrm_audit_start(u32 auid, u32 sid)
 
 	audit_log_format(audit_buf, "auid=%u", auid);
 
-	if (sid != 0 &&
-	    security_secid_to_secctx(sid, &secctx, &secctx_len) == 0) {
+	if (secid != 0 &&
+	    security_secid_to_secctx(secid, &secctx, &secctx_len) == 0) {
 		audit_log_format(audit_buf, " subj=%s", secctx);
 		security_release_secctx(secctx, secctx_len);
 	} else
@@ -588,13 +588,13 @@ static inline struct audit_buffer *xfrm_audit_start(u32 auid, u32 sid)
 }
 
 extern void xfrm_audit_policy_add(struct xfrm_policy *xp, int result,
-				  u32 auid, u32 sid);
+				  u32 auid, u32 secid);
 extern void xfrm_audit_policy_delete(struct xfrm_policy *xp, int result,
-				  u32 auid, u32 sid);
+				  u32 auid, u32 secid);
 extern void xfrm_audit_state_add(struct xfrm_state *x, int result,
-				 u32 auid, u32 sid);
+				 u32 auid, u32 secid);
 extern void xfrm_audit_state_delete(struct xfrm_state *x, int result,
-				    u32 auid, u32 sid);
+				    u32 auid, u32 secid);
 #else
 #define xfrm_audit_policy_add(x, r, a, s)	do { ; } while (0)
 #define xfrm_audit_policy_delete(x, r, a, s)	do { ; } while (0)
