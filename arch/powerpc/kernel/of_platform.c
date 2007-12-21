@@ -40,7 +40,7 @@
  * a bus type in the list
  */
 
-static struct of_device_id of_default_bus_ids[] = {
+static const struct of_device_id of_default_bus_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .type = "spider", },
@@ -100,8 +100,8 @@ EXPORT_SYMBOL(of_platform_device_create);
  * @matches: match table, NULL to use the default, OF_NO_DEEP_PROBE to
  * disallow recursive creation of child busses
  */
-static int of_platform_bus_create(struct device_node *bus,
-				  struct of_device_id *matches,
+static int of_platform_bus_create(const struct device_node *bus,
+				  const struct of_device_id *matches,
 				  struct device *parent)
 {
 	struct device_node *child;
@@ -137,7 +137,7 @@ static int of_platform_bus_create(struct device_node *bus,
  */
 
 int of_platform_bus_probe(struct device_node *root,
-			  struct of_device_id *matches,
+			  const struct of_device_id *matches,
 			  struct device *parent)
 {
 	struct device_node *child;

@@ -32,7 +32,7 @@ extern struct of_device *of_platform_device_create(struct device_node *np,
 #define OF_NO_DEEP_PROBE ((struct of_device_id *)-1)
 
 extern int of_platform_bus_probe(struct device_node *root,
-				 struct of_device_id *matches,
+				 const struct of_device_id *matches,
 				 struct device *parent);
 
 extern struct of_device *of_find_device_by_phandle(phandle ph);
