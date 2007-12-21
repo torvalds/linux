@@ -612,7 +612,7 @@ void ndisc_send_rs(struct net_device *dev, struct in6_addr *saddr,
 	 * optimistic addresses, but we may send the solicitation
 	 * if we don't include the sllao.  So here we check
 	 * if our address is optimistic, and if so, we
-	 * supress the inclusion of the sllao.
+	 * suppress the inclusion of the sllao.
 	 */
 	if (send_sllao) {
 		struct inet6_ifaddr *ifp = ipv6_get_ifaddr(saddr, dev, 1);

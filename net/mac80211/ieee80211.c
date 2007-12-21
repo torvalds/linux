@@ -427,7 +427,6 @@ static const struct header_ops ieee80211_header_ops = {
 void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
-	dev->header_ops = &ieee80211_header_ops;
 	dev->hard_start_xmit = ieee80211_subif_start_xmit;
 	dev->wireless_handlers = &ieee80211_iw_handler_def;
 	dev->set_multicast_list = ieee80211_set_multicast_list;

@@ -165,7 +165,7 @@ static int mangle_content_len(struct sk_buff *skb,
 
 	dataoff = ip_hdrlen(skb) + sizeof(struct udphdr);
 
-	/* Get actual SDP lenght */
+	/* Get actual SDP length */
 	if (ct_sip_get_info(ct, dptr, skb->len - dataoff, &matchoff,
 			    &matchlen, POS_SDP_HEADER) > 0) {
 

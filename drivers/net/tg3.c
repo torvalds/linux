@@ -8189,6 +8189,7 @@ static int tg3_get_eeprom_len(struct net_device *dev)
 }
 
 static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val);
+static int tg3_nvram_read_le(struct tg3 *tp, u32 offset, __le32 *val);
 static int tg3_nvram_read_swab(struct tg3 *tp, u32 offset, u32 *val);
 
 static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom, u8 *data)
@@ -8196,7 +8197,8 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	struct tg3 *tp = netdev_priv(dev);
 	int ret;
 	u8  *pd;
-	u32 i, offset, len, val, b_offset, b_count;
+	u32 i, offset, len, b_offset, b_count;
+	__le32 val;
 
 	if (tp->link_config.phy_is_low_power)
 		return -EAGAIN;
@@ -8215,10 +8217,9 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 			/* i.e. offset=1 len=2 */
 			b_count = len;
 		}
-		ret = tg3_nvram_read(tp, offset-b_offset, &val);
+		ret = tg3_nvram_read_le(tp, offset-b_offset, &val);
 		if (ret)
 			return ret;
-		val = cpu_to_le32(val);
 		memcpy(data, ((char*)&val) + b_offset, b_count);
 		len -= b_count;
 		offset += b_count;
@@ -8228,12 +8229,11 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	/* read bytes upto the last 4 byte boundary */
 	pd = &data[eeprom->len];
 	for (i = 0; i < (len - (len & 3)); i += 4) {
-		ret = tg3_nvram_read(tp, offset + i, &val);
+		ret = tg3_nvram_read_le(tp, offset + i, &val);
 		if (ret) {
 			eeprom->len += i;
 			return ret;
 		}
-		val = cpu_to_le32(val);
 		memcpy(pd + i, &val, 4);
 	}
 	eeprom->len += i;
@@ -8243,11 +8243,10 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		pd = &data[eeprom->len];
 		b_count = len & 3;
 		b_offset = offset + len - b_count;
-		ret = tg3_nvram_read(tp, b_offset, &val);
+		ret = tg3_nvram_read_le(tp, b_offset, &val);
 		if (ret)
 			return ret;
-		val = cpu_to_le32(val);
-		memcpy(pd, ((char*)&val), b_count);
+		memcpy(pd, &val, b_count);
 		eeprom->len += b_count;
 	}
 	return 0;
@@ -8259,8 +8258,9 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 {
 	struct tg3 *tp = netdev_priv(dev);
 	int ret;
-	u32 offset, len, b_offset, odd_len, start, end;
+	u32 offset, len, b_offset, odd_len;
 	u8 *buf;
+	__le32 start, end;
 
 	if (tp->link_config.phy_is_low_power)
 		return -EAGAIN;
@@ -8273,10 +8273,9 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 	if ((b_offset = (offset & 3))) {
 		/* adjustments to start on required 4 byte boundary */
-		ret = tg3_nvram_read(tp, offset-b_offset, &start);
+		ret = tg3_nvram_read_le(tp, offset-b_offset, &start);
 		if (ret)
 			return ret;
-		start = cpu_to_le32(start);
 		len += b_offset;
 		offset &= ~3;
 		if (len < 4)
@@ -8288,10 +8287,9 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		/* adjustments to end on required 4 byte boundary */
 		odd_len = 1;
 		len = (len + 3) & ~3;
-		ret = tg3_nvram_read(tp, offset+len-4, &end);
+		ret = tg3_nvram_read_le(tp, offset+len-4, &end);
 		if (ret)
 			return ret;
-		end = cpu_to_le32(end);
 	}
 
 	buf = data;
@@ -8734,7 +8732,8 @@ static void tg3_get_ethtool_stats (struct net_device *dev,
 
 static int tg3_test_nvram(struct tg3 *tp)
 {
-	u32 *buf, csum, magic;
+	u32 csum, magic;
+	__le32 *buf;
 	int i, j, k, err = 0, size;
 
 	if (tg3_nvram_read_swab(tp, 0, &magic) != 0)
@@ -8771,21 +8770,19 @@ static int tg3_test_nvram(struct tg3 *tp)
 
 	err = -EIO;
 	for (i = 0, j = 0; i < size; i += 4, j++) {
-		u32 val;
-
-		if ((err = tg3_nvram_read(tp, i, &val)) != 0)
+		if ((err = tg3_nvram_read_le(tp, i, &buf[j])) != 0)
 			break;
-		buf[j] = cpu_to_le32(val);
 	}
 	if (i < size)
 		goto out;
 
 	/* Selfboot format */
-	if ((cpu_to_be32(buf[0]) & TG3_EEPROM_MAGIC_FW_MSK) ==
+	magic = swab32(le32_to_cpu(buf[0]));
+	if ((magic & TG3_EEPROM_MAGIC_FW_MSK) ==
 	    TG3_EEPROM_MAGIC_FW) {
 		u8 *buf8 = (u8 *) buf, csum8 = 0;
 
-		if ((cpu_to_be32(buf[0]) & TG3_EEPROM_SB_REVISION_MASK) ==
+		if ((magic & TG3_EEPROM_SB_REVISION_MASK) ==
 		    TG3_EEPROM_SB_REVISION_2) {
 			/* For rev 2, the csum doesn't include the MBA. */
 			for (i = 0; i < TG3_EEPROM_SB_F1R2_MBA_OFF; i++)
@@ -8806,7 +8803,7 @@ static int tg3_test_nvram(struct tg3 *tp)
 		goto out;
 	}
 
-	if ((cpu_to_be32(buf[0]) & TG3_EEPROM_MAGIC_HW_MSK) ==
+	if ((magic & TG3_EEPROM_MAGIC_HW_MSK) ==
 	    TG3_EEPROM_MAGIC_HW) {
 		u8 data[NVRAM_SELFBOOT_DATA_SIZE];
 	       	u8 parity[NVRAM_SELFBOOT_DATA_SIZE];
@@ -8852,12 +8849,12 @@ static int tg3_test_nvram(struct tg3 *tp)
 
 	/* Bootstrap checksum at offset 0x10 */
 	csum = calc_crc((unsigned char *) buf, 0x10);
-	if(csum != cpu_to_le32(buf[0x10/4]))
+	if(csum != le32_to_cpu(buf[0x10/4]))
 		goto out;
 
 	/* Manufacturing block starts at offset 0x74, checksum at 0xfc */
 	csum = calc_crc((unsigned char *) &buf[0x74/4], 0x88);
-	if (csum != cpu_to_le32(buf[0xfc/4]))
+	if (csum != le32_to_cpu(buf[0xfc/4]))
 		 goto out;
 
 	err = 0;
@@ -10171,6 +10168,15 @@ static int tg3_nvram_read(struct tg3 *tp, u32 offset, u32 *val)
 	return ret;
 }
 
+static int tg3_nvram_read_le(struct tg3 *tp, u32 offset, __le32 *val)
+{
+	u32 v;
+	int res = tg3_nvram_read(tp, offset, &v);
+	if (!res)
+		*val = cpu_to_le32(v);
+	return res;
+}
+
 static int tg3_nvram_read_swab(struct tg3 *tp, u32 offset, u32 *val)
 {
 	int err;
@@ -10188,13 +10194,14 @@ static int tg3_nvram_write_block_using_eeprom(struct tg3 *tp,
 	u32 val;
 
 	for (i = 0; i < len; i += 4) {
-		u32 addr, data;
+		u32 addr;
+		__le32 data;
 
 		addr = offset + i;
 
 		memcpy(&data, buf + i, 4);
 
-		tw32(GRC_EEPROM_DATA, cpu_to_le32(data));
+		tw32(GRC_EEPROM_DATA, le32_to_cpu(data));
 
 		val = tr32(GRC_EEPROM_ADDR);
 		tw32(GRC_EEPROM_ADDR, val | EEPROM_ADDR_COMPLETE);
@@ -10244,8 +10251,8 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 		phy_addr = offset & ~pagemask;
 
 		for (j = 0; j < pagesize; j += 4) {
-			if ((ret = tg3_nvram_read(tp, phy_addr + j,
-						(u32 *) (tmp + j))))
+			if ((ret = tg3_nvram_read_le(tp, phy_addr + j,
+						(__le32 *) (tmp + j))))
 				break;
 		}
 		if (ret)
@@ -10289,10 +10296,11 @@ static int tg3_nvram_write_block_unbuffered(struct tg3 *tp, u32 offset, u32 len,
 			break;
 
 		for (j = 0; j < pagesize; j += 4) {
-			u32 data;
+			__be32 data;
 
-	    		data = *((u32 *) (tmp + j));
-			tw32(NVRAM_WRDATA, cpu_to_be32(data));
+			data = *((__be32 *) (tmp + j));
+			/* swab32(le32_to_cpu(data)), actually */
+			tw32(NVRAM_WRDATA, be32_to_cpu(data));
 
 			tw32(NVRAM_ADDR, phy_addr + j);
 
@@ -10326,10 +10334,11 @@ static int tg3_nvram_write_block_buffered(struct tg3 *tp, u32 offset, u32 len,
 	int i, ret = 0;
 
 	for (i = 0; i < len; i += 4, offset += 4) {
-		u32 data, page_off, phy_addr, nvram_cmd;
+		u32 page_off, phy_addr, nvram_cmd;
+		__be32 data;
 
 		memcpy(&data, buf + i, 4);
-		tw32(NVRAM_WRDATA, cpu_to_be32(data));
+		tw32(NVRAM_WRDATA, be32_to_cpu(data));
 
 	        page_off = offset % tp->nvram_pagesize;
 
@@ -10831,6 +10840,7 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		vpd_cap = pci_find_capability(tp->pdev, PCI_CAP_ID_VPD);
 		for (i = 0; i < 256; i += 4) {
 			u32 tmp, j = 0;
+			__le32 v;
 			u16 tmp16;
 
 			pci_write_config_word(tp->pdev, vpd_cap + PCI_VPD_ADDR,
@@ -10847,8 +10857,8 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 
 			pci_read_config_dword(tp->pdev, vpd_cap + PCI_VPD_DATA,
 					      &tmp);
-			tmp = cpu_to_le32(tmp);
-			memcpy(&vpd_data[i], &tmp, 4);
+			v = cpu_to_le32(tmp);
+			memcpy(&vpd_data[i], &v, 4);
 		}
 	}
 
@@ -10941,11 +10951,11 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 
 	offset = offset + ver_offset - start;
 	for (i = 0; i < 16; i += 4) {
-		if (tg3_nvram_read(tp, offset + i, &val))
+		__le32 v;
+		if (tg3_nvram_read_le(tp, offset + i, &v))
 			return;
 
-		val = le32_to_cpu(val);
-		memcpy(tp->fw_ver + i, &val, 4);
+		memcpy(tp->fw_ver + i, &v, 4);
 	}
 
 	if (!(tp->tg3_flags & TG3_FLAG_ENABLE_ASF) ||
@@ -10983,19 +10993,19 @@ static void __devinit tg3_read_fw_ver(struct tg3 *tp)
 	tp->fw_ver[bcnt++] = ' ';
 
 	for (i = 0; i < 4; i++) {
-		if (tg3_nvram_read(tp, offset, &val))
+		__le32 v;
+		if (tg3_nvram_read_le(tp, offset, &v))
 			return;
 
-		val = le32_to_cpu(val);
-		offset += sizeof(val);
+		offset += sizeof(v);
 
-		if (bcnt > TG3_VER_SIZE - sizeof(val)) {
-			memcpy(&tp->fw_ver[bcnt], &val, TG3_VER_SIZE - bcnt);
+		if (bcnt > TG3_VER_SIZE - sizeof(v)) {
+			memcpy(&tp->fw_ver[bcnt], &v, TG3_VER_SIZE - bcnt);
 			break;
 		}
 
-		memcpy(&tp->fw_ver[bcnt], &val, sizeof(val));
-		bcnt += sizeof(val);
+		memcpy(&tp->fw_ver[bcnt], &v, sizeof(v));
+		bcnt += sizeof(v);
 	}
 
 	tp->fw_ver[TG3_VER_SIZE - 1] = 0;

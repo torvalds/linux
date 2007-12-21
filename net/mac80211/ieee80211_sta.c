@@ -808,12 +808,8 @@ static void ieee80211_associated(struct net_device *dev,
 		sta_info_put(sta);
 	}
 	if (disassoc) {
-		union iwreq_data wrqu;
-		memset(wrqu.ap_addr.sa_data, 0, ETH_ALEN);
-		wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-		wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
-		mod_timer(&ifsta->timer, jiffies +
-				      IEEE80211_MONITORING_INTERVAL + 30 * HZ);
+		ifsta->state = IEEE80211_DISABLED;
+		ieee80211_set_associated(dev, ifsta, 0);
 	} else {
 		mod_timer(&ifsta->timer, jiffies +
 				      IEEE80211_MONITORING_INTERVAL);

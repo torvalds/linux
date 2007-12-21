@@ -23,7 +23,7 @@ struct ip6_tnl {
 	struct net_device *dev;	/* virtual device associated with tunnel */
 	struct net_device_stats stat;	/* statistics for tunnel device */
 	int recursion;		/* depth of hard_start_xmit recursion */
-	struct ip6_tnl_parm parms;	/* tunnel configuration paramters */
+	struct ip6_tnl_parm parms;	/* tunnel configuration parameters */
 	struct flowi fl;	/* flowi template for xmit */
 	struct dst_entry *dst_cache;    /* cached dst */
 	u32 dst_cookie;

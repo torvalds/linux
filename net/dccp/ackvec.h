@@ -71,7 +71,7 @@ struct dccp_ackvec {
  * @dccpavr_ack_ackno - sequence number being acknowledged
  * @dccpavr_ack_ptr - pointer into dccpav_buf where this record starts
  * @dccpavr_ack_nonce - dccpav_ack_nonce at the time this record was sent
- * @dccpavr_sent_len - lenght of the record in dccpav_buf
+ * @dccpavr_sent_len - length of the record in dccpav_buf
  */
 struct dccp_ackvec_record {
 	struct list_head dccpavr_node;

@@ -254,6 +254,8 @@ int put_cmsg_compat(struct msghdr *kmsg, int level, int type, int len, void *dat
 	if (copy_to_user(CMSG_COMPAT_DATA(cm), data, cmlen - sizeof(struct compat_cmsghdr)))
 		return -EFAULT;
 	cmlen = CMSG_COMPAT_SPACE(len);
+	if (kmsg->msg_controllen < cmlen)
+		cmlen = kmsg->msg_controllen;
 	kmsg->msg_control += cmlen;
 	kmsg->msg_controllen -= cmlen;
 	return 0;

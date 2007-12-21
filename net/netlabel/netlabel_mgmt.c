@@ -71,7 +71,7 @@ static const struct nla_policy netlbl_mgmt_genl_policy[NLBL_MGMT_A_MAX + 1] = {
 };
 
 /*
- * NetLabel Misc Managment Functions
+ * NetLabel Misc Management Functions
  */
 
 /**
