@@ -987,9 +987,10 @@ static int push_nodes_for_insert(struct btrfs_trans_handle *trans,
  * readahead one full node of leaves
  */
 static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
-			     int level, int slot)
+			     int level, int slot, u64 objectid)
 {
 	struct extent_buffer *node;
+	struct btrfs_disk_key disk_key;
 	u32 nritems;
 	u64 search;
 	u64 lowest_read;
@@ -1029,6 +1030,11 @@ static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
 		} else if (direction > 0) {
 			nr++;
 			if (nr >= nritems)
+				break;
+		}
+		if (path->reada < 0 && objectid) {
+			btrfs_node_key(node, &disk_key, nr);
+			if (btrfs_disk_key_objectid(&disk_key) != objectid)
 				break;
 		}
 		search = btrfs_node_blockptr(node, nr);
@@ -1136,7 +1142,8 @@ again:
 			bytenr = btrfs_node_blockptr(b, slot);
 			ptr_gen = btrfs_node_ptr_generation(b, slot);
 			if (should_reada)
-				reada_for_search(root, p, level, slot);
+				reada_for_search(root, p, level, slot,
+						 key->objectid);
 			b = read_tree_block(root, bytenr,
 					    btrfs_level_size(root, level - 1));
 			if (ptr_gen != btrfs_header_generation(b)) {
@@ -2671,9 +2678,6 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		if (next)
 			free_extent_buffer(next);
 
-		if (path->reada < 0)
-			reada_for_search(root, path, level, slot);
-
 		next = read_tree_block(root, bytenr,
 				       btrfs_level_size(root, level - 1));
 		break;
@@ -2687,8 +2691,6 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		path->slots[level] = 0;
 		if (!level)
 			break;
-		if (path->reada)
-			reada_for_search(root, path, level, 0);
 		next = read_tree_block(root, btrfs_node_blockptr(next, 0),
 				       btrfs_level_size(root, level - 1));
 	}
@@ -2726,7 +2728,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 			free_extent_buffer(next);
 
 		if (path->reada)
-			reada_for_search(root, path, level, slot);
+			reada_for_search(root, path, level, slot, 0);
 
 		next = read_tree_block(root, bytenr,
 				       btrfs_level_size(root, level -1));
@@ -2742,7 +2744,7 @@ int btrfs_next_leaf(struct btrfs_root *root, struct btrfs_path *path)
 		if (!level)
 			break;
 		if (path->reada)
-			reada_for_search(root, path, level, 0);
+			reada_for_search(root, path, level, 0, 0);
 		next = read_tree_block(root, btrfs_node_blockptr(next, 0),
 				       btrfs_level_size(root, level - 1));
 	}
