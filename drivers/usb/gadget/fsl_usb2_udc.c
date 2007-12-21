@@ -1318,7 +1318,7 @@ static void setup_received_irq(struct fsl_udc *udc,
 				| USB_TYPE_STANDARD)) {
 			/* Note: The driver has not include OTG support yet.
 			 * This will be set when OTG support is added */
-			if (!gadget_is_otg(udc->gadget))
+			if (!gadget_is_otg(&udc->gadget))
 				break;
 			else if (setup->bRequest == USB_DEVICE_B_HNP_ENABLE)
 				udc->gadget.b_hnp_enable = 1;
