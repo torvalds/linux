@@ -126,7 +126,6 @@
 				#address-cells = <2>;
 				#size-cells = <1>;
 				clock-frequency = <0>; /* Filled in by zImage */
-				ranges;
 				interrupts = <5 1>;
 				interrupt-parent = <&UIC1>;
 			};
