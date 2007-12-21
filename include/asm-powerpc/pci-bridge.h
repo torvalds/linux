@@ -167,7 +167,6 @@ struct pci_dn {
 	int	busno;			/* pci bus number */
 	int	bussubno;		/* pci subordinate bus number */
 	int	devfn;			/* pci device and function number */
-	int	class_code;		/* pci device class */
 
 	struct  pci_controller *phb;	/* for pci devices */
 	struct	iommu_table *iommu_table;	/* for phb's or bridges */
@@ -177,6 +176,7 @@ struct pci_dn {
 	int	pci_ext_config_space;	/* for pci devices */
 
 #ifdef CONFIG_EEH
+	int	class_code;		/* pci device class */
 	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
 	int	eeh_config_addr;
 	int	eeh_pe_config_addr; /* new-style partition endpoint address */
