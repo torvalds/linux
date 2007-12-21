@@ -115,7 +115,8 @@ int __init extent_map_init(void);
 void extent_map_exit(void);
 
 u64 count_range_bits(struct extent_map_tree *tree,
-		     u64 *start, u64 max_bytes, unsigned long bits);
+		     u64 *start, u64 search_end,
+		     u64 max_bytes, unsigned long bits);
 
 int test_range_bit(struct extent_map_tree *tree, u64 start, u64 end,
 		   int bits, int filled);

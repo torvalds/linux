@@ -307,6 +307,7 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	    inline_size > 32768 ||
 	    inline_size >= BTRFS_MAX_INLINE_DATA_SIZE(root)) {
 		u64 last_end;
+		u64 existing_delalloc = 0;
 
 		for (i = 0; i < num_pages; i++) {
 			struct page *p = pages[i];
@@ -316,8 +317,19 @@ static int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		last_end = (u64)(pages[num_pages -1]->index) <<
 				PAGE_CACHE_SHIFT;
 		last_end += PAGE_CACHE_SIZE - 1;
+		if (start_pos < isize) {
+			u64 delalloc_start = start_pos;
+			existing_delalloc = count_range_bits(em_tree,
+					     &delalloc_start,
+					     end_of_last_block, (u64)-1,
+					     EXTENT_DELALLOC);
+		}
 		set_extent_delalloc(em_tree, start_pos, end_of_last_block,
 				 GFP_NOFS);
+		spin_lock(&root->fs_info->delalloc_lock);
+		root->fs_info->delalloc_bytes += (end_of_last_block + 1 -
+					  start_pos) - existing_delalloc;
+		spin_unlock(&root->fs_info->delalloc_lock);
 	} else {
 		u64 aligned_end;
 		/* step one, delete the existing extents in this range */
@@ -708,12 +720,12 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
 	if (err)
-		goto out;
+		goto out_nolock;
 	if (count == 0)
-		goto out;
+		goto out_nolock;
 	err = remove_suid(fdentry(file));
 	if (err)
-		goto out;
+		goto out_nolock;
 	file_update_time(file);
 
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
@@ -758,6 +770,13 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 
 		WARN_ON(num_pages > nrptrs);
 		memset(pages, 0, sizeof(pages));
+
+		mutex_lock(&root->fs_info->fs_mutex);
+		ret = btrfs_check_free_space(root, write_bytes, 0);
+		mutex_unlock(&root->fs_info->fs_mutex);
+		if (ret)
+			goto out;
+
 		ret = prepare_pages(root, file, pages, num_pages,
 				    pos, first_index, last_index,
 				    write_bytes);
@@ -787,8 +806,9 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 			btrfs_btree_balance_dirty(root, 1);
 		cond_resched();
 	}
-	mutex_unlock(&inode->i_mutex);
 out:
+	mutex_unlock(&inode->i_mutex);
+out_nolock:
 	kfree(pages);
 	if (pinned[0])
 		page_cache_release(pinned[0]);

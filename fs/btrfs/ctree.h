@@ -346,6 +346,8 @@ struct btrfs_fs_info {
 	int closing;
 
 	u64 total_pinned;
+	spinlock_t delalloc_lock;
+	u64 delalloc_bytes;
 };
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
@@ -1115,6 +1117,8 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 			struct btrfs_root *root, struct btrfs_path *path,
 			u64 isize);
 /* inode.c */
+int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
+			   int for_del);
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page);
 int btrfs_readpage(struct file *file, struct page *page);
 void btrfs_delete_inode(struct inode *inode);

@@ -223,7 +223,8 @@ static int btree_writepages(struct address_space *mapping,
 		} else {
 			thresh = 8 * 1024 * 1024;
 		}
-		num_dirty = count_range_bits(tree, &start, thresh, EXTENT_DIRTY);
+		num_dirty = count_range_bits(tree, &start, (u64)-1,
+					     thresh, EXTENT_DIRTY);
 		if (num_dirty < thresh) {
 			return 0;
 		}
@@ -559,6 +560,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
 	spin_lock_init(&fs_info->hash_lock);
+	spin_lock_init(&fs_info->delalloc_lock);
 
 	memset(&fs_info->super_kobj, 0, sizeof(fs_info->super_kobj));
 	init_completion(&fs_info->kobj_unregister);
@@ -570,6 +572,7 @@ struct btrfs_root *open_ctree(struct super_block *sb)
 	fs_info->sb = sb;
 	fs_info->mount_opt = 0;
 	fs_info->max_extent = (u64)-1;
+	fs_info->delalloc_bytes = 0;
 	fs_info->btree_inode = new_inode(sb);
 	fs_info->btree_inode->i_ino = 1;
 	fs_info->btree_inode->i_nlink = 1;

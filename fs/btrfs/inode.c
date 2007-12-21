@@ -72,6 +72,26 @@ static unsigned char btrfs_type_by_mode[S_IFMT >> S_SHIFT] = {
 	[S_IFLNK >> S_SHIFT]	= BTRFS_FT_SYMLINK,
 };
 
+int btrfs_check_free_space(struct btrfs_root *root, u64 num_required,
+			   int for_del)
+{
+	u64 total = btrfs_super_total_bytes(&root->fs_info->super_copy);
+	u64 used = btrfs_super_bytes_used(&root->fs_info->super_copy);
+	u64 thresh;
+	int ret = 0;
+
+	if (for_del)
+		thresh = (total * 90) / 100;
+	else
+		thresh = (total * 85) / 100;
+
+	spin_lock(&root->fs_info->delalloc_lock);
+	if (used + root->fs_info->delalloc_bytes + num_required > thresh)
+		ret = -ENOSPC;
+	spin_unlock(&root->fs_info->delalloc_lock);
+	return ret;
+}
+
 static int cow_file_range(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -124,6 +144,7 @@ static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
 	u64 extent_end;
 	u64 bytenr;
 	u64 cow_end;
+	u64 loops = 0;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_buffer *leaf;
 	int found_type;
@@ -169,6 +190,9 @@ again:
 		       btrfs_file_extent_num_bytes(leaf, item);
 		err = 0;
 
+		if (loops && start != extent_start)
+			goto not_found;
+
 		if (start < extent_start || start >= extent_end)
 			goto not_found;
 
@@ -191,6 +215,7 @@ loop:
 		return 0;
 	}
 	btrfs_release_path(root, path);
+	loops++;
 	goto again;
 
 not_found:
@@ -202,6 +227,7 @@ not_found:
 static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	u64 num_bytes;
 	int ret;
 
 	mutex_lock(&root->fs_info->fs_mutex);
@@ -209,6 +235,17 @@ static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
 		ret = run_delalloc_nocow(inode, start, end);
 	else
 		ret = cow_file_range(inode, start, end);
+
+	spin_lock(&root->fs_info->delalloc_lock);
+	num_bytes = end + 1 - start;
+	if (root->fs_info->delalloc_bytes < num_bytes) {
+		printk("delalloc accounting error total %llu sub %llu\n",
+		       root->fs_info->delalloc_bytes, num_bytes);
+	} else {
+		root->fs_info->delalloc_bytes -= num_bytes;
+	}
+	spin_unlock(&root->fs_info->delalloc_lock);
+
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
@@ -547,10 +584,15 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct btrfs_root *root;
 	struct btrfs_trans_handle *trans;
 	int ret;
-	unsigned long nr;
+	unsigned long nr = 0;
 
 	root = BTRFS_I(dir)->root;
 	mutex_lock(&root->fs_info->fs_mutex);
+
+	ret = btrfs_check_free_space(root, 1, 1);
+	if (ret)
+		goto fail;
+
 	trans = btrfs_start_transaction(root, 1);
 
 	btrfs_set_trans_block_group(trans, dir);
@@ -558,25 +600,29 @@ static int btrfs_unlink(struct inode *dir, struct dentry *dentry)
 	nr = trans->blocks_used;
 
 	btrfs_end_transaction(trans, root);
+fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
-
 	return ret;
 }
 
 static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
-	int err;
+	int err = 0;
 	int ret;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_trans_handle *trans;
-	unsigned long nr;
+	unsigned long nr = 0;
 
 	if (inode->i_size > BTRFS_EMPTY_DIR_SIZE)
 		return -ENOTEMPTY;
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	ret = btrfs_check_free_space(root, 1, 1);
+	if (ret)
+		goto fail;
+
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -588,6 +634,7 @@ static int btrfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	nr = trans->blocks_used;
 	ret = btrfs_end_transaction(trans, root);
+fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	btrfs_btree_balance_dirty(root, nr);
 
@@ -792,17 +839,29 @@ static int btrfs_cow_one_page(struct inode *inode, struct page *page,
 			      size_t zero_start)
 {
 	char *kaddr;
-	int ret = 0;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 	u64 page_end = page_start + PAGE_CACHE_SIZE - 1;
+	u64 existing_delalloc;
+	u64 delalloc_start;
+	int ret = 0;
 
 	WARN_ON(!PageLocked(page));
 	set_page_extent_mapped(page);
 
 	lock_extent(em_tree, page_start, page_end, GFP_NOFS);
+	delalloc_start = page_start;
+	existing_delalloc = count_range_bits(&BTRFS_I(inode)->extent_tree,
+					     &delalloc_start, page_end,
+					     PAGE_CACHE_SIZE, EXTENT_DELALLOC);
 	set_extent_delalloc(&BTRFS_I(inode)->extent_tree, page_start,
 			    page_end, GFP_NOFS);
+
+	spin_lock(&root->fs_info->delalloc_lock);
+	root->fs_info->delalloc_bytes += PAGE_CACHE_SIZE - existing_delalloc;
+	spin_unlock(&root->fs_info->delalloc_lock);
+
 	if (zero_start != PAGE_CACHE_SIZE) {
 		kaddr = kmap(page);
 		memset(kaddr + zero_start, 0, PAGE_CACHE_SIZE - zero_start);
@@ -881,6 +940,12 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		if (attr->ia_size <= pos)
 			goto out;
 
+		mutex_lock(&root->fs_info->fs_mutex);
+		err = btrfs_check_free_space(root, 1, 0);
+		mutex_unlock(&root->fs_info->fs_mutex);
+		if (err)
+			goto fail;
+
 		btrfs_truncate_page(inode->i_mapping, inode->i_size);
 
 		lock_extent(em_tree, pos, block_end, GFP_NOFS);
@@ -906,7 +971,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 out:
 	err = inode_setattr(inode, attr);
-
+fail:
 	return err;
 }
 void btrfs_delete_inode(struct inode *inode)
@@ -1440,16 +1505,20 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	int err;
 	int drop_inode = 0;
 	u64 objectid;
-	unsigned long nr;
+	unsigned long nr = 0;
 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	err = btrfs_check_free_space(root, 1, 0);
+	if (err)
+		goto fail;
+
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -1480,6 +1549,7 @@ static int btrfs_mknod(struct inode *dir, struct dentry *dentry,
 out_unlock:
 	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
+fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 
 	if (drop_inode) {
@@ -1495,13 +1565,16 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	int err;
 	int drop_inode = 0;
-	unsigned long nr;
+	unsigned long nr = 0;
 	u64 objectid;
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	err = btrfs_check_free_space(root, 1, 0);
+	if (err)
+		goto fail;
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -1535,6 +1608,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 out_unlock:
 	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
+fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 
 	if (drop_inode) {
@@ -1551,7 +1625,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct inode *inode = old_dentry->d_inode;
-	unsigned long nr;
+	unsigned long nr = 0;
 	int err;
 	int drop_inode = 0;
 
@@ -1564,6 +1638,9 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	inc_nlink(inode);
 #endif
 	mutex_lock(&root->fs_info->fs_mutex);
+	err = btrfs_check_free_space(root, 1, 0);
+	if (err)
+		goto fail;
 	trans = btrfs_start_transaction(root, 1);
 
 	btrfs_set_trans_block_group(trans, dir);
@@ -1582,6 +1659,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 
 	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
+fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 
 	if (drop_inode) {
@@ -1603,6 +1681,10 @@ static int btrfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	unsigned long nr = 1;
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	err = btrfs_check_free_space(root, 1, 0);
+	if (err)
+		goto out_unlock;
+
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -1869,6 +1951,15 @@ static sector_t btrfs_bmap(struct address_space *mapping, sector_t iblock)
 static int btrfs_prepare_write(struct file *file, struct page *page,
 			       unsigned from, unsigned to)
 {
+	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
+	int err;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	err = btrfs_check_free_space(root, PAGE_CACHE_SIZE, 0);
+	mutex_lock(&root->fs_info->fs_mutex);
+	if (err)
+		return -ENOSPC;
+
 	return extent_prepare_write(&BTRFS_I(page->mapping->host)->extent_tree,
 				    page->mapping->host, page, from, to,
 				    btrfs_get_extent);
@@ -1880,6 +1971,7 @@ int btrfs_readpage(struct file *file, struct page *page)
 	tree = &BTRFS_I(page->mapping->host)->extent_tree;
 	return extent_read_full_page(tree, page, btrfs_get_extent);
 }
+
 static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_map_tree *tree;
@@ -1954,10 +2046,19 @@ static void btrfs_invalidatepage(struct page *page, unsigned long offset)
 int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 {
 	struct inode *inode = fdentry(vma->vm_file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	unsigned long end;
 	loff_t size;
-	int ret = -EINVAL;
+	int ret;
 	u64 page_start;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	ret = btrfs_check_free_space(root, PAGE_CACHE_SIZE, 0);
+	mutex_lock(&root->fs_info->fs_mutex);
+	if (ret)
+		goto out;
+
+	ret = -EINVAL;
 
 	down_read(&BTRFS_I(inode)->root->snap_sem);
 	lock_page(page);
@@ -1982,6 +2083,7 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct page *page)
 out_unlock:
 	up_read(&BTRFS_I(inode)->root->snap_sem);
 	unlock_page(page);
+out:
 	return ret;
 }
 
@@ -2046,6 +2148,10 @@ static int create_subvol(struct btrfs_root *root, char *name, int namelen)
 	unsigned long nr = 1;
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	ret = btrfs_check_free_space(root, 1, 0);
+	if (ret)
+		goto fail_commit;
+
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
 
@@ -2162,7 +2268,7 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	int ret;
 	int err;
 	u64 objectid;
-	unsigned long nr;
+	unsigned long nr = 0;
 
 	if (!root->ref_cows)
 		return -EINVAL;
@@ -2172,6 +2278,10 @@ static int create_snapshot(struct btrfs_root *root, char *name, int namelen)
 	thaw_bdev(root->fs_info->sb->s_bdev, root->fs_info->sb);
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	ret = btrfs_check_free_space(root, 1, 0);
+	if (ret)
+		goto fail_unlock;
+
 	trans = btrfs_start_transaction(root, 1);
 	BUG_ON(!trans);
 
@@ -2229,7 +2339,7 @@ fail:
 
 	if (err && !ret)
 		ret = err;
-
+fail_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	up_write(&root->snap_sem);
 	btrfs_btree_balance_dirty(root, nr);
@@ -2255,6 +2365,7 @@ static unsigned long force_ra(struct address_space *mapping,
 
 int btrfs_defrag_file(struct file *file) {
 	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	struct page *page;
 	unsigned long last_index;
@@ -2262,6 +2373,13 @@ int btrfs_defrag_file(struct file *file) {
 	u64 page_start;
 	u64 page_end;
 	unsigned long i;
+	int ret;
+
+	mutex_lock(&root->fs_info->fs_mutex);
+	ret = btrfs_check_free_space(root, inode->i_size, 0);
+	mutex_unlock(&root->fs_info->fs_mutex);
+	if (ret)
+		return -ENOSPC;
 
 	mutex_lock(&inode->i_mutex);
 	last_index = inode->i_size >> PAGE_CACHE_SHIFT;
@@ -2522,6 +2640,10 @@ static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
 	}
 
 	mutex_lock(&root->fs_info->fs_mutex);
+	ret = btrfs_check_free_space(root, 1, 0);
+	if (ret)
+		goto out_unlock;
+
 	trans = btrfs_start_transaction(root, 1);
 
 	btrfs_set_trans_block_group(trans, new_dir);
@@ -2553,6 +2675,7 @@ static int btrfs_rename(struct inode * old_dir, struct dentry *old_dentry,
 out_fail:
 	btrfs_free_path(path);
 	btrfs_end_transaction(trans, root);
+out_unlock:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	return ret;
 }
@@ -2564,7 +2687,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
-	struct inode *inode;
+	struct inode *inode = NULL;
 	int err;
 	int drop_inode = 0;
 	u64 objectid;
@@ -2573,12 +2696,17 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 	unsigned long ptr;
 	struct btrfs_file_extent_item *ei;
 	struct extent_buffer *leaf;
-	unsigned long nr;
+	unsigned long nr = 0;
 
 	name_len = strlen(symname) + 1;
 	if (name_len > BTRFS_MAX_INLINE_DATA_SIZE(root))
 		return -ENAMETOOLONG;
+
 	mutex_lock(&root->fs_info->fs_mutex);
+	err = btrfs_check_free_space(root, 1, 0);
+	if (err)
+		goto out_fail;
+
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, dir);
 
@@ -2645,6 +2773,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 out_unlock:
 	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
+out_fail:
 	mutex_unlock(&root->fs_info->fs_mutex);
 	if (drop_inode) {
 		inode_dec_link_count(inode);
