@@ -23,6 +23,16 @@ config SEQUOIA
 	help
 	  This option enables support for the AMCC PPC440EPX evaluation board.
 
+config TAISHAN
+	bool "Taishan"
+	depends on 44x
+	default n
+	select 440GX
+	select PCI
+	help
+	  This option enables support for the AMCC PPC440GX "Taishan"
+	  evaluation board.
+
 #config LUAN
 #	bool "Luan"
 #	depends on 44x
@@ -59,6 +69,10 @@ config 440GP
 
 config 440GX
 	bool
+        select IBM_NEW_EMAC_EMAC4
+	select IBM_NEW_EMAC_RGMII
+        select IBM_NEW_EMAC_ZMII #test only
+        select IBM_NEW_EMAC_TAH  #test only
 
 config 440SP
 	bool

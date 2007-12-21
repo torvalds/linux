@@ -225,7 +225,8 @@ config PPC_EARLY_DEBUG_44x
 	depends on 44x
 	help
 	  Select this to enable early debugging for IBM 44x chips via the
-	  inbuilt serial port.
+	  inbuilt serial port.  If you enable this, ensure you set
+          PPC_EARLY_DEBUG_44x_PHYSLOW below to suit your target board.
 
 config PPC_EARLY_DEBUG_40x
 	bool "Early serial debugging for IBM/AMCC 40x CPUs"
@@ -250,6 +251,9 @@ config PPC_EARLY_DEBUG_44x_PHYSLOW
 	hex "Low 32 bits of early debug UART physical address"
 	depends on PPC_EARLY_DEBUG_44x
 	default "0x40000200"
+	help
+	  You probably want 0x40000200 for ebony boards and
+          0x40000300 for taishan
 
 config PPC_EARLY_DEBUG_44x_PHYSHIGH
 	hex "EPRN of early debug UART physical address"
