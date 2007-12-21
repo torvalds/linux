@@ -804,10 +804,13 @@ static void nl_fib_input(struct sk_buff *skb)
 
 	nlh = nlmsg_hdr(skb);
 	if (skb->len < NLMSG_SPACE(0) || skb->len < nlh->nlmsg_len ||
-	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn))) {
-		kfree_skb(skb);
+	    nlh->nlmsg_len < NLMSG_LENGTH(sizeof(*frn)))
 		return;
-	}
+
+	skb = skb_clone(skb, GFP_KERNEL);
+	if (skb == NULL)
+		return;
+	nlh = nlmsg_hdr(skb);
 
 	frn = (struct fib_result_nl *) NLMSG_DATA(nlh);
 	tb = fib_get_table(frn->tb_id_in);
