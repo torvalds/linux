@@ -633,9 +633,7 @@ ENTRY(_ret_from_exception)
 	[sp + PT_IPEND] = r0;
 
 1:
-	r1 = 0x37(Z);
-	r2 = ~r1;
-	r2.h = 0;
+	r2 = LO(~0x37) (Z);
 	r0 = r2 & r0;
 	cc = r0 == 0;
 	if !cc jump 4f;	/* if not return to user mode, get out */
