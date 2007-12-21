@@ -84,7 +84,7 @@ static void bfin_serial_mctrl_check(struct bfin_serial_port *uart);
 static void bfin_serial_stop_tx(struct uart_port *port)
 {
 	struct bfin_serial_port *uart = (struct bfin_serial_port *)port;
-#ifndef CONFIG_BF54x
+#if !defined(CONFIG_BF54x) && !defined(CONFIG_SERIAL_BFIN_DMA)
 	unsigned short ier;
 #endif
 
@@ -307,7 +307,6 @@ static void bfin_serial_tx_chars(struct bfin_serial_port *uart)
 		UART_PUT_CHAR(uart, uart->port.x_char);
 		uart->port.icount.tx++;
 		uart->port.x_char = 0;
-		return;
 	}
 	/*
 	 * Check the modem control lines before
@@ -376,27 +375,25 @@ static void bfin_serial_dma_tx_chars(struct bfin_serial_port *uart)
 
 	if (!uart->tx_done)
 		return;
-
 	uart->tx_done = 0;
-
-	if (uart->port.x_char) {
-		UART_PUT_CHAR(uart, uart->port.x_char);
-		uart->port.icount.tx++;
-		uart->port.x_char = 0;
-		uart->tx_done = 1;
-		return;
-	}
-	/*
-	 * Check the modem control lines before
-	 * transmitting anything.
-	 */
-	bfin_serial_mctrl_check(uart);
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&uart->port)) {
 		bfin_serial_stop_tx(&uart->port);
 		uart->tx_done = 1;
 		return;
 	}
+
+	if (uart->port.x_char) {
+		UART_PUT_CHAR(uart, uart->port.x_char);
+		uart->port.icount.tx++;
+		uart->port.x_char = 0;
+	}
+
+	/*
+	 * Check the modem control lines before
+	 * transmitting anything.
+	 */
+	bfin_serial_mctrl_check(uart);
 
 	spin_lock_irqsave(&uart->port.lock, flags);
 	uart->tx_count = CIRC_CNT(xmit->head, xmit->tail, UART_XMIT_SIZE);
@@ -471,8 +468,6 @@ void bfin_serial_rx_dma_timeout(struct bfin_serial_port *uart)
 	int x_pos, pos;
 	int flags = 0;
 
-	bfin_serial_dma_tx_chars(uart);
-
 	spin_lock_irqsave(&uart->port.lock, flags);
 	x_pos = DMA_RX_XCOUNT - get_dma_curr_xcount(uart->rx_dma_channel);
 	if (x_pos == DMA_RX_XCOUNT)
@@ -513,9 +508,9 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 			uart_write_wakeup(&uart->port);
 
-		if (uart_circ_empty(xmit))
-			bfin_serial_stop_tx(&uart->port);
 		uart->tx_done = 1;
+
+		bfin_serial_dma_tx_chars(uart);
 	}
 
 	spin_unlock(&uart->port.lock);
