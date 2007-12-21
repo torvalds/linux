@@ -11,6 +11,7 @@ config EBONY
 	depends on 44x
 	default y
 	select 440GP
+	select PCI
 	help
 	  This option enables support for the IBM PPC440GP evaluation board.
 
