@@ -60,6 +60,8 @@ static int __init taishan_probe(void)
 	if (!of_flat_dt_is_compatible(root, "amcc,taishan"))
 		return 0;
 
+	ppc_pci_flags = PPC_PCI_REASSIGN_ALL_RSRC;
+
 	return 1;
 }
 

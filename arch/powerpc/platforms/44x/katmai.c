@@ -21,6 +21,7 @@
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>
+#include <asm/pci-bridge.h>
 
 #include "44x.h"
 
@@ -48,6 +49,8 @@ static int __init katmai_probe(void)
 
 	if (!of_flat_dt_is_compatible(root, "amcc,katmai"))
 		return 0;
+
+	ppc_pci_flags = PPC_PCI_REASSIGN_ALL_RSRC;
 
 	return 1;
 }

@@ -21,7 +21,8 @@
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>
-#include "44x.h"
+#include <asm/pci-bridge.h>
+
 
 static struct of_device_id sequoia_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
@@ -47,6 +48,8 @@ static int __init sequoia_probe(void)
 
 	if (!of_flat_dt_is_compatible(root, "amcc,sequoia"))
 		return 0;
+
+	ppc_pci_flags = PPC_PCI_REASSIGN_ALL_RSRC;
 
 	return 1;
 }
