@@ -289,11 +289,8 @@ interrupt_base:
 	CRITICAL_EXCEPTION(0x0100, CriticalInput, unknown_exception)
 
 	/* Machine Check Interrupt */
-#ifdef CONFIG_440A
-	MCHECK_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
-#else
 	CRITICAL_EXCEPTION(0x0200, MachineCheck, machine_check_exception)
-#endif
+	MCHECK_EXCEPTION(0x0210, MachineCheckA, machine_check_exception)
 
 	/* Data Storage Interrupt */
 	START_EXCEPTION(DataStorage)
@@ -672,6 +669,15 @@ finish_tlb_load:
 /*
  * Global functions
  */
+
+/*
+ * Adjust the machine check IVOR on 440A cores
+ */
+_GLOBAL(__fixup_440A_mcheck)
+	li	r3,MachineCheckA@l
+	mtspr	SPRN_IVOR1,r3
+	sync
+	blr
 
 /*
  * extern void giveup_altivec(struct task_struct *prev)

@@ -62,11 +62,6 @@ config 440GX
 config 440SP
 	bool
 
-config 440A
-	bool
-	depends on 440GX || 440EPX
-	default y
-
 # 44x errata/workaround config symbols, selected by the CPU models above
 config IBM440EP_ERR42
 	bool
