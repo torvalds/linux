@@ -166,8 +166,13 @@ struct tx_desc {
 #define TYPHOON_DESC_VALID	0x80
 	u8  numDesc;
 	__le16 len;
-	u32 addr;
-	u32 addrHi;
+	union {
+		struct {
+			__le32 addr;
+			__le32 addrHi;
+		} frag;
+		u64 tx_addr;	/* opaque for hardware, for TX_DESC */
+	};
 	__le32 processFlags;
 #define TYPHOON_TX_PF_NO_CRC		__constant_cpu_to_le32(0x00000001)
 #define TYPHOON_TX_PF_IP_CHKSUM		__constant_cpu_to_le32(0x00000002)
@@ -240,8 +245,8 @@ struct rx_desc {
 	u8  flags;
 	u8  numDesc;
 	__le16 frameLen;
-	u32 addr;
-	u32 addrHi;
+	u32 addr;	/* opaque, comes from virtAddr */
+	u32 addrHi;	/* opaque, comes from virtAddrHi */
 	__le32 rxStatus;
 #define TYPHOON_RX_ERR_INTERNAL		__constant_cpu_to_le32(0x00000000)
 #define TYPHOON_RX_ERR_FIFO_UNDERRUN	__constant_cpu_to_le32(0x00000001)
