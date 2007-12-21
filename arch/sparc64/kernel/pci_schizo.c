@@ -850,7 +850,7 @@ static int pbm_routes_this_ino(struct pci_pbm_info *pbm, u32 ino)
 /* How the Tomatillo IRQs are routed around is pure guesswork here.
  *
  * All the Tomatillo devices I see in prtconf dumps seem to have only
- * a single PCI bus unit attached to it.  It would seem they are seperate
+ * a single PCI bus unit attached to it.  It would seem they are separate
  * devices because their PortID (ie. JBUS ID) values are all different
  * and thus the registers are mapped to totally different locations.
  *
