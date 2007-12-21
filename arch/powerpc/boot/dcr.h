@@ -147,4 +147,31 @@ static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR,
 #define DCRN_405_CPC0_CR0 0xb1
 #define DCRN_405_CPC0_CR1 0xb2
 
+
+/* 440GX Clock control etc */
+
+
+#define DCRN_CPR0_CLKUPD				0x020
+#define DCRN_CPR0_PLLC					0x040
+#define DCRN_CPR0_PLLD					0x060
+#define DCRN_CPR0_PRIMAD				0x080
+#define DCRN_CPR0_PRIMBD				0x0a0
+#define DCRN_CPR0_OPBD					0x0c0
+#define DCRN_CPR0_PERD					0x0e0
+#define DCRN_CPR0_MALD					0x100
+
+/* CPRs read/write helper macros - based off include/asm-ppc/ibm44x.h */
+
+#define DCRN_CPR0_CFGADDR				0xc
+#define DCRN_CPR0_CFGDATA				0xd
+
+#define CPR0_READ(offset) ({\
+	mtdcr(DCRN_CPR0_CFGADDR, offset); \
+	mfdcr(DCRN_CPR0_CFGDATA); })
+#define CPR0_WRITE(offset, data) ({\
+	mtdcr(DCRN_CPR0_CFGADDR, offset); \
+	mtdcr(DCRN_CPR0_CFGDATA, data); })
+
+
+
 #endif	/* _PPC_BOOT_DCR_H_ */
