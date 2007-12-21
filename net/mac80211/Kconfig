@@ -10,8 +10,8 @@ config MAC80211
 	select CFG80211
 	select NET_SCH_FIFO
 	---help---
-	This option enables the hardware independent IEEE 802.11
-	networking stack.
+	  This option enables the hardware independent IEEE 802.11
+	  networking stack.
 
 config MAC80211_RC_DEFAULT_CHOICE
 	bool "Choose default rate control algorithm" if EMBEDDED
@@ -87,8 +87,8 @@ config MAC80211_LEDS
 	bool "Enable LED triggers"
 	depends on MAC80211 && LEDS_TRIGGERS
 	---help---
-	This option enables a few LED triggers for different
-	packet receive/transmit events.
+	  This option enables a few LED triggers for different
+	  packet receive/transmit events.
 
 config MAC80211_DEBUGFS
 	bool "Export mac80211 internals in DebugFS"
@@ -110,14 +110,14 @@ config MAC80211_DEBUG
 	  subsystem, you most likely want to say N here.
 
 config MAC80211_HT_DEBUG
-       bool "Enable HT debugging output"
-       depends on MAC80211_DEBUG
-       ---help---
-       This option enables 802.11n High Throughput features
-       debug tracing output.
+	bool "Enable HT debugging output"
+	depends on MAC80211_DEBUG
+	---help---
+	  This option enables 802.11n High Throughput features
+	  debug tracing output.
 
-       If you are not trying to debug of develop the ieee80211
-       subsystem, you most likely want to say N here.
+	  If you are not trying to debug of develop the ieee80211
+	  subsystem, you most likely want to say N here.
 
 config MAC80211_VERBOSE_DEBUG
 	bool "Verbose debugging output"
