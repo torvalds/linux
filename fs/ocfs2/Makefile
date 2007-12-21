@@ -19,6 +19,7 @@ ocfs2-objs := \
 	ioctl.o 		\
 	journal.o 		\
 	localalloc.o 		\
+	locks.o			\
 	mmap.o 			\
 	namei.o 		\
 	resize.o		\

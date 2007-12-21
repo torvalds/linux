@@ -153,6 +153,7 @@ enum {
 	Opt_slot,
 	Opt_commit,
 	Opt_localalloc,
+	Opt_localflocks,
 	Opt_err,
 };
 
@@ -170,6 +171,7 @@ static match_table_t tokens = {
 	{Opt_slot, "preferred_slot=%u"},
 	{Opt_commit, "commit=%u"},
 	{Opt_localalloc, "localalloc=%d"},
+	{Opt_localflocks, "localflocks"},
 	{Opt_err, NULL}
 };
 
@@ -848,6 +850,20 @@ static int ocfs2_parse_options(struct super_block *sb,
 			if (option >= 0 && (option <= ocfs2_local_alloc_size(sb) * 8))
 				mopt->localalloc_opt = option;
 			break;
+		case Opt_localflocks:
+			/*
+			 * Changing this during remount could race
+			 * flock() requests, or "unbalance" existing
+			 * ones (e.g., a lock is taken in one mode but
+			 * dropped in the other). If users care enough
+			 * to flip locking modes during remount, we
+			 * could add a "local" flag to individual
+			 * flock structures for proper tracking of
+			 * state.
+			 */
+			if (!is_remount)
+				mopt->mount_opt |= OCFS2_MOUNT_LOCALFLOCKS;
+			break;
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -902,6 +918,9 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 
 	if (osb->local_alloc_size != OCFS2_DEFAULT_LOCAL_ALLOC_SIZE)
 		seq_printf(s, ",localalloc=%d", osb->local_alloc_size);
+
+	if (opts & OCFS2_MOUNT_LOCALFLOCKS)
+		seq_printf(s, ",localflocks,");
 
 	return 0;
 }

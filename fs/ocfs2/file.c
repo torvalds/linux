@@ -51,6 +51,7 @@
 #include "inode.h"
 #include "ioctl.h"
 #include "journal.h"
+#include "locks.h"
 #include "mmap.h"
 #include "suballoc.h"
 #include "super.h"
@@ -61,6 +62,35 @@ static int ocfs2_sync_inode(struct inode *inode)
 {
 	filemap_fdatawrite(inode->i_mapping);
 	return sync_mapping_buffers(inode->i_mapping);
+}
+
+static int ocfs2_init_file_private(struct inode *inode, struct file *file)
+{
+	struct ocfs2_file_private *fp;
+
+	fp = kzalloc(sizeof(struct ocfs2_file_private), GFP_KERNEL);
+	if (!fp)
+		return -ENOMEM;
+
+	fp->fp_file = file;
+	mutex_init(&fp->fp_mutex);
+	ocfs2_file_lock_res_init(&fp->fp_flock, fp);
+	file->private_data = fp;
+
+	return 0;
+}
+
+static void ocfs2_free_file_private(struct inode *inode, struct file *file)
+{
+	struct ocfs2_file_private *fp = file->private_data;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	if (fp) {
+		ocfs2_simple_drop_lockres(osb, &fp->fp_flock);
+		ocfs2_lock_res_free(&fp->fp_flock);
+		kfree(fp);
+		file->private_data = NULL;
+	}
 }
 
 static int ocfs2_file_open(struct inode *inode, struct file *file)
@@ -89,7 +119,18 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 
 	oi->ip_open_count++;
 	spin_unlock(&oi->ip_lock);
-	status = 0;
+
+	status = ocfs2_init_file_private(inode, file);
+	if (status) {
+		/*
+		 * We want to set open count back if we're failing the
+		 * open.
+		 */
+		spin_lock(&oi->ip_lock);
+		oi->ip_open_count--;
+		spin_unlock(&oi->ip_lock);
+	}
+
 leave:
 	mlog_exit(status);
 	return status;
@@ -108,8 +149,21 @@ static int ocfs2_file_release(struct inode *inode, struct file *file)
 		oi->ip_flags &= ~OCFS2_INODE_OPEN_DIRECT;
 	spin_unlock(&oi->ip_lock);
 
+	ocfs2_free_file_private(inode, file);
+
 	mlog_exit(0);
 
+	return 0;
+}
+
+static int ocfs2_dir_open(struct inode *inode, struct file *file)
+{
+	return ocfs2_init_file_private(inode, file);
+}
+
+static int ocfs2_dir_release(struct inode *inode, struct file *file)
+{
+	ocfs2_free_file_private(inode, file);
 	return 0;
 }
 
@@ -2191,6 +2245,7 @@ const struct file_operations ocfs2_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ocfs2_compat_ioctl,
 #endif
+	.flock		= ocfs2_flock,
 	.splice_read	= ocfs2_file_splice_read,
 	.splice_write	= ocfs2_file_splice_write,
 };
@@ -2199,8 +2254,11 @@ const struct file_operations ocfs2_dops = {
 	.read		= generic_read_dir,
 	.readdir	= ocfs2_readdir,
 	.fsync		= ocfs2_sync_file,
+	.release	= ocfs2_dir_release,
+	.open		= ocfs2_dir_open,
 	.ioctl		= ocfs2_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ocfs2_compat_ioctl,
 #endif
+	.flock		= ocfs2_flock,
 };
