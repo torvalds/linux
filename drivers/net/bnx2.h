@@ -6513,7 +6513,6 @@ struct bnx2 {
 	u32			rx_prod_bseq;
 	u16			rx_prod;
 	u16			rx_cons;
-	u16			hw_rx_cons;
 
 	u32			rx_csum;
 

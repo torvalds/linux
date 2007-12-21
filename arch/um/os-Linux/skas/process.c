@@ -64,7 +64,7 @@ void wait_stub_done(int pid)
 	int n, status, err;
 
 	while (1) {
-		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
+		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED | __WALL));
 		if ((n < 0) || !WIFSTOPPED(status))
 			goto bad_wait;
 
@@ -153,7 +153,7 @@ static void handle_trap(int pid, struct uml_pt_regs *regs,
 			panic("handle_trap - continuing to end of syscall "
 			      "failed, errno = %d\n", errno);
 
-		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED));
+		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED | __WALL));
 		if ((err < 0) || !WIFSTOPPED(status) ||
 		   (WSTOPSIG(status) != SIGTRAP + 0x80)) {
                         err = ptrace_dump_regs(pid);
@@ -255,16 +255,18 @@ int start_userspace(unsigned long stub_stack)
 		panic("start_userspace : mmap failed, errno = %d", errno);
 	sp = (unsigned long) stack + UM_KERN_PAGE_SIZE - sizeof(void *);
 
-	flags = CLONE_FILES | SIGCHLD;
+	flags = CLONE_FILES;
 	if (proc_mm)
 		flags |= CLONE_VM;
+	else
+		flags |= SIGCHLD;
 
 	pid = clone(userspace_tramp, (void *) sp, flags, (void *) stub_stack);
 	if (pid < 0)
 		panic("start_userspace : clone failed, errno = %d", errno);
 
 	do {
-		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED));
+		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED | __WALL));
 		if (n < 0)
 			panic("start_userspace : wait failed, errno = %d",
 			      errno);
@@ -314,7 +316,7 @@ void userspace(struct uml_pt_regs *regs)
 			      "pid=%d, ptrace operation = %d, errno = %d\n",
 			      pid, op, errno);
 
-		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED));
+		CATCH_EINTR(err = waitpid(pid, &status, WUNTRACED | __WALL));
 		if (err < 0)
 			panic("userspace - waitpid failed, errno = %d\n",
 			      errno);

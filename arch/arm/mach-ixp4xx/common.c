@@ -442,7 +442,8 @@ static int ixp4xx_set_next_event(unsigned long evt,
 static void ixp4xx_set_mode(enum clock_event_mode mode,
 			    struct clock_event_device *evt)
 {
-	unsigned long opts, osrt = *IXP4XX_OSRT1 & ~IXP4XX_OST_RELOAD_MASK;
+	unsigned long opts = *IXP4XX_OSRT1 & IXP4XX_OST_RELOAD_MASK;
+	unsigned long osrt = *IXP4XX_OSRT1 & ~IXP4XX_OST_RELOAD_MASK;
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -455,11 +456,14 @@ static void ixp4xx_set_mode(enum clock_event_mode mode,
 		opts = IXP4XX_OST_ENABLE | IXP4XX_OST_ONE_SHOT;
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
+		opts &= ~IXP4XX_OST_ENABLE;
+		break;
+	case CLOCK_EVT_MODE_RESUME:
+		opts |= IXP4XX_OST_ENABLE;
+		break;
 	case CLOCK_EVT_MODE_UNUSED:
 	default:
 		osrt = opts = 0;
-		break;
-	case CLOCK_EVT_MODE_RESUME:
 		break;
 	}
 

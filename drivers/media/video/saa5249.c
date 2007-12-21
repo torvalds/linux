@@ -282,12 +282,14 @@ static int i2c_senddata(struct saa5249_device *t, ...)
 {
 	unsigned char buf[64];
 	int v;
-	int ct=0;
+	int ct = 0;
 	va_list argp;
 	va_start(argp,t);
 
-	while((v=va_arg(argp,int))!=-1)
-		buf[ct++]=v;
+	while ((v = va_arg(argp, int)) != -1)
+		buf[ct++] = v;
+
+	va_end(argp);
 	return i2c_sendbuf(t, buf[0], ct-1, buf+1);
 }
 

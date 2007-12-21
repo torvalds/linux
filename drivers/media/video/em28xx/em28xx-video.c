@@ -144,7 +144,8 @@ static int em28xx_config(struct em28xx *dev)
 {
 
 	/* Sets I2C speed to 100 KHz */
-	em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+	if (!dev->is_em2800)
+		em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
 
 	/* enable vbi capturing */
 
@@ -570,7 +571,9 @@ static void em28xx_vm_close(struct vm_area_struct *vma)
 {
 	/* NOTE: buffers are not freed here */
 	struct em28xx_frame_t *f = vma->vm_private_data;
-	f->vma_use_count--;
+
+	if (f->vma_use_count)
+		f->vma_use_count--;
 }
 
 static struct vm_operations_struct em28xx_vm_ops = {

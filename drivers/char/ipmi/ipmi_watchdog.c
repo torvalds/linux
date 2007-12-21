@@ -669,6 +669,7 @@ static int ipmi_ioctl(struct inode *inode, struct file *file,
 		return 0;
 
 	case WDIOC_SET_PRETIMEOUT:
+	case WDIOC_SETPRETIMEOUT:
 		i = copy_from_user(&val, argp, sizeof(int));
 		if (i)
 			return -EFAULT;
@@ -676,6 +677,7 @@ static int ipmi_ioctl(struct inode *inode, struct file *file,
 		return ipmi_set_timeout(IPMI_SET_TIMEOUT_HB_IF_NECESSARY);
 
 	case WDIOC_GET_PRETIMEOUT:
+	case WDIOC_GETPRETIMEOUT:
 		i = copy_to_user(argp, &pretimeout, sizeof(pretimeout));
 		if (i)
 			return -EFAULT;

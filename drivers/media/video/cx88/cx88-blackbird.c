@@ -1085,10 +1085,7 @@ static int mpeg_release(struct inode *inode, struct file *file)
 
 	cx8802_cancel_buffers(fh->dev);
 	/* stop mpeg capture */
-	if (fh->mpegq.streaming)
-		videobuf_streamoff(&fh->mpegq);
-	if (fh->mpegq.reading)
-		videobuf_read_stop(&fh->mpegq);
+	videobuf_stop(&fh->mpegq);
 
 	videobuf_mmap_free(&fh->mpegq);
 	file->private_data = NULL;

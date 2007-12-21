@@ -261,7 +261,7 @@ static void mwait_idle(void)
 	mwait_idle_with_hints(0, 0);
 }
 
-void __devinit select_idle_routine(const struct cpuinfo_x86 *c)
+void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
 	if (cpu_has(c, X86_FEATURE_MWAIT)) {
 		printk("monitor/mwait feature present.\n");

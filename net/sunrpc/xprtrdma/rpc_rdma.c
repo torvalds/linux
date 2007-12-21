@@ -92,7 +92,6 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, int pos,
 		seg[n].mr_page = NULL;
 		seg[n].mr_offset = xdrbuf->head[0].iov_base;
 		seg[n].mr_len = xdrbuf->head[0].iov_len;
-		pos += xdrbuf->head[0].iov_len;
 		++n;
 	}
 
@@ -104,7 +103,6 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, int pos,
 		seg[n].mr_len = min_t(u32,
 			PAGE_SIZE - xdrbuf->page_base, xdrbuf->page_len);
 		len = xdrbuf->page_len - seg[n].mr_len;
-		pos += len;
 		++n;
 		p = 1;
 		while (len > 0) {
@@ -119,19 +117,14 @@ rpcrdma_convert_iovs(struct xdr_buf *xdrbuf, int pos,
 		}
 	}
 
-	if (pos < xdrbuf->len && xdrbuf->tail[0].iov_len) {
+	if (xdrbuf->tail[0].iov_len) {
 		if (n == nsegs)
 			return 0;
 		seg[n].mr_page = NULL;
 		seg[n].mr_offset = xdrbuf->tail[0].iov_base;
 		seg[n].mr_len = xdrbuf->tail[0].iov_len;
-		pos += xdrbuf->tail[0].iov_len;
 		++n;
 	}
-
-	if (pos < xdrbuf->len)
-		dprintk("RPC:       %s: marshaled only %d of %d\n",
-				__func__, pos, xdrbuf->len);
 
 	return n;
 }

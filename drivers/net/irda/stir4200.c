@@ -142,9 +142,6 @@ enum StirCtrl2Mask {
 };
 
 enum StirFifoCtlMask {
-	FIFOCTL_EOF = 0x80,
-	FIFOCTL_UNDER = 0x40,
-	FIFOCTL_OVER = 0x20,
 	FIFOCTL_DIR = 0x10,
 	FIFOCTL_CLR = 0x08,
 	FIFOCTL_EMPTY = 0x04,
@@ -594,9 +591,10 @@ static int fifo_txwait(struct stir_cb *stir, int space)
 {
 	int err;
 	unsigned long count, status;
+	unsigned long prev_count = 0x1fff;
 
 	/* Read FIFO status and count */
-	for(;;) {
+	for (;; prev_count = count) {
 		err = read_reg(stir, REG_FIFOCTL, stir->fifo_status, 
 				   FIFO_REGS_SIZE);
 		if (unlikely(err != FIFO_REGS_SIZE)) {
@@ -628,6 +626,10 @@ static int fifo_txwait(struct stir_cb *stir, int space)
 		/* only waiting for some space */
 		if (space >= 0 && STIR_FIFO_SIZE - 4 > space + count)
 			return 0;
+
+		/* queue confused */
+		if (prev_count < count)
+			break;
 
 		/* estimate transfer time for remaining chars */
 		msleep((count * 8000) / stir->speed);

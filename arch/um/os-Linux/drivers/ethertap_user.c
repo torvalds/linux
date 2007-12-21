@@ -94,7 +94,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 		      int control_remote, int data_me, int data_remote)
 {
 	struct etap_pre_exec_data pe_data;
-	int pid, status, err, n;
+	int pid, err, n;
 	char version_buf[sizeof("nnnnn\0")];
 	char data_fd_buf[sizeof("nnnnnn\0")];
 	char gate_buf[sizeof("nnn.nnn.nnn.nnn\0")];
@@ -131,13 +131,7 @@ static int etap_tramp(char *dev, char *gate, int control_me,
 	}
 	if (c != 1) {
 		printk(UM_KERN_ERR "etap_tramp : uml_net failed\n");
-		err = -EINVAL;
-		CATCH_EINTR(n = waitpid(pid, &status, 0));
-		if (n < 0)
-			err = -errno;
-		else if (!WIFEXITED(status) || (WEXITSTATUS(status) != 1))
-			printk(UM_KERN_ERR "uml_net didn't exit with "
-			       "status 1\n");
+		err = helper_wait(pid, 0, "uml_net");
 	}
 	return err;
 }

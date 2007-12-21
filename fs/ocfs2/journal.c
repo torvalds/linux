@@ -174,6 +174,12 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
  * transaction. extend_trans will either extend the current handle by
  * nblocks, or commit it and start a new one with nblocks credits.
  *
+ * This might call journal_restart() which will commit dirty buffers
+ * and then restart the transaction. Before calling
+ * ocfs2_extend_trans(), any changed blocks should have been
+ * dirtied. After calling it, all blocks which need to be changed must
+ * go through another set of journal_access/journal_dirty calls.
+ *
  * WARNING: This will not release any semaphores or disk locks taken
  * during the transaction, so make sure they were taken *before*
  * start_trans or we'll have ordering deadlocks.
@@ -193,11 +199,15 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 
 	mlog(0, "Trying to extend transaction by %d blocks\n", nblocks);
 
+#ifdef OCFS2_DEBUG_FS
+	status = 1;
+#else
 	status = journal_extend(handle, nblocks);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail;
 	}
+#endif
 
 	if (status > 0) {
 		mlog(0, "journal_extend failed, trying journal_restart\n");
@@ -1277,11 +1287,12 @@ static int ocfs2_queue_orphans(struct ocfs2_super *osb,
 				   ocfs2_orphan_filldir);
 	if (status) {
 		mlog_errno(status);
-		goto out;
+		goto out_cluster;
 	}
 
 	*head = priv.head;
 
+out_cluster:
 	ocfs2_meta_unlock(orphan_dir_inode, 0);
 out:
 	mutex_unlock(&orphan_dir_inode->i_mutex);

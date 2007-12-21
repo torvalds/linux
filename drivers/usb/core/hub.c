@@ -522,9 +522,9 @@ static void hub_quiesce(struct usb_hub *hub)
 	/* (blocking) stop khubd and related activity */
 	usb_kill_urb(hub->urb);
 	if (hub->has_indicators)
-		cancel_delayed_work(&hub->leds);
-	if (hub->has_indicators || hub->tt.hub)
-		flush_scheduled_work();
+		cancel_delayed_work_sync(&hub->leds);
+	if (hub->tt.hub)
+		cancel_work_sync(&hub->tt.kevent);
 }
 
 static void hub_activate(struct usb_hub *hub)

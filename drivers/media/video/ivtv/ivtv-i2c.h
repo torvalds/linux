@@ -35,7 +35,7 @@ int ivtv_call_i2c_client(struct ivtv *itv, int addr, unsigned int cmd, void *arg
 void ivtv_call_i2c_clients(struct ivtv *itv, unsigned int cmd, void *arg);
 
 /* init + register i2c algo-bit adapter */
-int __devinit init_ivtv_i2c(struct ivtv *itv);
+int init_ivtv_i2c(struct ivtv *itv);
 void exit_ivtv_i2c(struct ivtv *itv);
 
 #endif

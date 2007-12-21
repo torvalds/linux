@@ -376,6 +376,13 @@ UNUSUAL_DEV(  0x04b0, 0x0417, 0x0100, 0x0100,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY),
 
+/* Reported by Doug Maxey (dwm@austin.ibm.com) */
+UNUSUAL_DEV(  0x04b3, 0x4001, 0x0110, 0x0110,
+		"IBM",
+		"IBM RSA2",
+		US_SC_DEVICE, US_PR_CB, NULL,
+		US_FL_MAX_SECTORS_MIN),
+
 /* BENQ DC5330
  * Reported by Manuel Fombuena <mfombuena@ya.com> and
  * Frank Copeland <fjc@thingy.apana.org.au> */
@@ -1257,14 +1264,6 @@ UNUSUAL_DEV( 0x0ace, 0x20ff, 0x0101, 0x0101,
 		"WL-117 USB-WLAN Install",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_IGNORE_DEVICE ),
-
-/* SanDisk that has a second LUN for a driver ISO, reported by
- * Ben Collins <bcollins@ubuntu.com> */
-UNUSUAL_DEV( 0x0781, 0x5406, 0x0000, 0xffff,
-		"SanDisk",
-		"U3 Cruzer Micro driver ISO",
-		US_SC_DEVICE, US_PR_DEVICE, NULL,
-		US_FL_SINGLE_LUN ),
 
 #ifdef CONFIG_USB_STORAGE_ISD200
 UNUSUAL_DEV(  0x0bf6, 0xa001, 0x0100, 0x0110,

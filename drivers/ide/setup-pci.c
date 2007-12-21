@@ -704,7 +704,7 @@ EXPORT_SYMBOL_GPL(ide_setup_pci_devices);
 /*
  *	Module interfaces
  */
- 
+
 static int pre_init = 1;		/* Before first ordered IDE scan */
 static LIST_HEAD(ide_pci_drivers);
 
@@ -714,7 +714,7 @@ static LIST_HEAD(ide_pci_drivers);
  *	@module: owner module of the driver
  *
  *	Registers a driver with the IDE layer. The IDE layer arranges that
- *	boot time setup is done in the expected device order and then 
+ *	boot time setup is done in the expected device order and then
  *	hands the controllers off to the core PCI code to do the rest of
  *	the work.
  *
@@ -724,13 +724,12 @@ static LIST_HEAD(ide_pci_drivers);
 int __ide_pci_register_driver(struct pci_driver *driver, struct module *module,
 			      const char *mod_name)
 {
-	if(!pre_init)
+	if (!pre_init)
 		return __pci_register_driver(driver, module, mod_name);
 	driver->driver.owner = module;
 	list_add_tail(&driver->node, &ide_pci_drivers);
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(__ide_pci_register_driver);
 
 /**
@@ -741,17 +740,18 @@ EXPORT_SYMBOL_GPL(__ide_pci_register_driver);
  *	This is only used during boot up to get the ordering correct. After
  *	boot up the pci layer takes over the job.
  */
- 
+
 static int __init ide_scan_pcidev(struct pci_dev *dev)
 {
 	struct list_head *l;
 	struct pci_driver *d;
-	
+
 	list_for_each(l, &ide_pci_drivers) {
 		d = list_entry(l, struct pci_driver, node);
 		if (d->id_table) {
-			const struct pci_device_id *id = pci_match_id(d->id_table,
-								      dev);
+			const struct pci_device_id *id =
+				pci_match_id(d->id_table, dev);
+
 			if (id != NULL && d->probe(dev, id) >= 0) {
 				dev->driver = d;
 				pci_dev_get(dev);
@@ -779,13 +779,13 @@ void __init ide_scan_pcibus (int scan_direction)
 
 	pre_init = 0;
 	if (!scan_direction)
-		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL)
+		while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)))
 			ide_scan_pcidev(dev);
 	else
-		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID, dev))
-		       != NULL)
+		while ((dev = pci_get_device_reverse(PCI_ANY_ID, PCI_ANY_ID,
+						     dev)))
 			ide_scan_pcidev(dev);
-	
+
 	/*
 	 *	Hand the drivers over to the PCI layer now we
 	 *	are post init.
@@ -794,9 +794,10 @@ void __init ide_scan_pcibus (int scan_direction)
 	list_for_each_safe(l, n, &ide_pci_drivers) {
 		list_del(l);
 		d = list_entry(l, struct pci_driver, node);
-		if (__pci_register_driver(d, d->driver.owner, d->driver.mod_name))
-			printk(KERN_ERR "%s: failed to register driver for %s\n",
-			       __FUNCTION__, d->driver.mod_name);
+		if (__pci_register_driver(d, d->driver.owner,
+					  d->driver.mod_name))
+			printk(KERN_ERR "%s: failed to register %s driver\n",
+					__FUNCTION__, d->driver.mod_name);
 	}
 }
 #endif

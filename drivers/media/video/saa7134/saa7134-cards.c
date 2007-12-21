@@ -334,7 +334,7 @@ struct saa7134_board saa7134_boards[] = {
 			.tv   = 1,
 		},{
 			.name = name_comp1,
-			.vmux = 2,
+			.vmux = 0,
 			.amux = LINE1,
 		},{
 			.name = name_comp2,
@@ -3221,6 +3221,7 @@ struct saa7134_board saa7134_boards[] = {
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
+		.tuner_config   = 1,
 		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
 			.name = name_tv,

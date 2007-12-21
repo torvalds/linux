@@ -124,6 +124,10 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 	loff_t pos;
 	int rc = 0;
 
+	/*
+	 * if we are writing beyond current size, then start pos
+	 * at the current size - we'll fill in zeros from there.
+	 */
 	if (offset > ecryptfs_file_size)
 		pos = ecryptfs_file_size;
 	else
@@ -137,6 +141,7 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 		if (num_bytes > total_remaining_bytes)
 			num_bytes = total_remaining_bytes;
 		if (pos < offset) {
+			/* remaining zeros to write, up to destination offset */
 			size_t total_remaining_zeros = (offset - pos);
 
 			if (num_bytes > total_remaining_zeros)
@@ -167,17 +172,27 @@ int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
 			}
 		}
 		ecryptfs_page_virt = kmap_atomic(ecryptfs_page, KM_USER0);
+
+		/*
+		 * pos: where we're now writing, offset: where the request was
+		 * If current pos is before request, we are filling zeros
+		 * If we are at or beyond request, we are writing the *data*
+		 * If we're in a fresh page beyond eof, zero it in either case
+		 */
+		if (pos < offset || !start_offset_in_page) {
+			/* We are extending past the previous end of the file.
+			 * Fill in zero values to the end of the page */
+			memset(((char *)ecryptfs_page_virt
+				+ start_offset_in_page), 0,
+				PAGE_CACHE_SIZE - start_offset_in_page);
+		}
+
+		/* pos >= offset, we are now writing the data request */
 		if (pos >= offset) {
 			memcpy(((char *)ecryptfs_page_virt
 				+ start_offset_in_page),
 			       (data + data_offset), num_bytes);
 			data_offset += num_bytes;
-		} else {
-			/* We are extending past the previous end of the file.
-			 * Fill in zero values up to the start of where we
-			 * will be writing data. */
-			memset(((char *)ecryptfs_page_virt
-				+ start_offset_in_page), 0, num_bytes);
 		}
 		kunmap_atomic(ecryptfs_page_virt, KM_USER0);
 		flush_dcache_page(ecryptfs_page);

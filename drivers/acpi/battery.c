@@ -125,7 +125,7 @@ static int acpi_battery_technology(struct acpi_battery *battery)
 		return POWER_SUPPLY_TECHNOLOGY_NiMH;
 	if (!strcasecmp("LION", battery->type))
 		return POWER_SUPPLY_TECHNOLOGY_LION;
-	if (!strcasecmp("LI-ION", battery->type))
+	if (!strncasecmp("LI-ION", battery->type, 6))
 		return POWER_SUPPLY_TECHNOLOGY_LION;
 	if (!strcasecmp("LiP", battery->type))
 		return POWER_SUPPLY_TECHNOLOGY_LIPO;

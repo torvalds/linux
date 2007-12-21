@@ -2026,8 +2026,8 @@ static void esp_reset_cleanup(struct esp *esp)
 		tp->flags |= ESP_TGT_CHECK_NEGO;
 
 		if (tp->starget)
-			starget_for_each_device(tp->starget, NULL,
-						esp_clear_hold);
+			__starget_for_each_device(tp->starget, NULL,
+						  esp_clear_hold);
 	}
 	esp->flags &= ~ESP_FLAG_RESETTING;
 }

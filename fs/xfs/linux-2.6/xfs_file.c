@@ -347,6 +347,7 @@ xfs_file_readdir(
 
 		size = buf.used;
 		de = (struct hack_dirent *)buf.dirent;
+		curr_offset = de->offset /* & 0x7fffffff */;
 		while (size > 0) {
 			if (filldir(dirent, de->name, de->namlen,
 					curr_offset & 0x7fffffff,
@@ -356,13 +357,13 @@ xfs_file_readdir(
 
 			reclen = sizeof(struct hack_dirent) + de->namlen;
 			size -= reclen;
-			curr_offset = de->offset /* & 0x7fffffff */;
 			de = (struct hack_dirent *)((char *)de + reclen);
+			curr_offset = de->offset /* & 0x7fffffff */;
 		}
 	}
 
  done:
- 	if (!error) {
+	if (!error) {
 		if (size == 0)
 			filp->f_pos = offset & 0x7fffffff;
 		else if (de)

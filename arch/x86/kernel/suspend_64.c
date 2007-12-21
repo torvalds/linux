@@ -192,42 +192,25 @@ static int res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long en
 	return 0;
 }
 
-static int res_kernel_text_pud_init(pud_t *pud, unsigned long start)
-{
-	pmd_t *pmd;
-	unsigned long paddr;
-
-	pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
-	if (!pmd)
-		return -ENOMEM;
-	set_pud(pud + pud_index(start), __pud(__pa(pmd) | _KERNPG_TABLE));
-	for (paddr = 0; paddr < KERNEL_TEXT_SIZE; pmd++, paddr += PMD_SIZE) {
-		unsigned long pe;
-
-		pe = __PAGE_KERNEL_LARGE_EXEC | _PAGE_GLOBAL | paddr;
-		pe &= __supported_pte_mask;
-		set_pmd(pmd, __pmd(pe));
-	}
-
-	return 0;
-}
-
 static int set_up_temporary_mappings(void)
 {
 	unsigned long start, end, next;
-	pud_t *pud;
 	int error;
 
 	temp_level4_pgt = (pgd_t *)get_safe_page(GFP_ATOMIC);
 	if (!temp_level4_pgt)
 		return -ENOMEM;
 
+	/* It is safe to reuse the original kernel mapping */
+	set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
+		init_level4_pgt[pgd_index(__START_KERNEL_map)]);
+
 	/* Set up the direct mapping from scratch */
 	start = (unsigned long)pfn_to_kaddr(0);
 	end = (unsigned long)pfn_to_kaddr(end_pfn);
 
 	for (; start < end; start = next) {
-		pud = (pud_t *)get_safe_page(GFP_ATOMIC);
+		pud_t *pud = (pud_t *)get_safe_page(GFP_ATOMIC);
 		if (!pud)
 			return -ENOMEM;
 		next = start + PGDIR_SIZE;
@@ -238,17 +221,7 @@ static int set_up_temporary_mappings(void)
 		set_pgd(temp_level4_pgt + pgd_index(start),
 			mk_kernel_pgd(__pa(pud)));
 	}
-
-	/* Set up the kernel text mapping from scratch */
-	pud = (pud_t *)get_safe_page(GFP_ATOMIC);
-	if (!pud)
-		return -ENOMEM;
-	error = res_kernel_text_pud_init(pud, __START_KERNEL_map);
-	if (!error)
-		set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
-			__pgd(__pa(pud) | _PAGE_TABLE));
-
-	return error;
+	return 0;
 }
 
 int swsusp_arch_resume(void)

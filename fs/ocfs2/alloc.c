@@ -2389,6 +2389,18 @@ static int __ocfs2_rotate_tree_left(struct inode *inode,
 			goto out;
 		}
 
+		/*
+		 * Caller might still want to make changes to the
+		 * tree root, so re-add it to the journal here.
+		 */
+		ret = ocfs2_journal_access(handle, inode,
+					   path_root_bh(left_path),
+					   OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
 		ret = ocfs2_rotate_subtree_left(inode, handle, left_path,
 						right_path, subtree_root,
 						dealloc, &deleted);
@@ -3289,16 +3301,6 @@ static int ocfs2_insert_path(struct inode *inode,
 	int ret, subtree_index;
 	struct buffer_head *leaf_bh = path_leaf_bh(right_path);
 
-	/*
-	 * Pass both paths to the journal. The majority of inserts
-	 * will be touching all components anyway.
-	 */
-	ret = ocfs2_journal_access_path(inode, handle, right_path);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out;
-	}
-
 	if (left_path) {
 		int credits = handle->h_buffer_credits;
 
@@ -3323,6 +3325,16 @@ static int ocfs2_insert_path(struct inode *inode,
 		}
 	}
 
+	/*
+	 * Pass both paths to the journal. The majority of inserts
+	 * will be touching all components anyway.
+	 */
+	ret = ocfs2_journal_access_path(inode, handle, right_path);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
 	if (insert->ins_split != SPLIT_NONE) {
 		/*
 		 * We could call ocfs2_insert_at_leaf() for some types
@@ -3331,6 +3343,17 @@ static int ocfs2_insert_path(struct inode *inode,
 		 */
 		ocfs2_split_record(inode, left_path, right_path,
 				   insert_rec, insert->ins_split);
+
+		/*
+		 * Split might have modified either leaf and we don't
+		 * have a guarantee that the later edge insert will
+		 * dirty this for us.
+		 */
+		if (left_path)
+			ret = ocfs2_journal_dirty(handle,
+						  path_leaf_bh(left_path));
+			if (ret)
+				mlog_errno(ret);
 	} else
 		ocfs2_insert_at_leaf(insert_rec, path_leaf_el(right_path),
 				     insert, inode);
@@ -3426,6 +3449,17 @@ static int ocfs2_do_insert_extent(struct inode *inode,
 		ret = ocfs2_rotate_tree_right(inode, handle, type->ins_split,
 					      le32_to_cpu(insert_rec->e_cpos),
 					      right_path, &left_path);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		/*
+		 * ocfs2_rotate_tree_right() might have extended the
+		 * transaction without re-journaling our tree root.
+		 */
+		ret = ocfs2_journal_access(handle, inode, di_bh,
+					   OCFS2_JOURNAL_ACCESS_WRITE);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;
@@ -3941,7 +3975,7 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 {
 	int ret = 0;
 	struct ocfs2_extent_list *el = path_leaf_el(path);
-	struct buffer_head *eb_bh, *last_eb_bh = NULL;
+	struct buffer_head *last_eb_bh = NULL;
 	struct ocfs2_extent_rec *rec = &el->l_recs[split_index];
 	struct ocfs2_merge_ctxt ctxt;
 	struct ocfs2_extent_list *rightmost_el;
@@ -3956,14 +3990,6 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 	    ((le32_to_cpu(rec->e_cpos) + le16_to_cpu(rec->e_leaf_clusters)) <
 	     (le32_to_cpu(split_rec->e_cpos) + le16_to_cpu(split_rec->e_leaf_clusters)))) {
 		ret = -EIO;
-		mlog_errno(ret);
-		goto out;
-	}
-
-	eb_bh = path_leaf_bh(path);
-	ret = ocfs2_journal_access(handle, inode, eb_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
-	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
@@ -4028,8 +4054,6 @@ static int __ocfs2_mark_extent_written(struct inode *inode,
 		if (ret)
 			mlog_errno(ret);
 	}
-
-	ocfs2_journal_dirty(handle, eb_bh);
 
 out:
 	brelse(last_eb_bh);
@@ -6092,8 +6116,6 @@ start:
 
 	mlog(0, "clusters_to_del = %u in this pass, tail blk=%llu\n",
 	     clusters_to_del, (unsigned long long)path_leaf_bh(path)->b_blocknr);
-
-	BUG_ON(clusters_to_del == 0);
 
 	mutex_lock(&tl_inode->i_mutex);
 	tl_sem = 1;

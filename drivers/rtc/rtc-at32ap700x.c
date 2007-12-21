@@ -225,18 +225,12 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	ret = request_irq(irq, at32_rtc_interrupt, IRQF_SHARED, "rtc", rtc);
-	if (ret) {
-		dev_dbg(&pdev->dev, "could not request irq %d\n", irq);
-		goto out;
-	}
-
 	rtc->irq = irq;
 	rtc->regs = ioremap(regs->start, regs->end - regs->start + 1);
 	if (!rtc->regs) {
 		ret = -ENOMEM;
 		dev_dbg(&pdev->dev, "could not map I/O memory\n");
-		goto out_free_irq;
+		goto out;
 	}
 	spin_lock_init(&rtc->lock);
 
@@ -253,12 +247,18 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 				| RTC_BIT(CTRL_EN));
 	}
 
+	ret = request_irq(irq, at32_rtc_interrupt, IRQF_SHARED, "rtc", rtc);
+	if (ret) {
+		dev_dbg(&pdev->dev, "could not request irq %d\n", irq);
+		goto out_iounmap;
+	}
+
 	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
 				&at32_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc)) {
 		dev_dbg(&pdev->dev, "could not register rtc device\n");
 		ret = PTR_ERR(rtc->rtc);
-		goto out_iounmap;
+		goto out_free_irq;
 	}
 
 	platform_set_drvdata(pdev, rtc);
@@ -268,10 +268,10 @@ static int __init at32_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_iounmap:
-	iounmap(rtc->regs);
 out_free_irq:
 	free_irq(irq, rtc);
+out_iounmap:
+	iounmap(rtc->regs);
 out:
 	kfree(rtc);
 	return ret;

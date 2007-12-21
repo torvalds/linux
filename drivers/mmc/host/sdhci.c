@@ -7,6 +7,10 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or (at
  * your option) any later version.
+ *
+ * Thanks to the following companies for their support:
+ *
+ *     - JMicron (hardware and technical support)
  */
 
 #include <linux/delay.h>
@@ -26,13 +30,29 @@
 
 static unsigned int debug_quirks = 0;
 
+/*
+ * Different quirks to handle when the hardware deviates from a strict
+ * interpretation of the SDHCI specification.
+ */
+
+/* Controller doesn't honor resets unless we touch the clock register */
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
+/* Controller has bad caps bits, but really supports DMA */
 #define SDHCI_QUIRK_FORCE_DMA				(1<<1)
 /* Controller doesn't like some resets when there is no card inserted. */
 #define SDHCI_QUIRK_NO_CARD_NO_RESET			(1<<2)
+/* Controller doesn't like clearing the power reg before a change */
 #define SDHCI_QUIRK_SINGLE_POWER_WRITE			(1<<3)
+/* Controller has flaky internal state so reset it on each ios change */
 #define SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS		(1<<4)
+/* Controller has an unusable DMA engine */
 #define SDHCI_QUIRK_BROKEN_DMA				(1<<5)
+/* Controller can only DMA from 32-bit aligned addresses */
+#define SDHCI_QUIRK_32BIT_DMA_ADDR			(1<<6)
+/* Controller can only DMA chunk sizes that are a multiple of 32 bits */
+#define SDHCI_QUIRK_32BIT_DMA_SIZE			(1<<7)
+/* Controller needs to be reset after each request to stay stable */
+#define SDHCI_QUIRK_RESET_AFTER_REQUEST			(1<<8)
 
 static const struct pci_device_id pci_ids[] __devinitdata = {
 	{
@@ -95,6 +115,16 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subdevice      = PCI_ANY_ID,
 		.driver_data    = SDHCI_QUIRK_SINGLE_POWER_WRITE |
 				  SDHCI_QUIRK_RESET_CMD_DATA_ON_IOS,
+	},
+
+	{
+		.vendor         = PCI_VENDOR_ID_JMICRON,
+		.device         = PCI_DEVICE_ID_JMICRON_JMB38X_SD,
+		.subvendor      = PCI_ANY_ID,
+		.subdevice      = PCI_ANY_ID,
+		.driver_data    = SDHCI_QUIRK_32BIT_DMA_ADDR |
+				  SDHCI_QUIRK_32BIT_DMA_SIZE |
+				  SDHCI_QUIRK_RESET_AFTER_REQUEST,
 	},
 
 	{	/* Generic SD host controller */
@@ -419,7 +449,29 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 
 	writeb(count, host->ioaddr + SDHCI_TIMEOUT_CONTROL);
 
-	if (host->flags & SDHCI_USE_DMA) {
+	if (host->flags & SDHCI_USE_DMA)
+		host->flags |= SDHCI_REQ_USE_DMA;
+
+	if (unlikely((host->flags & SDHCI_REQ_USE_DMA) &&
+		(host->chip->quirks & SDHCI_QUIRK_32BIT_DMA_SIZE) &&
+		((data->blksz * data->blocks) & 0x3))) {
+		DBG("Reverting to PIO because of transfer size (%d)\n",
+			data->blksz * data->blocks);
+		host->flags &= ~SDHCI_REQ_USE_DMA;
+	}
+
+	/*
+	 * The assumption here being that alignment is the same after
+	 * translation to device address space.
+	 */
+	if (unlikely((host->flags & SDHCI_REQ_USE_DMA) &&
+		(host->chip->quirks & SDHCI_QUIRK_32BIT_DMA_ADDR) &&
+		(data->sg->offset & 0x3))) {
+		DBG("Reverting to PIO because of bad alignment\n");
+		host->flags &= ~SDHCI_REQ_USE_DMA;
+	}
+
+	if (host->flags & SDHCI_REQ_USE_DMA) {
 		int count;
 
 		count = pci_map_sg(host->chip->pdev, data->sg, data->sg_len,
@@ -456,7 +508,7 @@ static void sdhci_set_transfer_mode(struct sdhci_host *host,
 		mode |= SDHCI_TRNS_MULTI;
 	if (data->flags & MMC_DATA_READ)
 		mode |= SDHCI_TRNS_READ;
-	if (host->flags & SDHCI_USE_DMA)
+	if (host->flags & SDHCI_REQ_USE_DMA)
 		mode |= SDHCI_TRNS_DMA;
 
 	writew(mode, host->ioaddr + SDHCI_TRANSFER_MODE);
@@ -472,7 +524,7 @@ static void sdhci_finish_data(struct sdhci_host *host)
 	data = host->data;
 	host->data = NULL;
 
-	if (host->flags & SDHCI_USE_DMA) {
+	if (host->flags & SDHCI_REQ_USE_DMA) {
 		pci_unmap_sg(host->chip->pdev, data->sg, data->sg_len,
 			(data->flags & MMC_DATA_READ)?PCI_DMA_FROMDEVICE:PCI_DMA_TODEVICE);
 	}
@@ -886,7 +938,8 @@ static void sdhci_tasklet_finish(unsigned long param)
 	 */
 	if (mrq->cmd->error ||
 		(mrq->data && (mrq->data->error ||
-		(mrq->data->stop && mrq->data->stop->error)))) {
+		(mrq->data->stop && mrq->data->stop->error))) ||
+		(host->chip->quirks & SDHCI_QUIRK_RESET_AFTER_REQUEST)) {
 
 		/* Some controllers need this kick or reset won't work here */
 		if (host->chip->quirks & SDHCI_QUIRK_CLOCK_BEFORE_RESET) {
@@ -1284,7 +1337,7 @@ static int __devinit sdhci_probe_slot(struct pci_dev *pdev, int slot)
 
 	version = readw(host->ioaddr + SDHCI_HOST_VERSION);
 	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
-	if (version != 0) {
+	if (version > 1) {
 		printk(KERN_ERR "%s: Unknown controller version (%d). "
 			"You may experience problems.\n", host->slot_descr,
 			version);

@@ -987,9 +987,9 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,	/* 0x0C: FN+BACKSPACE */
 		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
 		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
-		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
+		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
 		/* Scan codes 0x10 to 0x1F: Extended ACPI HKEY hot keys */
-		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
+		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
 		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
 		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
 		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */

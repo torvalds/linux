@@ -2279,8 +2279,6 @@ static struct elevator_type iosched_cfq = {
 
 static int __init cfq_init(void)
 {
-	int ret;
-
 	/*
 	 * could be 0 on HZ < 1000 setups
 	 */
@@ -2292,11 +2290,9 @@ static int __init cfq_init(void)
 	if (cfq_slab_setup())
 		return -ENOMEM;
 
-	ret = elv_register(&iosched_cfq);
-	if (ret)
-		cfq_slab_kill();
+	elv_register(&iosched_cfq);
 
-	return ret;
+	return 0;
 }
 
 static void __exit cfq_exit(void)

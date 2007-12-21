@@ -375,7 +375,7 @@ static int hpt374_pre_reset(struct ata_link *link, unsigned long deadline)
 	pci_write_config_word(pdev, mcrbase + 2, mcr3 | 0x8000);
 	pci_read_config_byte(pdev, 0x5A, &ata66);
 	/* Reset TCBLID/FCBLID to output */
-	pci_write_config_word(pdev, 0x52, mcr3);
+	pci_write_config_word(pdev, mcrbase + 2, mcr3);
 
 	if (ata66 & (2 >> ap->port_no))
 		ap->cbl = ATA_CBL_PATA40;

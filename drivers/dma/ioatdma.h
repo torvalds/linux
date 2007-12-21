@@ -76,7 +76,7 @@ struct ioat_dma_chan {
 	dma_cookie_t completed_cookie;
 	unsigned long last_completion;
 
-	u32 xfercap;	/* XFERCAP register value expanded out */
+	size_t xfercap;	/* XFERCAP register value expanded out */
 
 	spinlock_t cleanup_lock;
 	spinlock_t desc_lock;

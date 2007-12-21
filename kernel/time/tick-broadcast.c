@@ -384,45 +384,19 @@ int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
 }
 
 /*
- * Reprogram the broadcast device:
- *
- * Called with tick_broadcast_lock held and interrupts disabled.
- */
-static int tick_broadcast_reprogram(void)
-{
-	ktime_t expires = { .tv64 = KTIME_MAX };
-	struct tick_device *td;
-	int cpu;
-
-	/*
-	 * Find the event which expires next:
-	 */
-	for (cpu = first_cpu(tick_broadcast_oneshot_mask); cpu != NR_CPUS;
-	     cpu = next_cpu(cpu, tick_broadcast_oneshot_mask)) {
-		td = &per_cpu(tick_cpu_device, cpu);
-		if (td->evtdev->next_event.tv64 < expires.tv64)
-			expires = td->evtdev->next_event;
-	}
-
-	if (expires.tv64 == KTIME_MAX)
-		return 0;
-
-	return tick_broadcast_set_event(expires, 0);
-}
-
-/*
  * Handle oneshot mode broadcasting
  */
 static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 {
 	struct tick_device *td;
 	cpumask_t mask;
-	ktime_t now;
+	ktime_t now, next_event;
 	int cpu;
 
 	spin_lock(&tick_broadcast_lock);
 again:
 	dev->next_event.tv64 = KTIME_MAX;
+	next_event.tv64 = KTIME_MAX;
 	mask = CPU_MASK_NONE;
 	now = ktime_get();
 	/* Find all expired events */
@@ -431,19 +405,31 @@ again:
 		td = &per_cpu(tick_cpu_device, cpu);
 		if (td->evtdev->next_event.tv64 <= now.tv64)
 			cpu_set(cpu, mask);
+		else if (td->evtdev->next_event.tv64 < next_event.tv64)
+			next_event.tv64 = td->evtdev->next_event.tv64;
 	}
 
 	/*
-	 * Wakeup the cpus which have an expired event. The broadcast
-	 * device is reprogrammed in the return from idle code.
+	 * Wakeup the cpus which have an expired event.
 	 */
-	if (!tick_do_broadcast(mask)) {
+	tick_do_broadcast(mask);
+
+	/*
+	 * Two reasons for reprogram:
+	 *
+	 * - The global event did not expire any CPU local
+	 * events. This happens in dyntick mode, as the maximum PIT
+	 * delta is quite small.
+	 *
+	 * - There are pending events on sleeping CPUs which were not
+	 * in the event mask
+	 */
+	if (next_event.tv64 != KTIME_MAX) {
 		/*
-		 * The global event did not expire any CPU local
-		 * events. This happens in dyntick mode, as the
-		 * maximum PIT delta is quite small.
+		 * Rearm the broadcast device. If event expired,
+		 * repeat the above
 		 */
-		if (tick_broadcast_reprogram())
+		if (tick_broadcast_set_event(next_event, 0))
 			goto again;
 	}
 	spin_unlock(&tick_broadcast_lock);

@@ -122,7 +122,7 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 				      enum fe_bandwidth bandwidth,
 				      u16 *nominal_rate)
 {
-	u32 adc_clock = 22528; /* 20.480 MHz on the board(!?) */
+	u32 adc_clock = 45056; /* 45.056 MHz */
 	u8 bw;
 	struct zl10353_state *state = fe->demodulator_priv;
 
@@ -142,7 +142,7 @@ static void zl10353_calc_nominal_rate(struct dvb_frontend *fe,
 		break;
 	}
 
-	*nominal_rate = (64 * bw * (1<<16) / (7 * 8) * 4000 / adc_clock + 2) / 4;
+	*nominal_rate = (bw * (1 << 23) / 7 * 125 + adc_clock / 2) / adc_clock;
 
 	dprintk("%s: bw %d, adc_clock %d => 0x%x\n",
 		__FUNCTION__, bw, adc_clock, *nominal_rate);

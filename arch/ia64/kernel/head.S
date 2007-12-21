@@ -1176,6 +1176,7 @@ tlb_purge_done:
 	RESTORE_REG(cr.dcr, r25, r17);;
 	RESTORE_REG(cr.iva, r25, r17);;
 	RESTORE_REG(cr.pta, r25, r17);;
+	srlz.d;;	// required not to violate RAW dependency
 	RESTORE_REG(cr.itv, r25, r17);;
 	RESTORE_REG(cr.pmv, r25, r17);;
 	RESTORE_REG(cr.cmcv, r25, r17);;

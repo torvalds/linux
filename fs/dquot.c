@@ -965,7 +965,7 @@ err_out:
 }
 #endif
 
-static inline void flush_warnings(struct dquot **dquots, char *warntype)
+static inline void flush_warnings(struct dquot * const *dquots, char *warntype)
 {
 	int i;
 
@@ -1216,7 +1216,7 @@ warn_put_all:
 		for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 			if (inode->i_dquot[cnt])
 				mark_dquot_dirty(inode->i_dquot[cnt]);
-	flush_warnings((struct dquot **)inode->i_dquot, warntype);
+	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	return ret;
 }

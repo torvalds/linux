@@ -33,5 +33,5 @@ void __init arch_init_irq(void)
 
 	mips_cpu_irq_init();
 	init_i8259_irqs();
-	set_c0_status(0x8400);
+	set_c0_status(0x400);
 }

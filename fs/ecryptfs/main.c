@@ -523,6 +523,7 @@ static int ecryptfs_read_super(struct super_block *sb, const char *dev_name)
 	lower_mnt = nd.mnt;
 	ecryptfs_set_superblock_lower(sb, lower_root->d_sb);
 	sb->s_maxbytes = lower_root->d_sb->s_maxbytes;
+	sb->s_blocksize = lower_root->d_sb->s_blocksize;
 	ecryptfs_set_dentry_lower(sb->s_root, lower_root);
 	ecryptfs_set_dentry_lower_mnt(sb->s_root, lower_mnt);
 	rc = ecryptfs_interpose(lower_root, sb->s_root, sb, 0);

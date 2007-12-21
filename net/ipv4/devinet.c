@@ -516,8 +516,6 @@ static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
 		goto errout;
 	}
 
-	ipv4_devconf_setall(in_dev);
-
 	ifa = inet_alloc_ifa();
 	if (ifa == NULL) {
 		/*
@@ -528,6 +526,7 @@ static struct in_ifaddr *rtm_to_ifaddr(struct nlmsghdr *nlh)
 		goto errout;
 	}
 
+	ipv4_devconf_setall(in_dev);
 	in_dev_hold(in_dev);
 
 	if (tb[IFA_ADDRESS] == NULL)

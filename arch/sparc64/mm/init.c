@@ -1133,14 +1133,9 @@ static void __init mark_kpte_bitmap(unsigned long start, unsigned long end)
 	}
 }
 
-static void __init kernel_physical_mapping_init(void)
+static void __init init_kpte_bitmap(void)
 {
 	unsigned long i;
-#ifdef CONFIG_DEBUG_PAGEALLOC
-	unsigned long mem_alloced = 0UL;
-#endif
-
-	read_obp_memory("reg", &pall[0], &pall_ents);
 
 	for (i = 0; i < pall_ents; i++) {
 		unsigned long phys_start, phys_end;
@@ -1149,14 +1144,24 @@ static void __init kernel_physical_mapping_init(void)
 		phys_end = phys_start + pall[i].reg_size;
 
 		mark_kpte_bitmap(phys_start, phys_end);
+	}
+}
 
+static void __init kernel_physical_mapping_init(void)
+{
 #ifdef CONFIG_DEBUG_PAGEALLOC
+	unsigned long i, mem_alloced = 0UL;
+
+	for (i = 0; i < pall_ents; i++) {
+		unsigned long phys_start, phys_end;
+
+		phys_start = pall[i].phys_addr;
+		phys_end = phys_start + pall[i].reg_size;
+
 		mem_alloced += kernel_map_range(phys_start, phys_end,
 						PAGE_KERNEL);
-#endif
 	}
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
 	printk("Allocated %ld bytes for kernel page tables.\n",
 	       mem_alloced);
 
@@ -1398,6 +1403,10 @@ void __init paging_init(void)
 	
 	inherit_prom_mappings();
 	
+	read_obp_memory("reg", &pall[0], &pall_ents);
+
+	init_kpte_bitmap();
+
 	/* Ok, we can use our TLB miss and window trap handlers safely.  */
 	setup_tba();
 
@@ -1904,7 +1913,9 @@ void __flush_tlb_all(void)
 			     "wrpr	%0, %1, %%pstate"
 			     : "=r" (pstate)
 			     : "i" (PSTATE_IE));
-	if (tlb_type == spitfire) {
+	if (tlb_type == hypervisor) {
+		sun4v_mmu_demap_all();
+	} else if (tlb_type == spitfire) {
 		for (i = 0; i < 64; i++) {
 			/* Spitfire Errata #32 workaround */
 			/* NOTE: Always runs on spitfire, so no

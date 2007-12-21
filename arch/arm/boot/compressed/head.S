@@ -31,7 +31,7 @@
 		.macro	loadsp, rb
 		.endm
 		.macro	writeb, ch, rb
-		mcr	p14, 0, \ch, c0, c1, 0
+		mcr	p14, 0, \ch, c1, c0, 0
 		.endm
 #endif
 

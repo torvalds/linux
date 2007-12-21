@@ -191,6 +191,11 @@ register unsigned long ia64_r13 asm ("r13") __attribute_used__;
 	asm volatile ("ldf.fill %0=[%1]" :"=f"(__f__): "r"(x));	\
 })
 
+#define ia64_st4_rel_nta(m, val)					\
+({									\
+	asm volatile ("st4.rel.nta [%0] = %1\n\t" :: "r"(m), "r"(val));	\
+})
+
 #define ia64_stfs(x, regnum)						\
 ({									\
 	register double __f__ asm ("f"#regnum);				\

@@ -3737,7 +3737,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 }
 
 /* Handle software interrupt used during MSI(X) test */
-static irqreturn_t __devinit s2io_test_intr(int irq, void *dev_id)
+static irqreturn_t s2io_test_intr(int irq, void *dev_id)
 {
 	struct s2io_nic *sp = dev_id;
 
@@ -3748,7 +3748,7 @@ static irqreturn_t __devinit s2io_test_intr(int irq, void *dev_id)
 }
 
 /* Test interrupt path by forcing a a software IRQ */
-static int __devinit s2io_test_msi(struct s2io_nic *sp)
+static int s2io_test_msi(struct s2io_nic *sp)
 {
 	struct pci_dev *pdev = sp->pdev;
 	struct XENA_dev_config __iomem *bar0 = sp->bar0;

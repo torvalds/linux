@@ -10,6 +10,7 @@
  *              IPI based ptc implementation and A-step IPI implementation.
  * Rohit Seth <rohit.seth@intel.com>
  * Ken Chen <kenneth.w.chen@intel.com>
+ * Christophe de Dinechin <ddd@hp.com>: Avoid ptc.e on memory allocation
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -89,9 +90,16 @@ ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start,
 {
 	static DEFINE_SPINLOCK(ptcg_lock);
 
-	if (mm != current->active_mm || !current->mm) {
-		flush_tlb_all();
-		return;
+	struct mm_struct *active_mm = current->active_mm;
+
+	if (mm != active_mm) {
+		/* Restore region IDs for mm */
+		if (mm && active_mm) {
+			activate_context(mm);
+		} else {
+			flush_tlb_all();
+			return;
+		}
 	}
 
 	/* HW requires global serialization of ptc.ga.  */
@@ -107,6 +115,10 @@ ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start,
 		} while (start < end);
 	}
 	spin_unlock(&ptcg_lock);
+
+        if (mm != active_mm) {
+                activate_context(active_mm);
+        }
 }
 
 void

@@ -208,6 +208,8 @@ move_one_task_rt(struct rq *this_rq, int this_cpu, struct rq *busiest,
 
 static void task_tick_rt(struct rq *rq, struct task_struct *p)
 {
+	update_curr_rt(rq);
+
 	/*
 	 * RR tasks need a special form of timeslice management.
 	 * FIFO tasks have no timeslices.

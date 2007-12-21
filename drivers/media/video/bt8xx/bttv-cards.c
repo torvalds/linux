@@ -5080,7 +5080,7 @@ static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 /* ----------------------------------------------------------------------- */
 /* motherboard chipset specific stuff                                      */
 
-void __devinit bttv_check_chipset(void)
+void __init bttv_check_chipset(void)
 {
 	int pcipci_fail = 0;
 	struct pci_dev *dev = NULL;

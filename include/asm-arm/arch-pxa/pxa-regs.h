@@ -1784,6 +1784,7 @@
 #define CCCR_M_MASK	0x0060		/* Memory Frequency to Run Mode Frequency Multiplier */
 #define CCCR_L_MASK	0x001f		/* Crystal Frequency to Memory Frequency Multiplier */
 
+#define CKEN_AC97CONF   (31)    /* AC97 Controller Configuration */
 #define CKEN_CAMERA	(24)	/* Camera Interface Clock Enable */
 #define CKEN_SSP1	(23)	/* SSP1 Unit Clock Enable */
 #define CKEN_MEMC	(22)	/* Memory Controller Clock Enable */

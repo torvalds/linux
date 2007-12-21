@@ -141,7 +141,7 @@ void os_dump_core(void)
 	 * nothing reasonable to do if that fails.
 	 */
 
-	while ((pid = waitpid(-1, NULL, WNOHANG)) > 0)
+	while ((pid = waitpid(-1, NULL, WNOHANG | __WALL)) > 0)
 		os_kill_ptraced_process(pid, 0);
 
 	abort();

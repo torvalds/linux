@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (c) 2004-2006 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2004-2007 Silicon Graphics, Inc.  All Rights Reserved.
  */
 
 
@@ -1211,6 +1211,12 @@ xpc_IPI_init(int index)
 static inline enum xpc_retval
 xpc_map_bte_errors(bte_result_t error)
 {
+	if (is_shub2()) {
+		if (BTE_VALID_SH2_ERROR(error))
+			return xpcBteSh2Start + error;
+		else
+			return xpcBteUnmappedError;
+	}
 	switch (error) {
 	case BTE_SUCCESS:	return xpcSuccess;
 	case BTEFAIL_DIR:	return xpcBteDirectoryError;

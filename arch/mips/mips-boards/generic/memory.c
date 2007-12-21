@@ -169,6 +169,7 @@ void __init prom_meminit(void)
 
 void __init prom_free_prom_memory(void)
 {
+#if 0 /* for now ...  */
 	unsigned long addr;
 	int i;
 
@@ -180,4 +181,5 @@ void __init prom_free_prom_memory(void)
 		free_init_pages("prom memory",
 				addr, addr + boot_mem_map.map[i].size);
 	}
+#endif
 }

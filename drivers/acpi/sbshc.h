@@ -16,6 +16,12 @@ enum acpi_smb_protocol {
 
 static const u8 SMBUS_PEC = 0x80;
 
+enum acpi_sbs_device_addr {
+	ACPI_SBS_CHARGER = 0x9,
+	ACPI_SBS_MANAGER = 0xa,
+	ACPI_SBS_BATTERY = 0xb,
+};
+
 typedef void (*smbus_alarm_callback)(void *context);
 
 extern int acpi_smbus_read(struct acpi_smb_hc *hc, u8 protocol, u8 address,

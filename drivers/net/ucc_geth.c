@@ -3447,7 +3447,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 	u16 length, howmany = 0;
 	u32 bd_status;
 	u8 *bdBuffer;
-	struct net_device * dev;
+	struct net_device *dev;
 
 	ugeth_vdbg("%s: IN", __FUNCTION__);
 

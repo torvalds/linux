@@ -332,9 +332,7 @@ xfs_vn_mknod(
 		ASSERT(vp);
 		ip = vn_to_inode(vp);
 
-		if (S_ISCHR(mode) || S_ISBLK(mode))
-			ip->i_rdev = rdev;
-		else if (S_ISDIR(mode))
+		if (S_ISDIR(mode))
 			xfs_validate_fields(ip);
 		d_instantiate(dentry, ip);
 		xfs_validate_fields(dir);

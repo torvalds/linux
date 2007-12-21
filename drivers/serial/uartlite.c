@@ -393,6 +393,7 @@ static inline void __init ulite_console_of_find_device(int id)
 			continue;
 
 		ulite_ports[id].mapbase = res.start;
+		of_node_put(np);
 		return;
 	}
 }

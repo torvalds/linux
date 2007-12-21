@@ -482,8 +482,9 @@ static struct pci_dev * __devinit pdc20270_get_dev2(struct pci_dev *dev)
 {
 	struct pci_dev *dev2;
 
-	dev2 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn) + 2,
+	dev2 = pci_get_slot(dev->bus, PCI_DEVFN(PCI_SLOT(dev->devfn) + 1,
 						PCI_FUNC(dev->devfn)));
+
 	if (dev2 &&
 	    dev2->vendor == dev->vendor &&
 	    dev2->device == dev->device) {

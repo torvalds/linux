@@ -253,7 +253,7 @@ static int release(struct socket *sock)
 	dbg("sock_delete: %x\n",tsock);
 	if (!tsock)
 		return 0;
-	down_interruptible(&tsock->sem);
+	down(&tsock->sem);
 	if (!sock->sk) {
 		up(&tsock->sem);
 		return 0;

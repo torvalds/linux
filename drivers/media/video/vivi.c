@@ -1076,6 +1076,7 @@ static int vivi_release(struct inode *inode, struct file *file)
 	int minor = iminor(inode);
 
 	vivi_stop_thread(vidq);
+	videobuf_stop(&fh->vb_vidq);
 	videobuf_mmap_free(&fh->vb_vidq);
 
 	kfree (fh);

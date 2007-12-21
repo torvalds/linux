@@ -124,8 +124,8 @@ static void __exit vlan_cleanup_module(void)
 {
 	int i;
 
-	vlan_netlink_fini();
 	vlan_ioctl_set(NULL);
+	vlan_netlink_fini();
 
 	/* Un-register us from receiving netdevice events */
 	unregister_netdevice_notifier(&vlan_notifier_block);

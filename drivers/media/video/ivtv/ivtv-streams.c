@@ -76,7 +76,7 @@ static struct {
 	int minor_offset;
 	int dma, pio;
 	enum v4l2_buf_type buf_type;
-	struct file_operations *fops;
+	const struct file_operations *fops;
 } ivtv_stream_info[] = {
 	{	/* IVTV_ENC_STREAM_TYPE_MPG */
 		"encoder MPG",

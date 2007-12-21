@@ -2737,8 +2737,9 @@ static int e100_suspend(struct pci_dev *pdev, pm_message_t state)
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
 
-	pci_disable_device(pdev);
 	free_irq(pdev->irq, netdev);
+
+	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
 	return 0;
@@ -2779,6 +2780,8 @@ static void e100_shutdown(struct pci_dev *pdev)
 		pci_enable_wake(pdev, PCI_D3hot, 0);
 		pci_enable_wake(pdev, PCI_D3cold, 0);
 	}
+
+	free_irq(pdev->irq, netdev);
 
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
