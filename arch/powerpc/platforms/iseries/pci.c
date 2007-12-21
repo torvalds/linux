@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/of.h>
 
 #include <asm/types.h>
 #include <asm/io.h>
@@ -70,7 +71,7 @@ static long current_iomm_table_entry;
  * Lookup Tables.
  */
 static struct device_node *iomm_table[IOMM_TABLE_MAX_ENTRIES];
-static u8 iobar_table[IOMM_TABLE_MAX_ENTRIES];
+static u64 ds_addr_table[IOMM_TABLE_MAX_ENTRIES];
 
 static DEFINE_SPINLOCK(iomm_table_lock);
 
@@ -80,8 +81,9 @@ static DEFINE_SPINLOCK(iomm_table_lock);
 static inline u64 iseries_ds_addr(struct device_node *node)
 {
 	struct pci_dn *pdn = PCI_DN(node);
+	const u32 *sbp = of_get_property(node, "linux,subbus", NULL);
 
-	return ((u64)pdn->busno << 48) + ((u64)pdn->bussubno << 40)
+	return ((u64)pdn->busno << 48) + ((u64)(sbp ? *sbp : 0) << 40)
 			+ ((u64)0x10 << 32);
 }
 
@@ -333,7 +335,8 @@ static void __init iomm_table_allocate_entry(struct pci_dev *dev, int bar_num)
 	 */
 	while (bar_size > 0 ) {
 		iomm_table[current_iomm_table_entry] = dev->sysdata;
-		iobar_table[current_iomm_table_entry] = bar_num;
+		ds_addr_table[current_iomm_table_entry] =
+			iseries_ds_addr(dev->sysdata) | (bar_num << 24);
 		bar_size -= IOMM_TABLE_ENTRY_SIZE;
 		++current_iomm_table_entry;
 	}
@@ -598,8 +601,7 @@ static inline struct device_node *xlate_iomm_address(
 	dn = iomm_table[ind];
 
 	if (dn != NULL) {
-		int barnum = iobar_table[ind];
-		*dsaptr = iseries_ds_addr(dn) | (barnum << 24);
+		*dsaptr = ds_addr_table[ind];
 		*bar_offset = base_addr % IOMM_TABLE_ENTRY_SIZE;
 	} else
 		panic("PCI: Invalid PCI IO address detected!\n");

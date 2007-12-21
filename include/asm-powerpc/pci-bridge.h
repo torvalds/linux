@@ -165,7 +165,6 @@ struct iommu_table;
 
 struct pci_dn {
 	int	busno;			/* pci bus number */
-	int	bussubno;		/* pci subordinate bus number */
 	int	devfn;			/* pci device and function number */
 
 	struct  pci_controller *phb;	/* for pci devices */
