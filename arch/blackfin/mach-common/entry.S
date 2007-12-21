@@ -329,7 +329,7 @@ ENTRY(_exception_to_level5)
 	R7 = R7 + R6;
 	P5 = R7;
 	R1 = [P5];
-	[SP + 8] = r1;
+	[SP + PT_SEQSTAT] = r1;
 
 	r0 = sp; 	/* stack frame pt_regs pointer argument ==> r0 */
 	SP += -12;
