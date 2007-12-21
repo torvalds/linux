@@ -75,8 +75,8 @@ struct pci_controller {
 #endif
 
 	struct pci_ops *ops;
-	volatile unsigned int __iomem *cfg_addr;
-	volatile void __iomem *cfg_data;
+	unsigned int __iomem *cfg_addr;
+	void __iomem *cfg_data;
 
 #ifndef CONFIG_PPC64
 	/*
