@@ -20,7 +20,6 @@
 
 #include <linux/delay.h>
 #include <linux/videodev2.h>
-#include "tuner-driver.h"
 
 #include "tda18271.h"
 #include "tda18271-priv.h"

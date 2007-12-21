@@ -20,7 +20,6 @@
 #include <media/tuner-types.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-i2c-drv-legacy.h>
-#include "tuner-driver.h"
 #include "mt20xx.h"
 #include "tda8290.h"
 #include "tea5761.h"

@@ -9,7 +9,6 @@
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
-#include "tuner-driver.h"
 #include "tuner-i2c.h"
 #include "tda9887.h"
 
