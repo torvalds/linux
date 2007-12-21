@@ -225,3 +225,36 @@ void __init udbg_init_44x_as1(void)
 	udbg_getc = udbg_44x_as1_getc;
 }
 #endif /* CONFIG_PPC_EARLY_DEBUG_44x */
+
+#ifdef CONFIG_PPC_EARLY_DEBUG_40x
+static void udbg_40x_real_putc(char c)
+{
+	if (udbg_comport) {
+		while ((real_readb(&udbg_comport->lsr) & LSR_THRE) == 0)
+			/* wait for idle */;
+		real_writeb(c, &udbg_comport->thr); eieio();
+		if (c == '\n')
+			udbg_40x_real_putc('\r');
+	}
+}
+
+static int udbg_40x_real_getc(void)
+{
+	if (udbg_comport) {
+		while ((real_readb(&udbg_comport->lsr) & LSR_DR) == 0)
+			; /* wait for char */
+		return real_readb(&udbg_comport->rbr);
+	}
+	return -1;
+}
+
+void __init udbg_init_40x_realmode(void)
+{
+	udbg_comport = (struct NS16550 __iomem *)
+		CONFIG_PPC_EARLY_DEBUG_40x_PHYSADDR;
+
+	udbg_putc = udbg_40x_real_putc;
+	udbg_getc = udbg_40x_real_getc;
+	udbg_getc_poll = NULL;
+}
+#endif /* CONFIG_PPC_EARLY_DEBUG_40x */

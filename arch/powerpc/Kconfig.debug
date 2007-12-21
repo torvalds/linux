@@ -227,6 +227,14 @@ config PPC_EARLY_DEBUG_44x
 	  Select this to enable early debugging for IBM 44x chips via the
 	  inbuilt serial port.
 
+config PPC_EARLY_DEBUG_40x
+	bool "Early serial debugging for IBM/AMCC 40x CPUs"
+	depends on 40x
+	help
+	  Select this to enable early debugging for IBM 40x chips via the
+	  inbuilt serial port. This works on chips with a 16550 compatible
+	  UART. Xilinx chips with uartlite cannot use this option.
+
 config PPC_EARLY_DEBUG_CPM
 	bool "Early serial debugging for Freescale CPM-based serial ports"
 	depends on SERIAL_CPM
@@ -247,6 +255,11 @@ config PPC_EARLY_DEBUG_44x_PHYSHIGH
 	hex "EPRN of early debug UART physical address"
 	depends on PPC_EARLY_DEBUG_44x
 	default "0x1"
+
+config PPC_EARLY_DEBUG_40x_PHYSADDR
+	hex "Early debug UART physical address"
+	depends on PPC_EARLY_DEBUG_40x
+	default "0xef600300"
 
 config PPC_EARLY_DEBUG_CPM_ADDR
 	hex "CPM UART early debug transmit descriptor address"

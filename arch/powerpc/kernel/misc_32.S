@@ -206,6 +206,45 @@ _GLOBAL(_nmask_and_or_msr)
 	isync
 	blr			/* Done */
 
+#ifdef CONFIG_40x
+
+/*
+ * Do an IO access in real mode
+ */
+_GLOBAL(real_readb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DR
+	xori	r0,r0,MSR_DR
+	sync
+	mtmsr	r0
+	sync
+	isync
+	lbz	r3,0(r3)
+	sync
+	mtmsr	r7
+	sync
+	isync
+	blr
+
+	/*
+ * Do an IO access in real mode
+ */
+_GLOBAL(real_writeb)
+	mfmsr	r7
+	ori	r0,r7,MSR_DR
+	xori	r0,r0,MSR_DR
+	sync
+	mtmsr	r0
+	sync
+	isync
+	stb	r3,0(r4)
+	sync
+	mtmsr	r7
+	sync
+	isync
+	blr
+
+#endif /* CONFIG_40x */
 
 /*
  * Flush MMU TLB
