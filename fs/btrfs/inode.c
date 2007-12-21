@@ -402,6 +402,10 @@ void btrfs_read_locked_inode(struct inode *inode)
 	BTRFS_I(inode)->block_group = btrfs_lookup_block_group(root->fs_info,
 						       alloc_group_block);
 
+	if (!BTRFS_I(inode)->block_group) {
+		BTRFS_I(inode)->block_group = btrfs_find_block_group(root,
+						         NULL, 0, 0, 0);
+	}
 	btrfs_free_path(path);
 	inode_item = NULL;
 

@@ -1630,11 +1630,11 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 
 	btrfs_set_stack_extent_refs(&extent_item, 1);
-
+#if 0
 	new_hint = max(hint_byte, 16ULL * 1024 * 1024 * 1024);
 	if (new_hint < btrfs_super_total_bytes(&info->super_copy))
 		hint_byte = new_hint;
-
+#endif
 	WARN_ON(num_bytes < root->sectorsize);
 	ret = find_free_extent(trans, root, num_bytes, empty_size,
 			       search_start, search_end, hint_byte, ins,
