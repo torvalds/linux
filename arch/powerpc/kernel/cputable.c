@@ -1247,7 +1247,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
 		.cpu_setup		= __setup_cpu_440grx,
-		.machine_check		= machine_check_4xx,
+		.machine_check		= machine_check_440A,
 		.platform		= "ppc440",
 	},
 	{ /* Use logical PVR for 440EPx (logical pvr = pvr | 0x8) */
