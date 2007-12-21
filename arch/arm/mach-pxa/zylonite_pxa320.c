@@ -95,6 +95,15 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 	/* Ethernet */
 	GPIO4_nCS3,
 	GPIO90_GPIO,
+
+	/* MMC1 */
+	GPIO18_MMC1_DAT0,
+	GPIO19_MMC1_DAT1,
+	GPIO20_MMC1_DAT2,
+	GPIO21_MMC1_DAT3,
+	GPIO22_MMC1_CLK,
+	GPIO23_MMC1_CMD,/* CMD0 for slot 0 */
+	GPIO31_GPIO,	/* CMD1 default as GPIO for slot 0 */
 };
 
 #define NUM_LCD_DETECT_PINS	7
@@ -169,5 +178,9 @@ void __init zylonite_pxa320_init(void)
 		/* GPIO pin assignment */
 		gpio_backlight	= mfp_to_gpio(MFP_PIN_GPIO14);
 		gpio_eth_irq	= mfp_to_gpio(MFP_PIN_GPIO9);
+
+		/* MMC card detect & write protect for controller 0 */
+		zylonite_mmc_slot[0].gpio_cd  = mfp_to_gpio(MFP_PIN_GPIO1);
+		zylonite_mmc_slot[0].gpio_wp  = mfp_to_gpio(MFP_PIN_GPIO5);
 	}
 }

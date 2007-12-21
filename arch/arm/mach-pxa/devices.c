@@ -51,7 +51,7 @@ static u64 pxamci_dmamask = 0xffffffffUL;
 
 struct platform_device pxa_device_mci = {
 	.name		= "pxa2xx-mci",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
 		.dma_mask = &pxamci_dmamask,
 		.coherent_dma_mask = 0xffffffff,

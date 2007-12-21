@@ -88,6 +88,15 @@ static mfp_cfg_t common_mfp_cfg[] __initdata = {
 	GPIO4_2_KP_MKOUT_5,
 	GPIO5_2_KP_MKOUT_6,
 	GPIO6_2_KP_MKOUT_7,
+
+	/* MMC1 */
+	GPIO3_MMC1_DAT0,
+	GPIO4_MMC1_DAT1,
+	GPIO5_MMC1_DAT2,
+	GPIO6_MMC1_DAT3,
+	GPIO7_MMC1_CLK,
+	GPIO8_MMC1_CMD,	/* CMD0 for slot 0 */
+	GPIO15_GPIO,	/* CMD1 default as GPIO for slot 0 */
 };
 
 static mfp_cfg_t pxa300_mfp_cfg[] __initdata = {
@@ -174,6 +183,10 @@ void __init zylonite_pxa300_init(void)
 
 		/* GPIO pin assignment */
 		gpio_backlight = mfp_to_gpio(MFP_PIN_GPIO20);
+
+		/* MMC card detect & write protect for controller 0 */
+		zylonite_mmc_slot[0].gpio_cd  = EXT_GPIO(0);
+		zylonite_mmc_slot[0].gpio_wp  = EXT_GPIO(2);
 	}
 
 	if (cpu_is_pxa300()) {
