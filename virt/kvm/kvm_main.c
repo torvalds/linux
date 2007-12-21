@@ -541,6 +541,26 @@ int kvm_read_guest(struct kvm *kvm, gpa_t gpa, void *data, unsigned long len)
 }
 EXPORT_SYMBOL_GPL(kvm_read_guest);
 
+int kvm_read_guest_atomic(struct kvm *kvm, gpa_t gpa, void *data,
+			  unsigned long len)
+{
+	int r;
+	unsigned long addr;
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	int offset = offset_in_page(gpa);
+
+	addr = gfn_to_hva(kvm, gfn);
+	if (kvm_is_error_hva(addr))
+		return -EFAULT;
+	pagefault_disable();
+	r = __copy_from_user_inatomic(data, (void __user *)addr + offset, len);
+	pagefault_enable();
+	if (r)
+		return -EFAULT;
+	return 0;
+}
+EXPORT_SYMBOL(kvm_read_guest_atomic);
+
 int kvm_write_guest_page(struct kvm *kvm, gfn_t gfn, const void *data,
 			 int offset, int len)
 {

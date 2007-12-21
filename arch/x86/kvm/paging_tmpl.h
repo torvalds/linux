@@ -316,10 +316,12 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 					       metaphysical, access,
 					       shadow_ent, &new_page);
 		if (new_page && !metaphysical) {
+			int r;
 			pt_element_t curr_pte;
-			kvm_read_guest(vcpu->kvm, walker->pte_gpa[level - 2],
-				       &curr_pte, sizeof(curr_pte));
-			if (curr_pte != walker->ptes[level - 2])
+			r = kvm_read_guest_atomic(vcpu->kvm,
+						  walker->pte_gpa[level - 2],
+						  &curr_pte, sizeof(curr_pte));
+			if (r || curr_pte != walker->ptes[level - 2])
 				return NULL;
 		}
 		shadow_addr = __pa(shadow_page->spt);
@@ -429,9 +431,8 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
 static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 				 struct kvm_mmu_page *sp)
 {
-	int i, offset = 0;
-	pt_element_t *gpt;
-	struct page *page;
+	int i, offset = 0, r = 0;
+	pt_element_t pt;
 
 	if (sp->role.metaphysical
 	    || (PTTYPE == 32 && sp->role.level > PT_PAGE_TABLE_LEVEL)) {
@@ -441,15 +442,18 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
 
 	if (PTTYPE == 32)
 		offset = sp->role.quadrant << PT64_LEVEL_BITS;
-	page = gfn_to_page(vcpu->kvm, sp->gfn);
-	gpt = kmap_atomic(page, KM_USER0);
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
-		if (is_present_pte(gpt[offset + i]))
+
+	for (i = 0; i < PT64_ENT_PER_PAGE; ++i) {
+		gpa_t pte_gpa = gfn_to_gpa(sp->gfn);
+		pte_gpa += (i+offset) * sizeof(pt_element_t);
+
+		r = kvm_read_guest_atomic(vcpu->kvm, pte_gpa, &pt,
+					  sizeof(pt_element_t));
+		if (r || is_present_pte(pt))
 			sp->spt[i] = shadow_trap_nonpresent_pte;
 		else
 			sp->spt[i] = shadow_notrap_nonpresent_pte;
-	kunmap_atomic(gpt, KM_USER0);
-	kvm_release_page_clean(page);
+	}
 }
 
 #undef pt_element_t
