@@ -11,7 +11,8 @@
 #ifndef _POWERPC_BOOT_4XX_H_
 #define _POWERPC_BOOT_4XX_H_
 
-void ibm4xx_fixup_memsize(void);
+void ibm4xx_sdram_fixup_memsize(void);
+void ibm440spe_fixup_memsize(void);
 void ibm4xx_denali_fixup_memsize(void);
 void ibm44x_dbcr_reset(void);
 void ibm40x_dbcr_reset(void);

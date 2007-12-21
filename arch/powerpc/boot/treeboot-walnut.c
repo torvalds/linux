@@ -63,7 +63,7 @@ static void walnut_flashsel_fixup(void)
 #define WALNUT_OPENBIOS_MAC_OFF 0xfffffe0b
 static void walnut_fixups(void)
 {
-	ibm4xx_fixup_memsize();
+	ibm4xx_sdram_fixup_memsize();
 	ibm405gp_fixup_clocks(33330000, 0xa8c000);
 	ibm4xx_quiesce_eth((u32 *)0xef600800, NULL);
 	ibm4xx_fixup_ebc_ranges("/plb/ebc");

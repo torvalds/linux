@@ -38,7 +38,7 @@ static void taishan_fixups(void)
 	   so we just use that code for now at least */
 	ibm440ep_fixup_clocks(sysclk, 6 * 1843200);
 
-	ibm4xx_fixup_memsize();
+	ibm4xx_sdram_fixup_memsize();
 
 	dt_fixup_mac_addresses(bd.bi_enetaddr, bd.bi_enet1addr);
 

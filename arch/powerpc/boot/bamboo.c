@@ -31,7 +31,7 @@ static void bamboo_fixups(void)
 	unsigned long sysclk = 33333333;
 
 	ibm440ep_fixup_clocks(sysclk, 11059200);
-	ibm4xx_fixup_memsize();
+	ibm4xx_sdram_fixup_memsize();
 	ibm4xx_quiesce_eth((u32 *)0xef600e00, (u32 *)0xef600f00);
 	dt_fixup_mac_addresses(bamboo_mac0, bamboo_mac1);
 }

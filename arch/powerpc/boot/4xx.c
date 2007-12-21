@@ -22,22 +22,83 @@
 #include "dcr.h"
 
 /* Read the 4xx SDRAM controller to get size of system memory. */
-void ibm4xx_fixup_memsize(void)
+void ibm4xx_sdram_fixup_memsize(void)
 {
 	int i;
 	unsigned long memsize, bank_config;
 
 	memsize = 0;
 	for (i = 0; i < ARRAY_SIZE(sdram_bxcr); i++) {
-		mtdcr(DCRN_SDRAM0_CFGADDR, sdram_bxcr[i]);
-		bank_config = mfdcr(DCRN_SDRAM0_CFGDATA);
-
+		bank_config = SDRAM0_READ(sdram_bxcr[i]);
 		if (bank_config & SDRAM_CONFIG_BANK_ENABLE)
 			memsize += SDRAM_CONFIG_BANK_SIZE(bank_config);
 	}
 
 	dt_fixup_memory(0, memsize);
 }
+
+/* Read the 440SPe MQ controller to get size of system memory. */
+#define DCRN_MQ0_B0BAS		0x40
+#define DCRN_MQ0_B1BAS		0x41
+#define DCRN_MQ0_B2BAS		0x42
+#define DCRN_MQ0_B3BAS		0x43
+
+static u64 ibm440spe_decode_bas(u32 bas)
+{
+	u64 base = ((u64)(bas & 0xFFE00000u)) << 2;
+
+	/* open coded because I'm paranoid about invalid values */
+	switch ((bas >> 4) & 0xFFF) {
+	case 0:
+		return 0;
+	case 0xffc:
+		return base + 0x000800000ull;
+	case 0xff8:
+		return base + 0x001000000ull;
+	case 0xff0:
+		return base + 0x002000000ull;
+	case 0xfe0:
+		return base + 0x004000000ull;
+	case 0xfc0:
+		return base + 0x008000000ull;
+	case 0xf80:
+		return base + 0x010000000ull;
+	case 0xf00:
+		return base + 0x020000000ull;
+	case 0xe00:
+		return base + 0x040000000ull;
+	case 0xc00:
+		return base + 0x080000000ull;
+	case 0x800:
+		return base + 0x100000000ull;
+	}
+	printf("Memory BAS value 0x%08x unsupported !\n", bas);
+	return 0;
+}
+
+void ibm440spe_fixup_memsize(void)
+{
+	u64 banktop, memsize = 0;
+
+	/* Ultimately, we should directly construct the memory node
+	 * so we are able to handle holes in the memory address space
+	 */
+	banktop = ibm440spe_decode_bas(mfdcr(DCRN_MQ0_B0BAS));
+	if (banktop > memsize)
+		memsize = banktop;
+	banktop = ibm440spe_decode_bas(mfdcr(DCRN_MQ0_B1BAS));
+	if (banktop > memsize)
+		memsize = banktop;
+	banktop = ibm440spe_decode_bas(mfdcr(DCRN_MQ0_B2BAS));
+	if (banktop > memsize)
+		memsize = banktop;
+	banktop = ibm440spe_decode_bas(mfdcr(DCRN_MQ0_B3BAS));
+	if (banktop > memsize)
+		memsize = banktop;
+
+	dt_fixup_memory(0, memsize);
+}
+
 
 /* 4xx DDR1/2 Denali memory controller support */
 /* DDR0 registers */
@@ -77,19 +138,13 @@ void ibm4xx_fixup_memsize(void)
 
 #define DDR_GET_VAL(val, mask, shift)	(((val) >> (shift)) & (mask))
 
-static inline u32 mfdcr_sdram0(u32 reg)
-{
-        mtdcr(DCRN_SDRAM0_CFGADDR, reg);
-        return mfdcr(DCRN_SDRAM0_CFGDATA);
-}
-
 void ibm4xx_denali_fixup_memsize(void)
 {
 	u32 val, max_cs, max_col, max_row;
 	u32 cs, col, row, bank, dpath;
 	unsigned long memsize;
 
-	val = mfdcr_sdram0(DDR0_02);
+	val = SDRAM0_READ(DDR0_02);
 	if (!DDR_GET_VAL(val, DDR_START, DDR_START_SHIFT))
 		fatal("DDR controller is not initialized\n");
 
@@ -99,7 +154,7 @@ void ibm4xx_denali_fixup_memsize(void)
 	max_row = DDR_GET_VAL(val, DDR_MAX_ROW_REG, DDR_MAX_ROW_REG_SHIFT);
 
 	/* get CS value */
-	val = mfdcr_sdram0(DDR0_10);
+	val = SDRAM0_READ(DDR0_10);
 
 	val = DDR_GET_VAL(val, DDR_CS_MAP, DDR_CS_MAP_SHIFT);
 	cs = 0;
@@ -115,7 +170,7 @@ void ibm4xx_denali_fixup_memsize(void)
 		fatal("DDR wrong CS configuration\n");
 
 	/* get data path bytes */
-	val = mfdcr_sdram0(DDR0_14);
+	val = SDRAM0_READ(DDR0_14);
 
 	if (DDR_GET_VAL(val, DDR_REDUC, DDR_REDUC_SHIFT))
 		dpath = 8; /* 64 bits */
@@ -123,7 +178,7 @@ void ibm4xx_denali_fixup_memsize(void)
 		dpath = 4; /* 32 bits */
 
 	/* get address pins (rows) */
-	val = mfdcr_sdram0(DDR0_42);
+ 	val = SDRAM0_READ(DDR0_42);
 
 	row = DDR_GET_VAL(val, DDR_APIN, DDR_APIN_SHIFT);
 	if (row > max_row)
@@ -131,7 +186,7 @@ void ibm4xx_denali_fixup_memsize(void)
 	row = max_row - row;
 
 	/* get collomn size and banks */
-	val = mfdcr_sdram0(DDR0_43);
+	val = SDRAM0_READ(DDR0_43);
 
 	col = DDR_GET_VAL(val, DDR_COL_SZ, DDR_COL_SZ_SHIFT);
 	if (col > max_col)

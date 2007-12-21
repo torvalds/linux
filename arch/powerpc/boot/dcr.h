@@ -14,12 +14,20 @@
 #define DCRN_SDRAM0_CFGADDR				0x010
 #define DCRN_SDRAM0_CFGDATA				0x011
 
+#define SDRAM0_READ(offset) ({\
+	mtdcr(DCRN_SDRAM0_CFGADDR, offset); \
+	mfdcr(DCRN_SDRAM0_CFGDATA); })
+#define SDRAM0_WRITE(offset, data) ({\
+	mtdcr(DCRN_SDRAM0_CFGADDR, offset); \
+	mtdcr(DCRN_SDRAM0_CFGDATA, data); })
+
 #define 	SDRAM0_B0CR				0x40
 #define 	SDRAM0_B1CR				0x44
 #define 	SDRAM0_B2CR				0x48
 #define 	SDRAM0_B3CR				0x4c
 
-static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR, SDRAM0_B2CR, SDRAM0_B3CR };
+static const unsigned long sdram_bxcr[] = { SDRAM0_B0CR, SDRAM0_B1CR,
+					    SDRAM0_B2CR, SDRAM0_B3CR };
 
 #define			SDRAM_CONFIG_BANK_ENABLE        0x00000001
 #define			SDRAM_CONFIG_SIZE_MASK          0x000e0000
