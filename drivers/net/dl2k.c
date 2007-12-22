@@ -332,7 +332,7 @@ parse_eeprom (struct net_device *dev)
 #endif
 	/* Read eeprom */
 	for (i = 0; i < 128; i++) {
-		((u16 *) sromdata)[i] = le16_to_cpu (read_eeprom (ioaddr, i));
+		((__le16 *) sromdata)[i] = cpu_to_le16(read_eeprom (ioaddr, i));
 	}
 #ifdef	MEM_MAPPING
 	ioaddr = dev->base_addr;
@@ -516,7 +516,7 @@ rio_timer (unsigned long data)
 					  PCI_DMA_FROMDEVICE));
 			}
 			np->rx_ring[entry].fraginfo |=
-			    cpu_to_le64 (np->rx_buf_sz) << 48;
+			    cpu_to_le64((u64)np->rx_buf_sz << 48);
 			np->rx_ring[entry].status = 0;
 		} /* end for */
 	} /* end if */
@@ -584,11 +584,11 @@ alloc_list (struct net_device *dev)
 		    cpu_to_le64 ( pci_map_single (
 			 	  np->pdev, skb->data, np->rx_buf_sz,
 				  PCI_DMA_FROMDEVICE));
-		np->rx_ring[i].fraginfo |= cpu_to_le64 (np->rx_buf_sz) << 48;
+		np->rx_ring[i].fraginfo |= cpu_to_le64((u64)np->rx_buf_sz << 48);
 	}
 
 	/* Set RFDListPtr */
-	writel (cpu_to_le32 (np->rx_ring_dma), dev->base_addr + RFDListPtr0);
+	writel (np->rx_ring_dma, dev->base_addr + RFDListPtr0);
 	writel (0, dev->base_addr + RFDListPtr1);
 
 	return;
@@ -620,15 +620,14 @@ start_xmit (struct sk_buff *skb, struct net_device *dev)
 	}
 #endif
 	if (np->vlan) {
-		tfc_vlan_tag =
-		    cpu_to_le64 (VLANTagInsert) |
-		    (cpu_to_le64 (np->vlan) << 32) |
-		    (cpu_to_le64 (skb->priority) << 45);
+		tfc_vlan_tag = VLANTagInsert |
+		    ((u64)np->vlan << 32) |
+		    ((u64)skb->priority << 45);
 	}
 	txdesc->fraginfo = cpu_to_le64 (pci_map_single (np->pdev, skb->data,
 							skb->len,
 							PCI_DMA_TODEVICE));
-	txdesc->fraginfo |= cpu_to_le64 (skb->len) << 48;
+	txdesc->fraginfo |= cpu_to_le64((u64)skb->len << 48);
 
 	/* DL2K bug: DMA fails to get next descriptor ptr in 10Mbps mode
 	 * Work around: Always use 1 descriptor in 10Mbps mode */
@@ -708,6 +707,11 @@ rio_interrupt (int irq, void *dev_instance)
 	return IRQ_RETVAL(handled);
 }
 
+static inline dma_addr_t desc_to_dma(struct netdev_desc *desc)
+{
+	return le64_to_cpu(desc->fraginfo) & DMA_48BIT_MASK;
+}
+
 static void
 rio_free_tx (struct net_device *dev, int irq)
 {
@@ -725,11 +729,11 @@ rio_free_tx (struct net_device *dev, int irq)
 	while (entry != np->cur_tx) {
 		struct sk_buff *skb;
 
-		if (!(np->tx_ring[entry].status & TFDDone))
+		if (!(np->tx_ring[entry].status & cpu_to_le64(TFDDone)))
 			break;
 		skb = np->tx_skbuff[entry];
 		pci_unmap_single (np->pdev,
-				  np->tx_ring[entry].fraginfo & DMA_48BIT_MASK,
+				  desc_to_dma(&np->tx_ring[entry]),
 				  skb->len, PCI_DMA_TODEVICE);
 		if (irq)
 			dev_kfree_skb_irq (skb);
@@ -831,13 +835,14 @@ receive_packet (struct net_device *dev)
 		int pkt_len;
 		u64 frame_status;
 
-		if (!(desc->status & RFDDone) ||
-		    !(desc->status & FrameStart) || !(desc->status & FrameEnd))
+		if (!(desc->status & cpu_to_le64(RFDDone)) ||
+		    !(desc->status & cpu_to_le64(FrameStart)) ||
+		    !(desc->status & cpu_to_le64(FrameEnd)))
 			break;
 
 		/* Chip omits the CRC. */
-		pkt_len = le64_to_cpu (desc->status & 0xffff);
-		frame_status = le64_to_cpu (desc->status);
+		frame_status = le64_to_cpu(desc->status);
+		pkt_len = frame_status & 0xffff;
 		if (--cnt < 0)
 			break;
 		/* Update rx error statistics, drop packet. */
@@ -857,15 +862,14 @@ receive_packet (struct net_device *dev)
 			/* Small skbuffs for short packets */
 			if (pkt_len > copy_thresh) {
 				pci_unmap_single (np->pdev,
-						  desc->fraginfo & DMA_48BIT_MASK,
+						  desc_to_dma(desc),
 						  np->rx_buf_sz,
 						  PCI_DMA_FROMDEVICE);
 				skb_put (skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
 			} else if ((skb = dev_alloc_skb (pkt_len + 2)) != NULL) {
 				pci_dma_sync_single_for_cpu(np->pdev,
-				  			    desc->fraginfo &
-							    	DMA_48BIT_MASK,
+							    desc_to_dma(desc),
 							    np->rx_buf_sz,
 							    PCI_DMA_FROMDEVICE);
 				/* 16 byte align the IP header */
@@ -875,8 +879,7 @@ receive_packet (struct net_device *dev)
 						  pkt_len);
 				skb_put (skb, pkt_len);
 				pci_dma_sync_single_for_device(np->pdev,
-				  			       desc->fraginfo &
-							       	 DMA_48BIT_MASK,
+							       desc_to_dma(desc),
 							       np->rx_buf_sz,
 							       PCI_DMA_FROMDEVICE);
 			}
@@ -919,7 +922,7 @@ receive_packet (struct net_device *dev)
 					  PCI_DMA_FROMDEVICE));
 		}
 		np->rx_ring[entry].fraginfo |=
-		    cpu_to_le64 (np->rx_buf_sz) << 48;
+		    cpu_to_le64((u64)np->rx_buf_sz << 48);
 		np->rx_ring[entry].status = 0;
 		entry = (entry + 1) % RX_RING_SIZE;
 	}
@@ -1121,7 +1124,7 @@ set_multicast (struct net_device *dev)
 
 	hash_table[0] = hash_table[1] = 0;
 	/* RxFlowcontrol DA: 01-80-C2-00-00-01. Hash index=0x39 */
-	hash_table[1] |= cpu_to_le32(0x02000000);
+	hash_table[1] |= 0x02000000;
 	if (dev->flags & IFF_PROMISC) {
 		/* Receive all frames promiscuously. */
 		rx_mode = ReceiveAllFrames;
@@ -1762,7 +1765,7 @@ rio_close (struct net_device *dev)
 		skb = np->rx_skbuff[i];
 		if (skb) {
 			pci_unmap_single(np->pdev,
-					 np->rx_ring[i].fraginfo & DMA_48BIT_MASK,
+					 desc_to_dma(&np->rx_ring[i]),
 					 skb->len, PCI_DMA_FROMDEVICE);
 			dev_kfree_skb (skb);
 			np->rx_skbuff[i] = NULL;
@@ -1772,7 +1775,7 @@ rio_close (struct net_device *dev)
 		skb = np->tx_skbuff[i];
 		if (skb) {
 			pci_unmap_single(np->pdev,
-					 np->tx_ring[i].fraginfo & DMA_48BIT_MASK,
+					 desc_to_dma(&np->tx_ring[i]),
 					 skb->len, PCI_DMA_TODEVICE);
 			dev_kfree_skb (skb);
 			np->tx_skbuff[i] = NULL;

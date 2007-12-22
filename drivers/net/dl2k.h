@@ -633,9 +633,9 @@ struct mii_data {
 
 /* The Rx and Tx buffer descriptors. */
 struct netdev_desc {
-	u64 next_desc;
-	u64 status;
-	u64 fraginfo;
+	__le64 next_desc;
+	__le64 status;
+	__le64 fraginfo;
 };
 
 #define PRIV_ALIGN	15	/* Required alignment mask */
