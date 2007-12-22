@@ -3111,7 +3111,7 @@ bnx2_set_rx_mode(struct net_device *dev)
 }
 
 static void
-load_rv2p_fw(struct bnx2 *bp, u32 *rv2p_code, u32 rv2p_code_len,
+load_rv2p_fw(struct bnx2 *bp, __le32 *rv2p_code, u32 rv2p_code_len,
 	u32 rv2p_proc)
 {
 	int i;
@@ -3119,9 +3119,9 @@ load_rv2p_fw(struct bnx2 *bp, u32 *rv2p_code, u32 rv2p_code_len,
 
 
 	for (i = 0; i < rv2p_code_len; i += 8) {
-		REG_WR(bp, BNX2_RV2P_INSTR_HIGH, cpu_to_le32(*rv2p_code));
+		REG_WR(bp, BNX2_RV2P_INSTR_HIGH, le32_to_cpu(*rv2p_code));
 		rv2p_code++;
-		REG_WR(bp, BNX2_RV2P_INSTR_LOW, cpu_to_le32(*rv2p_code));
+		REG_WR(bp, BNX2_RV2P_INSTR_LOW, le32_to_cpu(*rv2p_code));
 		rv2p_code++;
 
 		if (rv2p_proc == RV2P_PROC1) {
@@ -3167,7 +3167,7 @@ load_cpu_fw(struct bnx2 *bp, struct cpu_reg *cpu_reg, struct fw_info *fw)
 			return rc;
 
 		for (j = 0; j < (fw->text_len / 4); j++, offset += 4) {
-			REG_WR_IND(bp, offset, cpu_to_le32(fw->text[j]));
+			REG_WR_IND(bp, offset, le32_to_cpu(fw->text[j]));
 	        }
 	}
 
@@ -3704,10 +3704,8 @@ bnx2_nvram_read_dword(struct bnx2 *bp, u32 offset, u8 *ret_val, u32 cmd_flags)
 
 		val = REG_RD(bp, BNX2_NVM_COMMAND);
 		if (val & BNX2_NVM_COMMAND_DONE) {
-			val = REG_RD(bp, BNX2_NVM_READ);
-
-			val = be32_to_cpu(val);
-			memcpy(ret_val, &val, 4);
+			__be32 v = cpu_to_be32(REG_RD(bp, BNX2_NVM_READ));
+			memcpy(ret_val, &v, 4);
 			break;
 		}
 	}
@@ -3721,7 +3719,8 @@ bnx2_nvram_read_dword(struct bnx2 *bp, u32 offset, u8 *ret_val, u32 cmd_flags)
 static int
 bnx2_nvram_write_dword(struct bnx2 *bp, u32 offset, u8 *val, u32 cmd_flags)
 {
-	u32 cmd, val32;
+	u32 cmd;
+	__be32 val32;
 	int j;
 
 	/* Build the command word. */
@@ -3738,10 +3737,9 @@ bnx2_nvram_write_dword(struct bnx2 *bp, u32 offset, u8 *val, u32 cmd_flags)
 	REG_WR(bp, BNX2_NVM_COMMAND, BNX2_NVM_COMMAND_DONE);
 
 	memcpy(&val32, val, 4);
-	val32 = cpu_to_be32(val32);
 
 	/* Write the data. */
-	REG_WR(bp, BNX2_NVM_WRITE, val32);
+	REG_WR(bp, BNX2_NVM_WRITE, be32_to_cpu(val32));
 
 	/* Address of the NVRAM to write to. */
 	REG_WR(bp, BNX2_NVM_ADDR, offset & BNX2_NVM_ADDR_NVM_ADDR_VALUE);
@@ -5217,7 +5215,7 @@ bnx2_test_loopback(struct bnx2 *bp)
 static int
 bnx2_test_nvram(struct bnx2 *bp)
 {
-	u32 buf[NVRAM_SIZE / 4];
+	__be32 buf[NVRAM_SIZE / 4];
 	u8 *data = (u8 *) buf;
 	int rc = 0;
 	u32 magic, csum;

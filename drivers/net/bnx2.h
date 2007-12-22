@@ -6850,7 +6850,7 @@ struct fw_info {
 	const u32 text_addr;
 	const u32 text_len;
 	const u32 text_index;
-	u32 *text;
+	__le32 *text;
 	u8 *gz_text;
 	const u32 gz_text_len;
 
