@@ -50,6 +50,9 @@
 #define B43_MMIO_XMITSTAT_1		0x174
 #define B43_MMIO_REV3PLUS_TSF_LOW	0x180	/* core rev >= 3 only */
 #define B43_MMIO_REV3PLUS_TSF_HIGH	0x184	/* core rev >= 3 only */
+#define B43_MMIO_TSF_CFP_REP		0x188
+#define B43_MMIO_TSF_CFP_START		0x18C
+#define B43_MMIO_TSF_CFP_MAXDUR		0x190
 
 /* 32-bit DMA */
 #define B43_MMIO_DMA32_BASE0		0x200
@@ -88,6 +91,8 @@
 #define B43_MMIO_RADIO_HWENABLED_LO	0x49A
 #define B43_MMIO_GPIO_CONTROL		0x49C
 #define B43_MMIO_GPIO_MASK		0x49E
+#define B43_MMIO_TSF_CFP_START_LOW	0x604
+#define B43_MMIO_TSF_CFP_START_HIGH	0x606
 #define B43_MMIO_TSF_0			0x632	/* core rev < 3 only */
 #define B43_MMIO_TSF_1			0x634	/* core rev < 3 only */
 #define B43_MMIO_TSF_2			0x636	/* core rev < 3 only */

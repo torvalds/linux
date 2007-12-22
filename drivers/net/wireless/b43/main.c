@@ -2408,32 +2408,42 @@ static void b43_periodic_tasks_setup(struct b43_wldev *dev)
 	queue_delayed_work(dev->wl->hw->workqueue, work, 0);
 }
 
-/* Validate access to the chip (SHM) */
+/* Check if communication with the device works correctly. */
 static int b43_validate_chipaccess(struct b43_wldev *dev)
 {
-	u32 value;
-	u32 shm_backup;
+	u32 v, backup;
 
-	shm_backup = b43_shm_read32(dev, B43_SHM_SHARED, 0);
-	b43_shm_write32(dev, B43_SHM_SHARED, 0, 0xAA5555AA);
-	if (b43_shm_read32(dev, B43_SHM_SHARED, 0) != 0xAA5555AA)
-		goto error;
+	backup = b43_shm_read32(dev, B43_SHM_SHARED, 0);
+
+	/* Check for read/write and endianness problems. */
 	b43_shm_write32(dev, B43_SHM_SHARED, 0, 0x55AAAA55);
 	if (b43_shm_read32(dev, B43_SHM_SHARED, 0) != 0x55AAAA55)
 		goto error;
-	b43_shm_write32(dev, B43_SHM_SHARED, 0, shm_backup);
-
-	value = b43_read32(dev, B43_MMIO_MACCTL);
-	if ((value | B43_MACCTL_GMODE) !=
-	    (B43_MACCTL_GMODE | B43_MACCTL_IHR_ENABLED))
+	b43_shm_write32(dev, B43_SHM_SHARED, 0, 0xAA5555AA);
+	if (b43_shm_read32(dev, B43_SHM_SHARED, 0) != 0xAA5555AA)
 		goto error;
 
-	value = b43_read32(dev, B43_MMIO_GEN_IRQ_REASON);
-	if (value)
+	b43_shm_write32(dev, B43_SHM_SHARED, 0, backup);
+
+	if ((dev->dev->id.revision >= 3) && (dev->dev->id.revision <= 10)) {
+		/* The 32bit register shadows the two 16bit registers
+		 * with update sideeffects. Validate this. */
+		b43_write16(dev, B43_MMIO_TSF_CFP_START, 0xAAAA);
+		b43_write32(dev, B43_MMIO_TSF_CFP_START, 0xCCCCBBBB);
+		if (b43_read16(dev, B43_MMIO_TSF_CFP_START_LOW) != 0xBBBB)
+			goto error;
+		if (b43_read16(dev, B43_MMIO_TSF_CFP_START_HIGH) != 0xCCCC)
+			goto error;
+	}
+	b43_write32(dev, B43_MMIO_TSF_CFP_START, 0);
+
+	v = b43_read32(dev, B43_MMIO_MACCTL);
+	v |= B43_MACCTL_GMODE;
+	if (v != (B43_MACCTL_GMODE | B43_MACCTL_IHR_ENABLED))
 		goto error;
 
 	return 0;
-      error:
+error:
 	b43err(dev->wl, "Failed to validate the chipaccess\n");
 	return -ENODEV;
 }
