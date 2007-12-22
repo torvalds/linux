@@ -2692,8 +2692,36 @@ static int b43_switch_phymode(struct b43_wl *wl, unsigned int new_mode)
 	return err;
 }
 
-static int b43_antenna_from_ieee80211(u8 antenna)
+/* Check if the use of the antenna that ieee80211 told us to
+ * use is possible. This will fall back to DEFAULT.
+ * "antenna_nr" is the antenna identifier we got from ieee80211. */
+u8 b43_ieee80211_antenna_sanitize(struct b43_wldev *dev,
+				  u8 antenna_nr)
 {
+	u8 antenna_mask;
+
+	if (antenna_nr == 0) {
+		/* Zero means "use default antenna". That's always OK. */
+		return 0;
+	}
+
+	/* Get the mask of available antennas. */
+	if (dev->phy.gmode)
+		antenna_mask = dev->dev->bus->sprom.ant_available_bg;
+	else
+		antenna_mask = dev->dev->bus->sprom.ant_available_a;
+
+	if (!(antenna_mask & (1 << (antenna_nr - 1)))) {
+		/* This antenna is not available. Fall back to default. */
+		return 0;
+	}
+
+	return antenna_nr;
+}
+
+static int b43_antenna_from_ieee80211(struct b43_wldev *dev, u8 antenna)
+{
+	antenna = b43_ieee80211_antenna_sanitize(dev, antenna);
 	switch (antenna) {
 	case 0:		/* default/diversity */
 		return B43_ANTENNA_DEFAULT;
@@ -2713,13 +2741,9 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	struct b43_phy *phy;
 	unsigned long flags;
 	unsigned int new_phymode = 0xFFFF;
-	int antenna_tx;
-	int antenna_rx;
+	int antenna;
 	int err = 0;
 	u32 savedirqs;
-
-	antenna_tx = b43_antenna_from_ieee80211(conf->antenna_sel_tx);
-	antenna_rx = b43_antenna_from_ieee80211(conf->antenna_sel_rx);
 
 	mutex_lock(&wl->mutex);
 
@@ -2781,8 +2805,10 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	}
 
 	/* Antennas for RX and management frame TX. */
-	b43_mgmtframe_txantenna(dev, antenna_tx);
-	b43_set_rx_antenna(dev, antenna_rx);
+	antenna = b43_antenna_from_ieee80211(dev, conf->antenna_sel_tx);
+	b43_mgmtframe_txantenna(dev, antenna);
+	antenna = b43_antenna_from_ieee80211(dev, conf->antenna_sel_rx);
+	b43_set_rx_antenna(dev, antenna);
 
 	/* Update templates for AP mode. */
 	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP))

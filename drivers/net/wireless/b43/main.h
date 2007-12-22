@@ -84,6 +84,9 @@ static inline int b43_is_ofdm_rate(int rate)
 	return !b43_is_cck_rate(rate);
 }
 
+u8 b43_ieee80211_antenna_sanitize(struct b43_wldev *dev,
+				  u8 antenna_nr);
+
 void b43_tsf_read(struct b43_wldev *dev, u64 * tsf);
 void b43_tsf_write(struct b43_wldev *dev, u64 tsf);
 

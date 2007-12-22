@@ -270,14 +270,15 @@ static void generate_txhdr_fw4(struct b43_wldev *dev,
 		phy_ctl |= B43_TX4_PHY_OFDM;
 	if (dev->short_preamble)
 		phy_ctl |= B43_TX4_PHY_SHORTPRMBL;
-	switch (txctl->antenna_sel_tx) {
-	case 0:
+
+	switch (b43_ieee80211_antenna_sanitize(dev, txctl->antenna_sel_tx)) {
+	case 0: /* Default */
 		phy_ctl |= B43_TX4_PHY_ANTLAST;
 		break;
-	case 1:
+	case 1: /* Antenna 0 */
 		phy_ctl |= B43_TX4_PHY_ANT0;
 		break;
-	case 2:
+	case 2: /* Antenna 1 */
 		phy_ctl |= B43_TX4_PHY_ANT1;
 		break;
 	default:
