@@ -190,6 +190,8 @@ prop_adjust_shift(int *pl_shift, unsigned long *pl_period, int new_shift)
  * PERCPU
  */
 
+#define PROP_BATCH (8*(1+ilog2(nr_cpu_ids)))
+
 int prop_local_init_percpu(struct prop_local_percpu *pl)
 {
 	spin_lock_init(&pl->lock);
@@ -230,31 +232,24 @@ void prop_norm_percpu(struct prop_global *pg, struct prop_local_percpu *pl)
 
 	spin_lock_irqsave(&pl->lock, flags);
 	prop_adjust_shift(&pl->shift, &pl->period, pg->shift);
+
 	/*
 	 * For each missed period, we half the local counter.
 	 * basically:
 	 *   pl->events >> (global_period - pl->period);
-	 *
-	 * but since the distributed nature of percpu counters make division
-	 * rather hard, use a regular subtraction loop. This is safe, because
-	 * the events will only every be incremented, hence the subtraction
-	 * can never result in a negative number.
 	 */
-	while (pl->period != global_period) {
-		unsigned long val = percpu_counter_read(&pl->events);
-		unsigned long half = (val + 1) >> 1;
+	period = (global_period - pl->period) >> (pg->shift - 1);
+	if (period < BITS_PER_LONG) {
+		s64 val = percpu_counter_read(&pl->events);
 
-		/*
-		 * Half of zero won't be much less, break out.
-		 * This limits the loop to shift iterations, even
-		 * if we missed a million.
-		 */
-		if (!val)
-			break;
+		if (val < (nr_cpu_ids * PROP_BATCH))
+			val = percpu_counter_sum(&pl->events);
 
-		percpu_counter_add(&pl->events, -half);
-		pl->period += period;
-	}
+		__percpu_counter_add(&pl->events, -val + (val >> period),
+					PROP_BATCH);
+	} else
+		percpu_counter_set(&pl->events, 0);
+
 	pl->period = global_period;
 	spin_unlock_irqrestore(&pl->lock, flags);
 }
@@ -267,7 +262,7 @@ void __prop_inc_percpu(struct prop_descriptor *pd, struct prop_local_percpu *pl)
 	struct prop_global *pg = prop_get_global(pd);
 
 	prop_norm_percpu(pg, pl);
-	percpu_counter_add(&pl->events, 1);
+	__percpu_counter_add(&pl->events, 1, PROP_BATCH);
 	percpu_counter_add(&pg->events, 1);
 	prop_put_global(pd, pg);
 }
