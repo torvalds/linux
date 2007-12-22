@@ -54,7 +54,7 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		u32 code = le32_to_cpu(bootrec->code);
 		switch (code) {
 		case BR_CODE_COMPONENT_ID:
-			switch (be32_to_cpu(*bootrec->data)) {
+			switch (be32_to_cpu(*(__be32 *)bootrec->data)) {
 			case FW_FMAC:
 				printk(KERN_INFO "p54: FreeMAC firmware\n");
 				break;
@@ -78,14 +78,14 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 				fw_version = (unsigned char*)bootrec->data;
 			break;
 		case BR_CODE_DESCR:
-			priv->rx_start = le32_to_cpu(bootrec->data[1]);
+			priv->rx_start = le32_to_cpu(((__le32 *)bootrec->data)[1]);
 			/* FIXME add sanity checking */
-			priv->rx_end = le32_to_cpu(bootrec->data[2]) - 0x3500;
+			priv->rx_end = le32_to_cpu(((__le32 *)bootrec->data)[2]) - 0x3500;
 			break;
 		case BR_CODE_EXPOSED_IF:
 			exp_if = (struct bootrec_exp_if *) bootrec->data;
 			for (i = 0; i < (len * sizeof(*exp_if) / 4); i++)
-				if (exp_if[i].if_id == 0x1a)
+				if (exp_if[i].if_id == cpu_to_le16(0x1a))
 					priv->fw_var = le16_to_cpu(exp_if[i].variant);
 			break;
 		case BR_CODE_DEPENDENT_IF:
