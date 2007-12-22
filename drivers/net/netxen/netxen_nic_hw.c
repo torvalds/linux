@@ -419,7 +419,7 @@ int netxen_nic_hw_resources(struct netxen_adapter *adapter)
 	adapter->ctx_desc->cmd_consumer_offset =
 	    cpu_to_le64(adapter->ctx_desc_phys_addr +
 			sizeof(struct netxen_ring_ctx));
-	adapter->cmd_consumer = (uint32_t *) (((char *)addr) +
+	adapter->cmd_consumer = (__le32 *) (((char *)addr) +
 					      sizeof(struct netxen_ring_ctx));
 
 	addr = netxen_alloc(adapter->ahw.pdev,
@@ -586,35 +586,35 @@ int netxen_is_flash_supported(struct netxen_adapter *adapter)
 }
 
 static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
-				  int size, u32 * buf)
+				  int size, __le32 * buf)
 {
 	int i, addr;
-	u32 *ptr32;
+	__le32 *ptr32;
+	u32 v;
 
 	addr = base;
 	ptr32 = buf;
 	for (i = 0; i < size / sizeof(u32); i++) {
-		if (netxen_rom_fast_read(adapter, addr, ptr32) == -1)
+		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
 			return -1;
-		*ptr32 = cpu_to_le32(*ptr32);
+		*ptr32 = cpu_to_le32(v);
 		ptr32++;
 		addr += sizeof(u32);
 	}
 	if ((char *)buf + size > (char *)ptr32) {
-		u32 local;
-
-		if (netxen_rom_fast_read(adapter, addr, &local) == -1)
+		__le32 local;
+		if (netxen_rom_fast_read(adapter, addr, &v) == -1)
 			return -1;
-		local = cpu_to_le32(local);
+		local = cpu_to_le32(v);
 		memcpy(ptr32, &local, (char *)buf + size - (char *)ptr32);
 	}
 
 	return 0;
 }
 
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 mac[])
 {
-	u32 *pmac = (u32 *) & mac[0];
+	__le32 *pmac = (__le32 *) & mac[0];
 
 	if (netxen_get_flash_block(adapter,
 				   NETXEN_USER_START +
@@ -623,7 +623,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
 				   FLASH_NUM_PORTS * sizeof(u64), pmac) == -1) {
 		return -1;
 	}
-	if (*mac == ~0ULL) {
+	if (*mac == cpu_to_le64(~0ULL)) {
 		if (netxen_get_flash_block(adapter,
 					   NETXEN_USER_START_OLD +
 					   offsetof(struct netxen_user_old_info,
@@ -631,7 +631,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[])
 					   FLASH_NUM_PORTS * sizeof(u64),
 					   pmac) == -1)
 			return -1;
-		if (*mac == ~0ULL)
+		if (*mac == cpu_to_le64(~0ULL))
 			return -1;
 	}
 	return 0;

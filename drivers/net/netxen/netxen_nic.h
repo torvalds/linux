@@ -898,7 +898,7 @@ struct netxen_adapter {
 	u32 curr_window;
 
 	u32 cmd_producer;
-	u32 *cmd_consumer;
+	__le32 *cmd_consumer;
 
 	u32 last_cmd_consumer;
 	u32 max_tx_desc_count;
@@ -1195,7 +1195,7 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter);
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 mac[]);
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 mac[]);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);
 extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 				int *valp);
