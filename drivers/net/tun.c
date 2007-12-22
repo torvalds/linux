@@ -506,7 +506,7 @@ static int tun_set_iff(struct file *file, struct ifreq *ifr)
 		/* Be promiscuous by default to maintain previous behaviour. */
 		tun->if_flags = IFF_PROMISC;
 		/* Generate random Ethernet address. */
-		*(u16 *)tun->dev_addr = htons(0x00FF);
+		*(__be16 *)tun->dev_addr = htons(0x00FF);
 		get_random_bytes(tun->dev_addr + sizeof(u16), 4);
 		memset(tun->chr_filter, 0, sizeof tun->chr_filter);
 
