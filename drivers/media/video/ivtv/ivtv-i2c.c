@@ -777,9 +777,9 @@ int init_ivtv_i2c(struct ivtv *itv)
 		       sizeof(struct i2c_adapter));
 		memcpy(&itv->i2c_algo, &ivtv_i2c_algo_template,
 		       sizeof(struct i2c_algo_bit_data));
-		itv->i2c_algo.data = itv;
-		itv->i2c_adap.algo_data = &itv->i2c_algo;
 	}
+	itv->i2c_algo.data = itv;
+	itv->i2c_adap.algo_data = &itv->i2c_algo;
 
 	sprintf(itv->i2c_adap.name + strlen(itv->i2c_adap.name), " #%d",
 		itv->num);

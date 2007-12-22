@@ -22,6 +22,7 @@
 #include "ivtv-driver.h"
 #include "ivtv-cards.h"
 #include "ivtv-gpio.h"
+#include "tuner-xc2028.h"
 #include <media/tuner.h>
 
 /*
@@ -122,6 +123,29 @@ void ivtv_reset_ir_gpio(struct ivtv *itv)
 	write_reg(curdir, IVTV_REG_GPIO_DIR);
 }
 
+/* Xceive tuner reset function */
+int ivtv_reset_tuner_gpio(void *dev, int cmd, int value)
+{
+	struct i2c_algo_bit_data *algo = dev;
+	struct ivtv *itv = algo->data;
+	int curdir, curout;
+
+	if (cmd != XC2028_TUNER_RESET)
+		return 0;
+	IVTV_DEBUG_INFO("Resetting tuner\n");
+	curout = read_reg(IVTV_REG_GPIO_OUT);
+	curdir = read_reg(IVTV_REG_GPIO_DIR);
+	curdir |= (1 << 12);  /* GPIO bit 12 */
+
+	curout &= ~(1 << 12);
+	write_reg(curout, IVTV_REG_GPIO_OUT);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
+
+	curout |= (1 << 12);
+	write_reg(curout, IVTV_REG_GPIO_OUT);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
+	return 0;
+}
 
 void ivtv_gpio_init(struct ivtv *itv)
 {

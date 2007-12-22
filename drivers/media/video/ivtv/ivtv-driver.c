@@ -59,6 +59,7 @@
 #include <media/tveeprom.h>
 #include <media/saa7115.h>
 #include <media/v4l2-chip-ident.h>
+#include "tuner-xc2028.h"
 
 /* var to keep track of the number of array elements in use */
 int ivtv_cards_active = 0;
@@ -844,11 +845,6 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 	unsigned i;
 
 	/* load modules */
-	if ((hw & IVTV_HW_TUNER) && itv->options.tuner == TUNER_XC2028) {
-		IVTV_INFO("Xceive tuner not yet supported, only composite\n");
-		IVTV_INFO("and S-Video inputs will be available\n");
-		hw &= ~IVTV_HW_TUNER;
-	}
 #ifndef CONFIG_VIDEO_TUNER
 	hw = ivtv_request_module(itv, hw, "tuner", IVTV_HW_TUNER);
 #endif
@@ -1150,7 +1146,20 @@ static int __devinit ivtv_probe(struct pci_dev *dev,
 		setup.addr = ADDR_UNSET;
 		setup.type = itv->options.tuner;
 		setup.mode_mask = T_ANALOG_TV;  /* matches TV tuners */
+		setup.tuner_callback = (setup.type == TUNER_XC2028) ?
+			ivtv_reset_tuner_gpio : NULL;
 		ivtv_call_i2c_clients(itv, TUNER_SET_TYPE_ADDR, &setup);
+		if (setup.type == TUNER_XC2028) {
+			static struct xc2028_ctrl ctrl = {
+				.fname = XC2028_DEFAULT_FIRMWARE,
+				.max_len = 64,
+			};
+			struct v4l2_priv_tun_config cfg = {
+				.tuner = itv->options.tuner,
+				.priv = &ctrl,
+			};
+			ivtv_call_i2c_clients(itv, TUNER_SET_CONFIG, &cfg);
+		}
 	}
 
 	/* The tuner is fixed to the standard. The other inputs (e.g. S-Video)

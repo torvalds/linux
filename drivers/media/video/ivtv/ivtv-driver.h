@@ -65,7 +65,6 @@
 
 #include <linux/ivtv.h>
 
-
 /* Memory layout */
 #define IVTV_ENCODER_OFFSET	0x00000000
 #define IVTV_ENCODER_SIZE	0x00800000	/* Total size is 0x01000000, but only first half is used */
