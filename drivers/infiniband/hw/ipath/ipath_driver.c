@@ -1009,12 +1009,10 @@ static void get_rhf_errstring(u32 err, char *msg, size_t len)
  * ipath_get_egrbuf - get an eager buffer
  * @dd: the infinipath device
  * @bufnum: the eager buffer to get
- * @err: unused
  *
  * must only be called if ipath_pd[port] is known to be allocated
  */
-static inline void *ipath_get_egrbuf(struct ipath_devdata *dd, u32 bufnum,
-				     int err)
+static inline void *ipath_get_egrbuf(struct ipath_devdata *dd, u32 bufnum)
 {
 	return dd->ipath_port0_skbinfo ?
 		(void *) dd->ipath_port0_skbinfo[bufnum].skb->data : NULL;
@@ -1162,7 +1160,7 @@ reloop:
 			etail = ipath_hdrget_index((__le32 *) rc);
 			if (tlen > sizeof(*hdr) ||
 			    etype == RCVHQ_RCV_TYPE_NON_KD)
-				ebuf = ipath_get_egrbuf(dd, etail, 0);
+				ebuf = ipath_get_egrbuf(dd, etail);
 		}
 
 		/*
