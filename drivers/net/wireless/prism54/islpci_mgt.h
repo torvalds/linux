@@ -86,7 +86,7 @@ extern int pc_debug;
 #define PIMFOR_FLAG_LITTLE_ENDIAN               0x02
 
 static inline void
-add_le32p(u32 * le_number, u32 add)
+add_le32p(__le32 * le_number, u32 add)
 {
 	*le_number = cpu_to_le32(le32_to_cpup(le_number) + add);
 }
