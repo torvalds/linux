@@ -94,7 +94,6 @@ int ssb_pcmcia_switch_core(struct ssb_bus *bus,
 			   struct ssb_device *dev)
 {
 	int err;
-	unsigned long flags;
 
 #if SSB_VERBOSE_PCMCIACORESWITCH_DEBUG
 	ssb_printk(KERN_INFO PFX
@@ -103,11 +102,9 @@ int ssb_pcmcia_switch_core(struct ssb_bus *bus,
 		   dev->core_index);
 #endif
 
-	spin_lock_irqsave(&bus->bar_lock, flags);
 	err = ssb_pcmcia_switch_coreidx(bus, dev->core_index);
 	if (!err)
 		bus->mapped_device = dev;
-	spin_unlock_irqrestore(&bus->bar_lock, flags);
 
 	return err;
 }
@@ -115,14 +112,12 @@ int ssb_pcmcia_switch_core(struct ssb_bus *bus,
 int ssb_pcmcia_switch_segment(struct ssb_bus *bus, u8 seg)
 {
 	int attempts = 0;
-	unsigned long flags;
 	conf_reg_t reg;
-	int res, err = 0;
+	int res;
 
 	SSB_WARN_ON((seg != 0) && (seg != 1));
 	reg.Offset = 0x34;
 	reg.Function = 0;
-	spin_lock_irqsave(&bus->bar_lock, flags);
 	while (1) {
 		reg.Action = CS_WRITE;
 		reg.Value = seg;
@@ -143,13 +138,11 @@ int ssb_pcmcia_switch_segment(struct ssb_bus *bus, u8 seg)
 		udelay(10);
 	}
 	bus->mapped_pcmcia_seg = seg;
-out_unlock:
-	spin_unlock_irqrestore(&bus->bar_lock, flags);
-	return err;
+
+	return 0;
 error:
 	ssb_printk(KERN_ERR PFX "Failed to switch pcmcia segment\n");
-	err = -ENODEV;
-	goto out_unlock;
+	return -ENODEV;
 }
 
 static int select_core_and_segment(struct ssb_device *dev,
@@ -182,22 +175,33 @@ static int select_core_and_segment(struct ssb_device *dev,
 static u16 ssb_pcmcia_read16(struct ssb_device *dev, u16 offset)
 {
 	struct ssb_bus *bus = dev->bus;
+	unsigned long flags;
+	int err;
+	u16 value = 0xFFFF;
 
-	if (unlikely(select_core_and_segment(dev, &offset)))
-		return 0xFFFF;
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (likely(!err))
+		value = readw(bus->mmio + offset);
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
 
-	return readw(bus->mmio + offset);
+	return value;
 }
 
 static u32 ssb_pcmcia_read32(struct ssb_device *dev, u16 offset)
 {
 	struct ssb_bus *bus = dev->bus;
-	u32 lo, hi;
+	unsigned long flags;
+	int err;
+	u32 lo = 0xFFFFFFFF, hi = 0xFFFFFFFF;
 
-	if (unlikely(select_core_and_segment(dev, &offset)))
-		return 0xFFFFFFFF;
-	lo = readw(bus->mmio + offset);
-	hi = readw(bus->mmio + offset + 2);
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (likely(!err)) {
+		lo = readw(bus->mmio + offset);
+		hi = readw(bus->mmio + offset + 2);
+	}
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
 
 	return (lo | (hi << 16));
 }
@@ -205,22 +209,31 @@ static u32 ssb_pcmcia_read32(struct ssb_device *dev, u16 offset)
 static void ssb_pcmcia_write16(struct ssb_device *dev, u16 offset, u16 value)
 {
 	struct ssb_bus *bus = dev->bus;
+	unsigned long flags;
+	int err;
 
-	if (unlikely(select_core_and_segment(dev, &offset)))
-		return;
-	writew(value, bus->mmio + offset);
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (likely(!err))
+		writew(value, bus->mmio + offset);
+	mmiowb();
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
 }
 
 static void ssb_pcmcia_write32(struct ssb_device *dev, u16 offset, u32 value)
 {
 	struct ssb_bus *bus = dev->bus;
+	unsigned long flags;
+	int err;
 
-	if (unlikely(select_core_and_segment(dev, &offset)))
-		return;
-	writeb((value & 0xFF000000) >> 24, bus->mmio + offset + 3);
-	writeb((value & 0x00FF0000) >> 16, bus->mmio + offset + 2);
-	writeb((value & 0x0000FF00) >> 8, bus->mmio + offset + 1);
-	writeb((value & 0x000000FF) >> 0, bus->mmio + offset + 0);
+	spin_lock_irqsave(&bus->bar_lock, flags);
+	err = select_core_and_segment(dev, &offset);
+	if (likely(!err)) {
+		writew((value & 0x0000FFFF), bus->mmio + offset);
+		writew(((value & 0xFFFF0000) >> 16), bus->mmio + offset + 2);
+	}
+	mmiowb();
+	spin_unlock_irqrestore(&bus->bar_lock, flags);
 }
 
 /* Not "static", as it's used in main.c */
@@ -231,10 +244,12 @@ const struct ssb_bus_ops ssb_pcmcia_ops = {
 	.write32	= ssb_pcmcia_write32,
 };
 
+#include <linux/etherdevice.h>
 int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 			      struct ssb_init_invariants *iv)
 {
 	//TODO
+	random_ether_addr(iv->sprom.il0mac);
 	return 0;
 }
 

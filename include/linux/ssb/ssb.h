@@ -231,7 +231,8 @@ struct ssb_bus {
 	struct ssb_device *mapped_device;
 	/* Currently mapped PCMCIA segment. (bustype == SSB_BUSTYPE_PCMCIA only) */
 	u8 mapped_pcmcia_seg;
-	/* Lock for core and segment switching. */
+	/* Lock for core and segment switching.
+	 * On PCMCIA-host busses this is used to protect the whole MMIO access. */
 	spinlock_t bar_lock;
 
 	/* The bus this backplane is running on. */
