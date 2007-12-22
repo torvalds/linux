@@ -374,7 +374,8 @@ static int conf_choice(struct menu *menu)
 				continue;
 			break;
 		case set_random:
-			def = (random() % cnt) + 1;
+			if (is_new)
+				def = (random() % cnt) + 1;
 		case set_default:
 		case set_yes:
 		case set_mod:
