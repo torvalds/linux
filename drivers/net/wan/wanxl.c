@@ -715,7 +715,7 @@ static int __devinit wanxl_pci_init_one(struct pci_dev *pdev,
 	}
 
 	for (i = 0; i < sizeof(firmware); i += 4)
-		writel(htonl(*(u32*)(firmware + i)), mem + PDM_OFFSET + i);
+		writel(ntohl(*(__be32*)(firmware + i)), mem + PDM_OFFSET + i);
 
 	for (i = 0; i < ports; i++)
 		writel(card->status_address +

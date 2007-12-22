@@ -59,7 +59,7 @@ static int raw_eth_ioctl(struct net_device *dev, struct ifreq *ifr)
 	raw_hdlc_proto new_settings;
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	int result;
-	void *old_ch_mtu;
+	int (*old_ch_mtu)(struct net_device *, int);
 	int old_qlen;
 
 	switch (ifr->ifr_settings.type) {
