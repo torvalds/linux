@@ -2029,7 +2029,7 @@ P:	James Ketrenos
 M:	jketreno@linux.intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
-L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2100.sourceforge.net
 S:	Supported
 
@@ -2040,7 +2040,7 @@ P:	James Ketrenos
 M:	jketreno@linux.intel.com
 L:	linux-wireless@vger.kernel.org
 L:	ipw2100-devel@lists.sourceforge.net
-L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
 W:	http://ipw2200.sourceforge.net
 S:	Supported
 
@@ -2597,7 +2597,7 @@ S:	Maintained
 MSI LAPTOP SUPPORT
 P:	Lennart Poettering
 M:	mzxreary@0pointer.de
-L:	https://tango.0pointer.de/mailman/listinfo/s270-linux
+W:	https://tango.0pointer.de/mailman/listinfo/s270-linux
 W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
 
