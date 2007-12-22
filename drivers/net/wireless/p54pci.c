@@ -48,10 +48,10 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 	const struct firmware *fw_entry = NULL;
 	__le32 reg;
 	int err;
-	u32 *data;
+	__le32 *data;
 	u32 remains, left, device_addr;
 
-	P54P_WRITE(int_enable, 0);
+	P54P_WRITE(int_enable, cpu_to_le32(0));
 	P54P_READ(int_enable);
 	udelay(10);
 
@@ -82,7 +82,7 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 
 	p54_parse_firmware(dev, fw_entry);
 
-	data = (u32 *) fw_entry->data;
+	data = (__le32 *) fw_entry->data;
 	remains = fw_entry->size;
 	device_addr = ISL38XX_DEV_FIRMWARE_ADDR;
 	while (remains) {
@@ -166,7 +166,7 @@ static int p54p_read_eeprom(struct ieee80211_hw *dev)
 	}
 
 	memset(ring_control, 0, sizeof(*ring_control));
-	P54P_WRITE(ring_control_base, priv->ring_control_dma);
+	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
 	P54P_READ(ring_control_base);
 	udelay(10);
 
@@ -229,7 +229,7 @@ static int p54p_read_eeprom(struct ieee80211_hw *dev)
 
  out:
 	kfree(eeprom);
-	P54P_WRITE(int_enable, 0);
+	P54P_WRITE(int_enable, cpu_to_le32(0));
 	P54P_READ(int_enable);
 	udelay(10);
 	free_irq(priv->pdev->irq, priv);
@@ -288,7 +288,7 @@ static irqreturn_t p54p_interrupt(int irq, void *dev_id)
 
 	spin_lock(&priv->lock);
 	reg = P54P_READ(int_ident);
-	if (unlikely(reg == 0xFFFFFFFF)) {
+	if (unlikely(reg == cpu_to_le32(0xFFFFFFFF))) {
 		spin_unlock(&priv->lock);
 		return IRQ_HANDLED;
 	}
@@ -425,7 +425,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 
 	p54p_upload_firmware(dev);
 
-	P54P_WRITE(ring_control_base, priv->ring_control_dma);
+	P54P_WRITE(ring_control_base, cpu_to_le32(priv->ring_control_dma));
 	P54P_READ(ring_control_base);
 	wmb();
 	udelay(10);
@@ -465,7 +465,7 @@ static void p54p_stop(struct ieee80211_hw *dev)
 	unsigned int i;
 	struct p54p_desc *desc;
 
-	P54P_WRITE(int_enable, 0);
+	P54P_WRITE(int_enable, cpu_to_le32(0));
 	P54P_READ(int_enable);
 	udelay(10);
 
