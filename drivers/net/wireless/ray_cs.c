@@ -998,7 +998,7 @@ static int ray_hw_xmit(unsigned char* data, int len, struct net_device* dev,
 static int translate_frame(ray_dev_t *local, struct tx_msg __iomem *ptx, unsigned char *data,
                     int len)
 {
-    unsigned short int proto = ((struct ethhdr *)data)->h_proto;
+    __be16 proto = ((struct ethhdr *)data)->h_proto;
     if (ntohs(proto) >= 1536) { /* DIX II ethernet frame */
         DEBUG(3,"ray_cs translate_frame DIX II\n");
         /* Copy LLC header to card buffer */

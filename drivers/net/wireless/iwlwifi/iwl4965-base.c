@@ -1648,7 +1648,7 @@ static void get_eeprom_mac(struct iwl4965_priv *priv, u8 *mac)
  */
 int iwl4965_eeprom_init(struct iwl4965_priv *priv)
 {
-	u16 *e = (u16 *)&priv->eeprom;
+	__le16 *e = (__le16 *)&priv->eeprom;
 	u32 gp = iwl4965_read32(priv, CSR_EEPROM_GP);
 	u32 r;
 	int sz = sizeof(priv->eeprom);
@@ -1692,7 +1692,7 @@ int iwl4965_eeprom_init(struct iwl4965_priv *priv)
 			rc = -ETIMEDOUT;
 			goto done;
 		}
-		e[addr / 2] = le16_to_cpu(r >> 16);
+		e[addr / 2] = cpu_to_le16(r >> 16);
 	}
 	rc = 0;
 

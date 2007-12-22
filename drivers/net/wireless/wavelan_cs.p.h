@@ -548,7 +548,7 @@ typedef struct wavepoint_beacon
 			spec_id2,	/* Unused */
 			pdu_type,	/* Unused */
 			seq;		/* WavePoint beacon sequence number */
-  unsigned short	domain_id,	/* WavePoint Domain ID */
+  __be16		domain_id,	/* WavePoint Domain ID */
 			nwid;		/* WavePoint NWID */
 } wavepoint_beacon;
 

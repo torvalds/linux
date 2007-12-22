@@ -104,7 +104,7 @@ static int adm8211_read_eeprom(struct ieee80211_hw *dev)
 	if (!priv->eeprom)
 		return -ENOMEM;
 
-	eeprom_93cx6_multiread(&eeprom, 0, (__le16 __force *)priv->eeprom, words);
+	eeprom_93cx6_multiread(&eeprom, 0, (__le16 *)priv->eeprom, words);
 
 	cr49 = le16_to_cpu(priv->eeprom->cr49);
 	priv->rf_type = (cr49 >> 3) & 0x7;
@@ -1867,9 +1867,9 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 		goto err_iounmap;
 	}
 
-	*(u32 *)perm_addr = le32_to_cpu((__force __le32)ADM8211_CSR_READ(PAR0));
-	*(u16 *)&perm_addr[4] =
-		le16_to_cpu((__force __le16)ADM8211_CSR_READ(PAR1) & 0xFFFF);
+	*(__le32 *)perm_addr = cpu_to_le32(ADM8211_CSR_READ(PAR0));
+	*(__le16 *)&perm_addr[4] =
+		cpu_to_le16(ADM8211_CSR_READ(PAR1) & 0xFFFF);
 
 	if (!is_valid_ether_addr(perm_addr)) {
 		printk(KERN_WARNING "%s (adm8211): Invalid hwaddr in EEPROM!\n",
