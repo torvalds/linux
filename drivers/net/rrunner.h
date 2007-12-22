@@ -838,7 +838,7 @@ static unsigned int rr_read_eeprom(struct rr_private *rrpriv,
 				   unsigned long offset,
 				   unsigned char *buf,
 				   unsigned long length);
-static u32 rr_read_eeprom_word(struct rr_private *rrpriv, void * offset);
+static u32 rr_read_eeprom_word(struct rr_private *rrpriv, size_t offset);
 static int rr_load_firmware(struct net_device *dev);
 static inline void rr_raz_tx(struct rr_private *, struct net_device *);
 static inline void rr_raz_rx(struct rr_private *, struct net_device *);

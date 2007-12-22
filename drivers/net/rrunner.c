@@ -294,7 +294,6 @@ static int rr_reset(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;
-	struct eeprom *hw = NULL;
 	u32 start_pc;
 	int i;
 
@@ -381,7 +380,8 @@ static int rr_reset(struct net_device *dev)
 	writel(RBURST_64|WBURST_64, &regs->PciState);
 	wmb();
 
-	start_pc = rr_read_eeprom_word(rrpriv, &hw->rncd_info.FwStart);
+	start_pc = rr_read_eeprom_word(rrpriv,
+			offsetof(struct eeprom, rncd_info.FwStart));
 
 #if (DEBUG > 1)
 	printk("%s: Executing firmware at address 0x%06x\n",
@@ -438,12 +438,12 @@ static unsigned int rr_read_eeprom(struct rr_private *rrpriv,
  * it to our CPU byte-order.
  */
 static u32 rr_read_eeprom_word(struct rr_private *rrpriv,
-			    void * offset)
+			    size_t offset)
 {
-	u32 word;
+	__be32 word;
 
-	if ((rr_read_eeprom(rrpriv, (unsigned long)offset,
-			    (char *)&word, 4) == 4))
+	if ((rr_read_eeprom(rrpriv, offset,
+			    (unsigned char *)&word, 4) == 4))
 		return be32_to_cpu(word);
 	return 0;
 }
@@ -510,7 +510,6 @@ static int __devinit rr_init(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;
-	struct eeprom *hw = NULL;
 	u32 sram_size, rev;
 	DECLARE_MAC_BUF(mac);
 
@@ -545,14 +544,14 @@ static int __devinit rr_init(struct net_device *dev)
 	 * other method I've seen.  -VAL
 	 */
 
-	*(u16 *)(dev->dev_addr) =
-	  htons(rr_read_eeprom_word(rrpriv, &hw->manf.BoardULA));
-	*(u32 *)(dev->dev_addr+2) =
-	  htonl(rr_read_eeprom_word(rrpriv, &hw->manf.BoardULA[4]));
+	*(__be16 *)(dev->dev_addr) =
+	  htons(rr_read_eeprom_word(rrpriv, offsetof(struct eeprom, manf.BoardULA)));
+	*(__be32 *)(dev->dev_addr+2) =
+	  htonl(rr_read_eeprom_word(rrpriv, offsetof(struct eeprom, manf.BoardULA[4])));
 
 	printk("  MAC: %s\n", print_mac(mac, dev->dev_addr));
 
-	sram_size = rr_read_eeprom_word(rrpriv, (void *)8);
+	sram_size = rr_read_eeprom_word(rrpriv, 8);
 	printk("  SRAM size 0x%06x\n", sram_size);
 
 	return 0;
@@ -1477,11 +1476,10 @@ static int rr_load_firmware(struct net_device *dev)
 {
 	struct rr_private *rrpriv;
 	struct rr_regs __iomem *regs;
-	unsigned long eptr, segptr;
+	size_t eptr, segptr;
 	int i, j;
 	u32 localctrl, sptr, len, tmp;
 	u32 p2len, p2size, nr_seg, revision, io, sram_size;
-	struct eeprom *hw = NULL;
 
 	rrpriv = netdev_priv(dev);
 	regs = rrpriv->regs;
@@ -1509,7 +1507,7 @@ static int rr_load_firmware(struct net_device *dev)
 	 */
 	io = readl(&regs->ExtIo);
 	writel(0, &regs->ExtIo);
-	sram_size = rr_read_eeprom_word(rrpriv, (void *)8);
+	sram_size = rr_read_eeprom_word(rrpriv, 8);
 
 	for (i = 200; i < sram_size / 4; i++){
 		writel(i * 4, &regs->WinBase);
@@ -1520,13 +1518,13 @@ static int rr_load_firmware(struct net_device *dev)
 	writel(io, &regs->ExtIo);
 	mb();
 
-	eptr = (unsigned long)rr_read_eeprom_word(rrpriv,
-					       &hw->rncd_info.AddrRunCodeSegs);
+	eptr = rr_read_eeprom_word(rrpriv,
+		       offsetof(struct eeprom, rncd_info.AddrRunCodeSegs));
 	eptr = ((eptr & 0x1fffff) >> 3);
 
-	p2len = rr_read_eeprom_word(rrpriv, (void *)(0x83*4));
+	p2len = rr_read_eeprom_word(rrpriv, 0x83*4);
 	p2len = (p2len << 2);
-	p2size = rr_read_eeprom_word(rrpriv, (void *)(0x84*4));
+	p2size = rr_read_eeprom_word(rrpriv, 0x84*4);
 	p2size = ((p2size & 0x1fffff) >> 3);
 
 	if ((eptr < p2size) || (eptr > (p2size + p2len))){
@@ -1534,7 +1532,8 @@ static int rr_load_firmware(struct net_device *dev)
 		goto out;
 	}
 
-	revision = rr_read_eeprom_word(rrpriv, &hw->manf.HeaderFmt);
+	revision = rr_read_eeprom_word(rrpriv,
+			offsetof(struct eeprom, manf.HeaderFmt));
 
 	if (revision != 1){
 		printk("%s: invalid firmware format (%i)\n",
@@ -1542,18 +1541,18 @@ static int rr_load_firmware(struct net_device *dev)
 		goto out;
 	}
 
-	nr_seg = rr_read_eeprom_word(rrpriv, (void *)eptr);
+	nr_seg = rr_read_eeprom_word(rrpriv, eptr);
 	eptr +=4;
 #if (DEBUG > 1)
 	printk("%s: nr_seg %i\n", dev->name, nr_seg);
 #endif
 
 	for (i = 0; i < nr_seg; i++){
-		sptr = rr_read_eeprom_word(rrpriv, (void *)eptr);
+		sptr = rr_read_eeprom_word(rrpriv, eptr);
 		eptr += 4;
-		len = rr_read_eeprom_word(rrpriv, (void *)eptr);
+		len = rr_read_eeprom_word(rrpriv, eptr);
 		eptr += 4;
-		segptr = (unsigned long)rr_read_eeprom_word(rrpriv, (void *)eptr);
+		segptr = rr_read_eeprom_word(rrpriv, eptr);
 		segptr = ((segptr & 0x1fffff) >> 3);
 		eptr += 4;
 #if (DEBUG > 1)
@@ -1561,7 +1560,7 @@ static int rr_load_firmware(struct net_device *dev)
 		       dev->name, i, sptr, len, segptr);
 #endif
 		for (j = 0; j < len; j++){
-			tmp = rr_read_eeprom_word(rrpriv, (void *)segptr);
+			tmp = rr_read_eeprom_word(rrpriv, segptr);
 			writel(sptr, &regs->WinBase);
 			mb();
 			writel(tmp, &regs->WinData);
