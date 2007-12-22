@@ -1079,6 +1079,13 @@ static irqreturn_t irq_handler(int irq, void *data)
 	if (unlikely(event & OHCI1394_postedWriteErr))
 		fw_error("PCI posted write error\n");
 
+	if (unlikely(event & OHCI1394_cycleTooLong)) {
+		if (printk_ratelimit())
+			fw_notify("isochronous cycle too long\n");
+		reg_write(ohci, OHCI1394_LinkControlSet,
+			  OHCI1394_LinkControl_cycleMaster);
+	}
+
 	if (event & OHCI1394_cycle64Seconds) {
 		cycle_time = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 		if ((cycle_time & 0x80000000) == 0)
@@ -1152,8 +1159,8 @@ static int ohci_enable(struct fw_card *card, u32 *config_rom, size_t length)
 		  OHCI1394_RQPkt | OHCI1394_RSPkt |
 		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
 		  OHCI1394_isochRx | OHCI1394_isochTx |
-		  OHCI1394_postedWriteErr | OHCI1394_cycle64Seconds |
-		  OHCI1394_masterIntEnable);
+		  OHCI1394_postedWriteErr | OHCI1394_cycleTooLong |
+		  OHCI1394_cycle64Seconds | OHCI1394_masterIntEnable);
 
 	/* Activate link_on bit and contender bit in our self ID packets.*/
 	if (ohci_update_phy_reg(card, 4, 0,
