@@ -503,7 +503,7 @@ static int cycx_netdevice_init(struct net_device *dev)
 	dev->addr_len		= 0;		/* hardware address length */
 
 	if (!chan->svc)
-		*(u16*)dev->dev_addr = htons(chan->lcn);
+		*(__be16*)dev->dev_addr = htons(chan->lcn);
 
 	/* Initialize hardware parameters (just for reference) */
 	dev->irq		= wandev->irq;
@@ -565,7 +565,7 @@ static int cycx_netdevice_hard_header(struct sk_buff *skb,
 				      const void *daddr, const void *saddr,
 				      unsigned len)
 {
-	skb->protocol = type;
+	skb->protocol = htons(type);
 
 	return dev->hard_header_len;
 }
@@ -600,15 +600,15 @@ static int cycx_netdevice_hard_start_xmit(struct sk_buff *skb,
 	struct cycx_device *card = chan->card;
 
 	if (!chan->svc)
-		chan->protocol = skb->protocol;
+		chan->protocol = ntohs(skb->protocol);
 
 	if (card->wandev.state != WAN_CONNECTED)
 		++chan->ifstats.tx_dropped;
 	else if (chan->svc && chan->protocol &&
-		 chan->protocol != skb->protocol) {
+		 chan->protocol != ntohs(skb->protocol)) {
 		printk(KERN_INFO
 		       "%s: unsupported Ethertype 0x%04X on interface %s!\n",
-		       card->devname, skb->protocol, dev->name);
+		       card->devname, ntohs(skb->protocol), dev->name);
 		++chan->ifstats.tx_errors;
 	} else if (chan->protocol == ETH_P_IP) {
 		switch (chan->state) {
@@ -1401,7 +1401,7 @@ static void cycx_x25_set_chan_state(struct net_device *dev, u8 state)
 		switch (state) {
 		case WAN_CONNECTED:
 			string_state = "connected!";
-			*(u16*)dev->dev_addr = htons(chan->lcn);
+			*(__be16*)dev->dev_addr = htons(chan->lcn);
 			netif_wake_queue(dev);
 			reset_timer(dev);
 
