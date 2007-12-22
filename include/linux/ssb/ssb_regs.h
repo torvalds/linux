@@ -193,10 +193,10 @@
 #define  SSB_SPROM1_BINF_BREV		0x00FF	/* Board Revision */
 #define  SSB_SPROM1_BINF_CCODE		0x0F00	/* Country Code */
 #define  SSB_SPROM1_BINF_CCODE_SHIFT	8
-#define  SSB_SPROM1_BINF_ANTA		0x3000	/* Available A-PHY antennas */
-#define  SSB_SPROM1_BINF_ANTA_SHIFT	12
-#define  SSB_SPROM1_BINF_ANTBG		0xC000	/* Available B-PHY antennas */
-#define  SSB_SPROM1_BINF_ANTBG_SHIFT	14
+#define  SSB_SPROM1_BINF_ANTBG		0x3000	/* Available B-PHY and G-PHY antennas */
+#define  SSB_SPROM1_BINF_ANTBG_SHIFT	12
+#define  SSB_SPROM1_BINF_ANTA		0xC000	/* Available A-PHY antennas */
+#define  SSB_SPROM1_BINF_ANTA_SHIFT	14
 #define SSB_SPROM1_PA0B0		0x105E
 #define SSB_SPROM1_PA0B1		0x1060
 #define SSB_SPROM1_PA0B2		0x1062
@@ -221,9 +221,10 @@
 #define  SSB_SPROM1_ITSSI_A_SHIFT	8
 #define SSB_SPROM1_BFLLO		0x1072	/* Boardflags (low 16 bits) */
 #define SSB_SPROM1_AGAIN		0x1074	/* Antenna Gain (in dBm Q5.2) */
-#define  SSB_SPROM1_AGAIN_A		0x00FF	/* A-PHY */
-#define  SSB_SPROM1_AGAIN_BG		0xFF00	/* B-PHY and G-PHY */
-#define  SSB_SPROM1_AGAIN_BG_SHIFT	8
+#define  SSB_SPROM1_AGAIN_BG		0x00FF	/* B-PHY and G-PHY */
+#define  SSB_SPROM1_AGAIN_BG_SHIFT	0
+#define  SSB_SPROM1_AGAIN_A		0xFF00	/* A-PHY */
+#define  SSB_SPROM1_AGAIN_A_SHIFT	8
 
 /* SPROM Revision 2 (inherits from rev 1) */
 #define SSB_SPROM2_BFLHI		0x1038	/* Boardflags (high 16 bits) */
@@ -264,7 +265,7 @@
 #define  SSB_SPROM3_CCKPO_11M_SHIFT	12
 #define  SSB_SPROM3_OFDMGPO		0x107A	/* G-PHY OFDM Power Offset (4 bytes, BigEndian) */
 
-/* SPROM Revision 4 		entries with ?? in comment are unknown */
+/* SPROM Revision 4 */
 #define SSB_SPROM4_IL0MAC		0x104C	/* 6 byte MAC address for a/b/g/n */
 #define SSB_SPROM4_ET0MAC		0x1018	/* 6 bytes MAC address for Ethernet ?? */
 #define SSB_SPROM4_ET1MAC		0x1018	/* 6 bytes MAC address for 802.11a ?? */
@@ -275,13 +276,22 @@
 #define  SSB_SPROM4_ETHPHY_ET0M		(1<<14)	/* MDIO for enet0 */
 #define  SSB_SPROM4_ETHPHY_ET1M		(1<<15)	/* MDIO for enet1 */
 #define SSB_SPROM4_CCODE		0x1052	/* Country Code (2 bytes) */
-#define SSB_SPROM4_ANT_A		0x105D  /* A Antennas */
-#define SSB_SPROM4_ANT_BG		0x105C  /* B/G Antennas */
+#define SSB_SPROM4_ANTAVAIL		0x105D  /* Antenna available bitfields */
+#define SSB_SPROM4_ANTAVAIL_A		0x00FF	/* A-PHY bitfield */
+#define SSB_SPROM4_ANTAVAIL_A_SHIFT	0
+#define SSB_SPROM4_ANTAVAIL_BG		0xFF00	/* B-PHY and G-PHY bitfield */
+#define SSB_SPROM4_ANTAVAIL_BG_SHIFT	8
 #define SSB_SPROM4_BFLLO		0x1044	/* Boardflags (low 16 bits) */
-#define SSB_SPROM4_AGAIN		0x105E	/* Antenna Gain (in dBm Q5.2) */
-#define  SSB_SPROM4_AGAIN_0		0x00FF	/* Antenna 0 */
-#define  SSB_SPROM4_AGAIN_1		0xFF00	/* Antenna 1 */
-#define  SSB_SPROM4_AGAIN_1_SHIFT	8
+#define SSB_SPROM4_AGAIN01		0x105E	/* Antenna Gain (in dBm Q5.2) */
+#define  SSB_SPROM4_AGAIN0		0x00FF	/* Antenna 0 */
+#define  SSB_SPROM4_AGAIN0_SHIFT	0
+#define  SSB_SPROM4_AGAIN1		0xFF00	/* Antenna 1 */
+#define  SSB_SPROM4_AGAIN1_SHIFT	8
+#define SSB_SPROM4_AGAIN23		0x1060
+#define  SSB_SPROM4_AGAIN2		0x00FF	/* Antenna 2 */
+#define  SSB_SPROM4_AGAIN2_SHIFT	0
+#define  SSB_SPROM4_AGAIN3		0xFF00	/* Antenna 3 */
+#define  SSB_SPROM4_AGAIN3_SHIFT	8
 #define SSB_SPROM4_BFLHI		0x1046  /* Board Flags Hi */
 #define SSB_SPROM4_MAXP_BG		0x1080  /* Max Power BG in path 1 */
 #define  SSB_SPROM4_MAXP_BG_MASK	0x00FF  /* Mask for Max Power BG */

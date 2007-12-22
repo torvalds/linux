@@ -22,7 +22,12 @@ struct ssb_sprom {
 	u8 et1mac[6];		/* MAC address for 802.11a */
 	u8 et0phyaddr;		/* MII address for enet0 */
 	u8 et1phyaddr;		/* MII address for enet1 */
+	u8 et0mdcport;		/* MDIO for enet0 */
+	u8 et1mdcport;		/* MDIO for enet1 */
+	u8 board_rev;		/* Board revision number from SPROM. */
 	u8 country_code;	/* Country Code */
+	u8 ant_available_a;	/* A-PHY antenna available bits (up to 4) */
+	u8 ant_available_bg;	/* B/G-PHY antenna available bits (up to 4) */
 	u16 pa0b0;
 	u16 pa0b1;
 	u16 pa0b2;
@@ -38,8 +43,18 @@ struct ssb_sprom {
 	u8 itssi_a;		/* Idle TSSI Target for A-PHY */
 	u8 itssi_bg;		/* Idle TSSI Target for B/G-PHY */
 	u16 boardflags_lo;	/* Boardflags (low 16 bits) */
-	u8 antenna_gain_a;	/* A-PHY Antenna gain (in dBm Q5.2) */
-	u8 antenna_gain_bg;	/* B/G-PHY Antenna gain (in dBm Q5.2) */
+
+	/* Antenna gain values for up to 4 antennas
+	 * on each band. Values in dBm/4 (Q5.2). Negative gain means the
+	 * loss in the connectors is bigger than the gain. */
+	struct {
+		struct {
+			s8 a0, a1, a2, a3;
+		} ghz24;	/* 2.4GHz band */
+		struct {
+			s8 a0, a1, a2, a3;
+		} ghz5;		/* 5GHz band */
+	} antenna_gain;
 
 	/* TODO - add any parameters needed from rev 2, 3, or 4 SPROMs */
 };

@@ -3884,16 +3884,6 @@ static void b43_sprom_fixup(struct ssb_bus *bus)
 	if (bus->boardinfo.vendor == PCI_VENDOR_ID_APPLE &&
 	    bus->boardinfo.type == 0x4E && bus->boardinfo.rev > 0x40)
 		bus->sprom.boardflags_lo |= B43_BFL_PACTRL;
-
-	/* Handle case when gain is not set in sprom */
-	if (bus->sprom.antenna_gain_a == 0xFF)
-		bus->sprom.antenna_gain_a = 2;
-	if (bus->sprom.antenna_gain_bg == 0xFF)
-		bus->sprom.antenna_gain_bg = 2;
-
-	/* Convert Antennagain values to Q5.2 */
-	bus->sprom.antenna_gain_a <<= 2;
-	bus->sprom.antenna_gain_bg <<= 2;
 }
 
 static void b43_wireless_exit(struct ssb_device *dev, struct b43_wl *wl)

@@ -3572,11 +3572,6 @@ static void b43legacy_sprom_fixup(struct ssb_bus *bus)
 	    bus->boardinfo.type == 0x4E &&
 	    bus->boardinfo.rev > 0x40)
 		bus->sprom.boardflags_lo |= B43legacy_BFL_PACTRL;
-
-	/* Convert Antennagain values to Q5.2 */
-	if (bus->sprom.antenna_gain_bg == 0xFF)
-		bus->sprom.antenna_gain_bg = 2; /* if unset, use 2 dBm */
-	bus->sprom.antenna_gain_bg <<= 2;
 }
 
 static void b43legacy_wireless_exit(struct ssb_device *dev,
