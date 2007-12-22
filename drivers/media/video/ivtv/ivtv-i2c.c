@@ -580,7 +580,7 @@ static int ivtv_getsda_old(void *data)
 /* template for i2c-bit-algo */
 static struct i2c_adapter ivtv_i2c_adap_template = {
 	.name = "ivtv i2c driver",
-	.id = I2C_HW_B_CX2341X,  	/* algo-bit is OR'd with this */
+	.id = I2C_HW_B_CX2341X,
 	.algo = NULL,                   /* set by i2c-algo-bit */
 	.algo_data = NULL,              /* filled from template */
 	.client_register = attach_inform,
