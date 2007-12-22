@@ -895,9 +895,6 @@ out_lock:
 
 #ifdef CONFIG_QUOTA_NETLINK_INTERFACE
 
-/* Size of quota netlink message - actually an upperbound for buffer size */
-#define QUOTA_NL_MSG_SIZE 32
-
 /* Netlink family structure for quota */
 static struct genl_family quota_genl_family = {
 	.id = GENL_ID_GENERATE,
@@ -914,11 +911,13 @@ static void send_warning(const struct dquot *dquot, const char warntype)
 	struct sk_buff *skb;
 	void *msg_head;
 	int ret;
+	int msg_size = 4 * nla_total_size(sizeof(u32)) +
+		       2 * nla_total_size(sizeof(u64));
 
 	/* We have to allocate using GFP_NOFS as we are called from a
 	 * filesystem performing write and thus further recursion into
 	 * the fs to free some data could cause deadlocks. */
-	skb = genlmsg_new(QUOTA_NL_MSG_SIZE, GFP_NOFS);
+	skb = genlmsg_new(msg_size, GFP_NOFS);
 	if (!skb) {
 		printk(KERN_ERR
 		  "VFS: Not enough memory to send quota warning.\n");
@@ -959,7 +958,7 @@ static void send_warning(const struct dquot *dquot, const char warntype)
 			"VFS: Failed to send notification message: %d\n", ret);
 	return;
 attr_err_out:
-	printk(KERN_ERR "VFS: Failed to compose quota message: %d\n", ret);
+	printk(KERN_ERR "VFS: Not enough space to compose quota message!\n");
 err_out:
 	kfree_skb(skb);
 }
