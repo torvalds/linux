@@ -1814,7 +1814,7 @@ static void rx_eth(struct adapter *adap, struct sge_rspq *rq,
 	skb->protocol = eth_type_trans(skb, adap->port[p->iff]);
 	skb->dev->last_rx = jiffies;
 	pi = netdev_priv(skb->dev);
-	if (pi->rx_csum_offload && p->csum_valid && p->csum == 0xffff &&
+	if (pi->rx_csum_offload && p->csum_valid && p->csum == htons(0xffff) &&
 	    !p->fragment) {
 		rspq_to_qset(rq)->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1961,7 +1961,7 @@ static int process_responses(struct adapter *adap, struct sge_qset *qs,
 		int eth, ethpad = 2;
 		struct sk_buff *skb = NULL;
 		u32 len, flags = ntohl(r->flags);
-		u32 rss_hi = *(const u32 *)r, rss_lo = r->rss_hdr.rss_hash_val;
+		__be32 rss_hi = *(const __be32 *)r, rss_lo = r->rss_hdr.rss_hash_val;
 
 		eth = r->rss_hdr.opcode == CPL_RX_PKT;
 

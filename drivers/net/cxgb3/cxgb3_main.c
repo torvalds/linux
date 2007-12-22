@@ -1642,7 +1642,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 
 	e->magic = EEPROM_MAGIC;
 	for (i = e->offset & ~3; !err && i < e->offset + e->len; i += 4)
-		err = t3_seeprom_read(adapter, i, (u32 *) & buf[i]);
+		err = t3_seeprom_read(adapter, i, (__le32 *) & buf[i]);
 
 	if (!err)
 		memcpy(data, buf + e->offset, e->len);
@@ -1655,7 +1655,8 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
-	u32 aligned_offset, aligned_len, *p;
+	u32 aligned_offset, aligned_len;
+	__le32 *p;
 	u8 *buf;
 	int err;
 
@@ -1669,11 +1670,11 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		buf = kmalloc(aligned_len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
-		err = t3_seeprom_read(adapter, aligned_offset, (u32 *) buf);
+		err = t3_seeprom_read(adapter, aligned_offset, (__le32 *) buf);
 		if (!err && aligned_len > 4)
 			err = t3_seeprom_read(adapter,
 					      aligned_offset + aligned_len - 4,
-					      (u32 *) & buf[aligned_len - 4]);
+					      (__le32 *) & buf[aligned_len - 4]);
 		if (err)
 			goto out;
 		memcpy(buf + (eeprom->offset & 3), data, eeprom->len);
@@ -1684,7 +1685,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (err)
 		goto out;
 
-	for (p = (u32 *) buf; !err && aligned_len; aligned_len -= 4, p++) {
+	for (p = (__le32 *) buf; !err && aligned_len; aligned_len -= 4, p++) {
 		err = t3_seeprom_write(adapter, aligned_offset, *p);
 		aligned_offset += 4;
 	}

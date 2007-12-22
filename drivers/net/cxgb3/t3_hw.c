@@ -537,10 +537,11 @@ struct t3_vpd {
  *	addres is written to the control register.  The hardware device will
  *	set the flag to 1 when 4 bytes have been read into the data register.
  */
-int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
+int t3_seeprom_read(struct adapter *adapter, u32 addr, __le32 *data)
 {
 	u16 val;
 	int attempts = EEPROM_MAX_POLL;
+	u32 v;
 	unsigned int base = adapter->params.pci.vpd_cap_addr;
 
 	if ((addr >= EEPROMSIZE && addr != EEPROM_STAT_ADDR) || (addr & 3))
@@ -556,8 +557,8 @@ int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
 		CH_ERR(adapter, "reading EEPROM address 0x%x failed\n", addr);
 		return -EIO;
 	}
-	pci_read_config_dword(adapter->pdev, base + PCI_VPD_DATA, data);
-	*data = le32_to_cpu(*data);
+	pci_read_config_dword(adapter->pdev, base + PCI_VPD_DATA, &v);
+	*data = cpu_to_le32(v);
 	return 0;
 }
 
@@ -570,7 +571,7 @@ int t3_seeprom_read(struct adapter *adapter, u32 addr, u32 *data)
  *	Write a 32-bit word to a location in VPD EEPROM using the card's PCI
  *	VPD ROM capability.
  */
-int t3_seeprom_write(struct adapter *adapter, u32 addr, u32 data)
+int t3_seeprom_write(struct adapter *adapter, u32 addr, __le32 data)
 {
 	u16 val;
 	int attempts = EEPROM_MAX_POLL;
@@ -580,7 +581,7 @@ int t3_seeprom_write(struct adapter *adapter, u32 addr, u32 data)
 		return -EINVAL;
 
 	pci_write_config_dword(adapter->pdev, base + PCI_VPD_DATA,
-			       cpu_to_le32(data));
+			       le32_to_cpu(data));
 	pci_write_config_word(adapter->pdev,base + PCI_VPD_ADDR,
 			      addr | PCI_VPD_ADDR_F);
 	do {
@@ -631,14 +632,14 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 	 * Card information is normally at VPD_BASE but some early cards had
 	 * it at 0.
 	 */
-	ret = t3_seeprom_read(adapter, VPD_BASE, (u32 *)&vpd);
+	ret = t3_seeprom_read(adapter, VPD_BASE, (__le32 *)&vpd);
 	if (ret)
 		return ret;
 	addr = vpd.id_tag == 0x82 ? VPD_BASE : 0;
 
 	for (i = 0; i < sizeof(vpd); i += 4) {
 		ret = t3_seeprom_read(adapter, addr + i,
-				      (u32 *)((u8 *)&vpd + i));
+				      (__le32 *)((u8 *)&vpd + i));
 		if (ret)
 			return ret;
 	}
@@ -926,7 +927,7 @@ int t3_check_tpsram(struct adapter *adapter, u8 *tp_sram, unsigned int size)
 {
 	u32 csum;
 	unsigned int i;
-	const u32 *p = (const u32 *)tp_sram;
+	const __be32 *p = (const __be32 *)tp_sram;
 
 	/* Verify checksum */
 	for (csum = 0, i = 0; i < size / sizeof(csum); i++)
@@ -1040,7 +1041,7 @@ int t3_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size)
 {
 	u32 csum;
 	unsigned int i;
-	const u32 *p = (const u32 *)fw_data;
+	const __be32 *p = (const __be32 *)fw_data;
 	int ret, addr, fw_sector = FW_FLASH_BOOT_ADDR >> 16;
 
 	if ((size & 3) || size < FW_MIN_SIZE)
@@ -2877,14 +2878,14 @@ static void ulp_config(struct adapter *adap, const struct tp_params *p)
 int t3_set_proto_sram(struct adapter *adap, u8 *data)
 {
 	int i;
-	u32 *buf = (u32 *)data;
+	__be32 *buf = (__be32 *)data;
 
 	for (i = 0; i < PROTO_SRAM_LINES; i++) {
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD4, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, cpu_to_be32(*buf++));
-		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, cpu_to_be32(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD5, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD4, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD3, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD2, be32_to_cpu(*buf++));
+		t3_write_reg(adap, A_TP_EMBED_OP_FIELD1, be32_to_cpu(*buf++));
 
 		t3_write_reg(adap, A_TP_EMBED_OP_FIELD0, i << 1 | 1 << 31);
 		if (t3_wait_op_done(adap, A_TP_EMBED_OP_FIELD0, 1, 1, 5, 1))
