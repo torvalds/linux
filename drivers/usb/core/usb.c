@@ -339,6 +339,8 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 	mutex_init(&dev->pm_mutex);
 	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
 	dev->autosuspend_delay = usb_autosuspend_delay * HZ;
+	dev->connect_time = jiffies;
+	dev->active_duration = -jiffies;
 #endif
 	if (root_hub)	/* Root hub always ok [and always wired] */
 		dev->authorized = 1;

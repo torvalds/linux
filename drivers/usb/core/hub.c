@@ -1034,8 +1034,10 @@ static void recursively_mark_NOTATTACHED(struct usb_device *udev)
 		if (udev->children[i])
 			recursively_mark_NOTATTACHED(udev->children[i]);
 	}
-	if (udev->state == USB_STATE_SUSPENDED)
+	if (udev->state == USB_STATE_SUSPENDED) {
 		udev->discon_suspended = 1;
+		udev->active_duration -= jiffies;
+	}
 	udev->state = USB_STATE_NOTATTACHED;
 }
 
@@ -1084,6 +1086,12 @@ void usb_set_device_state(struct usb_device *udev,
 			else
 				device_init_wakeup(&udev->dev, 0);
 		}
+		if (udev->state == USB_STATE_SUSPENDED &&
+			new_state != USB_STATE_SUSPENDED)
+			udev->active_duration -= jiffies;
+		else if (new_state == USB_STATE_SUSPENDED &&
+				udev->state != USB_STATE_SUSPENDED)
+			udev->active_duration += jiffies;
 		udev->state = new_state;
 	} else
 		recursively_mark_NOTATTACHED(udev);

@@ -419,12 +419,15 @@ struct usb_device {
 	u32 quirks;			/* quirks of the whole device */
 	atomic_t urbnum;		/* number of URBs submitted for the whole device */
 
+	unsigned long active_duration;	/* total time device is not suspended */
+
 #ifdef CONFIG_PM
 	struct delayed_work autosuspend; /* for delayed autosuspends */
 	struct mutex pm_mutex;		/* protects PM operations */
 
 	unsigned long last_busy;	/* time of last use */
 	int autosuspend_delay;		/* in jiffies */
+	unsigned long connect_time;	/* time device was first connected */
 
 	unsigned auto_pm:1;		/* autosuspend/resume in progress */
 	unsigned do_remote_wakeup:1;	/* remote wakeup should be enabled */
