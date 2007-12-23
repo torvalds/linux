@@ -74,29 +74,27 @@ static int rate_control_pid_shift_adjust(struct rc_pid_rateinfo *r,
 {
 	int i, j, k, tmp;
 
-	if (cur + adj < 0)
-		return 0;
-	if (cur + adj >= l)
-		return l - 1;
-
-	i = r[cur + adj].rev_index;
-
 	j = r[cur].rev_index;
+	i = j + adj;
+
+	if (i < 0)
+		return r[0].index;
+	if (i >= l - 1)
+		return r[l - 1].index;
+
+	tmp = i;
 
 	if (adj < 0) {
-			tmp = i;
-			for (k = j; k >= i; k--)
-				if (r[k].diff <= r[j].diff)
-					tmp = k;
-			return r[tmp].index;
-	} else if (adj > 0) {
-			tmp = i;
-			for (k = i + 1; k + i < l; k++)
-				if (r[k].diff <= r[i].diff)
-					tmp = k;
-			return r[tmp].index;
+		for (k = j; k >= i; k--)
+			if (r[k].diff <= r[j].diff)
+				tmp = k;
+	} else {
+		for (k = i + 1; k + i < l; k++)
+			if (r[k].diff <= r[i].diff)
+				tmp = k;
 	}
-	return cur + adj;
+
+	return r[tmp].index;
 }
 
 static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
