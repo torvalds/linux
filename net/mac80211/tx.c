@@ -932,7 +932,6 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_sub_if_data *sdata;
-	ieee80211_txrx_result res = TXRX_CONTINUE;
 
 	int hdrlen;
 
@@ -997,7 +996,7 @@ __ieee80211_tx_prepare(struct ieee80211_txrx_data *tx,
 	}
 	control->flags |= IEEE80211_TXCTL_FIRST_FRAGMENT;
 
-	return res;
+	return TXRX_CONTINUE;
 }
 
 /* Device in tx->dev has a reference added; use dev_put(tx->dev) when
