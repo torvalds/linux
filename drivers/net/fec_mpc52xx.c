@@ -568,8 +568,9 @@ static void mpc52xx_fec_reset_stats(struct net_device *dev)
 	struct mpc52xx_fec __iomem *fec = priv->fec;
 
 	out_be32(&fec->mib_control, FEC_MIB_DISABLE);
-	memset_io(&fec->rmon_t_drop, 0,	(__force u32)&fec->reserved10 -
-			(__force u32)&fec->rmon_t_drop);
+	memset_io(&fec->rmon_t_drop, 0,
+		   offsetof(struct mpc52xx_fec, reserved10) -
+		   offsetof(struct mpc52xx_fec, rmon_t_drop));
 	out_be32(&fec->mib_control, 0);
 
 	memset(&dev->stats, 0, sizeof(dev->stats));

@@ -265,10 +265,10 @@ enum yellowfin_offsets {
 /* The Yellowfin Rx and Tx buffer descriptors.
    Elements are written as 32 bit for endian portability. */
 struct yellowfin_desc {
-	u32 dbdma_cmd;
-	u32 addr;
-	u32 branch_addr;
-	u32 result_status;
+	__le32 dbdma_cmd;
+	__le32 addr;
+	__le32 branch_addr;
+	__le32 result_status;
 };
 
 struct tx_status_words {
@@ -922,7 +922,7 @@ static irqreturn_t yellowfin_interrupt(int irq, void *dev_instance)
 			dev->stats.tx_packets++;
 			dev->stats.tx_bytes += skb->len;
 			/* Free the original skb. */
-			pci_unmap_single(yp->pci_dev, yp->tx_ring[entry].addr,
+			pci_unmap_single(yp->pci_dev, le32_to_cpu(yp->tx_ring[entry].addr),
 				skb->len, PCI_DMA_TODEVICE);
 			dev_kfree_skb_irq(skb);
 			yp->tx_skbuff[entry] = NULL;
@@ -1056,13 +1056,13 @@ static int yellowfin_rx(struct net_device *dev)
 
 		if(!desc->result_status)
 			break;
-		pci_dma_sync_single_for_cpu(yp->pci_dev, desc->addr,
+		pci_dma_sync_single_for_cpu(yp->pci_dev, le32_to_cpu(desc->addr),
 			yp->rx_buf_sz, PCI_DMA_FROMDEVICE);
 		desc_status = le32_to_cpu(desc->result_status) >> 16;
 		buf_addr = rx_skb->data;
 		data_size = (le32_to_cpu(desc->dbdma_cmd) -
 			le32_to_cpu(desc->result_status)) & 0xffff;
-		frame_status = le16_to_cpu(get_unaligned((s16*)&(buf_addr[data_size - 2])));
+		frame_status = le16_to_cpu(get_unaligned((__le16*)&(buf_addr[data_size - 2])));
 		if (yellowfin_debug > 4)
 			printk(KERN_DEBUG "  yellowfin_rx() status was %4.4x.\n",
 				   frame_status);
@@ -1123,7 +1123,7 @@ static int yellowfin_rx(struct net_device *dev)
 			if (pkt_len > rx_copybreak) {
 				skb_put(skb = rx_skb, pkt_len);
 				pci_unmap_single(yp->pci_dev,
-					yp->rx_ring[entry].addr,
+					le32_to_cpu(yp->rx_ring[entry].addr),
 					yp->rx_buf_sz,
 					PCI_DMA_FROMDEVICE);
 				yp->rx_skbuff[entry] = NULL;
@@ -1134,9 +1134,10 @@ static int yellowfin_rx(struct net_device *dev)
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				skb_copy_to_linear_data(skb, rx_skb->data, pkt_len);
 				skb_put(skb, pkt_len);
-				pci_dma_sync_single_for_device(yp->pci_dev, desc->addr,
-											   yp->rx_buf_sz,
-											   PCI_DMA_FROMDEVICE);
+				pci_dma_sync_single_for_device(yp->pci_dev,
+								le32_to_cpu(desc->addr),
+								yp->rx_buf_sz,
+								PCI_DMA_FROMDEVICE);
 			}
 			skb->protocol = eth_type_trans(skb, dev);
 			netif_rx(skb);
@@ -1252,7 +1253,7 @@ static int yellowfin_close(struct net_device *dev)
 	/* Free all the skbuffs in the Rx queue. */
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		yp->rx_ring[i].dbdma_cmd = cpu_to_le32(CMD_STOP);
-		yp->rx_ring[i].addr = 0xBADF00D0; /* An invalid address. */
+		yp->rx_ring[i].addr = cpu_to_le32(0xBADF00D0); /* An invalid address. */
 		if (yp->rx_skbuff[i]) {
 			dev_kfree_skb(yp->rx_skbuff[i]);
 		}

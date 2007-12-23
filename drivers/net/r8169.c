@@ -2211,7 +2211,7 @@ out:
 
 static inline void rtl8169_make_unusable_by_asic(struct RxDesc *desc)
 {
-	desc->addr = 0x0badbadbadbadbadull;
+	desc->addr = cpu_to_le64(0x0badbadbadbadbadull);
 	desc->opts1 &= ~cpu_to_le32(DescOwn | RsvdMask);
 }
 
@@ -2835,7 +2835,7 @@ static int rtl8169_rx_interrupt(struct net_device *dev,
 		}
 
 		/* Work around for AMD plateform. */
-		if ((desc->opts2 & 0xfffe000) &&
+		if ((desc->opts2 & cpu_to_le32(0xfffe000)) &&
 		    (tp->mac_version == RTL_GIGA_MAC_VER_05)) {
 			desc->opts2 = 0;
 			cur_rx++;

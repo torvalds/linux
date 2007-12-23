@@ -337,15 +337,15 @@ static int tc574_config(struct pcmcia_device *link)
 	struct net_device *dev = link->priv;
 	struct el3_private *lp = netdev_priv(dev);
 	tuple_t tuple;
-	unsigned short buf[32];
+	__le16 buf[32];
 	int last_fn, last_ret, i, j;
 	kio_addr_t ioaddr;
-	u16 *phys_addr;
+	__be16 *phys_addr;
 	char *cardname;
 	union wn3_config config;
 	DECLARE_MAC_BUF(mac);
 
-	phys_addr = (u16 *)dev->dev_addr;
+	phys_addr = (__be16 *)dev->dev_addr;
 
 	DEBUG(0, "3c574_config(0x%p)\n", link);
 
@@ -378,12 +378,12 @@ static int tc574_config(struct pcmcia_device *link)
 	if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
 		pcmcia_get_tuple_data(link, &tuple);
 		for (i = 0; i < 3; i++)
-			phys_addr[i] = htons(buf[i]);
+			phys_addr[i] = htons(le16_to_cpu(buf[i]));
 	} else {
 		EL3WINDOW(0);
 		for (i = 0; i < 3; i++)
 			phys_addr[i] = htons(read_eeprom(ioaddr, i + 10));
-		if (phys_addr[0] == 0x6060) {
+		if (phys_addr[0] == htons(0x6060)) {
 			printk(KERN_NOTICE "3c574_cs: IO port conflict at 0x%03lx"
 				   "-0x%03lx\n", dev->base_addr, dev->base_addr+15);
 			goto failed;

@@ -38,6 +38,8 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	{USB_DEVICE(0x0846, 0x6a00)},
 	/* HP */
 	{USB_DEVICE(0x03f0, 0xca02)},
+	/* Sitecom */
+	{USB_DEVICE(0x0df6, 0x000d)},
 	{}
 };
 
