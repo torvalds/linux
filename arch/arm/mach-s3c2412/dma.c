@@ -30,6 +30,7 @@
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
 #include <asm/arch/regs-sdi.h>
+#include <asm/plat-s3c24xx/regs-s3c2412-iis.h>
 #include <asm/plat-s3c24xx/regs-iis.h>
 #include <asm/plat-s3c24xx/regs-spi.h>
 
@@ -47,8 +48,8 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 	[DMACH_SDI] = {
 		.name		= "sdi",
 		.channels	= MAP(S3C2412_DMAREQSEL_SDI),
-		.hw_addr.to	= S3C2410_PA_IIS + S3C2410_IISFIFO,
-		.hw_addr.from	= S3C2410_PA_IIS + S3C2410_IISFIFO,
+		.hw_addr.to	= S3C2410_PA_SDI + S3C2410_SDIDATA,
+		.hw_addr.from	= S3C2410_PA_SDI + S3C2410_SDIDATA,
 	},
 	[DMACH_SPI0] = {
 		.name		= "spi0",
@@ -105,12 +106,12 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 	[DMACH_I2S_IN] = {
 		.name		= "i2s-sdi",
 		.channels	= MAP(S3C2412_DMAREQSEL_I2SRX),
-		.hw_addr.from	= S3C2410_PA_IIS + S3C2410_IISFIFO,
+		.hw_addr.from	= S3C2410_PA_IIS + S3C2412_IISRXD,
 	},
 	[DMACH_I2S_OUT] = {
 		.name		= "i2s-sdo",
 		.channels	= MAP(S3C2412_DMAREQSEL_I2STX),
-		.hw_addr.to	= S3C2410_PA_IIS + S3C2410_IISFIFO,
+		.hw_addr.to	= S3C2410_PA_IIS + S3C2412_IISTXD,
 	},
 	[DMACH_USB_EP1] = {
 		.name		= "usb-ep1",
