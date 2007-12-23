@@ -206,23 +206,6 @@ static struct platform_device smsc911x_device = {
 };
 #endif
 
-#if defined(CONFIG_USB_BF54x_HCD) || defined(CONFIG_USB_BF54x_HCD_MODULE)
-static struct resource bf54x_hcd_resources[] = {
-	{
-		.start = 0xFFC03C00,
-		.end = 0xFFC040FF,
-		.flags = IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device bf54x_hcd = {
-	.name = "bf54x-hcd",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(bf54x_hcd_resources),
-	.resource = bf54x_hcd_resources,
-};
-#endif
-
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
 static struct resource musb_resources[] = {
 	[0] = {
@@ -546,10 +529,6 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
 	&smsc911x_device,
-#endif
-
-#if defined(CONFIG_USB_BF54x_HCD) || defined(CONFIG_USB_BF54x_HCD_MODULE)
-	&bf54x_hcd,
 #endif
 
 #if defined(CONFIG_USB_MUSB_HDRC) || defined(CONFIG_USB_MUSB_HDRC_MODULE)
