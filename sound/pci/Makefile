@@ -68,6 +68,7 @@ obj-$(CONFIG_SND) += \
 	korg1212/ \
 	mixart/ \
 	nm256/ \
+	oxygen/ \
 	pcxhr/ \
 	riptide/ \
 	rme9652/ \
