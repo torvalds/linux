@@ -38,7 +38,7 @@
  * link quality is good, the controller will fail to adjust failed frames
  * percentage to the target. This is intentional.
  */
-#define RC_PID_TARGET_PF (11 << RC_PID_ARITH_SHIFT)
+#define RC_PID_TARGET_PF 11
 
 /* Rate behaviour normalization quantity over time. */
 #define RC_PID_NORM_OFFSET 3
