@@ -95,9 +95,6 @@ static void bfin_serial_stop_tx(struct uart_port *port)
 	disable_dma(uart->tx_dma_channel);
 #else
 #ifdef CONFIG_BF54x
-	/* Waiting for Transmission Finished */
-	while (!(UART_GET_LSR(uart) & TFI))
-		continue;
 	/* Clear TFI bit */
 	UART_PUT_LSR(uart, TFI);
 	UART_CLEAR_IER(uart, ETBEI);
