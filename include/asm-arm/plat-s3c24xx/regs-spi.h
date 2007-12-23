@@ -17,6 +17,7 @@
 
 #define S3C2410_SPCON	(0x00)
 
+#define S3C2412_SPCON_DIRC_RX	  (1<<7)
 #define S3C2410_SPCON_SMOD_DMA	  (2<<5)	/* DMA mode */
 #define S3C2410_SPCON_SMOD_INT	  (1<<5)	/* interrupt mode */
 #define S3C2410_SPCON_SMOD_POLL   (0<<5)	/* polling mode */
@@ -37,7 +38,7 @@
 #define S3C2410_SPSTA_DCOL	  (1<<2)	/* Data Collision Error */
 #define S3C2410_SPSTA_MULD	  (1<<1)	/* Multi Master Error */
 #define S3C2410_SPSTA_READY	  (1<<0)	/* Data Tx/Rx ready */
-
+#define S3C2412_SPSTA_READY_ORG	  (1<<3)
 
 #define S3C2410_SPPIN	 (0x08)
 
@@ -46,9 +47,13 @@
 #define S3C2400_SPPIN_nCS     	  (1<<1)	/* SPI Card Select */
 #define S3C2410_SPPIN_KEEP	  (1<<0)	/* Master Out keep */
 
-
 #define S3C2410_SPPRE	 (0x0C)
 #define S3C2410_SPTDAT	 (0x10)
 #define S3C2410_SPRDAT	 (0x14)
+
+#define S3C2412_TXFIFO	 (0x18)
+#define S3C2412_RXFIFO	 (0x18)
+#define S3C2412_SPFIC	 (0x24)
+
 
 #endif /* __ASM_ARCH_REGS_SPI_H */
