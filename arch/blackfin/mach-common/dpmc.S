@@ -38,6 +38,9 @@ ENTRY(_unmask_wdog_wakeup_evt)
 #if defined(CONFIG_BF561)
 	P0.H = hi(SICA_IWR1);
 	P0.L = lo(SICA_IWR1);
+#elif defined(CONFIG_BF54x) || defined(CONFIG_BF52x)
+	P0.h = HI(SIC_IWR0);
+	P0.l = LO(SIC_IWR0);
 #else
 	P0.h = HI(SIC_IWR);
 	P0.l = LO(SIC_IWR);
@@ -236,7 +239,7 @@ ENTRY(_deep_sleep)
 
 	call _set_sic_iwr;
 
-	call _set_sdram_srfs;
+	call _set_dram_srfs;
 
 	/* Clear all the interrupts,bits sticky */
 	R0 = 0xFFFF (Z);
@@ -253,7 +256,7 @@ ENTRY(_deep_sleep)
 	SSYNC;
 	IDLE;
 
-	call _unset_sdram_srfs;
+	call _unset_dram_srfs;
 
 	call _test_pll_locked;
 
@@ -285,7 +288,7 @@ ENTRY(_sleep_deeper)
 	P3 = R0;
 	R0 = IWR_ENABLE(0);
 	call _set_sic_iwr;
-	call _set_sdram_srfs;
+	call _set_dram_srfs;
 
 	/* Clear all the interrupts,bits sticky */
 	R0 = 0xFFFF (Z);
@@ -360,7 +363,7 @@ ENTRY(_sleep_deeper)
 	IDLE;
 	call _test_pll_locked;
 
-	call _unset_sdram_srfs;
+	call _unset_dram_srfs;
 
 	STI R4;
 
@@ -368,25 +371,47 @@ ENTRY(_sleep_deeper)
 	( R7:0, P5:0 ) = [SP++];
 	RTS;
 
-ENTRY(_set_sdram_srfs)
-	/*  set the sdram to self refresh mode */
+ENTRY(_set_dram_srfs)
+	/*  set the dram to self refresh mode */
+#if defined(CONFIG_BF54x)
+	P0.H = hi(EBIU_RSTCTL);
+	P0.L = lo(EBIU_RSTCTL);
+	R2 = [P0];
+	R3.H = hi(SRREQ);
+	R3.L = lo(SRREQ);
+#else
 	P0.H = hi(EBIU_SDGCTL);
 	P0.L = lo(EBIU_SDGCTL);
 	R2 = [P0];
 	R3.H = hi(SRFS);
 	R3.L = lo(SRFS);
+#endif
 	R2 = R2|R3;
 	[P0] = R2;
 	ssync;
+#if defined(CONFIG_BF54x)
+.LSRR_MODE:
+	R2 = [P0];
+	CC = BITTST(R2, 4);
+	if !CC JUMP .LSRR_MODE;
+#endif
 	RTS;
 
-ENTRY(_unset_sdram_srfs)
-	/*  set the sdram out of self refresh mode */
+ENTRY(_unset_dram_srfs)
+	/*  set the dram out of self refresh mode */
+#if defined(CONFIG_BF54x)
+	P0.H = hi(EBIU_RSTCTL);
+	P0.L = lo(EBIU_RSTCTL);
+	R2 = [P0];
+	R3.H = hi(SRREQ);
+	R3.L = lo(SRREQ);
+#else
 	P0.H = hi(EBIU_SDGCTL);
 	P0.L = lo(EBIU_SDGCTL);
 	R2 = [P0];
 	R3.H = hi(SRFS);
 	R3.L = lo(SRFS);
+#endif
 	R3 = ~R3;
 	R2 = R2&R3;
 	[P0] = R2;
@@ -394,8 +419,13 @@ ENTRY(_unset_sdram_srfs)
 	RTS;
 
 ENTRY(_set_sic_iwr)
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)
+	P0.H = hi(SIC_IWR0);
+	P0.L = lo(SIC_IWR0);
+#else
 	P0.H = hi(SIC_IWR);
 	P0.L = lo(SIC_IWR);
+#endif
 	[P0] = R0;
 	SSYNC;
 	RTS;

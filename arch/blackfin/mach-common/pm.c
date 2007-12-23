@@ -77,7 +77,15 @@ void bfin_pm_suspend_standby_enter(void)
 
 		gpio_pm_restore();
 
+#if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)
+		bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
+		bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
+# ifdef CONFIG_BF54x
+		bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
+# endif
+#else
 		bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+#endif
 
 		local_irq_restore(flags);
 	}
@@ -85,7 +93,15 @@ void bfin_pm_suspend_standby_enter(void)
 
 #if defined(CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR)
 	sleep_deeper(CONFIG_PM_WAKEUP_SIC_IWR);
+# if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)
+	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
+#  ifdef CONFIG_BF54x
+	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
+#  endif
+# else
 	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+# endif
 #endif				/* CONFIG_PM_WAKEUP_GPIO_BY_SIC_IWR */
 }
 

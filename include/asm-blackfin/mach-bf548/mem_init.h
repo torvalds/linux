@@ -30,6 +30,7 @@
  */
 
 #if (CONFIG_MEM_MT46V32M16)
+#endif
 
 #if defined CONFIG_CLKIN_HALF
 #define CLKIN_HALF       1

@@ -298,8 +298,8 @@ ENTRY(_start_dma_code)
 	w[p0] = r0.l;
 	ssync;
 
-	p0.h = hi(SIC_IWR);
-	p0.l = lo(SIC_IWR);
+	p0.h = hi(SIC_IWR0);
+	p0.l = lo(SIC_IWR0);
 	r0.l = 0x1;
 	r0.h = 0x0;
 	[p0] = r0;
@@ -395,8 +395,8 @@ ENTRY(_start_dma_code)
 	[P2] = R1;
 	SSYNC;
 
-	p0.h = hi(SIC_IWR);
-	p0.l = lo(SIC_IWR);
+	p0.h = hi(SIC_IWR0);
+	p0.l = lo(SIC_IWR0);
 	r0.l = lo(IWR_ENABLE_ALL);
 	r0.h = hi(IWR_ENABLE_ALL);
 	[p0] = r0;

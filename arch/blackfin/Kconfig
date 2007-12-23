@@ -951,6 +951,8 @@ config PM_WAKEUP_SIC_IWR
 	depends on PM_WAKEUP_GPIO_BY_SIC_IWR
 	default 0x80000000 if (BF537 || BF536 || BF534)
 	default 0x100000 if (BF533 || BF532 || BF531)
+	default 0x800000 if (BF549 || BF548 || BF547 || BF542)
+	default 0x800000 if (BF527 || BF524 || BF522)
 
 config PM_WAKEUP_GPIO_NUMBER
 	int "Wakeup GPIO number"
