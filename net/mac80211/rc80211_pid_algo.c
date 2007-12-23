@@ -254,7 +254,7 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	/* Ignore all frames that were sent with a different rate than the rate
 	 * we currently advise mac80211 to use. */
 	if (status->control.rate != &local->oper_hw_mode->rates[sta->txrate])
-		return;
+		goto ignore;
 
 	spinfo = sta->rate_ctrl_priv;
 	spinfo->tx_num_xmit++;
@@ -295,6 +295,7 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	if (time_after(jiffies, spinfo->last_sample + period))
 		rate_control_pid_sample(pinfo, local, sta);
 
+ignore:
 	sta_info_put(sta);
 }
 
