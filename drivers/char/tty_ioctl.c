@@ -62,7 +62,7 @@ void tty_wait_until_sent(struct tty_struct * tty, long timeout)
 	if (!timeout)
 		timeout = MAX_SCHEDULE_TIMEOUT;
 	if (wait_event_interruptible_timeout(tty->write_wait,
-			!tty->driver->chars_in_buffer(tty), timeout))
+			!tty->driver->chars_in_buffer(tty), timeout) < 0)
 		return;
 	if (tty->driver->wait_until_sent)
 		tty->driver->wait_until_sent(tty, timeout);
