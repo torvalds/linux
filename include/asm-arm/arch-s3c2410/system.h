@@ -20,6 +20,9 @@
 #include <asm/plat-s3c/regs-watchdog.h>
 #include <asm/arch/regs-clock.h>
 
+#include <linux/clk.h>
+#include <linux/err.h>
+
 void (*s3c24xx_idle)(void);
 void (*s3c24xx_reset_hook)(void);
 
@@ -59,6 +62,8 @@ static void arch_idle(void)
 static void
 arch_reset(char mode)
 {
+	struct clk *wdtclk;
+
 	if (mode == 's') {
 		cpu_reset(0);
 	}
@@ -69,6 +74,12 @@ arch_reset(char mode)
 	printk("arch_reset: attempting watchdog reset\n");
 
 	__raw_writel(0, S3C2410_WTCON);	  /* disable watchdog, to be safe  */
+
+	wdtclk = clk_get(NULL, "watchdog");
+	if (!IS_ERR(wdtclk)) {
+		clk_enable(wdtclk);
+	} else
+		printk(KERN_WARNING "%s: warning: cannot get watchdog clock\n", __func__);
 
 	/* put initial values into count and data */
 	__raw_writel(0x100, S3C2410_WTCNT);
