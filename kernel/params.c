@@ -694,18 +694,8 @@ static struct kset_uevent_ops module_uevent_ops = {
 struct kset *module_kset;
 int module_sysfs_initialized;
 
-static void module_release(struct kobject *kobj)
-{
-	/*
-	 * Stupid empty release function to allow the memory for the kobject to
-	 * be properly cleaned up.  This will not need to be present for 2.6.25
-	 * with the upcoming kobject core rework.
-	 */
-}
-
 struct kobj_type module_ktype = {
 	.sysfs_ops =	&module_sysfs_ops,
-	.release =	module_release,
 };
 
 /*
