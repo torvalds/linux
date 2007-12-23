@@ -540,7 +540,6 @@ static struct platform_device *bast_devices[] __initdata = {
 	&s3c_device_lcd,
 	&s3c_device_wdt,
 	&s3c_device_i2c,
-	&s3c_device_iis,
  	&s3c_device_rtc,
 	&s3c_device_nand,
 	&bast_device_nor,
