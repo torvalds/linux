@@ -205,7 +205,7 @@ asmlinkage void __init early_trap_c(struct pt_regs *fp, void *retaddr)
 	if (likely(early_console == NULL))
 		setup_early_printk(DEFAULT_EARLY_PORT);
 
-	dump_bfin_mem((void *)fp->retx);
+	dump_bfin_mem(fp);
 	show_regs(fp);
 	dump_bfin_trace_buffer();
 
