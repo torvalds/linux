@@ -797,7 +797,8 @@ static int tulip_close (struct net_device *dev)
 
 		tp->rx_ring[i].status = 0;	/* Not owned by Tulip chip. */
 		tp->rx_ring[i].length = 0;
-		tp->rx_ring[i].buffer1 = 0xBADF00D0;	/* An invalid address. */
+		/* An invalid address. */
+		tp->rx_ring[i].buffer1 = cpu_to_le32(0xBADF00D0);
 		if (skb) {
 			pci_unmap_single(tp->pdev, mapping, PKT_BUF_SZ,
 					 PCI_DMA_FROMDEVICE);
