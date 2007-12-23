@@ -11,41 +11,41 @@
 #define RC80211_PID_H
 
 /* Sampling period for measuring percentage of failed frames. */
-#define RC_PID_INTERVAL (HZ / 8)
+#define RC_PID_INTERVAL			(HZ / 8)
 
 /* Exponential averaging smoothness (used for I part of PID controller) */
-#define RC_PID_SMOOTHING_SHIFT 3
-#define RC_PID_SMOOTHING (1 << RC_PID_SMOOTHING_SHIFT)
+#define RC_PID_SMOOTHING_SHIFT		3
+#define RC_PID_SMOOTHING		(1 << RC_PID_SMOOTHING_SHIFT)
 
 /* Sharpening factor (used for D part of PID controller) */
-#define RC_PID_SHARPENING_FACTOR 0
-#define RC_PID_SHARPENING_DURATION 0
+#define RC_PID_SHARPENING_FACTOR	0
+#define RC_PID_SHARPENING_DURATION	0
 
 /* Fixed point arithmetic shifting amount. */
-#define RC_PID_ARITH_SHIFT 8
+#define RC_PID_ARITH_SHIFT		8
 
 /* Fixed point arithmetic factor. */
-#define RC_PID_ARITH_FACTOR (1 << RC_PID_ARITH_SHIFT)
+#define RC_PID_ARITH_FACTOR		(1 << RC_PID_ARITH_SHIFT)
 
 /* Proportional PID component coefficient. */
-#define RC_PID_COEFF_P 15
+#define RC_PID_COEFF_P			15
 /* Integral PID component coefficient. */
-#define RC_PID_COEFF_I 9
+#define RC_PID_COEFF_I			9
 /* Derivative PID component coefficient. */
-#define RC_PID_COEFF_D 15
+#define RC_PID_COEFF_D			15
 
 /* Target failed frames rate for the PID controller. NB: This effectively gives
  * maximum failed frames percentage we're willing to accept. If the wireless
  * link quality is good, the controller will fail to adjust failed frames
  * percentage to the target. This is intentional.
  */
-#define RC_PID_TARGET_PF 11
+#define RC_PID_TARGET_PF		14
 
 /* Rate behaviour normalization quantity over time. */
-#define RC_PID_NORM_OFFSET 3
+#define RC_PID_NORM_OFFSET		3
 
 /* Push high rates right after loading. */
-#define RC_PID_FAST_START 0
+#define RC_PID_FAST_START		0
 
 /* Arithmetic right shift for positive and negative values for ISO C. */
 #define RC_PID_DO_ARITH_RIGHT_SHIFT(x, y) \
