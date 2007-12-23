@@ -1,5 +1,6 @@
 /*
  * Copyright 2007, Mattias Nissler <mattias.nissler@gmx.de>
+ * Copyright 2007, Stefano Brivio <stefano.brivio@polimi.it>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -119,6 +120,29 @@ struct rc_pid_events_file_info {
 	unsigned int next_entry;
 };
 
+/**
+ * struct rc_pid_debugfs_entries - tunable parameters
+ *
+ * Algorithm parameters, tunable via debugfs.
+ * @dir: the debugfs directory for a specific phy
+ * @target: target percentage for failed frames
+ * @sampling_period: error sampling interval in milliseconds
+ * @coeff_p: absolute value of the proportional coefficient
+ * @coeff_i: absolute value of the integral coefficient
+ * @coeff_d: absolute value of the derivative coefficient
+ * @smoothing_shift: absolute value of the integral smoothing factor (i.e.
+ *	amount of smoothing introduced by the exponential moving average)
+ * @sharpen_factor: absolute value of the derivative sharpening factor (i.e.
+ *	amount of emphasis given to the derivative term after low activity
+ *	events)
+ * @sharpen_duration: duration of the sharpening effect after the detected low
+ *	activity event, relative to sampling_period
+ * @norm_offset: amount of normalization periodically performed on the learnt
+ *	rate behaviour values (lower means we should trust more what we learnt
+ *	about behaviour of rates, higher means we should trust more the natural
+ *	ordering of rates)
+ * @fast_start: if Y, push high rates right after initialization
+ */
 struct rc_pid_debugfs_entries {
 	struct dentry *dir;
 	struct dentry *target;
