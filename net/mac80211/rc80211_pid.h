@@ -10,8 +10,8 @@
 #ifndef RC80211_PID_H
 #define RC80211_PID_H
 
-/* Sampling period for measuring percentage of failed frames. */
-#define RC_PID_INTERVAL			(HZ / 8)
+/* Sampling period for measuring percentage of failed frames in ms. */
+#define RC_PID_INTERVAL			125
 
 /* Exponential averaging smoothness (used for I part of PID controller) */
 #define RC_PID_SMOOTHING_SHIFT		3
