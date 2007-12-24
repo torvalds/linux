@@ -424,7 +424,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	regs[R_CPD]   = pd;
 
 	div =  ((d * (N / 1000)) << 7) / 125;
-	regs[R_CD1]   = 0xff & (div >> 16);
+	regs[R_CD1]   = 0x7f & (div >> 16);
 	regs[R_CD2]   = 0xff & (div >> 8);
 	regs[R_CD3]   = 0xff & div;
 
@@ -453,7 +453,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	}
 
 	div =  ((d * (N / 1000)) << 7) / 125;
-	regs[R_MD1]   = 0xff & (div >> 16);
+	regs[R_MD1]   = 0x7f & (div >> 16);
 	regs[R_MD2]   = 0xff & (div >> 8);
 	regs[R_MD3]   = 0xff & div;
 
@@ -567,7 +567,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	}
 
 	div =  ((d * (N / 1000)) << 7) / 125;
-	regs[R_MD1]   = 0xff & (div >> 16);
+	regs[R_MD1]   = 0x7f & (div >> 16);
 	regs[R_MD2]   = 0xff & (div >> 8);
 	regs[R_MD3]   = 0xff & div;
 
