@@ -39,9 +39,6 @@
 #include <asm/blackfin.h>
 #include <asm/fixed_code.h>
 
-#define	LED_ON	0
-#define	LED_OFF	1
-
 asmlinkage void ret_from_fork(void);
 
 /* Points to the SDRAM backup memory for the stack that is currently in
@@ -70,32 +67,6 @@ void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
 
 /*
- * We are using a different LED from the one used to indicate timer interrupt.
- */
-#if defined(CONFIG_BFIN_IDLE_LED)
-static inline void leds_switch(int flag)
-{
-	unsigned short tmp = 0;
-
-	tmp = bfin_read_CONFIG_BFIN_IDLE_LED_PORT();
-	SSYNC();
-
-	if (flag == LED_ON)
-		tmp &= ~CONFIG_BFIN_IDLE_LED_PIN;	/* light on */
-	else
-		tmp |= CONFIG_BFIN_IDLE_LED_PIN;	/* light off */
-
-	bfin_write_CONFIG_BFIN_IDLE_LED_PORT(tmp);
-	SSYNC();
-
-}
-#else
-static inline void leds_switch(int flag)
-{
-}
-#endif
-
-/*
  * The idle loop on BFIN
  */
 #ifdef CONFIG_IDLE_L1
@@ -106,12 +77,10 @@ void cpu_idle(void)__attribute__((l1_text));
 void default_idle(void)
 {
 	while (!need_resched()) {
-		leds_switch(LED_OFF);
 		local_irq_disable();
 		if (likely(!need_resched()))
 			idle_with_irq_disabled();
 		local_irq_enable();
-		leds_switch(LED_ON);
 	}
 }
 

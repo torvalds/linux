@@ -463,40 +463,6 @@ config BOOT_LOAD
 	  memory region is used to capture NULL pointer references as well
 	  as some core kernel functions.
 
-comment "LED Status Indicators"
-	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
-
-config BFIN_ALIVE_LED
-	bool "Enable Board Alive"
-	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
-	default n
-	help
-	  Blink the LEDs you select when the kernel is running.  Helps detect
-	  a hung kernel.
-
-config BFIN_ALIVE_LED_NUM
-	int "LED"
-	depends on BFIN_ALIVE_LED
-	range 1 3 if BFIN533_STAMP
-	default "3" if BFIN533_STAMP
-	help
-	  Select the LED (marked on the board) for you to blink.
-
-config BFIN_IDLE_LED
-	bool "Enable System Load/Idle LED"
-	depends on (BFIN533_STAMP || BFIN533_BLUETECHNIX_CM)
-	default n
-	help
-	  Blinks the LED you select when to determine kernel load.
-
-config BFIN_IDLE_LED_NUM
-	int "LED"
-	depends on BFIN_IDLE_LED
-	range 1 3 if BFIN533_STAMP
-	default "2" if BFIN533_STAMP
-	help
-	  Select the LED (marked on the board) for you to blink.
-
 choice
 	prompt "Blackfin Exception Scratch Register"
 	default BFIN_SCRATCH_REG_RETN
@@ -542,41 +508,6 @@ config BFIN_SCRATCH_REG_CYCLES
 	  If you are unsure, please select "RETN".
 
 endchoice
-
-#
-# Sorry - but you need to put the hex address here -
-#
-
-# Flag Data register
-config BFIN_ALIVE_LED_PORT
-	hex
-	default 0xFFC00700 if (BFIN533_STAMP)
-
-# Peripheral Flag Direction Register
-config BFIN_ALIVE_LED_DPORT
-	hex
-	default 0xFFC00730 if (BFIN533_STAMP)
-
-config BFIN_ALIVE_LED_PIN
-	hex
-	default 0x04 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 1)
-	default 0x08 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 2)
-	default 0x10 if (BFIN533_STAMP && BFIN_ALIVE_LED_NUM = 3)
-
-config BFIN_IDLE_LED_PORT
-	hex
-	default 0xFFC00700 if (BFIN533_STAMP)
-
-# Peripheral Flag Direction Register
-config BFIN_IDLE_LED_DPORT
-	hex
-	default 0xFFC00730 if (BFIN533_STAMP)
-
-config BFIN_IDLE_LED_PIN
-	hex
-	default 0x04 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 1)
-	default 0x08 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 2)
-	default 0x10 if (BFIN533_STAMP && BFIN_IDLE_LED_NUM = 3)
 
 endmenu
 

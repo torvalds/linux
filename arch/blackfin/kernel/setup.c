@@ -315,8 +315,6 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data = (unsigned long)_edata;
 	init_mm.brk = (unsigned long)0;
 
-	init_leds();
-
 	_bfin_swrst = bfin_read_SWRST();
 
 	if (_bfin_swrst & RESET_DOUBLE)
