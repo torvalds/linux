@@ -1805,8 +1805,9 @@ static ide_startstop_t cdrom_write_intr(ide_drive_t *drive)
 	/* Check for errors. */
 	if (dma) {
 		info->dma = 0;
-		if ((dma_error = HWIF(drive)->ide_dma_end(drive))) {
-			printk(KERN_ERR "ide-cd: write dma error\n");
+		dma_error = HWIF(drive)->ide_dma_end(drive);
+		if (dma_error) {
+			printk(KERN_ERR "%s: DMA write error\n", drive->name);
 			ide_dma_off(drive);
 		}
 	}
@@ -1839,8 +1840,9 @@ static ide_startstop_t cdrom_write_intr(ide_drive_t *drive)
 		 */
 		uptodate = 1;
 		if (rq->current_nr_sectors > 0) {
-			printk(KERN_ERR "%s: write_intr: data underrun (%d blocks)\n",
-			drive->name, rq->current_nr_sectors);
+			printk(KERN_ERR "%s: %s: data underrun (%d blocks)\n",
+					drive->name, __FUNCTION__,
+					rq->current_nr_sectors);
 			uptodate = 0;
 		}
 		cdrom_end_request(drive, uptodate);
@@ -1860,7 +1862,8 @@ static ide_startstop_t cdrom_write_intr(ide_drive_t *drive)
 		int this_transfer;
 
 		if (!rq->current_nr_sectors) {
-			printk(KERN_ERR "ide-cd: write_intr: oops\n");
+			printk(KERN_ERR "%s: %s: confused, missing data\n",
+					drive->name, __FUNCTION__);
 			break;
 		}
 
