@@ -2688,14 +2688,14 @@ void ide_cdrom_update_speed (ide_drive_t *drive, struct atapi_capabilities_page 
 	if (!drive->id->model[0] &&
 	    !strncmp(drive->id->fw_rev, "241N", 4)) {
 		CDROM_STATE_FLAGS(drive)->current_speed  =
-			(((unsigned int)cap->curspeed) + (176/2)) / 176;
+			(le16_to_cpu(cap->curspeed) + (176/2)) / 176;
 		CDROM_CONFIG_FLAGS(drive)->max_speed =
-			(((unsigned int)cap->maxspeed) + (176/2)) / 176;
+			(le16_to_cpu(cap->maxspeed) + (176/2)) / 176;
 	} else {
 		CDROM_STATE_FLAGS(drive)->current_speed  =
-			(ntohs(cap->curspeed) + (176/2)) / 176;
+			(be16_to_cpu(cap->curspeed) + (176/2)) / 176;
 		CDROM_CONFIG_FLAGS(drive)->max_speed =
-			(ntohs(cap->maxspeed) + (176/2)) / 176;
+			(be16_to_cpu(cap->maxspeed) + (176/2)) / 176;
 	}
 }
 
