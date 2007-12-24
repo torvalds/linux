@@ -34,14 +34,11 @@ static __initdata struct of_device_id sequoia_of_bus[] = {
 
 static int __init sequoia_device_probe(void)
 {
-	if (!machine_is(sequoia))
-		return 0;
-
 	of_platform_bus_probe(NULL, sequoia_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(sequoia_device_probe);
+machien_device_initcall(sequoia, sequoia_device_probe);
 
 static int __init sequoia_probe(void)
 {

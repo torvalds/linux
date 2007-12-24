@@ -17,14 +17,11 @@
 
 static int __init virtex_device_probe(void)
 {
-	if (!machine_is(virtex))
-		return 0;
-
 	of_platform_bus_probe(NULL, NULL, NULL);
 
 	return 0;
 }
-device_initcall(virtex_device_probe);
+machine_device_initcall(virtex, virtex_device_probe);
 
 static int __init virtex_probe(void)
 {

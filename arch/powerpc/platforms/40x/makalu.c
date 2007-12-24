@@ -30,14 +30,11 @@ static __initdata struct of_device_id makalu_of_bus[] = {
 
 static int __init makalu_device_probe(void)
 {
-	if (!machine_is(makalu))
-		return 0;
-
 	of_platform_bus_probe(NULL, makalu_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(makalu_device_probe);
+machine_device_initcall(makalu, makalu_device_probe);
 
 static int __init makalu_probe(void)
 {

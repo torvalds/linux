@@ -34,14 +34,11 @@ static __initdata struct of_device_id katmai_of_bus[] = {
 
 static int __init katmai_device_probe(void)
 {
-	if (!machine_is(katmai))
-		return 0;
-
 	of_platform_bus_probe(NULL, katmai_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(katmai_device_probe);
+machine_device_initcall(katmai, katmai_device_probe);
 
 static int __init katmai_probe(void)
 {

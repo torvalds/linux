@@ -32,14 +32,11 @@ static __initdata struct of_device_id rainier_of_bus[] = {
 
 static int __init rainier_device_probe(void)
 {
-	if (!machine_is(rainier))
-		return 0;
-
 	of_platform_bus_probe(NULL, rainier_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(rainier_device_probe);
+machine_device_initcall(rainier, rainier_device_probe);
 
 static int __init rainier_probe(void)
 {

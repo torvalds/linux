@@ -34,14 +34,11 @@ static __initdata struct of_device_id bamboo_of_bus[] = {
 
 static int __init bamboo_device_probe(void)
 {
-	if (!machine_is(bamboo))
-		return 0;
-
 	of_platform_bus_probe(NULL, bamboo_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(bamboo_device_probe);
+machine_device_initcall(bamboo, bamboo_device_probe);
 
 static int __init bamboo_probe(void)
 {

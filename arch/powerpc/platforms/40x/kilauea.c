@@ -30,14 +30,11 @@ static __initdata struct of_device_id kilauea_of_bus[] = {
 
 static int __init kilauea_device_probe(void)
 {
-	if (!machine_is(kilauea))
-		return 0;
-
 	of_platform_bus_probe(NULL, kilauea_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(kilauea_device_probe);
+machine_device_initcall(kilauea, kilauea_device_probe);
 
 static int __init kilauea_probe(void)
 {

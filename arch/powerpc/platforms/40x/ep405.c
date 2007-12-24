@@ -57,14 +57,11 @@ static __initdata struct of_device_id ep405_of_bus[] = {
 
 static int __init ep405_device_probe(void)
 {
-	if (!machine_is(ep405))
-		return 0;
-
 	of_platform_bus_probe(NULL, ep405_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(ep405_device_probe);
+machine_device_initcall(ep405, ep405_device_probe);
 
 static void __init ep405_init_bcsr(void)
 {

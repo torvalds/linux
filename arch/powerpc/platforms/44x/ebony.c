@@ -37,14 +37,11 @@ static __initdata struct of_device_id ebony_of_bus[] = {
 
 static int __init ebony_device_probe(void)
 {
-	if (!machine_is(ebony))
-		return 0;
-
 	of_platform_bus_probe(NULL, ebony_of_bus, NULL);
 
 	return 0;
 }
-device_initcall(ebony_device_probe);
+machine_device_initcall(ebony, ebony_device_probe);
 
 /*
  * Called very early, MMU is off, device-tree isn't unflattened
