@@ -3507,15 +3507,8 @@ static int ide_cd_probe(ide_drive_t *drive)
 	g->driverfs_dev = &drive->gendev;
 	g->flags = GENHD_FL_CD | GENHD_FL_REMOVABLE;
 	if (ide_cdrom_setup(drive)) {
-		struct cdrom_device_info *devinfo = &info->devinfo;
 		ide_proc_unregister_driver(drive, &ide_cdrom_driver);
-		kfree(info->buffer);
-		kfree(info->toc);
-		kfree(info->changer_info);
-		if (devinfo->handle == drive && unregister_cdrom(devinfo))
-			printk (KERN_ERR "%s: ide_cdrom_cleanup failed to unregister device from the cdrom driver.\n", drive->name);
-		kfree(info);
-		drive->driver_data = NULL;
+		ide_cd_release(&info->kref);
 		goto failed;
 	}
 
