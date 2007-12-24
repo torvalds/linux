@@ -640,7 +640,7 @@ done:
 		IVTV_ERR("Defaulting to %s card\n", itv->card->name);
 		IVTV_ERR("Please mail the vendor/device and subsystem vendor/device IDs and what kind of\n");
 		IVTV_ERR("card you have to the ivtv-devel mailinglist (www.ivtvdriver.org)\n");
-		IVTV_ERR("Prefix your subject line with [UNKNOWN CARD].\n");
+		IVTV_ERR("Prefix your subject line with [UNKNOWN IVTV CARD].\n");
 	}
 	itv->v4l2_cap = itv->card->v4l2_capabilities;
 	itv->card_name = itv->card->name;
