@@ -43,7 +43,7 @@ endchoice
 
 choice
 	prompt "UART1"
-	default BF527_UART1_PORTG
+	default BF527_UART1_PORTF
 	help
 	  Select PORT used for UART1. See Hardware Reference Manual
 
