@@ -83,6 +83,7 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/proc_fs.h>
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
 #include <asm/portmux.h>
@@ -1194,3 +1195,36 @@ void bfin_gpio_reset_spi0_ssel1(void)
 }
 
 #endif /*BF548_FAMILY */
+
+#if defined(CONFIG_PROC_FS)
+static int gpio_proc_read(char *buf, char **start, off_t offset,
+			  int len, int *unused_i, void *unused_v)
+{
+	int c, outlen = 0;
+
+	for (c = 0; c < MAX_RESOURCES; c++) {
+		if (!check_gpio(c) && (reserved_gpio_map[gpio_bank(c)] & gpio_bit(c)))
+			len = sprintf(buf, "GPIO_%d: %s \tGPIO %s\n", c,
+				 get_label(c), get_gpio_dir(c) ? "OUTPUT" : "INPUT");
+		else if (reserved_peri_map[gpio_bank(c)] & gpio_bit(c))
+			len = sprintf(buf, "GPIO_%d: %s \tPeripheral\n", c, get_label(c));
+		else
+			continue;
+		buf += len;
+		outlen += len;
+	}
+	return outlen;
+}
+
+static __init int gpio_register_proc(void)
+{
+	struct proc_dir_entry *proc_gpio;
+
+	proc_gpio = create_proc_entry("gpio", S_IRUGO, NULL);
+	if (proc_gpio)
+		proc_gpio->read_proc = gpio_proc_read;
+	return proc_gpio != NULL;
+}
+
+__initcall(gpio_register_proc);
+#endif
