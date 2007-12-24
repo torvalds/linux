@@ -688,10 +688,17 @@ struct dvb_frontend *tda829x_attach(struct dvb_frontend *fe,
 		       sizeof(struct analog_demod_ops));
 	}
 
-	if (tda829x_find_tuner(fe) < 0)
+	if ((!(cfg) || (TDA829X_PROBE_TUNER == cfg->probe_tuner)) &&
+	    (tda829x_find_tuner(fe) < 0))
 		goto fail;
 
 	switch (priv->ver) {
+	case TDA8290:
+		name = "tda8290";
+		break;
+	case TDA8295:
+		name = "tda8295";
+		break;
 	case TDA8290 | TDA8275:
 		name = "tda8290+75";
 		break;

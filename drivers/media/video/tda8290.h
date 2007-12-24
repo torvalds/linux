@@ -23,6 +23,10 @@
 struct tda829x_config {
 	unsigned int *lna_cfg;
 	int (*tuner_callback) (void *dev, int command, int arg);
+
+	unsigned int probe_tuner:1;
+#define TDA829X_PROBE_TUNER 0
+#define TDA829X_DONT_PROBE  1
 };
 
 #if defined(CONFIG_TUNER_TDA8290) || (defined(CONFIG_TUNER_TDA8290_MODULE) && defined(MODULE))
