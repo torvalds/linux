@@ -23,6 +23,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/sched.h>
 
 static inline enum km_type crypto_kmap_type(int out)
 {
