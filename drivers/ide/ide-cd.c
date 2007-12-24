@@ -2909,6 +2909,9 @@ static int ide_cdrom_register (ide_drive_t *drive, int nslots)
 	if (!CDROM_CONFIG_FLAGS(drive)->ram)
 		devinfo->mask |= CDC_RAM;
 
+	if (CDROM_CONFIG_FLAGS(drive)->no_speed_select)
+		devinfo->mask |= CDC_SELECT_SPEED;
+
 	devinfo->disk = info->disk;
 	return register_cdrom(devinfo);
 }
@@ -3161,7 +3164,7 @@ int ide_cdrom_setup (ide_drive_t *drive)
 		CDROM_CONFIG_FLAGS(drive)->limit_nframes = 1;
 	/* the 3231 model does not support the SET_CD_SPEED command */
 	else if (!strcmp(drive->id->model, "SAMSUNG CD-ROM SCR-3231"))
-		cdi->mask |= CDC_SELECT_SPEED;
+		CDROM_CONFIG_FLAGS(drive)->no_speed_select = 1;
 
 #if ! STANDARD_ATAPI
 	/* by default Sanyo 3 CD changer support is turned off and
