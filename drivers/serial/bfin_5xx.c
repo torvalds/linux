@@ -216,8 +216,10 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 	struct pt_regs *regs = get_irq_regs();
 #endif
 
- 	ch = UART_GET_CHAR(uart);
 	status = UART_GET_LSR(uart);
+	UART_CLEAR_LSR(uart);
+
+ 	ch = UART_GET_CHAR(uart);
  	uart->port.icount.rx++;
 
 #ifdef CONFIG_KGDB_UART
@@ -335,7 +337,7 @@ static irqreturn_t bfin_serial_rx_int(int irq, void *dev_id)
 	struct bfin_serial_port *uart = dev_id;
 
 	spin_lock(&uart->port.lock);
-	while ((UART_GET_IER(uart) & ERBFI) && (UART_GET_LSR(uart) & DR))
+	while (UART_GET_LSR(uart) & DR)
 		bfin_serial_rx_chars(uart);
 	spin_unlock(&uart->port.lock);
 
@@ -347,7 +349,7 @@ static irqreturn_t bfin_serial_tx_int(int irq, void *dev_id)
 	struct bfin_serial_port *uart = dev_id;
 
 	spin_lock(&uart->port.lock);
-	if ((UART_GET_IER(uart) & ETBEI) && (UART_GET_LSR(uart) & THRE))
+	if (UART_GET_LSR(uart) & THRE)
 		bfin_serial_tx_chars(uart);
 	spin_unlock(&uart->port.lock);
 
@@ -428,6 +430,8 @@ static void bfin_serial_dma_rx_chars(struct bfin_serial_port *uart)
 	int i, flg, status;
 
 	status = UART_GET_LSR(uart);
+	UART_CLEAR_LSR(uart);
+
 	uart->port.icount.rx += CIRC_CNT(uart->rx_dma_buf.head, uart->rx_dma_buf.tail, UART_XMIT_SIZE);;
 
 	if (status & BI) {
