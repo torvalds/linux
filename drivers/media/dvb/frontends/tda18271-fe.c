@@ -371,13 +371,64 @@ static int tda18271_init(struct dvb_frontend *fe)
 	return 0;
 }
 
+static int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq)
+{
+	/* Sets Main Post-Divider & Divider bytes, but does not write them */
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+	u8 d, pd;
+	u32 div;
+
+	tda18271_lookup_main_pll(&freq, &pd, &d);
+
+	regs[R_MPD]   = (0x77 & pd);
+
+	switch (priv->mode) {
+	case TDA18271_ANALOG:
+		regs[R_MPD]  &= ~0x08;
+		break;
+	case TDA18271_DIGITAL:
+		regs[R_MPD]  |=  0x08;
+		break;
+	}
+
+	div =  ((d * (freq / 1000)) << 7) / 125;
+
+	regs[R_MD1]   = 0x7f & (div >> 16);
+	regs[R_MD2]   = 0xff & (div >> 8);
+	regs[R_MD3]   = 0xff & div;
+
+	return 0;
+}
+
+static int tda18271_calc_cal_pll(struct dvb_frontend *fe, u32 freq)
+{
+	/* Sets Cal Post-Divider & Divider bytes, but does not write them */
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+	u8 d, pd;
+	u32 div;
+
+	tda18271_lookup_cal_pll(&freq, &pd, &d);
+
+	regs[R_CPD]   = pd;
+
+	div =  ((d * (freq / 1000)) << 7) / 125;
+
+	regs[R_CD1]   = 0x7f & (div >> 16);
+	regs[R_CD2]   = 0xff & (div >> 8);
+	regs[R_CD3]   = 0xff & div;
+
+	return 0;
+}
+
 static int tda18271_tune(struct dvb_frontend *fe,
 			 u32 ifc, u32 freq, u32 bw, u8 std)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
-	u32 div, N = 0;
-	u8 d, pd, val;
+	u32 N = 0;
+	u8 val;
 
 	tda18271_init(fe);
 
@@ -419,14 +470,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	tda18271_lookup_cal_pll(&N, &pd, &d);
-
-	regs[R_CPD]   = pd;
-
-	div =  ((d * (N / 1000)) << 7) / 125;
-	regs[R_CD1]   = 0x7f & (div >> 16);
-	regs[R_CD2]   = 0xff & (div >> 8);
-	regs[R_CD3]   = 0xff & div;
+	tda18271_calc_cal_pll(fe, N);
 
 	/* calculate MAIN PLL */
 
@@ -439,23 +483,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	tda18271_lookup_main_pll(&N, &pd, &d);
-
-	regs[R_MPD]   = (0x7f & pd);
-
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_MPD]  &= ~0x08;
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_MPD]  |=  0x08;
-		break;
-	}
-
-	div =  ((d * (N / 1000)) << 7) / 125;
-	regs[R_MD1]   = 0x7f & (div >> 16);
-	regs[R_MD2]   = 0xff & (div >> 8);
-	regs[R_MD3]   = 0xff & div;
+	tda18271_calc_main_pll(fe, N);
 
 	tda18271_write_regs(fe, R_EP3, 11);
 	msleep(5); /* RF tracking filter calibration initialization */
@@ -554,22 +582,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	/* calculate MAIN PLL */
 	N = freq + ifc;
 
-	tda18271_lookup_main_pll(&N, &pd, &d);
-
-	regs[R_MPD]   = (0x7f & pd);
-	switch (priv->mode) {
-	case TDA18271_ANALOG:
-		regs[R_MPD]  &= ~0x08;
-		break;
-	case TDA18271_DIGITAL:
-		regs[R_MPD]  |= 0x08;
-		break;
-	}
-
-	div =  ((d * (N / 1000)) << 7) / 125;
-	regs[R_MD1]   = 0x7f & (div >> 16);
-	regs[R_MD2]   = 0xff & (div >> 8);
-	regs[R_MD3]   = 0xff & div;
+	tda18271_calc_main_pll(fe, N);
 
 	tda18271_write_regs(fe, R_TM, 15);
 	msleep(5);
