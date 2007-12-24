@@ -386,7 +386,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	/* RF tracking filter calibration */
 
 	/* calculate BP_Filter */
-	tda18271_calc_bp_filter(&freq, &val);
+	tda18271_lookup_bp_filter(&freq, &val);
 
 	regs[R_EP1]  &= ~0x07; /* clear bp filter bits */
 	regs[R_EP1]  |= val;
@@ -419,7 +419,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	tda18271_calc_cal_pll(&N, &pd, &d);
+	tda18271_lookup_cal_pll(&N, &pd, &d);
 
 	regs[R_CPD]   = pd;
 
@@ -439,7 +439,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 		break;
 	}
 
-	tda18271_calc_main_pll(&N, &pd, &d);
+	tda18271_lookup_main_pll(&N, &pd, &d);
 
 	regs[R_MPD]   = (0x7f & pd);
 
@@ -461,20 +461,20 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	msleep(5); /* RF tracking filter calibration initialization */
 
 	/* search for K,M,CO for RF Calibration */
-	tda18271_calc_km(&freq, &val);
+	tda18271_lookup_km(&freq, &val);
 
 	regs[R_EB13] &= 0x83;
 	regs[R_EB13] |= val;
 	tda18271_write_regs(fe, R_EB13, 1);
 
 	/* search for RF_BAND */
-	tda18271_calc_rf_band(&freq, &val);
+	tda18271_lookup_rf_band(&freq, &val);
 
 	regs[R_EP2]  &= ~0xe0; /* clear rf band bits */
 	regs[R_EP2]  |= (val << 5);
 
 	/* search for Gain_Taper */
-	tda18271_calc_gain_taper(&freq, &val);
+	tda18271_lookup_gain_taper(&freq, &val);
 
 	regs[R_EP2]  &= ~0x1f; /* clear gain taper bits */
 	regs[R_EP2]  |= val;
@@ -502,7 +502,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	tda18271_write_regs(fe, R_EP1, 1);
 
 	/* RF tracking filer correction for VHF_Low band */
-	tda18271_calc_rf_cal(&freq, &val);
+	tda18271_lookup_rf_cal(&freq, &val);
 
 	/* VHF_Low band only */
 	if (val != 0) {
@@ -546,7 +546,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	regs[R_EP4]  &= ~0x80; /* turn this bit on only for fm */
 
 	/* image rejection validity EP5[2:0] */
-	tda18271_calc_ir_measure(&freq, &val);
+	tda18271_lookup_ir_measure(&freq, &val);
 
 	regs[R_EP5] &= ~0x07;
 	regs[R_EP5] |= val;
@@ -554,7 +554,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	/* calculate MAIN PLL */
 	N = freq + ifc;
 
-	tda18271_calc_main_pll(&N, &pd, &d);
+	tda18271_lookup_main_pll(&N, &pd, &d);
 
 	regs[R_MPD]   = (0x7f & pd);
 	switch (priv->mode) {

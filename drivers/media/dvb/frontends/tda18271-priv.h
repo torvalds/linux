@@ -82,15 +82,15 @@ extern int tda18271_debug;
 
 /*---------------------------------------------------------------------*/
 
-extern void tda18271_calc_cal_pll(u32 *freq, u8 *post_div, u8 *div);
-extern void tda18271_calc_main_pll(u32 *freq, u8 *post_div, u8 *div);
+extern void tda18271_lookup_cal_pll(u32 *freq, u8 *post_div, u8 *div);
+extern void tda18271_lookup_main_pll(u32 *freq, u8 *post_div, u8 *div);
 
-extern void tda18271_calc_bp_filter(u32 *freq, u8 *val);
-extern void tda18271_calc_km(u32 *freq, u8 *val);
-extern void tda18271_calc_rf_band(u32 *freq, u8 *val);
-extern void tda18271_calc_gain_taper(u32 *freq, u8 *val);
-extern void tda18271_calc_rf_cal(u32 *freq, u8 *val);
-extern void tda18271_calc_ir_measure(u32 *freq, u8 *val);
+extern void tda18271_lookup_bp_filter(u32 *freq, u8 *val);
+extern void tda18271_lookup_km(u32 *freq, u8 *val);
+extern void tda18271_lookup_rf_band(u32 *freq, u8 *val);
+extern void tda18271_lookup_gain_taper(u32 *freq, u8 *val);
+extern void tda18271_lookup_rf_cal(u32 *freq, u8 *val);
+extern void tda18271_lookup_ir_measure(u32 *freq, u8 *val);
 
 #endif /* __TDA18271_PRIV_H__ */
 

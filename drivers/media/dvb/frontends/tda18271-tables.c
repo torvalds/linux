@@ -294,49 +294,49 @@ static void tda18271_lookup_pll_map(struct tda18271_pll_map *map,
 
 /*---------------------------------------------------------------------*/
 
-void tda18271_calc_cal_pll(u32 *freq, u8 *post_div, u8 *div)
+void tda18271_lookup_cal_pll(u32 *freq, u8 *post_div, u8 *div)
 {
 	tda18271_lookup_pll_map(tda18271_cal_pll, freq, post_div, div);
 	dbg_map("post div = 0x%02x, div = 0x%02x\n", *post_div, *div);
 }
 
-void tda18271_calc_main_pll(u32 *freq, u8 *post_div, u8 *div)
+void tda18271_lookup_main_pll(u32 *freq, u8 *post_div, u8 *div)
 {
 	tda18271_lookup_pll_map(tda18271_main_pll, freq, post_div, div);
 	dbg_map("post div = 0x%02x, div = 0x%02x\n", *post_div, *div);
 }
 
-void tda18271_calc_bp_filter(u32 *freq, u8 *val)
+void tda18271_lookup_bp_filter(u32 *freq, u8 *val)
 {
 	tda18271_lookup_map(tda18271_bp_filter, freq, val);
 	dbg_map("0x%02x\n", *val);
 }
 
-void tda18271_calc_km(u32 *freq, u8 *val)
+void tda18271_lookup_km(u32 *freq, u8 *val)
 {
 	tda18271_lookup_map(tda18271_km, freq, val);
 	dbg_map("0x%02x\n", *val);
 }
 
-void tda18271_calc_rf_band(u32 *freq, u8 *val)
+void tda18271_lookup_rf_band(u32 *freq, u8 *val)
 {
 	tda18271_lookup_map(tda18271_rf_band, freq, val);
 	dbg_map("0x%02x\n", *val);
 }
 
-void tda18271_calc_gain_taper(u32 *freq, u8 *val)
+void tda18271_lookup_gain_taper(u32 *freq, u8 *val)
 {
 	tda18271_lookup_map(tda18271_gain_taper, freq, val);
 	dbg_map("0x%02x\n", *val);
 }
 
-void tda18271_calc_rf_cal(u32 *freq, u8 *val)
+void tda18271_lookup_rf_cal(u32 *freq, u8 *val)
 {
 	tda18271_lookup_map(tda18271_rf_cal, freq, val);
 	dbg_map("0x%02x\n", *val);
 }
 
-void tda18271_calc_ir_measure(u32 *freq, u8 *val)
+void tda18271_lookup_ir_measure(u32 *freq, u8 *val)
 {
 	tda18271_lookup_map(tda18271_ir_measure, freq, val);
 	dbg_map("0x%02x\n", *val);
