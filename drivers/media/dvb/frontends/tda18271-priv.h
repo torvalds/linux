@@ -23,6 +23,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include "tda18271.h"
 
 #define R_ID     0x00	/* ID byte                */
 #define R_TM     0x01	/* Thermo byte            */
@@ -65,6 +66,27 @@
 #define R_EB23   0x26	/* Extended byte 23       */
 
 #define TDA18271_NUM_REGS 39
+
+/*---------------------------------------------------------------------*/
+
+enum tda18271_mode {
+	TDA18271_ANALOG,
+	TDA18271_DIGITAL,
+};
+
+struct tda18271_priv {
+	u8 i2c_addr;
+	struct i2c_adapter *i2c_adap;
+	unsigned char tda18271_regs[TDA18271_NUM_REGS];
+
+	enum tda18271_mode mode;
+	enum tda18271_i2c_gate gate;
+
+	u32 frequency;
+	u32 bandwidth;
+};
+
+/*---------------------------------------------------------------------*/
 
 extern int tda18271_debug;
 
