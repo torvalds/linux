@@ -187,7 +187,7 @@ asmlinkage void __init init_early_exception_vectors(void)
 	bfin_write_EVT15(early_trap);
 	CSYNC();
 
-	/* Set all the return from interupt, exception, NMI to a known place
+	/* Set all the return from interrupt, exception, NMI to a known place
 	 * so if we do a RETI, RETX or RETN by mistake - we go somewhere known
 	 * Note - don't change RETS - we are in a subroutine, or
 	 * RETE - since it might screw up if emulator is attached

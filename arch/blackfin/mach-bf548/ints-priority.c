@@ -4,7 +4,7 @@
  * Author:       Michael Hennerich
  *
  * Created:
- * Description:  Set up the interupt priorities
+ * Description:  Set up the interrupt priorities
  *
  * Modified:
  *               Copyright 2004-2006 Analog Devices Inc.
