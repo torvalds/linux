@@ -783,7 +783,6 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 {
 	struct tda18271_priv *priv = NULL;
 
-	dbg_info("@ %d-%04x\n", i2c_adapter_id(i2c), addr);
 	priv = kzalloc(sizeof(struct tda18271_priv), GFP_KERNEL);
 	if (priv == NULL)
 		return NULL;
