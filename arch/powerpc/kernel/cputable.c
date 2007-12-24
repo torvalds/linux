@@ -1369,6 +1369,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	},
 #endif /* CONFIG_44x */
 #ifdef CONFIG_FSL_BOOKE
+#ifdef CONFIG_E200
 	{	/* e200z5 */
 		.pvr_mask		= 0xfff00000,
 		.pvr_value		= 0x81000000,
@@ -1396,6 +1397,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e200,
 		.platform		= "ppc5554",
 	},
+#elif defined(CONFIG_E500)
 	{	/* e500 */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x80200000,
@@ -1431,6 +1433,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_e500,
 		.platform		= "ppc8548",
 	},
+#endif
 #endif
 #if !CLASSIC_PPC
 	{	/* default match */
