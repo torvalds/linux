@@ -855,12 +855,11 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 
 		if (analog_ops->set_config) {
-			tuner_warn("Tuner frontend module has no way to "
-				   "set config\n");
+			analog_ops->set_config(&t->fe, cfg->priv);
 			break;
 		}
 
-		analog_ops->set_config(&t->fe, cfg->priv);
+		tuner_dbg("Tuner frontend module has no way to set config\n");
 		break;
 	}
 	/* --- v4l ioctls --- */
