@@ -774,7 +774,6 @@ config C_AMCKEN
 
 config C_CDPRIO
 	bool "DMA has priority over core for ext. accesses"
-	depends on !BF54x
 	default n
 
 config C_B0PEN
