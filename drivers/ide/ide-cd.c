@@ -1446,7 +1446,7 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 		return ide_stopped;
 
 	/* Read the interrupt reason and the transfer length. */
-	ireason = HWIF(drive)->INB(IDE_IREASON_REG);
+	ireason = HWIF(drive)->INB(IDE_IREASON_REG) & 0x3;
 	lowcyl  = HWIF(drive)->INB(IDE_BCOUNTL_REG);
 	highcyl = HWIF(drive)->INB(IDE_BCOUNTH_REG);
 
@@ -1487,7 +1487,7 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 	if (thislen > len) thislen = len;
 
 	/* The drive wants to be written to. */
-	if ((ireason & 3) == 0) {
+	if (ireason == 0) {
 		if (!rq->data) {
 			blk_dump_rq_flags(rq, "cdrom_pc_intr, write");
 			goto confused;
@@ -1509,7 +1509,7 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 	}
 
 	/* Same drill for reading. */
-	else if ((ireason & 3) == 2) {
+	else if (ireason == 2) {
 		if (!rq->data) {
 			blk_dump_rq_flags(rq, "cdrom_pc_intr, read");
 			goto confused;
