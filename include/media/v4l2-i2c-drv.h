@@ -21,6 +21,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#ifndef __V4L2_I2C_DRV_H__
+#define __V4L2_I2C_DRV_H__
+
+#include <media/v4l2-common.h>
+
 struct v4l2_i2c_driver_data {
 	const char * const name;
 	int driverid;
@@ -59,3 +64,5 @@ static void __exit v4l2_i2c_drv_cleanup(void)
 
 module_init(v4l2_i2c_drv_init);
 module_exit(v4l2_i2c_drv_cleanup);
+
+#endif /* __V4L2_I2C_DRV_H__ */
