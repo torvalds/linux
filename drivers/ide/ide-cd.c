@@ -1511,7 +1511,7 @@ static ide_startstop_t cdrom_pc_intr (ide_drive_t *drive)
 	/* Same drill for reading. */
 	else if ((ireason & 3) == 2) {
 		if (!rq->data) {
-			blk_dump_rq_flags(rq, "cdrom_pc_intr, write");
+			blk_dump_rq_flags(rq, "cdrom_pc_intr, read");
 			goto confused;
 		}
 		/* Transfer the data. */
