@@ -57,6 +57,9 @@ struct bfin_serial_port {
 	struct work_struct	tx_dma_workqueue;
 #else
 	struct work_struct 	cts_workqueue;
+# if ANOMALY_05000230
+	unsigned int anomaly_threshold;
+# endif
 #endif
 #ifdef CONFIG_SERIAL_BFIN_CTSRTS
 	int			cts_pin;

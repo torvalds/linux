@@ -206,12 +206,20 @@ int kgdb_get_debug_char(void)
 }
 #endif
 
+#if ANOMALY_05000230 && defined(CONFIG_SERIAL_BFIN_PIO)
+# define UART_GET_ANOMALY_THRESHOLD(uart)    ((uart)->anomaly_threshold)
+# define UART_SET_ANOMALY_THRESHOLD(uart, v) ((uart)->anomaly_threshold = (v))
+#else
+# define UART_GET_ANOMALY_THRESHOLD(uart)    0
+# define UART_SET_ANOMALY_THRESHOLD(uart, v)
+#endif
+
 #ifdef CONFIG_SERIAL_BFIN_PIO
 static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 {
 	struct tty_struct *tty = uart->port.info->tty;
 	unsigned int status, ch, flg;
-	static int in_break = 0;
+	static struct timeval anomaly_start = { .tv_sec = 0 };
 #ifdef CONFIG_KGDB_UART
 	struct pt_regs *regs = get_irq_regs();
 #endif
@@ -244,28 +252,56 @@ static void bfin_serial_rx_chars(struct bfin_serial_port *uart)
 #endif
 
 	if (ANOMALY_05000230) {
-		/* The BF533 family of processors have a nice misbehavior where
-		 * they continuously generate characters for a "single" break.
+		/* The BF533 (and BF561) family of processors have a nice anomaly
+		 * where they continuously generate characters for a "single" break.
 		 * We have to basically ignore this flood until the "next" valid
-		 * character comes across.  All other Blackfin families operate
-		 * properly though.
+		 * character comes across.  Due to the nature of the flood, it is
+		 * not possible to reliably catch bytes that are sent too quickly
+		 * after this break.  So application code talking to the Blackfin
+		 * which sends a break signal must allow at least 1.5 character
+		 * times after the end of the break for things to stabilize.  This
+		 * timeout was picked as it must absolutely be larger than 1
+		 * character time +/- some percent.  So 1.5 sounds good.  All other
+		 * Blackfin families operate properly.  Woo.
 		 * Note: While Anomaly 05000230 does not directly address this,
 		 *       the changes that went in for it also fixed this issue.
+		 *       That anomaly was fixed in 0.5+ silicon.  I like bunnies.
 		 */
-		if (in_break) {
-			if (ch != 0) {
-				in_break = 0;
-				ch = UART_GET_CHAR(uart);
-				if (bfin_revid() < 5)
-					return;
-			} else
-				return;
+		if (anomaly_start.tv_sec) {
+			struct timeval curr;
+			suseconds_t usecs;
+
+			if ((~ch & (~ch + 1)) & 0xff)
+				goto known_good_char;
+
+			do_gettimeofday(&curr);
+			if (curr.tv_sec - anomaly_start.tv_sec > 1)
+				goto known_good_char;
+
+			usecs = 0;
+			if (curr.tv_sec != anomaly_start.tv_sec)
+				usecs += USEC_PER_SEC;
+			usecs += curr.tv_usec - anomaly_start.tv_usec;
+
+			if (usecs > UART_GET_ANOMALY_THRESHOLD(uart))
+				goto known_good_char;
+
+			if (ch)
+				anomaly_start.tv_sec = 0;
+			else
+				anomaly_start = curr;
+
+			return;
+
+ known_good_char:
+			anomaly_start.tv_sec = 0;
 		}
 	}
 
 	if (status & BI) {
 		if (ANOMALY_05000230)
-			in_break = 1;
+			if (bfin_revid() < 5)
+				do_gettimeofday(&anomaly_start);
 		uart->port.icount.brk++;
 		if (uart_handle_break(&uart->port))
 			goto ignore_char;
@@ -777,6 +813,8 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
 	quot = uart_get_divisor(port, baud);
 	spin_lock_irqsave(&uart->port.lock, flags);
+
+	UART_SET_ANOMALY_THRESHOLD(uart, USEC_PER_SEC / baud * 15);
 
 	do {
 		lsr = UART_GET_LSR(uart);
