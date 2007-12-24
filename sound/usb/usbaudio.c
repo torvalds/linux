@@ -2077,8 +2077,14 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
 static int usb_audio_probe(struct usb_interface *intf,
 			   const struct usb_device_id *id);
 static void usb_audio_disconnect(struct usb_interface *intf);
+
+#ifdef CONFIG_PM
 static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message);
 static int usb_audio_resume(struct usb_interface *intf);
+#else
+#define usb_audio_suspend NULL
+#define usb_audio_resume NULL
+#endif
 
 static struct usb_device_id usb_audio_ids [] = {
 #include "usbquirks.h"
@@ -3658,6 +3664,7 @@ static void usb_audio_disconnect(struct usb_interface *intf)
 				 dev_get_drvdata(&intf->dev));
 }
 
+#ifdef CONFIG_PM
 static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct snd_usb_audio *chip = dev_get_drvdata(&intf->dev);
@@ -3695,6 +3702,7 @@ static int usb_audio_resume(struct usb_interface *intf)
 
 	return 0;
 }
+#endif		/* CONFIG_PM */
 
 static int __init snd_usb_audio_init(void)
 {
