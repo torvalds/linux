@@ -1068,8 +1068,8 @@ int cdrom_read_check_ireason (ide_drive_t *drive, int len, int ireason)
 		return 0;
 	else if (ireason == 0) {
 		/* Whoops... The drive is expecting to receive data from us! */
-		printk(KERN_ERR "%s: read_intr: Drive wants to transfer data the "
-						"wrong way!\n", drive->name);
+		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
+				drive->name, __FUNCTION__);
 
 		/* Throw some data at the drive so it doesn't hang
 		   and quit this request. */
@@ -1086,8 +1086,8 @@ int cdrom_read_check_ireason (ide_drive_t *drive, int len, int ireason)
 		return 0;
 	} else {
 		/* Drive wants a command packet, or invalid ireason... */
-		printk(KERN_ERR "%s: read_intr: bad interrupt reason %x\n", drive->name,
-								ireason);
+		printk(KERN_ERR "%s: %s: bad interrupt reason 0x%02x\n",
+				drive->name, __FUNCTION__, ireason);
 	}
 
 	cdrom_end_request(drive, 0);
@@ -1632,8 +1632,8 @@ static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
 		return 0;
 	else if (ireason == 2) {
 		/* Whoops... The drive wants to send data. */
-		printk(KERN_ERR "%s: write_intr: wrong transfer direction!\n",
-							drive->name);
+		printk(KERN_ERR "%s: %s: wrong transfer direction!\n",
+				drive->name, __FUNCTION__);
 
 		while (len > 0) {
 			int dum = 0;
@@ -1642,8 +1642,8 @@ static int cdrom_write_check_ireason(ide_drive_t *drive, int len, int ireason)
 		}
 	} else {
 		/* Drive wants a command packet, or invalid ireason... */
-		printk(KERN_ERR "%s: write_intr: bad interrupt reason %x\n",
-							drive->name, ireason);
+		printk(KERN_ERR "%s: %s: bad interrupt reason 0x%02x\n",
+				drive->name, __FUNCTION__, ireason);
 	}
 
 	cdrom_end_request(drive, 0);
