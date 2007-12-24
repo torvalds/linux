@@ -33,6 +33,7 @@
 #include "s5h1409.h"
 #include "mt2131.h"
 #include "tda8290.h"
+#include "tda18271.h"
 #include "lgdt330x.h"
 #include "xc5000.h"
 #include "dvb-pll.h"
@@ -178,6 +179,10 @@ static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.tuner_reset      = hauppauge_hvr1500q_tuner_reset
 };
 
+static struct tda829x_config tda829x_no_probe = {
+	.probe_tuner = TDA829X_DONT_PROBE,
+};
+
 static int cx23885_hvr1500_xc3028_callback(void *ptr, int command, int arg)
 {
 	struct cx23885_tsport *port = ptr;
@@ -240,7 +245,10 @@ static int dvb_register(struct cx23885_tsport *port)
 			if (port->dvb.frontend != NULL) {
 				dvb_attach(tda829x_attach, port->dvb.frontend,
 					   &dev->i2c_bus[1].i2c_adap, 0x42,
-					   NULL);
+					   &tda829x_no_probe);
+				dvb_attach(tda18271_attach, port->dvb.frontend,
+					   0x60, &dev->i2c_bus[1].i2c_adap,
+					   TDA18271_GATE_ANALOG);
 			}
 			break;
 		case 0:
