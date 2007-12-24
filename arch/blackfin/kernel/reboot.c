@@ -34,9 +34,11 @@ void bfin_reset(void)
 	while (1) {
 		/* initiate system soft reset with magic 0x7 */
 		bfin_write_SWRST(0x7);
+		bfin_read_SWRST();
 		asm("ssync;");
 		/* clear system soft reset */
 		bfin_write_SWRST(0);
+		bfin_read_SWRST();
 		asm("ssync;");
 		/* issue core reset */
 		asm("raise 1");
