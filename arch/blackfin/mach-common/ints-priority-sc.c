@@ -313,6 +313,7 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 static unsigned short gpio_enabled[gpio_bank(MAX_BLACKFIN_GPIOS)];
 static unsigned short gpio_edge_triggered[gpio_bank(MAX_BLACKFIN_GPIOS)];
 
+
 static void bfin_gpio_ack_irq(unsigned int irq)
 {
 	u16 gpionr = irq - IRQ_PF0;
@@ -352,9 +353,11 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 {
 	unsigned int ret;
 	u16 gpionr = irq - IRQ_PF0;
+	char buf[8];
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-		ret = gpio_request(gpionr, "IRQ");
+		snprintf(buf, sizeof buf, "IRQ %d", irq);
+		ret = gpio_request(gpionr, buf);
 		if (ret)
 			return ret;
 	}
@@ -376,6 +379,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 
 	unsigned int ret;
+	char buf[8];
 	u16 gpionr = irq - IRQ_PF0;
 
 	if (type == IRQ_TYPE_PROBE) {
@@ -388,7 +392,8 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-			ret = gpio_request(gpionr, "IRQ");
+			snprintf(buf, sizeof buf, "IRQ %d", irq);
+			ret = gpio_request(gpionr, buf);
 			if (ret)
 				return ret;
 		}
@@ -587,6 +592,7 @@ static void bfin_gpio_unmask_irq(unsigned int irq)
 static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 {
 	unsigned int ret;
+	char buf[8];
 	u16 gpionr = irq - IRQ_PA0;
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
 
@@ -598,7 +604,8 @@ static unsigned int bfin_gpio_irq_startup(unsigned int irq)
 	}
 
 	if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-		ret = gpio_request(gpionr, "IRQ");
+		snprintf(buf, sizeof buf, "IRQ %d", irq);
+		ret = gpio_request(gpionr, buf);
 		if (ret)
 			return ret;
 	}
@@ -620,6 +627,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 {
 
 	unsigned int ret;
+	char buf[8];
 	u16 gpionr = irq - IRQ_PA0;
 	u8 pint_val = irq2pint_lut[irq - SYS_IRQS];
 	u32 pintbit = PINT_BIT(pint_val);
@@ -638,7 +646,8 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 	if (type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
 		    IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
 		if (!(gpio_enabled[gpio_bank(gpionr)] & gpio_bit(gpionr))) {
-			ret = gpio_request(gpionr, "IRQ");
+			snprintf(buf, sizeof buf, "IRQ %d", irq);
+			ret = gpio_request(gpionr, buf);
 			if (ret)
 				return ret;
 		}
