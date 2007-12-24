@@ -719,6 +719,36 @@ static int tda18271_get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 	return 0;
 }
 
+static int tda18271_get_id(struct dvb_frontend *fe)
+{
+	struct tda18271_priv *priv = fe->tuner_priv;
+	unsigned char *regs = priv->tda18271_regs;
+	char *name;
+	int ret = 0;
+
+	tda18271_read_regs(fe);
+
+	switch (regs[R_ID] & 0x7f) {
+	case 3:
+		name = "TDA18271HD/C1";
+		break;
+	case 4:
+		name = "TDA18271HD/C2";
+		ret = -EPROTONOSUPPORT;
+		break;
+	default:
+		name = "Unknown device";
+		ret = -EINVAL;
+		break;
+	}
+
+	dbg_info("%s detected @ %d-%04x%s\n", name,
+		 i2c_adapter_id(priv->i2c_adap), priv->i2c_addr,
+		 (0 == ret) ? "" : ", device not supported.");
+
+	return ret;
+}
+
 static struct dvb_tuner_ops tda18271_tuner_ops = {
 	.info = {
 		.name = "NXP TDA18271HD",
@@ -749,14 +779,20 @@ struct dvb_frontend *tda18271_attach(struct dvb_frontend *fe, u8 addr,
 	priv->i2c_adap = i2c;
 	priv->gate = gate;
 
+	fe->tuner_priv = priv;
+
+	if (tda18271_get_id(fe) < 0)
+		goto fail;
+
 	memcpy(&fe->ops.tuner_ops, &tda18271_tuner_ops,
 	       sizeof(struct dvb_tuner_ops));
-
-	fe->tuner_priv = priv;
 
 	tda18271_init_regs(fe);
 
 	return fe;
+fail:
+	tda18271_release(fe);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(tda18271_attach);
 MODULE_DESCRIPTION("NXP TDA18271HD analog / digital tuner driver");
