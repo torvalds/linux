@@ -152,7 +152,8 @@ static int mt312_get_inversion(struct mt312_state *state,
 	int ret;
 	u8 vit_mode;
 
-	if ((ret = mt312_readreg(state, VIT_MODE, &vit_mode)) < 0)
+	ret = mt312_readreg(state, VIT_MODE, &vit_mode);
+	if (ret < 0)
 		return ret;
 
 	if (vit_mode & 0x80)	/* auto inversion was used */
@@ -170,15 +171,18 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 	u16 monitor;
 	u8 buf[2];
 
-	if ((ret = mt312_readreg(state, SYM_RATE_H, &sym_rate_h)) < 0)
+	ret = mt312_readreg(state, SYM_RATE_H, &sym_rate_h);
+	if (ret < 0)
 		return ret;
 
 	if (sym_rate_h & 0x80) {
 		/* symbol rate search was used */
-		if ((ret = mt312_writereg(state, MON_CTRL, 0x03)) < 0)
+		ret = mt312_writereg(state, MON_CTRL, 0x03);
+		if (ret < 0)
 			return ret;
 
-		if ((ret = mt312_read(state, MONITOR_H, buf, sizeof(buf))) < 0)
+		ret = mt312_read(state, MONITOR_H, buf, sizeof(buf));
+		if (ret < 0)
 			return ret;
 
 		monitor = (buf[0] << 8) | buf[1];
@@ -186,16 +190,18 @@ static int mt312_get_symbol_rate(struct mt312_state *state, u32 *sr)
 		dprintk("sr(auto) = %u\n",
 		       mt312_div(monitor * 15625, 4));
 	} else {
-		if ((ret = mt312_writereg(state, MON_CTRL, 0x05)) < 0)
+		ret = mt312_writereg(state, MON_CTRL, 0x05);
+		if (ret < 0)
 			return ret;
 
-		if ((ret = mt312_read(state, MONITOR_H, buf, sizeof(buf))) < 0)
+		ret = mt312_read(state, MONITOR_H, buf, sizeof(buf));
+		if (ret < 0)
 			return ret;
 
 		dec_ratio = ((buf[0] >> 5) & 0x07) * 32;
 
-		if ((ret = mt312_read(state, SYM_RAT_OP_H, buf,
-				     sizeof(buf))) < 0)
+		ret = mt312_read(state, SYM_RAT_OP_H, buf, sizeof(buf));
+		if (ret < 0)
 			return ret;
 
 		sym_rat_op = (buf[0] << 8) | buf[1];
@@ -219,7 +225,8 @@ static int mt312_get_code_rate(struct mt312_state *state, fe_code_rate_t *cr)
 	int ret;
 	u8 fec_status;
 
-	if ((ret = mt312_readreg(state, FEC_STATUS, &fec_status)) < 0)
+	ret = mt312_readreg(state, FEC_STATUS, &fec_status);
+	if (ret < 0)
 		return ret;
 
 	*cr = fec_tab[(fec_status >> 4) & 0x07];
@@ -234,15 +241,17 @@ static int mt312_initfe(struct dvb_frontend *fe)
 	u8 buf[2];
 
 	/* wake up */
-	if ((ret = mt312_writereg(state, CONFIG,
-			(state->frequency == 60 ? 0x88 : 0x8c))) < 0)
+	ret = mt312_writereg(state, CONFIG,
+			(state->frequency == 60 ? 0x88 : 0x8c));
+	if (ret < 0)
 		return ret;
 
 	/* wait at least 150 usec */
 	udelay(150);
 
 	/* full reset */
-	if ((ret = mt312_reset(state, 1)) < 0)
+	ret = mt312_reset(state, 1);
+	if (ret < 0)
 		return ret;
 
 /* Per datasheet, write correct values. 09/28/03 ACCJr.
@@ -251,8 +260,8 @@ static int mt312_initfe(struct dvb_frontend *fe)
 		u8 buf_def[8] = { 0x14, 0x12, 0x03, 0x02,
 				  0x01, 0x00, 0x00, 0x00 };
 
-		if ((ret = mt312_write(state, VIT_SETUP, buf_def,
-				       sizeof(buf_def))) < 0)
+		ret = mt312_write(state, VIT_SETUP, buf_def, sizeof(buf_def));
+		if (ret < 0)
 			return ret;
 	}
 
@@ -263,23 +272,28 @@ static int mt312_initfe(struct dvb_frontend *fe)
 	/* DISEQC_RATIO */
 	buf[1] = mt312_div(MT312_PLL_CLK, 15000 * 4);
 
-	if ((ret = mt312_write(state, SYS_CLK, buf, sizeof(buf))) < 0)
+	ret = mt312_write(state, SYS_CLK, buf, sizeof(buf));
+	if (ret < 0)
 		return ret;
 
-	if ((ret = mt312_writereg(state, SNR_THS_HIGH, 0x32)) < 0)
+	ret = mt312_writereg(state, SNR_THS_HIGH, 0x32);
+	if (ret < 0)
 		return ret;
 
-	if ((ret = mt312_writereg(state, OP_CTRL, 0x53)) < 0)
+	ret = mt312_writereg(state, OP_CTRL, 0x53);
+	if (ret < 0)
 		return ret;
 
 	/* TS_SW_LIM */
 	buf[0] = 0x8c;
 	buf[1] = 0x98;
 
-	if ((ret = mt312_write(state, TS_SW_LIM_L, buf, sizeof(buf))) < 0)
+	ret = mt312_write(state, TS_SW_LIM_L, buf, sizeof(buf));
+	if (ret < 0)
 		return ret;
 
-	if ((ret = mt312_writereg(state, CS_SW_LIM, 0x69)) < 0)
+	ret = mt312_writereg(state, CS_SW_LIM, 0x69);
+	if (ret < 0)
 		return ret;
 
 	return 0;
@@ -295,24 +309,26 @@ static int mt312_send_master_cmd(struct dvb_frontend *fe,
 	if ((c->msg_len == 0) || (c->msg_len > sizeof(c->msg)))
 		return -EINVAL;
 
-	if ((ret = mt312_readreg(state, DISEQC_MODE, &diseqc_mode)) < 0)
+	ret = mt312_readreg(state, DISEQC_MODE, &diseqc_mode);
+	if (ret < 0)
 		return ret;
 
-	if ((ret =
-	     mt312_write(state, (0x80 | DISEQC_INSTR), c->msg, c->msg_len)) < 0)
+	ret = mt312_write(state, (0x80 | DISEQC_INSTR), c->msg, c->msg_len);
+	if (ret < 0)
 		return ret;
 
-	if ((ret =
-	     mt312_writereg(state, DISEQC_MODE,
-			    (diseqc_mode & 0x40) | ((c->msg_len - 1) << 3)
-			    | 0x04)) < 0)
+	ret = mt312_writereg(state, DISEQC_MODE,
+			     (diseqc_mode & 0x40) | ((c->msg_len - 1) << 3)
+			     | 0x04);
+	if (ret < 0)
 		return ret;
 
 	/* set DISEQC_MODE[2:0] to zero if a return message is expected */
-	if (c->msg[0] & 0x02)
-		if ((ret = mt312_writereg(state, DISEQC_MODE,
-					  (diseqc_mode & 0x40))) < 0)
+	if (c->msg[0] & 0x02) {
+		ret = mt312_writereg(state, DISEQC_MODE, (diseqc_mode & 0x40));
+		if (ret < 0)
 			return ret;
+	}
 
 	return 0;
 }
@@ -328,12 +344,13 @@ static int mt312_send_burst(struct dvb_frontend *fe, const fe_sec_mini_cmd_t c)
 	if (c > SEC_MINI_B)
 		return -EINVAL;
 
-	if ((ret = mt312_readreg(state, DISEQC_MODE, &diseqc_mode)) < 0)
+	ret = mt312_readreg(state, DISEQC_MODE, &diseqc_mode);
+	if (ret < 0)
 		return ret;
 
-	if ((ret =
-	     mt312_writereg(state, DISEQC_MODE,
-			    (diseqc_mode & 0x40) | mini_tab[c])) < 0)
+	ret = mt312_writereg(state, DISEQC_MODE,
+			     (diseqc_mode & 0x40) | mini_tab[c]);
+	if (ret < 0)
 		return ret;
 
 	return 0;
@@ -350,12 +367,13 @@ static int mt312_set_tone(struct dvb_frontend *fe, const fe_sec_tone_mode_t t)
 	if (t > SEC_TONE_OFF)
 		return -EINVAL;
 
-	if ((ret = mt312_readreg(state, DISEQC_MODE, &diseqc_mode)) < 0)
+	ret = mt312_readreg(state, DISEQC_MODE, &diseqc_mode);
+	if (ret < 0)
 		return ret;
 
-	if ((ret =
-	     mt312_writereg(state, DISEQC_MODE,
-			    (diseqc_mode & 0x40) | tone_tab[t])) < 0)
+	ret = mt312_writereg(state, DISEQC_MODE,
+			     (diseqc_mode & 0x40) | tone_tab[t]);
+	if (ret < 0)
 		return ret;
 
 	return 0;
@@ -380,7 +398,8 @@ static int mt312_read_status(struct dvb_frontend *fe, fe_status_t *s)
 
 	*s = 0;
 
-	if ((ret = mt312_read(state, QPSK_STAT_H, status, sizeof(status))) < 0)
+	ret = mt312_read(state, QPSK_STAT_H, status, sizeof(status));
+	if (ret < 0)
 		return ret;
 
 	dprintk("QPSK_STAT_H: 0x%02x, QPSK_STAT_L: 0x%02x,"
@@ -406,7 +425,8 @@ static int mt312_read_ber(struct dvb_frontend *fe, u32 *ber)
 	int ret;
 	u8 buf[3];
 
-	if ((ret = mt312_read(state, RS_BERCNT_H, buf, 3)) < 0)
+	ret = mt312_read(state, RS_BERCNT_H, buf, 3);
+	if (ret < 0)
 		return ret;
 
 	*ber = ((buf[0] << 16) | (buf[1] << 8) | buf[2]) * 64;
@@ -423,7 +443,8 @@ static int mt312_read_signal_strength(struct dvb_frontend *fe,
 	u16 agc;
 	s16 err_db;
 
-	if ((ret = mt312_read(state, AGC_H, buf, sizeof(buf))) < 0)
+	ret = mt312_read(state, AGC_H, buf, sizeof(buf));
+	if (ret < 0)
 		return ret;
 
 	agc = (buf[0] << 6) | (buf[1] >> 2);
@@ -442,7 +463,8 @@ static int mt312_read_snr(struct dvb_frontend *fe, u16 *snr)
 	int ret;
 	u8 buf[2];
 
-	if ((ret = mt312_read(state, M_SNR_H, &buf, sizeof(buf))) < 0)
+	ret = mt312_read(state, M_SNR_H, &buf, sizeof(buf));
+	if (ret < 0)
 		return ret;
 
 	*snr = 0xFFFF - ((((buf[0] & 0x7f) << 8) | buf[1]) << 1);
@@ -456,7 +478,8 @@ static int mt312_read_ucblocks(struct dvb_frontend *fe, u32 *ubc)
 	int ret;
 	u8 buf[2];
 
-	if ((ret = mt312_read(state, RS_UBC_H, &buf, sizeof(buf))) < 0)
+	ret = mt312_read(state, RS_UBC_H, &buf, sizeof(buf));
+	if (ret < 0)
 		return ret;
 
 	*ubc = (buf[0] << 8) | buf[1];
@@ -512,14 +535,16 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 			if ((config_val & 0x0c) == 0x08) {
 				/* We are running 60MHz */
 				state->frequency = 90;
-				if ((ret = mt312_initfe(fe)) < 0)
+				ret = mt312_initfe(fe);
+				if (ret < 0)
 					return ret;
 			}
 		} else {
 			if ((config_val & 0x0c) == 0x0C) {
 				/* We are running 90MHz */
 				state->frequency = 60;
-				if ((ret = mt312_initfe(fe)) < 0)
+				ret = mt312_initfe(fe);
+				if (ret < 0)
 					return ret;
 			}
 		}
@@ -557,7 +582,8 @@ static int mt312_set_frontend(struct dvb_frontend *fe,
 	/* GO */
 	buf[4] = 0x01;
 
-	if ((ret = mt312_write(state, SYM_RATE_H, buf, sizeof(buf))) < 0)
+	ret = mt312_write(state, SYM_RATE_H, buf, sizeof(buf));
+	if (ret < 0)
 		return ret;
 
 	mt312_reset(state, 0);
@@ -571,13 +597,16 @@ static int mt312_get_frontend(struct dvb_frontend *fe,
 	struct mt312_state *state = fe->demodulator_priv;
 	int ret;
 
-	if ((ret = mt312_get_inversion(state, &p->inversion)) < 0)
+	ret = mt312_get_inversion(state, &p->inversion);
+	if (ret < 0)
 		return ret;
 
-	if ((ret = mt312_get_symbol_rate(state, &p->u.qpsk.symbol_rate)) < 0)
+	ret = mt312_get_symbol_rate(state, &p->u.qpsk.symbol_rate);
+	if (ret < 0)
 		return ret;
 
-	if ((ret = mt312_get_code_rate(state, &p->u.qpsk.fec_inner)) < 0)
+	ret = mt312_get_code_rate(state, &p->u.qpsk.fec_inner);
+	if (ret < 0)
 		return ret;
 
 	return 0;
@@ -601,14 +630,17 @@ static int mt312_sleep(struct dvb_frontend *fe)
 	u8 config;
 
 	/* reset all registers to defaults */
-	if ((ret = mt312_reset(state, 1)) < 0)
+	ret = mt312_reset(state, 1);
+	if (ret < 0)
 		return ret;
 
-	if ((ret = mt312_readreg(state, CONFIG, &config)) < 0)
+	ret = mt312_readreg(state, CONFIG, &config);
+	if (ret < 0)
 		return ret;
 
 	/* enter standby */
-	if ((ret = mt312_writereg(state, CONFIG, config & 0x7f)) < 0)
+	ret = mt312_writereg(state, CONFIG, config & 0x7f);
+	if (ret < 0)
 		return ret;
 
 	return 0;
