@@ -1,6 +1,8 @@
 #ifndef _MACH_PORTMUX_H_
 #define _MACH_PORTMUX_H_
 
+#define MAX_RESOURCES 	MAX_BLACKFIN_GPIOS
+
 #define P_PPI0_CLK	(P_DONTCARE)
 #define P_PPI0_FS1	(P_DONTCARE)
 #define P_PPI0_FS2	(P_DONTCARE)
