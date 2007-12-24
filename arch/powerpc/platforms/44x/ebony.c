@@ -28,7 +28,7 @@
 
 #include "44x.h"
 
-static struct of_device_id ebony_of_bus[] = {
+static __initdata struct of_device_id ebony_of_bus[] = {
 	{ .compatible = "ibm,plb4", },
 	{ .compatible = "ibm,opb", },
 	{ .compatible = "ibm,ebc", },
