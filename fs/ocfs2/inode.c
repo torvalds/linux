@@ -620,7 +620,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	}
 
 	di->i_dtime = cpu_to_le64(CURRENT_TIME.tv_sec);
-	le32_and_cpu(&di->i_flags, ~(OCFS2_VALID_FL | OCFS2_ORPHANED_FL));
+	di->i_flags &= cpu_to_le32(~(OCFS2_VALID_FL | OCFS2_ORPHANED_FL));
 
 	status = ocfs2_journal_dirty(handle, di_bh);
 	if (status < 0) {
