@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc4
-# Tue Dec 11 16:44:44 2007
+# Linux kernel version: 2.6.24-rc6
+# Mon Dec 24 11:23:39 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -144,6 +144,8 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 # CONFIG_EBONY is not set
 # CONFIG_SEQUOIA is not set
 CONFIG_TAISHAN=y
+# CONFIG_KATMAI is not set
+# CONFIG_RAINIER is not set
 CONFIG_440GX=y
 # CONFIG_MPIC is not set
 # CONFIG_MPIC_WEIRD is not set
@@ -736,6 +738,7 @@ CONFIG_DEBUGGER=y
 # CONFIG_KGDB is not set
 # CONFIG_XMON is not set
 # CONFIG_BDI_SWITCH is not set
+# CONFIG_PPC_EARLY_DEBUG is not set
 
 #
 # Security options

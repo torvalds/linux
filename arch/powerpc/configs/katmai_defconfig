@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc4
-# Tue Dec 11 17:07:18 2007
+# Linux kernel version: 2.6.24-rc6
+# Mon Dec 24 11:17:43 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -145,6 +145,7 @@ CONFIG_PPC4xx_PCI_EXPRESS=y
 # CONFIG_SEQUOIA is not set
 # CONFIG_TAISHAN is not set
 CONFIG_KATMAI=y
+# CONFIG_RAINIER is not set
 CONFIG_440SPe=y
 # CONFIG_MPIC is not set
 # CONFIG_MPIC_WEIRD is not set

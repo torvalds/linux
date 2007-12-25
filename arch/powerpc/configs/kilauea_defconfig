@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc4
-# Thu Dec 20 08:24:33 2007
+# Linux kernel version: 2.6.24-rc6
+# Mon Dec 24 11:18:12 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -137,6 +137,7 @@ CONFIG_PPC4xx_PCI_EXPRESS=y
 # CONFIG_PQ2ADS is not set
 # CONFIG_EP405 is not set
 CONFIG_KILAUEA=y
+# CONFIG_MAKALU is not set
 # CONFIG_WALNUT is not set
 # CONFIG_XILINX_VIRTEX_GENERIC_BOARD is not set
 CONFIG_405EX=y

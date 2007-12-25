@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.24-rc4
-# Thu Dec  6 16:49:17 2007
+# Linux kernel version: 2.6.24-rc6
+# Mon Dec 24 11:23:22 2007
 #
 # CONFIG_PPC64 is not set
 
@@ -129,6 +129,7 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_CFQ is not set
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
+# CONFIG_PPC4xx_PCI_EXPRESS is not set
 
 #
 # Platform support
@@ -141,8 +142,10 @@ CONFIG_DEFAULT_IOSCHED="anticipatory"
 # CONFIG_BAMBOO is not set
 # CONFIG_EBONY is not set
 CONFIG_SEQUOIA=y
+# CONFIG_TAISHAN is not set
+# CONFIG_KATMAI is not set
+# CONFIG_RAINIER is not set
 CONFIG_440EPX=y
-CONFIG_440A=y
 # CONFIG_MPIC is not set
 # CONFIG_MPIC_WEIRD is not set
 # CONFIG_PPC_I8259 is not set
@@ -811,6 +814,7 @@ CONFIG_PPC_EARLY_DEBUG=y
 # CONFIG_PPC_EARLY_DEBUG_PAS_REALMODE is not set
 # CONFIG_PPC_EARLY_DEBUG_BEAT is not set
 CONFIG_PPC_EARLY_DEBUG_44x=y
+# CONFIG_PPC_EARLY_DEBUG_40x is not set
 # CONFIG_PPC_EARLY_DEBUG_CPM is not set
 CONFIG_PPC_EARLY_DEBUG_44x_PHYSLOW=0xef600300
 CONFIG_PPC_EARLY_DEBUG_44x_PHYSHIGH=0x1
