@@ -2,3 +2,4 @@ header-y += tc_gact.h
 header-y += tc_ipt.h
 header-y += tc_mirred.h
 header-y += tc_pedit.h
+header-y += tc_nat.h
