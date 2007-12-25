@@ -918,6 +918,18 @@ enum ieee80211_erp_change_flags {
 	IEEE80211_ERP_CHANGE_PREAMBLE	= 1<<1,
 };
 
+/**
+ * enum ieee80211_ampdu_mlme_action - A-MPDU actions
+ *
+ * These flags are used with the ampdu_action() callback in
+ * &struct ieee80211_ops to indicate which action is needed.
+ * @IEEE80211_AMPDU_RX_START: start Rx aggregation
+ * @IEEE80211_AMPDU_RX_STOP: stop Rx aggregation
+ */
+enum ieee80211_ampdu_mlme_action {
+	IEEE80211_AMPDU_RX_START,
+	IEEE80211_AMPDU_RX_STOP,
+};
 
 /**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
@@ -1046,6 +1058,12 @@ enum ieee80211_erp_change_flags {
  *	used to determine whether to reply to Probe Requests.
  *
  * @conf_ht: Configures low level driver with 802.11n HT data. Must be atomic.
+ *
+ * @ampdu_action: Perform a certain A-MPDU action
+ * 	The RA/TID combination determines the destination and TID we want
+ * 	the ampdu action to be performed for. The action is defined through
+ * 	ieee80211_ampdu_mlme_action. Starting sequence number (@ssn)
+ * 	is the first frame we expect to perform the action on.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -1091,6 +1109,9 @@ struct ieee80211_ops {
 			     struct ieee80211_tx_control *control);
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*conf_ht)(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
+	int (*ampdu_action)(struct ieee80211_hw *hw,
+			    enum ieee80211_ampdu_mlme_action action,
+			    const u8 *ra, u16 tid, u16 ssn);
 };
 
 /**
