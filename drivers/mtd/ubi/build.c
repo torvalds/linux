@@ -867,38 +867,26 @@ static void ltree_entry_ctor(struct kmem_cache *cache, void *obj)
  * find_mtd_device - open an MTD device by its name or number.
  * @mtd_dev: name or number of the device
  *
- * This function tries to open and MTD device with name @mtd_dev, and if it
- * fails, then it tries to interpret the @mtd_dev string as an ASCII-coded
- * integer and open an MTD device with this number. Returns MTD device
- * description object in case of success and a negative error code in case of
- * failure.
+ * This function tries to open and MTD device described by @mtd_dev string,
+ * which is first treated as an ASCII number, and if it is not true, it is
+ * treated as MTD device name. Returns MTD device description object in case of
+ * success and a negative error code in case of failure.
  */
 static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
 {
 	struct mtd_info *mtd;
+	int mtd_num;
+	char *endp;
 
-	mtd = get_mtd_device_nm(mtd_dev);
-	if (IS_ERR(mtd)) {
-		int mtd_num;
-		char *endp;
-
-		if (PTR_ERR(mtd) != -ENODEV)
-			return mtd;
-
+	mtd_num = simple_strtoul(mtd_dev, &endp, 0);
+	if (*endp != '\0' || mtd_dev == endp) {
 		/*
-		 * Probably this is not MTD device name but MTD device number -
-		 * check this out.
+		 * This does not look like an ASCII integer, probably this is
+		 * MTD device name.
 		 */
-		mtd_num = simple_strtoul(mtd_dev, &endp, 0);
-		if (*endp != '\0' || mtd_dev == endp) {
-			ubi_err("incorrect MTD device: \"%s\"", mtd_dev);
-			return ERR_PTR(-ENODEV);
-		}
-
+		mtd = get_mtd_device_nm(mtd_dev);
+	} else
 		mtd = get_mtd_device(NULL, mtd_num);
-		if (IS_ERR(mtd))
-			return mtd;
-	}
 
 	return mtd;
 }
