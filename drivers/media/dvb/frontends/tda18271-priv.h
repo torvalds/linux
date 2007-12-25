@@ -90,17 +90,23 @@ struct tda18271_priv {
 
 extern int tda18271_debug;
 
-#define dprintk(level, fmt, arg...) do {\
-	if (tda18271_debug & level) \
-		printk(KERN_DEBUG "%s: " fmt, __FUNCTION__, ##arg); } while (0)
-
 #define DBG_INFO 1
 #define DBG_MAP  2
 #define DBG_REG  4
 
-#define dbg_info(fmt, arg...) dprintk(DBG_INFO, fmt, ##arg)
-#define dbg_map(fmt, arg...)   dprintk(DBG_MAP, fmt, ##arg)
-#define dbg_reg(fmt, arg...)   dprintk(DBG_REG, fmt, ##arg)
+#define tda_printk(kern, fmt, arg...) \
+	printk(kern "%s: " fmt, __FUNCTION__, ##arg)
+
+#define dprintk(kern, lvl, fmt, arg...) do {\
+	if (tda18271_debug & lvl) \
+		tda_printk(kern, fmt, ##arg); } while (0)
+
+#define tda_info(fmt, arg...) printk(KERN_INFO              fmt, ##arg)
+#define tda_warn(fmt, arg...) tda_printk(KERN_WARNING,      fmt, ##arg)
+#define tda_err(fmt, arg...)  tda_printk(KERN_ERR,          fmt, ##arg)
+#define tda_dbg(fmt, arg...)  dprintk(KERN_DEBUG, DBG_INFO, fmt, ##arg)
+#define tda_map(fmt, arg...)  dprintk(KERN_DEBUG, DBG_MAP,  fmt, ##arg)
+#define tda_reg(fmt, arg...)  dprintk(KERN_DEBUG, DBG_REG,  fmt, ##arg)
 
 /*---------------------------------------------------------------------*/
 

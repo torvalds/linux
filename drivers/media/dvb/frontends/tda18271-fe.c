@@ -76,23 +76,23 @@ static void tda18271_dump_regs(struct dvb_frontend *fe)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 
-	dbg_reg("=== TDA18271 REG DUMP ===\n");
-	dbg_reg("ID_BYTE            = 0x%02x\n", 0xff & regs[R_ID]);
-	dbg_reg("THERMO_BYTE        = 0x%02x\n", 0xff & regs[R_TM]);
-	dbg_reg("POWER_LEVEL_BYTE   = 0x%02x\n", 0xff & regs[R_PL]);
-	dbg_reg("EASY_PROG_BYTE_1   = 0x%02x\n", 0xff & regs[R_EP1]);
-	dbg_reg("EASY_PROG_BYTE_2   = 0x%02x\n", 0xff & regs[R_EP2]);
-	dbg_reg("EASY_PROG_BYTE_3   = 0x%02x\n", 0xff & regs[R_EP3]);
-	dbg_reg("EASY_PROG_BYTE_4   = 0x%02x\n", 0xff & regs[R_EP4]);
-	dbg_reg("EASY_PROG_BYTE_5   = 0x%02x\n", 0xff & regs[R_EP5]);
-	dbg_reg("CAL_POST_DIV_BYTE  = 0x%02x\n", 0xff & regs[R_CPD]);
-	dbg_reg("CAL_DIV_BYTE_1     = 0x%02x\n", 0xff & regs[R_CD1]);
-	dbg_reg("CAL_DIV_BYTE_2     = 0x%02x\n", 0xff & regs[R_CD2]);
-	dbg_reg("CAL_DIV_BYTE_3     = 0x%02x\n", 0xff & regs[R_CD3]);
-	dbg_reg("MAIN_POST_DIV_BYTE = 0x%02x\n", 0xff & regs[R_MPD]);
-	dbg_reg("MAIN_DIV_BYTE_1    = 0x%02x\n", 0xff & regs[R_MD1]);
-	dbg_reg("MAIN_DIV_BYTE_2    = 0x%02x\n", 0xff & regs[R_MD2]);
-	dbg_reg("MAIN_DIV_BYTE_3    = 0x%02x\n", 0xff & regs[R_MD3]);
+	tda_reg("=== TDA18271 REG DUMP ===\n");
+	tda_reg("ID_BYTE            = 0x%02x\n", 0xff & regs[R_ID]);
+	tda_reg("THERMO_BYTE        = 0x%02x\n", 0xff & regs[R_TM]);
+	tda_reg("POWER_LEVEL_BYTE   = 0x%02x\n", 0xff & regs[R_PL]);
+	tda_reg("EASY_PROG_BYTE_1   = 0x%02x\n", 0xff & regs[R_EP1]);
+	tda_reg("EASY_PROG_BYTE_2   = 0x%02x\n", 0xff & regs[R_EP2]);
+	tda_reg("EASY_PROG_BYTE_3   = 0x%02x\n", 0xff & regs[R_EP3]);
+	tda_reg("EASY_PROG_BYTE_4   = 0x%02x\n", 0xff & regs[R_EP4]);
+	tda_reg("EASY_PROG_BYTE_5   = 0x%02x\n", 0xff & regs[R_EP5]);
+	tda_reg("CAL_POST_DIV_BYTE  = 0x%02x\n", 0xff & regs[R_CPD]);
+	tda_reg("CAL_DIV_BYTE_1     = 0x%02x\n", 0xff & regs[R_CD1]);
+	tda_reg("CAL_DIV_BYTE_2     = 0x%02x\n", 0xff & regs[R_CD2]);
+	tda_reg("CAL_DIV_BYTE_3     = 0x%02x\n", 0xff & regs[R_CD3]);
+	tda_reg("MAIN_POST_DIV_BYTE = 0x%02x\n", 0xff & regs[R_MPD]);
+	tda_reg("MAIN_DIV_BYTE_1    = 0x%02x\n", 0xff & regs[R_MD1]);
+	tda_reg("MAIN_DIV_BYTE_2    = 0x%02x\n", 0xff & regs[R_MD2]);
+	tda_reg("MAIN_DIV_BYTE_3    = 0x%02x\n", 0xff & regs[R_MD3]);
 }
 
 static void tda18271_read_regs(struct dvb_frontend *fe)
@@ -116,8 +116,7 @@ static void tda18271_read_regs(struct dvb_frontend *fe)
 	tda18271_i2c_gate_ctrl(fe, 0);
 
 	if (ret != 2)
-		printk("ERROR: %s: i2c_transfer returned: %d\n",
-		       __FUNCTION__, ret);
+		tda_err("ERROR: i2c_transfer returned: %d\n", ret);
 
 	if (tda18271_debug & DBG_REG)
 		tda18271_dump_regs(fe);
@@ -147,8 +146,7 @@ static void tda18271_write_regs(struct dvb_frontend *fe, int idx, int len)
 	tda18271_i2c_gate_ctrl(fe, 0);
 
 	if (ret != 1)
-		printk(KERN_WARNING "ERROR: %s: i2c_transfer returned: %d\n",
-		       __FUNCTION__, ret);
+		tda_err("ERROR: i2c_transfer returned: %d\n", ret);
 }
 
 /*---------------------------------------------------------------------*/
@@ -158,7 +156,8 @@ static int tda18271_init_regs(struct dvb_frontend *fe)
 	struct tda18271_priv *priv = fe->tuner_priv;
 	unsigned char *regs = priv->tda18271_regs;
 
-	printk(KERN_INFO "tda18271: initializing registers\n");
+	tda_dbg("initializing registers for device @ %d-%04x\n",
+		i2c_adapter_id(priv->i2c_adap), priv->i2c_addr);
 
 	/* initialize registers */
 	regs[R_ID]   = 0x83;
@@ -417,7 +416,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 
 	tda18271_init(fe);
 
-	dbg_info("freq = %d, ifc = %d\n", freq, ifc);
+	tda_dbg("freq = %d, ifc = %d\n", freq, ifc);
 
 	/* RF tracking filter calibration */
 
@@ -602,8 +601,7 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 			sgIF = 4000000;
 			break;
 		default:
-			printk(KERN_WARNING "%s: modulation not set!\n",
-			       __FUNCTION__);
+			tda_warn("modulation not set!\n");
 			return -EINVAL;
 		}
 #if 0
@@ -629,13 +627,11 @@ static int tda18271_set_params(struct dvb_frontend *fe,
 			sgIF = 4300000;
 			break;
 		default:
-			printk(KERN_WARNING "%s: bandwidth not set!\n",
-			       __FUNCTION__);
+			tda_warn("bandwidth not set!\n");
 			return -EINVAL;
 		}
 	} else {
-		printk(KERN_WARNING "%s: modulation type not supported!\n",
-		       __FUNCTION__);
+		tda_warn("modulation type not supported!\n");
 		return -EINVAL;
 	}
 
@@ -690,7 +686,7 @@ static int tda18271_set_analog_params(struct dvb_frontend *fe,
 	if (params->mode == V4L2_TUNER_RADIO)
 		sgIF =  88; /* if frequency is 5.5 MHz */
 
-	dbg_info("setting tda18271 to system %s\n", mode);
+	tda_dbg("setting tda18271 to system %s\n", mode);
 
 	return tda18271_tune(fe, sgIF * 62500, params->frequency * 62500,
 			     0, std);
@@ -740,7 +736,7 @@ static int tda18271_get_id(struct dvb_frontend *fe)
 		break;
 	}
 
-	dbg_info("%s detected @ %d-%04x%s\n", name,
+	tda_info("%s detected @ %d-%04x%s\n", name,
 		 i2c_adapter_id(priv->i2c_adap), priv->i2c_addr,
 		 (0 == ret) ? "" : ", device not supported.");
 

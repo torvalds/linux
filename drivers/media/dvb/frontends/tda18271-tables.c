@@ -290,7 +290,7 @@ int tda18271_lookup_pll_map(enum tda18271_map_type map_type,
 	}
 
 	if (!map) {
-		dbg_info("%s map is not set!\n", map_name);
+		tda_warn("%s map is not set!\n", map_name);
 		return -EINVAL;
 	}
 
@@ -302,7 +302,7 @@ int tda18271_lookup_pll_map(enum tda18271_map_type map_type,
 	*post_div = map[i].pd;
 	*div      = map[i].d;
 
-	dbg_map("%s: post div = 0x%02x, div = 0x%02x\n",
+	tda_map("%s: post div = 0x%02x, div = 0x%02x\n",
 		map_name, *post_div, *div);
 
 	return 0;
@@ -346,7 +346,7 @@ int tda18271_lookup_map(enum tda18271_map_type map_type, u32 *freq, u8 *val)
 	}
 
 	if (!map) {
-		dbg_info("%s map is not set!\n", map_name);
+		tda_warn("%s map is not set!\n", map_name);
 		return -EINVAL;
 	}
 
@@ -357,7 +357,7 @@ int tda18271_lookup_map(enum tda18271_map_type map_type, u32 *freq, u8 *val)
 	}
 	*val = map[i].val;
 
-	dbg_map("%s: 0x%02x\n", map_name, *val);
+	tda_map("%s: 0x%02x\n", map_name, *val);
 
 	return 0;
 }
