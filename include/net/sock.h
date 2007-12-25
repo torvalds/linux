@@ -716,10 +716,11 @@ extern void __sk_stream_mem_reclaim(struct sock *sk);
 extern int sk_stream_mem_schedule(struct sock *sk, int size, int kind);
 
 #define SK_STREAM_MEM_QUANTUM ((int)PAGE_SIZE)
+#define SK_STREAM_MEM_QUANTUM_SHIFT ilog2(SK_STREAM_MEM_QUANTUM)
 
 static inline int sk_stream_pages(int amt)
 {
-	return DIV_ROUND_UP(amt, SK_STREAM_MEM_QUANTUM);
+	return (amt + SK_STREAM_MEM_QUANTUM - 1) >> SK_STREAM_MEM_QUANTUM_SHIFT;
 }
 
 static inline void sk_stream_mem_reclaim(struct sock *sk)

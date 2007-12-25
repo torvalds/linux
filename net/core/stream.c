@@ -196,7 +196,7 @@ EXPORT_SYMBOL(sk_stream_error);
 
 void __sk_stream_mem_reclaim(struct sock *sk)
 {
-	atomic_sub(sk->sk_forward_alloc / SK_STREAM_MEM_QUANTUM,
+	atomic_sub(sk->sk_forward_alloc >> SK_STREAM_MEM_QUANTUM_SHIFT,
 		   sk->sk_prot->memory_allocated);
 	sk->sk_forward_alloc &= SK_STREAM_MEM_QUANTUM - 1;
 	if (*sk->sk_prot->memory_pressure &&
