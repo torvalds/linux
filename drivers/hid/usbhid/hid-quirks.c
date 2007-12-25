@@ -341,6 +341,9 @@
 #define USB_VENDOR_ID_SAITEK		0x06a3
 #define USB_DEVICE_ID_SAITEK_RUMBLEPAD	0xff17
 
+#define USB_VENDOR_ID_SAMSUNG		0x0419
+#define USB_DEVICE_ID_SAMSUNG_IR_REMOTE	0x0001
+
 #define USB_VENDOR_ID_SONY			0x054c
 #define USB_DEVICE_ID_SONY_PS3_CONTROLLER	0x0268
 
@@ -673,6 +676,8 @@ static const struct hid_rdesc_blacklist {
 
 	{ USB_VENDOR_ID_PETALYNX, USB_DEVICE_ID_PETALYNX_MAXTER_REMOTE, HID_QUIRK_RDESC_PETALYNX },
 
+	{ USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE, HID_QUIRK_RDESC_SAMSUNG_REMOTE },
+
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_1, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
 	{ USB_VENDOR_ID_CYPRESS, USB_DEVICE_ID_CYPRESS_BARCODE_2, HID_QUIRK_RDESC_SWAPPED_MIN_MAX },
 
@@ -947,6 +952,33 @@ static void usbhid_fixup_logitech_descriptor(unsigned char *rdesc, int rsize)
 	}
 }
 
+/*
+ * Samsung IrDA remote controller (reports as Cypress USB Mouse).
+ *
+ * Vendor specific report #4 has a size of 48 bit,
+ * and therefore is not accepted when inspecting the descriptors.
+ * As a workaround we reinterpret the report as:
+ *   Variable type, count 6, size 8 bit, log. maximum 255
+ * The burden to reconstruct the data is moved into user space.
+ */
+static void usbhid_fixup_samsung_irda_descriptor(unsigned char *rdesc,
+						  int rsize)
+{
+	if (rsize >= 182 && rdesc[175] == 0x25
+			 && rdesc[176] == 0x40
+			 && rdesc[177] == 0x75
+			 && rdesc[178] == 0x30
+			 && rdesc[179] == 0x95
+			 && rdesc[180] == 0x01
+			 && rdesc[182] == 0x40) {
+		printk(KERN_INFO "Fixing up Samsung IrDA report descriptor\n");
+		rdesc[176] = 0xff;
+		rdesc[178] = 0x08;
+		rdesc[180] = 0x06;
+		rdesc[182] = 0x42;
+	}
+}
+
 /* Petalynx Maxter Remote has maximum for consumer page set too low */
 static void usbhid_fixup_petalynx_descriptor(unsigned char *rdesc, int rsize)
 {
@@ -1026,6 +1058,10 @@ static void __usbhid_fixup_report_descriptor(__u32 quirks, char *rdesc, unsigned
 
 	if (quirks & HID_QUIRK_RDESC_BUTTON_CONSUMER)
 		usbhid_fixup_button_consumer_descriptor(rdesc, rsize);
+
+	if (quirks & HID_QUIRK_RDESC_SAMSUNG_REMOTE)
+		usbhid_fixup_samsung_irda_descriptor(rdesc, rsize);
+
 }
 
 /**
