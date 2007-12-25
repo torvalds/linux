@@ -43,17 +43,23 @@ static int xfrm_output_one(struct sk_buff *skb, int err)
 
 	do {
 		err = xfrm_state_check_space(x, skb);
-		if (err)
+		if (err) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMOUTERROR);
 			goto error_nolock;
+		}
 
 		err = x->outer_mode->output(x, skb);
-		if (err)
+		if (err) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMOUTSTATEMODEERROR);
 			goto error_nolock;
+		}
 
 		spin_lock_bh(&x->lock);
 		err = xfrm_state_check_expire(x);
-		if (err)
+		if (err) {
+			XFRM_INC_STATS(LINUX_MIB_XFRMOUTSTATEEXPIRED);
 			goto error;
+		}
 
 		if (x->type->flags & XFRM_TYPE_REPLAY_PROT) {
 			XFRM_SKB_CB(skb)->seq = ++x->replay.oseq;
