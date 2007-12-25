@@ -292,8 +292,17 @@ static int ieee80211_stop(struct net_device *dev)
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_if_init_conf conf;
+	struct sta_info *sta;
+	int i;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	list_for_each_entry(sta, &local->sta_list, list) {
+		for (i = 0; i <  STA_TID_NUM; i++)
+			ieee80211_sta_stop_rx_ba_session(sta->dev, sta->addr,
+						i, WLAN_BACK_RECIPIENT,
+						WLAN_REASON_QSTA_LEAVE_QBSS);
+	}
 
 	netif_stop_queue(dev);
 

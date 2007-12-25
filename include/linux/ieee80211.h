@@ -472,6 +472,13 @@ enum ieee80211_back_actioncode {
 	WLAN_ACTION_DELBA = 2,
 };
 
+/* BACK (block-ack) parties */
+enum ieee80211_back_parties {
+	WLAN_BACK_RECIPIENT = 0,
+	WLAN_BACK_INITIATOR = 1,
+	WLAN_BACK_TIMER = 2,
+};
+
 /* A-MSDU 802.11n */
 #define IEEE80211_QOS_CONTROL_A_MSDU_PRESENT 0x0080
 

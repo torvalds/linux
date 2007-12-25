@@ -104,6 +104,7 @@ static void sta_info_release(struct kref *kref)
 	struct sta_info *sta = container_of(kref, struct sta_info, kref);
 	struct ieee80211_local *local = sta->local;
 	struct sk_buff *skb;
+	int i;
 
 	/* free sta structure; it has already been removed from
 	 * hash table etc. external structures. Make sure that all
@@ -116,6 +117,8 @@ static void sta_info_release(struct kref *kref)
 	while ((skb = skb_dequeue(&sta->tx_filtered)) != NULL) {
 		dev_kfree_skb_any(skb);
 	}
+	for (i = 0; i <  STA_TID_NUM; i++)
+		del_timer_sync(&sta->ampdu_mlme.tid_rx[i].session_timer);
 	rate_control_free_sta(sta->rate_ctrl, sta->rate_ctrl_priv);
 	rate_control_put(sta->rate_ctrl);
 	kfree(sta);

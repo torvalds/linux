@@ -767,6 +767,9 @@ int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
 int ieee80211_ht_addt_info_ie_to_ht_bss_info(
 			struct ieee80211_ht_addt_info *ht_add_info_ie,
 			struct ieee80211_ht_bss_info *bss_info);
+void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *da,
+				u16 tid, u16 initiator, u16 reason);
+void sta_rx_agg_session_timer_expired(unsigned long data);
 /* ieee80211_iface.c */
 int ieee80211_if_add(struct net_device *dev, const char *name,
 		     struct net_device **new_dev, int type);
