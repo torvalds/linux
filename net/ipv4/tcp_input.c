@@ -2759,8 +2759,7 @@ static u32 tcp_tso_acked(struct sock *sk, struct sk_buff *skb)
  * is before the ack sequence we can discard it as it's confirmed to have
  * arrived at the other end.
  */
-static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
-			       int prior_fackets)
+static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -2915,7 +2914,6 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 		}
 	}
 #endif
-	*seq_rtt_p = seq_rtt;
 	return flag;
 }
 
@@ -3152,7 +3150,6 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 	u32 prior_in_flight;
 	u32 prior_fackets;
-	s32 seq_rtt;
 	int prior_packets;
 	int frto_cwnd = 0;
 
@@ -3218,7 +3215,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 		goto no_queue;
 
 	/* See if we can take anything off of the retransmit queue. */
-	flag |= tcp_clean_rtx_queue(sk, &seq_rtt, prior_fackets);
+	flag |= tcp_clean_rtx_queue(sk, prior_fackets);
 
 	if (tp->frto_counter)
 		frto_cwnd = tcp_process_frto(sk, flag);
