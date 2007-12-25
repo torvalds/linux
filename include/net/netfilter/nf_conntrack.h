@@ -249,6 +249,7 @@ static inline int nf_ct_is_untracked(const struct sk_buff *skb)
 	return (skb->nfct == &nf_conntrack_untracked.ct_general);
 }
 
+extern int nf_conntrack_set_hashsize(const char *val, struct kernel_param *kp);
 extern unsigned int nf_conntrack_htable_size;
 extern int nf_conntrack_checksum;
 extern atomic_t nf_conntrack_count;
