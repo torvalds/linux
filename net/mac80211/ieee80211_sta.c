@@ -63,6 +63,8 @@
 #define IEEE80211_ADDBA_PARAM_POLICY_MASK 0x0002
 #define IEEE80211_ADDBA_PARAM_TID_MASK 0x003C
 #define IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK 0xFFA0
+#define IEEE80211_DELBA_PARAM_TID_MASK 0xF000
+#define IEEE80211_DELBA_PARAM_INITIATOR_MASK 0x0800
 
 /* next values represent the buffer size for A-MPDU frame.
  * According to IEEE802.11n spec size varies from 8K to 64K (in powers of 2) */
@@ -1264,6 +1266,36 @@ void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *ra, u16 tid,
 	sta_info_put(sta);
 }
 
+static void ieee80211_sta_process_delba(struct net_device *dev,
+			struct ieee80211_mgmt *mgmt, size_t len)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct sta_info *sta;
+	u16 tid, params;
+	u16 initiator;
+	DECLARE_MAC_BUF(mac);
+
+	sta = sta_info_get(local, mgmt->sa);
+	if (!sta)
+		return;
+
+	params = le16_to_cpu(mgmt->u.action.u.delba.params);
+	tid = (params & IEEE80211_DELBA_PARAM_TID_MASK) >> 12;
+	initiator = (params & IEEE80211_DELBA_PARAM_INITIATOR_MASK) >> 11;
+
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	if (net_ratelimit())
+		printk(KERN_DEBUG "delba from %s on tid %d reason code %d\n",
+			print_mac(mac, mgmt->sa), tid,
+			mgmt->u.action.u.delba.reason_code);
+#endif /* CONFIG_MAC80211_HT_DEBUG */
+
+	if (initiator == WLAN_BACK_INITIATOR)
+		ieee80211_sta_stop_rx_ba_session(dev, sta->addr, tid,
+						 WLAN_BACK_INITIATOR, 0);
+	sta_info_put(sta);
+}
+
 /*
  * After receiving Block Ack Request (BAR) we activated a
  * timer after each frame arrives from the originator.
@@ -2204,9 +2236,15 @@ static void ieee80211_rx_mgmt_action(struct net_device *dev,
 				break;
 			ieee80211_sta_process_addba_request(dev, mgmt, len);
 			break;
+		case WLAN_ACTION_DELBA:
+			if (len < (IEEE80211_MIN_ACTION_SIZE +
+				   sizeof(mgmt->u.action.u.delba)))
+				break;
+			ieee80211_sta_process_delba(dev, mgmt, len);
+			break;
 		default:
 			if (net_ratelimit())
-			   printk(KERN_DEBUG "%s: received unsupported BACK\n",
+			   printk(KERN_DEBUG "%s: Rx unknown A-MPDU action\n",
 					dev->name);
 			break;
 		}
