@@ -258,11 +258,11 @@ static struct tda18271_map tda18271_rf_cal[] = {
 };
 
 static struct tda18271_map tda18271_ir_measure[] = {
-	{ .rfmax =  30000, .val = 4},
-	{ .rfmax = 200000, .val = 5},
-	{ .rfmax = 600000, .val = 6},
-	{ .rfmax = 865000, .val = 7},
-	{ .rfmax =      0, .val = 0}, /* end */
+	{ .rfmax =  30000, .val = 4 },
+	{ .rfmax = 200000, .val = 5 },
+	{ .rfmax = 600000, .val = 6 },
+	{ .rfmax = 865000, .val = 7 },
+	{ .rfmax =      0, .val = 0 }, /* end */
 };
 
 /*---------------------------------------------------------------------*/
