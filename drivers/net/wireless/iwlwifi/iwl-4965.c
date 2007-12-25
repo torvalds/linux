@@ -3968,9 +3968,6 @@ static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
 		.antenna = 0,
 		.rate = iwl4965_hw_get_rate(rx_start->rate_n_flags),
 		.flag = 0,
-#ifdef CONFIG_IWL4965_HT_AGG
-		.ordered = 0
-#endif /* CONFIG_IWL4965_HT_AGG */
 	};
 	u8 network_packet;
 
@@ -4165,7 +4162,7 @@ static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
 		break;
 
 	case IEEE80211_FTYPE_CTL:
-#ifdef CONFIG_IWL4965_HT_AGG
+#ifdef CONFIG_IWL4965_HT
 		switch (fc & IEEE80211_FCTL_STYPE) {
 		case IEEE80211_STYPE_BACK_REQ:
 			IWL_DEBUG_HT("IEEE80211_STYPE_BACK_REQ arrived\n");
@@ -4176,7 +4173,6 @@ static void iwl4965_rx_reply_rx(struct iwl4965_priv *priv,
 			break;
 		}
 #endif
-
 		break;
 
 	case IEEE80211_FTYPE_DATA: {
@@ -4763,8 +4759,6 @@ void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
 	return;
 }
 
-#ifdef CONFIG_IWL4965_HT_AGG
-
 static void iwl4965_sta_modify_add_ba_tid(struct iwl4965_priv *priv,
 					  int sta_id, int tid, u16 ssn)
 {
@@ -4795,6 +4789,36 @@ static void iwl4965_sta_modify_del_ba_tid(struct iwl4965_priv *priv,
 
 	iwl4965_send_add_station(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
+
+int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
+			     enum ieee80211_ampdu_mlme_action action,
+			     const u8 *addr, u16 tid, u16 ssn)
+{
+	struct iwl4965_priv *priv = hw->priv;
+	int sta_id;
+	DECLARE_MAC_BUF(mac);
+
+	IWL_DEBUG_HT("A-MPDU action on da=%s tid=%d ",
+			print_mac(mac, addr), tid);
+	sta_id = iwl4965_hw_find_station(priv, addr);
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+		IWL_DEBUG_HT("start Rx\n");
+		iwl4965_sta_modify_add_ba_tid(priv, sta_id, tid, ssn);
+		break;
+	case IEEE80211_AMPDU_RX_STOP:
+		IWL_DEBUG_HT("stop Rx\n");
+		iwl4965_sta_modify_del_ba_tid(priv, sta_id, tid);
+		break;
+	default:
+		IWL_DEBUG_HT("unknown\n");
+		return -EINVAL;
+		break;
+	}
+	return 0;
+}
+
+#ifdef CONFIG_IWL4965_HT_AGG
 
 static const u16 default_tid_to_tx_fifo[] = {
 	IWL_TX_FIFO_AC1,
@@ -4925,33 +4949,6 @@ int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da, u16 tid,
 	return 0;
 }
 
-int iwl4965_mac_ht_rx_agg_start(struct ieee80211_hw *hw, u8 *da,
-			    u16 tid, u16 start_seq_num)
-{
-	struct iwl4965_priv *priv = hw->priv;
-	int sta_id;
-	DECLARE_MAC_BUF(mac);
-
-	IWL_WARNING("iwl-AGG iwl4965_mac_ht_rx_agg_start on da=%s"
-		    " tid=%d\n", print_mac(mac, da), tid);
-	sta_id = iwl4965_hw_find_station(priv, da);
-	iwl4965_sta_modify_add_ba_tid(priv, sta_id, tid, start_seq_num);
-	return 0;
-}
-
-int iwl4965_mac_ht_rx_agg_stop(struct ieee80211_hw *hw, u8 *da,
-			   u16 tid, int generator)
-{
-	struct iwl4965_priv *priv = hw->priv;
-	int sta_id;
-	DECLARE_MAC_BUF(mac);
-
-	IWL_WARNING("iwl-AGG iwl4965_mac_ht_rx_agg_stop on da=%s tid=%d\n",
-		    print_mac(mac, da), tid);
-	sta_id = iwl4965_hw_find_station(priv, da);
-	iwl4965_sta_modify_del_ba_tid(priv, sta_id, tid);
-	return 0;
-}
 
 #endif /* CONFIG_IWL4965_HT_AGG */
 #endif /* CONFIG_IWL4965_HT */

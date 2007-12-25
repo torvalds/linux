@@ -780,13 +780,12 @@ extern void iwl4965_set_rxon_ht(struct iwl4965_priv *priv,
 				struct iwl_ht_info *ht_info);
 extern void iwl4965_set_ht_add_station(struct iwl4965_priv *priv, u8 index,
 				struct ieee80211_ht_info *sta_ht_inf);
+extern int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
+				    enum ieee80211_ampdu_mlme_action action,
+				    const u8 *addr, u16 tid, u16 ssn);
 #ifdef CONFIG_IWL4965_HT_AGG
 extern int iwl4965_mac_ht_tx_agg_start(struct ieee80211_hw *hw, u8 *da,
 				   u16 tid, u16 *start_seq_num);
-extern int iwl4965_mac_ht_rx_agg_start(struct ieee80211_hw *hw, u8 *da,
-				   u16 tid, u16 start_seq_num);
-extern int iwl4965_mac_ht_rx_agg_stop(struct ieee80211_hw *hw, u8 *da,
-				  u16 tid, int generator);
 extern int iwl4965_mac_ht_tx_agg_stop(struct ieee80211_hw *hw, u8 *da,
 				  u16 tid, int generator);
 extern void iwl4965_turn_off_agg(struct iwl4965_priv *priv, u8 tid);

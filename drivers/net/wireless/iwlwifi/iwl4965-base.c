@@ -8955,11 +8955,10 @@ static struct ieee80211_ops iwl4965_hw_ops = {
 	.erp_ie_changed = iwl4965_mac_erp_ie_changed,
 #ifdef CONFIG_IWL4965_HT
 	.conf_ht = iwl4965_mac_conf_ht,
+	.ampdu_action = iwl4965_mac_ampdu_action,
 #ifdef CONFIG_IWL4965_HT_AGG
 	.ht_tx_agg_start = iwl4965_mac_ht_tx_agg_start,
 	.ht_tx_agg_stop = iwl4965_mac_ht_tx_agg_stop,
-	.ht_rx_agg_start = iwl4965_mac_ht_rx_agg_start,
-	.ht_rx_agg_stop = iwl4965_mac_ht_rx_agg_stop,
 #endif  /* CONFIG_IWL4965_HT_AGG */
 #endif  /* CONFIG_IWL4965_HT */
 	.hw_scan = iwl4965_mac_hw_scan
