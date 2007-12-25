@@ -243,7 +243,8 @@ void ibm4xx_quiesce_eth(u32 *emac0, u32 *emac1)
 		*emac1 = EMAC_RESET;
 
 	mtdcr(DCRN_MAL0_CFG, MAL_RESET);
-	while (mfdcr(DCRN_MAL0_CFG) & MAL_RESET) {};
+	while (mfdcr(DCRN_MAL0_CFG) & MAL_RESET)
+		; /* loop until reset takes effect */
 }
 
 /* Read 4xx EBC bus bridge registers to get mappings of the peripheral
@@ -515,19 +516,17 @@ void ibm405gp_fixup_clocks(unsigned int sys_clk, unsigned int ser_clk)
 	opb = plb / opdv;
 	ebc = plb / epdv;
 
-	if (cpc0_cr0 & 0x80) {
+	if (cpc0_cr0 & 0x80)
 		/* uart0 uses the external clock */
 		uart0 = ser_clk;
-	} else {
+	else
 		uart0 = cpu / udiv;
-	}
 
-	if (cpc0_cr0 & 0x40) {
+	if (cpc0_cr0 & 0x40)
 		/* uart1 uses the external clock */
 		uart1 = ser_clk;
-	} else {
+	else
 		uart1 = cpu / udiv;
-	}
 
 	/* setup the timebase clock to tick at the cpu frequency */
 	cpc0_cr1 = cpc0_cr1 & ~0x00800000;
