@@ -392,6 +392,7 @@ struct ubi_device {
 	void *peb_buf1;
 	void *peb_buf2;
 	struct mutex buf_mutex;
+	struct mutex ckvol_mutex;
 #ifdef CONFIG_MTD_UBI_DEBUG
 	void *dbg_peb_buf;
 	struct mutex dbg_buf_mutex;

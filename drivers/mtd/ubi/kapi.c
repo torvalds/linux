@@ -169,17 +169,12 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 	desc->vol = vol;
 	desc->mode = mode;
 
-	/*
-	 * To prevent simultaneous checks of the same volume we use
-	 * @volumes_mutex, although it is not the purpose it was introduced
-	 * for.
-	 */
-	mutex_lock(&ubi->volumes_mutex);
+	mutex_lock(&ubi->ckvol_mutex);
 	if (!vol->checked) {
 		/* This is the first open - check the volume */
 		err = ubi_check_volume(ubi, vol_id);
 		if (err < 0) {
-			mutex_unlock(&ubi->volumes_mutex);
+			mutex_unlock(&ubi->ckvol_mutex);
 			ubi_close_volume(desc);
 			return ERR_PTR(err);
 		}
@@ -190,7 +185,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 		}
 		vol->checked = 1;
 	}
-	mutex_unlock(&ubi->volumes_mutex);
+	mutex_unlock(&ubi->ckvol_mutex);
 
 	return desc;
 
