@@ -267,22 +267,33 @@ static struct tda18271_map tda18271_ir_measure[] = {
 
 /*---------------------------------------------------------------------*/
 
-static void tda18271_lookup_map(struct tda18271_map *map,
-				u32 *freq, u8 *val)
+int tda18271_lookup_pll_map(enum tda18271_map_type map_type,
+			    u32 *freq, u8 *post_div, u8 *div)
 {
-	int i = 0;
-	while ((map[i].rfmax * 1000) < *freq) {
-		if (map[i + 1].rfmax == 0)
-			break;
-		i++;
-	}
-	*val = map[i].val;
-}
+	struct tda18271_pll_map *map = NULL;
+	unsigned int i = 0;
+	char *map_name;
 
-static void tda18271_lookup_pll_map(struct tda18271_pll_map *map,
-				    u32 *freq, u8 *post_div, u8 *div)
-{
-	int i = 0;
+	switch (map_type) {
+	case MAIN_PLL:
+		map = tda18271_main_pll;
+		map_name = "main_pll";
+		break;
+	case CAL_PLL:
+		map = tda18271_cal_pll;
+		map_name = "cal_pll";
+		break;
+	default:
+		/* we should never get here */
+		map_name = "undefined";
+		break;
+	}
+
+	if (!map) {
+		dbg_info("%s map is not set!\n", map_name);
+		return -EINVAL;
+	}
+
 	while ((map[i].lomax * 1000) < *freq) {
 		if (map[i + 1].lomax == 0)
 			break;
@@ -290,56 +301,65 @@ static void tda18271_lookup_pll_map(struct tda18271_pll_map *map,
 	}
 	*post_div = map[i].pd;
 	*div      = map[i].d;
+
+	dbg_map("%s: post div = 0x%02x, div = 0x%02x\n",
+		map_name, *post_div, *div);
+
+	return 0;
 }
 
-/*---------------------------------------------------------------------*/
-
-void tda18271_lookup_cal_pll(u32 *freq, u8 *post_div, u8 *div)
+int tda18271_lookup_map(enum tda18271_map_type map_type, u32 *freq, u8 *val)
 {
-	tda18271_lookup_pll_map(tda18271_cal_pll, freq, post_div, div);
-	dbg_map("post div = 0x%02x, div = 0x%02x\n", *post_div, *div);
-}
+	struct tda18271_map *map = NULL;
+	unsigned int i = 0;
+	char *map_name;
 
-void tda18271_lookup_main_pll(u32 *freq, u8 *post_div, u8 *div)
-{
-	tda18271_lookup_pll_map(tda18271_main_pll, freq, post_div, div);
-	dbg_map("post div = 0x%02x, div = 0x%02x\n", *post_div, *div);
-}
+	switch (map_type) {
+	case BP_FILTER:
+		map = tda18271_bp_filter;
+		map_name = "bp_filter";
+		break;
+	case RF_CAL_KMCO:
+		map = tda18271_km;
+		map_name = "km";
+		break;
+	case RF_BAND:
+		map = tda18271_rf_band;
+		map_name = "rf_band";
+		break;
+	case GAIN_TAPER:
+		map = tda18271_gain_taper;
+		map_name = "gain_taper";
+		break;
+	case RF_CAL:
+		map = tda18271_rf_cal;
+		map_name = "rf_cal";
+		break;
+	case IR_MEASURE:
+		map = tda18271_ir_measure;
+		map_name = "ir_measure";
+		break;
+	default:
+		/* we should never get here */
+		map_name = "undefined";
+		break;
+	}
 
-void tda18271_lookup_bp_filter(u32 *freq, u8 *val)
-{
-	tda18271_lookup_map(tda18271_bp_filter, freq, val);
-	dbg_map("0x%02x\n", *val);
-}
+	if (!map) {
+		dbg_info("%s map is not set!\n", map_name);
+		return -EINVAL;
+	}
 
-void tda18271_lookup_km(u32 *freq, u8 *val)
-{
-	tda18271_lookup_map(tda18271_km, freq, val);
-	dbg_map("0x%02x\n", *val);
-}
+	while ((map[i].rfmax * 1000) < *freq) {
+		if (map[i + 1].rfmax == 0)
+			break;
+		i++;
+	}
+	*val = map[i].val;
 
-void tda18271_lookup_rf_band(u32 *freq, u8 *val)
-{
-	tda18271_lookup_map(tda18271_rf_band, freq, val);
-	dbg_map("0x%02x\n", *val);
-}
+	dbg_map("%s: 0x%02x\n", map_name, *val);
 
-void tda18271_lookup_gain_taper(u32 *freq, u8 *val)
-{
-	tda18271_lookup_map(tda18271_gain_taper, freq, val);
-	dbg_map("0x%02x\n", *val);
-}
-
-void tda18271_lookup_rf_cal(u32 *freq, u8 *val)
-{
-	tda18271_lookup_map(tda18271_rf_cal, freq, val);
-	dbg_map("0x%02x\n", *val);
-}
-
-void tda18271_lookup_ir_measure(u32 *freq, u8 *val)
-{
-	tda18271_lookup_map(tda18271_ir_measure, freq, val);
-	dbg_map("0x%02x\n", *val);
+	return 0;
 }
 
 /*

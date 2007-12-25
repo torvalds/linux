@@ -360,7 +360,9 @@ static int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq)
 	u8 d, pd;
 	u32 div;
 
-	tda18271_lookup_main_pll(&freq, &pd, &d);
+	int ret = tda18271_lookup_pll_map(MAIN_PLL, &freq, &pd, &d);
+	if (ret < 0)
+		goto fail;
 
 	regs[R_MPD]   = (0x77 & pd);
 
@@ -378,8 +380,8 @@ static int tda18271_calc_main_pll(struct dvb_frontend *fe, u32 freq)
 	regs[R_MD1]   = 0x7f & (div >> 16);
 	regs[R_MD2]   = 0xff & (div >> 8);
 	regs[R_MD3]   = 0xff & div;
-
-	return 0;
+fail:
+	return ret;
 }
 
 static int tda18271_calc_cal_pll(struct dvb_frontend *fe, u32 freq)
@@ -390,7 +392,9 @@ static int tda18271_calc_cal_pll(struct dvb_frontend *fe, u32 freq)
 	u8 d, pd;
 	u32 div;
 
-	tda18271_lookup_cal_pll(&freq, &pd, &d);
+	int ret = tda18271_lookup_pll_map(CAL_PLL, &freq, &pd, &d);
+	if (ret < 0)
+		goto fail;
 
 	regs[R_CPD]   = pd;
 
@@ -399,8 +403,8 @@ static int tda18271_calc_cal_pll(struct dvb_frontend *fe, u32 freq)
 	regs[R_CD1]   = 0x7f & (div >> 16);
 	regs[R_CD2]   = 0xff & (div >> 8);
 	regs[R_CD3]   = 0xff & div;
-
-	return 0;
+fail:
+	return ret;
 }
 
 static int tda18271_tune(struct dvb_frontend *fe,
@@ -418,7 +422,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	/* RF tracking filter calibration */
 
 	/* calculate BP_Filter */
-	tda18271_lookup_bp_filter(&freq, &val);
+	tda18271_lookup_map(BP_FILTER, &freq, &val);
 
 	regs[R_EP1]  &= ~0x07; /* clear bp filter bits */
 	regs[R_EP1]  |= val;
@@ -470,20 +474,20 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	msleep(5); /* RF tracking filter calibration initialization */
 
 	/* search for K,M,CO for RF Calibration */
-	tda18271_lookup_km(&freq, &val);
+	tda18271_lookup_map(RF_CAL_KMCO, &freq, &val);
 
 	regs[R_EB13] &= 0x83;
 	regs[R_EB13] |= val;
 	tda18271_write_regs(fe, R_EB13, 1);
 
 	/* search for RF_BAND */
-	tda18271_lookup_rf_band(&freq, &val);
+	tda18271_lookup_map(RF_BAND, &freq, &val);
 
 	regs[R_EP2]  &= ~0xe0; /* clear rf band bits */
 	regs[R_EP2]  |= (val << 5);
 
 	/* search for Gain_Taper */
-	tda18271_lookup_gain_taper(&freq, &val);
+	tda18271_lookup_map(GAIN_TAPER, &freq, &val);
 
 	regs[R_EP2]  &= ~0x1f; /* clear gain taper bits */
 	regs[R_EP2]  |= val;
@@ -511,7 +515,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	tda18271_write_regs(fe, R_EP1, 1);
 
 	/* RF tracking filer correction for VHF_Low band */
-	tda18271_lookup_rf_cal(&freq, &val);
+	tda18271_lookup_map(RF_CAL, &freq, &val);
 
 	/* VHF_Low band only */
 	if (val != 0) {
@@ -555,7 +559,7 @@ static int tda18271_tune(struct dvb_frontend *fe,
 	regs[R_EP4]  &= ~0x80; /* turn this bit on only for fm */
 
 	/* image rejection validity EP5[2:0] */
-	tda18271_lookup_ir_measure(&freq, &val);
+	tda18271_lookup_map(IR_MEASURE, &freq, &val);
 
 	regs[R_EP5] &= ~0x07;
 	regs[R_EP5] |= val;
