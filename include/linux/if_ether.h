@@ -124,12 +124,14 @@ int eth_header_parse(const struct sk_buff *skb, unsigned char *haddr);
 extern struct ctl_table ether_table[];
 #endif
 
+extern ssize_t sysfs_format_mac(char *buf, const unsigned char *addr, int len);
+
 /*
  *	Display a 6 byte device address (MAC) in a readable format.
  */
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-extern char *print_mac(char *buf, const u8 *addr);
-#define DECLARE_MAC_BUF(var) char var[18] __maybe_unused
+extern char *print_mac(char *buf, const unsigned char *addr);
+#define MAC_BUF_SIZE	18
+#define DECLARE_MAC_BUF(var) char var[MAC_BUF_SIZE] __maybe_unused
 
 #endif
 
