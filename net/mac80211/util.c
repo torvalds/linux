@@ -127,7 +127,8 @@ void ieee80211_prepare_rates(struct ieee80211_local *local,
 	}
 }
 
-u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len)
+u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
+			enum ieee80211_if_types type)
 {
 	u16 fc;
 
@@ -159,6 +160,18 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len)
 	case IEEE80211_FTYPE_CTL:
 		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)
 			return hdr->addr1;
+		else if ((fc & IEEE80211_FCTL_STYPE) ==
+						IEEE80211_STYPE_BACK_REQ) {
+			switch (type) {
+			case IEEE80211_IF_TYPE_STA:
+				return hdr->addr2;
+			case IEEE80211_IF_TYPE_AP:
+			case IEEE80211_IF_TYPE_VLAN:
+				return hdr->addr1;
+			default:
+				return NULL;
+			}
+		}
 		else
 			return NULL;
 	}
