@@ -136,6 +136,7 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 			       struct net_device *dev, u8 *addr, gfp_t gfp)
 {
 	struct sta_info *sta;
+	int i;
 	DECLARE_MAC_BUF(mac);
 
 	sta = kzalloc(sizeof(*sta), gfp);
@@ -155,6 +156,19 @@ struct sta_info * sta_info_add(struct ieee80211_local *local,
 	memcpy(sta->addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->dev = dev;
+	spin_lock_init(&sta->ampdu_mlme.ampdu_rx);
+	for (i = 0; i < STA_TID_NUM; i++) {
+		/* timer_to_tid must be initialized with identity mapping to
+		 * enable session_timer's data differentiation. refer to
+		 * sta_rx_agg_session_timer_expired for useage */
+		sta->timer_to_tid[i] = i;
+		/* rx timers */
+		sta->ampdu_mlme.tid_rx[i].session_timer.function =
+			sta_rx_agg_session_timer_expired;
+		sta->ampdu_mlme.tid_rx[i].session_timer.data =
+			(unsigned long)&sta->timer_to_tid[i];
+		init_timer(&sta->ampdu_mlme.tid_rx[i].session_timer);
+	}
 	skb_queue_head_init(&sta->ps_tx_buf);
 	skb_queue_head_init(&sta->tx_filtered);
 	__sta_info_get(sta);	/* sta used by caller, decremented by
