@@ -610,7 +610,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 			tun->flags &= ~TUN_PERSIST;
 
 		DBG(KERN_INFO "%s: persist %s\n",
-		    tun->dev->name, arg ? "disabled" : "enabled");
+		    tun->dev->name, arg ? "enabled" : "disabled");
 		break;
 
 	case TUNSETOWNER:
