@@ -330,7 +330,6 @@ u32 ieee80211_rx_load_stats(struct ieee80211_local *local,
 
 	/* Divide channel_use by 8 to avoid wrapping around the counter */
 	load >>= CHAN_UTIL_SHIFT;
-	local->channel_use_raw += load;
 
 	return load;
 }
@@ -1749,6 +1748,186 @@ void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw, struct sk_buff *skb,
 		sta_info_put(sta);
 }
 
+#define SEQ_MODULO 0x1000
+#define SEQ_MASK   0xfff
+
+static inline int seq_less(u16 sq1, u16 sq2)
+{
+	return (((sq1 - sq2) & SEQ_MASK) > (SEQ_MODULO >> 1));
+}
+
+static inline u16 seq_inc(u16 sq)
+{
+	return ((sq + 1) & SEQ_MASK);
+}
+
+static inline u16 seq_sub(u16 sq1, u16 sq2)
+{
+	return ((sq1 - sq2) & SEQ_MASK);
+}
+
+
+u8 ieee80211_sta_manage_reorder_buf(struct ieee80211_hw *hw,
+				struct tid_ampdu_rx *tid_agg_rx,
+				struct sk_buff *skb, u16 mpdu_seq_num,
+				int bar_req)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+	struct ieee80211_rx_status status;
+	u16 head_seq_num, buf_size;
+	int index;
+	u32 pkt_load;
+
+	buf_size = tid_agg_rx->buf_size;
+	head_seq_num = tid_agg_rx->head_seq_num;
+
+	/* frame with out of date sequence number */
+	if (seq_less(mpdu_seq_num, head_seq_num)) {
+		dev_kfree_skb(skb);
+		return 1;
+	}
+
+	/* if frame sequence number exceeds our buffering window size or
+	 * block Ack Request arrived - release stored frames */
+	if ((!seq_less(mpdu_seq_num, head_seq_num + buf_size)) || (bar_req)) {
+		/* new head to the ordering buffer */
+		if (bar_req)
+			head_seq_num = mpdu_seq_num;
+		else
+			head_seq_num =
+				seq_inc(seq_sub(mpdu_seq_num, buf_size));
+		/* release stored frames up to new head to stack */
+		while (seq_less(tid_agg_rx->head_seq_num, head_seq_num)) {
+			index = seq_sub(tid_agg_rx->head_seq_num,
+				tid_agg_rx->ssn)
+				% tid_agg_rx->buf_size;
+
+			if (tid_agg_rx->reorder_buf[index]) {
+				/* release the reordered frames to stack */
+				memcpy(&status,
+					tid_agg_rx->reorder_buf[index]->cb,
+					sizeof(status));
+				pkt_load = ieee80211_rx_load_stats(local,
+						tid_agg_rx->reorder_buf[index],
+						&status);
+				__ieee80211_rx_handle_packet(hw,
+					tid_agg_rx->reorder_buf[index],
+					&status, pkt_load);
+				tid_agg_rx->stored_mpdu_num--;
+				tid_agg_rx->reorder_buf[index] = NULL;
+			}
+			tid_agg_rx->head_seq_num =
+				seq_inc(tid_agg_rx->head_seq_num);
+		}
+		if (bar_req)
+			return 1;
+	}
+
+	/* now the new frame is always in the range of the reordering */
+	/* buffer window */
+	index = seq_sub(mpdu_seq_num, tid_agg_rx->ssn)
+				% tid_agg_rx->buf_size;
+	/* check if we already stored this frame */
+	if (tid_agg_rx->reorder_buf[index]) {
+		dev_kfree_skb(skb);
+		return 1;
+	}
+
+	/* if arrived mpdu is in the right order and nothing else stored */
+	/* release it immediately */
+	if (mpdu_seq_num == tid_agg_rx->head_seq_num &&
+			tid_agg_rx->stored_mpdu_num == 0) {
+		tid_agg_rx->head_seq_num =
+			seq_inc(tid_agg_rx->head_seq_num);
+		return 0;
+	}
+
+	/* put the frame in the reordering buffer */
+	tid_agg_rx->reorder_buf[index] = skb;
+	tid_agg_rx->stored_mpdu_num++;
+	/* release the buffer until next missing frame */
+	index = seq_sub(tid_agg_rx->head_seq_num, tid_agg_rx->ssn)
+						% tid_agg_rx->buf_size;
+	while (tid_agg_rx->reorder_buf[index]) {
+		/* release the reordered frame back to stack */
+		memcpy(&status, tid_agg_rx->reorder_buf[index]->cb,
+			sizeof(status));
+		pkt_load = ieee80211_rx_load_stats(local,
+					tid_agg_rx->reorder_buf[index],
+					&status);
+		__ieee80211_rx_handle_packet(hw, tid_agg_rx->reorder_buf[index],
+						&status, pkt_load);
+		tid_agg_rx->stored_mpdu_num--;
+		tid_agg_rx->reorder_buf[index] = NULL;
+		tid_agg_rx->head_seq_num = seq_inc(tid_agg_rx->head_seq_num);
+		index =	seq_sub(tid_agg_rx->head_seq_num,
+			tid_agg_rx->ssn) % tid_agg_rx->buf_size;
+	}
+	return 1;
+}
+
+u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
+			      struct sk_buff *skb)
+{
+	struct ieee80211_hw *hw = &local->hw;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct sta_info *sta;
+	struct tid_ampdu_rx *tid_agg_rx;
+	u16 fc, sc;
+	u16 mpdu_seq_num;
+	u8 ret = 0, *qc;
+	int tid;
+
+	sta = sta_info_get(local, hdr->addr2);
+	if (!sta)
+		return ret;
+
+	fc = le16_to_cpu(hdr->frame_control);
+
+	/* filter the QoS data rx stream according to
+	 * STA/TID and check if this STA/TID is on aggregation */
+	if (!WLAN_FC_IS_QOS_DATA(fc))
+		goto end_reorder;
+
+	qc = skb->data + ieee80211_get_hdrlen(fc) - QOS_CONTROL_LEN;
+	tid = qc[0] & QOS_CONTROL_TID_MASK;
+	tid_agg_rx = &(sta->ampdu_mlme.tid_rx[tid]);
+
+	if (tid_agg_rx->state != HT_AGG_STATE_OPERATIONAL)
+		goto end_reorder;
+
+	/* null data frames are excluded */
+	if (unlikely(fc & IEEE80211_STYPE_QOS_NULLFUNC))
+		goto end_reorder;
+
+	/* new un-ordered ampdu frame - process it */
+
+	/* reset session timer */
+	if (tid_agg_rx->timeout) {
+		unsigned long expires =
+			jiffies + (tid_agg_rx->timeout / 1000) * HZ;
+		mod_timer(&tid_agg_rx->session_timer, expires);
+	}
+
+	/* if this mpdu is fragmented - terminate rx aggregation session */
+	sc = le16_to_cpu(hdr->seq_ctrl);
+	if (sc & IEEE80211_SCTL_FRAG) {
+		ieee80211_sta_stop_rx_ba_session(sta->dev, sta->addr,
+			tid, 0, WLAN_REASON_QSTA_REQUIRE_SETUP);
+		ret = 1;
+		goto end_reorder;
+	}
+
+	/* according to mpdu sequence number deal with reordering buffer */
+	mpdu_seq_num = (sc & IEEE80211_SCTL_SEQ) >> 4;
+	ret = ieee80211_sta_manage_reorder_buf(hw, tid_agg_rx, skb,
+						mpdu_seq_num, 0);
+end_reorder:
+	if (sta)
+		sta_info_put(sta);
+	return ret;
+}
+
 /*
  * This is the receive path handler. It is called by a low level driver when an
  * 802.11 MPDU is received from the hardware.
@@ -1779,8 +1958,10 @@ void __ieee80211_rx(struct ieee80211_hw *hw, struct sk_buff *skb,
 	}
 
 	pkt_load = ieee80211_rx_load_stats(local, skb, status);
+	local->channel_use_raw += pkt_load;
 
-	__ieee80211_rx_handle_packet(hw, skb, status, pkt_load);
+	if (!ieee80211_rx_reorder_ampdu(local, skb))
+		__ieee80211_rx_handle_packet(hw, skb, status, pkt_load);
 
 	rcu_read_unlock();
 }
