@@ -60,7 +60,6 @@ XfrmOutStateProtoError:
 	Transformation protocol specific error
 XfrmOutStateModeError:
 	Transformation mode specific error
-	e.g. Outer header space is not enough
 XfrmOutStateExpired:
 	State is expired
 XfrmOutPolBlock:
