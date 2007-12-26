@@ -170,14 +170,17 @@ enum {
 #define B43_SHM_SH_SLOTT		0x0010	/* Slot time */
 #define B43_SHM_SH_DTIMPER		0x0012	/* DTIM period */
 #define B43_SHM_SH_NOSLPZNATDTIM	0x004C	/* NOSLPZNAT DTIM */
-/* SHM_SHARED beacon variables */
+/* SHM_SHARED beacon/AP variables */
 #define B43_SHM_SH_BTL0			0x0018	/* Beacon template length 0 */
 #define B43_SHM_SH_BTL1			0x001A	/* Beacon template length 1 */
 #define B43_SHM_SH_BTSFOFF		0x001C	/* Beacon TSF offset */
 #define B43_SHM_SH_TIMBPOS		0x001E	/* TIM B position in beacon */
+#define B43_SHM_SH_DTIMP		0x0012	/* DTIP period */
+#define B43_SHM_SH_MCASTCOOKIE		0x00A8	/* Last bcast/mcast frame ID */
 #define B43_SHM_SH_SFFBLIM		0x0044	/* Short frame fallback retry limit */
 #define B43_SHM_SH_LFFBLIM		0x0046	/* Long frame fallback retry limit */
 #define B43_SHM_SH_BEACPHYCTL		0x0054	/* Beacon PHY TX control word (see PHY TX control) */
+#define B43_SHM_SH_EXTNPHYCTL		0x00B0	/* Extended bytes for beacon PHY control (N) */
 /* SHM_SHARED ACK/CTS control */
 #define B43_SHM_SH_ACKCTSPHYCTL		0x0022	/* ACK/CTS PHY control word (see PHY TX control) */
 /* SHM_SHARED probe response variables */
@@ -617,9 +620,12 @@ struct b43_wl {
 	/* Pointer to the ieee80211 hardware data structure */
 	struct ieee80211_hw *hw;
 
-	spinlock_t irq_lock;
 	struct mutex mutex;
+	spinlock_t irq_lock;
+	/* Lock for LEDs access. */
 	spinlock_t leds_lock;
+	/* Lock for SHM access. */
+	spinlock_t shm_lock;
 
 	/* We can only have one operating interface (802.11 core)
 	 * at a time. General information about this interface follows.

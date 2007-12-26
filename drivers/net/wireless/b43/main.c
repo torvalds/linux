@@ -252,13 +252,12 @@ static void b43_ram_write(struct b43_wldev *dev, u16 offset, u32 val)
 	b43_write32(dev, B43_MMIO_RAM_DATA, val);
 }
 
-static inline
-    void b43_shm_control_word(struct b43_wldev *dev, u16 routing, u16 offset)
+static inline void b43_shm_control_word(struct b43_wldev *dev,
+					u16 routing, u16 offset)
 {
 	u32 control;
 
 	/* "offset" is the WORD offset. */
-
 	control = routing;
 	control <<= 16;
 	control |= offset;
@@ -267,8 +266,11 @@ static inline
 
 u32 b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset)
 {
+	struct b43_wl *wl = dev->wl;
+	unsigned long flags;
 	u32 ret;
 
+	spin_lock_irqsave(&wl->shm_lock, flags);
 	if (routing == B43_SHM_SHARED) {
 		B43_WARN_ON(offset & 0x0001);
 		if (offset & 0x0003) {
@@ -279,20 +281,25 @@ u32 b43_shm_read32(struct b43_wldev *dev, u16 routing, u16 offset)
 			b43_shm_control_word(dev, routing, (offset >> 2) + 1);
 			ret |= b43_read16(dev, B43_MMIO_SHM_DATA);
 
-			return ret;
+			goto out;
 		}
 		offset >>= 2;
 	}
 	b43_shm_control_word(dev, routing, offset);
 	ret = b43_read32(dev, B43_MMIO_SHM_DATA);
+out:
+	spin_unlock_irqrestore(&wl->shm_lock, flags);
 
 	return ret;
 }
 
 u16 b43_shm_read16(struct b43_wldev * dev, u16 routing, u16 offset)
 {
+	struct b43_wl *wl = dev->wl;
+	unsigned long flags;
 	u16 ret;
 
+	spin_lock_irqsave(&wl->shm_lock, flags);
 	if (routing == B43_SHM_SHARED) {
 		B43_WARN_ON(offset & 0x0001);
 		if (offset & 0x0003) {
@@ -300,55 +307,63 @@ u16 b43_shm_read16(struct b43_wldev * dev, u16 routing, u16 offset)
 			b43_shm_control_word(dev, routing, offset >> 2);
 			ret = b43_read16(dev, B43_MMIO_SHM_DATA_UNALIGNED);
 
-			return ret;
+			goto out;
 		}
 		offset >>= 2;
 	}
 	b43_shm_control_word(dev, routing, offset);
 	ret = b43_read16(dev, B43_MMIO_SHM_DATA);
+out:
+	spin_unlock_irqrestore(&wl->shm_lock, flags);
 
 	return ret;
 }
 
 void b43_shm_write32(struct b43_wldev *dev, u16 routing, u16 offset, u32 value)
 {
+	struct b43_wl *wl = dev->wl;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->shm_lock, flags);
 	if (routing == B43_SHM_SHARED) {
 		B43_WARN_ON(offset & 0x0001);
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			b43_shm_control_word(dev, routing, offset >> 2);
-			mmiowb();
 			b43_write16(dev, B43_MMIO_SHM_DATA_UNALIGNED,
 				    (value >> 16) & 0xffff);
-			mmiowb();
 			b43_shm_control_word(dev, routing, (offset >> 2) + 1);
-			mmiowb();
 			b43_write16(dev, B43_MMIO_SHM_DATA, value & 0xffff);
-			return;
+			goto out;
 		}
 		offset >>= 2;
 	}
 	b43_shm_control_word(dev, routing, offset);
-	mmiowb();
 	b43_write32(dev, B43_MMIO_SHM_DATA, value);
+out:
+	spin_unlock_irqrestore(&wl->shm_lock, flags);
 }
 
 void b43_shm_write16(struct b43_wldev *dev, u16 routing, u16 offset, u16 value)
 {
+	struct b43_wl *wl = dev->wl;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wl->shm_lock, flags);
 	if (routing == B43_SHM_SHARED) {
 		B43_WARN_ON(offset & 0x0001);
 		if (offset & 0x0003) {
 			/* Unaligned access */
 			b43_shm_control_word(dev, routing, offset >> 2);
-			mmiowb();
 			b43_write16(dev, B43_MMIO_SHM_DATA_UNALIGNED, value);
-			return;
+			goto out;
 		}
 		offset >>= 2;
 	}
 	b43_shm_control_word(dev, routing, offset);
-	mmiowb();
 	b43_write16(dev, B43_MMIO_SHM_DATA, value);
+out:
+	spin_unlock_irqrestore(&wl->shm_lock, flags);
 }
 
 /* Read HostFlags */
@@ -3931,6 +3946,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 	wl->hw = hw;
 	spin_lock_init(&wl->irq_lock);
 	spin_lock_init(&wl->leds_lock);
+	spin_lock_init(&wl->shm_lock);
 	mutex_init(&wl->mutex);
 	INIT_LIST_HEAD(&wl->devlist);
 

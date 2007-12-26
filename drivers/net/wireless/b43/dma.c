@@ -37,6 +37,8 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
+#include <linux/etherdevice.h>
+
 
 /* 32bit DMA ops. */
 static
@@ -315,26 +317,24 @@ static struct b43_dmaring *priority_to_txring(struct b43_wldev *dev,
 	case 3:
 		ring = dev->dma.tx_ring0;
 		break;
-	case 4:
-		ring = dev->dma.tx_ring4;
-		break;
-	case 5:
-		ring = dev->dma.tx_ring5;
-		break;
 	}
 
 	return ring;
 }
 
-/* Bcm43xx-ring to mac80211-queue mapping */
+/* b43-ring to mac80211-queue mapping */
 static inline int txring_to_priority(struct b43_dmaring *ring)
 {
-	static const u8 idx_to_prio[] = { 3, 2, 1, 0, 4, 5, };
+	static const u8 idx_to_prio[] = { 3, 2, 1, 0, };
+	unsigned int index;
 
 /*FIXME: have only one queue, for now */
 	return 0;
 
-	return idx_to_prio[ring->index];
+	index = ring->index;
+	if (B43_WARN_ON(index >= ARRAY_SIZE(idx_to_prio)))
+		index = 0;
+	return idx_to_prio[index];
 }
 
 u16 b43_dmacontroller_base(int dma64bit, int controller_idx)
@@ -1043,26 +1043,30 @@ static u16 generate_cookie(struct b43_dmaring *ring, int slot)
 	 * in the lower 12 bits.
 	 * Note that the cookie must never be 0, as this
 	 * is a special value used in RX path.
+	 * It can also not be 0xFFFF because that is special
+	 * for multicast frames.
 	 */
 	switch (ring->index) {
 	case 0:
-		cookie = 0xA000;
+		cookie = 0x1000;
 		break;
 	case 1:
-		cookie = 0xB000;
+		cookie = 0x2000;
 		break;
 	case 2:
-		cookie = 0xC000;
+		cookie = 0x3000;
 		break;
 	case 3:
-		cookie = 0xD000;
+		cookie = 0x4000;
 		break;
 	case 4:
-		cookie = 0xE000;
+		cookie = 0x5000;
 		break;
 	case 5:
-		cookie = 0xF000;
+		cookie = 0x6000;
 		break;
+	default:
+		B43_WARN_ON(1);
 	}
 	B43_WARN_ON(slot & ~0x0FFF);
 	cookie |= (u16) slot;
@@ -1078,22 +1082,22 @@ struct b43_dmaring *parse_cookie(struct b43_wldev *dev, u16 cookie, int *slot)
 	struct b43_dmaring *ring = NULL;
 
 	switch (cookie & 0xF000) {
-	case 0xA000:
+	case 0x1000:
 		ring = dma->tx_ring0;
 		break;
-	case 0xB000:
+	case 0x2000:
 		ring = dma->tx_ring1;
 		break;
-	case 0xC000:
+	case 0x3000:
 		ring = dma->tx_ring2;
 		break;
-	case 0xD000:
+	case 0x4000:
 		ring = dma->tx_ring3;
 		break;
-	case 0xE000:
+	case 0x5000:
 		ring = dma->tx_ring4;
 		break;
-	case 0xF000:
+	case 0x6000:
 		ring = dma->tx_ring5;
 		break;
 	default:
@@ -1117,6 +1121,7 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	struct b43_dmadesc_meta *meta;
 	struct b43_dmadesc_meta *meta_hdr;
 	struct sk_buff *bounce_skb;
+	u16 cookie;
 
 #define SLOTS_PER_PACKET  2
 	B43_WARN_ON(skb_shinfo(skb)->nr_frags);
@@ -1127,9 +1132,9 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 	memset(meta_hdr, 0, sizeof(*meta_hdr));
 
 	header = &(ring->txhdr_cache[slot * sizeof(struct b43_txhdr_fw4)]);
+	cookie = generate_cookie(ring, slot);
 	b43_generate_txhdr(ring->dev, header,
-			   skb->data, skb->len, ctl,
-			   generate_cookie(ring, slot));
+			   skb->data, skb->len, ctl, cookie);
 
 	meta_hdr->dmaaddr = map_descbuffer(ring, (unsigned char *)header,
 					   sizeof(struct b43_txhdr_fw4), 1);
@@ -1169,14 +1174,20 @@ static int dma_tx_fragment(struct b43_dmaring *ring,
 
 	ops->fill_descriptor(ring, desc, meta->dmaaddr, skb->len, 0, 1, 1);
 
+	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+		/* Tell the firmware about the cookie of the last
+		 * mcast frame, so it can clear the more-data bit in it. */
+		b43_shm_write16(ring->dev, B43_SHM_SHARED,
+				B43_SHM_SH_MCASTCOOKIE, cookie);
+	}
 	/* Now transfer the whole frame. */
 	wmb();
 	ops->poke_tx(ring, next_slot(ring, slot));
 	return 0;
 
-      out_free_bounce:
+out_free_bounce:
 	dev_kfree_skb_any(skb);
-      out_unmap_hdr:
+out_unmap_hdr:
 	unmap_descbuffer(ring, meta_hdr->dmaaddr,
 			 sizeof(struct b43_txhdr_fw4), 1);
 	return err;
@@ -1207,10 +1218,27 @@ int b43_dma_tx(struct b43_wldev *dev,
 	       struct sk_buff *skb, struct ieee80211_tx_control *ctl)
 {
 	struct b43_dmaring *ring;
+	struct ieee80211_hdr *hdr;
 	int err = 0;
 	unsigned long flags;
 
-	ring = priority_to_txring(dev, ctl->queue);
+	if (unlikely(skb->len < 2 + 2 + 6)) {
+		/* Too short, this can't be a valid frame. */
+		return -EINVAL;
+	}
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+		/* The multicast ring will be sent after the DTIM */
+		ring = dev->dma.tx_ring4;
+		/* Set the more-data bit. Ucode will clear it on
+		 * the last frame for us. */
+		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+	} else {
+		/* Decide by priority where to put this frame. */
+		ring = priority_to_txring(dev, ctl->queue);
+	}
+
 	spin_lock_irqsave(&ring->lock, flags);
 	B43_WARN_ON(!ring->tx);
 	if (unlikely(free_slots(ring) < SLOTS_PER_PACKET)) {
@@ -1238,7 +1266,7 @@ int b43_dma_tx(struct b43_wldev *dev,
 			b43dbg(dev->wl, "Stopped TX ring %d\n", ring->index);
 		}
 	}
-      out_unlock:
+out_unlock:
 	spin_unlock_irqrestore(&ring->lock, flags);
 
 	return err;
