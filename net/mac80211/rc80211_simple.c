@@ -207,20 +207,35 @@ rate_control_simple_get_rate(void *priv, struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
 	int rateidx;
+	u16 fc;
 
 	sta = sta_info_get(local, hdr->addr1);
 
-	if (!sta) {
-		sel->rate = rate_lowest(local, mode, NULL);
+	/* Send management frames and broadcast/multicast data using lowest
+	 * rate. */
+	fc = le16_to_cpu(hdr->frame_control);
+	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
+	    is_multicast_ether_addr(hdr->addr1) || !sta) {
+		sel->rate = rate_lowest(local, mode, sta);
+		if (sta)
+			sta_info_put(sta);
 		return;
 	}
+
+	/* If a forced rate is in effect, select it. */
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1)
+		sta->txrate = sdata->bss->force_unicast_rateidx;
 
 	rateidx = sta->txrate;
 
 	if (rateidx >= mode->num_rates)
 		rateidx = mode->num_rates - 1;
+
+	sta->last_txrate = rateidx;
 
 	sta_info_put(sta);
 

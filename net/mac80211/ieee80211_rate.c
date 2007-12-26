@@ -168,29 +168,13 @@ void rate_control_get_rate(struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct rate_control_ref *ref = local->rate_ctrl;
-	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct sta_info *sta = sta_info_get(local, hdr->addr1);
 	int i;
-	u16 fc;
 
 	memset(sel, 0, sizeof(struct rate_selection));
 
-	/* Send management frames and broadcast/multicast data using lowest
-	 * rate. */
-	fc = le16_to_cpu(hdr->frame_control);
-	if ((fc & IEEE80211_FCTL_FTYPE) != IEEE80211_FTYPE_DATA ||
-	    is_multicast_ether_addr(hdr->addr1))
-		sel->rate = rate_lowest(local, mode, sta);
-
-	/* If a forced rate is in effect, select it. */
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (sdata->bss && sdata->bss->force_unicast_rateidx > -1)
-		sel->rate = &mode->rates[sdata->bss->force_unicast_rateidx];
-
-	/* If we haven't found the rate yet, ask the rate control algo. */
-	if (!sel->rate)
-		ref->ops->get_rate(ref->priv, dev, mode, skb, sel);
+	ref->ops->get_rate(ref->priv, dev, mode, skb, sel);
 
 	/* Select a non-ERP backup rate. */
 	if (!sel->nonerp) {
