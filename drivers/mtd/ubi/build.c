@@ -246,7 +246,7 @@ static ssize_t dev_attribute_show(struct device *dev,
 	else if (attr == &dev_total_eraseblocks)
 		ret = sprintf(buf, "%d\n", ubi->good_peb_count);
 	else if (attr == &dev_volumes_count)
-		ret = sprintf(buf, "%d\n", ubi->vol_count);
+		ret = sprintf(buf, "%d\n", ubi->vol_count - UBI_INT_VOL_COUNT);
 	else if (attr == &dev_max_ec)
 		ret = sprintf(buf, "%d\n", ubi->max_ec);
 	else if (attr == &dev_reserved_for_bad)

@@ -357,6 +357,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	spin_lock(&ubi->volumes_lock);
 	ubi->volumes[vol_id] = vol;
+	ubi->vol_count += 1;
 	spin_unlock(&ubi->volumes_lock);
 
 	paranoid_check_volumes(ubi);
