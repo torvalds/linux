@@ -192,7 +192,7 @@ static inline int cpu_has_secondary_exec_ctrls(void)
 		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS);
 }
 
-static inline int cpu_has_vmx_virtualize_apic_accesses(void)
+static inline bool cpu_has_vmx_virtualize_apic_accesses(void)
 {
 	return (vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
@@ -2565,6 +2565,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.check_processor_compatibility = vmx_check_processor_compat,
 	.hardware_enable = hardware_enable,
 	.hardware_disable = hardware_disable,
+	.cpu_has_accelerated_tpr = cpu_has_vmx_virtualize_apic_accesses,
 
 	.vcpu_create = vmx_create_vcpu,
 	.vcpu_free = vmx_free_vcpu,

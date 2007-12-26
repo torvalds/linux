@@ -684,8 +684,10 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_USER_MEMORY:
 	case KVM_CAP_SET_TSS_ADDR:
 	case KVM_CAP_EXT_CPUID:
-	case KVM_CAP_VAPIC:
 		r = 1;
+		break;
+	case KVM_CAP_VAPIC:
+		r = !kvm_x86_ops->cpu_has_accelerated_tpr();
 		break;
 	default:
 		r = 0;

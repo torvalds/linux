@@ -1653,6 +1653,11 @@ static void svm_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 }
 
+static bool svm_cpu_has_accelerated_tpr(void)
+{
+	return false;
+}
+
 static struct kvm_x86_ops svm_x86_ops = {
 	.cpu_has_kvm_support = has_svm,
 	.disabled_by_bios = is_disabled,
@@ -1661,6 +1666,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.check_processor_compatibility = svm_check_processor_compat,
 	.hardware_enable = svm_hardware_enable,
 	.hardware_disable = svm_hardware_disable,
+	.cpu_has_accelerated_tpr = svm_cpu_has_accelerated_tpr,
 
 	.vcpu_create = svm_create_vcpu,
 	.vcpu_free = svm_free_vcpu,
