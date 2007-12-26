@@ -1038,10 +1038,8 @@ static int __init bytes_str_to_int(const char *str)
 	case 'M':
 		result *= 1024;
 	case 'K':
-	case 'k':
 		result *= 1024;
-		if (endp[1] == 'i' && (endp[2] == '\0' ||
-			  endp[2] == 'B'  || endp[2] == 'b'))
+		if (endp[1] == 'i' && endp[2] == 'B')
 			endp += 2;
 	case '\0':
 		break;
