@@ -736,12 +736,12 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 	__u32 mac_cfg;
 	u32 port = physical_port[adapter->portnum];
 
-	if (port != 0)
+	if (port > NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
+
 	mac_cfg = 0;
-	netxen_xg_soft_reset(mac_cfg);
-	if (netxen_nic_hw_write_wx(adapter, NETXEN_NIU_XGE_CONFIG_0,
-				   &mac_cfg, 4))
+	if (netxen_nic_hw_write_wx(adapter,
+		NETXEN_NIU_XGE_CONFIG_0 + (0x10000 * port), &mac_cfg, 4))
 		return -EIO;
 	return 0;
 }

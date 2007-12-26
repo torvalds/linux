@@ -732,11 +732,6 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	if (adapter->stop_port)
-		adapter->stop_port(adapter);
-
-	netxen_nic_disable_int(adapter);
-
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		init_firmware_done++;
 		netxen_free_hw_resources(adapter);
@@ -918,6 +913,9 @@ static int netxen_nic_close(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
 	napi_disable(&adapter->napi);
+
+	if (adapter->stop_port)
+		adapter->stop_port(adapter);
 
 	netxen_nic_disable_int(adapter);
 
