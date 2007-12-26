@@ -993,9 +993,8 @@ static void b43_jssi_write(struct b43_wldev *dev, u32 jssi)
 static void b43_generate_noise_sample(struct b43_wldev *dev)
 {
 	b43_jssi_write(dev, 0x7F7F7F7F);
-	b43_write32(dev, B43_MMIO_STATUS2_BITFIELD,
-		    b43_read32(dev, B43_MMIO_STATUS2_BITFIELD)
-		    | (1 << 4));
+	b43_write32(dev, B43_MMIO_MACCMD,
+		    b43_read32(dev, B43_MMIO_MACCMD) | B43_MACCMD_BGNOISE);
 	B43_WARN_ON(dev->noisecalc.channel_at_start != dev->phy.channel);
 }
 
@@ -1081,18 +1080,18 @@ static void handle_irq_tbtt_indication(struct b43_wldev *dev)
 		if (1 /*FIXME: the last PSpoll frame was sent successfully */ )
 			b43_power_saving_ctl_bits(dev, 0);
 	}
-	dev->reg124_set_0x4 = 0;
 	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS))
-		dev->reg124_set_0x4 = 1;
+		dev->dfq_valid = 1;
 }
 
 static void handle_irq_atim_end(struct b43_wldev *dev)
 {
-	if (!dev->reg124_set_0x4 /*FIXME rename this variable */ )
-		return;
-	b43_write32(dev, B43_MMIO_STATUS2_BITFIELD,
-		    b43_read32(dev, B43_MMIO_STATUS2_BITFIELD)
-		    | 0x4);
+	if (dev->dfq_valid) {
+		b43_write32(dev, B43_MMIO_MACCMD,
+			    b43_read32(dev, B43_MMIO_MACCMD)
+			    | B43_MACCMD_DFQ_VALID);
+		dev->dfq_valid = 0;
+	}
 }
 
 static void handle_irq_pmq(struct b43_wldev *dev)
@@ -1271,7 +1270,7 @@ static int b43_refresh_cached_beacon(struct b43_wldev *dev,
 
 static void b43_update_templates(struct b43_wldev *dev)
 {
-	u32 status;
+	u32 cmd;
 
 	B43_WARN_ON(!dev->cached_beacon);
 
@@ -1279,9 +1278,9 @@ static void b43_update_templates(struct b43_wldev *dev)
 	b43_write_beacon_template(dev, 0x468, 0x1A, B43_CCK_RATE_1MB);
 	b43_write_probe_resp_template(dev, 0x268, 0x4A, B43_CCK_RATE_11MB);
 
-	status = b43_read32(dev, B43_MMIO_STATUS2_BITFIELD);
-	status |= 0x03;
-	b43_write32(dev, B43_MMIO_STATUS2_BITFIELD, status);
+	cmd = b43_read32(dev, B43_MMIO_MACCMD);
+	cmd |= B43_MACCMD_BEACON0_VALID | B43_MACCMD_BEACON1_VALID;
+	b43_write32(dev, B43_MMIO_MACCMD, cmd);
 }
 
 static void b43_refresh_templates(struct b43_wldev *dev, struct sk_buff *beacon)
@@ -1333,7 +1332,7 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 		return;
 
 	dev->irq_savedstate &= ~B43_IRQ_BEACON;
-	status = b43_read32(dev, B43_MMIO_STATUS2_BITFIELD);
+	status = b43_read32(dev, B43_MMIO_MACCMD);
 
 	if (!dev->cached_beacon || ((status & 0x1) && (status & 0x2))) {
 		/* ACK beacon IRQ. */
@@ -1347,12 +1346,12 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	if (!(status & 0x1)) {
 		b43_write_beacon_template(dev, 0x68, 0x18, B43_CCK_RATE_1MB);
 		status |= 0x1;
-		b43_write32(dev, B43_MMIO_STATUS2_BITFIELD, status);
+		b43_write32(dev, B43_MMIO_MACCMD, status);
 	}
 	if (!(status & 0x2)) {
 		b43_write_beacon_template(dev, 0x468, 0x1A, B43_CCK_RATE_1MB);
 		status |= 0x2;
-		b43_write32(dev, B43_MMIO_STATUS2_BITFIELD, status);
+		b43_write32(dev, B43_MMIO_MACCMD, status);
 	}
 }
 
@@ -3177,8 +3176,8 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 
 static void setup_struct_wldev_for_init(struct b43_wldev *dev)
 {
-	/* Flags */
-	dev->reg124_set_0x4 = 0;
+	dev->dfq_valid = 0;
+
 	/* Assume the radio is enabled. If it's not enabled, the state will
 	 * immediately get fixed on the first periodic work run. */
 	dev->radio_hw_enable = 1;

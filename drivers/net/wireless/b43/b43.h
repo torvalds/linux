@@ -35,8 +35,8 @@
 #define B43_MMIO_DMA4_IRQ_MASK		0x44
 #define B43_MMIO_DMA5_REASON		0x48
 #define B43_MMIO_DMA5_IRQ_MASK		0x4C
-#define B43_MMIO_MACCTL			0x120
-#define B43_MMIO_STATUS2_BITFIELD	0x124
+#define B43_MMIO_MACCTL			0x120	/* MAC control */
+#define B43_MMIO_MACCMD			0x124	/* MAC command */
 #define B43_MMIO_GEN_IRQ_REASON		0x128
 #define B43_MMIO_GEN_IRQ_MASK		0x12C
 #define B43_MMIO_RAM_CONTROL		0x130
@@ -320,6 +320,13 @@ enum {
 #define B43_MACCTL_DISCTXSTAT		0x20000000	/* Discard TX status */
 #define B43_MACCTL_DISCPMQ		0x40000000	/* Discard Power Management Queue */
 #define B43_MACCTL_GMODE		0x80000000	/* G Mode */
+
+/* MAC Command bitfield */
+#define B43_MACCMD_BEACON0_VALID	0x00000001	/* Beacon 0 in template RAM is busy/valid */
+#define B43_MACCMD_BEACON1_VALID	0x00000002	/* Beacon 1 in template RAM is busy/valid */
+#define B43_MACCMD_DFQ_VALID		0x00000004	/* Directed frame queue valid (IBSS PS mode, ATIM) */
+#define B43_MACCMD_CCA			0x00000008	/* Clear channel assessment */
+#define B43_MACCMD_BGNOISE		0x00000010	/* Background noise */
 
 /* 802.11 core specific TM State Low flags */
 #define B43_TMSLOW_GMODE		0x20000000	/* G Mode Enable */
@@ -693,7 +700,7 @@ struct b43_wldev {
 	int suspend_init_status;
 
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
-	bool reg124_set_0x4;	/* Some variable to keep track of IRQ stuff. */
+	bool dfq_valid;		/* Directed frame queue valid (IBSS PS mode, ATIM) */
 	bool short_preamble;	/* TRUE, if short preamble is enabled. */
 	bool short_slot;	/* TRUE, if short slot timing is enabled. */
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
