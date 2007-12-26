@@ -292,18 +292,26 @@ static int acpi_video_device_set_state(struct acpi_video_device *device, int sta
 static int acpi_video_get_brightness(struct backlight_device *bd)
 {
 	unsigned long cur_level;
+	int i;
 	struct acpi_video_device *vd =
 		(struct acpi_video_device *)bl_get_data(bd);
 	acpi_video_device_lcd_get_level_current(vd, &cur_level);
-	return (int) cur_level;
+	for (i = 2; i < vd->brightness->count; i++) {
+		if (vd->brightness->levels[i] == cur_level)
+			/* The first two entries are special - see page 575
+			   of the ACPI spec 3.0 */
+			return i-2;
+	}
+	return 0;
 }
 
 static int acpi_video_set_brightness(struct backlight_device *bd)
 {
-	int request_level = bd->props.brightness;
+	int request_level = bd->props.brightness+2;
 	struct acpi_video_device *vd =
 		(struct acpi_video_device *)bl_get_data(bd);
-	acpi_video_device_lcd_set_level(vd, request_level);
+	acpi_video_device_lcd_set_level(vd,
+					vd->brightness->levels[request_level]);
 	return 0;
 }
 
@@ -652,7 +660,6 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 	kfree(obj);
 
 	if (device->cap._BCL && device->cap._BCM && device->cap._BQC && max_level > 0){
-		unsigned long tmp;
 		static int count = 0;
 		char *name;
 		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
@@ -660,11 +667,10 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 			return;
 
 		sprintf(name, "acpi_video%d", count++);
-		acpi_video_device_lcd_get_level_current(device, &tmp);
 		device->backlight = backlight_device_register(name,
 			NULL, device, &acpi_backlight_ops);
-		device->backlight->props.max_brightness = max_level;
-		device->backlight->props.brightness = (int)tmp;
+		device->backlight->props.max_brightness = device->brightness->count-3;
+		device->backlight->props.brightness = acpi_video_get_brightness(device->backlight);
 		backlight_update_status(device->backlight);
 
 		kfree(name);
