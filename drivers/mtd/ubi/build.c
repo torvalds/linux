@@ -122,6 +122,8 @@ static struct device_attribute dev_min_io_size =
 	__ATTR(min_io_size, S_IRUGO, dev_attribute_show, NULL);
 static struct device_attribute dev_bgt_enabled =
 	__ATTR(bgt_enabled, S_IRUGO, dev_attribute_show, NULL);
+static struct device_attribute dev_mtd_num =
+	__ATTR(mtd_num, S_IRUGO, dev_attribute_show, NULL);
 
 /**
  * ubi_get_device - get UBI device.
@@ -257,8 +259,10 @@ static ssize_t dev_attribute_show(struct device *dev,
 		ret = sprintf(buf, "%d\n", ubi->min_io_size);
 	else if (attr == &dev_bgt_enabled)
 		ret = sprintf(buf, "%d\n", ubi->thread_enabled);
+	else if (attr == &dev_mtd_num)
+		ret = sprintf(buf, "%d\n", ubi->mtd->index);
 	else
-		BUG();
+		ret = -EINVAL;
 
 	ubi_put_device(ubi);
 	return ret;
@@ -314,6 +318,9 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
 	if (err)
 		return err;
 	err = device_create_file(&ubi->dev, &dev_bgt_enabled);
+	if (err)
+		return err;
+	err = device_create_file(&ubi->dev, &dev_mtd_num);
 	return err;
 }
 
@@ -323,6 +330,7 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
  */
 static void ubi_sysfs_close(struct ubi_device *ubi)
 {
+	device_remove_file(&ubi->dev, &dev_mtd_num);
 	device_remove_file(&ubi->dev, &dev_bgt_enabled);
 	device_remove_file(&ubi->dev, &dev_min_io_size);
 	device_remove_file(&ubi->dev, &dev_max_vol_count);
