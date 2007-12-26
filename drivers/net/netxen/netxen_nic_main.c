@@ -994,28 +994,6 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	/*
-	 * Everything is set up. Now, we just need to transmit it out.
-	 * Note that we have to copy the contents of buffer over to
-	 * right place. Later on, this can be optimized out by de-coupling the
-	 * producer index from the buffer index.
-	 */
-      retry_getting_window:
-	spin_lock_bh(&adapter->tx_lock);
-	if (adapter->total_threads >= MAX_XMIT_PRODUCERS) {
-		spin_unlock_bh(&adapter->tx_lock);
-		/*
-		 * Yield CPU
-		 */
-		if (!in_atomic())
-			schedule();
-		else {
-			for (i = 0; i < 20; i++)
-				cpu_relax();	/*This a nop instr on i386 */
-		}
-		goto retry_getting_window;
-	}
-	local_producer = adapter->cmd_producer;
 	/* There 4 fragments per descriptor */
 	no_of_desc = (frag_count + 3) >> 2;
 	if (netdev->features & NETIF_F_TSO) {
@@ -1029,16 +1007,19 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 			}
 		}
 	}
+
+	spin_lock_bh(&adapter->tx_lock);
+	if (adapter->total_threads >= MAX_XMIT_PRODUCERS) {
+		goto out_requeue;
+	}
+	local_producer = adapter->cmd_producer;
 	k = adapter->cmd_producer;
 	max_tx_desc_count = adapter->max_tx_desc_count;
 	last_cmd_consumer = adapter->last_cmd_consumer;
 	if ((k + no_of_desc) >=
 	    ((last_cmd_consumer <= k) ? last_cmd_consumer + max_tx_desc_count :
 	     last_cmd_consumer)) {
-		netif_stop_queue(netdev);
-		adapter->flags |= NETXEN_NETDEV_STATUS;
-		spin_unlock_bh(&adapter->tx_lock);
-		return NETDEV_TX_BUSY;
+		goto out_requeue;
 	}
 	k = get_index_range(k, max_tx_desc_count, no_of_desc);
 	adapter->cmd_producer = k;
@@ -1091,6 +1072,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 						  adapter->max_tx_desc_count);
 			hwdesc = &hw->cmd_desc_head[producer];
 			memset(hwdesc, 0, sizeof(struct cmd_desc_type0));
+			pbuf = &adapter->cmd_buf_arr[producer];
+			pbuf->skb = NULL;
 		}
 		frag = &skb_shinfo(skb)->frags[i - 1];
 		len = frag->size;
@@ -1146,6 +1129,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		}
 		/* copy the MAC/IP/TCP headers to the cmd descriptor list */
 		hwdesc = &hw->cmd_desc_head[producer];
+		pbuf = &adapter->cmd_buf_arr[producer];
+		pbuf->skb = NULL;
 
 		/* copy the first 64 bytes */
 		memcpy(((void *)hwdesc) + 2,
@@ -1154,6 +1139,8 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 		if (more_hdr) {
 			hwdesc = &hw->cmd_desc_head[producer];
+			pbuf = &adapter->cmd_buf_arr[producer];
+			pbuf->skb = NULL;
 			/* copy the next 64 bytes - should be enough except
 			 * for pathological case
 			 */
@@ -1187,14 +1174,17 @@ static int netxen_nic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	adapter->stats.xmitfinished++;
-	spin_unlock_bh(&adapter->tx_lock);
-
 	netdev->trans_start = jiffies;
 
-	DPRINTK(INFO, "wrote CMD producer %x to phantom\n", producer);
-
-	DPRINTK(INFO, "Done. Send\n");
+	spin_unlock_bh(&adapter->tx_lock);
 	return NETDEV_TX_OK;
+
+out_requeue:
+	netif_stop_queue(netdev);
+	adapter->flags |= NETXEN_NETDEV_STATUS;
+
+	spin_unlock_bh(&adapter->tx_lock);
+	return NETDEV_TX_BUSY;
 }
 
 static void netxen_watchdog(unsigned long v)

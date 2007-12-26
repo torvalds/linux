@@ -1248,7 +1248,6 @@ int netxen_process_cmd_ring(unsigned long data)
 	struct pci_dev *pdev;
 	struct netxen_skb_frag *frag;
 	u32 i;
-	struct sk_buff *skb = NULL;
 	int done;
 
 	spin_lock(&adapter->tx_lock);
@@ -1278,9 +1277,8 @@ int netxen_process_cmd_ring(unsigned long data)
 	while ((last_consumer != consumer) && (count1 < MAX_STATUS_HANDLE)) {
 		buffer = &adapter->cmd_buf_arr[last_consumer];
 		pdev = adapter->pdev;
-		frag = &buffer->frag_array[0];
-		skb = buffer->skb;
-		if (skb && (cmpxchg(&buffer->skb, skb, 0) == skb)) {
+		if (buffer->skb) {
+			frag = &buffer->frag_array[0];
 			pci_unmap_single(pdev, frag->dma, frag->length,
 					 PCI_DMA_TODEVICE);
 			frag->dma = 0ULL;
@@ -1293,8 +1291,8 @@ int netxen_process_cmd_ring(unsigned long data)
 			}
 
 			adapter->stats.skbfreed++;
-			dev_kfree_skb_any(skb);
-			skb = NULL;
+			dev_kfree_skb_any(buffer->skb);
+			buffer->skb = NULL;
 		} else if (adapter->proc_cmd_buf_counter == 1) {
 			adapter->stats.txnullskb++;
 		}
