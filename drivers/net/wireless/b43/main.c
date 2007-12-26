@@ -1305,26 +1305,21 @@ static void b43_write_probe_resp_template(struct b43_wldev *dev,
 	kfree(probe_resp_data);
 }
 
-/* Asynchronously update the packet templates in template RAM. */
+/* Asynchronously update the packet templates in template RAM.
+ * Locking: Requires wl->irq_lock to be locked. */
 static void b43_update_templates(struct b43_wl *wl, struct sk_buff *beacon)
 {
-	unsigned long flags;
-
 	/* This is the top half of the ansynchronous beacon update.
 	 * The bottom half is the beacon IRQ.
 	 * Beacon update must be asynchronous to avoid sending an
 	 * invalid beacon. This can happen for example, if the firmware
 	 * transmits a beacon while we are updating it. */
 
-	spin_lock_irqsave(&wl->irq_lock, flags);
-
 	if (wl->current_beacon)
 		dev_kfree_skb_any(wl->current_beacon);
 	wl->current_beacon = beacon;
 	wl->beacon0_uploaded = 0;
 	wl->beacon1_uploaded = 0;
-
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
 }
 
 static void b43_set_ssid(struct b43_wldev *dev, const u8 * ssid, u8 ssid_len)
@@ -3598,6 +3593,7 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct sk_buff *beacon;
+	unsigned long flags;
 
 	/* We could modify the existing beacon and set the aid bit in
 	 * the TIM field, but that would probably require resizing and
@@ -3606,7 +3602,9 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 	beacon = ieee80211_beacon_get(hw, wl->vif, NULL);
 	if (unlikely(!beacon))
 		return -ENOMEM;
+	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43_update_templates(wl, beacon);
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
 }
@@ -3616,8 +3614,11 @@ static int b43_op_ibss_beacon_update(struct ieee80211_hw *hw,
 				     struct ieee80211_tx_control *ctl)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
+	unsigned long flags;
 
+	spin_lock_irqsave(&wl->irq_lock, flags);
 	b43_update_templates(wl, beacon);
+	spin_unlock_irqrestore(&wl->irq_lock, flags);
 
 	return 0;
 }
