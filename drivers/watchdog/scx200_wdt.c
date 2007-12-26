@@ -231,17 +231,17 @@ static int __init scx200_wdt_init(void)
 
 	sema_init(&open_semaphore, 1);
 
-	r = misc_register(&scx200_wdt_miscdev);
+	r = register_reboot_notifier(&scx200_wdt_notifier);
 	if (r) {
+		printk(KERN_ERR NAME ": unable to register reboot notifier");
 		release_region(scx200_cb_base + SCx200_WDT_OFFSET,
 				SCx200_WDT_SIZE);
 		return r;
 	}
 
-	r = register_reboot_notifier(&scx200_wdt_notifier);
+	r = misc_register(&scx200_wdt_miscdev);
 	if (r) {
-		printk(KERN_ERR NAME ": unable to register reboot notifier");
-		misc_deregister(&scx200_wdt_miscdev);
+		unregister_reboot_notifier(&scx200_wdt_notifier);
 		release_region(scx200_cb_base + SCx200_WDT_OFFSET,
 				SCx200_WDT_SIZE);
 		return r;
@@ -252,8 +252,8 @@ static int __init scx200_wdt_init(void)
 
 static void __exit scx200_wdt_cleanup(void)
 {
-	unregister_reboot_notifier(&scx200_wdt_notifier);
 	misc_deregister(&scx200_wdt_miscdev);
+	unregister_reboot_notifier(&scx200_wdt_notifier);
 	release_region(scx200_cb_base + SCx200_WDT_OFFSET,
 		       SCx200_WDT_SIZE);
 }

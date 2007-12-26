@@ -359,20 +359,20 @@ static int __init sbc60xxwdt_init(void)
 		}
 	}
 
-	rc = misc_register(&wdt_miscdev);
-	if (rc)
-	{
-		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
-			wdt_miscdev.minor, rc);
-		goto err_out_region2;
-	}
-
 	rc = register_reboot_notifier(&wdt_notifier);
 	if (rc)
 	{
 		printk(KERN_ERR PFX "cannot register reboot notifier (err=%d)\n",
 			rc);
-		goto err_out_miscdev;
+		goto err_out_region2;
+	}
+
+	rc = misc_register(&wdt_miscdev);
+	if (rc)
+	{
+		printk(KERN_ERR PFX "cannot register miscdev on minor=%d (err=%d)\n",
+			wdt_miscdev.minor, rc);
+		goto err_out_reboot;
 	}
 
 	printk(KERN_INFO PFX "WDT driver for 60XX single board computer initialised. timeout=%d sec (nowayout=%d)\n",
@@ -380,8 +380,8 @@ static int __init sbc60xxwdt_init(void)
 
 	return 0;
 
-err_out_miscdev:
-	misc_deregister(&wdt_miscdev);
+err_out_reboot:
+	unregister_reboot_notifier(&wdt_notifier);
 err_out_region2:
 	if ((wdt_stop != 0x45) && (wdt_stop != wdt_start))
 		release_region(wdt_stop,1);
