@@ -68,11 +68,6 @@
 #define B43_MMIO_DMA64_BASE3		0x2C0
 #define B43_MMIO_DMA64_BASE4		0x300
 #define B43_MMIO_DMA64_BASE5		0x340
-/* PIO */
-#define B43_MMIO_PIO1_BASE		0x300
-#define B43_MMIO_PIO2_BASE		0x310
-#define B43_MMIO_PIO3_BASE		0x320
-#define B43_MMIO_PIO4_BASE		0x330
 
 #define B43_MMIO_PHY_VER		0x3E0
 #define B43_MMIO_PHY_RADIO		0x3E2
@@ -579,14 +574,6 @@ struct b43_dma {
 	struct b43_dmaring *rx_ring3;	/* only available on core.rev < 5 */
 };
 
-/* Data structures for PIO transmission, per 80211 core. */
-struct b43_pio {
-	struct b43_pioqueue *queue0;
-	struct b43_pioqueue *queue1;
-	struct b43_pioqueue *queue2;
-	struct b43_pioqueue *queue3;
-};
-
 /* Context information for a noise calculation (Link Quality). */
 struct b43_noise_calculation {
 	u8 channel_at_start;
@@ -705,7 +692,6 @@ struct b43_wldev {
 	/* Saved init status for handling suspend. */
 	int suspend_init_status;
 
-	bool __using_pio;	/* Internal, use b43_using_pio(). */
 	bool bad_frames_preempt;	/* Use "Bad Frames Preemption" (default off) */
 	bool reg124_set_0x4;	/* Some variable to keep track of IRQ stuff. */
 	bool short_preamble;	/* TRUE, if short preamble is enabled. */
@@ -714,12 +700,9 @@ struct b43_wldev {
 
 	/* PHY/Radio device. */
 	struct b43_phy phy;
-	union {
-		/* DMA engines. */
-		struct b43_dma dma;
-		/* PIO engines. */
-		struct b43_pio pio;
-	};
+
+	/* DMA engines. */
+	struct b43_dma dma;
 
 	/* Various statistics about the physical device. */
 	struct b43_stats stats;
@@ -773,28 +756,6 @@ static inline struct b43_wl *hw_to_b43_wl(struct ieee80211_hw *hw)
 {
 	return hw->priv;
 }
-
-/* Helper function, which returns a boolean.
- * TRUE, if PIO is used; FALSE, if DMA is used.
- */
-#if defined(CONFIG_B43_DMA) && defined(CONFIG_B43_PIO)
-static inline int b43_using_pio(struct b43_wldev *dev)
-{
-	return dev->__using_pio;
-}
-#elif defined(CONFIG_B43_DMA)
-static inline int b43_using_pio(struct b43_wldev *dev)
-{
-	return 0;
-}
-#elif defined(CONFIG_B43_PIO)
-static inline int b43_using_pio(struct b43_wldev *dev)
-{
-	return 1;
-}
-#else
-# error "Using neither DMA nor PIO? Confused..."
-#endif
 
 static inline struct b43_wldev *dev_to_b43_wldev(struct device *dev)
 {

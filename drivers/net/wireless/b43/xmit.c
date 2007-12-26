@@ -30,7 +30,7 @@
 #include "xmit.h"
 #include "phy.h"
 #include "dma.h"
-#include "pio.h"
+
 
 /* Extract the bitrate out of a CCK PLCP header. */
 static u8 b43_plcp_get_bitrate_cck(struct b43_plcp_hdr6 *plcp)
@@ -604,10 +604,7 @@ void b43_handle_txstatus(struct b43_wldev *dev,
 			dev->wl->ieee_stats.dot11RTSSuccessCount++;
 	}
 
-	if (b43_using_pio(dev))
-		b43_pio_handle_txstatus(dev, status);
-	else
-		b43_dma_handle_txstatus(dev, status);
+	b43_dma_handle_txstatus(dev, status);
 }
 
 /* Handle TX status report as received through DMA/PIO queues */
@@ -636,19 +633,13 @@ void b43_handle_hwtxstatus(struct b43_wldev *dev,
 /* Stop any TX operation on the device (suspend the hardware queues) */
 void b43_tx_suspend(struct b43_wldev *dev)
 {
-	if (b43_using_pio(dev))
-		b43_pio_freeze_txqueues(dev);
-	else
-		b43_dma_tx_suspend(dev);
+	b43_dma_tx_suspend(dev);
 }
 
 /* Resume any TX operation on the device (resume the hardware queues) */
 void b43_tx_resume(struct b43_wldev *dev)
 {
-	if (b43_using_pio(dev))
-		b43_pio_thaw_txqueues(dev);
-	else
-		b43_dma_tx_resume(dev);
+	b43_dma_tx_resume(dev);
 }
 
 #if 0

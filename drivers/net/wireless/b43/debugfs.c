@@ -34,7 +34,6 @@
 #include "main.h"
 #include "debugfs.h"
 #include "dma.h"
-#include "pio.h"
 #include "xmit.h"
 
 

@@ -46,7 +46,6 @@
 #include "debugfs.h"
 #include "phy.h"
 #include "dma.h"
-#include "pio.h"
 #include "sysfs.h"
 #include "xmit.h"
 #include "lo.h"
@@ -58,17 +57,6 @@ MODULE_AUTHOR("Stefano Brivio");
 MODULE_AUTHOR("Michael Buesch");
 MODULE_LICENSE("GPL");
 
-extern char *nvram_get(char *name);
-
-#if defined(CONFIG_B43_DMA) && defined(CONFIG_B43_PIO)
-static int modparam_pio;
-module_param_named(pio, modparam_pio, int, 0444);
-MODULE_PARM_DESC(pio, "enable(1) / disable(0) PIO mode");
-#elif defined(CONFIG_B43_DMA)
-# define modparam_pio	0
-#elif defined(CONFIG_B43_PIO)
-# define modparam_pio	1
-#endif
 
 static int modparam_bad_frames_preempt;
 module_param_named(bad_frames_preempt, modparam_bad_frames_preempt, int, 0444);
@@ -1447,20 +1435,12 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 		handle_irq_noise(dev);
 
 	/* Check the DMA reason registers for received data. */
-	if (dma_reason[0] & B43_DMAIRQ_RX_DONE) {
-		if (b43_using_pio(dev))
-			b43_pio_rx(dev->pio.queue0);
-		else
-			b43_dma_rx(dev->dma.rx_ring0);
-	}
+	if (dma_reason[0] & B43_DMAIRQ_RX_DONE)
+		b43_dma_rx(dev->dma.rx_ring0);
+	if (dma_reason[3] & B43_DMAIRQ_RX_DONE)
+		b43_dma_rx(dev->dma.rx_ring3);
 	B43_WARN_ON(dma_reason[1] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[2] & B43_DMAIRQ_RX_DONE);
-	if (dma_reason[3] & B43_DMAIRQ_RX_DONE) {
-		if (b43_using_pio(dev))
-			b43_pio_rx(dev->pio.queue3);
-		else
-			b43_dma_rx(dev->dma.rx_ring3);
-	}
 	B43_WARN_ON(dma_reason[4] & B43_DMAIRQ_RX_DONE);
 	B43_WARN_ON(dma_reason[5] & B43_DMAIRQ_RX_DONE);
 
@@ -1472,29 +1452,8 @@ static void b43_interrupt_tasklet(struct b43_wldev *dev)
 	spin_unlock_irqrestore(&dev->wl->irq_lock, flags);
 }
 
-static void pio_irq_workaround(struct b43_wldev *dev, u16 base, int queueidx)
-{
-	u16 rxctl;
-
-	rxctl = b43_read16(dev, base + B43_PIO_RXCTL);
-	if (rxctl & B43_PIO_RXCTL_DATAAVAILABLE)
-		dev->dma_reason[queueidx] |= B43_DMAIRQ_RX_DONE;
-	else
-		dev->dma_reason[queueidx] &= ~B43_DMAIRQ_RX_DONE;
-}
-
 static void b43_interrupt_ack(struct b43_wldev *dev, u32 reason)
 {
-	if (b43_using_pio(dev) &&
-	    (dev->dev->id.revision < 3) &&
-	    (!(reason & B43_IRQ_PIO_WORKAROUND))) {
-		/* Apply a PIO specific workaround to the dma_reasons */
-		pio_irq_workaround(dev, B43_MMIO_PIO1_BASE, 0);
-		pio_irq_workaround(dev, B43_MMIO_PIO2_BASE, 1);
-		pio_irq_workaround(dev, B43_MMIO_PIO3_BASE, 2);
-		pio_irq_workaround(dev, B43_MMIO_PIO4_BASE, 3);
-	}
-
 	b43_write32(dev, B43_MMIO_GEN_IRQ_REASON, reason);
 
 	b43_write32(dev, B43_MMIO_DMA0_REASON, dev->dma_reason[0]);
@@ -2225,14 +2184,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
 		    | B43_MACCTL_INFRA);
 
-	if (b43_using_pio(dev)) {
-		b43_write32(dev, 0x0210, 0x00000100);
-		b43_write32(dev, 0x0230, 0x00000100);
-		b43_write32(dev, 0x0250, 0x00000100);
-		b43_write32(dev, 0x0270, 0x00000100);
-		b43_shm_write16(dev, B43_SHM_SHARED, 0x0034, 0x0000);
-	}
-
 	/* Probe Response Timeout value */
 	/* FIXME: Default to 0, has to be set by ioctl probably... :-/ */
 	b43_shm_write16(dev, B43_SHM_SHARED, 0x0074, 0x0000);
@@ -2513,19 +2464,13 @@ static int b43_op_tx(struct ieee80211_hw *hw,
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev = wl->current_dev;
 	int err = -ENODEV;
-	unsigned long flags;
 
 	if (unlikely(!dev))
 		goto out;
 	if (unlikely(b43_status(dev) < B43_STAT_STARTED))
 		goto out;
 	/* DMA-TX is done without a global lock. */
-	if (b43_using_pio(dev)) {
-		spin_lock_irqsave(&wl->irq_lock, flags);
-		err = b43_pio_tx(dev, skb, ctl);
-		spin_unlock_irqrestore(&wl->irq_lock, flags);
-	} else
-		err = b43_dma_tx(dev, skb, ctl);
+	err = b43_dma_tx(dev, skb, ctl);
 out:
 	if (unlikely(err))
 		return NETDEV_TX_BUSY;
@@ -2551,10 +2496,7 @@ static int b43_op_get_tx_stats(struct ieee80211_hw *hw,
 		goto out;
 	spin_lock_irqsave(&wl->irq_lock, flags);
 	if (likely(b43_status(dev) >= B43_STAT_STARTED)) {
-		if (b43_using_pio(dev))
-			b43_pio_get_tx_stats(dev, stats);
-		else
-			b43_dma_get_tx_stats(dev, stats);
+		b43_dma_get_tx_stats(dev, stats);
 		err = 0;
 	}
 	spin_unlock_irqrestore(&wl->irq_lock, flags);
@@ -3336,7 +3278,6 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 
 	b43_leds_exit(dev);
 	b43_rng_exit(dev->wl);
-	b43_pio_free(dev);
 	b43_dma_free(dev);
 	b43_chip_exit(dev);
 	b43_radio_turn_off(dev, 1);
@@ -3430,17 +3371,10 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 	/* Maximum Contention Window */
 	b43_shm_write16(dev, B43_SHM_SCRATCH, B43_SHM_SC_MAXCONT, 0x3FF);
 
-	do {
-		if (b43_using_pio(dev)) {
-			err = b43_pio_init(dev);
-		} else {
-			err = b43_dma_init(dev);
-			if (!err)
-				b43_qos_init(dev);
-		}
-	} while (err == -EAGAIN);
+	err = b43_dma_init(dev);
 	if (err)
 		goto err_chip_exit;
+	b43_qos_init(dev);
 
 //FIXME
 #if 1
@@ -3890,8 +3824,6 @@ static int b43_one_core_attach(struct ssb_device *dev, struct b43_wl *wl)
 	tasklet_init(&wldev->isr_tasklet,
 		     (void (*)(unsigned long))b43_interrupt_tasklet,
 		     (unsigned long)wldev);
-	if (modparam_pio)
-		wldev->__using_pio = 1;
 	INIT_LIST_HEAD(&wldev->list);
 
 	err = b43_wireless_core_attach(wldev);

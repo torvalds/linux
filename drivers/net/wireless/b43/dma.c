@@ -915,11 +915,7 @@ static void b43_destroy_dmaring(struct b43_dmaring *ring)
 
 void b43_dma_free(struct b43_wldev *dev)
 {
-	struct b43_dma *dma;
-
-	if (b43_using_pio(dev))
-		return;
-	dma = &dev->dma;
+	struct b43_dma *dma = &dev->dma;
 
 	b43_destroy_dmaring(dma->rx_ring3);
 	dma->rx_ring3 = NULL;
@@ -954,16 +950,11 @@ int b43_dma_init(struct b43_wldev *dev)
 
 	err = ssb_dma_set_mask(dev->dev, dmamask);
 	if (err) {
-#ifdef B43_PIO
-		b43warn(dev->wl, "DMA for this device not supported. "
-			"Falling back to PIO\n");
-		dev->__using_pio = 1;
-		return -EAGAIN;
-#else
-		b43err(dev->wl, "DMA for this device not supported and "
-		       "no PIO support compiled in\n");
+		b43err(dev->wl, "The machine/kernel does not support "
+		       "the required DMA mask (0x%08X%08X)\n",
+		       (unsigned int)((dmamask & 0xFFFFFFFF00000000ULL) >> 32),
+		       (unsigned int)(dmamask & 0x00000000FFFFFFFFULL));
 		return -EOPNOTSUPP;
-#endif
 	}
 
 	err = -ENOMEM;
