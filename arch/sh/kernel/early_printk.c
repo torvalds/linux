@@ -63,7 +63,8 @@ static struct console bios_console = {
 #include <linux/serial_core.h>
 #include "../../../drivers/serial/sh-sci.h"
 
-#if defined(CONFIG_CPU_SUBTYPE_SH7720)
+#if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define EPK_SCSMR_VALUE 0x000
 #define EPK_SCBRR_VALUE 0x00C
 #define EPK_FIFO_SIZE 64
@@ -117,7 +118,8 @@ static struct console scif_console = {
 };
 
 #if !defined(CONFIG_SH_STANDARD_BIOS)
-#if defined(CONFIG_CPU_SUBTYPE_SH7720)
+#if defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 static void scif_sercon_init(char *s)
 {
 	sci_out(&scif_port, SCSCR, 0x0000);	/* clear TE and RE */
@@ -208,9 +210,11 @@ static int __init setup_early_printk(char *buf)
 	if (!strncmp(buf, "serial", 6)) {
 		early_console = &scif_console;
 
-#if (defined(CONFIG_CPU_SH4) || defined(CONFIG_CPU_SUBTYPE_SH7720)) && \
-    !defined(CONFIG_SH_STANDARD_BIOS)
+#if !defined(CONFIG_SH_STANDARD_BIOS)
+#if defined(CONFIG_CPU_SH4) || defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 		scif_sercon_init(buf + 6);
+#endif
 #endif
 	}
 #endif

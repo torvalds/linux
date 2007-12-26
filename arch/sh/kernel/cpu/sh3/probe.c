@@ -84,6 +84,9 @@ int __uses_jump_to_uncached detect_cpu_and_cache_system(void)
 #if defined(CONFIG_CPU_SUBTYPE_SH7720)
 		boot_cpu_data.type = CPU_SH7720;
 #endif
+#if defined(CONFIG_CPU_SUBTYPE_SH7721)
+		boot_cpu_data.type = CPU_SH7721;
+#endif
 #if defined(CONFIG_CPU_SUBTYPE_SH7705)
 		boot_cpu_data.type = CPU_SH7705;
 

@@ -302,7 +302,7 @@ static void sci_init_pins_scif(struct uart_port* port, unsigned int cflag)
 	}
 	sci_out(port, SCFCR, fcr_val);
 }
-#elif defined(CONFIG_CPU_SUBTYPE_SH7720)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7720) || defined(CONFIG_CPU_SUBTYPE_SH7721)
 static void sci_init_pins_scif(struct uart_port *port, unsigned int cflag)
 {
 	unsigned int fcr_val = 0;

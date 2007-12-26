@@ -23,12 +23,13 @@
  * ---------------------------------------------------------------------------
  */
 
-#if  !defined(CONFIG_CPU_SUBTYPE_SH7720)
+#if  !defined(CONFIG_CPU_SUBTYPE_SH7720) && !defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define TMU_TOCR	0xfffffe90	/* Byte access */
 #endif
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7710) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7720)
+    defined(CONFIG_CPU_SUBTYPE_SH7720) || \
+    defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define TMU_012_TSTR	0xa412fe92	/* Byte access */
 
 #define TMU0_TCOR	0xa412fe94	/* Long access */
@@ -57,7 +58,7 @@
 #define TMU2_TCOR	0xfffffeac	/* Long access */
 #define TMU2_TCNT	0xfffffeb0	/* Long access */
 #define TMU2_TCR	0xfffffeb4	/* Word access */
-#if !defined(CONFIG_CPU_SUBTYPE_SH7720)
+#if !defined(CONFIG_CPU_SUBTYPE_SH7720) && !defined(CONFIG_CPU_SUBTYPE_SH7721)
 #define TMU2_TCPR2	0xfffffeb8	/* Long access */
 #endif
 #endif
