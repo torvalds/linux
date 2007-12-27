@@ -10341,7 +10341,7 @@ static int ipw_tx_skb(struct ipw_priv *priv, struct ieee80211_txb *txb,
 			tfd->u.data.chunk_ptr[i] =
 			    cpu_to_le32(pci_map_single
 					(priv->pci_dev, skb->data,
-					 tfd->u.data.chunk_len[i],
+					 remaining_bytes,
 					 PCI_DMA_TODEVICE));
 
 			tfd->u.data.num_chunks =
