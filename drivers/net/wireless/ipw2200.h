@@ -267,25 +267,25 @@ enum connection_manager_assoc_states {
 #define CW_MIN_CCK           31
 #define CW_MAX_CCK           1023
 
-#define QOS_TX0_CW_MIN_OFDM      CW_MIN_OFDM
-#define QOS_TX1_CW_MIN_OFDM      CW_MIN_OFDM
-#define QOS_TX2_CW_MIN_OFDM      ( (CW_MIN_OFDM + 1) / 2 - 1 )
-#define QOS_TX3_CW_MIN_OFDM      ( (CW_MIN_OFDM + 1) / 4 - 1 )
+#define QOS_TX0_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define QOS_TX1_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define QOS_TX2_CW_MIN_OFDM      cpu_to_le16((CW_MIN_OFDM + 1)/2 - 1)
+#define QOS_TX3_CW_MIN_OFDM      cpu_to_le16((CW_MIN_OFDM + 1)/4 - 1)
 
-#define QOS_TX0_CW_MIN_CCK       CW_MIN_CCK
-#define QOS_TX1_CW_MIN_CCK       CW_MIN_CCK
-#define QOS_TX2_CW_MIN_CCK       ( (CW_MIN_CCK + 1) / 2 - 1 )
-#define QOS_TX3_CW_MIN_CCK       ( (CW_MIN_CCK + 1) / 4 - 1 )
+#define QOS_TX0_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define QOS_TX1_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define QOS_TX2_CW_MIN_CCK       cpu_to_le16((CW_MIN_CCK + 1)/2 - 1)
+#define QOS_TX3_CW_MIN_CCK       cpu_to_le16((CW_MIN_CCK + 1)/4 - 1)
 
-#define QOS_TX0_CW_MAX_OFDM      CW_MAX_OFDM
-#define QOS_TX1_CW_MAX_OFDM      CW_MAX_OFDM
-#define QOS_TX2_CW_MAX_OFDM      CW_MIN_OFDM
-#define QOS_TX3_CW_MAX_OFDM      ( (CW_MIN_OFDM + 1) / 2 - 1 )
+#define QOS_TX0_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define QOS_TX1_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define QOS_TX2_CW_MAX_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define QOS_TX3_CW_MAX_OFDM      cpu_to_le16((CW_MIN_OFDM + 1)/2 - 1)
 
-#define QOS_TX0_CW_MAX_CCK       CW_MAX_CCK
-#define QOS_TX1_CW_MAX_CCK       CW_MAX_CCK
-#define QOS_TX2_CW_MAX_CCK       CW_MIN_CCK
-#define QOS_TX3_CW_MAX_CCK       ( (CW_MIN_CCK + 1) / 2 - 1 )
+#define QOS_TX0_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define QOS_TX1_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define QOS_TX2_CW_MAX_CCK       cpu_to_le16(CW_MIN_CCK)
+#define QOS_TX3_CW_MAX_CCK       cpu_to_le16((CW_MIN_CCK + 1)/2 - 1)
 
 #define QOS_TX0_AIFS            (3 - QOS_AIFSN_MIN_VALUE)
 #define QOS_TX1_AIFS            (7 - QOS_AIFSN_MIN_VALUE)
@@ -299,33 +299,33 @@ enum connection_manager_assoc_states {
 
 #define QOS_TX0_TXOP_LIMIT_CCK          0
 #define QOS_TX1_TXOP_LIMIT_CCK          0
-#define QOS_TX2_TXOP_LIMIT_CCK          6016
-#define QOS_TX3_TXOP_LIMIT_CCK          3264
+#define QOS_TX2_TXOP_LIMIT_CCK          cpu_to_le16(6016)
+#define QOS_TX3_TXOP_LIMIT_CCK          cpu_to_le16(3264)
 
 #define QOS_TX0_TXOP_LIMIT_OFDM      0
 #define QOS_TX1_TXOP_LIMIT_OFDM      0
-#define QOS_TX2_TXOP_LIMIT_OFDM      3008
-#define QOS_TX3_TXOP_LIMIT_OFDM      1504
+#define QOS_TX2_TXOP_LIMIT_OFDM      cpu_to_le16(3008)
+#define QOS_TX3_TXOP_LIMIT_OFDM      cpu_to_le16(1504)
 
-#define DEF_TX0_CW_MIN_OFDM      CW_MIN_OFDM
-#define DEF_TX1_CW_MIN_OFDM      CW_MIN_OFDM
-#define DEF_TX2_CW_MIN_OFDM      CW_MIN_OFDM
-#define DEF_TX3_CW_MIN_OFDM      CW_MIN_OFDM
+#define DEF_TX0_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define DEF_TX1_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define DEF_TX2_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
+#define DEF_TX3_CW_MIN_OFDM      cpu_to_le16(CW_MIN_OFDM)
 
-#define DEF_TX0_CW_MIN_CCK       CW_MIN_CCK
-#define DEF_TX1_CW_MIN_CCK       CW_MIN_CCK
-#define DEF_TX2_CW_MIN_CCK       CW_MIN_CCK
-#define DEF_TX3_CW_MIN_CCK       CW_MIN_CCK
+#define DEF_TX0_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define DEF_TX1_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define DEF_TX2_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
+#define DEF_TX3_CW_MIN_CCK       cpu_to_le16(CW_MIN_CCK)
 
-#define DEF_TX0_CW_MAX_OFDM      CW_MAX_OFDM
-#define DEF_TX1_CW_MAX_OFDM      CW_MAX_OFDM
-#define DEF_TX2_CW_MAX_OFDM      CW_MAX_OFDM
-#define DEF_TX3_CW_MAX_OFDM      CW_MAX_OFDM
+#define DEF_TX0_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define DEF_TX1_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define DEF_TX2_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
+#define DEF_TX3_CW_MAX_OFDM      cpu_to_le16(CW_MAX_OFDM)
 
-#define DEF_TX0_CW_MAX_CCK       CW_MAX_CCK
-#define DEF_TX1_CW_MAX_CCK       CW_MAX_CCK
-#define DEF_TX2_CW_MAX_CCK       CW_MAX_CCK
-#define DEF_TX3_CW_MAX_CCK       CW_MAX_CCK
+#define DEF_TX0_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define DEF_TX1_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define DEF_TX2_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
+#define DEF_TX3_CW_MAX_CCK       cpu_to_le16(CW_MAX_CCK)
 
 #define DEF_TX0_AIFS            0
 #define DEF_TX1_AIFS            0

@@ -6904,7 +6904,7 @@ static int ipw_qos_activate(struct ipw_priv *priv,
 		burst_duration = ipw_qos_get_burst_duration(priv);
 		for (i = 0; i < QOS_QUEUE_NUM; i++)
 			qos_parameters[QOS_PARAM_SET_ACTIVE].tx_op_limit[i] =
-			    (u16)burst_duration;
+			    cpu_to_le16(burst_duration);
 	} else if (priv->ieee->iw_mode == IW_MODE_ADHOC) {
 		if (type == IEEE_B) {
 			IPW_DEBUG_QOS("QoS activate IBSS nework mode %d\n",
@@ -6936,20 +6936,11 @@ static int ipw_qos_activate(struct ipw_priv *priv,
 			burst_duration = ipw_qos_get_burst_duration(priv);
 			for (i = 0; i < QOS_QUEUE_NUM; i++)
 				qos_parameters[QOS_PARAM_SET_ACTIVE].
-				    tx_op_limit[i] = (u16)burst_duration;
+				    tx_op_limit[i] = cpu_to_le16(burst_duration);
 		}
 	}
 
 	IPW_DEBUG_QOS("QoS sending IPW_CMD_QOS_PARAMETERS\n");
-	for (i = 0; i < 3; i++) {
-		int j;
-		for (j = 0; j < QOS_QUEUE_NUM; j++) {
-			qos_parameters[i].cw_min[j] = cpu_to_le16(qos_parameters[i].cw_min[j]);
-			qos_parameters[i].cw_max[j] = cpu_to_le16(qos_parameters[i].cw_max[j]);
-			qos_parameters[i].tx_op_limit[j] = cpu_to_le16(qos_parameters[i].tx_op_limit[j]);
-		}
-	}
-
 	err = ipw_send_qos_params_command(priv,
 					  (struct ieee80211_qos_parameters *)
 					  &(qos_parameters[0]));
