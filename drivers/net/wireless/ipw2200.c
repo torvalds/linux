@@ -7792,7 +7792,7 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 		    cpu_to_le16((IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ));
 	} else {		/* 802.11g */
 		ipw_rt->rt_chbitmask =
-		    (IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ);
+		    cpu_to_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ);
 	}
 
 	/* set the rate in multiples of 500k/s */
@@ -8009,7 +8009,7 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 		    cpu_to_le16((IEEE80211_CHAN_CCK | IEEE80211_CHAN_2GHZ));
 	} else {		/* 802.11g */
 		ipw_rt->rt_chbitmask =
-		    (IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ);
+		    cpu_to_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_2GHZ);
 	}
 
 	/* set the rate in multiples of 500k/s */
