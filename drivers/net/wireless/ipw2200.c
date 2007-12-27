@@ -7759,11 +7759,11 @@ static void ipw_handle_data_packet_monitor(struct ipw_priv *priv,
 
 	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	ipw_rt->rt_hdr.it_pad = 0;	/* always good to zero */
-	ipw_rt->rt_hdr.it_len = sizeof(struct ipw_rt_hdr);	/* total header+data */
+	ipw_rt->rt_hdr.it_len = cpu_to_le16(sizeof(struct ipw_rt_hdr));	/* total header+data */
 
 	/* Big bitfield of all the fields we provide in radiotap */
-	ipw_rt->rt_hdr.it_present =
-	    ((1 << IEEE80211_RADIOTAP_TSFT) |
+	ipw_rt->rt_hdr.it_present = cpu_to_le32(
+	     (1 << IEEE80211_RADIOTAP_TSFT) |
 	     (1 << IEEE80211_RADIOTAP_FLAGS) |
 	     (1 << IEEE80211_RADIOTAP_RATE) |
 	     (1 << IEEE80211_RADIOTAP_CHANNEL) |
@@ -7973,14 +7973,14 @@ static void ipw_handle_promiscuous_rx(struct ipw_priv *priv,
 
 	ipw_rt->rt_hdr.it_version = PKTHDR_RADIOTAP_VERSION;
 	ipw_rt->rt_hdr.it_pad = 0;	/* always good to zero */
-	ipw_rt->rt_hdr.it_len = sizeof(*ipw_rt);	/* total header+data */
+	ipw_rt->rt_hdr.it_len = cpu_to_le16(sizeof(*ipw_rt));	/* total header+data */
 
 	/* Set the size of the skb to the size of the frame */
-	skb_put(skb, ipw_rt->rt_hdr.it_len + len);
+	skb_put(skb, sizeof(*ipw_rt) + len);
 
 	/* Big bitfield of all the fields we provide in radiotap */
-	ipw_rt->rt_hdr.it_present =
-	    ((1 << IEEE80211_RADIOTAP_TSFT) |
+	ipw_rt->rt_hdr.it_present = cpu_to_le32(
+	     (1 << IEEE80211_RADIOTAP_TSFT) |
 	     (1 << IEEE80211_RADIOTAP_FLAGS) |
 	     (1 << IEEE80211_RADIOTAP_RATE) |
 	     (1 << IEEE80211_RADIOTAP_CHANNEL) |
@@ -10436,7 +10436,7 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 		rt_hdr->it_version = PKTHDR_RADIOTAP_VERSION;
 		rt_hdr->it_pad = 0;
 		rt_hdr->it_present = 0; /* after all, it's just an idea */
-		rt_hdr->it_present |=  (1 << IEEE80211_RADIOTAP_CHANNEL);
+		rt_hdr->it_present |=  cpu_to_le32(1 << IEEE80211_RADIOTAP_CHANNEL);
 
 		*(u16*)skb_put(dst, sizeof(u16)) = cpu_to_le16(
 			ieee80211chan2mhz(priv->channel));
@@ -10453,7 +10453,7 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 				cpu_to_le16(IEEE80211_CHAN_OFDM |
 				 IEEE80211_CHAN_2GHZ);
 
-		rt_hdr->it_len = dst->len;
+		rt_hdr->it_len = cpu_to_le16(dst->len);
 
 		skb_copy_from_linear_data(src, skb_put(dst, len), len);
 
