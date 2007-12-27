@@ -881,20 +881,20 @@ struct ipw_associate {
 	u8 auth_type:4, auth_key:4;
 	u8 assoc_type;
 	u8 reserved;
-	u16 policy_support;
+	__le16 policy_support;
 	u8 preamble_length;
 	u8 ieee_mode;
 	u8 bssid[ETH_ALEN];
-	u32 assoc_tsf_msw;
-	u32 assoc_tsf_lsw;
-	u16 capability;
-	u16 listen_interval;
-	u16 beacon_interval;
+	__le32 assoc_tsf_msw;
+	__le32 assoc_tsf_lsw;
+	__le16 capability;
+	__le16 listen_interval;
+	__le16 beacon_interval;
 	u8 dest[ETH_ALEN];
-	u16 atim_window;
+	__le16 atim_window;
 	u8 smr;
 	u8 reserved1;
-	u16 reserved2;
+	__le16 reserved2;
 } __attribute__ ((packed));
 
 struct ipw_supported_rates {
@@ -1759,7 +1759,7 @@ enum {
 #define HC_IBSS_RECONF    4
 #define HC_DISASSOC_QUIET 5
 
-#define HC_QOS_SUPPORT_ASSOC  0x01
+#define HC_QOS_SUPPORT_ASSOC  cpu_to_le16(0x01)
 
 #define IPW_RATE_CAPABILITIES 1
 #define IPW_RATE_CONNECT      0

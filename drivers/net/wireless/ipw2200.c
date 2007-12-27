@@ -2352,27 +2352,13 @@ static int ipw_set_sensitivity(struct ipw_priv *priv, u16 sens)
 static int ipw_send_associate(struct ipw_priv *priv,
 			      struct ipw_associate *associate)
 {
-	struct ipw_associate tmp_associate;
-
 	if (!priv || !associate) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	memcpy(&tmp_associate, associate, sizeof(*associate));
-	tmp_associate.policy_support =
-	    cpu_to_le16(tmp_associate.policy_support);
-	tmp_associate.assoc_tsf_msw = cpu_to_le32(tmp_associate.assoc_tsf_msw);
-	tmp_associate.assoc_tsf_lsw = cpu_to_le32(tmp_associate.assoc_tsf_lsw);
-	tmp_associate.capability = cpu_to_le16(tmp_associate.capability);
-	tmp_associate.listen_interval =
-	    cpu_to_le16(tmp_associate.listen_interval);
-	tmp_associate.beacon_interval =
-	    cpu_to_le16(tmp_associate.beacon_interval);
-	tmp_associate.atim_window = cpu_to_le16(tmp_associate.atim_window);
-
-	return ipw_send_cmd_pdu(priv, IPW_CMD_ASSOCIATE, sizeof(tmp_associate),
-				&tmp_associate);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_ASSOCIATE, sizeof(*associate),
+				associate);
 }
 
 static int ipw_send_supported_rates(struct ipw_priv *priv,
@@ -4168,7 +4154,7 @@ static void ipw_gather_stats(struct ipw_priv *priv)
 	priv->last_missed_beacons = priv->missed_beacons;
 	if (priv->assoc_request.beacon_interval) {
 		missed_beacons_percent = missed_beacons_delta *
-		    (HZ * priv->assoc_request.beacon_interval) /
+		    (HZ * le16_to_cpu(priv->assoc_request.beacon_interval)) /
 		    (IPW_STATS_INTERVAL * 10);
 	} else {
 		missed_beacons_percent = 0;
@@ -4432,9 +4418,9 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 								   workqueue,
 								   &priv->
 								   adhoc_check,
-								   priv->
+								   le16_to_cpu(priv->
 								   assoc_request.
-								   beacon_interval);
+								   beacon_interval));
 						break;
 					}
 
@@ -6044,7 +6030,7 @@ static void ipw_adhoc_check(void *data)
 	}
 
 	queue_delayed_work(priv->workqueue, &priv->adhoc_check,
-			   priv->assoc_request.beacon_interval);
+			   le16_to_cpu(priv->assoc_request.beacon_interval));
 }
 
 static void ipw_bg_adhoc_check(struct work_struct *work)
@@ -7287,7 +7273,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 		priv->assoc_request.auth_type = AUTH_OPEN;
 
 	if (priv->ieee->wpa_ie_len) {
-		priv->assoc_request.policy_support = 0x02;	/* RSN active */
+		priv->assoc_request.policy_support = cpu_to_le16(0x02);	/* RSN active */
 		ipw_set_rsn_capa(priv, priv->ieee->wpa_ie,
 				 priv->ieee->wpa_ie_len);
 	}
@@ -7304,7 +7290,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 	else if (network->mode & priv->ieee->mode & IEEE_B)
 		priv->assoc_request.ieee_mode = IPW_B_MODE;
 
-	priv->assoc_request.capability = network->capability;
+	priv->assoc_request.capability = cpu_to_le16(network->capability);
 	if ((network->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)
 	    && !(priv->config & CFG_PREAMBLE_LONG)) {
 		priv->assoc_request.preamble_length = DCT_FLAG_SHORT_PREAMBLE;
@@ -7313,13 +7299,13 @@ static int ipw_associate_network(struct ipw_priv *priv,
 
 		/* Clear the short preamble if we won't be supporting it */
 		priv->assoc_request.capability &=
-		    ~WLAN_CAPABILITY_SHORT_PREAMBLE;
+		    ~cpu_to_le16(WLAN_CAPABILITY_SHORT_PREAMBLE);
 	}
 
 	/* Clear capability bits that aren't used in Ad Hoc */
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC)
 		priv->assoc_request.capability &=
-		    ~WLAN_CAPABILITY_SHORT_SLOT_TIME;
+		    ~cpu_to_le16(WLAN_CAPABILITY_SHORT_SLOT_TIME);
 
 	IPW_DEBUG_ASSOC("%sssocation attempt: '%s', channel %d, "
 			"802.11%c [%d], %s[:%s], enc=%s%s%s%c%c\n",
@@ -7341,7 +7327,7 @@ static int ipw_associate_network(struct ipw_priv *priv,
 			'1' + priv->ieee->sec.active_key : '.',
 			priv->capability & CAP_PRIVACY_ON ? '.' : ' ');
 
-	priv->assoc_request.beacon_interval = network->beacon_interval;
+	priv->assoc_request.beacon_interval = cpu_to_le16(network->beacon_interval);
 	if ((priv->ieee->iw_mode == IW_MODE_ADHOC) &&
 	    (network->time_stamp[0] == 0) && (network->time_stamp[1] == 0)) {
 		priv->assoc_request.assoc_type = HC_IBSS_START;
@@ -7352,21 +7338,21 @@ static int ipw_associate_network(struct ipw_priv *priv,
 			priv->assoc_request.assoc_type = HC_REASSOCIATE;
 		else
 			priv->assoc_request.assoc_type = HC_ASSOCIATE;
-		priv->assoc_request.assoc_tsf_msw = network->time_stamp[1];
-		priv->assoc_request.assoc_tsf_lsw = network->time_stamp[0];
+		priv->assoc_request.assoc_tsf_msw = cpu_to_le32(network->time_stamp[1]);
+		priv->assoc_request.assoc_tsf_lsw = cpu_to_le32(network->time_stamp[0]);
 	}
 
 	memcpy(priv->assoc_request.bssid, network->bssid, ETH_ALEN);
 
 	if (priv->ieee->iw_mode == IW_MODE_ADHOC) {
 		memset(&priv->assoc_request.dest, 0xFF, ETH_ALEN);
-		priv->assoc_request.atim_window = network->atim_window;
+		priv->assoc_request.atim_window = cpu_to_le16(network->atim_window);
 	} else {
 		memcpy(priv->assoc_request.dest, network->bssid, ETH_ALEN);
 		priv->assoc_request.atim_window = 0;
 	}
 
-	priv->assoc_request.listen_interval = network->listen_interval;
+	priv->assoc_request.listen_interval = cpu_to_le16(network->listen_interval);
 
 	err = ipw_send_ssid(priv, priv->essid, priv->essid_len);
 	if (err) {
@@ -10862,9 +10848,9 @@ static void shim__set_security(struct net_device *dev,
 #if 0
 	if ((priv->status & (STATUS_ASSOCIATED | STATUS_ASSOCIATING)) &&
 	    (((priv->assoc_request.capability &
-	       WLAN_CAPABILITY_PRIVACY) && !sec->enabled) ||
+	       cpu_to_le16(WLAN_CAPABILITY_PRIVACY)) && !sec->enabled) ||
 	     (!(priv->assoc_request.capability &
-		WLAN_CAPABILITY_PRIVACY) && sec->enabled))) {
+		cpu_to_le16(WLAN_CAPABILITY_PRIVACY)) && sec->enabled))) {
 		IPW_DEBUG_ASSOC("Disassociating due to capability "
 				"change.\n");
 		ipw_disassociate(priv);
