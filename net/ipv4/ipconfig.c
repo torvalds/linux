@@ -1403,6 +1403,10 @@ static int __init ic_proto_name(char *name)
 	if (!strcmp(name, "on") || !strcmp(name, "any")) {
 		return 1;
 	}
+	if (!strcmp(name, "off") || !strcmp(name, "none")) {
+		ic_enable = 0;
+		return 1;
+	}
 #ifdef CONFIG_IP_PNP_DHCP
 	else if (!strcmp(name, "dhcp")) {
 		ic_proto_enabled &= ~IC_RARP;
@@ -1436,12 +1440,6 @@ static int __init ip_auto_config_setup(char *addrs)
 	int num = 0;
 
 	ic_set_manually = 1;
-
-	ic_enable = (*addrs &&
-		(strcmp(addrs, "off") != 0) &&
-		(strcmp(addrs, "none") != 0));
-	if (!ic_enable)
-		return 1;
 
 	if (ic_proto_name(addrs))
 		return 1;
