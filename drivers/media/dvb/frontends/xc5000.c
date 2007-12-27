@@ -39,7 +39,7 @@ MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
 #define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.1.fw"
-#define XC5000_DEFAULT_FIRMWARE_SIZE 12400
+#define XC5000_DEFAULT_FIRMWARE_SIZE 12332
 
 /* Misc Defines */
 #define MAX_TV_STANDARD			23
