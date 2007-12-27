@@ -2403,14 +2403,13 @@ static int ipw_set_random_seed(struct ipw_priv *priv)
 
 static int ipw_send_card_disable(struct ipw_priv *priv, u32 phy_off)
 {
+	__le32 v = cpu_to_le32(phy_off);
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
 		return -1;
 	}
 
-	phy_off = cpu_to_le32(phy_off);
-	return ipw_send_cmd_pdu(priv, IPW_CMD_CARD_DISABLE, sizeof(phy_off),
-				&phy_off);
+	return ipw_send_cmd_pdu(priv, IPW_CMD_CARD_DISABLE, sizeof(v), &v);
 }
 
 static int ipw_send_tx_power(struct ipw_priv *priv, struct ipw_tx_power *power)
@@ -2499,7 +2498,7 @@ static int ipw_send_frag_threshold(struct ipw_priv *priv, u16 frag)
 
 static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
 {
-	u32 param;
+	__le32 param;
 
 	if (!priv) {
 		IPW_ERROR("Invalid args\n");
@@ -2510,17 +2509,16 @@ static int ipw_send_power_mode(struct ipw_priv *priv, u32 mode)
 	 * level */
 	switch (mode) {
 	case IPW_POWER_BATTERY:
-		param = IPW_POWER_INDEX_3;
+		param = cpu_to_le32(IPW_POWER_INDEX_3);
 		break;
 	case IPW_POWER_AC:
-		param = IPW_POWER_MODE_CAM;
+		param = cpu_to_le32(IPW_POWER_MODE_CAM);
 		break;
 	default:
-		param = mode;
+		param = cpu_to_le32(mode);
 		break;
 	}
 
-	param = cpu_to_le32(param);
 	return ipw_send_cmd_pdu(priv, IPW_CMD_POWER_MODE, sizeof(param),
 				&param);
 }
@@ -2654,13 +2652,13 @@ static void eeprom_parse_mac(struct ipw_priv *priv, u8 * mac)
 static void ipw_eeprom_init_sram(struct ipw_priv *priv)
 {
 	int i;
-	u16 *eeprom = (u16 *) priv->eeprom;
+	__le16 *eeprom = (__le16 *) priv->eeprom;
 
 	IPW_DEBUG_TRACE(">>\n");
 
 	/* read entire contents of eeprom into private buffer */
 	for (i = 0; i < 128; i++)
-		eeprom[i] = le16_to_cpu(eeprom_read_u16(priv, (u8) i));
+		eeprom[i] = cpu_to_le16(eeprom_read_u16(priv, (u8) i));
 
 	/*
 	   If the data looks correct, then copy it to our private
@@ -3040,17 +3038,17 @@ static void ipw_arc_release(struct ipw_priv *priv)
 }
 
 struct fw_chunk {
-	u32 address;
-	u32 length;
+	__le32 address;
+	__le32 length;
 };
 
 static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 {
 	int rc = 0, i, addr;
 	u8 cr = 0;
-	u16 *image;
+	__le16 *image;
 
-	image = (u16 *) data;
+	image = (__le16 *) data;
 
 	IPW_DEBUG_TRACE(">> \n");
 
@@ -3097,7 +3095,7 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 	/* load new ipw uCode */
 	for (i = 0; i < len / 2; i++)
 		ipw_write_reg16(priv, IPW_BASEBAND_CONTROL_STORE,
-				cpu_to_le16(image[i]));
+				le16_to_cpu(image[i]));
 
 	/* enable DINO */
 	ipw_write_reg8(priv, IPW_BASEBAND_CONTROL_STATUS, 0);
@@ -3116,11 +3114,11 @@ static int ipw_load_ucode(struct ipw_priv *priv, u8 * data, size_t len)
 
 	if (cr & DINO_RXFIFO_DATA) {
 		/* alive_command_responce size is NOT multiple of 4 */
-		u32 response_buffer[(sizeof(priv->dino_alive) + 3) / 4];
+		__le32 response_buffer[(sizeof(priv->dino_alive) + 3) / 4];
 
 		for (i = 0; i < ARRAY_SIZE(response_buffer); i++)
 			response_buffer[i] =
-			    le32_to_cpu(ipw_read_reg32(priv,
+			    cpu_to_le32(ipw_read_reg32(priv,
 						       IPW_BASEBAND_RX_FIFO_READ));
 		memcpy(&priv->dino_alive, response_buffer,
 		       sizeof(priv->dino_alive));
@@ -4396,9 +4394,10 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 				       struct ipw_rx_notification *notif)
 {
 	DECLARE_MAC_BUF(mac);
+	u16 size = le16_to_cpu(notif->size);
 	notif->size = le16_to_cpu(notif->size);
 
-	IPW_DEBUG_NOTIF("type = %i (%d bytes)\n", notif->subtype, notif->size);
+	IPW_DEBUG_NOTIF("type = %i (%d bytes)\n", notif->subtype, size);
 
 	switch (notif->subtype) {
 	case HOST_NOTIFICATION_STATUS_ASSOCIATED:{
@@ -4453,20 +4452,17 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 						if ((sizeof
 						     (struct
 						      ieee80211_assoc_response)
-						     <= notif->size)
-						    && (notif->size <= 2314)) {
+						     <= size)
+						    && (size <= 2314)) {
 							struct
 							ieee80211_rx_stats
 							    stats = {
-								.len =
-								    notif->
-								    size - 1,
+								.len = size - 1,
 							};
 
 							IPW_DEBUG_QOS
 							    ("QoS Associate "
-							     "size %d\n",
-							     notif->size);
+							     "size %d\n", size);
 							ieee80211_rx_mgt(priv->
 									 ieee,
 									 (struct
@@ -4671,20 +4667,20 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 			struct notif_channel_result *x =
 			    &notif->u.channel_result;
 
-			if (notif->size == sizeof(*x)) {
+			if (size == sizeof(*x)) {
 				IPW_DEBUG_SCAN("Scan result for channel %d\n",
 					       x->channel_num);
 			} else {
 				IPW_DEBUG_SCAN("Scan result of wrong size %d "
 					       "(should be %zd)\n",
-					       notif->size, sizeof(*x));
+					       size, sizeof(*x));
 			}
 			break;
 		}
 
 	case HOST_NOTIFICATION_STATUS_SCAN_COMPLETED:{
 			struct notif_scan_complete *x = &notif->u.scan_complete;
-			if (notif->size == sizeof(*x)) {
+			if (size == sizeof(*x)) {
 				IPW_DEBUG_SCAN
 				    ("Scan completed: type %d, %d channels, "
 				     "%d status\n", x->scan_type,
@@ -4692,7 +4688,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 			} else {
 				IPW_ERROR("Scan completed of wrong size %d "
 					  "(should be %zd)\n",
-					  notif->size, sizeof(*x));
+					  size, sizeof(*x));
 			}
 
 			priv->status &=
@@ -4758,13 +4754,13 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 	case HOST_NOTIFICATION_STATUS_FRAG_LENGTH:{
 			struct notif_frag_length *x = &notif->u.frag_len;
 
-			if (notif->size == sizeof(*x))
+			if (size == sizeof(*x))
 				IPW_ERROR("Frag length: %d\n",
 					  le16_to_cpu(x->frag_length));
 			else
 				IPW_ERROR("Frag length of wrong size %d "
 					  "(should be %zd)\n",
-					  notif->size, sizeof(*x));
+					  size, sizeof(*x));
 			break;
 		}
 
@@ -4772,7 +4768,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 			struct notif_link_deterioration *x =
 			    &notif->u.link_deterioration;
 
-			if (notif->size == sizeof(*x)) {
+			if (size == sizeof(*x)) {
 				IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE,
 					"link deterioration: type %d, cnt %d\n",
 					x->silence_notification_type,
@@ -4782,7 +4778,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 			} else {
 				IPW_ERROR("Link Deterioration of wrong size %d "
 					  "(should be %zd)\n",
-					  notif->size, sizeof(*x));
+					  size, sizeof(*x));
 			}
 			break;
 		}
@@ -4798,10 +4794,10 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 	case HOST_NOTIFICATION_STATUS_BEACON_STATE:{
 			struct notif_beacon_state *x = &notif->u.beacon_state;
-			if (notif->size != sizeof(*x)) {
+			if (size != sizeof(*x)) {
 				IPW_ERROR
 				    ("Beacon state of wrong size %d (should "
-				     "be %zd)\n", notif->size, sizeof(*x));
+				     "be %zd)\n", size, sizeof(*x));
 				break;
 			}
 
@@ -4816,7 +4812,7 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 	case HOST_NOTIFICATION_STATUS_TGI_TX_KEY:{
 			struct notif_tgi_tx_key *x = &notif->u.tgi_tx_key;
-			if (notif->size == sizeof(*x)) {
+			if (size == sizeof(*x)) {
 				IPW_ERROR("TGi Tx Key: state 0x%02x sec type "
 					  "0x%02x station %d\n",
 					  x->key_state, x->security_type,
@@ -4826,14 +4822,14 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 			IPW_ERROR
 			    ("TGi Tx Key of wrong size %d (should be %zd)\n",
-			     notif->size, sizeof(*x));
+			     size, sizeof(*x));
 			break;
 		}
 
 	case HOST_NOTIFICATION_CALIB_KEEP_RESULTS:{
 			struct notif_calibration *x = &notif->u.calibration;
 
-			if (notif->size == sizeof(*x)) {
+			if (size == sizeof(*x)) {
 				memcpy(&priv->calib, x, sizeof(*x));
 				IPW_DEBUG_INFO("TODO: Calibration\n");
 				break;
@@ -4841,12 +4837,12 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 			IPW_ERROR
 			    ("Calibration of wrong size %d (should be %zd)\n",
-			     notif->size, sizeof(*x));
+			     size, sizeof(*x));
 			break;
 		}
 
 	case HOST_NOTIFICATION_NOISE_STATS:{
-			if (notif->size == sizeof(u32)) {
+			if (size == sizeof(u32)) {
 				priv->exp_avg_noise =
 				    exponential_average(priv->exp_avg_noise,
 				    (u8) (le32_to_cpu(notif->u.noise.value) & 0xff),
@@ -4856,14 +4852,14 @@ static void ipw_rx_notification(struct ipw_priv *priv,
 
 			IPW_ERROR
 			    ("Noise stat is wrong size %d (should be %zd)\n",
-			     notif->size, sizeof(u32));
+			     size, sizeof(u32));
 			break;
 		}
 
 	default:
 		IPW_DEBUG_NOTIF("Unknown notification: "
 				"subtype=%d,flags=0x%2x,size=%d\n",
-				notif->subtype, notif->flags, notif->size);
+				notif->subtype, notif->flags, size);
 	}
 }
 
@@ -6767,7 +6763,7 @@ static int ipw_wx_set_mlme(struct net_device *dev,
 {
 	struct ipw_priv *priv = ieee80211_priv(dev);
 	struct iw_mlme *mlme = (struct iw_mlme *)extra;
-	u16 reason;
+	__le16 reason;
 
 	reason = cpu_to_le16(mlme->reason_code);
 
@@ -10438,18 +10434,18 @@ static void ipw_handle_promiscuous_tx(struct ipw_priv *priv,
 		rt_hdr->it_present = 0; /* after all, it's just an idea */
 		rt_hdr->it_present |=  cpu_to_le32(1 << IEEE80211_RADIOTAP_CHANNEL);
 
-		*(u16*)skb_put(dst, sizeof(u16)) = cpu_to_le16(
+		*(__le16*)skb_put(dst, sizeof(u16)) = cpu_to_le16(
 			ieee80211chan2mhz(priv->channel));
 		if (priv->channel > 14) 	/* 802.11a */
-			*(u16*)skb_put(dst, sizeof(u16)) =
+			*(__le16*)skb_put(dst, sizeof(u16)) =
 				cpu_to_le16(IEEE80211_CHAN_OFDM |
 					     IEEE80211_CHAN_5GHZ);
 		else if (priv->ieee->mode == IEEE_B) /* 802.11b */
-			*(u16*)skb_put(dst, sizeof(u16)) =
+			*(__le16*)skb_put(dst, sizeof(u16)) =
 				cpu_to_le16(IEEE80211_CHAN_CCK |
 					     IEEE80211_CHAN_2GHZ);
 		else 		/* 802.11g */
-			*(u16*)skb_put(dst, sizeof(u16)) =
+			*(__le16*)skb_put(dst, sizeof(u16)) =
 				cpu_to_le16(IEEE80211_CHAN_OFDM |
 				 IEEE80211_CHAN_2GHZ);
 
