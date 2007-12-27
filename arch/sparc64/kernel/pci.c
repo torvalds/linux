@@ -1275,4 +1275,20 @@ int pci_dma_supported(struct pci_dev *pdev, u64 device_mask)
 	return (device_mask & dma_addr_mask) == dma_addr_mask;
 }
 
+void pci_resource_to_user(const struct pci_dev *pdev, int bar,
+			  const struct resource *rp, resource_size_t *start,
+			  resource_size_t *end)
+{
+	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
+	unsigned long offset;
+
+	if (rp->flags & IORESOURCE_IO)
+		offset = pbm->io_space.start;
+	else
+		offset = pbm->mem_space.start;
+
+	*start = rp->start - offset;
+	*end = rp->end - offset;
+}
+
 #endif /* !(CONFIG_PCI) */
