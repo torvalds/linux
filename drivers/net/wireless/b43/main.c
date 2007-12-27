@@ -1163,7 +1163,7 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 				      u16 ram_offset,
 				      u16 shm_size_offset, u8 rate)
 {
-	int i, len;
+	unsigned int i, len, variable_len;
 	const struct ieee80211_mgmt *bcn;
 	const u8 *ie;
 	bool tim_found = 0;
@@ -1178,7 +1178,8 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 	/* Find the position of the TIM and the DTIM_period value
 	 * and write them to SHM. */
 	ie = bcn->u.beacon.variable;
-	for (i = 0; i < len - 2; ) {
+	variable_len = len - offsetof(struct ieee80211_mgmt, u.beacon.variable);
+	for (i = 0; i < variable_len - 2; ) {
 		uint8_t ie_id, ie_len;
 
 		ie_id = ie[i];
@@ -1189,7 +1190,7 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 			/* This is the TIM Information Element */
 
 			/* Check whether the ie_len is in the beacon data range. */
-			if (len < ie_len + 2 + i)
+			if (variable_len < ie_len + 2 + i)
 				break;
 			/* A valid TIM is at least 4 bytes long. */
 			if (ie_len < 4)
