@@ -1,4 +1,5 @@
 header-y += byteorder/
+header-y += can/
 header-y += dvb/
 header-y += hdlc/
 header-y += isdn/
@@ -41,6 +42,7 @@ header-y += baycom.h
 header-y += bfs_fs.h
 header-y += blkpg.h
 header-y += bpqether.h
+header-y += can.h
 header-y += cdk.h
 header-y += chio.h
 header-y += coda_psdev.h
