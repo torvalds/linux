@@ -1680,7 +1680,7 @@ static struct videobuf_queue_ops bttv_video_qops = {
 	.buf_release  = buffer_release,
 };
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int bttv_s_std(struct file *file, void *priv, v4l2_std_id *id)
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
@@ -1704,7 +1704,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
 	return 0;
 }
 
-static int vidioc_querystd(struct file *file, void *f, v4l2_std_id *id)
+static int bttv_querystd(struct file *file, void *f, v4l2_std_id *id)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -1716,7 +1716,7 @@ static int vidioc_querystd(struct file *file, void *f, v4l2_std_id *id)
 	return 0;
 }
 
-static int vidioc_enum_input(struct file *file, void *priv,
+static int bttv_enum_input(struct file *file, void *priv,
 					struct v4l2_input *i)
 {
 	struct bttv_fh *fh = priv;
@@ -1758,7 +1758,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+static int bttv_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
@@ -1767,7 +1767,7 @@ static int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+static int bttv_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
@@ -1787,7 +1787,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	return 0;
 }
 
-static int vidioc_s_tuner(struct file *file, void *priv,
+static int bttv_s_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *t)
 {
 	struct bttv_fh *fh  = priv;
@@ -1815,7 +1815,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_frequency(struct file *file, void *priv,
+static int bttv_g_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct bttv_fh *fh  = priv;
@@ -1832,7 +1832,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *priv,
+static int bttv_s_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct bttv_fh *fh  = priv;
@@ -1856,7 +1856,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_log_status(struct file *file, void *f)
+static int bttv_log_status(struct file *file, void *f)
 {
 	struct bttv_fh *fh  = f;
 	struct bttv *btv = fh->btv;
@@ -1869,7 +1869,7 @@ static int vidioc_log_status(struct file *file, void *f)
 	return 0;
 }
 
-static int vidioc_g_ctrl(struct file *file, void *priv,
+static int bttv_g_ctrl(struct file *file, void *priv,
 					struct v4l2_control *c)
 {
 	struct bttv_fh *fh = priv;
@@ -1936,7 +1936,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_ctrl(struct file *file, void *f,
+static int bttv_s_ctrl(struct file *file, void *f,
 					struct v4l2_control *c)
 {
 	int err;
@@ -2034,7 +2034,7 @@ static int vidioc_s_ctrl(struct file *file, void *f,
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-static int vidioc_g_register(struct file *file, void *f,
+static int bttv_g_register(struct file *file, void *f,
 					struct v4l2_register *reg)
 {
 	struct bttv_fh *fh = f;
@@ -2053,7 +2053,7 @@ static int vidioc_g_register(struct file *file, void *f,
 	return 0;
 }
 
-static int vidioc_s_register(struct file *file, void *f,
+static int bttv_s_register(struct file *file, void *f,
 					struct v4l2_register *reg)
 {
 	struct bttv_fh *fh = f;
@@ -2447,7 +2447,7 @@ pix_format_set_size     (struct v4l2_pix_format *       f,
 	}
 }
 
-static int vidioc_g_fmt_cap(struct file *file, void *priv,
+static int bttv_g_fmt_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct bttv_fh *fh  = priv;
@@ -2460,7 +2460,7 @@ static int vidioc_g_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_fmt_overlay(struct file *file, void *priv,
+static int bttv_g_fmt_overlay(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct bttv_fh *fh  = priv;
@@ -2471,7 +2471,7 @@ static int vidioc_g_fmt_overlay(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_cap(struct file *file, void *priv,
+static int bttv_try_fmt_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	const struct bttv_format *fmt;
@@ -2522,7 +2522,7 @@ static int vidioc_try_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_try_fmt_overlay(struct file *file, void *priv,
+static int bttv_try_fmt_overlay(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
 	struct bttv_fh *fh = priv;
@@ -2532,7 +2532,7 @@ static int vidioc_try_fmt_overlay(struct file *file, void *priv,
 			/* adjust_crop */ 0);
 }
 
-static int vidioc_s_fmt_cap(struct file *file, void *priv,
+static int bttv_s_fmt_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	int retval;
@@ -2544,7 +2544,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	if (0 != retval)
 		return retval;
 
-	retval = vidioc_try_fmt_cap(file, priv, f);
+	retval = bttv_try_fmt_cap(file, priv, f);
 	if (0 != retval)
 		return retval;
 
@@ -2565,7 +2565,7 @@ static int vidioc_s_fmt_cap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_s_fmt_overlay(struct file *file, void *priv,
+static int bttv_s_fmt_overlay(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct bttv_fh *fh = priv;
@@ -2605,7 +2605,7 @@ static int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 }
 #endif
 
-static int vidioc_querycap(struct file *file, void  *priv,
+static int bttv_querycap(struct file *file, void  *priv,
 				struct v4l2_capability *cap)
 {
 	struct bttv_fh *fh = priv;
@@ -2633,7 +2633,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
+static int bttv_enum_fmt_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *f)
 {
 	if (f->index >= FORMATS)
@@ -2645,7 +2645,7 @@ static int vidioc_enum_fmt_cap(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_overlay(struct file *file, void  *priv,
+static int bttv_enum_fmt_overlay(struct file *file, void  *priv,
 					struct v4l2_fmtdesc *f)
 {
 	if (no_overlay > 0) {
@@ -2664,7 +2664,7 @@ static int vidioc_enum_fmt_overlay(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_enum_fmt_vbi(struct file *file, void  *priv,
+static int bttv_enum_fmt_vbi(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *f)
 {
 	if (0 != f->index)
@@ -2676,7 +2676,7 @@ static int vidioc_enum_fmt_vbi(struct file *file, void  *priv,
 	return 0;
 }
 
-static int vidioc_g_fbuf(struct file *file, void *f,
+static int bttv_g_fbuf(struct file *file, void *f,
 				struct v4l2_framebuffer *fb)
 {
 	struct bttv_fh *fh = f;
@@ -2689,7 +2689,7 @@ static int vidioc_g_fbuf(struct file *file, void *f,
 	return 0;
 }
 
-static int vidioc_overlay(struct file *file, void *f, unsigned int on)
+static int bttv_overlay(struct file *file, void *f, unsigned int on)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2724,7 +2724,7 @@ static int vidioc_overlay(struct file *file, void *f, unsigned int on)
 	return retval;
 }
 
-static int vidioc_s_fbuf(struct file *file, void *f,
+static int bttv_s_fbuf(struct file *file, void *f,
 				struct v4l2_framebuffer *fb)
 {
 	struct bttv_fh *fh = f;
@@ -2795,21 +2795,21 @@ static int vidioc_s_fbuf(struct file *file, void *f,
 	return retval;
 }
 
-static int vidioc_reqbufs(struct file *file, void *priv,
+static int bttv_reqbufs(struct file *file, void *priv,
 				struct v4l2_requestbuffers *p)
 {
 	struct bttv_fh *fh = priv;
 	return videobuf_reqbufs(bttv_queue(fh), p);
 }
 
-static int vidioc_querybuf(struct file *file, void *priv,
+static int bttv_querybuf(struct file *file, void *priv,
 				struct v4l2_buffer *b)
 {
 	struct bttv_fh *fh = priv;
 	return videobuf_querybuf(bttv_queue(fh), b);
 }
 
-static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+static int bttv_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
@@ -2821,14 +2821,14 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 	return videobuf_qbuf(bttv_queue(fh), b);
 }
 
-static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
+static int bttv_dqbuf(struct file *file, void *priv, struct v4l2_buffer *b)
 {
 	struct bttv_fh *fh = priv;
 	return videobuf_dqbuf(bttv_queue(fh), b,
 			file->f_flags & O_NONBLOCK);
 }
 
-static int vidioc_streamon(struct file *file, void *priv,
+static int bttv_streamon(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
 	struct bttv_fh *fh = priv;
@@ -2841,7 +2841,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 }
 
 
-static int vidioc_streamoff(struct file *file, void *priv,
+static int bttv_streamoff(struct file *file, void *priv,
 					enum v4l2_buf_type type)
 {
 	struct bttv_fh *fh = priv;
@@ -2857,7 +2857,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_queryctrl(struct file *file, void *priv,
+static int bttv_queryctrl(struct file *file, void *priv,
 					struct v4l2_queryctrl *c)
 {
 	struct bttv_fh *fh = priv;
@@ -2880,7 +2880,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_parm(struct file *file, void *f,
+static int bttv_g_parm(struct file *file, void *f,
 				struct v4l2_streamparm *parm)
 {
 	struct bttv_fh *fh = f;
@@ -2895,7 +2895,7 @@ static int vidioc_g_parm(struct file *file, void *f,
 	return 0;
 }
 
-static int vidioc_g_tuner(struct file *file, void *priv,
+static int bttv_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *t)
 {
 	struct bttv_fh *fh = priv;
@@ -2923,7 +2923,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
+static int bttv_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2933,7 +2933,7 @@ static int vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 	return 0;
 }
 
-static int vidioc_s_priority(struct file *file, void *f,
+static int bttv_s_priority(struct file *file, void *f,
 					enum v4l2_priority prio)
 {
 	struct bttv_fh *fh = f;
@@ -2942,7 +2942,7 @@ static int vidioc_s_priority(struct file *file, void *f,
 	return v4l2_prio_change(&btv->prio, &fh->prio, prio);
 }
 
-static int vidioc_cropcap(struct file *file, void *priv,
+static int bttv_cropcap(struct file *file, void *priv,
 				struct v4l2_cropcap *cap)
 {
 	struct bttv_fh *fh = priv;
@@ -2957,7 +2957,7 @@ static int vidioc_cropcap(struct file *file, void *priv,
 	return 0;
 }
 
-static int vidioc_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
+static int bttv_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2975,7 +2975,7 @@ static int vidioc_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
 	return 0;
 }
 
-static int vidioc_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
+static int bttv_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -3065,13 +3065,13 @@ static int vidioc_s_crop(struct file *file, void *f, struct v4l2_crop *crop)
 	return 0;
 }
 
-static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
+static int bttv_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	strcpy(a->name, "audio");
 	return 0;
 }
 
-static int vidioc_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
+static int bttv_s_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	return 0;
 }
@@ -3310,55 +3310,55 @@ static struct video_device bttv_video_template =
 		    VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.fops     = &bttv_fops,
 	.minor    = -1,
-	.vidioc_querycap                = vidioc_querycap,
-	.vidioc_enum_fmt_cap            = vidioc_enum_fmt_cap,
-	.vidioc_g_fmt_cap               = vidioc_g_fmt_cap,
-	.vidioc_try_fmt_cap             = vidioc_try_fmt_cap,
-	.vidioc_s_fmt_cap               = vidioc_s_fmt_cap,
-	.vidioc_enum_fmt_overlay        = vidioc_enum_fmt_overlay,
-	.vidioc_g_fmt_overlay           = vidioc_g_fmt_overlay,
-	.vidioc_try_fmt_overlay         = vidioc_try_fmt_overlay,
-	.vidioc_s_fmt_overlay           = vidioc_s_fmt_overlay,
-	.vidioc_enum_fmt_vbi            = vidioc_enum_fmt_vbi,
-	.vidioc_g_fmt_vbi               = vidioc_g_fmt_vbi,
-	.vidioc_try_fmt_vbi             = vidioc_try_fmt_vbi,
-	.vidioc_s_fmt_vbi               = vidioc_s_fmt_vbi,
-	.vidioc_g_audio                 = vidioc_g_audio,
-	.vidioc_s_audio                 = vidioc_s_audio,
-	.vidioc_cropcap                 = vidioc_cropcap,
-	.vidioc_reqbufs                 = vidioc_reqbufs,
-	.vidioc_querybuf                = vidioc_querybuf,
-	.vidioc_qbuf                    = vidioc_qbuf,
-	.vidioc_dqbuf                   = vidioc_dqbuf,
-	.vidioc_s_std                   = vidioc_s_std,
-	.vidioc_enum_input              = vidioc_enum_input,
-	.vidioc_g_input                 = vidioc_g_input,
-	.vidioc_s_input                 = vidioc_s_input,
-	.vidioc_queryctrl               = vidioc_queryctrl,
-	.vidioc_g_ctrl                  = vidioc_g_ctrl,
-	.vidioc_s_ctrl                  = vidioc_s_ctrl,
-	.vidioc_streamon                = vidioc_streamon,
-	.vidioc_streamoff               = vidioc_streamoff,
-	.vidioc_g_tuner                 = vidioc_g_tuner,
-	.vidioc_s_tuner                 = vidioc_s_tuner,
+	.vidioc_querycap                = bttv_querycap,
+	.vidioc_enum_fmt_cap            = bttv_enum_fmt_cap,
+	.vidioc_g_fmt_cap               = bttv_g_fmt_cap,
+	.vidioc_try_fmt_cap             = bttv_try_fmt_cap,
+	.vidioc_s_fmt_cap               = bttv_s_fmt_cap,
+	.vidioc_enum_fmt_overlay        = bttv_enum_fmt_overlay,
+	.vidioc_g_fmt_overlay           = bttv_g_fmt_overlay,
+	.vidioc_try_fmt_overlay         = bttv_try_fmt_overlay,
+	.vidioc_s_fmt_overlay           = bttv_s_fmt_overlay,
+	.vidioc_enum_fmt_vbi            = bttv_enum_fmt_vbi,
+	.vidioc_g_fmt_vbi               = bttv_g_fmt_vbi,
+	.vidioc_try_fmt_vbi             = bttv_try_fmt_vbi,
+	.vidioc_s_fmt_vbi               = bttv_s_fmt_vbi,
+	.vidioc_g_audio                 = bttv_g_audio,
+	.vidioc_s_audio                 = bttv_s_audio,
+	.vidioc_cropcap                 = bttv_cropcap,
+	.vidioc_reqbufs                 = bttv_reqbufs,
+	.vidioc_querybuf                = bttv_querybuf,
+	.vidioc_qbuf                    = bttv_qbuf,
+	.vidioc_dqbuf                   = bttv_dqbuf,
+	.vidioc_s_std                   = bttv_s_std,
+	.vidioc_enum_input              = bttv_enum_input,
+	.vidioc_g_input                 = bttv_g_input,
+	.vidioc_s_input                 = bttv_s_input,
+	.vidioc_queryctrl               = bttv_queryctrl,
+	.vidioc_g_ctrl                  = bttv_g_ctrl,
+	.vidioc_s_ctrl                  = bttv_s_ctrl,
+	.vidioc_streamon                = bttv_streamon,
+	.vidioc_streamoff               = bttv_streamoff,
+	.vidioc_g_tuner                 = bttv_g_tuner,
+	.vidioc_s_tuner                 = bttv_s_tuner,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf                    = vidiocgmbuf,
 #endif
-	.vidioc_g_crop                  = vidioc_g_crop,
-	.vidioc_g_crop                  = vidioc_g_crop,
-	.vidioc_s_crop                  = vidioc_s_crop,
-	.vidioc_g_fbuf                  = vidioc_g_fbuf,
-	.vidioc_s_fbuf                  = vidioc_s_fbuf,
-	.vidioc_overlay                 = vidioc_overlay,
-	.vidioc_g_priority              = vidioc_g_priority,
-	.vidioc_s_priority              = vidioc_s_priority,
-	.vidioc_g_parm                  = vidioc_g_parm,
-	.vidioc_g_frequency             = vidioc_g_frequency,
-	.vidioc_s_frequency             = vidioc_s_frequency,
-	.vidioc_log_status		= vidioc_log_status,
-	.vidioc_querystd		= vidioc_querystd,
-	.vidioc_g_register		= vidioc_g_register,
-	.vidioc_s_register		= vidioc_s_register,
+	.vidioc_g_crop                  = bttv_g_crop,
+	.vidioc_g_crop                  = bttv_g_crop,
+	.vidioc_s_crop                  = bttv_s_crop,
+	.vidioc_g_fbuf                  = bttv_g_fbuf,
+	.vidioc_s_fbuf                  = bttv_s_fbuf,
+	.vidioc_overlay                 = bttv_overlay,
+	.vidioc_g_priority              = bttv_g_priority,
+	.vidioc_s_priority              = bttv_s_priority,
+	.vidioc_g_parm                  = bttv_g_parm,
+	.vidioc_g_frequency             = bttv_g_frequency,
+	.vidioc_s_frequency             = bttv_s_frequency,
+	.vidioc_log_status		= bttv_log_status,
+	.vidioc_querystd		= bttv_querystd,
+	.vidioc_g_register		= bttv_g_register,
+	.vidioc_s_register		= bttv_s_register,
 	.tvnorms                        = BTTV_NORMS,
 	.current_norm                   = V4L2_STD_PAL,
 };
@@ -3583,10 +3583,10 @@ static struct video_device radio_template =
 	.vidioc_s_std           = radio_s_std,
 	.vidioc_queryctrl       = radio_queryctrl,
 	.vidioc_g_input         = radio_g_input,
-	.vidioc_g_ctrl          = vidioc_g_ctrl,
-	.vidioc_s_ctrl          = vidioc_s_ctrl,
-	.vidioc_g_frequency     = vidioc_g_frequency,
-	.vidioc_s_frequency     = vidioc_s_frequency,
+	.vidioc_g_ctrl          = bttv_g_ctrl,
+	.vidioc_s_ctrl          = bttv_s_ctrl,
+	.vidioc_g_frequency     = bttv_g_frequency,
+	.vidioc_s_frequency     = bttv_s_frequency,
 };
 
 /* ----------------------------------------------------------------------- */
