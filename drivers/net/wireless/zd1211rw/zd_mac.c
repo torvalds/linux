@@ -849,17 +849,19 @@ static void set_rts_cts_work(struct work_struct *work)
 	mutex_unlock(&mac->chip.mutex);
 }
 
-static void zd_op_erp_ie_changed(struct ieee80211_hw *hw, u8 changes,
-				 int cts_protection, int preamble)
+static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_bss_conf *bss_conf,
+				   u32 changes)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	unsigned long flags;
 
 	dev_dbg_f(zd_mac_dev(mac), "changes: %x\n", changes);
 
-	if (changes & IEEE80211_ERP_CHANGE_PREAMBLE) {
+	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
 		spin_lock_irqsave(&mac->lock, flags);
-		mac->short_preamble = !preamble;
+		mac->short_preamble = bss_conf->use_short_preamble;
 		if (!mac->updating_rts_rate) {
 			mac->updating_rts_rate = 1;
 			/* FIXME: should disable TX here, until work has
@@ -879,7 +881,7 @@ static const struct ieee80211_ops zd_ops = {
 	.config			= zd_op_config,
 	.config_interface	= zd_op_config_interface,
 	.configure_filter	= zd_op_configure_filter,
-	.erp_ie_changed		= zd_op_erp_ie_changed,
+	.bss_info_changed	= zd_op_bss_info_changed,
 };
 
 struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)

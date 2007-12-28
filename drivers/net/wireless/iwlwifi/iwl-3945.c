@@ -520,10 +520,8 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 			break;
 
 			/*
-			 * TODO: There is no callback function from upper
-			 * stack to inform us when associated status. this
-			 * work around to sniff assoc_resp management frame
-			 * and finish the association process.
+			 * TODO: Use the new callback function from
+			 * mac80211 instead of sniffing these packets.
 			 */
 		case IEEE80211_STYPE_ASSOC_RESP:
 		case IEEE80211_STYPE_REASSOC_RESP:{

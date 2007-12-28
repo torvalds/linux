@@ -275,6 +275,43 @@ struct ieee80211_low_level_stats {
 	unsigned int dot11RTSSuccessCount;
 };
 
+/**
+ * enum ieee80211_bss_change - BSS change notification flags
+ *
+ * These flags are used with the bss_info_changed() callback
+ * to indicate which BSS parameter changed.
+ *
+ * @BSS_CHANGED_ASSOC: association status changed (associated/disassociated),
+ *	also implies a change in the AID.
+ * @BSS_CHANGED_ERP_CTS_PROT: CTS protection changed
+ * @BSS_CHANGED_ERP_PREAMBLE: preamble changed
+ */
+enum ieee80211_bss_change {
+	BSS_CHANGED_ASSOC		= 1<<0,
+	BSS_CHANGED_ERP_CTS_PROT	= 1<<1,
+	BSS_CHANGED_ERP_PREAMBLE	= 1<<2,
+};
+
+/**
+ * struct ieee80211_bss_conf - holds the BSS's changing parameters
+ *
+ * This structure keeps information about a BSS (and an association
+ * to that BSS) that can change during the lifetime of the BSS.
+ *
+ * @assoc: association status
+ * @aid: association ID number, valid only when @assoc is true
+ * @use_cts_prot: use CTS protection
+ * @use_short_preamble: use 802.11b short preamble
+ */
+struct ieee80211_bss_conf {
+	/* association related data */
+	bool assoc;
+	u16 aid;
+	/* erp related data */
+	bool use_cts_prot;
+	bool use_short_preamble;
+};
+
 /* Transmit control fields. This data structure is passed to low-level driver
  * with each TX frame. The low-level driver is responsible for configuring
  * the hardware to use given values (depending on what is supported). */
@@ -924,19 +961,6 @@ enum ieee80211_filter_flags {
 };
 
 /**
- * enum ieee80211_erp_change_flags - erp change flags
- *
- * These flags are used with the erp_ie_changed() callback in
- * &struct ieee80211_ops to indicate which parameter(s) changed.
- * @IEEE80211_ERP_CHANGE_PROTECTION: protection changed
- * @IEEE80211_ERP_CHANGE_PREAMBLE: barker preamble mode changed
- */
-enum ieee80211_erp_change_flags {
-	IEEE80211_ERP_CHANGE_PROTECTION	= 1<<0,
-	IEEE80211_ERP_CHANGE_PREAMBLE	= 1<<1,
-};
-
-/**
  * enum ieee80211_ampdu_mlme_action - A-MPDU actions
  *
  * These flags are used with the ampdu_action() callback in
@@ -1004,6 +1028,14 @@ enum ieee80211_ampdu_mlme_action {
  * @config_interface: Handler for configuration requests related to interfaces
  *	(e.g. BSSID changes.)
  *
+ * @bss_info_changed: Handler for configuration requests related to BSS
+ *	parameters that may vary during BSS's lifespan, and may affect low
+ *	level driver (e.g. assoc/disassoc status, erp parameters).
+ *	This function should not be used if no BSS has been set, unless
+ *	for association indication. The @changed parameter indicates which
+ *	of the bss parameters has changed when a call is made. This callback
+ *	has to be atomic.
+ *
  * @configure_filter: Configure the device's RX filter.
  *	See the section "Frame filtering" for more information.
  *	This callback must be implemented and atomic.
@@ -1037,8 +1069,6 @@ enum ieee80211_ampdu_mlme_action {
  *
  * @sta_notify: Notifies low level driver about addition or removal
  *	of assocaited station or AP.
- *
- * @erp_ie_changed: Handle ERP IE change notifications. Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue. The @queue parameter uses the
@@ -1096,6 +1126,10 @@ struct ieee80211_ops {
 	int (*config_interface)(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_if_conf *conf);
+	void (*bss_info_changed)(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *info,
+				 u32 changed);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
@@ -1115,8 +1149,6 @@ struct ieee80211_ops {
 			       u32 short_retry, u32 long_retr);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			enum sta_notify_cmd, const u8 *addr);
-	void (*erp_ie_changed)(struct ieee80211_hw *hw, u8 changes,
-			       int cts_protection, int preamble);
 	int (*conf_tx)(struct ieee80211_hw *hw, int queue,
 		       const struct ieee80211_tx_queue_params *params);
 	int (*get_tx_stats)(struct ieee80211_hw *hw,

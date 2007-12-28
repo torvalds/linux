@@ -312,8 +312,8 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 	int erp;
 
 	erp = ieee80211_is_erp_rate(hw->conf.phymode, rate);
-	dur = ieee80211_frame_duration(local, frame_len, rate,
-		       erp, sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE);
+	dur = ieee80211_frame_duration(local, frame_len, rate, erp,
+				       sdata->bss_conf.use_short_preamble);
 
 	return cpu_to_le16(dur);
 }
@@ -326,11 +326,11 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	int short_preamble;
+	bool short_preamble;
 	int erp;
 	u16 dur;
 
-	short_preamble = sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE;
+	short_preamble = sdata->bss_conf.use_short_preamble;
 
 	rate = frame_txctl->rts_rate;
 	erp = !!(rate->flags & IEEE80211_RATE_ERP);
@@ -357,11 +357,11 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
-	int short_preamble;
+	bool short_preamble;
 	int erp;
 	u16 dur;
 
-	short_preamble = sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE;
+	short_preamble = sdata->bss_conf.use_short_preamble;
 
 	rate = frame_txctl->rts_rate;
 	erp = !!(rate->flags & IEEE80211_RATE_ERP);

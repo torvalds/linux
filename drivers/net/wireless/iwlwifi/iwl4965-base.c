@@ -7764,23 +7764,33 @@ static void iwl4965_mac_remove_interface(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211("leave\n");
 
 }
-static void iwl4965_mac_erp_ie_changed(struct ieee80211_hw *hw,
-		u8 changes, int cts_protection, int preamble)
+
+static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *bss_conf,
+				     u32 changes)
 {
 	struct iwl4965_priv *priv = hw->priv;
 
-	if (changes & IEEE80211_ERP_CHANGE_PREAMBLE) {
-		if (preamble == WLAN_ERP_PREAMBLE_SHORT)
+	if (changes & BSS_CHANGED_ERP_PREAMBLE) {
+		if (bss_conf->use_short_preamble)
 			priv->staging_rxon.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_PREAMBLE_MSK;
 	}
 
-	if (changes & IEEE80211_ERP_CHANGE_PROTECTION) {
-		if (cts_protection && (priv->phymode != MODE_IEEE80211A))
+	if (changes & BSS_CHANGED_ERP_CTS_PROT) {
+		if (bss_conf->use_cts_prot && (priv->phymode != MODE_IEEE80211A))
 			priv->staging_rxon.flags |= RXON_FLG_TGG_PROTECT_MSK;
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_TGG_PROTECT_MSK;
+	}
+
+	if (changes & BSS_CHANGED_ASSOC) {
+		/*
+		 * TODO:
+		 * do stuff instead of sniffing assoc resp
+		 */
 	}
 
 	if (iwl4965_is_associated(priv))
@@ -8952,7 +8962,7 @@ static struct ieee80211_ops iwl4965_hw_ops = {
 	.get_tsf = iwl4965_mac_get_tsf,
 	.reset_tsf = iwl4965_mac_reset_tsf,
 	.beacon_update = iwl4965_mac_beacon_update,
-	.erp_ie_changed = iwl4965_mac_erp_ie_changed,
+	.bss_info_changed = iwl4965_bss_info_changed,
 #ifdef CONFIG_IWL4965_HT
 	.conf_ht = iwl4965_mac_conf_ht,
 	.ampdu_action = iwl4965_mac_ampdu_action,

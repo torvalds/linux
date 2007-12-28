@@ -176,7 +176,7 @@ static u16 ieee80211_duration(struct ieee80211_txrx_data *tx, int group_addr,
 	 * to closest integer */
 
 	dur = ieee80211_frame_duration(local, 10, rate, erp,
-		       tx->sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE);
+				tx->sdata->bss_conf.use_short_preamble);
 
 	if (next_frag_len) {
 		/* Frame is fragmented: duration increases with time needed to
@@ -185,8 +185,7 @@ static u16 ieee80211_duration(struct ieee80211_txrx_data *tx, int group_addr,
 		/* next fragment */
 		dur += ieee80211_frame_duration(local, next_frag_len,
 				txrate->rate, erp,
-				tx->sdata->flags &
-					IEEE80211_SDATA_SHORT_PREAMBLE);
+				tx->sdata->bss_conf.use_short_preamble);
 	}
 
 	return dur;
@@ -605,7 +604,7 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_txrx_data *tx)
 		tx->u.tx.control->alt_retry_rate = -1;
 
 	if (tx->u.tx.mode->mode == MODE_IEEE80211G &&
-	    (tx->sdata->flags & IEEE80211_SDATA_USE_PROTECTION) &&
+	    tx->sdata->bss_conf.use_cts_prot &&
 	    (tx->flags & IEEE80211_TXRXD_FRAGMENTED) && rsel.nonerp) {
 		tx->u.tx.last_frag_rate = tx->u.tx.rate;
 		if (rsel.probe)
@@ -667,7 +666,7 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	if (mode->mode == MODE_IEEE80211G &&
 	    (tx->u.tx.rate->flags & IEEE80211_RATE_ERP) &&
 	    (tx->flags & IEEE80211_TXRXD_TXUNICAST) &&
-	    (tx->sdata->flags & IEEE80211_SDATA_USE_PROTECTION) &&
+	    tx->sdata->bss_conf.use_cts_prot &&
 	    !(control->flags & IEEE80211_TXCTL_USE_RTS_CTS))
 		control->flags |= IEEE80211_TXCTL_USE_CTS_PROTECT;
 
@@ -676,7 +675,7 @@ ieee80211_tx_h_misc(struct ieee80211_txrx_data *tx)
 	 * available on the network at the current point in time. */
 	if (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
 	    (tx->u.tx.rate->flags & IEEE80211_RATE_PREAMBLE2) &&
-	    (tx->sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE) &&
+	    tx->sdata->bss_conf.use_short_preamble &&
 	    (!tx->sta || (tx->sta->flags & WLAN_STA_SHORT_PREAMBLE))) {
 		tx->u.tx.control->tx_rate = tx->u.tx.rate->val2;
 	}
@@ -1754,7 +1753,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		}
 
 		control->tx_rate =
-			((sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE) &&
+			(sdata->bss_conf.use_short_preamble &&
 			(rsel.rate->flags & IEEE80211_RATE_PREAMBLE2)) ?
 			rsel.rate->val2 : rsel.rate->val;
 		control->antenna_sel_tx = local->hw.conf.antenna_sel_tx;

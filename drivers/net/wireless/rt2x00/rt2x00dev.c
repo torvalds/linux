@@ -481,10 +481,17 @@ static void rt2x00lib_configuration_scheduled(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, config_work);
-	int preamble = !test_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
+	struct ieee80211_bss_conf bss_conf;
 
-	rt2x00mac_erp_ie_changed(rt2x00dev->hw,
-				 IEEE80211_ERP_CHANGE_PREAMBLE, 0, preamble);
+	bss_conf.use_short_preamble =
+		test_bit(CONFIG_SHORT_PREAMBLE, &rt2x00dev->flags);
+
+	/*
+	 * FIXME: shouldn't invoke it this way because all other contents
+	 *	  of bss_conf is invalid.
+	 */
+	rt2x00mac_bss_info_changed(rt2x00dev->hw, rt2x00dev->interface.id,
+				   &bss_conf, BSS_CHANGED_ERP_PREAMBLE);
 }
 
 /*

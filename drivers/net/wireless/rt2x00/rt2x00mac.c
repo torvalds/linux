@@ -342,23 +342,27 @@ int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_get_tx_stats);
 
-void rt2x00mac_erp_ie_changed(struct ieee80211_hw *hw, u8 changes,
-			      int cts_protection, int preamble)
+void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *bss_conf,
+				u32 changes)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	int short_preamble;
 	int ack_timeout;
 	int ack_consume_time;
 	int difs;
+	int preamble;
 
 	/*
 	 * We only support changing preamble mode.
 	 */
-	if (!(changes & IEEE80211_ERP_CHANGE_PREAMBLE))
+	if (!(changes & BSS_CHANGED_ERP_PREAMBLE))
 		return;
 
-	short_preamble = !preamble;
-	preamble = !!(preamble) ? PREAMBLE : SHORT_PREAMBLE;
+	short_preamble = bss_conf->use_short_preamble;
+	preamble = bss_conf->use_short_preamble ?
+				SHORT_PREAMBLE : PREAMBLE;
 
 	difs = (hw->conf.flags & IEEE80211_CONF_SHORT_SLOT_TIME) ?
 		SHORT_DIFS : DIFS;
@@ -374,7 +378,7 @@ void rt2x00mac_erp_ie_changed(struct ieee80211_hw *hw, u8 changes,
 	rt2x00dev->ops->lib->config_preamble(rt2x00dev, short_preamble,
 					     ack_timeout, ack_consume_time);
 }
-EXPORT_SYMBOL_GPL(rt2x00mac_erp_ie_changed);
+EXPORT_SYMBOL_GPL(rt2x00mac_bss_info_changed);
 
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		      const struct ieee80211_tx_queue_params *params)

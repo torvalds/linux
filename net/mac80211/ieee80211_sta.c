@@ -313,48 +313,42 @@ static void ieee80211_sta_wmm_params(struct net_device *dev,
 }
 
 
-static void ieee80211_handle_erp_ie(struct net_device *dev, u8 erp_value)
+static u32 ieee80211_handle_erp_ie(struct ieee80211_sub_if_data *sdata,
+				   u8 erp_value)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
 	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
-	int use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
-	int preamble_mode = (erp_value & WLAN_ERP_BARKER_PREAMBLE) != 0;
-	u8 changes = 0;
+	bool use_protection = (erp_value & WLAN_ERP_USE_PROTECTION) != 0;
+	bool preamble_mode = (erp_value & WLAN_ERP_BARKER_PREAMBLE) != 0;
 	DECLARE_MAC_BUF(mac);
+	u32 changed = 0;
 
-	if (use_protection != !!(sdata->flags & IEEE80211_SDATA_USE_PROTECTION)) {
+	if (use_protection != bss_conf->use_cts_prot) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: CTS protection %s (BSSID="
 			       "%s)\n",
-			       dev->name,
+			       sdata->dev->name,
 			       use_protection ? "enabled" : "disabled",
 			       print_mac(mac, ifsta->bssid));
 		}
-		if (use_protection)
-			sdata->flags |= IEEE80211_SDATA_USE_PROTECTION;
-		else
-			sdata->flags &= ~IEEE80211_SDATA_USE_PROTECTION;
-		changes |= IEEE80211_ERP_CHANGE_PROTECTION;
+		bss_conf->use_cts_prot = use_protection;
+		changed |= BSS_CHANGED_ERP_CTS_PROT;
 	}
 
-	if (preamble_mode != !(sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE)) {
+	if (preamble_mode != bss_conf->use_short_preamble) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: switched to %s barker preamble"
 			       " (BSSID=%s)\n",
-			       dev->name,
+			       sdata->dev->name,
 			       (preamble_mode == WLAN_ERP_PREAMBLE_SHORT) ?
 					"short" : "long",
 			       print_mac(mac, ifsta->bssid));
 		}
-		if (preamble_mode)
-			sdata->flags &= ~IEEE80211_SDATA_SHORT_PREAMBLE;
-		else
-			sdata->flags |= IEEE80211_SDATA_SHORT_PREAMBLE;
-		changes |= IEEE80211_ERP_CHANGE_PREAMBLE;
+		bss_conf->use_short_preamble = preamble_mode;
+		changed |= BSS_CHANGED_ERP_PREAMBLE;
 	}
 
-	if (changes)
-		ieee80211_erp_info_change_notify(dev, changes);
+	return changed;
 }
 
 int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
@@ -458,19 +452,16 @@ static void ieee80211_set_associated(struct net_device *dev,
 				     struct ieee80211_if_sta *ifsta,
 				     bool assoc)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	union iwreq_data wrqu;
-
-	if (!!(ifsta->flags & IEEE80211_STA_ASSOCIATED) == assoc)
-		return;
+	u32 changed = BSS_CHANGED_ASSOC;
 
 	if (assoc) {
-		struct ieee80211_sub_if_data *sdata;
 		struct ieee80211_sta_bss *bss;
 
 		ifsta->flags |= IEEE80211_STA_ASSOCIATED;
 
-		sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 		if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 			return;
 
@@ -479,7 +470,8 @@ static void ieee80211_set_associated(struct net_device *dev,
 					   ifsta->ssid, ifsta->ssid_len);
 		if (bss) {
 			if (bss->has_erp_value)
-				ieee80211_handle_erp_ie(dev, bss->erp_value);
+				changed |= ieee80211_handle_erp_ie(
+						sdata, bss->erp_value);
 			ieee80211_rx_bss_put(dev, bss);
 		}
 
@@ -499,6 +491,8 @@ static void ieee80211_set_associated(struct net_device *dev,
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 	ifsta->last_probe = jiffies;
 	ieee80211_led_assoc(local, assoc);
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
 static void ieee80211_set_disassoc(struct net_device *dev,
@@ -1536,18 +1530,20 @@ static void ieee80211_rx_mgmt_disassoc(struct net_device *dev,
 }
 
 
-static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
+static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 					 struct ieee80211_if_sta *ifsta,
 					 struct ieee80211_mgmt *mgmt,
 					 size_t len,
 					 int reassoc)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sdata->local;
+	struct net_device *dev = sdata->dev;
 	struct ieee80211_hw_mode *mode;
 	struct sta_info *sta;
 	u32 rates;
 	u16 capab_info, status_code, aid;
 	struct ieee802_11_elems elems;
+	struct ieee80211_bss_conf *bss_conf = &sdata->bss_conf;
 	u8 *pos;
 	int i, j;
 	DECLARE_MAC_BUF(mac);
@@ -1620,6 +1616,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct net_device *dev,
 	if (ifsta->assocresp_ies)
 		memcpy(ifsta->assocresp_ies, pos, ifsta->assocresp_ies_len);
 
+	/* set AID, ieee80211_set_associated() will tell the driver */
+	bss_conf->aid = aid;
 	ieee80211_set_associated(dev, ifsta, 1);
 
 	/* Add STA entry for the AP */
@@ -2099,6 +2097,7 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 	struct ieee802_11_elems elems;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_conf *conf = &local->hw.conf;
+	u32 changed = 0;
 
 	ieee80211_rx_bss_info(dev, mgmt, len, rx_status, 1);
 
@@ -2119,7 +2118,7 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
 
 	if (elems.erp_info && elems.erp_info_len >= 1)
-		ieee80211_handle_erp_ie(dev, elems.erp_info[0]);
+		changed |= ieee80211_handle_erp_ie(sdata, elems.erp_info[0]);
 
 	if (elems.ht_cap_elem && elems.ht_info_elem &&
 	    elems.wmm_param && local->ops->conf_ht &&
@@ -2142,6 +2141,8 @@ static void ieee80211_rx_mgmt_beacon(struct net_device *dev,
 		ieee80211_sta_wmm_params(dev, ifsta, elems.wmm_param,
 					 elems.wmm_param_len);
 	}
+
+	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
 
@@ -2329,10 +2330,10 @@ static void ieee80211_sta_rx_queued_mgmt(struct net_device *dev,
 		ieee80211_rx_mgmt_auth(dev, ifsta, mgmt, skb->len);
 		break;
 	case IEEE80211_STYPE_ASSOC_RESP:
-		ieee80211_rx_mgmt_assoc_resp(dev, ifsta, mgmt, skb->len, 0);
+		ieee80211_rx_mgmt_assoc_resp(sdata, ifsta, mgmt, skb->len, 0);
 		break;
 	case IEEE80211_STYPE_REASSOC_RESP:
-		ieee80211_rx_mgmt_assoc_resp(dev, ifsta, mgmt, skb->len, 1);
+		ieee80211_rx_mgmt_assoc_resp(sdata, ifsta, mgmt, skb->len, 1);
 		break;
 	case IEEE80211_STYPE_DEAUTH:
 		ieee80211_rx_mgmt_deauth(dev, ifsta, mgmt, skb->len);
@@ -2787,7 +2788,7 @@ static int ieee80211_sta_join_ibss(struct net_device *dev,
 			break;
 		}
 		control.tx_rate =
-			((sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE) &&
+			(sdata->bss_conf.use_short_preamble &&
 			(ratesel.rate->flags & IEEE80211_RATE_PREAMBLE2)) ?
 			ratesel.rate->val2 : ratesel.rate->val;
 		control.antenna_sel_tx = local->hw.conf.antenna_sel_tx;

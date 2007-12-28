@@ -936,8 +936,10 @@ int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
 			   struct ieee80211_tx_queue_stats *stats);
-void rt2x00mac_erp_ie_changed(struct ieee80211_hw *hw, u8 changes,
-			      int cts_protection, int preamble);
+void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_bss_conf *bss_conf,
+				u32 changes);
 int rt2x00mac_conf_tx(struct ieee80211_hw *hw, int queue,
 		      const struct ieee80211_tx_queue_params *params);
 

@@ -291,12 +291,7 @@ struct ieee80211_if_sta {
 /* flags used in struct ieee80211_sub_if_data.flags */
 #define IEEE80211_SDATA_ALLMULTI	BIT(0)
 #define IEEE80211_SDATA_PROMISC		BIT(1)
-#define IEEE80211_SDATA_USE_PROTECTION	BIT(2) /* CTS protect ERP frames */
-/* use short preamble with IEEE 802.11b: this flag is set when the AP or beacon
- * generator reports that there are no present stations that cannot support short
- * preambles */
-#define IEEE80211_SDATA_SHORT_PREAMBLE	BIT(3)
-#define IEEE80211_SDATA_USERSPACE_MLME	BIT(4)
+#define IEEE80211_SDATA_USERSPACE_MLME	BIT(2)
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -327,6 +322,15 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_key *keys[NUM_DEFAULT_KEYS];
 	struct ieee80211_key *default_key;
 
+	/*
+	 * BSS configuration for this interface.
+	 *
+	 * FIXME: I feel bad putting this here when we already have a
+	 *	  bss pointer, but the bss pointer is just wrong when
+	 *	  you have multiple virtual STA mode interfaces...
+	 *	  This needs to be fixed.
+	 */
+	struct ieee80211_bss_conf bss_conf;
 	struct ieee80211_if_ap *bss; /* BSS that this device belongs to */
 
 	union {
@@ -770,7 +774,8 @@ struct sta_info * ieee80211_ibss_add_sta(struct net_device *dev,
 					 u8 *addr);
 int ieee80211_sta_deauthenticate(struct net_device *dev, u16 reason);
 int ieee80211_sta_disassociate(struct net_device *dev, u16 reason);
-void ieee80211_erp_info_change_notify(struct net_device *dev, u8 changes);
+void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+				      u32 changed);
 void ieee80211_reset_erp_info(struct net_device *dev);
 int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
 				   struct ieee80211_ht_info *ht_info);

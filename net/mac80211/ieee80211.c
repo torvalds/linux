@@ -635,25 +635,30 @@ int ieee80211_hw_config_ht(struct ieee80211_local *local, int enable_ht,
 	return 0;
 }
 
-void ieee80211_erp_info_change_notify(struct net_device *dev, u8 changes)
+void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+				      u32 changed)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (local->ops->erp_ie_changed)
-		local->ops->erp_ie_changed(local_to_hw(local), changes,
-			!!(sdata->flags & IEEE80211_SDATA_USE_PROTECTION),
-			!(sdata->flags & IEEE80211_SDATA_SHORT_PREAMBLE));
+	struct ieee80211_local *local = sdata->local;
+
+	if (!changed)
+		return;
+
+	if (local->ops->bss_info_changed)
+		local->ops->bss_info_changed(local_to_hw(local),
+					     &sdata->vif,
+					     &sdata->bss_conf,
+					     changed);
 }
 
 void ieee80211_reset_erp_info(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	sdata->flags &= ~(IEEE80211_SDATA_USE_PROTECTION |
-			IEEE80211_SDATA_SHORT_PREAMBLE);
-	ieee80211_erp_info_change_notify(dev,
-					 IEEE80211_ERP_CHANGE_PROTECTION |
-					 IEEE80211_ERP_CHANGE_PREAMBLE);
+	sdata->bss_conf.use_cts_prot = 0;
+	sdata->bss_conf.use_short_preamble = 0;
+	ieee80211_bss_info_change_notify(sdata,
+					 BSS_CHANGED_ERP_CTS_PROT |
+					 BSS_CHANGED_ERP_PREAMBLE);
 }
 
 void ieee80211_tx_status_irqsafe(struct ieee80211_hw *hw,
