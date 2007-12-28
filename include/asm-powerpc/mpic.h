@@ -22,6 +22,7 @@
 #define MPIC_GREG_GLOBAL_CONF_0		0x00020
 #define		MPIC_GREG_GCONF_RESET			0x80000000
 #define		MPIC_GREG_GCONF_8259_PTHROU_DIS		0x20000000
+#define		MPIC_GREG_GCONF_NO_BIAS			0x10000000
 #define		MPIC_GREG_GCONF_BASE_MASK		0x000fffff
 #define		MPIC_GREG_GCONF_MCK			0x08000000
 #define MPIC_GREG_GLOBAL_CONF_1		0x00030
@@ -350,6 +351,8 @@ struct mpic
 #define MPIC_LARGE_VECTORS		0x00000100
 /* Enable delivery of prio 15 interrupts as MCK instead of EE */
 #define MPIC_ENABLE_MCK			0x00000200
+/* Disable bias among target selection, spread interrupts evenly */
+#define MPIC_NO_BIAS			0x00000400
 
 /* MPIC HW modification ID */
 #define MPIC_REGSET_MASK		0xf0000000
