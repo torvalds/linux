@@ -181,12 +181,13 @@ static struct call_data_struct {
  * <wait> If true, wait (atomically) until function has completed on other CPUs.
  * [RETURNS] 0 on success, else a negative status code. Does not return until
  * remote CPUs are nearly ready to execute <<func>> or are or have executed.
+ * <map> is a cpu map of the cpus to send IPI to.
  *
  * You must not call this function with disabled interrupts or from a
  * hardware interrupt handler or from a bottom half handler.
  */
-int smp_call_function_map(void (*func) (void *info), void *info, int nonatomic,
-			int wait, cpumask_t map)
+static int __smp_call_function_map(void (*func) (void *info), void *info,
+				   int nonatomic, int wait, cpumask_t map)
 {
 	struct call_data_struct data;
 	int ret = -1, num_cpus;
@@ -265,7 +266,8 @@ int smp_call_function_map(void (*func) (void *info), void *info, int nonatomic,
 static int __smp_call_function(void (*func)(void *info), void *info,
 			       int nonatomic, int wait)
 {
-	return smp_call_function_map(func,info,nonatomic,wait,cpu_online_map);
+	return __smp_call_function_map(func, info, nonatomic, wait,
+				       cpu_online_map);
 }
 
 int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
@@ -278,8 +280,8 @@ int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
 }
 EXPORT_SYMBOL(smp_call_function);
 
-int smp_call_function_single(int cpu, void (*func) (void *info), void *info, int nonatomic,
-			int wait)
+int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
+			     int nonatomic, int wait)
 {
 	cpumask_t map = CPU_MASK_NONE;
 	int ret = 0;
@@ -292,7 +294,7 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info, int
 
 	cpu_set(cpu, map);
 	if (cpu != get_cpu())
-		ret = smp_call_function_map(func,info,nonatomic,wait,map);
+		ret = __smp_call_function_map(func, info, nonatomic, wait, map);
 	else {
 		local_irq_disable();
 		func(info);
