@@ -419,13 +419,58 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 /* ====== Encryption/decryption routines ====== */
 
 /* These are the real call to PadLock. */
+static inline void padlock_xcrypt(const u8 *input, u8 *output, void *key,
+				  void *control_word)
+{
+	asm volatile (".byte 0xf3,0x0f,0xa7,0xc8"	/* rep xcryptecb */
+		      : "+S"(input), "+D"(output)
+		      : "d"(control_word), "b"(key), "c"(1));
+}
+
+static void aes_crypt_copy(const u8 *in, u8 *out, u32 *key, struct cword *cword)
+{
+	u8 tmp[AES_BLOCK_SIZE * 2]
+		__attribute__ ((__aligned__(PADLOCK_ALIGNMENT)));
+
+	memcpy(tmp, in, AES_BLOCK_SIZE);
+	padlock_xcrypt(tmp, out, key, cword);
+}
+
+static inline void aes_crypt(const u8 *in, u8 *out, u32 *key,
+			     struct cword *cword)
+{
+	asm volatile ("pushfl; popfl");
+
+	/* padlock_xcrypt requires at least two blocks of data. */
+	if (unlikely(!(((unsigned long)in ^ (PAGE_SIZE - AES_BLOCK_SIZE)) &
+		       (PAGE_SIZE - 1)))) {
+		aes_crypt_copy(in, out, key, cword);
+		return;
+	}
+
+	padlock_xcrypt(in, out, key, cword);
+}
+
 static inline void padlock_xcrypt_ecb(const u8 *input, u8 *output, void *key,
 				      void *control_word, u32 count)
 {
+	if (count == 1) {
+		aes_crypt(input, output, key, control_word);
+		return;
+	}
+
 	asm volatile ("pushfl; popfl");		/* enforce key reload. */
-	asm volatile (".byte 0xf3,0x0f,0xa7,0xc8"	/* rep xcryptecb */
+	asm volatile ("test $1, %%cl;"
+		      "je 1f;"
+		      "lea -1(%%ecx), %%eax;"
+		      "mov $1, %%ecx;"
+		      ".byte 0xf3,0x0f,0xa7,0xc8;"	/* rep xcryptecb */
+		      "mov %%eax, %%ecx;"
+		      "1:"
+		      ".byte 0xf3,0x0f,0xa7,0xc8"	/* rep xcryptecb */
 		      : "+S"(input), "+D"(output)
-		      : "d"(control_word), "b"(key), "c"(count));
+		      : "d"(control_word), "b"(key), "c"(count)
+		      : "ax");
 }
 
 static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
@@ -443,13 +488,13 @@ static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
-	padlock_xcrypt_ecb(in, out, ctx->E, &ctx->cword.encrypt, 1);
+	aes_crypt(in, out, ctx->E, &ctx->cword.encrypt);
 }
 
 static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
-	padlock_xcrypt_ecb(in, out, ctx->D, &ctx->cword.decrypt, 1);
+	aes_crypt(in, out, ctx->D, &ctx->cword.decrypt);
 }
 
 static struct crypto_alg aes_alg = {
