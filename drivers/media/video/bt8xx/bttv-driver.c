@@ -1442,6 +1442,170 @@ static void bttv_reinit_bt848(struct bttv *btv)
 	set_input(btv, btv->input, btv->tvnorm);
 }
 
+static int bttv_g_ctrl(struct file *file, void *priv,
+					struct v4l2_control *c)
+{
+	struct bttv_fh *fh = priv;
+	struct bttv *btv = fh->btv;
+
+	switch (c->id) {
+	case V4L2_CID_BRIGHTNESS:
+		c->value = btv->bright;
+		break;
+	case V4L2_CID_HUE:
+		c->value = btv->hue;
+		break;
+	case V4L2_CID_CONTRAST:
+		c->value = btv->contrast;
+		break;
+	case V4L2_CID_SATURATION:
+		c->value = btv->saturation;
+		break;
+
+	case V4L2_CID_AUDIO_MUTE:
+	case V4L2_CID_AUDIO_VOLUME:
+	case V4L2_CID_AUDIO_BALANCE:
+	case V4L2_CID_AUDIO_BASS:
+	case V4L2_CID_AUDIO_TREBLE:
+		bttv_call_i2c_clients(btv, VIDIOC_G_CTRL, c);
+		break;
+
+	case V4L2_CID_PRIVATE_CHROMA_AGC:
+		c->value = btv->opt_chroma_agc;
+		break;
+	case V4L2_CID_PRIVATE_COMBFILTER:
+		c->value = btv->opt_combfilter;
+		break;
+	case V4L2_CID_PRIVATE_LUMAFILTER:
+		c->value = btv->opt_lumafilter;
+		break;
+	case V4L2_CID_PRIVATE_AUTOMUTE:
+		c->value = btv->opt_automute;
+		break;
+	case V4L2_CID_PRIVATE_AGC_CRUSH:
+		c->value = btv->opt_adc_crush;
+		break;
+	case V4L2_CID_PRIVATE_VCR_HACK:
+		c->value = btv->opt_vcr_hack;
+		break;
+	case V4L2_CID_PRIVATE_WHITECRUSH_UPPER:
+		c->value = btv->opt_whitecrush_upper;
+		break;
+	case V4L2_CID_PRIVATE_WHITECRUSH_LOWER:
+		c->value = btv->opt_whitecrush_lower;
+		break;
+	case V4L2_CID_PRIVATE_UV_RATIO:
+		c->value = btv->opt_uv_ratio;
+		break;
+	case V4L2_CID_PRIVATE_FULL_LUMA_RANGE:
+		c->value = btv->opt_full_luma_range;
+		break;
+	case V4L2_CID_PRIVATE_CORING:
+		c->value = btv->opt_coring;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int bttv_s_ctrl(struct file *file, void *f,
+					struct v4l2_control *c)
+{
+	int err;
+	int val;
+	struct bttv_fh *fh = f;
+	struct bttv *btv = fh->btv;
+
+	err = v4l2_prio_check(&btv->prio, &fh->prio);
+	if (0 != err)
+		return err;
+
+	switch (c->id) {
+	case V4L2_CID_BRIGHTNESS:
+		bt848_bright(btv, c->value);
+		break;
+	case V4L2_CID_HUE:
+		bt848_hue(btv, c->value);
+		break;
+	case V4L2_CID_CONTRAST:
+		bt848_contrast(btv, c->value);
+		break;
+	case V4L2_CID_SATURATION:
+		bt848_sat(btv, c->value);
+		break;
+	case V4L2_CID_AUDIO_MUTE:
+		audio_mute(btv, c->value);
+		/* fall through */
+	case V4L2_CID_AUDIO_VOLUME:
+		if (btv->volume_gpio)
+			btv->volume_gpio(btv, c->value);
+
+		bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, c);
+		break;
+	case V4L2_CID_AUDIO_BALANCE:
+	case V4L2_CID_AUDIO_BASS:
+	case V4L2_CID_AUDIO_TREBLE:
+		bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, c);
+		break;
+
+	case V4L2_CID_PRIVATE_CHROMA_AGC:
+		btv->opt_chroma_agc = c->value;
+		val = btv->opt_chroma_agc ? BT848_SCLOOP_CAGC : 0;
+		btwrite(val, BT848_E_SCLOOP);
+		btwrite(val, BT848_O_SCLOOP);
+		break;
+	case V4L2_CID_PRIVATE_COMBFILTER:
+		btv->opt_combfilter = c->value;
+		break;
+	case V4L2_CID_PRIVATE_LUMAFILTER:
+		btv->opt_lumafilter = c->value;
+		if (btv->opt_lumafilter) {
+			btand(~BT848_CONTROL_LDEC, BT848_E_CONTROL);
+			btand(~BT848_CONTROL_LDEC, BT848_O_CONTROL);
+		} else {
+			btor(BT848_CONTROL_LDEC, BT848_E_CONTROL);
+			btor(BT848_CONTROL_LDEC, BT848_O_CONTROL);
+		}
+		break;
+	case V4L2_CID_PRIVATE_AUTOMUTE:
+		btv->opt_automute = c->value;
+		break;
+	case V4L2_CID_PRIVATE_AGC_CRUSH:
+		btv->opt_adc_crush = c->value;
+		btwrite(BT848_ADC_RESERVED |
+				(btv->opt_adc_crush ? BT848_ADC_CRUSH : 0),
+				BT848_ADC);
+		break;
+	case V4L2_CID_PRIVATE_VCR_HACK:
+		btv->opt_vcr_hack = c->value;
+		break;
+	case V4L2_CID_PRIVATE_WHITECRUSH_UPPER:
+		btv->opt_whitecrush_upper = c->value;
+		btwrite(c->value, BT848_WC_UP);
+		break;
+	case V4L2_CID_PRIVATE_WHITECRUSH_LOWER:
+		btv->opt_whitecrush_lower = c->value;
+		btwrite(c->value, BT848_WC_DOWN);
+		break;
+	case V4L2_CID_PRIVATE_UV_RATIO:
+		btv->opt_uv_ratio = c->value;
+		bt848_sat(btv, btv->saturation);
+		break;
+	case V4L2_CID_PRIVATE_FULL_LUMA_RANGE:
+		btv->opt_full_luma_range = c->value;
+		btaor((c->value<<7), ~BT848_OFORM_RANGE, BT848_OFORM);
+		break;
+	case V4L2_CID_PRIVATE_CORING:
+		btv->opt_coring = c->value;
+		btaor((c->value<<5), ~BT848_OFORM_CORE32, BT848_OFORM);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /* ----------------------------------------------------------------------- */
 
 void bttv_gpio_tracking(struct bttv *btv, char *comment)
@@ -1866,170 +2030,6 @@ static int bttv_log_status(struct file *file, void *f)
 	bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, NULL);
 	printk(KERN_INFO "bttv%d: ========  END STATUS CARD   #%d  ========\n",
 			btv->c.nr, btv->c.nr);
-	return 0;
-}
-
-static int bttv_g_ctrl(struct file *file, void *priv,
-					struct v4l2_control *c)
-{
-	struct bttv_fh *fh = priv;
-	struct bttv *btv = fh->btv;
-
-	switch (c->id) {
-	case V4L2_CID_BRIGHTNESS:
-		c->value = btv->bright;
-		break;
-	case V4L2_CID_HUE:
-		c->value = btv->hue;
-		break;
-	case V4L2_CID_CONTRAST:
-		c->value = btv->contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		c->value = btv->saturation;
-		break;
-
-	case V4L2_CID_AUDIO_MUTE:
-	case V4L2_CID_AUDIO_VOLUME:
-	case V4L2_CID_AUDIO_BALANCE:
-	case V4L2_CID_AUDIO_BASS:
-	case V4L2_CID_AUDIO_TREBLE:
-		bttv_call_i2c_clients(btv, VIDIOC_G_CTRL, c);
-		break;
-
-	case V4L2_CID_PRIVATE_CHROMA_AGC:
-		c->value = btv->opt_chroma_agc;
-		break;
-	case V4L2_CID_PRIVATE_COMBFILTER:
-		c->value = btv->opt_combfilter;
-		break;
-	case V4L2_CID_PRIVATE_LUMAFILTER:
-		c->value = btv->opt_lumafilter;
-		break;
-	case V4L2_CID_PRIVATE_AUTOMUTE:
-		c->value = btv->opt_automute;
-		break;
-	case V4L2_CID_PRIVATE_AGC_CRUSH:
-		c->value = btv->opt_adc_crush;
-		break;
-	case V4L2_CID_PRIVATE_VCR_HACK:
-		c->value = btv->opt_vcr_hack;
-		break;
-	case V4L2_CID_PRIVATE_WHITECRUSH_UPPER:
-		c->value = btv->opt_whitecrush_upper;
-		break;
-	case V4L2_CID_PRIVATE_WHITECRUSH_LOWER:
-		c->value = btv->opt_whitecrush_lower;
-		break;
-	case V4L2_CID_PRIVATE_UV_RATIO:
-		c->value = btv->opt_uv_ratio;
-		break;
-	case V4L2_CID_PRIVATE_FULL_LUMA_RANGE:
-		c->value = btv->opt_full_luma_range;
-		break;
-	case V4L2_CID_PRIVATE_CORING:
-		c->value = btv->opt_coring;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int bttv_s_ctrl(struct file *file, void *f,
-					struct v4l2_control *c)
-{
-	int err;
-	int val;
-	struct bttv_fh *fh = f;
-	struct bttv *btv = fh->btv;
-
-	err = v4l2_prio_check(&btv->prio, &fh->prio);
-	if (0 != err)
-		return err;
-
-	switch (c->id) {
-	case V4L2_CID_BRIGHTNESS:
-		bt848_bright(btv, c->value);
-		break;
-	case V4L2_CID_HUE:
-		bt848_hue(btv, c->value);
-		break;
-	case V4L2_CID_CONTRAST:
-		bt848_contrast(btv, c->value);
-		break;
-	case V4L2_CID_SATURATION:
-		bt848_sat(btv, c->value);
-		break;
-	case V4L2_CID_AUDIO_MUTE:
-		audio_mute(btv, c->value);
-		/* fall through */
-	case V4L2_CID_AUDIO_VOLUME:
-		if (btv->volume_gpio)
-			btv->volume_gpio(btv, c->value);
-
-		bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, c);
-		break;
-	case V4L2_CID_AUDIO_BALANCE:
-	case V4L2_CID_AUDIO_BASS:
-	case V4L2_CID_AUDIO_TREBLE:
-		bttv_call_i2c_clients(btv, VIDIOC_S_CTRL, c);
-		break;
-
-	case V4L2_CID_PRIVATE_CHROMA_AGC:
-		btv->opt_chroma_agc = c->value;
-		val = btv->opt_chroma_agc ? BT848_SCLOOP_CAGC : 0;
-		btwrite(val, BT848_E_SCLOOP);
-		btwrite(val, BT848_O_SCLOOP);
-		break;
-	case V4L2_CID_PRIVATE_COMBFILTER:
-		btv->opt_combfilter = c->value;
-		break;
-	case V4L2_CID_PRIVATE_LUMAFILTER:
-		btv->opt_lumafilter = c->value;
-		if (btv->opt_lumafilter) {
-			btand(~BT848_CONTROL_LDEC, BT848_E_CONTROL);
-			btand(~BT848_CONTROL_LDEC, BT848_O_CONTROL);
-		} else {
-			btor(BT848_CONTROL_LDEC, BT848_E_CONTROL);
-			btor(BT848_CONTROL_LDEC, BT848_O_CONTROL);
-		}
-		break;
-	case V4L2_CID_PRIVATE_AUTOMUTE:
-		btv->opt_automute = c->value;
-		break;
-	case V4L2_CID_PRIVATE_AGC_CRUSH:
-		btv->opt_adc_crush = c->value;
-		btwrite(BT848_ADC_RESERVED |
-				(btv->opt_adc_crush ? BT848_ADC_CRUSH : 0),
-				BT848_ADC);
-		break;
-	case V4L2_CID_PRIVATE_VCR_HACK:
-		btv->opt_vcr_hack = c->value;
-		break;
-	case V4L2_CID_PRIVATE_WHITECRUSH_UPPER:
-		btv->opt_whitecrush_upper = c->value;
-		btwrite(c->value, BT848_WC_UP);
-		break;
-	case V4L2_CID_PRIVATE_WHITECRUSH_LOWER:
-		btv->opt_whitecrush_lower = c->value;
-		btwrite(c->value, BT848_WC_DOWN);
-		break;
-	case V4L2_CID_PRIVATE_UV_RATIO:
-		btv->opt_uv_ratio = c->value;
-		bt848_sat(btv, btv->saturation);
-		break;
-	case V4L2_CID_PRIVATE_FULL_LUMA_RANGE:
-		btv->opt_full_luma_range = c->value;
-		btaor((c->value<<7), ~BT848_OFORM_RANGE, BT848_OFORM);
-		break;
-	case V4L2_CID_PRIVATE_CORING:
-		btv->opt_coring = c->value;
-		btaor((c->value<<5), ~BT848_OFORM_CORE32, BT848_OFORM);
-		break;
-	default:
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -2633,13 +2633,26 @@ static int bttv_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
+static int bttv_enum_fmt_vbi(struct file *file, void  *priv,
+				struct v4l2_fmtdesc *f)
+{
+	if (0 != f->index)
+		return -EINVAL;
+
+	f->pixelformat = V4L2_PIX_FMT_GREY;
+	strcpy(f->description, "vbi data");
+
+	return 0;
+}
+
 static int bttv_enum_fmt_cap(struct file *file, void  *priv,
 				struct v4l2_fmtdesc *f)
 {
 	if (f->index >= FORMATS)
 		return -EINVAL;
 
-	strlcpy(f->description, formats[f->index].name, sizeof(f->description));
+	strlcpy(f->description, formats[f->index].name,
+		sizeof(f->description));
 	f->pixelformat = formats[f->index].fourcc;
 
 	return 0;
@@ -2660,18 +2673,6 @@ static int bttv_enum_fmt_overlay(struct file *file, void  *priv,
 		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;
-
-	return 0;
-}
-
-static int bttv_enum_fmt_vbi(struct file *file, void  *priv,
-				struct v4l2_fmtdesc *f)
-{
-	if (0 != f->index)
-		return -EINVAL;
-
-	f->pixelformat = V4L2_PIX_FMT_GREY;
-	strcpy(f->description, "vbi data");
 
 	return 0;
 }
