@@ -243,7 +243,8 @@ static void libertas_parse_bssid(char *buf, size_t count,
 	if (!hold)
 		return;
 	hold += 6;
-	sscanf(hold, MAC_FMT, mac, mac+1, mac+2, mac+3, mac+4, mac+5);
+	sscanf(hold, "%02x:%02x:%02x:%02x:%02x:%02x",
+	       mac, mac+1, mac+2, mac+3, mac+4, mac+5);
 	memcpy(scan_cfg->bssid, mac, ETH_ALEN);
 }
 
