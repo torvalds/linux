@@ -211,6 +211,10 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 	case 78521: /* WinTV-HVR1800 (PCIe, OEM, RCA in, No IR, FM, Dual channel ATSC and MPEG2 HW Encoder */
 	case 78531: /* WinTV-HVR1800 (PCIe, OEM, RCA in, No IR, No FM, Dual channel ATSC and MPEG2 HW Encoder */
 	case 78631: /* WinTV-HVR1800 (PCIe, OEM, No IR, No FM, Dual channel ATSC and MPEG2 HW Encoder */
+	case 79001: /* WinTV-HVR1250 (PCIe, Retail, IR, full height, ATSC and Basic analog */
+	case 79101: /* WinTV-HVR1250 (PCIe, Retail, IR, half height, ATSC and Basic analog */
+	case 79571: /* WinTV-HVR1250 (PCIe, OEM, No IR, full height, ATSC and Basic analog */
+	case 79671: /* WinTV-HVR1250 (PCIe, OEM, No IR, half height, ATSC and Basic analog */
 		break;
 	default:
 		printk("%s: warning: unknown hauppauge model #%d\n", dev->name, tv.model);
