@@ -76,6 +76,8 @@ void smp_call_function_interrupt(void);
 
 int smt_enabled_at_boot = 1;
 
+static int ipi_fail_ok;
+
 static void (*crash_ipi_function_ptr)(struct pt_regs *) = NULL;
 
 #ifdef CONFIG_PPC64
@@ -204,8 +206,6 @@ static int __smp_call_function_map(void (*func) (void *info), void *info,
 	if (wait)
 		atomic_set(&data.finished, 0);
 
-	spin_lock(&call_lock);
-
 	/* remove 'self' from the map */
 	if (cpu_isset(smp_processor_id(), map))
 		cpu_clear(smp_processor_id(), map);
@@ -232,7 +232,8 @@ static int __smp_call_function_map(void (*func) (void *info), void *info,
 			printk("smp_call_function on cpu %d: other cpus not "
 				"responding (%d)\n", smp_processor_id(),
 				atomic_read(&data.started));
-			debugger(NULL);
+			if (!ipi_fail_ok)
+				debugger(NULL);
 			goto out;
 		}
 	}
@@ -259,15 +260,18 @@ static int __smp_call_function_map(void (*func) (void *info), void *info,
  out:
 	call_data = NULL;
 	HMT_medium();
-	spin_unlock(&call_lock);
 	return ret;
 }
 
 static int __smp_call_function(void (*func)(void *info), void *info,
 			       int nonatomic, int wait)
 {
-	return __smp_call_function_map(func, info, nonatomic, wait,
+	int ret;
+	spin_lock(&call_lock);
+	ret =__smp_call_function_map(func, info, nonatomic, wait,
 				       cpu_online_map);
+	spin_unlock(&call_lock);
+	return ret;
 }
 
 int smp_call_function(void (*func) (void *info), void *info, int nonatomic,
@@ -293,9 +297,11 @@ int smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 		return -EINVAL;
 
 	cpu_set(cpu, map);
-	if (cpu != get_cpu())
+	if (cpu != get_cpu()) {
+		spin_lock(&call_lock);
 		ret = __smp_call_function_map(func, info, nonatomic, wait, map);
-	else {
+		spin_unlock(&call_lock);
+	} else {
 		local_irq_disable();
 		func(info);
 		local_irq_enable();
@@ -307,7 +313,22 @@ EXPORT_SYMBOL(smp_call_function_single);
 
 void smp_send_stop(void)
 {
-	__smp_call_function(stop_this_cpu, NULL, 1, 0);
+	int nolock;
+
+	/* It's OK to fail sending the IPI, since the alternative is to
+	 * be stuck forever waiting on the other CPU to take the interrupt.
+	 *
+	 * It's better to at least continue and go through reboot, since this
+	 * function is usually called at panic or reboot time in the first
+	 * place.
+	 */
+	ipi_fail_ok = 1;
+
+	/* Don't deadlock in case we got called through panic */
+	nolock = !spin_trylock(&call_lock);
+	__smp_call_function_map(stop_this_cpu, NULL, 1, 0, cpu_online_map);
+	if (!nolock)
+		spin_unlock(&call_lock);
 }
 
 void smp_call_function_interrupt(void)
