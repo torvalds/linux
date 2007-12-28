@@ -236,10 +236,8 @@ struct videobuf_queue_ops bttv_vbi_qops = {
 
 /* ----------------------------------------------------------------------- */
 
-static int
-try_fmt			(struct v4l2_vbi_format *	f,
-			 const struct bttv_tvnorm *	tvnorm,
-			 __s32				crop_start)
+static int try_fmt(struct v4l2_vbi_format *f, const struct bttv_tvnorm *tvnorm,
+			__s32 crop_start)
 {
 	__s32 min_start, max_start, max_end, f2_offset;
 	unsigned int i;
@@ -305,10 +303,9 @@ try_fmt			(struct v4l2_vbi_format *	f,
 	return 0;
 }
 
-int
-bttv_vbi_try_fmt	(struct bttv_fh *		fh,
-			 struct v4l2_vbi_format *	f)
+int vidioc_try_fmt_vbi(struct file *file, void *f, struct v4l2_format *frt)
 {
+	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
 	const struct bttv_tvnorm *tvnorm;
 	__s32 crop_start;
@@ -320,13 +317,13 @@ bttv_vbi_try_fmt	(struct bttv_fh *		fh,
 
 	mutex_unlock(&btv->lock);
 
-	return try_fmt(f, tvnorm, crop_start);
+	return try_fmt(&frt->fmt.vbi, tvnorm, crop_start);
 }
 
-int
-bttv_vbi_set_fmt	(struct bttv_fh *		fh,
-			 struct v4l2_vbi_format *	f)
+
+int vidioc_s_fmt_vbi(struct file *file, void *f, struct v4l2_format *frt)
 {
+	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
 	const struct bttv_tvnorm *tvnorm;
 	__s32 start1, end;
@@ -340,11 +337,12 @@ bttv_vbi_set_fmt	(struct bttv_fh *		fh,
 
 	tvnorm = &bttv_tvnorms[btv->tvnorm];
 
-	rc = try_fmt(f, tvnorm, btv->crop_start);
+	rc = try_fmt(&frt->fmt.vbi, tvnorm, btv->crop_start);
 	if (0 != rc)
 		goto fail;
 
-	start1 = f->start[1] - tvnorm->vbistart[1] + tvnorm->vbistart[0];
+	start1 = frt->fmt.vbi.start[1] - tvnorm->vbistart[1] +
+		tvnorm->vbistart[0];
 
 	/* First possible line of video capturing. Should be
 	   max(f->start[0] + f->count[0], start1 + f->count[1]) * 2
@@ -352,11 +350,11 @@ bttv_vbi_set_fmt	(struct bttv_fh *		fh,
 	   pretend the VBI and video capture window may overlap,
 	   so end = start + 1, the lowest possible value, times two
 	   because vbi_fmt.end counts field lines times two. */
-	end = max(f->start[0], start1) * 2 + 2;
+	end = max(frt->fmt.vbi.start[0], start1) * 2 + 2;
 
 	mutex_lock(&fh->vbi.lock);
 
-	fh->vbi_fmt.fmt    = *f;
+	fh->vbi_fmt.fmt    = frt->fmt.vbi;
 	fh->vbi_fmt.tvnorm = tvnorm;
 	fh->vbi_fmt.end    = end;
 
@@ -370,13 +368,13 @@ bttv_vbi_set_fmt	(struct bttv_fh *		fh,
 	return rc;
 }
 
-void
-bttv_vbi_get_fmt	(struct bttv_fh *		fh,
-			 struct v4l2_vbi_format *	f)
+
+int vidioc_g_fmt_vbi(struct file *file, void *f, struct v4l2_format *frt)
 {
+	struct bttv_fh *fh = f;
 	const struct bttv_tvnorm *tvnorm;
 
-	*f = fh->vbi_fmt.fmt;
+	frt->fmt.vbi = fh->vbi_fmt.fmt;
 
 	tvnorm = &bttv_tvnorms[fh->btv->tvnorm];
 
@@ -391,28 +389,28 @@ bttv_vbi_get_fmt	(struct bttv_fh *		fh,
 		max_end = (tvnorm->cropcap.bounds.top
 			   + tvnorm->cropcap.bounds.height) >> 1;
 
-		f->sampling_rate = tvnorm->Fsc;
+		frt->fmt.vbi.sampling_rate = tvnorm->Fsc;
 
 		for (i = 0; i < 2; ++i) {
 			__s32 new_start;
 
-			new_start = f->start[i]
+			new_start = frt->fmt.vbi.start[i]
 				+ tvnorm->vbistart[i]
 				- fh->vbi_fmt.tvnorm->vbistart[i];
 
-			f->start[i] = min(new_start, max_end - 1);
-			f->count[i] = min((__s32) f->count[i],
-					  max_end - f->start[i]);
+			frt->fmt.vbi.start[i] = min(new_start, max_end - 1);
+			frt->fmt.vbi.count[i] =
+				min((__s32) frt->fmt.vbi.count[i],
+					  max_end - frt->fmt.vbi.start[i]);
 
 			max_end += tvnorm->vbistart[1]
 				- tvnorm->vbistart[0];
 		}
 	}
+	return 0;
 }
 
-void
-bttv_vbi_fmt_reset	(struct bttv_vbi_fmt *		f,
-			 int				norm)
+void bttv_vbi_fmt_reset(struct bttv_vbi_fmt *f, int norm)
 {
 	const struct bttv_tvnorm *tvnorm;
 	unsigned int real_samples_per_line;

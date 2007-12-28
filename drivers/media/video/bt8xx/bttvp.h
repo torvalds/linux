@@ -84,6 +84,11 @@
 
 #define clamp(x, low, high) min (max (low, x), high)
 
+#define BTTV_NORMS    (\
+		V4L2_STD_PAL    | V4L2_STD_PAL_N | \
+		V4L2_STD_PAL_Nc | V4L2_STD_SECAM | \
+		V4L2_STD_NTSC   | V4L2_STD_PAL_M | \
+		V4L2_STD_PAL_60)
 /* ---------------------------------------------------------- */
 
 struct bttv_tvnorm {
@@ -252,9 +257,9 @@ int bttv_overlay_risc(struct bttv *btv, struct bttv_overlay *ov,
 /* ---------------------------------------------------------- */
 /* bttv-vbi.c                                                 */
 
-int bttv_vbi_try_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
-void bttv_vbi_get_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
-int bttv_vbi_set_fmt(struct bttv_fh *fh, struct v4l2_vbi_format *f);
+int vidioc_try_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
+int vidioc_g_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
+int vidioc_s_fmt_vbi(struct file *file, void *fh, struct v4l2_format *f);
 
 extern struct videobuf_queue_ops bttv_vbi_qops;
 
