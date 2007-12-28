@@ -455,22 +455,6 @@ struct pci_bus *pci_add_new_bus(struct pci_bus *parent, struct pci_dev *dev, int
 	return child;
 }
 
-static void pci_enable_crs(struct pci_dev *dev)
-{
-	u16 cap, rpctl;
-	int rpcap = pci_find_capability(dev, PCI_CAP_ID_EXP);
-	if (!rpcap)
-		return;
-
-	pci_read_config_word(dev, rpcap + PCI_CAP_FLAGS, &cap);
-	if (((cap & PCI_EXP_FLAGS_TYPE) >> 4) != PCI_EXP_TYPE_ROOT_PORT)
-		return;
-
-	pci_read_config_word(dev, rpcap + PCI_EXP_RTCTL, &rpctl);
-	rpctl |= PCI_EXP_RTCTL_CRSSVE;
-	pci_write_config_word(dev, rpcap + PCI_EXP_RTCTL, rpctl);
-}
-
 static void pci_fixup_parent_subordinate_busnr(struct pci_bus *child, int max)
 {
 	struct pci_bus *parent = child->parent;
@@ -516,8 +500,6 @@ int pci_scan_bridge(struct pci_bus *bus, struct pci_dev * dev, int max, int pass
 	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &bctl);
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL,
 			      bctl & ~PCI_BRIDGE_CTL_MASTER_ABORT);
-
-	pci_enable_crs(dev);
 
 	if ((buses & 0xffff00) && !pcibios_assign_all_busses() && !is_cardbus) {
 		unsigned int cmax, busnr;
