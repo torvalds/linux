@@ -80,6 +80,20 @@ struct domain_device *sas_find_dev_by_rphy(struct sas_rphy *rphy);
 
 void sas_hae_reset(struct work_struct *work);
 
+#ifdef CONFIG_SCSI_SAS_HOST_SMP
+extern int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
+				struct request *rsp);
+#else
+static inline int sas_smp_host_handler(struct Scsi_Host *shost,
+				       struct request *req,
+				       struct request *rsp)
+{
+	shost_printk(KERN_ERR, shost,
+		"Cannot send SMP to a sas host (not enabled in CONFIG)\n");
+	return -EINVAL;
+}
+#endif
+
 static inline void sas_queue_event(int event, spinlock_t *lock,
 				   unsigned long *pending,
 				   struct work_struct *work,

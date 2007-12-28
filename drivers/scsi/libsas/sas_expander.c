@@ -1896,11 +1896,9 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	}
 
 	/* no rphy means no smp target support (ie aic94xx host) */
-	if (!rphy) {
-		printk("%s: can we send a smp request to a host?\n",
-		       __FUNCTION__);
-		return -EINVAL;
-	}
+	if (!rphy)
+		return sas_smp_host_handler(shost, req, rsp);
+
 	type = rphy->identify.device_type;
 
 	if (type != SAS_EDGE_EXPANDER_DEVICE &&

@@ -38,6 +38,15 @@ config SCSI_SAS_ATA
 		Builds in ATA support into libsas.  Will necessitate
 		the loading of libata along with libsas.
 
+config SCSI_SAS_HOST_SMP
+	bool "Support for SMP interpretation for SAS hosts"
+	default y
+	depends on SCSI_SAS_LIBSAS
+	help
+		Allows sas hosts to receive SMP frames.  Selecting this
+		option builds an SMP interpreter into libsas.  Say
+		N here if you want to save the few kb this consumes.
+
 config SCSI_SAS_LIBSAS_DEBUG
 	bool "Compile the SAS Domain Transport Attributes in debug mode"
 	default y
