@@ -41,8 +41,8 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 		 * do that. */
 		kill_guest(lg, "already have lguest_data");
 		break;
-	case LHCALL_CRASH: {
-		/* Crash is such a trivial hypercall that we do it in four
+	case LHCALL_SHUTDOWN: {
+		/* Shutdown is such a trivial hypercall that we do it in four
 		 * lines right here. */
 		char msg[128];
 		/* If the lgread fails, it will call kill_guest() itself; the
@@ -50,6 +50,8 @@ static void do_hcall(struct lguest *lg, struct hcall_args *args)
 		__lgread(lg, msg, args->arg1, sizeof(msg));
 		msg[sizeof(msg)-1] = '\0';
 		kill_guest(lg, "CRASH: %s", msg);
+		if (args->arg2 == LGUEST_SHUTDOWN_RESTART)
+			lg->dead = ERR_PTR(-ERESTART);
 		break;
 	}
 	case LHCALL_FLUSH_TLB:
