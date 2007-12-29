@@ -178,11 +178,11 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 	}
 
 	/* Parse the auth packet */
-	switch(auth->algorithm) {
+	switch(le16_to_cpu(auth->algorithm)) {
 	case WLAN_AUTH_OPEN:
 		/* Check the status code of the response */
 
-		switch(auth->status) {
+		switch(le16_to_cpu(auth->status)) {
 		case WLAN_STATUS_SUCCESS:
 			/* Update the status to Authenticated */
 			spin_lock_irqsave(&mac->lock, flags);
@@ -210,7 +210,7 @@ ieee80211softmac_auth_resp(struct net_device *dev, struct ieee80211_auth *auth)
 		break;
 	case WLAN_AUTH_SHARED_KEY:
 		/* Figure out where we are in the process */
-		switch(auth->transaction) {
+		switch(le16_to_cpu(auth->transaction)) {
 		case IEEE80211SOFTMAC_AUTH_SHARED_CHALLENGE:
 			/* Check to make sure we have a challenge IE */
 			data = (u8 *)auth->info_element;
