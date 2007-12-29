@@ -41,6 +41,46 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, pci_ids);
 
+static int ricoh_mmc_disable(struct pci_dev *fw_dev)
+{
+	u8 write_enable;
+	u8 disable;
+
+	pci_read_config_byte(fw_dev, 0xCB, &disable);
+	if (disable & 0x02) {
+		printk(KERN_INFO DRIVER_NAME
+		       ": Controller already disabled. Nothing to do.\n");
+		return -ENODEV;
+	}
+
+	pci_read_config_byte(fw_dev, 0xCA, &write_enable);
+	pci_write_config_byte(fw_dev, 0xCA, 0x57);
+	pci_write_config_byte(fw_dev, 0xCB, disable | 0x02);
+	pci_write_config_byte(fw_dev, 0xCA, write_enable);
+
+	printk(KERN_INFO DRIVER_NAME
+	       ": Controller is now disabled.\n");
+
+	return 0;
+}
+
+static int ricoh_mmc_enable(struct pci_dev *fw_dev)
+{
+	u8 write_enable;
+	u8 disable;
+
+	pci_read_config_byte(fw_dev, 0xCA, &write_enable);
+	pci_read_config_byte(fw_dev, 0xCB, &disable);
+	pci_write_config_byte(fw_dev, 0xCA, 0x57);
+	pci_write_config_byte(fw_dev, 0xCB, disable & ~0x02);
+	pci_write_config_byte(fw_dev, 0xCA, write_enable);
+
+	printk(KERN_INFO DRIVER_NAME
+	       ": Controller is now re-enabled.\n");
+
+	return 0;
+}
+
 static int __devinit ricoh_mmc_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
@@ -61,25 +101,11 @@ static int __devinit ricoh_mmc_probe(struct pci_dev *pdev,
 	while ((fw_dev = pci_get_device(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, fw_dev))) {
 		if (PCI_SLOT(pdev->devfn) == PCI_SLOT(fw_dev->devfn) &&
 		    pdev->bus == fw_dev->bus) {
-			u8 write_enable;
-			u8 disable;
-
-			pci_read_config_byte(fw_dev, 0xCB, &disable);
-			if (disable & 0x02) {
-				printk(KERN_INFO DRIVER_NAME
-				       ": Controller already disabled. Nothing to do.\n");
+			if (ricoh_mmc_disable(fw_dev) != 0) {
 				return -ENODEV;
 			}
 
-			pci_read_config_byte(fw_dev, 0xCA, &write_enable);
-			pci_write_config_byte(fw_dev, 0xCA, 0x57);
-			pci_write_config_byte(fw_dev, 0xCB, disable | 0x02);
-			pci_write_config_byte(fw_dev, 0xCA, write_enable);
-
 			pci_set_drvdata(pdev, fw_dev);
-
-			printk(KERN_INFO DRIVER_NAME
-			       ": Controller is now disabled.\n");
 
 			break;
 		}
@@ -96,23 +122,42 @@ static int __devinit ricoh_mmc_probe(struct pci_dev *pdev,
 
 static void __devexit ricoh_mmc_remove(struct pci_dev *pdev)
 {
-	u8 write_enable;
-	u8 disable;
 	struct pci_dev *fw_dev = NULL;
 
 	fw_dev = pci_get_drvdata(pdev);
 	BUG_ON(fw_dev == NULL);
 
-	pci_read_config_byte(fw_dev, 0xCA, &write_enable);
-	pci_read_config_byte(fw_dev, 0xCB, &disable);
-	pci_write_config_byte(fw_dev, 0xCA, 0x57);
-	pci_write_config_byte(fw_dev, 0xCB, disable & ~0x02);
-	pci_write_config_byte(fw_dev, 0xCA, write_enable);
-
-	printk(KERN_INFO DRIVER_NAME
-	       ": Controller is now re-enabled.\n");
+	ricoh_mmc_enable(fw_dev);
 
 	pci_set_drvdata(pdev, NULL);
+}
+
+static int ricoh_mmc_suspend (struct pci_dev *pdev, pm_message_t state)
+{
+	struct pci_dev *fw_dev = NULL;
+
+	fw_dev = pci_get_drvdata(pdev);
+	BUG_ON(fw_dev == NULL);
+
+	printk(KERN_INFO DRIVER_NAME ": Suspending.\n");
+
+	ricoh_mmc_enable(fw_dev);
+
+	return 0;
+}
+
+static int ricoh_mmc_resume (struct pci_dev *pdev)
+{
+	struct pci_dev *fw_dev = NULL;
+
+	fw_dev = pci_get_drvdata(pdev);
+	BUG_ON(fw_dev == NULL);
+
+	printk(KERN_INFO DRIVER_NAME ": Resuming.\n");
+
+	ricoh_mmc_disable(fw_dev);
+
+	return 0;
 }
 
 static struct pci_driver ricoh_mmc_driver = {
@@ -120,6 +165,8 @@ static struct pci_driver ricoh_mmc_driver = {
 	.id_table =	pci_ids,
 	.probe = 	ricoh_mmc_probe,
 	.remove =	__devexit_p(ricoh_mmc_remove),
+	.suspend =	ricoh_mmc_suspend,
+	.resume =	ricoh_mmc_resume,
 };
 
 /*****************************************************************************\
