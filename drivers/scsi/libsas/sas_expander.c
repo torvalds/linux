@@ -109,6 +109,16 @@ static int smp_execute_task(struct domain_device *dev, void *req, int req_size,
 		    task->task_status.stat == SAM_GOOD) {
 			res = 0;
 			break;
+		} if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		      task->task_status.stat == SAS_DATA_UNDERRUN) {
+			/* no error, but return the number of bytes of
+			 * underrun */
+			res = task->task_status.residual;
+			break;
+		} if (task->task_status.resp == SAS_TASK_COMPLETE &&
+		      task->task_status.stat == SAS_DATA_OVERRUN) {
+			res = -EMSGSIZE;
+			break;
 		} else {
 			SAS_DPRINTK("%s: task to dev %016llx response: 0x%x "
 				    "status 0x%x\n", __FUNCTION__,
@@ -1924,6 +1934,15 @@ int sas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 
 	ret = smp_execute_task(dev, bio_data(req->bio), req->data_len,
 			       bio_data(rsp->bio), rsp->data_len);
+	if (ret > 0) {
+		/* positive number is the untransferred residual */
+		rsp->data_len = ret;
+		req->data_len = 0;
+		ret = 0;
+	} else if (ret == 0) {
+		rsp->data_len = 0;
+		req->data_len = 0;
+	}
 
 	return ret;
 }
