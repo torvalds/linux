@@ -623,6 +623,8 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	const struct rx_status *status;
 	struct sk_buff *skb;
 	int bad_frame = 0;
+	u16 fc;
+	bool is_qos, is_4addr, need_padding;
 
 	if (length < ZD_PLCP_HEADER_SIZE + 10 /* IEEE80211_1ADDR_LEN */ +
 	             FCS_LEN + sizeof(struct rx_status))
@@ -674,9 +676,22 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 			&& !mac->pass_ctrl)
 		return 0;
 
-	skb = dev_alloc_skb(length);
+	fc = le16_to_cpu(*((__le16 *) buffer));
+
+	is_qos = ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
+		 ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_QOS_DATA);
+	is_4addr = (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
+		   (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
+	need_padding = is_qos ^ is_4addr;
+
+	skb = dev_alloc_skb(length + (need_padding ? 2 : 0));
 	if (skb == NULL)
 		return -ENOMEM;
+	if (need_padding) {
+		/* Make sure the the payload data is 4 byte aligned. */
+		skb_reserve(skb, 2);
+	}
+
 	memcpy(skb_put(skb, length), buffer, length);
 
 	ieee80211_rx_irqsafe(hw, skb, &stats);
