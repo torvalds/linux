@@ -2801,42 +2801,34 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 			tcp_mtup_probe_success(sk, skb);
 		}
 
-		if (sacked) {
-			if (sacked & TCPCB_RETRANS) {
-				if (sacked & TCPCB_SACKED_RETRANS)
-					tp->retrans_out -= packets_acked;
-				flag |= FLAG_RETRANS_DATA_ACKED;
-				ca_seq_rtt = -1;
-				seq_rtt = -1;
-				if ((flag & FLAG_DATA_ACKED) ||
-				    (packets_acked > 1))
-					flag |= FLAG_NONHEAD_RETRANS_ACKED;
-			} else {
-				ca_seq_rtt = now - scb->when;
-				last_ackt = skb->tstamp;
-				if (seq_rtt < 0) {
-					seq_rtt = ca_seq_rtt;
-				}
-				if (!(sacked & TCPCB_SACKED_ACKED))
-					reord = min(cnt, reord);
-			}
-
-			if (sacked & TCPCB_SACKED_ACKED)
-				tp->sacked_out -= packets_acked;
-			if (sacked & TCPCB_LOST)
-				tp->lost_out -= packets_acked;
-
-			if ((sacked & TCPCB_URG) && tp->urg_mode &&
-			    !before(end_seq, tp->snd_up))
-				tp->urg_mode = 0;
+		if (sacked & TCPCB_RETRANS) {
+			if (sacked & TCPCB_SACKED_RETRANS)
+				tp->retrans_out -= packets_acked;
+			flag |= FLAG_RETRANS_DATA_ACKED;
+			ca_seq_rtt = -1;
+			seq_rtt = -1;
+			if ((flag & FLAG_DATA_ACKED) ||
+			    (packets_acked > 1))
+				flag |= FLAG_NONHEAD_RETRANS_ACKED;
 		} else {
 			ca_seq_rtt = now - scb->when;
 			last_ackt = skb->tstamp;
 			if (seq_rtt < 0) {
 				seq_rtt = ca_seq_rtt;
 			}
-			reord = min(cnt, reord);
+			if (!(sacked & TCPCB_SACKED_ACKED))
+				reord = min(cnt, reord);
 		}
+
+		if (sacked & TCPCB_SACKED_ACKED)
+			tp->sacked_out -= packets_acked;
+		if (sacked & TCPCB_LOST)
+			tp->lost_out -= packets_acked;
+
+		if ((sacked & TCPCB_URG) && tp->urg_mode &&
+		    !before(end_seq, tp->snd_up))
+			tp->urg_mode = 0;
+
 		tp->packets_out -= packets_acked;
 		cnt += packets_acked;
 
