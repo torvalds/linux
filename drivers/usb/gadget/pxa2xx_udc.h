@@ -129,6 +129,10 @@ struct pxa2xx_udc {
 	struct pxa2xx_udc_mach_info		*mach;
 	u64					dma_mask;
 	struct pxa2xx_ep			ep [PXA_UDC_NUM_ENDPOINTS];
+
+#ifdef CONFIG_USB_GADGET_DEBUG_FS
+	struct dentry				*debugfs_udc;
+#endif
 };
 
 /*-------------------------------------------------------------------------*/
@@ -155,13 +159,15 @@ static struct pxa2xx_udc *the_controller;
 
 #ifdef DEBUG
 
+static int is_vbus_present(void);
+
 static const char *state_name[] = {
 	"EP0_IDLE",
 	"EP0_IN_DATA_PHASE", "EP0_OUT_DATA_PHASE",
 	"EP0_END_XFER", "EP0_STALL"
 };
 
-#ifdef VERBOSE
+#ifdef VERBOSE_DEBUG
 #    define UDC_DEBUG DBG_VERBOSE
 #else
 #    define UDC_DEBUG DBG_NORMAL
@@ -207,7 +213,7 @@ dump_state(struct pxa2xx_udc *dev)
 	unsigned	i;
 
 	DMSG("%s %s, uicr %02X.%02X, usir %02X.%02x, ufnr %02X.%02X\n",
-		is_usb_connected() ? "host " : "disconnected",
+		is_vbus_present() ? "host " : "disconnected",
 		state_name[dev->ep0state],
 		UICR1, UICR0, USIR1, USIR0, UFNRH, UFNRL);
 	dump_udccr("udccr");
@@ -224,7 +230,7 @@ dump_state(struct pxa2xx_udc *dev)
 	} else
 		DMSG("ep0 driver '%s'\n", dev->driver->driver.name);
 
-	if (!is_usb_connected())
+	if (!is_vbus_present())
 		return;
 
 	dump_udccs0 ("udccs0");
@@ -233,7 +239,7 @@ dump_state(struct pxa2xx_udc *dev)
 		dev->stats.read.bytes, dev->stats.read.ops);
 
 	for (i = 1; i < PXA_UDC_NUM_ENDPOINTS; i++) {
-		if (dev->ep [i].desc == 0)
+		if (dev->ep [i].desc == NULL)
 			continue;
 		DMSG ("udccs%d = %02x\n", i, *dev->ep->reg_udccs);
 	}
