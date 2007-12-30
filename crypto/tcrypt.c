@@ -172,7 +172,6 @@ static void test_hash(char *algo, struct hash_testvec *template,
 
 	/* setup the dummy buffer first */
 	memset(xbuf, 0, XBUFSIZE);
-	memset(axbuf, 0, XBUFSIZE);
 
 	j = 0;
 	for (i = 0; i < tcount; i++) {
@@ -350,6 +349,7 @@ static void test_aead(char *algo, int enc, struct aead_testvec *template,
 
 	printk(KERN_INFO "\ntesting %s %s across pages (chunking)\n", algo, e);
 	memset(xbuf, 0, XBUFSIZE);
+	memset(axbuf, 0, XBUFSIZE);
 
 	for (i = 0, j = 0; i < tcount; i++) {
 		if (aead_tv[i].np) {
