@@ -993,9 +993,14 @@ MODULE_LICENSE ("GPL");
 #define	PS3_SYSTEM_BUS_DRIVER	ps3_ehci_driver
 #endif
 
-#ifdef CONFIG_440EPX
+#if defined(CONFIG_440EPX) && !defined(CONFIG_PPC_MERGE)
 #include "ehci-ppc-soc.c"
 #define	PLATFORM_DRIVER		ehci_ppc_soc_driver
+#endif
+
+#ifdef CONFIG_USB_EHCI_HCD_PPC_OF
+#include "ehci-ppc-of.c"
+#define OF_PLATFORM_DRIVER	ehci_hcd_ppc_of_driver
 #endif
 
 #ifdef CONFIG_ARCH_ORION
@@ -1025,52 +1030,58 @@ static int __init ehci_hcd_init(void)
 
 #ifdef PLATFORM_DRIVER
 	retval = platform_driver_register(&PLATFORM_DRIVER);
-	if (retval < 0) {
-#ifdef DEBUG
-		debugfs_remove(ehci_debug_root);
-		ehci_debug_root = NULL;
-#endif
-		return retval;
-	}
+	if (retval < 0)
+		goto clean0;
 #endif
 
 #ifdef PCI_DRIVER
 	retval = pci_register_driver(&PCI_DRIVER);
-	if (retval < 0) {
-#ifdef DEBUG
-		debugfs_remove(ehci_debug_root);
-		ehci_debug_root = NULL;
-#endif
-#ifdef PLATFORM_DRIVER
-		platform_driver_unregister(&PLATFORM_DRIVER);
-#endif
-		return retval;
-	}
+	if (retval < 0)
+		goto clean1;
 #endif
 
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ehci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
-	if (retval < 0) {
-#ifdef DEBUG
-		debugfs_remove(ehci_debug_root);
-		ehci_debug_root = NULL;
-#endif
-#ifdef PLATFORM_DRIVER
-		platform_driver_unregister(&PLATFORM_DRIVER);
-#endif
-#ifdef PCI_DRIVER
-		pci_unregister_driver(&PCI_DRIVER);
-#endif
-		return retval;
-	}
+	if (retval < 0)
+		goto clean2;
 #endif
 
+#ifdef OF_PLATFORM_DRIVER
+	retval = of_register_platform_driver(&OF_PLATFORM_DRIVER);
+	if (retval < 0)
+		goto clean3;
+#endif
+	return retval;
+
+#ifdef OF_PLATFORM_DRIVER
+	/* of_unregister_platform_driver(&OF_PLATFORM_DRIVER); */
+clean3:
+#endif
+#ifdef PS3_SYSTEM_BUS_DRIVER
+	ps3_ehci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
+clean2:
+#endif
+#ifdef PCI_DRIVER
+	pci_unregister_driver(&PCI_DRIVER);
+clean1:
+#endif
+#ifdef PLATFORM_DRIVER
+	platform_driver_unregister(&PLATFORM_DRIVER);
+clean0:
+#endif
+#ifdef DEBUG
+	debugfs_remove(ehci_debug_root);
+	ehci_debug_root = NULL;
+#endif
 	return retval;
 }
 module_init(ehci_hcd_init);
 
 static void __exit ehci_hcd_cleanup(void)
 {
+#ifdef OF_PLATFORM_DRIVER
+	of_unregister_platform_driver(&OF_PLATFORM_DRIVER);
+#endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
 #endif

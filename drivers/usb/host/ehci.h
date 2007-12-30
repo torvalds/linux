@@ -741,7 +741,7 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
  * definition below can die once the 4xx support is
  * finally ported over.
  */
-#if defined(CONFIG_PPC)
+#if defined(CONFIG_PPC) && !defined(CONFIG_PPC_MERGE)
 #define readl_be(addr)		in_be32((__force unsigned *)addr)
 #define writel_be(val, addr)	out_be32((__force unsigned *)addr, val)
 #endif
