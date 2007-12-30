@@ -397,6 +397,8 @@ extern cpumask_t cpu_present_map;
 #define cpu_present(cpu)	((cpu) == 0)
 #endif
 
+#define cpu_is_offline(cpu)	unlikely(!cpu_online(cpu))
+
 #ifdef CONFIG_SMP
 extern int nr_cpu_ids;
 #define any_online_cpu(mask) __any_online_cpu(&(mask))
