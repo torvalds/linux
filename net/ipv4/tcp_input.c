@@ -2651,6 +2651,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 	u32 cnt = 0;
 	u32 reord = tp->packets_out;
 	s32 seq_rtt = -1;
+	s32 ca_seq_rtt = -1;
 	ktime_t last_ackt = net_invalid_timestamp();
 
 	while ((skb = tcp_write_queue_head(sk)) && skb != tcp_send_head(sk)) {
@@ -2659,6 +2660,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 		u32 packets_acked;
 		u8 sacked = scb->sacked;
 
+		/* Determine how many packets and what bytes were acked, tso and else */
 		if (after(scb->end_seq, tp->snd_una)) {
 			if (tcp_skb_pcount(skb) == 1 ||
 			    !after(tp->snd_una, scb->seq))
@@ -2686,15 +2688,16 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 				if (sacked & TCPCB_SACKED_RETRANS)
 					tp->retrans_out -= packets_acked;
 				flag |= FLAG_RETRANS_DATA_ACKED;
+				ca_seq_rtt = -1;
 				seq_rtt = -1;
 				if ((flag & FLAG_DATA_ACKED) ||
 				    (packets_acked > 1))
 					flag |= FLAG_NONHEAD_RETRANS_ACKED;
 			} else {
+				ca_seq_rtt = now - scb->when;
+				last_ackt = skb->tstamp;
 				if (seq_rtt < 0) {
-					seq_rtt = now - scb->when;
-					if (fully_acked)
-						last_ackt = skb->tstamp;
+					seq_rtt = ca_seq_rtt;
 				}
 				if (!(sacked & TCPCB_SACKED_ACKED))
 					reord = min(cnt, reord);
@@ -2709,10 +2712,10 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 			    !before(end_seq, tp->snd_up))
 				tp->urg_mode = 0;
 		} else {
+			ca_seq_rtt = now - scb->when;
+			last_ackt = skb->tstamp;
 			if (seq_rtt < 0) {
-				seq_rtt = now - scb->when;
-				if (fully_acked)
-					last_ackt = skb->tstamp;
+				seq_rtt = ca_seq_rtt;
 			}
 			reord = min(cnt, reord);
 		}
@@ -2772,8 +2775,8 @@ static int tcp_clean_rtx_queue(struct sock *sk, s32 *seq_rtt_p,
 						 net_invalid_timestamp()))
 					rtt_us = ktime_us_delta(ktime_get_real(),
 								last_ackt);
-				else if (seq_rtt > 0)
-					rtt_us = jiffies_to_usecs(seq_rtt);
+				else if (ca_seq_rtt > 0)
+					rtt_us = jiffies_to_usecs(ca_seq_rtt);
 			}
 
 			ca_ops->pkts_acked(sk, pkts_acked, rtt_us);
