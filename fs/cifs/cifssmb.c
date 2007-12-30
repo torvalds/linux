@@ -5499,7 +5499,7 @@ SetEARetry:
 	else
 		name_len = strnlen(ea_name, 255);
 
-	count = sizeof(*parm_data) + ea_value_len + name_len + 1;
+	count = sizeof(*parm_data) + ea_value_len + name_len;
 	pSMB->MaxParameterCount = cpu_to_le16(2);
 	pSMB->MaxDataCount = cpu_to_le16(1000);	/* BB find max SMB size from sess */
 	pSMB->MaxSetupCount = 0;
